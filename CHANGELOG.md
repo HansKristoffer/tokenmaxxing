@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v0.1.0...v0.2.0) (2026-09-23)
+
+
+### Features
+
+* show available updates and upgrade in place ([82ef972](https://github.com/HansKristoffer/tokenmaxxing/commit/82ef972c86a7122e6cd5efddfe00e3871e45e13d))
+
+
+### Bug Fixes
+
+* resize the menu bar popover when its content changes ([5ce59e6](https://github.com/HansKristoffer/tokenmaxxing/commit/5ce59e6bb9adcf498ab9a0f3556cef1a47c32901))
+
 ## [0.1.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v0.1.0...v0.1.0) (2026-09-23)
 
 
