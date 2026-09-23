@@ -2,7 +2,14 @@
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
-    "includes": ["**", "!server/src/pricing-fallback.json", "!app/macos", "!app/build"]
+    "includes": [
+      "**",
+      "!server/src/pricing-fallback.json",
+      "!app/macos",
+      "!app/build",
+      "!.release-please-manifest.json",
+      "!CHANGELOG.md"
+    ]
   },
   "formatter": {
     "enabled": true,
