@@ -11,7 +11,7 @@ cask "tokenmaxxing" do
   desc "Menu bar leaderboard for AI coding agent token usage"
   homepage "https://github.com/HansKristoffer/tokenmaxxing"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "Tokenmaxxing.app"
 
