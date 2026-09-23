@@ -13,6 +13,31 @@ export function createUser(db: Db, name: string, now: number): string | null {
   return r.changes === 1 ? token : null;
 }
 
+/**
+ * Renames a user everywhere their name is stored. Returns false when the new
+ * name is taken. The foreign keys have no ON UPDATE CASCADE, so they are
+ * checked at commit instead of after each statement.
+ */
+export function renameUser(db: Db, from: string, to: string): boolean {
+  if (from === to) return true;
+  return db.transaction(() => {
+    if (db.query("SELECT 1 FROM users WHERE name = $to").get({ to })) return false;
+    db.exec("PRAGMA defer_foreign_keys = ON");
+    db.query("UPDATE users SET name = $to WHERE name = $from").run({ from, to });
+    for (const [table, column] of [
+      ["sessions", "user"],
+      ["login_codes", "user"],
+      ["groups", "owner"],
+      ["group_members", "user"],
+      // ponytail: rewrites every event row; move events to a user id if accounts get large.
+      ["events", "user"],
+    ]) {
+      db.query(`UPDATE ${table} SET ${column} = $to WHERE ${column} = $from`).run({ from, to });
+    }
+    return true;
+  })();
+}
+
 export function userByToken(db: Db, token: string): string | null {
   const row = db
     .query<{ name: string }, { hash: string }>("SELECT name FROM users WHERE token_hash = $hash")

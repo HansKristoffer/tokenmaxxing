@@ -12,5 +12,8 @@ export type Leaderboard = InferResponseType<typeof client.api.leaderboard.$get, 
 export type Entry = Leaderboard["entries"][number];
 export type UserDetail = InferResponseType<(typeof client.api.users)[":name"]["$get"], 200>;
 
-export const isUnauthorized = (err: unknown): boolean =>
-  err instanceof DetailedError && err.statusCode === 401;
+/** The HTTP status of a failed `parseResponse`, or undefined for network errors. */
+export const errorStatus = (err: unknown): number | undefined =>
+  err instanceof DetailedError ? err.statusCode : undefined;
+
+export const isUnauthorized = (err: unknown): boolean => errorStatus(err) === 401;

@@ -52,6 +52,10 @@ final class AppModel {
         await run(OutgoingCommand(cmd: "signUp", name: name))
     }
 
+    func rename(to name: String) async -> String? {
+        await run(OutgoingCommand(cmd: "rename", name: name))
+    }
+
     func createGroup(name: String) async -> String? {
         await run(OutgoingCommand(cmd: "createGroup", name: name))
     }

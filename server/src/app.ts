@@ -28,6 +28,7 @@ import {
   createUser,
   deleteSession,
   redeemLoginCode,
+  renameUser,
   SESSION_TTL_MS,
   userBySession,
   userByToken,
@@ -132,6 +133,11 @@ export function buildApp(deps: AppDeps) {
     .get("/me", (c) => {
       const user = c.get("user");
       return c.json({ name: user, groups: listGroups(db, user).map(presentGroup) });
+    })
+    .patch("/me", jsonBody(named(parseUserName)), (c) => {
+      const { name } = c.req.valid("json");
+      if (!renameUser(db, c.get("user"), name)) return c.json({ error: "name_taken" }, 409);
+      return c.json({ name });
     })
     .post(
       "/ingest",

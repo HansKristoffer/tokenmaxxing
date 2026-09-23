@@ -26,6 +26,7 @@ export type Command =
       enabledSources: Source[];
     }
   | { id: number; cmd: "signUp"; name: string }
+  | { id: number; cmd: "rename"; name: string }
   | { id: number; cmd: "createGroup"; name: string }
   | { id: number; cmd: "joinGroup"; code: string }
   | { id: number; cmd: "leaveGroup"; groupId: number }
