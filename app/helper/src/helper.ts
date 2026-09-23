@@ -115,6 +115,14 @@ export class Helper {
         await this.signIn(body.token);
         return { name: body.name };
       }
+      case "rename": {
+        const res = await this.call(() => this.api().api.me.$patch({ json: { name: cmd.name } }));
+        if (res.status === 409) throw new ApiError("name_taken");
+        if (res.status === 400) throw new ApiError("invalid_name");
+        await this.expectOk(res);
+        await this.refresh();
+        return res.json();
+      }
       case "createGroup": {
         const res = await this.call(() => this.api().api.groups.$post({ json: { name: cmd.name } }));
         await this.expectOk(res);

@@ -21,6 +21,27 @@ describe("accounts", () => {
     expect((await req("GET", "/api/me", { token })).body).toEqual({ name: "alice", groups: [] });
   });
 
+  test("renaming keeps the token, session, events and groups; taken names are refused", async () => {
+    const { req, signUp, ingest, app } = testApp();
+    const alice = await signUp("alice");
+    await signUp("bob");
+    const { code } = (await req("POST", "/api/sessions", { token: alice })).body;
+    const cookie = (await app.request(`/login?code=${code}`)).headers.get("set-cookie")!.split(";")[0]!;
+    await ingest(alice, [event()]);
+    const g = (await req("POST", "/api/groups", { token: alice, body: { name: "G" } })).body;
+    expect((await req("PATCH", "/api/me", { token: alice, body: { name: "bob" } })).status).toBe(409);
+    expect((await req("PATCH", "/api/me", { token: alice, body: { name: "!" } })).status).toBe(400);
+    const r = await req("PATCH", "/api/me", { token: alice, body: { name: " Alicia " } });
+    expect(r).toMatchObject({ status: 200, body: { name: "alicia" } });
+    const me = (await req("GET", "/api/me", { token: alice })).body;
+    expect(me).toMatchObject({ name: "alicia", groups: [{ id: g.id, owner: "alicia", isOwner: true }] });
+    const board = (await req("GET", "/api/leaderboard", { token: alice })).body;
+    expect(board.entries).toMatchObject([{ name: "alicia", tokens: 150 }]);
+    const viaCookie = await app.request("/api/me", { headers: { cookie } });
+    expect(((await viaCookie.json()) as { name: string }).name).toBe("alicia");
+    expect((await req("POST", "/api/users", { body: { name: "alice" } })).status).toBe(201);
+  });
+
   test("sign up is rate limited per IP", async () => {
     const { req } = testApp();
     const statuses: number[] = [];

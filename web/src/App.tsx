@@ -1,9 +1,10 @@
 import type { SortKey } from "@tokenmaxxing/core/protocol.ts";
 import { RANGES, type RangeKey } from "@tokenmaxxing/core/range.ts";
 import { useState } from "react";
-import { client, isUnauthorized, type Me, parseResponse } from "./api.ts";
+import { client, errorStatus, isUnauthorized, type Me, parseResponse } from "./api.ts";
 import { GroupsCard } from "./components/GroupsCard.tsx";
 import { LeaderboardTable } from "./components/LeaderboardTable.tsx";
+import { RenameForm } from "./components/RenameForm.tsx";
 import { StatsStrip } from "./components/StatsStrip.tsx";
 import { ThemeHotkey } from "./components/ThemeToggle.tsx";
 import { UserPanel } from "./components/UserPanel.tsx";
@@ -30,6 +31,7 @@ function Dashboard({ me, reloadMe }: { me: Me; reloadMe: () => void }) {
   const [sort, setSort] = useState<SortKey>("tokens");
   const [group, setGroup] = useState<number | null>(null);
   const [selected, setSelected] = useState(me.name);
+  const [renaming, setRenaming] = useState(false);
 
   const board = usePoll(
     () =>
@@ -81,6 +83,32 @@ function Dashboard({ me, reloadMe }: { me: Me; reloadMe: () => void }) {
         >
           GitHub
         </a>
+        {renaming ? (
+          <RenameForm
+            value={me.name}
+            label="Your name"
+            maxLength={32}
+            save={async (name) => {
+              const r = await parseResponse(client.api.me.$patch({ json: { name } }));
+              if (selected === me.name) setSelected(r.name);
+            }}
+            errorText={(err) => {
+              const status = errorStatus(err);
+              if (status === 409) return "That name is taken.";
+              if (status === 400) return "Use 2–32 characters: a–z, 0–9, dot, dash or underscore.";
+              return "Couldn't change your name.";
+            }}
+            onDone={() => {
+              setRenaming(false);
+              reloadGroups();
+            }}
+            onCancel={() => setRenaming(false)}
+          />
+        ) : (
+          <button type="button" className="link" title="Change your name" onClick={() => setRenaming(true)}>
+            {me.name}
+          </button>
+        )}
         <button
           type="button"
           className="link"

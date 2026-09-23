@@ -147,6 +147,22 @@ describe("helper", () => {
     h2.helper.stop();
   });
 
+  test("rename updates my name in state; a taken name comes back as name_taken", async () => {
+    const { send, helper } = harness();
+    await send(init(null));
+    await send({ cmd: "signUp", name: "alice" });
+    expect(await send({ cmd: "rename", name: "!" })).toMatchObject({ ok: false, error: "invalid_name" });
+    expect(await send({ cmd: "rename", name: "alicia" })).toMatchObject({
+      ok: true,
+      result: { name: "alicia" },
+    });
+    expect(helper.state.me?.name).toBe("alicia");
+    await send({ cmd: "signOut" });
+    await send({ cmd: "signUp", name: "bob" });
+    expect(await send({ cmd: "rename", name: "alicia" })).toMatchObject({ ok: false, error: "name_taken" });
+    helper.stop();
+  });
+
   test("a rejected token signs out and tells the shell to forget it", async () => {
     const { send, messages, lastState } = harness();
     await send(init("not-a-real-token"));

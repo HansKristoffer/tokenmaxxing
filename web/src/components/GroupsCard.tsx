@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { client, type Group, parseResponse } from "../api.ts";
 import { usePoll } from "../usePoll.ts";
+import { RenameForm } from "./RenameForm.tsx";
 
 interface Props {
   groups: Group[];
@@ -13,6 +14,7 @@ interface Props {
 export function GroupsCard({ groups, me, onChange }: Props) {
   const [copied, setCopied] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [renaming, setRenaming] = useState<number | null>(null);
 
   const copy = (g: Group) => {
     void navigator.clipboard.writeText(`Join my tokenmaxxing group: ${g.code}`);
@@ -29,9 +31,36 @@ export function GroupsCard({ groups, me, onChange }: Props) {
         <div key={g.id}>
           <div className="group">
             <div>
-              <div>
-                {g.name} {g.isOwner && <span title="You own this group">👑</span>}
-              </div>
+              {renaming === g.id ? (
+                <RenameForm
+                  value={g.name}
+                  label="Group name"
+                  maxLength={48}
+                  save={(name) =>
+                    parseResponse(
+                      client.api.groups[":id"].$patch({ param: { id: String(g.id) }, json: { name } }),
+                    )
+                  }
+                  errorText={() => "Couldn't rename the group."}
+                  onDone={() => {
+                    setRenaming(null);
+                    onChange();
+                  }}
+                  onCancel={() => setRenaming(null)}
+                />
+              ) : (
+                <div>
+                  {g.name} {g.isOwner && <span title="You own this group">👑</span>}
+                  {g.isOwner && (
+                    <>
+                      {" "}
+                      <button type="button" className="link" onClick={() => setRenaming(g.id)}>
+                        Rename
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
               <div className="mono muted">
                 {g.code} · {g.memberCount} {g.memberCount === 1 ? "member" : "members"}
               </div>

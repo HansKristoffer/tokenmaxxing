@@ -319,6 +319,21 @@ tr.selected {
 .group:last-child {
   border-bottom: 0;
 }
+.rename {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.rename input {
+  font: inherit;
+  color: inherit;
+  background: var(--bg-app);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  min-width: 0;
+}
 .group-actions {
   display: flex;
   flex-direction: column;
