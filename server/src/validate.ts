@@ -38,7 +38,8 @@ export function parseEvent(raw: unknown, now: number): TokenEvent | string {
   if (!isId(e.messageId)) return "messageId";
   if (e.requestId !== null && !isId(e.requestId)) return "requestId";
   if (!isNonNegInt(e.timestamp) || e.timestamp > now + MAX_FUTURE_MS) return "timestamp";
-  if (e.messageType !== "user" && e.messageType !== "assistant") return "messageType";
+  if (e.messageType !== "user" && e.messageType !== "assistant" && e.messageType !== "pr")
+    return "messageType";
   if (typeof e.model !== "string" || e.model.length > MAX_ID_LENGTH) return "model";
   if (e.messageType === "assistant" && e.model.length === 0) return "model";
   for (const k of ["inputTokens", "outputTokens", "cacheCreationTokens", "cacheReadTokens"] as const) {
@@ -66,7 +67,7 @@ export const parseRange = (raw: string | undefined): RangeKey =>
   raw !== undefined && isRangeKey(raw) ? raw : "7d";
 
 export const parseSort = (raw: string | undefined): SortKey =>
-  raw === "parallelism" || raw === "cost" ? raw : "tokens";
+  raw === "parallelism" || raw === "cost" || raw === "prs" ? raw : "tokens";
 
 /** `Date#getTimezoneOffset()` minutes; clamped to real-world offsets. */
 export function parseTz(raw: string | undefined): number {

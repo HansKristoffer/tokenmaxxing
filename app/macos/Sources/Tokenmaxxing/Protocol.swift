@@ -20,13 +20,14 @@ enum RangeKey: String, Codable, CaseIterable, Sendable {
 }
 
 enum SortKey: String, Codable, CaseIterable, Sendable {
-    case tokens, parallelism, cost
+    case tokens, parallelism, cost, prs
 
     var label: String {
         switch self {
         case .tokens: "Tokens"
         case .parallelism: "Parallel"
         case .cost: "Cost"
+        case .prs: "PRs"
         }
     }
 }
@@ -56,6 +57,7 @@ struct MeStats: Codable, Equatable, Sendable {
     let parallelism: Double?
     let peakAgents: Int
     let tokensPerActiveHour: Double?
+    let prs: Int
 }
 
 struct LeaderboardRow: Codable, Equatable, Identifiable, Sendable {
@@ -65,6 +67,7 @@ struct LeaderboardRow: Codable, Equatable, Identifiable, Sendable {
     let costUsd: Double
     let parallelism: Double?
     let peakAgents: Int
+    let prs: Int
     let isMe: Bool
     var id: String { name }
 }

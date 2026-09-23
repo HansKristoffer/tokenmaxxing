@@ -18,6 +18,7 @@ export function StatsStrip({ entry, of }: { entry: Entry; of: number }) {
       "Tokens divided by hours with at least one agent running",
     ],
     ["Prompts", fmtInt(entry.prompts)],
+    ["PRs", fmtInt(entry.prs), "Pull requests created on GitHub (needs gh)"],
   ];
   return (
     <section className="card stats">

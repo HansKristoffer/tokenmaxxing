@@ -7,7 +7,7 @@
 import type { RangeKey } from "./range.ts";
 import type { Source } from "./types.ts";
 
-export type SortKey = "tokens" | "parallelism" | "cost";
+export type SortKey = "tokens" | "parallelism" | "cost" | "prs";
 
 export interface View {
   range: RangeKey;
@@ -59,6 +59,7 @@ export interface MeStats {
   parallelism: number | null;
   peakAgents: number;
   tokensPerActiveHour: number | null;
+  prs: number;
 }
 
 export interface LeaderboardRow {
@@ -68,6 +69,7 @@ export interface LeaderboardRow {
   costUsd: number;
   parallelism: number | null;
   peakAgents: number;
+  prs: number;
   isMe: boolean;
 }
 
@@ -115,6 +117,7 @@ export const SOURCE_LABELS: Record<Source, string> = {
   claude_cowork: "Claude Cowork",
   codex: "Codex",
   cursor_local: "Cursor",
+  github: "GitHub PRs",
 };
 
 export const LEADERBOARD_TOP = 10;

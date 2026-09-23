@@ -301,6 +301,7 @@ export class Helper {
         parallelism: number | null;
         peakAgents: number;
         tokensPerActiveHour: number | null;
+        prs: number;
       }[];
     };
     this.state.groups = me.groups.map(({ id, name, code, memberCount, isOwner }) => ({
@@ -320,6 +321,7 @@ export class Helper {
       parallelism: mine?.parallelism ?? null,
       peakAgents: mine?.peakAgents ?? 0,
       tokensPerActiveHour: mine?.tokensPerActiveHour ?? null,
+      prs: mine?.prs ?? 0,
     };
     this.state.leaderboard = lb.entries.slice(0, LEADERBOARD_TOP).map((e) => ({
       rank: e.rank,
@@ -328,6 +330,7 @@ export class Helper {
       costUsd: e.costUsd,
       parallelism: e.parallelism,
       peakAgents: e.peakAgents,
+      prs: e.prs,
       isMe: e.name === me.name,
     }));
   }

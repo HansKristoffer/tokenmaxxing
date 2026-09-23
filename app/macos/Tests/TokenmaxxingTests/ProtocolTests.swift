@@ -11,8 +11,9 @@ final class ProtocolTests: XCTestCase {
 
         let state = try XCTUnwrap(messages[0].state)
         XCTAssertEqual(state.phase, .ready)
-        XCTAssertEqual(state.view, ViewSettings(range: .week, groupId: 4, sort: .parallelism))
+        XCTAssertEqual(state.view, ViewSettings(range: .week, groupId: 4, sort: .prs))
         XCTAssertEqual(state.me?.parallelism, 3.25)
+        XCTAssertEqual(state.me?.prs, 5)
         XCTAssertEqual(state.leaderboard.first?.parallelism, nil)
         XCTAssertEqual(state.groups.first?.code, "K7QM-2XRP-9D")
 

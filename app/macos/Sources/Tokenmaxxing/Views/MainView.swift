@@ -62,6 +62,9 @@ struct MainView: View {
                 if let peak = state.me?.peakAgents, peak > 0 {
                     Text("peak \(peak)").help("Most agents running at the same time")
                 }
+                if let prs = state.me?.prs, prs > 0 {
+                    Text("\(prs) PRs").help("Pull requests you created on GitHub (via gh)")
+                }
             }
             .font(.callout)
             .foregroundStyle(.secondary)
@@ -120,7 +123,7 @@ struct MainView: View {
             if let me = state.me, let rank = me.rank, !state.leaderboard.contains(where: \.isMe) {
                 Text("⋯").foregroundStyle(.tertiary)
                 row(state, LeaderboardRow(rank: rank, name: me.name, tokens: me.tokens, costUsd: me.costUsd,
-                                          parallelism: me.parallelism, peakAgents: me.peakAgents, isMe: true))
+                                          parallelism: me.parallelism, peakAgents: me.peakAgents, prs: me.prs, isMe: true))
             }
         }
     }
@@ -134,6 +137,7 @@ struct MainView: View {
             case .tokens: Text(Format.compact(r.tokens)).monospacedDigit()
             case .parallelism: Text(Format.parallel(r.parallelism)).monospacedDigit()
             case .cost: Text(Format.usd(r.costUsd)).monospacedDigit()
+            case .prs: Text("\(r.prs)").monospacedDigit()
             }
         }
         .padding(.horizontal, 6)
