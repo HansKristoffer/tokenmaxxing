@@ -38,7 +38,12 @@ struct SettingsView: View {
                 Spacer()
                 Button("Sign out", role: .destructive) { Task { await model.signOut() } }
             }
-            Text("tokenmaxxing \(model.state?.version ?? "")").font(.caption).foregroundStyle(.tertiary)
+            HStack {
+                Text("tokenmaxxing \(model.state?.version ?? "")").foregroundStyle(.tertiary)
+                Spacer()
+                Link("GitHub", destination: URL(string: "https://github.com/HansKristoffer/tokenmaxxing")!)
+            }
+            .font(.caption)
         }
         .toggleStyle(.switch)
         .padding(14)
