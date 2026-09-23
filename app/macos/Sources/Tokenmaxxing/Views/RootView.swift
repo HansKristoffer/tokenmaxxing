@@ -12,7 +12,7 @@ struct RootView: View {
         Group {
             switch model.state?.phase {
             case nil, .starting?:
-                ProgressView().padding(40)
+                ProgressView().padding(40).frame(maxWidth: .infinity)
             case .onboarding?:
                 OnboardingView()
             case .ready?:
@@ -23,6 +23,9 @@ struct RootView: View {
                 }
             }
         }
+        // Report the content's real height so the MenuBarExtra window resizes whenever it changes
+        // (state arriving, rows loading, switching pages) instead of keeping a stale size.
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear { model.refresh() }
     }
 }
