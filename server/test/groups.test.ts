@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { event, testApp } from "./helpers.ts";
+import { event, NOW, testApp } from "./helpers.ts";
 
 describe("accounts", () => {
   test("sign up returns a token once; names are unique and normalized", async () => {
@@ -131,6 +131,23 @@ describe("groups", () => {
     expect((await req("DELETE", `/api/groups/${g.id}/members/bob`, { token: alice })).status).toBe(200);
     expect((await req("GET", "/api/me", { token: bob })).body.groups).toHaveLength(0);
     expect((await req("DELETE", `/api/groups/${g.id}`, { token: alice })).status).toBe(200);
+  });
+
+  test("the member list holds everyone in the group, and loses whoever the owner removes", async () => {
+    const { req, signUp } = testApp();
+    const alice = await signUp("alice");
+    const bob = await signUp("bob");
+    const g = (await req("POST", "/api/groups", { token: alice, body: { name: "G" } })).body;
+    await req("POST", "/api/groups/join", { token: bob, body: { code: g.code } });
+    expect((await req("GET", `/api/groups/${g.id}/members`, { token: bob })).body.members).toEqual([
+      { user: "alice", joinedAt: NOW },
+      { user: "bob", joinedAt: NOW },
+    ]);
+    await req("DELETE", `/api/groups/${g.id}/members/bob`, { token: alice });
+    expect((await req("GET", `/api/groups/${g.id}/members`, { token: alice })).body.members).toEqual([
+      { user: "alice", joinedAt: NOW },
+    ]);
+    expect((await req("GET", "/api/me", { token: alice })).body.groups[0].memberCount).toBe(1);
   });
 });
 

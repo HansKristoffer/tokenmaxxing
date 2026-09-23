@@ -319,6 +319,42 @@ tr.selected {
 .group:last-child {
   border-bottom: 0;
 }
+.group-actions {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 6px;
+}
+.group-actions .btn {
+  white-space: nowrap;
+}
+.members {
+  list-style: none;
+  padding: 0 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.members li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.member-actions {
+  display: flex;
+  gap: 10px;
+}
+.members-note {
+  padding-bottom: 10px;
+}
+.danger {
+  color: var(--destructive);
+}
+.danger:disabled {
+  color: var(--text-secondary);
+  cursor: default;
+}
 .error {
   color: var(--destructive);
 }

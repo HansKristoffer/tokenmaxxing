@@ -22,10 +22,10 @@ export function App() {
   if (isUnauthorized(me.error)) return <SignedOut />;
   if (!me.data)
     return <div className="center muted">{me.error ? "Can't reach the server." : "Loading…"}</div>;
-  return <Dashboard me={me.data} />;
+  return <Dashboard me={me.data} reloadMe={me.reload} />;
 }
 
-function Dashboard({ me }: { me: Me }) {
+function Dashboard({ me, reloadMe }: { me: Me; reloadMe: () => void }) {
   const [range, setRange] = useState<RangeKey>("7d");
   const [sort, setSort] = useState<SortKey>("tokens");
   const [group, setGroup] = useState<number | null>(null);
@@ -41,6 +41,12 @@ function Dashboard({ me }: { me: Me }) {
     [range, sort, group],
   );
   const mine = board.data?.entries.find((e) => e.name === me.name);
+  // Removing someone changes both the group's member count and who the
+  // leaderboard is allowed to show me, so reload the two together.
+  const reloadGroups = () => {
+    reloadMe();
+    board.reload();
+  };
 
   return (
     <div className="page">
@@ -94,7 +100,7 @@ function Dashboard({ me }: { me: Me }) {
             <p className="muted">Loading…</p>
           )}
         </section>
-        <GroupsCard groups={me.groups} />
+        <GroupsCard groups={me.groups} me={me.name} onChange={reloadGroups} />
       </div>
 
       <UserPanel name={selected} range={range} tz={tz} />
