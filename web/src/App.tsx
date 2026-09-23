@@ -73,6 +73,14 @@ function Dashboard({ me, reloadMe }: { me: Me; reloadMe: () => void }) {
             </button>
           ))}
         </div>
+        <a
+          className="link"
+          href="https://github.com/HansKristoffer/tokenmaxxing"
+          target="_blank"
+          rel="noreferrer"
+        >
+          GitHub
+        </a>
         <button
           type="button"
           className="link"
