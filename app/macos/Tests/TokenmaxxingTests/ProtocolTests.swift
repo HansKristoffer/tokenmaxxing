@@ -16,7 +16,10 @@ final class ProtocolTests: XCTestCase {
         XCTAssertEqual(state.leaderboard.first?.parallelism, nil)
         XCTAssertEqual(state.groups.first?.code, "K7QM-2XRP-9D")
 
+        XCTAssertEqual(state.update, UpdateInfo(version: "1.3.0", viaBrew: true, installing: false))
+
         XCTAssertEqual(messages[1].state?.phase, .onboarding)
+        XCTAssertNil(messages[1].state?.update)
         XCTAssertEqual(messages[2].token, "tok_abc")
         XCTAssertEqual(messages[3].event, "token")
         XCTAssertNil(messages[3].token)

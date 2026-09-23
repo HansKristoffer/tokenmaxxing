@@ -43,11 +43,15 @@ const state: AppState = {
   groups: [{ id: 4, name: "Friends", code: "K7QM-2XRP-9D", memberCount: 12, isOwner: true }],
   sync: { syncing: false, lastSyncedAt: 1_790_000_000_000, lastError: null, online: true },
   sources: [{ id: "claude_code", label: "Claude Code", enabled: true }],
+  update: { version: "1.3.0", viaBrew: true, installing: false },
 };
 
 const messages: Message[] = [
   { event: "state", state },
-  { event: "state", state: { ...state, phase: "onboarding", me: null, leaderboard: [], groups: [] } },
+  {
+    event: "state",
+    state: { ...state, phase: "onboarding", me: null, leaderboard: [], groups: [], update: null },
+  },
   { event: "token", token: "tok_abc" },
   { event: "token", token: null },
   { id: 1, ok: true, result: null },

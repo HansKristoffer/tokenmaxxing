@@ -8,6 +8,7 @@ struct MainView: View {
     var body: some View {
         if let state = model.state {
             VStack(alignment: .leading, spacing: 10) {
+                if let update = state.update { updateBanner(update) }
                 header(state)
                 controls(state)
                 Divider()
@@ -21,6 +22,27 @@ struct MainView: View {
             }
             .padding(14)
         }
+    }
+
+    private func updateBanner(_ update: UpdateInfo) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.down.circle.fill").foregroundStyle(Color.accentColor)
+            Text(update.installing ? "Updating to \(update.version)…" : "Version \(update.version) is available")
+                .font(.callout)
+            Spacer()
+            if update.installing {
+                ProgressView().controlSize(.small)
+            } else {
+                Button(update.viaBrew ? "Update" : "Download") {
+                    Task { error = await model.installUpdate() }
+                }
+                .controlSize(.small)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(8)
+        .background(Color.accentColor.opacity(0.12), in: .rect(cornerRadius: 8))
+        .help(update.viaBrew ? "Runs brew upgrade; Tokenmaxxing restarts when it's done" : "Opens the release page")
     }
 
     private func header(_ state: AppState) -> some View {

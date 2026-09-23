@@ -90,6 +90,12 @@ struct SyncInfo: Codable, Equatable, Sendable {
     let online: Bool
 }
 
+struct UpdateInfo: Codable, Equatable, Sendable {
+    let version: String
+    let viaBrew: Bool
+    let installing: Bool
+}
+
 enum Phase: String, Codable, Sendable {
     case starting, onboarding, ready
 }
@@ -103,6 +109,7 @@ struct AppState: Codable, Equatable, Sendable {
     let groups: [GroupInfo]
     let sync: SyncInfo
     let sources: [SourceInfo]
+    let update: UpdateInfo?
 }
 
 /// The few fields any command result carries (`openDashboard` → url, group actions → code).

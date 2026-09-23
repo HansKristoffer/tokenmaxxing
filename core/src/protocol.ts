@@ -36,7 +36,9 @@ export type Command =
   | { id: number; cmd: "refresh" }
   /** Replies with `{ url }`: the dashboard, signed in via a single-use code. */
   | { id: number; cmd: "openDashboard" }
-  | { id: number; cmd: "signOut" };
+  | { id: number; cmd: "signOut" }
+  /** Starts `brew upgrade` (the app quits and relaunches), or replies `{ url }` to download manually. */
+  | { id: number; cmd: "installUpdate" };
 
 export type Message =
   | { id: number; ok: true; result: unknown }
@@ -98,6 +100,13 @@ export interface AppState {
     online: boolean;
   };
   sources: SourceInfo[];
+  /** A newer published version, or null. */
+  update: {
+    version: string;
+    /** Installed with Homebrew, so the helper can upgrade in place. */
+    viaBrew: boolean;
+    installing: boolean;
+  } | null;
 }
 
 export const SOURCE_LABELS: Record<Source, string> = {

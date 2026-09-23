@@ -98,6 +98,17 @@ final class AppModel {
         }
     }
 
+    /// Homebrew installs upgrade in place (the app quits and relaunches); others open the release page.
+    func installUpdate() async -> String? {
+        do {
+            let result = try await helper.send(OutgoingCommand(cmd: "installUpdate"))
+            if let url = result?.url.flatMap(URL.init(string:)) { NSWorkspace.shared.open(url) }
+            return nil
+        } catch {
+            return Self.message(for: error)
+        }
+    }
+
     func copyInvite(_ group: GroupInfo) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString("Join my tokenmaxxing group: \(group.code)", forType: .string)

@@ -12,6 +12,13 @@ import { sync } from "@tokenmaxxing/core/sync/sync.ts";
 import { SOURCES, type Source, type SyncState, type TokenEvent } from "@tokenmaxxing/core/types.ts";
 import type { AppType } from "@tokenmaxxing/server/app";
 import { hc } from "hono/client";
+import {
+  brewPath,
+  checkForUpdate,
+  RELEASES_URL,
+  startBrewUpgrade,
+  UPDATE_CHECK_INTERVAL_MS,
+} from "./update.ts";
 
 export const SYNC_INTERVAL_MS = 5 * 60_000;
 
@@ -38,6 +45,7 @@ export class Helper {
   private syncState: SyncState | null = null;
   private syncing: Promise<void> | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
+  private updateTimer: ReturnType<typeof setInterval> | null = null;
   readonly state: AppState;
 
   constructor(private readonly opts: HelperOptions) {
@@ -50,6 +58,7 @@ export class Helper {
       groups: [],
       sync: { syncing: false, lastSyncedAt: null, lastError: null, online: true },
       sources: this.sourceInfo(),
+      update: null,
     };
   }
 
@@ -71,6 +80,16 @@ export class Helper {
     this.timer = null;
   }
 
+  /** Publishes a newer cask version (if any) in `state.update`. */
+  async checkUpdate(): Promise<void> {
+    if (this.state.update?.installing) return;
+    const version = await checkForUpdate(this.opts.version, this.opts.fetch);
+    const next = version ? { version, viaBrew: brewPath() !== null, installing: false } : null;
+    if (JSON.stringify(next) === JSON.stringify(this.state.update)) return;
+    this.state.update = next;
+    this.emit();
+  }
+
   private async run(cmd: Command): Promise<unknown> {
     switch (cmd.cmd) {
       case "init":
@@ -80,6 +99,9 @@ export class Helper {
         this.state.sources = this.sourceInfo();
         this.syncState = await loadState(this.opts.statePath);
         this.state.sync.lastSyncedAt = this.syncState.lastSyncedAt;
+        this.updateTimer ??= setInterval(() => void this.checkUpdate(), UPDATE_CHECK_INTERVAL_MS);
+        this.updateTimer.unref?.();
+        void this.checkUpdate();
         if (cmd.token) await this.signIn(cmd.token);
         else this.state.phase = "onboarding";
         return;
@@ -143,6 +165,13 @@ export class Helper {
         await this.expectOk(res);
         const { code } = (await res.json()) as { code: string };
         return { url: `${this.serverUrl}/login?code=${encodeURIComponent(code)}` };
+      }
+      case "installUpdate": {
+        const brew = brewPath();
+        if (!brew || !this.state.update) return { url: RELEASES_URL };
+        this.state.update = { ...this.state.update, installing: true };
+        startBrewUpgrade(brew);
+        return;
       }
       case "signOut":
         this.signOut();
