@@ -82,10 +82,13 @@ jobs:
           envsubst '$VERSION $SHA_ARM $SHA_INTEL' < packaging/tokenmaxxing.rb > tokenmaxxing.rb
       - name: Push to the tap
         env:
-          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          # Write deploy key on HansKristoffer/homebrew-tap only.
+          TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
           VERSION: ${{ needs.release-please.outputs.version }}
         run: |
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/HansKristoffer/homebrew-tap.git" tap
+          install -m 600 /dev/null ~/tap_key && printf '%s\n' "$TAP_DEPLOY_KEY" > ~/tap_key
+          export GIT_SSH_COMMAND="ssh -i ~/tap_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          git clone git@github.com:HansKristoffer/homebrew-tap.git tap
           mkdir -p tap/Casks && cp tokenmaxxing.rb tap/Casks/tokenmaxxing.rb
           cd tap
           git config user.name "github-actions[bot]"

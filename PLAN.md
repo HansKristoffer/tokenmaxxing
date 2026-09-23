@@ -32,11 +32,10 @@ smoke-tested, and a real sync of this Mac's logs (262k events in 22 s) ran again
   pushes to the tap.
 
 **What's left for you (nothing here can be done from the code):**
-- [ ] Create the Railway service from this repo, add a volume mounted at `/data`, and set
-      `NODE_ENV=production`. Then set the repo variable `TOKENMAXXING_SERVER_URL` to its URL.
-- [ ] Apple Developer account → a "Developer ID Application" cert + an app-specific password, stored
-      as the repo secrets listed in README → Releases.
-- [ ] Create the `HansKristoffer/homebrew-tap` repo and a `HOMEBREW_TAP_TOKEN` secret with push access.
+- [x] Railway: project `tokenmaxxing` (Arox), service `server`, volume at `/data`, `PORT=8787`,
+      https://server-production-01b9.up.railway.app. Repo variable `TOKENMAXXING_SERVER_URL` is set.
+- [x] Developer ID Application cert (team 8K9458N8FG, expires 2031-09-17) + notarization secrets set.
+- [x] `HansKristoffer/homebrew-tap` created; the release workflow pushes with the `HOMEBREW_TAP_DEPLOY_KEY` secret.
 - [ ] App icon: the menu bar uses the `bolt.fill` SF Symbol, and the bundle has no `.icns` yet.
 - [ ] First commit + push. The upstream tree was backed up to `/tmp/tokenmaxxing-upstream-backup.tar.gz`.
 

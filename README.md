@@ -96,7 +96,7 @@ cask in `HansKristoffer/homebrew-tap`. Railway deploys the server from `main`.
 
 Required repo settings: the variable `TOKENMAXXING_SERVER_URL`, and the secrets `MACOS_CERT_P12`,
 `MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY`, `NOTARY_APPLE_ID`, `NOTARY_TEAM_ID`,
-`NOTARY_PASSWORD` and `HOMEBREW_TAP_TOKEN`.
+`NOTARY_PASSWORD` and `HOMEBREW_TAP_DEPLOY_KEY` (a write deploy key on the tap repo).
 
 ## License
 
