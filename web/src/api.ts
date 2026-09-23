@@ -7,6 +7,7 @@ export { parseResponse } from "hono/client";
 export const client = hc<AppType>("/");
 
 export type Me = InferResponseType<typeof client.api.me.$get, 200>;
+export type Group = Me["groups"][number];
 export type Leaderboard = InferResponseType<typeof client.api.leaderboard.$get, 200>;
 export type Entry = Leaderboard["entries"][number];
 export type UserDetail = InferResponseType<(typeof client.api.users)[":name"]["$get"], 200>;

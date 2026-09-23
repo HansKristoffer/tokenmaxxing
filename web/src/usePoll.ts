@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 export interface Poll<T> {
   data: T | undefined;
   error: unknown;
+  /** Refetches now, for use after a mutation has changed the data. */
+  reload: () => void;
 }
 
 /**
@@ -10,7 +12,8 @@ export interface Poll<T> {
  * the tab is visible. Keeps the previous data on screen during reloads.
  */
 export function usePoll<T>(fetcher: () => Promise<T>, deps: unknown[], intervalMs = 60_000): Poll<T> {
-  const [state, setState] = useState<Poll<T>>({ data: undefined, error: undefined });
+  const [state, setState] = useState<Omit<Poll<T>, "reload">>({ data: undefined, error: undefined });
+  const [nonce, setNonce] = useState(0);
   const key = JSON.stringify(deps);
   // biome-ignore lint/correctness/useExhaustiveDependencies: `key` stands in for the caller's deps
   useEffect(() => {
@@ -26,6 +29,6 @@ export function usePoll<T>(fetcher: () => Promise<T>, deps: unknown[], intervalM
       live = false;
       clearInterval(id);
     };
-  }, [key]);
-  return state;
+  }, [key, nonce]);
+  return { ...state, reload: () => setNonce((n) => n + 1) };
 }
