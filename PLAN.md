@@ -1,0 +1,617 @@
+# Plan: tokenleader → tokenmaxxing
+
+## Status (2026-09-23): built
+
+All phases are implemented in this tree. `bun run check` (typecheck + lint + 157 tests) and
+`swift test --package-path app/macos` pass. The Docker image and a dev/release `.app` build were
+smoke-tested, and a real sync of this Mac's logs (262k events in 22 s) ran against a local server.
+
+**Decisions taken (open decisions below, defaults applied):**
+1. Swift `MenuBarExtra` shell + TS helper, not Electrobun.
+2. Cursor: local transcript + `state.vscdb` parsing kept; the Teams mirror, cloud sync and `login-cursor` are gone.
+3. One Mac per account in v1. Multi-device linking was cut.
+4. Groupmates see totals, cost, models and daily activity.
+5. Owner powers: rename, rotate code, remove members, delete. Ownership passes to the earliest member.
+6. Tokens / active hour uses the same total as the leaderboard (including cache reads).
+7. No operator admin token. Moderation is done with SQL on the Railway volume.
+
+**Where the build differs from the plan below:**
+- The API lives under `/api/*` (the dashboard owns `/`). There is no separate `/api/v1`: the
+  bearer-token `/api/leaderboard` *is* the API for scripts. Add `/api/v1` when someone needs a
+  frozen contract.
+- R3 went ahead: no rollup tables. Measured on real data: 7d 20 ms, 30d 100 ms, all-time 240 ms
+  for one heavy user (264k events). All-time over a big group will be slow; add a day rollup if
+  that matters.
+- R11 went ahead: Vite, TanStack Router and React Query are gone. Bun serves `web/index.html`
+  directly.
+- Parser tests were kept, and new tests were written for the sync engine, server, groups/privacy,
+  parallelism and helper. The old monolith tests were dropped with their features.
+- The app's version comes from `package.json` at build time, so release-please only bumps
+  `package.json`. `extra-files` isn't needed.
+- The cask is a template (`packaging/tokenmaxxing.rb`) that the release workflow renders and
+  pushes to the tap.
+
+**What's left for you (nothing here can be done from the code):**
+- [ ] Create the Railway service from this repo, add a volume mounted at `/data`, and set
+      `NODE_ENV=production`. Then set the repo variable `TOKENMAXXING_SERVER_URL` to its URL.
+- [ ] Apple Developer account → a "Developer ID Application" cert + an app-specific password, stored
+      as the repo secrets listed in README → Releases.
+- [ ] Create the `HansKristoffer/homebrew-tap` repo and a `HOMEBREW_TAP_TOKEN` secret with push access.
+- [ ] App icon: the menu bar uses the `bolt.fill` SF Symbol, and the bundle has no `.icns` yet.
+- [ ] First commit + push. The upstream tree was backed up to `/tmp/tokenmaxxing-upstream-backup.tar.gz`.
+
+---
+
+We forked [`anaralabs/tokenleader`](https://github.com/anaralabs/tokenleader): about 46k lines of
+TypeScript. The goal is to strip it down to a clean base, rebrand it as **tokenmaxxing**, and ship
+a native macOS menu bar app installed with Homebrew. The server is hosted on Railway.
+
+**Product in one sentence:** anyone can install the app, pick a name, and create or join **groups**
+using a shareable code. Their leaderboard shows everyone they share at least one group with.
+
+## Starting point
+
+| Part | What it is | Verdict |
+|---|---|---|
+| `src/parser/` | Reads local Claude Code / Codex / Cursor / Cowork logs → token events | **Keep.** This is the core value. |
+| `src/server/` | Hono + `bun:sqlite`: ingest, stats, leaderboard, `/api/v1`, pricing | **Keep the core, cut the fleet ops.** `main.ts` (2.7k lines) and `db.ts` (3.5k lines) need splitting. |
+| `src/daemon/` | A LaunchAgent/systemd background process with self-update, watchdog, plist repair, remote commands, heartbeats | **Mostly delete.** Only the tick loop (parse → POST) survives, and it moves into the app. |
+| `web/` | Vite + React + TanStack dashboard | **Keep**, but scope it to the viewer's groups. |
+
+Two key facts:
+- **We have no users yet.** All backwards compatibility can go: legacy manifest shapes, handling for
+  pre-0.6 daemons, `diag_logs` v1/v2, the migration chain and header fallbacks.
+- **The model changes from "one self-hosted server per team" to "one shared server, many groups".**
+  Upstream's team-wide concepts (one dashboard token, join token, admin-defined categories, company
+  affiliation) are replaced by groups.
+
+---
+
+## Phase 1: Delete (one PR, mostly `git rm`)
+
+### Deployment and ops (Railway is the only host we keep)
+- [ ] `fly.toml`, `docker-compose.yml`, `.dockerignore`
+- [ ] `deploy/` (Litestream and the entrypoint's privilege drop)
+- [ ] `docs/self-hosting.md`, `docs/updating.md`, `docs/resilience.md`
+- [ ] `.github/workflows/`: `deploy.yml` (Railway deploys automatically from GitHub), `release.yml`, `release-binaries.yml`, `release-notes.yml`
+- [ ] `scripts/`: everything except `vendor-pricing.ts` (install/uninstall, plist templates, release/publish, manifest, history scrubbing, e2e prod test, clear-db, reattribute-codex, update-gate, docker-smoke)
+- [ ] `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md` (release-please regenerates it, see Phase 6)
+- [ ] Every `.DS_Store` (and add it to `.gitignore`)
+
+### Daemon fleet machinery
+- [ ] `update.ts`, `watchdog.ts`, `watchdog-install.ts`, `plist-heal.ts`, `heartbeat.ts`, `directives.ts`, `endpoint-override.ts`, `env-file.ts`, `build-info.ts`, `platform.ts`, plus their tests
+- [ ] Linux support (systemd units, baseline x64 builds)
+
+### Server features that only existed to support the fleet
+- [ ] `binary-mirror.ts`, `install-script.ts` (1.6k lines), `fleet.ts`
+- [ ] Routes: `/manifest.json`, `/bin/*`, `/install`, `/uninstall`, `/checkin`, `/watchdog-checkin`, `/directives/ack`, `/diag/logs`, `/events/uninstall`, `/admin/directives`, `/admin/diag/logs`, `/admin/mark-uninstalled`, `/stats/fleet`, `/admin/page-views`
+- [ ] `admin-html.ts`: a 1.5k-line fallback dashboard served only when `web/dist` isn't built
+- [ ] `page-views.ts`, `branding.ts`, `brand-defaults/` (we have one deployment, so the brand is hard-coded in `web/`)
+- [ ] SQLite tables: `daemon_status`, `pending_directives`, `diag_logs`, `diag_logs_v2`, `checkin_history`, `device_checkin_state`, `fleet_alerts`, `device_fleet_state`, `device_flag_state`, `page_views`, `server_meta` (maybe `auth_failures`)
+
+### Team-wide features replaced by groups
+- [ ] `category.ts`, the `categories` table, `/admin/categories*`, `/admin/users*`, and `CategoryManager` / `PeopleAssignment` in `web/`
+- [ ] `company.ts`, `X-Tokenleader-Company`, `TOKENLEADER_COMPANY_ALIASES`, and `web/src/handle.ts`
+- [ ] The join token, the dashboard token, `/login` and its cookie (replaced by per-user tokens, see Phase 4)
+
+### Keep
+The parsers, `/ingest`, the stats queries, `/api/v1`, pricing, range handling, `/health`, `web/`,
+`railway.json`, and a slimmed `Dockerfile`. Railway builds from the Dockerfile.
+
+**Expected result:** roughly 60% of the code removed.
+
+---
+
+## Phase 2: Restructure and harden
+
+1. **Workspace layout** (Bun workspaces, one package per deployable):
+   ```
+   core/     parsers + shared types (runs in the app, tested in isolation)
+   server/   Hono + bun:sqlite → Railway
+   web/      dashboard (served by server)
+   app/      macOS menu bar app (Phase 5)
+   ```
+2. **TypeScript and tooling:**
+   - Share one `tsconfig.base.json`. Strict mode and `noUncheckedIndexedAccess` are already on; add
+     `noUnusedLocals`, `noUnusedParameters` and `verbatimModuleSyntax`.
+   - Turn on the Biome linter. It's currently disabled. Add `useImportExtensions`, because imports
+     today mix `./db.ts` and `../types`.
+   - Make `bun test`, `tsc -b` and `biome ci` the single CI gate in one `ci.yml`.
+3. **Cut the comments down.** Keep the *why*, drop the incident war stories ("23 fielded Macs",
+   "paid for in ops incidents").
+4. **Slim the Dockerfile:** deps → web build → runtime. Drop Litestream, the sqlite3 CLI, the
+   entrypoint and the ghcr labels.
+
+### Refactors
+
+Ordered by payoff. Each one is its own PR, done after Phase 1 so we only refactor code we keep.
+
+**R1. End-to-end types between server, web and app (Hono RPC)**
+`web/src/api.ts` hand-copies the response shapes ("shapes mirror the route handler in
+src/server/main.ts"), so the server and the dashboard can silently drift apart. Hono is already a
+dependency, so no new package is needed:
+- Export the app's type from the server, then use `hc<AppType>()` in `web/`, and in the menu bar
+  app if it's TypeScript.
+- Delete the mirrored interfaces in `web/src/api.ts`.
+- The compiler then catches any change to a route's response.
+
+**R2. Replace the `Store` god-class with small query modules**
+`db.ts` is 3.5k lines. `Store` declares about 80 prepared-statement fields and assigns them in a
+~1,000-line constructor that also runs 47 migrations.
+- `bun:sqlite`'s `db.query(sql)` caches compiled statements itself, so all those fields can go.
+- Use one `schema.sql` with no migrations (we have no existing data) and typed functions grouped by
+  concern: `events.ts`, `users.ts`, `groups.ts`, `stats.ts`.
+- When the schema first needs to change, add a `PRAGMA user_version` check with numbered SQL files.
+
+**R3. Drop the rollup cache and aggregate straight from `events`**
+`events_roll_day`, the `events_roll_dirty` repair queue, `rebuildRollup` / `auditRollup` and
+`/admin/rollup-audit` form a precomputed cache that upstream built for a large fleet (hundreds of
+thousands of rows). Its complexity mostly comes from deletes, which the Cursor span-replace and the
+admin clears cause.
+- Query `events` directly, backed by a covering index on `(user, timestamp, model)`. The index is
+  user-leading because every group-scoped query filters by a user set.
+- Benchmark with seeded data first. If the leaderboard query takes more than ~200 ms at our scale,
+  keep a simpler day rollup.
+
+**R4. Merge the overlapping stats endpoints into group-scoped ones**
+`/stats`, `/stats/admin`, `/stats/leaderboard`, `/stats/timeseries` and `/api/v1/usage` compute
+overlapping totals, with filter combinations (company × category × model) passed through each one.
+Replace them with endpoints that all go through a single `visibleUsers(viewer, groupId?)` scope
+(Phase 4). Company and category filters go away.
+
+**R5. Give every source parser the same interface**
+Each source has its own parser shape today, and Cursor alone takes 7 files (locator, local, jsonl,
+dedup, api, auth, http).
+- `core/sources/*` all export `{ id, locate(), parse(file, fileState) → { events, fileState } }`.
+- One registry array replaces the per-source branching in `daemon/tick.ts` (528 lines).
+
+**R6. Split sync into collect and send**
+Split `tick.ts` / `transport.ts` / `state.ts` into:
+- a pure function, `collect(state) → { events, nextState }`, which is easy to test with fixture logs
+- a small `send(events)` that retries
+
+Then drop everything to do with check-ins, directives and heartbeats. This becomes the loop inside
+the menu bar app.
+
+**R7. Share code between server and web through `core/`**
+`web/src/range.ts` duplicates `src/server/range.ts`, and a comment asks people to keep the two
+copies in sync. Move range handling into `core/` and import it from both sides.
+
+**R8. Parse config once into a typed object**
+`config.ts` (319 lines) parses env vars across many code paths. Replace it with one
+`loadConfig(env)` that validates everything at boot, fails fast on bad values, and returns a frozen
+object. With groups, only a handful of vars remain.
+
+**R9. One naming convention**
+Today the wire types mix snake_case (`CheckinBody`, `DirectiveAck`) with camelCase (`TokenEvent`),
+and the SQL columns are camelCase. Use camelCase in TypeScript and JSON, and snake_case in SQL.
+Map between them in the query modules.
+
+**R10. Rewrite the tests per module**
+`main.test.ts` (3.9k lines) and `daemon/main.test.ts` (1.9k lines) mostly test deleted features.
+- After the cuts, write focused tests per router using `app.request()` (no server boot needed).
+- Test parsers against fixture logs.
+- Target: the whole test suite runs in a few seconds.
+
+**R11 (optional). Serve the dashboard with Bun and drop Vite**
+Bun's HTML imports with `Bun.serve({ routes, fetch: app.fetch })` can bundle and serve the React
+dashboard, with hot reload in dev.
+- This removes `vite`, `@vitejs/plugin-react`, `@tanstack/router-plugin` and `web/dist`, and makes
+  it one deployable with one build.
+- The admin route is gone, so the dashboard is a single page and TanStack Router can go too.
+- Do this last. It's nice to have, not required.
+
+---
+
+## Phase 3: Rename everything to tokenmaxxing
+
+The old name is spread across ~100 files. Go through this list deliberately. A blind
+find-and-replace would miss the `anara` brand and the camelCase keys.
+
+### Names and identifiers
+- [ ] `tokenleader` / `Tokenleader` / `TOKENLEADER` → `tokenmaxxing` / `Tokenmaxxing` / `TOKENMAXXING`
+- [ ] Env vars: `TOKENLEADER_*` → `TOKENMAXXING_*` (about 40 today; most are deleted with their features, and only the survivors get renamed)
+- [ ] HTTP headers: the `X-Tokenleader-*` headers (User, Secret, Device, Join, Company, Canonical-Endpoint) are replaced by `Authorization: Bearer` (Phase 4). Any header that's still needed becomes `X-Tokenmaxxing-*`.
+- [ ] Package names: `tokenleader` (root `package.json`) and `tokenleader-web` → `tokenmaxxing`, `@tokenmaxxing/web`, etc.
+- [ ] SQLite file name `tokenleader.sqlite` → `tokenmaxxing.sqlite`
+- [ ] Data/state dir names (`~/Library/Application Support/tokenleader`)
+- [ ] `localStorage` keys (`tokenleaderTheme`, `tokenleaderRangeDays`, …)
+- [ ] Temp-dir prefixes in tests (`tokenleader-test-`, …)
+
+### Anara / upstream branding
+- [ ] Binary names `anara-leaderboard*` → gone with the daemon; the app is `Tokenmaxxing.app`
+- [ ] Bundle/launchd ids `anara.leaderboard` / `com.anara.*` → our own (e.g. `dk.hanskristoffer.tokenmaxxing`)
+- [ ] `anara.com` example/test domains → neutral `example.com`
+- [ ] `anaralabs/tokenleader` repo URLs in `package.json`, README and workflows → our repo
+- [ ] Leftover upstream secret names in workflows (`LEO_GITHUB_APP_*`)
+
+### Info and metadata
+- [ ] `package.json`: name, description, `repository`, `bugs`, `keywords`
+- [ ] `web/index.html`: `<title>`, `meta description` ("Self-hosted AI token-usage leaderboard for your team" is no longer true), `og:*` tags
+- [ ] Logo and favicon (replace the Anara marks)
+- [ ] Dashboard header / wordmark / footer text
+- [ ] `README.md`: rewrite from scratch for tokenmaxxing (what it is, `brew install`, how groups work, privacy statement, local dev)
+- [ ] `.env.example`: rewrite for the surviving vars only
+- [ ] `docs/api.md`, `docs/configuration.md`, `docs/daemon.md`: update or merge into README
+- [ ] `LICENSE`: **keep** `Copyright (c) 2026 Anara` (MIT requires it) and add our own copyright line below
+
+### Verify
+- [ ] `grep -riE "tokenleader|anara" --exclude-dir=node_modules .` returns nothing (except the LICENSE line)
+- [ ] Regenerate `bun.lockb` / `web/bun.lock` after the package renames
+
+---
+
+## Phase 4: Accounts and groups
+
+### How it works
+1. **Sign up:** on first launch the app asks for a name. It calls `POST /users` `{ name }`, and the
+   server returns a random API token. The app stores the token in the Keychain. The server stores
+   only its SHA-256 hash, so a leaked database doesn't leak tokens. Names are globally unique
+   handles.
+2. **Create a group:** `POST /groups` `{ name }` → `{ id, name, code }`. The creator becomes the
+   owner and the first member.
+3. **Share the code:** the code is a public invite, e.g. `K7QM-2XRP-9D`. That's 10 characters from
+   the unambiguous alphabet `main.ts` already uses for link codes (`generateLinkCode`), which is
+   ~50 bits and not guessable. It's separate from the internal id so it can be rotated without
+   breaking anything.
+4. **Join:** `POST /groups/join` `{ code }`. Joining is idempotent; joining a group you're already
+   in is a no-op.
+5. **Leaderboard:** shows the **distinct users across all your groups, plus yourself**. Someone in
+   two of your groups appears once. You can optionally filter to a single group.
+
+### Schema
+```sql
+CREATE TABLE users (
+  name        TEXT PRIMARY KEY,
+  token_hash  TEXT NOT NULL UNIQUE,
+  created_at  INTEGER NOT NULL
+);
+
+CREATE TABLE groups (
+  id          INTEGER PRIMARY KEY,
+  code        TEXT NOT NULL UNIQUE,
+  name        TEXT NOT NULL,
+  owner       TEXT NOT NULL REFERENCES users(name),
+  created_at  INTEGER NOT NULL
+);
+
+CREATE TABLE group_members (
+  group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  user        TEXT NOT NULL REFERENCES users(name) ON DELETE CASCADE,
+  joined_at   INTEGER NOT NULL,
+  PRIMARY KEY (group_id, user)
+) WITHOUT ROWID;
+CREATE INDEX group_members_user ON group_members (user);
+```
+
+### The single scoping query
+Every read endpoint gets its user set from this one function. That keeps the privacy rule in one
+place and makes it easy to test:
+```sql
+-- visibleUsers(viewer): me + everyone sharing a group with me
+SELECT ? AS user
+UNION
+SELECT m2.user FROM group_members m1
+JOIN group_members m2 ON m2.group_id = m1.group_id
+WHERE m1.user = ?;
+```
+With a `groupId` filter it becomes "members of that group", and it returns 404 unless the viewer is
+a member.
+
+### API (all requests authenticated with `Authorization: Bearer <token>`)
+| Route | What it does |
+|---|---|
+| `POST /users` | Sign up: `{ name }` → `{ name, token }` (the token is shown once) |
+| `GET /me` | Your name plus your groups (name, code, member count, whether you're the owner) |
+| `POST /ingest` | Unchanged apart from auth. The user comes from the token instead of a header. |
+| `POST /groups` | Create a group |
+| `POST /groups/join` | Join with a code |
+| `DELETE /groups/:id/members/me` | Leave |
+| `DELETE /groups/:id/members/:user` | Owner removes a member |
+| `POST /groups/:id/code` | Owner rotates the invite code (the old code stops working, existing members stay) |
+| `PATCH /groups/:id` / `DELETE /groups/:id` | Owner renames or deletes the group |
+| `GET /leaderboard?range=&group=` | Ranked totals over the visible users |
+| `GET /timeseries?range=&group=` | Daily buckets for the contribution grid and charts |
+| `GET /users/:name?range=` | One user's totals and models. 404 unless they're visible to you. |
+
+### Rules
+- **Owner leaves:** ownership passes to the member who joined earliest. When the last member
+  leaves, the group is deleted.
+- **Limits** keep abuse bounded: at most 50 groups per user and 500 members per group, set as
+  constants in `groups.ts`.
+- **Rate limits** on `POST /users` and `POST /groups/join`, with a simple in-memory counter per IP.
+  The server is now on the public internet, and this stops people from trying code after code.
+  `ponytail:` in-memory means it resets on deploy and only covers one instance. That's fine for a
+  single Railway replica. Move it to SQLite if we ever scale out.
+- **Leaving a group hides you from its members immediately**, because visibility is computed on
+  every request and never cached.
+
+### Web dashboard
+- The app's "Open dashboard" calls `POST /sessions`, which returns a single-use code that expires
+  after 60 s. The app then opens `https://…/login?code=…` in the browser, and the server sets a
+  session cookie. You never have to paste a token into the browser.
+- The dashboard shows the same group-scoped views: leaderboard, contribution grid, models, and a
+  group picker.
+
+### Tests (the privacy rule gets the most coverage)
+- A user with no groups sees only themselves.
+- A user in groups A and B sees the union, with each person listed once.
+- Filtering by a group you're not in → 404. Fetching `/users/:name` for a user you can't see → 404.
+- A member who leaves disappears from the other members' leaderboards.
+- A rotated code: the old code fails and the new one works.
+
+### New stat: Parallelism (how many agents you run at once)
+
+Raw "tokens per hour" doesn't measure this well. Idle hours dilute it, and one verbose model can
+inflate it without any parallel work. So we track **two numbers**, both computed from data we
+already collect (`sessionId` + `timestamp` on every event). The app sends nothing new.
+
+| Stat | Meaning | Example |
+|---|---|---|
+| **Parallelism ×** (headline) | Average number of agents running at the same time, measured over the time you had at least one agent running | 3 agents running for the same hour → **3.0×** |
+| **Peak agents** | The most agents running at once in the range | "Peak: 7" |
+| **Tokens / active hour** | Tokens divided by hours with at least one agent running | "2.4M/h" |
+
+**How it's computed:** split time into 5-minute buckets. An agent counts as "running" in a bucket
+if it produced at least one assistant event in it.
+```sql
+WITH b AS (
+  SELECT user, timestamp / 300000 AS bucket,
+         COUNT(DISTINCT sessionId || ':' || COALESCE(agentId, '')) AS agents
+  FROM events
+  WHERE messageType = 'assistant' AND user IN (/* visibleUsers */)
+    AND timestamp >= ? AND timestamp < ?
+  GROUP BY user, bucket
+)
+SELECT user,
+       SUM(agents) * 1.0 / COUNT(*) AS parallelism,     -- agent-buckets / active buckets
+       MAX(agents)                  AS peakAgents,
+       COUNT(*) * 5 / 60.0          AS activeHours      -- tokens / activeHours = tokens per active hour
+FROM b GROUP BY user;
+```
+`ponytail:` 5-minute buckets are coarse. Switching between two sessions within one bucket counts as
+2, and a tool call that runs longer than 5 minutes without output drops out of its bucket. At
+leaderboard scale that's fine. If people start comparing decimals, switch to real activity
+intervals (merge events with gaps under N minutes into spans, then sweep across them).
+
+**Details:**
+- **Subagents count as agents.** Claude Code writes subagents to `<session>/subagents/agent-*.jsonl`,
+  and their records carry the parent's `sessionId` plus their own `agentId`. Today's parser drops
+  `agentId`, so all subagents merge into the parent. Add an optional `agentId` to `TokenEvent` and a
+  nullable column. Codex and Cursor sessions already have distinct ids. (Check against real logs
+  during R5.)
+- **Minimum activity:** you're only ranked on parallelism with at least 1 active hour in the range.
+  Otherwise it shows "—", because a single 5-minute burst with 4 agents shouldn't top the board.
+- **Only assistant events count.** User messages aren't agent work.
+- **Several Macs:** sessions from all your Macs are counted together, which is the correct result.
+- **Index:** extend R3's covering index to `(user, timestamp, messageType, sessionId, agentId)` so
+  this query never touches the table rows.
+
+**Where it shows up:**
+- `GET /leaderboard` returns `parallelism`, `peakAgents` and `tokensPerActiveHour` per user, and
+  takes `?sort=tokens|parallelism` (the default is `tokens`).
+- **Popover:** your "3.2× parallel" next to your tokens, plus a Tokens / Parallelism toggle on the
+  leaderboard.
+- **Dashboard:** a sortable column. Later, maybe a "concurrent agents over the day" chart.
+
+**Tests:**
+- One agent → 1.0×.
+- 3 fully overlapping sessions → 3.0×.
+- 2 sessions back to back → 1.0×.
+- 2 sessions for 1 hour, then 1 session for 1 hour → 1.5×.
+- A subagent counts separately from its parent.
+- Under 1 active hour → excluded from the parallelism ranking.
+
+---
+
+## Phase 5: macOS menu bar app
+
+This phase assumes the recommended stack: **a thin native Swift UI with all the logic in a
+TypeScript helper.** The Electrobun alternative is at the end of this phase.
+
+### Architecture
+
+```
+Tokenmaxxing.app
+├── Contents/MacOS/Tokenmaxxing           Swift: menu bar UI, Keychain, login item, wake events
+├── Contents/Helpers/tokenmaxxing-helper  TS (bun --compile): sync loop, API client, all logic
+├── Contents/Resources/                   icon, assets
+└── Contents/Info.plist                   LSUIElement=YES (no Dock icon), version from release-please
+```
+
+**Who does what**
+
+| Swift shell ("dumb view") | TypeScript helper ("the brain") |
+|---|---|
+| Menu bar icon + popover (`MenuBarExtra`, `.window` style) | Sync loop: `collect()` → `send()` every 5 min (R6) |
+| Renders one `AppState` snapshot it receives | Owns all server calls through the typed Hono client (R1) |
+| Keychain: stores the API token, hands it to the helper on start | Computes the `AppState` view model (totals, rank, leaderboard, groups) |
+| Launch at login (`SMAppService.mainApp`) | Sync state file (per-file offsets) in `~/Library/Application Support/Tokenmaxxing/` |
+| Tells the helper about sleep/wake (`NSWorkspace.didWakeNotification`) and user actions | Retries and offline handling. File offsets only advance after the server acks. |
+| Starts the helper, and restarts it with backoff if it dies | Logs to stderr, which the shell writes to `~/Library/Logs/Tokenmaxxing/helper.log` |
+
+**Why this split:** Swift only has to decode one struct and send a handful of commands, so almost
+all of the code (and all the tests) stay in TypeScript.
+
+### Shell ↔ helper protocol
+
+Newline-delimited JSON over the helper's stdin/stdout. It defines one state snapshot and a few
+commands, and nothing else.
+
+```ts
+// core/protocol.ts: the single source of truth
+type Command =
+  | { id: number; cmd: "init"; token: string | null; serverUrl: string }
+  | { id: number; cmd: "signUp"; name: string }
+  | { id: number; cmd: "createGroup"; name: string }
+  | { id: number; cmd: "joinGroup"; code: string }
+  | { id: number; cmd: "leaveGroup"; groupId: number }
+  | { id: number; cmd: "setView"; range: "today" | "7d" | "30d"; groupId: number | null;
+      sort: "tokens" | "parallelism" }
+  | { id: number; cmd: "syncNow" }
+  | { id: number; cmd: "openDashboard" }            // → { url } with the single-use login code
+  | { id: number; cmd: "signOut" };
+
+type Message =
+  | { id: number; ok: true; result?: unknown }      // reply to a command
+  | { id: number; ok: false; error: string }        // e.g. "name_taken", "invalid_code"
+  | { event: "state"; state: AppState }             // full snapshot, pushed on every change
+  | { event: "token"; token: string };              // after signUp → the shell saves it to the Keychain
+
+interface AppState {
+  phase: "onboarding" | "ready";
+  me: { name: string; todayTokens: number; todayCostUsd: number; monthTokens: number;
+        monthCostUsd: number; rank: number | null; parallelism: number | null;
+        peakAgents: number } | null;
+  view: { range: "today" | "7d" | "30d"; groupId: number | null; sort: "tokens" | "parallelism" };
+  leaderboard: { name: string; tokens: number; costUsd: number; parallelism: number | null;
+                 isMe: boolean }[];
+  groups: { id: number; name: string; code: string; memberCount: number; isOwner: boolean }[];
+  sync: { lastSyncedAt: number | null; lastError: string | null; online: boolean };
+  sources: { id: string; enabled: boolean; found: boolean }[];   // Claude Code, Codex, Cursor…
+}
+```
+
+- The token goes over stdin in `init`, never in argv or env, because those are visible in `ps`.
+- **Contract test against drift:** a `bun test` writes an `AppState` fixture JSON, and a Swift test
+  decodes it. If either side changes the shape without the other, CI fails.
+
+### Swift shell
+
+- Minimum **macOS 14 (Sonoma)**. That gives us `MenuBarExtra`, `SMAppService` and `@Observable`
+  with no fallbacks.
+- Build with **Swift Package Manager**, not an `.xcodeproj`: a `Package.swift` plus a small script
+  that assembles the `.app` bundle. No Xcode project files in git, and everything builds from the
+  command line and CI.
+- **No App Sandbox.** The app has to read `~/.claude`, `~/.codex` and other apps' support folders,
+  which a sandbox blocks. That's fine for Developer ID distribution, which only requires the
+  **hardened runtime**. None of these folders are protected by macOS privacy prompts, so no Full
+  Disk Access prompt appears.
+- About 6 files:
+  - `App.swift` (the `MenuBarExtra` scene)
+  - `HelperProcess.swift` (spawn/restart + NDJSON I/O)
+  - `Keychain.swift`
+  - `Views/Onboarding.swift`, `Views/Main.swift`, `Views/Groups.swift`, `Views/Settings.swift`
+
+### UI
+
+**Menu bar item:** an icon, with an optional compact count next to it ("1.2M" tokens today). A
+setting turns the count on or off.
+
+**Onboarding** (`phase: "onboarding"`):
+1. Pick a name (shows "name taken" inline).
+2. Create a group, or join one with a code. You can skip this; the leaderboard then shows just you.
+
+**Popover:**
+- **Header:** your tokens and cost for the selected range, your parallelism ("3.2× parallel, peak
+  7"), and your rank ("#3 of 12").
+- **Controls:** a range picker (Today / 7d / 30d), a group picker (the default is "All groups"),
+  and a Tokens / Parallelism sort toggle.
+- **Leaderboard:** the top 10 with your row highlighted. If you're not in the top 10, your row is
+  pinned at the bottom.
+- **Footer:**
+  - "Synced 2 min ago" (or an offline/error notice)
+  - Sync now
+  - Open dashboard
+  - Groups
+  - Settings
+  - Quit
+
+**Groups view:**
+- A list of your groups, each with a copy-code button, member count, and Leave (or owner actions).
+- "Create group" and "Join with code".
+- Codes are copied in a shareable format: *"Join my tokenmaxxing group: K7QM-2XRP-9D"*.
+
+**Settings:**
+- Launch at login (on by default after onboarding)
+- Show the count in the menu bar
+- Turn individual sources on or off
+- Sign out (clears the Keychain entry and the sync state)
+- Version
+
+### Helper entry point (`app/helper/main.ts`)
+
+- Reads commands from stdin and handles them through `core/`.
+- Runs the sync timer, fetches the leaderboard after each sync or `setView`, and pushes `state`.
+- Has a **`--once` CLI mode** that syncs once and prints the result. It works without the Swift
+  shell, so we can dogfood syncing and test it in CI before any UI exists.
+
+### Signing requirements for the Bun binary
+
+A `bun build --compile` binary needs JIT entitlements under the hardened runtime. Upstream only
+ad-hoc signs, so we have to set this up ourselves.
+- `helper.entitlements`: `com.apple.security.cs.allow-jit`,
+  `com.apple.security.cs.allow-unsigned-executable-memory`,
+  `com.apple.security.cs.disable-library-validation`
+- Sign inside-out: first the helper (with entitlements), then the app bundle.
+- Build **per architecture** (arm64 and x64 zips) instead of `lipo`-ing Bun binaries together. The
+  cask picks the right zip with `on_arm` / `on_intel`.
+
+### Dev workflow
+
+- `bun run app:dev` builds the Swift shell into `app/build/Tokenmaxxing.app`. The shell runs the
+  helper from source (`bun app/helper/main.ts`, via a `TOKENMAXXING_HELPER_CMD` override), so TS
+  changes only need a restart.
+- `TOKENMAXXING_SERVER_URL` points it at a local server (`bun run dev:server`).
+- `bun run app:build` produces the signed release bundle, and is what CI runs in Phase 6.
+
+### Milestones
+
+| # | Deliverable | Done when |
+|---|---|---|
+| M1 | Headless helper (`--once` + protocol loop) | It syncs real Claude Code/Codex logs to a local server, and protocol tests pass |
+| M2 | Swift skeleton | The menu bar icon appears, the helper is spawned and restarted, and the raw `AppState` is shown |
+| M3 | Onboarding + Keychain | Sign-up works end to end, and the token survives an app restart |
+| M4 | Leaderboard popover | Range/group pickers work and your row is highlighted or pinned |
+| M5 | Groups | Create, join, copy code, leave, and owner actions work |
+| M6 | Settings + polish | Launch at login, wake → sync, menu bar count, offline state, sign out |
+| M7 | Packaging | The signed and notarized `.app` installs through the cask (Phase 6) |
+
+M1 can start as soon as R5/R6 land. M2 onwards needs the Phase 4 API.
+
+### Alternative: Electrobun
+
+If we pick all-TypeScript Electrobun (open decision 1):
+- The protocol above becomes in-process function calls.
+- The popover is a small webview that reuses `web/` React components.
+- Keychain and login-item support need Electrobun APIs or small native shims.
+
+The milestones stay the same. The trade-offs are a bigger app, a webview in the menu bar, and a
+younger framework.
+
+---
+
+## Phase 6: Distribution
+
+### Versioning with release-please
+- [ ] Use [release-please](https://github.com/googleapis/release-please-action) with one version for the whole repo (`release-type: node`). The version lives in the root `package.json`, which replaces upstream's "tags are the version, `package.json` stays 0.1.0" rule.
+- [ ] Add `release-please-config.json` and `.release-please-manifest.json` (start at `0.1.0`). Use `extra-files` to also bump the app's `Info.plist` (`CFBundleShortVersionString`), so the app and server versions never drift apart.
+- [ ] **Conventional commits are required** (`feat:`, `fix:`, `chore:` …), because release-please reads them to pick the version bump and write the changelog. Enforce this with a PR-title check in `ci.yml`.
+- [ ] Delete upstream's `CHANGELOG.md` in Phase 1. release-please generates a fresh one.
+- [ ] Surface the server version from `package.json` in `/health` (replaces `TOKENLEADER_SERVER_VERSION`).
+
+### Release pipeline
+1. A merge to `main` → release-please opens or updates a **Release PR** (version bump + changelog).
+2. Merging the Release PR → release-please creates the `vX.Y.Z` tag and GitHub Release.
+3. The same `release.yml` workflow then runs when `release_created` is true:
+   - build the helper (arm64 + x64) → build the `.app` → codesign with a Developer ID → notarize → staple
+   - upload the zip to the GitHub Release
+   - bump the version + sha256 in the Homebrew cask
+4. Railway deploys the server automatically from `main`, so there's no deploy step in CI.
+
+### Homebrew
+- [ ] A `homebrew-tap` repo with a cask: `brew install --cask <user>/tap/tokenmaxxing`. `brew upgrade` handles updates, so there's no self-updater.
+- [ ] **This needs a paid Apple Developer account** ($99/yr). Without it, Gatekeeper blocks the app for everyone who installs it.
+- [ ] The cask bump needs a token with write access to the tap repo (stored as a repo secret).
+
+---
+
+## Open decisions
+
+1. **Menu bar app stack:** a Swift shell with a TS helper (recommended), or all-TS Electrobun?
+2. **Cursor:** keep the local Cursor parser, but drop the Cursor Teams mirror on the server and the `login-cursor` / auto-login flow (~1.5k lines plus a dependency on Cursor's cloud API)?
+3. **Several Macs per user:** in v1, a second Mac could sign in with a code from the first, which is the same single-use code flow the dashboard login uses. Or should it be one Mac per user for now?
+4. **What groupmates can see:** totals and cost only, or also your model breakdown and daily activity grid? (The plan assumes everything is visible, like upstream.)
+5. **Owner powers:** is removing members plus rotating the code enough, or should groups have no owner at all in v1?
+6. **Which tokens count in "tokens / active hour":** cache reads usually make up the bulk of the total. Should it match the leaderboard's total, or use input + output only, which says more about how much real work got done?
+7. **Operator admin:** keep an `ADMIN_TOKEN` for ops (deleting a user, purging spam groups), or handle that directly with SQL on the Railway volume?

@@ -1,0 +1,13 @@
+{
+  "name": "@tokenmaxxing/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./app": "./src/app.ts"
+  },
+  "dependencies": {
+    "@tokenmaxxing/core": "workspace:*",
+    "hono": "^4.9.0"
+  }
+}

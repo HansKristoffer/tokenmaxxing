@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Token-usage leaderboard for AI coding agents — see who runs the most agents in parallel across your groups" />
+    <title>tokenmaxxing</title>
+    <meta property="og:title" content="tokenmaxxing" />
+    <meta property="og:description" content="Token-usage leaderboard for AI coding agents, with groups" />
+    <meta property="og:site_name" content="tokenmaxxing" />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafaf9" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121212" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>⚡</text></svg>" />
+    <link rel="stylesheet" href="./src/styles.css" />
+    <script>
+      // Apply a saved theme before first paint so dark mode never flashes light.
+      try {
+        const t = localStorage.getItem("tokenmaxxingTheme");
+        if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./src/main.tsx"></script>
+  </body>
+</html>

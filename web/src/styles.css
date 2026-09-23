@@ -1,0 +1,333 @@
+/* =========================================================================
+   tokenmaxxing dashboard — design tokens. System font stacks (no external assets);
+   prefers-color-scheme is the theme default (data-theme on <html> is the
+   explicit override).
+   ========================================================================= */
+
+:root {
+  --bg-app: hsl(60 1% 98%);
+  --bg-object: hsl(0 0% 100%);
+  --bg-primary: hsl(0 0% 100%);
+  --bg-inverse: hsl(0 0% 9%);
+  --hover-app: hsl(0 0% 90%);
+  --active-app: hsl(0 0% 88%);
+  --hover-object: hsl(0 0% 96%);
+  --text-primary: hsl(0 0% 6%);
+  --text-secondary: hsl(0 0% 40%);
+  --text-tertiary: hsl(0 0% 46%);
+  --text-inverse: hsl(0 0% 97%);
+  --destructive: hsl(349 100% 42%);
+  --border-primary: hsl(0 0% 86%);
+  --border-muted: hsl(0 0% 95%);
+  /* Card outline: one notch stronger than --border-muted (which reads as
+     borderless against --bg-app) but weaker than --border-primary, so a card
+     is faintly outlined rather than boxed in. */
+  --border-card: hsl(0 0% 89%);
+  --accent-green: hsl(135 59% 38%);
+  --accent-orange: hsl(32 100% 40%);
+  --ghost-a: hsl(0 0% 93%);
+  --ghost-b: hsl(0 0% 97%);
+  /* Contribution-grid ramp: near-monochrome, whisper-gray to near-ink.
+     Consumed via fill="var(--cg-N)". */
+  --cg-0: hsl(0 0% 94%);
+  --cg-1: hsl(0 0% 80%);
+  --cg-2: hsl(0 0% 62%);
+  --cg-3: hsl(0 0% 36%);
+  --cg-4: hsl(0 0% 10%);
+  --radius: 0.5rem;
+  --radius-card: 0.75rem;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-body: -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+
+/* Dark tokens, twice: once for the OS default, once for the explicit
+   override. CSS can't merge a media query and a selector into one rule. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-app: hsl(0 0% 7%);
+    --bg-object: hsl(0 0% 12%);
+    --bg-primary: hsl(0 0% 9%);
+    --bg-inverse: hsl(0 0% 97%);
+    --hover-app: hsl(0 0% 10%);
+    --active-app: hsl(0 0% 16%);
+    --hover-object: hsl(0 0% 15%);
+    --text-primary: hsl(0 0% 97%);
+    --text-secondary: hsl(0 0% 55%);
+    --text-tertiary: hsl(0 0% 56%);
+    --text-inverse: hsl(0 0% 6%);
+    --destructive: hsl(349 100% 59%);
+    --border-primary: hsl(0 0% 15%);
+    --border-muted: hsl(0 0% 13%);
+    --border-card: hsl(0 0% 18%);
+    --accent-green: hsl(135 59% 49%);
+    --accent-orange: hsl(32 100% 50%);
+    --ghost-a: hsl(0 0% 15%);
+    --ghost-b: hsl(0 0% 19%);
+    --cg-0: hsl(0 0% 13%);
+    --cg-1: hsl(0 0% 22%);
+    --cg-2: hsl(0 0% 35%);
+    --cg-3: hsl(0 0% 55%);
+    --cg-4: hsl(0 0% 80%);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg-app: hsl(0 0% 7%);
+  --bg-object: hsl(0 0% 12%);
+  --bg-primary: hsl(0 0% 9%);
+  --bg-inverse: hsl(0 0% 97%);
+  --hover-app: hsl(0 0% 10%);
+  --active-app: hsl(0 0% 16%);
+  --hover-object: hsl(0 0% 15%);
+  --text-primary: hsl(0 0% 97%);
+  --text-secondary: hsl(0 0% 55%);
+  --text-tertiary: hsl(0 0% 56%);
+  --text-inverse: hsl(0 0% 6%);
+  --destructive: hsl(349 100% 59%);
+  --border-primary: hsl(0 0% 15%);
+  --border-muted: hsl(0 0% 13%);
+  --border-card: hsl(0 0% 18%);
+  --accent-green: hsl(135 59% 49%);
+  --accent-orange: hsl(32 100% 50%);
+  --ghost-a: hsl(0 0% 15%);
+  --ghost-b: hsl(0 0% 19%);
+  --cg-0: hsl(0 0% 13%);
+  --cg-1: hsl(0 0% 22%);
+  --cg-2: hsl(0 0% 35%);
+  --cg-3: hsl(0 0% 55%);
+  --cg-4: hsl(0 0% 80%);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  min-height: 100vh;
+}
+button,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+.mono,
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.muted {
+  color: var(--text-secondary);
+}
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* header ---------------------------------------------------------------- */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.brand {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 16px;
+  margin-right: auto;
+}
+.pills {
+  display: inline-flex;
+  background: var(--bg-object);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 2px;
+}
+.pills button {
+  border: 0;
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.pills button[aria-pressed="true"] {
+  background: var(--bg-inverse);
+  color: var(--text-inverse);
+}
+select,
+.btn {
+  background: var(--bg-object);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.btn:hover,
+select:hover {
+  background: var(--hover-object);
+}
+.link {
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* cards ----------------------------------------------------------------- */
+.card {
+  background: var(--bg-object);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 16px;
+}
+.card h2 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 800px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* stats strip ----------------------------------------------------------- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.stat .label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.stat .value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+/* tables ---------------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-primary);
+  white-space: nowrap;
+}
+th.sortable {
+  cursor: pointer;
+}
+th[aria-sort="descending"] {
+  color: var(--text-primary);
+}
+td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border-muted);
+  white-space: nowrap;
+}
+th.r,
+td.r {
+  text-align: right;
+}
+tbody tr {
+  cursor: pointer;
+}
+tbody tr:hover {
+  background: var(--hover-object);
+}
+tr.me td {
+  font-weight: 600;
+}
+tr.selected {
+  background: var(--active-app);
+}
+
+/* activity grid ----------------------------------------------------------- */
+.activity {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 11px);
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.activity span {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--cg-0);
+}
+.activity span[data-l="1"] {
+  background: var(--cg-1);
+}
+.activity span[data-l="2"] {
+  background: var(--cg-2);
+}
+.activity span[data-l="3"] {
+  background: var(--cg-3);
+}
+.activity span[data-l="4"] {
+  background: var(--cg-4);
+}
+
+/* groups ------------------------------------------------------------------ */
+.group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-muted);
+}
+.group:last-child {
+  border-bottom: 0;
+}
+.error {
+  color: var(--destructive);
+}
+.center {
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.center .card {
+  max-width: 420px;
+}

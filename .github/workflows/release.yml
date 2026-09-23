@@ -1,0 +1,95 @@
+# release-please keeps a Release PR open with the next version + changelog.
+# Merging it tags vX.Y.Z and creates the GitHub Release; the jobs below then
+# build, sign and notarize the app, attach it, and bump the Homebrew cask.
+# Railway deploys the server from main on its own.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.rp.outputs.release_created }}
+      tag: ${{ steps.rp.outputs.tag_name }}
+      version: ${{ steps.rp.outputs.version }}
+    steps:
+      - id: rp
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  app:
+    needs: release-please
+    if: needs.release-please.outputs.created == 'true'
+    runs-on: macos-15
+    strategy:
+      matrix:
+        arch: [arm64, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Import signing certificate
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          echo "$CERT_P12" | base64 --decode > cert.p12
+          security create-keychain -p ci build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security import cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          rm cert.p12
+      - name: Build, sign, notarize
+        env:
+          ARCH: ${{ matrix.arch }}
+          TOKENMAXXING_SERVER_URL: ${{ vars.TOKENMAXXING_SERVER_URL }}
+          SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: bash app/scripts/build-app.sh release
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ needs.release-please.outputs.tag }}" app/build/Tokenmaxxing-*.zip --clobber
+
+  cask:
+    needs: [release-please, app]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render the cask with this release's checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.release-please.outputs.version }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: |
+          gh release download "$TAG" --pattern 'Tokenmaxxing-*.zip' --dir dist
+          export SHA_ARM=$(sha256sum "dist/Tokenmaxxing-$VERSION-arm64.zip" | cut -d' ' -f1)
+          export SHA_INTEL=$(sha256sum "dist/Tokenmaxxing-$VERSION-x86_64.zip" | cut -d' ' -f1)
+          envsubst '$VERSION $SHA_ARM $SHA_INTEL' < packaging/tokenmaxxing.rb > tokenmaxxing.rb
+      - name: Push to the tap
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/HansKristoffer/homebrew-tap.git" tap
+          mkdir -p tap/Casks && cp tokenmaxxing.rb tap/Casks/tokenmaxxing.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/tokenmaxxing.rb
+          git commit -m "tokenmaxxing $VERSION"
+          git push

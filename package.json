@@ -1,0 +1,45 @@
+{
+  "name": "tokenmaxxing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Token-usage leaderboard for AI coding agents, with groups and a macOS menu bar app",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HansKristoffer/tokenmaxxing"
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "cursor",
+    "token-usage",
+    "leaderboard",
+    "menu-bar",
+    "bun",
+    "hono"
+  ],
+  "type": "module",
+  "workspaces": [
+    "core",
+    "server",
+    "web",
+    "app/helper"
+  ],
+  "scripts": {
+    "dev:server": "bun --hot server/src/main.ts",
+    "app:dev": "bash app/scripts/build-app.sh dev && open app/build/Tokenmaxxing.app",
+    "app:build": "bash app/scripts/build-app.sh release",
+    "helper:once": "bun app/helper/src/main.ts --once",
+    "test": "bun test",
+    "typecheck": "tsc -p core && tsc -p server && tsc -p web && tsc -p app/helper",
+    "lint": "biome ci .",
+    "format": "biome check --write .",
+    "check": "bun run typecheck && bun run lint && bun test",
+    "vendor:pricing": "bun server/scripts/vendor-pricing.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
+    "@types/bun": "latest",
+    "typescript": "^5.9.0"
+  }
+}

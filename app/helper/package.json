@@ -1,0 +1,11 @@
+{
+  "name": "@tokenmaxxing/helper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@tokenmaxxing/core": "workspace:*",
+    "@tokenmaxxing/server": "workspace:*",
+    "hono": "^4.9.0"
+  }
+}
