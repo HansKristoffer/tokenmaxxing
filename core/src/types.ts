@@ -1,8 +1,9 @@
-export type Source = "claude_code" | "claude_cowork" | "codex" | "cursor_local";
+export type Source = "claude_code" | "claude_cowork" | "codex" | "cursor_local" | "github";
 
-export const SOURCES: readonly Source[] = ["claude_code", "claude_cowork", "codex", "cursor_local"];
+export const SOURCES: readonly Source[] = ["claude_code", "claude_cowork", "codex", "cursor_local", "github"];
 
-export type MessageType = "user" | "assistant";
+/** `pr` marks a pull request the user created (GitHub source, zero tokens). */
+export type MessageType = "user" | "assistant" | "pr";
 
 /** One model turn read from a local log. Never carries message content. */
 export interface TokenEvent {
@@ -50,5 +51,7 @@ export interface FileState {
 export interface SyncState {
   files: Record<string, FileState>;
   cursorLocal?: { dbPath: string; lastRowid: number };
+  /** Newest PR `createdAt` fetched from GitHub. */
+  github?: { since: string | null };
   lastSyncedAt: number | null;
 }

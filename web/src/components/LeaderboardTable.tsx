@@ -35,6 +35,7 @@ export function LeaderboardTable({ entries, me, sort, onSort, selected, onSelect
           <th className="r" title="Most agents running at the same time">
             Peak
           </th>
+          {sortable("prs", "PRs", "Pull requests created on GitHub (needs gh)")}
           <th>Top model</th>
           <th className="r">Last active</th>
         </tr>
@@ -52,6 +53,7 @@ export function LeaderboardTable({ entries, me, sort, onSort, selected, onSelect
             <td className="num r">{fmtUsd(e.costUsd)}</td>
             <td className="num r">{fmtParallel(e.parallelism)}</td>
             <td className="num r">{e.peakAgents || "—"}</td>
+            <td className="num r">{e.prs || "—"}</td>
             <td className="muted">{e.topModel ?? "—"}</td>
             <td className="r muted">{relTime(e.lastActiveAt)}</td>
           </tr>

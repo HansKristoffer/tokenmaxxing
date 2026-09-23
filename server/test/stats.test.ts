@@ -58,6 +58,27 @@ describe("parallelism", () => {
     expect(s.parallelism).toBe(1);
     expect(s.prompts).toBe(12);
   });
+
+  test("PRs count once, add no tokens or agent activity", async () => {
+    const pr = event({
+      source: "github",
+      sessionId: "github",
+      messageType: "pr",
+      model: "",
+      inputTokens: 0,
+      outputTokens: 0,
+    });
+    const s = await statsFor([
+      ...activity("a", start, HOUR),
+      pr,
+      { ...pr },
+      event({ ...pr, messageId: "p2" }),
+    ]);
+    expect(s.prs).toBe(2);
+    expect(s.prompts).toBe(0);
+    expect(s.parallelism).toBe(1);
+    expect(s.turns).toBe(12);
+  });
 });
 
 describe("leaderboard", () => {

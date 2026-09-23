@@ -24,7 +24,7 @@ final class AppModel {
         static let onboarded = "onboarded"
     }
 
-    static let allSources = ["claude_code", "claude_cowork", "codex", "cursor_local"]
+    static let allSources = ["claude_code", "claude_cowork", "codex", "cursor_local", "github"]
 
     init() {
         let bundle = Bundle.main

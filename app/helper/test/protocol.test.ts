@@ -9,7 +9,7 @@ import type { AppState, Message } from "@tokenmaxxing/core/protocol.ts";
 const state: AppState = {
   phase: "ready",
   version: "1.2.3",
-  view: { range: "7d", groupId: 4, sort: "parallelism" },
+  view: { range: "7d", groupId: 4, sort: "prs" },
   me: {
     name: "alice",
     rank: 2,
@@ -19,6 +19,7 @@ const state: AppState = {
     parallelism: 3.25,
     peakAgents: 7,
     tokensPerActiveHour: 2_400_000,
+    prs: 5,
   },
   leaderboard: [
     {
@@ -28,6 +29,7 @@ const state: AppState = {
       costUsd: 80.1,
       parallelism: null,
       peakAgents: 1,
+      prs: 0,
       isMe: false,
     },
     {
@@ -37,6 +39,7 @@ const state: AppState = {
       costUsd: 42.5,
       parallelism: 3.25,
       peakAgents: 7,
+      prs: 5,
       isMe: true,
     },
   ],

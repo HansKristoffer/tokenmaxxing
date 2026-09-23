@@ -3,6 +3,7 @@ import { parseClaudeCodeFile } from "../sources/claude-code.ts";
 import { parseCodexFile } from "../sources/codex.ts";
 import { parseCursorTranscriptFile } from "../sources/cursor-jsonl.ts";
 import { parseCursorLocal } from "../sources/cursor-local.ts";
+import { fetchPullRequests, type GhRunner, ghPath, ghRunner } from "../sources/github.ts";
 import {
   cursorStateDbPath,
   listClaudeCodeFiles,
@@ -89,6 +90,8 @@ export interface CollectOptions {
   batchSize?: number;
   sources?: readonly FileSource[];
   cursorDbPath?: string;
+  /** Runs `gh`; defaults to the installed one. null = no `gh`, skip PRs. */
+  gh?: GhRunner | null;
   onError?: (err: unknown, where: string) => void;
 }
 
@@ -175,6 +178,24 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
         };
       } catch (err) {
         opts.onError?.(err, `parse:${dbPath}`);
+      }
+    }
+  }
+
+  if (opts.enabled.has("github")) {
+    const bin = opts.gh === undefined ? ghPath() : null;
+    const gh = opts.gh !== undefined ? opts.gh : bin ? ghRunner(bin) : null;
+    if (gh) {
+      try {
+        const r = await fetchPullRequests(gh, state.github?.since ?? null);
+        take(r.events);
+        const batch = flush();
+        yield {
+          events: batch.events,
+          commit: (s) => ({ ...batch.commit(s), github: { since: r.since } }),
+        };
+      } catch (err) {
+        opts.onError?.(err, "github");
       }
     }
   }

@@ -58,6 +58,8 @@ export interface UsageTotals {
   turns: number;
   /** Human prompts. */
   prompts: number;
+  /** Pull requests created (from `gh`, so 0 without it). */
+  prs: number;
   /** Average number of agents running at once while any was running. */
   parallelism: number | null;
   peakAgents: number;
@@ -92,6 +94,7 @@ const emptyTotals = (): UsageTotals => ({
   costUsd: 0,
   turns: 0,
   prompts: 0,
+  prs: 0,
   parallelism: null,
   peakAgents: 0,
   activeHours: 0,
@@ -156,15 +159,18 @@ function totalsFor(
   }
 
   for (const r of db
-    .query<{ user: string; prompts: number }, typeof params>(
+    .query<{ user: string; prompts: number; prs: number }, typeof params>(
       `${cte.sql}
-       SELECT e.user, COUNT(*) AS prompts FROM events e
-       WHERE e.user IN (SELECT user FROM visible) AND ${window} AND e.message_type = 'user'
+       SELECT e.user, SUM(e.message_type = 'user') AS prompts, SUM(e.message_type = 'pr') AS prs
+       FROM events e
+       WHERE e.user IN (SELECT user FROM visible) AND ${window} AND e.message_type IN ('user', 'pr')
        GROUP BY e.user`,
     )
     .all(params)) {
     const t = out.get(r.user);
-    if (t) t.prompts = r.prompts;
+    if (!t) continue;
+    t.prompts = r.prompts;
+    t.prs = r.prs;
   }
 
   // ponytail: 5-minute buckets. Switching between two sessions inside one
@@ -207,6 +213,7 @@ const SORTS: Record<SortKey, (a: UsageTotals, b: UsageTotals) => number> = {
   tokens: (a, b) => b.tokens - a.tokens,
   cost: (a, b) => b.costUsd - a.costUsd || b.tokens - a.tokens,
   parallelism: (a, b) => (b.parallelism ?? -1) - (a.parallelism ?? -1) || b.tokens - a.tokens,
+  prs: (a, b) => b.prs - a.prs || b.tokens - a.tokens,
 };
 
 export function leaderboard(
