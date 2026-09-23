@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v0.2.0...v0.2.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* relaunch the updated app by path and isolate dev builds ([1a2a900](https://github.com/HansKristoffer/tokenmaxxing/commit/1a2a9005276f08a785d38bc4643906e6cecb10e8))
+
 ## [0.2.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v0.1.0...v0.2.0) (2026-09-23)
 
 
