@@ -20,9 +20,14 @@ ARCH="${ARCH:-$(uname -m)}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 VERSION="$(bun -e 'console.log(require(process.argv[1]).version)' "$ROOT/package.json")"
 BUNDLE_ID="dk.hanskristoffer.tokenmaxxing"
+DISPLAY_NAME="Tokenmaxxing"
 
 case "$MODE" in
-  dev) SERVER_URL="${TOKENMAXXING_SERVER_URL:-http://localhost:8787}"; CONFIG=debug ;;
+  # Dev builds get their own bundle id, name, Keychain entry and state dir, so they never touch the
+  # installed app's account (and `open -a Tokenmaxxing` can't pick them by mistake).
+  dev)
+    SERVER_URL="${TOKENMAXXING_SERVER_URL:-http://localhost:8787}"; CONFIG=debug
+    BUNDLE_ID="$BUNDLE_ID.dev"; DISPLAY_NAME="Tokenmaxxing Dev" ;;
   release)
     SERVER_URL="${TOKENMAXXING_SERVER_URL:?set TOKENMAXXING_SERVER_URL to the production server}"
     CONFIG=release ;;
@@ -43,8 +48,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key><string>Tokenmaxxing</string>
-	<key>CFBundleDisplayName</key><string>Tokenmaxxing</string>
+	<key>CFBundleName</key><string>$DISPLAY_NAME</string>
+	<key>CFBundleDisplayName</key><string>$DISPLAY_NAME</string>
 	<key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
 	<key>CFBundleExecutable</key><string>Tokenmaxxing</string>
 	<key>CFBundleIconFile</key><string>AppIcon</string>
@@ -64,7 +69,8 @@ if [ "$MODE" = dev ]; then
   echo "==> Helper (from source)"
   BUN="$(command -v bun)"
   # GUI apps get a minimal PATH, so bake in bun's absolute path.
-  printf '#!/bin/sh\nexec "%s" "%s" "$@"\n' "$BUN" "$ROOT/app/helper/src/main.ts" > "$HELPER"
+  printf '#!/bin/sh\nexport TOKENMAXXING_STATE_DIR="$HOME/Library/Application Support/Tokenmaxxing Dev"\nexec "%s" "%s" "$@"\n' \
+    "$BUN" "$ROOT/app/helper/src/main.ts" > "$HELPER"
   chmod +x "$HELPER"
 else
   echo "==> Helper (compiled)"

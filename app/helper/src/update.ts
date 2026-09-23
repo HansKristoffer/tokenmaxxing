@@ -51,6 +51,12 @@ export function brewPath(): string | null {
   return BREW_PATHS.find((p) => existsSync(p)) ?? null;
 }
 
+/** The .app this helper runs inside (…/Tokenmaxxing.app/Contents/Helpers/tokenmaxxing-helper). */
+export function appBundlePath(execPath = process.execPath): string {
+  const i = execPath.indexOf(".app/Contents/");
+  return i >= 0 ? execPath.slice(0, i + 4) : "/Applications/Tokenmaxxing.app";
+}
+
 /**
  * Runs `brew upgrade` detached from the app: the cask quits the running app
  * mid-upgrade, which also ends this helper, so the upgrade must outlive both.
@@ -60,7 +66,8 @@ export function startBrewUpgrade(brew: string): void {
   const logDir = join(homedir(), "Library", "Logs", "Tokenmaxxing");
   mkdirSync(logDir, { recursive: true });
   const log = openSync(join(logDir, "update.log"), "a");
-  const script = `"${brew}" update --quiet && "${brew}" upgrade --cask hanskristoffer/tap/tokenmaxxing; open -a Tokenmaxxing`;
+  // Relaunch this exact bundle by path; `open -a` could pick a dev build with the same name.
+  const script = `"${brew}" update --quiet && "${brew}" upgrade --cask hanskristoffer/tap/tokenmaxxing; open "${appBundlePath()}"`;
   const child = spawn("/bin/sh", ["-c", script], {
     detached: true,
     stdio: ["ignore", log, log],

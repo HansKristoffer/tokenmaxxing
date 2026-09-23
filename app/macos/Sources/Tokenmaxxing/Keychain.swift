@@ -3,7 +3,8 @@ import Security
 
 /// The API token lives in the login Keychain, never in files or defaults.
 enum Keychain {
-    private static let service = "dk.hanskristoffer.tokenmaxxing"
+    /// Per bundle id, so a dev build never reads (or deletes) the installed app's token.
+    private static let service = Bundle.main.bundleIdentifier ?? "dk.hanskristoffer.tokenmaxxing"
     private static let account = "api-token"
 
     private static var query: [String: Any] {

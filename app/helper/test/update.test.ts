@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkForUpdate, isNewer, parseCaskVersion } from "../src/update.ts";
+import { appBundlePath, checkForUpdate, isNewer, parseCaskVersion } from "../src/update.ts";
 
 const cask = (v: string) =>
   `cask "tokenmaxxing" do\n  arch arm: "arm64"\n\n  version "${v}"\n  sha256 arm: "x"\nend\n`;
@@ -8,6 +8,13 @@ describe("update check", () => {
   test("reads the version from the published cask", () => {
     expect(parseCaskVersion(cask("0.2.0"))).toBe("0.2.0");
     expect(parseCaskVersion("no version here")).toBeNull();
+  });
+
+  test("relaunches the bundle the helper lives in", () => {
+    expect(appBundlePath("/Applications/Tokenmaxxing.app/Contents/Helpers/tokenmaxxing-helper")).toBe(
+      "/Applications/Tokenmaxxing.app",
+    );
+    expect(appBundlePath("/usr/local/bin/bun")).toBe("/Applications/Tokenmaxxing.app");
   });
 
   test("compares versions numerically", () => {
