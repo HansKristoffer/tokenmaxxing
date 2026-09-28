@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum Page {
-    case main, groups, settings
+    case main, groups, settings, chat
 }
 
 struct RootView: View {
@@ -21,6 +21,7 @@ struct RootView: View {
                 case .main: MainView(page: $page)
                 case .groups: GroupsView(page: $page)
                 case .settings: SettingsView(page: $page)
+                case .chat: ChatView(page: $page)
                 }
             }
         }

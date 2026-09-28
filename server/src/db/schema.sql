@@ -1,5 +1,5 @@
--- Single schema, no migrations yet. When it first needs to change, gate
--- numbered migration files on PRAGMA user_version.
+-- Version 0 of the schema. Later changes are the MIGRATIONS in db.ts,
+-- gated on PRAGMA user_version.
 
 CREATE TABLE IF NOT EXISTS users (
   name        TEXT PRIMARY KEY,

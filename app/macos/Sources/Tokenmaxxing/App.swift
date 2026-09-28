@@ -20,11 +20,26 @@ struct MenuBarLabel: View {
     let model: AppModel
 
     var body: some View {
-        if model.showCountInMenuBar, let me = model.state?.me, model.state?.phase == .ready {
-            Label(Format.compact(me.tokens), systemImage: "bolt.fill")
+        let unread = (model.state?.chat.unread ?? 0) > 0 ? " •" : ""
+        if let text = title, model.state?.phase == .ready {
+            Label(text + unread, systemImage: "bolt.fill")
                 .labelStyle(.titleAndIcon)
+        } else if !unread.isEmpty {
+            Label(unread, systemImage: "bolt.fill").labelStyle(.titleAndIcon)
         } else {
             Image(systemName: "bolt.fill")
+        }
+    }
+
+    private var title: String? {
+        guard let me = model.state?.me else { return nil }
+        let tokens = Format.compact(me.tokens)
+        let rank = me.rank.map { "#\($0)\(Format.arrow(me.delta))" }
+        switch model.menuBarDisplay {
+        case .icon: return nil
+        case .tokens: return tokens
+        case .rank: return rank ?? tokens
+        case .both: return rank.map { "\($0) · \(tokens)" } ?? tokens
         }
     }
 }
@@ -48,6 +63,22 @@ enum Format {
     static func parallel(_ p: Double?) -> String {
         guard let p else { return "—" }
         return String(format: "%.1f×", p)
+    }
+
+    /// "▲" / "▼" for a rank change, "" for none.
+    static func arrow(_ delta: Int?) -> String {
+        guard let delta, delta != 0 else { return "" }
+        return delta > 0 ? "▲" : "▼"
+    }
+
+    /// A gap in the unit of `sort`.
+    static func gap(_ n: Double, _ sort: SortKey) -> String {
+        switch sort {
+        case .tokens: compact(n)
+        case .cost: usd(n)
+        case .parallelism: String(format: "%.1f×", n)
+        case .prs: "\(Int(n)) PR\(Int(n) == 1 ? "" : "s")"
+        }
     }
 
     static func ago(_ ms: Double?) -> String {

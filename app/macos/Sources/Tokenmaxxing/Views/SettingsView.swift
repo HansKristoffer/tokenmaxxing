@@ -21,7 +21,11 @@ struct SettingsView: View {
 
             Divider()
             Toggle("Launch at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
-            Toggle("Show my token count in the menu bar", isOn: $model.showCountInMenuBar)
+            Toggle("Leaderboard notifications", isOn: $model.notificationsEnabled)
+                .help("When someone passes you, the morning recap, @mentions in chat")
+            Picker("Menu bar", selection: $model.menuBarDisplay) {
+                ForEach(MenuBarDisplay.allCases, id: \.self) { Text($0.label).tag($0) }
+            }
 
             Divider()
             Text("Sources").font(.subheadline.weight(.semibold))

@@ -36,7 +36,8 @@ async function runOnce(): Promise<void> {
     enabled: new Set(SOURCES),
     onError: (err, where) => console.error(`${where}: ${String(err)}`),
     send: async (events) => {
-      const res = await fetch(`${serverUrl.replace(/\/+$/, "")}/api/ingest`, {
+      const tz = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
+      const res = await fetch(`${serverUrl.replace(/\/+$/, "")}/api/ingest?tz=${tz}`, {
         method: "POST",
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
         body: JSON.stringify({ events }),

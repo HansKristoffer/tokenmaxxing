@@ -1,6 +1,21 @@
 import AppKit
 import Observation
 import ServiceManagement
+import UserNotifications
+
+/// What the menu bar shows next to the bolt.
+enum MenuBarDisplay: String, CaseIterable, Sendable {
+    case icon, tokens, rank, both
+
+    var label: String {
+        switch self {
+        case .icon: "Icon only"
+        case .tokens: "Tokens"
+        case .rank: "Rank"
+        case .both: "Rank and tokens"
+        }
+    }
+}
 
 /// Owns the helper, the Keychain token and the user's settings. Views render
 /// `state` and call the async actions, which return a user-facing error or nil.
@@ -8,19 +23,27 @@ import ServiceManagement
 @Observable
 final class AppModel {
     private(set) var state: AppState?
-    var showCountInMenuBar: Bool {
-        didSet { defaults.set(showCountInMenuBar, forKey: Keys.showCount) }
+    var menuBarDisplay: MenuBarDisplay {
+        didSet { defaults.set(menuBarDisplay.rawValue, forKey: Keys.menuBarDisplay) }
+    }
+    var notificationsEnabled: Bool {
+        didSet { defaults.set(notificationsEnabled, forKey: Keys.notifications) }
     }
     private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     private let helper: HelperProcess
     private let serverURL: String
     private let defaults = UserDefaults.standard
+    /// `swift run` has no bundle, and UNUserNotificationCenter crashes without one.
+    private let canNotify = Bundle.main.bundleIdentifier != nil
+    private let notificationDelegate = NotificationDelegate()
 
     private enum Keys {
         static let view = "view"
         static let disabledSources = "disabledSources"
         static let showCount = "showCountInMenuBar"
+        static let menuBarDisplay = "menuBarDisplay"
+        static let notifications = "notifications"
         static let onboarded = "onboarded"
     }
 
@@ -33,7 +56,11 @@ final class AppModel {
         let logURL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Logs/Tokenmaxxing/helper.log")
         helper = HelperProcess(executable: helperURL, logURL: logURL)
-        showCountInMenuBar = defaults.object(forKey: Keys.showCount) as? Bool ?? true
+        let legacyShowCount = defaults.object(forKey: Keys.showCount) as? Bool ?? true
+        menuBarDisplay = defaults.string(forKey: Keys.menuBarDisplay).flatMap(MenuBarDisplay.init(rawValue:))
+            ?? (legacyShowCount ? .tokens : .icon)
+        notificationsEnabled = defaults.object(forKey: Keys.notifications) as? Bool ?? true
+        if canNotify { UNUserNotificationCenter.current().delegate = notificationDelegate }
 
         helper.onMessage = { [weak self] msg in self?.handle(msg) }
         helper.onStart = { [weak self] in self?.sendInit() }
@@ -113,6 +140,23 @@ final class AppModel {
         }
     }
 
+    func sendMessage(_ text: String, groupId: Int) async -> String? {
+        await run(OutgoingCommand(cmd: "sendMessage", groupId: groupId, text: text))
+    }
+
+    func deleteMessage(_ id: Int) async {
+        _ = await run(OutgoingCommand(cmd: "deleteMessage", momentId: id))
+    }
+
+    func react(_ id: Int, _ emoji: String) async {
+        _ = await run(OutgoingCommand(cmd: "react", emoji: emoji, momentId: id))
+    }
+
+    /// While open, the helper refreshes the group's timeline every few seconds.
+    func setChatOpen(_ open: Bool, groupId: Int?) async {
+        _ = await run(OutgoingCommand(cmd: "setChatOpen", groupId: groupId, open: open))
+    }
+
     func copyInvite(_ group: GroupInfo) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString("Join my tokenmaxxing group: \(group.code)", forType: .string)
@@ -166,9 +210,21 @@ final class AppModel {
                 defaults.set(true, forKey: Keys.onboarded)
                 setLaunchAtLogin(true)
             }
+            // Ask for notifications the first time we're signed in (macOS only asks once anyway).
+            if state?.phase != .ready, next.phase == .ready, canNotify {
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+            }
             state = next
         case "token":
             if let token = msg.token { Keychain.save(token) } else { Keychain.delete() }
+        case "notify":
+            guard notificationsEnabled, canNotify, let title = msg.title else { return }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = msg.body ?? ""
+            UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+            )
         default:
             break
         }
@@ -193,9 +249,20 @@ final class AppModel {
         case "too_many_groups": "You're in the maximum number of groups."
         case "not_owner": "Only the group owner can do that."
         case "rate_limited": "Too many attempts. Try again in a few minutes."
+        case "invalid_message": "Messages are 1–500 characters."
         case "offline": "Can't reach the server."
         case "helper_unavailable": "The background helper is restarting. Try again."
         default: "Something went wrong."
         }
+    }
+}
+
+/// A menu bar app counts as frontmost, so without this macOS would swallow every banner.
+final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Sendable {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
     }
 }

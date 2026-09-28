@@ -58,6 +58,15 @@ struct MeStats: Codable, Equatable, Sendable {
     let peakAgents: Int
     let tokensPerActiveHour: Double?
     let prs: Int
+    let above: Above?
+    let delta: Int?
+    let titles: [String]
+}
+
+/// The person ranked just above me; `gap` is in the current sort's unit.
+struct Above: Codable, Equatable, Sendable {
+    let name: String
+    let gap: Double
 }
 
 struct LeaderboardRow: Codable, Equatable, Identifiable, Sendable {
@@ -69,7 +78,46 @@ struct LeaderboardRow: Codable, Equatable, Identifiable, Sendable {
     let peakAgents: Int
     let prs: Int
     let isMe: Bool
+    let titles: [String]
+    let delta: Int?
+    let level: Int
     var id: String { name }
+}
+
+struct Progress: Codable, Equatable, Sendable {
+    let level: Int
+    let levelTitle: String
+    let lifetimeTokens: Double
+    let daysWon30: Int
+    let winStreak: Int
+    let activeStreak: Int
+    let achievements: [String]
+}
+
+struct Reaction: Codable, Equatable, Sendable {
+    let emoji: String
+    let count: Int
+    let mine: Bool
+}
+
+/// Mirrors REACTIONS in core/src/moments.ts.
+let reactionEmoji = ["🔥", "😂", "👑", "💀", "👀", "🫡"]
+
+struct ChatItem: Codable, Equatable, Identifiable, Sendable {
+    let id: Int
+    let author: String
+    let text: String
+    let isMe: Bool
+    let isSystem: Bool
+    let createdAt: Double
+    let reactions: [Reaction]
+}
+
+struct ChatState: Codable, Equatable, Sendable {
+    let open: Bool
+    let groupId: Int?
+    let timeline: [ChatItem]
+    let unread: Int
 }
 
 struct GroupInfo: Codable, Equatable, Identifiable, Sendable {
@@ -108,10 +156,12 @@ struct AppState: Codable, Equatable, Sendable {
     let version: String
     let view: ViewSettings
     let me: MeStats?
+    let progress: Progress?
     let leaderboard: [LeaderboardRow]
     let groups: [GroupInfo]
     let sync: SyncInfo
     let sources: [SourceInfo]
+    let chat: ChatState
     let update: UpdateInfo?
 }
 
@@ -131,6 +181,8 @@ struct IncomingMessage: Decodable, Sendable {
     let event: String?
     let state: AppState?
     let token: String?
+    let title: String?
+    let body: String?
 }
 
 /// One line to the helper. Nil fields are omitted from the JSON.
@@ -144,4 +196,8 @@ struct OutgoingCommand: Encodable, Sendable {
     var name: String? = nil
     var code: String? = nil
     var groupId: Int? = nil
+    var text: String? = nil
+    var emoji: String? = nil
+    var momentId: Int? = nil
+    var open: Bool? = nil
 }

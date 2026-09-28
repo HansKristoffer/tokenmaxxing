@@ -1,7 +1,10 @@
 import type { TokenEvent } from "@tokenmaxxing/core/types.ts";
 import type { Db } from "./db.ts";
 
-/** Duplicates (same user/source/message/request/type) are dropped by the unique index. */
+/**
+ * Duplicates (same user/source/message/request/type) are dropped by the unique
+ * index. Tokens of newly inserted assistant rows go to `user_stats.lifetime_tokens`.
+ */
 export function insertEvents(
   db: Db,
   user: string,
@@ -17,9 +20,10 @@ export function insertEvents(
        $reasoningTokens, $now)`,
   );
   let inserted = 0;
+  let tokens = 0;
   db.transaction(() => {
     for (const e of events) {
-      inserted += stmt.run({
+      const changes = stmt.run({
         user,
         now,
         source: e.source,
@@ -36,6 +40,16 @@ export function insertEvents(
         cacheReadTokens: e.cacheReadTokens,
         reasoningTokens: e.reasoningTokens,
       }).changes;
+      inserted += changes;
+      if (changes && e.messageType === "assistant") {
+        tokens += e.inputTokens + e.outputTokens + e.cacheCreationTokens + e.cacheReadTokens;
+      }
+    }
+    if (tokens > 0) {
+      db.query(
+        `INSERT INTO user_stats (user, lifetime_tokens) VALUES ($user, $tokens)
+         ON CONFLICT (user) DO UPDATE SET lifetime_tokens = lifetime_tokens + $tokens`,
+      ).run({ user, tokens });
     }
   })();
   return { inserted, duplicates: events.length - inserted };

@@ -29,6 +29,11 @@ export function renameUser(db: Db, from: string, to: string): boolean {
       ["login_codes", "user"],
       ["groups", "owner"],
       ["group_members", "user"],
+      ["moments", "actor"],
+      ["moments", "target"],
+      ["reactions", "user"],
+      ["user_stats", "user"],
+      ["achievements", "user"],
       // ponytail: rewrites every event row; move events to a user id if accounts get large.
       ["events", "user"],
     ]) {
