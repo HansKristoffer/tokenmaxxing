@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v0.3.0...v0.4.0) (2026-09-28)
+
+
+### Features
+
+* **chat:** add daily leaderboard races and group timelines ([da1dfc5](https://github.com/HansKristoffer/tokenmaxxing/commit/da1dfc5649b4409423047ec12a94b21d3baf5b86))
+* **chat:** add daily leaderboard races and group timelines ([bede680](https://github.com/HansKristoffer/tokenmaxxing/commit/bede6800478c5ada094b861c6c3ec4a3adda4978))
+* **github:** track pull requests on leaderboards ([e962e6c](https://github.com/HansKristoffer/tokenmaxxing/commit/e962e6cbbe0d184f470b2cfe2de85ee1e4175969))
+* **github:** track pull requests on leaderboards ([55a60ed](https://github.com/HansKristoffer/tokenmaxxing/commit/55a60edb464e19d73ca1fae4dced62a656e80f8d))
+
 ## [0.3.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v0.2.1...v0.3.0) (2026-09-23)
 
 
