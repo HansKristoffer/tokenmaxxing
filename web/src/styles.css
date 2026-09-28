@@ -382,3 +382,104 @@ tr.selected {
 .center .card {
   max-width: 420px;
 }
+
+/* gamification ------------------------------------------------------------ */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.up {
+  color: var(--accent-green);
+  font-size: 11px;
+}
+.down {
+  color: var(--destructive);
+  font-size: 11px;
+}
+.level {
+  font-size: 11px;
+}
+.progress {
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+.timeline .item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.timeline .sys {
+  font-size: 12px;
+  text-align: center;
+  align-items: center;
+}
+.timeline .msg.mine {
+  align-items: flex-end;
+}
+.timeline .meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 6px;
+}
+.timeline .bubble {
+  background: var(--hover-object);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  max-width: 90%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.timeline .mine .bubble {
+  background: var(--active-app);
+}
+.reactions {
+  display: flex;
+  gap: 4px;
+  min-height: 0;
+}
+.reactions button {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+}
+.reactions .pill {
+  background: var(--hover-object);
+  border-radius: 999px;
+  padding: 0 7px;
+}
+.reactions .pill.mine {
+  background: var(--active-app);
+  font-weight: 600;
+}
+.reactions .picker {
+  display: none;
+}
+.timeline .item:hover .picker {
+  display: inline-flex;
+}
+.compose {
+  display: flex;
+  gap: 8px;
+}
+.compose input {
+  flex: 1;
+  font: inherit;
+  color: inherit;
+  background: var(--bg-app);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  min-width: 0;
+}

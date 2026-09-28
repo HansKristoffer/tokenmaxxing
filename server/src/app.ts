@@ -1,4 +1,5 @@
-import { resolveRange } from "@tokenmaxxing/core/range.ts";
+import { isReaction } from "@tokenmaxxing/core/moments.ts";
+import { dayIn, resolveRange } from "@tokenmaxxing/core/range.ts";
 import type { IngestResponse, TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { type Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -22,6 +23,22 @@ import {
   renameGroup,
   rotateCode,
 } from "./db/groups.ts";
+import {
+  canSeeMoment,
+  deleteMessage,
+  detectMoments,
+  ensureDayResults,
+  groupTz,
+  isRecentBatch,
+  levelsFor,
+  listFeed,
+  postMessage,
+  progressOf,
+  raceSnapshot,
+  setUserTz,
+  titlesFor,
+  toggleReaction,
+} from "./db/moments.ts";
 import { canSee, leaderboard, userDetail } from "./db/stats.ts";
 import {
   createLoginCode,
@@ -37,12 +54,14 @@ import type { PricingCache } from "./pricing.ts";
 import { RateLimiter } from "./rate-limit.ts";
 import {
   MAX_EVENTS_PER_REQUEST,
+  parseChatText,
   parseEvent,
   parseGroupName,
   parseId,
   parseRange,
   parseSort,
   parseTz,
+  parseTzName,
   parseUserName,
 } from "./validate.ts";
 
@@ -106,6 +125,11 @@ export function buildApp(deps: AppDeps) {
   const now = deps.now ?? Date.now;
   const signupLimit = new RateLimiter(10, 3_600_000);
   const joinLimit = new RateLimiter(30, 600_000);
+  const chatLimit = new RateLimiter(20, 60_000);
+  const reactLimit = new RateLimiter(60, 60_000);
+  /** Groups whose yesterday was already closed by this process (see ensureDayResults). */
+  const closedDays = new Set<string>();
+  const myGroupIds = (user: string) => listGroups(db, user).map((g) => g.id);
 
   const auth = createMiddleware<Env>(async (c, next) => {
     const bearer = c.req.header("authorization")?.match(/^Bearer (.+)$/)?.[1];
@@ -132,7 +156,11 @@ export function buildApp(deps: AppDeps) {
     .use(auth)
     .get("/me", (c) => {
       const user = c.get("user");
-      return c.json({ name: user, groups: listGroups(db, user).map(presentGroup) });
+      return c.json({
+        name: user,
+        groups: listGroups(db, user).map(presentGroup),
+        progress: progressOf(db, user, now()),
+      });
     })
     .patch("/me", jsonBody(named(parseUserName)), (c) => {
       const { name } = c.req.valid("json");
@@ -142,6 +170,7 @@ export function buildApp(deps: AppDeps) {
     .post(
       "/ingest",
       bodyLimit({ maxSize: 8 * 1024 * 1024 }),
+      queryParams("tz"),
       jsonBody((b) =>
         Array.isArray(b.events) && b.events.length <= MAX_EVENTS_PER_REQUEST
           ? { events: b.events as TokenEvent[] }
@@ -149,13 +178,19 @@ export function buildApp(deps: AppDeps) {
       ),
       (c) => {
         const t = now();
+        const user = c.get("user");
+        const tz = parseTzName(c.req.valid("query").tz);
+        if (tz) setUserTz(db, user, tz);
         const { events } = c.req.valid("json");
         const valid: TokenEvent[] = [];
         for (const raw of events as unknown[]) {
           const e = parseEvent(raw, t);
           if (typeof e !== "string") valid.push(e);
         }
-        const r = insertEvents(db, c.get("user"), valid, t);
+        // Standings before the insert, so detection can tell who this sync passed.
+        const snap = isRecentBatch(valid, t) ? raceSnapshot(db, pricing, user, t) : null;
+        const r = insertEvents(db, user, valid, t);
+        if (snap && r.inserted > 0) detectMoments(db, pricing, user, snap, valid, t);
         const body: IngestResponse & { skipped: number } = {
           ...r,
           skipped: events.length - valid.length,
@@ -221,9 +256,40 @@ export function buildApp(deps: AppDeps) {
       if (q.group && (groupId === null || !isMember(db, groupId, viewer))) {
         return groupError(c, "not_found");
       }
-      const range = resolveRange(rangeKey, now(), parseTz(q.tz));
+      const t = now();
+      let range = resolveRange(rangeKey, t, parseTz(q.tz));
+      // A group's "today" is its race day, on the owner's clock.
+      if (rangeKey === "today" && groupId !== null)
+        range = { ...range, since: dayIn(t, groupTz(db, groupId)).since };
       const sort = parseSort(q.sort);
-      const entries = leaderboard(db, pricing, { viewer, groupId }, range, sort);
+      const groupIds = groupId !== null ? [groupId] : myGroupIds(viewer);
+      ensureDayResults(db, pricing, groupIds, t, closedDays);
+      const scope = { viewer, groupId };
+      const board = leaderboard(db, pricing, scope, range, sort);
+      // Rank change over the last hour: what makes a board that resets daily feel alive.
+      const hourAgo = range.until - 3_600_000;
+      const prev =
+        rangeKey === "today" && hourAgo > range.since
+          ? new Map(
+              leaderboard(db, pricing, scope, { since: range.since, until: hourAgo }, sort)
+                .filter((e) => e.tokens > 0)
+                .map((e) => [e.name, e.rank]),
+            )
+          : null;
+      const titles = titlesFor(db, groupIds, t);
+      const levels = levelsFor(
+        db,
+        board.map((e) => e.name),
+      );
+      const entries = board.map((e) => {
+        const before = prev?.get(e.name);
+        return {
+          ...e,
+          titles: titles.get(e.name) ?? [],
+          delta: before === undefined || e.tokens === 0 ? null : before - e.rank,
+          level: levels.get(e.name) ?? 0,
+        };
+      });
       return c.json({ me: viewer, range: { key: rangeKey, ...range }, sort, entries });
     })
     .get("/users/:name", queryParams("range", "tz"), (c) => {
@@ -233,8 +299,49 @@ export function buildApp(deps: AppDeps) {
       const q = c.req.valid("query");
       const tz = parseTz(q.tz);
       const range = resolveRange(parseRange(q.range), now(), tz);
-      return c.json(userDetail(db, pricing, name, range, tz));
+      return c.json({ ...userDetail(db, pricing, name, range, tz), progress: progressOf(db, name, now()) });
     })
+    .get("/feed", queryParams("after", "limit", "group"), (c) => {
+      const viewer = c.get("user");
+      const q = c.req.valid("query");
+      const groupId = q.group ? parseId(q.group) : null;
+      if (q.group && (groupId === null || !isMember(db, groupId, viewer))) return groupError(c, "not_found");
+      const after = parseId(q.after) ?? 0;
+      const limit = Math.min(Math.max(parseId(q.limit) ?? 50, 1), 100);
+      ensureDayResults(db, pricing, groupId !== null ? [groupId] : myGroupIds(viewer), now(), closedDays);
+      const moments = listFeed(db, viewer, { after, groupId, limit });
+      return c.json({ moments, cursor: moments.at(-1)?.id ?? after });
+    })
+    .delete("/feed/:id", (c) => {
+      const id = parseId(c.req.param("id"));
+      if (id === null || !deleteMessage(db, c.get("user"), id)) return c.json({ error: "not_found" }, 404);
+      return c.json({ ok: true });
+    })
+    .post(
+      "/feed/:id/reactions",
+      jsonBody((b) => (isReaction(b.emoji) ? { emoji: b.emoji as string } : null)),
+      (c) => {
+        const user = c.get("user");
+        const id = parseId(c.req.param("id"));
+        if (!reactLimit.take(user, now())) return c.json({ error: "rate_limited" }, 429);
+        if (id === null || !canSeeMoment(db, user, id)) return c.json({ error: "not_found" }, 404);
+        return c.json({ reactions: toggleReaction(db, user, id, c.req.valid("json").emoji, now()) });
+      },
+    )
+    .post(
+      "/groups/:id/messages",
+      jsonBody((b) => {
+        const text = parseChatText(b.text);
+        return text === null ? null : { text };
+      }),
+      (c) => {
+        const user = c.get("user");
+        const id = parseId(c.req.param("id"));
+        if (id === null || !isMember(db, id, user)) return groupError(c, "not_found");
+        if (!chatLimit.take(user, now())) return c.json({ error: "rate_limited" }, 429);
+        return c.json(postMessage(db, user, id, c.req.valid("json").text, now()), 201);
+      },
+    )
     .post("/sessions", (c) => c.json({ code: createLoginCode(db, c.get("user"), now()) }))
     .post("/logout", (c) => {
       const session = getCookie(c, SESSION_COOKIE);

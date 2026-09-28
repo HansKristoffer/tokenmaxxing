@@ -52,9 +52,17 @@ struct MainView: View {
                 Text("tokens").foregroundStyle(.secondary)
                 Spacer()
                 if let rank = state.me?.rank, let of = state.me?.of, of > 1 {
-                    Text("#\(rank) of \(of)").font(.headline)
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text("#\(rank) of \(of)").font(.headline)
+                        if let above = state.me?.above {
+                            Text("\(Format.gap(above.gap, state.view.sort)) behind \(above.name)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
+            if let p = state.progress { progress(p) }
             HStack(spacing: 12) {
                 Text(Format.usd(state.me?.costUsd ?? 0))
                 Label(Format.parallel(state.me?.parallelism), systemImage: "square.stack.3d.up")
@@ -69,6 +77,19 @@ struct MainView: View {
             .font(.callout)
             .foregroundStyle(.secondary)
         }
+    }
+
+    private func progress(_ p: Progress) -> some View {
+        HStack(spacing: 8) {
+            Text("L\(p.level) \(p.levelTitle)")
+                .help("\(Format.compact(p.lifetimeTokens)) lifetime tokens")
+            if p.daysWon30 > 0 { Text("👑×\(p.daysWon30)").help("Days won in the last 30") }
+            if p.winStreak > 1 { Text("\(p.winStreak) wins in a row") }
+            if p.activeStreak > 1 { Text("🔥 \(p.activeStreak)d").help("Days in a row with agents running") }
+            if !p.achievements.isEmpty { Text(p.achievements.joined()).help("Achievements") }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 
     private func controls(_ state: AppState) -> some View {
@@ -123,7 +144,8 @@ struct MainView: View {
             if let me = state.me, let rank = me.rank, !state.leaderboard.contains(where: \.isMe) {
                 Text("⋯").foregroundStyle(.tertiary)
                 row(state, LeaderboardRow(rank: rank, name: me.name, tokens: me.tokens, costUsd: me.costUsd,
-                                          parallelism: me.parallelism, peakAgents: me.peakAgents, prs: me.prs, isMe: true))
+                                          parallelism: me.parallelism, peakAgents: me.peakAgents, prs: me.prs, isMe: true,
+                                          titles: me.titles, delta: me.delta, level: state.progress?.level ?? 0))
             }
         }
     }
@@ -132,7 +154,14 @@ struct MainView: View {
         HStack {
             Text("\(r.rank)").monospacedDigit().foregroundStyle(.secondary).frame(width: 22, alignment: .trailing)
             Text(r.name).fontWeight(r.isMe ? .semibold : .regular).lineLimit(1)
+            if !r.titles.isEmpty { Text(r.titles.joined()).font(.caption).help("Yesterday's titles") }
             Spacer()
+            if let d = r.delta, d != 0 {
+                Text("\(Format.arrow(d))\(abs(d))")
+                    .font(.caption2)
+                    .foregroundStyle(d > 0 ? .green : .red)
+                    .help("Places moved in the last hour")
+            }
             switch state.view.sort {
             case .tokens: Text(Format.compact(r.tokens)).monospacedDigit()
             case .parallelism: Text(Format.parallel(r.parallelism)).monospacedDigit()
@@ -166,6 +195,9 @@ struct MainView: View {
             HStack {
                 Button("Dashboard") { Task { error = await model.openDashboard() } }
                 Button("Groups") { page = .groups }
+                if !state.groups.isEmpty {
+                    Button(state.chat.unread > 0 ? "Chat (\(state.chat.unread))" : "Chat") { page = .chat }
+                }
                 Spacer()
                 Button {
                     page = .settings

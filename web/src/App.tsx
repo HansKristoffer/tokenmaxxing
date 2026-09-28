@@ -7,6 +7,7 @@ import { LeaderboardTable } from "./components/LeaderboardTable.tsx";
 import { RenameForm } from "./components/RenameForm.tsx";
 import { StatsStrip } from "./components/StatsStrip.tsx";
 import { ThemeHotkey } from "./components/ThemeToggle.tsx";
+import { Timeline } from "./components/Timeline.tsx";
 import { UserPanel } from "./components/UserPanel.tsx";
 import { usePoll } from "./usePoll.ts";
 
@@ -27,7 +28,7 @@ export function App() {
 }
 
 function Dashboard({ me, reloadMe }: { me: Me; reloadMe: () => void }) {
-  const [range, setRange] = useState<RangeKey>("7d");
+  const [range, setRange] = useState<RangeKey>("today");
   const [sort, setSort] = useState<SortKey>("tokens");
   const [group, setGroup] = useState<number | null>(null);
   const [selected, setSelected] = useState(me.name);
@@ -136,7 +137,10 @@ function Dashboard({ me, reloadMe }: { me: Me; reloadMe: () => void }) {
             <p className="muted">Loading…</p>
           )}
         </section>
-        <GroupsCard groups={me.groups} me={me.name} onChange={reloadGroups} />
+        <div className="stack">
+          <Timeline me={me.name} group={group} />
+          <GroupsCard groups={me.groups} me={me.name} onChange={reloadGroups} />
+        </div>
       </div>
 
       <UserPanel name={selected} range={range} tz={tz} />

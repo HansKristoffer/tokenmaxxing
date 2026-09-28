@@ -13,7 +13,7 @@ export interface Scope {
   groupId: number | null;
 }
 
-function visibleCte(scope: Scope): { sql: string; params: Record<string, string | number> } {
+export function visibleCte(scope: Scope): { sql: string; params: Record<string, string | number> } {
   if (scope.groupId !== null) {
     return {
       sql: "WITH visible(user) AS (SELECT user FROM group_members WHERE group_id = $groupId)",
@@ -207,6 +207,20 @@ function totalsFor(
     t.activeHours = Math.round(t.activeHours * 100) / 100;
   }
   return out;
+}
+
+/** Totals for exactly `users` (zeros for anyone without events in `range`). */
+export function totalsForUsers(
+  db: Db,
+  pricing: PricingCache,
+  users: readonly string[],
+  range: Range,
+): Map<string, UsageTotals> {
+  const cte = {
+    sql: "WITH visible(user) AS (SELECT value FROM json_each($users))",
+    params: { users: JSON.stringify(users) },
+  };
+  return totalsFor(db, pricing, cte, range);
 }
 
 const SORTS: Record<SortKey, (a: UsageTotals, b: UsageTotals) => number> = {

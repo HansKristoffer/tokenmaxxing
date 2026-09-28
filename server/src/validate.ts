@@ -1,5 +1,6 @@
+import { CHAT_MAX_LENGTH } from "@tokenmaxxing/core/moments.ts";
 import type { SortKey } from "@tokenmaxxing/core/protocol.ts";
-import { isRangeKey, type RangeKey } from "@tokenmaxxing/core/range.ts";
+import { isRangeKey, isTimeZone, type RangeKey } from "@tokenmaxxing/core/range.ts";
 import { type MessageType, SOURCES, type Source, type TokenEvent } from "@tokenmaxxing/core/types.ts";
 
 /** Lowercase handle, 2–32 chars. Shown to other users, so no free-form text. */
@@ -19,6 +20,18 @@ export function parseGroupName(raw: unknown): string | null {
   if (name.length < 1 || name.length > 48 || /[\u0000-\u001f\u007f]/.test(name)) return null;
   return name;
 }
+
+/** Chat text is shown to groupmates (React and SwiftUI escape it); control chars become spaces. */
+export function parseChatText(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control chars is the point
+  const text = raw.replace(/[\u0000-\u001f\u007f]/g, " ").trim();
+  return text.length >= 1 && text.length <= CHAT_MAX_LENGTH ? text : null;
+}
+
+/** An IANA timezone name from the helper, e.g. `Europe/Copenhagen`. */
+export const parseTzName = (raw: string | undefined): string | null =>
+  raw !== undefined && raw.length <= 64 && isTimeZone(raw) ? raw : null;
 
 export const MAX_EVENTS_PER_REQUEST = 1000;
 /** Clock-skew headroom for events stamped slightly in the future. */

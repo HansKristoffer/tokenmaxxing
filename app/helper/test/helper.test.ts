@@ -49,7 +49,7 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-function harness() {
+function harness(now?: () => number) {
   const app = buildApp({
     db: openDb(":memory:"),
     pricing: new PricingCache(),
@@ -63,6 +63,7 @@ function harness() {
     write: (m) => messages.push(m),
     log: () => {},
     fetch: ((input: RequestInfo | URL, init?: RequestInit) => app.request(input, init)) as typeof fetch,
+    ...(now ? { now } : {}),
   });
   let id = 0;
   const send = async (cmd: WithoutId<Command>) => {
@@ -177,5 +178,109 @@ describe("helper", () => {
     const r = (await send({ cmd: "openDashboard" })) as { result: { url: string } };
     expect(r.result.url).toMatch(/^http:\/\/tm\.test\/login\?code=/);
     helper.stop();
+  });
+});
+
+/** A second signed-up user on the same server; returns their helper and API token. */
+async function friend(app: ReturnType<typeof harness>["app"], name: string) {
+  const messages: Message[] = [];
+  const helper = new Helper({
+    statePath: join(dir, `${name}.json`),
+    version: "t",
+    write: (m) => messages.push(m),
+    log: () => {},
+    fetch: ((i: RequestInfo | URL, init2?: RequestInit) => app.request(i, init2)) as typeof fetch,
+  });
+  let id = 100;
+  const send = (cmd: WithoutId<Command>) => helper.handle({ ...cmd, id: ++id } as Command);
+  await send({ ...init(null), enabledSources: [] }); // don't sync the shared fixture log
+  await send({ cmd: "signUp", name });
+  const token = (messages.find((m) => "event" in m && m.event === "token") as { token: string }).token;
+  return { helper, send, token };
+}
+
+const notifications = (messages: Message[]) =>
+  messages.filter((m): m is Extract<Message, { event: "notify" }> => "event" in m && m.event === "notify");
+
+describe("feed", () => {
+  test("first poll only sets the cursor; bursts collapse; the cap holds; opening chat marks it read", async () => {
+    const a = harness();
+    await a.send(init(null));
+    await a.send({ cmd: "signUp", name: "alice" });
+    const g = (await a.send({ cmd: "createGroup", name: "Friends" })) as {
+      result: { id: number; code: string };
+    };
+    const bob = await friend(a.app, "bob");
+    await bob.send({ cmd: "joinGroup", code: g.result.code });
+    const say = (text: string) => bob.send({ cmd: "sendMessage", groupId: g.result.id, text });
+
+    await say("before alice ever looked");
+    await a.helper.pollFeed();
+    expect(notifications(a.messages)).toHaveLength(0);
+
+    for (let i = 0; i < 4; i++) await say(`@alice ${i}`);
+    await a.helper.pollFeed();
+    expect(notifications(a.messages)).toEqual([
+      { event: "notify", title: "bob in Friends", body: "@alice 0 …and 3 more" },
+    ]);
+    expect(a.helper.state.chat.unread).toBe(4);
+
+    for (let i = 0; i < 3; i++) {
+      await say(`@alice again ${i}`);
+      await a.helper.pollFeed();
+    }
+    expect(notifications(a.messages)).toHaveLength(3); // 1 collapsed + 2 more, then the cap
+
+    await a.send({ cmd: "setChatOpen", open: true, groupId: g.result.id });
+    expect(a.helper.state.chat.unread).toBe(0);
+    expect(a.helper.state.chat.timeline.map((i) => i.text).at(-1)).toBe("@alice again 2");
+    const last = a.helper.state.chat.timeline.at(-1)!;
+    await a.send({ cmd: "react", momentId: last.id, emoji: "🔥" });
+    expect(a.helper.state.chat.timeline.at(-1)!.reactions).toEqual([{ emoji: "🔥", count: 1, mine: true }]);
+    await a.send({ cmd: "setChatOpen", open: false, groupId: null });
+    a.helper.stop();
+    bob.helper.stop();
+  });
+
+  test("last call: after 21:00, close behind #1, once a day", async () => {
+    const at22 = new Date(2026, 8, 23, 22).getTime();
+    const a = harness(() => at22);
+    await a.send(init(null));
+    await a.send({ cmd: "signUp", name: "alice" });
+    const g = (await a.send({ cmd: "createGroup", name: "Friends" })) as { result: { code: string } };
+    const bob = await friend(a.app, "bob");
+    await bob.send({ cmd: "joinGroup", code: g.result.code });
+    await a.app.request("/api/ingest", {
+      method: "POST",
+      headers: { authorization: `Bearer ${bob.token}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        events: [
+          {
+            source: "claude_code",
+            sessionId: "b",
+            agentId: null,
+            messageId: "b1",
+            requestId: null,
+            timestamp: Date.now(),
+            model: "claude-haiku-4-5-20251001",
+            messageType: "assistant",
+            inputTokens: 16,
+            outputTokens: 2,
+            cacheCreationTokens: 0,
+            cacheReadTokens: 0,
+            reasoningTokens: null,
+          },
+        ],
+      }),
+    });
+    await a.helper.syncOnce(); // alice: 15 tokens, bob: 18
+    await a.helper.refresh();
+    await a.helper.refresh();
+    expect(a.helper.state.me?.above).toEqual({ name: "bob", gap: 3 });
+    expect(notifications(a.messages)).toEqual([
+      { event: "notify", title: "Last call", body: "3 behind bob for #1 today. One more session?" },
+    ]);
+    a.helper.stop();
+    bob.helper.stop();
   });
 });

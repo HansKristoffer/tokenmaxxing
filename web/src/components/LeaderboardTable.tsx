@@ -47,8 +47,20 @@ export function LeaderboardTable({ entries, me, sort, onSort, selected, onSelect
             className={[e.name === me ? "me" : "", e.name === selected ? "selected" : ""].join(" ")}
             onClick={() => onSelect(e.name)}
           >
-            <td className="num muted">{e.rank}</td>
-            <td>{e.name}</td>
+            <td className="num muted">
+              {e.rank}
+              {e.delta ? (
+                <span className={e.delta > 0 ? "up" : "down"} title="Places moved in the last hour">
+                  {e.delta > 0 ? ` ▲${e.delta}` : ` ▼${-e.delta}`}
+                </span>
+              ) : null}
+            </td>
+            <td>
+              {e.name} {e.titles.length > 0 && <span title="Yesterday's titles">{e.titles.join("")}</span>}{" "}
+              <span className="muted level" title="Level">
+                L{e.level}
+              </span>
+            </td>
             <td className="num r">{fmtCompact(e.tokens)}</td>
             <td className="num r">{fmtUsd(e.costUsd)}</td>
             <td className="num r">{fmtParallel(e.parallelism)}</td>

@@ -43,13 +43,17 @@ export function activity(
 
 export function testApp() {
   const db = openDb(":memory:");
+  let clock = NOW;
   const app = buildApp({
     db,
     pricing: new PricingCache(),
     version: "test",
-    now: () => NOW,
+    now: () => clock,
     secureCookies: false,
   });
+  const setNow = (ms: number) => {
+    clock = ms;
+  };
 
   const req = async (
     method: string,
@@ -74,13 +78,13 @@ export function testApp() {
     return r.body.token as string;
   };
 
-  const ingest = (token: string, events: TokenEvent[]) =>
-    req("POST", "/api/ingest", { token, body: { events } });
+  const ingest = (token: string, events: TokenEvent[], tz?: string) =>
+    req("POST", `/api/ingest${tz ? `?tz=${encodeURIComponent(tz)}` : ""}`, { token, body: { events } });
 
   const names = async (token: string, query = "") =>
     ((await req("GET", `/api/leaderboard?range=7d${query}`, { token })).body.entries as { name: string }[])
       .map((e) => e.name)
       .sort();
 
-  return { db, app, req, signUp, ingest, names };
+  return { db, app, req, signUp, ingest, names, setNow };
 }

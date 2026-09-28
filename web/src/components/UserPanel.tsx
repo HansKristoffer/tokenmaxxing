@@ -1,4 +1,5 @@
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
+import type { UserDetail } from "../api.ts";
 import { client, parseResponse } from "../api.ts";
 import { fmtCompact, fmtInt, fmtUsd } from "../format.ts";
 import { usePoll } from "../usePoll.ts";
@@ -18,6 +19,7 @@ export function UserPanel({ name, range, tz }: { name: string; range: RangeKey; 
     <div className="grid-2">
       <section className="card">
         <h2>{name} · activity</h2>
+        {detail.data && <ProgressLine p={detail.data.progress} />}
         {year.data ? <Activity daily={year.data.daily} /> : <p className="muted">Loading…</p>}
       </section>
       <section className="card">
@@ -39,5 +41,24 @@ export function UserPanel({ name, range, tz }: { name: string; range: RangeKey; 
         </table>
       </section>
     </div>
+  );
+}
+
+function ProgressLine({ p }: { p: UserDetail["progress"] }) {
+  return (
+    <p className="progress">
+      <span title={`${fmtCompact(p.lifetimeTokens)} lifetime tokens`}>
+        L{p.level} {p.levelTitle}
+      </span>
+      {p.daysWon30 > 0 && <span title="Days won in the last 30"> · 👑×{p.daysWon30}</span>}
+      {p.winStreak > 1 && <span> · {p.winStreak} wins in a row</span>}
+      {p.activeStreak > 1 && <span title="Days in a row with agents running"> · 🔥 {p.activeStreak}d</span>}
+      {p.achievements.map((a) => (
+        <span key={a.key} title={`${a.name}: ${a.desc}`}>
+          {" "}
+          {a.emoji}
+        </span>
+      ))}
+    </p>
   );
 }

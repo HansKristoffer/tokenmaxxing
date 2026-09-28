@@ -18,7 +18,7 @@ describe("accounts", () => {
     expect((await req("GET", "/api/me")).status).toBe(401);
     expect((await req("GET", "/api/me", { token: "nope" })).status).toBe(401);
     const token = await signUp("alice");
-    expect((await req("GET", "/api/me", { token })).body).toEqual({ name: "alice", groups: [] });
+    expect((await req("GET", "/api/me", { token })).body).toMatchObject({ name: "alice", groups: [] });
   });
 
   test("renaming keeps the token, session, events and groups; taken names are refused", async () => {

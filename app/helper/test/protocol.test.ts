@@ -20,6 +20,18 @@ const state: AppState = {
     peakAgents: 7,
     tokensPerActiveHour: 2_400_000,
     prs: 5,
+    above: { name: "bob", gap: 76_543_211 },
+    delta: 1,
+    titles: ["🐙"],
+  },
+  progress: {
+    level: 5,
+    levelTitle: "Subagent Shepherd",
+    lifetimeTokens: 123_456_789,
+    daysWon30: 3,
+    winStreak: 2,
+    activeStreak: 9,
+    achievements: ["🐉", "🦉"],
   },
   leaderboard: [
     {
@@ -31,6 +43,9 @@ const state: AppState = {
       peakAgents: 1,
       prs: 0,
       isMe: false,
+      titles: ["👑", "🚢"],
+      delta: null,
+      level: 6,
     },
     {
       rank: 2,
@@ -41,11 +56,39 @@ const state: AppState = {
       peakAgents: 7,
       prs: 5,
       isMe: true,
+      titles: [],
+      delta: -2,
+      level: 5,
     },
   ],
   groups: [{ id: 4, name: "Friends", code: "K7QM-2XRP-9D", memberCount: 12, isOwner: true }],
   sync: { syncing: false, lastSyncedAt: 1_790_000_000_000, lastError: null, online: true },
   sources: [{ id: "claude_code", label: "Claude Code", enabled: true }],
+  chat: {
+    open: true,
+    groupId: 4,
+    timeline: [
+      {
+        id: 7,
+        author: "",
+        text: "bob took #1 in Friends",
+        isMe: false,
+        isSystem: true,
+        createdAt: 1_790_000_000_000,
+        reactions: [{ emoji: "💀", count: 2, mine: true }],
+      },
+      {
+        id: 8,
+        author: "alice",
+        text: "not for long",
+        isMe: true,
+        isSystem: false,
+        createdAt: 1_790_000_060_000,
+        reactions: [],
+      },
+    ],
+    unread: 0,
+  },
   update: { version: "1.3.0", viaBrew: true, installing: false },
 };
 
@@ -53,13 +96,23 @@ const messages: Message[] = [
   { event: "state", state },
   {
     event: "state",
-    state: { ...state, phase: "onboarding", me: null, leaderboard: [], groups: [], update: null },
+    state: {
+      ...state,
+      phase: "onboarding",
+      me: null,
+      progress: null,
+      leaderboard: [],
+      groups: [],
+      chat: { open: false, groupId: null, timeline: [], unread: 3 },
+      update: null,
+    },
   },
   { event: "token", token: "tok_abc" },
   { event: "token", token: null },
   { id: 1, ok: true, result: null },
   { id: 2, ok: true, result: { url: "https://example.com/login?code=x" } },
   { id: 3, ok: false, error: "name_taken" },
+  { event: "notify", title: "bob passed you", body: "bob is #1 in Friends today with 3.0M tokens" },
 ];
 
 test("writes the Swift contract fixture", async () => {
