@@ -26,6 +26,7 @@ const RANGES = [
 const SORTS = [
   ["tokens", "Tokens"],
   ["cost", "Cost"],
+  ["hours", "Agent hours"],
   ["parallelism", "Parallel"],
   ["prs", "PRs"],
 ] as const;
@@ -38,7 +39,21 @@ const EMPTY: Record<RangeKey, string> = {
 
 /** The number the board is ranked by, for bars. */
 const metric = (sort: Sort, t: Totals) =>
-  sort === "tokens" ? t.tokens : sort === "cost" ? t.costUsd : sort === "prs" ? t.prs : (t.parallelism ?? 0);
+  sort === "tokens"
+    ? t.tokens
+    : sort === "cost"
+      ? t.costUsd
+      : sort === "hours"
+        ? t.activeHours
+        : sort === "prs"
+          ? t.prs
+          : (t.parallelism ?? 0);
+
+/** "3h 25m", or "40m" under an hour. */
+const hours = (h: number) => {
+  const m = Math.round(h * 60);
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
+};
 
 /** The ranked value, as shown. */
 const shown = (sort: Sort, t: Totals) =>
@@ -46,11 +61,13 @@ const shown = (sort: Sort, t: Totals) =>
     ? compact(t.tokens)
     : sort === "cost"
       ? usd(t.costUsd)
-      : sort === "prs"
-        ? `${t.prs} PR${t.prs === 1 ? "" : "s"}`
-        : t.parallelism === null
-          ? "–"
-          : `${t.parallelism.toFixed(1)}×`;
+      : sort === "hours"
+        ? hours(t.activeHours)
+        : sort === "prs"
+          ? `${t.prs} PR${t.prs === 1 ? "" : "s"}`
+          : t.parallelism === null
+            ? "–"
+            : `${t.parallelism.toFixed(1)}×`;
 
 /** A second number for context: what the ranked one doesn't say. */
 const aside = (sort: Sort, t: Totals) =>

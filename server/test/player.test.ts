@@ -59,6 +59,26 @@ describe("login codes", () => {
   });
 });
 
+describe("agent hours", () => {
+  test("hours with an agent running rank the board; overlapping agents don't count twice", async () => {
+    const busy = await signUp("hoursbusy");
+    const light = await signUp("hourslight");
+    await as(busy.token)
+      .player(busy.userId)
+      .ingest([...activity("a", start, 3 * HOUR), ...activity("b", start, 3 * HOUR)]);
+    // More tokens, less time: the board by tokens and by hours disagree.
+    await as(light.token)
+      .player(light.userId)
+      .ingest(activity("c", start, HOUR).map((e) => ({ ...e, inputTokens: 1_000_000 })));
+    const board = await busy.town.leaderboard("7d", "hours");
+    const rows = board.players.filter((p) => p.userId === busy.userId || p.userId === light.userId);
+    expect(rows.map((p) => [p.userId, p.activeHours])).toEqual([
+      [busy.userId, 3],
+      [light.userId, 1],
+    ]);
+  });
+});
+
 describe("parallelism", () => {
   test("one agent → 1.0×", async () => {
     const s = await statsFor(activity("a", start, 2 * HOUR));

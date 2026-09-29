@@ -73,6 +73,10 @@ export function PlayerCard({ userId }: { userId: number }) {
           <dd>{usd(t.costUsd)}</dd>
         </div>
         <div>
+          <dt>Agent hours</dt>
+          <dd>{t.activeHours.toFixed(1)}h</dd>
+        </div>
+        <div>
           <dt>Parallel</dt>
           <dd>{t.parallelism === null ? "–" : `${t.parallelism.toFixed(1)}×`}</dd>
         </div>

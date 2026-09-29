@@ -24,8 +24,8 @@ export interface ActivityRow {
   peakAgents: number;
 }
 
-export type SortKey = "tokens" | "cost" | "parallelism" | "prs";
-export const SORT_KEYS: readonly SortKey[] = ["tokens", "cost", "parallelism", "prs"];
+export type SortKey = "tokens" | "cost" | "hours" | "parallelism" | "prs";
+export const SORT_KEYS: readonly SortKey[] = ["tokens", "cost", "hours", "parallelism", "prs"];
 export const isSortKey = (v: unknown): v is SortKey => SORT_KEYS.includes(v as SortKey);
 
 /** Below this, parallelism is null so one short burst can't top the board. */
@@ -48,6 +48,7 @@ export interface Totals {
   /** Average number of agents running at once while any was running. */
   parallelism: number | null;
   peakAgents: number;
+  /** Agent hours: time with at least one agent running (a company: its members' hours added up). */
   activeHours: number;
   tokensPerActiveHour: number | null;
   topModel: string | null;
@@ -112,6 +113,7 @@ export function totals(
 const SORTS: Record<SortKey, (a: Totals, b: Totals) => number> = {
   tokens: (a, b) => b.tokens - a.tokens,
   cost: (a, b) => b.costUsd - a.costUsd || b.tokens - a.tokens,
+  hours: (a, b) => b.activeHours - a.activeHours || b.tokens - a.tokens,
   parallelism: (a, b) => (b.parallelism ?? -1) - (a.parallelism ?? -1) || b.tokens - a.tokens,
   prs: (a, b) => b.prs - a.prs || b.tokens - a.tokens,
 };
@@ -131,7 +133,7 @@ export function companyTotals(members: readonly Totals[]): Totals {
   const sum = (f: (t: Totals) => number) => members.reduce((n, t) => n + f(t), 0);
   const running = members.filter((t) => t.parallelism !== null);
   const tokens = sum((t) => t.tokens);
-  const activeHours = Math.max(0, ...members.map((t) => t.activeHours));
+  const activeHours = Math.round(sum((t) => t.activeHours) * 100) / 100;
   return {
     tokens,
     inputTokens: sum((t) => t.inputTokens),
