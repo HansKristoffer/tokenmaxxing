@@ -94,7 +94,11 @@ export const match = actor({
         const here = connectedPlayers(c);
         for (const p of c.state.players) {
           if (here.has(p.userId)) c.state.seen[p.userId] = now;
-          else if (now - (c.state.seen[p.userId] ?? now) > AWAY_MS && !c.state.forfeited.includes(p.userId)) {
+          else if (
+            now - (c.state.seen[p.userId] ?? now) > AWAY_MS &&
+            !c.state.forfeited.includes(p.userId) &&
+            !def.outcome(next)
+          ) {
             c.state.forfeited = [...c.state.forfeited, p.userId];
             next = def.forfeit(next, p.userId, now);
           }

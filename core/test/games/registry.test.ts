@@ -23,6 +23,14 @@ describe("every game", () => {
       expect(JSON.stringify(s)).toBe(before);
     });
 
+    test(`${game.id}: everyone leaving at once still ends it, the last to leave first`, () => {
+      let s = game.setup(players, 42, options, T0);
+      for (const p of players) s = game.forfeit(s, p, T0 + 1);
+      const out = game.outcome(s);
+      expect(out && "places" in out ? out.places.flat().sort() : null).toEqual([...players].sort());
+      expect(out && "places" in out ? out.places.every((g) => g.length > 0) : false).toBe(true);
+    });
+
     test(`${game.id}: forfeiting down to one player ends it with them first`, () => {
       let s = game.setup(players, 42, options, T0);
       for (const p of players.slice(1)) s = game.forfeit(s, p, T0 + 1);

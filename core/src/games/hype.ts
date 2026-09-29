@@ -140,13 +140,15 @@ export const hype: GameDef<HypeState, HypeView> = {
 
   outcome(s) {
     const left = active(s);
-    if (left.length <= 1 && s.players.length > 1) return { places: [left, ...s.forfeited.map((p) => [p])] };
+    // Whoever left last places best among those who left.
+    const gone = [...s.forfeited].reverse().map((p) => [p]);
+    if (left.length <= 1) return { places: [left, ...gone].filter((g) => g.length > 0) };
     if (current(s) !== -1) return null;
     const t = totals(s);
     if (left.every((p) => t[p] === 0)) return { void: "Everyone crashed in every round." };
     const scores = [...new Set(left.map((p) => t[p]!))].sort((a, b) => b - a);
     return {
-      places: [...scores.map((n) => left.filter((p) => t[p] === n)), ...s.forfeited.map((p) => [p])],
+      places: [...scores.map((n) => left.filter((p) => t[p] === n)), ...gone],
     };
   },
 

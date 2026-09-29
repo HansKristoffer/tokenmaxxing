@@ -101,7 +101,8 @@ export const spr: GameDef<SprState, SprView> = {
     return now >= s.deadline ? resolve(s, now) : s;
   },
 
-  forfeit: (s, player) => ({ ...s, forfeited: player }),
+  // The first to leave loses.
+  forfeit: (s, player) => (s.forfeited === null ? { ...s, forfeited: player } : s),
 
   view(s, viewer, now) {
     const revealing = s.revealUntil !== null && now < s.revealUntil;

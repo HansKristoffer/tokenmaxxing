@@ -2,7 +2,7 @@ import { compact } from "@tokenmaxxing/core/format.ts";
 import { useEffect, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { hud, useHud } from "../store.ts";
-import { ArcadePanel, InviteToast, NewTable } from "./Arcade.tsx";
+import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
 import { Chat } from "./Chat.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
@@ -21,7 +21,10 @@ export function Hud() {
     <>
       <Hints />
       <Stats />
-      <MiniBoard />
+      <div className="corner">
+        <MiniBoard />
+        <GamesBox />
+      </div>
       <Banner />
       <Chat />
       <Minimap />

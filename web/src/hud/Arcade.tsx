@@ -101,6 +101,70 @@ export function ArcadePanel() {
   );
 }
 
+const BOX_SHOWN = 3;
+
+/** Under the leaderboard: open tables to join, how many games are on, and a way to start one. */
+export function GamesBox() {
+  const lobby = useHud((s) => s.lobby);
+  const me = useHud((s) => s.me?.userId);
+  const { error, run } = useRun();
+  if (!lobby) return null;
+  const playing = lobby.matches.filter((m) => !m.outcome);
+  const inGame = playing.some((m) => m.id === lobby.me.match);
+  const open = lobby.tables.filter((t) => t.open && !t.seated.some((p) => p.userId === me));
+  const openArcade = () => hud.set({ panel: { kind: "arcade" } });
+  return (
+    <section className="panel games-box" aria-label="Games">
+      <button type="button" className="miniboard-title" onClick={openArcade}>
+        🎮 Games <span className="muted">· {playing.length} playing ›</span>
+      </button>
+      {open.length === 0 ? (
+        <p className="muted small">No open tables right now.</p>
+      ) : (
+        <ul>
+          {open.slice(0, BOX_SHOWN).map((t) => (
+            <li key={t.id}>
+              <span className="who">
+                {gameOf(t.game)?.emoji} {gameName(t.game)}
+              </span>
+              <small className="muted">
+                {t.seated.length}/{t.seats}
+                {t.stake > 0 && ` · 🪙 ${t.stake}`}
+              </small>
+              {!inGame && lobby.me.table === null && (
+                <button type="button" className="primary" onClick={run(() => arcade.join(t.id))}>
+                  Join
+                </button>
+              )}
+            </li>
+          ))}
+          {open.length > BOX_SHOWN && (
+            <li>
+              <button type="button" className="link muted small" onClick={openArcade}>
+                +{open.length - BOX_SHOWN} more
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+      {inGame ? (
+        <button type="button" className="primary wide" onClick={() => openMatch(lobby.me.match!)}>
+          ▶ Back to your game
+        </button>
+      ) : lobby.me.table !== null ? (
+        <button type="button" className="wide" onClick={openArcade}>
+          Your table is waiting…
+        </button>
+      ) : (
+        <button type="button" className="wide" onClick={() => hud.set({ panel: { kind: "newTable" } })}>
+          ＋ New game
+        </button>
+      )}
+      {error && <p className="error small">{error}</p>}
+    </section>
+  );
+}
+
 function TableRow({ table, children }: { table: TableView; children: React.ReactNode }) {
   const host = table.seated.find((s) => s.userId === table.host)?.name ?? "someone";
   return (

@@ -170,7 +170,9 @@ export const dice: GameDef<DiceState, DiceView> = {
 
   outcome(s) {
     const left = alive(s);
-    return left.length === 1 ? { places: [left, ...[...s.out].reverse().map((p) => [p])] } : null;
+    // Everyone leaving at once still ends it: the last one out places best.
+    const gone = [...s.out].reverse().map((p) => [p]);
+    return left.length <= 1 ? { places: [left, ...gone].filter((g) => g.length > 0) } : null;
   },
 
   betsCloseAt: (s) => s.startedAt + 20_000,

@@ -120,8 +120,9 @@ export const tokenmaxxing: GameDef<TokenmaxxingState, TokenmaxxingView> = {
 
   outcome(s) {
     const left = ranked(s);
-    const gone = s.forfeited.map((p) => [p]);
-    if (left.length <= 1) return { places: [left, ...gone] };
+    // Whoever left last places best among those who left.
+    const gone = [...s.forfeited].reverse().map((p) => [p]);
+    if (left.length <= 1) return { places: [left, ...gone].filter((g) => g.length > 0) };
     if (s.phase !== "over") return null;
     if (left.every((p) => !s.tokens[p])) return { void: "Nobody burned a single token." };
     const scores = [...new Set(left.map((p) => s.tokens[p] ?? 0))].sort((a, b) => b - a);

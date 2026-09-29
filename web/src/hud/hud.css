@@ -554,12 +554,50 @@ input:focus {
   border: 1px solid var(--line);
 }
 
-.miniboard {
+/* Top right, under the stats: the mini leaderboard and the games box. */
+.corner {
   position: absolute;
   top: 60px;
   right: 12px;
   width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.miniboard,
+.games-box {
   padding: 6px 8px;
+}
+
+.games-box ul {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+}
+
+.games-box li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+
+.games-box .who {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.games-box li button {
+  padding: 1px 8px;
+  font-size: 11px;
+}
+
+.games-box .wide {
+  width: 100%;
 }
 
 .miniboard-title {
