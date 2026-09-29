@@ -1,6 +1,7 @@
 ---
 const GITHUB = "https://github.com/HansKristoffer/tokenmaxxing";
-const DOWNLOAD = `${GITHUB}/releases/latest`;
+// Always the newest installer: the release job uploads it under this name too.
+const DOWNLOAD = `${GITHUB}/releases/latest/download/Tokenmaxxing.dmg`;
 const AUTHOR = "https://github.com/HansKristoffer";
 
 const features = [
@@ -78,19 +79,18 @@ const sources = ["Claude Code", "Claude Cowork", "Codex", "Cursor", "GitHub"];
     <meta property="og:image" content="https://tokenmaxxing.dk/shots/hero.webp" />
     <meta property="og:site_name" content="tokenmaxxing" />
     <meta name="theme-color" content="#1b1f2a" />
-    <link
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>⚡</text></svg>"
-    />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon.png" />
   </head>
   <body>
     <header class="nav wrap">
-      <a class="brand" href="/">⚡ tokenmaxxing</a>
+      <a class="brand" href="/"><img src="/icon.svg" width="28" height="28" alt="" /> tokenmaxxing</a>
       <a class="nav-link" href={GITHUB}>GitHub ↗</a>
     </header>
 
     <main>
       <section class="hero wrap">
+        <img class="app-icon" src="/icon.svg" width="112" height="112" alt="The Tokenmaxxing app icon" />
         <p class="kicker">A multiplayer pixel game for macOS</p>
         <h1>A tiny town for people who run AI coding agents</h1>
         <p class="lead">
@@ -227,9 +227,21 @@ const sources = ["Claude Code", "Claude Cowork", "Codex", "Cursor", "GitHub"];
     padding: 20px 0;
   }
   .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     color: var(--text);
     font-weight: 700;
     text-decoration: none;
+  }
+  .brand img,
+  .app-icon {
+    border: 0;
+    border-radius: 0;
+  }
+  .app-icon {
+    margin: 0 auto 16px;
+    filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45));
   }
   .nav-link {
     color: var(--muted);
