@@ -59,7 +59,7 @@ struct ChatView: View {
                     }
                 }
                 // Room above the first message for its floating reaction picker.
-                .padding(.top, 14)
+                .padding(.top, 22)
                 .padding(.bottom, 4)
             }
             .frame(height: 320)
@@ -95,7 +95,7 @@ struct ChatView: View {
         .help(Date(timeIntervalSince1970: i.createdAt / 1000).formatted(date: .omitted, time: .shortened))
         // Floats over the row instead of joining its layout, so hovering never moves anything.
         .overlay(alignment: i.isMe ? .topLeading : .topTrailing) {
-            if hovered == i.id { picker(i).alignmentGuide(.top) { $0[VerticalAlignment.center] } }
+            if hovered == i.id { picker(i).alignmentGuide(.top) { $0[.bottom] - 8 } }
         }
         .zIndex(hovered == i.id ? 1 : 0)
         .id(i.id)
