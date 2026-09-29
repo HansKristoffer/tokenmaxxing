@@ -9,7 +9,7 @@ struct OnboardingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Welcome to tokenmaxxing").font(.headline)
-            Text("Pick a name. It's what your friends see on the leaderboard.")
+            Text("Pick a name. It's what everyone in town sees above your character.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
             TextField("name", text: $name)

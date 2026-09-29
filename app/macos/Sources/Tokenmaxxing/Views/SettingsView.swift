@@ -3,26 +3,13 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Binding var page: Page
-    @State private var name = ""
-    @State private var error: String?
 
     var body: some View {
         @Bindable var model = model
         VStack(alignment: .leading, spacing: 12) {
             PageHeader(title: "Settings", page: $page)
 
-            Text("Name").font(.subheadline.weight(.semibold))
-            HStack {
-                TextField("name", text: $name).textFieldStyle(.roundedBorder).onSubmit(rename)
-                Button("Save", action: rename)
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || name == model.state?.me?.name)
-            }
-            ErrorText(message: error)
-
-            Divider()
             Toggle("Launch at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
-            Toggle("Leaderboard notifications", isOn: $model.notificationsEnabled)
-                .help("When someone passes you, the morning recap, @mentions in chat")
             Picker("Menu bar", selection: $model.menuBarDisplay) {
                 ForEach(MenuBarDisplay.allCases, id: \.self) { Text($0.label).tag($0) }
             }
@@ -38,7 +25,10 @@ struct SettingsView: View {
 
             Divider()
             HStack {
-                if let name = model.state?.me?.name { Text("Signed in as \(name)").foregroundStyle(.secondary) }
+                if let name = model.state?.me?.name {
+                    Text("Signed in as \(name)").foregroundStyle(.secondary)
+                        .help("Change your name and look in the world")
+                }
                 Spacer()
                 Button("Sign out", role: .destructive) { Task { await model.signOut() } }
             }
@@ -51,13 +41,5 @@ struct SettingsView: View {
         }
         .toggleStyle(.switch)
         .padding(14)
-        .onAppear { name = model.state?.me?.name ?? "" }
-    }
-
-    private func rename() {
-        Task {
-            error = await model.rename(to: name)
-            if error == nil, let saved = model.state?.me?.name { name = saved }
-        }
     }
 }

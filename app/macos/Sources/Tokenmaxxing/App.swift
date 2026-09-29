@@ -20,12 +20,9 @@ struct MenuBarLabel: View {
     let model: AppModel
 
     var body: some View {
-        let unread = (model.state?.chat.unread ?? 0) > 0 ? " •" : ""
         if let text = title, model.state?.phase == .ready {
-            Label(text + unread, systemImage: "bolt.fill")
+            Label(text, systemImage: "bolt.fill")
                 .labelStyle(.titleAndIcon)
-        } else if !unread.isEmpty {
-            Label(unread, systemImage: "bolt.fill").labelStyle(.titleAndIcon)
         } else {
             Image(systemName: "bolt.fill")
         }
@@ -33,8 +30,8 @@ struct MenuBarLabel: View {
 
     private var title: String? {
         guard let me = model.state?.me else { return nil }
-        let tokens = Format.compact(me.tokens)
-        let rank = me.rank.map { "#\($0)\(Format.arrow(me.delta))" }
+        let tokens = Format.compact(me.tokensToday)
+        let rank = me.rank.map { "#\($0)" }
         switch model.menuBarDisplay {
         case .icon: return nil
         case .tokens: return tokens
@@ -53,31 +50,6 @@ enum Format {
         case 1e6...: return String(format: "%.1fM", n / 1e6)
         case 1e3...: return String(format: "%.1fK", n / 1e3)
         default: return String(Int(n))
-        }
-    }
-
-    static func usd(_ n: Double) -> String {
-        n >= 100 ? String(format: "$%.0f", n) : String(format: "$%.2f", n)
-    }
-
-    static func parallel(_ p: Double?) -> String {
-        guard let p else { return "—" }
-        return String(format: "%.1f×", p)
-    }
-
-    /// "▲" / "▼" for a rank change, "" for none.
-    static func arrow(_ delta: Int?) -> String {
-        guard let delta, delta != 0 else { return "" }
-        return delta > 0 ? "▲" : "▼"
-    }
-
-    /// A gap in the unit of `sort`.
-    static func gap(_ n: Double, _ sort: SortKey) -> String {
-        switch sort {
-        case .tokens: compact(n)
-        case .cost: usd(n)
-        case .parallelism: String(format: "%.1f×", n)
-        case .prs: "\(Int(n)) PR\(Int(n) == 1 ? "" : "s")"
         }
     }
 

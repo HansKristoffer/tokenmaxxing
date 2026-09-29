@@ -3,129 +3,23 @@ import Foundation
 // Mirrors core/src/protocol.ts. Tests/TokenmaxxingTests/Fixtures/messages.ndjson
 // is written by the TypeScript side and decoded in ProtocolTests, so drift fails CI.
 
-enum RangeKey: String, Codable, CaseIterable, Sendable {
-    case today
-    case week = "7d"
-    case month = "30d"
-    case all
-
-    var label: String {
-        switch self {
-        case .today: "Today"
-        case .week: "7d"
-        case .month: "30d"
-        case .all: "All"
-        }
-    }
-}
-
-enum SortKey: String, Codable, CaseIterable, Sendable {
-    case tokens, parallelism, cost, prs
-
-    var label: String {
-        switch self {
-        case .tokens: "Tokens"
-        case .parallelism: "Parallel"
-        case .cost: "Cost"
-        case .prs: "PRs"
-        }
-    }
-}
-
-struct ViewSettings: Codable, Equatable, Sendable {
-    var range: RangeKey
-    var groupId: Int?
-    var sort: SortKey
-
-    static let `default` = ViewSettings(range: .today, groupId: nil, sort: .tokens)
-
-    /// `groupId` must go out as `null`, not be omitted: the helper compares against null.
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(range, forKey: .range)
-        try c.encode(groupId, forKey: .groupId)
-        try c.encode(sort, forKey: .sort)
-    }
-}
-
 struct MeStats: Codable, Equatable, Sendable {
     let name: String
+    /// World rank today by tokens; nil before any tokens today.
     let rank: Int?
-    let of: Int
-    let tokens: Double
-    let costUsd: Double
-    let parallelism: Double?
-    let peakAgents: Int
-    let tokensPerActiveHour: Double?
-    let prs: Int
-    let above: Above?
-    let delta: Int?
-    let titles: [String]
-}
-
-/// The person ranked just above me; `gap` is in the current sort's unit.
-struct Above: Codable, Equatable, Sendable {
-    let name: String
-    let gap: Double
+    let tokensToday: Double
+    let level: Int
+    let levelTitle: String
 }
 
 struct LeaderboardRow: Codable, Equatable, Identifiable, Sendable {
     let rank: Int
     let name: String
+    let company: String?
     let tokens: Double
-    let costUsd: Double
-    let parallelism: Double?
-    let peakAgents: Int
-    let prs: Int
-    let isMe: Bool
-    let titles: [String]
-    let delta: Int?
     let level: Int
+    let isMe: Bool
     var id: String { name }
-}
-
-struct Progress: Codable, Equatable, Sendable {
-    let level: Int
-    let levelTitle: String
-    let lifetimeTokens: Double
-    let daysWon30: Int
-    let winStreak: Int
-    let activeStreak: Int
-    let achievements: [String]
-}
-
-struct Reaction: Codable, Equatable, Sendable {
-    let emoji: String
-    let count: Int
-    let mine: Bool
-}
-
-/// Mirrors REACTIONS in core/src/moments.ts.
-let reactionEmoji = ["🔥", "😂", "👑", "💀", "👀", "🫡"]
-
-struct ChatItem: Codable, Equatable, Identifiable, Sendable {
-    let id: Int
-    let author: String
-    let text: String
-    let isMe: Bool
-    let isSystem: Bool
-    let createdAt: Double
-    let reactions: [Reaction]
-}
-
-struct ChatState: Codable, Equatable, Sendable {
-    let open: Bool
-    let groupId: Int?
-    let timeline: [ChatItem]
-    let unread: Int
-}
-
-struct GroupInfo: Codable, Equatable, Identifiable, Sendable {
-    let id: Int
-    let name: String
-    let code: String
-    let memberCount: Int
-    let isOwner: Bool
 }
 
 struct SourceInfo: Codable, Equatable, Identifiable, Sendable {
@@ -154,21 +48,17 @@ enum Phase: String, Codable, Sendable {
 struct AppState: Codable, Equatable, Sendable {
     let phase: Phase
     let version: String
-    let view: ViewSettings
     let me: MeStats?
-    let progress: Progress?
+    /// Today's world top 10 by tokens, with me appended when I'm outside it.
     let leaderboard: [LeaderboardRow]
-    let groups: [GroupInfo]
     let sync: SyncInfo
     let sources: [SourceInfo]
-    let chat: ChatState
     let update: UpdateInfo?
 }
 
-/// The few fields any command result carries (`openDashboard` → url, group actions → code).
+/// The few fields any command result carries (`openWorld` → url, `signUp` → name).
 struct CommandResult: Decodable, Sendable {
     let url: String?
-    let code: String?
     let name: String?
 }
 
@@ -181,8 +71,6 @@ struct IncomingMessage: Decodable, Sendable {
     let event: String?
     let state: AppState?
     let token: String?
-    let title: String?
-    let body: String?
 }
 
 /// One line to the helper. Nil fields are omitted from the JSON.
@@ -191,13 +79,6 @@ struct OutgoingCommand: Encodable, Sendable {
     let cmd: String
     var token: String? = nil
     var serverUrl: String? = nil
-    var view: ViewSettings? = nil
     var enabledSources: [String]? = nil
     var name: String? = nil
-    var code: String? = nil
-    var groupId: Int? = nil
-    var text: String? = nil
-    var emoji: String? = nil
-    var momentId: Int? = nil
-    var open: Bool? = nil
 }

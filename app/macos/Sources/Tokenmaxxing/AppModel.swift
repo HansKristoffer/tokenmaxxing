@@ -1,7 +1,6 @@
 import AppKit
 import Observation
 import ServiceManagement
-import UserNotifications
 
 /// What the menu bar shows next to the bolt.
 enum MenuBarDisplay: String, CaseIterable, Sendable {
@@ -26,24 +25,16 @@ final class AppModel {
     var menuBarDisplay: MenuBarDisplay {
         didSet { defaults.set(menuBarDisplay.rawValue, forKey: Keys.menuBarDisplay) }
     }
-    var notificationsEnabled: Bool {
-        didSet { defaults.set(notificationsEnabled, forKey: Keys.notifications) }
-    }
     private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     private let helper: HelperProcess
     private let serverURL: String
     private let defaults = UserDefaults.standard
-    /// `swift run` has no bundle, and UNUserNotificationCenter crashes without one.
-    private let canNotify = Bundle.main.bundleIdentifier != nil
-    private let notificationDelegate = NotificationDelegate()
 
     private enum Keys {
-        static let view = "view"
         static let disabledSources = "disabledSources"
         static let showCount = "showCountInMenuBar"
         static let menuBarDisplay = "menuBarDisplay"
-        static let notifications = "notifications"
         static let onboarded = "onboarded"
     }
 
@@ -59,8 +50,6 @@ final class AppModel {
         let legacyShowCount = defaults.object(forKey: Keys.showCount) as? Bool ?? true
         menuBarDisplay = defaults.string(forKey: Keys.menuBarDisplay).flatMap(MenuBarDisplay.init(rawValue:))
             ?? (legacyShowCount ? .tokens : .icon)
-        notificationsEnabled = defaults.object(forKey: Keys.notifications) as? Bool ?? true
-        if canNotify { UNUserNotificationCenter.current().delegate = notificationDelegate }
 
         helper.onMessage = { [weak self] msg in self?.handle(msg) }
         helper.onStart = { [weak self] in self?.sendInit() }
@@ -79,31 +68,6 @@ final class AppModel {
         await run(OutgoingCommand(cmd: "signUp", name: name))
     }
 
-    func rename(to name: String) async -> String? {
-        await run(OutgoingCommand(cmd: "rename", name: name))
-    }
-
-    func createGroup(name: String) async -> String? {
-        await run(OutgoingCommand(cmd: "createGroup", name: name))
-    }
-
-    func joinGroup(code: String) async -> String? {
-        await run(OutgoingCommand(cmd: "joinGroup", code: code))
-    }
-
-    func leaveGroup(_ id: Int) async -> String? {
-        await run(OutgoingCommand(cmd: "leaveGroup", groupId: id))
-    }
-
-    func rotateCode(_ id: Int) async -> String? {
-        await run(OutgoingCommand(cmd: "rotateCode", groupId: id))
-    }
-
-    func setView(_ view: ViewSettings) async {
-        if let data = try? JSONEncoder().encode(view) { defaults.set(data, forKey: Keys.view) }
-        _ = await run(OutgoingCommand(cmd: "setView", view: view))
-    }
-
     func setSource(_ id: String, enabled: Bool) async {
         var disabled = Set(defaults.stringArray(forKey: Keys.disabledSources) ?? [])
         if enabled { disabled.remove(id) } else { disabled.insert(id) }
@@ -119,9 +83,10 @@ final class AppModel {
         Task { _ = await run(OutgoingCommand(cmd: "syncNow")) }
     }
 
-    func openDashboard() async -> String? {
+    /// Opens the world in the browser, signed in with a single-use code.
+    func openWorld() async -> String? {
         do {
-            let result = try await helper.send(OutgoingCommand(cmd: "openDashboard"))
+            let result = try await helper.send(OutgoingCommand(cmd: "openWorld"))
             if let url = result?.url.flatMap(URL.init(string:)) { NSWorkspace.shared.open(url) }
             return nil
         } catch {
@@ -138,28 +103,6 @@ final class AppModel {
         } catch {
             return Self.message(for: error)
         }
-    }
-
-    func sendMessage(_ text: String, groupId: Int) async -> String? {
-        await run(OutgoingCommand(cmd: "sendMessage", groupId: groupId, text: text))
-    }
-
-    func deleteMessage(_ id: Int) async {
-        _ = await run(OutgoingCommand(cmd: "deleteMessage", momentId: id))
-    }
-
-    func react(_ id: Int, _ emoji: String) async {
-        _ = await run(OutgoingCommand(cmd: "react", emoji: emoji, momentId: id))
-    }
-
-    /// While open, the helper refreshes the group's timeline every few seconds.
-    func setChatOpen(_ open: Bool, groupId: Int?) async {
-        _ = await run(OutgoingCommand(cmd: "setChatOpen", groupId: groupId, open: open))
-    }
-
-    func copyInvite(_ group: GroupInfo) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString("Join my tokenmaxxing group: \(group.code)", forType: .string)
     }
 
     /// Forgets the token; the helper drops its sync offsets so the next account starts clean.
@@ -185,12 +128,10 @@ final class AppModel {
     // MARK: - Helper plumbing
 
     private func sendInit() {
-        let view = defaults.data(forKey: Keys.view).flatMap { try? JSONDecoder().decode(ViewSettings.self, from: $0) }
         let cmd = OutgoingCommand(
             cmd: "init",
             token: Keychain.load(),
             serverUrl: serverURL,
-            view: view ?? .default,
             enabledSources: enabledSources()
         )
         Task { _ = await run(cmd) }
@@ -210,21 +151,9 @@ final class AppModel {
                 defaults.set(true, forKey: Keys.onboarded)
                 setLaunchAtLogin(true)
             }
-            // Ask for notifications the first time we're signed in (macOS only asks once anyway).
-            if state?.phase != .ready, next.phase == .ready, canNotify {
-                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-            }
             state = next
         case "token":
             if let token = msg.token { Keychain.save(token) } else { Keychain.delete() }
-        case "notify":
-            guard notificationsEnabled, canNotify, let title = msg.title else { return }
-            let content = UNMutableNotificationContent()
-            content.title = title
-            content.body = msg.body ?? ""
-            UNUserNotificationCenter.current().add(
-                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-            )
         default:
             break
         }
@@ -243,26 +172,10 @@ final class AppModel {
         switch (error as? HelperError)?.code {
         case "name_taken": "That name is taken."
         case "invalid_name": "Use 2–32 characters: a–z, 0–9, dot, dash or underscore."
-        case "invalid_body": "That doesn't look right."
-        case "not_found": "No group with that code."
-        case "group_full": "That group is full."
-        case "too_many_groups": "You're in the maximum number of groups."
-        case "not_owner": "Only the group owner can do that."
-        case "rate_limited": "Too many attempts. Try again in a few minutes."
-        case "invalid_message": "Messages are 1–500 characters."
+        case "rate_limited": "Too many sign-ups right now. Try again in a few minutes."
         case "offline": "Can't reach the server."
         case "helper_unavailable": "The background helper is restarting. Try again."
         default: "Something went wrong."
         }
-    }
-}
-
-/// A menu bar app counts as frontmost, so without this macOS would swallow every banner.
-final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Sendable {
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound]
     }
 }
