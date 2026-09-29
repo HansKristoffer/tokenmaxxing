@@ -41,6 +41,19 @@ struct UpdateInfo: Codable, Equatable, Sendable {
     let installing: Bool
 }
 
+/// A Tokenmaxxing battle I'm in, for the battle line.
+struct Battle: Codable, Equatable, Sendable {
+    let matchId: Int
+    let name: String
+    /// Nil before anyone has burned a token.
+    let place: Int?
+    let players: Int
+    let tokens: Double
+    let startsAt: Double
+    let endsAt: Double
+    let until: Double
+}
+
 enum Phase: String, Codable, Sendable {
     case starting, onboarding, ready
 }
@@ -53,6 +66,7 @@ struct AppState: Codable, Equatable, Sendable {
     let leaderboard: [LeaderboardRow]
     let sync: SyncInfo
     let sources: [SourceInfo]
+    let battle: Battle?
     let update: UpdateInfo?
 }
 

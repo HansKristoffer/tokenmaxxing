@@ -52,6 +52,20 @@ export interface LeaderboardRow {
   isMe: boolean;
 }
 
+/** A usage game I'm in (Tokenmaxxing), for the menu bar's battle line. */
+export interface Battle {
+  matchId: number;
+  name: string;
+  /** Null before anyone has burned a token. */
+  place: number | null;
+  players: number;
+  tokens: number;
+  startsAt: number;
+  endsAt: number;
+  /** Late syncs count until this; the app syncs fast until then. */
+  until: number;
+}
+
 export interface SourceInfo {
   id: Source;
   label: string;
@@ -71,6 +85,8 @@ export interface AppState {
     online: boolean;
   };
   sources: SourceInfo[];
+  /** The battle I'm in, or null. */
+  battle: Battle | null;
   /** A newer published version, or null. */
   update: {
     version: string;

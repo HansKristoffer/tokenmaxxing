@@ -28,6 +28,12 @@ export interface BoardRow {
   label: string;
 }
 
+/** A player's usage in a match's window. `flagged`: some minute went over the cap and was cut to it. */
+export interface Usage {
+  tokens: number;
+  flagged: boolean;
+}
+
 export interface GameDef<State = unknown, View = unknown> {
   id: GameId;
   name: string;
@@ -49,8 +55,10 @@ export interface GameDef<State = unknown, View = unknown> {
   /** A player's move: the new state, or why it's refused (shown to that player). */
   move(state: State, player: number, move: unknown, now: number): State | { refused: string };
   tick?(state: State, now: number): State;
-  /** Usage games: a player's tokens so far in the match's window, after each of their syncs. */
-  usage?(state: State, player: number, tokens: number, now: number): State;
+  /** Usage games: which events count (`from` ≤ timestamp < `to`), and until when syncs still arrive. */
+  usageWindow?(state: State): { from: number; to: number; until: number } | null;
+  /** Usage games: a player's tokens so far in the window, pulled after each of their syncs. */
+  usage?(state: State, player: number, usage: Usage, now: number): State;
   /** Takes a player out: they left or lost their connection. They're placed last. */
   forfeit(state: State, player: number, now: number): State;
   /** What one player may see, or a spectator (null). Must hide what they shouldn't know yet. */

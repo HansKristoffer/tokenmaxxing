@@ -1,3 +1,5 @@
+import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
+import type { Usage } from "@tokenmaxxing/core/games/types.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
 import type { IngestResponse, TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { actor, UserError } from "rivetkit";
@@ -173,6 +175,12 @@ export const player = actor({
       await client.world.getOrCreate(["main"], internal).forget(c.state.userId);
     },
 
+    /** A usage game's score (Tokenmaxxing). */
+    tokensBetween: (c, from: number, to: number): Promise<Usage> => {
+      requireInternal(c.conn.state);
+      return tokensBetween(c.db, from, to);
+    },
+
     ingest: (c, events: unknown): Promise<IngestResponse & { skipped: number }> => {
       requireDevice(c.conn.state);
       if (!Array.isArray(events) || events.length > MAX_EVENTS_PER_REQUEST)
@@ -198,12 +206,33 @@ export const player = actor({
         if (inserted > 0) {
           const days = [...new Set(valid.map((e) => dayKey(e.timestamp)))];
           await report(c.db, c.client<typeof registry>(), c.state.userId, days, now);
+          // In a battle? It pulls the new score from us.
+          await c
+            .client<typeof registry>()
+            .arcade.getOrCreate(["main"], internal)
+            .usage(c.state.userId)
+            .catch(() => {});
         }
         return { inserted, duplicates: valid.length - inserted, skipped: events.length - valid.length };
       });
     },
   },
 });
+
+/** Tokens in assistant events stamped from ≤ t < to, the same sum as the leaderboard, each minute capped (and flagged). */
+export async function tokensBetween(sql: Sql, from: number, to: number): Promise<Usage> {
+  const [r] = (await sql.execute(
+    `SELECT COALESCE(SUM(MIN(t, ?)), 0) AS tokens, COALESCE(MAX(t > ?), 0) AS flagged FROM (
+       SELECT SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens) AS t
+       FROM events WHERE message_type = 'assistant' AND timestamp >= ? AND timestamp < ?
+       GROUP BY timestamp / 60000)`,
+    MINUTE_CAP,
+    MINUTE_CAP,
+    from,
+    to,
+  )) as [{ tokens: number; flagged: number }];
+  return { tokens: r.tokens, flagged: r.flagged === 1 };
+}
 
 function requireDevice(caller: Caller): void {
   if (caller.kind !== "user" || caller.via !== "device") throw unauthorized();

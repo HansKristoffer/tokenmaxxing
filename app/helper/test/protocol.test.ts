@@ -16,12 +16,25 @@ const state: AppState = {
   ],
   sync: { syncing: false, lastSyncedAt: 1_790_000_000_000, lastError: null, online: true },
   sources: [{ id: "claude_code", label: "Claude Code", enabled: true }],
+  battle: {
+    matchId: 7,
+    name: "Tokenmaxxing",
+    place: 2,
+    players: 4,
+    tokens: 412_000_000,
+    startsAt: 1_790_000_000_000,
+    endsAt: 1_790_003_600_000,
+    until: 1_790_003_780_000,
+  },
   update: { version: "1.3.0", viaBrew: true, installing: false },
 };
 
 const messages: Message[] = [
   { event: "state", state },
-  { event: "state", state: { ...state, phase: "onboarding", me: null, leaderboard: [], update: null } },
+  {
+    event: "state",
+    state: { ...state, phase: "onboarding", me: null, leaderboard: [], battle: null, update: null },
+  },
   { event: "state", state: { ...state, me: { ...state.me!, rank: null, tokensToday: 0 } } },
   { event: "token", token: "12.tok_abc" },
   { event: "token", token: null },

@@ -17,10 +17,13 @@ final class ProtocolTests: XCTestCase {
         XCTAssertEqual(state.leaderboard.last?.isMe, true)
         XCTAssertEqual(state.update, UpdateInfo(version: "1.3.0", viaBrew: true, installing: false))
         XCTAssertEqual(state.sources.first?.label, "Claude Code")
+        XCTAssertEqual(state.battle?.place, 2)
+        XCTAssertEqual(state.battle?.tokens, 412_000_000)
 
         XCTAssertEqual(messages[1].state?.phase, .onboarding)
         XCTAssertNil(messages[1].state?.me)
         XCTAssertNil(messages[1].state?.update)
+        XCTAssertNil(messages[1].state?.battle)
         XCTAssertNil(messages[2].state?.me?.rank)
         XCTAssertEqual(messages[3].token, "12.tok_abc")
         XCTAssertEqual(messages[4].event, "token")

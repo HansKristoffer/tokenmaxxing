@@ -146,4 +146,32 @@ describe("the arcade", () => {
     expect(again).not.toBe(t);
     expect((await a.arcade.lobby()).matches.find((m) => m.id === again)!.stake).toBe(40);
   });
+
+  test("Tokenmaxxing: an arena in town, players stay free, and the menu bar's battle line", async () => {
+    const a = await rich("ta");
+    const b = await rich("tb");
+    const id = (
+      await a.arcade.open("tokenmaxxing", {
+        stake: 10,
+        seats: 2,
+        open: false,
+        invite: [b.userId],
+        options: { minutes: 15 },
+      })
+    ).me.table!;
+    await b.arcade.answer(id, true);
+    const g = (await townGames(a)).find((x) => x.id === id)!;
+    expect(g.spot.kind).toBe("arena");
+    expect(g.seats).toHaveLength(2);
+    // Not held at the table: they can walk around.
+    await expect(as(a.token).world.step("up")).resolves.not.toMatchObject({ state: "playing" });
+    const battle = await a.arcade.battle();
+    expect(battle).toMatchObject({ matchId: id, name: "Tokenmaxxing", players: 2, tokens: 0 });
+    expect(battle!.endsAt - battle!.startsAt).toBe(15 * 60_000);
+    expect(await as(b.token).arcade.battle()).toMatchObject({ matchId: id });
+    await b.match(id).forfeit();
+    await Bun.sleep(300);
+    expect(await a.arcade.battle()).toBeNull();
+    expect((await townGames(a)).some((x) => x.id === id)).toBe(false);
+  });
 });

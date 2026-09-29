@@ -15,6 +15,8 @@ import {
 
 /** Often enough that your character sits down at the desk soon after your agents start. */
 export const SYNC_INTERVAL_MS = 2 * 60_000;
+/** During a Tokenmaxxing battle, so the scoreboard moves while you burn. */
+export const BATTLE_SYNC_MS = 10_000;
 
 export interface HelperOptions {
   statePath: string;
@@ -45,6 +47,7 @@ export class Helper {
   private syncState: SyncState | null = null;
   private syncing: Promise<void> | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
+  private every = 0;
   private updateTimer: ReturnType<typeof setInterval> | null = null;
   readonly state: AppState;
 
@@ -56,6 +59,7 @@ export class Helper {
       leaderboard: [],
       sync: { syncing: false, lastSyncedAt: null, lastError: null, online: true },
       sources: this.sourceInfo(),
+      battle: null,
       update: null,
     };
   }
@@ -156,6 +160,14 @@ export class Helper {
     return { params: { token: this.token } };
   }
 
+  /** Syncs every `ms` (fast during a battle), restarting the timer only when that changes. */
+  private cadence(ms: number): void {
+    if (this.timer && this.every === ms) return;
+    if (this.timer) clearInterval(this.timer);
+    this.every = ms;
+    this.timer = setInterval(() => void this.tick(), ms);
+  }
+
   private town() {
     return this.api().town.getOrCreate(["main"], this.params());
   }
@@ -168,7 +180,7 @@ export class Helper {
     this.token = token;
     this.state.phase = "ready";
     this.state.sync.lastSyncedAt = this.syncState?.lastSyncedAt ?? null;
-    this.timer ??= setInterval(() => void this.tick(), SYNC_INTERVAL_MS);
+    this.cadence(SYNC_INTERVAL_MS);
     void this.tick();
     await this.refreshQuietly();
   }
@@ -235,7 +247,11 @@ export class Helper {
   /** Today in the world: my numbers and the top 10. */
   async refresh(): Promise<void> {
     if (!this.token) return;
-    const { me, top } = await this.call(() => this.town().menuBar());
+    const [{ me, top }, battle] = await this.call(() =>
+      Promise.all([this.town().menuBar(), this.api().arcade.getOrCreate(["main"], this.params()).battle()]),
+    );
+    this.state.battle = battle;
+    this.cadence(battle ? BATTLE_SYNC_MS : SYNC_INTERVAL_MS);
     this.state.me = {
       name: me.name,
       rank: me.rank,

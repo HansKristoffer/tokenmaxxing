@@ -6,6 +6,7 @@ import { gameOf } from "@tokenmaxxing/core/games/index.ts";
 import type { Split } from "@tokenmaxxing/core/games/payouts.ts";
 import { type GameId, isRefused, type Options, type Outcome } from "@tokenmaxxing/core/games/types.ts";
 import type { Frame, MatchInfo, Seat } from "@tokenmaxxing/core/games/wire.ts";
+import type { Battle } from "@tokenmaxxing/core/protocol.ts";
 import { actor, UserError } from "rivetkit";
 import type { registry } from "./registry.ts";
 import {
@@ -137,12 +138,39 @@ export const match = actor({
       pushFrames(c);
     },
 
-    /** A player's tokens so far in this match's window (usage games). */
-    usage: async (c, userId: number, tokens: number): Promise<void> => {
+    /** After a player syncs (usage games): pull their tokens in the window. Returns until when to keep syncing fast. */
+    usage: async (c, userId: number): Promise<number | null> => {
       requireInternal(c.conn.state);
       const def = defOf(c.state);
-      if (!def.usage || c.state.outcome || !c.state.players.some((p) => p.userId === userId)) return;
-      await apply(c, def.usage(c.state.state, userId, tokens, Date.now()));
+      const window = def.usageWindow?.(c.state.state);
+      if (!def.usage || !window || c.state.outcome || !c.state.players.some((p) => p.userId === userId))
+        return null;
+      const used = await c
+        .client()
+        .player.get([String(userId)], internal)
+        .tokensBetween(window.from, window.to);
+      await apply(c, def.usage(c.state.state, userId, used, Date.now()));
+      return window.until;
+    },
+
+    /** The menu bar's battle line: where a player stands. */
+    battle: (c, userId: number): Battle | null => {
+      requireInternal(c.conn.state);
+      const def = defOf(c.state);
+      const window = def.usageWindow?.(c.state.state);
+      if (!window || c.state.outcome) return null;
+      const board = def.board?.(c.state.state, Date.now()) ?? [];
+      const place = board.findIndex((r) => r.player === userId);
+      return {
+        matchId: c.state.id,
+        name: def.name,
+        place: place < 0 ? null : place + 1,
+        players: c.state.players.length,
+        tokens: board[place]?.value ?? 0,
+        startsAt: window.from,
+        endsAt: window.to,
+        until: window.until,
+      };
     },
 
     info: (c): MatchInfo => {

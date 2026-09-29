@@ -10,6 +10,7 @@ struct MainView: View {
             VStack(alignment: .leading, spacing: 10) {
                 if let update = state.update { updateBanner(update) }
                 header(state)
+                if let battle = state.battle { battleLine(battle) }
                 Button {
                     Task { error = await model.openWorld() }
                 } label: {
@@ -61,6 +62,33 @@ struct MainView: View {
                 }
             }
         }
+    }
+
+    /// "🏁 Tokenmaxxing · 2nd · 18:42 left · 412M": people battle from their editor, not the world.
+    private func battleLine(_ b: Battle) -> some View {
+        Button {
+            Task { error = await model.openWorld() }
+        } label: {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let now = context.date.timeIntervalSince1970 * 1000
+                HStack {
+                    Text("🏁 \(b.name)").fontWeight(.semibold)
+                    if let place = b.place { Text("· \(Format.ordinal(place)) of \(b.players)") }
+                    Spacer()
+                    Text(Self.battleClock(b, now: now)).monospacedDigit().foregroundStyle(.secondary)
+                    Text(Format.compact(b.tokens)).monospacedDigit()
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .buttonStyle(.bordered)
+        .help("Open the world to watch the battle")
+    }
+
+    static func battleClock(_ b: Battle, now: Double) -> String {
+        if now < b.startsAt { return "starts in \(Format.clock(b.startsAt - now))" }
+        if now < b.endsAt { return "\(Format.clock(b.endsAt - now)) left" }
+        return "⏳ counting…"
     }
 
     private func leaderboard(_ state: AppState) -> some View {

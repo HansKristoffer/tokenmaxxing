@@ -16,6 +16,7 @@ import {
 } from "@tokenmaxxing/core/games/payouts.ts";
 import type { GameId, Options, Outcome } from "@tokenmaxxing/core/games/types.ts";
 import type { Lobby, MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
+import type { Battle } from "@tokenmaxxing/core/protocol.ts";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { RateLimiter } from "../rate-limit.ts";
@@ -350,7 +351,31 @@ export const arcade = actor({
         push(c);
       }),
 
-    // MARK: From `match`
+    /** The menu bar's battle line: the usage game I'm in, if any. */
+    battle: (c): Promise<Battle | null> => {
+      const userId = requireUser(c.conn.state);
+      const live = usageMatch(c.state, userId);
+      return live
+        ? c
+            .client()
+            .match.get([String(live.id)], internal)
+            .battle(userId)
+        : Promise.resolve(null);
+    },
+
+    // MARK: From `player` and `match`
+
+    /** A player synced: the usage game they're in pulls their new score. */
+    usage: (c, userId: number): Promise<number | null> => {
+      requireInternal(c.conn.state);
+      const live = usageMatch(c.state, userId);
+      return live
+        ? c
+            .client()
+            .match.get([String(live.id)], internal)
+            .usage(userId)
+        : Promise.resolve(null);
+    },
 
     finished: (c, matchId: number, outcome: Outcome): Promise<void> =>
       c.vars.serial(async () => {
@@ -370,6 +395,10 @@ type ArcadeCtx = {
   conns: Map<string, { state: unknown; send(name: string, ...args: unknown[]): void }>;
   client(): Client<typeof registry>;
 };
+
+/** The running usage game (Tokenmaxxing) a player is in. */
+const usageMatch = (s: ArcadeState, userId: number) =>
+  Object.values(s.matches).find((m) => !m.outcome && m.players.includes(userId) && GAMES[m.game]?.usage);
 
 const nameOf = (s: ArcadeState, userId: number) => s.names[userId] ?? "Someone";
 const gameName = (t: { game: GameId }) => GAMES[t.game]!.name;
