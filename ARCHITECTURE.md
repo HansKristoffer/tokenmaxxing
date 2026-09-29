@@ -91,9 +91,10 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `purchases`, `ledger`
   (coins held and paid by games), `match_players` (one row per player per finished game).
 - Accounts: `signUp` (200 an hour, globally), `rename`, `setLook` (refuses shop items you don't own), `me`.
-- Companies: create (takes the first free plot of 8), leave, kick, rename, `setWebsite`. One company per
-  person, at most 50 members. The earliest joiner takes over from a leaving owner; the last one out closes the
-  company.
+- Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
+  `core/src/maps.ts`), leave, kick, rename, `setWebsite`. One company per person, at most 50 members. The
+  earliest joiner takes over from a leaving owner; the last one out closes the company. The town is built from
+  its companies' plots (`townMap`), so it grows as they start and shrinks, or gets a park, as they close.
 - Joining: `listings` shows every company; `apply` asks to join one (one pending application per person,
   applying elsewhere replaces it); the owner will `approve` or `decline`, and `withdraw` takes it back. The
   owner hears about an application, and the applicant about the answer, through `world.notify` (a `notice`

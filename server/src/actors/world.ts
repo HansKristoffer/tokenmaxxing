@@ -7,7 +7,7 @@ import {
   spotSize,
 } from "@tokenmaxxing/core/games/gather.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
-import { TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
+import { setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import {
   CHAT_HISTORY,
   type ChatLine,
@@ -131,10 +131,12 @@ export const world = actor({
     },
   }),
   onWake: async (c) => {
-    // First start (or a wiped world): load everyone from `town` and put them to bed.
-    if (c.state.seeded) return;
+    // The companies (and so the town's shape) fresh every start; everyone too on the first start (or a
+    // wiped world), put to bed.
     const seed = await main(c.client()).town.seed();
-    for (const co of seed.companies) c.state.companies[co.id] = co;
+    c.state.companies = Object.fromEntries(seed.companies.map((co) => [co.id, co]));
+    buildTown(c.state);
+    if (c.state.seeded) return;
     for (const p of seed.players) upsert(c.state, p, Date.now());
     c.state.seeded = true;
   },
@@ -204,7 +206,7 @@ export const world = actor({
         return null;
       }
       if (target.kind === "blocked") return wasSeated ? correction(p) : null;
-      const dest = portal(p.room, target.ch, p.companyId, plots(c.state));
+      const dest = portal(p.room, target, p.companyId, plots(c.state));
       if ("notice" in dest) return { notice: dest.notice };
       Object.assign(p, dest);
       return correction(p);
@@ -381,12 +383,14 @@ export const world = actor({
     setCompany: (c, company: CompanyInfo): void => {
       requireInternal(c.conn.state);
       c.state.companies[company.id] = company;
+      buildTown(c.state, c.vars.dirty);
       c.broadcast("companies", Object.values(c.state.companies));
     },
 
     removeCompany: (c, id: number): void => {
       requireInternal(c.conn.state);
       delete c.state.companies[id];
+      buildTown(c.state, c.vars.dirty);
       c.broadcast("companies", Object.values(c.state.companies));
     },
 
@@ -450,6 +454,21 @@ function plots(s: WorldState): Map<number, { id: number; name: string }> {
   const out = new Map<number, { id: number; name: string }>();
   for (const co of Object.values(s.companies)) if (co.plot !== null) out.set(co.plot, co);
   return out;
+}
+
+/**
+ * Rebuilds the town for its companies. Anyone now standing inside a new house, or past the edge of a
+ * town that shrank, goes back to the square.
+ */
+function buildTown(s: WorldState, dirty?: Set<number>): void {
+  const town = setTown([...plots(s).keys()]);
+  for (const p of Object.values(s.players)) {
+    const where = p.state === "away" || p.state === "working" ? p.back : p;
+    const tile = where?.room === "town" && !p.arena ? town.kind(where.x, where.y) : null;
+    if (!tile || tile.walk || tile.seat) continue;
+    Object.assign(where!, townSpawn());
+    dirty?.add(p.id);
+  }
 }
 
 /** Sends `p` to their bed (`away`) or desk (`working`) at home, remembering where they were. */

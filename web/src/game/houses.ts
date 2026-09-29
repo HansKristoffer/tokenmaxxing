@@ -1,4 +1,4 @@
-import { type GameMap, PLOT_COUNT, PLOT_H, PLOT_W } from "@tokenmaxxing/core/maps.ts";
+import { blockOf, type GameMap, PLOT_H, PLOT_W, plotId } from "@tokenmaxxing/core/maps.ts";
 import { type Peek, TILE } from "@tokenmaxxing/core/world.ts";
 import type { Pane } from "../art/buildings.ts";
 import { characterFrame, sleeperFrame } from "../art/characters.ts";
@@ -16,18 +16,16 @@ interface Building {
   plot: number | null;
 }
 
-const buildingCache = new Map<GameMap, Building[]>();
+const buildingCache = new WeakMap<GameMap, Building[]>();
 
-/** Plots (7×5, door in the middle of the bottom row) and the Inn (7×4), from the town grid. */
+/** Company houses (7×5, door in the middle of the bottom row) and the Inn (7×4), from the town grid. */
 export function buildings(map: GameMap): Building[] {
   let list = buildingCache.get(map);
   if (list) return list;
   list = [];
   if (map.id === "town") {
-    for (let plot = 1; plot <= PLOT_COUNT; plot++) {
-      const [dx, dy] = map.find(String(plot))[0]!;
-      list.push({ x: dx - 3, y: dy - 4, w: PLOT_W, h: PLOT_H, plot });
-    }
+    for (const [dx, dy] of map.find("D"))
+      list.push({ x: dx - 3, y: dy - 4, w: PLOT_W, h: PLOT_H, plot: plotId(...blockOf(dx, dy)) });
     const [ix, iy] = map.find("I")[0]!;
     list.push({ x: ix - 3, y: iy - 3, w: 7, h: 4, plot: null });
   }

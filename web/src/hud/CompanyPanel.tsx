@@ -1,4 +1,5 @@
 import { compact, plural } from "@tokenmaxxing/core/format.ts";
+import { CORE_BLOCKS, frontier, plotBlock } from "@tokenmaxxing/core/maps.ts";
 import { houseTierName, nextTierAt, perMember } from "@tokenmaxxing/core/world.ts";
 import type { Listing } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
@@ -17,6 +18,7 @@ export function CompanyPanel() {
     });
   const co = me?.company;
   const branding = co?.branding;
+  const [plot, setPlot] = useState<number | null>(null);
   // Reading a website takes a little while; keep the panel current until it's done.
   useEffect(() => {
     if (branding !== "working") return;
@@ -32,10 +34,11 @@ export function CompanyPanel() {
           Companies get a house in town. Members sleep there, work at its desks while their agents run, and
           share a private chat inside. You can also freelance for now and sleep at the Inn.
         </p>
+        <PlotPicker value={plot} onChange={setPlot} />
         <CompanyForm
           label="Start a company"
           placeholder="Company name"
-          onSubmit={(name) => run(() => town.createCompany(name))()}
+          onSubmit={(name) => run(() => town.createCompany(name, plot))()}
         />
         <h3>Or ask to join one</h3>
         {me.application && (
@@ -64,9 +67,6 @@ export function CompanyPanel() {
       </p>
       <p className="muted small">
         Your house shows how hard your people push, not how many you are: tokens per member decide it.
-      </p>
-      <p className="muted small">
-        {co.plot === null ? "No free plot in town yet: you sleep at the Inn." : `Plot ${co.plot} in town.`}
       </p>
       <h3>Website</h3>
       <p className="muted small">
@@ -182,6 +182,66 @@ function CompanyForm({
       </label>
       <button type="submit">{label.split(" ")[0]}</button>
     </form>
+  );
+}
+
+/** Which way a block lies from the square: "north-east". */
+function direction(plot: number): string {
+  const [bx, by] = plotBlock(plot);
+  const ns = by < 0 ? "north" : by > 1 ? "south" : "";
+  const ew = bx < 0 ? "west" : bx > 1 ? "east" : "";
+  return [ns, ew].filter(Boolean).join("-");
+}
+
+/**
+ * The town seen from above, a square per block: the town square, the companies, and every empty
+ * block next to them to build on. `null` picks the one nearest the square.
+ */
+function PlotPicker({ value, onChange }: { value: number | null; onChange: (plot: number) => void }) {
+  const companies = useHud((s) => s.companies);
+  const built = companies.flatMap((c) => (c.plot === null ? [] : [[c.plot, c.name] as const]));
+  const free = frontier(built.map(([p]) => p));
+  const chosen = value !== null && free.includes(value) ? value : free[0]!;
+  const blocks = [...CORE_BLOCKS, ...[...built.map(([p]) => p), ...free].map(plotBlock)];
+  const minX = Math.min(...blocks.map(([x]) => x));
+  const minY = Math.min(...blocks.map(([, y]) => y));
+  const cols = Math.max(...blocks.map(([x]) => x)) - minX + 1;
+  const place = (plot: number) => {
+    const [bx, by] = plotBlock(plot);
+    return { gridColumn: bx - minX + 1, gridRow: by - minY + 1 };
+  };
+  return (
+    <fieldset className="plots">
+      <legend>Where to build</legend>
+      <div className="plot-grid" style={{ gridTemplateColumns: `repeat(${cols}, 1.9em)` }}>
+        <span
+          className="plot-core"
+          style={{ gridColumn: `${1 - minX} / span 2`, gridRow: `${1 - minY} / span 2` }}
+        >
+          ⛲
+        </span>
+        {built.map(([p, name]) => (
+          <span key={p} className="plot-house" style={place(p)} title={name}>
+            🏠
+          </span>
+        ))}
+        {free.map((p) => (
+          <button
+            key={p}
+            type="button"
+            className="plot-free"
+            style={place(p)}
+            aria-pressed={p === chosen}
+            aria-label={`Build ${direction(p)} of the square`}
+            title={`${direction(p)} of the square`}
+            onClick={() => onChange(p)}
+          >
+            {p === chosen ? "📍" : ""}
+          </button>
+        ))}
+      </div>
+      <small className="muted">The town grows wherever you build: pick any spot next to it.</small>
+    </fieldset>
   );
 }
 

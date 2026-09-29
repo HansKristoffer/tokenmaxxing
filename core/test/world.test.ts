@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MAPS } from "../src/maps.ts";
+import { doorOf, MAPS, plotId, townMap } from "../src/maps.ts";
 import { addDays, dayKey, rangeDays } from "../src/range.ts";
 import {
   defaultLook,
@@ -17,17 +17,17 @@ import {
 } from "../src/world.ts";
 
 describe("steps", () => {
-  const town = MAPS.town;
+  const town = townMap([plotId(2, 0)]);
 
   test("walks onto open ground, not into trees, water or furniture", () => {
-    expect(stepTarget(town, 23, 17, "down")).toEqual({ kind: "move", x: 23, y: 18 });
-    expect(stepTarget(town, 1, 2, "left").kind).toBe("blocked"); // border tree
-    expect(stepTarget(town, 22, 13, "right").kind).toBe("blocked"); // fountain
+    expect(stepTarget(town, 9, 5, "down")).toEqual({ kind: "move", x: 9, y: 6 });
+    expect(stepTarget(town, 0, 2, "left").kind).toBe("blocked"); // border tree
+    expect(stepTarget(town, 8, 4, "right").kind).toBe("blocked"); // fountain
   });
 
   test("a door is a portal", () => {
-    const [x, y] = town.find("1")[0]!;
-    expect(stepTarget(town, x, y + 1, "up")).toEqual({ kind: "portal", ch: "1", x, y });
+    const [x, y] = doorOf(plotId(2, 0));
+    expect(stepTarget(town, x, y + 1, "up")).toEqual({ kind: "portal", ch: "D", x, y });
   });
 
   test("the step budget allows a short burst, then running pace", () => {
@@ -42,18 +42,22 @@ describe("steps", () => {
 });
 
 describe("portals", () => {
-  const plots = new Map([[1, { id: 7, name: "Arox" }]]);
+  const plot = plotId(-1, 1);
+  const plots = new Map([[plot, { id: 7, name: "Arox" }]]);
+  const [x, y] = doorOf(plot);
+  const door = { ch: "D", x, y };
+  const exit = { ch: "x", x: 0, y: 0 };
 
-  test("your own house lets you in; others are locked; a free plot says so", () => {
-    expect(portal("town", "1", 7, plots)).toEqual(roomEntry("hq:7"));
-    expect(portal("town", "1", 8, plots)).toEqual({ notice: "🔒 Arox's house. Members only." });
-    expect("notice" in portal("town", "2", 7, plots)).toBe(true);
+  test("your own house lets you in; others are locked; an empty one says so", () => {
+    expect(portal("town", door, 7, plots)).toEqual(roomEntry("hq:7"));
+    expect(portal("town", door, 8, plots)).toEqual({ notice: "🔒 Arox's house. Members only." });
+    expect("notice" in portal("town", door, 7, new Map())).toBe(true);
   });
 
   test("leaving a house puts you outside its door; the Inn works for everyone", () => {
-    expect(portal("hq:7", "x", 7, plots)).toEqual(outsideDoor("1"));
-    expect(portal("town", "I", null, plots)).toEqual(roomEntry("inn"));
-    expect(portal("inn", "x", null, plots)).toEqual(outsideDoor("I"));
+    expect(portal("hq:7", exit, 7, plots)).toEqual({ room: "town", x, y: y + 1, facing: "down" });
+    expect(portal("town", { ch: "I", x: 13, y: 14 }, null, plots)).toEqual(roomEntry("inn"));
+    expect(portal("inn", exit, null, plots)).toEqual(outsideDoor("inn"));
   });
 });
 

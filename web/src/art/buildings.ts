@@ -389,32 +389,3 @@ export const inn = cached(
     });
   },
 );
-
-/** An unclaimed plot: a fenced patch of dirt with a sign. */
-export const freePlot = cached(
-  () => "freePlot",
-  () => {
-    const W = LOT_W;
-    const H = LOT_H;
-    return bake(W, H, (p) => {
-      p.rect(4, 6, W - 8, H - 10, C.pathDark);
-      p.rect(6, 8, W - 12, H - 14, C.path);
-      for (let x = 2; x < W - 2; x += 8) {
-        p.rect(x, 2, 3, 8, C.woodDark);
-        p.rect(x, H - 10, 3, 8, C.woodDark);
-      }
-      p.rect(2, 4, W - 4, 2, C.wood);
-      p.rect(2, H - 8, W / 2 - 10, 2, C.wood);
-      p.rect(W / 2 + 8, H - 8, W / 2 - 10, 2, C.wood);
-      for (let y = 4; y < H - 6; y += 8) {
-        p.rect(2, y, 3, 6, C.woodDark);
-        p.rect(W - 5, y, 3, 6, C.woodDark);
-      }
-      p.rect(W / 2 - 1, 20, 2, 16, C.woodDark);
-      p.rect(W / 2 - 12, 14, 24, 10, C.ink);
-      p.rect(W / 2 - 11, 15, 22, 8, C.white);
-      p.rect(W / 2 - 8, 17, 16, 1, C.stoneDark);
-      p.rect(W / 2 - 8, 20, 12, 1, C.stoneDark);
-    });
-  },
-);

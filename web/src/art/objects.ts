@@ -275,7 +275,7 @@ export function objectAt(map: GameMap, x: number, y: number): Placed | null {
     cells = [];
     placed.set(map, cells);
   }
-  const i = y * map.width + x;
+  const i = map.index(x, y);
   if (cells[i] === undefined) cells[i] = placeObject(map, x, y);
   return cells[i];
 }

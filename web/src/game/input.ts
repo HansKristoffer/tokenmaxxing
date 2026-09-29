@@ -225,13 +225,7 @@ export function interact(): void {
     const company = b?.plot ? companyOnPlot(b.plot) : null;
     // A company's house opens its page.
     if (company) return void hud.set({ panel: { kind: "companyCard", companyId: company.id } });
-    return void hud.set({
-      dialog: !b
-        ? null
-        : b.plot === null
-          ? "The Inn. Beds for anyone without a company."
-          : "A free plot. Start a company from the menu (Esc) and it's yours.",
-    });
+    return void hud.set({ dialog: b?.plot === null ? "The Inn. Beds for anyone without a company." : null });
   }
   if (kind.text) hud.set({ dialog: kind.text });
 }

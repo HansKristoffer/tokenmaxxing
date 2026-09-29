@@ -4,7 +4,7 @@
  */
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
-import { type GameMap, MAPS, type MapId, TOWN_SPAWN } from "./maps.ts";
+import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
 
 export const TILE = 16;
 /** Client animation time per step; the server only enforces the running pace. */
@@ -294,33 +294,32 @@ export function roomEntry(room: RoomId): Place {
   return { room, x, y: y - 1, facing: "up" };
 }
 
-/** Just outside a town door, facing away from it. */
-export function outsideDoor(ch: string): Place {
-  const door = MAPS.town.find(ch)[0];
-  if (!door) return townSpawn();
-  return { room: "town", x: door[0], y: door[1] + 1, facing: "down" };
+/** Just outside a town door (a company's plot, or the Inn), facing away from it. */
+export function outsideDoor(plot: number | "inn"): Place {
+  const [x, y] = plot === "inn" ? MAPS.town.find("I")[0]! : doorOf(plot);
+  return { room: "town", x, y: y + 1, facing: "down" };
 }
 
 /**
- * Where a portal takes a player, or why it doesn't. `plots` maps a plot number to
- * the company holding it.
+ * Where the portal at (x, y) takes a player, or why it doesn't. `plots` maps a plot to the company
+ * holding it.
  */
 export function portal(
   room: RoomId,
-  ch: string,
+  door: { ch: string; x: number; y: number },
   companyId: number | null,
   plots: ReadonlyMap<number, { id: number; name: string }>,
 ): Place | { notice: string } {
   if (room === "town") {
-    if (ch === "I") return roomEntry("inn");
-    const holder = plots.get(Number(ch));
-    if (!holder) return { notice: "This plot is free. Start a company to build here." };
+    if (door.ch === "I") return roomEntry("inn");
+    const holder = plots.get(plotId(...blockOf(door.x, door.y)));
+    if (!holder) return { notice: "Nobody lives here any more." };
     if (holder.id !== companyId) return { notice: `🔒 ${holder.name}'s house. Members only.` };
     return roomEntry(`hq:${holder.id}`);
   }
-  if (room === "inn") return outsideDoor("I");
+  if (room === "inn") return outsideDoor("inn");
   const plot = [...plots].find(([, c]) => c.id === companyOfRoom(room))?.[0];
-  return plot === undefined ? townSpawn() : outsideDoor(String(plot));
+  return plot === undefined ? townSpawn() : outsideDoor(plot);
 }
 
 /** The room a player rests in: their company's house, or the Inn without one (or without a plot). */
@@ -345,7 +344,7 @@ export function restSpot(room: RoomId, state: "away" | "working", taken: Readonl
  * there's no way.
  */
 export function route(map: GameMap, from: [number, number], to: [number, number]): Facing[] | null {
-  const key = (x: number, y: number) => y * map.width + x;
+  const key = (x: number, y: number) => map.index(x, y);
   const goal = key(...to);
   const prev = new Map<number, [number, Facing]>([[key(...from), [-1, "down"]]]);
   const queue: [number, number][] = [from];
@@ -361,7 +360,7 @@ export function route(map: GameMap, from: [number, number], to: [number, number]
       const nx = x + dx;
       const ny = y + dy;
       const k = key(nx, ny);
-      if (prev.has(k) || nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) continue;
+      if (prev.has(k) || !map.contains(nx, ny)) continue;
       if (!map.walkable(nx, ny) && k !== goal) continue;
       prev.set(k, [key(x, y), dir]);
       queue.push([nx, ny]);

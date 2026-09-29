@@ -50,9 +50,13 @@ export function pill(
   dpr: number,
   bg: string,
   fg: string,
+  maxW = Infinity,
 ) {
   g.font = `600 ${11 * dpr}px ${FONT}`;
-  const w = g.measureText(text).width + 10 * dpr;
+  const pad = 10 * dpr;
+  // Too wide (next door's sign is right there): cut it short.
+  while (text.length > 2 && g.measureText(text).width + pad > maxW) text = `${text.slice(0, -2)}…`;
+  const w = g.measureText(text).width + pad;
   const h = 15 * dpr;
   g.fillStyle = bg;
   g.beginPath();
@@ -72,6 +76,7 @@ export function sign(
   text: string,
   dpr: number,
   owned: boolean,
+  maxW?: number,
 ) {
   return pill(
     g,
@@ -81,6 +86,7 @@ export function sign(
     dpr,
     owned ? "rgba(251, 247, 239, 0.95)" : "rgba(43, 36, 51, 0.7)",
     owned ? C.ink : C.white,
+    maxW,
   );
 }
 

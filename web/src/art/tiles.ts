@@ -136,7 +136,7 @@ function rug(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number)
 }
 
 function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
-  const face = map.at(x, y + 1) !== "W" && y + 1 < map.height;
+  const face = map.at(x, y + 1) !== "W" && map.contains(x, y + 1);
   if (!face) {
     p.rect(ox, oy, TILE, TILE, C.wallTop);
     if (hash(x, y, 5) < 0.3) p.rect(ox + 3, oy + 6, 6, 1, C.wallTopLight);
@@ -159,10 +159,10 @@ function exit(p: Pen, ox: number, oy: number, x: number, y: number): void {
 /** The whole map's ground as one canvas; scenery and people are drawn over it every frame. */
 export function bakeGround(map: GameMap): HTMLCanvasElement {
   return bake(map.width * TILE, map.height * TILE, (p) => {
-    for (let y = 0; y < map.height; y++)
-      for (let x = 0; x < map.width; x++) {
-        const ox = x * TILE;
-        const oy = y * TILE;
+    for (let y = map.y0; y < map.y0 + map.height; y++)
+      for (let x = map.x0; x < map.x0 + map.width; x++) {
+        const ox = (x - map.x0) * TILE;
+        const oy = (y - map.y0) * TILE;
         switch (groundAt(map, x, y)) {
           case "grass":
             grass(p, ox, oy, x, y);
@@ -208,7 +208,7 @@ export function drawWaterGlints(g: CanvasRenderingContext2D, map: GameMap, t: nu
   }
 }
 
-const waterCache = new Map<GameMap, [number, number][]>();
+const waterCache = new WeakMap<GameMap, [number, number][]>();
 const waterTiles = (map: GameMap) => {
   const tiles = waterCache.get(map) ?? map.find("~");
   waterCache.set(map, tiles);

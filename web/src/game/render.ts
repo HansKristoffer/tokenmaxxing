@@ -1,6 +1,7 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
+import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
 import { houseTier, TILE } from "@tokenmaxxing/core/world.ts";
-import { freePlot, house, inn } from "../art/buildings.ts";
+import { house, inn } from "../art/buildings.ts";
 import { characterFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
 import { chairBack, objectAt, sortY } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
@@ -33,11 +34,14 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   const viewW = w / scale;
   const viewH = h / scale;
   const me = world.avatars.get(world.selfId);
-  const focus = me ? drawPos(me, now) : { x: map.width / 2, y: map.height / 2 };
-  const clampCam = (center: number, view: number, size: number) =>
-    size <= view ? (size - view) / 2 : Math.min(Math.max(center - view / 2, 0), size - view);
-  const camX = Math.round(clampCam((focus.x + 0.5) * TILE, viewW, map.width * TILE) * scale) / scale;
-  const camY = Math.round(clampCam((focus.y + 0.5) * TILE, viewH, map.height * TILE) * scale) / scale;
+  const focus = me ? drawPos(me, now) : { x: map.x0 + map.width / 2, y: map.y0 + map.height / 2 };
+  const clampCam = (center: number, view: number, start: number, size: number) =>
+    start +
+    (size <= view ? (size - view) / 2 : Math.min(Math.max(center - start - view / 2, 0), size - view));
+  const camX =
+    Math.round(clampCam((focus.x + 0.5) * TILE, viewW, map.x0 * TILE, map.width * TILE) * scale) / scale;
+  const camY =
+    Math.round(clampCam((focus.y + 0.5) * TILE, viewH, map.y0 * TILE, map.height * TILE) * scale) / scale;
   Object.assign(camera, { x: camX, y: camY, scale, dpr });
 
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -45,13 +49,13 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = false;
   g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
-  if (world.ground) g.drawImage(world.ground, 0, 0);
+  if (world.ground) g.drawImage(world.ground, map.x0 * TILE, map.y0 * TILE);
   drawWaterGlints(g, map, now);
 
-  const x0 = Math.max(0, Math.floor(camX / TILE) - 1);
-  const y0 = Math.max(0, Math.floor(camY / TILE) - 1);
-  const x1 = Math.min(map.width, Math.ceil((camX + viewW) / TILE) + 1);
-  const y1 = Math.min(map.height, Math.ceil((camY + viewH) / TILE) + 3);
+  const x0 = Math.max(map.x0, Math.floor(camX / TILE) - 1);
+  const y0 = Math.max(map.y0, Math.floor(camY / TILE) - 1);
+  const x1 = Math.min(map.x0 + map.width, Math.ceil((camX + viewW) / TILE) + 1);
+  const y1 = Math.min(map.y0 + map.height, Math.ceil((camY + viewH) / TILE) + 3);
   const items: Draw[] = [];
   peekHits.length = 0;
   chipHits.length = 0;
@@ -71,8 +75,9 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
 
   for (const b of buildings(map)) {
     const company = b.plot === null ? null : companyOnPlot(b.plot);
+    if (b.plot !== null && !company) continue; // the town catches up with a company closing
     const plan = company ? house(houseTier(company.tokens30d, company.members), company.brand) : null;
-    const sprite = b.plot === null ? inn() : (plan?.canvas ?? freePlot());
+    const sprite = plan?.canvas ?? inn();
     const left = b.x * TILE;
     const bottom = (b.y + b.h) * TILE;
     const top = bottom - sprite.height;
@@ -95,15 +100,12 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       },
     });
     const [sx, sy] = toScreen(left + (b.w * TILE) / 2, bottom - sprite.height);
-    const text =
-      b.plot === null
-        ? "🛏 The Inn"
-        : company
-          ? `🏢 ${company.name}${company.website ? ` · ${company.website}` : ""} · ${compact(company.todayTokens)} today`
-          : "Free plot";
+    const text = company
+      ? `🏢 ${company.name}${company.website ? ` · ${company.website}` : ""} · ${compact(company.todayTokens)} today`
+      : "🛏 The Inn";
     labels.push(() => {
       const y = sy - 6 * dpr;
-      const { w, h } = sign(g, sx, y, text, dpr, company !== null && company !== undefined);
+      const { w, h } = sign(g, sx, y, text, dpr, company !== null, (BLOCK_W - 0.5) * TILE * scale);
       if (company) signHits.push({ x: sx - w / 2, y: y - h, w, h, id: company.id });
     });
     if (inside.length) labels.push(() => chips(g, sx, sy + 4 * dpr, inside, dpr));

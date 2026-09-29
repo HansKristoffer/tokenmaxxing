@@ -1138,3 +1138,43 @@ button.lb-item:hover {
 .company-people {
   margin-top: 4px;
 }
+
+/* Where to build a new company: the town from above, a square per block. */
+.plots {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: 0 0 10px;
+  padding: 6px 10px 8px;
+}
+.plot-grid {
+  display: grid;
+  grid-auto-rows: 1.9em;
+  gap: 3px;
+  justify-content: center;
+  margin: 4px 0 6px;
+}
+.plot-core,
+.plot-house,
+.plot-grid .plot-free {
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+}
+.plot-core {
+  background: rgba(143, 227, 255, 0.18);
+  font-size: 1.4em;
+}
+.plot-house {
+  background: rgba(255, 255, 255, 0.08);
+}
+.plot-grid .plot-free {
+  padding: 0;
+  min-width: 0;
+  border: 1px dashed var(--line);
+  background: none;
+}
+.plot-grid .plot-free:hover,
+.plot-grid .plot-free[aria-pressed="true"] {
+  border: 1px solid var(--accent);
+  background: rgba(255, 211, 92, 0.15);
+}

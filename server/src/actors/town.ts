@@ -1,4 +1,4 @@
-import { PLOT_COUNT } from "@tokenmaxxing/core/maps.ts";
+import { frontier } from "@tokenmaxxing/core/maps.ts";
 import { isRangeKey } from "@tokenmaxxing/core/range.ts";
 import { itemById, itemsIn } from "@tokenmaxxing/core/shop.ts";
 import { type CompanyInfo, defaultLook, type Look, parseLook } from "@tokenmaxxing/core/world.ts";
@@ -199,18 +199,18 @@ export const town = actor({
       await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
     },
 
-    createCompany: async (c, rawName: unknown): Promise<MyCompany> => {
+    /** `rawPlot`: the block to build on, one of `frontier()`; the one nearest the square without. */
+    createCompany: async (c, rawName: unknown, rawPlot?: unknown): Promise<MyCompany> => {
       const userId = requireUser(c.conn.state);
       const name = companyName(rawName);
       const changed = await c.vars.serial(async () => {
+        const taken = await all<{ plot: number }>(c.db, "SELECT plot FROM companies WHERE plot IS NOT NULL");
+        const free = frontier(taken.map((r) => r.plot));
+        const plot = rawPlot === undefined || rawPlot === null ? free[0]! : (rawPlot as number);
+        if (!free.includes(plot))
+          throw new UserError("Someone just built there. Pick another spot.", { code: "plot_taken" });
         const left = await leave(c.db, userId);
         await withdraw(c.db, userId);
-        const taken = new Set(
-          (await all<{ plot: number }>(c.db, "SELECT plot FROM companies WHERE plot IS NOT NULL")).map(
-            (r) => r.plot,
-          ),
-        );
-        const plot = Array.from({ length: PLOT_COUNT }, (_, i) => i + 1).find((p) => !taken.has(p)) ?? null;
         const now = Date.now();
         const [row] = await all<{ id: number }>(
           c.db,

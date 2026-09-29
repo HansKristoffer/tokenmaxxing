@@ -73,8 +73,8 @@ export async function admit(owner: User, member: User, companyId: number) {
   return owner.town.approve(member.userId);
 }
 
-// Town has 8 plots and every test shares it: after each test its users leave their
-// companies, which closes them and frees the plots, so the next test still gets a house.
+// Every test shares the town: after each test its users leave their companies, which closes them,
+// so the town doesn't keep growing.
 afterEveryTest.push(async () => {
   const tokens = fresh.splice(0);
   await Promise.all(

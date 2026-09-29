@@ -1,4 +1,4 @@
-import type { GameMap } from "@tokenmaxxing/core/maps.ts";
+import { type GameMap, setTown } from "@tokenmaxxing/core/maps.ts";
 import {
   type ChatLine,
   type CompanyInfo,
@@ -62,7 +62,15 @@ export const world = {
 /** Someone's look: as seen in the world, or their default while they're not in it. */
 export const lookOf = (userId: number) => world.avatars.get(userId)?.info.look ?? defaultLook(userId);
 
-const grounds = new Map<GameMap, HTMLCanvasElement>();
+const grounds = new WeakMap<GameMap, HTMLCanvasElement>();
+
+/** Shows `room`'s map (the town as it is now), its ground baked once. */
+function showMap(room: RoomId): void {
+  world.map = mapOf(room);
+  const ground = grounds.get(world.map) ?? bakeGround(world.map);
+  grounds.set(world.map, ground);
+  world.ground = ground;
+}
 
 const avatarOf = (v: PlayerView, now: number, warp: boolean): Avatar => ({
   info: v,
@@ -84,10 +92,8 @@ export function loadSnapshot(s: Snapshot): void {
   const changedRoom = s.room !== world.room || world.selfId === 0;
   world.room = s.room;
   world.selfId = s.selfId;
-  world.map = mapOf(s.room);
-  const ground = grounds.get(world.map) ?? bakeGround(world.map);
-  grounds.set(world.map, ground);
-  world.ground = ground;
+  setCompanies(s.companies);
+  showMap(s.room);
   const bubbles = new Map([...world.avatars].map(([id, a]) => [id, a.bubble]));
   world.avatars = new Map(
     s.players.map((p) => {
@@ -98,7 +104,6 @@ export function loadSnapshot(s: Snapshot): void {
   );
   world.leaving = [];
   world.portalPending = false;
-  setCompanies(s.companies);
   world.houses = s.houses;
   world.games = new Map(s.games.map((g) => [g.id, g]));
   hud.set({
@@ -109,8 +114,17 @@ export function loadSnapshot(s: Snapshot): void {
   });
 }
 
+let townPlots = "";
+
+/** The companies, and the town grown (or shrunk) to fit their plots. */
 export function setCompanies(list: CompanyInfo[]): void {
   world.companies = new Map(list.map((c) => [c.id, c]));
+  const plots = list.flatMap((c) => c.plot ?? []).sort((a, b) => a - b);
+  if (plots.join() !== townPlots) {
+    townPlots = plots.join();
+    setTown(plots);
+    if (world.room === "town") showMap("town");
+  }
   hud.set({ companies: list });
 }
 

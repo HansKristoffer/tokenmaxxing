@@ -24,7 +24,7 @@ const COLORS: Record<string, string> = {
   x: C.rugLight,
 };
 
-const bases = new Map<GameMap, HTMLCanvasElement>();
+const bases = new WeakMap<GameMap, HTMLCanvasElement>();
 
 /** The map's tiles, one block per tile, drawn once per map. */
 function base(map: GameMap, scale: number): HTMLCanvasElement {
@@ -36,7 +36,7 @@ function base(map: GameMap, scale: number): HTMLCanvasElement {
   const g = canvas.getContext("2d")!;
   for (let y = 0; y < map.height; y++)
     for (let x = 0; x < map.width; x++) {
-      g.fillStyle = COLORS[map.at(x, y)] ?? (map.id === "town" ? C.grass : C.woodDark);
+      g.fillStyle = COLORS[map.at(map.x0 + x, map.y0 + y)] ?? (map.id === "town" ? C.grass : C.woodDark);
       g.fillRect(x * scale, y * scale, scale, scale);
     }
   bases.set(map, canvas);
@@ -48,8 +48,9 @@ export function Minimap() {
   const ref = useRef<HTMLCanvasElement>(null);
   const room = useHud((s) => s.room);
   const myCompany = useHud((s) => s.me?.company?.id);
+  useHud((s) => s.companies); // the town grows with them
   const map = mapOf(room);
-  const scale = Math.max(2, Math.floor(MAX_WIDTH / map.width));
+  const scale = Math.max(1, Math.floor(MAX_WIDTH / map.width));
 
   useEffect(() => {
     const draw = () => {
@@ -58,23 +59,18 @@ export function Minimap() {
       g.drawImage(base(map, scale), 0, 0);
       for (const b of buildings(map)) {
         const company = b.plot === null ? null : companyOnPlot(b.plot);
-        g.fillStyle =
-          b.plot === null
-            ? C.leaf
-            : !company
-              ? C.pathDark
-              : company.id === myCompany
-                ? C.flowerYellow
-                : C.roofRed;
-        g.fillRect(b.x * scale, b.y * scale, b.w * scale, b.h * scale);
+        g.fillStyle = b.plot === null ? C.leaf : company?.id === myCompany ? C.flowerYellow : C.roofRed;
+        g.fillRect((b.x - map.x0) * scale, (b.y - map.y0) * scale, b.w * scale, b.h * scale);
       }
       for (const a of world.avatars.values()) {
         const me = a.info.id === world.selfId;
         const r = me ? scale + 2 : scale;
+        const cx = (a.x - map.x0) * scale + scale / 2;
+        const cy = (a.y - map.y0) * scale + scale / 2;
         g.fillStyle = me ? C.ink : C.white;
-        g.fillRect(a.x * scale + scale / 2 - r / 2 - 1, a.y * scale + scale / 2 - r / 2 - 1, r + 2, r + 2);
+        g.fillRect(cx - r / 2 - 1, cy - r / 2 - 1, r + 2, r + 2);
         g.fillStyle = me ? C.flowerRed : a.info.online ? C.screen : C.stoneLight;
-        g.fillRect(a.x * scale + scale / 2 - r / 2, a.y * scale + scale / 2 - r / 2, r, r);
+        g.fillRect(cx - r / 2, cy - r / 2, r, r);
       }
     };
     draw();
@@ -101,7 +97,10 @@ export function Minimap() {
         height={map.height * scale}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
-          walkTo(Math.floor((e.clientX - rect.left) / scale), Math.floor((e.clientY - rect.top) / scale));
+          walkTo(
+            map.x0 + Math.floor((e.clientX - rect.left) / scale),
+            map.y0 + Math.floor((e.clientY - rect.top) / scale),
+          );
         }}
       />
     </section>

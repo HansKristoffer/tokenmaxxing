@@ -46,7 +46,7 @@ describe("world", () => {
     const me = snap.players.find((p) => p.id === a.userId)!;
     const path = route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!;
     const results = await walk(conn, path);
-    expect(results.at(-1)).toEqual({ ...outsideDoor("I"), state: "idle" });
+    expect(results.at(-1)).toEqual({ ...outsideDoor("inn"), state: "idle" });
     await eventually(() => expect(events.snapshots.at(-1)!.room).toBe("town"));
     await conn.dispose();
   });
@@ -63,7 +63,7 @@ describe("world", () => {
     await Bun.sleep(300);
     // ...and opening it again gets them up where they left off.
     const again = await connect(a.token);
-    const door = outsideDoor("I");
+    const door = outsideDoor("inn");
     expect(again.snap.room).toBe("town");
     const back = again.snap.players.find((p) => p.id === a.userId)!;
     expect([back.x, back.y, back.state]).toEqual([door.x - 2, door.y, "idle"]);

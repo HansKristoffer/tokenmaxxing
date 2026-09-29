@@ -1,9 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import { LEGEND, MAPS, PLOT_COUNT, TOWN_SPAWN } from "../src/maps.ts";
+import {
+  doorOf,
+  frontier,
+  type GameMap,
+  LEGEND,
+  MAPS,
+  plotBlock,
+  plotId,
+  TOWN_SPAWN,
+  townMap,
+} from "../src/maps.ts";
 import { roomEntry } from "../src/world.ts";
 
 /** Tiles you can walk onto or stand next to (to sit, read or open a door) from (x, y). */
-function reachable(map: (typeof MAPS)[keyof typeof MAPS], x: number, y: number): Set<string> {
+function reachable(map: GameMap, x: number, y: number): Set<string> {
   const seen = new Set([`${x},${y}`]);
   const queue = [[x, y] as [number, number]];
   while (queue.length) {
@@ -33,16 +43,33 @@ describe("maps", () => {
     });
   }
 
-  test("town: the spawn is walkable and reaches every door, bench and the Inn", () => {
-    const town = MAPS.town;
+  test("town: grows around its companies, and the spawn reaches every door, bench and the Inn", () => {
+    // Companies on every side, with a gap left by one that closed (a park).
+    let plots: number[] = [];
+    for (let i = 0; i < 12; i++) plots.push(frontier(plots)[i % 3]!);
+    plots = plots.filter((_, i) => i !== 4);
+    const town = townMap(plots);
+    for (const row of town.rows) expect(row.length).toBe(town.width);
+    for (const row of town.rows) for (const ch of row) expect(LEGEND[ch]).toBeDefined();
     expect(town.walkable(...TOWN_SPAWN)).toBe(true);
     const seen = reachable(town, ...TOWN_SPAWN);
-    for (let plot = 1; plot <= PLOT_COUNT; plot++) {
-      const doors = town.find(String(plot));
-      expect(doors).toHaveLength(1);
-      expect(seen.has(doors[0]!.join(","))).toBe(true);
+    expect(town.find("D")).toHaveLength(plots.length);
+    for (const plot of plots) {
+      expect(town.at(...doorOf(plot))).toBe("D");
+      expect(seen.has(doorOf(plot).join(","))).toBe(true);
     }
     for (const ch of ["I", "B", "N"]) for (const t of town.find(ch)) expect(seen.has(t.join(","))).toBe(true);
+    expect(town.x0).toBeLessThan(0);
+  });
+
+  test("town: you can build on any empty block next to it, nearest the square first", () => {
+    const first = frontier([]);
+    expect(first).toHaveLength(8); // around the 2×2 core
+    expect(first).not.toContain(plotId(0, 0));
+    const next = frontier([plotId(2, 0)]);
+    expect(next).toContain(plotId(3, 0));
+    expect(next).not.toContain(plotId(2, 0));
+    for (const p of next) expect(plotId(...plotBlock(p))).toBe(p);
   });
 
   for (const id of ["hq", "inn"] as const) {

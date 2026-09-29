@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { frontier, plotId } from "@tokenmaxxing/core/maps.ts";
 import { admit, as, client, event, HOUR, signUp } from "./rivet.ts";
 
 describe("accounts", () => {
@@ -34,6 +35,18 @@ describe("accounts", () => {
 });
 
 describe("companies", () => {
+  test("a new company builds where its owner picks, next to the town", async () => {
+    const owner = await signUp("builder");
+    const town = await as(owner.token).world.join();
+    const pick = frontier(town.companies.flatMap((co) => co.plot ?? [])).at(-1)!;
+    const co = await owner.town.createCompany("Builders", pick);
+    expect(co.plot).toBe(pick);
+    await expect((await signUp("late")).town.createCompany("Late", pick)).rejects.toThrow(
+      "Pick another spot",
+    );
+    await expect((await signUp("far")).town.createCompany("Far", plotId(40, 40))).rejects.toThrow();
+  });
+
   test("create, apply, the owner accepts; one company per person", async () => {
     const owner = await signUp("own");
     const mate = await signUp("mate");
