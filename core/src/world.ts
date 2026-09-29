@@ -12,7 +12,7 @@ export const WALK_STEP_MS = 220;
 export const RUN_STEP_MS = 130;
 /** How often the world sends batched moves. */
 export const TICK_MS = 100;
-/** Connected but no input this long → away (goes to bed). */
+/** Connected but no input this long → dozing where they stand (only going offline sends them to bed). */
 export const IDLE_MS = 3 * 60_000;
 /** Offline and agents active this recently → working at a desk. */
 export const WORKING_MS = 10 * 60_000;
@@ -102,6 +102,8 @@ export interface PlayerInfo {
   online: boolean;
   /** When their coffee wears off (epoch ms); see `drinkCoffee`. */
   coffeeUntil: number;
+  /** Online but no input for `IDLE_MS`: snoozing in place. */
+  dozing: boolean;
 }
 
 /** Where someone is: `[id, x, y, facing, state]`. */
