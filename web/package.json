@@ -6,9 +6,9 @@
   "dependencies": {
     "@tokenmaxxing/core": "workspace:*",
     "@tokenmaxxing/server": "workspace:*",
-    "hono": "^4.9.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "rivetkit": "2.3.21"
   },
   "devDependencies": {
     "@types/react": "^19.1.0",

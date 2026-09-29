@@ -1,0 +1,179 @@
+import { compact } from "@tokenmaxxing/core/format.ts";
+import { houseTier, TILE } from "@tokenmaxxing/core/world.ts";
+import { freePlot, house, inn } from "../art/buildings.ts";
+import { characterFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
+import { chairBack, objectAt, sortY } from "../art/objects.ts";
+import { C } from "../art/palette.ts";
+import { PET_H, petFrame } from "../art/pets.ts";
+import { drawWaterGlints } from "../art/tiles.ts";
+import { camera, zoomScale } from "./camera.ts";
+import { buildings, companyOnPlot, drawFace, logoSprite, peekHits } from "./houses.ts";
+import { avatarLabels, chipHits, chips, sign } from "./labels.ts";
+import { followPet, prunePets } from "./pets.ts";
+import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
+
+let lastFrame = performance.now();
+
+type Draw = { y: number; draw: () => void };
+
+type Label = () => void;
+
+export function render(canvas: HTMLCanvasElement, now: number): void {
+  const g = canvas.getContext("2d")!;
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.floor(window.innerWidth * dpr);
+  const h = Math.floor(window.innerHeight * dpr);
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  const scale = zoomScale(dpr, w, h);
+  const map = world.map;
+  const viewW = w / scale;
+  const viewH = h / scale;
+  const me = world.avatars.get(world.selfId);
+  const focus = me ? drawPos(me, now) : { x: map.width / 2, y: map.height / 2 };
+  const clampCam = (center: number, view: number, size: number) =>
+    size <= view ? (size - view) / 2 : Math.min(Math.max(center - view / 2, 0), size - view);
+  const camX = Math.round(clampCam((focus.x + 0.5) * TILE, viewW, map.width * TILE) * scale) / scale;
+  const camY = Math.round(clampCam((focus.y + 0.5) * TILE, viewH, map.height * TILE) * scale) / scale;
+  Object.assign(camera, { x: camX, y: camY, scale, dpr });
+
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = map.id === "town" ? C.leafInk : "#1b1f2a";
+  g.fillRect(0, 0, w, h);
+  g.imageSmoothingEnabled = false;
+  g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
+  if (world.ground) g.drawImage(world.ground, 0, 0);
+  drawWaterGlints(g, map, now);
+
+  const x0 = Math.max(0, Math.floor(camX / TILE) - 1);
+  const y0 = Math.max(0, Math.floor(camY / TILE) - 1);
+  const x1 = Math.min(map.width, Math.ceil((camX + viewW) / TILE) + 1);
+  const y1 = Math.min(map.height, Math.ceil((camY + viewH) / TILE) + 3);
+  const items: Draw[] = [];
+  peekHits.length = 0;
+  chipHits.length = 0;
+  const labels: Label[] = [];
+  const toScreen = (px: number, py: number) => [(px - camX) * scale, (py - camY) * scale] as const;
+
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++) {
+      const o = objectAt(map, x, y);
+      if (o)
+        items.push({
+          y: y * TILE + sortY(map.at(x, y)),
+          draw: () => g.drawImage(o.canvas, x * TILE + o.dx, y * TILE + o.dy),
+        });
+    }
+
+  for (const b of buildings(map)) {
+    const company = b.plot === null ? null : companyOnPlot(b.plot);
+    const plan = company ? house(houseTier(company.tokens30d, company.members), company.brand) : null;
+    const sprite = b.plot === null ? inn() : (plan?.canvas ?? freePlot());
+    const left = b.x * TILE;
+    const bottom = (b.y + b.h) * TILE;
+    const top = bottom - sprite.height;
+    const inside = company ? (world.houses[company.id] ?? []) : [];
+    const panes = plan?.panes ?? [];
+    const plaque = plan?.plaque;
+    const logo = plaque && company?.brand?.logo ? logoSprite(company.brand.logo, plaque.w, plaque.h) : null;
+    const faces = inside.slice(0, panes.length);
+    for (const [i, p] of faces.entries()) {
+      const pane = panes[i]!;
+      peekHits.push({ x: left + pane.x, y: top + pane.y, w: pane.w, h: pane.h, id: p.id });
+    }
+    items.push({
+      y: bottom - 1,
+      draw: () => {
+        g.drawImage(sprite, left, top);
+        if (logo && plaque) g.drawImage(logo, left + plaque.x, top + plaque.y);
+        for (const [i, p] of faces.entries())
+          drawFace(g, p, left + panes[i]!.x, top + panes[i]!.y, panes[i]!, now);
+      },
+    });
+    const [sx, sy] = toScreen(left + (b.w * TILE) / 2, bottom - sprite.height);
+    const text =
+      b.plot === null
+        ? "🛏 The Inn"
+        : company
+          ? `🏢 ${company.name}${company.website ? ` · ${company.website}` : ""} · ${compact(company.todayTokens)} today`
+          : "Free plot";
+    labels.push(() => sign(g, sx, sy - 6 * dpr, text, dpr, company !== null && company !== undefined));
+    if (inside.length) labels.push(() => chips(g, sx, sy + 4 * dpr, inside, dpr));
+  }
+
+  const dt = Math.min(100, now - lastFrame);
+  lastFrame = now;
+  prunePets();
+  for (const a of [...world.avatars.values(), ...world.leaving]) {
+    const pos = drawPos(a, now);
+    const px = pos.x * TILE;
+    const py = pos.y * TILE;
+    const tile = map.at(a.x, a.y);
+    items.push({
+      y: py + (tile === "b" || tile === "s" ? 1 : TILE - 0.5),
+      draw: () => drawAvatar(g, a, px, py, tile, now),
+    });
+    const pet = a.warp ? null : followPet(a, px, py, dt);
+    if (pet) {
+      const frame = petFrame(a.info.look.pet, pet.left, pet.moving && Math.floor(now / 140) % 2 === 0);
+      if (frame)
+        items.push({
+          y: pet.y + PET_H,
+          draw: () => g.drawImage(frame, Math.round(pet.x), Math.round(pet.y)),
+        });
+    }
+    labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py), tile, now, dpr));
+  }
+
+  items.sort((a, b) => a.y - b.y);
+  for (const i of items) i.draw();
+
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  for (const l of labels) l();
+}
+
+function drawAvatar(
+  g: CanvasRenderingContext2D,
+  a: Avatar,
+  px: number,
+  py: number,
+  tile: string,
+  now: number,
+): void {
+  const look = a.info.look;
+  if (a.warp) {
+    const t = Math.min(1, (now - a.warp.at) / WARP_MS);
+    g.globalAlpha = a.warp.out ? 1 - t : t;
+  }
+  const lying = a.state === "away" || (a.state === "sit" && tile === "b");
+  if (lying) {
+    if (tile !== "b") {
+      // A sleeping bag on the floor.
+      g.fillStyle = C.ink;
+      g.fillRect(px + 2, py + 1, 12, 15);
+      g.fillStyle = C.fabricDark;
+      g.fillRect(px + 3, py + 2, 10, 13);
+    }
+    g.drawImage(sleeperFrame(look), px, py + 1);
+    const pal = lookPalette(look);
+    g.fillStyle = pal.c!;
+    g.fillRect(px + 3, py + 8, 10, 7);
+    g.fillStyle = pal.C!;
+    g.fillRect(px + 3, py + 8, 10, 1);
+  } else if (a.state === "working" || (a.state === "sit" && tile === "c")) {
+    const typing = a.state === "working" && Math.floor(now / 180) % 2 === 0 ? 1 : 0;
+    g.drawImage(characterFrame(look, "up", "sit"), px, py - 6 + typing);
+    g.drawImage(chairBack(), px, py);
+  } else if (a.state === "sit") {
+    g.drawImage(characterFrame(look, a.facing === "up" ? "up" : "down", "sit"), px, py - 5);
+  } else {
+    const walking = stepping(a, now);
+    const pose = poseFor(a.state, walking, now);
+    g.fillStyle = C.shadow;
+    g.fillRect(px + 4, py + 14, 8, 2);
+    g.drawImage(characterFrame(look, a.facing, pose), px, py - 2 - (pose === "walkA" ? 1 : 0));
+  }
+  g.globalAlpha = 1;
+}

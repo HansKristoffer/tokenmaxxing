@@ -1,9 +1,24 @@
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App.tsx";
+import { bindInput, updateSelf } from "./game/input.ts";
+import { render } from "./game/render.ts";
+import { advanceRemotes, world } from "./game/world.ts";
+import { Hud } from "./hud/Hud.tsx";
+import { connect, signIn } from "./net.ts";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+const canvas = document.getElementById("world") as HTMLCanvasElement;
+createRoot(document.getElementById("hud")!).render(<Hud />);
+
+const token = await signIn();
+if (token) {
+  connect(token);
+  bindInput(canvas);
+  const frame = (now: number) => {
+    if (world.selfId) {
+      updateSelf(now);
+      advanceRemotes(now);
+      render(canvas, now);
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
