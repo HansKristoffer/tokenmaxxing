@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.0.1...v1.0.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* **desktop:** no more freeze from the menu, and opening the app opens the game ([13dfabe](https://github.com/HansKristoffer/tokenmaxxing/commit/13dfabe0257769c83cb8530ab73cd9e186884d1a))
+* **desktop:** no more freeze from the menu, and opening the app opens the game ([0f62bf1](https://github.com/HansKristoffer/tokenmaxxing/commit/0f62bf1481ac0dede119a6690f524050db333827))
+
 ## [1.0.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.0.0...v1.0.1) (2026-09-29)
 
 
