@@ -239,7 +239,8 @@ input:focus {
 }
 
 /* Chat dock, bottom left. */
-.chat {
+/* The chat and the quick replies above it, stacked from the bottom-left corner. */
+.chat-dock {
   position: absolute;
   left: 12px;
   bottom: 12px;
@@ -247,6 +248,57 @@ input:focus {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quick {
+  padding: 6px 8px;
+}
+
+.quick-emojis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.quick-emojis button {
+  padding: 2px 3px;
+  border: none;
+  background: none;
+  font-size: 18px;
+  line-height: 1.2;
+  border-radius: 6px;
+}
+
+.quick-emojis button:hover,
+.quick-emojis .quick-toggle[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.quick-toggle {
+  margin-left: auto;
+}
+
+.quick-lines {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.quick-lines button {
+  padding: 3px 8px;
+  font-size: 12px;
+  border-radius: 999px;
 }
 
 .chat header {

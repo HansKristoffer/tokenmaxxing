@@ -3,6 +3,7 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { conn, errorText, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { QuickReplies } from "./QuickReplies.tsx";
 
 /** The `@partial` being typed at the end of the input, if any. */
 const typingMention = (text: string) => /(?:^|\s)@([a-z0-9._-]*)$/i.exec(text)?.[1]?.toLowerCase() ?? null;
@@ -91,71 +92,74 @@ export function Chat() {
   };
 
   return (
-    <section className="panel chat" aria-label="Chat">
-      <header>
-        <span>📍 {roomName(room)}</span>
-        <span className="muted"> · {here} here</span>
-      </header>
-      <ol ref={list}>
-        {chat.length === 0 && <li className="muted">No messages yet. Say hi!</li>}
-        {chat.map((l: ChatLine) => (
-          <li key={l.id} className={me && mentionsIn(l.text).includes(me.name) ? "mentions-me" : ""}>
-            <button
-              type="button"
-              className={`author${l.userId === me?.userId ? " me" : ""}`}
-              onClick={() => hud.set({ panel: { kind: "card", userId: l.userId } })}
-            >
-              {l.name}
-            </button>
-            <Text text={l.text} me={me?.name} />
-          </li>
-        ))}
-      </ol>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const t = text.trim();
-          if (!t) return input.current?.blur();
-          setText("");
-          setError(null);
-          try {
-            await conn.say(t);
-          } catch (err) {
-            setError(errorText(err));
-          }
-        }}
-      >
-        {suggestions.length > 0 && (
-          <ul className="suggestions" aria-label="Mention someone">
-            {suggestions.map((name, i) => (
-              <li key={name}>
-                <button
-                  type="button"
-                  aria-pressed={i === Math.min(picked, suggestions.length - 1)}
-                  onMouseDown={(e) => {
-                    e.preventDefault(); // keep focus in the input
-                    pick(name);
-                  }}
-                >
-                  @{name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <input
-          ref={input}
-          value={text}
-          maxLength={CHAT_MAX_LENGTH}
-          placeholder="Say: press Enter to chat, @ to mention"
-          onChange={(e) => {
-            setText(e.target.value);
-            setPicked(0);
+    <div className="chat-dock">
+      <QuickReplies onError={setError} />
+      <section className="panel chat" aria-label="Chat">
+        <header>
+          <span>📍 {roomName(room)}</span>
+          <span className="muted"> · {here} here</span>
+        </header>
+        <ol ref={list}>
+          {chat.length === 0 && <li className="muted">No messages yet. Say hi!</li>}
+          {chat.map((l: ChatLine) => (
+            <li key={l.id} className={me && mentionsIn(l.text).includes(me.name) ? "mentions-me" : ""}>
+              <button
+                type="button"
+                className={`author${l.userId === me?.userId ? " me" : ""}`}
+                onClick={() => hud.set({ panel: { kind: "card", userId: l.userId } })}
+              >
+                {l.name}
+              </button>
+              <Text text={l.text} me={me?.name} />
+            </li>
+          ))}
+        </ol>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const t = text.trim();
+            if (!t) return input.current?.blur();
+            setText("");
+            setError(null);
+            try {
+              await conn.say(t);
+            } catch (err) {
+              setError(errorText(err));
+            }
           }}
-          onKeyDown={onKeyDown}
-        />
-      </form>
-      {error && <p className="error small">{error}</p>}
-    </section>
+        >
+          {suggestions.length > 0 && (
+            <ul className="suggestions" aria-label="Mention someone">
+              {suggestions.map((name, i) => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    aria-pressed={i === Math.min(picked, suggestions.length - 1)}
+                    onMouseDown={(e) => {
+                      e.preventDefault(); // keep focus in the input
+                      pick(name);
+                    }}
+                  >
+                    @{name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <input
+            ref={input}
+            value={text}
+            maxLength={CHAT_MAX_LENGTH}
+            placeholder="Say: press Enter to chat, @ to mention"
+            onChange={(e) => {
+              setText(e.target.value);
+              setPicked(0);
+            }}
+            onKeyDown={onKeyDown}
+          />
+        </form>
+        {error && <p className="error small">{error}</p>}
+      </section>
+    </div>
   );
 }

@@ -97,6 +97,8 @@ to `town.report`, then tells `world` how many agents are live.
   predicted and corrected by the server; other players replay a short step queue.
 - Every sprite is a palette-string grid baked into a canvas at runtime (`web/src/art/`), so there are no image
   assets.
+- Chat has quick replies above it: emoji and startup one-liners, sent with one click. A line made only of
+  emoji (up to 8) bursts around its author instead of showing a bubble (`game/emoji.ts`).
 - React draws only the HUD and reads a small `useSyncExternalStore` store (`store.ts`). Game state never passes
   through React.
 

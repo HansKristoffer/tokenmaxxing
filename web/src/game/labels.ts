@@ -1,5 +1,6 @@
 import type { Peek } from "@tokenmaxxing/core/world.ts";
 import { C } from "../art/palette.ts";
+import { BURST_MS } from "./emoji.ts";
 import type { Avatar } from "./world.ts";
 
 /** Name chips under house signs this frame, in canvas (device) pixels. */
@@ -110,6 +111,41 @@ export function avatarLabels(
   }
   if (a.bubble && now < a.bubble.until && !resting)
     bubble(g, cx, y, a.bubble.text, dpr, a.bubble.until - now);
+  if (a.burst && now - a.burst.at < BURST_MS) burst(g, cx, top, a.burst.emojis, now - a.burst.at, dpr);
+}
+
+const BURST_COUNT = 10;
+const easeOut = (t: number) => 1 - (1 - t) ** 3;
+
+/**
+ * Emoji popping out around someone's head and floating up: `BURST_COUNT` copies
+ * (taking turns when there are several) fanned over the top half, a little
+ * staggered, fading out at the end.
+ */
+function burst(
+  g: CanvasRenderingContext2D,
+  cx: number,
+  top: number,
+  emojis: string[],
+  elapsed: number,
+  dpr: number,
+) {
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  for (let i = 0; i < BURST_COUNT; i++) {
+    const delay = (i % 4) * 80;
+    const t = Math.min(1, Math.max(0, (elapsed - delay) / (BURST_MS - 320)));
+    if (t === 0) continue;
+    const angle = -Math.PI / 2 + ((i + 0.5) / BURST_COUNT - 0.5) * Math.PI * 1.5;
+    const reach = (14 + 38 * easeOut(t) + (i % 3) * 6) * dpr;
+    const x = cx + Math.cos(angle) * reach;
+    const y = top + 4 * dpr + Math.sin(angle) * reach * 0.8 - 22 * t * dpr;
+    const pop = t < 0.15 ? t / 0.15 : 1;
+    g.globalAlpha = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
+    g.font = `${(12 + 8 * pop + (i % 2) * 3) * dpr}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+    g.fillText(emojis[i % emojis.length]!, x, y);
+  }
+  g.globalAlpha = 1;
 }
 
 export function bubble(

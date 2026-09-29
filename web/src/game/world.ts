@@ -17,6 +17,7 @@ import {
 } from "@tokenmaxxing/core/world.ts";
 import { bakeGround } from "../art/tiles.ts";
 import { hud } from "../store.ts";
+import { emojiOnly } from "./emoji.ts";
 
 /** Someone in the room, as drawn: a logical tile plus an in-flight step. */
 export interface Avatar {
@@ -29,6 +30,8 @@ export interface Avatar {
   /** Steps received but not yet walked (remote players). */
   queue: PlayerPos[];
   bubble: { text: string; until: number } | null;
+  /** An emoji-only line, bursting around them. */
+  burst: { emojis: string[]; at: number } | null;
   warp: { at: number; out: boolean } | null;
 }
 
@@ -61,6 +64,7 @@ const avatarOf = (v: PlayerView, now: number, warp: boolean): Avatar => ({
   from: null,
   queue: [],
   bubble: null,
+  burst: null,
   warp: warp ? { at: now, out: false } : null,
 });
 
@@ -147,7 +151,10 @@ export function applyChat(line: ChatLine): void {
   if (line.room !== world.room) return;
   hud.set((s) => ({ chat: [...s.chat.slice(-99), line] }));
   const a = world.avatars.get(line.userId);
-  if (a) a.bubble = { text: line.text, until: performance.now() + BUBBLE_MS };
+  if (!a) return;
+  const emojis = emojiOnly(line.text);
+  if (emojis) a.burst = { emojis, at: performance.now() };
+  else a.bubble = { text: line.text, until: performance.now() + BUBBLE_MS };
 }
 
 /** Starts a one-tile step animation. */
