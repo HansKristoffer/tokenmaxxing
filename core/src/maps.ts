@@ -10,11 +10,11 @@ type SeatKind = "bench" | "sofa" | "bed" | "chair";
 interface TileKind {
   name: string;
   walk?: true;
-  /** Space while facing it sits you down (beds lie you down). */
+  /** E while facing it sits you down (beds lie you down). */
   seat?: SeatKind;
   /** Stepping into it changes room. */
   portal?: true;
-  /** Shown when you press Space facing it. */
+  /** Shown when you press E facing it. */
   text?: string;
 }
 

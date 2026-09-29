@@ -91,6 +91,19 @@ pub async fn enter_world(app: AppHandle, name: Option<String>) -> Result<String,
         .ok_or_else(|| "internal".into())
 }
 
+/// From the game page: a link out of the game (a company's website) opens in the browser. The page
+/// asks for this itself, as WebKit doesn't reliably hand `target="_blank"` links to the handlers above.
+#[tauri::command]
+pub fn open_link(app: AppHandle, url: String) -> Result<(), String> {
+    let url: Url = url.parse().map_err(|_| "bad url".to_string())?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err("only web links open".into());
+    }
+    app.opener()
+        .open_url(url.as_str(), None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
 /// A window closed: back to the menu bar only once none are left.
 pub fn closed(app: &AppHandle) {
     #[cfg(target_os = "macos")]

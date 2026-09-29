@@ -1,7 +1,7 @@
 import { type MouseEvent, useState } from "react";
-import { conn, errorText } from "../net.ts";
+import { errorText } from "../net.ts";
 
-/** One click, straight to the room. Emoji burst around you; lines show as a bubble. */
+/** One click, straight to the chat. Emoji burst around you; lines show as a bubble. */
 const EMOJIS = ["🚀", "🔥", "🎉", "😂", "👏", "💸", "🤯", "☕", "🫡", "💯", "👀", "🦄"];
 
 const LINES = [
@@ -23,14 +23,20 @@ const LINES = [
   "Touch grass? Later.",
 ];
 
-export function QuickReplies({ onError }: { onError: (message: string | null) => void }) {
+export function QuickReplies({
+  say,
+  onError,
+}: {
+  say: (text: string) => Promise<unknown>;
+  onError: (message: string | null) => void;
+}) {
   const [open, setOpen] = useState(false);
   const send = (text: string) => async (e: MouseEvent<HTMLButtonElement>) => {
-    // Let go of focus, or Space (interact) would press the button again.
+    // Let go of focus, or Space (jump) would press the button again.
     e.currentTarget.blur();
     onError(null);
     try {
-      await conn.say(text);
+      await say(text);
     } catch (err) {
       onError(errorText(err));
     }

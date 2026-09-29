@@ -35,6 +35,8 @@ export interface Avatar {
   /** An emoji-only line, bursting around them. */
   burst: { emojis: string[]; at: number } | null;
   warp: { at: number; out: boolean } | null;
+  /** When their current hop started. */
+  jump: number | null;
 }
 
 const BUBBLE_MS = 6000;
@@ -82,6 +84,7 @@ const avatarOf = (v: PlayerView, now: number, warp: boolean): Avatar => ({
   queue: [],
   bubble: null,
   burst: null,
+  jump: null,
   warp: warp ? { at: now, out: false } : null,
 });
 
@@ -195,6 +198,12 @@ export function drawPos(a: Avatar, now: number): { x: number; y: number } {
   if (!a.from || now >= a.from.at + a.from.ms) return { x: a.x, y: a.y };
   const t = (now - a.from.at) / a.from.ms;
   return { x: a.from.x + (a.x - a.from.x) * t, y: a.from.y + (a.y - a.from.y) * t };
+}
+
+/** Someone else hopped (our own hops start locally). */
+export function applyJump(id: number): void {
+  const a = world.avatars.get(id);
+  if (a && id !== world.selfId) a.jump = performance.now();
 }
 
 /** Remote players walk their queued steps; long queues catch up at running pace. */

@@ -1,6 +1,6 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
-import { cupsLeft, houseTier, TILE } from "@tokenmaxxing/core/world.ts";
+import { cupsLeft, houseTier, JUMP_MS, TILE } from "@tokenmaxxing/core/world.ts";
 import { house, inn } from "../art/buildings.ts";
 import { characterFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
 import { chairBack, objectAt, sortY } from "../art/objects.ts";
@@ -9,7 +9,7 @@ import { PET_H, petFrame } from "../art/pets.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawGames } from "./games.ts";
-import { buildings, companyOnPlot, drawFace, logoSprite, peekHits } from "./houses.ts";
+import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
@@ -84,7 +84,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     const inside = company ? (world.houses[company.id] ?? []) : [];
     const panes = plan?.panes ?? [];
     const plaque = plan?.plaque;
-    const logo = plaque && company?.brand?.logo ? logoSprite(company.brand.logo, plaque.w, plaque.h) : null;
+    const logo = company?.brand?.logo;
     const faces = inside.slice(0, panes.length);
     for (const [i, p] of faces.entries()) {
       const pane = panes[i]!;
@@ -94,15 +94,13 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       y: bottom - 1,
       draw: () => {
         g.drawImage(sprite, left, top);
-        if (logo && plaque) g.drawImage(logo, left + plaque.x, top + plaque.y);
+        if (logo && plaque) drawLogo(g, logo, left + plaque.x, top + plaque.y, plaque.w, plaque.h);
         for (const [i, p] of faces.entries())
           drawFace(g, p, left + panes[i]!.x, top + panes[i]!.y, panes[i]!, now);
       },
     });
     const [sx, sy] = toScreen(left + (b.w * TILE) / 2, bottom - sprite.height);
-    const text = company
-      ? `🏢 ${company.name}${company.website ? ` · ${company.website}` : ""} · ${compact(company.todayTokens)} today`
-      : "🛏 The Inn";
+    const text = company ? `🏢 ${company.name} · ${compact(company.todayTokens)} today` : "🛏 The Inn";
     labels.push(() => {
       const y = sy - 6 * dpr;
       const { w, h } = sign(g, sx, y, text, dpr, company !== null, (BLOCK_W - 0.5) * TILE * scale);
@@ -187,9 +185,13 @@ function drawAvatar(
   } else {
     const walking = stepping(a, now);
     const pose = poseFor(a.state, walking, now);
+    // A hop: up and down on an arc, the shadow shrinking while they're in the air.
+    const t = a.jump === null ? 1 : (now - a.jump) / JUMP_MS;
+    const lift = t < 1 ? Math.round(Math.sin(t * Math.PI) * 7) : 0;
+    const shrink = lift > 3 ? 1 : 0;
     g.fillStyle = C.shadow;
-    g.fillRect(px + 4, py + 14, 8, 2);
-    g.drawImage(characterFrame(look, a.facing, pose), px, py - 2 - (pose === "walkA" ? 1 : 0));
+    g.fillRect(px + 4 + shrink, py + 14, 8 - 2 * shrink, 2);
+    g.drawImage(characterFrame(look, a.facing, pose), px, py - 2 - lift - (pose === "walkA" ? 1 : 0));
   }
   g.globalAlpha = 1;
 }

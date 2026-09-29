@@ -21,6 +21,7 @@ import {
   homeRoom,
   IDLE_MS,
   isFacing,
+  JUMP_MS,
   type Moves,
   mapOf,
   mentionsIn,
@@ -133,6 +134,8 @@ export const world = actor({
     /** The room each player was last announced in. */
     announced: new Map<number, RoomId>(),
     steps: new Map<number, { budget: number; at: number }>(),
+    /** When each player last jumped. */
+    jumps: new Map<number, number>(),
     chat: new RateLimiter(CHAT_PER_MIN, 60_000),
     occupancy: "",
     /** The last `houses` sent to town, as JSON. */
@@ -231,7 +234,18 @@ export const world = actor({
       return correction(p);
     },
 
-    /** Space while facing a free seat: sits you on it (beds lie you down). */
+    /** Space: a hop, shown to everyone in the room. Only on your feet, and one at a time. */
+    jump: (c): void => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      const now = Date.now();
+      if (p?.state !== "idle" || now - (c.vars.jumps.get(userId) ?? 0) < JUMP_MS) return;
+      c.vars.jumps.set(userId, now);
+      touch(c, p, now);
+      sendToRoom(c, p.room, "jump", userId);
+    },
+
+    /** E while facing a free seat: sits you on it (beds lie you down). */
     sit: (c, facing: unknown): StepResult => {
       const userId = requireUser(c.conn.state);
       const p = c.state.players[userId];
@@ -250,7 +264,7 @@ export const world = actor({
       return correction(p);
     },
 
-    /** Space while facing a coffee machine: one more cup, and everyone sees you shake. */
+    /** E while facing a coffee machine: one more cup, and everyone sees you shake. */
     drink: (c, facing: unknown): StepResult => {
       const userId = requireUser(c.conn.state);
       const p = c.state.players[userId];

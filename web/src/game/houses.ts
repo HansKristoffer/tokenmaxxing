@@ -41,32 +41,37 @@ export function companyOnPlot(plot: number) {
   return undefined;
 }
 
-const logos = new Map<string, HTMLCanvasElement | null>();
+const logos = new Map<string, HTMLImageElement | null>();
 
 /**
- * A company logo shrunk to fit a `w`×`h` plaque. Downscaled once with smoothing, then
- * drawn 1:1 in world pixels, so it comes out pixelated like the rest of the town.
- * Null until it has loaded (or if it never does).
+ * Draws a company logo fitted into its `w`×`h` plaque at (`x`, `y`) in world pixels. Drawn from the
+ * original image with smoothing, so it stays sharp at the screen's resolution rather than being
+ * baked down to plaque pixels. Nothing until it has loaded (or if it never does).
  */
-export function logoSprite(src: string, w: number, h: number): HTMLCanvasElement | null {
-  const key = `${src} ${w}x${h}`;
-  if (logos.has(key)) return logos.get(key)!;
-  logos.set(key, null);
-  const img = new Image();
-  img.onload = () => {
-    const scale = Math.min(w / (img.naturalWidth || w), h / (img.naturalHeight || h));
-    const dw = Math.max(1, Math.round((img.naturalWidth || w) * scale));
-    const dh = Math.max(1, Math.round((img.naturalHeight || h) * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const c = canvas.getContext("2d")!;
-    c.imageSmoothingQuality = "high";
-    c.drawImage(img, Math.floor((w - dw) / 2), Math.floor((h - dh) / 2), dw, dh);
-    logos.set(key, canvas);
-  };
-  img.src = src;
-  return null;
+export function drawLogo(
+  g: CanvasRenderingContext2D,
+  src: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): void {
+  if (!logos.has(src)) {
+    logos.set(src, null);
+    const img = new Image();
+    img.onload = () => logos.set(src, img);
+    img.src = src;
+  }
+  const img = logos.get(src);
+  if (!img) return;
+  const iw = img.naturalWidth || w;
+  const ih = img.naturalHeight || h;
+  const scale = Math.min(w / iw, h / ih);
+  g.save();
+  g.imageSmoothingEnabled = true;
+  g.imageSmoothingQuality = "high";
+  g.drawImage(img, x + (w - iw * scale) / 2, y + (h - ih * scale) / 2, iw * scale, ih * scale);
+  g.restore();
 }
 
 /** Someone inside, seen through a window: their face against a lit room, or asleep in the dark. */

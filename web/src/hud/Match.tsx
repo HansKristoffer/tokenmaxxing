@@ -7,6 +7,7 @@ import { lookOf } from "../game/world.ts";
 import { COMPONENTS } from "../games/index.ts";
 import { arcade, closeMatch, conn, matchConn } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { Chat } from "./Chat.tsx";
 import { AvatarImage, Modal, useRun, useTicker } from "./ui.tsx";
 
 const nameIn = (info: MatchInfo) => (id: number) => info.players.find((p) => p.userId === id)?.name ?? "?";
@@ -18,7 +19,12 @@ export function MatchPanel({ id }: { id: number }) {
   const { error, run } = useRun();
   useTicker(250);
   useEffect(() => () => closeMatch(), []);
-  if (!frame || frame.info.id !== id) return <Modal title="🎮 Game">Loading…</Modal>;
+  if (!frame || frame.info.id !== id)
+    return (
+      <Modal title="🎮 Game" beside={<Chat match />}>
+        Loading…
+      </Modal>
+    );
   const { info, you } = frame;
   const def = gameOf(info.game)!;
   const Game = COMPONENTS[info.game];
@@ -26,7 +32,7 @@ export function MatchPanel({ id }: { id: number }) {
   const move = (m: unknown) => void run(() => matchConn!.move(m))();
 
   return (
-    <Modal title={`${def.emoji} ${def.name}`} wide>
+    <Modal title={`${def.emoji} ${def.name}`} wide beside={<Chat match />}>
       <div className="match-head">
         <ul className="match-players">
           {info.players.map((p) => (

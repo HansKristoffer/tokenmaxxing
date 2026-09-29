@@ -1,6 +1,10 @@
 /** What the arcade and matches send to clients. */
+import type { ChatLine } from "../world.ts";
 import type { Split } from "./payouts.ts";
 import type { GameId, Options, Outcome } from "./types.ts";
+
+/** A line in a match's own chat, for its players and whoever is watching. */
+export type MatchChatLine = Omit<ChatLine, "room">;
 
 export interface Seat {
   userId: number;
