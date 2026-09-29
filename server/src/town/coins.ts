@@ -53,7 +53,7 @@ export async function wallet(sql: Sql, userId: number, now: number): Promise<Wal
     days.reduce((n, d) => n + coinsForTokens(d.tokens), 0) + wins.reduce((n, w) => n + w.coins, 0);
   const since = addDays(today, -29);
   return {
-    balance: earned - (spent ?? 0),
+    balance: earned - (spent ?? 0) + (await ledgerSum(sql, userId)),
     today: coinsForTokens(days.find((d) => d.day === today)?.tokens ?? 0),
     wins: wins.filter((w) => w.day >= since),
     owned: await ownedItems(sql, userId),
@@ -73,4 +73,105 @@ export async function buy(sql: Sql, userId: number, item: Item, now: number): Pr
     now,
   );
   return wallet(sql, userId, now);
+}
+
+// MARK: The ledger: coins moving between players
+
+export type HoldKind = "stake" | "bet";
+export type PayKind = "payout" | "refund" | "winnings";
+export interface Entry {
+  userId: number;
+  amount: number;
+}
+
+const ledgerSum = async (sql: Sql, userId: number): Promise<number> =>
+  (await all<{ n: number | null }>(sql, "SELECT SUM(amount) AS n FROM ledger WHERE user_id = ?", userId))[0]
+    ?.n ?? 0;
+
+/** What each player has in `ref` right now: held coins as positive numbers. */
+export async function heldIn(sql: Sql, ref: string): Promise<Map<number, number>> {
+  const rows = await all<{ userId: number; n: number }>(
+    sql,
+    "SELECT user_id AS userId, -SUM(amount) AS n FROM ledger WHERE ref = ? GROUP BY user_id",
+    ref,
+  );
+  return new Map(rows.filter((r) => r.n > 0).map((r) => [r.userId, r.n]));
+}
+
+/**
+ * Takes each entry's coins into `ref`, from everyone or from nobody. A stake may be at
+ * most half your balance, so one bad game can't wipe you out; a side bet just has to fit.
+ * Run it serialized with every other coin write, or two holds could spend the same coins.
+ */
+export async function hold(
+  sql: Sql,
+  ref: string,
+  kind: HoldKind,
+  entries: Entry[],
+  names: Record<number, string>,
+  now: number,
+): Promise<void> {
+  const paying = entries.filter((e) => e.amount > 0);
+  for (const e of paying) {
+    const { balance } = await wallet(sql, e.userId, now);
+    const limit = kind === "stake" ? Math.floor(balance / 2) : balance;
+    if (e.amount > limit) {
+      const who = names[e.userId] ?? "Someone";
+      throw new UserError(
+        kind === "stake"
+          ? `${who} can stake at most 🪙 ${limit} right now (half their coins).`
+          : `${who} only has 🪙 ${balance}.`,
+        { code: "too_poor" },
+      );
+    }
+  }
+  for (const e of paying)
+    await sql.execute(
+      "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, ?, ?, ?)",
+      e.userId,
+      -e.amount,
+      kind,
+      ref,
+      now,
+    );
+}
+
+/** Pays coins out of `ref`. Never more than it holds: a pot can't pay out coins nobody put in. */
+export async function pay(
+  sql: Sql,
+  ref: string,
+  kind: PayKind,
+  entries: Entry[],
+  now: number,
+): Promise<void> {
+  const out = entries.filter((e) => e.amount > 0);
+  const [{ held }] = (await all<{ held: number | null }>(
+    sql,
+    "SELECT -SUM(amount) AS held FROM ledger WHERE ref = ?",
+    ref,
+  )) as [{ held: number | null }];
+  const total = out.reduce((n, e) => n + e.amount, 0);
+  if (total > (held ?? 0)) throw new Error(`${ref}: paying ${total} but only ${held ?? 0} held`);
+  for (const e of out)
+    await sql.execute(
+      "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, ?, ?, ?)",
+      e.userId,
+      e.amount,
+      kind,
+      ref,
+      now,
+    );
+}
+
+/** Gives everyone back what they still have in `ref` (or just `userIds`). */
+export async function refund(sql: Sql, ref: string, now: number, userIds?: number[]): Promise<void> {
+  const held = await heldIn(sql, ref);
+  const back = [...held].filter(([id]) => !userIds || userIds.includes(id));
+  await pay(
+    sql,
+    ref,
+    "refund",
+    back.map(([userId, amount]) => ({ userId, amount })),
+    now,
+  );
 }

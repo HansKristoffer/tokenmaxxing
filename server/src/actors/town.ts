@@ -16,7 +16,18 @@ import {
   type Profile,
   profile,
 } from "../town/boards.ts";
-import { buy, ownedItems, type Wallet, wallet } from "../town/coins.ts";
+import {
+  buy,
+  type Entry,
+  type HoldKind,
+  hold,
+  ownedItems,
+  type PayKind,
+  pay,
+  refund,
+  type Wallet,
+  wallet,
+} from "../town/coins.ts";
 import {
   applicationOf,
   apply,
@@ -31,6 +42,7 @@ import {
   ownedCompany,
   withdraw,
 } from "../town/companies.ts";
+import { migrate } from "../town/schema.ts";
 import { brand, notify, push, pushPlayers } from "../town/sync.ts";
 import {
   lifetimeTokens,
@@ -54,6 +66,7 @@ import {
   one,
   requireInternal,
   requireUser,
+  type Sql,
   serial,
   type TokenCache,
 } from "./shared.ts";
@@ -97,48 +110,7 @@ export const town = actor({
     /** Verified tokens, so a burst of calls doesn't ask `player` every time. */
     tokens: new Map() as TokenCache,
   }),
-  db: db({
-    onMigrate: async (d) => {
-      await d.execute(`CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE,
-        company_id INTEGER,
-        joined_at INTEGER,
-        look TEXT NOT NULL,
-        created_at INTEGER NOT NULL)`);
-      await d.execute("CREATE INDEX IF NOT EXISTS users_company ON users (company_id, joined_at)");
-      // AUTOINCREMENT: a closed company's id is never handed out again, so a new company
-      // can't inherit its house chat (`hq:<id>`) or its logo.
-      await d.execute(`CREATE TABLE IF NOT EXISTS companies (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        owner_id INTEGER NOT NULL,
-        plot INTEGER UNIQUE,
-        website TEXT,
-        branding TEXT,
-        brand TEXT,
-        created_at INTEGER NOT NULL)`);
-      await d.execute(`CREATE TABLE IF NOT EXISTS usage_daily (
-        user_id INTEGER NOT NULL, day TEXT NOT NULL, model TEXT NOT NULL,
-        input INTEGER NOT NULL, output INTEGER NOT NULL,
-        cache_creation INTEGER NOT NULL, cache_read INTEGER NOT NULL, turns INTEGER NOT NULL,
-        PRIMARY KEY (user_id, day, model)) WITHOUT ROWID`);
-      await d.execute("CREATE INDEX IF NOT EXISTS usage_day ON usage_daily (day)");
-      await d.execute(`CREATE TABLE IF NOT EXISTS activity_daily (
-        user_id INTEGER NOT NULL, day TEXT NOT NULL,
-        prompts INTEGER NOT NULL, prs INTEGER NOT NULL,
-        agent_buckets INTEGER NOT NULL, active_buckets INTEGER NOT NULL, peak_agents INTEGER NOT NULL,
-        PRIMARY KEY (user_id, day)) WITHOUT ROWID`);
-      await d.execute("CREATE INDEX IF NOT EXISTS activity_day ON activity_daily (day)");
-      // One pending application per person: applying elsewhere replaces it.
-      await d.execute(`CREATE TABLE IF NOT EXISTS applications (
-        user_id INTEGER PRIMARY KEY, company_id INTEGER NOT NULL, at INTEGER NOT NULL)`);
-      await d.execute("CREATE INDEX IF NOT EXISTS applications_company ON applications (company_id, at)");
-      await d.execute(`CREATE TABLE IF NOT EXISTS purchases (
-        user_id INTEGER NOT NULL, item TEXT NOT NULL, price INTEGER NOT NULL, at INTEGER NOT NULL,
-        PRIMARY KEY (user_id, item)) WITHOUT ROWID`);
-    },
-  }),
+  db: db({ onMigrate: migrate }),
   createConnState: (c, params: ConnParams): Promise<Caller> =>
     authenticate(
       params,
@@ -435,6 +407,34 @@ export const town = actor({
     /** The menu bar app: my numbers today and the world's top 10. */
     menuBar: (c): Promise<MenuBar> => menuBar(c.db, requireUser(c.conn.state), Date.now()),
 
+    // MARK: Coins for games (from `arcade` only)
+
+    /** Takes a stake or a side bet from each entry, or from nobody. */
+    hold: async (c, ref: string, kind: HoldKind, entries: Entry[]): Promise<void> => {
+      requireInternal(c.conn.state);
+      const names = await namesOf(
+        c.db,
+        entries.map((e) => e.userId),
+      );
+      await c.vars.serial(() => hold(c.db, ref, kind, entries, names, Date.now()));
+    },
+
+    pay: async (c, ref: string, kind: PayKind, entries: Entry[]): Promise<void> => {
+      requireInternal(c.conn.state);
+      await c.vars.serial(() => pay(c.db, ref, kind, entries, Date.now()));
+    },
+
+    refund: async (c, ref: string, userIds?: number[]): Promise<void> => {
+      requireInternal(c.conn.state);
+      await c.vars.serial(() => refund(c.db, ref, Date.now(), userIds));
+    },
+
+    /** Names for user ids (tables and matches show who's playing). */
+    names: async (c, userIds: number[]): Promise<Record<number, string>> => {
+      requireInternal(c.conn.state);
+      return namesOf(c.db, userIds);
+    },
+
     /** From `player` on sign-out: stop trusting that user's cached tokens. */
     forget: (c, userId: number): void => {
       requireInternal(c.conn.state);
@@ -459,3 +459,12 @@ export const town = actor({
     },
   },
 });
+
+async function namesOf(sql: Sql, userIds: number[]): Promise<Record<number, string>> {
+  const rows = await all<{ id: number; name: string }>(
+    sql,
+    "SELECT id, name FROM users WHERE id IN (SELECT value FROM json_each(?))",
+    JSON.stringify(userIds),
+  );
+  return Object.fromEntries(rows.map((r) => [r.id, r.name]));
+}

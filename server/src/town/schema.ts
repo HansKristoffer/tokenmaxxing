@@ -1,0 +1,51 @@
+import type { Sql } from "../actors/shared.ts";
+
+/** Every table `town` keeps. Also run by tests against an in-memory database. */
+export async function migrate(sql: Sql): Promise<void> {
+  await sql.execute(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    company_id INTEGER,
+    joined_at INTEGER,
+    look TEXT NOT NULL,
+    created_at INTEGER NOT NULL)`);
+  await sql.execute("CREATE INDEX IF NOT EXISTS users_company ON users (company_id, joined_at)");
+  // AUTOINCREMENT: a closed company's id is never handed out again, so a new company
+  // can't inherit its house chat (`hq:<id>`) or its logo.
+  await sql.execute(`CREATE TABLE IF NOT EXISTS companies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    owner_id INTEGER NOT NULL,
+    plot INTEGER UNIQUE,
+    website TEXT,
+    branding TEXT,
+    brand TEXT,
+    created_at INTEGER NOT NULL)`);
+  await sql.execute(`CREATE TABLE IF NOT EXISTS usage_daily (
+    user_id INTEGER NOT NULL, day TEXT NOT NULL, model TEXT NOT NULL,
+    input INTEGER NOT NULL, output INTEGER NOT NULL,
+    cache_creation INTEGER NOT NULL, cache_read INTEGER NOT NULL, turns INTEGER NOT NULL,
+    PRIMARY KEY (user_id, day, model)) WITHOUT ROWID`);
+  await sql.execute("CREATE INDEX IF NOT EXISTS usage_day ON usage_daily (day)");
+  await sql.execute(`CREATE TABLE IF NOT EXISTS activity_daily (
+    user_id INTEGER NOT NULL, day TEXT NOT NULL,
+    prompts INTEGER NOT NULL, prs INTEGER NOT NULL,
+    agent_buckets INTEGER NOT NULL, active_buckets INTEGER NOT NULL, peak_agents INTEGER NOT NULL,
+    PRIMARY KEY (user_id, day)) WITHOUT ROWID`);
+  await sql.execute("CREATE INDEX IF NOT EXISTS activity_day ON activity_daily (day)");
+  // One pending application per person: applying elsewhere replaces it.
+  await sql.execute(`CREATE TABLE IF NOT EXISTS applications (
+    user_id INTEGER PRIMARY KEY, company_id INTEGER NOT NULL, at INTEGER NOT NULL)`);
+  await sql.execute("CREATE INDEX IF NOT EXISTS applications_company ON applications (company_id, at)");
+  await sql.execute(`CREATE TABLE IF NOT EXISTS purchases (
+    user_id INTEGER NOT NULL, item TEXT NOT NULL, price INTEGER NOT NULL, at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, item)) WITHOUT ROWID`);
+  // Coins that move between players: stakes and side bets held, then paid out or refunded.
+  // Negative amounts leave a wallet. Every `ref` sums to 0 or less, never more.
+  await sql.execute(`CREATE TABLE IF NOT EXISTS ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL, amount INTEGER NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL,
+    at INTEGER NOT NULL)`);
+  await sql.execute("CREATE INDEX IF NOT EXISTS ledger_user ON ledger (user_id)");
+  await sql.execute("CREATE INDEX IF NOT EXISTS ledger_ref ON ledger (ref)");
+}
