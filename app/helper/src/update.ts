@@ -61,13 +61,17 @@ export function appBundlePath(execPath = process.execPath): string {
  * Runs `brew upgrade` detached from the app: the cask quits the running app
  * mid-upgrade, which also ends this helper, so the upgrade must outlive both.
  * The new version is relaunched when it finishes.
+ *
+ * The upgrade is backgrounded in a subshell whose parent exits at once, so it
+ * is reparented to launchd: brew refuses to quit an app in its own process
+ * ancestry ("brew is running inside it"), which left the old version running.
  */
 export function startBrewUpgrade(brew: string): void {
   const logDir = join(homedir(), "Library", "Logs", "Tokenmaxxing");
   mkdirSync(logDir, { recursive: true });
   const log = openSync(join(logDir, "update.log"), "a");
   // Relaunch this exact bundle by path; `open -a` could pick a dev build with the same name.
-  const script = `"${brew}" update --quiet && "${brew}" upgrade --cask hanskristoffer/tap/tokenmaxxing; open "${appBundlePath()}"`;
+  const script = `("${brew}" update --quiet && "${brew}" upgrade --cask hanskristoffer/tap/tokenmaxxing; open "${appBundlePath()}") &`;
   const child = spawn("/bin/sh", ["-c", script], {
     detached: true,
     stdio: ["ignore", log, log],
