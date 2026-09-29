@@ -13,7 +13,9 @@ import {
   type ChatLine,
   type CompanyInfo,
   companyOfRoom,
+  cupsLeft,
   DIRS,
+  drinkCoffee,
   type GameStatus,
   type Houses,
   homeRoom,
@@ -66,6 +68,8 @@ interface WorldPlayer extends PlayerCore, Place {
   back?: (Place & { state: "idle" | "sit" }) | null;
   /** In a long game (Tokenmaxxing): their desk at the arena, which replaces their bed until it ends. */
   arena?: Seat | null;
+  /** Optional: players from before coffee have had none. */
+  coffeeUntil?: number;
 }
 
 interface WorldState {
@@ -79,6 +83,15 @@ interface WorldState {
 type ConnState = Caller & { joined?: boolean };
 
 const CHAT_KEEP = 200;
+/** What a cup says, by how many are in your system. */
+const COFFEE_LINES = [
+  "☕ A fresh cup. You feel a little buzz.",
+  "☕☕ Second cup. Your fingers tap on their own.",
+  "☕☕☕ Third cup. You could refactor the whole monorepo right now.",
+  "☕☕☕☕ Fourth cup. You can hear colours.",
+  "☕☕☕☕☕ Fifth cup. Your heart is running at 10 Hz.",
+  "☕☕☕☕☕☕ The machine refuses to make it any stronger. You vibrate anyway.",
+];
 const CHAT_PER_MIN = 20;
 const REST_CHECK_EVERY = 10; // ticks
 
@@ -91,6 +104,7 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   todayTokens: p.todayTokens,
   liveAgents: p.liveAgents,
   online,
+  coffeeUntil: p.coffeeUntil ?? 0,
   x: p.x,
   y: p.y,
   facing: p.facing,
@@ -229,6 +243,22 @@ export const world = actor({
       Object.assign(p, { x, y, state: "sit", facing: seat === "chair" ? "up" : "down" });
       c.vars.dirty.add(p.id);
       return correction(p);
+    },
+
+    /** Space while facing a coffee machine: one more cup, and everyone sees you shake. */
+    drink: (c, facing: unknown): StepResult => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || p.state === "playing") return null;
+      const now = Date.now();
+      p.lastInputAt = now;
+      if (isFacing(facing)) p.facing = facing;
+      const [dx, dy] = DIRS[p.facing];
+      if (mapOf(p.room).at(p.x + dx, p.y + dy) !== "o") return null;
+      p.coffeeUntil = drinkCoffee(p.coffeeUntil ?? 0, now);
+      c.broadcast("info", info(p, c.vars.online.has(p.id)));
+      const cups = Math.round(cupsLeft(p.coffeeUntil, now));
+      return { notice: COFFEE_LINES[Math.min(cups, COFFEE_LINES.length) - 1]! };
     },
 
     say: async (c, rawText: unknown): Promise<void> => {

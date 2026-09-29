@@ -117,6 +117,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - A 10 Hz tick sends each room its `moves`, and head counts (`occupancy`) and who's inside each house
   (`houses`, for town) when they change.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
+  `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game).
 - Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
   `chat`, `mention`.

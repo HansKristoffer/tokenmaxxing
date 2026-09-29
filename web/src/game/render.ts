@@ -1,6 +1,6 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
-import { houseTier, TILE } from "@tokenmaxxing/core/world.ts";
+import { cupsLeft, houseTier, TILE } from "@tokenmaxxing/core/world.ts";
 import { house, inn } from "../art/buildings.ts";
 import { characterFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
 import { chairBack, objectAt, sortY } from "../art/objects.ts";
@@ -153,6 +153,12 @@ function drawAvatar(
   now: number,
 ): void {
   const look = a.info.look;
+  // Coffee: a random nudge every frame, a pixel per cup still in their system.
+  const shake = Math.min(4, cupsLeft(a.info.coffeeUntil, Date.now()));
+  if (shake > 0) {
+    px += Math.round((Math.random() * 2 - 1) * shake);
+    py += Math.round((Math.random() * 2 - 1) * shake * 0.5);
+  }
   if (a.warp) {
     const t = Math.min(1, (now - a.warp.at) / WARP_MS);
     g.globalAlpha = a.warp.out ? 1 - t : t;
