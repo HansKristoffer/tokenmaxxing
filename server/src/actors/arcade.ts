@@ -24,7 +24,8 @@ import {
   authenticate,
   type Caller,
   type ConnParams,
-  internal,
+  main,
+  matchOf,
   requireInternal,
   requireUser,
   serial,
@@ -103,15 +104,7 @@ export const arcade = actor({
     invites: new RateLimiter(INVITES_PER_MIN, 60_000),
   }),
   createConnState: (c, params: ConnParams): Promise<Caller> =>
-    authenticate(
-      params,
-      (userId, secret) =>
-        c
-          .client<typeof registry>()
-          .player.get([String(userId)], internal)
-          .verify(secret),
-      c.vars.tokens,
-    ),
+    authenticate(params, c.client(), c.vars.tokens),
   run: async (c): Promise<void> => {
     while (!c.aborted) {
       await Bun.sleep(1000);
@@ -128,9 +121,7 @@ export const arcade = actor({
         const game = gameOf(rawGame);
         if (!game) throw new UserError("That game doesn't exist.", { code: "not_found" });
         const o = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
-        const stake = o.stake ?? 0;
-        if (!Number.isInteger(stake) || (stake as number) < 0 || (stake as number) > MAX_STAKE)
-          throw new UserError(`A stake is 0 to ${MAX_STAKE} coins.`, { code: "invalid_stake" });
+        const stake = parseStake(o.stake ?? 0);
         const seats = o.seats ?? game.players.max;
         if (
           !Number.isInteger(seats) ||
@@ -147,7 +138,7 @@ export const arcade = actor({
           id,
           game: game.id,
           host: userId,
-          stake: stake as number,
+          stake,
           seats: seats as number,
           split,
           open: o.open !== false,
@@ -187,9 +178,7 @@ export const arcade = actor({
           table.invited = table.invited.filter((i) => i !== invite);
           await tell(client, table.host, `${nameOf(c.state, userId)} said no to ${gameName(table)}.`);
         } else if (counter !== undefined) {
-          if (!Number.isInteger(counter) || (counter as number) < 0 || (counter as number) > MAX_STAKE)
-            throw new UserError(`A stake is 0 to ${MAX_STAKE} coins.`, { code: "invalid_stake" });
-          invite.counter = counter as number;
+          invite.counter = parseStake(counter);
           await tell(
             client,
             table.host,
@@ -217,7 +206,7 @@ export const arcade = actor({
         if (table.seated.length !== 1)
           throw new UserError("Someone else already sat down at the old stake.", { code: "taken" });
         busy(c.state, invite.userId);
-        const town = c.client().town.getOrCreate(["main"], internal);
+        const town = main(c.client()).town;
         const ref = tableRef(table.id);
         const old = table.stake;
         await town.refund(ref, [userId]);
@@ -262,10 +251,7 @@ export const arcade = actor({
         if (!table.seated.includes(userId)) return;
         if (userId === table.host) await closeTable(c, table, `${nameOf(c.state, userId)} closed the table.`);
         else {
-          await c
-            .client<typeof registry>()
-            .town.getOrCreate(["main"], internal)
-            .refund(tableRef(table.id), [userId]);
+          await main(c.client()).town.refund(tableRef(table.id), [userId]);
           table.seated = table.seated.filter((id) => id !== userId);
         }
         push(c);
@@ -297,14 +283,9 @@ export const arcade = actor({
           throw new UserError("They're not playing.", { code: "not_found" });
         if (!Number.isInteger(amount) || (amount as number) < 1 || (amount as number) > MAX_SIDE_BET)
           throw new UserError(`A side bet is 1 to ${MAX_SIDE_BET} coins.`, { code: "invalid_bet" });
-        await c
-          .client<typeof registry>()
-          .town.getOrCreate(["main"], internal)
-          .hold(betsRef(live.id), "bet", [{ userId, amount: amount as number }]);
+        await main(c.client()).town.hold(betsRef(live.id), "bet", [{ userId, amount: amount as number }]);
         live.bets.push({ userId, on: on as number, amount: amount as number });
-        await c
-          .client<typeof registry>()
-          .match.get([String(live.id)], internal)
+        await matchOf(c.client(), live.id)
           .bets(betPools(live))
           .catch(() => {});
         push(c);
@@ -344,7 +325,7 @@ export const arcade = actor({
           createdAt: Date.now(),
         };
         try {
-          await client.town.getOrCreate(["main"], internal).hold(
+          await main(client).town.hold(
             tableRef(id),
             "stake",
             live.players.map((p) => ({ userId: p, amount: table.stake })),
@@ -364,12 +345,7 @@ export const arcade = actor({
     battle: (c): Promise<number | null> => {
       const userId = requireUser(c.conn.state);
       const live = usageMatch(c.state, userId);
-      return live
-        ? c
-            .client()
-            .match.get([String(live.id)], internal)
-            .usage(userId)
-        : Promise.resolve(null);
+      return live ? matchOf(c.client(), live.id).usage(userId) : Promise.resolve(null);
     },
 
     // MARK: From `player` and `match`
@@ -378,12 +354,7 @@ export const arcade = actor({
     usage: (c, userId: number): Promise<number | null> => {
       requireInternal(c.conn.state);
       const live = usageMatch(c.state, userId);
-      return live
-        ? c
-            .client()
-            .match.get([String(live.id)], internal)
-            .usage(userId)
-        : Promise.resolve(null);
+      return live ? matchOf(c.client(), live.id).usage(userId) : Promise.resolve(null);
     },
 
     finished: (c, matchId: number, outcome: Outcome): Promise<void> =>
@@ -413,6 +384,12 @@ const usageMatch = (s: ArcadeState, userId: number) =>
 const nameOf = (s: ArcadeState, userId: number) => s.names[userId] ?? "Someone";
 const gameName = (t: { game: GameId }) => GAMES[t.game]!.name;
 
+function parseStake(raw: unknown): number {
+  if (!Number.isInteger(raw) || (raw as number) < 0 || (raw as number) > MAX_STAKE)
+    throw new UserError(`A stake is 0 to ${MAX_STAKE} coins.`, { code: "invalid_stake" });
+  return raw as number;
+}
+
 function tableOf(s: ArcadeState, id: unknown): Table {
   const table = s.tables[String(id)];
   if (!table) throw new UserError("That table is gone.", { code: "not_found" });
@@ -436,7 +413,7 @@ function busy(s: ArcadeState, userId: number): void {
 /** Fresh names for people sitting down or being invited (so renames show up). */
 async function learnNames(c: ArcadeCtx, userIds: number[]): Promise<void> {
   if (userIds.length === 0) return;
-  const names = await c.client().town.getOrCreate(["main"], internal).names(userIds);
+  const names = await main(c.client()).town.names(userIds);
   for (const [id, name] of Object.entries(names)) c.state.names[id] = name;
 }
 
@@ -446,17 +423,14 @@ async function resolve(c: ArcadeCtx, raw: unknown): Promise<number[]> {
   const ids = list.filter((x): x is number => Number.isInteger(x));
   const names = list.filter((x): x is string => typeof x === "string");
   if (names.length === 0) return ids;
-  const found = await c.client().town.getOrCreate(["main"], internal).ids(names);
+  const found = await main(c.client()).town.ids(names);
   return [...ids, ...Object.values(found)];
 }
 
 /** Holds the stake and gives them a seat. */
 async function seat(c: ArcadeCtx, table: Table, userId: number, stake: number): Promise<void> {
   await learnNames(c, [userId]);
-  await c
-    .client()
-    .town.getOrCreate(["main"], internal)
-    .hold(tableRef(table.id), "stake", [{ userId, amount: stake }]);
+  await main(c.client()).town.hold(tableRef(table.id), "stake", [{ userId, amount: stake }]);
   table.seated.push(userId);
 }
 
@@ -504,7 +478,7 @@ async function startMatch(c: ArcadeCtx, table: Table): Promise<void> {
       seed: Math.floor(Math.random() * 2 ** 31),
     },
   });
-  const info = await client.match.get([String(table.id)], internal).info();
+  const info = await matchOf(client, table.id).info();
   delete c.state.tables[String(table.id)];
   c.state.matches[String(table.id)] = {
     id: table.id,
@@ -520,9 +494,8 @@ async function startMatch(c: ArcadeCtx, table: Table): Promise<void> {
     endedAt: null,
     rematch: [],
   };
-  await client.world
-    .getOrCreate(["main"], internal)
-    .gather(table.id, table.game, table.seated, game.holdPlayers !== false)
+  await main(client)
+    .world.gather(table.id, table.game, table.seated, game.holdPlayers !== false)
     .catch(() => {});
 }
 
@@ -532,7 +505,7 @@ async function startMatch(c: ArcadeCtx, table: Table): Promise<void> {
  */
 async function settle(c: ArcadeCtx, live: Live, outcome: Outcome): Promise<void> {
   const client = c.client();
-  const town = client.town.getOrCreate(["main"], internal);
+  const town = main(client).town;
   const pot = live.stake * live.players.length;
   const ref = tableRef(live.id);
   const winners = "places" in outcome ? (outcome.places[0] ?? []) : [];
@@ -581,10 +554,7 @@ async function settle(c: ArcadeCtx, live: Live, outcome: Outcome): Promise<void>
 async function release(c: ArcadeCtx, live: Live): Promise<void> {
   const winners = live.outcome && "places" in live.outcome ? (live.outcome.places[0] ?? []) : [];
   try {
-    await c
-      .client()
-      .world.getOrCreate(["main"], internal)
-      .release(live.id, winners, live.line ?? "");
+    await main(c.client()).world.release(live.id, winners, live.line ?? "");
     live.released = true;
   } catch (err) {
     console.warn(`[arcade] releasing match ${live.id}: ${String(err)}`);
@@ -593,7 +563,7 @@ async function release(c: ArcadeCtx, live: Live): Promise<void> {
 
 async function closeTable(c: ArcadeCtx, table: Table, why: string): Promise<void> {
   const client = c.client();
-  await client.town.getOrCreate(["main"], internal).refund(tableRef(table.id));
+  await main(client).town.refund(tableRef(table.id));
   delete c.state.tables[String(table.id)];
   for (const userId of [...table.seated, ...table.invited.map((i) => i.userId)])
     if (userId !== table.host) await tell(client, userId, why);
@@ -622,9 +592,7 @@ async function sweep(c: ArcadeCtx, now: number): Promise<void> {
     if (live.outcome && !live.released) await release(c, live);
     if (live.endedAt && now - live.endedAt > KEEP_MS && live.released) {
       delete c.state.matches[String(live.id)];
-      await c
-        .client()
-        .match.get([String(live.id)], internal)
+      await matchOf(c.client(), live.id)
         .close()
         .catch(() => {}); // already gone
       changed = true;
@@ -706,7 +674,6 @@ function push(c: ArcadeCtx): void {
 
 /** A toast for one player, through `world` (the tab they have open). */
 const tell = (client: Client<typeof registry>, userId: number, text: string) =>
-  client.world
-    .getOrCreate(["main"], internal)
-    .notify(userId, text)
+  main(client)
+    .world.notify(userId, text)
     .catch(() => {});

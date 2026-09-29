@@ -46,7 +46,6 @@ import {
   authenticate,
   type Caller,
   type ConnParams,
-  internal,
   makeToken,
   one,
   requireInternal,
@@ -87,6 +86,19 @@ const BRANDINGS_PER_HOUR = 5;
 /** Each one pings the company's owner. */
 const APPLICATIONS_PER_HOUR = 10;
 
+function userName(raw: unknown): string {
+  const name = parseUserName(raw);
+  if (!name)
+    throw new UserError("Use 2–32 characters: a–z, 0–9, dot, dash or underscore.", { code: "invalid_name" });
+  return name;
+}
+
+function companyName(raw: unknown): string {
+  const name = parseCompanyName(raw);
+  if (!name) throw new UserError("Use 1–32 characters.", { code: "invalid_name" });
+  return name;
+}
+
 export const town = actor({
   createVars: () => ({
     serial: serial(),
@@ -98,22 +110,10 @@ export const town = actor({
   }),
   db: db({ onMigrate: migrate }),
   createConnState: (c, params: ConnParams): Promise<Caller> =>
-    authenticate(
-      params,
-      (userId, secret) =>
-        c
-          .client<typeof registry>()
-          .player.get([String(userId)], internal)
-          .verify(secret),
-      c.vars.tokens,
-    ),
+    authenticate(params, c.client(), c.vars.tokens),
   actions: {
     signUp: async (c, rawName: unknown): Promise<{ userId: number; name: string; token: string }> => {
-      const name = parseUserName(rawName);
-      if (!name)
-        throw new UserError("Use 2–32 characters: a–z, 0–9, dot, dash or underscore.", {
-          code: "invalid_name",
-        });
+      const name = userName(rawName);
       if (!c.vars.signups.take("all", Date.now()))
         throw new UserError("Too many sign-ups right now. Try again in a bit.", { code: "rate_limited" });
       const client = c.client<typeof registry>();
@@ -153,11 +153,7 @@ export const town = actor({
 
     rename: async (c, rawName: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
-      const name = parseUserName(rawName);
-      if (!name)
-        throw new UserError("Use 2–32 characters: a–z, 0–9, dot, dash or underscore.", {
-          code: "invalid_name",
-        });
+      const name = userName(rawName);
       await c.vars.serial(async () => {
         const taken = await one<{ id: number }>(c.db, "SELECT id FROM users WHERE name = ?", name);
         if (taken && taken.id !== userId) throw new UserError("That name is taken.", { code: "name_taken" });
@@ -179,8 +175,7 @@ export const town = actor({
 
     createCompany: async (c, rawName: unknown): Promise<MyCompany> => {
       const userId = requireUser(c.conn.state);
-      const name = parseCompanyName(rawName);
-      if (!name) throw new UserError("Use 1–32 characters.", { code: "invalid_name" });
+      const name = companyName(rawName);
       const changed = await c.vars.serial(async () => {
         const left = await leave(c.db, userId);
         await withdraw(c.db, userId);
@@ -272,8 +267,7 @@ export const town = actor({
 
     renameCompany: async (c, rawName: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
-      const name = parseCompanyName(rawName);
-      if (!name) throw new UserError("Use 1–32 characters.", { code: "invalid_name" });
+      const name = companyName(rawName);
       const company = await ownedCompany(c.db, userId);
       await c.db.execute("UPDATE companies SET name = ? WHERE id = ?", name, company.id);
       await push(c.db, c.client<typeof registry>(), { companies: [company.id], users: [] });

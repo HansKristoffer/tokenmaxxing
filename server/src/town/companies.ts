@@ -4,7 +4,7 @@ import { type Brand, COMPANY_CAP, type CompanyInfo, houseTier } from "@tokenmaxx
 import { UserError } from "rivetkit";
 import { all, one, type Sql } from "../actors/shared.ts";
 import { forgetLogo } from "../brand.ts";
-import { lifetimeTokens, userById } from "./users.ts";
+import { TOKENS, tokensIn, userById } from "./users.ts";
 
 export interface MyCompany {
   id: number;
@@ -45,10 +45,7 @@ export const COMPANY_COLS = "id, name, owner_id AS ownerId, plot, website, brand
 
 export async function ownedCompany(sql: Sql, userId: number): Promise<CompanyRow> {
   const u = await userById(sql, userId);
-  const company =
-    u.companyId === null
-      ? undefined
-      : await one<CompanyRow>(sql, `SELECT ${COMPANY_COLS} FROM companies WHERE id = ?`, u.companyId);
+  const company = u.companyId === null ? undefined : await companyById(sql, u.companyId);
   if (!company || company.ownerId !== userId)
     throw new UserError("Only the owner can do that.", { code: "not_owner" });
   return company;
@@ -67,11 +64,7 @@ export async function leave(sql: Sql, userId: number): Promise<Changed> {
   const u = await userById(sql, userId);
   if (u.companyId === null) return { users: [], companies: [] };
   await sql.execute("UPDATE users SET company_id = NULL, joined_at = NULL WHERE id = ?", userId);
-  const company = (await one<CompanyRow>(
-    sql,
-    `SELECT ${COMPANY_COLS} FROM companies WHERE id = ?`,
-    u.companyId,
-  ))!;
+  const company = (await companyById(sql, u.companyId))!;
   if (company.ownerId === userId) {
     const heir = await one<{ id: number }>(
       sql,
@@ -89,11 +82,7 @@ export async function leave(sql: Sql, userId: number): Promise<Changed> {
 }
 
 export async function myCompany(sql: Sql, companyId: number, viewer: number): Promise<MyCompany> {
-  const company = (await one<CompanyRow>(
-    sql,
-    `SELECT ${COMPANY_COLS} FROM companies WHERE id = ?`,
-    companyId,
-  ))!;
+  const company = (await companyById(sql, companyId))!;
   const members = await all<{ userId: number; name: string }>(
     sql,
     "SELECT id AS userId, name FROM users WHERE company_id = ? ORDER BY joined_at, id",
@@ -149,14 +138,14 @@ async function applicants(sql: Sql, companyId: number): Promise<MyCompany["appli
      WHERE a.company_id = ? ORDER BY a.at`,
     companyId,
   );
-  const lifetime = await lifetimeTokens(
+  const lifetime = await tokensIn(
     sql,
     rows.map((r) => r.userId),
   );
   return rows.map((r) => ({ ...r, level: levelFor(lifetime.get(r.userId) ?? 0) }));
 }
 
-const companyById = (sql: Sql, id: number) =>
+export const companyById = (sql: Sql, id: number) =>
   one<CompanyRow>(sql, `SELECT ${COMPANY_COLS} FROM companies WHERE id = ?`, id);
 
 /** Asks to join `companyId`; one application at a time, so this replaces any other. Returns the owner. */
@@ -226,9 +215,9 @@ export async function companyInfos(sql: Sql, ids: number[]): Promise<CompanyInfo
     sql,
     `SELECT c.id, c.name, c.plot, c.website, c.brand,
             (SELECT COUNT(*) FROM users u WHERE u.company_id = c.id) AS members,
-            COALESCE((SELECT SUM(input + output + cache_creation + cache_read) FROM usage_daily d
+            COALESCE((SELECT SUM(${TOKENS}) FROM usage_daily d
                       JOIN users u ON u.id = d.user_id WHERE u.company_id = c.id AND d.day = ?), 0) AS todayTokens,
-            COALESCE((SELECT SUM(input + output + cache_creation + cache_read) FROM usage_daily d
+            COALESCE((SELECT SUM(${TOKENS}) FROM usage_daily d
                       JOIN users u ON u.id = d.user_id WHERE u.company_id = c.id AND d.day >= ?), 0) AS tokens30d
      FROM companies c WHERE c.id IN (SELECT value FROM json_each(?))`,
     today,

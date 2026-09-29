@@ -2,6 +2,7 @@ import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import { coinsForTokens, type Item, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import { UserError } from "rivetkit";
 import { all, type Sql } from "../actors/shared.ts";
+import { TOKENS } from "./users.ts";
 
 export interface Wallet {
   balance: number;
@@ -29,14 +30,14 @@ export async function wallet(sql: Sql, userId: number, now: number): Promise<Wal
   const today = dayKey(now);
   const days = await all<{ day: string; tokens: number }>(
     sql,
-    `SELECT day, SUM(input + output + cache_creation + cache_read) AS tokens
+    `SELECT day, SUM(${TOKENS}) AS tokens
      FROM usage_daily WHERE user_id = ? GROUP BY day`,
     userId,
   );
   const places = await all<{ day: string; place: number }>(
     sql,
     `SELECT day, place FROM (
-       SELECT user_id, day, ROW_NUMBER() OVER (PARTITION BY day ORDER BY SUM(input + output + cache_creation + cache_read) DESC, user_id) AS place
+       SELECT user_id, day, ROW_NUMBER() OVER (PARTITION BY day ORDER BY SUM(${TOKENS}) DESC, user_id) AS place
        FROM usage_daily WHERE day < ? GROUP BY user_id, day)
      WHERE user_id = ? AND place <= ? ORDER BY day DESC`,
     today,

@@ -43,13 +43,12 @@ import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { RateLimiter } from "../rate-limit.ts";
 import { parseChatText } from "../validate.ts";
-import type { registry } from "./registry.ts";
 import {
   all,
   authenticate,
   type Caller,
   type ConnParams,
-  internal,
+  main,
   requireInternal,
   requireUser,
   type Sql,
@@ -105,15 +104,7 @@ const pos = (p: WorldPlayer): PlayerPos => [p.id, p.x, p.y, p.facing, p.state];
 
 export const world = actor({
   createConnState: (c, params: ConnParams): Promise<ConnState> =>
-    authenticate(
-      params,
-      (userId, secret) =>
-        c
-          .client<typeof registry>()
-          .player.get([String(userId)], internal)
-          .verify(secret),
-      c.vars.tokens,
-    ),
+    authenticate(params, c.client(), c.vars.tokens),
   state: { seeded: false, players: {}, companies: {} } as WorldState,
   createVars: () => ({
     /** Open game connections per player. */
@@ -140,7 +131,7 @@ export const world = actor({
   onWake: async (c) => {
     // First start (or a wiped world): load everyone from `town` and put them to bed.
     if (c.state.seeded) return;
-    const seed = await c.client<typeof registry>().town.getOrCreate(["main"], internal).seed();
+    const seed = await main(c.client()).town.seed();
     for (const co of seed.companies) c.state.companies[co.id] = co;
     for (const p of seed.players) upsert(c.state, p, Date.now());
     c.state.seeded = true;

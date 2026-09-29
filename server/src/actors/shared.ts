@@ -1,6 +1,8 @@
 import { UserError } from "rivetkit";
+import type { Client } from "rivetkit/client";
 import { randomToken, sha256 } from "../crypto.ts";
 import { PricingCache } from "../pricing.ts";
+import type { registry } from "./registry.ts";
 
 /**
  * Actors call each other with this in their connection params. Every actor runs
@@ -8,6 +10,17 @@ import { PricingCache } from "../pricing.ts";
  */
 export const INTERNAL_KEY = randomToken();
 export const internal = { params: { internal: INTERNAL_KEY } };
+
+/** The `main` actors, as another actor calls them. */
+export const main = (client: Client<typeof registry>) => ({
+  town: client.town.getOrCreate(["main"], internal),
+  world: client.world.getOrCreate(["main"], internal),
+  arcade: client.arcade.getOrCreate(["main"], internal),
+});
+
+/** One match, as another actor calls it. */
+export const matchOf = (client: Client<typeof registry>, id: number) =>
+  client.match.get([String(id)], internal);
 
 /** One cache for every actor; `main.ts` refreshes it daily. */
 export const pricing = new PricingCache();
@@ -46,7 +59,7 @@ export type TokenCache = Map<string, { caller: Caller; until: number }>;
  */
 export async function authenticate(
   params: ConnParams | undefined,
-  verify: (userId: number, secret: string) => Promise<"device" | "session" | null>,
+  client: Client<typeof registry>,
   cache: TokenCache,
 ): Promise<Caller> {
   if (params?.internal === INTERNAL_KEY) return { kind: "internal" };
@@ -55,7 +68,12 @@ export async function authenticate(
   const hit = cache.get(params.token);
   if (hit && hit.until > now) return hit.caller;
   const t = splitToken(params.token);
-  const via = t ? await verify(t.userId, t.secret).catch(() => null) : null;
+  const via = t
+    ? await client.player
+        .get([String(t.userId)], internal)
+        .verify(t.secret)
+        .catch(() => null)
+    : null;
   if (!t || !via) throw unauthorized();
   const caller: Caller = { kind: "user", userId: t.userId, via };
   if (cache.size > 10_000) cache.clear();

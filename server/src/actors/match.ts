@@ -13,6 +13,7 @@ import {
   type Caller,
   type ConnParams,
   internal,
+  main,
   requireInternal,
   requireUser,
   type TokenCache,
@@ -74,15 +75,7 @@ export const match = actor({
   },
   createVars: () => ({ tokens: new Map() as TokenCache }),
   createConnState: (c, params: ConnParams): Promise<Caller> =>
-    authenticate(
-      params,
-      (userId, secret) =>
-        c
-          .client<typeof registry>()
-          .player.get([String(userId)], internal)
-          .verify(secret),
-      c.vars.tokens,
-    ),
+    authenticate(params, c.client(), c.vars.tokens),
   onConnect: (c): void => pushFrames(c),
   onDisconnect: (c): void => pushFrames(c),
   run: async (c): Promise<void> => {
@@ -249,7 +242,7 @@ async function apply(c: MatchCtx, next: unknown): Promise<void> {
   const before = c.state.state;
   c.state.state = next;
   const callouts = def.callouts?.(before, next) ?? [];
-  const world = c.client().world.getOrCreate(["main"], internal);
+  const world = main(c.client()).world;
   for (const line of callouts) await world.callout(c.state.id, line.player, line.text).catch(() => {});
   pushFrames(c);
   await reportStatus(c);
@@ -264,10 +257,8 @@ async function reportStatus(c: MatchCtx): Promise<void> {
   const status = Object.fromEntries(
     c.state.players.map((p) => [p.userId, def.status?.(c.state.state, p.userId, now) ?? null]),
   );
-  await c
-    .client()
-    .world.getOrCreate(["main"], internal)
-    .gameStatus(c.state.id, {
+  await main(c.client())
+    .world.gameStatus(c.state.id, {
       status,
       board: def.board?.(c.state.state, now) ?? null,
       watchers: watchersOf(c),
@@ -288,7 +279,7 @@ async function finish(c: MatchCtx, outcome: Outcome): Promise<void> {
 async function report(c: MatchCtx): Promise<void> {
   if (!c.state.outcome || c.state.reported) return;
   try {
-    await c.client().arcade.getOrCreate(["main"], internal).finished(c.state.id, c.state.outcome);
+    await main(c.client()).arcade.finished(c.state.id, c.state.outcome);
     c.state.reported = true;
   } catch (err) {
     console.warn(`[match ${c.state.id}] reporting the outcome: ${String(err)}`);

@@ -31,26 +31,18 @@ export async function userById(sql: Sql, id: number): Promise<UserRow> {
   return u;
 }
 
-export async function lifetimeTokens(sql: Sql, userIds: number[]): Promise<Map<number, number>> {
-  const rows = await all<{ userId: number; tokens: number }>(
-    sql,
-    `SELECT user_id AS userId, SUM(input + output + cache_creation + cache_read) AS tokens
-     FROM usage_daily WHERE user_id IN (SELECT value FROM json_each(?)) GROUP BY user_id`,
-    JSON.stringify(userIds),
-  );
-  return new Map(rows.map((r) => [r.userId, r.tokens]));
-}
+/** Tokens counted everywhere: input, output, cache writes and cache reads (a `usage_daily` row). */
+export const TOKENS = "input + output + cache_creation + cache_read";
 
-/** Tokens per user over `[from, to]`. */
-export async function tokensBetween(
+/** Tokens per user, over `[from, to]` world days, or all time. */
+export async function tokensIn(
   sql: Sql,
   userIds: number[],
-  from: string,
-  to: string,
+  [from, to] = ["0000-00-00", "9999-99-99"],
 ): Promise<Map<number, number>> {
   const rows = await all<{ userId: number; tokens: number }>(
     sql,
-    `SELECT user_id AS userId, SUM(input + output + cache_creation + cache_read) AS tokens
+    `SELECT user_id AS userId, SUM(${TOKENS}) AS tokens
      FROM usage_daily WHERE user_id IN (SELECT value FROM json_each(?)) AND day >= ? AND day <= ?
      GROUP BY user_id`,
     JSON.stringify(userIds),
@@ -68,8 +60,8 @@ export async function playerCores(sql: Sql, userIds: number[]): Promise<PlayerCo
   );
   const today = dayKey(Date.now());
   const [lifetime, todays] = await Promise.all([
-    lifetimeTokens(sql, userIds),
-    tokensBetween(sql, userIds, today, today),
+    tokensIn(sql, userIds),
+    tokensIn(sql, userIds, [today, today]),
   ]);
   return users.map((u) => ({
     id: u.id,

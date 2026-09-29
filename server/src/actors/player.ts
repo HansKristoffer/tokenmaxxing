@@ -6,13 +6,14 @@ import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { db } from "rivetkit/db";
 import { sha256 } from "../crypto.ts";
+import { AGENT_BUCKET_MS } from "../stats.ts";
 import { MAX_EVENTS_PER_REQUEST, parseEvent } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
   type Caller,
   type ConnParams,
   INTERNAL_KEY,
-  internal,
+  main,
   makeToken,
   requireInternal,
   type Sql,
@@ -24,8 +25,6 @@ import type { ActivityDay, UsageDay } from "./town.ts";
 
 const LOGIN_CODE_MS = 2 * 60_000;
 const SESSION_MS = 30 * 86_400_000;
-/** Parallelism resolution: agents are counted per 5-minute bucket. */
-export const AGENT_BUCKET_MS = 5 * 60_000;
 const LIVE_AGENTS_MS = 10 * 60_000;
 const INSERT_CHUNK = 100;
 
@@ -196,10 +195,8 @@ export const player = actor({
           const days = [...new Set(valid.map((e) => dayKey(e.timestamp)))];
           await report(c.db, c.client<typeof registry>(), c.state.userId, days, now);
           // In a battle? It pulls the new score from us.
-          await c
-            .client<typeof registry>()
-            .arcade.getOrCreate(["main"], internal)
-            .usage(c.state.userId)
+          await main(c.client())
+            .arcade.usage(c.state.userId)
             .catch(() => {});
         }
         return { inserted, duplicates: valid.length - inserted, skipped: events.length - valid.length };
@@ -274,7 +271,7 @@ async function report(
       peakAgents: b?.peakAgents ?? 0,
     };
   });
-  await client.town.getOrCreate(["main"], internal).report(userId, days, usage, activity);
+  await main(client).town.report(userId, days, usage, activity);
 
   const [recent] = (await sql.execute(
     `SELECT MAX(timestamp) AS lastAt,
@@ -282,6 +279,5 @@ async function report(
      FROM events WHERE message_type = 'assistant'`,
     now - LIVE_AGENTS_MS,
   )) as [{ lastAt: number | null; agents: number }];
-  if (recent.lastAt !== null)
-    await client.world.getOrCreate(["main"], internal).activity(userId, recent.lastAt, recent.agents);
+  if (recent.lastAt !== null) await main(client).world.activity(userId, recent.lastAt, recent.agents);
 }

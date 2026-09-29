@@ -1,7 +1,7 @@
 import type { Brand } from "@tokenmaxxing/core/world.ts";
 import type { Client } from "rivetkit/client";
 import type { registry } from "../actors/registry.ts";
-import { internal, type Sql } from "../actors/shared.ts";
+import { main, type Sql } from "../actors/shared.ts";
 import { brandFor } from "../brand.ts";
 import { type Changed, companyInfos } from "./companies.ts";
 import { playerCores } from "./users.ts";
@@ -11,12 +11,12 @@ export async function pushPlayers(
   client: Client<typeof registry>,
   userIds: number[],
 ): Promise<void> {
-  const world = client.world.getOrCreate(["main"], internal);
+  const world = main(client).world;
   for (const p of await playerCores(sql, userIds)) await world.setPlayer(p);
 }
 
 export async function push(sql: Sql, client: Client<typeof registry>, changed: Changed): Promise<void> {
-  const world = client.world.getOrCreate(["main"], internal);
+  const world = main(client).world;
   const companies = [...new Set(changed.companies)];
   const infos = await companyInfos(sql, companies);
   for (const id of companies) {
@@ -54,8 +54,7 @@ export async function brand(
  * Best effort: what caused it has already happened.
  */
 export async function notify(client: Client<typeof registry>, userId: number, text: string): Promise<void> {
-  await client.world
-    .getOrCreate(["main"], internal)
-    .notify(userId, text)
+  await main(client)
+    .world.notify(userId, text)
     .catch((err) => console.warn(`[notify] ${userId}: ${String(err)}`));
 }

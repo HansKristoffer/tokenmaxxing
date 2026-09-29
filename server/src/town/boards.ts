@@ -14,9 +14,9 @@ import {
   totals,
   type UsageRow,
 } from "../stats.ts";
-import { COMPANY_COLS, type CompanyRow, companyInfos } from "./companies.ts";
+import { COMPANY_COLS, type CompanyRow, companyById, companyInfos } from "./companies.ts";
 import { type GameStats, gameStats } from "./games.ts";
-import { lifetimeTokens, lookOf, USER_COLS, type UserRow, userById } from "./users.ts";
+import { lookOf, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
 
 export interface BoardPlayer extends Totals {
   rank: number;
@@ -70,6 +70,9 @@ const TODAY_TOP = 5;
 
 export const BOARD_TOP = 100;
 
+const ACTIVITY_SUMS = `SUM(prompts) AS prompts, SUM(prs) AS prs, SUM(agent_buckets) AS agentBuckets,
+              SUM(active_buckets) AS activeBuckets, MAX(peak_agents) AS peakAgents`;
+
 export const SUMS = `SUM(input) AS input, SUM(output) AS output, SUM(cache_creation) AS cacheCreation,
               SUM(cache_read) AS cacheRead, SUM(turns) AS turns`;
 
@@ -91,14 +94,12 @@ async function playerBoard(sql: Sql, range: RangeKey, sort: SortKey, now: number
   );
   const activity = await all<ActivityRow & { userId: number }>(
     sql,
-    `SELECT user_id AS userId, SUM(prompts) AS prompts, SUM(prs) AS prs, SUM(agent_buckets) AS agentBuckets,
-            SUM(active_buckets) AS activeBuckets, MAX(peak_agents) AS peakAgents
-     FROM activity_daily WHERE day >= ? AND day <= ? GROUP BY user_id`,
+    `SELECT user_id AS userId, ${ACTIVITY_SUMS} FROM activity_daily WHERE day >= ? AND day <= ? GROUP BY user_id`,
     from,
     to,
   );
   const companies = await all<CompanyRow>(sql, `SELECT ${COMPANY_COLS} FROM companies`);
-  const lifetime = await lifetimeTokens(
+  const lifetime = await tokensIn(
     sql,
     users.map((u) => u.id),
   );
@@ -154,9 +155,7 @@ export async function profile(sql: Sql, userId: number, range: RangeKey, now: nu
   );
   const activity = await one<ActivityRow>(
     sql,
-    `SELECT SUM(prompts) AS prompts, SUM(prs) AS prs, SUM(agent_buckets) AS agentBuckets,
-            SUM(active_buckets) AS activeBuckets, MAX(peak_agents) AS peakAgents
-     FROM activity_daily WHERE user_id = ? AND day >= ? AND day <= ?`,
+    `SELECT ${ACTIVITY_SUMS} FROM activity_daily WHERE user_id = ? AND day >= ? AND day <= ?`,
     userId,
     from,
     to,
@@ -178,16 +177,10 @@ export async function profile(sql: Sql, userId: number, range: RangeKey, now: nu
       costUsd: Math.round(rows.reduce((n, r) => n + rowCost(pricing, r), 0) * 100) / 100,
     };
   });
-  const lifetime = (await lifetimeTokens(sql, [userId])).get(userId) ?? 0;
+  const lifetime = (await tokensIn(sql, [userId])).get(userId) ?? 0;
   const level = levelFor(lifetime);
-  const company =
-    u.companyId === null
-      ? null
-      : ((await one<{ id: number; name: string }>(
-          sql,
-          "SELECT id, name FROM companies WHERE id = ?",
-          u.companyId,
-        )) ?? null);
+  const co = u.companyId === null ? undefined : await companyById(sql, u.companyId);
+  const company = co ? { id: co.id, name: co.name } : null;
   return {
     userId,
     name: u.name,
