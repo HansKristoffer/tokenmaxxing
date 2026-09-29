@@ -5,9 +5,12 @@
 import { gameOf } from "@tokenmaxxing/core/games/index.ts";
 import type { Split } from "@tokenmaxxing/core/games/payouts.ts";
 import { type GameId, isRefused, type Options, type Outcome } from "@tokenmaxxing/core/games/types.ts";
-import type { Frame, MatchInfo, Seat } from "@tokenmaxxing/core/games/wire.ts";
+import type { Frame, MatchChatLine, MatchInfo, Seat } from "@tokenmaxxing/core/games/wire.ts";
 import type { Battle } from "@tokenmaxxing/core/protocol.ts";
+import { CHAT_HISTORY } from "@tokenmaxxing/core/world.ts";
 import { actor, UserError } from "rivetkit";
+import { RateLimiter } from "../rate-limit.ts";
+import { parseChatText } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
   authenticate,
@@ -43,6 +46,8 @@ interface MatchState extends MatchInput {
   forfeited: number[];
   /** `arcade` has settled it (retried until it has). */
   reported?: boolean;
+  /** The match's own chat, newest last (missing on matches from before it had one). */
+  chat?: MatchChatLine[];
 }
 
 /** Gone this long from a game that holds its players, and you forfeit. */
@@ -50,6 +55,7 @@ const AWAY_MS = 20_000;
 /** A safety net: a held game still running after this is called off and refunded. */
 const HELD_LIMIT_MS = 20 * 60_000;
 const REPORT_RETRY_MS = 5_000;
+const CHAT_PER_MIN = 20;
 
 const defOf = (s: { game: GameId }) => gameOf(s.game)!;
 
@@ -74,7 +80,7 @@ export const match = actor({
       forfeited: [],
     };
   },
-  createVars: () => ({ tokens: new Map() as TokenCache }),
+  createVars: () => ({ tokens: new Map() as TokenCache, chat: new RateLimiter(CHAT_PER_MIN, 60_000) }),
   createConnState: (c, params: ConnParams): Promise<Caller> =>
     authenticate(params, c.client(), c.vars.tokens),
   onConnect: (c): void => pushFrames(c),
@@ -132,6 +138,30 @@ export const match = actor({
       if (c.state.outcome || c.state.forfeited.includes(userId)) return;
       c.state.forfeited = [...c.state.forfeited, userId];
       await apply(c, defOf(c.state).forfeit(c.state.state, userId, Date.now()));
+    },
+
+    /** The match's chat so far, when opening the game. */
+    chat: (c): MatchChatLine[] => {
+      requireUser(c.conn.state);
+      return c.state.chat ?? [];
+    },
+
+    /** A line in the match's chat: its players and everyone watching see it. */
+    say: async (c, rawText: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      const text = parseChatText(rawText);
+      if (!text) return;
+      if (!c.vars.chat.take(String(userId), Date.now()))
+        throw new UserError("Slow down a little.", { code: "rate_limited" });
+      const name =
+        c.state.players.find((p) => p.userId === userId)?.name ??
+        (await main(c.client()).town.names([userId]))[userId] ??
+        "?";
+      const chat = c.state.chat ?? [];
+      const line: MatchChatLine = { id: (chat.at(-1)?.id ?? 0) + 1, userId, name, text, at: Date.now() };
+      c.state.chat = [...chat, line].slice(-CHAT_HISTORY);
+      for (const conn of c.conns.values())
+        if ((conn.state as Caller).kind === "user") conn.send("chat", line);
     },
 
     // MARK: From `arcade`

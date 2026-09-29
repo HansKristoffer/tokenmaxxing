@@ -436,6 +436,23 @@ input:focus {
   background: rgba(10, 12, 18, 0.35);
 }
 
+/* A game with the chat beside it, or under it when the window is too narrow for both. */
+.scrim.beside {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.scrim.beside .chat-dock {
+  position: relative;
+  left: auto;
+  bottom: auto;
+}
+
 .backdrop {
   position: absolute;
   inset: 0;

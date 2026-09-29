@@ -10,6 +10,8 @@ export const TILE = 16;
 /** Client animation time per step; the server only enforces the running pace. */
 export const WALK_STEP_MS = 220;
 export const RUN_STEP_MS = 130;
+/** A hop on Space: how long it's in the air, and the fastest the server passes them on. */
+export const JUMP_MS = 360;
 /** How often the world sends batched moves. */
 export const TICK_MS = 100;
 /** Connected but no input this long → away (goes to bed). */

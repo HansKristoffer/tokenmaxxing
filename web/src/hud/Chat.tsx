@@ -1,11 +1,12 @@
-import { CHAT_MAX_LENGTH, type ChatLine, mentionsIn } from "@tokenmaxxing/core/world.ts";
+import type { MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import { CHAT_MAX_LENGTH, mentionsIn } from "@tokenmaxxing/core/world.ts";
 import { useEffect, useRef, useState } from "react";
 import { roomName, world } from "../game/world.ts";
-import { conn, errorText } from "../net.ts";
+import { conn, errorText, matchConn } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { MentionInput } from "./MentionInput.tsx";
 import { QuickReplies } from "./QuickReplies.tsx";
-import { AvatarImage } from "./ui.tsx";
+import { AvatarImage, Pills } from "./ui.tsx";
 
 /** Who's online in this room, you first, then by name. */
 const onlineHere = () =>
@@ -86,8 +87,16 @@ function Text({ text, me }: { text: string; me: string | undefined }) {
   );
 }
 
-export function Chat() {
-  const chat = useHud((s) => s.chat);
+/**
+ * The room's chat. Beside a match (`match`) there's the match's own chat too, for its players and
+ * whoever is watching, and it starts there.
+ */
+export function Chat({ match = false }: { match?: boolean }) {
+  const [tab, setTab] = useState<"game" | "room">(match ? "game" : "room");
+  const inGame = match && tab === "game";
+  const roomChat = useHud((s) => s.chat);
+  const gameChat = useHud((s) => s.matchChat);
+  const chat: MatchChatLine[] = inGame ? gameChat : roomChat;
   const room = useHud((s) => s.room);
   const here = useHud((s) => s.occupancy[s.room] ?? 0);
   const focus = useHud((s) => s.chatFocus);
@@ -97,9 +106,13 @@ export function Chat() {
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLOListElement>(null);
+  const say = (t: string) => (inGame ? matchConn!.say(t) : conn.say(t));
 
+  // Enter asks for the chat; one opening beside a panel doesn't take the focus on its own.
+  const focused = useRef(focus);
   useEffect(() => {
-    if (focus > 0) input.current?.focus();
+    if (focus !== focused.current) input.current?.focus();
+    focused.current = focus;
   }, [focus]);
   // Keep the newest line in view as lines arrive.
   useEffect(() => {
@@ -108,15 +121,33 @@ export function Chat() {
 
   return (
     <div className="chat-dock">
-      <QuickReplies onError={setError} />
+      <QuickReplies say={say} onError={setError} />
       <section className="panel chat" aria-label="Chat">
         <header>
-          <span>📍 {roomName(room)}</span>
-          <WhosHere count={here} />
+          {match ? (
+            <Pills
+              value={tab}
+              options={[
+                ["game", "🎮 Game"],
+                ["room", `📍 ${roomName(room)}`],
+              ]}
+              onChange={(t) => {
+                setTab(t);
+                setError(null);
+              }}
+            />
+          ) : (
+            <span>📍 {roomName(room)}</span>
+          )}
+          {!inGame && <WhosHere count={here} />}
         </header>
         <ol ref={list}>
-          {chat.length === 0 && <li className="muted">No messages yet. Say hi!</li>}
-          {chat.map((l: ChatLine) => (
+          {chat.length === 0 && (
+            <li className="muted">
+              {inGame ? "Players and watchers talk here." : "No messages yet. Say hi!"}
+            </li>
+          )}
+          {chat.map((l) => (
             <li key={l.id} className={me && mentionsIn(l.text).includes(me.name) ? "mentions-me" : ""}>
               {l.userId === 0 ? (
                 <span className="author">{l.name}</span>
@@ -141,7 +172,7 @@ export function Chat() {
             setText("");
             setError(null);
             try {
-              await conn.say(t);
+              await say(t);
             } catch (err) {
               setError(errorText(err));
             }
@@ -153,7 +184,7 @@ export function Chat() {
             value={text}
             onChange={setText}
             maxLength={CHAT_MAX_LENGTH}
-            placeholder="Say: press Enter to chat, @ to mention"
+            placeholder={inGame ? "Say to this game's table" : "Say: press Enter to chat, @ to mention"}
             onEscape={(el) => el.blur()}
           />
         </form>

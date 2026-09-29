@@ -7,6 +7,7 @@ import { namesIn } from "@tokenmaxxing/core/world.ts";
 import { useEffect, useState } from "react";
 import { arcade, openMatch, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { Chat } from "./Chat.tsx";
 import { MentionInput } from "./MentionInput.tsx";
 import { Modal, useRun, useTicker } from "./ui.tsx";
 
@@ -32,13 +33,18 @@ export function ArcadePanel() {
   const lobby = useHud((s) => s.lobby);
   const me = useHud((s) => s.me?.userId);
   const { error, run } = useRun();
-  if (!lobby) return <Modal title="🎮 Arcade">Loading…</Modal>;
+  if (!lobby)
+    return (
+      <Modal title="🎮 Arcade" beside={<Chat />}>
+        Loading…
+      </Modal>
+    );
   const { invites, open: joinable, playing, inGame } = lobbySummary(lobby, me);
   const mine = lobby.tables.find((t) => t.id === lobby.me.table);
   const open = joinable.filter((t) => !invites.includes(t));
 
   return (
-    <Modal title="🎮 Arcade" wide>
+    <Modal title="🎮 Arcade" wide beside={<Chat />}>
       {invites.length > 0 && (
         <>
           <h3>Invited</h3>
@@ -308,7 +314,11 @@ export function NewTable({ invite }: { invite?: number }) {
   });
 
   return (
-    <Modal title={inviteName ? `🎮 Invite ${inviteName} to a game` : "🎮 Open a table"} wide>
+    <Modal
+      title={inviteName ? `🎮 Invite ${inviteName} to a game` : "🎮 Open a table"}
+      wide
+      beside={<Chat />}
+    >
       <ul className="game-picker">
         {Object.values(GAMES).map((g) => (
           <li key={g.id}>

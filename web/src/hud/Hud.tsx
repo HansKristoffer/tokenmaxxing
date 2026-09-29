@@ -1,7 +1,7 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { useEffect, useState } from "react";
 import { roomName, world } from "../game/world.ts";
-import { hud, useHud } from "../store.ts";
+import { chatBeside, hud, useHud } from "../store.ts";
 import { AppSignIn } from "./AppSignIn.tsx";
 import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
@@ -19,6 +19,7 @@ import { Modal } from "./ui.tsx";
 
 export function Hud() {
   const status = useHud((s) => s.status);
+  const beside = useHud((s) => chatBeside(s.panel));
   if (status === "signedOut" || status === "expired")
     return tauri ? <AppSignIn /> : <SignedOut expired={status === "expired"} />;
   return (
@@ -30,7 +31,7 @@ export function Hud() {
         <GamesBox />
       </div>
       <Banner />
-      <Chat />
+      {!beside && <Chat />}
       <Minimap />
       <Dialog />
       <Panel />
@@ -65,6 +66,8 @@ function Hints() {
         <dt>X</dt>
         <dd>Run</dd>
         <dt>Space</dt>
+        <dd>Jump</dd>
+        <dt>E</dt>
         <dd>Interact</dd>
         <dt>Enter</dt>
         <dd>Chat</dd>
@@ -147,7 +150,7 @@ function Dialog() {
   return (
     <div className="panel dialog" role="status">
       {dialog}
-      <span className="muted small"> ▼ Space</span>
+      <span className="muted small"> ▼ E</span>
     </div>
   );
 }

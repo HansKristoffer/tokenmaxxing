@@ -75,18 +75,30 @@ export function AvatarImage({ look, scale = 3 }: { look: Look; scale?: number })
   return <canvas ref={ref} width={16 * scale} height={16 * scale} className="avatar" />;
 }
 
-export function Modal({ title, children, wide }: { title: ReactNode; children: ReactNode; wide?: boolean }) {
+export function Modal({
+  title,
+  children,
+  wide,
+  beside,
+}: {
+  title: ReactNode;
+  children: ReactNode;
+  wide?: boolean;
+  /** Shown next to the dialog, still usable (the chat, beside a game). */
+  beside?: ReactNode;
+}) {
   // Focus moves into the dialog when it opens, so screen readers and Tab start there.
   const ref = useRef<HTMLElement>(null);
   useEffect(() => ref.current?.focus(), []);
   return (
-    <div className="scrim">
+    <div className={`scrim${beside ? " beside" : ""}`}>
       <button
         type="button"
         className="backdrop"
         aria-label="Close"
         onClick={() => hud.set({ panel: null })}
       />
+      {beside}
       <section
         ref={ref}
         tabIndex={-1}

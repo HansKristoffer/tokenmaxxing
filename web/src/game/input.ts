@@ -1,6 +1,7 @@
 import {
   DIRS,
   type Facing,
+  JUMP_MS,
   RUN_STEP_MS,
   route,
   type StepResult,
@@ -9,7 +10,7 @@ import {
   WALK_STEP_MS,
 } from "@tokenmaxxing/core/world.ts";
 import { conn } from "../net.ts";
-import { hud } from "../store.ts";
+import { chatBeside, hud } from "../store.ts";
 import { camera, zoom } from "./camera.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
@@ -40,10 +41,18 @@ const typing = (e: Event) => e.target instanceof HTMLInputElement || e.target in
 
 export function bindInput(canvas: HTMLCanvasElement): void {
   window.addEventListener("keydown", (e) => {
+    // Escape is ours (menus, chat): unhandled, macOS takes it to leave full screen.
+    if (e.key === "Escape") e.preventDefault();
     if (typing(e) || e.metaKey || e.ctrlKey) return;
     const s = hud.get();
     if (e.key === "Escape") {
       hud.set({ panel: s.panel || s.dialog ? null : { kind: "menu" }, dialog: null });
+      return;
+    }
+    // Beside a game the chat is still there: Enter goes to it, unless it's pressing a button.
+    if (e.key === "Enter" && chatBeside(s.panel) && !(e.target instanceof HTMLButtonElement)) {
+      e.preventDefault();
+      hud.set({ chatFocus: s.chatFocus + 1 });
       return;
     }
     if (s.panel) return;
@@ -62,6 +71,9 @@ export function bindInput(canvas: HTMLCanvasElement): void {
         return;
       case " ":
         e.preventDefault();
+        jump();
+        return;
+      case "e":
         if (s.dialog) hud.set({ dialog: null });
         else interact();
         return;
@@ -207,7 +219,16 @@ export function updateSelf(now: number): void {
   send(conn.step(dir));
 }
 
-/** Space: talk to whoever or whatever is in front of you. */
+/** Space: a hop, standing or walking. Everyone in the room sees it. */
+function jump(): void {
+  const me = self();
+  const now = performance.now();
+  if (me?.state !== "idle" || (me.jump !== null && now - me.jump < JUMP_MS)) return;
+  me.jump = now;
+  void conn.jump().catch(() => {});
+}
+
+/** E: talk to whoever or whatever is in front of you. */
 export function interact(): void {
   const me = self();
   if (!me) return;

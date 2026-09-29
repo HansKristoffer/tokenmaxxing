@@ -1,13 +1,14 @@
-import type { Frame, Lobby } from "@tokenmaxxing/core/games/wire.ts";
-import type {
-  ChatLine,
-  CompanyInfo,
-  Houses,
-  Moves,
-  PlayerInfo,
-  RoomId,
-  Snapshot,
-  WorldGame,
+import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import {
+  CHAT_HISTORY,
+  type ChatLine,
+  type CompanyInfo,
+  type Houses,
+  type Moves,
+  type PlayerInfo,
+  type RoomId,
+  type Snapshot,
+  type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
 import type { registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
@@ -17,6 +18,7 @@ import {
   applyGame,
   applyGameOver,
   applyInfo,
+  applyJump,
   applyMoves,
   loadSnapshot,
   setCompanies,
@@ -106,6 +108,7 @@ export function connect(token: string): void {
   });
   conn.on("occupancy", (o: Partial<Record<RoomId, number>>) => hud.set({ occupancy: o }));
   conn.on("chat", (line: ChatLine) => applyChat(line));
+  conn.on("jump", (id: number) => applyJump(id));
   conn.on("notice", (text: string) => {
     hud.set({ notice: { text, at: Date.now() } });
     void refreshMe();
@@ -187,14 +190,17 @@ function applyLobby(lobby: Lobby): void {
 export function openMatch(id: number): void {
   if (hud.get().frame?.info.id !== id || !matchConn) {
     matchConn?.dispose();
-    hud.set({ frame: null });
+    hud.set({ frame: null, matchChat: [] });
     const c = client.match.get([String(id)], { params: { token: session } }).connect();
     c.on("frame", (frame: Frame) => {
       if (frame.info.id === id) hud.set({ frame, clockSkew: Date.now() - frame.now });
     });
+    c.on("chat", (line: MatchChatLine) => {
+      if (matchConn === c) hud.set((s) => ({ matchChat: [...s.matchChat, line].slice(-CHAT_HISTORY) }));
+    });
     c.onOpen(async () => {
-      const frame = await c.frame();
-      hud.set({ frame, clockSkew: Date.now() - frame.now });
+      const [frame, matchChat] = await Promise.all([c.frame(), c.chat()]);
+      hud.set({ frame, matchChat, clockSkew: Date.now() - frame.now });
     });
     matchConn = c;
   }
@@ -205,7 +211,7 @@ export function openMatch(id: number): void {
 export function closeMatch(): void {
   matchConn?.dispose();
   matchConn = null;
-  hud.set({ frame: null });
+  hud.set({ frame: null, matchChat: [] });
 }
 
 /** A readable message from a failed call. */
