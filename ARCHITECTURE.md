@@ -50,10 +50,11 @@ browser: Canvas 2D world + React HUD  ◄─ WebSocket ──►  └─ /api/ri
 
 **`player[userId]`**: raw events (SQLite, deduplicated), tokens, sessions and login codes. `ingest` stores a
 batch, recomputes the touched world days (per-model sums, prompts, PRs, 5-minute agent buckets) and sends them
-to `town.report`, then tells `world` how many agents are live.
+to `town.report`, then tells `world` how many agents are live, and `arcade.usage` in case they're in a battle.
 
 **`town["main"]`**: everything cold, joined in SQL.
-- Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `purchases`.
+- Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `purchases`, `ledger`
+  (coins held and paid by games), `match_players` (one row per player per finished game).
 - Accounts: `signUp` (200 an hour, globally), `rename`, `setLook` (refuses shop items you don't own), `me`.
 - Companies: create (takes the first free plot of 8), leave, kick, rename, `setWebsite`. One company per
   person, at most 50 members. The earliest joiner takes over from a leaving owner; the last one out closes the
@@ -63,7 +64,7 @@ to `town.report`, then tells `world` how many agents are live.
   owner hears about an application, and the applicant about the answer, through `world.notify` (a `notice`
   event, shown as a toast). A new player's first visit opens this choice.
 - Stats: `leaderboard`, `profile`, `menuBar`, `searchNames`. Cost is priced when read.
-- Coins: `wallet`, `buy`.
+- Coins: `wallet`, `buy`; for `arcade`: `hold`, `pay`, `refund`, `recordMatch`. Games: `gameBoard`.
 - Every change a player could see is pushed to `world` (`town/sync.ts`); `world` never asks `town`.
 
 **`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room).
@@ -76,6 +77,8 @@ to `town.report`, then tells `world` how many agents are live.
 - **Resting.** Closing the last tab, or 3 minutes without input, sends you to your bed; offline with agents
   active in the last 10 minutes, to your desk. Company members rest in their house, others at the Inn. Your spot
   is remembered: the next `join`, or the first step after being away, puts you back there.
+
+**`arcade["main"]`** and **`match[id]`**: the mini games; see *Games*.
 
 ## Companies and houses
 
@@ -94,6 +97,42 @@ to `town.report`, then tells `world` how many agents are live.
 - Balances aren't stored: they're worked out from `usage_daily` minus `purchases`, so a late sync still pays.
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats and 4 pets, 60 to 1,500 coins. Items are
   worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`). Pets follow their owner in the client.
+
+## Games
+
+The plan and its reasoning are in `GAMES.md`; this is what was built.
+
+- **Rules are pure** (`core/src/games/`): each game is a `GameDef` over plain JSON state: `setup`, `move`,
+  `tick`, `forfeit`, a per-viewer `view` (hiding what a player mustn't see yet), `outcome` (places, or void),
+  plus optional `callouts`, `status`, `board`, `headline` and `endsAt` for the world. Usage games add
+  `usageWindow` and `usage`. `GAMES` lists them: Ship, Pivot, Raise; Hype Cycle; Due Diligence; Tokenmaxxing.
+- **`arcade["main"]`** is the social side and the money. Everything starts as a table: `open` (invite people,
+  open it to anyone, or both), `invite`, `answer` (yes, no or a counter offer), `join`, `leave`, `start`. A
+  full table starts a match. It also takes side bets, runs double or nothing, and `settle`s: the pot is paid by
+  place (`core/src/games/payouts.ts`, integer math), side bets are a parimutuel pool, and a void game refunds
+  everything. Each connection gets its own `lobby` event.
+- **`match[id]`** runs one game: its tick loop, frames per viewer (`frame` events), forfeits after 20 seconds
+  away for games that hold their players, and a 20-minute safety net. It tells `world` the live status and
+  `arcade` the outcome.
+- **Coins** move only through the `ledger` in `town`: `hold` is all or nothing (a stake is at most 500 and half
+  your balance), `pay` never pays out more than a ref holds, and `refund` returns what's left. Every ref sums to
+  zero when it's settled; there's no house cut and no house prize.
+- **In the world** (`world.gather`/`release`): players walk to a table in the town square and stand there as
+  `playing` until it ends; `back` returns them to where they were. Tokenmaxxing gets an **arena** instead: its
+  players stay free, and it's their rest spot until the battle ends. Banners, signs over open tables and the
+  arena's scoreboard are drawn in `web/src/game/games.ts`.
+- **Tokenmaxxing** pulls, it doesn't add up: after each sync, the match asks `player.tokensBetween(start, end)`
+  (each minute capped at 50M and flagged), so re-sent or late events can't double count. The menu bar app asks
+  `arcade.battle` and syncs every 10 seconds while you're in one.
+
+### Adding a game
+
+1. Write `core/src/games/<id>.ts` exporting a `GameDef`, add its id to `GameId` and it to `GAMES`.
+2. Write `web/src/games/<id>.tsx` (it gets `{ view, info, you, now, move }`), add it to `COMPONENTS`, and
+   optionally give it a table in `web/src/art/tables.ts`.
+3. Write `core/test/games/<id>.test.ts`; `registry.test.ts` already checks every game's basics.
+
+No server changes, actions or tables are needed.
 
 ## The client
 

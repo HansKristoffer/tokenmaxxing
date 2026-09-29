@@ -7,7 +7,8 @@ no) and it gets a
 house in town, painted in your brand's colours with your logo on it. When you're not playing, your
 character is in that house: **at a desk** while your agents run, **asleep in bed** when they don't. Using
 AI earns **coins**, and so does finishing a day in the top 3; spend them on clothes, glasses, hats and
-pets that follow you around.
+pets that follow you around. Or play for them: challenge someone to a game in the town square, from rock-paper-scissors for
+founders and Liar's Dice to **Tokenmaxxing**, a battle over who burns the most real tokens in an hour.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor.
 
@@ -86,13 +87,13 @@ inside the container; `Bun.serve` exposes only its client gateway under `/api/ri
 | Path | What |
 |---|---|
 | `core/` | Log parsers, sync engine, shell↔helper protocol, `maps.ts` and `world.ts` (the world's rules, shared by client and server) |
-| `server/` | `main.ts`, the Rivet proxy, the three actors (`src/actors/`) and what `town` does (`src/town/`), company branding, pricing |
+| `server/` | `main.ts`, the Rivet proxy, the actors (`src/actors/`) and what `town` does (`src/town/`), company branding, pricing |
 | `web/` | The game: canvas renderer in `src/game/`, pixel art drawn in code in `src/art/`, React HUD in `src/hud/` |
 | `app/helper/` | The TypeScript helper the app runs (`bun build --compile`) |
 | `app/macos/` | SwiftUI `MenuBarExtra` shell (Swift Package, no Xcode project) |
 | `app/scripts/build-app.sh` | Assembles, signs and notarizes `Tokenmaxxing.app` |
 | `packaging/tokenmaxxing.rb` | Homebrew cask template |
-| `ARCHITECTURE.md` | How it all fits together: serving, auth, the actors, houses, coins |
+| `ARCHITECTURE.md` | How it all fits together: serving, auth, the actors, houses, coins, games |
 
 All art is drawn in code (palette-string sprites and rectangles), so the repo carries no image assets.
 
