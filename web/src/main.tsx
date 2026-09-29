@@ -2,11 +2,22 @@ import { createRoot } from "react-dom/client";
 import { bindInput, updateSelf } from "./game/input.ts";
 import { render } from "./game/render.ts";
 import { advanceRemotes, world } from "./game/world.ts";
+import { tauri } from "./hud/AppUpdate.tsx";
 import { Hud } from "./hud/Hud.tsx";
 import { connect, signIn } from "./net.ts";
 
 const canvas = document.getElementById("world") as HTMLCanvasElement;
 createRoot(document.getElementById("hud")!).render(<Hud />);
+
+// In the desktop app, a link out of the game (a company's website) opens in the browser.
+if (tauri)
+  document.addEventListener("click", (e) => {
+    const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>("a[href]") : null;
+    if (!a || a.origin === location.origin) return;
+    e.preventDefault();
+    // An app from before `open_link`: the old way, for whatever it's worth.
+    tauri.core.invoke("open_link", { url: a.href }).catch(() => window.open(a.href, "_blank"));
+  });
 
 const token = await signIn();
 if (token) {

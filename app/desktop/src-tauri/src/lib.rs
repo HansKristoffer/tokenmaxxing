@@ -63,6 +63,7 @@ pub fn run() {
         .manage(Shared::default())
         .invoke_handler(tauri::generate_handler![
             world::enter_world,
+            world::open_link,
             updates::update_status,
             updates::install_update
         ])
@@ -78,8 +79,8 @@ pub fn run() {
                 let _ = login.enable();
             }
             tray::build(app.handle())?;
-            // The game window (the server's page) may ask about app updates and start one, and sign
-            // itself in when it has no session, and nothing else.
+            // The game window (the server's page) may ask about app updates and start one, sign itself
+            // in when it has no session, and open web links in the browser, and nothing else.
             app.add_capability(
                 CapabilityBuilder::new("world")
                     .remote(format!("{SERVER_URL}/*"))
@@ -89,7 +90,8 @@ pub fn run() {
                     .permission("core:event:allow-unlisten")
                     .permission("allow-update-status")
                     .permission("allow-install-update")
-                    .permission("allow-enter-world"),
+                    .permission("allow-enter-world")
+                    .permission("allow-open-link"),
             )?;
             let events = app.handle().clone();
             let helper = helper::Helper::start(
