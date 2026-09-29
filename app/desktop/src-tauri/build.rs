@@ -7,5 +7,10 @@ fn main() {
     {
         panic!("set TOKENMAXXING_SERVER_URL to the production server for a release build");
     }
-    tauri_build::build()
+    // App commands are denied unless a capability allows them: `sign_up` for the onboarding page
+    // (capabilities/default.json), the update ones for the game window (added in lib.rs).
+    tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
+        tauri_build::AppManifest::new().commands(&["sign_up", "update_status", "install_update"]),
+    ))
+    .expect("failed to run tauri-build")
 }

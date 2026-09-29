@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The local onboarding page only. The game window loads the server and gets no IPC at all.",
+  "description": "The local onboarding page only. The game window's capability (update status and install, nothing else) is added in lib.rs, since it names the server.",
   "windows": ["onboarding"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "allow-sign-up"]
 }

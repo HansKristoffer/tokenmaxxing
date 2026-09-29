@@ -69,15 +69,21 @@ The game also runs in any browser; the app's window is that same page, at `/play
 
   It's rebuilt from the helper's state after every sync: every 2 minutes, or every 10 seconds during a battle.
 - **`world.rs`**: the windows.
-  - The game window loads the live page (`/#code=…`, the same single-use login code as a browser). It stays
-    on the server's origin; other links open in the browser.
-  - The "pick a name" page (`app/desktop/onboarding/`) is the only local page, and the only one with IPC
-    (`capabilities/default.json`). The game page has none.
+  - The game window loads the live page (`/play#code=…`, the same single-use login code as a browser). It
+    stays on the server's origin; other links open in the browser.
+  - The "pick a name" page (`app/desktop/onboarding/`) is the only local page. It may call `sign_up`
+    (`capabilities/default.json`). The game page, from the server's origin only, may ask about app updates
+    and start one (`update_status`, `install_update` and their `app-update` event; the capability is added
+    in `lib.rs`, since it names the server). App commands are otherwise denied (`build.rs`).
   - The app is in the Dock only while a window is open (`LSUIElement`, then the activation policy).
 - **`keychain.rs`**: the device token, in the login Keychain as `dk.hanskristoffer.tokenmaxxing` /
   `api-token`. Dev builds use `….dev` and their own state dir.
 - **`updates.rs`**: Tauri's updater. It checks `latest.json` on this repo's latest release on launch and every
-  4 hours, and installs from the menu. Downloads must be signed with the key in `TAURI_SIGNING_PRIVATE_KEY`.
+  hour. With no window open, a new version installs right away and the app restarts. While the game is open,
+  it waits: the game shows an "Update" button (`web/src/hud/AppUpdate.tsx`) and the menu an "Update to…"
+  item, and it installs when either is clicked or the window closes. After an update started with the game
+  open, the game opens again. Downloads must be signed with the key in `TAURI_SIGNING_PRIVATE_KEY`, and the
+  release job checks the published one against the app's public key before anyone installs it.
 - **Plugins:** single-instance (a second launch opens the world), window-state, autostart (a LaunchAgent) and
   log.
 - **The server URL** is baked in at build time (`TOKENMAXXING_SERVER_URL`). A release build refuses to build

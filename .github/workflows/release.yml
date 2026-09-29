@@ -63,6 +63,24 @@ jobs:
           tagName: ${{ needs.release-please.outputs.tag }}
           includeUpdaterJson: true
           args: --target universal-apple-darwin
+      # Installed apps only take an update signed by the key whose public half they ship with
+      # (tauri.conf.json). Check the one just published, as they'll see it: a wrong signing secret
+      # fails this job instead of quietly stopping every app from updating.
+      - name: Check the update installed apps will get
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          set -euo pipefail
+          brew install minisign
+          dir=$(mktemp -d)
+          jq -r '.plugins.updater.pubkey' app/desktop/src-tauri/tauri.conf.json | base64 -d > "$dir/key.pub"
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/latest.json" -o "$dir/latest.json"
+          jq -e --arg v "$VERSION" '.version == $v or .version == "v" + $v' "$dir/latest.json"
+          for platform in darwin-aarch64 darwin-x86_64; do
+            curl -fsSL "$(jq -er --arg p "$platform" '.platforms[$p].url' "$dir/latest.json")" -o "$dir/update"
+            jq -er --arg p "$platform" '.platforms[$p].signature' "$dir/latest.json" | base64 -d > "$dir/update.minisig"
+            minisign -V -p "$dir/key.pub" -m "$dir/update" -x "$dir/update.minisig"
+          done
 
   cask:
     needs: [release-please, app]

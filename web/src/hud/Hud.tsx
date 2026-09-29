@@ -2,6 +2,7 @@ import { compact } from "@tokenmaxxing/core/format.ts";
 import { useEffect, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { hud, useHud } from "../store.ts";
+import { AppUpdate } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
 import { Chat } from "./Chat.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
@@ -82,6 +83,7 @@ function Stats() {
   const waiting = useHud((s) => s.me?.company?.applicants.length ?? 0);
   return (
     <div className="panel stats-chip">
+      <AppUpdate />
       {stats && (
         <button
           type="button"

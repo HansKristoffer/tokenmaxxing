@@ -10,6 +10,7 @@ mod world;
 
 use serde_json::json;
 use std::sync::{Arc, Mutex};
+use tauri::ipc::CapabilityBuilder;
 use tauri::{Manager, RunEvent, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
 
@@ -59,12 +60,28 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Shared::default())
-        .invoke_handler(tauri::generate_handler![world::sign_up])
+        .invoke_handler(tauri::generate_handler![
+            world::sign_up,
+            updates::update_status,
+            updates::install_update
+        ])
         .setup(|app| {
             // Menu bar only until a window opens (Info.plist has LSUIElement too).
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             tray::build(app.handle())?;
+            // The game window (the server's page) may ask about app updates and start one, and
+            // nothing else. The onboarding page's permissions are in capabilities/default.json.
+            app.add_capability(
+                CapabilityBuilder::new("world")
+                    .remote(format!("{SERVER_URL}/*"))
+                    .local(false)
+                    .window(world::WORLD)
+                    .permission("core:event:allow-listen")
+                    .permission("core:event:allow-unlisten")
+                    .permission("allow-update-status")
+                    .permission("allow-install-update"),
+            )?;
             let events = app.handle().clone();
             let helper = helper::Helper::start(
                 move |message| on_helper(&events, message),
@@ -77,6 +94,7 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let WindowEvent::Destroyed = event {
                 world::closed(window.app_handle());
+                updates::closed(window.app_handle());
             }
         })
         .build(tauri::generate_context!())
@@ -94,11 +112,13 @@ pub fn run() {
 fn on_helper(app: &tauri::AppHandle, message: helper::Message) {
     match message {
         helper::Message::State(state) => {
-            let onboarding = state.phase == "onboarding";
+            let phase = state.phase.clone();
             app.state::<Shared>().lock().unwrap().state = state;
             tray::refresh(app);
-            if onboarding {
+            if phase == "onboarding" {
                 world::onboard(app);
+            } else if phase == "ready" && updates::reopen(app) {
+                world::open(app);
             }
         }
         helper::Message::Token(Some(token)) => keychain::set(&token),

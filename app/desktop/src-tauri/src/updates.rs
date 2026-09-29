@@ -1,13 +1,18 @@
 //! Self-update: the app checks this repo's latest GitHub release (latest.json) on launch and every
-//! four hours, and offers the update in the menu. Downloads are verified against the public key in
-//! tauri.conf.json before they're installed, then the app restarts. Dev builds never check.
+//! hour. A new version installs itself (and the app restarts) as soon as no window is open. While the
+//! game is open it waits, shown in the game and in the menu, until you click it there or close the
+//! window. Downloads are verified against the public key in tauri.conf.json before they're installed.
+//! Dev builds never check.
 
-use crate::{tray, Shared};
+use crate::{tray, world, Shared};
+use serde::Serialize;
 use std::time::Duration;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
-const EVERY: Duration = Duration::from_secs(4 * 60 * 60);
+const EVERY: Duration = Duration::from_secs(60 * 60);
+/// Left behind by an update installed with the game open, so the game opens again after the restart.
+const REOPEN: &str = "reopen-world";
 
 #[derive(Default)]
 pub enum Status {
@@ -17,6 +22,14 @@ pub enum Status {
     Current,
     Available(Box<Update>),
     Installing,
+}
+
+/// What the game shows (see web/src/hud/AppUpdate.tsx): sent as `app-update` whenever it changes.
+#[derive(Clone, Serialize)]
+pub struct Shown {
+    current: String,
+    available: Option<String>,
+    installing: bool,
 }
 
 pub fn watch(app: AppHandle) {
@@ -31,17 +44,51 @@ pub fn watch(app: AppHandle) {
 
 /// "Check for updates…" checks now; "Update to X.Y.Z…" installs it and restarts.
 pub fn from_menu(app: &AppHandle) {
-    let app = app.clone();
-    let found = match std::mem::take(&mut app.state::<Shared>().lock().unwrap().update) {
-        Status::Available(update) => Some(update),
-        _ => None,
+    if !install_now(app) {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move { check(&app).await });
+    }
+}
+
+/// A window closed: with none left, a waiting update installs now.
+pub fn closed(app: &AppHandle) {
+    if app.webview_windows().is_empty() {
+        install_now(app);
+    }
+}
+
+/// True after an update installed from the game restarted the app: open the game again.
+pub fn reopen(app: &AppHandle) -> bool {
+    let Ok(dir) = app.path().app_data_dir() else {
+        return false;
     };
-    tauri::async_runtime::spawn(async move {
-        match found {
-            Some(update) => install(&app, *update).await,
-            None => check(&app).await,
+    std::fs::remove_file(dir.join(REOPEN)).is_ok()
+}
+
+/// The game asks what to show when it loads; changes arrive as `app-update` events.
+#[tauri::command]
+pub fn update_status(app: AppHandle) -> Shown {
+    shown(&app)
+}
+
+/// The game's "Update" button.
+#[tauri::command]
+pub fn install_update(app: AppHandle) {
+    install_now(&app);
+}
+
+/// Installs the waiting update, if there is one.
+fn install_now(app: &AppHandle) -> bool {
+    let found = match std::mem::take(&mut app.state::<Shared>().lock().unwrap().update) {
+        Status::Available(update) => update,
+        other => {
+            app.state::<Shared>().lock().unwrap().update = other;
+            return false;
         }
-    });
+    };
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move { install(&app, *found).await });
+    true
 }
 
 async fn check(app: &AppHandle) {
@@ -61,6 +108,8 @@ async fn check(app: &AppHandle) {
         }
     };
     set(app, status);
+    // Nobody is looking: update right away.
+    closed(app);
 }
 
 async fn install(app: &AppHandle, update: Update) {
@@ -69,6 +118,12 @@ async fn install(app: &AppHandle, update: Update) {
     match update.download_and_install(|_, _| {}, || {}).await {
         Ok(()) => {
             log::info!("updated to {version}; restarting");
+            if app.get_webview_window(world::WORLD).is_some() {
+                if let Ok(dir) = app.path().app_data_dir() {
+                    let _ = std::fs::create_dir_all(&dir);
+                    let _ = std::fs::write(dir.join(REOPEN), "");
+                }
+            }
             app.restart();
         }
         Err(e) => {
@@ -78,7 +133,21 @@ async fn install(app: &AppHandle, update: Update) {
     }
 }
 
+fn shown(app: &AppHandle) -> Shown {
+    let ui = app.state::<Shared>();
+    let ui = ui.lock().unwrap();
+    Shown {
+        current: app.package_info().version.to_string(),
+        available: match &ui.update {
+            Status::Available(update) => Some(update.version.clone()),
+            _ => None,
+        },
+        installing: matches!(ui.update, Status::Installing),
+    }
+}
+
 fn set(app: &AppHandle, status: Status) {
     app.state::<Shared>().lock().unwrap().update = status;
     tray::refresh(app);
+    let _ = app.emit_to(world::WORLD, "app-update", shown(app));
 }
