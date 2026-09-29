@@ -65,6 +65,8 @@ jobs:
           args: --target universal-apple-darwin
       # Tauri notarizes the app inside the .dmg, not the .dmg: notarize and staple that too, so what
       # people download passes Gatekeeper as a whole (and offline), then put it back on the release.
+      # Also as Tokenmaxxing.dmg: a name without the version, so releases/latest/download/Tokenmaxxing.dmg
+      # (the website's Download button) is always the newest installer.
       - name: Notarize the installer
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -81,22 +83,23 @@ jobs:
           xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" --wait
           xcrun stapler staple "$dmg"
-          gh release upload "$TAG" "$dmg" --clobber
-      # What someone downloading the .dmg gets: macOS must accept the disk image and the app in it
-      # without a warning, and the sync helper must keep the entitlements it needs to run.
+          cp "$dmg" "$dir/Tokenmaxxing.dmg"
+          gh release upload "$TAG" "$dmg" "$dir/Tokenmaxxing.dmg" --clobber
+      # What someone clicking Download gets: this version, and macOS must accept the disk image and the
+      # app in it without a warning, and the sync helper must keep the entitlements it needs to run.
       - name: Check the installer passes Gatekeeper
         env:
-          TAG: ${{ needs.release-please.outputs.tag }}
           VERSION: ${{ needs.release-please.outputs.version }}
         run: |
           set -euo pipefail
           dir=$(mktemp -d)
           curl -fsSL -o "$dir/installer.dmg" \
-            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/Tokenmaxxing_${VERSION}_universal.dmg"
+            "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/Tokenmaxxing.dmg"
           spctl -a -vv -t open --context context:primary-signature "$dir/installer.dmg"
           xcrun stapler validate "$dir/installer.dmg"
           hdiutil attach -nobrowse -readonly -mountpoint "$dir/mnt" "$dir/installer.dmg"
           app="$dir/mnt/Tokenmaxxing.app"
+          test "$(defaults read "$app/Contents/Info.plist" CFBundleShortVersionString)" = "$VERSION"
           codesign --verify --deep --strict -vv "$app"
           xcrun stapler validate "$app"
           spctl -a -vv -t exec "$app"

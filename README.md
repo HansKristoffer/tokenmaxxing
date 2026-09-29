@@ -147,7 +147,8 @@ the environment before the process starts.
 Commits follow [Conventional Commits](https://www.conventionalcommits.org) (PR titles are checked).
 [release-please](https://github.com/googleapis/release-please) keeps a Release PR open. Merging it
 tags the version, builds the desktop app (universal, signed and notarized, with `tauri-action`), attaches
-the `.dmg` and the updater's files (`.app.tar.gz`, `.sig`, `latest.json`), notarizes the `.dmg` too, and
+the `.dmg` and the updater's files (`.app.tar.gz`, `.sig`, `latest.json`), notarizes the `.dmg` too (and
+attaches it again as `Tokenmaxxing.dmg`, what the website's Download button fetches), and
 updates the cask in `HansKristoffer/homebrew-tap`. Before that, it checks what people will get: the
 downloaded `.dmg` and the app in it pass Gatekeeper, and the published update's signature matches the
 app's public key.
