@@ -121,9 +121,10 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game).
 - Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
   `chat`, `mention`.
-- **Resting.** Closing the last tab, or 3 minutes without input, sends you to your bed; offline with agents
-  active in the last 10 minutes, to your desk. Company members rest in their house, others at the Inn. Your spot
-  is remembered: the next `join`, or the first step after being away, puts you back there.
+- **Resting.** Closing the last tab sends you to your bed; offline with agents active in the last 10 minutes, to
+  your desk. Company members rest in their house, others at the Inn. Your spot is remembered: the next `join` puts
+  you back there. Online with 3 minutes without input, you just doze where you are (`dozing`, drawn as a "z") until
+  your next input, so a town left open on a second screen keeps showing what's going on.
 
 **`arcade["main"]`** and **`match[id]`**: the mini games; see *Games*.
 

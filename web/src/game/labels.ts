@@ -108,7 +108,7 @@ export function avatarLabels(
     const bg = a.info.online ? "rgba(27, 31, 42, 0.78)" : "rgba(27, 31, 42, 0.45)";
     y -= pill(g, cx, y, tag, dpr, bg, C.white).h + 2 * dpr;
   }
-  if (a.state === "away") {
+  if (a.state === "away" || a.info.dozing) {
     const t = (now / 900) % 1;
     g.font = `700 ${(10 + t * 4) * dpr}px ${FONT}`;
     g.fillStyle = `rgba(255, 255, 255, ${1 - t})`;
