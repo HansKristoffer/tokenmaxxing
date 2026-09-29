@@ -33,11 +33,11 @@
     "app:dev": "bash app/scripts/build-app.sh dev && open app/build/Tokenmaxxing.app",
     "app:build": "bash app/scripts/build-app.sh release",
     "helper:once": "bun app/helper/src/main.ts --once",
-    "test": "bun test",
+    "test": "bun test --timeout 60000",
     "typecheck": "tsc -p core && tsc -p server && tsc -p web && tsc -p app/helper",
     "lint": "biome ci .",
     "format": "biome check --write .",
-    "check": "bun run typecheck && bun run lint && bun test",
+    "check": "bun run typecheck && bun run lint && bun run test",
     "vendor:pricing": "bun server/scripts/vendor-pricing.ts"
   },
   "devDependencies": {

@@ -85,7 +85,7 @@ describe("helper", () => {
     const town = client.town.getOrCreate(["main"], { params: { token: tokenMsg.token } });
     expect((await town.today()).me).toMatchObject({ tokensToday: 15 });
     helper.stop();
-  }, 30_000);
+  });
 
   test("a taken name comes back as a stable error code", async () => {
     const taken = await signUp("taken");

@@ -100,4 +100,36 @@ describe("sync", () => {
     await sync(state, { ...opts, now: () => t0 + 15 * 60_000 });
     expect(searches).toBe(2);
   });
+  test("deleted files are forgotten; the same message in two files is sent once", async () => {
+    const dirP = join(dir, "claude", "projects", "p");
+    await writeFile(join(dirP, "a.jsonl"), line("m1"));
+    await writeFile(join(dirP, "b.jsonl"), line("m1") + line("m2")); // a subagent log repeating m1
+    const sent: TokenEvent[] = [];
+    const send = async (events: TokenEvent[]) => {
+      sent.push(...events);
+      return { inserted: events.length, duplicates: 0 };
+    };
+    const r1 = await sync(emptyState(), { statePath, enabled, send });
+    expect(sent.map((e) => e.messageId).sort()).toEqual(["m1", "m2"]);
+    await rm(join(dirP, "a.jsonl"));
+    const r2 = await sync(r1.state, { statePath, enabled, send });
+    expect(Object.keys(r2.state.files)).toEqual([join(dirP, "b.jsonl")]);
+  });
+
+  test("a big backlog goes in sends of at most 1000", async () => {
+    await writeFile(
+      join(dir, "claude", "projects", "p", "big.jsonl"),
+      Array.from({ length: 2500 }, (_, i) => line(`m${i}`)).join(""),
+    );
+    const sizes: number[] = [];
+    await sync(emptyState(), {
+      statePath,
+      enabled,
+      send: async (events) => {
+        sizes.push(events.length);
+        return { inserted: events.length, duplicates: 0 };
+      },
+    });
+    expect(sizes).toEqual([1000, 1000, 500]);
+  });
 });

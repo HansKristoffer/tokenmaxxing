@@ -18,9 +18,7 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile --ignore-scripts
-      - run: bun run typecheck
-      - run: bun run lint
-      - run: bun test
+      - run: bun run check
 
   swift:
     runs-on: macos-15

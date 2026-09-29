@@ -3,7 +3,6 @@
  * `main.ts` in a subprocess with a throwaway data dir and spare ports, so the
  * proxy, the engine and every actor are the production code paths.
  */
-import { setDefaultTimeout } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,8 +10,6 @@ import type { TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { createClient } from "rivetkit/client";
 import type { registry as Registry } from "../src/actors/registry.ts";
 import { afterEveryTest, atExit } from "./cleanup.ts";
-
-setDefaultTimeout(60_000);
 
 const port = 20_000 + Math.floor(Math.random() * 20_000);
 const enginePort = port + 100;
@@ -148,4 +145,17 @@ export function activity(
   for (let t = start; t < start + durationMs; t += 5 * MIN)
     out.push(event({ sessionId, agentId, timestamp: t }));
   return out;
+}
+
+/** Retries `check` (a function with `expect`s) until it passes, or rethrows its failure after `ms`. */
+export async function eventually<T>(check: () => Promise<T> | T, ms = 5_000): Promise<T> {
+  const end = Date.now() + ms;
+  for (;;) {
+    try {
+      return await check();
+    } catch (err) {
+      if (Date.now() > end) throw err;
+      await Bun.sleep(50);
+    }
+  }
 }

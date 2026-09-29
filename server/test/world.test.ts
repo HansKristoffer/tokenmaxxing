@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { type ChatLine, type Moves, outsideDoor, route, type Snapshot } from "@tokenmaxxing/core/world.ts";
-import { admit, as, event, signUp } from "./rivet.ts";
+import { admit, as, event, eventually, signUp } from "./rivet.ts";
 
 async function connect(token: string) {
   const conn = as(token).world.connect();
@@ -47,8 +47,7 @@ describe("world", () => {
     const path = route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!;
     const results = await walk(conn, path);
     expect(results.at(-1)).toEqual({ ...outsideDoor("I"), state: "idle" });
-    await Bun.sleep(150);
-    expect(events.snapshots.at(-1)!.room).toBe("town");
+    await eventually(() => expect(events.snapshots.at(-1)!.room).toBe("town"));
     await conn.dispose();
   });
 
@@ -87,10 +86,9 @@ describe("world", () => {
     const ca = await connect(a.token);
     const cb = await connect(b.token);
     await ca.conn.say("hello inn?");
-    await Bun.sleep(200);
     // a rests at the company house now, b too: same room, both hear it.
     expect(ca.snap.room).toBe(`hq:${co.id}`);
-    expect(cb.events.chat.map((l) => l.text)).toContain("hello inn?");
+    await eventually(() => expect(cb.events.chat.map((l) => l.text)).toContain("hello inn?"));
 
     const outsider = await signUp("chat");
     const co2 = await connect(outsider.token);
@@ -109,9 +107,11 @@ describe("world", () => {
     // Freelancers wake at the Inn: walk out into town, where the houses are.
     const me = o.snap.players.find((p) => p.id === outsider.userId)!;
     await walk(o.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
-    await Bun.sleep(200);
-    const town = o.events.snapshots.at(-1)!;
-    expect(town.room).toBe("town");
+    const town = await eventually(() => {
+      const snap = o.events.snapshots.at(-1)!;
+      expect(snap.room).toBe("town");
+      return snap;
+    });
     // The member is offline, so asleep in their house.
     expect(town.houses[co.id]).toEqual([
       { id: member.userId, name: member.name, level: 0, look: expect.any(Object), state: "away" },
@@ -128,10 +128,11 @@ describe("world", () => {
     expect(ca.snap.room).toBe(`hq:${co.id}`);
     expect(cb.snap.room).toBe("inn");
     await ca.conn.say(`hey @${b.name.toUpperCase()} and @${b.name} and @nobody`);
-    await Bun.sleep(200);
-    expect(cb.events.mentions.map((l) => l.text)).toEqual([
-      `hey @${b.name.toUpperCase()} and @${b.name} and @nobody`,
-    ]);
+    await eventually(() =>
+      expect(cb.events.mentions.map((l) => l.text)).toEqual([
+        `hey @${b.name.toUpperCase()} and @${b.name} and @nobody`,
+      ]),
+    );
     expect(cb.events.chat).toHaveLength(0);
     expect(ca.events.mentions).toHaveLength(0);
     for (const c of [ca, cb]) await c.conn.dispose();
@@ -144,13 +145,13 @@ describe("world", () => {
     await as(a.token)
       .player(a.userId)
       .ingest([event({ timestamp: Date.now() - 60_000 })]);
-    await Bun.sleep(300);
-    const moved = v.events.moves.flatMap((m) => [
-      ...m.m,
-      ...m.join.map((p) => [p.id, p.x, p.y, p.facing, p.state]),
-    ]);
-    const last = moved.filter((m) => m[0] === a.userId).at(-1);
-    expect(last?.[4]).toBe("working");
+    await eventually(() => {
+      const moved = v.events.moves.flatMap((m) => [
+        ...m.m,
+        ...m.join.map((p) => [p.id, p.x, p.y, p.facing, p.state]),
+      ]);
+      expect(moved.filter((m) => m[0] === a.userId).at(-1)?.[4]).toBe("working");
+    });
     await v.conn.dispose();
   });
 });

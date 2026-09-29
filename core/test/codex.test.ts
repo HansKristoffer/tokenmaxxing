@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { parseCodexFile, type SessionTotals } from "../src/sources/codex.ts";
 import { listCodexFiles } from "../src/sources/paths.ts";
 
+/** Tests that read your own ~/.codex: slow, and different on every machine. `TOKENMAXXING_REAL_LOGS=1 bun test core` */
+const REAL_LOGS = process.env.TOKENMAXXING_REAL_LOGS === "1";
+
 async function makeTempJsonl(name: string, lines: string[]): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "codex-parser-test-"));
   const file = join(dir, name);
@@ -550,7 +553,7 @@ describe("fork-seed suppression", () => {
   });
 });
 
-describe("parseCodexFile (real local data)", () => {
+describe.if(REAL_LOGS)("parseCodexFile (real local data)", () => {
   it("parses token_count events from a real session file", async () => {
     const all = await listCodexFiles();
     if (all.length === 0) {
@@ -895,7 +898,7 @@ describe("byte-0 model look-ahead", () => {
     expect(withPeek.sessionTotals).toEqual(noPeek.sessionTotals);
   });
 
-  it("only ever replaces the fallback on real local rollouts", async () => {
+  it.if(REAL_LOGS)("only ever replaces the fallback on real local rollouts", async () => {
     const all = await listCodexFiles();
     if (all.length === 0) {
       console.warn("no codex session files on this machine — skipping");

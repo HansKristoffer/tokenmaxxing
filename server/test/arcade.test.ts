@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Snapshot } from "@tokenmaxxing/core/world.ts";
-import { as, rich } from "./rivet.ts";
+import { as, eventually, rich } from "./rivet.ts";
 
 type Rich = Awaited<ReturnType<typeof rich>>;
 const balance = async (u: Rich) => (await u.town.wallet()).balance;
@@ -46,10 +46,11 @@ describe("the arcade", () => {
     await round(ada, bo, tableId, "raise", "pivot");
     await pick(ada, tableId, "pivot");
     await pick(bo, tableId, "ship");
-    await Bun.sleep(300);
-    expect(await balance(ada)).toBe(a0 + 40);
-    expect(await balance(bo)).toBe(b0 - 40);
-    expect((await townGames(ada)).some((x) => x.id === tableId)).toBe(false);
+    await eventually(async () => {
+      expect(await balance(ada)).toBe(a0 + 40);
+      expect(await balance(bo)).toBe(b0 - 40);
+      expect((await townGames(ada)).some((x) => x.id === tableId)).toBe(false);
+    });
     const frame = await ada.match(tableId).frame();
     expect(frame.info.outcome).toEqual({ places: [[ada.userId], [bo.userId]] });
     // Stats: on her card, and on the Games board.
@@ -64,7 +65,7 @@ describe("the arcade", () => {
     // Free again, and Back takes her to where she was before the game (the Inn, where she woke up).
     const back = await as(ada.token).world.back();
     expect(back).toMatchObject({ room: "inn", state: "idle" });
-  }, 30_000);
+  });
 
   test("private tables refuse strangers; open ones take anyone; one game at a time", async () => {
     const host = await rich("host");
@@ -83,11 +84,12 @@ describe("the arcade", () => {
     await stranger.arcade.join(open);
     expect((await stranger.arcade.lobby()).me.match).toBe(open);
     await host.match(open).forfeit();
-    await Bun.sleep(300);
-    expect((await stranger.arcade.lobby()).matches.find((m) => m.id === open)!.outcome).toEqual({
-      places: [[stranger.userId], [host.userId]],
-    });
-  }, 30_000);
+    await eventually(async () =>
+      expect((await stranger.arcade.lobby()).matches.find((m) => m.id === open)!.outcome).toEqual({
+        places: [[stranger.userId], [host.userId]],
+      }),
+    );
+  });
 
   test("a stake is at most half your coins; leaving before the start gives it back", async () => {
     const poor = await rich("poor", 10); // 10 + 25 = 35 coins
@@ -98,9 +100,8 @@ describe("the arcade", () => {
     const t = (await host.arcade.open("spr", { stake: 15, seats: 2 })).me.table!;
     await expect(poor.arcade.join(t)).resolves.toBeUndefined(); // 15 ≤ 17: fine, and the match starts
     await poor.match(t).forfeit();
-    await Bun.sleep(300);
-    expect(await balance(poor)).toBe(before - 15);
-  }, 30_000);
+    await eventually(async () => expect(await balance(poor)).toBe(before - 15));
+  });
 
   test("side bets: the winner's backers take the pool; no betting on your own game", async () => {
     const a = await rich("sa");
@@ -120,10 +121,11 @@ describe("the arcade", () => {
       [b.userId]: 20,
     });
     await b.match(id).forfeit(); // a wins
-    await Bun.sleep(300);
-    expect(await balance(fan)).toBe(f0 + 20);
-    expect(await balance(doubter)).toBe(d0 - 20);
-  }, 30_000);
+    await eventually(async () => {
+      expect(await balance(fan)).toBe(f0 + 20);
+      expect(await balance(doubter)).toBe(d0 - 20);
+    });
+  });
 
   test("a counter offer re-prices the table; double or nothing needs both", async () => {
     const a = await rich("ca");
@@ -136,8 +138,7 @@ describe("the arcade", () => {
     expect(await balance(a)).toBe(a0 + 50 - 20);
     expect(await balance(b)).toBe(b0 - 20);
     await b.match(t).forfeit();
-    await Bun.sleep(300);
-    expect(await balance(a)).toBe(a0 + 50 + 20);
+    await eventually(async () => expect(await balance(a)).toBe(a0 + 50 + 20));
 
     await a.arcade.rematch(t);
     expect((await a.arcade.lobby()).me.match).toBe(t); // still the old one: b hasn't said yes
@@ -145,7 +146,7 @@ describe("the arcade", () => {
     const again = (await a.arcade.lobby()).me.match!;
     expect(again).not.toBe(t);
     expect((await a.arcade.lobby()).matches.find((m) => m.id === again)!.stake).toBe(40);
-  }, 30_000);
+  });
 
   test("Tokenmaxxing: an arena in town, players stay free, and the app syncs fast until it's over", async () => {
     const a = await rich("ta");
@@ -170,10 +171,11 @@ describe("the arcade", () => {
     expect(until).toBeGreaterThan(Date.now() + 18 * 60_000);
     expect(await as(b.token).arcade.battle()).toBe(until);
     await b.match(id).forfeit();
-    await Bun.sleep(300);
-    expect(await a.arcade.battle()).toBeNull();
-    expect((await townGames(a)).some((x) => x.id === id)).toBe(false);
-  }, 30_000);
+    await eventually(async () => {
+      expect(await a.arcade.battle()).toBeNull();
+      expect((await townGames(a)).some((x) => x.id === id)).toBe(false);
+    });
+  });
   test("a host can send 10 invites a minute, however they open and close tables", async () => {
     const host = await rich("spam");
     const guests = await Promise.all(Array.from({ length: 7 }, () => rich("guest")));
@@ -183,5 +185,5 @@ describe("the arcade", () => {
     const second = (await host.arcade.open("hype", { stake: 0, invite: ids })).me.table!;
     const table = (await host.arcade.lobby()).tables.find((t) => t.id === second)!;
     expect(table.invited).toHaveLength(3);
-  }, 30_000);
+  });
 });

@@ -1,8 +1,8 @@
-import { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Sql } from "../src/actors/shared.ts";
 import { heldIn, hold, pay, refund, wallet } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
+import { memorySql } from "./memory-sql.ts";
 
 let sql: Sql;
 const NOW = Date.UTC(2026, 8, 29, 12);
@@ -17,8 +17,7 @@ const sumOf = async (ref: string) =>
   ((await sql.execute("SELECT SUM(amount) AS n FROM ledger WHERE ref = ?", ref)) as [{ n: number }])[0].n;
 
 beforeEach(async () => {
-  const db = new Database(":memory:");
-  sql = { execute: async (q: string, ...args: unknown[]) => db.query(q).all(...(args as never[])) };
+  sql = memorySql().sql;
   await migrate(sql);
   await earn(1, "2026-01-01", 10_000e6); // √10000 = 100, +25 first place = 125
   await earn(2, "2026-01-02", 2_500e6); // 50, +25 = 75
