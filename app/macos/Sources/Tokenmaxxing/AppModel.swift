@@ -211,8 +211,10 @@ final class AppModel {
                 setLaunchAtLogin(true)
             }
             // Ask for notifications the first time we're signed in (macOS only asks once anyway).
+            // The callback runs off the main queue; `@Sendable` keeps it from inheriting
+            // main-actor isolation, which Swift 6 traps on at runtime.
             if state?.phase != .ready, next.phase == .ready, canNotify {
-                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { @Sendable _, _ in }
             }
             state = next
         case "token":

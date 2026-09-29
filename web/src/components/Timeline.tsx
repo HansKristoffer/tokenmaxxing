@@ -66,48 +66,64 @@ export function Timeline({ me, group }: { me: string; group: number | null }) {
         {feed.data && moments.length === 0 && (
           <p className="muted">Nothing yet. Passes, wins and chat show up here.</p>
         )}
-        {moments.map((m) => {
+        {moments.map((m, n) => {
           const d = describeMoment(m, me);
           const chat = m.kind === "chat";
           const mine = chat && m.actor === me;
+          const prev = moments[n - 1];
+          // Consecutive messages from one person share a single name line.
+          const grouped =
+            chat && prev?.kind === "chat" && prev.actor === m.actor && prev.groupId === m.groupId;
           return (
             <div key={m.id} className={`item ${chat ? (mine ? "msg mine" : "msg") : "sys"}`}>
               {chat ? (
                 <>
-                  <div className="meta">
-                    {mine ? "you" : m.actor}
-                    {group === null && m.groupName ? ` · ${m.groupName}` : ""} · {relTime(m.createdAt)}
-                    {mine && (
-                      <button type="button" className="link" onClick={() => void remove(m.id)}>
-                        delete
-                      </button>
-                    )}
+                  {!grouped && (
+                    <div className="meta">
+                      {mine ? "you" : m.actor}
+                      {group === null && m.groupName ? ` · ${m.groupName}` : ""} · {relTime(m.createdAt)}
+                    </div>
+                  )}
+                  <div className="bubble" title={new Date(m.createdAt).toLocaleString()}>
+                    {d.body}
                   </div>
-                  <div className="bubble">{d.body}</div>
                 </>
               ) : (
                 <div>
                   <strong>{d.title}</strong> <span className="muted">{d.body}</span>
                 </div>
               )}
-              <div className="reactions">
-                {m.reactions.map((r) => (
-                  <button
-                    type="button"
-                    key={r.emoji}
-                    className={r.mine ? "pill mine" : "pill"}
-                    onClick={() => void react(m.id, r.emoji)}
-                  >
-                    {r.emoji} {r.count}
-                  </button>
-                ))}
-                <span className="picker">
-                  {REACTIONS.filter((e) => !m.reactions.some((r) => r.emoji === e)).map((e) => (
-                    <button type="button" key={e} onClick={() => void react(m.id, e)}>
-                      {e}
+              {m.reactions.length > 0 && (
+                <div className="reactions">
+                  {m.reactions.map((r) => (
+                    <button
+                      type="button"
+                      key={r.emoji}
+                      className={r.mine ? "pill mine" : "pill"}
+                      onClick={() => void react(m.id, r.emoji)}
+                    >
+                      {r.emoji} {r.count}
                     </button>
                   ))}
-                </span>
+                </div>
+              )}
+              {/* Floats over the item (absolute), so showing it on hover never shifts the layout. */}
+              <div className="picker">
+                {REACTIONS.map((e) => (
+                  <button
+                    type="button"
+                    key={e}
+                    className={m.reactions.some((r) => r.emoji === e && r.mine) ? "mine" : undefined}
+                    onClick={() => void react(m.id, e)}
+                  >
+                    {e}
+                  </button>
+                ))}
+                {mine && (
+                  <button type="button" className="delete" title="Delete" onClick={() => void remove(m.id)}>
+                    ✕
+                  </button>
+                )}
               </div>
             </div>
           );
