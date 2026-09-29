@@ -2,8 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { doorOf, MAPS, plotId, townMap } from "../src/maps.ts";
 import { addDays, dayKey, rangeDays } from "../src/range.ts";
 import {
+  CUP_MS,
+  cupsLeft,
   defaultLook,
+  drinkCoffee,
   houseTier,
+  MAX_CUPS,
   mentionsIn,
   namesIn,
   outsideDoor,
@@ -38,6 +42,20 @@ describe("steps", () => {
     expect(takeStep(0, t, t + 10)).toBeNull(); // teleport-fast
     t += RUN_STEP_MS;
     expect(takeStep(0, 0, t)).not.toBeNull();
+  });
+});
+
+describe("coffee", () => {
+  test("cups stack, wear off, and top out", () => {
+    const now = 1_000_000;
+    const one = drinkCoffee(0, now);
+    expect(cupsLeft(one, now)).toBe(1);
+    expect(cupsLeft(drinkCoffee(one, now), now)).toBe(2);
+    expect(cupsLeft(one, now + CUP_MS / 2)).toBe(0.5);
+    expect(cupsLeft(one, now + CUP_MS * 2)).toBe(0);
+    let until = 0;
+    for (let i = 0; i < MAX_CUPS + 3; i++) until = drinkCoffee(until, now);
+    expect(cupsLeft(until, now)).toBe(MAX_CUPS);
   });
 });
 

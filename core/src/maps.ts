@@ -41,7 +41,7 @@ export const LEGEND: Record<string, TileKind> = {
   t: { name: "tv", text: "It's a show about context windows. Season 7." },
   k: { name: "shelf", text: "Books about prompting, caching and cold starts." },
   p: { name: "plant", text: "A healthy plant. Someone remembers to water it." },
-  o: { name: "coffee", text: "The coffee machine is still warm." },
+  o: { name: "coffee" },
   I: { name: "inn door", portal: true },
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
@@ -114,13 +114,13 @@ export const BLOCK_H = 9;
 export const PLOT_W = 7;
 export const PLOT_H = 5;
 
-/** Blocks (0, 0) to (1, 1): the square with the fountain and leaderboard, the pond and the Inn. */
+/** Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard and coffee, the pond and the Inn. */
 const CORE = [
   ",,,,,,,,,,,,,,,,,,,,",
   ",..T....,,,....T....",
   ",..L::::::::::::L...",
   ",..:B::::FF::::B:...",
-  ",..::N:::FF::::::...",
+  ",..::N:::FF:::o::...",
   ",..::::::::::::::...",
   ",..L::::::::::::L...",
   ",.......,,,.........",
