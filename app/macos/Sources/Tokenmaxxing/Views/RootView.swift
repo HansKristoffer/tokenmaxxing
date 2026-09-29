@@ -1,12 +1,8 @@
 import SwiftUI
 
-enum Page {
-    case main, settings
-}
-
+/// Sign up once; after that the app is just the background sync and a button that opens the world.
 struct RootView: View {
     @Environment(AppModel.self) private var model
-    @State private var page = Page.main
     @State private var height: CGFloat = 0
 
     var body: some View {
@@ -17,18 +13,13 @@ struct RootView: View {
             case .onboarding?:
                 OnboardingView()
             case .ready?:
-                switch page {
-                case .main: MainView(page: $page)
-                case .settings: SettingsView(page: $page)
-                }
+                OpenWorldView()
             }
         }
-        // Size to the content's real height; MenuBarExtra grows its window but never shrinks it,
-        // so FitWindowHeight resizes the window itself (state arriving, rows loading, switching pages).
+        // MenuBarExtra grows its window but never shrinks it (onboarding → the button), so size it here.
         .fixedSize(horizontal: false, vertical: true)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         .background(FitWindowHeight(height: height))
-        .onAppear { model.refresh() }
     }
 }
 
@@ -52,22 +43,26 @@ private struct FitWindowHeight: NSViewRepresentable {
     }
 }
 
-/// Header row with a back button, for the secondary pages.
-struct PageHeader: View {
-    let title: String
-    @Binding var page: Page
+struct OpenWorldView: View {
+    @Environment(AppModel.self) private var model
+    @State private var error: String?
 
     var body: some View {
-        HStack {
+        VStack(spacing: 8) {
             Button {
-                page = .main
+                Task { error = await model.openWorld() }
             } label: {
-                Image(systemName: "chevron.left")
+                Label("Open world", systemImage: "map.fill").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderless)
-            Text(title).font(.headline)
-            Spacer()
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            ErrorText(message: error)
+            Button("Quit") { model.quit() }
+                .buttonStyle(.link)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
+        .padding(14)
     }
 }
 

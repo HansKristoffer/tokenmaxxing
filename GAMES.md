@@ -557,7 +557,8 @@ All 13 steps are in; `ARCHITECTURE.md` describes what exists. Where the build di
 - Usage games don't add deltas: `usageWindow` says which events count, and after each sync the match pulls the
   player's total for the window (`usage(state, player, { tokens, flagged })`), so late and re-sent events
   can't double count. Every minute is capped at 50M and flagged instead of the sync being refused.
-- The helper learns about a battle from `arcade.battle` (polled with the menu bar numbers), not from `ingest`.
+- The helper learns about a battle from `arcade.battle` (asked after each sync), not from `ingest`. The menu bar
+  app has no battle line any more: it's just an **Open world** button.
 - `headline` and `endsAt` drive the banner over a table ("Round 3 · 2–1", a countdown).
 - Game stats are all time on player cards; the Games board ranks by range.
 - Not built yet: easing between Tokenmaxxing updates, and "✓ syncing" next to seated players.

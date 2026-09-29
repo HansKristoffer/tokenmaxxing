@@ -7,29 +7,15 @@ final class ProtocolTests: XCTestCase {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "messages", withExtension: "ndjson", subdirectory: "Fixtures"))
         let lines = try String(contentsOf: url, encoding: .utf8).split(separator: "\n")
         let messages = try lines.map { try JSONDecoder().decode(IncomingMessage.self, from: Data($0.utf8)) }
-        XCTAssertEqual(messages.count, 8)
+        XCTAssertEqual(messages.count, 7)
 
-        let state = try XCTUnwrap(messages[0].state)
-        XCTAssertEqual(state.phase, .ready)
-        XCTAssertEqual(state.me, MeStats(name: "alice", rank: 2, tokensToday: 123_456_789, level: 5, levelTitle: "Subagent Shepherd"))
-        XCTAssertEqual(state.leaderboard.first?.company, "Arox")
-        XCTAssertNil(state.leaderboard.last?.company)
-        XCTAssertEqual(state.leaderboard.last?.isMe, true)
-        XCTAssertEqual(state.update, UpdateInfo(version: "1.3.0", viaBrew: true, installing: false))
-        XCTAssertEqual(state.sources.first?.label, "Claude Code")
-        XCTAssertEqual(state.battle?.place, 2)
-        XCTAssertEqual(state.battle?.tokens, 412_000_000)
-
+        XCTAssertEqual(messages[0].state, AppState(phase: .ready, version: "1.2.3"))
         XCTAssertEqual(messages[1].state?.phase, .onboarding)
-        XCTAssertNil(messages[1].state?.me)
-        XCTAssertNil(messages[1].state?.update)
-        XCTAssertNil(messages[1].state?.battle)
-        XCTAssertNil(messages[2].state?.me?.rank)
-        XCTAssertEqual(messages[3].token, "12.tok_abc")
-        XCTAssertEqual(messages[4].event, "token")
-        XCTAssertNil(messages[4].token)
-        XCTAssertEqual(messages[6].result?.url, "https://example.com/#code=12.x")
-        XCTAssertEqual(messages[7].error, "name_taken")
+        XCTAssertEqual(messages[2].token, "12.tok_abc")
+        XCTAssertEqual(messages[3].event, "token")
+        XCTAssertNil(messages[3].token)
+        XCTAssertEqual(messages[5].result?.url, "https://example.com/#code=12.x")
+        XCTAssertEqual(messages[6].error, "name_taken")
     }
 
     func testCommandsOmitNilFields() throws {

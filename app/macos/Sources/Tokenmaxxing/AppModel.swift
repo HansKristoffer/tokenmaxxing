@@ -2,43 +2,17 @@ import AppKit
 import Observation
 import ServiceManagement
 
-/// What the menu bar shows next to the bolt.
-enum MenuBarDisplay: String, CaseIterable, Sendable {
-    case icon, tokens, rank, both
-
-    var label: String {
-        switch self {
-        case .icon: "Icon only"
-        case .tokens: "Tokens"
-        case .rank: "Rank"
-        case .both: "Rank and tokens"
-        }
-    }
-}
-
-/// Owns the helper, the Keychain token and the user's settings. Views render
-/// `state` and call the async actions, which return a user-facing error or nil.
+/// Owns the helper and the Keychain token. The helper syncs in the background;
+/// the views only sign up and open the world.
 @MainActor
 @Observable
 final class AppModel {
     private(set) var state: AppState?
-    var menuBarDisplay: MenuBarDisplay {
-        didSet { defaults.set(menuBarDisplay.rawValue, forKey: Keys.menuBarDisplay) }
-    }
-    private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     private let helper: HelperProcess
     private let serverURL: String
     private let defaults = UserDefaults.standard
-
-    private enum Keys {
-        static let disabledSources = "disabledSources"
-        static let showCount = "showCountInMenuBar"
-        static let menuBarDisplay = "menuBarDisplay"
-        static let onboarded = "onboarded"
-    }
-
-    static let allSources = ["claude_code", "claude_cowork", "codex", "cursor_local", "github"]
+    private static let onboardedKey = "onboarded"
 
     init() {
         let bundle = Bundle.main
@@ -47,9 +21,6 @@ final class AppModel {
         let logURL = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Logs/Tokenmaxxing/helper.log")
         helper = HelperProcess(executable: helperURL, logURL: logURL)
-        let legacyShowCount = defaults.object(forKey: Keys.showCount) as? Bool ?? true
-        menuBarDisplay = defaults.string(forKey: Keys.menuBarDisplay).flatMap(MenuBarDisplay.init(rawValue:))
-            ?? (legacyShowCount ? .tokens : .icon)
 
         helper.onMessage = { [weak self] msg in self?.handle(msg) }
         helper.onStart = { [weak self] in self?.sendInit() }
@@ -68,21 +39,6 @@ final class AppModel {
         await run(OutgoingCommand(cmd: "signUp", name: name))
     }
 
-    func setSource(_ id: String, enabled: Bool) async {
-        var disabled = Set(defaults.stringArray(forKey: Keys.disabledSources) ?? [])
-        if enabled { disabled.remove(id) } else { disabled.insert(id) }
-        defaults.set(Array(disabled), forKey: Keys.disabledSources)
-        _ = await run(OutgoingCommand(cmd: "setSources", enabledSources: enabledSources()))
-    }
-
-    func refresh() {
-        Task { _ = await run(OutgoingCommand(cmd: "refresh")) }
-    }
-
-    func syncNow() {
-        Task { _ = await run(OutgoingCommand(cmd: "syncNow")) }
-    }
-
     /// Opens the world in the browser, signed in with a single-use code.
     func openWorld() async -> String? {
         do {
@@ -94,32 +50,6 @@ final class AppModel {
         }
     }
 
-    /// Homebrew installs upgrade in place (the app quits and relaunches); others open the release page.
-    func installUpdate() async -> String? {
-        do {
-            let result = try await helper.send(OutgoingCommand(cmd: "installUpdate"))
-            if let url = result?.url.flatMap(URL.init(string:)) { NSWorkspace.shared.open(url) }
-            return nil
-        } catch {
-            return Self.message(for: error)
-        }
-    }
-
-    /// Forgets the token; the helper drops its sync offsets so the next account starts clean.
-    func signOut() async {
-        Keychain.delete()
-        _ = await run(OutgoingCommand(cmd: "signOut"))
-    }
-
-    func setLaunchAtLogin(_ on: Bool) {
-        do {
-            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-        } catch {
-            NSLog("launch at login: \(error)")
-        }
-        launchAtLogin = SMAppService.mainApp.status == .enabled
-    }
-
     func quit() {
         helper.stop()
         NSApp.terminate(nil)
@@ -128,28 +58,17 @@ final class AppModel {
     // MARK: - Helper plumbing
 
     private func sendInit() {
-        let cmd = OutgoingCommand(
-            cmd: "init",
-            token: Keychain.load(),
-            serverUrl: serverURL,
-            enabledSources: enabledSources()
-        )
-        Task { _ = await run(cmd) }
-    }
-
-    private func enabledSources() -> [String] {
-        let disabled = Set(defaults.stringArray(forKey: Keys.disabledSources) ?? [])
-        return Self.allSources.filter { !disabled.contains($0) }
+        Task { _ = await run(OutgoingCommand(cmd: "init", token: Keychain.load(), serverUrl: serverURL)) }
     }
 
     private func handle(_ msg: IncomingMessage) {
         switch msg.event {
         case "state":
             guard let next = msg.state else { return }
-            // Launch at login defaults to on, once, right after onboarding.
-            if state?.phase == .onboarding, next.phase == .ready, !defaults.bool(forKey: Keys.onboarded) {
-                defaults.set(true, forKey: Keys.onboarded)
-                setLaunchAtLogin(true)
+            // Launch at login, once, right after onboarding: the sync only runs while the app does.
+            if state?.phase == .onboarding, next.phase == .ready, !defaults.bool(forKey: Self.onboardedKey) {
+                defaults.set(true, forKey: Self.onboardedKey)
+                try? SMAppService.mainApp.register()
             }
             state = next
         case "token":

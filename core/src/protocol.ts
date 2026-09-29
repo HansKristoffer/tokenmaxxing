@@ -4,8 +4,6 @@
  * contract test (app/helper/test/protocol.test.ts) writes a fixture the Swift
  * test decodes, so drift fails CI on both sides.
  */
-import type { Source } from "./types.ts";
-
 export type Command =
   | {
       id: number;
@@ -13,18 +11,12 @@ export type Command =
       /** From the Keychain; sent over stdin so it never shows up in `ps`. */
       token: string | null;
       serverUrl: string;
-      enabledSources: Source[];
     }
   | { id: number; cmd: "signUp"; name: string }
-  | { id: number; cmd: "setSources"; enabledSources: Source[] }
+  /** Sync now (sent when the Mac wakes). */
   | { id: number; cmd: "syncNow" }
-  /** Reloads `me` and the mini leaderboard (sent when the menu opens). */
-  | { id: number; cmd: "refresh" }
   /** Replies with `{ url }`: the world, signed in via a single-use code. */
-  | { id: number; cmd: "openWorld" }
-  | { id: number; cmd: "signOut" }
-  /** Starts `brew upgrade` (the app quits and relaunches), or replies `{ url }` to download manually. */
-  | { id: number; cmd: "installUpdate" };
+  | { id: number; cmd: "openWorld" };
 
 export type Message =
   | { id: number; ok: true; result: unknown }
@@ -34,25 +26,7 @@ export type Message =
   /** After signUp → save to Keychain. `null` → the token was rejected; delete it. */
   | { event: "token"; token: string | null };
 
-export interface MeStats {
-  name: string;
-  /** World rank today by tokens; null before any tokens today. */
-  rank: number | null;
-  tokensToday: number;
-  level: number;
-  levelTitle: string;
-}
-
-export interface LeaderboardRow {
-  rank: number;
-  name: string;
-  company: string | null;
-  tokens: number;
-  level: number;
-  isMe: boolean;
-}
-
-/** A usage game I'm in (Tokenmaxxing), for the menu bar's battle line. */
+/** A usage game I'm in (Tokenmaxxing): the helper syncs fast until it's over. */
 export interface Battle {
   matchId: number;
   name: string;
@@ -62,46 +36,12 @@ export interface Battle {
   tokens: number;
   startsAt: number;
   endsAt: number;
-  /** Late syncs count until this; the app syncs fast until then. */
+  /** Late syncs count until this. */
   until: number;
 }
 
-export interface SourceInfo {
-  id: Source;
-  label: string;
-  enabled: boolean;
-}
-
+/** The menu bar app is a sign-up form, then just a button that opens the world. */
 export interface AppState {
   phase: "starting" | "onboarding" | "ready";
   version: string;
-  me: MeStats | null;
-  /** Today's world top 10 by tokens, with me appended when I'm outside it. */
-  leaderboard: LeaderboardRow[];
-  sync: {
-    syncing: boolean;
-    lastSyncedAt: number | null;
-    lastError: string | null;
-    online: boolean;
-  };
-  sources: SourceInfo[];
-  /** The battle I'm in, or null. */
-  battle: Battle | null;
-  /** A newer published version, or null. */
-  update: {
-    version: string;
-    /** Installed with Homebrew, so the helper can upgrade in place. */
-    viaBrew: boolean;
-    installing: boolean;
-  } | null;
 }
-
-export const SOURCE_LABELS: Record<Source, string> = {
-  claude_code: "Claude Code",
-  claude_cowork: "Claude Cowork",
-  codex: "Codex",
-  cursor_local: "Cursor",
-  github: "GitHub PRs",
-};
-
-export const LEADERBOARD_TOP = 10;

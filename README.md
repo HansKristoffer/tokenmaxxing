@@ -18,8 +18,8 @@ Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cur
 brew install --cask hanskristoffer/tap/tokenmaxxing
 ```
 
-Open **Tokenmaxxing**, pick a name, and click **Open world**. The menu bar keeps a mini leaderboard
-for today; the full one is on the noticeboard in the town square (or press `L`).
+Open **Tokenmaxxing** and pick a name. From then on it syncs in the background, and its menu bar icon
+has one button: **Open world**. Everything else (leaderboards, stats, games) is in the world.
 
 **Coming from 0.4?** The world is a new backend and starts fresh: update the app, pick a name again and
 recreate your company. Your usage history comes back by itself, because the app re-reads your local logs on
@@ -37,7 +37,7 @@ content never does. The app reads local logs:
 | Codex | `~/.codex/sessions/**/*.jsonl` |
 | Cursor | `~/.cursor/projects/**/agent-transcripts`, `state.vscdb` (token counts are estimated) |
 
-You can turn any source off in Settings. **Everything is public in the world:** anyone can see your
+Every source that's installed is read. **Everything is public in the world:** anyone can see your
 totals, cost, parallelism, models and daily activity, and the leaderboard ranks everyone.
 
 **Company websites.** When a company's owner sets its website, the server asks

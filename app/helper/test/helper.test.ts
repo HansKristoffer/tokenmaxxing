@@ -66,15 +66,10 @@ function harness() {
   return { helper, messages, send, lastState };
 }
 
-const init = (token: string | null) => ({
-  cmd: "init" as const,
-  token,
-  serverUrl: origin,
-  enabledSources: ["claude_code" as const],
-});
+const init = (token: string | null) => ({ cmd: "init" as const, token, serverUrl: origin });
 
 describe("helper", () => {
-  test("onboarding → sign up → sync → the mini leaderboard shows my usage", async () => {
+  test("onboarding → sign up → my usage reaches the world", async () => {
     const { helper, messages, send, lastState } = harness();
     await send(init(null));
     expect(lastState().phase).toBe("onboarding");
@@ -86,13 +81,11 @@ describe("helper", () => {
     expect(tokenMsg.token).toMatch(/^\d+\./);
 
     await helper.syncOnce();
-    await helper.refresh();
     expect(helper.state.phase).toBe("ready");
-    expect(helper.state.me).toMatchObject({ name, tokensToday: 15 });
-    expect(helper.state.me!.rank).toBeGreaterThan(0);
-    expect(helper.state.leaderboard.find((row) => row.isMe)).toMatchObject({ name, tokens: 15 });
+    const town = client.town.getOrCreate(["main"], { params: { token: tokenMsg.token } });
+    expect((await town.menuBar()).me).toMatchObject({ name, tokensToday: 15 });
     helper.stop();
-  });
+  }, 30_000);
 
   test("a taken name comes back as a stable error code", async () => {
     const taken = await signUp("taken");
@@ -115,25 +108,17 @@ describe("helper", () => {
     helper.stop();
   });
 
-  test("a rejected token signs out and tells the shell to forget it", async () => {
-    const u = await signUp("gone");
+  test("a rejected token goes back to onboarding and tells the shell to forget it", async () => {
     const { helper, messages, send } = harness();
-    await send(init(u.token));
-    await send({ cmd: "signOut" });
+    await send(init("999999.not-a-real-token-at-all-aaaaaaaaaaaaaaaaa"));
     expect(helper.state.phase).toBe("onboarding");
-
-    const again = harness();
-    await again.send(init(u.token));
-    expect(again.helper.state.phase).toBe("onboarding");
-    expect(again.messages).toContainEqual({ event: "token", token: null });
-    expect(messages.some((m) => "event" in m && m.event === "token")).toBe(false);
+    expect(messages).toContainEqual({ event: "token", token: null });
   });
 
   test("offline: commands fail with `offline`, not a crash", async () => {
     const { helper, send } = harness();
     await send({ ...init("1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), serverUrl: "http://127.0.0.1:9" });
     expect(await send({ cmd: "openWorld" })).toMatchObject({ ok: false, error: "offline" });
-    expect(helper.state.sync.online).toBe(false);
     helper.stop();
   });
 });

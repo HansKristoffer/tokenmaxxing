@@ -22,7 +22,7 @@ browser: Canvas 2D world + React HUD  ◄─ WebSocket ──►  └─ /api/ri
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, menu bar), `coins`, `sync` (pushes to `world`) |
 | `server/src/` | `main.ts`, `proxy.ts`, `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts` |
 | `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels) |
-| `app/helper/`, `app/macos/` | The menu bar app: sync, onboarding, mini leaderboard, **Open world** |
+| `app/helper/`, `app/macos/` | The menu bar app: onboarding, then background sync and an **Open world** button |
 
 ## Serving
 
@@ -123,7 +123,7 @@ The plan and its reasoning are in `GAMES.md`; this is what was built.
   arena's scoreboard are drawn in `web/src/game/games.ts`.
 - **Tokenmaxxing** pulls, it doesn't add up: after each sync, the match asks `player.tokensBetween(start, end)`
   (each minute capped at 50M and flagged), so re-sent or late events can't double count. The menu bar app asks
-  `arcade.battle` and syncs every 10 seconds while you're in one.
+  `arcade.battle` after each sync and syncs every 10 seconds while you're in one.
 
 ### Adding a game
 
