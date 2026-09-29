@@ -45,6 +45,7 @@ fn world_window(app: &AppHandle, url: &str) -> Result<(), String> {
         .map_err(|e| format!("bad world url {url}: {e}"))?;
     let origin = url.origin();
     let links = app.clone();
+    let new_windows = app.clone();
     WebviewWindowBuilder::new(app, WORLD, WebviewUrl::External(url))
         .title("Tokenmaxxing")
         .inner_size(1280.0, 800.0)
@@ -58,6 +59,13 @@ fn world_window(app: &AppHandle, url: &str) -> Result<(), String> {
                 log::warn!("could not open {to}: {e}");
             }
             false
+        })
+        // A link that asks for a new window (a company's website): the browser, not another app window.
+        .on_new_window(move |to, _| {
+            if let Err(e) = new_windows.opener().open_url(to.as_str(), None::<&str>) {
+                log::warn!("could not open {to}: {e}");
+            }
+            tauri::webview::NewWindowResponse::Deny
         })
         .build()
         .map_err(|e| e.to_string())?;

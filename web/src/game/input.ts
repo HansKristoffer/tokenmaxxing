@@ -1,4 +1,3 @@
-import { compact, plural } from "@tokenmaxxing/core/format.ts";
 import {
   DIRS,
   type Facing,
@@ -14,7 +13,7 @@ import { hud } from "../store.ts";
 import { camera, zoom } from "./camera.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
-import { chipHits } from "./labels.ts";
+import { chipHits, signHits } from "./labels.ts";
 import { avatarAt, beginStep, self, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {
@@ -122,10 +121,16 @@ export function bindInput(canvas: HTMLCanvasElement): void {
     if (hit) return void hit.open();
     const peeked = chipHits.find((h) => inside(h, sx, sy)) ?? peekHits.find((h) => inside(h, gx, gy));
     if (peeked) return void hud.set({ panel: { kind: "card", userId: peeked.id } });
+    const signed = signHits.find((h) => inside(h, sx, sy));
+    if (signed) return void hud.set({ panel: { kind: "companyCard", companyId: signed.id } });
     const x = Math.floor(gx / TILE);
     const y = Math.floor(gy / TILE);
     const other = avatarAt(x, y);
     if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
+    // A company's house (not its door, which you walk through) opens its page.
+    const plot = world.map.kind(x, y).portal ? null : buildingAt(x, y)?.plot;
+    const company = plot ? companyOnPlot(plot) : null;
+    if (company) return void hud.set({ panel: { kind: "companyCard", companyId: company.id } });
     walkTo(x, y);
   });
 }
@@ -218,14 +223,14 @@ export function interact(): void {
   if (ch === "H") {
     const b = buildingAt(x, y);
     const company = b?.plot ? companyOnPlot(b.plot) : null;
+    // A company's house opens its page.
+    if (company) return void hud.set({ panel: { kind: "companyCard", companyId: company.id } });
     return void hud.set({
       dialog: !b
         ? null
         : b.plot === null
           ? "The Inn. Beds for anyone without a company."
-          : company
-            ? `${company.name}: ${plural(company.members, "member")}, ${compact(company.todayTokens)} tokens today.`
-            : "A free plot. Start a company from the menu (Esc) and it's yours.",
+          : "A free plot. Start a company from the menu (Esc) and it's yours.",
     });
   }
   if (kind.text) hud.set({ dialog: kind.text });

@@ -1,7 +1,7 @@
 import { levelFor, levelTitle } from "@tokenmaxxing/core/format.ts";
 import { addDays, dayKey, type RangeKey, rangeDays } from "@tokenmaxxing/core/range.ts";
-import type { Look } from "@tokenmaxxing/core/world.ts";
-import { houseTier } from "@tokenmaxxing/core/world.ts";
+import { type Brand, houseTier, type Look } from "@tokenmaxxing/core/world.ts";
+import { UserError } from "rivetkit";
 import { all, one, pricing, type Sql } from "../actors/shared.ts";
 import {
   type ActivityRow,
@@ -43,6 +43,30 @@ export interface Leaderboard {
   companies: BoardCompany[];
 }
 
+export interface Daily {
+  day: string;
+  tokens: number;
+  costUsd: number;
+}
+
+export interface CompanyProfile {
+  id: number;
+  name: string;
+  /** Bare host, e.g. `acme.com`. */
+  website: string | null;
+  /** Same-origin path to its logo, when its website had one. */
+  logo: string | null;
+  brand: Brand | null;
+  tier: number;
+  range: RangeKey;
+  /** Among companies by tokens in the range; null with none. */
+  rank: number | null;
+  totals: Totals;
+  members: { userId: number; name: string; look: Look; level: number; tokens: number; isOwner: boolean }[];
+  /** The last 30 world days, oldest first. */
+  daily: Daily[];
+}
+
 export interface Profile {
   userId: number;
   name: string;
@@ -55,7 +79,7 @@ export interface Profile {
   totals: Totals;
   models: { model: string; tokens: number; costUsd: number; turns: number }[];
   /** The last 30 world days, oldest first, zeros included. */
-  daily: { day: string; tokens: number; costUsd: number }[];
+  daily: Daily[];
   /** All time; null for someone who never finished a game. */
   games: GameStats | null;
 }
@@ -160,23 +184,7 @@ export async function profile(sql: Sql, userId: number, range: RangeKey, now: nu
     from,
     to,
   );
-  const today = dayKey(now);
-  const first = addDays(today, -29);
-  const days = await all<UsageRow & { day: string }>(
-    sql,
-    `SELECT day, model, ${SUMS} FROM usage_daily WHERE user_id = ? AND day >= ? GROUP BY day, model`,
-    userId,
-    first,
-  );
-  const daily = Array.from({ length: 30 }, (_, i) => {
-    const day = addDays(first, i);
-    const rows = days.filter((r) => r.day === day);
-    return {
-      day,
-      tokens: rows.reduce((n, r) => n + rowTokens(r), 0),
-      costUsd: Math.round(rows.reduce((n, r) => n + rowCost(pricing, r), 0) * 100) / 100,
-    };
-  });
+  const daily = await last30Days(sql, "user_id = ?", userId, now);
   const lifetime = (await tokensIn(sql, [userId])).get(userId) ?? 0;
   const level = levelFor(lifetime);
   const co = u.companyId === null ? undefined : await companyById(sql, u.companyId);
@@ -196,6 +204,65 @@ export async function profile(sql: Sql, userId: number, range: RangeKey, now: nu
       .sort((a, b) => b.tokens - a.tokens),
     daily,
     games: await gameStats(sql, userId),
+  };
+}
+
+/** The last 30 world days of `usage_daily` rows matching `where`, oldest first, zeros included. */
+async function last30Days(sql: Sql, where: string, arg: unknown, now: number): Promise<Daily[]> {
+  const first = addDays(dayKey(now), -29);
+  const days = await all<UsageRow & { day: string }>(
+    sql,
+    `SELECT day, model, ${SUMS} FROM usage_daily WHERE ${where} AND day >= ? GROUP BY day, model`,
+    arg,
+    first,
+  );
+  return Array.from({ length: 30 }, (_, i) => {
+    const day = addDays(first, i);
+    const rows = days.filter((r) => r.day === day);
+    return {
+      day,
+      tokens: rows.reduce((n, r) => n + rowTokens(r), 0),
+      costUsd: Math.round(rows.reduce((n, r) => n + rowCost(pricing, r), 0) * 100) / 100,
+    };
+  });
+}
+
+/**
+ * A company's card: its numbers for the range (and where that ranks it by tokens), the last 30 days,
+ * its website and logo, and its people, busiest first.
+ */
+export async function companyProfile(
+  sql: Sql,
+  companyId: number,
+  range: RangeKey,
+  now: number,
+): Promise<CompanyProfile> {
+  const company = await companyById(sql, companyId);
+  if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+  const { players, companies } = await boards(sql, range, "tokens", now);
+  const row = companies.find((c) => c.companyId === companyId)!;
+  const [info] = await companyInfos(sql, [companyId]);
+  return {
+    id: companyId,
+    name: company.name,
+    website: company.website,
+    logo: info?.brand?.logo ?? null,
+    brand: info?.brand ?? null,
+    tier: row.tier,
+    range,
+    rank: row.tokens > 0 ? row.rank : null,
+    totals: row,
+    members: players
+      .filter((p) => p.companyId === companyId)
+      .map((p) => ({
+        userId: p.userId,
+        name: p.name,
+        look: p.look,
+        level: p.level,
+        tokens: p.tokens,
+        isOwner: p.userId === company.ownerId,
+      })),
+    daily: await last30Days(sql, "user_id IN (SELECT id FROM users WHERE company_id = ?)", companyId, now),
   };
 }
 

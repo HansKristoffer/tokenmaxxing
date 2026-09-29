@@ -150,6 +150,30 @@ describe("leaderboard", () => {
     expect(company.members).toBe(2);
   });
 
+  test("a company's card: its numbers, its people busiest first, and its last 30 days", async () => {
+    const a = await signUp("card");
+    const b = await signUp("card");
+    const co = await a.town.createCompany("Card Co");
+    await admit(a, b, co.id);
+    await as(a.token)
+      .player(a.userId)
+      .ingest([event({ inputTokens: 1_000_000 })]);
+    await as(b.token)
+      .player(b.userId)
+      .ingest([event({ inputTokens: 3_000_000 })]);
+    const card = await b.town.company(co.id, "today");
+    expect(card).toMatchObject({ id: co.id, name: "Card Co", website: null, logo: null });
+    expect(card.members.map((m) => [m.name, m.isOwner])).toEqual([
+      [b.name, false],
+      [a.name, true],
+    ]);
+    expect(card.totals.tokens).toBe(card.members[0]!.tokens + card.members[1]!.tokens);
+    expect(card.rank).toBeGreaterThan(0);
+    expect(card.daily).toHaveLength(30);
+    expect(card.daily.at(-1)!.tokens).toBe(card.totals.tokens);
+    await expect(b.town.company(999_999, "today")).rejects.toThrow("gone");
+  });
+
   test("today's corner has the top 5 and me, even at zero", async () => {
     const quiet = await signUp("quiet");
     const today = await quiet.town.today();

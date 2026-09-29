@@ -1,6 +1,8 @@
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { house } from "../art/buildings.ts";
 import { characterFrame } from "../art/characters.ts";
+import { world } from "../game/world.ts";
 import { errorText } from "../net.ts";
 import { hud } from "../store.ts";
 
@@ -40,6 +42,24 @@ export function useTicker(ms: number, on = true): void {
     const id = setInterval(() => tick((n) => n + 1), ms);
     return () => clearInterval(id);
   }, [ms, on]);
+}
+
+/** A company's own house, in its brand's colours, as drawn in town. */
+export function House({ companyId, tier, scale }: { companyId: number; tier: number; scale: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const sprite = house(tier, world.companies.get(companyId)?.brand ?? null).canvas;
+  const w = Math.round(sprite.width * scale);
+  const h = Math.round(sprite.height * scale);
+  useEffect(() => {
+    const g = ref.current?.getContext("2d");
+    if (!g) return;
+    g.clearRect(0, 0, w, h);
+    // Whole-pixel sizes stay crisp; thumbnails are smoothed so they read instead of losing rows.
+    g.imageSmoothingEnabled = scale < 1;
+    g.imageSmoothingQuality = "high";
+    g.drawImage(sprite, 0, 0, w, h);
+  }, [sprite, w, h, scale]);
+  return <canvas ref={ref} width={w} height={h} className="house-img" />;
 }
 
 /** A character drawn crisp at `scale`× (16px sprite). */

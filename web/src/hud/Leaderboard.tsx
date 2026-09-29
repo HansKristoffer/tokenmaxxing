@@ -7,12 +7,10 @@ import type {
   BoardPlayer,
   GamePlayer,
 } from "@tokenmaxxing/server/registry";
-import { type ReactNode, useEffect, useRef, useState } from "react";
-import { house } from "../art/buildings.ts";
-import { world } from "../game/world.ts";
+import { type ReactNode, useEffect, useState } from "react";
 import { town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { AvatarImage, Modal, Pills } from "./ui.tsx";
+import { AvatarImage, House, Modal, Pills } from "./ui.tsx";
 
 type Sort = Board["sort"];
 type Totals = BoardPlayer | BoardCompany;
@@ -63,6 +61,7 @@ const aside = (sort: Sort, t: Totals) => BY[sort].aside(t);
 const members = (n: number) => plural(n, "member");
 
 const openCard = (userId: number) => hud.set({ panel: { kind: "card", userId } });
+const openCompany = (companyId: number) => hud.set({ panel: { kind: "companyCard", companyId } });
 
 export function Leaderboard() {
   const me = useHud((s) => s.me?.userId);
@@ -125,12 +124,12 @@ export function Leaderboard() {
                   <Step
                     key={key(r)}
                     place={i + 1}
-                    onClick={"userId" in r ? () => openCard(r.userId) : undefined}
+                    onClick={"userId" in r ? () => openCard(r.userId) : () => openCompany(r.companyId)}
                   >
                     {"userId" in r ? (
                       <AvatarImage look={r.look} scale={i === 0 ? 5 : 4} />
                     ) : (
-                      <House company={r} scale={i === 0 ? 1 : 0.75} />
+                      <House companyId={r.companyId} tier={r.tier} scale={i === 0 ? 1 : 0.75} />
                     )}
                     <strong className="lb-name">{r.name}</strong>
                     <span className="lb-sub">
@@ -285,7 +284,7 @@ function Row({ row, sort, top, mine }: { row: Totals; sort: Sort; top: number; m
       {player ? (
         <AvatarImage look={player.look} scale={2} />
       ) : (
-        <House company={row as BoardCompany} scale={0.3} />
+        <House companyId={(row as BoardCompany).companyId} tier={(row as BoardCompany).tier} scale={0.3} />
       )}
       <span className="lb-who">
         <span className="lb-line">
@@ -308,31 +307,13 @@ function Row({ row, sort, top, mine }: { row: Totals; sort: Sort; top: number; m
   );
   return (
     <li className={mine ? "mine" : undefined}>
-      {player ? (
-        <button type="button" className="lb-item" onClick={() => openCard(player.userId)}>
-          {body}
-        </button>
-      ) : (
-        <div className="lb-item">{body}</div>
-      )}
+      <button
+        type="button"
+        className="lb-item"
+        onClick={() => (player ? openCard(player.userId) : openCompany((row as BoardCompany).companyId))}
+      >
+        {body}
+      </button>
     </li>
   );
-}
-
-/** A company's own house, in its brand's colours, as drawn in town. */
-function House({ company, scale }: { company: BoardCompany; scale: number }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const sprite = house(company.tier, world.companies.get(company.companyId)?.brand ?? null).canvas;
-  const w = Math.round(sprite.width * scale);
-  const h = Math.round(sprite.height * scale);
-  useEffect(() => {
-    const g = ref.current?.getContext("2d");
-    if (!g) return;
-    g.clearRect(0, 0, w, h);
-    // Whole-pixel sizes stay crisp; thumbnails are smoothed so they read instead of losing rows.
-    g.imageSmoothingEnabled = scale < 1;
-    g.imageSmoothingQuality = "high";
-    g.drawImage(sprite, 0, 0, w, h);
-  }, [sprite, w, h, scale]);
-  return <canvas ref={ref} width={w} height={h} className="house-img" />;
 }

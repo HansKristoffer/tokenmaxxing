@@ -5,6 +5,8 @@ import { type Avatar, gameTag, world } from "./world.ts";
 
 /** Name chips under house signs this frame, in canvas (device) pixels. */
 export const chipHits: { x: number; y: number; w: number; h: number; id: number }[] = [];
+/** Company signs this frame (canvas pixels): a click opens the company's page. */
+export const signHits: { x: number; y: number; w: number; h: number; id: number }[] = [];
 
 /** At most this many names show under a house's sign; the rest are a "+N". */
 const CHIPS_MAX = 4;
@@ -71,7 +73,7 @@ export function sign(
   dpr: number,
   owned: boolean,
 ) {
-  pill(
+  return pill(
     g,
     cx,
     y,

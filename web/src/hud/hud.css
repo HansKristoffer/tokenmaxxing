@@ -1120,3 +1120,21 @@ button.lb-item:hover {
 .modal:focus {
   outline: none;
 }
+
+/* A company's page: its house and logo up top, then its numbers and people. */
+.company-head .house-img {
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+
+.company-logo {
+  display: block;
+  max-width: 120px;
+  max-height: 40px;
+  margin-bottom: 6px;
+  image-rendering: pixelated;
+}
+
+.company-people {
+  margin-top: 4px;
+}

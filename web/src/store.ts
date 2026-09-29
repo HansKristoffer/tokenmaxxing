@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
 export type Panel =
   | { kind: "leaderboard" }
   | { kind: "card"; userId: number }
+  | { kind: "companyCard"; companyId: number }
   | { kind: "company" }
   | { kind: "look" }
   | { kind: "shop" }

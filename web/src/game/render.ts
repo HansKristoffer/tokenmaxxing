@@ -9,7 +9,7 @@ import { drawWaterGlints } from "../art/tiles.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, logoSprite, peekHits } from "./houses.ts";
-import { avatarLabels, chipHits, chips, sign } from "./labels.ts";
+import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
@@ -55,6 +55,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   const items: Draw[] = [];
   peekHits.length = 0;
   chipHits.length = 0;
+  signHits.length = 0;
   const labels: Label[] = [];
   const toScreen = (px: number, py: number) => [(px - camX) * scale, (py - camY) * scale] as const;
 
@@ -100,7 +101,11 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
         : company
           ? `🏢 ${company.name}${company.website ? ` · ${company.website}` : ""} · ${compact(company.todayTokens)} today`
           : "Free plot";
-    labels.push(() => sign(g, sx, sy - 6 * dpr, text, dpr, company !== null && company !== undefined));
+    labels.push(() => {
+      const y = sy - 6 * dpr;
+      const { w, h } = sign(g, sx, y, text, dpr, company !== null && company !== undefined);
+      if (company) signHits.push({ x: sx - w / 2, y: y - h, w, h, id: company.id });
+    });
     if (inside.length) labels.push(() => chips(g, sx, sy + 4 * dpr, inside, dpr));
   }
 

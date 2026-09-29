@@ -34,6 +34,7 @@ export const registry = setup({
 export type {
   BoardCompany,
   BoardPlayer,
+  CompanyProfile,
   GamePlayer,
   Leaderboard,
   Listing,

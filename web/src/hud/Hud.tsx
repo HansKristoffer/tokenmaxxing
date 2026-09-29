@@ -4,6 +4,7 @@ import { roomName, world } from "../game/world.ts";
 import { hud, useHud } from "../store.ts";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
 import { Chat } from "./Chat.tsx";
+import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LookPicker } from "./LookPicker.tsx";
@@ -155,6 +156,8 @@ function Panel() {
       return <Leaderboard />;
     case "card":
       return <PlayerCard userId={panel.userId} />;
+    case "companyCard":
+      return <CompanyCard companyId={panel.companyId} />;
     case "company":
       return <CompanyPanel />;
     case "look":

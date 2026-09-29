@@ -7,7 +7,16 @@ import { db } from "rivetkit/db";
 import { canBrand } from "../brand.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { type ActivityRow, isSortKey, type UsageRow } from "../stats.ts";
-import { type Leaderboard, leaderboard, type Profile, profile, type Today, today } from "../town/boards.ts";
+import {
+  type CompanyProfile,
+  companyProfile,
+  type Leaderboard,
+  leaderboard,
+  type Profile,
+  profile,
+  type Today,
+  today,
+} from "../town/boards.ts";
 import {
   buy,
   type Entry,
@@ -55,7 +64,14 @@ import {
   type TokenCache,
 } from "./shared.ts";
 
-export type { BoardCompany, BoardPlayer, Leaderboard, Profile, Today } from "../town/boards.ts";
+export type {
+  BoardCompany,
+  BoardPlayer,
+  CompanyProfile,
+  Leaderboard,
+  Profile,
+  Today,
+} from "../town/boards.ts";
 export type { Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany } from "../town/companies.ts";
 export type { GamePlayer, GameStats } from "../town/games.ts";
@@ -373,6 +389,13 @@ export const town = actor({
         isSortKey(rawSort) ? rawSort : "tokens",
         Date.now(),
       ),
+
+    /** A company's card: its numbers, website, logo and people. */
+    company: (c, companyId: unknown, rawRange: unknown): Promise<CompanyProfile> => {
+      requireUser(c.conn.state);
+      if (typeof companyId !== "number") throw new UserError("That company is gone.", { code: "not_found" });
+      return companyProfile(c.db, companyId, isRangeKey(rawRange) ? rawRange : "30d", Date.now());
+    },
 
     profile: async (c, targetId: unknown, rawRange: unknown): Promise<Profile> => {
       requireUser(c.conn.state);
