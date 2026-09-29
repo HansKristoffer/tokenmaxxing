@@ -102,7 +102,7 @@ export const as = (token: string) => ({
 let richDay = 0;
 /**
  * A fresh user with coins: one big day long ago, alone on it, so √(tokens ÷ 1M) plus the
- * 25-coin first place. `hundreds` of 100 coins before the bonus.
+ * 25-coin first place: `coins` before the bonus.
  */
 export async function rich(prefix = "rich", coins = 100) {
   const u = await signUp(prefix);

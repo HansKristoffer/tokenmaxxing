@@ -147,7 +147,7 @@ describe("the arcade", () => {
     expect((await a.arcade.lobby()).matches.find((m) => m.id === again)!.stake).toBe(40);
   }, 30_000);
 
-  test("Tokenmaxxing: an arena in town, players stay free, and the menu bar's battle line", async () => {
+  test("Tokenmaxxing: an arena in town, players stay free, and the app syncs fast until it's over", async () => {
     const a = await rich("ta");
     const b = await rich("tb");
     const id = (

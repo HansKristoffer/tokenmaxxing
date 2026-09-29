@@ -1,18 +1,14 @@
 /**
  * Bounded, newline-aligned line reads for the JSONL session parsers.
  *
- * Both the Claude Code and Codex parsers used to do
- * `file.slice(byteOffset).text()`, materializing the entire unread remainder
- * of a session file as one string. A multi-GB session log (a runaway Codex
- * rollout, say) then exceeds the JS engine's max string length, which the
- * compiled daemon hits as a native abort (EXC_BREAKPOINT / SIGTRAP) that
- * bypasses the parsers' try/catch — so a single oversized file wedges the
- * daemon into a permanent crash loop and no usage ever gets posted.
+ * Reading a whole unread remainder as one string breaks on a multi-GB session
+ * log (a runaway Codex rollout, say): it exceeds the engine's max string
+ * length, which the compiled helper hits as a native abort that bypasses
+ * try/catch, so one oversized file would stop all syncing.
  *
- * `readNewlineLines` reads the remainder in capped byte windows and yields one
- * decoded line at a time, never holding more than `MAX_READ_BYTES` of bytes
- * (plus one line) at once, while still consuming the whole file in a single
- * pass so the tick loop's mtime gating keeps working.
+ * `readNewlineLines` reads in capped byte windows and yields one decoded line
+ * at a time, never holding more than `MAX_READ_BYTES` (plus one line) at once,
+ * while still consuming the whole file in one pass.
  */
 
 /** ASCII line feed. A 0x0A byte never occurs inside a multi-byte UTF-8
@@ -25,7 +21,7 @@ const decoder = new TextDecoder();
 /**
  * Largest record (line content, excluding the newline) we materialize as one
  * string. Kept well under the ~512 MiB string-length ceiling where the compiled
- * daemon was observed to abort. A record longer than this can't be held safely,
+ * helper was observed to abort. A record longer than this can't be held safely,
  * so it is discarded (see below) rather than risking the abort; multi-MB
  * tool-result records stay comfortably within it.
  */

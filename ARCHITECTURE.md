@@ -17,9 +17,9 @@ browser: Canvas 2D world + React HUD  ◄─ WebSocket ──►  └─ /api/ri
 
 | Path | What |
 |---|---|
-| `core/` | Log parsers and sync, the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `format.ts`, `range.ts` |
-| `server/src/actors/` | The three actors (`player`, `town`, `world`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
-| `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, menu bar), `coins`, `sync` (pushes to `world`) |
+| `core/` | Log parsers and sync, the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `games/` (every game's rules), `format.ts`, `range.ts` |
+| `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
+| `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `sync` (pushes to `world`) |
 | `server/src/` | `main.ts`, `proxy.ts`, `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts` |
 | `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels) |
 | `app/helper/`, `app/macos/` | The menu bar app: onboarding, then background sync and an **Open world** button |
@@ -43,7 +43,7 @@ browser: Canvas 2D world + React HUD  ◄─ WebSocket ──►  └─ /api/ri
 - **Open world:** the helper mints a one-time login code (2 minutes) and opens `/#code=…`. The page redeems it
   for a 30-day browser session and removes the code from the URL. The fragment never reaches server logs, and
   the device token never goes into a URL.
-- Sign-out revokes the device token and every browser session, and closes open game tabs.
+- The app forgets its token when the server rejects it and goes back to picking a name.
 - There's no web sign-up: without a session the page says to open the world from the menu bar app.
 
 ## Actors
@@ -63,7 +63,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   applying elsewhere replaces it); the owner will `approve` or `decline`, and `withdraw` takes it back. The
   owner hears about an application, and the applicant about the answer, through `world.notify` (a `notice`
   event, shown as a toast). A new player's first visit opens this choice.
-- Stats: `leaderboard`, `profile`, `menuBar`, `searchNames`. Cost is priced when read.
+- Stats: `leaderboard`, `profile`, `today` (the HUD's corner), `searchNames`, `gameBoard`. Cost is priced
+  when read.
 - Coins: `wallet`, `buy`; for `arcade`: `hold`, `pay`, `refund`, `recordMatch`. Games: `gameBoard`.
 - Every change a player could see is pushed to `world` (`town/sync.ts`); `world` never asks `town`.
 
@@ -71,7 +72,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - A 10 Hz tick sends each room its `moves`, and head counts (`occupancy`) and who's inside each house
   (`houses`, for town) when they change.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
-  `say` (20 a minute; `@name` sends `mention` to someone in another room), `history`.
+  `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game).
 - Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
   `chat`, `mention`.
 - **Resting.** Closing the last tab, or 3 minutes without input, sends you to your bed; offline with agents
@@ -100,7 +101,17 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 
 ## Games
 
-The plan and its reasoning are in `GAMES.md`; this is what was built.
+**Decided:** stakes only (every coin a winner gets came from the other players; no house prize and no town
+cut). A stake is at most 500 and half your balance, a side bet at most 200, one game at a time. Every game
+gathers in the town square so anyone can watch, and you play in a panel over the world.
+
+**The games:**
+- **Ship, Pivot, Raise** (1v1): rock-paper-scissors for founders, best of 5, 15 seconds a pick.
+- **Hype Cycle** (2–8): the valuation climbs as e^(t/12) until it crashes; cash out in time. Three rounds.
+  Each round's crash point comes from a seed whose SHA-256 is shown before it and the seed after.
+- **Due Diligence** (2–6): Liar's Dice with 🦄 wild, 30 seconds a turn; the last with dice wins.
+- **Tokenmaxxing** (2–12): the most real tokens in 15 minutes to 24 hours, starting on the minute after a
+  minute's countdown, with 3 minutes of grace for late syncs.
 
 - **Rules are pure** (`core/src/games/`): each game is a `GameDef` over plain JSON state: `setup`, `move`,
   `tick`, `forfeit`, a per-viewer `view` (hiding what a player mustn't see yet), `outcome` (places, or void),
@@ -122,8 +133,11 @@ The plan and its reasoning are in `GAMES.md`; this is what was built.
   players stay free, and it's their rest spot until the battle ends. Banners, signs over open tables and the
   arena's scoreboard are drawn in `web/src/game/games.ts`.
 - **Tokenmaxxing** pulls, it doesn't add up: after each sync, the match asks `player.tokensBetween(start, end)`
-  (each minute capped at 50M and flagged), so re-sent or late events can't double count. The menu bar app asks
-  `arcade.battle` after each sync and syncs every 10 seconds while you're in one.
+  (each minute capped at 50M and flagged), so re-sent or late events can't double count. After each sync the
+  app asks `arcade.battle` (which pulls its score too) and syncs every 10 seconds until the battle is over.
+- **When something fails:** a match retries reporting its outcome, settling can run again without paying
+  twice, the arcade calls off a match stuck past a limit (refunding everyone) and retries letting its players
+  go, and it destroys match actors a minute after they end.
 
 ### Adding a game
 
@@ -133,6 +147,15 @@ The plan and its reasoning are in `GAMES.md`; this is what was built.
 3. Write `core/test/games/<id>.test.ts`; `registry.test.ts` already checks every game's basics.
 
 No server changes, actions or tables are needed.
+
+### Later
+
+- A physical arcade in the town square (machines that open the lobby, a trophy shelf of today's winners).
+- Inviting a whole company at once; company tournaments built from tables.
+- Easing Tokenmaxxing's counters between updates, and "✓ syncing" next to seated players.
+- More games: Term Sheet (Split or Steal; needs a rule for when both steal), Runway (Farkle), Burn Rate
+  (blackjack), Unicorn (highest unique number), a coin flip at the fountain, Prompt Race (typing), and
+  fighting "Rate Limit" in the tall grass.
 
 ## The client
 

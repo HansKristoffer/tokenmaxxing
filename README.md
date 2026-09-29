@@ -7,10 +7,12 @@ no) and it gets a
 house in town, painted in your brand's colours with your logo on it. When you're not playing, your
 character is in that house: **at a desk** while your agents run, **asleep in bed** when they don't. Using
 AI earns **coins**, and so does finishing a day in the top 3; spend them on clothes, glasses, hats and
-pets that follow you around. Or play for them: challenge someone to a game in the town square, from rock-paper-scissors for
-founders and Liar's Dice to **Tokenmaxxing**, a battle over who burns the most real tokens in an hour.
+pets that follow you around. Or play for them: challenge someone to a game in the town square, from
+rock-paper-scissors for founders and Liar's Dice to **Tokenmaxxing**, a battle over who burns the most real
+tokens in an hour.
 
-Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor.
+Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, and your pull requests
+from GitHub.
 
 ## Install
 
@@ -21,7 +23,7 @@ brew install --cask hanskristoffer/tap/tokenmaxxing
 Open **Tokenmaxxing** and pick a name. From then on it syncs in the background, and its menu bar icon
 has one button: **Open world**. Everything else (leaderboards, stats, games) is in the world.
 
-**Coming from 0.4?** The world is a new backend and starts fresh: update the app, pick a name again and
+**Coming from 0.5 or earlier?** The world is a new backend and starts fresh: update the app, pick a name again and
 recreate your company. Your usage history comes back by itself, because the app re-reads your local logs on
 its first sync.
 
@@ -36,6 +38,7 @@ content never does. The app reads local logs:
 | Claude Cowork | `~/Library/Application Support/Claude/…/.claude/projects/**/*.jsonl` |
 | Codex | `~/.codex/sessions/**/*.jsonl` |
 | Cursor | `~/.cursor/projects/**/agent-transcripts`, `state.vscdb` (token counts are estimated) |
+| GitHub | PRs you opened, via the `gh` CLI if it's signed in (at most every 15 minutes); only a hash of each PR's URL and when it was opened are sent |
 
 Every source that's installed is read. **Everything is public in the world:** anyone can see your
 totals, cost, parallelism, models and daily activity, and the leaderboard ranks everyone.
@@ -71,7 +74,8 @@ Tokenmaxxing.app (menu bar)                        server (Railway, one process)
 │  Keychain, login item       parses local logs,      ├─ /             the game (bundled at boot)
 │  "Open world"               player.ingest()         ├─ /logos/:file  company logos
                                                        ├─ /api/rivet/*  proxy to the Rivet engine's gateway ◄── browser
-                                                       └─ Rivet actors: town, world, player[userId]
+                                                       └─ Rivet actors: town, world, player[userId],
+                                                          arcade, match[id]
 browser: Canvas 2D world + React HUD                   engine data: $RIVETKIT_STORAGE_PATH (the volume)
 ```
 
@@ -83,6 +87,8 @@ inside the container; `Bun.serve` exposes only its client gateway under `/api/ri
 | `player` | user id | Raw events (SQLite), device token and browser sessions, daily rollups on ingest |
 | `town` | `main` | Accounts, companies, daily rollups for everyone: leaderboards and player cards |
 | `world` | `main` | Who's where: steps, rooms, rest spots (bed/desk), room chat, a 10 Hz broadcast loop |
+| `arcade` | `main` | Mini games: tables, invites, side bets, and paying out the pot |
+| `match` | match id | One game being played: its rules, timers and each player's view |
 
 | Path | What |
 |---|---|

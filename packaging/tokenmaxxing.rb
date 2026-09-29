@@ -8,7 +8,7 @@ cask "tokenmaxxing" do
 
   url "https://github.com/HansKristoffer/tokenmaxxing/releases/download/v#{version}/Tokenmaxxing-#{version}-#{arch}.zip"
   name "Tokenmaxxing"
-  desc "Menu bar leaderboard for AI coding agent token usage"
+  desc "Pixel town for people who run AI coding agents"
   homepage "https://github.com/HansKristoffer/tokenmaxxing"
 
   depends_on macos: :sonoma

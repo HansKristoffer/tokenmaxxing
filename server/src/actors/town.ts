@@ -387,7 +387,7 @@ export const town = actor({
       return rows.map((r) => r.name);
     },
 
-    /** The menu bar app: my numbers today and the world's top 10. */
+    /** The HUD's corner: my numbers today and today's top 5. */
     today: (c): Promise<Today> => today(c.db, requireUser(c.conn.state), Date.now()),
 
     // MARK: Coins for games (from `arcade` only)

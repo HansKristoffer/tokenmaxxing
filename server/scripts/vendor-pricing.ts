@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Re-vendor src/server/pricing-fallback.json from LiteLLM.
+ * Re-vendor server/src/pricing-fallback.json from LiteLLM.
  *
  * The snapshot is the price table the server boots on, before the first
  * upstream refresh lands (PricingCache.refreshFromUpstream, boot + daily). A

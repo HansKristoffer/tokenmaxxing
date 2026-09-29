@@ -2,10 +2,10 @@ import { Database } from "bun:sqlite";
 import { statSync } from "node:fs";
 import type { MessageType, TokenEvent } from "../types.ts";
 
-/** Fallback model when Cursor's local DB omits one (PricingCache path). */
+/** The model when Cursor's local DB doesn't name one. */
 export const CURSOR_LOCAL_FALLBACK_MODEL = "cursor";
 
-/** Cap rows per tick so a first-run backfill cannot wedge a single POST. */
+/** Rows read per sync, so a first-run backfill is spread over a few batches. */
 export const CURSOR_LOCAL_BATCH_LIMIT = 5000;
 
 export interface ParseCursorLocalOptions {
@@ -64,7 +64,7 @@ function parseBubbleKey(key: string): BubbleKeyParts | null {
   return { composerId, bubbleId };
 }
 
-/** Map Cursor bubble type / role to tokenleader messageType. */
+/** Cursor's bubble type or role, as our message type. */
 export function messageTypeForBubble(rec: Pick<BubbleRecord, "type" | "role">): MessageType | null {
   if (rec.type === 1) return "user";
   if (rec.type === 2) return "assistant";

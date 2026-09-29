@@ -1,5 +1,5 @@
 /**
- * Fixed-window counter per key (client IP).
+ * Fixed-window counter per key (a user id, a company id, or one global key).
  * ponytail: in-memory, so it resets on deploy and only covers one instance.
  * Fine for a single Railway replica; move to SQLite if we ever scale out.
  */
