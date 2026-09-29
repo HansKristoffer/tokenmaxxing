@@ -42,6 +42,7 @@ import {
   ownedCompany,
   withdraw,
 } from "../town/companies.ts";
+import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { migrate } from "../town/schema.ts";
 import { brand, notify, push, pushPlayers } from "../town/sync.ts";
 import {
@@ -74,6 +75,7 @@ import {
 export type { BoardCompany, BoardPlayer, Leaderboard, MenuBar, Profile } from "../town/boards.ts";
 export type { Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany } from "../town/companies.ts";
+export type { GamePlayer, GameStats } from "../town/games.ts";
 export type { PlayerCore } from "../town/users.ts";
 
 export interface UsageDay extends UsageRow {
@@ -427,6 +429,23 @@ export const town = actor({
     refund: async (c, ref: string, userIds?: number[]): Promise<void> => {
       requireInternal(c.conn.state);
       await c.vars.serial(() => refund(c.db, ref, Date.now(), userIds));
+    },
+
+    /** A finished game, for stats. */
+    recordMatch: async (
+      c,
+      matchId: number,
+      game: string,
+      stake: number,
+      players: Placed[],
+    ): Promise<void> => {
+      requireInternal(c.conn.state);
+      await recordMatch(c.db, matchId, game, stake, players, Date.now());
+    },
+
+    gameBoard: (c, rawRange: unknown): Promise<GamePlayer[]> => {
+      requireUser(c.conn.state);
+      return gameBoard(c.db, isRangeKey(rawRange) ? rawRange : "today", Date.now());
     },
 
     /** User ids for names (inviting people to a game by name). */

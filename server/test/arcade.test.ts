@@ -52,6 +52,15 @@ describe("the arcade", () => {
     expect((await townGames(ada)).some((x) => x.id === tableId)).toBe(false);
     const frame = await ada.match(tableId).frame();
     expect(frame.info.outcome).toEqual({ places: [[ada.userId], [bo.userId]] });
+    // Stats: on her card, and on the Games board.
+    expect((await ada.town.profile(ada.userId, "today")).games).toEqual({
+      played: 1,
+      wins: 1,
+      net: 40,
+      biggestPot: 80,
+    });
+    const board = await ada.town.gameBoard("today");
+    expect(board.find((p) => p.userId === bo.userId)).toMatchObject({ played: 1, wins: 0, net: -40 });
     // Free again, and Back takes her to where she was before the game (the Inn, where she woke up).
     const back = await as(ada.token).world.back();
     expect(back).toMatchObject({ room: "inn", state: "idle" });

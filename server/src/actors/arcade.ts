@@ -80,6 +80,8 @@ const TABLE_MS = 10 * 60_000;
 const REMATCH_MS = 20_000;
 /** Finished matches stay listed this long (the end screen, and the rematch offer). */
 const KEEP_MS = 60_000;
+/** Pots this big get a 💰 in the town square. */
+const BIG_POT = 500;
 
 const tableRef = (id: number) => `table:${id}`;
 const betsRef = (id: number) => `bets:${id}`;
@@ -505,8 +507,17 @@ async function settle(c: ArcadeCtx, live: Live, outcome: Outcome): Promise<void>
       side.refund ? "refund" : "winnings",
       [...side.shares].map(([userId, amount]) => ({ userId, amount })),
     );
+    await town.recordMatch(
+      live.id,
+      live.game,
+      live.stake,
+      outcome.places.flatMap((group, i) =>
+        group.map((userId) => ({ userId, place: i + 1, won: shares.get(userId) ?? 0 })),
+      ),
+    );
     const names = winners.map((id) => nameOf(c.state, id)).join(" & ");
     line = pot > 0 ? `${names} won 🪙 ${pot} at ${gameName(live)}!` : `${names} won ${gameName(live)}!`;
+    if (pot >= BIG_POT) line = `💰 Big pot! ${line}`;
     for (const [userId, amount] of side.refund ? [] : side.shares)
       line += ` ${nameOf(c.state, userId)} won 🪙 ${amount} backing ${names}.`;
   }

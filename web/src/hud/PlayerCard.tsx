@@ -114,6 +114,14 @@ export function PlayerCard({ userId }: { userId: number }) {
         </svg>
         <figcaption className="muted small">Last 30 days</figcaption>
       </figure>
+      {p.games && (
+        <p className="muted small">
+          🎮 {p.games.played} {p.games.played === 1 ? "game" : "games"} ·{" "}
+          {Math.round((p.games.wins / p.games.played) * 100)}% won · {p.games.net >= 0 ? "+" : "−"}🪙{" "}
+          {Math.abs(p.games.net)}
+          {p.games.biggestPot > 0 && ` · biggest pot 🪙 ${p.games.biggestPot}`}
+        </p>
+      )}
     </Modal>
   );
 }

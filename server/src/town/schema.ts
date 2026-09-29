@@ -48,4 +48,11 @@ export async function migrate(sql: Sql): Promise<void> {
     at INTEGER NOT NULL)`);
   await sql.execute("CREATE INDEX IF NOT EXISTS ledger_user ON ledger (user_id)");
   await sql.execute("CREATE INDEX IF NOT EXISTS ledger_ref ON ledger (ref)");
+  // One row per player per finished game (void games aren't recorded), for stats and the Games board.
+  await sql.execute(`CREATE TABLE IF NOT EXISTS match_players (
+    match_id INTEGER NOT NULL, user_id INTEGER NOT NULL, game TEXT NOT NULL, place INTEGER NOT NULL,
+    stake INTEGER NOT NULL, won INTEGER NOT NULL, pot INTEGER NOT NULL, day TEXT NOT NULL, at INTEGER NOT NULL,
+    PRIMARY KEY (match_id, user_id))`);
+  await sql.execute("CREATE INDEX IF NOT EXISTS match_players_day ON match_players (day)");
+  await sql.execute("CREATE INDEX IF NOT EXISTS match_players_user ON match_players (user_id)");
 }

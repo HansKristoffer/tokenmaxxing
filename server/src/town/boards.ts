@@ -15,6 +15,7 @@ import {
   type UsageRow,
 } from "../stats.ts";
 import { COMPANY_COLS, type CompanyRow, companyInfos } from "./companies.ts";
+import { type GameStats, gameStats } from "./games.ts";
 import { lifetimeTokens, lookOf, USER_COLS, type UserRow, userById } from "./users.ts";
 
 export interface BoardPlayer extends Totals {
@@ -55,6 +56,8 @@ export interface Profile {
   models: { model: string; tokens: number; costUsd: number; turns: number }[];
   /** The last 30 world days, oldest first, zeros included. */
   daily: { day: string; tokens: number; costUsd: number }[];
+  /** All time; null for someone who never finished a game. */
+  games: GameStats | null;
 }
 
 export interface MenuBar {
@@ -200,6 +203,7 @@ export async function profile(sql: Sql, userId: number, range: RangeKey, now: nu
       .map((r) => ({ model: r.model, tokens: rowTokens(r), costUsd: rowCost(pricing, r), turns: r.turns }))
       .sort((a, b) => b.tokens - a.tokens),
     daily,
+    games: await gameStats(sql, userId),
   };
 }
 

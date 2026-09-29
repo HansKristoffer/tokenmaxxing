@@ -1,7 +1,12 @@
 import { compact, usd } from "@tokenmaxxing/core/format.ts";
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
 import { houseTierName } from "@tokenmaxxing/core/world.ts";
-import type { Leaderboard as Board, BoardCompany, BoardPlayer } from "@tokenmaxxing/server/registry";
+import type {
+  Leaderboard as Board,
+  BoardCompany,
+  BoardPlayer,
+  GamePlayer,
+} from "@tokenmaxxing/server/registry";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { house } from "../art/buildings.ts";
 import { world } from "../game/world.ts";
@@ -59,7 +64,7 @@ export function Leaderboard() {
   const me = useHud((s) => s.me?.userId);
   const [range, setRange] = useState<RangeKey>("today");
   const [sort, setSort] = useState<Sort>("tokens");
-  const [tab, setTab] = useState<"players" | "companies">("players");
+  const [tab, setTab] = useState<"players" | "companies" | "games">("players");
   const [board, setBoard] = useState<Board | null>(null);
 
   useEffect(() => {
@@ -86,51 +91,153 @@ export function Leaderboard() {
           options={[
             ["players", "Players"],
             ["companies", "Companies"],
+            ["games", "🎮 Games"],
           ]}
           onChange={setTab}
         />
         <Pills value={range} options={RANGES} onChange={setRange} />
       </div>
+      {tab === "games" ? (
+        <GamesBoard range={range} me={me} />
+      ) : (
+        <>
+          <div className="lb-sort">
+            <span className="muted small">Ranked by</span>
+            <Pills value={sort} options={SORTS} onChange={setSort} />
+          </div>
+          {!board ? (
+            <p className="muted">Loading…</p>
+          ) : rows.length === 0 || top === 0 ? (
+            <p className="lb-empty">
+              {tab === "players" ? "Nobody has run an agent" : "No company has anything to show"}{" "}
+              {EMPTY[range]}.
+              <br />
+              <span className="muted small">Start an agent and take the top spot 🚀</span>
+            </p>
+          ) : (
+            <>
+              <Podium>
+                {rows.slice(0, 3).map((r, i) => (
+                  <Step
+                    key={key(r)}
+                    place={i + 1}
+                    onClick={"userId" in r ? () => openCard(r.userId) : undefined}
+                  >
+                    {"userId" in r ? (
+                      <AvatarImage look={r.look} scale={i === 0 ? 5 : 4} />
+                    ) : (
+                      <House company={r} scale={i === 0 ? 1 : 0.75} />
+                    )}
+                    <strong className="lb-name">{r.name}</strong>
+                    <span className="lb-sub">
+                      {"userId" in r ? (r.company ?? `Lv${r.level}`) : members(r.members)}
+                    </span>
+                    <span className="lb-value">{shown(sort, r)}</span>
+                  </Step>
+                ))}
+              </Podium>
+              {rows.length > 3 && (
+                <ol className="lb-list">
+                  {rows.slice(3).map((r) => (
+                    <Row key={key(r)} row={r} sort={sort} top={top} mine={"userId" in r && r.userId === me} />
+                  ))}
+                </ol>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </Modal>
+  );
+}
+
+const GAME_SORTS = [
+  ["net", "Coins won"],
+  ["rate", "Win rate"],
+  ["pot", "Biggest pot"],
+] as const;
+type GameSort = (typeof GAME_SORTS)[number][0];
+/** Win rates only count from this many games, so one lucky win doesn't top the board. */
+const MIN_GAMES = 10;
+
+const gameValue = (sort: GameSort, p: GamePlayer) =>
+  sort === "net" ? p.net : sort === "rate" ? p.wins / p.played : p.biggestPot;
+const gameShown = (sort: GameSort, p: GamePlayer) =>
+  sort === "rate" ? `${Math.round((p.wins / p.played) * 100)}%` : `🪙 ${gameValue(sort, p)}`;
+
+/** Who's best at the arcade: most coins won, best win rate, biggest pots. */
+function GamesBoard({ range, me }: { range: RangeKey; me: number | undefined }) {
+  const [sort, setSort] = useState<GameSort>("net");
+  const [all, setAll] = useState<GamePlayer[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    town.gameBoard(range).then((b) => live && setAll(b));
+    return () => {
+      live = false;
+    };
+  }, [range]);
+  const rows = (all ?? [])
+    .filter((p) => (sort === "rate" ? p.played >= MIN_GAMES : gameValue(sort, p) > 0))
+    .sort((a, b) => gameValue(sort, b) - gameValue(sort, a) || b.played - a.played)
+    .slice(0, 100);
+  const top = rows[0] ? gameValue(sort, rows[0]) : 0;
+  return (
+    <>
       <div className="lb-sort">
         <span className="muted small">Ranked by</span>
-        <Pills value={sort} options={SORTS} onChange={setSort} />
+        <Pills value={sort} options={GAME_SORTS} onChange={setSort} />
       </div>
-      {!board ? (
+      {!all ? (
         <p className="muted">Loading…</p>
-      ) : rows.length === 0 || top === 0 ? (
+      ) : rows.length === 0 ? (
         <p className="lb-empty">
-          {tab === "players" ? "Nobody has run an agent" : "No company has anything to show"} {EMPTY[range]}.
+          {sort === "rate" ? `Nobody has played ${MIN_GAMES} games` : "Nobody has won a game"} {EMPTY[range]}.
           <br />
-          <span className="muted small">Start an agent and take the top spot 🚀</span>
+          <span className="muted small">Open a table in the 🎮 arcade 🎲</span>
         </p>
       ) : (
         <>
           <Podium>
             {rows.slice(0, 3).map((r, i) => (
-              <Step key={key(r)} place={i + 1} onClick={"userId" in r ? () => openCard(r.userId) : undefined}>
-                {"userId" in r ? (
-                  <AvatarImage look={r.look} scale={i === 0 ? 5 : 4} />
-                ) : (
-                  <House company={r} scale={i === 0 ? 1 : 0.75} />
-                )}
+              <Step key={r.userId} place={i + 1} onClick={() => openCard(r.userId)}>
+                <AvatarImage look={r.look} scale={i === 0 ? 5 : 4} />
                 <strong className="lb-name">{r.name}</strong>
                 <span className="lb-sub">
-                  {"userId" in r ? (r.company ?? `Lv${r.level}`) : members(r.members)}
+                  {r.wins}/{r.played} won
                 </span>
-                <span className="lb-value">{shown(sort, r)}</span>
+                <span className="lb-value">{gameShown(sort, r)}</span>
               </Step>
             ))}
           </Podium>
           {rows.length > 3 && (
             <ol className="lb-list">
-              {rows.slice(3).map((r) => (
-                <Row key={key(r)} row={r} sort={sort} top={top} mine={"userId" in r && r.userId === me} />
+              {rows.slice(3).map((r, i) => (
+                <li key={r.userId} className={r.userId === me ? "mine" : undefined}>
+                  <button type="button" className="lb-item" onClick={() => openCard(r.userId)}>
+                    <span className="lb-rank">{i + 4}</span>
+                    <AvatarImage look={r.look} scale={2} />
+                    <span className="lb-who">
+                      <span className="lb-line">
+                        <strong>{r.name}</strong>
+                        <small className="muted">
+                          {r.wins}/{r.played} won
+                        </small>
+                      </span>
+                      <span className="lb-bar">
+                        <span style={{ width: `${Math.max(0.02, gameValue(sort, r) / top) * 100}%` }} />
+                      </span>
+                    </span>
+                    <span className="lb-values">
+                      <span className="lb-value">{gameShown(sort, r)}</span>
+                    </span>
+                  </button>
+                </li>
               ))}
             </ol>
           )}
         </>
       )}
-    </Modal>
+    </>
   );
 }
 
