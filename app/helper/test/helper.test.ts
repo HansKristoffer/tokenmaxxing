@@ -51,7 +51,7 @@ function harness() {
   const messages: Message[] = [];
   const helper = new Helper({
     statePath: join(dir, "state.v2.json"),
-    version: "t",
+    gh: null,
     write: (m) => messages.push(m),
     log: () => {},
   });

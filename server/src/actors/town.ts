@@ -20,6 +20,7 @@ import {
   buy,
   type Entry,
   type HoldKind,
+  heldIn,
   hold,
   ownedItems,
   type PayKind,
@@ -103,12 +104,15 @@ const SIGNUPS_PER_HOUR = 200;
 
 /** Each one scrapes a site and asks Claude, so owners can't loop it. */
 const BRANDINGS_PER_HOUR = 5;
+/** Each one pings the company's owner. */
+const APPLICATIONS_PER_HOUR = 10;
 
 export const town = actor({
   createVars: () => ({
     serial: serial(),
     signups: new RateLimiter(SIGNUPS_PER_HOUR, 3_600_000),
     brandings: new RateLimiter(BRANDINGS_PER_HOUR, 3_600_000),
+    applications: new RateLimiter(APPLICATIONS_PER_HOUR, 3_600_000),
     /** Verified tokens, so a burst of calls doesn't ask `player` every time. */
     tokens: new Map() as TokenCache,
   }),
@@ -242,6 +246,8 @@ export const town = actor({
     apply: async (c, companyId: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
       if (typeof companyId !== "number") throw new UserError("That company is gone.", { code: "not_found" });
+      if (!c.vars.applications.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of applications. Try again in an hour.", { code: "rate_limited" });
       const company = await c.vars.serial(() => apply(c.db, userId, companyId, Date.now()));
       const me = await userById(c.db, userId);
       await notify(c.client<typeof registry>(), company.ownerId, `${me.name} asks to join ${company.name}.`);
@@ -424,6 +430,12 @@ export const town = actor({
     pay: async (c, ref: string, kind: PayKind, entries: Entry[]): Promise<void> => {
       requireInternal(c.conn.state);
       await c.vars.serial(() => pay(c.db, ref, kind, entries, Date.now()));
+    },
+
+    /** What a ref still holds, so settling a game can be retried without paying twice. */
+    held: async (c, ref: string): Promise<number> => {
+      requireInternal(c.conn.state);
+      return [...(await heldIn(c.db, ref)).values()].reduce((a, b) => a + b, 0);
     },
 
     refund: async (c, ref: string, userIds?: number[]): Promise<void> => {

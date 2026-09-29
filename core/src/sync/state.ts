@@ -2,7 +2,7 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { SyncState } from "../types.ts";
 
-export const emptyState = (): SyncState => ({ files: {}, lastSyncedAt: null });
+export const emptyState = (): SyncState => ({ files: {} });
 
 /** A missing or corrupt file starts over from zero; the server dedups the re-read. */
 export async function loadState(path: string): Promise<SyncState> {

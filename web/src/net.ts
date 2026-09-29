@@ -72,6 +72,8 @@ function signedOut(): void {
   localStorage.removeItem(TOKEN_KEY);
   conn?.dispose();
   town?.dispose();
+  arcade?.dispose();
+  closeMatch();
   hud.set({ status: "signedOut" });
 }
 
@@ -81,9 +83,10 @@ export function connect(token: string): void {
   arcade = client.arcade.getOrCreate(["main"], { params: { token } }).connect();
   arcade.on("lobby", (lobby: Lobby) => applyLobby(lobby));
   arcade.onOpen(async () => applyLobby(await arcade.lobby()));
-  town.onError((err) => {
-    if (isUnauthorized(err)) signedOut();
-  });
+  for (const c of [town, arcade])
+    c.onError((err) => {
+      if (isUnauthorized(err)) signedOut();
+    });
   conn = client.world.getOrCreate(["main"], { params: { token } }).connect();
 
   conn.on("snapshot", (s: Snapshot) => loadSnapshot(s));

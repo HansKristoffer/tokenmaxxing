@@ -165,13 +165,23 @@ describe("the arcade", () => {
     expect(g.seats).toHaveLength(2);
     // Not held at the table: they can walk around.
     await expect(as(a.token).world.step("up")).resolves.not.toMatchObject({ state: "playing" });
-    const battle = await a.arcade.battle();
-    expect(battle).toMatchObject({ matchId: id, name: "Tokenmaxxing", players: 2, tokens: 0 });
-    expect(battle!.endsAt - battle!.startsAt).toBe(15 * 60_000);
-    expect(await as(b.token).arcade.battle()).toMatchObject({ matchId: id });
+    // The app syncs fast until the battle (15 minutes, after a minute's countdown) and its grace period end.
+    const until = await a.arcade.battle();
+    expect(until).toBeGreaterThan(Date.now() + 18 * 60_000);
+    expect(await as(b.token).arcade.battle()).toBe(until);
     await b.match(id).forfeit();
     await Bun.sleep(300);
     expect(await a.arcade.battle()).toBeNull();
     expect((await townGames(a)).some((x) => x.id === id)).toBe(false);
+  }, 30_000);
+  test("a host can send 10 invites a minute, however they open and close tables", async () => {
+    const host = await rich("spam");
+    const guests = await Promise.all(Array.from({ length: 7 }, () => rich("guest")));
+    const ids = guests.map((g) => g.userId);
+    const first = (await host.arcade.open("hype", { stake: 0, invite: ids })).me.table!;
+    await host.arcade.leave(first); // closing and reopening doesn't reset it
+    const second = (await host.arcade.open("hype", { stake: 0, invite: ids })).me.table!;
+    const table = (await host.arcade.lobby()).tables.find((t) => t.id === second)!;
+    expect(table.invited).toHaveLength(3);
   }, 30_000);
 });

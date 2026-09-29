@@ -26,22 +26,7 @@ export type Message =
   /** After signUp → save to Keychain. `null` → the token was rejected; delete it. */
   | { event: "token"; token: string | null };
 
-/** A usage game I'm in (Tokenmaxxing): the helper syncs fast until it's over. */
-export interface Battle {
-  matchId: number;
-  name: string;
-  /** Null before anyone has burned a token. */
-  place: number | null;
-  players: number;
-  tokens: number;
-  startsAt: number;
-  endsAt: number;
-  /** Late syncs count until this. */
-  until: number;
-}
-
 /** The menu bar app is a sign-up form, then just a button that opens the world. */
 export interface AppState {
   phase: "starting" | "onboarding" | "ready";
-  version: string;
 }

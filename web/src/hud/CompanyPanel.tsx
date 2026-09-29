@@ -1,24 +1,20 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { houseTierName, nextTierAt, perMember } from "@tokenmaxxing/core/world.ts";
 import type { Listing } from "@tokenmaxxing/server/registry";
-import { type FormEvent, useEffect, useState } from "react";
-import { errorText, refreshMe, town } from "../net.ts";
+import { useEffect, useState } from "react";
+import { refreshMe, town } from "../net.ts";
 import { useHud } from "../store.ts";
-import { Modal } from "./ui.tsx";
+import { Modal, useRun } from "./ui.tsx";
 
 export function CompanyPanel() {
   const me = useHud((s) => s.me);
-  const [error, setError] = useState<string | null>(null);
-  const run = (fn: () => Promise<unknown>) => async (e?: FormEvent) => {
-    e?.preventDefault();
-    setError(null);
-    try {
+  const { error, run: call } = useRun();
+  // Every change here shows in `me`.
+  const run = (fn: () => Promise<unknown>) =>
+    call(async () => {
       await fn();
       await refreshMe();
-    } catch (err) {
-      setError(errorText(err));
-    }
-  };
+    });
   const co = me?.company;
   const branding = co?.branding;
   // Reading a website takes a little while; keep the panel current until it's done.

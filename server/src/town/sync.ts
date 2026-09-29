@@ -49,7 +49,13 @@ export async function brand(
   await push(sql, client, { companies: [id], users: [] });
 }
 
-/** A line for one player's open game tabs (someone applied, you got in); nothing if they're offline. */
+/**
+ * A line for one player's open game tabs (someone applied, you got in); nothing if they're offline.
+ * Best effort: what caused it has already happened.
+ */
 export async function notify(client: Client<typeof registry>, userId: number, text: string): Promise<void> {
-  await client.world.getOrCreate(["main"], internal).notify(userId, text);
+  await client.world
+    .getOrCreate(["main"], internal)
+    .notify(userId, text)
+    .catch((err) => console.warn(`[notify] ${userId}: ${String(err)}`));
 }

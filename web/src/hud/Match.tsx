@@ -5,18 +5,9 @@ import { defaultLook } from "@tokenmaxxing/core/world.ts";
 import { useEffect, useState } from "react";
 import { world } from "../game/world.ts";
 import { COMPONENTS } from "../games/index.ts";
-import { arcade, closeMatch, conn, errorText, matchConn } from "../net.ts";
+import { arcade, closeMatch, conn, matchConn } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { AvatarImage, Modal } from "./ui.tsx";
-
-/** Re-renders a few times a second, for countdowns. */
-function useTicker(ms: number) {
-  const [, tick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), ms);
-    return () => clearInterval(id);
-  }, [ms]);
-}
+import { AvatarImage, Modal, useRun, useTicker } from "./ui.tsx";
 
 const lookOf = (userId: number) => world.avatars.get(userId)?.info.look ?? defaultLook(userId);
 
@@ -24,7 +15,7 @@ const lookOf = (userId: number) => world.avatars.get(userId)?.info.look ?? defau
 export function MatchPanel({ id }: { id: number }) {
   const frame = useHud((s) => s.frame);
   const skew = useHud((s) => s.clockSkew);
-  const [error, setError] = useState<string | null>(null);
+  const { error, run } = useRun();
   useTicker(250);
   useEffect(() => () => closeMatch(), []);
   if (!frame || frame.info.id !== id) return <Modal title="🎮 Game">Loading…</Modal>;
@@ -32,11 +23,7 @@ export function MatchPanel({ id }: { id: number }) {
   const def = gameOf(info.game)!;
   const Game = COMPONENTS[info.game];
   const now = Date.now() - skew;
-  const call = (fn: () => Promise<unknown>) => () => {
-    setError(null);
-    fn().catch((err) => setError(errorText(err)));
-  };
-  const move = (m: unknown) => call(() => matchConn!.move(m))();
+  const move = (m: unknown) => void run(() => matchConn!.move(m))();
 
   return (
     <Modal title={`${def.emoji} ${def.name}`} wide>
@@ -62,13 +49,13 @@ export function MatchPanel({ id }: { id: number }) {
       </div>
       {Game ? <Game view={frame.view} info={info} you={you} now={now} move={move} /> : <p>Unknown game.</p>}
       {info.outcome ? (
-        <Result frame={frame} onError={setError} />
+        <Result frame={frame} run={run} />
       ) : you !== null ? (
-        <button type="button" className="danger" onClick={call(() => matchConn!.forfeit())}>
+        <button type="button" className="danger" onClick={run(() => matchConn!.forfeit())}>
           Forfeit (your stake stays in the pot)
         </button>
       ) : (
-        <SideBet frame={frame} now={now} onError={setError} />
+        <SideBet frame={frame} now={now} run={run} />
       )}
       {error && <p className="error">{error}</p>}
     </Modal>
@@ -79,15 +66,9 @@ export function MatchPanel({ id }: { id: number }) {
 const betList = (frame: Frame) =>
   Object.entries(frame.info.bets).map(([on, amount]) => ({ userId: 0, on: Number(on), amount }));
 
-function SideBet({
-  frame,
-  now,
-  onError,
-}: {
-  frame: Frame;
-  now: number;
-  onError: (e: string | null) => void;
-}) {
+type Run = ReturnType<typeof useRun>["run"];
+
+function SideBet({ frame, now, run }: { frame: Frame; now: number; run: Run }) {
   const lobby = useHud((s) => s.lobby);
   const wallet = useHud((s) => s.wallet);
   const [on, setOn] = useState(frame.info.players[0]!.userId);
@@ -105,14 +86,7 @@ function SideBet({
   if (left <= 0) return <p className="muted small">👀 Watching · side bets are closed.</p>;
   const cap = Math.min(MAX_SIDE_BET, wallet?.balance ?? 0);
   return (
-    <form
-      className="side-bet"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onError(null);
-        arcade.bet(frame.info.id, on, amount).catch((err) => onError(errorText(err)));
-      }}
-    >
+    <form className="side-bet" onSubmit={run(() => arcade.bet(frame.info.id, on, amount))}>
       <span>🎲 Side bet ({left}s left):</span>
       <select value={on} onChange={(e) => setOn(Number(e.target.value))}>
         {frame.info.players.map((p) => (
@@ -136,7 +110,7 @@ function SideBet({
 }
 
 /** Who won what, then double or nothing (1v1) and the way back. */
-function Result({ frame, onError }: { frame: Frame; onError: (e: string | null) => void }) {
+function Result({ frame, run }: { frame: Frame; run: Run }) {
   const { info, you } = frame;
   const outcome = info.outcome!;
   const name = (id: number) => info.players.find((p) => p.userId === id)?.name ?? "?";
@@ -168,14 +142,7 @@ function Result({ frame, onError }: { frame: Frame; onError: (e: string | null) 
       {you !== null && (
         <div className="row-actions">
           {info.players.length === 2 && (
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                onError(null);
-                arcade.rematch(info.id).catch((err) => onError(errorText(err)));
-              }}
-            >
+            <button type="button" className="primary" onClick={run(() => arcade.rematch(info.id))}>
               {info.stake > 0
                 ? `🔁 Double or nothing · 🪙 ${Math.min(MAX_STAKE, info.stake * 2)}`
                 : "🔁 Rematch"}

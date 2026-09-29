@@ -6,7 +6,7 @@ import type { AppState, Message } from "@tokenmaxxing/core/protocol.ts";
  * decodes. CI runs this before `swift test`, whose ProtocolTests decode the
  * file, so a shape change on either side fails the build.
  */
-const state: AppState = { phase: "ready", version: "1.2.3" };
+const state: AppState = { phase: "ready" };
 
 const messages: Message[] = [
   { event: "state", state },

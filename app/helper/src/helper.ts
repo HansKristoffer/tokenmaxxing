@@ -1,8 +1,9 @@
 import { rm } from "node:fs/promises";
 import type { AppState, Command, Message } from "@tokenmaxxing/core/protocol.ts";
+import type { GhRunner } from "@tokenmaxxing/core/sources/github.ts";
 import { emptyState, loadState } from "@tokenmaxxing/core/sync/state.ts";
 import { sync } from "@tokenmaxxing/core/sync/sync.ts";
-import { SOURCES, type SyncState, type TokenEvent } from "@tokenmaxxing/core/types.ts";
+import type { SyncState, TokenEvent } from "@tokenmaxxing/core/types.ts";
 import type { registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
 
@@ -13,10 +14,10 @@ export const BATTLE_SYNC_MS = 10_000;
 
 export interface HelperOptions {
   statePath: string;
-  version: string;
   write: (msg: Message) => void;
   log?: (msg: string) => void;
-  now?: () => number;
+  /** Runs `gh` for GitHub PRs; defaults to the installed one, null skips it (tests). */
+  gh?: GhRunner | null;
 }
 
 /** A failed call with a stable code the shell can map to a message. */
@@ -46,7 +47,7 @@ export class Helper {
   readonly state: AppState;
 
   constructor(private readonly opts: HelperOptions) {
-    this.state = { phase: "starting", version: opts.version };
+    this.state = { phase: "starting" };
   }
 
   /** Handles one command and always replies, so the shell can await every call. */
@@ -85,7 +86,7 @@ export class Helper {
         const r = await this.call(() => this.api().town.getOrCreate(["main"]).signUp(cmd.name));
         this.opts.write({ event: "token", token: r.token });
         await this.signIn(r.token);
-        return { name: r.name };
+        return;
       }
       case "syncNow":
         await this.tick();
@@ -136,10 +137,10 @@ export class Helper {
   /** In a Tokenmaxxing battle, sync fast so the scoreboard moves. */
   private async checkBattle(): Promise<void> {
     if (!this.token) return;
-    const battle = await this.call(() =>
+    const until = await this.call(() =>
       this.api().arcade.getOrCreate(["main"], this.params()).battle(),
     ).catch(() => null);
-    if (this.token) this.cadence(battle ? BATTLE_SYNC_MS : SYNC_INTERVAL_MS);
+    if (this.token) this.cadence(until !== null ? BATTLE_SYNC_MS : SYNC_INTERVAL_MS);
   }
 
   /** Forgets the account and the sync offsets: the next account starts from a clean slate. */
@@ -158,10 +159,9 @@ export class Helper {
       try {
         const r = await sync(this.syncState!, {
           statePath: this.opts.statePath,
-          enabled: new Set(SOURCES),
           send: (events) => this.send(events),
           onError: (err, where) => this.log(`${where}: ${String(err)}`),
-          ...(this.opts.now ? { now: this.opts.now } : {}),
+          ...(this.opts.gh !== undefined ? { gh: this.opts.gh } : {}),
         });
         this.syncState = r.state;
       } catch (err) {

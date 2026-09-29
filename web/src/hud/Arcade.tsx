@@ -2,10 +2,10 @@ import { GAMES, gameOf } from "@tokenmaxxing/core/games/index.ts";
 import { MAX_STAKE, SPLITS, type Split } from "@tokenmaxxing/core/games/payouts.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
-import { type FormEvent, useEffect, useState } from "react";
-import { arcade, errorText, openMatch, town } from "../net.ts";
+import { useEffect, useState } from "react";
+import { arcade, openMatch, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { Modal } from "./ui.tsx";
+import { Modal, useRun, useTicker } from "./ui.tsx";
 
 const STAKES = [0, 10, 50, 100, 250];
 
@@ -14,21 +14,6 @@ const optionsText = (t: { game: GameId; options: Record<string, string | number>
   t.game === "tokenmaxxing" ? ` · ${durationText(Number(t.options.minutes))}` : "";
 export const durationText = (minutes: number) =>
   minutes >= 60 ? `${minutes / 60} ${minutes === 60 ? "hour" : "hours"}` : `${minutes} min`;
-
-/** A call that shows its error in the panel instead of throwing. */
-function useRun() {
-  const [error, setError] = useState<string | null>(null);
-  const run = (fn: () => Promise<unknown>) => async (e?: FormEvent) => {
-    e?.preventDefault();
-    setError(null);
-    try {
-      await fn();
-    } catch (err) {
-      setError(errorText(err));
-    }
-  };
-  return { error, run };
-}
 
 /** The 🎮 panel: your invites and table, open tables to join, and games to watch. */
 export function ArcadePanel() {
@@ -371,8 +356,9 @@ export function NewTable({ invite }: { invite?: number }) {
             />
           </label>
         )}
-        <label>
-          Stake (up to 🪙 {cap})
+        {/* A fieldset, not a label: clicking a label's text would press its first button (Free). */}
+        <fieldset>
+          <legend>Stake (up to 🪙 {cap})</legend>
           <span className="stakes">
             {STAKES.filter((s) => s <= cap).map((s) => (
               <button
@@ -387,13 +373,14 @@ export function NewTable({ invite }: { invite?: number }) {
             ))}
             <input
               type="number"
+              aria-label="Stake"
               min={0}
               max={cap}
               value={stake}
               onChange={(e) => setStake(Math.max(0, Math.min(cap, Number(e.target.value))))}
             />
           </span>
-        </label>
+        </fieldset>
         {seats > 2 && (
           <label>
             The pot goes to
@@ -434,11 +421,7 @@ export function InviteToast() {
   const me = useHud((s) => s.me?.userId);
   const [counter, setCounter] = useState<number | null>(null);
   const { error, run } = useRun();
-  const [, tick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
+  useTicker(1000, invite !== null);
   const table = lobby?.tables.find((t) => t.id === invite?.tableId);
   const mine = table?.invited.find((i) => i.userId === me);
   if (!invite || !table || !mine) return null;

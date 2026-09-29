@@ -9,7 +9,7 @@ final class ProtocolTests: XCTestCase {
         let messages = try lines.map { try JSONDecoder().decode(IncomingMessage.self, from: Data($0.utf8)) }
         XCTAssertEqual(messages.count, 7)
 
-        XCTAssertEqual(messages[0].state, AppState(phase: .ready, version: "1.2.3"))
+        XCTAssertEqual(messages[0].state, AppState(phase: .ready))
         XCTAssertEqual(messages[1].state?.phase, .onboarding)
         XCTAssertEqual(messages[2].token, "12.tok_abc")
         XCTAssertEqual(messages[3].event, "token")

@@ -1,9 +1,9 @@
 import { FREE_OUTFITS, itemsIn } from "@tokenmaxxing/core/shop.ts";
 import { LOOK_OPTIONS, type Look, STYLE_NAMES } from "@tokenmaxxing/core/world.ts";
 import { useState } from "react";
-import { errorText, refreshMe, town } from "../net.ts";
+import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { AvatarImage, Modal } from "./ui.tsx";
+import { AvatarImage, Modal, useRun } from "./ui.tsx";
 
 /** The free parts; glasses, hats, pets and fancier outfits are worn from the shop. */
 const LABELS = { style: "Style", skin: "Skin", hair: "Hair", outfit: "Outfit" } as const;
@@ -14,7 +14,7 @@ export function LookPicker() {
   const me = useHud((s) => s.me);
   const [look, setLook] = useState<Look | null>(me?.look ?? null);
   const [name, setName] = useState(me?.name ?? "");
-  const [error, setError] = useState<string | null>(null);
+  const { error, run } = useRun();
   const [saved, setSaved] = useState(false);
   if (!me || !look) return <Modal title="Your character">Loading…</Modal>;
 
@@ -58,17 +58,12 @@ export function LookPicker() {
       <button
         type="button"
         className="primary"
-        onClick={async () => {
-          setError(null);
-          try {
-            await town.setLook(look);
-            if (name !== me.name) await town.rename(name);
-            await refreshMe();
-            setSaved(true);
-          } catch (err) {
-            setError(errorText(err));
-          }
-        }}
+        onClick={run(async () => {
+          await town.setLook(look);
+          if (name !== me.name) await town.rename(name);
+          await refreshMe();
+          setSaved(true);
+        })}
       >
         {saved ? "Saved" : "Save"}
       </button>

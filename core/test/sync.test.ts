@@ -85,4 +85,19 @@ describe("sync", () => {
     });
     expect(got).toBe(0);
   });
+  test("GitHub is searched at most every 15 minutes", async () => {
+    let searches = 0;
+    const gh = async () => {
+      searches++;
+      return "[]";
+    };
+    const send = async () => ({ inserted: 0, duplicates: 0 });
+    const opts = { statePath, enabled: new Set<Source>(["github"]), gh, send };
+    const t0 = Date.UTC(2026, 8, 29, 12);
+    let state = (await sync(emptyState(), { ...opts, now: () => t0 })).state;
+    state = (await sync(state, { ...opts, now: () => t0 + 10 * 60_000 })).state;
+    expect(searches).toBe(1);
+    await sync(state, { ...opts, now: () => t0 + 15 * 60_000 });
+    expect(searches).toBe(2);
+  });
 });

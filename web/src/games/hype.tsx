@@ -6,32 +6,35 @@ import type { GameProps } from "./types.ts";
 
 const x = (n: number) => `×${(n / 100).toFixed(2)}`;
 
-/** The server's clock every animation frame, so the line climbs smoothly. */
-function useFrameNow(): number {
+/** The server's clock every animation frame while `on`, so the line climbs smoothly; else `now`. */
+function useFrameNow(on: boolean, now: number): number {
   const skew = useHud((s) => s.clockSkew);
-  const [now, setNow] = useState(() => Date.now() - skew);
+  const [frame, setFrame] = useState(now);
   useEffect(() => {
-    let id = requestAnimationFrame(function frame() {
-      setNow(Date.now() - skew);
-      id = requestAnimationFrame(frame);
+    if (!on) return;
+    let id = requestAnimationFrame(function tick() {
+      setFrame(Date.now() - skew);
+      id = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(id);
-  }, [skew]);
-  return now;
+  }, [on, skew]);
+  return on ? frame : now;
 }
 
-export function Hype({ view, info, you, move }: GameProps<HypeView>) {
-  const now = useFrameNow();
+/** Hashing is cheap, but not every frame. */
+const checked = new Map<string, boolean>();
+const verified = (seed: string, hash: string) => {
+  if (!checked.has(seed)) checked.set(seed, sha256(seed) === hash);
+  return checked.get(seed)!;
+};
+
+export function Hype({ view, info, you, now, move }: GameProps<HypeView>) {
   const name = (id: number) => info.players.find((p) => p.userId === id)?.name ?? "?";
   // The last crash stays up for a moment before the next countdown.
   const next = view.rounds.length - 1;
   const i = next > 0 && now < view.rounds[next]!.startsAt - COUNTDOWN_MS ? next - 1 : next;
   const round = view.rounds[i]!;
-  const running = round.endedAt === null && now >= round.startsAt;
-  const elapsed = round.endedAt ?? now;
-  const m = running ? multiplier(now - round.startsAt) : null;
   const mine = you === null ? undefined : round.cashed[you];
-  const canCash = running && you !== null && mine === undefined && !view.forfeited.includes(you);
 
   return (
     <div className="hype">
@@ -41,31 +44,13 @@ export function Hype({ view, info, you, move }: GameProps<HypeView>) {
           now < round.startsAt &&
           ` · starts in ${Math.ceil((round.startsAt - now) / 1000)}…`}
       </p>
-      <Curve
-        startsAt={round.startsAt}
-        until={elapsed}
-        crashed={round.crash}
-        cashed={round.cashed}
+      <Live
+        round={round}
+        now={now}
+        canCash={you !== null && mine === undefined && !view.forfeited.includes(you)}
         name={name}
+        cashOut={() => move({ cashOut: true })}
       />
-      <p className="hype-m">
-        {m !== null ? (
-          <span>📈 ×{m.toFixed(2)}</span>
-        ) : round.crash !== null && round.endedAt !== null ? (
-          multiplier(round.endedAt - round.startsAt) * 100 < round.crash - 1 ? (
-            <span className="muted">Everyone got out · it would have crashed at {x(round.crash)}</span>
-          ) : (
-            <span className="crashed">💥 {x(round.crash)}</span>
-          )
-        ) : (
-          <span className="muted">×1.00</span>
-        )}
-      </p>
-      {canCash && (
-        <button type="button" className="primary hype-cash" onClick={() => move({ cashOut: true })}>
-          🪂 Cash out at ×{m!.toFixed(2)}
-        </button>
-      )}
       {mine !== undefined && round.endedAt === null && <p>🪂 You cashed out at {x(mine)}. Watch the rest…</p>}
       <table className="hype-scores">
         <thead>
@@ -107,7 +92,7 @@ export function Hype({ view, info, you, move }: GameProps<HypeView>) {
               {r.seed !== null && (
                 <>
                   {" "}
-                  · seed <code>{r.seed}</code> {sha256(r.seed) === r.hash ? "✓" : "✗ doesn't match!"}
+                  · seed <code>{r.seed}</code> {verified(r.seed, r.hash) ? "✓" : "✗ doesn't match!"}
                 </>
               )}
             </li>
@@ -115,6 +100,55 @@ export function Hype({ view, info, you, move }: GameProps<HypeView>) {
         </ul>
       </details>
     </div>
+  );
+}
+
+/** The only part redrawn every frame while a round runs: the curve, the multiplier and Cash out. */
+function Live({
+  round,
+  now: tickNow,
+  canCash,
+  name,
+  cashOut,
+}: {
+  round: HypeView["rounds"][number];
+  now: number;
+  canCash: boolean;
+  name: (id: number) => string;
+  cashOut: () => void;
+}) {
+  const on = round.endedAt === null && tickNow >= round.startsAt - 100;
+  const now = useFrameNow(on, tickNow);
+  const running = round.endedAt === null && now >= round.startsAt;
+  const m = running ? multiplier(now - round.startsAt) : null;
+  return (
+    <>
+      <Curve
+        startsAt={round.startsAt}
+        until={round.endedAt ?? now}
+        crashed={round.crash}
+        cashed={round.cashed}
+        name={name}
+      />
+      <p className="hype-m">
+        {m !== null ? (
+          <span>📈 ×{m.toFixed(2)}</span>
+        ) : round.crash !== null && round.endedAt !== null ? (
+          multiplier(round.endedAt - round.startsAt) * 100 < round.crash - 1 ? (
+            <span className="muted">Everyone got out · it would have crashed at {x(round.crash)}</span>
+          ) : (
+            <span className="crashed">💥 {x(round.crash)}</span>
+          )
+        ) : (
+          <span className="muted">×1.00</span>
+        )}
+      </p>
+      {running && canCash && (
+        <button type="button" className="primary hype-cash" onClick={cashOut}>
+          🪂 Cash out at ×{m!.toFixed(2)}
+        </button>
+      )}
+    </>
   );
 }
 

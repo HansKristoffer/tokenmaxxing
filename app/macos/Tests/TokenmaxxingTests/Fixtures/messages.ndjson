@@ -1,5 +1,5 @@
-{"event":"state","state":{"phase":"ready","version":"1.2.3"}}
-{"event":"state","state":{"phase":"onboarding","version":"1.2.3"}}
+{"event":"state","state":{"phase":"ready"}}
+{"event":"state","state":{"phase":"onboarding"}}
 {"event":"token","token":"12.tok_abc"}
 {"event":"token","token":null}
 {"id":1,"ok":true,"result":null}

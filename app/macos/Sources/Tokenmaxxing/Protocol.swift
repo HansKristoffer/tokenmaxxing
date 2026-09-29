@@ -9,13 +9,11 @@ enum Phase: String, Codable, Sendable {
 
 struct AppState: Codable, Equatable, Sendable {
     let phase: Phase
-    let version: String
 }
 
-/// The few fields any command result carries (`openWorld` → url, `signUp` → name).
+/// What a command replies with (`openWorld` → url).
 struct CommandResult: Decodable, Sendable {
     let url: String?
-    let name: String?
 }
 
 /// One line from the helper: a reply (`id`) or an event (`event`).

@@ -6,7 +6,6 @@ import { gameOf } from "@tokenmaxxing/core/games/index.ts";
 import type { Split } from "@tokenmaxxing/core/games/payouts.ts";
 import { type GameId, isRefused, type Options, type Outcome } from "@tokenmaxxing/core/games/types.ts";
 import type { Frame, MatchInfo, Seat } from "@tokenmaxxing/core/games/wire.ts";
-import type { Battle } from "@tokenmaxxing/core/protocol.ts";
 import { actor, UserError } from "rivetkit";
 import type { registry } from "./registry.ts";
 import {
@@ -40,12 +39,15 @@ interface MatchState extends MatchInput {
   bets: Record<number, number>;
   /** Players who left or lost their connection for too long. */
   forfeited: number[];
+  /** `arcade` has settled it (retried until it has). */
+  reported?: boolean;
 }
 
 /** Gone this long from a game that holds its players, and you forfeit. */
 const AWAY_MS = 20_000;
 /** A safety net: a held game still running after this is called off and refunded. */
 const HELD_LIMIT_MS = 20 * 60_000;
+const REPORT_RETRY_MS = 5_000;
 
 const defOf = (s: { game: GameId }) => gameOf(s.game)!;
 
@@ -70,7 +72,7 @@ export const match = actor({
       forfeited: [],
     };
   },
-  createVars: () => ({ tokens: new Map() as TokenCache, finishing: false }),
+  createVars: () => ({ tokens: new Map() as TokenCache }),
   createConnState: (c, params: ConnParams): Promise<Caller> =>
     authenticate(
       params,
@@ -85,7 +87,12 @@ export const match = actor({
   onDisconnect: (c): void => pushFrames(c),
   run: async (c): Promise<void> => {
     const def = defOf(c.state);
-    while (!c.aborted && !c.state.outcome) {
+    while (!c.aborted && !c.state.reported) {
+      if (c.state.outcome) {
+        await report(c);
+        if (!c.state.reported) await Bun.sleep(REPORT_RETRY_MS);
+        continue;
+      }
       await Bun.sleep(def.tickMs ?? 1000);
       const now = Date.now();
       let next = c.state.state;
@@ -105,7 +112,7 @@ export const match = actor({
         }
         if (now - c.state.startedAt > HELD_LIMIT_MS && !def.outcome(next)) {
           await finish(c, { void: "The game ran too long and was called off." });
-          return;
+          continue;
         }
       }
       if (next !== c.state.state) await apply(c, next);
@@ -157,24 +164,10 @@ export const match = actor({
       return window.until;
     },
 
-    /** The menu bar's battle line: where a player stands. */
-    battle: (c, userId: number): Battle | null => {
+    /** The arcade is done with it: the match and its state go. */
+    close: (c): void => {
       requireInternal(c.conn.state);
-      const def = defOf(c.state);
-      const window = def.usageWindow?.(c.state.state);
-      if (!window || c.state.outcome) return null;
-      const board = def.board?.(c.state.state, Date.now()) ?? [];
-      const place = board.findIndex((r) => r.player === userId);
-      return {
-        matchId: c.state.id,
-        name: def.name,
-        place: place < 0 ? null : place + 1,
-        players: c.state.players.length,
-        tokens: board[place]?.value ?? 0,
-        startsAt: window.from,
-        endsAt: window.to,
-        until: window.until,
-      };
+      c.destroy();
     },
 
     info: (c): MatchInfo => {
@@ -186,7 +179,6 @@ export const match = actor({
 
 type MatchCtx = {
   state: MatchState;
-  vars: { finishing: boolean };
   conns: Map<string, { state: unknown; send(name: string, ...args: unknown[]): void }>;
   client(): import("rivetkit/client").Client<typeof registry>;
 };
@@ -286,9 +278,19 @@ async function reportStatus(c: MatchCtx): Promise<void> {
 }
 
 async function finish(c: MatchCtx, outcome: Outcome): Promise<void> {
-  if (c.vars.finishing || c.state.outcome) return;
-  c.vars.finishing = true;
+  if (c.state.outcome) return;
   c.state.outcome = outcome;
   pushFrames(c);
-  await c.client().arcade.getOrCreate(["main"], internal).finished(c.state.id, outcome);
+  await report(c);
+}
+
+/** Tells `arcade` how it ended, so it pays out. The run loop retries until it has. */
+async function report(c: MatchCtx): Promise<void> {
+  if (!c.state.outcome || c.state.reported) return;
+  try {
+    await c.client().arcade.getOrCreate(["main"], internal).finished(c.state.id, c.state.outcome);
+    c.state.reported = true;
+  } catch (err) {
+    console.warn(`[match ${c.state.id}] reporting the outcome: ${String(err)}`);
+  }
 }

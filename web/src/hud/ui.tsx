@@ -1,7 +1,46 @@
 import type { Look } from "@tokenmaxxing/core/world.ts";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { characterFrame } from "../art/characters.ts";
+import { errorText } from "../net.ts";
 import { hud } from "../store.ts";
+
+/**
+ * Server calls from a panel: `run(fn)` makes a click or submit handler that shows a failure as
+ * `error`, and ignores clicks while a call is still going (no double buys or double joins).
+ */
+export function useRun() {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const going = useRef(false);
+  const run =
+    (fn: () => Promise<unknown>) =>
+    async (e?: { preventDefault?: () => void }): Promise<void> => {
+      e?.preventDefault?.();
+      if (going.current) return;
+      going.current = true;
+      setBusy(true);
+      setError(null);
+      try {
+        await fn();
+      } catch (err) {
+        setError(errorText(err));
+      } finally {
+        going.current = false;
+        setBusy(false);
+      }
+    };
+  return { error, busy, run };
+}
+
+/** Re-renders every `ms` while `on`, for countdowns. */
+export function useTicker(ms: number, on = true): void {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!on) return;
+    const id = setInterval(() => tick((n) => n + 1), ms);
+    return () => clearInterval(id);
+  }, [ms, on]);
+}
 
 /** A character drawn crisp at `scale`× (16px sprite). */
 export function AvatarImage({ look, scale = 3 }: { look: Look; scale?: number }) {

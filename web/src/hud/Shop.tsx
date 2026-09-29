@@ -2,9 +2,9 @@ import { ITEMS, type Item, PODIUM_COINS, type Slot } from "@tokenmaxxing/core/sh
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { useEffect, useRef, useState } from "react";
 import { PET_H, PET_W, petFrame } from "../art/pets.ts";
-import { errorText, refreshMe, town } from "../net.ts";
+import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { AvatarImage, Modal, Pills } from "./ui.tsx";
+import { AvatarImage, Modal, Pills, useRun } from "./ui.tsx";
 
 const TABS = [
   ["outfit", "Clothes"],
@@ -19,7 +19,7 @@ export function Shop() {
   const me = useHud((s) => s.me);
   const wallet = useHud((s) => s.wallet);
   const [tab, setTab] = useState<Slot>("outfit");
-  const [error, setError] = useState<string | null>(null);
+  const { error, run } = useRun();
   useEffect(() => {
     void town.wallet().then((w) => hud.set({ wallet: w }));
   }, []);
@@ -28,14 +28,6 @@ export function Shop() {
   const wear = async (look: Look) => {
     await town.setLook(look);
     await refreshMe();
-  };
-  const run = (fn: () => Promise<unknown>) => async () => {
-    setError(null);
-    try {
-      await fn();
-    } catch (err) {
-      setError(errorText(err));
-    }
   };
   const buy = (item: Item) =>
     run(async () => {

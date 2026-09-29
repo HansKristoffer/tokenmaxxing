@@ -364,7 +364,7 @@ export const world = actor({
         c.vars.dirty.add(p.id);
       }
       sendToRoom(c, "town", "gameOver", { id, winners });
-      await announce(c, "town", line);
+      if (line) await announce(c, "town", line);
     },
 
     /** Something happened in a game, said out loud: a bubble over the player (or the table). */

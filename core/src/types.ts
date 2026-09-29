@@ -51,7 +51,6 @@ export interface FileState {
 export interface SyncState {
   files: Record<string, FileState>;
   cursorLocal?: { dbPath: string; lastRowid: number };
-  /** Newest PR `createdAt` fetched from GitHub. */
-  github?: { since: string | null };
-  lastSyncedAt: number | null;
+  /** Newest PR `createdAt` fetched from GitHub, and when we last asked. */
+  github?: { since: string | null; checkedAt?: number };
 }
