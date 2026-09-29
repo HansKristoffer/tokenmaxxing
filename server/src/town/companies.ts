@@ -10,7 +10,7 @@ export interface MyCompany {
   id: number;
   name: string;
   isOwner: boolean;
-  plot: number | null;
+  plot: number;
   tier: number;
   tokens30d: number;
   website: string | null;
@@ -36,7 +36,7 @@ export interface CompanyRow {
   id: number;
   name: string;
   ownerId: number;
-  plot: number | null;
+  plot: number;
   website: string | null;
   branding: "working" | "failed" | null;
 }

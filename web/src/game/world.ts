@@ -119,7 +119,7 @@ let townPlots = "";
 /** The companies, and the town grown (or shrunk) to fit their plots. */
 export function setCompanies(list: CompanyInfo[]): void {
   world.companies = new Map(list.map((c) => [c.id, c]));
-  const plots = list.flatMap((c) => c.plot ?? []).sort((a, b) => a - b);
+  const plots = list.map((c) => c.plot).sort((a, b) => a - b);
   if (plots.join() !== townPlots) {
     townPlots = plots.join();
     setTown(plots);

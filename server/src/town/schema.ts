@@ -1,5 +1,4 @@
-import { frontier } from "@tokenmaxxing/core/maps.ts";
-import { all, type Sql } from "../actors/shared.ts";
+import type { Sql } from "../actors/shared.ts";
 
 /** Every table `town` keeps. Also run by tests against an in-memory database. */
 export async function migrate(sql: Sql): Promise<void> {
@@ -17,7 +16,7 @@ export async function migrate(sql: Sql): Promise<void> {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     owner_id INTEGER NOT NULL,
-    plot INTEGER UNIQUE,
+    plot INTEGER NOT NULL UNIQUE,
     website TEXT,
     branding TEXT,
     brand TEXT,
@@ -56,18 +55,4 @@ export async function migrate(sql: Sql): Promise<void> {
     PRIMARY KEY (match_id, user_id))`);
   await sql.execute("CREATE INDEX IF NOT EXISTS match_players_day ON match_players (day)");
   await sql.execute("CREATE INDEX IF NOT EXISTS match_players_user ON match_players (user_id)");
-  // The town used to have 8 numbered plots (and no house when they were full): the oldest companies
-  // get the blocks nearest the square.
-  const plots = (await all<{ plot: number }>(sql, "SELECT plot FROM companies WHERE plot >= 100000")).map(
-    (r) => r.plot,
-  );
-  const homeless = await all<{ id: number }>(
-    sql,
-    "SELECT id FROM companies WHERE plot IS NULL OR plot < 100000 ORDER BY created_at, id",
-  );
-  for (const { id } of homeless) {
-    const plot = frontier(plots)[0]!;
-    await sql.execute("UPDATE companies SET plot = ? WHERE id = ?", plot, id);
-    plots.push(plot);
-  }
 }

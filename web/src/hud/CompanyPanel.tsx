@@ -199,7 +199,7 @@ function direction(plot: number): string {
  */
 function PlotPicker({ value, onChange }: { value: number | null; onChange: (plot: number) => void }) {
   const companies = useHud((s) => s.companies);
-  const built = companies.flatMap((c) => (c.plot === null ? [] : [[c.plot, c.name] as const]));
+  const built = companies.map((c) => [c.plot, c.name] as const);
   const free = frontier(built.map(([p]) => p));
   const chosen = value !== null && free.includes(value) ? value : free[0]!;
   const blocks = [...CORE_BLOCKS, ...[...built.map(([p]) => p), ...free].map(plotBlock)];

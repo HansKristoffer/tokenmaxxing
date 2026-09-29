@@ -38,7 +38,7 @@ describe("companies", () => {
   test("a new company builds where its owner picks, next to the town", async () => {
     const owner = await signUp("builder");
     const town = await as(owner.token).world.join();
-    const pick = frontier(town.companies.flatMap((co) => co.plot ?? [])).at(-1)!;
+    const pick = frontier(town.companies.flatMap((co) => co.plot)).at(-1)!;
     const co = await owner.town.createCompany("Builders", pick);
     expect(co.plot).toBe(pick);
     await expect((await signUp("late")).town.createCompany("Late", pick)).rejects.toThrow(
@@ -52,7 +52,6 @@ describe("companies", () => {
     const mate = await signUp("mate");
     const co = await owner.town.createCompany("Arox");
     expect(co.isOwner).toBe(true);
-    expect(co.plot).not.toBeNull();
     expect((await mate.town.listings()).map((l) => l.name)).toContain("Arox");
 
     await mate.town.apply(co.id);

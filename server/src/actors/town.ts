@@ -204,9 +204,9 @@ export const town = actor({
       const userId = requireUser(c.conn.state);
       const name = companyName(rawName);
       const changed = await c.vars.serial(async () => {
-        const taken = await all<{ plot: number }>(c.db, "SELECT plot FROM companies WHERE plot IS NOT NULL");
+        const taken = await all<{ plot: number }>(c.db, "SELECT plot FROM companies");
         const free = frontier(taken.map((r) => r.plot));
-        const plot = rawPlot === undefined || rawPlot === null ? free[0]! : (rawPlot as number);
+        const plot = (rawPlot ?? free[0]) as number;
         if (!free.includes(plot))
           throw new UserError("Someone just built there. Pick another spot.", { code: "plot_taken" });
         const left = await leave(c.db, userId);

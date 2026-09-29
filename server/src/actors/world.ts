@@ -131,14 +131,14 @@ export const world = actor({
     },
   }),
   onWake: async (c) => {
-    // The companies (and so the town's shape) fresh every start; everyone too on the first start (or a
-    // wiped world), put to bed.
-    const seed = await main(c.client()).town.seed();
-    c.state.companies = Object.fromEntries(seed.companies.map((co) => [co.id, co]));
+    // First start (or a wiped world): load everyone from `town` and put them to bed.
+    if (!c.state.seeded) {
+      const seed = await main(c.client()).town.seed();
+      for (const co of seed.companies) c.state.companies[co.id] = co;
+      for (const p of seed.players) upsert(c.state, p, Date.now());
+      c.state.seeded = true;
+    }
     buildTown(c.state);
-    if (c.state.seeded) return;
-    for (const p of seed.players) upsert(c.state, p, Date.now());
-    c.state.seeded = true;
   },
   onDisconnect: (c, conn) => {
     const s = conn.state as ConnState;
@@ -452,7 +452,7 @@ function upsert(s: WorldState, core: PlayerCore, now: number): WorldPlayer {
 
 function plots(s: WorldState): Map<number, { id: number; name: string }> {
   const out = new Map<number, { id: number; name: string }>();
-  for (const co of Object.values(s.companies)) if (co.plot !== null) out.set(co.plot, co);
+  for (const co of Object.values(s.companies)) out.set(co.plot, co);
   return out;
 }
 
@@ -480,8 +480,7 @@ function rest(s: WorldState, p: WorldPlayer, state: "away" | "working"): void {
     Object.assign(p, { room: "town", x: p.arena.x, y: p.arena.y, facing: p.arena.facing, state: "working" });
     return;
   }
-  const hasPlot = p.companyId !== null && s.companies[p.companyId]?.plot != null;
-  const room = homeRoom(p.companyId, hasPlot);
+  const room = homeRoom(p.companyId);
   const taken = new Set(
     Object.values(s.players)
       .filter((o) => o.id !== p.id && o.room === room)
@@ -500,7 +499,7 @@ function wake(s: WorldState, p: WorldPlayer): boolean {
   const back = p.back;
   p.back = null;
   const house = back ? companyOfRoom(back.room) : null;
-  const canGo = back && (house === null || (house === p.companyId && s.companies[house]?.plot != null));
+  const canGo = back && (house === null || house === p.companyId);
   if (!canGo) {
     p.state = "idle";
     return true;

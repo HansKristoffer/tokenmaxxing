@@ -127,7 +127,7 @@ export interface Brand {
 export interface CompanyInfo {
   id: number;
   name: string;
-  plot: number | null;
+  plot: number;
   members: number;
   todayTokens: number;
   tokens30d: number;
@@ -322,9 +322,9 @@ export function portal(
   return plot === undefined ? townSpawn() : outsideDoor(plot);
 }
 
-/** The room a player rests in: their company's house, or the Inn without one (or without a plot). */
-export function homeRoom(companyId: number | null, hasPlot: boolean): RoomId {
-  return companyId !== null && hasPlot ? `hq:${companyId}` : "inn";
+/** The room a player rests in: their company's house, or the Inn without one. */
+export function homeRoom(companyId: number | null): RoomId {
+  return companyId !== null ? `hq:${companyId}` : "inn";
 }
 
 /**
