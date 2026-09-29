@@ -79,7 +79,10 @@ pub fn install_update(app: AppHandle) {
 
 /// Installs the waiting update, if there is one.
 fn install_now(app: &AppHandle) -> bool {
-    let found = match std::mem::take(&mut app.state::<Shared>().lock().unwrap().update) {
+    // Its own statement: in a `match` head the lock would be held through the arms, and the arm
+    // below locking again would wait on itself forever.
+    let taken = std::mem::take(&mut app.state::<Shared>().lock().unwrap().update);
+    let found = match taken {
         Status::Available(update) => update,
         other => {
             app.state::<Shared>().lock().unwrap().update = other;
