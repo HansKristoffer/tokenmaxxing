@@ -58,7 +58,8 @@ describe("maps", () => {
       expect(town.at(...doorOf(plot))).toBe("D");
       expect(seen.has(doorOf(plot).join(","))).toBe(true);
     }
-    for (const ch of ["I", "B", "N"]) for (const t of town.find(ch)) expect(seen.has(t.join(","))).toBe(true);
+    for (const ch of ["I", "B", "N", "o"])
+      for (const t of town.find(ch)) expect(seen.has(t.join(","))).toBe(true);
     expect(town.x0).toBeLessThan(0);
   });
 

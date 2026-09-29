@@ -96,17 +96,14 @@ export const as = (token: string) => ({
   match: (id: number) => client.match.get([String(id)], { params: { token } }),
 });
 
-let richDay = 0;
-/**
- * A fresh user with coins: one big day long ago, alone on it, so √(tokens ÷ 1M) plus the
- * 25-coin first place: `coins` before the bonus.
- */
+/** A fresh user with `coins` coins: √(tokens ÷ 1M) from today's usage. */
 export async function rich(prefix = "rich", coins = 100) {
   const u = await signUp(prefix);
-  const day = Date.UTC(2021, 0, 1, 12) + richDay++ * 86_400_000;
   await as(u.token)
     .player(u.userId)
-    .ingest([event({ inputTokens: coins * coins * 1e6, timestamp: day, messageId: `rich${u.userId}` })]);
+    .ingest([
+      event({ inputTokens: coins * coins * 1e6, timestamp: Date.now(), messageId: `rich${u.userId}` }),
+    ]);
   return { ...u, ...as(u.token) };
 }
 

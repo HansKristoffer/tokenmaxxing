@@ -21,25 +21,33 @@ export const ownedItems = async (sql: Sql, userId: number): Promise<string[]> =>
 
 /**
  * Coins are worked out from usage every time rather than stored, so a late sync
- * still pays. Podium places count once a day is over.
+ * still pays. Podium places count once a day is over. Only days from the world day
+ * someone signed up count, for pay and for places: a first sync backfills months of
+ * logs, and those days would otherwise pay out (and win podiums nobody else was on).
  * ponytail: a late sync can also knock someone off a past podium after they spent
  * the bonus; the balance then reads short until they earn it back. Settle days into
  * a ledger if that ever matters.
  */
 export async function wallet(sql: Sql, userId: number, now: number): Promise<Wallet> {
   const today = dayKey(now);
+  // ponytail: reads every user per call; store a signup day column if the town gets big.
+  const signups = await all<{ id: number; created_at: number }>(sql, "SELECT id, created_at FROM users");
+  const firstDay = new Map(signups.map((u) => [u.id, dayKey(u.created_at)]));
   const days = await all<{ day: string; tokens: number }>(
     sql,
     `SELECT day, SUM(${TOKENS}) AS tokens
-     FROM usage_daily WHERE user_id = ? GROUP BY day`,
+     FROM usage_daily WHERE user_id = ? AND day >= ? GROUP BY day`,
     userId,
+    firstDay.get(userId) ?? today,
   );
   const places = await all<{ day: string; place: number }>(
     sql,
     `SELECT day, place FROM (
        SELECT user_id, day, ROW_NUMBER() OVER (PARTITION BY day ORDER BY SUM(${TOKENS}) DESC, user_id) AS place
-       FROM usage_daily WHERE day < ? GROUP BY user_id, day)
+       FROM usage_daily JOIN json_each(?) s ON user_id = CAST(s.key AS INTEGER) AND day >= s.value
+       WHERE day < ? GROUP BY user_id, day)
      WHERE user_id = ? AND place <= ? ORDER BY day DESC`,
+    JSON.stringify(Object.fromEntries(firstDay)),
     today,
     userId,
     PODIUM_COINS.length,

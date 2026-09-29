@@ -117,12 +117,14 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - A 10 Hz tick sends each room its `moves`, and head counts (`occupancy`) and who's inside each house
   (`houses`, for town) when they change.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
+  `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game).
 - Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
   `chat`, `mention`.
-- **Resting.** Closing the last tab, or 3 minutes without input, sends you to your bed; offline with agents
-  active in the last 10 minutes, to your desk. Company members rest in their house, others at the Inn. Your spot
-  is remembered: the next `join`, or the first step after being away, puts you back there.
+- **Resting.** Closing the last tab sends you to your bed; offline with agents active in the last 10 minutes, to
+  your desk. Company members rest in their house, others at the Inn. Your spot is remembered: the next `join` puts
+  you back there. Online with 3 minutes without input, you just doze where you are (`dozing`, drawn as a "z") until
+  your next input, so a town left open on a second screen keeps showing what's going on.
 
 **`arcade["main"]`** and **`match[id]`**: the mini games; see *Games*.
 
@@ -140,6 +142,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 
 - Each world day pays `√(tokens ÷ 1M)` coins (1.5B ≈ 38, 600M ≈ 24, 100M = 10). Finishing a day 1st, 2nd or 3rd
   adds 25, 15 or 10.
+- Only days from the world day you signed up count, for pay and for podium places: a first sync backfills
+  old logs, and those days would otherwise pay out (and win podiums nobody else was around for).
 - Balances aren't stored: they're worked out from `usage_daily` minus `purchases`, so a late sync still pays.
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats and 4 pets, 60 to 1,500 coins. Items are
   worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`). Pets follow their owner in the client.

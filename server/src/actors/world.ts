@@ -13,7 +13,9 @@ import {
   type ChatLine,
   type CompanyInfo,
   companyOfRoom,
+  cupsLeft,
   DIRS,
+  drinkCoffee,
   type GameStatus,
   type Houses,
   homeRoom,
@@ -67,6 +69,10 @@ interface WorldPlayer extends PlayerCore, Place {
   back?: (Place & { state: "idle" | "sit" }) | null;
   /** In a long game (Tokenmaxxing): their desk at the arena, which replaces their bed until it ends. */
   arena?: Seat | null;
+  /** Optional: players from before coffee have had none. */
+  coffeeUntil?: number;
+  /** Online with no input for `IDLE_MS`; cleared by the next input. */
+  dozing?: boolean;
 }
 
 interface WorldState {
@@ -80,6 +86,15 @@ interface WorldState {
 type ConnState = Caller & { joined?: boolean };
 
 const CHAT_KEEP = 200;
+/** What a cup says, by how many are in your system. */
+const COFFEE_LINES = [
+  "☕ A fresh cup. You feel a little buzz.",
+  "☕☕ Second cup. Your fingers tap on their own.",
+  "☕☕☕ Third cup. You could refactor the whole monorepo right now.",
+  "☕☕☕☕ Fourth cup. You can hear colours.",
+  "☕☕☕☕☕ Fifth cup. Your heart is running at 10 Hz.",
+  "☕☕☕☕☕☕ The machine refuses to make it any stronger. You vibrate anyway.",
+];
 const CHAT_PER_MIN = 20;
 const REST_CHECK_EVERY = 10; // ticks
 
@@ -92,6 +107,8 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   todayTokens: p.todayTokens,
   liveAgents: p.liveAgents,
   online,
+  coffeeUntil: p.coffeeUntil ?? 0,
+  dozing: online && !!p.dozing,
   x: p.x,
   y: p.y,
   facing: p.facing,
@@ -160,7 +177,8 @@ export const world = actor({
     let n = 0;
     while (!c.aborted) {
       await Bun.sleep(TICK_MS);
-      if (++n % REST_CHECK_EVERY === 0) settle(c.state, c.vars, Date.now());
+      if (++n % REST_CHECK_EVERY === 0)
+        for (const p of settle(c.state, c.vars, Date.now())) c.broadcast("info", info(p, true));
       flush(c);
     }
   },
@@ -173,6 +191,7 @@ export const world = actor({
       (c.conn.state as ConnState).joined = true;
       c.vars.online.set(userId, (c.vars.online.get(userId) ?? 0) + 1);
       p.lastInputAt = Date.now();
+      p.dozing = false;
       if (wake(c.state, p)) c.vars.dirty.add(p.id);
       c.broadcast("info", info(p, true));
       return snapshot(c.state, c.vars.online, p, chatOf(c.db, p.room));
@@ -183,7 +202,7 @@ export const world = actor({
       const p = c.state.players[userId];
       if (!p || !isFacing(rawDir)) return null;
       const now = Date.now();
-      p.lastInputAt = now;
+      touch(c, p, now);
       // At a game table: the arrow keys do nothing until the game ends.
       if (p.state === "playing") return correction(p);
       // Back from being away: the first key press returns them to where they were.
@@ -222,7 +241,7 @@ export const world = actor({
       const now = Date.now();
       if (p?.state !== "idle" || now - (c.vars.jumps.get(userId) ?? 0) < JUMP_MS) return;
       c.vars.jumps.set(userId, now);
-      p.lastInputAt = now;
+      touch(c, p, now);
       sendToRoom(c, p.room, "jump", userId);
     },
 
@@ -231,7 +250,7 @@ export const world = actor({
       const userId = requireUser(c.conn.state);
       const p = c.state.players[userId];
       if (!p || p.state === "playing") return null;
-      p.lastInputAt = Date.now();
+      touch(c, p, Date.now());
       if (isFacing(facing)) p.facing = facing;
       const [dx, dy] = DIRS[p.facing];
       const x = p.x + dx;
@@ -245,6 +264,22 @@ export const world = actor({
       return correction(p);
     },
 
+    /** E while facing a coffee machine: one more cup, and everyone sees you shake. */
+    drink: (c, facing: unknown): StepResult => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || p.state === "playing") return null;
+      const now = Date.now();
+      touch(c, p, now);
+      if (isFacing(facing)) p.facing = facing;
+      const [dx, dy] = DIRS[p.facing];
+      if (mapOf(p.room).at(p.x + dx, p.y + dy) !== "o") return null;
+      p.coffeeUntil = drinkCoffee(p.coffeeUntil ?? 0, now);
+      c.broadcast("info", info(p, c.vars.online.has(p.id)));
+      const cups = Math.round(cupsLeft(p.coffeeUntil, now));
+      return { notice: COFFEE_LINES[Math.min(cups, COFFEE_LINES.length) - 1]! };
+    },
+
     say: async (c, rawText: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
       const p = c.state.players[userId];
@@ -252,7 +287,7 @@ export const world = actor({
       if (!p || !text) return;
       if (!c.vars.chat.take(String(userId), Date.now()))
         throw new UserError("Slow down a little.", { code: "rate_limited" });
-      p.lastInputAt = Date.now();
+      touch(c, p, Date.now());
       const at = Date.now();
       const [row] = await all<{ id: number }>(
         c.db,
@@ -526,14 +561,26 @@ function wake(s: WorldState, p: WorldPlayer): boolean {
   return true;
 }
 
-/** Idle players go to bed; offline ones switch between desk and bed as their agents start and stop. */
-function settle(s: WorldState, v: Vars, now: number): void {
+/** Input from `p`: wakes them if they were dozing. */
+function touch(c: { broadcast(name: string, ...args: unknown[]): void }, p: WorldPlayer, now: number): void {
+  p.lastInputAt = now;
+  if (!p.dozing) return;
+  p.dozing = false;
+  c.broadcast("info", info(p, true));
+}
+
+/**
+ * Idle players doze where they are (a second screen still shows the town); offline ones switch
+ * between desk and bed as their agents start and stop. Returns who just dozed off.
+ */
+function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
+  const dozed: WorldPlayer[] = [];
   for (const p of Object.values(s.players)) {
     if (p.state === "playing") continue;
     if (v.online.has(p.id)) {
-      if ((p.state === "idle" || p.state === "sit") && now - p.lastInputAt > IDLE_MS) {
-        rest(s, p, "away");
-        v.dirty.add(p.id);
+      if (!p.dozing && now - p.lastInputAt > IDLE_MS) {
+        p.dozing = true;
+        dozed.push(p);
       }
       continue;
     }
@@ -543,6 +590,7 @@ function settle(s: WorldState, v: Vars, now: number): void {
       v.dirty.add(p.id);
     }
   }
+  return dozed;
 }
 
 /** A table or desk of a game in town: nobody walks onto it. */

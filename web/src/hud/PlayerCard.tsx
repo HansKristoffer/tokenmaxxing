@@ -18,7 +18,8 @@ function doing(userId: number): string | null {
   const a = world.avatars.get(userId);
   if (!a) return null;
   if (a.state === "working") return `💻 running ${plural(Math.max(1, a.info.liveAgents), "agent")}`;
-  if (a.state === "away") return a.info.online ? "💤 away" : "💤 asleep";
+  if (a.state === "away") return "💤 asleep";
+  if (a.info.dozing) return "💤 away";
   return a.info.online ? "🟢 here" : null;
 }
 

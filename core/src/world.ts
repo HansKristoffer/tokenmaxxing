@@ -14,7 +14,7 @@ export const RUN_STEP_MS = 130;
 export const JUMP_MS = 360;
 /** How often the world sends batched moves. */
 export const TICK_MS = 100;
-/** Connected but no input this long → away (goes to bed). */
+/** Connected but no input this long → dozing where they stand (only going offline sends them to bed). */
 export const IDLE_MS = 3 * 60_000;
 /** Offline and agents active this recently → working at a desk. */
 export const WORKING_MS = 10 * 60_000;
@@ -102,6 +102,10 @@ export interface PlayerInfo {
   /** Agents that ran in the last 10 minutes. */
   liveAgents: number;
   online: boolean;
+  /** When their coffee wears off (epoch ms); see `drinkCoffee`. */
+  coffeeUntil: number;
+  /** Online but no input for `IDLE_MS`: snoozing in place. */
+  dozing: boolean;
 }
 
 /** Where someone is: `[id, x, y, facing, state]`. */
@@ -251,6 +255,19 @@ export const houseTier = (tokens30d: number, members: number): number =>
   TIERS.findLastIndex((t) => perMember(tokens30d, members) >= t.min);
 export const houseTierName = (tier: number): string => TIERS[tier]?.name ?? TIERS[0].name;
 export const nextTierAt = (tier: number): number | null => TIERS[tier + 1]?.min ?? null;
+
+// MARK: Coffee
+
+/** How long one cup keeps you shaking. Cups stack, up to `MAX_CUPS` in your system at once. */
+export const CUP_MS = 90_000;
+export const MAX_CUPS = 6;
+
+/** Another cup: adds `CUP_MS` to whatever is still in your system. */
+export const drinkCoffee = (until: number, now: number): number =>
+  Math.min(Math.max(until, now) + CUP_MS, now + MAX_CUPS * CUP_MS);
+
+/** Cups still in your system (fractional, wearing off): how hard you shake. */
+export const cupsLeft = (until: number, now: number): number => Math.max(0, until - now) / CUP_MS;
 
 // MARK: Movement
 

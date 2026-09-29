@@ -241,6 +241,7 @@ export function interact(): void {
   const kind = world.map.kind(x, y);
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
   if (kind.seat) return void send(conn.sit(me.facing));
+  if (ch === "o") return void send(conn.drink(me.facing));
   if (ch === "H") {
     const b = buildingAt(x, y);
     const company = b?.plot ? companyOnPlot(b.plot) : null;

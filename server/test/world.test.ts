@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
-import { type ChatLine, type Moves, outsideDoor, route, type Snapshot } from "@tokenmaxxing/core/world.ts";
+import {
+  type ChatLine,
+  cupsLeft,
+  type Moves,
+  outsideDoor,
+  type PlayerInfo,
+  route,
+  type Snapshot,
+} from "@tokenmaxxing/core/world.ts";
 import { admit, as, event, eventually, signUp } from "./rivet.ts";
 
 async function connect(token: string) {
@@ -75,6 +83,24 @@ describe("world", () => {
     const { conn } = await connect(a.token);
     const burst = await Promise.all(Array.from({ length: 8 }, () => conn.step("left")));
     expect(burst.some((r) => r !== null)).toBe(true);
+    await conn.dispose();
+  });
+
+  test("coffee makes you shake, and more cups make it last longer", async () => {
+    const a = await signUp("coffee");
+    const { conn, snap } = await connect(a.token);
+    const infos: PlayerInfo[] = [];
+    conn.on("info", (i: PlayerInfo) => infos.push(i));
+    const me = snap.players.find((p) => p.id === a.userId)!;
+    const path = route(MAPS.inn, [me.x, me.y], MAPS.inn.find("o")[0]!)!;
+    await walk(conn, path.slice(0, -1));
+    expect(await conn.drink("down")).toBeNull(); // not facing the machine
+    expect(await conn.drink(path.at(-1))).toEqual({ notice: expect.stringContaining("fresh cup") });
+    expect(await conn.drink(path.at(-1))).toEqual({ notice: expect.stringContaining("Second cup") });
+    await eventually(() => {
+      const until = infos.filter((i) => i.id === a.userId).at(-1)?.coffeeUntil ?? 0;
+      expect(cupsLeft(until, Date.now())).toBeGreaterThan(1.5);
+    });
     await conn.dispose();
   });
 
