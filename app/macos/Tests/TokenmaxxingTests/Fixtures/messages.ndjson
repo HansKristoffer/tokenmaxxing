@@ -1,5 +1,5 @@
-{"event":"state","state":{"phase":"ready"}}
-{"event":"state","state":{"phase":"onboarding"}}
+{"event":"state","state":{"phase":"ready","today":{"tokens":306000000,"rank":2,"level":5},"battle":{"name":"Tokenmaxxing","place":2,"players":4,"tokens":412000000,"endsAt":1790003600000,"until":1790003780000}}}
+{"event":"state","state":{"phase":"onboarding","today":null,"battle":null}}
 {"event":"token","token":"12.tok_abc"}
 {"event":"token","token":null}
 {"id":1,"ok":true,"result":null}

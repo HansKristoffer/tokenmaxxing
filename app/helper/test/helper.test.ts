@@ -82,8 +82,10 @@ describe("helper", () => {
 
     await helper.syncOnce();
     expect(helper.state.phase).toBe("ready");
-    const town = client.town.getOrCreate(["main"], { params: { token: tokenMsg.token } });
-    expect((await town.today()).me).toMatchObject({ tokensToday: 15 });
+    await helper.refresh();
+    // The menu bar's count.
+    expect(helper.state.today).toMatchObject({ tokens: 15, rank: expect.any(Number) });
+    expect(helper.state.battle).toBeNull();
     helper.stop();
   });
 

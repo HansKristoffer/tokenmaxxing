@@ -16,6 +16,7 @@ import {
 } from "@tokenmaxxing/core/games/payouts.ts";
 import type { GameId, Options, Outcome } from "@tokenmaxxing/core/games/types.ts";
 import type { Lobby, MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
+import type { Battle } from "@tokenmaxxing/core/protocol.ts";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { RateLimiter } from "../rate-limit.ts";
@@ -346,8 +347,8 @@ export const arcade = actor({
         push(c);
       }),
 
-    /** For the app after each sync: in a battle (Tokenmaxxing), until when to sync fast; else null. */
-    battle: (c): Promise<number | null> => {
+    /** For the app after each sync: the battle (Tokenmaxxing) I'm in and where I stand, or null. */
+    battle: (c): Promise<Battle | null> => {
       const userId = requireUser(c.conn.state);
       const live = usageMatch(c.state, userId);
       return live ? matchOf(c.client(), live.id).usage(userId) : Promise.resolve(null);
@@ -356,7 +357,7 @@ export const arcade = actor({
     // MARK: From `player` and `match`
 
     /** A player synced: the usage game they're in pulls their new score. */
-    usage: (c, userId: number): Promise<number | null> => {
+    usage: (c, userId: number): Promise<Battle | null> => {
       requireInternal(c.conn.state);
       const live = usageMatch(c.state, userId);
       return live ? matchOf(c.client(), live.id).usage(userId) : Promise.resolve(null);

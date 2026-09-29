@@ -47,7 +47,7 @@ export class Helper {
   readonly state: AppState;
 
   constructor(private readonly opts: HelperOptions) {
-    this.state = { phase: "starting" };
+    this.state = { phase: "starting", today: null, battle: null };
   }
 
   /** Handles one command and always replies, so the shell can await every call. */
@@ -116,8 +116,8 @@ export class Helper {
   private async signIn(token: string): Promise<void> {
     this.token = token;
     this.state.phase = "ready";
-    await this.checkBattle();
-    void this.syncOnce();
+    await this.refresh();
+    void this.tick();
   }
 
   /** Syncs every `ms` (fast during a battle), restarting the timer only when that changes. */
@@ -128,19 +128,32 @@ export class Helper {
     this.timer = setInterval(() => void this.tick(), ms);
   }
 
-  /** Periodic work: send new local usage, then check whether I'm in a battle. */
+  /** Periodic work: send new local usage, then show where that leaves me. */
   async tick(): Promise<void> {
     await this.syncOnce();
-    await this.checkBattle();
+    await this.refresh();
   }
 
-  /** In a Tokenmaxxing battle, sync fast so the scoreboard moves. */
-  private async checkBattle(): Promise<void> {
+  /**
+   * My count today and the battle I'm in, for the menu bar. In a battle, sync fast so its scoreboard
+   * moves. Offline, the last numbers stay up.
+   */
+  async refresh(): Promise<void> {
     if (!this.token) return;
-    const until = await this.call(() =>
-      this.api().arcade.getOrCreate(["main"], this.params()).battle(),
-    ).catch(() => null);
-    if (this.token) this.cadence(until !== null ? BATTLE_SYNC_MS : SYNC_INTERVAL_MS);
+    try {
+      const [today, battle] = await this.call(() =>
+        Promise.all([
+          this.api().town.getOrCreate(["main"], this.params()).today(),
+          this.api().arcade.getOrCreate(["main"], this.params()).battle(),
+        ]),
+      );
+      this.state.today = { tokens: today.me.tokensToday, rank: today.me.rank, level: today.me.level };
+      this.state.battle = battle;
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+    }
+    if (this.token) this.cadence(this.state.battle ? BATTLE_SYNC_MS : SYNC_INTERVAL_MS);
+    this.emit();
   }
 
   /** Forgets the account and the sync offsets: the next account starts from a clean slate. */
@@ -149,7 +162,7 @@ export class Helper {
     this.token = null;
     this.syncState = emptyState();
     void rm(this.opts.statePath, { force: true });
-    this.state.phase = "onboarding";
+    Object.assign(this.state, { phase: "onboarding", today: null, battle: null });
   }
 
   /** Parse new local events and send them; one run at a time. */

@@ -6,6 +6,7 @@ import { gameOf } from "@tokenmaxxing/core/games/index.ts";
 import type { Split } from "@tokenmaxxing/core/games/payouts.ts";
 import { type GameId, isRefused, type Options, type Outcome } from "@tokenmaxxing/core/games/types.ts";
 import type { Frame, MatchInfo, Seat } from "@tokenmaxxing/core/games/wire.ts";
+import type { Battle } from "@tokenmaxxing/core/protocol.ts";
 import { actor, UserError } from "rivetkit";
 import type { registry } from "./registry.ts";
 import {
@@ -143,7 +144,7 @@ export const match = actor({
     },
 
     /** After a player syncs (usage games): pull their tokens in the window. Returns until when to keep syncing fast. */
-    usage: async (c, userId: number): Promise<number | null> => {
+    usage: async (c, userId: number): Promise<Battle | null> => {
       requireInternal(c.conn.state);
       const def = defOf(c.state);
       const window = def.usageWindow?.(c.state.state);
@@ -154,7 +155,16 @@ export const match = actor({
         .player.get([String(userId)], internal)
         .tokensBetween(window.from, window.to);
       await apply(c, def.usage(c.state.state, userId, used, Date.now()));
-      return window.until;
+      const board = def.board?.(c.state.state, Date.now()) ?? [];
+      const place = board.findIndex((r) => r.player === userId);
+      return {
+        name: def.name,
+        place: place < 0 || !board[place]!.value ? null : place + 1,
+        players: c.state.players.length,
+        tokens: board[place]?.value ?? 0,
+        endsAt: window.to,
+        until: window.until,
+      };
     },
 
     /** The arcade is done with it: the match and its state go. */

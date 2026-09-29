@@ -166,10 +166,12 @@ describe("the arcade", () => {
     expect(g.seats).toHaveLength(2);
     // Not held at the table: they can walk around.
     await expect(as(a.token).world.step("up")).resolves.not.toMatchObject({ state: "playing" });
-    // The app syncs fast until the battle (15 minutes, after a minute's countdown) and its grace period end.
-    const until = await a.arcade.battle();
-    expect(until).toBeGreaterThan(Date.now() + 18 * 60_000);
-    expect(await as(b.token).arcade.battle()).toBe(until);
+    // The menu bar's battle line, and the app syncs fast until the battle and its grace period end.
+    const battle = (await a.arcade.battle())!;
+    expect(battle).toMatchObject({ name: "Tokenmaxxing", place: null, players: 2, tokens: 0 });
+    expect(battle.until - battle.endsAt).toBe(3 * 60_000);
+    expect(battle.endsAt).toBeGreaterThan(Date.now() + 15 * 60_000);
+    expect((await as(b.token).arcade.battle())!.until).toBe(battle.until);
     await b.match(id).forfeit();
     await eventually(async () => {
       expect(await a.arcade.battle()).toBeNull();

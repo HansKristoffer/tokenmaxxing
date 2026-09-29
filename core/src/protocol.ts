@@ -26,7 +26,21 @@ export type Message =
   /** After signUp → save to Keychain. `null` → the token was rejected; delete it. */
   | { event: "token"; token: string | null };
 
-/** The menu bar app is a sign-up form, then just a button that opens the world. */
+/** A Tokenmaxxing battle I'm in. The app syncs fast until `until`. */
+export interface Battle {
+  name: string;
+  /** Null before anyone has burned a token. */
+  place: number | null;
+  players: number;
+  tokens: number;
+  endsAt: number;
+  until: number;
+}
+
+/** What the desktop app shows: sign-up until there's an account, then my count in the menu bar. */
 export interface AppState {
   phase: "starting" | "onboarding" | "ready";
+  /** My numbers today, after the first sync. */
+  today: { tokens: number; rank: number | null; level: number } | null;
+  battle: Battle | null;
 }
