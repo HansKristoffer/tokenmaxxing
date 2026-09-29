@@ -1,0 +1,614 @@
+/**
+ * The social side of games, and the money: tables waiting for players (invited,
+ * open to everyone, or both), who is playing what, side bets, and settling the
+ * pot when a match ends. Coins move only through `town`'s ledger.
+ */
+import { GAMES, gameOf, parseOptions } from "@tokenmaxxing/core/games/index.ts";
+import {
+  effectiveSplit,
+  MAX_SIDE_BET,
+  MAX_STAKE,
+  potShares,
+  type SideBet,
+  SPLITS,
+  type Split,
+  sideBetShares,
+} from "@tokenmaxxing/core/games/payouts.ts";
+import type { GameId, Options, Outcome } from "@tokenmaxxing/core/games/types.ts";
+import type { Lobby, MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
+import { actor, UserError } from "rivetkit";
+import type { Client } from "rivetkit/client";
+import { RateLimiter } from "../rate-limit.ts";
+import type { registry } from "./registry.ts";
+import {
+  authenticate,
+  type Caller,
+  type ConnParams,
+  internal,
+  requireInternal,
+  requireUser,
+  serial,
+  type TokenCache,
+} from "./shared.ts";
+
+interface Invite {
+  userId: number;
+  expiresAt: number;
+  /** "Yes, but for this stake." */
+  counter: number | null;
+}
+
+interface Table {
+  id: number;
+  game: GameId;
+  host: number;
+  stake: number;
+  seats: number;
+  split: Split;
+  open: boolean;
+  options: Options;
+  seated: number[];
+  invited: Invite[];
+  createdAt: number;
+}
+
+interface Live {
+  id: number;
+  game: GameId;
+  players: number[];
+  stake: number;
+  split: Split;
+  options: Options;
+  startedAt: number;
+  betsCloseAt: number;
+  bets: SideBet[];
+  outcome: Outcome | null;
+  endedAt: number | null;
+  /** Players who asked for double or nothing. */
+  rematch: number[];
+}
+
+interface ArcadeState {
+  nextId: number;
+  tables: Record<string, Table>;
+  matches: Record<string, Live>;
+  names: Record<string, string>;
+}
+
+const INVITE_MS = 2 * 60_000;
+const TABLE_MS = 10 * 60_000;
+const REMATCH_MS = 20_000;
+/** Finished matches stay listed this long (the end screen, and the rematch offer). */
+const KEEP_MS = 60_000;
+
+const tableRef = (id: number) => `table:${id}`;
+const betsRef = (id: number) => `bets:${id}`;
+
+export const arcade = actor({
+  state: { nextId: 1, tables: {}, matches: {}, names: {} } as ArcadeState,
+  createVars: () => ({
+    serial: serial(),
+    tokens: new Map() as TokenCache,
+    invites: new RateLimiter(10, 60_000),
+  }),
+  createConnState: (c, params: ConnParams): Promise<Caller> =>
+    authenticate(
+      params,
+      (userId, secret) =>
+        c
+          .client<typeof registry>()
+          .player.get([String(userId)], internal)
+          .verify(secret),
+      c.vars.tokens,
+    ),
+  run: async (c): Promise<void> => {
+    while (!c.aborted) {
+      await Bun.sleep(1000);
+      await c.vars.serial(() => sweep(c, Date.now()));
+    }
+  },
+  actions: {
+    lobby: (c): Lobby => lobbyFor(c.state, requireUser(c.conn.state)),
+
+    /** Opens a table: you take the first seat, and your invites go out. */
+    open: (c, rawGame: unknown, raw: unknown): Promise<Lobby> =>
+      c.vars.serial(async () => {
+        const userId = requireUser(c.conn.state);
+        const game = gameOf(rawGame);
+        if (!game) throw new UserError("That game doesn't exist.", { code: "not_found" });
+        const o = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
+        const stake = o.stake ?? 0;
+        if (!Number.isInteger(stake) || (stake as number) < 0 || (stake as number) > MAX_STAKE)
+          throw new UserError(`A stake is 0 to ${MAX_STAKE} coins.`, { code: "invalid_stake" });
+        const seats = o.seats ?? game.players.max;
+        if (
+          !Number.isInteger(seats) ||
+          (seats as number) < game.players.min ||
+          (seats as number) > game.players.max
+        )
+          throw new UserError(`${game.name} is for ${game.players.min}–${game.players.max} players.`, {
+            code: "invalid_seats",
+          });
+        const split = typeof o.split === "string" && o.split in SPLITS ? (o.split as Split) : "all";
+        busy(c.state, userId);
+        const id = c.state.nextId++;
+        const table: Table = {
+          id,
+          game: game.id,
+          host: userId,
+          stake: stake as number,
+          seats: seats as number,
+          split,
+          open: o.open !== false,
+          options: parseOptions(game, o.options),
+          seated: [],
+          invited: [],
+          createdAt: Date.now(),
+        };
+        await seat(c, table, userId, table.stake);
+        c.state.tables[id] = table;
+        const invite = Array.isArray(o.invite) ? o.invite.filter(Number.isInteger) : [];
+        await addInvites(c, table, invite as number[]);
+        push(c);
+        return lobbyFor(c.state, userId);
+      }),
+
+    invite: (c, tableId: unknown, userIds: unknown): Promise<void> =>
+      c.vars.serial(async () => {
+        const userId = requireUser(c.conn.state);
+        const table = hostedTable(c.state, userId, tableId);
+        if (!c.vars.invites.take(String(userId), Date.now()))
+          throw new UserError("That's a lot of invites. Give it a minute.", { code: "rate_limited" });
+        await addInvites(
+          c,
+          table,
+          Array.isArray(userIds) ? (userIds.filter(Number.isInteger) as number[]) : [],
+        );
+        push(c);
+      }),
+
+    /** Yes, no, or "yes, but for this stake". */
+    answer: (c, tableId: unknown, reply: unknown): Promise<void> =>
+      c.vars.serial(async () => {
+        const userId = requireUser(c.conn.state);
+        const table = tableOf(c.state, tableId);
+        const invite = table.invited.find((i) => i.userId === userId);
+        if (!invite) throw new UserError("That invite is gone.", { code: "not_found" });
+        const counter = (reply as { counter?: unknown } | null)?.counter;
+        const client = c.client();
+        if (reply === false) {
+          table.invited = table.invited.filter((i) => i !== invite);
+          await tell(client, table.host, `${nameOf(c.state, userId)} said no to ${gameName(table)}.`);
+        } else if (counter !== undefined) {
+          if (!Number.isInteger(counter) || (counter as number) < 0 || (counter as number) > MAX_STAKE)
+            throw new UserError(`A stake is 0 to ${MAX_STAKE} coins.`, { code: "invalid_stake" });
+          invite.counter = counter as number;
+          await tell(
+            client,
+            table.host,
+            `${nameOf(c.state, userId)} would play ${gameName(table)} for 🪙 ${counter} instead.`,
+          );
+        } else {
+          busy(c.state, userId);
+          if (table.seated.length >= table.seats)
+            throw new UserError("That table just filled.", { code: "full" });
+          await seat(c, table, userId, table.stake);
+          table.invited = table.invited.filter((i) => i !== invite);
+          await startIfFull(c, table);
+        }
+        push(c);
+      }),
+
+    /** The host takes a counter offer: the table is re-priced and they sit down. */
+    takeCounter: (c, tableId: unknown, invitee: unknown): Promise<void> =>
+      c.vars.serial(async () => {
+        const userId = requireUser(c.conn.state);
+        const table = hostedTable(c.state, userId, tableId);
+        const invite = table.invited.find((i) => i.userId === invitee);
+        if (!invite || invite.counter === null)
+          throw new UserError("There's no counter offer.", { code: "not_found" });
+        if (table.seated.length !== 1)
+          throw new UserError("Someone else already sat down at the old stake.", { code: "taken" });
+        busy(c.state, invite.userId);
+        const town = c.client().town.getOrCreate(["main"], internal);
+        const ref = tableRef(table.id);
+        const old = table.stake;
+        await town.refund(ref, [userId]);
+        try {
+          await town.hold(ref, "stake", [
+            { userId, amount: invite.counter },
+            { userId: invite.userId, amount: invite.counter },
+          ]);
+        } catch (err) {
+          await town.hold(ref, "stake", [{ userId, amount: old }]);
+          throw err;
+        }
+        table.stake = invite.counter;
+        table.seated.push(invite.userId);
+        table.invited = table.invited.filter((i) => i !== invite);
+        await startIfFull(c, table);
+        push(c);
+      }),
+
+    /** Takes a free seat at an open table. */
+    join: (c, tableId: unknown): Promise<void> =>
+      c.vars.serial(async () => {
+        const userId = requireUser(c.conn.state);
+        const table = tableOf(c.state, tableId);
+        const invited = table.invited.some((i) => i.userId === userId);
+        if (!table.open && !invited) throw new UserError("That table is invite only.", { code: "private" });
+        if (table.seated.includes(userId)) return;
+        busy(c.state, userId);
+        if (table.seated.length >= table.seats)
+          throw new UserError("That table just filled.", { code: "full" });
+        await seat(c, table, userId, table.stake);
+        table.invited = table.invited.filter((i) => i.userId !== userId);
+        await startIfFull(c, table);
+        push(c);
+      }),
+
+    /** Gets up and takes your stake back. The host leaving closes the table. */
+    leave: (c, tableId: unknown): Promise<void> =>
+      c.vars.serial(async () => {
+        const userId = requireUser(c.conn.state);
+        const table = tableOf(c.state, tableId);
+        if (!table.seated.includes(userId)) return;
+        if (userId === table.host) await closeTable(c, table, `${nameOf(c.state, userId)} closed the table.`);
+        else {
+          await c
+            .client<typeof registry>()
+            .town.getOrCreate(["main"], internal)
+            .refund(tableRef(table.id), [userId]);
+          table.seated = table.seated.filter((id) => id !== userId);
+        }
+        push(c);
+      }),
+
+    start: (c, tableId: unknown): Promise<void> =>
+      c.vars.serial(async () => {
+        const userId = requireUser(c.conn.state);
+        const table = hostedTable(c.state, userId, tableId);
+        const min = GAMES[table.game]!.players.min;
+        if (table.seated.length < min)
+          throw new UserError(`${gameName(table)} needs at least ${min} players.`, { code: "too_few" });
+        await startMatch(c, table);
+        push(c);
+      }),
+
+    /** One side bet on one player of a match you're not in, while bets are open. */
+    bet: (c, matchId: unknown, on: unknown, amount: unknown): Promise<void> =>
+      c.vars.serial(async () => {
+        const userId = requireUser(c.conn.state);
+        const live = c.state.matches[String(matchId)];
+        if (!live || live.outcome) throw new UserError("That game is over.", { code: "over" });
+        if (Date.now() >= live.betsCloseAt) throw new UserError("Bets are closed.", { code: "closed" });
+        if (live.players.includes(userId))
+          throw new UserError("You can't bet on your own game.", { code: "own_game" });
+        if (live.bets.some((b) => b.userId === userId))
+          throw new UserError("You've already bet on this one.", { code: "already" });
+        if (!live.players.includes(on as number))
+          throw new UserError("They're not playing.", { code: "not_found" });
+        if (!Number.isInteger(amount) || (amount as number) < 1 || (amount as number) > MAX_SIDE_BET)
+          throw new UserError(`A side bet is 1 to ${MAX_SIDE_BET} coins.`, { code: "invalid_bet" });
+        await c
+          .client<typeof registry>()
+          .town.getOrCreate(["main"], internal)
+          .hold(betsRef(live.id), "bet", [{ userId, amount: amount as number }]);
+        live.bets.push({ userId, on: on as number, amount: amount as number });
+        await c
+          .client<typeof registry>()
+          .match.get([String(live.id)], internal)
+          .bets(betPools(live))
+          .catch(() => {});
+        push(c);
+      }),
+
+    /** Double or nothing after a 1v1: when both ask, the new game starts at once. */
+    rematch: (c, matchId: unknown): Promise<void> =>
+      c.vars.serial(async () => {
+        const userId = requireUser(c.conn.state);
+        const live = c.state.matches[String(matchId)];
+        if (!live?.outcome || !live.endedAt || live.players.length !== 2 || !live.players.includes(userId))
+          throw new UserError("There's no rematch to ask for.", { code: "not_found" });
+        if (Date.now() > live.endedAt + REMATCH_MS)
+          throw new UserError("The rematch offer ran out.", { code: "expired" });
+        if (!live.rematch.includes(userId)) live.rematch.push(userId);
+        const other = live.players.find((p) => p !== userId)!;
+        const client = c.client();
+        if (live.rematch.length < 2) {
+          await tell(client, other, `${nameOf(c.state, userId)} wants double or nothing.`);
+          push(c);
+          return;
+        }
+        live.rematch = [];
+        for (const p of live.players) busy(c.state, p);
+        const id = c.state.nextId++;
+        const table: Table = {
+          id,
+          game: live.game,
+          host: live.players[0]!,
+          stake: Math.min(MAX_STAKE, live.stake * 2),
+          seats: 2,
+          split: "all",
+          open: false,
+          options: live.options,
+          seated: [],
+          invited: [],
+          createdAt: Date.now(),
+        };
+        try {
+          await client.town.getOrCreate(["main"], internal).hold(
+            tableRef(id),
+            "stake",
+            live.players.map((p) => ({ userId: p, amount: table.stake })),
+          );
+        } catch (err) {
+          const why = err instanceof Error ? err.message : "Someone can't afford it.";
+          for (const p of live.players) await tell(client, p, `No rematch: ${why}`);
+          push(c);
+          return;
+        }
+        table.seated = [...live.players];
+        await startMatch(c, table);
+        push(c);
+      }),
+
+    // MARK: From `match`
+
+    finished: (c, matchId: number, outcome: Outcome): Promise<void> =>
+      c.vars.serial(async () => {
+        requireInternal(c.conn.state);
+        const live = c.state.matches[String(matchId)];
+        if (!live || live.outcome) return;
+        await settle(c, live, outcome);
+        push(c);
+      }),
+  },
+});
+
+// MARK: Helpers (plain functions over state, like `world`)
+
+type ArcadeCtx = {
+  state: ArcadeState;
+  conns: Map<string, { state: unknown; send(name: string, ...args: unknown[]): void }>;
+  client(): Client<typeof registry>;
+};
+
+const nameOf = (s: ArcadeState, userId: number) => s.names[userId] ?? "Someone";
+const gameName = (t: { game: GameId }) => GAMES[t.game]!.name;
+
+function tableOf(s: ArcadeState, id: unknown): Table {
+  const table = s.tables[String(id)];
+  if (!table) throw new UserError("That table is gone.", { code: "not_found" });
+  return table;
+}
+
+function hostedTable(s: ArcadeState, userId: number, id: unknown): Table {
+  const table = tableOf(s, id);
+  if (table.host !== userId) throw new UserError("Only the host can do that.", { code: "not_host" });
+  return table;
+}
+
+/** One game at a time: not at another table, not in a match. */
+function busy(s: ArcadeState, userId: number): void {
+  if (Object.values(s.tables).some((t) => t.seated.includes(userId)))
+    throw new UserError(`${nameOf(s, userId)} is already at a table.`, { code: "busy" });
+  if (Object.values(s.matches).some((m) => !m.outcome && m.players.includes(userId)))
+    throw new UserError(`${nameOf(s, userId)} is in a game.`, { code: "busy" });
+}
+
+async function learnNames(c: ArcadeCtx, userIds: number[]): Promise<void> {
+  const missing = userIds.filter((id) => !(id in c.state.names));
+  if (missing.length === 0) return;
+  const names = await c.client().town.getOrCreate(["main"], internal).names(missing);
+  for (const [id, name] of Object.entries(names)) c.state.names[id] = name;
+}
+
+/** Holds the stake and gives them a seat. */
+async function seat(c: ArcadeCtx, table: Table, userId: number, stake: number): Promise<void> {
+  await learnNames(c, [userId]);
+  await c
+    .client()
+    .town.getOrCreate(["main"], internal)
+    .hold(tableRef(table.id), "stake", [{ userId, amount: stake }]);
+  table.seated.push(userId);
+}
+
+async function addInvites(c: ArcadeCtx, table: Table, userIds: number[]): Promise<void> {
+  await learnNames(c, userIds);
+  const now = Date.now();
+  const client = c.client();
+  for (const userId of userIds) {
+    if (!(userId in c.state.names) || table.seated.includes(userId)) continue;
+    if (table.invited.length + table.seated.length >= table.seats) break;
+    table.invited = [
+      ...table.invited.filter((i) => i.userId !== userId),
+      { userId, expiresAt: now + INVITE_MS, counter: null },
+    ];
+    await tell(
+      client,
+      userId,
+      `${nameOf(c.state, table.host)} invites you to ${gameName(table)} · 🪙 ${table.stake}.`,
+    );
+  }
+}
+
+async function startIfFull(c: ArcadeCtx, table: Table): Promise<void> {
+  if (table.seated.length >= table.seats) await startMatch(c, table);
+}
+
+async function startMatch(c: ArcadeCtx, table: Table): Promise<void> {
+  const client = c.client();
+  const game = GAMES[table.game]!;
+  const players = table.seated.map((userId) => ({ userId, name: nameOf(c.state, userId) }));
+  const split = effectiveSplit(table.split, players.length);
+  await client.match.create([String(table.id)], {
+    input: {
+      id: table.id,
+      game: table.game,
+      players,
+      stake: table.stake,
+      split,
+      options: table.options,
+      seed: Math.floor(Math.random() * 2 ** 31),
+    },
+  });
+  const info = await client.match.get([String(table.id)], internal).info();
+  delete c.state.tables[String(table.id)];
+  c.state.matches[String(table.id)] = {
+    id: table.id,
+    game: table.game,
+    players: table.seated,
+    stake: table.stake,
+    split,
+    options: table.options,
+    startedAt: info.startedAt,
+    betsCloseAt: info.betsCloseAt,
+    bets: [],
+    outcome: null,
+    endedAt: null,
+    rematch: [],
+  };
+  await client.world
+    .getOrCreate(["main"], internal)
+    .gather(table.id, table.game, table.seated, game.holdPlayers !== false)
+    .catch(() => {});
+}
+
+/** Pays the pot by place and the side bets to the winners' backers, or refunds it all. */
+async function settle(c: ArcadeCtx, live: Live, outcome: Outcome): Promise<void> {
+  const client = c.client();
+  const town = client.town.getOrCreate(["main"], internal);
+  const pot = live.stake * live.players.length;
+  const ref = tableRef(live.id);
+  const winners = "places" in outcome ? (outcome.places[0] ?? []) : [];
+  let line: string;
+  if ("void" in outcome) {
+    await town.refund(ref);
+    await town.refund(betsRef(live.id));
+    line = `${gameName(live)} was called off: everyone got their coins back.`;
+  } else {
+    const shares = potShares(outcome.places, pot, live.split);
+    await town.pay(
+      ref,
+      "payout",
+      [...shares].map(([userId, amount]) => ({ userId, amount })),
+    );
+    const side = sideBetShares(live.bets, winners);
+    await town.pay(
+      betsRef(live.id),
+      side.refund ? "refund" : "winnings",
+      [...side.shares].map(([userId, amount]) => ({ userId, amount })),
+    );
+    const names = winners.map((id) => nameOf(c.state, id)).join(" & ");
+    line = pot > 0 ? `${names} won 🪙 ${pot} at ${gameName(live)}!` : `${names} won ${gameName(live)}!`;
+    for (const [userId, amount] of side.refund ? [] : side.shares)
+      line += ` ${nameOf(c.state, userId)} won 🪙 ${amount} backing ${names}.`;
+  }
+  live.outcome = outcome;
+  live.endedAt = Date.now();
+  await client.world
+    .getOrCreate(["main"], internal)
+    .release(live.id, winners, line)
+    .catch(() => {});
+  for (const p of live.players) await tell(client, p, line);
+}
+
+async function closeTable(c: ArcadeCtx, table: Table, why: string): Promise<void> {
+  const client = c.client();
+  await client.town.getOrCreate(["main"], internal).refund(tableRef(table.id));
+  delete c.state.tables[String(table.id)];
+  for (const userId of [...table.seated, ...table.invited.map((i) => i.userId)])
+    if (userId !== table.host) await tell(client, userId, why);
+}
+
+/** Once a second: invites and tables that ran out, and finished matches that can go. */
+async function sweep(c: ArcadeCtx, now: number): Promise<void> {
+  let changed = false;
+  for (const table of Object.values(c.state.tables)) {
+    const before = table.invited.length;
+    table.invited = table.invited.filter((i) => i.expiresAt > now);
+    if (table.invited.length !== before) changed = true;
+    if (now - table.createdAt > TABLE_MS) {
+      await closeTable(c, table, `${gameName(table)} didn't start in time: your stake is back.`);
+      await tell(c.client(), table.host, `${gameName(table)} didn't start in time: your stake is back.`);
+      changed = true;
+    }
+  }
+  for (const live of Object.values(c.state.matches))
+    if (live.endedAt && now - live.endedAt > KEEP_MS) {
+      delete c.state.matches[String(live.id)];
+      changed = true;
+    }
+  if (changed) push(c);
+}
+
+const betPools = (live: Live): Record<number, number> => {
+  const out: Record<number, number> = {};
+  for (const b of live.bets) out[b.on] = (out[b.on] ?? 0) + b.amount;
+  return out;
+};
+
+const tableView = (s: ArcadeState, t: Table): TableView => ({
+  id: t.id,
+  game: t.game,
+  host: t.host,
+  stake: t.stake,
+  seats: t.seats,
+  split: t.split,
+  open: t.open,
+  options: t.options,
+  seated: t.seated.map((userId) => ({ userId, name: nameOf(s, userId) })),
+  invited: t.invited.map((i) => ({ ...i, name: nameOf(s, i.userId) })),
+  createdAt: t.createdAt,
+});
+
+const matchInfo = (s: ArcadeState, m: Live): MatchInfo => ({
+  id: m.id,
+  game: m.game,
+  players: m.players.map((userId) => ({ userId, name: nameOf(s, userId) })),
+  stake: m.stake,
+  pot: m.stake * m.players.length,
+  split: m.split,
+  options: m.options,
+  startedAt: m.startedAt,
+  betsCloseAt: m.betsCloseAt,
+  bets: betPools(m),
+  outcome: m.outcome,
+});
+
+export function lobbyFor(s: ArcadeState, userId: number): Lobby {
+  const tables = Object.values(s.tables).filter(
+    (t) => t.open || t.seated.includes(userId) || t.invited.some((i) => i.userId === userId),
+  );
+  const mine = Object.values(s.tables).find((t) => t.seated.includes(userId));
+  // Your running game; else the one you just finished (its end screen and rematch offer).
+  const mineAll = Object.values(s.matches).filter((m) => m.players.includes(userId));
+  const playing =
+    mineAll.find((m) => !m.outcome) ?? mineAll.sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0))[0];
+  const bets: Lobby["me"]["bets"] = {};
+  for (const m of Object.values(s.matches)) {
+    const b = m.bets.find((x) => x.userId === userId);
+    if (b) bets[m.id] = { on: b.on, amount: b.amount };
+  }
+  return {
+    tables: tables.map((t) => tableView(s, t)),
+    matches: Object.values(s.matches).map((m) => matchInfo(s, m)),
+    me: { table: mine?.id ?? null, match: playing?.id ?? null, bets },
+  };
+}
+
+/** Everyone connected gets their own lobby: open tables plus the private ones that are theirs. */
+function push(c: ArcadeCtx): void {
+  for (const conn of c.conns.values()) {
+    const caller = conn.state as Caller;
+    if (caller.kind === "user") conn.send("lobby", lobbyFor(c.state, caller.userId));
+  }
+}
+
+/** A toast for one player, through `world` (the tab they have open). */
+const tell = (client: Client<typeof registry>, userId: number, text: string) =>
+  client.world
+    .getOrCreate(["main"], internal)
+    .notify(userId, text)
+    .catch(() => {});

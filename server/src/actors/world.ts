@@ -1,4 +1,14 @@
 import {
+  findSpot,
+  propTiles,
+  type Seat,
+  type Spot,
+  seatsFor,
+  spotSize,
+} from "@tokenmaxxing/core/games/gather.ts";
+import type { BoardRow, GameId } from "@tokenmaxxing/core/games/types.ts";
+import { TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
+import {
   CHAT_HISTORY,
   type ChatLine,
   type CompanyInfo,
@@ -26,6 +36,7 @@ import {
   takeStep,
   townSpawn,
   WORKING_MS,
+  type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
@@ -53,12 +64,16 @@ interface WorldPlayer extends PlayerCore, Place {
   liveAgents: number;
   /** Where they were when sent to bed or desk, so they come back there. */
   back?: (Place & { state: "idle" | "sit" }) | null;
+  /** In a long game (Tokenmaxxing): their desk at the arena, which replaces their bed until it ends. */
+  arena?: Seat | null;
 }
 
 interface WorldState {
   seeded: boolean;
   players: Record<string, WorldPlayer>;
   companies: Record<string, CompanyInfo>;
+  /** Games on show in town. Optional: worlds from before games have none. */
+  games?: Record<string, WorldGame>;
 }
 
 type ConnState = Caller & { joined?: boolean };
@@ -138,7 +153,8 @@ export const world = actor({
     c.vars.online.delete(s.userId);
     const p = c.state.players[s.userId];
     if (!p) return;
-    rest(c.state, p, Date.now() - p.lastAgentAt < WORKING_MS ? "working" : "away");
+    // At a game table they stay put: the match decides what happens if they don't come back.
+    if (p.state !== "playing") rest(c.state, p, Date.now() - p.lastAgentAt < WORKING_MS ? "working" : "away");
     c.vars.dirty.add(p.id);
     c.broadcast("info", info(p, false));
   },
@@ -170,6 +186,8 @@ export const world = actor({
       if (!p || !isFacing(rawDir)) return null;
       const now = Date.now();
       p.lastInputAt = now;
+      // At a game table: the arrow keys do nothing until the game ends.
+      if (p.state === "playing") return correction(p);
       // Back from being away: the first key press returns them to where they were.
       if (wake(c.state, p)) {
         c.vars.dirty.add(p.id);
@@ -185,6 +203,8 @@ export const world = actor({
       p.state = "idle";
       c.vars.dirty.add(p.id);
       const target = stepTarget(mapOf(p.room), p.x, p.y, rawDir);
+      if (target.kind === "move" && p.room === "town" && onProp(c.state, target.x, target.y))
+        return correction(p);
       if (target.kind === "move") {
         p.x = target.x;
         p.y = target.y;
@@ -201,7 +221,7 @@ export const world = actor({
     sit: (c, facing: unknown): StepResult => {
       const userId = requireUser(c.conn.state);
       const p = c.state.players[userId];
-      if (!p) return null;
+      if (!p || p.state === "playing") return null;
       p.lastInputAt = Date.now();
       if (isFacing(facing)) p.facing = facing;
       const [dx, dy] = DIRS[p.facing];
@@ -256,6 +276,104 @@ export const world = actor({
         room === "town" || room === "inn" || (p?.companyId != null && room === `hq:${p.companyId}`);
       if (!allowed) throw new UserError("You can't read that room.", { code: "forbidden" });
       return chatOf(c.db, room as RoomId);
+    },
+
+    /** After a game: back to where you were before it. */
+    back: (c): StepResult => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || p.state === "playing" || !p.back) return null;
+      Object.assign(p, p.back, { state: "idle" });
+      p.back = null;
+      c.vars.dirty.add(p.id);
+      return correction(p);
+    },
+
+    // MARK: Games (from `arcade` and `match`)
+
+    /**
+     * A match starts: its players gather in the town square. At a table, they're moved
+     * there and held until it ends. In an arena (long games), their desk becomes their
+     * rest spot: resting players sit down there, and online ones keep walking around.
+     */
+    gather: (c, id: number, game: GameId, players: number[], hold: boolean): void => {
+      requireInternal(c.conn.state);
+      c.state.games ??= {};
+      const games = c.state.games;
+      const kind = hold ? "table" : "arena";
+      const { w, h } = spotSize(kind, players.length);
+      const host = c.state.players[players[0]!];
+      const from: [number, number] = host?.room === "town" ? [host.x, host.y] : TOWN_SPAWN;
+      const map = mapOf("town");
+      const others = Object.values(games).map((g) => g.spot);
+      const at = findSpot(map, from, w, h, others) ?? findSpot(map, TOWN_SPAWN, w, h, others);
+      if (!at) return;
+      const spot: Spot = { ...at, w, h, kind };
+      const seats = seatsFor(spot, players.length);
+      games[id] = { id, game, spot, players, seats, status: {}, board: null, watchers: 0 };
+      for (const [i, userId] of players.entries()) {
+        const p = c.state.players[userId];
+        if (!p) continue;
+        const seat = seats[i]!;
+        if (hold) {
+          // Remember where they were, like resting does, so Back takes them there after.
+          // Resting players keep the spot they had before resting, or at least their bed.
+          if (p.state === "idle" || p.state === "sit")
+            p.back = { room: p.room, x: p.x, y: p.y, facing: p.facing, state: p.state };
+          else p.back ??= { room: p.room, x: p.x, y: p.y, facing: p.facing, state: "idle" };
+          Object.assign(p, { room: "town", x: seat.x, y: seat.y, facing: seat.facing, state: "playing" });
+        } else {
+          p.arena = seat;
+          if (p.state === "away" || p.state === "working") rest(c.state, p, "working");
+        }
+        c.vars.dirty.add(p.id);
+      }
+      sendToRoom(c, "town", "game", games[id]);
+    },
+
+    /** A match ended: the table goes, the players are free, the town hears who won. */
+    release: async (c, id: number, winners: number[], line: string): Promise<void> => {
+      requireInternal(c.conn.state);
+      const g = c.state.games?.[id];
+      if (!g) return;
+      delete c.state.games![id];
+      const now = Date.now();
+      for (const userId of g.players) {
+        const p = c.state.players[userId];
+        if (!p) continue;
+        p.arena = null;
+        if (p.state === "playing") p.state = "idle";
+        // Offline, or resting at the arena: back to their own bed or desk, keeping where they were.
+        if (!c.vars.online.has(p.id) || p.state === "away" || p.state === "working") {
+          const before = p.back;
+          rest(c.state, p, now - p.lastAgentAt < WORKING_MS ? "working" : "away");
+          if (before) p.back = before;
+        }
+        c.vars.dirty.add(p.id);
+      }
+      sendToRoom(c, "town", "gameOver", { id, winners });
+      await announce(c, "town", line);
+    },
+
+    /** Something happened in a game, said out loud: a bubble over the player (or the table). */
+    callout: (c, id: number, player: number | null, text: string): void => {
+      requireInternal(c.conn.state);
+      if (c.state.games?.[id]) sendToRoom(c, "town", "callout", { id, userId: player, text });
+    },
+
+    /** The live status over each player's head, the scoreboard, and how many are watching. */
+    gameStatus: (
+      c,
+      id: number,
+      status: Record<number, string | null>,
+      board: BoardRow[] | null,
+      watchers: number,
+    ): void => {
+      requireInternal(c.conn.state);
+      const g = c.state.games?.[id];
+      if (!g) return;
+      Object.assign(g, { status, board, watchers });
+      sendToRoom(c, "town", "game", g);
     },
 
     setPlayer: (c, core: PlayerCore): void => {
@@ -360,6 +478,11 @@ function plots(s: WorldState): Map<number, { id: number; name: string }> {
 function rest(s: WorldState, p: WorldPlayer, state: "away" | "working"): void {
   if (p.state === "idle" || p.state === "sit")
     p.back = { room: p.room, x: p.x, y: p.y, facing: p.facing, state: p.state };
+  // In a battle, they rest at their arena desk, typing away.
+  if (p.arena) {
+    Object.assign(p, { room: "town", x: p.arena.x, y: p.arena.y, facing: p.arena.facing, state: "working" });
+    return;
+  }
   const hasPlot = p.companyId !== null && s.companies[p.companyId]?.plot != null;
   const room = homeRoom(p.companyId, hasPlot);
   const taken = new Set(
@@ -396,6 +519,7 @@ function wake(s: WorldState, p: WorldPlayer): boolean {
 /** Idle players go to bed; offline ones switch between desk and bed as their agents start and stop. */
 function settle(s: WorldState, v: Vars, now: number): void {
   for (const p of Object.values(s.players)) {
+    if (p.state === "playing") continue;
     if (v.online.has(p.id)) {
       if ((p.state === "idle" || p.state === "sit") && now - p.lastInputAt > IDLE_MS) {
         rest(s, p, "away");
@@ -403,12 +527,29 @@ function settle(s: WorldState, v: Vars, now: number): void {
       }
       continue;
     }
-    const want = now - p.lastAgentAt < WORKING_MS ? "working" : "away";
+    const want = p.arena || now - p.lastAgentAt < WORKING_MS ? "working" : "away";
     if (p.state !== want) {
       rest(s, p, want);
       v.dirty.add(p.id);
     }
   }
+}
+
+/** A table or desk of a game in town: nobody walks onto it. */
+const onProp = (s: WorldState, x: number, y: number) =>
+  Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
+
+/** A line from the town itself in a room's chat (a game's result). */
+async function announce(c: Sender & { db: Sql }, room: RoomId, text: string): Promise<void> {
+  const at = Date.now();
+  const [row] = await all<{ id: number }>(
+    c.db,
+    "INSERT INTO chat (room, user_id, name, text, at) VALUES (?, 0, '🎮', ?, ?) RETURNING id",
+    room,
+    text,
+    at,
+  );
+  sendToRoom(c, room, "chat", { id: row!.id, room, userId: 0, name: "🎮", text, at } satisfies ChatLine);
 }
 
 const correction = (p: WorldPlayer): StepResult => ({
@@ -444,6 +585,7 @@ async function snapshot(
     occupancy: occupancy(s, online),
     chat: await chat,
     houses: self.room === "town" ? houses(s) : {},
+    games: Object.values(s.games ?? {}),
   };
 }
 

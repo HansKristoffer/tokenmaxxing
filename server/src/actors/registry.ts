@@ -1,4 +1,6 @@
 import { setup } from "rivetkit";
+import { arcade } from "./arcade.ts";
+import { match } from "./match.ts";
 import { player } from "./player.ts";
 import { town } from "./town.ts";
 import { world } from "./world.ts";
@@ -11,7 +13,7 @@ export const ENGINE_PORT = Number(process.env.RIVET_RUN_ENGINE_PORT ?? 6420);
  * `main.ts` exposes only the client gateway through its own server.
  */
 export const registry = setup({
-  use: { town, player, world },
+  use: { town, player, world, arcade, match },
   startEngine: true,
   engineHost: "127.0.0.1",
   enginePort: ENGINE_PORT,

@@ -2,6 +2,8 @@
  * The world's rules and wire types, shared by the `world` actor and the game
  * client. Everything here is pure so it can be tested without Rivet.
  */
+import type { Seat, Spot } from "./games/gather.ts";
+import type { BoardRow, GameId } from "./games/types.ts";
 import { type GameMap, MAPS, type MapId, TOWN_SPAWN } from "./maps.ts";
 
 export const TILE = 16;
@@ -19,7 +21,8 @@ export const CHAT_HISTORY = 50;
 export const COMPANY_CAP = 50;
 
 export type Facing = "up" | "down" | "left" | "right";
-export type PlayerState = "idle" | "sit" | "away" | "working";
+/** `playing`: at a game table in town, until the match ends (see core/src/games/gather.ts). */
+export type PlayerState = "idle" | "sit" | "away" | "working" | "playing";
 export type RoomId = "town" | "inn" | `hq:${number}`;
 
 export const DIRS: Record<Facing, [number, number]> = {
@@ -172,6 +175,23 @@ export interface Snapshot {
   chat: ChatLine[];
   /** Only in town: who is inside each house. */
   houses: Houses;
+  /** Games being played in town, with their tables or arenas. */
+  games: WorldGame[];
+}
+
+/** A game on show in town: where its table (or arena) is, who's at it, and how it's going. */
+export interface WorldGame {
+  id: number;
+  game: GameId;
+  spot: Spot;
+  players: number[];
+  /** Where each player sits, in `players` order. */
+  seats: Seat[];
+  /** The short status over each player's head ("🪂 ×3.1"). */
+  status: Record<number, string | null>;
+  /** The live scoreboard, for games that have one (Tokenmaxxing). */
+  board: BoardRow[] | null;
+  watchers: number;
 }
 
 /** One tick's changes in a room. */

@@ -95,7 +95,23 @@ export const as = (token: string) => ({
   town: client.town.getOrCreate(["main"], { params: { token } }),
   world: client.world.getOrCreate(["main"], { params: { token } }),
   player: (userId: number) => client.player.get([String(userId)], { params: { token } }),
+  arcade: client.arcade.getOrCreate(["main"], { params: { token } }),
+  match: (id: number) => client.match.get([String(id)], { params: { token } }),
 });
+
+let richDay = 0;
+/**
+ * A fresh user with coins: one big day long ago, alone on it, so √(tokens ÷ 1M) plus the
+ * 25-coin first place. `hundreds` of 100 coins before the bonus.
+ */
+export async function rich(prefix = "rich", coins = 100) {
+  const u = await signUp(prefix);
+  const day = Date.UTC(2021, 0, 1, 12) + richDay++ * 86_400_000;
+  await as(u.token)
+    .player(u.userId)
+    .ingest([event({ inputTokens: coins * coins * 1e6, timestamp: day, messageId: `rich${u.userId}` })]);
+  return { ...u, ...as(u.token) };
+}
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
