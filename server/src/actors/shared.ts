@@ -63,12 +63,6 @@ export async function authenticate(
   return caller;
 }
 
-/** Drops a user's cached tokens, so a sign-out takes effect at once. */
-export function forgetUser(cache: TokenCache, userId: number): void {
-  for (const [token, hit] of cache)
-    if (hit.caller.kind === "user" && hit.caller.userId === userId) cache.delete(token);
-}
-
 export function requireUser(caller: Caller): number {
   if (caller.kind !== "user") throw unauthorized();
   return caller.userId;

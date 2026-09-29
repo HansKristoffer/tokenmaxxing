@@ -83,7 +83,7 @@ describe("helper", () => {
     await helper.syncOnce();
     expect(helper.state.phase).toBe("ready");
     const town = client.town.getOrCreate(["main"], { params: { token: tokenMsg.token } });
-    expect((await town.menuBar()).me).toMatchObject({ name, tokensToday: 15 });
+    expect((await town.today()).me).toMatchObject({ tokensToday: 15 });
     helper.stop();
   }, 30_000);
 

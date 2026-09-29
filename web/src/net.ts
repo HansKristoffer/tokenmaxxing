@@ -148,7 +148,7 @@ export async function refreshStats(): Promise<void> {
   statsTimer = setTimeout(() => {
     statsTimer = null;
   }, 5000);
-  const [m, wallet] = await Promise.all([town.menuBar(), town.wallet()]);
+  const [m, wallet] = await Promise.all([town.today(), town.wallet()]);
   hud.set({ stats: m.me, board: m.top, wallet });
 }
 

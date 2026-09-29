@@ -1,6 +1,6 @@
 import type { Frame, Lobby } from "@tokenmaxxing/core/games/wire.ts";
 import type { ChatLine, CompanyInfo, RoomId } from "@tokenmaxxing/core/world.ts";
-import type { Me, MenuBar, Wallet } from "@tokenmaxxing/server/registry";
+import type { Me, Today, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
 
 export type Panel =
@@ -18,10 +18,10 @@ export type Panel =
 export interface HudState {
   status: "connecting" | "ready" | "signedOut" | "expired" | "offline";
   me: Me | null;
-  stats: MenuBar["me"] | null;
+  stats: Today["me"] | null;
   wallet: Wallet | null;
   /** Today's top players by tokens, with me appended when I'm outside them. */
-  board: MenuBar["top"];
+  board: Today["top"];
   room: RoomId;
   occupancy: Partial<Record<RoomId, number>>;
   companies: CompanyInfo[];

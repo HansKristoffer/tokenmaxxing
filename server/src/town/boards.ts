@@ -60,18 +60,13 @@ export interface Profile {
   games: GameStats | null;
 }
 
-export interface MenuBar {
-  me: { name: string; rank: number | null; tokensToday: number; level: number; levelTitle: string };
-  top: {
-    rank: number;
-    userId: number;
-    name: string;
-    company: string | null;
-    tokens: number;
-    level: number;
-    isMe: boolean;
-  }[];
+/** The HUD's corner: my numbers today, and today's top 5 (with me pinned below when I'm not in it). */
+export interface Today {
+  me: { rank: number | null; tokensToday: number; level: number };
+  top: { rank: number; userId: number; name: string; tokens: number; isMe: boolean }[];
 }
+
+const TODAY_TOP = 5;
 
 export const BOARD_TOP = 100;
 
@@ -84,7 +79,8 @@ export const bounds = (range: RangeKey, now: number): [string, string] => {
   return [from ?? "0000-00-00", to];
 };
 
-export async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
+/** Every player's totals in the range, ranked by `sort`. */
+async function playerBoard(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
   const [from, to] = bounds(range, now);
   const users = await all<UserRow>(sql, `SELECT ${USER_COLS} FROM users`);
   const usage = await all<UsageRow & { userId: number }>(
@@ -119,8 +115,11 @@ export async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: numb
     companyId: u.companyId,
     company: u.companyId === null ? null : (companyName.get(u.companyId) ?? null),
   }));
-  const players = rank(perUser, sort);
+  return { players: rank(perUser, sort), perUser, companies };
+}
 
+export async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
+  const { players, perUser, companies } = await playerBoard(sql, range, sort, now);
   const tokens30d = new Map(
     (
       await companyInfos(
@@ -225,28 +224,19 @@ export async function leaderboard(
   };
 }
 
-/** My numbers today and the world's top 10, with me pinned below when I'm not in it. */
-export async function menuBar(sql: Sql, userId: number, now: number): Promise<MenuBar> {
-  const { players } = await boards(sql, "today", "tokens", now);
+export async function today(sql: Sql, userId: number, now: number): Promise<Today> {
+  const { players } = await playerBoard(sql, "today", "tokens", now);
   const mine = players.find((p) => p.userId === userId)!;
   const row = (p: BoardPlayer) => ({
     rank: p.rank,
     userId: p.userId,
     name: p.name,
-    company: p.company,
     tokens: p.tokens,
-    level: p.level,
     isMe: p.userId === userId,
   });
-  const top = players.filter((p) => p.tokens > 0).slice(0, 10);
+  const top = players.filter((p) => p.tokens > 0).slice(0, TODAY_TOP);
   return {
-    me: {
-      name: mine.name,
-      rank: mine.tokens > 0 ? mine.rank : null,
-      tokensToday: mine.tokens,
-      level: mine.level,
-      levelTitle: levelTitle(mine.level),
-    },
+    me: { rank: mine.tokens > 0 ? mine.rank : null, tokensToday: mine.tokens, level: mine.level },
     top: top.some((p) => p.userId === userId) ? top.map(row) : [...top.map(row), row(mine)],
   };
 }

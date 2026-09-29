@@ -164,17 +164,6 @@ export const player = actor({
       return session.token;
     },
 
-    /** Signs out everywhere: the app and every browser. */
-    signOut: async (c): Promise<void> => {
-      requireDevice(c.conn.state);
-      c.state.tokens = [];
-      c.state.sessions = [];
-      c.state.loginCodes = [];
-      const client = c.client<typeof registry>();
-      await client.town.getOrCreate(["main"], internal).forget(c.state.userId);
-      await client.world.getOrCreate(["main"], internal).forget(c.state.userId);
-    },
-
     /** A usage game's score (Tokenmaxxing). */
     tokensBetween: (c, from: number, to: number): Promise<Usage> => {
       requireInternal(c.conn.state);

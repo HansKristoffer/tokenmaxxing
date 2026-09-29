@@ -1,4 +1,3 @@
-import { levelFor, levelTitle } from "@tokenmaxxing/core/format.ts";
 import { PLOT_COUNT } from "@tokenmaxxing/core/maps.ts";
 import { isRangeKey } from "@tokenmaxxing/core/range.ts";
 import { itemById, itemsIn } from "@tokenmaxxing/core/shop.ts";
@@ -8,14 +7,7 @@ import { db } from "rivetkit/db";
 import { canBrand } from "../brand.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { type ActivityRow, isSortKey, type UsageRow } from "../stats.ts";
-import {
-  type Leaderboard,
-  leaderboard,
-  type MenuBar,
-  menuBar,
-  type Profile,
-  profile,
-} from "../town/boards.ts";
+import { type Leaderboard, leaderboard, type Profile, profile, type Today, today } from "../town/boards.ts";
 import {
   buy,
   type Entry,
@@ -46,15 +38,7 @@ import {
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { migrate } from "../town/schema.ts";
 import { brand, notify, push, pushPlayers } from "../town/sync.ts";
-import {
-  lifetimeTokens,
-  lookOf,
-  type PlayerCore,
-  playerCores,
-  USER_COLS,
-  type UserRow,
-  userById,
-} from "../town/users.ts";
+import { lookOf, type PlayerCore, playerCores, USER_COLS, type UserRow, userById } from "../town/users.ts";
 import { parseCompanyName, parseUserName, parseWebsite } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
@@ -62,7 +46,6 @@ import {
   authenticate,
   type Caller,
   type ConnParams,
-  forgetUser,
   internal,
   makeToken,
   one,
@@ -73,7 +56,7 @@ import {
   type TokenCache,
 } from "./shared.ts";
 
-export type { BoardCompany, BoardPlayer, Leaderboard, MenuBar, Profile } from "../town/boards.ts";
+export type { BoardCompany, BoardPlayer, Leaderboard, Profile, Today } from "../town/boards.ts";
 export type { Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany } from "../town/companies.ts";
 export type { GamePlayer, GameStats } from "../town/games.ts";
@@ -91,9 +74,6 @@ export interface Me {
   userId: number;
   name: string;
   look: Look;
-  level: number;
-  levelTitle: string;
-  lifetimeTokens: number;
   company: MyCompany | null;
   /** The company I've asked to join and am waiting to hear from. */
   application: { companyId: number; name: string } | null;
@@ -162,15 +142,10 @@ export const town = actor({
     me: async (c): Promise<Me> => {
       const userId = requireUser(c.conn.state);
       const u = await userById(c.db, userId);
-      const lifetime = (await lifetimeTokens(c.db, [userId])).get(userId) ?? 0;
-      const level = levelFor(lifetime);
       return {
         userId,
         name: u.name,
         look: lookOf(u),
-        level,
-        levelTitle: levelTitle(level),
-        lifetimeTokens: lifetime,
         company: u.companyId === null ? null : await myCompany(c.db, u.companyId, userId),
         application: await applicationOf(c.db, userId),
       };
@@ -413,7 +388,7 @@ export const town = actor({
     },
 
     /** The menu bar app: my numbers today and the world's top 10. */
-    menuBar: (c): Promise<MenuBar> => menuBar(c.db, requireUser(c.conn.state), Date.now()),
+    today: (c): Promise<Today> => today(c.db, requireUser(c.conn.state), Date.now()),
 
     // MARK: Coins for games (from `arcade` only)
 
@@ -475,12 +450,6 @@ export const town = actor({
     names: async (c, userIds: number[]): Promise<Record<number, string>> => {
       requireInternal(c.conn.state);
       return namesOf(c.db, userIds);
-    },
-
-    /** From `player` on sign-out: stop trusting that user's cached tokens. */
-    forget: (c, userId: number): void => {
-      requireInternal(c.conn.state);
-      forgetUser(c.vars.tokens, userId);
     },
 
     /** For `world` starting from nothing: everyone and every company. */

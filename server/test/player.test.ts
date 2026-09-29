@@ -47,15 +47,9 @@ describe("login codes", () => {
     expect((await as(session).town.me()).name).toBe(u.name);
   });
 
-  test("a bad token is rejected; signing out revokes everything", async () => {
+  test("a bad token is rejected", async () => {
     const u = await signUp("revoke");
     await expect(as(`${u.userId}.${"x".repeat(43)}`).town.me()).rejects.toThrow();
-    const code = await as(u.token).player(u.userId).mintLoginCode();
-    await as(u.token).town.me(); // warms town's token cache: sign-out must still win
-    await as(u.token).player(u.userId).signOut();
-    await expect(as(u.token).town.me()).rejects.toThrow();
-    await expect(client.player.get([String(u.userId)]).redeemLoginCode(code)).rejects.toThrow();
-    await expect(as(u.token).player(u.userId).mintLoginCode()).rejects.toThrow();
   });
 });
 

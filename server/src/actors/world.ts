@@ -49,7 +49,6 @@ import {
   authenticate,
   type Caller,
   type ConnParams,
-  forgetUser,
   internal,
   requireInternal,
   requireUser,
@@ -269,16 +268,6 @@ export const world = actor({
       }
     },
 
-    /** Another room's recent chat, only for rooms you could walk into. */
-    history: (c, room: unknown): Promise<ChatLine[]> => {
-      const userId = requireUser(c.conn.state);
-      const p = c.state.players[userId];
-      const allowed =
-        room === "town" || room === "inn" || (p?.companyId != null && room === `hq:${p.companyId}`);
-      if (!allowed) throw new UserError("You can't read that room.", { code: "forbidden" });
-      return chatOf(c.db, room as RoomId);
-    },
-
     /** After a game: back to where you were before it. */
     back: (c): StepResult => {
       const userId = requireUser(c.conn.state);
@@ -414,16 +403,6 @@ export const world = actor({
       for (const conn of c.conns.values()) {
         const s = conn.state as ConnState;
         if (s.kind === "user" && s.joined && s.userId === userId) conn.send("notice", text);
-      }
-    },
-
-    /** From `player` on sign-out: forget cached tokens and close that user's open game tabs. */
-    forget: (c, userId: number): void => {
-      requireInternal(c.conn.state);
-      forgetUser(c.vars.tokens, userId);
-      for (const conn of c.conns.values()) {
-        const s = conn.state as ConnState;
-        if (s.kind === "user" && s.userId === userId) conn.disconnect("signed out");
       }
     },
 

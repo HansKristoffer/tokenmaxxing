@@ -38,8 +38,8 @@ export type {
   Leaderboard,
   Listing,
   Me,
-  MenuBar,
   MyCompany,
   Profile,
+  Today,
   Wallet,
 } from "./town.ts";

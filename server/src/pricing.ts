@@ -92,24 +92,11 @@ function buildMap(rawJson: Record<string, RawEntry>): Map<string, ModelPrice> {
 
 const FALLBACK_RAW = pricingFallbackRaw as Record<string, RawEntry>;
 
-export function loadPricingFallback(): Record<string, ModelPrice> {
-  return Object.fromEntries(buildMap(FALLBACK_RAW));
-}
-
 export class PricingCache {
   private map: Map<string, ModelPrice>;
-  private unknown: Set<string> = new Set();
 
   constructor() {
     this.map = buildMap(FALLBACK_RAW);
-  }
-
-  size(): number {
-    return this.map.size;
-  }
-
-  unknownModels(): Set<string> {
-    return new Set(this.unknown);
   }
 
   async refreshFromUpstream(): Promise<{ updated: number; failed: boolean }> {
@@ -121,7 +108,6 @@ export class PricingCache {
       if (next.size === 0) return { updated: this.map.size, failed: true };
       // Atomic swap.
       this.map = next;
-      this.unknown.clear();
       return { updated: next.size, failed: false };
     } catch {
       return { updated: this.map.size, failed: true };
@@ -149,7 +135,6 @@ export class PricingCache {
       const hit = this.map.get(tail);
       if (hit) return hit;
     }
-    this.unknown.add(model);
     return null;
   }
 }
@@ -165,7 +150,6 @@ export function computeRowCostUsd(
     output: number;
     cacheCreation: number;
     cacheRead: number;
-    reasoning?: number;
   },
   price: ModelPrice,
 ): number {

@@ -98,7 +98,6 @@ describe("world", () => {
     await Bun.sleep(200);
     expect(co2.events.chat.map((l) => l.text)).not.toContain("members only");
     await expect(outsider.town.me()).resolves.toBeDefined();
-    await expect(as(outsider.token).world.history(`hq:${co.id}`)).rejects.toThrow();
     for (const c of [ca, cb, co2]) await c.conn.dispose();
   });
 

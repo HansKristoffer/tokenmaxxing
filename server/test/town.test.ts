@@ -150,13 +150,12 @@ describe("leaderboard", () => {
     expect(company.members).toBe(2);
   });
 
-  test("the menu bar gets the top 10 and me, even at zero", async () => {
+  test("today's corner has the top 5 and me, even at zero", async () => {
     const quiet = await signUp("quiet");
-    const mb = await quiet.town.menuBar();
-    expect(mb.me.name).toBe(quiet.name);
-    expect(mb.me.rank).toBeNull();
-    expect(mb.top.at(-1)!.isMe).toBe(true);
-    expect(mb.top.length).toBeLessThanOrEqual(11);
+    const today = await quiet.town.today();
+    expect(today.me.rank).toBeNull();
+    expect(today.top.at(-1)).toMatchObject({ isMe: true, name: quiet.name });
+    expect(today.top.length).toBeLessThanOrEqual(6);
   });
 
   test("profiles have 30 days, models and a level", async () => {
