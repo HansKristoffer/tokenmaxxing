@@ -12,7 +12,6 @@
     },
     "app/helper": {
       "name": "@tokenmaxxing/helper",
-      "version": "0.1.0",
       "dependencies": {
         "@tokenmaxxing/core": "workspace:*",
         "@tokenmaxxing/server": "workspace:*",
@@ -21,11 +20,9 @@
     },
     "core": {
       "name": "@tokenmaxxing/core",
-      "version": "0.1.0",
     },
     "server": {
       "name": "@tokenmaxxing/server",
-      "version": "0.1.0",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.129.0",
         "@tokenmaxxing/core": "workspace:*",
@@ -34,7 +31,6 @@
     },
     "web": {
       "name": "@tokenmaxxing/web",
-      "version": "0.1.0",
       "dependencies": {
         "@tokenmaxxing/core": "workspace:*",
         "@tokenmaxxing/server": "workspace:*",

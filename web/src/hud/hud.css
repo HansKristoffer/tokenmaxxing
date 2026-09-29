@@ -395,12 +395,6 @@ input:focus {
   margin: 0;
 }
 
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .pills {
   display: inline-flex;
   gap: 2px;
@@ -1032,4 +1026,8 @@ button.lb-item:hover {
 
 .miniboard li.mine > button {
   background: rgba(255, 211, 92, 0.14);
+}
+
+.modal:focus {
+  outline: none;
 }

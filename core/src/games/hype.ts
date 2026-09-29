@@ -26,7 +26,7 @@ export function crashPoint(seed: string): number {
   return Math.floor(Math.min(MAX_CRASH, Math.max(1, 0.99 / (1 - u))) * 100);
 }
 
-export interface HypeRound {
+interface HypeRound {
   seed: string;
   hash: string;
   /** Hundredths: 341 is ×3.41. */

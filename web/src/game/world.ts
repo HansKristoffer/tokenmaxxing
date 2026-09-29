@@ -37,7 +37,7 @@ export interface Avatar {
   warp: { at: number; out: boolean } | null;
 }
 
-export const BUBBLE_MS = 6000;
+const BUBBLE_MS = 6000;
 export const WARP_MS = 300;
 
 export const world = {

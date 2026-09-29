@@ -189,7 +189,7 @@ function gabledHouse(
   return roofTop;
 }
 
-export interface Plan {
+interface Plan {
   canvas: HTMLCanvasElement;
   /** Ground floor first, left to right: where people show when seen from outside. */
   panes: Pane[];

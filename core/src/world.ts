@@ -159,7 +159,7 @@ export interface Peek {
 export type Houses = Record<number, Peek[]>;
 
 /** `@name` in chat: the same handle rules as sign-up names. */
-export const MENTION_RE = /@([a-z0-9][a-z0-9._-]{1,31})/gi;
+const MENTION_RE = /@([a-z0-9][a-z0-9._-]{1,31})/gi;
 
 /** Lowercased names mentioned in `text`, each once. */
 export const mentionsIn = (text: string): string[] => [
@@ -243,7 +243,7 @@ export const nextTierAt = (tier: number): number | null => TIERS[tier + 1]?.min 
 // MARK: Movement
 
 /** Steps allowed in a burst: covers network jitter bunching up a few steps. */
-const STEP_BURST = 4;
+export const STEP_BURST = 4;
 
 /**
  * A token bucket that refills at running pace. Returns the new budget, or null
@@ -254,7 +254,7 @@ export function takeStep(budget: number, lastAt: number, now: number): number | 
   return refilled >= 1 ? refilled - 1 : null;
 }
 
-export type StepTarget =
+type StepTarget =
   | { kind: "move"; x: number; y: number }
   | { kind: "portal"; ch: string; x: number; y: number }
   | { kind: "blocked" };

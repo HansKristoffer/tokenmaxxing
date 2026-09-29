@@ -56,6 +56,9 @@ export function AvatarImage({ look, scale = 3 }: { look: Look; scale?: number })
 }
 
 export function Modal({ title, children, wide }: { title: ReactNode; children: ReactNode; wide?: boolean }) {
+  // Focus moves into the dialog when it opens, so screen readers and Tab start there.
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => ref.current?.focus(), []);
   return (
     <div className="scrim">
       <button
@@ -65,8 +68,11 @@ export function Modal({ title, children, wide }: { title: ReactNode; children: R
         onClick={() => hud.set({ panel: null })}
       />
       <section
+        ref={ref}
+        tabIndex={-1}
         className={`panel modal${wide ? " wide" : ""}`}
         role="dialog"
+        aria-modal="true"
         aria-label={typeof title === "string" ? title : undefined}
       >
         <header className="modal-head">

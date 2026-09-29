@@ -7,7 +7,7 @@ import { isNum } from "./guards.ts";
 export const CURSOR_LOCAL_FALLBACK_MODEL = "cursor";
 
 /** Rows read per sync, so a first-run backfill is spread over a few batches. */
-export const CURSOR_LOCAL_BATCH_LIMIT = 5000;
+const CURSOR_LOCAL_BATCH_LIMIT = 5000;
 
 export interface ParseCursorLocalOptions {
   dbPath: string;

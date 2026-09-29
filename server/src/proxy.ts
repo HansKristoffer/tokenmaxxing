@@ -1,7 +1,7 @@
 import type { Server, WebSocketHandler } from "bun";
 
 /** Browsers and the menu bar app reach actors under this path, on our own origin. */
-export const RIVET_PATH = "/api/rivet";
+const RIVET_PATH = "/api/rivet";
 
 interface Upstream {
   target: string;

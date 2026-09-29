@@ -31,7 +31,7 @@ const claudeParser =
     return { events: r.events, next: { path, mtimeMs, byteOffset: r.newOffset } };
   };
 
-export const FILE_SOURCES: readonly FileSource[] = [
+const FILE_SOURCES: readonly FileSource[] = [
   { id: "claude_code", list: listClaudeCodeFiles, parse: claudeParser("claude_code") },
   { id: "claude_cowork", list: listClaudeCoworkFiles, parse: claudeParser("claude_cowork") },
   {
@@ -80,7 +80,7 @@ const GITHUB_EVERY_MS = 15 * 60_000;
 /** Same key as the server's unique index, so we never send what it would drop. */
 const dedupKey = (e: TokenEvent) => `${e.source}\0${e.messageId}\0${e.requestId ?? ""}\0${e.messageType}`;
 
-export interface Batch {
+interface Batch {
   events: TokenEvent[];
   /** Apply to the state only after the server has acked `events`. */
   commit: (state: SyncState) => SyncState;

@@ -31,6 +31,7 @@ import {
   type RoomId,
   restSpot,
   type Snapshot,
+  STEP_BURST,
   type StepResult,
   stepTarget,
   TICK_MS,
@@ -78,6 +79,7 @@ interface WorldState {
 type ConnState = Caller & { joined?: boolean };
 
 const CHAT_KEEP = 200;
+const CHAT_PER_MIN = 20;
 const REST_CHECK_EVERY = 10; // ticks
 
 const view = (p: WorldPlayer, online: boolean): PlayerView => ({
@@ -114,7 +116,7 @@ export const world = actor({
     /** The room each player was last announced in. */
     announced: new Map<number, RoomId>(),
     steps: new Map<number, { budget: number; at: number }>(),
-    chat: new RateLimiter(20, 60_000),
+    chat: new RateLimiter(CHAT_PER_MIN, 60_000),
     occupancy: "",
     /** The last `houses` sent to town, as JSON. */
     houses: "",
@@ -184,7 +186,7 @@ export const world = actor({
         c.vars.dirty.add(p.id);
         return correction(p);
       }
-      const s = c.vars.steps.get(userId) ?? { budget: 4, at: 0 };
+      const s = c.vars.steps.get(userId) ?? { budget: STEP_BURST, at: 0 };
       const budget = takeStep(s.budget, s.at, now);
       if (budget === null) return correction(p);
       c.vars.steps.set(userId, { budget, at: now });

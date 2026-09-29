@@ -18,7 +18,7 @@ export interface Claim {
   face: number;
 }
 
-export interface Reveal {
+interface Reveal {
   dice: Record<number, number[]>;
   claim: Claim;
   caller: number | null;

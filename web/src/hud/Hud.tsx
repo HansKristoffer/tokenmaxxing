@@ -30,8 +30,16 @@ export function Hud() {
       <Minimap />
       <Dialog />
       <Panel />
-      {status === "connecting" && <div className="toast">Walking into town…</div>}
-      {status === "offline" && <div className="toast">Reconnecting…</div>}
+      {status === "connecting" && (
+        <div className="toast" role="status">
+          Walking into town…
+        </div>
+      )}
+      {status === "offline" && (
+        <div className="toast" role="status">
+          Reconnecting…
+        </div>
+      )}
       <MentionToast />
       <NoticeToast />
       <InviteToast />
@@ -89,6 +97,7 @@ function Stats() {
           type="button"
           className="chip"
           title="Shop"
+          aria-label={`Shop: ${wallet.balance} coins`}
           onClick={() => hud.set({ panel: { kind: "shop" } })}
         >
           🪙 <strong>{wallet.balance.toLocaleString()}</strong>
@@ -99,6 +108,7 @@ function Stats() {
         type="button"
         className="icon"
         title="Leaderboard (L)"
+        aria-label="Leaderboard"
         onClick={() => hud.set({ panel: { kind: "leaderboard" } })}
       >
         🏆
@@ -107,6 +117,7 @@ function Stats() {
         type="button"
         className="icon"
         title={waiting ? `Company: ${waiting} asking to join` : "Company"}
+        aria-label={waiting ? `Company: ${waiting} asking to join` : "Company"}
         onClick={() => hud.set({ panel: { kind: "company" } })}
       >
         🏢{waiting > 0 && <span className="count">{waiting}</span>}

@@ -94,11 +94,11 @@ function Bid({
   return (
     <div className="dice-bid">
       <span className="counter">
-        <button type="button" onClick={() => setCount(Math.max(1, count - 1))}>
+        <button type="button" aria-label="Fewer" onClick={() => setCount(Math.max(1, count - 1))}>
           −
         </button>
         <strong>{count}×</strong>
-        <button type="button" onClick={() => setCount(Math.min(max, count + 1))}>
+        <button type="button" aria-label="More" onClick={() => setCount(Math.min(max, count + 1))}>
           ＋
         </button>
       </span>

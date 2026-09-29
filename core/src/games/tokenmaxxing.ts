@@ -7,7 +7,7 @@
 import { compact } from "../format.ts";
 import { type Callout, type GameDef, refused } from "./types.ts";
 
-export const MINUTES = [15, 30, 60, 240, 1440] as const;
+const MINUTES = [15, 30, 60, 240, 1440] as const;
 /** Everyone gets time to fire up their agents; the battle starts on the minute after this. */
 export const COUNTDOWN_MS = 60_000;
 /** Late syncs still count, for events stamped before the end. */

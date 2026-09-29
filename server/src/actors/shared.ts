@@ -51,6 +51,7 @@ export const makeToken = (userId: number) => {
 export const unauthorized = () => new UserError("Sign in from the menu bar app.", { code: "unauthorized" });
 
 const TOKEN_CACHE_MS = 60_000;
+const TOKEN_CACHE_MAX = 10_000;
 export type TokenCache = Map<string, { caller: Caller; until: number }>;
 
 /**
@@ -76,7 +77,7 @@ export async function authenticate(
     : null;
   if (!t || !via) throw unauthorized();
   const caller: Caller = { kind: "user", userId: t.userId, via };
-  if (cache.size > 10_000) cache.clear();
+  if (cache.size > TOKEN_CACHE_MAX) cache.clear();
   cache.set(params.token, { caller, until: now + TOKEN_CACHE_MS });
   return caller;
 }

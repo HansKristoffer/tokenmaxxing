@@ -1,7 +1,5 @@
 /** The whole world runs on one clock: "today" and daily charts are Copenhagen days. */
-export const WORLD_TZ = "Europe/Copenhagen";
-
-export const DAY_MS = 86_400_000;
+const WORLD_TZ = "Europe/Copenhagen";
 
 export const RANGES = ["today", "7d", "30d", "all"] as const;
 export type RangeKey = (typeof RANGES)[number];

@@ -2,7 +2,7 @@ import { type MessageType, SOURCES, type Source, type TokenEvent } from "@tokenm
 import { CHAT_MAX_LENGTH } from "@tokenmaxxing/core/world.ts";
 
 /** Lowercase handle, 2–32 chars. Shown to other users, so no free-form text. */
-export const NAME_RE = /^[a-z0-9][a-z0-9._-]{1,31}$/;
+const NAME_RE = /^[a-z0-9][a-z0-9._-]{1,31}$/;
 
 export function parseUserName(raw: unknown): string | null {
   if (typeof raw !== "string") return null;

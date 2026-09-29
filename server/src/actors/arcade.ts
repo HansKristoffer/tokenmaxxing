@@ -91,7 +91,12 @@ const BIG_POT = 500;
 /** Invites a host can send a minute (each one is a toast for someone). */
 const INVITES_PER_MIN = 10;
 /** A match still unfinished this long after it started is stuck: it's called off and refunded. */
-const stuckAfter = (game: GameId) => (GAMES[game]?.holdPlayers === false ? 25 * 3_600_000 : 30 * 60_000);
+const HOUR = 3_600_000;
+const stuckAfter = (game: GameId) => (GAMES[game]?.holdPlayers === false ? 25 * HOUR : 30 * 60_000);
+/** People one open or invite can name. */
+const MAX_INVITEES = 12;
+/** How often expired invites, stale tables and stuck or finished matches are swept. */
+const SWEEP_MS = 1000;
 
 const tableRef = (id: number) => `table:${id}`;
 const betsRef = (id: number) => `bets:${id}`;
@@ -107,7 +112,7 @@ export const arcade = actor({
     authenticate(params, c.client(), c.vars.tokens),
   run: async (c): Promise<void> => {
     while (!c.aborted) {
-      await Bun.sleep(1000);
+      await Bun.sleep(SWEEP_MS);
       await c.vars.serial(() => sweep(c, Date.now()));
     }
   },
@@ -419,7 +424,7 @@ async function learnNames(c: ArcadeCtx, userIds: number[]): Promise<void> {
 
 /** People to invite, given as user ids or names. */
 async function resolve(c: ArcadeCtx, raw: unknown): Promise<number[]> {
-  const list = Array.isArray(raw) ? raw.slice(0, 12) : [];
+  const list = Array.isArray(raw) ? raw.slice(0, MAX_INVITEES) : [];
   const ids = list.filter((x): x is number => Number.isInteger(x));
   const names = list.filter((x): x is string => typeof x === "string");
   if (names.length === 0) return ids;
@@ -643,7 +648,7 @@ const matchInfo = (s: ArcadeState, m: Live): MatchInfo => ({
   outcome: m.outcome,
 });
 
-export function lobbyFor(s: ArcadeState, userId: number): Lobby {
+function lobbyFor(s: ArcadeState, userId: number): Lobby {
   const tables = Object.values(s.tables).filter(
     (t) => t.open || t.seated.includes(userId) || t.invited.some((i) => i.userId === userId),
   );

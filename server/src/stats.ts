@@ -25,7 +25,7 @@ export interface ActivityRow {
 }
 
 export type SortKey = "tokens" | "cost" | "hours" | "parallelism" | "prs";
-export const SORT_KEYS: readonly SortKey[] = ["tokens", "cost", "hours", "parallelism", "prs"];
+const SORT_KEYS: readonly SortKey[] = ["tokens", "cost", "hours", "parallelism", "prs"];
 export const isSortKey = (v: unknown): v is SortKey => SORT_KEYS.includes(v as SortKey);
 
 /** Below this, parallelism is null so one short burst can't top the board. */

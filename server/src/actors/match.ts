@@ -19,7 +19,7 @@ import {
   type TokenCache,
 } from "./shared.ts";
 
-export interface MatchInput {
+interface MatchInput {
   id: number;
   game: GameId;
   players: Seat[];

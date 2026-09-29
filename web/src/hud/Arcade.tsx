@@ -1,4 +1,4 @@
-import { minutesText } from "@tokenmaxxing/core/format.ts";
+import { minutesText, secondsUntil } from "@tokenmaxxing/core/format.ts";
 import { GAMES, gameOf } from "@tokenmaxxing/core/games/index.ts";
 import { MAX_STAKE, SPLITS, type Split } from "@tokenmaxxing/core/games/payouts.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
@@ -422,21 +422,21 @@ export function NewTable({ invite }: { invite?: number }) {
 
 /** "ada invites you to …" with Accept, Decline, or a counter offer. */
 export function InviteToast() {
-  const invite = useHud((s) => s.invite);
+  const invite = useHud((s) => s.inviteTable);
   const lobby = useHud((s) => s.lobby);
   const me = useHud((s) => s.me?.userId);
   const [counter, setCounter] = useState<number | null>(null);
   const { error, run } = useRun();
   useTicker(1000, invite !== null);
-  const table = lobby?.tables.find((t) => t.id === invite?.tableId);
+  const table = lobby?.tables.find((t) => t.id === invite);
   const mine = table?.invited.find((i) => i.userId === me);
-  if (!invite || !table || !mine) return null;
+  if (invite === null || !table || !mine) return null;
   const host = table.seated.find((s) => s.userId === table.host)?.name ?? "Someone";
-  const left = Math.max(0, Math.round((mine.expiresAt - Date.now()) / 1000));
+  const left = secondsUntil(mine.expiresAt, Date.now());
   const done = (fn: () => Promise<unknown>) =>
     run(async () => {
       await fn();
-      hud.set({ invite: null });
+      hud.set({ inviteTable: null });
     });
   return (
     <div className="toast invite-toast" role="alert">
@@ -461,6 +461,7 @@ export function InviteToast() {
             🪙
             <input
               type="number"
+              aria-label="Your stake"
               min={0}
               max={MAX_STAKE}
               value={counter}
@@ -490,6 +491,7 @@ export function ArcadeButton() {
       type="button"
       className="icon"
       title="Arcade: play for coins"
+      aria-label="Arcade"
       onClick={() => hud.set({ panel: { kind: "arcade" } })}
     >
       🎮

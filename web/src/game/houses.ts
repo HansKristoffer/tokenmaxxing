@@ -7,7 +7,7 @@ import { world } from "./world.ts";
 /** Faces in house windows this frame, in world pixels, so clicks can find them. */
 export const peekHits: { x: number; y: number; w: number; h: number; id: number }[] = [];
 
-export interface Building {
+interface Building {
   /** Footprint in tiles; the door is on the bottom row. */
   x: number;
   y: number;

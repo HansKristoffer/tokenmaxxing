@@ -37,7 +37,7 @@ export const MAX_READ_BYTES = 64 * 1024 * 1024;
  *  - `oversize`: a record longer than `maxBytes` was dropped (its `bytes` were
  *                skipped). The caller should surface this — it is data loss.
  */
-export type LineRead =
+type LineRead =
   | { kind: "line"; text: string; newOffset: number }
   | { kind: "advance"; newOffset: number }
   | { kind: "oversize"; bytes: number; newOffset: number };

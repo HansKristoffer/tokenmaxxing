@@ -92,6 +92,9 @@ function buildMap(rawJson: Record<string, RawEntry>): Map<string, ModelPrice> {
 
 const FALLBACK_RAW = pricingFallbackRaw as Record<string, RawEntry>;
 
+/** A hung upstream must not hold the daily refresh forever. */
+const FETCH_TIMEOUT_MS = 30_000;
+
 export class PricingCache {
   private map: Map<string, ModelPrice>;
 
@@ -101,7 +104,7 @@ export class PricingCache {
 
   async refreshFromUpstream(): Promise<{ updated: number; failed: boolean }> {
     try {
-      const res = await fetch(LITELLM_URL);
+      const res = await fetch(LITELLM_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (!res.ok) return { updated: this.map.size, failed: true };
       const json = (await res.json()) as Record<string, RawEntry>;
       const next = buildMap(json);

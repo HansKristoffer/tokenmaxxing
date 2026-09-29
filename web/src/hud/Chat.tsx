@@ -152,6 +152,7 @@ export function Chat() {
           )}
           <input
             ref={input}
+            aria-label="Chat"
             value={text}
             maxLength={CHAT_MAX_LENGTH}
             placeholder="Say: press Enter to chat, @ to mention"

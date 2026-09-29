@@ -100,7 +100,7 @@ function SideBet({ frame, now, run }: { frame: Frame; now: number; run: Run }) {
   return (
     <form className="side-bet" onSubmit={run(() => arcade.bet(frame.info.id, on, amount))}>
       <span>🎲 Side bet ({left}s left):</span>
-      <select value={on} onChange={(e) => setOn(Number(e.target.value))}>
+      <select aria-label="Who to back" value={on} onChange={(e) => setOn(Number(e.target.value))}>
         {frame.info.players.map((p) => (
           <option key={p.userId} value={p.userId}>
             {p.name}
@@ -109,6 +109,7 @@ function SideBet({ frame, now, run }: { frame: Frame; now: number; run: Run }) {
       </select>
       <input
         type="number"
+        aria-label="Coins"
         min={1}
         max={cap}
         value={amount}

@@ -15,7 +15,7 @@ export type Panel =
   | { kind: "menu" };
 
 /** Everything the React HUD shows. The canvas world keeps its own state in `game/world.ts`. */
-export interface HudState {
+interface HudState {
   status: "connecting" | "ready" | "signedOut" | "expired" | "offline";
   me: Me | null;
   stats: Today["me"] | null;
@@ -41,8 +41,8 @@ export interface HudState {
   frame: Frame | null;
   /** How far my clock is ahead of the server's, for countdowns. */
   clockSkew: number;
-  /** An invite that just came in, shown as a toast. */
-  invite: { tableId: number; at: number } | null;
+  /** The table of an invite that just came in, shown as a toast. */
+  inviteTable: number | null;
   /** The last time someone @-mentioned me from another room. */
   mention: { line: ChatLine; at: number } | null;
 }
@@ -66,7 +66,7 @@ let state: HudState = {
   lobby: null,
   frame: null,
   clockSkew: 0,
-  invite: null,
+  inviteTable: null,
 };
 const listeners = new Set<() => void>();
 

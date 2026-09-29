@@ -3,13 +3,13 @@ import { type CollectOptions, collect } from "./collect.ts";
 import { saveState } from "./state.ts";
 
 /** Every source is read unless `enabled` narrows it (tests); `gh: null` skips GitHub. */
-export interface SyncOptions extends Partial<Pick<CollectOptions, "enabled" | "gh" | "now">> {
+interface SyncOptions extends Partial<Pick<CollectOptions, "enabled" | "gh" | "now">> {
   statePath: string;
   send: (events: TokenEvent[]) => Promise<IngestResponse>;
   onError?: (err: unknown, where: string) => void;
 }
 
-export interface SyncResult {
+interface SyncResult {
   state: SyncState;
   sent: number;
   inserted: number;

@@ -143,7 +143,7 @@ export async function refreshMe(): Promise<void> {
 let statsTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** My tokens, rank, level and coins today, at most every few seconds. */
-export async function refreshStats(): Promise<void> {
+async function refreshStats(): Promise<void> {
   if (statsTimer) return;
   statsTimer = setTimeout(() => {
     statsTimer = null;
@@ -166,7 +166,7 @@ function applyLobby(lobby: Lobby): void {
       t.invited.some((i) => i.userId === me) &&
       !before?.tables.some((b) => b.id === t.id && b.invited.some((i) => i.userId === me)),
   );
-  hud.set({ lobby, ...(invite ? { invite: { tableId: invite.id, at: Date.now() } } : {}) });
+  hud.set({ lobby, ...(invite ? { inviteTable: invite.id } : {}) });
   // Stakes, bets and payouts move coins, and they all change the lobby.
   const ended = (l: Lobby | null | undefined) => l?.matches.filter((m) => m.outcome).length ?? 0;
   if (JSON.stringify(lobby.me) !== JSON.stringify(before?.me) || ended(lobby) > ended(before))

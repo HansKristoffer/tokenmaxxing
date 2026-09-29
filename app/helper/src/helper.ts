@@ -8,9 +8,9 @@ import type { registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
 
 /** Often enough that your character sits down at the desk soon after your agents start. */
-export const SYNC_INTERVAL_MS = 2 * 60_000;
+const SYNC_INTERVAL_MS = 2 * 60_000;
 /** During a Tokenmaxxing battle, so the scoreboard moves while you burn. */
-export const BATTLE_SYNC_MS = 10_000;
+const BATTLE_SYNC_MS = 10_000;
 
 export interface HelperOptions {
   statePath: string;

@@ -5,9 +5,9 @@
  */
 
 export type MapId = "town" | "hq" | "inn";
-export type SeatKind = "bench" | "sofa" | "bed" | "chair";
+type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
-export interface TileKind {
+interface TileKind {
   name: string;
   walk?: true;
   /** Space while facing it sits you down (beds lie you down). */

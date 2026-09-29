@@ -85,6 +85,16 @@ const SIGNUPS_PER_HOUR = 200;
 const BRANDINGS_PER_HOUR = 5;
 /** Each one pings the company's owner. */
 const APPLICATIONS_PER_HOUR = 10;
+const HOUR = 3_600_000;
+
+/** Many rows in few statements (a first sync can report years of days). */
+async function insertRows(sql: Sql, insert: string, rows: unknown[][]): Promise<void> {
+  for (let i = 0; i < rows.length; i += 200) {
+    const chunk = rows.slice(i, i + 200);
+    const row = `(${chunk[0]!.map(() => "?").join(",")})`;
+    await sql.execute(`${insert} ${chunk.map(() => row).join(",")}`, ...chunk.flat());
+  }
+}
 
 function userName(raw: unknown): string {
   const name = parseUserName(raw);
@@ -102,9 +112,9 @@ function companyName(raw: unknown): string {
 export const town = actor({
   createVars: () => ({
     serial: serial(),
-    signups: new RateLimiter(SIGNUPS_PER_HOUR, 3_600_000),
-    brandings: new RateLimiter(BRANDINGS_PER_HOUR, 3_600_000),
-    applications: new RateLimiter(APPLICATIONS_PER_HOUR, 3_600_000),
+    signups: new RateLimiter(SIGNUPS_PER_HOUR, HOUR),
+    brandings: new RateLimiter(BRANDINGS_PER_HOUR, HOUR),
+    applications: new RateLimiter(APPLICATIONS_PER_HOUR, HOUR),
     /** Verified tokens, so a burst of calls doesn't ask `player` every time. */
     tokens: new Map() as TokenCache,
   }),
@@ -320,9 +330,10 @@ export const town = actor({
       await c.vars.serial(async () => {
         const inDays = `day IN (${days.map(() => "?").join(",")})`;
         await c.db.execute(`DELETE FROM usage_daily WHERE user_id = ? AND ${inDays}`, userId, ...days);
-        for (const r of usage)
-          await c.db.execute(
-            "INSERT INTO usage_daily VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        await insertRows(
+          c.db,
+          "INSERT INTO usage_daily VALUES",
+          usage.map((r) => [
             userId,
             r.day,
             r.model,
@@ -331,10 +342,12 @@ export const town = actor({
             r.cacheCreation,
             r.cacheRead,
             r.turns,
-          );
-        for (const a of activity)
-          await c.db.execute(
-            "INSERT OR REPLACE INTO activity_daily VALUES (?, ?, ?, ?, ?, ?, ?)",
+          ]),
+        );
+        await insertRows(
+          c.db,
+          "INSERT OR REPLACE INTO activity_daily VALUES",
+          activity.map((a) => [
             userId,
             a.day,
             a.prompts,
@@ -342,7 +355,8 @@ export const town = actor({
             a.agentBuckets,
             a.activeBuckets,
             a.peakAgents,
-          );
+          ]),
+        );
       });
       const u = await userById(c.db, userId);
       await push(c.db, c.client<typeof registry>(), {

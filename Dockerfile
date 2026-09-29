@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # Server image for Railway (railway.json builds this). One process runs the web server, the
 # Rivet engine and every actor; the game is bundled by Bun at startup from web/.
+# Keep in step with "packageManager" in package.json.
 ARG BUN_VERSION=1.4.2
 FROM oven/bun:${BUN_VERSION}-slim
 WORKDIR /app

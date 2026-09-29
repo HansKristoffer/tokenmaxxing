@@ -68,12 +68,12 @@ export interface Today {
 
 const TODAY_TOP = 5;
 
-export const BOARD_TOP = 100;
+const BOARD_TOP = 100;
 
 const ACTIVITY_SUMS = `SUM(prompts) AS prompts, SUM(prs) AS prs, SUM(agent_buckets) AS agentBuckets,
               SUM(active_buckets) AS activeBuckets, MAX(peak_agents) AS peakAgents`;
 
-export const SUMS = `SUM(input) AS input, SUM(output) AS output, SUM(cache_creation) AS cacheCreation,
+const SUMS = `SUM(input) AS input, SUM(output) AS output, SUM(cache_creation) AS cacheCreation,
               SUM(cache_read) AS cacheRead, SUM(turns) AS turns`;
 
 /** `[from, to]` as SQL bounds; all time starts at the beginning. */
