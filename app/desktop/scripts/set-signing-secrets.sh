@@ -3,7 +3,11 @@
 # Everything is typed at hidden prompts and piped straight to `gh secret set`;
 # nothing is written to disk or echoed.
 #
-#   app/scripts/set-signing-secrets.sh ~/Desktop/DeveloperID.p12
+#   app/desktop/scripts/set-signing-secrets.sh ~/Desktop/DeveloperID.p12
+#
+# Also uploads the updater's signing key from ~/.tauri/tokenmaxxing.key (made once with
+# `bunx tauri signer generate -w ~/.tauri/tokenmaxxing.key`, its password in tokenmaxxing.password).
+# Losing that key means installed apps can never update again: keep a copy in the password manager.
 set -euo pipefail
 
 P12="${1:?usage: $0 path/to/DeveloperID.p12}"
@@ -30,6 +34,12 @@ printf '%s' "$IDENTITY" | gh secret set MACOS_SIGN_IDENTITY --repo "$REPO"
 printf '%s' "$APPLE_ID" | gh secret set NOTARY_APPLE_ID --repo "$REPO"
 printf '%s' "$TEAM_ID" | gh secret set NOTARY_TEAM_ID --repo "$REPO"
 printf '%s' "$NOTARY_PASSWORD" | gh secret set NOTARY_PASSWORD --repo "$REPO"
+if [ -f ~/.tauri/tokenmaxxing.key ]; then
+  gh secret set TAURI_SIGNING_PRIVATE_KEY --repo "$REPO" < ~/.tauri/tokenmaxxing.key
+  gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --repo "$REPO" < ~/.tauri/tokenmaxxing.password
+else
+  echo "No ~/.tauri/tokenmaxxing.key: the updater key wasn't uploaded." >&2
+fi
 
 echo "Done. Secrets on $REPO:"
 gh secret list --repo "$REPO"

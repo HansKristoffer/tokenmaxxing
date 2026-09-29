@@ -1,19 +1,21 @@
 # Architecture
 
-tokenmaxxing is a small pixel-art town for people who run AI coding agents. The menu bar app syncs your token
-usage; the town shows it. Everyone is in **one world**. You work for at most one **company**, which has a house in
+tokenmaxxing is a small pixel-art town for people who run AI coding agents. The desktop app syncs your token
+usage from the menu bar and shows the town in its window. Everyone is in **one world**. You work for at most one **company**, which has a house in
 town; when you're not playing, your character sleeps in its bed, or sits at its desk while your agents run.
 
 ```
-Tokenmaxxing.app (menu bar)                          server (one Railway service)
-├─ Swift shell  ◄─ NDJSON ─►  TS helper ───────────►  Bun.serve (server/src/main.ts)
-│  Keychain, login item       parses logs,              ├─ /               the game (web/, bundled at boot)
-│  "Open world"               player.ingest()           ├─ /logos/:file    company logos (sandboxed)
-│                                                       ├─ /health
-browser: Canvas 2D world + React HUD  ◄─ WebSocket ──►  └─ /api/rivet/*    proxy to the Rivet engine (gateway only)
-                                                        Rivet engine on 127.0.0.1, actors in this process,
-                                                        storage on the /data volume
+Tokenmaxxing.app (Tauri v2, app/desktop)             server (one Railway service)
+├─ menu bar: ⚡ tokens today, menu                   Bun.serve (server/src/main.ts)
+├─ sidecar: TS helper ◄─ NDJSON ─► Rust ───────────►  ├─ /               the game (web/, bundled at boot)
+│    parses logs, player.ingest()                     ├─ /logos/:file    company logos (sandboxed)
+├─ game window: Canvas 2D world + React HUD           ├─ /health
+│    (the live page, over WebSocket) ◄─────────────►  └─ /api/rivet/*    proxy to the Rivet engine (gateway only)
+└─ Keychain, login item, updater                      Rivet engine on 127.0.0.1, actors in this process,
+                                                      storage on the /data volume
 ```
+
+The game also runs in any browser; the app's window is that same page.
 
 | Path | What |
 |---|---|
@@ -22,7 +24,8 @@ browser: Canvas 2D world + React HUD  ◄─ WebSocket ──►  └─ /api/ri
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `sync` (pushes to `world`) |
 | `server/src/` | `main.ts`, `proxy.ts`, `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts` |
 | `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels) |
-| `app/helper/`, `app/macos/` | The menu bar app: onboarding, then background sync and an **Open world** button |
+| `app/helper/` | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar |
+| `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, onboarding, updates |
 
 ## Serving
 
@@ -45,6 +48,38 @@ browser: Canvas 2D world + React HUD  ◄─ WebSocket ──►  └─ /api/ri
   the device token never goes into a URL.
 - The app forgets its token when the server rejects it and goes back to picking a name.
 - There's no web sign-up: without a session the page says to open the world from the menu bar app.
+
+## The desktop app
+
+`app/desktop/src-tauri/src/`, in Rust:
+
+- **`helper.rs`** runs the helper sidecar (Bun-compiled) and speaks the NDJSON protocol in
+  `core/src/protocol.ts`: `init`, `signUp`, `syncNow` and `openWorld`, and `state` and `token` events. It
+  restarts the helper with backoff. A fixture written by `app/helper/test/protocol.test.ts` keeps the Rust
+  types and the TypeScript ones in step.
+- **`tray.rs`**: the menu bar. The bolt is a template image with today's tokens as its title. Its menu:
+  - Open world;
+  - your rank and level, and the battle you're in;
+  - Sync now;
+  - Launch at login;
+  - updates;
+  - Quit.
+
+  It's rebuilt from the helper's state after every sync: every 2 minutes, or every 10 seconds during a battle.
+- **`world.rs`**: the windows.
+  - The game window loads the live page (`/#code=…`, the same single-use login code as a browser). It stays
+    on the server's origin; other links open in the browser.
+  - The "pick a name" page (`app/desktop/onboarding/`) is the only local page, and the only one with IPC
+    (`capabilities/default.json`). The game page has none.
+  - The app is in the Dock only while a window is open (`LSUIElement`, then the activation policy).
+- **`keychain.rs`**: the device token, in the login Keychain as `dk.hanskristoffer.tokenmaxxing` /
+  `api-token`. Dev builds use `….dev` and their own state dir.
+- **`updates.rs`**: Tauri's updater. It checks `latest.json` on this repo's latest release on launch and every
+  4 hours, and installs from the menu. Downloads must be signed with the key in `TAURI_SIGNING_PRIVATE_KEY`.
+- **Plugins:** single-instance (a second launch opens the world), window-state, autostart (a LaunchAgent) and
+  log.
+- **The server URL** is baked in at build time (`TOKENMAXXING_SERVER_URL`). A release build refuses to build
+  without it; a dev build uses `localhost:8787`.
 
 ## Actors
 

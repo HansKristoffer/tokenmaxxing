@@ -18,10 +18,11 @@ build() { # <bun target> <outfile>
 case "$TRIPLE" in
   aarch64-apple-darwin) build bun-darwin-arm64 "$OUT/tokenmaxxing-helper-$TRIPLE" ;;
   x86_64-apple-darwin) build bun-darwin-x64 "$OUT/tokenmaxxing-helper-$TRIPLE" ;;
+  # Tauri builds each architecture on its own, then bundles the joined one: it needs all three.
   universal-apple-darwin)
-    build bun-darwin-arm64 "$OUT/arm64"
-    build bun-darwin-x64 "$OUT/x64"
-    lipo -create "$OUT/arm64" "$OUT/x64" -output "$OUT/tokenmaxxing-helper-$TRIPLE"
-    rm "$OUT/arm64" "$OUT/x64" ;;
+    build bun-darwin-arm64 "$OUT/tokenmaxxing-helper-aarch64-apple-darwin"
+    build bun-darwin-x64 "$OUT/tokenmaxxing-helper-x86_64-apple-darwin"
+    lipo -create "$OUT/tokenmaxxing-helper-aarch64-apple-darwin" "$OUT/tokenmaxxing-helper-x86_64-apple-darwin" \
+      -output "$OUT/tokenmaxxing-helper-$TRIPLE" ;;
   *) echo "no helper build for $TRIPLE" >&2; exit 1 ;;
 esac

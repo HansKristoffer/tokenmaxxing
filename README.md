@@ -1,6 +1,6 @@
 # tokenmaxxing
 
-A tiny pixel town for people who run AI coding agents. Install the menu bar app, pick a name, and
+A tiny pixel town for people who run AI coding agents. Install the app, pick a name, and
 **Open world**: you walk around town as your own character, chat with whoever is in the same room, and
 open anyone's stats. Start a **company** (or pick one from the list and ask to join; its owner says yes or
 no) and it gets a
@@ -20,8 +20,10 @@ from GitHub.
 brew install --cask hanskristoffer/tap/tokenmaxxing
 ```
 
-Open **Tokenmaxxing** and pick a name. From then on it syncs in the background, and its menu bar icon
-has one button: **Open world**. Everything else (leaderboards, stats, games) is in the world.
+Open **Tokenmaxxing** and pick a name. From then on it lives in the menu bar: it syncs in the background
+and shows your tokens today next to the ⚡. **Open world** (from its menu, the Dock or Spotlight) opens the
+game in its own window, where everything else is: leaderboards, stats, companies and games. The app keeps
+itself up to date.
 
 **Coming from 0.5 or earlier?** The world is a new backend and starts fresh: update the app, pick a name again and
 recreate your company. Your usage history comes back by itself, because the app re-reads your local logs on
@@ -69,14 +71,14 @@ data is sent anywhere for this.
 ## How it works
 
 ```
-Tokenmaxxing.app (menu bar)                        server (Railway, one process)
-├─ Swift shell  ◄─ NDJSON ─►  TS helper ─────────►  Bun.serve
-│  Keychain, login item       parses local logs,      ├─ /             the game (bundled at boot)
-│  "Open world"               player.ingest()         ├─ /logos/:file  company logos
-                                                       ├─ /api/rivet/*  proxy to the Rivet engine's gateway ◄── browser
-                                                       └─ Rivet actors: town, world, player[userId],
-                                                          arcade, match[id]
-browser: Canvas 2D world + React HUD                   engine data: $RIVETKIT_STORAGE_PATH (the volume)
+Tokenmaxxing.app (Tauri, Rust)                     server (Railway, one process)
+├─ menu bar: ⚡ 306M, its menu                      Bun.serve
+├─ game window ── loads the live game ──────────►  ├─ /             the game (bundled at boot)
+├─ Keychain, login item, updater                   ├─ /logos/:file  company logos
+└─ sidecar: TS helper ◄─ NDJSON                    ├─ /api/rivet/*  proxy to the Rivet engine's gateway ◄── game
+     parses local logs, player.ingest() ────────►  └─ Rivet actors: town, world, player[userId],
+                                                      arcade, match[id]
+                                                   engine data: $RIVETKIT_STORAGE_PATH (the volume)
 ```
 
 The backend is [Rivet Actors](https://rivet.dev/docs/actors). `rivetkit` starts the Rivet engine
@@ -95,9 +97,8 @@ inside the container; `Bun.serve` exposes only its client gateway under `/api/ri
 | `core/` | Log parsers, sync engine, shell↔helper protocol, `maps.ts` and `world.ts` (the world's rules, shared by client and server) |
 | `server/` | `main.ts`, the Rivet proxy, the actors (`src/actors/`) and what `town` does (`src/town/`), company branding, pricing |
 | `web/` | The game: canvas renderer in `src/game/`, pixel art drawn in code in `src/art/`, React HUD in `src/hud/` |
-| `app/helper/` | The TypeScript helper the app runs (`bun build --compile`) |
-| `app/macos/` | SwiftUI `MenuBarExtra` shell (Swift Package, no Xcode project) |
-| `app/scripts/build-app.sh` | Assembles, signs and notarizes `Tokenmaxxing.app` |
+| `app/helper/` | The TypeScript helper the app runs as a sidecar (`bun build --compile`) |
+| `app/desktop/` | The desktop app: Tauri v2 (`src-tauri/`), the "pick a name" page, icons and build scripts |
 | `packaging/tokenmaxxing.rb` | Homebrew cask template |
 | `ARCHITECTURE.md` | How it all fits together: serving, auth, the actors, houses, coins, games |
 
@@ -105,18 +106,20 @@ All art is drawn in code (palette-string sprites and rectangles), so the repo ca
 
 ## Development
 
-Requires Bun 1.4+ and Xcode 16+ (macOS 14+).
+Requires Bun 1.4+, Rust (stable) and Xcode's command line tools (macOS 14+).
 
 ```bash
 bun install --ignore-scripts
 bun run dev                            # http://localhost:8787 (data in ./.data/rivet); restart to see web edits
 bun run dev:seed                       # a few people, two companies, and a link that signs you in
-bun run app:dev                        # builds the app against localhost and opens it
+bun run desktop:dev                    # the desktop app against localhost:8787
 bun run check                          # typecheck + lint + tests (tests start their own server)
-swift test --package-path app/macos    # Swift protocol contract test
+(cd app/desktop/src-tauri && cargo test)   # the Rust side, including the protocol contract test
 ```
 
-In `app:dev` builds the helper runs from source, so TypeScript changes only need an app restart.
+Dev builds of the desktop app run the helper from source (so TypeScript changes only need an app restart),
+with their own Keychain entry and state dir, so they never touch the installed app's account. Point one at
+another server with `TOKENMAXXING_SERVER_URL=… bun run desktop:dev`.
 To sync without the UI:
 
 ```bash
@@ -141,12 +144,16 @@ the environment before the process starts.
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org) (PR titles are checked).
 [release-please](https://github.com/googleapis/release-please) keeps a Release PR open. Merging it
-tags the version, builds and notarizes the app for arm64 and x86_64, attaches the zips, and updates the
-cask in `HansKristoffer/homebrew-tap`. Railway deploys the server from `main`.
+tags the version, builds the desktop app (universal, signed and notarized, with `tauri-action`), attaches
+the `.dmg` and the updater's files (`.app.tar.gz`, `.sig`, `latest.json`), and updates the cask in
+`HansKristoffer/homebrew-tap`. Installed apps find the update through `latest.json` on the latest release.
+Railway deploys the server from `main`, and the game window picks that up on its own.
 
 Required repo settings: the variable `TOKENMAXXING_SERVER_URL`, and the secrets `MACOS_CERT_P12`,
-`MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY`, `NOTARY_APPLE_ID`, `NOTARY_TEAM_ID`,
-`NOTARY_PASSWORD` and `HOMEBREW_TAP_DEPLOY_KEY` (a write deploy key on the tap repo).
+`MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY`, `NOTARY_APPLE_ID`, `NOTARY_TEAM_ID`, `NOTARY_PASSWORD`,
+`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` and `HOMEBREW_TAP_DEPLOY_KEY` (a write
+deploy key on the tap repo). `app/desktop/scripts/set-signing-secrets.sh` uploads all but the last. The
+updater key lives in `~/.tauri/tokenmaxxing.key`: losing it means installed apps can never update again.
 
 ## License
 
