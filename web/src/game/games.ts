@@ -64,9 +64,11 @@ function drawTable(
 ): void {
   const [[tx, ty]] = propTiles(game.spot) as [[number, number]];
   items.push({ y: (ty + 1) * TILE - 2, draw: () => g.drawImage(gameTable(game.game), tx * TILE, ty * TILE) });
-  const [sx, sy] = toScreen((game.spot.x + game.spot.w / 2) * TILE, game.spot.y * TILE);
+  // Just above the seated players' own labels (a name and a game tag: two pills), not the spot's top.
+  const head = Math.min(...game.seats.map((s) => s.y)) * TILE;
+  const [sx, sy] = toScreen((game.spot.x + game.spot.w / 2) * TILE, head);
   labels.push(() => {
-    const y = sy - 24 * dpr;
+    const y = sy - 42 * dpr;
     const { w, h } = pill(g, sx, y, banner(game, serverNow), dpr, "rgba(233, 183, 61, 0.95)", C.ink);
     gameHits.push({ x: sx - w / 2, y: y - h, w, h, open: () => openMatch(game.id) });
     const said = world.tableBubbles.get(game.id);

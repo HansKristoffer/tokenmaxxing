@@ -4,6 +4,8 @@ import { addDays, dayKey, rangeDays } from "../src/range.ts";
 import {
   defaultLook,
   houseTier,
+  mentionsIn,
+  namesIn,
   outsideDoor,
   parseLook,
   portal,
@@ -101,4 +103,10 @@ describe("world days", () => {
     expect(rangeDays("7d", now)).toEqual({ from: "2026-09-23", to: "2026-09-29" });
     expect(rangeDays("all", now).from).toBeNull();
   });
+});
+
+test("mentions in chat need the @; invite fields take names either way", () => {
+  expect(mentionsIn("hey @Ada and @bo, not cy")).toEqual(["ada", "bo"]);
+  expect(namesIn("@Ada bo, @cy  @ada")).toEqual(["ada", "bo", "cy"]);
+  expect(namesIn("  ")).toEqual([]);
 });

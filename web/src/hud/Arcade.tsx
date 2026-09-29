@@ -3,9 +3,11 @@ import { GAMES, gameOf } from "@tokenmaxxing/core/games/index.ts";
 import { MAX_STAKE, SPLITS, type Split } from "@tokenmaxxing/core/games/payouts.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { Lobby, MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
+import { namesIn } from "@tokenmaxxing/core/world.ts";
 import { useEffect, useState } from "react";
 import { arcade, openMatch, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { MentionInput } from "./MentionInput.tsx";
 import { Modal, useRun, useTicker } from "./ui.tsx";
 
 const STAKES = [0, 10, 50, 100, 250];
@@ -244,12 +246,9 @@ function YourTable({ table }: { table: TableView }) {
       {host && free > 0 && (
         <form
           className="inline-form"
-          onSubmit={run(() => arcade.invite(table.id, [name]).then(() => setName("")))}
+          onSubmit={run(() => arcade.invite(table.id, namesIn(name)).then(() => setName("")))}
         >
-          <label>
-            Invite
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="name" maxLength={32} />
-          </label>
+          <MentionInput label="Invite" value={name} onChange={setName} placeholder="Invite @name" />
           <button type="submit">Invite</button>
         </form>
       )}
@@ -296,13 +295,7 @@ export function NewTable({ invite }: { invite?: number }) {
   const stake = Math.min(wanted, cap);
 
   const submit = run(async () => {
-    const people = [
-      ...(invite !== undefined ? [invite] : []),
-      ...names
-        .split(/[\s,]+/)
-        .map((n) => n.replace(/^@/, ""))
-        .filter(Boolean),
-    ];
+    const people = [...(invite !== undefined ? [invite] : []), ...namesIn(names)];
     await arcade.open(game, {
       stake,
       seats,
@@ -403,14 +396,16 @@ export function NewTable({ invite }: { invite?: number }) {
           <input type="checkbox" checked={open} onChange={(e) => setOpen(e.target.checked)} />
           Open to everyone (anyone can take a free seat)
         </label>
-        <label>
+        {/* Not a label: the @-suggestions are buttons, and a label would press the first one. */}
+        <div className="field">
           {inviteName ? "Invite others too" : "Invite"}
-          <input
+          <MentionInput
+            label={inviteName ? "Invite others too" : "Invite"}
             value={names}
-            onChange={(e) => setNames(e.target.value)}
-            placeholder="names, separated by spaces"
+            onChange={setNames}
+            placeholder="@ada @bo"
           />
-        </label>
+        </div>
         <button type="submit" className="primary">
           {inviteName ? `Challenge ${inviteName}` : "Open the table"} · 🪙 {stake}
         </button>
@@ -475,31 +470,5 @@ export function InviteToast() {
       </div>
       {error && <p className="error small">{error}</p>}
     </div>
-  );
-}
-
-/** 🎮, with how many tables are waiting for players (or ▶ when you're in a game). */
-export function ArcadeButton() {
-  const lobby = useHud((s) => s.lobby);
-  const me = useHud((s) => s.me?.userId);
-  const summary = lobby ? lobbySummary(lobby, me) : null;
-  const open = summary?.open.length ?? 0;
-  const invited = (summary?.invites.length ?? 0) > 0;
-  const playing = summary?.inGame ?? false;
-  return (
-    <button
-      type="button"
-      className="icon"
-      title="Arcade: play for coins"
-      aria-label="Arcade"
-      onClick={() => hud.set({ panel: { kind: "arcade" } })}
-    >
-      🎮
-      {playing ? (
-        <span className="count">▶</span>
-      ) : (
-        (invited || open > 0) && <span className="count">{invited ? "!" : open}</span>
-      )}
-    </button>
   );
 }

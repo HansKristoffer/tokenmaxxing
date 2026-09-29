@@ -2,7 +2,7 @@ import { compact } from "@tokenmaxxing/core/format.ts";
 import { useEffect, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { hud, useHud } from "../store.ts";
-import { ArcadeButton, ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
+import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
 import { Chat } from "./Chat.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
@@ -103,16 +103,6 @@ function Stats() {
           🪙 <strong>{wallet.balance.toLocaleString()}</strong>
         </button>
       )}
-      <ArcadeButton />
-      <button
-        type="button"
-        className="icon"
-        title="Leaderboard (L)"
-        aria-label="Leaderboard"
-        onClick={() => hud.set({ panel: { kind: "leaderboard" } })}
-      >
-        🏆
-      </button>
       <button
         type="button"
         className="icon"

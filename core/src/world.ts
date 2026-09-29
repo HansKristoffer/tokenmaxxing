@@ -166,6 +166,16 @@ export const mentionsIn = (text: string): string[] => [
   ...new Set([...text.matchAll(MENTION_RE)].map((m) => m[1]!.toLowerCase())),
 ];
 
+/** Names in an invite field like "@ada bo, @cy": with or without the @. */
+export const namesIn = (text: string): string[] => [
+  ...new Set(
+    text
+      .split(/[\s,]+/)
+      .map((s) => s.replace(/^@/, "").toLowerCase())
+      .filter(Boolean),
+  ),
+];
+
 export interface Snapshot {
   room: RoomId;
   selfId: number;

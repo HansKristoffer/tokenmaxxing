@@ -260,14 +260,16 @@ input:focus {
   padding: 6px 8px;
 }
 
+/* One line, however wide the platform draws its emoji (WebKit's are wider): the buttons share the row. */
 .quick-emojis {
   display: flex;
-  flex-wrap: wrap;
   gap: 0;
 }
 
 .quick-emojis button {
-  padding: 2px 3px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 2px 0;
   border: none;
   background: none;
   font-size: 18px;
@@ -278,10 +280,6 @@ input:focus {
 .quick-emojis button:hover,
 .quick-emojis .quick-toggle[aria-expanded="true"] {
   background: rgba(255, 255, 255, 0.12);
-}
-
-.quick-toggle {
-  margin-left: auto;
 }
 
 .quick-lines {
@@ -668,11 +666,19 @@ input:focus {
   cursor: pointer;
 }
 
-.chat form {
+/* An input with @-suggestions above it (MentionInput). */
+.mention-input {
   position: relative;
+  display: block;
+  flex: 1;
+}
+
+.mention-input input {
+  width: 100%;
 }
 
 .suggestions {
+  z-index: 2;
   position: absolute;
   left: 0;
   bottom: calc(100% + 4px);

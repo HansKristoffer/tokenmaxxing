@@ -1,31 +1,10 @@
 import { CHAT_MAX_LENGTH, type ChatLine, mentionsIn } from "@tokenmaxxing/core/world.ts";
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
-import { roomName, world } from "../game/world.ts";
-import { conn, errorText, town } from "../net.ts";
+import { useEffect, useRef, useState } from "react";
+import { roomName } from "../game/world.ts";
+import { conn, errorText } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { MentionInput } from "./MentionInput.tsx";
 import { QuickReplies } from "./QuickReplies.tsx";
-
-/** The `@partial` being typed at the end of the input, if any. */
-const typingMention = (text: string) => /(?:^|\s)@([a-z0-9._-]*)$/i.exec(text)?.[1]?.toLowerCase() ?? null;
-
-/** People you can see first (this room, and inside houses), then everyone else by name. */
-function useSuggestions(query: string | null, myName: string | undefined): string[] {
-  const [remote, setRemote] = useState<string[]>([]);
-  useEffect(() => {
-    setRemote([]);
-    if (!query) return;
-    const id = setTimeout(() => void town.searchNames(query).then(setRemote, () => {}), 150);
-    return () => clearTimeout(id);
-  }, [query]);
-  if (query === null) return [];
-  const nearby = [
-    ...[...world.avatars.values()].map((a) => a.info.name),
-    ...Object.values(world.houses).flatMap((list) => list.map((p) => p.name)),
-  ];
-  return [...new Set([...nearby, ...remote])]
-    .filter((name) => name !== myName && name.startsWith(query))
-    .slice(0, 6);
-}
 
 /** A chat line with `@name` highlighted; mentions of me stand out more. */
 function Text({ text, me }: { text: string; me: string | undefined }) {
@@ -53,12 +32,9 @@ export function Chat() {
   const me = useHud((s) => s.me);
   useHud((s) => s.companies);
   const [text, setText] = useState("");
-  const [picked, setPicked] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLOListElement>(null);
-  const query = typingMention(text);
-  const suggestions = useSuggestions(query, me?.name);
 
   useEffect(() => {
     if (focus > 0) input.current?.focus();
@@ -67,29 +43,6 @@ export function Chat() {
   useEffect(() => {
     if (chat.length) list.current?.scrollTo(0, list.current.scrollHeight);
   }, [chat]);
-
-  const pick = (name: string) => {
-    setText(`${text.replace(/@[a-z0-9._-]*$/i, `@${name}`)} `);
-    setPicked(0);
-    input.current?.focus();
-  };
-
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (suggestions.length > 0) {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        const step = e.key === "ArrowDown" ? 1 : -1;
-        setPicked((i) => (i + step + suggestions.length) % suggestions.length);
-        return;
-      }
-      if (e.key === "Tab" || e.key === "Enter") {
-        e.preventDefault();
-        pick(suggestions[Math.min(picked, suggestions.length - 1)]!);
-        return;
-      }
-    }
-    if (e.key === "Escape") e.currentTarget.blur();
-  };
 
   return (
     <div className="chat-dock">
@@ -132,35 +85,14 @@ export function Chat() {
             }
           }}
         >
-          {suggestions.length > 0 && (
-            <ul className="suggestions" aria-label="Mention someone">
-              {suggestions.map((name, i) => (
-                <li key={name}>
-                  <button
-                    type="button"
-                    aria-pressed={i === Math.min(picked, suggestions.length - 1)}
-                    onMouseDown={(e) => {
-                      e.preventDefault(); // keep focus in the input
-                      pick(name);
-                    }}
-                  >
-                    @{name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <input
-            ref={input}
-            aria-label="Chat"
+          <MentionInput
+            inputRef={input}
+            label="Chat"
             value={text}
+            onChange={setText}
             maxLength={CHAT_MAX_LENGTH}
             placeholder="Say: press Enter to chat, @ to mention"
-            onChange={(e) => {
-              setText(e.target.value);
-              setPicked(0);
-            }}
-            onKeyDown={onKeyDown}
+            onEscape={(el) => el.blur()}
           />
         </form>
         {error && <p className="error small">{error}</p>}

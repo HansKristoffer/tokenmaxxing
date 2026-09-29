@@ -1,7 +1,7 @@
 import type { Peek } from "@tokenmaxxing/core/world.ts";
 import { C } from "../art/palette.ts";
 import { BURST_MS } from "./emoji.ts";
-import { type Avatar, gameTag } from "./world.ts";
+import { type Avatar, gameTag, world } from "./world.ts";
 
 /** Name chips under house signs this frame, in canvas (device) pixels. */
 export const chipHits: { x: number; y: number; w: number; h: number; id: number }[] = [];
@@ -94,10 +94,12 @@ export function avatarLabels(
   if (a.warp?.out) return;
   const resting = a.state === "away" || a.state === "working";
   let y = top - (a.state === "away" || tile === "b" ? -2 : 4) * dpr;
-  const tag = `${a.info.name} · Lv${a.info.level}`;
-  y -=
-    pill(g, cx, y, tag, dpr, a.info.online ? "rgba(27, 31, 42, 0.78)" : "rgba(27, 31, 42, 0.45)", C.white).h +
-    2 * dpr;
+  // Everyone else's name and level; you know your own.
+  if (a.info.id !== world.selfId) {
+    const tag = `${a.info.name} · Lv${a.info.level}`;
+    const bg = a.info.online ? "rgba(27, 31, 42, 0.78)" : "rgba(27, 31, 42, 0.45)";
+    y -= pill(g, cx, y, tag, dpr, bg, C.white).h + 2 * dpr;
+  }
   if (a.state === "away") {
     const t = (now / 900) % 1;
     g.font = `700 ${(10 + t * 4) * dpr}px ${FONT}`;

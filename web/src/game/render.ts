@@ -28,7 +28,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     canvas.width = w;
     canvas.height = h;
   }
-  const scale = zoomScale(dpr, w, h);
+  const scale = zoomScale(dpr, w, h, now);
   const map = world.map;
   const viewW = w / scale;
   const viewH = h / scale;
