@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.0.0...v1.0.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **desktop:** save the signing identity with its letters intact ([e997f33](https://github.com/HansKristoffer/tokenmaxxing/commit/e997f339d5f2f00c9fb32fdd1445193c7629cd85))
+* **desktop:** save the signing identity with its letters intact ([7350ab4](https://github.com/HansKristoffer/tokenmaxxing/commit/7350ab408df6ba35aedce69551c1341726dd989b))
+
 ## [1.0.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v0.5.0...v1.0.0) (2026-09-29)
 
 
