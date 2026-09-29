@@ -6,10 +6,8 @@ import { PricingCache } from "../src/pricing.ts";
  * from the VENDORED snapshot alone — no network.
  *
  * The gap this guards: an unpriced model is not a visible failure. lookup()
- * returns null, the row gets costUsd 0, and the name lands in `unknownModels`
- * on a stats payload nobody reads. The dashboard renders a dash and the
- * leaderboard — which ranks purely by cost (see main.ts, byModel ordering) —
- * silently sorts that model's heaviest users to the bottom.
+ * returns null and the row gets costUsd 0, so player cards show $0 and the
+ * leaderboard ranked by cost silently sorts that model's heaviest users last.
  *
  * `claude-opus-5` shipped in exactly that state: absent from the snapshot under
  * every alias while `claude-fable-5` was present, so the snapshot was vendored

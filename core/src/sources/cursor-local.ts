@@ -1,12 +1,13 @@
 import { Database } from "bun:sqlite";
 import { statSync } from "node:fs";
-import type { MessageType, TokenEvent } from "../types.ts";
+import { type MessageType, type TokenEvent, tokenEvent } from "../types.ts";
+import { isNum } from "./guards.ts";
 
-/** Fallback model when Cursor's local DB omits one (PricingCache path). */
+/** The model when Cursor's local DB doesn't name one. */
 export const CURSOR_LOCAL_FALLBACK_MODEL = "cursor";
 
-/** Cap rows per tick so a first-run backfill cannot wedge a single POST. */
-export const CURSOR_LOCAL_BATCH_LIMIT = 5000;
+/** Rows read per sync, so a first-run backfill is spread over a few batches. */
+const CURSOR_LOCAL_BATCH_LIMIT = 5000;
 
 export interface ParseCursorLocalOptions {
   dbPath: string;
@@ -19,7 +20,6 @@ export interface ParseCursorLocalOptions {
 export interface ParseCursorLocalResult {
   events: TokenEvent[];
   newRowid: number;
-  seenDedupKeys: string[];
 }
 
 interface BubbleRecord {
@@ -49,9 +49,7 @@ interface BubbleKeyParts {
   bubbleId: string;
 }
 
-function isNum(v: unknown): v is number {
-  return typeof v === "number" && Number.isFinite(v) && v > 0;
-}
+const isPositive = (v: unknown): v is number => isNum(v) && v > 0;
 
 function parseBubbleKey(key: string): BubbleKeyParts | null {
   if (!key.startsWith("bubbleId:")) return null;
@@ -64,7 +62,7 @@ function parseBubbleKey(key: string): BubbleKeyParts | null {
   return { composerId, bubbleId };
 }
 
-/** Map Cursor bubble type / role to tokenleader messageType. */
+/** Cursor's bubble type or role, as our message type. */
 export function messageTypeForBubble(rec: Pick<BubbleRecord, "type" | "role">): MessageType | null {
   if (rec.type === 1) return "user";
   if (rec.type === 2) return "assistant";
@@ -166,8 +164,8 @@ function loadComposerTimestamps(db: Database): Map<string, ComposerTimestamps> {
       const raw = typeof row.value === "string" ? row.value : new TextDecoder().decode(row.value);
       const parsed = JSON.parse(raw) as ComposerTimestamps;
       const meta: ComposerTimestamps = {};
-      if (isNum(parsed.createdAt)) meta.createdAt = parsed.createdAt;
-      if (isNum(parsed.lastUpdatedAt)) meta.lastUpdatedAt = parsed.lastUpdatedAt;
+      if (isPositive(parsed.createdAt)) meta.createdAt = parsed.createdAt;
+      if (isPositive(parsed.lastUpdatedAt)) meta.lastUpdatedAt = parsed.lastUpdatedAt;
       if (meta.createdAt !== undefined || meta.lastUpdatedAt !== undefined) {
         map.set(composerId, meta);
       }
@@ -203,7 +201,7 @@ function loadAgentKvTimestamps(db: Database): Map<string, number> {
         timestamp?: number;
       };
       const ts = parsed.lastUpdatedAt ?? parsed.createdAt ?? parsed.timestamp;
-      if (isNum(ts)) {
+      if (isPositive(ts)) {
         const prev = map.get(composerId);
         if (prev === undefined || ts > prev) map.set(composerId, ts);
       }
@@ -222,13 +220,13 @@ export function resolveCursorTimestamp(
   dbMtimeMs: number,
 ): number {
   const meta = composerTimes.get(composerId);
-  if (meta && isNum(meta.createdAt)) return meta.createdAt;
-  if (meta && isNum(meta.lastUpdatedAt)) return meta.lastUpdatedAt;
+  if (meta && isPositive(meta.createdAt)) return meta.createdAt;
+  if (meta && isPositive(meta.lastUpdatedAt)) return meta.lastUpdatedAt;
 
   const agentTs = agentKvTimes.get(composerId);
-  if (isNum(agentTs)) return agentTs;
+  if (isPositive(agentTs)) return agentTs;
 
-  if (isNum(dbMtimeMs)) return dbMtimeMs;
+  if (isPositive(dbMtimeMs)) return dbMtimeMs;
   return Date.now();
 }
 
@@ -268,7 +266,7 @@ export function parseCursorLocal(opts: ParseCursorLocalOptions): ParseCursorLoca
 
   const db = openCursorDatabase(dbPath);
   if (!db) {
-    return { events: [], newRowid: lastRowid, seenDedupKeys: [] };
+    return { events: [], newRowid: lastRowid };
   }
 
   try {
@@ -287,13 +285,12 @@ export function parseCursorLocal(opts: ParseCursorLocalOptions): ParseCursorLoca
     }>;
 
     if (rows.length === 0) {
-      return { events: [], newRowid: lastRowid, seenDedupKeys: [] };
+      return { events: [], newRowid: lastRowid };
     }
     const composerTimes = loadComposerTimestamps(db);
     const agentKvTimes = loadAgentKvTimestamps(db);
 
     const events: TokenEvent[] = [];
-    const seenDedupKeys: string[] = [];
     const localSeen = new Set<string>();
     let newRowid = lastRowid;
 
@@ -329,25 +326,22 @@ export function parseCursorLocal(opts: ParseCursorLocalOptions): ParseCursorLoca
         resolveCursorTimestamp(parts.composerId, composerTimes, agentKvTimes, dbMtimeMs),
       );
 
-      events.push({
-        source: "cursor_local",
-        sessionId: parts.composerId,
-        agentId: null,
-        messageId: bubbleId,
-        requestId,
-        timestamp,
-        model: messageType === "assistant" ? CURSOR_LOCAL_FALLBACK_MODEL : "",
-        messageType,
-        inputTokens,
-        outputTokens,
-        cacheCreationTokens: 0,
-        cacheReadTokens: 0,
-        reasoningTokens: null,
-      });
-      seenDedupKeys.push(dedupKey);
+      events.push(
+        tokenEvent({
+          source: "cursor_local",
+          sessionId: parts.composerId,
+          messageId: bubbleId,
+          requestId,
+          timestamp,
+          model: messageType === "assistant" ? CURSOR_LOCAL_FALLBACK_MODEL : "",
+          messageType,
+          inputTokens,
+          outputTokens,
+        }),
+      );
     }
 
-    return { events, newRowid, seenDedupKeys };
+    return { events, newRowid };
   } finally {
     db.close();
   }

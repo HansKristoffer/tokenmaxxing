@@ -9,7 +9,7 @@ function resolveDir(envValue: string | undefined, fallback: string): string {
 
 const appSupport = () => join(homedir(), "Library", "Application Support");
 
-export function claudeCodeProjectsDir(): string {
+function claudeCodeProjectsDir(): string {
   // CLAUDE_CONFIG_DIR points at the .claude root; sessions live under projects/
   return join(resolveDir(process.env.CLAUDE_CONFIG_DIR, join(homedir(), ".claude")), "projects");
 }
@@ -19,7 +19,7 @@ export function claudeCoworkDir(): string {
   return resolveDir(process.env.TOKENMAXXING_CLAUDE_COWORK_DIR, join(appSupport(), "Claude"));
 }
 
-export function codexSessionsDir(): string {
+function codexSessionsDir(): string {
   return join(resolveDir(process.env.CODEX_HOME, join(homedir(), ".codex")), "sessions");
 }
 

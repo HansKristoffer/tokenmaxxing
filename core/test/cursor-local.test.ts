@@ -84,7 +84,7 @@ describe("parseCursorLocal", () => {
       cacheReadTokens: 0,
       reasoningTokens: null,
     });
-    expect(r.seenDedupKeys).toEqual(["bubble-1:usage-1"]);
+    expect(r.events.map((e) => `${e.messageId}:${e.requestId}`)).toEqual(["bubble-1:usage-1"]);
     expect(r.newRowid).toBeGreaterThan(0);
   });
 

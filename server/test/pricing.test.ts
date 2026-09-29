@@ -1,11 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import {
-  computeRowCostUsd,
-  loadPricingFallback,
-  type ModelPrice,
-  PricingCache,
-  roundUsd,
-} from "../src/pricing.ts";
+import { computeRowCostUsd, type ModelPrice, PricingCache, roundUsd } from "../src/pricing.ts";
 
 // Helper for hand-computed assertions on aggregated-row costs.
 function approxEqualUsd(actual: number, expected: number, tolerance = 1e-4): void {
@@ -14,30 +8,18 @@ function approxEqualUsd(actual: number, expected: number, tolerance = 1e-4): voi
 
 const KNOWN_MODEL = "claude-haiku-4-5-20251001";
 
-describe("loadPricingFallback", () => {
-  test("loads and contains a known model", () => {
-    const map = loadPricingFallback();
-    const entry = map[KNOWN_MODEL];
-    expect(entry).toBeDefined();
-    expect(typeof entry!.input).toBe("number");
-    expect(typeof entry!.output).toBe("number");
-    expect(entry!.input).toBeGreaterThan(0);
-    expect(entry!.output).toBeGreaterThan(0);
-  });
-
-  test("normalizes the LiteLLM schema into ModelPrice", () => {
-    const map = loadPricingFallback();
-    const entry = map[KNOWN_MODEL]!;
-    expect(typeof entry.input).toBe("number");
-    expect(typeof entry.output).toBe("number");
+describe("the vendored snapshot", () => {
+  test("has a known model, normalized into ModelPrice", () => {
+    const entry = new PricingCache().lookup(KNOWN_MODEL)!;
+    expect(entry.input).toBeGreaterThan(0);
+    expect(entry.output).toBeGreaterThan(0);
     expect(typeof entry.cacheCreation).toBe("number");
     expect(typeof entry.cacheRead).toBe("number");
     expect(entry.reasoning === null || typeof entry.reasoning === "number").toBe(true);
   });
 
   test("filters out the sample_spec entry", () => {
-    const map = loadPricingFallback();
-    expect(map.sample_spec).toBeUndefined();
+    expect(new PricingCache().lookup("sample_spec")).toBeNull();
   });
 });
 
@@ -164,11 +146,8 @@ describe("computeRowCostUsd", () => {
     expect(computeRowCostUsd(row, price)).toBe(0);
   });
 
-  test("unknown model: lookup returns null and records the unknown name", () => {
-    const cache = new PricingCache();
-    const price = cache.lookup("totally-made-up-2099");
-    expect(price).toBeNull();
-    expect(cache.unknownModels().has("totally-made-up-2099")).toBe(true);
+  test("unknown model: lookup returns null", () => {
+    expect(new PricingCache().lookup("totally-made-up-2099")).toBeNull();
   });
 });
 
@@ -218,34 +197,8 @@ describe("PricingCache.lookup", () => {
     }
   });
 
-  test("unknown model returns null and is recorded", () => {
+  test("unknown model returns null", () => {
     expect(cache.lookup("totally-fake-model-xyz")).toBeNull();
-    expect(cache.unknownModels().has("totally-fake-model-xyz")).toBe(true);
-  });
-
-  test("unknown set tracks distinct entries", () => {
-    cache.lookup("fake-a");
-    cache.lookup("fake-b");
-    cache.lookup("fake-a"); // dup
-    const unknown = cache.unknownModels();
-    expect(unknown.size).toBe(2);
-    expect(unknown.has("fake-a")).toBe(true);
-    expect(unknown.has("fake-b")).toBe(true);
-  });
-
-  test("known model is NOT added to unknown set", () => {
-    cache.lookup(KNOWN_MODEL);
-    expect(cache.unknownModels().has(KNOWN_MODEL)).toBe(false);
-  });
-
-  test("returns the unknown set as a copy (mutation does not leak)", () => {
-    cache.lookup("fake-leak");
-    const set = cache.unknownModels();
-    set.add("injected");
-    // Re-fetch — the original should be unchanged.
-    const set2 = cache.unknownModels();
-    expect(set2.has("injected")).toBe(false);
-    expect(set2.has("fake-leak")).toBe(true);
   });
 
   test("real target models from local data are all resolvable", () => {
@@ -281,7 +234,6 @@ describe("PricingCache.refreshFromUpstream", () => {
     }) as unknown as typeof fetch;
 
     const cache = new PricingCache();
-    const baselineSize = cache.size();
     const baselinePrice = cache.lookup(KNOWN_MODEL);
     expect(baselinePrice).not.toBeNull();
 
@@ -289,7 +241,6 @@ describe("PricingCache.refreshFromUpstream", () => {
     expect(attempted).toBe(true);
     expect(result.failed).toBe(true);
     // Existing data stays usable.
-    expect(cache.size()).toBe(baselineSize);
     expect(cache.lookup(KNOWN_MODEL)).toEqual(baselinePrice!);
   });
 
@@ -343,40 +294,22 @@ describe("PricingCache.refreshFromUpstream", () => {
       })) as unknown as typeof fetch;
 
     const cache = new PricingCache();
-    const baseline = cache.size();
     const result = await cache.refreshFromUpstream();
     expect(result.failed).toBe(true);
-    expect(cache.size()).toBe(baseline);
-  });
-
-  test("clears unknownModels on successful refresh", async () => {
-    globalThis.fetch = (async () =>
-      new Response(
-        JSON.stringify({
-          x: { input_cost_per_token: 0, output_cost_per_token: 0 },
-        }),
-        { status: 200 },
-      )) as unknown as typeof fetch;
-    const cache = new PricingCache();
-    cache.lookup("not-a-real-model");
-    expect(cache.unknownModels().size).toBe(1);
-    await cache.refreshFromUpstream();
-    expect(cache.unknownModels().size).toBe(0);
+    expect(cache.lookup(KNOWN_MODEL)).not.toBeNull();
   });
 });
 
 describe("price aliases for models LiteLLM does not publish", () => {
   test("codex-auto-review prices as gpt-5-codex instead of silently $0", () => {
-    const tbl = loadPricingFallback();
-    const alias = tbl["codex-auto-review"];
-    const target = tbl["gpt-5-codex"];
-    expect(target).toBeDefined();
-    expect(alias).toEqual(target!);
+    const cache = new PricingCache();
+    const target = cache.lookup("gpt-5-codex");
+    expect(target).not.toBeNull();
+    expect(cache.lookup("codex-auto-review")).toEqual(target);
   });
 
   test("an alias never shadows a real upstream price", () => {
     // gpt-5-codex is published; the alias machinery must not overwrite it.
-    const tbl = loadPricingFallback();
-    expect(tbl["gpt-5-codex"]!.input).toBeGreaterThan(0);
+    expect(new PricingCache().lookup("gpt-5-codex")!.input).toBeGreaterThan(0);
   });
 });

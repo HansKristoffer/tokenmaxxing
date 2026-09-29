@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Tokenmaxxing",
+  "version": "../../../package.json",
+  "identifier": "dk.hanskristoffer.tokenmaxxing",
+  "build": {
+    "frontendDist": "../onboarding",
+    "beforeDevCommand": "bash scripts/helper.sh",
+    "beforeBuildCommand": "bash scripts/helper.sh"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "category": "public.app-category.games",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns"],
+    "externalBin": ["binaries/tokenmaxxing-helper"],
+    "copyright": "MIT License",
+    "macOS": {
+      "minimumSystemVersion": "14.0",
+      "entitlements": "Entitlements.plist"
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI2MzNFNkMyOUYxRjAxRjQKUldUMEFSK2Z3dVl6SnRHYmdjYUQ4MzhxNVBCWFViVWF4UVZmU2ZnczNNWmh5WEVkeWN4VUdGY3gK",
+      "endpoints": ["https://github.com/HansKristoffer/tokenmaxxing/releases/latest/download/latest.json"]
+    }
+  }
+}

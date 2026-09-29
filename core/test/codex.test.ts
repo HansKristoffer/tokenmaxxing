@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { parseCodexFile, type SessionTotals } from "../src/sources/codex.ts";
 import { listCodexFiles } from "../src/sources/paths.ts";
 
+/** Tests that read your own ~/.codex: slow, and different on every machine. `TOKENMAXXING_REAL_LOGS=1 bun test core` */
+const REAL_LOGS = process.env.TOKENMAXXING_REAL_LOGS === "1";
+
 async function makeTempJsonl(name: string, lines: string[]): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "codex-parser-test-"));
   const file = join(dir, name);
@@ -550,7 +553,7 @@ describe("fork-seed suppression", () => {
   });
 });
 
-describe("parseCodexFile (real local data)", () => {
+describe.if(REAL_LOGS)("parseCodexFile (real local data)", () => {
   it("parses token_count events from a real session file", async () => {
     const all = await listCodexFiles();
     if (all.length === 0) {
@@ -741,9 +744,8 @@ describe("byte-0 model look-ahead", () => {
   });
 
   it("gives up cleanly when the look-ahead is disabled", async () => {
-    // The peek is the only thing labelling this prefix (test 1 above is the
-    // pre-v0.6.5 regression guard — it fails against the v0.6.4 parser).
-    // Turning it off must fall back rather than misbehave.
+    // The peek is the only thing labelling this prefix; turning it off must
+    // fall back rather than misbehave.
     const path = await makeTempJsonl("rollout-lookahead-prefix.jsonl", [
       JSON.stringify(
         tokenCountEvent(
@@ -896,7 +898,7 @@ describe("byte-0 model look-ahead", () => {
     expect(withPeek.sessionTotals).toEqual(noPeek.sessionTotals);
   });
 
-  it("only ever replaces the fallback on real local rollouts", async () => {
+  it.if(REAL_LOGS)("only ever replaces the fallback on real local rollouts", async () => {
     const all = await listCodexFiles();
     if (all.length === 0) {
       console.warn("no codex session files on this machine — skipping");
@@ -1030,7 +1032,7 @@ describe("cumulative cache-write on the totals path", () => {
     expect(r2.sessionTotals.cacheWriteInputTokens).toBe(90);
   });
 
-  it("treats a pre-v0.6.5 state file with no cache-write field as 0", async () => {
+  it("treats saved totals with no cache-write field as 0", async () => {
     const path = await makeTempJsonl("rollout-cw-legacy-state.jsonl", [
       JSON.stringify(turnContextLine("gpt-5.5")),
       JSON.stringify(
@@ -1043,7 +1045,7 @@ describe("cumulative cache-write on the totals path", () => {
         }),
       ),
     ]);
-    // Exactly what an older daemon persisted: no cacheWriteInputTokens key.
+    // Saved totals without a cacheWriteInputTokens key.
     const legacy = {
       sessionId: "rollout-cw-legacy-state",
       inputTokens: 100,

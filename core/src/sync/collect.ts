@@ -31,7 +31,7 @@ const claudeParser =
     return { events: r.events, next: { path, mtimeMs, byteOffset: r.newOffset } };
   };
 
-export const FILE_SOURCES: readonly FileSource[] = [
+const FILE_SOURCES: readonly FileSource[] = [
   { id: "claude_code", list: listClaudeCodeFiles, parse: claudeParser("claude_code") },
   { id: "claude_cowork", list: listClaudeCoworkFiles, parse: claudeParser("claude_cowork") },
   {
@@ -75,10 +75,12 @@ export const FILE_SOURCES: readonly FileSource[] = [
   },
 ];
 
+const GITHUB_EVERY_MS = 15 * 60_000;
+
 /** Same key as the server's unique index, so we never send what it would drop. */
 const dedupKey = (e: TokenEvent) => `${e.source}\0${e.messageId}\0${e.requestId ?? ""}\0${e.messageType}`;
 
-export interface Batch {
+interface Batch {
   events: TokenEvent[];
   /** Apply to the state only after the server has acked `events`. */
   commit: (state: SyncState) => SyncState;
@@ -92,6 +94,7 @@ export interface CollectOptions {
   cursorDbPath?: string;
   /** Runs `gh`; defaults to the installed one. null = no `gh`, skip PRs. */
   gh?: GhRunner | null;
+  now?: () => number;
   onError?: (err: unknown, where: string) => void;
 }
 
@@ -182,7 +185,10 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
     }
   }
 
-  if (opts.enabled.has("github")) {
+  // PRs change a few times a day, and search has a tight rate limit: ask at most every 15 minutes.
+  const now = (opts.now ?? Date.now)();
+  const checkedAt = state.github?.checkedAt ?? 0;
+  if (opts.enabled.has("github") && now - checkedAt >= GITHUB_EVERY_MS) {
     const bin = opts.gh === undefined ? ghPath() : null;
     const gh = opts.gh !== undefined ? opts.gh : bin ? ghRunner(bin) : null;
     if (gh) {
@@ -192,7 +198,7 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
         const batch = flush();
         yield {
           events: batch.events,
-          commit: (s) => ({ ...batch.commit(s), github: { since: r.since } }),
+          commit: (s) => ({ ...batch.commit(s), github: { since: r.since, checkedAt: now } }),
         };
       } catch (err) {
         opts.onError?.(err, "github");

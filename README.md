@@ -1,10 +1,18 @@
 # tokenmaxxing
 
-A menu bar leaderboard for AI coding agents. Install the app, pick a name, and create or join a
-**group** with a shareable code. Your leaderboard shows everyone you share at least one group with:
-tokens, cost, and **parallelism**, meaning how many agents you run at once.
+A tiny pixel town for people who run AI coding agents. Install the app, pick a name, and
+**Open world**: you walk around town as your own character, chat with whoever is in the same room, and
+open anyone's stats. Start a **company** (or pick one from the list and ask to join; its owner says yes or
+no) and it gets a
+house in town, painted in your brand's colours with your logo on it. When you're not playing, your
+character is in that house: **at a desk** while your agents run, **asleep in bed** when they don't. Using
+AI earns **coins**, and so does finishing a day in the top 3; spend them on clothes, glasses, hats and
+pets that follow you around. Or play for them: challenge someone to a game in the town square, from
+rock-paper-scissors for founders and Liar's Dice to **Tokenmaxxing**, a battle over who burns the most real
+tokens in an hour.
 
-Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor.
+Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, and your pull requests
+from GitHub.
 
 ## Install
 
@@ -12,8 +20,14 @@ Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cur
 brew install --cask hanskristoffer/tap/tokenmaxxing
 ```
 
-Open **Tokenmaxxing** and pick a name. Then open *Groups* in the menu bar to create a group and
-copy its invite, or paste a friend's code (`K7QM-2XRP-9D`).
+Open **Tokenmaxxing** and pick a name. From then on it lives in the menu bar: it syncs in the background
+and shows your tokens today next to the ⚡. **Open world** (from its menu, the Dock or Spotlight) opens the
+game in its own window, where everything else is: leaderboards, stats, companies and games. The app keeps
+itself up to date.
+
+**Coming from 0.5 or earlier?** The world is a new backend and starts fresh: update the app, pick a name again and
+recreate your company. Your usage history comes back by itself, because the app re-reads your local logs on
+its first sync.
 
 ## What's shared
 
@@ -26,9 +40,15 @@ content never does. The app reads local logs:
 | Claude Cowork | `~/Library/Application Support/Claude/…/.claude/projects/**/*.jsonl` |
 | Codex | `~/.codex/sessions/**/*.jsonl` |
 | Cursor | `~/.cursor/projects/**/agent-transcripts`, `state.vscdb` (token counts are estimated) |
+| GitHub | PRs you opened, via the `gh` CLI if it's signed in (at most every 15 minutes); only a hash of each PR's URL and when it was opened are sent |
 
-You can turn any source off in Settings. Your groupmates see your totals, cost, models and daily
-activity. People you don't share a group with see nothing.
+Every source that's installed is read. **Everything is public in the world:** anyone can see your
+totals, cost, parallelism, models and daily activity, and the leaderboard ranks everyone.
+
+**Company websites.** When a company's owner sets its website, the server asks
+[Firecrawl](https://firecrawl.dev) to read that site's colours and logo, sends those to Claude to pick the
+house's colours, and keeps a copy of the logo. Only the company's public website is involved; nobody's usage
+data is sent anywhere for this.
 
 ## The stats
 
@@ -40,38 +60,68 @@ activity. People you don't share a group with see nothing.
   ranked.
 - **Peak agents:** the most agents running at once.
 - **Tokens / active hour:** tokens divided by hours with at least one agent running.
+- **Days** are Copenhagen days for everyone: one world, one clock.
+- **Level** comes from lifetime tokens (1M → Lv1, 1B → Lv7).
+- **Houses** show how hard a company's people push: tokens **per member** over the last 30 days. Under 100M
+  each is a cellar hatch in a fenced yard; then a shack (100M), cottage (1B), two-storey house (5B), villa
+  (15B) and a mansion with a tower (40B). A big team of light users stays in the basement.
+- **Coins:** every day pays `√(tokens ÷ 1M)`: 100M tokens is 10 coins, 1B is 31. A heavy day earns more,
+  but not wildly more. Finishing a day 1st, 2nd or 3rd adds 25, 15 or 10.
 
 ## How it works
 
 ```
-Tokenmaxxing.app                                     server (Railway)
-├─ Swift menu bar UI  ◄─ NDJSON ─►  TS helper  ──HTTPS──►  Bun + Hono + SQLite
-│  Keychain, login item             parses local logs       groups, leaderboard, dashboard
+Tokenmaxxing.app (Tauri, Rust)                     server (Railway, one process)
+├─ menu bar: ⚡ 306M, its menu                      Bun.serve
+├─ game window ── loads the live game ──────────►  ├─ /             the marketing site (Astro)
+├─ Keychain, login item, updater                   ├─ /play         the game (bundled at boot)
+│                                                  ├─ /logos/:file  company logos
+└─ sidecar: TS helper ◄─ NDJSON                    ├─ /api/rivet/*  proxy to the Rivet engine's gateway ◄── game
+     parses local logs, player.ingest() ────────►  └─ Rivet actors: town, world, player[userId],
+                                                      arcade, match[id]
+                                                   engine data: $RIVETKIT_STORAGE_PATH (the volume)
 ```
+
+The backend is [Rivet Actors](https://rivet.dev/docs/actors). `rivetkit` starts the Rivet engine
+inside the container; `Bun.serve` exposes only its client gateway under `/api/rivet`.
+
+| Actor | Key | What |
+|---|---|---|
+| `player` | user id | Raw events (SQLite), device token and browser sessions, daily rollups on ingest |
+| `town` | `main` | Accounts, companies, daily rollups for everyone: leaderboards and player cards |
+| `world` | `main` | Who's where: steps, rooms, rest spots (bed/desk), room chat, a 10 Hz broadcast loop |
+| `arcade` | `main` | Mini games: tables, invites, side bets, and paying out the pot |
+| `match` | match id | One game being played: its rules, timers and each player's view |
 
 | Path | What |
 |---|---|
-| `core/` | Log parsers, sync engine (`collect` → `send`), shell↔helper protocol types |
-| `server/` | Hono API + `bun:sqlite`; serves the dashboard from `web/` |
-| `web/` | React dashboard (bundled by Bun at startup, no Vite) |
-| `app/helper/` | The TypeScript helper the app runs (`bun build --compile`) |
-| `app/macos/` | SwiftUI `MenuBarExtra` shell (Swift Package, no Xcode project) |
-| `app/scripts/build-app.sh` | Assembles, signs and notarizes `Tokenmaxxing.app` |
+| `core/` | Log parsers, sync engine, shell↔helper protocol, `maps.ts` and `world.ts` (the world's rules, shared by client and server) |
+| `server/` | `main.ts`, the Rivet proxy, the actors (`src/actors/`) and what `town` does (`src/town/`), company branding, pricing |
+| `web/` | The game: canvas renderer in `src/game/`, pixel art drawn in code in `src/art/`, React HUD in `src/hud/` |
+| `app/helper/` | The TypeScript helper the app runs as a sidecar (`bun build --compile`) |
+| `app/desktop/` | The desktop app: Tauri v2 (`src-tauri/`), the "pick a name" page, icons and build scripts |
 | `packaging/tokenmaxxing.rb` | Homebrew cask template |
+| `ARCHITECTURE.md` | How it all fits together: serving, auth, the actors, houses, coins, games |
+
+All art is drawn in code (palette-string sprites and rectangles), so the repo carries no image assets.
 
 ## Development
 
-Requires Bun 1.4+ and Xcode 16+ (macOS 14+).
+Requires Bun 1.4+, Rust (stable) and Xcode's command line tools (macOS 14+).
 
 ```bash
-bun install
-bun run dev:server                     # http://localhost:8787 (data in ./.data)
-bun run app:dev                        # builds the app against localhost and opens it
-bun run check                          # typecheck + lint + tests
-swift test --package-path app/macos    # Swift protocol contract test
+bun install --ignore-scripts
+bun run dev                            # http://localhost:8787 (the site; the game is at /play; data in ./.data/rivet); restart to see web edits
+bun run site:dev                       # the marketing site alone, with hot reload
+bun run dev:seed                       # a few people, two companies, and a link that signs you in
+bun run desktop:dev                    # the desktop app against localhost:8787
+bun run check                          # typecheck + lint + tests (tests start their own server)
+(cd app/desktop/src-tauri && cargo test)   # the Rust side, including the protocol contract test
 ```
 
-In `app:dev` builds the helper runs from source, so TypeScript changes only need an app restart.
+Dev builds of the desktop app run the helper from source (so TypeScript changes only need an app restart),
+with their own Keychain entry and state dir, so they never touch the installed app's account. Point one at
+another server with `TOKENMAXXING_SERVER_URL=… bun run desktop:dev`.
 To sync without the UI:
 
 ```bash
@@ -83,20 +133,34 @@ TOKENMAXXING_TOKEN=… TOKENMAXXING_SERVER_URL=http://localhost:8787 bun run hel
 | Var | Default | |
 |---|---|---|
 | `PORT` | `8787` | |
-| `TOKENMAXXING_DATA_DIR` | `/data` in production, `./.data` in dev | SQLite lives here, so mount the Railway volume at `/data` |
-| `TOKENMAXXING_DB` | `$DATA_DIR/tokenmaxxing.sqlite` | |
-| `NODE_ENV` | | `production` turns on secure cookies and production bundling |
+| `RIVETKIT_STORAGE_PATH` | `~/.rivetkit` in dev | Where the engine keeps every actor. Required in production: `/data/rivet` on the Railway volume (set in the Dockerfile) |
+| `RIVET_LOG_LEVEL` | | `error` keeps the engine quiet |
+| `NODE_ENV` | | `production` minifies the game |
+| `FIRECRAWL_API_KEY` | | Reads company websites. Without it, a website only goes on the sign |
+| `ANTHROPIC_API_KEY` | | Turns a website's brand into house colours. Without it, the site's own colours are used |
+
+`RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` are read by RivetKit's native side, so they must be set in
+the environment before the process starts.
 
 ### Releases
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org) (PR titles are checked).
 [release-please](https://github.com/googleapis/release-please) keeps a Release PR open. Merging it
-tags the version, builds and notarizes the app for arm64 and x86_64, attaches the zips, and updates the
-cask in `HansKristoffer/homebrew-tap`. Railway deploys the server from `main`.
+tags the version, builds the desktop app (universal, signed and notarized, with `tauri-action`), attaches
+the `.dmg` and the updater's files (`.app.tar.gz`, `.sig`, `latest.json`), notarizes the `.dmg` too (and
+attaches it again as `Tokenmaxxing.dmg`, what the website's Download button fetches), and
+updates the cask in `HansKristoffer/homebrew-tap`. Before that, it checks what people will get: the
+downloaded `.dmg` and the app in it pass Gatekeeper, and the published update's signature matches the
+app's public key.
+Installed apps find the update through `latest.json` on the latest release (hourly), install it by themselves
+when no window is open, and otherwise show an "Update" button in the game.
+Railway deploys the server from `main`, and the game window picks that up on its own.
 
 Required repo settings: the variable `TOKENMAXXING_SERVER_URL`, and the secrets `MACOS_CERT_P12`,
-`MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY`, `NOTARY_APPLE_ID`, `NOTARY_TEAM_ID`,
-`NOTARY_PASSWORD` and `HOMEBREW_TAP_DEPLOY_KEY` (a write deploy key on the tap repo).
+`MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY`, `NOTARY_APPLE_ID`, `NOTARY_TEAM_ID`, `NOTARY_PASSWORD`,
+`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` and `HOMEBREW_TAP_DEPLOY_KEY` (a write
+deploy key on the tap repo). `app/desktop/scripts/set-signing-secrets.sh` uploads all but the last. The
+updater key lives in `~/.tauri/tokenmaxxing.key`: losing it means installed apps can never update again.
 
 ## License
 
