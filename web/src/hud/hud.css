@@ -300,7 +300,90 @@ input:focus {
 }
 
 .chat header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 12px;
+}
+
+/* Who's online here: a chip, and on hover or focus the list above it. */
+.whos-here {
+  position: relative;
+}
+
+.whos-here-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+  box-shadow: 0 0 0 2px rgba(61, 220, 132, 0.25);
+}
+
+.whos-here-faces {
+  display: inline-flex;
+}
+
+.whos-here-faces > :not(:first-child) {
+  margin-left: -5px;
+}
+
+.whos-here-list {
+  display: none;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 3;
+  width: 240px;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+
+.whos-here:hover .whos-here-list,
+.whos-here:focus-within .whos-here-list {
+  display: block;
+}
+
+.whos-here-list button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border: none;
+  background: none;
+  text-align: left;
+}
+
+.whos-here-list button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.whos-here-list button > span:first-of-type {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.whos-here-list strong,
+.whos-here-list small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat ol {
