@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v0.4.0...v0.5.0) (2026-09-29)
+
+
+### Features
+
+* **chat:** improve chat layout and reactions ([bc5ab1b](https://github.com/HansKristoffer/tokenmaxxing/commit/bc5ab1b992ac982d7846efcc2d3507b092092c74))
+* **chat:** improve timeline message interactions ([8c24c73](https://github.com/HansKristoffer/tokenmaxxing/commit/8c24c73b0c14bb677c60dfb96ea20d6a0b18bac1))
+
 ## [0.4.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v0.3.0...v0.4.0) (2026-09-28)
 
 
