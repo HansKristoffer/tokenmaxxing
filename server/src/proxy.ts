@@ -55,8 +55,8 @@ export function rivetProxy(engine: string) {
       };
       up.onmessage = (e) =>
         ws.send(typeof e.data === "string" ? e.data : new Uint8Array(e.data as ArrayBuffer));
-      up.onclose = (e) => ws.close(e.code === 1005 ? 1000 : e.code, e.reason);
-      up.onerror = () => ws.close(1011, "engine unreachable");
+      up.onclose = (e) => close(ws, e.code, e.reason);
+      up.onerror = () => close(ws, 1011, "engine unreachable");
     },
     message(ws, msg) {
       const up = ws.data.socket;
@@ -64,9 +64,28 @@ export function rivetProxy(engine: string) {
       else ws.data.pending.push(msg);
     },
     close(ws, code, reason) {
-      ws.data.socket?.close(code === 1005 ? 1000 : code, reason);
+      if (ws.data.socket) close(ws.data.socket, code, reason);
     },
   };
 
   return { fetch, websocket };
+}
+
+/**
+ * Passes a close on to the other side. Some codes only ever arrive (1005 no code, 1006 dropped) and
+ * throw if sent, which would take the whole server down, so they go on as a normal close.
+ */
+export function close(
+  socket: { close(code?: number, reason?: string): void },
+  code: number,
+  reason: string,
+): void {
+  const sendable =
+    (code >= 1000 && code <= 1014 && code !== 1004 && code !== 1005 && code !== 1006) ||
+    (code >= 3000 && code <= 4999);
+  try {
+    socket.close(sendable ? code : 1000, reason);
+  } catch {
+    socket.close(1000); // a reason over 123 bytes
+  }
 }
