@@ -30,7 +30,7 @@ const site = new Map<string, Bun.BunFile>();
 if (existsSync(SITE))
   for (const path of new Bun.Glob("**/*").scanSync(SITE)) site.set(`/${path}`, Bun.file(join(SITE, path)));
 
-const { ENGINE_PORT, registry } = await import("./actors/registry.ts");
+const { ENGINE_PORT, ENGINE_TOKEN, registry } = await import("./actors/registry.ts");
 const { pricing } = await import("./actors/shared.ts");
 
 const refreshPricing = async () => {
@@ -43,7 +43,7 @@ setInterval(refreshPricing, 86_400_000);
 // Serve only once actors can run, so the healthcheck means the whole thing is up.
 registry.start();
 await registry.startAndWait();
-const proxy = rivetProxy(`127.0.0.1:${ENGINE_PORT}`);
+const proxy = rivetProxy(`127.0.0.1:${ENGINE_PORT}`, ENGINE_TOKEN);
 
 const server = Bun.serve({
   port: config.port,
