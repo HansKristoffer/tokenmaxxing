@@ -1,5 +1,6 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { houseTierName, nextTierAt, perMember } from "@tokenmaxxing/core/world.ts";
+import type { Listing } from "@tokenmaxxing/server/registry";
 import { type FormEvent, useEffect, useState } from "react";
 import { errorText, refreshMe, town } from "../net.ts";
 import { useHud } from "../store.ts";
@@ -8,7 +9,6 @@ import { Modal } from "./ui.tsx";
 export function CompanyPanel() {
   const me = useHud((s) => s.me);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const run = (fn: () => Promise<unknown>) => async (e?: FormEvent) => {
     e?.preventDefault();
     setError(null);
@@ -31,20 +31,28 @@ export function CompanyPanel() {
   if (!me) return <Modal title="Company">Loading…</Modal>;
   if (!co)
     return (
-      <Modal title="🏢 Company">
+      <Modal title="🏢 Pick a company">
         <p className="muted">
           Companies get a house in town. Members sleep there, work at its desks while their agents run, and
-          share a private chat inside.
+          share a private chat inside. You can also freelance for now and sleep at the Inn.
         </p>
         <CompanyForm
           label="Start a company"
           placeholder="Company name"
           onSubmit={(name) => run(() => town.createCompany(name))()}
         />
-        <CompanyForm
-          label="Join with a code"
-          placeholder="K7QM-2XRP-9D"
-          onSubmit={(code) => run(() => town.joinCompany(code))()}
+        <h3>Or ask to join one</h3>
+        {me.application && (
+          <p className="applied">
+            Waiting for <strong>{me.application.name}</strong> to answer.{" "}
+            <button type="button" className="link" onClick={() => void run(() => town.withdraw())()}>
+              Withdraw
+            </button>
+          </p>
+        )}
+        <Listings
+          applied={me.application?.companyId ?? null}
+          onApply={(id) => void run(() => town.apply(id))()}
         />
         {error && <p className="error">{error}</p>}
       </Modal>
@@ -90,24 +98,32 @@ export function CompanyPanel() {
           onSubmit={(url) => run(() => town.setWebsite(url))()}
         />
       )}
-      <h3>Invite</h3>
-      <div className="invite">
-        <code>{co.code}</code>
-        <button
-          type="button"
-          onClick={() => {
-            void navigator.clipboard.writeText(co.code);
-            setCopied(true);
-          }}
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
-        {co.isOwner && (
-          <button type="button" onClick={() => void run(() => town.rotateCode())()}>
-            New code
-          </button>
-        )}
-      </div>
+      {co.isOwner && co.applicants.length > 0 && (
+        <>
+          <h3>Asking to join ({co.applicants.length})</h3>
+          <ul className="members">
+            {co.applicants.map((a) => (
+              <li key={a.userId}>
+                <span>
+                  {a.name} <small className="muted">Lv{a.level}</small>
+                </span>
+                <span className="answer">
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => void run(() => town.approve(a.userId))()}
+                  >
+                    Accept
+                  </button>
+                  <button type="button" onClick={() => void run(() => town.decline(a.userId))()}>
+                    Decline
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <h3>Members ({co.members.length})</h3>
       <ul className="members">
         {co.members.map((m) => (
@@ -170,5 +186,41 @@ function CompanyForm({
       </label>
       <button type="submit">{label.split(" ")[0]}</button>
     </form>
+  );
+}
+
+/** Every company in town, busiest first, with a button to ask to join. */
+function Listings({ applied, onApply }: { applied: number | null; onApply: (id: number) => void }) {
+  const [list, setList] = useState<Listing[] | null>(null);
+  useEffect(() => {
+    void town.listings().then(setList, () => setList([]));
+  }, []);
+  if (!list) return <p className="muted small">Loading…</p>;
+  if (list.length === 0) return <p className="muted small">No companies yet: start the first one.</p>;
+  return (
+    <ul className="listings">
+      {list.map((c) => (
+        <li key={c.id}>
+          <span>
+            <strong>{c.name}</strong>
+            {c.website && <span className="muted"> · {c.website}</span>}
+            <br />
+            <small className="muted">
+              {houseTierName(c.tier)} · {c.members} {c.members === 1 ? "member" : "members"} ·{" "}
+              {compact(perMember(c.tokens30d, c.members))} each in 30 days
+            </small>
+          </span>
+          {applied === c.id ? (
+            <span className="muted small">Asked ✓</span>
+          ) : c.full ? (
+            <span className="muted small">Full</span>
+          ) : (
+            <button type="button" onClick={() => onApply(c.id)}>
+              Apply
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }

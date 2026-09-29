@@ -55,7 +55,8 @@ for (const p of people) {
   });
 }
 const co = await made[0]!.town.createCompany(`Arox ${suffix}`);
-await made[1]!.town.joinCompany(co.code);
+await made[1]!.town.apply(co.id);
+await made[0]!.town.approve(made[1]!.userId);
 await made[2]!.town.createCompany(`Solo ${suffix}`);
 
 const code = await made[0]!.player.mintLoginCode();

@@ -28,6 +28,8 @@ export function Hud() {
       {status === "connecting" && <div className="toast">Walking into town…</div>}
       {status === "offline" && <div className="toast">Reconnecting…</div>}
       <MentionToast />
+      <NoticeToast />
+      <FirstVisit />
     </>
   );
 }
@@ -62,6 +64,7 @@ function Hints() {
 function Stats() {
   const stats = useHud((s) => s.stats);
   const wallet = useHud((s) => s.wallet);
+  const waiting = useHud((s) => s.me?.company?.applicants.length ?? 0);
   return (
     <div className="panel stats-chip">
       {stats && (
@@ -96,10 +99,10 @@ function Stats() {
       <button
         type="button"
         className="icon"
-        title="Company"
+        title={waiting ? `Company: ${waiting} asking to join` : "Company"}
         onClick={() => hud.set({ panel: { kind: "company" } })}
       >
-        🏢
+        🏢{waiting > 0 && <span className="count">{waiting}</span>}
       </button>
     </div>
   );
@@ -181,6 +184,40 @@ function SignedOut({ expired }: { expired: boolean }) {
         </p>
       </div>
     </div>
+  );
+}
+
+const FIRST_VISIT_KEY = "tokenmaxxing.pickedCompany";
+
+/** Right after signing up: the first time in town without a company, offer to start or join one. */
+function FirstVisit() {
+  const me = useHud((s) => s.me);
+  useEffect(() => {
+    if (!me || localStorage.getItem(FIRST_VISIT_KEY)) return;
+    localStorage.setItem(FIRST_VISIT_KEY, "1");
+    if (!me.company && !me.application) hud.set({ panel: { kind: "company" } });
+  }, [me]);
+  return null;
+}
+
+/** A line for me from the server (a company application, or the answer to mine). */
+function NoticeToast() {
+  const notice = useHud((s) => s.notice);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!notice) return;
+    const id = setTimeout(() => tick((n) => n + 1), MENTION_MS + 100);
+    return () => clearTimeout(id);
+  }, [notice]);
+  if (!notice || Date.now() - notice.at > MENTION_MS) return null;
+  return (
+    <button
+      type="button"
+      className="toast mention-toast"
+      onClick={() => hud.set({ notice: null, panel: { kind: "company" } })}
+    >
+      🏢 {notice.text}
+    </button>
   );
 }
 

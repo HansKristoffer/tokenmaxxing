@@ -76,6 +76,10 @@ export function connect(token: string): void {
   });
   conn.on("occupancy", (o: Partial<Record<RoomId, number>>) => hud.set({ occupancy: o }));
   conn.on("chat", (line: ChatLine) => applyChat(line));
+  conn.on("notice", (text: string) => {
+    hud.set({ notice: { text, at: Date.now() } });
+    void refreshMe();
+  });
   conn.on("mention", (line: ChatLine) => hud.set({ mention: { line, at: Date.now() } }));
   conn.onError((err) => {
     if (isUnauthorized(err)) signedOut();

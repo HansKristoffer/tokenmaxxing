@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { as, client, event, HOUR, signUp } from "./rivet.ts";
+import { admit, as, client, event, HOUR, signUp } from "./rivet.ts";
 
 describe("accounts", () => {
   test("names are unique and validated", async () => {
@@ -34,19 +34,54 @@ describe("accounts", () => {
 });
 
 describe("companies", () => {
-  test("create, join by code, one company per person", async () => {
+  test("create, apply, the owner accepts; one company per person", async () => {
     const owner = await signUp("own");
     const mate = await signUp("mate");
     const co = await owner.town.createCompany("Arox");
     expect(co.isOwner).toBe(true);
     expect(co.plot).not.toBeNull();
-    const joined = await mate.town.joinCompany(co.code.toLowerCase());
-    expect(joined.members.map((m) => m.name)).toEqual([owner.name, mate.name]);
-    expect(joined.isOwner).toBe(false);
+    expect((await mate.town.listings()).map((l) => l.name)).toContain("Arox");
+
+    await mate.town.apply(co.id);
+    expect((await mate.town.me()).application).toEqual({ companyId: co.id, name: "Arox" });
+    const mine = (await owner.town.me()).company!;
+    expect(mine.applicants.map((a) => a.name)).toEqual([mate.name]);
+    // Only the owner sees who's asking, and only the owner can answer.
+    await expect(mate.town.approve(mate.userId)).rejects.toThrow("owner");
+
+    const after = await owner.town.approve(mate.userId);
+    expect(after.members.map((m) => m.name)).toEqual([owner.name, mate.name]);
+    expect(after.applicants).toEqual([]);
+    const joined = await mate.town.me();
+    expect(joined.company!.isOwner).toBe(false);
+    expect(joined.company!.applicants).toEqual([]);
+    expect(joined.application).toBeNull();
 
     const other = await mate.town.createCompany("Solo");
     expect((await owner.town.me()).company!.members).toHaveLength(1);
     expect(other.members.map((m) => m.name)).toEqual([mate.name]);
+  });
+
+  test("declining, withdrawing, and one application at a time", async () => {
+    const a = await signUp("dec");
+    const b = await signUp("dec");
+    const c = await signUp("dec");
+    const first = await a.town.createCompany("First Co");
+    const second = await b.town.createCompany("Second Co");
+    await c.town.apply(first.id);
+    await c.town.apply(second.id); // replaces the first
+    expect((await a.town.me()).company!.applicants).toEqual([]);
+    expect((await c.town.me()).application!.companyId).toBe(second.id);
+
+    const declined = await b.town.decline(c.userId);
+    expect(declined.applicants).toEqual([]);
+    expect((await c.town.me()).application).toBeNull();
+    await expect(b.town.approve(c.userId)).rejects.toThrow("asking");
+
+    await c.town.apply(first.id);
+    await c.town.withdraw();
+    await expect(a.town.approve(c.userId)).rejects.toThrow("asking");
+    await expect(a.town.apply(first.id)).rejects.toThrow("already");
   });
 
   test("owner hand-off, kick, and the last one out closes it", async () => {
@@ -54,8 +89,8 @@ describe("companies", () => {
     const b = await signUp("ho");
     const c = await signUp("ho");
     const co = await a.town.createCompany("Handoff");
-    await b.town.joinCompany(co.code);
-    await c.town.joinCompany(co.code);
+    await admit(a, b, co.id);
+    await admit(a, c, co.id);
     await expect(b.town.kick(c.userId)).rejects.toThrow("owner");
     await a.town.kick(c.userId);
     expect((await c.town.me()).company).toBeNull();
@@ -64,7 +99,7 @@ describe("companies", () => {
     const mine = (await b.town.me()).company!;
     expect(mine.isOwner).toBe(true);
     await b.town.leaveCompany();
-    await expect(c.town.joinCompany(co.code)).rejects.toThrow();
+    await expect(c.town.apply(co.id)).rejects.toThrow("gone");
   });
 
   test("a closed company's id is never reused", async () => {
@@ -79,7 +114,7 @@ describe("companies", () => {
     const a = await signUp("web");
     const b = await signUp("web");
     const co = await a.town.createCompany("Web Co");
-    await b.town.joinCompany(co.code);
+    await admit(a, b, co.id);
     await expect(b.town.setWebsite("acme.com")).rejects.toThrow("owner");
     await expect(a.town.setWebsite("not a website")).rejects.toThrow("website");
     const set = await a.town.setWebsite("https://www.Acme.com/about");
@@ -89,16 +124,6 @@ describe("companies", () => {
     expect((await b.town.me()).company!.website).toBe("acme.com");
     expect((await a.town.setWebsite("")).website).toBeNull();
   });
-
-  test("rotating the code retires the old one", async () => {
-    const a = await signUp("rot");
-    const b = await signUp("rot");
-    const co = await a.town.createCompany("Rotate");
-    const code = await a.town.rotateCode();
-    expect(code).not.toBe(co.code);
-    await expect(b.town.joinCompany(co.code)).rejects.toThrow();
-    await b.town.joinCompany(code);
-  });
 });
 
 describe("leaderboard", () => {
@@ -106,7 +131,7 @@ describe("leaderboard", () => {
     const a = await signUp("lb");
     const b = await signUp("lb");
     const co = await a.town.createCompany("Board Co");
-    await b.town.joinCompany(co.code);
+    await admit(a, b, co.id);
     await as(a.token)
       .player(a.userId)
       .ingest([event({ inputTokens: 5_000_000 })]);

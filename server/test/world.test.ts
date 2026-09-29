@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { type ChatLine, type Moves, outsideDoor, route, type Snapshot } from "@tokenmaxxing/core/world.ts";
-import { as, event, signUp } from "./rivet.ts";
+import { admit, as, event, signUp } from "./rivet.ts";
 
 async function connect(token: string) {
   const conn = as(token).world.connect();
@@ -83,7 +83,7 @@ describe("world", () => {
     const a = await signUp("chat");
     const b = await signUp("chat");
     const co = await a.town.createCompany("Chatters");
-    await b.town.joinCompany(co.code);
+    await admit(a, b, co.id);
     const ca = await connect(a.token);
     const cb = await connect(b.token);
     await ca.conn.say("hello inn?");

@@ -55,9 +55,13 @@ to `town.report`, then tells `world` how many agents are live.
 **`town["main"]`**: everything cold, joined in SQL.
 - Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `purchases`.
 - Accounts: `signUp` (200 an hour, globally), `rename`, `setLook` (refuses shop items you don't own), `me`.
-- Companies: create (takes the first free plot of 8), join by code, leave, kick, rename, rotate the code,
-  `setWebsite`. One company per person, at most 50 members. The earliest joiner takes over from a leaving owner;
-  the last one out closes the company.
+- Companies: create (takes the first free plot of 8), leave, kick, rename, `setWebsite`. One company per
+  person, at most 50 members. The earliest joiner takes over from a leaving owner; the last one out closes the
+  company.
+- Joining: `listings` shows every company; `apply` asks to join one (one pending application per person,
+  applying elsewhere replaces it); the owner will `approve` or `decline`, and `withdraw` takes it back. The
+  owner hears about an application, and the applicant about the answer, through `world.notify` (a `notice`
+  event, shown as a toast). A new player's first visit opens this choice.
 - Stats: `leaderboard`, `profile`, `menuBar`, `searchNames`. Cost is priced when read.
 - Coins: `wallet`, `buy`.
 - Every change a player could see is pushed to `world` (`town/sync.ts`); `world` never asks `town`.
@@ -67,7 +71,7 @@ to `town.report`, then tells `world` how many agents are live.
   (`houses`, for town) when they change.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `history`.
-- Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`,
+- Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
   `chat`, `mention`.
 - **Resting.** Closing the last tab, or 3 minutes without input, sends you to your bed; offline with agents
   active in the last 10 minutes, to your desk. Company members rest in their house, others at the Inn. Your spot

@@ -68,6 +68,14 @@ export async function signUp(prefix = "u") {
   return { ...r, town: client.town.getOrCreate(["main"], { params: { token: r.token } }) };
 }
 
+type User = Awaited<ReturnType<typeof signUp>>;
+
+/** `member` applies to `owner`'s company and `owner` lets them in. */
+export async function admit(owner: User, member: User, companyId: number) {
+  await member.town.apply(companyId);
+  return owner.town.approve(member.userId);
+}
+
 // Town has 8 plots and every test shares it: after each test its users leave their
 // companies, which closes them and frees the plots, so the next test still gets a house.
 afterEveryTest.push(async () => {

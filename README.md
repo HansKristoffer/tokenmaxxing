@@ -2,7 +2,8 @@
 
 A tiny pixel town for people who run AI coding agents. Install the menu bar app, pick a name, and
 **Open world**: you walk around town as your own character, chat with whoever is in the same room, and
-open anyone's stats. Start a **company** (or join one with a code like `K7QM-2XRP-9D`) and it gets a
+open anyone's stats. Start a **company** (or pick one from the list and ask to join; its owner says yes or
+no) and it gets a
 house in town, painted in your brand's colours with your logo on it. When you're not playing, your
 character is in that house: **at a desk** while your agents run, **asleep in bed** when they don't. Using
 AI earns **coins**, and so does finishing a day in the top 3; spend them on clothes, glasses, hats and

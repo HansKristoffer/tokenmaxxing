@@ -48,3 +48,8 @@ export async function brand(
   );
   await push(sql, client, { companies: [id], users: [] });
 }
+
+/** A line for one player's open game tabs (someone applied, you got in); nothing if they're offline. */
+export async function notify(client: Client<typeof registry>, userId: number, text: string): Promise<void> {
+  await client.world.getOrCreate(["main"], internal).notify(userId, text);
+}

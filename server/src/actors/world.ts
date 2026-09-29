@@ -284,6 +284,15 @@ export const world = actor({
       c.broadcast("companies", Object.values(c.state.companies));
     },
 
+    /** From `town`: a line for one player's open tabs (a company application, an answer to one). */
+    notify: (c, userId: number, text: string): void => {
+      requireInternal(c.conn.state);
+      for (const conn of c.conns.values()) {
+        const s = conn.state as ConnState;
+        if (s.kind === "user" && s.joined && s.userId === userId) conn.send("notice", text);
+      }
+    },
+
     /** From `player` on sign-out: forget cached tokens and close that user's open game tabs. */
     forget: (c, userId: number): void => {
       requireInternal(c.conn.state);

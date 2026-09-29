@@ -19,7 +19,7 @@ export const registry = setup({
   noWelcome: true,
   // A sync batch is up to 1000 events (~300 KB of JSON); the default cap is 64 KB.
   maxIncomingMessageSize: 1024 * 1024,
-  // Rejected actions (a wrong invite code) log as warnings: noise. The native side reads
+  // Rejected actions (a taken name, say) log as warnings: noise. The native side reads
   // RIVET_LOG_LEVEL from the real environment instead (see package.json and the Dockerfile).
   logging: { level: "error" },
   // ponytail: one process holds the engine and every actor, so a deploy restarts both and
@@ -33,6 +33,7 @@ export type {
   BoardCompany,
   BoardPlayer,
   Leaderboard,
+  Listing,
   Me,
   MenuBar,
   MyCompany,

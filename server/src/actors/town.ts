@@ -2,17 +2,10 @@ import { levelFor, levelTitle } from "@tokenmaxxing/core/format.ts";
 import { PLOT_COUNT } from "@tokenmaxxing/core/maps.ts";
 import { isRangeKey } from "@tokenmaxxing/core/range.ts";
 import { itemById, itemsIn } from "@tokenmaxxing/core/shop.ts";
-import {
-  COMPANY_CAP,
-  type CompanyInfo,
-  defaultLook,
-  type Look,
-  parseLook,
-} from "@tokenmaxxing/core/world.ts";
+import { type CompanyInfo, defaultLook, type Look, parseLook } from "@tokenmaxxing/core/world.ts";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { canBrand } from "../brand.ts";
-import { formatInviteCode, normalizeInviteCode } from "../crypto.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { type ActivityRow, isSortKey, type UsageRow } from "../stats.ts";
 import {
@@ -25,16 +18,20 @@ import {
 } from "../town/boards.ts";
 import { buy, ownedItems, type Wallet, wallet } from "../town/coins.ts";
 import {
-  COMPANY_COLS,
-  type CompanyRow,
+  applicationOf,
+  apply,
+  approve,
   companyInfos,
-  freshCode,
+  decline,
+  type Listing,
   leave,
+  listings,
   type MyCompany,
   myCompany,
   ownedCompany,
+  withdraw,
 } from "../town/companies.ts";
-import { brand, push, pushPlayers } from "../town/sync.ts";
+import { brand, notify, push, pushPlayers } from "../town/sync.ts";
 import {
   lifetimeTokens,
   lookOf,
@@ -63,7 +60,7 @@ import {
 
 export type { BoardCompany, BoardPlayer, Leaderboard, MenuBar, Profile } from "../town/boards.ts";
 export type { Wallet } from "../town/coins.ts";
-export type { MyCompany } from "../town/companies.ts";
+export type { Listing, MyCompany } from "../town/companies.ts";
 export type { PlayerCore } from "../town/users.ts";
 
 export interface UsageDay extends UsageRow {
@@ -82,6 +79,8 @@ export interface Me {
   levelTitle: string;
   lifetimeTokens: number;
   company: MyCompany | null;
+  /** The company I've asked to join and am waiting to hear from. */
+  application: { companyId: number; name: string } | null;
 }
 
 /** ponytail: one global bucket (actors don't see client IPs). Per-IP limits would need the proxy. */
@@ -113,7 +112,6 @@ export const town = actor({
       await d.execute(`CREATE TABLE IF NOT EXISTS companies (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        code TEXT NOT NULL UNIQUE,
         owner_id INTEGER NOT NULL,
         plot INTEGER UNIQUE,
         website TEXT,
@@ -132,6 +130,10 @@ export const town = actor({
         agent_buckets INTEGER NOT NULL, active_buckets INTEGER NOT NULL, peak_agents INTEGER NOT NULL,
         PRIMARY KEY (user_id, day)) WITHOUT ROWID`);
       await d.execute("CREATE INDEX IF NOT EXISTS activity_day ON activity_daily (day)");
+      // One pending application per person: applying elsewhere replaces it.
+      await d.execute(`CREATE TABLE IF NOT EXISTS applications (
+        user_id INTEGER PRIMARY KEY, company_id INTEGER NOT NULL, at INTEGER NOT NULL)`);
+      await d.execute("CREATE INDEX IF NOT EXISTS applications_company ON applications (company_id, at)");
       await d.execute(`CREATE TABLE IF NOT EXISTS purchases (
         user_id INTEGER NOT NULL, item TEXT NOT NULL, price INTEGER NOT NULL, at INTEGER NOT NULL,
         PRIMARY KEY (user_id, item)) WITHOUT ROWID`);
@@ -192,6 +194,7 @@ export const town = actor({
         levelTitle: levelTitle(level),
         lifetimeTokens: lifetime,
         company: u.companyId === null ? null : await myCompany(c.db, u.companyId, userId),
+        application: await applicationOf(c.db, userId),
       };
     },
 
@@ -227,6 +230,7 @@ export const town = actor({
       if (!name) throw new UserError("Use 1–32 characters.", { code: "invalid_name" });
       const changed = await c.vars.serial(async () => {
         const left = await leave(c.db, userId);
+        await withdraw(c.db, userId);
         const taken = new Set(
           (await all<{ plot: number }>(c.db, "SELECT plot FROM companies WHERE plot IS NOT NULL")).map(
             (r) => r.plot,
@@ -236,9 +240,8 @@ export const town = actor({
         const now = Date.now();
         const [row] = await all<{ id: number }>(
           c.db,
-          "INSERT INTO companies (name, code, owner_id, plot, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id",
+          "INSERT INTO companies (name, owner_id, plot, created_at) VALUES (?, ?, ?, ?) RETURNING id",
           name,
-          await freshCode(c.db),
           userId,
           plot,
           now,
@@ -255,37 +258,43 @@ export const town = actor({
       return myCompany(c.db, changed.companies.at(-1)!, userId);
     },
 
-    joinCompany: async (c, rawCode: unknown): Promise<MyCompany> => {
+    /** Every company, for choosing one to apply to. */
+    listings: (c): Promise<Listing[]> => {
+      requireUser(c.conn.state);
+      return listings(c.db);
+    },
+
+    /** Asks to join a company; its owner accepts or declines. */
+    apply: async (c, companyId: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
-      const code = typeof rawCode === "string" ? normalizeInviteCode(rawCode) : null;
-      const notFound = new UserError("No company has that code.", { code: "not_found" });
-      if (!code) throw notFound;
-      const changed = await c.vars.serial(async () => {
-        const company = await one<CompanyRow>(
-          c.db,
-          `SELECT ${COMPANY_COLS} FROM companies WHERE code = ?`,
-          code,
-        );
-        if (!company) throw notFound;
-        const me = await userById(c.db, userId);
-        if (me.companyId === company.id) return { companies: [company.id], users: [] };
-        const [{ n }] = (await all<{ n: number }>(
-          c.db,
-          "SELECT COUNT(*) AS n FROM users WHERE company_id = ?",
-          company.id,
-        )) as [{ n: number }];
-        if (n >= COMPANY_CAP) throw new UserError("That company is full.", { code: "company_full" });
-        const left = await leave(c.db, userId);
-        await c.db.execute(
-          "UPDATE users SET company_id = ?, joined_at = ? WHERE id = ?",
-          company.id,
-          Date.now(),
-          userId,
-        );
-        return { companies: [...left.companies, company.id], users: [userId] };
+      if (typeof companyId !== "number") throw new UserError("That company is gone.", { code: "not_found" });
+      const company = await c.vars.serial(() => apply(c.db, userId, companyId, Date.now()));
+      const me = await userById(c.db, userId);
+      await notify(c.client<typeof registry>(), company.ownerId, `${me.name} asks to join ${company.name}.`);
+    },
+
+    withdraw: async (c): Promise<void> => {
+      await withdraw(c.db, requireUser(c.conn.state));
+    },
+
+    approve: async (c, applicantId: unknown): Promise<MyCompany> => {
+      const userId = requireUser(c.conn.state);
+      const client = c.client<typeof registry>();
+      const { company, changed } = await c.vars.serial(async () => {
+        const company = await ownedCompany(c.db, userId);
+        return { company, changed: await approve(c.db, company, applicantId, Date.now()) };
       });
-      await push(c.db, c.client<typeof registry>(), changed);
-      return myCompany(c.db, changed.companies.at(-1)!, userId);
+      await push(c.db, client, changed);
+      await notify(client, changed.users[0]!, `You're in! Welcome to ${company.name}.`);
+      return myCompany(c.db, company.id, userId);
+    },
+
+    decline: async (c, applicantId: unknown): Promise<MyCompany> => {
+      const userId = requireUser(c.conn.state);
+      const company = await ownedCompany(c.db, userId);
+      const declined = await c.vars.serial(() => decline(c.db, company, applicantId));
+      await notify(c.client<typeof registry>(), declined, `${company.name} said no this time.`);
+      return myCompany(c.db, company.id, userId);
     },
 
     leaveCompany: async (c): Promise<void> => {
@@ -339,16 +348,6 @@ export const town = actor({
         if (website && canBrand()) c.waitUntil(brand(c.db, client, company.id, company.name, website));
       }
       return myCompany(c.db, company.id, userId);
-    },
-
-    rotateCode: async (c): Promise<string> => {
-      const userId = requireUser(c.conn.state);
-      return c.vars.serial(async () => {
-        const company = await ownedCompany(c.db, userId);
-        const code = await freshCode(c.db);
-        await c.db.execute("UPDATE companies SET code = ? WHERE id = ?", code, company.id);
-        return formatInviteCode(code);
-      });
     },
 
     wallet: (c): Promise<Wallet> => wallet(c.db, requireUser(c.conn.state), Date.now()),

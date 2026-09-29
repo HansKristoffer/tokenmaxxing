@@ -29,6 +29,8 @@ export interface HudState {
   banner: { text: string; at: number } | null;
   /** Bumped to ask the chat input to take focus. */
   chatFocus: number;
+  /** A line from the server for me: someone asked to join my company, or I got in. */
+  notice: { text: string; at: number } | null;
   /** The last time someone @-mentioned me from another room. */
   mention: { line: ChatLine; at: number } | null;
 }
@@ -48,6 +50,7 @@ let state: HudState = {
   banner: null,
   chatFocus: 0,
   mention: null,
+  notice: null,
 };
 const listeners = new Set<() => void>();
 
