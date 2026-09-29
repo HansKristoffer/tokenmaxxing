@@ -1,4 +1,4 @@
-import { compact, usd } from "@tokenmaxxing/core/format.ts";
+import { compact, hoursText, plural, usd } from "@tokenmaxxing/core/format.ts";
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
 import { houseTierName } from "@tokenmaxxing/core/world.ts";
 import type {
@@ -37,43 +37,30 @@ const EMPTY: Record<RangeKey, string> = {
   all: "yet",
 };
 
-/** The number the board is ranked by, for bars. */
-const metric = (sort: Sort, t: Totals) =>
-  sort === "tokens"
-    ? t.tokens
-    : sort === "cost"
-      ? t.costUsd
-      : sort === "hours"
-        ? t.activeHours
-        : sort === "prs"
-          ? t.prs
-          : (t.parallelism ?? 0);
-
-/** "3h 25m", or "40m" under an hour. */
-const hours = (h: number) => {
-  const m = Math.round(h * 60);
-  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
+/** Per sort: the number ranked by (for bars), how it shows, and a second number for context. */
+const BY: Record<
+  Sort,
+  { value: (t: Totals) => number; show: (t: Totals) => string; aside: (t: Totals) => string }
+> = {
+  tokens: { value: (t) => t.tokens, show: (t) => compact(t.tokens), aside: (t) => usd(t.costUsd) },
+  cost: { value: (t) => t.costUsd, show: (t) => usd(t.costUsd), aside: (t) => compact(t.tokens) },
+  hours: {
+    value: (t) => t.activeHours,
+    show: (t) => hoursText(t.activeHours),
+    aside: (t) => compact(t.tokens),
+  },
+  parallelism: {
+    value: (t) => t.parallelism ?? 0,
+    show: (t) => (t.parallelism === null ? "–" : `${t.parallelism.toFixed(1)}×`),
+    aside: (t) => `peak ${t.peakAgents}`,
+  },
+  prs: { value: (t) => t.prs, show: (t) => plural(t.prs, "PR"), aside: (t) => compact(t.tokens) },
 };
+const metric = (sort: Sort, t: Totals) => BY[sort].value(t);
+const shown = (sort: Sort, t: Totals) => BY[sort].show(t);
+const aside = (sort: Sort, t: Totals) => BY[sort].aside(t);
 
-/** The ranked value, as shown. */
-const shown = (sort: Sort, t: Totals) =>
-  sort === "tokens"
-    ? compact(t.tokens)
-    : sort === "cost"
-      ? usd(t.costUsd)
-      : sort === "hours"
-        ? hours(t.activeHours)
-        : sort === "prs"
-          ? `${t.prs} PR${t.prs === 1 ? "" : "s"}`
-          : t.parallelism === null
-            ? "–"
-            : `${t.parallelism.toFixed(1)}×`;
-
-/** A second number for context: what the ranked one doesn't say. */
-const aside = (sort: Sort, t: Totals) =>
-  sort === "tokens" ? usd(t.costUsd) : sort === "parallelism" ? `peak ${t.peakAgents}` : compact(t.tokens);
-
-const members = (n: number) => `${n} ${n === 1 ? "member" : "members"}`;
+const members = (n: number) => plural(n, "member");
 
 const openCard = (userId: number) => hud.set({ panel: { kind: "card", userId } });
 

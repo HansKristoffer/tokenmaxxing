@@ -28,3 +28,29 @@ export function compact(n: number): string {
 }
 
 export const usd = (n: number): string => (n >= 100 ? `$${Math.round(n)}` : `$${n.toFixed(2)}`);
+
+/** "18:42", or "3:04:05" past an hour. */
+export function clock(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = String(s % 60).padStart(2, "0");
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+}
+
+/** Whole seconds until `at`, never below 0. */
+export const secondsUntil = (at: number, now: number): number => Math.max(0, Math.ceil((at - now) / 1000));
+
+/** "3h 25m", or "40m" under an hour. */
+export function hoursText(hours: number): string {
+  const m = Math.round(hours * 60);
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
+}
+
+/** "15 min", "1 hour", "24 hours". */
+export const minutesText = (minutes: number): string =>
+  minutes >= 60 ? plural(minutes / 60, "hour") : `${minutes} min`;
+
+/** "1 game", "3 games". */
+export const plural = (n: number, word: string, words = `${word}s`): string =>
+  `${n} ${n === 1 ? word : words}`;

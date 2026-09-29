@@ -2,7 +2,7 @@ import { compact } from "@tokenmaxxing/core/format.ts";
 import { useEffect, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { hud, useHud } from "../store.ts";
-import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
+import { ArcadeButton, ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
 import { Chat } from "./Chat.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
@@ -115,15 +115,23 @@ function Stats() {
   );
 }
 
-function Banner() {
-  const banner = useHud((s) => s.banner);
+const BANNER_MS = 2500;
+const MENTION_MS = 8000;
+
+/** True while something that happened `at` is less than `ms` old; re-renders when it expires. */
+function useFresh(at: number | undefined, ms: number): boolean {
   const [, tick] = useState(0);
   useEffect(() => {
-    if (!banner) return;
-    const id = setTimeout(() => tick((n) => n + 1), 2600);
+    if (at === undefined) return;
+    const id = setTimeout(() => tick((n) => n + 1), at + ms - Date.now() + 50);
     return () => clearTimeout(id);
-  }, [banner]);
-  if (!banner || Date.now() - banner.at > 2500) return null;
+  }, [at, ms]);
+  return at !== undefined && Date.now() - at <= ms;
+}
+
+function Banner() {
+  const banner = useHud((s) => s.banner);
+  if (!useFresh(banner?.at, BANNER_MS) || !banner) return null;
   return <div className="banner">{banner.text}</div>;
 }
 
@@ -219,13 +227,7 @@ function FirstVisit() {
 /** A line for me from the server (a company application, or the answer to mine). */
 function NoticeToast() {
   const notice = useHud((s) => s.notice);
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (!notice) return;
-    const id = setTimeout(() => tick((n) => n + 1), MENTION_MS + 100);
-    return () => clearTimeout(id);
-  }, [notice]);
-  if (!notice || Date.now() - notice.at > MENTION_MS) return null;
+  if (!useFresh(notice?.at, MENTION_MS) || !notice) return null;
   return (
     <button
       type="button"
@@ -240,13 +242,7 @@ function NoticeToast() {
 /** Someone @-mentioned me from another room. */
 function MentionToast() {
   const mention = useHud((s) => s.mention);
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (!mention) return;
-    const id = setTimeout(() => tick((n) => n + 1), MENTION_MS + 100);
-    return () => clearTimeout(id);
-  }, [mention]);
-  if (!mention || Date.now() - mention.at > MENTION_MS) return null;
+  if (!useFresh(mention?.at, MENTION_MS) || !mention) return null;
   const { line } = mention;
   return (
     <button
@@ -255,32 +251,6 @@ function MentionToast() {
       onClick={() => hud.set({ mention: null, panel: { kind: "card", userId: line.userId } })}
     >
       💬 <strong>{line.name}</strong> mentioned you in {roomName(line.room)}: {line.text}
-    </button>
-  );
-}
-
-const MENTION_MS = 8000;
-
-/** 🎮, with how many tables are waiting for players (or ▶ when you're in a game). */
-function ArcadeButton() {
-  const lobby = useHud((s) => s.lobby);
-  const me = useHud((s) => s.me?.userId);
-  const open = lobby?.tables.filter((t) => t.open && !t.seated.some((p) => p.userId === me)).length ?? 0;
-  const invited = lobby?.tables.some((t) => t.invited.some((i) => i.userId === me)) ?? false;
-  const playing = lobby?.matches.some((m) => m.id === lobby.me.match && !m.outcome) ?? false;
-  return (
-    <button
-      type="button"
-      className="icon"
-      title="Arcade: play for coins"
-      onClick={() => hud.set({ panel: { kind: "arcade" } })}
-    >
-      🎮
-      {playing ? (
-        <span className="count">▶</span>
-      ) : (
-        (invited || open > 0) && <span className="count">{invited ? "!" : open}</span>
-      )}
     </button>
   );
 }

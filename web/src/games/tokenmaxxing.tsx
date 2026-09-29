@@ -1,18 +1,9 @@
-import { compact } from "@tokenmaxxing/core/format.ts";
+import { clock, compact } from "@tokenmaxxing/core/format.ts";
 import type { TokenmaxxingView } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
-import { defaultLook } from "@tokenmaxxing/core/world.ts";
-import { world } from "../game/world.ts";
 import { AvatarImage } from "../hud/ui.tsx";
 import type { GameProps } from "./types.ts";
 
 const COLORS = ["#ffd35c", "#8fe3ff", "#ff8fb1", "#3ddc84", "#c39bff", "#ffa94d", "#6fb8ff", "#e9ecef"];
-
-const clock = (ms: number) => {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(s / 3600);
-  const m = String(Math.floor((s % 3600) / 60)).padStart(h ? 2 : 1, "0");
-  return `${h ? `${h}:` : ""}${m}:${String(s % 60).padStart(2, "0")}`;
-};
 
 /** Tokens in the last minute, from a player's history. */
 function lastMinute(points: [number, number][], now: number): number {
@@ -21,8 +12,7 @@ function lastMinute(points: [number, number][], now: number): number {
   return latest - before;
 }
 
-export function Tokenmaxxing({ view, info, you, now }: GameProps<TokenmaxxingView>) {
-  const name = (id: number) => info.players.find((p) => p.userId === id)?.name ?? "?";
+export function Tokenmaxxing({ view, you, now, name, look }: GameProps<TokenmaxxingView>) {
   const ranked = [...view.players].sort((a, b) => (view.tokens[b] ?? 0) - (view.tokens[a] ?? 0));
   const top = Math.max(1, view.tokens[ranked[0]!] ?? 0);
   const color = (p: number) => COLORS[view.players.indexOf(p) % COLORS.length]!;
@@ -52,7 +42,7 @@ export function Tokenmaxxing({ view, info, you, now }: GameProps<TokenmaxxingVie
         {ranked.map((p, i) => (
           <li key={p} className={p === you ? "me" : undefined}>
             <span className="tmx-rank">{i === 0 && view.tokens[p] ? "👑" : i + 1}</span>
-            <AvatarImage look={world.avatars.get(p)?.info.look ?? defaultLook(p)} scale={2} />
+            <AvatarImage look={look(p)} scale={2} />
             <span className="tmx-who">
               <span>
                 <strong>{name(p)}</strong>

@@ -3,7 +3,7 @@
  * live scoreboard over them, and a 🎮 sign over the host of every open table.
  * Clicking a banner watches the game; clicking a sign opens the arcade.
  */
-import { compact } from "@tokenmaxxing/core/format.ts";
+import { clock, compact } from "@tokenmaxxing/core/format.ts";
 import { propTiles } from "@tokenmaxxing/core/games/gather.ts";
 import { GAMES } from "@tokenmaxxing/core/games/index.ts";
 import { TILE, type WorldGame } from "@tokenmaxxing/core/world.ts";
@@ -19,14 +19,6 @@ export const gameHits: { x: number; y: number; w: number; h: number; open: () =>
 
 type Draw = { y: number; draw: () => void };
 type ToScreen = (px: number, py: number) => readonly [number, number];
-
-const clock = (ms: number) => {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const ss = String(s % 60).padStart(2, "0");
-  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
-};
 
 export function drawGames(
   g: CanvasRenderingContext2D,

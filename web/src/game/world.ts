@@ -2,6 +2,7 @@ import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import {
   type ChatLine,
   type CompanyInfo,
+  defaultLook,
   type Facing,
   type Houses,
   type Moves,
@@ -57,6 +58,9 @@ export const world = {
   /** A line said at a game's table itself ("🤝 Draw"), shown over the table briefly. */
   tableBubbles: new Map<number, { text: string; until: number }>(),
 };
+
+/** Someone's look: as seen in the world, or their default while they're not in it. */
+export const lookOf = (userId: number) => world.avatars.get(userId)?.info.look ?? defaultLook(userId);
 
 const grounds = new Map<GameMap, HTMLCanvasElement>();
 

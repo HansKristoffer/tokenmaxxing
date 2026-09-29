@@ -1,4 +1,4 @@
-import { compact } from "@tokenmaxxing/core/format.ts";
+import { compact, plural } from "@tokenmaxxing/core/format.ts";
 import {
   DIRS,
   type Facing,
@@ -224,7 +224,7 @@ export function interact(): void {
         : b.plot === null
           ? "The Inn. Beds for anyone without a company."
           : company
-            ? `${company.name}: ${company.members} ${company.members === 1 ? "member" : "members"}, ${compact(company.todayTokens)} tokens today.`
+            ? `${company.name}: ${plural(company.members, "member")}, ${compact(company.todayTokens)} tokens today.`
             : "A free plot. Start a company from the menu (Esc) and it's yours.",
     });
   }

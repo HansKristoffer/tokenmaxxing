@@ -1,7 +1,8 @@
+import { minutesText } from "@tokenmaxxing/core/format.ts";
 import { GAMES, gameOf } from "@tokenmaxxing/core/games/index.ts";
 import { MAX_STAKE, SPLITS, type Split } from "@tokenmaxxing/core/games/payouts.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
-import type { MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
+import type { Lobby, MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
 import { useEffect, useState } from "react";
 import { arcade, openMatch, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
@@ -11,9 +12,18 @@ const STAKES = [0, 10, 50, 100, 250];
 
 const gameName = (id: GameId) => GAMES[id]?.name ?? id;
 const optionsText = (t: { game: GameId; options: Record<string, string | number> }) =>
-  t.game === "tokenmaxxing" ? ` · ${durationText(Number(t.options.minutes))}` : "";
-export const durationText = (minutes: number) =>
-  minutes >= 60 ? `${minutes / 60} ${minutes === 60 ? "hour" : "hours"}` : `${minutes} min`;
+  t.game === "tokenmaxxing" ? ` · ${minutesText(Number(t.options.minutes))}` : "";
+
+/** What the lobby means for me: games on, am I in one, my invites, and open tables I could sit at. */
+function lobbySummary(lobby: Lobby, me: number | undefined) {
+  const playing = lobby.matches.filter((m) => !m.outcome);
+  return {
+    playing,
+    inGame: playing.some((m) => m.id === lobby.me.match),
+    invites: lobby.tables.filter((t) => t.invited.some((i) => i.userId === me)),
+    open: lobby.tables.filter((t) => t.open && !t.seated.some((p) => p.userId === me)),
+  };
+}
 
 /** The 🎮 panel: your invites and table, open tables to join, and games to watch. */
 export function ArcadePanel() {
@@ -21,11 +31,9 @@ export function ArcadePanel() {
   const me = useHud((s) => s.me?.userId);
   const { error, run } = useRun();
   if (!lobby) return <Modal title="🎮 Arcade">Loading…</Modal>;
-  const invites = lobby.tables.filter((t) => t.invited.some((i) => i.userId === me));
+  const { invites, open: joinable, playing, inGame } = lobbySummary(lobby, me);
   const mine = lobby.tables.find((t) => t.id === lobby.me.table);
-  const open = lobby.tables.filter((t) => t.open && t.id !== mine?.id && !invites.includes(t));
-  const playing = lobby.matches.filter((m) => !m.outcome);
-  const inGame = playing.some((m) => m.id === lobby.me.match);
+  const open = joinable.filter((t) => !invites.includes(t));
 
   return (
     <Modal title="🎮 Arcade" wide>
@@ -94,9 +102,7 @@ export function GamesBox() {
   const me = useHud((s) => s.me?.userId);
   const { error, run } = useRun();
   if (!lobby) return null;
-  const playing = lobby.matches.filter((m) => !m.outcome);
-  const inGame = playing.some((m) => m.id === lobby.me.match);
-  const open = lobby.tables.filter((t) => t.open && !t.seated.some((p) => p.userId === me));
+  const { playing, inGame, open } = lobbySummary(lobby, me);
   const openArcade = () => hud.set({ panel: { kind: "arcade" } });
   return (
     <section className="panel games-box" aria-label="Games">
@@ -338,7 +344,7 @@ export function NewTable({ invite }: { invite?: number }) {
             <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
               {(def.options?.minutes ?? []).map((m) => (
                 <option key={m} value={m}>
-                  {durationText(Number(m))}
+                  {minutesText(Number(m))}
                 </option>
               ))}
             </select>
@@ -468,5 +474,30 @@ export function InviteToast() {
       </div>
       {error && <p className="error small">{error}</p>}
     </div>
+  );
+}
+
+/** 🎮, with how many tables are waiting for players (or ▶ when you're in a game). */
+export function ArcadeButton() {
+  const lobby = useHud((s) => s.lobby);
+  const me = useHud((s) => s.me?.userId);
+  const summary = lobby ? lobbySummary(lobby, me) : null;
+  const open = summary?.open.length ?? 0;
+  const invited = (summary?.invites.length ?? 0) > 0;
+  const playing = summary?.inGame ?? false;
+  return (
+    <button
+      type="button"
+      className="icon"
+      title="Arcade: play for coins"
+      onClick={() => hud.set({ panel: { kind: "arcade" } })}
+    >
+      🎮
+      {playing ? (
+        <span className="count">▶</span>
+      ) : (
+        (invited || open > 0) && <span className="count">{invited ? "!" : open}</span>
+      )}
+    </button>
   );
 }

@@ -1,13 +1,13 @@
+import { secondsUntil } from "@tokenmaxxing/core/format.ts";
 import { PICKS, type Pick, type SprView } from "@tokenmaxxing/core/games/spr.ts";
 import type { GameProps } from "./types.ts";
 
 const ORDER: Pick[] = ["ship", "pivot", "raise"];
 
-export function Spr({ view, info, you, now, move }: GameProps<SprView>) {
-  const name = (id: number) => info.players.find((p) => p.userId === id)?.name ?? "?";
+export function Spr({ view, info, you, now, move, name }: GameProps<SprView>) {
   const other = view.players.find((p) => p !== you) ?? view.players[1];
   const last = view.rounds.at(-1);
-  const seconds = Math.max(0, Math.ceil((view.deadline - now) / 1000));
+  const seconds = secondsUntil(view.deadline, now);
   return (
     <div className="spr">
       <div className="spr-score">

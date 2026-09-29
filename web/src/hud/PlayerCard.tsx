@@ -1,4 +1,4 @@
-import { compact, usd } from "@tokenmaxxing/core/format.ts";
+import { compact, hoursText, plural, usd } from "@tokenmaxxing/core/format.ts";
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
 import type { Profile } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
@@ -17,8 +17,7 @@ const RANGES = [
 function doing(userId: number): string | null {
   const a = world.avatars.get(userId);
   if (!a) return null;
-  if (a.state === "working")
-    return `💻 running ${Math.max(1, a.info.liveAgents)} ${a.info.liveAgents === 1 ? "agent" : "agents"}`;
+  if (a.state === "working") return `💻 running ${plural(Math.max(1, a.info.liveAgents), "agent")}`;
   if (a.state === "away") return a.info.online ? "💤 away" : "💤 asleep";
   return a.info.online ? "🟢 here" : null;
 }
@@ -74,7 +73,7 @@ export function PlayerCard({ userId }: { userId: number }) {
         </div>
         <div>
           <dt>Agent hours</dt>
-          <dd>{t.activeHours.toFixed(1)}h</dd>
+          <dd>{hoursText(t.activeHours)}</dd>
         </div>
         <div>
           <dt>Parallel</dt>
@@ -120,9 +119,8 @@ export function PlayerCard({ userId }: { userId: number }) {
       </figure>
       {p.games && (
         <p className="muted small">
-          🎮 {p.games.played} {p.games.played === 1 ? "game" : "games"} ·{" "}
-          {Math.round((p.games.wins / p.games.played) * 100)}% won · {p.games.net >= 0 ? "+" : "−"}🪙{" "}
-          {Math.abs(p.games.net)}
+          🎮 {plural(p.games.played, "game")} · {Math.round((p.games.wins / p.games.played) * 100)}% won ·{" "}
+          {p.games.net >= 0 ? "+" : "−"}🪙 {Math.abs(p.games.net)}
           {p.games.biggestPot > 0 && ` · biggest pot 🪙 ${p.games.biggestPot}`}
         </p>
       )}

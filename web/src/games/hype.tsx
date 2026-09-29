@@ -1,3 +1,4 @@
+import { secondsUntil } from "@tokenmaxxing/core/format.ts";
 import { COUNTDOWN_MS, type HypeView, msToReach, multiplier } from "@tokenmaxxing/core/games/hype.ts";
 import { sha256 } from "@tokenmaxxing/core/games/sha256.ts";
 import { useEffect, useState } from "react";
@@ -28,8 +29,7 @@ const verified = (seed: string, hash: string) => {
   return checked.get(seed)!;
 };
 
-export function Hype({ view, info, you, now, move }: GameProps<HypeView>) {
-  const name = (id: number) => info.players.find((p) => p.userId === id)?.name ?? "?";
+export function Hype({ view, you, now, move, name }: GameProps<HypeView>) {
   // The last crash stays up for a moment before the next countdown.
   const next = view.rounds.length - 1;
   const i = next > 0 && now < view.rounds[next]!.startsAt - COUNTDOWN_MS ? next - 1 : next;
@@ -42,7 +42,7 @@ export function Hype({ view, info, you, now, move }: GameProps<HypeView>) {
         Round {i + 1}/3
         {round.endedAt === null &&
           now < round.startsAt &&
-          ` · starts in ${Math.ceil((round.startsAt - now) / 1000)}…`}
+          ` · starts in ${secondsUntil(round.startsAt, now)}…`}
       </p>
       <Live
         round={round}

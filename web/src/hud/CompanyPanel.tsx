@@ -1,4 +1,4 @@
-import { compact } from "@tokenmaxxing/core/format.ts";
+import { compact, plural } from "@tokenmaxxing/core/format.ts";
 import { houseTierName, nextTierAt, perMember } from "@tokenmaxxing/core/world.ts";
 import type { Listing } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
@@ -202,7 +202,7 @@ function Listings({ applied, onApply }: { applied: number | null; onApply: (id: 
             {c.website && <span className="muted"> · {c.website}</span>}
             <br />
             <small className="muted">
-              {houseTierName(c.tier)} · {c.members} {c.members === 1 ? "member" : "members"} ·{" "}
+              {houseTierName(c.tier)} · {plural(c.members, "member")} ·{" "}
               {compact(perMember(c.tokens30d, c.members))} each in 30 days
             </small>
           </span>

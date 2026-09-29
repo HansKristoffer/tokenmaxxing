@@ -1,0 +1,238 @@
+/* Each game's own panel: Ship, Pivot, Raise; Hype Cycle; Due Diligence; Tokenmaxxing. */
+.spr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.spr-score {
+  display: flex;
+  gap: 24px;
+  font-size: 15px;
+}
+
+.spr-score .me {
+  color: var(--good);
+}
+
+.spr-picks {
+  display: flex;
+  gap: 10px;
+}
+
+.spr-reveal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+}
+
+.spr-reveal p {
+  width: 100%;
+  margin: 0;
+}
+
+.spr-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+}
+
+.hype {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.hype-curve {
+  width: 100%;
+  max-width: 480px;
+  height: 160px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  stroke: #3ddc84;
+}
+
+.hype-curve.crashed {
+  stroke: #ff6b6b;
+}
+
+.hype-curve text {
+  fill: var(--text);
+  stroke: none;
+}
+
+.hype-m {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.hype-m .crashed {
+  color: #ff6b6b;
+}
+
+.hype-cash {
+  font-size: 18px;
+  padding: 10px 22px;
+}
+
+.hype-scores {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.hype-scores td,
+.hype-scores th {
+  padding: 3px 10px;
+  text-align: right;
+}
+
+.hype-scores td:first-child {
+  text-align: left;
+}
+
+.hype-scores tr.me td:first-child {
+  color: var(--good);
+}
+
+.hype-fair code {
+  font-size: 11px;
+}
+
+.dice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.dice-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dice-players li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.dice-players li.turn {
+  border-color: var(--accent);
+  background: rgba(255, 211, 92, 0.08);
+}
+
+.dice-players li.me strong {
+  color: var(--good);
+}
+
+.dice-row .miss {
+  opacity: 0.3;
+}
+
+.dice-claim,
+.dice-verdict,
+.dice-mine {
+  margin: 0;
+  font-size: 15px;
+}
+
+.dice-bid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.dice-claims {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tmx {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tmx-clock {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.tmx-surge {
+  margin: 0;
+  text-align: center;
+  color: var(--accent);
+}
+
+.tmx-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tmx-lines li {
+  display: grid;
+  grid-template-columns: 24px auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.tmx-lines li.me {
+  background: rgba(255, 211, 92, 0.1);
+}
+
+.tmx-rank {
+  text-align: center;
+}
+
+.tmx-who {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tmx-num {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.tmx-chart {
+  width: 100%;
+  height: 120px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+}

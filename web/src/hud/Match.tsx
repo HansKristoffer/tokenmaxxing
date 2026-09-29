@@ -1,15 +1,15 @@
+import { secondsUntil } from "@tokenmaxxing/core/format.ts";
 import { gameOf } from "@tokenmaxxing/core/games/index.ts";
 import { MAX_SIDE_BET, MAX_STAKE, odds, potShares, SPLITS } from "@tokenmaxxing/core/games/payouts.ts";
-import type { Frame } from "@tokenmaxxing/core/games/wire.ts";
-import { defaultLook } from "@tokenmaxxing/core/world.ts";
+import type { Frame, MatchInfo } from "@tokenmaxxing/core/games/wire.ts";
 import { useEffect, useState } from "react";
-import { world } from "../game/world.ts";
+import { lookOf } from "../game/world.ts";
 import { COMPONENTS } from "../games/index.ts";
 import { arcade, closeMatch, conn, matchConn } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { AvatarImage, Modal, useRun, useTicker } from "./ui.tsx";
 
-const lookOf = (userId: number) => world.avatars.get(userId)?.info.look ?? defaultLook(userId);
+const nameIn = (info: MatchInfo) => (id: number) => info.players.find((p) => p.userId === id)?.name ?? "?";
 
 /** The shared frame around every game: players, pot, timer, forfeit, side bets and the end screen. */
 export function MatchPanel({ id }: { id: number }) {
@@ -47,7 +47,19 @@ export function MatchPanel({ id }: { id: number }) {
           {frame.watchers > 0 && <small className="muted"> · 👀 {frame.watchers}</small>}
         </p>
       </div>
-      {Game ? <Game view={frame.view} info={info} you={you} now={now} move={move} /> : <p>Unknown game.</p>}
+      {Game ? (
+        <Game
+          view={frame.view}
+          info={info}
+          you={you}
+          now={now}
+          move={move}
+          name={nameIn(info)}
+          look={lookOf}
+        />
+      ) : (
+        <p>Unknown game.</p>
+      )}
       {info.outcome ? (
         <Result frame={frame} run={run} />
       ) : you !== null ? (
@@ -74,7 +86,7 @@ function SideBet({ frame, now, run }: { frame: Frame; now: number; run: Run }) {
   const [on, setOn] = useState(frame.info.players[0]!.userId);
   const [amount, setAmount] = useState(10);
   const mine = lobby?.me.bets[frame.info.id];
-  const left = Math.ceil((frame.info.betsCloseAt - now) / 1000);
+  const left = secondsUntil(frame.info.betsCloseAt, now);
   if (mine) {
     const who = frame.info.players.find((p) => p.userId === mine.on)?.name;
     return (
@@ -113,7 +125,7 @@ function SideBet({ frame, now, run }: { frame: Frame; now: number; run: Run }) {
 function Result({ frame, run }: { frame: Frame; run: Run }) {
   const { info, you } = frame;
   const outcome = info.outcome!;
-  const name = (id: number) => info.players.find((p) => p.userId === id)?.name ?? "?";
+  const name = nameIn(info);
   if ("void" in outcome)
     return (
       <div className="match-result">
