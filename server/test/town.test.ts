@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { frontier, plotId } from "@tokenmaxxing/core/maps.ts";
-import { admit, as, client, event, HOUR, signUp } from "./rivet.ts";
+import { admit, as, client, event, signUp } from "./rivet.ts";
 
 describe("accounts", () => {
   test("names are unique and validated", async () => {
@@ -210,35 +210,21 @@ describe("leaderboard", () => {
 describe("coins and the shop", () => {
   test("usage earns coins, square-rooted per day", async () => {
     const a = await signUp("coin");
-    // 100M on one day: √100 = 10. 400M more the same day makes it √500 = 22, not 30.
-    // Alone on that day, they also finished it 1st: +25.
-    const day = Date.UTC(2023, 5, 14, 12);
+    // 100M today: √100 = 10. 400M more the same day makes it √500 = 22, not 30.
+    const now = Date.now();
     await as(a.token)
       .player(a.userId)
-      .ingest([event({ inputTokens: 100e6, timestamp: day })]);
-    expect((await a.town.wallet()).balance).toBe(10 + 25);
+      .ingest([event({ inputTokens: 100e6, timestamp: now })]);
+    expect((await a.town.wallet()).balance).toBe(10);
     await as(a.token)
       .player(a.userId)
-      .ingest([event({ inputTokens: 400e6, timestamp: day + HOUR })]);
-    expect((await a.town.wallet()).balance).toBe(22 + 25);
-  });
-
-  test("the top 3 of a finished day get a bonus", async () => {
-    // A day no other test touches, so these three are its podium.
-    const day = Date.UTC(2023, 2, 3, 12);
-    const [first, second, third, fourth] = await Promise.all([1, 2, 3, 4].map(() => signUp("pod")));
-    const tokens = [4e9, 3e9, 2e9, 1e9];
-    await Promise.all(
-      [first!, second!, third!, fourth!].map((u, i) =>
-        as(u.token)
-          .player(u.userId)
-          .ingest([event({ inputTokens: tokens[i]!, timestamp: day })]),
-      ),
-    );
-    const wins = await Promise.all([first!, second!, third!, fourth!].map((u) => u.town.wallet()));
-    expect(wins.map((w) => w.balance)).toEqual([63 + 25, 54 + 15, 44 + 10, 31]);
-    // Only the last 30 days are listed, but old wins still count in the balance.
-    expect(wins[0]!.wins).toEqual([]);
+      .ingest([event({ inputTokens: 400e6, timestamp: now })]);
+    expect((await a.town.wallet()).balance).toBe(22);
+    // Logs from before signing up (a first sync's backfill) pay nothing.
+    await as(a.token)
+      .player(a.userId)
+      .ingest([event({ inputTokens: 10e9, timestamp: Date.UTC(2023, 5, 14, 12) })]);
+    expect((await a.town.wallet()).balance).toBe(22);
   });
 
   test("buy, then wear; not before, not twice, not when short", async () => {
@@ -247,7 +233,7 @@ describe("coins and the shop", () => {
     await expect(a.town.setLook({ ...(await a.town.me()).look, glasses: 1 })).rejects.toThrow("shop");
     await as(a.token)
       .player(a.userId)
-      .ingest([event({ inputTokens: 10e9, timestamp: Date.UTC(2023, 7, 1, 12) })]);
+      .ingest([event({ inputTokens: 10e9, timestamp: Date.now() })]);
     const before = await a.town.wallet();
     const after = await a.town.buy("glasses.1");
     expect(after.balance).toBe(before.balance - 60);

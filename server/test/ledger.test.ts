@@ -16,9 +16,20 @@ const balance = async (userId: number) => (await wallet(sql, userId, NOW)).balan
 const sumOf = async (ref: string) =>
   ((await sql.execute("SELECT SUM(amount) AS n FROM ledger WHERE ref = ?", ref)) as [{ n: number }])[0].n;
 
+/** Signs `userId` up on `day` (noon UTC is the same day in Copenhagen). */
+async function signUpOn(userId: number, day: string) {
+  await sql.execute(
+    "INSERT INTO users (id, name, look, created_at) VALUES (?, ?, '{}', ?)",
+    userId,
+    `u${userId}`,
+    Date.parse(`${day}T12:00:00Z`),
+  );
+}
+
 beforeEach(async () => {
   sql = memorySql().sql;
   await migrate(sql);
+  for (const id of [1, 2, 3]) await signUpOn(id, "2025-12-31");
   await earn(1, "2026-01-01", 10_000e6); // √10000 = 100, +25 first place = 125
   await earn(2, "2026-01-02", 2_500e6); // 50, +25 = 75
   await earn(3, "2026-01-03", 100e6); // 10, +25 = 35
@@ -99,5 +110,27 @@ describe("the coin ledger", () => {
     await refund(sql, "table:4", NOW);
     expect(await balance(1)).toBe(125);
     expect(await sumOf("table:4")).toBe(0);
+  });
+});
+
+describe("the wallet", () => {
+  test("the top 3 of a finished day get a bonus", async () => {
+    for (const id of [4, 5, 6, 7]) await signUpOn(id, "2026-03-03");
+    await Promise.all([4e9, 3e9, 2e9, 1e9].map((tokens, i) => earn(4 + i, "2026-03-03", tokens)));
+    const wins = await Promise.all([4, 5, 6, 7].map((id) => wallet(sql, id, NOW)));
+    expect(wins.map((w) => w.balance)).toEqual([63 + 25, 54 + 15, 44 + 10, 31]);
+    // Only the last 30 days are listed, but old wins still count in the balance.
+    expect(wins[0]!.wins).toEqual([]);
+  });
+
+  test("days before signing up pay nothing and win nothing", async () => {
+    await signUpOn(4, "2026-03-03");
+    await earn(4, "2026-03-02", 10_000e6); // would be 100 + 25 for 1st
+    await earn(4, "2026-03-03", 100e6); // √100 = 10, and 1st: 25
+    expect(await balance(4)).toBe(10 + 25);
+    // Nor do they push anyone else off a podium: signed up the day after that day.
+    await signUpOn(5, "2026-03-04");
+    await earn(5, "2026-03-03", 1e12);
+    expect(await balance(4)).toBe(10 + 25);
   });
 });
