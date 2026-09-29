@@ -4,16 +4,12 @@
   "version": "../../../package.json",
   "identifier": "dk.hanskristoffer.tokenmaxxing",
   "build": {
-    "frontendDist": "../onboarding",
     "beforeDevCommand": "bash scripts/helper.sh",
     "beforeBuildCommand": "bash scripts/helper.sh"
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [],
-    "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost"
-    }
+    "windows": []
   },
   "bundle": {
     "active": true,

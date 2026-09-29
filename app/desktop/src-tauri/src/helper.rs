@@ -317,7 +317,7 @@ mod tests {
             messages[5],
             Message::Reply {
                 id: 2,
-                result: Ok(json!({ "url": "https://example.com/play#code=12.x" }))
+                result: Ok(json!({ "code": "12.x" }))
             }
         );
         assert_eq!(

@@ -96,13 +96,11 @@ describe("helper", () => {
     expect(await send({ cmd: "signUp", name: taken.name })).toMatchObject({ ok: false, error: "name_taken" });
   });
 
-  test("open world: a single-use link that signs the browser in", async () => {
+  test("open world: a single-use code that signs the game window in", async () => {
     const u = await signUp("world");
     const { helper, send } = harness();
     await send(init(u.token));
-    const r = (await send({ cmd: "openWorld" })) as { ok: true; result: { url: string } };
-    const code = decodeURIComponent(new URL(r.result.url).hash.slice("#code=".length));
-    expect(r.result.url.startsWith(origin)).toBe(true);
+    const { code } = ((await send({ cmd: "openWorld" })) as { ok: true; result: { code: string } }).result;
     const player = client.player.get([String(u.userId)]);
     const session = await player.redeemLoginCode(code);
     expect(session).toMatch(new RegExp(`^${u.userId}\\.`));

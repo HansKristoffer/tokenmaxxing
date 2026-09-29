@@ -42,18 +42,23 @@ export let arcade: ArcadeConn;
 export let matchConn: MatchConn | null = null;
 let session = "";
 
+/** Trades a single-use login code (`<userId>.<code>`) for a session, kept for the next load. */
+export async function redeem(code: string): Promise<void> {
+  const player = client.player.get([code.split(".")[0]!]).connect();
+  localStorage.setItem(TOKEN_KEY, await player.redeemLoginCode(code).finally(() => player.dispose()));
+}
+
 /**
- * The menu bar app opens `/#code=<userId>.<code>`: trade it for a browser
- * session, then drop it from the URL and history.
+ * A browser may open `/#code=<userId>.<code>`: trade it for a session, then
+ * drop it from the URL and history. The app's window signs in through the app
+ * instead (AppSignIn).
  */
 export async function signIn(): Promise<string | null> {
   const code = new URLSearchParams(location.hash.slice(1)).get("code");
   if (code) {
     history.replaceState(null, "", location.pathname);
     try {
-      const player = client.player.get([code.split(".")[0]!]).connect();
-      const token = await player.redeemLoginCode(code).finally(() => player.dispose());
-      localStorage.setItem(TOKEN_KEY, token);
+      await redeem(code);
     } catch {
       if (!localStorage.getItem(TOKEN_KEY)) {
         hud.set({ status: "expired" });

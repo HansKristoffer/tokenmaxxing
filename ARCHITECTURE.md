@@ -26,7 +26,7 @@ The game also runs in any browser; the app's window is that same page, at `/play
 | `server/src/` | `main.ts`, `proxy.ts`, `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts` |
 | `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels) |
 | `app/helper/` | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar |
-| `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, onboarding, updates |
+| `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, updates |
 | `site/` | The marketing site at `/` (Astro, static): `bun run site:dev` to work on it, `bun run site:build` before serving it |
 
 ## Serving
@@ -45,18 +45,19 @@ The game also runs in any browser; the app's window is that same page, at `/play
 - Tokens are `<userId>.<secret>`; the `player` actor stores `sha256(secret)`. Other actors check a token by
   asking that player (`authenticate` in `shared.ts`, cached for a minute) and trust only the caller they get.
 - Actors call each other with an in-process `INTERNAL_KEY`.
-- **Open world:** the helper mints a one-time login code (2 minutes) and opens `/#code=…`. The page redeems it
-  for a 30-day browser session and removes the code from the URL. The fragment never reaches server logs, and
-  the device token never goes into a URL.
+- **Open world:** the app's window loads `/play`. With no session, the page asks the app (`enter_world`), whose
+  helper mints a one-time login code (2 minutes); the page redeems it for a 30-day session. With no account
+  yet, the page asks for a name first and the app signs up. The device token never leaves the app.
+- A browser can still be signed in with `/#code=…`: the page redeems the code and removes it from the URL.
 - The app forgets its token when the server rejects it and goes back to picking a name.
-- There's no web sign-up: without a session the page says to open the world from the menu bar app.
+- There's no web sign-up: in a browser, without a session the page says to open the world from the app.
 
 ## The desktop app
 
 `app/desktop/src-tauri/src/`, in Rust:
 
 - **`helper.rs`** runs the helper sidecar (Bun-compiled) and speaks the NDJSON protocol in
-  `core/src/protocol.ts`: `init`, `signUp`, `syncNow` and `openWorld`, and `state` and `token` events. It
+  `core/src/protocol.ts`: `init`, `signUp`, `syncNow` and `openWorld` (a login code), and `state` and `token` events. It
   restarts the helper with backoff. A fixture written by `app/helper/test/protocol.test.ts` keeps the Rust
   types and the TypeScript ones in step.
 - **`tray.rs`**: the menu bar. The bolt is a template image with today's tokens as its title. Its menu:
@@ -68,14 +69,14 @@ The game also runs in any browser; the app's window is that same page, at `/play
   - Quit.
 
   It's rebuilt from the helper's state after every sync: every 2 minutes, or every 10 seconds during a battle.
-- **`world.rs`**: the windows.
-  - The game window loads the live page (`/play#code=…`, the same single-use login code as a browser). It
-    stays on the server's origin; other links open in the browser.
-  - The "pick a name" page (`app/desktop/onboarding/`) is the only local page. It may call `sign_up`
-    (`capabilities/default.json`). The game page, from the server's origin only, may ask about app updates
-    and start one (`update_status`, `install_update` and their `app-update` event; the capability is added
-    in `lib.rs`, since it names the server). App commands are otherwise denied (`build.rs`).
-  - The app is in the Dock only while a window is open (`LSUIElement`, then the activation policy).
+- **`world.rs`**: the game window, the app's only window.
+  - It loads the live page (`/play`) once the helper knows whether there's an account, and opens by itself
+    when there isn't one. It stays on the server's origin; other links open in the browser.
+  - The page, from the server's origin only, may sign itself in (`enter_world`: a login code, after signing
+    up if it's given a name), and ask about app updates and start one (`update_status`, `install_update` and
+    their `app-update` event). The capability is added in `lib.rs`, since it names the server. App commands
+    are otherwise denied (`build.rs`).
+  - The app is in the Dock only while the window is open (`LSUIElement`, then the activation policy).
 - **`keychain.rs`**: the device token, in the login Keychain as `dk.hanskristoffer.tokenmaxxing` /
   `api-token`. Dev builds use `….dev` and their own state dir.
 - **`updates.rs`**: Tauri's updater. It checks `latest.json` on this repo's latest release on launch and every

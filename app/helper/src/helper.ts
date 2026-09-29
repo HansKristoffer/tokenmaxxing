@@ -34,12 +34,11 @@ function apiError(err: unknown): ApiError {
 /**
  * The menu bar app's engine: sign up once, then send new local usage in the
  * background (every 2 minutes, every 10 seconds during a battle), and mint
- * links that open the world.
+ * login codes for the game window.
  */
 export class Helper {
   private client: Client | null = null;
   private token: string | null = null;
-  private serverUrl = "";
   private syncState: SyncState | null = null;
   private syncing: Promise<void> | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -71,10 +70,9 @@ export class Helper {
   private async run(cmd: Command): Promise<unknown> {
     switch (cmd.cmd) {
       case "init":
-        this.serverUrl = cmd.serverUrl.replace(/\/+$/, "");
         // No metadata lookup: our server is the endpoint, and the lookup retries forever when offline.
         this.client = createClient<typeof registry>({
-          endpoint: `${this.serverUrl}/api/rivet`,
+          endpoint: `${cmd.serverUrl.replace(/\/+$/, "")}/api/rivet`,
           devtools: false,
           disableMetadataLookup: true,
         });
@@ -91,10 +89,8 @@ export class Helper {
       case "syncNow":
         await this.tick();
         return;
-      case "openWorld": {
-        const code = await this.call(() => this.player().mintLoginCode());
-        return { url: `${this.serverUrl}/play#code=${encodeURIComponent(code)}` };
-      }
+      case "openWorld":
+        return { code: await this.call(() => this.player().mintLoginCode()) };
     }
   }
 

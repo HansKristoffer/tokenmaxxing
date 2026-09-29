@@ -2,7 +2,7 @@
  * The app icon, in pixel art on a 32×32 grid: a tiny round world with a house and a tree, and a lightning
  * bolt striking past it, on a night sky in the macOS rounded square (Apple's 824/1024 grid). Every size is
  * drawn from the grid with whole pixels, so it stays crisp. Writes the Mac app's icons (src-tauri/icons)
- * and the website's (site/public), and the one on the "pick a name" window.
+ * and the website's (site/public).
  *
  *   bun app/desktop/scripts/icon.ts
  */
@@ -225,5 +225,4 @@ rmSync(join(iconset, ".."), { recursive: true });
 
 writeFileSync(join(ROOT, "site/public/icon.svg"), svg(grid));
 write("site/public/icon.png", 512);
-write("app/desktop/onboarding/icon.png", 64);
 console.log("icons written");
