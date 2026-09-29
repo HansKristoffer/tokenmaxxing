@@ -15,7 +15,7 @@ export type Command =
   | { id: number; cmd: "signUp"; name: string }
   /** Sync now (sent when the Mac wakes). */
   | { id: number; cmd: "syncNow" }
-  /** Replies with `{ url }`: the world, signed in via a single-use code. */
+  /** Replies with `{ code }`: a single-use login code the game window trades for a session. */
   | { id: number; cmd: "openWorld" };
 
 export type Message =

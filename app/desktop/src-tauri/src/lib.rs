@@ -25,7 +25,7 @@ pub const SERVER_URL: &str = match option_env!("TOKENMAXXING_SERVER_URL") {
 pub struct Ui {
     pub state: helper::State,
     pub update: updates::Status,
-    /// Opened by hand (not at login): the game opens once the account is known.
+    /// Opened by hand (not at login), or before the helper was up: the game opens once the account is known.
     pub open_on_ready: bool,
 }
 
@@ -54,11 +54,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .plugin(
-            tauri_plugin_window_state::Builder::default()
-                .with_denylist(&[world::ONBOARDING])
-                .build(),
-        )
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             Some(vec![AT_LOGIN]),
@@ -66,7 +62,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Shared::default())
         .invoke_handler(tauri::generate_handler![
-            world::sign_up,
+            world::enter_world,
             updates::update_status,
             updates::install_update
         ])
@@ -82,8 +78,8 @@ pub fn run() {
                 let _ = login.enable();
             }
             tray::build(app.handle())?;
-            // The game window (the server's page) may ask about app updates and start one, and
-            // nothing else. The onboarding page's permissions are in capabilities/default.json.
+            // The game window (the server's page) may ask about app updates and start one, and sign
+            // itself in when it has no session, and nothing else.
             app.add_capability(
                 CapabilityBuilder::new("world")
                     .remote(format!("{SERVER_URL}/*"))
@@ -92,7 +88,8 @@ pub fn run() {
                     .permission("core:event:allow-listen")
                     .permission("core:event:allow-unlisten")
                     .permission("allow-update-status")
-                    .permission("allow-install-update"),
+                    .permission("allow-install-update")
+                    .permission("allow-enter-world"),
             )?;
             let events = app.handle().clone();
             let helper = helper::Helper::start(
@@ -130,12 +127,11 @@ fn on_helper(app: &tauri::AppHandle, message: helper::Message) {
             let phase = state.phase.clone();
             app.state::<Shared>().lock().unwrap().state = state;
             tray::refresh(app);
-            if phase == "onboarding" {
-                world::onboard(app);
-            } else if phase == "ready" {
+            if phase == "onboarding" || phase == "ready" {
                 let by_hand =
                     std::mem::take(&mut app.state::<Shared>().lock().unwrap().open_on_ready);
-                if updates::reopen(app) || by_hand {
+                // No account yet: the game window asks for a name.
+                if phase == "onboarding" || updates::reopen(app) || by_hand {
                     world::open(app);
                 }
             }

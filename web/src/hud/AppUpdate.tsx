@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 
-/** The desktop app's bridge, only there in its game window: see app/desktop/src-tauri/src/updates.rs. */
+/** The desktop app's bridge, only there in its game window: see updates.rs and world.rs in app/desktop. */
 interface Tauri {
-  core: { invoke<T>(command: string): Promise<T> };
+  core: { invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> };
   event: { listen<T>(event: string, handler: (e: { payload: T }) => void): Promise<() => void> };
 }
-const tauri = (window as { __TAURI__?: Tauri }).__TAURI__;
+export const tauri = (window as { __TAURI__?: Tauri }).__TAURI__;
 
 interface Status {
   current: string;

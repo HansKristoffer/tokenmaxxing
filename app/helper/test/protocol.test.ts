@@ -25,7 +25,7 @@ const messages: Message[] = [
   { event: "token", token: "12.tok_abc" },
   { event: "token", token: null },
   { id: 1, ok: true, result: null },
-  { id: 2, ok: true, result: { url: "https://example.com/play#code=12.x" } },
+  { id: 2, ok: true, result: { code: "12.x" } },
   { id: 3, ok: false, error: "name_taken" },
 ];
 
