@@ -97,9 +97,10 @@ export function Minimap() {
         height={map.height * scale}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
+          // As a fraction of the canvas shown: CSS can draw it bigger or smaller than its pixels.
           walkTo(
-            map.x0 + Math.floor((e.clientX - rect.left) / scale),
-            map.y0 + Math.floor((e.clientY - rect.top) / scale),
+            map.x0 + Math.floor(((e.clientX - rect.left) / rect.width) * map.width),
+            map.y0 + Math.floor(((e.clientY - rect.top) / rect.height) * map.height),
           );
         }}
       />
