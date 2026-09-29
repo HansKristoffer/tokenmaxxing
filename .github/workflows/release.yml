@@ -63,6 +63,45 @@ jobs:
           tagName: ${{ needs.release-please.outputs.tag }}
           includeUpdaterJson: true
           args: --target universal-apple-darwin
+      # Tauri notarizes the app inside the .dmg, not the .dmg: notarize and staple that too, so what
+      # people download passes Gatekeeper as a whole (and offline), then put it back on the release.
+      - name: Notarize the installer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+          VERSION: ${{ needs.release-please.outputs.version }}
+          APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          dir=$(mktemp -d)
+          dmg="$dir/Tokenmaxxing_${VERSION}_universal.dmg"
+          gh release download "$TAG" --pattern "$(basename "$dmg")" --dir "$dir"
+          xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" --wait
+          xcrun stapler staple "$dmg"
+          gh release upload "$TAG" "$dmg" --clobber
+      # What someone downloading the .dmg gets: macOS must accept the disk image and the app in it
+      # without a warning, and the sync helper must keep the entitlements it needs to run.
+      - name: Check the installer passes Gatekeeper
+        env:
+          TAG: ${{ needs.release-please.outputs.tag }}
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          set -euo pipefail
+          dir=$(mktemp -d)
+          curl -fsSL -o "$dir/installer.dmg" \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/Tokenmaxxing_${VERSION}_universal.dmg"
+          spctl -a -vv -t open --context context:primary-signature "$dir/installer.dmg"
+          xcrun stapler validate "$dir/installer.dmg"
+          hdiutil attach -nobrowse -readonly -mountpoint "$dir/mnt" "$dir/installer.dmg"
+          app="$dir/mnt/Tokenmaxxing.app"
+          codesign --verify --deep --strict -vv "$app"
+          xcrun stapler validate "$app"
+          spctl -a -vv -t exec "$app"
+          codesign -d --entitlements - "$app/Contents/MacOS/tokenmaxxing-helper" | grep -q allow-jit
+          hdiutil detach "$dir/mnt"
       # Installed apps only take an update signed by the key whose public half they ship with
       # (tauri.conf.json). Check the one just published, as they'll see it: a wrong signing secret
       # fails this job instead of quietly stopping every app from updating.
