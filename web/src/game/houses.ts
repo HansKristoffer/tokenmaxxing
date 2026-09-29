@@ -38,7 +38,10 @@ export function buildings(map: GameMap): Building[] {
 export const buildingAt = (x: number, y: number): Building | undefined =>
   buildings(world.map).find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
 
-export const companyOnPlot = (plot: number) => [...world.companies.values()].find((c) => c.plot === plot);
+export function companyOnPlot(plot: number) {
+  for (const c of world.companies.values()) if (c.plot === plot) return c;
+  return undefined;
+}
 
 const logos = new Map<string, HTMLCanvasElement | null>();
 

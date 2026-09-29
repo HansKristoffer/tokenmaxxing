@@ -60,7 +60,7 @@ export function pill(
   g.textAlign = "center";
   g.textBaseline = "middle";
   g.fillText(text, cx, y - h / 2 + 0.5 * dpr);
-  return h;
+  return { w, h };
 }
 
 export function sign(
@@ -96,7 +96,7 @@ export function avatarLabels(
   let y = top - (a.state === "away" || tile === "b" ? -2 : 4) * dpr;
   const tag = `${a.info.name} · Lv${a.info.level}`;
   y -=
-    pill(g, cx, y, tag, dpr, a.info.online ? "rgba(27, 31, 42, 0.78)" : "rgba(27, 31, 42, 0.45)", C.white) +
+    pill(g, cx, y, tag, dpr, a.info.online ? "rgba(27, 31, 42, 0.78)" : "rgba(27, 31, 42, 0.45)", C.white).h +
     2 * dpr;
   if (a.state === "away") {
     const t = (now / 900) % 1;
@@ -106,11 +106,11 @@ export function avatarLabels(
     g.fillText("z", cx + (8 + t * 8) * dpr, y - t * 12 * dpr);
   } else if (a.state === "working") {
     y -=
-      pill(g, cx, y, `💻 ×${Math.max(1, a.info.liveAgents)}`, dpr, "rgba(143, 227, 255, 0.95)", C.ink) +
+      pill(g, cx, y, `💻 ×${Math.max(1, a.info.liveAgents)}`, dpr, "rgba(143, 227, 255, 0.95)", C.ink).h +
       2 * dpr;
   }
   const inGame = gameTag(a.info.id);
-  if (inGame) y -= pill(g, cx, y, inGame, dpr, "rgba(233, 183, 61, 0.95)", C.ink) + 2 * dpr;
+  if (inGame) y -= pill(g, cx, y, inGame, dpr, "rgba(233, 183, 61, 0.95)", C.ink).h + 2 * dpr;
   if (a.bubble && now < a.bubble.until && !resting)
     bubble(g, cx, y, a.bubble.text, dpr, a.bubble.until - now);
   if (a.burst && now - a.burst.at < BURST_MS) burst(g, cx, top, a.burst.emojis, now - a.burst.at, dpr);
@@ -150,15 +150,12 @@ function burst(
   g.globalAlpha = 1;
 }
 
-export function bubble(
-  g: CanvasRenderingContext2D,
-  cx: number,
-  bottom: number,
-  text: string,
-  dpr: number,
-  left: number,
-) {
-  g.font = `500 ${12 * dpr}px ${FONT}`;
+/** Bubble text wrapped into at most 3 lines, and its width; measured once per text, not every frame. */
+const wraps = new Map<string, { shown: string[]; w: number }>();
+function wrapped(g: CanvasRenderingContext2D, text: string, dpr: number) {
+  const key = `${dpr}\0${text}`;
+  const hit = wraps.get(key);
+  if (hit) return hit;
   const maxW = 190 * dpr;
   const lines: string[] = [];
   let line = "";
@@ -172,8 +169,23 @@ export function bubble(
   lines.push(line);
   const shown = lines.slice(0, 3);
   if (lines.length > 3) shown[2] = `${shown[2]!.slice(0, -1)}…`;
-  const lh = 15 * dpr;
   const w = Math.min(maxW, Math.max(...shown.map((l) => g.measureText(l).width))) + 14 * dpr;
+  if (wraps.size > 500) wraps.clear();
+  wraps.set(key, { shown, w });
+  return { shown, w };
+}
+
+export function bubble(
+  g: CanvasRenderingContext2D,
+  cx: number,
+  bottom: number,
+  text: string,
+  dpr: number,
+  left: number,
+) {
+  g.font = `500 ${12 * dpr}px ${FONT}`;
+  const { shown, w } = wrapped(g, text, dpr);
+  const lh = 15 * dpr;
   const h = shown.length * lh + 8 * dpr;
   const y = bottom - h - 6 * dpr;
   g.globalAlpha = Math.min(1, left / 400);

@@ -262,11 +262,25 @@ const coffee = cached(
 
 const at = (canvas: HTMLCanvasElement, dx = 0, dy = TILE - canvas.height): Placed => ({ canvas, dx, dy });
 
+/** Maps are fixed, so each map's objects are worked out once (the render loop asks every frame). */
+const placed = new WeakMap<GameMap, (Placed | null | undefined)[]>();
+
 /**
  * The scenery or furniture on tile (x, y), if it draws anything. Multi-tile
  * things (fountain, TV) draw once from their top-left tile.
  */
 export function objectAt(map: GameMap, x: number, y: number): Placed | null {
+  let cells = placed.get(map);
+  if (!cells) {
+    cells = [];
+    placed.set(map, cells);
+  }
+  const i = y * map.width + x;
+  if (cells[i] === undefined) cells[i] = placeObject(map, x, y);
+  return cells[i];
+}
+
+function placeObject(map: GameMap, x: number, y: number): Placed | null {
   const ch = map.at(x, y);
   switch (ch) {
     case "T":

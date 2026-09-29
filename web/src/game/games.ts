@@ -67,8 +67,8 @@ function drawTable(
   const [sx, sy] = toScreen((game.spot.x + game.spot.w / 2) * TILE, game.spot.y * TILE);
   labels.push(() => {
     const y = sy - 24 * dpr;
-    const h = pill(g, sx, y, banner(game, serverNow), dpr, "rgba(233, 183, 61, 0.95)", C.ink);
-    hitPill(g, sx, y, h, banner(game, serverNow), dpr, () => openMatch(game.id));
+    const { w, h } = pill(g, sx, y, banner(game, serverNow), dpr, "rgba(233, 183, 61, 0.95)", C.ink);
+    gameHits.push({ x: sx - w / 2, y: y - h, w, h, open: () => openMatch(game.id) });
     const said = world.tableBubbles.get(game.id);
     if (said && now < said.until) bubble(g, sx, y - h - 2 * dpr, said.text, dpr, said.until - now);
   });
@@ -168,23 +168,8 @@ function drawSigns(
     const text = `🎮 ${GAMES[t.game]!.name} ${t.seated.length}/${t.seats} · 🪙 ${t.stake}${join}`;
     labels.push(() => {
       const y = sy - 30 * dpr;
-      const h = pill(g, sx, y, text, dpr, "rgba(143, 227, 255, 0.95)", C.ink);
-      hitPill(g, sx, y, h, text, dpr, () => hud.set({ panel: { kind: "arcade" } }));
+      const { w, h } = pill(g, sx, y, text, dpr, "rgba(143, 227, 255, 0.95)", C.ink);
+      gameHits.push({ x: sx - w / 2, y: y - h, w, h, open: () => hud.set({ panel: { kind: "arcade" } }) });
     });
   }
-}
-
-/** Records a centred pill (as drawn by `pill`) as clickable. */
-function hitPill(
-  g: CanvasRenderingContext2D,
-  cx: number,
-  bottom: number,
-  h: number,
-  text: string,
-  dpr: number,
-  open: () => void,
-) {
-  g.font = `600 ${11 * dpr}px ${FONT}`;
-  const w = g.measureText(text).width + 10 * dpr;
-  gameHits.push({ x: cx - w / 2, y: bottom - h, w, h, open });
 }
