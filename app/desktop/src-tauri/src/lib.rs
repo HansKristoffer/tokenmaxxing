@@ -12,7 +12,7 @@ use serde_json::json;
 use std::sync::{Arc, Mutex};
 use tauri::ipc::CapabilityBuilder;
 use tauri::{Manager, RunEvent, WindowEvent};
-use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 /// The server the app talks to, baked in at build time; dev builds use a local one (see build.rs).
 pub const SERVER_URL: &str = match option_env!("TOKENMAXXING_SERVER_URL") {
@@ -25,7 +25,12 @@ pub const SERVER_URL: &str = match option_env!("TOKENMAXXING_SERVER_URL") {
 pub struct Ui {
     pub state: helper::State,
     pub update: updates::Status,
+    /// Opened by hand (not at login): the game opens once the account is known.
+    pub open_on_ready: bool,
 }
+
+/// The login item passes this, so starting at login stays in the menu bar.
+const AT_LOGIN: &str = "--at-login";
 
 pub type Shared = Mutex<Ui>;
 
@@ -56,7 +61,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
-            None,
+            Some(vec![AT_LOGIN]),
         ))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Shared::default())
@@ -69,6 +74,13 @@ pub fn run() {
             // Menu bar only until a window opens (Info.plist has LSUIElement too).
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            app.state::<Shared>().lock().unwrap().open_on_ready =
+                !std::env::args().any(|arg| arg == AT_LOGIN);
+            // Rewrites a login item made before it passed AT_LOGIN, which would open the game.
+            let login = app.autolaunch();
+            if login.is_enabled().unwrap_or(false) {
+                let _ = login.enable();
+            }
             tray::build(app.handle())?;
             // The game window (the server's page) may ask about app updates and start one, and
             // nothing else. The onboarding page's permissions are in capabilities/default.json.
@@ -105,6 +117,9 @@ pub fn run() {
                 api, code: None, ..
             } => api.prevent_exit(),
             RunEvent::Exit => app.state::<Arc<helper::Helper>>().stop(),
+            // Opened again (Finder, Dock, Spotlight) while running: the game, as on first launch.
+            #[cfg(target_os = "macos")]
+            RunEvent::Reopen { .. } => world::open(app),
             _ => {}
         });
 }
@@ -117,8 +132,12 @@ fn on_helper(app: &tauri::AppHandle, message: helper::Message) {
             tray::refresh(app);
             if phase == "onboarding" {
                 world::onboard(app);
-            } else if phase == "ready" && updates::reopen(app) {
-                world::open(app);
+            } else if phase == "ready" {
+                let by_hand =
+                    std::mem::take(&mut app.state::<Shared>().lock().unwrap().open_on_ready);
+                if updates::reopen(app) || by_hand {
+                    world::open(app);
+                }
             }
         }
         helper::Message::Token(Some(token)) => keychain::set(&token),
