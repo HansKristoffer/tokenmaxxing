@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.0.2...v1.1.0) (2026-09-29)
+
+
+### Features
+
+* **desktop:** move sign-in into the game window ([3a417bd](https://github.com/HansKristoffer/tokenmaxxing/commit/3a417bde1e881bcd82c824d021d799ef823a0f94))
+* **desktop:** move sign-in into the game window ([34a8d74](https://github.com/HansKristoffer/tokenmaxxing/commit/34a8d74eebe3dd78ff8f49a4625a819c21067f19))
+
+
+### Bug Fixes
+
+* **server:** let the app and browsers through to the game in production ([5dd720b](https://github.com/HansKristoffer/tokenmaxxing/commit/5dd720bd1ac20e418ce551b41827984571e02a27))
+* **server:** let the app and browsers through to the game in production ([a576838](https://github.com/HansKristoffer/tokenmaxxing/commit/a57683869491b6d6eb5a49dd89ef3a64abf6d9f9))
+
 ## [1.0.2](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.0.1...v1.0.2) (2026-09-29)
 
 
