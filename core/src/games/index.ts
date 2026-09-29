@@ -1,10 +1,11 @@
 /** Every game there is. The lobby, the server and the client all read this list. */
+import { dice } from "./dice.ts";
 import { hype } from "./hype.ts";
 import { spr } from "./spr.ts";
 import type { GameDef, GameId, Options } from "./types.ts";
 
 // biome-ignore lint/suspicious/noExplicitAny: each game has its own state and view types
-export const GAMES: Partial<Record<GameId, GameDef<any, any>>> = { spr, hype };
+export const GAMES: Partial<Record<GameId, GameDef<any, any>>> = { spr, hype, dice };
 
 export const gameOf = (id: unknown) =>
   typeof id === "string" && id in GAMES ? GAMES[id as GameId] : undefined;

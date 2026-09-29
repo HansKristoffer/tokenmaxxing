@@ -1307,3 +1307,67 @@ button.lb-item:hover {
 .hype-fair code {
   font-size: 11px;
 }
+
+.dice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.dice-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dice-players li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.dice-players li.turn {
+  border-color: var(--accent);
+  background: rgba(255, 211, 92, 0.08);
+}
+
+.dice-players li.me strong {
+  color: var(--good);
+}
+
+.dice-row .miss {
+  opacity: 0.3;
+}
+
+.dice-claim,
+.dice-verdict,
+.dice-mine {
+  margin: 0;
+  font-size: 15px;
+}
+
+.dice-bid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.dice-claims {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
