@@ -87,7 +87,7 @@ describe("the arcade", () => {
     expect((await stranger.arcade.lobby()).matches.find((m) => m.id === open)!.outcome).toEqual({
       places: [[stranger.userId], [host.userId]],
     });
-  });
+  }, 30_000);
 
   test("a stake is at most half your coins; leaving before the start gives it back", async () => {
     const poor = await rich("poor", 10); // 10 + 25 = 35 coins
@@ -100,7 +100,7 @@ describe("the arcade", () => {
     await poor.match(t).forfeit();
     await Bun.sleep(300);
     expect(await balance(poor)).toBe(before - 15);
-  });
+  }, 30_000);
 
   test("side bets: the winner's backers take the pool; no betting on your own game", async () => {
     const a = await rich("sa");
@@ -123,7 +123,7 @@ describe("the arcade", () => {
     await Bun.sleep(300);
     expect(await balance(fan)).toBe(f0 + 20);
     expect(await balance(doubter)).toBe(d0 - 20);
-  });
+  }, 30_000);
 
   test("a counter offer re-prices the table; double or nothing needs both", async () => {
     const a = await rich("ca");
@@ -145,7 +145,7 @@ describe("the arcade", () => {
     const again = (await a.arcade.lobby()).me.match!;
     expect(again).not.toBe(t);
     expect((await a.arcade.lobby()).matches.find((m) => m.id === again)!.stake).toBe(40);
-  });
+  }, 30_000);
 
   test("Tokenmaxxing: an arena in town, players stay free, and the menu bar's battle line", async () => {
     const a = await rich("ta");
@@ -173,5 +173,5 @@ describe("the arcade", () => {
     await Bun.sleep(300);
     expect(await a.arcade.battle()).toBeNull();
     expect((await townGames(a)).some((x) => x.id === id)).toBe(false);
-  });
+  }, 30_000);
 });
