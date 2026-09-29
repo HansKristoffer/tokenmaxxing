@@ -18,7 +18,10 @@ read -rsp "Password you set when exporting the .p12: " P12_PASSWORD; echo
 # The identity name codesign needs, e.g. "Developer ID Application: Hans Kristoffer (ABCDE12345)".
 IDENTITY="$(openssl pkcs12 -in "$P12" -nokeys -passin "pass:$P12_PASSWORD" -legacy 2>/dev/null \
   || openssl pkcs12 -in "$P12" -nokeys -passin "pass:$P12_PASSWORD")"
-IDENTITY="$(printf '%s' "$IDENTITY" | openssl x509 -noout -subject -nameopt multiline | sed -n 's/^ *commonName *= *//p')"
+# utf8,-esc_msb: the name exactly as codesign sees it. By default openssl escapes letters like "ø" as
+# "\F8", and a name that doesn't match the certificate stops the release build from signing.
+IDENTITY="$(printf '%s' "$IDENTITY" | openssl x509 -noout -subject -nameopt multiline,utf8,-esc_msb \
+  | sed -n 's/^ *commonName *= *//p')"
 case "$IDENTITY" in
   "Developer ID Application:"*) echo "Identity: $IDENTITY" ;;
   *) echo "That .p12 is not a 'Developer ID Application' certificate (got: ${IDENTITY:-nothing})." >&2; exit 1 ;;
