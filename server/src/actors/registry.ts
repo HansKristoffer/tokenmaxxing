@@ -9,12 +9,21 @@ import { world } from "./world.ts";
 export const ENGINE_PORT = Number(process.env.RIVET_RUN_ENGINE_PORT ?? 6420);
 
 /**
+ * The engine's admin token: it refuses requests without it. Browsers and the app never have it (or
+ * need it): the proxy adds it to what it forwards, which is only the client gateway, and the actors
+ * check who you are themselves. RivetKit's default for a local engine, spelled out: clients it sees as
+ * local (localhost, as in tests and dev) send it on their own, and nothing else would.
+ */
+export const ENGINE_TOKEN = "default";
+
+/**
  * One process runs everything: RivetKit starts the engine on localhost and
  * `main.ts` exposes only the client gateway through its own server.
  */
 export const registry = setup({
   use: { town, player, world, arcade, match },
   startEngine: true,
+  token: ENGINE_TOKEN,
   engineHost: "127.0.0.1",
   enginePort: ENGINE_PORT,
   startServices: false,

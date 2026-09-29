@@ -14,15 +14,17 @@ interface Upstream {
 /**
  * Forwards the client gateway of the local Rivet engine: HTTP and WebSockets
  * under `/api/rivet/gateway/*` plus `/api/rivet/metadata`. Nothing else of the
- * engine's API is reachable from outside.
+ * engine's API is reachable from outside. Everything forwarded carries the
+ * engine's `token`, which clients don't have.
  */
-export function rivetProxy(engine: string) {
+export function rivetProxy(engine: string, token: string) {
   const isPublic = (path: string) => path.startsWith("/gateway/") || path === "/metadata";
 
   const fetch = async (req: Request, server: Server<Upstream>): Promise<Response | undefined> => {
     const url = new URL(req.url);
     const path = url.pathname.startsWith(`${RIVET_PATH}/`) ? url.pathname.slice(RIVET_PATH.length) : null;
     if (path === null || !isPublic(path)) return new Response("Not found", { status: 404 });
+    url.searchParams.set("rvt-token", token);
     if (req.headers.get("upgrade")?.toLowerCase() === "websocket") {
       const protocols = (req.headers.get("sec-websocket-protocol") ?? "")
         .split(",")
@@ -36,6 +38,7 @@ export function rivetProxy(engine: string) {
     }
     const headers = new Headers(req.headers);
     headers.delete("host");
+    headers.set("x-rivet-token", token);
     return globalThis.fetch(`http://${engine}${path}${url.search}`, {
       method: req.method,
       headers,
