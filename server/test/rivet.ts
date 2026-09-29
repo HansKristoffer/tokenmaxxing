@@ -10,7 +10,7 @@ import { join } from "node:path";
 import type { TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { createClient } from "rivetkit/client";
 import type { registry as Registry } from "../src/actors/registry.ts";
-import { atExit } from "./cleanup.ts";
+import { afterEveryTest, atExit } from "./cleanup.ts";
 
 setDefaultTimeout(60_000);
 
@@ -57,12 +57,31 @@ atExit.push(() => {
 export const client = createClient<typeof Registry>({ endpoint: `${origin}/api/rivet` });
 
 let n = 0;
+/** Tokens of users signed up during the current test. */
+const fresh: string[] = [];
+
 /** A fresh user; names are unique per run since `town` is shared by every test. */
 export async function signUp(prefix = "u") {
   const name = `${prefix}${Date.now().toString(36)}${n++}`;
   const r = await client.town.getOrCreate(["main"]).signUp(name);
+  fresh.push(r.token);
   return { ...r, town: client.town.getOrCreate(["main"], { params: { token: r.token } }) };
 }
+
+// Town has 8 plots and every test shares it: after each test its users leave their
+// companies, which closes them and frees the plots, so the next test still gets a house.
+afterEveryTest.push(async () => {
+  const tokens = fresh.splice(0);
+  await Promise.all(
+    tokens.map(
+      (token) =>
+        client.town
+          .getOrCreate(["main"], { params: { token } })
+          .leaveCompany()
+          .catch(() => {}), // signed out during the test
+    ),
+  );
+});
 
 export const as = (token: string) => ({
   town: client.town.getOrCreate(["main"], { params: { token } }),
