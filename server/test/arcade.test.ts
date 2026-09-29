@@ -92,7 +92,7 @@ describe("the arcade", () => {
   });
 
   test("a stake is at most half your coins; leaving before the start gives it back", async () => {
-    const poor = await rich("poor", 10); // 10 + 25 = 35 coins
+    const poor = await rich("poor", 35);
     await expect(poor.arcade.open("spr", { stake: 20 })).rejects.toThrow("at most 🪙 17");
     await expect(poor.arcade.open("spr", { stake: 600 })).rejects.toThrow("0 to 500");
     const before = await balance(poor);

@@ -140,6 +140,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 
 - Each world day pays `√(tokens ÷ 1M)` coins (1.5B ≈ 38, 600M ≈ 24, 100M = 10). Finishing a day 1st, 2nd or 3rd
   adds 25, 15 or 10.
+- Only days from the world day you signed up count, for pay and for podium places: a first sync backfills
+  old logs, and those days would otherwise pay out (and win podiums nobody else was around for).
 - Balances aren't stored: they're worked out from `usage_daily` minus `purchases`, so a late sync still pays.
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats and 4 pets, 60 to 1,500 coins. Items are
   worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`). Pets follow their owner in the client.
