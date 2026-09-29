@@ -2,6 +2,8 @@ node_modules
 **/node_modules
 .git
 .data
+site/dist
+site/.astro
 app/build
 app/macos
 *.sqlite*

@@ -61,6 +61,6 @@ await made[2]!.town.createCompany(`Solo ${suffix}`);
 
 const code = await made[0]!.player.mintLoginCode();
 console.log(`Signed up ${made.map((m) => m.name).join(", ")}.`);
-console.log(`Open ${origin}/#code=${code}`);
+console.log(`Open ${origin}/play#code=${code}`);
 console.log(`Device token for ${made[0]!.name} (for the helper): ${made[0]!.token}`);
 process.exit(0);

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
 import { LOGO_DIR, LOGO_FILE } from "./brand.ts";
@@ -21,6 +22,14 @@ const web = await Bun.build({
 if (!web.success) throw new AggregateError(web.logs, "building the game failed");
 const assets = new Map(web.outputs.map((o) => [`/${basename(o.path)}`, o]));
 
+// The marketing site at `/`: static files built by Astro beforehand (`bun run site:build`; the
+// Dockerfile does it). Tests and a fresh checkout run without it.
+const SITE = join(import.meta.dir, "../../site/dist");
+if (!existsSync(SITE) && !config.development) throw new Error("build the site first: bun run site:build");
+const site = new Map<string, Bun.BunFile>();
+if (existsSync(SITE))
+  for (const path of new Bun.Glob("**/*").scanSync(SITE)) site.set(`/${path}`, Bun.file(join(SITE, path)));
+
 const { ENGINE_PORT, registry } = await import("./actors/registry.ts");
 const { pricing } = await import("./actors/shared.ts");
 
@@ -40,7 +49,7 @@ const server = Bun.serve({
   port: config.port,
   hostname: config.host,
   routes: {
-    "/": new Response(assets.get("/index.html"), { headers: { "cache-control": "no-cache" } }),
+    "/play": new Response(assets.get("/index.html"), { headers: { "cache-control": "no-cache" } }),
     "/health": () => Response.json({ ok: true, version: config.version }),
     // Company logos, copied from their websites. Sandboxed: an SVG is someone else's markup.
     "/logos/:file": async (req) => {
@@ -57,9 +66,17 @@ const server = Bun.serve({
     },
   },
   fetch(req, server) {
-    const asset = assets.get(new URL(req.url).pathname);
+    const path = new URL(req.url).pathname;
+    const asset = assets.get(path);
     if (asset)
       return new Response(asset, { headers: { "cache-control": "public, max-age=31536000, immutable" } });
+    const page = site.get(path.endsWith("/") ? `${path}index.html` : path);
+    if (page)
+      return new Response(page, {
+        headers: {
+          "cache-control": path.startsWith("/_astro/") ? "public, max-age=31536000, immutable" : "no-cache",
+        },
+      });
     return proxy.fetch(req, server);
   },
   websocket: proxy.websocket,

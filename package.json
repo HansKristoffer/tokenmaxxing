@@ -26,10 +26,11 @@
     "core",
     "server",
     "web",
+    "site",
     "app/helper"
   ],
   "scripts": {
-    "dev": "RIVETKIT_STORAGE_PATH=.data/rivet RIVET_LOG_LEVEL=error bun --watch server/src/main.ts",
+    "dev": "bun run site:build && RIVETKIT_STORAGE_PATH=.data/rivet RIVET_LOG_LEVEL=error bun --watch server/src/main.ts",
     "dev:seed": "bun server/scripts/dev-seed.ts",
     "desktop:dev": "cd app/desktop && tauri dev",
     "desktop:build": "cd app/desktop && tauri build",
@@ -39,7 +40,9 @@
     "lint": "biome ci .",
     "format": "biome check --write .",
     "check": "bun run typecheck && bun run lint && bun run test",
-    "vendor:pricing": "bun server/scripts/vendor-pricing.ts"
+    "vendor:pricing": "bun server/scripts/vendor-pricing.ts",
+    "site:dev": "bun run --cwd site dev",
+    "site:build": "bun run --cwd site build"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",

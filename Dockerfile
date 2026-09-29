@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # Server image for Railway (railway.json builds this). One process runs the web server, the
-# Rivet engine and every actor; the game is bundled by Bun at startup from web/.
+# Rivet engine and every actor; the game is bundled by Bun at startup from web/, and the
+# marketing site (site/, Astro) is built here to static files.
 # Keep in step with "packageManager" in package.json.
 ARG BUN_VERSION=1.4.2
 FROM oven/bun:${BUN_VERSION}-slim
@@ -10,6 +11,7 @@ COPY package.json bun.lock ./
 COPY core/package.json core/
 COPY server/package.json server/
 COPY web/package.json web/
+COPY site/package.json site/
 COPY app/helper/package.json app/helper/
 # --ignore-scripts: the engine and runtime ship prebuilt per platform; the one script is a native
 # better-sqlite3 build pulled in by an optional RivetKit feature we don't use.
@@ -18,6 +20,8 @@ RUN bun install --frozen-lockfile --production --ignore-scripts
 COPY core core
 COPY server server
 COPY web web
+COPY site site
+RUN bun run site:build
 
 # Mount the Railway volume at /data: the engine keeps every actor's state and SQLite there,
 # and company logos go next to it in /data/logos.

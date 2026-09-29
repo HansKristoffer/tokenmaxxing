@@ -1,0 +1,383 @@
+---
+const GITHUB = "https://github.com/HansKristoffer/tokenmaxxing";
+const DOWNLOAD = `${GITHUB}/releases/latest`;
+const AUTHOR = "https://github.com/HansKristoffer";
+
+const features = [
+  {
+    emoji: "🏘️",
+    title: "A town you walk around in",
+    text: "You're a pixel character in a shared town. Walk the square, chat with whoever is in the same room, fire off emoji, and open anyone's card to see their numbers.",
+    shot: "/shots/square.webp",
+  },
+  {
+    emoji: "💻",
+    title: "Your agents, out in the open",
+    text: "When you're away, your character is at home: at a desk typing while your agents run, asleep in bed when they don't. Peek through the windows to see who is shipping.",
+    shot: "/shots/house.webp",
+  },
+  {
+    emoji: "🏢",
+    title: "Companies that build the town",
+    text: "Start a company, or ask to join one. You pick where it builds and the town grows that way. Your house is painted in your brand's colours with your logo on it, and it grows from a cellar hatch to a mansion as your people push more tokens.",
+    shot: "/shots/company.webp",
+  },
+  {
+    emoji: "🏆",
+    title: "Leaderboards and stats",
+    text: "Tokens, cost, parallelism, peak agents and tokens per active hour, for today, the week, the month or all time. Every player and every company has a page.",
+    shot: "/shots/leaderboard.webp",
+  },
+];
+
+const games = [
+  { emoji: "🏁", name: "Tokenmaxxing", text: "Burn the most real tokens before the time runs out." },
+  { emoji: "🚢", name: "Ship, Pivot, Raise", text: "Rock-paper-scissors for founders. Best of 5." },
+  { emoji: "🎲", name: "Due Diligence", text: "Liar's Dice with your startup's metrics. Bluff, or call it." },
+  { emoji: "📈", name: "Hype Cycle", text: "The valuation climbs until it crashes. Cash out in time." },
+];
+
+const more = [
+  {
+    emoji: "🪙",
+    title: "Coins and a shop",
+    text: "Using AI earns coins, and so does a top-3 day. Spend them on clothes, glasses, hats and pets that follow you around.",
+  },
+  {
+    emoji: "⚡",
+    title: "Lives in your menu bar",
+    text: "Today's tokens next to the bolt. It syncs in the background, opens the world in its own window, and keeps itself up to date.",
+  },
+  {
+    emoji: "🔒",
+    title: "Only numbers leave your Mac",
+    text: "Token counts, model names and timestamps. Never your prompts, code or messages.",
+  },
+  {
+    emoji: "🧑‍💻",
+    title: "Open source",
+    text: "MIT licensed. Read the code, run your own town, or send a pull request.",
+  },
+];
+
+const sources = ["Claude Code", "Claude Cowork", "Codex", "Cursor", "GitHub"];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tokenmaxxing · a pixel town for people who run AI coding agents</title>
+    <meta
+      name="description"
+      content="A tiny multiplayer pixel town for people who run AI coding agents. Your tokens become a character, a house and a place on the leaderboard."
+    />
+    <meta property="og:title" content="tokenmaxxing" />
+    <meta property="og:description" content="A tiny pixel town for people who run AI coding agents" />
+    <meta property="og:image" content="https://tokenmaxxing.dk/shots/hero.webp" />
+    <meta property="og:site_name" content="tokenmaxxing" />
+    <meta name="theme-color" content="#1b1f2a" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>⚡</text></svg>"
+    />
+  </head>
+  <body>
+    <header class="nav wrap">
+      <a class="brand" href="/">⚡ tokenmaxxing</a>
+      <a class="nav-link" href={GITHUB}>GitHub ↗</a>
+    </header>
+
+    <main>
+      <section class="hero wrap">
+        <p class="kicker">A multiplayer pixel game for macOS</p>
+        <h1>A tiny town for people who run AI coding agents</h1>
+        <p class="lead">
+          Your tokens become a character, a house and a place on the leaderboard. See who is shipping, start a company,
+          and challenge your friends to burn the most tokens in an hour.
+        </p>
+        <div class="actions">
+          <a class="button primary" href={DOWNLOAD}>Download for macOS</a>
+          <a class="button" href={GITHUB}>View on GitHub</a>
+        </div>
+        <p class="brew">or <code>brew install --cask hanskristoffer/tap/tokenmaxxing</code></p>
+        <img
+          class="hero-shot"
+          src="/shots/hero.webp"
+          width="1440"
+          height="900"
+          alt="The whole town: company houses with people in the windows, the square with its fountain, and players chatting"
+        />
+      </section>
+
+      <section class="sources wrap" aria-label="Works with">
+        <span>Reads your usage from</span>
+        {sources.map((s) => <strong>{s}</strong>)}
+      </section>
+
+      <section class="features wrap">
+        {
+          features.map((f, i) => (
+            <article class:list={["feature", { flip: i % 2 === 1 }]}>
+              <div class="feature-text">
+                <span class="emoji">{f.emoji}</span>
+                <h2>{f.title}</h2>
+                <p>{f.text}</p>
+              </div>
+              <img src={f.shot} width="1440" height="900" alt={f.title} loading="lazy" />
+            </article>
+          ))
+        }
+      </section>
+
+      <section class="games wrap">
+        <h2>Games in the town square</h2>
+        <p class="lead">Challenge anyone in town to a table. Stake coins, or play for bragging rights.</p>
+        <div class="grid">
+          {
+            games.map((g) => (
+              <div class="card">
+                <span class="emoji">{g.emoji}</span>
+                <h3>{g.name}</h3>
+                <p>{g.text}</p>
+              </div>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="more wrap">
+        <div class="grid">
+          {
+            more.map((m) => (
+              <div class="card">
+                <span class="emoji">{m.emoji}</span>
+                <h3>{m.title}</h3>
+                <p>{m.text}</p>
+              </div>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="cta wrap">
+        <h2>Move into town</h2>
+        <p class="lead">Install the app, pick a name, and open the world.</p>
+        <div class="actions">
+          <a class="button primary" href={DOWNLOAD}>Download for macOS</a>
+          <a class="button" href={GITHUB}>View on GitHub</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wrap">
+      <p>Built by <a href={AUTHOR}>Hans Kristoffer</a>.</p>
+      <p><a href={GITHUB}>Source on GitHub</a> · MIT license</p>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --bg: #1b1f2a;
+    --panel: #232938;
+    --line: rgba(255, 255, 255, 0.12);
+    --text: #f4f1ea;
+    --muted: #a7adbb;
+    --accent: #ffd35c;
+    --ink: #2b2433;
+    --font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px / 1.6 var(--font);
+  }
+  a {
+    color: var(--accent);
+  }
+  img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    image-rendering: pixelated;
+  }
+  h1,
+  h2,
+  h3 {
+    line-height: 1.2;
+    margin: 0 0 12px;
+  }
+  .wrap {
+    width: min(1100px, 100% - 40px);
+    margin-inline: auto;
+  }
+  .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+  }
+  .brand {
+    color: var(--text);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .nav-link {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .nav-link:hover {
+    color: var(--text);
+  }
+  .hero {
+    padding: 48px 0 32px;
+    text-align: center;
+  }
+  .kicker {
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+  .hero h1 {
+    font-size: clamp(30px, 5vw, 52px);
+    max-width: 18em;
+    margin-inline: auto;
+  }
+  .lead {
+    color: var(--muted);
+    max-width: 44em;
+    margin: 0 auto 24px;
+  }
+  .actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .button {
+    display: inline-block;
+    padding: 12px 20px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 700;
+  }
+  .button:hover {
+    border-color: var(--accent);
+  }
+  .button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--ink);
+    box-shadow: 0 4px 0 #c79a1d;
+  }
+  .button.primary:hover {
+    transform: translateY(1px);
+    box-shadow: 0 3px 0 #c79a1d;
+  }
+  .brew {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 16px 0 40px;
+  }
+  code {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 2px 8px;
+    color: var(--text);
+  }
+  .hero-shot {
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  }
+  .sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    justify-content: center;
+    align-items: center;
+    padding: 24px 0 56px;
+    color: var(--muted);
+  }
+  .features {
+    display: grid;
+    gap: 72px;
+    padding-bottom: 72px;
+  }
+  .feature {
+    display: grid;
+    grid-template-columns: 2fr 3fr;
+    gap: 40px;
+    align-items: center;
+  }
+  .feature.flip {
+    grid-template-columns: 3fr 2fr;
+  }
+  .feature.flip .feature-text {
+    order: 2;
+  }
+  .feature p,
+  .card p {
+    color: var(--muted);
+    margin: 0;
+  }
+  .emoji {
+    display: block;
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+  .games,
+  .cta {
+    text-align: center;
+    padding-bottom: 72px;
+  }
+  .more {
+    padding-bottom: 72px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px;
+    text-align: left;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .card h3 {
+    font-size: 17px;
+  }
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 24px 0 40px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  footer p {
+    margin: 0;
+  }
+  @media (max-width: 760px) {
+    .feature,
+    .feature.flip {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .feature.flip .feature-text {
+      order: 0;
+    }
+  }
+</style>

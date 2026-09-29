@@ -32,7 +32,7 @@ pub fn open(app: &AppHandle) {
                 None
             }
         };
-        let url = url.unwrap_or_else(|| SERVER_URL.to_string());
+        let url = url.unwrap_or_else(|| format!("{SERVER_URL}/play"));
         if let Err(e) = world_window(&app, &url) {
             log::error!("could not open the world: {e}");
         }

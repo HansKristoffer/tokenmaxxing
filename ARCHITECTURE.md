@@ -7,15 +7,16 @@ town; when you're not playing, your character sleeps in its bed, or sits at its 
 ```
 Tokenmaxxing.app (Tauri v2, app/desktop)             server (one Railway service)
 ├─ menu bar: ⚡ tokens today, menu                   Bun.serve (server/src/main.ts)
-├─ sidecar: TS helper ◄─ NDJSON ─► Rust ───────────►  ├─ /               the game (web/, bundled at boot)
-│    parses logs, player.ingest()                     ├─ /logos/:file    company logos (sandboxed)
+├─ sidecar: TS helper ◄─ NDJSON ─► Rust ───────────►  ├─ /               the marketing site (site/, Astro, built in the image)
+│    parses logs, player.ingest()                     ├─ /play           the game (web/, bundled at boot)
+│                                                     ├─ /logos/:file    company logos (sandboxed)
 ├─ game window: Canvas 2D world + React HUD           ├─ /health
 │    (the live page, over WebSocket) ◄─────────────►  └─ /api/rivet/*    proxy to the Rivet engine (gateway only)
 └─ Keychain, login item, updater                      Rivet engine on 127.0.0.1, actors in this process,
                                                       storage on the /data volume
 ```
 
-The game also runs in any browser; the app's window is that same page.
+The game also runs in any browser; the app's window is that same page, at `/play`.
 
 | Path | What |
 |---|---|
@@ -26,6 +27,7 @@ The game also runs in any browser; the app's window is that same page.
 | `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels) |
 | `app/helper/` | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar |
 | `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, onboarding, updates |
+| `site/` | The marketing site at `/` (Astro, static): `bun run site:dev` to work on it, `bun run site:build` before serving it |
 
 ## Serving
 

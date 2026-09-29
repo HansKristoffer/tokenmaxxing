@@ -93,7 +93,7 @@ export class Helper {
         return;
       case "openWorld": {
         const code = await this.call(() => this.player().mintLoginCode());
-        return { url: `${this.serverUrl}/#code=${encodeURIComponent(code)}` };
+        return { url: `${this.serverUrl}/play#code=${encodeURIComponent(code)}` };
       }
     }
   }

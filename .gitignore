@@ -15,3 +15,4 @@ build/
 .data/
 app/desktop/src-tauri/target/
 app/desktop/src-tauri/gen/
+site/.astro/

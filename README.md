@@ -73,8 +73,9 @@ data is sent anywhere for this.
 ```
 Tokenmaxxing.app (Tauri, Rust)                     server (Railway, one process)
 ├─ menu bar: ⚡ 306M, its menu                      Bun.serve
-├─ game window ── loads the live game ──────────►  ├─ /             the game (bundled at boot)
-├─ Keychain, login item, updater                   ├─ /logos/:file  company logos
+├─ game window ── loads the live game ──────────►  ├─ /             the marketing site (Astro)
+├─ Keychain, login item, updater                   ├─ /play         the game (bundled at boot)
+│                                                  ├─ /logos/:file  company logos
 └─ sidecar: TS helper ◄─ NDJSON                    ├─ /api/rivet/*  proxy to the Rivet engine's gateway ◄── game
      parses local logs, player.ingest() ────────►  └─ Rivet actors: town, world, player[userId],
                                                       arcade, match[id]
@@ -110,7 +111,8 @@ Requires Bun 1.4+, Rust (stable) and Xcode's command line tools (macOS 14+).
 
 ```bash
 bun install --ignore-scripts
-bun run dev                            # http://localhost:8787 (data in ./.data/rivet); restart to see web edits
+bun run dev                            # http://localhost:8787 (the site; the game is at /play; data in ./.data/rivet); restart to see web edits
+bun run site:dev                       # the marketing site alone, with hot reload
 bun run dev:seed                       # a few people, two companies, and a link that signs you in
 bun run desktop:dev                    # the desktop app against localhost:8787
 bun run check                          # typecheck + lint + tests (tests start their own server)
