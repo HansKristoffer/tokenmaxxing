@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.1.0...v1.2.0) (2026-09-29)
+
+
+### Features
+
+* **coffee:** add stackable coffee and avatar shaking ([c247e82](https://github.com/HansKristoffer/tokenmaxxing/commit/c247e82bd7e6e1ad134b574d87f238866de7025b))
+* **coffee:** add stackable coffee and avatar shaking ([6183610](https://github.com/HansKristoffer/tokenmaxxing/commit/6183610f878b1cf0cc2b272559d01354e4009bb4))
+* **coins:** count earnings from signup day ([3f2f186](https://github.com/HansKristoffer/tokenmaxxing/commit/3f2f18608f49ad639d325412df8de8cae0397401))
+* **coins:** count earnings from signup day ([06f2d04](https://github.com/HansKristoffer/tokenmaxxing/commit/06f2d04d3adedb64f585bb8a2a8e8c4cdb18dd33))
+* **desktop:** open game links in the system browser ([7823cda](https://github.com/HansKristoffer/tokenmaxxing/commit/7823cda659a18960ad498b825150b54edbb846b6))
+* **web:** add match chat, jumping, and sharper company logos ([7c6d13c](https://github.com/HansKristoffer/tokenmaxxing/commit/7c6d13c4e8e11087f69fb9e7dba88643fecf85cf))
+* **web:** add match chat, jumping, and sharper logos ([a7d0e43](https://github.com/HansKristoffer/tokenmaxxing/commit/a7d0e4326499163bc2c732d8e695c398b53534a3))
+* **world:** keep idle players present in town ([51e8026](https://github.com/HansKristoffer/tokenmaxxing/commit/51e8026509e1e1bef54b01e2b9aac7e37b421be5))
+* **world:** keep idle players present in town ([23a8681](https://github.com/HansKristoffer/tokenmaxxing/commit/23a86810c6861e4b54e73944c95597b7a692428d))
+
+
+### Bug Fixes
+
+* **web:** keep the desktop link handler type-safe ([f56e0cf](https://github.com/HansKristoffer/tokenmaxxing/commit/f56e0cf7d76a0d4831a297bd3214bd2784f80039))
+
 ## [1.1.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.0.2...v1.1.0) (2026-09-29)
 
 
