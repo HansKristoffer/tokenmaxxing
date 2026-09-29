@@ -7,6 +7,7 @@ import { C } from "../art/palette.ts";
 import { PET_H, petFrame } from "../art/pets.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { camera, zoomScale } from "./camera.ts";
+import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, logoSprite, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign } from "./labels.ts";
 import { followPet, prunePets } from "./pets.ts";
@@ -102,6 +103,8 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     labels.push(() => sign(g, sx, sy - 6 * dpr, text, dpr, company !== null && company !== undefined));
     if (inside.length) labels.push(() => chips(g, sx, sy + 4 * dpr, inside, dpr));
   }
+
+  drawGames(g, items, labels, toScreen, now, dpr);
 
   const dt = Math.min(100, now - lastFrame);
   lastFrame = now;

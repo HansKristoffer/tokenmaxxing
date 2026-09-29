@@ -147,8 +147,7 @@ export const arcade = actor({
         };
         await seat(c, table, userId, table.stake);
         c.state.tables[id] = table;
-        const invite = Array.isArray(o.invite) ? o.invite.filter(Number.isInteger) : [];
-        await addInvites(c, table, invite as number[]);
+        await addInvites(c, table, await resolve(c, o.invite));
         push(c);
         return lobbyFor(c.state, userId);
       }),
@@ -159,11 +158,7 @@ export const arcade = actor({
         const table = hostedTable(c.state, userId, tableId);
         if (!c.vars.invites.take(String(userId), Date.now()))
           throw new UserError("That's a lot of invites. Give it a minute.", { code: "rate_limited" });
-        await addInvites(
-          c,
-          table,
-          Array.isArray(userIds) ? (userIds.filter(Number.isInteger) as number[]) : [],
-        );
+        await addInvites(c, table, await resolve(c, userIds));
         push(c);
       }),
 
@@ -402,6 +397,16 @@ async function learnNames(c: ArcadeCtx, userIds: number[]): Promise<void> {
   if (missing.length === 0) return;
   const names = await c.client().town.getOrCreate(["main"], internal).names(missing);
   for (const [id, name] of Object.entries(names)) c.state.names[id] = name;
+}
+
+/** People to invite, given as user ids or names. */
+async function resolve(c: ArcadeCtx, raw: unknown): Promise<number[]> {
+  const list = Array.isArray(raw) ? raw.slice(0, 12) : [];
+  const ids = list.filter((x): x is number => Number.isInteger(x));
+  const names = list.filter((x): x is string => typeof x === "string");
+  if (names.length === 0) return ids;
+  const found = await c.client().town.getOrCreate(["main"], internal).ids(names);
+  return [...ids, ...Object.values(found)];
 }
 
 /** Holds the stake and gives them a seat. */

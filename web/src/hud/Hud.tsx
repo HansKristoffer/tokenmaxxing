@@ -2,10 +2,12 @@ import { compact } from "@tokenmaxxing/core/format.ts";
 import { useEffect, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { hud, useHud } from "../store.ts";
+import { ArcadePanel, InviteToast, NewTable } from "./Arcade.tsx";
 import { Chat } from "./Chat.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LookPicker } from "./LookPicker.tsx";
+import { MatchPanel } from "./Match.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { PlayerCard } from "./PlayerCard.tsx";
@@ -29,6 +31,7 @@ export function Hud() {
       {status === "offline" && <div className="toast">Reconnecting…</div>}
       <MentionToast />
       <NoticeToast />
+      <InviteToast />
       <FirstVisit />
     </>
   );
@@ -88,6 +91,7 @@ function Stats() {
           🪙 <strong>{wallet.balance.toLocaleString()}</strong>
         </button>
       )}
+      <ArcadeButton />
       <button
         type="button"
         className="icon"
@@ -145,6 +149,12 @@ function Panel() {
       return <LookPicker />;
     case "shop":
       return <Shop />;
+    case "arcade":
+      return <ArcadePanel />;
+    case "newTable":
+      return <NewTable invite={panel.invite} />;
+    case "match":
+      return <MatchPanel id={panel.id} />;
     case "menu":
       return (
         <Modal title="Menu">
@@ -154,6 +164,9 @@ function Panel() {
             </button>
             <button type="button" onClick={() => hud.set({ panel: { kind: "shop" } })}>
               🪙 Shop
+            </button>
+            <button type="button" onClick={() => hud.set({ panel: { kind: "arcade" } })}>
+              🎮 Arcade
             </button>
             <button type="button" onClick={() => hud.set({ panel: { kind: "company" } })}>
               🏢 Company
@@ -244,3 +257,27 @@ function MentionToast() {
 }
 
 const MENTION_MS = 8000;
+
+/** 🎮, with how many tables are waiting for players (or ▶ when you're in a game). */
+function ArcadeButton() {
+  const lobby = useHud((s) => s.lobby);
+  const me = useHud((s) => s.me?.userId);
+  const open = lobby?.tables.filter((t) => t.open && !t.seated.some((p) => p.userId === me)).length ?? 0;
+  const invited = lobby?.tables.some((t) => t.invited.some((i) => i.userId === me)) ?? false;
+  const playing = lobby?.matches.some((m) => m.id === lobby.me.match && !m.outcome) ?? false;
+  return (
+    <button
+      type="button"
+      className="icon"
+      title="Arcade: play for coins"
+      onClick={() => hud.set({ panel: { kind: "arcade" } })}
+    >
+      🎮
+      {playing ? (
+        <span className="count">▶</span>
+      ) : (
+        (invited || open > 0) && <span className="count">{invited ? "!" : open}</span>
+      )}
+    </button>
+  );
+}

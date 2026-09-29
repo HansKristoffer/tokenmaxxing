@@ -152,6 +152,11 @@ export const spr: GameDef<SprState, SprView> = {
     ];
   },
 
+  headline(s) {
+    const w = winsOf(s);
+    return `Round ${s.rounds.length + 1} · ${w[s.players[0]]}–${w[s.players[1]]}`;
+  },
+
   status(s, player) {
     return `${"★".repeat(winsOf(s)[player] ?? 0)}${s.picks[player] ? " ✓" : ""}`.trim() || null;
   },

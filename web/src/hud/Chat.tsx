@@ -103,13 +103,17 @@ export function Chat() {
           {chat.length === 0 && <li className="muted">No messages yet. Say hi!</li>}
           {chat.map((l: ChatLine) => (
             <li key={l.id} className={me && mentionsIn(l.text).includes(me.name) ? "mentions-me" : ""}>
-              <button
-                type="button"
-                className={`author${l.userId === me?.userId ? " me" : ""}`}
-                onClick={() => hud.set({ panel: { kind: "card", userId: l.userId } })}
-              >
-                {l.name}
-              </button>
+              {l.userId === 0 ? (
+                <span className="author">{l.name}</span>
+              ) : (
+                <button
+                  type="button"
+                  className={`author${l.userId === me?.userId ? " me" : ""}`}
+                  onClick={() => hud.set({ panel: { kind: "card", userId: l.userId } })}
+                >
+                  {l.name}
+                </button>
+              )}
               <Text text={l.text} me={me?.name} />
             </li>
           ))}

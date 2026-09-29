@@ -1,3 +1,4 @@
+import type { Frame, Lobby } from "@tokenmaxxing/core/games/wire.ts";
 import type { ChatLine, CompanyInfo, RoomId } from "@tokenmaxxing/core/world.ts";
 import type { Me, MenuBar, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
@@ -8,6 +9,9 @@ export type Panel =
   | { kind: "company" }
   | { kind: "look" }
   | { kind: "shop" }
+  | { kind: "arcade" }
+  | { kind: "newTable"; invite?: number }
+  | { kind: "match"; id: number }
   | { kind: "menu" };
 
 /** Everything the React HUD shows. The canvas world keeps its own state in `game/world.ts`. */
@@ -31,6 +35,14 @@ export interface HudState {
   chatFocus: number;
   /** A line from the server for me: someone asked to join my company, or I got in. */
   notice: { text: string; at: number } | null;
+  /** Tables, games and where I am in them, live from the arcade. */
+  lobby: Lobby | null;
+  /** The open match panel's latest frame. */
+  frame: Frame | null;
+  /** How far my clock is ahead of the server's, for countdowns. */
+  clockSkew: number;
+  /** An invite that just came in, shown as a toast. */
+  invite: { tableId: number; at: number } | null;
   /** The last time someone @-mentioned me from another room. */
   mention: { line: ChatLine; at: number } | null;
 }
@@ -51,6 +63,10 @@ let state: HudState = {
   chatFocus: 0,
   mention: null,
   notice: null,
+  lobby: null,
+  frame: null,
+  clockSkew: 0,
+  invite: null,
 };
 const listeners = new Set<() => void>();
 

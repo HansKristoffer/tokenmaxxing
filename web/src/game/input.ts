@@ -12,6 +12,7 @@ import {
 import { conn } from "../net.ts";
 import { hud } from "../store.ts";
 import { camera, zoom } from "./camera.ts";
+import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits } from "./labels.ts";
 import { avatarAt, beginStep, self, stepping, world } from "./world.ts";
@@ -117,6 +118,8 @@ export function bindInput(canvas: HTMLCanvasElement): void {
     const gy = sy / camera.scale + camera.y;
     const inside = (h: { x: number; y: number; w: number; h: number }, px: number, py: number) =>
       px >= h.x && px < h.x + h.w && py >= h.y && py < h.y + h.h;
+    const hit = gameHits.find((h) => inside(h, sx, sy));
+    if (hit) return void hit.open();
     const peeked = chipHits.find((h) => inside(h, sx, sy)) ?? peekHits.find((h) => inside(h, gx, gy));
     if (peeked) return void hud.set({ panel: { kind: "card", userId: peeked.id } });
     const x = Math.floor(gx / TILE);
@@ -163,6 +166,12 @@ function send(result: Promise<StepResult>): void {
 export function updateSelf(now: number): void {
   const me = self();
   if (!me || world.portalPending || stepping(me, now)) return;
+  // At a game table: stay put until the game is over.
+  if (me.state === "playing") {
+    tapped = null;
+    path = [];
+    return;
+  }
   const dir = held.at(-1) ?? tapped ?? path.shift();
   tapped = null;
   if (!dir) {

@@ -4,6 +4,7 @@ import type { Profile } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
 import { world } from "../game/world.ts";
 import { errorText, town } from "../net.ts";
+import { hud } from "../store.ts";
 import { AvatarImage, Modal, Pills } from "./ui.tsx";
 
 const RANGES = [
@@ -54,6 +55,11 @@ export function PlayerCard({ userId }: { userId: number }) {
           <p className="muted">{p.company ? `🏢 ${p.company.name}` : "Freelancer"}</p>
           {status && <p>{status}</p>}
           <p className="muted">{compact(p.lifetimeTokens)} tokens all time</p>
+          {userId !== world.selfId && (
+            <button type="button" onClick={() => hud.set({ panel: { kind: "newTable", invite: userId } })}>
+              🎮 Invite to a game
+            </button>
+          )}
         </div>
       </div>
       <Pills value={range} options={RANGES} onChange={setRange} />

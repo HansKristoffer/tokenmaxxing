@@ -14,6 +14,7 @@ import {
   RUN_STEP_MS,
   type Snapshot,
   WALK_STEP_MS,
+  type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
 import { bakeGround } from "../art/tiles.ts";
 import { hud } from "../store.ts";
@@ -51,6 +52,10 @@ export const world = {
   houses: {} as Houses,
   /** Waiting for the server to move us through a door. */
   portalPending: false,
+  /** Games on show in town: their tables or arenas, players and status. */
+  games: new Map<number, WorldGame>(),
+  /** A line said at a game's table itself ("🤝 Draw"), shown over the table briefly. */
+  tableBubbles: new Map<number, { text: string; until: number }>(),
 };
 
 const grounds = new Map<GameMap, HTMLCanvasElement>();
@@ -91,6 +96,7 @@ export function loadSnapshot(s: Snapshot): void {
   world.portalPending = false;
   setCompanies(s.companies);
   world.houses = s.houses;
+  world.games = new Map(s.games.map((g) => [g.id, g]));
   hud.set({
     room: s.room,
     occupancy: s.occupancy,
@@ -194,3 +200,37 @@ export function advanceRemotes(now: number): void {
 
 export const avatarAt = (x: number, y: number): Avatar | undefined =>
   [...world.avatars.values()].find((a) => a.x === x && a.y === y && a.info.id !== world.selfId);
+
+// MARK: Games
+
+export function applyGame(g: WorldGame): void {
+  world.games.set(g.id, g);
+}
+
+/** A game ended: its table goes, and coins burst around the winners. */
+export function applyGameOver(id: number, winners: number[]): void {
+  world.games.delete(id);
+  world.tableBubbles.delete(id);
+  for (const w of winners) {
+    const a = world.avatars.get(w);
+    if (a) a.burst = { emojis: ["🪙"], at: performance.now() };
+  }
+}
+
+/** Something said in a game: over the player who said it, or over the table. */
+export function applyCallout(e: { id: number; userId: number | null; text: string }): void {
+  const until = performance.now() + BUBBLE_MS;
+  const a = e.userId === null ? undefined : world.avatars.get(e.userId);
+  if (a) a.bubble = { text: e.text, until };
+  else world.tableBubbles.set(e.id, { text: e.text, until });
+}
+
+/** "🎮 ★★ ✓" over someone at a game table, "🏁 2nd · 412M" for someone in a battle. */
+export function gameTag(userId: number): string | null {
+  for (const g of world.games.values()) {
+    if (!g.players.includes(userId)) continue;
+    const status = g.status[userId];
+    return `${g.spot.kind === "arena" ? "🏁" : "🎮"}${status ? ` ${status}` : ""}`;
+  }
+  return null;
+}

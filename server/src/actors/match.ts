@@ -240,11 +240,16 @@ async function reportStatus(c: MatchCtx): Promise<void> {
   const status = Object.fromEntries(
     c.state.players.map((p) => [p.userId, def.status?.(c.state.state, p.userId, now) ?? null]),
   );
-  const board = def.board?.(c.state.state, now) ?? null;
   await c
     .client()
     .world.getOrCreate(["main"], internal)
-    .gameStatus(c.state.id, status, board, watchersOf(c))
+    .gameStatus(c.state.id, {
+      status,
+      board: def.board?.(c.state.state, now) ?? null,
+      watchers: watchersOf(c),
+      headline: def.headline?.(c.state.state, now) ?? null,
+      endsAt: def.endsAt?.(c.state.state) ?? null,
+    })
     .catch(() => {});
 }
 

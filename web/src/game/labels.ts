@@ -1,7 +1,7 @@
 import type { Peek } from "@tokenmaxxing/core/world.ts";
 import { C } from "../art/palette.ts";
 import { BURST_MS } from "./emoji.ts";
-import type { Avatar } from "./world.ts";
+import { type Avatar, gameTag } from "./world.ts";
 
 /** Name chips under house signs this frame, in canvas (device) pixels. */
 export const chipHits: { x: number; y: number; w: number; h: number; id: number }[] = [];
@@ -38,7 +38,7 @@ export function chips(g: CanvasRenderingContext2D, cx: number, y: number, people
   }
 }
 
-const FONT = "ui-monospace, SFMono-Regular, Menlo, monospace";
+export const FONT = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 export function pill(
   g: CanvasRenderingContext2D,
@@ -109,6 +109,8 @@ export function avatarLabels(
       pill(g, cx, y, `💻 ×${Math.max(1, a.info.liveAgents)}`, dpr, "rgba(143, 227, 255, 0.95)", C.ink) +
       2 * dpr;
   }
+  const inGame = gameTag(a.info.id);
+  if (inGame) y -= pill(g, cx, y, inGame, dpr, "rgba(233, 183, 61, 0.95)", C.ink) + 2 * dpr;
   if (a.bubble && now < a.bubble.until && !resting)
     bubble(g, cx, y, a.bubble.text, dpr, a.bubble.until - now);
   if (a.burst && now - a.burst.at < BURST_MS) burst(g, cx, top, a.burst.emojis, now - a.burst.at, dpr);

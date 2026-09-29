@@ -1,3 +1,4 @@
+import type { Frame, Lobby } from "@tokenmaxxing/core/games/wire.ts";
 import type {
   ChatLine,
   CompanyInfo,
@@ -6,10 +7,21 @@ import type {
   PlayerInfo,
   RoomId,
   Snapshot,
+  WorldGame,
 } from "@tokenmaxxing/core/world.ts";
 import type { registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
-import { applyChat, applyInfo, applyMoves, loadSnapshot, setCompanies, world } from "./game/world.ts";
+import {
+  applyCallout,
+  applyChat,
+  applyGame,
+  applyGameOver,
+  applyInfo,
+  applyMoves,
+  loadSnapshot,
+  setCompanies,
+  world,
+} from "./game/world.ts";
 import { hud } from "./store.ts";
 
 const TOKEN_KEY = "tokenmaxxing.session";
@@ -20,9 +32,15 @@ const client = createClient<typeof registry>({ endpoint: `${location.origin}/api
 
 type Town = ReturnType<ReturnType<typeof client.town.getOrCreate>["connect"]>;
 type WorldConn = ReturnType<ReturnType<typeof client.world.getOrCreate>["connect"]>;
+type ArcadeConn = ReturnType<ReturnType<typeof client.arcade.getOrCreate>["connect"]>;
+type MatchConn = ReturnType<ReturnType<typeof client.match.get>["connect"]>;
 
 export let town: Town;
 export let conn: WorldConn;
+export let arcade: ArcadeConn;
+/** The match you're playing or watching, if its panel is open. */
+export let matchConn: MatchConn | null = null;
+let session = "";
 
 /**
  * The menu bar app opens `/#code=<userId>.<code>`: trade it for a browser
@@ -58,7 +76,11 @@ function signedOut(): void {
 }
 
 export function connect(token: string): void {
+  session = token;
   town = client.town.getOrCreate(["main"], { params: { token } }).connect();
+  arcade = client.arcade.getOrCreate(["main"], { params: { token } }).connect();
+  arcade.on("lobby", (lobby: Lobby) => applyLobby(lobby));
+  arcade.onOpen(async () => applyLobby(await arcade.lobby()));
   town.onError((err) => {
     if (isUnauthorized(err)) signedOut();
   });
@@ -81,6 +103,9 @@ export function connect(token: string): void {
     void refreshMe();
   });
   conn.on("mention", (line: ChatLine) => hud.set({ mention: { line, at: Date.now() } }));
+  conn.on("game", (g: WorldGame) => applyGame(g));
+  conn.on("gameOver", (e: { id: number; winners: number[] }) => applyGameOver(e.id, e.winners));
+  conn.on("callout", (e: { id: number; userId: number | null; text: string }) => applyCallout(e));
   conn.onError((err) => {
     if (isUnauthorized(err)) signedOut();
   });
@@ -122,6 +147,53 @@ export async function refreshStats(): Promise<void> {
   }, 5000);
   const [m, wallet] = await Promise.all([town.menuBar(), town.wallet()]);
   hud.set({ stats: m.me, board: m.top, wallet });
+}
+
+// MARK: Games
+
+/**
+ * A new lobby. Two things happen on their own: a new invite for me shows a toast, and a
+ * game I've just started playing opens its panel.
+ */
+function applyLobby(lobby: Lobby): void {
+  const before = hud.get().lobby;
+  const me = hud.get().me?.userId;
+  const invite = lobby.tables.find(
+    (t) =>
+      t.invited.some((i) => i.userId === me) &&
+      !before?.tables.some((b) => b.id === t.id && b.invited.some((i) => i.userId === me)),
+  );
+  hud.set({ lobby, ...(invite ? { invite: { tableId: invite.id, at: Date.now() } } : {}) });
+  const playing = lobby.me.match;
+  if (playing !== null && playing !== before?.me.match) {
+    const m = lobby.matches.find((x) => x.id === playing);
+    if (m && !m.outcome) openMatch(playing);
+  }
+}
+
+/** Opens a match's panel: yours to play, or someone else's to watch. */
+export function openMatch(id: number): void {
+  if (hud.get().frame?.info.id !== id || !matchConn) {
+    matchConn?.dispose();
+    hud.set({ frame: null });
+    const c = client.match.get([String(id)], { params: { token: session } }).connect();
+    c.on("frame", (frame: Frame) => {
+      if (frame.info.id === id) hud.set({ frame, clockSkew: Date.now() - frame.now });
+    });
+    c.onOpen(async () => {
+      const frame = await c.frame();
+      hud.set({ frame, clockSkew: Date.now() - frame.now });
+    });
+    matchConn = c;
+  }
+  hud.set({ panel: { kind: "match", id } });
+}
+
+/** Closing the panel stops watching (a game you play keeps going, and reopens from the 🎮 button). */
+export function closeMatch(): void {
+  matchConn?.dispose();
+  matchConn = null;
+  hud.set({ frame: null });
 }
 
 /** A readable message from a failed call. */

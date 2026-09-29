@@ -429,6 +429,17 @@ export const town = actor({
       await c.vars.serial(() => refund(c.db, ref, Date.now(), userIds));
     },
 
+    /** User ids for names (inviting people to a game by name). */
+    ids: async (c, names: string[]): Promise<Record<string, number>> => {
+      requireInternal(c.conn.state);
+      const rows = await all<{ id: number; name: string }>(
+        c.db,
+        "SELECT id, name FROM users WHERE name IN (SELECT value FROM json_each(?))",
+        JSON.stringify(names.map((n) => String(n).toLowerCase())),
+      );
+      return Object.fromEntries(rows.map((r) => [r.name, r.id]));
+    },
+
     /** Names for user ids (tables and matches show who's playing). */
     names: async (c, userIds: number[]): Promise<Record<number, string>> => {
       requireInternal(c.conn.state);

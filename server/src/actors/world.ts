@@ -6,7 +6,7 @@ import {
   seatsFor,
   spotSize,
 } from "@tokenmaxxing/core/games/gather.ts";
-import type { BoardRow, GameId } from "@tokenmaxxing/core/games/types.ts";
+import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import { TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import {
   CHAT_HISTORY,
@@ -14,6 +14,7 @@ import {
   type CompanyInfo,
   companyOfRoom,
   DIRS,
+  type GameStatus,
   type Houses,
   homeRoom,
   IDLE_MS,
@@ -310,7 +311,18 @@ export const world = actor({
       if (!at) return;
       const spot: Spot = { ...at, w, h, kind };
       const seats = seatsFor(spot, players.length);
-      games[id] = { id, game, spot, players, seats, status: {}, board: null, watchers: 0 };
+      games[id] = {
+        id,
+        game,
+        spot,
+        players,
+        seats,
+        status: {},
+        board: null,
+        watchers: 0,
+        headline: null,
+        endsAt: null,
+      };
       for (const [i, userId] of players.entries()) {
         const p = c.state.players[userId];
         if (!p) continue;
@@ -362,17 +374,11 @@ export const world = actor({
     },
 
     /** The live status over each player's head, the scoreboard, and how many are watching. */
-    gameStatus: (
-      c,
-      id: number,
-      status: Record<number, string | null>,
-      board: BoardRow[] | null,
-      watchers: number,
-    ): void => {
+    gameStatus: (c, id: number, update: GameStatus): void => {
       requireInternal(c.conn.state);
       const g = c.state.games?.[id];
       if (!g) return;
-      Object.assign(g, { status, board, watchers });
+      Object.assign(g, update);
       sendToRoom(c, "town", "game", g);
     },
 

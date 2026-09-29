@@ -65,6 +65,10 @@ export interface GameDef<State = unknown, View = unknown> {
   status?(state: State, player: number, now: number): string | null;
   /** A live scoreboard over the players in the world, best first. Games without one show a banner. */
   board?(state: State, now: number): BoardRow[];
+  /** How it's going, in a few words, for the banner over the table ("Round 3 · 2–1"). */
+  headline?(state: State, now: number): string;
+  /** When it ends, for a countdown on the banner (long games). */
+  endsAt?(state: State): number | null;
 }
 
 export const refused = (why: string) => ({ refused: why });

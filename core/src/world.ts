@@ -192,7 +192,14 @@ export interface WorldGame {
   /** The live scoreboard, for games that have one (Tokenmaxxing). */
   board: BoardRow[] | null;
   watchers: number;
+  /** How it's going ("Round 3 · 2–1"). */
+  headline: string | null;
+  /** When it ends, for a countdown. */
+  endsAt: number | null;
 }
+
+/** What a match tells the world about itself, after every change. */
+export type GameStatus = Pick<WorldGame, "status" | "board" | "watchers" | "headline" | "endsAt">;
 
 /** One tick's changes in a room. */
 export interface Moves {
