@@ -54,3 +54,19 @@ export interface SyncState {
   /** Newest PR `createdAt` fetched from GitHub, and when we last asked. */
   github?: { since: string | null; checkedAt?: number };
 }
+
+/** An event with only what's given: no tokens, no agent, request or model unless set. */
+export const tokenEvent = (
+  e: Pick<TokenEvent, "source" | "sessionId" | "messageId" | "timestamp" | "messageType"> &
+    Partial<TokenEvent>,
+): TokenEvent => ({
+  agentId: null,
+  requestId: null,
+  model: "",
+  inputTokens: 0,
+  outputTokens: 0,
+  cacheCreationTokens: 0,
+  cacheReadTokens: 0,
+  reasoningTokens: null,
+  ...e,
+});

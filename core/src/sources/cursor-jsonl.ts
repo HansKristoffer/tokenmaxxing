@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { basename, dirname } from "node:path";
-import type { MessageType, TokenEvent } from "../types.ts";
+import { type MessageType, type TokenEvent, tokenEvent } from "../types.ts";
 import { CURSOR_LOCAL_FALLBACK_MODEL } from "./cursor-local.ts";
+import { isString } from "./guards.ts";
 import { readNewlineLines } from "./read-slice.ts";
 
 export interface ParseCursorTranscriptOptions {
@@ -16,7 +17,6 @@ export interface ParseCursorTranscriptOptions {
 export interface ParseCursorTranscriptResult {
   events: TokenEvent[];
   newOffset: number;
-  seenDedupKeys: string[];
   /** Next absolute line index after this parse (persist in FileState). */
   nextLineIndex: number;
   oversizeSkipped?: number;
@@ -32,10 +32,6 @@ interface TranscriptLine {
   message?: {
     content?: TranscriptContentPart[];
   };
-}
-
-function isString(v: unknown): v is string {
-  return typeof v === "string" && v.length > 0;
 }
 
 function messageTypeForRole(role: unknown): MessageType | null {
@@ -82,14 +78,13 @@ export async function parseCursorTranscriptFile(
   const totalSize = file.size;
   if (byteOffset >= totalSize) {
     const lineIndex = opts.startingLineIndex ?? 0;
-    return { events: [], newOffset: totalSize, seenDedupKeys: [], nextLineIndex: lineIndex };
+    return { events: [], newOffset: totalSize, nextLineIndex: lineIndex };
   }
 
   const sessionId = sessionIdFromPath(path);
   const timestamp = Math.round(fileMtimeMs > 0 ? fileMtimeMs : Date.now());
 
   const events: TokenEvent[] = [];
-  const seenDedupKeys: string[] = [];
   const localSeen = new Set<string>();
   let newOffset = byteOffset;
   let oversizeSkipped = 0;
@@ -127,28 +122,23 @@ export async function parseCursorTranscriptFile(
       continue;
     }
 
-    events.push({
-      source: "cursor_local",
-      sessionId,
-      agentId: null,
-      messageId,
-      requestId: null,
-      timestamp,
-      model: messageType === "assistant" ? CURSOR_LOCAL_FALLBACK_MODEL : "",
-      messageType,
-      inputTokens,
-      outputTokens,
-      cacheCreationTokens: 0,
-      cacheReadTokens: 0,
-      reasoningTokens: null,
-    });
-    seenDedupKeys.push(dedupKey);
+    events.push(
+      tokenEvent({
+        source: "cursor_local",
+        sessionId,
+        messageId,
+        timestamp,
+        model: messageType === "assistant" ? CURSOR_LOCAL_FALLBACK_MODEL : "",
+        messageType,
+        inputTokens,
+        outputTokens,
+      }),
+    );
   }
 
   return {
     events,
     newOffset,
-    seenDedupKeys,
     nextLineIndex: lineIndex,
     ...(oversizeSkipped > 0 ? { oversizeSkipped } : {}),
   };

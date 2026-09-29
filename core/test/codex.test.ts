@@ -741,9 +741,8 @@ describe("byte-0 model look-ahead", () => {
   });
 
   it("gives up cleanly when the look-ahead is disabled", async () => {
-    // The peek is the only thing labelling this prefix (test 1 above is the
-    // pre-v0.6.5 regression guard — it fails against the v0.6.4 parser).
-    // Turning it off must fall back rather than misbehave.
+    // The peek is the only thing labelling this prefix; turning it off must
+    // fall back rather than misbehave.
     const path = await makeTempJsonl("rollout-lookahead-prefix.jsonl", [
       JSON.stringify(
         tokenCountEvent(
@@ -1030,7 +1029,7 @@ describe("cumulative cache-write on the totals path", () => {
     expect(r2.sessionTotals.cacheWriteInputTokens).toBe(90);
   });
 
-  it("treats a pre-v0.6.5 state file with no cache-write field as 0", async () => {
+  it("treats saved totals with no cache-write field as 0", async () => {
     const path = await makeTempJsonl("rollout-cw-legacy-state.jsonl", [
       JSON.stringify(turnContextLine("gpt-5.5")),
       JSON.stringify(
@@ -1043,7 +1042,7 @@ describe("cumulative cache-write on the totals path", () => {
         }),
       ),
     ]);
-    // Exactly what an older daemon persisted: no cacheWriteInputTokens key.
+    // Saved totals without a cacheWriteInputTokens key.
     const legacy = {
       sessionId: "rollout-cw-legacy-state",
       inputTokens: 100,

@@ -58,9 +58,9 @@ describe("parseCursorTranscriptFile", () => {
     expect(r.events[1]!.inputTokens).toBe(0);
     expect(r.events[1]!.outputTokens).toBe(Math.ceil(32 / 4));
     expect(r.nextLineIndex).toBe(2);
-    expect(r.seenDedupKeys).toEqual([
-      `${stableTranscriptMessageId(path, 1)}:`,
-      `${stableTranscriptMessageId(path, 2)}:`,
+    expect(r.events.map((e) => e.messageId)).toEqual([
+      stableTranscriptMessageId(path, 1),
+      stableTranscriptMessageId(path, 2),
     ]);
   });
 

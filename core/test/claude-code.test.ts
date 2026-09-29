@@ -70,7 +70,7 @@ describe("parseClaudeCodeFile (synthetic)", () => {
     expect(r.events[0]!.requestId).toBe("req-1");
     expect(r.events[0]!.sessionId).toBe("sess-abc");
     expect(r.events[0]!.messageId).toBe("msg-001");
-    expect(r.seenDedupKeys).toEqual(["msg-001:req-1", "msg-002:req-2"]);
+    expect(r.events.map((e) => `${e.messageId}:${e.requestId}`)).toEqual(["msg-001:req-1", "msg-002:req-2"]);
   });
 
   it("stamps a custom source (claude_cowork) on every event when asked", async () => {
@@ -208,7 +208,8 @@ describe("parseClaudeCodeFile (synthetic)", () => {
     expect(asstEv!.inputTokens).toBe(10);
     expect(asstEv!.outputTokens).toBe(20);
 
-    expect(new Set(r.seenDedupKeys).size).toBe(r.seenDedupKeys.length);
+    const ids = r.events.map((e) => `${e.messageId}:${e.requestId}`);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("skips user lines that lack a uuid", async () => {
@@ -323,9 +324,9 @@ describe("parseClaudeCodeFile (real local data)", () => {
         expect(ev.inputTokens + ev.outputTokens + ev.cacheCreationTokens + ev.cacheReadTokens).toBe(0);
       }
     }
-    // Dedup keys should be unique within the file.
-    const keys = new Set(r.seenDedupKeys);
-    expect(keys.size).toBe(r.seenDedupKeys.length);
+    // Every event is unique within the file.
+    const keys = r.events.map((e) => `${e.messageId}:${e.requestId}:${e.messageType}`);
+    expect(new Set(keys).size).toBe(keys.length);
     // Offset should advance.
     expect(r.newOffset).toBeGreaterThan(0);
     const nUser = r.events.filter((e) => e.messageType === "user").length;

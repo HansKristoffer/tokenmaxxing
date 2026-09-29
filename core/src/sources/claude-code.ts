@@ -1,5 +1,6 @@
 import { basename } from "node:path";
-import type { Source, TokenEvent } from "../types.ts";
+import { type Source, type TokenEvent, tokenEvent } from "../types.ts";
+import { isNum, isString } from "./guards.ts";
 import { readNewlineLines } from "./read-slice.ts";
 
 export interface ParseClaudeCodeOptions {
@@ -13,9 +14,8 @@ export interface ParseClaudeCodeOptions {
 export interface ParseClaudeCodeResult {
   events: TokenEvent[];
   newOffset: number;
-  seenDedupKeys: string[];
   /** Count of records dropped because they exceeded the read window (data
-   *  loss — surfaced so the daemon can warn). Absent/0 in the common case. */
+   *  loss). Absent/0 in the common case. */
   oversizeSkipped?: number;
 }
 
@@ -39,14 +39,6 @@ interface RawCCRecord {
       cache_read_input_tokens?: number;
     };
   };
-}
-
-function isString(v: unknown): v is string {
-  return typeof v === "string" && v.length > 0;
-}
-
-function isNum(v: unknown): v is number {
-  return typeof v === "number" && Number.isFinite(v);
 }
 
 /**
@@ -74,11 +66,10 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
   const file = Bun.file(path);
   const totalSize = file.size;
   if (byteOffset >= totalSize) {
-    return { events: [], newOffset: totalSize, seenDedupKeys: [] };
+    return { events: [], newOffset: totalSize };
   }
 
   const events: TokenEvent[] = [];
-  const seenDedupKeys: string[] = [];
   const localSeen = new Set<string>();
   // Advance only past fully-terminated lines; a partial trailing line keeps
   // the offset put so the next read re-consumes it once it's complete.
@@ -127,22 +118,16 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
       const dedupKey = `${raw.uuid}:`;
       if (localSeen.has(dedupKey)) continue;
       localSeen.add(dedupKey);
-      events.push({
-        source,
-        sessionId,
-        agentId,
-        messageId: raw.uuid,
-        requestId: null,
-        timestamp,
-        model: "",
-        messageType: "user",
-        inputTokens: 0,
-        outputTokens: 0,
-        cacheCreationTokens: 0,
-        cacheReadTokens: 0,
-        reasoningTokens: null,
-      });
-      seenDedupKeys.push(dedupKey);
+      events.push(
+        tokenEvent({
+          source,
+          sessionId,
+          agentId,
+          messageId: raw.uuid,
+          timestamp,
+          messageType: "user",
+        }),
+      );
       continue;
     }
 
@@ -165,25 +150,25 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
       continue;
     }
 
-    events.push({
-      source,
-      sessionId,
-      agentId,
-      messageId: msg.id,
-      requestId,
-      timestamp,
-      // Assistant rows require a non-empty model server-side; "unknown" keeps
-      // the token usage rather than dropping it on the rare missing-model line.
-      model: isString(msg.model) ? msg.model : "unknown",
-      messageType: "assistant",
-      inputTokens,
-      outputTokens,
-      cacheCreationTokens: cacheCreation,
-      cacheReadTokens: cacheRead,
-      reasoningTokens: null,
-    });
-    seenDedupKeys.push(dedupKey);
+    events.push(
+      tokenEvent({
+        source,
+        sessionId,
+        agentId,
+        messageId: msg.id,
+        requestId,
+        timestamp,
+        // Assistant rows require a non-empty model server-side; "unknown" keeps
+        // the token usage rather than dropping it on the rare missing-model line.
+        model: isString(msg.model) ? msg.model : "unknown",
+        messageType: "assistant",
+        inputTokens,
+        outputTokens,
+        cacheCreationTokens: cacheCreation,
+        cacheReadTokens: cacheRead,
+      }),
+    );
   }
 
-  return { events, newOffset, seenDedupKeys, oversizeSkipped };
+  return { events, newOffset, oversizeSkipped };
 }

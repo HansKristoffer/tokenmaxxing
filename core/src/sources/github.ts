@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import type { TokenEvent } from "../types.ts";
+import { type TokenEvent, tokenEvent } from "../types.ts";
 
 /** A GUI app starts with a bare PATH, so look where Homebrew puts `gh`. */
 const GH_PATHS = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh"];
@@ -51,21 +51,15 @@ export async function fetchPullRequests(
     for (const pr of prs) {
       const timestamp = Date.parse(pr.createdAt);
       if (!Number.isFinite(timestamp)) continue;
-      events.push({
-        source: "github",
-        sessionId: "github",
-        agentId: null,
-        messageId: createHash("sha256").update(pr.url).digest("hex"),
-        requestId: null,
-        timestamp,
-        model: "",
-        messageType: "pr",
-        inputTokens: 0,
-        outputTokens: 0,
-        cacheCreationTokens: 0,
-        cacheReadTokens: 0,
-        reasoningTokens: null,
-      });
+      events.push(
+        tokenEvent({
+          source: "github",
+          sessionId: "github",
+          messageId: createHash("sha256").update(pr.url).digest("hex"),
+          timestamp,
+          messageType: "pr",
+        }),
+      );
     }
     const last = prs.at(-1)?.createdAt ?? since;
     // A full page means more remain: page on from the newest one. `>=` re-reads
