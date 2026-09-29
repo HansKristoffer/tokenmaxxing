@@ -164,6 +164,10 @@ function applyLobby(lobby: Lobby): void {
       !before?.tables.some((b) => b.id === t.id && b.invited.some((i) => i.userId === me)),
   );
   hud.set({ lobby, ...(invite ? { invite: { tableId: invite.id, at: Date.now() } } : {}) });
+  // Stakes, bets and payouts move coins, and they all change the lobby.
+  const ended = (l: Lobby | null | undefined) => l?.matches.filter((m) => m.outcome).length ?? 0;
+  if (JSON.stringify(lobby.me) !== JSON.stringify(before?.me) || ended(lobby) > ended(before))
+    void town.wallet().then((wallet) => hud.set({ wallet }));
   const playing = lobby.me.match;
   if (playing !== null && playing !== before?.me.match) {
     const m = lobby.matches.find((x) => x.id === playing);

@@ -1244,3 +1244,66 @@ button.lb-item:hover {
   gap: 4px 12px;
   font-size: 12px;
 }
+
+.hype {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.hype-curve {
+  width: 100%;
+  max-width: 480px;
+  height: 160px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  stroke: #3ddc84;
+}
+
+.hype-curve.crashed {
+  stroke: #ff6b6b;
+}
+
+.hype-curve text {
+  fill: var(--text);
+  stroke: none;
+}
+
+.hype-m {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.hype-m .crashed {
+  color: #ff6b6b;
+}
+
+.hype-cash {
+  font-size: 18px;
+  padding: 10px 22px;
+}
+
+.hype-scores {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.hype-scores td,
+.hype-scores th {
+  padding: 3px 10px;
+  text-align: right;
+}
+
+.hype-scores td:first-child {
+  text-align: left;
+}
+
+.hype-scores tr.me td:first-child {
+  color: var(--good);
+}
+
+.hype-fair code {
+  font-size: 11px;
+}
