@@ -1,0 +1,151 @@
+/**
+ * Turns daily rollups into totals and rankings. Pure, so it's tested without
+ * Rivet; the `town` actor feeds it rows straight from SQLite.
+ */
+import { computeRowCostUsd, type PricingCache, roundUsd } from "./pricing.ts";
+
+/** One model's sums for one user and day (or range, once summed). */
+export interface UsageRow {
+  model: string;
+  input: number;
+  output: number;
+  cacheCreation: number;
+  cacheRead: number;
+  turns: number;
+}
+
+export interface ActivityRow {
+  prompts: number;
+  prs: number;
+  /** Σ over 5-minute buckets of agents running in that bucket. */
+  agentBuckets: number;
+  /** 5-minute buckets with at least one agent running. */
+  activeBuckets: number;
+  peakAgents: number;
+}
+
+export type SortKey = "tokens" | "cost" | "parallelism" | "prs";
+export const SORT_KEYS: readonly SortKey[] = ["tokens", "cost", "parallelism", "prs"];
+export const isSortKey = (v: unknown): v is SortKey => SORT_KEYS.includes(v as SortKey);
+
+/** Below this, parallelism is null so one short burst can't top the board. */
+export const MIN_ACTIVE_HOURS = 1;
+const BUCKET_HOURS = 5 / 60;
+
+export interface Totals {
+  tokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  costUsd: number;
+  /** Assistant turns. */
+  turns: number;
+  /** Human prompts. */
+  prompts: number;
+  /** Pull requests created (from `gh`). */
+  prs: number;
+  /** Average number of agents running at once while any was running. */
+  parallelism: number | null;
+  peakAgents: number;
+  activeHours: number;
+  tokensPerActiveHour: number | null;
+  topModel: string | null;
+}
+
+export const rowTokens = (r: UsageRow): number => r.input + r.output + r.cacheCreation + r.cacheRead;
+
+export const rowCost = (pricing: PricingCache, r: UsageRow): number => {
+  const price = pricing.lookup(r.model);
+  return price ? computeRowCostUsd(r, price) : 0;
+};
+
+/** `usage` holds one row per model; `activity` is already summed over the range. */
+export function totals(
+  pricing: PricingCache,
+  usage: readonly UsageRow[],
+  activity: ActivityRow | null,
+): Totals {
+  const t: Totals = {
+    tokens: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheCreationTokens: 0,
+    cacheReadTokens: 0,
+    costUsd: 0,
+    turns: 0,
+    prompts: activity?.prompts ?? 0,
+    prs: activity?.prs ?? 0,
+    parallelism: null,
+    peakAgents: activity?.peakAgents ?? 0,
+    activeHours: 0,
+    tokensPerActiveHour: null,
+    topModel: null,
+  };
+  let top = -1;
+  for (const r of usage) {
+    const tokens = rowTokens(r);
+    t.tokens += tokens;
+    t.inputTokens += r.input;
+    t.outputTokens += r.output;
+    t.cacheCreationTokens += r.cacheCreation;
+    t.cacheReadTokens += r.cacheRead;
+    t.costUsd += rowCost(pricing, r);
+    t.turns += r.turns;
+    if (tokens > top) {
+      top = tokens;
+      t.topModel = r.model;
+    }
+  }
+  t.costUsd = roundUsd(t.costUsd);
+  if (activity && activity.activeBuckets > 0) {
+    const hours = activity.activeBuckets * BUCKET_HOURS;
+    t.activeHours = Math.round(hours * 100) / 100;
+    if (hours >= MIN_ACTIVE_HOURS) {
+      t.parallelism = Math.round((activity.agentBuckets / activity.activeBuckets) * 100) / 100;
+      t.tokensPerActiveHour = Math.round(t.tokens / hours);
+    }
+  }
+  return t;
+}
+
+const SORTS: Record<SortKey, (a: Totals, b: Totals) => number> = {
+  tokens: (a, b) => b.tokens - a.tokens,
+  cost: (a, b) => b.costUsd - a.costUsd || b.tokens - a.tokens,
+  parallelism: (a, b) => (b.parallelism ?? -1) - (a.parallelism ?? -1) || b.tokens - a.tokens,
+  prs: (a, b) => b.prs - a.prs || b.tokens - a.tokens,
+};
+
+/** Sorted by `sort`, ties by name, with 1-based ranks. */
+export function rank<T extends Totals & { name: string }>(
+  rows: T[],
+  sort: SortKey,
+): (T & { rank: number })[] {
+  return [...rows]
+    .sort((a, b) => SORTS[sort](a, b) || a.name.localeCompare(b.name))
+    .map((r, i) => ({ ...r, rank: i + 1 }));
+}
+
+/** A company's totals: its members' summed, with parallelism as agents running at once across the company. */
+export function companyTotals(members: readonly Totals[]): Totals {
+  const sum = (f: (t: Totals) => number) => members.reduce((n, t) => n + f(t), 0);
+  const running = members.filter((t) => t.parallelism !== null);
+  const tokens = sum((t) => t.tokens);
+  const activeHours = Math.max(0, ...members.map((t) => t.activeHours));
+  return {
+    tokens,
+    inputTokens: sum((t) => t.inputTokens),
+    outputTokens: sum((t) => t.outputTokens),
+    cacheCreationTokens: sum((t) => t.cacheCreationTokens),
+    cacheReadTokens: sum((t) => t.cacheReadTokens),
+    costUsd: roundUsd(sum((t) => t.costUsd)),
+    turns: sum((t) => t.turns),
+    prompts: sum((t) => t.prompts),
+    prs: sum((t) => t.prs),
+    parallelism: running.length ? Math.round(sum((t) => t.parallelism ?? 0) * 100) / 100 : null,
+    peakAgents: sum((t) => t.peakAgents),
+    activeHours,
+    tokensPerActiveHour: activeHours >= MIN_ACTIVE_HOURS ? Math.round(tokens / activeHours) : null,
+    topModel: null,
+  };
+}

@@ -1,7 +1,5 @@
-import { CHAT_MAX_LENGTH } from "@tokenmaxxing/core/moments.ts";
-import type { SortKey } from "@tokenmaxxing/core/protocol.ts";
-import { isRangeKey, isTimeZone, type RangeKey } from "@tokenmaxxing/core/range.ts";
 import { type MessageType, SOURCES, type Source, type TokenEvent } from "@tokenmaxxing/core/types.ts";
+import { CHAT_MAX_LENGTH } from "@tokenmaxxing/core/world.ts";
 
 /** Lowercase handle, 2–32 chars. Shown to other users, so no free-form text. */
 export const NAME_RE = /^[a-z0-9][a-z0-9._-]{1,31}$/;
@@ -12,26 +10,37 @@ export function parseUserName(raw: unknown): string | null {
   return NAME_RE.test(name) ? name : null;
 }
 
-/** Group names are display-only (React escapes them); trimmed, 1–48 chars, no control chars. */
-export function parseGroupName(raw: unknown): string | null {
+/** Company names are display-only (React escapes them); trimmed, 1–32 chars, no control chars. */
+export function parseCompanyName(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const name = raw.trim().replace(/\s+/g, " ");
   // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control chars is the point
-  if (name.length < 1 || name.length > 48 || /[\u0000-\u001f\u007f]/.test(name)) return null;
+  if (name.length < 1 || name.length > 32 || /[\u0000-\u001f\u007f]/.test(name)) return null;
   return name;
 }
 
-/** Chat text is shown to groupmates (React and SwiftUI escape it); control chars become spaces. */
+/** A website as its bare host (`acme.com`), from `acme.com`, `https://www.acme.com/about`, etc. */
+export function parseWebsite(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.length > 256) return null;
+  const text = raw.trim();
+  try {
+    const url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    // A registrable name with a TLD: no IPs, no `localhost`, no user:pass@ or ports.
+    if (url.username || url.password || url.port) return null;
+    return /^([a-z0-9-]{1,63}\.)+[a-z]{2,63}$/.test(host) ? host : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Chat text is shown to everyone in the room (React escapes it); control chars become spaces. */
 export function parseChatText(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control chars is the point
   const text = raw.replace(/[\u0000-\u001f\u007f]/g, " ").trim();
   return text.length >= 1 && text.length <= CHAT_MAX_LENGTH ? text : null;
 }
-
-/** An IANA timezone name from the helper, e.g. `Europe/Copenhagen`. */
-export const parseTzName = (raw: string | undefined): string | null =>
-  raw !== undefined && raw.length <= 64 && isTimeZone(raw) ? raw : null;
 
 export const MAX_EVENTS_PER_REQUEST = 1000;
 /** Clock-skew headroom for events stamped slightly in the future. */
@@ -74,21 +83,4 @@ export function parseEvent(raw: unknown, now: number): TokenEvent | string {
     cacheReadTokens: e.cacheReadTokens as number,
     reasoningTokens: e.reasoningTokens as number | null,
   };
-}
-
-export const parseRange = (raw: string | undefined): RangeKey =>
-  raw !== undefined && isRangeKey(raw) ? raw : "7d";
-
-export const parseSort = (raw: string | undefined): SortKey =>
-  raw === "parallelism" || raw === "cost" || raw === "prs" ? raw : "tokens";
-
-/** `Date#getTimezoneOffset()` minutes; clamped to real-world offsets. */
-export function parseTz(raw: string | undefined): number {
-  const n = Number(raw);
-  return Number.isInteger(n) && n >= -840 && n <= 720 ? n : 0;
-}
-
-export function parseId(raw: string | undefined): number | null {
-  if (raw === undefined || !/^\d{1,15}$/.test(raw)) return null;
-  return Number(raw);
 }

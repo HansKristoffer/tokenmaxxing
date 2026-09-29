@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./app": "./src/app.ts"
+    "./registry": "./src/actors/registry.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
     "@tokenmaxxing/core": "workspace:*",
-    "hono": "^4.9.0"
+    "rivetkit": "2.3.21"
   }
 }

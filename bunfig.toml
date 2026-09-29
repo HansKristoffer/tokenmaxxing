@@ -1,0 +1,3 @@
+[test]
+# Global teardown: bun runs a preload's afterAll once, after every test file.
+preload = ["./server/test/cleanup.ts"]

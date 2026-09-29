@@ -7,7 +7,7 @@ import { PricingCache } from "../src/pricing.ts";
  *
  * The gap this guards: an unpriced model is not a visible failure. lookup()
  * returns null, the row gets costUsd 0, and the name lands in `unknownModels`
- * on a stats payload nobody reads. The dashboard renders a dash and the
+ * on a stats payload nobody reads. The player card shows $0 and the
  * leaderboard — which ranks purely by cost (see main.ts, byModel ordering) —
  * silently sorts that model's heaviest users to the bottom.
  *

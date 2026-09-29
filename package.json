@@ -2,7 +2,7 @@
   "name": "tokenmaxxing",
   "version": "0.4.0",
   "private": true,
-  "description": "Token-usage leaderboard for AI coding agents, with groups and a macOS menu bar app",
+  "description": "A tiny pixel town for people who run AI coding agents, with a macOS menu bar app that syncs your token usage",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -15,8 +15,10 @@
     "token-usage",
     "leaderboard",
     "menu-bar",
-    "bun",
-    "hono"
+    "pixel-art",
+    "multiplayer",
+    "rivet",
+    "bun"
   ],
   "type": "module",
   "workspaces": [
@@ -26,7 +28,8 @@
     "app/helper"
   ],
   "scripts": {
-    "dev:server": "bun --hot server/src/main.ts",
+    "dev": "RIVETKIT_STORAGE_PATH=.data/rivet RIVET_LOG_LEVEL=error bun --watch server/src/main.ts",
+    "dev:seed": "bun server/scripts/dev-seed.ts",
     "app:dev": "bash app/scripts/build-app.sh dev && open app/build/Tokenmaxxing.app",
     "app:build": "bash app/scripts/build-app.sh release",
     "helper:once": "bun app/helper/src/main.ts --once",
