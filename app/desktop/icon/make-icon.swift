@@ -1,5 +1,5 @@
 // Renders AppIcon.icns: a warm gradient squircle with a white bolt.
-// Run via app/macos/icon/make-icon.sh, which also builds the .icns.
+// Run via make-icons.sh, which makes every size Tauri needs.
 import AppKit
 
 let size: CGFloat = 1024

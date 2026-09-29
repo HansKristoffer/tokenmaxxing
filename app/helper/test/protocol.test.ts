@@ -2,8 +2,8 @@ import { expect, test } from "bun:test";
 import type { AppState, Message } from "@tokenmaxxing/core/protocol.ts";
 
 /**
- * Contract fixture: every field of every protocol message the Swift shell
- * decodes. CI runs this before `swift test`, whose ProtocolTests decode the
+ * Contract fixture: every field of every protocol message the desktop app
+ * decodes. CI runs this before `cargo test`, whose helper.rs test decodes the
  * file, so a shape change on either side fails the build.
  */
 const state: AppState = {
@@ -29,9 +29,8 @@ const messages: Message[] = [
   { id: 3, ok: false, error: "name_taken" },
 ];
 
-test("writes the Swift contract fixture", async () => {
-  const path = new URL("../../macos/Tests/TokenmaxxingTests/Fixtures/messages.ndjson", import.meta.url)
-    .pathname;
+test("writes the desktop app's contract fixture", async () => {
+  const path = new URL("../../desktop/src-tauri/tests/fixtures/messages.ndjson", import.meta.url).pathname;
   const body = `${messages.map((m) => JSON.stringify(m)).join("\n")}\n`;
   await Bun.write(path, body);
   expect(await Bun.file(path).text()).toBe(body);

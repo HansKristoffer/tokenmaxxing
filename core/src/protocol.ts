@@ -1,7 +1,7 @@
 /**
- * Menu bar shell ↔ helper protocol: newline-delimited JSON over the helper's
- * stdin/stdout. The Swift side mirrors these shapes in `Protocol.swift`; the
- * contract test (app/helper/test/protocol.test.ts) writes a fixture the Swift
+ * Desktop app ↔ helper protocol: newline-delimited JSON over the helper's
+ * stdin/stdout. The Rust side mirrors these shapes in `app/desktop/src-tauri/src/helper.rs`;
+ * the contract test (app/helper/test/protocol.test.ts) writes a fixture the Rust
  * test decodes, so drift fails CI on both sides.
  */
 export type Command =

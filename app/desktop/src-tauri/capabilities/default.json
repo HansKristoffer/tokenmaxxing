@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The local onboarding page only. The game window loads the server and gets no IPC at all.",
+  "windows": ["onboarding"],
+  "permissions": ["core:default"]
+}

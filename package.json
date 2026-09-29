@@ -31,8 +31,8 @@
   "scripts": {
     "dev": "RIVETKIT_STORAGE_PATH=.data/rivet RIVET_LOG_LEVEL=error bun --watch server/src/main.ts",
     "dev:seed": "bun server/scripts/dev-seed.ts",
-    "app:dev": "bash app/scripts/build-app.sh dev && open app/build/Tokenmaxxing.app",
-    "app:build": "bash app/scripts/build-app.sh release",
+    "desktop:dev": "cd app/desktop && tauri dev",
+    "desktop:build": "cd app/desktop && tauri build",
     "helper:once": "bun app/helper/src/main.ts --once",
     "test": "bun test --timeout 60000",
     "typecheck": "tsc -p core && tsc -p server && tsc -p web && tsc -p app/helper",
@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
+    "@tauri-apps/cli": "^2",
     "@types/bun": "latest",
     "typescript": "^5.9.0"
   }

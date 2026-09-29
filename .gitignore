@@ -14,3 +14,5 @@ build/
 .claude/
 .data/
 app/macos/.build/
+app/desktop/src-tauri/target/
+app/desktop/src-tauri/gen/
