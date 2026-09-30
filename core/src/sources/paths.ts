@@ -7,7 +7,13 @@ function resolveDir(envValue: string | undefined, fallback: string): string {
   return isAbsolute(expanded) ? expanded : join(process.cwd(), expanded);
 }
 
-const appSupport = () => join(homedir(), "Library", "Application Support");
+/** Where desktop apps keep their data: Application Support on a Mac, `~/.config` on Linux. */
+const appSupport = () =>
+  process.platform === "darwin"
+    ? join(homedir(), "Library", "Application Support")
+    : process.platform === "win32"
+      ? (process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"))
+      : resolveDir(process.env.XDG_CONFIG_HOME, join(homedir(), ".config"));
 
 function claudeCodeProjectsDir(): string {
   // CLAUDE_CONFIG_DIR points at the .claude root; sessions live under projects/

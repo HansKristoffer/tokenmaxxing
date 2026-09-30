@@ -27,6 +27,11 @@ const messages: Message[] = [
   { id: 1, ok: true, result: null },
   { id: 2, ok: true, result: { code: "12.x" } },
   { id: 3, ok: false, error: "name_taken" },
+  {
+    id: 4,
+    ok: true,
+    result: { code: "12.y", command: "curl -fsSL https://x/install.sh | sh -s -- link 12.y" },
+  },
 ];
 
 test("writes the desktop app's contract fixture", async () => {

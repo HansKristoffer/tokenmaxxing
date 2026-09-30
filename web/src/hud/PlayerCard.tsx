@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { world } from "../game/world.ts";
 import { errorText, town } from "../net.ts";
 import { hud } from "../store.ts";
+import { Computers } from "./Computers.tsx";
 import { AvatarImage, Modal, Pills } from "./ui.tsx";
 
 export const RANGES = [
@@ -88,6 +89,7 @@ export function PlayerCard({ userId }: { userId: number }) {
           {p.games.biggestPot > 0 && ` · biggest pot 🪙 ${p.games.biggestPot}`}
         </p>
       )}
+      {userId === world.selfId && <Computers />}
     </Modal>
   );
 }

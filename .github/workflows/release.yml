@@ -124,6 +124,29 @@ jobs:
             minisign -V -p "$dir/key.pub" -m "$dir/update" -x "$dir/update.minisig"
           done
 
+  # The CLI for linked computers (WORKHORSE.md): a binary per platform and their checksums on this
+  # release, where the server's /install.sh downloads them from. On a Mac, so Bun signs the Mac ones.
+  cli:
+    needs: release-please
+    if: needs.release-please.outputs.created == 'true'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bash app/helper/scripts/cli.sh dist/cli
+      - name: Check the build is this version
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: test "$(dist/cli/tokenmaxxing-darwin-arm64 --version)" = "$VERSION"
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: gh release upload "$TAG" dist/cli/* --clobber
+
   cask:
     needs: [release-please, app]
     runs-on: ubuntu-latest

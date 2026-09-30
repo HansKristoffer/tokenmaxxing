@@ -1,12 +1,14 @@
 //! The menu bar: the bolt with today's tokens next to it ("306M"), and a menu to open the world,
-//! see where you stand, sync, launch at login, update and quit. It's rebuilt whenever the helper
+//! see where you stand, sync, link another computer, launch at login, update and quit. It's rebuilt whenever the helper
 //! reports new numbers.
 
 use crate::helper::{Helper, State};
 use crate::updates::{self, Status};
 use crate::{world, Shared};
 use serde_json::json;
+use std::io::Write;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -70,6 +72,18 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         }
         items.push(Box::new(PredefinedMenuItem::separator(app)?));
         items.push(Box::new(item("sync", "Sync now", true, None)?));
+        items.push(Box::new(item("link", "Link a computer…", true, None)?));
+        if ui
+            .link_copied_until
+            .is_some_and(|until| Instant::now() < until)
+        {
+            items.push(Box::new(item(
+                "copied",
+                "Copied: paste it in a terminal on the other computer",
+                false,
+                None,
+            )?));
+        }
     } else {
         items.push(Box::new(item("open", "Pick a name…", true, None)?));
         items.push(Box::new(PredefinedMenuItem::separator(app)?));
@@ -119,6 +133,23 @@ fn on_menu(app: &AppHandle, event: MenuEvent) {
                 }
             });
         }
+        "link" => {
+            let app = app.clone();
+            let helper = app.state::<Arc<Helper>>().inner().clone();
+            std::thread::spawn(move || {
+                match helper
+                    .call(json!({ "cmd": "linkComputer" }))
+                    .and_then(|r| copy(r["command"].as_str().unwrap_or_default()))
+                {
+                    Ok(()) => {
+                        app.state::<Shared>().lock().unwrap().link_copied_until =
+                            Some(Instant::now() + LINK_CODE_LIFE);
+                        refresh(&app);
+                    }
+                    Err(e) => log::warn!("link a computer: {e}"),
+                }
+            });
+        }
         "login" => {
             let launcher = app.autolaunch();
             let on = launcher.is_enabled().unwrap_or(false);
@@ -136,6 +167,28 @@ fn on_menu(app: &AppHandle, event: MenuEvent) {
         "quit" => app.exit(0),
         _ => {}
     }
+}
+
+/// How long a link code works (the server's LINK_CODE_MS).
+const LINK_CODE_LIFE: Duration = Duration::from_secs(10 * 60);
+
+/// Puts `text` on the clipboard.
+fn copy(text: &str) -> Result<(), String> {
+    if text.is_empty() {
+        return Err("nothing to copy".into());
+    }
+    let mut child = std::process::Command::new("/usr/bin/pbcopy")
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    child
+        .stdin
+        .take()
+        .ok_or("no stdin")?
+        .write_all(text.as_bytes())
+        .map_err(|e| e.to_string())?;
+    child.wait().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn today_line(state: &State) -> Option<String> {

@@ -4,6 +4,7 @@ import pkg from "../../package.json" with { type: "json" };
 import { LOGO_DIR, LOGO_FILE } from "./brand.ts";
 import { loadConfig } from "./config.ts";
 import { type Page, pageHeaders } from "./headers.ts";
+import { installScript } from "./install.ts";
 import { rivetProxy } from "./proxy.ts";
 
 const config = loadConfig(process.env, pkg.version);
@@ -61,6 +62,7 @@ const server = Bun.serve({
     // Useless without ADMIN_TOKEN: every action it calls checks it (`town`'s admin actions).
     "/admin": html(assets.get("/admin.html"), "admin"),
     "/health": () => Response.json({ ok: true, version: config.version }),
+    "/install.sh": installScript,
     // Company logos, copied from their websites. Sandboxed: an SVG is someone else's markup.
     "/logos/:file": async (req) => {
       const file = Bun.file(join(LOGO_DIR, req.params.file));

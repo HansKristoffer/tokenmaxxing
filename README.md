@@ -25,6 +25,21 @@ and shows your tokens today next to the ⚡. **Open world** (from its menu, the 
 game in its own window, where everything else is: leaderboards, stats, companies and games. The app keeps
 itself up to date.
 
+### On a second computer
+
+Running agents on another machine too, like a Mac mini under the desk or a Linux box? Link it, and its tokens
+count for you. In the app, choose **Link a computer…** (in the menu bar, or on your own card in the game).
+That gives you a line to run in a terminal on the other computer, good for 10 minutes:
+
+```bash
+curl -fsSL https://<server>/install.sh | sh -s -- link 42.Xk3…
+```
+
+It installs the `tokenmaxxing` command (macOS or Linux, in `~/.local/bin`), links it, sends that computer's
+history, and keeps syncing in the background (a LaunchAgent, or a systemd user service). Then:
+`tokenmaxxing status`, `sync`, `logs` and `unlink`. A linked computer can only send usage: it can't chat,
+spend coins or open the world. Your card in the game lists your computers and removes them.
+
 **Coming from 0.5 or earlier?** The world is a new backend and starts fresh: update the app, pick a name again and
 recreate your company. Your usage history comes back by itself, because the app re-reads your local logs on
 its first sync.
@@ -129,6 +144,14 @@ To sync without the UI:
 TOKENMAXXING_TOKEN=… TOKENMAXXING_SERVER_URL=http://localhost:8787 bun run helper:once
 ```
 
+The CLI for linked computers runs from source too. Get a code from the app (or `player.mintLinkCode()`), and
+keep it off your real config with `TOKENMAXXING_CLI_DIR`:
+
+```bash
+TOKENMAXXING_CLI_DIR=.data/cli bun app/helper/src/cli.ts link <code> --server http://localhost:8787 --no-service
+bash app/helper/scripts/cli.sh dist/cli    # the release binaries, for every platform
+```
+
 ### Server config
 
 | Var | Default | |
@@ -153,7 +176,8 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org) (PR t
 [release-please](https://github.com/googleapis/release-please) keeps a Release PR open. Merging it
 tags the version, builds the desktop app (universal, signed and notarized, with `tauri-action`), attaches
 the `.dmg` and the updater's files (`.app.tar.gz`, `.sig`, `latest.json`), notarizes the `.dmg` too (and
-attaches it again as `Tokenmaxxing.dmg`, what the website's Download button fetches), and
+attaches it again as `Tokenmaxxing.dmg`, what the website's Download button fetches), attaches the CLI for
+linked computers (`tokenmaxxing-{darwin,linux}-{arm64,x64}` and `SHA256SUMS`, which `/install.sh` fetches), and
 updates the cask in `HansKristoffer/homebrew-tap`. Before that, it checks what people will get: the
 downloaded `.dmg` and the app in it pass Gatekeeper, and the published update's signature matches the
 app's public key.

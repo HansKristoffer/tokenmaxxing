@@ -22,10 +22,16 @@ import {
   serial,
   splitToken,
   unauthorized,
+  type Via,
 } from "./shared.ts";
 import type { ActivityDay, UsageDay } from "./town.ts";
 
 const LOGIN_CODE_MS = 2 * 60_000;
+const LINK_CODE_MS = 10 * 60_000;
+/** The app plus linked computers. */
+const MAX_DEVICES = 10;
+/** `lastSeenAt` is written at most this often per device. */
+const SEEN_EVERY_MS = 60_000;
 const SESSION_MS = 30 * 86_400_000;
 const LIVE_AGENTS_MS = 10 * 60_000;
 const INSERT_CHUNK = 100;
@@ -50,13 +56,31 @@ interface Expiring {
   expiresAt: number;
 }
 
+/** A token that syncs: the desktop app's (from sign-up) or a linked computer's (from a link code). */
+interface Device {
+  id: number;
+  hash: string;
+  kind: "app" | "linked";
+  /** The computer's name, as it gave it when linking. */
+  name: string;
+  /** `process.platform` of the computer: darwin, linux, … */
+  platform: string;
+  createdAt: number;
+  lastSeenAt: number;
+}
+
+/** A device as its player sees it. */
+export type DeviceInfo = Omit<Device, "hash"> & { current: boolean };
+
 interface PlayerState {
   userId: number;
-  /** Device tokens (the menu bar app), hashed. */
-  tokens: string[];
+  devices: Device[];
+  nextDeviceId: number;
   /** Browser sessions made from login codes. */
   sessions: Expiring[];
   loginCodes: Expiring[];
+  /** Codes the app makes for linking another computer. */
+  linkCodes: Expiring[];
   /** Events stored on a world day, for `EVENTS_PER_DAY`. Optional: players from before have none. */
   stored?: { day: string; events: number };
 }
@@ -97,18 +121,77 @@ const eventRow = (e: TokenEvent) => [
 
 const live = (list: Expiring[], now: number) => list.filter((e) => e.expiresAt > now);
 
-/** Which kind of credential `secret` is for this player, if any. */
-function credential(s: PlayerState, secret: string, now: number): "device" | "session" | null {
+/** Which kind of credential `secret` is for this player (and which device), if any. */
+function credential(s: PlayerState, secret: string, now: number): { via: Via; deviceId?: number } | null {
   const hash = sha256(secret);
-  if (s.tokens.includes(hash)) return "device";
-  if (s.sessions.some((x) => x.hash === hash && x.expiresAt > now)) return "session";
+  const device = s.devices.find((d) => d.hash === hash);
+  if (device) return { via: device.kind === "app" ? "device" : "linked", deviceId: device.id };
+  if (s.sessions.some((x) => x.hash === hash && x.expiresAt > now)) return { via: "session" };
   return null;
 }
+
+/** Every call from a device counts as it being around, for the list of computers. */
+function seen(s: PlayerState, deviceId: number | undefined, now: number): void {
+  const device = s.devices.find((d) => d.id === deviceId);
+  if (device && now - device.lastSeenAt > SEEN_EVERY_MS) device.lastSeenAt = now;
+}
+
+/** A computer's name, as it'll be listed: printable, trimmed, at most 40 characters. */
+function deviceName(raw: unknown): string {
+  const name =
+    typeof raw === "string"
+      ? raw
+          .replace(/[\p{C}]/gu, "")
+          .trim()
+          .slice(0, 40)
+      : "";
+  if (!name) throw new UserError("Give the computer a name.", { code: "invalid_name" });
+  return name;
+}
+
+const platformOf = (raw: unknown): string =>
+  typeof raw === "string" && /^[a-z0-9]{1,16}$/.test(raw) ? raw : "unknown";
 
 export const player = actor({
   createState: (_c, raw: { userId: number; tokenHash: string; internal: string }): PlayerState => {
     const input = fromInside<{ userId: number; tokenHash: string }>(raw);
-    return { userId: input.userId, tokens: [input.tokenHash], sessions: [], loginCodes: [] };
+    const now = Date.now();
+    return {
+      userId: input.userId,
+      devices: [
+        {
+          id: 1,
+          hash: input.tokenHash,
+          kind: "app",
+          name: "Desktop app",
+          platform: "darwin",
+          createdAt: now,
+          lastSeenAt: now,
+        },
+      ],
+      nextDeviceId: 2,
+      sessions: [],
+      loginCodes: [],
+      linkCodes: [],
+    };
+  },
+  onWake: (c: { state: PlayerState }) => {
+    // Before linked computers, a player kept only the app's token hashes.
+    const old = c.state as PlayerState & { tokens?: string[] };
+    if (old.tokens) {
+      c.state.devices = old.tokens.map((hash, i) => ({
+        id: i + 1,
+        hash,
+        kind: "app",
+        name: "Desktop app",
+        platform: "darwin",
+        createdAt: 0,
+        lastSeenAt: 0,
+      }));
+      c.state.nextDeviceId = old.tokens.length + 1;
+      delete old.tokens;
+    }
+    c.state.linkCodes ??= [];
   },
   createVars: () => ({ serial: serial(), ingests: new RateLimiter(INGESTS_PER_MIN, 60_000) }),
   db: db({
@@ -141,15 +224,16 @@ export const player = actor({
     if (params?.internal === INTERNAL_KEY) return { kind: "internal" };
     if (params?.token === undefined) return { kind: "anonymous" };
     const t = splitToken(params.token);
-    const via = t && t.userId === c.state.userId ? credential(c.state, t.secret, Date.now()) : null;
-    if (!via) throw unauthorized();
-    return { kind: "user", userId: c.state.userId, via };
+    const cred = t && t.userId === c.state.userId ? credential(c.state, t.secret, Date.now()) : null;
+    if (!cred) throw unauthorized();
+    seen(c.state, cred.deviceId, Date.now());
+    return { kind: "user", userId: c.state.userId, ...cred };
   },
   actions: {
     /** For other actors checking a token: which credential it is, or null. */
-    verify: (c, secret: string): "device" | "session" | null => {
+    verify: (c, secret: string): Via | null => {
       requireInternal(c.conn.state);
-      return credential(c.state, secret, Date.now());
+      return credential(c.state, secret, Date.now())?.via ?? null;
     },
 
     /** The menu bar app's "Open world": a code the browser trades for a session. */
@@ -182,6 +266,72 @@ export const player = actor({
       return session.token;
     },
 
+    /** The app's "Link a computer": a code the other computer trades for its own token. */
+    mintLinkCode: (c): string => {
+      requireDevice(c.conn.state);
+      const now = Date.now();
+      const { token, hash } = makeToken(c.state.userId);
+      c.state.linkCodes = [...live(c.state.linkCodes, now), { hash, expiresAt: now + LINK_CODE_MS }].slice(
+        -MAX_LOGIN_CODES,
+      );
+      return token;
+    },
+
+    /** Single use. Returns a token for the new computer, which can only sync. */
+    redeemLinkCode: (
+      c,
+      code: string,
+      rawName: unknown,
+      rawPlatform: unknown,
+    ): { token: string; deviceId: number } => {
+      const name = deviceName(rawName);
+      const now = Date.now();
+      const t = splitToken(code);
+      const hash = t && t.userId === c.state.userId ? sha256(t.secret) : null;
+      const codes = live(c.state.linkCodes, now);
+      if (!hash || !codes.some((x) => x.hash === hash))
+        throw new UserError("That code has expired. Make a new one in the app: Link a computer.", {
+          code: "expired",
+        });
+      if (c.state.devices.length >= MAX_DEVICES)
+        throw new UserError(`At most ${MAX_DEVICES} computers. Remove one in the game first.`, {
+          code: "too_many_devices",
+        });
+      c.state.linkCodes = codes.filter((x) => x.hash !== hash);
+      const device = makeToken(c.state.userId);
+      const id = c.state.nextDeviceId++;
+      c.state.devices.push({
+        id,
+        hash: device.hash,
+        kind: "linked",
+        name,
+        platform: platformOf(rawPlatform),
+        createdAt: now,
+        lastSeenAt: now,
+      });
+      return { token: device.token, deviceId: id };
+    },
+
+    /** My app and linked computers. */
+    devices: (c): DeviceInfo[] => {
+      const s = c.conn.state;
+      if (s.kind !== "user" || s.via === "linked") throw unauthorized();
+      return c.state.devices.map(({ hash: _, ...d }) => ({ ...d, current: d.id === s.deviceId }));
+    },
+
+    /**
+     * Unlinks a computer: the player can remove any linked one, a linked computer only itself. The app's
+     * own device stays, as losing it would lose the account.
+     */
+    revokeDevice: (c, id: number): void => {
+      const s = c.conn.state;
+      if (s.kind !== "user" || (s.via === "linked" && s.deviceId !== id)) throw unauthorized();
+      const device = c.state.devices.find((d) => d.id === id);
+      if (!device) throw new UserError("That computer isn't linked.", { code: "not_found" });
+      if (device.kind === "app") throw new UserError("The app can't be removed.", { code: "forbidden" });
+      c.state.devices = c.state.devices.filter((d) => d.id !== id);
+    },
+
     /** From `town`, when an admin deletes the account: every token and session stops working. */
     close: (c): void => {
       requireInternal(c.conn.state);
@@ -205,7 +355,7 @@ export const player = actor({
     },
 
     ingest: (c, events: unknown): Promise<IngestResponse & { skipped: number }> => {
-      requireDevice(c.conn.state);
+      requireSyncingDevice(c.conn.state);
       if (!Array.isArray(events) || events.length > MAX_EVENTS_PER_REQUEST)
         throw new UserError("Too many events.", { code: "invalid_body" });
       const now = Date.now();
@@ -266,8 +416,14 @@ export async function tokensBetween(sql: Sql, from: number, to: number): Promise
   return { tokens: r.tokens, flagged: r.flagged === 1 };
 }
 
+/** The desktop app's own token. */
 function requireDevice(caller: Caller): void {
   if (caller.kind !== "user" || caller.via !== "device") throw unauthorized();
+}
+
+/** The app or a linked computer: a token that sends usage, never a browser session. */
+function requireSyncingDevice(caller: Caller): void {
+  if (caller.kind !== "user" || caller.via === "session") throw unauthorized();
 }
 
 /** Recomputes `days` from raw events and hands them to `town`, then tells `world` how busy we are. */

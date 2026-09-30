@@ -27,6 +27,8 @@ pub struct Ui {
     pub update: updates::Status,
     /// Opened by hand (not at login), or before the helper was up: the game opens once the account is known.
     pub open_on_ready: bool,
+    /// "Link a computer…" put its line on the clipboard; its code works until then.
+    pub link_copied_until: Option<std::time::Instant>,
 }
 
 /// The login item passes this, so starting at login stays in the menu bar.
@@ -64,6 +66,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             world::enter_world,
             world::open_link,
+            world::link_computer,
             updates::update_status,
             updates::install_update
         ])
@@ -80,7 +83,8 @@ pub fn run() {
             }
             tray::build(app.handle())?;
             // The game window (the server's page) may ask about app updates and start one, sign itself
-            // in when it has no session, and open web links in the browser, and nothing else.
+            // in when it has no session, open web links in the browser, and get a line that links
+            // another computer, and nothing else.
             app.add_capability(
                 CapabilityBuilder::new("world")
                     .remote(format!("{SERVER_URL}/*"))
@@ -91,7 +95,8 @@ pub fn run() {
                     .permission("allow-update-status")
                     .permission("allow-install-update")
                     .permission("allow-enter-world")
-                    .permission("allow-open-link"),
+                    .permission("allow-open-link")
+                    .permission("allow-link-computer"),
             )?;
             let events = app.handle().clone();
             let helper = helper::Helper::start(

@@ -51,11 +51,17 @@ export interface ConnParams {
   admin?: string;
 }
 
-/** Who is calling: a player (device app or browser session), the admin page, another actor, or nobody yet. */
+/**
+ * How a player is signed in: the desktop app's device token, a linked computer's token (it only syncs),
+ * or a browser session.
+ */
+export type Via = "device" | "linked" | "session";
+
+/** Who is calling: a player, the admin page, another actor, or nobody yet. */
 export type Caller =
   | { kind: "internal" }
   | { kind: "admin" }
-  | { kind: "user"; userId: number; via: "device" | "session" }
+  | { kind: "user"; userId: number; via: Via; deviceId?: number }
   | { kind: "anonymous" };
 
 /** The client's IP, as `proxy.ts` saw it; null for another actor, which comes from inside. */
@@ -119,7 +125,14 @@ export async function authenticate(
   return caller;
 }
 
+/** A player in the app or a browser; a linked computer only syncs, so it's refused. */
 export function requireUser(caller: Caller): number {
+  if (caller.kind !== "user" || caller.via === "linked") throw unauthorized();
+  return caller.userId;
+}
+
+/** A player or one of their linked computers: for what a computer that syncs needs to read. */
+export function requireSyncer(caller: Caller): number {
   if (caller.kind !== "user") throw unauthorized();
   return caller.userId;
 }

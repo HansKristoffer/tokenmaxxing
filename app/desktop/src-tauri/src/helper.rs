@@ -277,7 +277,7 @@ mod tests {
     fn decodes_every_helper_message() {
         let fixture = include_str!("../tests/fixtures/messages.ndjson");
         let messages: Vec<Message> = fixture.lines().map(|l| parse(l).expect(l)).collect();
-        assert_eq!(messages.len(), 7);
+        assert_eq!(messages.len(), 8);
         let Message::State(ready) = &messages[0] else {
             panic!("{:?}", messages[0])
         };
@@ -326,6 +326,17 @@ mod tests {
                 id: 3,
                 result: Err("name_taken".into())
             }
+        );
+        // `linkComputer`: world.rs hands `command` to the game page.
+        let Message::Reply {
+            result: Ok(link), ..
+        } = &messages[7]
+        else {
+            panic!("{:?}", messages[7])
+        };
+        assert_eq!(
+            link["command"].as_str(),
+            Some("curl -fsSL https://x/install.sh | sh -s -- link 12.y")
         );
     }
 }
