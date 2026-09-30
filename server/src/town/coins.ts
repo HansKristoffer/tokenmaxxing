@@ -69,6 +69,73 @@ export async function wallet(sql: Sql, userId: number, now: number): Promise<Wal
   };
 }
 
+/**
+ * Every user's balance, for the admin page: `wallet`'s sums over everyone at once.
+ * ponytail: all of `usage_daily` per call, like the leaderboards.
+ */
+export async function balances(sql: Sql, now: number): Promise<Map<number, number>> {
+  const today = dayKey(now);
+  const signups = await all<{ id: number; created_at: number }>(sql, "SELECT id, created_at FROM users");
+  const firstDay = JSON.stringify(Object.fromEntries(signups.map((u) => [u.id, dayKey(u.created_at)])));
+  const out = new Map(signups.map((u) => [u.id, 0]));
+  const add = (userId: number, n: number) => {
+    const had = out.get(userId);
+    if (had !== undefined) out.set(userId, had + n);
+  };
+  const days = await all<{ userId: number; tokens: number }>(
+    sql,
+    `SELECT user_id AS userId, SUM(${TOKENS}) AS tokens
+     FROM usage_daily JOIN json_each(?) s ON user_id = CAST(s.key AS INTEGER) AND day >= s.value
+     GROUP BY user_id, day`,
+    firstDay,
+  );
+  for (const d of days) add(d.userId, coinsForTokens(d.tokens));
+  const places = await all<{ userId: number; place: number }>(
+    sql,
+    `SELECT user_id AS userId, place FROM (
+       SELECT user_id, ROW_NUMBER() OVER (PARTITION BY day ORDER BY SUM(${TOKENS}) DESC, user_id) AS place
+       FROM usage_daily JOIN json_each(?) s ON user_id = CAST(s.key AS INTEGER) AND day >= s.value
+       WHERE day < ? GROUP BY user_id, day)
+     WHERE place <= ?`,
+    firstDay,
+    today,
+    PODIUM_COINS.length,
+  );
+  for (const p of places) add(p.userId, PODIUM_COINS[p.place - 1]!);
+  for (const r of await all<{ userId: number; n: number }>(
+    sql,
+    "SELECT user_id AS userId, -SUM(price) AS n FROM purchases GROUP BY user_id",
+  ))
+    add(r.userId, r.n);
+  for (const r of await all<{ userId: number; n: number }>(
+    sql,
+    "SELECT user_id AS userId, SUM(amount) AS n FROM ledger GROUP BY user_id",
+  ))
+    add(r.userId, r.n);
+  return out;
+}
+
+/**
+ * An admin sets `userId`'s balance: the difference goes in the ledger (kind and ref `admin`),
+ * since balances are worked out rather than stored. Run it serialized with every other coin write.
+ */
+export async function setBalance(
+  sql: Sql,
+  userId: number,
+  balance: number,
+  now: number,
+): Promise<{ before: number; balance: number }> {
+  const before = (await wallet(sql, userId, now)).balance;
+  if (balance !== before)
+    await sql.execute(
+      "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, 'admin', 'admin', ?)",
+      userId,
+      balance - before,
+      now,
+    );
+  return { before, balance };
+}
+
 /** Pays for `item` from `userId`'s coins. Run it serialized, so two buys can't both spend the same coins. */
 export async function buy(sql: Sql, userId: number, item: Item, now: number): Promise<Wallet> {
   const w = await wallet(sql, userId, now);

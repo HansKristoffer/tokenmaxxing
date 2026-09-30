@@ -6,12 +6,14 @@ import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { db } from "rivetkit/db";
 import { sha256 } from "../crypto.ts";
+import { RateLimiter } from "../rate-limit.ts";
 import { AGENT_BUCKET_MS } from "../stats.ts";
 import { MAX_EVENTS_PER_REQUEST, parseEvent } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
   type Caller,
   type ConnParams,
+  fromInside,
   INTERNAL_KEY,
   main,
   makeToken,
@@ -27,6 +29,21 @@ const LOGIN_CODE_MS = 2 * 60_000;
 const SESSION_MS = 30 * 86_400_000;
 const LIVE_AGENTS_MS = 10 * 60_000;
 const INSERT_CHUNK = 100;
+/** Live login codes and browser sessions kept per player; minting more drops the oldest. */
+const MAX_LOGIN_CODES = 5;
+const MAX_SESSIONS = 20;
+/**
+ * Per player: a first sync's backfill still goes through at full speed (1,000 events a request),
+ * a script can't fill the volume. Past either, the app's sync fails and resumes on its next run.
+ */
+const INGESTS_PER_MIN = 60;
+const EVENTS_PER_DAY = 500_000;
+/**
+ * The most tokens a minute counts for, on the leaderboards and for coins: far past any real burst
+ * (a busy day is ~1.5B, about 1M a minute), so it only stops made-up numbers. Battles cap harder
+ * (`MINUTE_CAP`).
+ */
+export const USAGE_MINUTE_CAP = 200_000_000;
 
 interface Expiring {
   hash: string;
@@ -40,6 +57,8 @@ interface PlayerState {
   /** Browser sessions made from login codes. */
   sessions: Expiring[];
   loginCodes: Expiring[];
+  /** Events stored on a world day, for `EVENTS_PER_DAY`. Optional: players from before have none. */
+  stored?: { day: string; events: number };
 }
 
 const COLUMNS = [
@@ -87,13 +106,11 @@ function credential(s: PlayerState, secret: string, now: number): "device" | "se
 }
 
 export const player = actor({
-  createState: (_c, input: { userId: number; tokenHash: string }): PlayerState => ({
-    userId: input.userId,
-    tokens: [input.tokenHash],
-    sessions: [],
-    loginCodes: [],
-  }),
-  createVars: () => ({ serial: serial() }),
+  createState: (_c, raw: { userId: number; tokenHash: string; internal: string }): PlayerState => {
+    const input = fromInside<{ userId: number; tokenHash: string }>(raw);
+    return { userId: input.userId, tokens: [input.tokenHash], sessions: [], loginCodes: [] };
+  },
+  createVars: () => ({ serial: serial(), ingests: new RateLimiter(INGESTS_PER_MIN, 60_000) }),
   db: db({
     onMigrate: async (d) => {
       await d.execute(`CREATE TABLE IF NOT EXISTS events (
@@ -140,7 +157,9 @@ export const player = actor({
       requireDevice(c.conn.state);
       const now = Date.now();
       const { token, hash } = makeToken(c.state.userId);
-      c.state.loginCodes = [...live(c.state.loginCodes, now), { hash, expiresAt: now + LOGIN_CODE_MS }];
+      c.state.loginCodes = [...live(c.state.loginCodes, now), { hash, expiresAt: now + LOGIN_CODE_MS }].slice(
+        -MAX_LOGIN_CODES,
+      );
       return token;
     },
 
@@ -159,8 +178,24 @@ export const player = actor({
       c.state.sessions = [
         ...live(c.state.sessions, now),
         { hash: session.hash, expiresAt: now + SESSION_MS },
-      ];
+      ].slice(-MAX_SESSIONS);
       return session.token;
+    },
+
+    /** From `town`, when an admin deletes the account: every token and session stops working. */
+    close: (c): void => {
+      requireInternal(c.conn.state);
+      c.destroy();
+    },
+
+    /** From `town`, when an admin wipes someone's usage: every raw event goes, and the days they were on. */
+    wipe: (c): Promise<string[]> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(async () => {
+        const days = (await c.db.execute("SELECT DISTINCT day FROM events")) as { day: string }[];
+        await c.db.execute("DELETE FROM events");
+        return days.map((d) => d.day);
+      });
     },
 
     /** A usage game's score (Tokenmaxxing). */
@@ -174,12 +209,20 @@ export const player = actor({
       if (!Array.isArray(events) || events.length > MAX_EVENTS_PER_REQUEST)
         throw new UserError("Too many events.", { code: "invalid_body" });
       const now = Date.now();
+      if (!c.vars.ingests.take("sync", now))
+        throw new UserError("Syncing too often. Try again in a minute.", { code: "rate_limited" });
       const valid: TokenEvent[] = [];
       for (const raw of events) {
         const e = parseEvent(raw, now);
         if (typeof e !== "string") valid.push(e);
       }
       return c.vars.serial(async () => {
+        const today = dayKey(now);
+        const stored = c.state.stored?.day === today ? c.state.stored.events : 0;
+        if (stored >= EVENTS_PER_DAY)
+          throw new UserError("That's a lot of events for one day. The rest syncs tomorrow.", {
+            code: "rate_limited",
+          });
         const [{ before }] = (await c.db.execute("SELECT total_changes() AS before")) as [{ before: number }];
         for (let i = 0; i < valid.length; i += INSERT_CHUNK) {
           const chunk = valid.slice(i, i + INSERT_CHUNK);
@@ -191,6 +234,7 @@ export const player = actor({
         }
         const [{ after }] = (await c.db.execute("SELECT total_changes() AS after")) as [{ after: number }];
         const inserted = after - before;
+        c.state.stored = { day: today, events: stored + inserted };
         if (inserted > 0) {
           const days = [...new Set(valid.map((e) => dayKey(e.timestamp)))];
           await report(c.db, c.client<typeof registry>(), c.state.userId, days, now);
@@ -204,6 +248,8 @@ export const player = actor({
     },
   },
 });
+
+const EVENT_TOKENS = "input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens";
 
 /** Tokens in assistant events stamped from ≤ t < to, the same sum as the leaderboard, each minute capped (and flagged). */
 export async function tokensBetween(sql: Sql, from: number, to: number): Promise<Usage> {
@@ -233,14 +279,33 @@ async function report(
   now: number,
 ): Promise<void> {
   const inDays = `day IN (${days.map(() => "?").join(",")})`;
+  // Each minute counts up to USAGE_MINUTE_CAP tokens: past it, that minute's events are scaled
+  // down, and what didn't count is kept per day (`capped`) for the admin page to flag.
+  const minutes = `SELECT timestamp / 60000 AS minute, SUM(${EVENT_TOKENS}) AS t
+     FROM events WHERE ${inDays} AND message_type = 'assistant' GROUP BY minute`;
+  const scaled = (col: string) =>
+    `CAST(SUM(${col} * CASE WHEN m.t > ? THEN ? * 1.0 / m.t ELSE 1 END) AS INTEGER)`;
   const usage = (await sql.execute(
-    `SELECT day, model, SUM(input_tokens) AS input, SUM(output_tokens) AS output,
-            SUM(cache_creation_tokens) AS cacheCreation, SUM(cache_read_tokens) AS cacheRead,
+    `WITH m AS (${minutes})
+     SELECT day, model, ${scaled("input_tokens")} AS input, ${scaled("output_tokens")} AS output,
+            ${scaled("cache_creation_tokens")} AS cacheCreation, ${scaled("cache_read_tokens")} AS cacheRead,
             COUNT(*) AS turns
-     FROM events WHERE ${inDays} AND message_type = 'assistant'
+     FROM events JOIN m ON m.minute = timestamp / 60000
+     WHERE ${inDays} AND message_type = 'assistant'
      GROUP BY day, model`,
     ...days,
+    ...Array(4).fill([USAGE_MINUTE_CAP, USAGE_MINUTE_CAP]).flat(),
+    ...days,
   )) as UsageDay[];
+  const capped = (await sql.execute(
+    `SELECT day, SUM(t - ?) AS tokens FROM (
+       SELECT day, SUM(${EVENT_TOKENS}) AS t FROM events
+       WHERE ${inDays} AND message_type = 'assistant' GROUP BY day, timestamp / 60000)
+     WHERE t > ? GROUP BY day`,
+    USAGE_MINUTE_CAP,
+    ...days,
+    USAGE_MINUTE_CAP,
+  )) as { day: string; tokens: number }[];
   const counts = (await sql.execute(
     `SELECT day, SUM(message_type = 'user') AS prompts, SUM(message_type = 'pr') AS prs
      FROM events WHERE ${inDays} GROUP BY day`,
@@ -269,6 +334,7 @@ async function report(
       agentBuckets: b?.agentBuckets ?? 0,
       activeBuckets: b?.activeBuckets ?? 0,
       peakAgents: b?.peakAgents ?? 0,
+      capped: capped.find((r) => r.day === day)?.tokens ?? 0,
     };
   });
   await main(client).town.report(userId, days, usage, activity);

@@ -75,6 +75,7 @@ Tokenmaxxing.app (Tauri, Rust)                     server (Railway, one process)
 ├─ menu bar: ⚡ 306M, its menu                      Bun.serve
 ├─ game window ── loads the live game ──────────►  ├─ /             the marketing site (Astro)
 ├─ Keychain, login item, updater                   ├─ /play         the game (bundled at boot)
+│                                                  ├─ /admin        the admin page (ADMIN_TOKEN)
 │                                                  ├─ /logos/:file  company logos
 └─ sidecar: TS helper ◄─ NDJSON                    ├─ /api/rivet/*  proxy to the Rivet engine's gateway ◄── game
      parses local logs, player.ingest() ────────►  └─ Rivet actors: town, world, player[userId],
@@ -138,6 +139,10 @@ TOKENMAXXING_TOKEN=… TOKENMAXXING_SERVER_URL=http://localhost:8787 bun run hel
 | `NODE_ENV` | | `production` minifies the game |
 | `FIRECRAWL_API_KEY` | | Reads company websites. Without it, a website only goes on the sign |
 | `ANTHROPIC_API_KEY` | | Turns a website's brand into house colours. Without it, the site's own colours are used |
+| `ADMIN_TOKEN` | | Turns on the admin page at `/admin#token=<it>` (32+ characters: `openssl rand -hex 32`). Without it, the page lets nobody in |
+| `CLIENT_IP_HEADER` | `x-real-ip` | Where the client's IP is, for per-IP limits. Railway's edge sets `x-real-ip` |
+| `GATEWAY_REQUESTS_PER_MIN` | `1200` | Requests to the actors per client IP a minute |
+| `GATEWAY_SOCKETS_PER_MIN` | `300` | New WebSockets per client IP a minute |
 
 `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` are read by RivetKit's native side, so they must be set in
 the environment before the process starts.

@@ -1,0 +1,293 @@
+:root {
+  --bg: #1b1f2a;
+  --panel: #1f2430;
+  --raised: #272d3b;
+  --line: rgba(255, 255, 255, 0.12);
+  --text: #f4f1ea;
+  --muted: #a7adbb;
+  --accent: #ffd35c;
+  --bad: #ff8a80;
+  --font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px / 1.4 var(--font);
+}
+
+h1 {
+  margin: 0;
+  font-size: 15px;
+}
+
+a {
+  color: var(--accent);
+}
+
+code {
+  color: var(--accent);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 11px;
+}
+
+.error {
+  color: var(--bad);
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1b1f2a;
+  font-weight: 600;
+}
+
+button.danger {
+  color: var(--bad);
+}
+
+button.danger:hover {
+  border-color: var(--bad);
+}
+
+button.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline dotted var(--muted);
+}
+
+input {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Signing in */
+
+.signin {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+}
+
+.signin form {
+  display: grid;
+  gap: 12px;
+  width: min(380px, 90vw);
+  padding: 24px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.signin p {
+  margin: 0;
+}
+
+/* The console */
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+nav {
+  display: flex;
+  gap: 4px;
+  margin-left: 12px;
+}
+
+nav button {
+  background: none;
+  border-color: transparent;
+}
+
+nav button.on {
+  background: var(--raised);
+  border-color: var(--line);
+  color: var(--accent);
+}
+
+.spacer {
+  flex: 1;
+}
+
+main {
+  padding: 20px;
+}
+
+.message {
+  display: block;
+  width: calc(100% - 40px);
+  margin: 16px 20px 0;
+  padding: 8px 12px;
+  text-align: left;
+  border-color: var(--accent);
+  white-space: normal;
+}
+
+.message.bad {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.tile .value {
+  margin: 4px 0 2px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.search {
+  width: min(360px, 100%);
+  margin-bottom: 12px;
+}
+
+.scroll {
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+th {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+th button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+}
+
+.num {
+  text-align: right;
+}
+
+.tag {
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.tag.bad {
+  color: var(--bad);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.coins {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.coins input {
+  width: 90px;
+  padding: 2px 6px;
+  text-align: right;
+}
+
+.coins button {
+  padding: 2px 8px;
+}
+
+details {
+  white-space: normal;
+  max-width: 280px;
+}
+
+summary {
+  cursor: pointer;
+}

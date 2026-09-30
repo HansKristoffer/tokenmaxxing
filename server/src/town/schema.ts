@@ -41,7 +41,8 @@ export async function migrate(sql: Sql): Promise<void> {
     user_id INTEGER NOT NULL, item TEXT NOT NULL, price INTEGER NOT NULL, at INTEGER NOT NULL,
     PRIMARY KEY (user_id, item)) WITHOUT ROWID`);
   // Coins that move between players: stakes and side bets held, then paid out or refunded.
-  // Negative amounts leave a wallet. Every `ref` sums to 0 or less, never more.
+  // Negative amounts leave a wallet. Every `ref` sums to 0 or less, never more, except `admin`:
+  // coins an admin gave or took (kind `admin`).
   await sql.execute(`CREATE TABLE IF NOT EXISTS ledger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL, amount INTEGER NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL,
@@ -55,4 +56,18 @@ export async function migrate(sql: Sql): Promise<void> {
     PRIMARY KEY (match_id, user_id))`);
   await sql.execute("CREATE INDEX IF NOT EXISTS match_players_day ON match_players (day)");
   await sql.execute("CREATE INDEX IF NOT EXISTS match_players_user ON match_players (user_id)");
+  // Tokens past the per-minute cap (`player.ts`), per day: they count for nothing, and the admin
+  // page flags who sends them.
+  await sql.execute(`CREATE TABLE IF NOT EXISTS capped_daily (
+    user_id INTEGER NOT NULL, day TEXT NOT NULL, tokens INTEGER NOT NULL,
+    PRIMARY KEY (user_id, day)) WITHOUT ROWID`);
+  // What was done from the admin page, and when.
+  await sql.execute(`CREATE TABLE IF NOT EXISTS admin_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL,
+    action TEXT NOT NULL, target TEXT NOT NULL, detail TEXT)`);
+  // Accounts an admin deleted. `users` ids come after these, so a new account never takes over a
+  // deleted one's `player` actor, or its rows in `ledger` and `match_players` (which stay, since
+  // other players' games add up with them).
+  await sql.execute(`CREATE TABLE IF NOT EXISTS deleted_users (
+    id INTEGER PRIMARY KEY, name TEXT NOT NULL, at INTEGER NOT NULL)`);
 }

@@ -11,6 +11,9 @@ import { createClient } from "rivetkit/client";
 import type { registry as Registry } from "../src/actors/registry.ts";
 import { afterEveryTest, atExit } from "./cleanup.ts";
 
+/** The admin page's token on the test server. */
+export const ADMIN_TOKEN = "test-admin-token-0123456789abcdef";
+
 const port = 20_000 + Math.floor(Math.random() * 20_000);
 const enginePort = port + 100;
 const server = Bun.spawn(["bun", join(import.meta.dir, "../src/main.ts")], {
@@ -24,6 +27,10 @@ const server = Bun.spawn(["bun", join(import.meta.dir, "../src/main.ts")], {
     // Company websites stay on the sign; no scraping or Claude calls from tests.
     FIRECRAWL_API_KEY: "",
     ANTHROPIC_API_KEY: "",
+    ADMIN_TOKEN,
+    // Every test comes from 127.0.0.1; `signUp` below poses as a new address each time instead.
+    GATEWAY_REQUESTS_PER_MIN: "1000000",
+    GATEWAY_SOCKETS_PER_MIN: "1000000",
   },
   stdout: "ignore",
   stderr: "ignore",
@@ -53,6 +60,10 @@ atExit.push(() => {
 
 export const client = createClient<typeof Registry>({ endpoint: `${origin}/api/rivet` });
 
+/** A client that comes from `ip`, as Railway's edge would say (`x-real-ip`): sign-ups are limited per IP. */
+export const from = (ip: string) =>
+  createClient<typeof Registry>({ endpoint: `${origin}/api/rivet`, headers: { "x-real-ip": ip } });
+
 let n = 0;
 /** Tokens of users signed up during the current test. */
 const fresh: string[] = [];
@@ -60,7 +71,9 @@ const fresh: string[] = [];
 /** A fresh user; names are unique per run since `town` is shared by every test. */
 export async function signUp(prefix = "u") {
   const name = `${prefix}${Date.now().toString(36)}${n++}`;
-  const r = await client.town.getOrCreate(["main"]).signUp(name);
+  const r = await from(`10.1.${Math.floor(n / 250)}.${n % 250}`)
+    .town.getOrCreate(["main"])
+    .signUp(name);
   fresh.push(r.token);
   return { ...r, town: client.town.getOrCreate(["main"], { params: { token: r.token } }) };
 }
@@ -88,6 +101,9 @@ afterEveryTest.push(async () => {
   );
 });
 
+/** `town` as the admin page calls it. */
+export const admin = () => client.town.getOrCreate(["main"], { params: { admin: ADMIN_TOKEN } });
+
 export const as = (token: string) => ({
   town: client.town.getOrCreate(["main"], { params: { token } }),
   world: client.world.getOrCreate(["main"], { params: { token } }),
@@ -96,14 +112,10 @@ export const as = (token: string) => ({
   match: (id: number) => client.match.get([String(id)], { params: { token } }),
 });
 
-/** A fresh user with `coins` coins: √(tokens ÷ 1M) from today's usage. */
+/** A fresh user with `coins` coins, given from the admin page (real usage that big would be capped). */
 export async function rich(prefix = "rich", coins = 100) {
   const u = await signUp(prefix);
-  await as(u.token)
-    .player(u.userId)
-    .ingest([
-      event({ inputTokens: coins * coins * 1e6, timestamp: Date.now(), messageId: `rich${u.userId}` }),
-    ]);
+  await admin().adminSetCoins(u.userId, coins);
   return { ...u, ...as(u.token) };
 }
 

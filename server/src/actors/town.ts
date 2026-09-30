@@ -8,6 +8,20 @@ import { canBrand } from "../brand.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { type ActivityRow, isSortKey, type UsageRow } from "../stats.ts";
 import {
+  type AdminCompany,
+  type AdminLogEntry,
+  type AdminOverview,
+  type AdminUser,
+  companies as adminCompanies,
+  adminLog,
+  users as adminUsers,
+  closeCompany,
+  deleteUser,
+  logAdmin,
+  overview,
+  wipeUsage,
+} from "../town/admin.ts";
+import {
   type CompanyProfile,
   companyProfile,
   type Leaderboard,
@@ -27,6 +41,7 @@ import {
   type PayKind,
   pay,
   refund,
+  setBalance,
   type Wallet,
   wallet,
 } from "../town/coins.ts";
@@ -34,6 +49,7 @@ import {
   applicationOf,
   apply,
   approve,
+  companyById,
   companyInfos,
   decline,
   type Listing,
@@ -55,15 +71,22 @@ import {
   authenticate,
   type Caller,
   type ConnParams,
+  clientIpOf,
+  INTERNAL_KEY,
+  internal,
+  main,
   makeToken,
   one,
+  requireAdmin,
   requireInternal,
+  requireMain,
   requireUser,
   type Sql,
   serial,
   type TokenCache,
 } from "./shared.ts";
 
+export type { AdminCompany, AdminLogEntry, AdminOverview, AdminUser } from "../town/admin.ts";
 export type {
   BoardCompany,
   BoardPlayer,
@@ -83,6 +106,8 @@ export interface UsageDay extends UsageRow {
 
 export interface ActivityDay extends ActivityRow {
   day: string;
+  /** Tokens past the per-minute cap, which count for nothing. */
+  capped: number;
 }
 
 export interface Me {
@@ -94,8 +119,12 @@ export interface Me {
   application: { companyId: number; name: string } | null;
 }
 
-/** ponytail: one global bucket (actors don't see client IPs). Per-IP limits would need the proxy. */
-const SIGNUPS_PER_HOUR = 200;
+/**
+ * Per client IP (from `proxy.ts`): an office signing up together fits, a script doesn't. The
+ * global bucket is the backstop against many IPs at once.
+ */
+const SIGNUPS_PER_IP_PER_HOUR = 20;
+const SIGNUPS_PER_HOUR = 1000;
 
 /** Each one scrapes a site and asks Claude, so owners can't loop it. */
 const BRANDINGS_PER_HOUR = 5;
@@ -111,6 +140,8 @@ async function insertRows(sql: Sql, insert: string, rows: unknown[][]): Promise<
     await sql.execute(`${insert} ${chunk.map(() => row).join(",")}`, ...chunk.flat());
   }
 }
+
+type TownConn = Caller & { ip: string | null };
 
 function userName(raw: unknown): string {
   const name = parseUserName(raw);
@@ -129,26 +160,34 @@ export const town = actor({
   createVars: () => ({
     serial: serial(),
     signups: new RateLimiter(SIGNUPS_PER_HOUR, HOUR),
+    signupsPerIp: new RateLimiter(SIGNUPS_PER_IP_PER_HOUR, HOUR),
     brandings: new RateLimiter(BRANDINGS_PER_HOUR, HOUR),
     applications: new RateLimiter(APPLICATIONS_PER_HOUR, HOUR),
     /** Verified tokens, so a burst of calls doesn't ask `player` every time. */
     tokens: new Map() as TokenCache,
   }),
   db: db({ onMigrate: migrate }),
-  createConnState: (c, params: ConnParams): Promise<Caller> =>
-    authenticate(params, c.client(), c.vars.tokens),
+  onCreate: (c) => requireMain(c),
+  createConnState: async (c, params: ConnParams): Promise<TownConn> => ({
+    ...(await authenticate(params, c.client(), c.vars.tokens)),
+    ip: clientIpOf(c.request),
+  }),
   actions: {
     signUp: async (c, rawName: unknown): Promise<{ userId: number; name: string; token: string }> => {
       const name = userName(rawName);
-      if (!c.vars.signups.take("all", Date.now()))
+      const now = Date.now();
+      if (!c.vars.signupsPerIp.take(c.conn.state.ip ?? "inside", now) || !c.vars.signups.take("all", now))
         throw new UserError("Too many sign-ups right now. Try again in a bit.", { code: "rate_limited" });
       const client = c.client<typeof registry>();
       const userId = await c.vars.serial(async () => {
         if (await one(c.db, "SELECT 1 FROM users WHERE name = ?", name))
           throw new UserError("That name is taken.", { code: "name_taken" });
+        // After every id there's been, deleted accounts too.
         const [row] = await all<{ id: number }>(
           c.db,
-          "INSERT INTO users (name, look, created_at) VALUES (?, '{}', ?) RETURNING id",
+          `INSERT INTO users (id, name, look, created_at) VALUES (
+             COALESCE((SELECT MAX(id) FROM (SELECT id FROM users UNION ALL SELECT id FROM deleted_users)), 0) + 1,
+             ?, '{}', ?) RETURNING id`,
           name,
           Date.now(),
         );
@@ -160,7 +199,15 @@ export const town = actor({
         return row!.id;
       });
       const { token, hash } = makeToken(userId);
-      await client.player.create([String(userId)], { input: { userId, tokenHash: hash } });
+      try {
+        await client.player.create([String(userId)], {
+          input: { userId, tokenHash: hash, internal: INTERNAL_KEY },
+        });
+      } catch (err) {
+        // Nobody holds a token for this account, so it goes; the name is free again.
+        await c.db.execute("DELETE FROM users WHERE id = ?", userId);
+        throw err;
+      }
       await pushPlayers(c.db, client, [userId]);
       return { userId, name, token };
     },
@@ -179,13 +226,7 @@ export const town = actor({
 
     rename: async (c, rawName: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
-      const name = userName(rawName);
-      await c.vars.serial(async () => {
-        const taken = await one<{ id: number }>(c.db, "SELECT id FROM users WHERE name = ?", name);
-        if (taken && taken.id !== userId) throw new UserError("That name is taken.", { code: "name_taken" });
-        await c.db.execute("UPDATE users SET name = ? WHERE id = ?", name, userId);
-      });
-      await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
+      await renameUser(c.db, c.vars.serial, c.client<typeof registry>(), userId, rawName);
     },
 
     setLook: async (c, rawLook: unknown): Promise<void> => {
@@ -293,10 +334,8 @@ export const town = actor({
 
     renameCompany: async (c, rawName: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
-      const name = companyName(rawName);
       const company = await ownedCompany(c.db, userId);
-      await c.db.execute("UPDATE companies SET name = ? WHERE id = ?", name, company.id);
-      await push(c.db, c.client<typeof registry>(), { companies: [company.id], users: [] });
+      await renameCompany(c.db, c.client<typeof registry>(), company.id, rawName);
     },
 
     /**
@@ -372,6 +411,12 @@ export const town = actor({
             a.activeBuckets,
             a.peakAgents,
           ]),
+        );
+        await c.db.execute(`DELETE FROM capped_daily WHERE user_id = ? AND ${inDays}`, userId, ...days);
+        await insertRows(
+          c.db,
+          "INSERT INTO capped_daily VALUES",
+          activity.filter((a) => a.capped > 0).map((a) => [userId, a.day, a.capped]),
         );
       });
       const u = await userById(c.db, userId);
@@ -483,6 +528,114 @@ export const town = actor({
       return namesOf(c.db, userIds);
     },
 
+    // MARK: The admin page (`ADMIN_TOKEN`)
+
+    adminOverview: (c): Promise<AdminOverview> => {
+      requireAdmin(c.conn.state);
+      return overview(c.db, Date.now());
+    },
+
+    adminUsers: (c): Promise<AdminUser[]> => {
+      requireAdmin(c.conn.state);
+      return adminUsers(c.db, Date.now());
+    },
+
+    adminCompanies: (c): Promise<AdminCompany[]> => {
+      requireAdmin(c.conn.state);
+      return adminCompanies(c.db);
+    },
+
+    adminLog: (c): Promise<AdminLogEntry[]> => {
+      requireAdmin(c.conn.state);
+      return adminLog(c.db);
+    },
+
+    /** Sets someone's balance; returns it. */
+    adminSetCoins: async (c, userId: unknown, balance: unknown): Promise<number> => {
+      requireAdmin(c.conn.state);
+      if (!Number.isSafeInteger(balance) || (balance as number) < 0 || (balance as number) > 10_000_000)
+        throw new UserError("Use a whole number from 0 to 10,000,000.", { code: "invalid_amount" });
+      const user = await adminTarget(c.db, userId);
+      const now = Date.now();
+      const set = await c.vars.serial(() => setBalance(c.db, user.id, balance as number, now));
+      await logAdmin(c.db, "set coins", who(user), `${set.before} → ${set.balance}`, now);
+      return set.balance;
+    },
+
+    adminRenameUser: async (c, userId: unknown, rawName: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const user = await adminTarget(c.db, userId);
+      await renameUser(c.db, c.vars.serial, c.client<typeof registry>(), user.id, rawName);
+      await logAdmin(c.db, "rename user", who(user), `→ ${userName(rawName)}`, Date.now());
+    },
+
+    /** Takes someone out of their company (the owner hands over, the last one out closes it). */
+    adminRemoveFromCompany: async (c, userId: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const user = await adminTarget(c.db, userId);
+      const changed = await c.vars.serial(() => leave(c.db, user.id));
+      await push(c.db, c.client<typeof registry>(), changed);
+      await logAdmin(c.db, "remove from company", who(user), `company #${user.companyId}`, Date.now());
+    },
+
+    /** Forgets someone's usage, raw events and all: for numbers that were made up. */
+    adminWipeUsage: async (c, userId: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const user = await adminTarget(c.db, userId);
+      const client = c.client<typeof registry>();
+      const days = await client.player.get([String(user.id)], internal).wipe();
+      await c.vars.serial(() => wipeUsage(c.db, user.id));
+      await push(c.db, client, {
+        users: [user.id],
+        companies: user.companyId === null ? [] : [user.companyId],
+      });
+      await logAdmin(c.db, "wipe usage", who(user), `${days.length} days`, Date.now());
+    },
+
+    /** Deletes an account for good: their device token and sessions stop working, and they leave the world. */
+    adminDeleteUser: async (c, userId: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const user = await adminTarget(c.db, userId);
+      const now = Date.now();
+      const changed = await c.vars.serial(() => deleteUser(c.db, user.id, now));
+      await logAdmin(c.db, "delete user", who(user), null, now);
+      const client = c.client<typeof registry>();
+      await push(c.db, client, changed);
+      await main(client).world.removePlayer(user.id);
+      await client.player.get([String(user.id)], internal).close();
+    },
+
+    adminRenameCompany: async (c, companyId: unknown, rawName: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const company = typeof companyId === "number" ? await companyById(c.db, companyId) : undefined;
+      if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+      await renameCompany(c.db, c.client<typeof registry>(), company.id, rawName);
+      await logAdmin(
+        c.db,
+        "rename company",
+        `${company.name} (#${company.id})`,
+        `→ ${companyName(rawName)}`,
+        Date.now(),
+      );
+    },
+
+    adminCloseCompany: async (c, companyId: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const client = c.client<typeof registry>();
+      const company = typeof companyId === "number" ? await companyById(c.db, companyId) : undefined;
+      if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+      const changed = await c.vars.serial(() => closeCompany(c.db, company.id));
+      await logAdmin(
+        c.db,
+        "close company",
+        `${company.name} (#${company.id})`,
+        `${changed.users.length} members`,
+        Date.now(),
+      );
+      await push(c.db, client, changed);
+      for (const id of changed.users) await notify(client, id, "Your company was closed by the town admin.");
+    },
+
     /** For `world` starting from nothing: everyone and every company. */
     seed: async (c): Promise<{ players: PlayerCore[]; companies: CompanyInfo[] }> => {
       requireInternal(c.conn.state);
@@ -501,6 +654,39 @@ export const town = actor({
     },
   },
 });
+
+type Client = Parameters<typeof push>[1];
+
+/** How the admin log names someone. */
+const who = (u: { id: number; name: string }) => `${u.name} (#${u.id})`;
+
+const adminTarget = (sql: Sql, userId: unknown) => {
+  if (typeof userId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
+  return userById(sql, userId);
+};
+
+/** For the player themselves, and for the admin page. Run under `serial`, since names are unique. */
+async function renameUser(
+  sql: Sql,
+  run: ReturnType<typeof serial>,
+  client: Client,
+  userId: number,
+  rawName: unknown,
+): Promise<void> {
+  const name = userName(rawName);
+  await run(async () => {
+    const taken = await one<{ id: number }>(sql, "SELECT id FROM users WHERE name = ?", name);
+    if (taken && taken.id !== userId) throw new UserError("That name is taken.", { code: "name_taken" });
+    await sql.execute("UPDATE users SET name = ? WHERE id = ?", name, userId);
+  });
+  await pushPlayers(sql, client, [userId]);
+}
+
+async function renameCompany(sql: Sql, client: Client, companyId: number, rawName: unknown): Promise<void> {
+  const name = companyName(rawName);
+  await sql.execute("UPDATE companies SET name = ? WHERE id = ?", name, companyId);
+  await push(sql, client, { companies: [companyId], users: [] });
+}
 
 async function namesOf(sql: Sql, userIds: number[]): Promise<Record<number, string>> {
   const rows = await all<{ id: number; name: string }>(

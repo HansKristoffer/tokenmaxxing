@@ -9,6 +9,7 @@ Tokenmaxxing.app (Tauri v2, app/desktop)             server (one Railway service
 ├─ menu bar: ⚡ tokens today, menu                   Bun.serve (server/src/main.ts)
 ├─ sidecar: TS helper ◄─ NDJSON ─► Rust ───────────►  ├─ /               the marketing site (site/, Astro, built in the image)
 │    parses logs, player.ingest()                     ├─ /play           the game (web/, bundled at boot)
+│                                                     ├─ /admin          the admin page (web/admin.html)
 │                                                     ├─ /logos/:file    company logos (sandboxed)
 ├─ game window: Canvas 2D world + React HUD           ├─ /health
 │    (the live page, over WebSocket) ◄─────────────►  └─ /api/rivet/*    proxy to the Rivet engine (gateway only)
@@ -23,7 +24,7 @@ The game also runs in any browser; the app's window is that same page, at `/play
 | `core/` | Log parsers and sync, the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `games/` (every game's rules), `format.ts`, `range.ts` |
 | `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `sync` (pushes to `world`) |
-| `server/src/` | `main.ts`, `proxy.ts`, `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts` |
+| `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts` |
 | `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels) |
 | `app/helper/` | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar |
 | `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, updates |
@@ -35,6 +36,17 @@ The game also runs in any browser; the app's window is that same page, at `/play
   up, Bun's HTML bundler fails in the same process, so there's no hot reload: restart `bun run dev`.
 - `registry.start()` runs the Rivet engine on `127.0.0.1`. `proxy.ts` forwards only the client gateway
   (`/api/rivet/gateway/*` and `/metadata`, HTTP and WebSocket); the engine's admin API is never exposed.
+- The gateway would let a browser create any actor, with any key and input. `gatewayAllowed` lets through
+  only existing actors (by id, or `get` by key) and `getOrCreate(["main"])` of `town`, `world` and `arcade`,
+  with no input. The actors check too: `player` and `match` refuse to be created without `INTERNAL_KEY` in
+  their input (`fromInside`), and the singletons refuse any key but `main` (`requireMain`). Otherwise
+  anyone could make `player[<the next id>]` with their own token and own the next account.
+- Per client IP, the proxy allows 1,200 gateway requests and 300 new WebSockets a minute
+  (`GATEWAY_REQUESTS_PER_MIN`, `GATEWAY_SOCKETS_PER_MIN`). The IP is `CLIENT_IP_HEADER` (`x-real-ip`, set by
+  Railway's edge) or the socket's; the proxy passes it on to actors as `x-tokenmaxxing-ip`, replacing any
+  the client sent.
+- `/play` and `/admin` send a CSP (`headers.ts`): our own scripts only, connections only back to us (and the
+  desktop app's IPC for the game), no framing. The page files aren't served at their own paths.
 - `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` must be real environment variables: RivetKit's native side
   ignores `process.env` changes made at runtime. The Dockerfile and `bun run dev` set them.
 - Company logos live next to the Rivet data (`/data/logos` in Docker, `.data/logos` in dev).
@@ -51,6 +63,11 @@ The game also runs in any browser; the app's window is that same page, at `/play
 - A browser can still be signed in with `/#code=…`: the page redeems the code and removes it from the URL.
 - The app forgets its token when the server rejects it and goes back to picking a name.
 - There's no web sign-up: in a browser, without a session the page says to open the world from the app.
+- **Admin:** `/admin#token=…` keeps the token in `localStorage`, drops it from the URL, and connects to `town`
+  with `{ admin: token }`. A fragment never reaches the server, so the token stays out of logs (`?token=`
+  works too, but does reach it). `authenticate` checks it against `ADMIN_TOKEN` (constant time; unset lets
+  nobody in, and under 32 characters fails the boot). Only `town`'s `admin*` actions accept that caller.
+- Login codes and sessions are capped per player (5 live codes, 20 sessions; the oldest go first).
 
 ## The desktop app
 
@@ -95,11 +112,20 @@ The game also runs in any browser; the app's window is that same page, at `/play
 **`player[userId]`**: raw events (SQLite, deduplicated), tokens, sessions and login codes. `ingest` stores a
 batch, recomputes the touched world days (per-model sums, prompts, PRs, 5-minute agent buckets) and sends them
 to `town.report`, then tells `world` how many agents are live, and `arcade.usage` in case they're in a battle.
+- **The numbers come from the user's own machine,** so they're bounded rather than trusted: an event over 1B
+  tokens in any field, or stamped over an hour ahead, is dropped (`validate.ts`); model names that aren't
+  model-shaped count as `unknown` (they're shown on profiles). Each minute counts for at most 200M tokens
+  (`USAGE_MINUTE_CAP`; a busy real day is ~1.5B): past it, that minute is scaled down and the rest goes in
+  `capped_daily`, which flags the account on the admin page. That also keeps every `SUM` far below SQLite's
+  64-bit limit, where it would throw and take the leaderboards down.
+- Per player: 60 ingests a minute and 500,000 new events a world day. Past either, the app's sync fails and
+  picks up where it stopped on its next run, so a big first sync is delayed, never lost.
 
 **`town["main"]`**: everything cold, joined in SQL.
-- Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `purchases`, `ledger`
-  (coins held and paid by games), `match_players` (one row per player per finished game).
-- Accounts: `signUp` (200 an hour, globally), `rename`, `setLook` (refuses shop items you don't own), `me`.
+- Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `capped_daily`,
+  `purchases`, `ledger` (coins held and paid by games), `match_players` (one row per player per finished
+  game), `deleted_users`, `admin_log`.
+- Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename`, `setLook` (refuses shop items you don't own), `me`.
 - Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
   `core/src/maps.ts`), leave, kick, rename, `setWebsite`. One company per person, at most 50 members. The
   earliest joiner takes over from a leaving owner; the last one out closes the company. The town is built from
@@ -111,6 +137,14 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Stats: `leaderboard`, `profile`, `today` (the HUD's corner), `searchNames`, `gameBoard`. Cost is priced
   when read.
 - Coins: `wallet`, `buy`; for `arcade`: `hold`, `pay`, `refund`, `recordMatch`. Games: `gameBoard`.
+- Admin (`town/admin.ts`, for `/admin`): `adminOverview`, `adminUsers` and `adminCompanies`; rename people
+  and companies; set a balance (the difference goes in the `ledger` as kind and ref `admin`); take someone
+  out of their company; close a company; wipe someone's usage (their `player` drops its raw events too:
+  `wipe`); delete an account. Every change goes in `admin_log`, shown on the page's Log tab. Deleting drops their usage, activity,
+  purchases and application, hands over or closes their company, takes them out of `world`
+  (`removePlayer`) and destroys their `player` (`close`), so every token and session stops working. It's
+  refused while they have coins in an unsettled game. Their `ledger` and `match_players` rows stay, and
+  `deleted_users` keeps new ids above theirs, so nobody inherits them.
 - Every change a player could see is pushed to `world` (`town/sync.ts`); `world` never asks `town`.
 
 **`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room).
@@ -226,7 +260,8 @@ No server changes, actions or tables are needed.
 These are deliberate, and marked `ponytail:` in the code:
 - one `world` actor for everyone (split it per room when hundreds are online at once; the protocol is already
   per room);
-- the sign-up limit is global and in memory (actors never see client IPs);
+- rate limits are in memory, so a deploy resets them;
+- usage is reported by each user's machine: capped and flagged, but it can't be proven;
 - leaderboards and wallets are recomputed on every request;
 - a late sync can knock someone off a past podium after they spent the bonus;
 - the logo download checks DNS before fetching, so DNS rebinding in between isn't caught.

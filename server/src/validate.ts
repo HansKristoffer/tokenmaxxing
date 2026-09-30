@@ -44,10 +44,22 @@ export function parseChatText(raw: unknown): string | null {
 
 export const MAX_EVENTS_PER_REQUEST = 1000;
 /** Clock-skew headroom for events stamped slightly in the future. */
-const MAX_FUTURE_MS = 86_400_000;
+const MAX_FUTURE_MS = 3_600_000;
 const MAX_ID_LENGTH = 256;
+/**
+ * No real turn comes near this (a whole context window is a few million), and it keeps sums far
+ * from SQLite's 64-bit limit: `SUM` throws past it, which would break every leaderboard at once.
+ */
+export const MAX_TOKENS_PER_EVENT = 1_000_000_000;
+/**
+ * Model names are shown on profiles, so they can't carry free text. Real ones look like
+ * `claude-opus-4-7`, `us.anthropic.claude-sonnet-4:0`, `claude-opus-4@20250514` or `<synthetic>`;
+ * anything else is counted as `unknown` rather than dropped.
+ */
+const MODEL_RE = /^[\w.:/@<>+-]{1,128}$/;
 
 const isNonNegInt = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) >= 0;
+const isTokens = (v: unknown): v is number => isNonNegInt(v) && v <= MAX_TOKENS_PER_EVENT;
 const isId = (v: unknown): v is string => typeof v === "string" && v.length > 0 && v.length <= MAX_ID_LENGTH;
 
 /** Returns the event, or a reason string. Nothing from the payload is echoed back. */
@@ -65,9 +77,9 @@ export function parseEvent(raw: unknown, now: number): TokenEvent | string {
   if (typeof e.model !== "string" || e.model.length > MAX_ID_LENGTH) return "model";
   if (e.messageType === "assistant" && e.model.length === 0) return "model";
   for (const k of ["inputTokens", "outputTokens", "cacheCreationTokens", "cacheReadTokens"] as const) {
-    if (!isNonNegInt(e[k])) return k;
+    if (!isTokens(e[k])) return k;
   }
-  if (e.reasoningTokens !== null && !isNonNegInt(e.reasoningTokens)) return "reasoningTokens";
+  if (e.reasoningTokens !== null && !isTokens(e.reasoningTokens)) return "reasoningTokens";
   return {
     source: e.source as Source,
     sessionId: e.sessionId,
@@ -75,7 +87,7 @@ export function parseEvent(raw: unknown, now: number): TokenEvent | string {
     messageId: e.messageId,
     requestId: e.requestId as string | null,
     timestamp: e.timestamp,
-    model: e.model,
+    model: e.model === "" || MODEL_RE.test(e.model) ? e.model : "unknown",
     messageType: e.messageType as MessageType,
     inputTokens: e.inputTokens as number,
     outputTokens: e.outputTokens as number,
