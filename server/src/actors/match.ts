@@ -86,8 +86,14 @@ export const match = actor({
   createVars: () => ({ tokens: new Map() as TokenCache, chat: new RateLimiter(CHAT_PER_MIN, 60_000) }),
   createConnState: (c, params: ConnParams): Promise<Caller> =>
     authenticate(params, c.client(), c.vars.tokens),
-  onConnect: (c): void => pushFrames(c),
-  onDisconnect: (c): void => pushFrames(c),
+  // Only a person watching changes what the frames show (the watcher count). Other actors' calls,
+  // like each app's battle poll, connect too.
+  onConnect: (c, conn): void => {
+    if ((conn.state as Caller).kind === "user") pushFrames(c);
+  },
+  onDisconnect: (c, conn): void => {
+    if ((conn.state as Caller).kind === "user") pushFrames(c);
+  },
   run: async (c): Promise<void> => {
     const signal = c.abortSignal;
     const def = defOf(c.state);
@@ -132,7 +138,7 @@ export const match = actor({
   },
   actions: {
     /** Your frame, when opening the game. */
-    frame: (c): Frame => frameFor(c.state, viewerOf(c.state, c.conn.state), watchersOf(c)),
+    frame: (c): Frame => frameFor(plain(c.state), viewerOf(c.state, c.conn.state), watchersOf(c)),
 
     move: async (c, move: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
@@ -297,12 +303,19 @@ const frameFor = (s: MatchState, you: number | null, watchers: number): Frame =>
 
 /** Everyone connected gets their own view: players see their secrets, watchers don't. */
 function pushFrames(c: MatchCtx): void {
+  const viewers = [...c.conns.values()].filter((conn) => (conn.state as Caller).kind === "user");
+  if (!viewers.length) return;
+  const s = plain(c.state);
   const watchers = watchersOf(c);
-  for (const conn of c.conns.values()) {
-    if ((conn.state as Caller).kind !== "user") continue;
-    conn.send("frame", frameFor(c.state, viewerOf(c.state, conn.state), watchers));
-  }
+  for (const conn of viewers) conn.send("frame", frameFor(s, viewerOf(s, conn.state), watchers));
 }
+
+/**
+ * A plain copy of the state, to build frames from. Encoding the live state goes through RivetKit's
+ * change-tracking proxy, which clones an array each time it's mapped: for a battle's score history,
+ * per viewer, per update, that took the server's whole CPU.
+ */
+const plain = (s: MatchState): MatchState => JSON.parse(JSON.stringify(s));
 
 async function apply(c: MatchCtx, next: unknown): Promise<void> {
   const def = defOf(c.state);
