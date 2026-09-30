@@ -58,6 +58,7 @@ import {
   requireUser,
   type Sql,
   type TokenCache,
+  waitForTick,
 } from "./shared.ts";
 import type { PlayerCore } from "./town.ts";
 
@@ -176,9 +177,9 @@ export const world = actor({
     c.broadcast("info", info(p, false));
   },
   run: async (c) => {
+    const signal = c.abortSignal;
     let n = 0;
-    while (!c.aborted) {
-      await Bun.sleep(TICK_MS);
+    while (await waitForTick(signal, TICK_MS)) {
       if (++n % REST_CHECK_EVERY === 0)
         for (const p of settle(c.state, c.vars, Date.now())) c.broadcast("info", info(p, true));
       flush(c);

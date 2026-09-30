@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
-import { UserError } from "rivetkit";
+import { setTimeout as delay } from "node:timers/promises";
+import { RivetError, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { randomToken, sha256 } from "../crypto.ts";
 import { PricingCache } from "../pricing.ts";
@@ -116,7 +117,11 @@ export async function authenticate(
     ? await client.player
         .get([String(t.userId)], internal)
         .verify(t.secret)
-        .catch(() => null)
+        .catch((err: unknown) => {
+          // A deleted/nonexistent player really is signed out. Engine and network failures aren't.
+          if (err instanceof RivetError && err.group === "actor" && err.code === "not_found") return null;
+          throw err;
+        })
     : null;
   if (!t || !via) throw unauthorized();
   const caller: Caller = { kind: "user", userId: t.userId, via };
@@ -153,6 +158,17 @@ export function serial() {
     tail = run.catch(() => {});
     return run;
   };
+}
+
+/** A timer that ends immediately on shutdown, before the next tick touches actor state. */
+export async function waitForTick(signal: AbortSignal, ms: number): Promise<boolean> {
+  try {
+    await delay(ms, undefined, { signal });
+    return !signal.aborted;
+  } catch (err) {
+    if (signal.aborted) return false;
+    throw err;
+  }
 }
 
 /** The part of `c.db` the helpers need, so they can live outside an actor definition. */

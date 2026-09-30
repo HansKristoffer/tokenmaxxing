@@ -174,6 +174,10 @@ export const town = actor({
     ip: clientIpOf(c.request),
   }),
   actions: {
+    health: async (c): Promise<void> => {
+      requireInternal(c.conn.state);
+      await c.db.execute("SELECT 1");
+    },
     signUp: async (c, rawName: unknown): Promise<{ userId: number; name: string; token: string }> => {
       const name = userName(rawName);
       const now = Date.now();
@@ -383,43 +387,48 @@ export const town = actor({
       activity: ActivityDay[],
     ): Promise<void> => {
       requireInternal(c.conn.state);
-      await c.vars.serial(async () => {
-        const inDays = `day IN (${days.map(() => "?").join(",")})`;
-        await c.db.execute(`DELETE FROM usage_daily WHERE user_id = ? AND ${inDays}`, userId, ...days);
-        await insertRows(
-          c.db,
-          "INSERT INTO usage_daily VALUES",
-          usage.map((r) => [
-            userId,
-            r.day,
-            r.model,
-            r.input,
-            r.output,
-            r.cacheCreation,
-            r.cacheRead,
-            r.turns,
-          ]),
-        );
-        await insertRows(
-          c.db,
-          "INSERT OR REPLACE INTO activity_daily VALUES",
-          activity.map((a) => [
-            userId,
-            a.day,
-            a.prompts,
-            a.prs,
-            a.agentBuckets,
-            a.activeBuckets,
-            a.peakAgents,
-          ]),
-        );
-        await c.db.execute(`DELETE FROM capped_daily WHERE user_id = ? AND ${inDays}`, userId, ...days);
-        await insertRows(
-          c.db,
-          "INSERT INTO capped_daily VALUES",
-          activity.filter((a) => a.capped > 0).map((a) => [userId, a.day, a.capped]),
-        );
-      });
+      await c.vars.serial(() =>
+        c.db.transaction(
+          async (tx) => {
+            const inDays = `day IN (${days.map(() => "?").join(",")})`;
+            await tx.execute(`DELETE FROM usage_daily WHERE user_id = ? AND ${inDays}`, userId, ...days);
+            await insertRows(
+              tx,
+              "INSERT INTO usage_daily VALUES",
+              usage.map((r) => [
+                userId,
+                r.day,
+                r.model,
+                r.input,
+                r.output,
+                r.cacheCreation,
+                r.cacheRead,
+                r.turns,
+              ]),
+            );
+            await insertRows(
+              tx,
+              "INSERT OR REPLACE INTO activity_daily VALUES",
+              activity.map((a) => [
+                userId,
+                a.day,
+                a.prompts,
+                a.prs,
+                a.agentBuckets,
+                a.activeBuckets,
+                a.peakAgents,
+              ]),
+            );
+            await tx.execute(`DELETE FROM capped_daily WHERE user_id = ? AND ${inDays}`, userId, ...days);
+            await insertRows(
+              tx,
+              "INSERT INTO capped_daily VALUES",
+              activity.filter((a) => a.capped > 0).map((a) => [userId, a.day, a.capped]),
+            );
+          },
+          { name: "report-usage" },
+        ),
+      );
       const u = await userById(c.db, userId);
       await push(c.db, c.client<typeof registry>(), {
         users: [userId],

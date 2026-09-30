@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -69,6 +69,53 @@ function harness() {
 const init = (token: string | null) => ({ cmd: "init" as const, token, serverUrl: origin });
 
 describe("helper", () => {
+  test("slow periodic work shares one sync and refresh across repeated polls", async () => {
+    const { helper } = harness();
+    const sending = Promise.withResolvers<void>();
+    const refreshing = Promise.withResolvers<void>();
+    const sync = spyOn(helper, "syncOnce").mockImplementation(() => sending.promise);
+    const refresh = spyOn(helper, "refresh").mockImplementation(() => refreshing.promise);
+    try {
+      const first = helper.tick();
+      expect(helper.tick()).toBe(first);
+      expect(sync).toHaveBeenCalledTimes(1);
+      sending.resolve();
+      await Promise.resolve();
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(helper.tick()).toBe(first);
+      expect(sync).toHaveBeenCalledTimes(1);
+      refreshing.resolve();
+      await first;
+      await helper.tick();
+      expect(sync).toHaveBeenCalledTimes(2);
+      expect(refresh).toHaveBeenCalledTimes(2);
+    } finally {
+      sending.resolve();
+      refreshing.resolve();
+      sync.mockRestore();
+      refresh.mockRestore();
+      helper.stop();
+    }
+  });
+
+  test("a failed poll releases the periodic run for the next attempt", async () => {
+    const { helper } = harness();
+    const sync = spyOn(helper, "syncOnce").mockResolvedValue(undefined);
+    const refresh = spyOn(helper, "refresh")
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue(undefined);
+    try {
+      await expect(helper.tick()).rejects.toThrow("offline");
+      await helper.tick();
+      expect(sync).toHaveBeenCalledTimes(2);
+      expect(refresh).toHaveBeenCalledTimes(2);
+    } finally {
+      sync.mockRestore();
+      refresh.mockRestore();
+      helper.stop();
+    }
+  });
+
   test("onboarding → sign up → my usage reaches the world", async () => {
     const { helper, messages, send, lastState } = harness();
     await send(init(null));

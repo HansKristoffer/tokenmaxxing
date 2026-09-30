@@ -8,6 +8,7 @@ import { db } from "rivetkit/db";
 import { sha256 } from "../crypto.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { AGENT_BUCKET_MS } from "../stats.ts";
+import { coalesceBattleUpdates, flushUsageReports } from "../usage-reports.ts";
 import { MAX_EVENTS_PER_REQUEST, parseEvent } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
@@ -23,6 +24,7 @@ import {
   splitToken,
   unauthorized,
   type Via,
+  waitForTick,
 } from "./shared.ts";
 import type { ActivityDay, UsageDay } from "./town.ts";
 
@@ -153,6 +155,8 @@ const platformOf = (raw: unknown): string =>
   typeof raw === "string" && /^[a-z0-9]{1,16}$/.test(raw) ? raw : "unknown";
 
 export const player = actor({
+  // Building the new partial index can take longer for players with a large backfill.
+  options: { onMigrateTimeout: 120_000 },
   createState: (_c, raw: { userId: number; tokenHash: string; internal: string }): PlayerState => {
     const input = fromInside<{ userId: number; tokenHash: string }>(raw);
     const now = Date.now();
@@ -193,33 +197,12 @@ export const player = actor({
     }
     c.state.linkCodes ??= [];
   },
-  createVars: () => ({ serial: serial(), ingests: new RateLimiter(INGESTS_PER_MIN, 60_000) }),
-  db: db({
-    onMigrate: async (d) => {
-      await d.execute(`CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY,
-        source TEXT NOT NULL,
-        session_id TEXT NOT NULL,
-        agent_id TEXT,
-        message_id TEXT NOT NULL,
-        request_id TEXT,
-        timestamp INTEGER NOT NULL,
-        day TEXT NOT NULL,
-        model TEXT NOT NULL,
-        message_type TEXT NOT NULL,
-        input_tokens INTEGER NOT NULL,
-        output_tokens INTEGER NOT NULL,
-        cache_creation_tokens INTEGER NOT NULL,
-        cache_read_tokens INTEGER NOT NULL,
-        reasoning_tokens INTEGER
-      )`);
-      // Re-sent events are dropped here; the app relies on it after a crash or reinstall.
-      await d.execute(`CREATE UNIQUE INDEX IF NOT EXISTS events_dedup
-        ON events (source, message_id, COALESCE(request_id, ''), message_type)`);
-      await d.execute("CREATE INDEX IF NOT EXISTS events_day ON events (day, message_type)");
-      await d.execute("CREATE INDEX IF NOT EXISTS events_time ON events (timestamp)");
-    },
+  createVars: () => ({
+    serial: serial(),
+    ingests: new RateLimiter(INGESTS_PER_MIN, 60_000),
+    battleUpdate: coalesceBattleUpdates(),
   }),
+  db: db({ onMigrate: migrateEvents }),
   createConnState: (c, params: ConnParams): Caller => {
     if (params?.internal === INTERNAL_KEY) return { kind: "internal" };
     if (params?.token === undefined) return { kind: "anonymous" };
@@ -228,6 +211,29 @@ export const player = actor({
     if (!cred) throw unauthorized();
     seen(c.state, cred.deviceId, Date.now());
     return { kind: "user", userId: c.state.userId, ...cred };
+  },
+  // A wake also repairs totals from requests interrupted before the client could retry.
+  run: async (c): Promise<void> => {
+    const signal = c.abortSignal;
+    const run = c.vars.serial;
+    while (!signal.aborted) {
+      try {
+        await c.keepAwake(
+          run(async () => {
+            if (signal.aborted) return;
+            await flushUsageReports(c.db, (days) => {
+              signal.throwIfAborted();
+              return report(c.db, c.client<typeof registry>(), c.state.userId, days, Date.now());
+            });
+          }),
+        );
+        return;
+      } catch (err) {
+        if (signal.aborted) return;
+        console.warn(`[usage] report retry failed: ${String(err)}`);
+        if (!(await waitForTick(signal, 5_000))) return;
+      }
+    }
   },
   actions: {
     /** For other actors checking a token: which credential it is, or null. */
@@ -344,6 +350,7 @@ export const player = actor({
       return c.vars.serial(async () => {
         const days = (await c.db.execute("SELECT DISTINCT day FROM events")) as { day: string }[];
         await c.db.execute("DELETE FROM events");
+        await c.db.execute("DELETE FROM pending_usage_days");
         return days.map((d) => d.day);
       });
     },
@@ -366,38 +373,97 @@ export const player = actor({
         const e = parseEvent(raw, now);
         if (typeof e !== "string") valid.push(e);
       }
-      return c.vars.serial(async () => {
+      const ingested = c.vars.serial(async () => {
         const today = dayKey(now);
         const stored = c.state.stored?.day === today ? c.state.stored.events : 0;
         if (stored >= EVENTS_PER_DAY)
           throw new UserError("That's a lot of events for one day. The rest syncs tomorrow.", {
             code: "rate_limited",
           });
-        const [{ before }] = (await c.db.execute("SELECT total_changes() AS before")) as [{ before: number }];
-        for (let i = 0; i < valid.length; i += INSERT_CHUNK) {
-          const chunk = valid.slice(i, i + INSERT_CHUNK);
-          const row = `(${COLUMNS.map(() => "?").join(",")})`;
-          await c.db.execute(
-            `INSERT OR IGNORE INTO events (${COLUMNS.join(",")}) VALUES ${chunk.map(() => row).join(",")}`,
-            ...chunk.flatMap(eventRow),
+        const days = [...new Set(valid.map((e) => dayKey(e.timestamp)))];
+        const inserted = await c.db.transaction(
+          async (tx) => {
+            let inserted = 0;
+            for (let i = 0; i < valid.length; i += INSERT_CHUNK) {
+              const chunk = valid.slice(i, i + INSERT_CHUNK);
+              const row = `(${COLUMNS.map(() => "?").join(",")})`;
+              const rows = await tx.execute(
+                `INSERT OR IGNORE INTO events (${COLUMNS.join(",")}) VALUES ${chunk.map(() => row).join(",")} RETURNING id`,
+                ...chunk.flatMap(eventRow),
+              );
+              inserted += rows.length;
+            }
+            // Also queue duplicate-only retries: the previous request may have saved events but
+            // failed to report them. Keeping this with the inserts survives crashes and partial sends.
+            for (const day of days)
+              await tx.execute("INSERT OR IGNORE INTO pending_usage_days VALUES (?)", day);
+            return inserted;
+          },
+          { name: "ingest-events" },
+        );
+        c.state.stored = { day: today, events: stored + inserted };
+        await flushUsageReports(c.db, (days) =>
+          report(c.db, c.client<typeof registry>(), c.state.userId, days, now),
+        );
+        return { inserted, duplicates: valid.length - inserted, skipped: events.length - valid.length };
+      });
+      return ingested.then((result) => {
+        if (valid.length > 0) {
+          const signal = c.abortSignal;
+          const arcade = main(c.client()).arcade;
+          const userId = c.state.userId;
+          // The raw events and totals are already acknowledged. A slow match must not keep the
+          // ingest lock or delay this response, and backfills must not queue a call for every batch.
+          c.waitUntil(
+            c.vars
+              .battleUpdate(async () => {
+                if (!signal.aborted) await arcade.usage(userId);
+              })
+              .catch(() => {}),
           );
         }
-        const [{ after }] = (await c.db.execute("SELECT total_changes() AS after")) as [{ after: number }];
-        const inserted = after - before;
-        c.state.stored = { day: today, events: stored + inserted };
-        if (inserted > 0) {
-          const days = [...new Set(valid.map((e) => dayKey(e.timestamp)))];
-          await report(c.db, c.client<typeof registry>(), c.state.userId, days, now);
-          // In a battle? It pulls the new score from us.
-          await main(c.client())
-            .arcade.usage(c.state.userId)
-            .catch(() => {});
-        }
-        return { inserted, duplicates: valid.length - inserted, skipped: events.length - valid.length };
+        return result;
       });
     },
   },
 });
+
+/** Upgrade existing player databases without re-enqueuing history on each wake. */
+export async function migrateEvents(d: Sql): Promise<void> {
+  await d.execute(`CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY,
+    source TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    agent_id TEXT,
+    message_id TEXT NOT NULL,
+    request_id TEXT,
+    timestamp INTEGER NOT NULL,
+    day TEXT NOT NULL,
+    model TEXT NOT NULL,
+    message_type TEXT NOT NULL,
+    input_tokens INTEGER NOT NULL,
+    output_tokens INTEGER NOT NULL,
+    cache_creation_tokens INTEGER NOT NULL,
+    cache_read_tokens INTEGER NOT NULL,
+    reasoning_tokens INTEGER
+  )`);
+  // Re-sent events are dropped here; the app relies on it after a crash or reinstall.
+  await d.execute(`CREATE UNIQUE INDEX IF NOT EXISTS events_dedup
+    ON events (source, message_id, COALESCE(request_id, ''), message_type)`);
+  await d.execute("CREATE INDEX IF NOT EXISTS events_day ON events (day, message_type)");
+  await d.execute("CREATE INDEX IF NOT EXISTS events_time ON events (timestamp)");
+  // Recent activity and MAX(timestamp) must not read a player's entire history.
+  await d.execute(`CREATE INDEX IF NOT EXISTS events_assistant_time
+    ON events (timestamp, session_id, agent_id) WHERE message_type = 'assistant'`);
+  await d.execute("CREATE TABLE IF NOT EXISTS pending_usage_days (day TEXT PRIMARY KEY)");
+  // Reconcile old totals once when upgrading: earlier versions acknowledged duplicate retries
+  // without reporting their days. A failed repair remains in the persistent queue.
+  await d.execute("CREATE TABLE IF NOT EXISTS usage_report_migrations (version INTEGER PRIMARY KEY)");
+  if (!(await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 1")).length) {
+    await d.execute("INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events");
+    await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (1)");
+  }
+}
 
 const EVENT_TOKENS = "input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens";
 
@@ -427,7 +493,7 @@ function requireSyncingDevice(caller: Caller): void {
 }
 
 /** Recomputes `days` from raw events and hands them to `town`, then tells `world` how busy we are. */
-async function report(
+export async function report(
   sql: Sql,
   client: Client<typeof registry>,
   userId: number,
@@ -437,21 +503,23 @@ async function report(
   const inDays = `day IN (${days.map(() => "?").join(",")})`;
   // Each minute counts up to USAGE_MINUTE_CAP tokens: past it, that minute's events are scaled
   // down, and what didn't count is kept per day (`capped`) for the admin page to flag.
-  const minutes = `SELECT timestamp / 60000 AS minute, SUM(${EVENT_TOKENS}) AS t
-     FROM events WHERE ${inDays} AND message_type = 'assistant' GROUP BY minute`;
   const scaled = (col: string) =>
-    `CAST(SUM(${col} * CASE WHEN m.t > ? THEN ? * 1.0 / m.t ELSE 1 END) AS INTEGER)`;
+    `CAST(SUM(${col} * CASE WHEN t > ? THEN ? * 1.0 / t ELSE 1 END) AS INTEGER)`;
   const usage = (await sql.execute(
-    `WITH m AS (${minutes})
+    `WITH minutes AS (
+       SELECT day, model, timestamp / 60000 AS minute,
+              SUM(input_tokens) AS input_tokens, SUM(output_tokens) AS output_tokens,
+              SUM(cache_creation_tokens) AS cache_creation_tokens, SUM(cache_read_tokens) AS cache_read_tokens,
+              COUNT(*) AS turns
+       FROM events WHERE ${inDays} AND message_type = 'assistant' GROUP BY day, model, minute),
+     capped AS (SELECT *, SUM(${EVENT_TOKENS}) OVER (PARTITION BY minute) AS t FROM minutes)
      SELECT day, model, ${scaled("input_tokens")} AS input, ${scaled("output_tokens")} AS output,
             ${scaled("cache_creation_tokens")} AS cacheCreation, ${scaled("cache_read_tokens")} AS cacheRead,
-            COUNT(*) AS turns
-     FROM events JOIN m ON m.minute = timestamp / 60000
-     WHERE ${inDays} AND message_type = 'assistant'
+            SUM(turns) AS turns
+     FROM capped
      GROUP BY day, model`,
     ...days,
     ...Array(4).fill([USAGE_MINUTE_CAP, USAGE_MINUTE_CAP]).flat(),
-    ...days,
   )) as UsageDay[];
   const capped = (await sql.execute(
     `SELECT day, SUM(t - ?) AS tokens FROM (
@@ -495,11 +563,13 @@ async function report(
   });
   await main(client).town.report(userId, days, usage, activity);
 
-  const [recent] = (await sql.execute(
-    `SELECT MAX(timestamp) AS lastAt,
-            COUNT(DISTINCT CASE WHEN timestamp > ? THEN session_id || ':' || COALESCE(agent_id, '') END) AS agents
-     FROM events WHERE message_type = 'assistant'`,
+  const [{ lastAt }] = (await sql.execute(
+    "SELECT MAX(timestamp) AS lastAt FROM events WHERE message_type = 'assistant'",
+  )) as [{ lastAt: number | null }];
+  const [{ agents }] = (await sql.execute(
+    `SELECT COUNT(DISTINCT session_id || ':' || COALESCE(agent_id, '')) AS agents
+     FROM events WHERE message_type = 'assistant' AND timestamp > ?`,
     now - LIVE_AGENTS_MS,
-  )) as [{ lastAt: number | null; agents: number }];
-  if (recent.lastAt !== null) await main(client).world.activity(userId, recent.lastAt, recent.agents);
+  )) as [{ agents: number }];
+  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents);
 }
