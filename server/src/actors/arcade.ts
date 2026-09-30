@@ -357,7 +357,7 @@ export const arcade = actor({
     battle: (c): Promise<Battle | null> => {
       const userId = requireSyncer(c.conn.state);
       const live = usageMatch(c.state, userId);
-      return live ? matchOf(c.client(), live.id).usage(userId) : Promise.resolve(null);
+      return live ? matchOf(c.client(), live.id).standing(userId) : Promise.resolve(null);
     },
 
     // MARK: From `player` and `match`

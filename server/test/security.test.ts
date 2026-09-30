@@ -19,6 +19,12 @@ describe("nobody outside makes actors", () => {
     ).rejects.toThrow();
   });
 
+  test("a token for a player that doesn't exist is unauthorized", async () => {
+    await expect(
+      client.town.getOrCreate(["main"], { params: { token: "999999.nosuchplayernosuchplayer" } }).me(),
+    ).rejects.toMatchObject({ code: "unauthorized" });
+  });
+
   test("only the singletons, only as main", async () => {
     await expect(client.town.getOrCreate(["evil"]).signUp("evilname")).rejects.toThrow();
     await expect(client.world.getOrCreate(["other"]).join()).rejects.toThrow();

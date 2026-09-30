@@ -8,7 +8,7 @@ import { db } from "rivetkit/db";
 import { sha256 } from "../crypto.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { AGENT_BUCKET_MS } from "../stats.ts";
-import { coalesceBattleUpdates, flushUsageReports } from "../usage-reports.ts";
+import { coalesceBattleUpdates, drainUsageReports, reportUsageDays } from "../usage-reports.ts";
 import { MAX_EVENTS_PER_REQUEST, parseEvent } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
@@ -156,7 +156,9 @@ const platformOf = (raw: unknown): string =>
 
 export const player = actor({
   // Building the new partial index can take longer for players with a large backfill.
-  options: { onMigrateTimeout: 120_000 },
+  // The app syncs every 2 minutes. Asleep in between (the default is 30s), every sync woke the
+  // player cold and read its database back from storage a page at a time.
+  options: { onMigrateTimeout: 120_000, sleepTimeout: 5 * 60_000 },
   createState: (_c, raw: { userId: number; tokenHash: string; internal: string }): PlayerState => {
     const input = fromInside<{ userId: number; tokenHash: string }>(raw);
     const now = Date.now();
@@ -215,16 +217,12 @@ export const player = actor({
   // A wake also repairs totals from requests interrupted before the client could retry.
   run: async (c): Promise<void> => {
     const signal = c.abortSignal;
-    const run = c.vars.serial;
     while (!signal.aborted) {
       try {
         await c.keepAwake(
-          run(async () => {
-            if (signal.aborted) return;
-            await flushUsageReports(c.db, (days) => {
-              signal.throwIfAborted();
-              return report(c.db, c.client<typeof registry>(), c.state.userId, days, Date.now());
-            });
+          drainUsageReports(c.db, c.vars.serial, signal, (days) => {
+            signal.throwIfAborted();
+            return report(c.db, c.client<typeof registry>(), c.state.userId, days, Date.now());
           }),
         );
         return;
@@ -402,14 +400,21 @@ export const player = actor({
           { name: "ingest-events" },
         );
         c.state.stored = { day: today, events: stored + inserted };
-        await flushUsageReports(c.db, (days) =>
-          report(c.db, c.client<typeof registry>(), c.state.userId, days, now),
-        );
+        // Only this request's days. Older pending ones drain after it, a batch per turn of the lock.
+        if (days.length)
+          await reportUsageDays(c.db, days, (d) =>
+            report(c.db, c.client<typeof registry>(), c.state.userId, d, now),
+          );
         return { inserted, duplicates: valid.length - inserted, skipped: events.length - valid.length };
       });
       return ingested.then((result) => {
         if (valid.length > 0) {
           const signal = c.abortSignal;
+          c.waitUntil(
+            drainUsageReports(c.db, c.vars.serial, signal, (days) =>
+              report(c.db, c.client<typeof registry>(), c.state.userId, days, Date.now()),
+            ).catch(() => {}),
+          );
           const arcade = main(c.client()).arcade;
           const userId = c.state.userId;
           // The raw events and totals are already acknowledged. A slow match must not keep the

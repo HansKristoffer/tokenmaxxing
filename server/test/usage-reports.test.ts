@@ -5,7 +5,7 @@ import type { registry } from "../src/actors/registry.ts";
 import { type Sql, serial } from "../src/actors/shared.ts";
 import type { ActivityDay, UsageDay } from "../src/actors/town.ts";
 import { RateLimiter } from "../src/rate-limit.ts";
-import { coalesceBattleUpdates, flushUsageReports } from "../src/usage-reports.ts";
+import { coalesceBattleUpdates, drainUsageReports, flushUsageReports } from "../src/usage-reports.ts";
 import { memorySql } from "./memory-sql.ts";
 
 test("a stuck battle cannot delay ingest acknowledgements or the next batch", async () => {
@@ -160,6 +160,26 @@ test("repair reports are bounded, and a failed later chunk keeps its days", asyn
     ).rejects.toThrow("retry");
     expect(db.query("SELECT COUNT(*) AS n FROM pending_usage_days").get()).toEqual({ n: 13 });
     await flushUsageReports(sql, async () => {});
+    expect(db.query("SELECT COUNT(*) AS n FROM pending_usage_days").get()).toEqual({ n: 0 });
+  } finally {
+    db.close();
+  }
+});
+
+test("a long backlog drains a batch at a time, letting syncs in between", async () => {
+  const { db, sql } = memorySql();
+  try {
+    db.run("CREATE TABLE pending_usage_days (day TEXT PRIMARY KEY)");
+    for (let i = 1; i <= 20; i++)
+      db.run("INSERT INTO pending_usage_days VALUES (?)", [`2026-09-${String(i).padStart(2, "0")}`]);
+    const run = serial();
+    const order: string[] = [];
+    const drained = drainUsageReports(sql, run, new AbortController().signal, async (days) => {
+      order.push(`batch ${days.length}`);
+      if (order.length === 1) void run(async () => order.push("sync"));
+    });
+    await drained;
+    expect(order).toEqual(["batch 7", "sync", "batch 7", "batch 6"]);
     expect(db.query("SELECT COUNT(*) AS n FROM pending_usage_days").get()).toEqual({ n: 0 });
   } finally {
     db.close();
