@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.2.0...v1.3.0) (2026-09-30)
+
+
+### Features
+
+* **admin:** add authenticated game management dashboard ([c3bbe4b](https://github.com/HansKristoffer/tokenmaxxing/commit/c3bbe4bc0486658bbbd2898972a4ca05e711ca1d))
+* **admin:** add authenticated game management dashboard ([ab8280d](https://github.com/HansKristoffer/tokenmaxxing/commit/ab8280daf9531e142ee4c0400c90d20431f4141e))
+* **connect:** link computers to sync usage across devices ([4b04d01](https://github.com/HansKristoffer/tokenmaxxing/commit/4b04d01d14db754f5342e605128b0a9be7e2159e))
+* **connect:** link computers to sync usage across devices ([6706314](https://github.com/HansKristoffer/tokenmaxxing/commit/6706314c0cd08c8834686c7bc01d298d996db5dd))
+
 ## [1.2.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.1.0...v1.2.0) (2026-09-29)
 
 
