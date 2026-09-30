@@ -8,7 +8,7 @@ import { db } from "rivetkit/db";
 import { sha256 } from "../crypto.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { AGENT_BUCKET_MS } from "../stats.ts";
-import { flushUsageReports } from "../usage-reports.ts";
+import { coalesceBattleUpdates, flushUsageReports } from "../usage-reports.ts";
 import { MAX_EVENTS_PER_REQUEST, parseEvent } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
@@ -197,7 +197,11 @@ export const player = actor({
     }
     c.state.linkCodes ??= [];
   },
-  createVars: () => ({ serial: serial(), ingests: new RateLimiter(INGESTS_PER_MIN, 60_000) }),
+  createVars: () => ({
+    serial: serial(),
+    ingests: new RateLimiter(INGESTS_PER_MIN, 60_000),
+    battleUpdate: coalesceBattleUpdates(),
+  }),
   db: db({ onMigrate: migrateEvents }),
   createConnState: (c, params: ConnParams): Caller => {
     if (params?.internal === INTERNAL_KEY) return { kind: "internal" };
@@ -369,7 +373,7 @@ export const player = actor({
         const e = parseEvent(raw, now);
         if (typeof e !== "string") valid.push(e);
       }
-      return c.vars.serial(async () => {
+      const ingested = c.vars.serial(async () => {
         const today = dayKey(now);
         const stored = c.state.stored?.day === today ? c.state.stored.events : 0;
         if (stored >= EVENTS_PER_DAY)
@@ -401,13 +405,24 @@ export const player = actor({
         await flushUsageReports(c.db, (days) =>
           report(c.db, c.client<typeof registry>(), c.state.userId, days, now),
         );
-        if (valid.length > 0) {
-          // In a battle? It pulls the new score from us.
-          await main(c.client())
-            .arcade.usage(c.state.userId)
-            .catch(() => {});
-        }
         return { inserted, duplicates: valid.length - inserted, skipped: events.length - valid.length };
+      });
+      return ingested.then((result) => {
+        if (valid.length > 0) {
+          const signal = c.abortSignal;
+          const arcade = main(c.client()).arcade;
+          const userId = c.state.userId;
+          // The raw events and totals are already acknowledged. A slow match must not keep the
+          // ingest lock or delay this response, and backfills must not queue a call for every batch.
+          c.waitUntil(
+            c.vars
+              .battleUpdate(async () => {
+                if (!signal.aborted) await arcade.usage(userId);
+              })
+              .catch(() => {}),
+          );
+        }
+        return result;
       });
     },
   },

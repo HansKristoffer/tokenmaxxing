@@ -1,10 +1,105 @@
 import { expect, test } from "bun:test";
 import type { Client } from "rivetkit/client";
-import { migrateEvents, report, USAGE_MINUTE_CAP } from "../src/actors/player.ts";
+import { migrateEvents, player, report, USAGE_MINUTE_CAP } from "../src/actors/player.ts";
 import type { registry } from "../src/actors/registry.ts";
+import { type Sql, serial } from "../src/actors/shared.ts";
 import type { ActivityDay, UsageDay } from "../src/actors/town.ts";
-import { flushUsageReports } from "../src/usage-reports.ts";
+import { RateLimiter } from "../src/rate-limit.ts";
+import { coalesceBattleUpdates, flushUsageReports } from "../src/usage-reports.ts";
 import { memorySql } from "./memory-sql.ts";
+
+test("a stuck battle cannot delay ingest acknowledgements or the next batch", async () => {
+  const ingest = player.config.actions!.ingest;
+  const { db, sql } = memorySql();
+  const stalled = Promise.withResolvers<void>();
+  const background: Promise<unknown>[] = [];
+  let calls = 0;
+  const client = {
+    town: { getOrCreate: () => ({ report: async () => {} }) },
+    world: { getOrCreate: () => ({ activity: async () => {} }) },
+    arcade: {
+      getOrCreate: () => ({
+        usage: () => {
+          calls++;
+          return stalled.promise;
+        },
+      }),
+    },
+  };
+  const ctx = {
+    state: { userId: 42 },
+    conn: { state: { kind: "user", userId: 42, via: "device" } },
+    vars: { serial: serial(), ingests: new RateLimiter(60, 60_000), battleUpdate: coalesceBattleUpdates() },
+    abortSignal: new AbortController().signal,
+    client: () => client,
+    waitUntil: (p: Promise<unknown>) => {
+      background.push(p);
+    },
+    db: {
+      execute: sql.execute,
+      transaction: async <T>(fn: (tx: Sql) => Promise<T>): Promise<T> => {
+        db.run("BEGIN");
+        try {
+          const result = await fn(sql);
+          db.run("COMMIT");
+          return result;
+        } catch (err) {
+          db.run("ROLLBACK");
+          throw err;
+        }
+      },
+    },
+  } as unknown as Parameters<typeof ingest>[0];
+  try {
+    await migrateEvents(sql);
+    const event = {
+      source: "claude_code",
+      sessionId: "s",
+      agentId: null,
+      requestId: null,
+      timestamp: Date.now(),
+      model: "claude-haiku-4-5-20251001",
+      messageType: "assistant",
+      inputTokens: 100,
+      outputTokens: 50,
+      cacheCreationTokens: 0,
+      cacheReadTokens: 0,
+      reasoningTokens: null,
+    };
+    for (let i = 0; i < 3; i++) {
+      const result = await Promise.race([
+        ingest(ctx, [{ ...event, messageId: `m${i}` }]),
+        Bun.sleep(200).then(() => {
+          throw new Error("ingest waited for the battle");
+        }),
+      ]);
+      expect(result).toEqual({ inserted: 1, duplicates: 0, skipped: 0 });
+    }
+    expect(calls).toBe(1);
+    stalled.resolve();
+    await Promise.all(background);
+    expect(calls).toBe(2);
+    expect(db.query("SELECT COUNT(*) AS n FROM events").get()).toEqual({ n: 3 });
+  } finally {
+    stalled.resolve();
+    await Promise.all(background);
+    db.close();
+  }
+});
+
+test("a failed battle update allows a new update on the next sync", async () => {
+  const update = coalesceBattleUpdates();
+  await expect(
+    update(() => {
+      throw new Error("match timed out");
+    }),
+  ).rejects.toThrow("match timed out");
+  let recovered = false;
+  await update(async () => {
+    recovered = true;
+  });
+  expect(recovered).toBe(true);
+});
 
 test("upgrading an existing database repairs historic days once and preserves its raw events", async () => {
   const { db, sql } = memorySql();

@@ -42,6 +42,7 @@ export class Helper {
   private token: string | null = null;
   private syncState: SyncState | null = null;
   private syncing: Promise<void> | null = null;
+  private ticking: Promise<void> | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private every = 0;
   readonly state: AppState;
@@ -132,9 +133,16 @@ export class Helper {
   }
 
   /** Periodic work: send new local usage, then show where that leaves me. */
-  async tick(): Promise<void> {
-    await this.syncOnce();
-    await this.refresh();
+  tick(): Promise<void> {
+    this.ticking ??= (async () => {
+      try {
+        await this.syncOnce();
+        await this.refresh();
+      } finally {
+        this.ticking = null;
+      }
+    })();
+    return this.ticking;
   }
 
   /**
