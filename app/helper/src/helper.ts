@@ -1,5 +1,5 @@
 import { rm } from "node:fs/promises";
-import type { AppState, Command, Message } from "@tokenmaxxing/core/protocol.ts";
+import type { AppState, Command, LinkComputer, Message } from "@tokenmaxxing/core/protocol.ts";
 import type { GhRunner } from "@tokenmaxxing/core/sources/github.ts";
 import { emptyState, loadState } from "@tokenmaxxing/core/sync/state.ts";
 import { sync } from "@tokenmaxxing/core/sync/sync.ts";
@@ -38,6 +38,7 @@ function apiError(err: unknown): ApiError {
  */
 export class Helper {
   private client: Client | null = null;
+  private serverUrl = "";
   private token: string | null = null;
   private syncState: SyncState | null = null;
   private syncing: Promise<void> | null = null;
@@ -70,9 +71,10 @@ export class Helper {
   private async run(cmd: Command): Promise<unknown> {
     switch (cmd.cmd) {
       case "init":
+        this.serverUrl = cmd.serverUrl.replace(/\/+$/, "");
         // No metadata lookup: our server is the endpoint, and the lookup retries forever when offline.
         this.client = createClient<typeof registry>({
-          endpoint: `${cmd.serverUrl.replace(/\/+$/, "")}/api/rivet`,
+          endpoint: `${this.serverUrl}/api/rivet`,
           devtools: false,
           disableMetadataLookup: true,
         });
@@ -91,6 +93,11 @@ export class Helper {
         return;
       case "openWorld":
         return { code: await this.call(() => this.player().mintLoginCode()) };
+      case "linkComputer": {
+        const code = await this.call(() => this.player().mintLinkCode());
+        const command = `curl -fsSL ${this.serverUrl}/install.sh | sh -s -- link ${code}`;
+        return { code, command } satisfies LinkComputer;
+      }
     }
   }
 

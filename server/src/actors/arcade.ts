@@ -28,6 +28,7 @@ import {
   main,
   matchOf,
   requireInternal,
+  requireSyncer,
   requireUser,
   serial,
   type TokenCache,
@@ -349,7 +350,7 @@ export const arcade = actor({
 
     /** For the app after each sync: the battle (Tokenmaxxing) I'm in and where I stand, or null. */
     battle: (c): Promise<Battle | null> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireSyncer(c.conn.state);
       const live = usageMatch(c.state, userId);
       return live ? matchOf(c.client(), live.id).usage(userId) : Promise.resolve(null);
     },

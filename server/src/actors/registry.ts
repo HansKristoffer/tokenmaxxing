@@ -40,6 +40,7 @@ export const registry = setup({
   shutdown: { gracePeriodMs: 5_000 },
 });
 
+export type { DeviceInfo } from "./player.ts";
 export type {
   BoardCompany,
   BoardPlayer,

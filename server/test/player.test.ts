@@ -122,3 +122,95 @@ describe("parallelism", () => {
     expect(s.tokens).toBe(12 * 150);
   });
 });
+
+describe("linked computers", () => {
+  /** A fresh user and a computer linked to them. */
+  async function linked(prefix: string) {
+    const u = await signUp(prefix);
+    const code = await as(u.token).player(u.userId).mintLinkCode();
+    const r = await client.player.get([String(u.userId)]).redeemLinkCode(code, "mac-studio", "linux");
+    return { u, computer: r.token, deviceId: r.deviceId };
+  }
+
+  test("a code links a computer once, and its usage counts for the same player", async () => {
+    const { u, computer } = await linked("link");
+    await expect(
+      client.player.get([String(u.userId)]).redeemLinkCode("1.nope-nope-nope-nope", "x", "linux"),
+    ).rejects.toThrow();
+    const now = Date.now();
+    await as(u.token)
+      .player(u.userId)
+      .ingest([event({ timestamp: now })]);
+    await as(computer)
+      .player(u.userId)
+      .ingest([event({ timestamp: now, sessionId: "workhorse" })]);
+    expect((await as(computer).town.today()).me.tokensToday).toBe(300);
+  });
+
+  test("a code works only once", async () => {
+    const u = await signUp("linkonce");
+    const code = await as(u.token).player(u.userId).mintLinkCode();
+    const anon = client.player.get([String(u.userId)]);
+    await anon.redeemLinkCode(code, "one", "linux");
+    await expect(anon.redeemLinkCode(code, "two", "linux")).rejects.toThrow();
+  });
+
+  test("the same events from both computers count once", async () => {
+    const { u, computer } = await linked("linkdup");
+    const events = [event({ timestamp: Date.now() })];
+    await as(u.token).player(u.userId).ingest(events);
+    expect(await as(computer).player(u.userId).ingest(events)).toEqual({
+      inserted: 0,
+      duplicates: 1,
+      skipped: 0,
+    });
+  });
+
+  test("a linked computer only syncs", async () => {
+    const { u, computer } = await linked("linkscope");
+    const me = as(computer);
+    await me.town.today();
+    expect(await me.arcade.battle()).toBeNull();
+    await expect(me.town.me()).rejects.toThrow();
+    await expect(me.town.rename("stolen")).rejects.toThrow();
+    await expect(me.player(u.userId).mintLoginCode()).rejects.toThrow();
+    await expect(me.player(u.userId).mintLinkCode()).rejects.toThrow();
+    await expect(me.player(u.userId).devices()).rejects.toThrow();
+  });
+
+  test("only the app makes link codes", async () => {
+    const u = await signUp("linksession");
+    const code = await as(u.token).player(u.userId).mintLoginCode();
+    const session = await client.player.get([String(u.userId)]).redeemLoginCode(code);
+    await expect(as(session).player(u.userId).mintLinkCode()).rejects.toThrow();
+  });
+
+  test("the player lists and removes computers; a computer can only remove itself", async () => {
+    const { u, computer, deviceId } = await linked("linkrevoke");
+    const other = await as(u.token).player(u.userId).mintLinkCode();
+    const second = await client.player.get([String(u.userId)]).redeemLinkCode(other, " box\u0007 ", "darwin");
+    const app = as(u.token).player(u.userId);
+    const list = await app.devices();
+    expect(list.map((d) => [d.kind, d.name, d.platform, d.current])).toEqual([
+      ["app", "Desktop app", "darwin", true],
+      ["linked", "mac-studio", "linux", false],
+      ["linked", "box", "darwin", false],
+    ]);
+    expect(list.some((d) => "hash" in d)).toBe(false);
+
+    await expect(app.revokeDevice(list[0]!.id)).rejects.toThrow();
+    await expect(as(computer).player(u.userId).revokeDevice(second.deviceId)).rejects.toThrow();
+    await as(second.token).player(u.userId).revokeDevice(second.deviceId);
+    await app.revokeDevice(deviceId);
+    await expect(as(computer).player(u.userId).ingest([event()])).rejects.toThrow();
+    expect((await app.devices()).map((d) => d.kind)).toEqual(["app"]);
+  });
+
+  test("at most 10 computers", async () => {
+    const u = await signUp("linkmax");
+    const app = as(u.token).player(u.userId);
+    const anon = client.player.get([String(u.userId)]);
+    for (let i = 0; i < 9; i++) await anon.redeemLinkCode(await app.mintLinkCode(), `c${i}`, "linux");
+    await expect(anon.redeemLinkCode(await app.mintLinkCode(), "c9", "linux")).rejects.toThrow();
+  });
+});

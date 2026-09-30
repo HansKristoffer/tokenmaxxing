@@ -1207,3 +1207,21 @@ button.lb-item:hover {
   border: 1px solid var(--accent);
   background: rgba(255, 211, 92, 0.15);
 }
+
+/* Computers: the line that links another one. */
+.command {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.command code {
+  flex: 1;
+  overflow-x: auto;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  white-space: nowrap;
+  user-select: all;
+}

@@ -91,6 +91,21 @@ pub async fn enter_world(app: AppHandle, name: Option<String>) -> Result<String,
         .ok_or_else(|| "internal".into())
 }
 
+/// From the game page: the line to run on another computer to add its usage to this account (it
+/// installs the CLI there, with a link code good for 10 minutes).
+#[tauri::command]
+pub async fn link_computer(app: AppHandle) -> Result<String, String> {
+    let helper = app.state::<Arc<Helper>>().inner().clone();
+    let result =
+        tauri::async_runtime::spawn_blocking(move || helper.call(json!({ "cmd": "linkComputer" })))
+            .await
+            .map_err(|_| "internal".to_string())??;
+    result["command"]
+        .as_str()
+        .map(String::from)
+        .ok_or_else(|| "internal".into())
+}
+
 /// From the game page: a link out of the game (a company's website) opens in the browser. The page
 /// asks for this itself, as WebKit doesn't reliably hand `target="_blank"` links to the handlers above.
 #[tauri::command]

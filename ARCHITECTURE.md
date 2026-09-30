@@ -51,19 +51,26 @@ The game also runs in any browser; the app's window is that same page, at `/play
 - A browser can still be signed in with `/#code=…`: the page redeems the code and removes it from the URL.
 - The app forgets its token when the server rejects it and goes back to picking a name.
 - There's no web sign-up: in a browser, without a session the page says to open the world from the app.
+- **Linked computers** (a second machine running agents; see `WORKHORSE.md`). The app mints a link code
+  (`mintLinkCode`, 10 minutes, single use); the other computer trades it for its own token
+  (`redeemLinkCode`). That token only syncs: it can `ingest` and read `town.today` and `arcade.battle`
+  (`requireSyncer`), and `requireUser` refuses it everywhere else. The player lists them (`devices`) and
+  removes them (`revokeDevice`); a computer can remove only itself, and nobody can remove the app's own.
 
 ## The desktop app
 
 `app/desktop/src-tauri/src/`, in Rust:
 
 - **`helper.rs`** runs the helper sidecar (Bun-compiled) and speaks the NDJSON protocol in
-  `core/src/protocol.ts`: `init`, `signUp`, `syncNow` and `openWorld` (a login code), and `state` and `token` events. It
+  `core/src/protocol.ts`: `init`, `signUp`, `syncNow`, `openWorld` (a login code) and `linkComputer` (a link
+  code and the line that uses it), and `state` and `token` events. It
   restarts the helper with backoff. A fixture written by `app/helper/test/protocol.test.ts` keeps the Rust
   types and the TypeScript ones in step.
 - **`tray.rs`**: the menu bar. The bolt is a template image with today's tokens as its title. Its menu:
   - Open world;
   - your rank and level, and the battle you're in;
   - Sync now;
+  - Link a computer… (copies the line to run on the other computer);
   - Launch at login;
   - updates;
   - Quit.
@@ -73,8 +80,8 @@ The game also runs in any browser; the app's window is that same page, at `/play
   - It loads the live page (`/play`) once the helper knows whether there's an account, and opens by itself
     when there isn't one. It stays on the server's origin; other links open in the browser.
   - The page, from the server's origin only, may sign itself in (`enter_world`: a login code, after signing
-    up if it's given a name), and ask about app updates and start one (`update_status`, `install_update` and
-    their `app-update` event). The capability is added in `lib.rs`, since it names the server. App commands
+    up if it's given a name), ask about app updates and start one (`update_status`, `install_update` and
+    their `app-update` event), and get the line that links another computer (`link_computer`). The capability is added in `lib.rs`, since it names the server. App commands
     are otherwise denied (`build.rs`).
   - The app is in the Dock only while the window is open (`LSUIElement`, then the activation policy).
 - **`keychain.rs`**: the device token, in the login Keychain as `dk.hanskristoffer.tokenmaxxing` /
@@ -90,9 +97,29 @@ The game also runs in any browser; the app's window is that same page, at `/play
 - **The server URL** is baked in at build time (`TOKENMAXXING_SERVER_URL`). A release build refuses to build
   without it; a dev build uses `localhost:8787`.
 
+## Linked computers
+
+A second computer running agents syncs into the same player (`WORKHORSE.md`).
+
+- **The CLI** (`app/helper/src/cli.ts`) wraps the same `Helper` as the app: `link`, `run`, `sync`, `status`,
+  `logs`, `unlink`. Its token and read positions are in `~/Library/Application Support/Tokenmaxxing CLI/` or
+  `$XDG_CONFIG_HOME/tokenmaxxing/` (`TOKENMAXXING_CLI_DIR` for tests), the token readable only by its user.
+  It won't link on a Mac where the app syncs already.
+- **The service** (`service.ts`): a LaunchAgent, or a `systemd --user` unit with lingering on, so it runs
+  while nobody's logged in. Both carry the `PATH` and log-location variables from when it was linked, and
+  restart it only when it fails: once its token is revoked, it removes itself and exits cleanly.
+- **Installing** (`server/src/install.sh`, served at `/install.sh` with the server's own origin filled in):
+  picks the binary for the OS and CPU, checks it against `SHA256SUMS` from the latest release, and runs it
+  with its arguments. The binaries are `bun build --compile` output (`app/helper/scripts/cli.sh`), built on a
+  Mac so the Mac ones are signed ad hoc; curl doesn't quarantine what it downloads.
+- **The game** shows your computers on your own card (`web/src/hud/Computers.tsx`) and removes them; only the
+  app's window can make a link code.
+
 ## Actors
 
-**`player[userId]`**: raw events (SQLite, deduplicated), tokens, sessions and login codes. `ingest` stores a
+**`player[userId]`**: raw events (SQLite, deduplicated), devices (the app and linked computers), sessions,
+login codes and link codes. Events from every device land in the same table, so a linked computer's usage
+counts everywhere with nothing else to add up. `ingest` stores a
 batch, recomputes the touched world days (per-model sums, prompts, PRs, 5-minute agent buckets) and sends them
 to `town.report`, then tells `world` how many agents are live, and `arcade.usage` in case they're in a battle.
 

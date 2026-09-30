@@ -108,6 +108,20 @@ describe("helper", () => {
     helper.stop();
   });
 
+  test("link a computer: a code, and the line that uses it on the other computer", async () => {
+    const u = await signUp("linkapp");
+    const { helper, send } = harness();
+    await send(init(u.token));
+    const r = (await send({ cmd: "linkComputer" })) as {
+      ok: true;
+      result: { code: string; command: string };
+    };
+    expect(r.result.command).toBe(`curl -fsSL ${origin}/install.sh | sh -s -- link ${r.result.code}`);
+    const linked = await client.player.get([String(u.userId)]).redeemLinkCode(r.result.code, "box", "linux");
+    expect(linked.token).toMatch(new RegExp(`^${u.userId}\\.`));
+    helper.stop();
+  });
+
   test("a rejected token goes back to onboarding and tells the shell to forget it", async () => {
     const { helper, messages, send } = harness();
     await send(init("999999.not-a-real-token-at-all-aaaaaaaaaaaaaaaaa"));

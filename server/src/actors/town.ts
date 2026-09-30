@@ -58,6 +58,7 @@ import {
   makeToken,
   one,
   requireInternal,
+  requireSyncer,
   requireUser,
   type Sql,
   serial,
@@ -419,7 +420,7 @@ export const town = actor({
     },
 
     /** The HUD's corner: my numbers today and today's top 5. */
-    today: (c): Promise<Today> => today(c.db, requireUser(c.conn.state), Date.now()),
+    today: (c): Promise<Today> => today(c.db, requireSyncer(c.conn.state), Date.now()),
 
     // MARK: Coins for games (from `arcade` only)
 

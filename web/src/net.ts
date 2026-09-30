@@ -36,6 +36,7 @@ type Town = ReturnType<ReturnType<typeof client.town.getOrCreate>["connect"]>;
 type WorldConn = ReturnType<ReturnType<typeof client.world.getOrCreate>["connect"]>;
 type ArcadeConn = ReturnType<ReturnType<typeof client.arcade.getOrCreate>["connect"]>;
 type MatchConn = ReturnType<ReturnType<typeof client.match.get>["connect"]>;
+type PlayerConn = ReturnType<ReturnType<typeof client.player.get>["connect"]>;
 
 export let town: Town;
 export let conn: WorldConn;
@@ -212,6 +213,16 @@ export function closeMatch(): void {
   matchConn?.dispose();
   matchConn = null;
   hud.set({ frame: null, matchChat: [] });
+}
+
+/** A call on my own `player` (my computers), over a connection that closes after it. */
+export async function withPlayer<T>(fn: (player: PlayerConn) => Promise<T>): Promise<T> {
+  const player = client.player.get([String(world.selfId)], { params: { token: session } }).connect();
+  try {
+    return await fn(player);
+  } finally {
+    player.dispose();
+  }
 }
 
 /** A readable message from a failed call. */

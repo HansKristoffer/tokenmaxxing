@@ -15,6 +15,7 @@ fn main() {
             "update_status",
             "install_update",
             "open_link",
+            "link_computer",
         ]),
     ))
     .expect("failed to run tauri-build")

@@ -16,7 +16,9 @@ export type Command =
   /** Sync now (sent when the Mac wakes). */
   | { id: number; cmd: "syncNow" }
   /** Replies with `{ code }`: a single-use login code the game window trades for a session. */
-  | { id: number; cmd: "openWorld" };
+  | { id: number; cmd: "openWorld" }
+  /** Replies with a `LinkComputer`: how to add another computer's usage to this account. */
+  | { id: number; cmd: "linkComputer" };
 
 export type Message =
   | { id: number; ok: true; result: unknown }
@@ -25,6 +27,12 @@ export type Message =
   | { event: "state"; state: AppState }
   /** After signUp → save to Keychain. `null` → the token was rejected; delete it. */
   | { event: "token"; token: string | null };
+
+/** A single-use link code (10 minutes) and the line that installs the CLI with it on another computer. */
+export interface LinkComputer {
+  code: string;
+  command: string;
+}
 
 /** A Tokenmaxxing battle I'm in. The app syncs fast until `until`. */
 export interface Battle {
