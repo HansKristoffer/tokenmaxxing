@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.2](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.3.1...v1.3.2) (2026-09-30)
+
+
+### Bug Fixes
+
+* **tunnel:** finish matches saved as over after restart ([7d99a82](https://github.com/HansKristoffer/tokenmaxxing/commit/7d99a82b5050055aa7c723b9a10136f654ef55cc))
+* **tunnel:** finish matches saved as over after restart ([1a2e9fc](https://github.com/HansKristoffer/tokenmaxxing/commit/1a2e9fccd6c62ba3602b8a0012f3e364d288610b))
+
 ## [1.3.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.3.0...v1.3.1) (2026-09-30)
 
 
