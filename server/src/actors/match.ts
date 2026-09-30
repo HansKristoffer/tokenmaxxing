@@ -92,6 +92,13 @@ export const match = actor({
     const signal = c.abortSignal;
     const def = defOf(c.state);
     while (!signal.aborted && !c.state.reported) {
+      // Look every turn, not only after a change: a restart between saving the final state and
+      // finishing left a game over but never paid out, as nothing changed after it.
+      const ended = c.state.outcome ? null : def.outcome(c.state.state);
+      if (ended) {
+        await c.keepAwake(finish(c, ended));
+        continue;
+      }
       if (c.state.outcome) {
         await c.keepAwake(report(c));
         if (signal.aborted) return;
