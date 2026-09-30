@@ -54,6 +54,7 @@ import {
   type ConnParams,
   main,
   requireInternal,
+  requireMain,
   requireUser,
   type Sql,
   type TokenCache,
@@ -150,6 +151,7 @@ export const world = actor({
       await d.execute("CREATE INDEX IF NOT EXISTS chat_room ON chat (room, id)");
     },
   }),
+  onCreate: (c) => requireMain(c),
   onWake: async (c) => {
     // First start (or a wiped world): load everyone from `town` and put them to bed.
     if (!c.state.seeded) {
@@ -427,6 +429,21 @@ export const world = actor({
         c.vars.dirty.add(p.id);
       }
       c.broadcast("info", info(p, online));
+    },
+
+    /** From `town`, when an admin deletes an account: out of the world, and their tabs closed. */
+    removePlayer: (c, userId: number): void => {
+      requireInternal(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p) return;
+      sendToRoom(c, p.room, "moves", { room: p.room, join: [], m: [], leave: [userId] } satisfies Moves);
+      delete c.state.players[userId];
+      for (const vars of [c.vars.online, c.vars.announced, c.vars.steps, c.vars.jumps]) vars.delete(userId);
+      c.vars.dirty.delete(userId);
+      for (const conn of c.conns.values()) {
+        const s = conn.state as ConnState;
+        if (s.kind === "user" && s.userId === userId) void conn.disconnect("deleted");
+      }
     },
 
     setCompany: (c, company: CompanyInfo): void => {

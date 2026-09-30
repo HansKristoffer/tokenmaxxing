@@ -25,9 +25,11 @@ import {
   authenticate,
   type Caller,
   type ConnParams,
+  INTERNAL_KEY,
   main,
   matchOf,
   requireInternal,
+  requireMain,
   requireUser,
   serial,
   type TokenCache,
@@ -103,6 +105,7 @@ const tableRef = (id: number) => `table:${id}`;
 const betsRef = (id: number) => `bets:${id}`;
 
 export const arcade = actor({
+  onCreate: (c) => requireMain(c),
   state: { nextId: 1, tables: {}, matches: {}, names: {} } as ArcadeState,
   createVars: () => ({
     serial: serial(),
@@ -482,6 +485,7 @@ async function startMatch(c: ArcadeCtx, table: Table): Promise<void> {
       split,
       options: table.options,
       seed: Math.floor(Math.random() * 2 ** 31),
+      internal: INTERNAL_KEY,
     },
   });
   const info = await matchOf(client, table.id).info();

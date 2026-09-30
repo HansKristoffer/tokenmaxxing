@@ -1,7 +1,9 @@
+import { timingSafeEqual } from "node:crypto";
 import { UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { randomToken, sha256 } from "../crypto.ts";
 import { PricingCache } from "../pricing.ts";
+import { CLIENT_IP_HEADER } from "../proxy.ts";
 import type { registry } from "./registry.ts";
 
 /**
@@ -10,6 +12,23 @@ import type { registry } from "./registry.ts";
  */
 export const INTERNAL_KEY = randomToken();
 export const internal = { params: { internal: INTERNAL_KEY } };
+
+/**
+ * Actors that other actors create (`player`, `match`) carry the internal key in their input: the
+ * gateway lets browsers create actors too, and one made by a stranger (`player[<the next id>]` with
+ * their own token) would be theirs. `proxy.ts` refuses such requests as well; this is the second lock.
+ * Returns the input without the key, so it's never kept in state.
+ */
+export function fromInside<T extends object>(input: (T & { internal?: string }) | undefined): T {
+  if (input?.internal !== INTERNAL_KEY) throw new UserError("Not allowed.", { code: "forbidden" });
+  const { internal: _, ...rest } = input;
+  return rest as T;
+}
+
+/** `town`, `world` and `arcade` are singletons: `["main"]` and nothing else. */
+export function requireMain(c: { key: string[] }): void {
+  if (c.key.length !== 1 || c.key[0] !== "main") throw new UserError("Not allowed.", { code: "forbidden" });
+}
 
 /** The `main` actors, as another actor calls them. */
 export const main = (client: Client<typeof registry>) => ({
@@ -28,13 +47,27 @@ export const pricing = new PricingCache();
 export interface ConnParams {
   token?: string;
   internal?: string;
+  /** The admin page's token: `ADMIN_TOKEN`. */
+  admin?: string;
 }
 
-/** Who is calling: a player (device app or browser session), another actor, or nobody yet. */
+/** Who is calling: a player (device app or browser session), the admin page, another actor, or nobody yet. */
 export type Caller =
   | { kind: "internal" }
+  | { kind: "admin" }
   | { kind: "user"; userId: number; via: "device" | "session" }
   | { kind: "anonymous" };
+
+/** The client's IP, as `proxy.ts` saw it; null for another actor, which comes from inside. */
+export const clientIpOf = (req: Request | undefined): string | null =>
+  req?.headers.get(CLIENT_IP_HEADER) ?? null;
+
+/** `ADMIN_TOKEN`, compared in constant time. Unset turns the admin page off. */
+export function isAdminToken(token: unknown): boolean {
+  const want = process.env.ADMIN_TOKEN;
+  if (!want || typeof token !== "string") return false;
+  return timingSafeEqual(Buffer.from(sha256(token)), Buffer.from(sha256(want)));
+}
 
 /** Tokens are `<userId>.<secret>`; the player actor stores sha256(secret). */
 export function splitToken(token: unknown): { userId: number; secret: string } | null {
@@ -55,8 +88,8 @@ const TOKEN_CACHE_MAX = 10_000;
 export type TokenCache = Map<string, { caller: Caller; until: number }>;
 
 /**
- * Connection auth for actors other than `player`: internal callers by key,
- * users by asking their `player` actor (cached for a minute), anonymous otherwise.
+ * Connection auth for actors other than `player`: internal callers by key, the admin page by
+ * `ADMIN_TOKEN`, users by asking their `player` actor (cached for a minute), anonymous otherwise.
  */
 export async function authenticate(
   params: ConnParams | undefined,
@@ -64,6 +97,10 @@ export async function authenticate(
   cache: TokenCache,
 ): Promise<Caller> {
   if (params?.internal === INTERNAL_KEY) return { kind: "internal" };
+  if (params?.admin !== undefined) {
+    if (!isAdminToken(params.admin)) throw new UserError("Wrong admin token.", { code: "unauthorized" });
+    return { kind: "admin" };
+  }
   if (params?.token === undefined) return { kind: "anonymous" };
   const now = Date.now();
   const hit = cache.get(params.token);
@@ -89,6 +126,10 @@ export function requireUser(caller: Caller): number {
 
 export function requireInternal(caller: Caller): void {
   if (caller.kind !== "internal") throw new UserError("Not allowed.", { code: "forbidden" });
+}
+
+export function requireAdmin(caller: Caller): void {
+  if (caller.kind !== "admin") throw new UserError("Not allowed.", { code: "forbidden" });
 }
 
 /** Runs `fn` after every earlier call on the same chain: SQLite work that must not interleave. */

@@ -41,6 +41,10 @@ export const registry = setup({
 });
 
 export type {
+  AdminCompany,
+  AdminLogEntry,
+  AdminOverview,
+  AdminUser,
   BoardCompany,
   BoardPlayer,
   CompanyProfile,
