@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.3.0...v1.3.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **hosts:** keep token syncs working through player delays ([f061709](https://github.com/HansKristoffer/tokenmaxxing/commit/f061709ae9c56b29c78277468e4434f1eda035f4))
+* **hosts:** keep token syncs working through player delays ([72ba106](https://github.com/HansKristoffer/tokenmaxxing/commit/72ba1062aebd5eea26c7cf7f7078441c5d47c1dd))
+* **usage:** coalesce token sync and battle updates ([d30d76a](https://github.com/HansKristoffer/tokenmaxxing/commit/d30d76a44dc8ca3d58867999fb65aa39c0c6c794))
+* **usage:** keep token totals synced through retries ([b4f8a63](https://github.com/HansKristoffer/tokenmaxxing/commit/b4f8a63ea32869142d6b6331b9c593b147e0555c))
+* **usage:** keep token totals synced through retries ([d84bd32](https://github.com/HansKristoffer/tokenmaxxing/commit/d84bd3248832792992f0cea44e742d955f4a036c))
+
 ## [1.3.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.2.0...v1.3.0) (2026-09-30)
 
 
