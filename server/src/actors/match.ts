@@ -16,6 +16,7 @@ import {
   authenticate,
   type Caller,
   type ConnParams,
+  fromInside,
   internal,
   main,
   requireInternal,
@@ -60,7 +61,8 @@ const CHAT_PER_MIN = 20;
 const defOf = (s: { game: GameId }) => gameOf(s.game)!;
 
 export const match = actor({
-  createState: (_c, input: MatchInput): MatchState => {
+  createState: (_c, raw: MatchInput & { internal: string }): MatchState => {
+    const input = fromInside<MatchInput>(raw);
     const now = Date.now();
     const def = defOf(input);
     const state = def.setup(

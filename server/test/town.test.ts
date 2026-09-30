@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { frontier, plotId } from "@tokenmaxxing/core/maps.ts";
-import { admit, as, client, event, signUp } from "./rivet.ts";
+import { admin, admit, as, client, event, signUp } from "./rivet.ts";
 
 describe("accounts", () => {
   test("names are unique and validated", async () => {
@@ -210,7 +210,8 @@ describe("leaderboard", () => {
 describe("coins and the shop", () => {
   test("usage earns coins, square-rooted per day", async () => {
     const a = await signUp("coin");
-    // 100M today: √100 = 10. 400M more the same day makes it √500 = 22, not 30.
+    // 100M today: √100 = 10. 400M more the same day makes it √500 = 22, not 30. (A minute counts
+    // for at most 200M, so the 400M comes over the next two.)
     const now = Date.now();
     await as(a.token)
       .player(a.userId)
@@ -218,12 +219,15 @@ describe("coins and the shop", () => {
     expect((await a.town.wallet()).balance).toBe(10);
     await as(a.token)
       .player(a.userId)
-      .ingest([event({ inputTokens: 400e6, timestamp: now })]);
+      .ingest([
+        event({ inputTokens: 200e6, timestamp: now + 60_000 }),
+        event({ inputTokens: 200e6, timestamp: now + 120_000 }),
+      ]);
     expect((await a.town.wallet()).balance).toBe(22);
     // Logs from before signing up (a first sync's backfill) pay nothing.
     await as(a.token)
       .player(a.userId)
-      .ingest([event({ inputTokens: 10e9, timestamp: Date.UTC(2023, 5, 14, 12) })]);
+      .ingest([event({ inputTokens: 150e6, timestamp: Date.UTC(2023, 5, 14, 12) })]);
     expect((await a.town.wallet()).balance).toBe(22);
   });
 
@@ -231,9 +235,7 @@ describe("coins and the shop", () => {
     const a = await signUp("shop");
     await expect(a.town.buy("glasses.1")).rejects.toThrow("coins");
     await expect(a.town.setLook({ ...(await a.town.me()).look, glasses: 1 })).rejects.toThrow("shop");
-    await as(a.token)
-      .player(a.userId)
-      .ingest([event({ inputTokens: 10e9, timestamp: Date.now() })]);
+    await admin().adminSetCoins(a.userId, 100);
     const before = await a.town.wallet();
     const after = await a.town.buy("glasses.1");
     expect(after.balance).toBe(before.balance - 60);

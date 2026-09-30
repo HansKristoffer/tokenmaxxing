@@ -42,6 +42,10 @@ export const registry = setup({
 
 export type { DeviceInfo } from "./player.ts";
 export type {
+  AdminCompany,
+  AdminLogEntry,
+  AdminOverview,
+  AdminUser,
   BoardCompany,
   BoardPlayer,
   CompanyProfile,

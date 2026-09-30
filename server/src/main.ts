@@ -3,6 +3,7 @@ import { basename, join } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
 import { LOGO_DIR, LOGO_FILE } from "./brand.ts";
 import { loadConfig } from "./config.ts";
+import { type Page, pageHeaders } from "./headers.ts";
 import { installScript } from "./install.ts";
 import { rivetProxy } from "./proxy.ts";
 
@@ -12,10 +13,10 @@ const config = loadConfig(process.env, pkg.version);
 const storage = process.env.RIVETKIT_STORAGE_PATH;
 if (!storage && !config.development) throw new Error("set RIVETKIT_STORAGE_PATH to the data volume");
 
-// The game is bundled here, before the registry starts: once RivetKit's native runtime is
-// up, Bun's HTML bundler fails in this process (and its dev server resolves rivetkit's Node build).
+// The game and the admin page are bundled here, before the registry starts: once RivetKit's native
+// runtime is up, Bun's HTML bundler fails in this process (and its dev server resolves rivetkit's Node build).
 const web = await Bun.build({
-  entrypoints: [join(import.meta.dir, "../../web/index.html")],
+  entrypoints: [join(import.meta.dir, "../../web/index.html"), join(import.meta.dir, "../../web/admin.html")],
   target: "browser",
   minify: !config.development,
   sourcemap: config.development ? "inline" : "none",
@@ -44,13 +45,22 @@ setInterval(refreshPricing, 86_400_000);
 // Serve only once actors can run, so the healthcheck means the whole thing is up.
 registry.start();
 await registry.startAndWait();
-const proxy = rivetProxy(`127.0.0.1:${ENGINE_PORT}`, ENGINE_TOKEN);
+const proxy = rivetProxy(`127.0.0.1:${ENGINE_PORT}`, ENGINE_TOKEN, config.gateway);
+
+const headersFor = (page: Page, req: Request, extra: Record<string, string>) => ({
+  ...pageHeaders(page, new URL(req.url).host, !config.development),
+  ...extra,
+});
+const html = (file: Bun.BuildArtifact | undefined, page: Page) => (req: Request) =>
+  new Response(file, { headers: headersFor(page, req, { "cache-control": "no-cache" }) });
 
 const server = Bun.serve({
   port: config.port,
   hostname: config.host,
   routes: {
-    "/play": new Response(assets.get("/index.html"), { headers: { "cache-control": "no-cache" } }),
+    "/play": html(assets.get("/index.html"), "game"),
+    // Useless without ADMIN_TOKEN: every action it calls checks it (`town`'s admin actions).
+    "/admin": html(assets.get("/admin.html"), "admin"),
     "/health": () => Response.json({ ok: true, version: config.version }),
     "/install.sh": installScript,
     // Company logos, copied from their websites. Sandboxed: an SVG is someone else's markup.
@@ -69,15 +79,16 @@ const server = Bun.serve({
   },
   fetch(req, server) {
     const path = new URL(req.url).pathname;
-    const asset = assets.get(path);
+    // The pages themselves only at /play and /admin, with their headers.
+    const asset = path.endsWith(".html") ? undefined : assets.get(path);
     if (asset)
       return new Response(asset, { headers: { "cache-control": "public, max-age=31536000, immutable" } });
     const page = site.get(path.endsWith("/") ? `${path}index.html` : path);
     if (page)
       return new Response(page, {
-        headers: {
+        headers: headersFor("site", req, {
           "cache-control": path.startsWith("/_astro/") ? "public, max-age=31536000, immutable" : "no-cache",
-        },
+        }),
       });
     return proxy.fetch(req, server);
   },

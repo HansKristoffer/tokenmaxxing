@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Sql } from "../src/actors/shared.ts";
-import { heldIn, hold, pay, refund, wallet } from "../src/town/coins.ts";
+import { balances, heldIn, hold, pay, refund, setBalance, wallet } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
 
@@ -132,5 +132,25 @@ describe("the wallet", () => {
     await signUpOn(5, "2026-03-04");
     await earn(5, "2026-03-03", 1e12);
     expect(await balance(4)).toBe(10 + 25);
+  });
+});
+
+describe("the admin page's balances", () => {
+  test("add up to what each wallet says", async () => {
+    for (const id of [4, 5]) await signUpOn(id, "2026-03-03");
+    await Promise.all([4e9, 3e9].map((tokens, i) => earn(4 + i, "2026-03-03", tokens)));
+    await earn(4, "2026-03-02", 1e12); // before signing up: pays nothing
+    await sql.execute("INSERT INTO purchases VALUES (5, 'hat.1', 20, 0)");
+    await hold(sql, "table:1", "stake", [{ userId: 1, amount: 40 }], names, NOW);
+    const all = await balances(sql, NOW);
+    for (const id of [1, 2, 3, 4, 5]) expect(all.get(id)).toBe(await balance(id));
+  });
+
+  test("an admin sets a balance through the ledger", async () => {
+    expect(await setBalance(sql, 1, 500, NOW)).toEqual({ before: 125, balance: 500 });
+    expect(await balance(1)).toBe(500);
+    await setBalance(sql, 1, 3, NOW);
+    expect(await balance(1)).toBe(3);
+    expect((await balances(sql, NOW)).get(1)).toBe(3);
   });
 });
