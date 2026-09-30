@@ -22,6 +22,7 @@ import {
   requireInternal,
   requireUser,
   type TokenCache,
+  waitForTick,
 } from "./shared.ts";
 
 interface MatchInput {
@@ -88,14 +89,16 @@ export const match = actor({
   onConnect: (c): void => pushFrames(c),
   onDisconnect: (c): void => pushFrames(c),
   run: async (c): Promise<void> => {
+    const signal = c.abortSignal;
     const def = defOf(c.state);
-    while (!c.aborted && !c.state.reported) {
+    while (!signal.aborted && !c.state.reported) {
       if (c.state.outcome) {
-        await report(c);
-        if (!c.state.reported) await Bun.sleep(REPORT_RETRY_MS);
+        await c.keepAwake(report(c));
+        if (signal.aborted) return;
+        if (!c.state.reported && !(await waitForTick(signal, REPORT_RETRY_MS))) return;
         continue;
       }
-      await Bun.sleep(def.tickMs ?? 1000);
+      if (!(await waitForTick(signal, def.tickMs ?? 1000))) return;
       const now = Date.now();
       let next = c.state.state;
       if (def.tick) next = def.tick(next, now);
@@ -113,11 +116,11 @@ export const match = actor({
           }
         }
         if (now - c.state.startedAt > HELD_LIMIT_MS && !def.outcome(next)) {
-          await finish(c, { void: "The game ran too long and was called off." });
+          await c.keepAwake(finish(c, { void: "The game ran too long and was called off." }));
           continue;
         }
       }
-      if (next !== c.state.state) await apply(c, next);
+      if (next !== c.state.state) await c.keepAwake(apply(c, next));
     }
   },
   actions: {

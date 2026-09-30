@@ -4,6 +4,7 @@ import pkg from "../../package.json" with { type: "json" };
 import { LOGO_DIR, LOGO_FILE } from "./brand.ts";
 import { loadConfig } from "./config.ts";
 import { type Page, pageHeaders } from "./headers.ts";
+import { healthCheck } from "./health.ts";
 import { installScript } from "./install.ts";
 import { rivetProxy } from "./proxy.ts";
 
@@ -33,7 +34,8 @@ if (existsSync(SITE))
   for (const path of new Bun.Glob("**/*").scanSync(SITE)) site.set(`/${path}`, Bun.file(join(SITE, path)));
 
 const { ENGINE_PORT, ENGINE_TOKEN, registry } = await import("./actors/registry.ts");
-const { pricing } = await import("./actors/shared.ts");
+const { createClient } = await import("rivetkit/client");
+const { pricing, main } = await import("./actors/shared.ts");
 
 const refreshPricing = async () => {
   const r = await pricing.refreshFromUpstream();
@@ -46,6 +48,11 @@ setInterval(refreshPricing, 86_400_000);
 registry.start();
 await registry.startAndWait();
 const proxy = rivetProxy(`127.0.0.1:${ENGINE_PORT}`, ENGINE_TOKEN, config.gateway);
+const localClient = createClient<typeof registry>({
+  endpoint: `http://127.0.0.1:${ENGINE_PORT}`,
+  token: ENGINE_TOKEN,
+});
+const health = healthCheck(() => main(localClient).town.health(), config.version);
 
 const headersFor = (page: Page, req: Request, extra: Record<string, string>) => ({
   ...pageHeaders(page, new URL(req.url).host, !config.development),
@@ -61,7 +68,7 @@ const server = Bun.serve({
     "/play": html(assets.get("/index.html"), "game"),
     // Useless without ADMIN_TOKEN: every action it calls checks it (`town`'s admin actions).
     "/admin": html(assets.get("/admin.html"), "admin"),
-    "/health": () => Response.json({ ok: true, version: config.version }),
+    "/health": health,
     "/install.sh": installScript,
     // Company logos, copied from their websites. Sandboxed: an SVG is someone else's markup.
     "/logos/:file": async (req) => {

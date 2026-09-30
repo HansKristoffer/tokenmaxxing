@@ -34,6 +34,7 @@ import {
   requireUser,
   serial,
   type TokenCache,
+  waitForTick,
 } from "./shared.ts";
 
 interface Invite {
@@ -116,9 +117,10 @@ export const arcade = actor({
   createConnState: (c, params: ConnParams): Promise<Caller> =>
     authenticate(params, c.client(), c.vars.tokens),
   run: async (c): Promise<void> => {
-    while (!c.aborted) {
-      await Bun.sleep(SWEEP_MS);
-      await c.vars.serial(() => sweep(c, Date.now()));
+    const signal = c.abortSignal;
+    const run = c.vars.serial;
+    while (await waitForTick(signal, SWEEP_MS)) {
+      await c.keepAwake(run(() => (signal.aborted ? Promise.resolve() : sweep(c, Date.now()))));
     }
   },
   actions: {
