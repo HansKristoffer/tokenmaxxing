@@ -62,9 +62,15 @@ describe("the arcade", () => {
     });
     const board = await ada.town.gameBoard("today");
     expect(board.find((p) => p.userId === bo.userId)).toMatchObject({ played: 1, wins: 0, net: -40 });
-    // Free again, and Back takes her to where she was before the game (the Inn, where she woke up).
+    // Free again, and back where she was before the game (the Inn, where she woke up): by Back if she
+    // was in the world when it ended, or on coming back if she wasn't.
     const back = await as(ada.token).world.back();
-    expect(back).toMatchObject({ room: "inn", state: "idle" });
+    if (back) expect(back).toMatchObject({ room: "inn", state: "idle" });
+    else {
+      const conn = as(ada.token).world.connect();
+      expect((await conn.join()).room).toBe("inn");
+      await conn.dispose();
+    }
   });
 
   test("private tables refuse strangers; open ones take anyone; one game at a time", async () => {
