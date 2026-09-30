@@ -73,3 +73,43 @@ test("a busy player keeps a recently checked token working, but not a revoked on
   };
   await expect(authenticate({ token }, client, cache)).rejects.toThrow("callback_timed_out");
 });
+
+test("a match saved as over but never finished still pays out when it wakes", async () => {
+  const { match } = await import("../src/actors/match.ts");
+  const { tokenmaxxing } = await import("@tokenmaxxing/core/games/tokenmaxxing.ts");
+  const now = Date.now();
+  // Past its grace period, 2 players, tokens in: over. The restart came before `finish`.
+  const game = { ...tokenmaxxing.setup([1, 2], 0, { minutes: 15 }, now - 3_600_000), phase: "over" };
+  game.tokens = { 1: 500, 2: 100 };
+  const finished: unknown[] = [];
+  const client = {
+    arcade: {
+      getOrCreate: () => ({ finished: async (_id: number, outcome: unknown) => finished.push(outcome) }),
+    },
+    world: { getOrCreate: () => ({ gameStatus: async () => {}, callout: async () => {} }) },
+    town: { getOrCreate: () => ({}) },
+  } as unknown as Client<typeof registry>;
+  const state = {
+    id: 5,
+    game: "tokenmaxxing",
+    players: [
+      { userId: 1, name: "a" },
+      { userId: 2, name: "b" },
+    ],
+    state: game,
+    outcome: null,
+    reported: false,
+    seen: {},
+    forfeited: [],
+  };
+  const ctx = {
+    state,
+    conns: new Map(),
+    abortSignal: new AbortController().signal,
+    client: () => client,
+    keepAwake: <T>(p: Promise<T>) => p,
+  };
+  await (match.config.run as unknown as (c: typeof ctx) => Promise<void>)(ctx);
+  expect(finished).toEqual([{ places: [[1], [2]] }]);
+  expect(state.reported).toBe(true);
+});
