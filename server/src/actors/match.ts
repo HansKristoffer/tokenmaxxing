@@ -183,23 +183,22 @@ export const match = actor({
       requireInternal(c.conn.state);
       const def = defOf(c.state);
       const window = def.usageWindow?.(c.state.state);
-      if (!def.usage || !window || c.state.outcome || !c.state.players.some((p) => p.userId === userId))
-        return null;
+      if (!window || !def.usage || !standing(c.state, userId)) return null;
       const used = await c
         .client()
         .player.get([String(userId)], internal)
         .tokensBetween(window.from, window.to);
       await apply(c, def.usage(c.state.state, userId, used, Date.now()));
-      const board = def.board?.(c.state.state, Date.now()) ?? [];
-      const place = board.findIndex((r) => r.player === userId);
-      return {
-        name: def.name,
-        place: place < 0 || !board[place]!.value ? null : place + 1,
-        players: c.state.players.length,
-        tokens: board[place]?.value ?? 0,
-        endsAt: window.to,
-        until: window.until,
-      };
+      return standing(c.state, userId);
+    },
+
+    /**
+     * Where a player stands, from the last pull. For the app's poll: each sync already pulls (`usage`),
+     * so this reads nothing, and a slow player database can't pile polls up here.
+     */
+    standing: (c, userId: number): Battle | null => {
+      requireInternal(c.conn.state);
+      return standing(c.state, userId);
     },
 
     /** The arcade is done with it: the match and its state go. */
@@ -220,6 +219,22 @@ type MatchCtx = {
   conns: Map<string, { state: unknown; send(name: string, ...args: unknown[]): void }>;
   client(): import("rivetkit/client").Client<typeof registry>;
 };
+
+function standing(s: MatchState, userId: number): Battle | null {
+  const def = defOf(s);
+  const window = def.usageWindow?.(s.state);
+  if (!def.usage || !window || s.outcome || !s.players.some((p) => p.userId === userId)) return null;
+  const board = def.board?.(s.state, Date.now()) ?? [];
+  const place = board.findIndex((r) => r.player === userId);
+  return {
+    name: def.name,
+    place: place < 0 || !board[place]!.value ? null : place + 1,
+    players: s.players.length,
+    tokens: board[place]?.value ?? 0,
+    endsAt: window.to,
+    until: window.until,
+  };
+}
 
 const viewerOf = (s: MatchState, caller: unknown): number | null => {
   const c = caller as Caller;

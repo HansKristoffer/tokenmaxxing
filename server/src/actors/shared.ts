@@ -92,6 +92,13 @@ export const unauthorized = () => new UserError("Sign in from the menu bar app."
 
 const TOKEN_CACHE_MS = 60_000;
 const TOKEN_CACHE_MAX = 10_000;
+/**
+ * A token checked this recently still counts while its `player` is too busy (or restarting) to
+ * answer in `VERIFY_WAIT_MS`: under RivetKit's 5s connection limit, so one slow player can't fail
+ * every call its app makes. A revoked token or a deleted player is still refused at once.
+ */
+const TOKEN_STALE_MS = 10 * 60_000;
+const VERIFY_WAIT_MS = 3_000;
 export type TokenCache = Map<string, { caller: Caller; until: number }>;
 
 /**
@@ -113,8 +120,8 @@ export async function authenticate(
   const hit = cache.get(params.token);
   if (hit && hit.until > now) return hit.caller;
   const t = splitToken(params.token);
-  const via = t
-    ? await client.player
+  const verify = t
+    ? client.player
         .get([String(t.userId)], internal)
         .verify(t.secret)
         .catch((err: unknown) => {
@@ -122,7 +129,14 @@ export async function authenticate(
           if (err instanceof RivetError && err.group === "actor" && err.code === "not_found") return null;
           throw err;
         })
-    : null;
+    : Promise.resolve(null);
+  const stale = hit && now - hit.until < TOKEN_STALE_MS && hit.caller.kind === "user" ? hit.caller : null;
+  if (stale) {
+    const busy = Symbol();
+    const answer = await Promise.race([verify, delay(VERIFY_WAIT_MS).then(() => busy)]).catch(() => busy);
+    if (answer === busy) return stale;
+  }
+  const via = await verify;
   if (!t || !via) throw unauthorized();
   const caller: Caller = { kind: "user", userId: t.userId, via };
   if (cache.size > TOKEN_CACHE_MAX) cache.clear();
