@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3.3](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.3.2...v1.3.3) (2026-10-01)
+
+
+### Bug Fixes
+
+* **connect:** prevent match state proxy errors ([e553e7f](https://github.com/HansKristoffer/tokenmaxxing/commit/e553e7fda7fee2883094d9591b97f954409b7479))
+* **connect:** prevent match state proxy errors ([5d6df84](https://github.com/HansKristoffer/tokenmaxxing/commit/5d6df84f75b566cbf65a13733c563f4e7885bcf3))
+* **tunnel:** prevent token sync overload during match updates ([4ba46d5](https://github.com/HansKristoffer/tokenmaxxing/commit/4ba46d5967982d4648f73975e9d594557ccf88ee))
+* **tunnel:** prevent token sync overload during match updates ([4cc5a7a](https://github.com/HansKristoffer/tokenmaxxing/commit/4cc5a7af611f11c913aa0420ba6c6dc38e519208))
+
 ## [1.3.2](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.3.1...v1.3.2) (2026-09-30)
 
 
