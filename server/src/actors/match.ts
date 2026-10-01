@@ -100,7 +100,7 @@ export const match = actor({
     while (!signal.aborted && !c.state.reported) {
       // Look every turn, not only after a change: a restart between saving the final state and
       // finishing left a game over but never paid out, as nothing changed after it.
-      const ended = c.state.outcome ? null : def.outcome(c.state.state);
+      const ended = c.state.outcome ? null : def.outcome(plain(c.state).state);
       if (ended) {
         await c.keepAwake(finish(c, ended));
         continue;
@@ -113,11 +113,12 @@ export const match = actor({
       }
       if (!(await waitForTick(signal, def.tickMs ?? 1000))) return;
       const now = Date.now();
-      let next = c.state.state;
+      const current = plain(c.state);
+      let next = current.state;
       if (def.tick) next = def.tick(next, now);
       if (def.holdPlayers !== false) {
         const here = connectedPlayers(c);
-        for (const p of c.state.players) {
+        for (const p of current.players) {
           if (here.has(p.userId)) c.state.seen[p.userId] = now;
           else if (
             now - (c.state.seen[p.userId] ?? now) > AWAY_MS &&
@@ -133,29 +134,34 @@ export const match = actor({
           continue;
         }
       }
-      if (next !== c.state.state) await c.keepAwake(apply(c, next));
+      if (next !== current.state) await c.keepAwake(apply(c, next));
     }
   },
   actions: {
     /** Your frame, when opening the game. */
-    frame: (c): Frame => frameFor(plain(c.state), viewerOf(c.state, c.conn.state), watchersOf(c)),
+    frame: (c): Frame => {
+      const s = plain(c.state);
+      return frameFor(s, viewerOf(s, c.conn.state), watchersOf(c, s));
+    },
 
     move: async (c, move: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
-      const player = requirePlayer(c.state, userId);
-      if (c.state.outcome) throw new UserError("This game is over.", { code: "over" });
-      const next = defOf(c.state).move(c.state.state, player, move, Date.now());
+      const s = plain(c.state);
+      const player = requirePlayer(s, userId);
+      if (s.outcome) throw new UserError("This game is over.", { code: "over" });
+      const next = defOf(s).move(s.state, player, move, Date.now());
       if (isRefused(next)) throw new UserError(next.refused, { code: "refused" });
-      await apply(c, next);
+      if (next !== s.state) await apply(c, next);
     },
 
     /** Give up: you're placed last, and your stake stays in the pot. */
     forfeit: async (c): Promise<void> => {
       const userId = requireUser(c.conn.state);
-      requirePlayer(c.state, userId);
-      if (c.state.outcome || c.state.forfeited.includes(userId)) return;
-      c.state.forfeited = [...c.state.forfeited, userId];
-      await apply(c, defOf(c.state).forfeit(c.state.state, userId, Date.now()));
+      const s = plain(c.state);
+      requirePlayer(s, userId);
+      if (s.outcome || s.forfeited.includes(userId)) return;
+      c.state.forfeited = [...s.forfeited, userId];
+      await apply(c, defOf(s).forfeit(s.state, userId, Date.now()));
     },
 
     /** The match's chat so far, when opening the game. */
@@ -194,15 +200,20 @@ export const match = actor({
     /** After a player syncs (usage games): pull their tokens in the window. Returns until when to keep syncing fast. */
     usage: async (c, userId: number): Promise<Battle | null> => {
       requireInternal(c.conn.state);
-      const def = defOf(c.state);
-      const window = def.usageWindow?.(c.state.state);
-      if (!window || !def.usage || !standing(c.state, userId)) return null;
+      const s = plain(c.state);
+      const def = defOf(s);
+      const window = def.usageWindow?.(s.state);
+      if (!window || !def.usage || !standing(s, userId)) return null;
       const used = await c
         .client()
         .player.get([String(userId)], internal)
         .tokensBetween(window.from, window.to);
-      await apply(c, def.usage(c.state.state, userId, used, Date.now()));
-      return standing(c.state, userId);
+      // Another sync or tick may have updated the match while the player query was running.
+      const current = plain(c.state);
+      if (!standing(current, userId)) return null;
+      const next = def.usage(current.state, userId, used, Date.now());
+      if (next !== current.state) await apply(c, next);
+      return standing(plain(c.state), userId);
     },
 
     /**
@@ -211,7 +222,7 @@ export const match = actor({
      */
     standing: (c, userId: number): Battle | null => {
       requireInternal(c.conn.state);
-      return standing(c.state, userId);
+      return standing(plain(c.state), userId);
     },
 
     /** The arcade is done with it: the match and its state go. */
@@ -222,7 +233,7 @@ export const match = actor({
 
     info: (c): MatchInfo => {
       requireInternal(c.conn.state);
-      return infoOf(c.state);
+      return infoOf(plain(c.state));
     },
   },
 });
@@ -269,8 +280,8 @@ function connectedPlayers(c: MatchCtx): Set<number> {
   return out;
 }
 
-function watchersOf(c: MatchCtx): number {
-  const players = new Set(c.state.players.map((p) => p.userId));
+function watchersOf(c: MatchCtx, s: MatchState): number {
+  const players = new Set(s.players.map((p) => p.userId));
   let n = 0;
   for (const conn of c.conns.values()) {
     const s = conn.state as Caller;
@@ -306,20 +317,20 @@ function pushFrames(c: MatchCtx): void {
   const viewers = [...c.conns.values()].filter((conn) => (conn.state as Caller).kind === "user");
   if (!viewers.length) return;
   const s = plain(c.state);
-  const watchers = watchersOf(c);
+  const watchers = watchersOf(c, s);
   for (const conn of viewers) conn.send("frame", frameFor(s, viewerOf(s, conn.state), watchers));
 }
 
 /**
- * A plain copy of the state, to build frames from. Encoding the live state goes through RivetKit's
- * change-tracking proxy, which clones an array each time it's mapped: for a battle's score history,
- * per viewer, per update, that took the server's whole CPU.
+ * Game rules and views read plain JSON. RivetKit's change-tracking proxy also tracks array methods:
+ * ranking, mapping and spreading live state can retain proxies in new state and multiply the work
+ * on later updates. Only writes go through the live state; a no-op compares against its own snapshot.
  */
 const plain = (s: MatchState): MatchState => JSON.parse(JSON.stringify(s));
 
 async function apply(c: MatchCtx, next: unknown): Promise<void> {
   const def = defOf(c.state);
-  const before = c.state.state;
+  const before = plain(c.state).state;
   c.state.state = next;
   const callouts = def.callouts?.(before, next) ?? [];
   const world = main(c.client()).world;
@@ -332,18 +343,19 @@ async function apply(c: MatchCtx, next: unknown): Promise<void> {
 
 /** The live status over each player's head in the world, and the arena's scoreboard. */
 async function reportStatus(c: MatchCtx): Promise<void> {
-  const def = defOf(c.state);
+  const s = plain(c.state);
+  const def = defOf(s);
   const now = Date.now();
   const status = Object.fromEntries(
-    c.state.players.map((p) => [p.userId, def.status?.(c.state.state, p.userId, now) ?? null]),
+    s.players.map((p) => [p.userId, def.status?.(s.state, p.userId, now) ?? null]),
   );
   await main(c.client())
-    .world.gameStatus(c.state.id, {
+    .world.gameStatus(s.id, {
       status,
-      board: def.board?.(c.state.state, now) ?? null,
-      watchers: watchersOf(c),
-      headline: def.headline?.(c.state.state, now) ?? null,
-      endsAt: def.endsAt?.(c.state.state) ?? null,
+      board: def.board?.(s.state, now) ?? null,
+      watchers: watchersOf(c, s),
+      headline: def.headline?.(s.state, now) ?? null,
+      endsAt: def.endsAt?.(s.state) ?? null,
     })
     .catch(() => {});
 }
@@ -359,7 +371,8 @@ async function finish(c: MatchCtx, outcome: Outcome): Promise<void> {
 async function report(c: MatchCtx): Promise<void> {
   if (!c.state.outcome || c.state.reported) return;
   try {
-    await main(c.client()).arcade.finished(c.state.id, c.state.outcome);
+    const s = plain(c.state);
+    await main(c.client()).arcade.finished(s.id, s.outcome!);
     c.state.reported = true;
   } catch (err) {
     console.warn(`[match ${c.state.id}] reporting the outcome: ${String(err)}`);
