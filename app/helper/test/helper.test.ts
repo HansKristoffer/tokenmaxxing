@@ -69,6 +69,22 @@ function harness() {
 const init = (token: string | null) => ({ cmd: "init" as const, token, serverUrl: origin });
 
 describe("helper", () => {
+  test("sync now acknowledges a long backfill before it finishes", async () => {
+    const { helper, send } = harness();
+    const pending = Promise.withResolvers<void>();
+    const ticking = spyOn(helper, "tick").mockImplementation(() => pending.promise);
+    try {
+      expect(await send({ cmd: "syncNow" })).toMatchObject({ ok: true });
+      expect(ticking).toHaveBeenCalledTimes(1);
+      pending.resolve();
+      await pending.promise;
+    } finally {
+      pending.resolve();
+      ticking.mockRestore();
+      helper.stop();
+    }
+  });
+
   test("slow periodic work shares one sync and refresh across repeated polls", async () => {
     const { helper } = harness();
     const sending = Promise.withResolvers<void>();

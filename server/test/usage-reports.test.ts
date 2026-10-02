@@ -5,6 +5,7 @@ import type { registry } from "../src/actors/registry.ts";
 import { type Sql, serial } from "../src/actors/shared.ts";
 import type { ActivityDay, UsageDay } from "../src/actors/town.ts";
 import { RateLimiter } from "../src/rate-limit.ts";
+import { migrate as migrateTown } from "../src/town/schema.ts";
 import { coalesceBattleUpdates, drainUsageReports, flushUsageReports } from "../src/usage-reports.ts";
 import { memorySql } from "./memory-sql.ts";
 
@@ -122,6 +123,70 @@ test("upgrading an existing database repairs historic days once and preserves it
   }
 });
 
+test("expanded bot cleanup upgrades earlier exclusions and preserves regular Cursor history", async () => {
+  const { db, sql } = memorySql();
+  try {
+    await migrateEvents(sql);
+    db.run("DELETE FROM usage_report_migrations WHERE version = 3");
+    db.run("INSERT OR IGNORE INTO usage_report_migrations VALUES (2)");
+    for (const [id, model] of [
+      ["bot", "grok-bot-automation"],
+      ["default", "grok-bot-default"],
+      ["cua", "grok-bot-cua"],
+      ["keep", "grok-4.7-high"],
+    ]) {
+      db.run(
+        `INSERT INTO events (source, session_id, message_id, timestamp, day, model, message_type,
+        input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
+        VALUES ('cursor_local', 's', ?, 1, '2026-09-29', ?, 'assistant', 100, 50, 0, 0)`,
+        [id!, model!],
+      );
+    }
+    await migrateEvents(sql);
+    expect(db.query("SELECT model FROM events").all()).toEqual([{ model: "grok-4.7-high" }]);
+    expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([{ day: "2026-09-29" }]);
+    await flushUsageReports(sql, async () => {});
+    await migrateEvents(sql);
+    expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([]);
+  } finally {
+    db.close();
+  }
+});
+
+test("cost migrations preserve legacy usage and existing reported values on repeated upgrades", async () => {
+  const { db, sql } = memorySql();
+  try {
+    await migrateEvents(sql);
+    await migrateTown(sql);
+    db.run("ALTER TABLE events DROP COLUMN cost_cents");
+    db.run("ALTER TABLE usage_daily DROP COLUMN reported_cost_cents");
+    db.run(`INSERT INTO events (source, session_id, message_id, timestamp, day, model, message_type,
+      input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
+      VALUES ('cursor_local', 's', 'cursor-api:m', 1, '2026-09-29', 'composer-2.5', 'assistant', 100, 0, 0, 0)`);
+    db.run("INSERT INTO usage_daily VALUES (1, '2026-09-29', 'composer-2.5', 100, 0, 0, 0, 1)");
+    await migrateEvents(sql);
+    await migrateTown(sql);
+    expect(db.query("SELECT input_tokens, cost_cents FROM events").get()).toEqual({
+      input_tokens: 100,
+      cost_cents: null,
+    });
+    expect(db.query("SELECT input, reported_cost_cents FROM usage_daily").get()).toEqual({
+      input: 100,
+      reported_cost_cents: 0,
+    });
+    db.run("UPDATE events SET cost_cents = 2.75");
+    db.run("UPDATE usage_daily SET reported_cost_cents = 2.75");
+    await migrateEvents(sql);
+    await migrateTown(sql);
+    expect(db.query("SELECT cost_cents FROM events").get()).toEqual({ cost_cents: 2.75 });
+    expect(db.query("SELECT reported_cost_cents FROM usage_daily").get()).toEqual({
+      reported_cost_cents: 2.75,
+    });
+  } finally {
+    db.close();
+  }
+});
+
 test("failed reports stay queued and recover with a later request", async () => {
   const { db, sql } = memorySql();
   try {
@@ -191,7 +256,7 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
   try {
     db.run(`CREATE TABLE events (day TEXT, model TEXT, timestamp INTEGER, message_type TEXT,
       session_id TEXT, agent_id TEXT, input_tokens INTEGER, output_tokens INTEGER,
-      cache_creation_tokens INTEGER, cache_read_tokens INTEGER)`);
+      cache_creation_tokens INTEGER, cache_read_tokens INTEGER, cost_cents REAL)`);
     db.run("CREATE INDEX events_day ON events (day, message_type)");
     db.run(
       "CREATE INDEX events_assistant_time ON events (timestamp, session_id, agent_id) WHERE message_type = 'assistant'",
@@ -208,7 +273,7 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
       creation = 0,
       read = 0,
     ) =>
-      db.run("INSERT INTO events VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)", [
+      db.run("INSERT INTO events VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, NULL)", [
         day,
         model,
         time,

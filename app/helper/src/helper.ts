@@ -90,7 +90,9 @@ export class Helper {
         return;
       }
       case "syncNow":
-        await this.tick();
+        // History imports can outlive the shell command timeout. Acknowledge the start now;
+        // tick refreshes the UI when the shared background run finishes.
+        void this.tick().catch((err) => this.log(`sync now failed: ${String(err)}`));
         return;
       case "openWorld":
         return { code: await this.call(() => this.player().mintLoginCode()) };

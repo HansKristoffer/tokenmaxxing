@@ -107,8 +107,12 @@ export class PricingCache {
       const res = await fetch(LITELLM_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (!res.ok) return { updated: this.map.size, failed: true };
       const json = (await res.json()) as Record<string, RawEntry>;
+      // Reject an empty upstream response without replacing the cached prices.
+      const hasPrices = Object.entries(json).some(
+        ([name, entry]) => name !== "sample_spec" && entry && normalizeEntry(entry),
+      );
+      if (!hasPrices) return { updated: this.map.size, failed: true };
       const next = buildMap(json);
-      if (next.size === 0) return { updated: this.map.size, failed: true };
       // Atomic swap.
       this.map = next;
       return { updated: next.size, failed: false };
@@ -122,21 +126,29 @@ export class PricingCache {
     const key = model.toLowerCase();
     const direct = this.map.get(key);
     if (direct) return direct;
-    // Strip a single common provider prefix and retry.
-    for (const p of COMMON_PREFIXES) {
-      if (key.startsWith(p)) {
-        const stripped = key.slice(p.length);
-        const hit = this.map.get(stripped);
-        if (hit) return hit;
-      }
+    const candidates = [key];
+    for (const prefix of COMMON_PREFIXES) {
+      if (key.startsWith(prefix)) candidates.push(key.slice(prefix.length));
     }
-    // As a last resort, try looking up just the trailing segment after a
-    // slash (handles e.g. "vercel_ai_gateway/anthropic/claude-...").
     const slash = key.lastIndexOf("/");
-    if (slash >= 0 && slash < key.length - 1) {
-      const tail = key.slice(slash + 1);
-      const hit = this.map.get(tail);
-      if (hit) return hit;
+    if (slash >= 0 && slash < key.length - 1) candidates.push(key.slice(slash + 1));
+    // Cursor dashboard names use a cursor- prefix for these same Grok versions.
+    for (const candidate of [...candidates]) {
+      if (/^cursor-grok-4\.(?:5|6|7)(?:-|$)/.test(candidate)) candidates.push(candidate.slice(7));
+    }
+    // Exact prices, including explicitly priced variants, always take precedence.
+    for (const candidate of candidates) {
+      const exact = this.map.get(candidate);
+      if (exact) return exact;
+    }
+    for (const candidate of candidates) {
+      // Effort changes token volume, not the model's per-token rate. Preserve fast
+      // and max-mode suffixes, which may identify different pricing tiers.
+      const base = candidate.replace(/-(?:thinking-)?(?:none|minimal|low|medium|high|xhigh)(-fast)?$/, "$1");
+      if (base !== candidate) {
+        const price = this.map.get(base);
+        if (price) return price;
+      }
     }
     return null;
   }
@@ -144,8 +156,8 @@ export class PricingCache {
 
 /**
  * USD for SQL-aggregated token sums, unrounded so callers round once after
- * summing. Reasoning tokens are never priced separately: Codex already folds
- * them into output and Anthropic doesn't bill them.
+ * summing. Reasoning tokens are not added separately here: the parsers use reported output
+ * totals, so adding the reasoning breakdown again would double-count it.
  */
 export function computeRowCostUsd(
   row: {

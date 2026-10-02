@@ -19,6 +19,118 @@ describe("ingest", () => {
     expect(await player.ingest(events)).toEqual({ inserted: 0, duplicates: 3, skipped: 0 });
   });
 
+  test("Cursor API replaces covered estimates, dedups retries, and blocks older clients", async () => {
+    const u = await signUp("cursor");
+    const player = as(u.token).player(u.userId);
+    const legacy = event({ source: "cursor_local", timestamp: start, inputTokens: 100, outputTokens: 0 });
+    const earlier = event({
+      source: "cursor_local",
+      timestamp: start - 24 * HOUR,
+      inputTokens: 200,
+      outputTokens: 0,
+    });
+    await player.ingest([legacy, earlier]);
+    const actual = event({
+      source: "cursor_local",
+      messageId: "cursor-api:test:0",
+      timestamp: start,
+      inputTokens: 10,
+      outputTokens: 20,
+      cacheCreationTokens: 30,
+      cacheReadTokens: 40,
+    });
+    await player.ingest([actual]);
+    expect((await u.town.profile(u.userId, "7d")).totals.tokens).toBe(300);
+    expect(await player.ingest([actual])).toMatchObject({ inserted: 0, duplicates: 1 });
+    expect(await player.ingest([legacy])).toMatchObject({ inserted: 0 });
+    expect((await u.town.profile(u.userId, "7d")).totals.tokens).toBe(300);
+  });
+
+  test("older clients cannot add excluded Cursor bots to personal usage", async () => {
+    const u = await signUp("bots");
+    const player = as(u.token).player(u.userId);
+    await player.ingest([
+      event({ source: "cursor_local", model: "grok-bot-automation", inputTokens: 1000 }),
+      event({ source: "cursor_local", model: "grok-bot-default", inputTokens: 1000, costCents: 500 }),
+      event({ source: "cursor_local", model: "grok-bot-cua", inputTokens: 1000, costCents: 500 }),
+      event({ source: "cursor_local", model: "grok-4.7-high", inputTokens: 10, outputTokens: 0 }),
+    ]);
+    const profile = await u.town.profile(u.userId, "all");
+    expect(profile.totals.tokens).toBe(10);
+    expect(profile.models.map((m) => m.model)).toEqual(["grok-4.7-high"]);
+  });
+
+  test("Cursor reported costs enrich old events without duplicating tokens, and accept corrections", async () => {
+    const u = await signUp("costs");
+    const player = as(u.token).player(u.userId);
+    const original = event({
+      source: "cursor_local",
+      model: "muse-spark-1.3-high",
+      messageId: "cursor-api:cost-upgrade:0",
+      timestamp: start,
+      inputTokens: 100,
+      outputTokens: 0,
+    });
+    await player.ingest([original]);
+    expect((await u.town.profile(u.userId, "all")).totals.costUsd).toBe(0);
+    expect(await player.ingest([{ ...original, costCents: 275.5 }])).toMatchObject({
+      inserted: 0,
+      duplicates: 1,
+    });
+    let totals = (await u.town.profile(u.userId, "all")).totals;
+    expect(totals.tokens).toBe(100);
+    expect(totals.costUsd).toBe(2.755);
+    await player.ingest([{ ...original, costCents: 325.5 }]);
+    await player.ingest([original]);
+    totals = (await u.town.profile(u.userId, "all")).totals;
+    expect(totals.tokens).toBe(100);
+    expect(totals.costUsd).toBe(3.255);
+  });
+
+  test("invalid cost metadata is rejected", async () => {
+    const u = await signUp("badcost");
+    const r = await as(u.token)
+      .player(u.userId)
+      .ingest([
+        event({ source: "cursor_local", costCents: -1 }),
+        event({ source: "cursor_local", costCents: 100_000_001 }),
+        event({ costCents: 1 }),
+      ]);
+    expect(r).toMatchObject({ inserted: 0, skipped: 3 });
+  });
+
+  test("LiteLLM estimates take precedence over Cursor fallback costs, including zero", async () => {
+    const u = await signUp("preferprice");
+    const player = as(u.token).player(u.userId);
+    const known = event({ model: "gpt-5.5-high", timestamp: start, inputTokens: 1_000_000, outputTokens: 0 });
+    await player.ingest([known]);
+    const estimate = (await u.town.profile(u.userId, "all")).totals.costUsd;
+    expect(estimate).toBeGreaterThan(0);
+    await player.ingest([
+      event({ ...known, source: "cursor_local", messageId: "cursor-api:known-paid", costCents: 100_000 }),
+      event({ ...known, source: "cursor_local", messageId: "cursor-api:known-zero", costCents: 0 }),
+      event({
+        source: "cursor_local",
+        model: "composer-2.5",
+        messageId: "cursor-api:unknown-paid",
+        costCents: 275.5,
+        timestamp: start,
+      }),
+      event({
+        source: "cursor_local",
+        model: "muse-spark-1.3-high",
+        messageId: "cursor-api:unknown-zero",
+        costCents: 0,
+        timestamp: start,
+      }),
+    ]);
+    const totals = (await u.town.profile(u.userId, "all")).totals;
+    expect(totals.costUsd).toBeCloseTo(3 * estimate + 2.755, 4);
+    expect(
+      (await u.town.leaderboard("all", "cost")).players.find((p) => p.userId === u.userId)?.costUsd,
+    ).toBe(totals.costUsd);
+  });
+
   test("invalid events are skipped, not stored", async () => {
     const u = await signUp("skip");
     const r = await as(u.token)

@@ -1,11 +1,12 @@
 import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Usage } from "@tokenmaxxing/core/games/types.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
-import type { IngestResponse, TokenEvent } from "@tokenmaxxing/core/types.ts";
+import { CURSOR_EXCLUDED_MODELS, type IngestResponse, type TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { db } from "rivetkit/db";
 import { sha256 } from "../crypto.ts";
+import { reconcileCursorUsage } from "../cursor-usage.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { AGENT_BUCKET_MS } from "../stats.ts";
 import { coalesceBattleUpdates, drainUsageReports, reportUsageDays } from "../usage-reports.ts";
@@ -102,6 +103,7 @@ const COLUMNS = [
   "cache_creation_tokens",
   "cache_read_tokens",
   "reasoning_tokens",
+  "cost_cents",
 ];
 
 const eventRow = (e: TokenEvent) => [
@@ -119,6 +121,7 @@ const eventRow = (e: TokenEvent) => [
   e.cacheCreationTokens,
   e.cacheReadTokens,
   e.reasoningTokens,
+  e.costCents ?? null,
 ];
 
 const live = (list: Expiring[], now: number) => list.filter((e) => e.expiresAt > now);
@@ -382,14 +385,25 @@ export const player = actor({
         const inserted = await c.db.transaction(
           async (tx) => {
             let inserted = 0;
-            for (let i = 0; i < valid.length; i += INSERT_CHUNK) {
-              const chunk = valid.slice(i, i + INSERT_CHUNK);
+            const reconciled = await reconcileCursorUsage(tx, valid);
+            for (let i = 0; i < reconciled.length; i += INSERT_CHUNK) {
+              const chunk = reconciled.slice(i, i + INSERT_CHUNK);
               const row = `(${COLUMNS.map(() => "?").join(",")})`;
               const rows = await tx.execute(
                 `INSERT OR IGNORE INTO events (${COLUMNS.join(",")}) VALUES ${chunk.map(() => row).join(",")} RETURNING id`,
                 ...chunk.flatMap(eventRow),
               );
               inserted += rows.length;
+              // Replay old Cursor IDs to enrich their cost without inserting tokens again.
+              // A missing cost from an older client must not erase an already reported value.
+              const costs = chunk.filter((e) => e.source === "cursor_local" && e.costCents != null);
+              if (costs.length)
+                await tx.execute(
+                  `INSERT INTO events (${COLUMNS.join(",")}) VALUES ${costs.map(() => row).join(",")}
+                 ON CONFLICT DO UPDATE SET cost_cents = excluded.cost_cents
+                 WHERE events.cost_cents IS NOT excluded.cost_cents`,
+                  ...costs.flatMap(eventRow),
+                );
             }
             // Also queue duplicate-only retries: the previous request may have saved events but
             // failed to report them. Keeping this with the inserts survives crashes and partial sends.
@@ -452,6 +466,10 @@ export async function migrateEvents(d: Sql): Promise<void> {
     cache_read_tokens INTEGER NOT NULL,
     reasoning_tokens INTEGER
   )`);
+  const eventColumns = (await d.execute("PRAGMA table_info(events)")) as { name: string }[];
+  if (!eventColumns.some((c) => c.name === "cost_cents")) {
+    await d.execute("ALTER TABLE events ADD COLUMN cost_cents REAL");
+  }
   // Re-sent events are dropped here; the app relies on it after a crash or reinstall.
   await d.execute(`CREATE UNIQUE INDEX IF NOT EXISTS events_dedup
     ON events (source, message_id, COALESCE(request_id, ''), message_type)`);
@@ -467,6 +485,20 @@ export async function migrateEvents(d: Sql): Promise<void> {
   if (!(await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 1")).length) {
     await d.execute("INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events");
     await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (1)");
+  }
+  // Remove previously imported excluded bots and re-report affected days once.
+  if (!(await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 3")).length) {
+    const models = [...CURSOR_EXCLUDED_MODELS];
+    const placeholders = models.map(() => "?").join(",");
+    await d.execute(
+      `INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events WHERE source = 'cursor_local' AND model IN (${placeholders})`,
+      ...models,
+    );
+    await d.execute(
+      `DELETE FROM events WHERE source = 'cursor_local' AND model IN (${placeholders})`,
+      ...models,
+    );
+    await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (3)");
   }
 }
 
@@ -515,12 +547,13 @@ export async function report(
        SELECT day, model, timestamp / 60000 AS minute,
               SUM(input_tokens) AS input_tokens, SUM(output_tokens) AS output_tokens,
               SUM(cache_creation_tokens) AS cache_creation_tokens, SUM(cache_read_tokens) AS cache_read_tokens,
+              SUM(COALESCE(cost_cents, 0)) AS reported_cost_cents,
               COUNT(*) AS turns
        FROM events WHERE ${inDays} AND message_type = 'assistant' GROUP BY day, model, minute),
      capped AS (SELECT *, SUM(${EVENT_TOKENS}) OVER (PARTITION BY minute) AS t FROM minutes)
      SELECT day, model, ${scaled("input_tokens")} AS input, ${scaled("output_tokens")} AS output,
             ${scaled("cache_creation_tokens")} AS cacheCreation, ${scaled("cache_read_tokens")} AS cacheRead,
-            SUM(turns) AS turns
+            SUM(turns) AS turns, SUM(reported_cost_cents) AS reportedCostCents
      FROM capped
      GROUP BY day, model`,
     ...days,

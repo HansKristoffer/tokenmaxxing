@@ -1,15 +1,17 @@
 import { stat } from "node:fs/promises";
 import { parseClaudeCodeFile } from "../sources/claude-code.ts";
 import { parseCodexFile } from "../sources/codex.ts";
-import { parseCursorTranscriptFile } from "../sources/cursor-jsonl.ts";
-import { parseCursorLocal } from "../sources/cursor-local.ts";
+import {
+  type CursorApiOptions,
+  fetchCursorUsagePages,
+  loadCursorCredentials,
+} from "../sources/cursor-api.ts";
 import { fetchPullRequests, type GhRunner, ghPath, ghRunner } from "../sources/github.ts";
 import {
   cursorStateDbPath,
   listClaudeCodeFiles,
   listClaudeCoworkFiles,
   listCodexFiles,
-  listCursorTranscriptFiles,
 } from "../sources/paths.ts";
 import type { FileState, Source, SyncState, TokenEvent } from "../types.ts";
 
@@ -57,25 +59,10 @@ const FILE_SOURCES: readonly FileSource[] = [
       };
     },
   },
-  {
-    id: "cursor_local",
-    list: listCursorTranscriptFiles,
-    parse: async (path, prev, mtimeMs) => {
-      const r = await parseCursorTranscriptFile({
-        path,
-        byteOffset: prev?.byteOffset ?? 0,
-        fileMtimeMs: mtimeMs,
-        startingLineIndex: prev?.transcriptLineIndex ?? 0,
-      });
-      return {
-        events: r.events,
-        next: { path, mtimeMs, byteOffset: r.newOffset, transcriptLineIndex: r.nextLineIndex },
-      };
-    },
-  },
 ];
 
 const GITHUB_EVERY_MS = 15 * 60_000;
+const CURSOR_EVERY_MS = 15 * 60_000;
 
 /** Same key as the server's unique index, so we never send what it would drop. */
 const dedupKey = (e: TokenEvent) => `${e.source}\0${e.messageId}\0${e.requestId ?? ""}\0${e.messageType}`;
@@ -92,6 +79,8 @@ export interface CollectOptions {
   batchSize?: number;
   sources?: readonly FileSource[];
   cursorDbPath?: string;
+  cursorFetch?: CursorApiOptions["fetch"];
+  cursorCredentials?: () => ReturnType<typeof loadCursorCredentials>;
   /** Runs `gh`; defaults to the installed one. null = no `gh`, skip PRs. */
   gh?: GhRunner | null;
   now?: () => number;
@@ -166,27 +155,48 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
     }
   }
 
-  if (opts.enabled.has("cursor_local")) {
+  const now = (opts.now ?? Date.now)();
+  if (
+    opts.enabled.has("cursor_local") &&
+    (state.cursorApi?.costVersion !== 2 || now - (state.cursorApi?.checkedAt ?? 0) >= CURSOR_EVERY_MS)
+  ) {
     const dbPath = opts.cursorDbPath ?? cursorStateDbPath();
-    const dbMtimeMs = await mtimeOf(dbPath);
-    if (dbMtimeMs !== null) {
-      const lastRowid = state.cursorLocal?.dbPath === dbPath ? state.cursorLocal.lastRowid : 0;
+    if (opts.cursorCredentials || (await mtimeOf(dbPath)) !== null) {
       try {
-        const r = parseCursorLocal({ dbPath, lastRowid, dbMtimeMs });
-        take(r.events);
-        const batch = flush();
-        yield {
-          events: batch.events,
-          commit: (s) => ({ ...batch.commit(s), cursorLocal: { dbPath, lastRowid: r.newRowid } }),
-        };
+        const credentials = opts.cursorCredentials ?? (() => loadCursorCredentials(dbPath));
+        const accountId = credentials().accountId;
+        const since =
+          state.cursorApi?.accountId === accountId && state.cursorApi.costVersion === 2
+            ? Math.max(0, state.cursorApi.checkedAt - 7 * 24 * 60 * 60_000)
+            : 0;
+        for await (const r of fetchCursorUsagePages({
+          dbPath,
+          since,
+          until: now,
+          credentials,
+          expectedAccountId: accountId,
+          fetch: opts.cursorFetch,
+        })) {
+          take(r.events);
+          const batch = flush();
+          yield {
+            events: batch.events,
+            commit: (s) =>
+              r.done
+                ? {
+                    ...batch.commit(s),
+                    cursorApi: { accountId: r.accountId, checkedAt: now, costVersion: 2 },
+                  }
+                : batch.commit(s),
+          };
+        }
       } catch (err) {
-        opts.onError?.(err, `parse:${dbPath}`);
+        opts.onError?.(err, "cursor");
       }
     }
   }
 
   // PRs change a few times a day, and search has a tight rate limit: ask at most every 15 minutes.
-  const now = (opts.now ?? Date.now)();
   const checkedAt = state.github?.checkedAt ?? 0;
   if (opts.enabled.has("github") && now - checkedAt >= GITHUB_EVERY_MS) {
     const bin = opts.gh === undefined ? ghPath() : null;

@@ -26,6 +26,10 @@ export async function migrate(sql: Sql): Promise<void> {
     input INTEGER NOT NULL, output INTEGER NOT NULL,
     cache_creation INTEGER NOT NULL, cache_read INTEGER NOT NULL, turns INTEGER NOT NULL,
     PRIMARY KEY (user_id, day, model)) WITHOUT ROWID`);
+  const usageColumns = (await sql.execute("PRAGMA table_info(usage_daily)")) as { name: string }[];
+  if (!usageColumns.some((c) => c.name === "reported_cost_cents")) {
+    await sql.execute("ALTER TABLE usage_daily ADD COLUMN reported_cost_cents REAL NOT NULL DEFAULT 0");
+  }
   await sql.execute("CREATE INDEX IF NOT EXISTS usage_day ON usage_daily (day)");
   await sql.execute(`CREATE TABLE IF NOT EXISTS activity_daily (
     user_id INTEGER NOT NULL, day TEXT NOT NULL,

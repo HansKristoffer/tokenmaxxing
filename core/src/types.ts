@@ -1,3 +1,12 @@
+/** Reserved message ids for authoritative Cursor dashboard events. */
+export const CURSOR_API_MESSAGE_PREFIX = "cursor-api:";
+/** Temporarily exclude Cursor background bots from personal usage. */
+export const CURSOR_EXCLUDED_MODELS: ReadonlySet<string> = new Set([
+  "grok-bot-automation",
+  "grok-bot-default",
+  "grok-bot-cua",
+]);
+
 export type Source = "claude_code" | "claude_cowork" | "codex" | "cursor_local" | "github";
 
 export const SOURCES: readonly Source[] = ["claude_code", "claude_cowork", "codex", "cursor_local", "github"];
@@ -22,6 +31,8 @@ export interface TokenEvent {
   cacheCreationTokens: number;
   cacheReadTokens: number;
   reasoningTokens: number | null;
+  /** Cursor-reported request cents, used only when no model price matches. */
+  costCents?: number | null;
 }
 
 export interface IngestResponse {
@@ -51,6 +62,7 @@ export interface FileState {
 export interface SyncState {
   files: Record<string, FileState>;
   cursorLocal?: { dbPath: string; lastRowid: number };
+  cursorApi?: { accountId: string; checkedAt: number; costVersion?: number };
   /** Newest PR `createdAt` fetched from GitHub, and when we last asked. */
   github?: { since: string | null; checkedAt?: number };
 }
