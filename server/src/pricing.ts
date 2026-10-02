@@ -73,6 +73,21 @@ const PRICE_ALIASES: Record<string, string> = {
   "codex-auto-review": "gpt-5-codex",
 };
 
+/** Published Cursor rates, USD per token, checked 2026-10-02.
+ * https://cursor.com/docs/models-and-pricing
+ * Only fill missing LiteLLM entries; standard and fast tiers remain separate.
+ */
+const CURSOR_PRICE_FALLBACKS: Record<string, ModelPrice> = {
+  "composer-2.5": { input: 0.5e-6, output: 2.5e-6, cacheCreation: 0, cacheRead: 0.2e-6, reasoning: null },
+  "composer-2.5-fast": { input: 3e-6, output: 15e-6, cacheCreation: 0, cacheRead: 0.5e-6, reasoning: null },
+  "grok-4.5": { input: 2e-6, output: 6e-6, cacheCreation: 0, cacheRead: 0.5e-6, reasoning: null },
+  "grok-4.5-fast": { input: 4e-6, output: 18e-6, cacheCreation: 0, cacheRead: 1e-6, reasoning: null },
+  "grok-4.6": { input: 2e-6, output: 6e-6, cacheCreation: 0, cacheRead: 0.5e-6, reasoning: null },
+  "grok-4.6-fast": { input: 4e-6, output: 12e-6, cacheCreation: 0, cacheRead: 1e-6, reasoning: null },
+  "grok-4.7": { input: 2e-6, output: 6e-6, cacheCreation: 0, cacheRead: 0.5e-6, reasoning: null },
+  "grok-4.7-fast": { input: 4e-6, output: 12e-6, cacheCreation: 0, cacheRead: 1e-6, reasoning: null },
+};
+
 function buildMap(rawJson: Record<string, RawEntry>): Map<string, ModelPrice> {
   const out = new Map<string, ModelPrice>();
   for (const [name, entry] of Object.entries(rawJson)) {
@@ -81,6 +96,9 @@ function buildMap(rawJson: Record<string, RawEntry>): Map<string, ModelPrice> {
     const price = normalizeEntry(entry);
     if (!price) continue;
     out.set(name.toLowerCase(), price);
+  }
+  for (const [name, price] of Object.entries(CURSOR_PRICE_FALLBACKS)) {
+    if (!out.has(name)) out.set(name, price);
   }
   for (const [alias, target] of Object.entries(PRICE_ALIASES)) {
     if (out.has(alias)) continue;
@@ -107,8 +125,12 @@ export class PricingCache {
       const res = await fetch(LITELLM_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (!res.ok) return { updated: this.map.size, failed: true };
       const json = (await res.json()) as Record<string, RawEntry>;
+      // Built-in fallbacks must not make an empty upstream response look valid.
+      const hasPrices = Object.entries(json).some(
+        ([name, entry]) => name !== "sample_spec" && entry && normalizeEntry(entry),
+      );
+      if (!hasPrices) return { updated: this.map.size, failed: true };
       const next = buildMap(json);
-      if (next.size === 0) return { updated: this.map.size, failed: true };
       // Atomic swap.
       this.map = next;
       return { updated: next.size, failed: false };
@@ -128,6 +150,10 @@ export class PricingCache {
     }
     const slash = key.lastIndexOf("/");
     if (slash >= 0 && slash < key.length - 1) candidates.push(key.slice(slash + 1));
+    // Cursor dashboard names use a cursor- prefix for these same Grok versions.
+    for (const candidate of [...candidates]) {
+      if (/^cursor-grok-4\.(?:5|6|7)(?:-|$)/.test(candidate)) candidates.push(candidate.slice(7));
+    }
     // Exact prices, including explicitly priced variants, always take precedence.
     for (const candidate of candidates) {
       const exact = this.map.get(candidate);
