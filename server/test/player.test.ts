@@ -46,72 +46,16 @@ describe("ingest", () => {
     expect((await u.town.profile(u.userId, "7d")).totals.tokens).toBe(300);
   });
 
-  test("Cursor reported costs enrich old events without duplicating tokens, and accept corrections", async () => {
-    const u = await signUp("costs");
+  test("older clients cannot add Cursor automation to personal usage", async () => {
+    const u = await signUp("bots");
     const player = as(u.token).player(u.userId);
-    const original = event({
-      source: "cursor_local",
-      model: "grok-bot-automation",
-      messageId: "cursor-api:cost-upgrade:0",
-      timestamp: start,
-      inputTokens: 100,
-      outputTokens: 0,
-    });
-    await player.ingest([original]);
-    expect((await u.town.profile(u.userId, "all")).totals.costUsd).toBe(0);
-    expect(await player.ingest([{ ...original, costCents: 275.5 }])).toMatchObject({
-      inserted: 0,
-      duplicates: 1,
-    });
-    let totals = (await u.town.profile(u.userId, "all")).totals;
-    expect(totals.tokens).toBe(100);
-    expect(totals.costUsd).toBe(2.755);
-    await player.ingest([{ ...original, costCents: 325.5 }]);
-    await player.ingest([original]);
-    totals = (await u.town.profile(u.userId, "all")).totals;
-    expect(totals.tokens).toBe(100);
-    expect(totals.costUsd).toBe(3.255);
-  });
-
-  test("reported zero is not estimated, while other events of the same model still are", async () => {
-    const u = await signUp("mixedcost");
-    const player = as(u.token).player(u.userId);
-    const known = event({
-      model: "claude-haiku-4-5-20251001",
-      timestamp: start,
-      inputTokens: 1_000_000,
-      outputTokens: 0,
-    });
-    await player.ingest([known]);
-    const estimated = (await u.town.profile(u.userId, "all")).totals.costUsd;
-    expect(estimated).toBeGreaterThan(0);
     await player.ingest([
-      event({ ...known, source: "cursor_local", messageId: "cursor-api:zero:0", costCents: 0 }),
+      event({ source: "cursor_local", model: "grok-bot-automation", inputTokens: 1000 }),
+      event({ source: "cursor_local", model: "grok-bot-default", inputTokens: 10, outputTokens: 0 }),
     ]);
-    let totals = (await u.town.profile(u.userId, "all")).totals;
-    expect(totals.tokens).toBe(2_000_000);
-    expect(totals.costUsd).toBe(estimated);
-    await player.ingest([
-      event({ ...known, source: "cursor_local", messageId: "cursor-api:paid:0", costCents: 125.25 }),
-    ]);
-    totals = (await u.town.profile(u.userId, "all")).totals;
-    expect(totals.tokens).toBe(3_000_000);
-    expect(totals.costUsd).toBeCloseTo(estimated + 1.2525, 4);
-    expect(
-      (await u.town.leaderboard("all", "cost")).players.find((p) => p.userId === u.userId)?.costUsd,
-    ).toBe(totals.costUsd);
-  });
-
-  test("invalid cost metadata is rejected", async () => {
-    const u = await signUp("badcost");
-    const r = await as(u.token)
-      .player(u.userId)
-      .ingest([
-        event({ source: "cursor_local", costCents: -1 }),
-        event({ source: "cursor_local", costCents: 100_000_001 }),
-        event({ costCents: 1 }),
-      ]);
-    expect(r).toMatchObject({ inserted: 0, skipped: 3 });
+    const profile = await u.town.profile(u.userId, "all");
+    expect(profile.totals.tokens).toBe(10);
+    expect(profile.models.map((m) => m.model)).toEqual(["grok-bot-default"]);
   });
 
   test("invalid events are skipped, not stored", async () => {

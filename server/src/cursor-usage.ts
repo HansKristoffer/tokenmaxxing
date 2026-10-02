@@ -1,5 +1,9 @@
 import { dayKey } from "@tokenmaxxing/core/range.ts";
-import { CURSOR_API_MESSAGE_PREFIX, type TokenEvent } from "@tokenmaxxing/core/types.ts";
+import {
+  CURSOR_API_MESSAGE_PREFIX,
+  CURSOR_AUTOMATION_MODEL,
+  type TokenEvent,
+} from "@tokenmaxxing/core/types.ts";
 import type { Sql } from "./actors/shared.ts";
 
 const authoritative = (e: TokenEvent) =>
@@ -12,6 +16,7 @@ const authoritative = (e: TokenEvent) =>
  * Keep earlier days and zero-token user messages; only covered estimates are replaced.
  */
 export async function reconcileCursorUsage(sql: Sql, events: TokenEvent[]): Promise<TokenEvent[]> {
+  events = events.filter((e) => e.source !== "cursor_local" || e.model !== CURSOR_AUTOMATION_MODEL);
   const days = new Set(events.filter(authoritative).map((e) => dayKey(e.timestamp)));
   for (const day of days) {
     await sql.execute(

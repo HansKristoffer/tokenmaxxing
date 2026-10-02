@@ -98,10 +98,7 @@ const ACTIVITY_SUMS = `SUM(prompts) AS prompts, SUM(prs) AS prs, SUM(agent_bucke
               SUM(active_buckets) AS activeBuckets, MAX(peak_agents) AS peakAgents`;
 
 const SUMS = `SUM(input) AS input, SUM(output) AS output, SUM(cache_creation) AS cacheCreation,
-              SUM(cache_read) AS cacheRead, SUM(turns) AS turns,
-  SUM(reported_cost_cents) AS reportedCostCents, SUM(reported_input) AS reportedInput,
-  SUM(reported_output) AS reportedOutput, SUM(reported_cache_creation) AS reportedCacheCreation,
-  SUM(reported_cache_read) AS reportedCacheRead`;
+              SUM(cache_read) AS cacheRead, SUM(turns) AS turns`;
 
 /** `[from, to]` as SQL bounds; all time starts at the beginning. */
 export const bounds = (range: RangeKey, now: number): [string, string] => {

@@ -394,7 +394,7 @@ export const town = actor({
             await tx.execute(`DELETE FROM usage_daily WHERE user_id = ? AND ${inDays}`, userId, ...days);
             await insertRows(
               tx,
-              "INSERT INTO usage_daily VALUES",
+              "INSERT INTO usage_daily (user_id, day, model, input, output, cache_creation, cache_read, turns) VALUES",
               usage.map((r) => [
                 userId,
                 r.day,
@@ -404,11 +404,6 @@ export const town = actor({
                 r.cacheCreation,
                 r.cacheRead,
                 r.turns,
-                r.reportedCostCents ?? 0,
-                r.reportedInput ?? 0,
-                r.reportedOutput ?? 0,
-                r.reportedCacheCreation ?? 0,
-                r.reportedCacheRead ?? 0,
               ]),
             );
             await insertRows(

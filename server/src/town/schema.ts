@@ -26,19 +26,6 @@ export async function migrate(sql: Sql): Promise<void> {
     input INTEGER NOT NULL, output INTEGER NOT NULL,
     cache_creation INTEGER NOT NULL, cache_read INTEGER NOT NULL, turns INTEGER NOT NULL,
     PRIMARY KEY (user_id, day, model)) WITHOUT ROWID`);
-  const usageColumns = new Set(
-    ((await sql.execute("PRAGMA table_info(usage_daily)")) as { name: string }[]).map((c) => c.name),
-  );
-  for (const column of [
-    "reported_cost_cents",
-    "reported_input",
-    "reported_output",
-    "reported_cache_creation",
-    "reported_cache_read",
-  ]) {
-    if (!usageColumns.has(column))
-      await sql.execute(`ALTER TABLE usage_daily ADD COLUMN ${column} REAL NOT NULL DEFAULT 0`);
-  }
   await sql.execute("CREATE INDEX IF NOT EXISTS usage_day ON usage_daily (day)");
   await sql.execute(`CREATE TABLE IF NOT EXISTS activity_daily (
     user_id INTEGER NOT NULL, day TEXT NOT NULL,

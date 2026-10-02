@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { createHash } from "node:crypto";
-import { CURSOR_API_MESSAGE_PREFIX, type TokenEvent, tokenEvent } from "../types.ts";
+import { CURSOR_API_MESSAGE_PREFIX, CURSOR_AUTOMATION_MODEL, type TokenEvent, tokenEvent } from "../types.ts";
 
 const URL = "https://cursor.com/api/dashboard/get-filtered-usage-events";
 const PAGE_SIZE = 1000;
@@ -56,14 +56,6 @@ function count(value: unknown): number {
   if (value === undefined || value === null) return 0;
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
     throw new Error("Invalid Cursor token count.");
-  }
-  return value;
-}
-
-function reportedCostCents(value: unknown): number | null {
-  if (value === undefined || value === null) return null;
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100_000_000) {
-    throw new Error("Invalid Cursor cost.");
   }
   return value;
 }
@@ -149,6 +141,7 @@ export async function* fetchCursorUsagePages(opts: CursorApiOptions): AsyncGener
     }
     for (const raw of rows) {
       const row = record(raw);
+      if (row.model === CURSOR_AUTOMATION_MODEL) continue;
       // Older request-based plans can have no token breakdown; don't fabricate tokens.
       if (row.tokenUsage === null || row.tokenUsage === undefined) continue;
       const usage = record(row.tokenUsage);
@@ -174,7 +167,6 @@ export async function* fetchCursorUsagePages(opts: CursorApiOptions): AsyncGener
         cacheCreationTokens: count(usage.cacheWriteTokens),
         cacheReadTokens: count(usage.cacheReadTokens),
       };
-      const costCents = reportedCostCents(row.chargedCents) ?? reportedCostCents(usage.totalCents);
       // Dashboard rows don't always expose an ID. A metadata hash survives page shifts,
       // restarts, retries, and multiple devices; identical rows retain their multiplicity.
       const key = hash(
@@ -202,7 +194,6 @@ export async function* fetchCursorUsagePages(opts: CursorApiOptions): AsyncGener
           model: row.model,
           messageType: "assistant",
           ...tokens,
-          costCents,
         }),
       );
     }

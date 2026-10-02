@@ -80,18 +80,7 @@ export function parseEvent(raw: unknown, now: number): TokenEvent | string {
     if (!isTokens(e[k])) return k;
   }
   if (e.reasoningTokens !== null && !isTokens(e.reasoningTokens)) return "reasoningTokens";
-  if (
-    e.costCents !== undefined &&
-    e.costCents !== null &&
-    (e.source !== "cursor_local" ||
-      typeof e.costCents !== "number" ||
-      !Number.isFinite(e.costCents) ||
-      e.costCents < 0 ||
-      e.costCents > 100_000_000)
-  )
-    return "costCents";
   return {
-    ...(e.costCents !== undefined ? { costCents: e.costCents as number | null } : {}),
     source: e.source as Source,
     sessionId: e.sessionId,
     agentId: (e.agentId as string | null | undefined) ?? null,
