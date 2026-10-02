@@ -197,6 +197,42 @@ describe("PricingCache.lookup", () => {
     }
   });
 
+  test("effort variants use their priced base model, including thinking and provider prefixes", () => {
+    for (const [variant, base] of [
+      ["gpt-5.5-high", "gpt-5.5"],
+      ["gpt-5.4-medium", "gpt-5.4"],
+      ["gpt-5.6-sol-xhigh", "gpt-5.6-sol"],
+      ["gpt-5.6-luna-high", "gpt-5.6-luna"],
+      ["gpt-5.6-terra-medium", "gpt-5.6-terra"],
+      ["claude-opus-5-thinking-high", "claude-opus-5"],
+      ["anthropic/claude-opus-4-8-thinking-xhigh", "claude-opus-4-8"],
+      ["vercel_ai_gateway/openai/gpt-5.5-high", "gpt-5.5"],
+    ]) {
+      expect(cache.lookup(base!)).not.toBeNull();
+      expect(cache.lookup(variant!)).toEqual(cache.lookup(base!));
+    }
+  });
+
+  test("normalization preserves separately priced variants and fast or max tiers", async () => {
+    const original = globalThis.fetch;
+    try {
+      globalThis.fetch = (async () =>
+        Response.json({
+          "grok-example": { input_cost_per_token: 1, output_cost_per_token: 2 },
+          "grok-example-fast": { input_cost_per_token: 3, output_cost_per_token: 4 },
+          "grok-example-high": { input_cost_per_token: 5, output_cost_per_token: 6 },
+        })) as unknown as typeof fetch;
+      await cache.refreshFromUpstream();
+      expect(cache.lookup("grok-example-high")!.input).toBe(5);
+      expect(cache.lookup("grok-example-medium-fast")!.input).toBe(3);
+      expect(cache.lookup("grok-example-max")).toBeNull();
+      expect(cache.lookup("grok-example-thinking-max")).toBeNull();
+      expect(cache.lookup("missing-medium-fast")).toBeNull();
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
   test("unknown model returns null", () => {
     expect(cache.lookup("totally-fake-model-xyz")).toBeNull();
   });
