@@ -1,3 +1,4 @@
+import { BOTS } from "@tokenmaxxing/core/bots.ts";
 import { compact, hoursText, plural, usd } from "@tokenmaxxing/core/format.ts";
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
 import type { Profile } from "@tokenmaxxing/server/registry";
@@ -22,6 +23,25 @@ function doing(userId: number): string | null {
   if (a.state === "away") return "💤 asleep";
   if (a.info.dozing) return "💤 away";
   return a.info.online ? "🟢 here" : null;
+}
+
+/** A town character: no stats, just who they are. */
+export function BotCard({ id }: { id: number }) {
+  const bot = BOTS.find((b) => b.id === id);
+  if (!bot) return <Modal title="Player">Gone for a walk.</Modal>;
+  return (
+    <Modal title={bot.name}>
+      <div className="card-head">
+        <AvatarImage look={bot.look} scale={5} />
+        <div>
+          <p>
+            <strong>Level {bot.level}</strong> · 🤖 Town character
+          </p>
+          <p className="muted">{bot.bio}</p>
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
 export function PlayerCard({ userId }: { userId: number }) {

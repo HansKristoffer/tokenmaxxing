@@ -1,3 +1,4 @@
+import { BOTS, between, chase, isBot, lineFor, pick, toCoffee, wander } from "@tokenmaxxing/core/bots.ts";
 import {
   findSpot,
   propTiles,
@@ -16,6 +17,7 @@ import {
   cupsLeft,
   DIRS,
   drinkCoffee,
+  type Facing,
   type GameStatus,
   type Houses,
   homeRoom,
@@ -99,6 +101,33 @@ const COFFEE_LINES = [
 ];
 const CHAT_PER_MIN = 20;
 const REST_CHECK_EVERY = 10; // ticks
+/** Bots take a step every this many ticks: a stroll. */
+const BOT_STEP_EVERY = 3;
+/** How long a bot stands around between walks, and after saying something. */
+const BOT_PAUSE_MS: [number, number] = [2_000, 12_000];
+const BOT_TALK_PAUSE_MS = 4_000;
+/** The chance a bot done with a walk tags along after someone online in town instead (by default), and for how long. */
+const BOT_FOLLOW_CHANCE = 0.3;
+const BOT_FOLLOW_MS: [number, number] = [20_000, 60_000];
+/** How soon a bot that starts following someone says something to them. */
+const BOT_GREET_MS: [number, number] = [3_000, 10_000];
+/** The chance a bot done with a walk goes for coffee instead, and how many cups it has there. */
+const BOT_COFFEE_CHANCE = 0.15;
+const BOT_CUPS: [number, number] = [1, 3];
+
+/** A bot's plans, kept in memory: a restart just starts it on a new walk. */
+interface BotRun {
+  path: Facing[];
+  restUntil: number;
+  sayAt: number;
+  /** Who it's tagging along after, until `followUntil`. */
+  following: number | null;
+  followUntil: number;
+  /** On its way to coffee: how to face the machine when it gets there. */
+  coffee: Facing | null;
+  /** Cups in its system after coffee, until it's said something about it. */
+  cups: number;
+}
 
 const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   id: p.id,
@@ -108,7 +137,7 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   companyId: p.companyId,
   todayTokens: p.todayTokens,
   liveAgents: p.liveAgents,
-  online,
+  online: online || isBot(p.id),
   coffeeUntil: p.coffeeUntil ?? 0,
   dozing: online && !!p.dozing,
   x: p.x,
@@ -143,6 +172,7 @@ export const world = actor({
     /** The last `houses` sent to town, as JSON. */
     houses: "",
     tokens: new Map() as TokenCache,
+    bots: new Map<number, BotRun>(),
   }),
   db: db({
     onMigrate: async (d) => {
@@ -161,6 +191,7 @@ export const world = actor({
       for (const p of seed.players) upsert(c.state, p, Date.now());
       c.state.seeded = true;
     }
+    placeBots(c.state);
     buildTown(c.state);
   },
   onDisconnect: (c, conn) => {
@@ -180,8 +211,13 @@ export const world = actor({
     const signal = c.abortSignal;
     let n = 0;
     while (await waitForTick(signal, TICK_MS)) {
+      const now = Date.now();
       if (++n % REST_CHECK_EVERY === 0)
-        for (const p of settle(c.state, c.vars, Date.now())) c.broadcast("info", info(p, true));
+        for (const p of settle(c.state, c.vars, now)) c.broadcast("info", info(p, true));
+      if (n % BOT_STEP_EVERY === 0) {
+        for (const p of walkBots(c.state, c.vars, now)) c.broadcast("info", info(p, true));
+        await talkBots(c, now);
+      }
       flush(c);
     }
   },
@@ -594,7 +630,7 @@ function touch(c: { broadcast(name: string, ...args: unknown[]): void }, p: Worl
 function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
   const dozed: WorldPlayer[] = [];
   for (const p of Object.values(s.players)) {
-    if (p.state === "playing") continue;
+    if (p.state === "playing" || isBot(p.id)) continue;
     if (v.online.has(p.id)) {
       if (!p.dozing && now - p.lastInputAt > IDLE_MS) {
         p.dozing = true;
@@ -615,17 +651,143 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
 const onProp = (s: WorldState, x: number, y: number) =>
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
 
-/** A line from the town itself in a room's chat (a game's result). */
-async function announce(c: Sender & { db: Sql }, room: RoomId, text: string): Promise<void> {
+/** A line in a room's chat from the town itself (a game's result), or from a bot. */
+async function announce(
+  c: Sender & { db: Sql },
+  room: RoomId,
+  text: string,
+  userId = 0,
+  name = "🎮",
+): Promise<void> {
   const at = Date.now();
   const [row] = await all<{ id: number }>(
     c.db,
-    "INSERT INTO chat (room, user_id, name, text, at) VALUES (?, 0, '🎮', ?, ?) RETURNING id",
+    "INSERT INTO chat (room, user_id, name, text, at) VALUES (?, ?, ?, ?, ?) RETURNING id",
     room,
+    userId,
+    name,
     text,
     at,
   );
-  sendToRoom(c, room, "chat", { id: row!.id, room, userId: 0, name: "🎮", text, at } satisfies ChatLine);
+  await c.db.execute("DELETE FROM chat WHERE room = ? AND id <= ?", room, row!.id - CHAT_KEEP);
+  sendToRoom(c, room, "chat", { id: row!.id, room, userId, name, text, at } satisfies ChatLine);
+}
+
+// MARK: Bots (core/src/bots.ts)
+
+/** Puts every bot in the square on wake, and drops bots no longer in `BOTS`. */
+function placeBots(s: WorldState): void {
+  for (const p of Object.values(s.players))
+    if (isBot(p.id) && !BOTS.some((b) => b.id === p.id)) delete s.players[p.id];
+  for (const b of BOTS)
+    s.players[b.id] = {
+      id: b.id,
+      name: b.name,
+      look: b.look,
+      level: b.level,
+      companyId: null,
+      todayTokens: 0,
+      ...townSpawn(),
+      state: "idle",
+      lastInputAt: 0,
+      lastAgentAt: 0,
+      liveAgents: 0,
+    };
+}
+
+const runOf = (
+  v: { bots: Map<number, BotRun> },
+  id: number,
+  every: [number, number],
+  now: number,
+): BotRun => {
+  const run = v.bots.get(id) ?? {
+    path: [],
+    restUntil: now + between(BOT_PAUSE_MS),
+    sayAt: now + between(every),
+    following: null,
+    followUntil: 0,
+    coffee: null,
+    cups: 0,
+  };
+  v.bots.set(id, run);
+  return run;
+};
+
+/**
+ * One step for each bot on a walk, following someone, or on its way to coffee; something new to do for
+ * each that has stood around long enough. Returns the bots that just had coffee (they shake).
+ */
+function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: number): WorldPlayer[] {
+  const map = mapOf("town");
+  const inTown = [...v.online.keys()].filter((id) => s.players[id]?.room === "town");
+  const drank: WorldPlayer[] = [];
+  for (const b of BOTS) {
+    const p = s.players[b.id];
+    const run = runOf(v, b.id, b.every, now);
+    if (p?.room !== "town" || now < run.restUntil) continue;
+    // Following someone: until they leave town or go offline, or it gets boring.
+    if (run.following !== null && (now > run.followUntil || !inTown.includes(run.following))) {
+      run.following = null;
+      run.restUntil = now + between(BOT_PAUSE_MS);
+      continue;
+    }
+    if (run.following === null && run.path.length === 0) {
+      // At the coffee machine.
+      if (run.coffee) {
+        p.facing = run.coffee;
+        run.coffee = null;
+        for (let i = Math.round(between(BOT_CUPS)); i > 0; i--)
+          p.coffeeUntil = drinkCoffee(p.coffeeUntil ?? 0, now);
+        run.cups = Math.round(cupsLeft(p.coffeeUntil ?? 0, now));
+        run.sayAt = Math.min(run.sayAt, now);
+        run.restUntil = now + between(BOT_PAUSE_MS);
+        v.dirty.add(p.id);
+        drank.push(p);
+        continue;
+      }
+      const roll = Math.random();
+      const follow = b.followChance ?? BOT_FOLLOW_CHANCE;
+      if (inTown.length > 0 && roll < follow) {
+        run.following = pick(inTown);
+        run.followUntil = now + between(BOT_FOLLOW_MS);
+        run.sayAt = Math.min(run.sayAt, now + between(BOT_GREET_MS));
+      } else if (roll < follow + BOT_COFFEE_CHANCE) {
+        const trip = toCoffee(map, p.x, p.y);
+        run.path = trip?.path ?? [];
+        run.coffee = trip?.facing ?? null;
+      } else run.path = wander(map, p.x, p.y) ?? [];
+    }
+    const leader = run.following === null ? null : s.players[run.following]!;
+    // Right next to who it follows, it waits for them to move.
+    const dir = leader ? chase(map, p.x, p.y, leader.x, leader.y) : run.path.shift();
+    if (!dir) continue;
+    const target = stepTarget(map, p.x, p.y, dir);
+    p.facing = dir;
+    // The town changed under it, or a game table went up: give up on this walk.
+    if (target.kind === "move" && !onProp(s, target.x, target.y))
+      Object.assign(p, { x: target.x, y: target.y });
+    else Object.assign(run, { path: [], coffee: null });
+    if (!leader && run.path.length === 0 && !run.coffee) run.restUntil = now + between(BOT_PAUSE_MS);
+    v.dirty.add(p.id);
+  }
+  return drank;
+}
+
+/** Bots due a line say one, if anyone online is in the room to hear it (else the chat would fill up overnight). */
+async function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> }; db: Sql }, now: number) {
+  for (const b of BOTS) {
+    const p = c.state.players[b.id];
+    const run = runOf(c.vars, b.id, b.every, now);
+    if (!p || now < run.sayAt) continue;
+    run.sayAt = now + between(b.every);
+    const leader = run.following === null ? null : c.state.players[run.following];
+    const text = lineFor(b, now, { leader, cups: run.cups });
+    run.cups = 0;
+    if (![...c.vars.online.keys()].some((id) => c.state.players[id]?.room === p.room)) continue;
+    run.restUntil = Math.max(run.restUntil, now + BOT_TALK_PAUSE_MS);
+    await announce(c, p.room, text, b.id, b.name);
+  }
 }
 
 const correction = (p: WorldPlayer): StepResult => ({

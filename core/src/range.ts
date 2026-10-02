@@ -20,6 +20,20 @@ function wallDate(ms: number, tz: string) {
   return { y: p.year!, m: p.month!, d: p.day! };
 }
 
+const clockFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: WORLD_TZ,
+  weekday: "short",
+  hour: "numeric",
+  hourCycle: "h23",
+});
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Weekday (0 is Sunday) and hour of `ms` on the world's clock. */
+export function worldClock(ms: number): { day: number; hour: number } {
+  const p = Object.fromEntries(clockFormat.formatToParts(ms).map((x) => [x.type, x.value]));
+  return { day: WEEKDAYS.indexOf(p.weekday!), hour: Number(p.hour) };
+}
+
 /** `YYYY-MM-DD` of the world day containing `ms`. */
 export function dayKey(ms: number, tz = WORLD_TZ): string {
   const { y, m, d } = wallDate(ms, tz);
