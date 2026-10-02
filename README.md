@@ -78,7 +78,7 @@ data is sent anywhere for this.
 ## The stats
 
 - **Tokens:** input + output + cache writes + cache reads.
-- **Cost:** priced from [LiteLLM's table](https://github.com/BerriAI/litellm), refreshed daily.
+- **Cost:** Cursor uses its reported `chargedCents`, falling back to `tokenUsage.totalCents` (including reported zero costs). Other events and Cursor events without reported costs use [LiteLLM's table](https://github.com/BerriAI/litellm), refreshed daily. This mixes reported usage costs and API-price estimates; it is not your subscription invoice.
 - **Parallelism ×:** the average number of agents running at the same time, measured over the time you
   had at least one running. Three agents working through the same hour is 3.0×. Time is measured in
   5-minute buckets, subagents count as agents, and you need at least 1 active hour in the range to be

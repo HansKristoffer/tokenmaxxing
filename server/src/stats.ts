@@ -12,6 +12,12 @@ export interface UsageRow {
   cacheCreation: number;
   cacheRead: number;
   turns: number;
+  /** Reported cents plus the token buckets already covered by those costs. */
+  reportedCostCents?: number;
+  reportedInput?: number;
+  reportedOutput?: number;
+  reportedCacheCreation?: number;
+  reportedCacheRead?: number;
 }
 
 export interface ActivityRow {
@@ -60,7 +66,18 @@ export const rowTokens = (r: UsageRow): number => r.input + r.output + r.cacheCr
 
 export const rowCost = (pricing: PricingCache, r: UsageRow): number => {
   const price = pricing.lookup(r.model);
-  return price ? computeRowCostUsd(r, price) : 0;
+  const estimated = price
+    ? computeRowCostUsd(
+        {
+          input: r.input - (r.reportedInput ?? 0),
+          output: r.output - (r.reportedOutput ?? 0),
+          cacheCreation: r.cacheCreation - (r.reportedCacheCreation ?? 0),
+          cacheRead: r.cacheRead - (r.reportedCacheRead ?? 0),
+        },
+        price,
+      )
+    : 0;
+  return (r.reportedCostCents ?? 0) / 100 + estimated;
 };
 
 /** `usage` holds one row per model; `activity` is already summed over the range. */

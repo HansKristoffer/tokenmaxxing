@@ -5,6 +5,7 @@ import type { registry } from "../src/actors/registry.ts";
 import { type Sql, serial } from "../src/actors/shared.ts";
 import type { ActivityDay, UsageDay } from "../src/actors/town.ts";
 import { RateLimiter } from "../src/rate-limit.ts";
+import { migrate as migrateTown } from "../src/town/schema.ts";
 import { coalesceBattleUpdates, drainUsageReports, flushUsageReports } from "../src/usage-reports.ts";
 import { memorySql } from "./memory-sql.ts";
 
@@ -189,7 +190,7 @@ test("a long backlog drains a batch at a time, letting syncs in between", async 
 test("grouped rollups preserve per-model caps, activity, and indexed recent-agent reads", async () => {
   const { db, sql } = memorySql();
   try {
-    db.run(`CREATE TABLE events (day TEXT, model TEXT, timestamp INTEGER, message_type TEXT,
+    db.run(`CREATE TABLE events (cost_cents REAL, day TEXT, model TEXT, timestamp INTEGER, message_type TEXT,
       session_id TEXT, agent_id TEXT, input_tokens INTEGER, output_tokens INTEGER,
       cache_creation_tokens INTEGER, cache_read_tokens INTEGER)`);
     db.run("CREATE INDEX events_day ON events (day, message_type)");
@@ -208,7 +209,7 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
       creation = 0,
       read = 0,
     ) =>
-      db.run("INSERT INTO events VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)", [
+      db.run("INSERT INTO events VALUES (NULL, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)", [
         day,
         model,
         time,
@@ -224,6 +225,9 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
     add("2026-09-30", "a", now, "user", "one", 0);
     add("2026-09-30", "", now, "pr", "github", 0);
     add("2026-09-29", "a", now - 86_400_000, "assistant", "old", 10, 20, 30, 40);
+    db.run(
+      "UPDATE events SET cost_cents = 125 WHERE day = '2026-09-30' AND model = 'a' AND message_type = 'assistant'",
+    );
     let usage: UsageDay[] = [];
     let activity: ActivityDay[] = [];
     let recent: unknown[] = [];
@@ -258,6 +262,12 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
       ["2026-09-29", "2026-09-30"],
       now,
     );
+    const reported = usage.find((r) => r.day === "2026-09-30" && r.model === "a")!;
+    expect(reported.reportedCostCents).toBe(125);
+    expect(reported.reportedInput).toBe(reported.input);
+    expect(reported.reportedOutput).toBe(reported.output);
+    expect(reported.reportedCacheCreation).toBe(reported.cacheCreation);
+    expect(reported.reportedCacheRead).toBe(reported.cacheRead);
     expect(usage.find((r) => r.day === "2026-09-29")).toMatchObject({
       input: 10,
       output: 20,
@@ -294,6 +304,37 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
         ),
       ).toBe(true);
     }
+  } finally {
+    db.close();
+  }
+});
+
+test("cost migrations preserve legacy events and daily totals and are idempotent", async () => {
+  const { db, sql } = memorySql();
+  try {
+    await migrateEvents(sql);
+    db.run("ALTER TABLE events DROP COLUMN cost_cents");
+    db.run(`INSERT INTO events (source, session_id, message_id, timestamp, day, model, message_type,
+      input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
+      VALUES ('cursor_local', 's', 'old', 1, '2026-09-30', 'm', 'assistant', 10, 20, 30, 40)`);
+    db.run(`CREATE TABLE usage_daily (
+      user_id INTEGER NOT NULL, day TEXT NOT NULL, model TEXT NOT NULL,
+      input INTEGER NOT NULL, output INTEGER NOT NULL, cache_creation INTEGER NOT NULL,
+      cache_read INTEGER NOT NULL, turns INTEGER NOT NULL,
+      PRIMARY KEY (user_id, day, model)) WITHOUT ROWID`);
+    db.run("INSERT INTO usage_daily VALUES (1, '2026-09-30', 'm', 10, 20, 30, 40, 1)");
+    for (let i = 0; i < 2; i++) {
+      await migrateEvents(sql);
+      await migrateTown(sql);
+    }
+    expect(db.query("SELECT message_id, input_tokens, cost_cents FROM events").get()).toEqual({
+      message_id: "old",
+      input_tokens: 10,
+      cost_cents: null,
+    });
+    expect(
+      db.query("SELECT input, output, reported_cost_cents, reported_input FROM usage_daily").get(),
+    ).toEqual({ input: 10, output: 20, reported_cost_cents: 0, reported_input: 0 });
   } finally {
     db.close();
   }

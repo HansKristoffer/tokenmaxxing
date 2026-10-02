@@ -404,6 +404,11 @@ export const town = actor({
                 r.cacheCreation,
                 r.cacheRead,
                 r.turns,
+                r.reportedCostCents ?? 0,
+                r.reportedInput ?? 0,
+                r.reportedOutput ?? 0,
+                r.reportedCacheCreation ?? 0,
+                r.reportedCacheRead ?? 0,
               ]),
             );
             await insertRows(

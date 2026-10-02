@@ -156,14 +156,17 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
   }
 
   const now = (opts.now ?? Date.now)();
-  if (opts.enabled.has("cursor_local") && now - (state.cursorApi?.checkedAt ?? 0) >= CURSOR_EVERY_MS) {
+  if (
+    opts.enabled.has("cursor_local") &&
+    (state.cursorApi?.costVersion !== 1 || now - (state.cursorApi?.checkedAt ?? 0) >= CURSOR_EVERY_MS)
+  ) {
     const dbPath = opts.cursorDbPath ?? cursorStateDbPath();
     if (opts.cursorCredentials || (await mtimeOf(dbPath)) !== null) {
       try {
         const credentials = opts.cursorCredentials ?? (() => loadCursorCredentials(dbPath));
         const accountId = credentials().accountId;
         const since =
-          state.cursorApi?.accountId === accountId
+          state.cursorApi?.accountId === accountId && state.cursorApi.costVersion === 1
             ? Math.max(0, state.cursorApi.checkedAt - 7 * 24 * 60 * 60_000)
             : 0;
         for await (const r of fetchCursorUsagePages({
@@ -180,7 +183,10 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
             events: batch.events,
             commit: (s) =>
               r.done
-                ? { ...batch.commit(s), cursorApi: { accountId: r.accountId, checkedAt: now } }
+                ? {
+                    ...batch.commit(s),
+                    cursorApi: { accountId: r.accountId, checkedAt: now, costVersion: 1 },
+                  }
                 : batch.commit(s),
           };
         }

@@ -103,6 +103,7 @@ const COLUMNS = [
   "cache_creation_tokens",
   "cache_read_tokens",
   "reasoning_tokens",
+  "cost_cents",
 ];
 
 const eventRow = (e: TokenEvent) => [
@@ -120,6 +121,7 @@ const eventRow = (e: TokenEvent) => [
   e.cacheCreationTokens,
   e.cacheReadTokens,
   e.reasoningTokens,
+  e.costCents ?? null,
 ];
 
 const live = (list: Expiring[], now: number) => list.filter((e) => e.expiresAt > now);
@@ -392,6 +394,16 @@ export const player = actor({
                 ...chunk.flatMap(eventRow),
               );
               inserted += rows.length;
+              // Replay old Cursor IDs to enrich their cost without inserting tokens again.
+              // A missing cost from an older client must not erase an already reported value.
+              const costs = chunk.filter((e) => e.source === "cursor_local" && e.costCents != null);
+              if (costs.length)
+                await tx.execute(
+                  `INSERT INTO events (${COLUMNS.join(",")}) VALUES ${costs.map(() => row).join(",")}
+                 ON CONFLICT DO UPDATE SET cost_cents = excluded.cost_cents
+                 WHERE events.cost_cents IS NOT excluded.cost_cents`,
+                  ...costs.flatMap(eventRow),
+                );
             }
             // Also queue duplicate-only retries: the previous request may have saved events but
             // failed to report them. Keeping this with the inserts survives crashes and partial sends.
@@ -454,6 +466,10 @@ export async function migrateEvents(d: Sql): Promise<void> {
     cache_read_tokens INTEGER NOT NULL,
     reasoning_tokens INTEGER
   )`);
+  const eventColumns = (await d.execute("PRAGMA table_info(events)")) as { name: string }[];
+  if (!eventColumns.some((c) => c.name === "cost_cents")) {
+    await d.execute("ALTER TABLE events ADD COLUMN cost_cents REAL");
+  }
   // Re-sent events are dropped here; the app relies on it after a crash or reinstall.
   await d.execute(`CREATE UNIQUE INDEX IF NOT EXISTS events_dedup
     ON events (source, message_id, COALESCE(request_id, ''), message_type)`);
@@ -517,16 +533,24 @@ export async function report(
        SELECT day, model, timestamp / 60000 AS minute,
               SUM(input_tokens) AS input_tokens, SUM(output_tokens) AS output_tokens,
               SUM(cache_creation_tokens) AS cache_creation_tokens, SUM(cache_read_tokens) AS cache_read_tokens,
+              SUM(COALESCE(cost_cents, 0)) AS reported_cost_cents,
+              SUM(CASE WHEN cost_cents IS NOT NULL THEN input_tokens ELSE 0 END) AS reported_input,
+              SUM(CASE WHEN cost_cents IS NOT NULL THEN output_tokens ELSE 0 END) AS reported_output,
+              SUM(CASE WHEN cost_cents IS NOT NULL THEN cache_creation_tokens ELSE 0 END) AS reported_cache_creation,
+              SUM(CASE WHEN cost_cents IS NOT NULL THEN cache_read_tokens ELSE 0 END) AS reported_cache_read,
               COUNT(*) AS turns
        FROM events WHERE ${inDays} AND message_type = 'assistant' GROUP BY day, model, minute),
      capped AS (SELECT *, SUM(${EVENT_TOKENS}) OVER (PARTITION BY minute) AS t FROM minutes)
      SELECT day, model, ${scaled("input_tokens")} AS input, ${scaled("output_tokens")} AS output,
             ${scaled("cache_creation_tokens")} AS cacheCreation, ${scaled("cache_read_tokens")} AS cacheRead,
-            SUM(turns) AS turns
+            SUM(turns) AS turns, SUM(reported_cost_cents) AS reportedCostCents,
+            ${scaled("reported_input")} AS reportedInput, ${scaled("reported_output")} AS reportedOutput,
+            ${scaled("reported_cache_creation")} AS reportedCacheCreation,
+            ${scaled("reported_cache_read")} AS reportedCacheRead
      FROM capped
      GROUP BY day, model`,
     ...days,
-    ...Array(4).fill([USAGE_MINUTE_CAP, USAGE_MINUTE_CAP]).flat(),
+    ...Array(8).fill([USAGE_MINUTE_CAP, USAGE_MINUTE_CAP]).flat(),
   )) as UsageDay[];
   const capped = (await sql.execute(
     `SELECT day, SUM(t - ?) AS tokens FROM (

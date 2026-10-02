@@ -10,7 +10,12 @@ const names = { 1: "ada", 2: "bo", 3: "cy" };
 
 /** Gives `userId` a balance: √(tokens ÷ 1M) coins for one old day, plus 25 for finishing it first. */
 async function earn(userId: number, day: string, tokens: number) {
-  await sql.execute("INSERT INTO usage_daily VALUES (?, ?, 'm', ?, 0, 0, 0, 1)", userId, day, tokens);
+  await sql.execute(
+    "INSERT INTO usage_daily (user_id, day, model, input, output, cache_creation, cache_read, turns) VALUES (?, ?, 'm', ?, 0, 0, 0, 1)",
+    userId,
+    day,
+    tokens,
+  );
 }
 const balance = async (userId: number) => (await wallet(sql, userId, NOW)).balance;
 const sumOf = async (ref: string) =>
