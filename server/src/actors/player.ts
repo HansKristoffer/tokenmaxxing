@@ -1,7 +1,7 @@
 import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Usage } from "@tokenmaxxing/core/games/types.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
-import { CURSOR_AUTOMATION_MODEL, type IngestResponse, type TokenEvent } from "@tokenmaxxing/core/types.ts";
+import { CURSOR_EXCLUDED_MODELS, type IngestResponse, type TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { db } from "rivetkit/db";
@@ -486,17 +486,19 @@ export async function migrateEvents(d: Sql): Promise<void> {
     await d.execute("INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events");
     await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (1)");
   }
-  // Remove previously imported background automation and re-report affected days once.
-  if (!(await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 2")).length) {
+  // Remove previously imported excluded bots and re-report affected days once.
+  if (!(await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 3")).length) {
+    const models = [...CURSOR_EXCLUDED_MODELS];
+    const placeholders = models.map(() => "?").join(",");
     await d.execute(
-      "INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events WHERE source = 'cursor_local' AND model = ?",
-      CURSOR_AUTOMATION_MODEL,
+      `INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events WHERE source = 'cursor_local' AND model IN (${placeholders})`,
+      ...models,
     );
     await d.execute(
-      "DELETE FROM events WHERE source = 'cursor_local' AND model = ?",
-      CURSOR_AUTOMATION_MODEL,
+      `DELETE FROM events WHERE source = 'cursor_local' AND model IN (${placeholders})`,
+      ...models,
     );
-    await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (2)");
+    await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (3)");
   }
 }
 

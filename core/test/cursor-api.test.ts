@@ -127,16 +127,24 @@ describe("Cursor dashboard", () => {
     }
   });
 
-  test("skips Grok automation while preserving other Grok models and pagination", async () => {
+  test("skips all excluded Grok bots while preserving regular Grok models and pagination", async () => {
     const r = await fetchCursorUsage({
       ...options,
       pageSize: 1,
       fetch: fetcher(async (_url, init) => {
         const { page: number } = JSON.parse(String(init?.body));
-        return page([{ ...row(), model: number === 1 ? "grok-bot-automation" : "grok-bot-default" }], 2);
+        return page(
+          [
+            {
+              ...row(),
+              model: ["grok-bot-automation", "grok-bot-default", "grok-bot-cua", "grok-4.7-high"][number - 1],
+            },
+          ],
+          4,
+        );
       }),
     });
-    expect(r.events.map((e) => e.model)).toEqual(["grok-bot-default"]);
+    expect(r.events.map((e) => e.model)).toEqual(["grok-4.7-high"]);
   });
 
   test("IDs survive page shifts and preserve identical rows", async () => {

@@ -46,16 +46,18 @@ describe("ingest", () => {
     expect((await u.town.profile(u.userId, "7d")).totals.tokens).toBe(300);
   });
 
-  test("older clients cannot add Cursor automation to personal usage", async () => {
+  test("older clients cannot add excluded Cursor bots to personal usage", async () => {
     const u = await signUp("bots");
     const player = as(u.token).player(u.userId);
     await player.ingest([
       event({ source: "cursor_local", model: "grok-bot-automation", inputTokens: 1000 }),
-      event({ source: "cursor_local", model: "grok-bot-default", inputTokens: 10, outputTokens: 0 }),
+      event({ source: "cursor_local", model: "grok-bot-default", inputTokens: 1000, costCents: 500 }),
+      event({ source: "cursor_local", model: "grok-bot-cua", inputTokens: 1000, costCents: 500 }),
+      event({ source: "cursor_local", model: "grok-4.7-high", inputTokens: 10, outputTokens: 0 }),
     ]);
     const profile = await u.town.profile(u.userId, "all");
     expect(profile.totals.tokens).toBe(10);
-    expect(profile.models.map((m) => m.model)).toEqual(["grok-bot-default"]);
+    expect(profile.models.map((m) => m.model)).toEqual(["grok-4.7-high"]);
   });
 
   test("Cursor reported costs enrich old events without duplicating tokens, and accept corrections", async () => {

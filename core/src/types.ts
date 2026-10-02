@@ -1,7 +1,11 @@
 /** Reserved message ids for authoritative Cursor dashboard events. */
 export const CURSOR_API_MESSAGE_PREFIX = "cursor-api:";
-/** Cursor background automation is excluded from personal usage. */
-export const CURSOR_AUTOMATION_MODEL = "grok-bot-automation";
+/** Temporarily exclude Cursor background bots from personal usage. */
+export const CURSOR_EXCLUDED_MODELS: ReadonlySet<string> = new Set([
+  "grok-bot-automation",
+  "grok-bot-default",
+  "grok-bot-cua",
+]);
 
 export type Source = "claude_code" | "claude_cowork" | "codex" | "cursor_local" | "github";
 

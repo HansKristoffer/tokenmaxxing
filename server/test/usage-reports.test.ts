@@ -123,14 +123,17 @@ test("upgrading an existing database repairs historic days once and preserves it
   }
 });
 
-test("automation cleanup repairs affected days once and keeps other Cursor history", async () => {
+test("expanded bot cleanup upgrades earlier exclusions and preserves regular Cursor history", async () => {
   const { db, sql } = memorySql();
   try {
     await migrateEvents(sql);
-    db.run("DELETE FROM usage_report_migrations WHERE version = 2");
+    db.run("DELETE FROM usage_report_migrations WHERE version = 3");
+    db.run("INSERT OR IGNORE INTO usage_report_migrations VALUES (2)");
     for (const [id, model] of [
       ["bot", "grok-bot-automation"],
-      ["keep", "grok-bot-default"],
+      ["default", "grok-bot-default"],
+      ["cua", "grok-bot-cua"],
+      ["keep", "grok-4.7-high"],
     ]) {
       db.run(
         `INSERT INTO events (source, session_id, message_id, timestamp, day, model, message_type,
@@ -140,7 +143,7 @@ test("automation cleanup repairs affected days once and keeps other Cursor histo
       );
     }
     await migrateEvents(sql);
-    expect(db.query("SELECT model FROM events").all()).toEqual([{ model: "grok-bot-default" }]);
+    expect(db.query("SELECT model FROM events").all()).toEqual([{ model: "grok-4.7-high" }]);
     expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([{ day: "2026-09-29" }]);
     await flushUsageReports(sql, async () => {});
     await migrateEvents(sql);
