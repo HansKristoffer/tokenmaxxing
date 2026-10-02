@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { BOTS } from "@tokenmaxxing/core/bots.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import {
   type ChatLine,
@@ -103,6 +104,21 @@ describe("world", () => {
     });
     await conn.dispose();
   });
+
+  test("bots are up and about in town, and wander off", async () => {
+    const a = await signUp("w");
+    const { conn, events, snap } = await connect(a.token);
+    const me = snap.players.find((p) => p.id === a.userId)!;
+    await walk(conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
+    await eventually(() => expect(events.snapshots.at(-1)?.room).toBe("town"));
+    const bot = events.snapshots.at(-1)!.players.find((p) => p.id === BOTS[0]!.id)!;
+    expect(bot).toMatchObject({ name: BOTS[0]!.name, online: true, dozing: false, state: "idle" });
+    await eventually(
+      () => expect(events.moves.some((m) => m.m.some(([id]) => id === bot.id))).toBe(true),
+      20_000,
+    );
+    await conn.dispose();
+  }, 30_000);
 
   test("chat reaches the room, and only the room", async () => {
     const a = await signUp("chat");

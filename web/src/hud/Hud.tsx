@@ -1,3 +1,4 @@
+import { isBot } from "@tokenmaxxing/core/bots.ts";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { useEffect, useState } from "react";
 import { roomName, world } from "../game/world.ts";
@@ -13,7 +14,7 @@ import { LookPicker } from "./LookPicker.tsx";
 import { MatchPanel } from "./Match.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
-import { PlayerCard } from "./PlayerCard.tsx";
+import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Shop } from "./Shop.tsx";
 import { Modal } from "./ui.tsx";
 
@@ -162,7 +163,7 @@ function Panel() {
     case "leaderboard":
       return <Leaderboard />;
     case "card":
-      return <PlayerCard userId={panel.userId} />;
+      return isBot(panel.userId) ? <BotCard id={panel.userId} /> : <PlayerCard userId={panel.userId} />;
     case "companyCard":
       return <CompanyCard companyId={panel.companyId} />;
     case "company":
