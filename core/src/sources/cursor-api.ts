@@ -60,6 +60,14 @@ function count(value: unknown): number {
   return value;
 }
 
+function reportedCostCents(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100_000_000) {
+    throw new Error("Invalid Cursor cost.");
+  }
+  return value;
+}
+
 /** Only token metadata leaves this module. No response bodies or credentials are persisted. */
 export async function fetchCursorUsage(
   opts: CursorApiOptions,
@@ -167,6 +175,7 @@ export async function* fetchCursorUsagePages(opts: CursorApiOptions): AsyncGener
         cacheCreationTokens: count(usage.cacheWriteTokens),
         cacheReadTokens: count(usage.cacheReadTokens),
       };
+      const costCents = reportedCostCents(row.chargedCents) ?? reportedCostCents(usage.totalCents);
       // Dashboard rows don't always expose an ID. A metadata hash survives page shifts,
       // restarts, retries, and multiple devices; identical rows retain their multiplicity.
       const key = hash(
@@ -194,6 +203,7 @@ export async function* fetchCursorUsagePages(opts: CursorApiOptions): AsyncGener
           model: row.model,
           messageType: "assistant",
           ...tokens,
+          costCents,
         }),
       );
     }

@@ -27,6 +27,8 @@ export interface TokenEvent {
   cacheCreationTokens: number;
   cacheReadTokens: number;
   reasoningTokens: number | null;
+  /** Cursor-reported request cents, used only when no model price matches. */
+  costCents?: number | null;
 }
 
 export interface IngestResponse {
@@ -56,7 +58,7 @@ export interface FileState {
 export interface SyncState {
   files: Record<string, FileState>;
   cursorLocal?: { dbPath: string; lastRowid: number };
-  cursorApi?: { accountId: string; checkedAt: number };
+  cursorApi?: { accountId: string; checkedAt: number; costVersion?: number };
   /** Newest PR `createdAt` fetched from GitHub, and when we last asked. */
   github?: { since: string | null; checkedAt?: number };
 }

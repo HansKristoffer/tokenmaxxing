@@ -73,21 +73,6 @@ const PRICE_ALIASES: Record<string, string> = {
   "codex-auto-review": "gpt-5-codex",
 };
 
-/** Published Cursor rates, USD per token, checked 2026-10-02.
- * https://cursor.com/docs/models-and-pricing
- * Only fill missing LiteLLM entries; standard and fast tiers remain separate.
- */
-const CURSOR_PRICE_FALLBACKS: Record<string, ModelPrice> = {
-  "composer-2.5": { input: 0.5e-6, output: 2.5e-6, cacheCreation: 0, cacheRead: 0.2e-6, reasoning: null },
-  "composer-2.5-fast": { input: 3e-6, output: 15e-6, cacheCreation: 0, cacheRead: 0.5e-6, reasoning: null },
-  "grok-4.5": { input: 2e-6, output: 6e-6, cacheCreation: 0, cacheRead: 0.5e-6, reasoning: null },
-  "grok-4.5-fast": { input: 4e-6, output: 18e-6, cacheCreation: 0, cacheRead: 1e-6, reasoning: null },
-  "grok-4.6": { input: 2e-6, output: 6e-6, cacheCreation: 0, cacheRead: 0.5e-6, reasoning: null },
-  "grok-4.6-fast": { input: 4e-6, output: 12e-6, cacheCreation: 0, cacheRead: 1e-6, reasoning: null },
-  "grok-4.7": { input: 2e-6, output: 6e-6, cacheCreation: 0, cacheRead: 0.5e-6, reasoning: null },
-  "grok-4.7-fast": { input: 4e-6, output: 12e-6, cacheCreation: 0, cacheRead: 1e-6, reasoning: null },
-};
-
 function buildMap(rawJson: Record<string, RawEntry>): Map<string, ModelPrice> {
   const out = new Map<string, ModelPrice>();
   for (const [name, entry] of Object.entries(rawJson)) {
@@ -96,9 +81,6 @@ function buildMap(rawJson: Record<string, RawEntry>): Map<string, ModelPrice> {
     const price = normalizeEntry(entry);
     if (!price) continue;
     out.set(name.toLowerCase(), price);
-  }
-  for (const [name, price] of Object.entries(CURSOR_PRICE_FALLBACKS)) {
-    if (!out.has(name)) out.set(name, price);
   }
   for (const [alias, target] of Object.entries(PRICE_ALIASES)) {
     if (out.has(alias)) continue;
@@ -125,7 +107,7 @@ export class PricingCache {
       const res = await fetch(LITELLM_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (!res.ok) return { updated: this.map.size, failed: true };
       const json = (await res.json()) as Record<string, RawEntry>;
-      // Built-in fallbacks must not make an empty upstream response look valid.
+      // Reject an empty upstream response without replacing the cached prices.
       const hasPrices = Object.entries(json).some(
         ([name, entry]) => name !== "sample_spec" && entry && normalizeEntry(entry),
       );

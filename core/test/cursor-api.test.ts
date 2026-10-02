@@ -95,23 +95,36 @@ describe("Cursor dashboard", () => {
     expect(JSON.stringify(r)).not.toContain("private content");
   });
 
-  test("ignores dashboard monetary values so costs use the shared model-price table", async () => {
-    const usage = row();
-    const r = await fetchCursorUsage({
+  test("maps reported costs with cursorbar precedence and preserves zero and missing costs", async () => {
+    const rows = [
+      { ...row(), chargedCents: 0, tokenUsage: { ...row().tokenUsage, totalCents: 123 } },
+      { ...row(), chargedCents: 2.75, tokenUsage: { ...row().tokenUsage, totalCents: 123 } },
+      { ...row(), tokenUsage: { ...row().tokenUsage, totalCents: 4.125 } },
+      row(),
+    ];
+    const result = await fetchCursorUsage({ ...options, fetch: fetcher(async () => page(rows)) });
+    expect(result.events.map((e) => e.costCents)).toEqual([0, 2.75, 4.125, null]);
+    const noCosts = await fetchCursorUsage({
       ...options,
       fetch: fetcher(async () =>
-        page([
-          {
-            ...usage,
-            chargedCents: 500,
-            tokenUsage: { ...usage.tokenUsage, totalCents: 600 },
-          },
-        ]),
+        page(
+          rows.map((r) => ({
+            ...r,
+            chargedCents: undefined,
+            tokenUsage: row().tokenUsage,
+          })),
+        ),
       ),
     });
-    expect(r.events).toHaveLength(1);
-    expect(r.events[0]).not.toHaveProperty("costCents");
-    expect(r.events[0]!.inputTokens).toBe(10);
+    expect(result.events.map((e) => e.messageId)).toEqual(noCosts.events.map((e) => e.messageId));
+  });
+
+  test("rejects malformed reported costs", async () => {
+    for (const chargedCents of [-1, "4", 100_000_001]) {
+      await expect(
+        fetchCursorUsage({ ...options, fetch: fetcher(async () => page([{ ...row(), chargedCents }])) }),
+      ).rejects.toThrow("Invalid Cursor cost");
+    }
   });
 
   test("skips Grok automation while preserving other Grok models and pagination", async () => {
@@ -366,6 +379,28 @@ describe("Cursor sync checkpoint", () => {
     expect(second.inserted).toBe(1);
     expect(stored.size).toBe(1001);
     expect(second.state.cursorApi?.checkedAt).toBe(until);
+  });
+
+  test("upgrades earlier checkpoints with a full cost replay before throttling", async () => {
+    for (const costVersion of [undefined, 1]) {
+      const requests: Record<string, unknown>[] = [];
+      const result = await sync(
+        { files: {}, cursorApi: { accountId: credentials().accountId, checkedAt: until, costVersion } },
+        {
+          statePath: join(directory(), "sync.json"),
+          enabled,
+          send,
+          now: () => until,
+          cursorCredentials: credentials,
+          cursorFetch: fetcher(async (_url, init) => {
+            requests.push(JSON.parse(String(init?.body)));
+            return page([{ ...row(), chargedCents: 2 }]);
+          }),
+        },
+      );
+      expect(requests[0]!.startDate).toBe("0");
+      expect(result.state.cursorApi?.costVersion).toBe(2);
+    }
   });
 
   test("disabled Cursor never loads credentials or sends API requests", async () => {

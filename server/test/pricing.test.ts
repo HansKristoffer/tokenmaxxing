@@ -308,7 +308,7 @@ describe("PricingCache.refreshFromUpstream", () => {
     const cache = new PricingCache();
     const result = await cache.refreshFromUpstream();
     expect(result.failed).toBe(false);
-    expect(result.updated).toBe(9);
+    expect(result.updated).toBe(1);
     expect(urlSeen).toContain("BerriAI/litellm");
     const p = cache.lookup("fake-test-model-9000");
     expect(p).toEqual({
@@ -347,52 +347,5 @@ describe("price aliases for models LiteLLM does not publish", () => {
   test("an alias never shadows a real upstream price", () => {
     // gpt-5-codex is published; the alias machinery must not overwrite it.
     expect(new PricingCache().lookup("gpt-5-codex")!.input).toBeGreaterThan(0);
-  });
-});
-
-describe("published Cursor pricing fallbacks", () => {
-  test("prices standard and fast variants separately and resolves dashboard effort names", () => {
-    const cache = new PricingCache();
-    const row = { input: 1_000_000, output: 1_000_000, cacheCreation: 0, cacheRead: 1_000_000 };
-    for (const [name, expected] of [
-      ["composer-2.5", 3.2],
-      ["composer-2.5-fast", 18.5],
-      ["cursor-grok-4.5-high", 8.5],
-      ["cursor-grok-4.5-high-fast", 23],
-      ["cursor-grok-4.6-xhigh", 8.5],
-      ["cursor-grok-4.6-medium-fast", 17],
-      ["grok-4.7-xhigh", 8.5],
-      ["grok-4.7-high-fast", 17],
-    ] as const) {
-      expect(cache.lookup(name)).not.toBeNull();
-      expect(computeRowCostUsd(row, cache.lookup(name)!)).toBeCloseTo(expected, 8);
-    }
-    for (const unknown of [
-      "grok-bot-default",
-      "grok-bot-cua",
-      "grok-bot-automation",
-      "cursor-grok-4.8-high",
-    ]) {
-      expect(cache.lookup(unknown)).toBeNull();
-    }
-  });
-
-  test("upstream prices take precedence and missing fallback entries survive a refresh", async () => {
-    const original = globalThis.fetch;
-    try {
-      globalThis.fetch = (async () =>
-        Response.json({
-          "composer-2.5": { input_cost_per_token: 9e-6, output_cost_per_token: 10e-6 },
-          "cursor-grok-4.6-high-fast": { input_cost_per_token: 11e-6, output_cost_per_token: 12e-6 },
-        })) as unknown as typeof fetch;
-      const cache = new PricingCache();
-      await cache.refreshFromUpstream();
-      expect(cache.lookup("composer-2.5")!.input).toBe(9e-6);
-      expect(cache.lookup("cursor-grok-4.6-high-fast")!.input).toBe(11e-6);
-      expect(cache.lookup("composer-2.5-fast")!.input).toBe(3e-6);
-      expect(cache.lookup("grok-4.7-high-fast")!.cacheRead).toBe(1e-6);
-    } finally {
-      globalThis.fetch = original;
-    }
   });
 });

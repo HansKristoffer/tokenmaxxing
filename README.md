@@ -78,7 +78,7 @@ data is sent anywhere for this.
 ## The stats
 
 - **Tokens:** input + output + cache writes + cache reads. Cursor background `grok-bot-automation` events are excluded.
-- **Cost:** all sources, including Cursor dashboard token counts, use [LiteLLM's table](https://github.com/BerriAI/litellm), refreshed daily. Cursor-reported monetary values are ignored. Reasoning-effort suffixes resolve to a priced base model while fast and max tiers are preserved. Composer 2.5 and Grok 4.5–4.7 use [published Cursor rates](https://cursor.com/docs/models-and-pricing) when LiteLLM has no entry, with standard and fast tiers priced separately. Models without a matching price contribute $0; these are API-price estimates, not subscription bills.
+- **Cost:** all sources use [LiteLLM's table](https://github.com/BerriAI/litellm), refreshed daily, including reasoning-effort matching. If no model price matches, Cursor uses the API's `chargedCents`, falling back to `tokenUsage.totalCents`, preserving zero and fractional cents. Reported values reflect usage-time costs and credit adjustments; there are no hardcoded Cursor rates. Models without either a price or a reported cost contribute $0. These totals combine current model-price estimates with historical reported usage values; they are not subscription invoices.
 - **Parallelism ×:** the average number of agents running at the same time, measured over the time you
   had at least one running. Three agents working through the same hour is 3.0×. Time is measured in
   5-minute buckets, subagents count as agents, and you need at least 1 active hour in the range to be
