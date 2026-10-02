@@ -61,7 +61,8 @@ Cursor must be installed and signed in. Its session credential is read locally a
 `cursor.com`; it is never uploaded to Tokenmaxxing or saved in sync state. Every 15 minutes, the helper
 fetches paginated input, output, cache-write and cache-read counts from the dashboard, using the
 [authentication approach from cursorbar](https://github.com/c-johannesen/cursorbar). The first sync requests
-all history available from Cursor; later syncs re-read seven days to catch delayed usage. No public
+all history available from Cursor, sending pages of up to 1000 events as they arrive; later syncs
+re-read seven days to catch delayed usage. No public
 Cursor profile is required. Requests without a token breakdown are skipped. API failures retry on the
 next sync without advancing the checkpoint or falling back to text estimates. Existing estimates are
 replaced on world days with dashboard events; earlier days remain as previously synced.

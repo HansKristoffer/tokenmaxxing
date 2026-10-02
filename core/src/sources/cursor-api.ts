@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { CURSOR_API_MESSAGE_PREFIX, type TokenEvent, tokenEvent } from "../types.ts";
 
 const URL = "https://cursor.com/api/dashboard/get-filtered-usage-events";
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 1000;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
 export interface CursorCredentials {
@@ -41,6 +41,8 @@ export interface CursorApiOptions {
   expectedAccountId?: string;
   fetch?: typeof globalThis.fetch;
   credentials?: () => CursorCredentials;
+  /** Smaller pages for fixtures; Cursor supports up to 1000 rows per page. */
+  pageSize?: number;
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -59,10 +61,30 @@ function count(value: unknown): number {
 }
 
 /** Only token metadata leaves this module. No response bodies or credentials are persisted. */
-export async function fetchCursorUsage(opts: CursorApiOptions): Promise<{
+export async function fetchCursorUsage(
+  opts: CursorApiOptions,
+): Promise<{ events: TokenEvent[]; accountId: string }> {
+  const events: TokenEvent[] = [];
+  let accountId = "";
+  for await (const page of fetchCursorUsagePages(opts)) {
+    events.push(...page.events);
+    accountId = page.accountId;
+  }
+  return { events, accountId };
+}
+
+/** Send history as pages arrive, rather than withholding it until the entire backfill finishes.
+ * A failed run can replay earlier pages safely; the full-window checkpoint advances only on done.
+ */
+export async function* fetchCursorUsagePages(opts: CursorApiOptions): AsyncGenerator<{
   events: TokenEvent[];
   accountId: string;
+  done: boolean;
 }> {
+  const pageSize = opts.pageSize ?? PAGE_SIZE;
+  if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > PAGE_SIZE) {
+    throw new Error("Invalid Cursor page size.");
+  }
   const load = opts.credentials ?? (() => loadCursorCredentials(opts.dbPath));
   let credentials = load();
   const accountId = credentials.accountId;
@@ -70,9 +92,9 @@ export async function fetchCursorUsage(opts: CursorApiOptions): Promise<{
     throw new Error("Cursor account changed during sync. Try syncing again.");
   }
   const request = opts.fetch ?? globalThis.fetch;
-  const events: TokenEvent[] = [];
   const occurrences = new Map<string, number>();
   for (let page = 1; page <= 1000; page++) {
+    const events: TokenEvent[] = [];
     const getPage = () =>
       request(URL, {
         method: "POST",
@@ -86,7 +108,7 @@ export async function fetchCursorUsage(opts: CursorApiOptions): Promise<{
           startDate: String(opts.since),
           endDate: String(opts.until),
           page,
-          pageSize: PAGE_SIZE,
+          pageSize,
         }),
         signal: AbortSignal.timeout(30_000),
       });
@@ -113,8 +135,8 @@ export async function fetchCursorUsage(opts: CursorApiOptions): Promise<{
     if (!Array.isArray(rows) || typeof data.totalUsageEventsCount !== "number") {
       throw new Error("Invalid Cursor usage response.");
     }
-    const expectedRows = Math.min(PAGE_SIZE, Math.max(0, total - (page - 1) * PAGE_SIZE));
-    if (rows.length < expectedRows || rows.length > PAGE_SIZE) {
+    const expectedRows = Math.min(pageSize, Math.max(0, total - (page - 1) * pageSize));
+    if (rows.length < expectedRows || rows.length > pageSize) {
       throw new Error("Incomplete Cursor usage response.");
     }
     for (const raw of rows) {
@@ -174,7 +196,9 @@ export async function fetchCursorUsage(opts: CursorApiOptions): Promise<{
         }),
       );
     }
-    if (page * PAGE_SIZE >= total) return { events, accountId };
+    const done = page * pageSize >= total;
+    yield { events, accountId, done };
+    if (done) return;
   }
   throw new Error("Cursor usage pagination limit reached; sync state was not advanced.");
 }

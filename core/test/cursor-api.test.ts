@@ -32,7 +32,7 @@ const page = (rows: unknown[], total = rows.length) =>
   });
 const fetcher = (fn: (input: string | URL | Request, init?: RequestInit) => Promise<Response>) =>
   fn as typeof fetch;
-const options = { dbPath: "unused", since: 0, until, credentials };
+const options = { dbPath: "unused", since: 0, until, credentials, pageSize: 100 };
 
 function database(value: string): string {
   const path = join(directory(), "state.vscdb");
@@ -275,8 +275,8 @@ describe("Cursor sync checkpoint", () => {
       now: () => until,
       cursorFetch: fetcher(async (_url, init) => {
         const request = JSON.parse(String(init?.body));
-        const offset = (request.page - 1) * 100;
-        return page(rows.slice(offset, offset + 100), rows.length);
+        const offset = (request.page - 1) * request.pageSize;
+        return page(rows.slice(offset, offset + request.pageSize), rows.length);
       }),
     };
     const stored = new Set<string>();
@@ -297,6 +297,44 @@ describe("Cursor sync checkpoint", () => {
     expect(stored.size).toBe(1101);
     expect(result.inserted).toBe(101);
     expect(result.state.cursorApi?.checkedAt).toBe(until);
+  });
+
+  test("sends history pages progressively and replays a failed window without advancing", async () => {
+    const statePath = join(directory(), "sync.json");
+    const rows = Array.from({ length: 1001 }, (_, i) => row(until - i - 1));
+    const stored = new Set<string>();
+    let failSecondPage = true;
+    let sentBeforeSecondPage = false;
+    const opts = {
+      statePath,
+      enabled,
+      cursorCredentials: credentials,
+      now: () => until,
+      cursorFetch: fetcher(async (_url, init) => {
+        const request = JSON.parse(String(init?.body));
+        expect(request.pageSize).toBe(1000);
+        if (request.page === 2) {
+          sentBeforeSecondPage = stored.size === 1000;
+          if (failSecondPage) return new Response(null, { status: 500 });
+        }
+        const offset = (request.page - 1) * request.pageSize;
+        return page(rows.slice(offset, offset + request.pageSize), rows.length);
+      }),
+      send: async (events: TokenEvent[]) => {
+        const before = stored.size;
+        for (const e of events) stored.add(e.messageId);
+        return { inserted: stored.size - before, duplicates: events.length - (stored.size - before) };
+      },
+    };
+    const first = await sync({ files: {} }, opts);
+    expect(sentBeforeSecondPage).toBe(true);
+    expect(first.inserted).toBe(1000);
+    expect((await loadState(statePath)).cursorApi).toBeUndefined();
+    failSecondPage = false;
+    const second = await sync(first.state, opts);
+    expect(second.inserted).toBe(1);
+    expect(stored.size).toBe(1001);
+    expect(second.state.cursorApi?.checkedAt).toBe(until);
   });
 
   test("disabled Cursor never loads credentials or sends API requests", async () => {

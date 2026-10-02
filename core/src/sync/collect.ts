@@ -1,7 +1,11 @@
 import { stat } from "node:fs/promises";
 import { parseClaudeCodeFile } from "../sources/claude-code.ts";
 import { parseCodexFile } from "../sources/codex.ts";
-import { type CursorApiOptions, fetchCursorUsage, loadCursorCredentials } from "../sources/cursor-api.ts";
+import {
+  type CursorApiOptions,
+  fetchCursorUsagePages,
+  loadCursorCredentials,
+} from "../sources/cursor-api.ts";
 import { fetchPullRequests, type GhRunner, ghPath, ghRunner } from "../sources/github.ts";
 import {
   cursorStateDbPath,
@@ -162,20 +166,24 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
           state.cursorApi?.accountId === accountId
             ? Math.max(0, state.cursorApi.checkedAt - 7 * 24 * 60 * 60_000)
             : 0;
-        const r = await fetchCursorUsage({
+        for await (const r of fetchCursorUsagePages({
           dbPath,
           since,
           until: now,
           credentials,
           expectedAccountId: accountId,
           fetch: opts.cursorFetch,
-        });
-        take(r.events);
-        const batch = flush();
-        yield {
-          events: batch.events,
-          commit: (s) => ({ ...batch.commit(s), cursorApi: { accountId: r.accountId, checkedAt: now } }),
-        };
+        })) {
+          take(r.events);
+          const batch = flush();
+          yield {
+            events: batch.events,
+            commit: (s) =>
+              r.done
+                ? { ...batch.commit(s), cursorApi: { accountId: r.accountId, checkedAt: now } }
+                : batch.commit(s),
+          };
+        }
       } catch (err) {
         opts.onError?.(err, "cursor");
       }
