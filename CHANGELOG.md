@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.4.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.3.3...v1.4.0) (2026-10-02)
+
+
+### Features
+
+* **bots:** add town bot routines and contextual dialogue ([230031e](https://github.com/HansKristoffer/tokenmaxxing/commit/230031e72c1facfbe7ad59ea78c279d177c14a08))
+* **bots:** add wandering town characters ([104e6b4](https://github.com/HansKristoffer/tokenmaxxing/commit/104e6b406420ab5c5a3823ba2682f7f786d89ff9))
+* **bots:** add wandering town characters ([844a12f](https://github.com/HansKristoffer/tokenmaxxing/commit/844a12fa9b2ca370e0418c5bd0b217b3416dd310))
+* **shop:** add a panda pet ([53ee954](https://github.com/HansKristoffer/tokenmaxxing/commit/53ee9546f7601d79d8159e5d4243dd86f01cc5c7))
+* **shop:** add a panda pet ([de37df5](https://github.com/HansKristoffer/tokenmaxxing/commit/de37df56ee973e05f4984cbe402e1deb5fd0f803))
+
+
+### Bug Fixes
+
+* exclude Grok default and CUA bot usage ([a1a3467](https://github.com/HansKristoffer/tokenmaxxing/commit/a1a346764e2010a45eaa5c2cb3212fa647c327e6))
+* fall back to historical Cursor API costs for unmatched models ([1d9b0ec](https://github.com/HansKristoffer/tokenmaxxing/commit/1d9b0ec3353eff3aad97b2c8ca431def845451dd))
+* match reasoning effort variants to base model prices ([0a2551e](https://github.com/HansKristoffer/tokenmaxxing/commit/0a2551e99c727654250e8e0502facde99e667e4f))
+* preserve reported Cursor costs in usage totals ([d56ba77](https://github.com/HansKristoffer/tokenmaxxing/commit/d56ba77b4f6287da8f4e0562e2979f8b6944ff29))
+* price Cursor Composer and Grok with published fallback rates ([f60ab29](https://github.com/HansKristoffer/tokenmaxxing/commit/f60ab29e464a85242f80ac9a4cc30d2955e6cb9d))
+* stream Cursor history backfills in larger pages ([3709f4c](https://github.com/HansKristoffer/tokenmaxxing/commit/3709f4c444798de1f7e0cfb2849eb11d0b3472f6))
+* sync actual Cursor dashboard token usage ([d93ab3e](https://github.com/HansKristoffer/tokenmaxxing/commit/d93ab3e18a5547ee050467a3ad9975daf401925c))
+* sync Cursor dashboard usage with consistent token pricing ([c35b460](https://github.com/HansKristoffer/tokenmaxxing/commit/c35b46070a2110baeaac3310cfa423e8b3431386))
+* use shared Cursor pricing and exclude background automation ([bfcf895](https://github.com/HansKristoffer/tokenmaxxing/commit/bfcf8957850676ebae3dc621270c3242cf05f219))
+
 ## [1.3.3](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.3.2...v1.3.3) (2026-10-01)
 
 
