@@ -134,6 +134,36 @@ const PETS: (Pet | null)[] = [
     ],
     pal: { o: C.ink, g: "#4fb36a", w: "#8fd6a0", y: "#f5d98a", e: C.ink, n: "#ff8a3c" },
   },
+  // Panda.
+  {
+    frames: [
+      [
+        "............",
+        "......kk.kk.",
+        ".....owwwwwo",
+        ".....owwkkwo",
+        ".....owwwwwn",
+        ".....owwwwo.",
+        "..ookkkwwoo.",
+        ".owwkkwwwo..",
+        ".okkwwwkko..",
+        ".k.k..k.k...",
+      ],
+      [
+        "......kk.kk.",
+        ".....owwwwwo",
+        ".....owwkkwo",
+        ".....owwwwwn",
+        ".....owwwwo.",
+        "..ookkkwwoo.",
+        ".owwkkwwwo..",
+        ".okkwwwkko..",
+        "k.k....k.k..",
+        "............",
+      ],
+    ],
+    pal: { o: C.ink, w: "#f4f1ea", k: "#3a3540", n: C.ink },
+  },
 ];
 
 export const PET_W = 12;

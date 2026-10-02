@@ -52,6 +52,7 @@ export const ITEMS: readonly Item[] = [
   item("pet", 2, "Cat", 400),
   item("pet", 3, "Dog", 400),
   item("pet", 4, "Dragon", 1500),
+  item("pet", 5, "Panda", 800),
 ];
 
 export const itemById = (id: unknown): Item | undefined => ITEMS.find((i) => i.id === id);
