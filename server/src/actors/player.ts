@@ -6,6 +6,7 @@ import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { db } from "rivetkit/db";
 import { sha256 } from "../crypto.ts";
+import { reconcileCursorUsage } from "../cursor-usage.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { AGENT_BUCKET_MS } from "../stats.ts";
 import { coalesceBattleUpdates, drainUsageReports, reportUsageDays } from "../usage-reports.ts";
@@ -382,8 +383,9 @@ export const player = actor({
         const inserted = await c.db.transaction(
           async (tx) => {
             let inserted = 0;
-            for (let i = 0; i < valid.length; i += INSERT_CHUNK) {
-              const chunk = valid.slice(i, i + INSERT_CHUNK);
+            const reconciled = await reconcileCursorUsage(tx, valid);
+            for (let i = 0; i < reconciled.length; i += INSERT_CHUNK) {
+              const chunk = reconciled.slice(i, i + INSERT_CHUNK);
               const row = `(${COLUMNS.map(() => "?").join(",")})`;
               const rows = await tx.execute(
                 `INSERT OR IGNORE INTO events (${COLUMNS.join(",")}) VALUES ${chunk.map(() => row).join(",")} RETURNING id`,

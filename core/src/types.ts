@@ -1,3 +1,6 @@
+/** Reserved message ids for authoritative Cursor dashboard events. */
+export const CURSOR_API_MESSAGE_PREFIX = "cursor-api:";
+
 export type Source = "claude_code" | "claude_cowork" | "codex" | "cursor_local" | "github";
 
 export const SOURCES: readonly Source[] = ["claude_code", "claude_cowork", "codex", "cursor_local", "github"];
@@ -51,6 +54,7 @@ export interface FileState {
 export interface SyncState {
   files: Record<string, FileState>;
   cursorLocal?: { dbPath: string; lastRowid: number };
+  cursorApi?: { accountId: string; checkedAt: number };
   /** Newest PR `createdAt` fetched from GitHub, and when we last asked. */
   github?: { since: string | null; checkedAt?: number };
 }

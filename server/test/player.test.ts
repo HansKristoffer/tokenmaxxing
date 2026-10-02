@@ -19,6 +19,33 @@ describe("ingest", () => {
     expect(await player.ingest(events)).toEqual({ inserted: 0, duplicates: 3, skipped: 0 });
   });
 
+  test("Cursor API replaces covered estimates, dedups retries, and blocks older clients", async () => {
+    const u = await signUp("cursor");
+    const player = as(u.token).player(u.userId);
+    const legacy = event({ source: "cursor_local", timestamp: start, inputTokens: 100, outputTokens: 0 });
+    const earlier = event({
+      source: "cursor_local",
+      timestamp: start - 24 * HOUR,
+      inputTokens: 200,
+      outputTokens: 0,
+    });
+    await player.ingest([legacy, earlier]);
+    const actual = event({
+      source: "cursor_local",
+      messageId: "cursor-api:test:0",
+      timestamp: start,
+      inputTokens: 10,
+      outputTokens: 20,
+      cacheCreationTokens: 30,
+      cacheReadTokens: 40,
+    });
+    await player.ingest([actual]);
+    expect((await u.town.profile(u.userId, "7d")).totals.tokens).toBe(300);
+    expect(await player.ingest([actual])).toMatchObject({ inserted: 0, duplicates: 1 });
+    expect(await player.ingest([legacy])).toMatchObject({ inserted: 0 });
+    expect((await u.town.profile(u.userId, "7d")).totals.tokens).toBe(300);
+  });
+
   test("invalid events are skipped, not stored", async () => {
     const u = await signUp("skip");
     const r = await as(u.token)

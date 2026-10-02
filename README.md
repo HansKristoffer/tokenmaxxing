@@ -47,15 +47,24 @@ its first sync.
 ## What's shared
 
 Only **token counts, model names, timestamps and opaque session/message ids** leave your Mac. Message
-content never does. The app reads local logs:
+content never does. The app reads local logs and Cursor dashboard usage:
 
 | Source | Where |
 |---|---|
 | Claude Code | `~/.claude/projects/**/*.jsonl` (subagents included) |
 | Claude Cowork | `~/Library/Application Support/Claude/…/.claude/projects/**/*.jsonl` |
 | Codex | `~/.codex/sessions/**/*.jsonl` |
-| Cursor | `~/.cursor/projects/**/agent-transcripts`, `state.vscdb` (token counts are estimated) |
+| Cursor | Dashboard usage API; signs in using `cursorAuth/accessToken` from the local `state.vscdb` |
 | GitHub | PRs you opened, via the `gh` CLI if it's signed in (at most every 15 minutes); only a hash of each PR's URL and when it was opened are sent |
+
+Cursor must be installed and signed in. Its session credential is read locally and sent only to
+`cursor.com`; it is never uploaded to Tokenmaxxing or saved in sync state. Every 15 minutes, the helper
+fetches paginated input, output, cache-write and cache-read counts from the dashboard, using the
+[authentication approach from cursorbar](https://github.com/c-johannesen/cursorbar). The first sync requests
+all history available from Cursor; later syncs re-read seven days to catch delayed usage. No public
+Cursor profile is required. Requests without a token breakdown are skipped. API failures retry on the
+next sync without advancing the checkpoint or falling back to text estimates. Existing estimates are
+replaced on world days with dashboard events; earlier days remain as previously synced.
 
 Every source that's installed is read. **Everything is public in the world:** anyone can see your
 totals, cost, parallelism, models and daily activity, and the leaderboard ranks everyone.
