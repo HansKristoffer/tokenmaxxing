@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.4.0...v1.4.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **usage:** resume excluded event cleanup in background ([b6331ba](https://github.com/HansKristoffer/tokenmaxxing/commit/b6331ba3b147b62d4d7fae71e13a5fe4c5207ab4))
+* **usage:** resume excluded event cleanup in background ([67b9ab8](https://github.com/HansKristoffer/tokenmaxxing/commit/67b9ab8d0e5cc0ab21d2ac90539827e36c079e7c))
+
 ## [1.4.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.3.3...v1.4.0) (2026-10-02)
 
 
