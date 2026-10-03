@@ -222,6 +222,7 @@ export const player = actor({
     const signal = c.abortSignal;
     while (!signal.aborted) {
       try {
+        await c.keepAwake(cleanExcludedEvents(c.db, signal));
         await c.keepAwake(
           drainUsageReports(c.db, c.vars.serial, signal, (days) => {
             signal.throwIfAborted();
@@ -486,20 +487,45 @@ export async function migrateEvents(d: Sql): Promise<void> {
     await d.execute("INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events");
     await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (1)");
   }
-  // Remove previously imported excluded bots and re-report affected days once.
-  if (!(await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 3")).length) {
-    const models = [...CURSOR_EXCLUDED_MODELS];
-    const placeholders = models.map(() => "?").join(",");
+  // Where the excluded-bots cleanup has got to (`cleanExcludedEvents`), by event id.
+  await d.execute("CREATE TABLE IF NOT EXISTS excluded_cleanup (last_id INTEGER NOT NULL)");
+}
+
+/** Events per batch of `cleanExcludedEvents`: each is a short scan, so the actor stays responsive. */
+const CLEANUP_BATCH = 2_000;
+
+/**
+ * Removes previously imported excluded Cursor bots and re-reports their days, once. It runs in the
+ * background, a range of ids at a time, picking up where it stopped: in `onMigrate`, one statement
+ * over a big history outlived the 30 s startup limit and left the player unable to start at all.
+ */
+export async function cleanExcludedEvents(d: Sql, signal?: AbortSignal): Promise<void> {
+  if ((await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 3")).length) return;
+  const models = [...CURSOR_EXCLUDED_MODELS];
+  // The unary `+` keeps SQLite on the id range: through the `source` index, every batch would scan
+  // all of a player's Cursor events.
+  const match = `+source = 'cursor_local' AND +model IN (${models.map(() => "?").join(",")}) AND id > ? AND id <= ?`;
+  const [{ last } = { last: 0 }] = (await d.execute("SELECT last_id AS last FROM excluded_cleanup")) as {
+    last: number;
+  }[];
+  const [{ max } = { max: 0 }] = (await d.execute("SELECT COALESCE(MAX(id), 0) AS max FROM events")) as {
+    max: number;
+  }[];
+  for (let from = last; from < max; from += CLEANUP_BATCH) {
+    signal?.throwIfAborted();
+    const to = from + CLEANUP_BATCH;
+    // Re-running a batch after a crash is harmless: the days are queued again and nothing is left to delete.
     await d.execute(
-      `INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events WHERE source = 'cursor_local' AND model IN (${placeholders})`,
+      `INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events WHERE ${match}`,
       ...models,
+      from,
+      to,
     );
-    await d.execute(
-      `DELETE FROM events WHERE source = 'cursor_local' AND model IN (${placeholders})`,
-      ...models,
-    );
-    await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (3)");
+    await d.execute(`DELETE FROM events WHERE ${match}`, ...models, from, to);
+    await d.execute("DELETE FROM excluded_cleanup");
+    await d.execute("INSERT INTO excluded_cleanup VALUES (?)", to);
   }
+  await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (3)");
 }
 
 const EVENT_TOKENS = "input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens";
