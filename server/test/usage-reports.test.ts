@@ -1,6 +1,12 @@
 import { expect, test } from "bun:test";
 import type { Client } from "rivetkit/client";
-import { migrateEvents, player, report, USAGE_MINUTE_CAP } from "../src/actors/player.ts";
+import {
+  cleanExcludedEvents,
+  migrateEvents,
+  player,
+  report,
+  USAGE_MINUTE_CAP,
+} from "../src/actors/player.ts";
 import type { registry } from "../src/actors/registry.ts";
 import { type Sql, serial } from "../src/actors/shared.ts";
 import type { ActivityDay, UsageDay } from "../src/actors/town.ts";
@@ -143,11 +149,50 @@ test("expanded bot cleanup upgrades earlier exclusions and preserves regular Cur
       );
     }
     await migrateEvents(sql);
+    // Startup leaves them alone: the cleanup runs in the background, in batches.
+    expect(db.query("SELECT COUNT(*) AS n FROM events").get()).toEqual({ n: 4 });
+    await cleanExcludedEvents(sql);
     expect(db.query("SELECT model FROM events").all()).toEqual([{ model: "grok-4.7-high" }]);
     expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([{ day: "2026-09-29" }]);
     await flushUsageReports(sql, async () => {});
     await migrateEvents(sql);
+    await cleanExcludedEvents(sql);
     expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([]);
+  } finally {
+    db.close();
+  }
+});
+
+test("the bot cleanup resumes where it stopped, a batch at a time", async () => {
+  const { db, sql } = memorySql();
+  try {
+    await migrateEvents(sql);
+    db.run("DELETE FROM usage_report_migrations WHERE version = 3");
+    const insert = db.prepare(`INSERT INTO events (id, source, session_id, message_id, timestamp, day, model,
+      message_type, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
+      VALUES (?, 'cursor_local', 's', ?, 1, ?, ?, 'assistant', 1, 0, 0, 0)`);
+    // Two bot events far apart, so they land in different batches, and one to keep.
+    insert.run(10, "a", "2026-09-28", "grok-bot-cua");
+    insert.run(5_000, "b", "2026-09-29", "grok-4.7-high");
+    insert.run(9_000, "c", "2026-09-30", "grok-bot-default");
+    // Stopped after its first batch: only the first bot event is gone.
+    const stop = new AbortController();
+    const once = {
+      ...sql,
+      execute: async (q: string, ...args: unknown[]) => {
+        const r = await sql.execute(q, ...args);
+        if (q.startsWith("INSERT INTO excluded_cleanup")) stop.abort();
+        return r;
+      },
+    };
+    await expect(cleanExcludedEvents(once, stop.signal)).rejects.toThrow();
+    expect(db.query("SELECT id FROM events ORDER BY id").all()).toEqual([{ id: 5_000 }, { id: 9_000 }]);
+    await cleanExcludedEvents(sql);
+    expect(db.query("SELECT id FROM events").all()).toEqual([{ id: 5_000 }]);
+    expect(db.query("SELECT day FROM pending_usage_days ORDER BY day").all()).toEqual([
+      { day: "2026-09-28" },
+      { day: "2026-09-30" },
+    ]);
   } finally {
     db.close();
   }
