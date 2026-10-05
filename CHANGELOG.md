@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.2](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.4.1...v1.4.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **bots:** show bot lines only as speech bubbles, not in chat ([#44](https://github.com/HansKristoffer/tokenmaxxing/issues/44)) ([7d5d1b2](https://github.com/HansKristoffer/tokenmaxxing/commit/7d5d1b23070c807a8ea876dd2bdb4e159710b1e5))
+* **sync:** count missed usage and PRs, show today per source in the menu bar ([#46](https://github.com/HansKristoffer/tokenmaxxing/issues/46)) ([c80846a](https://github.com/HansKristoffer/tokenmaxxing/commit/c80846ae8084cc3bdc5477481342347f2440a6b3))
+
 ## [1.4.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.4.0...v1.4.1) (2026-10-03)
 
 
