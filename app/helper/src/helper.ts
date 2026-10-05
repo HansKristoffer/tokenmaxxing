@@ -154,13 +154,15 @@ export class Helper {
   async refresh(): Promise<void> {
     if (!this.token) return;
     try {
-      const [today, battle, mine] = await this.call(() =>
+      const [today, battle] = await this.call(() =>
         Promise.all([
           this.api().town.getOrCreate(["main"], this.params()).today(),
           this.api().arcade.getOrCreate(["main"], this.params()).battle(),
-          this.player().todayBySource(),
         ]),
       );
+      // After `town` has checked the token: a rejected one's player may not exist, and that error
+      // would hide the `unauthorized` that signs out.
+      const mine = await this.call(() => this.player().todayBySource());
       this.state.today = {
         tokens: today.me.tokensToday,
         rank: today.me.rank,
