@@ -19,6 +19,45 @@ describe("ingest", () => {
     expect(await player.ingest(events)).toEqual({ inserted: 0, duplicates: 3, skipped: 0 });
   });
 
+  test("a Claude response re-sent with its final usage raises the stored numbers, never lowers them", async () => {
+    const u = await signUp("claude-final");
+    const player = as(u.token).player(u.userId);
+    const first = event({ timestamp: start, inputTokens: 100, outputTokens: 1 });
+    await player.ingest([first]);
+    expect(await player.ingest([{ ...first, outputTokens: 50 }])).toMatchObject({
+      inserted: 0,
+      duplicates: 1,
+    });
+    await player.ingest([first]);
+    expect((await u.town.profile(u.userId, "7d")).totals.tokens).toBe(150);
+  });
+
+  test("today's tokens by source and PRs, for the menu bar", async () => {
+    const u = await signUp("sources");
+    const player = as(u.token).player(u.userId);
+    const now = Date.now();
+    await player.ingest([
+      event({ timestamp: now }),
+      event({ timestamp: now, source: "codex", inputTokens: 1000 }),
+      event({ timestamp: now, messageType: "user", model: "", inputTokens: 0, outputTokens: 0 }),
+      event({
+        timestamp: now,
+        source: "github",
+        messageType: "pr",
+        model: "",
+        inputTokens: 0,
+        outputTokens: 0,
+      }),
+    ]);
+    expect(await player.todayBySource()).toEqual({
+      sources: [
+        { source: "codex", tokens: 1050 },
+        { source: "claude_code", tokens: 150 },
+      ],
+      prs: 1,
+    });
+  });
+
   test("Cursor API replaces covered estimates, dedups retries, and blocks older clients", async () => {
     const u = await signUp("cursor");
     const player = as(u.token).player(u.userId);

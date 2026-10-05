@@ -59,12 +59,18 @@ export interface FileState {
   lastModel?: string;
 }
 
+/** Why no PRs can be counted, for the menu: no `gh` (nor a saved git login), or `gh` signed out. */
+export type GithubProblem = "no_gh" | "signed_out";
+
 export interface SyncState {
   files: Record<string, FileState>;
   cursorLocal?: { dbPath: string; lastRowid: number };
   cursorApi?: { accountId: string; checkedAt: number; costVersion?: number };
-  /** Newest PR `createdAt` fetched from GitHub, and when we last asked. */
-  github?: { since: string | null; checkedAt?: number };
+  /**
+   * Per GitHub account (`host/login`), the newest PR `createdAt` fetched; when we last asked; and,
+   * when no PRs could be counted, why (shown in the menu).
+   */
+  github?: { cursors?: Record<string, string>; checkedAt?: number; problem?: GithubProblem };
 }
 
 /** An event with only what's given: no tokens, no agent, request or model unless set. */

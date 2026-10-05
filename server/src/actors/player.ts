@@ -1,7 +1,13 @@
 import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Usage } from "@tokenmaxxing/core/games/types.ts";
+import type { TodayBySource } from "@tokenmaxxing/core/protocol.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
-import { CURSOR_EXCLUDED_MODELS, type IngestResponse, type TokenEvent } from "@tokenmaxxing/core/types.ts";
+import {
+  CURSOR_EXCLUDED_MODELS,
+  type IngestResponse,
+  type Source,
+  type TokenEvent,
+} from "@tokenmaxxing/core/types.ts";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { db } from "rivetkit/db";
@@ -357,6 +363,23 @@ export const player = actor({
       });
     },
 
+    /**
+     * My tokens today by source (Claude Code, Codex, …) and PRs opened today, for the menu bar: shows
+     * which apps' usage arrived. Raw sums, so a minute over the cap reads higher here than in the total.
+     */
+    todayBySource: async (c): Promise<TodayBySource> => {
+      requireSyncingDevice(c.conn.state);
+      const rows = (await c.db.execute(
+        `SELECT source, SUM(${EVENT_TOKENS}) AS tokens, SUM(message_type = 'pr') AS prs FROM events
+         WHERE day = ? AND message_type IN ('assistant', 'pr') GROUP BY source ORDER BY tokens DESC`,
+        dayKey(Date.now()),
+      )) as { source: Source; tokens: number; prs: number }[];
+      return {
+        sources: rows.filter((r) => r.tokens > 0).map(({ source, tokens }) => ({ source, tokens })),
+        prs: rows.reduce((n, r) => n + r.prs, 0),
+      };
+    },
+
     /** A usage game's score (Tokenmaxxing). */
     tokensBetween: (c, from: number, to: number): Promise<Usage> => {
       requireInternal(c.conn.state);
@@ -404,6 +427,27 @@ export const player = actor({
                  ON CONFLICT DO UPDATE SET cost_cents = excluded.cost_cents
                  WHERE events.cost_cents IS NOT excluded.cost_cents`,
                   ...costs.flatMap(eventRow),
+                );
+              // Claude logs a response once per content block and only the last line has its final
+              // usage, so one split across two syncs arrives twice: keep the larger numbers.
+              const claude = chunk.filter(
+                (e) =>
+                  (e.source === "claude_code" || e.source === "claude_cowork") &&
+                  e.messageType === "assistant",
+              );
+              if (claude.length)
+                await tx.execute(
+                  `INSERT INTO events (${COLUMNS.join(",")}) VALUES ${claude.map(() => row).join(",")}
+                 ON CONFLICT DO UPDATE SET
+                   input_tokens = MAX(events.input_tokens, excluded.input_tokens),
+                   output_tokens = MAX(events.output_tokens, excluded.output_tokens),
+                   cache_creation_tokens = MAX(events.cache_creation_tokens, excluded.cache_creation_tokens),
+                   cache_read_tokens = MAX(events.cache_read_tokens, excluded.cache_read_tokens)
+                 WHERE excluded.input_tokens > events.input_tokens
+                    OR excluded.output_tokens > events.output_tokens
+                    OR excluded.cache_creation_tokens > events.cache_creation_tokens
+                    OR excluded.cache_read_tokens > events.cache_read_tokens`,
+                  ...claude.flatMap(eventRow),
                 );
             }
             // Also queue duplicate-only retries: the previous request may have saved events but

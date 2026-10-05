@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseCodexFile, type SessionTotals } from "../src/sources/codex.ts";
@@ -1231,5 +1231,25 @@ describe("replayed token_count records", () => {
     const r = await parseCodexFile({ path, byteOffset: 0 });
     expect(r.events.length).toBe(1);
     expect(r.replayedSkipped).toBe(1);
+  });
+});
+
+describe("listCodexFiles", () => {
+  it("includes archived rollouts, which the apps move out of sessions/", async () => {
+    const home = await mkdtemp(join(tmpdir(), "codex-home-"));
+    const live = join(home, "sessions", "2026", "10", "05", "rollout-a.jsonl");
+    const archived = join(home, "archived_sessions", "rollout-b.jsonl");
+    for (const f of [live, archived]) {
+      await mkdir(join(f, ".."), { recursive: true });
+      await writeFile(f, "");
+    }
+    const prev = process.env.CODEX_HOME;
+    process.env.CODEX_HOME = home;
+    try {
+      expect((await listCodexFiles()).sort()).toEqual([archived, live].sort());
+    } finally {
+      if (prev === undefined) delete process.env.CODEX_HOME;
+      else process.env.CODEX_HOME = prev;
+    }
   });
 });

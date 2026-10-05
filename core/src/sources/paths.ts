@@ -25,9 +25,7 @@ export function claudeCoworkDir(): string {
   return resolveDir(process.env.TOKENMAXXING_CLAUDE_COWORK_DIR, join(appSupport(), "Claude"));
 }
 
-function codexSessionsDir(): string {
-  return join(resolveDir(process.env.CODEX_HOME, join(homedir(), ".codex")), "sessions");
-}
+const codexHome = () => resolveDir(process.env.CODEX_HOME, join(homedir(), ".codex"));
 
 export function cursorStateDbPath(): string {
   const dir = resolveDir(process.env.CURSOR_DATA_DIR, join(appSupport(), "Cursor", "User", "globalStorage"));
@@ -67,8 +65,17 @@ export async function listClaudeCoworkFiles(): Promise<string[]> {
   return groups.flat();
 }
 
-export function listCodexFiles(): Promise<string[]> {
-  return scanGlob(codexSessionsDir(), "**/*.jsonl");
+/**
+ * Archiving a thread (CLI, Codex app, ChatGPT app) moves its rollout to `archived_sessions/`. Same
+ * file name, so the same message ids: the server drops what it already has from the re-read.
+ */
+export async function listCodexFiles(): Promise<string[]> {
+  const home = codexHome();
+  const [live, archived] = await Promise.all([
+    scanGlob(join(home, "sessions"), "**/*.jsonl"),
+    scanGlob(join(home, "archived_sessions"), "**/*.jsonl"),
+  ]);
+  return [...live, ...archived];
 }
 
 export function listCursorTranscriptFiles(): Promise<string[]> {

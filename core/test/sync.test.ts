@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { appendFile, mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { CollectOptions } from "../src/sync/collect.ts";
 import { emptyState, loadState } from "../src/sync/state.ts";
 import { sync } from "../src/sync/sync.ts";
 import type { Source, TokenEvent } from "../src/types.ts";
@@ -85,21 +86,34 @@ describe("sync", () => {
     });
     expect(got).toBe(0);
   });
-  test("GitHub is searched at most every 15 minutes", async () => {
-    let searches = 0;
-    const gh = async () => {
-      searches++;
-      return "[]";
-    };
+  test("GitHub is searched at most every 15 minutes, per account, and says why it can't", async () => {
+    const searched: string[] = [];
+    const githubFetch = (async (url: string, init: RequestInit) => {
+      searched.push(`${new URL(url).host} ${(init.headers as Record<string, string>).authorization}`);
+      return Response.json({ items: [] });
+    }) as unknown as typeof fetch;
+    let accounts: Awaited<ReturnType<NonNullable<CollectOptions["githubAccounts"]>>> = [
+      { host: "github.com", login: "me", token: "a" },
+      { host: "ghe.acme.com", login: "me-at-work", token: "b" },
+    ];
     const send = async () => ({ inserted: 0, duplicates: 0 });
-    const opts = { statePath, enabled: new Set<Source>(["github"]), gh, send };
+    const opts = {
+      statePath,
+      enabled: new Set<Source>(["github"]),
+      githubAccounts: async () => accounts,
+      githubFetch,
+      send,
+    };
     const t0 = Date.UTC(2026, 8, 29, 12);
     let state = (await sync(emptyState(), { ...opts, now: () => t0 })).state;
     state = (await sync(state, { ...opts, now: () => t0 + 10 * 60_000 })).state;
-    expect(searches).toBe(1);
-    await sync(state, { ...opts, now: () => t0 + 15 * 60_000 });
-    expect(searches).toBe(2);
+    expect(searched).toEqual(["api.github.com Bearer a", "ghe.acme.com Bearer b"]);
+    expect(state.github?.problem).toBeUndefined();
+    accounts = "no_gh";
+    state = (await sync(state, { ...opts, now: () => t0 + 15 * 60_000 })).state;
+    expect(state.github?.problem).toBe("no_gh");
   });
+
   test("deleted files are forgotten; the same message in two files is sent once", async () => {
     const dirP = join(dir, "claude", "projects", "p");
     await writeFile(join(dirP, "a.jsonl"), line("m1"));

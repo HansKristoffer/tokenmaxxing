@@ -71,6 +71,10 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
 
   const events: TokenEvent[] = [];
   const localSeen = new Set<string>();
+  // Claude Code writes one line per content block of a response, all with the
+  // same message id, and only the last carries the final output_tokens. So a
+  // repeat updates the event already taken.
+  const assistantAt = new Map<string, TokenEvent>();
   // Advance only past fully-terminated lines; a partial trailing line keeps
   // the offset put so the next read re-consumes it once it's complete.
   let newOffset = byteOffset;
@@ -133,10 +137,8 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
 
     // Assistant path — must have a usage block and an API message id.
     if (!isString(msg.id)) continue;
-    const dedupKey = `${msg.id}:${requestId ?? ""}`;
-    if (localSeen.has(dedupKey)) continue;
     if (!msg.usage) continue;
-    localSeen.add(dedupKey);
+    const dedupKey = `${msg.id}:${requestId ?? ""}`;
 
     const usage = msg.usage;
     const inputTokens = isNum(usage.input_tokens) ? usage.input_tokens : 0;
@@ -150,24 +152,35 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
       continue;
     }
 
-    events.push(
-      tokenEvent({
-        source,
-        sessionId,
-        agentId,
-        messageId: msg.id,
-        requestId,
-        timestamp,
-        // Assistant rows require a non-empty model server-side; "unknown" keeps
-        // the token usage rather than dropping it on the rare missing-model line.
-        model: isString(msg.model) ? msg.model : "unknown",
-        messageType: "assistant",
+    const taken = assistantAt.get(dedupKey);
+    if (taken) {
+      // A response split across two reads is sent twice; the server keeps the larger numbers.
+      Object.assign(taken, {
         inputTokens,
         outputTokens,
         cacheCreationTokens: cacheCreation,
         cacheReadTokens: cacheRead,
-      }),
-    );
+      });
+      continue;
+    }
+    const event = tokenEvent({
+      source,
+      sessionId,
+      agentId,
+      messageId: msg.id,
+      requestId,
+      timestamp,
+      // Assistant rows require a non-empty model server-side; "unknown" keeps
+      // the token usage rather than dropping it on the rare missing-model line.
+      model: isString(msg.model) ? msg.model : "unknown",
+      messageType: "assistant",
+      inputTokens,
+      outputTokens,
+      cacheCreationTokens: cacheCreation,
+      cacheReadTokens: cacheRead,
+    });
+    assistantAt.set(dedupKey, event);
+    events.push(event);
   }
 
   return { events, newOffset, oversizeSkipped };

@@ -51,7 +51,7 @@ function harness() {
   const messages: Message[] = [];
   const helper = new Helper({
     statePath: join(dir, "state.v2.json"),
-    gh: null,
+    githubAccounts: null,
     write: (m) => messages.push(m),
     log: () => {},
   });
@@ -147,7 +147,12 @@ describe("helper", () => {
     expect(helper.state.phase).toBe("ready");
     await helper.refresh();
     // The menu bar's count.
-    expect(helper.state.today).toMatchObject({ tokens: 15, rank: expect.any(Number) });
+    expect(helper.state.today).toMatchObject({
+      tokens: 15,
+      rank: expect.any(Number),
+      sources: [{ source: "claude_code", tokens: 15 }],
+      prs: 0,
+    });
     expect(helper.state.battle).toBeNull();
     helper.stop();
   });

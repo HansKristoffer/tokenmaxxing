@@ -18,6 +18,8 @@ pub struct State {
     pub phase: String,
     pub today: Option<Today>,
     pub battle: Option<Battle>,
+    /// Why this Mac can't count my PRs: "no_gh" or "signed_out".
+    pub github: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -25,6 +27,16 @@ pub struct Today {
     pub tokens: f64,
     pub rank: Option<u32>,
     pub level: u32,
+    /// Most tokens first.
+    pub sources: Vec<SourceTokens>,
+    pub prs: u32,
+}
+
+/// My tokens today from one source ("claude_code", "codex", …).
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct SourceTokens {
+    pub source: String,
+    pub tokens: f64,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -287,7 +299,18 @@ mod tests {
             Some(Today {
                 tokens: 306_000_000.0,
                 rank: Some(2),
-                level: 5
+                level: 5,
+                sources: vec![
+                    SourceTokens {
+                        source: "claude_code".into(),
+                        tokens: 250_000_000.0
+                    },
+                    SourceTokens {
+                        source: "codex".into(),
+                        tokens: 56_000_000.0
+                    },
+                ],
+                prs: 3,
             })
         );
         let battle = ready.battle.as_ref().unwrap();
@@ -301,7 +324,8 @@ mod tests {
             Message::State(State {
                 phase: "onboarding".into(),
                 today: None,
-                battle: None
+                battle: None,
+                github: Some("signed_out".into())
             })
         );
         assert_eq!(messages[2], Message::Token(Some("12.tok_abc".into())));

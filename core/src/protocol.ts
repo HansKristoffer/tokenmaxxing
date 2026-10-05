@@ -4,6 +4,8 @@
  * the contract test (app/helper/test/protocol.test.ts) writes a fixture the Rust
  * test decodes, so drift fails CI on both sides.
  */
+import type { GithubProblem, Source } from "./types.ts";
+
 export type Command =
   | {
       id: number;
@@ -45,10 +47,24 @@ export interface Battle {
   until: number;
 }
 
+/** My tokens today from one source, as the server has them. */
+export interface SourceTokens {
+  source: Source;
+  tokens: number;
+}
+
+/** My tokens today per source (most first) and PRs opened today, as the server has them. */
+export interface TodayBySource {
+  sources: SourceTokens[];
+  prs: number;
+}
+
 /** What the desktop app shows: sign-up until there's an account, then my count in the menu bar. */
 export interface AppState {
   phase: "starting" | "onboarding" | "ready";
   /** My numbers today, after the first sync. */
-  today: { tokens: number; rank: number | null; level: number } | null;
+  today: ({ tokens: number; rank: number | null; level: number } & TodayBySource) | null;
   battle: Battle | null;
+  /** Why this Mac can't count my PRs, if it can't. */
+  github: GithubProblem | null;
 }
