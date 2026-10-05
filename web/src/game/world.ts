@@ -177,11 +177,16 @@ export function applyInfo(info: PlayerInfo): void {
 export function applyChat(line: ChatLine): void {
   if (line.room !== world.room) return;
   hud.set((s) => ({ chat: [...s.chat.slice(-99), line] }));
-  const a = world.avatars.get(line.userId);
+  applyBubble(line);
+}
+
+/** Something said over someone's head: a bubble, or a burst if it's only emoji. Bots only talk this way. */
+export function applyBubble(e: { userId: number; text: string }): void {
+  const a = world.avatars.get(e.userId);
   if (!a) return;
-  const emojis = emojiOnly(line.text);
+  const emojis = emojiOnly(e.text);
   if (emojis) a.burst = { emojis, at: performance.now() };
-  else a.bubble = { text: line.text, until: performance.now() + BUBBLE_MS };
+  else a.bubble = { text: e.text, until: performance.now() + BUBBLE_MS };
 }
 
 /** Starts a one-tile step animation. */

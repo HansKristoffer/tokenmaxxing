@@ -13,6 +13,7 @@ import {
 import type { registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
 import {
+  applyBubble,
   applyCallout,
   applyChat,
   applyGame,
@@ -109,6 +110,7 @@ export function connect(token: string): void {
   });
   conn.on("occupancy", (o: Partial<Record<RoomId, number>>) => hud.set({ occupancy: o }));
   conn.on("chat", (line: ChatLine) => applyChat(line));
+  conn.on("bubble", (e: { userId: number; text: string }) => applyBubble(e));
   conn.on("jump", (id: number) => applyJump(id));
   conn.on("notice", (text: string) => {
     hud.set({ notice: { text, at: Date.now() } });

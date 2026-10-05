@@ -180,6 +180,8 @@ export const world = actor({
         id INTEGER PRIMARY KEY, room TEXT NOT NULL, user_id INTEGER NOT NULL,
         name TEXT NOT NULL, text TEXT NOT NULL, at INTEGER NOT NULL)`);
       await d.execute("CREATE INDEX IF NOT EXISTS chat_room ON chat (room, id)");
+      // Bots used to talk in the chat; they only talk over their heads now.
+      await d.execute("DELETE FROM chat WHERE user_id < 0");
     },
   }),
   onCreate: (c) => requireMain(c),
@@ -216,7 +218,7 @@ export const world = actor({
         for (const p of settle(c.state, c.vars, now)) c.broadcast("info", info(p, true));
       if (n % BOT_STEP_EVERY === 0) {
         for (const p of walkBots(c.state, c.vars, now)) c.broadcast("info", info(p, true));
-        await talkBots(c, now);
+        talkBots(c, now);
       }
       flush(c);
     }
@@ -651,7 +653,7 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
 const onProp = (s: WorldState, x: number, y: number) =>
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
 
-/** A line in a room's chat from the town itself (a game's result), or from a bot. */
+/** A line in a room's chat from the town itself (a game's result). */
 async function announce(
   c: Sender & { db: Sql },
   room: RoomId,
@@ -774,8 +776,8 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
   return drank;
 }
 
-/** Bots due a line say one, if anyone online is in the room to hear it (else the chat would fill up overnight). */
-async function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> }; db: Sql }, now: number) {
+/** Bots due a line say one over their heads (never in the chat), if anyone online is in the room to hear it. */
+function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> } }, now: number): void {
   for (const b of BOTS) {
     const p = c.state.players[b.id];
     const run = runOf(c.vars, b.id, b.every, now);
@@ -786,7 +788,7 @@ async function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> }
     run.cups = 0;
     if (![...c.vars.online.keys()].some((id) => c.state.players[id]?.room === p.room)) continue;
     run.restUntil = Math.max(run.restUntil, now + BOT_TALK_PAUSE_MS);
-    await announce(c, p.room, text, b.id, b.name);
+    sendToRoom(c, p.room, "bubble", { userId: b.id, text });
   }
 }
 
