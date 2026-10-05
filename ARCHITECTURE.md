@@ -86,7 +86,8 @@ The game also runs in any browser; the app's window is that same page, at `/play
   types and the TypeScript ones in step.
 - **`tray.rs`**: the menu bar. The bolt is a template image with today's tokens as its title. Its menu:
   - Open world;
-  - your rank and level, and the battle you're in;
+  - your rank and level, today's tokens per source (Claude Code, Codex, …, as the server has them), and the
+    battle you're in;
   - Sync now;
   - Link a computer… (copies the line to run on the other computer);
   - Launch at login;

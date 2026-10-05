@@ -2,10 +2,19 @@ import { type IngestResponse, SOURCES, type SyncState, type TokenEvent } from ".
 import { type CollectOptions, collect } from "./collect.ts";
 import { saveState } from "./state.ts";
 
-/** Every source is read unless `enabled` narrows it (tests); `gh: null` skips GitHub. */
+/** Every source is read unless `enabled` narrows it (tests); `githubAccounts: null` skips GitHub. */
 interface SyncOptions
   extends Partial<
-    Pick<CollectOptions, "enabled" | "gh" | "now" | "cursorDbPath" | "cursorFetch" | "cursorCredentials">
+    Pick<
+      CollectOptions,
+      | "enabled"
+      | "githubAccounts"
+      | "githubFetch"
+      | "now"
+      | "cursorDbPath"
+      | "cursorFetch"
+      | "cursorCredentials"
+    >
   > {
   statePath: string;
   send: (events: TokenEvent[]) => Promise<IngestResponse>;
@@ -29,7 +38,16 @@ export const MAX_EVENTS_PER_REQUEST = 1000;
 export async function sync(state: SyncState, opts: SyncOptions): Promise<SyncResult> {
   let sent = 0;
   let inserted = 0;
-  const { enabled = new Set(SOURCES), gh, now, onError, cursorDbPath, cursorFetch, cursorCredentials } = opts;
+  const {
+    enabled = new Set(SOURCES),
+    githubAccounts,
+    githubFetch,
+    now,
+    onError,
+    cursorDbPath,
+    cursorFetch,
+    cursorCredentials,
+  } = opts;
   for await (const batch of collect(state, {
     enabled,
     onError,
@@ -37,7 +55,8 @@ export async function sync(state: SyncState, opts: SyncOptions): Promise<SyncRes
     cursorDbPath,
     cursorFetch,
     cursorCredentials,
-    ...(gh !== undefined ? { gh } : {}),
+    githubFetch,
+    ...(githubAccounts !== undefined ? { githubAccounts } : {}),
   })) {
     for (let i = 0; i < batch.events.length; i += MAX_EVENTS_PER_REQUEST) {
       const r = await opts.send(batch.events.slice(i, i + MAX_EVENTS_PER_REQUEST));

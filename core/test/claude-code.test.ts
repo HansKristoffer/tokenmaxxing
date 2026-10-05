@@ -128,6 +128,17 @@ describe("parseClaudeCodeFile (synthetic)", () => {
     expect(r.events.length).toBe(1);
   });
 
+  it("takes a response's usage from its last content-block line, where output is final", async () => {
+    const block = (output_tokens: number) =>
+      JSON.stringify({
+        ...baseAssistant,
+        message: { ...baseAssistant.message, usage: { ...baseAssistant.message.usage, output_tokens } },
+      });
+    const path = await makeTempJsonl([block(2), block(2), block(340)]);
+    const r = await parseClaudeCodeFile({ path, byteOffset: 0 });
+    expect(r.events.map((e) => e.outputTokens)).toEqual([340]);
+  });
+
   it("skips assistant lines lacking message.id", async () => {
     const path = await makeTempJsonl([
       JSON.stringify({

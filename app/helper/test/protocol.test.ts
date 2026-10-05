@@ -8,7 +8,16 @@ import type { AppState, Message } from "@tokenmaxxing/core/protocol.ts";
  */
 const state: AppState = {
   phase: "ready",
-  today: { tokens: 306_000_000, rank: 2, level: 5 },
+  today: {
+    tokens: 306_000_000,
+    rank: 2,
+    level: 5,
+    sources: [
+      { source: "claude_code", tokens: 250_000_000 },
+      { source: "codex", tokens: 56_000_000 },
+    ],
+    prs: 3,
+  },
   battle: {
     name: "Tokenmaxxing",
     place: 2,
@@ -17,11 +26,12 @@ const state: AppState = {
     endsAt: 1_790_003_600_000,
     until: 1_790_003_780_000,
   },
+  github: null,
 };
 
 const messages: Message[] = [
   { event: "state", state },
-  { event: "state", state: { phase: "onboarding", today: null, battle: null } },
+  { event: "state", state: { phase: "onboarding", today: null, battle: null, github: "signed_out" } },
   { event: "token", token: "12.tok_abc" },
   { event: "token", token: null },
   { id: 1, ok: true, result: null },

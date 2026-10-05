@@ -55,7 +55,7 @@ content never does. The app reads local logs and Cursor dashboard usage:
 | Claude Cowork | `~/Library/Application Support/Claude/…/.claude/projects/**/*.jsonl` |
 | Codex | `~/.codex/sessions/**/*.jsonl` |
 | Cursor | Dashboard usage API; signs in using `cursorAuth/accessToken` from the local `state.vscdb` |
-| GitHub | PRs you opened, via the `gh` CLI if it's signed in (at most every 15 minutes); only a hash of each PR's URL and when it was opened are sent |
+| GitHub | PRs you opened, on every account the `gh` CLI is signed in to (github.com and Enterprise), or else with the github.com login git saved for HTTPS (at most every 15 minutes); only a hash of each PR's URL and when it was opened are sent. The menu says when neither is there |
 
 Cursor must be installed and signed in. Its session credential is read locally and sent only to
 `cursor.com`; it is never uploaded to Tokenmaxxing or saved in sync state. Every 15 minutes, the helper

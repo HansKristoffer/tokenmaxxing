@@ -6,14 +6,14 @@ import {
   fetchCursorUsagePages,
   loadCursorCredentials,
 } from "../sources/cursor-api.ts";
-import { fetchPullRequests, type GhRunner, ghPath, ghRunner } from "../sources/github.ts";
+import { fetchPullRequests, type GithubAccount, localGithubAccounts } from "../sources/github.ts";
 import {
   cursorStateDbPath,
   listClaudeCodeFiles,
   listClaudeCoworkFiles,
   listCodexFiles,
 } from "../sources/paths.ts";
-import type { FileState, Source, SyncState, TokenEvent } from "../types.ts";
+import type { FileState, GithubProblem, Source, SyncState, TokenEvent } from "../types.ts";
 
 /** A file-backed source: list its files, parse one from where the last read stopped. */
 interface FileSource {
@@ -81,8 +81,9 @@ export interface CollectOptions {
   cursorDbPath?: string;
   cursorFetch?: CursorApiOptions["fetch"];
   cursorCredentials?: () => ReturnType<typeof loadCursorCredentials>;
-  /** Runs `gh`; defaults to the installed one. null = no `gh`, skip PRs. */
-  gh?: GhRunner | null;
+  /** The GitHub accounts to count PRs for; defaults to `gh`'s, then git's saved login. null skips PRs. */
+  githubAccounts?: (() => Promise<GithubAccount[] | GithubProblem>) | null;
+  githubFetch?: typeof fetch;
   now?: () => number;
   onError?: (err: unknown, where: string) => void;
 }
@@ -198,21 +199,36 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
 
   // PRs change a few times a day, and search has a tight rate limit: ask at most every 15 minutes.
   const checkedAt = state.github?.checkedAt ?? 0;
-  if (opts.enabled.has("github") && now - checkedAt >= GITHUB_EVERY_MS) {
-    const bin = opts.gh === undefined ? ghPath() : null;
-    const gh = opts.gh !== undefined ? opts.gh : bin ? ghRunner(bin) : null;
-    if (gh) {
-      try {
-        const r = await fetchPullRequests(gh, state.github?.since ?? null);
-        take(r.events);
-        const batch = flush();
-        yield {
-          events: batch.events,
-          commit: (s) => ({ ...batch.commit(s), github: { since: r.since, checkedAt: now } }),
-        };
-      } catch (err) {
-        opts.onError?.(err, "github");
+  if (opts.enabled.has("github") && opts.githubAccounts !== null && now - checkedAt >= GITHUB_EVERY_MS) {
+    try {
+      const found = await (opts.githubAccounts ?? localGithubAccounts)();
+      const cursors = { ...state.github?.cursors };
+      let problem: GithubProblem | undefined;
+      if (typeof found === "string") {
+        problem = found;
+      } else {
+        let rejected = 0;
+        for (const account of found) {
+          const key = `${account.host}/${account.login}`;
+          const r = await fetchPullRequests(account, cursors[key] ?? null, opts.githubFetch, (msg) =>
+            opts.onError?.(msg, "github"),
+          );
+          take(r.events);
+          if (r.since) cursors[key] = r.since;
+          if (r.rejected) rejected++;
+        }
+        if (rejected === found.length) problem = "signed_out";
       }
+      const batch = flush();
+      yield {
+        events: batch.events,
+        commit: (s) => ({
+          ...batch.commit(s),
+          github: { cursors, checkedAt: now, ...(problem ? { problem } : {}) },
+        }),
+      };
+    } catch (err) {
+      opts.onError?.(err, "github");
     }
   }
 

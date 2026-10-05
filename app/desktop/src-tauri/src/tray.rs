@@ -14,6 +14,7 @@ use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuEvent, MenuItem, Predefin
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, Wry};
 use tauri_plugin_autostart::ManagerExt;
+use tauri_plugin_opener::OpenerExt;
 
 const ID: &str = "main";
 
@@ -66,6 +67,12 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         )?));
         if let Some(line) = today_line(&ui.state) {
             items.push(Box::new(item("today", &line, false, None)?));
+        }
+        for (i, line) in source_lines(&ui.state).iter().enumerate() {
+            items.push(Box::new(item(&format!("source-{i}"), line, false, None)?));
+        }
+        if let Some(line) = github_line(&ui.state) {
+            items.push(Box::new(item("github", line, true, None)?));
         }
         if let Some(line) = battle_line(&ui.state, now_ms()) {
             items.push(Box::new(item("battle", &line, false, None)?));
@@ -163,6 +170,19 @@ fn on_menu(app: &AppHandle, event: MenuEvent) {
             }
             refresh(app);
         }
+        "github" => {
+            let problem = app.state::<Shared>().lock().unwrap().state.github.clone();
+            if problem.as_deref() == Some("signed_out") {
+                if let Err(e) = copy("gh auth login") {
+                    log::warn!("copy gh auth login: {e}");
+                }
+            } else if let Err(e) = app
+                .opener()
+                .open_url("https://cli.github.com", None::<&str>)
+            {
+                log::warn!("open the GitHub CLI page: {e}");
+            }
+        }
         "update" => updates::from_menu(app),
         "quit" => app.exit(0),
         _ => {}
@@ -205,6 +225,45 @@ fn today_line(state: &State) -> Option<String> {
         compact(today.tokens),
         today.level
     ))
+}
+
+/// "   Claude Code · 250.0M" per source with tokens today, under the total, then today's PRs: shows
+/// which apps' usage reached the server.
+fn source_lines(state: &State) -> Vec<String> {
+    let Some(today) = state.today.as_ref() else {
+        return Vec::new();
+    };
+    let mut lines: Vec<String> = today
+        .sources
+        .iter()
+        .filter(|s| s.tokens > 0.0)
+        .map(|s| {
+            let name = match s.source.as_str() {
+                // Claude Desktop's Code tab writes the same logs as the CLI.
+                "claude_code" => "Claude Code",
+                "claude_cowork" => "Claude Cowork",
+                // The CLI, the Codex app and Codex in the ChatGPT app.
+                "codex" => "Codex",
+                "cursor_local" => "Cursor",
+                other => other,
+            };
+            format!("   {name} · {}", compact(s.tokens))
+        })
+        .collect();
+    if today.prs > 0 {
+        lines.push(format!("   Pull requests · {}", today.prs));
+    }
+    lines
+}
+
+/// When this Mac can't count PRs, how to fix it. Clicking it opens the GitHub CLI's page, or copies
+/// the line that signs it in.
+fn github_line(state: &State) -> Option<&'static str> {
+    match state.github.as_deref()? {
+        "no_gh" => Some("Count your PRs: get the GitHub CLI…"),
+        "signed_out" => Some("Count your PRs: copy “gh auth login”"),
+        _ => None,
+    }
 }
 
 /// "🏁 Tokenmaxxing · 2nd of 4 · 18:42 left". It updates with every sync, which is every 10 s in a battle.
@@ -273,7 +332,7 @@ fn clock(ms: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::helper::{Battle, Today};
+    use crate::helper::{Battle, SourceTokens, Today};
 
     #[test]
     fn the_menu_bar_reads_like_the_game() {
@@ -288,6 +347,21 @@ mod tests {
                 tokens: 306_000_000.0,
                 rank: Some(2),
                 level: 5,
+                sources: vec![
+                    SourceTokens {
+                        source: "claude_code".into(),
+                        tokens: 250_000_000.0,
+                    },
+                    SourceTokens {
+                        source: "codex".into(),
+                        tokens: 56_000_000.0,
+                    },
+                    SourceTokens {
+                        source: "github".into(),
+                        tokens: 0.0,
+                    },
+                ],
+                prs: 3,
             }),
             battle: Some(Battle {
                 name: "Tokenmaxxing".into(),
@@ -297,11 +371,29 @@ mod tests {
                 ends_at: 1_000_000.0,
                 until: 1_180_000.0,
             }),
+            github: None,
         };
         assert_eq!(title(&state).as_deref(), Some("306.0M"));
         assert_eq!(
             today_line(&state).unwrap(),
             "306.0M today · #2 in town · Lv5"
+        );
+        assert_eq!(
+            source_lines(&state),
+            [
+                "   Claude Code · 250.0M",
+                "   Codex · 56.0M",
+                "   Pull requests · 3"
+            ]
+        );
+        assert_eq!(github_line(&state), None);
+        let signed_out = State {
+            github: Some("signed_out".into()),
+            ..state.clone()
+        };
+        assert_eq!(
+            github_line(&signed_out),
+            Some("Count your PRs: copy “gh auth login”")
         );
         assert_eq!(
             battle_line(&state, 0.0).unwrap(),

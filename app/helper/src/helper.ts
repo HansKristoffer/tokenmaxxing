@@ -1,6 +1,6 @@
 import { rm } from "node:fs/promises";
 import type { AppState, Command, LinkComputer, Message } from "@tokenmaxxing/core/protocol.ts";
-import type { GhRunner } from "@tokenmaxxing/core/sources/github.ts";
+import type { CollectOptions } from "@tokenmaxxing/core/sync/collect.ts";
 import { emptyState, loadState } from "@tokenmaxxing/core/sync/state.ts";
 import { sync } from "@tokenmaxxing/core/sync/sync.ts";
 import type { SyncState, TokenEvent } from "@tokenmaxxing/core/types.ts";
@@ -16,8 +16,8 @@ export interface HelperOptions {
   statePath: string;
   write: (msg: Message) => void;
   log?: (msg: string) => void;
-  /** Runs `gh` for GitHub PRs; defaults to the installed one, null skips it (tests). */
-  gh?: GhRunner | null;
+  /** Where GitHub PRs come from; defaults to `gh`'s accounts, null skips them (tests). */
+  githubAccounts?: CollectOptions["githubAccounts"];
 }
 
 /** A failed call with a stable code the shell can map to a message. */
@@ -48,7 +48,7 @@ export class Helper {
   readonly state: AppState;
 
   constructor(private readonly opts: HelperOptions) {
-    this.state = { phase: "starting", today: null, battle: null };
+    this.state = { phase: "starting", today: null, battle: null, github: null };
   }
 
   /** Handles one command and always replies, so the shell can await every call. */
@@ -160,7 +160,15 @@ export class Helper {
           this.api().arcade.getOrCreate(["main"], this.params()).battle(),
         ]),
       );
-      this.state.today = { tokens: today.me.tokensToday, rank: today.me.rank, level: today.me.level };
+      // After `town` has checked the token: a rejected one's player may not exist, and that error
+      // would hide the `unauthorized` that signs out.
+      const mine = await this.call(() => this.player().todayBySource());
+      this.state.today = {
+        tokens: today.me.tokensToday,
+        rank: today.me.rank,
+        level: today.me.level,
+        ...mine,
+      };
       this.state.battle = battle;
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
@@ -175,7 +183,7 @@ export class Helper {
     this.token = null;
     this.syncState = emptyState();
     void rm(this.opts.statePath, { force: true });
-    Object.assign(this.state, { phase: "onboarding", today: null, battle: null });
+    Object.assign(this.state, { phase: "onboarding", today: null, battle: null, github: null });
   }
 
   /** Parse new local events and send them; one run at a time. */
@@ -187,9 +195,10 @@ export class Helper {
           statePath: this.opts.statePath,
           send: (events) => this.send(events),
           onError: (err, where) => this.log(`${where}: ${String(err)}`),
-          ...(this.opts.gh !== undefined ? { gh: this.opts.gh } : {}),
+          ...(this.opts.githubAccounts !== undefined ? { githubAccounts: this.opts.githubAccounts } : {}),
         });
         this.syncState = r.state;
+        this.state.github = r.state.github?.problem ?? null;
       } catch (err) {
         // Offsets up to the last acked batch are already saved; the next run picks up there.
         this.syncState = await loadState(this.opts.statePath);
