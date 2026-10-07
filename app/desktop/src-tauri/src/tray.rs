@@ -245,6 +245,8 @@ fn source_lines(state: &State) -> Vec<String> {
                 // The CLI, the Codex app and Codex in the ChatGPT app.
                 "codex" => "Codex",
                 "cursor_local" => "Cursor",
+                // Cursor dashboard rows for grok-bot* cloud agents.
+                "grok_bot" => "Grok Bot",
                 other => other,
             };
             format!("   {name} · {}", compact(s.tokens))
@@ -357,6 +359,10 @@ mod tests {
                         tokens: 56_000_000.0,
                     },
                     SourceTokens {
+                        source: "grok_bot".into(),
+                        tokens: 12_000_000.0,
+                    },
+                    SourceTokens {
                         source: "github".into(),
                         tokens: 0.0,
                     },
@@ -383,6 +389,7 @@ mod tests {
             [
                 "   Claude Code · 250.0M",
                 "   Codex · 56.0M",
+                "   Grok Bot · 12.0M",
                 "   Pull requests · 3"
             ]
         );

@@ -63,6 +63,12 @@ const FILE_SOURCES: readonly FileSource[] = [
 
 const GITHUB_EVERY_MS = 15 * 60_000;
 const CURSOR_EVERY_MS = 15 * 60_000;
+/**
+ * Dashboard checkpoint generation.
+ * 2 recorded reported costs.
+ * 3 re-reads history once so `grok-bot*` rows, previously dropped, land on `grok_bot`.
+ */
+const CURSOR_API_VERSION = 3;
 
 /** Same key as the server's unique index, so we never send what it would drop. */
 const dedupKey = (e: TokenEvent) => `${e.source}\0${e.messageId}\0${e.requestId ?? ""}\0${e.messageType}`;
@@ -159,7 +165,8 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
   const now = (opts.now ?? Date.now)();
   if (
     opts.enabled.has("cursor_local") &&
-    (state.cursorApi?.costVersion !== 2 || now - (state.cursorApi?.checkedAt ?? 0) >= CURSOR_EVERY_MS)
+    (state.cursorApi?.costVersion !== CURSOR_API_VERSION ||
+      now - (state.cursorApi?.checkedAt ?? 0) >= CURSOR_EVERY_MS)
   ) {
     const dbPath = opts.cursorDbPath ?? cursorStateDbPath();
     if (opts.cursorCredentials || (await mtimeOf(dbPath)) !== null) {
@@ -167,7 +174,7 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
         const credentials = opts.cursorCredentials ?? (() => loadCursorCredentials(dbPath));
         const accountId = credentials().accountId;
         const since =
-          state.cursorApi?.accountId === accountId && state.cursorApi.costVersion === 2
+          state.cursorApi?.accountId === accountId && state.cursorApi.costVersion === CURSOR_API_VERSION
             ? Math.max(0, state.cursorApi.checkedAt - 7 * 24 * 60 * 60_000)
             : 0;
         for await (const r of fetchCursorUsagePages({
@@ -186,7 +193,7 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
               r.done
                 ? {
                     ...batch.commit(s),
-                    cursorApi: { accountId: r.accountId, checkedAt: now, costVersion: 2 },
+                    cursorApi: { accountId: r.accountId, checkedAt: now, costVersion: CURSOR_API_VERSION },
                   }
                 : batch.commit(s),
           };

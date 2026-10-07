@@ -1,5 +1,7 @@
+import { Database } from "bun:sqlite";
+import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
 
 function resolveDir(envValue: string | undefined, fallback: string): string {
   const raw = envValue && envValue.length > 0 ? envValue : fallback;
@@ -68,14 +70,100 @@ export async function listClaudeCoworkFiles(): Promise<string[]> {
 /**
  * Archiving a thread (CLI, Codex app, ChatGPT app) moves its rollout to `archived_sessions/`. Same
  * file name, so the same message ids: the server drops what it already has from the re-read.
+ *
+ * `state_*.sqlite` (`threads.rollout_path`) is only a pointer. A rollout that still exists under
+ * the Codex home is parsed like any other JSONL, including one that lives outside `sessions/` and
+ * `archived_sessions/`. `threads.tokens_used` is a single running total with no per-turn split, so
+ * it is not turned into events: billing it next to a rollout would count the same usage twice, and
+ * stuffing the aggregate into one bucket would invent a breakdown. Consumer ChatGPT chats that
+ * never write a Codex rollout have no local token ledger.
  */
 export async function listCodexFiles(): Promise<string[]> {
   const home = codexHome();
-  const [live, archived] = await Promise.all([
+  const [live, archived, indexed] = await Promise.all([
     scanGlob(join(home, "sessions"), "**/*.jsonl"),
     scanGlob(join(home, "archived_sessions"), "**/*.jsonl"),
+    listCodexIndexedRollouts(home),
   ]);
-  return [...live, ...archived];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const path of [...live, ...archived, ...indexed]) {
+    const key = canonical(path) ?? path;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
+}
+
+/** Codex state catalogs. `CODEX_SQLITE_HOME` can put them beside `CODEX_HOME`. */
+function codexStateRoots(home: string): string[] {
+  const roots = [home, join(home, "sqlite")];
+  const extra = process.env.CODEX_SQLITE_HOME;
+  if (extra && extra.length > 0) {
+    const dir = resolveDir(extra, extra);
+    roots.push(dir, join(dir, "sqlite"));
+  }
+  return roots;
+}
+
+/**
+ * Rollout JSONL paths recorded in Codex's thread index. Missing files, paths outside the Codex
+ * home, and databases without a `threads` table contribute nothing.
+ */
+async function listCodexIndexedRollouts(home: string): Promise<string[]> {
+  const dbPaths = new Set<string>();
+  for (const root of codexStateRoots(home)) {
+    for (const path of await scanGlob(root, "state_*.sqlite")) dbPaths.add(canonical(path) ?? path);
+  }
+  const out: string[] = [];
+  for (const dbPath of dbPaths) out.push(...readRolloutPaths(dbPath, home));
+  return out;
+}
+
+function readRolloutPaths(dbPath: string, home: string): string[] {
+  let db: Database | undefined;
+  try {
+    db = new Database(dbPath, { readonly: true });
+    const rows = db.query("SELECT rollout_path FROM threads").all() as { rollout_path: unknown }[];
+    const found: string[] = [];
+    for (const row of rows) {
+      if (typeof row.rollout_path !== "string" || row.rollout_path.length === 0) continue;
+      const abs = isAbsolute(row.rollout_path) ? row.rollout_path : join(home, row.rollout_path);
+      const file = rolloutInsideHome(home, abs);
+      if (file) found.push(file);
+    }
+    return found;
+  } catch {
+    // Locked, missing, or an older catalog with no threads table. Session globs still count.
+    return [];
+  } finally {
+    db?.close();
+  }
+}
+
+/** Real path of a `.jsonl` file that stays inside `home` after resolving symlinks. */
+function rolloutInsideHome(home: string, candidate: string): string | null {
+  if (!candidate.endsWith(".jsonl")) return null;
+  let root: string;
+  let file: string;
+  try {
+    root = realpathSync(home);
+    file = realpathSync(candidate);
+  } catch {
+    return null;
+  }
+  const rel = relative(root, file);
+  if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return null;
+  return file;
+}
+
+function canonical(path: string): string | null {
+  try {
+    return realpathSync(path);
+  } catch {
+    return null;
+  }
 }
 
 export function listCursorTranscriptFiles(): Promise<string[]> {

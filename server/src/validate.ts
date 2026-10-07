@@ -83,7 +83,7 @@ export function parseEvent(raw: unknown, now: number): TokenEvent | string {
   if (
     e.costCents !== undefined &&
     e.costCents !== null &&
-    (e.source !== "cursor_local" ||
+    ((e.source !== "cursor_local" && e.source !== "grok_bot") ||
       typeof e.costCents !== "number" ||
       !Number.isFinite(e.costCents) ||
       e.costCents < 0 ||

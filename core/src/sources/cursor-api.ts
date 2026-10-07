@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { createHash } from "node:crypto";
-import { CURSOR_API_MESSAGE_PREFIX, CURSOR_EXCLUDED_MODELS, type TokenEvent, tokenEvent } from "../types.ts";
+import { CURSOR_API_MESSAGE_PREFIX, isGrokBotModel, type TokenEvent, tokenEvent } from "../types.ts";
 
 const URL = "https://cursor.com/api/dashboard/get-filtered-usage-events";
 const PAGE_SIZE = 1000;
@@ -149,7 +149,6 @@ export async function* fetchCursorUsagePages(opts: CursorApiOptions): AsyncGener
     }
     for (const raw of rows) {
       const row = record(raw);
-      if (typeof row.model === "string" && CURSOR_EXCLUDED_MODELS.has(row.model)) continue;
       // Older request-based plans can have no token breakdown; don't fabricate tokens.
       if (row.tokenUsage === null || row.tokenUsage === undefined) continue;
       const usage = record(row.tokenUsage);
@@ -193,7 +192,8 @@ export async function* fetchCursorUsagePages(opts: CursorApiOptions): AsyncGener
       const id = `${CURSOR_API_MESSAGE_PREFIX}${key}:${occurrence}`;
       events.push(
         tokenEvent({
-          source: "cursor_local",
+          // Grok Bot cloud agents show up on this same dashboard. They are not Cursor IDE usage.
+          source: isGrokBotModel(row.model) ? "grok_bot" : "cursor_local",
           sessionId:
             typeof row.conversationId === "string" && row.conversationId
               ? row.conversationId
