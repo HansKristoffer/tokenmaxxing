@@ -127,24 +127,31 @@ describe("Cursor dashboard", () => {
     }
   });
 
-  test("skips all excluded Grok bots while preserving regular Grok models and pagination", async () => {
+  test("maps Grok Bot dashboard rows onto grok_bot and leaves other models on cursor_local", async () => {
+    const models: [string, string][] = [
+      ["grok-bot-automation", "grok_bot"],
+      ["grok-bot-default", "grok_bot"],
+      ["grok-bot-cua", "grok_bot"],
+      ["grok-bot", "grok_bot"],
+      ["grok-bot-extra", "grok_bot"],
+      ["grok-4.7-high", "cursor_local"],
+      ["composer-2.5", "cursor_local"],
+      ["not-grok-bot-automation", "cursor_local"],
+    ];
+    const rows = [
+      ...models.map(([model]) => ({ ...row(), model })),
+      { ...row(), model: "grok-bot-default", tokenUsage: null },
+    ];
     const r = await fetchCursorUsage({
       ...options,
       pageSize: 1,
       fetch: fetcher(async (_url, init) => {
         const { page: number } = JSON.parse(String(init?.body));
-        return page(
-          [
-            {
-              ...row(),
-              model: ["grok-bot-automation", "grok-bot-default", "grok-bot-cua", "grok-4.7-high"][number - 1],
-            },
-          ],
-          4,
-        );
+        return page([rows[number - 1]], rows.length);
       }),
     });
-    expect(r.events.map((e) => e.model)).toEqual(["grok-4.7-high"]);
+    expect(r.events.map((e) => [e.model, e.source])).toEqual(models);
+    expect(r.events.every((e) => e.inputTokens === 10 && e.outputTokens === 20)).toBe(true);
   });
 
   test("IDs survive page shifts and preserve identical rows", async () => {
@@ -389,8 +396,8 @@ describe("Cursor sync checkpoint", () => {
     expect(second.state.cursorApi?.checkedAt).toBe(until);
   });
 
-  test("upgrades earlier checkpoints with a full cost replay before throttling", async () => {
-    for (const costVersion of [undefined, 1]) {
+  test("upgrades earlier checkpoints with a full history replay before throttling", async () => {
+    for (const costVersion of [undefined, 1, 2]) {
       const requests: Record<string, unknown>[] = [];
       const result = await sync(
         { files: {}, cursorApi: { accountId: credentials().accountId, checkedAt: until, costVersion } },
@@ -407,7 +414,7 @@ describe("Cursor sync checkpoint", () => {
         },
       );
       expect(requests[0]!.startDate).toBe("0");
-      expect(result.state.cursorApi?.costVersion).toBe(2);
+      expect(result.state.cursorApi?.costVersion).toBe(3);
     }
   });
 

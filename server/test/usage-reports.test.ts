@@ -148,16 +148,50 @@ test("expanded bot cleanup upgrades earlier exclusions and preserves regular Cur
         [id!, model!],
       );
     }
+    db.run(
+      `INSERT INTO events (source, session_id, message_id, timestamp, day, model, message_type,
+      input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
+      VALUES ('grok_bot', 's', 'kept-bot', 1, '2026-09-29', 'grok-bot-default', 'assistant', 100, 50, 0, 0)`,
+    );
     await migrateEvents(sql);
     // Startup leaves them alone: the cleanup runs in the background, in batches.
-    expect(db.query("SELECT COUNT(*) AS n FROM events").get()).toEqual({ n: 4 });
+    expect(db.query("SELECT COUNT(*) AS n FROM events").get()).toEqual({ n: 5 });
     await cleanExcludedEvents(sql);
-    expect(db.query("SELECT model FROM events").all()).toEqual([{ model: "grok-4.7-high" }]);
+    expect(db.query("SELECT source, model FROM events ORDER BY source, model").all()).toEqual([
+      { source: "cursor_local", model: "grok-4.7-high" },
+      { source: "grok_bot", model: "grok-bot-default" },
+    ]);
     expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([{ day: "2026-09-29" }]);
     await flushUsageReports(sql, async () => {});
     await migrateEvents(sql);
     await cleanExcludedEvents(sql);
     expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([]);
+  } finally {
+    db.close();
+  }
+});
+
+test("a finished exact-list cleanup scans again so leftover Cursor-tagged Grok Bot rows are removed", async () => {
+  const { db, sql } = memorySql();
+  try {
+    await migrateEvents(sql);
+    db.run("INSERT OR IGNORE INTO usage_report_migrations VALUES (3)");
+    db.run("INSERT INTO excluded_cleanup VALUES (100)");
+    const insert = db.prepare(`INSERT INTO events (id, source, session_id, message_id, timestamp, day, model,
+      message_type, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
+      VALUES (?, ?, 's', ?, 1, '2026-09-29', ?, 'assistant', 1, 0, 0, 0)`);
+    // Below the old cursor, so a resume without a reset would leave the bot row in place.
+    insert.run(50, "cursor_local", "old", "grok-bot-future");
+    insert.run(60, "cursor_local", "keep", "grok-4.7-high");
+    insert.run(70, "grok_bot", "new", "grok-bot-future");
+    await cleanExcludedEvents(sql);
+    expect(db.query("SELECT id, source FROM events ORDER BY id").all()).toEqual([
+      { id: 60, source: "cursor_local" },
+      { id: 70, source: "grok_bot" },
+    ]);
+    expect(db.query("SELECT version FROM usage_report_migrations WHERE version = 4").get()).toEqual({
+      version: 4,
+    });
   } finally {
     db.close();
   }

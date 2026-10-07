@@ -2,12 +2,7 @@ import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Usage } from "@tokenmaxxing/core/games/types.ts";
 import type { TodayBySource } from "@tokenmaxxing/core/protocol.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
-import {
-  CURSOR_EXCLUDED_MODELS,
-  type IngestResponse,
-  type Source,
-  type TokenEvent,
-} from "@tokenmaxxing/core/types.ts";
+import type { IngestResponse, Source, TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { db } from "rivetkit/db";
@@ -420,7 +415,9 @@ export const player = actor({
               inserted += rows.length;
               // Replay old Cursor IDs to enrich their cost without inserting tokens again.
               // A missing cost from an older client must not erase an already reported value.
-              const costs = chunk.filter((e) => e.source === "cursor_local" && e.costCents != null);
+              const costs = chunk.filter(
+                (e) => (e.source === "cursor_local" || e.source === "grok_bot") && e.costCents != null,
+              );
               if (costs.length)
                 await tx.execute(
                   `INSERT INTO events (${COLUMNS.join(",")}) VALUES ${costs.map(() => row).join(",")}
@@ -539,16 +536,23 @@ export async function migrateEvents(d: Sql): Promise<void> {
 const CLEANUP_BATCH = 2_000;
 
 /**
- * Removes previously imported excluded Cursor bots and re-reports their days, once. It runs in the
- * background, a range of ids at a time, picking up where it stopped: in `onMigrate`, one statement
- * over a big history outlived the 30 s startup limit and left the player unable to start at all.
+ * Removes Cursor-tagged Grok Bot rows and re-reports their days, once. A later sync can store the
+ * same dashboard rows as `grok_bot`; leaving the Cursor copies would count them twice. It runs in
+ * the background, a range of ids at a time, picking up where it stopped: in `onMigrate`, one
+ * statement over a big history outlived the 30 s startup limit and left the player unable to start.
  */
 export async function cleanExcludedEvents(d: Sql, signal?: AbortSignal): Promise<void> {
-  if ((await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 3")).length) return;
-  const models = [...CURSOR_EXCLUDED_MODELS];
+  if ((await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 4")).length) return;
+  // Version 3 finished on an exact model list and left its cursor at the end of the table.
+  // Start over once so any other `grok-bot*` row still tagged as Cursor is removed, then resume
+  // from `excluded_cleanup` if this pass is interrupted. `grok_bot` rows are the copy we keep.
+  if ((await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 3")).length) {
+    await d.execute("DELETE FROM excluded_cleanup");
+    await d.execute("DELETE FROM usage_report_migrations WHERE version = 3");
+  }
   // The unary `+` keeps SQLite on the id range: through the `source` index, every batch would scan
-  // all of a player's Cursor events.
-  const match = `+source = 'cursor_local' AND +model IN (${models.map(() => "?").join(",")}) AND id > ? AND id <= ?`;
+  // all of a player's Cursor events. The model test matches `isGrokBotModel`.
+  const match = `+source = 'cursor_local' AND (+model = 'grok-bot' OR +model GLOB 'grok-bot-*') AND id > ? AND id <= ?`;
   const [{ last } = { last: 0 }] = (await d.execute("SELECT last_id AS last FROM excluded_cleanup")) as {
     last: number;
   }[];
@@ -561,15 +565,14 @@ export async function cleanExcludedEvents(d: Sql, signal?: AbortSignal): Promise
     // Re-running a batch after a crash is harmless: the days are queued again and nothing is left to delete.
     await d.execute(
       `INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events WHERE ${match}`,
-      ...models,
       from,
       to,
     );
-    await d.execute(`DELETE FROM events WHERE ${match}`, ...models, from, to);
+    await d.execute(`DELETE FROM events WHERE ${match}`, from, to);
     await d.execute("DELETE FROM excluded_cleanup");
     await d.execute("INSERT INTO excluded_cleanup VALUES (?)", to);
   }
-  await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (3)");
+  await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (4)");
 }
 
 const EVENT_TOKENS = "input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens";

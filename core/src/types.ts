@@ -1,15 +1,28 @@
 /** Reserved message ids for authoritative Cursor dashboard events. */
 export const CURSOR_API_MESSAGE_PREFIX = "cursor-api:";
-/** Temporarily exclude Cursor background bots from personal usage. */
-export const CURSOR_EXCLUDED_MODELS: ReadonlySet<string> = new Set([
-  "grok-bot-automation",
-  "grok-bot-default",
-  "grok-bot-cua",
-]);
 
-export type Source = "claude_code" | "claude_cowork" | "codex" | "cursor_local" | "github";
+export type Source = "claude_code" | "claude_cowork" | "codex" | "cursor_local" | "grok_bot" | "github";
 
-export const SOURCES: readonly Source[] = ["claude_code", "claude_cowork", "codex", "cursor_local", "github"];
+export const SOURCES: readonly Source[] = [
+  "claude_code",
+  "claude_cowork",
+  "codex",
+  "cursor_local",
+  "grok_bot",
+  "github",
+];
+
+/**
+ * Cursor dashboard models that belong to Grok Bot, not the Cursor IDE.
+ * Matched rows are stored as `grok_bot` with the dashboard's own token counts.
+ *
+ * The Grok Bot macOS app's `weekly-usage.cache` is plan percent only
+ * (`percentUsed`, reset time, plan label). It is not a token ledger and is never
+ * read. Grok Bot stays at 0 until the Cursor dashboard returns these rows.
+ */
+export function isGrokBotModel(model: string): boolean {
+  return model === "grok-bot" || model.startsWith("grok-bot-");
+}
 
 /** `pr` marks a pull request the user created (GitHub source, zero tokens). */
 export type MessageType = "user" | "assistant" | "pr";

@@ -53,8 +53,9 @@ content never does. The app reads local logs and Cursor dashboard usage:
 |---|---|
 | Claude Code | `~/.claude/projects/**/*.jsonl` (subagents included) |
 | Claude Cowork | `~/Library/Application Support/Claude/…/.claude/projects/**/*.jsonl` |
-| Codex | `~/.codex/sessions/**/*.jsonl` |
+| Codex | `~/.codex/sessions/**/*.jsonl` and `~/.codex/archived_sessions/**/*.jsonl`. A rollout named in `state_*.sqlite` (`threads.rollout_path`) is included when that file still exists under the Codex home. `threads.tokens_used` is one running total with no per-turn split, so it is not counted. Consumer ChatGPT chats that never write a Codex rollout have no local token ledger |
 | Cursor | Dashboard usage API; signs in using `cursorAuth/accessToken` from the local `state.vscdb` |
+| Grok Bot | The same Cursor dashboard, for models `grok-bot` and `grok-bot-*`. The Grok Bot app's weekly plan percent is not a token count and is not read, so Grok Bot stays at 0 until those dashboard rows exist |
 | GitHub | PRs you opened, on every account the `gh` CLI is signed in to (github.com and Enterprise), or else with the github.com login git saved for HTTPS (at most every 15 minutes); only a hash of each PR's URL and when it was opened are sent. The menu says when neither is there |
 
 Cursor must be installed and signed in. Its session credential is read locally and sent only to
@@ -66,6 +67,8 @@ re-read seven days to catch delayed usage. No public
 Cursor profile is required. Requests without a token breakdown are skipped. API failures retry on the
 next sync without advancing the checkpoint or falling back to text estimates. Existing estimates are
 replaced on world days with dashboard events; earlier days remain as previously synced.
+Grok Bot models on that dashboard are stored as Grok Bot, not Cursor. An older checkpoint re-reads
+history once so rows that used to be skipped are included.
 
 Every source that's installed is read. **Everything is public in the world:** anyone can see your
 totals, cost, parallelism, models and daily activity, and the leaderboard ranks everyone.
@@ -77,7 +80,7 @@ data is sent anywhere for this.
 
 ## The stats
 
-- **Tokens:** input + output + cache writes + cache reads. Cursor bot events (`grok-bot-automation`, `grok-bot-default`, and `grok-bot-cua`) are currently excluded.
+- **Tokens:** input + output + cache writes + cache reads.
 - **Cost:** all sources use [LiteLLM's table](https://github.com/BerriAI/litellm), refreshed daily, including reasoning-effort matching. If no model price matches, Cursor uses the API's `chargedCents`, falling back to `tokenUsage.totalCents`, preserving zero and fractional cents. Reported values reflect usage-time costs and credit adjustments; there are no hardcoded Cursor rates. Models without either a price or a reported cost contribute $0. These totals combine current model-price estimates with historical reported usage values; they are not subscription invoices.
 - **Parallelism ×:** the average number of agents running at the same time, measured over the time you
   had at least one running. Three agents working through the same hour is 3.0×. Time is measured in
