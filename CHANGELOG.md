@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.4.2...v1.5.0) (2026-10-07)
+
+
+### Features
+
+* **sync:** count Grok Bot separately and discover Codex rollouts ([9bbf6ed](https://github.com/HansKristoffer/tokenmaxxing/commit/9bbf6ed562ef68e81603ff47a6bb6da4c098bc35))
+
 ## [1.4.2](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.4.1...v1.4.2) (2026-10-05)
 
 
