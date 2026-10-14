@@ -1,5 +1,5 @@
 import type { Look } from "@tokenmaxxing/core/world.ts";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { house } from "../art/buildings.ts";
 import { characterFrame } from "../art/characters.ts";
 import { world } from "../game/world.ts";
@@ -89,6 +89,7 @@ export function Modal({
 }) {
   // Focus moves into the dialog when it opens, so screen readers and Tab start there.
   const ref = useRef<HTMLElement>(null);
+  const titleId = useId();
   useEffect(() => ref.current?.focus(), []);
   return (
     <div className={`scrim${beside ? " beside" : ""}`}>
@@ -105,10 +106,10 @@ export function Modal({
         className={`panel modal${wide ? " wide" : ""}`}
         role="dialog"
         aria-modal="true"
-        aria-label={typeof title === "string" ? title : undefined}
+        aria-labelledby={titleId}
       >
         <header className="modal-head">
-          <h2>{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <button type="button" className="icon" aria-label="Close" onClick={() => hud.set({ panel: null })}>
             ✕
           </button>

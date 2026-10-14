@@ -1,5 +1,15 @@
 import { expect, test } from "bun:test";
-import { clock, hoursText, minutesText, plural, secondsUntil } from "../src/format.ts";
+import {
+  clock,
+  compact,
+  hoursText,
+  levelAt,
+  levelFor,
+  levelTitle,
+  minutesText,
+  plural,
+  secondsUntil,
+} from "../src/format.ts";
 
 test("clocks, durations and plurals", () => {
   expect(clock(65_000)).toBe("1:05");
@@ -14,4 +24,18 @@ test("clocks, durations and plurals", () => {
   expect(minutesText(1440)).toBe("24 hours");
   expect(plural(1, "game")).toBe("1 game");
   expect(plural(2, "PR")).toBe("2 PRs");
+});
+
+test("levelAt is where levelFor ticks over", () => {
+  expect(levelAt(0)).toBe(0);
+  expect(levelAt(1)).toBe(1e6);
+  expect(levelAt(7)).toBe(1e9);
+  expect(levelAt(9)).toBe(1e10);
+  expect(compact(levelAt(13))).toBe("31.6B");
+  expect(levelTitle(13)).toBe("Singularity");
+  expect(levelAt(14)).toBe(1e11);
+  for (let level = 1; level <= 16; level++) {
+    expect(levelFor(levelAt(level))).toBe(level);
+    expect(levelFor(levelAt(level) - 1)).toBe(level - 1);
+  }
 });
