@@ -1,6 +1,6 @@
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import { isRangeKey } from "@tokenmaxxing/core/range.ts";
-import { itemById, itemsIn } from "@tokenmaxxing/core/shop.ts";
+import { itemById, itemsIn, OFFICE_LEVEL, parseOffice, STARTER_OFFICE } from "@tokenmaxxing/core/shop.ts";
 import { type CompanyInfo, defaultLook, type Look, parseLook } from "@tokenmaxxing/core/world.ts";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
@@ -34,9 +34,13 @@ import {
 import {
   buy,
   type Entry,
+  furnish,
   type HoldKind,
   heldIn,
   hold,
+  type Office,
+  officeOf,
+  offices,
   ownedItems,
   type PayKind,
   pay,
@@ -62,8 +66,16 @@ import {
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { migrate } from "../town/schema.ts";
-import { brand, notify, push, pushPlayers } from "../town/sync.ts";
-import { lookOf, type PlayerCore, playerCores, USER_COLS, type UserRow, userById } from "../town/users.ts";
+import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
+import {
+  levelOf,
+  lookOf,
+  type PlayerCore,
+  playerCores,
+  USER_COLS,
+  type UserRow,
+  userById,
+} from "../town/users.ts";
 import { parseCompanyName, parseUserName, parseWebsite } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
@@ -96,7 +108,7 @@ export type {
   Profile,
   Today,
 } from "../town/boards.ts";
-export type { Wallet } from "../town/coins.ts";
+export type { Office, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany } from "../town/companies.ts";
 export type { GamePlayer, GameStats } from "../town/games.ts";
 export type { PlayerCore } from "../town/users.ts";
@@ -378,6 +390,45 @@ export const town = actor({
       return c.vars.serial(() => buy(c.db, userId, item, Date.now()));
     },
 
+    /** Someone's office: what's in it, whether it's open, and what having one takes (level, company). */
+    office: async (c, targetId: unknown): Promise<Office & { level: number; companyId: number | null }> => {
+      requireUser(c.conn.state);
+      if (typeof targetId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
+      const u = await userById(c.db, targetId);
+      return { ...(await officeOf(c.db, u.id)), level: await levelOf(c.db, u.id), companyId: u.companyId };
+    },
+
+    /** Saves my office's furniture, paying for every piece that's new. */
+    setOffice: async (c, raw: unknown): Promise<Wallet> => {
+      const userId = requireUser(c.conn.state);
+      if ((await levelOf(c.db, userId)) < OFFICE_LEVEL)
+        throw new UserError(`Your own office opens at level ${OFFICE_LEVEL}.`, { code: "too_low" });
+      if ((await userById(c.db, userId)).companyId === null)
+        throw new UserError("Offices are in company buildings. Join a company first.", {
+          code: "no_company",
+        });
+      const furniture = parseOffice(raw);
+      if (!furniture) throw new UserError("That doesn't fit in the office.", { code: "invalid_office" });
+      const w = await c.vars.serial(() => furnish(c.db, userId, furniture, Date.now()));
+      await pushOffice(c.db, c.client<typeof registry>(), userId);
+      return w;
+    },
+
+    /** Open: anyone can visit from my player card. Closed: only I get in, through the door. */
+    setOfficeOpen: async (c, open: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      if (typeof open !== "boolean") throw new UserError("Open or closed?", { code: "invalid_office" });
+      await c.db.execute(
+        `INSERT INTO offices (user_id, furniture, open, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET open = excluded.open, updated_at = excluded.updated_at`,
+        userId,
+        JSON.stringify(STARTER_OFFICE),
+        open ? 1 : 0,
+        Date.now(),
+      );
+      await pushOffice(c.db, c.client<typeof registry>(), userId);
+    },
+
     /** From `player` after an ingest: replaces those days' rollups. */
     report: async (
       c,
@@ -647,8 +698,10 @@ export const town = actor({
       for (const id of changed.users) await notify(client, id, "Your company was closed by the town admin.");
     },
 
-    /** For `world` starting from nothing: everyone and every company. */
-    seed: async (c): Promise<{ players: PlayerCore[]; companies: CompanyInfo[] }> => {
+    /** For `world` starting from nothing: everyone, every company and every saved office. */
+    seed: async (
+      c,
+    ): Promise<{ players: PlayerCore[]; companies: CompanyInfo[]; offices: Record<number, Office> }> => {
       requireInternal(c.conn.state);
       const users = await all<UserRow>(c.db, `SELECT ${USER_COLS} FROM users`);
       const companies = await all<{ id: number }>(c.db, "SELECT id FROM companies");
@@ -661,6 +714,7 @@ export const town = actor({
           c.db,
           companies.map((r) => r.id),
         ),
+        offices: await offices(c.db),
       };
     },
   },

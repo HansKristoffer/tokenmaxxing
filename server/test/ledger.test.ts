@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { STARTER_OFFICE } from "@tokenmaxxing/core/shop.ts";
 import type { Sql } from "../src/actors/shared.ts";
-import { balances, heldIn, hold, pay, refund, setBalance, wallet } from "../src/town/coins.ts";
+import { balances, furnish, heldIn, hold, pay, refund, setBalance, wallet } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
 
@@ -115,6 +116,17 @@ describe("the coin ledger", () => {
     await refund(sql, "table:4", NOW);
     expect(await balance(1)).toBe(125);
     expect(await sumOf("table:4")).toBe(0);
+  });
+
+  test("office furniture is paid into the office's ref, never back out", async () => {
+    const sofa = { ch: "s", x: 1, y: 1 };
+    expect((await furnish(sql, 1, [...STARTER_OFFICE, sofa], NOW)).balance).toBe(25);
+    expect(await sumOf("office:1")).toBe(-100);
+    // Moving the sofa is free, and throwing everything out refunds nothing.
+    expect((await furnish(sql, 1, [...STARTER_OFFICE, { ...sofa, y: 2 }], NOW)).balance).toBe(25);
+    expect((await furnish(sql, 1, [], NOW)).balance).toBe(25);
+    expect(await sumOf("office:1")).toBe(-100);
+    await expect(furnish(sql, 2, [sofa, { ...sofa, y: 2 }], NOW)).rejects.toThrow("coins");
   });
 });
 

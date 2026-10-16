@@ -46,13 +46,18 @@ export async function migrate(sql: Sql): Promise<void> {
     PRIMARY KEY (user_id, item)) WITHOUT ROWID`);
   // Coins that move between players: stakes and side bets held, then paid out or refunded.
   // Negative amounts leave a wallet. Every `ref` sums to 0 or less, never more, except `admin`:
-  // coins an admin gave or took (kind `admin`).
+  // coins an admin gave or took (kind `admin`). Office furniture (kind `furniture`, ref
+  // `office:<userId>`) is only ever paid for, never back.
   await sql.execute(`CREATE TABLE IF NOT EXISTS ledger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL, amount INTEGER NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL,
     at INTEGER NOT NULL)`);
   await sql.execute("CREATE INDEX IF NOT EXISTS ledger_user ON ledger (user_id)");
   await sql.execute("CREATE INDEX IF NOT EXISTS ledger_ref ON ledger (ref)");
+  // Each office's furniture (`Placed[]` as JSON). No row is a new office: `STARTER_OFFICE`, open.
+  await sql.execute(`CREATE TABLE IF NOT EXISTS offices (
+    user_id INTEGER PRIMARY KEY, furniture TEXT NOT NULL, open INTEGER NOT NULL DEFAULT 1,
+    updated_at INTEGER NOT NULL)`);
   // One row per player per finished game (void games aren't recorded), for stats and the Games board.
   await sql.execute(`CREATE TABLE IF NOT EXISTS match_players (
     match_id INTEGER NOT NULL, user_id INTEGER NOT NULL, game TEXT NOT NULL, place INTEGER NOT NULL,

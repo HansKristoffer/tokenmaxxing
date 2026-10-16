@@ -13,6 +13,7 @@ export type Panel =
   | { kind: "arcade" }
   | { kind: "newTable"; invite?: number }
   | { kind: "match"; id: number }
+  | { kind: "office" }
   | { kind: "menu" };
 
 /** Game panels keep the chat usable beside them. */

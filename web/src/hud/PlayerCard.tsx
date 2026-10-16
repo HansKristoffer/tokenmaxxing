@@ -3,8 +3,9 @@ import { compact, hoursText, plural, usd } from "@tokenmaxxing/core/format.ts";
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
 import type { Profile } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
+import { send } from "../game/input.ts";
 import { world } from "../game/world.ts";
-import { errorText, town } from "../net.ts";
+import { conn, errorText, town } from "../net.ts";
 import { hud } from "../store.ts";
 import { Computers } from "./Computers.tsx";
 import { AvatarImage, Modal, Pills } from "./ui.tsx";
@@ -64,6 +65,12 @@ export function PlayerCard({ userId }: { userId: number }) {
   if (!p) return <Modal title="Player">Loading…</Modal>;
   const t = p.totals;
   const status = doing(userId);
+  const mine = userId === world.selfId;
+  const visit = () => {
+    hud.set({ panel: null });
+    world.portalPending = true;
+    send(conn.visit(userId));
+  };
   return (
     <Modal title={p.name}>
       <div className="card-head">
@@ -87,11 +94,17 @@ export function PlayerCard({ userId }: { userId: number }) {
           )}
           {status && <p>{status}</p>}
           <p className="muted">{compact(p.lifetimeTokens)} tokens all time</p>
-          {userId !== world.selfId && (
+          {!mine && (
             <button type="button" onClick={() => hud.set({ panel: { kind: "newTable", invite: userId } })}>
               🎮 Invite to a game
             </button>
           )}
+          {p.office && (mine || p.office === "open") && (
+            <button type="button" onClick={visit}>
+              🚪 {mine ? "My office" : "Visit office"}
+            </button>
+          )}
+          {p.office === "closed" && !mine && <p className="muted">🔒 Office closed</p>}
         </div>
       </div>
       <Pills value={range} options={RANGES} onChange={setRange} />
