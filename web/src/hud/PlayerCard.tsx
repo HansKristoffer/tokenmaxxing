@@ -1,5 +1,5 @@
 import { BOTS } from "@tokenmaxxing/core/bots.ts";
-import { compact, hoursText, plural, usd } from "@tokenmaxxing/core/format.ts";
+import { compact, hoursText, levelAt, levelTitle, plural, usd } from "@tokenmaxxing/core/format.ts";
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
 import type { Profile } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
@@ -64,13 +64,27 @@ export function PlayerCard({ userId }: { userId: number }) {
   if (!p) return <Modal title="Player">Loading…</Modal>;
   const t = p.totals;
   const status = doing(userId);
+  const today = p.daily.at(-1)?.tokens ?? 0;
   return (
-    <Modal title={p.name}>
+    <Modal
+      title={
+        <>
+          {p.name}
+          {status && <span className="status small"> {status}</span>}
+        </>
+      }
+    >
       <div className="card-head">
         <AvatarImage look={p.look} scale={5} />
         <div>
           <p>
             <strong>Level {p.level}</strong> · {p.levelTitle}
+            {today > 0 && <span className="xp-today small"> · +{compact(today)} today</span>}
+          </p>
+          <XpBar level={p.level} tokens={p.lifetimeTokens} today={today} />
+          <p className="muted small">
+            Next: Lv{p.level + 1} {levelTitle(p.level + 1)} in{" "}
+            {compact(levelAt(p.level + 1) - p.lifetimeTokens)} tokens
           </p>
           {p.company ? (
             <p>
@@ -85,7 +99,6 @@ export function PlayerCard({ userId }: { userId: number }) {
           ) : (
             <p className="muted">Freelancer</p>
           )}
-          {status && <p>{status}</p>}
           <p className="muted">{compact(p.lifetimeTokens)} tokens all time</p>
           {userId !== world.selfId && (
             <button type="button" onClick={() => hud.set({ panel: { kind: "newTable", invite: userId } })}>
@@ -111,6 +124,21 @@ export function PlayerCard({ userId }: { userId: number }) {
       )}
       {userId === world.selfId && <Computers />}
     </Modal>
+  );
+}
+
+/** Progress through the current level: earlier tokens, then today's. */
+function XpBar({ level, tokens, today }: { level: number; tokens: number; today: number }) {
+  const start = levelAt(level);
+  const span = levelAt(level + 1) - start;
+  // Today's tokens that count toward this level: all of the progress if today crossed into it.
+  const before = Math.max(0, tokens - today - start);
+  const gained = tokens - start - before;
+  return (
+    <div className="xp" aria-hidden="true">
+      <span className="xp-done" style={{ width: `${(before / span) * 100}%` }} />
+      <span className="xp-gain" style={{ width: `${(gained / span) * 100}%` }} />
+    </div>
   );
 }
 

@@ -9,12 +9,30 @@ const LEVEL_TITLES = [
   "Gigamaxxer",
   "Context Lord",
   "Teramaxxer",
+  "Petamaxxer",
+  "Datacenter Tycoon",
+  "Compute Overlord",
   "Singularity",
 ];
 
-/** Half-decade steps from 1M lifetime tokens: 1M → L1, 10M → L3, 100M → L5, 1B → L7, 10B → L9. */
-export const levelFor = (tokens: number): number =>
-  tokens < 1e6 ? 0 : Math.floor(2 * Math.log10(tokens / 1e6)) + 1;
+/**
+ * Half-decade steps from 1M lifetime tokens (1M → L1, 10M → L3, 100M → L5, 1B → L7, 10B → L9),
+ * eighth-decade steps from 10B to Singularity at 31.6B (L13), then half-decade steps again.
+ */
+export function levelFor(tokens: number): number {
+  if (tokens < 1e6) return 0;
+  const decades = Math.log10(tokens / 1e6);
+  if (decades < 4) return Math.floor(2 * decades) + 1;
+  if (decades < 4.5) return Math.floor(8 * decades) - 23;
+  return Math.floor(2 * decades) + 4;
+}
+
+/** Lifetime tokens where a level starts, the inverse of levelFor. */
+export function levelAt(level: number): number {
+  if (level < 1) return 0;
+  const decades = level <= 9 ? (level - 1) / 2 : level <= 13 ? (level + 23) / 8 : (level - 4) / 2;
+  return Math.ceil(1e6 * 10 ** decades);
+}
 
 export const levelTitle = (level: number): string => LEVEL_TITLES[Math.min(level, LEVEL_TITLES.length - 1)]!;
 
