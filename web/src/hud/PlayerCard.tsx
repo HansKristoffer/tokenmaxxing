@@ -88,9 +88,14 @@ export function PlayerCard({ userId }: { userId: number }) {
           {status && <p>{status}</p>}
           <p className="muted">{compact(p.lifetimeTokens)} tokens all time</p>
           {userId !== world.selfId && (
-            <button type="button" onClick={() => hud.set({ panel: { kind: "newTable", invite: userId } })}>
-              🎮 Invite to a game
-            </button>
+            <p>
+              <button type="button" onClick={() => hud.set({ panel: { kind: "newTable", invite: userId } })}>
+                🎮 Invite to a game
+              </button>{" "}
+              <button type="button" onClick={() => hud.set({ panel: { kind: "trade", userId } })}>
+                🔁 Trade
+              </button>
+            </p>
           )}
         </div>
       </div>
