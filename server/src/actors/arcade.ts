@@ -76,6 +76,8 @@ interface Live {
   line?: string;
   /** `world` has let the players go (retried until it has). */
   released?: boolean;
+  /** When its match last moved on (held games), or reported how it ended. */
+  movedAt?: number;
 }
 
 interface ArcadeState {
@@ -98,6 +100,14 @@ const INVITES_PER_MIN = 10;
 /** A match still unfinished this long after it started is stuck: it's called off and refunded. */
 const HOUR = 3_600_000;
 const stuckAfter = (game: GameId) => (GAMES[game]?.holdPlayers === false ? 25 * HOUR : 30 * 60_000);
+/**
+ * A held game whose match hasn't moved on in this long has stopped (an engine hiccup can leave its
+ * match dead), and is called off the same way. Nobody moving, the rules still move it on within a
+ * minute: a pick is 15 s, a turn 30 s, a Hype Cycle round at most 47 s plus 6 s between rounds.
+ */
+const QUIET_MS = 3 * 60_000;
+const stopped = (live: Live, now: number) =>
+  GAMES[live.game]?.holdPlayers !== false && now - (live.movedAt ?? live.startedAt) > QUIET_MS;
 /** People one open or invite can name. */
 const MAX_INVITEES = 12;
 /** How often expired invites, stale tables and stuck or finished matches are swept. */
@@ -369,11 +379,21 @@ export const arcade = actor({
       return live ? matchOf(c.client(), live.id).usage(userId) : Promise.resolve(null);
     },
 
+    /** A held game's match moved on: it hasn't stopped. */
+    moved: (c, matchId: number): void => {
+      requireInternal(c.conn.state);
+      const live = c.state.matches[String(matchId)];
+      if (live && !live.outcome) live.movedAt = Date.now();
+    },
+
     finished: (c, matchId: number, outcome: Outcome): Promise<void> =>
       c.vars.serial(async () => {
         requireInternal(c.conn.state);
         const live = c.state.matches[String(matchId)];
-        if (!live || live.outcome) return;
+        if (!live) return forgotten(c, matchId);
+        if (live.outcome) return;
+        // A payout that keeps failing (the match retries) isn't a stopped game to refund.
+        live.movedAt = Date.now();
         await settle(c, live, outcome);
         push(c);
       }),
@@ -574,6 +594,17 @@ async function release(c: ArcadeCtx, live: Live): Promise<void> {
   }
 }
 
+/**
+ * A match the arcade doesn't know ended: it started after the arcade's last save, which a restart lost.
+ * Everyone gets their coins back (nothing, if it was paid out) and goes.
+ */
+async function forgotten(c: ArcadeCtx, id: number): Promise<void> {
+  const { town, world } = main(c.client());
+  await town.refund(tableRef(id));
+  await town.refund(betsRef(id));
+  await world.release(id, [], "");
+}
+
 async function closeTable(c: ArcadeCtx, table: Table, why: string): Promise<void> {
   const client = c.client();
   await main(client).town.refund(tableRef(table.id));
@@ -596,7 +627,7 @@ async function sweep(c: ArcadeCtx, now: number): Promise<void> {
     }
   }
   for (const live of Object.values(c.state.matches)) {
-    if (!live.outcome && now - live.startedAt > stuckAfter(live.game)) {
+    if (!live.outcome && (now - live.startedAt > stuckAfter(live.game) || stopped(live, now))) {
       await settle(c, live, { void: `${gameName(live)} got stuck and was called off.` }).catch((err) =>
         console.warn(`[arcade] voiding match ${live.id}: ${String(err)}`),
       );
