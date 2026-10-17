@@ -177,8 +177,9 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Every change a player could see is pushed to `world` (`town/sync.ts`); `world` never asks `town`.
 
 **`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room).
-- A 10 Hz tick sends each room its `moves`, and head counts (`occupancy`) and who's inside each house
-  (`houses`, for town) when they change.
+- A 10 Hz tick sends each room its `moves`, and who's inside each house (`houses`, for town) when it changes.
+  Head counts (`occupancy`) go to every connection, so at most once a second: sent every tick, a burst of joins
+  stalled the world at 300 connections.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
   `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game).

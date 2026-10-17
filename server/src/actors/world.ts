@@ -101,6 +101,8 @@ const COFFEE_LINES = [
 ];
 const CHAT_PER_MIN = 20;
 const REST_CHECK_EVERY = 10; // ticks
+/** Head counts go to every connection, so at most once a second: a burst of joins changes them every tick. */
+const COUNTS_EVERY = 10; // ticks
 /** Bots take a step every this many ticks: a stroll. */
 const BOT_STEP_EVERY = 3;
 /** How long a bot stands around between walks, and after saying something. */
@@ -223,6 +225,13 @@ export const world = actor({
         talkBots(c, now);
       }
       flush(c);
+      if (n % COUNTS_EVERY === 0) {
+        const counts = JSON.stringify(occupancy(c.state, c.vars.online));
+        if (counts !== c.vars.occupancy) {
+          c.vars.occupancy = counts;
+          c.broadcast("occupancy", JSON.parse(counts));
+        }
+      }
     }
   },
   actions: {
@@ -924,11 +933,6 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
     dirty.clear();
     if (recount) at("inn").asleep = asleepAtInn(c.state, online);
     for (const [room, m] of rooms) sendToRoom(c, room, "moves", m);
-  }
-  const counts = JSON.stringify(occupancy(c.state, online));
-  if (counts !== c.vars.occupancy) {
-    c.vars.occupancy = counts;
-    c.broadcast("occupancy", JSON.parse(counts));
   }
   // ponytail: recomputed every tick (a pass over all players) so renames and level-ups show too.
   // Track changes per house if the world gets big.
