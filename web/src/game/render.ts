@@ -109,6 +109,11 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     if (inside.length) labels.push(() => chips(g, sx, sy + 4 * dpr, inside, dpr));
   }
 
+  if (world.asleep > 0) {
+    const [sx, sy] = toScreen((map.x0 + map.width / 2) * TILE, (map.y0 + 2) * TILE);
+    labels.push(() => sign(g, sx, sy - 2 * dpr, `💤 ${world.asleep} asleep`, dpr, false));
+  }
+
   drawGames(g, items, labels, toScreen, now, dpr);
 
   const dt = Math.min(100, now - lastFrame);

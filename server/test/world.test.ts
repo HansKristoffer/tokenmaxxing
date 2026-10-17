@@ -49,6 +49,28 @@ describe("world", () => {
     await conn.dispose();
   });
 
+  test("offline sleepers at the Inn are a head count; waking up joins the room, falling asleep leaves it", async () => {
+    const sleeper = await signUp("inn");
+    const viewer = await signUp("inn");
+    const v = await connect(viewer.token);
+    expect(v.snap.room).toBe("inn");
+    expect(v.snap.players.map((p) => p.id)).not.toContain(sleeper.userId);
+    expect(v.snap.asleep).toBeGreaterThan(0);
+
+    const s = await connect(sleeper.token);
+    const awake = await eventually(() => {
+      const joined = v.events.moves.find((m) => m.join.some((p) => p.id === sleeper.userId));
+      expect(joined?.asleep).toBeNumber();
+      return joined!.asleep!;
+    });
+    await s.conn.dispose();
+    await eventually(() => {
+      const left = v.events.moves.find((m) => m.leave.includes(sleeper.userId));
+      expect(left?.asleep).toBe(awake + 1);
+    });
+    await v.conn.dispose();
+  });
+
   test("walking out of the Inn lands in town, next to its door", async () => {
     const a = await signUp("w");
     const { conn, events, snap } = await connect(a.token);
