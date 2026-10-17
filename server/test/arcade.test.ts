@@ -1,5 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import type { Snapshot } from "@tokenmaxxing/core/world.ts";
+import { arcade } from "../src/actors/arcade.ts";
+import { serial } from "../src/actors/shared.ts";
 import { as, eventually, rich } from "./rivet.ts";
 
 type Rich = Awaited<ReturnType<typeof rich>>;
@@ -24,6 +26,9 @@ describe("the arcade", () => {
   test("invite → accept → play → the winner takes the pot; players gather in town and go back", async () => {
     const ada = await rich("ada");
     const bo = await rich("bo");
+    // Looks at the town for us: if ada joined to look, her disconnect could land after the game ends
+    // and move her "where she was" spot to her seat, and Back would take her there instead of the Inn.
+    const eve = await rich("eve");
     const [a0, b0] = [await balance(ada), await balance(bo)];
     const lobby = await ada.arcade.open("spr", { stake: 40, open: false, invite: [bo.userId] });
     const tableId = lobby.me.table!;
@@ -37,7 +42,7 @@ describe("the arcade", () => {
     expect(started.me.match).toBe(tableId);
     expect(started.tables.some((t) => t.id === tableId)).toBe(false);
     // Both gathered at a table in town, as `playing`.
-    const games = await townGames(ada);
+    const games = await townGames(eve);
     const g = games.find((x) => x.id === tableId)!;
     expect(g.players.sort()).toEqual([ada.userId, bo.userId].sort());
     await expect(as(ada.token).world.step("up")).resolves.toMatchObject({ state: "playing" });
@@ -49,7 +54,7 @@ describe("the arcade", () => {
     await eventually(async () => {
       expect(await balance(ada)).toBe(a0 + 40);
       expect(await balance(bo)).toBe(b0 - 40);
-      expect((await townGames(ada)).some((x) => x.id === tableId)).toBe(false);
+      expect((await townGames(eve)).some((x) => x.id === tableId)).toBe(false);
     });
     const frame = await ada.match(tableId).frame();
     expect(frame.info.outcome).toEqual({ places: [[ada.userId], [bo.userId]] });
@@ -194,4 +199,56 @@ describe("the arcade", () => {
     const table = (await host.arcade.lobby()).tables.find((t) => t.id === second)!;
     expect(table.invited).toHaveLength(3);
   });
+});
+
+test("a refund that fails during a sweep doesn't stop the sweeps: the next one closes the table", async () => {
+  // In this process, with `town` and `world` faked: a failing refund can't be driven on the server.
+  const warn = spyOn(console, "warn").mockImplementation(() => {});
+  let refunds = 0;
+  const actor = {
+    getOrCreate: () => ({
+      refund: async () => {
+        if (++refunds === 1) throw new Error("town is restarting");
+      },
+      notify: async () => {},
+    }),
+  };
+  const controller = new AbortController();
+  const state = {
+    nextId: 2,
+    matches: {},
+    names: {},
+    tables: {
+      1: {
+        id: 1,
+        game: "spr",
+        host: 7,
+        stake: 0,
+        seats: 2,
+        split: "all",
+        open: true,
+        options: {},
+        seated: [7],
+        invited: [],
+        createdAt: 0,
+      },
+    },
+  };
+  const running = (arcade.config.run as (c: unknown) => Promise<void>)({
+    state,
+    vars: { serial: serial() },
+    conns: new Map(),
+    client: () => ({ town: actor, world: actor, arcade: actor }),
+    keepAwake: <T>(p: Promise<T>) => p,
+    abortSignal: controller.signal,
+  });
+  try {
+    await eventually(() => expect(Object.keys(state.tables)).toEqual([]));
+    expect(refunds).toBe(2);
+    expect(warn).toHaveBeenCalledWith("[arcade] sweep: Error: town is restarting");
+  } finally {
+    controller.abort();
+    await running;
+    warn.mockRestore();
+  }
 });

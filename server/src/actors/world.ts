@@ -8,15 +8,31 @@ import {
   spotSize,
 } from "@tokenmaxxing/core/games/gather.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
-import { setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
+import { type GameMap, LEGEND, setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import {
+  type Door,
+  doorAt,
+  doorsFor,
+  HQS,
+  OFFICE_LEVEL,
+  OFFICE_PIECES,
+  PASSAGE_X,
+  setHq,
+  withPieces,
+} from "@tokenmaxxing/core/office.ts";
+import {
+  baseMap,
   CHAT_HISTORY,
   type ChatLine,
   type CompanyInfo,
   companyOfRoom,
   cupsLeft,
   DIRS,
+  DROPS,
+  type Drop,
   drinkCoffee,
+  dropCovers,
+  dropName,
   type Facing,
   type GameStatus,
   type Houses,
@@ -27,17 +43,23 @@ import {
   type Moves,
   mapOf,
   mentionsIn,
+  type Notice,
+  ownerOfOffice,
   type Place,
   type PlayerInfo,
   type PlayerPos,
   type PlayerState,
   type PlayerView,
+  pieceOfDrop,
   portal,
   type RoomId,
   restSpot,
+  roomEntry,
+  route,
   type Snapshot,
   STEP_BURST,
   type StepResult,
+  setDrops,
   stepTarget,
   TICK_MS,
   takeStep,
@@ -62,7 +84,7 @@ import {
   type TokenCache,
   waitForTick,
 } from "./shared.ts";
-import type { PlayerCore } from "./town.ts";
+import type { Office, PlayerCore } from "./town.ts";
 
 interface WorldPlayer extends PlayerCore, Place {
   state: PlayerState;
@@ -85,6 +107,8 @@ interface WorldState {
   companies: Record<string, CompanyInfo>;
   /** Games on show in town. Optional: worlds from before games have none. */
   games?: Record<string, WorldGame>;
+  /** Whether each office is open, by owner (optional, like games). No entry is open: `officeOf`. */
+  offices?: Record<string, Office>;
 }
 
 type ConnState = Caller & { joined?: boolean };
@@ -100,6 +124,8 @@ const COFFEE_LINES = [
   "☕☕☕☕☕☕ The machine refuses to make it any stronger. You vibrate anyway.",
 ];
 const CHAT_PER_MIN = 20;
+/** At most this many drops on one room's floor (an office holds `OFFICE_PIECES`). */
+const DROPS_PER_ROOM = 30;
 const REST_CHECK_EVERY = 10; // ticks
 /** Bots take a step every this many ticks: a stroll. */
 const BOT_STEP_EVERY = 3;
@@ -107,7 +133,7 @@ const BOT_STEP_EVERY = 3;
 const BOT_PAUSE_MS: [number, number] = [2_000, 12_000];
 const BOT_TALK_PAUSE_MS = 4_000;
 /** The chance a bot done with a walk tags along after someone online in town instead (by default), and for how long. */
-const BOT_FOLLOW_CHANCE = 0.3;
+const BOT_FOLLOW_CHANCE = 0.08;
 const BOT_FOLLOW_MS: [number, number] = [20_000, 60_000];
 /** How soon a bot that starts following someone says something to them. */
 const BOT_GREET_MS: [number, number] = [3_000, 10_000];
@@ -186,15 +212,23 @@ export const world = actor({
   }),
   onCreate: (c) => requireMain(c),
   onWake: async (c) => {
-    // First start (or a wiped world): load everyone from `town` and put them to bed.
+    // Every floor, and every office's lock, are `town`'s: the world only keeps them in memory.
+    // ponytail: `seed` sends everyone every time, for the floors; split it if that gets big.
+    const seed = await main(c.client()).town.seed();
+    // First start (or a wiped world): everyone too, put to bed.
     if (!c.state.seeded) {
-      const seed = await main(c.client()).town.seed();
       for (const co of seed.companies) c.state.companies[co.id] = co;
       for (const p of seed.players) upsert(c.state, p, Date.now());
       c.state.seeded = true;
     }
+    c.state.offices = seed.offices;
+    delete (c.state as { drops?: unknown }).drops; // kept here before `seed` carried them
     placeBots(c.state);
     buildTown(c.state);
+    for (const id of Object.keys(c.state.companies)) buildHq(c.state, Number(id));
+    // `seed` is every floor: what was here before sleeping (a drop whose call failed, say) goes.
+    for (const room of DROPS.keys()) setDrops(room, []);
+    for (const d of seed.drops) lay(c, d);
   },
   onDisconnect: (c, conn) => {
     const s = conn.state as ConnState;
@@ -269,7 +303,11 @@ export const world = actor({
         return null;
       }
       if (target.kind === "blocked") return wasSeated ? correction(p) : null;
-      const dest = portal(p.room, target, p.companyId, plots(c.state));
+      const doors = p.companyId === null ? [] : doorsOf(c.state, p.companyId);
+      const door = target.ch === "R" ? doorAt(doors, target.x, target.y) : undefined;
+      if (door && door.userId !== p.id && !door.open)
+        return { notice: `🔒 ${door.name}'s office is closed.` };
+      const dest = portal(p.room, target, p.companyId, plots(c.state), doors);
       if ("notice" in dest) return { notice: dest.notice };
       Object.assign(p, dest);
       return correction(p);
@@ -321,6 +359,42 @@ export const world = actor({
       return { notice: COFFEE_LINES[Math.min(cups, COFFEE_LINES.length) - 1]! };
     },
 
+    /**
+     * G: the drop you're on (standing on it or a rug, sitting on a seat), else a piece nobody can be on
+     * that you face. Off an office floor, only its owner takes anything. `town` puts it in your bag.
+     */
+    take: async (c): Promise<null | { notice: string; drop?: Drop }> => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || (p.state !== "idle" && p.state !== "sit")) return null;
+      touch(c, p, Date.now());
+      const map = mapOf(p.room);
+      const [dx, dy] = DIRS[p.facing];
+      const [fx, fy] = [p.x + dx, p.y + dy];
+      const here = dropsIn(p.room);
+      const on = here.find((d) => dropCovers(d, p.x, p.y) && (p.state === "sit" || map.walkable(p.x, p.y)));
+      const d =
+        on ?? here.find((d) => dropCovers(d, fx, fy) && !map.walkable(fx, fy) && !map.kind(fx, fy).seat);
+      if (!d) return null;
+      const owner = ownerOfOffice(p.room);
+      if (owner !== null && owner !== userId)
+        return { notice: `That's ${c.state.players[owner]?.name ?? "someone"}'s floor.` };
+      // Off the floor before asking `town`, so nobody takes it twice meanwhile.
+      lift(c, d);
+      const took = await main(c.client())
+        .town.pickUp(d.id, userId, d.room)
+        .catch((err) => {
+          console.warn(`[take] ${d.id}: ${String(err)}`);
+          return null;
+        });
+      if (took === null) {
+        lay(c, d);
+        return { notice: "That didn't work. Try again." };
+      }
+      // False: the sweeper sent it home first, so it was gone already.
+      return took ? { notice: `🎒 Took the ${dropName(d)}.`, drop: d } : null;
+    },
+
     say: async (c, rawText: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
       const p = c.state.players[userId];
@@ -353,12 +427,32 @@ export const world = actor({
       }
     },
 
+    /**
+     * From a player card: into their office, if they have one and it's open (your own always is).
+     * It bypasses their building's door on purpose: its exit leads into your own building.
+     */
+    visit: (c, targetId: unknown): StepResult => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      const owner = typeof targetId === "number" ? c.state.players[targetId] : undefined;
+      if (!p || p.state === "playing") return null;
+      if (!owner || !hasOffice(owner)) return { notice: "They don't have an office yet." };
+      if (owner.id !== userId && !officeOf(c.state, owner.id).open)
+        return { notice: `🔒 ${owner.name}'s office is closed.` };
+      touch(c, p, Date.now());
+      Object.assign(p, roomEntry(`office:${owner.id}`), { state: "idle" });
+      c.vars.dirty.add(p.id);
+      return correction(p);
+    },
+
     /** After a game: back to where you were before it. */
     back: (c): StepResult => {
       const userId = requireUser(c.conn.state);
       const p = c.state.players[userId];
       if (!p || p.state === "playing" || !p.back) return null;
-      Object.assign(p, p.back, { state: "idle" });
+      // Somewhere they can't be any more: they stay where the game left them.
+      if (canReturn(c.state, p, p.back)) Object.assign(p, p.back);
+      p.state = "idle";
       p.back = null;
       c.vars.dirty.add(p.id);
       return correction(p);
@@ -456,56 +550,160 @@ export const world = actor({
       sendToRoom(c, "town", "game", g);
     },
 
-    setPlayer: (c, core: PlayerCore): void => {
+    /** From `town`. Returns drops a building that lost or gained a door had no place for, to give back. */
+    setPlayer: async (c, core: PlayerCore): Promise<number[]> => {
       requireInternal(c.conn.state);
       const before = c.state.players[core.id]?.companyId;
+      const hadDoor = doorKey(c.state.players[core.id]);
       const p = upsert(c.state, core, Date.now());
       const online = c.vars.online.has(p.id);
       if (before !== undefined && before !== p.companyId) {
-        // Changed company: out of the old house, and resting players move to the new one.
+        // Changed company: out of the old house (and out of any office with no company at all),
+        // and resting players move to the new one.
         if (!online) rest(c.state, p, p.state === "working" ? "working" : "away");
-        else if (p.room.startsWith("hq:") && p.room !== `hq:${p.companyId}`) Object.assign(p, townSpawn());
+        else if (
+          (p.room.startsWith("hq:") && p.room !== `hq:${p.companyId}`) ||
+          (p.companyId === null && ownerOfOffice(p.room) !== null)
+        )
+          Object.assign(p, townSpawn());
         c.vars.dirty.add(p.id);
       }
       c.broadcast("info", info(p, online));
+      // A door came, went or was renamed: in the old building and the new one.
+      const lifted: number[] = [];
+      if (doorKey(p) !== hadDoor)
+        for (const id of new Set([before, p.companyId]))
+          if (id != null) lifted.push(...(await rebuildHq(c, id)));
+      return lifted;
     },
 
-    /** From `town`, when an admin deletes an account: out of the world, and their tabs closed. */
-    removePlayer: (c, userId: number): void => {
+    /**
+     * From `town`, when an admin deletes an account: out of the world, and their tabs closed. Their drops
+     * go, and so does what's on their office floor: returns those ids, for `town` to give back.
+     */
+    removePlayer: async (c, userId: number): Promise<number[]> => {
       requireInternal(c.conn.state);
+      const drops = [...DROPS.values()]
+        .flat()
+        .filter((d) => d.by === userId || d.room === `office:${userId}`);
+      for (const d of drops) lift(c, d);
+      const ids = drops.map((d) => d.id);
+      // Their office goes too; anyone inside stays until they leave.
+      delete c.state.offices?.[userId];
       const p = c.state.players[userId];
-      if (!p) return;
+      if (!p) return ids;
       sendToRoom(c, p.room, "moves", { room: p.room, join: [], m: [], leave: [userId] } satisfies Moves);
       delete c.state.players[userId];
       for (const vars of [c.vars.online, c.vars.announced, c.vars.steps, c.vars.jumps]) vars.delete(userId);
       c.vars.dirty.delete(userId);
       for (const conn of c.conns.values()) {
         const s = conn.state as ConnState;
-        if (s.kind === "user" && s.userId === userId) void conn.disconnect("deleted");
+        if (s.kind === "user" && s.userId === userId) conn.disconnect("deleted").catch(() => {}); // already gone
       }
+      if (p.companyId !== null) ids.push(...(await rebuildHq(c, p.companyId)));
+      return ids;
     },
 
-    setCompany: (c, company: CompanyInfo): void => {
+    /** From `town`. Returns drops the rebuilt town has no place for, to give back. */
+    setCompany: (c, company: CompanyInfo): number[] => {
       requireInternal(c.conn.state);
       c.state.companies[company.id] = company;
       buildTown(c.state, c.vars.dirty);
       c.broadcast("companies", Object.values(c.state.companies));
+      return liftMisplaced(c, "town");
     },
 
-    removeCompany: (c, id: number): void => {
+    /** A company closed. Returns the drops on its building's floor, and any its plot had, to give back. */
+    removeCompany: async (c, id: number): Promise<number[]> => {
       requireInternal(c.conn.state);
       delete c.state.companies[id];
+      const drops = dropsIn(`hq:${id}`);
+      for (const d of drops) lift(c, d);
       buildTown(c.state, c.vars.dirty);
+      const ids = [...drops.map((d) => d.id), ...liftMisplaced(c, "town")];
+      await rebuildHq(c, id);
       c.broadcast("companies", Object.values(c.state.companies));
+      return ids;
     },
 
-    /** From `town`: a line for one player's open tabs (a company application, an answer to one). */
-    notify: (c, userId: number, text: string): void => {
+    /** From `town`: an office opened or closed. Whoever is inside sees it; closing throws nobody out. */
+    setOfficeOpen: async (c, userId: number, open: boolean): Promise<void> => {
+      requireInternal(c.conn.state);
+      if (officeOf(c.state, userId).open === open) return;
+      c.state.offices ??= {};
+      c.state.offices[userId] = { open };
+      // What was said while it was closed stays private.
+      if (open) await c.db.execute("DELETE FROM chat WHERE room = ?", `office:${userId}`);
+      await resend(c, `office:${userId}`);
+      // The 🔒 on their door.
+      const companyId = c.state.players[userId]?.companyId;
+      if (companyId != null) await resend(c, `hq:${companyId}`);
+    },
+
+    /** From `town`: a line for one player's open tabs (a company application, a trade, an answer). */
+    notify: (c, userId: number, notice: Notice): void => {
       requireInternal(c.conn.state);
       for (const conn of c.conns.values()) {
         const s = conn.state as ConnState;
-        if (s.kind === "user" && s.joined && s.userId === userId) conn.send("notice", text);
+        if (s.kind === "user" && s.joined && s.userId === userId) conn.send("notice", notice);
       }
+    },
+
+    /**
+     * From `town`: an item on the floor of the room its dropper is in. A hat or a pet goes on their tile,
+     * or the nearest free one; furniture on the tile they face, or the nearest free floor tile to it
+     * where it's in nobody's way (`noFurniture`) and walls nobody in.
+     */
+    placeDrop: (c, { id, item, by }: { id: number; item: string; by: number }): Drop | { notice: string } => {
+      requireInternal(c.conn.state);
+      const p = c.state.players[by];
+      const full = { notice: "There's no room on the floor here." };
+      const here = p ? dropsIn(p.room) : [];
+      if (!p || here.length >= (ownerOfOffice(p.room) === null ? DROPS_PER_ROOM : OFFICE_PIECES)) return full;
+      const map = mapOf(p.room);
+      const piece = pieceOfDrop({ item });
+      const w = piece?.w ?? 1;
+      const people = Object.values(c.state.players).filter((o) => o.room === p.room);
+      // One drop per tile; furniture lands on nobody, and not in anyone's way.
+      const taken = new Set<string>();
+      for (const d of here) for (let i = 0; i < (pieceOfDrop(d)?.w ?? 1); i++) taken.add(`${d.x + i},${d.y}`);
+      if (piece) {
+        for (const o of people) taken.add(`${o.x},${o.y}`);
+        for (const t of noFurniture(p.room, map)) taken.add(t);
+      }
+      const games = p.room === "town" ? Object.values(c.state.games ?? {}).map((g) => g.spot) : [];
+      // Furniture: from the tile they face, so they choose where it goes. `findSpot` centres a TV on it:
+      // facing right, that's one further, or it'd be over them.
+      const [ax, ay] = piece ? DIRS[p.facing] : [0, 0];
+      const from: [number, number] = [p.x + ax + (ax > 0 ? Math.floor(w / 2) : 0), p.y + ay];
+      // Nor where it would leave anyone in the room no way out: the next spot over, then.
+      // ponytail: a route per person per spot tried; fine for a room, flood from the exit if it isn't.
+      const exit = map.find("x")[0];
+      const wallsIn = (at: { x: number; y: number }) => {
+        const next = withPieces([{ ch: piece!.ch, ...at }], map);
+        return people.some((o) => !route(next, [o.x, o.y], exit!));
+      };
+      let spot = findSpot(map, from, w, 1, games, taken);
+      while (spot && piece && exit && wallsIn(spot)) {
+        taken.add(`${spot.x},${spot.y}`);
+        spot = findSpot(map, from, w, 1, games, taken);
+      }
+      if (!spot) return full;
+      const drop: Drop = { id, item, room: p.room, ...spot, by, at: Date.now() };
+      lay(c, drop);
+      return drop;
+    },
+
+    /** From `town`: drops already on a floor (an office's desk and chair, at level 10). */
+    placeDrops: (c, drops: Drop[]): void => {
+      requireInternal(c.conn.state);
+      for (const d of drops) lay(c, d);
+    },
+
+    /** From `town`'s sweeper: drops gone back to their droppers. */
+    removeDrops: (c, ids: number[]): void => {
+      requireInternal(c.conn.state);
+      for (const d of [...DROPS.values()].flat()) if (ids.includes(d.id)) lift(c, d);
     },
 
     /** From `player` after an ingest: offline players work at their desk while agents run. */
@@ -529,6 +727,9 @@ export const world = actor({
 });
 
 // MARK: Helpers (plain functions over state, so the tick and the actions share them)
+
+/** Whether someone has an office: in a company, from `OFFICE_LEVEL`. */
+const hasOffice = (p: PlayerCore) => p.companyId !== null && p.level >= OFFICE_LEVEL;
 
 type Vars = {
   online: Map<number, number>;
@@ -576,6 +777,36 @@ function buildTown(s: WorldState, dirty?: Set<number>): void {
   }
 }
 
+/** The doors in a company's building: its members from `OFFICE_LEVEL`, by id. */
+const doorsOf = (s: WorldState, companyId: number): Door[] =>
+  doorsFor(
+    Object.values(s.players)
+      .filter((p) => p.companyId === companyId && p.level >= OFFICE_LEVEL)
+      .map((p) => ({ userId: p.id, name: p.name, open: officeOf(s, p.id).open })),
+  );
+
+/** What puts a door in a building: their company and name, from level 10. */
+const doorKey = (p?: PlayerCore) =>
+  p && p.companyId !== null && p.level >= OFFICE_LEVEL ? `${p.companyId}:${p.name}` : "";
+
+/**
+ * Rebuilds a company's building for its doors (a closed company's goes). Like `buildTown`, anyone now
+ * inside a wall (a hallway that went) goes back to the entry.
+ */
+function buildHq(s: WorldState, companyId: number, dirty?: Set<number>): void {
+  const room = `hq:${companyId}` as const;
+  if (s.companies[companyId]) setHq(companyId, doorsOf(s, companyId));
+  else HQS.delete(companyId);
+  const map = mapOf(room);
+  for (const p of Object.values(s.players)) {
+    const where = p.state === "away" || p.state === "working" ? p.back : p;
+    const tile = where?.room === room ? map.kind(where.x, where.y) : null;
+    if (!tile || tile.walk || tile.seat) continue;
+    Object.assign(where!, roomEntry(room));
+    dirty?.add(p.id);
+  }
+}
+
 /** Sends `p` to their bed (`away`) or desk (`working`) at home, remembering where they were. */
 function rest(s: WorldState, p: WorldPlayer, state: "away" | "working"): void {
   if (p.state === "idle" || p.state === "sit")
@@ -595,25 +826,40 @@ function rest(s: WorldState, p: WorldPlayer, state: "away" | "working"): void {
 }
 
 /**
+ * Whether `p` may go back to `to`: a tile you can stand or sit on (the map may have changed since), not
+ * a house they've left, not an office that's closed to them or gone.
+ */
+function canReturn(s: WorldState, p: WorldPlayer, to: Place): boolean {
+  const tile = mapOf(to.room).kind(to.x, to.y);
+  const house = companyOfRoom(to.room);
+  const owner = ownerOfOffice(to.room);
+  const o = owner === null ? undefined : s.players[owner];
+  return (
+    (!!tile.walk || !!tile.seat) &&
+    (house === null || house === p.companyId) &&
+    (owner === null || (!!o && hasOffice(o) && (owner === p.id || officeOf(s, owner).open)))
+  );
+}
+
+/**
  * Gets up a resting player: back where they were before resting, if they can
- * still be there (not a house they've left), else up where they lie. False if
- * they weren't resting.
+ * still be there (`canReturn`), else up where they lie. False if they weren't
+ * resting.
  */
 function wake(s: WorldState, p: WorldPlayer): boolean {
   if (p.state !== "away" && p.state !== "working") return false;
   const back = p.back;
   p.back = null;
-  const house = back ? companyOfRoom(back.room) : null;
-  const canGo = back && (house === null || house === p.companyId);
-  if (!canGo) {
+  if (!back || !canReturn(s, p, back)) {
     p.state = "idle";
     return true;
   }
-  // Someone took their seat meanwhile: stand up there instead.
+  // Someone took their seat meanwhile, or it's gone: stand up there instead.
   const taken = Object.values(s.players).some(
     (o) => o.id !== p.id && o.room === back.room && o.x === back.x && o.y === back.y,
   );
-  Object.assign(p, back, { state: back.state === "sit" && !taken ? "sit" : "idle" });
+  const seat = mapOf(back.room).kind(back.x, back.y).seat;
+  Object.assign(p, back, { state: back.state === "sit" && seat && !taken ? "sit" : "idle" });
   return true;
 }
 
@@ -750,8 +996,10 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
       }
       const roll = Math.random();
       const follow = b.followChance ?? BOT_FOLLOW_CHANCE;
-      if (inTown.length > 0 && roll < follow) {
-        run.following = pick(inTown);
+      // Nobody gets two bots at once.
+      const free = inTown.filter((id) => ![...v.bots.values()].some((r) => r.following === id));
+      if (free.length > 0 && roll < follow) {
+        run.following = pick(free);
         run.followUntil = now + between(BOT_FOLLOW_MS);
         run.sayAt = Math.min(run.sayAt, now + between(BOT_GREET_MS));
       } else if (roll < follow + BOT_COFFEE_CHANCE) {
@@ -815,19 +1063,92 @@ async function snapshot(
   self: WorldPlayer,
   chat: Promise<ChatLine[]>,
 ): Promise<Snapshot> {
+  // Now: by the time the chat is read, they may be somewhere else.
+  const room = self.room;
+  const owner = ownerOfOffice(room);
+  const companyId = companyOfRoom(room);
   return {
-    room: self.room,
+    room,
     selfId: self.id,
     players: Object.values(s.players)
-      .filter((p) => p.room === self.room)
+      .filter((p) => p.room === room)
       .map((p) => view(p, online.has(p.id))),
     companies: Object.values(s.companies),
     occupancy: occupancy(s, online),
     chat: await chat,
-    houses: self.room === "town" ? houses(s) : {},
+    houses: room === "town" ? houses(s) : {},
     games: Object.values(s.games ?? {}),
+    owner:
+      owner === null
+        ? null
+        : { id: owner, name: s.players[owner]?.name ?? "Someone", open: officeOf(s, owner).open },
+    doors: companyId === null ? [] : doorsOf(s, companyId),
+    drops: dropsIn(room),
   };
 }
+
+/** What's on a room's floor. `DROPS` is the world's only copy: `town` has them all for a restart (`seed`). */
+const dropsIn = (room: RoomId): Drop[] => [...(DROPS.get(room) ?? [])];
+
+/**
+ * Onto the floor: in its room's map (`mapOf`: dropped seats seat, the coffee machine pours, the rest
+ * blocks), and the room sees it.
+ */
+function lay(c: Sender, d: Drop): void {
+  setDrops(d.room, [...dropsIn(d.room).filter((o) => o.id !== d.id), d]);
+  sendToRoom(c, d.room, "drop", d);
+}
+
+/** Off the floor: out of the map, anyone sitting on it stands up there, and the room sees it go. */
+function lift(c: Sender & { vars: Vars }, d: Drop): void {
+  setDrops(
+    d.room,
+    dropsIn(d.room).filter((o) => o.id !== d.id),
+  );
+  for (const p of Object.values(c.state.players))
+    if (p.room === d.room && p.state === "sit" && dropCovers(d, p.x, p.y)) {
+      p.state = "idle";
+      c.vars.dirty.add(p.id);
+    }
+  sendToRoom(c, d.room, "pickup", { id: d.id });
+}
+
+/**
+ * Where furniture can't go in `room`: in front of a door, and in a building, above its floor (the
+ * hallways, and the passage up to them, foot included), so it never blocks anyone's office door.
+ */
+function noFurniture(room: RoomId, map: GameMap): Set<string> {
+  const out = new Set<string>();
+  for (const [ch, kind] of Object.entries(LEGEND)) {
+    if (!kind.portal) continue;
+    for (const [x, y] of map.find(ch))
+      for (const [dx, dy] of Object.values(DIRS)) out.add(`${x + dx},${y + dy}`);
+  }
+  if (companyOfRoom(room) === null) return out;
+  out.add(`${PASSAGE_X},2`);
+  for (let y = map.y0; y < 2; y++) for (let x = map.x0; x < map.x0 + map.width; x++) out.add(`${x},${y}`);
+  return out;
+}
+
+/**
+ * After `room`'s map is rebuilt: drops it has no place for any more (on what's a wall or a door now, or
+ * furniture where `noFurniture` says) come off the floor. Returns their ids, for `town` to give back.
+ */
+function liftMisplaced(c: Sender & { vars: Vars }, room: RoomId): number[] {
+  const base = baseMap(room);
+  const reserved = noFurniture(room, base);
+  const out = dropsIn(room).filter((d) => {
+    const piece = pieceOfDrop(d);
+    for (let i = 0; i < (piece?.w ?? 1); i++)
+      if (!base.walkable(d.x + i, d.y) || (piece && reserved.has(`${d.x + i},${d.y}`))) return true;
+    return false;
+  });
+  for (const d of out) lift(c, d);
+  return out.map((d) => d.id);
+}
+
+/** Someone's office; one `town` has no row for yet is open. */
+const officeOf = (s: WorldState, userId: number): Office => s.offices?.[userId] ?? { open: true };
 
 /** Everyone inside each company house, for drawing them through its walls from town. */
 function houses(s: WorldState): Houses {
@@ -873,6 +1194,23 @@ async function sendSnapshot(c: Sender & { vars: Vars; db: Sql }, p: WorldPlayer)
   }
 }
 
+/** Everyone online in `room` gets it whole again: what's in it changed. */
+async function resend(c: Sender & { vars: Vars; db: Sql }, room: RoomId): Promise<void> {
+  for (const p of Object.values(c.state.players))
+    if (p.room === room && c.vars.online.has(p.id)) await sendSnapshot(c, p);
+}
+
+/**
+ * A company's doors changed: rebuild its building, and everyone inside sees it. Returns drops it has no
+ * place for any more, for `town` to give back.
+ */
+async function rebuildHq(c: Sender & { vars: Vars; db: Sql }, companyId: number): Promise<number[]> {
+  buildHq(c.state, companyId, c.vars.dirty);
+  const lifted = liftMisplaced(c, `hq:${companyId}`);
+  await resend(c, `hq:${companyId}`);
+  return lifted;
+}
+
 /** One tick: batched moves per room, and head counts when they change. */
 function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...args: unknown[]): void }): void {
   const { dirty, announced, online } = c.vars;
@@ -894,7 +1232,9 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
       if (was) at(was).leave.push(id);
       at(p.room).join.push(view(p, online.has(id)));
       announced.set(id, p.room);
-      if (online.has(id)) void sendSnapshot(c, p);
+      // Caught: nothing awaits it, and a failed chat read (the engine stalling) would end the process.
+      if (online.has(id))
+        sendSnapshot(c, p).catch((err) => console.warn(`[world] snapshot for ${id}: ${String(err)}`));
     }
     dirty.clear();
     for (const [room, m] of rooms) sendToRoom(c, room, "moves", m);

@@ -4,7 +4,7 @@
  * One character per tile; `LEGEND` says what it is.
  */
 
-export type MapId = "town" | "hq" | "inn";
+export type MapId = "town" | "hq" | "inn" | "office";
 type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 interface TileKind {
@@ -45,6 +45,7 @@ export const LEGEND: Record<string, TileKind> = {
   I: { name: "inn door", portal: true },
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
+  R: { name: "office door", portal: true },
 };
 
 /**
@@ -295,6 +296,7 @@ export const TOWN_SPAWN: [number, number] = [9, 5];
 export const MAPS: Record<MapId, GameMap> = {
   // Rebuilt from the companies in it (setTown); until then, just the square.
   town: townMap([]),
+  // The floor; each company's building adds its hallways of office doors above it (hqMap).
   hq: new GameMap("hq", "Company house", [
     "WWWWWWWWWWWWWWWWWWWWWW",
     "WWWWWWWWWWWWWWWWWWWWWW",
@@ -322,5 +324,18 @@ export const MAPS: Record<MapId, GameMap> = {
     "W______________W",
     "Wp____________pW",
     "WWWWWWWxWWWWWWWW",
+  ]),
+  // Everyone's office, before what they dropped in it (`mapOf`). ponytail: one template; bigger
+  // offices per house tier would be an `OFFICE_SIZES` table.
+  office: new GameMap("office", "Office", [
+    "WWWWWWWWWWWW",
+    "W__________W",
+    "W__________W",
+    "W__________W",
+    "W__________W",
+    "W__________W",
+    "W__________W",
+    "W__________W",
+    "WWWWWxWWWWWW",
   ]),
 };

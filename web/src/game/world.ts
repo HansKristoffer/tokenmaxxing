@@ -1,23 +1,30 @@
 import { type GameMap, setTown } from "@tokenmaxxing/core/maps.ts";
+import { type Door, setHq } from "@tokenmaxxing/core/office.ts";
 import {
   type ChatLine,
   type CompanyInfo,
+  companyOfRoom,
+  type Drop,
   defaultLook,
+  dropCovers,
   type Facing,
   type Houses,
   type Moves,
   mapOf,
+  ownerOfOffice,
   type PlayerInfo,
   type PlayerPos,
   type PlayerState,
   type PlayerView,
+  pieceOfDrop,
   type RoomId,
   RUN_STEP_MS,
   type Snapshot,
+  setDrops,
   WALK_STEP_MS,
   type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
-import { bakeGround } from "../art/tiles.ts";
+import { bakeGround, repaintGround } from "../art/tiles.ts";
 import { hud } from "../store.ts";
 import { emojiOnly } from "./emoji.ts";
 
@@ -59,6 +66,12 @@ export const world = {
   games: new Map<number, WorldGame>(),
   /** A line said at a game's table itself ("🤝 Draw"), shown over the table briefly. */
   tableBubbles: new Map<number, { text: string; until: number }>(),
+  /** In an office: whose it is, and whether it's open. */
+  owner: null as Snapshot["owner"],
+  /** In a building: its office doors, with the names drawn over them. */
+  doors: [] as Door[],
+  /** What's on the floor: furniture (drawn from the map) and parcels. */
+  drops: [] as Drop[],
 };
 
 /** Someone's look: as seen in the world, or their default while they're not in it. */
@@ -90,12 +103,20 @@ const avatarOf = (v: PlayerView, now: number, warp: boolean): Avatar => ({
 
 export const self = (): Avatar | undefined => world.avatars.get(world.selfId);
 
+const OFFICE_HINT_KEY = "tokenmaxxing.officeHint";
+
 export function loadSnapshot(s: Snapshot): void {
   const now = performance.now();
   const changedRoom = s.room !== world.room || world.selfId === 0;
   world.room = s.room;
   world.selfId = s.selfId;
+  world.owner = s.owner;
   setCompanies(s.companies);
+  const company = companyOfRoom(s.room);
+  if (company !== null) setHq(company, s.doors);
+  world.doors = s.doors;
+  setDrops(s.room, s.drops);
+  world.drops = s.drops;
   showMap(s.room);
   const bubbles = new Map([...world.avatars].map(([id, a]) => [id, a.bubble]));
   world.avatars = new Map(
@@ -109,11 +130,19 @@ export function loadSnapshot(s: Snapshot): void {
   world.portalPending = false;
   world.houses = s.houses;
   world.games = new Map(s.games.map((g) => [g.id, g]));
+  // The first time in your own office, how to furnish it.
+  const hint = changedRoom && s.room === `office:${s.selfId}` && !localStorage.getItem(OFFICE_HINT_KEY);
+  if (hint) localStorage.setItem(OFFICE_HINT_KEY, "1");
   hud.set({
     room: s.room,
     occupancy: s.occupancy,
     chat: s.chat,
-    ...(changedRoom ? { banner: { text: roomName(s.room), at: Date.now() }, dialog: null } : {}),
+    ...(changedRoom
+      ? {
+          banner: { text: roomName(s.room), at: Date.now() },
+          dialog: hint ? "Drop furniture from your Bag to furnish your office." : null,
+        }
+      : {}),
   });
 }
 
@@ -134,6 +163,8 @@ export function setCompanies(list: CompanyInfo[]): void {
 export function roomName(room: RoomId): string {
   if (room === "town") return "Town square";
   if (room === "inn") return "The Inn";
+  if (ownerOfOffice(room) !== null)
+    return room === world.room && world.owner ? `${world.owner.name}'s office` : "An office";
   const company = world.companies.get(Number(room.slice(3)));
   return company ? `${company.name}'s house` : "Company house";
 }
@@ -232,6 +263,45 @@ export function advanceRemotes(now: number): void {
 
 export const avatarAt = (x: number, y: number): Avatar | undefined =>
   [...world.avatars.values()].find((a) => a.x === x && a.y === y && a.info.id !== world.selfId);
+
+// MARK: Drops
+
+export const dropAt = (x: number, y: number): Drop | undefined =>
+  world.drops.find((d) => dropCovers(d, x, y));
+
+/** Dropped here, or taken: dropped furniture is in the map, so it's shown again. */
+export function applyDrop(d: Drop): void {
+  if (d.room === world.room) showDrops([...world.drops.filter((o) => o.id !== d.id), d]);
+}
+
+export function applyPickup(id: number): void {
+  if (world.drops.some((d) => d.id === id)) showDrops(world.drops.filter((d) => d.id !== id));
+}
+
+function showDrops(drops: Drop[]): void {
+  const was = { drops: world.drops, map: world.map, ground: world.ground };
+  world.drops = drops;
+  setDrops(world.room, drops);
+  if (!was.ground) {
+    showMap(world.room);
+    return;
+  }
+  // A parcel changes no ground, and the map stays the same (`mapOf`).
+  world.map = mapOf(world.room);
+  if (world.map === was.map) return;
+  // Furniture: only the tiles around each piece that came or went, as the ground looks at neighbours.
+  const tiles: [number, number][] = [];
+  for (const d of [...was.drops, ...drops]) {
+    const piece = pieceOfDrop(d);
+    if (!piece || (was.drops.includes(d) && drops.includes(d))) continue;
+    for (let y = d.y - 1; y <= d.y + 1; y++)
+      for (let x = d.x - 1; x <= d.x + (piece.w ?? 1); x++) tiles.push([x, y]);
+  }
+  repaintGround(was.ground, world.map, tiles);
+  // Patched in place: the old map's ground is gone (an empty office's map is every empty office's).
+  grounds.delete(was.map);
+  grounds.set(world.map, was.ground);
+}
 
 // MARK: Games
 

@@ -15,7 +15,7 @@ import { camera, zoom } from "./camera.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
-import { avatarAt, beginStep, self, stepping, world } from "./world.ts";
+import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {
   ArrowUp: "up",
@@ -33,9 +33,10 @@ const held: Facing[] = [];
 let running = false;
 /** A key pressed and released between two frames still takes its step. */
 let tapped: Facing | null = null;
-/** Click-to-walk: the remaining steps, and whether to interact on arrival. */
+/** Click-to-walk: the remaining steps, and whether to interact, or take what's there, on arrival. */
 let path: Facing[] = [];
 let interactOnArrival = false;
+let takeOnArrival = false;
 
 const typing = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
@@ -62,6 +63,8 @@ export function bindInput(canvas: HTMLCanvasElement): void {
       if (!held.includes(dir)) held.push(dir);
       tapped = dir;
       path = [];
+      interactOnArrival = false;
+      takeOnArrival = false;
       return;
     }
     switch (e.key.toLowerCase()) {
@@ -76,6 +79,9 @@ export function bindInput(canvas: HTMLCanvasElement): void {
       case "e":
         if (s.dialog) hud.set({ dialog: null });
         else interact();
+        return;
+      case "g":
+        take();
         return;
       case "enter":
         e.preventDefault();
@@ -145,17 +151,34 @@ export function bindInput(canvas: HTMLCanvasElement): void {
     if (company) return void hud.set({ panel: { kind: "companyCard", companyId: company.id } });
     walkTo(x, y);
   });
+  // Right-click a drop (or yourself, on one): take it, walking there first (onto it, into its seat, or
+  // up to it). Never the browser's menu.
+  canvas.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    if (hud.get().panel) return;
+    const x = Math.floor(((e.clientX * camera.dpr) / camera.scale + camera.x) / TILE);
+    const y = Math.floor(((e.clientY * camera.dpr) / camera.scale + camera.y) / TILE);
+    const me = self();
+    if (!me || !dropAt(x, y)) return;
+    if (x === me.x && y === me.y) return void take();
+    walkTo(x, y);
+    // A seat is sat on first; anything else is only taken.
+    interactOnArrival &&= world.map.kind(x, y).seat !== undefined;
+    takeOnArrival = path.length > 0;
+  });
 }
 
 /** Click-to-walk (the world or the minimap): route there, and interact if it's a thing, not floor. */
 export function walkTo(x: number, y: number): void {
   const me = self();
+  takeOnArrival = false;
   if (!me || (x === me.x && y === me.y)) return;
   path = route(world.map, [me.x, me.y], [x, y]) ?? [];
   interactOnArrival = path.length > 0 && !world.map.walkable(x, y) && !world.map.kind(x, y).portal;
 }
 
-function send(result: Promise<StepResult>): void {
+/** The server's answer to a move: a notice, a correction, or another room (its snapshot follows). */
+export function send(result: Promise<StepResult>): void {
   result
     .then((r) => {
       if (!r) {
@@ -196,6 +219,10 @@ export function updateSelf(now: number): void {
       interactOnArrival = false;
       interact();
     }
+    if (takeOnArrival) {
+      takeOnArrival = false;
+      take();
+    }
     return;
   }
   // Getting up from bed or desk: the server puts us back where we were before, so wait for it.
@@ -217,6 +244,16 @@ export function updateSelf(now: number): void {
   if (target.kind === "portal") world.portalPending = true;
   else beginStep(me, target.x, target.y, running ? RUN_STEP_MS : WALK_STEP_MS);
   send(conn.step(dir));
+}
+
+/** G, or a right-click: take what's there. It goes in the bag, so 🎒 counts one more. */
+function take(): void {
+  send(
+    conn.take().then((r) => {
+      if (r?.drop) hud.set((s) => ({ wallet: s.wallet && { ...s.wallet, items: s.wallet.items + 1 } }));
+      return r;
+    }),
+  );
 }
 
 /** Space: a hop, standing or walking. Everyone in the room sees it. */

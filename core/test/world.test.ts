@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { doorOf, MAPS, plotId, townMap } from "../src/maps.ts";
+import { doorsFor, setHq } from "../src/office.ts";
 import { addDays, dayKey, rangeDays } from "../src/range.ts";
 import {
   CUP_MS,
   cupsLeft,
+  type Drop,
   defaultLook,
   drinkCoffee,
   houseTier,
   MAX_CUPS,
+  mapOf,
   mentionsIn,
   namesIn,
   outsideDoor,
@@ -16,6 +19,7 @@ import {
   RUN_STEP_MS,
   restSpot,
   roomEntry,
+  setDrops,
   stepTarget,
   takeStep,
 } from "../src/world.ts";
@@ -77,6 +81,69 @@ describe("portals", () => {
     expect(portal("town", { ch: "I", x: 13, y: 14 }, null, plots)).toEqual(roomEntry("inn"));
     expect(portal("inn", exit, null, plots)).toEqual(outsideDoor("inn"));
   });
+
+  test("bo's door takes you to bo's office; its exit to below the door for a member, or the Inn", () => {
+    const doors = doorsFor([
+      { userId: 4, name: "ada", open: true },
+      { userId: 9, name: "bo", open: true },
+    ]);
+    const bo = doors[1]!;
+    expect(portal("hq:3", { ch: "R", x: bo.x, y: bo.y }, 3, plots, doors)).toEqual(roomEntry("office:9"));
+    expect(portal("hq:5", { ch: "R", x: bo.x, y: bo.y }, 3, plots, [])).toEqual({
+      notice: "That door isn't yours to open.",
+    });
+    expect(portal("office:9", exit, 3, plots, doors)).toEqual({
+      room: "hq:3",
+      x: bo.x,
+      y: bo.y + 1,
+      facing: "down",
+    });
+    expect(portal("office:9", exit, 3, plots, [])).toEqual(roomEntry("hq:3")); // no door: the entry
+    expect(portal("office:9", exit, null, plots, [])).toEqual(roomEntry("inn"));
+  });
+});
+
+describe("drops", () => {
+  const drop = (id: number, item: string, x: number, y: number, room: Drop["room"] = "inn"): Drop => ({
+    id,
+    item,
+    room,
+    x,
+    y,
+    by: 1,
+    at: 0,
+  });
+
+  test("dropped furniture is in the room's map, kept until the drops change; a pet isn't", () => {
+    setDrops("inn", [drop(1, "furn.s", 3, 3), drop(2, "furn.t", 5, 3), drop(3, "pet.1", 8, 3)]);
+    const map = mapOf("inn");
+    expect([3, 5, 6, 8].map((x) => map.at(x, 3))).toEqual(["s", "t", "t", "_"]);
+    expect(stepTarget(map, 3, 4, "up").kind).toBe("blocked");
+    expect(MAPS.inn.at(3, 3)).toBe("_");
+    expect(mapOf("inn")).toBe(map);
+    setDrops("inn", [drop(3, "pet.1", 8, 3)]);
+    expect(mapOf("inn")).toBe(MAPS.inn);
+    setDrops("inn", []);
+  });
+
+  test("a parcel coming or going keeps the map; furniture makes a new one", () => {
+    setDrops("inn", [drop(1, "furn.s", 3, 3)]);
+    const map = mapOf("inn");
+    setDrops("inn", [drop(1, "furn.s", 3, 3), drop(2, "hat.1", 8, 3)]);
+    expect(mapOf("inn")).toBe(map);
+    setDrops("inn", [drop(1, "furn.s", 3, 3), drop(2, "hat.1", 8, 3), drop(3, "furn.p", 5, 3)]);
+    expect(mapOf("inn")).not.toBe(map);
+    expect(mapOf("inn").at(5, 3)).toBe("p");
+    setDrops("inn", []);
+  });
+
+  test("a room's own map changing shows through, drops and all", () => {
+    setDrops("hq:77", [drop(1, "furn.d", 2, 4, "hq:77")]);
+    expect(mapOf("hq:77").at(2, 4)).toBe("d");
+    setHq(77, doorsFor([{ userId: 1, name: "ada", open: true }]));
+    expect([mapOf("hq:77").at(1, -2), mapOf("hq:77").at(2, 4)]).toEqual(["R", "d"]);
+    setDrops("hq:77", []);
+  });
 });
 
 describe("rest spots", () => {
@@ -87,6 +154,7 @@ describe("rest spots", () => {
     const taken = new Set(beds.map(([x, y]) => `${x},${y}`));
     const overflow = restSpot("hq:1", "away", taken);
     expect(MAPS.hq.at(overflow.x, overflow.y)).toBe("_");
+    expect(overflow.x % 2).toBe(1); // a tile between neighbours
   });
 
   test("working players get a desk chair, facing their screen", () => {

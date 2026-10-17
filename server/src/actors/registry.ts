@@ -46,6 +46,7 @@ export type {
   AdminLogEntry,
   AdminOverview,
   AdminUser,
+  BagRow,
   BoardCompany,
   BoardPlayer,
   CompanyProfile,
@@ -56,5 +57,6 @@ export type {
   MyCompany,
   Profile,
   Today,
+  Trade,
   Wallet,
 } from "./town.ts";

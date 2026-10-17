@@ -142,7 +142,7 @@ export async function users(sql: Sql, now: number): Promise<AdminUser[]> {
   );
   const perUser = async (query: string) =>
     new Map((await all<{ userId: number; n: number }>(sql, query)).map((r) => [r.userId, r.n]));
-  const items = await perUser("SELECT user_id AS userId, COUNT(*) AS n FROM purchases GROUP BY user_id");
+  const items = await perUser("SELECT owner_id AS userId, COUNT(*) AS n FROM items GROUP BY owner_id");
   const games = await perUser("SELECT user_id AS userId, COUNT(*) AS n FROM match_players GROUP BY user_id");
   const capped = new Map(
     (
@@ -224,10 +224,11 @@ export async function companies(sql: Sql): Promise<AdminCompany[]> {
 }
 
 /**
- * Deletes an account: its usage, activity, purchases, application and company seat (the company
- * hands over or closes, as when leaving). Refused while they have coins on a game that isn't
- * settled, so no pot comes up short. Their `ledger` and `match_players` rows stay: other
- * players' games add up with them, and ids are never reused (`deleted_users`).
+ * Deletes an account: its usage, activity, purchases, items (those it dropped too), rewards, office,
+ * application, trade offers and company seat (the company hands over or closes, as when leaving).
+ * Refused while they have coins on a game that isn't settled, so no pot comes up short. Their `ledger`
+ * and `match_players` rows stay: other players' games add up with them, and ids are never reused
+ * (`deleted_users`).
  */
 export async function deleteUser(sql: Sql, userId: number, now: number): Promise<Changed> {
   const u = await userById(sql, userId);
@@ -243,8 +244,14 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
     });
   const changed = await leave(sql, userId);
   await withdraw(sql, userId);
-  for (const table of ["usage_daily", "activity_daily", "capped_daily", "purchases"])
+  await sql.execute("DELETE FROM trades WHERE from_id = ? OR to_id = ?", userId, userId);
+  for (const table of ["usage_daily", "activity_daily", "capped_daily", "purchases", "rewards", "offices"])
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
+  await sql.execute(
+    "DELETE FROM items WHERE owner_id = ? OR (owner_id IS NULL AND dropped_by = ?)",
+    userId,
+    userId,
+  );
   await sql.execute("INSERT INTO deleted_users (id, name, at) VALUES (?, ?, ?)", userId, u.name, now);
   await sql.execute("DELETE FROM users WHERE id = ?", userId);
   return changed;

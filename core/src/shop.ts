@@ -1,8 +1,10 @@
 /**
  * Coins and the shop. Coins come from using AI (per world day, square-rooted so
  * a heavy day earns more but not wildly more) and from finishing a day in the
- * top 3. They buy clothes, glasses, hats and pets, worn through `Look`.
+ * top 3. They buy clothes, glasses, hats and pets, worn through `Look`, and
+ * furniture for your office (`office.ts`). Everything bought or earned is a row in the bag.
  */
+import { FURNITURE } from "./office.ts";
 import type { Look } from "./world.ts";
 
 /**
@@ -17,13 +19,17 @@ export const PODIUM_COINS = [25, 15, 10] as const;
 export type Slot = "outfit" | "glasses" | "hat" | "pet";
 
 export interface Item {
-  /** `<slot>.<index>`, e.g. `pet.2`. */
+  /** `<slot>.<index>`, e.g. `pet.2`, or `furn.<ch>` for furniture. */
   id: string;
-  slot: Slot;
-  /** The value of `look[slot]` when worn. */
+  slot: Slot | "furniture";
+  /** The value of `look[slot]` when worn; furniture's place in `FURNITURE`. */
   index: number;
   name: string;
   price: number;
+  /** Granted at this level; never sold. */
+  level?: number;
+  /** Can change hands. Rewards can't. */
+  tradeable: boolean;
 }
 
 /** Outfits below this are free; the ones after are sold. */
@@ -35,6 +41,12 @@ const item = (slot: Slot, index: number, name: string, price: number): Item => (
   index,
   name,
   price,
+  tradeable: true,
+});
+const reward = (slot: Slot, index: number, name: string, level: number): Item => ({
+  ...item(slot, index, name, 0),
+  level,
+  tradeable: false,
 });
 
 export const ITEMS: readonly Item[] = [
@@ -53,9 +65,54 @@ export const ITEMS: readonly Item[] = [
   item("pet", 3, "Dog", 400),
   item("pet", 4, "Dragon", 1500),
   item("pet", 5, "Panda", 800),
+  reward("hat", 4, "Top hat", 10),
+  reward("outfit", 12, "Server-rack armour", 20),
+  reward("pet", 6, "Singularity orb", 30),
+  ...FURNITURE.map(
+    (f, index): Item => ({
+      id: `furn.${f.ch}`,
+      slot: "furniture",
+      index,
+      name: f.name,
+      price: f.price,
+      tradeable: true,
+    }),
+  ),
 ];
+
+/** The level items `level` has earned. */
+export const levelItems = (level: number): Item[] =>
+  ITEMS.filter((i) => i.level !== undefined && i.level <= level);
 
 export const itemById = (id: unknown): Item | undefined => ITEMS.find((i) => i.id === id);
 
 /** The shop items a look wears; everything else in it is free. */
-export const itemsIn = (look: Look): Item[] => ITEMS.filter((i) => look[i.slot] === i.index);
+export const itemsIn = (look: Look): (Item & { slot: Slot })[] =>
+  ITEMS.filter((i): i is Item & { slot: Slot } => i.slot !== "furniture" && look[i.slot] === i.index);
+
+// MARK: Trading
+
+/** Items that can change hands: everything but level rewards. */
+export const isTradeable = (id: unknown): boolean => itemById(id)?.tradeable ?? false;
+
+/** One side of a trade: what someone gives. */
+export interface Side {
+  coins: number;
+  items: string[];
+}
+/** The stake cap: a fat finger can't empty a wallet. */
+export const TRADE_COINS_CAP = 500;
+export const TRADE_ITEMS_CAP = 4;
+
+/** Null unless coins is an integer in range and every item is a tradeable one, no repeats. */
+export function parseSide(raw: unknown): Side | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { coins, items } = raw as Record<string, unknown>;
+  if (!Number.isInteger(coins) || (coins as number) < 0 || (coins as number) > TRADE_COINS_CAP) return null;
+  if (!Array.isArray(items) || items.length > TRADE_ITEMS_CAP || new Set(items).size < items.length)
+    return null;
+  if (!items.every(isTradeable)) return null;
+  return { coins: coins as number, items: items as string[] };
+}
+
+export const emptySide = (s: Side): boolean => s.coins === 0 && s.items.length === 0;
