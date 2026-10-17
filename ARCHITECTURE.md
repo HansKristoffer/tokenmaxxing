@@ -235,8 +235,8 @@ gathers in the town square so anyone can watch, and you play in a panel over the
   place (`core/src/games/payouts.ts`, integer math), side bets are a parimutuel pool, and a void game refunds
   everything. Each connection gets its own `lobby` event.
 - **`match[id]`** runs one game: its tick loop, frames per viewer (`frame` events), forfeits after 20 seconds
-  away for games that hold their players, and a 20-minute safety net. It tells `world` the live status and
-  `arcade` the outcome.
+  away for games that hold their players, and a 20-minute safety net. It tells `world` the live status, and
+  `arcade` that it moved on and how it ended.
 - **Coins** move only through the `ledger` in `town`: `hold` is all or nothing (a stake is at most 500 and half
   your balance), `pay` never pays out more than a ref holds, and `refund` returns what's left. Every ref sums to
   zero when it's settled; there's no house cut and no house prize.
@@ -248,8 +248,11 @@ gathers in the town square so anyone can watch, and you play in a panel over the
   (each minute capped at 50M and flagged), so re-sent or late events can't double count. After each sync the
   app asks `arcade.battle` (which pulls its score too) and syncs every 10 seconds until the battle is over.
 - **When something fails:** a match retries reporting its outcome, settling can run again without paying
-  twice, the arcade calls off a match stuck past a limit (refunding everyone) and retries letting its players
-  go, and it destroys match actors a minute after they end.
+  twice, and the arcade calls off a match that got stuck, refunding everyone: a held game that hasn't moved on
+  in 3 minutes (an engine hiccup can leave its match dead; the rules move it on within a minute), or any match
+  still running after 30 minutes (25 hours for Tokenmaxxing). A match that ends after a restart lost it from
+  the arcade's state is refunded too. The arcade retries letting the players go, and destroys match actors a
+  minute after they end.
 
 ### Adding a game
 

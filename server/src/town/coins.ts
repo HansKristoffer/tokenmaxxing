@@ -171,6 +171,8 @@ export async function heldIn(sql: Sql, ref: string): Promise<Map<number, number>
     "SELECT user_id AS userId, -SUM(amount) AS n FROM ledger WHERE ref = ? GROUP BY user_id",
     ref,
   );
+  // Paid out: the winners' gains cancel the losers' stakes, and nothing is left to give back.
+  if (rows.reduce((n, r) => n + r.n, 0) <= 0) return new Map();
   return new Map(rows.filter((r) => r.n > 0).map((r) => [r.userId, r.n]));
 }
 

@@ -113,3 +113,87 @@ test("a match saved as over but never finished still pays out when it wakes", as
   expect(finished).toEqual([{ places: [[1], [2]] }]);
   expect(state.reported).toBe(true);
 });
+
+/** The arcade over `matches` (as `startMatch` saves them), recording what `town` and `world` are asked. */
+async function arcadeWith(matches: Record<string, object>) {
+  const { arcade } = await import("../src/actors/arcade.ts");
+  const { serial } = await import("../src/actors/shared.ts");
+  const calls: string[] = [];
+  const client = {
+    town: { getOrCreate: () => ({ refund: async (ref: string) => calls.push(`refund ${ref}`) }) },
+    world: {
+      getOrCreate: () => ({
+        release: async (id: number) => calls.push(`release ${id}`),
+        notify: async () => {},
+      }),
+    },
+    arcade: { getOrCreate: () => ({}) },
+  } as unknown as Client<typeof registry>;
+  const controller = new AbortController();
+  const ctx = {
+    state: { nextId: 10, tables: {}, matches, names: {} },
+    vars: { serial: serial() },
+    conn: { state: { kind: "internal" } },
+    conns: new Map(),
+    abortSignal: controller.signal,
+    client: () => client,
+    keepAwake: <T>(p: Promise<T>) => p,
+  };
+  const actions = arcade.config.actions as unknown as Record<
+    string,
+    (c: typeof ctx, ...args: unknown[]) => unknown
+  >;
+  return {
+    calls,
+    act: (name: string, ...args: unknown[]) => actions[name]!(ctx, ...args),
+    /** One sweep. */
+    sweep: async () => {
+      const running = (arcade.config.run as unknown as (c: typeof ctx) => Promise<void>)(ctx);
+      await Bun.sleep(1_100);
+      controller.abort();
+      await running;
+      return calls;
+    },
+  };
+}
+
+const live = (id: number, game: string, startedAgo: number, movedAgo?: number) => ({
+  id,
+  game,
+  players: [1, 2],
+  stake: 10,
+  split: "all",
+  options: {},
+  startedAt: Date.now() - startedAgo,
+  betsCloseAt: 0,
+  bets: [],
+  outcome: null as unknown,
+  endedAt: null,
+  rematch: [],
+  movedAt: movedAgo === undefined ? undefined : Date.now() - movedAgo,
+});
+
+test("a held game whose match stopped moving on is called off after 3 minutes: refunded, players let go", async () => {
+  const stuck = live(1, "spr", 5 * 60_000, 3 * 60_000 + 1_000);
+  const arcade = await arcadeWith({ 1: stuck });
+  expect(await arcade.sweep()).toEqual(["refund table:1", "refund bets:1", "release 1"]);
+  expect(stuck.outcome).toEqual({ void: "Ship, Pivot, Raise got stuck and was called off." });
+  expect(stuck).toMatchObject({ released: true });
+});
+
+test("slow games aren't called off: a Due Diligence turn running out, a battle, a match that just moved on", async () => {
+  // Nobody claims: a 4 s reveal and a 30 s turn go by before the turn runs out and it moves on.
+  const dice = live(1, "dice", 10 * 60_000, 34_000);
+  const battle = live(2, "tokenmaxxing", 60 * 60_000); // not held: only the 25-hour limit
+  const spr = live(3, "spr", 4 * 60_000); // quiet since it started, but it moves on now
+  const arcade = await arcadeWith({ 1: dice, 2: battle, 3: spr });
+  arcade.act("moved", 3);
+  expect(await arcade.sweep()).toEqual([]);
+  for (const m of [dice, battle, spr]) expect(m.outcome).toBeNull();
+});
+
+test("a match the arcade lost in a restart still gives the coins back and lets its players go", async () => {
+  const arcade = await arcadeWith({});
+  await arcade.act("finished", 7, { places: [[1], [2]] });
+  expect(arcade.calls).toEqual(["refund table:7", "refund bets:7", "release 7"]);
+});

@@ -1,6 +1,6 @@
 /**
  * One game being played. It runs the game's rules (core/src/games), keeps its
- * timers, sends each viewer their own view, and tells `arcade` how it ended.
+ * timers, sends each viewer their own view, and tells `arcade` it moved on and how it ended.
  */
 import { gameOf } from "@tokenmaxxing/core/games/index.ts";
 import type { Split } from "@tokenmaxxing/core/games/payouts.ts";
@@ -333,10 +333,12 @@ async function apply(c: MatchCtx, next: unknown): Promise<void> {
   const before = plain(c.state).state;
   c.state.state = next;
   const callouts = def.callouts?.(before, next) ?? [];
-  const world = main(c.client()).world;
+  const { world, arcade } = main(c.client());
   for (const line of callouts) await world.callout(c.state.id, line.player, line.text).catch(() => {});
   pushFrames(c);
   await reportStatus(c);
+  // `arcade` calls off a held game that stops moving on.
+  if (def.holdPlayers !== false) await arcade.moved(c.state.id).catch(() => {});
   const out = def.outcome(next);
   if (out) await finish(c, out);
 }
