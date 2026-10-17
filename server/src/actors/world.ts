@@ -164,6 +164,8 @@ export const world = actor({
     dirty: new Set<number>(),
     /** The room each player was last announced in. */
     announced: new Map<number, RoomId>(),
+    /** Players last announced as asleep at the Inn: counted there, not shown (see `counted`). */
+    hidden: new Set<number>(),
     steps: new Map<number, { budget: number; at: number }>(),
     /** When each player last jumped. */
     jumps: new Map<number, number>(),
@@ -478,7 +480,7 @@ export const world = actor({
       sendToRoom(c, p.room, "moves", { room: p.room, join: [], m: [], leave: [userId] } satisfies Moves);
       delete c.state.players[userId];
       for (const vars of [c.vars.online, c.vars.announced, c.vars.steps, c.vars.jumps]) vars.delete(userId);
-      c.vars.dirty.delete(userId);
+      for (const set of [c.vars.dirty, c.vars.hidden]) set.delete(userId);
       for (const conn of c.conns.values()) {
         const s = conn.state as ConnState;
         if (s.kind === "user" && s.userId === userId) void conn.disconnect("deleted");
@@ -534,6 +536,7 @@ type Vars = {
   online: Map<number, number>;
   dirty: Set<number>;
   announced: Map<number, RoomId>;
+  hidden: Set<number>;
   occupancy: string;
   houses: string;
 };
@@ -809,6 +812,16 @@ function occupancy(s: WorldState, online: Map<number, number>): Partial<Record<R
   return out;
 }
 
+/**
+ * Offline and asleep at the Inn, where everyone without a company sleeps: sent as a head count, not
+ * one by one, since there can be thousands. Company houses hold 50 at most, so they show everyone.
+ */
+const counted = (p: WorldPlayer, online: Map<number, number>) =>
+  p.room === "inn" && p.state === "away" && !online.has(p.id);
+
+const asleepAtInn = (s: WorldState, online: Map<number, number>) =>
+  Object.values(s.players).filter((p) => counted(p, online)).length;
+
 async function snapshot(
   s: WorldState,
   online: Map<number, number>,
@@ -819,8 +832,9 @@ async function snapshot(
     room: self.room,
     selfId: self.id,
     players: Object.values(s.players)
-      .filter((p) => p.room === self.room)
+      .filter((p) => p.room === self.room && !counted(p, online))
       .map((p) => view(p, online.has(p.id))),
+    asleep: self.room === "inn" ? asleepAtInn(s, online) : 0,
     companies: Object.values(s.companies),
     occupancy: occupancy(s, online),
     chat: await chat,
@@ -873,9 +887,13 @@ async function sendSnapshot(c: Sender & { vars: Vars; db: Sql }, p: WorldPlayer)
   }
 }
 
-/** One tick: batched moves per room, and head counts when they change. */
+/**
+ * One tick: batched moves per room, and head counts when they change. Someone counted asleep at the
+ * Inn is a number to the room, so they leave the room when they fall asleep there and join it when
+ * they wake up or sit down to work.
+ */
 function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...args: unknown[]): void }): void {
-  const { dirty, announced, online } = c.vars;
+  const { dirty, announced, online, hidden } = c.vars;
   if (dirty.size > 0) {
     const rooms = new Map<RoomId, Moves>();
     const at = (room: RoomId) => {
@@ -883,20 +901,28 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
       rooms.set(room, m);
       return m;
     };
+    let recount = false;
     for (const id of dirty) {
       const p = c.state.players[id];
       if (!p) continue;
       const was = announced.get(id);
-      if (was === p.room) {
-        at(p.room).m.push(pos(p));
+      const hide = counted(p, online);
+      if (was === p.room && hidden.has(id) === hide) {
+        if (!hide) at(p.room).m.push(pos(p));
         continue;
       }
-      if (was) at(was).leave.push(id);
-      at(p.room).join.push(view(p, online.has(id)));
+      if (was && !hidden.has(id)) at(was).leave.push(id);
+      if (hide) hidden.add(id);
+      else {
+        hidden.delete(id);
+        at(p.room).join.push(view(p, online.has(id)));
+      }
+      recount ||= was === "inn" || p.room === "inn";
       announced.set(id, p.room);
-      if (online.has(id)) void sendSnapshot(c, p);
+      if (online.has(id) && was !== p.room) void sendSnapshot(c, p);
     }
     dirty.clear();
+    if (recount) at("inn").asleep = asleepAtInn(c.state, online);
     for (const [room, m] of rooms) sendToRoom(c, room, "moves", m);
   }
   const counts = JSON.stringify(occupancy(c.state, online));
