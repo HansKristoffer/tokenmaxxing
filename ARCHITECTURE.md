@@ -188,6 +188,10 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   your desk. Company members rest in their house, others at the Inn. Your spot is remembered: the next `join` puts
   you back there. Online with 3 minutes without input, you just doze where you are (`dozing`, drawn as a "z") until
   your next input, so a town left open on a second screen keeps showing what's going on.
+- **The Inn's sleepers are a number.** Everyone without a company sleeps at the Inn, so its offline sleepers come
+  as `asleep` in the snapshot (and in `moves` when it changes), drawn as "💤 N asleep", not one by one. They join
+  the room when they wake up or sit down to work, and leave it when they fall asleep there. Company houses (50 at
+  most) still show everyone.
 
 **`arcade["main"]`** and **`match[id]`**: the mini games; see *Games*.
 
