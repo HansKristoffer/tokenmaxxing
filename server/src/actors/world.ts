@@ -481,7 +481,7 @@ export const world = actor({
       c.vars.dirty.delete(userId);
       for (const conn of c.conns.values()) {
         const s = conn.state as ConnState;
-        if (s.kind === "user" && s.userId === userId) void conn.disconnect("deleted");
+        if (s.kind === "user" && s.userId === userId) conn.disconnect("deleted").catch(() => {});
       }
     },
 
@@ -894,7 +894,9 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
       if (was) at(was).leave.push(id);
       at(p.room).join.push(view(p, online.has(id)));
       announced.set(id, p.room);
-      if (online.has(id)) void sendSnapshot(c, p);
+      // Nothing awaits it: an uncaught rejection here (the database closing) would end the process.
+      if (online.has(id))
+        sendSnapshot(c, p).catch((err) => console.warn(`[world] snapshot for ${id}: ${String(err)}`));
     }
     dirty.clear();
     for (const [room, m] of rooms) sendToRoom(c, room, "moves", m);
