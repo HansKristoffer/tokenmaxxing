@@ -120,7 +120,10 @@ export const arcade = actor({
     const signal = c.abortSignal;
     const run = c.vars.serial;
     while (await waitForTick(signal, SWEEP_MS)) {
-      await c.keepAwake(run(() => (signal.aborted ? Promise.resolve() : sweep(c, Date.now()))));
+      // A failed sweep (a refund while `town` is down) is retried next time, not the end of the loop.
+      await c
+        .keepAwake(run(() => (signal.aborted ? Promise.resolve() : sweep(c, Date.now()))))
+        .catch((err) => console.warn(`[arcade] sweep: ${String(err)}`));
     }
   },
   actions: {
