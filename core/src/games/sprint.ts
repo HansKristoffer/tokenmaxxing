@@ -34,6 +34,8 @@ export const MAX_EXTRA = 10;
 const MIN_GAP_MS = 50;
 /** The track's flag: reaching it by the end is this fast. */
 export const TRACK_WPM = 120;
+/** A lap of the square in town is 10 seconds at 100 WPM, so the leader pulls ahead lap by lap. */
+export const LAP_CHARS = (100 * 5 * 10) / 60;
 
 export interface Racer {
   /** Everything they've typed: words split by single spaces, the last one still being typed. */
@@ -244,7 +246,18 @@ export const sprint: GameDef<SprintState, SprintView> = {
   // Reported on changes, so it moves as they type.
   status(s, player, now) {
     if (now < s.startsAt || s.racers[player]!.typed === "") return null;
-    return `⌨️ ${Math.round(scoreOf(s, player, now).wpm)}`;
+    const sc = scoreOf(s, player, now);
+    return `⌨️ ${Math.round(sc.wpm)} wpm · lap ${Math.floor(sc.correct / LAP_CHARS) + 1}`;
+  },
+
+  // The racers' correct characters: the world runs them round the square by it (LAP_CHARS a lap).
+  board(s, now) {
+    return active(s)
+      .map((p) => {
+        const sc = scoreOf(s, p, now);
+        return { player: p, value: sc.correct, label: `${Math.round(sc.wpm)} wpm` };
+      })
+      .sort((a, b) => b.value - a.value || a.player - b.player);
   },
 
   endsAt: (s) => s.endsAt,

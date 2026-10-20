@@ -285,7 +285,9 @@ gathers in the town square so anyone can watch, and you play in a panel over the
   WPM is (letters of correct words + their spaces) ÷ 5 ÷ minutes; ties go to accuracy, then whoever got there
   first. The client sends the text as it's typed; the rules score only what arrived in the race (plus half a
   second for the network), at the server's clock, refuse text faster than 250 WPM, and nobody sees anyone
-  else's text.
+  else's text. In town the racers run laps of the square while it's on, a lap per 83 correct characters (10
+  seconds at 100 WPM), from the game's `board`; only the client draws it (`web/src/game/race.ts`), so on the
+  server they stand at the table as usual.
 - **Tokenmaxxing** (2–12): the most real tokens in 15 minutes to 24 hours, starting on the minute after a
   minute's countdown, with 3 minutes of grace for late syncs.
 

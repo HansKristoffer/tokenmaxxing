@@ -156,6 +156,19 @@ describe("Sprint Race", () => {
     const after = finish(s);
     expect(sprint.callouts!(s, after).map((c) => c.player)).toEqual([1, 2]);
     expect(sprint.callouts!(after, after)).toEqual([]);
-    expect(sprint.status!(s, 1, s.startsAt + 20_000)).toMatch(/^⌨️ \d+$/);
+    expect(sprint.status!(s, 1, s.startsAt + 20_000)).toMatch(/^⌨️ \d+ wpm · lap \d+$/);
+  });
+
+  test("the world's board: each racer's correct characters, furthest first, for laps of the square", () => {
+    let s = start([1, 2, 3]);
+    s = type(s, 2, words(s, 4), s.startsAt + 5_000);
+    s = type(s, 3, words(s, 1), s.startsAt + 5_000);
+    s = sprint.forfeit(s, 1, s.startsAt + 5_000);
+    const board = sprint.board!(s, s.startsAt + 6_000);
+    expect(board.map((r) => [r.player, r.value])).toEqual([
+      [2, words(s, 4).length],
+      [3, words(s, 1).length],
+    ]);
+    expect(board[0]!.label).toMatch(/^\d+ wpm$/);
   });
 });

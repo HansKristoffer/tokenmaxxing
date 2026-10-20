@@ -9,6 +9,7 @@ import {
   dropCovers,
   type Facing,
   type Houses,
+  JUMP_MS,
   type Moves,
   mapOf,
   ownerOfOffice,
@@ -313,13 +314,21 @@ export function applyGame(g: WorldGame): void {
   world.games.set(g.id, g);
 }
 
-/** A game ended: its table goes, and coins burst around the winners. */
+/** A game ended: its table goes, and coins burst around the winners (who hop, after a race). */
 export function applyGameOver(id: number, winners: number[]): void {
+  const race = world.games.get(id)?.game === "sprint";
   world.games.delete(id);
   world.tableBubbles.delete(id);
   for (const w of winners) {
     const a = world.avatars.get(w);
-    if (a) a.burst = { emojis: ["🪙"], at: performance.now() };
+    if (!a) continue;
+    a.burst = { emojis: ["🪙"], at: performance.now() };
+    if (race) {
+      a.jump = performance.now();
+      setTimeout(() => {
+        a.jump = performance.now();
+      }, JUMP_MS + 60);
+    }
   }
 }
 

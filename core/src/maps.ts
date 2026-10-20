@@ -136,6 +136,8 @@ const CORE = [
   ",..T...,,,,,,,......",
   ',..........".....^..',
 ];
+/** The square's paving in CORE, lamp to lamp: Sprint Race runs laps round its edge. */
+export const PLAZA = { left: 3, top: 2, right: 16, bottom: 6 };
 export const CORE_BLOCKS: [number, number][] = [
   [0, 0],
   [1, 0],
