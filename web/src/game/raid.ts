@@ -70,8 +70,8 @@ const AT = {
   y: (Math.max(...dais.map(([, y]) => y)) + 0.6) * TILE,
 };
 const BOSS_W = BOSS_SIZE * BOSS_SCALE;
-/** What the missiles aim at: the boss's middle. */
-const TARGET = { x: AT.x, y: AT.y - BOSS_W / 2 };
+/** What the missiles aim at: the boss's middle. Loot pops out of it too (game/loot.ts). */
+export const TARGET = { x: AT.x, y: AT.y - BOSS_W / 2 };
 
 /** Seats nearest the boss first: the busiest raiders get them when they arrive. */
 const SEATS = map
@@ -125,6 +125,12 @@ export const dungeon = {
   raiders: null as Raiders | null,
   seats: new Map<number, number>(),
 };
+
+/** Where `userId`'s laptop is, if they're at a desk: their loot flies there (game/loot.ts). */
+export function deskOf(userId: number): { x: number; y: number } | null {
+  const seat = SEATS[dungeon.seats.get(userId) ?? -1];
+  return seat ? { x: seat[0] * TILE + 8, y: seat[1] * TILE - TILE + 2 } : null;
+}
 
 export function setRaiders(r: Raiders | null): void {
   dungeon.raiders = r;

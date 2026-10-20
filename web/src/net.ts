@@ -1,4 +1,5 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import {
   CHAT_HISTORY,
   type ChatLine,
@@ -15,6 +16,7 @@ import {
 } from "@tokenmaxxing/core/world.ts";
 import type { Raid, registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
+import { noteLoot } from "./game/loot.ts";
 import { noteRaid, setRaiders } from "./game/raid.ts";
 import {
   applyBubble,
@@ -129,6 +131,15 @@ export function connect(token: string): void {
     void town.wallet().then((wallet) => hud.set({ wallet }));
   });
   conn.on("mention", (line: ChatLine) => hud.set({ mention: { line, at: Date.now() } }));
+  // A kill dropped loot: it flies out of the boss, so the kill should show now, not at the next poll.
+  conn.on("loot", (news: LootNews[]) => {
+    hud.set({ lootNews: { news, at: Date.now() } });
+    noteLoot(news);
+    void town.raid().then((raid) => {
+      noteRaid(hud.get().raid, raid);
+      hud.set({ raid });
+    });
+  });
   conn.on("game", (g: WorldGame) => applyGame(g));
   conn.on("gameOver", (e: { id: number; winners: number[] }) => applyGameOver(e.id, e.winners));
   conn.on("callout", (e: { id: number; userId: number | null; text: string }) => applyCallout(e));

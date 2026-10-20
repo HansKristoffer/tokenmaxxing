@@ -4,6 +4,7 @@ import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { cupsLeft, houseTier, JUMP_MS, TILE } from "@tokenmaxxing/core/world.ts";
 import { house, inn } from "../art/buildings.ts";
 import { characterFrame, itemFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
+import { drawSparkle, wearsLegendary } from "../art/loot.ts";
 import { chairBack, objectAt, sortY } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { PET_H, petFrame } from "../art/pets.ts";
@@ -12,6 +13,7 @@ import { camera, zoomScale } from "./camera.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
+import { drawLoot } from "./loot.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { drawRaid } from "./raid.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
@@ -133,6 +135,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
 
   drawGames(g, items, labels, toScreen, now, dpr);
   drawRaid(g, items, labels, toScreen, now, dpr);
+  drawLoot(g, items, labels, toScreen, now, dpr);
 
   if (world.asleep > 0) {
     const [sx, sy] = toScreen((map.x0 + map.width / 2) * TILE, (map.y0 + 2) * TILE);
@@ -151,6 +154,9 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       y: py + (tile === "b" || tile === "s" ? 1 : TILE - 0.5),
       draw: () => drawAvatar(g, a, px, py, tile, now),
     });
+    // A legendary sparkles on whoever wears it.
+    if (wearsLegendary(a.info.look))
+      items.push({ y: py + TILE, draw: () => drawSparkle(g, px, py - 2, now, a.info.id) });
     const pet = a.warp ? null : followPet(a, px, py, dt);
     if (pet) {
       const frame = petFrame(a.info.look.pet, pet.left, pet.moving && Math.floor(now / 140) % 2 === 0);
