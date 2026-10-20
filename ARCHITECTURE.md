@@ -330,6 +330,70 @@ No server changes, actions or tables are needed.
   (blackjack), Unicorn (highest unique number), a coin flip at the fountain, Prompt Race (typing), and
   fighting "Rate Limit" in the tall grass.
 
+## The raid
+
+Every week a ladder of bosses waits in the Raid Dungeon, down the gate in the square, and the whole town
+climbs it together (`core/src/raid.ts`).
+- **The ladder:** The Rate Limit, The Context Window, Merge Conflict, The Hallucination, then round again as
+  "II", "III"… (`bossAt(rung)`: same sprite ids, plus `rung` and `level`). When a boss falls, the next appears
+  at once and the overflow carries over. A day that does enough brings down several, all on that day, in order.
+- **Launch:** the first raid opens at 08:00 on the Monday after the town first had the raid
+  (`launchWeek`). `raidStart` stores that Monday once in `raid_meta` (key `start`) when `town` wakes, so
+  restarts and deploys don't move it; `RAID_START_WEEK` (a Monday, checked at boot) overrides it for dev and
+  testing. The pure rules take it as `start`. Until it opens the view is `prelaunch` (with `launchAt`): rung 1
+  behind a closed gate, its `hp` so far, and no kills, raiders or coins.
+- **The teaser:** before the launch the gate is boarded up and taped off under a ⚠️ sign, a violet glow leaking
+  through, rumbling every few seconds, with the odd line from inside ("Your rate limit is coming.") and
+  "⚠️ Something is coming… 3d 04:12:55" over it, to the second. The corner box and the panel count down too;
+  the panel shows rung 1 as a shadow ("???"), its HP so far and how the raid works. The dungeon can be walked
+  into, but it's dark and empty: no raiders, just the first boss's shadow. The client asks again the moment
+  a shut gate opens (`gateTimer` in `net.ts`, past the 5 s throttle), and `raidsOf` drops its cache when the
+  raid week changes, so 08:00 is on time. When `prelaunch` flips the boards burst off the gate, rung 1 drops
+  onto its dais and a toast says "⚔️ The Raid Dungeon is open: The Rate Limit awaits."
+- **HP:** the first raid's rung 1 (`start`) is 10% of the week before's damage, at least 2B (`hpFor`);
+  every week after, rung 1 is ×1.1 the week before's (`WEEKLY_GROWTH`, `weekHp`), so week n is
+  `first × 1.1ⁿ` whatever the town did. Each rung is ×1.5. Clearing n rungs costs `2 × rung 1 × (1.5ⁿ − 1)`,
+  so 4 rungs are 81% of the week that set the first ladder: a week like it clears four and stands at the fifth.
+- **Damage** is every token you sync that week, no cap, and 25M for every PR you open. (Ingest still counts
+  at most 200M a minute, `USAGE_MINUTE_CAP`, to stop made-up numbers.)
+  Only days from your sign-up day count, as with coins.
+- **Rewards per kill:** rung n pays each of its raiders 20 × 1.5ⁿ⁻¹ to the nearest 5 (20, 30, 45, 70, 100…), so four
+  kills are 165. A kill's raiders are everyone with 10M+ that week up to and including its day, so
+  joining on Sunday doesn't pay for Wednesday's kills.
+- **The week** is Monday to Sunday in world days, but the gate opens at 08:00 on Monday: until then
+  `raidWeekAt` is still last week, as it ended, and the new ladder appears at 08:00 with Monday's early tokens
+  in it. Usage is stored per world day, so the damage can't start at 08:00; the night off only moves what's
+  shown, and the history (and with it wallets) follows it, so nobody is paid for a kill before it's shown.
+  The view has `opensAt` and `endsAt` (the next Monday 08:00), and `closed` before the gate opens.
+- **Nothing is stored.** Like balances, the raid is worked out from `usage_daily` and `activity_daily`
+  (`server/src/town/raid.ts`), so a late sync still lands its hits. `town` keeps the result for 15 seconds
+  (`raidsOf`), however many people are polling. `wallet` and the admin page's `balances` add raid coins.
+  The week before the first raid (`start`) only sets its HP, so nobody is paid for bosses that weren't there.
+- **In the game:** `town.raid` is polled with the stats (every 30 s). `hp` and `damage` are the current rung's;
+  `kills`, `totalDamage` and `last` tell the rest. The corner box and the panel (the ladder: kills, the
+  current rung, the next three greyed) are `web/src/hud/Raid.tsx`; a toast says each kill and its coins
+  (in the dungeon the toasts go to the bottom, clear of the boss's name and HP).
+- **The dungeon** (`MAPS.dungeon`, room `dungeon`): the gate `G` in the square (its sign: boss, rung, HP; a
+  portcullis and "opens 08:00" while `closed`), or the panel's "Go to the dungeon" (`world.enterDungeon`).
+  The boss stands on a dais (`Z`, not walkable) facing 40 war desks (`l`, with a seat `r` below each: props,
+  not seats anyone sits in). Whoever walks in is a spectator; everything else is drawn in
+  `web/src/game/raid.ts`, and only in that room.
+  - **Raiders:** everyone whose agents ran in the last 10 minutes (`WORKING_MS`), wherever they are, asleep
+    or offline included. `world.raiders` sends the busiest 40 (`RAIDERS_SHOWN`) as {id, name, look, agents,
+    burn} and how many more, in the dungeon's snapshot and then as `raiders`, only to the dungeon and at most
+    once a second when it changes. The client keeps each one's seat while they stay; a newcomer gets the
+    seat their id hashes to, or the next free one (`seatFor`), among the front seats (in bands of 10 for
+    the crowd), so the same person has the same desk after a reload.
+  - **Burn:** after each ingest `player.report` sends `world.activity` the live agents and the tokens a
+    minute over the last 10 minutes of events (minute-capped like the games). `world` fades it linearly to 0
+    as that last event gets 10 minutes old, so someone who stopped slows down before they leave their desk.
+  - **Missiles:** each laptop fires `√(burn ÷ 100k)` a second (1 at 100k a minute, at most 6), or the odd
+    sputter when idle; each agent past the first is a robot minion by the desk (8 drawn, then "+N") firing a
+    third as fast. At most 150 missiles and 160 sparks at once. They only show the burn: the real hits are
+    every synced token, floated off the boss as the `totalDamage` each poll adds.
+  - **Kills:** the boss slumps by a trophy, then the next rung's drops in under a "Rung N" banner; this week's
+    kills hang as plaques on the back wall. While `closed`, nobody fires and the one that got away dozes.
+
 ## The client
 
 - Plain Canvas 2D with `imageSmoothingEnabled = false`, integer zoom, and grid movement: your own steps are

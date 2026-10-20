@@ -95,6 +95,13 @@ data is sent anywhere for this.
   (15B) and a mansion with a tower (40B). A big team of light users stays in the basement.
 - **Coins:** from the day you sign up, every day pays `√(tokens ÷ 1M)`: 100M tokens is 10 coins, 1B is 31. A heavy day earns more,
   but not wildly more. Finishing a day 1st, 2nd or 3rd adds 25, 15 or 10.
+- **The raid:** from the first Monday after launch, every Monday at 08:00 a ladder of bosses opens in the Raid Dungeon, down the gate in the square,
+  easiest first, each week's 10% tougher than the last. Every token you sync hits the one up now, no cap, and
+  every PR you open is a 25M special attack. When one falls the next, 1.5× tougher, appears at once; each kill pays everyone who'd hit for
+  10M or more that week by then 20, 30, 45, 70… coins. Everyone with agents running sits at a desk in the
+  dungeon, wherever they are, firing magic missiles (and a robot minion per extra agent) as fast as they burn
+  tokens: that's the show, the hits are the synced tokens. Until the first one the gate is boarded up with a
+  ⚠️ and a countdown to that Monday 08:00.
 
 ## How it works
 
@@ -179,6 +186,7 @@ bash app/helper/scripts/cli.sh dist/cli    # the release binaries, for every pla
 | `CLIENT_IP_HEADER` | `x-real-ip` | Where the client's IP is, for per-IP limits. Railway's edge sets `x-real-ip` |
 | `GATEWAY_REQUESTS_PER_MIN` | `1200` | Requests to the actors per client IP a minute |
 | `GATEWAY_SOCKETS_PER_MIN` | `300` | New WebSockets per client IP a minute |
+| `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
 
 `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` are read by RivetKit's native side, so they must be set in
 the environment before the process starts.
