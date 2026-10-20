@@ -42,6 +42,18 @@ export const gameTable = cached(
           [11, 2],
         ] as const)
           p.px(x, y, "#3ddc84");
+      } else if (game === "sprint") {
+        // A keyboard with a row of keys lit up, mid-race.
+        tableBase(p, C.wood, C.woodDark);
+        p.rect(2, 4, 12, 6, C.ink);
+        p.rect(3, 5, 10, 4, C.metal);
+        for (let x = 3; x < 13; x += 2) {
+          p.px(x, 5, C.metalLight);
+          p.px(x + 1, 7, C.metalLight);
+        }
+        p.rect(5, 8, 6, 1, C.white);
+        p.px(9, 5, C.lamp);
+        p.px(4, 7, C.lamp);
       } else {
         // A desk bell between two founders.
         tableBase(p, C.woodLight, C.wood);

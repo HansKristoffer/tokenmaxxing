@@ -280,13 +280,19 @@ gathers in the town square so anyone can watch, and you play in a panel over the
 - **Hype Cycle** (2–8): the valuation climbs as e^(t/12) until it crashes; cash out in time. Three rounds.
   Each round's crash point comes from a seed whose SHA-256 is shown before it and the seed after.
 - **Due Diligence** (2–6): Liar's Dice with 🦄 wild, 30 seconds a turn; the last with dice wins.
+- **Sprint Race** (2–8): a typing race like Monkeytype, 15, 30 or 60 seconds after a 3-second countdown. The
+  same seeded words from the 200 most common English ones for everyone, lowercase and with no punctuation.
+  WPM is (letters of correct words + their spaces) ÷ 5 ÷ minutes; ties go to accuracy, then whoever got there
+  first. The client sends the text as it's typed; the rules score only what arrived in the race (plus half a
+  second for the network), at the server's clock, refuse text faster than 250 WPM, and nobody sees anyone
+  else's text.
 - **Tokenmaxxing** (2–12): the most real tokens in 15 minutes to 24 hours, starting on the minute after a
   minute's countdown, with 3 minutes of grace for late syncs.
 
 - **Rules are pure** (`core/src/games/`): each game is a `GameDef` over plain JSON state: `setup`, `move`,
   `tick`, `forfeit`, a per-viewer `view` (hiding what a player mustn't see yet), `outcome` (places, or void),
   plus optional `callouts`, `status`, `board`, `headline` and `endsAt` for the world. Usage games add
-  `usageWindow` and `usage`. `GAMES` lists them: Ship, Pivot, Raise; Hype Cycle; Due Diligence; Tokenmaxxing.
+  `usageWindow` and `usage`. `GAMES` lists them: Ship, Pivot, Raise; Hype Cycle; Due Diligence; Sprint Race; Tokenmaxxing.
 - **`arcade["main"]`** is the social side and the money. Everything starts as a table: `open` (invite people,
   open it to anyone, or both), `invite`, `answer` (yes, no or a counter offer), `join`, `leave`, `start`. A
   full table starts a match. It also takes side bets, runs double or nothing, and `settle`s: the pot is paid by
@@ -327,7 +333,7 @@ No server changes, actions or tables are needed.
 - Inviting a whole company at once; company tournaments built from tables.
 - Easing Tokenmaxxing's counters between updates, and "✓ syncing" next to seated players.
 - More games: Term Sheet (Split or Steal; needs a rule for when both steal), Runway (Farkle), Burn Rate
-  (blackjack), Unicorn (highest unique number), a coin flip at the fountain, Prompt Race (typing), and
+  (blackjack), Unicorn (highest unique number), a coin flip at the fountain, and
   fighting "Rate Limit" in the tall grass.
 
 ## The client
