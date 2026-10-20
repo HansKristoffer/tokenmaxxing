@@ -1,4 +1,5 @@
 import { frontier } from "@tokenmaxxing/core/maps.ts";
+import type { RaidWeek } from "@tokenmaxxing/core/raid.ts";
 import { dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
 import {
   emptySide,
@@ -95,6 +96,7 @@ import {
   withdraw,
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
+import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import { migrate } from "../town/schema.ts";
 import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
 import {
@@ -141,6 +143,7 @@ export type {
 export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany } from "../town/companies.ts";
 export type { GamePlayer, GameStats } from "../town/games.ts";
+export type { Raid } from "../town/raid.ts";
 export type { PlayerCore } from "../town/users.ts";
 
 export interface UsageDay extends UsageRow {
@@ -224,6 +227,8 @@ export const town = actor({
     tokens: new Map() as TokenCache,
     /** `podiums` for a world day, for wallets and cards; a late sync or a wiped account drops it. */
     podiums: null as { day: string; rows: Promise<Podium[]> } | null,
+    /** `raidHistory`, shared by everyone polling the raid for a few seconds. */
+    raids: null as { at: number; rows: Promise<RaidWeek[]> } | null,
   }),
   db: db({ onMigrate: migrate }),
   onCreate: (c) => requireMain(c),
@@ -232,9 +237,11 @@ export const town = actor({
     ip: clientIpOf(c.request),
   }),
   // The sweeper's alarm. Set once: it outlives restarts, and wakes the town when it's asleep.
+  // And the raid's launch, the first time: next Monday 08:00 (`raidStart`).
   onWake: async (c) => {
     if (!(await c.cron.get("sweep")))
       await c.cron.every({ name: "sweep", interval: SWEEP_MS, action: "sweep" });
+    await raidStart(c.db, Date.now());
   },
   actions: {
     health: async (c): Promise<void> => {
@@ -447,7 +454,20 @@ export const town = actor({
     },
 
     wallet: async (c): Promise<Wallet> =>
-      wallet(c.db, requireUser(c.conn.state), Date.now(), await podiumsOf(c, Date.now())),
+      wallet(
+        c.db,
+        requireUser(c.conn.state),
+        Date.now(),
+        await podiumsOf(c, Date.now()),
+        await raidsOf(c, Date.now()),
+      ),
+
+    /** This week's ladder (last week's until Monday 08:00): the boss up now, how hurt it is, and who's hitting it. */
+    raid: async (c): Promise<Raid> => {
+      const userId = requireUser(c.conn.state);
+      const now = Date.now();
+      return raid(c.db, userId, await raidsOf(c, now), now);
+    },
 
     /** What I hold, per kind, for the bag panel. */
     bag: (c): Promise<BagRow[]> => bag(c.db, requireUser(c.conn.state)),
@@ -978,6 +998,23 @@ function podiumsOf(
     });
   }
   return c.vars.podiums.rows;
+}
+
+const RAID_TTL = 15_000;
+
+/** Every raid so far, worked out at most every few seconds however many people are watching. */
+function raidsOf(
+  c: { db: Sql; vars: { raids: { at: number; rows: Promise<RaidWeek[]> } | null } },
+  now: number,
+): Promise<RaidWeek[]> {
+  if (!c.vars.raids || now - c.vars.raids.at >= RAID_TTL) {
+    const rows = raidHistory(c.db, now);
+    c.vars.raids = { at: now, rows };
+    rows.catch(() => {
+      if (c.vars.raids?.rows === rows) c.vars.raids = null;
+    });
+  }
+  return c.vars.raids.rows;
 }
 
 /** A new office's desk and chair onto its floor. If `world` misses them, its next start lays them (`seed`). */
