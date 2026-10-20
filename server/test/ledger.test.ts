@@ -145,6 +145,18 @@ describe("the coin ledger", () => {
     expect(await balance(1)).toBe(125);
     expect(await sumOf("table:4")).toBe(0);
   });
+
+  test("a paid-out pot holds nothing: calling it off again gives nothing back", async () => {
+    const stakes = [
+      { userId: 1, amount: 10 },
+      { userId: 2, amount: 10 },
+    ];
+    await hold(sql, "table:5", "stake", stakes, names, NOW);
+    await pay(sql, "table:5", "payout", [{ userId: 1, amount: 20 }], NOW);
+    expect(await heldIn(sql, "table:5")).toEqual(new Map());
+    await refund(sql, "table:5", NOW); // the arcade lost its settling in a restart and calls it off
+    expect([await balance(1), await balance(2)]).toEqual([135, 65]);
+  });
 });
 
 /** What's on the floor, oldest first. */
