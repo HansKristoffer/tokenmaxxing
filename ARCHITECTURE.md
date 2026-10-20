@@ -395,7 +395,7 @@ climbs it together (`core/src/raid.ts`).
     kills hang as plaques on the back wall. While `closed`, nobody fires and the one that got away dozes.
 - **Loot** (`core/src/loot.ts`): each boss has its own table of four items, one per rarity: common 10%, rare
   2.5%, epic 0.5%, legendary 0.1%. Each lap of the ladder ("II", "III"…) multiplies the odds by 1.05, at most
-  ×1.25 (`lapBonus`: a 0.1% legendary is never above 0.125%). The weekly +10% difficulty of the ladder is separate and never raises odds.
+  ×10 (`lapBonus`: a 0.1% legendary is never above 1%, and ×10 takes 48 laps). The weekly +10% difficulty of the ladder is separate and never raises odds.
   - The Rate Limit: Hourglass hat, 429 shades, Sand golem (pet), Golden Hourglass (trophy).
   - The Context Window: Pane glasses, Compacting… scarf, Goldfish (pet), Infinite Context Crown.
   - Merge Conflict: Two-tone suit, `<<<<<<< HEAD` band, Forked cat (pet), Golden Rebase (trophy).

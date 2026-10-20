@@ -22,8 +22,8 @@ export const RARITIES: Record<Rarity, { odds: number; label: string; color: stri
 
 /** Every lap round the ladder ("II", "III"…) multiplies the odds by this, up to `LAP_CAP`. */
 export const LAP_BONUS = 1.05;
-/** The most the odds ever grow: a 0.1% legendary is never above 0.125%. */
-export const LAP_CAP = 1.25;
+/** The most the odds ever grow: a 0.1% legendary is never above 1%. (At ×1.05 a lap, it takes 48 laps.) */
+export const LAP_CAP = 10;
 
 export type LootSlot = "outfit" | "glasses" | "hat" | "pet" | "furniture";
 
@@ -110,7 +110,7 @@ export const lootById = (id: unknown): Loot | undefined => LOOT.find((l) => l.id
 /** A boss's table (`Boss.id`), commonest first. */
 export const lootOf = (boss: string): Loot[] => LOOT.filter((l) => l.boss === boss);
 
-/** The odds multiplier on lap `level` of the ladder: ×1.05 a lap, at most ×1.25. */
+/** The odds multiplier on lap `level` of the ladder: ×1.05 a lap, at most ×10. */
 export const lapBonus = (level: number): number => Math.min(LAP_CAP, LAP_BONUS ** Math.max(0, level - 1));
 
 /** The chance of one roll for `rarity` on lap `level`; `boost` is the dev-only `RAID_LOOT_BOOST`. */
@@ -159,7 +159,7 @@ export function killDrops(
 export const raidDrops = (weeks: readonly RaidWeek[], boost = 1): LootDrop[] =>
   weeks.flatMap((w) => w.kills.flatMap((k) => killDrops(w.week, k, boost)));
 
-/** "10%", "2.5%", "0.1%", "0.125%". */
+/** "10%", "2.5%", "0.1%", "1%". */
 export const oddsText = (odds: number): string => `${Number((odds * 100).toPrecision(3))}%`;
 
 /** What a world-wide announcement of a drop carries (`world.announceLoot`). */

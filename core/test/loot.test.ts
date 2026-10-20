@@ -89,7 +89,7 @@ test("over many raiders, each rarity drops about as often as its odds", () => {
   }
 });
 
-test("odds: 10%, 2.5%, 0.5% and 0.1%, ×1.05 a lap round the ladder, at most ×1.25", () => {
+test("odds: 10%, 2.5%, 0.5% and 0.1%, ×1.05 a lap round the ladder, at most ×10", () => {
   expect(["common", "rare", "epic", "legendary"].map((r) => oddsText(lootOdds(r as "rare", 1)))).toEqual([
     "10%",
     "2.5%",
@@ -97,11 +97,14 @@ test("odds: 10%, 2.5%, 0.5% and 0.1%, ×1.05 a lap round the ladder, at most ×1
     "0.1%",
   ]);
   expect(LAP_BONUS).toBe(1.05);
-  expect(LAP_CAP).toBe(1.25);
+  expect(LAP_CAP).toBe(10);
   expect([1, 2, 3].map(lapBonus)).toEqual([1, 1.05, 1.05 ** 2]);
   expect(lapBonus(4)).toBeCloseTo(1.157625, 6);
-  expect(lapBonus(6)).toBe(LAP_CAP);
-  expect(lapBonus(40)).toBe(LAP_CAP);
+  // 48 laps in, ×1.05 a lap passes ×10, and it stops there: a 0.1% legendary is never above 1%.
+  expect(lapBonus(48)).toBeLessThan(LAP_CAP);
+  expect(lapBonus(49)).toBe(LAP_CAP);
+  expect(lapBonus(500)).toBe(LAP_CAP);
+  expect(lootOdds("legendary", 500)).toBeCloseTo(0.01, 8);
   // "II" is rung 5: the lap after the first.
   expect(lootOdds("legendary", bossAt(5).level)).toBeCloseTo(0.00105, 8);
   expect(lootOdds("rare", 2)).toBeCloseTo(0.02625, 8);
