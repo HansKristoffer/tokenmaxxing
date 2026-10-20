@@ -27,7 +27,7 @@ export const COMPANY_CAP = 50;
 export type Facing = "up" | "down" | "left" | "right";
 /** `playing`: at a game table in town, until the match ends (see core/src/games/gather.ts). */
 export type PlayerState = "idle" | "sit" | "away" | "working" | "playing";
-export type RoomId = "town" | "inn" | `hq:${number}` | `office:${number}`;
+export type RoomId = "town" | "inn" | "dungeon" | `hq:${number}` | `office:${number}`;
 
 export const DIRS: Record<Facing, [number, number]> = {
   up: [0, -1],
@@ -172,6 +172,29 @@ export interface PlayerInfo {
   dozing: boolean;
 }
 
+/**
+ * Someone with agents running right now. The dungeon seats them at a war desk wherever they really are
+ * (asleep, in town, offline), firing at the boss as fast as they burn tokens.
+ */
+export interface Raider {
+  id: number;
+  name: string;
+  look: Look;
+  /** Agents that ran in the last 10 minutes: the first is them, the rest their robot minions. */
+  agents: number;
+  /** Tokens a minute over the 10 minutes before their last sync, fading out as that sync gets old. */
+  burn: number;
+}
+
+/** The dungeon's raiders: the busiest `RAIDERS_SHOWN`, and how many more there are. */
+export interface Raiders {
+  top: Raider[];
+  more: number;
+}
+
+/** As many raiders as the dungeon has war desks. */
+export const RAIDERS_SHOWN = 40;
+
 /** A line from `town` for one player (`notice`), and the panel a click on it opens. */
 export interface Notice {
   text: string;
@@ -272,6 +295,8 @@ export interface Snapshot {
   doors: Door[];
   /** What's on the floor: furniture (in the map too), wearables and pets. */
   drops: Drop[];
+  /** Only in the dungeon: who has agents running, wherever they are. */
+  raiders: Raiders | null;
 }
 
 /** A game on show in town: where its table (or arena) is, who's at it, and how it's going. */
@@ -394,9 +419,10 @@ export function roomEntry(room: RoomId): Place {
   return { room, x, y: y - 1, facing: "up" };
 }
 
-/** Just outside a town door (a company's plot, or the Inn), facing away from it. */
-export function outsideDoor(plot: number | "inn"): Place {
-  const [x, y] = plot === "inn" ? MAPS.town.find("I")[0]! : doorOf(plot);
+/** Just outside a town door (a company's plot, the Inn, or the dungeon's gate), facing away from it. */
+export function outsideDoor(plot: number | "inn" | "dungeon"): Place {
+  const [x, y] =
+    plot === "inn" ? MAPS.town.find("I")[0]! : plot === "dungeon" ? MAPS.town.find("G")[0]! : doorOf(plot);
   return { room: "town", x, y: y + 1, facing: "down" };
 }
 
@@ -426,12 +452,13 @@ export function portal(
   }
   if (room === "town") {
     if (door.ch === "I") return roomEntry("inn");
+    if (door.ch === "G") return roomEntry("dungeon");
     const holder = plots.get(plotId(...blockOf(door.x, door.y)));
     if (!holder) return { notice: "Nobody lives here any more." };
     if (holder.id !== companyId) return { notice: `🔒 ${holder.name}'s house. Members only.` };
     return roomEntry(`hq:${holder.id}`);
   }
-  if (room === "inn") return outsideDoor("inn");
+  if (room === "inn" || room === "dungeon") return outsideDoor(room);
   const plot = [...plots].find(([, c]) => c.id === companyOfRoom(room))?.[0];
   return plot === undefined ? townSpawn() : outsideDoor(plot);
 }

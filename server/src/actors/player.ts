@@ -682,5 +682,8 @@ export async function report(
      FROM events WHERE message_type = 'assistant' AND timestamp > ?`,
     now - LIVE_AGENTS_MS,
   )) as [{ agents: number }];
-  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents);
+  // How hard they're going: the dungeon fires their missiles at this rate.
+  const { tokens } = await tokensBetween(sql, now - LIVE_AGENTS_MS, now + 1);
+  const burn = Math.round(tokens / (LIVE_AGENTS_MS / 60_000));
+  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents, burn);
 }

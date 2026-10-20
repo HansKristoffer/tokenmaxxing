@@ -18,6 +18,7 @@ import { MatchPanel } from "./Match.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
+import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Shop } from "./Shop.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Modal, useRun } from "./ui.tsx";
@@ -34,6 +35,7 @@ export function Hud() {
       <div className="corner">
         <MiniBoard />
         <GamesBox />
+        <RaidBox />
       </div>
       <Banner />
       {!beside && <Chat />}
@@ -56,6 +58,7 @@ export function Hud() {
         <QuestToast />
         <InviteToast />
         <LevelToast />
+        <RaidToast />
       </div>
       <FirstVisit />
     </>
@@ -217,6 +220,8 @@ function Panel() {
       return <TradePanel userId={panel.userId} />;
     case "trades":
       return <TradesPanel />;
+    case "raid":
+      return <RaidPanel />;
     case "menu":
       return (
         <Modal title="Menu">
@@ -236,6 +241,9 @@ function Panel() {
             </button>
             <button type="button" onClick={() => hud.set({ panel: { kind: "arcade" } })}>
               🎮 Arcade
+            </button>
+            <button type="button" onClick={() => hud.set({ panel: { kind: "raid" } })}>
+              ⚔️ Raid
             </button>
             <button type="button" onClick={() => hud.set({ panel: { kind: "company" } })}>
               🏢 Company

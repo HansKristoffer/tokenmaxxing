@@ -8,12 +8,14 @@ import {
   type Moves,
   type Notice,
   type PlayerInfo,
+  type Raiders,
   type RoomId,
   type Snapshot,
   type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
 import type { registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
+import { noteRaid, setRaiders } from "./game/raid.ts";
 import {
   applyBubble,
   applyCallout,
@@ -102,7 +104,11 @@ export function connect(token: string): void {
     });
   conn = client.world.getOrCreate(["main"], { params: { token } }).connect();
 
-  conn.on("snapshot", (s: Snapshot) => loadSnapshot(s));
+  conn.on("snapshot", (s: Snapshot) => {
+    loadSnapshot(s);
+    setRaiders(s.raiders);
+  });
+  conn.on("raiders", (r: Raiders) => setRaiders(r));
   conn.on("moves", (m: Moves) => applyMoves(m));
   conn.on("info", (info: PlayerInfo) => {
     applyInfo(info);
@@ -167,8 +173,9 @@ async function refreshStats(): Promise<void> {
   statsTimer = setTimeout(() => {
     statsTimer = null;
   }, 5000);
-  const [m, wallet] = await Promise.all([town.today(), town.wallet()]);
-  hud.set({ stats: m.me, board: m.top, wallet });
+  const [m, wallet, raid] = await Promise.all([town.today(), town.wallet(), town.raid()]);
+  noteRaid(hud.get().raid, raid);
+  hud.set({ stats: m.me, board: m.top, wallet, raid });
 }
 
 // MARK: Games

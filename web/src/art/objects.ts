@@ -155,6 +155,75 @@ const desk = cached(
     }),
 );
 
+/** The dungeon's war desk: a desk with its laptop shut until a raider sits at it (game/raid.ts). */
+const warDesk = cached(
+  () => "warDesk",
+  () =>
+    bake(16, 18, (p) => {
+      p.rect(0, 6, 16, 12, C.ink);
+      p.rect(0, 7, 16, 4, C.metalLight);
+      p.rect(0, 11, 16, 5, C.metal);
+      p.rect(0, 16, 2, 2, C.ink);
+      p.rect(14, 16, 2, 2, C.ink);
+      p.rect(4, 0, 8, 7, C.ink);
+      p.rect(5, 1, 6, 5, "#3b4252");
+      p.rect(3, 7, 10, 2, C.stoneDark);
+      p.rect(3, 9, 10, 1, C.metal);
+    }),
+);
+
+const torch = cached(
+  () => "torch",
+  () =>
+    bake(16, 26, (p) => {
+      p.rect(5, 24, 6, 2, C.shadow);
+      p.rect(7, 10, 2, 15, C.ink);
+      p.rect(7, 10, 1, 14, C.woodDark);
+      p.rect(4, 7, 8, 4, C.ink);
+      p.rect(5, 8, 6, 2, C.metal);
+      // The flame; game/raid.ts flickers a glow over it.
+      p.rect(6, 2, 4, 6, "#e9733d");
+      p.rect(7, 0, 2, 3, "#e9733d");
+      p.rect(7, 4, 2, 4, "#ffd35c");
+    }),
+);
+
+/** Stairs down into the raid dungeon, under a stone arch a little wider than its tile. */
+const gate = cached(
+  () => "gate",
+  () =>
+    bake(24, 28, (p) => {
+      p.disc(12, 11, 11, C.ink);
+      p.rect(1, 11, 22, 17, C.ink);
+      p.disc(12, 11, 10, C.stoneDark);
+      p.rect(2, 11, 20, 17, C.stoneDark);
+      // Stone blocks round the arch.
+      for (const [x, y] of [
+        [4, 6],
+        [9, 2],
+        [15, 2],
+        [19, 7],
+        [2, 14],
+        [20, 15],
+        [3, 21],
+        [19, 22],
+      ] as const)
+        p.rect(x, y, 3, 1, C.stoneLight);
+      // The way down: dark, a violet glow at the bottom, and steps.
+      p.disc(12, 12, 6, "#1c1924");
+      p.rect(6, 12, 13, 16, "#1c1924");
+      p.rect(7, 24, 11, 4, "#3b2a5a");
+      for (let i = 0; i < 4; i++) {
+        p.rect(6 + i, 15 + i * 3, 13 - 2 * i, 1, C.stone);
+        p.rect(6 + i, 16 + i * 3, 13 - 2 * i, 1, C.stoneDark);
+      }
+      // The keystone, with a sword on it.
+      p.rect(10, 0, 5, 5, C.ink);
+      p.rect(11, 1, 3, 3, "#b98cff");
+      p.px(12, 2, C.white);
+    }),
+);
+
 export const chairBack = cached(
   () => "chairBack",
   () =>
@@ -315,6 +384,14 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(plant());
     case "o":
       return at(coffee());
+    case "l":
+      return at(warDesk());
+    case "r":
+      return at(chair());
+    case "j":
+      return at(torch());
+    case "G":
+      return at(gate(), -4);
     default:
       return null;
   }

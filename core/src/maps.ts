@@ -4,7 +4,7 @@
  * One character per tile; `LEGEND` says what it is.
  */
 
-export type MapId = "town" | "hq" | "inn" | "office";
+export type MapId = "town" | "hq" | "inn" | "office" | "dungeon";
 type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 interface TileKind {
@@ -46,6 +46,12 @@ export const LEGEND: Record<string, TileKind> = {
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
   R: { name: "office door", portal: true },
+  G: { name: "dungeon gate", portal: true },
+  q: { name: "stone floor", walk: true },
+  Z: { name: "dais", text: "The boss's dais. It hums with stolen compute." },
+  l: { name: "war desk", text: "A raider's laptop. Run an agent and you're at one, wherever you are." },
+  r: { name: "raider's seat" },
+  j: { name: "torch", text: "A torch. It flickers like a flaky test." },
 };
 
 /**
@@ -115,7 +121,10 @@ export const BLOCK_H = 9;
 export const PLOT_W = 7;
 export const PLOT_H = 5;
 
-/** Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard and coffee, the pond and the Inn. */
+/**
+ * Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard, coffee and the raid dungeon's
+ * gate, the pond and the Inn.
+ */
 const CORE = [
   ",,,,,,,,,,,,,,,,,,,,",
   ",..T....,,,....T....",
@@ -123,7 +132,7 @@ const CORE = [
   ",..:B::::FF::::B:...",
   ",..::N:::FF:::o::...",
   ",..::::::::::::::...",
-  ",..L::::::::::::L...",
+  ",..L::::::::G:::L...",
   ",.......,,,.........",
   ",.......,,,.........",
   ",,,,,,,,,,,,,,,,,,,,",
@@ -337,5 +346,30 @@ export const MAPS: Record<MapId, GameMap> = {
     "W__________W",
     "W__________W",
     "WWWWWxWWWWWW",
+  ]),
+  // The raid: the boss on its dais, and arcs of war desks facing it. Whoever has agents running is drawn
+  // at one (web/src/game/raid.ts); the desks and seats are props, so visitors walk the aisles.
+  dungeon: new GameMap("dungeon", "Raid Dungeon", [
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWW",
+    "WqqjqqqqjqqqqqqqqqjqqqqjqqW",
+    "WqqqqqqqqqqZZZZZqqqqqqqqqqW",
+    "WqqqqqqqqqqZZZZZqqqqqqqqqqW",
+    "WqqqqqqqqqqZZZZZqqqqqqqqqqW",
+    "WqqqqqqqqqqqqqqqqqqqqqqqqqW",
+    "WqqqqqqlqqqqqqqqqqqlqqqqqqW",
+    "WqqqqqqrqlqlqlqlqlqrqqqqqqW",
+    "WqqqqqqqqrqrqrqrqrqqqqqqqqW",
+    "WqqqqlqlqqqqqqqqqqqlqlqqqqW",
+    "WqqqqrqrqlqlqlqlqlqrqrqqqqW",
+    "WqqlqqqqqrqrqrqrqrqqqqqlqqW",
+    "WqqrqlqlqqqqqqqqqqqlqlqrqqW",
+    "WqqqqrqrqlqlqlqlqlqrqrqqqqW",
+    "WlqlqqqqqrqrqrqrqrqqqqqlqlW",
+    "WrqrqlqlqqqqqqqqqqqlqlqrqrW",
+    "WqqqqrqrqlqlqlqlqlqrqrqqqqW",
+    "WqqqqqqqqrqrqrqrqrqqqqqqqqW",
+    "WqqqqqqqqqqqqqqqqqqqqqqqqqW",
+    "WWWWWWWWWWWWWxWWWWWWWWWWWWW",
   ]),
 };

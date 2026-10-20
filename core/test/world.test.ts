@@ -82,6 +82,13 @@ describe("portals", () => {
     expect(portal("inn", exit, null, plots)).toEqual(outsideDoor("inn"));
   });
 
+  test("the gate in the square goes down to the raid dungeon, and its exit back up to the gate", () => {
+    const [gx, gy] = MAPS.town.find("G")[0]!;
+    expect(portal("town", { ch: "G", x: gx, y: gy }, null, plots)).toEqual(roomEntry("dungeon"));
+    expect(portal("dungeon", exit, 7, plots)).toEqual({ room: "town", x: gx, y: gy + 1, facing: "down" });
+    expect(MAPS.town.walkable(gx, gy + 1)).toBe(true);
+  });
+
   test("bo's door takes you to bo's office; its exit to below the door for a member, or the Inn", () => {
     const doors = doorsFor([
       { userId: 4, name: "ada", open: true },

@@ -13,6 +13,7 @@ import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
 import { followPet, prunePets } from "./pets.ts";
+import { drawRaid } from "./raid.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
@@ -46,7 +47,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   Object.assign(camera, { x: camX, y: camY, scale, dpr });
 
   g.setTransform(1, 0, 0, 1, 0, 0);
-  g.fillStyle = map.id === "town" ? C.leafInk : "#1b1f2a";
+  g.fillStyle = map.id === "town" ? C.leafInk : map.id === "dungeon" ? "#110f16" : "#1b1f2a";
   g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = false;
   g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
@@ -131,6 +132,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   }
 
   drawGames(g, items, labels, toScreen, now, dpr);
+  drawRaid(g, items, labels, toScreen, now, dpr);
 
   if (world.asleep > 0) {
     const [sx, sy] = toScreen((map.x0 + map.width / 2) * TILE, (map.y0 + 2) * TILE);

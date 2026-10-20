@@ -1350,3 +1350,115 @@ button.lb-item:hover {
   white-space: nowrap;
   user-select: all;
 }
+
+/* The raid: the boss's HP in the corner box and the panel. */
+.raid-box {
+  padding: 6px 8px;
+}
+
+.raid-line {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 0 4px 4px;
+  font-size: 12px;
+}
+
+.raid-line .who {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hp {
+  height: 8px;
+  margin: 0 4px 2px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #5b1f1a;
+  overflow: hidden;
+}
+
+.hp span {
+  display: block;
+  height: 100%;
+  transition: width 0.6s ease-out;
+}
+
+.hp .ok {
+  background: #72bf52;
+}
+
+.hp .low {
+  background: #e9b73d;
+}
+
+.hp .dire {
+  background: #e06c5f;
+}
+
+.raid .hp {
+  height: 14px;
+  margin: 0 0 10px;
+}
+
+.raid .miniboard {
+  padding: 0;
+}
+
+.raid h3 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+}
+
+.raid-status,
+.raid-me {
+  margin: 4px 0 8px;
+}
+
+.raid-rules {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.raid-go {
+  width: 100%;
+  margin: 0 0 10px;
+}
+
+.raid-ladder {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.raid-ladder li {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.raid-ladder .rung {
+  font-weight: 700;
+  text-align: center;
+}
+
+.raid-ladder .fell {
+  background: rgba(233, 183, 61, 0.14);
+}
+
+.raid-ladder .now {
+  background: rgba(224, 108, 95, 0.16);
+  border: 1px solid rgba(224, 108, 95, 0.5);
+}
+
+.raid-ladder .ahead {
+  opacity: 0.45;
+}

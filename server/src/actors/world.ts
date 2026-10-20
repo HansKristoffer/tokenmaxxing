@@ -52,6 +52,8 @@ import {
   type PlayerView,
   pieceOfDrop,
   portal,
+  RAIDERS_SHOWN,
+  type Raiders,
   type RoomId,
   restSpot,
   roomEntry,
@@ -91,6 +93,8 @@ interface WorldPlayer extends PlayerCore, Place {
   lastInputAt: number;
   lastAgentAt: number;
   liveAgents: number;
+  /** Tokens a minute over the 10 minutes before their last sync (optional: older state has none). */
+  burn?: number;
   /** Where they were when sent to bed or desk, so they come back there. */
   back?: (Place & { state: "idle" | "sit" }) | null;
   /** In a long game (Tokenmaxxing): their desk at the arena, which replaces their bed until it ends. */
@@ -129,6 +133,8 @@ const DROPS_PER_ROOM = 30;
 const REST_CHECK_EVERY = 10; // ticks
 /** Head counts go to every connection, so at most once a second: a burst of joins changes them every tick. */
 const COUNTS_EVERY = 10; // ticks
+/** How often the dungeon hears who's raiding. */
+const RAIDERS_EVERY_MS = 1000;
 /** Bots take a step every this many ticks: a stroll. */
 const BOT_STEP_EVERY = 3;
 /** How long a bot stands around between walks, and after saying something. */
@@ -201,6 +207,9 @@ export const world = actor({
     occupancy: "",
     /** The last `houses` sent to town, as JSON. */
     houses: "",
+    /** The last `raiders` sent to the dungeon, as JSON, and when. */
+    raiders: "",
+    raidersAt: 0,
     tokens: new Map() as TokenCache,
     bots: new Map<number, BotRun>(),
   }),
@@ -452,6 +461,17 @@ export const world = actor({
         return { notice: `🔒 ${owner.name}'s office is closed.` };
       touch(c, p, Date.now());
       Object.assign(p, roomEntry(`office:${owner.id}`), { state: "idle" });
+      c.vars.dirty.add(p.id);
+      return correction(p);
+    },
+
+    /** The raid panel's "Go to the dungeon": in through its gate, from anywhere. */
+    enterDungeon: (c): StepResult => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || p.state === "playing") return null;
+      touch(c, p, Date.now());
+      Object.assign(p, roomEntry("dungeon"), { state: "idle" });
       c.vars.dirty.add(p.id);
       return correction(p);
     },
@@ -718,12 +738,13 @@ export const world = actor({
     },
 
     /** From `player` after an ingest: offline players work at their desk while agents run. */
-    activity: (c, userId: number, lastAt: number, liveAgents: number): void => {
+    activity: (c, userId: number, lastAt: number, liveAgents: number, burn = 0): void => {
       requireInternal(c.conn.state);
       const p = c.state.players[userId];
       if (!p) return;
       p.lastAgentAt = Math.max(p.lastAgentAt, lastAt);
       p.liveAgents = liveAgents;
+      p.burn = burn;
       const online = c.vars.online.has(userId);
       if (!online) {
         const want = Date.now() - p.lastAgentAt < WORKING_MS ? "working" : "away";
@@ -749,6 +770,8 @@ type Vars = {
   hidden: Set<number>;
   occupancy: string;
   houses: string;
+  raiders: string;
+  raidersAt: number;
 };
 
 function upsert(s: WorldState, core: PlayerCore, now: number): WorldPlayer {
@@ -1107,7 +1130,26 @@ async function snapshot(
         : { id: owner, name: s.players[owner]?.name ?? "Someone", open: officeOf(s, owner).open },
     doors: companyId === null ? [] : doorsOf(s, companyId),
     drops: dropsIn(room),
+    raiders: room === "dungeon" ? raiders(s, Date.now()) : null,
   };
+}
+
+/**
+ * Everyone with agents running in the last `WORKING_MS`, busiest first. Their burn fades out as their
+ * last sync gets old, so someone who stopped slows down before they leave their desk.
+ */
+function raiders(s: WorldState, now: number): Raiders {
+  const all = Object.values(s.players)
+    .filter((p) => now - p.lastAgentAt < WORKING_MS)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      look: p.look,
+      agents: Math.max(1, p.liveAgents),
+      burn: Math.round((p.burn ?? 0) * Math.max(0, 1 - (now - p.lastAgentAt) / WORKING_MS)),
+    }))
+    .sort((a, b) => b.burn - a.burn || a.id - b.id);
+  return { top: all.slice(0, RAIDERS_SHOWN), more: Math.max(0, all.length - RAIDERS_SHOWN) };
 }
 
 /** What's on a room's floor. `DROPS` is the world's only copy: `town` has them all for a restart (`seed`). */
@@ -1279,4 +1321,13 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
     c.vars.houses = inside;
     sendToRoom(c, "town", "houses", JSON.parse(inside));
   }
+  // The dungeon's raiders, once a second, when someone there would see a change.
+  const now = Date.now();
+  if (now - c.vars.raidersAt < RAIDERS_EVERY_MS) return;
+  c.vars.raidersAt = now;
+  if (![...online.keys()].some((id) => c.state.players[id]?.room === "dungeon")) return;
+  const list = JSON.stringify(raiders(c.state, now));
+  if (list === c.vars.raiders) return;
+  c.vars.raiders = list;
+  sendToRoom(c, "dungeon", "raiders", JSON.parse(list));
 }
