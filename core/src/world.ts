@@ -255,7 +255,10 @@ export const namesIn = (text: string): string[] => [
 export interface Snapshot {
   room: RoomId;
   selfId: number;
+  /** Everyone in the room except those counted in `asleep`. */
   players: PlayerView[];
+  /** Offline players asleep here, as a head count: only the Inn has any (see `world.ts`). */
+  asleep: number;
   companies: CompanyInfo[];
   occupancy: Partial<Record<RoomId, number>>;
   chat: ChatLine[];
@@ -299,6 +302,8 @@ export interface Moves {
   join: PlayerView[];
   m: PlayerPos[];
   leave: number[];
+  /** The room's new `asleep` count, when it changed. */
+  asleep?: number;
 }
 
 /** What `step` answers when it didn't simply move you. */

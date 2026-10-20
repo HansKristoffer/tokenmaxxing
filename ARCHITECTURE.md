@@ -195,8 +195,9 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   everyone too when it starts from nothing.
 
 **`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room).
-- A 10 Hz tick sends each room its `moves`, and head counts (`occupancy`) and who's inside each house
-  (`houses`, for town) when they change.
+- A 10 Hz tick sends each room its `moves`, and who's inside each house (`houses`, for town) when it changes.
+  Head counts (`occupancy`) go to every connection, so at most once a second: sent every tick, a burst of joins
+  stalled the world at 300 connections.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
   `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game), `visit`
@@ -217,6 +218,10 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   furniture now (`back` after a game too); a seat that's gone, you wake standing where it was.
   Online with 3 minutes without input, you just doze where you are (`dozing`, drawn as a "z") until
   your next input, so a town left open on a second screen keeps showing what's going on.
+- **The Inn's sleepers are a number.** Everyone without a company sleeps at the Inn, so its offline sleepers come
+  as `asleep` in the snapshot (and in `moves` when it changes), drawn as "💤 N asleep", not one by one. They join
+  the room when they wake up or sit down to work, and leave it when they fall asleep there. Company houses (50 at
+  most) still show everyone.
 
 **`arcade["main"]`** and **`match[id]`**: the mini games; see *Games*.
 

@@ -57,6 +57,8 @@ export const world = {
   avatars: new Map<number, Avatar>(),
   /** Avatars playing their warp-out before disappearing. */
   leaving: [] as Avatar[],
+  /** Offline players asleep in the room who aren't in `avatars`: the Inn sends them as a number. */
+  asleep: 0,
   companies: new Map<number, CompanyInfo>(),
   /** Town only: who is inside each company house, drawn through its walls. */
   houses: {} as Houses,
@@ -127,6 +129,7 @@ export function loadSnapshot(s: Snapshot): void {
     }),
   );
   world.leaving = [];
+  world.asleep = s.asleep;
   world.portalPending = false;
   world.houses = s.houses;
   world.games = new Map(s.games.map((g) => [g.id, g]));
@@ -172,6 +175,7 @@ export function roomName(room: RoomId): string {
 /** One tick of changes from the server. */
 export function applyMoves(m: Moves): void {
   if (m.room !== world.room) return;
+  if (m.asleep !== undefined) world.asleep = m.asleep;
   const now = performance.now();
   for (const id of m.leave) {
     const a = world.avatars.get(id);
