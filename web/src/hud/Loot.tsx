@@ -55,8 +55,8 @@ export function LootSection({ raid }: { raid: Raid }) {
         })}
       </ul>
       <p className="muted small">
-        Every raider a kill pays rolls each item once, so you can get several. Rolls are fixed per week, rung,
-        player and item: nobody can reroll. Loot is tradeable.
+        Everyone a kill pays rolls for each item once, so one kill can drop you several. Rolls are fixed per
+        week, rung, player and item, so nobody can reroll. Loot is tradeable.
       </p>
       {loot.drops.length > 0 && (
         <>
