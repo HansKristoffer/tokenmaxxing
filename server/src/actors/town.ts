@@ -96,6 +96,7 @@ import {
   withdraw,
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
+import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import { migrate } from "../town/schema.ts";
 import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
@@ -129,6 +130,7 @@ import {
   type Sql,
   serial,
   type TokenCache,
+  type TxSql,
 } from "./shared.ts";
 
 export type { AdminCompany, AdminLogEntry, AdminOverview, AdminUser } from "../town/admin.ts";
@@ -143,6 +145,7 @@ export type {
 export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany } from "../town/companies.ts";
 export type { GamePlayer, GameStats } from "../town/games.ts";
+export type { RaidLoot } from "../town/loot.ts";
 export type { Raid } from "../town/raid.ts";
 export type { PlayerCore } from "../town/users.ts";
 
@@ -466,7 +469,8 @@ export const town = actor({
     raid: async (c): Promise<Raid> => {
       const userId = requireUser(c.conn.state);
       const now = Date.now();
-      return raid(c.db, userId, await raidsOf(c, now), now);
+      const r = await raid(c.db, userId, await raidsOf(c, now), now);
+      return { ...r, loot: await raidLoot(c.db, userId, r.week, r.boss, lootBoost()) };
     },
 
     /** What I hold, per kind, for the bag panel. */
@@ -478,6 +482,7 @@ export const town = actor({
       if (!item) throw new UserError("That's not in the shop.", { code: "not_found" });
       if (item.level !== undefined)
         throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
+      if (item.loot) throw new UserError("That one drops in the raid.", { code: "not_for_sale" });
       return c.vars.serial(() => buy(c.db, userId, item, Date.now()));
     },
 
@@ -525,10 +530,19 @@ export const town = actor({
       return pickUp(c.db, dropId, userId, room);
     },
 
-    /** The alarm, every 10 minutes: drops nobody took in an hour go back to whoever dropped them. */
+    /**
+     * The alarm, every 10 minutes: drops nobody took in an hour go back to whoever dropped them. And the
+     * raid is worked out, so a kill's loot is handed out even while nobody's watching (`raidsOf`).
+     */
     sweep: async (c): Promise<void> => {
       // The alarm calls with no connection; anyone else has one, and has to be inside.
       if (c.conn) requireInternal(c.conn.state);
+      // Never in the way of the drops below.
+      try {
+        await raidsOf(c, Date.now());
+      } catch (err) {
+        console.warn(`[sweep] raid: ${String(err)}`);
+      }
       const ids = await unclaimed(c.db, Date.now() - DROP_TTL);
       if (ids.length === 0) return;
       // Off the floor first: if `world` is down, nothing changed and the next sweep tries again.
@@ -1005,14 +1019,29 @@ const RAID_TTL = 15_000;
 /**
  * Every raid so far, worked out at most every few seconds however many people are watching. A new
  * week's gate opening (the launch too) throws the old one away, so 08:00 never shows a ladder without it.
+ * Each time, the loot its kills dropped is handed out (`grantLoot`, once per drop), before anyone sees the kill.
  */
 function raidsOf(
-  c: { db: Sql; vars: { raids: { at: number; rows: Promise<RaidWeek[]> } | null } },
+  c: {
+    db: TxSql;
+    vars: { raids: { at: number; rows: Promise<RaidWeek[]> } | null; serial: ReturnType<typeof serial> };
+    client(): Client;
+  },
   now: number,
 ): Promise<RaidWeek[]> {
   const kept = c.vars.raids;
   if (kept && now - kept.at < RAID_TTL && raidWeekAt(kept.at) === raidWeekAt(now)) return kept.rows;
-  const rows = raidHistory(c.db, now);
+  const rows = raidHistory(c.db, now).then(async (weeks) => {
+    const fresh = await c.vars
+      .serial(() => grantLoot(c.db, weeks, now))
+      .catch((err) => {
+        // The raid still shows; the next one tries again.
+        console.warn(`[loot] ${String(err)}`);
+        return [];
+      });
+    if (fresh.length > 0) void announceLoot(c.db, c.client(), fresh, now);
+    return weeks;
+  });
   c.vars.raids = { at: now, rows };
   rows.catch(() => {
     if (c.vars.raids?.rows === rows) c.vars.raids = null;

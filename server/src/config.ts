@@ -26,6 +26,10 @@ export function loadConfig(env: Record<string, string | undefined>, version: str
   const raidStart = env.RAID_START_WEEK;
   if (raidStart && (!/^\d{4}-\d{2}-\d{2}$/.test(raidStart) || weekOf(raidStart) !== raidStart))
     throw new Error(`invalid RAID_START_WEEK: ${raidStart} (a Monday, YYYY-MM-DD)`);
+  // Read by `lootBoost`: dev and testing only, so a typo can't quietly hand out legendaries.
+  const boost = env.RAID_LOOT_BOOST;
+  if (boost !== undefined && boost !== "" && !(Number(boost) >= 1 && Number(boost) <= 1000))
+    throw new Error(`invalid RAID_LOOT_BOOST: ${boost} (1 to 1000)`);
   return Object.freeze({
     port,
     host: env.TOKENMAXXING_HOST ?? "0.0.0.0",

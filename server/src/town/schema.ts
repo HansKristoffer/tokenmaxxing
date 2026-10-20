@@ -104,4 +104,10 @@ export async function migrate(sql: Sql): Promise<void> {
   // The raid's settings, once. `start`: the first raid's Monday, the one after the town first had the
   // raid (`raidStart`). Kept rather than worked out, so a restart or deploy doesn't move the launch.
   await sql.execute("CREATE TABLE IF NOT EXISTS raid_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+  // Raid loot handed out (`grantLoot`): one row per item per raider per kill, so each drop comes once,
+  // with its odds when it dropped. Kept when an account goes, like the ledger: ids are never reused.
+  await sql.execute(`CREATE TABLE IF NOT EXISTS loot (
+    week TEXT NOT NULL, rung INTEGER NOT NULL, user_id INTEGER NOT NULL, item TEXT NOT NULL,
+    odds REAL NOT NULL, at INTEGER NOT NULL,
+    PRIMARY KEY (week, rung, user_id, item)) WITHOUT ROWID`);
 }

@@ -8,6 +8,7 @@ import {
   spotSize,
 } from "@tokenmaxxing/core/games/gather.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
+import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { type GameMap, LEGEND, setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import {
   type Door,
@@ -677,6 +678,15 @@ export const world = actor({
       for (const conn of c.conns.values()) {
         const s = conn.state as ConnState;
         if (s.kind === "user" && s.joined && s.userId === userId) conn.send("notice", notice);
+      }
+    },
+
+    /** From `town`: what this week's kills dropped, for everyone (the dungeon flies it to their desk). */
+    announceLoot: (c, news: LootNews[]): void => {
+      requireInternal(c.conn.state);
+      for (const conn of c.conns.values()) {
+        const s = conn.state as ConnState;
+        if (s.kind === "user" && s.joined) conn.send("loot", news);
       }
     },
 

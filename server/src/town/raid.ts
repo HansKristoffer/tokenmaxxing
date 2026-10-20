@@ -21,6 +21,7 @@ import {
 } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import { all, one, type Sql } from "../actors/shared.ts";
+import type { RaidLoot } from "./loot.ts";
 import { TOKENS } from "./users.ts";
 
 /** One raider on the board. */
@@ -97,6 +98,8 @@ export interface Raid {
     /** The hour on Monday, world time, a new ladder opens. */
     opensHour: number;
   };
+  /** The boss's loot table and this week's drops: added by `town.raid` (`raidLoot`). */
+  loot?: RaidLoot;
 }
 
 const TOP = 5;
