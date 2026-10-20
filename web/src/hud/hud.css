@@ -1462,3 +1462,79 @@ button.lb-item:hover {
 .raid-ladder .ahead {
   opacity: 0.45;
 }
+
+/* Before the first raid: the teaser. */
+.raid-clock {
+  padding: 0 4px 2px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+  color: #f5d14a;
+}
+
+.raid-teaser-box .miniboard-title {
+  color: #f5d14a;
+}
+
+.raid-teaser {
+  text-align: center;
+}
+
+.raid-teaser .raid-rules {
+  text-align: left;
+}
+
+.raid-shadow {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin: 4px auto 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(143, 95, 224, 0.45), rgba(143, 95, 224, 0) 70%);
+}
+
+.raid-silhouette {
+  image-rendering: pixelated;
+  animation: raid-lurk 2.4s ease-in-out infinite;
+}
+
+.raid-qqq {
+  position: absolute;
+  right: -8px;
+  top: 2px;
+  font-weight: 800;
+  font-size: 22px;
+  color: #c9a2ff;
+}
+
+.raid-hint {
+  margin: 2px 0 0;
+  font-style: italic;
+}
+
+.raid-countdown {
+  margin: 6px 0 4px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+  color: #f5d14a;
+}
+
+@keyframes raid-lurk {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .raid-silhouette {
+    animation: none;
+  }
+}

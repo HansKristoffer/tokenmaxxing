@@ -1,5 +1,5 @@
 import { frontier } from "@tokenmaxxing/core/maps.ts";
-import type { RaidWeek } from "@tokenmaxxing/core/raid.ts";
+import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import { dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
 import {
   emptySide,
@@ -1002,19 +1002,22 @@ function podiumsOf(
 
 const RAID_TTL = 15_000;
 
-/** Every raid so far, worked out at most every few seconds however many people are watching. */
+/**
+ * Every raid so far, worked out at most every few seconds however many people are watching. A new
+ * week's gate opening (the launch too) throws the old one away, so 08:00 never shows a ladder without it.
+ */
 function raidsOf(
   c: { db: Sql; vars: { raids: { at: number; rows: Promise<RaidWeek[]> } | null } },
   now: number,
 ): Promise<RaidWeek[]> {
-  if (!c.vars.raids || now - c.vars.raids.at >= RAID_TTL) {
-    const rows = raidHistory(c.db, now);
-    c.vars.raids = { at: now, rows };
-    rows.catch(() => {
-      if (c.vars.raids?.rows === rows) c.vars.raids = null;
-    });
-  }
-  return c.vars.raids.rows;
+  const kept = c.vars.raids;
+  if (kept && now - kept.at < RAID_TTL && raidWeekAt(kept.at) === raidWeekAt(now)) return kept.rows;
+  const rows = raidHistory(c.db, now);
+  c.vars.raids = { at: now, rows };
+  rows.catch(() => {
+    if (c.vars.raids?.rows === rows) c.vars.raids = null;
+  });
+  return rows;
 }
 
 /** A new office's desk and chair onto its floor. If `world` misses them, its next start lays them (`seed`). */

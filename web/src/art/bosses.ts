@@ -140,6 +140,16 @@ export const bossSprite = cached(
   },
 );
 
+/** A boss before it's out: all shadow, with only its eyes lit (the teaser's "???"). */
+export const bossSilhouette = cached(
+  (id: string) => `silhouette ${id}`,
+  (id: string) => {
+    const art = ART[id] ?? ART["rate-limit"]!;
+    const pal = Object.fromEntries(Object.keys(art.pal).map((k) => [k, k === "e" ? "#c9a2ff" : "#0b0a10"]));
+    return bake(BOSS_SIZE, BOSS_SIZE, (p) => p.grid(art.rows, pal));
+  },
+);
+
 /** The town's trophy, on the dais by a fallen boss. */
 // biome-ignore format: pixel art reads as a grid
 const TROPHY = [

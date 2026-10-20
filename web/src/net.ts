@@ -13,7 +13,7 @@ import {
   type Snapshot,
   type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
-import type { registry } from "@tokenmaxxing/server/registry";
+import type { Raid, registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
 import { noteRaid, setRaiders } from "./game/raid.ts";
 import {
@@ -168,14 +168,25 @@ export async function refreshMe(): Promise<void> {
 let statsTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** My tokens, rank, level and coins today, at most every few seconds. */
-async function refreshStats(): Promise<void> {
-  if (statsTimer) return;
+async function refreshStats(force = false): Promise<void> {
+  if (statsTimer && !force) return;
+  if (statsTimer) clearTimeout(statsTimer);
   statsTimer = setTimeout(() => {
     statsTimer = null;
   }, 5000);
   const [m, wallet, raid] = await Promise.all([town.today(), town.wallet(), town.raid()]);
   noteRaid(hud.get().raid, raid);
   hud.set({ stats: m.me, board: m.top, wallet, raid });
+  gateTimer(raid);
+}
+
+let gateAt = 0;
+/** A shut gate (the launch, or Monday 08:00) is asked about again the moment it opens, not up to 30 s later. */
+function gateTimer(raid: Raid): void {
+  const at = raid.prelaunch ? raid.launchAt : raid.closed ? raid.endsAt : 0;
+  if (!at || at === gateAt || at <= Date.now()) return;
+  gateAt = at;
+  setTimeout(() => void refreshStats(true), at - Date.now() + 1500);
 }
 
 // MARK: Games

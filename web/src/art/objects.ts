@@ -224,6 +224,61 @@ const gate = cached(
     }),
 );
 
+/**
+ * The gate before the first raid: planks nailed across the way down, caution tape over them and a
+ * danger sign. Drawn over `gate` (same 24×28, same place); the gaps are left open for the glow.
+ */
+export const boardedGate = cached(
+  () => "boardedGate",
+  () =>
+    bake(24, 28, (p) => {
+      // Two planks, a little crooked, with a dark edge and nails; the sign hangs between them.
+      for (const [y, tilt] of [
+        [7, 1],
+        [19, -1],
+      ] as const)
+        for (let x = 4; x < 21; x++) {
+          const dy = y + Math.round(((x - 12) * tilt) / 9);
+          p.px(x, dy - 1, C.ink);
+          p.px(x, dy, (x + y) % 7 === 0 ? C.woodLight : C.wood);
+          p.px(x, dy + 1, C.wood);
+          p.px(x, dy + 2, C.woodDark);
+          p.px(x, dy + 3, C.ink);
+          if (x === 6 || x === 18) p.px(x, dy + 1, C.metalLight);
+        }
+      // Caution tape across the bottom step.
+      p.rect(3, 24, 19, 1, C.ink);
+      p.rect(3, 27, 19, 1, C.ink);
+      for (let x = 3; x < 22; x++) p.rect(x, 25, 1, 2, Math.floor((x + 1) / 2) % 2 === 0 ? "#f5d14a" : C.ink);
+    }),
+);
+
+/** A plank off the boarded gate, for when it bursts open. */
+export const plank = cached(
+  () => "plank",
+  () =>
+    bake(10, 4, (p) => {
+      p.rect(0, 0, 10, 4, C.ink);
+      p.rect(1, 1, 8, 1, C.woodLight);
+      p.rect(1, 2, 8, 1, C.woodDark);
+    }),
+);
+
+/** A small ⚠️: a yellow triangle with a "!". */
+export const dangerSign = cached(
+  () => "dangerSign",
+  () =>
+    bake(11, 10, (p) => {
+      for (let y = 0; y < 10; y++) {
+        const half = Math.floor(y / 2) + 1;
+        p.rect(5 - half, y, half * 2 + 1, 1, C.ink);
+        if (y > 0 && y < 9) p.rect(6 - half, y, half * 2 - 1, 1, "#f5d14a");
+      }
+      p.rect(5, 3, 1, 3, C.ink);
+      p.px(5, 7, C.ink);
+    }),
+);
+
 export const chairBack = cached(
   () => "chairBack",
   () =>

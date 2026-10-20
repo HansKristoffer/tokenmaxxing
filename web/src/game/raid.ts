@@ -4,19 +4,21 @@
  * agent beyond their own is a robot minion firing too. The missiles only show the burn: the real damage
  * is every synced token (core/src/raid.ts), floated off the boss as each poll lands it. A kill drops
  * the boss with a trophy, puts a plaque on the wall and brings up the next rung's. In town, a sign over
- * the dungeon's gate.
+ * the dungeon's gate. Before the first raid the gate is boarded up with a countdown, and the dungeon is
+ * dark and empty but for the first boss's shadow; at the launch the boards burst off.
  */
-import { compact } from "@tokenmaxxing/core/format.ts";
+import { compact, countdown } from "@tokenmaxxing/core/format.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import type { RungBoss } from "@tokenmaxxing/core/raid.ts";
 import type { Raiders } from "@tokenmaxxing/core/world.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import type { Raid } from "@tokenmaxxing/server/registry";
-import { BOSS_SIZE, bossSprite, trophySprite } from "../art/bosses.ts";
+import { BOSS_SIZE, bossSilhouette, bossSprite, trophySprite } from "../art/bosses.ts";
 import { characterFrame } from "../art/characters.ts";
 import { MINION_H, MINION_W, minionFrame } from "../art/minions.ts";
-import { chairBack } from "../art/objects.ts";
+import { boardedGate, chairBack, dangerSign, plank } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
+import { hash } from "../art/pixels.ts";
 import { hud } from "../store.ts";
 import { gameHits } from "./games.ts";
 import { bubble, FONT, pill, sign } from "./labels.ts";
@@ -39,6 +41,21 @@ const SPARK_MS = 320;
 const FALL_MS = 2200;
 const ARRIVE_MS = 700;
 const BANNER_MS = 3500;
+/** The launch: the gate's boards burst off. */
+const BURST_MS = 2600;
+/** Before the launch the boarded gate rumbles every so often, and something inside talks. */
+const RUMBLE_EVERY = 7000;
+const RUMBLE_MS = 700;
+const LURK_EVERY = 18_000;
+const LURK_MS = 4500;
+/** What's behind the boards says, before the first raid. */
+export const LURKING = [
+  "Your rate limit is coming.",
+  "Try again Monday at 08:00.",
+  "429 Too Early.",
+  "I can hear your agents…",
+  "Enjoy your tokens. While you can.",
+];
 
 /** Missiles a second from a laptop burning `burn` tokens a minute: 1 at 100k, ~3 at 1M, at most 6. */
 export const fireRate = (burn: number): number => (burn > 0 ? Math.min(6, Math.sqrt(burn / 1e5)) : 0);
@@ -90,6 +107,8 @@ const fx = {
   /** The boss that just fell, and the next rung's coming up after it. */
   fell: null as { boss: RungBoss; at: number } | null,
   next: null as { boss: RungBoss; at: number } | null,
+  /** When the gate burst open at the launch. */
+  launch: null as number | null,
   /** Shots owed per shooter (`id` or `id:minion`), so slow rates still fire now and then. */
   owed: new Map<string, number>(),
   last: 0,
@@ -121,8 +140,15 @@ export function setRaiders(r: Raiders | null): void {
 
 /** A fresh raid from the server: what it did since the last one, shown as hits, and any kill. */
 export function noteRaid(before: Raid | null, after: Raid): void {
-  if (!before || before.week !== after.week) return;
   const now = performance.now();
+  if (before?.prelaunch && !after.prelaunch) {
+    // The launch: the boards burst off the gate and rung 1 drops onto its dais.
+    fx.launch = now;
+    fx.next = { boss: after.boss, at: now };
+    spark(TARGET.x, TARGET.y, now, "#ffd35c", 40, 1400);
+    return;
+  }
+  if (!before || before.week !== after.week) return;
   const kill = after.kills.slice(before.kills.length).at(-1);
   if (kill) {
     fx.fell = { boss: kill.boss, at: now };
@@ -160,6 +186,11 @@ export function drawRaid(
   if (world.room !== "dungeon") return;
   const dt = Math.min(100, now - (fx.last || now));
   fx.last = now;
+  // Before the first raid: dark, nobody at the desks, and only the first boss's shadow on the dais.
+  if (r?.prelaunch) {
+    drawLair(g, items, labels, toScreen, r, now, dpr);
+    return;
+  }
   // The week is over: last week's result, and nobody fires till the gate opens.
   const down = r?.closed === true;
 
@@ -535,6 +566,12 @@ function drawGate(
   const at = MAPS.town.find("G")[0];
   if (!at) return;
   const [gx, gy] = at;
+  const now = performance.now();
+  if (r.prelaunch) {
+    drawBoarded(g, items, labels, toScreen, r, gx, gy, now, dpr);
+    return;
+  }
+  if (fx.launch !== null && now - fx.launch < BURST_MS) drawBurst(g, items, gx, gy, now - fx.launch);
   if (r.closed)
     // A portcullis over the way down.
     items.push({
@@ -553,5 +590,190 @@ function drawGate(
   labels.push(() => {
     const { w, h } = pill(g, sx, sy, text, dpr, "rgba(20, 24, 34, 0.9)", "#ffd35c");
     gameHits.push({ x: sx - w / 2, y: sy - h, w, h, open: () => hud.set({ panel: { kind: "raid" } }) });
+  });
+}
+
+/** Where the gate's sprite is drawn (24×28, from game/objects' `gate`), in world pixels. */
+const gateBox = (gx: number, gy: number) => ({ x: gx * TILE - 4, y: gy * TILE + TILE - 28 });
+
+/**
+ * The gate before the first raid: boarded up and taped off with a danger sign, a purple glow leaking
+ * through the gaps, a rumble now and then, the odd line from inside, and the countdown over it.
+ */
+function drawBoarded(
+  g: CanvasRenderingContext2D,
+  items: Draw[],
+  labels: (() => void)[],
+  toScreen: ToScreen,
+  r: Raid,
+  gx: number,
+  gy: number,
+  now: number,
+  dpr: number,
+) {
+  const { x, y } = gateBox(gx, gy);
+  const phase = Date.now() % RUMBLE_EVERY;
+  const rumbling = phase < RUMBLE_MS;
+  const shake = rumbling ? Math.round(Math.sin(now / 25) * 1.2) : 0;
+  const glow = 0.35 + 0.2 * Math.sin(now / 500) + (rumbling ? 0.25 : 0);
+  items.push({
+    y: (gy + 1) * TILE - 0.25,
+    draw: () => {
+      // The glow through the boards, and a little spilling out round the arch.
+      g.globalAlpha = glow * 0.35;
+      g.fillStyle = "#b98cff";
+      g.beginPath();
+      g.arc(x + 12, y + 16, 15, 0, Math.PI * 2);
+      g.fill();
+      g.globalAlpha = glow;
+      g.fillStyle = "#8f5fe0";
+      g.fillRect(x + 6, y + 8, 13, 20);
+      g.globalAlpha = 1;
+      g.drawImage(boardedGate(), x + shake, y);
+      g.drawImage(dangerSign(), x + 7 + shake, y + 11);
+      // Dust shaken off the arch.
+      if (rumbling)
+        for (let i = 0; i < 6; i++) {
+          const t = (phase / RUMBLE_MS + i / 6) % 1;
+          g.globalAlpha = 1 - t;
+          g.fillStyle = C.stoneLight;
+          g.fillRect(x + 3 + Math.floor(hash(i, 1, 3) * 18), y + 3 + Math.round(t * 22), 1, 1);
+        }
+      g.globalAlpha = 1;
+    },
+  });
+  const [sx, sy] = toScreen((gx + 0.5) * TILE, gy * TILE - 12);
+  const [bx, by] = toScreen(x, y);
+  const [bx2, by2] = toScreen(x + 24, y + 28);
+  labels.push(() => {
+    const open = () => hud.set({ panel: { kind: "raid" } });
+    const text =
+      Date.now() < r.launchAt ? `⚠️ Something is coming… ${countdown(r.launchAt)}` : "⚔️ The gate is opening…";
+    const { w, h } = pill(g, sx, sy, text, dpr, "rgba(20, 24, 34, 0.92)", "#f5d14a");
+    gameHits.push({ x: sx - w / 2, y: sy - h, w, h, open });
+    gameHits.push({ x: bx, y: by, w: bx2 - bx, h: by2 - by, open });
+    const lurk = Date.now() % LURK_EVERY;
+    if (lurk < LURK_MS) {
+      const line = LURKING[Math.floor(Date.now() / LURK_EVERY) % LURKING.length]!;
+      bubble(g, sx, sy - h - 2 * dpr, line, dpr, LURK_MS - lurk);
+    }
+  });
+}
+
+/** The launch, in town: the boards fly off the gate in a burst of gold and violet. */
+function drawBurst(g: CanvasRenderingContext2D, items: Draw[], gx: number, gy: number, age: number) {
+  const { x, y } = gateBox(gx, gy);
+  const t = age / BURST_MS;
+  items.push({
+    y: Number.POSITIVE_INFINITY,
+    draw: () => {
+      const s = age / 1000;
+      // The planks, end over end, falling.
+      for (let i = 0; i < 4; i++) {
+        const vx = (i % 2 === 0 ? -1 : 1) * (30 + hash(i, 2, 9) * 40);
+        const vy = -70 - hash(i, 3, 9) * 50;
+        const px = x + 8 + vx * s;
+        const py = y + 10 + i * 4 + vy * s + 160 * s * s;
+        g.save();
+        g.globalAlpha = Math.max(0, 1 - t);
+        g.translate(Math.round(px), Math.round(py));
+        g.rotate((i % 2 === 0 ? -1 : 1) * s * 7);
+        g.drawImage(plank(), -5, -2);
+        g.restore();
+      }
+      // Sparks out of the way down.
+      for (let i = 0; i < 40; i++) {
+        const a = hash(i, 4, 9) * Math.PI * 2;
+        const v = 20 + hash(i, 5, 9) * 60;
+        g.globalAlpha = Math.max(0, 1 - t * 1.2);
+        g.fillStyle = i % 3 === 0 ? "#ffd35c" : "#c9a2ff";
+        g.fillRect(
+          Math.round(x + 12 + Math.cos(a) * v * s),
+          Math.round(y + 16 + Math.sin(a) * v * s + 20 * s * s),
+          1,
+          1,
+        );
+      }
+      g.globalAlpha = 1;
+    },
+  });
+}
+
+/** The dungeon before the first raid: dark and empty, the first boss only a shadow with eyes, waiting. */
+function drawLair(
+  g: CanvasRenderingContext2D,
+  items: Draw[],
+  labels: (() => void)[],
+  toScreen: ToScreen,
+  r: Raid,
+  now: number,
+  dpr: number,
+) {
+  const breathe = Math.sin(now / 900);
+  const blink = Math.floor(Date.now() / 300) % 17 === 0;
+  const w = Math.round(BOSS_W * (1 + breathe * 0.02));
+  items.push({
+    y: AT.y,
+    draw: () => {
+      g.globalAlpha = 0.35 + 0.1 * breathe;
+      g.fillStyle = "#6b3fb8";
+      g.beginPath();
+      g.arc(TARGET.x, TARGET.y, BOSS_W * 0.75, 0, Math.PI * 2);
+      g.fill();
+      g.globalAlpha = blink ? 0.6 : 1;
+      g.drawImage(bossSilhouette(r.boss.id), AT.x - w / 2, AT.y - w, w, w);
+      g.globalAlpha = 1;
+    },
+  });
+  // The dark: over the whole room, a little less of it round the dais.
+  items.push({
+    y: Number.POSITIVE_INFINITY,
+    draw: () => {
+      const x0 = map.x0 * TILE;
+      const y0 = map.y0 * TILE;
+      const dark = g.createRadialGradient(
+        TARGET.x,
+        TARGET.y,
+        BOSS_W * 0.6,
+        TARGET.x,
+        TARGET.y,
+        map.width * TILE * 0.6,
+      );
+      dark.addColorStop(0, "rgba(8, 6, 14, 0.25)");
+      dark.addColorStop(1, "rgba(8, 6, 14, 0.82)");
+      g.fillStyle = dark;
+      g.fillRect(x0, y0, map.width * TILE, map.height * TILE);
+    },
+  });
+  const [sx, sy] = toScreen(AT.x, AT.y - BOSS_W - 4);
+  const [bx, byTop] = toScreen(AT.x - BOSS_W / 2, AT.y - BOSS_W);
+  const [bx2, byBottom] = toScreen(AT.x + BOSS_W / 2, AT.y);
+  labels.push(() => {
+    const open = () => hud.set({ panel: { kind: "raid" } });
+    const top = sy - 6 * dpr;
+    const { w, h } = pill(
+      g,
+      sx,
+      top,
+      `⚠️ ??? · wakes in ${countdown(r.launchAt)}`,
+      dpr,
+      "rgba(20, 24, 34, 0.92)",
+      "#f5d14a",
+    );
+    gameHits.push({ x: sx - w / 2, y: top - h, w, h, open });
+    gameHits.push({ x: bx, y: byTop, w: bx2 - bx, h: byBottom - byTop, open });
+    sign(
+      g,
+      sx,
+      byBottom + 30 * dpr,
+      "The desks are empty. For now. Monday 08:00, every agent fights.",
+      dpr,
+      false,
+    );
+    const lurk = Date.now() % LURK_EVERY;
+    if (lurk < LURK_MS) {
+      const line = LURKING[Math.floor(Date.now() / LURK_EVERY) % LURKING.length]!;
+      bubble(g, sx, top - h - 2 * dpr, line, dpr, LURK_MS - lurk);
+    }
   });
 }

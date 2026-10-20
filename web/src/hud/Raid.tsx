@@ -1,7 +1,8 @@
-import { compact } from "@tokenmaxxing/core/format.ts";
+import { compact, countdown } from "@tokenmaxxing/core/format.ts";
 import { bossAt } from "@tokenmaxxing/core/raid.ts";
 import type { Raid } from "@tokenmaxxing/server/registry";
 import { useEffect, useRef, useState } from "react";
+import { bossSilhouette } from "../art/bosses.ts";
 import { send } from "../game/input.ts";
 import { left, opensAt } from "../game/raid.ts";
 import { world } from "../game/world.ts";
@@ -11,12 +12,35 @@ import { Modal, useTicker } from "./ui.tsx";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/** "3d 4h", "5h 12m", "40m". */
+/** "3d 4h", "5h 12m", "40m", "12s". */
 function timeLeft(ms: number): string {
   const m = Math.max(0, Math.floor(ms / 60_000));
   if (m >= 24 * 60) return `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60)}h`;
   if (m >= 60) return `${Math.floor(m / 60)}h ${m % 60}m`;
+  if (m === 0 && ms > 0) return `${Math.ceil(ms / 1000)}s`;
   return `${m}m`;
+}
+
+/** A boss's shadow, big and crisp: the teaser's "???". */
+function Silhouette({ id, size }: { id: string; size: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const g = ref.current?.getContext("2d");
+    if (!g) return;
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, size, size);
+    g.drawImage(bossSilhouette(id), 0, 0, size, size);
+  }, [id, size]);
+  return (
+    <canvas
+      ref={ref}
+      width={size}
+      height={size}
+      className="raid-silhouette"
+      role="img"
+      aria-label="A shadow, waiting"
+    />
+  );
 }
 
 const weekday = (day: string) => {
@@ -39,8 +63,27 @@ function HpBar({ raid }: { raid: Raid }) {
 /** In the corner, under the games: the boss, its rung and HP, and how long the town has left. */
 export function RaidBox() {
   const raid = useHud((s) => s.raid);
-  useTicker(60_000, !!raid);
+  useTicker(raid?.prelaunch ? 1000 : 60_000, !!raid);
   if (!raid) return null;
+  if (raid.prelaunch)
+    return (
+      <section className="panel raid-box raid-teaser-box" aria-label="Raid">
+        <button
+          type="button"
+          className="miniboard-title"
+          onClick={() => hud.set({ panel: { kind: "raid" } })}
+        >
+          ⚠️ Something is coming <span className="muted">›</span>
+        </button>
+        <div className="raid-line">
+          <span className="who">??? · {timeLeft(raid.launchAt - Date.now())}</span>
+          <small className="muted">Mon {opensAt(raid)}</small>
+        </div>
+        <div className="raid-clock" role="timer">
+          {countdown(raid.launchAt)}
+        </div>
+      </section>
+    );
   return (
     <section className="panel raid-box" aria-label="Raid">
       <button type="button" className="miniboard-title" onClick={() => hud.set({ panel: { kind: "raid" } })}>
@@ -112,10 +155,60 @@ function Ladder({ raid }: { raid: Raid }) {
   );
 }
 
+/** Before the first raid: a countdown, the first boss's shadow, and what's coming. */
+function Teaser({ raid }: { raid: Raid }) {
+  const { rules } = raid;
+  return (
+    <Modal title="⚠️ Something is coming">
+      <div className="raid raid-teaser">
+        <div className="raid-shadow">
+          <Silhouette id={raid.boss.id} size={132} />
+          <span className="raid-qqq">???</span>
+        </div>
+        <p className="raid-hint muted small">It has a limit. Soon, so will you.</p>
+        <p className="raid-countdown" role="timer">
+          {countdown(raid.launchAt)}
+        </p>
+        <p className="raid-status">
+          The Raid Dungeon opens <strong>Monday at {opensAt(raid)}</strong>. Until then the gate in the square
+          stays boarded up.
+        </p>
+        <p className="muted small">
+          Rung 1 so far: <strong>{compact(raid.hp)} HP</strong>, {Math.round(rules.hpShare * 100)}% of
+          everything the town syncs this week (at least {compact(rules.minHp)}). The more you burn now, the
+          bigger it gets.
+        </p>
+
+        <h3>How it works</h3>
+        <ul className="raid-rules muted small">
+          <li>
+            Every Monday at {opensAt(raid)} a ladder of bosses opens. Kill one and the next, ×{rules.hpGrowth}{" "}
+            tougher, steps up at once, with the overflow carried over. Each week starts{" "}
+            {Math.round((rules.weeklyGrowth - 1) * 100)}% tougher than the last.
+          </li>
+          <li>
+            Every token you sync hits the boss, no cap, wherever you are. Every PR you open is a{" "}
+            {compact(rules.prHit)} special attack.
+          </li>
+          <li>
+            Everyone with agents running gets a desk in the dungeon, firing magic missiles as fast as they
+            burn.
+          </li>
+          <li>
+            Every kill pays everyone with {compact(rules.raiderAt)}+ that week so far: 🪙{" "}
+            {rules.rewards.slice(0, 5).join(", ")}… a rung.
+          </li>
+        </ul>
+      </div>
+    </Modal>
+  );
+}
+
 export function RaidPanel() {
   const raid = useHud((s) => s.raid);
-  useTicker(60_000, !!raid);
+  useTicker(raid?.prelaunch ? 1000 : 60_000, !!raid);
   if (!raid) return null;
+  if (raid.prelaunch) return <Teaser raid={raid} />;
   const { rules, me } = raid;
   return (
     <Modal title={`${raid.boss.emoji} ${raid.boss.name} · Rung ${raid.boss.rung}`}>
@@ -253,27 +346,48 @@ export function RaidPanel() {
   );
 }
 
-/** A toast for each boss that fell while I was here. The first raid after load is just where things stood. */
+/**
+ * A toast for each boss that fell while I was here, and one when the first raid opens. The first raid
+ * after load is just where things stood.
+ */
 export function RaidToast() {
   const raid = useHud((s) => s.raid);
-  const seen = useRef<{ week: string; kills: number } | null>(null);
+  const seen = useRef<{ week: string; kills: number; prelaunch: boolean } | null>(null);
   const [fell, setFell] = useState<{ kills: Raid["kills"]; at: number } | null>(null);
+  const [opened, setOpened] = useState<Raid["boss"] | null>(null);
   useEffect(() => {
     if (!raid) return;
     const before = seen.current;
+    if (before?.prelaunch && !raid.prelaunch) setOpened(raid.boss);
     if (before && before.week === raid.week && raid.kills.length > before.kills)
       setFell({ kills: raid.kills.slice(before.kills), at: Date.now() });
-    seen.current = { week: raid.week, kills: raid.kills.length };
+    seen.current = { week: raid.week, kills: raid.kills.length, prelaunch: raid.prelaunch };
   }, [raid]);
   useEffect(() => {
     if (!fell) return;
     const id = setTimeout(() => setFell(null), 10_000);
     return () => clearTimeout(id);
   }, [fell]);
-  if (!fell) return null;
+  useEffect(() => {
+    if (!opened) return;
+    const id = setTimeout(() => setOpened(null), 12_000);
+    return () => clearTimeout(id);
+  }, [opened]);
   return (
     <>
-      {fell.kills.map((k) => (
+      {opened && (
+        <button
+          type="button"
+          className="toast mention-toast raid-launch-toast"
+          onClick={() => {
+            setOpened(null);
+            hud.set({ panel: { kind: "raid" } });
+          }}
+        >
+          ⚔️ The Raid Dungeon is open: {opened.name} awaits.
+        </button>
+      )}
+      {fell?.kills.map((k) => (
         <button
           key={k.rung}
           type="button"
