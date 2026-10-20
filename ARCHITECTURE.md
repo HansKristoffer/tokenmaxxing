@@ -21,7 +21,7 @@ The game also runs in any browser; the app's window is that same page, at `/play
 
 | Path | What |
 |---|---|
-| `core/` | Log parsers and sync, the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `games/` (every game's rules), `format.ts`, `range.ts` |
+| `core/` | Log parsers and sync, the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `games/` (every game's rules), `format.ts`, `range.ts` |
 | `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `sync` (pushes to `world`) |
 | `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts` |
@@ -152,9 +152,10 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 
 **`town["main"]`**: everything cold, joined in SQL.
 - Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `capped_daily`,
-  `purchases`, `ledger` (coins held and paid by games), `match_players` (one row per player per finished
-  game), `deleted_users`, `admin_log`.
-- Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename`, `setLook` (refuses shop items you don't own), `me`.
+  `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
+  handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
+  `offices`, `match_players` (one row per player per finished game), `deleted_users`, `admin_log`.
+- Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename` (10 an hour), `setLook` (refuses items you don't hold), `me`.
 - Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
   `core/src/maps.ts`), leave, kick, rename, `setWebsite`. One company per person, at most 50 members. The
   earliest joiner takes over from a leaving owner; the last one out closes the company. The town is built from
@@ -165,28 +166,56 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   event, shown as a toast). A new player's first visit opens this choice.
 - Stats: `leaderboard`, `profile`, `today` (the HUD's corner), `searchNames`, `gameBoard`. Cost is priced
   when read.
-- Coins: `wallet`, `buy`; for `arcade`: `hold`, `pay`, `refund`, `recordMatch`. Games: `gameBoard`.
+- Coins: `wallet`, `buy`, `bag`; for `arcade`: `hold`, `pay`, `refund`, `recordMatch`. Games: `gameBoard`.
+- Trades: `offerTrade` (10 an hour; a new offer replaces your old one), `trades`, `acceptTrade`,
+  `declineTrade`, `withdrawTrade`. See *Coins and the shop*.
+- Offices: `setOfficeOpen` (your own, from level 10; 30 a minute, since each one sends the office and its
+  building to everyone inside). What's in an office is what its owner dropped there.
+- Drops: `drop` (30 a minute) takes one of a kind out of your bag (not a reward; at most 5 of yours on the
+  floor at once, not counting your own office's) and asks `world.placeDrop` to put it where you are; a full
+  room says so, and the row comes straight back. On the floor a row has `owner_id` NULL, with `dropped_by`
+  and `dropped_at`, and `room`, `x`, `y` once `world` has put it down (`placed`). `pickUp` (from
+  `world.take`) puts it in the taker's bag, if it's still on that room's floor. **The sweeper** is a cron alarm
+  (`sweep`, every 10 minutes; it outlives restarts and wakes the town): drops nobody took in an hour come
+  off the floor (`world.removeDrops`) and go back to their droppers, except what's in its dropper's own
+  office: that's furniture. A closed company's building and a deleted owner's office give theirs back at
+  once (`removeCompany` and `removePlayer` return the ids), and so does a rebuilt town or building for
+  drops it has no place for any more (`setCompany` and `setPlayer` return them); a deleted account's own
+  drops are deleted with it, office furniture and all.
 - Admin (`town/admin.ts`, for `/admin`): `adminOverview`, `adminUsers` and `adminCompanies`; rename people
   and companies; set a balance (the difference goes in the `ledger` as kind and ref `admin`); take someone
   out of their company; close a company; wipe someone's usage (their `player` drops its raw events too:
   `wipe`); delete an account. Every change goes in `admin_log`, shown on the page's Log tab. Deleting drops their usage, activity,
-  purchases and application, hands over or closes their company, takes them out of `world`
+  purchases, items, rewards, application and trade offers, hands over or closes their company, takes them out of `world`
   (`removePlayer`) and destroys their `player` (`close`), so every token and session stops working. It's
   refused while they have coins in an unsettled game. Their `ledger` and `match_players` rows stay, and
   `deleted_users` keeps new ids above theirs, so nobody inherits them.
-- Every change a player could see is pushed to `world` (`town/sync.ts`); `world` never asks `town`.
+- Every change a player could see is pushed to `world` (`town/sync.ts`); `world` asks `town` only to put a
+  taken drop in the bag (`pickUp`), and for every floor and office lock (`seed`) when it starts, and for
+  everyone too when it starts from nothing.
 
 **`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room).
 - A 10 Hz tick sends each room its `moves`, and head counts (`occupancy`) and who's inside each house
   (`houses`, for town) when they change.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
   `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
-  `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game).
+  `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game), `visit`
+  (someone's open office, from their card), `take` (G: the drop you're on, or a blocking piece you face; on
+  an office floor, only its owner).
 - Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
-  `chat`, `mention`.
+  `chat`, `mention`, `drop`, `pickup`.
+- **Drops** (`DROPS`, in memory only: `town` has every floor, and a starting world forgets its own and lays
+  them again from `seed`; at most 30 a room, 40 an office): a hat or a pet lies as itself on the dropper's
+  tile or the nearest free one; furniture goes on the tile they face or the nearest free one to it, as
+  itself in the room's map (`mapOf`), so a dropped sofa seats. Furniture never lands in front of a door, in
+  a building's hallways or at the foot of the passage up to them, or where it would leave anyone in the room
+  no way out. An office's map is the template and its drops. `take` lifts it off the floor first, then asks
+  `town.pickUp`; if that call fails, it goes back down.
 - **Resting.** Closing the last tab sends you to your bed; offline with agents active in the last 10 minutes, to
   your desk. Company members rest in their house, others at the Inn. Your spot is remembered: the next `join` puts
-  you back there. Online with 3 minutes without input, you just doze where you are (`dozing`, drawn as a "z") until
+  you back there, unless it's a house you've left, an office that's closed or gone, or a tile that's a wall or
+  furniture now (`back` after a game too); a seat that's gone, you wake standing where it was.
+  Online with 3 minutes without input, you just doze where you are (`dozing`, drawn as a "z") until
   your next input, so a town left open on a second screen keeps showing what's going on.
 
 **`arcade["main"]`** and **`match[id]`**: the mini games; see *Games*.
@@ -208,8 +237,32 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Only days from the world day you signed up count, for pay and for podium places: a first sync backfills
   old logs, and those days would otherwise pay out (and win podiums nobody else was around for).
 - Balances aren't stored: they're worked out from `usage_daily` minus `purchases`, so a late sync still pays.
-- The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats and 5 pets, 60 to 1,500 coins. Items are
-  worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`). Pets follow their owner in the client.
+- Two daily quests (`core/src/quests.ts`) pay up to 7 more a day: 5 agents at once, and 2 hours of
+  agents running. They're worked out from `activity_daily`, so nothing is stored.
+- The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats, 5 pets and the 11 pieces of furniture
+  (`furn.<ch>`), 10 to 1,500 coins. Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
+  Pets follow their owner in the client.
+- **The bag** (`items`, the 🎒 panel): one row per copy, so you can hold two Ducks; you can wear a kind if you
+  hold one. Buying adds a row and adds the price to `purchases` (spend only, one row per kind); buying a
+  kind you hold already is fine. `bag()` counts each kind. What's on a floor isn't in anyone's bag.
+- Three items are earned, not bought: a top hat, server-rack armour and a Singularity orb, at levels 10, 20
+  and 30. `report` hands them out as rows the first time a sync reaches the level (`grantRewards`, once each,
+  recorded in `rewards`), with the office's desk and chair at level 10, dropped on its floor
+  (`starterDrops`; in the bag if it has furniture already). `setOfficeOpen` hands them out too, for anyone
+  who reached level 10 before offices had rows. Rewards are `tradeable: false`.
+- **Trades** (from a player card): up to 🪙 500 and 4 items each way, for 7 days; not rewards, and not
+  furniture on a floor (pick it up first). Accepting re-checks both sides under `serial` and moves everything in one
+  transaction (`settleTrade`): coins through the `ledger` (kind `trade`), items by moving one row of each kind
+  to the receiver. Spend stays in `purchases`, so balances don't change. A kind you no longer hold comes off
+  your look. While an offer is open to or from you, a 🔁 beside the Bag opens your trades (`wallet.trading`).
+- **Offices.** From level 10, every company member has one behind a door with their name on it in the
+  company building (`office:<userId>`, one map template plus their furniture). The doors are in hallways of
+  10 above the building's floor (negative `y`, `hqMap`), which `world` rebuilds when a door comes or goes.
+  Furniture is the map legend's own pieces, bought into the bag and furnished by dropping: in your own
+  office a drop stays (no hour, no five), at most 40, and only you take anything off its floor, a
+  visitor's gift too. The Menu opens or closes it while you're in it; opening it clears its chat, so
+  visitors never read what was said while it was closed. Anyone in the building walks into an open office;
+  from outside, from the owner's card.
 
 ## Games
 

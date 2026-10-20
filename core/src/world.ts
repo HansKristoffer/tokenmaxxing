@@ -5,6 +5,8 @@
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
 import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
+import { type Door, doorAt, HQS, type Piece, pieceOf, withPieces } from "./office.ts";
+import { itemById } from "./shop.ts";
 
 export const TILE = 16;
 /** Client animation time per step; the server only enforces the running pace. */
@@ -25,7 +27,7 @@ export const COMPANY_CAP = 50;
 export type Facing = "up" | "down" | "left" | "right";
 /** `playing`: at a game table in town, until the match ends (see core/src/games/gather.ts). */
 export type PlayerState = "idle" | "sit" | "away" | "working" | "playing";
-export type RoomId = "town" | "inn" | `hq:${number}`;
+export type RoomId = "town" | "inn" | `hq:${number}` | `office:${number}`;
 
 export const DIRS: Record<Facing, [number, number]> = {
   up: [0, -1],
@@ -35,9 +37,71 @@ export const DIRS: Record<Facing, [number, number]> = {
 };
 export const isFacing = (v: unknown): v is Facing => typeof v === "string" && v in DIRS;
 
-export const mapOf = (room: RoomId): GameMap => MAPS[room.startsWith("hq:") ? "hq" : (room as MapId)];
 export const companyOfRoom = (room: RoomId): number | null =>
   room.startsWith("hq:") ? Number(room.slice(3)) : null;
+export const ownerOfOffice = (room: RoomId): number | null =>
+  room.startsWith("office:") ? Number(room.slice(7)) : null;
+
+/** Every office is the template (its furniture is its drops); a building nobody has built is the bare floor. */
+export function baseMap(room: RoomId): GameMap {
+  if (ownerOfOffice(room) !== null) return MAPS.office;
+  const company = companyOfRoom(room);
+  return company !== null ? (HQS.get(company) ?? MAPS.hq) : MAPS[room as MapId];
+}
+
+/**
+ * A room's map, with the furniture dropped in it written over the floor (other drops aren't in it). Kept
+ * until its furniture or its own map change, so a dropped hat or pet leaves it as it is.
+ */
+export function mapOf(room: RoomId): GameMap {
+  const base = baseMap(room);
+  const hit = dropped.get(room);
+  if (hit?.base === base) return hit.map;
+  const pieces = piecesIn(DROPS.get(room) ?? []);
+  const map = pieces.length ? withPieces(pieces, base) : base;
+  dropped.set(room, { base, map, key: JSON.stringify(pieces) });
+  return map;
+}
+
+/** The furniture among `drops`, as pieces of a map. */
+const piecesIn = (drops: readonly Drop[]) =>
+  drops.flatMap((d) => {
+    const piece = pieceOfDrop(d);
+    return piece ? [{ ch: piece.ch, x: d.x, y: d.y }] : [];
+  });
+
+// MARK: Drops
+
+/** An item on a room's floor: `id` is its `items` row, `by` who dropped it. */
+export interface Drop {
+  id: number;
+  item: string;
+  room: RoomId;
+  x: number;
+  y: number;
+  by: number;
+  at: number;
+}
+
+/** What's on each room's floor. ponytail: one process holds every room's, like the town. */
+export const DROPS = new Map<RoomId, readonly Drop[]>();
+const dropped = new Map<RoomId, { base: GameMap; map: GameMap; key: string }>();
+
+export function setDrops(room: RoomId, drops: readonly Drop[]): void {
+  DROPS.set(room, drops);
+  if (dropped.get(room)?.key !== JSON.stringify(piecesIn(drops))) dropped.delete(room);
+}
+
+/** A dropped piece of furniture (`furn.<ch>`); wearables and pets lie on the floor as themselves. */
+export const pieceOfDrop = (d: Pick<Drop, "item">): Piece | undefined =>
+  d.item.startsWith("furn.") ? pieceOf(d.item.slice(5)) : undefined;
+
+/** What it is: "Sofa", "Duck". */
+export const dropName = (d: Pick<Drop, "item">): string => itemById(d.item)?.name ?? "Something";
+
+/** Whether a drop lies on (x, y): a TV is two tiles. */
+export const dropCovers = (d: Drop, x: number, y: number): boolean =>
+  d.y === y && x >= d.x && x < d.x + (pieceOfDrop(d)?.w ?? 1);
 
 // MARK: Looks
 
@@ -56,10 +120,10 @@ export const LOOK_OPTIONS: Record<keyof Look, number> = {
   style: 4,
   skin: 4,
   hair: 6,
-  outfit: 12,
+  outfit: 13,
   glasses: 4,
-  hat: 4,
-  pet: 6,
+  hat: 5,
+  pet: 7,
 };
 /** Looks saved before the shop have no extras. */
 const EXTRAS = { glasses: 0, hat: 0, pet: 0 };
@@ -106,6 +170,12 @@ export interface PlayerInfo {
   coffeeUntil: number;
   /** Online but no input for `IDLE_MS`: snoozing in place. */
   dozing: boolean;
+}
+
+/** A line from `town` for one player (`notice`), and the panel a click on it opens. */
+export interface Notice {
+  text: string;
+  open?: "company" | "trades" | "bag";
 }
 
 /** Where someone is: `[id, x, y, facing, state]`. */
@@ -193,6 +263,12 @@ export interface Snapshot {
   houses: Houses;
   /** Games being played in town, with their tables or arenas. */
   games: WorldGame[];
+  /** Only in an office: whose it is (for the banner), and whether it's open (for its owner's Menu). */
+  owner: { id: number; name: string; open: boolean } | null;
+  /** Only in a building: its office doors, to build the map and draw the names. */
+  doors: Door[];
+  /** What's on the floor: furniture (in the map too), wearables and pets. */
+  drops: Drop[];
 }
 
 /** A game on show in town: where its table (or arena) is, who's at it, and how it's going. */
@@ -320,15 +396,29 @@ export function outsideDoor(plot: number | "inn"): Place {
 }
 
 /**
- * Where the portal at (x, y) takes a player, or why it doesn't. `plots` maps a plot to the company
- * holding it.
+ * Where the portal at (x, y) takes you, or why it doesn't. `plots` maps a plot to the company holding
+ * it; `doors` are your own company building's. An office door takes you to its owner's office (open or
+ * closed is the world's to check); leaving an office puts you below its door in your own building, if
+ * it has one, else at your building's entry.
  */
 export function portal(
   room: RoomId,
   door: { ch: string; x: number; y: number },
   companyId: number | null,
   plots: ReadonlyMap<number, { id: number; name: string }>,
+  doors: readonly Door[] = [],
 ): Place | { notice: string } {
+  if (door.ch === "R") {
+    // `doors` are your own building's: in anyone else's, none of them is here.
+    const d = doorAt(doors, door.x, door.y);
+    return d ? roomEntry(`office:${d.userId}`) : { notice: "That door isn't yours to open." };
+  }
+  const owner = ownerOfOffice(room);
+  if (owner !== null) {
+    if (companyId === null) return roomEntry("inn");
+    const d = doors.find((d) => d.userId === owner);
+    return d ? { room: `hq:${companyId}`, x: d.x, y: d.y + 1, facing: "down" } : roomEntry(`hq:${companyId}`);
+  }
   if (room === "town") {
     if (door.ch === "I") return roomEntry("inn");
     const holder = plots.get(plotId(...blockOf(door.x, door.y)));
@@ -348,11 +438,17 @@ export function homeRoom(companyId: number | null): RoomId {
 
 /**
  * The first free bed (`away`) or desk chair (`working`) in `room`, then the
- * first free floor tile. `taken` holds `"x,y"` of spots already in use.
+ * first free floor tile: every other one first, so neighbours' name labels don't
+ * overlap, then the rest. `taken` holds `"x,y"` of spots already in use.
  */
 export function restSpot(room: RoomId, state: "away" | "working", taken: ReadonlySet<string>): Place {
   const map = mapOf(room);
-  const spots = [...map.find(state === "away" ? "b" : "c"), ...map.find("_").filter(([, y]) => y >= 3)];
+  const floor = map.find("_").filter(([, y]) => y >= 3);
+  const spots = [
+    ...map.find(state === "away" ? "b" : "c"),
+    ...floor.filter(([x]) => x % 2 === 1),
+    ...floor.filter(([x]) => x % 2 === 0),
+  ];
   const free = spots.find(([x, y]) => !taken.has(`${x},${y}`)) ?? spots[0]!;
   return { room, x: free[0], y: free[1], facing: state === "working" ? "up" : "down" };
 }

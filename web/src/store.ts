@@ -1,5 +1,5 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
-import type { ChatLine, CompanyInfo, RoomId } from "@tokenmaxxing/core/world.ts";
+import type { ChatLine, CompanyInfo, Notice, RoomId } from "@tokenmaxxing/core/world.ts";
 import type { Me, Today, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
 
@@ -10,9 +10,12 @@ export type Panel =
   | { kind: "company" }
   | { kind: "look" }
   | { kind: "shop" }
+  | { kind: "bag" }
   | { kind: "arcade" }
-  | { kind: "newTable"; invite?: number }
+  | { kind: "newTable"; invite?: number; inviteName?: string }
   | { kind: "match"; id: number }
+  | { kind: "trade"; userId: number }
+  | { kind: "trades" }
   | { kind: "menu" };
 
 /** Game panels keep the chat usable beside them. */
@@ -38,8 +41,8 @@ interface HudState {
   banner: { text: string; at: number } | null;
   /** Bumped to ask the chat input to take focus. */
   chatFocus: number;
-  /** A line from the server for me: someone asked to join my company, or I got in. */
-  notice: { text: string; at: number } | null;
+  /** A line from the server for me: someone asked to join my company, or offered me a trade. */
+  notice: (Notice & { at: number }) | null;
   /** Tables, games and where I am in them, live from the arcade. */
   lobby: Lobby | null;
   /** The open match panel's latest frame. */

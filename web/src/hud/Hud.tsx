@@ -1,11 +1,14 @@
 import { isBot } from "@tokenmaxxing/core/bots.ts";
-import { compact } from "@tokenmaxxing/core/format.ts";
-import { useEffect, useState } from "react";
+import { compact, levelTitle, plural } from "@tokenmaxxing/core/format.ts";
+import { levelItems } from "@tokenmaxxing/core/shop.ts";
+import { useEffect, useRef, useState } from "react";
 import { roomName, world } from "../game/world.ts";
+import { town } from "../net.ts";
 import { chatBeside, hud, useHud } from "../store.ts";
 import { AppSignIn } from "./AppSignIn.tsx";
 import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
+import { Bag } from "./Bag.tsx";
 import { Chat } from "./Chat.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
@@ -16,7 +19,8 @@ import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Shop } from "./Shop.tsx";
-import { Modal } from "./ui.tsx";
+import { TradePanel, TradesPanel } from "./Trades.tsx";
+import { Modal, useRun } from "./ui.tsx";
 
 export function Hud() {
   const status = useHud((s) => s.status);
@@ -46,9 +50,13 @@ export function Hud() {
           Reconnecting…
         </div>
       )}
-      <MentionToast />
-      <NoticeToast />
-      <InviteToast />
+      <div className="toasts">
+        <MentionToast />
+        <NoticeToast />
+        <QuestToast />
+        <InviteToast />
+        <LevelToast />
+      </div>
       <FirstVisit />
     </>
   );
@@ -70,6 +78,10 @@ function Hints() {
         <dd>Jump</dd>
         <dt>E</dt>
         <dd>Interact</dd>
+        <dt>G</dt>
+        <dd>Take</dd>
+        <dt>Right-click</dt>
+        <dd>Go and take</dd>
         <dt>Enter</dt>
         <dd>Chat</dd>
         <dt>L</dt>
@@ -110,6 +122,26 @@ function Stats() {
           onClick={() => hud.set({ panel: { kind: "shop" } })}
         >
           🪙 <strong>{wallet.balance.toLocaleString()}</strong>
+        </button>
+      )}
+      <button
+        type="button"
+        className="icon"
+        title="Bag"
+        aria-label={wallet ? `Bag: ${plural(wallet.items, "thing")}` : "Bag"}
+        onClick={() => hud.set({ panel: { kind: "bag" } })}
+      >
+        🎒{wallet && ` ${wallet.items}`}
+      </button>
+      {wallet?.trading && (
+        <button
+          type="button"
+          className="icon"
+          title="Trades"
+          aria-label="Trades: an offer is open"
+          onClick={() => hud.set({ panel: { kind: "trades" } })}
+        >
+          🔁
         </button>
       )}
       <button
@@ -158,6 +190,7 @@ function Dialog() {
 
 function Panel() {
   const panel = useHud((s) => s.panel);
+  const inMyOffice = useHud((s) => s.room === `office:${world.selfId}`);
   if (!panel) return null;
   switch (panel.kind) {
     case "leaderboard":
@@ -172,21 +205,34 @@ function Panel() {
       return <LookPicker />;
     case "shop":
       return <Shop />;
+    case "bag":
+      return <Bag />;
     case "arcade":
       return <ArcadePanel />;
     case "newTable":
-      return <NewTable invite={panel.invite} />;
+      return <NewTable invite={panel.invite} inviteName={panel.inviteName} />;
     case "match":
       return <MatchPanel id={panel.id} />;
+    case "trade":
+      return <TradePanel userId={panel.userId} />;
+    case "trades":
+      return <TradesPanel />;
     case "menu":
       return (
         <Modal title="Menu">
           <nav className="menu">
+            {inMyOffice && <OfficeLock />}
             <button type="button" onClick={() => hud.set({ panel: { kind: "look" } })}>
               🎨 Your character
             </button>
             <button type="button" onClick={() => hud.set({ panel: { kind: "shop" } })}>
               🪙 Shop
+            </button>
+            <button type="button" onClick={() => hud.set({ panel: { kind: "bag" } })}>
+              🎒 Bag
+            </button>
+            <button type="button" onClick={() => hud.set({ panel: { kind: "trades" } })}>
+              🔁 Trades
             </button>
             <button type="button" onClick={() => hud.set({ panel: { kind: "arcade" } })}>
               🎮 Arcade
@@ -204,6 +250,26 @@ function Panel() {
         </Modal>
       );
   }
+}
+
+/** In my own office: open to visitors from my card, or only me, through the door. */
+function OfficeLock() {
+  const [open, setOpen] = useState(world.owner?.open ?? true);
+  const { error, run } = useRun();
+  return (
+    <>
+      <button
+        type="button"
+        onClick={run(async () => {
+          await town.setOfficeOpen(!open);
+          setOpen(!open);
+        })}
+      >
+        {open ? "🔓 Open to visitors" : "🔒 Closed"}
+      </button>
+      {error && <p className="error">{error}</p>}
+    </>
+  );
 }
 
 function SignedOut({ expired }: { expired: boolean }) {
@@ -236,17 +302,52 @@ function FirstVisit() {
   return null;
 }
 
-/** A line for me from the server (a company application, or the answer to mine). */
+const NOTICE_ICONS = { company: "🏢", trades: "🔁", bag: "🎒" } as const;
+
+/** A line for me from the server (a company application, a trade); a click opens what it's about. */
 function NoticeToast() {
   const notice = useHud((s) => s.notice);
   if (!useFresh(notice?.at, MENTION_MS) || !notice) return null;
+  const { open } = notice;
   return (
     <button
       type="button"
       className="toast mention-toast"
-      onClick={() => hud.set({ notice: null, panel: { kind: "company" } })}
+      onClick={() => hud.set({ notice: null, ...(open && { panel: { kind: open } }) })}
     >
-      🏢 {notice.text}
+      {open && `${NOTICE_ICONS[open]} `}
+      {notice.text}
+    </button>
+  );
+}
+
+/** My level went up while I was here; the first level after load is just where I started. */
+function LevelToast() {
+  const level = useHud((s) => s.stats?.level);
+  const company = useHud((s) => s.me?.company);
+  const seen = useRef<number | undefined>(undefined);
+  const [up, setUp] = useState<{ from: number; to: number; at: number } | null>(null);
+  useEffect(() => {
+    if (level === undefined) return;
+    if (seen.current !== undefined && level > seen.current)
+      setUp({ from: seen.current, to: level, at: Date.now() });
+    seen.current = level;
+  }, [level]);
+  if (!useFresh(up?.at, MENTION_MS) || !up) return null;
+  // The first reward passed on the way up: a big sync can skip a level or two.
+  const reward = levelItems(up.to).find((i) => i.level! > up.from);
+  return (
+    <button
+      type="button"
+      className="toast mention-toast"
+      onClick={() => {
+        setUp(null);
+        hud.set({ panel: { kind: "bag" } });
+      }}
+    >
+      ⬆️ Level {up.to} · {levelTitle(up.to)}
+      {reward && ` · You unlocked the ${reward.name}`}
+      {reward?.level === 10 && (company ? " and your own office" : " · Join a company for your own office")}
     </button>
   );
 }
@@ -263,6 +364,37 @@ function MentionToast() {
       onClick={() => hud.set({ mention: null, panel: { kind: "card", userId: line.userId } })}
     >
       💬 <strong>{line.name}</strong> mentioned you in {roomName(line.room)}: {line.text}
+    </button>
+  );
+}
+
+/**
+ * Quests the last wallet has done that the one before didn't. The first wallet after load
+ * is the baseline, so a reload doesn't toast what's already done.
+ */
+function QuestToast() {
+  const quests = useHud((s) => s.wallet?.quests);
+  const seen = useRef<Set<string> | null>(null);
+  const [fresh, setFresh] = useState<{ quests: NonNullable<typeof quests>; at: number } | null>(null);
+  useEffect(() => {
+    if (!quests) return;
+    const done = quests.filter((q) => q.done);
+    const before = seen.current;
+    seen.current = new Set(done.map((q) => q.id));
+    const now = before ? done.filter((q) => !before.has(q.id)) : [];
+    if (now.length > 0) setFresh({ quests: now, at: Date.now() });
+  }, [quests]);
+  if (!useFresh(fresh?.at, MENTION_MS) || !fresh) return null;
+  return (
+    <button
+      type="button"
+      className="toast mention-toast"
+      onClick={() => {
+        setFresh(null);
+        hud.set({ panel: { kind: "shop" } });
+      }}
+    >
+      {fresh.quests.map((q) => `✓ ${q.text} · 🪙 ${q.coins}`).join("  ")}
     </button>
   );
 }

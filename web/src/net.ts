@@ -3,8 +3,10 @@ import {
   CHAT_HISTORY,
   type ChatLine,
   type CompanyInfo,
+  type Drop,
   type Houses,
   type Moves,
+  type Notice,
   type PlayerInfo,
   type RoomId,
   type Snapshot,
@@ -16,11 +18,13 @@ import {
   applyBubble,
   applyCallout,
   applyChat,
+  applyDrop,
   applyGame,
   applyGameOver,
   applyInfo,
   applyJump,
   applyMoves,
+  applyPickup,
   loadSnapshot,
   setCompanies,
   world,
@@ -112,14 +116,18 @@ export function connect(token: string): void {
   conn.on("chat", (line: ChatLine) => applyChat(line));
   conn.on("bubble", (e: { userId: number; text: string }) => applyBubble(e));
   conn.on("jump", (id: number) => applyJump(id));
-  conn.on("notice", (text: string) => {
-    hud.set({ notice: { text, at: Date.now() } });
+  conn.on("notice", (n: Notice) => {
+    hud.set({ notice: { ...n, at: Date.now() } });
     void refreshMe();
+    // A trade I offered settled: my coins and 🎒 moved (and an open Bag refetches).
+    void town.wallet().then((wallet) => hud.set({ wallet }));
   });
   conn.on("mention", (line: ChatLine) => hud.set({ mention: { line, at: Date.now() } }));
   conn.on("game", (g: WorldGame) => applyGame(g));
   conn.on("gameOver", (e: { id: number; winners: number[] }) => applyGameOver(e.id, e.winners));
   conn.on("callout", (e: { id: number; userId: number | null; text: string }) => applyCallout(e));
+  conn.on("drop", (d: Drop) => applyDrop(d));
+  conn.on("pickup", (e: { id: number }) => applyPickup(e.id));
   conn.onError((err) => {
     if (isUnauthorized(err)) signedOut();
   });

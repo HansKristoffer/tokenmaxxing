@@ -1,8 +1,9 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
+import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { cupsLeft, houseTier, JUMP_MS, TILE } from "@tokenmaxxing/core/world.ts";
 import { house, inn } from "../art/buildings.ts";
-import { characterFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
+import { characterFrame, itemFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
 import { chairBack, objectAt, sortY } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { PET_H, petFrame } from "../art/pets.ts";
@@ -107,6 +108,26 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       if (company) signHits.push({ x: sx - w / 2, y: y - h, w, h, id: company.id });
     });
     if (inside.length) labels.push(() => chips(g, sx, sy + 4 * dpr, inside, dpr));
+  }
+
+  // Office doors: the owner's name over each, 🔒 when it's closed; yours stands out.
+  for (const d of world.doors) {
+    const [sx, sy] = toScreen((d.x + 0.5) * TILE, d.y * TILE);
+    const text = `${d.open ? "" : "🔒 "}${d.name}`;
+    labels.push(() => sign(g, sx, sy, text, dpr, d.userId === world.selfId, 1.9 * TILE * scale));
+  }
+
+  // Drops: furniture is in the map; a pet or a wearable lies there as itself.
+  for (const d of world.drops) {
+    const kind = itemById(d.item);
+    if (!kind || kind.slot === "furniture") continue;
+    const sprite = kind.slot === "pet" ? petFrame(kind.index, false, false) : itemFrame(kind);
+    if (sprite)
+      items.push({
+        y: d.y * TILE + TILE / 2,
+        draw: () =>
+          g.drawImage(sprite, d.x * TILE + (TILE - sprite.width) / 2, (d.y + 1) * TILE - sprite.height - 1),
+      });
   }
 
   drawGames(g, items, labels, toScreen, now, dpr);

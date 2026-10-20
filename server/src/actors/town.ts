@@ -1,7 +1,22 @@
 import { frontier } from "@tokenmaxxing/core/maps.ts";
-import { isRangeKey } from "@tokenmaxxing/core/range.ts";
-import { itemById, itemsIn } from "@tokenmaxxing/core/shop.ts";
-import { type CompanyInfo, defaultLook, type Look, parseLook } from "@tokenmaxxing/core/world.ts";
+import { dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
+import {
+  emptySide,
+  isTradeable,
+  itemById,
+  itemsIn,
+  parseSide,
+  TRADE_COINS_CAP,
+  TRADE_ITEMS_CAP,
+} from "@tokenmaxxing/core/shop.ts";
+import {
+  type CompanyInfo,
+  type Drop,
+  defaultLook,
+  dropName,
+  type Look,
+  parseLook,
+} from "@tokenmaxxing/core/world.ts";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { canBrand } from "../brand.ts";
@@ -32,16 +47,35 @@ import {
   today,
 } from "../town/boards.ts";
 import {
+  type BagRow,
+  bag,
   buy,
+  checkTrade,
   type Entry,
+  floors,
+  giveBack,
+  grantRewards,
   type HoldKind,
   heldIn,
   hold,
+  type Office,
+  offices,
   ownedItems,
   type PayKind,
+  type Podium,
   pay,
+  pickUp,
+  placed,
+  podiums,
   refund,
   setBalance,
+  settleTrade,
+  TRADE_TTL,
+  type Trade,
+  takeOut,
+  tradesWhere,
+  unclaimed,
+  unwear,
   type Wallet,
   wallet,
 } from "../town/coins.ts";
@@ -62,8 +96,16 @@ import {
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { migrate } from "../town/schema.ts";
-import { brand, notify, push, pushPlayers } from "../town/sync.ts";
-import { lookOf, type PlayerCore, playerCores, USER_COLS, type UserRow, userById } from "../town/users.ts";
+import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
+import {
+  levelOf,
+  lookOf,
+  type PlayerCore,
+  playerCores,
+  USER_COLS,
+  type UserRow,
+  userById,
+} from "../town/users.ts";
 import { parseCompanyName, parseUserName, parseWebsite } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
@@ -96,7 +138,7 @@ export type {
   Profile,
   Today,
 } from "../town/boards.ts";
-export type { Wallet } from "../town/coins.ts";
+export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany } from "../town/companies.ts";
 export type { GamePlayer, GameStats } from "../town/games.ts";
 export type { PlayerCore } from "../town/users.ts";
@@ -131,7 +173,17 @@ const SIGNUPS_PER_HOUR = 1000;
 const BRANDINGS_PER_HOUR = 5;
 /** Each one pings the company's owner. */
 const APPLICATIONS_PER_HOUR = 10;
+/** Each one pings the other person. */
+const TRADES_PER_HOUR = 10;
+/** Each one sends a room (an office, a building, the town) to everyone in it again. */
+const ROOM_CHANGES_PER_MIN = 30;
+/** A new name is a new door sign: the building is rebuilt. */
+const RENAMES_PER_HOUR = 10;
+const MIN = 60_000;
 const HOUR = 3_600_000;
+/** Drops nobody took go back to their droppers after this; the sweeper looks every `SWEEP_MS`. */
+const DROP_TTL = HOUR;
+const SWEEP_MS = 10 * 60_000;
 
 /** Many rows in few statements (a first sync can report years of days). */
 async function insertRows(sql: Sql, insert: string, rows: unknown[][]): Promise<void> {
@@ -164,8 +216,14 @@ export const town = actor({
     signupsPerIp: new RateLimiter(SIGNUPS_PER_IP_PER_HOUR, HOUR),
     brandings: new RateLimiter(BRANDINGS_PER_HOUR, HOUR),
     applications: new RateLimiter(APPLICATIONS_PER_HOUR, HOUR),
+    trades: new RateLimiter(TRADES_PER_HOUR, HOUR),
+    offices: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
+    drops: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
+    renames: new RateLimiter(RENAMES_PER_HOUR, HOUR),
     /** Verified tokens, so a burst of calls doesn't ask `player` every time. */
     tokens: new Map() as TokenCache,
+    /** `podiums` for a world day, for wallets and cards; a late sync or a wiped account drops it. */
+    podiums: null as { day: string; rows: Promise<Podium[]> } | null,
   }),
   db: db({ onMigrate: migrate }),
   onCreate: (c) => requireMain(c),
@@ -173,6 +231,11 @@ export const town = actor({
     ...(await authenticate(params, c.client(), c.vars.tokens)),
     ip: clientIpOf(c.request),
   }),
+  // The sweeper's alarm. Set once: it outlives restarts, and wakes the town when it's asleep.
+  onWake: async (c) => {
+    if (!(await c.cron.get("sweep")))
+      await c.cron.every({ name: "sweep", interval: SWEEP_MS, action: "sweep" });
+  },
   actions: {
     health: async (c): Promise<void> => {
       requireInternal(c.conn.state);
@@ -231,6 +294,8 @@ export const town = actor({
 
     rename: async (c, rawName: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
+      if (!c.vars.renames.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of new names. Try again in an hour.", { code: "rate_limited" });
       await renameUser(c.db, c.vars.serial, c.client<typeof registry>(), userId, rawName);
     },
 
@@ -238,10 +303,13 @@ export const town = actor({
       const userId = requireUser(c.conn.state);
       const look = parseLook(rawLook);
       if (!look) throw new UserError("Unknown look.", { code: "invalid_look" });
-      const owned = new Set(await ownedItems(c.db, userId));
-      if (itemsIn(look).some((i) => !owned.has(i.id)))
-        throw new UserError("Buy it in the shop first.", { code: "not_owned" });
-      await c.db.execute("UPDATE users SET look = ? WHERE id = ?", JSON.stringify(look), userId);
+      // Serialized, so a drop or a trade can't take it off between the check and the write.
+      await c.vars.serial(async () => {
+        const owned = new Set(await ownedItems(c.db, userId));
+        if (itemsIn(look).some((i) => !owned.has(i.id)))
+          throw new UserError("You don't have one in your bag.", { code: "not_owned" });
+        await c.db.execute("UPDATE users SET look = ? WHERE id = ?", JSON.stringify(look), userId);
+      });
       await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
     },
 
@@ -292,7 +360,10 @@ export const town = actor({
         throw new UserError("That's a lot of applications. Try again in an hour.", { code: "rate_limited" });
       const company = await c.vars.serial(() => apply(c.db, userId, companyId, Date.now()));
       const me = await userById(c.db, userId);
-      await notify(c.client<typeof registry>(), company.ownerId, `${me.name} asks to join ${company.name}.`);
+      await notify(c.client<typeof registry>(), company.ownerId, {
+        text: `${me.name} asks to join ${company.name}.`,
+        open: "company",
+      });
     },
 
     withdraw: async (c): Promise<void> => {
@@ -307,7 +378,10 @@ export const town = actor({
         return { company, changed: await approve(c.db, company, applicantId, Date.now()) };
       });
       await push(c.db, client, changed);
-      await notify(client, changed.users[0]!, `You're in! Welcome to ${company.name}.`);
+      await notify(client, changed.users[0]!, {
+        text: `You're in! Welcome to ${company.name}.`,
+        open: "company",
+      });
       return myCompany(c.db, company.id, userId);
     },
 
@@ -315,7 +389,10 @@ export const town = actor({
       const userId = requireUser(c.conn.state);
       const company = await ownedCompany(c.db, userId);
       const declined = await c.vars.serial(() => decline(c.db, company, applicantId));
-      await notify(c.client<typeof registry>(), declined, `${company.name} said no this time.`);
+      await notify(c.client<typeof registry>(), declined, {
+        text: `${company.name} said no this time.`,
+        open: "company",
+      });
       return myCompany(c.db, company.id, userId);
     },
 
@@ -369,16 +446,184 @@ export const town = actor({
       return myCompany(c.db, company.id, userId);
     },
 
-    wallet: (c): Promise<Wallet> => wallet(c.db, requireUser(c.conn.state), Date.now()),
+    wallet: async (c): Promise<Wallet> =>
+      wallet(c.db, requireUser(c.conn.state), Date.now(), await podiumsOf(c, Date.now())),
+
+    /** What I hold, per kind, for the bag panel. */
+    bag: (c): Promise<BagRow[]> => bag(c.db, requireUser(c.conn.state)),
 
     buy: async (c, itemId: unknown): Promise<Wallet> => {
       const userId = requireUser(c.conn.state);
       const item = itemById(itemId);
       if (!item) throw new UserError("That's not in the shop.", { code: "not_found" });
+      if (item.level !== undefined)
+        throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
       return c.vars.serial(() => buy(c.db, userId, item, Date.now()));
     },
 
-    /** From `player` after an ingest: replaces those days' rollups. */
+    // MARK: Drops
+
+    /**
+     * One of mine onto the floor where I am, for anyone to take. A full room says so (the notice is for
+     * the Bag), and the item stays mine.
+     */
+    drop: async (c, itemId: unknown): Promise<{ notice: string; drop?: Drop }> => {
+      const userId = requireUser(c.conn.state);
+      if (!c.vars.drops.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of drops. Try again in a minute.", { code: "rate_limited" });
+      const client = c.client<typeof registry>();
+      const id = await c.vars.serial(() => takeOut(c.db, userId, itemId, Date.now()));
+      // Not under `serial` while `world` places it, so a slow world holds up nobody else. The row is on
+      // the floor meanwhile, with a fresh `dropped_at`: the sweeper leaves it, and if it landed and
+      // someone took it already, `giveBack` finds nothing to give.
+      // ponytail: one that landed but timed out stays on the floor with its row back here: taking it
+      // gets nothing (`pickUp` is false). `removeDrops` it here if that ever shows up.
+      const put = await main(client)
+        .world.placeDrop({ id, item: itemId as string, by: userId })
+        .catch((err) => {
+          console.warn(`[drop] ${id}: ${String(err)}`);
+          return { notice: "That didn't work. Try again." };
+        });
+      let off = false;
+      const out = await c.vars.serial(async () => {
+        if ("notice" in put) {
+          await giveBack(c.db, [id]);
+          return put;
+        }
+        await placed(c.db, put);
+        off = await unwear(c.db, userId, [put.item]);
+        return { notice: `Dropped the ${dropName(put)}.`, drop: put };
+      });
+      // Off it comes, if it was the last one worn.
+      if (off) await pushPlayers(c.db, client, [userId]);
+      return out;
+    },
+
+    /** From `world.take`: a drop on `room`'s floor into the taker's bag. False if it isn't there any more. */
+    pickUp: async (c, dropId: number, userId: number, room: string): Promise<boolean> => {
+      requireInternal(c.conn.state);
+      return pickUp(c.db, dropId, userId, room);
+    },
+
+    /** The alarm, every 10 minutes: drops nobody took in an hour go back to whoever dropped them. */
+    sweep: async (c): Promise<void> => {
+      // The alarm calls with no connection; anyone else has one, and has to be inside.
+      if (c.conn) requireInternal(c.conn.state);
+      const ids = await unclaimed(c.db, Date.now() - DROP_TTL);
+      if (ids.length === 0) return;
+      // Off the floor first: if `world` is down, nothing changed and the next sweep tries again.
+      await main(c.client<typeof registry>()).world.removeDrops(ids);
+      await giveBack(c.db, ids);
+    },
+
+    // MARK: Trades
+
+    /** Offers `toId` my `give` for their `want`. It replaces my open offer, if I had one. */
+    offerTrade: async (c, toId: unknown, rawGive: unknown, rawWant: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      if (typeof toId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
+      if (toId === userId) throw new UserError("Trade with someone else.", { code: "invalid_trade" });
+      const me = await userById(c.db, userId);
+      const them = await userById(c.db, toId);
+      // `parseSide` refuses a reward too; this says why.
+      const asked = [rawGive, rawWant].flatMap((s) => (s as { items?: unknown } | null)?.items ?? []);
+      if (asked.some((i) => itemById(i)?.tradeable === false))
+        throw new UserError("Level rewards stay with you.", { code: "invalid_trade" });
+      const give = parseSide(rawGive);
+      const want = parseSide(rawWant);
+      if (give && want && emptySide(give) && emptySide(want))
+        throw new UserError("Offer something, or ask for something.", { code: "invalid_trade" });
+      if (!give || !want)
+        throw new UserError(`Up to 🪙 ${TRADE_COINS_CAP} and ${TRADE_ITEMS_CAP} shop items a side.`, {
+          code: "invalid_trade",
+        });
+      const now = Date.now();
+      const trade = { fromId: userId, from: me.name, toId, to: them.name, give, want, at: now };
+      // Their coins are theirs to know: accepting checks them.
+      await checkTrade(c.db, { ...trade, want: { ...want, coins: 0 } }, now);
+      if (!c.vars.trades.take(String(userId), now))
+        throw new UserError("That's a lot of offers. Try again in an hour.", { code: "rate_limited" });
+      await c.db.execute(
+        "INSERT OR REPLACE INTO trades (from_id, to_id, give, want, at) VALUES (?, ?, ?, ?, ?)",
+        userId,
+        toId,
+        JSON.stringify(give),
+        JSON.stringify(want),
+        now,
+      );
+      await notify(c.client<typeof registry>(), toId, {
+        text: `${me.name} offers you a trade.`,
+        open: "trades",
+      });
+    },
+
+    /** Offers to me and my own, newest first. */
+    trades: async (c): Promise<{ incoming: Trade[]; outgoing: Trade | null }> => {
+      const userId = requireUser(c.conn.state);
+      await c.db.execute("DELETE FROM trades WHERE at < ?", Date.now() - TRADE_TTL);
+      return {
+        incoming: await tradesWhere(c.db, "to_id = ?", userId),
+        outgoing: (await tradesWhere(c.db, "from_id = ?", userId))[0] ?? null,
+      };
+    },
+
+    /** `at`: the offer as I saw it, so one swapped meanwhile isn't accepted unseen. */
+    acceptTrade: async (c, fromId: unknown, at: unknown): Promise<Wallet> => {
+      const userId = requireUser(c.conn.state);
+      const now = Date.now();
+      const trade = await c.vars.serial(async () => {
+        const trade = await offerTo(c.db, userId, fromId, now);
+        if (trade.at !== at)
+          throw new UserError("They changed the offer. Have another look.", { code: "not_found" });
+        await settleTrade(c.db, trade, now);
+        return trade;
+      });
+      const client = c.client<typeof registry>();
+      // Looks may have changed.
+      await pushPlayers(c.db, client, [trade.fromId, userId]);
+      await notify(client, trade.fromId, { text: `${trade.to} accepted your trade.`, open: "bag" });
+      return wallet(c.db, userId, now, await podiumsOf(c, now));
+    },
+
+    declineTrade: async (c, fromId: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      const trade = await offerTo(c.db, userId, fromId, Date.now());
+      await c.db.execute("DELETE FROM trades WHERE from_id = ? AND at = ?", trade.fromId, trade.at);
+      await notify(c.client<typeof registry>(), trade.fromId, { text: `${trade.to} passed on your trade.` });
+    },
+
+    withdrawTrade: async (c): Promise<void> => {
+      await c.db.execute("DELETE FROM trades WHERE from_id = ?", requireUser(c.conn.state));
+    },
+
+    /** What `userId` could trade away, for the trade panel. */
+    tradeables: async (c, targetId: unknown): Promise<{ name: string; owned: string[] }> => {
+      requireUser(c.conn.state);
+      if (typeof targetId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
+      const u = await userById(c.db, targetId);
+      return { name: u.name, owned: (await ownedItems(c.db, u.id)).filter(isTradeable) };
+    },
+
+    /** Open: anyone can visit from my player card. Closed: only I get in, through the door. */
+    setOfficeOpen: async (c, open: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      if (!c.vars.offices.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
+      if (typeof open !== "boolean") throw new UserError("Open or closed?", { code: "invalid_office" });
+      const client = c.client<typeof registry>();
+      const drops = await c.vars.serial(async () => {
+        // Level 10 from before offices had rows: its row, and its desk and chair, come now.
+        const drops = await grantRewards(c.db, userId, await levelOf(c.db, userId), Date.now());
+        const set = "UPDATE offices SET open = ? WHERE user_id = ? RETURNING user_id";
+        if (!(await one(c.db, set, open ? 1 : 0, userId)))
+          throw new UserError("You don't have an office yet.", { code: "not_found" });
+        return drops;
+      });
+      await placeStarter(client, drops);
+      await pushOffice(c.db, client, userId);
+    },
+
+    /** From `player` after an ingest: replaces those days' rollups and hands out level rewards reached. */
     report: async (
       c,
       userId: number,
@@ -387,9 +632,11 @@ export const town = actor({
       activity: ActivityDay[],
     ): Promise<void> => {
       requireInternal(c.conn.state);
-      await c.vars.serial(() =>
+      const drops = await c.vars.serial(() =>
         c.db.transaction(
           async (tx) => {
+            // Deleted meanwhile: nothing of theirs is written back.
+            await userById(tx, userId);
             const inDays = `day IN (${days.map(() => "?").join(",")})`;
             await tx.execute(`DELETE FROM usage_daily WHERE user_id = ? AND ${inDays}`, userId, ...days);
             await insertRows(
@@ -426,10 +673,14 @@ export const town = actor({
               "INSERT INTO capped_daily VALUES",
               activity.filter((a) => a.capped > 0).map((a) => [userId, a.day, a.capped]),
             );
+            return grantRewards(tx, userId, await levelOf(tx, userId), Date.now());
           },
           { name: "report-usage" },
         ),
       );
+      // A finished day changed: its podium may have too.
+      if (days.some((d) => d < dayKey(Date.now()))) c.vars.podiums = null;
+      await placeStarter(c.client<typeof registry>(), drops);
       const u = await userById(c.db, userId);
       await push(c.db, c.client<typeof registry>(), {
         users: [userId],
@@ -457,7 +708,7 @@ export const town = actor({
       requireUser(c.conn.state);
       if (typeof targetId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
       const range = isRangeKey(rawRange) ? rawRange : "30d";
-      return profile(c.db, targetId, range, Date.now());
+      return profile(c.db, targetId, range, Date.now(), await podiumsOf(c, Date.now()));
     },
 
     /** Names starting with `prefix`, for @-mention suggestions. */
@@ -596,6 +847,7 @@ export const town = actor({
       const client = c.client<typeof registry>();
       const days = await client.player.get([String(user.id)], internal).wipe();
       await c.vars.serial(() => wipeUsage(c.db, user.id));
+      c.vars.podiums = null;
       await push(c.db, client, {
         users: [user.id],
         companies: user.companyId === null ? [] : [user.companyId],
@@ -609,10 +861,12 @@ export const town = actor({
       const user = await adminTarget(c.db, userId);
       const now = Date.now();
       const changed = await c.vars.serial(() => deleteUser(c.db, user.id, now));
+      c.vars.podiums = null;
       await logAdmin(c.db, "delete user", who(user), null, now);
       const client = c.client<typeof registry>();
       await push(c.db, client, changed);
-      await main(client).world.removePlayer(user.id);
+      // Out of the world with their drops; what others dropped in their office goes back to them.
+      await giveBack(c.db, await main(client).world.removePlayer(user.id));
       await client.player.get([String(user.id)], internal).close();
     },
 
@@ -644,11 +898,19 @@ export const town = actor({
         Date.now(),
       );
       await push(c.db, client, changed);
-      for (const id of changed.users) await notify(client, id, "Your company was closed by the town admin.");
+      for (const id of changed.users)
+        await notify(client, id, { text: "Your company was closed by the town admin.", open: "company" });
     },
 
-    /** For `world` starting from nothing: everyone and every company. */
-    seed: async (c): Promise<{ players: PlayerCore[]; companies: CompanyInfo[] }> => {
+    /** For `world` starting up: everyone, every company, every office and everything on a floor. */
+    seed: async (
+      c,
+    ): Promise<{
+      players: PlayerCore[];
+      companies: CompanyInfo[];
+      offices: Record<number, Office>;
+      drops: Drop[];
+    }> => {
       requireInternal(c.conn.state);
       const users = await all<UserRow>(c.db, `SELECT ${USER_COLS} FROM users`);
       const companies = await all<{ id: number }>(c.db, "SELECT id FROM companies");
@@ -661,6 +923,8 @@ export const town = actor({
           c.db,
           companies.map((r) => r.id),
         ),
+        offices: await offices(c.db),
+        drops: await floors(c.db),
       };
     },
   },
@@ -697,6 +961,41 @@ async function renameCompany(sql: Sql, client: Client, companyId: number, rawNam
   const name = companyName(rawName);
   await sql.execute("UPDATE companies SET name = ? WHERE id = ?", name, companyId);
   await push(sql, client, { companies: [companyId], users: [] });
+}
+
+/** Every finished day's top 3, worked out once a world day (or after something changed them). */
+function podiumsOf(
+  c: { db: Sql; vars: { podiums: { day: string; rows: Promise<Podium[]> } | null } },
+  now: number,
+): Promise<Podium[]> {
+  const day = dayKey(now);
+  if (c.vars.podiums?.day !== day) {
+    const rows = podiums(c.db, now);
+    c.vars.podiums = { day, rows };
+    // A failed one isn't kept.
+    rows.catch(() => {
+      if (c.vars.podiums?.rows === rows) c.vars.podiums = null;
+    });
+  }
+  return c.vars.podiums.rows;
+}
+
+/** A new office's desk and chair onto its floor. If `world` misses them, its next start lays them (`seed`). */
+async function placeStarter(client: Client, drops: Drop[]): Promise<void> {
+  if (drops.length === 0) return;
+  await main(client)
+    .world.placeDrops(drops)
+    .catch((err) => console.warn(`[office] ${String(err)}`));
+}
+
+/** The open offer `fromId` made me, or `not_found`. */
+async function offerTo(sql: Sql, userId: number, fromId: unknown, now: number): Promise<Trade> {
+  const [trade] =
+    typeof fromId === "number"
+      ? await tradesWhere(sql, "from_id = ? AND to_id = ? AND at >= ?", fromId, userId, now - TRADE_TTL)
+      : [];
+  if (!trade) throw new UserError("That offer is gone.", { code: "not_found" });
+  return trade;
 }
 
 async function namesOf(sql: Sql, userIds: number[]): Promise<Record<number, string>> {

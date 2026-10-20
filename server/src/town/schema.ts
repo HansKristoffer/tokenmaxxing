@@ -41,18 +41,45 @@ export async function migrate(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS applications (
     user_id INTEGER PRIMARY KEY, company_id INTEGER NOT NULL, at INTEGER NOT NULL)`);
   await sql.execute("CREATE INDEX IF NOT EXISTS applications_company ON applications (company_id, at)");
+  // Coins spent in the shop, per kind: a rebuy adds its price. What you hold is in `items`.
   await sql.execute(`CREATE TABLE IF NOT EXISTS purchases (
     user_id INTEGER NOT NULL, item TEXT NOT NULL, price INTEGER NOT NULL, at INTEGER NOT NULL,
     PRIMARY KEY (user_id, item)) WITHOUT ROWID`);
-  // Coins that move between players: stakes and side bets held, then paid out or refunded.
-  // Negative amounts leave a wallet. Every `ref` sums to 0 or less, never more, except `admin`:
-  // coins an admin gave or took (kind `admin`).
+  // Decided before it's made: `items` can empty out again later, and the backfill mustn't run twice.
+  const fresh =
+    (await sql.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'items'")).length === 0;
+  // One row per copy anyone holds. `owner_id` is NULL while it's on the floor: `dropped_by` and
+  // `dropped_at` say whose and since when, `room`, `x` and `y` where (once `world` has put it down).
+  await sql.execute(`CREATE TABLE IF NOT EXISTS items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id INTEGER, item TEXT NOT NULL, at INTEGER NOT NULL,
+    dropped_by INTEGER, dropped_at INTEGER, room TEXT, x INTEGER, y INTEGER)`);
+  await sql.execute("CREATE INDEX IF NOT EXISTS items_owner ON items (owner_id, item)");
+  // Into the bag, once, when `items` is new: a purchase row was the item.
+  if (fresh) {
+    await sql.execute("INSERT INTO items (owner_id, item, at) SELECT user_id, item, at FROM purchases");
+    const [{ n }] = (await sql.execute("SELECT COUNT(*) AS n FROM items")) as [{ n: number }];
+    if (n > 0) console.log(`[town] ${n} items into the bag`);
+  }
+  // Level rewards handed out, so each comes once.
+  await sql.execute(`CREATE TABLE IF NOT EXISTS rewards (
+    user_id INTEGER NOT NULL, item TEXT NOT NULL, PRIMARY KEY (user_id, item))`);
+  // Coins that move between players: stakes and side bets held, then paid out or refunded, and
+  // trades (kind `trade`). Negative amounts leave a wallet. Every `ref` sums to 0 or less, never
+  // more, except `admin`: coins an admin gave or took (kind `admin`).
   await sql.execute(`CREATE TABLE IF NOT EXISTS ledger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL, amount INTEGER NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL,
     at INTEGER NOT NULL)`);
   await sql.execute("CREATE INDEX IF NOT EXISTS ledger_user ON ledger (user_id)");
   await sql.execute("CREATE INDEX IF NOT EXISTS ledger_ref ON ledger (ref)");
+  // One open offer per sender: a new one replaces it. `give` and `want` are `Side` JSON.
+  await sql.execute(`CREATE TABLE IF NOT EXISTS trades (
+    from_id INTEGER PRIMARY KEY, to_id INTEGER NOT NULL,
+    give TEXT NOT NULL, want TEXT NOT NULL, at INTEGER NOT NULL)`);
+  await sql.execute("CREATE INDEX IF NOT EXISTS trades_to ON trades (to_id, at)");
+  // Whether each office is open. A row is also "the desk and chair are given" (`starterDrops`).
+  await sql.execute(`CREATE TABLE IF NOT EXISTS offices (
+    user_id INTEGER PRIMARY KEY, open INTEGER NOT NULL DEFAULT 1)`);
   // One row per player per finished game (void games aren't recorded), for stats and the Games board.
   await sql.execute(`CREATE TABLE IF NOT EXISTS match_players (
     match_id INTEGER NOT NULL, user_id INTEGER NOT NULL, game TEXT NOT NULL, place INTEGER NOT NULL,
