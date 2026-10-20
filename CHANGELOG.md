@@ -1,5 +1,51 @@
 # Changelog
 
+## [1.6.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.5.0...v1.6.0) (2026-10-20)
+
+
+### Features
+
+* an inventory of items, with furniture and rewards in it ([9761919](https://github.com/HansKristoffer/tokenmaxxing/commit/9761919c7b8a5c8c2a63d106bbefaf8e88f5a57b))
+* badges on the player card ([8ada2f6](https://github.com/HansKristoffer/tokenmaxxing/commit/8ada2f6b4f245042f0e1482184024c25f06cfcde))
+* drop items from the bag and pick them up ([f494095](https://github.com/HansKristoffer/tokenmaxxing/commit/f4940959dff3237a868fff8e6cdbb5f786399081))
+* drops in the world, and taking them ([a14428c](https://github.com/HansKristoffer/tokenmaxxing/commit/a14428c8e781e70f7114671be9daf392edc87aad))
+* four daily quests paid in coins ([4cf9339](https://github.com/HansKristoffer/tokenmaxxing/commit/4cf933929562ebdf702ab4410ff151baa84c1882))
+* levels to 30, offices, quests, badges, trading, and an inventory with drops ([14eac15](https://github.com/HansKristoffer/tokenmaxxing/commit/14eac15a766085c04bf70f9a5846aa814d63d9ab))
+* offices are furnished by dropping; the editor goes ([c518a1d](https://github.com/HansKristoffer/tokenmaxxing/commit/c518a1d53047f50afac1406df108ee65b1ce6807))
+* offices behind named doors in the company building ([b3d7aaa](https://github.com/HansKristoffer/tokenmaxxing/commit/b3d7aaa428a155436754914e169ef9006537aca1))
+* personal offices in the company building from level 10 ([f6d71d0](https://github.com/HansKristoffer/tokenmaxxing/commit/f6d71d0d2010357d8715629c00aa277ef300c985))
+* **quests:** two quests a day, agents at once and hours running ([0650610](https://github.com/HansKristoffer/tokenmaxxing/commit/06506102452ce756bbc729fda751393cabe9cb79))
+* **sync:** read PostHog Desktop Claude Code and Codex sessions ([04871f3](https://github.com/HansKristoffer/tokenmaxxing/commit/04871f374e241192289f448f97b4055ad5583f3e))
+* **sync:** read PostHog Desktop Claude Code and Codex sessions ([43ebe99](https://github.com/HansKristoffer/tokenmaxxing/commit/43ebe999fbd9633bd3b989d7627d6e7043687c65))
+* trade coins and items between players ([8587029](https://github.com/HansKristoffer/tokenmaxxing/commit/85870299c29aa53c3a68c0f5af693d992982669b))
+* **trades:** a trades icon beside the bag while an offer is open ([dc034cf](https://github.com/HansKristoffer/tokenmaxxing/commit/dc034cf5695d0ed2c0aac3d61170405d56805138))
+* **web:** levels to 30 and rewards at 10, 20 and 30 ([ec1a0a7](https://github.com/HansKristoffer/tokenmaxxing/commit/ec1a0a7b83e2f034928b866f70c31a96b83cce80))
+* **web:** the bag as a grid with a count, and items that look like themselves ([df5cb33](https://github.com/HansKristoffer/tokenmaxxing/commit/df5cb332b2a89d5b370217a7fa38346f8b498934))
+
+
+### Bug Fixes
+
+* **arcade:** release players from a game that stopped ([4db45b6](https://github.com/HansKristoffer/tokenmaxxing/commit/4db45b6a32695ef8356e046d5bf12a0cc7770378))
+* **arcade:** release players from a game that stopped ([f12cabf](https://github.com/HansKristoffer/tokenmaxxing/commit/f12cabfbef969df482610b6fd97df05f15e7fead))
+* **bots:** follow people far less often, and never the same person at once ([106c7bd](https://github.com/HansKristoffer/tokenmaxxing/commit/106c7bd2c826d53aee6642b3ab2287586344208f))
+* **hud:** centre a list row's buttons when its text wraps ([d8bd5ac](https://github.com/HansKristoffer/tokenmaxxing/commit/d8bd5ac918eddad05732239dd273de83ba450dcf))
+* review follow-ups for levels, offices, quests, badges and trading ([3bab125](https://github.com/HansKristoffer/tokenmaxxing/commit/3bab125b07c308fc2c589a180a61d1232e6fa48f))
+* second review follow-ups for offices, drops and the bag ([dcdc836](https://github.com/HansKristoffer/tokenmaxxing/commit/dcdc836253e9caea53f061557645916a8329ae67))
+* **server:** stop game-time errors from killing the server ([c942c4e](https://github.com/HansKristoffer/tokenmaxxing/commit/c942c4e9f832473de23ce81af50c3493f23fdf15))
+* **server:** stop game-time errors from killing the server ([b781e52](https://github.com/HansKristoffer/tokenmaxxing/commit/b781e522e1bd6923bc99fff438ce47a7a635edd6))
+* third review, server and core ([9e4b3c3](https://github.com/HansKristoffer/tokenmaxxing/commit/9e4b3c3b126a6fcfcc104b45d22d3971fa5813d5))
+* toasts stack, and small UI follow-ups from the browser test ([2293d79](https://github.com/HansKristoffer/tokenmaxxing/commit/2293d79ad43bf54bcd81a4e67d8e4b81aabb9bb3))
+* **town:** push to the world one at a time, so a closed company stays closed ([d2bf2c4](https://github.com/HansKristoffer/tokenmaxxing/commit/d2bf2c41c89abca65262c9a58fa49a4f51c738a5))
+* **web:** third review, client ([f446141](https://github.com/HansKristoffer/tokenmaxxing/commit/f4461417c49ce1cb360d1087566d0664a6082b8a))
+
+
+### Performance Improvements
+
+* **web:** repaint only what a drop changed ([7689892](https://github.com/HansKristoffer/tokenmaxxing/commit/7689892a2da0de7ecd8b87437ba915ca3f9630a4))
+* **world:** Inn sleepers as a count, and head counts at most once a second ([08fee54](https://github.com/HansKristoffer/tokenmaxxing/commit/08fee54045169a68bef39189ac7952be6bf45e55))
+* **world:** send room head counts at most once a second ([e8277e0](https://github.com/HansKristoffer/tokenmaxxing/commit/e8277e0d161bb6b56a7fdcca6b8f6b9a64ffa4a1))
+* **world:** sleepers at the Inn as a count in snapshots ([dc93745](https://github.com/HansKristoffer/tokenmaxxing/commit/dc93745a62eebd7ebcbecc4aefa66edc9807e15a))
+
 ## [1.5.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.4.2...v1.5.0) (2026-10-16)
 
 
