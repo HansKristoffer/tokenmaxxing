@@ -26,6 +26,7 @@ import { Modal, useRun } from "./ui.tsx";
 export function Hud() {
   const status = useHud((s) => s.status);
   const beside = useHud((s) => chatBeside(s.panel));
+  const room = useHud((s) => s.room);
   if (status === "signedOut" || status === "expired")
     return tauri ? <AppSignIn /> : <SignedOut expired={status === "expired"} />;
   return (
@@ -52,7 +53,7 @@ export function Hud() {
           Reconnecting…
         </div>
       )}
-      <div className="toasts">
+      <div className={room === "dungeon" ? "toasts low" : "toasts"}>
         <MentionToast />
         <NoticeToast />
         <QuestToast />

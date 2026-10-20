@@ -1538,3 +1538,9 @@ button.lb-item:hover {
     animation: none;
   }
 }
+
+/* In the dungeon the boss's name and HP are at the top: toasts go to the bottom instead. */
+#hud > .toasts.low {
+  top: auto;
+  bottom: 96px;
+}
