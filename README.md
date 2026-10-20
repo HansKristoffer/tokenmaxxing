@@ -102,6 +102,9 @@ data is sent anywhere for this.
   dungeon, wherever they are, firing magic missiles (and a robot minion per extra agent) as fast as they burn
   tokens: that's the show, the hits are the synced tokens. Until the first one the gate is boarded up with a
   ⚠️ and a countdown to that Monday 08:00.
+  Each boss also drops its own rare loot: every raider a kill pays rolls its four items, from a 10% hat to a
+  0.1% trophy (Golden Hourglass, Infinite Context Crown…). Rolls are fixed per week, rung and player, so nobody
+  can reroll. Loot is worn or placed like shop items, and can be traded.
 
 ## How it works
 
@@ -186,6 +189,7 @@ bash app/helper/scripts/cli.sh dist/cli    # the release binaries, for every pla
 | `CLIENT_IP_HEADER` | `x-real-ip` | Where the client's IP is, for per-IP limits. Railway's edge sets `x-real-ip` |
 | `GATEWAY_REQUESTS_PER_MIN` | `1200` | Requests to the actors per client IP a minute |
 | `GATEWAY_SOCKETS_PER_MIN` | `300` | New WebSockets per client IP a minute |
+| `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
 | `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
 
 `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` are read by RivetKit's native side, so they must be set in

@@ -153,7 +153,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 **`town["main"]`**: everything cold, joined in SQL.
 - Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `capped_daily`,
   `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
-  handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
+  handed out), `loot` (raid drops handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
   `offices`, `match_players` (one row per player per finished game), `deleted_users`, `admin_log`.
 - Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename` (10 an hour), `setLook` (refuses items you don't hold), `me`.
 - Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
@@ -245,7 +245,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Two daily quests (`core/src/quests.ts`) pay up to 7 more a day: 5 agents at once, and 2 hours of
   agents running. They're worked out from `activity_daily`, so nothing is stored.
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats, 5 pets and the 11 pieces of furniture
-  (`furn.<ch>`), 10 to 1,500 coins. Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
+  (`furn.<ch>`), 10 to 1,500 coins. The raid's 16 loot items are in it too, never sold (see *The raid*). Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
   Pets follow their owner in the client.
 - **The bag** (`items`, the 🎒 panel): one row per copy, so you can hold two Ducks; you can wear a kind if you
   hold one. Buying adds a row and adds the price to `purchases` (spend only, one row per kind); buying a
@@ -393,6 +393,40 @@ climbs it together (`core/src/raid.ts`).
     every synced token, floated off the boss as the `totalDamage` each poll adds.
   - **Kills:** the boss slumps by a trophy, then the next rung's drops in under a "Rung N" banner; this week's
     kills hang as plaques on the back wall. While `closed`, nobody fires and the one that got away dozes.
+- **Loot** (`core/src/loot.ts`): each boss has its own table of four items, one per rarity: common 10%, rare
+  2.5%, epic 0.5%, legendary 0.1%. Each lap of the ladder ("II", "III"…) multiplies the odds by 1.05, at most
+  ×1.25 (`lapBonus`: a 0.1% legendary is never above 0.125%). The weekly +10% difficulty of the ladder is separate and never raises odds.
+  - The Rate Limit: Hourglass hat, 429 shades, Sand golem (pet), Golden Hourglass (trophy).
+  - The Context Window: Pane glasses, Compacting… scarf, Goldfish (pet), Infinite Context Crown.
+  - Merge Conflict: Two-tone suit, `<<<<<<< HEAD` band, Forked cat (pet), Golden Rebase (trophy).
+  - The Hallucination: Third eye, Shimmering cape, Ghost (pet), Citation Needed crown.
+
+  They're shop items in the existing slots (`ITEMS`, with `loot: { boss, rarity }`), so they're worn, placed,
+  dropped and traded like any other, but never sold. Trophies are furniture: `Y` and `V` on the map legend,
+  after the shop's pieces in `PIECES`.
+  - **Rolls:** every raider a kill pays (`Kill.raiders`) rolls every item in that boss's table on its own, so
+    one kill can drop several things for one person. A roll is the first 52 bits of
+    `sha256("loot:<week>:<rung>:<userId>:<item>")` over 2⁵², and it drops when it's under the odds
+    (`killDrops`). It's the same every time it's worked out, so nobody can reroll, a restart changes nothing,
+    and anyone can check it.
+  - **Granting** (`server/src/town/loot.ts`): like the raid itself, drops are worked out rather than
+    stored, but an item has to be a row, so each drop is handed out once. Every time `town` works the raid
+    out (`raidsOf`: a poll at most every 15 s, and the sweeper's alarm every 10 minutes, so nobody has to be
+    watching), `grantLoot` finds the drops not yet in `loot` (primary key week, rung, user, item) and inserts
+    each one's `loot` row and `items` row in one transaction, under `serial`. A late sync that makes someone
+    a raider gets them that kill's rolls then. A drop is handed out before the poll that shows its kill
+    returns. Loot stays when usage is wiped, and the rows stay when an account goes, like the ledger.
+  - **News:** each winner gets one `notice` (the rarest first, opening the Bag). `world.announceLoot` sends
+    this week's drops (at most 40) to everyone as `loot`. In the dungeon each item pops out of the boss in a
+    beam of its rarity's colour and flies to its winner's desk (`web/src/game/loot.ts`). A legendary floods
+    the screen gold with a banner wherever you are, and an epic does the same in violet. Outside the dungeon
+    a toast says who got what. Whoever wears a legendary sparkles in the world.
+  - **The panel:** `town.raid` adds `loot` (`raidLoot`): the current boss's table with its odds on this
+    rung, ticked if you hold one, and this week's drops with who got them. The Bag and the Shop frame loot in
+    its rarity's colour (common green, rare blue, epic violet, legendary gold, glowing), and the tooltip names
+    the boss and the odds.
+  - `RAID_LOOT_BOOST` (dev and testing only, 1 to 1000, checked at boot) multiplies every drop's odds so
+    rare ones can be seen without luck. The panel says when it's on.
 
 ## The client
 
