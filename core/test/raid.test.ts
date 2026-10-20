@@ -19,6 +19,7 @@ import {
   raidWeeks,
   rewardFor,
   rungHp,
+  seatFor,
   WEEKLY_GROWTH,
   weekHp,
   weekOf,
@@ -254,4 +255,15 @@ test("the raid launches on the next Monday at 08:00, whatever day it is", () => 
   expect(w!.week).toBe(day(7));
   expect(w!.hp).toBe(3e9);
   expect(w!.kills.map((k) => k.rung)).toEqual([1, 2]);
+});
+
+test("a raider's desk comes from their id, so a reload keeps it", () => {
+  const none = new Set<number>();
+  const own = seatFor(42, none, 40);
+  expect(seatFor(42, none, 40)).toBe(own);
+  // Taken: the next free one, round the room.
+  expect(seatFor(42, new Set([own]), 40)).toBe((own + 1) % 40);
+  const taken = new Set<number>();
+  for (let id = 1; id <= 40; id++) taken.add(seatFor(id, taken, 40));
+  expect(taken.size).toBe(40);
 });

@@ -9,7 +9,7 @@
  */
 import { compact, countdown } from "@tokenmaxxing/core/format.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
-import type { RungBoss } from "@tokenmaxxing/core/raid.ts";
+import { type RungBoss, seatFor } from "@tokenmaxxing/core/raid.ts";
 import type { Raiders } from "@tokenmaxxing/core/world.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import type { Raid } from "@tokenmaxxing/server/registry";
@@ -81,6 +81,8 @@ const SEATS = map
       Math.hypot(ax + 0.5 - AT.x / TILE, ay - AT.y / TILE) -
         Math.hypot(bx + 0.5 - AT.x / TILE, by - AT.y / TILE) || ax - bx,
   );
+/** Seats are handed out from the front, in bands this big (see `setRaiders`). */
+const SEAT_BAND = 10;
 const TORCHES = map.find("j");
 /** This week's kills hang on the back wall, either side of the boss, between the torches. */
 const PLAQUES = [4, 5, 6, 7, 19, 20, 21, 22].map((x) => [x, 1] as const);
@@ -114,7 +116,11 @@ const fx = {
   last: 0,
 };
 
-/** Who's raiding, and which seat each has: kept as they come and go, so nobody jumps around. */
+/**
+ * Who's raiding, and which seat each has: kept as they come and go, so nobody jumps around. A newcomer
+ * gets the seat their id hashes to (or the next free one) among the front `zone` seats, so the same
+ * person has the same desk after a reload too, and a half-full room still fills from the boss out.
+ */
 export const dungeon = {
   raiders: null as Raiders | null,
   seats: new Map<number, number>(),
@@ -129,12 +135,18 @@ export function setRaiders(r: Raiders | null): void {
   const ids = new Set(r.top.map((p) => p.id));
   for (const id of dungeon.seats.keys()) if (!ids.has(id)) dungeon.seats.delete(id);
   const taken = new Set(dungeon.seats.values());
-  for (const p of r.top) {
+  // The front seats, in bands of 10, so the zone (and with it everyone's seat) only moves when the
+  // crowd crosses a band; past it (people kept from a bigger crowd), the whole room.
+  let zone = Math.min(SEATS.length, Math.ceil(r.top.length / SEAT_BAND) * SEAT_BAND);
+  if ([...taken].some((s) => s >= zone)) zone = SEATS.length;
+  // In id order, so who wins a contested seat doesn't depend on who's busiest right now.
+  for (const p of [...r.top].sort((a, b) => a.id - b.id)) {
     if (dungeon.seats.has(p.id)) continue;
-    const free = SEATS.findIndex((_, i) => !taken.has(i));
-    if (free < 0) break;
-    dungeon.seats.set(p.id, free);
-    taken.add(free);
+    if (taken.size >= zone) zone = SEATS.length;
+    if (taken.size >= zone) break;
+    const seat = seatFor(p.id, taken, zone);
+    dungeon.seats.set(p.id, seat);
+    taken.add(seat);
   }
 }
 

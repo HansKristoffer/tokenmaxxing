@@ -275,3 +275,15 @@ export function raidWeeks(days: readonly RaidDay[], now: number, start: string):
 /** What `userId` got for the kills in `weeks`. */
 export const raidCoins = (weeks: readonly RaidWeek[], userId: number): number =>
   weeks.reduce((n, w) => n + w.kills.reduce((m, k) => m + (k.raiders.includes(userId) ? k.coins : 0), 0), 0);
+
+/**
+ * A raider's war desk in the dungeon, of `seats`: the one their id hashes to, or the next free one
+ * round the room, so the same person keeps the same desk across reloads while there's room.
+ */
+export function seatFor(userId: number, taken: ReadonlySet<number>, seats: number): number {
+  let h = Math.imul(userId ^ 0x5bd1e995, 0x9e3779b1);
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+  let seat = ((h ^ (h >>> 13)) >>> 0) % seats;
+  while (taken.has(seat)) seat = (seat + 1) % seats;
+  return seat;
+}
