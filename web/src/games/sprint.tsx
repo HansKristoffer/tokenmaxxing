@@ -1,7 +1,9 @@
 import { secondsUntil } from "@tokenmaxxing/core/format.ts";
 import { potShares } from "@tokenmaxxing/core/games/payouts.ts";
 import { GRACE_MS, MAX_EXTRA, type SprintView, score, TRACK_WPM } from "@tokenmaxxing/core/games/sprint.ts";
+import type { Look } from "@tokenmaxxing/core/world.ts";
 import { type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { characterFrame } from "../art/characters.ts";
 import { useHud } from "../store.ts";
 import type { GameProps } from "./types.ts";
 
@@ -23,7 +25,7 @@ function edit(words: string[], typed: string, e: KeyboardEvent): string | null {
   return null;
 }
 
-export function Sprint({ view, info, you, now, move, name }: GameProps<SprintView>) {
+export function Sprint({ view, info, you, now, move, name, look }: GameProps<SprintView>) {
   const skew = useHud((s) => s.clockSkew);
   const playing = you !== null && view.mine !== null && !view.forfeited.includes(you);
   const [typed, setTyped] = useState(view.mine ?? "");
@@ -76,9 +78,11 @@ export function Sprint({ view, info, you, now, move, name }: GameProps<SprintVie
         {now < view.startsAt ? (
           <span className="sprint-go">Get ready… {secondsUntil(view.startsAt, now)}</span>
         ) : (
-          <span className="sprint-time">{over ? "0" : secondsUntil(view.endsAt, now)}</span>
+          <span className="sprint-time">
+            {over || now >= view.endsAt ? "Time's up" : secondsUntil(view.endsAt, now)}
+          </span>
         )}
-        {mine && (
+        {mine && now >= view.startsAt && (
           <span>
             <strong>{Math.round(mine.wpm)}</strong> <span className="muted">wpm</span>
           </span>
@@ -115,7 +119,7 @@ export function Sprint({ view, info, you, now, move, name }: GameProps<SprintVie
       {over ? (
         <Results view={view} info={info} you={you} name={name} />
       ) : (
-        <Lanes view={view} you={you} mine={mine} name={name} />
+        <Lanes view={view} you={you} mine={mine} name={name} look={look} />
       )}
     </div>
   );
@@ -190,11 +194,13 @@ function Lanes({
   you,
   mine,
   name,
+  look,
 }: {
   view: SprintView;
   you: number | null;
   mine: ReturnType<typeof score> | null;
   name: (id: number) => string;
+  look: (id: number) => Look;
 }) {
   const track = (TRACK_WPM * 5 * view.seconds) / 60;
   return (
@@ -211,7 +217,7 @@ function Lanes({
             </span>
             <span className="sprint-track">
               <span className="sprint-car" style={{ left: `${Math.min(100, (s.correct / track) * 100)}%` }}>
-                ⌨️
+                <Runner look={look(p)} step={s.typed % 2 === 1} />
               </span>
             </span>
             <span className="sprint-wpm">
@@ -275,4 +281,17 @@ function Results({
       </tbody>
     </table>
   );
+}
+
+/** A player running right, a step for every key. */
+function Runner({ look, step }: { look: Look; step: boolean }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const g = ref.current?.getContext("2d");
+    if (!g) return;
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, 48, 48);
+    g.drawImage(characterFrame(look, "right", step ? "walkA" : "walkB"), 0, 0, 48, 48);
+  }, [look, step]);
+  return <canvas ref={ref} width={48} height={48} />;
 }

@@ -248,13 +248,14 @@
 /* The track: dashes for the road, a flag at the end. */
 .sprint-track {
   position: relative;
-  height: 22px;
+  height: 44px;
   margin-right: 18px;
   border-bottom: 2px dashed var(--line);
 }
 
 .sprint-track::after {
   content: "🏁";
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", var(--font);
   position: absolute;
   right: -18px;
   bottom: 0;
@@ -262,9 +263,14 @@
 
 .sprint-car {
   position: absolute;
-  bottom: 0;
+  bottom: -4px;
+  height: 48px;
   transform: translateX(-50%);
   transition: left 0.25s linear;
+}
+
+.sprint-car canvas {
+  image-rendering: pixelated;
 }
 
 .sprint-wpm {
