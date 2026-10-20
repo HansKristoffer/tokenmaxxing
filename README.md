@@ -98,7 +98,7 @@ data is sent anywhere for this.
 - **The raid:** from the first Monday after launch, every Monday at 08:00 a ladder of bosses opens in the Raid Dungeon, down the gate in the square,
   easiest first, each week's 10% tougher than the last. Every token you sync hits the one up now, no cap, and
   every PR you open is a 25M special attack. When one falls the next, 1.5× tougher, appears at once; each kill pays everyone who'd hit for
-  10M or more that week by then 20, 30, 45, 70… coins. Everyone with agents running sits at a desk in the
+  10M or more that week by then 10, 15, 25, 35, 50… coins (never more than 50 a kill). Everyone with agents running sits at a desk in the
   dungeon, wherever they are, firing magic missiles (and a robot minion per extra agent) as fast as they burn
   tokens: that's the show, the hits are the synced tokens. Until the first one the gate is boarded up with a
   ⚠️ and a countdown to that Monday 08:00.

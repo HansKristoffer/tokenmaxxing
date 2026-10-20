@@ -69,8 +69,10 @@ export const MIN_HP = 2e9;
 export const PR_HIT = 25e6;
 /** Damage that week, up to the day of a kill, to count as one of its raiders and be paid for it. */
 export const RAIDER_AT = 10e6;
-/** What each raider gets for rung 1's kill; each rung after pays ×1.5, to the nearest 5. */
-export const RAID_COINS = 20;
+/** What each raider gets for rung 1's kill; each rung after pays ×1.5, to the nearest 5, up to `RAID_COIN_CAP`. */
+export const RAID_COINS = 10;
+/** The most one kill pays a raider, however high the ladder goes. */
+export const RAID_COIN_CAP = 50;
 /** The week's gate opens at this hour on Monday, world time. */
 export const OPENS_AT_HOUR = 8;
 
@@ -119,8 +121,9 @@ export const weekHp = (first: number, n: number): number => Math.round(first * W
 /** The HP of `rung`, from rung 1's. */
 export const rungHp = (base: number, rung: number): number => Math.round(base * HP_GROWTH ** (rung - 1));
 
-/** What each raider gets when the boss on `rung` falls: 20, 30, 45, 70, 100, 150… */
-export const rewardFor = (rung: number): number => 5 * Math.round((RAID_COINS * HP_GROWTH ** (rung - 1)) / 5);
+/** What each raider gets when the boss on `rung` falls: 10, 15, 25, 35, 50, then 50 a kill. */
+export const rewardFor = (rung: number): number =>
+  Math.min(RAID_COIN_CAP, 5 * Math.round((RAID_COINS * HP_GROWTH ** (rung - 1)) / 5));
 
 /** One player's world day, as the raid sees it. */
 export interface RaidDay {

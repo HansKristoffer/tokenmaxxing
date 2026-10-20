@@ -357,8 +357,8 @@ climbs it together (`core/src/raid.ts`).
 - **Damage** is every token you sync that week, no cap, and 25M for every PR you open. (Ingest still counts
   at most 200M a minute, `USAGE_MINUTE_CAP`, to stop made-up numbers.)
   Only days from your sign-up day count, as with coins.
-- **Rewards per kill:** rung n pays each of its raiders 20 × 1.5ⁿ⁻¹ to the nearest 5 (20, 30, 45, 70, 100…), so four
-  kills are 165. A kill's raiders are everyone with 10M+ that week up to and including its day, so
+- **Rewards per kill:** rung n pays each of its raiders 10 × 1.5ⁿ⁻¹ to the nearest 5, at most 50 (10, 15, 25, 35, 50, 50…), so four
+  kills are 85 (`RAID_COINS` and `RAID_COIN_CAP`). A kill's raiders are everyone with 10M+ that week up to and including its day, so
   joining on Sunday doesn't pay for Wednesday's kills.
 - **The week** is Monday to Sunday in world days, but the gate opens at 08:00 on Monday: until then
   `raidWeekAt` is still last week, as it ended, and the new ladder appears at 08:00 with Monday's early tokens

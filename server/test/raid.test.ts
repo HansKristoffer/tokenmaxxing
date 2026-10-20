@@ -89,7 +89,7 @@ test("the town's hits add up against the first rung", async () => {
   expect(r.me).toEqual({ damage: 100e6 + 2 * PR_HIT, rank: 2, weekCoins: 0, coins: 0 });
   // cy did under the raider threshold.
   expect(r.raiders).toBe(2);
-  expect(r.rules.rewards.slice(0, 4)).toEqual([20, 30, 45, 70]);
+  expect(r.rules.rewards.slice(0, 4)).toEqual([10, 15, 25, 35]);
 });
 
 test("a fallen boss brings on the next and pays its raiders, in the wallet and on the admin page", async () => {

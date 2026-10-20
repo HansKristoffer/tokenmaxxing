@@ -11,6 +11,7 @@ import {
   MIN_HP,
   opensAt,
   PR_HIT,
+  RAID_COIN_CAP,
   RAID_COINS,
   RAIDER_AT,
   type RaidDay,
@@ -78,7 +79,9 @@ test("each rung has 1.5× the HP and pays 1.5× the coins", () => {
   expect(rungHp(2e9, 2)).toBe(3e9);
   expect(rungHp(2e9, 3)).toBe(4.5e9);
   expect(HP_GROWTH).toBe(1.5);
-  expect([1, 2, 3, 4, 5, 6].map(rewardFor)).toEqual([20, 30, 45, 70, 100, 150]);
+  expect([1, 2, 3, 4, 5, 6].map(rewardFor)).toEqual([10, 15, 25, 35, 50, 50]);
+  // However high the ladder goes, a kill never pays more than the cap.
+  expect(rewardFor(30)).toBe(RAID_COIN_CAP);
   expect(rewardFor(1)).toBe(RAID_COINS);
 });
 
@@ -147,10 +150,10 @@ test("a steady town clears about four rungs in the first week", () => {
   for (let w = -1; w < 3; w++)
     for (let d = 0; d < 7; d++) for (let u = 1; u <= 20; u++) days.push(hit(u, day(7 * w + d), 300e6));
   const weeks = raids(days, noon(day(20)));
-  // Rung 1 is 4.2B, then 4.62B: four fall each week, 20 + 30 + 45 + 70 coins.
+  // Rung 1 is 4.2B, then 4.62B: four fall each week, 10 + 15 + 25 + 35 coins.
   for (const w of weeks.slice(0, 2)) {
     expect(w.current.boss.rung).toBe(5);
-    expect(raidCoins([w], 1)).toBe(165);
+    expect(raidCoins([w], 1)).toBe(85);
   }
   // A quieter week (60%) still gets past the first three; a busier one (1.7×) five.
   const busy = (share: number) => {
