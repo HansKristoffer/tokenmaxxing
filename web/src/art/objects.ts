@@ -1,5 +1,6 @@
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
+import { trophyAt } from "./loot.ts";
 import { C } from "./palette.ts";
 import { bake, cached } from "./pixels.ts";
 
@@ -448,7 +449,8 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
     case "G":
       return at(gate(), -4);
     default:
-      return null;
+      // The raid's trophies (art/loot.ts).
+      return trophyAt(ch);
   }
 }
 
