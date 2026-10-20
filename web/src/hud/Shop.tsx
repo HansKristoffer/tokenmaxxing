@@ -1,5 +1,5 @@
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
-import { FURNITURE, withPieces } from "@tokenmaxxing/core/office.ts";
+import { PIECES, withPieces } from "@tokenmaxxing/core/office.ts";
 import { ITEMS, type Item, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
@@ -10,6 +10,7 @@ import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { lootLine, rarityClass } from "./Loot.tsx";
 import { AvatarImage, Modal, Pills, useRun } from "./ui.tsx";
 
 const TABS = [
@@ -78,14 +79,25 @@ export function Shop() {
           const wearing = item.slot !== "furniture" && me.look[item.slot] === item.index;
           const n = bag.find((b) => b.item === item.id)?.count ?? 0;
           return (
-            <li key={item.id} className={wearing ? "wearing" : undefined}>
+            <li
+              key={item.id}
+              className={`${wearing ? "wearing" : ""}${rarityClass(item)}`.trim() || undefined}
+              title={lootLine(item) ?? undefined}
+            >
               <ItemImage item={item} look={me.look} />
               <span>
                 {item.name}
                 {n > 0 && <span className="muted"> ×{n}</span>}
               </span>
+              {item.loot && <span className={`small rarity-text-${item.loot.rarity}`}>{lootLine(item)}</span>}
               {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
-              {item.level !== undefined ? (
+              {item.loot ? (
+                !owned && (
+                  <button type="button" disabled>
+                    ⚔️ Raid drop
+                  </button>
+                )
+              ) : item.level !== undefined ? (
                 !owned && (
                   <button type="button" disabled>
                     🔒 Lv {item.level}
@@ -138,7 +150,7 @@ export function WearButton({
 /** An item as it looks: on me (or `bare`, on its own), the pet, or the piece. */
 export function ItemImage({ item, look, bare }: { item: Item; look: Look; bare?: boolean }) {
   if (item.slot === "pet") return <SpriteImage sprite={petFrame(item.index, false, false)} stand />;
-  if (item.slot === "furniture") return <PieceImage ch={FURNITURE[item.index]!.ch} />;
+  if (item.slot === "furniture") return <PieceImage ch={PIECES[item.index]!.ch} />;
   if (bare) return <SpriteImage sprite={itemFrame(item)} />;
   return <AvatarImage look={{ ...look, [item.slot]: item.index }} scale={4} />;
 }

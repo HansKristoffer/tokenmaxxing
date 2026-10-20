@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { world } from "../game/world.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { lootLine, rarityClass } from "./Loot.tsx";
 import { ItemImage, WearButton } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
@@ -60,6 +61,9 @@ export function Bag() {
               <strong>
                 {!item.tradeable && "🏅 "}
                 {item.name}
+                {item.loot && (
+                  <span className={`small rarity-text-${item.loot.rarity}`}> · {lootLine(item)}</span>
+                )}
               </strong>
               <WearButton item={item} look={me.look} run={run} />
               {item.tradeable && (
@@ -84,10 +88,10 @@ export function Bag() {
             <li key={b.item}>
               <button
                 type="button"
-                className={wearing ? "cell wearing" : "cell"}
+                className={`${wearing ? "cell wearing" : "cell"}${rarityClass(it)}`}
                 aria-pressed={b.item === picked}
                 aria-label={`${it.name} ×${b.count}${wearing ? ", wearing" : ""}${it.tradeable ? "" : ", reward"}`}
-                title={it.name}
+                title={it.loot ? `${it.name}\n${lootLine(it)}` : it.name}
                 onClick={() => setPicked(b.item)}
               >
                 <ItemImage item={it} look={me.look} bare />

@@ -14,6 +14,7 @@ import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LookPicker } from "./LookPicker.tsx";
+import { LootToast } from "./Loot.tsx";
 import { MatchPanel } from "./Match.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
@@ -21,7 +22,7 @@ import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Shop } from "./Shop.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
-import { Modal, useRun } from "./ui.tsx";
+import { Modal, useFresh, useRun } from "./ui.tsx";
 
 export function Hud() {
   const status = useHud((s) => s.status);
@@ -60,6 +61,7 @@ export function Hud() {
         <InviteToast />
         <LevelToast />
         <RaidToast />
+        <LootToast />
       </div>
       <FirstVisit />
     </>
@@ -163,17 +165,6 @@ function Stats() {
 
 const BANNER_MS = 2500;
 const MENTION_MS = 8000;
-
-/** True while something that happened `at` is less than `ms` old; re-renders when it expires. */
-function useFresh(at: number | undefined, ms: number): boolean {
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (at === undefined) return;
-    const id = setTimeout(() => tick((n) => n + 1), at + ms - Date.now() + 50);
-    return () => clearTimeout(id);
-  }, [at, ms]);
-  return at !== undefined && Date.now() - at <= ms;
-}
 
 function Banner() {
   const banner = useHud((s) => s.banner);

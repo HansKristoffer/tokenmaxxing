@@ -8,6 +8,7 @@ import { left, opensAt } from "../game/raid.ts";
 import { world } from "../game/world.ts";
 import { conn } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { LootSection } from "./Loot.tsx";
 import { Modal, useTicker } from "./ui.tsx";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -264,6 +265,7 @@ export function RaidPanel() {
 
         <h3>The ladder</h3>
         <Ladder raid={raid} />
+        <LootSection raid={raid} />
 
         {raid.top.length > 0 && (
           <>

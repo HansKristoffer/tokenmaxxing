@@ -1544,3 +1544,123 @@ button.lb-item:hover {
   top: auto;
   bottom: 96px;
 }
+
+/* Raid loot (core/src/loot.ts): a frame in its rarity's colour, in the bag, the shop and the raid panel. */
+.rarity-common {
+  --rarity: #7fcf6a;
+}
+.rarity-rare {
+  --rarity: #5aa8ff;
+}
+.rarity-epic {
+  --rarity: #b57cff;
+}
+.rarity-legendary {
+  --rarity: #ffc93c;
+}
+
+.bag .cell.rarity,
+.shop li.rarity,
+.loot-table li.rarity {
+  border: 2px solid var(--rarity);
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--rarity) 55%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--rarity) 25%, transparent);
+}
+
+.bag .cell.rarity-legendary,
+.shop li.rarity-legendary,
+.loot-table li.rarity-legendary {
+  animation: legendary-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes legendary-glow {
+  50% {
+    box-shadow:
+      0 0 14px var(--rarity),
+      inset 0 0 14px color-mix(in srgb, var(--rarity) 45%, transparent);
+  }
+}
+
+.rarity-text-common {
+  color: #7fcf6a;
+}
+.rarity-text-rare {
+  color: #5aa8ff;
+}
+.rarity-text-epic {
+  color: #c79bff;
+}
+.rarity-text-legendary {
+  color: #ffc93c;
+  font-weight: 700;
+}
+
+.loot-table {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.loot-table li {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  grid-template-rows: auto auto auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 4px 8px 4px 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.loot-table li .avatar {
+  grid-row: 1 / 4;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.loot-table .tier {
+  color: var(--rarity);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.loot-table .odds {
+  font-weight: 700;
+}
+
+.loot-table .owned {
+  color: var(--accent);
+}
+
+.loot-drops {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.loot-drops li {
+  display: grid;
+  grid-template-columns: 22px auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+}
+
+.loot-drops .rung {
+  font-weight: 700;
+  text-align: center;
+}
+
+.loot-toast {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
