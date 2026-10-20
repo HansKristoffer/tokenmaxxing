@@ -2,6 +2,7 @@
  * Offices: the furniture you can buy, what it costs, and the doors to them. The template itself is
  * `MAPS.office`, with the other rooms; what's in each office is what its owner dropped there.
  */
+import { TROPHIES } from "./loot.ts";
 import { GameMap, MAPS } from "./maps.ts";
 
 export interface Piece {
@@ -31,7 +32,10 @@ export const OFFICE_PIECES = 40;
 /** Your own office opens at this level. */
 export const OFFICE_LEVEL = 10;
 
-export const pieceOf = (ch: unknown): Piece | undefined => FURNITURE.find((f) => f.ch === ch);
+/** Every piece an office can hold: the shop's, then the raid's trophies (`loot.ts`), never sold. */
+export const PIECES: readonly Piece[] = [...FURNITURE, ...TROPHIES];
+
+export const pieceOf = (ch: unknown): Piece | undefined => PIECES.find((f) => f.ch === ch);
 
 /** One placed piece: its top-left tile. */
 export interface Placed {

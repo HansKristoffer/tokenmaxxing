@@ -52,6 +52,9 @@ export const LEGEND: Record<string, TileKind> = {
   l: { name: "war desk", text: "A raider's laptop. Run an agent and you're at one, wherever you are." },
   r: { name: "raider's seat" },
   j: { name: "torch", text: "A torch. It flickers like a flaky test." },
+  // The raid's trophies (`TROPHIES` in loot.ts), placed like furniture.
+  Y: { name: "golden hourglass", text: "The Golden Hourglass. Its sand never runs out." },
+  V: { name: "golden rebase", text: "The Golden Rebase. History, rewritten in gold." },
 };
 
 /**
