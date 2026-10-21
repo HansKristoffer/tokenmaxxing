@@ -44,6 +44,7 @@ import {
   wipeUsage,
 } from "../town/admin.ts";
 import {
+  boardsChanged,
   type CompanyProfile,
   companyProfile,
   type Leaderboard,
@@ -302,6 +303,7 @@ export const town = actor({
       } catch (err) {
         // Nobody holds a token for this account, so it goes; the name is free again.
         await c.db.execute("DELETE FROM users WHERE id = ?", userId);
+        boardsChanged();
         throw err;
       }
       await pushPlayers(c.db, client, [userId]);

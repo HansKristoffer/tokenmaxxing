@@ -3,6 +3,7 @@ import type { Client } from "rivetkit/client";
 import type { registry } from "../actors/registry.ts";
 import { main, type Sql, serial } from "../actors/shared.ts";
 import { brandFor } from "../brand.ts";
+import { boardsChanged } from "./boards.ts";
 import { giveBack, officeOf } from "./coins.ts";
 import { type Changed, companyInfos } from "./companies.ts";
 import { playerCores } from "./users.ts";
@@ -12,7 +13,10 @@ import { playerCores } from "./users.ts";
 // One queue for the module: there's one town.
 const inOrder = serial();
 
+// Whatever a player or company push carries (a sync, a name, a look, who's in which company) can
+// change the leaderboards too: the boards `town` keeps go at once, before anyone reads them again.
 export function pushPlayers(sql: Sql, client: Client<typeof registry>, userIds: number[]): Promise<void> {
+  boardsChanged();
   return inOrder(() => sendPlayers(sql, client, userIds));
 }
 
@@ -23,6 +27,7 @@ async function sendPlayers(sql: Sql, client: Client<typeof registry>, userIds: n
 }
 
 export function push(sql: Sql, client: Client<typeof registry>, changed: Changed): Promise<void> {
+  boardsChanged();
   return inOrder(async () => {
     const world = main(client).world;
     const companies = [...new Set(changed.companies)];

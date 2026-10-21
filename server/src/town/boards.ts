@@ -119,9 +119,15 @@ export const bounds = (range: RangeKey, now: number): [string, string] => {
   return [from ?? "0000-00-00", to];
 };
 
-/** Every player's totals in the range, ranked by `sort`. */
-async function playerBoard(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
-  const [from, to] = bounds(range, now);
+type PlayerTotals = Omit<BoardPlayer, "rank">;
+type CompanyTotals = Omit<BoardCompany, "rank">;
+
+/** Every player's and company's totals in `[from, to]`, unranked. */
+async function buildBoard(
+  sql: Sql,
+  from: string,
+  to: string,
+): Promise<{ players: PlayerTotals[]; companies: CompanyTotals[] }> {
   const users = await all<UserRow>(sql, `SELECT ${USER_COLS} FROM users`);
   const usage = await all<UsageRow & { userId: number }>(
     sql,
@@ -144,7 +150,7 @@ async function playerBoard(sql: Sql, range: RangeKey, sort: SortKey, now: number
 
   const usageByUser = Map.groupBy(usage, (r) => r.userId);
   const activityByUser = new Map(activity.map((a) => [a.userId, a]));
-  const perUser = users.map((u) => ({
+  const players = users.map((u) => ({
     ...totals(pricing, usageByUser.get(u.id) ?? [], activityByUser.get(u.id) ?? null),
     userId: u.id,
     name: u.name,
@@ -153,11 +159,6 @@ async function playerBoard(sql: Sql, range: RangeKey, sort: SortKey, now: number
     companyId: u.companyId,
     company: u.companyId === null ? null : (companyName.get(u.companyId) ?? null),
   }));
-  return { players: rank(perUser, sort), perUser, companies };
-}
-
-export async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
-  const { players, perUser, companies } = await playerBoard(sql, range, sort, now);
   const tokens30d = new Map(
     (
       await companyInfos(
@@ -166,18 +167,55 @@ export async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: numb
       )
     ).map((i) => [i.id, i.tokens30d]),
   );
-  const byCompany = Map.groupBy(perUser, (p) => p.companyId);
-  const companyRows = companies.map((co) => {
-    const members = byCompany.get(co.id) ?? [];
-    return {
-      ...companyTotals(members),
-      companyId: co.id,
-      name: co.name,
-      members: members.length,
-      tier: houseTier(tokens30d.get(co.id) ?? 0, members.length),
-    };
+  const byCompany = Map.groupBy(players, (p) => p.companyId);
+  return {
+    players,
+    companies: companies.map((co) => {
+      const members = byCompany.get(co.id) ?? [];
+      return {
+        ...companyTotals(members),
+        companyId: co.id,
+        name: co.name,
+        members: members.length,
+        tier: houseTier(tokens30d.get(co.id) ?? 0, members.length),
+      };
+    }),
+  };
+}
+
+/**
+ * Boards per range, kept until anything on them changes: the leaderboard is polled every 30 s per open
+ * panel, and each one went over every player's usage. Every such change is pushed to `world`
+ * (`town/sync.ts`), which drops them (`boardsChanged`). Keyed by the range's days, so a new day starts
+ * afresh. Shared by every caller: never change what's in them.
+ */
+const kept = new Map<string, ReturnType<typeof buildBoard>>();
+
+/** Something on the boards changed: a sync, a sign-up, a new name or look, someone joining or leaving. */
+export function boardsChanged(): void {
+  kept.clear();
+}
+
+function boardOf(sql: Sql, range: RangeKey, now: number): ReturnType<typeof buildBoard> {
+  const [from, to] = bounds(range, now);
+  const key = `${from} ${to}`;
+  const hit = kept.get(key);
+  if (hit) return hit;
+  // A few ranges a day: yesterday's go with the next change.
+  if (kept.size > 16) kept.clear();
+  const board = buildBoard(sql, from, to);
+  kept.set(key, board);
+  // A failed one isn't kept.
+  board.catch(() => {
+    if (kept.get(key) === board) kept.delete(key);
   });
-  return { players, companies: rank(companyRows, sort) };
+  return board;
+}
+
+/** Every player and company in the range, ranked by `sort`. */
+export async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
+  const board = await boardOf(sql, range, now);
+  return { players: rank(board.players, sort), companies: rank(board.companies, sort) };
 }
 
 /** `top`: every finished day's top 3 (`podiums`). */
@@ -286,8 +324,13 @@ export async function companyProfile(
 ): Promise<CompanyProfile> {
   const company = await companyById(sql, companyId);
   if (!company) throw new UserError("That company is gone.", { code: "not_found" });
-  const { players, companies } = await boards(sql, range, "tokens", now);
-  const row = companies.find((c) => c.companyId === companyId)!;
+  const board = await boardOf(sql, range, now);
+  // Only the companies are ranked, and only its own people.
+  const row = rank(board.companies, "tokens").find((c) => c.companyId === companyId);
+  const people = rank(
+    board.players.filter((p) => p.companyId === companyId),
+    "tokens",
+  );
   const [info] = await companyInfos(sql, [companyId]);
   return {
     id: companyId,
@@ -295,21 +338,20 @@ export async function companyProfile(
     website: company.website,
     logo: info?.brand?.logo ?? null,
     brand: info?.brand ?? null,
-    tier: row.tier,
+    // Not on the board yet: it opened a moment ago, before the board heard (`boardsChanged`).
+    tier: row?.tier ?? houseTier(info?.tokens30d ?? 0, people.length),
     range,
-    rank: row.tokens > 0 ? row.rank : null,
+    rank: row && row.tokens > 0 ? row.rank : null,
     wallet: await companyWallet(sql, companyId),
-    totals: row,
-    members: players
-      .filter((p) => p.companyId === companyId)
-      .map((p) => ({
-        userId: p.userId,
-        name: p.name,
-        look: p.look,
-        level: p.level,
-        tokens: p.tokens,
-        isOwner: p.userId === company.ownerId,
-      })),
+    totals: row ?? companyTotals(people),
+    members: people.map((p) => ({
+      userId: p.userId,
+      name: p.name,
+      look: p.look,
+      level: p.level,
+      tokens: p.tokens,
+      isOwner: p.userId === company.ownerId,
+    })),
     daily: await last30Days(sql, "user_id IN (SELECT id FROM users WHERE company_id = ?)", companyId, now),
   };
 }
