@@ -1,5 +1,5 @@
 import { COP_ID, SIREN, TICKET_MARK } from "@tokenmaxxing/core/cop.ts";
-import type { poseFor } from "../art/characters.ts";
+import type { Pose } from "../art/characters.ts";
 import { copFrame, drawSiren, drawSirenGlow } from "../art/cop.ts";
 import type { Avatar } from "./world.ts";
 
@@ -18,7 +18,7 @@ export const isCop = (a: Avatar): boolean => a.info.id === COP_ID;
 export function drawCop(
   g: CanvasRenderingContext2D,
   a: Avatar,
-  pose: ReturnType<typeof poseFor>,
+  pose: Pose,
   px: number,
   top: number,
   py: number,

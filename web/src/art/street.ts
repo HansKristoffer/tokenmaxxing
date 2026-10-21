@@ -1,7 +1,7 @@
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { characterFrame } from "./characters.ts";
 import { C } from "./palette.ts";
-import { bake, cached, type Palette } from "./pixels.ts";
+import { bake, cached, once, type Palette } from "./pixels.ts";
 
 /**
  * Street life (`game/street.ts`): the pølsevogn, the build snail and its goal flag, the paperboy on
@@ -32,7 +32,7 @@ const VENDOR: Look = {
   merchWorn: 0,
 };
 /** The paperboy: yellow jacket, beanie. */
-export const PAPERBOY: Look = {
+const PAPERBOY: Look = {
   style: 1,
   skin: 0,
   hair: 2,
@@ -152,7 +152,7 @@ const SNAIL_FRAMES = [
   ],
 ];
 const SNAIL_PAL: Palette = { o: C.ink, e: C.ink, b: "#b9c7a3", S: "#d98b45", h: "#f3c27a" };
-export const SNAIL_W = 16;
+const SNAIL_W = 16;
 export const SNAIL_H = 11;
 
 /** The build snail, facing right; `inch` is the stretched frame. Its sign is drawn over it, on a stick. */
@@ -168,17 +168,15 @@ export const snailSprite = cached(
 );
 
 /** The goal flag at the end of the snail's run: chequered, on a pole. */
-export const goalFlag = cached(
-  () => "goal",
-  () =>
-    bake(12, 22, (p) => {
-      p.rect(1, 20, 6, 2, C.shadow);
-      p.rect(2, 1, 1, 20, C.metal);
-      p.rect(1, 19, 3, 2, C.metal);
-      p.rect(3, 1, 9, 7, C.ink);
-      for (let y = 0; y < 3; y++)
-        for (let x = 0; x < 4; x++) p.rect(3 + x * 2, 2 + y * 2, 2, 2, (x + y) % 2 ? C.ink : C.white);
-    }),
+export const goalFlag = once(() =>
+  bake(12, 22, (p) => {
+    p.rect(1, 20, 6, 2, C.shadow);
+    p.rect(2, 1, 1, 20, C.metal);
+    p.rect(1, 19, 3, 2, C.metal);
+    p.rect(3, 1, 9, 7, C.ink);
+    for (let y = 0; y < 3; y++)
+      for (let x = 0; x < 4; x++) p.rect(3 + x * 2, 2 + y * 2, 2, 2, (x + y) % 2 ? C.ink : C.white);
+  }),
 );
 
 /** The paperboy on his bike, facing right, a sack of papers on the back. `pedal` is the other frame. */
@@ -211,18 +209,16 @@ export const bikeSprite = cached(
 );
 
 /** A rolled paper on the grass, held with a red rubber band. */
-export const paperSprite = cached(
-  () => "paper",
-  () =>
-    bake(12, 8, (p) => {
-      p.rect(1, 6, 11, 2, C.shadow);
-      p.rect(0, 1, 12, 6, C.ink);
-      p.rect(1, 2, 10, 4, C.white);
-      p.rect(1, 5, 10, 1, C.plazaDark);
-      p.rect(2, 3, 3, 1, C.stoneDark);
-      p.rect(7, 3, 3, 1, C.stoneDark);
-      p.rect(5, 1, 2, 6, RED);
-    }),
+export const paperSprite = once(() =>
+  bake(12, 8, (p) => {
+    p.rect(1, 6, 11, 2, C.shadow);
+    p.rect(0, 1, 12, 6, C.ink);
+    p.rect(1, 2, 10, 4, C.white);
+    p.rect(1, 5, 10, 1, C.plazaDark);
+    p.rect(2, 3, 3, 1, C.stoneDark);
+    p.rect(7, 3, 3, 1, C.stoneDark);
+    p.rect(5, 1, 2, 6, RED);
+  }),
 );
 
 // biome-ignore format: pixel art reads as a grid
@@ -236,8 +232,6 @@ const SAUSAGE = [
 ];
 
 /** A rød pølse in a bun, a squiggle of mustard on top: the icon over a fed head. */
-export const sausageIcon = cached(
-  () => "sausage",
-  () =>
-    bake(14, 6, (p) => p.grid(SAUSAGE, { r: RED, R: RED_LIGHT, y: MUSTARD, b: BUN, B: BUN_DARK, o: C.ink })),
+export const sausageIcon = once(() =>
+  bake(14, 6, (p) => p.grid(SAUSAGE, { r: RED, R: RED_LIGHT, y: MUSTARD, b: BUN, B: BUN_DARK, o: C.ink })),
 );

@@ -4,10 +4,10 @@
  * on its own in the bag and the merch shop.
  */
 import type { Brand } from "@tokenmaxxing/core/world.ts";
-import { C } from "./palette.ts";
-import { bake, cached, glyphPixels, initialsOf, type Palette, type Pen } from "./pixels.ts";
+import { C, shade } from "./palette.ts";
+import { bake, cached, initialsOf, type Palette, type Pen } from "./pixels.ts";
 
-export interface MerchColours {
+interface MerchColours {
   main: string;
   shade: string;
   /** The logo, the cap's badge and the mug's print. */
@@ -29,35 +29,46 @@ const PAIRS: [string, string][] = [
   ["#1f2a24", "#3ddc84"],
 ];
 
-function mix(hex: string, f: number): string {
-  const n = Number.parseInt(hex.slice(1), 16);
-  const ch = (v: number) => Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f);
-  return `#${[n >> 16, (n >> 8) & 255, n & 255].map((v) => ch(v).toString(16).padStart(2, "0")).join("")}`;
-}
-
 /** A company's merch colours. */
-export function merchColours(c: { id: number; name: string; brand: Brand | null }): MerchColours {
+function merchColours(c: MerchCompany): MerchColours {
   const [main, accent] = c.brand ? [c.brand.roof, c.brand.plaque] : PAIRS[c.id % PAIRS.length]!;
   // A plaque the colour of the roof would leave the logo invisible.
   const logo = accent.toLowerCase() === main.toLowerCase() ? C.white : accent;
-  return { main, shade: mix(main, -0.25), accent: logo, glow: mix(main, 0.6), initials: initialsOf(c.name) };
+  return {
+    main,
+    shade: shade(main, -0.25),
+    accent: logo,
+    glow: shade(main, 0.6),
+    initials: initialsOf(c.name),
+  };
 }
 
-/** Every company's name and brand, kept by the world as they arrive (`setCompanies`), for drawing merch. */
-export const MERCH_COMPANIES = new Map<number, { id: number; name: string; brand: Brand | null }>();
+type MerchCompany = { id: number; name: string; brand: Brand | null };
 
 const FALLBACK: MerchColours = { main: C.metal, shade: C.ink, accent: C.white, glow: C.white, initials: "?" };
+/** A key for caches: what merch in `m` looks like. */
+const keyOf = (m: MerchColours) => `${m.main}${m.accent}${m.initials}`;
 
-export const coloursOf = (companyId: number): MerchColours => {
-  const c = MERCH_COMPANIES.get(companyId);
-  return c ? merchColours(c) : FALLBACK;
-};
+/** Every company's merch colours and their key, worked out as the world gets its companies (`setCompanies`). */
+const COMPANIES = new Map<number, { colours: MerchColours; key: string }>();
+let version = 0;
+
+export function setMerchCompanies(list: readonly MerchCompany[]): void {
+  COMPANIES.clear();
+  for (const c of list) {
+    const colours = merchColours(c);
+    COMPANIES.set(c.id, { colours, key: keyOf(colours) });
+  }
+  version++;
+}
+
+/** Goes up whenever the companies change: for caches of anything wearing merch. */
+export const merchVersion = (): number => version;
+
+export const coloursOf = (companyId: number): MerchColours => COMPANIES.get(companyId)?.colours ?? FALLBACK;
 
 /** A key for caches: what the merch of `companyId` looks like right now. */
-export const merchKey = (companyId: number): string => {
-  const m = coloursOf(companyId);
-  return `${m.main}${m.accent}${m.initials}`;
-};
+export const merchKey = (companyId: number): string => COMPANIES.get(companyId)?.key ?? keyOf(FALLBACK);
 
 /** The cap over the head, from row 0: `c` crown, `C` brim, `L` the badge. */
 // biome-ignore format: pixel art reads as a grid
@@ -123,9 +134,7 @@ export const merchFrame = cached(
 
 /** The initials, centred on `cx`, from row `y`. */
 function print(p: Pen, m: MerchColours, cx: number, y: number, color = m.accent) {
-  const text = m.initials;
-  const x0 = Math.round(cx - (text.length * 4 - 1) / 2);
-  for (const [x, dy] of glyphPixels(text)) p.px(x0 + x, y + dy, color);
+  p.text(m.initials, Math.round(cx - (m.initials.length * 4 - 1) / 2), y, color);
 }
 
 function shirt(p: Pen, m: MerchColours, hoodie: boolean) {
@@ -169,7 +178,7 @@ function mug(p: Pen, m: MerchColours) {
   p.rect(2, 14, 11, 2, C.shadow);
   p.rect(2, 3, 11, 12, C.ink);
   p.rect(3, 4, 9, 10, m.main);
-  p.rect(3, 4, 9, 1, mix(m.main, 0.3));
+  p.rect(3, 4, 9, 1, shade(m.main, 0.3));
   p.rect(12, 6, 3, 6, C.ink);
   p.rect(13, 7, 1, 4, m.shade);
   p.rect(12, 7, 1, 4, m.main);

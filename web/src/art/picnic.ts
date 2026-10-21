@@ -1,6 +1,6 @@
 /** The outage picnic: gingham blankets, a wicker basket and bunting between the square's lamps. */
 import { C } from "./palette.ts";
-import { bake, cached, type Pen } from "./pixels.ts";
+import { bake, cached, once, type Pen } from "./pixels.ts";
 
 /** Gingham: [main, where a main stripe crosses white, white]. Red for the first blanket, blue for the next. */
 const GINGHAM: [string, string, string][] = [
@@ -64,32 +64,30 @@ function snacks(p: Pen, W: number, H: number, i: number): void {
 }
 
 /** A wicker basket with its lid open: a cloth peeking out and a baguette. */
-export const basket = cached(
-  () => "basket",
-  () =>
-    bake(16, 18, (p) => {
-      p.rect(2, 16, 12, 2, C.shadow);
-      // The handle.
-      p.rect(4, 1, 8, 1, C.woodDark);
-      p.rect(3, 2, 1, 5, C.woodDark);
-      p.rect(12, 2, 1, 5, C.woodDark);
-      p.rect(5, 2, 6, 1, C.wood);
-      // A baguette sticking out, and the checked cloth.
-      p.rect(9, 3, 3, 6, C.pathDark);
-      p.rect(10, 3, 1, 5, C.path);
-      p.px(10, 4, C.pathLight);
-      p.rect(3, 6, 6, 3, C.white);
-      p.px(4, 6, C.roofRed);
-      p.px(6, 7, C.roofRed);
-      p.px(4, 8, C.roofRed);
-      p.px(8, 6, C.roofRed);
-      // The wicker body: woven rows.
-      p.rect(1, 8, 14, 8, C.ink);
-      p.rect(2, 9, 12, 6, C.woodLight);
-      for (let y = 9; y < 15; y++) for (let x = 2 + (y % 2); x < 14; x += 2) p.px(x, y, C.wood);
-      p.rect(2, 9, 12, 1, C.woodDark);
-      p.rect(2, 14, 12, 1, C.woodDark);
-    }),
+export const basket = once(() =>
+  bake(16, 18, (p) => {
+    p.rect(2, 16, 12, 2, C.shadow);
+    // The handle.
+    p.rect(4, 1, 8, 1, C.woodDark);
+    p.rect(3, 2, 1, 5, C.woodDark);
+    p.rect(12, 2, 1, 5, C.woodDark);
+    p.rect(5, 2, 6, 1, C.wood);
+    // A baguette sticking out, and the checked cloth.
+    p.rect(9, 3, 3, 6, C.pathDark);
+    p.rect(10, 3, 1, 5, C.path);
+    p.px(10, 4, C.pathLight);
+    p.rect(3, 6, 6, 3, C.white);
+    p.px(4, 6, C.roofRed);
+    p.px(6, 7, C.roofRed);
+    p.px(4, 8, C.roofRed);
+    p.px(8, 6, C.roofRed);
+    // The wicker body: woven rows.
+    p.rect(1, 8, 14, 8, C.ink);
+    p.rect(2, 9, 12, 6, C.woodLight);
+    for (let y = 9; y < 15; y++) for (let x = 2 + (y % 2); x < 14; x += 2) p.px(x, y, C.wood);
+    p.rect(2, 9, 12, 1, C.woodDark);
+    p.rect(2, 14, 12, 1, C.woodDark);
+  }),
 );
 
 const PENNANTS = [C.roofRed, C.flowerYellow, C.fabric, C.leafLight, C.white, C.rugLight];

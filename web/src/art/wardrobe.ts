@@ -1,5 +1,6 @@
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
+import type { Pose, View } from "./characters.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
 
@@ -9,10 +10,8 @@ import { bake, type Palette, type Pen } from "./pixels.ts";
  * rows 9–15, hands at x 4 and 11 facing down, x 8 facing right); pets are 12×10 facing right.
  */
 
-type View = "down" | "side" | "up";
-type Pose = "stand" | "walkA" | "walkB" | "sit";
 /** When a layer goes on: before the body, right after it (outfit details), or over everything. */
-export type Layer = "behind" | "body" | "front";
+type Layer = "behind" | "body" | "front";
 
 // MARK: Outfits
 

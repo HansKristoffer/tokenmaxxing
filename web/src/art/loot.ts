@@ -1,18 +1,17 @@
-import { LOOT, RARITIES, type Rarity } from "@tokenmaxxing/core/loot.ts";
+import { LOOT } from "@tokenmaxxing/core/loot.ts";
 import { itemsIn } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
+import type { View } from "./characters.ts";
 import { C } from "./palette.ts";
-import { bake, cached, type Palette } from "./pixels.ts";
+import { bake, once, type Palette, perObject } from "./pixels.ts";
 
 /**
  * The raid's loot (core/src/loot.ts), drawn like the shop's: hats, glasses and outfits are 16-wide grids
  * over the character (characters.ts appends them to its own), pets are 12×10 with two hop frames
- * (pets.ts appends them), trophies are furniture (objects.ts asks `trophyAt`). Plus each rarity's
- * colour, for frames in the HUD, and the sparkle round anyone wearing a legendary.
+ * (pets.ts appends them), trophies are furniture (objects.ts asks `trophyAt`). Plus the sparkle round
+ * anyone wearing a legendary.
  */
-
-type View = "down" | "side" | "up";
 
 /** Hats from `LOOT_FIRST.hat` on (after the head pack), from row 0 of the head. */
 // biome-ignore format: pixel art reads as a grid
@@ -164,67 +163,63 @@ const GOLD_DARK = "#c9971f";
 const GOLD_LIGHT = "#fff1a8";
 
 /** The Golden Hourglass: gold frame, sand that never runs out, on a dark plinth. */
-const hourglass = cached(
-  () => "trophy.Y",
-  () =>
-    bake(16, 24, (p) => {
-      p.rect(2, 22, 12, 2, C.shadow);
-      p.rect(2, 18, 12, 5, C.ink);
-      p.rect(3, 19, 10, 3, "#3a3546");
-      p.rect(3, 19, 10, 1, "#5a5468");
-      // Top and bottom bars, and the posts.
-      p.rect(2, 0, 12, 3, C.ink);
-      p.rect(3, 1, 10, 1, GOLD);
-      p.rect(2, 15, 12, 3, C.ink);
-      p.rect(3, 16, 10, 1, GOLD);
-      p.rect(3, 3, 1, 12, GOLD_DARK);
-      p.rect(12, 3, 1, 12, GOLD_DARK);
-      // The glass: wide, pinched, wide.
-      for (let y = 0; y < 12; y++) {
-        const half = Math.max(1, Math.abs(y - 5.5) * 0.8 + 0.5);
-        const x0 = Math.round(8 - half);
-        const w = Math.round(half * 2);
-        p.rect(x0 - 1, 3 + y, w + 2, 1, C.ink);
-        p.rect(x0, 3 + y, w, 1, "#e9f6fb");
-        // Sand: a little left on top, a heap below, a thread between.
-        if (y >= 2 && y <= 4) p.rect(x0, 3 + y, w, 1, "#f2c46b");
-        if (y >= 8) p.rect(x0, 3 + y, w, 1, y === 8 ? GOLD_LIGHT : "#f2c46b");
-      }
-      p.px(8, 8, "#f2c46b");
-      p.px(8, 9, "#f2c46b");
-      p.px(5, 4, C.white);
-    }),
+const hourglass = once(() =>
+  bake(16, 24, (p) => {
+    p.rect(2, 22, 12, 2, C.shadow);
+    p.rect(2, 18, 12, 5, C.ink);
+    p.rect(3, 19, 10, 3, "#3a3546");
+    p.rect(3, 19, 10, 1, "#5a5468");
+    // Top and bottom bars, and the posts.
+    p.rect(2, 0, 12, 3, C.ink);
+    p.rect(3, 1, 10, 1, GOLD);
+    p.rect(2, 15, 12, 3, C.ink);
+    p.rect(3, 16, 10, 1, GOLD);
+    p.rect(3, 3, 1, 12, GOLD_DARK);
+    p.rect(12, 3, 1, 12, GOLD_DARK);
+    // The glass: wide, pinched, wide.
+    for (let y = 0; y < 12; y++) {
+      const half = Math.max(1, Math.abs(y - 5.5) * 0.8 + 0.5);
+      const x0 = Math.round(8 - half);
+      const w = Math.round(half * 2);
+      p.rect(x0 - 1, 3 + y, w + 2, 1, C.ink);
+      p.rect(x0, 3 + y, w, 1, "#e9f6fb");
+      // Sand: a little left on top, a heap below, a thread between.
+      if (y >= 2 && y <= 4) p.rect(x0, 3 + y, w, 1, "#f2c46b");
+      if (y >= 8) p.rect(x0, 3 + y, w, 1, y === 8 ? GOLD_LIGHT : "#f2c46b");
+    }
+    p.px(8, 8, "#f2c46b");
+    p.px(8, 9, "#f2c46b");
+    p.px(5, 4, C.white);
+  }),
 );
 
 /** The Golden Rebase: a gold cup on a plinth, with one clean line of commits across it. */
-const rebase = cached(
-  () => "trophy.V",
-  () =>
-    bake(16, 22, (p) => {
-      p.rect(2, 20, 12, 2, C.shadow);
-      p.rect(3, 16, 10, 5, C.ink);
-      p.rect(4, 17, 8, 3, "#3a3546");
-      p.rect(4, 17, 8, 1, "#5a5468");
-      p.rect(6, 12, 4, 4, C.ink);
-      p.rect(7, 12, 2, 4, GOLD_DARK);
-      // The cup and its handles.
-      p.rect(1, 2, 14, 2, C.ink);
-      p.rect(0, 3, 3, 5, C.ink);
-      p.rect(13, 3, 3, 5, C.ink);
-      p.rect(1, 4, 1, 3, GOLD_DARK);
-      p.rect(14, 4, 1, 3, GOLD_DARK);
-      p.rect(2, 2, 12, 9, C.ink);
-      p.rect(3, 3, 10, 7, GOLD);
-      p.rect(4, 10, 8, 2, C.ink);
-      p.rect(5, 10, 6, 1, GOLD_DARK);
-      p.rect(3, 3, 10, 1, GOLD_LIGHT);
-      // A straight history: four commits on one line.
-      p.rect(4, 6, 8, 1, C.ink);
-      for (const x of [4, 6, 9, 11]) p.rect(x, 5, 1, 3, C.ink);
-      p.px(4, 6, "#5aa8ff");
-      p.px(11, 6, "#5aa8ff");
-      p.px(4, 3, C.white);
-    }),
+const rebase = once(() =>
+  bake(16, 22, (p) => {
+    p.rect(2, 20, 12, 2, C.shadow);
+    p.rect(3, 16, 10, 5, C.ink);
+    p.rect(4, 17, 8, 3, "#3a3546");
+    p.rect(4, 17, 8, 1, "#5a5468");
+    p.rect(6, 12, 4, 4, C.ink);
+    p.rect(7, 12, 2, 4, GOLD_DARK);
+    // The cup and its handles.
+    p.rect(1, 2, 14, 2, C.ink);
+    p.rect(0, 3, 3, 5, C.ink);
+    p.rect(13, 3, 3, 5, C.ink);
+    p.rect(1, 4, 1, 3, GOLD_DARK);
+    p.rect(14, 4, 1, 3, GOLD_DARK);
+    p.rect(2, 2, 12, 9, C.ink);
+    p.rect(3, 3, 10, 7, GOLD);
+    p.rect(4, 10, 8, 2, C.ink);
+    p.rect(5, 10, 6, 1, GOLD_DARK);
+    p.rect(3, 3, 10, 1, GOLD_LIGHT);
+    // A straight history: four commits on one line.
+    p.rect(4, 6, 8, 1, C.ink);
+    for (const x of [4, 6, 9, 11]) p.rect(x, 5, 1, 3, C.ink);
+    p.px(4, 6, "#5aa8ff");
+    p.px(11, 6, "#5aa8ff");
+    p.px(4, 3, C.white);
+  }),
 );
 
 const TROPHY_ART: Record<string, () => HTMLCanvasElement> = { Y: hourglass, V: rebase };
@@ -239,14 +234,13 @@ export function trophyAt(
   return { canvas, dx: 0, dy: TILE - canvas.height };
 }
 
-// MARK: Rarity
+// MARK: Legendary
 
-/** Each rarity's frame colour, for the bag, the shop and the raid panel. */
-export const rarityColor = (r: Rarity): string => RARITIES[r].color;
-
-/** The legendaries a look wears, if any: they sparkle in the world. */
+/** Whether a look wears a legendary, worked out once per look: they sparkle in the world. */
 const LEGENDARY = new Set(LOOT.filter((l) => l.rarity === "legendary").map((l) => l.id));
-export const wearsLegendary = (look: Look): boolean => itemsIn(look).some((i) => LEGENDARY.has(i.id));
+export const wearsLegendary = perObject((look: Look): boolean =>
+  itemsIn(look).some((i) => LEGENDARY.has(i.id)),
+);
 
 /**
  * Twinkles round the head of someone wearing a legendary: a few gold stars that come and go, at

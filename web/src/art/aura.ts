@@ -1,5 +1,5 @@
 import { PET_W, petTop } from "./pets.ts";
-import { bake, cached, type Palette } from "./pixels.ts";
+import { bake, cached, once, type Palette } from "./pixels.ts";
 
 /**
  * The legendary level's look, drawn from the level alone: a golden halo floating over the head, a
@@ -74,10 +74,7 @@ const CROWN = [
   "yyryy",
   "YYYYY",
 ];
-const crown = cached(
-  () => "crown",
-  () => bake(5, 3, (p) => p.grid(CROWN, { y: "#ffe066", Y: "#c98e22", r: "#e0405a" })),
-);
+const crown = once(() => bake(5, 3, (p) => p.grid(CROWN, { y: "#ffe066", Y: "#c98e22", r: "#e0405a" })));
 
 /** The pet's crown and where it sits on the pet's frame: on the top of its head. */
 export function petCrown(

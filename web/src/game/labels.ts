@@ -12,19 +12,52 @@ export const signHits: { x: number; y: number; w: number; h: number; id: number 
 /** At most this many names show under a house's sign; the rest are a "+N". */
 const CHIPS_MAX = 4;
 
+export const FONT = "ui-monospace, SFMono-Regular, Menlo, monospace";
+
+/** The labels' fonts at `dpr`, made once rather than for every label (dpr only changes with the screen). */
+const fonts = { dpr: 0, pill: "", chip: "", pet: "", bubble: "" };
+function fontsAt(dpr: number) {
+  if (fonts.dpr !== dpr)
+    Object.assign(fonts, {
+      dpr,
+      pill: `600 ${11 * dpr}px ${FONT}`,
+      chip: `600 ${10 * dpr}px ${FONT}`,
+      pet: `600 ${9 * dpr}px ${FONT}`,
+      bubble: `500 ${12 * dpr}px ${FONT}`,
+    });
+  return fonts;
+}
+
+/** A house's row of chips: texts and widths, measured once per list (`world.houses` is replaced, never edited). */
+const chipRows = new WeakMap<Peek[], { dpr: number; texts: string[]; widths: number[]; w: number }>();
+function chipRow(g: CanvasRenderingContext2D, people: Peek[], dpr: number) {
+  const hit = chipRows.get(people);
+  if (hit?.dpr === dpr) return hit;
+  g.font = fontsAt(dpr).chip;
+  const texts = people
+    .slice(0, CHIPS_MAX)
+    .map((p) => `${p.state === "away" ? "💤 " : p.state === "working" ? "💻 " : ""}${p.name} Lv${p.level}`);
+  if (people.length > CHIPS_MAX) texts.push(`+${people.length - CHIPS_MAX}`);
+  const pad = 5 * dpr;
+  const gap = 3 * dpr;
+  const widths = texts.map((t) => g.measureText(t).width + pad * 2);
+  const row = { dpr, texts, widths, w: widths.reduce((a, b) => a + b, 0) + gap * (widths.length - 1) };
+  chipRows.set(people, row);
+  return row;
+}
+
+/** How wide a house's row of chips is, in canvas pixels. */
+export const chipsWidth = (g: CanvasRenderingContext2D, people: Peek[], dpr: number): number =>
+  chipRow(g, people, dpr).w;
+
 /** One row of `💤 name Lv5` chips centred under a house's sign; clicking one opens their card. */
 export function chips(g: CanvasRenderingContext2D, cx: number, y: number, people: Peek[], dpr: number): void {
-  g.font = `600 ${10 * dpr}px ${FONT}`;
-  const shown = people.slice(0, CHIPS_MAX);
-  const texts = shown.map(
-    (p) => `${p.state === "away" ? "💤 " : p.state === "working" ? "💻 " : ""}${p.name} Lv${p.level}`,
-  );
-  if (people.length > shown.length) texts.push(`+${people.length - shown.length}`);
+  const { texts, widths, w: total } = chipRow(g, people, dpr);
+  g.font = fontsAt(dpr).chip;
   const pad = 5 * dpr;
   const gap = 3 * dpr;
   const h = 14 * dpr;
-  const widths = texts.map((t) => g.measureText(t).width + pad * 2);
-  let x = cx - (widths.reduce((a, b) => a + b, 0) + gap * (widths.length - 1)) / 2;
+  let x = cx - total / 2;
   g.textAlign = "left";
   g.textBaseline = "middle";
   for (const [i, text] of texts.entries()) {
@@ -35,13 +68,25 @@ export function chips(g: CanvasRenderingContext2D, cx: number, y: number, people
     g.fill();
     g.fillStyle = C.white;
     g.fillText(text, x + pad, y + h / 2 + 0.5 * dpr);
-    const p = shown[i];
+    const p = i < CHIPS_MAX ? people[i] : undefined;
     if (p) chipHits.push({ x, y, w, h, id: p.id });
     x += w + gap;
   }
 }
 
-export const FONT = "ui-monospace, SFMono-Regular, Menlo, monospace";
+/** A pill's text, cut to fit, and its width: measured once per font, width and text, not every frame. */
+const fits = new Map<string, { text: string; w: number }>();
+function fit(g: CanvasRenderingContext2D, font: string, text: string, pad: number, maxW: number) {
+  const key = `${font}\0${maxW}\0${text}`;
+  const hit = fits.get(key);
+  if (hit) return hit;
+  // Too wide (next door's sign is right there): cut it short.
+  while (text.length > 2 && g.measureText(text).width + pad > maxW) text = `${text.slice(0, -2)}…`;
+  const out = { text, w: g.measureText(text).width + pad };
+  if (fits.size > 1000) fits.clear();
+  fits.set(key, out);
+  return out;
+}
 
 export function pill(
   g: CanvasRenderingContext2D,
@@ -53,11 +98,9 @@ export function pill(
   fg: string,
   maxW = Infinity,
 ) {
-  g.font = `600 ${11 * dpr}px ${FONT}`;
-  const pad = 10 * dpr;
-  // Too wide (next door's sign is right there): cut it short.
-  while (text.length > 2 && g.measureText(text).width + pad > maxW) text = `${text.slice(0, -2)}…`;
-  const w = g.measureText(text).width + pad;
+  const font = fontsAt(dpr).pill;
+  g.font = font;
+  const { text: shown, w } = fit(g, font, text, 10 * dpr, maxW);
   const h = 15 * dpr;
   g.fillStyle = bg;
   g.beginPath();
@@ -66,7 +109,7 @@ export function pill(
   g.fillStyle = fg;
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.fillText(text, cx, y - h / 2 + 0.5 * dpr);
+  g.fillText(shown, cx, y - h / 2 + 0.5 * dpr);
   return { w, h };
 }
 
@@ -78,7 +121,7 @@ export function petLabel(
   name: string,
   dpr: number,
 ): void {
-  g.font = `600 ${9 * dpr}px ${FONT}`;
+  g.font = fontsAt(dpr).pet;
   g.textAlign = "center";
   g.textBaseline = "top";
   g.lineJoin = "round";
@@ -214,7 +257,7 @@ export function bubble(
   dpr: number,
   left: number,
 ) {
-  g.font = `500 ${12 * dpr}px ${FONT}`;
+  g.font = fontsAt(dpr).bubble;
   const { shown, w } = wrapped(g, text, dpr);
   const lh = 15 * dpr;
   const h = shown.length * lh + 8 * dpr;

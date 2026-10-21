@@ -27,8 +27,21 @@ const weatherOverride = presetWeather(query.get("weather") ?? "");
 /** The world's time: real, unless `?sky=` moved it. */
 export const skyNow = (): number => (skyAt === null ? Date.now() : skyAt + (Date.now() - skyFrom));
 
-/** The weather on screen: the server's (or `?weather=`), with winter's snow rule applied (`winterSnow`). */
-export const weatherNow = (): Weather => winterSnow(weatherOverride ?? hud.get().weather, skyNow());
+/** The weather last worked out, what from, and when. */
+let shown: { from: Weather; minute: number; weather: Weather } | null = null;
+
+/**
+ * The weather on screen: the server's (or `?weather=`), with winter's snow rule applied (`winterSnow`).
+ * Worked out again only when the server's changes, or the minute does (winter starts on a day).
+ */
+export function weatherNow(): Weather {
+  const from = weatherOverride ?? hud.get().weather;
+  const at = skyNow();
+  const minute = Math.floor(at / 60_000);
+  if (shown?.from === from && shown.minute === minute) return shown.weather;
+  shown = { from, minute, weather: winterSnow(from, at) };
+  return shown.weather;
+}
 
 // MARK: Light
 
@@ -139,38 +152,53 @@ export function drawLight(g: CanvasRenderingContext2D, w: number, h: number, now
   return glowOf(l, weather);
 }
 
-/** A glowing lamp head at world (x, y); call in world space, after `drawLight`. */
-export function drawLampGlow(g: CanvasRenderingContext2D, x: number, y: number, strength: number): void {
-  if (strength < 0.05) return;
-  glow ??= bakeGlow(64, "255,214,120");
-  g.save();
-  g.globalCompositeOperation = "lighter";
-  g.globalAlpha = strength * 0.5;
-  g.drawImage(glow, x - 30, y - 28, 60, 60);
-  g.globalAlpha = strength * 0.9;
-  g.drawImage(glow, x - 9, y - 9, 18, 18);
-  g.restore();
+/** How brightly lights shine right now: what `drawLight` returns, for knowing it before the sky is drawn. */
+export const lightsNow = (now: number): number => glowOf(currentLight(now), weatherNow());
+
+/** A window lit at night, in world pixels, and whoever is at home in it (drawn on the pane first). */
+export interface LitWindow {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  face: (() => void) | null;
 }
 
-/** A lit window: warm light on the pane and a little spill around it. */
-export function drawWindowGlow(
+/**
+ * The lamp heads glowing and the windows lit: in world space, after `drawLight`. Light adds up, so it's
+ * all drawn "lighter", but for the faces in the windows.
+ */
+export function drawLights(
   g: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
+  lamps: readonly (readonly [number, number])[],
+  windows: readonly LitWindow[],
   strength: number,
 ): void {
   if (strength < 0.05) return;
   glow ??= bakeGlow(64, "255,214,120");
-  g.save();
   g.globalCompositeOperation = "lighter";
-  g.globalAlpha = strength * 0.35;
-  g.drawImage(glow, x - w * 0.6, y - h * 0.6, w * 2.2, h * 2.2);
-  g.globalAlpha = strength * 0.8;
-  g.fillStyle = "#ffcf7a";
-  g.fillRect(x, y, w, h);
-  g.restore();
+  for (const [x, y] of lamps) {
+    g.globalAlpha = strength * 0.5;
+    g.drawImage(glow, x - 30, y - 28, 60, 60);
+    g.globalAlpha = strength * 0.9;
+    g.drawImage(glow, x - 9, y - 9, 18, 18);
+  }
+  for (const { x, y, w, h, face } of windows) {
+    if (face) {
+      g.globalCompositeOperation = "source-over";
+      g.globalAlpha = 1;
+      face();
+      g.globalCompositeOperation = "lighter";
+    }
+    // Warm light on the pane and a little spill around it.
+    g.globalAlpha = strength * 0.35;
+    g.drawImage(glow, x - w * 0.6, y - h * 0.6, w * 2.2, h * 2.2);
+    g.globalAlpha = strength * 0.8;
+    g.fillStyle = "#ffcf7a";
+    g.fillRect(x, y, w, h);
+  }
+  g.globalCompositeOperation = "source-over";
+  g.globalAlpha = 1;
 }
 
 /** Stars and the moon, in screen space, only once it's properly dark. */
@@ -228,8 +256,7 @@ let nextFlash = 0;
 let fogShift = 0;
 
 /** Where the wind pushes things sideways, -1..1: blowing towards east is positive. */
-export const windPush = (w: Weather): number =>
-  -Math.sin((w.windDir * Math.PI) / 180) * Math.min(1, w.windMs / 10);
+const windPush = (w: Weather): number => -Math.sin((w.windDir * Math.PI) / 180) * Math.min(1, w.windMs / 10);
 
 const seed = (n: number, w: number, h: number, rain: boolean): Drop[] =>
   Array.from({ length: n }, () => ({
@@ -382,7 +409,7 @@ const SWAY: Record<string, [number, number, number][]> = {
   ],
 };
 
-/** Draws a tree or bush leaning with the wind in whole-pixel steps (no lean when it's calm). */
+/** Draws a tree or bush leaning with `weather`'s wind in whole-pixel steps (no lean when it's calm). */
 export function drawSway(
   g: CanvasRenderingContext2D,
   sprite: HTMLCanvasElement,
@@ -390,8 +417,8 @@ export function drawSway(
   x: number,
   y: number,
   now: number,
+  weather: Weather,
 ): void {
-  const weather = weatherNow();
   const bands = SWAY[ch];
   const strength = Math.min(1, weather.windMs / 9);
   if (!bands || strength < 0.2) return void g.drawImage(sprite, x, y);
