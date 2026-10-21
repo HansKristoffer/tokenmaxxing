@@ -250,8 +250,11 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - **The bag** (`items`, the 🎒 panel): one row per copy, so you can hold two Ducks; you can wear a kind if you
   hold one. Buying adds a row and adds the price to `purchases` (spend only, one row per kind); buying a
   kind you hold already is fine. `bag()` counts each kind. What's on a floor isn't in anyone's bag.
-- Three items are earned, not bought: a top hat, server-rack armour and a Singularity orb, at levels 10, 20
-  and 30. `report` hands them out as rows the first time a sync reaches the level (`grantRewards`, once each,
+- **Milestones** (`core/src/milestones.ts`): levels go to 50 (130B lifetime tokens; past 30 the steps grow
+  2B, 3B, 5B, 10B). Every tenth level gives a title for the player card, coins and an item: a top hat,
+  server-rack armour, a Singularity orb, a Nebula visor and golden regalia, at 10 to 50. The coins are worked
+  out from the level in `wallet` like the rest, so nothing is stored. Level 50 also draws a golden aura and halo
+  and a crown on the pet, from the level alone (`web/src/art/aura.ts`). `report` hands them out as rows the first time a sync reaches the level (`grantRewards`, once each,
   recorded in `rewards`), with the office's desk and chair at level 10, dropped on its floor
   (`starterDrops`; in the bag if it has furniture already). `setOfficeOpen` hands them out too, for anyone
   who reached level 10 before offices had rows. Rewards are `tradeable: false`.

@@ -120,8 +120,8 @@ export const LOOK_OPTIONS: Record<keyof Look, number> = {
   style: 4,
   skin: 4,
   hair: 6,
-  outfit: 13,
-  glasses: 4,
+  outfit: 14,
+  glasses: 5,
   hat: 5,
   pet: 7,
 };

@@ -1,3 +1,5 @@
+import { levelFor } from "@tokenmaxxing/core/format.ts";
+import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
 import { type DayFacts, EMPTY_DAY, QUESTS, questCoins } from "@tokenmaxxing/core/quests.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
@@ -14,7 +16,7 @@ import {
 import type { Drop } from "@tokenmaxxing/core/world.ts";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, type TxSql } from "../actors/shared.ts";
-import { lookOf, TOKENS, userById } from "./users.ts";
+import { levelOf, lookOf, TOKENS, tokensIn, userById } from "./users.ts";
 
 export interface Wallet {
   balance: number;
@@ -73,6 +75,7 @@ export async function grantRewards(sql: Sql, userId: number, level: number, now:
  * still pays. Podium places count once a day is over. Only days from the world day
  * someone signed up count, for pay and for places: a first sync backfills months of
  * logs, and those days would otherwise pay out (and win podiums nobody else was on).
+ * Milestone coins (`milestones.ts`) go by the level, which counts every day.
  * ponytail: a late sync can also knock someone off a past podium after they spent
  * the bonus; the balance then reads short until they earn it back. Settle days into
  * a ledger if that ever matters. `top`: `podiums`, if the caller keeps them.
@@ -112,7 +115,8 @@ export async function wallet(sql: Sql, userId: number, now: number, top?: Podium
   const earned =
     days.reduce((n, d) => n + coinsForTokens(d.tokens), 0) +
     wins.reduce((n, w) => n + w.coins, 0) +
-    [...facts.values()].reduce((n, f) => n + questCoins(f), 0);
+    [...facts.values()].reduce((n, f) => n + questCoins(f), 0) +
+    milestoneCoins(await levelOf(sql, userId));
   const since = addDays(today, -29);
   const todays = facts.get(today) ?? EMPTY_DAY;
   return {
@@ -193,6 +197,8 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
   }
   for (const f of facts.values()) add(f.userId, questCoins(f));
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);
+  for (const [userId, tokens] of await tokensIn(sql, [...out.keys()]))
+    add(userId, milestoneCoins(levelFor(tokens)));
   for (const r of await all<{ userId: number; n: number }>(
     sql,
     "SELECT user_id AS userId, -SUM(price) AS n FROM purchases GROUP BY user_id",

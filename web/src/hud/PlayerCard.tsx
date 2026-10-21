@@ -9,8 +9,13 @@ import {
   plural,
   usd,
 } from "@tokenmaxxing/core/format.ts";
+import {
+  LEGENDARY_LEVEL,
+  milestoneText,
+  milestoneTitle,
+  nextMilestone,
+} from "@tokenmaxxing/core/milestones.ts";
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
-import { ITEMS } from "@tokenmaxxing/core/shop.ts";
 import type { Profile } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
 import { send } from "../game/input.ts";
@@ -76,7 +81,8 @@ export function PlayerCard({ userId }: { userId: number }) {
   const t = p.totals;
   const status = doing(userId);
   const today = p.daily.at(-1)?.tokens ?? 0;
-  const reward = ITEMS.find((i) => i.level !== undefined && i.level > p.level);
+  const next = nextMilestone(p.level);
+  const title = milestoneTitle(p.level);
   const mine = userId === world.selfId;
   const visit = () => {
     hud.set({ panel: null });
@@ -93,8 +99,11 @@ export function PlayerCard({ userId }: { userId: number }) {
       }
     >
       <div className="card-head">
-        <AvatarImage look={p.look} scale={5} />
+        <AvatarImage look={p.look} scale={5} aura={p.level >= LEGENDARY_LEVEL} />
         <div>
+          {title && (
+            <p className={`milestone-title${p.level >= LEGENDARY_LEVEL ? " legendary" : ""}`}>🏅 {title}</p>
+          )}
           <p>
             <strong>Level {p.level}</strong> · {p.levelTitle}
             {today > 0 && <span className="xp-today small"> · +{compact(today)} today</span>}
@@ -110,9 +119,9 @@ export function PlayerCard({ userId }: { userId: number }) {
               </>
             )}
           </p>
-          {reward && (
+          {next && (
             <p className="muted small">
-              Reward at Lv{reward.level}: {reward.name}
+              Lv{next.level} milestone: {milestoneText(next)}
             </p>
           )}
           {p.badges.length > 0 && (

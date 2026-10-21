@@ -12,6 +12,7 @@ import { camera, zoomScale } from "./camera.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
+import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
@@ -151,14 +152,18 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     });
     const pet = a.warp ? null : followPet(a, px, py, dt);
     if (pet) {
-      const frame = petFrame(a.info.look.pet, pet.left, pet.moving && Math.floor(now / 140) % 2 === 0);
+      const hop = pet.moving && Math.floor(now / 140) % 2 === 0;
+      const frame = petFrame(a.info.look.pet, pet.left, hop);
       if (frame)
         items.push({
           y: pet.y + PET_H,
-          draw: () => g.drawImage(frame, Math.round(pet.x), Math.round(pet.y)),
+          draw: () => {
+            g.drawImage(frame, Math.round(pet.x), Math.round(pet.y));
+            drawPetCrown(g, a, Math.round(pet.x), Math.round(pet.y), pet.left, hop);
+          },
         });
     }
-    labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py), tile, now, dpr));
+    labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py - labelLift(a)), tile, now, dpr));
   }
 
   items.sort((a, b) => a.y - b.y);
@@ -204,9 +209,11 @@ function drawAvatar(
     g.fillRect(px + 3, py + 8, 10, 1);
   } else if (a.state === "working" || (a.state === "sit" && tile === "c")) {
     const typing = a.state === "working" && Math.floor(now / 180) % 2 === 0 ? 1 : 0;
+    drawAura(g, a, px, py - 6 + typing, now);
     g.drawImage(characterFrame(look, "up", "sit"), px, py - 6 + typing);
     g.drawImage(chairBack(), px, py);
   } else if (a.state === "sit") {
+    drawAura(g, a, px, py - 5, now);
     g.drawImage(characterFrame(look, a.facing === "up" ? "up" : "down", "sit"), px, py - 5);
   } else {
     const walking = stepping(a, now);
@@ -217,6 +224,7 @@ function drawAvatar(
     const shrink = lift > 3 ? 1 : 0;
     g.fillStyle = C.shadow;
     g.fillRect(px + 4 + shrink, py + 14, 8 - 2 * shrink, 2);
+    drawAura(g, a, px, py - 2 - lift, now);
     g.drawImage(characterFrame(look, a.facing, pose), px, py - 2 - lift - (pose === "walkA" ? 1 : 0));
   }
   g.globalAlpha = 1;

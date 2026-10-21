@@ -68,6 +68,8 @@ export const ITEMS: readonly Item[] = [
   reward("hat", 4, "Top hat", 10),
   reward("outfit", 12, "Server-rack armour", 20),
   reward("pet", 6, "Singularity orb", 30),
+  reward("glasses", 4, "Nebula visor", 40),
+  reward("outfit", 13, "Golden regalia", 50),
   ...FURNITURE.map(
     (f, index): Item => ({
       id: `furn.${f.ch}`,

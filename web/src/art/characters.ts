@@ -292,12 +292,18 @@ const GLASSES: Record<"down" | "side", string[]>[] = [
     down: ["....l.l..l.l....", "....lllggllll...", ".....l....l....."],
     side: ["........l.l.....", "......gglll.....", ".........l......"],
   },
+  // Nebula visor (level 40): one wraparound lens, violet at the edges to cyan in the middle, with a glint.
+  {
+    down: ["...oooooooooo...", "..oabwcccccbao..", "...oabbccbbao..."],
+    side: ["........ooooo...", "......oabccwo...", "........obcco..."],
+  },
 ];
 const GLASSES_COLORS: Palette[] = [
   {},
   { g: "#6b4226", l: "#cde9f6" },
   { g: C.ink, l: "#1c1a24" },
   { g: "#c23a6b", l: "#ff6fa3" },
+  { o: C.ink, a: "#3b2a8f", b: "#7a6cf0", c: "#8fe3ff", w: "#ffffff" },
 ];
 
 /** Hats over the top of the head, from row 0. `o` outline. */
@@ -346,6 +352,27 @@ const RACK: Record<View, string[]> = {
 };
 const RACK_COLORS: Palette = { l: "#8a93a1", g: "#3ddc84", y: "#f5c842" };
 
+/** Golden regalia (outfit 13): an ermine collar, a ruby brooch and a purple sash with a gold buckle. */
+// biome-ignore format: pixel art reads as a grid
+const REGALIA: Record<View, string[]> = {
+  down: [".....wkwwkw.....", "....d..rr..d....", ".....mmymm......"],
+  side: ["......wkww......", "..........r.....", ".....mmm..m....."],
+  up: [".....wkwwkw.....", "....d......d....", ".....mmmmmm....."],
+};
+const REGALIA_COLORS: Palette = {
+  w: "#fbf7ef",
+  k: C.ink,
+  d: "#b07a12",
+  r: "#e0405a",
+  y: "#fff1a8",
+  m: "#7a4fb8",
+};
+/** The outfits with something drawn over the plain body. */
+const TRIMS: Record<number, [Record<View, string[]>, Palette]> = {
+  12: [RACK, RACK_COLORS],
+  13: [REGALIA, REGALIA_COLORS],
+};
+
 const darken = (hex: string, f = 0.78) =>
   `#${[1, 3, 5]
     .map((i) =>
@@ -384,7 +411,8 @@ export const characterFrame = cached(
     const pal = lookPalette(look);
     return bake(16, 16, (p) => {
       p.grid(BODIES[view][pose], pal, 0, 9, flip);
-      if (look.outfit === 12) p.grid(RACK[view], RACK_COLORS, 0, 9, flip);
+      const trim = TRIMS[look.outfit];
+      if (trim) p.grid(trim[0][view], trim[1], 0, 9, flip);
       p.grid(HEADS[view][look.style] ?? HEADS[view][0]!, pal, 0, 0, flip);
       if (view !== "up")
         p.grid(GLASSES[look.glasses]?.[view] ?? [], GLASSES_COLORS[look.glasses] ?? {}, 0, 5, flip);
@@ -406,7 +434,8 @@ export const itemFrame = cached(
     const [c, shade] = OUTFITS[i] ?? OUTFITS[0]!;
     return bake(16, 4, (p) => {
       p.grid(BODIES.down.stand.slice(0, 4), { o: C.ink, c, C: shade, p: C.ink });
-      if (i === 12) p.grid(RACK.down, RACK_COLORS);
+      const trim = TRIMS[i];
+      if (trim) p.grid(trim[0].down, trim[1]);
     });
   },
 );

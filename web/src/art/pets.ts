@@ -208,3 +208,14 @@ const frame = cached(
   (pet: number, left: boolean, hop: boolean) =>
     bake(PET_W, PET_H, (p) => p.grid(PETS[pet]!.frames[hop ? 1 : 0], PETS[pet]!.pal, 0, 0, left)),
 );
+
+/** The middle of the top row of pet `pet`'s frame, for a hat to sit on; null for no pet. */
+export function petTop(pet: number, hop: boolean): { x: number; y: number } | null {
+  const rows = PETS[pet]?.frames[hop ? 1 : 0];
+  const y = rows?.findIndex((r) => r.replaceAll(".", "") !== "") ?? -1;
+  if (!rows || y < 0) return null;
+  const row = rows[y]!;
+  const first = row.search(/[^.]/);
+  const last = row.length - 1 - [...row].reverse().findIndex((c) => c !== ".");
+  return { x: (first + last) / 2, y };
+}

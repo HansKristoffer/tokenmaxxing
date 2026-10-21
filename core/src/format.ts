@@ -30,9 +30,34 @@ const LEVEL_TITLES = [
   "Superintelligence",
   "Event Horizon",
   "Singularity",
+  // Past the Singularity: 31 to 50, where each level is a longer climb.
+  "Post-Singularity",
+  "Context Infinite",
+  "Galaxy Brain",
+  "Matrioshka Brain",
+  "Ronnamaxxer",
+  "Kardashev II",
+  "Star Forger",
+  "Nebula Whisperer",
+  "Wormhole Router",
+  "Kardashev III",
+  "Dark Matter Miner",
+  "Quasar Engine",
+  "Multiverse Shard",
+  "Time Crystal",
+  "Quettamaxxer",
+  "Heat Death Denier",
+  "Big Bang Rerun",
+  "Simulation Admin",
+  "Final Context",
+  "The Tokenmaxxer",
 ];
 
-/** Lifetime tokens where each level starts; the index is the level. About ×3 a level to 10B, then 1B a level. */
+/**
+ * Lifetime tokens where each level starts; the index is the level. About ×3 a level to 10B, then
+ * 1B a level to 30, then steps of 2B, 3B, 5B and 10B, five levels each, to 130B at 50. Levels
+ * only ever add on the end, so nobody's level goes down when the table grows.
+ */
 const LEVELS = [
   0,
   1e6,
@@ -45,6 +70,7 @@ const LEVELS = [
   3e9,
   6e9,
   ...Array.from({ length: 21 }, (_, i) => (10 + i) * 1e9),
+  ...[32, 34, 36, 38, 40, 43, 46, 49, 52, 55, 60, 65, 70, 75, 80, 90, 100, 110, 120, 130].map((b) => b * 1e9),
 ];
 export const MAX_LEVEL = LEVELS.length - 1;
 

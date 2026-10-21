@@ -5,6 +5,7 @@ import {
   levelAt,
   levelFor,
   levelTitle,
+  MAX_LEVEL,
   minutesText,
   plural,
   secondsUntil,
@@ -25,19 +26,41 @@ test("clocks, durations and plurals", () => {
   expect(plural(2, "PR")).toBe("2 PRs");
 });
 
-test("levelAt is where levelFor ticks over, up to Singularity at 30", () => {
+test("levelAt is where levelFor ticks over, up to The Tokenmaxxer at 50", () => {
+  expect(MAX_LEVEL).toBe(50);
   expect(levelAt(0)).toBe(0);
   expect(levelAt(1)).toBe(1e6);
   expect(levelAt(7)).toBe(1e9);
   expect(levelAt(10)).toBe(10e9);
   expect(levelAt(30)).toBe(30e9);
-  expect(levelAt(31)).toBe(Infinity);
+  expect(levelAt(40)).toBe(55e9);
+  expect(levelAt(50)).toBe(130e9);
+  expect(levelAt(51)).toBe(Infinity);
   expect(levelFor(31e9)).toBe(30);
+  expect(levelFor(1e15)).toBe(50);
   expect(levelTitle(13)).toBe("Examaxxer");
   expect(levelTitle(30)).toBe("Singularity");
-  expect(levelTitle(99)).toBe("Singularity");
-  for (let level = 1; level <= 30; level++) {
+  expect(levelTitle(50)).toBe("The Tokenmaxxer");
+  expect(levelTitle(99)).toBe("The Tokenmaxxer");
+  for (let level = 1; level <= MAX_LEVEL; level++) {
     expect(levelFor(levelAt(level))).toBe(level);
     expect(levelFor(levelAt(level) - 1)).toBe(level - 1);
+    expect(levelTitle(level)).not.toBe(levelTitle(level - 1));
   }
+});
+
+test("levels 1 to 30 are where they were, so nobody's level moves down", () => {
+  // The table from before the cap went to 50.
+  const old = [0, 1e6, 3e6, 10e6, 30e6, 100e6, 300e6, 1e9, 3e9, 6e9];
+  for (let level = 0; level <= 30; level++) expect(levelAt(level)).toBe(old[level] ?? level * 1e9);
+});
+
+test("past 30 each level costs at least as much as the one before, and 50 is a long way off", () => {
+  const steps = Array.from({ length: 20 }, (_, i) => levelAt(31 + i) - levelAt(30 + i));
+  for (let i = 1; i < steps.length; i++) expect(steps[i]!).toBeGreaterThanOrEqual(steps[i - 1]!);
+  expect(steps[0]).toBe(2e9);
+  expect(steps.at(-1)).toBe(10e9);
+  // A heavy day is ~600M: about 6 weeks past 30 to reach 40, then 4 months more to 50.
+  expect((levelAt(40) - levelAt(30)) / 600e6).toBeCloseTo(41.7, 0);
+  expect((levelAt(50) - levelAt(40)) / 600e6).toBeCloseTo(125, 0);
 });
