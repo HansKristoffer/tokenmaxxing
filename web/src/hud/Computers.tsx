@@ -72,7 +72,7 @@ export function Computers() {
                 </small>
               </span>
               {d.kind === "linked" && (
-                <button type="button" className="link" disabled={busy} onClick={() => void remove(d.id)()}>
+                <button type="button" className="link" disabled={busy} onClick={remove(d.id)}>
                   Remove
                 </button>
               )}
@@ -87,7 +87,7 @@ export function Computers() {
           <p className="small">Run this in a terminal on the other computer (macOS or Linux):</p>
           <div className="command">
             <code>{command}</code>
-            <button type="button" onClick={() => void copy()}>
+            <button type="button" onClick={copy}>
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
@@ -96,7 +96,7 @@ export function Computers() {
           </p>
         </>
       ) : (
-        <button type="button" className="primary" disabled={busy} onClick={() => void link()}>
+        <button type="button" className="primary" disabled={busy} onClick={link}>
           Link a computer
         </button>
       )}

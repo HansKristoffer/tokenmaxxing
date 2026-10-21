@@ -18,6 +18,7 @@ import {
 } from "@tokenmaxxing/core/world.ts";
 import type { Raid, registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
+import { errorCode } from "./errors.ts";
 import { noteLoot } from "./game/loot.ts";
 import { setOutage } from "./game/picnic.ts";
 import { noteRaid, setRaiders } from "./game/raid.ts";
@@ -86,7 +87,7 @@ export async function signIn(): Promise<string | null> {
   return token;
 }
 
-const isUnauthorized = (err: unknown) => (err as { code?: string } | null)?.code === "unauthorized";
+const isUnauthorized = (err: unknown) => errorCode(err) === "unauthorized";
 
 function signedOut(): void {
   localStorage.removeItem(TOKEN_KEY);
@@ -304,7 +305,3 @@ export async function withPlayer<T>(fn: (player: PlayerConn) => Promise<T>): Pro
     player.dispose();
   }
 }
-
-/** A readable message from a failed call. */
-export const errorText = (err: unknown): string =>
-  (err as { message?: string } | null)?.message?.replace(/^.*?: /, "") ?? "Something went wrong.";

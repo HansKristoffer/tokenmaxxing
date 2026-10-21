@@ -7,10 +7,11 @@ import {
   merchPrice,
 } from "@tokenmaxxing/core/shop.ts";
 import { useEffect } from "react";
-import { errorText, refreshMe, refreshWallet, town } from "../net.ts";
+import { errorText } from "../errors.ts";
+import { refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemImage, isWorn, WearButton, withItem } from "./Shop.tsx";
-import { Modal, useRun } from "./ui.tsx";
+import { Modal, useRun, WalletLine } from "./ui.tsx";
 
 /** "Acme tee": merch says whose it is; everything else is its own name. */
 export function merchName(item: Item): string {
@@ -52,9 +53,7 @@ export function MerchShop({ companyId }: { companyId: number }) {
             : `You work here: ${off}% off, and what you pay goes into the company wallet.`
           : `Everything you pay goes into ${company.name}'s company wallet. Its people get theirs ${off === 100 ? "free" : `${off}% off`}.`}
       </p>
-      <p className="wallet">
-        <strong>🪙 {wallet.balance.toLocaleString()}</strong> coins
-      </p>
+      <WalletLine balance={wallet.balance} />
       <ul className="shop">
         {MERCH.map((m) => {
           const item = itemById(merchId(companyId, m.kind))!;

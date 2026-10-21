@@ -1,4 +1,4 @@
-import { compact, countdown } from "@tokenmaxxing/core/format.ts";
+import { compact, countdown, plural } from "@tokenmaxxing/core/format.ts";
 import { bossAt } from "@tokenmaxxing/core/raid.ts";
 import type { Raid } from "@tokenmaxxing/server/registry";
 import { useEffect, useRef, useState } from "react";
@@ -8,10 +8,9 @@ import { left, opensAt } from "../game/raid.ts";
 import { world } from "../game/world.ts";
 import { conn } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { dayText } from "./format.ts";
 import { LootSection } from "./Loot.tsx";
-import { Modal, useTicker } from "./ui.tsx";
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { Modal, Pixels, RankList, ToastButton, useFresh, useTicker } from "./ui.tsx";
 
 /** "3d 4h", "5h 12m", "40m", "12s". */
 function timeLeft(ms: number): string {
@@ -21,33 +20,6 @@ function timeLeft(ms: number): string {
   if (m === 0 && ms > 0) return `${Math.ceil(ms / 1000)}s`;
   return `${m}m`;
 }
-
-/** A boss's shadow, big and crisp: the teaser's "???". */
-function Silhouette({ id, size }: { id: string; size: number }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const g = ref.current?.getContext("2d");
-    if (!g) return;
-    g.imageSmoothingEnabled = false;
-    g.clearRect(0, 0, size, size);
-    g.drawImage(bossSilhouette(id), 0, 0, size, size);
-  }, [id, size]);
-  return (
-    <canvas
-      ref={ref}
-      width={size}
-      height={size}
-      className="raid-silhouette"
-      role="img"
-      aria-label="A shadow, waiting"
-    />
-  );
-}
-
-const weekday = (day: string) => {
-  const [y, m, d] = day.split("-").map(Number);
-  return WEEKDAYS[new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay()]!;
-};
 
 const share = (r: Raid) => (r.hp > 0 ? left(r) / r.hp : 0);
 
@@ -123,7 +95,7 @@ function Ladder({ raid }: { raid: Raid }) {
             🏆 {k.boss.emoji} {k.boss.name}
           </span>
           <span className="muted small">
-            {weekday(k.day)} · {k.raiders} raiders · 🪙 {k.coins}
+            {dayText(k.day, { weekday: "short" })} · {k.raiders} raiders · 🪙 {k.coins}
             {k.paid && " ✓"}
           </span>
         </li>
@@ -163,7 +135,14 @@ function Teaser({ raid }: { raid: Raid }) {
     <Modal title="⚠️ Something is coming">
       <div className="raid raid-teaser">
         <div className="raid-shadow">
-          <Silhouette id={raid.boss.id} size={132} />
+          {/* The first boss's shadow, big and crisp. */}
+          <Pixels
+            sprite={bossSilhouette(raid.boss.id)}
+            width={132}
+            height={132}
+            className="raid-silhouette"
+            label="A shadow, waiting"
+          />
           <span className="raid-qqq">???</span>
         </div>
         <p className="raid-hint muted small">It has a limit. Soon, so will you.</p>
@@ -271,20 +250,15 @@ export function RaidPanel() {
           <>
             <h3>Top raiders</h3>
             <div className="miniboard">
-              <ol>
-                {raid.top.map((r, i) => (
-                  <li key={r.userId}>
-                    <button
-                      type="button"
-                      onClick={() => hud.set({ panel: { kind: "card", userId: r.userId } })}
-                    >
-                      <span className="rank">{i === 0 ? "👑" : `#${i + 1}`}</span>
-                      <span className="who">{r.name}</span>
-                      <span className="value">{compact(r.damage)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
+              <RankList
+                rows={raid.top.map((r, i) => ({
+                  id: r.userId,
+                  rank: i === 0 ? "👑" : `#${i + 1}`,
+                  who: r.name,
+                  value: compact(r.damage),
+                  open: { kind: "card", userId: r.userId },
+                }))}
+              />
             </div>
           </>
         )}
@@ -293,20 +267,15 @@ export function RaidPanel() {
           <>
             <h3>Companies</h3>
             <div className="miniboard">
-              <ol>
-                {raid.companies.map((c, i) => (
-                  <li key={c.companyId}>
-                    <button
-                      type="button"
-                      onClick={() => hud.set({ panel: { kind: "companyCard", companyId: c.companyId } })}
-                    >
-                      <span className="rank">#{i + 1}</span>
-                      <span className="who">🏢 {c.name}</span>
-                      <span className="value">{compact(c.damage)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
+              <RankList
+                rows={raid.companies.map((c, i) => ({
+                  id: c.companyId,
+                  rank: `#${i + 1}`,
+                  who: `🏢 ${c.name}`,
+                  value: compact(c.damage),
+                  open: { kind: "companyCard", companyId: c.companyId },
+                }))}
+              />
             </div>
           </>
         )}
@@ -338,7 +307,7 @@ export function RaidPanel() {
           <p className="muted small">
             Last week:{" "}
             {raid.last.defeated
-              ? `${raid.last.cleared} ${raid.last.cleared === 1 ? "rung" : "rungs"}, up to ${raid.last.boss.emoji} ${raid.last.boss.name}, with ${raid.last.raiders} raiders.`
+              ? `${plural(raid.last.cleared, "rung")}, up to ${raid.last.boss.emoji} ${raid.last.boss.name}, with ${raid.last.raiders} raiders.`
               : `${raid.last.boss.emoji} ${raid.last.boss.name} got away.`}
           </p>
         )}
@@ -356,52 +325,30 @@ export function RaidToast() {
   const raid = useHud((s) => s.raid);
   const seen = useRef<{ week: string; kills: number; prelaunch: boolean } | null>(null);
   const [fell, setFell] = useState<{ kills: Raid["kills"]; at: number } | null>(null);
-  const [opened, setOpened] = useState<Raid["boss"] | null>(null);
+  const [opened, setOpened] = useState<{ boss: Raid["boss"]; at: number } | null>(null);
   useEffect(() => {
     if (!raid) return;
     const before = seen.current;
-    if (before?.prelaunch && !raid.prelaunch) setOpened(raid.boss);
+    if (before?.prelaunch && !raid.prelaunch) setOpened({ boss: raid.boss, at: Date.now() });
     if (before && before.week === raid.week && raid.kills.length > before.kills)
       setFell({ kills: raid.kills.slice(before.kills), at: Date.now() });
     seen.current = { week: raid.week, kills: raid.kills.length, prelaunch: raid.prelaunch };
   }, [raid]);
-  useEffect(() => {
-    if (!fell) return;
-    const id = setTimeout(() => setFell(null), 10_000);
-    return () => clearTimeout(id);
-  }, [fell]);
-  useEffect(() => {
-    if (!opened) return;
-    const id = setTimeout(() => setOpened(null), 12_000);
-    return () => clearTimeout(id);
-  }, [opened]);
+  const showFell = useFresh(fell?.at, 10_000);
+  const showOpened = useFresh(opened?.at, 12_000);
   return (
     <>
-      {opened && (
-        <button
-          type="button"
-          className="toast mention-toast raid-launch-toast"
-          onClick={() => {
-            setOpened(null);
-            hud.set({ panel: { kind: "raid" } });
-          }}
-        >
-          ⚔️ The Raid Dungeon is open: {opened.name} awaits.
-        </button>
+      {showOpened && opened && (
+        <ToastButton open={{ kind: "raid" }} dismiss={() => setOpened(null)} className="raid-launch-toast">
+          ⚔️ The Raid Dungeon is open: {opened.boss.name} awaits.
+        </ToastButton>
       )}
-      {fell?.kills.map((k) => (
-        <button
-          key={k.rung}
-          type="button"
-          className="toast mention-toast"
-          onClick={() => {
-            setFell(null);
-            hud.set({ panel: { kind: "raid" } });
-          }}
-        >
-          🏆 {k.boss.name} fell!{k.paid ? ` 🪙 ${k.coins} for you` : ""}
-        </button>
-      ))}
+      {showFell &&
+        fell?.kills.map((k) => (
+          <ToastButton key={k.rung} open={{ kind: "raid" }} dismiss={() => setFell(null)}>
+            🏆 {k.boss.name} fell!{k.paid ? ` 🪙 ${k.coins} for you` : ""}
+          </ToastButton>
+        ))}
     </>
   );
 }

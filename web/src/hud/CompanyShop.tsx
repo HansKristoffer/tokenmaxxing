@@ -3,6 +3,7 @@ import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { useState } from "react";
 import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { coins } from "./format.ts";
 import { PieceImage } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
@@ -29,7 +30,7 @@ export function CompanyShop() {
   return (
     <Modal title={`🛋 ${co.name}: furniture`} wide>
       <p className="wallet">
-        <strong>🪙 {co.wallet.toLocaleString()}</strong> in the company wallet
+        <strong>{coins(co.wallet)}</strong> in the company wallet
       </p>
       <p className="muted small">
         You spend the company wallet.

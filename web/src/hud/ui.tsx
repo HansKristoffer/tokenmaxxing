@@ -1,11 +1,12 @@
 import type { Facing, Look } from "@tokenmaxxing/core/world.ts";
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type DependencyList, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { AURA_H, AURA_W, AURA_X, AURA_Y, auraFrame } from "../art/aura.ts";
 import { house } from "../art/buildings.ts";
 import { characterFrame } from "../art/characters.ts";
+import { errorText } from "../errors.ts";
 import { world } from "../game/world.ts";
-import { errorText } from "../net.ts";
-import { hud } from "../store.ts";
+import { hud, type Panel } from "../store.ts";
+import { coins } from "./format.ts";
 
 /**
  * Server calls from a panel: `run(fn)` makes a click or submit handler that shows a failure as
@@ -56,6 +57,30 @@ export function useTicker(ms: number, on = true): void {
   }, [ms, on]);
 }
 
+/**
+ * What a panel shows, fetched when it opens and again when `deps` change: `data` once it's here (the
+ * last one stays up while the next loads), or `error` if it couldn't be.
+ */
+export function useLoad<T>(load: () => Promise<T>, deps: DependencyList) {
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(
+    () => {
+      let live = true;
+      load().then(
+        (d) => live && setData(d),
+        (e) => live && setError(errorText(e)),
+      );
+      return () => {
+        live = false;
+      };
+    },
+    // biome-ignore lint/correctness/useExhaustiveDependencies: `deps` is what `load` reads
+    deps,
+  );
+  return { data, error };
+}
+
 /** A company's own house, in its brand's colours, as drawn in town. */
 export function House({ companyId, tier, scale }: { companyId: number; tier: number; scale: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -72,6 +97,53 @@ export function House({ companyId, tier, scale }: { companyId: number; tier: num
     g.drawImage(sprite, 0, 0, w, h);
   }, [sprite, w, h, scale]);
   return <canvas ref={ref} width={w} height={h} className="house-img" />;
+}
+
+/**
+ * A sprite drawn crisp in a `width`×`height` canvas: stretched to fill it, or at `scale`× in its middle
+ * (`stand`: on its bottom edge, like a pet).
+ */
+export function Pixels({
+  sprite,
+  width,
+  height,
+  scale,
+  stand,
+  className,
+  label,
+}: {
+  sprite: HTMLCanvasElement | null | undefined;
+  width: number;
+  height: number;
+  scale?: number;
+  stand?: boolean;
+  className?: string;
+  /** What it shows, for a picture that stands on its own. */
+  label?: string;
+}) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const g = ref.current?.getContext("2d");
+    if (!g) return;
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, width, height);
+    if (!sprite) return;
+    if (scale === undefined) g.drawImage(sprite, 0, 0, width, height);
+    else {
+      const [w, h] = [sprite.width * scale, sprite.height * scale];
+      g.drawImage(sprite, (width - w) / 2, stand ? height - h : (height - h) / 2, w, h);
+    }
+  }, [sprite, width, height, scale, stand]);
+  return (
+    <canvas
+      ref={ref}
+      width={width}
+      height={height}
+      className={className}
+      role={label ? "img" : undefined}
+      aria-label={label}
+    />
+  );
 }
 
 /**
@@ -177,5 +249,68 @@ export function Pills<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+/** A toast that opens what it's about: `dismiss` takes it down, then `open` shows, if there is one. */
+export function ToastButton({
+  open,
+  dismiss,
+  className,
+  children,
+}: {
+  open?: Panel;
+  dismiss: () => void;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={className ? `toast mention-toast ${className}` : "toast mention-toast"}
+      onClick={() => {
+        dismiss();
+        if (open) hud.set({ panel: open });
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+interface Ranked {
+  id: number;
+  rank: string;
+  who: ReactNode;
+  value: string;
+  mine?: boolean;
+  /** What a click on the row opens. */
+  open: Panel;
+}
+
+/** A short ranked list: the corner's today, the raid's raiders and companies. */
+export function RankList({ rows }: { rows: Ranked[] }) {
+  return (
+    <ol>
+      {rows.map((r) => (
+        <li key={r.id} className={r.mine ? "mine" : undefined}>
+          <button type="button" onClick={() => hud.set({ panel: r.open })}>
+            <span className="rank">{r.rank}</span>
+            <span className="who">{r.who}</span>
+            <span className="value">{r.value}</span>
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** "🪙 1,234 coins" at the top of a shop, and whatever else goes on its line. */
+export function WalletLine({ balance, children }: { balance: number; children?: ReactNode }) {
+  return (
+    <p className="wallet">
+      <strong>{coins(balance)}</strong> coins
+      {children}
+    </p>
   );
 }

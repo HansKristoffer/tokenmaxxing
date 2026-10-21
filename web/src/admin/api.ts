@@ -1,5 +1,6 @@
 import type { registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
+import { errorCode } from "../errors.ts";
 
 const TOKEN_KEY = "tokenmaxxing.admin";
 
@@ -32,9 +33,6 @@ export const connectAdmin = (token: string): AdminConn =>
   client.town.getOrCreate(["main"], { params: { admin: token } }).connect();
 
 export const isUnauthorized = (err: unknown) => {
-  const code = (err as { code?: string } | null)?.code;
+  const code = errorCode(err);
   return code === "unauthorized" || code === "forbidden";
 };
-
-export const errorText = (err: unknown): string =>
-  (err as { message?: string } | null)?.message?.replace(/^.*?: /, "") ?? "Something went wrong.";

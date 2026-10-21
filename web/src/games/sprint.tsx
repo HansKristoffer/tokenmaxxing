@@ -4,6 +4,7 @@ import { GRACE_MS, MAX_EXTRA, type SprintView, score, TRACK_WPM } from "@tokenma
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { characterFrame } from "../art/characters.ts";
+import { Pixels } from "../hud/ui.tsx";
 import { hud } from "../store.ts";
 import type { GameProps } from "./types.ts";
 
@@ -216,7 +217,12 @@ function Lanes({
             </span>
             <span className="sprint-track">
               <span className="sprint-car" style={{ left: `${Math.min(100, (s.correct / track) * 100)}%` }}>
-                <Runner look={look(p)} step={s.typed % 2 === 1} />
+                {/* Running right, a step for every key. */}
+                <Pixels
+                  sprite={characterFrame(look(p), "right", s.typed % 2 === 1 ? "walkA" : "walkB")}
+                  width={48}
+                  height={48}
+                />
               </span>
             </span>
             <span className="sprint-wpm">
@@ -280,17 +286,4 @@ function Results({
       </tbody>
     </table>
   );
-}
-
-/** A player running right, a step for every key. */
-function Runner({ look, step }: { look: Look; step: boolean }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const g = ref.current?.getContext("2d");
-    if (!g) return;
-    g.imageSmoothingEnabled = false;
-    g.clearRect(0, 0, 48, 48);
-    g.drawImage(characterFrame(look, "right", step ? "walkA" : "walkB"), 0, 0, 48, 48);
-  }, [look, step]);
-  return <canvas ref={ref} width={48} height={48} />;
 }

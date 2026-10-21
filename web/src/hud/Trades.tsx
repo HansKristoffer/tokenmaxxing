@@ -1,8 +1,10 @@
 import { isTradeable, itemById, type Side, TRADE_COINS_CAP } from "@tokenmaxxing/core/shop.ts";
 import type { Trade } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
-import { errorText, refreshMe, refreshWallet, town } from "../net.ts";
+import { errorText } from "../errors.ts";
+import { refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { coins } from "./format.ts";
 import { Modal, useRun } from "./ui.tsx";
 
 /** "🪙 50 + Shades", or "nothing". */
@@ -50,7 +52,7 @@ export function TradePanel({ userId }: { userId: number }) {
   return (
     <Modal title={`🔁 Trade with ${them.name}`}>
       <p className="muted small">
-        You have 🪙 {wallet.balance.toLocaleString()}. They accept or decline, and both sides move at once.
+        You have {coins(wallet.balance)}. They accept or decline, and both sides move at once.
       </p>
       <form className="table-form" onSubmit={offer}>
         <div className="trade-sides">

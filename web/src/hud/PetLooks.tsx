@@ -1,11 +1,10 @@
 import { PET_VARIANTS, petLooks, petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
-import { useEffect, useRef } from "react";
 import { variantArt } from "../art/pet-variants/index.ts";
 import { PET_H, PET_W, petFrame } from "../art/pets.ts";
 import { hud, useHud } from "../store.ts";
 import { wear } from "./Shop.tsx";
-import { Modal, useRun, useTicker } from "./ui.tsx";
+import { Modal, Pixels, useRun, useTicker } from "./ui.tsx";
 
 const HOP_MS = 600;
 const SCALE = 5;
@@ -18,32 +17,8 @@ export function variantName(pet: number, variant: number): string {
 }
 
 /** Whether a variation still has no art, so the original shows in its place. */
-export const comingSoon = (pet: number, variant: number): boolean =>
+const comingSoon = (pet: number, variant: number): boolean =>
   variant > 0 && variantArt(pet, variant) === null;
-
-/** One frame of a pet, crisp at `SCALE`×. */
-function PetSprite({
-  pet,
-  variant,
-  hop,
-  outfit,
-}: {
-  pet: number;
-  variant: number;
-  hop: boolean;
-  outfit: string | null;
-}) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const g = ref.current?.getContext("2d");
-    const sprite = petFrame(pet, false, hop, variant, outfit);
-    if (!g || !sprite) return;
-    g.imageSmoothingEnabled = false;
-    g.clearRect(0, 0, PET_W * SCALE, PET_H * SCALE);
-    g.drawImage(sprite, 0, 0, PET_W * SCALE, PET_H * SCALE);
-  }, [pet, variant, hop, outfit]);
-  return <canvas ref={ref} width={PET_W * SCALE} height={PET_H * SCALE} className="avatar" />;
-}
 
 /**
  * Every look of a pet you hold: the original and its variations, each hopping. Picking one wears the
@@ -79,7 +54,12 @@ export function PetLooks({ pet }: { pet: number }) {
                 aria-label={`${name}${soon ? ", coming soon" : ""}${v === worn ? ", wearing" : ""}`}
                 onClick={run(() => wear({ ...me.look, pet, petVariant: v }))}
               >
-                <PetSprite pet={pet} variant={v} hop={hop} outfit={v === worn ? petOutfit(me.look) : null} />
+                <Pixels
+                  sprite={petFrame(pet, false, hop, v, v === worn ? petOutfit(me.look) : null)}
+                  width={PET_W * SCALE}
+                  height={PET_H * SCALE}
+                  className="avatar"
+                />
                 <span className="name">{name}</span>
                 {soon && <span className="soon">coming soon</span>}
               </button>

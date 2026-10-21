@@ -32,7 +32,7 @@ import { Shop } from "./Shop.tsx";
 import { Sky } from "./Sky.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
-import { Modal, useFresh, useRun } from "./ui.tsx";
+import { Modal, ToastButton, useFresh, useRun } from "./ui.tsx";
 
 export function Hud() {
   const status = useHud((s) => s.status);
@@ -195,6 +195,18 @@ function Dialog() {
   );
 }
 
+/** Esc's menu: a button per panel. */
+const MENU = [
+  [{ kind: "look" }, "🎨 Your character"],
+  [{ kind: "shop" }, "🪙 Shop"],
+  [{ kind: "bag" }, "🎒 Bag"],
+  [{ kind: "trades" }, "🔁 Trades"],
+  [{ kind: "arcade" }, "🎮 Arcade"],
+  [{ kind: "raid" }, "⚔️ Raid"],
+  [{ kind: "company" }, "🏢 Company"],
+  [{ kind: "leaderboard" }, "🏆 Leaderboard"],
+] as const;
+
 function Panel() {
   const panel = useHud((s) => s.panel);
   const inMyOffice = useHud((s) => s.room === `office:${world.selfId}`);
@@ -243,30 +255,11 @@ function Panel() {
         <Modal title="Menu">
           <nav className="menu">
             {inMyOffice && <OfficeLock />}
-            <button type="button" onClick={() => hud.set({ panel: { kind: "look" } })}>
-              🎨 Your character
-            </button>
-            <button type="button" onClick={() => hud.set({ panel: { kind: "shop" } })}>
-              🪙 Shop
-            </button>
-            <button type="button" onClick={() => hud.set({ panel: { kind: "bag" } })}>
-              🎒 Bag
-            </button>
-            <button type="button" onClick={() => hud.set({ panel: { kind: "trades" } })}>
-              🔁 Trades
-            </button>
-            <button type="button" onClick={() => hud.set({ panel: { kind: "arcade" } })}>
-              🎮 Arcade
-            </button>
-            <button type="button" onClick={() => hud.set({ panel: { kind: "raid" } })}>
-              ⚔️ Raid
-            </button>
-            <button type="button" onClick={() => hud.set({ panel: { kind: "company" } })}>
-              🏢 Company
-            </button>
-            <button type="button" onClick={() => hud.set({ panel: { kind: "leaderboard" } })}>
-              🏆 Leaderboard
-            </button>
+            {MENU.map(([open, label]) => (
+              <button key={open.kind} type="button" onClick={() => hud.set({ panel: open })}>
+                {label}
+              </button>
+            ))}
             <a href="https://github.com/HansKristoffer/tokenmaxxing" target="_blank" rel="noreferrer">
               ⌥ GitHub
             </a>
@@ -334,14 +327,10 @@ function NoticeToast() {
   if (!useFresh(notice?.at, MENTION_MS) || !notice) return null;
   const { open } = notice;
   return (
-    <button
-      type="button"
-      className="toast mention-toast"
-      onClick={() => hud.set({ notice: null, ...(open && { panel: { kind: open } }) })}
-    >
+    <ToastButton open={open && { kind: open }} dismiss={() => hud.set({ notice: null })}>
       {open && `${NOTICE_ICONS[open]} `}
       {notice.text}
-    </button>
+    </ToastButton>
   );
 }
 
@@ -374,9 +363,9 @@ function LevelToast() {
     return <MilestoneToast milestone={passed.at(-1)!} level={up.to} office={office} onClick={open} />;
   }
   return (
-    <button type="button" className="toast mention-toast" onClick={open}>
+    <ToastButton open={{ kind: "bag" }} dismiss={() => setUp(null)}>
       ⬆️ Level {up.to} · {levelTitle(up.to)}
-    </button>
+    </ToastButton>
   );
 }
 
@@ -386,13 +375,9 @@ function MentionToast() {
   if (!useFresh(mention?.at, MENTION_MS) || !mention) return null;
   const { line } = mention;
   return (
-    <button
-      type="button"
-      className="toast mention-toast"
-      onClick={() => hud.set({ mention: null, panel: { kind: "card", userId: line.userId } })}
-    >
+    <ToastButton open={{ kind: "card", userId: line.userId }} dismiss={() => hud.set({ mention: null })}>
       💬 <strong>{line.name}</strong> mentioned you in {roomName(line.room)}: {line.text}
-    </button>
+    </ToastButton>
   );
 }
 
@@ -414,15 +399,8 @@ function QuestToast() {
   }, [quests]);
   if (!useFresh(fresh?.at, MENTION_MS) || !fresh) return null;
   return (
-    <button
-      type="button"
-      className="toast mention-toast"
-      onClick={() => {
-        setFresh(null);
-        hud.set({ panel: { kind: "shop" } });
-      }}
-    >
+    <ToastButton open={{ kind: "shop" }} dismiss={() => setFresh(null)}>
       {fresh.quests.map((q) => `✓ ${q.text} · 🪙 ${q.coins}`).join("  ")}
-    </button>
+    </ToastButton>
   );
 }

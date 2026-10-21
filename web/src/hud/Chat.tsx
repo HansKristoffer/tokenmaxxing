@@ -1,8 +1,9 @@
 import type { MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import { CHAT_MAX_LENGTH, mentionsIn } from "@tokenmaxxing/core/world.ts";
 import { memo, useEffect, useRef, useState } from "react";
+import { errorText } from "../errors.ts";
 import { roomName, world } from "../game/world.ts";
-import { conn, errorText, matchConn } from "../net.ts";
+import { conn, matchConn } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { MentionInput } from "./MentionInput.tsx";
 import { QuickReplies } from "./QuickReplies.tsx";

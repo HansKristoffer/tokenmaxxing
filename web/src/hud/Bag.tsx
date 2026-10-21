@@ -3,8 +3,9 @@ import { cleanPetName, PET_NAME_MAX, petLooks, wearPet } from "@tokenmaxxing/cor
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import type { BagRow, Copy } from "@tokenmaxxing/server/registry";
 import { useEffect, useRef, useState } from "react";
+import { errorText } from "../errors.ts";
 import { world } from "../game/world.ts";
-import { errorText, refreshMe, town } from "../net.ts";
+import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemTag, rarityRing } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";

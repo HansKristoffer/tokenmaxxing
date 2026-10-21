@@ -1,8 +1,9 @@
 import { chargeOf, type Ticket } from "@tokenmaxxing/core/cop.ts";
 import { plural } from "@tokenmaxxing/core/format.ts";
+import { dayText } from "./format.ts";
 
-const dayLabel = (day: string) =>
-  new Date(`${day}T12:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+/** "Oct 20": in the browser's own language and time zone (`[]` is its default locale). */
+const dayLabel = (day: string) => dayText(day, { month: "short", day: "numeric", timeZone: undefined }, []);
 
 /** The 429 Cop's tickets on a player card: a badge of honour, opened to read them. */
 export function Tickets({ tickets }: { tickets: Ticket[] }) {

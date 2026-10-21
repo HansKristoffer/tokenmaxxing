@@ -5,16 +5,17 @@ import { petOutfit, wearPet } from "@tokenmaxxing/core/pets.ts";
 import { ITEMS, type Item, MERCH, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { itemFrame } from "../art/characters.ts";
 import { objectAt } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
-import { errorText, refreshMe, refreshWallet, town } from "../net.ts";
+import { errorText } from "../errors.ts";
+import { refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemTag } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
-import { AvatarImage, Modal, Pills, useRun } from "./ui.tsx";
+import { AvatarImage, Modal, Pills, Pixels, useRun, WalletLine } from "./ui.tsx";
 
 const TABS = [
   ["outfit", "Clothes"],
@@ -53,10 +54,9 @@ export function Shop() {
 
   return (
     <Modal title="🪙 Shop" wide>
-      <p className="wallet">
-        <strong>🪙 {wallet.balance.toLocaleString()}</strong> coins
+      <WalletLine balance={wallet.balance}>
         <span className="muted"> · +{wallet.today} from today so far</span>
-      </p>
+      </WalletLine>
       <p className="muted small">
         Every day you earn √(tokens ÷ 1M) coins: 100M tokens is 10, 1B is 31. Finish a day 1st, 2nd or 3rd for{" "}
         {PODIUM_COINS.join(", ")} more.
@@ -215,53 +215,37 @@ export function ItemImage({
   );
 }
 
-const pieces = new Map<string, HTMLCanvasElement | undefined>();
-
-/** A piece's sprite as the world draws it, put down once in an empty office. */
-function pieceSprite(ch: string): HTMLCanvasElement | undefined {
-  if (!pieces.has(ch)) pieces.set(ch, objectAt(withPieces([{ ch, x: 1, y: 1 }], MAPS.office), 1, 1)?.canvas);
-  return pieces.get(ch);
-}
+const pieces = new Map<string, HTMLCanvasElement>();
 
 /**
- * A piece as the world draws it, in a two-tile box (three for the widest). A rug is only floor, so
- * it's a swatch.
+ * A piece's sprite as the world draws it, put down once in an empty office. A rug is only floor, so
+ * it's a swatch, standing in the box like a piece.
  */
+function pieceSprite(ch: string): HTMLCanvasElement {
+  let sprite = pieces.get(ch);
+  if (sprite) return sprite;
+  sprite = objectAt(withPieces([{ ch, x: 1, y: 1 }], MAPS.office), 1, 1)?.canvas;
+  if (!sprite) {
+    sprite = document.createElement("canvas");
+    sprite.width = sprite.height = 16;
+    const g = sprite.getContext("2d")!;
+    g.fillStyle = C.rug;
+    g.fillRect(0, 0, 16, 14);
+  }
+  pieces.set(ch, sprite);
+  return sprite;
+}
+
+/** A piece as the world draws it, in a two-tile box (three for the widest). */
 export function PieceImage({ ch, scale = 2 }: { ch: string; scale?: number }) {
-  const ref = useRef<HTMLCanvasElement>(null);
   const sprite = pieceSprite(ch);
-  const box = Math.max(32, sprite?.width ?? 0);
-  useEffect(() => {
-    const g = ref.current?.getContext("2d");
-    if (!g) return;
-    g.imageSmoothingEnabled = false;
-    if (!sprite) {
-      g.fillStyle = C.rug;
-      g.fillRect(8 * scale, 16 * scale, 16 * scale, 14 * scale);
-      return;
-    }
-    const { width: w, height: h } = sprite;
-    g.drawImage(sprite, ((box - w) / 2) * scale, (32 - h) * scale, w * scale, h * scale);
-  }, [sprite, box, scale]);
-  return <canvas ref={ref} width={box * scale} height={32 * scale} className="avatar" />;
+  const box = Math.max(32, sprite.width);
+  return (
+    <Pixels sprite={sprite} width={box * scale} height={32 * scale} scale={scale} stand className="avatar" />
+  );
 }
 
 /** A sprite at 4× in a 16×16 box: in the middle, or standing on the bottom (a pet). */
-function SpriteImage({ sprite, stand }: { sprite: HTMLCanvasElement | null; stand?: boolean }) {
-  const scale = 4;
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const g = ref.current?.getContext("2d");
-    if (!g || !sprite) return;
-    g.imageSmoothingEnabled = false;
-    const { width: w, height: h } = sprite;
-    g.drawImage(
-      sprite,
-      ((16 - w) / 2) * scale,
-      (stand ? 16 - h : (16 - h) / 2) * scale,
-      w * scale,
-      h * scale,
-    );
-  }, [sprite, stand]);
-  return <canvas ref={ref} width={16 * scale} height={16 * scale} className="avatar" />;
-}
+const SpriteImage = ({ sprite, stand }: { sprite: HTMLCanvasElement | null; stand?: boolean }) => (
+  <Pixels sprite={sprite} width={64} height={64} scale={4} stand={stand} className="avatar" />
+);

@@ -2,11 +2,12 @@ import { compact, plural } from "@tokenmaxxing/core/format.ts";
 import { CORE_BLOCKS, frontier, plotBlock } from "@tokenmaxxing/core/maps.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { houseTierName, nextTierAt, perMember } from "@tokenmaxxing/core/world.ts";
-import type { Listing, WalletLine } from "@tokenmaxxing/server/registry";
+import type { WalletLine } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
 import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { Modal, useRun } from "./ui.tsx";
+import { coins } from "./format.ts";
+import { Modal, useLoad, useRun } from "./ui.tsx";
 
 export function CompanyPanel() {
   const me = useHud((s) => s.me);
@@ -45,7 +46,7 @@ export function CompanyPanel() {
         {me.application && (
           <p className="applied">
             Waiting for <strong>{me.application.name}</strong> to answer.{" "}
-            <button type="button" className="link" onClick={() => void run(() => town.withdraw())()}>
+            <button type="button" className="link" onClick={run(() => town.withdraw())}>
               Withdraw
             </button>
           </p>
@@ -71,7 +72,7 @@ export function CompanyPanel() {
       </p>
       <h3>Company wallet</h3>
       <p className="wallet">
-        <strong>🪙 {co.wallet.toLocaleString()}</strong>
+        <strong>{coins(co.wallet)}</strong>
         <span className="muted small"> · every coin you earn from tokens, the company gets one too</span>
       </p>
       <p className="company-actions">
@@ -136,14 +137,10 @@ export function CompanyPanel() {
                   {a.name} <small className="muted">Lv{a.level}</small>
                 </span>
                 <span className="answer">
-                  <button
-                    type="button"
-                    className="primary"
-                    onClick={() => void run(() => town.approve(a.userId))()}
-                  >
+                  <button type="button" className="primary" onClick={run(() => town.approve(a.userId))}>
                     Accept
                   </button>
-                  <button type="button" onClick={() => void run(() => town.decline(a.userId))()}>
+                  <button type="button" onClick={run(() => town.decline(a.userId))}>
                     Decline
                   </button>
                 </span>
@@ -161,7 +158,7 @@ export function CompanyPanel() {
               {m.isOwner && <small className="muted"> owner</small>}
             </span>
             {co.isOwner && m.userId !== me.userId && (
-              <button type="button" className="link" onClick={() => void run(() => town.kick(m.userId))()}>
+              <button type="button" className="link" onClick={run(() => town.kick(m.userId))}>
                 Remove
               </button>
             )}
@@ -175,7 +172,7 @@ export function CompanyPanel() {
           onSubmit={(name) => run(() => town.renameCompany(name))()}
         />
       )}
-      <button type="button" className="danger" onClick={() => void run(() => town.leaveCompany())()}>
+      <button type="button" className="danger" onClick={run(() => town.leaveCompany())}>
         Leave {co.name}
       </button>
       {error && <p className="error">{error}</p>}
@@ -288,10 +285,8 @@ function PlotPicker({ value, onChange }: { value: number | null; onChange: (plot
 
 /** Every company in town, busiest first, with a button to ask to join. */
 function Listings({ applied, onApply }: { applied: number | null; onApply: (id: number) => void }) {
-  const [list, setList] = useState<Listing[] | null>(null);
-  useEffect(() => {
-    void town.listings().then(setList, () => setList([]));
-  }, []);
+  const { data, error } = useLoad(() => town.listings(), []);
+  const list = error ? [] : data;
   if (!list) return <p className="muted small">Loading…</p>;
   if (list.length === 0) return <p className="muted small">No companies yet: start the first one.</p>;
   return (
