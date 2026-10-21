@@ -1374,6 +1374,8 @@ button.lb-item:hover {
 .picnic-banner strong {
   font-size: 15px;
   color: var(--accent);
+}
+
 /* The 429 Cop's tickets on a player card: a badge that opens into the slips themselves. */
 .tickets summary {
   display: inline-block;
@@ -1414,6 +1416,8 @@ button.lb-item:hover {
   align-self: flex-end;
   font-style: italic;
   color: #24336b;
+}
+
 /* The trophy shelf's list (E at the shelf in an office): two columns of sprite + name, how, and when. */
 .trophies {
   display: grid;

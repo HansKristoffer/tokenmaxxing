@@ -10,14 +10,14 @@ import { PET_H, petFrame } from "../art/pets.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
-import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { drawCop, isCop } from "./cop.ts";
+import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
 import { followPet, prunePets } from "./pets.ts";
-import { drawStreet } from "./street.ts";
 import { drawPicnic } from "./picnic.ts";
+import { drawStreet } from "./street.ts";
 import { drawTrophies } from "./trophies.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
