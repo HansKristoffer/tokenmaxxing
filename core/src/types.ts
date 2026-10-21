@@ -1,16 +1,15 @@
 /** Reserved message ids for authoritative Cursor dashboard events. */
 export const CURSOR_API_MESSAGE_PREFIX = "cursor-api:";
 
-export type Source = "claude_code" | "claude_cowork" | "codex" | "cursor_local" | "grok_bot" | "github";
-
-export const SOURCES: readonly Source[] = [
+export const SOURCES = [
   "claude_code",
   "claude_cowork",
   "codex",
   "cursor_local",
   "grok_bot",
   "github",
-];
+] as const;
+export type Source = (typeof SOURCES)[number];
 
 /**
  * Cursor dashboard models that belong to Grok Bot, not the Cursor IDE.
