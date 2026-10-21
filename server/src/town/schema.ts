@@ -111,6 +111,9 @@ export async function migrate(sql: Sql): Promise<void> {
   // other players' games add up with them).
   await sql.execute(`CREATE TABLE IF NOT EXISTS deleted_users (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL, at INTEGER NOT NULL)`);
+  // Sign-ups whose `player` didn't come up in time: the account went, but its actor may have been made
+  // anyway, so the next sign-up taking its id would fail on it. Ids come after these too.
+  await sql.execute("CREATE TABLE IF NOT EXISTS lost_signups (id INTEGER PRIMARY KEY, at INTEGER NOT NULL)");
   await migrateMerchant(sql);
   // The raid's settings, once. `start`: the first raid's Monday, the one after the town first had the
   // raid (`raidStart`). Kept rather than worked out, so a restart or deploy doesn't move the launch.

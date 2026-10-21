@@ -2,7 +2,7 @@ import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
 import { type DayFacts, EMPTY_DAY, QUESTS, questCoins } from "@tokenmaxxing/core/quests.ts";
-import type { RaidWeek } from "@tokenmaxxing/core/raid.ts";
+import { type RaidWeek, raidCoins } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import {
   coinsForTokens,
@@ -19,9 +19,10 @@ import {
 } from "@tokenmaxxing/core/shop.ts";
 import type { Drop } from "@tokenmaxxing/core/world.ts";
 import { UserError } from "rivetkit";
-import { all, one, type Sql, type TxSql } from "../actors/shared.ts";
-import { raidCoins, raidHistory } from "./raid.ts";
-import { levelOf, lookOf, TOKENS, tokensIn, userById } from "./users.ts";
+import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
+import { companyLedgerAdd } from "./companies.ts";
+import { raidHistory } from "./raid.ts";
+import { lookOf, signupDays, TOKENS, tokensIn, userById } from "./users.ts";
 
 export interface Wallet {
   balance: number;
@@ -58,21 +59,61 @@ export const bag = (sql: Sql, userId: number): Promise<BagRow[]> =>
 export const ownedItems = async (sql: Sql, userId: number): Promise<string[]> =>
   (await bag(sql, userId)).map((r) => r.item);
 
+/** One `item` into `userId`'s bag. Returns its row's id. */
+export const giveItem = async (sql: Sql, userId: number, item: string, now: number): Promise<number> =>
+  (await one<{ id: number }>(
+    sql,
+    "INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?) RETURNING id",
+    userId,
+    item,
+    now,
+  ))!.id;
+
+/** `price` more spent on `item` (one row per kind: a rebuy adds to it). */
+export const addPurchase = (sql: Sql, userId: number, item: string, price: number, now: number) =>
+  sql.execute(
+    `INSERT INTO purchases (user_id, item, price, at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(user_id, item) DO UPDATE SET price = price + excluded.price`,
+    userId,
+    item,
+    price,
+    now,
+  );
+
+/** A line in the `ledger`: `amount` coins into `userId`'s wallet (negative: out of it), under `ref`. */
+export const ledgerAdd = (sql: Sql, userId: number, amount: number, kind: string, ref: string, now: number) =>
+  sql.execute(
+    "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, ?, ?, ?)",
+    userId,
+    amount,
+    kind,
+    ref,
+    now,
+  );
+
 /**
  * Hands out what `level` has reached, each once: the level rewards, and the office's desk and chair.
  * Returns the desk and chair the first time, for `world` to put down.
  */
 export async function grantRewards(sql: Sql, userId: number, level: number, now: number): Promise<Drop[]> {
   const drops = level >= OFFICE_LEVEL ? await starterDrops(sql, userId, now) : [];
-  for (const i of levelItems(level)) {
+  const due = levelItems(level);
+  if (due.length === 0) return drops;
+  // Every sync asks: one read, and a write only for what's new.
+  const had = new Set(
+    (await all<{ item: string }>(sql, "SELECT item FROM rewards WHERE user_id = ?", userId)).map(
+      (r) => r.item,
+    ),
+  );
+  for (const i of due) {
+    if (had.has(i.id)) continue;
     const [fresh] = await all(
       sql,
       "INSERT INTO rewards (user_id, item) VALUES (?, ?) ON CONFLICT DO NOTHING RETURNING item",
       userId,
       i.id,
     );
-    if (fresh)
-      await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, i.id, now);
+    if (fresh) await giveItem(sql, userId, i.id, now);
   }
   return drops;
 }
@@ -85,14 +126,13 @@ export async function grantRewards(sql: Sql, userId: number, level: number, now:
  * Milestone coins (`milestones.ts`) go by the level, which counts every day.
  * ponytail: a late sync can also knock someone off a past podium after they spent
  * the bonus; the balance then reads short until they earn it back. Settle days into
- * a ledger if that ever matters. `top`: `podiums`, and `raids`: `raidHistory`, if the caller keeps them.
+ * a ledger if that ever matters. `top` and `raids`: what the caller keeps (`Kept`), if it does.
  */
 export async function wallet(
   sql: Sql,
   userId: number,
   now: number,
-  top?: Podium[],
-  raids?: RaidWeek[],
+  { top, raids }: Partial<Kept> = {},
 ): Promise<Wallet> {
   const today = dayKey(now);
   const me = await one<{ createdAt: number }>(
@@ -101,13 +141,13 @@ export async function wallet(
     userId,
   );
   const from = me ? dayKey(me.createdAt) : today;
-  const days = await all<{ day: string; tokens: number }>(
+  // Every day, for the level; only those from sign-up pay.
+  const everyDay = await all<{ day: string; tokens: number }>(
     sql,
-    `SELECT day, SUM(${TOKENS}) AS tokens
-     FROM usage_daily WHERE user_id = ? AND day >= ? GROUP BY day`,
+    `SELECT day, SUM(${TOKENS}) AS tokens FROM usage_daily WHERE user_id = ? GROUP BY day`,
     userId,
-    from,
   );
+  const days = everyDay.filter((d) => d.day >= from);
   // ponytail: one more query per call for the quests, like the rest of the wallet.
   const activity = await all<{ day: string } & Omit<DayFacts, "tokens">>(
     sql,
@@ -119,11 +159,7 @@ export async function wallet(
   const facts = new Map<string, DayFacts>(days.map((d) => [d.day, { ...EMPTY_DAY, tokens: d.tokens }]));
   for (const { day, ...a } of activity) facts.set(day, { ...EMPTY_DAY, ...facts.get(day), ...a });
   const places = (top ?? (await podiums(sql, now))).filter((p) => p.userId === userId);
-  const [{ spent }] = (await all<{ spent: number | null }>(
-    sql,
-    "SELECT SUM(price) AS spent FROM purchases WHERE user_id = ?",
-    userId,
-  )) as [{ spent: number | null }];
+  const spent = await scalar(sql, "SELECT SUM(price) AS n FROM purchases WHERE user_id = ?", userId);
   const wins = places.map((p) => ({ day: p.day, place: p.place, coins: PODIUM_COINS[p.place - 1]! }));
   const raided = raidCoins(raids ?? (await raidHistory(sql, now)), userId);
   const earned =
@@ -131,16 +167,17 @@ export async function wallet(
     wins.reduce((n, w) => n + w.coins, 0) +
     raided +
     [...facts.values()].reduce((n, f) => n + questCoins(f), 0) +
-    milestoneCoins(await levelOf(sql, userId));
+    milestoneCoins(levelFor(everyDay.reduce((n, d) => n + d.tokens, 0)));
   const since = addDays(today, -29);
   const todays = facts.get(today) ?? EMPTY_DAY;
+  const held = await bag(sql, userId);
   return {
-    balance: earned - (spent ?? 0) + (await ledgerSum(sql, userId)),
+    balance: earned - spent + (await ledgerSum(sql, userId)),
     today: coinsForTokens(todays.tokens) + questCoins(todays),
     raids: raided,
     wins: wins.filter((w) => w.day >= since),
-    owned: await ownedItems(sql, userId),
-    items: (await one<{ n: number }>(sql, "SELECT COUNT(*) AS n FROM items WHERE owner_id = ?", userId))!.n,
+    owned: held.map((r) => r.item),
+    items: held.reduce((n, r) => n + r.count, 0),
     quests: QUESTS.map(({ done, ...q }) => ({ ...q, done: done(todays) })),
     trading: !!(await one(
       sql,
@@ -150,6 +187,15 @@ export async function wallet(
       now - TRADE_TTL,
     )),
   };
+}
+
+/**
+ * `podiums` and `raidHistory`, as `town` keeps them (`podiumsOf`, `raidsOf`): both go over all of usage,
+ * so a coin write checks wallets against these rather than working them out again under `serial`.
+ */
+export interface Kept {
+  top: Podium[];
+  raids: RaidWeek[];
 }
 
 /** Someone who finished a day in the top 3. */
@@ -164,7 +210,6 @@ export interface Podium {
  * all of `usage_daily`, so `town` keeps it until the world day changes (`podiumsOf`).
  */
 export async function podiums(sql: Sql, now: number): Promise<Podium[]> {
-  const signups = await all<{ id: number; created_at: number }>(sql, "SELECT id, created_at FROM users");
   return all(
     sql,
     `SELECT user_id AS userId, day, place FROM (
@@ -172,7 +217,7 @@ export async function podiums(sql: Sql, now: number): Promise<Podium[]> {
        FROM usage_daily JOIN json_each(?) s ON user_id = CAST(s.key AS INTEGER) AND day >= s.value
        WHERE day < ? GROUP BY user_id, day)
      WHERE place <= ? ORDER BY day DESC`,
-    JSON.stringify(Object.fromEntries(signups.map((u) => [u.id, dayKey(u.created_at)]))),
+    JSON.stringify(await signupDays(sql)),
     dayKey(now),
     PODIUM_COINS.length,
   );
@@ -183,9 +228,9 @@ export async function podiums(sql: Sql, now: number): Promise<Podium[]> {
  * ponytail: all of `usage_daily` and `activity_daily` per call, like the leaderboards.
  */
 export async function balances(sql: Sql, now: number): Promise<Map<number, number>> {
-  const signups = await all<{ id: number; created_at: number }>(sql, "SELECT id, created_at FROM users");
-  const firstDay = JSON.stringify(Object.fromEntries(signups.map((u) => [u.id, dayKey(u.created_at)])));
-  const out = new Map(signups.map((u) => [u.id, 0]));
+  const signups = await signupDays(sql);
+  const firstDay = JSON.stringify(signups);
+  const out = new Map(Object.keys(signups).map((id) => [Number(id), 0]));
   const add = (userId: number, n: number) => {
     const had = out.get(userId);
     if (had !== undefined) out.set(userId, had + n);
@@ -213,8 +258,7 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
   }
   for (const f of facts.values()) add(f.userId, questCoins(f));
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);
-  for (const [userId, tokens] of await tokensIn(sql, [...out.keys()]))
-    add(userId, milestoneCoins(levelFor(tokens)));
+  for (const [userId, tokens] of await tokensIn(sql, "all")) add(userId, milestoneCoins(levelFor(tokens)));
   const raids = await raidHistory(sql, now);
   for (const userId of out.keys()) add(userId, raidCoins(raids, userId));
   for (const r of await all<{ userId: number; n: number }>(
@@ -239,15 +283,10 @@ export async function setBalance(
   userId: number,
   balance: number,
   now: number,
+  kept?: Kept,
 ): Promise<{ before: number; balance: number }> {
-  const before = (await wallet(sql, userId, now)).balance;
-  if (balance !== before)
-    await sql.execute(
-      "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, 'admin', 'admin', ?)",
-      userId,
-      balance - before,
-      now,
-    );
+  const before = (await wallet(sql, userId, now, kept)).balance;
+  if (balance !== before) await ledgerAdd(sql, userId, balance - before, "admin", "admin", now);
   return { before, balance };
 }
 
@@ -255,20 +294,13 @@ export async function setBalance(
  * Pays for one more `item` from `userId`'s coins and puts it in their bag. Run it serialized, so two
  * buys can't both spend the same coins.
  */
-export async function buy(sql: Sql, userId: number, item: Item, now: number): Promise<Wallet> {
-  if ((await wallet(sql, userId, now)).balance < item.price)
+export async function buy(sql: Sql, userId: number, item: Item, now: number, kept?: Kept): Promise<Wallet> {
+  if ((await wallet(sql, userId, now, kept)).balance < item.price)
     throw new UserError("Not enough coins yet.", { code: "too_poor" });
   // The item first: if the purchase write fails, it was free rather than paid for and lost.
-  await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, item.id, now);
-  await sql.execute(
-    `INSERT INTO purchases (user_id, item, price, at) VALUES (?, ?, ?, ?)
-     ON CONFLICT(user_id, item) DO UPDATE SET price = price + excluded.price`,
-    userId,
-    item.id,
-    item.price,
-    now,
-  );
-  return wallet(sql, userId, now);
+  await giveItem(sql, userId, item.id, now);
+  await addPurchase(sql, userId, item.id, item.price, now);
+  return wallet(sql, userId, now, kept);
 }
 
 /**
@@ -276,35 +308,27 @@ export async function buy(sql: Sql, userId: number, item: Item, now: number): Pr
  * company wallet (spend in `purchases`, like the shop); its own people get `EMPLOYEE_MERCH_DISCOUNT` off,
  * and a free one only if they don't have one yet. Run it serialized, like `buy`.
  */
-export async function buyMerch(sql: Sql, userId: number, item: Item, now: number): Promise<Wallet> {
+export async function buyMerch(
+  sql: Sql,
+  userId: number,
+  item: Item,
+  now: number,
+  kept?: Kept,
+): Promise<Wallet> {
   const company = await one<{ id: number }>(sql, "SELECT id FROM companies WHERE id = ?", item.companyId);
   if (!company) throw new UserError("That company is gone.", { code: "not_found" });
   const employee = (await userById(sql, userId)).companyId === company.id;
   const price = merchPrice(item.id.split(".")[2] as MerchKind, employee);
   if (price === 0 && (await one(sql, "SELECT 1 FROM items WHERE owner_id = ? AND item = ?", userId, item.id)))
     throw new UserError("You have one already: the free one is one each.", { code: "owned" });
-  if ((await wallet(sql, userId, now)).balance < price)
+  if ((await wallet(sql, userId, now, kept)).balance < price)
     throw new UserError("Not enough coins yet.", { code: "too_poor" });
-  await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, item.id, now);
+  await giveItem(sql, userId, item.id, now);
   if (price > 0) {
-    await sql.execute(
-      `INSERT INTO purchases (user_id, item, price, at) VALUES (?, ?, ?, ?)
-       ON CONFLICT(user_id, item) DO UPDATE SET price = price + excluded.price`,
-      userId,
-      item.id,
-      price,
-      now,
-    );
-    await sql.execute(
-      "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, 'merch', ?, ?)",
-      company.id,
-      userId,
-      price,
-      item.id,
-      now,
-    );
+    await addPurchase(sql, userId, item.id, price, now);
+    await companyLedgerAdd(sql, company.id, userId, price, "merch", item.id, now);
   }
-  return wallet(sql, userId, now);
+  return wallet(sql, userId, now, kept);
 }
 
 export interface Office {
@@ -344,7 +368,7 @@ export async function starterDrops(sql: Sql, userId: number, now: number): Promi
   for (const { ch, x, y } of STARTER_OFFICE) {
     const item = `furn.${ch}`;
     if (furnished) {
-      await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, item, now);
+      await giveItem(sql, userId, item, now);
       continue;
     }
     const [row] = await all<{ id: number }>(
@@ -373,9 +397,8 @@ export interface Entry {
   amount: number;
 }
 
-const ledgerSum = async (sql: Sql, userId: number): Promise<number> =>
-  (await all<{ n: number | null }>(sql, "SELECT SUM(amount) AS n FROM ledger WHERE user_id = ?", userId))[0]
-    ?.n ?? 0;
+const ledgerSum = (sql: Sql, userId: number): Promise<number> =>
+  scalar(sql, "SELECT SUM(amount) AS n FROM ledger WHERE user_id = ?", userId);
 
 /** What each player has in `ref` right now: held coins as positive numbers. */
 export async function heldIn(sql: Sql, ref: string): Promise<Map<number, number>> {
@@ -401,10 +424,11 @@ export async function hold(
   entries: Entry[],
   names: Record<number, string>,
   now: number,
+  kept?: Kept,
 ): Promise<void> {
   const paying = entries.filter((e) => e.amount > 0);
   for (const e of paying) {
-    const { balance } = await wallet(sql, e.userId, now);
+    const { balance } = await wallet(sql, e.userId, now, kept);
     const limit = kind === "stake" ? Math.floor(balance / 2) : balance;
     if (e.amount > limit) {
       const who = names[e.userId] ?? "Someone";
@@ -416,15 +440,7 @@ export async function hold(
       );
     }
   }
-  for (const e of paying)
-    await sql.execute(
-      "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, ?, ?, ?)",
-      e.userId,
-      -e.amount,
-      kind,
-      ref,
-      now,
-    );
+  for (const e of paying) await ledgerAdd(sql, e.userId, -e.amount, kind, ref, now);
 }
 
 /** Pays coins out of `ref`. Never more than it holds: a pot can't pay out coins nobody put in. */
@@ -436,22 +452,10 @@ export async function pay(
   now: number,
 ): Promise<void> {
   const out = entries.filter((e) => e.amount > 0);
-  const [{ held }] = (await all<{ held: number | null }>(
-    sql,
-    "SELECT -SUM(amount) AS held FROM ledger WHERE ref = ?",
-    ref,
-  )) as [{ held: number | null }];
+  const held = await scalar(sql, "SELECT -SUM(amount) AS n FROM ledger WHERE ref = ?", ref);
   const total = out.reduce((n, e) => n + e.amount, 0);
-  if (total > (held ?? 0)) throw new Error(`${ref}: paying ${total} but only ${held ?? 0} held`);
-  for (const e of out)
-    await sql.execute(
-      "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, ?, ?, ?)",
-      e.userId,
-      e.amount,
-      kind,
-      ref,
-      now,
-    );
+  if (total > held) throw new Error(`${ref}: paying ${total} but only ${held} held`);
+  for (const e of out) await ledgerAdd(sql, e.userId, e.amount, kind, ref, now);
 }
 
 /** Gives everyone back what they still have in `ref` (or just `userIds`). */
@@ -501,7 +505,7 @@ export async function tradesWhere(sql: Sql, where: string, ...args: unknown[]): 
 }
 
 /** Throws unless each side holds what it gives, out of its office (`not_owned`), and has the coins (`too_poor`). */
-export async function checkTrade(sql: Sql, t: Trade, now: number): Promise<void> {
+export async function checkTrade(sql: Sql, t: Trade, now: number, kept?: Kept): Promise<void> {
   for (const d of directions(t)) {
     const has = await ownedItems(sql, d.giverId);
     for (const id of d.side.items)
@@ -509,7 +513,7 @@ export async function checkTrade(sql: Sql, t: Trade, now: number): Promise<void>
         throw new UserError(`${d.giver} doesn't have ${itemById(id)?.name ?? id}.`, { code: "not_owned" });
     if (d.side.coins === 0) continue;
     // Not how many they have: that's theirs to know.
-    if ((await wallet(sql, d.giverId, now)).balance < d.side.coins)
+    if ((await wallet(sql, d.giverId, now, kept)).balance < d.side.coins)
       throw new UserError(`${d.giver} can't cover 🪙 ${d.side.coins} right now.`, { code: "too_poor" });
   }
 }
@@ -519,21 +523,14 @@ export async function checkTrade(sql: Sql, t: Trade, now: number): Promise<void>
  * coins in one ref, items as one row of each kind. Run it serialized. Throws `too_poor` /
  * `not_owned` when something changed since the offer, and `not_found` when it's gone.
  */
-export async function settleTrade(sql: TxSql, t: Trade, now: number): Promise<void> {
+export async function settleTrade(sql: TxSql, t: Trade, now: number, kept?: Kept): Promise<void> {
   await sql.transaction(async (tx) => {
-    await checkTrade(tx, t, now);
+    await checkTrade(tx, t, now, kept);
     // The offer goes with it, so it can't be settled twice; withdrawn or replaced meanwhile, it's gone.
     if (!(await one(tx, "DELETE FROM trades WHERE from_id = ? AND at = ? RETURNING from_id", t.fromId, t.at)))
       throw new UserError("That offer is gone.", { code: "not_found" });
     const ref = `trade:${t.fromId}:${t.at}`;
-    const entry = (userId: number, amount: number) =>
-      tx.execute(
-        "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, 'trade', ?, ?)",
-        userId,
-        amount,
-        ref,
-        now,
-      );
+    const entry = (userId: number, amount: number) => ledgerAdd(tx, userId, amount, "trade", ref, now);
     for (const d of directions(t)) {
       if (d.side.coins > 0) {
         await entry(d.giverId, -d.side.coins);
@@ -583,12 +580,12 @@ const DROPS_PER_PERSON = 5;
 export async function takeOut(sql: Sql, userId: number, item: unknown, now: number): Promise<number> {
   if (!isTradeable(item) && !isKeepsake(item))
     throw new UserError("That one stays with you.", { code: "not_tradeable" });
-  const [{ n }] = (await all<{ n: number }>(
+  const n = await scalar(
     sql,
     "SELECT COUNT(*) AS n FROM items WHERE dropped_by = ? AND owner_id IS NULL AND room IS NOT 'office:' || ?",
     userId,
     userId,
-  )) as [{ n: number }];
+  );
   if (n >= DROPS_PER_PERSON)
     throw new UserError(`You have ${n} things on the floor already. Unclaimed, they come back in an hour.`, {
       code: "too_many",

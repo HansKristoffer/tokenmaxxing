@@ -22,17 +22,17 @@ import {
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import { all, one, type Sql } from "../actors/shared.ts";
 import type { RaidLoot } from "./loot.ts";
-import { TOKENS } from "./users.ts";
+import { signupDays, TOKENS } from "./users.ts";
 
 /** One raider on the board. */
-export interface RaidRow {
+interface RaidRow {
   userId: number;
   name: string;
   damage: number;
 }
 
 /** A boss that fell this week. */
-export interface RaidKill {
+interface RaidKill {
   rung: number;
   boss: RungBoss;
   /** The world day it fell. */
@@ -123,20 +123,23 @@ const RULES: Raid["rules"] = {
  */
 export async function raidStart(sql: Sql, now: number, env = process.env.RAID_START_WEEK): Promise<string> {
   if (env) return env;
+  const stored = () => one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = 'start'");
+  // Every raid poll asks, and it's written once: read first.
+  const kept = await stored();
+  if (kept) return kept.value;
   await sql.execute(
     "INSERT INTO raid_meta (key, value) VALUES ('start', ?) ON CONFLICT DO NOTHING",
     launchWeek(now),
   );
-  return (await one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = 'start'"))!.value;
+  return (await stored())!.value;
 }
 
 /**
  * Every player's world days that hit a boss: from the week before the first raid (its HP), and
  * only days from each player's sign-up day, like coins, so a first sync's backfill doesn't.
  */
-export async function raidDays(sql: Sql, start: string): Promise<RaidDay[]> {
-  const signups = await all<{ id: number; created_at: number }>(sql, "SELECT id, created_at FROM users");
-  const firstDay = JSON.stringify(Object.fromEntries(signups.map((u) => [u.id, dayKey(u.created_at)])));
+async function raidDays(sql: Sql, start: string): Promise<RaidDay[]> {
+  const firstDay = JSON.stringify(await signupDays(sql));
   const from = addDays(start, -7);
   const tokens = await all<{ userId: number; day: string; tokens: number }>(
     sql,
@@ -167,8 +170,6 @@ export async function raidHistory(sql: Sql, now: number): Promise<RaidWeek[]> {
   const start = await raidStart(sql, now);
   return raidWeeks(await raidDays(sql, start), now, start);
 }
-
-export { raidCoins };
 
 /** The raid shown at `now` (`raidWeekAt`: last week until Monday 08:00) as `userId` sees it. */
 export async function raid(sql: Sql, userId: number | null, weeks: RaidWeek[], now: number): Promise<Raid> {

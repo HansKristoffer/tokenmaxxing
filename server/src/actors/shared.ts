@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
+import type { Notice } from "@tokenmaxxing/core/world.ts";
 import { RivetError, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { randomToken, sha256 } from "../crypto.ts";
@@ -38,6 +39,16 @@ export const main = (client: Client<typeof registry>) => ({
   arcade: client.arcade.getOrCreate(["main"], internal),
 });
 
+/**
+ * A line for one player's open game tabs (someone applied, you got in); nothing if they're offline.
+ * Best effort: what caused it has already happened.
+ */
+export async function notify(client: Client<typeof registry>, userId: number, notice: Notice): Promise<void> {
+  await main(client)
+    .world.notify(userId, notice)
+    .catch((err) => console.warn(`[notify] ${userId}: ${String(err)}`));
+}
+
 /** One match, as another actor calls it. */
 export const matchOf = (client: Client<typeof registry>, id: number) =>
   client.match.get([String(id)], internal);
@@ -70,7 +81,7 @@ export const clientIpOf = (req: Request | undefined): string | null =>
   req?.headers.get(CLIENT_IP_HEADER) ?? null;
 
 /** `ADMIN_TOKEN`, compared in constant time. Unset turns the admin page off. */
-export function isAdminToken(token: unknown): boolean {
+function isAdminToken(token: unknown): boolean {
   const want = process.env.ADMIN_TOKEN;
   if (!want || typeof token !== "string") return false;
   return timingSafeEqual(Buffer.from(sha256(token)), Buffer.from(sha256(want)));
@@ -101,6 +112,28 @@ const TOKEN_STALE_MS = 10 * 60_000;
 const VERIFY_WAIT_MS = 3_000;
 export type TokenCache = Map<string, { caller: Caller; until: number }>;
 
+/** One cache for every actor: `town`, `world`, `arcade` and each `match` see the same tokens. */
+const TOKENS: TokenCache = new Map();
+/** Checks under way, per cache: a burst of connections with one token asks its `player` once. */
+const checking = new WeakMap<TokenCache, Map<string, Promise<Via | null>>>();
+
+/** `ask`, unless the same token is being checked already: then that answer. */
+function checkOnce(cache: TokenCache, token: string, ask: () => Promise<Via | null>): Promise<Via | null> {
+  const pending = checking.get(cache) ?? new Map<string, Promise<Via | null>>();
+  checking.set(cache, pending);
+  const had = pending.get(token);
+  if (had) return had;
+  const check = ask();
+  pending.set(token, check);
+  const done = () => forget(cache, token, check);
+  check.then(done, done);
+  return check;
+}
+
+const forget = (cache: TokenCache, token: string, check: Promise<unknown>) => {
+  if (checking.get(cache)?.get(token) === check) checking.get(cache)!.delete(token);
+};
+
 /**
  * Connection auth for actors other than `player`: internal callers by key, the admin page by
  * `ADMIN_TOKEN`, users by asking their `player` actor (cached for a minute), anonymous otherwise.
@@ -108,7 +141,7 @@ export type TokenCache = Map<string, { caller: Caller; until: number }>;
 export async function authenticate(
   params: ConnParams | undefined,
   client: Client<typeof registry>,
-  cache: TokenCache,
+  cache: TokenCache = TOKENS,
 ): Promise<Caller> {
   if (params?.internal === INTERNAL_KEY) return { kind: "internal" };
   if (params?.admin !== undefined) {
@@ -120,21 +153,28 @@ export async function authenticate(
   const hit = cache.get(params.token);
   if (hit && hit.until > now) return hit.caller;
   const t = splitToken(params.token);
+  const token = params.token;
   const verify = t
-    ? client.player
-        .get([String(t.userId)], internal)
-        .verify(t.secret)
-        .catch((err: unknown) => {
-          // A deleted/nonexistent player really is signed out. Engine and network failures aren't.
-          if (err instanceof RivetError && err.group === "actor" && err.code === "not_found") return null;
-          throw err;
-        })
+    ? checkOnce(cache, token, () =>
+        client.player
+          .get([String(t.userId)], internal)
+          .verify(t.secret)
+          .catch((err: unknown) => {
+            // A deleted/nonexistent player really is signed out. Engine and network failures aren't.
+            if (err instanceof RivetError && err.group === "actor" && err.code === "not_found") return null;
+            throw err;
+          }),
+      )
     : Promise.resolve(null);
   const stale = hit && now - hit.until < TOKEN_STALE_MS && hit.caller.kind === "user" ? hit.caller : null;
   if (stale) {
     const busy = Symbol();
     const answer = await Promise.race([verify, delay(VERIFY_WAIT_MS).then(() => busy)]).catch(() => busy);
-    if (answer === busy) return stale;
+    if (answer === busy) {
+      // The next call asks again rather than waiting on a player that may never answer this one.
+      forget(cache, token, verify);
+      return stale;
+    }
   }
   const via = await verify;
   if (!t || !via) throw unauthorized();
@@ -200,3 +240,7 @@ export const all = <T>(sql: Sql, query: string, ...args: unknown[]): Promise<T[]
 
 export const one = async <T>(sql: Sql, query: string, ...args: unknown[]): Promise<T | undefined> =>
   (await all<T>(sql, query, ...args))[0];
+
+/** The one number `query` selects, as `n`: a count or a sum, 0 for none. */
+export const scalar = async (sql: Sql, query: string, ...args: unknown[]): Promise<number> =>
+  (await one<{ n: number | null }>(sql, query, ...args))?.n ?? 0;

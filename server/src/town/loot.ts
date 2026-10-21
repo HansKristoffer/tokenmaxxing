@@ -12,8 +12,8 @@ import {
 import { bossAt, type RaidWeek, type RungBoss, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import type { Client } from "rivetkit/client";
 import type { registry } from "../actors/registry.ts";
-import { all, main, type Sql, type TxSql } from "../actors/shared.ts";
-import { notify } from "./sync.ts";
+import { all, main, notify, type Sql, type TxSql } from "../actors/shared.ts";
+import { giveItem } from "./coins.ts";
 
 /**
  * `RAID_LOOT_BOOST`, for dev and testing only: every drop's odds times this (checked at boot by
@@ -64,7 +64,7 @@ export async function grantLoot(
         d.userId,
       );
       if (!row) continue;
-      await tx.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", d.userId, d.item, now);
+      await giveItem(tx, d.userId, d.item, now);
       out.push(d);
     }
     return out;

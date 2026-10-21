@@ -2,15 +2,16 @@ import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import { houseTier } from "@tokenmaxxing/core/world.ts";
 import { UserError } from "rivetkit";
-import { all, one, type Sql } from "../actors/shared.ts";
-import { forgetLogo } from "../brand.ts";
+import { all, one, type Sql, scalar } from "../actors/shared.ts";
 import { balances } from "./coins.ts";
 import {
   type Changed,
-  companyById,
+  type CompanyRow,
   companyInfos,
+  companyLedgerAdd,
+  companyOrGone,
   companyWallet,
-  forgetFurniture,
+  dropCompany,
   leave,
   withdraw,
 } from "./companies.ts";
@@ -78,42 +79,39 @@ export interface AdminCompany {
   wallet: number;
 }
 
-const count = async (sql: Sql, query: string, ...args: unknown[]): Promise<number> =>
-  (await one<{ n: number | null }>(sql, query, ...args))?.n ?? 0;
-
 export async function overview(sql: Sql, now: number): Promise<AdminOverview> {
   const today = dayKey(now);
   const week = addDays(today, -6);
   const coins = [...(await balances(sql, now)).values()].reduce((a, b) => a + b, 0);
   return {
-    users: await count(sql, "SELECT COUNT(*) AS n FROM users"),
-    companies: await count(sql, "SELECT COUNT(*) AS n FROM companies"),
-    signups24h: await count(sql, "SELECT COUNT(*) AS n FROM users WHERE created_at >= ?", now - 86_400_000),
-    signups7d: await count(
+    users: await scalar(sql, "SELECT COUNT(*) AS n FROM users"),
+    companies: await scalar(sql, "SELECT COUNT(*) AS n FROM companies"),
+    signups24h: await scalar(sql, "SELECT COUNT(*) AS n FROM users WHERE created_at >= ?", now - 86_400_000),
+    signups7d: await scalar(
       sql,
       "SELECT COUNT(*) AS n FROM users WHERE created_at >= ?",
       now - 7 * 86_400_000,
     ),
-    activeToday: await count(
+    activeToday: await scalar(
       sql,
       "SELECT COUNT(DISTINCT user_id) AS n FROM usage_daily WHERE day = ?",
       today,
     ),
-    active7d: await count(sql, "SELECT COUNT(DISTINCT user_id) AS n FROM usage_daily WHERE day >= ?", week),
-    tokensToday: await count(sql, `SELECT SUM(${TOKENS}) AS n FROM usage_daily WHERE day = ?`, today),
-    tokens30d: await count(
+    active7d: await scalar(sql, "SELECT COUNT(DISTINCT user_id) AS n FROM usage_daily WHERE day >= ?", week),
+    tokensToday: await scalar(sql, `SELECT SUM(${TOKENS}) AS n FROM usage_daily WHERE day = ?`, today),
+    tokens30d: await scalar(
       sql,
       `SELECT SUM(${TOKENS}) AS n FROM usage_daily WHERE day >= ?`,
       addDays(today, -29),
     ),
-    gamesToday: await count(
+    gamesToday: await scalar(
       sql,
       "SELECT COUNT(DISTINCT match_id) AS n FROM match_players WHERE day = ?",
       today,
     ),
     coins,
-    deleted: await count(sql, "SELECT COUNT(*) AS n FROM deleted_users"),
-    flagged: await count(
+    deleted: await scalar(sql, "SELECT COUNT(*) AS n FROM deleted_users"),
+    flagged: await scalar(
       sql,
       "SELECT COUNT(DISTINCT user_id) AS n FROM capped_daily WHERE day >= ?",
       addDays(today, -29),
@@ -202,14 +200,7 @@ export async function companies(sql: Sql): Promise<AdminCompany[]> {
             (SELECT COALESCE(SUM(amount), 0) FROM company_ledger l WHERE l.company_id = c.id) AS wallet
      FROM companies c LEFT JOIN users o ON o.id = c.owner_id`,
   );
-  const infos = new Map(
-    (
-      await companyInfos(
-        sql,
-        rows.map((r) => r.id),
-      )
-    ).map((i) => [i.id, i]),
-  );
+  const infos = new Map((await companyInfos(sql, "all")).map((i) => [i.id, i]));
   const members = await all<{ id: number; name: string; companyId: number }>(
     sql,
     "SELECT id, name, company_id AS companyId FROM users WHERE company_id IS NOT NULL ORDER BY joined_at, id",
@@ -259,7 +250,8 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
   const changed = await leave(sql, userId);
   await withdraw(sql, userId);
   await sql.execute("DELETE FROM trades WHERE from_id = ? OR to_id = ?", userId, userId);
-  for (const table of ["usage_daily", "activity_daily", "capped_daily", "purchases", "rewards", "offices"])
+  await wipeUsage(sql, userId);
+  for (const table of ["purchases", "rewards", "offices"])
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
   await sql.execute(
     "DELETE FROM items WHERE owner_id = ? OR (owner_id IS NULL AND dropped_by = ? AND company_id IS NULL)",
@@ -271,17 +263,19 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
   return changed;
 }
 
-/** Closes a company: everyone's out, its plot and logo are freed and its applications dropped. */
-export async function closeCompany(sql: Sql, companyId: number): Promise<Changed> {
-  if (!(await companyById(sql, companyId)))
-    throw new UserError("That company is gone.", { code: "not_found" });
-  const members = await all<{ id: number }>(sql, "SELECT id FROM users WHERE company_id = ?", companyId);
-  await sql.execute("UPDATE users SET company_id = NULL, joined_at = NULL WHERE company_id = ?", companyId);
-  await sql.execute("DELETE FROM companies WHERE id = ?", companyId);
-  await sql.execute("DELETE FROM applications WHERE company_id = ?", companyId);
-  await forgetFurniture(sql, companyId);
-  await forgetLogo(companyId);
-  return { users: members.map((m) => m.id), companies: [companyId] };
+/**
+ * Closes a company (`companyId` as the admin page sent it): everyone's out, its plot and logo are freed
+ * and its applications dropped. Returns it as it was, and who was in it.
+ */
+export async function closeCompany(
+  sql: Sql,
+  companyId: unknown,
+): Promise<{ company: CompanyRow; changed: Changed }> {
+  const company = await companyOrGone(sql, companyId);
+  const members = await all<{ id: number }>(sql, "SELECT id FROM users WHERE company_id = ?", company.id);
+  await sql.execute("UPDATE users SET company_id = NULL, joined_at = NULL WHERE company_id = ?", company.id);
+  await dropCompany(sql, company.id);
+  return { company, changed: { users: members.map((m) => m.id), companies: [company.id] } };
 }
 
 /** Sets a company wallet: the difference goes in its ledger as kind `admin`. Run it serialized. */
@@ -293,14 +287,7 @@ export async function setCompanyWallet(
   now: number,
 ): Promise<{ before: number; coins: number }> {
   const before = await companyWallet(sql, companyId);
-  if (coins !== before)
-    await sql.execute(
-      "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, 'admin', 'admin', ?)",
-      companyId,
-      userId,
-      coins - before,
-      now,
-    );
+  if (coins !== before) await companyLedgerAdd(sql, companyId, userId, coins - before, "admin", "admin", now);
   return { before, coins };
 }
 
