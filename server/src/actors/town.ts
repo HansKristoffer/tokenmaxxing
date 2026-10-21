@@ -1,5 +1,6 @@
 import { frontier } from "@tokenmaxxing/core/maps.ts";
-import { dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
+import { headlines, type Paper } from "@tokenmaxxing/core/paper.ts";
+import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
 import {
   emptySide,
   isTradeable,
@@ -96,6 +97,7 @@ import {
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { migrate } from "../town/schema.ts";
+import { paperFacts, payForPolse } from "../town/street.ts";
 import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
 import {
   levelOf,
@@ -224,6 +226,8 @@ export const town = actor({
     tokens: new Map() as TokenCache,
     /** `podiums` for a world day, for wallets and cards; a late sync or a wiped account drops it. */
     podiums: null as { day: string; rows: Promise<Podium[]> } | null,
+    /** Today's paper (about yesterday): built on the first read of the day, then kept. */
+    paper: null as { day: string; paper: Promise<Paper> } | null,
   }),
   db: db({ onMigrate: migrate }),
   onCreate: (c) => requireMain(c),
@@ -459,6 +463,26 @@ export const town = actor({
       if (item.level !== undefined)
         throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
       return c.vars.serial(() => buy(c.db, userId, item, Date.now()));
+    },
+
+    /** The morning paper: yesterday in town, the same front page all day. */
+    paper: (c): Promise<Paper> => {
+      requireUser(c.conn.state);
+      const day = addDays(dayKey(Date.now()), -1);
+      if (c.vars.paper?.day !== day)
+        c.vars.paper = { day, paper: paperFacts(c.db, day).then((f) => ({ day, headlines: headlines(f) })) };
+      const paper = c.vars.paper.paper;
+      // A failed build is tried again on the next read.
+      paper.catch(() => {
+        if (c.vars.paper?.paper === paper) c.vars.paper = null;
+      });
+      return paper;
+    },
+
+    /** From `world.eat`: pays for a rød pølse, or fails with `too_poor`. */
+    buyPolse: async (c, userId: number): Promise<void> => {
+      requireInternal(c.conn.state);
+      await c.vars.serial(() => payForPolse(c.db, userId, Date.now()));
     },
 
     // MARK: Drops

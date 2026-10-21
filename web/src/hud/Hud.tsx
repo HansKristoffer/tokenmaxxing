@@ -17,6 +17,7 @@ import { LookPicker } from "./LookPicker.tsx";
 import { MatchPanel } from "./Match.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
+import { PaperPanel } from "./Paper.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Shop } from "./Shop.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
@@ -217,6 +218,8 @@ function Panel() {
       return <TradePanel userId={panel.userId} />;
     case "trades":
       return <TradesPanel />;
+    case "paper":
+      return <PaperPanel />;
     case "menu":
       return (
         <Modal title="Menu">

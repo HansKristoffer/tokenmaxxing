@@ -1,3 +1,4 @@
+import { stepPace } from "@tokenmaxxing/core/street.ts";
 import {
   DIRS,
   type Facing,
@@ -15,6 +16,7 @@ import { camera, zoom } from "./camera.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
+import { blocksStep, streetInteract } from "./street.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {
@@ -231,7 +233,8 @@ export function updateSelf(now: number): void {
     send(conn.step(dir));
     return;
   }
-  const target = stepTarget(world.map, me.x, me.y, dir);
+  const step = stepTarget(world.map, me.x, me.y, dir);
+  const target = step.kind === "move" && blocksStep(step.x, step.y) ? { kind: "blocked" as const } : step;
   if (target.kind === "blocked") {
     if (me.facing !== dir || me.state !== "idle") send(conn.step(dir));
     me.facing = dir;
@@ -242,7 +245,13 @@ export function updateSelf(now: number): void {
   me.facing = dir;
   me.state = "idle";
   if (target.kind === "portal") world.portalPending = true;
-  else beginStep(me, target.x, target.y, running ? RUN_STEP_MS : WALK_STEP_MS);
+  else
+    beginStep(
+      me,
+      target.x,
+      target.y,
+      (running ? RUN_STEP_MS : WALK_STEP_MS) * stepPace(me.info.polseUntil, Date.now()),
+    );
   send(conn.step(dir));
 }
 
@@ -274,6 +283,7 @@ export function interact(): void {
   const y = me.y + dy;
   const other = avatarAt(x, y);
   if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
+  if (streetInteract(me, x, y, send)) return;
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });

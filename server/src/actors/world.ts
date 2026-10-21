@@ -20,6 +20,7 @@ import {
   setHq,
   withPieces,
 } from "@tokenmaxxing/core/office.ts";
+import { cartOpen, facesCart, hasPolse, isCart, POLSE, stepPace } from "@tokenmaxxing/core/street.ts";
 import {
   baseMap,
   CHAT_HISTORY,
@@ -97,6 +98,8 @@ interface WorldPlayer extends PlayerCore, Place {
   arena?: Seat | null;
   /** Optional: players from before coffee have had none. */
   coffeeUntil?: number;
+  /** Optional, like coffee: when their pølse wears off. */
+  polseUntil?: number;
   /** Online with no input for `IDLE_MS`; cleared by the next input. */
   dozing?: boolean;
 }
@@ -167,6 +170,7 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   liveAgents: p.liveAgents,
   online: online || isBot(p.id),
   coffeeUntil: p.coffeeUntil ?? 0,
+  polseUntil: p.polseUntil ?? 0,
   dozing: online && !!p.dozing,
   x: p.x,
   y: p.y,
@@ -297,7 +301,7 @@ export const world = actor({
         return correction(p);
       }
       const s = c.vars.steps.get(userId) ?? { budget: STEP_BURST, at: 0 };
-      const budget = takeStep(s.budget, s.at, now);
+      const budget = takeStep(s.budget, s.at, now, stepPace(p.polseUntil ?? 0, now));
       if (budget === null) return correction(p);
       c.vars.steps.set(userId, { budget, at: now });
 
@@ -368,6 +372,30 @@ export const world = actor({
       c.broadcast("info", info(p, c.vars.online.has(p.id)));
       const cups = Math.round(cupsLeft(p.coffeeUntil, now));
       return { notice: COFFEE_LINES[Math.min(cups, COFFEE_LINES.length) - 1]! };
+    },
+
+    /** E at the pølsevogn while it's open: a rød pølse for `POLSE.price`, and a quicker walk for a while. */
+    eat: async (c, facing: unknown): Promise<StepResult> => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || p.state === "playing" || p.room !== "town") return null;
+      const now = Date.now();
+      touch(c, p, now);
+      if (isFacing(facing)) p.facing = facing;
+      if (!facesCart(p.x, p.y, p.facing)) return null;
+      if (!cartOpen(now)) return { notice: "🌭 Lukket. The pølsevogn opens 11:00 to 14:00." };
+      if (hasPolse(p.polseUntil ?? 0, now)) return { notice: "🌭 You're still full from the last one." };
+      const paid = await main(c.client())
+        .town.buyPolse(userId)
+        .then(() => true)
+        .catch((err: { code?: string }) => {
+          if (err?.code === "too_poor") return false;
+          throw err;
+        });
+      if (!paid) return { notice: `🌭 A rød pølse is 🪙 ${POLSE.price}. Come back with coins.` };
+      p.polseUntil = now + POLSE.ms;
+      c.broadcast("info", info(p, c.vars.online.has(p.id)));
+      return { notice: `🌭 One rød pølse, med det hele. You walk quicker for ${POLSE.ms / 60_000} minutes.` };
     },
 
     /**
@@ -907,8 +935,9 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
   return dozed;
 }
 
-/** A table or desk of a game in town: nobody walks onto it. */
+/** A table or desk of a game in town, or the pølsevogn: nobody walks onto it. */
 const onProp = (s: WorldState, x: number, y: number) =>
+  isCart(x, y) ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
 
 /** A line in a room's chat from the town itself (a game's result). */

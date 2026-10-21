@@ -168,6 +168,8 @@ export interface PlayerInfo {
   online: boolean;
   /** When their coffee wears off (epoch ms); see `drinkCoffee`. */
   coffeeUntil: number;
+  /** When their pølse wears off (epoch ms); see `POLSE` in `street.ts`. */
+  polseUntil: number;
   /** Online but no input for `IDLE_MS`: snoozing in place. */
   dozing: boolean;
 }
@@ -356,11 +358,11 @@ export const cupsLeft = (until: number, now: number): number => Math.max(0, unti
 export const STEP_BURST = 4;
 
 /**
- * A token bucket that refills at running pace. Returns the new budget, or null
- * when the step comes too fast.
+ * A token bucket that refills at running pace (times `pace`: a pølse makes it quicker). Returns the
+ * new budget, or null when the step comes too fast.
  */
-export function takeStep(budget: number, lastAt: number, now: number): number | null {
-  const refilled = Math.min(STEP_BURST, budget + (now - lastAt) / (RUN_STEP_MS * 0.8));
+export function takeStep(budget: number, lastAt: number, now: number, pace = 1): number | null {
+  const refilled = Math.min(STEP_BURST, budget + (now - lastAt) / (RUN_STEP_MS * 0.8 * pace));
   return refilled >= 1 ? refilled - 1 : null;
 }
 
