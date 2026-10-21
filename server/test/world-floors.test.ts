@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { hqMap } from "@tokenmaxxing/core/office.ts";
 import { DROPS, type Drop, mapOf, route, setDrops } from "@tokenmaxxing/core/world.ts";
+import { serial } from "../src/actors/shared.ts";
 import { town } from "../src/actors/town.ts";
 import { world } from "../src/actors/world.ts";
 import { bag, grantRewards, placed, takeOut } from "../src/town/coins.ts";
@@ -172,6 +173,7 @@ describe("drops", () => {
     };
     await town.config.actions!.sweep({
       db: sql,
+      vars: { raids: null, serial: serial() },
       client: () => ({ town: actor, world: actor, arcade: actor }),
     } as never);
     expect(DROPS.get("inn")).toEqual([drops[1]!]);
