@@ -6,6 +6,7 @@ import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
 import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
 import { type Door, doorAt, HQS, type Piece, pieceOf, withPieces } from "./office.ts";
+import { cleanPetName, MAX_PET_LOOKS, petLooks } from "./pets.ts";
 import { itemById } from "./shop.ts";
 
 export const TILE = 16;
@@ -117,11 +118,15 @@ export interface Look {
   glasses: number;
   hat: number;
   pet: number;
+  /** Which look of the worn pet: 0 is the original, n is `PET_VARIANTS[pet][n - 1]`. Always 0 without a pet. */
+  petVariant: number;
+  /** What the pet is called (`cleanPetName`); left out when it has none. */
+  petName?: string;
   /** Whose company merch they wear (a company id), 0 for none; `merchWorn` says which (`MERCH` bits). */
   merch: number;
   merchWorn: number;
 }
-export const LOOK_OPTIONS: Record<Exclude<keyof Look, "merch">, number> = {
+export const LOOK_OPTIONS: Record<Exclude<keyof Look, "merch" | "petName">, number> = {
   style: 4,
   skin: 4,
   hair: 6,
@@ -129,10 +134,11 @@ export const LOOK_OPTIONS: Record<Exclude<keyof Look, "merch">, number> = {
   glasses: 7,
   hat: 9,
   pet: 11,
+  petVariant: MAX_PET_LOOKS,
   merchWorn: 16,
 };
-/** Looks saved before the shop (or before merch) have no extras. */
-const EXTRAS = { glasses: 0, hat: 0, pet: 0, merch: 0, merchWorn: 0 };
+/** Looks saved before the shop (or before merch, or pet looks) have no extras. */
+const EXTRAS = { glasses: 0, hat: 0, pet: 0, petVariant: 0, merch: 0, merchWorn: 0 };
 export const STYLE_NAMES = ["Short hair and tee", "Cap and hoodie", "Bun and jacket", "Long hair and skirt"];
 
 export function parseLook(raw: unknown): Look | null {
@@ -143,6 +149,13 @@ export function parseLook(raw: unknown): Look | null {
     const v = r[k];
     if (!Number.isInteger(v) || (v as number) < 0 || (v as number) >= LOOK_OPTIONS[k]) return null;
     out[k] = v as number;
+  }
+  if (out.petVariant >= petLooks(out.pet)) return null;
+  // Old looks have no name; a bad one refuses the look, like a bad number.
+  if (r.petName !== undefined && r.petName !== "") {
+    const name = cleanPetName(r.petName);
+    if (!name) return null;
+    out.petName = name;
   }
   if (!Number.isSafeInteger(r.merch) || (r.merch as number) < 0) return null;
   out.merch = r.merch as number;

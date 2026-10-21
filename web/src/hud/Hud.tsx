@@ -20,6 +20,7 @@ import { MatchPanel } from "./Match.tsx";
 import { MerchShop } from "./Merch.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
+import { PetLooks } from "./PetLooks.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Shop } from "./Shop.tsx";
@@ -208,6 +209,8 @@ function Panel() {
       return <Shop />;
     case "bag":
       return <Bag />;
+    case "petLooks":
+      return <PetLooks pet={panel.pet} />;
     case "arcade":
       return <ArcadePanel />;
     case "newTable":

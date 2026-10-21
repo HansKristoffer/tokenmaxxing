@@ -44,6 +44,7 @@ export const LEGEND: Record<string, TileKind> = {
   k: { name: "shelf", text: "Books about prompting, caching and cold starts." },
   p: { name: "plant", text: "A healthy plant. Someone remembers to water it." },
   o: { name: "coffee", pours: true },
+  Q: { name: "pet bed", text: "A round cushion basket. Your pet curls up here when you're in your office." },
   I: { name: "inn door", portal: true },
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
@@ -371,7 +372,8 @@ export const MAPS: Record<MapId, GameMap> = {
     "Wp____________pW",
     "WWWWWWWxWWWWWWWW",
   ]),
-  // Everyone's office, before what they dropped in it (`mapOf`). ponytail: one template; bigger
+  // Everyone's office, before what they dropped in it (`mapOf`). ponytail: one template, with a pet bed in the bottom right corner
+  // (`Q`, a prop like a plant: nothing can be dropped on it); bigger
   // offices per house tier would be an `OFFICE_SIZES` table.
   office: new GameMap("office", "Office", [
     "WWWWWWWWWWWW",
@@ -381,7 +383,7 @@ export const MAPS: Record<MapId, GameMap> = {
     "W__________W",
     "W__________W",
     "W__________W",
-    "W__________W",
+    "W_________QW",
     "WWWWWxWWWWWW",
   ]),
   // The raid: the boss on its dais, and arcs of war desks facing it. Whoever has agents running is drawn
