@@ -1,4 +1,4 @@
-import type { Brand, Notice } from "@tokenmaxxing/core/world.ts";
+import type { Brand } from "@tokenmaxxing/core/world.ts";
 import type { Client } from "rivetkit/client";
 import type { registry } from "../actors/registry.ts";
 import { main, type Sql, serial } from "../actors/shared.ts";
@@ -69,14 +69,4 @@ export async function brand(
     website,
   );
   await push(sql, client, { companies: [id], users: [] });
-}
-
-/**
- * A line for one player's open game tabs (someone applied, you got in); nothing if they're offline.
- * Best effort: what caused it has already happened.
- */
-export async function notify(client: Client<typeof registry>, userId: number, notice: Notice): Promise<void> {
-  await main(client)
-    .world.notify(userId, notice)
-    .catch((err) => console.warn(`[notify] ${userId}: ${String(err)}`));
 }

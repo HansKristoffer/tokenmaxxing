@@ -114,7 +114,7 @@ import { markPicnic } from "../town/picnic.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import { migrate } from "../town/schema.ts";
 import { paperFacts } from "../town/street.ts";
-import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
+import { brand, push, pushOffice, pushPlayers } from "../town/sync.ts";
 import { giveTicket } from "../town/tickets.ts";
 import {
   levelOf,
@@ -137,6 +137,7 @@ import {
   internal,
   main,
   makeToken,
+  notify,
   one,
   requireAdmin,
   requireInternal,

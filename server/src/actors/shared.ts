@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
+import type { Notice } from "@tokenmaxxing/core/world.ts";
 import { RivetError, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { randomToken, sha256 } from "../crypto.ts";
@@ -37,6 +38,16 @@ export const main = (client: Client<typeof registry>) => ({
   world: client.world.getOrCreate(["main"], internal),
   arcade: client.arcade.getOrCreate(["main"], internal),
 });
+
+/**
+ * A line for one player's open game tabs (someone applied, you got in); nothing if they're offline.
+ * Best effort: what caused it has already happened.
+ */
+export async function notify(client: Client<typeof registry>, userId: number, notice: Notice): Promise<void> {
+  await main(client)
+    .world.notify(userId, notice)
+    .catch((err) => console.warn(`[notify] ${userId}: ${String(err)}`));
+}
 
 /** One match, as another actor calls it. */
 export const matchOf = (client: Client<typeof registry>, id: number) =>

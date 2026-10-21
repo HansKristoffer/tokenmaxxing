@@ -28,6 +28,7 @@ import {
   INTERNAL_KEY,
   main,
   matchOf,
+  notify,
   requireInternal,
   requireMain,
   requireSyncer,
@@ -690,7 +691,13 @@ const matchInfo = (s: ArcadeState, m: Live): MatchInfo => ({
   outcome: m.outcome,
 });
 
-function lobbyFor(s: ArcadeState, userId: number): Lobby {
+/** What every lobby shows the same: each table's view, and every match. */
+const shared = (s: ArcadeState) => ({
+  tables: new Map(Object.values(s.tables).map((t) => [t.id, tableView(s, t)])),
+  matches: Object.values(s.matches).map((m) => matchInfo(s, m)),
+});
+
+function lobbyFor(s: ArcadeState, userId: number, views = shared(s)): Lobby {
   const tables = Object.values(s.tables).filter(
     (t) => t.open || t.seated.includes(userId) || t.invited.some((i) => i.userId === userId),
   );
@@ -705,22 +712,28 @@ function lobbyFor(s: ArcadeState, userId: number): Lobby {
     if (b) bets[m.id] = { on: b.on, amount: b.amount };
   }
   return {
-    tables: tables.map((t) => tableView(s, t)),
-    matches: Object.values(s.matches).map((m) => matchInfo(s, m)),
+    tables: tables.map((t) => views.tables.get(t.id)!),
+    matches: views.matches,
     me: { table: mine?.id ?? null, match: playing?.id ?? null, bets },
   };
 }
 
-/** Everyone connected gets their own lobby: open tables plus the private ones that are theirs. */
+/**
+ * Everyone connected gets their own lobby: open tables plus the private ones that are theirs. What's
+ * the same for everyone is built once, and each player's once however many tabs they have.
+ */
 function push(c: ArcadeCtx): void {
+  const views = shared(c.state);
+  const lobbies = new Map<number, Lobby>();
   for (const conn of c.conns.values()) {
     const caller = conn.state as Caller;
-    if (caller.kind === "user") conn.send("lobby", lobbyFor(c.state, caller.userId));
+    if (caller.kind !== "user") continue;
+    const lobby = lobbies.get(caller.userId) ?? lobbyFor(c.state, caller.userId, views);
+    lobbies.set(caller.userId, lobby);
+    conn.send("lobby", lobby);
   }
 }
 
 /** A toast for one player, through `world` (the tab they have open). */
 const tell = (client: Client<typeof registry>, userId: number, text: string) =>
-  main(client)
-    .world.notify(userId, { text })
-    .catch(() => {});
+  notify(client, userId, { text });
