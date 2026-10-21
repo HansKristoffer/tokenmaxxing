@@ -161,6 +161,21 @@ const EXTRAS = {
   merch: 0,
   merchWorn: 0,
 };
+/** A look from its base and whichever extras it has; the rest are none. */
+export const lookWith = ({
+  style,
+  skin,
+  hair,
+  outfit,
+  ...extras
+}: Pick<Look, "style" | "skin" | "hair" | "outfit"> & Partial<Look>): Look => ({
+  style,
+  skin,
+  hair,
+  outfit,
+  ...EXTRAS,
+  ...extras,
+});
 export const STYLE_NAMES = ["Short hair and tee", "Cap and hoodie", "Bun and jacket", "Long hair and skirt"];
 
 export function parseLook(raw: unknown): Look | null {
@@ -190,13 +205,12 @@ export function parseLook(raw: unknown): Look | null {
 /** A stable starting look, so a new player isn't a clone of everyone else. */
 export function defaultLook(seed: number): Look {
   const n = Math.abs(Math.imul(seed + 1, 2654435761));
-  return {
+  return lookWith({
     style: n % LOOK_OPTIONS.style,
     skin: (n >>> 3) % LOOK_OPTIONS.skin,
     hair: (n >>> 6) % LOOK_OPTIONS.hair,
     outfit: (n >>> 9) % 8,
-    ...EXTRAS,
-  };
+  });
 }
 
 // MARK: Wire types

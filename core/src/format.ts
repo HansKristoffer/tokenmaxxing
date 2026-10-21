@@ -92,6 +92,10 @@ export function compact(n: number): string {
   return String(Math.round(n));
 }
 
+/** A template with each `{key}` filled in from `vars`; a key `vars` lacks reads as nothing. */
+export const fill = (template: string, vars: Record<string, string | number>): string =>
+  template.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ""));
+
 export const usd = (n: number): string => (n >= 100 ? `$${Math.round(n)}` : `$${n.toFixed(2)}`);
 
 /** "18:42", or "3:04:05" past an hour. */

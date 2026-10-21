@@ -4,7 +4,8 @@
  * `world` actor walks him (he's one of `BOTS`) and `town` keeps the tickets.
  */
 import type { BotDef } from "./bots.ts";
-import { BOT_LEVEL, compact } from "./format.ts";
+import { BOT_LEVEL, compact, fill } from "./format.ts";
+import { lookWith } from "./world.ts";
 
 /** The cop's id: the web draws his cap, notepad and siren on this one. */
 export const COP_ID = -3;
@@ -24,21 +25,7 @@ export const SIREN = "🚨";
 export const COP: BotDef = {
   id: COP_ID,
   name: "Officer 429",
-  look: {
-    style: 0,
-    skin: 1,
-    hair: 0,
-    outfit: 1,
-    glasses: 0,
-    hat: 0,
-    pet: 0,
-    held: 0,
-    back: 0,
-    petwear: 0,
-    petVariant: 0,
-    merch: 0,
-    merchWorn: 0,
-  },
+  look: lookWith({ style: 0, skin: 1, hair: 0, outfit: 1 }),
   level: BOT_LEVEL,
   bio: "Rate-limit enforcement, Tokenmaxxing PD. Pulls over whoever burns fastest and writes them a ticket. Takes nothing. Fond of coffee.",
   lines: [
@@ -71,7 +58,7 @@ export const PULL_OVER_LINES = [
 
 /** The chase starts: over his head, with the siren on. */
 export const pullOverLine = (name: string, rand = Math.random): string =>
-  `${SIREN} ${PULL_OVER_LINES[Math.floor(rand() * PULL_OVER_LINES.length)]!.replaceAll("{name}", name)}`;
+  `${SIREN} ${fill(PULL_OVER_LINES[Math.floor(rand() * PULL_OVER_LINES.length)]!, { name })}`;
 
 /** What a ticket is for. `{rate}` is the speed, rounded down (`240M`). */
 export const CHARGES = [
@@ -123,7 +110,7 @@ export interface Ticket {
 
 /** The charge in words. A rounded speed reads `240M`, not `240.0M`. */
 export const chargeOf = (t: Pick<Ticket, "rate" | "charge">): string =>
-  (CHARGES[t.charge] ?? CHARGES[0]!).replaceAll("{rate}", compact(t.rate).replace(".0", ""));
+  fill(CHARGES[t.charge] ?? CHARGES[0]!, { rate: compact(t.rate).replace(".0", "") });
 
 /** A fresh ticket for `tokens` an hour on `day`; `rand` picks the charge. */
 export const writeTicket = (day: string, tokens: number, rand = Math.random): Ticket => ({
