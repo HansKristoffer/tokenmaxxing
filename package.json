@@ -35,7 +35,7 @@
     "desktop:dev": "cd app/desktop && tauri dev",
     "desktop:build": "cd app/desktop && tauri build",
     "helper:once": "bun app/helper/src/main.ts --once",
-    "test": "bun test --timeout 60000",
+    "test": "bun test --timeout 60000 --parallel=12",
     "typecheck": "tsc -p core && tsc -p server && tsc -p web && tsc -p app/helper",
     "lint": "biome ci .",
     "format": "biome check --write .",
