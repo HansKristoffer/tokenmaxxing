@@ -657,10 +657,13 @@ export const world = actor({
     /** From `town`. Returns drops a building that lost or gained a door had no place for, to give back. */
     setPlayer: async (c, core: PlayerCore): Promise<number[]> => {
       requireInternal(c.conn.state);
-      const before = c.state.players[core.id]?.companyId;
-      const hadDoor = doorKey(c.state.players[core.id]);
+      const old = c.state.players[core.id];
+      const before = old?.companyId;
+      const hadDoor = doorKey(old);
+      const online = c.vars.online.has(core.id);
+      // Before `upsert` writes over it: every sync pushes, and most change nothing anyone sees.
+      const shown = old && JSON.stringify(info(old, online));
       const p = upsert(c.state, core, Date.now());
-      const online = c.vars.online.has(p.id);
       if (before !== undefined && before !== p.companyId) {
         // Changed company: out of the old house (and out of any office with no company at all),
         // and resting players move to the new one.
@@ -672,7 +675,8 @@ export const world = actor({
           Object.assign(p, townSpawn());
         c.vars.dirty.add(p.id);
       }
-      c.broadcast("info", info(p, online));
+      const now = info(p, online);
+      if (JSON.stringify(now) !== shown) c.broadcast("info", now);
       // A door came, went or was renamed: in the old building and the new one.
       const lifted: number[] = [];
       if (doorKey(p) !== hadDoor)
@@ -711,9 +715,14 @@ export const world = actor({
     /** From `town`. Returns drops the rebuilt town has no place for, to give back. */
     setCompany: (c, company: CompanyInfo): number[] => {
       requireInternal(c.conn.state);
+      const before = c.state.companies[company.id];
+      // Every member's sync sends it: most often only its tokens today moved, or nothing did.
+      if (before && JSON.stringify(before) === JSON.stringify(company)) return [];
       c.state.companies[company.id] = company;
-      buildTown(c.state, c.vars.dirty);
       c.broadcast("companies", Object.values(c.state.companies));
+      // The town's map is its plots: only a new company or a moved one rebuilds it.
+      if (before?.plot === company.plot) return [];
+      buildTown(c.state, c.vars.dirty);
       return liftMisplaced(c, "town");
     },
 
@@ -844,6 +853,8 @@ export const world = actor({
       const p = c.state.players[userId];
       if (!p) return;
       p.lastAgentAt = Math.max(p.lastAgentAt, lastAt);
+      // Of what everyone sees (`info`), only the agent count can change here.
+      const changed = p.liveAgents !== liveAgents;
       p.liveAgents = liveAgents;
       p.burn = burn;
       const online = c.vars.online.has(userId);
@@ -854,7 +865,7 @@ export const world = actor({
           c.vars.dirty.add(p.id);
         }
       }
-      c.broadcast("info", info(p, online));
+      if (changed) c.broadcast("info", info(p, online));
     },
   },
 });
