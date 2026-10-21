@@ -4,6 +4,7 @@
  * top 3. They buy clothes, glasses, hats and pets, worn through `Look`, and
  * furniture for your office (`office.ts`). Everything bought or earned is a row in the bag.
  */
+import { HEADWEAR_ITEMS, type Rarity } from "./headwear.ts";
 import { FURNITURE } from "./office.ts";
 import type { Look } from "./world.ts";
 
@@ -30,6 +31,10 @@ export interface Item {
   level?: number;
   /** Can change hands. Rewards can't. */
   tradeable: boolean;
+  /** Without one, `rarityOf` goes by price. */
+  rarity?: Rarity;
+  /** One line of flavour, under the name. */
+  blurb?: string;
 }
 
 /** Outfits below this are free; the ones after are sold. */
@@ -68,6 +73,7 @@ export const ITEMS: readonly Item[] = [
   reward("hat", 4, "Top hat", 10),
   reward("outfit", 12, "Server-rack armour", 20),
   reward("pet", 6, "Singularity orb", 30),
+  ...HEADWEAR_ITEMS,
   ...FURNITURE.map(
     (f, index): Item => ({
       id: `furn.${f.ch}`,

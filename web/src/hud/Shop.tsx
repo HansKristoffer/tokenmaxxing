@@ -1,3 +1,4 @@
+import { rarityOf } from "@tokenmaxxing/core/headwear.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { FURNITURE, withPieces } from "@tokenmaxxing/core/office.ts";
 import { ITEMS, type Item, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
@@ -14,7 +15,7 @@ import { AvatarImage, Modal, Pills, useRun } from "./ui.tsx";
 
 const TABS = [
   ["outfit", "Clothes"],
-  ["glasses", "Glasses"],
+  ["glasses", "Face"],
   ["hat", "Hats"],
   ["pet", "Pets"],
   ["furniture", "Furniture"],
@@ -84,6 +85,7 @@ export function Shop() {
                 {item.name}
                 {n > 0 && <span className="muted"> ×{n}</span>}
               </span>
+              {item.slot !== "furniture" && <ItemNote item={item} />}
               {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
               {item.level !== undefined ? (
                 !owned && (
@@ -107,6 +109,17 @@ export function Shop() {
       </ul>
       {error && <p className="error">{error}</p>}
     </Modal>
+  );
+}
+
+/** How rare it is, and its line of flavour if it has one. */
+export function ItemNote({ item }: { item: Item }) {
+  const rarity = rarityOf(item);
+  return (
+    <small className="item-note">
+      <span className={`rarity ${rarity}`}>{rarity}</span>
+      {item.blurb && <span className="muted"> {item.blurb}</span>}
+    </small>
   );
 }
 

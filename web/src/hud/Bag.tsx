@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { world } from "../game/world.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { ItemImage, WearButton } from "./Shop.tsx";
+import { ItemImage, ItemNote, WearButton } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
 /**
@@ -60,6 +60,7 @@ export function Bag() {
               <strong>
                 {!item.tradeable && "🏅 "}
                 {item.name}
+                {item.slot !== "furniture" && <ItemNote item={item} />}
               </strong>
               <WearButton item={item} look={me.look} run={run} />
               {item.tradeable && (

@@ -954,6 +954,30 @@ input:focus {
   align-self: center;
 }
 
+/* Rarity, as a word in its colour: grey, green, blue, purple, orange. */
+.item-note {
+  display: block;
+  font-weight: normal;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.rarity {
+  text-transform: capitalize;
+  color: #c9ced6;
+}
+.rarity.uncommon {
+  color: #3ddc84;
+}
+.rarity.rare {
+  color: #4fa8ff;
+}
+.rarity.epic {
+  color: #c38bff;
+}
+.rarity.legendary {
+  color: #ffb347;
+}
+
 /* The bag: a square per kind; the picked one's name and buttons in a strip above. */
 .bag-pick {
   display: flex;
