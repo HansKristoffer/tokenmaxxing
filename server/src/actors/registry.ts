@@ -59,4 +59,5 @@ export type {
   Today,
   Trade,
   Wallet,
+  WalletLine,
 } from "./town.ts";

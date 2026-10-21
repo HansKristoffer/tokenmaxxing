@@ -40,6 +40,10 @@ export function CompanyCard({ companyId }: { companyId: number }) {
           <p>
             <strong>{houseTierName(c.tier)}</strong> · {plural(c.members.length, "member")}
           </p>
+          <p className="wallet">
+            <strong>🪙 {c.wallet.toLocaleString()}</strong>{" "}
+            <span className="muted small">in the company wallet</span>
+          </p>
           {c.website && (
             <p>
               <a href={`https://${c.website}`} target="_blank" rel="noreferrer noopener">
@@ -52,11 +56,16 @@ export function CompanyCard({ companyId }: { companyId: number }) {
               #{c.rank} in town {RANGES.find(([k]) => k === range)?.[1].toLowerCase()}
             </p>
           )}
-          {mine && (
-            <button type="button" onClick={() => hud.set({ panel: { kind: "company" } })}>
-              Manage your company
+          <p className="company-actions">
+            <button type="button" onClick={() => hud.set({ panel: { kind: "merch", companyId: c.id } })}>
+              👕 Merch shop
             </button>
-          )}
+            {mine && (
+              <button type="button" onClick={() => hud.set({ panel: { kind: "company" } })}>
+                Manage your company
+              </button>
+            )}
+          </p>
         </div>
       </div>
       <Pills value={range} options={RANGES} onChange={setRange} />

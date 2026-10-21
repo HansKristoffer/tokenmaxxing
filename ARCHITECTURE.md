@@ -154,7 +154,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `capped_daily`,
   `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
   handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
-  `offices`, `match_players` (one row per player per finished game), `deleted_users`, `admin_log`.
+  `offices`, `company_ledger` (company wallets), `match_players` (one row per player per finished game),
+  `deleted_users`, `admin_log`.
 - Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename` (10 an hour), `setLook` (refuses items you don't hold), `me`.
 - Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
   `core/src/maps.ts`), leave, kick, rename, `setWebsite`. One company per person, at most 50 members. The
@@ -234,6 +235,20 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   structured output) turns them into roof, wall, trim and plaque colours; without `ANTHROPIC_API_KEY` the site's
   own colours are used. The logo is downloaded from public hosts only (no private or loopback addresses, a few
   redirects, images up to 512 KB), and served from `/logos/` with a sandboxing CSP.
+
+- **The company wallet** (`company_ledger`). Every coin a member earns from tokens (`coinsForTokens`, not
+  podiums or quests) is matched 1:1 into their company's wallet, on top of their own: `report` runs
+  `matchCoins`, which adds what each touched day's coins grew by since it was last matched (kind `match`,
+  ref the day), to the company they're in now, from the day they joined. Outsiders' merch purchases go in
+  (`merch`), furniture comes out (`furniture`); an admin can set it (`admin`). Each row names who earned,
+  bought or paid. The first migration back-filled current members' days since they joined.
+- **Company furniture** (`COMPANY_FURNITURE`, 29 pieces drawn in `web/src/art/furniture-fancy.ts`): the owner
+  buys from the wallet (`buyPiece`); any member puts pieces out (`placePiece`, down in front of them in the
+  building) and takes them back (G) into the storeroom. Rows are `items` with `company_id` and no
+  `owner_id`, so they're never in a bag, the sweeper leaves them, and they go when the company closes.
+- **Merch** (`MERCH`): every company's tee, hoodie, cap and mug (`merch.<companyId>.<kind>`), in its colours
+  with its initials, worn through `look.merch` and `look.merchWorn`. Outsiders pay full price, into the
+  company wallet; members get `EMPLOYEE_MERCH_DISCOUNT` off (1.0: free, one of each). Not tradeable.
 
 ## Coins and the shop
 

@@ -81,6 +81,8 @@ export interface Drop {
   y: number;
   by: number;
   at: number;
+  /** The company it belongs to: bought from its wallet, it stays in its building (`COMPANY_FURNITURE`). */
+  co?: number;
 }
 
 /** What's on each room's floor. ponytail: one process holds every room's, like the town. */
@@ -115,8 +117,11 @@ export interface Look {
   glasses: number;
   hat: number;
   pet: number;
+  /** Whose company merch they wear (a company id), 0 for none; `merchWorn` says which (`MERCH` bits). */
+  merch: number;
+  merchWorn: number;
 }
-export const LOOK_OPTIONS: Record<keyof Look, number> = {
+export const LOOK_OPTIONS: Record<Exclude<keyof Look, "merch">, number> = {
   style: 4,
   skin: 4,
   hair: 6,
@@ -124,20 +129,25 @@ export const LOOK_OPTIONS: Record<keyof Look, number> = {
   glasses: 4,
   hat: 5,
   pet: 7,
+  merchWorn: 16,
 };
-/** Looks saved before the shop have no extras. */
-const EXTRAS = { glasses: 0, hat: 0, pet: 0 };
+/** Looks saved before the shop (or before merch) have no extras. */
+const EXTRAS = { glasses: 0, hat: 0, pet: 0, merch: 0, merchWorn: 0 };
 export const STYLE_NAMES = ["Short hair and tee", "Cap and hoodie", "Bun and jacket", "Long hair and skirt"];
 
 export function parseLook(raw: unknown): Look | null {
   if (!raw || typeof raw !== "object") return null;
   const r: Record<string, unknown> = { ...EXTRAS, ...(raw as Record<string, unknown>) };
   const out = {} as Look;
-  for (const k of Object.keys(LOOK_OPTIONS) as (keyof Look)[]) {
+  for (const k of Object.keys(LOOK_OPTIONS) as (keyof typeof LOOK_OPTIONS)[]) {
     const v = r[k];
     if (!Number.isInteger(v) || (v as number) < 0 || (v as number) >= LOOK_OPTIONS[k]) return null;
     out[k] = v as number;
   }
+  if (!Number.isSafeInteger(r.merch) || (r.merch as number) < 0) return null;
+  out.merch = r.merch as number;
+  // Nothing worn is no merch, so two looks that draw the same are the same.
+  if (out.merch === 0 || out.merchWorn === 0) Object.assign(out, { merch: 0, merchWorn: 0 });
   return out;
 }
 

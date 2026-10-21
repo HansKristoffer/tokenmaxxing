@@ -25,6 +25,7 @@ import {
   WALK_STEP_MS,
   type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
+import { MERCH_COMPANIES } from "../art/merch.ts";
 import { bakeGround, repaintGround } from "../art/tiles.ts";
 import { hud } from "../store.ts";
 import { emojiOnly } from "./emoji.ts";
@@ -155,6 +156,8 @@ let townPlots = "";
 /** The companies, and the town grown (or shrunk) to fit their plots. */
 export function setCompanies(list: CompanyInfo[]): void {
   world.companies = new Map(list.map((c) => [c.id, c]));
+  MERCH_COMPANIES.clear();
+  for (const c of list) MERCH_COMPANIES.set(c.id, c);
   const plots = list.map((c) => c.plot).sort((a, b) => a - b);
   if (plots.join() !== townPlots) {
     townPlots = plots.join();

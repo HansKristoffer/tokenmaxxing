@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { world } from "../game/world.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { ItemImage, WearButton } from "./Shop.tsx";
+import { merchName } from "./Merch.tsx";
+import { ItemImage, isWorn, WearButton } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
 /**
@@ -58,8 +59,8 @@ export function Bag() {
           {item ? (
             <>
               <strong>
-                {!item.tradeable && "🏅 "}
-                {item.name}
+                {item.level !== undefined && "🏅 "}
+                {merchName(item)}
               </strong>
               <WearButton item={item} look={me.look} run={run} />
               {item.tradeable && (
@@ -79,19 +80,19 @@ export function Bag() {
         {bag.map((b) => {
           const it = itemById(b.item);
           if (!it) return null;
-          const wearing = it.slot !== "furniture" && me.look[it.slot] === it.index;
+          const wearing = isWorn(it, me.look);
           return (
             <li key={b.item}>
               <button
                 type="button"
                 className={wearing ? "cell wearing" : "cell"}
                 aria-pressed={b.item === picked}
-                aria-label={`${it.name} ×${b.count}${wearing ? ", wearing" : ""}${it.tradeable ? "" : ", reward"}`}
-                title={it.name}
+                aria-label={`${merchName(it)} ×${b.count}${wearing ? ", wearing" : ""}${it.level === undefined ? "" : ", reward"}`}
+                title={merchName(it)}
                 onClick={() => setPicked(b.item)}
               >
                 <ItemImage item={it} look={me.look} bare />
-                {!it.tradeable && <span className="medal">🏅</span>}
+                {it.level !== undefined && <span className="medal">🏅</span>}
                 {b.count > 1 && <span className="n">×{b.count}</span>}
               </button>
             </li>

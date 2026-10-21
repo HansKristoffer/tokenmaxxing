@@ -1,13 +1,17 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
-import { cupsLeft, houseTier, JUMP_MS, TILE } from "@tokenmaxxing/core/world.ts";
+import { companyOfRoom, cupsLeft, houseTier, JUMP_MS, TILE } from "@tokenmaxxing/core/world.ts";
 import { house, inn } from "../art/buildings.ts";
 import { characterFrame, itemFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
+import { type FancyPiece, fancyFrame, fancySprite, neonSprite } from "../art/furniture-fancy.ts";
+import { merchColours } from "../art/merch.ts";
 import { chairBack, objectAt, sortY } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { PET_H, petFrame } from "../art/pets.ts";
+import { initialsOf } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
+import { hud } from "../store.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
@@ -71,7 +75,8 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       if (o)
         items.push({
           y: y * TILE + sortY(map.at(x, y)),
-          draw: () => g.drawImage(o.canvas, x * TILE + o.dx, y * TILE + o.dy),
+          draw: () =>
+            g.drawImage(o.fancy ? fancyCanvas(o.fancy, now) : o.canvas, x * TILE + o.dx, y * TILE + o.dy),
         });
     }
 
@@ -169,6 +174,23 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
 
   g.setTransform(1, 0, 0, 1, 0, 0);
   for (const l of labels) l();
+}
+
+/**
+ * Company furniture as it is right now: its frame, and the neon sign with the company's own name
+ * (its initials when the name won't fit) in its colours.
+ */
+function fancyCanvas(piece: FancyPiece, now: number): HTMLCanvasElement {
+  const frame = fancyFrame(piece, now);
+  const id = companyOfRoom(world.room);
+  const company = id === null ? undefined : hud.get().companies.find((c) => c.id === id);
+  if (piece.id !== "neon-sign" || !company) return fancySprite(piece.id, frame);
+  const word = company.name
+    .toUpperCase()
+    .replace(/[^A-Z0-9&! ]/g, "")
+    .trim();
+  const text = word.length > 0 && word.length <= 7 ? word : initialsOf(company.name);
+  return neonSprite(text, frame, merchColours(company).glow);
 }
 
 function drawAvatar(

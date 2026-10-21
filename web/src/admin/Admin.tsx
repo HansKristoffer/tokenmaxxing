@@ -468,6 +468,23 @@ function Companies({ companies, conn, act }: { companies: AdminCompany[]; conn: 
     { label: "Today", num: true, sort: (c) => c.tokensToday, cell: (c) => compact(c.tokensToday) },
     { label: "30 days", num: true, sort: (c) => c.tokens30d, cell: (c) => compact(c.tokens30d) },
     {
+      label: "Wallet",
+      num: true,
+      sort: (c) => c.wallet,
+      cell: (c) => (
+        <Coins
+          key={c.wallet}
+          balance={c.wallet}
+          onSave={(n) =>
+            act(
+              () => conn.adminSetCompanyCoins(c.id, n),
+              `${c.name}'s wallet has 🪙 ${n.toLocaleString()} now.`,
+            )
+          }
+        />
+      ),
+    },
+    {
       label: "Website",
       sort: (c) => c.website ?? "",
       cell: (c) =>
