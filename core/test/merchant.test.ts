@@ -85,6 +85,9 @@ describe("merchant editions", () => {
       held: 0,
       back: 0,
       petwear: 0,
+      petVariant: 0,
+      merch: 0,
+      merchWorn: 0,
     };
     expect(parseLook({ ...base, hat: EDITION_BASE })).toEqual({ ...base, hat: EDITION_BASE });
     expect(parseLook({ ...base, glasses: EDITION_BASE + 1 })).not.toBeNull();

@@ -1,25 +1,32 @@
 import { expect, test } from "bun:test";
 import { EDITION_BASE } from "../src/editions.ts";
 import { FACE_COUNT, HAT_COUNT, HEADWEAR_ITEMS, PACK_FACES, PACK_HATS } from "../src/headwear.ts";
+import { LOOT_COUNT } from "../src/loot.ts";
 import { RARITIES, rarityForPrice, rarityOf } from "../src/rarity.ts";
 import { ITEMS, itemById, itemsIn } from "../src/shop.ts";
 import { LOOK_OPTIONS, parseLook } from "../src/world.ts";
 
 test("the pack is 30-odd hats and face things, every one wearable", () => {
   expect(HEADWEAR_ITEMS.length).toBeGreaterThanOrEqual(30);
-  expect(LOOK_OPTIONS.hat).toBe(5 + PACK_HATS.length);
-  expect(LOOK_OPTIONS.glasses).toBe(4 + PACK_FACES.length);
+  // Raid loot comes after the pack (`LOOT_FIRST`).
+  expect(HAT_COUNT).toBe(5 + PACK_HATS.length);
+  expect(FACE_COUNT).toBe(4 + PACK_FACES.length);
+  expect(LOOK_OPTIONS.hat).toBe(HAT_COUNT + LOOT_COUNT.hat);
+  expect(LOOK_OPTIONS.glasses).toBe(FACE_COUNT + LOOT_COUNT.glasses);
   const look = {
     style: 0,
     skin: 0,
     hair: 0,
     outfit: 0,
-    glasses: LOOK_OPTIONS.glasses - 1,
-    hat: LOOK_OPTIONS.hat - 1,
+    glasses: FACE_COUNT - 1,
+    hat: HAT_COUNT - 1,
     pet: 0,
     held: 0,
     back: 0,
     petwear: 0,
+    petVariant: 0,
+    merch: 0,
+    merchWorn: 0,
   };
   expect(parseLook(look)).toEqual(look);
   expect(parseLook({ ...look, hat: LOOK_OPTIONS.hat })).toBeNull();

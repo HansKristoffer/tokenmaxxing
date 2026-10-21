@@ -11,6 +11,7 @@ import {
   mapOf,
   outsideDoor,
   type PlayerInfo,
+  type Raiders,
   roomEntry,
   route,
   type Snapshot,
@@ -239,6 +240,41 @@ describe("world", () => {
       ]);
       expect(moved.filter((m) => m[0] === a.userId).at(-1)?.[4]).toBe("working");
     });
+    await v.conn.dispose();
+  });
+
+  test("whoever has agents running is at a desk in the dungeon, wherever they are, busiest first", async () => {
+    const busy = await signUp("raid");
+    const calm = await signUp("raid");
+    const viewer = await signUp("raid");
+    const v = await connect(viewer.token);
+    const raiders: Raiders[] = [];
+    v.conn.on("raiders", (r: Raiders) => raiders.push(r));
+    expect(await v.conn.enterDungeon()).toMatchObject({ ...roomEntry("dungeon"), state: "idle" });
+    await eventually(() => expect(v.events.snapshots.at(-1)?.room).toBe("dungeon"));
+    // Neither ever walks in: three agents at 3M tokens a minute together, and one at 1k.
+    const at = Date.now() - 60_000;
+    await as(busy.token)
+      .player(busy.userId)
+      .ingest(
+        ["a", "b", "c"].map((s) => event({ sessionId: s, timestamp: at, inputTokens: 1e6, outputTokens: 0 })),
+      );
+    await as(calm.token)
+      .player(calm.userId)
+      .ingest([event({ timestamp: at, inputTokens: 10_000, outputTokens: 0 })]);
+    await eventually(() => {
+      const top = raiders.at(-1)?.top ?? [];
+      const ids = top.map((r) => r.id);
+      expect(ids.indexOf(busy.userId)).toBeGreaterThanOrEqual(0);
+      expect(ids.indexOf(busy.userId)).toBeLessThan(ids.indexOf(calm.userId));
+      const b = top.find((r) => r.id === busy.userId)!;
+      expect(b.agents).toBe(3);
+      // 3M over the last 10 minutes, fading a little since that sync.
+      expect(b.burn).toBeGreaterThan(250_000);
+      expect(b.burn).toBeLessThanOrEqual(300_000);
+      expect(top.find((r) => r.id === calm.userId)!.agents).toBe(1);
+    });
+    expect(v.events.snapshots.at(-1)!.raiders).not.toBeNull();
     await v.conn.dispose();
   });
 

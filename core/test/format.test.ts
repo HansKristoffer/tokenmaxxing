@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   clock,
+  countdown,
   hoursText,
   levelAt,
   levelFor,
@@ -63,4 +64,11 @@ test("past 30 each level costs at least as much as the one before, and 50 is a l
   // A heavy day is ~600M: about 6 weeks past 30 to reach 40, then 4 months more to 50.
   expect((levelAt(40) - levelAt(30)) / 600e6).toBeCloseTo(41.7, 0);
   expect((levelAt(50) - levelAt(40)) / 600e6).toBeCloseTo(125, 0);
+});
+
+test("the raid's countdown ticks to the second, days apart", () => {
+  const at = Date.UTC(2026, 9, 26, 7);
+  expect(countdown(at, at - (3 * 86_400 + 4 * 3600 + 12 * 60 + 55) * 1000)).toBe("3d 04:12:55");
+  expect(countdown(at, at - 61_000)).toBe("00:01:01");
+  expect(countdown(at, at + 5000)).toBe("00:00:00");
 });

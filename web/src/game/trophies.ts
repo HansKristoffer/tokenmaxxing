@@ -19,10 +19,10 @@ export async function loadTrophies(owner: number): Promise<Trophy[]> {
   return trophies;
 }
 
-/** Where a map's shelf stands: the first `Y` from the top left. */
+/** Where a map's shelf stands: the first `U` from the top left. */
 const spots = new WeakMap<GameMap, [number, number] | null>();
 const spotOf = (map: GameMap) => {
-  if (!spots.has(map)) spots.set(map, map.find("Y")[0] ?? null);
+  if (!spots.has(map)) spots.set(map, map.find("U")[0] ?? null);
   return spots.get(map)!;
 };
 

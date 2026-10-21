@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { doorOf, MAPS, plotId, townMap } from "../src/maps.ts";
 import { doorsFor, setHq } from "../src/office.ts";
+import { MAX_PET_LOOKS, PET_VARIANTS, petLooks, wearPet } from "../src/pets.ts";
 import { addDays, dayKey, rangeDays } from "../src/range.ts";
+import { itemById } from "../src/shop.ts";
 import {
   CUP_MS,
   cupsLeft,
@@ -9,6 +11,7 @@ import {
   defaultLook,
   drinkCoffee,
   houseTier,
+  LOOK_OPTIONS,
   MAX_CUPS,
   mapOf,
   mentionsIn,
@@ -80,6 +83,13 @@ describe("portals", () => {
     expect(portal("hq:7", exit, 7, plots)).toEqual({ room: "town", x, y: y + 1, facing: "down" });
     expect(portal("town", { ch: "I", x: 13, y: 14 }, null, plots)).toEqual(roomEntry("inn"));
     expect(portal("inn", exit, null, plots)).toEqual(outsideDoor("inn"));
+  });
+
+  test("the gate in the square goes down to the raid dungeon, and its exit back up to the gate", () => {
+    const [gx, gy] = MAPS.town.find("G")[0]!;
+    expect(portal("town", { ch: "G", x: gx, y: gy }, null, plots)).toEqual(roomEntry("dungeon"));
+    expect(portal("dungeon", exit, 7, plots)).toEqual({ room: "town", x: gx, y: gy + 1, facing: "down" });
+    expect(MAPS.town.walkable(gx, gy + 1)).toBe(true);
   });
 
   test("bo's door takes you to bo's office; its exit to below the door for a member, or the Inn", () => {
@@ -170,6 +180,52 @@ describe("looks and houses", () => {
     expect(parseLook({ style: 99, skin: 0, hair: 0, outfit: 0 })).toBeNull();
   });
 
+  test("pet variants: old looks parse, out-of-range and petless variants are refused", () => {
+    const old = { style: 1, skin: 2, hair: 3, outfit: 4, glasses: 0, hat: 0, pet: 3 };
+    expect(parseLook(old)).toEqual({
+      ...old,
+      held: 0,
+      back: 0,
+      petwear: 0,
+      petVariant: 0,
+      merch: 0,
+      merchWorn: 0,
+    });
+    const dog = { ...old, held: 0, back: 0, petwear: 0, petVariant: petLooks(3) - 1, merch: 0, merchWorn: 0 };
+    expect(parseLook(dog)).toEqual(dog);
+    expect(parseLook({ ...old, petVariant: petLooks(3) })).toBeNull();
+    expect(parseLook({ ...old, petVariant: -1 })).toBeNull();
+    expect(parseLook({ ...old, petVariant: 1.5 })).toBeNull();
+    expect(parseLook({ ...old, pet: 0, petVariant: 1 })).toBeNull();
+    // The duck has fewer looks than the dog.
+    expect(parseLook({ ...old, pet: 1, petVariant: petLooks(1) })).toBeNull();
+    expect(parseLook({ ...old, pet: 1, petVariant: petLooks(1) - 1 })).not.toBeNull();
+    expect(LOOK_OPTIONS.petVariant).toBe(MAX_PET_LOOKS);
+  });
+
+  test("wearing another pet starts from its original look, so the server never sees an out-of-range one", () => {
+    const base = {
+      style: 1,
+      skin: 2,
+      hair: 3,
+      outfit: 4,
+      glasses: 0,
+      hat: 0,
+      held: 0,
+      back: 0,
+      petwear: 0,
+      merch: 0,
+      merchWorn: 0,
+    };
+    // A dog in its 12th look, then the shop puts a dragon on: the dog's number would be out of range.
+    const dog = { ...base, pet: 3, petVariant: 11 };
+    expect(parseLook(wearPet(dog, 4))).toEqual({ ...base, pet: 4, petVariant: 0 });
+    expect(parseLook({ ...dog, pet: 4 })).toBeNull();
+    // The same pet keeps its look; no pet at all is variant 0.
+    expect(wearPet(dog, 3)).toEqual(dog);
+    expect(wearPet({ ...base, pet: 0, petVariant: 0 }, 1)).toEqual({ ...base, pet: 1, petVariant: 0 });
+  });
+
   test("houses follow tokens per member, not the team's total", () => {
     expect(houseTier(0, 0)).toBe(0);
     expect(houseTier(2e9, 1)).toBe(2); // one heavy user: a cottage
@@ -199,4 +255,21 @@ test("mentions in chat need the @; invite fields take names either way", () => {
   expect(mentionsIn("hey @Ada and @bo, not cy")).toEqual(["ada", "bo"]);
   expect(namesIn("@Ada bo, @cy  @ada")).toEqual(["ada", "bo", "cy"]);
   expect(namesIn("  ")).toEqual([]);
+});
+
+describe("pet variants", () => {
+  test("petLooks counts the original and every variation", () => {
+    expect(petLooks(0)).toBe(1);
+    expect(petLooks(99)).toBe(1);
+    expect(petLooks(1)).toBe(PET_VARIANTS[1]!.length + 1);
+    expect(MAX_PET_LOOKS).toBe(Math.max(...Object.values(PET_VARIANTS).map((v) => v.length + 1)));
+  });
+
+  test("the ids are unique per pet and only for pets the shop sells", () => {
+    for (const [pet, ids] of Object.entries(PET_VARIANTS)) {
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(itemById(`pet.${pet}`)).toBeDefined();
+      for (const id of ids) expect(id).toMatch(/^[a-z]+$/);
+    }
+  });
 });

@@ -34,10 +34,14 @@ export function zoomScale(dpr: number, w: number, h: number, now: number): numbe
 
 function targetScale(dpr: number, w: number, h: number): number {
   const map = world.map;
-  const auto = Math.max(2, Math.min(5, Math.round(window.innerHeight / (TILE * 13)))) * dpr;
   // Out: until the whole map fits, but never above the default (small rooms fit early).
   // In: twice the old closest view.
   const fit = Math.min(Math.floor(w / (map.width * TILE)), Math.floor(h / (map.height * TILE)));
+  // The dungeon is a show: by default, all of it at once.
+  const auto =
+    map.id === "dungeon"
+      ? Math.max(2 * dpr, fit)
+      : Math.max(2, Math.min(5, Math.round(window.innerHeight / (TILE * 13)))) * dpr;
   zoomRange.min = Math.max(1, Math.min(fit, auto));
   zoomRange.max = Math.round(10 * dpr);
   return Math.max(zoomRange.min, Math.min(zoomRange.max, chosenScale ?? auto));

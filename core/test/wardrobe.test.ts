@@ -41,7 +41,15 @@ test("the rarest are earned at levels 5, 15, 25 and 50 and can't be traded; the 
 
 test("old looks gain empty wardrobe slots; worn ones are shop items", () => {
   const old = { style: 1, skin: 0, hair: 2, outfit: 3, glasses: 0, hat: 0, pet: 0 };
-  expect(parseLook(old)).toEqual({ ...old, held: 0, back: 0, petwear: 0 });
+  expect(parseLook(old)).toEqual({
+    ...old,
+    held: 0,
+    back: 0,
+    petwear: 0,
+    petVariant: 0,
+    merch: 0,
+    merchWorn: 0,
+  });
   expect(defaultLook(7)).toMatchObject({ held: 0, back: 0, petwear: 0 });
   expect(parseLook({ ...old, held: WARDROBE_OPTIONS.held })).toBeNull();
   const look = parseLook({ ...old, outfit: 14, held: 1, back: 2, pet: 3, petwear: 4 })!;

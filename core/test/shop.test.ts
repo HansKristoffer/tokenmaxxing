@@ -20,7 +20,8 @@ test("level items: the shop's milestones at 10-50, the wardrobe's at 5, 15, 25, 
   expect(new Set(levelItems(Infinity).map((i) => i.level)).size).toBe(levelItems(Infinity).length);
   for (const i of ITEMS.filter((i) => i.level !== undefined)) {
     expect(i.price).toBe(0);
-    expect(i.index).toBeLessThan(i.slot === "furniture" ? 0 : LOOK_OPTIONS[i.slot]);
+    // Rewards are all wearables.
+    expect(i.index).toBeLessThan(LOOK_OPTIONS[i.slot as keyof typeof LOOK_OPTIONS]);
   }
 });
 

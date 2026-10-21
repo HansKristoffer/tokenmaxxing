@@ -1,7 +1,10 @@
+import { LOOT_FIRST } from "@tokenmaxxing/core/loot.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Facing, Look, PlayerState } from "@tokenmaxxing/core/world.ts";
 import { drawEditions, editionFrame } from "./editions.ts";
 import { FACE_ART, HAT_ART, type Wear } from "./headwear.ts";
+import { LOOT_GLASSES, LOOT_HATS, LOOT_OUTFITS } from "./loot.ts";
+import { CAP, capPalette, coloursOf, drawMug, drawTop, merchFrame, merchKey } from "./merch.ts";
 import { C, HAIRS, OUTFITS, PANTS, SKINS } from "./palette.ts";
 import { bake, cached, type Palette, type Pen } from "./pixels.ts";
 import { drawWardrobe, outfitMarks, wardrobeIcon, wardrobePalette } from "./wardrobe.ts";
@@ -340,11 +343,23 @@ const HAT_COLORS: Palette[] = [
   { o: C.ink, k: "#3a3546", K: "#5a5468", r: "#c23a3a" },
 ];
 
-/** A hat or face thing as `headwear.ts` draws them: the first few here, the pack's after. */
+/** Raid loot hats and glasses (art/loot.ts) as `headwear.ts` draws them. */
+const LOOT_HAT_ART: Wear[] = LOOT_HATS.map((h) => ({ ...h.rows, pal: h.pal }));
+const LOOT_FACE_ART: Wear[] = LOOT_GLASSES.map((g) => ({ ...g.rows, y: 5, pal: g.pal }));
+
+/** A hat or face thing as `headwear.ts` draws them: the first few here, the pack's after, then loot. */
 const hatArt = (i: number): Wear | undefined =>
-  i < HATS.length ? { ...HATS[i]!, pal: HAT_COLORS[i]! } : HAT_ART[i - HATS.length];
+  i < HATS.length
+    ? { ...HATS[i]!, pal: HAT_COLORS[i]! }
+    : i < LOOT_FIRST.hat
+      ? HAT_ART[i - HATS.length]
+      : LOOT_HAT_ART[i - LOOT_FIRST.hat];
 const faceArt = (i: number): Wear | undefined =>
-  i < GLASSES.length ? { ...GLASSES[i]!, y: 5, pal: GLASSES_COLORS[i]! } : FACE_ART[i - GLASSES.length];
+  i < GLASSES.length
+    ? { ...GLASSES[i]!, y: 5, pal: GLASSES_COLORS[i]! }
+    : i < LOOT_FIRST.glasses
+      ? FACE_ART[i - GLASSES.length]
+      : LOOT_FACE_ART[i - LOOT_FIRST.glasses];
 
 /** Over a head whose top is at `oy`; the wearer's own colours fill in what the item leaves out. */
 function wearOn(p: Pen, w: Wear | undefined, view: View, base: Palette, oy = 0, flip = false): void {
@@ -369,10 +384,23 @@ const darken = (hex: string, f = 0.78) =>
     )
     .join("")}`;
 
+/** A raid loot outfit, after the wardrobe's (`LOOT_FIRST`). */
+const lootOutfit = (i: number) => (i < LOOT_FIRST.outfit ? undefined : LOOT_OUTFITS[i - LOOT_FIRST.outfit]);
+
+/** Which company merch a look wears, by kind. */
+const worn = (look: Look) => {
+  const bits = look.merch === 0 ? 0 : look.merchWorn;
+  return { hoodie: (bits & 2) > 0, top: (bits & 3) > 0, cap: (bits & 4) > 0, mug: (bits & 8) > 0 };
+};
+
 export function lookPalette(look: Look): Palette {
   const hair = HAIRS[look.hair] ?? HAIRS[0]!;
-  const [outfit, outfitShade] = OUTFITS[look.outfit] ?? OUTFITS[0]!;
-  const pants = PANTS[look.outfit] ?? PANTS[0]!;
+  const merch = worn(look).top ? coloursOf(look.merch) : null;
+  const loot = lootOutfit(look.outfit);
+  const [outfit, outfitShade] = merch
+    ? [merch.main, merch.shade]
+    : (OUTFITS[look.outfit] ?? loot?.colors ?? OUTFITS[0]!);
+  const pants = PANTS[look.outfit] ?? loot?.pants ?? PANTS[0]!;
   return {
     o: C.ink,
     s: SKINS[look.skin] ?? SKINS[0]!,
@@ -384,12 +412,13 @@ export function lookPalette(look: Look): Palette {
     C: outfitShade,
     p: pants,
     f: "#3a2e2a",
-    ...wardrobePalette(look.outfit),
+    ...(merch ? {} : wardrobePalette(look.outfit)),
   };
 }
 
 const lookKey = (l: Look) =>
-  `${l.style}.${l.skin}.${l.hair}.${l.outfit}.${l.glasses}.${l.hat}.${l.held}.${l.back}`;
+  `${l.style}.${l.skin}.${l.hair}.${l.outfit}.${l.glasses}.${l.hat}.${l.held}.${l.back}` +
+  (l.merch && l.merchWorn ? `.${l.merchWorn}:${merchKey(l.merch)}` : "");
 
 /** One 16×16 frame. Left is the right-facing side view, mirrored. */
 export const characterFrame = cached(
@@ -399,14 +428,22 @@ export const characterFrame = cached(
     const flip = facing === "left";
     const pal = lookPalette(look);
     return bake(16, 16, (p) => {
+      const merch = worn(look);
+      const colours = coloursOf(look.merch);
       drawWardrobe(p, look, view, pose, "behind", pal.s!, flip);
       p.grid(BODIES[view][pose], pal, 0, 9, flip);
-      if (look.outfit === 12) p.grid(RACK[view], RACK_COLORS, 0, 9, flip);
-      drawWardrobe(p, look, view, pose, "body", pal.s!, flip);
+      if (look.outfit === 12 && !merch.top) p.grid(RACK[view], RACK_COLORS, 0, 9, flip);
+      const loot = lootOutfit(look.outfit);
+      if (loot && !merch.top) p.grid(loot.over[view], loot.pal, 0, 9, flip);
+      if (!merch.top) drawWardrobe(p, look, view, pose, "body", pal.s!, flip);
       p.grid(HEADS[view][look.style] ?? HEADS[view][0]!, pal, 0, 0, flip);
+      if (merch.top) drawTop(p, colours, view, merch.hoodie, flip);
       wearOn(p, faceArt(look.glasses), view, pal, 0, flip);
-      wearOn(p, hatArt(look.hat), view, pal, 0, flip);
+      // The company cap instead of a hat.
+      if (merch.cap) p.grid(CAP[view], capPalette(colours), 0, 0, flip);
+      else wearOn(p, hatArt(look.hat), view, pal, 0, flip);
       drawWardrobe(p, look, view, pose, "front", pal.s!, flip);
+      if (merch.mug) drawMug(p, colours, view, flip);
       drawEditions(p, look, view, flip);
     });
   },
@@ -424,6 +461,9 @@ const ON_THE_FLOOR = lookPalette({
   held: 0,
   back: 0,
   petwear: 0,
+  petVariant: 0,
+  merch: 0,
+  merchWorn: 0,
 });
 
 /**
@@ -431,20 +471,23 @@ const ON_THE_FLOOR = lookPalette({
  * thing. An outfit is the top of the body, hands left out and the trousers' row as its hem.
  */
 export const itemFrame = cached(
-  (item: Item) => item.id,
+  (item: Item) => (item.companyId === undefined ? item.id : `${item.id}:${merchKey(item.companyId)}`),
   (item: Item) => {
     const { slot, index: i } = item;
+    if (slot === "merch") return merchFrame(item.companyId!, i);
     const wardrobe = wardrobeIcon(item);
     if (wardrobe) return wardrobe;
     const edition = editionFrame(item);
     if (edition) return edition;
     const w = slot === "hat" ? hatArt(i) : slot === "glasses" ? faceArt(i) : undefined;
     if (w) return bake(16, w.down.length, (p) => wearOn(p, { ...w, y: 0 }, "down", ON_THE_FLOOR));
-    const [c, shade] = OUTFITS[i] ?? OUTFITS[0]!;
+    const loot = lootOutfit(i);
+    const [c, shade] = OUTFITS[i] ?? loot?.colors ?? OUTFITS[0]!;
     return bake(16, 4, (p) => {
       p.grid(BODIES.down.stand.slice(0, 4), { o: C.ink, c, C: shade, ...wardrobePalette(i), p: C.ink });
       if (i === 12) p.grid(RACK.down, RACK_COLORS);
       outfitMarks(p, i, "down", 0);
+      if (loot) p.grid(loot.over.down.slice(0, 4), loot.pal);
     });
   },
 );

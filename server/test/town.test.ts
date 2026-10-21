@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { frontier, plotId } from "@tokenmaxxing/core/maps.ts";
+import { petLooks } from "@tokenmaxxing/core/pets.ts";
 import type { Drop, Notice } from "@tokenmaxxing/core/world.ts";
 import { serial } from "../src/actors/shared.ts";
 import { town } from "../src/actors/town.ts";
 import { RateLimiter } from "../src/rate-limit.ts";
-import { bag, offices, placed, takeOut } from "../src/town/coins.ts";
+import { bag, offices, placed, takeOut, unwear } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
 import { admin, admit, as, client, event, eventually, MIN, rich, signUp, veteran } from "./rivet.ts";
@@ -33,6 +34,9 @@ describe("accounts", () => {
       held: 0,
       back: 0,
       petwear: 0,
+      petVariant: 0,
+      merch: 0,
+      merchWorn: 0,
     });
     await expect(a.town.setLook({ style: 99, skin: 0, hair: 0, outfit: 0 })).rejects.toThrow();
   });
@@ -300,6 +304,59 @@ describe("coins and the shop", () => {
     await expect(a.town.buy("nope")).rejects.toThrow();
     await a.town.setLook({ ...(await a.town.me()).look, glasses: 1 });
     expect((await a.town.me()).look.glasses).toBe(1);
+  });
+
+  test("pet looks: any of a held pet's, none for a pet you don't hold, gone when the pet is", async () => {
+    const a = await signUp("petlook");
+    await admin().adminSetCoins(a.userId, 2000);
+    const look = (await a.town.me()).look;
+    await expect(a.town.setLook({ ...look, pet: 3, petVariant: 2 })).rejects.toMatchObject({
+      code: "not_owned",
+    });
+    await a.town.buy("pet.3");
+    await a.town.setLook({ ...look, pet: 3, petVariant: 2 });
+    expect((await a.town.me()).look).toMatchObject({ pet: 3, petVariant: 2 });
+    // Out of range for the pet, or for any pet; a variant without a pet.
+    await expect(a.town.setLook({ ...look, pet: 3, petVariant: petLooks(3) })).rejects.toMatchObject({
+      code: "invalid_look",
+    });
+    await expect(a.town.setLook({ ...look, pet: 3, petVariant: -1 })).rejects.toMatchObject({
+      code: "invalid_look",
+    });
+    await expect(a.town.setLook({ ...look, pet: 0, petVariant: 1 })).rejects.toMatchObject({
+      code: "invalid_look",
+    });
+    // Another pet's variant is not the dog's (the duck has fewer).
+    await a.town.buy("pet.1");
+    await expect(a.town.setLook({ ...look, pet: 1, petVariant: petLooks(3) - 1 })).rejects.toMatchObject({
+      code: "invalid_look",
+    });
+    await a.town.setLook({ ...look, pet: 1, petVariant: 1 });
+    expect((await a.town.me()).look).toMatchObject({ pet: 1, petVariant: 1 });
+    // Taking the pet off resets the variant.
+    await a.town.setLook({ ...look, pet: 0, petVariant: 0 });
+    expect((await a.town.me()).look).toMatchObject({ pet: 0, petVariant: 0 });
+  });
+
+  test("losing the worn pet takes its look with it", async () => {
+    const { sql } = memorySql();
+    await migrate(sql);
+    const look = JSON.stringify({
+      style: 0,
+      skin: 0,
+      hair: 0,
+      outfit: 0,
+      glasses: 0,
+      hat: 0,
+      pet: 3,
+      petVariant: 5,
+    });
+    await sql.execute("INSERT INTO users (id, name, look, created_at) VALUES (7, 'u7', ?, 0)", look);
+    await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (7, 'pet.3', 0)");
+    await sql.execute("DELETE FROM items WHERE owner_id = 7");
+    expect(await unwear(sql, 7, ["pet.3"])).toBe(true);
+    const [row] = await sql.execute("SELECT look FROM users WHERE id = 7");
+    expect(JSON.parse((row as { look: string }).look)).toMatchObject({ pet: 0, petVariant: 0 });
   });
 
   test("level items: granted at level 10, worn, never sold", async () => {

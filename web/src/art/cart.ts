@@ -141,6 +141,9 @@ const MERCHANT_LOOK: Look = {
   held: 0,
   back: 0,
   petwear: 0,
+  petVariant: 0,
+  merch: 0,
+  merchWorn: 0,
 };
 
 /** The merchant's own hat: wide, plum, with a gold band and a feather. Not for sale. */

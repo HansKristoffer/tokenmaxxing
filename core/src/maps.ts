@@ -4,7 +4,7 @@
  * One character per tile; `LEGEND` says what it is.
  */
 
-export type MapId = "town" | "hq" | "inn" | "office";
+export type MapId = "town" | "hq" | "inn" | "office" | "dungeon";
 type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 interface TileKind {
@@ -16,6 +16,8 @@ interface TileKind {
   portal?: true;
   /** Shown when you press E facing it. */
   text?: string;
+  /** E while facing it pours you a coffee (`drink`). */
+  pours?: true;
 }
 
 export const LEGEND: Record<string, TileKind> = {
@@ -48,13 +50,53 @@ export const LEGEND: Record<string, TileKind> = {
     name: "touched grass",
     text: "🌱 Touched grass. A patch from an outage picnic: the agents stopped, and you went outside.",
   },
-  o: { name: "coffee" },
+  o: { name: "coffee", pours: true },
+  Q: { name: "pet bed", text: "A round cushion basket. Your pet curls up here when you're in your office." },
   I: { name: "inn door", portal: true },
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
   R: { name: "office door", portal: true },
   // Its trophies are its owner's (`trophies.ts`); E shows what each is for.
-  Y: { name: "trophy shelf" },
+  U: { name: "trophy shelf" },
+  G: { name: "dungeon gate", portal: true },
+  q: { name: "stone floor", walk: true },
+  Z: { name: "dais", text: "The boss's dais. It hums with stolen compute." },
+  l: { name: "war desk", text: "A raider's laptop. Run an agent and you're at one, wherever you are." },
+  r: { name: "raider's seat" },
+  j: { name: "torch", text: "A torch. It flickers like a flaky test." },
+  // The raid's trophies (`TROPHIES` in loot.ts), placed like furniture.
+  Y: { name: "golden hourglass", text: "The Golden Hourglass. Its sand never runs out." },
+  V: { name: "golden rebase", text: "The Golden Rebase. History, rewritten in gold." },
+  // The company building's furniture (`COMPANY_FURNITURE` in office.ts).
+  ε: { name: "beanbag", seat: "sofa", text: "A beanbag. Getting up is a two-step process." },
+  ρ: { name: "bonsai", text: "A bonsai. Forty years old, older than the codebase." },
+  Φ: { name: "water cooler", text: "Glug. The best gossip in the building starts here." },
+  Δ: { name: "persian rug", walk: true },
+  ψ: { name: "mini fridge", text: "Club-Mate, oat milk and three kinds of sparkling water." },
+  Ω: { name: "coffee table", text: "Walnut. Coasters, please." },
+  χ: { name: "monstera", text: "A monstera. Dramatic, but thriving." },
+  τ: { name: "globe", text: "Every office on it has a pin. Yours is the biggest." },
+  σ: { name: "lava lamp", text: "Blobs rise and fall, like your token budget." },
+  ξ: { name: "whiteboard", text: "A diagram with 14 arrows and the word AGENTS circled three times." },
+  Λ: { name: "arc lamp", text: "An arc lamp. Very Milan, 1962." },
+  Ξ: { name: "bookshelf", text: "Books about prompting, caching and cold starts, alphabetised." },
+  μ: { name: "lounge chair", seat: "sofa", text: "A Danish lounge chair: teak, wool and opinions." },
+  ν: { name: "record player", text: "Lo-fi beats to tokenmax to. Side B." },
+  δ: { name: "neon sign", text: "Your name in lights. It hums a little." },
+  Σ: { name: "chesterfield", seat: "sofa", text: "A buttoned leather Chesterfield. Investors sit here." },
+  Π: { name: "vending machine", text: "Snacks for 🪙 0. The company pays." },
+  ζ: { name: "standing desk", text: "A standing desk, set to sitting height. Nobody tells." },
+  ι: { name: "plant wall", text: "A wall of moss and ferns. The air is noticeably better here." },
+  φ: { name: "foosball table", text: "Foosball. The keeper rod is suspiciously worn." },
+  α: { name: "espresso bar", pours: true },
+  η: { name: "server rack", text: "Blinking lights. It's running the staging environment." },
+  β: { name: "arcade cabinet", text: "INSERT TOKEN. High score: 9,999,999, by the CTO." },
+  κ: { name: "trophy case", text: "Trophies for most tokens, longest streak and best demo day." },
+  γ: { name: "aquarium", text: "Neon tetras. One is named Claude." },
+  θ: { name: "ping-pong table", text: "Ping-pong. First to 11, loser writes the tests." },
+  ω: { name: "gong", text: "Strike it when you ship to prod. Everyone will know." },
+  λ: { name: "chandelier", walk: true, text: "Crystal chandelier. Series A money." },
+  Γ: { name: "duck statue", text: "A golden rubber duck. It has heard every bug explained to it." },
 };
 
 /**
@@ -124,7 +166,10 @@ export const BLOCK_H = 9;
 export const PLOT_W = 7;
 export const PLOT_H = 5;
 
-/** Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard and coffee, the pond and the Inn. */
+/**
+ * Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard, coffee and the raid dungeon's
+ * gate, the pond and the Inn.
+ */
 const CORE = [
   ",,,,,,,,,,,,,,,,,,,,",
   ",..T....,,,....T....",
@@ -132,7 +177,7 @@ const CORE = [
   ",..:B::::FF::::B:...",
   ",..::N:::FF:::o::...",
   ",..::::::::::::::...",
-  ",..L::::::::::::L...",
+  ",..L::::::::G:::L...",
   ",.......,,,.........",
   ",.......,,,.........",
   ",,,,,,,,,,,,,,,,,,,,",
@@ -145,6 +190,8 @@ const CORE = [
   ",..T...,,,,,,,......",
   ',..........".....^..',
 ];
+/** The square's paving in CORE, lamp to lamp: Sprint Race runs laps round its edge. */
+export const PLAZA = { left: 3, top: 2, right: 16, bottom: 6 };
 export const CORE_BLOCKS: [number, number][] = [
   [0, 0],
   [1, 0],
@@ -334,17 +381,43 @@ export const MAPS: Record<MapId, GameMap> = {
     "Wp____________pW",
     "WWWWWWWxWWWWWWWW",
   ]),
-  // Everyone's office, before what they dropped in it (`mapOf`). ponytail: one template; bigger
+  // Everyone's office, before what they dropped in it (`mapOf`). ponytail: one template, with a pet bed in the bottom right corner
+  // (`Q`, a prop like a plant: nothing can be dropped on it); bigger
   // offices per house tier would be an `OFFICE_SIZES` table.
   office: new GameMap("office", "Office", [
     "WWWWWWWWWWWW",
-    "W____YYYY__W",
+    "W____UUUU__W",
     "W__________W",
     "W__________W",
     "W__________W",
     "W__________W",
     "W__________W",
-    "W__________W",
+    "W_________QW",
     "WWWWWxWWWWWW",
+  ]),
+  // The raid: the boss on its dais, and arcs of war desks facing it. Whoever has agents running is drawn
+  // at one (web/src/game/raid.ts); the desks and seats are props, so visitors walk the aisles.
+  dungeon: new GameMap("dungeon", "Raid Dungeon", [
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWW",
+    "WqqjqqqqjqqqqqqqqqjqqqqjqqW",
+    "WqqqqqqqqqqZZZZZqqqqqqqqqqW",
+    "WqqqqqqqqqqZZZZZqqqqqqqqqqW",
+    "WqqqqqqqqqqZZZZZqqqqqqqqqqW",
+    "WqqqqqqqqqqqqqqqqqqqqqqqqqW",
+    "WqqqqqqlqqqqqqqqqqqlqqqqqqW",
+    "WqqqqqqrqlqlqlqlqlqrqqqqqqW",
+    "WqqqqqqqqrqrqrqrqrqqqqqqqqW",
+    "WqqqqlqlqqqqqqqqqqqlqlqqqqW",
+    "WqqqqrqrqlqlqlqlqlqrqrqqqqW",
+    "WqqlqqqqqrqrqrqrqrqqqqqlqqW",
+    "WqqrqlqlqqqqqqqqqqqlqlqrqqW",
+    "WqqqqrqrqlqlqlqlqlqrqrqqqqW",
+    "WlqlqqqqqrqrqrqrqrqqqqqlqlW",
+    "WrqrqlqlqqqqqqqqqqqlqlqrqrW",
+    "WqqqqrqrqlqlqlqlqlqrqrqqqqW",
+    "WqqqqqqqqrqrqrqrqrqqqqqqqqW",
+    "WqqqqqqqqqqqqqqqqqqqqqqqqqW",
+    "WWWWWWWWWWWWWxWWWWWWWWWWWWW",
   ]),
 };

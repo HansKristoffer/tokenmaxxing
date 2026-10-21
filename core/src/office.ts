@@ -2,6 +2,7 @@
  * Offices: the furniture you can buy, what it costs, and the doors to them. The template itself is
  * `MAPS.office`, with the other rooms; what's in each office is what its owner dropped there.
  */
+import { TROPHIES } from "./loot.ts";
 import { GameMap, MAPS } from "./maps.ts";
 
 export interface Piece {
@@ -30,12 +31,53 @@ export const FURNITURE: readonly Piece[] = [
   // From sitting out an outage at the picnic (`picnic.ts`).
   { ch: "g", name: "Touched grass", price: 0, w: 2, earned: "Sat on a blanket at an outage picnic" },
 ];
-/** At most this many drops on an office's floor. */
+/**
+ * The company building's own furniture: fancier, bought from the company wallet (`buyPiece`), and never in
+ * anyone's bag. Greek letters in the map legend, so they can't clash with the rooms' own characters;
+ * `art` is its sprite in `web/src/art/furniture-fancy.ts`. Every piece takes one row of tiles: the
+ * deeper ones (the rug, the ping-pong table) are drawn reaching back over the row behind.
+ */
+export const COMPANY_FURNITURE: readonly (Piece & { art: string })[] = [
+  { ch: "ε", art: "beanbag", name: "Beanbag", price: 35 },
+  { ch: "ρ", art: "bonsai", name: "Bonsai", price: 45 },
+  { ch: "Φ", art: "water-cooler", name: "Water cooler", price: 55 },
+  { ch: "Δ", art: "rug-persian", name: "Persian rug", price: 60, w: 3 },
+  { ch: "ψ", art: "mini-fridge", name: "Retro mini fridge", price: 70 },
+  { ch: "Ω", art: "coffee-table", name: "Walnut coffee table", price: 80, w: 2 },
+  { ch: "χ", art: "monstera", name: "Big monstera", price: 90 },
+  { ch: "τ", art: "globe", name: "Desk globe", price: 90 },
+  { ch: "σ", art: "lava-lamp", name: "Lava lamp", price: 100 },
+  { ch: "ξ", art: "whiteboard", name: "Whiteboard", price: 110, w: 2 },
+  { ch: "Λ", art: "arc-lamp", name: "Arc floor lamp", price: 120 },
+  { ch: "Ξ", art: "bookshelf-library", name: "Library bookshelf", price: 140, w: 2 },
+  { ch: "μ", art: "lounge-chair", name: "Danish lounge chair", price: 180 },
+  { ch: "ν", art: "record-player", name: "Vinyl record player", price: 200 },
+  { ch: "δ", art: "neon-sign", name: "Neon sign", price: 220, w: 2 },
+  { ch: "Σ", art: "sofa-chesterfield", name: "Chesterfield sofa", price: 240, w: 3 },
+  { ch: "Π", art: "vending-machine", name: "Vending machine", price: 240 },
+  { ch: "ζ", art: "standing-desk", name: "Standing desk, two screens", price: 260, w: 2 },
+  { ch: "ι", art: "plant-wall", name: "Plant wall", price: 300, w: 2 },
+  { ch: "φ", art: "foosball", name: "Foosball table", price: 350, w: 2 },
+  { ch: "α", art: "espresso-bar", name: "Espresso bar", price: 400, w: 2 },
+  { ch: "η", art: "server-rack", name: "Server rack", price: 420 },
+  { ch: "β", art: "arcade-cabinet", name: "Arcade cabinet", price: 450 },
+  { ch: "κ", art: "trophy-case", name: "Trophy case", price: 500, w: 2 },
+  { ch: "γ", art: "aquarium", name: "Aquarium", price: 550, w: 2 },
+  { ch: "θ", art: "ping-pong", name: "Ping-pong table", price: 600, w: 3 },
+  { ch: "ω", art: "gong", name: "Ship-it gong", price: 750, w: 2 },
+  { ch: "λ", art: "chandelier", name: "Crystal chandelier", price: 900, w: 2 },
+  { ch: "Γ", art: "rubber-duck-statue", name: "Rubber-duck statue", price: 1000 },
+];
+/** At most this many drops on an office's floor, or a company building's. */
 export const OFFICE_PIECES = 40;
 /** Your own office opens at this level. */
 export const OFFICE_LEVEL = 10;
 
-export const pieceOf = (ch: unknown): Piece | undefined => FURNITURE.find((f) => f.ch === ch);
+/** Every piece an office can hold: the shop's, then the raid's trophies (`loot.ts`), never sold. */
+export const PIECES: readonly Piece[] = [...FURNITURE, ...TROPHIES];
+
+export const pieceOf = (ch: unknown): Piece | undefined =>
+  PIECES.find((f) => f.ch === ch) ?? COMPANY_FURNITURE.find((f) => f.ch === ch);
 
 /** One placed piece: its top-left tile. */
 export interface Placed {

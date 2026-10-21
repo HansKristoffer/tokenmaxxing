@@ -18,7 +18,7 @@ import {
   type UsageRow,
 } from "../stats.ts";
 import { officeOf, type Podium } from "./coins.ts";
-import { COMPANY_COLS, type CompanyRow, companyById, companyInfos } from "./companies.ts";
+import { COMPANY_COLS, type CompanyRow, companyById, companyInfos, companyWallet } from "./companies.ts";
 import { type GameStats, gameStats } from "./games.ts";
 import { picnicsOf } from "./picnic.ts";
 import { ticketsOf } from "./tickets.ts";
@@ -67,6 +67,8 @@ export interface CompanyProfile {
   range: RangeKey;
   /** Among companies by tokens in the range; null with none. */
   rank: number | null;
+  /** Coins in its wallet (`companyWallet`). */
+  wallet: number;
   totals: Totals;
   members: { userId: number; name: string; look: Look; level: number; tokens: number; isOwner: boolean }[];
   /** The last 30 world days, oldest first. */
@@ -296,6 +298,7 @@ export async function companyProfile(
     tier: row.tier,
     range,
     rank: row.tokens > 0 ? row.rank : null,
+    wallet: await companyWallet(sql, companyId),
     totals: row,
     members: players
       .filter((p) => p.companyId === companyId)

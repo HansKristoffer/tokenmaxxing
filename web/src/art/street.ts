@@ -27,6 +27,9 @@ const VENDOR: Look = {
   held: 0,
   back: 0,
   petwear: 0,
+  petVariant: 0,
+  merch: 0,
+  merchWorn: 0,
 };
 /** The paperboy: yellow jacket, beanie. */
 export const PAPERBOY: Look = {
@@ -40,6 +43,9 @@ export const PAPERBOY: Look = {
   held: 0,
   back: 0,
   petwear: 0,
+  petVariant: 0,
+  merch: 0,
+  merchWorn: 0,
 };
 
 export const CART_W = 32;

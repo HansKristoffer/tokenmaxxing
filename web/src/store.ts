@@ -1,6 +1,8 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
 import type { ChatLine, CompanyInfo, Notice, RoomId } from "@tokenmaxxing/core/world.ts";
-import type { Me, Today, Wallet } from "@tokenmaxxing/server/registry";
+import type { Me, Raid, Today, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
 
 export type Panel =
@@ -8,10 +10,13 @@ export type Panel =
   | { kind: "card"; userId: number }
   | { kind: "companyCard"; companyId: number }
   | { kind: "company" }
+  | { kind: "companyShop" }
+  | { kind: "merch"; companyId: number }
   | { kind: "look" }
   | { kind: "shop" }
   | { kind: "merchant" }
   | { kind: "bag" }
+  | { kind: "petLooks"; pet: number }
   | { kind: "arcade" }
   | { kind: "newTable"; invite?: number; inviteName?: string }
   | { kind: "match"; id: number }
@@ -19,6 +24,7 @@ export type Panel =
   | { kind: "trades" }
   | { kind: "paper" }
   | { kind: "trophies"; userId: number; name: string }
+  | { kind: "raid" }
   | { kind: "menu" };
 
 /** Game panels keep the chat usable beside them. */
@@ -31,6 +37,8 @@ interface HudState {
   me: Me | null;
   stats: Today["me"] | null;
   wallet: Wallet | null;
+  /** This week's boss and the town's fight with it. */
+  raid: Raid | null;
   /** Today's top players by tokens, with me appended when I'm outside them. */
   board: Today["top"];
   room: RoomId;
@@ -58,6 +66,10 @@ interface HudState {
   inviteTable: number | null;
   /** The last time someone @-mentioned me from another room. */
   mention: { line: ChatLine; at: number } | null;
+  /** The weather over Copenhagen, from the server. */
+  weather: Weather;
+  /** What the raid's last kills dropped, for everyone (`world` sends `loot`). */
+  lootNews: { news: LootNews[]; at: number } | null;
 }
 
 let state: HudState = {
@@ -65,6 +77,7 @@ let state: HudState = {
   me: null,
   stats: null,
   wallet: null,
+  raid: null,
   board: [],
   room: "town",
   occupancy: {},
@@ -75,12 +88,14 @@ let state: HudState = {
   banner: null,
   chatFocus: 0,
   mention: null,
+  lootNews: null,
   notice: null,
   lobby: null,
   frame: null,
   matchChat: [],
   clockSkew: 0,
   inviteTable: null,
+  weather: CALM,
 };
 const listeners = new Set<() => void>();
 

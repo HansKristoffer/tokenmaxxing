@@ -24,7 +24,21 @@ export const SIREN = "🚨";
 export const COP: BotDef = {
   id: COP_ID,
   name: "Officer 429",
-  look: { style: 0, skin: 1, hair: 0, outfit: 1, glasses: 0, hat: 0, pet: 0, held: 0, back: 0, petwear: 0 },
+  look: {
+    style: 0,
+    skin: 1,
+    hair: 0,
+    outfit: 1,
+    glasses: 0,
+    hat: 0,
+    pet: 0,
+    held: 0,
+    back: 0,
+    petwear: 0,
+    petVariant: 0,
+    merch: 0,
+    merchWorn: 0,
+  },
   level: BOT_LEVEL,
   bio: "Rate-limit enforcement, Tokenmaxxing PD. Pulls over whoever burns fastest and writes them a ticket. Takes nothing. Fond of coffee.",
   lines: [

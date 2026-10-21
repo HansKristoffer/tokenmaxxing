@@ -2,12 +2,14 @@ import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import { headlines, type Paper } from "@tokenmaxxing/core/paper.ts";
+import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
 import {
   emptySide,
   isTradeable,
   itemById,
   itemsIn,
+  merchIn,
   parseSide,
   TRADE_COINS_CAP,
   TRADE_ITEMS_CAP,
@@ -38,6 +40,7 @@ import {
   deleteUser,
   logAdmin,
   overview,
+  setCompanyWallet,
   wipeUsage,
 } from "../town/admin.ts";
 import {
@@ -54,6 +57,7 @@ import {
   type BagRow,
   bag,
   buy,
+  buyMerch,
   checkTrade,
   type Entry,
   floors,
@@ -87,6 +91,7 @@ import {
   applicationOf,
   apply,
   approve,
+  buyPiece,
   companyById,
   companyInfos,
   decline,
@@ -94,13 +99,17 @@ import {
   leave,
   listings,
   type MyCompany,
+  matchCoins,
   myCompany,
   ownedCompany,
+  unstore,
   withdraw,
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
+import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
 import { markPicnic } from "../town/picnic.ts";
+import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import { migrate } from "../town/schema.ts";
 import { paperFacts } from "../town/street.ts";
 import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
@@ -135,6 +144,7 @@ import {
   type Sql,
   serial,
   type TokenCache,
+  type TxSql,
 } from "./shared.ts";
 
 export type { AdminCompany, AdminLogEntry, AdminOverview, AdminUser } from "../town/admin.ts";
@@ -147,9 +157,11 @@ export type {
   Today,
 } from "../town/boards.ts";
 export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
-export type { Listing, MyCompany } from "../town/companies.ts";
+export type { Listing, MyCompany, WalletLine } from "../town/companies.ts";
 export type { GamePlayer, GameStats } from "../town/games.ts";
+export type { RaidLoot } from "../town/loot.ts";
 export type { Cart, CartStock, Copy } from "../town/merchant.ts";
+export type { Raid } from "../town/raid.ts";
 export type { PlayerCore } from "../town/users.ts";
 
 export interface UsageDay extends UsageRow {
@@ -235,6 +247,8 @@ export const town = actor({
     podiums: null as { day: string; rows: Promise<Podium[]> } | null,
     /** Today's paper (about yesterday): built on the first read of the day, then kept. */
     paper: null as { day: string; paper: Promise<Paper> } | null,
+    /** `raidHistory`, shared by everyone polling the raid for a few seconds. */
+    raids: null as { at: number; rows: Promise<RaidWeek[]> } | null,
   }),
   db: db({ onMigrate: migrate }),
   onCreate: (c) => requireMain(c),
@@ -243,9 +257,11 @@ export const town = actor({
     ip: clientIpOf(c.request),
   }),
   // The sweeper's alarm. Set once: it outlives restarts, and wakes the town when it's asleep.
+  // And the raid's launch, the first time: next Monday 08:00 (`raidStart`).
   onWake: async (c) => {
     if (!(await c.cron.get("sweep")))
       await c.cron.every({ name: "sweep", interval: SWEEP_MS, action: "sweep" });
+    await raidStart(c.db, Date.now());
   },
   actions: {
     health: async (c): Promise<void> => {
@@ -317,7 +333,7 @@ export const town = actor({
       // Serialized, so a drop or a trade can't take it off between the check and the write.
       await c.vars.serial(async () => {
         const owned = new Set(await ownedItems(c.db, userId));
-        if (itemsIn(look).some((i) => !owned.has(i.id)))
+        if ([...itemsIn(look).map((i) => i.id), ...merchIn(look)].some((id) => !owned.has(id)))
           throw new UserError("You don't have one in your bag.", { code: "not_owned" });
         await c.db.execute("UPDATE users SET look = ? WHERE id = ?", JSON.stringify(look), userId);
       });
@@ -458,7 +474,21 @@ export const town = actor({
     },
 
     wallet: async (c): Promise<Wallet> =>
-      wallet(c.db, requireUser(c.conn.state), Date.now(), await podiumsOf(c, Date.now())),
+      wallet(
+        c.db,
+        requireUser(c.conn.state),
+        Date.now(),
+        await podiumsOf(c, Date.now()),
+        await raidsOf(c, Date.now()),
+      ),
+
+    /** This week's ladder (last week's until Monday 08:00): the boss up now, how hurt it is, and who's hitting it. */
+    raid: async (c): Promise<Raid> => {
+      const userId = requireUser(c.conn.state);
+      const now = Date.now();
+      const r = await raid(c.db, userId, await raidsOf(c, now), now);
+      return { ...r, loot: await raidLoot(c.db, userId, r.week, r.boss, lootBoost()) };
+    },
 
     /** What I hold, per kind, for the bag panel. */
     bag: (c): Promise<BagRow[]> => bag(c.db, requireUser(c.conn.state)),
@@ -472,7 +502,32 @@ export const town = actor({
       if (editionById(item.id))
         throw new UserError("Only the traveling merchant sells that.", { code: "not_for_sale" });
       if (item.earned) throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
+      if (item.loot) throw new UserError("That one drops in the raid.", { code: "not_for_sale" });
+      if (item.company)
+        throw new UserError("That one is for company buildings, from the company wallet.", {
+          code: "not_for_sale",
+        });
+      if (item.slot === "merch") return c.vars.serial(() => buyMerch(c.db, userId, item, Date.now()));
       return c.vars.serial(() => buy(c.db, userId, item, Date.now()));
+    },
+
+    // MARK: Company furniture
+
+    /**
+     * The owner buys a piece of company furniture from the company wallet. It goes down in front of
+     * them if they're in the building; otherwise (or with no room on the floor) into the storeroom.
+     */
+    buyPiece: async (c, itemId: unknown): Promise<{ notice: string; company: MyCompany }> => {
+      const userId = requireUser(c.conn.state);
+      const item = itemById(itemId);
+      if (!item?.company) throw new UserError("That's not for company buildings.", { code: "not_found" });
+      return furnish(c, userId, "buy", (company, now) => buyPiece(c.db, company, userId, item, now));
+    },
+
+    /** Any member puts a piece from the storeroom down in front of them, in the building. */
+    placePiece: async (c, itemId: unknown): Promise<{ notice: string; company: MyCompany }> => {
+      const userId = requireUser(c.conn.state);
+      return furnish(c, userId, "place", (company, now) => unstore(c.db, company.id, itemId, userId, now));
     },
 
     /** The morning paper: yesterday in town, the same front page all day. */
@@ -553,10 +608,19 @@ export const town = actor({
       return markPicnic(c.db, userId, since);
     },
 
-    /** The alarm, every 10 minutes: drops nobody took in an hour go back to whoever dropped them. */
+    /**
+     * The alarm, every 10 minutes: drops nobody took in an hour go back to whoever dropped them. And the
+     * raid is worked out, so a kill's loot is handed out even while nobody's watching (`raidsOf`).
+     */
     sweep: async (c): Promise<void> => {
       // The alarm calls with no connection; anyone else has one, and has to be inside.
       if (c.conn) requireInternal(c.conn.state);
+      // Never in the way of the drops below.
+      try {
+        await raidsOf(c, Date.now());
+      } catch (err) {
+        console.warn(`[sweep] raid: ${String(err)}`);
+      }
       const ids = await unclaimed(c.db, Date.now() - DROP_TTL);
       if (ids.length === 0) return;
       // Off the floor first: if `world` is down, nothing changed and the next sweep tries again.
@@ -721,6 +785,8 @@ export const town = actor({
               "INSERT INTO capped_daily VALUES",
               activity.filter((a) => a.capped > 0).map((a) => [userId, a.day, a.capped]),
             );
+            // Their company gets as many coins again.
+            await matchCoins(tx, userId, days, Date.now());
             return grantRewards(tx, userId, await levelOf(tx, userId), Date.now());
           },
           { name: "report-usage" },
@@ -881,6 +947,27 @@ export const town = actor({
       const set = await c.vars.serial(() => setBalance(c.db, user.id, balance as number, now));
       await logAdmin(c.db, "set coins", who(user), `${set.before} → ${set.balance}`, now);
       return set.balance;
+    },
+
+    /** A company wallet's coins, set; the ledger line is the owner's (`user_id`), kind `admin`. */
+    adminSetCompanyCoins: async (c, companyId: unknown, coins: unknown): Promise<number> => {
+      requireAdmin(c.conn.state);
+      if (!Number.isSafeInteger(coins) || (coins as number) < 0 || (coins as number) > 10_000_000)
+        throw new UserError("Use a whole number from 0 to 10,000,000.", { code: "invalid_amount" });
+      const company = typeof companyId === "number" ? await companyById(c.db, companyId) : undefined;
+      if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+      const now = Date.now();
+      const set = await c.vars.serial(() =>
+        setCompanyWallet(c.db, company.id, coins as number, company.ownerId, now),
+      );
+      await logAdmin(
+        c.db,
+        "set company coins",
+        `${company.name} (#${company.id})`,
+        `${set.before} → ${set.coins}`,
+        now,
+      );
+      return set.coins;
     },
 
     adminRenameUser: async (c, userId: unknown, rawName: unknown): Promise<void> => {
@@ -1045,12 +1132,81 @@ function podiumsOf(
   return c.vars.podiums.rows;
 }
 
+const RAID_TTL = 15_000;
+
+/**
+ * Every raid so far, worked out at most every few seconds however many people are watching. A new
+ * week's gate opening (the launch too) throws the old one away, so 08:00 never shows a ladder without it.
+ * Each time, the loot its kills dropped is handed out (`grantLoot`, once per drop), before anyone sees the kill.
+ */
+function raidsOf(
+  c: {
+    db: TxSql;
+    vars: { raids: { at: number; rows: Promise<RaidWeek[]> } | null; serial: ReturnType<typeof serial> };
+    client(): Client;
+  },
+  now: number,
+): Promise<RaidWeek[]> {
+  const kept = c.vars.raids;
+  if (kept && now - kept.at < RAID_TTL && raidWeekAt(kept.at) === raidWeekAt(now)) return kept.rows;
+  const rows = raidHistory(c.db, now).then(async (weeks) => {
+    const fresh = await c.vars
+      .serial(() => grantLoot(c.db, weeks, now))
+      .catch((err) => {
+        // The raid still shows; the next one tries again.
+        console.warn(`[loot] ${String(err)}`);
+        return [];
+      });
+    if (fresh.length > 0) void announceLoot(c.db, c.client(), fresh, now);
+    return weeks;
+  });
+  c.vars.raids = { at: now, rows };
+  rows.catch(() => {
+    if (c.vars.raids?.rows === rows) c.vars.raids = null;
+  });
+  return rows;
+}
+
 /** A new office's desk and chair onto its floor. If `world` misses them, its next start lays them (`seed`). */
 async function placeStarter(client: Client, drops: Drop[]): Promise<void> {
   if (drops.length === 0) return;
   await main(client)
     .world.placeDrops(drops)
     .catch((err) => console.warn(`[office] ${String(err)}`));
+}
+
+/**
+ * A piece of company furniture onto the building's floor, from the storeroom (`take` is how the row was
+ * picked: bought or unstored). Under `serial` the whole way, `world` included, so two members can't put
+ * out the same stored row. Without room (or out of the building) it stays in the storeroom.
+ * ponytail: holds the town while `world` places it; it's in process and quick, and furnishing is rare.
+ */
+async function furnish(
+  c: { db: Sql; vars: { serial: ReturnType<typeof serial> }; client: () => Client },
+  userId: number,
+  action: "buy" | "place",
+  take: (company: NonNullable<Awaited<ReturnType<typeof companyById>>>, now: number) => Promise<number>,
+): Promise<{ notice: string; company: MyCompany }> {
+  const u = await userById(c.db, userId);
+  const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
+  if (!company) throw new UserError("Join a company first.", { code: "not_member" });
+  const notice = await c.vars.serial(async () => {
+    const now = Date.now();
+    const id = await take(company, now);
+    const item = (await one<{ item: string }>(c.db, "SELECT item FROM items WHERE id = ?", id))!.item;
+    const put = await main(c.client())
+      .world.placeDrop({ id, item, by: userId, co: company.id })
+      .catch((err) => {
+        console.warn(`[furnish] ${id}: ${String(err)}`);
+        return { notice: "That didn't work. Try again." };
+      });
+    const name = itemById(item)?.name ?? "piece";
+    if ("notice" in put)
+      return action === "buy" ? `${put.notice} The ${name} is in the storeroom.` : put.notice;
+    await placed(c.db, put);
+    return `${action === "buy" ? "Bought" : "Put out"} the ${name}.`;
+  });
+  return { notice, company: await myCompany(c.db, company.id, userId) };
 }
 
 /** The open offer `fromId` made me, or `not_found`. */

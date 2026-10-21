@@ -59,7 +59,9 @@ export type {
   Me,
   MyCompany,
   Profile,
+  Raid,
   Today,
   Trade,
   Wallet,
+  WalletLine,
 } from "./town.ts";

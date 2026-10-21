@@ -18,6 +18,7 @@ import {
   spotSize,
 } from "@tokenmaxxing/core/games/gather.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
+import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { type GameMap, LEGEND, setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import {
   type Door,
@@ -33,6 +34,7 @@ import {
 import { type Outage, onBlanket, PICNIC_SEATS, sameOutage } from "@tokenmaxxing/core/picnic.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
 import { canDropIn } from "@tokenmaxxing/core/shop.ts";
+import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { cartOpen, facesCart, hasPolse, isCart, POLSE, stepPace } from "@tokenmaxxing/core/street.ts";
 import {
   baseMap,
@@ -66,6 +68,8 @@ import {
   type PlayerView,
   pieceOfDrop,
   portal,
+  RAIDERS_SHOWN,
+  type Raiders,
   type RoomId,
   restSpot,
   roomEntry,
@@ -86,6 +90,7 @@ import { db } from "rivetkit/db";
 import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { parseChatText } from "../validate.ts";
+import { fetchWeather, initialWeather, pinnedWeather, WEATHER_EVERY_MS } from "../weather.ts";
 import {
   all,
   authenticate,
@@ -106,6 +111,8 @@ interface WorldPlayer extends PlayerCore, Place {
   lastInputAt: number;
   lastAgentAt: number;
   liveAgents: number;
+  /** Tokens a minute over the 10 minutes before their last sync (optional: older state has none). */
+  burn?: number;
   /** Where they were when sent to bed or desk, so they come back there. */
   back?: (Place & { state: "idle" | "sit" }) | null;
   /** In a long game (Tokenmaxxing): their desk at the arena, which replaces their bed until it ends. */
@@ -148,6 +155,8 @@ const DROPS_PER_ROOM = 30;
 const REST_CHECK_EVERY = 10; // ticks
 /** Head counts go to every connection, so at most once a second: a burst of joins changes them every tick. */
 const COUNTS_EVERY = 10; // ticks
+/** How often the dungeon hears who's raiding. */
+const RAIDERS_EVERY_MS = 1000;
 /** Bots take a step every this many ticks: a stroll. */
 const BOT_STEP_EVERY = 3;
 /** How long a bot stands around between walks, and after saying something. */
@@ -221,12 +230,18 @@ export const world = actor({
     occupancy: "",
     /** The last `houses` sent to town, as JSON. */
     houses: "",
+    /** The last `raiders` sent to the dungeon, as JSON, and when. */
+    raiders: "",
+    raidersAt: 0,
     tokens: new Map() as TokenCache,
     bots: new Map<number, BotRun>(),
     /** The outage picnic: one status check for everyone (`picnic.ts`), kept when a check fails. */
     outage: null as Outage | null,
     outageAt: 0,
     cop: { burns: new Map(), ticketed: new Map(), chase: null, freeAt: 0 } as CopVars,
+    /** The sky: one fetch for everyone (`weather.ts`), kept when a fetch fails. */
+    weather: initialWeather() as Weather,
+    weatherAt: 0,
   }),
   db: db({
     onMigrate: async (d) => {
@@ -287,6 +302,10 @@ export const world = actor({
         void refreshOutage(c, now);
       }
       copBeat(c, now);
+      if (now >= c.vars.weatherAt) {
+        c.vars.weatherAt = now + WEATHER_EVERY_MS;
+        void refreshWeather(c);
+      }
       flush(c);
       if (n % COUNTS_EVERY === 0) {
         const counts = JSON.stringify(occupancy(c.state, c.vars.online));
@@ -310,7 +329,7 @@ export const world = actor({
       if (wake(c.state, p)) c.vars.dirty.add(p.id);
       c.broadcast("info", info(p, true));
       c.conn.send("outage", c.vars.outage);
-      return snapshot(c.state, c.vars.online, p, chatOf(c.db, p.room));
+      return snapshot(c.state, c.vars.online, c.vars.weather, p, chatOf(c.db, p.room));
     },
 
     step: (c, rawDir: unknown): StepResult => {
@@ -402,7 +421,7 @@ export const world = actor({
       touch(c, p, now);
       if (isFacing(facing)) p.facing = facing;
       const [dx, dy] = DIRS[p.facing];
-      if (mapOf(p.room).at(p.x + dx, p.y + dy) !== "o") return null;
+      if (!mapOf(p.room).kind(p.x + dx, p.y + dy).pours) return null;
       p.coffeeUntil = drinkCoffee(p.coffeeUntil ?? 0, now);
       c.broadcast("info", info(p, c.vars.online.has(p.id)));
       const cups = Math.round(cupsLeft(p.coffeeUntil, now));
@@ -445,6 +464,9 @@ export const world = actor({
       const owner = ownerOfOffice(p.room);
       if (owner !== null && owner !== userId)
         return { notice: `That's ${c.state.players[owner]?.name ?? "someone"}'s floor.` };
+      // A company's furniture: its people move it, into the storeroom.
+      if (d.co !== undefined && d.co !== p.companyId)
+        return { notice: `That belongs to ${c.state.companies[d.co]?.name ?? "the company"}.` };
       // Off the floor before asking `town`, so nobody takes it twice meanwhile.
       lift(c, d);
       const took = await main(c.client())
@@ -458,7 +480,12 @@ export const world = actor({
         return { notice: "That didn't work. Try again." };
       }
       // False: the sweeper sent it home first, so it was gone already.
-      return took ? { notice: `🎒 Took the ${dropName(d)}.`, drop: d } : null;
+      if (!took) return null;
+      return {
+        notice:
+          d.co === undefined ? `🎒 Took the ${dropName(d)}.` : `📦 The ${dropName(d)} is in the storeroom.`,
+        drop: d,
+      };
     },
 
     say: async (c, rawText: unknown): Promise<void> => {
@@ -507,6 +534,17 @@ export const world = actor({
         return { notice: `🔒 ${owner.name}'s office is closed.` };
       touch(c, p, Date.now());
       Object.assign(p, roomEntry(`office:${owner.id}`), { state: "idle" });
+      c.vars.dirty.add(p.id);
+      return correction(p);
+    },
+
+    /** The raid panel's "Go to the dungeon": in through its gate, from anywhere. */
+    enterDungeon: (c): StepResult => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || p.state === "playing") return null;
+      touch(c, p, Date.now());
+      Object.assign(p, roomEntry("dungeon"), { state: "idle" });
       c.vars.dirty.add(p.id);
       return correction(p);
     },
@@ -651,7 +689,7 @@ export const world = actor({
       requireInternal(c.conn.state);
       const drops = [...DROPS.values()]
         .flat()
-        .filter((d) => d.by === userId || d.room === `office:${userId}`);
+        .filter((d) => (d.by === userId && d.co === undefined) || d.room === `office:${userId}`);
       for (const d of drops) lift(c, d);
       const ids = drops.map((d) => d.id);
       // Their office goes too; anyone inside stays until they leave.
@@ -715,17 +753,34 @@ export const world = actor({
       }
     },
 
+    /** From `town`: what this week's kills dropped, for everyone (the dungeon flies it to their desk). */
+    announceLoot: (c, news: LootNews[]): void => {
+      requireInternal(c.conn.state);
+      for (const conn of c.conns.values()) {
+        const s = conn.state as ConnState;
+        if (s.kind === "user" && s.joined) conn.send("loot", news);
+      }
+    },
+
     /**
      * From `town`: an item on the floor of the room its dropper is in. A hat or a pet goes on their tile,
      * or the nearest free one; furniture on the tile they face, or the nearest free floor tile to it
      * where it's in nobody's way (`noFurniture`) and walls nobody in.
      */
-    placeDrop: (c, { id, item, by }: { id: number; item: string; by: number }): Drop | { notice: string } => {
+    placeDrop: (
+      c,
+      { id, item, by, co }: { id: number; item: string; by: number; co?: number },
+    ): Drop | { notice: string } => {
       requireInternal(c.conn.state);
       const p = c.state.players[by];
       const full = { notice: "There's no room on the floor here." };
+      // Company furniture goes only in its own building.
+      if (co !== undefined && p?.room !== `hq:${co}`)
+        return { notice: "Go into your building to put it out." };
       const here = p ? dropsIn(p.room) : [];
-      if (!p || here.length >= (ownerOfOffice(p.room) === null ? DROPS_PER_ROOM : OFFICE_PIECES)) return full;
+      const cap =
+        ownerOfOffice(p?.room ?? "town") === null && co === undefined ? DROPS_PER_ROOM : OFFICE_PIECES;
+      if (!p || here.length >= cap) return full;
       // Touched grass is earned, not loot: only onto your own office's floor, where nobody else takes it.
       if (!canDropIn(item, p.room, by)) return { notice: "That one only goes down in your own office." };
       const map = mapOf(p.room);
@@ -757,7 +812,15 @@ export const world = actor({
         spot = findSpot(map, from, w, 1, games, taken);
       }
       if (!spot) return full;
-      const drop: Drop = { id, item, room: p.room, ...spot, by, at: Date.now() };
+      const drop: Drop = {
+        id,
+        item,
+        room: p.room,
+        ...spot,
+        by,
+        at: Date.now(),
+        ...(co !== undefined && { co }),
+      };
       lay(c, drop);
       return drop;
     },
@@ -775,13 +838,14 @@ export const world = actor({
     },
 
     /** From `player` after an ingest: offline players work at their desk while agents run. */
-    activity: (c, userId: number, lastAt: number, liveAgents: number, hourTokens = 0): void => {
+    activity: (c, userId: number, lastAt: number, liveAgents: number, burn = 0, hourTokens = 0): void => {
       requireInternal(c.conn.state);
       c.vars.cop.burns.set(userId, { id: userId, tokens: hourTokens, at: Date.now() });
       const p = c.state.players[userId];
       if (!p) return;
       p.lastAgentAt = Math.max(p.lastAgentAt, lastAt);
       p.liveAgents = liveAgents;
+      p.burn = burn;
       const online = c.vars.online.has(userId);
       if (!online) {
         const want = Date.now() - p.lastAgentAt < WORKING_MS ? "working" : "away";
@@ -808,6 +872,9 @@ type Vars = {
   occupancy: string;
   houses: string;
   outage: Outage | null;
+  weather: Weather;
+  raiders: string;
+  raidersAt: number;
 };
 
 function upsert(s: WorldState, core: PlayerCore, now: number): WorldPlayer {
@@ -1262,6 +1329,7 @@ const asleepAtInn = (s: WorldState, online: Map<number, number>) =>
 async function snapshot(
   s: WorldState,
   online: Map<number, number>,
+  weather: Weather,
   self: WorldPlayer,
   chat: Promise<ChatLine[]>,
 ): Promise<Snapshot> {
@@ -1287,6 +1355,8 @@ async function snapshot(
         : { id: owner, name: s.players[owner]?.name ?? "Someone", open: officeOf(s, owner).open },
     doors: companyId === null ? [] : doorsOf(s, companyId),
     drops: dropsIn(room),
+    weather,
+    raiders: room === "dungeon" ? raiders(s, Date.now()) : null,
   };
 }
 
@@ -1311,6 +1381,35 @@ async function refreshOutage(
       p.state = "idle";
       c.vars.dirty.add(p.id);
     }
+}
+
+/**
+ * Everyone with agents running in the last `WORKING_MS`, busiest first. Their burn fades out as their
+ * last sync gets old, so someone who stopped slows down before they leave their desk.
+ */
+function raiders(s: WorldState, now: number): Raiders {
+  const all = Object.values(s.players)
+    .filter((p) => now - p.lastAgentAt < WORKING_MS)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      look: p.look,
+      agents: Math.max(1, p.liveAgents),
+      burn: Math.round((p.burn ?? 0) * Math.max(0, 1 - (now - p.lastAgentAt) / WORKING_MS)),
+    }))
+    .sort((a, b) => b.burn - a.burn || a.id - b.id);
+  return { top: all.slice(0, RAIDERS_SHOWN), more: Math.max(0, all.length - RAIDERS_SHOWN) };
+}
+
+/** Asks for the weather and tells everyone if it changed; a failed fetch keeps the last one. */
+async function refreshWeather(c: {
+  vars: Vars;
+  broadcast(name: string, ...args: unknown[]): void;
+}): Promise<void> {
+  const next = pinnedWeather() ?? (await fetchWeather());
+  if (!next || sameWeather(next, c.vars.weather)) return;
+  c.vars.weather = next;
+  c.broadcast("weather", next);
 }
 
 /** What's on a room's floor. `DROPS` is the world's only copy: `town` has them all for a restart (`seed`). */
@@ -1413,7 +1512,7 @@ function sendToRoom(c: Sender, room: RoomId, event: string, payload: unknown): v
 
 /** A player who changed room (a door, or sent to bed) gets the new room whole. */
 async function sendSnapshot(c: Sender & { vars: Vars; db: Sql }, p: WorldPlayer): Promise<void> {
-  const snap = await snapshot(c.state, c.vars.online, p, chatOf(c.db, p.room));
+  const snap = await snapshot(c.state, c.vars.online, c.vars.weather, p, chatOf(c.db, p.room));
   for (const conn of c.conns.values()) {
     const s = conn.state as ConnState;
     if (s.kind === "user" && s.joined && s.userId === p.id) conn.send("snapshot", snap);
@@ -1482,4 +1581,13 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
     c.vars.houses = inside;
     sendToRoom(c, "town", "houses", JSON.parse(inside));
   }
+  // The dungeon's raiders, once a second, when someone there would see a change.
+  const now = Date.now();
+  if (now - c.vars.raidersAt < RAIDERS_EVERY_MS) return;
+  c.vars.raidersAt = now;
+  if (![...online.keys()].some((id) => c.state.players[id]?.room === "dungeon")) return;
+  const list = JSON.stringify(raiders(c.state, now));
+  if (list === c.vars.raiders) return;
+  c.vars.raiders = list;
+  sendToRoom(c, "dungeon", "raiders", JSON.parse(list));
 }
