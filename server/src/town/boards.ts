@@ -185,25 +185,25 @@ async function buildBoard(
  * (`town/sync.ts`), which drops them (`boardsChanged`). Keyed by the range's days, so a new day starts
  * afresh. Shared by every caller: never change what's in them.
  */
-const kept = new Map<string, ReturnType<typeof buildBoard>>();
+const byRange = new Map<string, ReturnType<typeof buildBoard>>();
 
 /** Something on the boards changed: a sync, a sign-up, a new name or look, someone joining or leaving. */
 export function boardsChanged(): void {
-  kept.clear();
+  byRange.clear();
 }
 
 function boardOf(sql: Sql, range: RangeKey, now: number): ReturnType<typeof buildBoard> {
   const [from, to] = bounds(range, now);
   const key = `${from} ${to}`;
-  const hit = kept.get(key);
+  const hit = byRange.get(key);
   if (hit) return hit;
   // A few ranges a day: yesterday's go with the next change.
-  if (kept.size > 16) kept.clear();
+  if (byRange.size > 16) byRange.clear();
   const board = buildBoard(sql, from, to);
-  kept.set(key, board);
+  byRange.set(key, board);
   // A failed one isn't kept.
   board.catch(() => {
-    if (kept.get(key) === board) kept.delete(key);
+    if (byRange.get(key) === board) byRange.delete(key);
   });
   return board;
 }
