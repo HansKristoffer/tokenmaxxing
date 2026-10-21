@@ -2,7 +2,7 @@ import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Facing, Look } from "@tokenmaxxing/core/world.ts";
 import { characterFrame, itemFrame } from "./characters.ts";
 import { C } from "./palette.ts";
-import { bake, cached, type Pen } from "./pixels.ts";
+import { bake, cached, once, type Pen } from "./pixels.ts";
 
 /**
  * The traveling merchant's cart (`core/src/merchant.ts`): a wooden wagon under a striped awning,
@@ -13,14 +13,6 @@ import { bake, cached, type Pen } from "./pixels.ts";
 export const CART_PX = { w: 48, h: 48 } as const;
 
 const AWNING = [C.roofRed, C.white];
-
-/** 3×5 letters for the board. */
-// biome-ignore format: pixel art reads as a grid
-const LETTERS: Record<string, string[]> = {
-  L: ["x..", "x..", "x..", "x..", "xxx"],
-  T: ["xxx", ".x.", ".x.", ".x.", ".x."],
-  D: ["xx.", "x.x", "x.x", "x.x", "xx."],
-};
 
 function wheel(p: Pen, cx: number, cy: number): void {
   p.disc(cx, cy, 6, C.ink);
@@ -98,8 +90,7 @@ export const cartSprite = cached(
       // The board on the front: "LTD" in gold.
       p.rect(17, 29, 15, 8, C.ink);
       p.rect(18, 30, 13, 6, C.woodDark);
-      for (const [i, ch] of ["L", "T", "D"].entries())
-        p.grid(LETTERS[ch]!, { x: C.flowerYellow }, 19 + i * 4, 30);
+      p.text("LTD", 19, 30, C.flowerYellow);
       wheel(p, 11, 40);
       wheel(p, 37, 40);
     }),
@@ -170,18 +161,16 @@ export const merchantFrame = cached(
 );
 
 /** The pitch while the cart is away: a little signpost. */
-export const signpost = cached(
-  () => "signpost",
-  () =>
-    bake(16, 24, (p) => {
-      p.rect(3, 22, 10, 2, C.shadow);
-      p.rect(7, 8, 2, 15, C.woodDark);
-      p.rect(1, 2, 14, 8, C.ink);
-      p.rect(2, 3, 12, 6, C.wood);
-      p.rect(2, 3, 12, 1, C.woodLight);
-      // A tiny cart on it.
-      p.rect(5, 5, 6, 2, C.roofRed);
-      p.px(5, 7, C.ink);
-      p.px(10, 7, C.ink);
-    }),
+export const signpost = once(() =>
+  bake(16, 24, (p) => {
+    p.rect(3, 22, 10, 2, C.shadow);
+    p.rect(7, 8, 2, 15, C.woodDark);
+    p.rect(1, 2, 14, 8, C.ink);
+    p.rect(2, 3, 12, 6, C.wood);
+    p.rect(2, 3, 12, 1, C.woodLight);
+    // A tiny cart on it.
+    p.rect(5, 5, 6, 2, C.roofRed);
+    p.px(5, 7, C.ink);
+    p.px(10, 7, C.ink);
+  }),
 );

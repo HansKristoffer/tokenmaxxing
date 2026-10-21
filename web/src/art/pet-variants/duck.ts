@@ -1,12 +1,8 @@
 import { C } from "../palette.ts";
 import { PETS } from "../pets.ts";
-import { type Patch, type PetVariant, swap } from "./types.ts";
+import { line, type PetVariant, swap } from "./types.ts";
 
 const BASE = PETS[1]!;
-
-/** A horizontal run of one character on a row: `band(row, from, to, ch)`. */
-const band = (row: number, from: number, to: number, ch: string): Patch[] =>
-  Array.from({ length: to - from + 1 }, (_, i) => [row, from + i, ch] as Patch);
 
 /** Colour swaps of the duck. Shapes are in shapes.ts. */
 // biome-ignore format: pixel art reads as a grid
@@ -73,7 +69,7 @@ export const DUCK_SWAPS: PetVariant[] = [
     ],
     pal: { o: C.ink, y: "#ffcf00", e: C.ink, n: "#ff6a00", h: C.white, s: "#f2a100" },
   },
-  swap(BASE, "pekin", "White Pekin", { y: "#f7f2e6", s: "#bfb8ad" }, band(7, 2, 8, "s"), band(6, 2, 8, "s")),
+  swap(BASE, "pekin", "White Pekin", { y: "#f7f2e6", s: "#bfb8ad" }, line(7, 2, 8, "s"), line(6, 2, 8, "s")),
   swap(BASE, "swedish", "Black Swedish", { y: "#3b4762", e: C.white, l: "#7f93bd", w: C.white }, [
     [2, 6, "l"],
     [2, 7, "l"],

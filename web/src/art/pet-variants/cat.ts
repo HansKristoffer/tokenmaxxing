@@ -1,11 +1,8 @@
 import { C } from "../palette.ts";
 import { PETS } from "../pets.ts";
-import { type Patch, type PetVariant, swap } from "./types.ts";
+import { type PetVariant, swap, up } from "./types.ts";
 
 const BASE = PETS[2]!;
-
-/** The hop frame sits one row higher than the standing frame, so the same patches shift up a row. */
-const up = (patches: Patch[]): Patch[] => patches.map(([y, x, ch]) => [y - 1, x, ch]);
 
 /** Colour swaps of the cat. Shapes are in shapes.ts. */
 export const CAT_SWAPS: PetVariant[] = [

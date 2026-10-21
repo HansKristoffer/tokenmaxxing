@@ -1,5 +1,5 @@
 import { C } from "./palette.ts";
-import { bake, cached, type Palette } from "./pixels.ts";
+import { bake, cached, once, type Palette, recolour } from "./pixels.ts";
 
 /**
  * The raid's bosses, 22×22, on the dungeon's dais. `hurt` is the same shape in white inside its
@@ -133,9 +133,7 @@ export const bossSprite = cached(
   (id: string, hurt: boolean) => `${id} ${hurt}`,
   (id: string, hurt: boolean) => {
     const art = ART[id] ?? ART["rate-limit"]!;
-    const pal = hurt
-      ? Object.fromEntries(Object.keys(art.pal).map((k) => [k, k === "o" ? C.ink : C.white]))
-      : art.pal;
+    const pal = hurt ? recolour(art.pal, (k) => (k === "o" ? C.ink : C.white)) : art.pal;
     return bake(BOSS_SIZE, BOSS_SIZE, (p) => p.grid(art.rows, pal));
   },
 );
@@ -145,7 +143,7 @@ export const bossSilhouette = cached(
   (id: string) => `silhouette ${id}`,
   (id: string) => {
     const art = ART[id] ?? ART["rate-limit"]!;
-    const pal = Object.fromEntries(Object.keys(art.pal).map((k) => [k, k === "e" ? "#c9a2ff" : "#0b0a10"]));
+    const pal = recolour(art.pal, (k) => (k === "e" ? "#c9a2ff" : "#0b0a10"));
     return bake(BOSS_SIZE, BOSS_SIZE, (p) => p.grid(art.rows, pal));
   },
 );
@@ -168,7 +166,6 @@ const TROPHY = [
   "..oooooooo..",
 ];
 
-export const trophySprite = cached(
-  () => "trophy",
-  () => bake(12, 13, (p) => p.grid(TROPHY, { o: C.ink, y: "#ffd35c", w: C.white, b: C.woodDark })),
+export const trophySprite = once(() =>
+  bake(12, 13, (p) => p.grid(TROPHY, { o: C.ink, y: "#ffd35c", w: C.white, b: C.woodDark })),
 );

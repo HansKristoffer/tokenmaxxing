@@ -1,11 +1,8 @@
 import { C } from "../palette.ts";
 import { PETS } from "../pets.ts";
-import { type Patch, type PetVariant, swap } from "./types.ts";
+import { type Patch, type PetVariant, swap, up } from "./types.ts";
 
 const BASE = PETS[3]!;
-
-/** The hop frame shows the body one row higher than the standing frame (rows 1 to 7). */
-const lift = (patches: Patch[]): Patch[] => patches.map(([r, c, ch]) => [r - 1, c, ch]);
 
 const GOLDEN: Patch[] = [
   [4, 0, "b"],
@@ -45,7 +42,7 @@ export const DOG_SWAPS: PetVariant[] = [
       [7, 3, "x"],
       [3, 10, "x"],
     ],
-    lift([
+    up([
       [4, 8, "x"],
       [5, 7, "x"],
       [6, 5, "x"],
@@ -73,7 +70,7 @@ export const DOG_SWAPS: PetVariant[] = [
       [7, 7, "w"],
       [7, 8, "w"],
     ],
-    lift([
+    up([
       [3, 9, "w"],
       [3, 10, "w"],
       [4, 9, "w"],
@@ -105,7 +102,7 @@ export const DOG_SWAPS: PetVariant[] = [
       [7, 4, "c"],
       [7, 5, "c"],
     ],
-    lift([
+    up([
       [4, 9, "c"],
       [4, 10, "c"],
       [5, 8, "c"],
@@ -125,6 +122,6 @@ export const DOG_SWAPS: PetVariant[] = [
     "Golden retriever",
     { b: "#f2bd36", E: "#a86a18", d: "#d08e1e", f: "#fff0c4" },
     GOLDEN,
-    lift(GOLDEN),
+    up(GOLDEN),
   ),
 ];

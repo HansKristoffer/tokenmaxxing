@@ -1,5 +1,5 @@
 import { snowCover } from "@tokenmaxxing/core/sky.ts";
-import { C } from "../art/palette.ts";
+import { C, rgbOf } from "../art/palette.ts";
 import { hash } from "../art/pixels.ts";
 import { skyNow, weatherNow } from "./sky.ts";
 
@@ -27,13 +27,9 @@ export function snowAmount(now: number): number {
   return amount;
 }
 
-const rgb = (hex: string): [number, number, number] => {
-  const n = Number.parseInt(hex.slice(1), 16);
-  return [n >> 16, (n >> 8) & 255, n & 255];
-};
 const key = (r: number, g: number, b: number) => (r << 16) | (g << 8) | b;
 
-const WATER = new Set([C.water, C.waterDark, C.waterLight, C.foam].map((h) => key(...rgb(h))));
+const WATER = new Set([C.water, C.waterDark, C.waterLight, C.foam].map((h) => key(...rgbOf(h))));
 /** Palette colour to its snowy replacement: grass white, paths trodden grey, the pond iced over. */
 const GROUND = new Map<number, [number, number, number]>(
   (
@@ -55,7 +51,7 @@ const GROUND = new Map<number, [number, number, number]>(
       [C.flowerYellow, [244, 248, 255]],
       [C.flowerWhite, [244, 248, 255]],
     ] as const
-  ).map(([hex, to]) => [key(...rgb(hex)), [...to] as [number, number, number]]),
+  ).map(([hex, to]) => [key(...rgbOf(hex)), [...to] as [number, number, number]]),
 );
 const SNOW_TOP: [number, number, number][] = [
   [252, 253, 255],

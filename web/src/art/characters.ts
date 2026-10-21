@@ -4,9 +4,9 @@ import type { Facing, Look, PlayerState } from "@tokenmaxxing/core/world.ts";
 import { drawEditions, editionFrame } from "./editions.ts";
 import { FACE_ART, HAT_ART, type Wear } from "./headwear.ts";
 import { LOOT_GLASSES, LOOT_HATS, LOOT_OUTFITS } from "./loot.ts";
-import { CAP, capPalette, coloursOf, drawMug, drawTop, merchFrame, merchKey } from "./merch.ts";
-import { C, HAIRS, OUTFITS, PANTS, SKINS } from "./palette.ts";
-import { bake, cached, type Palette, type Pen } from "./pixels.ts";
+import { CAP, capPalette, coloursOf, drawMug, drawTop, merchFrame, merchKey, merchVersion } from "./merch.ts";
+import { C, HAIRS, OUTFITS, PANTS, SKINS, shade } from "./palette.ts";
+import { bake, cached, type Palette, type Pen, perObject } from "./pixels.ts";
 import { drawWardrobe, outfitMarks, wardrobeIcon, wardrobePalette } from "./wardrobe.ts";
 
 /**
@@ -16,8 +16,9 @@ import { drawWardrobe, outfitMarks, wardrobeIcon, wardrobePalette } from "./ward
  * are drawn over the head; the ones after the first few are in `headwear.ts`.
  */
 
-type View = "down" | "side" | "up";
-type Pose = "stand" | "walkA" | "walkB" | "sit";
+/** Which way a character is seen: from the front, the side (right; left is it mirrored) or behind. */
+export type View = "down" | "side" | "up";
+export type Pose = "stand" | "walkA" | "walkB" | "sit";
 
 // biome-ignore format: pixel art reads as a grid
 const HEADS: Record<View, string[][]> = {
@@ -375,15 +376,6 @@ const RACK: Record<View, string[]> = {
 };
 const RACK_COLORS: Palette = { l: "#8a93a1", g: "#3ddc84", y: "#f5c842" };
 
-const darken = (hex: string, f = 0.78) =>
-  `#${[1, 3, 5]
-    .map((i) =>
-      Math.round(Number.parseInt(hex.slice(i, i + 2), 16) * f)
-        .toString(16)
-        .padStart(2, "0"),
-    )
-    .join("")}`;
-
 /** A raid loot outfit, after the wardrobe's (`LOOT_FIRST`). */
 const lootOutfit = (i: number) => (i < LOOT_FIRST.outfit ? undefined : LOOT_OUTFITS[i - LOOT_FIRST.outfit]);
 
@@ -393,7 +385,10 @@ const worn = (look: Look) => {
   return { hoodie: (bits & 2) > 0, top: (bits & 3) > 0, cap: (bits & 4) > 0, mug: (bits & 8) > 0 };
 };
 
-export function lookPalette(look: Look): Palette {
+/** A look's colours, once per look (merch colours change with the companies: see `merchVersion`). */
+export const lookPalette = perObject(paletteOf, merchVersion);
+
+function paletteOf(look: Look): Palette {
   const hair = HAIRS[look.hair] ?? HAIRS[0]!;
   const merch = worn(look).top ? coloursOf(look.merch) : null;
   const loot = lootOutfit(look.outfit);
@@ -407,7 +402,7 @@ export function lookPalette(look: Look): Palette {
     e: C.ink,
     r: "#f19a8b",
     h: hair,
-    H: darken(hair),
+    H: shade(hair, -0.22),
     c: outfit,
     C: outfitShade,
     p: pants,
@@ -416,9 +411,13 @@ export function lookPalette(look: Look): Palette {
   };
 }
 
-const lookKey = (l: Look) =>
-  `${l.style}.${l.skin}.${l.hair}.${l.outfit}.${l.glasses}.${l.hat}.${l.held}.${l.back}` +
-  (l.merch && l.merchWorn ? `.${l.merchWorn}:${merchKey(l.merch)}` : "");
+/** What a look draws as, for the caches; once per look (looks are replaced, never edited). */
+const lookKey = perObject(
+  (l: Look) =>
+    `${l.style}.${l.skin}.${l.hair}.${l.outfit}.${l.glasses}.${l.hat}.${l.held}.${l.back}` +
+    (l.merch && l.merchWorn ? `.${l.merchWorn}:${merchKey(l.merch)}` : ""),
+  merchVersion,
+);
 
 /** One 16×16 frame. Left is the right-facing side view, mirrored. */
 export const characterFrame = cached(

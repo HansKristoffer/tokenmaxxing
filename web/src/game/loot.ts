@@ -64,7 +64,7 @@ export function noteLoot(news: readonly LootNews[]): void {
 }
 
 /** The item's own sprite: as it lies in the bag. */
-export function lootSprite(id: string): HTMLCanvasElement | null {
+function lootSprite(id: string): HTMLCanvasElement | null {
   const it = itemById(id);
   if (!it) return null;
   if (it.slot === "pet") return petFrame(it.index, false, false);

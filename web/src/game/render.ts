@@ -14,7 +14,7 @@ import { house, inn } from "../art/buildings.ts";
 import { characterFrame, itemFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
 import { type FancyPiece, fancyFrame, fancySprite, neonSprite } from "../art/furniture-fancy.ts";
 import { drawSparkle, wearsLegendary } from "../art/loot.ts";
-import { merchColours } from "../art/merch.ts";
+import { coloursOf } from "../art/merch.ts";
 import { chairBack, objectAt, petBedFront, sortY } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { SLEEP_H, SLEEP_W, sleepingFrame } from "../art/pet-sleep.ts";
@@ -320,7 +320,7 @@ function fancyCanvas(piece: FancyPiece, now: number): HTMLCanvasElement {
     .replace(/[^A-Z0-9&! ]/g, "")
     .trim();
   const text = word.length > 0 && word.length <= 7 ? word : initialsOf(company.name);
-  return neonSprite(text, frame, merchColours(company).glow);
+  return neonSprite(text, frame, coloursOf(company.id).glow);
 }
 
 function drawAvatar(

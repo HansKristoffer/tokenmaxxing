@@ -1,6 +1,6 @@
 import { COP } from "@tokenmaxxing/core/cop.ts";
 import type { Facing } from "@tokenmaxxing/core/world.ts";
-import { characterFrame, type poseFor } from "./characters.ts";
+import { characterFrame, type Pose, type View } from "./characters.ts";
 import { C } from "./palette.ts";
 import { bake, cached, type Palette } from "./pixels.ts";
 
@@ -9,9 +9,6 @@ import { bake, cached, type Palette } from "./pixels.ts";
  * a badge on the chest, a duty belt, and a notepad and pencil while he writes a ticket. The siren on
  * his cap, and its glow, are drawn live (`drawSiren`, `drawSirenGlow`).
  */
-
-type View = "down" | "side" | "up";
-type Pose = ReturnType<typeof poseFor>;
 
 const PAL: Palette = {
   o: C.ink,

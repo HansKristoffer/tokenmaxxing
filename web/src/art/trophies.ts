@@ -1,6 +1,6 @@
 import { TROPHIES } from "@tokenmaxxing/core/trophies.ts";
 import { C } from "./palette.ts";
-import { bake, cached, type Palette } from "./pixels.ts";
+import { bake, cached, type Palette, perObject, recolour } from "./pixels.ts";
 
 /** A trophy is 7×8: the thing itself, mostly on a little plinth (`k`, `K` its top edge). */
 export const TROPHY_W = 7;
@@ -105,26 +105,25 @@ export const trophySprite = cached(
     bake(TROPHY_W, TROPHY_H, (p) => {
       const art = ART[id];
       if (!art) return;
-      const pal = earned
-        ? art.pal
-        : Object.fromEntries(Object.keys(art.pal).map((k) => [k, "rgba(20, 16, 28, 0.32)"]));
+      const pal = earned ? art.pal : recolour(art.pal, () => "rgba(20, 16, 28, 0.32)");
       p.grid(art.rows, pal);
     }),
 );
 
 /** The shelf: 4 tiles wide, three glass-fronted shelves of 7. */
-export const SHELF_W = 64;
+const SHELF_W = 64;
 export const SHELF_H = 32;
 const PER_SHELF = 7;
 /** Where trophy `i` stands, in the shelf's pixels. */
-export const slotOf = (i: number) => ({
+const slotOf = (i: number) => ({
   x: 4 + (i % PER_SHELF) * (TROPHY_W + 1),
   y: 2 + Math.floor(i / PER_SHELF) * 9,
 });
 
 /** The shelf with these trophies on it (by id, any order); the rest show as outlines. */
 export const trophyShelf = cached(
-  (earned: ReadonlySet<string>) => [...earned].sort().join(),
+  // Once per set: the shelf's set is replaced when it changes, never edited.
+  perObject((earned: ReadonlySet<string>) => [...earned].sort().join()),
   (earned: ReadonlySet<string>) =>
     bake(SHELF_W, SHELF_H, (p) => {
       p.rect(0, 0, SHELF_W, SHELF_H, C.ink);
