@@ -21,6 +21,7 @@ import {
   withPieces,
 } from "@tokenmaxxing/core/office.ts";
 import { cartOpen, facesCart, hasPolse, isCart, POLSE, stepPace } from "@tokenmaxxing/core/street.ts";
+import { type Outage, onBlanket, PICNIC_SEATS, sameOutage } from "@tokenmaxxing/core/picnic.ts";
 import {
   baseMap,
   CHAT_HISTORY,
@@ -70,6 +71,7 @@ import {
 } from "@tokenmaxxing/core/world.ts";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
+import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { parseChatText } from "../validate.ts";
 import {
@@ -127,6 +129,7 @@ const COFFEE_LINES = [
   "☕☕☕☕☕☕ The machine refuses to make it any stronger. You vibrate anyway.",
 ];
 const CHAT_PER_MIN = 20;
+const PICNIC_BADGE = "🧺 I was there. The outage picnic is on your card now.";
 /** At most this many drops on one room's floor (an office holds `OFFICE_PIECES`). */
 const DROPS_PER_ROOM = 30;
 const REST_CHECK_EVERY = 10; // ticks
@@ -207,6 +210,9 @@ export const world = actor({
     houses: "",
     tokens: new Map() as TokenCache,
     bots: new Map<number, BotRun>(),
+    /** The outage picnic: one status check for everyone (`picnic.ts`), kept when a check fails. */
+    outage: null as Outage | null,
+    outageAt: 0,
   }),
   db: db({
     onMigrate: async (d) => {
@@ -262,6 +268,10 @@ export const world = actor({
         for (const p of walkBots(c.state, c.vars, now)) c.broadcast("info", info(p, true));
         talkBots(c, now);
       }
+      if (now >= c.vars.outageAt) {
+        c.vars.outageAt = now + OUTAGE_EVERY_MS;
+        void refreshOutage(c, now);
+      }
       flush(c);
       if (n % COUNTS_EVERY === 0) {
         const counts = JSON.stringify(occupancy(c.state, c.vars.online));
@@ -284,6 +294,7 @@ export const world = actor({
       p.dozing = false;
       if (wake(c.state, p)) c.vars.dirty.add(p.id);
       c.broadcast("info", info(p, true));
+      c.conn.send("outage", c.vars.outage);
       return snapshot(c.state, c.vars.online, p, chatOf(c.db, p.room));
     },
 
@@ -350,11 +361,20 @@ export const world = actor({
       const x = p.x + dx;
       const y = p.y + dy;
       const seat = mapOf(p.room).kind(x, y).seat;
+      // At an outage picnic the blankets are seats too, and sitting on one earns its badge.
+      const outage = p.room === "town" && onBlanket(x, y) ? c.vars.outage : null;
       const taken = Object.values(c.state.players).some((o) => o.room === p.room && o.x === x && o.y === y);
-      if (!seat) return null;
+      if (!seat && !outage) return null;
       if (taken) return { notice: "Someone's already there." };
       Object.assign(p, { x, y, state: "sit", facing: seat === "chair" ? "up" : "down" });
       c.vars.dirty.add(p.id);
+      if (outage)
+        void main(c.client())
+          .town.picnicked(userId, outage.since)
+          .then((fresh) => {
+            if (fresh) c.conn.send("notice", { text: PICNIC_BADGE } satisfies Notice);
+          })
+          .catch((err) => console.warn(`[picnic] ${userId}: ${String(err)}`));
       return correction(p);
     },
 
@@ -777,6 +797,7 @@ type Vars = {
   hidden: Set<number>;
   occupancy: string;
   houses: string;
+  outage: Outage | null;
 };
 
 function upsert(s: WorldState, core: PlayerCore, now: number): WorldPlayer {
@@ -1015,6 +1036,19 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
     const p = s.players[b.id];
     const run = runOf(v, b.id, b.every, now);
     if (p?.room !== "town" || now < run.restUntil) continue;
+    // An outage picnic: off to its seat on a blanket, and it sits there until it's over (`refreshOutage`).
+    const seat = v.outage ? PICNIC_SEATS[BOTS.indexOf(b) % PICNIC_SEATS.length]! : null;
+    if (seat && p.x === seat[0] && p.y === seat[1]) {
+      if (p.state !== "sit") {
+        Object.assign(p, { state: "sit", facing: "down" });
+        v.dirty.add(p.id);
+      }
+      continue;
+    }
+    if (seat) {
+      Object.assign(run, { following: null, coffee: null });
+      if (run.path.length === 0) run.path = route(map, [p.x, p.y], seat) ?? [];
+    }
     // Following someone: until they leave town or go offline, or it gets boring.
     if (run.following !== null && (now > run.followUntil || !inTown.includes(run.following))) {
       run.following = null;
@@ -1137,6 +1171,29 @@ async function snapshot(
     doors: companyId === null ? [] : doorsOf(s, companyId),
     drops: dropsIn(room),
   };
+}
+
+/**
+ * Reads the status pages (or `PICNIC_OUTAGE`), and tells everyone when the picnic starts, changes or
+ * ends. When it ends, whoever sat on a blanket (bots too) stands up.
+ */
+async function refreshOutage(
+  c: Sender & { vars: Vars; broadcast(name: string, ...args: unknown[]): void },
+  now: number,
+): Promise<void> {
+  const prev = c.vars.outage;
+  const pinned = forced(now);
+  const next =
+    pinned === undefined ? await checkOutage(prev, now) : pinned && { ...pinned, since: prev?.since ?? now };
+  if (sameOutage(next, c.vars.outage)) return;
+  c.vars.outage = next;
+  c.broadcast("outage", next);
+  if (next) return;
+  for (const p of Object.values(c.state.players))
+    if (p.room === "town" && p.state === "sit" && onBlanket(p.x, p.y)) {
+      p.state = "idle";
+      c.vars.dirty.add(p.id);
+    }
 }
 
 /** What's on a room's floor. `DROPS` is the world's only copy: `town` has them all for a restart (`seed`). */

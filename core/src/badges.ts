@@ -14,6 +14,8 @@ export interface BadgeFacts {
   wins: number;
   biggestPot: number;
   founder: boolean;
+  /** Outage picnics sat in (optional: profiles from before picnics have none). */
+  picnics?: number;
 }
 
 export interface BadgeDef {
@@ -89,6 +91,16 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Founder",
     tiers: [{ at: 1, label: "Founder" }],
     of: (f) => +f.founder,
+  },
+  {
+    id: "picnic",
+    emoji: "🧺",
+    name: "I was there",
+    tiers: [
+      { at: 1, label: "I was there" },
+      { at: 5, label: "5 outage picnics" },
+    ],
+    of: (f) => f.picnics ?? 0,
   },
 ];
 
