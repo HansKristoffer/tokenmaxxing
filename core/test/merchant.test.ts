@@ -1,8 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { EDITION_BASE, EDITIONS, editionAt } from "../src/editions.ts";
-import { cartOpen, editionLabel, lineup, PER_WEEK, ROTATION, weekOf } from "../src/merchant.ts";
+import {
+  CART_SPOT,
+  cartOpen,
+  editionLabel,
+  lineup,
+  PER_WEEK,
+  ROTATION,
+  underCart,
+  weekOf,
+} from "../src/merchant.ts";
 import { addDays } from "../src/range.ts";
 import { ITEMS, isTradeable } from "../src/shop.ts";
+import { CART, isCart } from "../src/street.ts";
 import { parseLook } from "../src/world.ts";
 
 /** Copenhagen wall time in October 2026 (summer time, UTC+2). */
@@ -85,5 +95,12 @@ describe("merchant editions", () => {
 
   test("are numbered", () => {
     expect(editionLabel(3, { supply: 20 })).toBe("#3 of 20");
+  });
+});
+
+describe("the merchant's spot", () => {
+  test("is clear of the pølsevogn, both the cart and where he stands", () => {
+    expect(CART.some(([x, y]) => underCart(x, y))).toBe(false);
+    expect(isCart(CART_SPOT.x - 1, CART_SPOT.y)).toBe(false);
   });
 });

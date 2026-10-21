@@ -14,8 +14,11 @@ export const WEEK_HOUR = 8;
 /** The cart comes on Thursday (at `WEEK_HOUR`) and stays until the week turns over. */
 const ARRIVES = 4;
 
-/** Where the cart stands in town: its left wheel's tile, on the grass east of the square. */
-export const CART_SPOT = { x: 17, y: 4 } as const;
+/**
+ * Where the cart stands in town: its left wheel's tile, on the grass south-east of the square, below
+ * the pølsevogn (`street.ts` `CART`, at (17, 4) and (18, 4)), so the two never stand on each other.
+ */
+export const CART_SPOT = { x: 17, y: 7 } as const;
 /** The tiles it covers: three wide, two deep. The merchant stands just west of it. */
 export const CART_W = 3;
 export const CART_H = 2;
