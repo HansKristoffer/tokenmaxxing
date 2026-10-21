@@ -238,7 +238,7 @@ export interface PlayerInfo {
  * Someone with agents running right now. The dungeon seats them at a war desk wherever they really are
  * (asleep, in town, offline), firing at the boss as fast as they burn tokens.
  */
-export interface Raider {
+interface Raider {
   id: number;
   name: string;
   look: Look;

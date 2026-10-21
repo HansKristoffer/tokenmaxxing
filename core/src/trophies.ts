@@ -26,7 +26,7 @@ export interface TrophyFacts {
   today: string;
 }
 
-export interface TrophyDef {
+interface TrophyDef {
   id: string;
   name: string;
   /** How it's earned, for the shelf's list. */

@@ -12,7 +12,7 @@ export const REVEAL_MS = 4_000;
 /** 🦄 is the 1: wild, and not claimable itself. */
 export const FACES = ["", "🦄", "📉", "📊", "📈", "🚀", "💰"] as const;
 
-export interface Claim {
+interface Claim {
   player: number;
   count: number;
   face: number;

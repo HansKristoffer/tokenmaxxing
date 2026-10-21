@@ -44,11 +44,7 @@ function solar(ms: number): { decl: number; eqTime: number } {
 }
 
 /** The sun's height above the horizon in degrees (negative below), and whether it's still morning. */
-export function sunElevation(
-  ms: number,
-  lat = CPH.lat,
-  lon = CPH.lon,
-): { elevation: number; morning: boolean } {
+function sunElevation(ms: number, lat = CPH.lat, lon = CPH.lon): { elevation: number; morning: boolean } {
   const { decl, eqTime } = solar(ms);
   const utcMin = (((ms / 60_000) % 1440) + 1440) % 1440;
   const hourAngle = ((((utcMin + eqTime + 4 * lon) % 1440) + 1440) % 1440) / 4 - 180;
@@ -83,7 +79,7 @@ export function sunTimes(ms: number, lat = CPH.lat, lon = CPH.lon): { sunrise: n
   return { sunrise: rise, sunset: set };
 }
 
-export type Phase = "night" | "dawn" | "day" | "dusk";
+type Phase = "night" | "dawn" | "day" | "dusk";
 
 export interface Light {
   phase: Phase;

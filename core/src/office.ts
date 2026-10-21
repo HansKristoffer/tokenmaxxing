@@ -82,7 +82,7 @@ for (const f of [...PIECES, ...COMPANY_FURNITURE]) if (!BY_CH.has(f.ch)) BY_CH.s
 export const pieceOf = (ch: unknown): Piece | undefined => BY_CH.get(ch as string);
 
 /** One placed piece: its top-left tile. */
-export interface Placed {
+interface Placed {
   ch: string;
   x: number;
   y: number;

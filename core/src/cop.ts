@@ -49,7 +49,7 @@ export const COP: BotDef = {
 };
 
 /** What he says when he starts the chase. `{name}`. */
-export const PULL_OVER_LINES = [
+const PULL_OVER_LINES = [
   "429 Too Many Requests! Pull over, @{name}!",
   "@{name} pull over! 429 Too Many Requests.",
   "@{name} hands off the keyboard. 429!",

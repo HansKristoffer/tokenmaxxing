@@ -6,7 +6,7 @@ const URL = "https://cursor.com/api/dashboard/get-filtered-usage-events";
 const PAGE_SIZE = 1000;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
-export interface CursorCredentials {
+interface CursorCredentials {
   accountId: string;
   cookie: string;
 }

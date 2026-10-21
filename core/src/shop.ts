@@ -21,7 +21,7 @@ export const coinsForTokens = (tokens: number): number => Math.floor(Math.sqrt(M
 /** Extra coins for finishing a world day 1st, 2nd or 3rd on tokens. */
 export const PODIUM_COINS = [25, 15, 10] as const;
 
-export type Slot = "outfit" | "glasses" | "hat" | "pet" | WardrobeSlot;
+type Slot = "outfit" | "glasses" | "hat" | "pet" | WardrobeSlot;
 
 export interface Item {
   /** `<slot>.<index>`, e.g. `pet.2`, `furn.<ch>` for furniture, or `merch.<companyId>.<kind>`. */

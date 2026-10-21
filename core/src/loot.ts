@@ -27,9 +27,9 @@ export const LAP_BONUS = 1.05;
 /** The most the odds ever grow: a 0.1% legendary is never above 1%. (At ×1.05 a lap, it takes 48 laps.) */
 export const LAP_CAP = 10;
 
-export type LootSlot = "outfit" | "glasses" | "hat" | "pet" | "furniture";
+type LootSlot = "outfit" | "glasses" | "hat" | "pet" | "furniture";
 
-export interface Loot {
+interface Loot {
   /** The shop's id: `<slot>.<index>`, or `furn.<ch>` for a trophy. */
   id: string;
   slot: LootSlot;

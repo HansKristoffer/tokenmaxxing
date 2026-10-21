@@ -39,7 +39,7 @@ export type GhRunner = (args: string[]) => Promise<{ ok: boolean; out: string }>
 let shellGh: string | null | undefined;
 
 /** `gh` on the usual paths, else wherever the user's interactive shell finds it (mise, asdf, …). */
-export function ghPath(): string | null {
+function ghPath(): string | null {
   const found = GH_PATHS.find((p) => existsSync(p)) ?? Bun.which("gh");
   if (found) return found;
   // ponytail: asked once per run, so a `gh` installed off the usual paths needs an app restart.
@@ -59,7 +59,7 @@ export function ghPath(): string | null {
   return shellGh;
 }
 
-export function ghRunner(gh: string): GhRunner {
+function ghRunner(gh: string): GhRunner {
   return async (args) => {
     const p = Bun.spawn([gh, ...args], {
       stdout: "pipe",

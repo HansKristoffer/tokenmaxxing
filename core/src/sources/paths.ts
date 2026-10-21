@@ -28,7 +28,7 @@ export function claudeCoworkDir(): string {
 }
 
 /** PostHog Desktop's data dir. Its agent runs Claude Code with `claude/` as the config dir. */
-export function posthogDesktopDir(): string {
+function posthogDesktopDir(): string {
   return resolveDir(
     process.env.TOKENMAXXING_POSTHOG_DESKTOP_DIR,
     join(appSupport(), "@posthog", "posthog-code"),

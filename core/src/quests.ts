@@ -11,7 +11,7 @@ export interface DayFacts {
   activeBuckets: number;
 }
 
-export interface Quest {
+interface Quest {
   id: string;
   text: string;
   coins: number;

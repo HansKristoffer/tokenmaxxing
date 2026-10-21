@@ -18,7 +18,7 @@ const TO_WIN = 3;
 /** Draws replay the round; this many rounds and the leader wins, or it's a tie. */
 const MAX_ROUNDS = 9;
 
-export interface Round {
+interface Round {
   picks: Record<number, Pick | null>;
   /** Null: a draw (same pick, or neither picked in time). */
   winner: number | null;

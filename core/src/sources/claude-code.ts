@@ -3,7 +3,7 @@ import { type Source, type TokenEvent, tokenEvent } from "../types.ts";
 import { isNum, isString } from "./guards.ts";
 import { readNewlineLines } from "./read-slice.ts";
 
-export interface ParseClaudeCodeOptions {
+interface ParseClaudeCodeOptions {
   path: string;
   byteOffset: number;
   /** Source tag for emitted events; defaults to "claude_code". Cowork passes
@@ -11,7 +11,7 @@ export interface ParseClaudeCodeOptions {
   source?: Source;
 }
 
-export interface ParseClaudeCodeResult {
+interface ParseClaudeCodeResult {
   events: TokenEvent[];
   newOffset: number;
   /** Count of records dropped because they exceeded the read window (data

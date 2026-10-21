@@ -64,7 +64,7 @@ export const stepPace = (polseUntil: number, now: number): number =>
 /** It leaves at 07:00 from the left of the square and reaches the goal flag at 17:00, along row `y`. */
 export const SNAIL = { y: 5, from: 4, to: 14, leaves: 7 * 60, arrives: 17 * 60 } as const;
 
-export type SnailPhase = "queued" | "deploying" | "deployed";
+type SnailPhase = "queued" | "deploying" | "deployed";
 
 /** Where the snail is (a fractional tile) and how its build is going, at `ms`. */
 export function snailAt(ms: number): { x: number; y: number; phase: SnailPhase; progress: number } {

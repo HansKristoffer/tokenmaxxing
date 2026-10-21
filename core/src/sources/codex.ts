@@ -23,7 +23,7 @@ export interface SessionTotals {
   reasoningTokens: number;
 }
 
-export interface ParseCodexOptions {
+interface ParseCodexOptions {
   path: string;
   byteOffset: number;
   prevSessionTotals?: SessionTotals;
@@ -42,7 +42,7 @@ export interface ParseCodexOptions {
   lookAheadMaxBytes?: number;
 }
 
-export interface ParseCodexResult {
+interface ParseCodexResult {
   events: TokenEvent[];
   newOffset: number;
   sessionTotals: SessionTotals;

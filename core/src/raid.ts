@@ -7,7 +7,7 @@
  */
 import { addDays, dayKey } from "./range.ts";
 
-export interface Boss {
+interface Boss {
   id: string;
   name: string;
   emoji: string;
@@ -187,7 +187,7 @@ export function raidWeekAt(now: number): string {
 }
 
 /** A boss that fell, and the raiders paid for it. */
-export interface Kill {
+interface Kill {
   rung: number;
   boss: RungBoss;
   /** The world day it fell. */
@@ -213,7 +213,7 @@ export interface RaidWeek {
 }
 
 /** One week's ladder, from its days (all in that week). */
-export function ladder(week: string, hp: number, days: readonly RaidDay[]): RaidWeek {
+function ladder(week: string, hp: number, days: readonly RaidDay[]): RaidWeek {
   const byDay = new Map<string, RaidDay[]>();
   for (const d of days) {
     const same = byDay.get(d.day);

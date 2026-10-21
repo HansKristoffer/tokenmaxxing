@@ -19,9 +19,9 @@ export interface Wearable {
 }
 
 /** Hats before the pack: none, beanie, headphones, crown, top hat. */
-export const FIRST_HAT = 5;
+const FIRST_HAT = 5;
 /** Glasses before the pack: none, nerd specs, shades, heart glasses. */
-export const FIRST_FACE = 4;
+const FIRST_FACE = 4;
 
 // biome-ignore format: a catalog reads best one to a line
 export const PACK_HATS: readonly Wearable[] = [

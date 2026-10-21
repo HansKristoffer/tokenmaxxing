@@ -31,7 +31,7 @@ export interface BotDef {
 }
 
 /** A time on the world's clock (Copenhagen): on `days` (0 is Sunday; all if left out), hours `from` to `to`. */
-export interface Moment {
+interface Moment {
   days?: number[];
   from?: number;
   to?: number;
@@ -262,7 +262,7 @@ export function toCoffee(map: GameMap, x: number, y: number): { path: Facing[]; 
 }
 
 /** What the bot is up to, for picking what it says. */
-export interface Context {
+interface Context {
   /** Who it's following. */
   leader?: { name: string; todayTokens: number } | null;
   /** Cups in its system, after a trip to the coffee machine. */

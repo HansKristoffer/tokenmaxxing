@@ -23,7 +23,7 @@ export interface PaperFacts {
   game: { name: string; game: string; won: number } | null;
 }
 
-export interface Headline {
+interface Headline {
   title: string;
   /** The line under it. */
   deck: string;
