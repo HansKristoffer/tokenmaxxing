@@ -16,12 +16,10 @@ import { TILE } from "@tokenmaxxing/core/world.ts";
 import { CART_PX, cartSprite, glow, lantern, merchantFrame, signpost } from "../art/cart.ts";
 import { C } from "../art/palette.ts";
 import { hud } from "../store.ts";
+import type { Frame } from "./frame.ts";
 import { gameHits } from "./games.ts";
 import { bubble, sign } from "./labels.ts";
-import { self, world } from "./world.ts";
-
-type Draw = { y: number; draw: () => void };
-type ToScreen = (px: number, py: number) => readonly [number, number];
+import { self, serverNow, world } from "./world.ts";
 
 /** Where the merchant stands: by the cart's back wheel, on the edge of the square. */
 const MERCHANT = { x: CART_SPOT.x - 1, y: CART_SPOT.y };
@@ -32,8 +30,6 @@ const CALLS = [
   "Every copy stamped. Every one a little bit rare.",
   "Fresh from the far side of the context window!",
 ];
-
-const serverNow = () => Date.now() - hud.get().clockSkew;
 
 export const openCart = (): void => {
   if (cartOpen(serverNow())) hud.set({ panel: { kind: "merchant" } });
@@ -47,19 +43,20 @@ export const openCart = (): void => {
 export const merchantAt = (x: number, y: number): boolean =>
   world.room === "town" && (underCart(x, y) || (x === MERCHANT.x && y === MERCHANT.y));
 
-export function drawMerchant(
-  g: CanvasRenderingContext2D,
-  items: Draw[],
-  labels: (() => void)[],
-  toScreen: ToScreen,
-  now: number,
-  dpr: number,
-): void {
+/** The cart as it is this minute (it comes and goes, and changes its goods, on the hour): null while away. */
+let shown = { minute: Number.NaN, cart: null as HTMLCanvasElement | null };
+function cartNow(at: number): HTMLCanvasElement | null {
+  const minute = Math.floor(at / 60_000);
+  if (minute !== shown.minute) shown = { minute, cart: cartOpen(at) ? cartSprite(lineup(weekOf(at))) : null };
+  return shown.cart;
+}
+
+export function drawMerchant({ g, items, labels, toScreen, now, dpr }: Frame): void {
   if (world.room !== "town") return;
-  const at = serverNow();
   const left = CART_SPOT.x * TILE;
   const bottom = (CART_SPOT.y + CART_H) * TILE;
-  if (!cartOpen(at)) {
+  const cart = cartNow(serverNow());
+  if (!cart) {
     const post = signpost();
     const px = (CART_SPOT.x + 1) * TILE;
     items.push({ y: bottom - 1, draw: () => g.drawImage(post, px, bottom - post.height) });
@@ -72,7 +69,6 @@ export function drawMerchant(
     return;
   }
 
-  const cart = cartSprite(lineup(weekOf(at)));
   const top = bottom - CART_PX.h;
   const lit = Math.floor(now / 260) % 5 !== 0;
   items.push({

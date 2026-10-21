@@ -1,9 +1,9 @@
-import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { SHELF_H, trophyShelf } from "../art/trophies.ts";
 import { town } from "../net.ts";
 import { hud } from "../store.ts";
+import type { Frame } from "./frame.ts";
 import { world } from "./world.ts";
 
 /** While you're in an office, its shelf is asked for again this often (new syncs, new trophies). */
@@ -19,21 +19,10 @@ export async function loadTrophies(owner: number): Promise<Trophy[]> {
   return trophies;
 }
 
-/** Where a map's shelf stands: the first `U` from the top left. */
-const spots = new WeakMap<GameMap, [number, number] | null>();
-const spotOf = (map: GameMap) => {
-  if (!spots.has(map)) spots.set(map, map.find("U")[0] ?? null);
-  return spots.get(map)!;
-};
-
-/** In an office: its owner's shelf, drawn standing on its row against the back wall. */
-export function drawTrophies(
-  map: GameMap,
-  g: CanvasRenderingContext2D,
-  items: { y: number; draw: () => void }[],
-) {
+/** In an office: its owner's shelf, on its row (the first `U` from the top left) against the back wall. */
+export function drawTrophies({ g, items }: Frame) {
   const owner = world.owner?.id;
-  const at = owner === undefined ? null : spotOf(map);
+  const at = owner === undefined ? null : world.map.find("U")[0];
   if (owner === undefined || !at) return;
   const now = Date.now();
   if (shelf.owner !== owner || now - shelf.at > REFRESH_MS) {

@@ -80,6 +80,27 @@ export function once(make: () => HTMLCanvasElement): () => HTMLCanvasElement {
   return () => (c ??= make());
 }
 
+const gradients = new WeakMap<CanvasRenderingContext2D, Map<string, CanvasGradient>>();
+
+/** A gradient for `g` made once per `key` rather than every frame: one whose place and stops never change. */
+export function gradient(
+  g: CanvasRenderingContext2D,
+  key: string,
+  make: () => CanvasGradient,
+): CanvasGradient {
+  let made = gradients.get(g);
+  if (!made) {
+    made = new Map();
+    gradients.set(g, made);
+  }
+  let grad = made.get(key);
+  if (!grad) {
+    grad = make();
+    made.set(key, grad);
+  }
+  return grad;
+}
+
 /**
  * Memoizes `f` per object, for things that are replaced rather than edited (a look, a set). With
  * `version`, it all starts again whenever that changes.

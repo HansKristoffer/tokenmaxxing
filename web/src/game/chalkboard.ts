@@ -1,7 +1,7 @@
-import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { C } from "../art/palette.ts";
 import { bake, cached, hash } from "../art/pixels.ts";
+import type { Frame } from "./frame.ts";
 import { bubble } from "./labels.ts";
 import { copenhagenDay, specialOn } from "./specials.ts";
 import { self, world } from "./world.ts";
@@ -64,29 +64,27 @@ const board = cached(
     }),
 );
 
-const spots = new WeakMap<GameMap, [number, number][]>();
-
 /** When you came up to the board, for the bubble to fade in; null while you're not by it. */
 let nearSince: number | null = null;
 
 /** The special's line for the dialog (E facing the board). */
 export const chalkboardText = (): string => `The Inn's chalkboard. Today's special: ${specialOn(new Date())}`;
 
+/** Today in Copenhagen and its special, read once a minute (the day turns on one). */
+let today = { minute: Number.NaN, day: 0, special: "" };
+function todayNow() {
+  const at = new Date();
+  const minute = Math.floor(at.getTime() / 60_000);
+  if (minute !== today.minute) today = { minute, day: copenhagenDay(at), special: specialOn(at) };
+  return today;
+}
+
 /** Queues the boards on the map, and the special over any you're standing by. */
-export function drawChalkboards(
-  g: CanvasRenderingContext2D,
-  items: { y: number; draw: () => void }[],
-  labels: (() => void)[],
-  toScreen: (px: number, py: number) => readonly [number, number],
-  now: number,
-  dpr: number,
-): void {
-  const map = world.map;
-  const list = spots.get(map) ?? map.find("K");
-  spots.set(map, list);
+export function drawChalkboards({ g, items, labels, toScreen, now, dpr }: Frame): void {
+  const list = world.map.find("K");
   if (!list.length) return;
-  const today = new Date();
-  const sprite = board(copenhagenDay(today));
+  const { day, special } = todayNow();
+  const sprite = board(day);
   const me = self();
   let near = false;
   for (const [x, y] of list) {
@@ -98,7 +96,7 @@ export function drawChalkboards(
     nearSince ??= now;
     const since = nearSince;
     const [sx, sy] = toScreen(left + TILE / 2, top);
-    labels.push(() => bubble(g, sx, sy, specialOn(today), dpr, now - since));
+    labels.push(() => bubble(g, sx, sy, special, dpr, now - since));
   }
   if (!near) nearSince = null;
 }

@@ -7,7 +7,8 @@ import { LAP_CHARS } from "@tokenmaxxing/core/games/sprint.ts";
 import { PLAZA } from "@tokenmaxxing/core/maps.ts";
 import { type Facing, TILE, type WorldGame } from "@tokenmaxxing/core/world.ts";
 import { C } from "../art/palette.ts";
-import { world } from "./world.ts";
+import type { Frame } from "./frame.ts";
+import { gamesOf, world } from "./world.ts";
 
 export interface Lap {
   x: number;
@@ -24,9 +25,7 @@ const EASE_MS = 400;
 const live = (g: WorldGame) => g.game === "sprint" && g.headline !== "Over";
 
 function raceOf(id: number): WorldGame | undefined {
-  if (world.room !== "town") return undefined;
-  for (const g of world.games.values()) if (live(g) && g.players.includes(id)) return g;
-  return undefined;
+  return world.room === "town" ? gamesOf(id).find(live) : undefined;
 }
 
 /** Each racer's own lane, in tiles in from the edge: the first innermost, the rest outwards. */
@@ -63,11 +62,7 @@ export function racing(id: number, now: number): Lap | null {
 }
 
 /** The start line across the lanes: a chequered strip on the paving. */
-export function startLine(
-  g: CanvasRenderingContext2D,
-  game: WorldGame,
-  items: { y: number; draw: () => void }[],
-) {
+export function startLine({ g, items }: Frame, game: WorldGame) {
   if (!live(game)) return;
   const lanes = game.players.map((p) => lane(game, p));
   const x = ((PLAZA.left + PLAZA.right) / 2) * TILE + 13;

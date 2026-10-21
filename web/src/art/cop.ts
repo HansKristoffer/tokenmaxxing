@@ -2,7 +2,7 @@ import { COP } from "@tokenmaxxing/core/cop.ts";
 import type { Facing } from "@tokenmaxxing/core/world.ts";
 import { characterFrame, type Pose, type View } from "./characters.ts";
 import { C } from "./palette.ts";
-import { bake, cached, type Palette } from "./pixels.ts";
+import { bake, cached, gradient, type Palette } from "./pixels.ts";
 
 /**
  * Officer 429: his look (a blue shirt) with a uniform drawn over it. A peaked cap with a gold badge,
@@ -119,12 +119,18 @@ const sirenHot = (red: boolean) => (red ? "#ff4a4a" : "#4a9bff");
  */
 export function drawSirenGlow(g: CanvasRenderingContext2D, px: number, py: number, now: number): void {
   const red = sirenRed(now);
-  const glow = g.createRadialGradient(px + 8, py + 6, 2, px + 8, py + 6, 15);
-  glow.addColorStop(0, sirenHot(red));
-  glow.addColorStop(1, "transparent");
+  // Made once for each colour round (0, 0), and moved to him.
+  g.save();
+  g.translate(px, py);
   g.globalAlpha = 0.45;
-  g.fillStyle = glow;
-  g.fillRect(px - 8, py - 10, 32, 32);
+  g.fillStyle = gradient(g, `siren ${red}`, () => {
+    const glow = g.createRadialGradient(8, 6, 2, 8, 6, 15);
+    glow.addColorStop(0, sirenHot(red));
+    glow.addColorStop(1, "transparent");
+    return glow;
+  });
+  g.fillRect(-8, -10, 32, 32);
+  g.restore();
   g.globalAlpha = 0.2;
   g.fillStyle = sirenHot(!red);
   g.beginPath();

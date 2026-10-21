@@ -136,6 +136,7 @@ export function loadSnapshot(s: Snapshot): void {
   world.portalPending = false;
   world.houses = s.houses;
   world.games = new Map(s.games.map((g) => [g.id, g]));
+  gamesChanged();
   // The first time in your own office, how to furnish it.
   const hint = changedRoom && s.room === `office:${s.selfId}` && !localStorage.getItem(OFFICE_HINT_KEY);
   if (hint) localStorage.setItem(OFFICE_HINT_KEY, "1");
@@ -273,7 +274,7 @@ export function advanceRemotes(now: number): void {
       );
     else Object.assign(a, { x, y, from: null });
   }
-  world.leaving = world.leaving.filter((a) => now - a.warp!.at < WARP_MS);
+  if (world.leaving.length) world.leaving = world.leaving.filter((a) => now - a.warp!.at < WARP_MS);
 }
 
 export const avatarAt = (x: number, y: number): Avatar | undefined =>
@@ -322,12 +323,14 @@ function showDrops(drops: Drop[]): void {
 
 export function applyGame(g: WorldGame): void {
   world.games.set(g.id, g);
+  gamesChanged();
 }
 
 /** A game ended: its table goes, and coins burst around the winners (who hop, after a race). */
 export function applyGameOver(id: number, winners: number[]): void {
   const race = world.games.get(id)?.game === "sprint";
   world.games.delete(id);
+  gamesChanged();
   world.tableBubbles.delete(id);
   for (const w of winners) {
     const a = world.avatars.get(w);
@@ -350,12 +353,35 @@ export function applyCallout(e: { id: number; userId: number | null; text: strin
   else world.tableBubbles.set(e.id, { text: e.text, until });
 }
 
+/** Each player's games, in the world's order: worked out again only once the games change. */
+let byPlayer: Map<number, WorldGame[]> | null = null;
+const NO_GAMES: readonly WorldGame[] = [];
+
+function gamesChanged(): void {
+  byPlayer = null;
+}
+
+/** The games `userId` is in, in the order `world.games` has them. */
+export function gamesOf(userId: number): readonly WorldGame[] {
+  if (!byPlayer) {
+    byPlayer = new Map();
+    for (const g of world.games.values())
+      for (const p of g.players) {
+        const list = byPlayer.get(p);
+        if (!list) byPlayer.set(p, [g]);
+        else if (list.at(-1) !== g) list.push(g);
+      }
+  }
+  return byPlayer.get(userId) ?? NO_GAMES;
+}
+
 /** "🎮 ★★ ✓" over someone at a game table, "🏁 2nd · 412M" for someone in a battle. */
 export function gameTag(userId: number): string | null {
-  for (const g of world.games.values()) {
-    if (!g.players.includes(userId)) continue;
-    const status = g.status[userId];
-    return `${g.spot.kind === "arena" ? "🏁" : "🎮"}${status ? ` ${status}` : ""}`;
-  }
-  return null;
+  const g = gamesOf(userId)[0];
+  if (!g) return null;
+  const status = g.status[userId];
+  return `${g.spot.kind === "arena" ? "🏁" : "🎮"}${status ? ` ${status}` : ""}`;
 }
+
+/** Now on the server's clock. */
+export const serverNow = (): number => Date.now() - hud.get().clockSkew;

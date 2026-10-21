@@ -2,7 +2,7 @@ import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Facing, Look } from "@tokenmaxxing/core/world.ts";
 import { characterFrame, itemFrame } from "./characters.ts";
 import { C } from "./palette.ts";
-import { bake, cached, once, type Pen } from "./pixels.ts";
+import { bake, cached, gradient, once, type Pen } from "./pixels.ts";
 
 /**
  * The traveling merchant's cart (`core/src/merchant.ts`): a wooden wagon under a striped awning,
@@ -113,10 +113,12 @@ export const lantern = cached(
 
 /** A soft glow under the lantern at night-ish moments: a few translucent rings. */
 export function glow(g: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
-  const grad = g.createRadialGradient(cx, cy, 1, cx, cy, r);
-  grad.addColorStop(0, "rgba(255, 226, 138, 0.35)");
-  grad.addColorStop(1, "rgba(255, 226, 138, 0)");
-  g.fillStyle = grad;
+  g.fillStyle = gradient(g, `lantern ${cx},${cy},${r}`, () => {
+    const grad = g.createRadialGradient(cx, cy, 1, cx, cy, r);
+    grad.addColorStop(0, "rgba(255, 226, 138, 0.35)");
+    grad.addColorStop(1, "rgba(255, 226, 138, 0)");
+    return grad;
+  });
   g.fillRect(cx - r, cy - r, r * 2, r * 2);
 }
 

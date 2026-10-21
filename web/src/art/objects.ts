@@ -7,7 +7,7 @@ import { C } from "./palette.ts";
 import { bake, cached, once, type Pen } from "./pixels.ts";
 
 /** A baked sprite and where it sits relative to its tile's top-left corner. */
-export interface Placed {
+interface Placed {
   canvas: HTMLCanvasElement;
   dx: number;
   dy: number;

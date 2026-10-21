@@ -3,6 +3,7 @@ import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import {
+  type CompanyInfo,
   companyOfRoom,
   cupsLeft,
   houseTier,
@@ -19,16 +20,16 @@ import { chairBack, objectAt, petBedFront, sortY } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { SLEEP_H, SLEEP_W, sleepingFrame } from "../art/pet-sleep.ts";
 import { PET_H, PET_W, petFrame } from "../art/pets.ts";
-import { hash, initialsOf } from "../art/pixels.ts";
+import { hash, initialsOf, perObject } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
-import { hud } from "../store.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
 import { drawCop, isCop } from "./cop.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
+import { type Frame, inView } from "./frame.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
-import { avatarLabels, chipHits, chips, petLabel, sign, signHits } from "./labels.ts";
+import { avatarLabels, chipHits, chips, chipsWidth, petLabel, sign, signHits } from "./labels.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
@@ -36,7 +37,16 @@ import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
-import { drawLampGlow, drawLight, drawNightSky, drawSway, drawWeather, drawWindowGlow } from "./sky.ts";
+import {
+  drawLight,
+  drawLights,
+  drawNightSky,
+  drawSway,
+  drawWeather,
+  type LitWindow,
+  lightsNow,
+  weatherNow,
+} from "./sky.ts";
 import { snowAmount, snowLayers } from "./snow.ts";
 import { drawStreet } from "./street.ts";
 import { drawTrophies } from "./trophies.ts";
@@ -44,12 +54,13 @@ import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
 
-type Draw = { y: number; draw: () => void };
-
-type Label = () => void;
-
 /** Tiles within which other players' pet names show. */
 const NAME_RANGE = 6;
+/** How far (in canvas pixels, per device pixel) labels reach past what they're over: bubbles, emoji bursts. */
+const LABEL_REACH = 160;
+
+/** A pet's costume, once per look. */
+const outfitOf = perObject(petOutfit);
 
 export function render(canvas: HTMLCanvasElement, now: number): void {
   const g = canvas.getContext("2d")!;
@@ -80,31 +91,50 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = false;
   g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
-  // Snow (town only): twins of the baked ground and sprites, cross-faded while it settles or melts.
   const outdoors = map.id === "town";
+  // The weather once a frame, for the trees leaning in the wind.
+  const weather = outdoors ? weatherNow() : null;
+  // Snow (town only): twins of the baked ground and sprites, cross-faded while it settles or melts.
   const snow = outdoors ? snowAmount(now) : 0;
-  const layers = (c: HTMLCanvasElement, ground = false) => snowLayers(c, snow, ground);
-  if (world.ground)
-    for (const [c, a] of layers(world.ground, true)) {
+  const paint = (c: HTMLCanvasElement, x: number, y: number, ch: string) => {
+    if (weather && (ch === "T" || ch === "^")) drawSway(g, c, ch, x, y, now, weather);
+    else g.drawImage(c, x, y);
+  };
+  const snowy = (src: HTMLCanvasElement, x: number, y: number, ch = "", ground = false) => {
+    if (snow < 0.01) return paint(src, x, y, ch);
+    for (const [c, a] of snowLayers(src, snow, ground)) {
       g.globalAlpha = a;
-      g.drawImage(c, map.x0 * TILE, map.y0 * TILE);
-      g.globalAlpha = 1;
+      paint(c, x, y, ch);
     }
+    g.globalAlpha = 1;
+  };
+  if (world.ground) snowy(world.ground, map.x0 * TILE, map.y0 * TILE, "", true);
   if (snow < 0.7) drawWaterGlints(g, map, now);
 
   const x0 = Math.max(map.x0, Math.floor(camX / TILE) - 1);
   const y0 = Math.max(map.y0, Math.floor(camY / TILE) - 1);
   const x1 = Math.min(map.x0 + map.width, Math.ceil((camX + viewW) / TILE) + 1);
   const y1 = Math.min(map.y0 + map.height, Math.ceil((camY + viewH) / TILE) + 3);
-  const items: Draw[] = [];
+  const f: Frame = {
+    g,
+    items: [],
+    labels: [],
+    now,
+    dpr,
+    scale,
+    view: { x0: camX, y0: camY, x1: camX + viewW, y1: camY + viewH },
+    toScreen: (px, py) => [(px - camX) * scale, (py - camY) * scale] as const,
+  };
+  const { items, labels, toScreen } = f;
   peekHits.length = 0;
   chipHits.length = 0;
   signHits.length = 0;
-  const labels: Label[] = [];
   // Outdoors only: lamps and lit windows to shine over the night's tint (see `sky.ts`).
   const lamps: [number, number][] = [];
-  const windows: ((glow: number) => void)[] = [];
-  const toScreen = (px: number, py: number) => [(px - camX) * scale, (py - camY) * scale] as const;
+  const windows: LitWindow[] = [];
+  // At night the lit windows' faces are drawn again over the tint, opaque, so the first time is skipped.
+  // Only at a whole-number zoom: in between, the panes' soft edges would show what was under them.
+  const relit = outdoors && Number.isInteger(scale) && lightsNow(now) > 0.05;
 
   for (let y = y0; y < y1; y++)
     for (let x = x0; x < x1; x++) {
@@ -116,17 +146,8 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
           y: y * TILE + sortY(ch),
           draw: () => {
             // The company building's pieces are indoors, out of the snow.
-            if (o.fancy) {
-              g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
-              return;
-            }
-            for (const [c, a] of layers(o.canvas)) {
-              g.globalAlpha = a;
-              if (outdoors && (ch === "T" || ch === "^"))
-                drawSway(g, c, ch, x * TILE + o.dx, y * TILE + o.dy, now);
-              else g.drawImage(c, x * TILE + o.dx, y * TILE + o.dy);
-            }
-            g.globalAlpha = 1;
+            if (o.fancy) g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
+            else snowy(o.canvas, x * TILE + o.dx, y * TILE + o.dy, ch);
           },
         });
       }
@@ -140,26 +161,34 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       }
     }
 
-  drawTrophies(map, g, items);
+  drawTrophies(f);
 
+  // Where everyone is drawn this frame, for the doors (`doorSwing`) and the people themselves.
+  const everyone = [...world.avatars.values(), ...world.leaving];
+  const spots = everyone.map((a) => drawPos(a, now));
   for (const b of buildings(map)) {
     const company = b.plot === null ? null : companyOnPlot(b.plot);
     if (b.plot !== null && !company) continue; // the town catches up with a company closing
-    const plan = company ? house(houseTier(company.tokens30d, company.members), company.brand) : null;
+    const tier = company ? houseTier(company.tokens30d, company.members) : 0;
+    // A cellar hatch (tier 0) is already open; every other building's door swings, seen or not.
+    const swing = !company || tier > 0 ? doorSwing(b.x + 3, b.y + b.h - 1, now, spots) : 0;
+    const plan = company ? house(tier, company.brand) : null;
     const sprite = plan?.canvas ?? inn();
     const left = b.x * TILE;
     const bottom = (b.y + b.h) * TILE;
     const top = bottom - sprite.height;
     const inside = company ? (world.houses[company.id] ?? []) : [];
+    // Nothing of it on screen, its sign and name chips included (they can be wider than it): skip it.
+    const cx = left + (b.w * TILE) / 2;
+    const wide = Math.max((BLOCK_W - 0.5) * TILE * scale, inside.length ? chipsWidth(g, inside, dpr) : 0);
+    const from = Math.min(left, cx - wide / 2 / scale);
+    const to = Math.max(left + sprite.width, cx + wide / 2 / scale);
+    const above = (21 * dpr) / scale;
+    if (!inView(f, from, top - above, to - from, bottom - top + above, TILE)) continue;
     const panes = plan?.panes ?? [];
     const plaque = plan?.plaque;
     const logo = company?.brand?.logo;
     const faces = inside.slice(0, panes.length);
-    // A cellar hatch (tier 0) is already open; every other building's door swings.
-    const swing =
-      !company || houseTier(company.tokens30d, company.members) > 0
-        ? doorSwing(b.x + 3, b.y + b.h - 1, now)
-        : 0;
     for (const [i, p] of faces.entries()) {
       const pane = panes[i]!;
       peekHits.push({ x: left + pane.x, y: top + pane.y, w: pane.w, h: pane.h, id: p.id });
@@ -169,26 +198,21 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       for (const [i, pane] of panes.entries()) {
         const p = faces[i];
         if (p ? p.state === "away" : hash(b.x * 31 + i, b.y, 11) > 0.3) continue;
-        windows.push((glow) => {
-          if (p) drawFace(g, p, left + pane.x, top + pane.y, pane, now);
-          drawWindowGlow(g, left + pane.x, top + pane.y, pane.w, pane.h, glow);
-        });
+        const [x, y] = [left + pane.x, top + pane.y];
+        windows.push({ x, y, w: pane.w, h: pane.h, face: p ? () => drawFace(g, p, x, y, pane, now) : null });
       }
     items.push({
       y: bottom - 1,
       draw: () => {
-        for (const [c, a] of layers(sprite)) {
-          g.globalAlpha = a;
-          g.drawImage(c, left, top);
-        }
-        g.globalAlpha = 1;
+        snowy(sprite, left, top);
         drawDoorSwing(g, sprite, left, top, swing);
         if (logo && plaque) drawLogo(g, logo, left + plaque.x, top + plaque.y, plaque.w, plaque.h);
         for (const [i, p] of faces.entries())
-          drawFace(g, p, left + panes[i]!.x, top + panes[i]!.y, panes[i]!, now);
+          if (!(relit && p.state !== "away"))
+            drawFace(g, p, left + panes[i]!.x, top + panes[i]!.y, panes[i]!, now);
       },
     });
-    const [sx, sy] = toScreen(left + (b.w * TILE) / 2, bottom - sprite.height);
+    const [sx, sy] = toScreen(cx, top);
     const text = company ? `🏢 ${company.name} · ${compact(company.todayTokens)} today` : "🛏 The Inn";
     labels.push(() => {
       const y = sy - 6 * dpr;
@@ -218,13 +242,13 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       });
   }
 
-  drawGames(g, items, labels, toScreen, now, dpr);
-  drawStreet(g, items, labels, toScreen, now, dpr);
-  drawPicnic(g, items);
-  drawChalkboards(g, items, labels, toScreen, now, dpr);
-  drawMerchant(g, items, labels, toScreen, now, dpr);
-  drawRaid(g, items, labels, toScreen, now, dpr);
-  drawLoot(g, items, labels, toScreen, now, dpr);
+  drawGames(f);
+  drawStreet(f);
+  drawPicnic(f);
+  drawChalkboards(f);
+  drawMerchant(f);
+  drawRaid(f);
+  drawLoot(f);
 
   if (world.asleep > 0) {
     const [sx, sy] = toScreen((map.x0 + map.width / 2) * TILE, (map.y0 + 2) * TILE);
@@ -234,34 +258,44 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   const dt = Math.min(100, now - lastFrame);
   lastFrame = now;
   prunePets();
-  for (const a of [...world.avatars.values(), ...world.leaving]) {
+  // In their own office the pet goes to its bed and sleeps there, whoever's looking.
+  const owner = ownerOfOffice(world.room);
+  const bedAt = owner === null ? undefined : map.find("Q")[0];
+  // Off screen, someone (and their pet) still moves on, but nothing of them is drawn.
+  const reach = 3 * TILE + (LABEL_REACH * dpr) / scale;
+  for (const [i, a] of everyone.entries()) {
     // A Sprint Race's racers run laps of the square instead of standing at the table.
     const lap = racing(a.info.id, now);
-    const pos = lap ?? drawPos(a, now);
+    const pos = lap ?? spots[i]!;
     const px = pos.x * TILE;
     const py = pos.y * TILE;
     const tile = lap ? ":" : map.at(a.x, a.y);
-    items.push({
-      y: py + (tile === "b" || tile === "s" ? 1 : TILE - 0.5),
-      draw: () => drawAvatar(g, a, px, py, tile, now, lap),
-    });
-    // A legendary sparkles on whoever wears it.
-    if (wearsLegendary(a.info.look))
-      items.push({ y: py + TILE, draw: () => drawSparkle(g, px, py - 2, now, a.info.id) });
-    // In their own office the pet goes to its bed and sleeps there, whoever's looking.
-    const bed = ownerOfOffice(world.room) === a.info.id ? map.find("Q")[0] : undefined;
-    const pet = a.warp ? null : followPet(a, px, py, dt, bed);
-    if (pet) {
+    // The cop is always drawn: his siren works out whether he's on a case as he's drawn.
+    const seen = isCop(a) || inView(f, px, py, TILE, TILE, reach);
+    if (seen) {
+      items.push({
+        y: py + (tile === "b" || tile === "s" ? 1 : TILE - 0.5),
+        draw: () => drawAvatar(g, a, px, py, tile, now, lap),
+      });
+      // A legendary sparkles on whoever wears it.
+      if (wearsLegendary(a.info.look))
+        items.push({ y: py + TILE, draw: () => drawSparkle(g, px, py - 2, now, a.info.id) });
+    }
+    const pet = a.warp ? null : followPet(a, px, py, dt, owner === a.info.id ? bedAt : undefined);
+    const petSeen = pet !== null && inView(f, pet.x, pet.y, PET_W, PET_H, reach);
+    if (pet && petSeen) {
       const hop = pet.moving && Math.floor(now / 140) % 2 === 0;
       const worn = a.info.look;
-      const bare = petFrame(worn.pet, pet.left, hop, worn.petVariant, petOutfit(worn));
+      const outfit = outfitOf(worn);
       // In bed it curls up without its gear.
-      const asleep = pet.asleep ? sleepingFrame(bare, pet.left, Math.floor(now / 600)) : null;
-      const frame =
-        asleep ??
-        (worn.petwear
-          ? petFrame(worn.pet, pet.left, hop, worn.petVariant, petOutfit(worn), worn.petwear)
-          : bare);
+      const asleep = pet.asleep
+        ? sleepingFrame(
+            petFrame(worn.pet, pet.left, hop, worn.petVariant, outfit),
+            pet.left,
+            Math.floor(now / 600),
+          )
+        : null;
+      const frame = asleep ?? petFrame(worn.pet, pet.left, hop, worn.petVariant, outfit, worn.petwear);
       if (frame)
         items.push({
           y: pet.y + PET_H,
@@ -281,9 +315,10 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     }
     // A pet's name shows for mine and for those within a few tiles of me.
     const petName = a.info.look.petName;
-    if (pet && petName && (!me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE))
+    if (pet && petSeen && petName && (!me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE))
       labels.push(() => petLabel(g, ...toScreen(pet.x + PET_W / 2, pet.y + PET_H + 1), petName, dpr));
-    labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py - labelLift(a)), tile, now, dpr));
+    if (seen)
+      labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py - labelLift(a)), tile, now, dpr));
   }
 
   items.sort((a, b) => a.y - b.y);
@@ -296,8 +331,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     const glow = drawLight(g, w, h, now);
     if (glow > 0.05) {
       g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
-      for (const [lx, ly] of lamps) drawLampGlow(g, lx, ly, glow);
-      for (const lit of windows) lit(glow);
+      drawLights(g, lamps, windows, glow);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
     drawNightSky(g, w, h, dpr, now);
@@ -306,21 +340,23 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   for (const l of labels) l();
 }
 
-/**
- * Company furniture as it is right now: its frame, and the neon sign with the company's own name
- * (its initials when the name won't fit) in its colours.
- */
-function fancyCanvas(piece: FancyPiece, now: number): HTMLCanvasElement {
-  const frame = fancyFrame(piece, now);
-  const id = companyOfRoom(world.room);
-  const company = id === null ? undefined : hud.get().companies.find((c) => c.id === id);
-  if (piece.id !== "neon-sign" || !company) return fancySprite(piece.id, frame);
+/** What a company's neon sign says: its name, or its initials when the name won't fit. Once per company. */
+const neonText = perObject((company: CompanyInfo) => {
   const word = company.name
     .toUpperCase()
     .replace(/[^A-Z0-9&! ]/g, "")
     .trim();
-  const text = word.length > 0 && word.length <= 7 ? word : initialsOf(company.name);
-  return neonSprite(text, frame, coloursOf(company.id).glow);
+  return word.length > 0 && word.length <= 7 ? word : initialsOf(company.name);
+});
+
+/** Company furniture as it is right now: its frame, and the neon sign with the company's name in its colours. */
+function fancyCanvas(piece: FancyPiece, now: number): HTMLCanvasElement {
+  const frame = fancyFrame(piece, now);
+  if (piece.id !== "neon-sign") return fancySprite(piece.id, frame);
+  const id = companyOfRoom(world.room);
+  const company = id === null ? undefined : world.companies.get(id);
+  if (!company) return fancySprite(piece.id, frame);
+  return neonSprite(neonText(company), frame, coloursOf(company.id).glow);
 }
 
 function drawAvatar(
