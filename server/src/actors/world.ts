@@ -230,6 +230,8 @@ export const world = actor({
     occupancy: "",
     /** The last `houses` sent to town, as JSON. */
     houses: "",
+    /** Someone in a house moved, changed or left since then: `houses` is worked out again. */
+    housesStale: true,
     /** The last `raiders` sent to the dungeon, as JSON, and when. */
     raiders: "",
     raidersAt: 0,
@@ -293,7 +295,8 @@ export const world = actor({
       const now = Date.now();
       if (++n % REST_CHECK_EVERY === 0)
         for (const p of settle(c.state, c.vars, now)) c.broadcast("info", info(p, true));
-      if (n % BOT_STEP_EVERY === 0) {
+      // With nobody to see them, the bots stand still (and don't write their walks to state).
+      if (n % BOT_STEP_EVERY === 0 && c.vars.online.size > 0) {
         for (const p of walkBots(c.state, c.vars, now)) c.broadcast("info", info(p, true));
         talkBots(c, now);
       }
@@ -308,10 +311,11 @@ export const world = actor({
       }
       flush(c);
       if (n % COUNTS_EVERY === 0) {
-        const counts = JSON.stringify(occupancy(c.state, c.vars.online));
-        if (counts !== c.vars.occupancy) {
-          c.vars.occupancy = counts;
-          c.broadcast("occupancy", JSON.parse(counts));
+        const counts = occupancy(c.state, c.vars.online);
+        const json = JSON.stringify(counts);
+        if (json !== c.vars.occupancy) {
+          c.vars.occupancy = json;
+          c.broadcast("occupancy", counts);
         }
       }
     }
@@ -675,8 +679,10 @@ export const world = actor({
           Object.assign(p, townSpawn());
         c.vars.dirty.add(p.id);
       }
-      const now = info(p, online);
-      if (JSON.stringify(now) !== shown) c.broadcast("info", now);
+      const next = info(p, online);
+      if (JSON.stringify(next) !== shown) c.broadcast("info", next);
+      // A new name, level or look shows through the house's walls too.
+      if (companyOfRoom(p.room) !== null) c.vars.housesStale = true;
       // A door came, went or was renamed: in the old building and the new one.
       const lifted: number[] = [];
       if (doorKey(p) !== hadDoor)
@@ -702,6 +708,7 @@ export const world = actor({
       if (!p) return ids;
       sendToRoom(c, p.room, "moves", { room: p.room, join: [], m: [], leave: [userId] } satisfies Moves);
       delete c.state.players[userId];
+      c.vars.housesStale = true;
       for (const vars of [c.vars.online, c.vars.announced, c.vars.steps, c.vars.jumps]) vars.delete(userId);
       for (const set of [c.vars.dirty, c.vars.hidden]) set.delete(userId);
       for (const conn of c.conns.values()) {
@@ -882,6 +889,7 @@ type Vars = {
   hidden: Set<number>;
   occupancy: string;
   houses: string;
+  housesStale: boolean;
   outage: Outage | null;
   weather: Weather;
   raiders: string;
@@ -1189,6 +1197,7 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
 
 /** Bots due a line say one over their heads (never in the chat), if anyone online is in the room to hear it. */
 function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> } }, now: number): void {
+  const heard = new Set([...c.vars.online.keys()].map((id) => c.state.players[id]?.room));
   for (const b of BOTS) {
     const p = c.state.players[b.id];
     const run = runOf(c.vars, b.id, b.every, now);
@@ -1197,7 +1206,7 @@ function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> } }, no
     const leader = run.following === null ? null : c.state.players[run.following];
     const text = lineFor(b, now, { leader, cups: run.cups });
     run.cups = 0;
-    if (![...c.vars.online.keys()].some((id) => c.state.players[id]?.room === p.room)) continue;
+    if (!heard.has(p.room)) continue;
     run.restUntil = Math.max(run.restUntil, now + BOT_TALK_PAUSE_MS);
     sendToRoom(c, p.room, "bubble", { userId: b.id, text });
   }
@@ -1562,6 +1571,7 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
       const p = c.state.players[id];
       if (!p) continue;
       const was = announced.get(id);
+      if (companyOfRoom(p.room) !== null || (was && companyOfRoom(was) !== null)) c.vars.housesStale = true;
       // Counted asleep at the Inn, they're a number to the room: they leave it when they fall asleep
       // there and join it when they wake up or sit down to work.
       const hide = counted(p, online);
@@ -1585,20 +1595,30 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
     if (recount) at("inn").asleep = asleepAtInn(c.state, online);
     for (const [room, m] of rooms) sendToRoom(c, room, "moves", m);
   }
-  // ponytail: recomputed every tick (a pass over all players) so renames and level-ups show too.
-  // Track changes per house if the world gets big.
-  const inside = JSON.stringify(houses(c.state));
-  if (inside !== c.vars.houses) {
-    c.vars.houses = inside;
-    sendToRoom(c, "town", "houses", JSON.parse(inside));
+  // Who's inside each house, when someone in one moved or changed (a rename or level-up too, from
+  // `setPlayer`), for whoever is in town to see. Joining town, the snapshot has it anyway.
+  // ponytail: a pass over all players then. Track changes per house if the world gets big.
+  if (c.vars.housesStale && someoneIn(c, "town")) {
+    c.vars.housesStale = false;
+    const inside = houses(c.state);
+    const json = JSON.stringify(inside);
+    if (json !== c.vars.houses) {
+      c.vars.houses = json;
+      sendToRoom(c, "town", "houses", inside);
+    }
   }
   // The dungeon's raiders, once a second, when someone there would see a change.
   const now = Date.now();
   if (now - c.vars.raidersAt < RAIDERS_EVERY_MS) return;
   c.vars.raidersAt = now;
-  if (![...online.keys()].some((id) => c.state.players[id]?.room === "dungeon")) return;
-  const list = JSON.stringify(raiders(c.state, now));
-  if (list === c.vars.raiders) return;
-  c.vars.raiders = list;
-  sendToRoom(c, "dungeon", "raiders", JSON.parse(list));
+  if (!someoneIn(c, "dungeon")) return;
+  const list = raiders(c.state, now);
+  const json = JSON.stringify(list);
+  if (json === c.vars.raiders) return;
+  c.vars.raiders = json;
+  sendToRoom(c, "dungeon", "raiders", list);
 }
+
+/** Whether anyone online is in `room`. */
+const someoneIn = (c: { state: WorldState; vars: Vars }, room: RoomId) =>
+  [...c.vars.online.keys()].some((id) => c.state.players[id]?.room === room);
