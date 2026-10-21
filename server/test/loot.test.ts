@@ -1,5 +1,5 @@
 import { beforeEach, expect, test } from "bun:test";
-import { lootOf, lootRoll } from "@tokenmaxxing/core/loot.ts";
+import { LOOT_FIRST, lootOf, lootRoll } from "@tokenmaxxing/core/loot.ts";
 import { dayStart } from "@tokenmaxxing/core/raid.ts";
 import { addDays } from "@tokenmaxxing/core/range.ts";
 import type { TxSql } from "../src/actors/shared.ts";
@@ -9,6 +9,9 @@ import { grantLoot, lootBoost, lootNotice, raidLoot } from "../src/town/loot.ts"
 import { raid, raidHistory } from "../src/town/raid.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
+
+/** The Rate Limit's common drop: the first loot hat. */
+const HOURGLASS_HAT = `hat.${LOOT_FIRST.hat}`;
 
 let sql: TxSql;
 const RAID_START = "2026-10-19";
@@ -142,7 +145,7 @@ test("loot trades and drops like any shop item, and costs nobody coins", async (
   expect((await items(2)).filter((i) => i === "furn.Y")).toHaveLength(2);
   expect((await wallet(sql, 1, NOW)).balance).toBe(before);
   // Onto the floor too, like any tradeable item.
-  expect(await takeOut(sql, 1, "hat.5", NOW)).toBeGreaterThan(0);
+  expect(await takeOut(sql, 1, HOURGLASS_HAT, NOW)).toBeGreaterThan(0);
 });
 
 test("the notice names the rarest first; the boost is off unless set, and checked at boot", () => {
@@ -157,7 +160,7 @@ test("the notice names the rarest first; the boost is off unless set, and checke
   expect(lootNotice([d("furn.Y", 0.001)])).toBe(
     "🌟 LEGENDARY! ✨ You got the Golden Hourglass (0.1%) from The Rate Limit!",
   );
-  expect(lootNotice([d("hat.5", 0.1), d("pet.7", 0.005)])).toBe(
+  expect(lootNotice([d(HOURGLASS_HAT, 0.1), d("pet.7", 0.005)])).toBe(
     "💜 ✨ 2 raid drops for you: the Sand golem (0.5%), Hourglass hat!",
   );
   expect(lootBoost(undefined)).toBe(1);
