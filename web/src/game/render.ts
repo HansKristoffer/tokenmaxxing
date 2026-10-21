@@ -13,6 +13,7 @@ import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
 import { followPet, prunePets } from "./pets.ts";
+import { type Lap, racing } from "./race.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
@@ -141,13 +142,15 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   lastFrame = now;
   prunePets();
   for (const a of [...world.avatars.values(), ...world.leaving]) {
-    const pos = drawPos(a, now);
+    // A Sprint Race's racers run laps of the square instead of standing at the table.
+    const lap = racing(a.info.id, now);
+    const pos = lap ?? drawPos(a, now);
     const px = pos.x * TILE;
     const py = pos.y * TILE;
-    const tile = map.at(a.x, a.y);
+    const tile = lap ? ":" : map.at(a.x, a.y);
     items.push({
       y: py + (tile === "b" || tile === "s" ? 1 : TILE - 0.5),
-      draw: () => drawAvatar(g, a, px, py, tile, now),
+      draw: () => drawAvatar(g, a, px, py, tile, now, lap),
     });
     const pet = a.warp ? null : followPet(a, px, py, dt);
     if (pet) {
@@ -175,6 +178,7 @@ function drawAvatar(
   py: number,
   tile: string,
   now: number,
+  lap: Lap | null,
 ): void {
   const look = a.info.look;
   // Coffee: a random nudge every frame, a pixel per cup still in their system.
@@ -209,7 +213,8 @@ function drawAvatar(
   } else if (a.state === "sit") {
     g.drawImage(characterFrame(look, a.facing === "up" ? "up" : "down", "sit"), px, py - 5);
   } else {
-    const walking = stepping(a, now);
+    const walking = lap ? lap.running : stepping(a, now);
+    const facing = lap?.facing ?? a.facing;
     const pose = poseFor(a.state, walking, now);
     // A hop: up and down on an arc, the shadow shrinking while they're in the air.
     const t = a.jump === null ? 1 : (now - a.jump) / JUMP_MS;
@@ -217,7 +222,7 @@ function drawAvatar(
     const shrink = lift > 3 ? 1 : 0;
     g.fillStyle = C.shadow;
     g.fillRect(px + 4 + shrink, py + 14, 8 - 2 * shrink, 2);
-    g.drawImage(characterFrame(look, a.facing, pose), px, py - 2 - lift - (pose === "walkA" ? 1 : 0));
+    g.drawImage(characterFrame(look, facing, pose), px, py - 2 - lift - (pose === "walkA" ? 1 : 0));
   }
   g.globalAlpha = 1;
 }
