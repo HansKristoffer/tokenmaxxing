@@ -94,6 +94,9 @@ export interface CollectOptions {
   onError?: (err: unknown, where: string) => void;
 }
 
+/** Files stat'ed at once. */
+const STAT_BATCH = 64;
+
 async function mtimeOf(path: string): Promise<number | null> {
   try {
     return (await stat(path)).mtimeMs;
@@ -145,20 +148,26 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
     } catch (err) {
       opts.onError?.(err, `list:${source.id}`);
     }
-    for (const path of paths) {
-      present.add(path);
-      const mtimeMs = await mtimeOf(path);
-      if (mtimeMs === null) continue;
-      const prev = state.files[path];
-      if (prev && mtimeMs <= prev.mtimeMs) continue;
-      try {
-        const r = await source.parse(path, prev, mtimeMs);
-        take(r.events);
-        pending.push(r.next);
-      } catch (err) {
-        opts.onError?.(err, `parse:${path}`);
+    // Most files haven't changed since the last sync, so their stats are the bulk of the work: a
+    // batch at a time, not one after another.
+    for (let i = 0; i < paths.length; i += STAT_BATCH) {
+      const batch = paths.slice(i, i + STAT_BATCH);
+      const mtimes = await Promise.all(batch.map(mtimeOf));
+      for (const [j, path] of batch.entries()) {
+        present.add(path);
+        const mtimeMs = mtimes[j]!;
+        if (mtimeMs === null) continue;
+        const prev = state.files[path];
+        if (prev && mtimeMs <= prev.mtimeMs) continue;
+        try {
+          const r = await source.parse(path, prev, mtimeMs);
+          take(r.events);
+          pending.push(r.next);
+        } catch (err) {
+          opts.onError?.(err, `parse:${path}`);
+        }
+        if (events.length >= batchSize) yield flush();
       }
-      if (events.length >= batchSize) yield flush();
     }
   }
 
