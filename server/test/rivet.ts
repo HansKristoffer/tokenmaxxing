@@ -6,6 +6,8 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { dayStart } from "@tokenmaxxing/core/raid.ts";
+import { dayKey } from "@tokenmaxxing/core/range.ts";
 import type { TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { createClient } from "rivetkit/client";
 import type { registry as Registry } from "../src/actors/registry.ts";
@@ -203,6 +205,9 @@ export const MIN = 60_000;
 export const HOUR = 60 * MIN;
 let seq = 0;
 
+/** An hour ago, but never on yesterday: just after midnight in the world, today's boards would miss it. */
+const anHourAgoToday = () => Math.max(Date.now() - HOUR, dayStart(dayKey(Date.now())));
+
 /**
  * Lifetime tokens past level 10 (`OFFICE_LEVEL`): ~50B over 250 minutes, each just under the
  * per-minute cap, on a day from before signing up so it pays no coins.
@@ -222,7 +227,7 @@ export function event(overrides: Partial<TokenEvent> = {}): TokenEvent {
     agentId: null,
     messageId: `m${seq}`,
     requestId: null,
-    timestamp: Date.now() - HOUR,
+    timestamp: anHourAgoToday(),
     model: "claude-haiku-4-5-20251001",
     messageType: "assistant",
     inputTokens: 100,
