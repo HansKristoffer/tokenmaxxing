@@ -46,6 +46,8 @@ export const LEGEND: Record<string, TileKind> = {
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
   R: { name: "office door", portal: true },
+  // Its trophies are its owner's (`trophies.ts`); E shows what each is for.
+  Y: { name: "trophy shelf" },
 };
 
 /**
@@ -329,7 +331,7 @@ export const MAPS: Record<MapId, GameMap> = {
   // offices per house tier would be an `OFFICE_SIZES` table.
   office: new GameMap("office", "Office", [
     "WWWWWWWWWWWW",
-    "W__________W",
+    "W____YYYY__W",
     "W__________W",
     "W__________W",
     "W__________W",
