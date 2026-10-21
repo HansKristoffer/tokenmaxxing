@@ -19,6 +19,7 @@ import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Shop } from "./Shop.tsx";
+import { Sky } from "./Sky.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
@@ -102,6 +103,7 @@ function Stats() {
   return (
     <div className="panel stats-chip">
       <AppUpdate />
+      <Sky />
       {stats && (
         <button
           type="button"

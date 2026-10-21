@@ -20,6 +20,7 @@ import {
   setHq,
   withPieces,
 } from "@tokenmaxxing/core/office.ts";
+import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
 import {
   baseMap,
   CHAT_HISTORY,
@@ -71,6 +72,7 @@ import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { RateLimiter } from "../rate-limit.ts";
 import { parseChatText } from "../validate.ts";
+import { fetchWeather, initialWeather, pinnedWeather, WEATHER_EVERY_MS } from "../weather.ts";
 import {
   all,
   authenticate,
@@ -203,6 +205,9 @@ export const world = actor({
     houses: "",
     tokens: new Map() as TokenCache,
     bots: new Map<number, BotRun>(),
+    /** The sky: one fetch for everyone (`weather.ts`), kept when a fetch fails. */
+    weather: initialWeather() as Weather,
+    weatherAt: 0,
   }),
   db: db({
     onMigrate: async (d) => {
@@ -258,6 +263,10 @@ export const world = actor({
         for (const p of walkBots(c.state, c.vars, now)) c.broadcast("info", info(p, true));
         talkBots(c, now);
       }
+      if (now >= c.vars.weatherAt) {
+        c.vars.weatherAt = now + WEATHER_EVERY_MS;
+        void refreshWeather(c);
+      }
       flush(c);
       if (n % COUNTS_EVERY === 0) {
         const counts = JSON.stringify(occupancy(c.state, c.vars.online));
@@ -280,7 +289,7 @@ export const world = actor({
       p.dozing = false;
       if (wake(c.state, p)) c.vars.dirty.add(p.id);
       c.broadcast("info", info(p, true));
-      return snapshot(c.state, c.vars.online, p, chatOf(c.db, p.room));
+      return snapshot(c.state, c.vars.online, c.vars.weather, p, chatOf(c.db, p.room));
     },
 
     step: (c, rawDir: unknown): StepResult => {
@@ -749,6 +758,7 @@ type Vars = {
   hidden: Set<number>;
   occupancy: string;
   houses: string;
+  weather: Weather;
 };
 
 function upsert(s: WorldState, core: PlayerCore, now: number): WorldPlayer {
@@ -1082,6 +1092,7 @@ const asleepAtInn = (s: WorldState, online: Map<number, number>) =>
 async function snapshot(
   s: WorldState,
   online: Map<number, number>,
+  weather: Weather,
   self: WorldPlayer,
   chat: Promise<ChatLine[]>,
 ): Promise<Snapshot> {
@@ -1107,7 +1118,19 @@ async function snapshot(
         : { id: owner, name: s.players[owner]?.name ?? "Someone", open: officeOf(s, owner).open },
     doors: companyId === null ? [] : doorsOf(s, companyId),
     drops: dropsIn(room),
+    weather,
   };
+}
+
+/** Asks for the weather and tells everyone if it changed; a failed fetch keeps the last one. */
+async function refreshWeather(c: {
+  vars: Vars;
+  broadcast(name: string, ...args: unknown[]): void;
+}): Promise<void> {
+  const next = pinnedWeather() ?? (await fetchWeather());
+  if (!next || sameWeather(next, c.vars.weather)) return;
+  c.vars.weather = next;
+  c.broadcast("weather", next);
 }
 
 /** What's on a room's floor. `DROPS` is the world's only copy: `town` has them all for a restart (`seed`). */
@@ -1210,7 +1233,7 @@ function sendToRoom(c: Sender, room: RoomId, event: string, payload: unknown): v
 
 /** A player who changed room (a door, or sent to bed) gets the new room whole. */
 async function sendSnapshot(c: Sender & { vars: Vars; db: Sql }, p: WorldPlayer): Promise<void> {
-  const snap = await snapshot(c.state, c.vars.online, p, chatOf(c.db, p.room));
+  const snap = await snapshot(c.state, c.vars.online, c.vars.weather, p, chatOf(c.db, p.room));
   for (const conn of c.conns.values()) {
     const s = conn.state as ConnState;
     if (s.kind === "user" && s.joined && s.userId === p.id) conn.send("snapshot", snap);

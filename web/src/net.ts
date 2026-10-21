@@ -1,4 +1,5 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import type { Weather } from "@tokenmaxxing/core/sky.ts";
 import {
   CHAT_HISTORY,
   type ChatLine,
@@ -112,6 +113,7 @@ export function connect(token: string): void {
   conn.on("houses", (h: Houses) => {
     world.houses = h;
   });
+  conn.on("weather", (weather: Weather) => hud.set({ weather }));
   conn.on("occupancy", (o: Partial<Record<RoomId, number>>) => hud.set({ occupancy: o }));
   conn.on("chat", (line: ChatLine) => applyChat(line));
   conn.on("bubble", (e: { userId: number; text: string }) => applyBubble(e));

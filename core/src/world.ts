@@ -7,6 +7,7 @@ import type { BoardRow, GameId } from "./games/types.ts";
 import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
 import { type Door, doorAt, HQS, type Piece, pieceOf, withPieces } from "./office.ts";
 import { itemById } from "./shop.ts";
+import type { Weather } from "./sky.ts";
 
 export const TILE = 16;
 /** Client animation time per step; the server only enforces the running pace. */
@@ -272,6 +273,8 @@ export interface Snapshot {
   doors: Door[];
   /** What's on the floor: furniture (in the map too), wearables and pets. */
   drops: Drop[];
+  /** The weather over Copenhagen; later changes arrive as the `weather` event. */
+  weather: Weather;
 }
 
 /** A game on show in town: where its table (or arena) is, who's at it, and how it's going. */

@@ -1,4 +1,5 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
 import type { ChatLine, CompanyInfo, Notice, RoomId } from "@tokenmaxxing/core/world.ts";
 import type { Me, Today, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
@@ -55,6 +56,8 @@ interface HudState {
   inviteTable: number | null;
   /** The last time someone @-mentioned me from another room. */
   mention: { line: ChatLine; at: number } | null;
+  /** The weather over Copenhagen, from the server. */
+  weather: Weather;
 }
 
 let state: HudState = {
@@ -78,6 +81,7 @@ let state: HudState = {
   matchChat: [],
   clockSkew: 0,
   inviteTable: null,
+  weather: CALM,
 };
 const listeners = new Set<() => void>();
 

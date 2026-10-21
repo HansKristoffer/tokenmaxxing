@@ -7,12 +7,15 @@ import { characterFrame, itemFrame, lookPalette, poseFor, sleeperFrame } from ".
 import { chairBack, objectAt, sortY } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { PET_H, petFrame } from "../art/pets.ts";
+import { hash } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
 import { followPet, prunePets } from "./pets.ts";
+import { drawLampGlow, drawLight, drawNightSky, drawSway, drawWeather, drawWindowGlow } from "./sky.ts";
+import { snowAmount, snowLayers } from "./snow.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
@@ -50,8 +53,17 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = false;
   g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
-  if (world.ground) g.drawImage(world.ground, map.x0 * TILE, map.y0 * TILE);
-  drawWaterGlints(g, map, now);
+  // Snow (town only): twins of the baked ground and sprites, cross-faded while it settles or melts.
+  const outdoors = map.id === "town";
+  const snow = outdoors ? snowAmount(now) : 0;
+  const layers = (c: HTMLCanvasElement, ground = false) => snowLayers(c, snow, ground);
+  if (world.ground)
+    for (const [c, a] of layers(world.ground, true)) {
+      g.globalAlpha = a;
+      g.drawImage(c, map.x0 * TILE, map.y0 * TILE);
+      g.globalAlpha = 1;
+    }
+  if (snow < 0.7) drawWaterGlints(g, map, now);
 
   const x0 = Math.max(map.x0, Math.floor(camX / TILE) - 1);
   const y0 = Math.max(map.y0, Math.floor(camY / TILE) - 1);
@@ -62,16 +74,29 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   chipHits.length = 0;
   signHits.length = 0;
   const labels: Label[] = [];
+  // Outdoors only: lamps and lit windows to shine over the night's tint (see `sky.ts`).
+  const lamps: [number, number][] = [];
+  const windows: ((glow: number) => void)[] = [];
   const toScreen = (px: number, py: number) => [(px - camX) * scale, (py - camY) * scale] as const;
 
   for (let y = y0; y < y1; y++)
     for (let x = x0; x < x1; x++) {
       const o = objectAt(map, x, y);
-      if (o)
-        items.push({
-          y: y * TILE + sortY(map.at(x, y)),
-          draw: () => g.drawImage(o.canvas, x * TILE + o.dx, y * TILE + o.dy),
-        });
+      if (!o) continue;
+      const ch = map.at(x, y);
+      if (outdoors && ch === "L") lamps.push([x * TILE + TILE / 2, y * TILE - 11]);
+      items.push({
+        y: y * TILE + sortY(ch),
+        draw: () => {
+          for (const [c, a] of layers(o.canvas)) {
+            g.globalAlpha = a;
+            if (outdoors && (ch === "T" || ch === "^"))
+              drawSway(g, c, ch, x * TILE + o.dx, y * TILE + o.dy, now);
+            else g.drawImage(c, x * TILE + o.dx, y * TILE + o.dy);
+          }
+          g.globalAlpha = 1;
+        },
+      });
     }
 
   for (const b of buildings(map)) {
@@ -91,10 +116,24 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       const pane = panes[i]!;
       peekHits.push({ x: left + pane.x, y: top + pane.y, w: pane.w, h: pane.h, id: p.id });
     }
+    // At night each window shines: the people at home in it, or (for some empty rooms) just a lamp.
+    if (outdoors)
+      for (const [i, pane] of panes.entries()) {
+        const p = faces[i];
+        if (p ? p.state === "away" : hash(b.x * 31 + i, b.y, 11) > 0.3) continue;
+        windows.push((glow) => {
+          if (p) drawFace(g, p, left + pane.x, top + pane.y, pane, now);
+          drawWindowGlow(g, left + pane.x, top + pane.y, pane.w, pane.h, glow);
+        });
+      }
     items.push({
       y: bottom - 1,
       draw: () => {
-        g.drawImage(sprite, left, top);
+        for (const [c, a] of layers(sprite)) {
+          g.globalAlpha = a;
+          g.drawImage(c, left, top);
+        }
+        g.globalAlpha = 1;
         if (logo && plaque) drawLogo(g, logo, left + plaque.x, top + plaque.y, plaque.w, plaque.h);
         for (const [i, p] of faces.entries())
           drawFace(g, p, left + panes[i]!.x, top + panes[i]!.y, panes[i]!, now);
@@ -164,7 +203,20 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   items.sort((a, b) => a.y - b.y);
   for (const i of items) i.draw();
 
+  // The sky: the sun's tint over the town, lights shining through it, then the weather. Labels
+  // (and the HTML HUD) come after, so they stay readable.
   g.setTransform(1, 0, 0, 1, 0, 0);
+  if (outdoors) {
+    const glow = drawLight(g, w, h, now);
+    if (glow > 0.05) {
+      g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
+      for (const [lx, ly] of lamps) drawLampGlow(g, lx, ly, glow);
+      for (const lit of windows) lit(glow);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    drawNightSky(g, w, h, dpr, now);
+    drawWeather(g, w, h, dpr, now);
+  }
   for (const l of labels) l();
 }
 
