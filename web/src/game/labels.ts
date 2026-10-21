@@ -69,6 +69,25 @@ export function pill(
   return { w, h };
 }
 
+/** A pet's name, small and plain (no pill) under it: mine, or one close to me, so a crowd isn't a wall of names. */
+export function petLabel(
+  g: CanvasRenderingContext2D,
+  cx: number,
+  y: number,
+  name: string,
+  dpr: number,
+): void {
+  g.font = `600 ${9 * dpr}px ${FONT}`;
+  g.textAlign = "center";
+  g.textBaseline = "top";
+  g.lineJoin = "round";
+  g.lineWidth = 3 * dpr;
+  g.strokeStyle = "rgba(27, 31, 42, 0.75)";
+  g.strokeText(name, cx, y);
+  g.fillStyle = C.white;
+  g.fillText(name, cx, y);
+}
+
 export function sign(
   g: CanvasRenderingContext2D,
   cx: number,

@@ -1,10 +1,14 @@
+import { cleanPetName, PET_NAME_MAX, petLooks, wearPet } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
 import { useEffect, useRef, useState } from "react";
 import { world } from "../game/world.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { ItemImage, WearButton } from "./Shop.tsx";
+import { lootLine, rarityClass } from "./Loot.tsx";
+import { merchName } from "./Merch.tsx";
+import { variantName } from "./PetLooks.tsx";
+import { ItemImage, isWorn, WearButton, wear } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
 /**
@@ -19,6 +23,9 @@ export function Bag() {
   const [failed, setFailed] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // The pet being named (its kind), and what's typed so far.
+  const [naming, setNaming] = useState<number | null>(null);
+  const [petName, setPetName] = useState("");
   const { error, run } = useRun();
   const grid = useRef<HTMLUListElement>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new wallet (a trade, a drop) can mean a new bag
@@ -44,6 +51,14 @@ export function Bag() {
   // The last one dropped leaves nothing picked.
   const item = bag.some((b) => b.item === picked) ? itemById(picked!) : undefined;
 
+  const named = cleanPetName(petName);
+  // Naming a pet wears it, like picking one of its looks; an empty name clears it.
+  const saveName = run(async () => {
+    const { petName: _old, ...rest } = wearPet(me.look, naming!);
+    await wear(named ? { ...rest, petName: named } : rest);
+    setNaming(null);
+  });
+
   return (
     <Modal title="🎒 Bag" wide>
       {bag.length === 0 ? (
@@ -58,8 +73,14 @@ export function Bag() {
           {item ? (
             <>
               <strong>
-                {!item.tradeable && "🏅 "}
-                {item.name}
+                {item.level !== undefined && "🏅 "}
+                {merchName(item)}
+                {item.slot === "pet" && me.look.pet === item.index && me.look.petVariant > 0 && (
+                  <span className="muted"> · {variantName(item.index, me.look.petVariant)}</span>
+                )}
+                {item.loot && (
+                  <span className={`small rarity-text-${item.loot.rarity}`}> · {lootLine(item)}</span>
+                )}
               </strong>
               <WearButton item={item} look={me.look} run={run} />
               {item.tradeable && (
@@ -73,27 +94,73 @@ export function Bag() {
           )}
         </div>
       )}
+      {naming !== null && (
+        <form className="bag-name" onSubmit={saveName}>
+          <label>
+            {itemById(`pet.${naming}`)?.name}'s name
+            <input
+              value={petName}
+              maxLength={PET_NAME_MAX}
+              placeholder="No name"
+              // biome-ignore lint/a11y/noAutofocus: opened by pressing the pencil
+              autoFocus
+              onChange={(e) => setPetName(e.target.value)}
+            />
+          </label>
+          <button type="submit" disabled={petName.trim() !== "" && !named}>
+            Save
+          </button>
+          <button type="button" onClick={() => setNaming(null)}>
+            Cancel
+          </button>
+        </form>
+      )}
       {notice && <p className="muted">{notice}</p>}
       {error && <p className="error">{error}</p>}
       <ul className="bag" ref={grid}>
         {bag.map((b) => {
           const it = itemById(b.item);
           if (!it) return null;
-          const wearing = it.slot !== "furniture" && me.look[it.slot] === it.index;
+          const wearing = isWorn(it, me.look);
           return (
             <li key={b.item}>
               <button
                 type="button"
-                className={wearing ? "cell wearing" : "cell"}
+                className={`${wearing ? "cell wearing" : "cell"}${rarityClass(it)}`}
                 aria-pressed={b.item === picked}
-                aria-label={`${it.name} ×${b.count}${wearing ? ", wearing" : ""}${it.tradeable ? "" : ", reward"}`}
-                title={it.name}
+                aria-label={`${merchName(it)} ×${b.count}${wearing ? ", wearing" : ""}${it.level === undefined ? "" : ", reward"}`}
+                title={it.loot ? `${merchName(it)}\n${lootLine(it)}` : merchName(it)}
                 onClick={() => setPicked(b.item)}
               >
-                <ItemImage item={it} look={me.look} bare />
-                {!it.tradeable && <span className="medal">🏅</span>}
+                <ItemImage item={it} look={me.look} bare worn />
+                {it.level !== undefined && <span className="medal">🏅</span>}
                 {b.count > 1 && <span className="n">×{b.count}</span>}
               </button>
+              {it.slot === "pet" && petLooks(it.index) > 1 && (
+                <button
+                  type="button"
+                  className="eye"
+                  aria-label={`Choose a look for the ${it.name}`}
+                  title="Choose a look"
+                  onClick={() => hud.set({ panel: { kind: "petLooks", pet: it.index } })}
+                >
+                  👁
+                </button>
+              )}
+              {it.slot === "pet" && (
+                <button
+                  type="button"
+                  className="eye pen"
+                  aria-label={`Name the ${it.name}`}
+                  title="Name it"
+                  onClick={() => {
+                    setPetName(me.look.petName ?? "");
+                    setNaming(it.index);
+                  }}
+                >
+                  ✏️
+                </button>
+              )}
             </li>
           );
         })}

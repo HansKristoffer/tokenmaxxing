@@ -15,7 +15,11 @@ const STAKES = [0, 10, 50, 100, 250];
 
 const gameName = (id: GameId) => GAMES[id]?.name ?? id;
 const optionsText = (t: { game: GameId; options: Record<string, string | number> }) =>
-  t.game === "tokenmaxxing" ? ` · ${minutesText(Number(t.options.minutes))}` : "";
+  t.game === "tokenmaxxing"
+    ? ` · ${minutesText(Number(t.options.minutes))}`
+    : t.game === "sprint"
+      ? ` · ${t.options.seconds}s`
+      : "";
 
 /** What the lobby means for me: games on, am I in one, my invites, and open tables I could sit at. */
 function lobbySummary(lobby: Lobby, me: number | undefined) {
@@ -289,6 +293,7 @@ export function NewTable({ invite, inviteName }: { invite?: number; inviteName?:
   const [open, setOpen] = useState(invite === undefined);
   const [names, setNames] = useState("");
   const [minutes, setMinutes] = useState(60);
+  const [seconds, setSeconds] = useState(30);
   const { error, run } = useRun();
   useEffect(() => {
     setSeats(invite !== undefined ? def.players.min : def.players.max);
@@ -304,7 +309,7 @@ export function NewTable({ invite, inviteName }: { invite?: number; inviteName?:
       split,
       open,
       invite: people,
-      options: game === "tokenmaxxing" ? { minutes } : {},
+      options: game === "tokenmaxxing" ? { minutes } : game === "sprint" ? { seconds } : {},
     });
     hud.set({ panel: { kind: "arcade" } });
   });
@@ -346,6 +351,20 @@ export function NewTable({ invite, inviteName }: { invite?: number; inviteName?:
                   {minutesText(Number(m))}
                 </option>
               ))}
+            </select>
+          </label>
+        )}
+        {game === "sprint" && (
+          <label>
+            How long
+            <select value={seconds} onChange={(e) => setSeconds(Number(e.target.value))}>
+              {[...(def.options?.seconds ?? [])]
+                .sort((a, b) => Number(a) - Number(b))
+                .map((n) => (
+                  <option key={n} value={n}>
+                    {n} seconds
+                  </option>
+                ))}
             </select>
           </label>
         )}

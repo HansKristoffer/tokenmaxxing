@@ -1,5 +1,8 @@
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
+import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
+import { type FancyPiece, fancyPiece, fancySprite } from "./furniture-fancy.ts";
+import { trophyAt } from "./loot.ts";
 import { C } from "./palette.ts";
 import { bake, cached } from "./pixels.ts";
 
@@ -8,7 +11,12 @@ export interface Placed {
   canvas: HTMLCanvasElement;
   dx: number;
   dy: number;
+  /** Company furniture: the render loop picks its frame (and the neon sign's name) every frame. */
+  fancy?: FancyPiece;
 }
+
+/** Company furniture by map character, with its art. */
+const FANCY = new Map(COMPANY_FURNITURE.map((f) => [f.ch, { w: f.w ?? 1, art: fancyPiece(f.art)! }]));
 
 const tree = cached(
   () => "tree",
@@ -155,6 +163,130 @@ const desk = cached(
     }),
 );
 
+/** The dungeon's war desk: a desk with its laptop shut until a raider sits at it (game/raid.ts). */
+const warDesk = cached(
+  () => "warDesk",
+  () =>
+    bake(16, 18, (p) => {
+      p.rect(0, 6, 16, 12, C.ink);
+      p.rect(0, 7, 16, 4, C.metalLight);
+      p.rect(0, 11, 16, 5, C.metal);
+      p.rect(0, 16, 2, 2, C.ink);
+      p.rect(14, 16, 2, 2, C.ink);
+      p.rect(4, 0, 8, 7, C.ink);
+      p.rect(5, 1, 6, 5, "#3b4252");
+      p.rect(3, 7, 10, 2, C.stoneDark);
+      p.rect(3, 9, 10, 1, C.metal);
+    }),
+);
+
+const torch = cached(
+  () => "torch",
+  () =>
+    bake(16, 26, (p) => {
+      p.rect(5, 24, 6, 2, C.shadow);
+      p.rect(7, 10, 2, 15, C.ink);
+      p.rect(7, 10, 1, 14, C.woodDark);
+      p.rect(4, 7, 8, 4, C.ink);
+      p.rect(5, 8, 6, 2, C.metal);
+      // The flame; game/raid.ts flickers a glow over it.
+      p.rect(6, 2, 4, 6, "#e9733d");
+      p.rect(7, 0, 2, 3, "#e9733d");
+      p.rect(7, 4, 2, 4, "#ffd35c");
+    }),
+);
+
+/** Stairs down into the raid dungeon, under a stone arch a little wider than its tile. */
+const gate = cached(
+  () => "gate",
+  () =>
+    bake(24, 28, (p) => {
+      p.disc(12, 11, 11, C.ink);
+      p.rect(1, 11, 22, 17, C.ink);
+      p.disc(12, 11, 10, C.stoneDark);
+      p.rect(2, 11, 20, 17, C.stoneDark);
+      // Stone blocks round the arch.
+      for (const [x, y] of [
+        [4, 6],
+        [9, 2],
+        [15, 2],
+        [19, 7],
+        [2, 14],
+        [20, 15],
+        [3, 21],
+        [19, 22],
+      ] as const)
+        p.rect(x, y, 3, 1, C.stoneLight);
+      // The way down: dark, a violet glow at the bottom, and steps.
+      p.disc(12, 12, 6, "#1c1924");
+      p.rect(6, 12, 13, 16, "#1c1924");
+      p.rect(7, 24, 11, 4, "#3b2a5a");
+      for (let i = 0; i < 4; i++) {
+        p.rect(6 + i, 15 + i * 3, 13 - 2 * i, 1, C.stone);
+        p.rect(6 + i, 16 + i * 3, 13 - 2 * i, 1, C.stoneDark);
+      }
+      // The keystone, with a sword on it.
+      p.rect(10, 0, 5, 5, C.ink);
+      p.rect(11, 1, 3, 3, "#b98cff");
+      p.px(12, 2, C.white);
+    }),
+);
+
+/**
+ * The gate before the first raid: planks nailed across the way down, caution tape over them and a
+ * danger sign. Drawn over `gate` (same 24×28, same place); the gaps are left open for the glow.
+ */
+export const boardedGate = cached(
+  () => "boardedGate",
+  () =>
+    bake(24, 28, (p) => {
+      // Two planks, a little crooked, with a dark edge and nails; the sign hangs between them.
+      for (const [y, tilt] of [
+        [7, 1],
+        [19, -1],
+      ] as const)
+        for (let x = 4; x < 21; x++) {
+          const dy = y + Math.round(((x - 12) * tilt) / 9);
+          p.px(x, dy - 1, C.ink);
+          p.px(x, dy, (x + y) % 7 === 0 ? C.woodLight : C.wood);
+          p.px(x, dy + 1, C.wood);
+          p.px(x, dy + 2, C.woodDark);
+          p.px(x, dy + 3, C.ink);
+          if (x === 6 || x === 18) p.px(x, dy + 1, C.metalLight);
+        }
+      // Caution tape across the bottom step.
+      p.rect(3, 24, 19, 1, C.ink);
+      p.rect(3, 27, 19, 1, C.ink);
+      for (let x = 3; x < 22; x++) p.rect(x, 25, 1, 2, Math.floor((x + 1) / 2) % 2 === 0 ? "#f5d14a" : C.ink);
+    }),
+);
+
+/** A plank off the boarded gate, for when it bursts open. */
+export const plank = cached(
+  () => "plank",
+  () =>
+    bake(10, 4, (p) => {
+      p.rect(0, 0, 10, 4, C.ink);
+      p.rect(1, 1, 8, 1, C.woodLight);
+      p.rect(1, 2, 8, 1, C.woodDark);
+    }),
+);
+
+/** A small ⚠️: a yellow triangle with a "!". */
+export const dangerSign = cached(
+  () => "dangerSign",
+  () =>
+    bake(11, 10, (p) => {
+      for (let y = 0; y < 10; y++) {
+        const half = Math.floor(y / 2) + 1;
+        p.rect(5 - half, y, half * 2 + 1, 1, C.ink);
+        if (y > 0 && y < 9) p.rect(6 - half, y, half * 2 - 1, 1, "#f5d14a");
+      }
+      p.rect(5, 3, 1, 3, C.ink);
+      p.px(5, 7, C.ink);
+    }),
+);
+
 export const chairBack = cached(
   () => "chairBack",
   () =>
@@ -246,6 +378,39 @@ const plant = cached(
     }),
 );
 
+/** The pet bed's basket, seen from the front: `front` is only its near wall, drawn over the pet lying in it. */
+const petBedSprite = (front: boolean) =>
+  bake(16, 16, (p) => {
+    const top = front ? 11 : 4;
+    // Outline, then the back rim, the cushion inside, and the woven front wall.
+    p.rect(1, Math.max(5, top), 14, 15 - Math.max(5, top), C.ink);
+    if (!front) {
+      p.rect(2, 4, 12, 1, C.ink);
+      p.rect(2, 5, 12, 1, C.woodLight);
+      p.rect(2, 6, 12, 5, C.fabric);
+      p.rect(2, 6, 12, 1, C.fabricDark);
+      p.px(3, 8, C.pillow);
+      p.px(4, 9, C.pillow);
+      p.px(12, 7, C.pillow);
+    }
+    p.rect(2, 11, 12, 3, C.woodDark);
+    p.rect(2, 11, 12, 1, C.woodLight);
+    for (let x = 3; x < 13; x += 3) p.rect(x, 12, 1, 2, C.wood);
+    if (!front) p.rect(2, 15, 12, 1, C.shadow);
+  });
+
+const petBed = cached(
+  () => "petbed",
+  () => petBedSprite(false),
+);
+const petBedNear = cached(
+  () => "petbed-front",
+  () => petBedSprite(true),
+);
+
+/** The bed's near wall, drawn after the pet that lies in it so the pet sits inside the basket. */
+export const petBedFront = (): Placed => ({ canvas: petBedNear(), dx: 0, dy: 0 });
+
 const coffee = cached(
   () => "coffee",
   () =>
@@ -315,11 +480,35 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(plant());
     case "o":
       return at(coffee());
-    default:
-      return null;
+    case "Q":
+      return at(petBed());
+    case "l":
+      return at(warDesk());
+    case "r":
+      return at(chair());
+    case "j":
+      return at(torch());
+    case "G":
+      return at(gate(), -4);
+    default: {
+      const fancy = FANCY.get(ch);
+      // The raid's trophies (art/loot.ts).
+      if (!fancy) return trophyAt(ch);
+      // `w` tiles each, from the left of a run of them.
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      if (n % fancy.w !== 0) return null;
+      // Standing on its row; a deeper one reaches back over the row behind.
+      return { canvas: fancySprite(fancy.art.id), dx: 0, dy: TILE - fancy.art.height, fancy: fancy.art };
+    }
   }
 }
 
 /** Where on the tile the object's "feet" are, for depth sorting against people. */
-export const sortY = (ch: string): number =>
-  ch === "F" ? TILE * 2 - 2 : ch === "b" || ch === "s" ? 0 : TILE - 1;
+export const sortY = (ch: string): number => {
+  const placement = FANCY.get(ch)?.art.placement;
+  // A rug lies under everyone, a chandelier hangs over them.
+  if (placement === "flat") return -TILE;
+  if (placement === "ceiling") return TILE * 4;
+  return ch === "F" ? TILE * 2 - 2 : ch === "b" || ch === "s" || ch === "Q" ? 0 : TILE - 1;
+};

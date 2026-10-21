@@ -1,19 +1,35 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
+import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
-import { cupsLeft, houseTier, JUMP_MS, TILE } from "@tokenmaxxing/core/world.ts";
+import {
+  companyOfRoom,
+  cupsLeft,
+  houseTier,
+  JUMP_MS,
+  ownerOfOffice,
+  TILE,
+} from "@tokenmaxxing/core/world.ts";
 import { house, inn } from "../art/buildings.ts";
 import { characterFrame, itemFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
-import { chairBack, objectAt, sortY } from "../art/objects.ts";
+import { type FancyPiece, fancyFrame, fancySprite, neonSprite } from "../art/furniture-fancy.ts";
+import { drawSparkle, wearsLegendary } from "../art/loot.ts";
+import { merchColours } from "../art/merch.ts";
+import { chairBack, objectAt, petBedFront, sortY } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
-import { PET_H, petFrame } from "../art/pets.ts";
-import { hash } from "../art/pixels.ts";
+import { SLEEP_H, SLEEP_W, sleepingFrame } from "../art/pet-sleep.ts";
+import { PET_H, PET_W, petFrame } from "../art/pets.ts";
+import { hash, initialsOf } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
+import { hud } from "../store.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
-import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
+import { avatarLabels, chipHits, chips, petLabel, sign, signHits } from "./labels.ts";
+import { drawLoot } from "./loot.ts";
 import { followPet, prunePets } from "./pets.ts";
+import { type Lap, racing } from "./race.ts";
+import { drawRaid } from "./raid.ts";
 import { drawLampGlow, drawLight, drawNightSky, drawSway, drawWeather, drawWindowGlow } from "./sky.ts";
 import { snowAmount, snowLayers } from "./snow.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
@@ -23,6 +39,9 @@ let lastFrame = performance.now();
 type Draw = { y: number; draw: () => void };
 
 type Label = () => void;
+
+/** Tiles within which other players' pet names show. */
+const NAME_RANGE = 6;
 
 export function render(canvas: HTMLCanvasElement, now: number): void {
   const g = canvas.getContext("2d")!;
@@ -49,7 +68,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   Object.assign(camera, { x: camX, y: camY, scale, dpr });
 
   g.setTransform(1, 0, 0, 1, 0, 0);
-  g.fillStyle = map.id === "town" ? C.leafInk : "#1b1f2a";
+  g.fillStyle = map.id === "town" ? C.leafInk : map.id === "dungeon" ? "#110f16" : "#1b1f2a";
   g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = false;
   g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
@@ -82,21 +101,35 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   for (let y = y0; y < y1; y++)
     for (let x = x0; x < x1; x++) {
       const o = objectAt(map, x, y);
-      if (!o) continue;
       const ch = map.at(x, y);
-      if (outdoors && ch === "L") lamps.push([x * TILE + TILE / 2, y * TILE - 11]);
-      items.push({
-        y: y * TILE + sortY(ch),
-        draw: () => {
-          for (const [c, a] of layers(o.canvas)) {
-            g.globalAlpha = a;
-            if (outdoors && (ch === "T" || ch === "^"))
-              drawSway(g, c, ch, x * TILE + o.dx, y * TILE + o.dy, now);
-            else g.drawImage(c, x * TILE + o.dx, y * TILE + o.dy);
-          }
-          g.globalAlpha = 1;
-        },
-      });
+      if (o) {
+        if (outdoors && ch === "L") lamps.push([x * TILE + TILE / 2, y * TILE - 11]);
+        items.push({
+          y: y * TILE + sortY(ch),
+          draw: () => {
+            // The company building's pieces are indoors, out of the snow.
+            if (o.fancy) {
+              g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
+              return;
+            }
+            for (const [c, a] of layers(o.canvas)) {
+              g.globalAlpha = a;
+              if (outdoors && (ch === "T" || ch === "^"))
+                drawSway(g, c, ch, x * TILE + o.dx, y * TILE + o.dy, now);
+              else g.drawImage(c, x * TILE + o.dx, y * TILE + o.dy);
+            }
+            g.globalAlpha = 1;
+          },
+        });
+      }
+      // The pet bed's near wall goes over whatever lies in it.
+      if (ch === "Q") {
+        const near = petBedFront();
+        items.push({
+          y: y * TILE + TILE - 1,
+          draw: () => g.drawImage(near.canvas, x * TILE + near.dx, y * TILE + near.dy),
+        });
+      }
     }
 
   for (const b of buildings(map)) {
@@ -170,6 +203,8 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   }
 
   drawGames(g, items, labels, toScreen, now, dpr);
+  drawRaid(g, items, labels, toScreen, now, dpr);
+  drawLoot(g, items, labels, toScreen, now, dpr);
 
   if (world.asleep > 0) {
     const [sx, sy] = toScreen((map.x0 + map.width / 2) * TILE, (map.y0 + 2) * TILE);
@@ -180,23 +215,47 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   lastFrame = now;
   prunePets();
   for (const a of [...world.avatars.values(), ...world.leaving]) {
-    const pos = drawPos(a, now);
+    // A Sprint Race's racers run laps of the square instead of standing at the table.
+    const lap = racing(a.info.id, now);
+    const pos = lap ?? drawPos(a, now);
     const px = pos.x * TILE;
     const py = pos.y * TILE;
-    const tile = map.at(a.x, a.y);
+    const tile = lap ? ":" : map.at(a.x, a.y);
     items.push({
       y: py + (tile === "b" || tile === "s" ? 1 : TILE - 0.5),
-      draw: () => drawAvatar(g, a, px, py, tile, now),
+      draw: () => drawAvatar(g, a, px, py, tile, now, lap),
     });
-    const pet = a.warp ? null : followPet(a, px, py, dt);
+    // A legendary sparkles on whoever wears it.
+    if (wearsLegendary(a.info.look))
+      items.push({ y: py + TILE, draw: () => drawSparkle(g, px, py - 2, now, a.info.id) });
+    // In their own office the pet goes to its bed and sleeps there, whoever's looking.
+    const bed = ownerOfOffice(world.room) === a.info.id ? map.find("Q")[0] : undefined;
+    const pet = a.warp ? null : followPet(a, px, py, dt, bed);
     if (pet) {
-      const frame = petFrame(a.info.look.pet, pet.left, pet.moving && Math.floor(now / 140) % 2 === 0);
+      const awake = petFrame(
+        a.info.look.pet,
+        pet.left,
+        pet.moving && Math.floor(now / 140) % 2 === 0,
+        a.info.look.petVariant,
+        petOutfit(a.info.look),
+      );
+      const asleep = pet.asleep ? sleepingFrame(awake, pet.left, Math.floor(now / 600)) : null;
+      const frame = asleep ?? awake;
       if (frame)
         items.push({
           y: pet.y + PET_H,
-          draw: () => g.drawImage(frame, Math.round(pet.x), Math.round(pet.y)),
+          draw: () =>
+            g.drawImage(
+              frame,
+              Math.round(pet.x) - (asleep ? (SLEEP_W - 12) / 2 : 0),
+              Math.round(pet.y) + (asleep ? PET_H - SLEEP_H : 0),
+            ),
         });
     }
+    // A pet's name shows for mine and for those within a few tiles of me.
+    const petName = a.info.look.petName;
+    if (pet && petName && (!me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE))
+      labels.push(() => petLabel(g, ...toScreen(pet.x + PET_W / 2, pet.y + PET_H + 1), petName, dpr));
     labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py), tile, now, dpr));
   }
 
@@ -220,6 +279,23 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   for (const l of labels) l();
 }
 
+/**
+ * Company furniture as it is right now: its frame, and the neon sign with the company's own name
+ * (its initials when the name won't fit) in its colours.
+ */
+function fancyCanvas(piece: FancyPiece, now: number): HTMLCanvasElement {
+  const frame = fancyFrame(piece, now);
+  const id = companyOfRoom(world.room);
+  const company = id === null ? undefined : hud.get().companies.find((c) => c.id === id);
+  if (piece.id !== "neon-sign" || !company) return fancySprite(piece.id, frame);
+  const word = company.name
+    .toUpperCase()
+    .replace(/[^A-Z0-9&! ]/g, "")
+    .trim();
+  const text = word.length > 0 && word.length <= 7 ? word : initialsOf(company.name);
+  return neonSprite(text, frame, merchColours(company).glow);
+}
+
 function drawAvatar(
   g: CanvasRenderingContext2D,
   a: Avatar,
@@ -227,6 +303,7 @@ function drawAvatar(
   py: number,
   tile: string,
   now: number,
+  lap: Lap | null,
 ): void {
   const look = a.info.look;
   // Coffee: a random nudge every frame, a pixel per cup still in their system.
@@ -261,7 +338,8 @@ function drawAvatar(
   } else if (a.state === "sit") {
     g.drawImage(characterFrame(look, a.facing === "up" ? "up" : "down", "sit"), px, py - 5);
   } else {
-    const walking = stepping(a, now);
+    const walking = lap ? lap.running : stepping(a, now);
+    const facing = lap?.facing ?? a.facing;
     const pose = poseFor(a.state, walking, now);
     // A hop: up and down on an arc, the shadow shrinking while they're in the air.
     const t = a.jump === null ? 1 : (now - a.jump) / JUMP_MS;
@@ -269,7 +347,7 @@ function drawAvatar(
     const shrink = lift > 3 ? 1 : 0;
     g.fillStyle = C.shadow;
     g.fillRect(px + 4 + shrink, py + 14, 8 - 2 * shrink, 2);
-    g.drawImage(characterFrame(look, a.facing, pose), px, py - 2 - lift - (pose === "walkA" ? 1 : 0));
+    g.drawImage(characterFrame(look, facing, pose), px, py - 2 - lift - (pose === "walkA" ? 1 : 0));
   }
   g.globalAlpha = 1;
 }

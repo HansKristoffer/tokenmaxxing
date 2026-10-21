@@ -1,5 +1,6 @@
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
+import { coinsForTokens, type Item } from "@tokenmaxxing/core/shop.ts";
 import { type Brand, COMPANY_CAP, type CompanyInfo, houseTier } from "@tokenmaxxing/core/world.ts";
 import { UserError } from "rivetkit";
 import { all, one, type Sql } from "../actors/shared.ts";
@@ -19,6 +20,22 @@ export interface MyCompany {
   members: { userId: number; name: string; isOwner: boolean }[];
   /** People asking to join, oldest first. Only the owner sees them. */
   applicants: { userId: number; name: string; level: number; at: number }[];
+  /** Coins in the company wallet: members' token coins matched, and merch sold, less furniture. */
+  wallet: number;
+  /** Company furniture off the floor, per kind: any member can put it out again. */
+  stored: { item: string; count: number }[];
+  /** The wallet's latest moves, newest first: who earned, bought or paid what. */
+  log: WalletLine[];
+}
+
+export interface WalletLine {
+  at: number;
+  kind: "match" | "merch" | "furniture" | "admin";
+  /** Who earned it, bought it or paid it; null once they're deleted. */
+  name: string | null;
+  /** The world day matched, or the item bought. */
+  ref: string;
+  amount: number;
 }
 
 /** A company as listed for people looking for one. */
@@ -74,6 +91,7 @@ export async function leave(sql: Sql, userId: number): Promise<Changed> {
     if (heir) await sql.execute("UPDATE companies SET owner_id = ? WHERE id = ?", heir.id, company.id);
     else {
       await sql.execute("DELETE FROM companies WHERE id = ?", company.id);
+      await forgetFurniture(sql, company.id);
       await sql.execute("DELETE FROM applications WHERE company_id = ?", company.id);
       await forgetLogo(company.id);
     }
@@ -101,7 +119,148 @@ export async function myCompany(sql: Sql, companyId: number, viewer: number): Pr
     branding: company.branding,
     members: members.map((m) => ({ ...m, isOwner: m.userId === company.ownerId })),
     applicants: isOwner ? await applicants(sql, companyId) : [],
+    wallet: await companyWallet(sql, companyId),
+    stored: await storedPieces(sql, companyId),
+    log: await walletLog(sql, companyId),
   };
+}
+
+// MARK: The company wallet
+
+export const companyWallet = async (sql: Sql, companyId: number): Promise<number> =>
+  (
+    await one<{ n: number | null }>(
+      sql,
+      "SELECT SUM(amount) AS n FROM company_ledger WHERE company_id = ?",
+      companyId,
+    )
+  )?.n ?? 0;
+
+/** How many of a member's token coins for `day` are still to be matched: the day's coins, less what was. */
+export const matchDue = (dayCoins: number, matched: number): number => Math.max(0, dayCoins - matched);
+
+/**
+ * After a sync: `userId`'s token coins for `days` are matched 1:1 into their company's wallet, on top of
+ * their own (which are worked out from usage, so nothing of theirs moves). Days before they joined or
+ * signed up don't count, and a day matched already only adds what it grew by: to whichever company
+ * they're in now, so one who moves on mid-day leaves the morning's with the old one. Usage never
+ * shrinks (but for an admin's wipe, which leaves the wallet as it is), so nothing is ever taken back.
+ */
+export async function matchCoins(sql: Sql, userId: number, days: string[], now: number): Promise<void> {
+  const u = await one<{ companyId: number | null; joinedAt: number | null; createdAt: number }>(
+    sql,
+    "SELECT company_id AS companyId, joined_at AS joinedAt, created_at AS createdAt FROM users WHERE id = ?",
+    userId,
+  );
+  if (!u || u.companyId === null || u.joinedAt === null) return;
+  const from = [dayKey(u.joinedAt), dayKey(u.createdAt)].sort()[1]!;
+  for (const day of days) {
+    if (day < from) continue;
+    const [{ tokens }] = (await all<{ tokens: number | null }>(
+      sql,
+      `SELECT SUM(${TOKENS}) AS tokens FROM usage_daily WHERE user_id = ? AND day = ?`,
+      userId,
+      day,
+    )) as [{ tokens: number | null }];
+    const [{ matched }] = (await all<{ matched: number | null }>(
+      sql,
+      "SELECT SUM(amount) AS matched FROM company_ledger WHERE user_id = ? AND kind = 'match' AND ref = ?",
+      userId,
+      day,
+    )) as [{ matched: number | null }];
+    const due = matchDue(coinsForTokens(tokens ?? 0), matched ?? 0);
+    if (due > 0)
+      await sql.execute(
+        "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, 'match', ?, ?)",
+        u.companyId,
+        userId,
+        due,
+        day,
+        now,
+      );
+  }
+}
+
+async function walletLog(sql: Sql, companyId: number): Promise<WalletLine[]> {
+  // Matches add up per member per day, so a day of syncs is one line.
+  return all<WalletLine>(
+    sql,
+    `SELECT MAX(l.at) AS at, l.kind, u.name, l.ref, SUM(l.amount) AS amount
+     FROM company_ledger l LEFT JOIN users u ON u.id = l.user_id WHERE l.company_id = ?
+     GROUP BY CASE WHEN l.kind = 'match' THEN l.user_id || ' ' || l.ref ELSE l.id END
+     ORDER BY MAX(l.at) DESC, MAX(l.id) DESC LIMIT 20`,
+    companyId,
+  );
+}
+
+/** Company furniture off the floor, per kind. */
+export const storedPieces = (sql: Sql, companyId: number): Promise<{ item: string; count: number }[]> =>
+  all(
+    sql,
+    `SELECT item, COUNT(*) AS count FROM items WHERE company_id = ? AND room IS NULL
+     GROUP BY item ORDER BY MIN(id)`,
+    companyId,
+  );
+
+/**
+ * Buys one of `item` (company furniture) from the wallet, into the storeroom: its row is the company's,
+ * `dropped_by` whoever bought it, and the ledger line says so too. Returns the row, for `world` to put
+ * down. Run it serialized, so two buys can't spend the same coins.
+ */
+export async function buyPiece(
+  sql: Sql,
+  company: CompanyRow,
+  userId: number,
+  item: Item,
+  now: number,
+): Promise<number> {
+  if (!item.company) throw new UserError("That's not for company buildings.", { code: "not_found" });
+  if ((await companyWallet(sql, company.id)) < item.price)
+    throw new UserError("The company wallet can't cover that yet.", { code: "too_poor" });
+  const [row] = await all<{ id: number }>(
+    sql,
+    "INSERT INTO items (owner_id, item, at, dropped_by, dropped_at, company_id) VALUES (NULL, ?, ?, ?, ?, ?) RETURNING id",
+    item.id,
+    now,
+    userId,
+    now,
+    company.id,
+  );
+  await sql.execute(
+    "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, 'furniture', ?, ?)",
+    company.id,
+    userId,
+    -item.price,
+    item.id,
+    now,
+  );
+  return row!.id;
+}
+
+/** One of `item` out of the storeroom, for `world` to put down where `userId` stands. */
+export async function unstore(
+  sql: Sql,
+  companyId: number,
+  item: unknown,
+  userId: number,
+  now: number,
+): Promise<number> {
+  const [row] = await all<{ id: number }>(
+    sql,
+    `UPDATE items SET dropped_by = ?, dropped_at = ? WHERE id =
+       (SELECT id FROM items WHERE company_id = ? AND room IS NULL AND item = ? LIMIT 1) RETURNING id`,
+    userId,
+    now,
+    companyId,
+    item,
+  );
+  if (!row) throw new UserError("None of those in the storeroom.", { code: "not_owned" });
+  return row.id;
+}
+
+/** A closing company's furniture goes with it, stored or on the floor (where `world` lifts it). */
+export async function forgetFurniture(sql: Sql, companyId: number): Promise<void> {
+  await sql.execute("DELETE FROM items WHERE company_id = ?", companyId);
 }
 
 // MARK: Applying to join
