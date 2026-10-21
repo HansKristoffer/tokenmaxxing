@@ -1,4 +1,5 @@
 import type { Sql } from "../actors/shared.ts";
+import { migrateMerchant } from "./merchant.ts";
 
 /** Every table `town` keeps. Also run by tests against an in-memory database. */
 export async function migrate(sql: Sql): Promise<void> {
@@ -101,4 +102,5 @@ export async function migrate(sql: Sql): Promise<void> {
   // other players' games add up with them).
   await sql.execute(`CREATE TABLE IF NOT EXISTS deleted_users (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL, at INTEGER NOT NULL)`);
+  await migrateMerchant(sql);
 }

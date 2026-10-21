@@ -1,3 +1,4 @@
+import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { FURNITURE, withPieces } from "@tokenmaxxing/core/office.ts";
 import { ITEMS, type Item, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
@@ -73,7 +74,7 @@ export function Shop() {
       </ul>
       <Pills value={tab} options={TABS} onChange={setTab} />
       <ul className="shop">
-        {ITEMS.filter((i) => i.slot === tab).map((item) => {
+        {ITEMS.filter((i) => i.slot === tab && !editionById(i.id)).map((item) => {
           const owned = wallet.owned.includes(item.id);
           const wearing = item.slot !== "furniture" && me.look[item.slot] === item.index;
           const n = bag.find((b) => b.item === item.id)?.count ?? 0;

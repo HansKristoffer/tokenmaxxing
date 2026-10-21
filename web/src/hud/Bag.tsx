@@ -1,5 +1,6 @@
+import { editionLabel } from "@tokenmaxxing/core/merchant.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
-import type { BagRow } from "@tokenmaxxing/server/registry";
+import type { BagRow, Copy } from "@tokenmaxxing/server/registry";
 import { useEffect, useRef, useState } from "react";
 import { world } from "../game/world.ts";
 import { errorText, refreshMe, town } from "../net.ts";
@@ -16,6 +17,8 @@ export function Bag() {
   const wallet = useHud((s) => s.wallet);
   const inMyOffice = useHud((s) => s.room === `office:${world.selfId}`);
   const [bag, setBag] = useState<BagRow[] | null>(null);
+  // Merchant editions' numbers (`Merchant.tsx`).
+  const [copies, setCopies] = useState<Copy[]>([]);
   const [failed, setFailed] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -24,6 +27,7 @@ export function Bag() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new wallet (a trade, a drop) can mean a new bag
   useEffect(() => {
     void town.bag().then(setBag, (e) => setFailed(errorText(e)));
+    void town.copies().then(setCopies, () => {});
   }, [wallet]);
   if (!me || !bag) return <Modal title="🎒 Bag">{failed ?? "Loading…"}</Modal>;
 
@@ -60,6 +64,7 @@ export function Bag() {
               <strong>
                 {!item.tradeable && "🏅 "}
                 {item.name}
+                <Numbers copies={copies} item={item.id} />
               </strong>
               <WearButton item={item} look={me.look} run={run} />
               {item.tradeable && (
@@ -92,6 +97,9 @@ export function Bag() {
               >
                 <ItemImage item={it} look={me.look} bare />
                 {!it.tradeable && <span className="medal">🏅</span>}
+                {copies.some((c) => c.item === b.item) && (
+                  <span className="medal">#{copies.find((c) => c.item === b.item)!.n}</span>
+                )}
                 {b.count > 1 && <span className="n">×{b.count}</span>}
               </button>
             </li>
@@ -100,4 +108,11 @@ export function Bag() {
       </ul>
     </Modal>
   );
+}
+
+/** " · #3 of 20, #7 of 20": the numbers on my copies of a merchant edition. */
+function Numbers({ copies, item }: { copies: Copy[]; item: string }) {
+  const mine = copies.filter((c) => c.item === item);
+  if (mine.length === 0) return null;
+  return <span className="edition"> · {mine.map((c) => editionLabel(c.n, c)).join(", ")}</span>;
 }

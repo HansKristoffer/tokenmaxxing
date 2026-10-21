@@ -1,3 +1,4 @@
+import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import { dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
 import {
@@ -95,6 +96,7 @@ import {
   withdraw,
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
+import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
 import { migrate } from "../town/schema.ts";
 import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
 import {
@@ -141,6 +143,7 @@ export type {
 export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany } from "../town/companies.ts";
 export type { GamePlayer, GameStats } from "../town/games.ts";
+export type { Cart, CartStock, Copy } from "../town/merchant.ts";
 export type { PlayerCore } from "../town/users.ts";
 
 export interface UsageDay extends UsageRow {
@@ -458,8 +461,24 @@ export const town = actor({
       if (!item) throw new UserError("That's not in the shop.", { code: "not_found" });
       if (item.level !== undefined)
         throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
+      if (editionById(item.id))
+        throw new UserError("Only the traveling merchant sells that.", { code: "not_for_sale" });
       return c.vars.serial(() => buy(c.db, userId, item, Date.now()));
     },
+
+    // MARK: The traveling merchant (`core/src/merchant.ts`)
+
+    /** What's on the cart this week, and how many of each are gone. */
+    cart: (c): Promise<Cart> => cart(c.db, Date.now()),
+
+    /** The next numbered copy of one off the cart. */
+    buyEdition: (c, itemId: unknown): Promise<{ wallet: Wallet; n: number }> => {
+      const userId = requireUser(c.conn.state);
+      return c.vars.serial(() => buyEdition(c.db, userId, itemId, Date.now()));
+    },
+
+    /** The numbered copies in my bag. */
+    copies: (c): Promise<Copy[]> => copiesOf(c.db, requireUser(c.conn.state)),
 
     // MARK: Drops
 

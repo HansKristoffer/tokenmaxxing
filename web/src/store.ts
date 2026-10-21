@@ -10,6 +10,7 @@ export type Panel =
   | { kind: "company" }
   | { kind: "look" }
   | { kind: "shop" }
+  | { kind: "merchant" }
   | { kind: "bag" }
   | { kind: "arcade" }
   | { kind: "newTable"; invite?: number; inviteName?: string }

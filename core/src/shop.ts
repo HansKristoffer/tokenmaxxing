@@ -4,6 +4,7 @@
  * top 3. They buy clothes, glasses, hats and pets, worn through `Look`, and
  * furniture for your office (`office.ts`). Everything bought or earned is a row in the bag.
  */
+import { EDITIONS } from "./editions.ts";
 import { FURNITURE } from "./office.ts";
 import type { Look } from "./world.ts";
 
@@ -68,6 +69,8 @@ export const ITEMS: readonly Item[] = [
   reward("hat", 4, "Top hat", 10),
   reward("outfit", 12, "Server-rack armour", 20),
   reward("pet", 6, "Singularity orb", 30),
+  // Sold only off the traveling merchant's cart (`merchant.ts`).
+  ...EDITIONS,
   ...FURNITURE.map(
     (f, index): Item => ({
       id: `furn.${f.ch}`,
