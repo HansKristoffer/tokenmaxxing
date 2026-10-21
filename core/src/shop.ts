@@ -131,14 +131,31 @@ export const ITEMS: readonly Item[] = [
 export const levelItems = (level: number): Item[] =>
   ITEMS.filter((i) => i.level !== undefined && i.level <= level);
 
-export const itemById = (id: unknown): Item | undefined => ITEMS.find((i) => i.id === id) ?? merchItem(id);
+/**
+ * Items by id, and by what a look's slot holds (with their place in `ITEMS`): the client asks for every
+ * avatar, every frame.
+ */
+const BY_ID = new Map<string, Item>();
+const BY_SLOT = new Map<Slot, Map<number, { item: Item & { slot: Slot }; at: number }>>();
+ITEMS.forEach((item, at) => {
+  if (!BY_ID.has(item.id)) BY_ID.set(item.id, item);
+  if (item.slot === "furniture" || item.slot === "merch") return;
+  const values = BY_SLOT.get(item.slot) ?? new Map();
+  BY_SLOT.set(item.slot, values);
+  if (!values.has(item.index)) values.set(item.index, { item: item as Item & { slot: Slot }, at });
+});
 
-/** The shop items a look wears; everything else in it is free (merch is `merchIn`). */
-export const itemsIn = (look: Look): (Item & { slot: Slot })[] =>
-  ITEMS.filter(
-    (i): i is Item & { slot: Slot } =>
-      i.slot !== "furniture" && i.slot !== "merch" && look[i.slot] === i.index,
-  );
+export const itemById = (id: unknown): Item | undefined => BY_ID.get(id as string) ?? merchItem(id);
+
+/** The shop items a look wears, in `ITEMS` order; everything else in it is free (merch is `merchIn`). */
+export function itemsIn(look: Look): (Item & { slot: Slot })[] {
+  const worn: { item: Item & { slot: Slot }; at: number }[] = [];
+  for (const [slot, values] of BY_SLOT) {
+    const w = values.get(look[slot]);
+    if (w) worn.push(w);
+  }
+  return worn.sort((a, b) => a.at - b.at).map((w) => w.item);
+}
 
 // MARK: Merch
 
@@ -195,17 +212,14 @@ export const isTradeable = (id: unknown): boolean => itemById(id)?.tradeable ?? 
  * Whether `by` can put `item` down in `room`: anything that can change hands, anywhere; an earned piece
  * of furniture (Touched grass) only in their own office, where nobody else can pick it up.
  */
-export function canDropIn(item: unknown, room: string, by: number): boolean {
-  const i = itemById(item);
-  if (!i) return false;
-  return i.tradeable || (i.slot === "furniture" && i.earned !== undefined && room === `office:${by}`);
-}
+export const canDropIn = (item: unknown, room: string, by: number): boolean =>
+  isTradeable(item) || (isKeepsake(item) && room === `office:${by}`);
 
 /** An earned piece of furniture: it leaves your bag only for your own office's floor (`canDropIn`). */
-export const isKeepsake = (id: unknown): boolean => {
+export function isKeepsake(id: unknown): boolean {
   const i = itemById(id);
   return i?.slot === "furniture" && i.earned !== undefined;
-};
+}
 
 /** One side of a trade: what someone gives. */
 export interface Side {
