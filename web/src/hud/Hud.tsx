@@ -24,6 +24,7 @@ import { PetLooks } from "./PetLooks.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Shop } from "./Shop.tsx";
+import { Sky } from "./Sky.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Modal, useFresh, useRun } from "./ui.tsx";
 
@@ -111,6 +112,7 @@ function Stats() {
   return (
     <div className="panel stats-chip">
       <AppUpdate />
+      <Sky />
       {stats && (
         <button
           type="button"

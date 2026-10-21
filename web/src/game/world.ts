@@ -141,6 +141,7 @@ export function loadSnapshot(s: Snapshot): void {
   hud.set({
     room: s.room,
     occupancy: s.occupancy,
+    weather: s.weather,
     chat: s.chat,
     ...(changedRoom
       ? {

@@ -1,5 +1,6 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
 import type { ChatLine, CompanyInfo, Notice, RoomId } from "@tokenmaxxing/core/world.ts";
 import type { Me, Raid, Today, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
@@ -62,6 +63,8 @@ interface HudState {
   inviteTable: number | null;
   /** The last time someone @-mentioned me from another room. */
   mention: { line: ChatLine; at: number } | null;
+  /** The weather over Copenhagen, from the server. */
+  weather: Weather;
   /** What the raid's last kills dropped, for everyone (`world` sends `loot`). */
   lootNews: { news: LootNews[]; at: number } | null;
 }
@@ -89,6 +92,7 @@ let state: HudState = {
   matchChat: [],
   clockSkew: 0,
   inviteTable: null,
+  weather: CALM,
 };
 const listeners = new Set<() => void>();
 

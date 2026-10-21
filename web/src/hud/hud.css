@@ -173,6 +173,17 @@ input:focus {
   padding: 6px;
 }
 
+.chip.sky {
+  cursor: help;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.chip.sky .sep {
+  margin: 0 6px;
+  opacity: 0.5;
+}
+
 .chip strong {
   color: var(--accent);
 }

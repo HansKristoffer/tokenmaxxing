@@ -8,6 +8,7 @@ import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } f
 import { type Door, doorAt, HQS, type Piece, pieceOf, withPieces } from "./office.ts";
 import { cleanPetName, MAX_PET_LOOKS, petLooks } from "./pets.ts";
 import { itemById } from "./shop.ts";
+import type { Weather } from "./sky.ts";
 
 export const TILE = 16;
 /** Client animation time per step; the server only enforces the running pace. */
@@ -318,6 +319,8 @@ export interface Snapshot {
   doors: Door[];
   /** What's on the floor: furniture (in the map too), wearables and pets. */
   drops: Drop[];
+  /** The weather over Copenhagen; later changes arrive as the `weather` event. */
+  weather: Weather;
   /** Only in the dungeon: who has agents running, wherever they are. */
   raiders: Raiders | null;
 }
