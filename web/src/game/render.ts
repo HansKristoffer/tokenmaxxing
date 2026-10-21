@@ -9,6 +9,8 @@ import { C } from "../art/palette.ts";
 import { PET_H, petFrame } from "../art/pets.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { camera, zoomScale } from "./camera.ts";
+import { drawChalkboards } from "./chalkboard.ts";
+import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
@@ -87,6 +89,11 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     const plaque = plan?.plaque;
     const logo = company?.brand?.logo;
     const faces = inside.slice(0, panes.length);
+    // A cellar hatch (tier 0) is already open; every other building's door swings.
+    const swing =
+      !company || houseTier(company.tokens30d, company.members) > 0
+        ? doorSwing(b.x + 3, b.y + b.h - 1, now)
+        : 0;
     for (const [i, p] of faces.entries()) {
       const pane = panes[i]!;
       peekHits.push({ x: left + pane.x, y: top + pane.y, w: pane.w, h: pane.h, id: p.id });
@@ -95,6 +102,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       y: bottom - 1,
       draw: () => {
         g.drawImage(sprite, left, top);
+        drawDoorSwing(g, sprite, left, top, swing);
         if (logo && plaque) drawLogo(g, logo, left + plaque.x, top + plaque.y, plaque.w, plaque.h);
         for (const [i, p] of faces.entries())
           drawFace(g, p, left + panes[i]!.x, top + panes[i]!.y, panes[i]!, now);
@@ -131,6 +139,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   }
 
   drawGames(g, items, labels, toScreen, now, dpr);
+  drawChalkboards(g, items, labels, toScreen, now, dpr);
 
   if (world.asleep > 0) {
     const [sx, sy] = toScreen((map.x0 + map.width / 2) * TILE, (map.y0 + 2) * TILE);
