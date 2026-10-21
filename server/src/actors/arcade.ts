@@ -34,7 +34,6 @@ import {
   requireSyncer,
   requireUser,
   serial,
-  type TokenCache,
   waitForTick,
 } from "./shared.ts";
 
@@ -122,11 +121,9 @@ export const arcade = actor({
   state: { nextId: 1, tables: {}, matches: {}, names: {} } as ArcadeState,
   createVars: () => ({
     serial: serial(),
-    tokens: new Map() as TokenCache,
     invites: new RateLimiter(INVITES_PER_MIN, 60_000),
   }),
-  createConnState: (c, params: ConnParams): Promise<Caller> =>
-    authenticate(params, c.client(), c.vars.tokens),
+  createConnState: (c, params: ConnParams): Promise<Caller> => authenticate(params, c.client()),
   run: async (c): Promise<void> => {
     const signal = c.abortSignal;
     const run = c.vars.serial;

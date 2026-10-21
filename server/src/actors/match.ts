@@ -21,7 +21,6 @@ import {
   main,
   requireInternal,
   requireUser,
-  type TokenCache,
   waitForTick,
 } from "./shared.ts";
 
@@ -83,9 +82,8 @@ export const match = actor({
       forfeited: [],
     };
   },
-  createVars: () => ({ tokens: new Map() as TokenCache, chat: new RateLimiter(CHAT_PER_MIN, 60_000) }),
-  createConnState: (c, params: ConnParams): Promise<Caller> =>
-    authenticate(params, c.client(), c.vars.tokens),
+  createVars: () => ({ chat: new RateLimiter(CHAT_PER_MIN, 60_000) }),
+  createConnState: (c, params: ConnParams): Promise<Caller> => authenticate(params, c.client()),
   // Only a person watching changes what the frames show (the watcher count). Other actors' calls,
   // like each app's battle poll, connect too.
   onConnect: (c, conn): void => {

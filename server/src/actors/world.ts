@@ -101,7 +101,6 @@ import {
   requireMain,
   requireUser,
   type Sql,
-  type TokenCache,
   waitForTick,
 } from "./shared.ts";
 import type { Office, PlayerCore } from "./town.ts";
@@ -211,8 +210,7 @@ const info = (p: WorldPlayer, online: boolean): PlayerInfo => {
 const pos = (p: WorldPlayer): PlayerPos => [p.id, p.x, p.y, p.facing, p.state];
 
 export const world = actor({
-  createConnState: (c, params: ConnParams): Promise<ConnState> =>
-    authenticate(params, c.client(), c.vars.tokens),
+  createConnState: (c, params: ConnParams): Promise<ConnState> => authenticate(params, c.client()),
   state: { seeded: false, players: {}, companies: {} } as WorldState,
   createVars: () => ({
     /** Open game connections per player. */
@@ -235,7 +233,6 @@ export const world = actor({
     /** The last `raiders` sent to the dungeon, as JSON, and when. */
     raiders: "",
     raidersAt: 0,
-    tokens: new Map() as TokenCache,
     bots: new Map<number, BotRun>(),
     /** The outage picnic: one status check for everyone (`picnic.ts`), kept when a check fails. */
     outage: null as Outage | null,

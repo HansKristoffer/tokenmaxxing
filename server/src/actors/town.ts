@@ -146,7 +146,6 @@ import {
   requireUser,
   type Sql,
   serial,
-  type TokenCache,
   type TxSql,
 } from "./shared.ts";
 
@@ -244,8 +243,6 @@ export const town = actor({
     offices: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     drops: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     renames: new RateLimiter(RENAMES_PER_HOUR, HOUR),
-    /** Verified tokens, so a burst of calls doesn't ask `player` every time. */
-    tokens: new Map() as TokenCache,
     /** `podiums` for a world day, for wallets and cards; a late sync or a wiped account drops it. */
     podiums: null as { day: string; rows: Promise<Podium[]> } | null,
     /** Today's paper (about yesterday): built on the first read of the day, then kept. */
@@ -256,7 +253,7 @@ export const town = actor({
   db: db({ onMigrate: migrate }),
   onCreate: (c) => requireMain(c),
   createConnState: async (c, params: ConnParams): Promise<TownConn> => ({
-    ...(await authenticate(params, c.client(), c.vars.tokens)),
+    ...(await authenticate(params, c.client())),
     ip: clientIpOf(c.request),
   }),
   // The sweeper's alarm. Set once: it outlives restarts, and wakes the town when it's asleep.
