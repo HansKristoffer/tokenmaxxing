@@ -284,7 +284,7 @@ export const world = actor({
     const p = c.state.players[s.userId];
     if (!p) return;
     // At a game table they stay put: the match decides what happens if they don't come back.
-    if (p.state !== "playing") rest(c.state, p, Date.now() - p.lastAgentAt < WORKING_MS ? "working" : "away");
+    if (p.state !== "playing") rest(c.state, p, restState(p, Date.now()));
     c.vars.dirty.add(p.id);
     c.broadcast("info", info(p, false));
   },
@@ -390,9 +390,9 @@ export const world = actor({
 
     /** E while facing a free seat: sits you on it (beds lie you down). */
     sit: (c, facing: unknown): StepResult => {
-      const userId = requireUser(c.conn.state);
-      const p = c.state.players[userId];
-      if (!p || p.state === "playing") return null;
+      const p = free(c);
+      if (!p) return null;
+      const userId = p.id;
       touch(c, p, Date.now());
       if (isFacing(facing)) p.facing = facing;
       const [dx, dy] = DIRS[p.facing];
@@ -418,9 +418,8 @@ export const world = actor({
 
     /** E while facing a coffee machine: one more cup, and everyone sees you shake. */
     drink: (c, facing: unknown): StepResult => {
-      const userId = requireUser(c.conn.state);
-      const p = c.state.players[userId];
-      if (!p || p.state === "playing") return null;
+      const p = free(c);
+      if (!p) return null;
       const now = Date.now();
       touch(c, p, now);
       if (isFacing(facing)) p.facing = facing;
@@ -434,9 +433,8 @@ export const world = actor({
 
     /** E at the pølsevogn while it's open: a free rød pølse, and a quicker walk for a while. */
     eat: (c, facing: unknown): StepResult => {
-      const userId = requireUser(c.conn.state);
-      const p = c.state.players[userId];
-      if (!p || p.state === "playing" || p.room !== "town") return null;
+      const p = free(c);
+      if (p?.room !== "town") return null;
       const now = Date.now();
       touch(c, p, now);
       if (isFacing(facing)) p.facing = facing;
@@ -500,19 +498,7 @@ export const world = actor({
       if (!c.vars.chat.take(String(userId), Date.now()))
         throw new UserError("Slow down a little.", { code: "rate_limited" });
       touch(c, p, Date.now());
-      const at = Date.now();
-      const [row] = await all<{ id: number }>(
-        c.db,
-        "INSERT INTO chat (room, user_id, name, text, at) VALUES (?, ?, ?, ?, ?) RETURNING id",
-        p.room,
-        userId,
-        p.name,
-        text,
-        at,
-      );
-      await c.db.execute("DELETE FROM chat WHERE room = ? AND id <= ?", p.room, row!.id - CHAT_KEEP);
-      const line: ChatLine = { id: row!.id, room: p.room, userId, name: p.name, text, at };
-      sendToRoom(c, p.room, "chat", line);
+      const line = await announce(c, p.room, text, userId, p.name);
       // People mentioned elsewhere hear about it; those in the room already see the line.
       const named = new Set(mentionsIn(text));
       if (named.size === 0) return;
@@ -520,7 +506,7 @@ export const world = actor({
         const s = conn.state as ConnState;
         if (s.kind !== "user" || !s.joined || s.userId === userId) continue;
         const other = c.state.players[s.userId];
-        if (other && other.room !== p.room && named.has(other.name)) conn.send("mention", line);
+        if (other && other.room !== line.room && named.has(other.name)) conn.send("mention", line);
       }
     },
 
@@ -529,35 +515,28 @@ export const world = actor({
      * It bypasses their building's door on purpose: its exit leads into your own building.
      */
     visit: (c, targetId: unknown): StepResult => {
-      const userId = requireUser(c.conn.state);
-      const p = c.state.players[userId];
+      const p = free(c);
       const owner = typeof targetId === "number" ? c.state.players[targetId] : undefined;
-      if (!p || p.state === "playing") return null;
+      if (!p) return null;
       if (!owner || !hasOffice(owner)) return { notice: "They don't have an office yet." };
-      if (owner.id !== userId && !officeOf(c.state, owner.id).open)
+      if (owner.id !== p.id && !officeOf(c.state, owner.id).open)
         return { notice: `🔒 ${owner.name}'s office is closed.` };
       touch(c, p, Date.now());
-      Object.assign(p, roomEntry(`office:${owner.id}`), { state: "idle" });
-      c.vars.dirty.add(p.id);
-      return correction(p);
+      return enter(c, p, `office:${owner.id}`);
     },
 
     /** The raid panel's "Go to the dungeon": in through its gate, from anywhere. */
     enterDungeon: (c): StepResult => {
-      const userId = requireUser(c.conn.state);
-      const p = c.state.players[userId];
-      if (!p || p.state === "playing") return null;
+      const p = free(c);
+      if (!p) return null;
       touch(c, p, Date.now());
-      Object.assign(p, roomEntry("dungeon"), { state: "idle" });
-      c.vars.dirty.add(p.id);
-      return correction(p);
+      return enter(c, p, "dungeon");
     },
 
     /** After a game: back to where you were before it. */
     back: (c): StepResult => {
-      const userId = requireUser(c.conn.state);
-      const p = c.state.players[userId];
-      if (!p || p.state === "playing" || !p.back) return null;
+      const p = free(c);
+      if (!p?.back) return null;
       // Somewhere they can't be any more: they stay where the game left them.
       if (canReturn(c.state, p, p.back)) Object.assign(p, p.back);
       p.state = "idle";
@@ -606,9 +585,8 @@ export const world = actor({
         if (hold) {
           // Remember where they were, like resting does, so Back takes them there after.
           // Resting players keep the spot they had before resting, or at least their bed.
-          if (p.state === "idle" || p.state === "sit")
-            p.back = { room: p.room, x: p.x, y: p.y, facing: p.facing, state: p.state };
-          else p.back ??= { room: p.room, x: p.x, y: p.y, facing: p.facing, state: "idle" };
+          if (p.state === "idle" || p.state === "sit") p.back = spotOf(p, p.state);
+          else p.back ??= spotOf(p, "idle");
           Object.assign(p, { room: "town", x: seat.x, y: seat.y, facing: seat.facing, state: "playing" });
         } else {
           p.arena = seat;
@@ -634,7 +612,7 @@ export const world = actor({
         // Offline, or resting at the arena: back to their own bed or desk, keeping where they were.
         if (!c.vars.online.has(p.id) || p.state === "away" || p.state === "working") {
           const before = p.back;
-          rest(c.state, p, now - p.lastAgentAt < WORKING_MS ? "working" : "away");
+          rest(c.state, p, restState(p, now));
           if (before) p.back = before;
         }
         c.vars.dirty.add(p.id);
@@ -763,10 +741,7 @@ export const world = actor({
     /** From `town`: a line for one player's open tabs (a company application, a trade, an answer). */
     notify: (c, userId: number, notice: Notice): void => {
       requireInternal(c.conn.state);
-      for (const conn of c.conns.values()) {
-        const s = conn.state as ConnState;
-        if (s.kind === "user" && s.joined && s.userId === userId) conn.send("notice", notice);
-      }
+      sendToUser(c, userId, "notice", notice);
     },
 
     /** From `town`: what this week's kills dropped, for everyone (the dungeon flies it to their desk). */
@@ -850,7 +825,8 @@ export const world = actor({
     /** From `town`'s sweeper: drops gone back to their droppers. */
     removeDrops: (c, ids: number[]): void => {
       requireInternal(c.conn.state);
-      for (const d of [...DROPS.values()].flat()) if (ids.includes(d.id)) lift(c, d);
+      const gone = new Set(ids);
+      for (const d of [...DROPS.values()].flat()) if (gone.has(d.id)) lift(c, d);
     },
 
     /** From `player` after an ingest: offline players work at their desk while agents run. */
@@ -866,7 +842,7 @@ export const world = actor({
       p.burn = burn;
       const online = c.vars.online.has(userId);
       if (!online) {
-        const want = Date.now() - p.lastAgentAt < WORKING_MS ? "working" : "away";
+        const want = restState(p, Date.now());
         if (p.state !== want) {
           rest(c.state, p, want);
           c.vars.dirty.add(p.id);
@@ -964,10 +940,22 @@ function buildHq(s: WorldState, companyId: number, dirty?: Set<number>): void {
   }
 }
 
+/** Resting, `p` is at their desk while their agents ran in the last `WORKING_MS`, else in bed. */
+const restState = (p: WorldPlayer, now: number): "working" | "away" =>
+  now - p.lastAgentAt < WORKING_MS ? "working" : "away";
+
+/** Where `p` is now, for coming back to. */
+const spotOf = (p: WorldPlayer, state: "idle" | "sit"): NonNullable<WorldPlayer["back"]> => ({
+  room: p.room,
+  x: p.x,
+  y: p.y,
+  facing: p.facing,
+  state,
+});
+
 /** Sends `p` to their bed (`away`) or desk (`working`) at home, remembering where they were. */
 function rest(s: WorldState, p: WorldPlayer, state: "away" | "working"): void {
-  if (p.state === "idle" || p.state === "sit")
-    p.back = { room: p.room, x: p.x, y: p.y, facing: p.facing, state: p.state };
+  if (p.state === "idle" || p.state === "sit") p.back = spotOf(p, p.state);
   // In a battle, they rest at their arena desk, typing away.
   if (p.arena) {
     Object.assign(p, { room: "town", x: p.arena.x, y: p.arena.y, facing: p.arena.facing, state: "working" });
@@ -1043,7 +1031,7 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
       }
       continue;
     }
-    const want = p.arena || now - p.lastAgentAt < WORKING_MS ? "working" : "away";
+    const want = p.arena ? "working" : restState(p, now);
     if (p.state !== want) {
       rest(s, p, want);
       v.dirty.add(p.id);
@@ -1057,14 +1045,14 @@ const onProp = (s: WorldState, x: number, y: number) =>
   isCart(x, y) ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
 
-/** A line in a room's chat from the town itself (a game's result). */
+/** A line in a room's chat: someone's (`say`), or the town's own by default (a game's result). */
 async function announce(
   c: Sender & { db: Sql },
   room: RoomId,
   text: string,
   userId = 0,
   name = "🎮",
-): Promise<void> {
+): Promise<ChatLine> {
   const at = Date.now();
   const [row] = await all<{ id: number }>(
     c.db,
@@ -1076,7 +1064,9 @@ async function announce(
     at,
   );
   await c.db.execute("DELETE FROM chat WHERE room = ? AND id <= ?", room, row!.id - CHAT_KEEP);
-  sendToRoom(c, room, "chat", { id: row!.id, room, userId, name, text, at } satisfies ChatLine);
+  const line: ChatLine = { id: row!.id, room, userId, name, text, at };
+  sendToRoom(c, room, "chat", line);
+  return line;
 }
 
 // MARK: Bots (core/src/bots.ts)
@@ -1310,13 +1300,22 @@ function copBeat(
       if (count === null) return;
       sendToRoom(c, "town", "bubble", { userId: target.id, text: "🎫" });
       const text = `🎫 Ticket #${count} from Officer 429: ${chargeOf(ticket)}. Nothing taken: it's on your card.`;
-      for (const conn of c.conns.values()) {
-        const s = conn.state as ConnState;
-        if (s.kind === "user" && s.joined && s.userId === target.id)
-          conn.send("notice", { text } satisfies Notice);
-      }
+      sendToUser(c, target.id, "notice", { text } satisfies Notice);
     })
     .catch((err) => console.warn("[world] ticket", err));
+}
+
+/** The caller, unless they're at a game table: there only the game moves them. */
+function free(c: { conn: { state: ConnState }; state: WorldState }): WorldPlayer | null {
+  const p = c.state.players[requireUser(c.conn.state)];
+  return p && p.state !== "playing" ? p : null;
+}
+
+/** In through `room`'s entry, on their feet. */
+function enter(c: { vars: Vars }, p: WorldPlayer, room: RoomId): StepResult {
+  Object.assign(p, roomEntry(room), { state: "idle" });
+  c.vars.dirty.add(p.id);
+  return correction(p);
 }
 
 const correction = (p: WorldPlayer): StepResult => ({
@@ -1530,19 +1529,38 @@ function sendToRoom(c: Sender, room: RoomId, event: string, payload: unknown): v
   }
 }
 
-/** A player who changed room (a door, or sent to bed) gets the new room whole. */
-async function sendSnapshot(c: Sender & { vars: Vars; db: Sql }, p: WorldPlayer): Promise<void> {
-  const snap = await snapshot(c.state, c.vars.online, c.vars.weather, p, chatOf(c.db, p.room));
+/** To every tab `userId` has open. */
+function sendToUser(c: Sender, userId: number, event: string, payload: unknown): void {
   for (const conn of c.conns.values()) {
     const s = conn.state as ConnState;
-    if (s.kind === "user" && s.joined && s.userId === p.id) conn.send("snapshot", snap);
+    if (s.kind === "user" && s.joined && s.userId === userId) conn.send(event, payload);
   }
 }
 
-/** Everyone online in `room` gets it whole again: what's in it changed. */
+/** A player who changed room (a door, or sent to bed) gets the new room whole. */
+async function sendSnapshot(c: Sender & { vars: Vars; db: Sql }, p: WorldPlayer): Promise<void> {
+  sendToUser(
+    c,
+    p.id,
+    "snapshot",
+    await snapshot(c.state, c.vars.online, c.vars.weather, p, chatOf(c.db, p.room)),
+  );
+}
+
+/**
+ * Everyone online in `room` gets it whole again: what's in it changed. One snapshot (and one read of
+ * the chat) for all of them; only who they are differs.
+ */
 async function resend(c: Sender & { vars: Vars; db: Sql }, room: RoomId): Promise<void> {
-  for (const p of Object.values(c.state.players))
-    if (p.room === room && c.vars.online.has(p.id)) await sendSnapshot(c, p);
+  const someone = Object.values(c.state.players).find((p) => p.room === room && c.vars.online.has(p.id));
+  if (!someone) return;
+  const snap = await snapshot(c.state, c.vars.online, c.vars.weather, someone, chatOf(c.db, room));
+  // Whoever left meanwhile gets their new room from `flush`.
+  for (const conn of c.conns.values()) {
+    const s = conn.state as ConnState;
+    if (s.kind === "user" && s.joined && c.state.players[s.userId]?.room === room)
+      conn.send("snapshot", { ...snap, selfId: s.userId } satisfies Snapshot);
+  }
 }
 
 /**
