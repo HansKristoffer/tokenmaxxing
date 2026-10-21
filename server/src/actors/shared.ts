@@ -81,7 +81,7 @@ export const clientIpOf = (req: Request | undefined): string | null =>
   req?.headers.get(CLIENT_IP_HEADER) ?? null;
 
 /** `ADMIN_TOKEN`, compared in constant time. Unset turns the admin page off. */
-export function isAdminToken(token: unknown): boolean {
+function isAdminToken(token: unknown): boolean {
   const want = process.env.ADMIN_TOKEN;
   if (!want || typeof token !== "string") return false;
   return timingSafeEqual(Buffer.from(sha256(token)), Buffer.from(sha256(want)));

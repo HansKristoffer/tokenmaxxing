@@ -120,7 +120,7 @@ const SUMS = `SUM(input) AS input, SUM(output) AS output, SUM(cache_creation) AS
               SUM(cache_read) AS cacheRead, SUM(turns) AS turns, SUM(reported_cost_cents) AS reportedCostCents`;
 
 /** `[from, to]` as SQL bounds; all time starts at the beginning. */
-export const bounds = (range: RangeKey, now: number): [string, string] => {
+const bounds = (range: RangeKey, now: number): [string, string] => {
   const { from, to } = rangeDays(range, now);
   return [from ?? "0000-00-00", to];
 };
@@ -209,7 +209,7 @@ function boardOf(sql: Sql, range: RangeKey, now: number): ReturnType<typeof buil
 }
 
 /** Every player and company in the range, ranked by `sort`. */
-export async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
+async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
   const board = await boardOf(sql, range, now);
   return { players: rank(board.players, sort), companies: rank(board.companies, sort) };
 }

@@ -30,7 +30,7 @@ const SORT_KEYS: readonly SortKey[] = ["tokens", "cost", "hours", "parallelism",
 export const isSortKey = (v: unknown): v is SortKey => SORT_KEYS.includes(v as SortKey);
 
 /** Below this, parallelism is null so one short burst can't top the board. */
-export const MIN_ACTIVE_HOURS = 1;
+const MIN_ACTIVE_HOURS = 1;
 /** Agents are counted per 5-minute bucket (parallelism and agent hours). */
 export const AGENT_BUCKET_MS = 5 * 60_000;
 const BUCKET_HOURS = AGENT_BUCKET_MS / 3_600_000;

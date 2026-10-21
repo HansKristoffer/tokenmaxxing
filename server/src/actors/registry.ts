@@ -50,7 +50,6 @@ export type {
   BoardCompany,
   BoardPlayer,
   Cart,
-  CartStock,
   CompanyProfile,
   Copy,
   GamePlayer,

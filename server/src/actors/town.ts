@@ -153,9 +153,8 @@ export type {
 } from "../town/boards.ts";
 export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany, WalletLine } from "../town/companies.ts";
-export type { GamePlayer, GameStats } from "../town/games.ts";
-export type { RaidLoot } from "../town/loot.ts";
-export type { Cart, CartStock, Copy } from "../town/merchant.ts";
+export type { GamePlayer } from "../town/games.ts";
+export type { Cart, Copy } from "../town/merchant.ts";
 export type { Raid } from "../town/raid.ts";
 export type { PlayerCore } from "../town/users.ts";
 

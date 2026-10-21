@@ -10,7 +10,7 @@ import { dirname, join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Brand } from "@tokenmaxxing/core/world.ts";
 
-export type Palette = Omit<Brand, "logo">;
+type Palette = Omit<Brand, "logo">;
 
 /** Next to Rivet's data, so the same volume keeps both. */
 const storage = process.env.RIVETKIT_STORAGE_PATH;

@@ -25,14 +25,14 @@ import type { RaidLoot } from "./loot.ts";
 import { signupDays, TOKENS } from "./users.ts";
 
 /** One raider on the board. */
-export interface RaidRow {
+interface RaidRow {
   userId: number;
   name: string;
   damage: number;
 }
 
 /** A boss that fell this week. */
-export interface RaidKill {
+interface RaidKill {
   rung: number;
   boss: RungBoss;
   /** The world day it fell. */
@@ -138,7 +138,7 @@ export async function raidStart(sql: Sql, now: number, env = process.env.RAID_ST
  * Every player's world days that hit a boss: from the week before the first raid (its HP), and
  * only days from each player's sign-up day, like coins, so a first sync's backfill doesn't.
  */
-export async function raidDays(sql: Sql, start: string): Promise<RaidDay[]> {
+async function raidDays(sql: Sql, start: string): Promise<RaidDay[]> {
   const firstDay = JSON.stringify(await signupDays(sql));
   const from = addDays(start, -7);
   const tokens = await all<{ userId: number; day: string; tokens: number }>(
@@ -170,8 +170,6 @@ export async function raidHistory(sql: Sql, now: number): Promise<RaidWeek[]> {
   const start = await raidStart(sql, now);
   return raidWeeks(await raidDays(sql, start), now, start);
 }
-
-export { raidCoins };
 
 /** The raid shown at `now` (`raidWeekAt`: last week until Monday 08:00) as `userId` sees it. */
 export async function raid(sql: Sql, userId: number | null, weeks: RaidWeek[], now: number): Promise<Raid> {

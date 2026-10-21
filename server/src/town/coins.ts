@@ -2,7 +2,7 @@ import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
 import { type DayFacts, EMPTY_DAY, QUESTS, questCoins } from "@tokenmaxxing/core/quests.ts";
-import type { RaidWeek } from "@tokenmaxxing/core/raid.ts";
+import { type RaidWeek, raidCoins } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import {
   coinsForTokens,
@@ -21,7 +21,7 @@ import type { Drop } from "@tokenmaxxing/core/world.ts";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { companyLedgerAdd } from "./companies.ts";
-import { raidCoins, raidHistory } from "./raid.ts";
+import { raidHistory } from "./raid.ts";
 import { lookOf, signupDays, TOKENS, tokensIn, userById } from "./users.ts";
 
 export interface Wallet {
