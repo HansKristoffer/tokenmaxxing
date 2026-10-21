@@ -64,7 +64,16 @@ export const ownedItems = async (sql: Sql, userId: number): Promise<string[]> =>
  */
 export async function grantRewards(sql: Sql, userId: number, level: number, now: number): Promise<Drop[]> {
   const drops = level >= OFFICE_LEVEL ? await starterDrops(sql, userId, now) : [];
-  for (const i of levelItems(level)) {
+  const due = levelItems(level);
+  if (due.length === 0) return drops;
+  // Every sync asks: one read, and a write only for what's new.
+  const had = new Set(
+    (await all<{ item: string }>(sql, "SELECT item FROM rewards WHERE user_id = ?", userId)).map(
+      (r) => r.item,
+    ),
+  );
+  for (const i of due) {
+    if (had.has(i.id)) continue;
     const [fresh] = await all(
       sql,
       "INSERT INTO rewards (user_id, item) VALUES (?, ?) ON CONFLICT DO NOTHING RETURNING item",

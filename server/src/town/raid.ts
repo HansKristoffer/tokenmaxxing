@@ -123,11 +123,15 @@ const RULES: Raid["rules"] = {
  */
 export async function raidStart(sql: Sql, now: number, env = process.env.RAID_START_WEEK): Promise<string> {
   if (env) return env;
+  const stored = () => one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = 'start'");
+  // Every raid poll asks, and it's written once: read first.
+  const kept = await stored();
+  if (kept) return kept.value;
   await sql.execute(
     "INSERT INTO raid_meta (key, value) VALUES ('start', ?) ON CONFLICT DO NOTHING",
     launchWeek(now),
   );
-  return (await one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = 'start'"))!.value;
+  return (await stored())!.value;
 }
 
 /**

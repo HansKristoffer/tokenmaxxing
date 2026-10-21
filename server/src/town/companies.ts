@@ -154,21 +154,19 @@ export async function matchCoins(sql: Sql, userId: number, days: string[], now: 
   );
   if (!u || u.companyId === null || u.joinedAt === null) return;
   const from = [dayKey(u.joinedAt), dayKey(u.createdAt)].sort()[1]!;
-  for (const day of days) {
-    if (day < from) continue;
-    const [{ tokens }] = (await all<{ tokens: number | null }>(
-      sql,
-      `SELECT SUM(${TOKENS}) AS tokens FROM usage_daily WHERE user_id = ? AND day = ?`,
-      userId,
-      day,
-    )) as [{ tokens: number | null }];
-    const [{ matched }] = (await all<{ matched: number | null }>(
-      sql,
-      "SELECT SUM(amount) AS matched FROM company_ledger WHERE user_id = ? AND kind = 'match' AND ref = ?",
-      userId,
-      day,
-    )) as [{ matched: number | null }];
-    const due = matchDue(coinsForTokens(tokens ?? 0), matched ?? 0);
+  const counted = JSON.stringify([...new Set(days.filter((day) => day >= from))]);
+  const perDay = async (query: string) =>
+    new Map((await all<{ day: string; n: number }>(sql, query, userId, counted)).map((r) => [r.day, r.n]));
+  const tokens = await perDay(
+    `SELECT day, SUM(${TOKENS}) AS n FROM usage_daily
+     WHERE user_id = ? AND day IN (SELECT value FROM json_each(?)) GROUP BY day`,
+  );
+  const matched = await perDay(
+    `SELECT ref AS day, SUM(amount) AS n FROM company_ledger
+     WHERE user_id = ? AND kind = 'match' AND ref IN (SELECT value FROM json_each(?)) GROUP BY ref`,
+  );
+  for (const day of JSON.parse(counted) as string[]) {
+    const due = matchDue(coinsForTokens(tokens.get(day) ?? 0), matched.get(day) ?? 0);
     if (due > 0)
       await sql.execute(
         "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, 'match', ?, ?)",

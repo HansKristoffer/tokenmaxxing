@@ -432,11 +432,11 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
     // burn for the 429 Cop: that minute, capped like a battle's.
     expect(recent).toEqual([42, now - 60_000, 2, MINUTE_CAP / 10, MINUTE_CAP]);
     // The live queries use the partial index; none scans all historic assistant events.
-    for (const q of queries.slice(-4)) {
+    for (const q of queries.slice(-3)) {
       const args = q.includes("timestamp > ?")
         ? [now - 600_000]
         : q.includes("timestamp >= ?")
-          ? [MINUTE_CAP, MINUTE_CAP, now - 600_000, now + 1]
+          ? [MINUTE_CAP, MINUTE_CAP, now - 600_000, now + 1, now - 3_600_000, now, now - 3_600_000, now + 1]
           : [];
       const plan = db.query(`EXPLAIN QUERY PLAN ${q}`).all(...args) as { detail: string }[];
       expect(
