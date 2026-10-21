@@ -42,10 +42,6 @@ export function cursorStateDbPath(): string {
   return join(dir, "state.vscdb");
 }
 
-export function cursorProjectsDir(): string {
-  return resolveDir(process.env.CURSOR_PROJECTS_DIR, join(homedir(), ".cursor", "projects"));
-}
-
 // The Desktop store has used both names across versions; scan both.
 const COWORK_SESSION_ROOTS = ["local-agent-mode-sessions", "claude-code-sessions"] as const;
 
@@ -186,8 +182,4 @@ function canonical(path: string): string | null {
   } catch {
     return null;
   }
-}
-
-export function listCursorTranscriptFiles(): Promise<string[]> {
-  return scanGlob(cursorProjectsDir(), "**/agent-transcripts/**/*.jsonl");
 }

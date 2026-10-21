@@ -79,7 +79,7 @@ is and what to do. They're ordered by what matters for the release, and each num
   - "menu bar" in `town.ts:409`, `arcade.ts:354` and `match.ts:160`, and in two test names;
   - `rate-limit.ts:2` (says keys are IPs);
   - `vendor-pricing.ts:3` (wrong path);
-  - `read-slice.ts` and `cursor-local.ts` (daemon, tokenleader, the old POST limit);
+  - `read-slice.ts` (daemon, tokenleader, the old POST limit);
   - `codex.ts`: 218 comment lines, many of them history from tokenleader.
 
 ## 4. Duplication (one shared helper each)

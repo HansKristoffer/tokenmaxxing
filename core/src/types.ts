@@ -57,8 +57,6 @@ export interface FileState {
   path: string;
   mtimeMs: number;
   byteOffset: number;
-  /** Lines fully parsed in a Cursor transcript JSONL (stable message ids). */
-  transcriptLineIndex?: number;
   /** Codex only: cumulative totals at the end of the last read. */
   lastSessionTotals?: {
     sessionId: string;
@@ -77,7 +75,6 @@ export type GithubProblem = "no_gh" | "signed_out";
 
 export interface SyncState {
   files: Record<string, FileState>;
-  cursorLocal?: { dbPath: string; lastRowid: number };
   cursorApi?: { accountId: string; checkedAt: number; costVersion?: number };
   /**
    * Per GitHub account (`host/login`), the newest PR `createdAt` fetched; when we last asked; and,
