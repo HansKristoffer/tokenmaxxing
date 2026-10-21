@@ -2,7 +2,7 @@ import { type Edition, editionById } from "@tokenmaxxing/core/editions.ts";
 import { cartOpen, lineup, weekOf } from "@tokenmaxxing/core/merchant.ts";
 import { UserError } from "rivetkit";
 import { all, one, type Sql } from "../actors/shared.ts";
-import { type Wallet, wallet } from "./coins.ts";
+import { type Kept, type Wallet, wallet } from "./coins.ts";
 
 /**
  * The traveling merchant's one table: a row per copy sold, stamped with its week and number. The
@@ -57,6 +57,7 @@ export async function buyEdition(
   userId: number,
   itemId: unknown,
   now: number,
+  kept?: Kept,
 ): Promise<{ wallet: Wallet; n: number }> {
   if (!cartOpen(now))
     throw new UserError("The cart has moved on. It's back on Thursday.", { code: "closed" });
@@ -65,7 +66,7 @@ export async function buyEdition(
   if (!e) throw new UserError("The merchant isn't selling that this week.", { code: "not_found" });
   const sold = await soldOf(sql, week, e.id);
   if (sold >= e.supply) throw new UserError(`Sold out: all ${e.supply} are gone.`, { code: "sold_out" });
-  if ((await wallet(sql, userId, now)).balance < e.price)
+  if ((await wallet(sql, userId, now, kept)).balance < e.price)
     throw new UserError("Not enough coins yet.", { code: "too_poor" });
   // As `buy`: the copy first, then its number, then the price.
   const [copy] = await all<{ id: number }>(
@@ -90,7 +91,7 @@ export async function buyEdition(
     e.price,
     now,
   );
-  return { wallet: await wallet(sql, userId, now), n: sold + 1 };
+  return { wallet: await wallet(sql, userId, now, kept), n: sold + 1 };
 }
 
 /** A numbered copy someone holds. */

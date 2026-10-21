@@ -85,14 +85,13 @@ export async function grantRewards(sql: Sql, userId: number, level: number, now:
  * Milestone coins (`milestones.ts`) go by the level, which counts every day.
  * ponytail: a late sync can also knock someone off a past podium after they spent
  * the bonus; the balance then reads short until they earn it back. Settle days into
- * a ledger if that ever matters. `top`: `podiums`, and `raids`: `raidHistory`, if the caller keeps them.
+ * a ledger if that ever matters. `top` and `raids`: what the caller keeps (`Kept`), if it does.
  */
 export async function wallet(
   sql: Sql,
   userId: number,
   now: number,
-  top?: Podium[],
-  raids?: RaidWeek[],
+  { top, raids }: Partial<Kept> = {},
 ): Promise<Wallet> {
   const today = dayKey(now);
   const me = await one<{ createdAt: number }>(
@@ -150,6 +149,15 @@ export async function wallet(
       now - TRADE_TTL,
     )),
   };
+}
+
+/**
+ * `podiums` and `raidHistory`, as `town` keeps them (`podiumsOf`, `raidsOf`): both go over all of usage,
+ * so a coin write checks wallets against these rather than working them out again under `serial`.
+ */
+export interface Kept {
+  top: Podium[];
+  raids: RaidWeek[];
 }
 
 /** Someone who finished a day in the top 3. */
@@ -239,8 +247,9 @@ export async function setBalance(
   userId: number,
   balance: number,
   now: number,
+  kept?: Kept,
 ): Promise<{ before: number; balance: number }> {
-  const before = (await wallet(sql, userId, now)).balance;
+  const before = (await wallet(sql, userId, now, kept)).balance;
   if (balance !== before)
     await sql.execute(
       "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, 'admin', 'admin', ?)",
@@ -255,8 +264,8 @@ export async function setBalance(
  * Pays for one more `item` from `userId`'s coins and puts it in their bag. Run it serialized, so two
  * buys can't both spend the same coins.
  */
-export async function buy(sql: Sql, userId: number, item: Item, now: number): Promise<Wallet> {
-  if ((await wallet(sql, userId, now)).balance < item.price)
+export async function buy(sql: Sql, userId: number, item: Item, now: number, kept?: Kept): Promise<Wallet> {
+  if ((await wallet(sql, userId, now, kept)).balance < item.price)
     throw new UserError("Not enough coins yet.", { code: "too_poor" });
   // The item first: if the purchase write fails, it was free rather than paid for and lost.
   await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, item.id, now);
@@ -268,7 +277,7 @@ export async function buy(sql: Sql, userId: number, item: Item, now: number): Pr
     item.price,
     now,
   );
-  return wallet(sql, userId, now);
+  return wallet(sql, userId, now, kept);
 }
 
 /**
@@ -276,14 +285,20 @@ export async function buy(sql: Sql, userId: number, item: Item, now: number): Pr
  * company wallet (spend in `purchases`, like the shop); its own people get `EMPLOYEE_MERCH_DISCOUNT` off,
  * and a free one only if they don't have one yet. Run it serialized, like `buy`.
  */
-export async function buyMerch(sql: Sql, userId: number, item: Item, now: number): Promise<Wallet> {
+export async function buyMerch(
+  sql: Sql,
+  userId: number,
+  item: Item,
+  now: number,
+  kept?: Kept,
+): Promise<Wallet> {
   const company = await one<{ id: number }>(sql, "SELECT id FROM companies WHERE id = ?", item.companyId);
   if (!company) throw new UserError("That company is gone.", { code: "not_found" });
   const employee = (await userById(sql, userId)).companyId === company.id;
   const price = merchPrice(item.id.split(".")[2] as MerchKind, employee);
   if (price === 0 && (await one(sql, "SELECT 1 FROM items WHERE owner_id = ? AND item = ?", userId, item.id)))
     throw new UserError("You have one already: the free one is one each.", { code: "owned" });
-  if ((await wallet(sql, userId, now)).balance < price)
+  if ((await wallet(sql, userId, now, kept)).balance < price)
     throw new UserError("Not enough coins yet.", { code: "too_poor" });
   await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, item.id, now);
   if (price > 0) {
@@ -304,7 +319,7 @@ export async function buyMerch(sql: Sql, userId: number, item: Item, now: number
       now,
     );
   }
-  return wallet(sql, userId, now);
+  return wallet(sql, userId, now, kept);
 }
 
 export interface Office {
@@ -401,10 +416,11 @@ export async function hold(
   entries: Entry[],
   names: Record<number, string>,
   now: number,
+  kept?: Kept,
 ): Promise<void> {
   const paying = entries.filter((e) => e.amount > 0);
   for (const e of paying) {
-    const { balance } = await wallet(sql, e.userId, now);
+    const { balance } = await wallet(sql, e.userId, now, kept);
     const limit = kind === "stake" ? Math.floor(balance / 2) : balance;
     if (e.amount > limit) {
       const who = names[e.userId] ?? "Someone";
@@ -501,7 +517,7 @@ export async function tradesWhere(sql: Sql, where: string, ...args: unknown[]): 
 }
 
 /** Throws unless each side holds what it gives, out of its office (`not_owned`), and has the coins (`too_poor`). */
-export async function checkTrade(sql: Sql, t: Trade, now: number): Promise<void> {
+export async function checkTrade(sql: Sql, t: Trade, now: number, kept?: Kept): Promise<void> {
   for (const d of directions(t)) {
     const has = await ownedItems(sql, d.giverId);
     for (const id of d.side.items)
@@ -509,7 +525,7 @@ export async function checkTrade(sql: Sql, t: Trade, now: number): Promise<void>
         throw new UserError(`${d.giver} doesn't have ${itemById(id)?.name ?? id}.`, { code: "not_owned" });
     if (d.side.coins === 0) continue;
     // Not how many they have: that's theirs to know.
-    if ((await wallet(sql, d.giverId, now)).balance < d.side.coins)
+    if ((await wallet(sql, d.giverId, now, kept)).balance < d.side.coins)
       throw new UserError(`${d.giver} can't cover 🪙 ${d.side.coins} right now.`, { code: "too_poor" });
   }
 }
@@ -519,9 +535,9 @@ export async function checkTrade(sql: Sql, t: Trade, now: number): Promise<void>
  * coins in one ref, items as one row of each kind. Run it serialized. Throws `too_poor` /
  * `not_owned` when something changed since the offer, and `not_found` when it's gone.
  */
-export async function settleTrade(sql: TxSql, t: Trade, now: number): Promise<void> {
+export async function settleTrade(sql: TxSql, t: Trade, now: number, kept?: Kept): Promise<void> {
   await sql.transaction(async (tx) => {
-    await checkTrade(tx, t, now);
+    await checkTrade(tx, t, now, kept);
     // The offer goes with it, so it can't be settled twice; withdrawn or replaced meanwhile, it's gone.
     if (!(await one(tx, "DELETE FROM trades WHERE from_id = ? AND at = ? RETURNING from_id", t.fromId, t.at)))
       throw new UserError("That offer is gone.", { code: "not_found" });

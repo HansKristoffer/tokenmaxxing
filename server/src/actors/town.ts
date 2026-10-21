@@ -66,6 +66,7 @@ import {
   type HoldKind,
   heldIn,
   hold,
+  type Kept,
   type Office,
   offices,
   ownedItems,
@@ -473,14 +474,11 @@ export const town = actor({
       return myCompany(c.db, company.id, userId);
     },
 
-    wallet: async (c): Promise<Wallet> =>
-      wallet(
-        c.db,
-        requireUser(c.conn.state),
-        Date.now(),
-        await podiumsOf(c, Date.now()),
-        await raidsOf(c, Date.now()),
-      ),
+    wallet: async (c): Promise<Wallet> => {
+      const userId = requireUser(c.conn.state);
+      const now = Date.now();
+      return wallet(c.db, userId, now, await kept(c, now));
+    },
 
     /** This week's ladder (last week's until Monday 08:00): the boss up now, how hurt it is, and who's hitting it. */
     raid: async (c): Promise<Raid> => {
@@ -507,8 +505,9 @@ export const town = actor({
         throw new UserError("That one is for company buildings, from the company wallet.", {
           code: "not_for_sale",
         });
-      if (item.slot === "merch") return c.vars.serial(() => buyMerch(c.db, userId, item, Date.now()));
-      return c.vars.serial(() => buy(c.db, userId, item, Date.now()));
+      const k = await kept(c, Date.now());
+      if (item.slot === "merch") return c.vars.serial(() => buyMerch(c.db, userId, item, Date.now(), k));
+      return c.vars.serial(() => buy(c.db, userId, item, Date.now(), k));
     },
 
     // MARK: Company furniture
@@ -550,9 +549,10 @@ export const town = actor({
     cart: (c): Promise<Cart> => cart(c.db, Date.now()),
 
     /** The next numbered copy of one off the cart. */
-    buyEdition: (c, itemId: unknown): Promise<{ wallet: Wallet; n: number }> => {
+    buyEdition: async (c, itemId: unknown): Promise<{ wallet: Wallet; n: number }> => {
       const userId = requireUser(c.conn.state);
-      return c.vars.serial(() => buyEdition(c.db, userId, itemId, Date.now()));
+      const k = await kept(c, Date.now());
+      return c.vars.serial(() => buyEdition(c.db, userId, itemId, Date.now(), k));
     },
 
     /** The numbered copies in my bag. */
@@ -652,7 +652,7 @@ export const town = actor({
       const now = Date.now();
       const trade = { fromId: userId, from: me.name, toId, to: them.name, give, want, at: now };
       // Their coins are theirs to know: accepting checks them.
-      await checkTrade(c.db, { ...trade, want: { ...want, coins: 0 } }, now);
+      await checkTrade(c.db, { ...trade, want: { ...want, coins: 0 } }, now, await kept(c, now));
       if (!c.vars.trades.take(String(userId), now))
         throw new UserError("That's a lot of offers. Try again in an hour.", { code: "rate_limited" });
       await c.db.execute(
@@ -683,18 +683,19 @@ export const town = actor({
     acceptTrade: async (c, fromId: unknown, at: unknown): Promise<Wallet> => {
       const userId = requireUser(c.conn.state);
       const now = Date.now();
+      const k = await kept(c, now);
       const trade = await c.vars.serial(async () => {
         const trade = await offerTo(c.db, userId, fromId, now);
         if (trade.at !== at)
           throw new UserError("They changed the offer. Have another look.", { code: "not_found" });
-        await settleTrade(c.db, trade, now);
+        await settleTrade(c.db, trade, now, k);
         return trade;
       });
       const client = c.client<typeof registry>();
       // Looks may have changed.
       await pushPlayers(c.db, client, [trade.fromId, userId]);
       await notify(client, trade.fromId, { text: `${trade.to} accepted your trade.`, open: "bag" });
-      return wallet(c.db, userId, now, await podiumsOf(c, now));
+      return wallet(c.db, userId, now, k);
     },
 
     declineTrade: async (c, fromId: unknown): Promise<void> => {
@@ -862,7 +863,8 @@ export const town = actor({
         c.db,
         entries.map((e) => e.userId),
       );
-      await c.vars.serial(() => hold(c.db, ref, kind, entries, names, Date.now()));
+      const k = await kept(c, Date.now());
+      await c.vars.serial(() => hold(c.db, ref, kind, entries, names, Date.now(), k));
     },
 
     pay: async (c, ref: string, kind: PayKind, entries: Entry[]): Promise<void> => {
@@ -944,7 +946,8 @@ export const town = actor({
         throw new UserError("Use a whole number from 0 to 10,000,000.", { code: "invalid_amount" });
       const user = await adminTarget(c.db, userId);
       const now = Date.now();
-      const set = await c.vars.serial(() => setBalance(c.db, user.id, balance as number, now));
+      const k = await kept(c, now);
+      const set = await c.vars.serial(() => setBalance(c.db, user.id, balance as number, now, k));
       await logAdmin(c.db, "set coins", who(user), `${set.before} → ${set.balance}`, now);
       return set.balance;
     },
@@ -1130,6 +1133,18 @@ function podiumsOf(
     });
   }
   return c.vars.podiums.rows;
+}
+
+/**
+ * Podiums and raids for checking wallets, from what the town keeps. Before `serial`, never under it:
+ * `raidsOf` hands out loot on that chain, and would wait for itself.
+ */
+async function kept(
+  c: Parameters<typeof raidsOf>[0] & Parameters<typeof podiumsOf>[0],
+  now: number,
+): Promise<Kept> {
+  const [top, raids] = await Promise.all([podiumsOf(c, now), raidsOf(c, now)]);
+  return { top, raids };
 }
 
 const RAID_TTL = 15_000;
