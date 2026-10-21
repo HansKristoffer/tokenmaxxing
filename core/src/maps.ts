@@ -31,6 +31,8 @@ export const LEGEND: Record<string, TileKind> = {
   L: { name: "lamp", text: "The lamp hums quietly. It's always on, like a good server." },
   F: { name: "fountain", text: "A fountain. People toss spare tokens in for luck." },
   N: { name: "board", text: "The leaderboard." },
+  // The Inn's chalkboard: the client writes today's special on it.
+  K: { name: "chalkboard" },
   B: { name: "bench", seat: "bench", text: "A bench with a view of the square." },
   H: { name: "building" },
   W: { name: "wall" },
@@ -132,7 +134,7 @@ const CORE = [
   ",.~~~~~,..HHHHHHH...",
   ",.~~~~~,..HHHHHHH...",
   ",..~~~.,..HHHIHHH...",
-  ',.."...,.....,......',
+  ',.."...,.....,.K....',
   ",..T...,,,,,,,......",
   ',..........".....^..',
 ];

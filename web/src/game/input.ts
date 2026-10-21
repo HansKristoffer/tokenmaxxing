@@ -13,6 +13,7 @@ import {
 import { conn } from "../net.ts";
 import { chatBeside, hud } from "../store.ts";
 import { camera, zoom } from "./camera.ts";
+import { chalkboardText } from "./chalkboard.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
@@ -290,6 +291,7 @@ export function interact(): void {
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (ch === "o") return void send(conn.drink(me.facing));
+  if (ch === "K") return void hud.set({ dialog: chalkboardText() });
   if (ch === "H") {
     const b = buildingAt(x, y);
     const company = b?.plot ? companyOnPlot(b.plot) : null;
