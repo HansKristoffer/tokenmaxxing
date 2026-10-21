@@ -10,6 +10,7 @@ import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { lootLine, rarityClass } from "./Loot.tsx";
 import { AvatarImage, Modal, Pills, useRun } from "./ui.tsx";
 
 const TABS = [
@@ -77,14 +78,25 @@ export function Shop() {
           const wearing = isWorn(item, me.look);
           const n = bag.find((b) => b.item === item.id)?.count ?? 0;
           return (
-            <li key={item.id} className={wearing ? "wearing" : undefined}>
+            <li
+              key={item.id}
+              className={`${wearing ? "wearing" : ""}${rarityClass(item)}`.trim() || undefined}
+              title={lootLine(item) ?? undefined}
+            >
               <ItemImage item={item} look={me.look} />
               <span>
                 {item.name}
                 {n > 0 && <span className="muted"> ×{n}</span>}
               </span>
+              {item.loot && <span className={`small rarity-text-${item.loot.rarity}`}>{lootLine(item)}</span>}
               {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
-              {item.level !== undefined ? (
+              {item.loot ? (
+                !owned && (
+                  <button type="button" disabled>
+                    ⚔️ Raid drop
+                  </button>
+                )
+              ) : item.level !== undefined ? (
                 !owned && (
                   <button type="button" disabled>
                     🔒 Lv {item.level}

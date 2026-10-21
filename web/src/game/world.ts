@@ -170,6 +170,7 @@ export function setCompanies(list: CompanyInfo[]): void {
 export function roomName(room: RoomId): string {
   if (room === "town") return "Town square";
   if (room === "inn") return "The Inn";
+  if (room === "dungeon") return "Raid Dungeon";
   if (ownerOfOffice(room) !== null)
     return room === world.room && world.owner ? `${world.owner.name}'s office` : "An office";
   const company = world.companies.get(Number(room.slice(3)));

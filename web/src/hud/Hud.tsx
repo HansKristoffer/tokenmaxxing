@@ -15,18 +15,21 @@ import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LookPicker } from "./LookPicker.tsx";
+import { LootToast } from "./Loot.tsx";
 import { MatchPanel } from "./Match.tsx";
 import { MerchShop } from "./Merch.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
+import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Shop } from "./Shop.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
-import { Modal, useRun } from "./ui.tsx";
+import { Modal, useFresh, useRun } from "./ui.tsx";
 
 export function Hud() {
   const status = useHud((s) => s.status);
   const beside = useHud((s) => chatBeside(s.panel));
+  const room = useHud((s) => s.room);
   if (status === "signedOut" || status === "expired")
     return tauri ? <AppSignIn /> : <SignedOut expired={status === "expired"} />;
   return (
@@ -36,6 +39,7 @@ export function Hud() {
       <div className="corner">
         <MiniBoard />
         <GamesBox />
+        <RaidBox />
       </div>
       <Banner />
       {!beside && <Chat />}
@@ -52,12 +56,14 @@ export function Hud() {
           Reconnecting…
         </div>
       )}
-      <div className="toasts">
+      <div className={room === "dungeon" ? "toasts low" : "toasts"}>
         <MentionToast />
         <NoticeToast />
         <QuestToast />
         <InviteToast />
         <LevelToast />
+        <RaidToast />
+        <LootToast />
       </div>
       <FirstVisit />
     </>
@@ -162,17 +168,6 @@ function Stats() {
 const BANNER_MS = 2500;
 const MENTION_MS = 8000;
 
-/** True while something that happened `at` is less than `ms` old; re-renders when it expires. */
-function useFresh(at: number | undefined, ms: number): boolean {
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (at === undefined) return;
-    const id = setTimeout(() => tick((n) => n + 1), at + ms - Date.now() + 50);
-    return () => clearTimeout(id);
-  }, [at, ms]);
-  return at !== undefined && Date.now() - at <= ms;
-}
-
 function Banner() {
   const banner = useHud((s) => s.banner);
   if (!useFresh(banner?.at, BANNER_MS) || !banner) return null;
@@ -223,6 +218,8 @@ function Panel() {
       return <TradePanel userId={panel.userId} />;
     case "trades":
       return <TradesPanel />;
+    case "raid":
+      return <RaidPanel />;
     case "menu":
       return (
         <Modal title="Menu">
@@ -242,6 +239,9 @@ function Panel() {
             </button>
             <button type="button" onClick={() => hud.set({ panel: { kind: "arcade" } })}>
               🎮 Arcade
+            </button>
+            <button type="button" onClick={() => hud.set({ panel: { kind: "raid" } })}>
+              ⚔️ Raid
             </button>
             <button type="button" onClick={() => hud.set({ panel: { kind: "company" } })}>
               🏢 Company

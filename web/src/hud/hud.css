@@ -1363,3 +1363,317 @@ button.lb-item:hover {
   white-space: nowrap;
   user-select: all;
 }
+
+/* The raid: the boss's HP in the corner box and the panel. */
+.raid-box {
+  padding: 6px 8px;
+}
+
+.raid-line {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 0 4px 4px;
+  font-size: 12px;
+}
+
+.raid-line .who {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hp {
+  height: 8px;
+  margin: 0 4px 2px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #5b1f1a;
+  overflow: hidden;
+}
+
+.hp span {
+  display: block;
+  height: 100%;
+  transition: width 0.6s ease-out;
+}
+
+.hp .ok {
+  background: #72bf52;
+}
+
+.hp .low {
+  background: #e9b73d;
+}
+
+.hp .dire {
+  background: #e06c5f;
+}
+
+.raid .hp {
+  height: 14px;
+  margin: 0 0 10px;
+}
+
+.raid .miniboard {
+  padding: 0;
+}
+
+.raid h3 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+}
+
+.raid-status,
+.raid-me {
+  margin: 4px 0 8px;
+}
+
+.raid-rules {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.raid-go {
+  width: 100%;
+  margin: 0 0 10px;
+}
+
+.raid-ladder {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.raid-ladder li {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.raid-ladder .rung {
+  font-weight: 700;
+  text-align: center;
+}
+
+.raid-ladder .fell {
+  background: rgba(233, 183, 61, 0.14);
+}
+
+.raid-ladder .now {
+  background: rgba(224, 108, 95, 0.16);
+  border: 1px solid rgba(224, 108, 95, 0.5);
+}
+
+.raid-ladder .ahead {
+  opacity: 0.45;
+}
+
+/* Before the first raid: the teaser. */
+.raid-clock {
+  padding: 0 4px 2px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+  color: #f5d14a;
+}
+
+.raid-teaser-box .miniboard-title {
+  color: #f5d14a;
+}
+
+.raid-teaser {
+  text-align: center;
+}
+
+.raid-teaser .raid-rules {
+  text-align: left;
+}
+
+.raid-shadow {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin: 4px auto 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(143, 95, 224, 0.45), rgba(143, 95, 224, 0) 70%);
+}
+
+.raid-silhouette {
+  image-rendering: pixelated;
+  animation: raid-lurk 2.4s ease-in-out infinite;
+}
+
+.raid-qqq {
+  position: absolute;
+  right: -8px;
+  top: 2px;
+  font-weight: 800;
+  font-size: 22px;
+  color: #c9a2ff;
+}
+
+.raid-hint {
+  margin: 2px 0 0;
+  font-style: italic;
+}
+
+.raid-countdown {
+  margin: 6px 0 4px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+  color: #f5d14a;
+}
+
+@keyframes raid-lurk {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .raid-silhouette {
+    animation: none;
+  }
+}
+
+/* In the dungeon the boss's name and HP are at the top: toasts go to the bottom instead. */
+#hud > .toasts.low {
+  top: auto;
+  bottom: 96px;
+}
+
+/* Raid loot (core/src/loot.ts): a frame in its rarity's colour, in the bag, the shop and the raid panel. */
+.rarity-common {
+  --rarity: #7fcf6a;
+}
+.rarity-rare {
+  --rarity: #5aa8ff;
+}
+.rarity-epic {
+  --rarity: #b57cff;
+}
+.rarity-legendary {
+  --rarity: #ffc93c;
+}
+
+.bag .cell.rarity,
+.shop li.rarity,
+.loot-table li.rarity {
+  border: 2px solid var(--rarity);
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--rarity) 55%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--rarity) 25%, transparent);
+}
+
+.bag .cell.rarity-legendary,
+.shop li.rarity-legendary,
+.loot-table li.rarity-legendary {
+  animation: legendary-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes legendary-glow {
+  50% {
+    box-shadow:
+      0 0 14px var(--rarity),
+      inset 0 0 14px color-mix(in srgb, var(--rarity) 45%, transparent);
+  }
+}
+
+.rarity-text-common {
+  color: #7fcf6a;
+}
+.rarity-text-rare {
+  color: #5aa8ff;
+}
+.rarity-text-epic {
+  color: #c79bff;
+}
+.rarity-text-legendary {
+  color: #ffc93c;
+  font-weight: 700;
+}
+
+.loot-table {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.loot-table li {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  grid-template-rows: auto auto auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 4px 8px 4px 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.loot-table li .avatar {
+  grid-row: 1 / 4;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.loot-table .tier {
+  color: var(--rarity);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.loot-table .odds {
+  font-weight: 700;
+}
+
+.loot-table .owned {
+  color: var(--accent);
+}
+
+.loot-drops {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.loot-drops li {
+  display: grid;
+  grid-template-columns: 22px auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+}
+
+.loot-drops .rung {
+  font-weight: 700;
+  text-align: center;
+}
+
+.loot-toast {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}

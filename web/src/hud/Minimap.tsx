@@ -23,6 +23,13 @@ const COLORS: Record<string, string> = {
   "=": C.rug,
   x: C.rugLight,
   R: C.rugLight,
+  // The raid: its gate in town, and the dungeon's stone, dais, desks and torches.
+  G: C.ink,
+  q: "#2f2b3a",
+  Z: "#5d5670",
+  l: C.metalLight,
+  r: C.metal,
+  j: "#e9733d",
 };
 
 const bases = new WeakMap<GameMap, HTMLCanvasElement>();

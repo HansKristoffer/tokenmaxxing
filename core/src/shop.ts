@@ -4,6 +4,7 @@
  * top 3. They buy clothes, glasses, hats and pets, worn through `Look`, and
  * furniture for your office (`office.ts`). Everything bought or earned is a row in the bag.
  */
+import { LOOT, type Rarity } from "./loot.ts";
 import { COMPANY_FURNITURE, FURNITURE } from "./office.ts";
 import type { Look } from "./world.ts";
 
@@ -22,7 +23,7 @@ export interface Item {
   /** `<slot>.<index>`, e.g. `pet.2`, `furn.<ch>` for furniture, or `merch.<companyId>.<kind>`. */
   id: string;
   slot: Slot | "furniture" | "merch";
-  /** The value of `look[slot]` when worn; furniture's place in its list; merch's bit in `merchWorn`. */
+  /** The value of `look[slot]` when worn; furniture's place in `PIECES` (office.ts) or `COMPANY_FURNITURE`; merch's bit in `merchWorn`. */
   index: number;
   name: string;
   price: number;
@@ -30,6 +31,8 @@ export interface Item {
   level?: number;
   /** Can change hands. Rewards, merch and company furniture can't. */
   tradeable: boolean;
+  /** Raid loot: which boss drops it, and how rarely (`loot.ts`). Never sold. */
+  loot?: { boss: string; rarity: Rarity };
   /** Company furniture: bought from a company wallet, for its building. */
   company?: true;
   /** Merch: whose. */
@@ -80,6 +83,18 @@ export const ITEMS: readonly Item[] = [
       name: f.name,
       price: f.price,
       tradeable: true,
+    }),
+  ),
+  // Raid loot: dropped by the bosses, never sold, and tradeable.
+  ...LOOT.map(
+    (l): Item => ({
+      id: l.id,
+      slot: l.slot,
+      index: l.index,
+      name: l.name,
+      price: 0,
+      tradeable: true,
+      loot: { boss: l.boss, rarity: l.rarity },
     }),
   ),
   ...COMPANY_FURNITURE.map(

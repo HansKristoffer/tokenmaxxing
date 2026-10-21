@@ -1,3 +1,4 @@
+import { LOOT_PETS } from "./loot.ts";
 import { C } from "./palette.ts";
 import { bake, cached, type Palette } from "./pixels.ts";
 
@@ -194,6 +195,8 @@ const PETS: (Pet | null)[] = [
     ],
     pal: { o: C.ink, p: "#9b6fd6", k: "#14101f", w: "#ffd27a" },
   },
+  // Raid loot (art/loot.ts).
+  ...LOOT_PETS,
 ];
 
 export const PET_W = 12;

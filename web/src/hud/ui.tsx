@@ -34,6 +34,17 @@ export function useRun() {
   return { error, busy, run };
 }
 
+/** True while something that happened `at` is less than `ms` old; re-renders when it expires. */
+export function useFresh(at: number | undefined, ms: number): boolean {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (at === undefined) return;
+    const id = setTimeout(() => tick((n) => n + 1), at + ms - Date.now() + 50);
+    return () => clearTimeout(id);
+  }, [at, ms]);
+  return at !== undefined && Date.now() - at <= ms;
+}
+
 /** Re-renders every `ms` while `on`, for countdowns. */
 export function useTicker(ms: number, on = true): void {
   const [, tick] = useState(0);

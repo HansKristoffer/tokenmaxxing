@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Client } from "rivetkit/client";
 import {
   cleanExcludedEvents,
@@ -427,10 +428,15 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
       peakAgents: 2,
       capped: USAGE_MINUTE_CAP + 600,
     });
-    expect(recent).toEqual([42, now - 60_000, 2]);
-    // Both live queries use the partial index; neither scans all historic assistant events.
-    for (const q of queries.slice(-2)) {
-      const args = q.includes("timestamp > ?") ? [now - 600_000] : [];
+    // Two agents, and their burn: the minute's capped tokens over the last 10 minutes.
+    expect(recent).toEqual([42, now - 60_000, 2, MINUTE_CAP / 10]);
+    // The live queries use the partial index; none scans all historic assistant events.
+    for (const q of queries.slice(-3)) {
+      const args = q.includes("timestamp > ?")
+        ? [now - 600_000]
+        : q.includes("timestamp >= ?")
+          ? [MINUTE_CAP, MINUTE_CAP, now - 600_000, now + 1]
+          : [];
       const plan = db.query(`EXPLAIN QUERY PLAN ${q}`).all(...args) as { detail: string }[];
       expect(
         plan.some(

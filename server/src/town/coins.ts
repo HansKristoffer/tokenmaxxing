@@ -1,5 +1,6 @@
 import { OFFICE_LEVEL, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
 import { type DayFacts, EMPTY_DAY, QUESTS, questCoins } from "@tokenmaxxing/core/quests.ts";
+import type { RaidWeek } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import {
   coinsForTokens,
@@ -16,12 +17,15 @@ import {
 import type { Drop } from "@tokenmaxxing/core/world.ts";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, type TxSql } from "../actors/shared.ts";
+import { raidCoins, raidHistory } from "./raid.ts";
 import { lookOf, TOKENS, userById } from "./users.ts";
 
 export interface Wallet {
   balance: number;
   /** Coins from today so far: tokens and quests. */
   today: number;
+  /** Coins from raids: every rung that fell with me a raider by its day. */
+  raids: number;
   /** Days finished in the top 3, newest first (the last 30 days). */
   wins: { day: string; place: number; coins: number }[];
   /** Item ids I hold, one of each kind: what I can wear or trade. */
@@ -77,9 +81,15 @@ export async function grantRewards(sql: Sql, userId: number, level: number, now:
  * logs, and those days would otherwise pay out (and win podiums nobody else was on).
  * ponytail: a late sync can also knock someone off a past podium after they spent
  * the bonus; the balance then reads short until they earn it back. Settle days into
- * a ledger if that ever matters. `top`: `podiums`, if the caller keeps them.
+ * a ledger if that ever matters. `top`: `podiums`, and `raids`: `raidHistory`, if the caller keeps them.
  */
-export async function wallet(sql: Sql, userId: number, now: number, top?: Podium[]): Promise<Wallet> {
+export async function wallet(
+  sql: Sql,
+  userId: number,
+  now: number,
+  top?: Podium[],
+  raids?: RaidWeek[],
+): Promise<Wallet> {
   const today = dayKey(now);
   const me = await one<{ createdAt: number }>(
     sql,
@@ -111,15 +121,18 @@ export async function wallet(sql: Sql, userId: number, now: number, top?: Podium
     userId,
   )) as [{ spent: number | null }];
   const wins = places.map((p) => ({ day: p.day, place: p.place, coins: PODIUM_COINS[p.place - 1]! }));
+  const raided = raidCoins(raids ?? (await raidHistory(sql, now)), userId);
   const earned =
     days.reduce((n, d) => n + coinsForTokens(d.tokens), 0) +
     wins.reduce((n, w) => n + w.coins, 0) +
+    raided +
     [...facts.values()].reduce((n, f) => n + questCoins(f), 0);
   const since = addDays(today, -29);
   const todays = facts.get(today) ?? EMPTY_DAY;
   return {
     balance: earned - (spent ?? 0) + (await ledgerSum(sql, userId)),
     today: coinsForTokens(todays.tokens) + questCoins(todays),
+    raids: raided,
     wins: wins.filter((w) => w.day >= since),
     owned: await ownedItems(sql, userId),
     items: (await one<{ n: number }>(sql, "SELECT COUNT(*) AS n FROM items WHERE owner_id = ?", userId))!.n,
@@ -195,6 +208,8 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
   }
   for (const f of facts.values()) add(f.userId, questCoins(f));
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);
+  const raids = await raidHistory(sql, now);
+  for (const userId of out.keys()) add(userId, raidCoins(raids, userId));
   for (const r of await all<{ userId: number; n: number }>(
     sql,
     "SELECT user_id AS userId, -SUM(price) AS n FROM purchases GROUP BY user_id",
