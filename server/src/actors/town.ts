@@ -294,8 +294,8 @@ export const town = actor({
       } catch (err) {
         // Nobody holds a token for this account, so it goes; the name is free again. Not its id: a
         // timeout may have made the actor all the same, and every sign-up after would fail on it.
-        await c.db.execute("INSERT OR IGNORE INTO lost_signups (id, at) VALUES (?, ?)", userId, Date.now());
         await c.db.execute("DELETE FROM users WHERE id = ?", userId);
+        await c.db.execute("INSERT OR IGNORE INTO lost_signups (id, at) VALUES (?, ?)", userId, Date.now());
         boardsChanged();
         throw err;
       }
@@ -616,7 +616,11 @@ export const town = actor({
       } catch (err) {
         console.warn(`[sweep] raid: ${String(err)}`);
       }
-      await c.db.execute("DELETE FROM trades WHERE at < ?", Date.now() - TRADE_TTL);
+      try {
+        await c.db.execute("DELETE FROM trades WHERE at < ?", Date.now() - TRADE_TTL);
+      } catch (err) {
+        console.warn(`[sweep] trades: ${String(err)}`);
+      }
       const ids = await unclaimed(c.db, Date.now() - DROP_TTL);
       if (ids.length === 0) return;
       // Off the floor first: if `world` is down, nothing changed and the next sweep tries again.

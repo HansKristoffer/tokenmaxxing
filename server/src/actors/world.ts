@@ -1586,7 +1586,9 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
       const p = c.state.players[id];
       if (!p) continue;
       const was = announced.get(id);
-      if (companyOfRoom(p.room) !== null || (was && companyOfRoom(was) !== null)) c.vars.housesStale = true;
+      // Unannounced since the world woke: they may have just left a house.
+      if (was === undefined || companyOfRoom(p.room) !== null || companyOfRoom(was) !== null)
+        c.vars.housesStale = true;
       // Counted asleep at the Inn, they're a number to the room: they leave it when they fall asleep
       // there and join it when they wake up or sit down to work.
       const hide = counted(p, online);
