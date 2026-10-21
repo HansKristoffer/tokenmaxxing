@@ -6,6 +6,7 @@
 import { editionAt } from "./editions.ts";
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
+import { FACE_COUNT, HAT_COUNT } from "./headwear.ts";
 import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
 import { type Door, doorAt, HQS, type Piece, pieceOf, withPieces } from "./office.ts";
 import { itemById } from "./shop.ts";
@@ -128,8 +129,8 @@ export const LOOK_OPTIONS: Record<keyof Look, number> = {
   skin: 4,
   hair: 6,
   outfit: WARDROBE_OPTIONS.outfit,
-  glasses: 4,
-  hat: 5,
+  glasses: FACE_COUNT,
+  hat: HAT_COUNT,
   pet: 7,
   held: WARDROBE_OPTIONS.held,
   back: WARDROBE_OPTIONS.back,

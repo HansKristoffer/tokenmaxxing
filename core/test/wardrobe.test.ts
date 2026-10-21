@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { ITEMS, itemById, itemsIn, levelItems } from "../src/shop.ts";
-import { WARDROBE, WARDROBE_OPTIONS, wardrobeInfo } from "../src/wardrobe.ts";
+import { WARDROBE, WARDROBE_OPTIONS } from "../src/wardrobe.ts";
 import { defaultLook, LOOK_OPTIONS, parseLook } from "../src/world.ts";
 
 test("every wardrobe slot is filled from 1 with no gaps, and every item is a valid look", () => {
@@ -18,9 +18,9 @@ test("ids are unique across the whole shop, and each one has a rarity and flavou
   expect(new Set(ITEMS.map((i) => i.id)).size).toBe(ITEMS.length);
   for (const i of WARDROBE) {
     expect(itemById(i.id)).toBe(i);
-    expect(wardrobeInfo(i.id)?.flavour.length).toBeGreaterThan(0);
+    expect(i.rarity).toBeDefined();
+    expect(i.blurb?.length).toBeGreaterThan(0);
   }
-  expect(wardrobeInfo("hat.1")).toBeUndefined();
 });
 
 test("the rarest are earned at levels 5, 15 and 25 and can't be traded; the rest are sold", () => {

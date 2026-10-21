@@ -1512,7 +1512,7 @@ button.lb-item:hover {
   font-weight: 400;
 }
 
-/* Wardrobe items: rarity and a line of flavour under the name. */
+/* Every item but furniture: its rarity, in its colour (`RARITY_COLOR`), and a line of flavour under the name. */
 .item-tag {
   display: block;
   font-size: 11px;

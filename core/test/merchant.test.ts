@@ -56,7 +56,7 @@ describe("merchant editions", () => {
     expect(new Set(EDITIONS.map((e) => e.id)).size).toBe(EDITIONS.length);
     for (const e of EDITIONS) {
       expect(e.index).toBeGreaterThanOrEqual(EDITION_BASE);
-      expect(e.flavour.length).toBeGreaterThan(10);
+      expect(e.blurb.length).toBeGreaterThan(10);
       expect(e.supply).toBeGreaterThan(0);
       expect(ITEMS).toContain(e);
       expect(isTradeable(e.id)).toBe(true);

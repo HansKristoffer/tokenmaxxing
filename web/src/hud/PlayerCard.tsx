@@ -83,7 +83,9 @@ export function PlayerCard({ userId }: { userId: number }) {
   const t = p.totals;
   const status = doing(userId);
   const today = p.daily.at(-1)?.tokens ?? 0;
-  const reward = ITEMS.find((i) => i.level !== undefined && i.level > p.level);
+  const reward = ITEMS.filter((i) => i.level !== undefined && i.level > p.level).sort(
+    (a, b) => a.level! - b.level!,
+  )[0];
   const mine = userId === world.selfId;
   const visit = () => {
     hud.set({ panel: null });

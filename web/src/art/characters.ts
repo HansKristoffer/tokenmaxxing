@@ -1,15 +1,16 @@
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Facing, Look, PlayerState } from "@tokenmaxxing/core/world.ts";
 import { drawEditions, editionFrame } from "./editions.ts";
+import { FACE_ART, HAT_ART, type Wear } from "./headwear.ts";
 import { C, HAIRS, OUTFITS, PANTS, SKINS } from "./palette.ts";
-import { bake, cached, type Palette } from "./pixels.ts";
+import { bake, cached, type Palette, type Pen } from "./pixels.ts";
 import { drawWardrobe, outfitMarks, wardrobeIcon, wardrobePalette } from "./wardrobe.ts";
 
 /**
  * Characters are a head (one of four styles) on a body, 16×16, recoloured per
  * look. `o` outline, `s` skin, `e` eyes, `r` blush, `h`/`H` hair, `c`/`C`
  * outfit (and caps), `p` trousers, `f` shoes. Glasses and hats from the shop
- * are drawn over the head.
+ * are drawn over the head; the ones after the first few are in `headwear.ts`.
  */
 
 type View = "down" | "side" | "up";
@@ -339,6 +340,17 @@ const HAT_COLORS: Palette[] = [
   { o: C.ink, k: "#3a3546", K: "#5a5468", r: "#c23a3a" },
 ];
 
+/** A hat or face thing as `headwear.ts` draws them: the first few here, the pack's after. */
+const hatArt = (i: number): Wear | undefined =>
+  i < HATS.length ? { ...HATS[i]!, pal: HAT_COLORS[i]! } : HAT_ART[i - HATS.length];
+const faceArt = (i: number): Wear | undefined =>
+  i < GLASSES.length ? { ...GLASSES[i]!, y: 5, pal: GLASSES_COLORS[i]! } : FACE_ART[i - GLASSES.length];
+
+/** Over a head whose top is at `oy`; the wearer's own colours fill in what the item leaves out. */
+function wearOn(p: Pen, w: Wear | undefined, view: View, base: Palette, oy = 0, flip = false): void {
+  if (w) p.grid(w[view] ?? [], { ...base, ...w.pal }, 0, oy + (w.y ?? 0), flip);
+}
+
 /** Server-rack armour (outfit 12): seams and blinking lights over the top of the body. */
 // biome-ignore format: pixel art reads as a grid
 const RACK: Record<View, string[]> = {
@@ -392,14 +404,27 @@ export const characterFrame = cached(
       if (look.outfit === 12) p.grid(RACK[view], RACK_COLORS, 0, 9, flip);
       drawWardrobe(p, look, view, pose, "body", pal.s!, flip);
       p.grid(HEADS[view][look.style] ?? HEADS[view][0]!, pal, 0, 0, flip);
-      if (view !== "up")
-        p.grid(GLASSES[look.glasses]?.[view] ?? [], GLASSES_COLORS[look.glasses] ?? {}, 0, 5, flip);
-      p.grid(HATS[look.hat]?.[view] ?? [], HAT_COLORS[look.hat] ?? {}, 0, 0, flip);
+      wearOn(p, faceArt(look.glasses), view, pal, 0, flip);
+      wearOn(p, hatArt(look.hat), view, pal, 0, flip);
       drawWardrobe(p, look, view, pose, "front", pal.s!, flip);
       drawEditions(p, look, view, flip);
     });
   },
 );
+
+/** A beard on the floor has to be some colour: brown. */
+const ON_THE_FLOOR = lookPalette({
+  style: 0,
+  skin: 0,
+  hair: 1,
+  outfit: 0,
+  glasses: 0,
+  hat: 0,
+  pet: 0,
+  held: 0,
+  back: 0,
+  petwear: 0,
+});
 
 /**
  * A hat, glasses or outfit on its own, as it lies on the floor and sits in the bag: as tall as the
@@ -413,8 +438,8 @@ export const itemFrame = cached(
     if (wardrobe) return wardrobe;
     const edition = editionFrame(item);
     if (edition) return edition;
-    if (slot === "hat") return bake(16, HATS[i]!.down.length, (p) => p.grid(HATS[i]!.down, HAT_COLORS[i]!));
-    if (slot === "glasses") return bake(16, 3, (p) => p.grid(GLASSES[i]!.down, GLASSES_COLORS[i]!));
+    const w = slot === "hat" ? hatArt(i) : slot === "glasses" ? faceArt(i) : undefined;
+    if (w) return bake(16, w.down.length, (p) => wearOn(p, { ...w, y: 0 }, "down", ON_THE_FLOOR));
     const [c, shade] = OUTFITS[i] ?? OUTFITS[0]!;
     return bake(16, 4, (p) => {
       p.grid(BODIES.down.stand.slice(0, 4), { o: C.ink, c, C: shade, ...wardrobePalette(i), p: C.ink });
@@ -431,7 +456,7 @@ export const sleeperFrame = cached(
     const pal = lookPalette(look);
     return bake(16, 16, (p) => {
       p.grid(HEADS.down[look.style] ?? HEADS.down[0]!, { ...pal, e: pal.s!, r: pal.s! }, 0, -1);
-      p.grid(HATS[look.hat]?.down ?? [], HAT_COLORS[look.hat] ?? {}, 0, -1);
+      wearOn(p, hatArt(look.hat), "down", pal, -1);
       drawEditions(p, { ...look, glasses: 0 }, "down", false, -1);
       p.rect(3, 6, 10, 1, C.ink);
       p.px(6, 5, C.ink);

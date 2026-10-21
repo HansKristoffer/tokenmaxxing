@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { merchantFrame } from "../art/cart.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { ItemTag } from "./ItemTag.tsx";
 import { ItemImage } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
@@ -85,7 +86,7 @@ export function Merchant() {
             <li key={s.id} className={left === 0 ? "sold-out" : undefined}>
               <ItemImage item={e} look={me.look} />
               <strong>{e.name}</strong>
-              <span className="muted small">{e.flavour}</span>
+              <ItemTag item={e} />
               <span className="stock" aria-hidden="true">
                 <span style={{ width: `${(100 * left) / s.supply}%` }} />
               </span>

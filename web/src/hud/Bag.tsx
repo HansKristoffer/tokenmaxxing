@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { world } from "../game/world.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { ItemTag, rarityRing } from "./ItemTag.tsx";
 import { ItemImage, WearButton } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
-import { ItemTag, rarityRing } from "./WardrobeTag.tsx";
 
 /**
  * What I hold, one square per kind with how many. Picking one shows its name, Wear, and Drop (onto
@@ -66,7 +66,7 @@ export function Bag() {
                 {!item.tradeable && "🏅 "}
                 {item.name}
                 <Numbers copies={copies} item={item.id} />
-                <ItemTag id={item.id} />
+                <ItemTag item={item} />
               </strong>
               <WearButton item={item} look={me.look} run={run} />
               {item.tradeable && (
@@ -95,7 +95,7 @@ export function Bag() {
                 aria-pressed={b.item === picked}
                 aria-label={`${it.name} ×${b.count}${wearing ? ", wearing" : ""}${it.tradeable ? "" : ", reward"}`}
                 title={it.name}
-                style={rarityRing(it.id)}
+                style={rarityRing(it)}
                 onClick={() => setPicked(b.item)}
               >
                 <ItemImage item={it} look={me.look} bare />

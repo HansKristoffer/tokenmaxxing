@@ -12,7 +12,7 @@ export const EDITION_BASE = 100;
 export interface Edition extends Item {
   slot: "hat" | "glasses";
   /** One line of flavour on the cart. */
-  flavour: string;
+  blurb: string;
   /** Copies in one week's print run. */
   supply: number;
 }
@@ -23,7 +23,7 @@ const edition = (
   name: string,
   price: number,
   supply: number,
-  flavour: string,
+  blurb: string,
 ): Edition => ({
   id: `${slot}.${EDITION_BASE + n}`,
   slot,
@@ -31,7 +31,9 @@ const edition = (
   name,
   price,
   tradeable: true,
-  flavour,
+  // A short print run is what makes an edition rare, whatever it costs.
+  rarity: supply <= 10 ? "legendary" : supply <= 15 ? "epic" : "rare",
+  blurb,
   supply,
 });
 

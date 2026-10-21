@@ -11,12 +11,12 @@ import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { ItemTag } from "./ItemTag.tsx";
 import { AvatarImage, Modal, Pills, useRun } from "./ui.tsx";
-import { ItemTag } from "./WardrobeTag.tsx";
 
 const TABS = [
   ["outfit", "Clothes"],
-  ["glasses", "Glasses"],
+  ["glasses", "Face"],
   ["hat", "Hats"],
   ["held", "In hand"],
   ["back", "On back"],
@@ -89,7 +89,7 @@ export function Shop() {
                 {item.name}
                 {n > 0 && <span className="muted"> ×{n}</span>}
               </span>
-              <ItemTag id={item.id} />
+              <ItemTag item={item} />
               {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
               {item.level !== undefined ? (
                 !owned && (

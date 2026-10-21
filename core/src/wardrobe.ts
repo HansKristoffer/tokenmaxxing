@@ -1,28 +1,21 @@
 /**
  * The wardrobe: a big pack of clothes, things to hold, things on your back, and gear for your pet.
- * Each one is an `Item` like the rest of the shop (same ids, same bag, same trades), plus a rarity and
+ * Each one is an `Item` like the rest of the shop (same ids, same bag, same trades), with a rarity and
  * a line of flavour. Most are sold; the rarest few are level rewards, so you can only earn them.
  * Indices are stored in looks and bags: add to the end, never reorder.
  */
+import type { Rarity } from "./rarity.ts";
 import type { Item } from "./shop.ts";
 
 /** Slots only the wardrobe fills: in a hand, on the back, on the pet. 0 is none, like glasses. */
 export type WardrobeSlot = "held" | "back" | "petwear";
-
-export type Rarity = "common" | "rare" | "epic" | "legendary";
-export const RARITY_COLOR: Record<Rarity, string> = {
-  common: "#b9c2cf",
-  rare: "#4f8fe0",
-  epic: "#b06fe8",
-  legendary: "#f5b83c",
-};
 
 interface Entry {
   slot: "outfit" | WardrobeSlot;
   index: number;
   name: string;
   rarity: Rarity;
-  flavour: string;
+  blurb: string;
   /** Sold for this; or, with `level`, granted then and never sold. */
   price: number;
   level?: number;
@@ -34,16 +27,16 @@ const sold = (
   name: string,
   rarity: Rarity,
   price: number,
-  flavour: string,
-): Entry => ({ slot, index, name, rarity, price, flavour });
+  blurb: string,
+): Entry => ({ slot, index, name, rarity, price, blurb });
 const earned = (
   slot: Entry["slot"],
   index: number,
   name: string,
   rarity: Rarity,
   level: number,
-  flavour: string,
-): Entry => ({ slot, index, name, rarity, price: 0, level, flavour });
+  blurb: string,
+): Entry => ({ slot, index, name, rarity, price: 0, level, blurb });
 
 // Prices: a heavy day earns ~30 coins, so a common is a few days, an epic a month.
 const ENTRIES: readonly Entry[] = [
@@ -122,9 +115,6 @@ export const WARDROBE: readonly Item[] = ENTRIES.map((e) => ({
   price: e.price,
   ...(e.level !== undefined && { level: e.level }),
   tradeable: e.level === undefined,
+  rarity: e.rarity,
+  blurb: e.blurb,
 }));
-
-const INFO = new Map(ENTRIES.map((e) => [`${e.slot}.${e.index}`, { rarity: e.rarity, flavour: e.flavour }]));
-
-/** A wardrobe item's rarity and flavour line; undefined for the rest of the shop. */
-export const wardrobeInfo = (id: string): { rarity: Rarity; flavour: string } | undefined => INFO.get(id);

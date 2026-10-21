@@ -5,7 +5,9 @@
  * furniture for your office (`office.ts`). Everything bought or earned is a row in the bag.
  */
 import { EDITIONS } from "./editions.ts";
+import { HEADWEAR_ITEMS } from "./headwear.ts";
 import { FURNITURE } from "./office.ts";
+import type { Rarity } from "./rarity.ts";
 import { WARDROBE, type WardrobeSlot } from "./wardrobe.ts";
 import type { Look } from "./world.ts";
 
@@ -32,6 +34,10 @@ export interface Item {
   level?: number;
   /** Can change hands. Rewards can't. */
   tradeable: boolean;
+  /** Without one, `rarityOf` goes by price. */
+  rarity?: Rarity;
+  /** One line of flavour, under the name. */
+  blurb?: string;
 }
 
 /** Outfits below this are free; the ones after are sold. */
@@ -70,6 +76,7 @@ export const ITEMS: readonly Item[] = [
   reward("hat", 4, "Top hat", 10),
   reward("outfit", 12, "Server-rack armour", 20),
   reward("pet", 6, "Singularity orb", 30),
+  ...HEADWEAR_ITEMS,
   // Sold only off the traveling merchant's cart (`merchant.ts`).
   ...EDITIONS,
   ...WARDROBE,
