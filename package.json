@@ -30,7 +30,7 @@
     "app/helper"
   ],
   "scripts": {
-    "dev": "bun run site:build && RIVETKIT_STORAGE_PATH=.data/rivet RIVET_LOG_LEVEL=error bun --watch server/src/main.ts",
+    "dev": "bun run site:build && RIVETKIT_STORAGE_PATH=.data/rivet RIVET_LOG_LEVEL=error RIVET__GUARD__TCP_NODELAY=true bun --watch server/src/main.ts",
     "dev:seed": "bun server/scripts/dev-seed.ts",
     "desktop:dev": "cd app/desktop && tauri dev",
     "desktop:build": "cd app/desktop && tauri build",
