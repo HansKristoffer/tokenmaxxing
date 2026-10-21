@@ -143,11 +143,18 @@ export const dayDamage = (d: { tokens: number; prs: number }): number => d.token
  */
 export const launchWeek = (now: number): string => addDays(weekOf(dayKey(now)), 7);
 
-/** The Monday (`YYYY-MM-DD`) of the world week that `day` is in. */
+const mondays = new Map<string, string>();
+
+/** The Monday (`YYYY-MM-DD`) of the world week that `day` is in. Kept: every poll asks it of every row. */
 export function weekOf(day: string): string {
-  const [y, m, d] = day.split("-").map(Number);
-  const weekday = new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay();
-  return addDays(day, -((weekday + 6) % 7));
+  let monday = mondays.get(day);
+  if (monday === undefined) {
+    const [y, m, d] = day.split("-").map(Number);
+    const weekday = new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay();
+    monday = addDays(day, -((weekday + 6) % 7));
+    mondays.set(day, monday);
+  }
+  return monday;
 }
 
 /** When world day `day` starts, in ms. The world's clock is one or two hours ahead of UTC. */
@@ -208,7 +215,11 @@ export interface RaidWeek {
 /** One week's ladder, from its days (all in that week). */
 export function ladder(week: string, hp: number, days: readonly RaidDay[]): RaidWeek {
   const byDay = new Map<string, RaidDay[]>();
-  for (const d of days) byDay.set(d.day, [...(byDay.get(d.day) ?? []), d]);
+  for (const d of days) {
+    const same = byDay.get(d.day);
+    if (same) same.push(d);
+    else byDay.set(d.day, [d]);
+  }
   const perUser = new Map<number, number>();
   const kills: Kill[] = [];
   let rung = 1;
@@ -249,10 +260,12 @@ export function ladder(week: string, hp: number, days: readonly RaidDay[]): Raid
   };
 }
 
+const totalDamage = (days: readonly RaidDay[]): number => days.reduce((n, d) => n + dayDamage(d), 0);
+
 /** The first raid's rung 1 HP so far: from the damage the week before `start` (`hpFor`). */
 export const firstHp = (days: readonly RaidDay[], start: string): number => {
   const before = addDays(start, -7);
-  return hpFor(days.filter((d) => weekOf(d.day) === before).reduce((n, d) => n + dayDamage(d), 0));
+  return hpFor(totalDamage(days.filter((d) => weekOf(d.day) === before)));
 };
 
 /**
@@ -265,10 +278,12 @@ export function raidWeeks(days: readonly RaidDay[], now: number, start: string):
   const byWeek = new Map<string, RaidDay[]>();
   for (const d of days) {
     const w = weekOf(d.day);
-    if (w > current) continue;
-    byWeek.set(w, [...(byWeek.get(w) ?? []), d]);
+    const same = byWeek.get(w);
+    if (same) same.push(d);
+    else byWeek.set(w, [d]);
   }
-  const first = firstHp(days, start);
+  // `firstHp`, from the week's own bucket.
+  const first = hpFor(totalDamage(byWeek.get(addDays(start, -7)) ?? []));
   const out: RaidWeek[] = [];
   for (let week = start; week <= current; week = addDays(week, 7))
     out.push(ladder(week, weekHp(first, out.length), byWeek.get(week) ?? []));
