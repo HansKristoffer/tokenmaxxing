@@ -4,104 +4,62 @@
  * a line of flavour. Most are sold; the rarest few are level rewards, so you can only earn them.
  * Indices are stored in looks and bags: add to the end, never reorder.
  */
-import type { Rarity } from "./rarity.ts";
+import { type Wearable, wearableItem } from "./headwear.ts";
 import type { Item } from "./shop.ts";
 
 /** Slots only the wardrobe fills: in a hand, on the back, on the pet. 0 is none, like glasses. */
 export type WardrobeSlot = "held" | "back" | "petwear";
 
-interface Entry {
+/** One of the wardrobe: `slot` and `index` are its place in a look. */
+interface Entry extends Wearable {
   slot: "outfit" | WardrobeSlot;
   index: number;
-  name: string;
-  rarity: Rarity;
-  blurb: string;
-  /** Sold for this; or, with `level`, granted then and never sold. */
-  price: number;
-  level?: number;
 }
 
-const sold = (
-  slot: Entry["slot"],
-  index: number,
-  name: string,
-  rarity: Rarity,
-  price: number,
-  blurb: string,
-): Entry => ({ slot, index, name, rarity, price, blurb });
-const earned = (
-  slot: Entry["slot"],
-  index: number,
-  name: string,
-  rarity: Rarity,
-  level: number,
-  blurb: string,
-): Entry => ({ slot, index, name, rarity, price: 0, level, blurb });
-
 // Prices: a heavy day earns ~30 coins, so a common is a few days, an epic a month.
+// biome-ignore format: a catalog reads best one to a line
 const ENTRIES: readonly Entry[] = [
   // Outfits, after the shop's 8–12.
-  sold(
-    "outfit",
-    13,
-    "Hoodie of infinite context",
-    "epic",
-    700,
-    "Never forgets. Never compacts. Slightly warm.",
-  ),
-  sold(
-    "outfit",
-    14,
-    "Rain jacket (Copenhagen edition)",
-    "common",
-    160,
-    "Rated for horizontal rain and bike lanes.",
-  ),
-  sold("outfit", 15, "Lab coat", "common", 140, "For running experiments in prod."),
-  sold("outfit", 16, "Flannel shirt", "common", 110, "Standard issue for a Rust rewrite."),
-  sold("outfit", 17, "Founder vest", "rare", 260, "Pockets for a term sheet and a protein bar."),
-  sold("outfit", 18, "Merge-conflict sweater", "rare", 240, "<<<<<<< HEAD knitted on the front."),
-  sold("outfit", 19, "Tuxedo", "rare", 420, "For the launch party and the post-mortem."),
-  sold("outfit", 20, "Space suit", "epic", 850, "Pressurised for zero-latency environments."),
-  sold("outfit", 21, "Retro tracksuit", "common", 150, "Three stripes, zero sprints."),
-  sold("outfit", 22, "Denim overalls", "common", 130, "Built to ship. Also to farm."),
-  sold("outfit", 23, "Prompt wizard robe", "epic", 950, "Stars stitched by a temperature of 1.0."),
-  sold("outfit", 24, "Hazard vest", "common", 90, "Worn when touching the billing code."),
-  earned(
-    "outfit",
-    25,
-    "Golden regalia",
-    "legendary",
-    50,
-    "Ermine, rubies and a sash: the top of the leaderboard, worn.",
-  ),
+  { slot: "outfit", index: 13, name: "Hoodie of infinite context", rarity: "epic", price: 700, blurb: "Never forgets. Never compacts. Slightly warm." },
+  { slot: "outfit", index: 14, name: "Rain jacket (Copenhagen edition)", rarity: "common", price: 160, blurb: "Rated for horizontal rain and bike lanes." },
+  { slot: "outfit", index: 15, name: "Lab coat", rarity: "common", price: 140, blurb: "For running experiments in prod." },
+  { slot: "outfit", index: 16, name: "Flannel shirt", rarity: "common", price: 110, blurb: "Standard issue for a Rust rewrite." },
+  { slot: "outfit", index: 17, name: "Founder vest", rarity: "rare", price: 260, blurb: "Pockets for a term sheet and a protein bar." },
+  { slot: "outfit", index: 18, name: "Merge-conflict sweater", rarity: "rare", price: 240, blurb: "<<<<<<< HEAD knitted on the front." },
+  { slot: "outfit", index: 19, name: "Tuxedo", rarity: "rare", price: 420, blurb: "For the launch party and the post-mortem." },
+  { slot: "outfit", index: 20, name: "Space suit", rarity: "epic", price: 850, blurb: "Pressurised for zero-latency environments." },
+  { slot: "outfit", index: 21, name: "Retro tracksuit", rarity: "common", price: 150, blurb: "Three stripes, zero sprints." },
+  { slot: "outfit", index: 22, name: "Denim overalls", rarity: "common", price: 130, blurb: "Built to ship. Also to farm." },
+  { slot: "outfit", index: 23, name: "Prompt wizard robe", rarity: "epic", price: 950, blurb: "Stars stitched by a temperature of 1.0." },
+  { slot: "outfit", index: 24, name: "Hazard vest", rarity: "common", price: 90, blurb: "Worn when touching the billing code." },
+  { slot: "outfit", index: 25, name: "Golden regalia", rarity: "legendary", level: 50, blurb: "Ermine, rubies and a sash: the top of the leaderboard, worn." },
   // In your hand.
-  sold("held", 1, "Coffee mug", "common", 60, "World's okayest engineer."),
-  earned("held", 2, "Rubber duck", "rare", 5, "Listens to every bug. Judges none."),
-  sold("held", 3, "Laptop with stickers", "rare", 320, "Resale value: zero. Vibes: immaculate."),
-  sold("held", 4, "Bubble tea", "common", 80, "Tapioca-driven development."),
-  sold("held", 5, "Mechanical keyboard", "rare", 220, "Clicky. Your neighbours know."),
-  sold("held", 6, "Pizza slice", "common", 70, "The fuel of every hackathon."),
-  sold("held", 7, "Energy drink", "common", 60, "Tastes like a 3 a.m. deploy."),
-  sold("held", 8, "Magnifying glass", "rare", 200, "For finding the missing semicolon."),
-  sold("held", 9, "Fire extinguisher", "epic", 500, "Point at prod. Squeeze."),
-  sold("held", 10, "Baguette", "common", 90, "Long-context bread."),
+  { slot: "held", index: 1, name: "Coffee mug", rarity: "common", price: 60, blurb: "World's okayest engineer." },
+  { slot: "held", index: 2, name: "Rubber duck", rarity: "rare", level: 5, blurb: "Listens to every bug. Judges none." },
+  { slot: "held", index: 3, name: "Laptop with stickers", rarity: "rare", price: 320, blurb: "Resale value: zero. Vibes: immaculate." },
+  { slot: "held", index: 4, name: "Bubble tea", rarity: "common", price: 80, blurb: "Tapioca-driven development." },
+  { slot: "held", index: 5, name: "Mechanical keyboard", rarity: "rare", price: 220, blurb: "Clicky. Your neighbours know." },
+  { slot: "held", index: 6, name: "Pizza slice", rarity: "common", price: 70, blurb: "The fuel of every hackathon." },
+  { slot: "held", index: 7, name: "Energy drink", rarity: "common", price: 60, blurb: "Tastes like a 3 a.m. deploy." },
+  { slot: "held", index: 8, name: "Magnifying glass", rarity: "rare", price: 200, blurb: "For finding the missing semicolon." },
+  { slot: "held", index: 9, name: "Fire extinguisher", rarity: "epic", price: 500, blurb: "Point at prod. Squeeze." },
+  { slot: "held", index: 10, name: "Baguette", rarity: "common", price: 90, blurb: "Long-context bread." },
   // On your back.
-  earned("back", 1, "Cape", "epic", 15, "Not all heroes write tests."),
-  earned("back", 2, "Jetpack", "legendary", 25, "Ship faster. Literally."),
-  sold("back", 3, "Backpack", "common", 120, "Charger, snacks, and one mystery cable."),
-  sold("back", 4, "Pixel wings", "legendary", 1800, "Eight bits of pure ascension."),
-  sold("back", 5, "Guitar", "rare", 350, "Knows one song, and it's Wonderwall."),
-  sold("back", 6, "Yoga mat", "common", 100, "Downward-facing debugger."),
-  sold("back", 7, "Katana", "epic", 650, "Cuts scope cleanly."),
+  { slot: "back", index: 1, name: "Cape", rarity: "epic", level: 15, blurb: "Not all heroes write tests." },
+  { slot: "back", index: 2, name: "Jetpack", rarity: "legendary", level: 25, blurb: "Ship faster. Literally." },
+  { slot: "back", index: 3, name: "Backpack", rarity: "common", price: 120, blurb: "Charger, snacks, and one mystery cable." },
+  { slot: "back", index: 4, name: "Pixel wings", rarity: "legendary", price: 1800, blurb: "Eight bits of pure ascension." },
+  { slot: "back", index: 5, name: "Guitar", rarity: "rare", price: 350, blurb: "Knows one song, and it's Wonderwall." },
+  { slot: "back", index: 6, name: "Yoga mat", rarity: "common", price: 100, blurb: "Downward-facing debugger." },
+  { slot: "back", index: 7, name: "Katana", rarity: "epic", price: 650, blurb: "Cuts scope cleanly." },
   // On your pet.
-  sold("petwear", 1, "Red bandana", "common", 60, "Very good dog energy, any species."),
-  sold("petwear", 2, "Pink bow", "common", 60, "Adorable, and it knows it."),
-  sold("petwear", 3, "Bow tie", "rare", 140, "For pets who attend standups."),
-  sold("petwear", 4, "Party hat", "rare", 160, "Every merge is a birthday."),
-  sold("petwear", 5, "Gold collar", "epic", 450, "The tag says: 10x pet."),
-  sold("petwear", 6, "Propeller cap", "rare", 200, "Spins up when it's thinking."),
-  sold("petwear", 7, "Winter scarf", "common", 90, "Hygge, for the small ones."),
+  { slot: "petwear", index: 1, name: "Red bandana", rarity: "common", price: 60, blurb: "Very good dog energy, any species." },
+  { slot: "petwear", index: 2, name: "Pink bow", rarity: "common", price: 60, blurb: "Adorable, and it knows it." },
+  { slot: "petwear", index: 3, name: "Bow tie", rarity: "rare", price: 140, blurb: "For pets who attend standups." },
+  { slot: "petwear", index: 4, name: "Party hat", rarity: "rare", price: 160, blurb: "Every merge is a birthday." },
+  { slot: "petwear", index: 5, name: "Gold collar", rarity: "epic", price: 450, blurb: "The tag says: 10x pet." },
+  { slot: "petwear", index: 6, name: "Propeller cap", rarity: "rare", price: 200, blurb: "Spins up when it's thinking." },
+  { slot: "petwear", index: 7, name: "Winter scarf", rarity: "common", price: 90, blurb: "Hygge, for the small ones." },
 ];
 
 /** How many indices each slot has, none (0) included: for `LOOK_OPTIONS`. */
@@ -115,14 +73,4 @@ export const WARDROBE_OPTIONS = {
 };
 
 /** The wardrobe as shop items. */
-export const WARDROBE: readonly Item[] = ENTRIES.map((e) => ({
-  id: `${e.slot}.${e.index}`,
-  slot: e.slot,
-  index: e.index,
-  name: e.name,
-  price: e.price,
-  ...(e.level !== undefined && { level: e.level }),
-  tradeable: e.level === undefined,
-  rarity: e.rarity,
-  blurb: e.blurb,
-}));
+export const WARDROBE: readonly Item[] = ENTRIES.map((e) => wearableItem(e.slot, e.index, e));
