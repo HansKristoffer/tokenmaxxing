@@ -240,8 +240,6 @@ export const TROPHIES: readonly TrophyDef[] = [
   },
 ];
 
-export const trophyById = (id: string): TrophyDef | undefined => TROPHIES.find((t) => t.id === id);
-
 /** Every trophy earned, in shelf order, with the day it was first earned. */
 export function trophiesFor(f: TrophyFacts): Trophy[] {
   const facts = factsOf(f);

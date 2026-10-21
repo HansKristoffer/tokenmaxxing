@@ -107,7 +107,6 @@ export function clock(ms: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
 }
 
-/** Whole seconds until `at`, never below 0. */
 /** "3d 04:12:55", "04:12:55": what's left till `at`, to the second. */
 export function countdown(at: number, now = Date.now()): string {
   const s = Math.max(0, Math.floor((at - now) / 1000));
@@ -117,6 +116,7 @@ export function countdown(at: number, now = Date.now()): string {
   return s >= 86_400 ? `${Math.floor(s / 86_400)}d ${hms}` : hms;
 }
 
+/** Whole seconds until `at`, never below 0. */
 export const secondsUntil = (at: number, now: number): number => Math.max(0, Math.ceil((at - now) / 1000));
 
 /** "3h 25m", or "40m" under an hour. */
