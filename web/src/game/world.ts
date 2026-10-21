@@ -1,5 +1,6 @@
 import { type GameMap, setTown } from "@tokenmaxxing/core/maps.ts";
 import { type Door, setHq } from "@tokenmaxxing/core/office.ts";
+import { stepPace } from "@tokenmaxxing/core/street.ts";
 import {
   type ChatLine,
   type CompanyInfo,
@@ -265,7 +266,12 @@ export function advanceRemotes(now: number): void {
     a.facing = facing;
     a.state = state;
     if (Math.abs(x - a.x) + Math.abs(y - a.y) === 1)
-      beginStep(a, x, y, a.queue.length > 1 ? RUN_STEP_MS : WALK_STEP_MS);
+      beginStep(
+        a,
+        x,
+        y,
+        (a.queue.length > 1 ? RUN_STEP_MS : WALK_STEP_MS) * stepPace(a.info.polseUntil, Date.now()),
+      );
     else Object.assign(a, { x, y, from: null });
   }
   world.leaving = world.leaving.filter((a) => now - a.warp!.at < WARP_MS);

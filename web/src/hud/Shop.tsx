@@ -1,3 +1,4 @@
+import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
 import { petOutfit, wearPet } from "@tokenmaxxing/core/pets.ts";
@@ -11,14 +12,18 @@ import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { ItemTag } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
 import { AvatarImage, Modal, Pills, useRun } from "./ui.tsx";
 
 const TABS = [
   ["outfit", "Clothes"],
-  ["glasses", "Glasses"],
+  ["glasses", "Face"],
   ["hat", "Hats"],
+  ["held", "In hand"],
+  ["back", "On back"],
   ["pet", "Pets"],
+  ["petwear", "Pet gear"],
   ["furniture", "Furniture"],
 ] as const;
 
@@ -74,7 +79,7 @@ export function Shop() {
       </ul>
       <Pills value={tab} options={TABS} onChange={setTab} />
       <ul className="shop">
-        {ITEMS.filter((i) => i.slot === tab && !i.company).map((item) => {
+        {ITEMS.filter((i) => i.slot === tab && !editionById(i.id) && !i.earned && !i.company).map((item) => {
           const owned = wallet.owned.includes(item.id);
           const wearing = isWorn(item, me.look);
           const n = bag.find((b) => b.item === item.id)?.count ?? 0;
@@ -89,6 +94,7 @@ export function Shop() {
                 {item.name}
                 {n > 0 && <span className="muted"> ×{n}</span>}
               </span>
+              <ItemTag item={item} />
               {item.loot && <span className={`small rarity-text-${item.loot.rarity}`}>{lootLine(item)}</span>}
               {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
               {item.loot ? (
@@ -197,7 +203,16 @@ export function ItemImage({
   }
   if (item.slot === "furniture") return <PieceImage ch={item.id.slice(5)} />;
   if (bare) return <SpriteImage sprite={itemFrame(item)} />;
-  return <AvatarImage look={withItem(item, look, true)} scale={4} />;
+  // Pet gear on my pet (a duck if I have none); a back item from the side, where it shows.
+  if (item.slot === "petwear")
+    return <SpriteImage sprite={petFrame(look.pet || 1, false, false, 0, null, item.index)} stand />;
+  return (
+    <AvatarImage
+      look={withItem(item, look, true)}
+      scale={4}
+      facing={item.slot === "back" ? "right" : "down"}
+    />
+  );
 }
 
 /**

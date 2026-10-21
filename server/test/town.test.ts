@@ -31,6 +31,9 @@ describe("accounts", () => {
       glasses: 0,
       hat: 0,
       pet: 0,
+      held: 0,
+      back: 0,
+      petwear: 0,
       petVariant: 0,
       merch: 0,
       merchWorn: 0,
@@ -372,6 +375,8 @@ describe("coins and the shop", () => {
     await a.town.setLook({ ...(await a.town.me()).look, hat: 4 });
     expect((await a.town.me()).look.hat).toBe(4);
     await expect(a.town.buy("hat.4")).rejects.toMatchObject({ code: "not_for_sale" });
+    // Touched grass is earned at an outage picnic, not bought.
+    await expect(a.town.buy("furn.g")).rejects.toMatchObject({ code: "not_for_sale" });
     await expect(a.town.drop("hat.4")).rejects.toMatchObject({ code: "not_tradeable" });
 
     const b = await signUp("top");

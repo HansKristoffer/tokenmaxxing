@@ -23,15 +23,23 @@ import { hash, initialsOf } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { hud } from "../store.ts";
 import { camera, zoomScale } from "./camera.ts";
+import { drawChalkboards } from "./chalkboard.ts";
+import { drawCop, isCop } from "./cop.ts";
+import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, petLabel, sign, signHits } from "./labels.ts";
+import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
+import { drawMerchant } from "./merchant.ts";
 import { followPet, prunePets } from "./pets.ts";
+import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
 import { drawLampGlow, drawLight, drawNightSky, drawSway, drawWeather, drawWindowGlow } from "./sky.ts";
 import { snowAmount, snowLayers } from "./snow.ts";
+import { drawStreet } from "./street.ts";
+import { drawTrophies } from "./trophies.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
@@ -132,6 +140,8 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       }
     }
 
+  drawTrophies(map, g, items);
+
   for (const b of buildings(map)) {
     const company = b.plot === null ? null : companyOnPlot(b.plot);
     if (b.plot !== null && !company) continue; // the town catches up with a company closing
@@ -145,6 +155,11 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     const plaque = plan?.plaque;
     const logo = company?.brand?.logo;
     const faces = inside.slice(0, panes.length);
+    // A cellar hatch (tier 0) is already open; every other building's door swings.
+    const swing =
+      !company || houseTier(company.tokens30d, company.members) > 0
+        ? doorSwing(b.x + 3, b.y + b.h - 1, now)
+        : 0;
     for (const [i, p] of faces.entries()) {
       const pane = panes[i]!;
       peekHits.push({ x: left + pane.x, y: top + pane.y, w: pane.w, h: pane.h, id: p.id });
@@ -167,6 +182,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
           g.drawImage(c, left, top);
         }
         g.globalAlpha = 1;
+        drawDoorSwing(g, sprite, left, top, swing);
         if (logo && plaque) drawLogo(g, logo, left + plaque.x, top + plaque.y, plaque.w, plaque.h);
         for (const [i, p] of faces.entries())
           drawFace(g, p, left + panes[i]!.x, top + panes[i]!.y, panes[i]!, now);
@@ -203,6 +219,10 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   }
 
   drawGames(g, items, labels, toScreen, now, dpr);
+  drawStreet(g, items, labels, toScreen, now, dpr);
+  drawPicnic(g, items);
+  drawChalkboards(g, items, labels, toScreen, now, dpr);
+  drawMerchant(g, items, labels, toScreen, now, dpr);
   drawRaid(g, items, labels, toScreen, now, dpr);
   drawLoot(g, items, labels, toScreen, now, dpr);
 
@@ -232,31 +252,38 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     const bed = ownerOfOffice(world.room) === a.info.id ? map.find("Q")[0] : undefined;
     const pet = a.warp ? null : followPet(a, px, py, dt, bed);
     if (pet) {
-      const awake = petFrame(
-        a.info.look.pet,
-        pet.left,
-        pet.moving && Math.floor(now / 140) % 2 === 0,
-        a.info.look.petVariant,
-        petOutfit(a.info.look),
-      );
-      const asleep = pet.asleep ? sleepingFrame(awake, pet.left, Math.floor(now / 600)) : null;
-      const frame = asleep ?? awake;
+      const hop = pet.moving && Math.floor(now / 140) % 2 === 0;
+      const worn = a.info.look;
+      const bare = petFrame(worn.pet, pet.left, hop, worn.petVariant, petOutfit(worn));
+      // In bed it curls up without its gear.
+      const asleep = pet.asleep ? sleepingFrame(bare, pet.left, Math.floor(now / 600)) : null;
+      const frame =
+        asleep ??
+        (worn.petwear
+          ? petFrame(worn.pet, pet.left, hop, worn.petVariant, petOutfit(worn), worn.petwear)
+          : bare);
       if (frame)
         items.push({
           y: pet.y + PET_H,
-          draw: () =>
-            g.drawImage(
-              frame,
-              Math.round(pet.x) - (asleep ? (SLEEP_W - 12) / 2 : 0),
-              Math.round(pet.y) + (asleep ? PET_H - SLEEP_H : 0),
-            ),
+          draw: () => {
+            if (asleep) {
+              g.drawImage(
+                asleep,
+                Math.round(pet.x) - (SLEEP_W - 12) / 2,
+                Math.round(pet.y) + PET_H - SLEEP_H,
+              );
+              return;
+            }
+            g.drawImage(frame, Math.round(pet.x), Math.round(pet.y) + PET_H - frame.height);
+            drawPetCrown(g, a, Math.round(pet.x), Math.round(pet.y), pet.left, hop);
+          },
         });
     }
     // A pet's name shows for mine and for those within a few tiles of me.
     const petName = a.info.look.petName;
     if (pet && petName && (!me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE))
       labels.push(() => petLabel(g, ...toScreen(pet.x + PET_W / 2, pet.y + PET_H + 1), petName, dpr));
-    labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py), tile, now, dpr));
+    labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py - labelLift(a)), tile, now, dpr));
   }
 
   items.sort((a, b) => a.y - b.y);
@@ -333,9 +360,11 @@ function drawAvatar(
     g.fillRect(px + 3, py + 8, 10, 1);
   } else if (a.state === "working" || (a.state === "sit" && tile === "c")) {
     const typing = a.state === "working" && Math.floor(now / 180) % 2 === 0 ? 1 : 0;
+    drawAura(g, a, px, py - 6 + typing, now);
     g.drawImage(characterFrame(look, "up", "sit"), px, py - 6 + typing);
     g.drawImage(chairBack(), px, py);
   } else if (a.state === "sit") {
+    drawAura(g, a, px, py - 5, now);
     g.drawImage(characterFrame(look, a.facing === "up" ? "up" : "down", "sit"), px, py - 5);
   } else {
     const walking = lap ? lap.running : stepping(a, now);
@@ -347,7 +376,10 @@ function drawAvatar(
     const shrink = lift > 3 ? 1 : 0;
     g.fillStyle = C.shadow;
     g.fillRect(px + 4 + shrink, py + 14, 8 - 2 * shrink, 2);
-    g.drawImage(characterFrame(look, facing, pose), px, py - 2 - lift - (pose === "walkA" ? 1 : 0));
+    drawAura(g, a, px, py - 2 - lift, now);
+    const top = py - 2 - lift - (pose === "walkA" ? 1 : 0);
+    if (isCop(a)) drawCop(g, a, pose, px, top, py, now);
+    else g.drawImage(characterFrame(look, facing, pose), px, top);
   }
   g.globalAlpha = 1;
 }

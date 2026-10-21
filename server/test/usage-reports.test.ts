@@ -428,10 +428,11 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
       peakAgents: 2,
       capped: USAGE_MINUTE_CAP + 600,
     });
-    // Two agents, and their burn: the minute's capped tokens over the last 10 minutes.
-    expect(recent).toEqual([42, now - 60_000, 2, MINUTE_CAP / 10]);
+    // Two agents, their burn (the minute's capped tokens over the last 10 minutes), and the last hour's
+    // burn for the 429 Cop: that minute, capped like a battle's.
+    expect(recent).toEqual([42, now - 60_000, 2, MINUTE_CAP / 10, MINUTE_CAP]);
     // The live queries use the partial index; none scans all historic assistant events.
-    for (const q of queries.slice(-3)) {
+    for (const q of queries.slice(-4)) {
       const args = q.includes("timestamp > ?")
         ? [now - 600_000]
         : q.includes("timestamp >= ?")

@@ -1,6 +1,9 @@
+import type { Ticket } from "@tokenmaxxing/core/cop.ts";
+import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
+import { headlines, type Paper } from "@tokenmaxxing/core/paper.ts";
 import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
-import { dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
+import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
 import {
   emptySide,
   isTradeable,
@@ -11,6 +14,7 @@ import {
   TRADE_COINS_CAP,
   TRADE_ITEMS_CAP,
 } from "@tokenmaxxing/core/shop.ts";
+import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
 import {
   type CompanyInfo,
   type Drop,
@@ -103,9 +107,13 @@ import {
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
+import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
+import { markPicnic } from "../town/picnic.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import { migrate } from "../town/schema.ts";
+import { paperFacts } from "../town/street.ts";
 import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
+import { giveTicket } from "../town/tickets.ts";
 import {
   levelOf,
   lookOf,
@@ -152,6 +160,7 @@ export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany, WalletLine } from "../town/companies.ts";
 export type { GamePlayer, GameStats } from "../town/games.ts";
 export type { RaidLoot } from "../town/loot.ts";
+export type { Cart, CartStock, Copy } from "../town/merchant.ts";
 export type { Raid } from "../town/raid.ts";
 export type { PlayerCore } from "../town/users.ts";
 
@@ -236,6 +245,8 @@ export const town = actor({
     tokens: new Map() as TokenCache,
     /** `podiums` for a world day, for wallets and cards; a late sync or a wiped account drops it. */
     podiums: null as { day: string; rows: Promise<Podium[]> } | null,
+    /** Today's paper (about yesterday): built on the first read of the day, then kept. */
+    paper: null as { day: string; paper: Promise<Paper> } | null,
     /** `raidHistory`, shared by everyone polling the raid for a few seconds. */
     raids: null as { at: number; rows: Promise<RaidWeek[]> } | null,
   }),
@@ -488,6 +499,9 @@ export const town = actor({
       if (!item) throw new UserError("That's not in the shop.", { code: "not_found" });
       if (item.level !== undefined)
         throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
+      if (editionById(item.id))
+        throw new UserError("Only the traveling merchant sells that.", { code: "not_for_sale" });
+      if (item.earned) throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
       if (item.loot) throw new UserError("That one drops in the raid.", { code: "not_for_sale" });
       if (item.company)
         throw new UserError("That one is for company buildings, from the company wallet.", {
@@ -515,6 +529,34 @@ export const town = actor({
       const userId = requireUser(c.conn.state);
       return furnish(c, userId, "place", (company, now) => unstore(c.db, company.id, itemId, userId, now));
     },
+
+    /** The morning paper: yesterday in town, the same front page all day. */
+    paper: (c): Promise<Paper> => {
+      requireUser(c.conn.state);
+      const day = addDays(dayKey(Date.now()), -1);
+      if (c.vars.paper?.day !== day)
+        c.vars.paper = { day, paper: paperFacts(c.db, day).then((f) => ({ day, headlines: headlines(f) })) };
+      const paper = c.vars.paper.paper;
+      // A failed build is tried again on the next read.
+      paper.catch(() => {
+        if (c.vars.paper?.paper === paper) c.vars.paper = null;
+      });
+      return paper;
+    },
+
+    // MARK: The traveling merchant (`core/src/merchant.ts`)
+
+    /** What's on the cart this week, and how many of each are gone. */
+    cart: (c): Promise<Cart> => cart(c.db, Date.now()),
+
+    /** The next numbered copy of one off the cart. */
+    buyEdition: (c, itemId: unknown): Promise<{ wallet: Wallet; n: number }> => {
+      const userId = requireUser(c.conn.state);
+      return c.vars.serial(() => buyEdition(c.db, userId, itemId, Date.now()));
+    },
+
+    /** The numbered copies in my bag. */
+    copies: (c): Promise<Copy[]> => copiesOf(c.db, requireUser(c.conn.state)),
 
     // MARK: Drops
 
@@ -558,6 +600,12 @@ export const town = actor({
     pickUp: async (c, dropId: number, userId: number, room: string): Promise<boolean> => {
       requireInternal(c.conn.state);
       return pickUp(c.db, dropId, userId, room);
+    },
+
+    /** From `world.sit`: on a blanket at the outage picnic that started at `since`. True the first time. */
+    picnicked: (c, userId: number, since: number): Promise<boolean> => {
+      requireInternal(c.conn.state);
+      return markPicnic(c.db, userId, since);
     },
 
     /**
@@ -777,6 +825,17 @@ export const town = actor({
       return profile(c.db, targetId, range, Date.now(), await podiumsOf(c, Date.now()));
     },
 
+    /** The trophies on someone's office shelf: anyone may look, like their badges. */
+    trophies: async (c, targetId: unknown): Promise<Trophy[]> => {
+      requireUser(c.conn.state);
+      if (typeof targetId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
+      const u = await userById(c.db, targetId);
+      return c
+        .client<typeof registry>()
+        .player.get([String(u.id)], internal)
+        .trophies();
+    },
+
     /** Names starting with `prefix`, for @-mention suggestions. */
     searchNames: async (c, prefix: unknown): Promise<string[]> => {
       requireUser(c.conn.state);
@@ -987,6 +1046,12 @@ export const town = actor({
       await push(c.db, client, changed);
       for (const id of changed.users)
         await notify(client, id, { text: "Your company was closed by the town admin.", open: "company" });
+    },
+
+    /** From `world`: the 429 Cop wrote `userId` a ticket: how many they hold now, or null if they had one today already. */
+    ticket: async (c, userId: number, t: Ticket): Promise<number | null> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => giveTicket(c.db, userId, t));
     },
 
     /** For `world` starting up: everyone, every company, every office and everything on a floor. */

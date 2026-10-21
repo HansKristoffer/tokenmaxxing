@@ -1,3 +1,5 @@
+import { levelFor } from "@tokenmaxxing/core/format.ts";
+import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
 import { type DayFacts, EMPTY_DAY, QUESTS, questCoins } from "@tokenmaxxing/core/quests.ts";
 import type { RaidWeek } from "@tokenmaxxing/core/raid.ts";
@@ -5,6 +7,7 @@ import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import {
   coinsForTokens,
   type Item,
+  isKeepsake,
   isTradeable,
   itemById,
   itemsIn,
@@ -18,7 +21,7 @@ import type { Drop } from "@tokenmaxxing/core/world.ts";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, type TxSql } from "../actors/shared.ts";
 import { raidCoins, raidHistory } from "./raid.ts";
-import { lookOf, TOKENS, userById } from "./users.ts";
+import { levelOf, lookOf, TOKENS, tokensIn, userById } from "./users.ts";
 
 export interface Wallet {
   balance: number;
@@ -79,6 +82,7 @@ export async function grantRewards(sql: Sql, userId: number, level: number, now:
  * still pays. Podium places count once a day is over. Only days from the world day
  * someone signed up count, for pay and for places: a first sync backfills months of
  * logs, and those days would otherwise pay out (and win podiums nobody else was on).
+ * Milestone coins (`milestones.ts`) go by the level, which counts every day.
  * ponytail: a late sync can also knock someone off a past podium after they spent
  * the bonus; the balance then reads short until they earn it back. Settle days into
  * a ledger if that ever matters. `top`: `podiums`, and `raids`: `raidHistory`, if the caller keeps them.
@@ -126,7 +130,8 @@ export async function wallet(
     days.reduce((n, d) => n + coinsForTokens(d.tokens), 0) +
     wins.reduce((n, w) => n + w.coins, 0) +
     raided +
-    [...facts.values()].reduce((n, f) => n + questCoins(f), 0);
+    [...facts.values()].reduce((n, f) => n + questCoins(f), 0) +
+    milestoneCoins(await levelOf(sql, userId));
   const since = addDays(today, -29);
   const todays = facts.get(today) ?? EMPTY_DAY;
   return {
@@ -208,6 +213,8 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
   }
   for (const f of facts.values()) add(f.userId, questCoins(f));
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);
+  for (const [userId, tokens] of await tokensIn(sql, [...out.keys()]))
+    add(userId, milestoneCoins(levelFor(tokens)));
   const raids = await raidHistory(sql, now);
   for (const userId of out.keys()) add(userId, raidCoins(raids, userId));
   for (const r of await all<{ userId: number; n: number }>(
@@ -568,13 +575,14 @@ const DROPS_PER_PERSON = 5;
 
 /**
  * Takes one `item` out of `userId`'s bag for the floor (`owner_id` NULL, with who and when): not a
- * reward, and not past `DROPS_PER_PERSON` (what's in their own office is furniture, not counted).
+ * reward (an earned piece, Touched grass, can go: `world` lands it only in their own office), and not past `DROPS_PER_PERSON` (what's in their own office is furniture, not counted).
  * Returns the row's id. Run it serialized, like `buy`.
  * ponytail: with five out elsewhere, furnishing waits too (the room isn't known yet). Count after
  * `placeDrop` answers if anyone minds.
  */
 export async function takeOut(sql: Sql, userId: number, item: unknown, now: number): Promise<number> {
-  if (!isTradeable(item)) throw new UserError("That one stays with you.", { code: "not_tradeable" });
+  if (!isTradeable(item) && !isKeepsake(item))
+    throw new UserError("That one stays with you.", { code: "not_tradeable" });
   const [{ n }] = (await all<{ n: number }>(
     sql,
     "SELECT COUNT(*) AS n FROM items WHERE dropped_by = ? AND owner_id IS NULL AND room IS NOT 'office:' || ?",

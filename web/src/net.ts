@@ -1,5 +1,6 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import type { Outage } from "@tokenmaxxing/core/picnic.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
 import {
   CHAT_HISTORY,
@@ -18,6 +19,7 @@ import {
 import type { Raid, registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
 import { noteLoot } from "./game/loot.ts";
+import { setOutage } from "./game/picnic.ts";
 import { noteRaid, setRaiders } from "./game/raid.ts";
 import {
   applyBubble,
@@ -147,6 +149,7 @@ export function connect(token: string): void {
   conn.on("callout", (e: { id: number; userId: number | null; text: string }) => applyCallout(e));
   conn.on("drop", (d: Drop) => applyDrop(d));
   conn.on("pickup", (e: { id: number }) => applyPickup(e.id));
+  conn.on("outage", (o: Outage | null) => setOutage(o));
   conn.onError((err) => {
     if (isUnauthorized(err)) signedOut();
   });

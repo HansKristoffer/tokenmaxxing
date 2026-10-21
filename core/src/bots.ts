@@ -3,7 +3,8 @@
  * `BOTS`; the `world` actor walks it and makes it talk. Ids are negative, so they never meet a real
  * user's (those start at 1).
  */
-import { compact, MAX_LEVEL } from "./format.ts";
+import { COP } from "./cop.ts";
+import { BOT_LEVEL, compact } from "./format.ts";
 import type { GameMap } from "./maps.ts";
 import { worldClock } from "./range.ts";
 import { type Facing, type Look, route } from "./world.ts";
@@ -38,7 +39,6 @@ export interface Moment {
 }
 
 const WEEKDAYS = [1, 2, 3, 4, 5];
-
 export const BOTS: BotDef[] = [
   {
     id: -1,
@@ -51,11 +51,14 @@ export const BOTS: BotDef[] = [
       glasses: 1,
       hat: 0,
       pet: 0,
+      held: 7,
+      back: 6,
+      petwear: 0,
       petVariant: 0,
       merch: 0,
       merchWorn: 0,
     },
-    level: MAX_LEVEL,
+    level: BOT_LEVEL,
     bio: "Står bag Arox (arox.dk): grips, sjippetove og knee sleeves til CrossFit. Har set verdens undergang komme siden første ordre. Pakker stadig ordrer kl. 22.",
     lines: [
       "Verden går under, og folk spørger stadig, om grips kan fås i pink.",
@@ -162,11 +165,14 @@ export const BOTS: BotDef[] = [
       glasses: 2,
       hat: 0,
       pet: 0,
+      held: 3,
+      back: 0,
+      petwear: 0,
       petVariant: 0,
       merch: 0,
       merchWorn: 0,
     },
-    level: MAX_LEVEL,
+    level: BOT_LEVEL,
     bio: "Investor. Startede Just Eat i en kælder i Kolding. Går rundt i byen og sørger for, at ingen hviler sig. Han er ikke mr. Nice Guy.",
     lines: [
       "Jeg startede Just Eat i en kælder i Kolding. Hvad er din undskyldning?",
@@ -243,6 +249,7 @@ export const BOTS: BotDef[] = [
       },
     ],
   },
+  COP,
 ];
 
 export const isBot = (id: number): boolean => id < 0;

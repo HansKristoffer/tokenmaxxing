@@ -14,6 +14,7 @@ export type Panel =
   | { kind: "merch"; companyId: number }
   | { kind: "look" }
   | { kind: "shop" }
+  | { kind: "merchant" }
   | { kind: "bag" }
   | { kind: "petLooks"; pet: number }
   | { kind: "arcade" }
@@ -21,6 +22,8 @@ export type Panel =
   | { kind: "match"; id: number }
   | { kind: "trade"; userId: number }
   | { kind: "trades" }
+  | { kind: "paper" }
+  | { kind: "trophies"; userId: number; name: string }
   | { kind: "raid" }
   | { kind: "menu" };
 

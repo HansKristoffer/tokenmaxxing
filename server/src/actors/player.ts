@@ -1,7 +1,9 @@
+import { BURN_WINDOW_MS } from "@tokenmaxxing/core/cop.ts";
 import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Usage } from "@tokenmaxxing/core/games/types.ts";
 import type { TodayBySource } from "@tokenmaxxing/core/protocol.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
+import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
 import type { IngestResponse, Source, TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
@@ -10,6 +12,7 @@ import { sha256 } from "../crypto.ts";
 import { reconcileCursorUsage } from "../cursor-usage.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { AGENT_BUCKET_MS } from "../stats.ts";
+import { trophiesOf, trophyCache } from "../trophies.ts";
 import { coalesceBattleUpdates, drainUsageReports, reportUsageDays } from "../usage-reports.ts";
 import { MAX_EVENTS_PER_REQUEST, parseEvent } from "../validate.ts";
 import type { registry } from "./registry.ts";
@@ -207,6 +210,7 @@ export const player = actor({
     serial: serial(),
     ingests: new RateLimiter(INGESTS_PER_MIN, 60_000),
     battleUpdate: coalesceBattleUpdates(),
+    trophies: trophyCache(),
   }),
   db: db({ onMigrate: migrateEvents }),
   createConnState: (c, params: ConnParams): Caller => {
@@ -354,6 +358,7 @@ export const player = actor({
         const days = (await c.db.execute("SELECT DISTINCT day FROM events")) as { day: string }[];
         await c.db.execute("DELETE FROM events");
         await c.db.execute("DELETE FROM pending_usage_days");
+        c.vars.trophies = trophyCache();
         return days.map((d) => d.day);
       });
     },
@@ -373,6 +378,12 @@ export const player = actor({
         sources: rows.filter((r) => r.tokens > 0).map(({ source, tokens }) => ({ source, tokens })),
         prs: rows.reduce((n, r) => n + r.prs, 0),
       };
+    },
+
+    /** For `town`: the trophies on my office shelf. */
+    trophies: (c): Promise<Trophy[]> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => trophiesOf(c.db, c.vars.trophies, Date.now()));
     },
 
     /** A usage game's score (Tokenmaxxing). */
@@ -685,5 +696,7 @@ export async function report(
   // How hard they're going: the dungeon fires their missiles at this rate.
   const { tokens } = await tokensBetween(sql, now - LIVE_AGENTS_MS, now + 1);
   const burn = Math.round(tokens / (LIVE_AGENTS_MS / 60_000));
-  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents, burn);
+  // The last hour's burn, for the 429 Cop (`core/src/cop.ts`).
+  const hour = await tokensBetween(sql, now - BURN_WINDOW_MS, now);
+  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents, burn, hour.tokens);
 }

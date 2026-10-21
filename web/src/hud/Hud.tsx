@@ -1,6 +1,7 @@
 import { isBot } from "@tokenmaxxing/core/bots.ts";
 import { compact, levelTitle, plural } from "@tokenmaxxing/core/format.ts";
-import { levelItems } from "@tokenmaxxing/core/shop.ts";
+import { milestonesBetween } from "@tokenmaxxing/core/milestones.ts";
+import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
 import { useEffect, useRef, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { town } from "../net.ts";
@@ -18,14 +19,19 @@ import { LookPicker } from "./LookPicker.tsx";
 import { LootToast } from "./Loot.tsx";
 import { MatchPanel } from "./Match.tsx";
 import { MerchShop } from "./Merch.tsx";
+import { Merchant } from "./Merchant.tsx";
+import { MilestoneToast } from "./MilestoneToast.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
+import { PaperPanel } from "./Paper.tsx";
 import { PetLooks } from "./PetLooks.tsx";
+import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Shop } from "./Shop.tsx";
 import { Sky } from "./Sky.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
+import { Trophies } from "./Trophies.tsx";
 import { Modal, useFresh, useRun } from "./ui.tsx";
 
 export function Hud() {
@@ -44,6 +50,7 @@ export function Hud() {
         <RaidBox />
       </div>
       <Banner />
+      <PicnicBanner />
       {!beside && <Chat />}
       <Minimap />
       <Dialog />
@@ -209,6 +216,8 @@ function Panel() {
       return <LookPicker />;
     case "shop":
       return <Shop />;
+    case "merchant":
+      return <Merchant />;
     case "bag":
       return <Bag />;
     case "petLooks":
@@ -223,6 +232,10 @@ function Panel() {
       return <TradePanel userId={panel.userId} />;
     case "trades":
       return <TradesPanel />;
+    case "paper":
+      return <PaperPanel />;
+    case "trophies":
+      return <Trophies userId={panel.userId} name={panel.name} />;
     case "raid":
       return <RaidPanel />;
     case "menu":
@@ -345,20 +358,24 @@ function LevelToast() {
     seen.current = level;
   }, [level]);
   if (!useFresh(up?.at, MENTION_MS) || !up) return null;
-  // The first reward passed on the way up: a big sync can skip a level or two.
-  const reward = levelItems(up.to).find((i) => i.level! > up.from);
+  const open = () => {
+    setUp(null);
+    hud.set({ panel: { kind: "bag" } });
+  };
+  // Every level reward is a milestone's. A big sync can pass two: the toast shows the last.
+  const passed = milestonesBetween(up.from, up.to);
+  if (passed.length > 0) {
+    const office =
+      passed[0]!.level === OFFICE_LEVEL
+        ? company
+          ? "Your own office is open"
+          : "Join a company for your own office"
+        : null;
+    return <MilestoneToast milestone={passed.at(-1)!} level={up.to} office={office} onClick={open} />;
+  }
   return (
-    <button
-      type="button"
-      className="toast mention-toast"
-      onClick={() => {
-        setUp(null);
-        hud.set({ panel: { kind: "bag" } });
-      }}
-    >
+    <button type="button" className="toast mention-toast" onClick={open}>
       ⬆️ Level {up.to} · {levelTitle(up.to)}
-      {reward && ` · You unlocked the ${reward.name}`}
-      {reward?.level === 10 && (company ? " and your own office" : " · Join a company for your own office")}
     </button>
   );
 }

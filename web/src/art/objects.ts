@@ -4,7 +4,7 @@ import { TILE } from "@tokenmaxxing/core/world.ts";
 import { type FancyPiece, fancyPiece, fancySprite } from "./furniture-fancy.ts";
 import { trophyAt } from "./loot.ts";
 import { C } from "./palette.ts";
-import { bake, cached } from "./pixels.ts";
+import { bake, cached, type Pen } from "./pixels.ts";
 
 /** A baked sprite and where it sits relative to its tile's top-left corner. */
 export interface Placed {
@@ -425,6 +425,89 @@ const coffee = cached(
     }),
 );
 
+/** A 3×5 pixel font, just the letters a sign needs. */
+const LETTERS: Record<string, readonly string[]> = {
+  A: [".#.", "#.#", "###", "#.#", "#.#"],
+  C: [".##", "#..", "#..", "#..", ".##"],
+  D: ["##.", "#.#", "#.#", "#.#", "##."],
+  E: ["###", "#..", "##.", "#..", "###"],
+  G: [".##", "#..", "#.#", "#.#", ".##"],
+  H: ["#.#", "#.#", "###", "#.#", "#.#"],
+  O: [".#.", "#.#", "#.#", "#.#", ".#."],
+  R: ["##.", "#.#", "##.", "#.#", "#.#"],
+  S: [".##", "#..", ".#.", "..#", "##."],
+  T: ["###", ".#.", ".#.", ".#.", ".#."],
+  U: ["#.#", "#.#", "#.#", "#.#", "###"],
+};
+
+/** `text` in `LETTERS`, centred on `cx`, its top at `y`. */
+function letters(p: Pen, text: string, cx: number, y: number, color: string): void {
+  let x = cx - Math.floor((text.length * 4 - 1) / 2);
+  for (const ch of text) {
+    p.grid(LETTERS[ch] ?? [], { "#": color }, x, y);
+    x += 4;
+  }
+}
+
+/**
+ * Touched grass (two tiles): a lush tuft on a lifted square of sod, a daisy, and a little park sign
+ * behind it that says so. Earned at an outage picnic, never sold.
+ */
+const touchedGrass = cached(
+  () => "touchedGrass",
+  () =>
+    bake(32, 30, (p) => {
+      p.rect(3, 28, 26, 2, C.shadow);
+      // The sign: a plank on two stakes.
+      for (const x of [6, 24]) {
+        p.rect(x, 14, 2, 10, C.ink);
+        p.rect(x, 14, 1, 10, C.woodDark);
+      }
+      p.rect(1, 0, 30, 15, C.ink);
+      p.rect(0, 1, 32, 13, C.ink);
+      p.rect(1, 1, 30, 13, C.woodDark);
+      p.rect(1, 1, 30, 12, C.wood);
+      p.rect(2, 2, 28, 10, C.woodLight);
+      letters(p, "TOUCHED", 16, 2, C.ink);
+      letters(p, "GRASS", 16, 8, C.ink);
+      // The sod: soil under a carpet of grass, a little of it hanging over the edge.
+      p.rect(2, 22, 28, 6, C.ink);
+      p.rect(1, 23, 30, 4, C.ink);
+      p.rect(2, 24, 28, 3, C.trunk);
+      p.rect(2, 26, 28, 1, C.trunkDark);
+      for (const x of [5, 12, 19, 26]) p.px(x, 25, C.trunkDark);
+      for (const x of [7, 14, 23]) p.px(x, 24, C.trunkDark);
+      p.rect(2, 20, 28, 4, C.grassDark);
+      p.rect(3, 20, 26, 2, C.leaf);
+      for (const x of [4, 8, 9, 16, 21, 27]) p.px(x, 24, C.grassDark);
+      // Three tufts of blades, tallest in the middle of each, the odd one leaning.
+      const tufts = [
+        [6, 5],
+        [16, 5],
+        [26, 5],
+      ] as const;
+      const shades = [C.leafDark, C.leaf, C.leafLight, C.grass, C.leaf, C.grassLight];
+      for (let x = 2; x < 30; x++) {
+        const h = Math.min(
+          6,
+          Math.max(2, ...tufts.map(([cx, top]) => top - Math.abs(x - cx) + ((x * 7) % 3))),
+        );
+        const color = shades[(x * 5) % shades.length]!;
+        const lean = x % 4 === 1 ? 1 : x % 4 === 3 ? -1 : 0;
+        for (let k = 0; k < h; k++) p.px(x + (k >= h - 2 ? lean : 0), 20 - k, k < 2 ? C.leafDark : color);
+        p.px(x + lean, 20 - h, x % 3 === 0 ? C.grassLight : C.leafLight);
+      }
+      for (const x of [4, 11, 20, 28]) p.px(x, 20, C.leafInk);
+      // A daisy, and a red bud.
+      p.rect(11, 17, 1, 3, C.leafDark);
+      p.px(12, 18, C.leaf);
+      p.grid([".w.", "wyw", ".w."], { w: C.flowerWhite, y: C.flowerYellow }, 10, 14);
+      p.rect(21, 16, 1, 4, C.leafDark);
+      p.px(21, 15, C.flowerRed);
+      p.px(22, 15, C.rugDark);
+    }),
+);
+
 const at = (canvas: HTMLCanvasElement, dx = 0, dy = TILE - canvas.height): Placed => ({ canvas, dx, dy });
 
 /** Maps are fixed, so each map's objects are worked out once (the render loop asks every frame). */
@@ -468,11 +551,12 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(chair());
     case "s":
       return at(sofa(map.at(x - 1, y) !== "s", map.at(x + 1, y) !== "s"));
-    case "t": {
+    case "t":
+    case "g": {
       // Two tiles each: in a run of them (TVs side by side), every other tile starts one.
       let n = 0;
-      while (map.at(x - n - 1, y) === "t") n++;
-      return n % 2 === 0 ? at(tv()) : null;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return n % 2 === 0 ? at(ch === "t" ? tv() : touchedGrass()) : null;
     }
     case "k":
       return at(shelf());

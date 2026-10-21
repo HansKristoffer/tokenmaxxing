@@ -1418,6 +1418,235 @@ button.lb-item:hover {
   user-select: all;
 }
 
+/* The outage picnic: a gingham-edged banner at the top while an AI API is down. */
+.picnic-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px 7px;
+  background: var(--panel);
+  border-radius: 10px;
+  border-top: 5px solid transparent;
+  border-image: repeating-linear-gradient(90deg, #d9574a 0 6px, #fbf7ef 6px 12px) 5 0 0 0;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.picnic-banner strong {
+  font-size: 15px;
+  color: var(--accent);
+}
+
+/* The 429 Cop's tickets on a player card: a badge that opens into the slips themselves. */
+.tickets summary {
+  display: inline-block;
+  margin: 2px 0 4px;
+  font-size: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.tickets summary::-webkit-details-marker {
+  display: none;
+}
+.tickets ol {
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  border-left: 4px solid #4a6fd6;
+  border-radius: 3px;
+  background: #fbf7ef;
+  color: #2b2433;
+  font-size: 12px;
+}
+.ticket-head {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #c23a3a;
+}
+.ticket-sign {
+  align-self: flex-end;
+  font-style: italic;
+  color: #24336b;
+}
+
+/* The trophy shelf's list (E at the shelf in an office): two columns of sprite + name, how, and when. */
+.trophies {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trophies li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.trophies li > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.trophies canvas {
+  flex: none;
+  image-rendering: pixelated;
+}
+
+.trophies .unearned strong {
+  color: var(--muted);
+}
+
+.trophies .earned {
+  color: var(--accent);
+}
+/* The traveling merchant's cart (Merchant.tsx): a card per edition, its stock as a bar. */
+.merchant-hello {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.merchant-hello p {
+  margin: 0;
+  font-style: italic;
+}
+
+.merchant-got {
+  margin: 8px 0 0;
+  color: var(--accent);
+}
+
+.shop.merchant li {
+  position: relative;
+  overflow: hidden;
+}
+
+.shop.merchant .stock {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.shop.merchant .stock span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.shop.merchant .mine {
+  color: var(--good);
+}
+
+.shop.merchant li.sold-out > :not(.stamp) {
+  opacity: 0.45;
+}
+
+.shop.merchant .stamp {
+  padding: 4px 0;
+  border: 2px solid var(--bad);
+  border-radius: 4px;
+  color: var(--bad);
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  transform: rotate(-8deg);
+}
+
+.bag-pick .edition {
+  color: var(--accent);
+  font-weight: 400;
+}
+
+/* Every item but furniture: its rarity, in its colour (`RARITY_COLOR`), and a line of flavour under the name. */
+.item-tag {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.item-tag .rarity {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+/* Milestones: every tenth level's title on the player card, and its gold level-up toast. */
+.milestone-title {
+  display: inline-block;
+  margin: 0 0 4px;
+  padding: 1px 8px;
+  border: 1px solid rgba(255, 211, 92, 0.5);
+  border-radius: 999px;
+  background: rgba(255, 211, 92, 0.12);
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.milestone-title.legendary {
+  background: linear-gradient(90deg, #b8860b, #ffe066 50%, #b8860b);
+  color: var(--ink);
+  border-color: #fff1a8;
+}
+
+.milestone-toast {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  max-width: min(560px, calc(100vw - 40px));
+  text-align: left;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 18px rgba(255, 211, 92, 0.35);
+}
+
+.milestone-toast.legendary {
+  background: linear-gradient(135deg, rgba(60, 44, 12, 0.95), rgba(27, 31, 42, 0.95) 60%);
+  animation: legendary-glow 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes legendary-glow {
+  to {
+    box-shadow: 0 0 30px rgba(255, 224, 102, 0.7);
+  }
+}
+
+.milestone-art {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.milestone-name {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.avatar.legendary {
+  filter: drop-shadow(0 0 6px rgba(255, 214, 74, 0.75));
+}
+
 /* The pet looks picker: every look of a pet, hopping. */
 .pet-looks {
   list-style: none;

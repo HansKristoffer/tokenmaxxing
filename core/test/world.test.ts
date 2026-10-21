@@ -182,8 +182,16 @@ describe("looks and houses", () => {
 
   test("pet variants: old looks parse, out-of-range and petless variants are refused", () => {
     const old = { style: 1, skin: 2, hair: 3, outfit: 4, glasses: 0, hat: 0, pet: 3 };
-    expect(parseLook(old)).toEqual({ ...old, petVariant: 0, merch: 0, merchWorn: 0 });
-    const dog = { ...old, petVariant: petLooks(3) - 1, merch: 0, merchWorn: 0 };
+    expect(parseLook(old)).toEqual({
+      ...old,
+      held: 0,
+      back: 0,
+      petwear: 0,
+      petVariant: 0,
+      merch: 0,
+      merchWorn: 0,
+    });
+    const dog = { ...old, held: 0, back: 0, petwear: 0, petVariant: petLooks(3) - 1, merch: 0, merchWorn: 0 };
     expect(parseLook(dog)).toEqual(dog);
     expect(parseLook({ ...old, petVariant: petLooks(3) })).toBeNull();
     expect(parseLook({ ...old, petVariant: -1 })).toBeNull();
@@ -196,7 +204,19 @@ describe("looks and houses", () => {
   });
 
   test("wearing another pet starts from its original look, so the server never sees an out-of-range one", () => {
-    const base = { style: 1, skin: 2, hair: 3, outfit: 4, glasses: 0, hat: 0, merch: 0, merchWorn: 0 };
+    const base = {
+      style: 1,
+      skin: 2,
+      hair: 3,
+      outfit: 4,
+      glasses: 0,
+      hat: 0,
+      held: 0,
+      back: 0,
+      petwear: 0,
+      merch: 0,
+      merchWorn: 0,
+    };
     // A dog in its 12th look, then the shop puts a dragon on: the dog's number would be out of range.
     const dog = { ...base, pet: 3, petVariant: 11 };
     expect(parseLook(wearPet(dog, 4))).toEqual({ ...base, pet: 4, petVariant: 0 });

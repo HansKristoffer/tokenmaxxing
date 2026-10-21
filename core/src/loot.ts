@@ -7,8 +7,10 @@
  * Pure functions, shared by server and client.
  */
 import { sha256 } from "./games/sha256.ts";
+import { FACE_COUNT, HAT_COUNT } from "./headwear.ts";
 import type { Piece } from "./office.ts";
 import { bossAt, type RaidWeek } from "./raid.ts";
+import { WARDROBE_OPTIONS } from "./wardrobe.ts";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
 
@@ -47,17 +49,27 @@ export const TROPHIES: readonly Piece[] = [
   { ch: "V", name: "Golden Rebase", price: 0 },
 ];
 
-/** Where trophies start in `PIECES`: after the 11 pieces the shop sells. */
-const PIECE_BASE = 11;
+/** Where trophies start in `PIECES`: after the shop's 12 pieces (touched grass included). */
+const PIECE_BASE = 12;
+
+/**
+ * Where loot starts in each slot: after the shop's, the head pack's and the wardrobe's, so loot never
+ * shares an index with something sold. `LOOK_OPTIONS` ends each slot at `LOOT_FIRST + LOOT_COUNT`.
+ */
+export const LOOT_FIRST = { outfit: WARDROBE_OPTIONS.outfit, glasses: FACE_COUNT, hat: HAT_COUNT, pet: 7 };
 
 const loot = (
   boss: string,
   rarity: Rarity,
   slot: Exclude<LootSlot, "furniture">,
-  index: number,
+  /** Its place among the slot's loot, from 0. */
+  nth: number,
   name: string,
   blurb: string,
-): Loot => ({ id: `${slot}.${index}`, slot, index, name, boss, rarity, blurb });
+): Loot => {
+  const index = LOOT_FIRST[slot] + nth;
+  return { id: `${slot}.${index}`, slot, index, name, boss, rarity, blurb };
+};
 const trophy = (boss: string, ch: string, blurb: string): Loot => {
   const i = TROPHIES.findIndex((t) => t.ch === ch);
   return {
@@ -73,37 +85,45 @@ const trophy = (boss: string, ch: string, blurb: string): Loot => {
 
 /** Every boss's table, commonest first. */
 export const LOOT: readonly Loot[] = [
-  loot("rate-limit", "common", "hat", 5, "Hourglass hat", "Wear it and time slows down. Retry-After: 5h."),
-  loot("rate-limit", "rare", "glasses", 4, "429 shades", "Too many requests to look at."),
-  loot("rate-limit", "epic", "pet", 7, "Sand golem", "Made of every second you waited."),
+  loot("rate-limit", "common", "hat", 0, "Hourglass hat", "Wear it and time slows down. Retry-After: 5h."),
+  loot("rate-limit", "rare", "glasses", 0, "429 shades", "Too many requests to look at."),
+  loot("rate-limit", "epic", "pet", 0, "Sand golem", "Made of every second you waited."),
   trophy("rate-limit", "Y", "The Rate Limit's own timer, cast in gold. Put it in your office."),
   loot(
     "context-window",
     "common",
     "glasses",
-    5,
+    1,
     "Pane glasses",
     "Four little windows. Still can't see it all.",
   ),
-  loot("context-window", "rare", "outfit", 13, "Compacting… scarf", "Summarises itself as you walk."),
-  loot("context-window", "epic", "pet", 8, "Goldfish", "Forgot already."),
+  loot("context-window", "rare", "outfit", 0, "Compacting… scarf", "Summarises itself as you walk."),
+  loot("context-window", "epic", "pet", 1, "Goldfish", "Forgot already."),
   loot(
     "context-window",
     "legendary",
     "hat",
-    6,
+    1,
     "Infinite Context Crown",
     "Remembers everything. Everything.",
   ),
-  loot("merge-conflict", "common", "outfit", 14, "Two-tone suit", "Ours on the left, theirs on the right."),
-  loot("merge-conflict", "rare", "hat", 7, "<<<<<<< HEAD band", "Resolve it yourself."),
-  loot("merge-conflict", "epic", "pet", 9, "Forked cat", "Two tails, one history."),
+  loot("merge-conflict", "common", "outfit", 1, "Two-tone suit", "Ours on the left, theirs on the right."),
+  loot("merge-conflict", "rare", "hat", 2, "<<<<<<< HEAD band", "Resolve it yourself."),
+  loot("merge-conflict", "epic", "pet", 2, "Forked cat", "Two tails, one history."),
   trophy("merge-conflict", "V", "A clean history, in gold. Put it in your office."),
-  loot("hallucination", "common", "glasses", 6, "Third eye", "Sees functions that aren't there."),
-  loot("hallucination", "rare", "outfit", 15, "Shimmering cape", "Probably real."),
-  loot("hallucination", "epic", "pet", 10, "Ghost", "It says it exists. Trust it."),
-  loot("hallucination", "legendary", "hat", 8, "Citation Needed crown", "[citation needed]"),
+  loot("hallucination", "common", "glasses", 2, "Third eye", "Sees functions that aren't there."),
+  loot("hallucination", "rare", "outfit", 2, "Shimmering cape", "Probably real."),
+  loot("hallucination", "epic", "pet", 3, "Ghost", "It says it exists. Trust it."),
+  loot("hallucination", "legendary", "hat", 3, "Citation Needed crown", "[citation needed]"),
 ];
+
+/** How many loot items each slot has (`LOOK_OPTIONS`). */
+export const LOOT_COUNT = {
+  outfit: LOOT.filter((l) => l.slot === "outfit").length,
+  glasses: LOOT.filter((l) => l.slot === "glasses").length,
+  hat: LOOT.filter((l) => l.slot === "hat").length,
+  pet: LOOT.filter((l) => l.slot === "pet").length,
+};
 
 export const lootById = (id: unknown): Loot | undefined => LOOT.find((l) => l.id === id);
 

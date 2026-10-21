@@ -282,11 +282,17 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `PET_NAMED` is a table of costumes (name, pet, look, art id) matched case-insensitively on the cleaned name by
   `petOutfit`; the art is in `web/src/art/pet-variants/named.ts` and `petFrame` takes it as its last argument, so it
   works in every frame, the sleeping pose and the picker. To add one: append a row, add its art.
+- The wardrobe (`core/src/wardrobe.ts`, art in `web/src/art/wardrobe.ts`): 36 more, each with a rarity and a
+  line of flavour: 12 outfits (`outfit` ≥ 13), and three slots of its own: `held` (in the hand), `back` and
+  `petwear` (drawn on the pet). The rubber duck, cape and jetpack are level rewards at 5, 15 and 25.
 - **The bag** (`items`, the 🎒 panel): one row per copy, so you can hold two Ducks; you can wear a kind if you
   hold one. Buying adds a row and adds the price to `purchases` (spend only, one row per kind); buying a
   kind you hold already is fine. `bag()` counts each kind. What's on a floor isn't in anyone's bag.
-- Three items are earned, not bought: a top hat, server-rack armour and a Singularity orb, at levels 10, 20
-  and 30. `report` hands them out as rows the first time a sync reaches the level (`grantRewards`, once each,
+- **Milestones** (`core/src/milestones.ts`): levels go to 50 (130B lifetime tokens; past 30 the steps grow
+  2B, 3B, 5B, 10B). Every tenth level gives a title for the player card, coins and an item: a top hat,
+  server-rack armour, a Singularity orb, a Nebula visor and golden regalia, at 10 to 50. The coins are worked
+  out from the level in `wallet` like the rest, so nothing is stored. Level 50 also draws a golden aura and halo
+  and a crown on the pet, from the level alone (`web/src/art/aura.ts`). `report` hands them out as rows the first time a sync reaches the level (`grantRewards`, once each,
   recorded in `rewards`), with the office's desk and chair at level 10, dropped on its floor
   (`starterDrops`; in the bag if it has furniture already). `setOfficeOpen` hands them out too, for anyone
   who reached level 10 before offices had rows. Rewards are `tradeable: false`.
@@ -447,7 +453,8 @@ climbs it together (`core/src/raid.ts`).
   - Merge Conflict: Two-tone suit, `<<<<<<< HEAD` band, Forked cat (pet), Golden Rebase (trophy).
   - The Hallucination: Third eye, Shimmering cape, Ghost (pet), Citation Needed crown.
 
-  They're shop items in the existing slots (`ITEMS`, with `loot: { boss, rarity }`), so they're worn, placed,
+  They're shop items in the existing slots (`ITEMS`, with `loot: { boss, rarity }`), each slot's after
+  everything sold in it (`LOOT_FIRST`: after the head pack and the wardrobe), so they're worn, placed,
   dropped and traded like any other, but never sold. Trophies are furniture: `Y` and `V` on the map legend,
   after the shop's pieces in `PIECES`.
   - **Rolls:** every raider a kill pays (`Kill.raiders`) rolls every item in that boss's table on its own, so

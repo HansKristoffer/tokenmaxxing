@@ -4,8 +4,12 @@
  * top 3. They buy clothes, glasses, hats and pets, worn through `Look`, and
  * furniture for your office (`office.ts`). Everything bought or earned is a row in the bag.
  */
-import { LOOT, type Rarity } from "./loot.ts";
+import { EDITIONS } from "./editions.ts";
+import { HEADWEAR_ITEMS } from "./headwear.ts";
+import { LOOT, type Rarity as LootRarity } from "./loot.ts";
 import { COMPANY_FURNITURE, FURNITURE } from "./office.ts";
+import type { Rarity } from "./rarity.ts";
+import { WARDROBE, type WardrobeSlot } from "./wardrobe.ts";
 import type { Look } from "./world.ts";
 
 /**
@@ -17,7 +21,7 @@ export const coinsForTokens = (tokens: number): number => Math.floor(Math.sqrt(M
 /** Extra coins for finishing a world day 1st, 2nd or 3rd on tokens. */
 export const PODIUM_COINS = [25, 15, 10] as const;
 
-export type Slot = "outfit" | "glasses" | "hat" | "pet";
+export type Slot = "outfit" | "glasses" | "hat" | "pet" | WardrobeSlot;
 
 export interface Item {
   /** `<slot>.<index>`, e.g. `pet.2`, `furn.<ch>` for furniture, or `merch.<companyId>.<kind>`. */
@@ -31,8 +35,14 @@ export interface Item {
   level?: number;
   /** Can change hands. Rewards, merch and company furniture can't. */
   tradeable: boolean;
+  /** Without one, `rarityOf` goes by price. */
+  rarity?: Rarity;
+  /** One line of flavour, under the name. */
+  blurb?: string;
+  /** How it's earned, for what the shop never sells and nobody can buy (`Piece.earned`). */
+  earned?: string;
   /** Raid loot: which boss drops it, and how rarely (`loot.ts`). Never sold. */
-  loot?: { boss: string; rarity: Rarity };
+  loot?: { boss: string; rarity: LootRarity };
   /** Company furniture: bought from a company wallet, for its building. */
   company?: true;
   /** Merch: whose. */
@@ -75,6 +85,10 @@ export const ITEMS: readonly Item[] = [
   reward("hat", 4, "Top hat", 10),
   reward("outfit", 12, "Server-rack armour", 20),
   reward("pet", 6, "Singularity orb", 30),
+  ...HEADWEAR_ITEMS,
+  // Sold only off the traveling merchant's cart (`merchant.ts`).
+  ...EDITIONS,
+  ...WARDROBE,
   ...FURNITURE.map(
     (f, index): Item => ({
       id: `furn.${f.ch}`,
@@ -82,7 +96,8 @@ export const ITEMS: readonly Item[] = [
       index,
       name: f.name,
       price: f.price,
-      tradeable: true,
+      tradeable: !f.earned,
+      ...(f.earned && { earned: f.earned }),
     }),
   ),
   // Raid loot: dropped by the bosses, never sold, and tradeable.
@@ -94,6 +109,8 @@ export const ITEMS: readonly Item[] = [
       name: l.name,
       price: 0,
       tradeable: true,
+      rarity: l.rarity,
+      blurb: l.blurb,
       loot: { boss: l.boss, rarity: l.rarity },
     }),
   ),
@@ -171,8 +188,24 @@ export const merchIn = (look: Look): string[] =>
 
 // MARK: Trading
 
-/** Items that can change hands: everything but level rewards. */
+/** Items that can change hands: everything but level rewards and earned pieces. */
 export const isTradeable = (id: unknown): boolean => itemById(id)?.tradeable ?? false;
+
+/**
+ * Whether `by` can put `item` down in `room`: anything that can change hands, anywhere; an earned piece
+ * of furniture (Touched grass) only in their own office, where nobody else can pick it up.
+ */
+export function canDropIn(item: unknown, room: string, by: number): boolean {
+  const i = itemById(item);
+  if (!i) return false;
+  return i.tradeable || (i.slot === "furniture" && i.earned !== undefined && room === `office:${by}`);
+}
+
+/** An earned piece of furniture: it leaves your bag only for your own office's floor (`canDropIn`). */
+export const isKeepsake = (id: unknown): boolean => {
+  const i = itemById(id);
+  return i?.slot === "furniture" && i.earned !== undefined;
+};
 
 /** One side of a trade: what someone gives. */
 export interface Side {

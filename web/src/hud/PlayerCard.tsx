@@ -1,5 +1,6 @@
 import { BADGES } from "@tokenmaxxing/core/badges.ts";
 import { BOTS } from "@tokenmaxxing/core/bots.ts";
+import { COP_ID } from "@tokenmaxxing/core/cop.ts";
 import {
   compact,
   hoursText,
@@ -9,15 +10,23 @@ import {
   plural,
   usd,
 } from "@tokenmaxxing/core/format.ts";
+import {
+  LEGENDARY_LEVEL,
+  milestoneText,
+  milestoneTitle,
+  nextMilestone,
+} from "@tokenmaxxing/core/milestones.ts";
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
 import { ITEMS } from "@tokenmaxxing/core/shop.ts";
 import type { Profile } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
+import { copFrame } from "../art/cop.ts";
 import { send } from "../game/input.ts";
 import { world } from "../game/world.ts";
 import { conn, errorText, town } from "../net.ts";
 import { hud } from "../store.ts";
 import { Computers } from "./Computers.tsx";
+import { Tickets } from "./Tickets.tsx";
 import { AvatarImage, Modal, Pills } from "./ui.tsx";
 
 export const RANGES = [
@@ -43,7 +52,11 @@ export function BotCard({ id }: { id: number }) {
   return (
     <Modal title={bot.name}>
       <div className="card-head">
-        <AvatarImage look={bot.look} scale={5} />
+        <AvatarImage
+          look={bot.look}
+          scale={5}
+          frame={bot.id === COP_ID ? copFrame("down", "stand", null) : undefined}
+        />
         <div>
           <p>
             <strong>Level {bot.level}</strong> · 🤖 Town character
@@ -76,7 +89,12 @@ export function PlayerCard({ userId }: { userId: number }) {
   const t = p.totals;
   const status = doing(userId);
   const today = p.daily.at(-1)?.tokens ?? 0;
-  const reward = ITEMS.find((i) => i.level !== undefined && i.level > p.level);
+  const next = nextMilestone(p.level);
+  const title = milestoneTitle(p.level);
+  // The item packs' rewards come between milestones: show the next one if it's sooner.
+  const reward = ITEMS.filter(
+    (i) => i.level !== undefined && i.level > p.level && i.level < (next?.level ?? Infinity),
+  ).sort((a, b) => a.level! - b.level!)[0];
   const mine = userId === world.selfId;
   const visit = () => {
     hud.set({ panel: null });
@@ -93,8 +111,11 @@ export function PlayerCard({ userId }: { userId: number }) {
       }
     >
       <div className="card-head">
-        <AvatarImage look={p.look} scale={5} />
+        <AvatarImage look={p.look} scale={5} aura={p.level >= LEGENDARY_LEVEL} />
         <div>
+          {title && (
+            <p className={`milestone-title${p.level >= LEGENDARY_LEVEL ? " legendary" : ""}`}>🏅 {title}</p>
+          )}
           <p>
             <strong>Level {p.level}</strong> · {p.levelTitle}
             {today > 0 && <span className="xp-today small"> · +{compact(today)} today</span>}
@@ -115,6 +136,11 @@ export function PlayerCard({ userId }: { userId: number }) {
               Reward at Lv{reward.level}: {reward.name}
             </p>
           )}
+          {next && (
+            <p className="muted small">
+              Lv{next.level} milestone: {milestoneText(next)}
+            </p>
+          )}
           {p.badges.length > 0 && (
             <ul className="badges">
               {p.badges.map((b) => {
@@ -127,6 +153,7 @@ export function PlayerCard({ userId }: { userId: number }) {
               })}
             </ul>
           )}
+          <Tickets tickets={p.tickets} />
           {p.company ? (
             <p>
               <button

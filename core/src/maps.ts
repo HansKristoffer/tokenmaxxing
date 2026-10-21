@@ -33,6 +33,8 @@ export const LEGEND: Record<string, TileKind> = {
   L: { name: "lamp", text: "The lamp hums quietly. It's always on, like a good server." },
   F: { name: "fountain", text: "A fountain. People toss spare tokens in for luck." },
   N: { name: "board", text: "The leaderboard." },
+  // The Inn's chalkboard: the client writes today's special on it.
+  K: { name: "chalkboard" },
   B: { name: "bench", seat: "bench", text: "A bench with a view of the square." },
   H: { name: "building" },
   W: { name: "wall" },
@@ -43,12 +45,19 @@ export const LEGEND: Record<string, TileKind> = {
   t: { name: "tv", text: "It's a show about context windows. Season 7." },
   k: { name: "shelf", text: "Books about prompting, caching and cold starts." },
   p: { name: "plant", text: "A healthy plant. Someone remembers to water it." },
+  // Earned at an outage picnic, never sold (`office.ts`).
+  g: {
+    name: "touched grass",
+    text: "🌱 Touched grass. A patch from an outage picnic: the agents stopped, and you went outside.",
+  },
   o: { name: "coffee", pours: true },
   Q: { name: "pet bed", text: "A round cushion basket. Your pet curls up here when you're in your office." },
   I: { name: "inn door", portal: true },
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
   R: { name: "office door", portal: true },
+  // Its trophies are its owner's (`trophies.ts`); E shows what each is for.
+  U: { name: "trophy shelf" },
   G: { name: "dungeon gate", portal: true },
   q: { name: "stone floor", walk: true },
   Z: { name: "dais", text: "The boss's dais. It hums with stolen compute." },
@@ -177,7 +186,7 @@ const CORE = [
   ",.~~~~~,..HHHHHHH...",
   ",.~~~~~,..HHHHHHH...",
   ",..~~~.,..HHHIHHH...",
-  ',.."...,.....,......',
+  ',.."...,.....,.K....',
   ",..T...,,,,,,,......",
   ',..........".....^..',
 ];
@@ -377,7 +386,7 @@ export const MAPS: Record<MapId, GameMap> = {
   // offices per house tier would be an `OFFICE_SIZES` table.
   office: new GameMap("office", "Office", [
     "WWWWWWWWWWWW",
-    "W__________W",
+    "W____UUUU__W",
     "W__________W",
     "W__________W",
     "W__________W",

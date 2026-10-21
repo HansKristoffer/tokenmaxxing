@@ -2,13 +2,17 @@
  * The world's rules and wire types, shared by the `world` actor and the game
  * client. Everything here is pure so it can be tested without Rivet.
  */
+
+import { editionAt } from "./editions.ts";
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
+import { LOOT_COUNT, LOOT_FIRST } from "./loot.ts";
 import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
 import { type Door, doorAt, HQS, type Piece, pieceOf, withPieces } from "./office.ts";
 import { cleanPetName, MAX_PET_LOOKS, petLooks } from "./pets.ts";
 import { itemById } from "./shop.ts";
 import type { Weather } from "./sky.ts";
+import { WARDROBE_OPTIONS } from "./wardrobe.ts";
 
 export const TILE = 16;
 /** Client animation time per step; the server only enforces the running pace. */
@@ -119,6 +123,10 @@ export interface Look {
   glasses: number;
   hat: number;
   pet: number;
+  /** Wardrobe extras (wardrobe.ts); 0 is none. */
+  held: number;
+  back: number;
+  petwear: number;
   /** Which look of the worn pet: 0 is the original, n is `PET_VARIANTS[pet][n - 1]`. Always 0 without a pet. */
   petVariant: number;
   /** What the pet is called (`cleanPetName`); left out when it has none. */
@@ -131,15 +139,28 @@ export const LOOK_OPTIONS: Record<Exclude<keyof Look, "merch" | "petName">, numb
   style: 4,
   skin: 4,
   hair: 6,
-  outfit: 16,
-  glasses: 7,
-  hat: 9,
-  pet: 11,
+  outfit: LOOT_FIRST.outfit + LOOT_COUNT.outfit,
+  glasses: LOOT_FIRST.glasses + LOOT_COUNT.glasses,
+  hat: LOOT_FIRST.hat + LOOT_COUNT.hat,
+  pet: LOOT_FIRST.pet + LOOT_COUNT.pet,
+  held: WARDROBE_OPTIONS.held,
+  back: WARDROBE_OPTIONS.back,
+  petwear: WARDROBE_OPTIONS.petwear,
   petVariant: MAX_PET_LOOKS,
   merchWorn: 16,
 };
-/** Looks saved before the shop (or before merch, or pet looks) have no extras. */
-const EXTRAS = { glasses: 0, hat: 0, pet: 0, petVariant: 0, merch: 0, merchWorn: 0 };
+/** Looks saved before the shop (or before the wardrobe, merch or pet looks) have no extras. */
+const EXTRAS = {
+  glasses: 0,
+  hat: 0,
+  pet: 0,
+  held: 0,
+  back: 0,
+  petwear: 0,
+  petVariant: 0,
+  merch: 0,
+  merchWorn: 0,
+};
 export const STYLE_NAMES = ["Short hair and tee", "Cap and hoodie", "Bun and jacket", "Long hair and skirt"];
 
 export function parseLook(raw: unknown): Look | null {
@@ -148,7 +169,8 @@ export function parseLook(raw: unknown): Look | null {
   const out = {} as Look;
   for (const k of Object.keys(LOOK_OPTIONS) as (keyof typeof LOOK_OPTIONS)[]) {
     const v = r[k];
-    if (!Number.isInteger(v) || (v as number) < 0 || (v as number) >= LOOK_OPTIONS[k]) return null;
+    if (!Number.isInteger(v) || (v as number) < 0) return null;
+    if ((v as number) >= LOOK_OPTIONS[k] && !editionAt(k, v as number)) return null;
     out[k] = v as number;
   }
   if (out.petVariant >= petLooks(out.pet)) return null;
@@ -192,6 +214,8 @@ export interface PlayerInfo {
   online: boolean;
   /** When their coffee wears off (epoch ms); see `drinkCoffee`. */
   coffeeUntil: number;
+  /** When their pølse wears off (epoch ms); see `POLSE` in `street.ts`. */
+  polseUntil: number;
   /** Online but no input for `IDLE_MS`: snoozing in place. */
   dozing: boolean;
 }
@@ -407,11 +431,11 @@ export const cupsLeft = (until: number, now: number): number => Math.max(0, unti
 export const STEP_BURST = 4;
 
 /**
- * A token bucket that refills at running pace. Returns the new budget, or null
- * when the step comes too fast.
+ * A token bucket that refills at running pace (times `pace`: a pølse makes it quicker). Returns the
+ * new budget, or null when the step comes too fast.
  */
-export function takeStep(budget: number, lastAt: number, now: number): number | null {
-  const refilled = Math.min(STEP_BURST, budget + (now - lastAt) / (RUN_STEP_MS * 0.8));
+export function takeStep(budget: number, lastAt: number, now: number, pace = 1): number | null {
+  const refilled = Math.min(STEP_BURST, budget + (now - lastAt) / (RUN_STEP_MS * 0.8 * pace));
   return refilled >= 1 ? refilled - 1 : null;
 }
 

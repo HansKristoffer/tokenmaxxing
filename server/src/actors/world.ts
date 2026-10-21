@@ -1,5 +1,15 @@
 import { BOTS, between, chase, isBot, lineFor, pick, toCoffee, wander } from "@tokenmaxxing/core/bots.ts";
 import {
+  BURN_FRESH_MS,
+  type Burn,
+  COP,
+  chargeOf,
+  pullOverLine,
+  speeder,
+  ticketLine,
+  writeTicket,
+} from "@tokenmaxxing/core/cop.ts";
+import {
   findSpot,
   propTiles,
   type Seat,
@@ -21,7 +31,11 @@ import {
   setHq,
   withPieces,
 } from "@tokenmaxxing/core/office.ts";
+import { type Outage, onBlanket, PICNIC_SEATS, sameOutage } from "@tokenmaxxing/core/picnic.ts";
+import { dayKey } from "@tokenmaxxing/core/range.ts";
+import { canDropIn } from "@tokenmaxxing/core/shop.ts";
 import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
+import { cartOpen, facesCart, hasPolse, isCart, POLSE, stepPace } from "@tokenmaxxing/core/street.ts";
 import {
   baseMap,
   CHAT_HISTORY,
@@ -73,6 +87,7 @@ import {
 } from "@tokenmaxxing/core/world.ts";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
+import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { parseChatText } from "../validate.ts";
 import { fetchWeather, initialWeather, pinnedWeather, WEATHER_EVERY_MS } from "../weather.ts";
@@ -104,6 +119,8 @@ interface WorldPlayer extends PlayerCore, Place {
   arena?: Seat | null;
   /** Optional: players from before coffee have had none. */
   coffeeUntil?: number;
+  /** Optional, like coffee: when their pølse wears off. */
+  polseUntil?: number;
   /** Online with no input for `IDLE_MS`; cleared by the next input. */
   dozing?: boolean;
 }
@@ -131,6 +148,8 @@ const COFFEE_LINES = [
   "☕☕☕☕☕☕ The machine refuses to make it any stronger. You vibrate anyway.",
 ];
 const CHAT_PER_MIN = 20;
+const PICNIC_BADGE =
+  "🧺 I was there. The outage picnic is on your card now, and 🌱 Touched grass is in your bag for your office.";
 /** At most this many drops on one room's floor (an office holds `OFFICE_PIECES`). */
 const DROPS_PER_ROOM = 30;
 const REST_CHECK_EVERY = 10; // ticks
@@ -176,6 +195,7 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   liveAgents: p.liveAgents,
   online: online || isBot(p.id),
   coffeeUntil: p.coffeeUntil ?? 0,
+  polseUntil: p.polseUntil ?? 0,
   dozing: online && !!p.dozing,
   x: p.x,
   y: p.y,
@@ -215,6 +235,10 @@ export const world = actor({
     raidersAt: 0,
     tokens: new Map() as TokenCache,
     bots: new Map<number, BotRun>(),
+    /** The outage picnic: one status check for everyone (`picnic.ts`), kept when a check fails. */
+    outage: null as Outage | null,
+    outageAt: 0,
+    cop: { burns: new Map(), ticketed: new Map(), chase: null, freeAt: 0 } as CopVars,
     /** The sky: one fetch for everyone (`weather.ts`), kept when a fetch fails. */
     weather: initialWeather() as Weather,
     weatherAt: 0,
@@ -273,6 +297,11 @@ export const world = actor({
         for (const p of walkBots(c.state, c.vars, now)) c.broadcast("info", info(p, true));
         talkBots(c, now);
       }
+      if (now >= c.vars.outageAt) {
+        c.vars.outageAt = now + OUTAGE_EVERY_MS;
+        void refreshOutage(c, now);
+      }
+      copBeat(c, now);
       if (now >= c.vars.weatherAt) {
         c.vars.weatherAt = now + WEATHER_EVERY_MS;
         void refreshWeather(c);
@@ -299,6 +328,7 @@ export const world = actor({
       p.dozing = false;
       if (wake(c.state, p)) c.vars.dirty.add(p.id);
       c.broadcast("info", info(p, true));
+      c.conn.send("outage", c.vars.outage);
       return snapshot(c.state, c.vars.online, c.vars.weather, p, chatOf(c.db, p.room));
     },
 
@@ -316,7 +346,7 @@ export const world = actor({
         return correction(p);
       }
       const s = c.vars.steps.get(userId) ?? { budget: STEP_BURST, at: 0 };
-      const budget = takeStep(s.budget, s.at, now);
+      const budget = takeStep(s.budget, s.at, now, stepPace(p.polseUntil ?? 0, now));
       if (budget === null) return correction(p);
       c.vars.steps.set(userId, { budget, at: now });
 
@@ -365,11 +395,20 @@ export const world = actor({
       const x = p.x + dx;
       const y = p.y + dy;
       const seat = mapOf(p.room).kind(x, y).seat;
+      // At an outage picnic the blankets are seats too, and sitting on one earns its badge.
+      const outage = p.room === "town" && onBlanket(x, y) ? c.vars.outage : null;
       const taken = Object.values(c.state.players).some((o) => o.room === p.room && o.x === x && o.y === y);
-      if (!seat) return null;
+      if (!seat && !outage) return null;
       if (taken) return { notice: "Someone's already there." };
       Object.assign(p, { x, y, state: "sit", facing: seat === "chair" ? "up" : "down" });
       c.vars.dirty.add(p.id);
+      if (outage)
+        void main(c.client())
+          .town.picnicked(userId, outage.since)
+          .then((fresh) => {
+            if (fresh) c.conn.send("notice", { text: PICNIC_BADGE } satisfies Notice);
+          })
+          .catch((err) => console.warn(`[picnic] ${userId}: ${String(err)}`));
       return correction(p);
     },
 
@@ -387,6 +426,22 @@ export const world = actor({
       c.broadcast("info", info(p, c.vars.online.has(p.id)));
       const cups = Math.round(cupsLeft(p.coffeeUntil, now));
       return { notice: COFFEE_LINES[Math.min(cups, COFFEE_LINES.length) - 1]! };
+    },
+
+    /** E at the pølsevogn while it's open: a free rød pølse, and a quicker walk for a while. */
+    eat: (c, facing: unknown): StepResult => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || p.state === "playing" || p.room !== "town") return null;
+      const now = Date.now();
+      touch(c, p, now);
+      if (isFacing(facing)) p.facing = facing;
+      if (!facesCart(p.x, p.y, p.facing)) return null;
+      if (!cartOpen(now)) return { notice: "🌭 Lukket. The pølsevogn opens 11:00 to 14:00." };
+      if (hasPolse(p.polseUntil ?? 0, now)) return { notice: "🌭 You're still full from the last one." };
+      p.polseUntil = now + POLSE.ms;
+      c.broadcast("info", info(p, c.vars.online.has(p.id)));
+      return { notice: `🌭 One rød pølse, med det hele. You walk quicker for ${POLSE.ms / 60_000} minutes.` };
     },
 
     /**
@@ -726,6 +781,8 @@ export const world = actor({
       const cap =
         ownerOfOffice(p?.room ?? "town") === null && co === undefined ? DROPS_PER_ROOM : OFFICE_PIECES;
       if (!p || here.length >= cap) return full;
+      // Touched grass is earned, not loot: only onto your own office's floor, where nobody else takes it.
+      if (!canDropIn(item, p.room, by)) return { notice: "That one only goes down in your own office." };
       const map = mapOf(p.room);
       const piece = pieceOfDrop({ item });
       const w = piece?.w ?? 1;
@@ -781,8 +838,9 @@ export const world = actor({
     },
 
     /** From `player` after an ingest: offline players work at their desk while agents run. */
-    activity: (c, userId: number, lastAt: number, liveAgents: number, burn = 0): void => {
+    activity: (c, userId: number, lastAt: number, liveAgents: number, burn = 0, hourTokens = 0): void => {
       requireInternal(c.conn.state);
+      c.vars.cop.burns.set(userId, { id: userId, tokens: hourTokens, at: Date.now() });
       const p = c.state.players[userId];
       if (!p) return;
       p.lastAgentAt = Math.max(p.lastAgentAt, lastAt);
@@ -813,6 +871,7 @@ type Vars = {
   hidden: Set<number>;
   occupancy: string;
   houses: string;
+  outage: Outage | null;
   weather: Weather;
   raiders: string;
   raidersAt: number;
@@ -974,8 +1033,9 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
   return dozed;
 }
 
-/** A table or desk of a game in town: nobody walks onto it. */
+/** A table or desk of a game in town, or the pølsevogn: nobody walks onto it. */
 const onProp = (s: WorldState, x: number, y: number) =>
+  isCart(x, y) ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
 
 /** A line in a room's chat from the town itself (a game's result). */
@@ -1053,6 +1113,19 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
     const p = s.players[b.id];
     const run = runOf(v, b.id, b.every, now);
     if (p?.room !== "town" || now < run.restUntil) continue;
+    // An outage picnic: off to its seat on a blanket, and it sits there until it's over (`refreshOutage`).
+    const seat = v.outage ? PICNIC_SEATS[BOTS.indexOf(b) % PICNIC_SEATS.length]! : null;
+    if (seat && p.x === seat[0] && p.y === seat[1]) {
+      if (p.state !== "sit") {
+        Object.assign(p, { state: "sit", facing: "down" });
+        v.dirty.add(p.id);
+      }
+      continue;
+    }
+    if (seat) {
+      Object.assign(run, { following: null, coffee: null });
+      if (run.path.length === 0) run.path = route(map, [p.x, p.y], seat) ?? [];
+    }
     // Following someone: until they leave town or go offline, or it gets boring.
     if (run.following !== null && (now > run.followUntil || !inTown.includes(run.following))) {
       run.following = null;
@@ -1119,6 +1192,113 @@ function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> } }, no
   }
 }
 
+// MARK: The 429 Cop (core/src/cop.ts)
+
+/** How fast he runs after a speeder, how long before he gives up, and how long he stands writing. */
+const COP_STEP_MS = 180;
+const COP_CHASE_MS = 60_000;
+const COP_WRITE_MS = 8_000;
+
+/** What the cop knows, in memory: a restart forgets it, and `town` still stops a second ticket in a day. */
+interface CopVars {
+  /** Each player's last hour of tokens, from their last sync. */
+  burns: Map<number, Burn>;
+  /** The world day each player was last pulled over. */
+  ticketed: Map<number, string>;
+  chase: { id: number; tokens: number; until: number; stepAt: number } | null;
+  /** Writing up the last one (or catching his breath) until then. */
+  freeAt: number;
+}
+
+/**
+ * Every tick: when he's free and someone in town is speeding (`speeder`), he takes over from his usual
+ * stroll (`walkBots` leaves him be while `restUntil` is ahead) and runs to them; next to them, he writes
+ * the ticket. Nothing is taken.
+ */
+function copBeat(
+  c: Sender & {
+    vars: Vars & { bots: Map<number, BotRun>; cop: CopVars };
+    client: () => Parameters<typeof main>[0];
+  },
+  now: number,
+): void {
+  const cop = c.state.players[COP.id];
+  const run = c.vars.bots.get(COP.id);
+  const v = c.vars.cop;
+  if (cop?.room !== "town" || !run) return;
+  const today = dayKey(now);
+  const inTown = (id: number) => c.vars.online.has(id) && c.state.players[id]?.room === "town";
+  if (!v.chase) {
+    if (run.following !== null || run.coffee || now < v.freeAt) return;
+    for (const [id, b] of v.burns) if (now - b.at > BURN_FRESH_MS) v.burns.delete(id);
+    const hit = speeder(
+      v.burns.values(),
+      now,
+      (id) =>
+        !inTown(id) ||
+        v.ticketed.get(id) === today ||
+        [...c.vars.bots.values()].some((r) => r.following === id),
+    );
+    if (!hit) return;
+    v.chase = { id: hit.id, tokens: hit.tokens, until: now + COP_CHASE_MS, stepAt: now };
+    Object.assign(run, {
+      path: [],
+      restUntil: now + COP_CHASE_MS + COP_WRITE_MS,
+      sayAt: now + COP_CHASE_MS * 2,
+    });
+    sendToRoom(c, "town", "bubble", { userId: cop.id, text: pullOverLine(c.state.players[hit.id]!.name) });
+    return;
+  }
+  const hunt = v.chase;
+  const target = c.state.players[hunt.id];
+  const done = () => {
+    v.chase = null;
+    v.freeAt = now + COP_WRITE_MS;
+    Object.assign(run, { restUntil: now + COP_WRITE_MS, sayAt: now + between(COP.every) });
+  };
+  // Got away: out of town, offline, or just too quick.
+  if (!target || !inTown(target.id) || now > hunt.until) {
+    done();
+    return;
+  }
+  if (now < hunt.stepAt) return;
+  hunt.stepAt = now + COP_STEP_MS;
+  const map = mapOf("town");
+  const dir = chase(map, cop.x, cop.y, target.x, target.y);
+  if (dir) {
+    const to = stepTarget(map, cop.x, cop.y, dir);
+    cop.facing = dir;
+    if (to.kind === "move" && !onProp(c.state, to.x, to.y)) Object.assign(cop, { x: to.x, y: to.y });
+    c.vars.dirty.add(cop.id);
+    return;
+  }
+  // No way there.
+  if (Math.abs(target.x - cop.x) + Math.abs(target.y - cop.y) > 1) {
+    done();
+    return;
+  }
+  // Caught up: face them and write it.
+  cop.facing = target.x < cop.x ? "left" : target.x > cop.x ? "right" : target.y < cop.y ? "up" : "down";
+  c.vars.dirty.add(cop.id);
+  done();
+  v.ticketed.set(target.id, today);
+  const ticket = writeTicket(today, hunt.tokens);
+  sendToRoom(c, "town", "bubble", { userId: cop.id, text: ticketLine(ticket) });
+  main(c.client())
+    .town.ticket(target.id, ticket)
+    .then((count) => {
+      if (count === null) return;
+      sendToRoom(c, "town", "bubble", { userId: target.id, text: "🎫" });
+      const text = `🎫 Ticket #${count} from Officer 429: ${chargeOf(ticket)}. Nothing taken: it's on your card.`;
+      for (const conn of c.conns.values()) {
+        const s = conn.state as ConnState;
+        if (s.kind === "user" && s.joined && s.userId === target.id)
+          conn.send("notice", { text } satisfies Notice);
+      }
+    })
+    .catch((err) => console.warn("[world] ticket", err));
+}
+
 const correction = (p: WorldPlayer): StepResult => ({
   x: p.x,
   y: p.y,
@@ -1178,6 +1358,29 @@ async function snapshot(
     weather,
     raiders: room === "dungeon" ? raiders(s, Date.now()) : null,
   };
+}
+
+/**
+ * Reads the status pages (or `PICNIC_OUTAGE`), and tells everyone when the picnic starts, changes or
+ * ends. When it ends, whoever sat on a blanket (bots too) stands up.
+ */
+async function refreshOutage(
+  c: Sender & { vars: Vars; broadcast(name: string, ...args: unknown[]): void },
+  now: number,
+): Promise<void> {
+  const prev = c.vars.outage;
+  const pinned = forced(now);
+  const next =
+    pinned === undefined ? await checkOutage(prev, now) : pinned && { ...pinned, since: prev?.since ?? now };
+  if (sameOutage(next, c.vars.outage)) return;
+  c.vars.outage = next;
+  c.broadcast("outage", next);
+  if (next) return;
+  for (const p of Object.values(c.state.players))
+    if (p.room === "town" && p.state === "sit" && onBlanket(p.x, p.y)) {
+      p.state = "idle";
+      c.vars.dirty.add(p.id);
+    }
 }
 
 /**
