@@ -34,7 +34,6 @@ const env = () => ({
   CLAUDE_CONFIG_DIR: join(dir, "claude"),
   CODEX_HOME: join(dir, "codex"),
   CURSOR_DATA_DIR: join(dir, "cursor"),
-  CURSOR_PROJECTS_DIR: join(dir, "cursor-projects"),
   TOKENMAXXING_CLAUDE_COWORK_DIR: join(dir, "cowork"),
   TOKENMAXXING_POSTHOG_DESKTOP_DIR: join(dir, "posthog"),
 });

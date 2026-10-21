@@ -80,7 +80,7 @@ export const bannerFor = (o: Outage): string =>
 // MARK: The blankets
 
 /** A blanket on the grass below the square, in town tiles (the square is always at block (0, 0)). */
-export interface Blanket {
+interface Blanket {
   x: number;
   y: number;
   w: number;

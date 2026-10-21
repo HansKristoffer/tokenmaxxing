@@ -16,7 +16,6 @@ beforeEach(async () => {
   process.env.CLAUDE_CONFIG_DIR = join(dir, "claude");
   process.env.CODEX_HOME = join(dir, "codex");
   process.env.CURSOR_DATA_DIR = join(dir, "cursor");
-  process.env.CURSOR_PROJECTS_DIR = join(dir, "cursor-projects");
   process.env.TOKENMAXXING_CLAUDE_COWORK_DIR = join(dir, "cowork");
   process.env.TOKENMAXXING_POSTHOG_DESKTOP_DIR = join(dir, "posthog");
   await mkdir(join(dir, "claude", "projects", "p"), { recursive: true });
@@ -40,7 +39,6 @@ afterEach(async () => {
     "CLAUDE_CONFIG_DIR",
     "CODEX_HOME",
     "CURSOR_DATA_DIR",
-    "CURSOR_PROJECTS_DIR",
     "TOKENMAXXING_CLAUDE_COWORK_DIR",
     "TOKENMAXXING_POSTHOG_DESKTOP_DIR",
   ]) {

@@ -4,7 +4,7 @@
  * someone calls "Liar!". Whoever was wrong loses a die; the last with dice wins.
  */
 import { random } from "./random.ts";
-import { type Callout, type GameDef, refused } from "./types.ts";
+import { type Callout, type GameDef, lastStanding, refused } from "./types.ts";
 
 const DICE = 5;
 export const TURN_MS = 30_000;
@@ -12,7 +12,7 @@ export const REVEAL_MS = 4_000;
 /** 🦄 is the 1: wild, and not claimable itself. */
 export const FACES = ["", "🦄", "📉", "📊", "📈", "🚀", "💰"] as const;
 
-export interface Claim {
+interface Claim {
   player: number;
   count: number;
   face: number;
@@ -168,12 +168,8 @@ export const dice: GameDef<DiceState, DiceView> = {
     };
   },
 
-  outcome(s) {
-    const left = alive(s);
-    // Everyone leaving at once still ends it: the last one out places best.
-    const gone = [...s.out].reverse().map((p) => [p]);
-    return left.length <= 1 ? { places: [left, ...gone].filter((g) => g.length > 0) } : null;
-  },
+  // Everyone leaving at once still ends it: the last one out places best.
+  outcome: (s) => lastStanding(alive(s), s.out),
 
   betsCloseAt: (s) => s.startedAt + 20_000,
 

@@ -26,7 +26,7 @@ export interface TrophyFacts {
   today: string;
 }
 
-export interface TrophyDef {
+interface TrophyDef {
   id: string;
   name: string;
   /** How it's earned, for the shelf's list. */
@@ -239,8 +239,6 @@ export const TROPHIES: readonly TrophyDef[] = [
     earned: (f) => first(f.hours, (h) => h.prompts >= 60),
   },
 ];
-
-export const trophyById = (id: string): TrophyDef | undefined => TROPHIES.find((t) => t.id === id);
 
 /** Every trophy earned, in shelf order, with the day it was first earned. */
 export function trophiesFor(f: TrophyFacts): Trophy[] {

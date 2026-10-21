@@ -4,10 +4,10 @@
  * user's (those start at 1).
  */
 import { COP } from "./cop.ts";
-import { BOT_LEVEL, compact } from "./format.ts";
+import { BOT_LEVEL, compact, fill } from "./format.ts";
 import type { GameMap } from "./maps.ts";
 import { worldClock } from "./range.ts";
-import { type Facing, type Look, route } from "./world.ts";
+import { type Facing, type Look, lookWith, route } from "./world.ts";
 
 export interface BotDef {
   /** Negative and unique. */
@@ -31,7 +31,7 @@ export interface BotDef {
 }
 
 /** A time on the world's clock (Copenhagen): on `days` (0 is Sunday; all if left out), hours `from` to `to`. */
-export interface Moment {
+interface Moment {
   days?: number[];
   from?: number;
   to?: number;
@@ -43,21 +43,7 @@ export const BOTS: BotDef[] = [
   {
     id: -1,
     name: "Seb - AROX",
-    look: {
-      style: 1,
-      skin: 0,
-      hair: 2,
-      outfit: 5,
-      glasses: 1,
-      hat: 0,
-      pet: 0,
-      held: 7,
-      back: 6,
-      petwear: 0,
-      petVariant: 0,
-      merch: 0,
-      merchWorn: 0,
-    },
+    look: lookWith({ style: 1, skin: 0, hair: 2, outfit: 5, glasses: 1, held: 7, back: 6 }),
     level: BOT_LEVEL,
     bio: "Står bag Arox (arox.dk): grips, sjippetove og knee sleeves til CrossFit. Har set verdens undergang komme siden første ordre. Pakker stadig ordrer kl. 22.",
     lines: [
@@ -157,21 +143,7 @@ export const BOTS: BotDef[] = [
   {
     id: -2,
     name: "Jesper Buch",
-    look: {
-      style: 0,
-      skin: 0,
-      hair: 1,
-      outfit: 9,
-      glasses: 2,
-      hat: 0,
-      pet: 0,
-      held: 3,
-      back: 0,
-      petwear: 0,
-      petVariant: 0,
-      merch: 0,
-      merchWorn: 0,
-    },
+    look: lookWith({ style: 0, skin: 0, hair: 1, outfit: 9, glasses: 2, held: 3 }),
     level: BOT_LEVEL,
     bio: "Investor. Startede Just Eat i en kælder i Kolding. Går rundt i byen og sørger for, at ingen hviler sig. Han er ikke mr. Nice Guy.",
     lines: [
@@ -290,7 +262,7 @@ export function toCoffee(map: GameMap, x: number, y: number): { path: Facing[]; 
 }
 
 /** What the bot is up to, for picking what it says. */
-export interface Context {
+interface Context {
   /** Who it's following. */
   leader?: { name: string; todayTokens: number } | null;
   /** Cups in its system, after a trip to the coffee machine. */
@@ -302,25 +274,26 @@ export interface Context {
  * time), something for the time of day (half the time), or anything.
  */
 export function lineFor(bot: BotDef, at: number, ctx: Context = {}, rand = Math.random): string {
-  const fill = (line: string) =>
-    line
-      .replaceAll("{name}", ctx.leader?.name ?? "")
-      .replaceAll("{tokens}", compact(ctx.leader?.todayTokens ?? 0))
-      .replaceAll("{cups}", String(ctx.cups ?? 0));
-  if (ctx.cups && bot.coffeeLines?.length) return fill(pick(bot.coffeeLines, rand));
+  const say = (line: string) =>
+    fill(line, {
+      name: ctx.leader?.name ?? "",
+      tokens: compact(ctx.leader?.todayTokens ?? 0),
+      cups: ctx.cups ?? 0,
+    });
+  if (ctx.cups && bot.coffeeLines?.length) return say(pick(bot.coffeeLines, rand));
   // "0 tokens i dag? Gå hjem." doesn't land: skip token lines for someone with none.
   const toLeader = (bot.followLines ?? []).filter((l) => ctx.leader?.todayTokens || !l.includes("{tokens}"));
-  if (ctx.leader && toLeader.length && rand() < 0.6) return fill(pick(toLeader, rand));
+  if (ctx.leader && toLeader.length && rand() < 0.6) return say(pick(toLeader, rand));
   const { day, hour } = worldClock(at);
   const now = (bot.moments ?? []).filter(
     (m) => (!m.days || m.days.includes(day)) && hour >= (m.from ?? 0) && hour < (m.to ?? 24),
   );
   if (now.length && rand() < 0.5)
-    return fill(
+    return say(
       pick(
         now.flatMap((m) => m.lines),
         rand,
       ),
     );
-  return fill(pick(bot.lines, rand));
+  return say(pick(bot.lines, rand));
 }

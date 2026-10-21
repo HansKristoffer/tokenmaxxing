@@ -7,7 +7,8 @@
 import type { Rarity } from "./rarity.ts";
 import type { Item } from "./shop.ts";
 
-interface Wearable {
+/** One row of a catalog of things to wear. */
+export interface Wearable {
   name: string;
   rarity: Rarity;
   /** Sold for this; or */
@@ -18,9 +19,9 @@ interface Wearable {
 }
 
 /** Hats before the pack: none, beanie, headphones, crown, top hat. */
-export const FIRST_HAT = 5;
+const FIRST_HAT = 5;
 /** Glasses before the pack: none, nerd specs, shades, heart glasses. */
-export const FIRST_FACE = 4;
+const FIRST_FACE = 4;
 
 // biome-ignore format: a catalog reads best one to a line
 export const PACK_HATS: readonly Wearable[] = [
@@ -73,22 +74,21 @@ export const PACK_FACES: readonly Wearable[] = [
 export const HAT_COUNT = FIRST_HAT + PACK_HATS.length;
 export const FACE_COUNT = FIRST_FACE + PACK_FACES.length;
 
-const toItem =
-  (slot: "hat" | "glasses", first: number) =>
-  (w: Wearable, i: number): Item => ({
-    id: `${slot}.${first + i}`,
-    slot,
-    index: first + i,
-    name: w.name,
-    price: w.price ?? 0,
-    ...(w.level !== undefined && { level: w.level }),
-    tradeable: w.level === undefined,
-    rarity: w.rarity,
-    blurb: w.blurb,
-  });
+/** A catalog row as a shop item, worn as `look[slot] = index`. A level reward is never sold or traded. */
+export const wearableItem = (slot: Item["slot"], index: number, w: Wearable): Item => ({
+  id: `${slot}.${index}`,
+  slot,
+  index,
+  name: w.name,
+  price: w.price ?? 0,
+  ...(w.level !== undefined && { level: w.level }),
+  tradeable: w.level === undefined,
+  rarity: w.rarity,
+  blurb: w.blurb,
+});
 
 /** The pack as shop items, appended to `ITEMS`. */
 export const HEADWEAR_ITEMS: readonly Item[] = [
-  ...PACK_HATS.map(toItem("hat", FIRST_HAT)),
-  ...PACK_FACES.map(toItem("glasses", FIRST_FACE)),
+  ...PACK_HATS.map((w, i) => wearableItem("hat", FIRST_HAT + i, w)),
+  ...PACK_FACES.map((w, i) => wearableItem("glasses", FIRST_FACE + i, w)),
 ];

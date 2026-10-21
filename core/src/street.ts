@@ -4,21 +4,13 @@
  * 07:00, the pølsevogn from 11 to 14, and the build snail crossing the square all day.
  */
 import { BLOCK_H } from "./maps.ts";
-import { WORLD_TZ } from "./range.ts";
+import { worldWall } from "./range.ts";
 import { DIRS, type Facing } from "./world.ts";
-
-const timeFormat = new Intl.DateTimeFormat("en-US", {
-  timeZone: WORLD_TZ,
-  hour: "numeric",
-  minute: "numeric",
-  second: "numeric",
-  hourCycle: "h23",
-});
 
 /** Minutes since midnight on the world's clock, with the seconds as a fraction (0 to 1440). */
 export function clockMinutes(ms: number): number {
-  const p = Object.fromEntries(timeFormat.formatToParts(ms).map((x) => [x.type, Number(x.value)]));
-  return p.hour! * 60 + p.minute! + (p.second! + (ms % 1000) / 1000) / 60;
+  const { hour, minute, second } = worldWall(ms);
+  return hour * 60 + minute + (second + (ms % 1000) / 1000) / 60;
 }
 
 /** `HH:MM` or `HH:MM:SS` as minutes since midnight; null for anything else. */
@@ -72,7 +64,7 @@ export const stepPace = (polseUntil: number, now: number): number =>
 /** It leaves at 07:00 from the left of the square and reaches the goal flag at 17:00, along row `y`. */
 export const SNAIL = { y: 5, from: 4, to: 14, leaves: 7 * 60, arrives: 17 * 60 } as const;
 
-export type SnailPhase = "queued" | "deploying" | "deployed";
+type SnailPhase = "queued" | "deploying" | "deployed";
 
 /** Where the snail is (a fractional tile) and how its build is going, at `ms`. */
 export function snailAt(ms: number): { x: number; y: number; phase: SnailPhase; progress: number } {

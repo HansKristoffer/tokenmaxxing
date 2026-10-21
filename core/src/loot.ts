@@ -27,9 +27,9 @@ export const LAP_BONUS = 1.05;
 /** The most the odds ever grow: a 0.1% legendary is never above 1%. (At ×1.05 a lap, it takes 48 laps.) */
 export const LAP_CAP = 10;
 
-export type LootSlot = "outfit" | "glasses" | "hat" | "pet" | "furniture";
+type LootSlot = "outfit" | "glasses" | "hat" | "pet" | "furniture";
 
-export interface Loot {
+interface Loot {
   /** The shop's id: `<slot>.<index>`, or `furn.<ch>` for a trophy. */
   id: string;
   slot: LootSlot;
@@ -158,20 +158,34 @@ export interface LootDrop {
   odds: number;
 }
 
+/**
+ * Kills already rolled. A past kill never changes, but the town works the raid out every 15 s, and
+ * rolling every raider of every kill since the launch is a hash each.
+ */
+const rolled = new Map<string, readonly LootDrop[]>();
+/** About a year of kills, with room for their raiders changing as late syncs land. */
+const ROLLED_MAX = 10_000;
+
 /** What one kill dropped: every one of its raiders rolls every item in its boss's table. */
 export function killDrops(
   week: string,
   kill: { rung: number; day: string; raiders: readonly number[] },
   boost = 1,
-): LootDrop[] {
+): readonly LootDrop[] {
+  const key = `${week}|${kill.rung}|${kill.day}|${boost}|${kill.raiders.join()}`;
+  const hit = rolled.get(key);
+  if (hit) return hit;
   const boss = bossAt(kill.rung);
+  const table = lootOf(boss.id);
   const out: LootDrop[] = [];
   for (const userId of kill.raiders)
-    for (const l of lootOf(boss.id)) {
+    for (const l of table) {
       const odds = lootOdds(l.rarity, boss.level, boost);
       if (lootRoll(week, kill.rung, userId, l.id) < odds)
         out.push({ week, rung: kill.rung, day: kill.day, userId, item: l.id, odds });
     }
+  if (rolled.size >= ROLLED_MAX) rolled.clear();
+  rolled.set(key, out);
   return out;
 }
 

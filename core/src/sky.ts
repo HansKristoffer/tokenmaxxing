@@ -2,9 +2,9 @@
  * The sky over Copenhagen: where the sun and moon are, and what the weather is doing. Pure maths and
  * tables, no network: the server fetches the weather (`server/src/weather.ts`), the client draws all of it.
  */
-import { dayKey } from "./range.ts";
+import { dayKey, pad2, worldWall } from "./range.ts";
 
-export const CPH = { lat: 55.6761, lon: 12.5683, tz: "Europe/Copenhagen" } as const;
+export const CPH = { lat: 55.6761, lon: 12.5683 } as const;
 
 const RAD = Math.PI / 180;
 const DAY_MS = 86_400_000;
@@ -44,11 +44,7 @@ function solar(ms: number): { decl: number; eqTime: number } {
 }
 
 /** The sun's height above the horizon in degrees (negative below), and whether it's still morning. */
-export function sunElevation(
-  ms: number,
-  lat = CPH.lat,
-  lon = CPH.lon,
-): { elevation: number; morning: boolean } {
+function sunElevation(ms: number, lat = CPH.lat, lon = CPH.lon): { elevation: number; morning: boolean } {
   const { decl, eqTime } = solar(ms);
   const utcMin = (((ms / 60_000) % 1440) + 1440) % 1440;
   const hourAngle = ((((utcMin + eqTime + 4 * lon) % 1440) + 1440) % 1440) / 4 - 180;
@@ -83,7 +79,7 @@ export function sunTimes(ms: number, lat = CPH.lat, lon = CPH.lon): { sunrise: n
   return { sunrise: rise, sunset: set };
 }
 
-export type Phase = "night" | "dawn" | "day" | "dusk";
+type Phase = "night" | "dawn" | "day" | "dusk";
 
 export interface Light {
   phase: Phase;
@@ -138,15 +134,11 @@ export function moonPhase(ms: number): { age: number; lit: number; waxing: boole
 
 // MARK: Time
 
-const hhmm = new Intl.DateTimeFormat("en-GB", {
-  timeZone: CPH.tz,
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
-
 /** `HH:MM` on the Copenhagen clock (DST-correct). */
-export const clockTime = (ms: number): string => hhmm.format(ms);
+export function clockTime(ms: number): string {
+  const { hour, minute } = worldWall(ms);
+  return `${pad2(hour)}:${pad2(minute)}`;
+}
 
 // MARK: Weather
 
@@ -167,73 +159,51 @@ export interface Weather {
 
 export const CALM: Weather = { kind: "clear", intensity: 0, windMs: 1.5, windDir: 270, cloud: 0.1 };
 
-export const WEATHER_KINDS: readonly WeatherKind[] = [
-  "clear",
-  "cloudy",
-  "fog",
-  "drizzle",
-  "rain",
-  "storm",
-  "snow",
-];
+const PRESETS: Record<WeatherKind, Weather> = {
+  clear: CALM,
+  cloudy: { kind: "cloudy", intensity: 0.7, windMs: 4, windDir: 250, cloud: 0.8 },
+  fog: { kind: "fog", intensity: 0.8, windMs: 1, windDir: 200, cloud: 0.9 },
+  drizzle: { kind: "drizzle", intensity: 0.35, windMs: 3, windDir: 240, cloud: 0.8 },
+  rain: { kind: "rain", intensity: 0.7, windMs: 7, windDir: 260, cloud: 0.9 },
+  storm: { kind: "storm", intensity: 1, windMs: 14, windDir: 250, cloud: 1 },
+  snow: { kind: "snow", intensity: 0.7, windMs: 4, windDir: 330, cloud: 0.9 },
+};
 
 /** Presets for `SKY_WEATHER=rain` and `?weather=rain`. */
-export function presetWeather(kind: string): Weather | null {
-  switch (kind) {
-    case "clear":
-      return { ...CALM };
-    case "cloudy":
-      return { kind: "cloudy", intensity: 0.7, windMs: 4, windDir: 250, cloud: 0.8 };
-    case "fog":
-      return { kind: "fog", intensity: 0.8, windMs: 1, windDir: 200, cloud: 0.9 };
-    case "drizzle":
-      return { kind: "drizzle", intensity: 0.35, windMs: 3, windDir: 240, cloud: 0.8 };
-    case "rain":
-      return { kind: "rain", intensity: 0.7, windMs: 7, windDir: 260, cloud: 0.9 };
-    case "storm":
-      return { kind: "storm", intensity: 1, windMs: 14, windDir: 250, cloud: 1 };
-    case "snow":
-      return { kind: "snow", intensity: 0.7, windMs: 4, windDir: 330, cloud: 0.9 };
-    default:
-      return null;
-  }
-}
+export const presetWeather = (kind: string): Weather | null =>
+  Object.hasOwn(PRESETS, kind) ? { ...PRESETS[kind as WeatherKind] } : null;
 
 /** WMO weather interpretation codes → kind and how hard (https://open-meteo.com/en/docs). */
-function fromCode(code: number): { kind: WeatherKind; intensity: number } {
-  const table: Record<number, [WeatherKind, number]> = {
-    0: ["clear", 0],
-    1: ["clear", 0],
-    2: ["cloudy", 0.5],
-    3: ["cloudy", 0.9],
-    45: ["fog", 0.6],
-    48: ["fog", 0.85],
-    51: ["drizzle", 0.2],
-    53: ["drizzle", 0.35],
-    55: ["drizzle", 0.5],
-    56: ["drizzle", 0.35],
-    57: ["drizzle", 0.55],
-    61: ["rain", 0.35],
-    63: ["rain", 0.65],
-    65: ["rain", 0.95],
-    66: ["rain", 0.5],
-    67: ["rain", 0.85],
-    71: ["snow", 0.3],
-    73: ["snow", 0.6],
-    75: ["snow", 0.9],
-    77: ["snow", 0.3],
-    80: ["rain", 0.4],
-    81: ["rain", 0.7],
-    82: ["rain", 1],
-    85: ["snow", 0.5],
-    86: ["snow", 0.9],
-    95: ["storm", 0.8],
-    96: ["storm", 0.9],
-    99: ["storm", 1],
-  };
-  const [kind, intensity] = table[code] ?? ["clear", 0];
-  return { kind, intensity };
-}
+const CODES: Record<number, [WeatherKind, number]> = {
+  0: ["clear", 0],
+  1: ["clear", 0],
+  2: ["cloudy", 0.5],
+  3: ["cloudy", 0.9],
+  45: ["fog", 0.6],
+  48: ["fog", 0.85],
+  51: ["drizzle", 0.2],
+  53: ["drizzle", 0.35],
+  55: ["drizzle", 0.5],
+  56: ["drizzle", 0.35],
+  57: ["drizzle", 0.55],
+  61: ["rain", 0.35],
+  63: ["rain", 0.65],
+  65: ["rain", 0.95],
+  66: ["rain", 0.5],
+  67: ["rain", 0.85],
+  71: ["snow", 0.3],
+  73: ["snow", 0.6],
+  75: ["snow", 0.9],
+  77: ["snow", 0.3],
+  80: ["rain", 0.4],
+  81: ["rain", 0.7],
+  82: ["rain", 1],
+  85: ["snow", 0.5],
+  86: ["snow", 0.9],
+  95: ["storm", 0.8],
+  96: ["storm", 0.9],
+  99: ["storm", 1],
+};
 
 /** Open-Meteo's `current` block reduced to a `Weather`; null if it isn't one. */
 export function weatherFrom(current: unknown): Weather | null {
@@ -241,7 +211,7 @@ export function weatherFrom(current: unknown): Weather | null {
   const num = (k: string) => (typeof c?.[k] === "number" && Number.isFinite(c[k]) ? (c[k] as number) : null);
   const code = num("weather_code");
   if (code === null) return null;
-  const { kind, intensity: base } = fromCode(code);
+  const [kind, base] = CODES[code] ?? ["clear", 0];
   const precip = num("precipitation");
   const falls = kind === "rain" || kind === "drizzle" || kind === "snow";
   // Measured rain nudges the code's guess: a "light rain" code with 3 mm an hour is not light.
@@ -300,26 +270,17 @@ export const sameWeather = (a: Weather, b: Weather): boolean =>
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 export const compass = (deg: number): string => COMPASS[Math.round(deg / 45) % 8]!;
 
-const wall = new Intl.DateTimeFormat("en-GB", {
-  timeZone: CPH.tz,
-  year: "numeric",
-  month: "numeric",
-  day: "numeric",
-  hour: "numeric",
-  minute: "numeric",
-  hourCycle: "h23",
-});
-
 /** `2026-10-21T22:30` read as Copenhagen wall time → ms (for `?sky=` and tests); null if it isn't one. */
 export function copenhagenToMs(text: string): number | null {
   const m = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d)$/.exec(text);
   if (!m) return null;
   const [y, mo, d, h, mi] = m.slice(1).map(Number) as [number, number, number, number, number];
   const guess = Date.UTC(y, mo - 1, d, h, mi);
-  const p = Object.fromEntries(wall.formatToParts(guess).map((x) => [x.type, Number(x.value)]));
-  const shown = Date.UTC(p.year!, p.month! - 1, p.day!, p.hour!, p.minute!);
+  const shown = (ms: number) => {
+    const w = worldWall(ms);
+    return Date.UTC(w.y, w.m - 1, w.d, w.hour, w.minute);
+  };
   // Off by the zone's offset at that moment; one more round covers the DST edge.
-  const first = guess - (shown - guess);
-  const q = Object.fromEntries(wall.formatToParts(first).map((x) => [x.type, Number(x.value)]));
-  return first - (Date.UTC(q.year!, q.month! - 1, q.day!, q.hour!, q.minute!) - guess);
+  const first = guess - (shown(guess) - guess);
+  return first - (shown(first) - guess);
 }

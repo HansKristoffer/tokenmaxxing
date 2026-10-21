@@ -6,7 +6,7 @@ const URL = "https://cursor.com/api/dashboard/get-filtered-usage-events";
 const PAGE_SIZE = 1000;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
-export interface CursorCredentials {
+interface CursorCredentials {
   accountId: string;
   cookie: string;
 }
@@ -68,20 +68,10 @@ function reportedCostCents(value: unknown): number | null {
   return value;
 }
 
-/** Only token metadata leaves this module. No response bodies or credentials are persisted. */
-export async function fetchCursorUsage(
-  opts: CursorApiOptions,
-): Promise<{ events: TokenEvent[]; accountId: string }> {
-  const events: TokenEvent[] = [];
-  let accountId = "";
-  for await (const page of fetchCursorUsagePages(opts)) {
-    events.push(...page.events);
-    accountId = page.accountId;
-  }
-  return { events, accountId };
-}
-
-/** Send history as pages arrive, rather than withholding it until the entire backfill finishes.
+/**
+ * Only token metadata leaves this module. No response bodies or credentials are persisted.
+ *
+ * Send history as pages arrive, rather than withholding it until the entire backfill finishes.
  * A failed run can replay earlier pages safely; the full-window checkpoint advances only on done.
  */
 export async function* fetchCursorUsagePages(opts: CursorApiOptions): AsyncGenerator<{
