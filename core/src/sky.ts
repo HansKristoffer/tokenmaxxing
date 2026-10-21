@@ -2,9 +2,9 @@
  * The sky over Copenhagen: where the sun and moon are, and what the weather is doing. Pure maths and
  * tables, no network: the server fetches the weather (`server/src/weather.ts`), the client draws all of it.
  */
-import { dayKey } from "./range.ts";
+import { dayKey, pad2, worldWall } from "./range.ts";
 
-export const CPH = { lat: 55.6761, lon: 12.5683, tz: "Europe/Copenhagen" } as const;
+export const CPH = { lat: 55.6761, lon: 12.5683 } as const;
 
 const RAD = Math.PI / 180;
 const DAY_MS = 86_400_000;
@@ -138,15 +138,11 @@ export function moonPhase(ms: number): { age: number; lit: number; waxing: boole
 
 // MARK: Time
 
-const hhmm = new Intl.DateTimeFormat("en-GB", {
-  timeZone: CPH.tz,
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
-
 /** `HH:MM` on the Copenhagen clock (DST-correct). */
-export const clockTime = (ms: number): string => hhmm.format(ms);
+export function clockTime(ms: number): string {
+  const { hour, minute } = worldWall(ms);
+  return `${pad2(hour)}:${pad2(minute)}`;
+}
 
 // MARK: Weather
 
@@ -300,26 +296,17 @@ export const sameWeather = (a: Weather, b: Weather): boolean =>
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 export const compass = (deg: number): string => COMPASS[Math.round(deg / 45) % 8]!;
 
-const wall = new Intl.DateTimeFormat("en-GB", {
-  timeZone: CPH.tz,
-  year: "numeric",
-  month: "numeric",
-  day: "numeric",
-  hour: "numeric",
-  minute: "numeric",
-  hourCycle: "h23",
-});
-
 /** `2026-10-21T22:30` read as Copenhagen wall time → ms (for `?sky=` and tests); null if it isn't one. */
 export function copenhagenToMs(text: string): number | null {
   const m = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d)$/.exec(text);
   if (!m) return null;
   const [y, mo, d, h, mi] = m.slice(1).map(Number) as [number, number, number, number, number];
   const guess = Date.UTC(y, mo - 1, d, h, mi);
-  const p = Object.fromEntries(wall.formatToParts(guess).map((x) => [x.type, Number(x.value)]));
-  const shown = Date.UTC(p.year!, p.month! - 1, p.day!, p.hour!, p.minute!);
+  const shown = (ms: number) => {
+    const w = worldWall(ms);
+    return Date.UTC(w.y, w.m - 1, w.d, w.hour, w.minute);
+  };
   // Off by the zone's offset at that moment; one more round covers the DST edge.
-  const first = guess - (shown - guess);
-  const q = Object.fromEntries(wall.formatToParts(first).map((x) => [x.type, Number(x.value)]));
-  return first - (Date.UTC(q.year!, q.month! - 1, q.day!, q.hour!, q.minute!) - guess);
+  const first = guess - (shown(guess) - guess);
+  return first - (shown(first) - guess);
 }
