@@ -18,6 +18,7 @@ import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { drawStreet } from "./street.ts";
 import { drawPicnic } from "./picnic.ts";
+import { drawTrophies } from "./trophies.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
@@ -78,6 +79,8 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
           draw: () => g.drawImage(o.canvas, x * TILE + o.dx, y * TILE + o.dy),
         });
     }
+
+  drawTrophies(map, g, items);
 
   for (const b of buildings(map)) {
     const company = b.plot === null ? null : companyOnPlot(b.plot);

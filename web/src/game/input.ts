@@ -19,6 +19,7 @@ import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { picnicSeat } from "./picnic.ts";
+import { openTrophies } from "./trophies.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {
@@ -292,6 +293,7 @@ export function interact(): void {
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (ch === "o") return void send(conn.drink(me.facing));
   if (ch === "K") return void hud.set({ dialog: chalkboardText() });
+  if (ch === "Y") return void openTrophies();
   if (ch === "H") {
     const b = buildingAt(x, y);
     const company = b?.plot ? companyOnPlot(b.plot) : null;

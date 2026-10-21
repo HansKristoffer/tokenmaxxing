@@ -22,6 +22,7 @@ import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Shop } from "./Shop.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
+import { Trophies } from "./Trophies.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
 export function Hud() {
@@ -222,6 +223,8 @@ function Panel() {
       return <TradesPanel />;
     case "paper":
       return <PaperPanel />;
+    case "trophies":
+      return <Trophies userId={panel.userId} name={panel.name} />;
     case "menu":
       return (
         <Modal title="Menu">

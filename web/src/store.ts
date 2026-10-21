@@ -17,6 +17,7 @@ export type Panel =
   | { kind: "trade"; userId: number }
   | { kind: "trades" }
   | { kind: "paper" }
+  | { kind: "trophies"; userId: number; name: string }
   | { kind: "menu" };
 
 /** Game panels keep the chat usable beside them. */

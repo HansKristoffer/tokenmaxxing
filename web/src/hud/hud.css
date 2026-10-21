@@ -1414,4 +1414,39 @@ button.lb-item:hover {
   align-self: flex-end;
   font-style: italic;
   color: #24336b;
+/* The trophy shelf's list (E at the shelf in an office): two columns of sprite + name, how, and when. */
+.trophies {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trophies li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.trophies li > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.trophies canvas {
+  flex: none;
+  image-rendering: pixelated;
+}
+
+.trophies .unearned strong {
+  color: var(--muted);
+}
+
+.trophies .earned {
+  color: var(--accent);
 }

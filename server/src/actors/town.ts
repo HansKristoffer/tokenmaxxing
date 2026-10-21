@@ -11,6 +11,7 @@ import {
   TRADE_COINS_CAP,
   TRADE_ITEMS_CAP,
 } from "@tokenmaxxing/core/shop.ts";
+import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
 import {
   type CompanyInfo,
   type Drop,
@@ -742,6 +743,17 @@ export const town = actor({
       if (typeof targetId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
       const range = isRangeKey(rawRange) ? rawRange : "30d";
       return profile(c.db, targetId, range, Date.now(), await podiumsOf(c, Date.now()));
+    },
+
+    /** The trophies on someone's office shelf: anyone may look, like their badges. */
+    trophies: async (c, targetId: unknown): Promise<Trophy[]> => {
+      requireUser(c.conn.state);
+      if (typeof targetId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
+      const u = await userById(c.db, targetId);
+      return c
+        .client<typeof registry>()
+        .player.get([String(u.id)], internal)
+        .trophies();
     },
 
     /** Names starting with `prefix`, for @-mention suggestions. */
