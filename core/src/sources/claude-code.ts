@@ -42,6 +42,16 @@ interface RawCCRecord {
 }
 
 /**
+ * Whether a line could be an event, before paying for `JSON.parse`: most of a log's bytes are tool
+ * results, attachments and progress lines. An assistant event has a `usage` block and a user one has
+ * `"type":"user"`; a line with no usage that holds a tool result is never a prompt.
+ */
+const mayBeEvent = (line: string): boolean =>
+  line.includes('"usage"')
+    ? line.includes('"assistant"') || line.includes('"user"')
+    : line.includes('"user"') && !line.includes('"tool_result"');
+
+/**
  * Tail-read a Claude Code session jsonl file from `byteOffset`.
  *
  * Returns parsed events plus a new byte offset that points at the start of
@@ -90,6 +100,7 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
     }
     if (part.kind !== "line") continue;
     const line = part.text;
+    if (!mayBeEvent(line)) continue;
 
     let raw: RawCCRecord;
     try {
