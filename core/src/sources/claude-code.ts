@@ -80,7 +80,6 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
   }
 
   const events: TokenEvent[] = [];
-  const localSeen = new Set<string>();
   // Claude Code writes one line per content block of a response, all with the
   // same message id, and only the last carries the final output_tokens. So a
   // repeat updates the event already taken.
@@ -130,9 +129,7 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
       ) {
         continue;
       }
-      const dedupKey = `${raw.uuid}:`;
-      if (localSeen.has(dedupKey)) continue;
-      localSeen.add(dedupKey);
+      // A prompt logged twice is sent once: `collect` drops repeats across every file.
       events.push(
         tokenEvent({
           source,

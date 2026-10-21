@@ -361,8 +361,11 @@ describe("parseClaudeCodeFile (real local data)", () => {
         expect(ev.inputTokens + ev.outputTokens + ev.cacheCreationTokens + ev.cacheReadTokens).toBe(0);
       }
     }
-    // Every event is unique within the file.
-    const keys = r.events.map((e) => `${e.messageId}:${e.requestId}:${e.messageType}`);
+    // Every response is unique within the file. A prompt logged twice is `collect`'s to drop, with
+    // the repeats across files.
+    const keys = r.events
+      .filter((e) => e.messageType === "assistant")
+      .map((e) => `${e.messageId}:${e.requestId}`);
     expect(new Set(keys).size).toBe(keys.length);
     // Offset should advance.
     expect(r.newOffset).toBeGreaterThan(0);
