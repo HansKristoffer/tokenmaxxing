@@ -7,7 +7,7 @@
  */
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { C } from "./palette.ts";
-import { bake, cached, type Pen } from "./pixels.ts";
+import { bake, cached, glyphPixels, type Pen } from "./pixels.ts";
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 /** Where a piece goes: on the floor, against the top wall, hanging from the ceiling, or flat (walk over it). */
@@ -98,15 +98,6 @@ function oval(p: Pen, cx: number, cy: number, rx: number, ry: number, color: str
 /** Pixels of a list. */
 const dots = (p: Pen, pts: readonly (readonly [number, number])[], color: string) => {
   for (const [x, y] of pts) p.px(x, y, color);
-};
-
-// A 3×5 font, just the letters the signs use.
-const FONT: Record<string, string> = {
-  S: "111100111001111",
-  H: "101101111101101",
-  I: "111010010010111",
-  P: "111101111100100",
-  T: "111010010010010",
 };
 
 // MARK: Pieces
@@ -236,6 +227,14 @@ function aquarium(p: Pen, f: number): void {
 }
 
 function neonSign(p: Pen, f: number, t: string): void {
+  neon(p, f, t, "SHIP IT", 5);
+}
+
+/**
+ * A neon sign saying `text` (up to 7 letters), on a dark board. Frame 1 flickers the letters from
+ * `flicker` on, as neon does.
+ */
+function neon(p: Pen, f: number, t: string, text: string, flicker: number): void {
   box(p, 0, 2, 32, 13, "#2f2838");
   p.rect(1, 3, 30, 1, "#3b3347");
   dots(
@@ -248,14 +247,13 @@ function neonSign(p: Pen, f: number, t: string): void {
     ],
     C.metal,
   );
-  const lit: [number, number, boolean][] = [];
-  "SHIP IT".split("").forEach((ch, i) => {
-    const g = FONT[ch];
-    if (!g) return;
-    for (let k = 0; k < 15; k++)
-      if (g[k] === "1") lit.push([3 + i * 4 + (k % 3), 6 + Math.floor(k / 3), i >= 5]);
-  });
-  // Frame 1: the "IT" flickers, as neon does.
+  const shown = text.slice(0, 7);
+  const x0 = Math.floor((32 - (shown.length * 4 - 1)) / 2);
+  const lit = glyphPixels(shown).map(([x, y]): [number, number, boolean] => [
+    x0 + x,
+    6 + y,
+    x >= flicker * 4,
+  ]);
   const on = (late: boolean) => f === 0 || !late;
   for (const [x, y, late] of lit)
     if (on(late))
@@ -270,6 +268,13 @@ function neonSign(p: Pen, f: number, t: string): void {
   p.rect(6, 0, 1, 2, C.metal);
   p.rect(25, 0, 1, 2, C.metal);
 }
+
+/** The neon sign with a company's own name (or initials, when the name is too long) in its colour. */
+export const neonSprite = cached(
+  (text: string, frame: number, tint: string) => `${text}:${frame}:${tint}`,
+  (text: string, frame: number, tint: string) =>
+    bake(2 * TILE, 16, (p) => neon(p, frame, tint, text, Math.max(1, text.length - 1))),
+);
 
 function beanbag(p: Pen, _f: number, t: string): void {
   shadow(p, 2, 14, 12);

@@ -4,7 +4,7 @@
  * top 3. They buy clothes, glasses, hats and pets, worn through `Look`, and
  * furniture for your office (`office.ts`). Everything bought or earned is a row in the bag.
  */
-import { FURNITURE } from "./office.ts";
+import { COMPANY_FURNITURE, FURNITURE } from "./office.ts";
 import type { Look } from "./world.ts";
 
 /**
@@ -19,17 +19,21 @@ export const PODIUM_COINS = [25, 15, 10] as const;
 export type Slot = "outfit" | "glasses" | "hat" | "pet";
 
 export interface Item {
-  /** `<slot>.<index>`, e.g. `pet.2`, or `furn.<ch>` for furniture. */
+  /** `<slot>.<index>`, e.g. `pet.2`, `furn.<ch>` for furniture, or `merch.<companyId>.<kind>`. */
   id: string;
-  slot: Slot | "furniture";
-  /** The value of `look[slot]` when worn; furniture's place in `FURNITURE`. */
+  slot: Slot | "furniture" | "merch";
+  /** The value of `look[slot]` when worn; furniture's place in its list; merch's bit in `merchWorn`. */
   index: number;
   name: string;
   price: number;
   /** Granted at this level; never sold. */
   level?: number;
-  /** Can change hands. Rewards can't. */
+  /** Can change hands. Rewards, merch and company furniture can't. */
   tradeable: boolean;
+  /** Company furniture: bought from a company wallet, for its building. */
+  company?: true;
+  /** Merch: whose. */
+  companyId?: number;
 }
 
 /** Outfits below this are free; the ones after are sold. */
@@ -78,17 +82,77 @@ export const ITEMS: readonly Item[] = [
       tradeable: true,
     }),
   ),
+  ...COMPANY_FURNITURE.map(
+    (f, index): Item => ({
+      id: `furn.${f.ch}`,
+      slot: "furniture",
+      index,
+      name: f.name,
+      price: f.price,
+      tradeable: false,
+      company: true,
+    }),
+  ),
 ];
 
 /** The level items `level` has earned. */
 export const levelItems = (level: number): Item[] =>
   ITEMS.filter((i) => i.level !== undefined && i.level <= level);
 
-export const itemById = (id: unknown): Item | undefined => ITEMS.find((i) => i.id === id);
+export const itemById = (id: unknown): Item | undefined => ITEMS.find((i) => i.id === id) ?? merchItem(id);
 
-/** The shop items a look wears; everything else in it is free. */
+/** The shop items a look wears; everything else in it is free (merch is `merchIn`). */
 export const itemsIn = (look: Look): (Item & { slot: Slot })[] =>
-  ITEMS.filter((i): i is Item & { slot: Slot } => i.slot !== "furniture" && look[i.slot] === i.index);
+  ITEMS.filter(
+    (i): i is Item & { slot: Slot } =>
+      i.slot !== "furniture" && i.slot !== "merch" && look[i.slot] === i.index,
+  );
+
+// MARK: Merch
+
+/**
+ * Every company's merch, in its colours with its initials: sold to anyone, and what outsiders pay goes
+ * into the company wallet. Worn through `look.merch` (whose) and `look.merchWorn` (these bits); a
+ * hoodie goes over a tee.
+ */
+export const MERCH = [
+  { kind: "tee", name: "Tee", price: 80, bit: 1 },
+  { kind: "hoodie", name: "Hoodie", price: 160, bit: 2 },
+  { kind: "cap", name: "Cap", price: 60, bit: 4 },
+  { kind: "mug", name: "Mug", price: 40, bit: 8 },
+] as const;
+export type MerchKind = (typeof MERCH)[number]["kind"];
+
+/** What a company's own people get off its merch: 1.0 is free, 0.8 is 80% off. */
+export const EMPLOYEE_MERCH_DISCOUNT = 1.0;
+
+/** What one of `kind` costs: the full price, or for the company's own people, less the discount. */
+export function merchPrice(kind: MerchKind, employee: boolean): number {
+  const price = MERCH.find((m) => m.kind === kind)!.price;
+  return employee ? Math.round(price * (1 - EMPLOYEE_MERCH_DISCOUNT)) : price;
+}
+
+export const merchId = (companyId: number, kind: MerchKind) => `merch.${companyId}.${kind}`;
+
+/** `merch.<companyId>.<kind>` as an item; the price is the outsiders' one. */
+function merchItem(id: unknown): Item | undefined {
+  const m = typeof id === "string" ? /^merch\.([1-9]\d{0,9})\.([a-z]+)$/.exec(id) : null;
+  const kind = m && MERCH.find((k) => k.kind === m[2]);
+  if (!kind) return undefined;
+  return {
+    id: id as string,
+    slot: "merch",
+    index: kind.bit,
+    name: kind.name,
+    price: kind.price,
+    tradeable: false,
+    companyId: Number(m[1]),
+  };
+}
+
+/** The merch item ids a look wears. */
+export const merchIn = (look: Look): string[] =>
+  look.merch === 0 ? [] : MERCH.filter((m) => look.merchWorn & m.bit).map((m) => merchId(look.merch, m.kind));
 
 // MARK: Trading
 

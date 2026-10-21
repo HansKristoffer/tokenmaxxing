@@ -1,4 +1,7 @@
+import { dayKey } from "@tokenmaxxing/core/range.ts";
+import { coinsForTokens } from "@tokenmaxxing/core/shop.ts";
 import type { Sql } from "../actors/shared.ts";
+import { TOKENS } from "./users.ts";
 
 /** Every table `town` keeps. Also run by tests against an in-memory database. */
 export async function migrate(sql: Sql): Promise<void> {
@@ -54,6 +57,14 @@ export async function migrate(sql: Sql): Promise<void> {
     id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id INTEGER, item TEXT NOT NULL, at INTEGER NOT NULL,
     dropped_by INTEGER, dropped_at INTEGER, room TEXT, x INTEGER, y INTEGER)`);
   await sql.execute("CREATE INDEX IF NOT EXISTS items_owner ON items (owner_id, item)");
+  // A company's own furniture (`COMPANY_FURNITURE`): `owner_id` stays NULL, so it's never in a bag. On its
+  // building's floor it has `room`, `x` and `y`; without, it's in the company's storeroom.
+  const itemColumns = (await sql.execute("PRAGMA table_info(items)")) as { name: string }[];
+  if (!itemColumns.some((c) => c.name === "company_id"))
+    await sql.execute("ALTER TABLE items ADD COLUMN company_id INTEGER");
+  await sql.execute(
+    "CREATE INDEX IF NOT EXISTS items_company ON items (company_id) WHERE company_id IS NOT NULL",
+  );
   // Into the bag, once, when `items` is new: a purchase row was the item.
   if (fresh) {
     await sql.execute("INSERT INTO items (owner_id, item, at) SELECT user_id, item, at FROM purchases");
@@ -77,6 +88,7 @@ export async function migrate(sql: Sql): Promise<void> {
     from_id INTEGER PRIMARY KEY, to_id INTEGER NOT NULL,
     give TEXT NOT NULL, want TEXT NOT NULL, at INTEGER NOT NULL)`);
   await sql.execute("CREATE INDEX IF NOT EXISTS trades_to ON trades (to_id, at)");
+  await companyLedger(sql);
   // Whether each office is open. A row is also "the desk and chair are given" (`starterDrops`).
   await sql.execute(`CREATE TABLE IF NOT EXISTS offices (
     user_id INTEGER PRIMARY KEY, open INTEGER NOT NULL DEFAULT 1)`);
@@ -101,4 +113,54 @@ export async function migrate(sql: Sql): Promise<void> {
   // other players' games add up with them).
   await sql.execute(`CREATE TABLE IF NOT EXISTS deleted_users (
     id INTEGER PRIMARY KEY, name TEXT NOT NULL, at INTEGER NOT NULL)`);
+}
+
+/**
+ * Coins in and out of each company's wallet: `match` (ref: the world day) is a member's token coins
+ * matched 1:1, on top of their own; `merch` is what an outsider paid for its merch, `furniture` what it
+ * spent (ref: the item), `admin` an admin's change. `user_id` is who earned, bought or paid.
+ * The first time, every company is back-filled with what its people earned since they joined.
+ */
+async function companyLedger(sql: Sql): Promise<void> {
+  const fresh =
+    (await sql.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'company_ledger'"))
+      .length === 0;
+  await sql.execute(`CREATE TABLE IF NOT EXISTS company_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER NOT NULL, user_id INTEGER NOT NULL, amount INTEGER NOT NULL,
+    kind TEXT NOT NULL, ref TEXT NOT NULL, at INTEGER NOT NULL)`);
+  await sql.execute("CREATE INDEX IF NOT EXISTS company_ledger_company ON company_ledger (company_id, at)");
+  await sql.execute("CREATE INDEX IF NOT EXISTS company_ledger_user ON company_ledger (user_id, kind, ref)");
+  if (!fresh) return;
+  // Known history only: days from when each current member joined (and signed up). Who was in a company
+  // before isn't kept, so earlier members' coins aren't matched.
+  const days = (await sql.execute(
+    `SELECT u.id AS userId, u.company_id AS companyId, u.joined_at AS joinedAt, u.created_at AS createdAt,
+            d.day, SUM(${TOKENS}) AS tokens
+     FROM users u JOIN usage_daily d ON d.user_id = u.id
+     WHERE u.company_id IS NOT NULL AND u.joined_at IS NOT NULL GROUP BY u.id, d.day`,
+  )) as {
+    userId: number;
+    companyId: number;
+    joinedAt: number;
+    createdAt: number;
+    day: string;
+    tokens: number;
+  }[];
+  const now = Date.now();
+  let n = 0;
+  for (const d of days) {
+    const coins = coinsForTokens(d.tokens);
+    if (coins <= 0 || d.day < dayKey(d.joinedAt) || d.day < dayKey(d.createdAt)) continue;
+    await sql.execute(
+      "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, 'match', ?, ?)",
+      d.companyId,
+      d.userId,
+      coins,
+      d.day,
+      now,
+    );
+    n += coins;
+  }
+  if (n > 0) console.log(`[town] 🪙 ${n} matched into company wallets`);
 }

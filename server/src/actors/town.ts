@@ -5,6 +5,7 @@ import {
   isTradeable,
   itemById,
   itemsIn,
+  merchIn,
   parseSide,
   TRADE_COINS_CAP,
   TRADE_ITEMS_CAP,
@@ -34,6 +35,7 @@ import {
   deleteUser,
   logAdmin,
   overview,
+  setCompanyWallet,
   wipeUsage,
 } from "../town/admin.ts";
 import {
@@ -50,6 +52,7 @@ import {
   type BagRow,
   bag,
   buy,
+  buyMerch,
   checkTrade,
   type Entry,
   floors,
@@ -83,6 +86,7 @@ import {
   applicationOf,
   apply,
   approve,
+  buyPiece,
   companyById,
   companyInfos,
   decline,
@@ -90,8 +94,11 @@ import {
   leave,
   listings,
   type MyCompany,
+  matchCoins,
+  mayFurnish,
   myCompany,
   ownedCompany,
+  unstore,
   withdraw,
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
@@ -139,7 +146,7 @@ export type {
   Today,
 } from "../town/boards.ts";
 export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
-export type { Listing, MyCompany } from "../town/companies.ts";
+export type { Listing, MyCompany, WalletLine } from "../town/companies.ts";
 export type { GamePlayer, GameStats } from "../town/games.ts";
 export type { PlayerCore } from "../town/users.ts";
 
@@ -306,7 +313,7 @@ export const town = actor({
       // Serialized, so a drop or a trade can't take it off between the check and the write.
       await c.vars.serial(async () => {
         const owned = new Set(await ownedItems(c.db, userId));
-        if (itemsIn(look).some((i) => !owned.has(i.id)))
+        if ([...itemsIn(look).map((i) => i.id), ...merchIn(look)].some((id) => !owned.has(id)))
           throw new UserError("You don't have one in your bag.", { code: "not_owned" });
         await c.db.execute("UPDATE users SET look = ? WHERE id = ?", JSON.stringify(look), userId);
       });
@@ -458,7 +465,31 @@ export const town = actor({
       if (!item) throw new UserError("That's not in the shop.", { code: "not_found" });
       if (item.level !== undefined)
         throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
+      if (item.company)
+        throw new UserError("That one is for company buildings, from the company wallet.", {
+          code: "not_for_sale",
+        });
+      if (item.slot === "merch") return c.vars.serial(() => buyMerch(c.db, userId, item, Date.now()));
       return c.vars.serial(() => buy(c.db, userId, item, Date.now()));
+    },
+
+    // MARK: Company furniture
+
+    /**
+     * The owner buys a piece of company furniture from the company wallet. It goes down in front of
+     * them if they're in the building; otherwise (or with no room on the floor) into the storeroom.
+     */
+    buyPiece: async (c, itemId: unknown): Promise<{ notice: string; company: MyCompany }> => {
+      const userId = requireUser(c.conn.state);
+      const item = itemById(itemId);
+      if (!item?.company) throw new UserError("That's not for company buildings.", { code: "not_found" });
+      return furnish(c, userId, "buy", (company, now) => buyPiece(c.db, company, userId, item, now));
+    },
+
+    /** Any member puts a piece from the storeroom down in front of them, in the building. */
+    placePiece: async (c, itemId: unknown): Promise<{ notice: string; company: MyCompany }> => {
+      const userId = requireUser(c.conn.state);
+      return furnish(c, userId, "place", (company, now) => unstore(c.db, company.id, itemId, userId, now));
     },
 
     // MARK: Drops
@@ -673,6 +704,8 @@ export const town = actor({
               "INSERT INTO capped_daily VALUES",
               activity.filter((a) => a.capped > 0).map((a) => [userId, a.day, a.capped]),
             );
+            // Their company gets as many coins again.
+            await matchCoins(tx, userId, days, Date.now());
             return grantRewards(tx, userId, await levelOf(tx, userId), Date.now());
           },
           { name: "report-usage" },
@@ -822,6 +855,27 @@ export const town = actor({
       const set = await c.vars.serial(() => setBalance(c.db, user.id, balance as number, now));
       await logAdmin(c.db, "set coins", who(user), `${set.before} → ${set.balance}`, now);
       return set.balance;
+    },
+
+    /** A company wallet's coins, set; the ledger line is the owner's (`user_id`), kind `admin`. */
+    adminSetCompanyCoins: async (c, companyId: unknown, coins: unknown): Promise<number> => {
+      requireAdmin(c.conn.state);
+      if (!Number.isSafeInteger(coins) || (coins as number) < 0 || (coins as number) > 10_000_000)
+        throw new UserError("Use a whole number from 0 to 10,000,000.", { code: "invalid_amount" });
+      const company = typeof companyId === "number" ? await companyById(c.db, companyId) : undefined;
+      if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+      const now = Date.now();
+      const set = await c.vars.serial(() =>
+        setCompanyWallet(c.db, company.id, coins as number, company.ownerId, now),
+      );
+      await logAdmin(
+        c.db,
+        "set company coins",
+        `${company.name} (#${company.id})`,
+        `${set.before} → ${set.coins}`,
+        now,
+      );
+      return set.coins;
     },
 
     adminRenameUser: async (c, userId: unknown, rawName: unknown): Promise<void> => {
@@ -986,6 +1040,42 @@ async function placeStarter(client: Client, drops: Drop[]): Promise<void> {
   await main(client)
     .world.placeDrops(drops)
     .catch((err) => console.warn(`[office] ${String(err)}`));
+}
+
+/**
+ * A piece of company furniture onto the building's floor, from the storeroom (`take` is how the row was
+ * picked: bought or unstored). Under `serial` the whole way, `world` included, so two members can't put
+ * out the same stored row. Without room (or out of the building) it stays in the storeroom.
+ * ponytail: holds the town while `world` places it; it's in process and quick, and furnishing is rare.
+ */
+async function furnish(
+  c: { db: Sql; vars: { serial: ReturnType<typeof serial> }; client: () => Client },
+  userId: number,
+  action: "buy" | "place",
+  take: (company: NonNullable<Awaited<ReturnType<typeof companyById>>>, now: number) => Promise<number>,
+): Promise<{ notice: string; company: MyCompany }> {
+  const u = await userById(c.db, userId);
+  const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
+  if (!company) throw new UserError("Join a company first.", { code: "not_member" });
+  if (!mayFurnish(company, userId, action))
+    throw new UserError("Only the owner spends the company wallet.", { code: "not_owner" });
+  const notice = await c.vars.serial(async () => {
+    const now = Date.now();
+    const id = await take(company, now);
+    const item = (await one<{ item: string }>(c.db, "SELECT item FROM items WHERE id = ?", id))!.item;
+    const put = await main(c.client())
+      .world.placeDrop({ id, item, by: userId, co: company.id })
+      .catch((err) => {
+        console.warn(`[furnish] ${id}: ${String(err)}`);
+        return { notice: "That didn't work. Try again." };
+      });
+    const name = itemById(item)?.name ?? "piece";
+    if ("notice" in put)
+      return action === "buy" ? `${put.notice} The ${name} is in the storeroom.` : put.notice;
+    await placed(c.db, put);
+    return `${action === "buy" ? "Bought" : "Put out"} the ${name}.`;
+  });
+  return { notice, company: await myCompany(c.db, company.id, userId) };
 }
 
 /** The open offer `fromId` made me, or `not_found`. */

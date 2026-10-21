@@ -16,6 +16,8 @@ interface TileKind {
   portal?: true;
   /** Shown when you press E facing it. */
   text?: string;
+  /** E while facing it pours you a coffee (`drink`). */
+  pours?: true;
 }
 
 export const LEGEND: Record<string, TileKind> = {
@@ -41,11 +43,41 @@ export const LEGEND: Record<string, TileKind> = {
   t: { name: "tv", text: "It's a show about context windows. Season 7." },
   k: { name: "shelf", text: "Books about prompting, caching and cold starts." },
   p: { name: "plant", text: "A healthy plant. Someone remembers to water it." },
-  o: { name: "coffee" },
+  o: { name: "coffee", pours: true },
   I: { name: "inn door", portal: true },
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
   R: { name: "office door", portal: true },
+  // The company building's furniture (`COMPANY_FURNITURE` in office.ts).
+  ε: { name: "beanbag", seat: "sofa", text: "A beanbag. Getting up is a two-step process." },
+  ρ: { name: "bonsai", text: "A bonsai. Forty years old, older than the codebase." },
+  Φ: { name: "water cooler", text: "Glug. The best gossip in the building starts here." },
+  Δ: { name: "persian rug", walk: true },
+  ψ: { name: "mini fridge", text: "Club-Mate, oat milk and three kinds of sparkling water." },
+  Ω: { name: "coffee table", text: "Walnut. Coasters, please." },
+  χ: { name: "monstera", text: "A monstera. Dramatic, but thriving." },
+  τ: { name: "globe", text: "Every office on it has a pin. Yours is the biggest." },
+  σ: { name: "lava lamp", text: "Blobs rise and fall, like your token budget." },
+  ξ: { name: "whiteboard", text: "A diagram with 14 arrows and the word AGENTS circled three times." },
+  Λ: { name: "arc lamp", text: "An arc lamp. Very Milan, 1962." },
+  Ξ: { name: "bookshelf", text: "Books about prompting, caching and cold starts, alphabetised." },
+  μ: { name: "lounge chair", seat: "sofa", text: "A Danish lounge chair: teak, wool and opinions." },
+  ν: { name: "record player", text: "Lo-fi beats to tokenmax to. Side B." },
+  δ: { name: "neon sign", text: "Your name in lights. It hums a little." },
+  Σ: { name: "chesterfield", seat: "sofa", text: "A buttoned leather Chesterfield. Investors sit here." },
+  Π: { name: "vending machine", text: "Snacks for 🪙 0. The company pays." },
+  ζ: { name: "standing desk", text: "A standing desk, set to sitting height. Nobody tells." },
+  ι: { name: "plant wall", text: "A wall of moss and ferns. The air is noticeably better here." },
+  φ: { name: "foosball table", text: "Foosball. The keeper rod is suspiciously worn." },
+  α: { name: "espresso bar", pours: true },
+  η: { name: "server rack", text: "Blinking lights. It's running the staging environment." },
+  β: { name: "arcade cabinet", text: "INSERT TOKEN. High score: 9,999,999, by the CTO." },
+  κ: { name: "trophy case", text: "Trophies for most tokens, longest streak and best demo day." },
+  γ: { name: "aquarium", text: "Neon tetras. One is named Claude." },
+  θ: { name: "ping-pong table", text: "Ping-pong. First to 11, loser writes the tests." },
+  ω: { name: "gong", text: "Strike it when you ship to prod. Everyone will know." },
+  λ: { name: "chandelier", walk: true, text: "Crystal chandelier. Series A money." },
+  Γ: { name: "duck statue", text: "A golden rubber duck. It has heard every bug explained to it." },
 };
 
 /**

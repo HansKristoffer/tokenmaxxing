@@ -1,6 +1,6 @@
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
-import { FURNITURE, withPieces } from "@tokenmaxxing/core/office.ts";
-import { ITEMS, type Item, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
+import { withPieces } from "@tokenmaxxing/core/office.ts";
+import { ITEMS, type Item, MERCH, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
 import { useEffect, useRef, useState } from "react";
@@ -41,8 +41,7 @@ export function Shop() {
     run(async () => {
       hud.set({ wallet: await town.buy(item.id) });
       setBag(await town.bag());
-      if (item.slot !== "furniture" && !wallet.owned.includes(item.id))
-        await wear({ ...me.look, [item.slot]: item.index });
+      if (!wallet.owned.includes(item.id)) await wearIt(item, me.look, true);
     });
 
   return (
@@ -73,9 +72,9 @@ export function Shop() {
       </ul>
       <Pills value={tab} options={TABS} onChange={setTab} />
       <ul className="shop">
-        {ITEMS.filter((i) => i.slot === tab).map((item) => {
+        {ITEMS.filter((i) => i.slot === tab && !i.company).map((item) => {
           const owned = wallet.owned.includes(item.id);
-          const wearing = item.slot !== "furniture" && me.look[item.slot] === item.index;
+          const wearing = isWorn(item, me.look);
           const n = bag.find((b) => b.item === item.id)?.count ?? 0;
           return (
             <li key={item.id} className={wearing ? "wearing" : undefined}>
@@ -115,6 +114,29 @@ const wear = async (look: Look) => {
   await refreshMe();
 };
 
+/** Whether `look` wears `item`: in its slot, or as one of the company merch it wears. */
+export function isWorn(item: Item, look: Look): boolean {
+  if (item.slot === "furniture") return false;
+  if (item.slot === "merch") return look.merch === item.companyId && (look.merchWorn & item.index) > 0;
+  return look[item.slot] === item.index;
+}
+
+/**
+ * `look` with `item` on (or off). Merch is one company's at a time, and a hoodie and a tee don't go
+ * over each other.
+ */
+export function withItem(item: Item, look: Look, on: boolean): Look {
+  if (item.slot === "furniture") return look;
+  if (item.slot !== "merch") return { ...look, [item.slot]: on ? item.index : 0 };
+  const tops = MERCH.filter((m) => m.kind === "tee" || m.kind === "hoodie").reduce((n, m) => n | m.bit, 0);
+  const mine = look.merch === item.companyId ? look.merchWorn : 0;
+  const bits = on ? (item.index & tops ? mine & ~tops : mine) | item.index : mine & ~item.index;
+  return { ...look, merch: bits ? item.companyId! : 0, merchWorn: bits };
+}
+
+const wearIt = (item: Item, look: Look, on: boolean) =>
+  item.slot === "furniture" ? Promise.resolve() : wear(withItem(item, look, on));
+
 /** Wear it, or take it off; nothing for furniture. */
 export function WearButton({
   item,
@@ -125,11 +147,10 @@ export function WearButton({
   look: Look;
   run: ReturnType<typeof useRun>["run"];
 }) {
-  const slot = item.slot;
-  if (slot === "furniture") return null;
-  const on = look[slot] === item.index;
+  if (item.slot === "furniture") return null;
+  const on = isWorn(item, look);
   return (
-    <button type="button" onClick={run(() => wear({ ...look, [slot]: on ? 0 : item.index }))}>
+    <button type="button" onClick={run(() => wearIt(item, look, !on))}>
       {on ? "Take off" : "Wear"}
     </button>
   );
@@ -138,28 +159,32 @@ export function WearButton({
 /** An item as it looks: on me (or `bare`, on its own), the pet, or the piece. */
 export function ItemImage({ item, look, bare }: { item: Item; look: Look; bare?: boolean }) {
   if (item.slot === "pet") return <SpriteImage sprite={petFrame(item.index, false, false)} stand />;
-  if (item.slot === "furniture") return <PieceImage ch={FURNITURE[item.index]!.ch} />;
+  if (item.slot === "furniture") return <PieceImage ch={item.id.slice(5)} />;
   if (bare) return <SpriteImage sprite={itemFrame(item)} />;
-  return <AvatarImage look={{ ...look, [item.slot]: item.index }} scale={4} />;
+  return <AvatarImage look={withItem(item, look, true)} scale={4} />;
 }
 
-/** A piece as the world draws it, in a two-tile box. A rug is only floor, so it's a swatch. */
-function PieceImage({ ch, scale = 2 }: { ch: string; scale?: number }) {
+/**
+ * A piece as the world draws it, in a two-tile box (three for the widest). A rug is only floor, so
+ * it's a swatch.
+ */
+export function PieceImage({ ch, scale = 2 }: { ch: string; scale?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const sprite = objectAt(withPieces([{ ch, x: 1, y: 1 }], MAPS.office), 1, 1)?.canvas;
+  const box = Math.max(32, sprite?.width ?? 0);
   useEffect(() => {
     const g = ref.current?.getContext("2d");
     if (!g) return;
     g.imageSmoothingEnabled = false;
-    const sprite = objectAt(withPieces([{ ch, x: 1, y: 1 }], MAPS.office), 1, 1)?.canvas;
     if (!sprite) {
       g.fillStyle = C.rug;
       g.fillRect(8 * scale, 16 * scale, 16 * scale, 14 * scale);
       return;
     }
     const { width: w, height: h } = sprite;
-    g.drawImage(sprite, ((32 - w) / 2) * scale, (32 - h) * scale, w * scale, h * scale);
-  }, [ch, scale]);
-  return <canvas ref={ref} width={32 * scale} height={32 * scale} className="avatar" />;
+    g.drawImage(sprite, ((box - w) / 2) * scale, (32 - h) * scale, w * scale, h * scale);
+  }, [sprite, box, scale]);
+  return <canvas ref={ref} width={box * scale} height={32 * scale} className="avatar" />;
 }
 
 /** A sprite at 4× in a 16×16 box: in the middle, or standing on the bottom (a pet). */
