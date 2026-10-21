@@ -1,5 +1,6 @@
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { FURNITURE, withPieces } from "@tokenmaxxing/core/office.ts";
+import { petOutfit, wearPet } from "@tokenmaxxing/core/pets.ts";
 import { ITEMS, type Item, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
@@ -42,7 +43,9 @@ export function Shop() {
       hud.set({ wallet: await town.buy(item.id) });
       setBag(await town.bag());
       if (item.slot !== "furniture" && !wallet.owned.includes(item.id))
-        await wear({ ...me.look, [item.slot]: item.index });
+        await wear(
+          item.slot === "pet" ? wearPet(me.look, item.index) : { ...me.look, [item.slot]: item.index },
+        );
     });
 
   return (
@@ -110,7 +113,7 @@ export function Shop() {
   );
 }
 
-const wear = async (look: Look) => {
+export const wear = async (look: Look) => {
   await town.setLook(look);
   await refreshMe();
 };
@@ -128,16 +131,39 @@ export function WearButton({
   const slot = item.slot;
   if (slot === "furniture") return null;
   const on = look[slot] === item.index;
+  // A different pet starts in its original look.
+  const next = { ...look, [slot]: on ? 0 : item.index, ...(slot === "pet" && { petVariant: 0 }) };
   return (
-    <button type="button" onClick={run(() => wear({ ...look, [slot]: on ? 0 : item.index }))}>
+    <button type="button" onClick={run(() => wear(next))}>
       {on ? "Take off" : "Wear"}
     </button>
   );
 }
 
 /** An item as it looks: on me (or `bare`, on its own), the pet, or the piece. */
-export function ItemImage({ item, look, bare }: { item: Item; look: Look; bare?: boolean }) {
-  if (item.slot === "pet") return <SpriteImage sprite={petFrame(item.index, false, false)} stand />;
+export function ItemImage({
+  item,
+  look,
+  bare,
+  worn,
+}: {
+  item: Item;
+  look: Look;
+  bare?: boolean;
+  /** A pet in the look I wear it in, if I wear it (the shop sells the original). */
+  worn?: boolean;
+}) {
+  if (item.slot === "pet") {
+    const mine = worn && look.pet === item.index;
+    const sprite = petFrame(
+      item.index,
+      false,
+      false,
+      mine ? look.petVariant : 0,
+      mine ? petOutfit(look) : null,
+    );
+    return <SpriteImage sprite={sprite} stand />;
+  }
   if (item.slot === "furniture") return <PieceImage ch={FURNITURE[item.index]!.ch} />;
   if (bare) return <SpriteImage sprite={itemFrame(item)} />;
   return <AvatarImage look={{ ...look, [item.slot]: item.index }} scale={4} />;

@@ -246,7 +246,27 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   agents running. They're worked out from `activity_daily`, so nothing is stored.
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats, 5 pets and the 11 pieces of furniture
   (`furn.<ch>`), 10 to 1,500 coins. Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
-  Pets follow their owner in the client.
+  Pets follow their owner in the client (`game/pets.ts`: `followPet`), except in the owner's own office,
+  where they go to the bed and sleep (`art/pet-sleep.ts`: `sleepingFrame(petFrame(...), left, tick)` derives
+  the curled pose from any pet's normal frame: legs and tail tucked, squashed, eyes shut, a breathing bob and
+  rising z's; so every pet and every variation of one has it, cached per source canvas).
+- **Pet looks**: every shop pet has variations (`PET_VARIANTS` in `core/src/pets.ts`: the ids, in a fixed order
+  that saved looks depend on, so only append). `Look.petVariant` is 0 for the pet as the shop sells it and n
+  for `PET_VARIANTS[pet][n - 1]`; `parseLook` refuses one `>= petLooks(pet)` (so any variant without a pet),
+  and old looks parse as 0. Holding a pet unlocks all of its looks, free: `setLook` needs only the pet in the
+  bag plus the bound. Taking a pet off or losing its last copy (`unwear`) resets the variant, and so does
+  wearing another pet from the bag. The art is in `web/src/art/pet-variants/` (`variantArt`, `missingArt`;
+  `petFrame(pet, left, hop, variant)` falls back to the original while art is missing); `web/test/pet-variants.test.ts`
+  checks every grid. In the 🎒 a pet kind with looks has a 👁 button that opens `PetLooks` (the `petLooks`
+  panel): every look hopping, the worn one marked; picking one wears the pet in it. Dropped and shop pets
+  are always the original.
+- **Pet names**: `Look.petName` (optional) is saved with the look: `cleanPetName` (`core/src/pets.ts`) trims it, makes
+  runs of spaces one and allows letters, digits, spaces, apostrophes and hyphens, 1 to `PET_NAME_MAX` (16) long;
+  `parseLook` refuses a bad one and old looks have none. The ✏️ in the bag names (and wears) a pet; an empty name
+  clears it. In the world the name is a small label under the pet, for your own and for pets within a few tiles.
+  `PET_NAMED` is a table of costumes (name, pet, look, art id) matched case-insensitively on the cleaned name by
+  `petOutfit`; the art is in `web/src/art/pet-variants/named.ts` and `petFrame` takes it as its last argument, so it
+  works in every frame, the sleeping pose and the picker. To add one: append a row, add its art.
 - **The bag** (`items`, the 🎒 panel): one row per copy, so you can hold two Ducks; you can wear a kind if you
   hold one. Buying adds a row and adds the price to `purchases` (spend only, one row per kind); buying a
   kind you hold already is fine. `bag()` counts each kind. What's on a floor isn't in anyone's bag.
@@ -267,7 +287,10 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   office a drop stays (no hour, no five), at most 40, and only you take anything off its floor, a
   visitor's gift too. The Menu opens or closes it while you're in it; opening it clears its chat, so
   visitors never read what was said while it was closed. Anyone in the building walks into an open office;
-  from outside, from the owner's card.
+  from outside, from the owner's card. The template has a **pet bed** in its bottom right corner: the map
+  tile `q`, a prop like a plant (not walkable, so nothing can be dropped on it and it can't block a path).
+  While its owner is in their own office their pet walks to it and sleeps there, for everyone in the room to
+  see; it's all drawn on the client (`game/pets.ts`), the server knows nothing of it.
 
 ## Games
 

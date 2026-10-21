@@ -503,6 +503,7 @@ export async function unwear(sql: Sql, userId: number, items: string[]): Promise
   const off = itemsIn(look).filter((i) => items.includes(i.id) && !left.includes(i.id));
   if (off.length === 0) return false;
   for (const i of off) look[i.slot] = 0;
+  if (off.some((i) => i.slot === "pet")) look.petVariant = 0; // its look goes with it
   await sql.execute("UPDATE users SET look = ? WHERE id = ?", JSON.stringify(look), userId);
   return true;
 }

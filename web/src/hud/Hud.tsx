@@ -17,6 +17,7 @@ import { LookPicker } from "./LookPicker.tsx";
 import { MatchPanel } from "./Match.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
+import { PetLooks } from "./PetLooks.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Shop } from "./Shop.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
@@ -207,6 +208,8 @@ function Panel() {
       return <Shop />;
     case "bag":
       return <Bag />;
+    case "petLooks":
+      return <PetLooks pet={panel.pet} />;
     case "arcade":
       return <ArcadePanel />;
     case "newTable":

@@ -246,6 +246,39 @@ const plant = cached(
     }),
 );
 
+/** The pet bed's basket, seen from the front: `front` is only its near wall, drawn over the pet lying in it. */
+const petBedSprite = (front: boolean) =>
+  bake(16, 16, (p) => {
+    const top = front ? 11 : 4;
+    // Outline, then the back rim, the cushion inside, and the woven front wall.
+    p.rect(1, Math.max(5, top), 14, 15 - Math.max(5, top), C.ink);
+    if (!front) {
+      p.rect(2, 4, 12, 1, C.ink);
+      p.rect(2, 5, 12, 1, C.woodLight);
+      p.rect(2, 6, 12, 5, C.fabric);
+      p.rect(2, 6, 12, 1, C.fabricDark);
+      p.px(3, 8, C.pillow);
+      p.px(4, 9, C.pillow);
+      p.px(12, 7, C.pillow);
+    }
+    p.rect(2, 11, 12, 3, C.woodDark);
+    p.rect(2, 11, 12, 1, C.woodLight);
+    for (let x = 3; x < 13; x += 3) p.rect(x, 12, 1, 2, C.wood);
+    if (!front) p.rect(2, 15, 12, 1, C.shadow);
+  });
+
+const petBed = cached(
+  () => "petbed",
+  () => petBedSprite(false),
+);
+const petBedNear = cached(
+  () => "petbed-front",
+  () => petBedSprite(true),
+);
+
+/** The bed's near wall, drawn after the pet that lies in it so the pet sits inside the basket. */
+export const petBedFront = (): Placed => ({ canvas: petBedNear(), dx: 0, dy: 0 });
+
 const coffee = cached(
   () => "coffee",
   () =>
@@ -315,6 +348,8 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(plant());
     case "o":
       return at(coffee());
+    case "q":
+      return at(petBed());
     default:
       return null;
   }
@@ -322,4 +357,4 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
 
 /** Where on the tile the object's "feet" are, for depth sorting against people. */
 export const sortY = (ch: string): number =>
-  ch === "F" ? TILE * 2 - 2 : ch === "b" || ch === "s" ? 0 : TILE - 1;
+  ch === "F" ? TILE * 2 - 2 : ch === "b" || ch === "s" || ch === "q" ? 0 : TILE - 1;

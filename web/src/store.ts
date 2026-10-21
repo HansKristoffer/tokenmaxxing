@@ -11,6 +11,7 @@ export type Panel =
   | { kind: "look" }
   | { kind: "shop" }
   | { kind: "bag" }
+  | { kind: "petLooks"; pet: number }
   | { kind: "arcade" }
   | { kind: "newTable"; invite?: number; inviteName?: string }
   | { kind: "match"; id: number }

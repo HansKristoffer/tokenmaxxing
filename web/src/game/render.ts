@@ -1,17 +1,19 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
+import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
-import { cupsLeft, houseTier, JUMP_MS, TILE } from "@tokenmaxxing/core/world.ts";
+import { cupsLeft, houseTier, JUMP_MS, ownerOfOffice, TILE } from "@tokenmaxxing/core/world.ts";
 import { house, inn } from "../art/buildings.ts";
 import { characterFrame, itemFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
-import { chairBack, objectAt, sortY } from "../art/objects.ts";
+import { chairBack, objectAt, petBedFront, sortY } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
-import { PET_H, petFrame } from "../art/pets.ts";
+import { SLEEP_H, SLEEP_W, sleepingFrame } from "../art/pet-sleep.ts";
+import { PET_H, PET_W, petFrame } from "../art/pets.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
-import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
+import { avatarLabels, chipHits, chips, petLabel, sign, signHits } from "./labels.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
@@ -20,6 +22,9 @@ let lastFrame = performance.now();
 type Draw = { y: number; draw: () => void };
 
 type Label = () => void;
+
+/** Tiles within which other players' pet names show. */
+const NAME_RANGE = 6;
 
 export function render(canvas: HTMLCanvasElement, now: number): void {
   const g = canvas.getContext("2d")!;
@@ -72,6 +77,14 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
           y: y * TILE + sortY(map.at(x, y)),
           draw: () => g.drawImage(o.canvas, x * TILE + o.dx, y * TILE + o.dy),
         });
+      // The pet bed's near wall goes over whatever lies in it.
+      if (map.at(x, y) === "q") {
+        const near = petBedFront();
+        items.push({
+          y: y * TILE + TILE - 1,
+          draw: () => g.drawImage(near.canvas, x * TILE + near.dx, y * TILE + near.dy),
+        });
+      }
     }
 
   for (const b of buildings(map)) {
@@ -149,15 +162,34 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       y: py + (tile === "b" || tile === "s" ? 1 : TILE - 0.5),
       draw: () => drawAvatar(g, a, px, py, tile, now),
     });
-    const pet = a.warp ? null : followPet(a, px, py, dt);
+    // In their own office the pet goes to its bed and sleeps there, whoever's looking.
+    const bed = ownerOfOffice(world.room) === a.info.id ? map.find("q")[0] : undefined;
+    const pet = a.warp ? null : followPet(a, px, py, dt, bed);
     if (pet) {
-      const frame = petFrame(a.info.look.pet, pet.left, pet.moving && Math.floor(now / 140) % 2 === 0);
+      const awake = petFrame(
+        a.info.look.pet,
+        pet.left,
+        pet.moving && Math.floor(now / 140) % 2 === 0,
+        a.info.look.petVariant,
+        petOutfit(a.info.look),
+      );
+      const asleep = pet.asleep ? sleepingFrame(awake, pet.left, Math.floor(now / 600)) : null;
+      const frame = asleep ?? awake;
       if (frame)
         items.push({
           y: pet.y + PET_H,
-          draw: () => g.drawImage(frame, Math.round(pet.x), Math.round(pet.y)),
+          draw: () =>
+            g.drawImage(
+              frame,
+              Math.round(pet.x) - (asleep ? (SLEEP_W - 12) / 2 : 0),
+              Math.round(pet.y) + (asleep ? PET_H - SLEEP_H : 0),
+            ),
         });
     }
+    // A pet's name shows for mine and for those within a few tiles of me.
+    const petName = a.info.look.petName;
+    if (pet && petName && (!me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE))
+      labels.push(() => petLabel(g, ...toScreen(pet.x + PET_W / 2, pet.y + PET_H + 1), petName, dpr));
     labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py), tile, now, dpr));
   }
 

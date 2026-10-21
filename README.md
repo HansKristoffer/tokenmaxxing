@@ -7,7 +7,7 @@ no) and it gets a
 house in town, painted in your brand's colours with your logo on it. When you're not playing, your
 character is in that house: **at a desk** while your agents run, **asleep in bed** when they don't. Using
 AI earns **coins**, and so does finishing a day in the top 3; spend them on clothes, glasses, hats and
-pets that follow you around. Or play for them: challenge someone to a game in the town square, from
+pets that follow you around (hold a pet and pick any of its colours and breeds with the eye in your bag; they curl up asleep in the pet bed of your office while you're in it). Or play for them: challenge someone to a game in the town square, from
 rock-paper-scissors for founders and Liar's Dice to **Tokenmaxxing**, a battle over who burns the most real
 tokens in an hour.
 

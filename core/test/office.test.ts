@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { MAPS } from "../src/maps.ts";
-import { doorsFor, hqMap, withPieces } from "../src/office.ts";
+import { doorsFor, FURNITURE, hqMap, STARTER_OFFICE, withPieces } from "../src/office.ts";
 import { route } from "../src/world.ts";
 
 describe("offices", () => {
@@ -42,5 +42,41 @@ describe("offices", () => {
     ];
     const map = withPieces(pieces, MAPS.office);
     expect([map.at(0, 0), map.at(5, 8), map.at(10, 1), map.at(11, 1)]).toEqual(["W", "x", "t", "W"]);
+  });
+
+  test("the pet bed: in every office, off the door, the desk and the paths, and reachable", () => {
+    const office = MAPS.office;
+    const beds = office.find("q");
+    expect(beds).toHaveLength(1);
+    const [bx, by] = beds[0]!;
+    expect(office.kind(bx, by).name).toBe("pet bed");
+    expect(office.walkable(bx, by)).toBe(false);
+    // In a corner, so it blocks nothing.
+    expect([office.at(bx + 1, by), office.at(bx, by + 1), office.at(bx + 1, by + 1)]).toEqual([
+      "W",
+      "W",
+      "W",
+    ]);
+    const [door] = office.find("x");
+    for (const p of STARTER_OFFICE) expect([p.x, p.y]).not.toEqual([bx, by]);
+    // Someone can stand beside it (to read its sign), reaching it from the door.
+    const [ex, ey] = door!;
+    const beside = [
+      [bx - 1, by],
+      [bx, by - 1],
+    ] as const;
+    expect(beside.some(([x, y]) => route(office, [ex, ey - 1], [x, y]) !== null)).toBe(true);
+    // With the starter desk and chair there, and with every piece of furniture beside it.
+    const starter = withPieces(STARTER_OFFICE, office);
+    expect(starter.at(bx, by)).toBe("q");
+    expect(route(starter, [ex, ey - 1], [bx - 1, by])).not.toBeNull();
+  });
+
+  test("nothing can be dropped on the pet bed: furniture is written over floor only", () => {
+    const [bx, by] = MAPS.office.find("q")[0]!;
+    for (const f of FURNITURE) {
+      const map = withPieces([{ ch: f.ch, x: bx - (f.w ?? 1) + 1, y: by }], MAPS.office);
+      expect(map.at(bx, by)).toBe("q");
+    }
   });
 });
