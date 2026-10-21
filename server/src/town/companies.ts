@@ -203,17 +203,9 @@ export const storedPieces = (sql: Sql, companyId: number): Promise<{ item: strin
   );
 
 /**
- * Who may do what with the company's furniture: the owner spends the wallet, so 50 members can't
- * each empty it; any member moves furniture about. Everyone else only looks.
- */
-export function mayFurnish(company: CompanyRow, userId: number, action: "buy" | "place"): boolean {
-  return action === "buy" ? company.ownerId === userId : true;
-}
-
-/**
  * Buys one of `item` (company furniture) from the wallet, into the storeroom: its row is the company's,
  * `dropped_by` whoever bought it, and the ledger line says so too. Returns the row, for `world` to put
- * down. Run it serialized, so two buys can't spend the same coins; the caller checks `mayFurnish`.
+ * down. Run it serialized, so two buys can't spend the same coins.
  */
 export async function buyPiece(
   sql: Sql,

@@ -10,7 +10,6 @@ import {
   leave,
   matchCoins,
   matchDue,
-  mayFurnish,
   storedPieces,
   unstore,
 } from "../src/town/companies.ts";
@@ -102,29 +101,19 @@ describe("the company wallet: token coins matched 1:1", () => {
     expect(matchDue(5, 9)).toBe(0); // a wiped day never takes coins back
   });
 
-  test("the first migration back-fills current members since they joined; later ones don't", async () => {
-    await usage(1, "2026-01-20", 100e6); // before joining
+  test("a new ledger starts every wallet at 0, and later migrations leave it alone", async () => {
     await usage(1, "2026-03-01", 100e6);
-    await usage(2, "2026-03-02", 400e6);
     await sql.execute("DROP TABLE company_ledger");
     await migrate(sql);
-    expect(await companyWallet(sql, 1)).toBe(30);
+    expect(await companyWallet(sql, 1)).toBe(0);
+    await matchCoins(sql, 1, ["2026-03-01"], NOW);
     await migrate(sql);
-    expect(await companyWallet(sql, 1)).toBe(30);
-    // From here on, syncs add only what's new.
-    await matchCoins(sql, 2, ["2026-03-02"], NOW);
-    expect(await companyWallet(sql, 1)).toBe(30);
+    expect(await companyWallet(sql, 1)).toBe(10);
   });
 });
 
 describe("company furniture", () => {
   const sofa = itemById("furn.Σ")!;
-
-  test("the owner buys, any member places, nobody else does either", async () => {
-    const co = await row(1);
-    expect([mayFurnish(co, 1, "buy"), mayFurnish(co, 2, "buy")]).toEqual([true, false]);
-    expect([mayFurnish(co, 1, "place"), mayFurnish(co, 2, "place")]).toEqual([true, true]);
-  });
 
   test("bought from the wallet, never more than it holds, and the ledger says who", async () => {
     const co = await row(1);

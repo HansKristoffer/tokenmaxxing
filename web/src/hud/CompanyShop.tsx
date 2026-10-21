@@ -7,7 +7,7 @@ import { PieceImage } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
 /**
- * The company building's furniture, from the company wallet. The owner buys; whoever is in the
+ * The company building's furniture, from the company wallet. Any member buys; whoever is in the
  * building puts it down in front of them (otherwise it waits in the storeroom); any member puts out
  * what's stored, and G takes a piece back in.
  */
@@ -32,7 +32,7 @@ export function CompanyShop() {
         <strong>🪙 {co.wallet.toLocaleString()}</strong> in the company wallet
       </p>
       <p className="muted small">
-        {co.isOwner ? "You spend the company wallet. " : "The owner buys; you can move things about. "}
+        You spend the company wallet.
         {inside
           ? "It goes down in front of you; G takes a piece back to the storeroom."
           : "Walk into your building to put things out."}
@@ -67,8 +67,7 @@ export function CompanyShop() {
             <button
               type="button"
               className="primary"
-              disabled={!co.isOwner || co.wallet < f.price}
-              title={co.isOwner ? undefined : "Only the owner spends the company wallet"}
+              disabled={co.wallet < f.price}
               onClick={act(() => town.buyPiece(`furn.${f.ch}`))}
             >
               🪙 {f.price}

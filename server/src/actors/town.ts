@@ -95,7 +95,6 @@ import {
   listings,
   type MyCompany,
   matchCoins,
-  mayFurnish,
   myCompany,
   ownedCompany,
   unstore,
@@ -1057,8 +1056,6 @@ async function furnish(
   const u = await userById(c.db, userId);
   const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
   if (!company) throw new UserError("Join a company first.", { code: "not_member" });
-  if (!mayFurnish(company, userId, action))
-    throw new UserError("Only the owner spends the company wallet.", { code: "not_owner" });
   const notice = await c.vars.serial(async () => {
     const now = Date.now();
     const id = await take(company, now);
