@@ -1,4 +1,5 @@
 import { type Badge, badgesFor, streakOf } from "@tokenmaxxing/core/badges.ts";
+import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import { levelFor, levelTitle } from "@tokenmaxxing/core/format.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
 import { addDays, dayKey, type RangeKey, rangeDays } from "@tokenmaxxing/core/range.ts";
@@ -20,6 +21,7 @@ import { officeOf, type Podium } from "./coins.ts";
 import { COMPANY_COLS, type CompanyRow, companyById, companyInfos } from "./companies.ts";
 import { type GameStats, gameStats } from "./games.ts";
 import { picnicsOf } from "./picnic.ts";
+import { ticketsOf } from "./tickets.ts";
 import { lookOf, TOKENS, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
 
 export interface BoardPlayer extends Totals {
@@ -89,6 +91,8 @@ export interface Profile {
   badges: Badge[];
   /** Null without one: under `OFFICE_LEVEL`, or not in a company. */
   office: "open" | "closed" | null;
+  /** The 429 Cop's tickets, newest first. */
+  tickets: Ticket[];
 }
 
 /** The HUD's corner: my numbers today, and today's top 5 (with me pinned below when I'm not in it). */
@@ -244,6 +248,7 @@ export async function profile(
     games,
     badges,
     office: level < OFFICE_LEVEL || !company ? null : (await officeOf(sql, userId)).open ? "open" : "closed",
+    tickets: await ticketsOf(sql, userId),
   };
 }
 

@@ -1,3 +1,4 @@
+import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import { headlines, type Paper } from "@tokenmaxxing/core/paper.ts";
 import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
@@ -100,6 +101,7 @@ import { markPicnic } from "../town/picnic.ts";
 import { migrate } from "../town/schema.ts";
 import { paperFacts, payForPolse } from "../town/street.ts";
 import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
+import { giveTicket } from "../town/tickets.ts";
 import {
   levelOf,
   lookOf,
@@ -931,6 +933,12 @@ export const town = actor({
       await push(c.db, client, changed);
       for (const id of changed.users)
         await notify(client, id, { text: "Your company was closed by the town admin.", open: "company" });
+    },
+
+    /** From `world`: the 429 Cop wrote `userId` a ticket: how many they hold now, or null if they had one today already. */
+    ticket: async (c, userId: number, t: Ticket): Promise<number | null> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => giveTicket(c.db, userId, t));
     },
 
     /** For `world` starting up: everyone, every company, every office and everything on a floor. */

@@ -11,6 +11,7 @@ import { drawWaterGlints } from "../art/tiles.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
+import { drawCop, isCop } from "./cop.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
@@ -230,7 +231,9 @@ function drawAvatar(
     const shrink = lift > 3 ? 1 : 0;
     g.fillStyle = C.shadow;
     g.fillRect(px + 4 + shrink, py + 14, 8 - 2 * shrink, 2);
-    g.drawImage(characterFrame(look, a.facing, pose), px, py - 2 - lift - (pose === "walkA" ? 1 : 0));
+    const top = py - 2 - lift - (pose === "walkA" ? 1 : 0);
+    if (isCop(a)) drawCop(g, a, pose, px, top, py, now);
+    else g.drawImage(characterFrame(look, a.facing, pose), px, top);
   }
   g.globalAlpha = 1;
 }

@@ -1374,4 +1374,44 @@ button.lb-item:hover {
 .picnic-banner strong {
   font-size: 15px;
   color: var(--accent);
+/* The 429 Cop's tickets on a player card: a badge that opens into the slips themselves. */
+.tickets summary {
+  display: inline-block;
+  margin: 2px 0 4px;
+  font-size: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.tickets summary::-webkit-details-marker {
+  display: none;
+}
+.tickets ol {
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  border-left: 4px solid #4a6fd6;
+  border-radius: 3px;
+  background: #fbf7ef;
+  color: #2b2433;
+  font-size: 12px;
+}
+.ticket-head {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #c23a3a;
+}
+.ticket-sign {
+  align-self: flex-end;
+  font-style: italic;
+  color: #24336b;
 }

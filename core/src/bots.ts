@@ -3,6 +3,7 @@
  * `BOTS`; the `world` actor walks it and makes it talk. Ids are negative, so they never meet a real
  * user's (those start at 1).
  */
+import { COP } from "./cop.ts";
 import { compact, MAX_LEVEL } from "./format.ts";
 import type { GameMap } from "./maps.ts";
 import { worldClock } from "./range.ts";
@@ -221,6 +222,7 @@ export const BOTS: BotDef[] = [
       },
     ],
   },
+  COP,
 ];
 
 export const isBot = (id: number): boolean => id < 0;
