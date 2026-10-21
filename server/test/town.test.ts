@@ -32,6 +32,8 @@ describe("accounts", () => {
       hat: 0,
       pet: 0,
       petVariant: 0,
+      merch: 0,
+      merchWorn: 0,
     });
     await expect(a.town.setLook({ style: 99, skin: 0, hair: 0, outfit: 0 })).rejects.toThrow();
   });

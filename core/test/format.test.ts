@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   clock,
+  countdown,
   hoursText,
   levelAt,
   levelFor,
@@ -40,4 +41,11 @@ test("levelAt is where levelFor ticks over, up to Singularity at 30", () => {
     expect(levelFor(levelAt(level))).toBe(level);
     expect(levelFor(levelAt(level) - 1)).toBe(level - 1);
   }
+});
+
+test("the raid's countdown ticks to the second, days apart", () => {
+  const at = Date.UTC(2026, 9, 26, 7);
+  expect(countdown(at, at - (3 * 86_400 + 4 * 3600 + 12 * 60 + 55) * 1000)).toBe("3d 04:12:55");
+  expect(countdown(at, at - 61_000)).toBe("00:01:01");
+  expect(countdown(at, at + 5000)).toBe("00:00:00");
 });

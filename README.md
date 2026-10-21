@@ -8,8 +8,8 @@ house in town, painted in your brand's colours with your logo on it. When you're
 character is in that house: **at a desk** while your agents run, **asleep in bed** when they don't. Using
 AI earns **coins**, and so does finishing a day in the top 3; spend them on clothes, glasses, hats and
 pets that follow you around (hold a pet and pick any of its colours and breeds with the eye in your bag; they curl up asleep in the pet bed of your office while you're in it). Or play for them: challenge someone to a game in the town square, from
-rock-paper-scissors for founders and Liar's Dice to **Tokenmaxxing**, a battle over who burns the most real
-tokens in an hour.
+rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
+the most real tokens in an hour.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.
@@ -95,6 +95,16 @@ data is sent anywhere for this.
   (15B) and a mansion with a tower (40B). A big team of light users stays in the basement.
 - **Coins:** from the day you sign up, every day pays `√(tokens ÷ 1M)`: 100M tokens is 10 coins, 1B is 31. A heavy day earns more,
   but not wildly more. Finishing a day 1st, 2nd or 3rd adds 25, 15 or 10.
+- **The raid:** from the first Monday after launch, every Monday at 08:00 a ladder of bosses opens in the Raid Dungeon, down the gate in the square,
+  easiest first, each week's 10% tougher than the last. Every token you sync hits the one up now, no cap, and
+  every PR you open is a 25M special attack. When one falls the next, 1.5× tougher, appears at once; each kill pays everyone who'd hit for
+  10M or more that week by then 10, 15, 25, 35, 50… coins (never more than 50 a kill). Everyone with agents running sits at a desk in the
+  dungeon, wherever they are, firing magic missiles (and a robot minion per extra agent) as fast as they burn
+  tokens: that's the show, the hits are the synced tokens. Until the first one the gate is boarded up with a
+  ⚠️ and a countdown to that Monday 08:00.
+  Each boss also drops its own rare loot: every raider a kill pays rolls its four items, from a 10% hat to a
+  0.1% trophy (Golden Hourglass, Infinite Context Crown…). Rolls are fixed per week, rung and player, so nobody
+  can reroll. Loot is worn or placed like shop items, and can be traded.
 
 ## How it works
 
@@ -179,6 +189,8 @@ bash app/helper/scripts/cli.sh dist/cli    # the release binaries, for every pla
 | `CLIENT_IP_HEADER` | `x-real-ip` | Where the client's IP is, for per-IP limits. Railway's edge sets `x-real-ip` |
 | `GATEWAY_REQUESTS_PER_MIN` | `1200` | Requests to the actors per client IP a minute |
 | `GATEWAY_SOCKETS_PER_MIN` | `300` | New WebSockets per client IP a minute |
+| `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
+| `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
 
 `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` are read by RivetKit's native side, so they must be set in
 the environment before the process starts.

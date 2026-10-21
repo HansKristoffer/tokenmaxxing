@@ -4,7 +4,7 @@
  * tests need no server. Adding a game is one `GameDef` plus one React component.
  */
 
-export type GameId = "spr" | "hype" | "dice" | "tokenmaxxing";
+export type GameId = "spr" | "hype" | "dice" | "sprint" | "tokenmaxxing";
 
 /** The host's choices when opening a table, e.g. `{ minutes: 60 }`. */
 export type Options = Record<string, string | number>;

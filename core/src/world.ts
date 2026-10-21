@@ -28,7 +28,7 @@ export const COMPANY_CAP = 50;
 export type Facing = "up" | "down" | "left" | "right";
 /** `playing`: at a game table in town, until the match ends (see core/src/games/gather.ts). */
 export type PlayerState = "idle" | "sit" | "away" | "working" | "playing";
-export type RoomId = "town" | "inn" | `hq:${number}` | `office:${number}`;
+export type RoomId = "town" | "inn" | "dungeon" | `hq:${number}` | `office:${number}`;
 
 export const DIRS: Record<Facing, [number, number]> = {
   up: [0, -1],
@@ -82,6 +82,8 @@ export interface Drop {
   y: number;
   by: number;
   at: number;
+  /** The company it belongs to: bought from its wallet, it stays in its building (`COMPANY_FURNITURE`). */
+  co?: number;
 }
 
 /** What's on each room's floor. ponytail: one process holds every room's, like the town. */
@@ -120,19 +122,23 @@ export interface Look {
   petVariant: number;
   /** What the pet is called (`cleanPetName`); left out when it has none. */
   petName?: string;
+  /** Whose company merch they wear (a company id), 0 for none; `merchWorn` says which (`MERCH` bits). */
+  merch: number;
+  merchWorn: number;
 }
-export const LOOK_OPTIONS: Record<Exclude<keyof Look, "petName">, number> = {
+export const LOOK_OPTIONS: Record<Exclude<keyof Look, "merch" | "petName">, number> = {
   style: 4,
   skin: 4,
   hair: 6,
-  outfit: 13,
-  glasses: 4,
-  hat: 5,
-  pet: 7,
+  outfit: 16,
+  glasses: 7,
+  hat: 9,
+  pet: 11,
   petVariant: MAX_PET_LOOKS,
+  merchWorn: 16,
 };
-/** Looks saved before the shop have no extras. */
-const EXTRAS = { glasses: 0, hat: 0, pet: 0, petVariant: 0 };
+/** Looks saved before the shop (or before merch, or pet looks) have no extras. */
+const EXTRAS = { glasses: 0, hat: 0, pet: 0, petVariant: 0, merch: 0, merchWorn: 0 };
 export const STYLE_NAMES = ["Short hair and tee", "Cap and hoodie", "Bun and jacket", "Long hair and skirt"];
 
 export function parseLook(raw: unknown): Look | null {
@@ -151,6 +157,10 @@ export function parseLook(raw: unknown): Look | null {
     if (!name) return null;
     out.petName = name;
   }
+  if (!Number.isSafeInteger(r.merch) || (r.merch as number) < 0) return null;
+  out.merch = r.merch as number;
+  // Nothing worn is no merch, so two looks that draw the same are the same.
+  if (out.merch === 0 || out.merchWorn === 0) Object.assign(out, { merch: 0, merchWorn: 0 });
   return out;
 }
 
@@ -184,6 +194,29 @@ export interface PlayerInfo {
   /** Online but no input for `IDLE_MS`: snoozing in place. */
   dozing: boolean;
 }
+
+/**
+ * Someone with agents running right now. The dungeon seats them at a war desk wherever they really are
+ * (asleep, in town, offline), firing at the boss as fast as they burn tokens.
+ */
+export interface Raider {
+  id: number;
+  name: string;
+  look: Look;
+  /** Agents that ran in the last 10 minutes: the first is them, the rest their robot minions. */
+  agents: number;
+  /** Tokens a minute over the 10 minutes before their last sync, fading out as that sync gets old. */
+  burn: number;
+}
+
+/** The dungeon's raiders: the busiest `RAIDERS_SHOWN`, and how many more there are. */
+export interface Raiders {
+  top: Raider[];
+  more: number;
+}
+
+/** As many raiders as the dungeon has war desks. */
+export const RAIDERS_SHOWN = 40;
 
 /** A line from `town` for one player (`notice`), and the panel a click on it opens. */
 export interface Notice {
@@ -285,6 +318,8 @@ export interface Snapshot {
   doors: Door[];
   /** What's on the floor: furniture (in the map too), wearables and pets. */
   drops: Drop[];
+  /** Only in the dungeon: who has agents running, wherever they are. */
+  raiders: Raiders | null;
 }
 
 /** A game on show in town: where its table (or arena) is, who's at it, and how it's going. */
@@ -407,9 +442,10 @@ export function roomEntry(room: RoomId): Place {
   return { room, x, y: y - 1, facing: "up" };
 }
 
-/** Just outside a town door (a company's plot, or the Inn), facing away from it. */
-export function outsideDoor(plot: number | "inn"): Place {
-  const [x, y] = plot === "inn" ? MAPS.town.find("I")[0]! : doorOf(plot);
+/** Just outside a town door (a company's plot, the Inn, or the dungeon's gate), facing away from it. */
+export function outsideDoor(plot: number | "inn" | "dungeon"): Place {
+  const [x, y] =
+    plot === "inn" ? MAPS.town.find("I")[0]! : plot === "dungeon" ? MAPS.town.find("G")[0]! : doorOf(plot);
   return { room: "town", x, y: y + 1, facing: "down" };
 }
 
@@ -439,12 +475,13 @@ export function portal(
   }
   if (room === "town") {
     if (door.ch === "I") return roomEntry("inn");
+    if (door.ch === "G") return roomEntry("dungeon");
     const holder = plots.get(plotId(...blockOf(door.x, door.y)));
     if (!holder) return { notice: "Nobody lives here any more." };
     if (holder.id !== companyId) return { notice: `🔒 ${holder.name}'s house. Members only.` };
     return roomEntry(`hq:${holder.id}`);
   }
-  if (room === "inn") return outsideDoor("inn");
+  if (room === "inn" || room === "dungeon") return outsideDoor(room);
   const plot = [...plots].find(([, c]) => c.id === companyOfRoom(room))?.[0];
   return plot === undefined ? townSpawn() : outsideDoor(plot);
 }

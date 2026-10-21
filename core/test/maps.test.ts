@@ -10,7 +10,7 @@ import {
   TOWN_SPAWN,
   townMap,
 } from "../src/maps.ts";
-import { roomEntry } from "../src/world.ts";
+import { RAIDERS_SHOWN, roomEntry } from "../src/world.ts";
 
 /** Tiles you can walk onto or stand next to (to sit, read or open a door) from (x, y). */
 function reachable(map: GameMap, x: number, y: number): Set<string> {
@@ -58,7 +58,7 @@ describe("maps", () => {
       expect(town.at(...doorOf(plot))).toBe("D");
       expect(seen.has(doorOf(plot).join(","))).toBe(true);
     }
-    for (const ch of ["I", "B", "N", "o"])
+    for (const ch of ["I", "B", "N", "o", "G"])
       for (const t of town.find(ch)) expect(seen.has(t.join(","))).toBe(true);
     expect(town.x0).toBeLessThan(0);
   });
@@ -71,6 +71,21 @@ describe("maps", () => {
     expect(next).toContain(plotId(3, 0));
     expect(next).not.toContain(plotId(2, 0));
     for (const p of next) expect(plotId(...plotBlock(p))).toBe(p);
+  });
+
+  test("dungeon: a war desk in front of every seat, one per raider shown, all on aisles you can walk", () => {
+    const map = MAPS.dungeon;
+    expect(map.find("x")).toHaveLength(1);
+    const seats = map.find("r");
+    expect(seats).toHaveLength(RAIDERS_SHOWN);
+    const entry = roomEntry("dungeon");
+    const seen = reachable(map, entry.x, entry.y);
+    for (const [x, y] of seats) {
+      expect(map.at(x, y - 1)).toBe("l");
+      expect(seen.has(`${x},${y}`)).toBe(true);
+    }
+    // You can walk up to the boss.
+    expect(map.find("Z").some((t) => seen.has(t.join(",")))).toBe(true);
   });
 
   for (const id of ["hq", "inn"] as const) {

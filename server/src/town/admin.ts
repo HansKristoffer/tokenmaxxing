@@ -5,7 +5,15 @@ import { UserError } from "rivetkit";
 import { all, one, type Sql } from "../actors/shared.ts";
 import { forgetLogo } from "../brand.ts";
 import { balances } from "./coins.ts";
-import { type Changed, companyById, companyInfos, leave, withdraw } from "./companies.ts";
+import {
+  type Changed,
+  companyById,
+  companyInfos,
+  companyWallet,
+  forgetFurniture,
+  leave,
+  withdraw,
+} from "./companies.ts";
 import { TOKENS, userById } from "./users.ts";
 
 export interface AdminOverview {
@@ -66,6 +74,8 @@ export interface AdminCompany {
   tier: number;
   tokensToday: number;
   tokens30d: number;
+  /** Coins in its wallet. */
+  wallet: number;
 }
 
 const count = async (sql: Sql, query: string, ...args: unknown[]): Promise<number> =>
@@ -184,10 +194,12 @@ export async function companies(sql: Sql): Promise<AdminCompany[]> {
     branding: AdminCompany["branding"];
     createdAt: number;
     applicants: number;
+    wallet: number;
   }>(
     sql,
     `SELECT c.id, c.owner_id AS ownerId, o.name AS ownerName, c.branding, c.created_at AS createdAt,
-            (SELECT COUNT(*) FROM applications a WHERE a.company_id = c.id) AS applicants
+            (SELECT COUNT(*) FROM applications a WHERE a.company_id = c.id) AS applicants,
+            (SELECT COALESCE(SUM(amount), 0) FROM company_ledger l WHERE l.company_id = c.id) AS wallet
      FROM companies c LEFT JOIN users o ON o.id = c.owner_id`,
   );
   const infos = new Map(
@@ -218,13 +230,15 @@ export async function companies(sql: Sql): Promise<AdminCompany[]> {
         tier: houseTier(info.tokens30d, info.members),
         tokensToday: info.todayTokens,
         tokens30d: info.tokens30d,
+        wallet: r.wallet,
       };
     })
     .sort((a, b) => b.tokens30d - a.tokens30d);
 }
 
 /**
- * Deletes an account: its usage, activity, purchases, items (those it dropped too), rewards, office,
+ * Deletes an account: its usage, activity, purchases, items (those it dropped too, but for company
+ * furniture, which stays the company's), rewards, office,
  * application, trade offers and company seat (the company hands over or closes, as when leaving).
  * Refused while they have coins on a game that isn't settled, so no pot comes up short. Their `ledger`
  * and `match_players` rows stay: other players' games add up with them, and ids are never reused
@@ -248,7 +262,7 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
   for (const table of ["usage_daily", "activity_daily", "capped_daily", "purchases", "rewards", "offices"])
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
   await sql.execute(
-    "DELETE FROM items WHERE owner_id = ? OR (owner_id IS NULL AND dropped_by = ?)",
+    "DELETE FROM items WHERE owner_id = ? OR (owner_id IS NULL AND dropped_by = ? AND company_id IS NULL)",
     userId,
     userId,
   );
@@ -265,8 +279,29 @@ export async function closeCompany(sql: Sql, companyId: number): Promise<Changed
   await sql.execute("UPDATE users SET company_id = NULL, joined_at = NULL WHERE company_id = ?", companyId);
   await sql.execute("DELETE FROM companies WHERE id = ?", companyId);
   await sql.execute("DELETE FROM applications WHERE company_id = ?", companyId);
+  await forgetFurniture(sql, companyId);
   await forgetLogo(companyId);
   return { users: members.map((m) => m.id), companies: [companyId] };
+}
+
+/** Sets a company wallet: the difference goes in its ledger as kind `admin`. Run it serialized. */
+export async function setCompanyWallet(
+  sql: Sql,
+  companyId: number,
+  coins: number,
+  userId: number,
+  now: number,
+): Promise<{ before: number; coins: number }> {
+  const before = await companyWallet(sql, companyId);
+  if (coins !== before)
+    await sql.execute(
+      "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, 'admin', 'admin', ?)",
+      companyId,
+      userId,
+      coins - before,
+      now,
+    );
+  return { before, coins };
 }
 
 /** Forgets someone's usage (their `player` drops the raw events first): for faked numbers. */

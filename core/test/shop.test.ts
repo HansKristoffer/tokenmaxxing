@@ -8,7 +8,8 @@ test("level items come at 10, 20 and 30, free and wearable", () => {
   expect(levelItems(30)).toHaveLength(3);
   for (const i of ITEMS.filter((i) => i.level !== undefined)) {
     expect(i.price).toBe(0);
-    expect(i.index).toBeLessThan(i.slot === "furniture" ? 0 : LOOK_OPTIONS[i.slot]);
+    // Rewards are all wearables.
+    expect(i.index).toBeLessThan(LOOK_OPTIONS[i.slot as keyof typeof LOOK_OPTIONS]);
   }
 });
 

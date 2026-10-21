@@ -1,6 +1,7 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import type { ChatLine, CompanyInfo, Notice, RoomId } from "@tokenmaxxing/core/world.ts";
-import type { Me, Today, Wallet } from "@tokenmaxxing/server/registry";
+import type { Me, Raid, Today, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
 
 export type Panel =
@@ -8,6 +9,8 @@ export type Panel =
   | { kind: "card"; userId: number }
   | { kind: "companyCard"; companyId: number }
   | { kind: "company" }
+  | { kind: "companyShop" }
+  | { kind: "merch"; companyId: number }
   | { kind: "look" }
   | { kind: "shop" }
   | { kind: "bag" }
@@ -17,6 +20,7 @@ export type Panel =
   | { kind: "match"; id: number }
   | { kind: "trade"; userId: number }
   | { kind: "trades" }
+  | { kind: "raid" }
   | { kind: "menu" };
 
 /** Game panels keep the chat usable beside them. */
@@ -29,6 +33,8 @@ interface HudState {
   me: Me | null;
   stats: Today["me"] | null;
   wallet: Wallet | null;
+  /** This week's boss and the town's fight with it. */
+  raid: Raid | null;
   /** Today's top players by tokens, with me appended when I'm outside them. */
   board: Today["top"];
   room: RoomId;
@@ -56,6 +62,8 @@ interface HudState {
   inviteTable: number | null;
   /** The last time someone @-mentioned me from another room. */
   mention: { line: ChatLine; at: number } | null;
+  /** What the raid's last kills dropped, for everyone (`world` sends `loot`). */
+  lootNews: { news: LootNews[]; at: number } | null;
 }
 
 let state: HudState = {
@@ -63,6 +71,7 @@ let state: HudState = {
   me: null,
   stats: null,
   wallet: null,
+  raid: null,
   board: [],
   room: "town",
   occupancy: {},
@@ -73,6 +82,7 @@ let state: HudState = {
   banner: null,
   chatFocus: 0,
   mention: null,
+  lootNews: null,
   notice: null,
   lobby: null,
   frame: null,

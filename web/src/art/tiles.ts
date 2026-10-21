@@ -4,7 +4,18 @@ import { C } from "./palette.ts";
 import { bake, hash, Pen } from "./pixels.ts";
 
 /** What a tile's ground is made of. Objects stand on whatever their neighbours are. */
-type Ground = "grass" | "path" | "plaza" | "flowers" | "water" | "floor" | "rug" | "wall" | "exit";
+type Ground =
+  | "grass"
+  | "path"
+  | "plaza"
+  | "flowers"
+  | "water"
+  | "floor"
+  | "rug"
+  | "wall"
+  | "exit"
+  | "stone"
+  | "dais";
 
 const GROUND: Record<string, Ground> = {
   ".": "grass",
@@ -17,6 +28,23 @@ const GROUND: Record<string, Ground> = {
   W: "wall",
   x: "exit",
   R: "exit",
+  q: "stone",
+  Z: "dais",
+};
+
+/** The dungeon's stone: darker than the square's, and lit by its torches. */
+const DUNGEON = {
+  floor: "#2f2b3a",
+  floorDark: "#24212d",
+  floorLight: "#3b3647",
+  dais: "#4a4459",
+  daisDark: "#2a2633",
+  daisLight: "#5d5670",
+  rune: "#b98cff",
+  wall: "#3a3446",
+  wallDark: "#2a2533",
+  wallTop: "#1c1924",
+  wallTopLight: "#2a2533",
 };
 
 function groundAt(map: GameMap, x: number, y: number): Ground {
@@ -36,7 +64,7 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
     if (g && g !== "wall" && g !== "water" && g !== "exit") counts.set(g, (counts.get(g) ?? 0) + 1);
   }
   const best = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
-  return best ?? (map.id === "town" ? "grass" : "floor");
+  return best ?? (map.id === "town" ? "grass" : map.id === "dungeon" ? "stone" : "floor");
 }
 
 function grass(p: Pen, ox: number, oy: number, x: number, y: number): void {
@@ -122,6 +150,33 @@ function floor(p: Pen, ox: number, oy: number, x: number, y: number): void {
   }
 }
 
+/** Flagstones, offset every other row like the plaza but rougher. */
+function stone(p: Pen, ox: number, oy: number, x: number, y: number): void {
+  p.rect(ox, oy, TILE, TILE, DUNGEON.floor);
+  for (let j = 0; j < TILE; j++)
+    for (let i = 0; i < TILE; i++) {
+      const gx = x * TILE + i;
+      const gy = y * TILE + j;
+      const offset = Math.floor(gy / 8) % 2 === 0 ? 0 : 4;
+      if (gy % 8 === 0 || (gx + offset) % 8 === 0) p.px(ox + i, oy + j, DUNGEON.floorDark);
+      else if (hash(gx, gy, 6) < 0.05) p.px(ox + i, oy + j, DUNGEON.floorLight);
+    }
+}
+
+/** The boss's dais: raised, with a lip and a front face, and runes along its edge. */
+function dais(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
+  const off = (dx: number, dy: number) => map.at(x + dx, y + dy) !== "Z";
+  p.rect(ox, oy, TILE, TILE, DUNGEON.dais);
+  if (off(0, -1)) p.rect(ox, oy, TILE, 2, DUNGEON.daisLight);
+  if (off(-1, 0)) p.rect(ox, oy, 2, TILE, DUNGEON.daisLight);
+  if (off(1, 0)) p.rect(ox + TILE - 2, oy, 2, TILE, DUNGEON.daisDark);
+  if (off(0, 1)) {
+    p.rect(ox, oy + TILE - 5, TILE, 5, DUNGEON.daisDark);
+    p.rect(ox + 3, oy + TILE - 3, 2, 1, DUNGEON.rune);
+    p.rect(ox + 10, oy + TILE - 3, 2, 1, DUNGEON.rune);
+  }
+}
+
 function rug(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
   p.rect(ox, oy, TILE, TILE, C.rug);
   const edge = (dx: number, dy: number) =>
@@ -137,11 +192,24 @@ function rug(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number)
 }
 
 function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
+  const dark = map.id === "dungeon";
+  const top = dark ? DUNGEON.wallTop : C.wallTop;
+  const topLight = dark ? DUNGEON.wallTopLight : C.wallTopLight;
   // The office door is in the wall's face, so the wall above it stays a wall top.
   const face = !"WR".includes(map.at(x, y + 1)) && map.contains(x, y + 1);
   if (!face) {
-    p.rect(ox, oy, TILE, TILE, C.wallTop);
-    if (hash(x, y, 5) < 0.3) p.rect(ox + 3, oy + 6, 6, 1, C.wallTopLight);
+    p.rect(ox, oy, TILE, TILE, top);
+    if (hash(x, y, 5) < 0.3) p.rect(ox + 3, oy + 6, 6, 1, topLight);
+    return;
+  }
+  if (dark) {
+    // Stone blocks.
+    p.rect(ox, oy, TILE, TILE, DUNGEON.wall);
+    for (let j = 0; j < TILE; j += 5) {
+      p.rect(ox, oy + j, TILE, 1, DUNGEON.wallDark);
+      p.rect(ox + ((x * 7 + j) % 8) + (j % 10 === 0 ? 0 : 4), oy + j, 1, 5, DUNGEON.wallDark);
+    }
+    p.rect(ox, oy, TILE, 2, topLight);
     return;
   }
   p.rect(ox, oy, TILE, TILE, C.wall);
@@ -150,8 +218,9 @@ function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
   p.rect(ox, oy + TILE - 3, TILE, 3, C.woodDark);
 }
 
-function exit(p: Pen, ox: number, oy: number, x: number, y: number): void {
-  floor(p, ox, oy, x, y);
+function exit(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
+  if (map.id === "dungeon") stone(p, ox, oy, x, y);
+  else floor(p, ox, oy, x, y);
   p.rect(ox, oy, 2, TILE, C.woodDark);
   p.rect(ox + TILE - 2, oy, 2, TILE, C.woodDark);
   p.rect(ox + 3, oy + 4, TILE - 6, 8, C.rugLight);
@@ -188,7 +257,13 @@ function paintTile(p: Pen, map: GameMap, x: number, y: number): void {
       wall(p, map, ox, oy, x, y);
       break;
     case "exit":
-      exit(p, ox, oy, x, y);
+      exit(p, map, ox, oy, x, y);
+      break;
+    case "stone":
+      stone(p, ox, oy, x, y);
+      break;
+    case "dais":
+      dais(p, map, ox, oy, x, y);
       break;
   }
 }

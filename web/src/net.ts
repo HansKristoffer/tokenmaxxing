@@ -1,4 +1,5 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import {
   CHAT_HISTORY,
   type ChatLine,
@@ -8,12 +9,15 @@ import {
   type Moves,
   type Notice,
   type PlayerInfo,
+  type Raiders,
   type RoomId,
   type Snapshot,
   type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
-import type { registry } from "@tokenmaxxing/server/registry";
+import type { Raid, registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
+import { noteLoot } from "./game/loot.ts";
+import { noteRaid, setRaiders } from "./game/raid.ts";
 import {
   applyBubble,
   applyCallout,
@@ -102,7 +106,11 @@ export function connect(token: string): void {
     });
   conn = client.world.getOrCreate(["main"], { params: { token } }).connect();
 
-  conn.on("snapshot", (s: Snapshot) => loadSnapshot(s));
+  conn.on("snapshot", (s: Snapshot) => {
+    loadSnapshot(s);
+    setRaiders(s.raiders);
+  });
+  conn.on("raiders", (r: Raiders) => setRaiders(r));
   conn.on("moves", (m: Moves) => applyMoves(m));
   conn.on("info", (info: PlayerInfo) => {
     applyInfo(info);
@@ -123,6 +131,15 @@ export function connect(token: string): void {
     void town.wallet().then((wallet) => hud.set({ wallet }));
   });
   conn.on("mention", (line: ChatLine) => hud.set({ mention: { line, at: Date.now() } }));
+  // A kill dropped loot: it flies out of the boss, so the kill should show now, not at the next poll.
+  conn.on("loot", (news: LootNews[]) => {
+    hud.set({ lootNews: { news, at: Date.now() } });
+    noteLoot(news);
+    void town.raid().then((raid) => {
+      noteRaid(hud.get().raid, raid);
+      hud.set({ raid });
+    });
+  });
   conn.on("game", (g: WorldGame) => applyGame(g));
   conn.on("gameOver", (e: { id: number; winners: number[] }) => applyGameOver(e.id, e.winners));
   conn.on("callout", (e: { id: number; userId: number | null; text: string }) => applyCallout(e));
@@ -162,13 +179,25 @@ export async function refreshMe(): Promise<void> {
 let statsTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** My tokens, rank, level and coins today, at most every few seconds. */
-async function refreshStats(): Promise<void> {
-  if (statsTimer) return;
+async function refreshStats(force = false): Promise<void> {
+  if (statsTimer && !force) return;
+  if (statsTimer) clearTimeout(statsTimer);
   statsTimer = setTimeout(() => {
     statsTimer = null;
   }, 5000);
-  const [m, wallet] = await Promise.all([town.today(), town.wallet()]);
-  hud.set({ stats: m.me, board: m.top, wallet });
+  const [m, wallet, raid] = await Promise.all([town.today(), town.wallet(), town.raid()]);
+  noteRaid(hud.get().raid, raid);
+  hud.set({ stats: m.me, board: m.top, wallet, raid });
+  gateTimer(raid);
+}
+
+let gateAt = 0;
+/** A shut gate (the launch, or Monday 08:00) is asked about again the moment it opens, not up to 30 s later. */
+function gateTimer(raid: Raid): void {
+  const at = raid.prelaunch ? raid.launchAt : raid.closed ? raid.endsAt : 0;
+  if (!at || at === gateAt || at <= Date.now()) return;
+  gateAt = at;
+  setTimeout(() => void refreshStats(true), at - Date.now() + 1500);
 }
 
 // MARK: Games

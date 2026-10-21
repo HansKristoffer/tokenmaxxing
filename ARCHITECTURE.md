@@ -153,8 +153,9 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 **`town["main"]`**: everything cold, joined in SQL.
 - Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `capped_daily`,
   `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
-  handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
-  `offices`, `match_players` (one row per player per finished game), `deleted_users`, `admin_log`.
+  handed out), `loot` (raid drops handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
+  `offices`, `company_ledger` (company wallets), `match_players` (one row per player per finished game),
+  `deleted_users`, `admin_log`.
 - Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename` (10 an hour), `setLook` (refuses items you don't hold), `me`.
 - Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
   `core/src/maps.ts`), leave, kick, rename, `setWebsite`. One company per person, at most 50 members. The
@@ -235,6 +236,20 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   own colours are used. The logo is downloaded from public hosts only (no private or loopback addresses, a few
   redirects, images up to 512 KB), and served from `/logos/` with a sandboxing CSP.
 
+- **The company wallet** (`company_ledger`). Every coin a member earns from tokens (`coinsForTokens`, not
+  podiums or quests) is matched 1:1 into their company's wallet, on top of their own: `report` runs
+  `matchCoins`, which adds what each touched day's coins grew by since it was last matched (kind `match`,
+  ref the day), to the company they're in now, from the day they joined. Outsiders' merch purchases go in
+  (`merch`), furniture comes out (`furniture`); an admin can set it (`admin`). Each row names who earned,
+  bought or paid. The first migration back-filled current members' days since they joined.
+- **Company furniture** (`COMPANY_FURNITURE`, 29 pieces drawn in `web/src/art/furniture-fancy.ts`): the owner
+  buys from the wallet (`buyPiece`); any member puts pieces out (`placePiece`, down in front of them in the
+  building) and takes them back (G) into the storeroom. Rows are `items` with `company_id` and no
+  `owner_id`, so they're never in a bag, the sweeper leaves them, and they go when the company closes.
+- **Merch** (`MERCH`): every company's tee, hoodie, cap and mug (`merch.<companyId>.<kind>`), in its colours
+  with its initials, worn through `look.merch` and `look.merchWorn`. Outsiders pay full price, into the
+  company wallet; members get `EMPLOYEE_MERCH_DISCOUNT` off (1.0: free, one of each). Not tradeable.
+
 ## Coins and the shop
 
 - Each world day pays `√(tokens ÷ 1M)` coins (1.5B ≈ 38, 600M ≈ 24, 100M = 10). Finishing a day 1st, 2nd or 3rd
@@ -245,7 +260,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Two daily quests (`core/src/quests.ts`) pay up to 7 more a day: 5 agents at once, and 2 hours of
   agents running. They're worked out from `activity_daily`, so nothing is stored.
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats, 5 pets and the 11 pieces of furniture
-  (`furn.<ch>`), 10 to 1,500 coins. Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
+  (`furn.<ch>`), 10 to 1,500 coins. The raid's 16 loot items are in it too, never sold (see *The raid*). Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
   Pets follow their owner in the client (`game/pets.ts`: `followPet`), except in the owner's own office,
   where they go to the bed and sleep (`art/pet-sleep.ts`: `sleepingFrame(petFrame(...), left, tick)` derives
   the curled pose from any pet's normal frame: legs and tail tucked, squashed, eyes shut, a breathing bob and
@@ -288,7 +303,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   visitor's gift too. The Menu opens or closes it while you're in it; opening it clears its chat, so
   visitors never read what was said while it was closed. Anyone in the building walks into an open office;
   from outside, from the owner's card. The template has a **pet bed** in its bottom right corner: the map
-  tile `q`, a prop like a plant (not walkable, so nothing can be dropped on it and it can't block a path).
+  tile `Q`, a prop like a plant (not walkable, so nothing can be dropped on it and it can't block a path).
   While its owner is in their own office their pet walks to it and sleeps there, for everyone in the room to
   see; it's all drawn on the client (`game/pets.ts`), the server knows nothing of it.
 
@@ -303,13 +318,21 @@ gathers in the town square so anyone can watch, and you play in a panel over the
 - **Hype Cycle** (2–8): the valuation climbs as e^(t/12) until it crashes; cash out in time. Three rounds.
   Each round's crash point comes from a seed whose SHA-256 is shown before it and the seed after.
 - **Due Diligence** (2–6): Liar's Dice with 🦄 wild, 30 seconds a turn; the last with dice wins.
+- **Sprint Race** (2–8): a typing race like Monkeytype, 15, 30 or 60 seconds after a 3-second countdown. The
+  same seeded words from the 200 most common English ones for everyone, lowercase and with no punctuation.
+  WPM is (letters of correct words + their spaces) ÷ 5 ÷ minutes; ties go to accuracy, then whoever got there
+  first. The client sends the text as it's typed; the rules score only what arrived in the race (plus half a
+  second for the network), at the server's clock, refuse text faster than 250 WPM, and nobody sees anyone
+  else's text. In town the racers run laps of the square while it's on, a lap per 83 correct characters (10
+  seconds at 100 WPM), from the game's `board`; only the client draws it (`web/src/game/race.ts`), so on the
+  server they stand at the table as usual.
 - **Tokenmaxxing** (2–12): the most real tokens in 15 minutes to 24 hours, starting on the minute after a
   minute's countdown, with 3 minutes of grace for late syncs.
 
 - **Rules are pure** (`core/src/games/`): each game is a `GameDef` over plain JSON state: `setup`, `move`,
   `tick`, `forfeit`, a per-viewer `view` (hiding what a player mustn't see yet), `outcome` (places, or void),
   plus optional `callouts`, `status`, `board`, `headline` and `endsAt` for the world. Usage games add
-  `usageWindow` and `usage`. `GAMES` lists them: Ship, Pivot, Raise; Hype Cycle; Due Diligence; Tokenmaxxing.
+  `usageWindow` and `usage`. `GAMES` lists them: Ship, Pivot, Raise; Hype Cycle; Due Diligence; Sprint Race; Tokenmaxxing.
 - **`arcade["main"]`** is the social side and the money. Everything starts as a table: `open` (invite people,
   open it to anyone, or both), `invite`, `answer` (yes, no or a counter offer), `join`, `leave`, `start`. A
   full table starts a match. It also takes side bets, runs double or nothing, and `settle`s: the pot is paid by
@@ -350,8 +373,106 @@ No server changes, actions or tables are needed.
 - Inviting a whole company at once; company tournaments built from tables.
 - Easing Tokenmaxxing's counters between updates, and "✓ syncing" next to seated players.
 - More games: Term Sheet (Split or Steal; needs a rule for when both steal), Runway (Farkle), Burn Rate
-  (blackjack), Unicorn (highest unique number), a coin flip at the fountain, Prompt Race (typing), and
+  (blackjack), Unicorn (highest unique number), a coin flip at the fountain, and
   fighting "Rate Limit" in the tall grass.
+
+## The raid
+
+Every week a ladder of bosses waits in the Raid Dungeon, down the gate in the square, and the whole town
+climbs it together (`core/src/raid.ts`).
+- **The ladder:** The Rate Limit, The Context Window, Merge Conflict, The Hallucination, then round again as
+  "II", "III"… (`bossAt(rung)`: same sprite ids, plus `rung` and `level`). When a boss falls, the next appears
+  at once and the overflow carries over. A day that does enough brings down several, all on that day, in order.
+- **Launch:** the first raid opens at 08:00 on the Monday after the town first had the raid
+  (`launchWeek`). `raidStart` stores that Monday once in `raid_meta` (key `start`) when `town` wakes, so
+  restarts and deploys don't move it; `RAID_START_WEEK` (a Monday, checked at boot) overrides it for dev and
+  testing. The pure rules take it as `start`. Until it opens the view is `prelaunch` (with `launchAt`): rung 1
+  behind a closed gate, its `hp` so far, and no kills, raiders or coins.
+- **The teaser:** before the launch the gate is boarded up and taped off under a ⚠️ sign, a violet glow leaking
+  through, rumbling every few seconds, with the odd line from inside ("Your rate limit is coming.") and
+  "⚠️ Something is coming… 3d 04:12:55" over it, to the second. The corner box and the panel count down too;
+  the panel shows rung 1 as a shadow ("???"), its HP so far and how the raid works. The dungeon can be walked
+  into, but it's dark and empty: no raiders, just the first boss's shadow. The client asks again the moment
+  a shut gate opens (`gateTimer` in `net.ts`, past the 5 s throttle), and `raidsOf` drops its cache when the
+  raid week changes, so 08:00 is on time. When `prelaunch` flips the boards burst off the gate, rung 1 drops
+  onto its dais and a toast says "⚔️ The Raid Dungeon is open: The Rate Limit awaits."
+- **HP:** the first raid's rung 1 (`start`) is 10% of the week before's damage, at least 2B (`hpFor`);
+  every week after, rung 1 is ×1.1 the week before's (`WEEKLY_GROWTH`, `weekHp`), so week n is
+  `first × 1.1ⁿ` whatever the town did. Each rung is ×1.5. Clearing n rungs costs `2 × rung 1 × (1.5ⁿ − 1)`,
+  so 4 rungs are 81% of the week that set the first ladder: a week like it clears four and stands at the fifth.
+- **Damage** is every token you sync that week, no cap, and 25M for every PR you open. (Ingest still counts
+  at most 200M a minute, `USAGE_MINUTE_CAP`, to stop made-up numbers.)
+  Only days from your sign-up day count, as with coins.
+- **Rewards per kill:** rung n pays each of its raiders 10 × 1.5ⁿ⁻¹ to the nearest 5, at most 50 (10, 15, 25, 35, 50, 50…), so four
+  kills are 85 (`RAID_COINS` and `RAID_COIN_CAP`). A kill's raiders are everyone with 10M+ that week up to and including its day, so
+  joining on Sunday doesn't pay for Wednesday's kills.
+- **The week** is Monday to Sunday in world days, but the gate opens at 08:00 on Monday: until then
+  `raidWeekAt` is still last week, as it ended, and the new ladder appears at 08:00 with Monday's early tokens
+  in it. Usage is stored per world day, so the damage can't start at 08:00; the night off only moves what's
+  shown, and the history (and with it wallets) follows it, so nobody is paid for a kill before it's shown.
+  The view has `opensAt` and `endsAt` (the next Monday 08:00), and `closed` before the gate opens.
+- **Nothing is stored.** Like balances, the raid is worked out from `usage_daily` and `activity_daily`
+  (`server/src/town/raid.ts`), so a late sync still lands its hits. `town` keeps the result for 15 seconds
+  (`raidsOf`), however many people are polling. `wallet` and the admin page's `balances` add raid coins.
+  The week before the first raid (`start`) only sets its HP, so nobody is paid for bosses that weren't there.
+- **In the game:** `town.raid` is polled with the stats (every 30 s). `hp` and `damage` are the current rung's;
+  `kills`, `totalDamage` and `last` tell the rest. The corner box and the panel (the ladder: kills, the
+  current rung, the next three greyed) are `web/src/hud/Raid.tsx`; a toast says each kill and its coins
+  (in the dungeon the toasts go to the bottom, clear of the boss's name and HP).
+- **The dungeon** (`MAPS.dungeon`, room `dungeon`): the gate `G` in the square (its sign: boss, rung, HP; a
+  portcullis and "opens 08:00" while `closed`), or the panel's "Go to the dungeon" (`world.enterDungeon`).
+  The boss stands on a dais (`Z`, not walkable) facing 40 war desks (`l`, with a seat `r` below each: props,
+  not seats anyone sits in). Whoever walks in is a spectator; everything else is drawn in
+  `web/src/game/raid.ts`, and only in that room.
+  - **Raiders:** everyone whose agents ran in the last 10 minutes (`WORKING_MS`), wherever they are, asleep
+    or offline included. `world.raiders` sends the busiest 40 (`RAIDERS_SHOWN`) as {id, name, look, agents,
+    burn} and how many more, in the dungeon's snapshot and then as `raiders`, only to the dungeon and at most
+    once a second when it changes. The client keeps each one's seat while they stay; a newcomer gets the
+    seat their id hashes to, or the next free one (`seatFor`), among the front seats (in bands of 10 for
+    the crowd), so the same person has the same desk after a reload.
+  - **Burn:** after each ingest `player.report` sends `world.activity` the live agents and the tokens a
+    minute over the last 10 minutes of events (minute-capped like the games). `world` fades it linearly to 0
+    as that last event gets 10 minutes old, so someone who stopped slows down before they leave their desk.
+  - **Missiles:** each laptop fires `√(burn ÷ 100k)` a second (1 at 100k a minute, at most 6), or the odd
+    sputter when idle; each agent past the first is a robot minion by the desk (8 drawn, then "+N") firing a
+    third as fast. At most 150 missiles and 160 sparks at once. They only show the burn: the real hits are
+    every synced token, floated off the boss as the `totalDamage` each poll adds.
+  - **Kills:** the boss slumps by a trophy, then the next rung's drops in under a "Rung N" banner; this week's
+    kills hang as plaques on the back wall. While `closed`, nobody fires and the one that got away dozes.
+- **Loot** (`core/src/loot.ts`): each boss has its own table of four items, one per rarity: common 10%, rare
+  2.5%, epic 0.5%, legendary 0.1%. Each lap of the ladder ("II", "III"…) multiplies the odds by 1.05, at most
+  ×10 (`lapBonus`: a 0.1% legendary is never above 1%, and ×10 takes 48 laps). The weekly +10% difficulty of the ladder is separate and never raises odds.
+  - The Rate Limit: Hourglass hat, 429 shades, Sand golem (pet), Golden Hourglass (trophy).
+  - The Context Window: Pane glasses, Compacting… scarf, Goldfish (pet), Infinite Context Crown.
+  - Merge Conflict: Two-tone suit, `<<<<<<< HEAD` band, Forked cat (pet), Golden Rebase (trophy).
+  - The Hallucination: Third eye, Shimmering cape, Ghost (pet), Citation Needed crown.
+
+  They're shop items in the existing slots (`ITEMS`, with `loot: { boss, rarity }`), so they're worn, placed,
+  dropped and traded like any other, but never sold. Trophies are furniture: `Y` and `V` on the map legend,
+  after the shop's pieces in `PIECES`.
+  - **Rolls:** every raider a kill pays (`Kill.raiders`) rolls every item in that boss's table on its own, so
+    one kill can drop several things for one person. A roll is the first 52 bits of
+    `sha256("loot:<week>:<rung>:<userId>:<item>")` over 2⁵², and it drops when it's under the odds
+    (`killDrops`). It's the same every time it's worked out, so nobody can reroll, a restart changes nothing,
+    and anyone can check it.
+  - **Granting** (`server/src/town/loot.ts`): like the raid itself, drops are worked out rather than
+    stored, but an item has to be a row, so each drop is handed out once. Every time `town` works the raid
+    out (`raidsOf`: a poll at most every 15 s, and the sweeper's alarm every 10 minutes, so nobody has to be
+    watching), `grantLoot` finds the drops not yet in `loot` (primary key week, rung, user, item) and inserts
+    each one's `loot` row and `items` row in one transaction, under `serial`. A late sync that makes someone
+    a raider gets them that kill's rolls then. A drop is handed out before the poll that shows its kill
+    returns. Loot stays when usage is wiped, and the rows stay when an account goes, like the ledger.
+  - **News:** each winner gets one `notice` (the rarest first, opening the Bag). `world.announceLoot` sends
+    this week's drops (at most 40) to everyone as `loot`. In the dungeon each item pops out of the boss in a
+    beam of its rarity's colour and flies to its winner's desk (`web/src/game/loot.ts`). A legendary floods
+    the screen gold with a banner wherever you are, and an epic does the same in violet. Outside the dungeon
+    a toast says who got what. Whoever wears a legendary sparkles in the world.
+  - **The panel:** `town.raid` adds `loot` (`raidLoot`): the current boss's table with its odds on this
+    rung, ticked if you hold one, and this week's drops with who got them. The Bag and the Shop frame loot in
+    its rarity's colour (common green, rare blue, epic violet, legendary gold, glowing), and the tooltip names
+    the boss and the odds.
+  - `RAID_LOOT_BOOST` (dev and testing only, 1 to 1000, checked at boot) multiplies every drop's odds so
+    rare ones can be seen without luck. The panel says when it's on.
 
 ## The client
 

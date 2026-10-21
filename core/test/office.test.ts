@@ -46,7 +46,7 @@ describe("offices", () => {
 
   test("the pet bed: in every office, off the door, the desk and the paths, and reachable", () => {
     const office = MAPS.office;
-    const beds = office.find("q");
+    const beds = office.find("Q");
     expect(beds).toHaveLength(1);
     const [bx, by] = beds[0]!;
     expect(office.kind(bx, by).name).toBe("pet bed");
@@ -68,15 +68,15 @@ describe("offices", () => {
     expect(beside.some(([x, y]) => route(office, [ex, ey - 1], [x, y]) !== null)).toBe(true);
     // With the starter desk and chair there, and with every piece of furniture beside it.
     const starter = withPieces(STARTER_OFFICE, office);
-    expect(starter.at(bx, by)).toBe("q");
+    expect(starter.at(bx, by)).toBe("Q");
     expect(route(starter, [ex, ey - 1], [bx - 1, by])).not.toBeNull();
   });
 
   test("nothing can be dropped on the pet bed: furniture is written over floor only", () => {
-    const [bx, by] = MAPS.office.find("q")[0]!;
+    const [bx, by] = MAPS.office.find("Q")[0]!;
     for (const f of FURNITURE) {
       const map = withPieces([{ ch: f.ch, x: bx - (f.w ?? 1) + 1, y: by }], MAPS.office);
-      expect(map.at(bx, by)).toBe("q");
+      expect(map.at(bx, by)).toBe("Q");
     }
   });
 });
