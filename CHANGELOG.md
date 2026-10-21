@@ -1,5 +1,53 @@
 # Changelog
 
+## [1.7.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.6.0...v1.7.0) (2026-10-21)
+
+
+### Features
+
+* **arcade:** Sprint Race racers run laps of the town square ([d12d440](https://github.com/HansKristoffer/tokenmaxxing/commit/d12d440fc83f259151c686b03c53ceaf5de5e1f4))
+* **arcade:** Sprint Race, a typing duel ([b882b8a](https://github.com/HansKristoffer/tokenmaxxing/commit/b882b8a5feaacfa3bd3634c8ae094f65b8b1bf40))
+* **arcade:** Sprint Race, a typing duel for coins ([315b549](https://github.com/HansKristoffer/tokenmaxxing/commit/315b549972f2491ab1e902234229c50ca15cda52))
+* **company:** company wallet, company furniture and merch ([388fd08](https://github.com/HansKristoffer/tokenmaxxing/commit/388fd08de590f26a189f15228ebc588c1f592b57))
+* **company:** company wallet, company furniture and merch ([3d35077](https://github.com/HansKristoffer/tokenmaxxing/commit/3d3507765c15f61a7e935e19e952aea98a016b49))
+* **company:** wallets start at 0, and any member can spend them ([612de1d](https://github.com/HansKristoffer/tokenmaxxing/commit/612de1d7bc4f125f524a140c6eb7b17b0887c01e))
+* **levels:** raise the cap to 50, with a milestone every ten levels ([f1d41d6](https://github.com/HansKristoffer/tokenmaxxing/commit/f1d41d663c4a6283871f3f01307e490371e190a7))
+* **pets:** Pets v2: variations, names and a bed ([4cc2830](https://github.com/HansKristoffer/tokenmaxxing/commit/4cc2830700d1504ebe90f15bc876e94ad32f0469))
+* **pets:** variations, names and a bed ([68f2294](https://github.com/HansKristoffer/tokenmaxxing/commit/68f22945bc9027570761aae412da54dd3d6b1915))
+* **picnic:** touched grass for the office; cop speed limit to 200M/hour ([40d4963](https://github.com/HansKristoffer/tokenmaxxing/commit/40d4963590babd0ee2179b43ff9f341411c7f747))
+* **raid:** a countdown to the first raid ([ebd3ffa](https://github.com/HansKristoffer/tokenmaxxing/commit/ebd3ffae5dc179956cbe78a549ea538e0f1bdcbe))
+* **raid:** a weekly boss ladder, a dungeon where every running agent fires at it, and rare loot ([cc65b63](https://github.com/HansKristoffer/tokenmaxxing/commit/cc65b631f3574ff189d9f7ecca70ab992b7f9557))
+* **raid:** a weekly ladder of bosses the whole town fights ([423104e](https://github.com/HansKristoffer/tokenmaxxing/commit/423104ee0f39d40d964d1c20200afd77a1c77740))
+* **raid:** boss loot tables with fixed, auditable rolls ([4f98cb8](https://github.com/HansKristoffer/tokenmaxxing/commit/4f98cb8986e51ced655eb75b6b80e7af290ec7d1))
+* **raid:** draw the loot: hats, glasses, outfits, pets and trophies ([43b7e3c](https://github.com/HansKristoffer/tokenmaxxing/commit/43b7e3cca0ad1b7317ec51b61e56d91a0016ddbb))
+* **raid:** halve the coins a kill pays and cap it at 50 ([b152e33](https://github.com/HansKristoffer/tokenmaxxing/commit/b152e335c5669b94eb2ec0e2f0aacae32032a92b))
+* **raid:** hand out each loot drop once, and tell the winner and the world ([fb48565](https://github.com/HansKristoffer/tokenmaxxing/commit/fb48565f7c2d6fe920696badd83f810e4de07c6f))
+* **raid:** loot flies out of the boss to its winner's desk ([31c2af1](https://github.com/HansKristoffer/tokenmaxxing/commit/31c2af150922f021b92bdfc8524cdecc729a003d))
+* **raid:** loot in the raid panel, the bag and the shop ([79a8f64](https://github.com/HansKristoffer/tokenmaxxing/commit/79a8f64306b6bd24cdb6e4a5088220a383c3d52a))
+* **raid:** the Raid Dungeon, where everyone running agents fires at the boss ([2fa6c10](https://github.com/HansKristoffer/tokenmaxxing/commit/2fa6c10951e2259a64548eea436ab46c30273539))
+* ridiculous trophies on a shelf in your office ([d3549fa](https://github.com/HansKristoffer/tokenmaxxing/commit/d3549fa435df001e818da56f1ca378cd6aa231e4))
+* **shop:** a head and face pack of 39 hats, glasses, masks and beards ([2f7117c](https://github.com/HansKristoffer/tokenmaxxing/commit/2f7117c439b729af6c72f7d1184af1b575787850))
+* **shop:** a wardrobe of 36 new cosmetics, with hand, back and pet slots ([cb07023](https://github.com/HansKristoffer/tokenmaxxing/commit/cb07023902e97de660c3bf277a4cdfbe862d46bd))
+* the traveling merchant, with numbered limited editions ([5c8c0a3](https://github.com/HansKristoffer/tokenmaxxing/commit/5c8c0a36986e5dda4666625fd6d10b1c0f4ed09b))
+* **town:** doors swing open as people walk up, and the Inn's chalkboard has a daily special ([2042122](https://github.com/HansKristoffer/tokenmaxxing/commit/2042122564f78ec2b9cf5da59a85cec42600738f))
+* **town:** little things: paper, pølsevogn, snail, merchant, cop, picnic, trophies, level 50 and 75 items ([b600f1e](https://github.com/HansKristoffer/tokenmaxxing/commit/b600f1ef2bfac82b028795234d7e0f18adf509e5))
+* **town:** morning paper, pølsevogn and the build snail ([56f192e](https://github.com/HansKristoffer/tokenmaxxing/commit/56f192e5b9aedbb77177bc1a6aad280fe62b4934))
+* **town:** the 429 Cop pulls over the fastest burner and writes a ticket ([04278a6](https://github.com/HansKristoffer/tokenmaxxing/commit/04278a65ae875b99ecee23b78ec09fc88a3cb055))
+* **town:** the rød pølse is on the house ([95ddf34](https://github.com/HansKristoffer/tokenmaxxing/commit/95ddf3403038c811f32a4c24785ce6e09e437cfb))
+* **world:** Copenhagen day and night with live weather ([3d1347e](https://github.com/HansKristoffer/tokenmaxxing/commit/3d1347e81114dffb07308a66f59cff02a9e8a225))
+* **world:** Copenhagen day and night with live weather ([c2b47c6](https://github.com/HansKristoffer/tokenmaxxing/commit/c2b47c6b868aef6d93f38a98c94dad9668fd9da8))
+* **world:** outage picnic when Claude or OpenAI is down ([a3aa02a](https://github.com/HansKristoffer/tokenmaxxing/commit/a3aa02a7d0911e5d81ae3e7bfade7b8e37774dc4))
+
+
+### Bug Fixes
+
+* **arcade:** Sprint Race runners on the track, and a clearer clock ([54d1268](https://github.com/HansKristoffer/tokenmaxxing/commit/54d1268f348b68836856c67081ef4e0651d1296b))
+* **merchant:** park the cart below the pølsevogn instead of on top of it ([2876437](https://github.com/HansKristoffer/tokenmaxxing/commit/287643747f119e1dd92a77cb5b7ce5186290f112))
+* **raid:** clearer wording under the loot table ([1dcc450](https://github.com/HansKristoffer/tokenmaxxing/commit/1dcc450d29191a78bf15a1b744692df3ba7f154b))
+* **raid:** each raider keeps their desk across reloads ([aff796f](https://github.com/HansKristoffer/tokenmaxxing/commit/aff796fbc064442a6460e04e2dc8cdfe7de57889))
+* **raid:** kill toasts clear of the boss's name and HP ([425c69b](https://github.com/HansKristoffer/tokenmaxxing/commit/425c69b6af93c090b8dd7cd6f86975baf00f26bb))
+* **raid:** loot odds stop growing at ×10, so a 0.1% drop is never above 1% ([cb4d4aa](https://github.com/HansKristoffer/tokenmaxxing/commit/cb4d4aa50e7833083baa6843a10ead909a6f8bb1))
+
 ## [1.6.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.5.0...v1.6.0) (2026-10-20)
 
 
