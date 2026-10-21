@@ -1,5 +1,6 @@
 import type { Facing, Look } from "@tokenmaxxing/core/world.ts";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { AURA_H, AURA_W, AURA_X, AURA_Y, auraFrame } from "../art/aura.ts";
 import { house } from "../art/buildings.ts";
 import { characterFrame } from "../art/characters.ts";
 import { world } from "../game/world.ts";
@@ -62,27 +63,49 @@ export function House({ companyId, tier, scale }: { companyId: number; tier: num
   return <canvas ref={ref} width={w} height={h} className="house-img" />;
 }
 
-/** A character drawn crisp at `scale`× (16px sprite); `frame` instead of the look's own for one drawn his own way (the cop). */
+/**
+ * A character drawn crisp at `scale`× (16px sprite); `frame` instead of the look's own for one drawn
+ * his own way (the cop). `aura`: the legendary level's halo and glow around them, gently animated (`aura.ts`).
+ */
 export function AvatarImage({
   look,
   scale = 3,
   facing = "down",
   frame,
+  aura,
 }: {
   look: Look;
   scale?: number;
   facing?: Facing;
   frame?: HTMLCanvasElement;
+  aura?: boolean;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const [w, h] = aura ? [AURA_W, AURA_H] : [16, 16];
   useEffect(() => {
     const g = ref.current?.getContext("2d");
     if (!g) return;
     g.imageSmoothingEnabled = false;
-    g.clearRect(0, 0, 16 * scale, 16 * scale);
-    g.drawImage(frame ?? characterFrame(look, facing, "stand"), 0, 0, 16 * scale, 16 * scale);
-  }, [look, scale, facing, frame]);
-  return <canvas ref={ref} width={16 * scale} height={16 * scale} className="avatar" />;
+    const draw = () => {
+      g.clearRect(0, 0, w * scale, h * scale);
+      if (aura) g.drawImage(auraFrame(performance.now(), false), 0, 0, w * scale, h * scale);
+      const [x, y] = aura ? [AURA_X, AURA_Y] : [0, 0];
+      g.drawImage(
+        frame ?? characterFrame(look, facing, "stand"),
+        x * scale,
+        y * scale,
+        16 * scale,
+        16 * scale,
+      );
+    };
+    draw();
+    if (!aura) return;
+    const timer = setInterval(draw, 140);
+    return () => clearInterval(timer);
+  }, [look, scale, facing, frame, aura, w, h]);
+  return (
+    <canvas ref={ref} width={w * scale} height={h * scale} className={aura ? "avatar legendary" : "avatar"} />
+  );
 }
 
 export function Modal({

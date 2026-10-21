@@ -1,6 +1,7 @@
 /**
  * The head and face pack: hats (`look.hat`) and face things (`look.glasses`: glasses, visors,
- * masks, beards) after the first few in `shop.ts`. Most are sold; a few come with a level.
+ * masks, beards) after the first few in `shop.ts`. Most are sold; a few come with a level
+ * (the Nebula visor is the Lv 40 milestone's item, `milestones.ts`).
  * Their art is in `web/src/art/headwear.ts`, in the same order.
  */
 import type { Rarity } from "./rarity.ts";
@@ -66,6 +67,7 @@ export const PACK_FACES: readonly Wearable[] = [
   { name: "Vision headset", rarity: "epic", price: 850, blurb: "Spatial computing, local hallucinations." },
   { name: "Bot mask", rarity: "epic", price: 950, blurb: "Passes the Turing test, backwards." },
   { name: "Laser eyes", rarity: "legendary", price: 1800, blurb: "Tokens to the moon." },
+  { name: "Nebula visor", rarity: "legendary", level: 40, blurb: "One wraparound lens, violet to cyan. Sees the whole context." },
 ];
 
 export const HAT_COUNT = FIRST_HAT + PACK_HATS.length;

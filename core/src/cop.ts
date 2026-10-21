@@ -4,7 +4,7 @@
  * `world` actor walks him (he's one of `BOTS`) and `town` keeps the tickets.
  */
 import type { BotDef } from "./bots.ts";
-import { compact, MAX_LEVEL } from "./format.ts";
+import { BOT_LEVEL, compact } from "./format.ts";
 
 /** The cop's id: the web draws his cap, notepad and siren on this one. */
 export const COP_ID = -3;
@@ -22,7 +22,7 @@ export const COP: BotDef = {
   id: COP_ID,
   name: "Officer 429",
   look: { style: 0, skin: 1, hair: 0, outfit: 1, glasses: 0, hat: 0, pet: 0, held: 0, back: 0, petwear: 0 },
-  level: MAX_LEVEL,
+  level: BOT_LEVEL,
   bio: "Rate-limit enforcement, Tokenmaxxing PD. Pulls over whoever burns fastest and writes them a ticket. Takes nothing. Fond of coffee.",
   lines: [
     "Nothing to see here. Keep it under the limit.",

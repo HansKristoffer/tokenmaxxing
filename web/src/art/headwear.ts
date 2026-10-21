@@ -475,4 +475,14 @@ export const FACE_ART: readonly Wear[] = [
     "..........Wrrrrr",
     "..........r.....",
   ]),
+  // Nebula visor (level 40): one wraparound lens, violet at the edges to cyan in the middle, with a glint.
+  face({ o, a: "#3b2a8f", b: "#7a6cf0", c: "#8fe3ff", w: "#ffffff" }, 5, [
+    "...oooooooooo...",
+    "..oabwcccccbao..",
+    "...oabbccbbao...",
+  ], [
+    "........ooooo...",
+    "......oabccwo...",
+    "........obcco...",
+  ]),
 ];

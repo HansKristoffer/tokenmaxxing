@@ -148,6 +148,16 @@ const OUTFITS: Record<number, Outfit> = {
     },
     pal: { s: "#e8eef2" },
   },
+  // Golden regalia (level 50): an ermine collar, a ruby brooch and a purple sash with a gold buckle.
+  25: {
+    c: "#ffd54a", C: "#d99a16", p: "#7a4fb8",
+    marks: {
+      down: [".....wkwwkw.....", "....d..rr..d....", ".....mmymm......"],
+      side: ["......wkww......", "..........r.....", ".....mmm..m....."],
+      up: [".....wkwwkw.....", "....d......d....", ".....mmmmmm....."],
+    },
+    pal: { w: "#fbf7ef", k: C.ink, d: "#b07a12", r: "#e0405a", y: "#fff1a8", m: "#7a4fb8" },
+  },
 };
 
 /** A wardrobe outfit's colours, to spread over a look's palette; nothing for the others. */

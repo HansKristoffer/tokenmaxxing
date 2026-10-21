@@ -23,7 +23,7 @@ test("the pack is 30-odd hats and face things, every one wearable", () => {
   };
   expect(parseLook(look)).toEqual(look);
   expect(parseLook({ ...look, hat: LOOK_OPTIONS.hat })).toBeNull();
-  expect(itemsIn(look).map((i) => i.name)).toEqual(["Aurora crown", "Laser eyes"]);
+  expect(itemsIn(look).map((i) => i.name)).toEqual(["Aurora crown", "Nebula visor"]);
 });
 
 test("ids and names are unique across the whole shop", () => {

@@ -1524,3 +1524,58 @@ button.lb-item:hover {
   font-weight: 700;
   text-transform: capitalize;
 }
+
+/* Milestones: every tenth level's title on the player card, and its gold level-up toast. */
+.milestone-title {
+  display: inline-block;
+  margin: 0 0 4px;
+  padding: 1px 8px;
+  border: 1px solid rgba(255, 211, 92, 0.5);
+  border-radius: 999px;
+  background: rgba(255, 211, 92, 0.12);
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.milestone-title.legendary {
+  background: linear-gradient(90deg, #b8860b, #ffe066 50%, #b8860b);
+  color: var(--ink);
+  border-color: #fff1a8;
+}
+
+.milestone-toast {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  max-width: min(560px, calc(100vw - 40px));
+  text-align: left;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 18px rgba(255, 211, 92, 0.35);
+}
+
+.milestone-toast.legendary {
+  background: linear-gradient(135deg, rgba(60, 44, 12, 0.95), rgba(27, 31, 42, 0.95) 60%);
+  animation: legendary-glow 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes legendary-glow {
+  to {
+    box-shadow: 0 0 30px rgba(255, 224, 102, 0.7);
+  }
+}
+
+.milestone-art {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.milestone-name {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.avatar.legendary {
+  filter: drop-shadow(0 0 6px rgba(255, 214, 74, 0.75));
+}

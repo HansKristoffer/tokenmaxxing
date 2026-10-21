@@ -64,14 +64,14 @@ beforeEach(async () => {
   sql = memorySql().sql;
   await migrate(sql);
   for (const id of [1, 2, 3]) await signUpOn(id, "2025-12-31");
-  await earn(1, "2026-01-01", 10_000e6); // √10000 = 100, +25 first place = 125
+  await earn(1, "2026-01-01", 9_999e6); // √9999 = 99, +25 first place = 124 (just short of level 10)
   await earn(2, "2026-01-02", 2_500e6); // 50, +25 = 75
   await earn(3, "2026-01-03", 100e6); // 10, +25 = 35
 });
 
 describe("the coin ledger", () => {
   test("a stake is held, then paid out, and the ref sums to 0", async () => {
-    expect(await balance(1)).toBe(125);
+    expect(await balance(1)).toBe(124);
     await hold(
       sql,
       "table:1",
@@ -83,7 +83,7 @@ describe("the coin ledger", () => {
       names,
       NOW,
     );
-    expect(await balance(1)).toBe(95);
+    expect(await balance(1)).toBe(94);
     expect(await balance(2)).toBe(45);
     expect(await heldIn(sql, "table:1")).toEqual(
       new Map([
@@ -92,7 +92,7 @@ describe("the coin ledger", () => {
       ]),
     );
     await pay(sql, "table:1", "payout", [{ userId: 2, amount: 60 }], NOW);
-    expect(await balance(1)).toBe(95);
+    expect(await balance(1)).toBe(94);
     expect(await balance(2)).toBe(105);
     expect(await sumOf("table:1")).toBe(0);
   });
@@ -111,7 +111,7 @@ describe("the coin ledger", () => {
         NOW,
       ),
     ).rejects.toThrow("cy can stake at most 🪙 17");
-    expect(await balance(1)).toBe(125); // nothing was taken from ada either
+    expect(await balance(1)).toBe(124); // nothing was taken from ada either
     // A side bet only has to fit the balance.
     await hold(sql, "bets:2", "bet", [{ userId: 3, amount: 35 }], names, NOW);
     expect(await balance(3)).toBe(0);
@@ -142,7 +142,7 @@ describe("the coin ledger", () => {
     expect(await balance(2)).toBe(75);
     expect(await heldIn(sql, "table:4")).toEqual(new Map([[1, 40]]));
     await refund(sql, "table:4", NOW);
-    expect(await balance(1)).toBe(125);
+    expect(await balance(1)).toBe(124);
     expect(await sumOf("table:4")).toBe(0);
   });
 
@@ -155,7 +155,7 @@ describe("the coin ledger", () => {
     await pay(sql, "table:5", "payout", [{ userId: 1, amount: 20 }], NOW);
     expect(await heldIn(sql, "table:5")).toEqual(new Map());
     await refund(sql, "table:5", NOW); // the arcade lost its settling in a restart and calls it off
-    expect([await balance(1), await balance(2)]).toEqual([135, 65]);
+    expect([await balance(1), await balance(2)]).toEqual([134, 65]);
   });
 });
 
@@ -173,7 +173,7 @@ describe("the bag", () => {
     expect(await sql.execute("SELECT item, price FROM purchases WHERE user_id = 1")).toEqual([
       { item: "glasses.1", price: 120 },
     ]);
-    expect(await balance(1)).toBe(5);
+    expect(await balance(1)).toBe(4);
     await expect(buy(sql, 1, sofa, NOW)).rejects.toMatchObject({ code: "too_poor" });
   });
 
@@ -290,7 +290,7 @@ describe("the wallet", () => {
 
   test("days before signing up pay nothing and win nothing", async () => {
     await signUpOn(4, "2026-03-03");
-    await earn(4, "2026-03-02", 10_000e6); // would be 100 + 25 for 1st
+    await earn(4, "2026-03-02", 4_900e6); // would be 70 + 25 for 1st
     await earn(4, "2026-03-03", 100e6); // √100 = 10, and 1st: 25
     expect(await balance(4)).toBe(10 + 25);
     // Nor do they push anyone else off a podium: signed up the day after that day.
@@ -300,10 +300,21 @@ describe("the wallet", () => {
   });
 });
 
+describe("milestones", () => {
+  test("pay once each, by the level, so old days count and past milestones pay on the next wallet", async () => {
+    await signUpOn(4, "2026-03-03");
+    await earn(4, "2026-03-02", 30e9); // before signing up: no day coins, but it's level 30
+    expect(await balance(4)).toBe(100 + 250 + 500);
+    await earn(4, "2026-03-03", 100e9); // 130B: level 50, √100000 = 316, and 1st place
+    expect(await balance(4)).toBe(100 + 250 + 500 + 1000 + 2500 + 316 + 25);
+    expect((await balances(sql, NOW)).get(4)).toBe(await balance(4));
+  });
+});
+
 describe("daily quests", () => {
   test("pay from the day you signed up, not before", async () => {
     await peak(1, "2026-01-01", 5); // Run 5 agents at once
-    expect(await balance(1)).toBe(125 + 5);
+    expect(await balance(1)).toBe(124 + 5);
     await signUpOn(4, "2026-03-03");
     await peak(4, "2026-03-02", 5);
     expect(await balance(4)).toBe(0);
@@ -336,7 +347,7 @@ describe("the admin page's balances", () => {
   });
 
   test("an admin sets a balance through the ledger", async () => {
-    expect(await setBalance(sql, 1, 500, NOW)).toEqual({ before: 125, balance: 500 });
+    expect(await setBalance(sql, 1, 500, NOW)).toEqual({ before: 124, balance: 500 });
     expect(await balance(1)).toBe(500);
     await setBalance(sql, 1, 3, NOW);
     expect(await balance(1)).toBe(3);
@@ -346,7 +357,7 @@ describe("the admin page's balances", () => {
 
 describe("trades", () => {
   const specs = itemById("glasses.1")!; // Nerd specs, 60
-  /** ada (125) offers bo (75), unless told otherwise. */
+  /** ada (124) offers bo (75), unless told otherwise. */
   async function offer(t: Partial<Trade>): Promise<Trade> {
     const out = {
       fromId: 1,
@@ -375,7 +386,7 @@ describe("trades", () => {
       await offer({ give: { coins: 50, items: [] }, want: { coins: 20, items: [] } }),
       NOW,
     );
-    expect(await balance(1)).toBe(125 - 30);
+    expect(await balance(1)).toBe(124 - 30);
     expect(await balance(2)).toBe(75 + 30);
     expect(await sumOf(`trade:1:${NOW}`)).toBe(0);
   });
@@ -385,7 +396,7 @@ describe("trades", () => {
     await buy(sql, 1, specs, NOW);
     await buy(sql, 2, specs, NOW);
     await settleTrade(sql, await offer({ give: { coins: 0, items: [specs.id] } }), NOW);
-    expect([await balance(1), await balance(2)]).toEqual([5, 15]);
+    expect([await balance(1), await balance(2)]).toEqual([4, 15]);
     expect((await bag(sql, 1))[0]!.count).toBe(1);
     expect((await bag(sql, 2))[0]!.count).toBe(2);
     expect(await sumOf(`trade:1:${NOW}`)).toBeNull();
@@ -403,12 +414,12 @@ describe("trades", () => {
 
   test("the giver's coins dropped since the offer: too_poor, without their balance, and nothing moves", async () => {
     const hundred = await offer({ give: { coins: 100, items: [] } });
-    await buy(sql, 1, specs, NOW); // 125 → 65
+    await buy(sql, 1, specs, NOW); // 124 → 64
     await expect(settleTrade(sql, hundred, NOW)).rejects.toMatchObject({
       code: "too_poor",
       message: "ada can't cover 🪙 100 right now.",
     });
-    expect([await balance(1), await balance(2)]).toEqual([65, 75]);
+    expect([await balance(1), await balance(2)]).toEqual([64, 75]);
   });
 
   test("an offer withdrawn or replaced meanwhile doesn't settle", async () => {
@@ -417,6 +428,6 @@ describe("trades", () => {
     await expect(settleTrade(sql, fifty, NOW)).rejects.toMatchObject({ code: "not_found" });
     await sql.execute("DELETE FROM trades"); // withdrawn
     await expect(settleTrade(sql, one, NOW)).rejects.toMatchObject({ code: "not_found" });
-    expect([await balance(1), await balance(2)]).toEqual([125, 75]);
+    expect([await balance(1), await balance(2)]).toEqual([124, 75]);
   });
 });

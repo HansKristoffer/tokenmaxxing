@@ -23,9 +23,10 @@ test("ids are unique across the whole shop, and each one has a rarity and flavou
   }
 });
 
-test("the rarest are earned at levels 5, 15 and 25 and can't be traded; the rest are sold", () => {
+test("the rarest are earned at levels 5, 15, 25 and 50 and can't be traded; the rest are sold", () => {
   const earned = WARDROBE.filter((i) => i.level !== undefined);
   expect(earned.map((i) => [i.name, i.level])).toEqual([
+    ["Golden regalia", 50],
     ["Rubber duck", 5],
     ["Cape", 15],
     ["Jetpack", 25],

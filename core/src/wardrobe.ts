@@ -67,6 +67,14 @@ const ENTRIES: readonly Entry[] = [
   sold("outfit", 22, "Denim overalls", "common", 130, "Built to ship. Also to farm."),
   sold("outfit", 23, "Prompt wizard robe", "epic", 950, "Stars stitched by a temperature of 1.0."),
   sold("outfit", 24, "Hazard vest", "common", 90, "Worn when touching the billing code."),
+  earned(
+    "outfit",
+    25,
+    "Golden regalia",
+    "legendary",
+    50,
+    "Ermine, rubies and a sash: the top of the leaderboard, worn.",
+  ),
   // In your hand.
   sold("held", 1, "Coffee mug", "common", 60, "World's okayest engineer."),
   earned("held", 2, "Rubber duck", "rare", 5, "Listens to every bug. Judges none."),
