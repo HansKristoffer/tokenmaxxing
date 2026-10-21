@@ -236,19 +236,15 @@ function readNum(...vals: Array<number | undefined>): number {
 }
 
 /**
- * messageId synthesis:
- *   `${sessionId}:${timestampIso}:${ix}`
- *
- * Codex doesn't ship message IDs, so we need a stable key that's also
- * unique across re-reads of the same file. The event timestamp is high
- * resolution (millisecond ISO), and `ix` disambiguates events that share
- * the exact same timestamp inside this read. Combined with the sessionId
- * (filename), the key is globally unique enough for the server to dedup,
- * and it's identical across reads because the timestamp is in the line.
+ * Outside a fork's seed only these lines do anything, so the rest (most of a rollout's bytes) are
+ * skipped unparsed. A seed is armed by a `session_meta` line, which carries its own timestamp for
+ * the gap check, so nothing skipped before it is needed.
  */
-function buildMessageId(sessionId: string, timestamp: string, ixForTimestamp: number): string {
-  return `${sessionId}:${timestamp}:${ixForTimestamp}`;
-}
+const mayMatter = (line: string): boolean =>
+  line.includes('"token_count"') ||
+  line.includes('"user"') ||
+  line.includes('"turn_context"') ||
+  line.includes('"session_meta"');
 
 export async function parseCodexFile(opts: ParseCodexOptions): Promise<ParseCodexResult> {
   const { path, byteOffset, prevSessionTotals, prevModel, lookAheadMaxBytes } = opts;
@@ -304,6 +300,29 @@ export async function parseCodexFile(opts: ParseCodexOptions): Promise<ParseCode
   // Track how many events share an identical timestamp so messageIds stay unique.
   let lastTs = "";
   let ixForTs = 0;
+  /**
+   * messageId synthesis: `${sessionId}:${timestampIso}:${tag}${ix}`.
+   *
+   * Codex doesn't ship message IDs, so we need a stable key that's also
+   * unique across re-reads of the same file. The event timestamp is high
+   * resolution (millisecond ISO), and `ix` disambiguates events that share
+   * the exact same timestamp inside this read. Combined with the sessionId
+   * (filename), the key is globally unique enough for the server to dedup,
+   * and it's identical across reads because the timestamp is in the line.
+   * Prompts are tagged `user:` so they never collide with a usage event.
+   */
+  const stamp = (raw: CodexLine, lineTsMs: number, tag: "" | "user:") => {
+    const tsStr = isString(raw.timestamp) ? raw.timestamp : new Date().toISOString();
+    if (tsStr === lastTs) ixForTs += 1;
+    else {
+      lastTs = tsStr;
+      ixForTs = 0;
+    }
+    return {
+      messageId: `${sessionId}:${tsStr}:${tag}${ixForTs}`,
+      timestamp: Number.isFinite(lineTsMs) ? lineTsMs : Date.now(),
+    };
+  };
   let oversizeSkipped = 0;
   // Replayed token_count records dropped this read (see the flat-cumulative
   // guard below). Surfaced so a noisy CLI version is visible.
@@ -327,6 +346,7 @@ export async function parseCodexFile(opts: ParseCodexOptions): Promise<ParseCode
     }
     if (part.kind !== "line") continue;
     const line = part.text;
+    if (!seedActive && !mayMatter(line)) continue;
 
     let raw: CodexLine;
     try {
@@ -362,26 +382,16 @@ export async function parseCodexFile(opts: ParseCodexOptions): Promise<ParseCode
 
     // Codex logs user prompts as `response_item` lines with role="user".
     // Emit a zero-token user event per occurrence so the server can compute
-    // user-vs-assistant message counts. The messageId is synthesized the
-    // same way as token-count events but tagged with `:user:` so it can
-    // never collide with an assistant-event id at the same timestamp.
+    // user-vs-assistant message counts.
     if (raw.type === "response_item" && raw.payload?.role === "user") {
       if (seedActive) continue; // copied prompt from the parent's history
-      const tsStr = isString(raw.timestamp) ? raw.timestamp : new Date().toISOString();
-      const tsMs = Date.parse(tsStr);
-      const timestamp = Number.isFinite(tsMs) ? tsMs : Date.now();
-      if (tsStr === lastTs) ixForTs += 1;
-      else {
-        lastTs = tsStr;
-        ixForTs = 0;
-      }
+      const id = stamp(raw, lineTsMs, "user:");
       events.push(
         tokenEvent({
           source: "codex",
           sessionId,
-          messageId: `${sessionId}:${tsStr}:user:${ixForTs}`,
-          timestamp,
-          model: await resolveModel(),
+          ...id,
+          model: currentModel ?? (await resolveModel()),
           messageType: "user",
         }),
       );
@@ -498,19 +508,10 @@ export async function parseCodexFile(opts: ParseCodexOptions): Promise<ParseCode
       continue;
     }
 
-    const tsStr = isString(raw.timestamp) ? raw.timestamp : new Date().toISOString();
-    const tsMs = Date.parse(tsStr);
-    const timestamp = Number.isFinite(tsMs) ? tsMs : Date.now();
-
-    if (tsStr === lastTs) ixForTs += 1;
-    else {
-      lastTs = tsStr;
-      ixForTs = 0;
-    }
-
+    const id = stamp(raw, lineTsMs, "");
     const eventModel = extractModel(raw);
     if (eventModel) currentModel = eventModel;
-    const model = await resolveModel();
+    const model = currentModel ?? (await resolveModel());
 
     // Codex reports `input_tokens` INCLUSIVE of both `cached_input_tokens`
     // and `cache_write_input_tokens` (openai/codex parses_cache_write_token_usage:
@@ -530,8 +531,7 @@ export async function parseCodexFile(opts: ParseCodexOptions): Promise<ParseCode
       tokenEvent({
         source: "codex",
         sessionId,
-        messageId: buildMessageId(sessionId, tsStr, ixForTs),
-        timestamp,
+        ...id,
         model,
         messageType: "assistant",
         inputTokens: nonCachedInput,
