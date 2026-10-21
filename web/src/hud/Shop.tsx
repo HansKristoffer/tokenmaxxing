@@ -11,12 +11,16 @@ import { petFrame } from "../art/pets.ts";
 import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { AvatarImage, Modal, Pills, useRun } from "./ui.tsx";
+import { ItemTag } from "./WardrobeTag.tsx";
 
 const TABS = [
   ["outfit", "Clothes"],
   ["glasses", "Glasses"],
   ["hat", "Hats"],
+  ["held", "In hand"],
+  ["back", "On back"],
   ["pet", "Pets"],
+  ["petwear", "Pet gear"],
   ["furniture", "Furniture"],
 ] as const;
 
@@ -84,6 +88,7 @@ export function Shop() {
                 {item.name}
                 {n > 0 && <span className="muted"> ×{n}</span>}
               </span>
+              <ItemTag id={item.id} />
               {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
               {item.level !== undefined ? (
                 !owned && (
@@ -140,7 +145,16 @@ export function ItemImage({ item, look, bare }: { item: Item; look: Look; bare?:
   if (item.slot === "pet") return <SpriteImage sprite={petFrame(item.index, false, false)} stand />;
   if (item.slot === "furniture") return <PieceImage ch={FURNITURE[item.index]!.ch} />;
   if (bare) return <SpriteImage sprite={itemFrame(item)} />;
-  return <AvatarImage look={{ ...look, [item.slot]: item.index }} scale={4} />;
+  // Pet gear on my pet (a duck if I have none); a back item from the side, where it shows.
+  if (item.slot === "petwear")
+    return <SpriteImage sprite={petFrame(look.pet || 1, false, false, item.index)} stand />;
+  return (
+    <AvatarImage
+      look={{ ...look, [item.slot]: item.index }}
+      scale={4}
+      facing={item.slot === "back" ? "right" : "down"}
+    />
+  );
 }
 
 /** A piece as the world draws it, in a two-tile box. A rug is only floor, so it's a swatch. */

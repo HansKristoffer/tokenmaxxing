@@ -1,4 +1,4 @@
-import type { Look } from "@tokenmaxxing/core/world.ts";
+import type { Facing, Look } from "@tokenmaxxing/core/world.ts";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { house } from "../art/buildings.ts";
 import { characterFrame } from "../art/characters.ts";
@@ -63,15 +63,23 @@ export function House({ companyId, tier, scale }: { companyId: number; tier: num
 }
 
 /** A character drawn crisp at `scale`× (16px sprite). */
-export function AvatarImage({ look, scale = 3 }: { look: Look; scale?: number }) {
+export function AvatarImage({
+  look,
+  scale = 3,
+  facing = "down",
+}: {
+  look: Look;
+  scale?: number;
+  facing?: Facing;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const g = ref.current?.getContext("2d");
     if (!g) return;
     g.imageSmoothingEnabled = false;
     g.clearRect(0, 0, 16 * scale, 16 * scale);
-    g.drawImage(characterFrame(look, "down", "stand"), 0, 0, 16 * scale, 16 * scale);
-  }, [look, scale]);
+    g.drawImage(characterFrame(look, facing, "stand"), 0, 0, 16 * scale, 16 * scale);
+  }, [look, scale, facing]);
   return <canvas ref={ref} width={16 * scale} height={16 * scale} className="avatar" />;
 }
 

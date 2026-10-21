@@ -6,6 +6,7 @@ import { errorText, refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemImage, WearButton } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
+import { ItemTag, rarityRing } from "./WardrobeTag.tsx";
 
 /**
  * What I hold, one square per kind with how many. Picking one shows its name, Wear, and Drop (onto
@@ -60,6 +61,7 @@ export function Bag() {
               <strong>
                 {!item.tradeable && "🏅 "}
                 {item.name}
+                <ItemTag id={item.id} />
               </strong>
               <WearButton item={item} look={me.look} run={run} />
               {item.tradeable && (
@@ -88,6 +90,7 @@ export function Bag() {
                 aria-pressed={b.item === picked}
                 aria-label={`${it.name} ×${b.count}${wearing ? ", wearing" : ""}${it.tradeable ? "" : ", reward"}`}
                 title={it.name}
+                style={rarityRing(it.id)}
                 onClick={() => setPicked(b.item)}
               >
                 <ItemImage item={it} look={me.look} bare />

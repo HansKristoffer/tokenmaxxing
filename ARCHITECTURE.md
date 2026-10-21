@@ -247,6 +247,9 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats, 5 pets and the 11 pieces of furniture
   (`furn.<ch>`), 10 to 1,500 coins. Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
   Pets follow their owner in the client.
+- The wardrobe (`core/src/wardrobe.ts`, art in `web/src/art/wardrobe.ts`): 36 more, each with a rarity and a
+  line of flavour: 12 outfits (`outfit` ≥ 13), and three slots of its own: `held` (in the hand), `back` and
+  `petwear` (drawn on the pet). The rubber duck, cape and jetpack are level rewards at 5, 15 and 25.
 - **The bag** (`items`, the 🎒 panel): one row per copy, so you can hold two Ducks; you can wear a kind if you
   hold one. Buying adds a row and adds the price to `purchases` (spend only, one row per kind); buying a
   kind you hold already is fine. `bag()` counts each kind. What's on a floor isn't in anyone's bag.

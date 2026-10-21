@@ -151,11 +151,12 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     });
     const pet = a.warp ? null : followPet(a, px, py, dt);
     if (pet) {
-      const frame = petFrame(a.info.look.pet, pet.left, pet.moving && Math.floor(now / 140) % 2 === 0);
+      const hop = pet.moving && Math.floor(now / 140) % 2 === 0;
+      const frame = petFrame(a.info.look.pet, pet.left, hop, a.info.look.petwear);
       if (frame)
         items.push({
           y: pet.y + PET_H,
-          draw: () => g.drawImage(frame, Math.round(pet.x), Math.round(pet.y)),
+          draw: () => g.drawImage(frame, Math.round(pet.x), Math.round(pet.y) + PET_H - frame.height),
         });
     }
     labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py), tile, now, dpr));

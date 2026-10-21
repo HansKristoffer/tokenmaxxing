@@ -181,12 +181,15 @@ describe("the bag", () => {
     const drops = await grantRewards(sql, 1, 10, NOW);
     expect(await grantRewards(sql, 1, 10, NOW)).toEqual([]);
     expect(await starterDrops(sql, 1, NOW)).toEqual([]);
-    expect(await bag(sql, 1)).toEqual([{ item: "hat.4", count: 1 }]);
+    expect(await bag(sql, 1)).toEqual([
+      { item: "hat.4", count: 1 },
+      { item: "held.2", count: 1 },
+    ]);
     const desk = { item: "furn.d", by: 1, room: "office:1", x: 5, y: 3 };
     const chair = { item: "furn.c", by: 1, room: "office:1", x: 5, y: 4 };
     expect(await floor()).toEqual([desk, chair]);
     expect(drops).toMatchObject([desk, chair]);
-    await grantRewards(sql, 2, 9, NOW);
+    await grantRewards(sql, 2, 4, NOW);
     expect(await bag(sql, 2)).toEqual([]);
   });
 
@@ -199,6 +202,7 @@ describe("the bag", () => {
       { item: "furn.d", count: 1 },
       { item: "furn.c", count: 1 },
       { item: "hat.4", count: 1 },
+      { item: "held.2", count: 1 },
     ]);
     expect(await floor()).toEqual([{ item: "furn.s", by: 1, room: "office:1", x: 5, y: 3 }]);
   });

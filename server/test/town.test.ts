@@ -22,7 +22,18 @@ describe("accounts", () => {
     await a.town.setLook({ style: 1, skin: 2, hair: 3, outfit: 4 });
     const me = await a.town.me();
     expect(me.name).toBe(`${a.name}x`);
-    expect(me.look).toEqual({ style: 1, skin: 2, hair: 3, outfit: 4, glasses: 0, hat: 0, pet: 0 });
+    expect(me.look).toEqual({
+      style: 1,
+      skin: 2,
+      hair: 3,
+      outfit: 4,
+      glasses: 0,
+      hat: 0,
+      pet: 0,
+      held: 0,
+      back: 0,
+      petwear: 0,
+    });
     await expect(a.town.setLook({ style: 99, skin: 0, hair: 0, outfit: 0 })).rejects.toThrow();
   });
 
