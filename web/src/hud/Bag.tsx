@@ -11,7 +11,8 @@ import { Modal, useRun } from "./ui.tsx";
 
 /**
  * What I hold, one square per kind with how many. Picking one shows its name, Wear, and Drop (onto
- * the floor where I am: in my own office, that's furnishing it). 🏅 is a level reward: it stays with me.
+ * the floor where I am: in my own office, that's furnishing it). 🏅 is a reward: it stays with me, but
+ * an earned piece (Touched grass) can furnish my own office.
  */
 export function Bag() {
   const me = useHud((s) => s.me);
@@ -68,8 +69,13 @@ export function Bag() {
                 <Numbers copies={copies} item={item.id} />
                 <ItemTag item={item} />
               </strong>
+              {item.earned && (
+                <span className="muted small">
+                  {item.earned}.{!inMyOffice && " Drop it in your own office."}
+                </span>
+              )}
               <WearButton item={item} look={me.look} run={run} />
-              {item.tradeable && (
+              {(item.tradeable || (item.earned && inMyOffice)) && (
                 <button type="button" onClick={drop(item.id)}>
                   {inMyOffice ? "Drop here" : "Drop"}
                 </button>

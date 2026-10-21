@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { ITEMS, isTradeable, itemById, levelItems, parseSide } from "../src/shop.ts";
+import { TOUCHED_GRASS } from "../src/picnic.ts";
+import { canDropIn, ITEMS, isKeepsake, isTradeable, itemById, levelItems, parseSide } from "../src/shop.ts";
 import { LOOK_OPTIONS } from "../src/world.ts";
 
 test("level items: the shop's milestones at 10-50, the wardrobe's at 5, 15, 25, the head pack's at 7, 17, 27", () => {
@@ -37,4 +38,28 @@ test("rewards never change hands; furniture is sold and does", () => {
 test("no two items share a slot and index: a look's number means one thing", () => {
   const worn = ITEMS.filter((i) => i.slot !== "furniture").map((i) => `${i.slot}.${i.index}`);
   expect(new Set(worn).size).toBe(worn.length);
+});
+
+test("Touched grass: earned at a picnic, never sold or traded, and only for your own office's floor", () => {
+  expect(itemById(TOUCHED_GRASS)).toMatchObject({
+    slot: "furniture",
+    name: "Touched grass",
+    price: 0,
+    tradeable: false,
+  });
+  expect(itemById(TOUCHED_GRASS)?.earned).toBeTruthy();
+  // Nothing else is earned that way: the shop sells the rest.
+  expect(ITEMS.filter((i) => i.earned).map((i) => i.id)).toEqual([TOUCHED_GRASS]);
+  expect([isKeepsake(TOUCHED_GRASS), isKeepsake("furn.s"), isKeepsake("hat.4")]).toEqual([
+    true,
+    false,
+    false,
+  ]);
+  expect(parseSide({ coins: 0, items: [TOUCHED_GRASS] })).toBeNull();
+  expect(canDropIn(TOUCHED_GRASS, "office:7", 7)).toBe(true);
+  expect(canDropIn(TOUCHED_GRASS, "office:8", 7)).toBe(false);
+  expect(canDropIn(TOUCHED_GRASS, "town", 7)).toBe(false);
+  expect(canDropIn("furn.s", "town", 7)).toBe(true);
+  expect(canDropIn("hat.4", "office:7", 7)).toBe(false);
+  expect(canDropIn("nope", "office:7", 7)).toBe(false);
 });

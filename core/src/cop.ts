@@ -11,8 +11,11 @@ export const COP_ID = -3;
 
 /** "Burning fast" is tokens over the last hour (from `player.tokensBetween`, the same minute-capped sum as the leaderboard). */
 export const BURN_WINDOW_MS = 3_600_000;
-/** The speed limit: below this an hour, nobody gets pulled over. A busy real day is ~1.5B, so this is a heavy hour. */
-export const SPEED_LIMIT = 50_000_000;
+/**
+ * The speed limit: below this an hour, nobody gets pulled over. A busy real day is ~1.5B and heavy users
+ * run 60-150M an hour, so only a real sprint gets pulled over.
+ */
+export const SPEED_LIMIT = 200_000_000;
 /** A burn older than this (no sync since) is stale: they've stopped, or closed the app. */
 export const BURN_FRESH_MS = 10 * 60_000;
 /** He reads his own: tickets start with this, and the web turns his siren on for them. */
@@ -56,7 +59,7 @@ export const PULL_OVER_LINES = [
 export const pullOverLine = (name: string, rand = Math.random): string =>
   `${SIREN} ${PULL_OVER_LINES[Math.floor(rand() * PULL_OVER_LINES.length)]!.replaceAll("{name}", name)}`;
 
-/** What a ticket is for. `{rate}` is the speed, rounded down (`40M`). */
+/** What a ticket is for. `{rate}` is the speed, rounded down (`240M`). */
 export const CHARGES = [
   "Exceeding {rate} tokens/hour in a residential zone",
   "Doing {rate} tokens/hour past the fountain",
@@ -91,7 +94,7 @@ export function speeder(
   return top;
 }
 
-/** The speed on a ticket: rounded down to two figures, so `47.6M` is written up as `47M`. */
+/** The speed on a ticket: rounded down to two figures, so `247.6M` is written up as `240M`. */
 export function rateOf(tokens: number): number {
   const step = 10 ** Math.max(0, Math.floor(Math.log10(Math.max(1, tokens))) - 1);
   return Math.floor(tokens / step) * step;
@@ -104,7 +107,7 @@ export interface Ticket {
   charge: number;
 }
 
-/** The charge in words. A rounded speed reads `40M`, not `40.0M`. */
+/** The charge in words. A rounded speed reads `240M`, not `240.0M`. */
 export const chargeOf = (t: Pick<Ticket, "rate" | "charge">): string =>
   (CHARGES[t.charge] ?? CHARGES[0]!).replaceAll("{rate}", compact(t.rate).replace(".0", ""));
 

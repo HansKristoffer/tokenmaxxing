@@ -10,6 +10,8 @@ export interface Piece {
   price: number;
   /** Tiles wide; 1 unless set. */
   w?: number;
+  /** Earned this way, never sold: it stays yours, and goes down only in your own office. */
+  earned?: string;
 }
 
 /** What an office can hold: furniture from the map legend, drawn as it is everywhere else. Sold as `furn.<ch>`. */
@@ -25,6 +27,8 @@ export const FURNITURE: readonly Piece[] = [
   { ch: "b", name: "Bed", price: 80 },
   { ch: "s", name: "Sofa", price: 100 },
   { ch: "t", name: "TV", price: 120, w: 2 },
+  // From sitting out an outage at the picnic (`picnic.ts`).
+  { ch: "g", name: "Touched grass", price: 0, w: 2, earned: "Sat on a blanket at an outage picnic" },
 ];
 /** At most this many drops on an office's floor. */
 export const OFFICE_PIECES = 40;

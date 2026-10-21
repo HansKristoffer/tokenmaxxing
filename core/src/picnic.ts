@@ -106,3 +106,6 @@ export const PICNIC_SEATS: readonly [number, number][] = [
 
 /** The badge's key in `rewards`: one per player per outage. */
 export const picnicReward = (since: number): string => `picnic:${since}`;
+
+/** Comes with the badge, once per outage: a patch of grass for your office (`office.ts`), never sold. */
+export const TOUCHED_GRASS = "furn.g";

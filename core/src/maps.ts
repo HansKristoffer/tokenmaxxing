@@ -43,6 +43,11 @@ export const LEGEND: Record<string, TileKind> = {
   t: { name: "tv", text: "It's a show about context windows. Season 7." },
   k: { name: "shelf", text: "Books about prompting, caching and cold starts." },
   p: { name: "plant", text: "A healthy plant. Someone remembers to water it." },
+  // Earned at an outage picnic, never sold (`office.ts`).
+  g: {
+    name: "touched grass",
+    text: "🌱 Touched grass. A patch from an outage picnic: the agents stopped, and you went outside.",
+  },
   o: { name: "coffee" },
   I: { name: "inn door", portal: true },
   x: { name: "exit", portal: true },

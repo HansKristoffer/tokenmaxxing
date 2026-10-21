@@ -32,6 +32,7 @@ import {
 } from "@tokenmaxxing/core/office.ts";
 import { type Outage, onBlanket, PICNIC_SEATS, sameOutage } from "@tokenmaxxing/core/picnic.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
+import { canDropIn } from "@tokenmaxxing/core/shop.ts";
 import { cartOpen, facesCart, hasPolse, isCart, POLSE, stepPace } from "@tokenmaxxing/core/street.ts";
 import {
   baseMap,
@@ -140,7 +141,8 @@ const COFFEE_LINES = [
   "☕☕☕☕☕☕ The machine refuses to make it any stronger. You vibrate anyway.",
 ];
 const CHAT_PER_MIN = 20;
-const PICNIC_BADGE = "🧺 I was there. The outage picnic is on your card now.";
+const PICNIC_BADGE =
+  "🧺 I was there. The outage picnic is on your card now, and 🌱 Touched grass is in your bag for your office.";
 /** At most this many drops on one room's floor (an office holds `OFFICE_PIECES`). */
 const DROPS_PER_ROOM = 30;
 const REST_CHECK_EVERY = 10; // ticks
@@ -724,6 +726,8 @@ export const world = actor({
       const full = { notice: "There's no room on the floor here." };
       const here = p ? dropsIn(p.room) : [];
       if (!p || here.length >= (ownerOfOffice(p.room) === null ? DROPS_PER_ROOM : OFFICE_PIECES)) return full;
+      // Touched grass is earned, not loot: only onto your own office's floor, where nobody else takes it.
+      if (!canDropIn(item, p.room, by)) return { notice: "That one only goes down in your own office." };
       const map = mapOf(p.room);
       const piece = pieceOfDrop({ item });
       const w = piece?.w ?? 1;

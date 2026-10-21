@@ -6,6 +6,7 @@ import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import {
   coinsForTokens,
   type Item,
+  isKeepsake,
   isTradeable,
   itemById,
   itemsIn,
@@ -520,13 +521,14 @@ const DROPS_PER_PERSON = 5;
 
 /**
  * Takes one `item` out of `userId`'s bag for the floor (`owner_id` NULL, with who and when): not a
- * reward, and not past `DROPS_PER_PERSON` (what's in their own office is furniture, not counted).
+ * reward (an earned piece, Touched grass, can go: `world` lands it only in their own office), and not past `DROPS_PER_PERSON` (what's in their own office is furniture, not counted).
  * Returns the row's id. Run it serialized, like `buy`.
  * ponytail: with five out elsewhere, furnishing waits too (the room isn't known yet). Count after
  * `placeDrop` answers if anyone minds.
  */
 export async function takeOut(sql: Sql, userId: number, item: unknown, now: number): Promise<number> {
-  if (!isTradeable(item)) throw new UserError("That one stays with you.", { code: "not_tradeable" });
+  if (!isTradeable(item) && !isKeepsake(item))
+    throw new UserError("That one stays with you.", { code: "not_tradeable" });
   const [{ n }] = (await all<{ n: number }>(
     sql,
     "SELECT COUNT(*) AS n FROM items WHERE dropped_by = ? AND owner_id IS NULL AND room IS NOT 'office:' || ?",

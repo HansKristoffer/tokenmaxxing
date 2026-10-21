@@ -39,10 +39,18 @@ describe("the 429 cop", () => {
     expect(speeder([], now)).toBeNull();
   });
 
+  test("the limit is 200M tokens an hour", () => {
+    expect(SPEED_LIMIT).toBe(200_000_000);
+    // A heavy but ordinary hour (150M) isn't speeding.
+    expect(speeder([{ id: 1, tokens: 150_000_000, at: now }], now)).toBeNull();
+    expect(speeder([{ id: 1, tokens: 200_000_000, at: now }], now)?.id).toBe(1);
+  });
+
   test("writes the speed down to two figures", () => {
+    expect(rateOf(247_600_000)).toBe(240_000_000);
     expect(rateOf(47_600_000)).toBe(47_000_000);
     expect(rateOf(203_456_789)).toBe(200_000_000);
-    expect(rateOf(50_000_000)).toBe(50_000_000);
+    expect(rateOf(200_000_000)).toBe(200_000_000);
     expect(rateOf(0)).toBe(0);
   });
 
@@ -62,16 +70,18 @@ describe("the 429 cop", () => {
       // Three lines of a bubble, at the longest speed.
       expect(ticketLine({ ...t, rate: 999_000_000 }).length).toBeLessThanOrEqual(56);
     }
-    expect(chargeOf({ rate: 40_000_000, charge: 0 })).toBe("Exceeding 40M tokens/hour in a residential zone");
+    expect(chargeOf({ rate: 240_000_000, charge: 0 })).toBe(
+      "Exceeding 240M tokens/hour in a residential zone",
+    );
     // An unknown charge (from an older list) still reads.
-    expect(chargeOf({ rate: 40_000_000, charge: 99 })).toBe(chargeOf({ rate: 40_000_000, charge: 0 }));
+    expect(chargeOf({ rate: 240_000_000, charge: 99 })).toBe(chargeOf({ rate: 240_000_000, charge: 0 }));
   });
 
   test("his lines start with the siren, so the web flashes it", () => {
     expect(pullOverLine("anna", () => 0)).toBe(`${SIREN} 429 Too Many Requests! Pull over, @anna!`);
     expect(pullOverLine("anna", () => 0.99)).toBe(`${SIREN} @anna do you know how fast you were burning?`);
-    expect(ticketLine(writeTicket("2026-10-21", 6e7, () => 0))).toBe(
-      `${SIREN}${TICKET_MARK} Exceeding 60M tokens/hour in a residential zone.`,
+    expect(ticketLine(writeTicket("2026-10-21", 2.6e8, () => 0))).toBe(
+      `${SIREN}${TICKET_MARK} Exceeding 260M tokens/hour in a residential zone.`,
     );
   });
 });

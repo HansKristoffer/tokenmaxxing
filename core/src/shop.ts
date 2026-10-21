@@ -38,6 +38,8 @@ export interface Item {
   rarity?: Rarity;
   /** One line of flavour, under the name. */
   blurb?: string;
+  /** How it's earned, for what the shop never sells and nobody can buy (`Piece.earned`). */
+  earned?: string;
 }
 
 /** Outfits below this are free; the ones after are sold. */
@@ -87,7 +89,8 @@ export const ITEMS: readonly Item[] = [
       index,
       name: f.name,
       price: f.price,
-      tradeable: true,
+      tradeable: !f.earned,
+      ...(f.earned && { earned: f.earned }),
     }),
   ),
 ];
@@ -104,8 +107,24 @@ export const itemsIn = (look: Look): (Item & { slot: Slot })[] =>
 
 // MARK: Trading
 
-/** Items that can change hands: everything but level rewards. */
+/** Items that can change hands: everything but level rewards and earned pieces. */
 export const isTradeable = (id: unknown): boolean => itemById(id)?.tradeable ?? false;
+
+/**
+ * Whether `by` can put `item` down in `room`: anything that can change hands, anywhere; an earned piece
+ * of furniture (Touched grass) only in their own office, where nobody else can pick it up.
+ */
+export function canDropIn(item: unknown, room: string, by: number): boolean {
+  const i = itemById(item);
+  if (!i) return false;
+  return i.tradeable || (i.slot === "furniture" && i.earned !== undefined && room === `office:${by}`);
+}
+
+/** An earned piece of furniture: it leaves your bag only for your own office's floor (`canDropIn`). */
+export const isKeepsake = (id: unknown): boolean => {
+  const i = itemById(id);
+  return i?.slot === "furniture" && i.earned !== undefined;
+};
 
 /** One side of a trade: what someone gives. */
 export interface Side {

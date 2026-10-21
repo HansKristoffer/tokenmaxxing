@@ -471,6 +471,7 @@ export const town = actor({
         throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
       if (editionById(item.id))
         throw new UserError("Only the traveling merchant sells that.", { code: "not_for_sale" });
+      if (item.earned) throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
       return c.vars.serial(() => buy(c.db, userId, item, Date.now()));
     },
 

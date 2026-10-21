@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { STATUS_PAGES } from "@tokenmaxxing/core/picnic.ts";
+import { STATUS_PAGES, TOUCHED_GRASS } from "@tokenmaxxing/core/picnic.ts";
 import { checkOutage, forced } from "../src/picnic.ts";
+import { bag, takeOut } from "../src/town/coins.ts";
 import { markPicnic, picnicsOf } from "../src/town/picnic.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
@@ -57,4 +58,19 @@ test("the badge comes once per outage, and counts outages", async () => {
   expect(await markPicnic(sql, 1, 9000)).toBe(true);
   expect(await picnicsOf(sql, 1)).toBe(2);
   expect(await picnicsOf(sql, 3)).toBe(0);
+});
+
+test("each outage's badge brings a patch of Touched grass, once, and it can go down in an office", async () => {
+  const { sql } = memorySql();
+  await migrate(sql);
+  expect(await markPicnic(sql, 1, 1000, 5)).toBe(true);
+  // Sitting down again (or on the other blanket) in the same outage: no second patch.
+  expect(await markPicnic(sql, 1, 1000, 6)).toBe(false);
+  expect(await bag(sql, 1)).toEqual([{ item: TOUCHED_GRASS, count: 1 }]);
+  expect(await markPicnic(sql, 1, 9000, 7)).toBe(true);
+  expect(await bag(sql, 1)).toEqual([{ item: TOUCHED_GRASS, count: 2 }]);
+  expect(await bag(sql, 2)).toEqual([]);
+  // A reward, but furniture: it leaves the bag for the floor (`world` lands it only in their own office).
+  expect(await takeOut(sql, 1, TOUCHED_GRASS, 8)).toBeGreaterThan(0);
+  expect(await bag(sql, 1)).toEqual([{ item: TOUCHED_GRASS, count: 1 }]);
 });
