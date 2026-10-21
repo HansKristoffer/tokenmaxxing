@@ -2,6 +2,8 @@
  * The world's rules and wire types, shared by the `world` actor and the game
  * client. Everything here is pure so it can be tested without Rivet.
  */
+
+import { editionAt } from "./editions.ts";
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
 import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
@@ -135,7 +137,8 @@ export function parseLook(raw: unknown): Look | null {
   const out = {} as Look;
   for (const k of Object.keys(LOOK_OPTIONS) as (keyof Look)[]) {
     const v = r[k];
-    if (!Number.isInteger(v) || (v as number) < 0 || (v as number) >= LOOK_OPTIONS[k]) return null;
+    if (!Number.isInteger(v) || (v as number) < 0) return null;
+    if ((v as number) >= LOOK_OPTIONS[k] && !editionAt(k, v as number)) return null;
     out[k] = v as number;
   }
   return out;

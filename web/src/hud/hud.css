@@ -1454,3 +1454,60 @@ button.lb-item:hover {
 .trophies .earned {
   color: var(--accent);
 }
+/* The traveling merchant's cart (Merchant.tsx): a card per edition, its stock as a bar. */
+.merchant-hello {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.merchant-hello p {
+  margin: 0;
+  font-style: italic;
+}
+
+.merchant-got {
+  margin: 8px 0 0;
+  color: var(--accent);
+}
+
+.shop.merchant li {
+  position: relative;
+  overflow: hidden;
+}
+
+.shop.merchant .stock {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.shop.merchant .stock span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.shop.merchant .mine {
+  color: var(--good);
+}
+
+.shop.merchant li.sold-out > :not(.stamp) {
+  opacity: 0.45;
+}
+
+.shop.merchant .stamp {
+  padding: 4px 0;
+  border: 2px solid var(--bad);
+  border-radius: 4px;
+  color: var(--bad);
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  transform: rotate(-8deg);
+}
+
+.bag-pick .edition {
+  color: var(--accent);
+  font-weight: 400;
+}

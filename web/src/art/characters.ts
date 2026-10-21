@@ -1,5 +1,6 @@
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Facing, Look, PlayerState } from "@tokenmaxxing/core/world.ts";
+import { drawEditions, editionFrame } from "./editions.ts";
 import { C, HAIRS, OUTFITS, PANTS, SKINS } from "./palette.ts";
 import { bake, cached, type Palette } from "./pixels.ts";
 
@@ -389,6 +390,7 @@ export const characterFrame = cached(
       if (view !== "up")
         p.grid(GLASSES[look.glasses]?.[view] ?? [], GLASSES_COLORS[look.glasses] ?? {}, 0, 5, flip);
       p.grid(HATS[look.hat]?.[view] ?? [], HAT_COLORS[look.hat] ?? {}, 0, 0, flip);
+      drawEditions(p, look, view, flip);
     });
   },
 );
@@ -401,6 +403,8 @@ export const itemFrame = cached(
   (item: Item) => item.id,
   (item: Item) => {
     const { slot, index: i } = item;
+    const edition = editionFrame(item);
+    if (edition) return edition;
     if (slot === "hat") return bake(16, HATS[i]!.down.length, (p) => p.grid(HATS[i]!.down, HAT_COLORS[i]!));
     if (slot === "glasses") return bake(16, 3, (p) => p.grid(GLASSES[i]!.down, GLASSES_COLORS[i]!));
     const [c, shade] = OUTFITS[i] ?? OUTFITS[0]!;
@@ -419,6 +423,7 @@ export const sleeperFrame = cached(
     return bake(16, 16, (p) => {
       p.grid(HEADS.down[look.style] ?? HEADS.down[0]!, { ...pal, e: pal.s!, r: pal.s! }, 0, -1);
       p.grid(HATS[look.hat]?.down ?? [], HAT_COLORS[look.hat] ?? {}, 0, -1);
+      drawEditions(p, { ...look, glasses: 0 }, "down", false, -1);
       p.rect(3, 6, 10, 1, C.ink);
       p.px(6, 5, C.ink);
       p.px(9, 5, C.ink);

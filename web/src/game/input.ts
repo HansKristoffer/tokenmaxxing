@@ -20,6 +20,7 @@ import { chipHits, signHits } from "./labels.ts";
 import { picnicSeat } from "./picnic.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { openTrophies } from "./trophies.ts";
+import { merchantAt, openCart } from "./merchant.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {
@@ -287,6 +288,7 @@ export function interact(): void {
   const other = avatarAt(x, y);
   if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
   if (streetInteract(me, x, y, send)) return;
+  if (merchantAt(x, y)) return void openCart();
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });

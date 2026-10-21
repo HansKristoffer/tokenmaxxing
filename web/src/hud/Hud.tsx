@@ -15,6 +15,7 @@ import { CompanyPanel } from "./CompanyPanel.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LookPicker } from "./LookPicker.tsx";
 import { MatchPanel } from "./Match.tsx";
+import { Merchant } from "./Merchant.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { PaperPanel } from "./Paper.tsx";
@@ -209,6 +210,8 @@ function Panel() {
       return <LookPicker />;
     case "shop":
       return <Shop />;
+    case "merchant":
+      return <Merchant />;
     case "bag":
       return <Bag />;
     case "arcade":

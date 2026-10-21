@@ -15,6 +15,7 @@ import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
+import { drawMerchant } from "./merchant.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { drawStreet } from "./street.ts";
@@ -148,6 +149,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   drawStreet(g, items, labels, toScreen, now, dpr);
   drawPicnic(g, items);
   drawChalkboards(g, items, labels, toScreen, now, dpr);
+  drawMerchant(g, items, labels, toScreen, now, dpr);
 
   if (world.asleep > 0) {
     const [sx, sy] = toScreen((map.x0 + map.width / 2) * TILE, (map.y0 + 2) * TILE);
