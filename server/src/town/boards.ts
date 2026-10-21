@@ -22,7 +22,7 @@ import { COMPANY_COLS, type CompanyRow, companyById, companyInfos, companyWallet
 import { type GameStats, gameStats } from "./games.ts";
 import { picnicsOf } from "./picnic.ts";
 import { ticketsOf } from "./tickets.ts";
-import { lookOf, TOKENS, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
+import { levelOf, lookOf, TOKENS, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
 
 export interface BoardPlayer extends Totals {
   rank: number;
@@ -332,19 +332,30 @@ export async function leaderboard(
   };
 }
 
+/**
+ * The corner is polled by every open tab and after every sync, so it reads only today's usage (the
+ * `usage_day` index) rather than the whole board: anyone with no tokens today ranks below everyone here.
+ */
 export async function today(sql: Sql, userId: number, now: number): Promise<Today> {
-  const { players } = await playerBoard(sql, "today", "tokens", now);
-  const mine = players.find((p) => p.userId === userId)!;
-  const row = (p: BoardPlayer) => ({
-    rank: p.rank,
-    userId: p.userId,
-    name: p.name,
-    tokens: p.tokens,
-    isMe: p.userId === userId,
-  });
-  const top = players.filter((p) => p.tokens > 0).slice(0, TODAY_TOP);
+  const u = await userById(sql, userId);
+  const busy = await all<{ userId: number; name: string; tokens: number }>(
+    sql,
+    `SELECT u.id AS userId, u.name, SUM(${TOKENS}) AS tokens
+     FROM usage_daily d JOIN users u ON u.id = d.user_id WHERE d.day = ? GROUP BY u.id`,
+    dayKey(now),
+  );
+  // As `rank` sorts by tokens: the most first, ties by name.
+  const ranked = busy
+    .filter((p) => p.tokens > 0)
+    .sort((a, b) => b.tokens - a.tokens || a.name.localeCompare(b.name))
+    .map((p, i) => ({ ...p, rank: i + 1, isMe: p.userId === userId }));
+  const mine = ranked.find((p) => p.isMe);
+  const top = ranked.slice(0, TODAY_TOP);
   return {
-    me: { rank: mine.tokens > 0 ? mine.rank : null, tokensToday: mine.tokens, level: mine.level },
-    top: top.some((p) => p.userId === userId) ? top.map(row) : [...top.map(row), row(mine)],
+    me: { rank: mine?.rank ?? null, tokensToday: mine?.tokens ?? 0, level: await levelOf(sql, userId) },
+    top:
+      mine && mine.rank <= TODAY_TOP
+        ? top
+        : [...top, mine ?? { rank: ranked.length + 1, userId, name: u.name, tokens: 0, isMe: true }],
   };
 }
