@@ -1,5 +1,6 @@
 /* Each game's own panel: Ship, Pivot, Raise; Hype Cycle; Sprint Race; Due Diligence; Tokenmaxxing. */
-.spr {
+.spr,
+.dice {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -85,13 +86,16 @@
   padding: 10px 22px;
 }
 
-.hype-scores {
+.hype-scores,
+.sprint-results {
   border-collapse: collapse;
   font-size: 13px;
 }
 
 .hype-scores td,
-.hype-scores th {
+.hype-scores th,
+.sprint-results td,
+.sprint-results th {
   padding: 3px 10px;
   text-align: right;
 }
@@ -219,7 +223,8 @@
   pointer-events: none;
 }
 
-.sprint-lanes {
+.sprint-lanes,
+.tmx-lines {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -277,17 +282,6 @@
   text-align: right;
 }
 
-.sprint-results {
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.sprint-results td,
-.sprint-results th {
-  padding: 3px 10px;
-  text-align: right;
-}
-
 .sprint-results td:nth-child(2) {
   text-align: left;
 }
@@ -298,14 +292,6 @@
 
 .sprint-results strong {
   color: var(--accent);
-}
-
-.dice {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  text-align: center;
 }
 
 .dice-players {
@@ -381,15 +367,6 @@
   margin: 0;
   text-align: center;
   color: var(--accent);
-}
-
-.tmx-lines {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .tmx-lines li {
