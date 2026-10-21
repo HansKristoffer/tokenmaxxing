@@ -102,7 +102,7 @@ import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/ga
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
 import { markPicnic } from "../town/picnic.ts";
 import { migrate } from "../town/schema.ts";
-import { paperFacts, payForPolse } from "../town/street.ts";
+import { paperFacts } from "../town/street.ts";
 import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
 import { giveTicket } from "../town/tickets.ts";
 import {
@@ -488,11 +488,6 @@ export const town = actor({
       return paper;
     },
 
-    /** From `world.eat`: pays for a rød pølse, or fails with `too_poor`. */
-    buyPolse: async (c, userId: number): Promise<void> => {
-      requireInternal(c.conn.state);
-      await c.vars.serial(() => payForPolse(c.db, userId, Date.now()));
-    },
     // MARK: The traveling merchant (`core/src/merchant.ts`)
 
     /** What's on the cart this week, and how many of each are gone. */

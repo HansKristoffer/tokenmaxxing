@@ -17,7 +17,6 @@ import {
   hasPolse,
   isCart,
   PAPER,
-  POLSE,
   paperboyAt,
   paperRides,
   paperSpot,
@@ -39,7 +38,7 @@ import {
   sausageIcon,
   snailSprite,
 } from "../art/street.ts";
-import { conn, town } from "../net.ts";
+import { conn } from "../net.ts";
 import { hud } from "../store.ts";
 import { camera } from "./camera.ts";
 import { burst, FONT, pill } from "./labels.ts";
@@ -134,7 +133,7 @@ export function drawStreet(
       g,
       sx,
       sy - 2 * dpr,
-      open ? `🌭 Pølser · 🪙 ${POLSE.price}` : "🌭 Lukket · 11-14",
+      open ? "🌭 Gratis pølser" : "🌭 Lukket · 11-14",
       dpr,
       open ? "rgba(216, 52, 60, 0.95)" : "rgba(43, 36, 51, 0.7)",
       "#fbf7ef",
@@ -257,12 +256,7 @@ export function streetInteract(
   if (world.room !== "town") return false;
   const at = streetNow();
   if (facesCart(me.x, me.y, me.facing)) {
-    send(
-      conn.eat(me.facing).then((r) => {
-        void town.wallet().then((wallet) => hud.set({ wallet }));
-        return r;
-      }),
-    );
+    send(conn.eat(me.facing));
     return true;
   }
   const [sx, sy] = snailTile(at);

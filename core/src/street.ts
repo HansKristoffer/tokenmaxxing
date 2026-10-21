@@ -36,9 +36,8 @@ const facingTile = (x: number, y: number, facing: Facing): [number, number] => [
 
 // MARK: Pølsevogn
 
-/** The hot dog cart: what a rød pølse costs, how long it lasts, how much quicker you walk, and its hours. */
+/** The hot dog cart: a rød pølse is on the house. How long it lasts, how much quicker you walk, and its hours. */
 export const POLSE = {
-  price: 2,
   ms: 10 * 60_000,
   /** Step time is multiplied by this while it lasts: 0.8 is a quarter faster. */
   pace: 0.8,

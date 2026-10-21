@@ -1,14 +1,11 @@
 import { beforeEach, expect, test } from "bun:test";
-import { POLSE } from "@tokenmaxxing/core/street.ts";
 import type { TxSql } from "../src/actors/shared.ts";
-import { wallet } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
-import { paperFacts, payForPolse } from "../src/town/street.ts";
+import { paperFacts } from "../src/town/street.ts";
 import { memorySql } from "./memory-sql.ts";
 
 let sql: TxSql;
 const DAY = "2026-10-20";
-const NOW = Date.UTC(2026, 9, 21, 10);
 
 async function user(id: number, name: string, look: object, companyId: number | null = null) {
   await sql.execute(
@@ -70,16 +67,4 @@ test("the paper's facts are the day's: burner, company, PRs, model and a pet", a
 test("a day nobody used shows up empty", async () => {
   const f = await paperFacts(sql, "2026-10-01");
   expect(f).toMatchObject({ tokens: 0, people: 0, burner: null, company: null, shipper: null, model: null });
-});
-
-test("a pølse costs its price, every time, and not without the coins", async () => {
-  // cy has √(300M + 9B ÷ 1M) coins: 17 + 94.
-  const before = (await wallet(sql, 3, NOW)).balance;
-  await payForPolse(sql, 3, NOW);
-  await payForPolse(sql, 3, NOW);
-  expect((await wallet(sql, 3, NOW)).balance).toBe(before - 2 * POLSE.price);
-  await user(4, "dee", {});
-  expect(payForPolse(sql, 4, NOW)).rejects.toMatchObject({ code: "too_poor" });
-  // Nothing goes in the bag.
-  expect((await wallet(sql, 3, NOW)).items).toBe(0);
 });

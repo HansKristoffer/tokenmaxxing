@@ -30,8 +30,7 @@ test("the clock is Copenhagen's, summer and winter", () => {
   for (const bad of ["24:00", "7", "12:60", "noon", ""]) expect(parseClock(bad)).toBeNull();
 });
 
-test("the pølsevogn is open 11 to 14, and a rød pølse is cheap and short", () => {
-  expect(POLSE.price).toBe(2);
+test("the pølsevogn is open 11 to 14, and a rød pølse is free and short", () => {
   expect(POLSE.ms).toBe(10 * 60_000);
   expect(cartOpen(cph(10, 59))).toBe(false);
   expect(cartOpen(cph(11))).toBe(true);

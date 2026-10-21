@@ -1,12 +1,9 @@
-/** What `town` does for street life (`core/src/street.ts`): the morning paper's facts, and paying for a pølse. */
+/** What `town` does for street life (`core/src/street.ts`): the morning paper's facts. */
 import { gameOf } from "@tokenmaxxing/core/games/index.ts";
 import { random } from "@tokenmaxxing/core/games/random.ts";
 import type { PaperFacts } from "@tokenmaxxing/core/paper.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
-import { POLSE } from "@tokenmaxxing/core/street.ts";
-import { UserError } from "rivetkit";
 import { all, type Sql } from "../actors/shared.ts";
-import { wallet } from "./coins.ts";
 import { lookOf, TOKENS, USER_COLS, type UserRow } from "./users.ts";
 
 /** Everything the paper can write about world day `day`, from usage, activity, looks and games. */
@@ -75,20 +72,4 @@ export async function paperFacts(sql: Sql, day: string): Promise<PaperFacts> {
       : null,
     game: game ? { name: game.name, game: gameOf(game.game)?.name ?? game.game, won: game.won } : null,
   };
-}
-
-/**
- * Pays `POLSE.price` for a rød pølse: spend in `purchases` under `polse`, like the shop's, so the balance
- * stays worked out rather than stored. Nothing goes in the bag. Run it serialized, like `buy`.
- */
-export async function payForPolse(sql: Sql, userId: number, now: number): Promise<void> {
-  if ((await wallet(sql, userId, now)).balance < POLSE.price)
-    throw new UserError("Not enough coins yet.", { code: "too_poor" });
-  await sql.execute(
-    `INSERT INTO purchases (user_id, item, price, at) VALUES (?, 'polse', ?, ?)
-     ON CONFLICT(user_id, item) DO UPDATE SET price = price + excluded.price, at = excluded.at`,
-    userId,
-    POLSE.price,
-    now,
-  );
 }

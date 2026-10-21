@@ -407,8 +407,8 @@ export const world = actor({
       return { notice: COFFEE_LINES[Math.min(cups, COFFEE_LINES.length) - 1]! };
     },
 
-    /** E at the pølsevogn while it's open: a rød pølse for `POLSE.price`, and a quicker walk for a while. */
-    eat: async (c, facing: unknown): Promise<StepResult> => {
+    /** E at the pølsevogn while it's open: a free rød pølse, and a quicker walk for a while. */
+    eat: (c, facing: unknown): StepResult => {
       const userId = requireUser(c.conn.state);
       const p = c.state.players[userId];
       if (!p || p.state === "playing" || p.room !== "town") return null;
@@ -418,14 +418,6 @@ export const world = actor({
       if (!facesCart(p.x, p.y, p.facing)) return null;
       if (!cartOpen(now)) return { notice: "🌭 Lukket. The pølsevogn opens 11:00 to 14:00." };
       if (hasPolse(p.polseUntil ?? 0, now)) return { notice: "🌭 You're still full from the last one." };
-      const paid = await main(c.client())
-        .town.buyPolse(userId)
-        .then(() => true)
-        .catch((err: { code?: string }) => {
-          if (err?.code === "too_poor") return false;
-          throw err;
-        });
-      if (!paid) return { notice: `🌭 A rød pølse is 🪙 ${POLSE.price}. Come back with coins.` };
       p.polseUntil = now + POLSE.ms;
       c.broadcast("info", info(p, c.vars.online.has(p.id)));
       return { notice: `🌭 One rød pølse, med det hele. You walk quicker for ${POLSE.ms / 60_000} minutes.` };
