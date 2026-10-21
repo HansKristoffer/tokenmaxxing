@@ -6,7 +6,7 @@
  */
 import { random } from "./random.ts";
 import { sha256 } from "./sha256.ts";
-import { type GameDef, refused } from "./types.ts";
+import { byScore, type GameDef, lastStanding, leave, leavers, refused } from "./types.ts";
 
 const ROUNDS = 3;
 /** The countdown before each round. */
@@ -124,7 +124,7 @@ export const hype: GameDef<HypeState, HypeView> = {
     return now >= r.startsAt + msToReach(r.crash / 100) ? end(s, i, now) : s;
   },
 
-  forfeit: (s, player) => (s.forfeited.includes(player) ? s : { ...s, forfeited: [...s.forfeited, player] }),
+  forfeit: leave,
 
   view(s) {
     const i = current(s);
@@ -140,16 +140,12 @@ export const hype: GameDef<HypeState, HypeView> = {
 
   outcome(s) {
     const left = active(s);
-    // Whoever left last places best among those who left.
-    const gone = [...s.forfeited].reverse().map((p) => [p]);
-    if (left.length <= 1) return { places: [left, ...gone].filter((g) => g.length > 0) };
+    const over = lastStanding(left, s.forfeited);
+    if (over) return over;
     if (current(s) !== -1) return null;
     const t = totals(s);
     if (left.every((p) => t[p] === 0)) return { void: "Everyone crashed in every round." };
-    const scores = [...new Set(left.map((p) => t[p]!))].sort((a, b) => b - a);
-    return {
-      places: [...scores.map((n) => left.filter((p) => t[p] === n)), ...gone],
-    };
+    return { places: [...byScore(left, (p) => t[p]!), ...leavers(s.forfeited)] };
   },
 
   betsCloseAt: (s) => s.rounds[0]!.startsAt + 10_000,

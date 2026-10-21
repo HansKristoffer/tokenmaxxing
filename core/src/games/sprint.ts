@@ -5,7 +5,7 @@
  * server got inside the race, at its own clock, and never faster than 250 WPM.
  */
 import { random } from "./random.ts";
-import { type Callout, type GameDef, refused } from "./types.ts";
+import { type Callout, type GameDef, lastStanding, leave, leavers, refused } from "./types.ts";
 
 /** The 200 most common English words, Monkeytype's "english" kind of list. */
 export const WORDS =
@@ -186,7 +186,7 @@ export const sprint: GameDef<SprintState, SprintView> = {
 
   tick: (s, now) => (!s.over && now >= s.endsAt + GRACE_MS ? { ...s, over: true } : s),
 
-  forfeit: (s, player) => (s.forfeited.includes(player) ? s : { ...s, forfeited: [...s.forfeited, player] }),
+  forfeit: leave,
 
   view(s, viewer, now) {
     return {
@@ -203,9 +203,8 @@ export const sprint: GameDef<SprintState, SprintView> = {
 
   outcome(s) {
     const left = active(s);
-    // Whoever left last places best among those who left.
-    const gone = [...s.forfeited].reverse().map((p) => [p]);
-    if (left.length <= 1) return { places: [left, ...gone].filter((g) => g.length > 0) };
+    const over = lastStanding(left, s.forfeited);
+    if (over) return over;
     if (!s.over) return null;
     const sc = Object.fromEntries(left.map((p) => [p, scoreOf(s, p, s.endsAt)]));
     if (left.every((p) => sc[p]!.correct === 0)) return { void: "Nobody typed a word right." };
@@ -224,7 +223,7 @@ export const sprint: GameDef<SprintState, SprintView> = {
       if (group && better(group[0]!, p) === 0) group.push(p);
       else places.push([p]);
     }
-    return { places: [...places, ...gone] };
+    return { places: [...places, ...leavers(s.forfeited)] };
   },
 
   // Side bets stay open for the first few seconds of the race.
