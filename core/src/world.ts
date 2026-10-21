@@ -535,32 +535,48 @@ export function restSpot(room: RoomId, state: "away" | "working", taken: Readonl
   return { room, x: free[0], y: free[1], facing: state === "working" ? "up" : "down" };
 }
 
+/** The ways to step, in the order a route tries them: a tie goes to the first. */
+const FACINGS = Object.keys(DIRS) as Facing[];
+const STEPS = FACINGS.map((f) => DIRS[f]);
+
 /**
  * Shortest walk from `from` to `to` as steps (BFS over walkable tiles). The
  * target itself may be a door or seat: the last step walks into it. Null when
  * there's no way.
  */
 export function route(map: GameMap, from: [number, number], to: [number, number]): Facing[] | null {
-  const key = (x: number, y: number) => map.index(x, y);
-  const goal = key(...to);
-  const prev = new Map<number, [number, Facing]>([[key(...from), [-1, "down"]]]);
-  const queue: [number, number][] = [from];
-  while (queue.length) {
-    const [x, y] = queue.shift()!;
-    if (key(x, y) === goal) {
-      const out: Facing[] = [];
-      for (let k = goal; prev.get(k)![0] !== -1; k = prev.get(k)![0]) out.push(prev.get(k)![1]);
-      return out.reverse();
-    }
-    for (const dir of Object.keys(DIRS) as Facing[]) {
-      const [dx, dy] = DIRS[dir];
-      const nx = x + dx;
-      const ny = y + dy;
-      const k = key(nx, ny);
-      if (prev.has(k) || !map.contains(nx, ny)) continue;
-      if (!map.walkable(nx, ny) && k !== goal) continue;
-      prev.set(k, [key(x, y), dir]);
-      queue.push([nx, ny]);
+  const goal = map.index(...to);
+  const start = map.index(...from);
+  if (start === goal) return [];
+  const size = map.width * map.height;
+  // Per tile: the step that first reached it (-1 not yet), and the tile it came from.
+  const step = new Int8Array(size).fill(-1);
+  const prev = new Int32Array(size);
+  if (start >= 0 && start < size) step[start] = FACINGS.length;
+  const queueX = new Int32Array(size + 1);
+  const queueY = new Int32Array(size + 1);
+  queueX[0] = from[0];
+  queueY[0] = from[1];
+  for (let head = 0, tail = 1; head < tail; head++) {
+    const x = queueX[head]!;
+    const y = queueY[head]!;
+    const k = map.index(x, y);
+    for (let d = 0; d < STEPS.length; d++) {
+      const nx = x + STEPS[d]![0];
+      const ny = y + STEPS[d]![1];
+      if (!map.contains(nx, ny)) continue;
+      const nk = map.index(nx, ny);
+      if (step[nk] !== -1) continue;
+      if (nk !== goal && !map.walkable(nx, ny)) continue;
+      step[nk] = d;
+      prev[nk] = k;
+      if (nk === goal) {
+        const out: Facing[] = [];
+        for (let at = goal; at !== start && prev[at] !== -1; at = prev[at]!) out.push(FACINGS[step[at]!]!);
+        return out.reverse();
+      }
+      queueX[tail] = nx;
+      queueY[tail++] = ny;
     }
   }
   return null;
