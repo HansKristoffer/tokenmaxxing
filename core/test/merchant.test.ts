@@ -64,7 +64,18 @@ describe("merchant editions", () => {
   });
 
   test("can be worn; made-up indices can't", () => {
-    const base = { style: 0, skin: 0, hair: 0, outfit: 0, glasses: 0, hat: 0, pet: 0 };
+    const base = {
+      style: 0,
+      skin: 0,
+      hair: 0,
+      outfit: 0,
+      glasses: 0,
+      hat: 0,
+      pet: 0,
+      held: 0,
+      back: 0,
+      petwear: 0,
+    };
     expect(parseLook({ ...base, hat: EDITION_BASE })).toEqual({ ...base, hat: EDITION_BASE });
     expect(parseLook({ ...base, glasses: EDITION_BASE + 1 })).not.toBeNull();
     expect(parseLook({ ...base, hat: EDITION_BASE - 1 })).toBeNull();

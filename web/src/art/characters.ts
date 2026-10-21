@@ -3,6 +3,7 @@ import type { Facing, Look, PlayerState } from "@tokenmaxxing/core/world.ts";
 import { drawEditions, editionFrame } from "./editions.ts";
 import { C, HAIRS, OUTFITS, PANTS, SKINS } from "./palette.ts";
 import { bake, cached, type Palette } from "./pixels.ts";
+import { drawWardrobe, outfitMarks, wardrobeIcon, wardrobePalette } from "./wardrobe.ts";
 
 /**
  * Characters are a head (one of four styles) on a body, 16×16, recoloured per
@@ -371,10 +372,12 @@ export function lookPalette(look: Look): Palette {
     C: outfitShade,
     p: pants,
     f: "#3a2e2a",
+    ...wardrobePalette(look.outfit),
   };
 }
 
-const lookKey = (l: Look) => `${l.style}.${l.skin}.${l.hair}.${l.outfit}.${l.glasses}.${l.hat}`;
+const lookKey = (l: Look) =>
+  `${l.style}.${l.skin}.${l.hair}.${l.outfit}.${l.glasses}.${l.hat}.${l.held}.${l.back}`;
 
 /** One 16×16 frame. Left is the right-facing side view, mirrored. */
 export const characterFrame = cached(
@@ -384,12 +387,15 @@ export const characterFrame = cached(
     const flip = facing === "left";
     const pal = lookPalette(look);
     return bake(16, 16, (p) => {
+      drawWardrobe(p, look, view, pose, "behind", pal.s!, flip);
       p.grid(BODIES[view][pose], pal, 0, 9, flip);
       if (look.outfit === 12) p.grid(RACK[view], RACK_COLORS, 0, 9, flip);
+      drawWardrobe(p, look, view, pose, "body", pal.s!, flip);
       p.grid(HEADS[view][look.style] ?? HEADS[view][0]!, pal, 0, 0, flip);
       if (view !== "up")
         p.grid(GLASSES[look.glasses]?.[view] ?? [], GLASSES_COLORS[look.glasses] ?? {}, 0, 5, flip);
       p.grid(HATS[look.hat]?.[view] ?? [], HAT_COLORS[look.hat] ?? {}, 0, 0, flip);
+      drawWardrobe(p, look, view, pose, "front", pal.s!, flip);
       drawEditions(p, look, view, flip);
     });
   },
@@ -403,14 +409,17 @@ export const itemFrame = cached(
   (item: Item) => item.id,
   (item: Item) => {
     const { slot, index: i } = item;
+    const wardrobe = wardrobeIcon(item);
+    if (wardrobe) return wardrobe;
     const edition = editionFrame(item);
     if (edition) return edition;
     if (slot === "hat") return bake(16, HATS[i]!.down.length, (p) => p.grid(HATS[i]!.down, HAT_COLORS[i]!));
     if (slot === "glasses") return bake(16, 3, (p) => p.grid(GLASSES[i]!.down, GLASSES_COLORS[i]!));
     const [c, shade] = OUTFITS[i] ?? OUTFITS[0]!;
     return bake(16, 4, (p) => {
-      p.grid(BODIES.down.stand.slice(0, 4), { o: C.ink, c, C: shade, p: C.ink });
+      p.grid(BODIES.down.stand.slice(0, 4), { o: C.ink, c, C: shade, ...wardrobePalette(i), p: C.ink });
       if (i === 12) p.grid(RACK.down, RACK_COLORS);
+      outfitMarks(p, i, "down", 0);
     });
   },
 );

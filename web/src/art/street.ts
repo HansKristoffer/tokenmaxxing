@@ -16,9 +16,31 @@ const BUN_DARK = "#b9813f";
 const MUSTARD = "#f5d14a";
 
 /** Who's behind the counter: white coat, a paper hat. */
-const VENDOR: Look = { style: 0, skin: 1, hair: 0, outfit: 7, glasses: 0, hat: 0, pet: 0 };
+const VENDOR: Look = {
+  style: 0,
+  skin: 1,
+  hair: 0,
+  outfit: 7,
+  glasses: 0,
+  hat: 0,
+  pet: 0,
+  held: 0,
+  back: 0,
+  petwear: 0,
+};
 /** The paperboy: yellow jacket, beanie. */
-export const PAPERBOY: Look = { style: 1, skin: 0, hair: 2, outfit: 3, glasses: 0, hat: 1, pet: 0 };
+export const PAPERBOY: Look = {
+  style: 1,
+  skin: 0,
+  hair: 2,
+  outfit: 3,
+  glasses: 0,
+  hat: 1,
+  pet: 0,
+  held: 0,
+  back: 0,
+  petwear: 0,
+};
 
 export const CART_W = 32;
 export const CART_H = 36;

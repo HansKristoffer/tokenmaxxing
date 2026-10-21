@@ -99,8 +99,8 @@ import {
   withdraw,
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
-import { markPicnic } from "../town/picnic.ts";
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
+import { markPicnic } from "../town/picnic.ts";
 import { migrate } from "../town/schema.ts";
 import { paperFacts, payForPolse } from "../town/street.ts";
 import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";

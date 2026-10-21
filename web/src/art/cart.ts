@@ -130,7 +130,18 @@ export function glow(g: CanvasRenderingContext2D, cx: number, cy: number, r: num
 }
 
 /** Who the merchant is under the hat. */
-const MERCHANT_LOOK: Look = { style: 0, skin: 2, hair: 4, outfit: 4, glasses: 0, hat: 0, pet: 0 };
+const MERCHANT_LOOK: Look = {
+  style: 0,
+  skin: 2,
+  hair: 4,
+  outfit: 4,
+  glasses: 0,
+  hat: 0,
+  pet: 0,
+  held: 0,
+  back: 0,
+  petwear: 0,
+};
 
 /** The merchant's own hat: wide, plum, with a gold band and a feather. Not for sale. */
 // biome-ignore format: pixel art reads as a grid

@@ -6,6 +6,7 @@
  */
 import { EDITIONS } from "./editions.ts";
 import { FURNITURE } from "./office.ts";
+import { WARDROBE, type WardrobeSlot } from "./wardrobe.ts";
 import type { Look } from "./world.ts";
 
 /**
@@ -17,7 +18,7 @@ export const coinsForTokens = (tokens: number): number => Math.floor(Math.sqrt(M
 /** Extra coins for finishing a world day 1st, 2nd or 3rd on tokens. */
 export const PODIUM_COINS = [25, 15, 10] as const;
 
-export type Slot = "outfit" | "glasses" | "hat" | "pet";
+export type Slot = "outfit" | "glasses" | "hat" | "pet" | WardrobeSlot;
 
 export interface Item {
   /** `<slot>.<index>`, e.g. `pet.2`, or `furn.<ch>` for furniture. */
@@ -71,6 +72,7 @@ export const ITEMS: readonly Item[] = [
   reward("pet", 6, "Singularity orb", 30),
   // Sold only off the traveling merchant's cart (`merchant.ts`).
   ...EDITIONS,
+  ...WARDROBE,
   ...FURNITURE.map(
     (f, index): Item => ({
       id: `furn.${f.ch}`,

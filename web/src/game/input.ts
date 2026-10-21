@@ -17,10 +17,10 @@ import { chalkboardText } from "./chalkboard.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
+import { merchantAt, openCart } from "./merchant.ts";
 import { picnicSeat } from "./picnic.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { openTrophies } from "./trophies.ts";
-import { merchantAt, openCart } from "./merchant.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {

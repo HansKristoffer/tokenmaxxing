@@ -1,5 +1,6 @@
 import { C } from "./palette.ts";
 import { bake, cached, type Palette } from "./pixels.ts";
+import { drawPetwear, PET_HEADROOM } from "./wardrobe.ts";
 
 /**
  * Pets from the shop: 12×10, facing right (mirrored for left), two frames so
@@ -199,12 +200,26 @@ const PETS: (Pet | null)[] = [
 export const PET_W = 12;
 export const PET_H = 10;
 
-/** One frame of pet `pet`, or null for none. */
-export const petFrame = (pet: number, left: boolean, hop: boolean): HTMLCanvasElement | null =>
-  PETS[pet] ? frame(pet, left, hop) : null;
+/**
+ * One frame of pet `pet`, or null for none. With gear on (`wear`, see wardrobe.ts) it's
+ * `PET_HEADROOM` taller, room for a hat: stand it on the same bottom line.
+ */
+export const petFrame = (pet: number, left: boolean, hop: boolean, wear = 0): HTMLCanvasElement | null =>
+  PETS[pet] ? frame(pet, left, hop, wear) : null;
 
 const frame = cached(
-  (pet: number, left: boolean, hop: boolean) => `${pet}:${left}:${hop}`,
-  (pet: number, left: boolean, hop: boolean) =>
-    bake(PET_W, PET_H, (p) => p.grid(PETS[pet]!.frames[hop ? 1 : 0], PETS[pet]!.pal, 0, 0, left)),
+  (pet: number, left: boolean, hop: boolean, wear: number) => `${pet}:${left}:${hop}:${wear}`,
+  (pet: number, left: boolean, hop: boolean, wear: number) => {
+    const art = PETS[pet]!.frames[hop ? 1 : 0];
+    if (!wear) return bake(PET_W, PET_H, (p) => p.grid(art, PETS[pet]!.pal, 0, 0, left));
+    const right = bake(PET_W, PET_H + PET_HEADROOM, (p) => {
+      p.grid(art, PETS[pet]!.pal, 0, PET_HEADROOM);
+      drawPetwear(p, pet, wear, hop);
+    });
+    if (!left) return right;
+    return bake(right.width, right.height, (p) => {
+      p.g.scale(-1, 1);
+      p.g.drawImage(right, -right.width, 0);
+    });
+  },
 );

@@ -9,6 +9,7 @@ import type { BoardRow, GameId } from "./games/types.ts";
 import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
 import { type Door, doorAt, HQS, type Piece, pieceOf, withPieces } from "./office.ts";
 import { itemById } from "./shop.ts";
+import { WARDROBE_OPTIONS } from "./wardrobe.ts";
 
 export const TILE = 16;
 /** Client animation time per step; the server only enforces the running pace. */
@@ -117,18 +118,25 @@ export interface Look {
   glasses: number;
   hat: number;
   pet: number;
+  /** Wardrobe extras (wardrobe.ts); 0 is none. */
+  held: number;
+  back: number;
+  petwear: number;
 }
 export const LOOK_OPTIONS: Record<keyof Look, number> = {
   style: 4,
   skin: 4,
   hair: 6,
-  outfit: 13,
+  outfit: WARDROBE_OPTIONS.outfit,
   glasses: 4,
   hat: 5,
   pet: 7,
+  held: WARDROBE_OPTIONS.held,
+  back: WARDROBE_OPTIONS.back,
+  petwear: WARDROBE_OPTIONS.petwear,
 };
 /** Looks saved before the shop have no extras. */
-const EXTRAS = { glasses: 0, hat: 0, pet: 0 };
+const EXTRAS = { glasses: 0, hat: 0, pet: 0, held: 0, back: 0, petwear: 0 };
 export const STYLE_NAMES = ["Short hair and tee", "Cap and hoodie", "Bun and jacket", "Long hair and skirt"];
 
 export function parseLook(raw: unknown): Look | null {
