@@ -9,6 +9,8 @@ export type Panel =
   | { kind: "card"; userId: number }
   | { kind: "companyCard"; companyId: number }
   | { kind: "company" }
+  | { kind: "companyShop" }
+  | { kind: "merch"; companyId: number }
   | { kind: "look" }
   | { kind: "shop" }
   | { kind: "bag" }

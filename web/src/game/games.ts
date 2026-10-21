@@ -12,6 +12,7 @@ import { arenaDesk, gameTable } from "../art/tables.ts";
 import { openMatch } from "../net.ts";
 import { hud } from "../store.ts";
 import { bubble, FONT, pill } from "./labels.ts";
+import { startLine } from "./race.ts";
 import { drawPos, world } from "./world.ts";
 
 /** Banners and signs this frame, in canvas (device) pixels. */
@@ -64,6 +65,7 @@ function drawTable(
 ): void {
   const [[tx, ty]] = propTiles(game.spot) as [[number, number]];
   items.push({ y: (ty + 1) * TILE - 2, draw: () => g.drawImage(gameTable(game.game), tx * TILE, ty * TILE) });
+  startLine(g, game, items);
   // Just above the seated players' own labels (a name and a game tag: two pills), not the spot's top.
   const head = Math.min(...game.seats.map((s) => s.y)) * TILE;
   const [sx, sy] = toScreen((game.spot.x + game.spot.w / 2) * TILE, head);

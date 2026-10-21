@@ -43,7 +43,7 @@ export const BOTS: BotDef[] = [
   {
     id: -1,
     name: "Seb - AROX",
-    look: { style: 1, skin: 0, hair: 2, outfit: 5, glasses: 1, hat: 0, pet: 0 },
+    look: { style: 1, skin: 0, hair: 2, outfit: 5, glasses: 1, hat: 0, pet: 0, merch: 0, merchWorn: 0 },
     level: MAX_LEVEL,
     bio: "Står bag Arox (arox.dk): grips, sjippetove og knee sleeves til CrossFit. Har set verdens undergang komme siden første ordre. Pakker stadig ordrer kl. 22.",
     lines: [
@@ -143,7 +143,7 @@ export const BOTS: BotDef[] = [
   {
     id: -2,
     name: "Jesper Buch",
-    look: { style: 0, skin: 0, hair: 1, outfit: 9, glasses: 2, hat: 0, pet: 0 },
+    look: { style: 0, skin: 0, hair: 1, outfit: 9, glasses: 2, hat: 0, pet: 0, merch: 0, merchWorn: 0 },
     level: MAX_LEVEL,
     bio: "Investor. Startede Just Eat i en kælder i Kolding. Går rundt i byen og sørger for, at ingen hviler sig. Han er ikke mr. Nice Guy.",
     lines: [

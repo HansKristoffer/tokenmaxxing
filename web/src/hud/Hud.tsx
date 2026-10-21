@@ -12,10 +12,12 @@ import { Bag } from "./Bag.tsx";
 import { Chat } from "./Chat.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
+import { CompanyShop } from "./CompanyShop.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LookPicker } from "./LookPicker.tsx";
 import { LootToast } from "./Loot.tsx";
 import { MatchPanel } from "./Match.tsx";
+import { MerchShop } from "./Merch.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
@@ -196,6 +198,10 @@ function Panel() {
       return <CompanyCard companyId={panel.companyId} />;
     case "company":
       return <CompanyPanel />;
+    case "companyShop":
+      return <CompanyShop />;
+    case "merch":
+      return <MerchShop companyId={panel.companyId} />;
     case "look":
       return <LookPicker />;
     case "shop":

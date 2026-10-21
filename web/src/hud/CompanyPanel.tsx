@@ -1,10 +1,11 @@
 import { compact, plural } from "@tokenmaxxing/core/format.ts";
 import { CORE_BLOCKS, frontier, plotBlock } from "@tokenmaxxing/core/maps.ts";
+import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { houseTierName, nextTierAt, perMember } from "@tokenmaxxing/core/world.ts";
-import type { Listing } from "@tokenmaxxing/server/registry";
+import type { Listing, WalletLine } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
 import { refreshMe, town } from "../net.ts";
-import { useHud } from "../store.ts";
+import { hud, useHud } from "../store.ts";
 import { Modal, useRun } from "./ui.tsx";
 
 export function CompanyPanel() {
@@ -68,6 +69,37 @@ export function CompanyPanel() {
       <p className="muted small">
         Your house shows how hard your people push, not how many you are: tokens per member decide it.
       </p>
+      <h3>Company wallet</h3>
+      <p className="wallet">
+        <strong>🪙 {co.wallet.toLocaleString()}</strong>
+        <span className="muted small"> · every coin you earn from tokens, the company gets one too</span>
+      </p>
+      <p className="company-actions">
+        <button type="button" className="primary" onClick={() => hud.set({ panel: { kind: "companyShop" } })}>
+          🛋 Furniture{co.stored.length > 0 && ` (📦 ${co.stored.reduce((n, s) => n + s.count, 0)})`}
+        </button>
+        <button type="button" onClick={() => hud.set({ panel: { kind: "merch", companyId: co.id } })}>
+          👕 Merch
+        </button>
+      </p>
+      {co.log.length > 0 && (
+        <ul className="members wallet-log">
+          {co.log.slice(0, 6).map((l) => (
+            <li key={`${l.kind}${l.at}${l.ref}${l.name}`}>
+              <span>
+                {walletLine(l)}
+                <small className="muted">
+                  {" "}
+                  · {l.kind === "match" ? l.ref.slice(5) : new Date(l.at).toLocaleDateString()}
+                </small>
+              </span>
+              <span className={l.amount < 0 ? "muted" : undefined}>
+                {l.amount > 0 ? "+" : "−"}🪙 {Math.abs(l.amount)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       <h3>Website</h3>
       <p className="muted small">
         {co.website ? (
@@ -149,6 +181,15 @@ export function CompanyPanel() {
       {error && <p className="error">{error}</p>}
     </Modal>
   );
+}
+
+/** One move of the wallet, in words: "ada's tokens", "bo bought a Beanbag". */
+function walletLine(l: WalletLine): string {
+  const who = l.name ?? "Someone";
+  if (l.kind === "match") return `⚡ ${who}'s tokens, matched`;
+  if (l.kind === "merch") return `👕 ${who} bought merch (${itemById(l.ref)?.name.toLowerCase() ?? "?"})`;
+  if (l.kind === "furniture") return `🛋 ${who} bought a ${itemById(l.ref)?.name ?? "piece"}`;
+  return "🛠 Town admin";
 }
 
 function CompanyForm({

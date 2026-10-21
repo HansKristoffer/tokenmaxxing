@@ -154,7 +154,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `capped_daily`,
   `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
   handed out), `loot` (raid drops handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
-  `offices`, `match_players` (one row per player per finished game), `deleted_users`, `admin_log`.
+  `offices`, `company_ledger` (company wallets), `match_players` (one row per player per finished game),
+  `deleted_users`, `admin_log`.
 - Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename` (10 an hour), `setLook` (refuses items you don't hold), `me`.
 - Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
   `core/src/maps.ts`), leave, kick, rename, `setWebsite`. One company per person, at most 50 members. The
@@ -235,6 +236,20 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   own colours are used. The logo is downloaded from public hosts only (no private or loopback addresses, a few
   redirects, images up to 512 KB), and served from `/logos/` with a sandboxing CSP.
 
+- **The company wallet** (`company_ledger`). Every coin a member earns from tokens (`coinsForTokens`, not
+  podiums or quests) is matched 1:1 into their company's wallet, on top of their own: `report` runs
+  `matchCoins`, which adds what each touched day's coins grew by since it was last matched (kind `match`,
+  ref the day), to the company they're in now, from the day they joined. Outsiders' merch purchases go in
+  (`merch`), furniture comes out (`furniture`); an admin can set it (`admin`). Each row names who earned,
+  bought or paid. The first migration back-filled current members' days since they joined.
+- **Company furniture** (`COMPANY_FURNITURE`, 29 pieces drawn in `web/src/art/furniture-fancy.ts`): the owner
+  buys from the wallet (`buyPiece`); any member puts pieces out (`placePiece`, down in front of them in the
+  building) and takes them back (G) into the storeroom. Rows are `items` with `company_id` and no
+  `owner_id`, so they're never in a bag, the sweeper leaves them, and they go when the company closes.
+- **Merch** (`MERCH`): every company's tee, hoodie, cap and mug (`merch.<companyId>.<kind>`), in its colours
+  with its initials, worn through `look.merch` and `look.merchWorn`. Outsiders pay full price, into the
+  company wallet; members get `EMPLOYEE_MERCH_DISCOUNT` off (1.0: free, one of each). Not tradeable.
+
 ## Coins and the shop
 
 - Each world day pays `√(tokens ÷ 1M)` coins (1.5B ≈ 38, 600M ≈ 24, 100M = 10). Finishing a day 1st, 2nd or 3rd
@@ -280,13 +295,21 @@ gathers in the town square so anyone can watch, and you play in a panel over the
 - **Hype Cycle** (2–8): the valuation climbs as e^(t/12) until it crashes; cash out in time. Three rounds.
   Each round's crash point comes from a seed whose SHA-256 is shown before it and the seed after.
 - **Due Diligence** (2–6): Liar's Dice with 🦄 wild, 30 seconds a turn; the last with dice wins.
+- **Sprint Race** (2–8): a typing race like Monkeytype, 15, 30 or 60 seconds after a 3-second countdown. The
+  same seeded words from the 200 most common English ones for everyone, lowercase and with no punctuation.
+  WPM is (letters of correct words + their spaces) ÷ 5 ÷ minutes; ties go to accuracy, then whoever got there
+  first. The client sends the text as it's typed; the rules score only what arrived in the race (plus half a
+  second for the network), at the server's clock, refuse text faster than 250 WPM, and nobody sees anyone
+  else's text. In town the racers run laps of the square while it's on, a lap per 83 correct characters (10
+  seconds at 100 WPM), from the game's `board`; only the client draws it (`web/src/game/race.ts`), so on the
+  server they stand at the table as usual.
 - **Tokenmaxxing** (2–12): the most real tokens in 15 minutes to 24 hours, starting on the minute after a
   minute's countdown, with 3 minutes of grace for late syncs.
 
 - **Rules are pure** (`core/src/games/`): each game is a `GameDef` over plain JSON state: `setup`, `move`,
   `tick`, `forfeit`, a per-viewer `view` (hiding what a player mustn't see yet), `outcome` (places, or void),
   plus optional `callouts`, `status`, `board`, `headline` and `endsAt` for the world. Usage games add
-  `usageWindow` and `usage`. `GAMES` lists them: Ship, Pivot, Raise; Hype Cycle; Due Diligence; Tokenmaxxing.
+  `usageWindow` and `usage`. `GAMES` lists them: Ship, Pivot, Raise; Hype Cycle; Due Diligence; Sprint Race; Tokenmaxxing.
 - **`arcade["main"]`** is the social side and the money. Everything starts as a table: `open` (invite people,
   open it to anyone, or both), `invite`, `answer` (yes, no or a counter offer), `join`, `leave`, `start`. A
   full table starts a match. It also takes side bets, runs double or nothing, and `settle`s: the pot is paid by
@@ -327,7 +350,7 @@ No server changes, actions or tables are needed.
 - Inviting a whole company at once; company tournaments built from tables.
 - Easing Tokenmaxxing's counters between updates, and "✓ syncing" next to seated players.
 - More games: Term Sheet (Split or Steal; needs a rule for when both steal), Runway (Farkle), Burn Rate
-  (blackjack), Unicorn (highest unique number), a coin flip at the fountain, Prompt Race (typing), and
+  (blackjack), Unicorn (highest unique number), a coin flip at the fountain, and
   fighting "Rate Limit" in the tall grass.
 
 ## The raid

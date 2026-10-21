@@ -1,5 +1,7 @@
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
+import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
+import { type FancyPiece, fancyPiece, fancySprite } from "./furniture-fancy.ts";
 import { trophyAt } from "./loot.ts";
 import { C } from "./palette.ts";
 import { bake, cached } from "./pixels.ts";
@@ -9,7 +11,12 @@ export interface Placed {
   canvas: HTMLCanvasElement;
   dx: number;
   dy: number;
+  /** Company furniture: the render loop picks its frame (and the neon sign's name) every frame. */
+  fancy?: FancyPiece;
 }
+
+/** Company furniture by map character, with its art. */
+const FANCY = new Map(COMPANY_FURNITURE.map((f) => [f.ch, { w: f.w ?? 1, art: fancyPiece(f.art)! }]));
 
 const tree = cached(
   () => "tree",
@@ -448,12 +455,25 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(torch());
     case "G":
       return at(gate(), -4);
-    default:
+    default: {
+      const fancy = FANCY.get(ch);
       // The raid's trophies (art/loot.ts).
-      return trophyAt(ch);
+      if (!fancy) return trophyAt(ch);
+      // `w` tiles each, from the left of a run of them.
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      if (n % fancy.w !== 0) return null;
+      // Standing on its row; a deeper one reaches back over the row behind.
+      return { canvas: fancySprite(fancy.art.id), dx: 0, dy: TILE - fancy.art.height, fancy: fancy.art };
+    }
   }
 }
 
 /** Where on the tile the object's "feet" are, for depth sorting against people. */
-export const sortY = (ch: string): number =>
-  ch === "F" ? TILE * 2 - 2 : ch === "b" || ch === "s" ? 0 : TILE - 1;
+export const sortY = (ch: string): number => {
+  const placement = FANCY.get(ch)?.art.placement;
+  // A rug lies under everyone, a chandelier hangs over them.
+  if (placement === "flat") return -TILE;
+  if (placement === "ceiling") return TILE * 4;
+  return ch === "F" ? TILE * 2 - 2 : ch === "b" || ch === "s" ? 0 : TILE - 1;
+};

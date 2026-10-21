@@ -8,8 +8,8 @@ house in town, painted in your brand's colours with your logo on it. When you're
 character is in that house: **at a desk** while your agents run, **asleep in bed** when they don't. Using
 AI earns **coins**, and so does finishing a day in the top 3; spend them on clothes, glasses, hats and
 pets that follow you around. Or play for them: challenge someone to a game in the town square, from
-rock-paper-scissors for founders and Liar's Dice to **Tokenmaxxing**, a battle over who burns the most real
-tokens in an hour.
+rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
+the most real tokens in an hour.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.

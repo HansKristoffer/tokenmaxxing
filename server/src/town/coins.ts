@@ -9,6 +9,8 @@ import {
   itemById,
   itemsIn,
   levelItems,
+  type MerchKind,
+  merchPrice,
   PODIUM_COINS,
   type Side,
 } from "@tokenmaxxing/core/shop.ts";
@@ -259,6 +261,42 @@ export async function buy(sql: Sql, userId: number, item: Item, now: number): Pr
     item.price,
     now,
   );
+  return wallet(sql, userId, now);
+}
+
+/**
+ * One of a company's merch (`item.companyId`) into `userId`'s bag. Outsiders pay the full price, into the
+ * company wallet (spend in `purchases`, like the shop); its own people get `EMPLOYEE_MERCH_DISCOUNT` off,
+ * and a free one only if they don't have one yet. Run it serialized, like `buy`.
+ */
+export async function buyMerch(sql: Sql, userId: number, item: Item, now: number): Promise<Wallet> {
+  const company = await one<{ id: number }>(sql, "SELECT id FROM companies WHERE id = ?", item.companyId);
+  if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+  const employee = (await userById(sql, userId)).companyId === company.id;
+  const price = merchPrice(item.id.split(".")[2] as MerchKind, employee);
+  if (price === 0 && (await one(sql, "SELECT 1 FROM items WHERE owner_id = ? AND item = ?", userId, item.id)))
+    throw new UserError("You have one already: the free one is one each.", { code: "owned" });
+  if ((await wallet(sql, userId, now)).balance < price)
+    throw new UserError("Not enough coins yet.", { code: "too_poor" });
+  await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, item.id, now);
+  if (price > 0) {
+    await sql.execute(
+      `INSERT INTO purchases (user_id, item, price, at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id, item) DO UPDATE SET price = price + excluded.price`,
+      userId,
+      item.id,
+      price,
+      now,
+    );
+    await sql.execute(
+      "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, 'merch', ?, ?)",
+      company.id,
+      userId,
+      price,
+      item.id,
+      now,
+    );
+  }
   return wallet(sql, userId, now);
 }
 
@@ -582,8 +620,21 @@ export const pickUp = async (sql: Sql, id: number, userId: number, room: string)
     await all(
       sql,
       `UPDATE items SET owner_id = ?, ${OFF_FLOOR} WHERE id = ? AND owner_id IS NULL AND (room IS NULL OR room = ?)
-         AND ? IN (SELECT id FROM users) RETURNING id`,
+         AND company_id IS NULL AND ? IN (SELECT id FROM users) RETURNING id`,
       userId,
+      id,
+      room,
+      userId,
+    )
+  ).length > 0 || (await store(sql, id, userId, room));
+
+/** Company furniture taken off its building's floor goes to the storeroom, if a member took it. */
+const store = async (sql: Sql, id: number, userId: number, room: string): Promise<boolean> =>
+  (
+    await all(
+      sql,
+      `UPDATE items SET room = NULL, x = NULL, y = NULL WHERE id = ? AND room = ?
+         AND company_id = (SELECT company_id FROM users WHERE id = ?) RETURNING id`,
       id,
       room,
       userId,
@@ -594,25 +645,33 @@ export const pickUp = async (sql: Sql, id: number, userId: number, room: string)
 export async function giveBack(sql: Sql, ids: number[]): Promise<void> {
   if (ids.length === 0) return;
   const list = JSON.stringify(ids);
-  const mine = "owner_id IS NULL AND id IN (SELECT value FROM json_each(?))";
+  // Company furniture goes to its storeroom (a closed company's is gone already).
+  await sql.execute(
+    "UPDATE items SET room = NULL, x = NULL, y = NULL WHERE company_id IS NOT NULL AND id IN (SELECT value FROM json_each(?))",
+    list,
+  );
+  const mine = "owner_id IS NULL AND company_id IS NULL AND id IN (SELECT value FROM json_each(?))";
   await sql.execute(`DELETE FROM items WHERE ${mine} AND dropped_by NOT IN (SELECT id FROM users)`, list);
   await sql.execute(`UPDATE items SET owner_id = dropped_by, ${OFF_FLOOR} WHERE ${mine}`, list);
 }
 
-/** Drops on the floor since before `before`, for the sweeper: not furniture in its dropper's own office. */
+/** Drops on the floor since before `before`, for the sweeper: not furniture in its dropper's own office, nor a company's. */
 export const unclaimed = async (sql: Sql, before: number): Promise<number[]> =>
   (
     await all<{ id: number }>(
       sql,
-      "SELECT id FROM items WHERE owner_id IS NULL AND dropped_at < ? AND room IS NOT 'office:' || dropped_by",
+      `SELECT id FROM items WHERE owner_id IS NULL AND company_id IS NULL AND dropped_at < ?
+       AND room IS NOT 'office:' || dropped_by`,
       before,
     )
   ).map((r) => r.id);
 
 /** Everything on a floor, for `world` starting up (`seed`). */
-export const floors = (sql: Sql): Promise<Drop[]> =>
-  all<Drop>(
-    sql,
-    `SELECT id, item, room, x, y, dropped_by AS "by", dropped_at AS at FROM items
-     WHERE owner_id IS NULL AND room IS NOT NULL`,
-  );
+export const floors = async (sql: Sql): Promise<Drop[]> =>
+  (
+    await all<Omit<Drop, "co"> & { co: number | null }>(
+      sql,
+      `SELECT id, item, room, x, y, dropped_by AS "by", dropped_at AS at, company_id AS co FROM items
+       WHERE owner_id IS NULL AND room IS NOT NULL`,
+    )
+  ).map(({ co, ...d }) => (co === null ? d : { ...d, co }));

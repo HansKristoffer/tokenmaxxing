@@ -954,6 +954,19 @@ input:focus {
   align-self: center;
 }
 
+.merch-pics {
+  display: flex;
+  justify-content: center;
+  align-items: end;
+  gap: 4px;
+}
+
+.company-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* The bag: a square per kind; the picked one's name and buttons in a strip above. */
 .bag-pick {
   display: flex;

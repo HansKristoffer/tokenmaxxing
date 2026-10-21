@@ -54,6 +54,14 @@ export async function migrate(sql: Sql): Promise<void> {
     id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id INTEGER, item TEXT NOT NULL, at INTEGER NOT NULL,
     dropped_by INTEGER, dropped_at INTEGER, room TEXT, x INTEGER, y INTEGER)`);
   await sql.execute("CREATE INDEX IF NOT EXISTS items_owner ON items (owner_id, item)");
+  // A company's own furniture (`COMPANY_FURNITURE`): `owner_id` stays NULL, so it's never in a bag. On its
+  // building's floor it has `room`, `x` and `y`; without, it's in the company's storeroom.
+  const itemColumns = (await sql.execute("PRAGMA table_info(items)")) as { name: string }[];
+  if (!itemColumns.some((c) => c.name === "company_id"))
+    await sql.execute("ALTER TABLE items ADD COLUMN company_id INTEGER");
+  await sql.execute(
+    "CREATE INDEX IF NOT EXISTS items_company ON items (company_id) WHERE company_id IS NOT NULL",
+  );
   // Into the bag, once, when `items` is new: a purchase row was the item.
   if (fresh) {
     await sql.execute("INSERT INTO items (owner_id, item, at) SELECT user_id, item, at FROM purchases");
@@ -77,6 +85,7 @@ export async function migrate(sql: Sql): Promise<void> {
     from_id INTEGER PRIMARY KEY, to_id INTEGER NOT NULL,
     give TEXT NOT NULL, want TEXT NOT NULL, at INTEGER NOT NULL)`);
   await sql.execute("CREATE INDEX IF NOT EXISTS trades_to ON trades (to_id, at)");
+  await companyLedger(sql);
   // Whether each office is open. A row is also "the desk and chair are given" (`starterDrops`).
   await sql.execute(`CREATE TABLE IF NOT EXISTS offices (
     user_id INTEGER PRIMARY KEY, open INTEGER NOT NULL DEFAULT 1)`);
@@ -110,4 +119,19 @@ export async function migrate(sql: Sql): Promise<void> {
     week TEXT NOT NULL, rung INTEGER NOT NULL, user_id INTEGER NOT NULL, item TEXT NOT NULL,
     odds REAL NOT NULL, at INTEGER NOT NULL,
     PRIMARY KEY (week, rung, user_id, item)) WITHOUT ROWID`);
+}
+
+/**
+ * Coins in and out of each company's wallet: `match` (ref: the world day) is a member's token coins
+ * matched 1:1, on top of their own; `merch` is what an outsider paid for its merch, `furniture` what it
+ * spent (ref: the item), `admin` an admin's change. `user_id` is who earned, bought or paid.
+ * Wallets start at 0: nothing from before the table existed is matched.
+ */
+async function companyLedger(sql: Sql): Promise<void> {
+  await sql.execute(`CREATE TABLE IF NOT EXISTS company_ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER NOT NULL, user_id INTEGER NOT NULL, amount INTEGER NOT NULL,
+    kind TEXT NOT NULL, ref TEXT NOT NULL, at INTEGER NOT NULL)`);
+  await sql.execute("CREATE INDEX IF NOT EXISTS company_ledger_company ON company_ledger (company_id, at)");
+  await sql.execute("CREATE INDEX IF NOT EXISTS company_ledger_user ON company_ledger (user_id, kind, ref)");
 }
