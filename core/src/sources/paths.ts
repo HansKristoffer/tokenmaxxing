@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { realpathSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, sep } from "node:path";
 
@@ -97,12 +97,15 @@ export async function listCodexFiles(): Promise<string[]> {
   ]);
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const path of [...live, ...archived, ...indexed, ...posthog]) {
-    const key = canonical(path) ?? path;
-    if (seen.has(key)) continue;
+  const add = (key: string) => {
+    if (seen.has(key)) return;
     seen.add(key);
     out.push(key);
-  }
+  };
+  for (const path of [...live, ...archived]) add(canonical(path) ?? path);
+  // Already real paths (`rolloutInsideHome`).
+  for (const path of indexed) add(path);
+  for (const path of posthog) add(canonical(path) ?? path);
   return out;
 }
 
@@ -134,24 +137,38 @@ async function listCodexIndexedRollouts(home: string): Promise<string[]> {
   for (const root of codexStateRoots(home)) {
     for (const path of await scanGlob(root, "state_*.sqlite")) dbPaths.add(canonical(path) ?? path);
   }
+  const root = canonical(home);
   const out: string[] = [];
-  for (const dbPath of dbPaths) out.push(...readRolloutPaths(dbPath, home));
+  if (root === null) return out;
+  for (const dbPath of dbPaths)
+    for (const path of rolloutRows(dbPath)) {
+      const file = rolloutInsideHome(root, isAbsolute(path) ? path : join(home, path));
+      if (file) out.push(file);
+    }
   return out;
 }
 
-function readRolloutPaths(dbPath: string, home: string): string[] {
+/** Each catalog's `rollout_path`s, kept until the database (or its write-ahead log) changes. */
+const catalogs = new Map<string, { version: string; paths: string[] }>();
+
+function rolloutRows(dbPath: string): string[] {
+  const version = [dbPath, `${dbPath}-wal`]
+    .map((p) => {
+      const st = statSync(p, { throwIfNoEntry: false });
+      return st ? `${st.mtimeMs}:${st.size}` : "-";
+    })
+    .join(" ");
+  const kept = catalogs.get(dbPath);
+  if (kept?.version === version) return kept.paths;
   let db: Database | undefined;
   try {
     db = new Database(dbPath, { readonly: true });
     const rows = db.query("SELECT rollout_path FROM threads").all() as { rollout_path: unknown }[];
-    const found: string[] = [];
-    for (const row of rows) {
-      if (typeof row.rollout_path !== "string" || row.rollout_path.length === 0) continue;
-      const abs = isAbsolute(row.rollout_path) ? row.rollout_path : join(home, row.rollout_path);
-      const file = rolloutInsideHome(home, abs);
-      if (file) found.push(file);
-    }
-    return found;
+    const paths = rows.flatMap((row) =>
+      typeof row.rollout_path === "string" && row.rollout_path.length > 0 ? [row.rollout_path] : [],
+    );
+    catalogs.set(dbPath, { version, paths });
+    return paths;
   } catch {
     // Locked, missing, or an older catalog with no threads table. Session globs still count.
     return [];
@@ -160,17 +177,11 @@ function readRolloutPaths(dbPath: string, home: string): string[] {
   }
 }
 
-/** Real path of a `.jsonl` file that stays inside `home` after resolving symlinks. */
-function rolloutInsideHome(home: string, candidate: string): string | null {
+/** Real path of a `.jsonl` file that stays inside `root` (the real Codex home) after resolving symlinks. */
+function rolloutInsideHome(root: string, candidate: string): string | null {
   if (!candidate.endsWith(".jsonl")) return null;
-  let root: string;
-  let file: string;
-  try {
-    root = realpathSync(home);
-    file = realpathSync(candidate);
-  } catch {
-    return null;
-  }
+  const file = canonical(candidate);
+  if (file === null) return null;
   const rel = relative(root, file);
   if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return null;
   return file;

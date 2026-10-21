@@ -1317,6 +1317,23 @@ describe("listCodexFiles", () => {
     );
   });
 
+  it("sees threads added to the state database since the last list", async () => {
+    const home = realpathSync(await mkdtemp(join(tmpdir(), "codex-home-")));
+    const first = join(home, "imported", "rollout-1.jsonl");
+    const second = join(home, "imported", "rollout-2.jsonl");
+    await mkdir(join(first, ".."), { recursive: true });
+    for (const f of [first, second]) await writeFile(f, "");
+    const dbPath = join(home, "state_5.sqlite");
+    writeThreads(dbPath, [{ rolloutPath: first }]);
+    await withHome(home, async () => {
+      expect(await listCodexFiles()).toEqual([first]);
+      const db = new Database(dbPath);
+      db.query("INSERT INTO threads (id, rollout_path) VALUES ('b', ?)").run(second);
+      db.close();
+      expect((await listCodexFiles()).sort()).toEqual([first, second].sort());
+    });
+  });
+
   it("keeps session rollouts when the state database has no threads table", async () => {
     const home = realpathSync(await mkdtemp(join(tmpdir(), "codex-home-")));
     const live = join(home, "sessions", "rollout-a.jsonl");
