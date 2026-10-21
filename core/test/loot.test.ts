@@ -74,16 +74,12 @@ test("rolls are fixed: the same week, rung, raider and item always roll the same
 });
 
 test("over many raiders, each rarity drops about as often as its odds", () => {
-  // n rolls each, with 5 standard deviations of slack.
-  for (const [rarity, n] of [
-    ["common", 20_000],
-    ["rare", 40_000],
-    ["epic", 100_000],
-    ["legendary", 200_000],
-  ] as const) {
+  // One set of rolls, read against every rarity's odds, with 5 standard deviations of slack.
+  const n = 100_000;
+  const rolls = Array.from({ length: n }, (_, u) => lootRoll("2026-10-19", 3, u, "odds"));
+  for (const rarity of ["common", "rare", "epic", "legendary"] as const) {
     const odds = RARITIES[rarity].odds;
-    let hits = 0;
-    for (let u = 0; u < n; u++) if (lootRoll("2026-10-19", 3, u, `odds.${rarity}`) < odds) hits++;
+    const hits = rolls.filter((r) => r < odds).length;
     const sd = Math.sqrt(n * odds * (1 - odds));
     expect(Math.abs(hits - n * odds)).toBeLessThan(5 * sd);
   }
