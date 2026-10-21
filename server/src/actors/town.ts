@@ -96,6 +96,7 @@ import {
   buyPiece,
   companyById,
   companyInfos,
+  companyOrGone,
   decline,
   type Listing,
   leave,
@@ -116,15 +117,7 @@ import { migrate } from "../town/schema.ts";
 import { paperFacts } from "../town/street.ts";
 import { brand, push, pushOffice, pushPlayers } from "../town/sync.ts";
 import { giveTicket } from "../town/tickets.ts";
-import {
-  levelOf,
-  lookOf,
-  type PlayerCore,
-  playerCores,
-  USER_COLS,
-  type UserRow,
-  userById,
-} from "../town/users.ts";
+import { levelOf, lookOf, type PlayerCore, playerCores, userById } from "../town/users.ts";
 import { parseCompanyName, parseUserName, parseWebsite } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
@@ -498,11 +491,10 @@ export const town = actor({
       const userId = requireUser(c.conn.state);
       const item = itemById(itemId);
       if (!item) throw new UserError("That's not in the shop.", { code: "not_found" });
-      if (item.level !== undefined)
+      if (item.level !== undefined || item.earned)
         throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
       if (editionById(item.id))
         throw new UserError("Only the traveling merchant sells that.", { code: "not_for_sale" });
-      if (item.earned) throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
       if (item.loot) throw new UserError("That one drops in the raid.", { code: "not_for_sale" });
       if (item.company)
         throw new UserError("That one is for company buildings, from the company wallet.", {
@@ -612,8 +604,9 @@ export const town = actor({
     },
 
     /**
-     * The alarm, every 10 minutes: drops nobody took in an hour go back to whoever dropped them. And the
-     * raid is worked out, so a kill's loot is handed out even while nobody's watching (`raidsOf`).
+     * The alarm, every 10 minutes: drops nobody took in an hour go back to whoever dropped them, and
+     * trade offers past their week go. And the raid is worked out, so a kill's loot is handed out even
+     * while nobody's watching (`raidsOf`).
      */
     sweep: async (c): Promise<void> => {
       // The alarm calls with no connection; anyone else has one, and has to be inside.
@@ -624,6 +617,7 @@ export const town = actor({
       } catch (err) {
         console.warn(`[sweep] raid: ${String(err)}`);
       }
+      await c.db.execute("DELETE FROM trades WHERE at < ?", Date.now() - TRADE_TTL);
       const ids = await unclaimed(c.db, Date.now() - DROP_TTL);
       if (ids.length === 0) return;
       // Off the floor first: if `world` is down, nothing changed and the next sweep tries again.
@@ -634,9 +628,9 @@ export const town = actor({
     // MARK: Trades
 
     /** Offers `toId` my `give` for their `want`. It replaces my open offer, if I had one. */
-    offerTrade: async (c, toId: unknown, rawGive: unknown, rawWant: unknown): Promise<void> => {
+    offerTrade: async (c, rawTo: unknown, rawGive: unknown, rawWant: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
-      if (typeof toId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
+      const toId = playerId(rawTo);
       if (toId === userId) throw new UserError("Trade with someone else.", { code: "invalid_trade" });
       const me = await userById(c.db, userId);
       const them = await userById(c.db, toId);
@@ -675,10 +669,11 @@ export const town = actor({
     /** Offers to me and my own, newest first. */
     trades: async (c): Promise<{ incoming: Trade[]; outgoing: Trade | null }> => {
       const userId = requireUser(c.conn.state);
-      await c.db.execute("DELETE FROM trades WHERE at < ?", Date.now() - TRADE_TTL);
+      // Older ones are past it: the sweeper deletes them.
+      const since = Date.now() - TRADE_TTL;
       return {
-        incoming: await tradesWhere(c.db, "to_id = ?", userId),
-        outgoing: (await tradesWhere(c.db, "from_id = ?", userId))[0] ?? null,
+        incoming: await tradesWhere(c.db, "to_id = ? AND at >= ?", userId, since),
+        outgoing: (await tradesWhere(c.db, "from_id = ? AND at >= ?", userId, since))[0] ?? null,
       };
     },
 
@@ -715,8 +710,7 @@ export const town = actor({
     /** What `userId` could trade away, for the trade panel. */
     tradeables: async (c, targetId: unknown): Promise<{ name: string; owned: string[] }> => {
       requireUser(c.conn.state);
-      if (typeof targetId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
-      const u = await userById(c.db, targetId);
+      const u = await userOf(c.db, targetId);
       return { name: u.name, owned: (await ownedItems(c.db, u.id)).filter(isTradeable) };
     },
 
@@ -824,16 +818,14 @@ export const town = actor({
 
     profile: async (c, targetId: unknown, rawRange: unknown): Promise<Profile> => {
       requireUser(c.conn.state);
-      if (typeof targetId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
       const range = isRangeKey(rawRange) ? rawRange : "30d";
-      return profile(c.db, targetId, range, Date.now(), await podiumsOf(c, Date.now()));
+      return profile(c.db, playerId(targetId), range, Date.now(), await podiumsOf(c, Date.now()));
     },
 
     /** The trophies on someone's office shelf: anyone may look, like their badges. */
     trophies: async (c, targetId: unknown): Promise<Trophy[]> => {
       requireUser(c.conn.state);
-      if (typeof targetId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
-      const u = await userById(c.db, targetId);
+      const u = await userOf(c.db, targetId);
       return c
         .client<typeof registry>()
         .player.get([String(u.id)], internal)
@@ -945,27 +937,22 @@ export const town = actor({
     /** Sets someone's balance; returns it. */
     adminSetCoins: async (c, userId: unknown, balance: unknown): Promise<number> => {
       requireAdmin(c.conn.state);
-      if (!Number.isSafeInteger(balance) || (balance as number) < 0 || (balance as number) > 10_000_000)
-        throw new UserError("Use a whole number from 0 to 10,000,000.", { code: "invalid_amount" });
-      const user = await adminTarget(c.db, userId);
+      const coins = coinAmount(balance);
+      const user = await userOf(c.db, userId);
       const now = Date.now();
       const k = await kept(c, now);
-      const set = await c.vars.serial(() => setBalance(c.db, user.id, balance as number, now, k));
+      const set = await c.vars.serial(() => setBalance(c.db, user.id, coins, now, k));
       await logAdmin(c.db, "set coins", who(user), `${set.before} → ${set.balance}`, now);
       return set.balance;
     },
 
     /** A company wallet's coins, set; the ledger line is the owner's (`user_id`), kind `admin`. */
-    adminSetCompanyCoins: async (c, companyId: unknown, coins: unknown): Promise<number> => {
+    adminSetCompanyCoins: async (c, companyId: unknown, rawCoins: unknown): Promise<number> => {
       requireAdmin(c.conn.state);
-      if (!Number.isSafeInteger(coins) || (coins as number) < 0 || (coins as number) > 10_000_000)
-        throw new UserError("Use a whole number from 0 to 10,000,000.", { code: "invalid_amount" });
-      const company = typeof companyId === "number" ? await companyById(c.db, companyId) : undefined;
-      if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+      const coins = coinAmount(rawCoins);
+      const company = await companyOrGone(c.db, companyId);
       const now = Date.now();
-      const set = await c.vars.serial(() =>
-        setCompanyWallet(c.db, company.id, coins as number, company.ownerId, now),
-      );
+      const set = await c.vars.serial(() => setCompanyWallet(c.db, company.id, coins, company.ownerId, now));
       await logAdmin(
         c.db,
         "set company coins",
@@ -978,7 +965,7 @@ export const town = actor({
 
     adminRenameUser: async (c, userId: unknown, rawName: unknown): Promise<void> => {
       requireAdmin(c.conn.state);
-      const user = await adminTarget(c.db, userId);
+      const user = await userOf(c.db, userId);
       await renameUser(c.db, c.vars.serial, c.client<typeof registry>(), user.id, rawName);
       await logAdmin(c.db, "rename user", who(user), `→ ${userName(rawName)}`, Date.now());
     },
@@ -986,7 +973,7 @@ export const town = actor({
     /** Takes someone out of their company (the owner hands over, the last one out closes it). */
     adminRemoveFromCompany: async (c, userId: unknown): Promise<void> => {
       requireAdmin(c.conn.state);
-      const user = await adminTarget(c.db, userId);
+      const user = await userOf(c.db, userId);
       const changed = await c.vars.serial(() => leave(c.db, user.id));
       await push(c.db, c.client<typeof registry>(), changed);
       await logAdmin(c.db, "remove from company", who(user), `company #${user.companyId}`, Date.now());
@@ -995,7 +982,7 @@ export const town = actor({
     /** Forgets someone's usage, raw events and all: for numbers that were made up. */
     adminWipeUsage: async (c, userId: unknown): Promise<void> => {
       requireAdmin(c.conn.state);
-      const user = await adminTarget(c.db, userId);
+      const user = await userOf(c.db, userId);
       const client = c.client<typeof registry>();
       const days = await client.player.get([String(user.id)], internal).wipe();
       await c.vars.serial(() => wipeUsage(c.db, user.id));
@@ -1010,7 +997,7 @@ export const town = actor({
     /** Deletes an account for good: their device token and sessions stop working, and they leave the world. */
     adminDeleteUser: async (c, userId: unknown): Promise<void> => {
       requireAdmin(c.conn.state);
-      const user = await adminTarget(c.db, userId);
+      const user = await userOf(c.db, userId);
       const now = Date.now();
       const changed = await c.vars.serial(() => deleteUser(c.db, user.id, now));
       c.vars.podiums = null;
@@ -1024,8 +1011,7 @@ export const town = actor({
 
     adminRenameCompany: async (c, companyId: unknown, rawName: unknown): Promise<void> => {
       requireAdmin(c.conn.state);
-      const company = typeof companyId === "number" ? await companyById(c.db, companyId) : undefined;
-      if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+      const company = await companyOrGone(c.db, companyId);
       await renameCompany(c.db, c.client<typeof registry>(), company.id, rawName);
       await logAdmin(
         c.db,
@@ -1039,9 +1025,7 @@ export const town = actor({
     adminCloseCompany: async (c, companyId: unknown): Promise<void> => {
       requireAdmin(c.conn.state);
       const client = c.client<typeof registry>();
-      const company = typeof companyId === "number" ? await companyById(c.db, companyId) : undefined;
-      if (!company) throw new UserError("That company is gone.", { code: "not_found" });
-      const changed = await c.vars.serial(() => closeCompany(c.db, company.id));
+      const { company, changed } = await c.vars.serial(() => closeCompany(c.db, companyId));
       await logAdmin(
         c.db,
         "close company",
@@ -1070,17 +1054,9 @@ export const town = actor({
       drops: Drop[];
     }> => {
       requireInternal(c.conn.state);
-      const users = await all<UserRow>(c.db, `SELECT ${USER_COLS} FROM users`);
-      const companies = await all<{ id: number }>(c.db, "SELECT id FROM companies");
       return {
-        players: await playerCores(
-          c.db,
-          users.map((u) => u.id),
-        ),
-        companies: await companyInfos(
-          c.db,
-          companies.map((r) => r.id),
-        ),
+        players: await playerCores(c.db, "all"),
+        companies: await companyInfos(c.db, "all"),
         offices: await offices(c.db),
         drops: await floors(c.db),
       };
@@ -1093,10 +1069,21 @@ type Client = Parameters<typeof push>[1];
 /** How the admin log names someone. */
 const who = (u: { id: number; name: string }) => `${u.name} (#${u.id})`;
 
-const adminTarget = (sql: Sql, userId: unknown) => {
-  if (typeof userId !== "number") throw new UserError("Unknown player.", { code: "not_found" });
-  return userById(sql, userId);
-};
+/** A user id as a caller sent it: `not_found` unless it's a number. */
+function playerId(raw: unknown): number {
+  if (typeof raw !== "number") throw new UserError("Unknown player.", { code: "not_found" });
+  return raw;
+}
+
+/** The user with id `raw`, as a caller sent it, or `not_found`. */
+const userOf = (sql: Sql, raw: unknown) => userById(sql, playerId(raw));
+
+/** Coins an admin sets: a whole number up to 10M. */
+function coinAmount(raw: unknown): number {
+  if (!Number.isSafeInteger(raw) || (raw as number) < 0 || (raw as number) > 10_000_000)
+    throw new UserError("Use a whole number from 0 to 10,000,000.", { code: "invalid_amount" });
+  return raw as number;
+}
 
 /** For the player themselves, and for the admin page. Run under `serial`, since names are unique. */
 async function renameUser(

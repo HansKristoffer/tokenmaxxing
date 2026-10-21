@@ -240,3 +240,7 @@ export const all = <T>(sql: Sql, query: string, ...args: unknown[]): Promise<T[]
 
 export const one = async <T>(sql: Sql, query: string, ...args: unknown[]): Promise<T | undefined> =>
   (await all<T>(sql, query, ...args))[0];
+
+/** The one number `query` selects, as `n`: a count or a sum, 0 for none. */
+export const scalar = async (sql: Sql, query: string, ...args: unknown[]): Promise<number> =>
+  (await one<{ n: number | null }>(sql, query, ...args))?.n ?? 0;

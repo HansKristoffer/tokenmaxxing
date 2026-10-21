@@ -4,7 +4,6 @@ import { levelFor, levelTitle } from "@tokenmaxxing/core/format.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
 import { addDays, dayKey, type RangeKey, rangeDays } from "@tokenmaxxing/core/range.ts";
 import { type Brand, houseTier, type Look } from "@tokenmaxxing/core/world.ts";
-import { UserError } from "rivetkit";
 import { all, one, pricing, type Sql } from "../actors/shared.ts";
 import {
   type ActivityRow,
@@ -18,7 +17,14 @@ import {
   type UsageRow,
 } from "../stats.ts";
 import { officeOf, type Podium } from "./coins.ts";
-import { COMPANY_COLS, type CompanyRow, companyById, companyInfos, companyWallet } from "./companies.ts";
+import {
+  COMPANY_COLS,
+  type CompanyRow,
+  companyById,
+  companyInfos,
+  companyOrGone,
+  companyWallet,
+} from "./companies.ts";
 import { type GameStats, gameStats } from "./games.ts";
 import { picnicsOf } from "./picnic.ts";
 import { ticketsOf } from "./tickets.ts";
@@ -142,10 +148,7 @@ async function buildBoard(
     to,
   );
   const companies = await all<CompanyRow>(sql, `SELECT ${COMPANY_COLS} FROM companies`);
-  const lifetime = await tokensIn(
-    sql,
-    users.map((u) => u.id),
-  );
+  const lifetime = await tokensIn(sql, "all");
   const companyName = new Map(companies.map((co) => [co.id, co.name]));
 
   const usageByUser = Map.groupBy(usage, (r) => r.userId);
@@ -159,14 +162,7 @@ async function buildBoard(
     companyId: u.companyId,
     company: u.companyId === null ? null : (companyName.get(u.companyId) ?? null),
   }));
-  const tokens30d = new Map(
-    (
-      await companyInfos(
-        sql,
-        companies.map((co) => co.id),
-      )
-    ).map((i) => [i.id, i.tokens30d]),
-  );
+  const tokens30d = new Map((await companyInfos(sql, "all")).map((i) => [i.id, i.tokens30d]));
   const byCompany = Map.groupBy(players, (p) => p.companyId);
   return {
     players,
@@ -243,17 +239,18 @@ export async function profile(
     to,
   );
   const daily = await last30Days(sql, "user_id = ?", userId, now);
-  const lifetime = (await tokensIn(sql, [userId])).get(userId) ?? 0;
-  const level = levelFor(lifetime);
-  const co = u.companyId === null ? undefined : await companyById(sql, u.companyId);
-  const company = co ? { id: co.id, name: co.name } : null;
-  const games = await gameStats(sql, userId);
-  // Badges: two small queries, and the podiums `town` keeps for the day.
+  // Every day's tokens: for the level, and the badges below.
   const days = await all<{ day: string; tokens: number }>(
     sql,
     `SELECT day, SUM(${TOKENS}) AS tokens FROM usage_daily WHERE user_id = ? GROUP BY day`,
     userId,
   );
+  const lifetime = days.reduce((n, d) => n + d.tokens, 0);
+  const level = levelFor(lifetime);
+  const co = u.companyId === null ? undefined : await companyById(sql, u.companyId);
+  const company = co ? { id: co.id, name: co.name } : null;
+  const games = await gameStats(sql, userId);
+  // Badges: the days above, one more small query, and the podiums `town` keeps for the day.
   const best = await one<{ peakAgents: number | null; prs: number | null }>(
     sql,
     "SELECT MAX(peak_agents) AS peakAgents, SUM(prs) AS prs FROM activity_daily WHERE user_id = ?",
@@ -322,8 +319,7 @@ export async function companyProfile(
   range: RangeKey,
   now: number,
 ): Promise<CompanyProfile> {
-  const company = await companyById(sql, companyId);
-  if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+  const company = await companyOrGone(sql, companyId);
   const board = await boardOf(sql, range, now);
   // Only the companies are ranked, and only its own people.
   const row = rank(board.companies, "tokens").find((c) => c.companyId === companyId);

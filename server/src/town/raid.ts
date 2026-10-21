@@ -22,7 +22,7 @@ import {
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import { all, one, type Sql } from "../actors/shared.ts";
 import type { RaidLoot } from "./loot.ts";
-import { TOKENS } from "./users.ts";
+import { signupDays, TOKENS } from "./users.ts";
 
 /** One raider on the board. */
 export interface RaidRow {
@@ -139,8 +139,7 @@ export async function raidStart(sql: Sql, now: number, env = process.env.RAID_ST
  * only days from each player's sign-up day, like coins, so a first sync's backfill doesn't.
  */
 export async function raidDays(sql: Sql, start: string): Promise<RaidDay[]> {
-  const signups = await all<{ id: number; created_at: number }>(sql, "SELECT id, created_at FROM users");
-  const firstDay = JSON.stringify(Object.fromEntries(signups.map((u) => [u.id, dayKey(u.created_at)])));
+  const firstDay = JSON.stringify(await signupDays(sql));
   const from = addDays(start, -7);
   const tokens = await all<{ userId: number; day: string; tokens: number }>(
     sql,
