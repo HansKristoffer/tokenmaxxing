@@ -277,11 +277,12 @@ export const town = actor({
       const userId = await c.vars.serial(async () => {
         if (await one(c.db, "SELECT 1 FROM users WHERE name = ?", name))
           throw new UserError("That name is taken.", { code: "name_taken" });
-        // After every id there's been, deleted accounts too.
+        // After every id there's been: deleted accounts and lost sign-ups too. Each MAX is one index read.
         const [row] = await all<{ id: number }>(
           c.db,
           `INSERT INTO users (id, name, look, created_at) VALUES (
-             COALESCE((SELECT MAX(id) FROM (SELECT id FROM users UNION ALL SELECT id FROM deleted_users)), 0) + 1,
+             MAX(COALESCE((SELECT MAX(id) FROM users), 0), COALESCE((SELECT MAX(id) FROM deleted_users), 0),
+                 COALESCE((SELECT MAX(id) FROM lost_signups), 0)) + 1,
              ?, '{}', ?) RETURNING id`,
           name,
           Date.now(),
@@ -299,7 +300,9 @@ export const town = actor({
           input: { userId, tokenHash: hash, internal: INTERNAL_KEY },
         });
       } catch (err) {
-        // Nobody holds a token for this account, so it goes; the name is free again.
+        // Nobody holds a token for this account, so it goes; the name is free again. Not its id: a
+        // timeout may have made the actor all the same, and every sign-up after would fail on it.
+        await c.db.execute("INSERT OR IGNORE INTO lost_signups (id, at) VALUES (?, ?)", userId, Date.now());
         await c.db.execute("DELETE FROM users WHERE id = ?", userId);
         boardsChanged();
         throw err;
