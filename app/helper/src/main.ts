@@ -1,12 +1,9 @@
-import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Command, Message } from "@tokenmaxxing/core/protocol.ts";
-import { Helper } from "./helper.ts";
+import { APP_STATE_FILE, appStateDir, Helper } from "./helper.ts";
 
-const stateDir =
-  process.env.TOKENMAXXING_STATE_DIR ?? join(homedir(), "Library", "Application Support", "Tokenmaxxing");
-// v2: the world started from a fresh server, so every Mac re-reads its full history into it.
-const statePath = join(stateDir, "state.v2.json");
+const stateDir = process.env.TOKENMAXXING_STATE_DIR ?? appStateDir();
+const statePath = join(stateDir, APP_STATE_FILE);
 
 /** stdout carries protocol messages only; everything else goes to stderr. */
 const write = (msg: Message) => process.stdout.write(`${JSON.stringify(msg)}\n`);

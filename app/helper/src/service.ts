@@ -26,6 +26,10 @@ const PASSED_ENV = [
   "XDG_CONFIG_HOME",
 ];
 
+/** `$XDG_CONFIG_HOME`, or `~/.config` without one. */
+export const configHome = (env: NodeJS.ProcessEnv = process.env): string =>
+  env.XDG_CONFIG_HOME || join(homedir(), ".config");
+
 export const serviceEnv = (env: NodeJS.ProcessEnv = process.env): Record<string, string> =>
   Object.fromEntries(PASSED_ENV.flatMap((k) => (env[k] ? [[k, env[k]]] : [])));
 
@@ -35,9 +39,9 @@ export function runCommand(): string[] {
   return compiled ? [process.execPath, "run"] : [process.execPath, Bun.main, "run"];
 }
 
-export const launchAgentPath = (home = homedir()) => join(home, "Library", "LaunchAgents", `${LABEL}.plist`);
+const launchAgentPath = () => join(homedir(), "Library", "LaunchAgents", `${LABEL}.plist`);
 
-export const macLogPath = (home = homedir()) => join(home, "Library", "Logs", "Tokenmaxxing", "cli.log");
+const macLogPath = () => join(homedir(), "Library", "Logs", "Tokenmaxxing", "cli.log");
 
 const xml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -81,8 +85,7 @@ ${vars}
 `;
 }
 
-export const systemdUnitPath = (env: NodeJS.ProcessEnv = process.env) =>
-  join(env.XDG_CONFIG_HOME || join(homedir(), ".config"), "systemd", "user", UNIT);
+const systemdUnitPath = () => join(configHome(), "systemd", "user", UNIT);
 
 /** systemd's own quoting: each word in double quotes, with `\`, `"`, `%` and `$` escaped. */
 const quote = (s: string) => `"${s.replace(/[\\"]/g, "\\$&").replace(/%/g, "%%").replace(/\$/g, "$$$$")}"`;
@@ -123,7 +126,7 @@ async function sh(cmd: string[]): Promise<{ ok: boolean; out: string }> {
 
 const gui = () => `gui/${process.getuid?.() ?? 0}`;
 
-export type ServiceResult = { ok: true; note?: string } | { ok: false; why: string };
+type ServiceResult = { ok: true; note?: string } | { ok: false; why: string };
 
 /** Installs and starts the service. Where there's no service manager, says how to run it instead. */
 export async function installService(): Promise<ServiceResult> {

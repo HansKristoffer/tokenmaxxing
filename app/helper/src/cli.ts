@@ -6,11 +6,16 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import type { Message } from "@tokenmaxxing/core/protocol.ts";
-import type { registry } from "@tokenmaxxing/server/registry";
-import { createClient } from "rivetkit/client";
 import pkg from "../../../package.json" with { type: "json" };
-import { Helper } from "./helper.ts";
-import { installService, logsCommand, runCommand, serviceRunning, uninstallService } from "./service.ts";
+import { APP_STATE_FILE, appStateDir, clientFor, errorCode, Helper } from "./helper.ts";
+import {
+  configHome,
+  installService,
+  logsCommand,
+  runCommand,
+  serviceRunning,
+  uninstallService,
+} from "./service.ts";
 
 /**
  * `tokenmaxxing`: sync a second computer's usage into your account (WORKHORSE.md). The app on your
@@ -45,13 +50,13 @@ const configDir = (): string =>
   process.env.TOKENMAXXING_CLI_DIR ||
   (process.platform === "darwin"
     ? join(homedir(), "Library", "Application Support", "Tokenmaxxing CLI")
-    : join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "tokenmaxxing"));
+    : join(configHome(), "tokenmaxxing"));
 
 const configPath = () => join(configDir(), "config.json");
 const statePath = () => join(configDir(), "state.json");
 
 /** The desktop app's sync state: if it's there, the app already sends this Mac's usage. */
-const appStatePath = () => join(homedir(), "Library", "Application Support", "Tokenmaxxing", "state.v2.json");
+const appStatePath = () => join(appStateDir(), APP_STATE_FILE);
 
 async function loadConfig(): Promise<Config | null> {
   try {
@@ -76,18 +81,11 @@ async function saveConfig(c: Config): Promise<void> {
 
 const forget = () => rm(configDir(), { recursive: true, force: true });
 
-const clientFor = (server: string) =>
-  createClient<typeof registry>({
-    endpoint: `${server.replace(/\/+$/, "")}/api/rivet`,
-    devtools: false,
-    disableMetadataLookup: true,
-  });
-
 /** A server error's message for people, or a plain one for the network. */
 function reason(err: unknown): string {
-  const e = err as { code?: unknown; message?: unknown } | null;
-  return typeof e?.code === "string" && e.code !== "internal_error" && typeof e.message === "string"
-    ? e.message
+  const message = (err as { message?: unknown } | null)?.message;
+  return errorCode(err) !== null && typeof message === "string"
+    ? message
     : "Can't reach the server. Check the connection and try again.";
 }
 

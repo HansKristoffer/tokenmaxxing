@@ -1,4 +1,6 @@
 import { rm } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { AppState, Command, LinkComputer, Message } from "@tokenmaxxing/core/protocol.ts";
 import type { CollectOptions } from "@tokenmaxxing/core/sync/collect.ts";
 import { emptyState, loadState } from "@tokenmaxxing/core/sync/state.ts";
@@ -12,7 +14,12 @@ const SYNC_INTERVAL_MS = 2 * 60_000;
 /** During a Tokenmaxxing battle, so the scoreboard moves while you burn. */
 const BATTLE_SYNC_MS = 10_000;
 
-export interface HelperOptions {
+/** Where the desktop app keeps its sync state, unless `TOKENMAXXING_STATE_DIR` says (`main.ts`). */
+export const appStateDir = (): string => join(homedir(), "Library", "Application Support", "Tokenmaxxing");
+/** v2: the world started from a fresh server, so every Mac re-reads its full history into it. */
+export const APP_STATE_FILE = "state.v2.json";
+
+interface HelperOptions {
   statePath: string;
   write: (msg: Message) => void;
   log?: (msg: string) => void;
@@ -25,11 +32,24 @@ class ApiError extends Error {}
 
 type Client = ReturnType<typeof createClient<typeof registry>>;
 
-/** Actor errors carry a code; anything without one is the network. */
-function apiError(err: unknown): ApiError {
+/** An actor error's code, for people; null for anything without one, which is the network. */
+export function errorCode(err: unknown): string | null {
   const code = (err as { code?: unknown } | null)?.code;
-  return new ApiError(typeof code === "string" && code !== "internal_error" ? code : "offline");
+  return typeof code === "string" && code !== "internal_error" ? code : null;
 }
+
+const apiError = (err: unknown): ApiError => new ApiError(errorCode(err) ?? "offline");
+
+/**
+ * A client for the server at `serverUrl`. No metadata lookup: our server is the endpoint, and the
+ * lookup retries forever when offline.
+ */
+export const clientFor = (serverUrl: string): Client =>
+  createClient<typeof registry>({
+    endpoint: `${serverUrl.replace(/\/+$/, "")}/api/rivet`,
+    devtools: false,
+    disableMetadataLookup: true,
+  });
 
 /**
  * The menu bar app's engine: sign up once, then send new local usage in the
@@ -73,12 +93,7 @@ export class Helper {
     switch (cmd.cmd) {
       case "init":
         this.serverUrl = cmd.serverUrl.replace(/\/+$/, "");
-        // No metadata lookup: our server is the endpoint, and the lookup retries forever when offline.
-        this.client = createClient<typeof registry>({
-          endpoint: `${this.serverUrl}/api/rivet`,
-          devtools: false,
-          disableMetadataLookup: true,
-        });
+        this.client = clientFor(this.serverUrl);
         this.syncState = await loadState(this.opts.statePath);
         if (cmd.token) await this.signIn(cmd.token);
         else this.state.phase = "onboarding";
