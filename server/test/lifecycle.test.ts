@@ -1,8 +1,9 @@
-import { expect, spyOn, test } from "bun:test";
+import { expect, jest, spyOn, test } from "bun:test";
 import { RivetError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import type { registry } from "../src/actors/registry.ts";
 import { authenticate, serial, waitForTick } from "../src/actors/shared.ts";
+import { eventually } from "./eventually.ts";
 
 test("shutdown cancels a pending tick before it can touch actor state", async () => {
   const controller = new AbortController();
@@ -55,9 +56,18 @@ test("a busy player keeps a recently checked token working, but not a revoked on
   cache.get(token).until = Date.now() - 1; // the minute is up
 
   verify = () => new Promise(() => {}); // restarting: never answers
-  const started = Date.now();
-  expect(await authenticate({ token }, client, cache)).toMatchObject({ kind: "user", via: "device" });
-  expect(Date.now() - started).toBeLessThan(5_000);
+  // On fake timers, so the wait for an answer runs out at once: it's the only timer.
+  jest.useFakeTimers();
+  try {
+    const started = Date.now();
+    const busy = authenticate({ token }, client, cache);
+    for (let i = 0; jest.getTimerCount() === 0 && i < 100; i++) await Promise.resolve();
+    jest.advanceTimersToNextTimer();
+    expect(await busy).toMatchObject({ kind: "user", via: "device" });
+    expect(Date.now() - started).toBeLessThan(5_000);
+  } finally {
+    jest.useRealTimers();
+  }
 
   verify = async () => {
     throw new Error("callback_timed_out");
@@ -147,8 +157,9 @@ test("a database error while the tick sends a snapshot is logged, not fatal", as
   };
   const running = (world.config.run as unknown as (c: typeof ctx) => Promise<void>)(ctx);
   try {
-    await Bun.sleep(250);
-    expect(warn).toHaveBeenCalledWith("[world] snapshot for 1: Error: SQLite database is closed");
+    await eventually(() =>
+      expect(warn).toHaveBeenCalledWith("[world] snapshot for 1: Error: SQLite database is closed"),
+    );
   } finally {
     controller.abort();
     await running;
@@ -174,6 +185,7 @@ test("a refund failing in the arcade's sweep doesn't stop the next sweep", async
   } as unknown as Client<typeof registry>;
   // Opened 11 minutes ago and never started: the sweep closes it and refunds the stake.
   const table = { id: 1, game: "spr", host: 1, stake: 10, seats: 2, split: "all", open: true, options: {} };
+  const sweeps = sweeper();
   const ctx = {
     state: {
       nextId: 2,
@@ -185,20 +197,46 @@ test("a refund failing in the arcade's sweep doesn't stop the next sweep", async
     conns: new Map(),
     abortSignal: controller.signal,
     client: () => client,
-    keepAwake: <T>(p: Promise<T>) => p,
+    keepAwake: sweeps.keepAwake,
   };
+  jest.useFakeTimers();
   const running = (arcade.config.run as unknown as (c: typeof ctx) => Promise<void>)(ctx);
   try {
-    for (let i = 0; refunds < 2 && i < 100; i++) await Bun.sleep(50); // a sweep a second
+    await sweeps.next(); // a sweep a second
+    await sweeps.next();
     expect(refunds).toBe(2);
     expect(ctx.state.tables).toBeEmptyObject();
     expect(warn).toHaveBeenCalledWith("[arcade] sweep: Error: town is down");
   } finally {
     controller.abort();
+    jest.useRealTimers();
     await running;
     warn.mockRestore();
   }
 });
+
+/**
+ * The arcade's sweeps, for a run on fake timers so none waits out its second: `next()` moves the
+ * clock on to the next sweep and waits for it to finish (the arcade runs each one in `keepAwake`).
+ */
+function sweeper() {
+  let swept = Promise.withResolvers<void>();
+  return {
+    keepAwake: <T>(p: Promise<T>) => {
+      const done = swept;
+      swept = Promise.withResolvers<void>();
+      p.then(() => done.resolve(), done.resolve);
+      return p;
+    },
+    next: async () => {
+      // After a sweep, the loop sets its next timer a few microtasks later.
+      for (let i = 0; jest.getTimerCount() === 0 && i < 100; i++) await Promise.resolve();
+      const done = swept.promise;
+      jest.advanceTimersToNextTimer();
+      await done;
+    },
+  };
+}
 
 /** The arcade over `matches` (as `startMatch` saves them), recording what `town` and `world` are asked. */
 async function arcadeWith(matches: Record<string, object>) {
@@ -215,6 +253,7 @@ async function arcadeWith(matches: Record<string, object>) {
     arcade: { getOrCreate: () => ({}) },
   } as unknown as Client<typeof registry>;
   const controller = new AbortController();
+  const sweeps = sweeper();
   const ctx = {
     state: { nextId: 10, tables: {}, matches, names: {} },
     vars: { serial: serial() },
@@ -222,7 +261,7 @@ async function arcadeWith(matches: Record<string, object>) {
     conns: new Map(),
     abortSignal: controller.signal,
     client: () => client,
-    keepAwake: <T>(p: Promise<T>) => p,
+    keepAwake: sweeps.keepAwake,
   };
   const actions = arcade.config.actions as unknown as Record<
     string,
@@ -233,10 +272,15 @@ async function arcadeWith(matches: Record<string, object>) {
     act: (name: string, ...args: unknown[]) => actions[name]!(ctx, ...args),
     /** One sweep. */
     sweep: async () => {
+      jest.useFakeTimers();
       const running = (arcade.config.run as unknown as (c: typeof ctx) => Promise<void>)(ctx);
-      await Bun.sleep(1_100);
-      controller.abort();
-      await running;
+      try {
+        await sweeps.next();
+      } finally {
+        controller.abort();
+        jest.useRealTimers();
+        await running;
+      }
       return calls;
     },
   };

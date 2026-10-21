@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { SprView } from "@tokenmaxxing/core/games/spr.ts";
 import type { Snapshot } from "@tokenmaxxing/core/world.ts";
 import { as, eventually, rich } from "./rivet.ts";
 
@@ -6,11 +7,12 @@ type Rich = Awaited<ReturnType<typeof rich>>;
 const balance = async (u: Rich) => (await u.town.wallet()).balance;
 const pick = (u: Rich, id: number, p: string) => u.match(id).move({ pick: p });
 
-/** Both pick, then wait out the 2-second reveal. */
+/** Both pick, then wait out the 2-second reveal (picks are refused until it ends). */
 async function round(a: Rich, b: Rich, id: number, pa: string, pb: string) {
   await pick(a, id, pa);
   await pick(b, id, pb);
-  await Bun.sleep(2_100);
+  const { revealUntil } = (await a.match(id).frame()).view as SprView;
+  await Bun.sleep(Math.max(0, (revealUntil ?? 0) - Date.now()) + 10);
 }
 
 async function townGames(u: Rich) {

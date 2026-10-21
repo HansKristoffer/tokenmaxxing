@@ -1,3 +1,4 @@
 [test]
-# Global teardown: bun runs a preload's afterAll once, after every test file.
+# Teardown for the test server (server/test/rivet.ts): a preload's afterAll runs once after the
+# whole run, or after each file with `--parallel` (`bun run test`), where every file starts its own.
 preload = ["./server/test/cleanup.ts"]

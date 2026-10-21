@@ -79,7 +79,12 @@ async function saveConfig(c: Config): Promise<void> {
   await chmod(configPath(), 0o600);
 }
 
-const forget = () => rm(configDir(), { recursive: true, force: true });
+// The state file first: a helper signing out removes it at the same moment, and Bun's recursive rm
+// quietly leaves the rest of the directory behind when a file vanishes under it.
+const forget = async () => {
+  await rm(statePath(), { force: true });
+  await rm(configDir(), { recursive: true, force: true });
+};
 
 /** A server error's message for people, or a plain one for the network. */
 function reason(err: unknown): string {
