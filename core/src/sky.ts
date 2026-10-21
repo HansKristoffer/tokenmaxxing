@@ -163,73 +163,51 @@ export interface Weather {
 
 export const CALM: Weather = { kind: "clear", intensity: 0, windMs: 1.5, windDir: 270, cloud: 0.1 };
 
-export const WEATHER_KINDS: readonly WeatherKind[] = [
-  "clear",
-  "cloudy",
-  "fog",
-  "drizzle",
-  "rain",
-  "storm",
-  "snow",
-];
+const PRESETS: Record<WeatherKind, Weather> = {
+  clear: CALM,
+  cloudy: { kind: "cloudy", intensity: 0.7, windMs: 4, windDir: 250, cloud: 0.8 },
+  fog: { kind: "fog", intensity: 0.8, windMs: 1, windDir: 200, cloud: 0.9 },
+  drizzle: { kind: "drizzle", intensity: 0.35, windMs: 3, windDir: 240, cloud: 0.8 },
+  rain: { kind: "rain", intensity: 0.7, windMs: 7, windDir: 260, cloud: 0.9 },
+  storm: { kind: "storm", intensity: 1, windMs: 14, windDir: 250, cloud: 1 },
+  snow: { kind: "snow", intensity: 0.7, windMs: 4, windDir: 330, cloud: 0.9 },
+};
 
 /** Presets for `SKY_WEATHER=rain` and `?weather=rain`. */
-export function presetWeather(kind: string): Weather | null {
-  switch (kind) {
-    case "clear":
-      return { ...CALM };
-    case "cloudy":
-      return { kind: "cloudy", intensity: 0.7, windMs: 4, windDir: 250, cloud: 0.8 };
-    case "fog":
-      return { kind: "fog", intensity: 0.8, windMs: 1, windDir: 200, cloud: 0.9 };
-    case "drizzle":
-      return { kind: "drizzle", intensity: 0.35, windMs: 3, windDir: 240, cloud: 0.8 };
-    case "rain":
-      return { kind: "rain", intensity: 0.7, windMs: 7, windDir: 260, cloud: 0.9 };
-    case "storm":
-      return { kind: "storm", intensity: 1, windMs: 14, windDir: 250, cloud: 1 };
-    case "snow":
-      return { kind: "snow", intensity: 0.7, windMs: 4, windDir: 330, cloud: 0.9 };
-    default:
-      return null;
-  }
-}
+export const presetWeather = (kind: string): Weather | null =>
+  Object.hasOwn(PRESETS, kind) ? { ...PRESETS[kind as WeatherKind] } : null;
 
 /** WMO weather interpretation codes → kind and how hard (https://open-meteo.com/en/docs). */
-function fromCode(code: number): { kind: WeatherKind; intensity: number } {
-  const table: Record<number, [WeatherKind, number]> = {
-    0: ["clear", 0],
-    1: ["clear", 0],
-    2: ["cloudy", 0.5],
-    3: ["cloudy", 0.9],
-    45: ["fog", 0.6],
-    48: ["fog", 0.85],
-    51: ["drizzle", 0.2],
-    53: ["drizzle", 0.35],
-    55: ["drizzle", 0.5],
-    56: ["drizzle", 0.35],
-    57: ["drizzle", 0.55],
-    61: ["rain", 0.35],
-    63: ["rain", 0.65],
-    65: ["rain", 0.95],
-    66: ["rain", 0.5],
-    67: ["rain", 0.85],
-    71: ["snow", 0.3],
-    73: ["snow", 0.6],
-    75: ["snow", 0.9],
-    77: ["snow", 0.3],
-    80: ["rain", 0.4],
-    81: ["rain", 0.7],
-    82: ["rain", 1],
-    85: ["snow", 0.5],
-    86: ["snow", 0.9],
-    95: ["storm", 0.8],
-    96: ["storm", 0.9],
-    99: ["storm", 1],
-  };
-  const [kind, intensity] = table[code] ?? ["clear", 0];
-  return { kind, intensity };
-}
+const CODES: Record<number, [WeatherKind, number]> = {
+  0: ["clear", 0],
+  1: ["clear", 0],
+  2: ["cloudy", 0.5],
+  3: ["cloudy", 0.9],
+  45: ["fog", 0.6],
+  48: ["fog", 0.85],
+  51: ["drizzle", 0.2],
+  53: ["drizzle", 0.35],
+  55: ["drizzle", 0.5],
+  56: ["drizzle", 0.35],
+  57: ["drizzle", 0.55],
+  61: ["rain", 0.35],
+  63: ["rain", 0.65],
+  65: ["rain", 0.95],
+  66: ["rain", 0.5],
+  67: ["rain", 0.85],
+  71: ["snow", 0.3],
+  73: ["snow", 0.6],
+  75: ["snow", 0.9],
+  77: ["snow", 0.3],
+  80: ["rain", 0.4],
+  81: ["rain", 0.7],
+  82: ["rain", 1],
+  85: ["snow", 0.5],
+  86: ["snow", 0.9],
+  95: ["storm", 0.8],
+  96: ["storm", 0.9],
+  99: ["storm", 1],
+};
 
 /** Open-Meteo's `current` block reduced to a `Weather`; null if it isn't one. */
 export function weatherFrom(current: unknown): Weather | null {
@@ -237,7 +215,7 @@ export function weatherFrom(current: unknown): Weather | null {
   const num = (k: string) => (typeof c?.[k] === "number" && Number.isFinite(c[k]) ? (c[k] as number) : null);
   const code = num("weather_code");
   if (code === null) return null;
-  const { kind, intensity: base } = fromCode(code);
+  const [kind, base] = CODES[code] ?? ["clear", 0];
   const precip = num("precipitation");
   const falls = kind === "rain" || kind === "drizzle" || kind === "snow";
   // Measured rain nudges the code's guess: a "light rain" code with 3 mm an hour is not light.
