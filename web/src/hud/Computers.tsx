@@ -1,6 +1,6 @@
 import type { DeviceInfo } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
-import { withPlayer } from "../net.ts";
+import { connectPlayer, withPlayer } from "../net.ts";
 import { tauri } from "./AppUpdate.tsx";
 import { useRun } from "./ui.tsx";
 
@@ -30,11 +30,15 @@ export function Computers() {
   useEffect(() => {
     void devices().then(setList, () => {});
   }, []);
-  // While a line is out, watch for the new computer to show up.
+  // While a line is out, watch for the new computer to show up, over one connection for the while.
   useEffect(() => {
     if (!command) return;
-    const id = setInterval(() => void devices().then(setList, () => {}), 5000);
-    return () => clearInterval(id);
+    const player = connectPlayer();
+    const id = setInterval(() => void player.devices().then(setList, () => {}), 5000);
+    return () => {
+      clearInterval(id);
+      player.dispose();
+    };
   }, [command]);
 
   const link = run(async () => {

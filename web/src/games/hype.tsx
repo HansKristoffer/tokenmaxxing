@@ -2,23 +2,22 @@ import { secondsUntil } from "@tokenmaxxing/core/format.ts";
 import { COUNTDOWN_MS, type HypeView, msToReach, multiplier } from "@tokenmaxxing/core/games/hype.ts";
 import { sha256 } from "@tokenmaxxing/core/games/sha256.ts";
 import { useEffect, useState } from "react";
-import { useHud } from "../store.ts";
+import { hud } from "../store.ts";
 import type { GameProps } from "./types.ts";
 
 const x = (n: number) => `×${(n / 100).toFixed(2)}`;
 
 /** The server's clock every animation frame while `on`, so the line climbs smoothly; else `now`. */
 function useFrameNow(on: boolean, now: number): number {
-  const skew = useHud((s) => s.clockSkew);
   const [frame, setFrame] = useState(now);
   useEffect(() => {
     if (!on) return;
     let id = requestAnimationFrame(function tick() {
-      setFrame(Date.now() - skew);
+      setFrame(Date.now() - hud.get().clockSkew);
       id = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(id);
-  }, [on, skew]);
+  }, [on]);
   return on ? frame : now;
 }
 

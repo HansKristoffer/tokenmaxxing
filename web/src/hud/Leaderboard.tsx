@@ -69,8 +69,11 @@ export function Leaderboard() {
   const [sort, setSort] = useState<Sort>("tokens");
   const [tab, setTab] = useState<"players" | "companies" | "games">("players");
   const [board, setBoard] = useState<Board | null>(null);
+  const games = tab === "games";
 
+  // The games tab has a board of its own.
   useEffect(() => {
+    if (games) return;
     let live = true;
     const load = () => town.leaderboard(range, sort).then((b) => live && setBoard(b));
     void load();
@@ -79,7 +82,7 @@ export function Leaderboard() {
       live = false;
       clearInterval(id);
     };
-  }, [range, sort]);
+  }, [range, sort, games]);
 
   const players = board?.players ?? [];
   const companies = (board?.companies ?? []).filter((c) => metric(sort, c) > 0);
@@ -100,7 +103,7 @@ export function Leaderboard() {
         />
         <Pills value={range} options={RANGES} onChange={setRange} />
       </div>
-      {tab === "games" ? (
+      {games ? (
         <GamesBoard range={range} me={me} />
       ) : (
         <>

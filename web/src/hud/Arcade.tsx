@@ -447,9 +447,9 @@ export function InviteToast() {
   const me = useHud((s) => s.me?.userId);
   const [counter, setCounter] = useState<number | null>(null);
   const { error, run } = useRun();
-  useTicker(1000, invite !== null);
   const table = lobby?.tables.find((t) => t.id === invite);
   const mine = table?.invited.find((i) => i.userId === me);
+  useTicker(1000, mine !== undefined);
   if (invite === null || !table || !mine) return null;
   const host = table.seated.find((s) => s.userId === table.host)?.name ?? "Someone";
   const left = secondsUntil(mine.expiresAt, Date.now());

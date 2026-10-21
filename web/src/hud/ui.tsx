@@ -93,6 +93,8 @@ export function AvatarImage({
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [w, h] = aura ? [AURA_W, AURA_H] : [16, 16];
+  // The same look is the same (cached) frame, however often a parent makes it again.
+  const sprite = frame ?? characterFrame(look, facing, "stand");
   useEffect(() => {
     const g = ref.current?.getContext("2d");
     if (!g) return;
@@ -101,19 +103,13 @@ export function AvatarImage({
       g.clearRect(0, 0, w * scale, h * scale);
       if (aura) g.drawImage(auraFrame(performance.now(), false), 0, 0, w * scale, h * scale);
       const [x, y] = aura ? [AURA_X, AURA_Y] : [0, 0];
-      g.drawImage(
-        frame ?? characterFrame(look, facing, "stand"),
-        x * scale,
-        y * scale,
-        16 * scale,
-        16 * scale,
-      );
+      g.drawImage(sprite, x * scale, y * scale, 16 * scale, 16 * scale);
     };
     draw();
     if (!aura) return;
     const timer = setInterval(draw, 140);
     return () => clearInterval(timer);
-  }, [look, scale, facing, frame, aura, w, h]);
+  }, [sprite, scale, aura, w, h]);
   return (
     <canvas ref={ref} width={w * scale} height={h * scale} className={aura ? "avatar legendary" : "avatar"} />
   );

@@ -10,7 +10,7 @@ import { itemFrame } from "../art/characters.ts";
 import { objectAt } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
-import { errorText, refreshMe, town } from "../net.ts";
+import { errorText, refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemTag } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
@@ -38,7 +38,7 @@ export function Shop() {
   const { error, run } = useRun();
   useEffect(() => {
     const fail = (e: unknown) => setFailed(errorText(e));
-    void town.wallet().then((w) => hud.set({ wallet: w }), fail);
+    void refreshWallet().catch(fail);
     void town.bag().then(setBag, fail);
   }, []);
   if (!me || !wallet) return <Modal title="🪙 Shop">{failed ?? "Loading…"}</Modal>;
@@ -215,13 +215,21 @@ export function ItemImage({
   );
 }
 
+const pieces = new Map<string, HTMLCanvasElement | undefined>();
+
+/** A piece's sprite as the world draws it, put down once in an empty office. */
+function pieceSprite(ch: string): HTMLCanvasElement | undefined {
+  if (!pieces.has(ch)) pieces.set(ch, objectAt(withPieces([{ ch, x: 1, y: 1 }], MAPS.office), 1, 1)?.canvas);
+  return pieces.get(ch);
+}
+
 /**
  * A piece as the world draws it, in a two-tile box (three for the widest). A rug is only floor, so
  * it's a swatch.
  */
 export function PieceImage({ ch, scale = 2 }: { ch: string; scale?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const sprite = objectAt(withPieces([{ ch, x: 1, y: 1 }], MAPS.office), 1, 1)?.canvas;
+  const sprite = pieceSprite(ch);
   const box = Math.max(32, sprite?.width ?? 0);
   useEffect(() => {
     const g = ref.current?.getContext("2d");

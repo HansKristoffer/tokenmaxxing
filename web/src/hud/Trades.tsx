@@ -1,7 +1,7 @@
 import { isTradeable, itemById, type Side, TRADE_COINS_CAP } from "@tokenmaxxing/core/shop.ts";
 import type { Trade } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
-import { errorText, refreshMe, town } from "../net.ts";
+import { errorText, refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { Modal, useRun } from "./ui.tsx";
 
@@ -22,7 +22,7 @@ export function TradePanel({ userId }: { userId: number }) {
   const [failed, setFailed] = useState<string | null>(null);
   const { error, busy, run } = useRun();
   useEffect(() => {
-    void town.wallet().then((w) => hud.set({ wallet: w }));
+    void refreshWallet();
     const load = (failed: (e: unknown) => void) => {
       void town
         .bag()
@@ -45,7 +45,7 @@ export function TradePanel({ userId }: { userId: number }) {
     setSent(false);
     await town.offerTrade(userId, give, want);
     setSent(true);
-    hud.set({ wallet: await town.wallet() });
+    await refreshWallet();
   });
   return (
     <Modal title={`🔁 Trade with ${them.name}`}>
@@ -148,9 +148,8 @@ export function TradesPanel() {
       try {
         await fn();
       } finally {
-        const [open, wallet] = await Promise.all([town.trades(), town.wallet()]);
+        const [open] = await Promise.all([town.trades(), refreshWallet()]);
         setList(open);
-        hud.set({ wallet });
       }
     });
   if (!list) return <Modal title="🔁 Trades">Loading…</Modal>;

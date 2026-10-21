@@ -7,7 +7,7 @@ import {
   merchPrice,
 } from "@tokenmaxxing/core/shop.ts";
 import { useEffect } from "react";
-import { errorText, refreshMe, town } from "../net.ts";
+import { errorText, refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemImage, isWorn, WearButton, withItem } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
@@ -29,10 +29,7 @@ export function MerchShop({ companyId }: { companyId: number }) {
   const company = useHud((s) => s.companies.find((c) => c.id === companyId));
   const { error, run } = useRun();
   useEffect(() => {
-    void town.wallet().then(
-      (w) => hud.set({ wallet: w }),
-      (e) => hud.set({ dialog: errorText(e) }),
-    );
+    void refreshWallet().catch((e) => hud.set({ dialog: errorText(e) }));
   }, []);
   if (!me || !wallet || !company)
     return <Modal title="👕 Merch">{company ? "Loading…" : "That company is gone."}</Modal>;

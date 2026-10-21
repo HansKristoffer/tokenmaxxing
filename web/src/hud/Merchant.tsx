@@ -3,7 +3,7 @@ import { editionLabel, PER_WEEK, ROTATION } from "@tokenmaxxing/core/merchant.ts
 import type { Cart, Copy } from "@tokenmaxxing/server/registry";
 import { useEffect, useRef, useState } from "react";
 import { merchantFrame } from "../art/cart.ts";
-import { errorText, refreshMe, town } from "../net.ts";
+import { errorText, refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemTag } from "./ItemTag.tsx";
 import { ItemImage } from "./Shop.tsx";
@@ -35,7 +35,7 @@ export function Merchant() {
     const fail = (e: unknown) => setFailed(errorText(e));
     const load = () => void town.cart().then(setCart, fail);
     load();
-    void town.wallet().then((w) => hud.set({ wallet: w }), fail);
+    void refreshWallet().catch(fail);
     void town.copies().then(setCopies, fail);
     const timer = setInterval(load, POLL_MS);
     return () => clearInterval(timer);

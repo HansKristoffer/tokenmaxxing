@@ -131,8 +131,8 @@ export function connect(token: string): void {
   conn.on("notice", (n: Notice) => {
     hud.set({ notice: { ...n, at: Date.now() } });
     void refreshMe();
-    // A trade I offered settled: my coins and 🎒 moved (and an open Bag refetches).
-    void town.wallet().then((wallet) => hud.set({ wallet }));
+    // A trade I offered settled: my coins and 🎒 moved.
+    void refreshWallet();
   });
   conn.on("mention", (line: ChatLine) => hud.set({ mention: { line, at: Date.now() } }));
   // A kill dropped loot: it flies out of the boss, so the kill should show now, not at the next poll.
@@ -161,10 +161,14 @@ export function connect(token: string): void {
       if (hud.get().status === "offline") location.reload();
     }, 20_000);
   });
-  // Other people's syncs move the board too; nothing announces those, so poll.
+  // Other people's syncs move the board too; nothing announces those, so poll. Not in a hidden tab:
+  // it catches up when it shows again.
   setInterval(() => {
-    if (hud.get().status === "ready") void refreshStats();
+    if (hud.get().status === "ready" && !document.hidden) void refreshStats();
   }, 30_000);
+  document.addEventListener("visibilitychange", () => {
+    if (hud.get().status === "ready" && !document.hidden) void refreshStats();
+  });
   // Every (re)connect: join the world again and take a fresh snapshot.
   conn.onOpen(async () => {
     try {
@@ -177,8 +181,18 @@ export function connect(token: string): void {
   });
 }
 
+/** `next`, or `prev` when it says the same: what shows it doesn't re-render (or refetch) for a poll. */
+const same = <T>(prev: T, next: T): T => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
+
 export async function refreshMe(): Promise<void> {
-  hud.set({ me: await town.me() });
+  const me = await town.me();
+  hud.set((s) => ({ me: same(s.me, me) }));
+}
+
+/** My coins and things, after something may have moved them. */
+export async function refreshWallet(): Promise<void> {
+  const wallet = await town.wallet();
+  hud.set((s) => ({ wallet: same(s.wallet, wallet) }));
 }
 
 let statsTimer: ReturnType<typeof setTimeout> | null = null;
@@ -192,7 +206,12 @@ async function refreshStats(force = false): Promise<void> {
   }, 5000);
   const [m, wallet, raid] = await Promise.all([town.today(), town.wallet(), town.raid()]);
   noteRaid(hud.get().raid, raid);
-  hud.set({ stats: m.me, board: m.top, wallet, raid });
+  hud.set((s) => ({
+    stats: same(s.stats, m.me),
+    board: same(s.board, m.top),
+    wallet: same(s.wallet, wallet),
+    raid: same(s.raid, raid),
+  }));
   gateTimer(raid);
 }
 
@@ -220,10 +239,14 @@ function applyLobby(lobby: Lobby): void {
       !before?.tables.some((b) => b.id === t.id && b.invited.some((i) => i.userId === me)),
   );
   hud.set({ lobby, ...(invite ? { inviteTable: invite.id } : {}) });
-  // Stakes, bets and payouts move coins, and they all change the lobby.
-  const ended = (l: Lobby | null | undefined) => l?.matches.filter((m) => m.outcome).length ?? 0;
-  if (JSON.stringify(lobby.me) !== JSON.stringify(before?.me) || ended(lobby) > ended(before))
-    void town.wallet().then((wallet) => hud.set({ wallet }));
+  // Stakes, bets and payouts move coins: my place in the lobby changes, or a game I played or bet on ends.
+  const paid = lobby.matches.some(
+    (m) =>
+      m.outcome &&
+      !before?.matches.some((b) => b.id === m.id && b.outcome) &&
+      (m.players.some((p) => p.userId === me) || (before?.me.bets[m.id] ?? lobby.me.bets[m.id])),
+  );
+  if (paid || JSON.stringify(lobby.me) !== JSON.stringify(before?.me)) void refreshWallet();
   const playing = lobby.me.match;
   if (playing !== null && playing !== before?.me.match) {
     const m = lobby.matches.find((x) => x.id === playing);
@@ -238,18 +261,27 @@ export function openMatch(id: number): void {
     hud.set({ frame: null, matchChat: [] });
     const c = client.match.get([String(id)], { params: { token: session } }).connect();
     c.on("frame", (frame: Frame) => {
-      if (frame.info.id === id) hud.set({ frame, clockSkew: Date.now() - frame.now });
+      if (frame.info.id === id) hud.set({ frame, ...skewOf(frame) });
     });
     c.on("chat", (line: MatchChatLine) => {
       if (matchConn === c) hud.set((s) => ({ matchChat: [...s.matchChat, line].slice(-CHAT_HISTORY) }));
     });
     c.onOpen(async () => {
       const [frame, matchChat] = await Promise.all([c.frame(), c.chat()]);
-      hud.set({ frame, matchChat, clockSkew: Date.now() - frame.now });
+      hud.set({ frame, matchChat, ...skewOf(frame) });
     });
     matchConn = c;
   }
   hud.set({ panel: { kind: "match", id } });
+}
+
+/**
+ * My clock against the match's, from a frame. It wobbles by a few ms a frame: only a real change moves
+ * it, so the countdowns and timers keyed on it don't restart every frame.
+ */
+function skewOf(frame: Frame): { clockSkew?: number } {
+  const skew = Date.now() - frame.now;
+  return Math.abs(skew - hud.get().clockSkew) > 50 ? { clockSkew: skew } : {};
 }
 
 /** Closing the panel stops watching (a game you play keeps going, and reopens from the 🎮 button). */
@@ -259,9 +291,13 @@ export function closeMatch(): void {
   hud.set({ frame: null, matchChat: [] });
 }
 
-/** A call on my own `player` (my computers), over a connection that closes after it. */
+/** A connection to my own `player` (my computers), for whoever opens it to dispose. */
+export const connectPlayer = (): PlayerConn =>
+  client.player.get([String(world.selfId)], { params: { token: session } }).connect();
+
+/** A call on my own `player`, over a connection that closes after it. */
 export async function withPlayer<T>(fn: (player: PlayerConn) => Promise<T>): Promise<T> {
-  const player = client.player.get([String(world.selfId)], { params: { token: session } }).connect();
+  const player = connectPlayer();
   try {
     return await fn(player);
   } finally {

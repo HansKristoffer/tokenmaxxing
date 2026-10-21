@@ -17,7 +17,7 @@ export function MatchPanel({ id }: { id: number }) {
   const frame = useHud((s) => s.frame);
   const skew = useHud((s) => s.clockSkew);
   const { error, run } = useRun();
-  useTicker(250);
+  useTicker(250, !frame?.info.outcome);
   useEffect(() => () => closeMatch(), []);
   if (!frame || frame.info.id !== id)
     return (

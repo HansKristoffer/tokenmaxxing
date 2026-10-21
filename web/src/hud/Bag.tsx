@@ -21,30 +21,31 @@ import { Modal, useRun } from "./ui.tsx";
 export function Bag() {
   const me = useHud((s) => s.me);
   const wallet = useHud((s) => s.wallet);
+  const notice = useHud((s) => s.notice);
   const inMyOffice = useHud((s) => s.room === `office:${world.selfId}`);
   const [bag, setBag] = useState<BagRow[] | null>(null);
   // Merchant editions' numbers (`Merchant.tsx`).
   const [copies, setCopies] = useState<Copy[]>([]);
   const [failed, setFailed] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [dropped, setDropped] = useState<string | null>(null);
   // The pet being named (its kind), and what's typed so far.
   const [naming, setNaming] = useState<number | null>(null);
   const [petName, setPetName] = useState("");
   const { error, run } = useRun();
   const grid = useRef<HTMLUListElement>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a new wallet (a trade, a drop) can mean a new bag
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a trade settling (a notice) or a changed wallet (a drop) can mean a new bag
   useEffect(() => {
     void town.bag().then(setBag, (e) => setFailed(errorText(e)));
     void town.copies().then(setCopies, () => {});
-  }, [wallet]);
+  }, [wallet, notice]);
   if (!me || !bag) return <Modal title="🎒 Bag">{failed ?? "Loading…"}</Modal>;
 
   const drop = (item: string) =>
     run(async () => {
-      setNotice(null); // a refused one shows only its error
+      setDropped(null); // a refused one shows only its error
       const r = await town.drop(item);
-      setNotice(r.notice);
+      setDropped(r.notice);
       if (r.drop) {
         // One fewer on 🎒, and the new wallet refetches the bag.
         hud.set((s) => ({ wallet: s.wallet && { ...s.wallet, items: s.wallet.items - 1 } }));
@@ -128,7 +129,7 @@ export function Bag() {
           </button>
         </form>
       )}
-      {notice && <p className="muted">{notice}</p>}
+      {dropped && <p className="muted">{dropped}</p>}
       {error && <p className="error">{error}</p>}
       <ul className="bag" ref={grid}>
         {bag.map((b) => {
