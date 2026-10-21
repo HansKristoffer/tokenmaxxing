@@ -95,6 +95,7 @@ import {
   withdraw,
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
+import { markPicnic } from "../town/picnic.ts";
 import { migrate } from "../town/schema.ts";
 import { brand, notify, push, pushOffice, pushPlayers } from "../town/sync.ts";
 import {
@@ -503,6 +504,12 @@ export const town = actor({
     pickUp: async (c, dropId: number, userId: number, room: string): Promise<boolean> => {
       requireInternal(c.conn.state);
       return pickUp(c.db, dropId, userId, room);
+    },
+
+    /** From `world.sit`: on a blanket at the outage picnic that started at `since`. True the first time. */
+    picnicked: (c, userId: number, since: number): Promise<boolean> => {
+      requireInternal(c.conn.state);
+      return markPicnic(c.db, userId, since);
     },
 
     /** The alarm, every 10 minutes: drops nobody took in an hour go back to whoever dropped them. */

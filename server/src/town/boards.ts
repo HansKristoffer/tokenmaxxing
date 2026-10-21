@@ -19,6 +19,7 @@ import {
 import { officeOf, type Podium } from "./coins.ts";
 import { COMPANY_COLS, type CompanyRow, companyById, companyInfos } from "./companies.ts";
 import { type GameStats, gameStats } from "./games.ts";
+import { picnicsOf } from "./picnic.ts";
 import { lookOf, TOKENS, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
 
 export interface BoardPlayer extends Totals {
@@ -224,6 +225,7 @@ export async function profile(
     biggestPot: games?.biggestPot ?? 0,
     // An owner is always a member (`leave` hands over), so their own company says it.
     founder: co?.ownerId === userId,
+    picnics: await picnicsOf(sql, userId),
   });
   return {
     userId,

@@ -15,6 +15,7 @@ import { camera, zoom } from "./camera.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
+import { picnicSeat } from "./picnic.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {
@@ -277,7 +278,7 @@ export function interact(): void {
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
-  if (kind.seat) return void send(conn.sit(me.facing));
+  if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (ch === "o") return void send(conn.drink(me.facing));
   if (ch === "H") {
     const b = buildingAt(x, y);

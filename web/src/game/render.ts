@@ -13,6 +13,7 @@ import { drawGames } from "./games.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, sign, signHits } from "./labels.ts";
 import { followPet, prunePets } from "./pets.ts";
+import { drawPicnic } from "./picnic.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
@@ -131,6 +132,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   }
 
   drawGames(g, items, labels, toScreen, now, dpr);
+  drawPicnic(g, items);
 
   if (world.asleep > 0) {
     const [sx, sy] = toScreen((map.x0 + map.width / 2) * TILE, (map.y0 + 2) * TILE);
