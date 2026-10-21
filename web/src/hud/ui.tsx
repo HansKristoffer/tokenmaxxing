@@ -62,16 +62,24 @@ export function House({ companyId, tier, scale }: { companyId: number; tier: num
   return <canvas ref={ref} width={w} height={h} className="house-img" />;
 }
 
-/** A character drawn crisp at `scale`× (16px sprite). */
-export function AvatarImage({ look, scale = 3 }: { look: Look; scale?: number }) {
+/** A character drawn crisp at `scale`× (16px sprite); `frame` instead of the look's own for one drawn his own way (the cop). */
+export function AvatarImage({
+  look,
+  scale = 3,
+  frame,
+}: {
+  look: Look;
+  scale?: number;
+  frame?: HTMLCanvasElement;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const g = ref.current?.getContext("2d");
     if (!g) return;
     g.imageSmoothingEnabled = false;
     g.clearRect(0, 0, 16 * scale, 16 * scale);
-    g.drawImage(characterFrame(look, "down", "stand"), 0, 0, 16 * scale, 16 * scale);
-  }, [look, scale]);
+    g.drawImage(frame ?? characterFrame(look, "down", "stand"), 0, 0, 16 * scale, 16 * scale);
+  }, [look, scale, frame]);
   return <canvas ref={ref} width={16 * scale} height={16 * scale} className="avatar" />;
 }
 

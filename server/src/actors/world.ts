@@ -1,5 +1,15 @@
 import { BOTS, between, chase, isBot, lineFor, pick, toCoffee, wander } from "@tokenmaxxing/core/bots.ts";
 import {
+  BURN_FRESH_MS,
+  type Burn,
+  COP,
+  chargeOf,
+  pullOverLine,
+  speeder,
+  ticketLine,
+  writeTicket,
+} from "@tokenmaxxing/core/cop.ts";
+import {
   findSpot,
   propTiles,
   type Seat,
@@ -20,6 +30,7 @@ import {
   setHq,
   withPieces,
 } from "@tokenmaxxing/core/office.ts";
+import { dayKey } from "@tokenmaxxing/core/range.ts";
 import {
   baseMap,
   CHAT_HISTORY,
@@ -203,6 +214,7 @@ export const world = actor({
     houses: "",
     tokens: new Map() as TokenCache,
     bots: new Map<number, BotRun>(),
+    cop: { burns: new Map(), ticketed: new Map(), chase: null, freeAt: 0 } as CopVars,
   }),
   db: db({
     onMigrate: async (d) => {
@@ -258,6 +270,7 @@ export const world = actor({
         for (const p of walkBots(c.state, c.vars, now)) c.broadcast("info", info(p, true));
         talkBots(c, now);
       }
+      copBeat(c, now);
       flush(c);
       if (n % COUNTS_EVERY === 0) {
         const counts = JSON.stringify(occupancy(c.state, c.vars.online));
@@ -718,8 +731,9 @@ export const world = actor({
     },
 
     /** From `player` after an ingest: offline players work at their desk while agents run. */
-    activity: (c, userId: number, lastAt: number, liveAgents: number): void => {
+    activity: (c, userId: number, lastAt: number, liveAgents: number, hourTokens = 0): void => {
       requireInternal(c.conn.state);
+      c.vars.cop.burns.set(userId, { id: userId, tokens: hourTokens, at: Date.now() });
       const p = c.state.players[userId];
       if (!p) return;
       p.lastAgentAt = Math.max(p.lastAgentAt, lastAt);
@@ -1050,6 +1064,113 @@ function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> } }, no
     run.restUntil = Math.max(run.restUntil, now + BOT_TALK_PAUSE_MS);
     sendToRoom(c, p.room, "bubble", { userId: b.id, text });
   }
+}
+
+// MARK: The 429 Cop (core/src/cop.ts)
+
+/** How fast he runs after a speeder, how long before he gives up, and how long he stands writing. */
+const COP_STEP_MS = 180;
+const COP_CHASE_MS = 60_000;
+const COP_WRITE_MS = 8_000;
+
+/** What the cop knows, in memory: a restart forgets it, and `town` still stops a second ticket in a day. */
+interface CopVars {
+  /** Each player's last hour of tokens, from their last sync. */
+  burns: Map<number, Burn>;
+  /** The world day each player was last pulled over. */
+  ticketed: Map<number, string>;
+  chase: { id: number; tokens: number; until: number; stepAt: number } | null;
+  /** Writing up the last one (or catching his breath) until then. */
+  freeAt: number;
+}
+
+/**
+ * Every tick: when he's free and someone in town is speeding (`speeder`), he takes over from his usual
+ * stroll (`walkBots` leaves him be while `restUntil` is ahead) and runs to them; next to them, he writes
+ * the ticket. Nothing is taken.
+ */
+function copBeat(
+  c: Sender & {
+    vars: Vars & { bots: Map<number, BotRun>; cop: CopVars };
+    client: () => Parameters<typeof main>[0];
+  },
+  now: number,
+): void {
+  const cop = c.state.players[COP.id];
+  const run = c.vars.bots.get(COP.id);
+  const v = c.vars.cop;
+  if (cop?.room !== "town" || !run) return;
+  const today = dayKey(now);
+  const inTown = (id: number) => c.vars.online.has(id) && c.state.players[id]?.room === "town";
+  if (!v.chase) {
+    if (run.following !== null || run.coffee || now < v.freeAt) return;
+    for (const [id, b] of v.burns) if (now - b.at > BURN_FRESH_MS) v.burns.delete(id);
+    const hit = speeder(
+      v.burns.values(),
+      now,
+      (id) =>
+        !inTown(id) ||
+        v.ticketed.get(id) === today ||
+        [...c.vars.bots.values()].some((r) => r.following === id),
+    );
+    if (!hit) return;
+    v.chase = { id: hit.id, tokens: hit.tokens, until: now + COP_CHASE_MS, stepAt: now };
+    Object.assign(run, {
+      path: [],
+      restUntil: now + COP_CHASE_MS + COP_WRITE_MS,
+      sayAt: now + COP_CHASE_MS * 2,
+    });
+    sendToRoom(c, "town", "bubble", { userId: cop.id, text: pullOverLine(c.state.players[hit.id]!.name) });
+    return;
+  }
+  const hunt = v.chase;
+  const target = c.state.players[hunt.id];
+  const done = () => {
+    v.chase = null;
+    v.freeAt = now + COP_WRITE_MS;
+    Object.assign(run, { restUntil: now + COP_WRITE_MS, sayAt: now + between(COP.every) });
+  };
+  // Got away: out of town, offline, or just too quick.
+  if (!target || !inTown(target.id) || now > hunt.until) {
+    done();
+    return;
+  }
+  if (now < hunt.stepAt) return;
+  hunt.stepAt = now + COP_STEP_MS;
+  const map = mapOf("town");
+  const dir = chase(map, cop.x, cop.y, target.x, target.y);
+  if (dir) {
+    const to = stepTarget(map, cop.x, cop.y, dir);
+    cop.facing = dir;
+    if (to.kind === "move" && !onProp(c.state, to.x, to.y)) Object.assign(cop, { x: to.x, y: to.y });
+    c.vars.dirty.add(cop.id);
+    return;
+  }
+  // No way there.
+  if (Math.abs(target.x - cop.x) + Math.abs(target.y - cop.y) > 1) {
+    done();
+    return;
+  }
+  // Caught up: face them and write it.
+  cop.facing = target.x < cop.x ? "left" : target.x > cop.x ? "right" : target.y < cop.y ? "up" : "down";
+  c.vars.dirty.add(cop.id);
+  done();
+  v.ticketed.set(target.id, today);
+  const ticket = writeTicket(today, hunt.tokens);
+  sendToRoom(c, "town", "bubble", { userId: cop.id, text: ticketLine(ticket) });
+  main(c.client())
+    .town.ticket(target.id, ticket)
+    .then((count) => {
+      if (count === null) return;
+      sendToRoom(c, "town", "bubble", { userId: target.id, text: "🎫" });
+      const text = `🎫 Ticket #${count} from Officer 429: ${chargeOf(ticket)}. Nothing taken: it's on your card.`;
+      for (const conn of c.conns.values()) {
+        const s = conn.state as ConnState;
+        if (s.kind === "user" && s.joined && s.userId === target.id)
+          conn.send("notice", { text } satisfies Notice);
+      }
+    })
+    .catch((err) => console.warn("[world] ticket", err));
 }
 
 const correction = (p: WorldPlayer): StepResult => ({

@@ -1,3 +1,4 @@
+import { BURN_WINDOW_MS } from "@tokenmaxxing/core/cop.ts";
 import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Usage } from "@tokenmaxxing/core/games/types.ts";
 import type { TodayBySource } from "@tokenmaxxing/core/protocol.ts";
@@ -682,5 +683,7 @@ export async function report(
      FROM events WHERE message_type = 'assistant' AND timestamp > ?`,
     now - LIVE_AGENTS_MS,
   )) as [{ agents: number }];
-  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents);
+  // The last hour's burn, for the 429 Cop (`core/src/cop.ts`).
+  const hour = await tokensBetween(sql, now - BURN_WINDOW_MS, now);
+  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents, hour.tokens);
 }

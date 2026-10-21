@@ -1,5 +1,6 @@
 import { BADGES } from "@tokenmaxxing/core/badges.ts";
 import { BOTS } from "@tokenmaxxing/core/bots.ts";
+import { COP_ID } from "@tokenmaxxing/core/cop.ts";
 import {
   compact,
   hoursText,
@@ -13,11 +14,13 @@ import type { RangeKey } from "@tokenmaxxing/core/range.ts";
 import { ITEMS } from "@tokenmaxxing/core/shop.ts";
 import type { Profile } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
+import { copFrame } from "../art/cop.ts";
 import { send } from "../game/input.ts";
 import { world } from "../game/world.ts";
 import { conn, errorText, town } from "../net.ts";
 import { hud } from "../store.ts";
 import { Computers } from "./Computers.tsx";
+import { Tickets } from "./Tickets.tsx";
 import { AvatarImage, Modal, Pills } from "./ui.tsx";
 
 export const RANGES = [
@@ -43,7 +46,11 @@ export function BotCard({ id }: { id: number }) {
   return (
     <Modal title={bot.name}>
       <div className="card-head">
-        <AvatarImage look={bot.look} scale={5} />
+        <AvatarImage
+          look={bot.look}
+          scale={5}
+          frame={bot.id === COP_ID ? copFrame("down", "stand", null) : undefined}
+        />
         <div>
           <p>
             <strong>Level {bot.level}</strong> · 🤖 Town character
@@ -127,6 +134,7 @@ export function PlayerCard({ userId }: { userId: number }) {
               })}
             </ul>
           )}
+          <Tickets tickets={p.tickets} />
           {p.company ? (
             <p>
               <button
