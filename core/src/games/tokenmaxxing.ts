@@ -4,6 +4,7 @@
  * events stamped inside the battle, and keeps counting late syncs for a few
  * minutes after the end.
  */
+import { recordFromKeys, sortBy, typedSwitch } from "hanzio";
 import { compact } from "../format.ts";
 import { byScore, type Callout, type GameDef, lastStanding, leave, leavers, refused } from "./types.ts";
 
@@ -35,9 +36,11 @@ export interface TokenmaxxingState {
 export type TokenmaxxingView = Omit<TokenmaxxingState, "minutes"> & { graceUntil: number };
 
 const ranked = (s: TokenmaxxingState) =>
-  s.players
-    .filter((p) => !s.forfeited.includes(p))
-    .sort((a, b) => (s.tokens[b] ?? 0) - (s.tokens[a] ?? 0) || a - b);
+  sortBy(
+    s.players.filter((p) => !s.forfeited.includes(p)),
+    { by: (p) => s.tokens[p] ?? 0, order: "desc" },
+    (p) => p,
+  );
 const leader = (s: TokenmaxxingState) => {
   const [first, second] = ranked(s);
   return first !== undefined && (s.tokens[first] ?? 0) > (second === undefined ? 0 : (s.tokens[second] ?? 0))
@@ -72,8 +75,8 @@ export const tokenmaxxing: GameDef<TokenmaxxingState, TokenmaxxingView> = {
       startsAt,
       endsAt: startsAt + minutes * 60_000,
       phase: "countdown",
-      tokens: Object.fromEntries(players.map((p) => [p, 0])),
-      history: Object.fromEntries(players.map((p) => [p, [[startsAt, 0]]])),
+      tokens: recordFromKeys(players, () => 0),
+      history: recordFromKeys(players, () => [[startsAt, 0]]),
       flagged: [],
       forfeited: [],
     };
@@ -146,13 +149,12 @@ export const tokenmaxxing: GameDef<TokenmaxxingState, TokenmaxxingView> = {
     ranked(s).map((p) => ({ player: p, value: s.tokens[p] ?? 0, label: compact(s.tokens[p] ?? 0) })),
 
   headline: (s) =>
-    s.phase === "countdown"
-      ? "starting…"
-      : s.phase === "grace"
-        ? "⏳ counting the last tokens…"
-        : s.phase === "over"
-          ? "final"
-          : `${s.minutes >= 60 ? `${s.minutes / 60}h` : `${s.minutes} min`} battle`,
+    typedSwitch(s.phase, {
+      countdown: () => "starting…",
+      live: () => `${s.minutes >= 60 ? `${s.minutes / 60}h` : `${s.minutes} min`} battle`,
+      grace: () => "⏳ counting the last tokens…",
+      over: () => "final",
+    }),
 
   endsAt: (s) => (s.phase === "live" ? s.endsAt : null),
 

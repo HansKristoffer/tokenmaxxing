@@ -3,6 +3,8 @@
  * primitives for ground and buildings. Everything is baked once into canvases.
  */
 
+import { mapValues } from "hanzio";
+
 export type Palette = Record<string, string>;
 
 export class Pen {
@@ -122,7 +124,7 @@ export function perObject<K extends object, V>(f: (k: K) => V, version?: () => n
 
 /** `pal` with every colour replaced by `to(key)`: a boss flashing white, a trophy's dim outline. */
 export const recolour = (pal: Palette, to: (key: string) => string): Palette =>
-  Object.fromEntries(Object.keys(pal).map((k) => [k, to(k)]));
+  mapValues(pal, (_, k) => to(k));
 
 /** Deterministic noise in [0, 1) for tile variation. */
 export function hash(x: number, y: number, seed = 0): number {

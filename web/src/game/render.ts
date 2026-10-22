@@ -11,6 +11,7 @@ import {
   ownerOfOffice,
   TILE,
 } from "@tokenmaxxing/core/world.ts";
+import { clamp, typedSwitch, typedSwitchGroup } from "hanzio";
 import { house, inn } from "../art/buildings.ts";
 import { characterFrame, itemFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
 import { type FancyPiece, fancyFrame, fancySprite, neonSprite } from "../art/furniture-fancy.ts";
@@ -78,8 +79,7 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   const me = world.avatars.get(world.selfId);
   const focus = me ? drawPos(me, now) : { x: map.x0 + map.width / 2, y: map.y0 + map.height / 2 };
   const clampCam = (center: number, view: number, start: number, size: number) =>
-    start +
-    (size <= view ? (size - view) / 2 : Math.min(Math.max(center - start - view / 2, 0), size - view));
+    start + (size <= view ? (size - view) / 2 : clamp(center - start - view / 2, 0, size - view));
   const camX =
     Math.round(clampCam((focus.x + 0.5) * TILE, viewW, map.x0 * TILE, map.width * TILE) * scale) / scale;
   const camY =
@@ -87,7 +87,11 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   Object.assign(camera, { x: camX, y: camY, scale, dpr });
 
   g.setTransform(1, 0, 0, 1, 0, 0);
-  g.fillStyle = map.id === "town" ? C.leafInk : map.id === "dungeon" ? "#110f16" : "#1b1f2a";
+  g.fillStyle = typedSwitch(map.id, {
+    town: () => C.leafInk,
+    dungeon: () => "#110f16",
+    ...typedSwitchGroup(map.id, ["hq", "inn", "office"], () => "#1b1f2a"),
+  });
   g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = false;
   g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);

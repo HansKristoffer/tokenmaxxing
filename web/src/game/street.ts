@@ -27,6 +27,7 @@ import {
   snailTile,
 } from "@tokenmaxxing/core/street.ts";
 import { type Facing, type PlayerInfo, type StepResult, TILE } from "@tokenmaxxing/core/world.ts";
+import { lerp, typedSwitch } from "hanzio";
 import {
   bikeSprite,
   CART_H,
@@ -101,7 +102,7 @@ function papersAt(map: GameMap, m: number): { x: number; y: number; lift: number
     const road = (Math.floor(door[1] / BLOCK_H) + 1) * BLOCK_H;
     // A throw: a short arc from the road to the grass.
     const t = Math.min(1, ((m - at) * 60) / 0.6);
-    out.push({ x, y: road + (y - road) * t, lift: Math.sin(t * Math.PI) * 10 });
+    out.push({ x, y: lerp(road, y, t), lift: Math.sin(t * Math.PI) * 10 });
   }
   return out;
 }
@@ -158,8 +159,11 @@ export function drawStreet({ g, items, labels, toScreen, now, dpr }: Frame): voi
     },
   });
   const [nx, ny] = toScreen(px + 6.5, rowY - SNAIL_H - 8);
-  const text =
-    snail.phase === "queued" ? "queued" : snail.phase === "deploying" ? "deploying..." : "✓ deployed";
+  const text = typedSwitch(snail.phase, {
+    queued: () => "queued",
+    deploying: () => "deploying...",
+    deployed: () => "✓ deployed",
+  });
   labels.push(() => woodSign(g, nx, ny, text, dpr, snail.phase === "deployed"));
   // The build finishing while you watch: a toast, and confetti over the snail.
   if (lastMinute !== null && lastMinute < SNAIL.arrives && m >= SNAIL.arrives) {
@@ -262,12 +266,11 @@ export function streetInteract(
   if (x === sx && y === sy) {
     const phase = snailAt(at).phase;
     const lines = Math.random() < 0.15 ? SNAIL_RARE : SNAIL_LINES;
-    const line =
-      phase === "queued"
-        ? SNAIL_QUEUED
-        : phase === "deployed"
-          ? SNAIL_DONE
-          : lines[Math.floor(Math.random() * lines.length)]!;
+    const line = typedSwitch(phase, {
+      queued: () => SNAIL_QUEUED,
+      deploying: () => lines[Math.floor(Math.random() * lines.length)]!,
+      deployed: () => SNAIL_DONE,
+    });
     hud.set({ dialog: line });
     return true;
   }

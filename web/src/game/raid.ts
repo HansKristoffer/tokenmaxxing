@@ -13,6 +13,7 @@ import { type RungBoss, seatFor } from "@tokenmaxxing/core/raid.ts";
 import type { Raiders } from "@tokenmaxxing/core/world.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import type { Raid } from "@tokenmaxxing/server/registry";
+import { clamp, sortBy } from "hanzio";
 import { BOSS_SIZE, bossSilhouette, bossSprite, trophySprite } from "../art/bosses.ts";
 import { characterFrame } from "../art/characters.ts";
 import { MINION_H, MINION_W, minionFrame } from "../art/minions.ts";
@@ -150,7 +151,7 @@ export function setRaiders(r: Raiders | null): void {
   let zone = Math.min(SEATS.length, Math.ceil(r.top.length / SEAT_BAND) * SEAT_BAND);
   if ([...taken].some((s) => s >= zone)) zone = SEATS.length;
   // In id order, so who wins a contested seat doesn't depend on who's busiest right now.
-  for (const p of [...r.top].sort((a, b) => a.id - b.id)) {
+  for (const p of sortBy(r.top, "id")) {
     if (dungeon.seats.has(p.id)) continue;
     if (taken.size >= zone) zone = SEATS.length;
     if (taken.size >= zone) break;
@@ -439,7 +440,7 @@ function drawBoss(f: Frame, r: Raid): void {
   const { g, items, labels, now, dpr } = f;
   const fell = fx.fell && now - fx.fell.at < FALL_MS ? fx.fell : null;
   const next = fx.next && now - fx.next.at < BANNER_MS ? fx.next : null;
-  const arriving = next && !fell ? Math.min(1, Math.max(0, (now - next.at) / ARRIVE_MS)) : 1;
+  const arriving = next && !fell ? clamp((now - next.at) / ARRIVE_MS, 0, 1) : 1;
   const closed = r.closed;
   // A real hit (the poll) flashes it white; a missile only makes it glow for a moment.
   const hurt = !fell && !closed && now < fx.hurtUntil && Math.floor(now / 70) % 2 === 0;

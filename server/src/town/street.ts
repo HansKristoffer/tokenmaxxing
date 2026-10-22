@@ -3,6 +3,7 @@ import { gameOf } from "@tokenmaxxing/core/games/index.ts";
 import { random } from "@tokenmaxxing/core/games/random.ts";
 import type { PaperFacts } from "@tokenmaxxing/core/paper.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
+import { sortBy, sumBy } from "hanzio";
 import { all, type Sql } from "../actors/shared.ts";
 import { lookOf, TOKENS, USER_COLS, type UserRow } from "./users.ts";
 
@@ -29,7 +30,7 @@ export async function paperFacts(sql: Sql, day: string): Promise<PaperFacts> {
       const c = byCompany.get(u.companyId) ?? { tokens: 0, members: 0 };
       byCompany.set(u.companyId, { tokens: c.tokens + u.tokens, members: c.members + 1 });
     }
-  const [topCo] = [...byCompany].sort((a, b) => b[1].tokens - a[1].tokens);
+  const [topCo] = sortBy([...byCompany], { by: ([, c]) => c.tokens, order: "desc" });
   const activity = await all<{ name: string; prs: number; prompts: number }>(
     sql,
     `SELECT users.name, a.prs, a.prompts FROM activity_daily a JOIN users ON users.id = a.user_id
@@ -54,13 +55,13 @@ export async function paperFacts(sql: Sql, day: string): Promise<PaperFacts> {
   const shipper = activity[0];
   return {
     day,
-    tokens: active.reduce((n, u) => n + u.tokens, 0),
+    tokens: sumBy(active, "tokens"),
     people: active.length,
     burner: active[0] ? { name: active[0].name, tokens: active[0].tokens } : null,
     company: topCo ? { name: names.get(topCo[0]) ?? "A company", ...topCo[1] } : null,
-    prs: activity.reduce((n, a) => n + a.prs, 0),
+    prs: sumBy(activity, "prs"),
     shipper: shipper && shipper.prs > 0 ? { name: shipper.name, prs: shipper.prs } : null,
-    prompts: activity.reduce((n, a) => n + a.prompts, 0),
+    prompts: sumBy(activity, "prompts"),
     model: model ?? null,
     pet: owner
       ? {

@@ -5,6 +5,7 @@ import type { TodayBySource } from "@tokenmaxxing/core/protocol.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
 import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
 import type { IngestResponse, Source, TokenEvent } from "@tokenmaxxing/core/types.ts";
+import { chunkArray, sumBy } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { db } from "rivetkit/db";
@@ -376,7 +377,7 @@ export const player = actor({
       )) as { source: Source; tokens: number; prs: number }[];
       return {
         sources: rows.filter((r) => r.tokens > 0).map(({ source, tokens }) => ({ source, tokens })),
-        prs: rows.reduce((n, r) => n + r.prs, 0),
+        prs: sumBy(rows, "prs"),
       };
     },
 
@@ -416,8 +417,7 @@ export const player = actor({
           async (tx) => {
             let inserted = 0;
             const reconciled = await reconcileCursorUsage(tx, valid);
-            for (let i = 0; i < reconciled.length; i += INSERT_CHUNK) {
-              const chunk = reconciled.slice(i, i + INSERT_CHUNK);
+            for (const chunk of chunkArray(reconciled, INSERT_CHUNK)) {
               const row = `(${COLUMNS.map(() => "?").join(",")})`;
               const rows = await tx.execute(
                 `INSERT OR IGNORE INTO events (${COLUMNS.join(",")}) VALUES ${chunk.map(() => row).join(",")} RETURNING id`,

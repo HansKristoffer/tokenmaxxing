@@ -4,6 +4,7 @@
  * never stored or claimed; unlike badges, each says the world day it was first earned. No coins: a
  * trophy is for showing off, so there's nothing to gain from faking one.
  */
+import { sortBy } from "hanzio";
 import { addDays, dayKey, worldClock } from "./range.ts";
 
 /** One hour of a player's events: its start (ms, on the hour) and what happened in it. */
@@ -79,7 +80,7 @@ function factsOf(f: TrophyFacts): Facts {
   const all = [...days.values()];
   return {
     hours,
-    prs: f.prs.map(onClock).sort((a, b) => a.at - b.at),
+    prs: sortBy(f.prs.map(onClock), "at"),
     days: all,
     done: all.filter((d) => d.day < f.today),
   };

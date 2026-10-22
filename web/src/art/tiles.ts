@@ -1,5 +1,6 @@
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
+import { typedSwitch, typedSwitchGroup } from "hanzio";
 import { C } from "./palette.ts";
 import { bake, hash, Pen } from "./pixels.ts";
 
@@ -64,7 +65,12 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
     if (g && g !== "wall" && g !== "water" && g !== "exit") counts.set(g, (counts.get(g) ?? 0) + 1);
   }
   const best = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
-  return best ?? (map.id === "town" ? "grass" : map.id === "dungeon" ? "stone" : "floor");
+  if (best) return best;
+  return typedSwitch(map.id, {
+    town: () => "grass",
+    dungeon: () => "stone",
+    ...typedSwitchGroup(map.id, ["hq", "inn", "office"], (): Ground => "floor"),
+  });
 }
 
 function grass(p: Pen, ox: number, oy: number, x: number, y: number): void {
@@ -231,41 +237,19 @@ function exit(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
 function paintTile(p: Pen, map: GameMap, x: number, y: number): void {
   const ox = (x - map.x0) * TILE;
   const oy = (y - map.y0) * TILE;
-  switch (groundAt(map, x, y)) {
-    case "grass":
-      grass(p, ox, oy, x, y);
-      break;
-    case "flowers":
-      flowers(p, ox, oy, x, y);
-      break;
-    case "path":
-      speckle(p, ox, oy, x, y, C.path, C.pathDark, C.pathLight);
-      break;
-    case "plaza":
-      plaza(p, ox, oy, x, y);
-      break;
-    case "water":
-      water(p, map, ox, oy, x, y);
-      break;
-    case "floor":
-      floor(p, ox, oy, x, y);
-      break;
-    case "rug":
-      rug(p, map, ox, oy, x, y);
-      break;
-    case "wall":
-      wall(p, map, ox, oy, x, y);
-      break;
-    case "exit":
-      exit(p, map, ox, oy, x, y);
-      break;
-    case "stone":
-      stone(p, ox, oy, x, y);
-      break;
-    case "dais":
-      dais(p, map, ox, oy, x, y);
-      break;
-  }
+  typedSwitch(groundAt(map, x, y), {
+    grass: () => grass(p, ox, oy, x, y),
+    flowers: () => flowers(p, ox, oy, x, y),
+    path: () => speckle(p, ox, oy, x, y, C.path, C.pathDark, C.pathLight),
+    plaza: () => plaza(p, ox, oy, x, y),
+    water: () => water(p, map, ox, oy, x, y),
+    floor: () => floor(p, ox, oy, x, y),
+    rug: () => rug(p, map, ox, oy, x, y),
+    wall: () => wall(p, map, ox, oy, x, y),
+    exit: () => exit(p, map, ox, oy, x, y),
+    stone: () => stone(p, ox, oy, x, y),
+    dais: () => dais(p, map, ox, oy, x, y),
+  });
 }
 
 /** The whole map's ground as one canvas; scenery and people are drawn over it every frame. */

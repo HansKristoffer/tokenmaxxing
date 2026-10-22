@@ -1,6 +1,7 @@
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import { houseTier } from "@tokenmaxxing/core/world.ts";
+import { sortBy } from "hanzio";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar } from "../actors/shared.ts";
 import { balances } from "./coins.ts";
@@ -205,8 +206,8 @@ export async function companies(sql: Sql): Promise<AdminCompany[]> {
     sql,
     "SELECT id, name, company_id AS companyId FROM users WHERE company_id IS NOT NULL ORDER BY joined_at, id",
   );
-  return rows
-    .map((r) => {
+  return sortBy(
+    rows.map((r) => {
       const info = infos.get(r.id)!;
       return {
         id: r.id,
@@ -223,8 +224,9 @@ export async function companies(sql: Sql): Promise<AdminCompany[]> {
         tokens30d: info.tokens30d,
         wallet: r.wallet,
       };
-    })
-    .sort((a, b) => b.tokens30d - a.tokens30d);
+    }),
+    { by: "tokens30d", order: "desc" },
+  );
 }
 
 /**

@@ -1,3 +1,4 @@
+import { compact } from "hanzio";
 import { C, hexOf } from "./palette.ts";
 import { bake } from "./pixels.ts";
 
@@ -108,7 +109,7 @@ export function curl(src: Grid, left: boolean, breath: number): Grid {
     inked.push([]);
     for (let x = 0; x < SLEEP_W; x++) {
       const cells = block(x, ty);
-      const on = cells.filter((c): c is string => c !== null);
+      const on = compact(cells);
       mask[ty]!.push(on.length * 2 >= cells.length);
       fill[ty]!.push(
         on.length

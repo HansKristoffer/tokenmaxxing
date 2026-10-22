@@ -3,6 +3,7 @@
  * client. Everything here is pure so it can be tested without Rivet.
  */
 
+import { isRecord, isTruthy, typedKeys } from "hanzio";
 import { editionAt } from "./editions.ts";
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
@@ -179,10 +180,10 @@ export const lookWith = ({
 export const STYLE_NAMES = ["Short hair and tee", "Cap and hoodie", "Bun and jacket", "Long hair and skirt"];
 
 export function parseLook(raw: unknown): Look | null {
-  if (!raw || typeof raw !== "object") return null;
-  const r: Record<string, unknown> = { ...EXTRAS, ...(raw as Record<string, unknown>) };
+  if (!isRecord(raw)) return null;
+  const r: Record<string, unknown> = { ...EXTRAS, ...raw };
   const out = {} as Look;
-  for (const k of Object.keys(LOOK_OPTIONS) as (keyof typeof LOOK_OPTIONS)[]) {
+  for (const k of typedKeys(LOOK_OPTIONS)) {
     const v = r[k];
     if (!Number.isInteger(v) || (v as number) < 0) return null;
     if ((v as number) >= LOOK_OPTIONS[k] && !editionAt(k, v as number)) return null;
@@ -333,7 +334,7 @@ export const namesIn = (text: string): string[] => [
     text
       .split(/[\s,]+/)
       .map((s) => s.replace(/^@/, "").toLowerCase())
-      .filter(Boolean),
+      .filter(isTruthy),
   ),
 ];
 
@@ -550,7 +551,7 @@ export function restSpot(room: RoomId, state: "away" | "working", taken: Readonl
 }
 
 /** The ways to step, in the order a route tries them: a tie goes to the first. */
-const FACINGS = Object.keys(DIRS) as Facing[];
+const FACINGS = typedKeys(DIRS);
 const STEPS = FACINGS.map((f) => DIRS[f]);
 
 /**

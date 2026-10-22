@@ -2,6 +2,7 @@
  * Offices: the furniture you can buy, what it costs, and the doors to them. The template itself is
  * `MAPS.office`, with the other rooms; what's in each office is what its owner dropped there.
  */
+import { sortBy } from "hanzio";
 import { TROPHIES } from "./loot.ts";
 import { GameMap, MAPS } from "./maps.ts";
 
@@ -134,13 +135,11 @@ export const PASSAGE_X = 14;
  * people mind their door moving.
  */
 export function doorsFor(owners: readonly Omit<Door, "x" | "y">[]): Door[] {
-  return [...owners]
-    .sort((a, b) => a.userId - b.userId)
-    .map((o, n) => ({
-      ...o,
-      x: 1 + 2 * (n % DOORS_PER_HALLWAY),
-      y: -3 * Math.floor(n / DOORS_PER_HALLWAY) - 2,
-    }));
+  return sortBy(owners, "userId").map((o, n) => ({
+    ...o,
+    x: 1 + 2 * (n % DOORS_PER_HALLWAY),
+    y: -3 * Math.floor(n / DOORS_PER_HALLWAY) - 2,
+  }));
 }
 
 /**

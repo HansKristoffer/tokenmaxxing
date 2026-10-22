@@ -7,6 +7,7 @@ import type {
   BoardPlayer,
   GamePlayer,
 } from "@tokenmaxxing/server/registry";
+import { typedSwitch } from "hanzio";
 import { type ReactNode, useEffect, useState } from "react";
 import { town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
@@ -182,7 +183,11 @@ type GameSort = (typeof GAME_SORTS)[number][0];
 const MIN_GAMES = 10;
 
 const gameValue = (sort: GameSort, p: GamePlayer) =>
-  sort === "net" ? p.net : sort === "rate" ? p.wins / p.played : p.biggestPot;
+  typedSwitch(sort, {
+    net: () => p.net,
+    rate: () => p.wins / p.played,
+    pot: () => p.biggestPot,
+  });
 const gameShown = (sort: GameSort, p: GamePlayer) =>
   sort === "rate" ? `${Math.round((p.wins / p.played) * 100)}%` : `🪙 ${gameValue(sort, p)}`;
 

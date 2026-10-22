@@ -9,6 +9,7 @@ import { BlockList, isIP } from "node:net";
 import { dirname, join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Brand } from "@tokenmaxxing/core/world.ts";
+import { getErrorMessage } from "hanzio";
 
 type Palette = Omit<Brand, "logo">;
 
@@ -139,7 +140,7 @@ async function pickPalette(name: string, host: string, b: Branding): Promise<Pal
       plaque: hexOr(out.plaque, plain.plaque),
     };
   } catch (err) {
-    console.warn(`[brand] palette for ${host}: ${err instanceof Error ? err.message : err}`);
+    console.warn(`[brand] palette for ${host}: ${getErrorMessage(err)}`);
     return plain;
   }
 }

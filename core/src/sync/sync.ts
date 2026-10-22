@@ -1,3 +1,4 @@
+import { chunkArray } from "hanzio";
 import { type IngestResponse, SOURCES, type SyncState, type TokenEvent } from "../types.ts";
 import { type CollectOptions, collect } from "./collect.ts";
 import { saveState } from "./state.ts";
@@ -58,8 +59,8 @@ export async function sync(state: SyncState, opts: SyncOptions): Promise<SyncRes
     githubFetch,
     ...(githubAccounts !== undefined ? { githubAccounts } : {}),
   })) {
-    for (let i = 0; i < batch.events.length; i += MAX_EVENTS_PER_REQUEST) {
-      const r = await opts.send(batch.events.slice(i, i + MAX_EVENTS_PER_REQUEST));
+    for (const events of chunkArray(batch.events, MAX_EVENTS_PER_REQUEST)) {
+      const r = await opts.send(events);
       inserted += r.inserted;
     }
     sent += batch.events.length;

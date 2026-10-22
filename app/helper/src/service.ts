@@ -1,6 +1,7 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { typedSwitch } from "hanzio";
 
 /**
  * Keeps `tokenmaxxing run` going on a linked computer: a LaunchAgent on macOS, a systemd user unit on
@@ -184,7 +185,12 @@ export async function serviceRunning(): Promise<boolean | null> {
 
 /** Follows the service's log. */
 export function logsCommand(): string[] | null {
-  if (process.platform === "darwin") return ["tail", "-n", "50", "-F", macLogPath()];
-  if (process.platform === "linux") return ["journalctl", "--user", "-u", UNIT, "-n", "50", "-f"];
-  return null;
+  return typedSwitch(
+    process.platform,
+    {
+      darwin: () => ["tail", "-n", "50", "-F", macLogPath()],
+      linux: () => ["journalctl", "--user", "-u", UNIT, "-n", "50", "-f"],
+    },
+    () => null,
+  );
 }

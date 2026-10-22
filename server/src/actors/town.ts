@@ -23,6 +23,7 @@ import {
   type Look,
   parseLook,
 } from "@tokenmaxxing/core/world.ts";
+import { chunkArray, must } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { canBrand } from "../brand.ts";
@@ -202,8 +203,7 @@ const SWEEP_MS = 10 * 60_000;
 
 /** Many rows in few statements (a first sync can report years of days). */
 async function insertRows(sql: Sql, insert: string, rows: unknown[][]): Promise<void> {
-  for (let i = 0; i < rows.length; i += 200) {
-    const chunk = rows.slice(i, i + 200);
+  for (const chunk of chunkArray(rows, 200)) {
     const row = `(${chunk[0]!.map(() => "?").join(",")})`;
     await sql.execute(`${insert} ${chunk.map(() => row).join(",")}`, ...chunk.flat());
   }
@@ -324,8 +324,7 @@ export const town = actor({
 
     setLook: async (c, rawLook: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
-      const look = parseLook(rawLook);
-      if (!look) throw new UserError("Unknown look.", { code: "invalid_look" });
+      const look = must(parseLook(rawLook), () => new UserError("Unknown look.", { code: "invalid_look" }));
       // Serialized, so a drop or a trade can't take it off between the check and the write.
       await c.vars.serial(async () => {
         const owned = new Set(await ownedItems(c.db, userId));

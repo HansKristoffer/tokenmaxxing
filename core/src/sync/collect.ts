@@ -1,4 +1,5 @@
 import { stat } from "node:fs/promises";
+import { chunkArray } from "hanzio";
 import { parseClaudeCodeFile } from "../sources/claude-code.ts";
 import { parseCodexFile } from "../sources/codex.ts";
 import {
@@ -150,8 +151,7 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
     }
     // Most files haven't changed since the last sync, so their stats are the bulk of the work: a
     // batch at a time, not one after another.
-    for (let i = 0; i < paths.length; i += STAT_BATCH) {
-      const batch = paths.slice(i, i + STAT_BATCH);
+    for (const batch of chunkArray(paths, STAT_BATCH)) {
       const mtimes = await Promise.all(batch.map(mtimeOf));
       for (const [j, path] of batch.entries()) {
         present.add(path);

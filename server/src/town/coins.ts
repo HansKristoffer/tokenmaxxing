@@ -18,6 +18,7 @@ import {
   type Side,
 } from "@tokenmaxxing/core/shop.ts";
 import type { Drop } from "@tokenmaxxing/core/world.ts";
+import { sumBy } from "hanzio";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { companyLedgerAdd } from "./companies.ts";
@@ -163,11 +164,11 @@ export async function wallet(
   const wins = places.map((p) => ({ day: p.day, place: p.place, coins: PODIUM_COINS[p.place - 1]! }));
   const raided = raidCoins(raids ?? (await raidHistory(sql, now)), userId);
   const earned =
-    days.reduce((n, d) => n + coinsForTokens(d.tokens), 0) +
-    wins.reduce((n, w) => n + w.coins, 0) +
+    sumBy(days, (d) => coinsForTokens(d.tokens)) +
+    sumBy(wins, "coins") +
     raided +
-    [...facts.values()].reduce((n, f) => n + questCoins(f), 0) +
-    milestoneCoins(levelFor(everyDay.reduce((n, d) => n + d.tokens, 0)));
+    sumBy([...facts.values()], questCoins) +
+    milestoneCoins(levelFor(sumBy(everyDay, "tokens")));
   const since = addDays(today, -29);
   const todays = facts.get(today) ?? EMPTY_DAY;
   const held = await bag(sql, userId);
@@ -177,7 +178,7 @@ export async function wallet(
     raids: raided,
     wins: wins.filter((w) => w.day >= since),
     owned: held.map((r) => r.item),
-    items: held.reduce((n, r) => n + r.count, 0),
+    items: sumBy(held, "count"),
     quests: QUESTS.map(({ done, ...q }) => ({ ...q, done: done(todays) })),
     trading: !!(await one(
       sql,
@@ -408,7 +409,7 @@ export async function heldIn(sql: Sql, ref: string): Promise<Map<number, number>
     ref,
   );
   // Paid out: the winners' gains cancel the losers' stakes, and nothing is left to give back.
-  if (rows.reduce((n, r) => n + r.n, 0) <= 0) return new Map();
+  if (sumBy(rows, "n") <= 0) return new Map();
   return new Map(rows.filter((r) => r.n > 0).map((r) => [r.userId, r.n]));
 }
 
@@ -453,7 +454,7 @@ export async function pay(
 ): Promise<void> {
   const out = entries.filter((e) => e.amount > 0);
   const held = await scalar(sql, "SELECT -SUM(amount) AS n FROM ledger WHERE ref = ?", ref);
-  const total = out.reduce((n, e) => n + e.amount, 0);
+  const total = sumBy(out, "amount");
   if (total > held) throw new Error(`${ref}: paying ${total} but only ${held} held`);
   for (const e of out) await ledgerAdd(sql, e.userId, e.amount, kind, ref, now);
 }

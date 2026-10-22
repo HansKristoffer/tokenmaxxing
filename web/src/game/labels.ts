@@ -1,4 +1,5 @@
 import type { Peek } from "@tokenmaxxing/core/world.ts";
+import { clamp, sumBy } from "hanzio";
 import { C } from "../art/palette.ts";
 import { BURST_MS } from "./emoji.ts";
 import { polseTag } from "./street.ts";
@@ -41,7 +42,7 @@ function chipRow(g: CanvasRenderingContext2D, people: Peek[], dpr: number) {
   const pad = 5 * dpr;
   const gap = 3 * dpr;
   const widths = texts.map((t) => g.measureText(t).width + pad * 2);
-  const row = { dpr, texts, widths, w: widths.reduce((a, b) => a + b, 0) + gap * (widths.length - 1) };
+  const row = { dpr, texts, widths, w: sumBy(widths, (w) => w) + gap * (widths.length - 1) };
   chipRows.set(people, row);
   return row;
 }
@@ -210,7 +211,7 @@ export function burst(
   g.textBaseline = "middle";
   for (let i = 0; i < BURST_COUNT; i++) {
     const delay = (i % 4) * 80;
-    const t = Math.min(1, Math.max(0, (elapsed - delay) / (BURST_MS - 320)));
+    const t = clamp((elapsed - delay) / (BURST_MS - 320), 0, 1);
     if (t === 0) continue;
     const angle = -Math.PI / 2 + ((i + 0.5) / BURST_COUNT - 0.5) * Math.PI * 1.5;
     const reach = (14 + 38 * easeOut(t) + (i % 3) * 6) * dpr;

@@ -3,6 +3,7 @@
  * checks steps against them, so every tile is defined exactly once, here.
  * One character per tile; `LEGEND` says what it is.
  */
+import { sortBy } from "hanzio";
 
 export type MapId = "town" | "hq" | "inn" | "office" | "dungeon";
 type SeatKind = "bench" | "sofa" | "bed" | "chair";
@@ -294,7 +295,7 @@ export function frontier(plots: readonly number[]): number[] {
     const [bx, by] = plotBlock(id);
     return Math.hypot(bx + 0.5 - 1, by + 0.5 - 1);
   };
-  return [...out].sort((a, b) => distance(a) - distance(b) || a - b);
+  return sortBy([...out], distance, (id) => id);
 }
 
 /** The town for these company plots. */

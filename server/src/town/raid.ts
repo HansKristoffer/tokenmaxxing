@@ -20,6 +20,7 @@ import {
   WEEKLY_GROWTH,
 } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
+import { sortBy } from "hanzio";
 import { all, one, type Sql } from "../actors/shared.ts";
 import type { RaidLoot } from "./loot.ts";
 import { signupDays, TOKENS } from "./users.ts";
@@ -223,7 +224,7 @@ export async function raid(sql: Sql, userId: number | null, weeks: RaidWeek[], n
     top: raiders
       .slice(0, TOP)
       .map((r) => ({ userId: r.userId, name: byId.get(r.userId)?.name ?? "?", damage: r.damage })),
-    companies: [...companies.values()].sort((a, b) => b.damage - a.damage).slice(0, 3),
+    companies: sortBy([...companies.values()], { by: "damage", order: "desc" }).slice(0, 3),
     me:
       userId === null
         ? null

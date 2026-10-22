@@ -2,6 +2,7 @@ import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import { coinsForTokens, type Item } from "@tokenmaxxing/core/shop.ts";
 import { type Brand, COMPANY_CAP, type CompanyInfo, houseTier } from "@tokenmaxxing/core/world.ts";
+import { must, sortBy } from "hanzio";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar } from "../actors/shared.ts";
 import { forgetLogo } from "../brand.ts";
@@ -270,8 +271,8 @@ export async function dropCompany(sql: Sql, companyId: number): Promise<void> {
 
 /** Every company, busiest first (30-day tokens per member), for choosing one to apply to. */
 export async function listings(sql: Sql): Promise<Listing[]> {
-  return (await companyInfos(sql, "all"))
-    .map((c) => ({
+  return sortBy(
+    (await companyInfos(sql, "all")).map((c) => ({
       id: c.id,
       name: c.name,
       website: c.website,
@@ -279,8 +280,9 @@ export async function listings(sql: Sql): Promise<Listing[]> {
       tier: houseTier(c.tokens30d, c.members),
       tokens30d: c.tokens30d,
       full: c.members >= COMPANY_CAP,
-    }))
-    .sort((a, b) => b.tokens30d / Math.max(1, b.members) - a.tokens30d / Math.max(1, a.members));
+    })),
+    { by: (c) => c.tokens30d / Math.max(1, c.members), order: "desc" },
+  );
 }
 
 /** The company `userId` is waiting to hear from, if any. */
@@ -311,9 +313,10 @@ export const companyById = (sql: Sql, id: number) =>
 
 /** The company with id `id` (as anyone may send it), or `not_found`. */
 export async function companyOrGone(sql: Sql, id: unknown): Promise<CompanyRow> {
-  const company = typeof id === "number" ? await companyById(sql, id) : undefined;
-  if (!company) throw new UserError("That company is gone.", { code: "not_found" });
-  return company;
+  return must(
+    typeof id === "number" ? await companyById(sql, id) : undefined,
+    () => new UserError("That company is gone.", { code: "not_found" }),
+  );
 }
 
 const membersOf = (sql: Sql, companyId: number): Promise<number> =>

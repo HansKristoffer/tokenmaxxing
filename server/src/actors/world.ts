@@ -85,6 +85,7 @@ import {
   WORKING_MS,
   type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
+import { compact, countBy, must, omit, sortBy, typedSwitch } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
@@ -202,10 +203,8 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   state: p.state,
 });
 
-const info = (p: WorldPlayer, online: boolean): PlayerInfo => {
-  const { x: _x, y: _y, facing: _f, state: _s, ...rest } = view(p, online);
-  return rest;
-};
+const info = (p: WorldPlayer, online: boolean): PlayerInfo =>
+  omit(view(p, online), ["x", "y", "facing", "state"]);
 
 const pos = (p: WorldPlayer): PlayerPos => [p.id, p.x, p.y, p.facing, p.state];
 
@@ -321,8 +320,7 @@ export const world = actor({
     /** Called once per game connection: wakes you up and returns your room. */
     join: async (c): Promise<Snapshot> => {
       const userId = requireUser(c.conn.state);
-      const p = c.state.players[userId];
-      if (!p) throw new UserError("Unknown player.", { code: "not_found" });
+      const p = must(c.state.players[userId], () => new UserError("Unknown player.", { code: "not_found" }));
       (c.conn.state as ConnState).joined = true;
       c.vars.online.set(userId, (c.vars.online.get(userId) ?? 0) + 1);
       p.lastInputAt = Date.now();
@@ -355,23 +353,25 @@ export const world = actor({
       p.facing = rawDir;
       p.state = "idle";
       c.vars.dirty.add(p.id);
-      const target = stepTarget(mapOf(p.room), p.x, p.y, rawDir);
-      if (target.kind === "move" && p.room === "town" && onProp(c.state, target.x, target.y))
-        return correction(p);
-      if (target.kind === "move") {
-        p.x = target.x;
-        p.y = target.y;
-        return null;
-      }
-      if (target.kind === "blocked") return wasSeated ? correction(p) : null;
-      const doors = p.companyId === null ? [] : doorsOf(c.state, p.companyId);
-      const door = target.ch === "R" ? doorAt(doors, target.x, target.y) : undefined;
-      if (door && door.userId !== p.id && !door.open)
-        return { notice: `🔒 ${door.name}'s office is closed.` };
-      const dest = portal(p.room, target, p.companyId, plots(c.state), doors);
-      if ("notice" in dest) return { notice: dest.notice };
-      Object.assign(p, dest);
-      return correction(p);
+      return typedSwitch(stepTarget(mapOf(p.room), p.x, p.y, rawDir), "kind", {
+        move: (target) => {
+          if (p.room === "town" && onProp(c.state, target.x, target.y)) return correction(p);
+          p.x = target.x;
+          p.y = target.y;
+          return null;
+        },
+        blocked: () => (wasSeated ? correction(p) : null),
+        portal: (target) => {
+          const doors = p.companyId === null ? [] : doorsOf(c.state, p.companyId);
+          const door = target.ch === "R" ? doorAt(doors, target.x, target.y) : undefined;
+          if (door && door.userId !== p.id && !door.open)
+            return { notice: `🔒 ${door.name}'s office is closed.` };
+          const dest = portal(p.room, target, p.companyId, plots(c.state), doors);
+          if ("notice" in dest) return { notice: dest.notice };
+          Object.assign(p, dest);
+          return correction(p);
+        },
+      });
     },
 
     /** Space: a hop, shown to everyone in the room. Only on your feet, and one at a time. */
@@ -1324,12 +1324,7 @@ const correction = (p: WorldPlayer): StepResult => ({
 });
 
 function occupancy(s: WorldState, online: Map<number, number>): Partial<Record<RoomId, number>> {
-  const out: Partial<Record<RoomId, number>> = {};
-  for (const id of online.keys()) {
-    const room = s.players[id]?.room;
-    if (room) out[room] = (out[room] ?? 0) + 1;
-  }
-  return out;
+  return countBy(compact([...online.keys()].map((id) => s.players[id]?.room)), (room) => room);
 }
 
 /**
@@ -1404,16 +1399,19 @@ async function refreshOutage(
  * last sync gets old, so someone who stopped slows down before they leave their desk.
  */
 function raiders(s: WorldState, now: number): Raiders {
-  const all = Object.values(s.players)
-    .filter((p) => now - p.lastAgentAt < WORKING_MS)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      look: p.look,
-      agents: Math.max(1, p.liveAgents),
-      burn: Math.round((p.burn ?? 0) * Math.max(0, 1 - (now - p.lastAgentAt) / WORKING_MS)),
-    }))
-    .sort((a, b) => b.burn - a.burn || a.id - b.id);
+  const all = sortBy(
+    Object.values(s.players)
+      .filter((p) => now - p.lastAgentAt < WORKING_MS)
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        look: p.look,
+        agents: Math.max(1, p.liveAgents),
+        burn: Math.round((p.burn ?? 0) * Math.max(0, 1 - (now - p.lastAgentAt) / WORKING_MS)),
+      })),
+    { by: "burn", order: "desc" },
+    "id",
+  );
   return { top: all.slice(0, RAIDERS_SHOWN), more: Math.max(0, all.length - RAIDERS_SHOWN) };
 }
 

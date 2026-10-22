@@ -6,6 +6,7 @@
  */
 import { type LootNews, lootById, oddsText, RARITIES, type Rarity } from "@tokenmaxxing/core/loot.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
+import { lerp, sortBy, typedSwitch } from "hanzio";
 import { itemFrame } from "../art/characters.ts";
 import { trophyAt } from "../art/loot.ts";
 import { C } from "../art/palette.ts";
@@ -48,7 +49,7 @@ const RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3
 /** A batch of drops from the world: queued to fly, the rarest first. */
 export function noteLoot(news: readonly LootNews[]): void {
   const now = performance.now();
-  const sorted = [...news].sort((a, b) => RANK[rarityOf(b.item)] - RANK[rarityOf(a.item)]);
+  const sorted = sortBy(news, { by: (n) => RANK[rarityOf(n.item)], order: "desc" });
   const room = MAX_FLYING - fx.flying.length;
   sorted.slice(0, Math.max(0, room)).forEach((n, i) => {
     fx.flying.push({
@@ -68,9 +69,14 @@ export function noteLoot(news: readonly LootNews[]): void {
 function lootSprite(id: string): HTMLCanvasElement | null {
   const it = itemById(id);
   if (!it) return null;
-  if (it.slot === "pet") return petFrame(it.index, false, false);
-  if (it.slot === "furniture") return trophyAt(id.slice(5))?.canvas ?? null;
-  return itemFrame(it);
+  return typedSwitch(
+    it.slot,
+    {
+      pet: () => petFrame(it.index, false, false),
+      furniture: () => trophyAt(id.slice(5))?.canvas ?? null,
+    },
+    () => itemFrame(it),
+  );
 }
 
 const ease = (t: number) => 1 - (1 - t) ** 3;
@@ -99,8 +105,8 @@ function drawOne({ g, items, labels, toScreen, now, dpr }: Frame, f: Flying): vo
   if (t < POP_MS) {
     // Up out of the boss, growing.
     const u = ease(t / POP_MS);
-    x = TARGET.x + (top.x - TARGET.x) * u;
-    y = TARGET.y + (top.y - TARGET.y) * u;
+    x = lerp(TARGET.x, top.x, u);
+    y = lerp(TARGET.y, top.y, u);
     scale = 0.4 + 0.8 * u;
   } else if (t < POP_MS + FLY_MS) {
     // An arc down to the desk.

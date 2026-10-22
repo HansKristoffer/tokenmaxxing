@@ -2,14 +2,17 @@
  * The sky over Copenhagen: where the sun and moon are, and what the weather is doing. Pure maths and
  * tables, no network: the server fetches the weather (`server/src/weather.ts`), the client draws all of it.
  */
+import { clamp, typedSwitch, typedSwitchGroup } from "hanzio";
 import { dayKey, pad2, worldWall } from "./range.ts";
 
 export const CPH = { lat: 55.6761, lon: 12.5683 } as const;
 
 const RAD = Math.PI / 180;
 const DAY_MS = 86_400_000;
-const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
-const smooth = (x: number) => clamp01(x) * clamp01(x) * (3 - 2 * clamp01(x));
+const smooth = (x: number) => {
+  const t = clamp(x, 0, 1);
+  return t * t * (3 - 2 * t);
+};
 
 // MARK: The sun
 
@@ -50,7 +53,7 @@ function sunElevation(ms: number, lat = CPH.lat, lon = CPH.lon): { elevation: nu
   const hourAngle = ((((utcMin + eqTime + 4 * lon) % 1440) + 1440) % 1440) / 4 - 180;
   const sin =
     Math.sin(lat * RAD) * Math.sin(decl) + Math.cos(lat * RAD) * Math.cos(decl) * Math.cos(hourAngle * RAD);
-  return { elevation: Math.asin(Math.min(1, Math.max(-1, sin))) / RAD, morning: hourAngle < 0 };
+  return { elevation: Math.asin(clamp(sin, -1, 1)) / RAD, morning: hourAngle < 0 };
 }
 
 /** The sun's centre is 0.833° below the horizon at sunrise and sunset (refraction and its radius). */
@@ -69,7 +72,7 @@ export function sunTimes(ms: number, lat = CPH.lat, lon = CPH.lon): { sunrise: n
       const cosH =
         Math.cos(RISE_DEG * RAD) / (Math.cos(lat * RAD) * Math.cos(decl)) -
         Math.tan(lat * RAD) * Math.tan(decl);
-      const ha = Math.acos(Math.min(1, Math.max(-1, cosH))) / RAD;
+      const ha = Math.acos(clamp(cosH, -1, 1)) / RAD;
       const min = 720 - 4 * (lon + sign * ha) - eqTime;
       return Date.UTC(y!, m! - 1, d!) + min * 60_000;
     };
@@ -216,12 +219,12 @@ export function weatherFrom(current: unknown): Weather | null {
   const falls = kind === "rain" || kind === "drizzle" || kind === "snow";
   // Measured rain nudges the code's guess: a "light rain" code with 3 mm an hour is not light.
   const intensity =
-    falls && precip !== null && precip > 0 ? clamp01((base + Math.min(1, precip / 4)) / 2) : base;
-  const cloud = clamp01((num("cloud_cover") ?? 0) / 100);
+    falls && precip !== null && precip > 0 ? clamp((base + Math.min(1, precip / 4)) / 2, 0, 1) : base;
+  const cloud = clamp((num("cloud_cover") ?? 0) / 100, 0, 1);
   return {
     kind,
     intensity: Math.round(Math.max(intensity, falls ? 0.15 : 0) * 100) / 100,
-    windMs: Math.round(Math.min(40, Math.max(0, num("wind_speed_10m") ?? 0)) * 10) / 10,
+    windMs: Math.round(clamp(num("wind_speed_10m") ?? 0, 0, 40) * 10) / 10,
     windDir: ((Math.round(num("wind_direction_10m") ?? 0) % 360) + 360) % 360,
     cloud: kind === "rain" || kind === "snow" || kind === "storm" ? Math.max(cloud, 0.6) : cloud,
   };
@@ -244,17 +247,15 @@ export const isWinter = (ms: number): boolean => WINTER_MONTHS.includes(monthOf(
  */
 export function winterSnow(weather: Weather, ms: number): Weather {
   if (!isWinter(ms)) return weather;
-  switch (weather.kind) {
-    case "drizzle":
-    case "rain":
-    case "storm":
-      return { ...weather, kind: "snow", intensity: Math.max(0.3, weather.intensity * 0.8) };
-    case "clear":
-    case "cloudy":
-      return { ...weather, kind: "snow", intensity: 0.25 };
-    default:
-      return weather;
-  }
+  const snow = (intensity: number): Weather => ({ ...weather, kind: "snow", intensity });
+  const { kind } = weather;
+  return typedSwitch(kind, {
+    ...typedSwitchGroup(kind, ["drizzle", "rain", "storm"], () =>
+      snow(Math.max(0.3, weather.intensity * 0.8)),
+    ),
+    ...typedSwitchGroup(kind, ["clear", "cloudy"], () => snow(0.25)),
+    ...typedSwitchGroup(kind, ["fog", "snow"], () => weather),
+  });
 }
 
 /** Whether the ground should be white: while it snows, and all winter (fog included). */

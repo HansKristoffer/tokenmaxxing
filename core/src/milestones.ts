@@ -5,6 +5,7 @@
  * level alone. Nothing here is stored: coins are worked out from the level like the rest of the
  * wallet, so someone who passed a milestone before it paid gets theirs on their next wallet.
  */
+import { sumBy } from "hanzio";
 import { MAX_LEVEL } from "./format.ts";
 import { ITEMS, type Item } from "./shop.ts";
 
@@ -34,7 +35,7 @@ export const MILESTONES: readonly Milestone[] = [
 
 /** Every milestone's coins up to `level`, once each. */
 export const milestoneCoins = (level: number): number =>
-  MILESTONES.reduce((n, m) => n + (m.level <= level ? m.coins : 0), 0);
+  sumBy(MILESTONES, (m) => (m.level <= level ? m.coins : 0));
 
 /** The title of the last milestone reached, or null before the first. */
 export const milestoneTitle = (level: number): string | null =>

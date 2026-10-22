@@ -3,6 +3,7 @@ import { CORE_BLOCKS, frontier, plotBlock } from "@tokenmaxxing/core/maps.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { houseTierName, nextTierAt, perMember } from "@tokenmaxxing/core/world.ts";
 import type { WalletLine } from "@tokenmaxxing/server/registry";
+import { isTruthy, sumBy, typedSwitch } from "hanzio";
 import { useEffect, useState } from "react";
 import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
@@ -77,7 +78,7 @@ export function CompanyPanel() {
       </p>
       <p className="company-actions">
         <button type="button" className="primary" onClick={() => hud.set({ panel: { kind: "companyShop" } })}>
-          🛋 Furniture{co.stored.length > 0 && ` (📦 ${co.stored.reduce((n, s) => n + s.count, 0)})`}
+          🛋 Furniture{co.stored.length > 0 && ` (📦 ${sumBy(co.stored, "count")})`}
         </button>
         <button type="button" onClick={() => hud.set({ panel: { kind: "merch", companyId: co.id } })}>
           👕 Merch
@@ -183,10 +184,12 @@ export function CompanyPanel() {
 /** One move of the wallet, in words: "ada's tokens", "bo bought a Beanbag". */
 function walletLine(l: WalletLine): string {
   const who = l.name ?? "Someone";
-  if (l.kind === "match") return `⚡ ${who}'s tokens, matched`;
-  if (l.kind === "merch") return `👕 ${who} bought merch (${itemById(l.ref)?.name.toLowerCase() ?? "?"})`;
-  if (l.kind === "furniture") return `🛋 ${who} bought a ${itemById(l.ref)?.name ?? "piece"}`;
-  return "🛠 Town admin";
+  return typedSwitch(l.kind, {
+    match: () => `⚡ ${who}'s tokens, matched`,
+    merch: () => `👕 ${who} bought merch (${itemById(l.ref)?.name.toLowerCase() ?? "?"})`,
+    furniture: () => `🛋 ${who} bought a ${itemById(l.ref)?.name ?? "piece"}`,
+    admin: () => "🛠 Town admin",
+  });
 }
 
 function CompanyForm({
@@ -228,7 +231,7 @@ function direction(plot: number): string {
   const [bx, by] = plotBlock(plot);
   const ns = by < 0 ? "north" : by > 1 ? "south" : "";
   const ew = bx < 0 ? "west" : bx > 1 ? "east" : "";
-  return [ns, ew].filter(Boolean).join("-");
+  return [ns, ew].filter(isTruthy).join("-");
 }
 
 /**

@@ -5,6 +5,7 @@ import { petOutfit, wearPet } from "@tokenmaxxing/core/pets.ts";
 import { ITEMS, type Item, MERCH, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
+import { typedSwitch } from "hanzio";
 import { useEffect, useState } from "react";
 import { itemFrame } from "../art/characters.ts";
 import { objectAt } from "../art/objects.ts";
@@ -135,9 +136,14 @@ export const wear = async (look: Look) => {
 
 /** Whether `look` wears `item`: in its slot, or as one of the company merch it wears. */
 export function isWorn(item: Item, look: Look): boolean {
-  if (item.slot === "furniture") return false;
-  if (item.slot === "merch") return look.merch === item.companyId && (look.merchWorn & item.index) > 0;
-  return look[item.slot] === item.index;
+  return typedSwitch(
+    item.slot,
+    {
+      furniture: () => false,
+      merch: () => look.merch === item.companyId && (look.merchWorn & item.index) > 0,
+    },
+    (slot) => look[slot] === item.index,
+  );
 }
 
 /**
@@ -145,14 +151,24 @@ export function isWorn(item: Item, look: Look): boolean {
  * over each other.
  */
 export function withItem(item: Item, look: Look, on: boolean): Look {
-  if (item.slot === "furniture") return look;
-  // A different pet starts in its original look.
-  if (item.slot === "pet") return on ? wearPet(look, item.index) : { ...look, pet: 0, petVariant: 0 };
-  if (item.slot !== "merch") return { ...look, [item.slot]: on ? item.index : 0 };
-  const tops = MERCH.filter((m) => m.kind === "tee" || m.kind === "hoodie").reduce((n, m) => n | m.bit, 0);
-  const mine = look.merch === item.companyId ? look.merchWorn : 0;
-  const bits = on ? (item.index & tops ? mine & ~tops : mine) | item.index : mine & ~item.index;
-  return { ...look, merch: bits ? item.companyId! : 0, merchWorn: bits };
+  return typedSwitch(
+    item.slot,
+    {
+      furniture: () => look,
+      // A different pet starts in its original look.
+      pet: () => (on ? wearPet(look, item.index) : { ...look, pet: 0, petVariant: 0 }),
+      merch: () => {
+        const tops = MERCH.filter((m) => m.kind === "tee" || m.kind === "hoodie").reduce(
+          (n, m) => n | m.bit,
+          0,
+        );
+        const mine = look.merch === item.companyId ? look.merchWorn : 0;
+        const bits = on ? (item.index & tops ? mine & ~tops : mine) | item.index : mine & ~item.index;
+        return { ...look, merch: bits ? item.companyId! : 0, merchWorn: bits };
+      },
+    },
+    (slot) => ({ ...look, [slot]: on ? item.index : 0 }),
+  );
 }
 
 const wearIt = (item: Item, look: Look, on: boolean) =>

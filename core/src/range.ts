@@ -1,10 +1,12 @@
 /** The whole world runs on one clock: "today" and daily charts are Copenhagen days. */
+import { isOneOf, typedSwitch } from "hanzio";
+
 export const WORLD_TZ = "Europe/Copenhagen";
 
 const RANGES = ["today", "7d", "30d", "all"] as const;
 export type RangeKey = (typeof RANGES)[number];
 
-export const isRangeKey = (s: unknown): s is RangeKey => (RANGES as readonly unknown[]).includes(s);
+export const isRangeKey = (s: unknown): s is RangeKey => isOneOf(RANGES, s);
 
 const HOUR = 3_600_000;
 
@@ -109,6 +111,6 @@ export function addDays(key: string, n: number): string {
 /** Inclusive world-day bounds of a range; `from` is null for all time. */
 export function rangeDays(key: RangeKey, now: number): { from: string | null; to: string } {
   const to = dayKey(now);
-  const back = { today: 0, "7d": 6, "30d": 29, all: null }[key];
+  const back = typedSwitch(key, { today: () => 0, "7d": () => 6, "30d": () => 29, all: () => null });
   return { from: back === null ? null : addDays(to, -back), to };
 }

@@ -4,6 +4,7 @@ import { MAX_STAKE, SPLITS, type Split } from "@tokenmaxxing/core/games/payouts.
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { Lobby, MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
 import { namesIn } from "@tokenmaxxing/core/world.ts";
+import { typedSwitch, typedSwitchGroup } from "hanzio";
 import { useEffect, useState } from "react";
 import { arcade, openMatch } from "../net.ts";
 import { hud, useHud } from "../store.ts";
@@ -15,11 +16,11 @@ const STAKES = [0, 10, 50, 100, 250];
 
 const gameName = (id: GameId) => GAMES[id]?.name ?? id;
 const optionsText = (t: { game: GameId; options: Record<string, string | number> }) =>
-  t.game === "tokenmaxxing"
-    ? ` · ${minutesText(Number(t.options.minutes))}`
-    : t.game === "sprint"
-      ? ` · ${t.options.seconds}s`
-      : "";
+  typedSwitch(t.game, {
+    tokenmaxxing: () => ` · ${minutesText(Number(t.options.minutes))}`,
+    sprint: () => ` · ${t.options.seconds}s`,
+    ...typedSwitchGroup(t.game, ["spr", "hype", "dice"], () => ""),
+  });
 
 /** What the lobby means for me: games on, am I in one, my invites, and open tables I could sit at. */
 function lobbySummary(lobby: Lobby, me: number | undefined) {
@@ -309,7 +310,11 @@ export function NewTable({ invite, inviteName }: { invite?: number; inviteName?:
       split,
       open,
       invite: people,
-      options: game === "tokenmaxxing" ? { minutes } : game === "sprint" ? { seconds } : {},
+      options: typedSwitch(game, {
+        tokenmaxxing: () => ({ minutes }),
+        sprint: () => ({ seconds }),
+        ...typedSwitchGroup(game, ["spr", "hype", "dice"], () => ({})),
+      }),
     });
     hud.set({ panel: { kind: "arcade" } });
   });

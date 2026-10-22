@@ -7,6 +7,7 @@ import { clock, compact } from "@tokenmaxxing/core/format.ts";
 import { propTiles } from "@tokenmaxxing/core/games/gather.ts";
 import { GAMES } from "@tokenmaxxing/core/games/index.ts";
 import { TILE, type WorldGame } from "@tokenmaxxing/core/world.ts";
+import { isTruthy } from "hanzio";
 import { C } from "../art/palette.ts";
 import { arenaDesk, gameTable } from "../art/tables.ts";
 import { openMatch } from "../net.ts";
@@ -40,7 +41,7 @@ function banner(game: WorldGame, serverNow: number): string {
     info && info.pot > 0 ? `🪙 ${info.pot}` : null,
     game.watchers > 0 ? `👀 ${game.watchers}` : null,
   ]
-    .filter(Boolean)
+    .filter(isTruthy)
     .join(" · ");
 }
 

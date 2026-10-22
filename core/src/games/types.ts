@@ -3,6 +3,7 @@
  * state, so the server runs them, the client shares their types and helpers, and
  * tests need no server. Adding a game is one `GameDef` plus one React component.
  */
+import { isRecord } from "hanzio";
 
 export type GameId = "spr" | "hype" | "dice" | "sprint" | "tokenmaxxing";
 
@@ -82,7 +83,7 @@ export interface GameDef<State = unknown, View = unknown> {
 export const refused = (why: string) => ({ refused: why });
 
 export const isRefused = (r: unknown): r is { refused: string } =>
-  typeof r === "object" && r !== null && "refused" in r && Object.keys(r).length === 1;
+  isRecord(r) && "refused" in r && Object.keys(r).length === 1;
 
 /** `forfeit` for a game that lists who left (`forfeited`): adds them, once. */
 export const leave = <S extends { forfeited: readonly number[] }>(s: S, player: number): S =>

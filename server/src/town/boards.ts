@@ -4,6 +4,7 @@ import { levelFor, levelTitle } from "@tokenmaxxing/core/format.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
 import { addDays, dayKey, type RangeKey, rangeDays } from "@tokenmaxxing/core/range.ts";
 import { type Brand, houseTier, type Look } from "@tokenmaxxing/core/world.ts";
+import { sortBy, sumBy } from "hanzio";
 import { all, one, pricing, type Sql } from "../actors/shared.ts";
 import {
   type ActivityRow,
@@ -245,7 +246,7 @@ export async function profile(
     `SELECT day, SUM(${TOKENS}) AS tokens FROM usage_daily WHERE user_id = ? GROUP BY day`,
     userId,
   );
-  const lifetime = days.reduce((n, d) => n + d.tokens, 0);
+  const lifetime = sumBy(days, "tokens");
   const level = levelFor(lifetime);
   const co = u.companyId === null ? undefined : await companyById(sql, u.companyId);
   const company = co ? { id: co.id, name: co.name } : null;
@@ -278,9 +279,15 @@ export async function profile(
     company,
     range,
     totals: totals(pricing, usage, activity?.activeBuckets == null ? null : activity),
-    models: usage
-      .map((r) => ({ model: r.model, tokens: rowTokens(r), costUsd: rowCost(pricing, r), turns: r.turns }))
-      .sort((a, b) => b.tokens - a.tokens),
+    models: sortBy(
+      usage.map((r) => ({
+        model: r.model,
+        tokens: rowTokens(r),
+        costUsd: rowCost(pricing, r),
+        turns: r.turns,
+      })),
+      { by: "tokens", order: "desc" },
+    ),
     daily,
     games,
     badges,
@@ -303,8 +310,8 @@ async function last30Days(sql: Sql, where: string, arg: unknown, now: number): P
     const rows = days.filter((r) => r.day === day);
     return {
       day,
-      tokens: rows.reduce((n, r) => n + rowTokens(r), 0),
-      costUsd: Math.round(rows.reduce((n, r) => n + rowCost(pricing, r), 0) * 100) / 100,
+      tokens: sumBy(rows, rowTokens),
+      costUsd: Math.round(sumBy(rows, (r) => rowCost(pricing, r)) * 100) / 100,
     };
   });
 }

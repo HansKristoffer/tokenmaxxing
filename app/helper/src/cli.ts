@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import type { Message } from "@tokenmaxxing/core/protocol.ts";
+import { getErrorMessage } from "hanzio";
 import pkg from "../../../package.json" with { type: "json" };
 import { APP_STATE_FILE, appStateDir, clientFor, errorCode, Helper } from "./helper.ts";
 import {
@@ -291,6 +292,6 @@ try {
   await main(process.argv.slice(2));
   process.exit(0);
 } catch (err) {
-  console.error(err instanceof Fail ? err.message : err instanceof Error ? err.message : String(err));
+  console.error(getErrorMessage(err));
   process.exit(1);
 }

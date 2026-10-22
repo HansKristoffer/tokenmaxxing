@@ -3,6 +3,7 @@
  * town throws a picnic on the grass by the square. `world` reads the status pages (server/src/picnic.ts)
  * and tells everyone when it changes; this is what both sides agree on.
  */
+import { typedKeys } from "hanzio";
 
 export type Provider = "Claude" | "OpenAI";
 
@@ -49,9 +50,7 @@ export function nextOutage(
   readings: Partial<Record<Provider, boolean | null>>,
   now: number,
 ): Outage | null {
-  const down = (Object.keys(STATUS_PAGES) as Provider[]).filter(
-    (p) => readings[p] ?? prev?.down.includes(p) ?? false,
-  );
+  const down = typedKeys(STATUS_PAGES).filter((p) => readings[p] ?? prev?.down.includes(p) ?? false);
   if (down.length === 0) return null;
   return { down, since: prev?.since ?? now };
 }

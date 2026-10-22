@@ -1,4 +1,5 @@
 import { basename } from "node:path";
+import { isRecord, safeJsonParse } from "hanzio";
 import { type Source, type TokenEvent, tokenEvent } from "../types.ts";
 import { isNum, isString } from "./guards.ts";
 import { readNewlineLines } from "./read-slice.ts";
@@ -101,12 +102,9 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
     const line = part.text;
     if (!mayBeEvent(line)) continue;
 
-    let raw: RawCCRecord;
-    try {
-      raw = JSON.parse(line) as RawCCRecord;
-    } catch {
-      continue;
-    }
+    const parsed = safeJsonParse<RawCCRecord>(line);
+    if (!parsed.ok) continue;
+    const raw = parsed.data;
     if (raw.type !== "assistant" && raw.type !== "user") continue;
     const msg = raw.message;
     if (!msg) continue;
@@ -123,10 +121,7 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
       if (!isString(raw.uuid)) continue;
       if (raw.isMeta === true || raw.isSidechain === true) continue;
       const content = msg.content;
-      if (
-        Array.isArray(content) &&
-        content.some((b) => b && typeof b === "object" && (b as { type?: string }).type === "tool_result")
-      ) {
+      if (Array.isArray(content) && content.some((b) => isRecord(b) && b.type === "tool_result")) {
         continue;
       }
       // A prompt logged twice is sent once: `collect` drops repeats across every file.

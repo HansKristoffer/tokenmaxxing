@@ -19,6 +19,7 @@ import {
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
 import { ITEMS } from "@tokenmaxxing/core/shop.ts";
 import type { Profile } from "@tokenmaxxing/server/registry";
+import { sortBy } from "hanzio";
 import { useState } from "react";
 import { copFrame } from "../art/cop.ts";
 import { send } from "../game/input.ts";
@@ -76,9 +77,10 @@ export function PlayerCard({ userId }: { userId: number }) {
   const next = nextMilestone(p.level);
   const title = milestoneTitle(p.level);
   // The item packs' rewards come between milestones: show the next one if it's sooner.
-  const reward = ITEMS.filter(
-    (i) => i.level !== undefined && i.level > p.level && i.level < (next?.level ?? Infinity),
-  ).sort((a, b) => a.level! - b.level!)[0];
+  const reward = sortBy(
+    ITEMS.filter((i) => i.level !== undefined && i.level > p.level && i.level < (next?.level ?? Infinity)),
+    "level",
+  )[0];
   const mine = userId === world.selfId;
   const visit = () => {
     hud.set({ panel: null });
