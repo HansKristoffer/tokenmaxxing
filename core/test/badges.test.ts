@@ -1,5 +1,17 @@
 import { expect, test } from "bun:test";
-import { type BadgeFacts, badgesFor, streakOf } from "../src/badges.ts";
+import {
+  announced,
+  awardLine,
+  BADGES,
+  type BadgeFacts,
+  badgeStates,
+  badgesFor,
+  CACHE_FLOOR,
+  frameOf,
+  longestRun,
+  progressOf,
+  streakOf,
+} from "../src/badges.ts";
 
 const none: BadgeFacts = {
   streak: 0,
@@ -12,6 +24,8 @@ const none: BadgeFacts = {
   founder: false,
 };
 
+const thresholds = (id: string) => BADGES.find((b) => b.id === id)!.tiers.map((t) => t.at);
+
 test("streaks count back from today, or from yesterday before today's first tokens, and stop at a gap", () => {
   const days = new Set(["2026-09-27", "2026-09-29", "2026-09-30", "2026-10-01"]);
   expect(streakOf(days, "2026-10-01")).toBe(3);
@@ -20,12 +34,97 @@ test("streaks count back from today, or from yesterday before today's first toke
   expect(streakOf(new Set(), "2026-10-01")).toBe(0);
 });
 
+test("the longest run is the best stretch of days in a row, wherever it was", () => {
+  expect(longestRun(new Set())).toBe(0);
+  expect(longestRun(new Set(["2026-09-27", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-03"]))).toBe(3);
+  // A single day with any tokens counts, as for the streak: no floor.
+  expect(longestRun(new Set(["2026-02-28", "2026-03-01"]))).toBe(2);
+});
+
 test("badges show the highest tier met, and nothing below the first", () => {
   expect(badgesFor(none)).toEqual([]);
-  expect(badgesFor({ ...none, streak: 31 })).toEqual([
-    { id: "streak", emoji: "🔥", label: "30-day streak", tier: 2 },
-  ]);
-  expect(badgesFor({ ...none, founder: true })).toEqual([
-    { id: "founder", emoji: "🏢", label: "Founder", tier: 1 },
-  ]);
+  const [streak] = badgesFor({ ...none, streak: 31 });
+  expect(streak).toMatchObject({
+    id: "streak",
+    emoji: "🔥",
+    label: "30-day streak",
+    tier: 2,
+    frame: "silver",
+  });
+  expect(badgesFor({ ...none, founder: true })[0]).toMatchObject({ id: "founder", tier: 1, frame: "gold" });
+});
+
+test("existing thresholds are unchanged: diamond only adds a tier on top", () => {
+  expect(thresholds("streak").slice(0, 3)).toEqual([7, 30, 100]);
+  expect(thresholds("bigday")).toEqual([1e9, 5e9, 10e9]);
+  expect(thresholds("podium").slice(0, 3)).toEqual([1, 10, 50]);
+  expect(thresholds("octopus")).toEqual([5, 10, 20]);
+  expect(thresholds("shipper").slice(0, 3)).toEqual([10, 50, 250]);
+  expect(thresholds("shark").slice(0, 3)).toEqual([5, 25, 100]);
+  expect(thresholds("whale").slice(0, 2)).toEqual([500, 2000]);
+  expect(thresholds("founder")).toEqual([1]);
+  expect(thresholds("picnic")).toEqual([1, 5]);
+  // The five with a diamond tier.
+  expect(thresholds("streak").at(-1)).toBe(365);
+  expect(thresholds("podium").at(-1)).toBe(200);
+  expect(thresholds("shipper").at(-1)).toBe(1000);
+  expect(thresholds("shark").at(-1)).toBe(500);
+  expect(thresholds("whale").at(-1)).toBe(10000);
+  for (const id of ["streak", "podium", "shipper", "shark", "whale"])
+    expect(BADGES.find((b) => b.id === id)!.tiers).toHaveLength(4);
+});
+
+test("frames: bronze up to gold, diamond on top of four, a lone tier is gold", () => {
+  expect([1, 2, 3, 4].map((t) => frameOf(t, 4))).toEqual(["bronze", "silver", "gold", "diamond"]);
+  expect([1, 2, 3].map((t) => frameOf(t, 3))).toEqual(["bronze", "silver", "gold"]);
+  expect(frameOf(1, 1)).toBe("gold");
+  const [s] = badgesFor({ ...none, prs: 1000 });
+  expect(s).toMatchObject({ id: "shipper", frame: "diamond", rarity: "legendary", next: null });
+});
+
+test("progress: where they stand, the next tier and the bar", () => {
+  const [s] = badgesFor({ ...none, prs: 30 });
+  expect(s).toMatchObject({ tier: 1, value: 30, prev: 10, next: { at: 50, label: "50 PRs" } });
+  expect(progressOf(s!)).toBe(0.5);
+  // Not earned yet: from 0 toward the first tier, in the log only.
+  const unearned = badgeStates(none).find((b) => b.id === "shipper")!;
+  expect(unearned).toMatchObject({ tier: 0, value: 0, prev: 0, next: { at: 10 } });
+  expect(progressOf({ value: 5, next: { at: 10, label: "" }, prev: 0 })).toBe(0.5);
+  expect(progressOf({ value: 9999, next: null, prev: 10 })).toBe(1);
+});
+
+test("the new badges", () => {
+  const tier = (id: string, f: Partial<BadgeFacts>) =>
+    badgesFor({ ...none, ...f }).find((b) => b.id === id)?.tier ?? 0;
+  expect([9, 10, 30, 100].map((shipDays) => tier("shipdays", { shipDays }))).toEqual([0, 1, 2, 3]);
+  expect([2, 3, 6, 10].map((models) => tier("polyglot", { models }))).toEqual([0, 1, 2, 3]);
+  expect([13, 14, 60, 200].map((longestRun) => tier("longrun", { longestRun }))).toEqual([0, 1, 2, 3]);
+  expect([0, 1, 10, 50].map((raidKills) => tier("raider", { raidKills }))).toEqual([0, 1, 2, 3]);
+  expect([9, 10, 50, 250].map((gamesPlayed) => tier("regular", { gamesPlayed }))).toEqual([0, 1, 2, 3]);
+  expect([1, 2, 4].map((gameTypes) => tier("allgames", { gameTypes }))).toEqual([0, 1, 2]);
+  expect(tier("hunter", { lootOwned: 5 })).toBe(2);
+});
+
+test("cache wizard needs its token floor, then a share", () => {
+  const f = { cacheShare: 0.96 };
+  expect(badgesFor({ ...none, ...f, lifetime: CACHE_FLOOR - 1 }).some((b) => b.id === "cache")).toBe(false);
+  expect(badgesFor({ ...none, ...f, lifetime: CACHE_FLOOR }).find((b) => b.id === "cache")).toMatchObject({
+    tier: 3,
+    value: 96,
+  });
+  expect(
+    badgesFor({ ...none, cacheShare: 0.85, lifetime: CACHE_FLOOR }).find((b) => b.id === "cache")?.tier,
+  ).toBe(1);
+});
+
+test("gold and diamond are announced, bronze and silver aren't, nor a founder", () => {
+  expect(announced("shipper", 1)).toBe(false);
+  expect(announced("shipper", 2)).toBe(false);
+  expect(announced("shipper", 3)).toBe(true);
+  expect(announced("shipper", 4)).toBe(true);
+  expect(announced("longrun", 3)).toBe(true);
+  expect(announced("founder", 1)).toBe(false);
+  expect(announced("nope", 1)).toBe(false);
+  expect(awardLine("Ada", "shipper", 3)).toBe("🏅 Ada earned Shipper gold: 250 PRs");
+  expect(awardLine("Ada", "shipper", 9)).toBeNull();
 });

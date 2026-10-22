@@ -4,11 +4,14 @@
  * user's (those start at 1).
  */
 import { lerp } from "hanzio";
+import { BARKEEP } from "./barkeep.ts";
 import { COP } from "./cop.ts";
 import { BOT_LEVEL, compact, fill } from "./format.ts";
 import type { GameMap } from "./maps.ts";
 import { worldClock } from "./range.ts";
-import { type Facing, type Look, lookWith, route } from "./world.ts";
+import type { WeatherKind } from "./sky.ts";
+import { specialOn, TAVERN } from "./tavern.ts";
+import { type Facing, type Look, lookWith, type Place, route } from "./world.ts";
 
 export interface BotDef {
   /** Negative and unique. */
@@ -29,7 +32,22 @@ export interface BotDef {
   coffeeLines?: string[];
   /** Lines for certain times, said instead of `lines` half the time while they apply. */
   moments?: Moment[];
+  /** Where it's placed on wake, instead of the town square. */
+  home?: Place;
+  /** It never walks or follows anyone (the barkeep stands behind his bar). */
+  still?: true;
+  /** For the weather over Copenhagen; one is said now and then while it lasts. */
+  weatherLines?: Partial<Record<WeatherKind, string[]>>;
+  /** For an empty room, or a busy one (`BUSY_CROWD` or more). */
+  crowdLines?: { empty?: string[]; busy?: string[] };
+  /** About the day's special: `{special}` is its line on the chalkboard. */
+  specialLines?: string[];
 }
+
+/** From this many people in the room, it's busy. */
+export const BUSY_CROWD = 5;
+/** Up to this many, it's empty: a bot only talks to a room with someone in it, so that someone is the one. */
+export const EMPTY_CROWD = 1;
 
 /** A time on the world's clock (Copenhagen): on `days` (0 is Sunday; all if left out), hours `from` to `to`. */
 interface Moment {
@@ -223,6 +241,7 @@ export const BOTS: BotDef[] = [
     ],
   },
   COP,
+  ...(TAVERN ? [BARKEEP] : []),
 ];
 
 export const isBot = (id: number): boolean => id < 0;
@@ -268,11 +287,14 @@ interface Context {
   leader?: { name: string; todayTokens: number } | null;
   /** Cups in its system, after a trip to the coffee machine. */
   cups?: number;
+  /** Real people in the bot's room, and the weather outside: for the barkeep's small talk. */
+  crowd?: number;
+  weather?: WeatherKind;
 }
 
 /**
  * What `bot` says at `at`: about the coffee it just had, to whoever it's following (most of the
- * time), something for the time of day (half the time), or anything.
+ * time), the room, weather or special (a third), something for the time of day (half), or anything.
  */
 export function lineFor(bot: BotDef, at: number, ctx: Context = {}, rand = Math.random): string {
   const say = (line: string) =>
@@ -280,11 +302,20 @@ export function lineFor(bot: BotDef, at: number, ctx: Context = {}, rand = Math.
       name: ctx.leader?.name ?? "",
       tokens: compact(ctx.leader?.todayTokens ?? 0),
       cups: ctx.cups ?? 0,
+      special: specialOn(new Date(at)),
     });
   if (ctx.cups && bot.coffeeLines?.length) return say(pick(bot.coffeeLines, rand));
   // "0 tokens i dag? Gå hjem." doesn't land: skip token lines for someone with none.
   const toLeader = (bot.followLines ?? []).filter((l) => ctx.leader?.todayTokens || !l.includes("{tokens}"));
   if (ctx.leader && toLeader.length && rand() < 0.6) return say(pick(toLeader, rand));
+  // The room, the weather and the day's special: a third of the time they apply.
+  const room = [
+    ...(ctx.crowd !== undefined && ctx.crowd <= EMPTY_CROWD ? (bot.crowdLines?.empty ?? []) : []),
+    ...((ctx.crowd ?? 0) >= BUSY_CROWD ? (bot.crowdLines?.busy ?? []) : []),
+    ...(ctx.weather ? (bot.weatherLines?.[ctx.weather] ?? []) : []),
+    ...(bot.specialLines ?? []),
+  ];
+  if (room.length && rand() < 0.35) return say(pick(room, rand));
   const { day, hour } = worldClock(at);
   const now = (bot.moments ?? []).filter(
     (m) => (!m.days || m.days.includes(day)) && hour >= (m.from ?? 0) && hour < (m.to ?? 24),

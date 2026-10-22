@@ -49,6 +49,18 @@ export async function notify(client: Client<typeof registry>, userId: number, no
     .catch((err) => console.warn(`[notify] ${userId}: ${String(err)}`));
 }
 
+/** A line for every open game tab and the town chat. Best effort, like `notify`. */
+export async function announceTown(
+  client: Client<typeof registry>,
+  text: string,
+  open?: Notice["open"],
+  remark?: string,
+): Promise<void> {
+  await main(client)
+    .world.announceTown(text, open, remark)
+    .catch((err) => console.warn(`[announceTown] ${String(err)}`));
+}
+
 /** One match, as another actor calls it. */
 export const matchOf = (client: Client<typeof registry>, id: number) =>
   client.match.get([String(id)], internal);

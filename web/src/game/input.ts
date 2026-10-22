@@ -1,4 +1,5 @@
 import { stepPace } from "@tokenmaxxing/core/street.ts";
+import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
   DIRS,
   type Facing,
@@ -12,6 +13,7 @@ import {
 } from "@tokenmaxxing/core/world.ts";
 import { conn } from "../net.ts";
 import { chatBeside, hud } from "../store.ts";
+import { basementInteract } from "./basement.ts";
 import { camera, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
 import { gameHits } from "./games.ts";
@@ -42,6 +44,9 @@ let tapped: Facing | null = null;
 /** Click-to-walk: the remaining steps, and whether to interact, or take what's there, on arrival. */
 let path: Facing[] = [];
 let interactOnArrival = false;
+/** The room the last frame was in, and the keys held through a change of room (see `updateSelf`). */
+let lastRoom = "";
+const carried = new Set<Facing>();
 let takeOnArrival = false;
 
 const typing = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
@@ -66,6 +71,9 @@ export function bindInput(canvas: HTMLCanvasElement): void {
     const dir = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];
     if (dir) {
       e.preventDefault();
+      // A key still held from the last room: its repeats don't walk back out of the door we arrived at.
+      if (carried.has(dir) && e.repeat) return;
+      carried.delete(dir);
       if (!held.includes(dir)) held.push(dir);
       tapped = dir;
       path = [];
@@ -111,7 +119,10 @@ export function bindInput(canvas: HTMLCanvasElement): void {
   });
   window.addEventListener("keyup", (e) => {
     const dir = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];
-    if (dir) held.splice(held.indexOf(dir), 1);
+    if (dir) {
+      if (held.includes(dir)) held.splice(held.indexOf(dir), 1);
+      carried.delete(dir);
+    }
     if (e.key.toLowerCase() === "x" || e.key === "Shift") running = false;
   });
   window.addEventListener("blur", () => {
@@ -212,6 +223,14 @@ export function send(result: Promise<StepResult>): void {
 export function updateSelf(now: number): void {
   const me = self();
   if (!me || world.portalPending || stepping(me, now)) return;
+  // Through a door with a key held, you arrive right in front of the way back (the Tavern's stairs and the
+  // basement's, one tile from each other): let go of it, or the held key bounces you between the two.
+  if (world.room !== lastRoom) {
+    if (lastRoom) for (const d of held) carried.add(d);
+    held.length = 0;
+    tapped = null;
+    lastRoom = world.room;
+  }
   // At a game table: stay put until the game is over.
   if (me.state === "playing") {
     tapped = null;
@@ -278,6 +297,9 @@ function jump(): void {
   void conn.jump().catch(() => {});
 }
 
+/** The last bar tile under the chalkboard (`J`, x 1-4): the counter you can reach it from. */
+const BAR_TAB_X = 3;
+
 /** E: talk to whoever or whatever is in front of you. */
 function interact(): void {
   const me = self();
@@ -294,6 +316,18 @@ function interact(): void {
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (kind.pours) return void send(conn.drink(me.facing));
+  if (kind.name === "fountain") return void send(conn.toss(me.facing));
+  if (kind.serves) return void send(conn.tavern(me.facing));
+  // The Tavern's boards: the bar and the quest board give out quests, the wall is the Hall of Fame.
+  if (world.room === "inn") {
+    // The left of the bar sits under the bar tab chalkboard (`J`, behind the bar, out of reach): it opens the same panel.
+    if (ch === "a" && x <= BAR_TAB_X) return void hud.set({ panel: { kind: "regulars" } });
+    if (ch === "a" || ch === "m") return void hud.set({ panel: { kind: "quests" } });
+    if (ch === "A") return void hud.set({ panel: { kind: "hallOfFame" } });
+    if (ch === "P" || ch === "J") return void hud.set({ panel: { kind: "regulars" } });
+    if (ch === "z") return void hud.set({ panel: { kind: "jukebox" } });
+  }
+  if (basementInteract(x, y)) return;
   if (ch === "K") return void hud.set({ dialog: chalkboardText() });
   if (ch === "U") return void openTrophies();
   if (ch === "H") {
@@ -301,7 +335,10 @@ function interact(): void {
     const company = b?.plot ? companyOnPlot(b.plot) : null;
     // A company's house opens its page.
     if (company) return void hud.set({ panel: { kind: "companyCard", companyId: company.id } });
-    return void hud.set({ dialog: b?.plot === null ? "The Inn. Beds for anyone without a company." : null });
+    return void hud.set({
+      dialog:
+        b?.plot === null ? `The ${TAVERN ? "Tavern" : "Inn"}. Beds for anyone without a company.` : null,
+    });
   }
   if (kind.text) hud.set({ dialog: kind.text });
 }

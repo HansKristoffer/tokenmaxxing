@@ -1,10 +1,12 @@
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
+import { bigScreen, SCREEN_H, SCREEN_TILES, tournamentBoard, wallTerminal } from "./basement.ts";
 import { type FancyPiece, fancyPiece, fancySprite } from "./furniture-fancy.ts";
 import { trophyAt } from "./loot.ts";
 import { C } from "./palette.ts";
 import { bake, cached, once, type Pen } from "./pixels.ts";
+import { bar, barrel, hallWall, hearth, jukebox, plaque, questBoard, stool, table } from "./tavern.ts";
 
 /** A baked sprite and where it sits relative to its tile's top-left corner. */
 interface Placed {
@@ -503,6 +505,45 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(torch());
     case "G":
       return at(gate(), -4);
+    // The Tavern: runs of two (the hearth, the quest board) draw from their left tile.
+    case "a":
+    case "y":
+      return at(bar(ch === "y"));
+    case "v":
+      return at(stool(), 4);
+    case "h":
+      return at(barrel(), 3);
+    case "n":
+      return at(table(map.at(x - 1, y) !== "n", map.at(x + 1, y) !== "n"));
+    case "P":
+      return at(plaque());
+    case "z":
+      return at(jukebox(), 2);
+    case "A": {
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return at(hallWall(n % 2 === 0));
+    }
+    // The basement: the big screen is a run of six, the cabinet is the office arcade machine.
+    case "E": {
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return n % SCREEN_TILES === 0 ? at(bigScreen(), 0, TILE - SCREEN_H) : null;
+    }
+    case "M":
+      return at(wallTerminal(), 0, 0);
+    case "i":
+      return at(tournamentBoard(), 0, 0);
+    case "C": {
+      const art = FANCY.get("β")!.art;
+      return { canvas: fancySprite(art.id), dx: 0, dy: TILE - art.height, fancy: art };
+    }
+    case "f":
+    case "m": {
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return n % 2 === 0 ? at(ch === "f" ? hearth() : questBoard()) : null;
+    }
     default: {
       const fancy = FANCY.get(ch);
       // The raid's trophies (art/loot.ts).

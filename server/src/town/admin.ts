@@ -52,6 +52,9 @@ export interface AdminUser {
   games: number;
   /** Tokens past the per-minute cap in the last 30 days: they didn't count. More than 0 is suspicious. */
   capped30d: number;
+  /** Their bio, if they wrote one, and how many people reported it. */
+  bio: string | null;
+  bioReports: number;
 }
 
 /** One thing done from the admin page. */
@@ -162,6 +165,12 @@ export async function users(sql: Sql, now: number): Promise<AdminUser[]> {
       )
     ).map((r) => [r.userId, r.n]),
   );
+  const bioReports = await perUser("SELECT target AS userId, COUNT(*) AS n FROM bio_reports GROUP BY target");
+  const bios = new Map(
+    (await all<{ id: number; bio: string }>(sql, "SELECT id, bio FROM users WHERE bio IS NOT NULL")).map(
+      (r) => [r.id, r.bio],
+    ),
+  );
   const coins = await balances(sql, now);
   return rows.map((r) => {
     const u = usage.get(r.id);
@@ -180,6 +189,8 @@ export async function users(sql: Sql, now: number): Promise<AdminUser[]> {
       items: items.get(r.id) ?? 0,
       games: games.get(r.id) ?? 0,
       capped30d: capped.get(r.id) ?? 0,
+      bio: bios.get(r.id) ?? null,
+      bioReports: bioReports.get(r.id) ?? 0,
     };
   });
 }
@@ -253,8 +264,9 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
   await withdraw(sql, userId);
   await sql.execute("DELETE FROM trades WHERE from_id = ? OR to_id = ?", userId, userId);
   await wipeUsage(sql, userId);
-  for (const table of ["purchases", "rewards", "offices"])
+  for (const table of ["purchases", "rewards", "offices", "badge_awards", "showcase", "tavern_daily"])
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
+  await sql.execute("DELETE FROM bio_reports WHERE target = ? OR reporter = ?", userId, userId);
   await sql.execute(
     "DELETE FROM items WHERE owner_id = ? OR (owner_id IS NULL AND dropped_by = ? AND company_id IS NULL)",
     userId,

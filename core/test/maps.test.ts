@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { BARKEEP, BARKEEP_HOME } from "../src/barkeep.ts";
 import {
   doorOf,
   frontier,
@@ -88,13 +89,69 @@ describe("maps", () => {
     expect(map.find("Z").some((t) => seen.has(t.join(",")))).toBe(true);
   });
 
-  for (const id of ["hq", "inn"] as const) {
+  for (const id of ["hq", "inn", "basement"] as const) {
     test(`${id}: one exit, and every bed and chair is reachable from it`, () => {
       const map = MAPS[id];
       expect(map.find("x")).toHaveLength(1);
-      const entry = roomEntry(id === "hq" ? "hq:1" : "inn");
+      const entry = roomEntry(id === "hq" ? "hq:1" : id);
       const seen = reachable(map, entry.x, entry.y);
       for (const ch of ["b", "c"]) for (const t of map.find(ch)) expect(seen.has(t.join(","))).toBe(true);
     });
   }
+
+  describe("the Tavern", () => {
+    const map = MAPS.inn;
+    const entry = roomEntry("inn");
+    const seen = reachable(map, entry.x, entry.y);
+    const cells = (ch: string) => map.find(ch);
+
+    test("24x14, one exit, the door steps in just above it", () => {
+      expect([map.width, map.height]).toEqual([24, 14]);
+      expect(map.name).toBe("The Tavern");
+      expect(cells("x")).toEqual([[11, 13]]);
+      expect([entry.x, entry.y]).toEqual([11, 12]);
+      expect(map.walkable(entry.x, entry.y)).toBe(true);
+    });
+
+    test("every chair, stool and sofa is reachable from the door", () => {
+      for (const ch of ["c", "v", "s"]) {
+        expect(cells(ch).length).toBeGreaterThan(0);
+        for (const t of cells(ch)) expect(seen.has(t.join(","))).toBe(true);
+      }
+    });
+
+    test("the bar is sealed: the barkeep's cell can't be reached, and isn't floor to sleep on", () => {
+      expect(map.walkable(BARKEEP_HOME.x, BARKEEP_HOME.y)).toBe(true);
+      expect(seen.has(`${BARKEEP_HOME.x},${BARKEEP_HOME.y}`)).toBe(false);
+      expect(BARKEEP.home).toEqual(BARKEEP_HOME);
+      // Everything behind the bar line is rug or shelf, never `_`.
+      for (let x = 1; x <= 8; x++) expect(map.at(x, 3)).toBe("=");
+      for (const t of cells("=").filter(([, y]) => y === 3)) expect(seen.has(t.join(","))).toBe(false);
+    });
+
+    test("the boards and the tap are all there, and each can be walked up to", () => {
+      for (const ch of ["a", "y", "m", "A", "P", "f", "n", "e", "h", "K", "o"]) {
+        expect(cells(ch).length).toBeGreaterThan(0);
+        const standable = cells(ch).some(([x, y]) =>
+          [
+            [0, 1],
+            [0, -1],
+            [1, 0],
+            [-1, 0],
+          ].some(([dx, dy]) => map.walkable(x + dx!, y + dy!) && seen.has(`${x + dx!},${y + dy!}`)),
+        );
+        expect(standable).toBe(true);
+      }
+      expect(cells("A")).toHaveLength(4);
+      expect(cells("P")).toHaveLength(2);
+      expect(LEGEND.y!.serves).toBe(true);
+      // The stage is walkable; the stairs down are in the bottom wall.
+      expect(LEGEND.e!.walk).toBe(true);
+      expect(cells("S")).toEqual([[3, 13]]);
+    });
+
+    test("the stage can be walked across", () => {
+      for (const t of cells("e")) expect(seen.has(t.join(","))).toBe(true);
+    });
+  });
 });

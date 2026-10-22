@@ -125,25 +125,25 @@ describe("drops", () => {
   });
 
   test("dropped furniture is in the room's map, kept until the drops change; a pet isn't", () => {
-    setDrops("inn", [drop(1, "furn.s", 3, 3), drop(2, "furn.t", 5, 3), drop(3, "pet.1", 8, 3)]);
+    setDrops("inn", [drop(1, "furn.s", 2, 6), drop(2, "furn.t", 5, 6), drop(3, "pet.1", 8, 6)]);
     const map = mapOf("inn");
-    expect([3, 5, 6, 8].map((x) => map.at(x, 3))).toEqual(["s", "t", "t", "_"]);
-    expect(stepTarget(map, 3, 4, "up").kind).toBe("blocked");
-    expect(MAPS.inn.at(3, 3)).toBe("_");
+    expect([2, 5, 6, 8].map((x) => map.at(x, 6))).toEqual(["s", "t", "t", "_"]);
+    expect(stepTarget(map, 2, 7, "up").kind).toBe("blocked");
+    expect(MAPS.inn.at(2, 6)).toBe("_");
     expect(mapOf("inn")).toBe(map);
-    setDrops("inn", [drop(3, "pet.1", 8, 3)]);
+    setDrops("inn", [drop(3, "pet.1", 8, 6)]);
     expect(mapOf("inn")).toBe(MAPS.inn);
     setDrops("inn", []);
   });
 
   test("a parcel coming or going keeps the map; furniture makes a new one", () => {
-    setDrops("inn", [drop(1, "furn.s", 3, 3)]);
+    setDrops("inn", [drop(1, "furn.s", 2, 6)]);
     const map = mapOf("inn");
-    setDrops("inn", [drop(1, "furn.s", 3, 3), drop(2, "hat.1", 8, 3)]);
+    setDrops("inn", [drop(1, "furn.s", 2, 6), drop(2, "hat.1", 8, 6)]);
     expect(mapOf("inn")).toBe(map);
-    setDrops("inn", [drop(1, "furn.s", 3, 3), drop(2, "hat.1", 8, 3), drop(3, "furn.p", 5, 3)]);
+    setDrops("inn", [drop(1, "furn.s", 2, 6), drop(2, "hat.1", 8, 6), drop(3, "furn.p", 5, 6)]);
     expect(mapOf("inn")).not.toBe(map);
-    expect(mapOf("inn").at(5, 3)).toBe("p");
+    expect(mapOf("inn").at(5, 6)).toBe("p");
     setDrops("inn", []);
   });
 
@@ -167,10 +167,23 @@ describe("rest spots", () => {
     expect(overflow.x % 2).toBe(1); // a tile between neighbours
   });
 
-  test("working players get a desk chair, facing their screen", () => {
+  test("working players get a chair, facing their table", () => {
     const spot = restSpot("inn", "working", new Set());
     expect(MAPS.inn.at(spot.x, spot.y)).toBe("c");
     expect(spot.facing).toBe("up");
+  });
+
+  test("the Tavern's overflow sleeps on the floor, never behind the bar", () => {
+    const taken = new Set(["b", "c"].flatMap((ch) => MAPS.inn.find(ch).map(([x, y]) => `${x},${y}`)));
+    const seen = new Set<string>();
+    for (let i = 0; i < 60; i++) {
+      const spot = restSpot("inn", "away", taken);
+      const key = `${spot.x},${spot.y}`;
+      expect(MAPS.inn.at(spot.x, spot.y)).toBe("_");
+      expect(seen.has(key)).toBe(false);
+      seen.add(key);
+      taken.add(key);
+    }
   });
 });
 

@@ -2,6 +2,7 @@ import { compact } from "@tokenmaxxing/core/format.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
+import { hasSpecial, specialBuff, TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
   type CompanyInfo,
   companyOfRoom,
@@ -23,12 +24,14 @@ import { SLEEP_H, SLEEP_W, sleepingFrame } from "../art/pet-sleep.ts";
 import { PET_H, PET_W, petFrame } from "../art/pets.ts";
 import { hash, initialsOf, perObject } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
+import { drawBasement, lightBasement } from "./basement.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
 import { drawCop, isCop } from "./cop.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { type Frame, inView } from "./frame.ts";
 import { drawGames } from "./games.ts";
+import { drawGlow } from "./glow.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { avatarLabels, chipHits, chips, chipsWidth, petLabel, sign, signHits } from "./labels.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
@@ -50,6 +53,7 @@ import {
 } from "./sky.ts";
 import { snowAmount, snowLayers } from "./snow.ts";
 import { drawStreet } from "./street.ts";
+import { drawTavern, lightTavern } from "./tavern.ts";
 import { drawTrophies } from "./trophies.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
@@ -82,15 +86,21 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
     start + (size <= view ? (size - view) / 2 : clamp(center - start - view / 2, 0, size - view));
   const camX =
     Math.round(clampCam((focus.x + 0.5) * TILE, viewW, map.x0 * TILE, map.width * TILE) * scale) / scale;
+  // The chat sits over the bottom left: let the map scroll up past its last row by the chat's height, so
+  // a door in the bottom wall (the Tavern's stairs, the basement's way out) isn't under it.
+  const dock = document.querySelector<HTMLElement>(".chat-dock");
+  const chatPad = dock ? (dock.offsetHeight * dpr) / scale : 0;
   const camY =
-    Math.round(clampCam((focus.y + 0.5) * TILE, viewH, map.y0 * TILE, map.height * TILE) * scale) / scale;
+    Math.round(clampCam((focus.y + 0.5) * TILE, viewH, map.y0 * TILE, map.height * TILE + chatPad) * scale) /
+    scale;
   Object.assign(camera, { x: camX, y: camY, scale, dpr });
 
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.fillStyle = typedSwitch(map.id, {
     town: () => C.leafInk,
+    basement: () => "#100e1e",
     dungeon: () => "#110f16",
-    ...typedSwitchGroup(map.id, ["hq", "inn", "office"], () => "#1b1f2a"),
+    ...typedSwitchGroup(map.id, ["hq", "inn", "upstairs", "office"], () => "#1b1f2a"),
   });
   g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = false;
@@ -217,7 +227,9 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       },
     });
     const [sx, sy] = toScreen(cx, top);
-    const text = company ? `🏢 ${company.name} · ${compact(company.todayTokens)} today` : "🛏 The Inn";
+    const text = company
+      ? `🏢 ${company.name} · ${compact(company.todayTokens)} today`
+      : `🛏 The ${TAVERN ? "Tavern" : "Inn"}`;
     labels.push(() => {
       const y = sy - 6 * dpr;
       const { w, h } = sign(g, sx, y, text, dpr, company !== null, (BLOCK_W - 0.5) * TILE * scale);
@@ -250,6 +262,8 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   drawStreet(f);
   drawPicnic(f);
   drawChalkboards(f);
+  drawTavern(f);
+  drawBasement(f);
   drawMerchant(f);
   drawRaid(f);
   drawLoot(f);
@@ -327,6 +341,9 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
 
   items.sort((a, b) => a.y - b.y);
   for (const i of items) i.draw();
+  // The Tavern's fire and candles (and the dark, after sunset): `inn` only.
+  lightTavern(f);
+  lightBasement(f);
 
   // The sky: the sun's tint over the town, lights shining through it, then the weather. Labels
   // (and the HTML HUD) come after, so they stay readable.
@@ -373,12 +390,19 @@ function drawAvatar(
   lap: Lap | null,
 ): void {
   const look = a.info.look;
-  // Coffee: a random nudge every frame, a pixel per cup still in their system.
-  const shake = Math.min(4, cupsLeft(a.info.coffeeUntil, Date.now()));
+  // Coffee: a random nudge every frame, a pixel per cup still in their system. The Tavern's special
+  // (15 minutes) is a buzz like one and a half cups, or a warm glow behind you.
+  const until = a.info.specialUntil ?? 0;
+  const special = hasSpecial(until, Date.now()) ? specialBuff(until) : null;
+  const shake = Math.min(
+    4,
+    Math.max(cupsLeft(a.info.coffeeUntil, Date.now()), special === "jitter" ? 1.5 : 0),
+  );
   if (shake > 0) {
     px += Math.round((Math.random() * 2 - 1) * shake);
     py += Math.round((Math.random() * 2 - 1) * shake * 0.5);
   }
+  if (special === "glow") drawGlow(g, px + 8, py + 8, 17, "255,222,120", 0.55 + 0.15 * Math.sin(now / 320));
   if (a.warp) {
     const t = Math.min(1, (now - a.warp.at) / WARP_MS);
     g.globalAlpha = a.warp.out ? 1 - t : t;

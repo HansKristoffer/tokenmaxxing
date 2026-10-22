@@ -13,6 +13,7 @@ import { type Door, doorAt, HQS, type Piece, pieceOf, withPieces } from "./offic
 import { cleanPetName, MAX_PET_LOOKS, petLooks } from "./pets.ts";
 import { itemById } from "./shop.ts";
 import type { Weather } from "./sky.ts";
+import { TAVERN } from "./tavern.ts";
 import { WARDROBE_OPTIONS } from "./wardrobe.ts";
 
 export const TILE = 16;
@@ -28,13 +29,16 @@ export const IDLE_MS = 3 * 60_000;
 /** Offline and agents active this recently → working at a desk. */
 export const WORKING_MS = 10 * 60_000;
 export const CHAT_MAX_LENGTH = 280;
+/** A bio on the player card: one line. */
+export const BIO_MAX_LENGTH = 120;
 export const CHAT_HISTORY = 50;
 export const COMPANY_CAP = 50;
 
 export type Facing = "up" | "down" | "left" | "right";
 /** `playing`: at a game table in town, until the match ends (see core/src/games/gather.ts). */
 export type PlayerState = "idle" | "sit" | "away" | "working" | "playing";
-export type RoomId = "town" | "inn" | "dungeon" | `hq:${number}` | `office:${number}`;
+export type RoomId =
+  "town" | "inn" | "upstairs" | "basement" | "dungeon" | `hq:${number}` | `office:${number}`;
 
 export const DIRS: Record<Facing, [number, number]> = {
   up: [0, -1],
@@ -231,6 +235,8 @@ export interface PlayerInfo {
   coffeeUntil: number;
   /** When their pølse wears off (epoch ms); see `POLSE` in `street.ts`. */
   polseUntil: number;
+  /** When the Tavern's special wears off (epoch ms); see `SPECIAL`. Absent from older servers: 0. */
+  specialUntil?: number;
   /** Online but no input for `IDLE_MS`: snoozing in place. */
   dozing: boolean;
 }
@@ -261,7 +267,7 @@ export const RAIDERS_SHOWN = 40;
 /** A line from `town` for one player (`notice`), and the panel a click on it opens. */
 export interface Notice {
   text: string;
-  open?: "company" | "trades" | "bag";
+  open?: "company" | "trades" | "bag" | "quests" | "hallOfFame" | "collection" | "tournament";
 }
 
 /** Where someone is: `[id, x, y, facing, state]`. */
@@ -476,9 +482,12 @@ export interface Place {
 
 export const townSpawn = (): Place => ({ room: "town", x: TOWN_SPAWN[0], y: TOWN_SPAWN[1], facing: "down" });
 
-/** Just inside a room's exit, facing in. */
-export function roomEntry(room: RoomId): Place {
-  const [x, y] = mapOf(room).find("x")[0]!;
+/** Where everyone without a company sleeps: upstairs at the Tavern, or in the Inn's own beds without one. */
+export const DORM: RoomId = TAVERN ? "upstairs" : "inn";
+
+/** Just inside a room's exit (`x`, or another portal char: the Tavern's stairs `S`), facing in. */
+export function roomEntry(room: RoomId, ch = "x"): Place {
+  const [x, y] = mapOf(room).find(ch)[0]!;
   return { room, x, y: y - 1, facing: "up" };
 }
 
@@ -521,14 +530,22 @@ export function portal(
     if (holder.id !== companyId) return { notice: `🔒 ${holder.name}'s house. Members only.` };
     return roomEntry(`hq:${holder.id}`);
   }
-  if (room === "inn" || room === "dungeon") return outsideDoor(room);
+  if (room === "inn")
+    return door.ch === "S"
+      ? roomEntry("basement")
+      : door.ch === "u"
+        ? roomEntry("upstairs")
+        : outsideDoor("inn");
+  if (room === "basement") return roomEntry("inn", "S");
+  if (room === "upstairs") return roomEntry("inn", "u");
+  if (room === "dungeon") return outsideDoor("dungeon");
   const plot = [...plots].find(([, c]) => c.id === companyOfRoom(room))?.[0];
   return plot === undefined ? townSpawn() : outsideDoor(plot);
 }
 
-/** The room a player rests in: their company's house, or the Inn without one. */
+/** The room a player rests in: their company's house, or upstairs at the Tavern without one. */
 export function homeRoom(companyId: number | null): RoomId {
-  return companyId !== null ? `hq:${companyId}` : "inn";
+  return companyId !== null ? `hq:${companyId}` : DORM;
 }
 
 /**

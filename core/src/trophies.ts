@@ -12,6 +12,8 @@ export interface HourFacts {
   hour: number;
   tokens: number;
   prompts: number;
+  /** The tools (`events.source`) that had tokens in it. */
+  sources?: readonly string[];
 }
 
 /** A PR they opened: when, and its message id (the sha256 of its URL, from the GitHub source). */
@@ -47,6 +49,7 @@ interface DayFacts {
   day: string;
   tokens: number;
   hours: Set<number>;
+  sources: Set<string>;
 }
 
 /** What the checks read: hours and PRs placed on the world clock, and per-day totals, oldest first. */
@@ -72,9 +75,10 @@ function factsOf(f: TrophyFacts): Facts {
   const days = new Map<string, DayFacts>();
   for (const h of hours) {
     if (h.tokens === 0) continue;
-    const d = days.get(h.day) ?? { day: h.day, tokens: 0, hours: new Set() };
+    const d = days.get(h.day) ?? { day: h.day, tokens: 0, hours: new Set(), sources: new Set() };
     d.tokens += h.tokens;
     d.hours.add(h.clock);
+    for (const s of h.sources ?? []) d.sources.add(s);
     days.set(h.day, d);
   }
   const all = [...days.values()];
@@ -107,6 +111,17 @@ function streakDay(days: readonly DayFacts[], n: number): string | null {
     run = prev && addDays(prev, 1) === day ? run + 1 : 1;
     prev = day;
     if (run >= n) return day;
+  }
+  return null;
+}
+
+/** The Sunday that ended the first Monday-to-Sunday week with tokens on all seven days. */
+function perfectWeek(days: readonly DayFacts[]): string | null {
+  const have = new Set(days.map((d) => d.day));
+  for (const { day } of days) {
+    // Noon UTC is the same date everywhere, so its weekday is the day's.
+    if (new Date(`${day}T12:00:00Z`).getUTCDay() !== 1) continue;
+    if ([1, 2, 3, 4, 5, 6].every((i) => have.has(addDays(day, i)))) return addDays(day, 6);
   }
   return null;
 }
@@ -238,6 +253,18 @@ export const TROPHIES: readonly TrophyDef[] = [
     name: "Prompt Storm",
     how: "Send 60 prompts in one hour",
     earned: (f) => first(f.hours, (h) => h.prompts >= 60),
+  },
+  {
+    id: "switch",
+    name: "Switch-Hitter",
+    how: "Use three different tools in one day",
+    earned: (f) => first(f.days, (d) => d.sources.size >= 3),
+  },
+  {
+    id: "perfectweek",
+    name: "Perfect Week",
+    how: "Tokens on all seven days, Monday to Sunday",
+    earned: (f) => perfectWeek(f.days),
   },
 ];
 

@@ -1,5 +1,9 @@
 import type { Sql } from "../actors/shared.ts";
+import { migrateAwards } from "./awards.ts";
+import { migrateCard } from "./card.ts";
 import { migrateMerchant } from "./merchant.ts";
+import { migrateQuests } from "./quests.ts";
+import { migrateTournament } from "./tournament.ts";
 
 /** Every table `town` keeps. Also run by tests against an in-memory database. */
 export async function migrate(sql: Sql): Promise<void> {
@@ -115,6 +119,10 @@ export async function migrate(sql: Sql): Promise<void> {
   // anyway, so the next sign-up taking its id would fail on it. Ids come after these too.
   await sql.execute("CREATE TABLE IF NOT EXISTS lost_signups (id INTEGER PRIMARY KEY, at INTEGER NOT NULL)");
   await migrateMerchant(sql);
+  await migrateAwards(sql);
+  await migrateQuests(sql);
+  await migrateCard(sql);
+  await migrateTournament(sql);
   // The raid's settings, once. `start`: the first raid's Monday, the one after the town first had the
   // raid (`raidStart`). Kept rather than worked out, so a restart or deploy doesn't move the launch.
   await sql.execute("CREATE TABLE IF NOT EXISTS raid_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");

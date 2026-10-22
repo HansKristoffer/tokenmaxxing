@@ -101,6 +101,8 @@ const ChatLines = memo(function ChatLines({
   myName: string | undefined;
 }) {
   const list = useRef<HTMLOListElement>(null);
+  // The tournament champion's title: a crown by their name until the next tournament has a winner.
+  const champ = useHud((s) => s.tournament?.champion?.userId);
   // Keep the newest line in view as lines arrive.
   useEffect(() => {
     if (chat.length) list.current?.scrollTo(0, list.current.scrollHeight);
@@ -120,6 +122,7 @@ const ChatLines = memo(function ChatLines({
               className={`author${l.userId === myId ? " me" : ""}`}
               onClick={() => hud.set({ panel: { kind: "card", userId: l.userId } })}
             >
+              {l.userId === champ && <span title="Tournament champion">👑 </span>}
               {l.name}
             </button>
           )}

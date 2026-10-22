@@ -1,6 +1,7 @@
 import { type GameMap, setTown } from "@tokenmaxxing/core/maps.ts";
 import { type Door, setHq } from "@tokenmaxxing/core/office.ts";
 import { stepPace } from "@tokenmaxxing/core/street.ts";
+import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
   type ChatLine,
   type CompanyInfo,
@@ -172,7 +173,9 @@ export function setCompanies(list: CompanyInfo[]): void {
 
 export function roomName(room: RoomId): string {
   if (room === "town") return "Town square";
-  if (room === "inn") return "The Inn";
+  if (room === "inn") return TAVERN ? "The Tavern" : "The Inn";
+  if (room === "upstairs") return "Upstairs";
+  if (room === "basement") return "The Basement";
   if (room === "dungeon") return "Raid Dungeon";
   if (ownerOfOffice(room) !== null)
     return room === world.room && world.owner ? `${world.owner.name}'s office` : "An office";

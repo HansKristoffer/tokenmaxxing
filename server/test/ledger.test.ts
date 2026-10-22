@@ -320,13 +320,12 @@ describe("daily quests", () => {
     expect(await balance(4)).toBe(0);
   });
 
-  test("today's are done once the day's rollups pass", async () => {
+  test("before the new rules begin, today pays the old ones and lists none (see quests.test.ts)", async () => {
     await signUpOn(4, "2026-09-29");
-    expect((await wallet(sql, 4, NOW)).quests.map((q) => q.done)).toEqual([false, false]);
+    expect((await wallet(sql, 4, NOW)).quests).toEqual([]);
     await earn(4, "2026-09-29", 500e6);
     await peak(4, "2026-09-29", 5);
     const w = await wallet(sql, 4, NOW);
-    expect(w.quests.filter((q) => q.done).map((q) => q.id)).toEqual(["parallel"]);
     expect(w.balance).toBe(22 + 5); // √500, and no podium for a day that isn't over
     expect(w.today).toBe(22 + 5);
   });

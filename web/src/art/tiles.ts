@@ -1,12 +1,26 @@
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { typedSwitch, typedSwitchGroup } from "hanzio";
+import { stairs } from "./basement.ts";
 import { C } from "./palette.ts";
 import { bake, hash, Pen } from "./pixels.ts";
 
 /** What a tile's ground is made of. Objects stand on whatever their neighbours are. */
 type Ground =
-  "grass" | "path" | "plaza" | "flowers" | "water" | "floor" | "rug" | "wall" | "exit" | "stone" | "dais";
+  | "grass"
+  | "path"
+  | "plaza"
+  | "flowers"
+  | "water"
+  | "floor"
+  | "rug"
+  | "wall"
+  | "exit"
+  | "stairs"
+  | "stairsUp"
+  | "stone"
+  | "dais"
+  | "stage";
 
 const GROUND: Record<string, Ground> = {
   ".": "grass",
@@ -18,9 +32,12 @@ const GROUND: Record<string, Ground> = {
   "=": "rug",
   W: "wall",
   x: "exit",
+  S: "stairs",
+  u: "stairsUp",
   R: "exit",
   q: "stone",
   Z: "dais",
+  e: "stage",
 };
 
 /** The dungeon's stone: darker than the square's, and lit by its torches. */
@@ -52,14 +69,15 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
     [-1, 1],
   ] as const) {
     const g = GROUND[map.at(x + dx, y + dy)];
-    if (g && g !== "wall" && g !== "water" && g !== "exit") counts.set(g, (counts.get(g) ?? 0) + 1);
+    if (g && g !== "wall" && g !== "water" && g !== "exit" && g !== "stairs" && g !== "stairsUp")
+      counts.set(g, (counts.get(g) ?? 0) + 1);
   }
   const best = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
   if (best) return best;
   return typedSwitch(map.id, {
     town: () => "grass",
     dungeon: () => "stone",
-    ...typedSwitchGroup(map.id, ["hq", "inn", "office"], (): Ground => "floor"),
+    ...typedSwitchGroup(map.id, ["hq", "inn", "upstairs", "basement", "office"], (): Ground => "floor"),
   });
 }
 
@@ -187,6 +205,21 @@ function rug(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number)
   }
 }
 
+/** The Tavern's stage: raised boards, darker than the floor, with a lit lip along its front. */
+function stage(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
+  const off = (dx: number, dy: number) => map.at(x + dx, y + dy) !== "e";
+  p.rect(ox, oy, TILE, TILE, C.woodDark);
+  for (let i = 0; i < TILE; i += 4) p.rect(ox + i + 3, oy, 1, TILE, C.trunkDark);
+  for (let j = 0; j < TILE; j += 8) p.px(ox + ((x * 5 + j) % 14), oy + j + 2, C.wood);
+  if (off(0, -1)) p.rect(ox, oy, TILE, 1, C.wood);
+  if (off(0, 1)) {
+    p.rect(ox, oy + TILE - 3, TILE, 3, C.trunkDark);
+    p.rect(ox, oy + TILE - 3, TILE, 1, C.woodLight);
+  }
+  if (off(-1, 0)) p.rect(ox, oy, 1, TILE, C.trunkDark);
+  if (off(1, 0)) p.rect(ox + TILE - 1, oy, 1, TILE, C.trunkDark);
+}
+
 function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
   const dark = map.id === "dungeon";
   const top = dark ? DUNGEON.wallTop : C.wallTop;
@@ -215,12 +248,23 @@ function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
 }
 
 function exit(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
+  // The basement's way out is the stairs up, not a doormat; upstairs it is the stairs down.
+  if (map.id === "basement" || map.id === "upstairs") {
+    stairTile(p, ox, oy, x, y, map.id === "upstairs");
+    return;
+  }
   if (map.id === "dungeon") stone(p, ox, oy, x, y);
   else floor(p, ox, oy, x, y);
   p.rect(ox, oy, 2, TILE, C.woodDark);
   p.rect(ox + TILE - 2, oy, 2, TILE, C.woodDark);
   p.rect(ox + 3, oy + 4, TILE - 6, 8, C.rugLight);
   p.rect(ox + 4, oy + 5, TILE - 8, 6, C.rug);
+}
+
+/** Stairs (`S` down and `u` up in the Tavern, the basement's `x` up and upstairs' down): floor under the steps' landing. */
+function stairTile(p: Pen, ox: number, oy: number, x: number, y: number, down: boolean): void {
+  floor(p, ox, oy, x, y);
+  p.g.drawImage(stairs(down), ox, oy);
 }
 
 /** One tile's ground, in its place on a canvas of the whole map. */
@@ -238,7 +282,10 @@ function paintTile(p: Pen, map: GameMap, x: number, y: number): void {
     wall: () => wall(p, map, ox, oy, x, y),
     exit: () => exit(p, map, ox, oy, x, y),
     stone: () => stone(p, ox, oy, x, y),
+    stairs: () => stairTile(p, ox, oy, x, y, true),
+    stairsUp: () => stairTile(p, ox, oy, x, y, false),
     dais: () => dais(p, map, ox, oy, x, y),
+    stage: () => stage(p, map, ox, oy, x, y),
   });
 }
 

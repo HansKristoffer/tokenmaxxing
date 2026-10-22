@@ -9,6 +9,7 @@ import {
 } from "@tokenmaxxing/core/sky.ts";
 import { hash } from "../art/pixels.ts";
 import { hud } from "../store.ts";
+import { bakeGlow } from "./glow.ts";
 
 /**
  * Sky and weather on the canvas. The town (and only the town) is tinted by the sun over Copenhagen,
@@ -86,19 +87,6 @@ function glowOf(l: Light, w: Weather): number {
 
 // MARK: Baked bits
 
-function bakeGlow(size: number, rgb: string): HTMLCanvasElement {
-  const c = document.createElement("canvas");
-  c.width = c.height = size;
-  const g = c.getContext("2d")!;
-  const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  grad.addColorStop(0, `rgba(${rgb},1)`);
-  grad.addColorStop(0.35, `rgba(${rgb},0.4)`);
-  grad.addColorStop(1, `rgba(${rgb},0)`);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, size, size);
-  return c;
-}
-
 let glow: HTMLCanvasElement | undefined;
 let blob: HTMLCanvasElement | undefined;
 const moons = new Map<number, HTMLCanvasElement>();
@@ -151,6 +139,12 @@ export function drawLight(g: CanvasRenderingContext2D, w: number, h: number, now
   }
   return glowOf(l, weather);
 }
+
+/** 0 in daylight to 1 in the dead of night: for indoor scenes that darken with the sky (the Tavern). */
+export const darknessNow = (now: number): number => currentLight(now).darkness;
+
+/** 0 to 1: how low and orange the sun is (dusk and dawn), for the Tavern's evening. */
+export const warmthNow = (now: number): number => currentLight(now).warmth;
 
 /** How brightly lights shine right now: what `drawLight` returns, for knowing it before the sky is drawn. */
 export const lightsNow = (now: number): number => glowOf(currentLight(now), weatherNow());

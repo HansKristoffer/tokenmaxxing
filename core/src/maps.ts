@@ -5,7 +5,9 @@
  */
 import { sortBy } from "hanzio";
 
-export type MapId = "town" | "hq" | "inn" | "office" | "dungeon";
+import { TAVERN } from "./tavern.ts";
+
+export type MapId = "town" | "hq" | "inn" | "upstairs" | "basement" | "office" | "dungeon";
 type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 interface TileKind {
@@ -19,6 +21,8 @@ interface TileKind {
   text?: string;
   /** E while facing it pours you a coffee (`drink`). */
   pours?: true;
+  /** E while facing it serves the day's special (`tavern`, the Tavern's tap). */
+  serves?: true;
 }
 
 export const LEGEND: Record<string, TileKind> = {
@@ -34,7 +38,7 @@ export const LEGEND: Record<string, TileKind> = {
   L: { name: "lamp", text: "The lamp hums quietly. It's always on, like a good server." },
   F: { name: "fountain", text: "A fountain. People toss spare tokens in for luck." },
   N: { name: "board", text: "The leaderboard." },
-  // The Inn's chalkboard: the client writes today's special on it.
+  // The chalkboards (outside the Tavern, and inside it): the client writes today's special on them.
   K: { name: "chalkboard" },
   B: { name: "bench", seat: "bench", text: "A bench with a view of the square." },
   H: { name: "building" },
@@ -52,8 +56,33 @@ export const LEGEND: Record<string, TileKind> = {
     text: "🌱 Touched grass. A patch from an outage picnic: the agents stopped, and you went outside.",
   },
   o: { name: "coffee", pours: true },
+  // The Tavern (`inn`): E on the bar or quest board opens the quests, on the wall the Hall of Fame, on a
+  // plaque the regulars; the tap serves the day's special.
+  a: { name: "bar", text: "A long oak bar, polished by years of elbows." },
+  y: { name: "beer tap", serves: true },
+  v: { name: "stool", seat: "chair", text: "A bar stool. Round, red and a little wobbly." },
+  n: { name: "table", text: 'A sturdy table. Someone carved "TODO" into it.' },
+  f: { name: "hearth", text: "A crackling fire. The logs are all deprecated APIs." },
+  e: { name: "stage", walk: true },
+  h: { name: "barrel", text: "A barrel. Cold brew, they say." },
+  m: { name: "quest board", text: "The quest board." },
+  A: { name: "hall of fame", text: "The Hall of Fame." },
+  P: { name: "plaque", text: "The regulars' plaque." },
+  // The bar tab: a run of wall tiles; the client chalks the week's top five by time on it (`regulars.ts`).
+  J: { name: "bar tab", text: "The bar tab. Who has spent the most time here this week." },
+  z: { name: "jukebox", text: "A jukebox. It hums, waiting for a coin it never asks for." },
   Q: { name: "pet bed", text: "A round cushion basket. Your pet curls up here when you're in your office." },
   I: { name: "inn door", portal: true },
+  // The basement net cafe under the Tavern: stairs down in the Tavern's bottom wall, five cabinets (one per
+  // game), the livestream screen, and two wall terminals (the leaderboard, the raid).
+  S: { name: "stairs down", portal: true },
+  // The Tavern's way up to the rooms, where everyone without a company sleeps.
+  u: { name: "stairs up", portal: true },
+  C: { name: "cabinet", text: "INSERT TOKEN." },
+  E: { name: "big screen", text: "The livestream. Every match in town, live." },
+  M: { name: "wall terminal", text: "A wall terminal." },
+  // The tournament board (`tournament.ts`); E opens it. The basement is the Tavern's, so `TAVERN` gates it.
+  ...(TAVERN ? { i: { name: "tournament board", text: "The tournament board." } } : {}),
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
   R: { name: "office door", portal: true },
@@ -381,17 +410,70 @@ export const MAPS: Record<MapId, GameMap> = {
     "Wp__________________pW",
     "WWWWWWWWWWWxWWWWWWWWWW",
   ]),
-  inn: new GameMap("inn", "The Inn", [
-    "WWWWWWWWWWWWWWWW",
-    "WWWWWWWWWWWWWWWW",
-    "W_b_b_b_b__okkpW",
-    "W______________W",
-    "W______________W",
-    "W_b_b_b_b_dddd_W",
-    "W_________cccc_W",
-    "W______________W",
-    "Wp____________pW",
-    "WWWWWWWxWWWWWWWW",
+  // The Inn is the Tavern: a bar with a sealed cell for the barkeep (its floor is a rug, not `_`, so
+  // `restSpot` never beds anyone behind the bar), boards on the north wall, a row of tables by the north wall, a stage, tables,
+  // and a hearth with the regulars' plaques. One exit, so `roomEntry` still finds it.
+  inn: TAVERN
+    ? new GameMap("inn", "The Tavern", [
+        "WWWWWWWWWWWWWWWWWWWWWWWW",
+        "WWWWWWWWWWWWWWWWWWWWWWWW",
+        "WJJJJkkkkmmKAAAAn_n_n__W",
+        "W========k______c_c_c_oW",
+        "Waaayaaaa______________W",
+        "W__v_v_v______eeeeee___W",
+        "W_____________eeeeee___W",
+        "W__nn___nn_____________W",
+        "z__cc___cc_____________W",
+        "W______________PffP____W",
+        "W_____________======___W",
+        "W_____________=ssss=___W",
+        "Wph__________________hpW",
+        "WWWSWWWuWWWxWWWWWWWWWWWW",
+      ])
+    : new GameMap("inn", "The Inn", [
+        "WWWWWWWWWWWWWWWW",
+        "WWWWWWWWWWWWWWWW",
+        "W_b_b_b_b__okkpW",
+        "W______________W",
+        "W______________W",
+        "W_b_b_b_b_dddd_W",
+        "W_________cccc_W",
+        "W______________W",
+        "Wp____________pW",
+        "WWWWWWWxWWWWWWWW",
+      ]),
+  // Upstairs at the Tavern: the beds of everyone without a company (`homeRoom`), who show as a head count
+  // asleep. One exit, the stairs down.
+  upstairs: new GameMap("upstairs", "Upstairs", [
+    "WWWWWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWWWWW",
+    "Wb_b_b_b_b_b_b_b_bpW",
+    "W__________________W",
+    "W__==============__W",
+    "W__________________W",
+    "Wb_b_b_b_b_b_b_b_b_W",
+    "W__________________W",
+    "Wp_______________p_W",
+    "WWWWWWWWWWxWWWWWWWWW",
+  ]),
+  // The net cafe under the Tavern: racks, the livestream screen and two wall terminals on the back wall,
+  // five cabinets (one per game, in `CABINET_GAMES` order), PC pairs, a foosball table and a sofa. Its one
+  // exit is the stairs up.
+  basement: new GameMap("basement", "The Basement", [
+    "WWWWWWWWWWWWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWWWWWWWW",
+    "WηηηηηηEEEEEEMMiδδ__pW",
+    "W____________________W",
+    "W_CCCCC____________Π_W",
+    "W____________________W",
+    "W_φφ____ζζ_ζζ_ζζ_ζζ__W",
+    "W_______cc_cc_cc_cc__W",
+    "W____________________W",
+    "W____________________W",
+    "W_ζζ_ζζ_ζζ_ζζ_ζζ_ζζ__W",
+    "W_cc_cc_cc_cc_cc_cc__W",
+    "W_ssss_____________p_W",
+    "WWWWWWWWWWxWWWWWWWWWWW",
   ]),
   // Everyone's office, before what they dropped in it (`mapOf`). ponytail: one template, with a pet bed in the bottom right corner
   // (`Q`, a prop like a plant: nothing can be dropped on it); bigger

@@ -284,9 +284,20 @@ function YourTable({ table }: { table: TableView }) {
 }
 
 /** Opening a table: the game, seats, stake, split, open or invite only, and who to invite. */
-export function NewTable({ invite, inviteName }: { invite?: number; inviteName?: string }) {
+export function NewTable({
+  invite,
+  inviteName,
+  game: preferred,
+}: {
+  invite?: number;
+  inviteName?: string;
+  /** A basement cabinet's game: picked to start with, and its open tables listed first. */
+  game?: GameId;
+}) {
   const wallet = useHud((s) => s.wallet);
-  const [game, setGame] = useState<GameId>("spr");
+  const lobby = useHud((s) => s.lobby);
+  const me = useHud((s) => s.me?.userId);
+  const [game, setGame] = useState<GameId>(preferred ?? "spr");
   const def = GAMES[game]!;
   const [seats, setSeats] = useState(def.players.max);
   const [wanted, setStake] = useState(10);
@@ -319,12 +330,40 @@ export function NewTable({ invite, inviteName }: { invite?: number; inviteName?:
     hud.set({ panel: { kind: "arcade" } });
   });
 
+  const joinable = preferred
+    ? (lobby?.tables ?? []).filter(
+        (t) => t.open && t.game === preferred && !t.seated.some((p) => p.userId === me),
+      )
+    : [];
+
   return (
     <Modal
       title={inviteName ? `🎮 Invite ${inviteName} to a game` : "🎮 Open a table"}
       wide
       beside={<Chat />}
     >
+      {joinable.length > 0 && (
+        <>
+          <h3>Waiting for players</h3>
+          <ul className="tables">
+            {joinable.map((t) => (
+              <TableRow key={t.id} table={t}>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={run(async () => {
+                    await arcade.join(t.id);
+                    hud.set({ panel: { kind: "arcade" } });
+                  })}
+                >
+                  Join · 🪙 {t.stake}
+                </button>
+              </TableRow>
+            ))}
+          </ul>
+          <h3>Or open your own</h3>
+        </>
+      )}
       <ul className="game-picker">
         {Object.values(GAMES).map((g) => (
           <li key={g.id}>

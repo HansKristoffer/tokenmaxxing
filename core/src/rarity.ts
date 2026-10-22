@@ -16,6 +16,14 @@ export const RARITY_COLOR: Record<Rarity, string> = {
   legendary: "#ffb347",
 };
 
+/** Badge tier frames (`badges.ts`): bronze, silver, gold and diamond. */
+export const TIER_COLOR = {
+  bronze: "#c98a4b",
+  silver: "#d5dbe4",
+  gold: "#ffd75e",
+  diamond: "#7fe8ff",
+} as const;
+
 /** What a price says about how rare a thing is; the head pack's prices keep to these bands. */
 export const rarityForPrice = (price: number): Rarity =>
   price >= 1500

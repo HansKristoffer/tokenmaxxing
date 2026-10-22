@@ -2,8 +2,9 @@ import { isBot } from "@tokenmaxxing/core/bots.ts";
 import { compact, levelTitle, plural } from "@tokenmaxxing/core/format.ts";
 import { milestonesBetween } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
+import type { Wallet } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { town } from "../net.ts";
 import { chatBeside, hud, useHud } from "../store.ts";
@@ -12,9 +13,12 @@ import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
 import { Bag } from "./Bag.tsx";
 import { Chat } from "./Chat.tsx";
+import { Collection } from "./Collection.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
+import { HallOfFame } from "./HallOfFame.tsx";
+import { Jukebox } from "./Jukebox.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LookPicker } from "./LookPicker.tsx";
 import { LootToast } from "./Loot.tsx";
@@ -28,9 +32,12 @@ import { PaperPanel } from "./Paper.tsx";
 import { PetLooks } from "./PetLooks.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
+import { Quests } from "./Quests.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
+import { Regulars } from "./Regulars.tsx";
 import { Shop } from "./Shop.tsx";
 import { Sky } from "./Sky.tsx";
+import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
 import { Modal, ToastButton, useFresh, useRun } from "./ui.tsx";
@@ -113,6 +120,31 @@ function Hints() {
   );
 }
 
+/** Three pips beside the coins, one per daily quest: filled as it goes, solid when done. A click opens the board. */
+function QuestTracker({ quests }: { quests: Wallet["quests"] }) {
+  const done = quests.filter((q) => q.done).length;
+  return (
+    <button
+      type="button"
+      className="chip"
+      title={quests.map((q) => `${q.done ? "✓" : "·"} ${q.text} (${q.value}/${q.target})`).join("\n")}
+      aria-label={`Quests: ${done} of ${quests.length} done`}
+      onClick={() => hud.set({ panel: { kind: "quests" } })}
+    >
+      🧾
+      <span className="quest-pips" aria-hidden>
+        {quests.map((q) => (
+          <span
+            key={q.id}
+            className={`quest-pip${q.done ? " done" : ""}`}
+            style={{ "--fill": `${Math.min(100, (q.value / q.target) * 100)}%` } as CSSProperties}
+          />
+        ))}
+      </span>
+    </button>
+  );
+}
+
 function Stats() {
   const stats = useHud((s) => s.stats);
   const wallet = useHud((s) => s.wallet);
@@ -143,6 +175,7 @@ function Stats() {
           🪙 <strong>{wallet.balance.toLocaleString()}</strong>
         </button>
       )}
+      {wallet && wallet.quests.length > 0 && <QuestTracker quests={wallet.quests} />}
       <button
         type="button"
         className="icon"
@@ -225,10 +258,16 @@ function Panel() {
     bag: () => <Bag />,
     petLooks: (p) => <PetLooks pet={p.pet} />,
     arcade: () => <ArcadePanel />,
-    newTable: (p) => <NewTable invite={p.invite} inviteName={p.inviteName} />,
+    newTable: (p) => <NewTable invite={p.invite} inviteName={p.inviteName} game={p.game} />,
     match: (p) => <MatchPanel id={p.id} />,
     trade: (p) => <TradePanel userId={p.userId} />,
     trades: () => <TradesPanel />,
+    quests: () => <Quests />,
+    tournament: () => <Tournament />,
+    hallOfFame: () => <HallOfFame />,
+    collection: () => <Collection />,
+    regulars: () => <Regulars />,
+    jukebox: () => <Jukebox />,
     paper: () => <PaperPanel />,
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
     raid: () => <RaidPanel />,
@@ -300,7 +339,15 @@ function FirstVisit() {
   return null;
 }
 
-const NOTICE_ICONS = { company: "🏢", trades: "🔁", bag: "🎒" } as const;
+const NOTICE_ICONS = {
+  company: "🏢",
+  trades: "🔁",
+  bag: "🎒",
+  quests: "🧾",
+  hallOfFame: "🏆",
+  tournament: "🏆",
+  collection: "📖",
+} as const;
 
 /** A line for me from the server (a company application, a trade); a click opens what it's about. */
 function NoticeToast() {
@@ -380,7 +427,7 @@ function QuestToast() {
   }, [quests]);
   if (!useFresh(fresh?.at, MENTION_MS) || !fresh) return null;
   return (
-    <ToastButton open={{ kind: "shop" }} dismiss={() => setFresh(null)}>
+    <ToastButton open={{ kind: "quests" }} dismiss={() => setFresh(null)}>
       {fresh.quests.map((q) => `✓ ${q.text} · 🪙 ${q.coins}`).join("  ")}
     </ToastButton>
   );

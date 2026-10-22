@@ -1,5 +1,6 @@
 /** Every game there is. The lobby, the server and the client all read this list. */
 import { isOneOf, isRecord } from "hanzio";
+import type { GameStatus } from "../world.ts";
 import { dice } from "./dice.ts";
 import { hype } from "./hype.ts";
 import { spr } from "./spr.ts";
@@ -22,4 +23,25 @@ export function parseOptions(game: GameDef, raw: unknown): Options {
     out[key] = isOneOf(allowed, value) ? value : allowed[0]!;
   }
   return out;
+}
+
+/**
+ * What a match tells the world about itself: only the public headline, board, per-player status and
+ * watcher count. Nothing from `view` or the state goes on this wire, because the basement's big screen
+ * (and everyone in the square) shows it to people who aren't playing.
+ */
+export function publicStatus(
+  def: GameDef,
+  state: unknown,
+  players: readonly number[],
+  watchers: number,
+  now: number,
+): GameStatus {
+  return {
+    status: Object.fromEntries(players.map((p) => [p, def.status?.(state, p, now) ?? null])),
+    board: def.board?.(state, now) ?? null,
+    watchers,
+    headline: def.headline?.(state, now) ?? null,
+    endsAt: def.endsAt?.(state) ?? null,
+  };
 }

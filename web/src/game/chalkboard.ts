@@ -1,9 +1,9 @@
+import { buffOf, copenhagenDay, SPECIAL, specialOn } from "@tokenmaxxing/core/tavern.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { C } from "../art/palette.ts";
 import { bake, cached, hash } from "../art/pixels.ts";
 import type { Frame } from "./frame.ts";
 import { bubble } from "./labels.ts";
-import { copenhagenDay, specialOn } from "./specials.ts";
 import { self, world } from "./world.ts";
 
 /**
@@ -67,8 +67,12 @@ const board = cached(
 /** When you came up to the board, for the bubble to fade in; null while you're not by it. */
 let nearSince: number | null = null;
 
-/** The special's line for the dialog (E facing the board). */
-export const chalkboardText = (): string => `The Inn's chalkboard. Today's special: ${specialOn(new Date())}`;
+/** The special's line for the dialog (E facing the board): what it is, and what the tap does with it. */
+export function chalkboardText(): string {
+  const at = new Date();
+  const how = buffOf(copenhagenDay(at)) === "glow" ? "a glow" : "a buzz";
+  return `The Tavern's chalkboard. Today's special: ${specialOn(at)} Free at the tap inside: ${how} for ${SPECIAL.ms / 60_000} minutes.`;
+}
 
 /** Today in Copenhagen and its special, read once a minute (the day turns on one). */
 let today = { minute: Number.NaN, day: 0, special: "" };

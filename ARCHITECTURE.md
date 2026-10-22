@@ -21,10 +21,10 @@ The game also runs in any browser; the app's window is that same page, at `/play
 
 | Path | What |
 |---|---|
-| `core/` | Log parsers and sync, the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen) |
+| `core/` | Log parsers and sync, the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `barkeep.ts`, `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen) |
 | `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
-| `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `sync` (pushes to `world`) |
-| `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (one Open-Meteo fetch per 15 min, for the `world` actor) |
+| `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `quests`, `awards` (badge awards and their sweep), `hall` (the Hall of Fame), `card` (bios, showcase, habits, the Tavern's minutes), `sync` (pushes to `world`) |
+| `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (one Open-Meteo fetch per 15 min, for the `world` actor), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
 | `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels) |
 | `app/helper/` | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar |
 | `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, updates |
@@ -158,6 +158,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
   handed out), `loot` (raid drops handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
   `offices`, `company_ledger` (company wallets), `match_players` (one row per player per finished game),
+  `quest_days`, `quest_counts`, `badge_awards`, `bio_reports`, `showcase`, `tavern_daily`,
   `deleted_users`, `lost_signups` (ids of sign-ups whose `player` failed to start), `admin_log`.
 - Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename` (10 an hour), `setLook` (refuses items you don't hold), `me`.
 - Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
@@ -175,6 +176,9 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `declineTrade`, `withdrawTrade`. See *Coins and the shop*.
 - Offices: `setOfficeOpen` (your own, from level 10; 30 a minute, since each one sends the office and its
   building to everyone inside). What's in an office is what its owner dropped there.
+- The Tavern's: `questBoard`, `hallOfFame`, `collection`, `regulars`, and for the card `setBio`
+  and `reportBio` (5 an hour each), `setShowcase`. See *The Tavern*, *Quests*, *Badges and the Hall of Fame*
+  and *The player card*.
 - Drops: `drop` (30 a minute) takes one of a kind out of your bag (not a reward; at most 5 of yours on the
   floor at once, not counting your own office's) and asks `world.placeDrop` to put it where you are; a full
   room says so, and the row comes straight back. On the floor a row has `owner_id` NULL, with `dropped_by`
@@ -204,11 +208,14 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   stalled the world at 300 connections.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
   `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
+  `tavern` (the Tavern's tap: the day's special, sent as `specialUntil`), `toss` (a coin in the fountain),
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game), `visit`
   (someone's open office, from their card), `take` (G: the drop you're on, or a blocking piece you face; on
   an office floor, only its owner).
 - Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
   `chat`, `mention`, `drop`, `pickup`.
+- From `town`, besides `notify`: `announceTown(text, open?)` sends everyone who has joined a `notice` and puts a
+  system line in the town square's chat (badge golds and diamonds, level 30+).
 - **Drops** (`DROPS`, in memory only: `town` has every floor, and a starting world forgets its own and lays
   them again from `seed`; at most 30 a room, 40 an office): a hat or a pet lies as itself on the dropper's
   tile or the nearest free one; furniture goes on the tile they face or the nearest free one to it, as
@@ -260,8 +267,9 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Only days from the world day you signed up count, for pay and for podium places: a first sync backfills
   old logs, and those days would otherwise pay out (and win podiums nobody else was around for).
 - Balances aren't stored: they're worked out from `usage_daily` minus `purchases`, so a late sync still pays.
-- Two daily quests (`core/src/quests.ts`) pay up to 7 more a day: 5 agents at once, and 2 hours of
-  agents running. They're worked out from `activity_daily`, so nothing is stored.
+- Three daily quests and a weekly one (`core/src/quests.ts`) pay up to 6 more a day and 15 a week. They're worked out
+  from the day's rollups and the days' frozen picks, so no coin is stored; see *Quests*. Days before `LEGACY_FROM` keep the
+  old rule (5 agents at once: 5, 2 hours of agents running: 2).
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats, 5 pets and the 11 pieces of furniture
   (`furn.<ch>`), 10 to 1,500 coins. The raid's 16 loot items are in it too, never sold (see *The raid*). Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
   Pets follow their owner in the client (`game/pets.ts`: `followPet`), except in the owner's own office,
@@ -315,6 +323,172 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   tile `Q`, a prop like a plant (not walkable, so nothing can be dropped on it and it can't block a path).
   While its owner is in their own office their pet walks to it and sleeps there, for everyone in the room to
   see; it's all drawn on the client (`game/pets.ts`), the server knows nothing of it.
+
+## The Tavern
+
+The Inn is The Tavern: `MAPS.inn`, 24x14, still room id `inn` (saved positions, `homeRoom` and the sleepers' count
+all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and `outsideDoor` work as before; the
+`I` door in town is unchanged.
+
+- **`TAVERN`** (`core/src/tavern.ts`, `true`) is one switch, read by client and server alike. Off, the map is the old
+  16x10 Inn and there's no barkeep, no `tavern` action, no regulars' minutes, no game feed for the basement, and
+  quests keep their old rule (`paidFrom` becomes "never", `freezeDays` and `questEvent` do nothing). Tables and
+  columns stay. The Hall of Fame, badges and the card aren't behind it.
+- **Tiles** (`LEGEND`; E acts on the one you face, `interact` in `web/src/game/input.ts`):
+  - `m` quest board and the right of the bar `a`: the quests panel; the left of the bar, under the chalkboard: the regulars. `A` the wall: the Hall of Fame. `P` a plaque: the regulars.
+    `K` chalkboard: a dialog with today's special.
+  - `y` the tap (`serves`): the `tavern` action. `o` the coffee machine, as everywhere.
+  - `v` a stool: sits (a `chair`-kind seat). `b` the dorm's beds.
+  - `n` table, `f` hearth, `h` barrel, `k` shelf: a line of text. `e` the stage (walkable).
+  - `S` stairs down to the basement (a portal), `x` the exit.
+- **The barkeep's cell** is the rug behind the bar (`=`, not `_`: `restSpot` puts sleepers on free `_` tiles, so nobody
+  is bedded there), walled in by shelves and the bar. `tidyInn` runs when `world` wakes: anyone saved on a tile that
+  is a wall or furniture now, or can't reach the door, goes back to bed or the door, and a sitter with no seat under
+  them stands. The "💤 N asleep" count works as before.
+- **The special** (`SPECIALS`, 49 lines, the same for everyone): `specialOn(at)` walks the list by Copenhagen day with a
+  stride of 17 (`STRIDE`, coprime with the length, so every one comes round before any repeats). E at the tap
+  (`world.tavern`) sets `specialUntil = now + 15 min` (`SPECIAL.ms`) and is refused while it's running. It's
+  free and cosmetic, like coffee: no ledger row, no pace. The effect is `jitter` (the coffee
+  shake) or `glow`, alternating by the day it was served (`buffOf`, `specialBuff(until)`), so `specialUntil` is the
+  only field on the wire. The chalkboards in town and in the Tavern write the day's line.
+- **The barkeep** (`BARKEEP`, `core/src/barkeep.ts`; id -4, the cop is -3) is a bot in `BOTS` only with `TAVERN`.
+  `home` puts him on the rug on every wake and `still` keeps `walkBots` off him. His lines (`lineFor`, shared with
+  the other bots, said as bubbles and never in chat, only with someone in the room) come a third of the time from the
+  room's state: a busy room (`BUSY_CROWD`, 5 people), the weather (`world`'s current
+  one) and the day's special (`{special}`); else half the time from the hour and weekday (`moments`), else any.
+- **Evening** (`web/src/game/tavern.ts`, `inn` only; rooms get no sky of their own): the hearth fire, wall sconces
+  and a candle on every table and the tap are drawn, and after dark the room dims by the sky's darkness times 0.4
+  (`darknessNow`), the fire and candles glow through it, and `♪` drifts up from the stage once it's dark enough.
+  The regulars' plates are drawn here too.
+- **Jukebox** (`J` on the Tavern's west wall; E opens the `jukebox` panel). Free and cosmetic. `core/src/jukebox.ts`
+  holds the rules: one track at a time, 60 s between a player's own starts, skip at 2 votes or the majority of a
+  room of one or two (`skipNeeded`), votes of people who left don't count. The `world` actor keeps
+  `{track, startedAt, by, skips}` in memory (`vars.jukebox`; a restart stops the music) and sends everyone online in
+  `inn` a `jukebox` event (track, how far in, votes); the tick ends a finished or skipped track, and `join` or a
+  move into `inn` sends the current one. The six tunes are note strings in `core/src/tunes.ts`, played by
+  `web/src/game/jukebox.ts` with WebAudio (oscillators and noise, no files), looped for about a minute. Any other
+  snapshot or a closed connection stops it; mute and volume are kept in localStorage. Actions: `jukeboxPlay`,
+  `jukeboxSkip` (each returns a reason or null).
+- **The basement** (`MAPS.basement`, 22x13, room `basement`): the net cafe under the Tavern, open to everyone. `S`
+  takes you down and its one exit `x` up (`roomEntry(room, ch = "x")` and the portal branches in `core/src/world.ts`).
+  It's never a home room; idlers doze there like anywhere. Time in it counts for the plaques (`isTavernRoom`).
+  - `C`, five cabinets, one per game in `CABINET_GAMES` order: E opens a new table for that game, or the lobby if
+    you're at a table or in a match. Matches still gather in the town square.
+  - `E`, the big screen: the three oldest live matches (`feed`) with game, headline, countdown, players and
+    watchers; E or a click spectates. It draws only what `WorldGame` already tells everyone (headline, status,
+    board, watchers), never a match's state. `sendToScreens` in `world` sends `game` and `gameOver` to the town square
+    and, with `TAVERN`, the basement; callouts stay in town. A snapshot carries the live games.
+  - `M`, two wall terminals: the left opens the leaderboard, the right the raid. Their glass shows today's top three
+    as bars and the boss's HP from what the HUD has already.
+  - Light (`lightBasement`): a constant dim with glows from the screen, PCs, cabinets, rack LEDs and the neon sign.
+    On Fridays and Saturdays from 18:00 Copenhagen (`isLanParty`) the neon pulses faster and the screens go magenta.
+    Lighting only: it changes nothing else.
+  - `u`, the tournament board (`core/src/tournament.ts` rules, `server/src/town/tournament.ts`, table `tournaments`,
+    `town.tournament*`, panel `Tournament.tsx`): anyone opens one single-elimination bracket of 4 or 8 for a
+    head-to-head game (`spr`, `hype`, `dice`, `sprint`; not Tokenmaxxing), one live at a time. It starts when
+    full, or 5 minutes after opening with 4+ signed up (byes fill an 8; nothing ticks, so a due bracket starts the
+    next time anyone loads the board or signs up). Matches are played at normal tables in the town square: the
+    arcade's `settle` tells `town.tournamentResult` the two players and the winner of every 2-player match, and a
+    waiting pairing of the running bracket for that game counts (ties and void are replayed; no confirm buttons).
+    An idle bracket is called off after 2 hours. While one runs the big screen shows the round's pairings instead of
+    the feed; the last champion's name sits under the board and a crown by it in chat until the next one. Nothing
+    is paid: no coins, no edge, no reward for burn.
+
+## Quests
+
+Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/town/quests.ts`).
+- **The pool** (`POOL`, 13). Tier 1 pays 1 coin: use tokens (`warm`), send prompts, keep agents running; and four
+  in-town ones: coffee at the Tavern (counted in the `inn` room only), sit on a bench, read the morning paper, toss a
+  coin in the fountain. Tier 2, 2 coins: agents at once, ship PRs (only if their baseline has PRs), two models (only
+  if they've used two on a day), finish an arcade game. Tier 3, 3 coins: a long run of agents, a swarm.
+- **Dealing** (`dailyQuests`): seeded by the Copenhagen day (`quests:<day>`), so the same day and baseline give the
+  same three. Tier 1 is an in-town quest 30% of the time (only tier 1 has any, so at most one a day), and none of
+  yesterday's ids repeat unless nothing else is left. A day pays at most 6.
+- **Targets** scale to the player: `baselineOf` takes medians over their active days (tokens, a prompt, or an
+  agent running) in the 30 days before today, and with fewer than 3 (`MIN_BASELINE_DAYS`) the targets are the floors.
+  Each has a floor and a cap (`warm` 2M to 25M tokens, prompts 10 to 150, agents at once 2 to 6, a swarm 4 to 8, PRs
+  1 to 3, run lengths 6 to 24 buckets and 12 to 72), so a light player always gets three they can do and a heavy one
+  isn't paid more for burning more.
+- **Stored** is only the deal and the in-town counts. `quest_days (user_id, day, picks)` freezes a day's picks and
+  targets (`freezeDay`, `INSERT OR IGNORE`, so a later sync can't move them) when the board is first read and when a
+  report syncs it (`freezeDays`: each synced day from the later of `LEGACY_FROM` and sign-up, up to today), so a day nobody
+  opened in town still pays. `quest_counts (user_id, day, kind, n, last)` has coffee, bench, paper and fountain,
+  each counted once per key in a row (`last`) and at most 3 a day. `world` reports the bench and coffee
+  (`town.questEvent`, validated server-side), `town.paper` the paper, and `tossCoin` the fountain.
+- **Payout is derived** like the rest of the wallet: `questPay` works the coins out from the day's rollups, the frozen
+  picks and the counts, on every `wallet` and `balances`. Done is only ever more true, so a late sync pays. A day
+  with no frozen picks pays nothing. No ledger rows, and quest coins aren't matched into a company wallet.
+- **`LEGACY_FROM`** is the first world day on these rules; every day before it pays the old two quests
+  (`legacyQuestCoins`), so no balance moves at deploy. The value in `core/src/quests.ts` is a placeholder
+  (`2026-10-26`): set it to the deploy day, a Monday, before shipping.
+- **The weekly** (`weeklyProgress`): one of two, picked by the week's Monday: be active 5 days, or clear 8 dailies.
+  It pays 15 coins (`WEEKLY_COINS`) and is worked out from the week's days like the dailies.
+- **The fountain toss** is the one sink: `tossCoin` needs 1 coin and writes a ledger row (kind `fountain`, ref
+  `fountain:<day>:<n>`, -1), then counts. A toss costs a coin, and pays one back only on a day it's the quest.
+- **In the game:** the quests panel (E on the bar or board, `web/src/hud/Quests.tsx`), three pips by the coin counter
+  (`wallet.quests`), and the toast for a finished quest opens the panel.
+
+## Badges and the Hall of Fame
+
+- **Badges** (`core/src/badges.ts`, 19) are still worked out on read from a player's facts (`badgeFactsOf`), never
+  claimed. Each has ascending tiers; `badgeStates` gives value, the next tier and where this one began
+  (`progressOf`, the bar on the card). A frame comes from the tier and how many it has (`frameOf`): one tier is gold,
+  more run bronze, silver, gold, diamond by tier. Streak, Podium, Shipper, Shark and Whale have the diamond tier.
+  Founder and the picnic are `quiet`.
+- **The collection log** (`core/src/collection.ts`): a static `CATALOG` of every badge, trophy and milestone title (47),
+  in groups (Usage, Social, Town, Raid, Games, Seasonal) with how to earn it, so the client greys out what's missing and
+  `town.collection` sends only a compact `CollectionState`. A minute at most per player, dropped when they sync or earn.
+- **Awards** (`server/src/town/awards.ts`): `badge_awards (user_id, badge, tier, at, backfill)` keeps when each tier
+  (and each milestone level, as badge `level`) was first seen, for the Hall and the log. `awardSweep` inserts what's
+  reached and not recorded. A `report` or a credited Tavern minute marks the player dirty; the town's 10-minute
+  `sweep` runs `awardStep`: at most 10 people (`AWARD_BATCH`), each at most every 5 minutes (`AWARD_EVERY`). The dirty
+  set is in memory.
+- **The backfill:** until the `badge_backfill` marker in `raid_meta` says done, each sweep records one chunk of 100
+  players (`backfillStep`, by id) with `backfill = 1`: silent, with no date, and the dirty set waits. A player's first
+  rows ever are silent too, so a new account's years of history isn't announced. Tiers pay no coins: they're derived
+  retroactively, so paying would mint the whole history at once.
+- **The town hears** of a gold or diamond tier (not a `quiet` badge's) and of reaching level 30 or more
+  (`ANNOUNCE_LEVEL`), at most 3 per person per sweep: `told` calls `world.announceTown` with the open panel
+  `collection`. Bronze and silver are silent.
+- **The Hall of Fame** (`server/src/town/hall.ts`, E on `A`): `rarest` (the five gold or diamond tiers with the fewest
+  holders, each with its first three), `firsts` (up to 8 this raid week: the first in the town to a tier or level),
+  `winners` (this week's top raider and each game's biggest net winner), everyone by name. `ready` is false until the
+  backfill is done and the panel says the wall is being polished. Kept 60 s in `town`, dropped by an award or a
+  backfill chunk.
+
+## The player card
+
+- **Bio** (`parseBio`, `users.bio`): one line (whitespace runs become a space), zero-width, bidi and control characters
+  removed, at most 120 code points (`BIO_MAX_LENGTH`), no links (a scheme, `www.` or a dotted common TLD); empty
+  clears it. There's no word list: React escapes the text, anyone can `reportBio` (once per reporter per bio, not
+  your own, in `bio_reports`), and the admin page shows bios and report counts and can clear one (`admin_log`).
+  Editing or clearing a bio drops its reports. 5 edits and 5 reports an hour per player.
+- **Showcase** (`showcase`, 3 slots, `PIN_MAX`): pins are collection ids (`badge:shipper`, `trophy:…`); milestone
+  titles and items can't be pinned. `setShowcase` refuses any you haven't earned, and a pin that stops being yours is
+  dropped silently when the card is read.
+- **Agent types** (`core/src/agentType.ts`; no rule looks at cost or raw volume): over the last 30 days, the first of
+  Apprentice (under 5 active days or 5 active hours), Swarm Commander (2.5 agents at once on average, or 35% of
+  agent-time in subagents), Marathoner (5 or more active hours a day), Delegator (30+ turns per prompt), Pair
+  Programmer (8 or fewer), else Sprinter. `habitsOf` also gives the hours profile (`workHours`: night owl, early bird
+  or day shift), sessions, cache hit, the top sources and peak agents.
+- **Rollups.** `activity_daily` has four more columns, from `player`'s rollup: `sessions`, `sub_buckets` (subagents
+  summed over 5-minute buckets), `hours` (24 counts of active buckets by world hour) and `sources` (JSON, tokens by
+  source). `writeActivity` inserts by column name, never position. To fill history, `player` queues every stored day
+  once (`usage_report_migrations` version 5, into `pending_usage_days`) and the usual drain re-reports them 7 days at
+  a time, a batch per turn of its lock so syncs aren't held up, when each player's actor next wakes. Until then old
+  days read as no data.
+- **Regulars' plaques.** Once a minute (600 ticks) `world` gives a minute to each connected player in the Tavern or
+  basement who isn't dozing, asleep or at a desk (`counts`), and a visit when they've been out 10 minutes
+  (`TavernClock`, in memory); every 5 minutes one `town.tavernMinutes` call carries it (a failed one is put back; a
+  restart loses at most 5 minutes). `tavern_daily (user_id, day, minutes, visits)` credits at most 180 minutes a player
+  a day (`REGULAR_DAY_CAP`) and drops rows past 8 weeks. The week's top 5 from Monday with at least 30 minutes get brass
+  plates on the two plaques (ranks 1 to 3 left, 4 and 5 right; `town.regulars`, kept 60 s). They give no coins.
+  The days with a visit are the Tavern regular badge, and the first is "regular since" on the card.
+- **The bar tab.** The `J` run on the Tavern's north wall is a chalkboard drawn in code (`barTab`, `drawBarTab`): the same
+  weekly top 5 by time as the plaques (Monday to Sunday, Copenhagen), names and hours only, never tokens or cost. It
+  reads `town.regulars`, which also carries `last`, last week's winner (`lastWeekOf` and `rankRegulars` in
+  `core/src/regulars.ts`, from the same `tavern_daily` rows, so no new table); they wear a small chalk crown. Clicking
+  it opens the regulars panel. No coins, no rewards.
 
 ## Games
 
@@ -378,8 +552,11 @@ No server changes, actions or tables are needed.
 
 ### Later
 
-- A physical arcade in the town square (machines that open the lobby, a trophy shelf of today's winners).
+- The rest of the physical arcade. The basement's cabinets open the lobby, but matches still gather in the town
+  square. Left: a daily high-score board, a trophy shelf of winners, and playing games in the basement itself.
 - Inviting a whole company at once; company tournaments built from tables.
+- Left out of the Tavern update on purpose: an office guestbook, a tip jar, rotating or flipping furniture, company
+  quests, and item pins in the showcase (only badges and trophies can be pinned).
 - Easing Tokenmaxxing's counters between updates, and "✓ syncing" next to seated players.
 - More games: Term Sheet (Split or Steal; needs a rule for when both steal), Runway (Farkle), Burn Rate
   (blackjack), Unicorn (highest unique number), a coin flip at the fountain, and
@@ -497,7 +674,8 @@ climbs it together (`core/src/raid.ts`).
 
 ## One clock
 
-"Today" is `Europe/Copenhagen` for everyone (`core/src/range.ts`).
+"Today" is `Europe/Copenhagen` for everyone (`core/src/range.ts`); the Tavern's special is picked by that day too
+(`copenhagenDay`, `core/src/tavern.ts`).
 
 ## Known limits
 
@@ -507,7 +685,10 @@ These are deliberate, and marked `ponytail:` in the code:
 - rate limits are in memory, so a deploy resets them;
 - usage is reported by each user's machine: capped and flagged, but it can't be proven;
 - leaderboards are kept until something on them changes (`boardsChanged`, called on every push to `world`),
-  and wallets are recomputed on every request, against podiums kept per day and the raid kept for 15 s;
+  and wallets are recomputed on every request, against podiums kept per day and the raid kept for 15 s; the Hall of
+  Fame, the weekly regulars and each player's collection are kept for 60 s;
+- the badge sweep's dirty set and the Tavern's minutes since the last flush are in memory, so a restart delays the
+  first and loses up to 5 minutes of the second;
 - a late sync can knock someone off a past podium after they spent the bonus;
 - the logo download checks DNS before fetching, so DNS rebinding in between isn't caught.
 

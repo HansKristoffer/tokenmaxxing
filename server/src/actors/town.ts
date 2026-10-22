@@ -1,9 +1,18 @@
+import {
+  type CollectionState,
+  ownedPins,
+  PIN_MAX,
+  type PinView,
+  resolvePins,
+} from "@tokenmaxxing/core/collection.ts";
 import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import { headlines, type Paper } from "@tokenmaxxing/core/paper.ts";
+import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
+import type { Regulars } from "@tokenmaxxing/core/regulars.ts";
 import {
   emptySide,
   isTradeable,
@@ -14,8 +23,11 @@ import {
   TRADE_COINS_CAP,
   TRADE_ITEMS_CAP,
 } from "@tokenmaxxing/core/shop.ts";
+import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
+import type { TournamentBoard } from "@tokenmaxxing/core/tournament.ts";
 import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
 import {
+  BIO_MAX_LENGTH,
   type CompanyInfo,
   type Drop,
   defaultLook,
@@ -44,6 +56,7 @@ import {
   setCompanyWallet,
   wipeUsage,
 } from "../town/admin.ts";
+import { type Award, awardStep, collectionOf } from "../town/awards.ts";
 import {
   boardsChanged,
   type CompanyProfile,
@@ -55,6 +68,19 @@ import {
   type Today,
   today,
 } from "../town/boards.ts";
+import {
+  addTavernMinutes,
+  bioOf,
+  lastWeekWinner,
+  minutesThisWeek,
+  pinsOf,
+  reportBio,
+  setBio,
+  setPins,
+  type TavernRow,
+  weeklyRegulars,
+  writeActivity,
+} from "../town/card.ts";
 import {
   type BagRow,
   bag,
@@ -84,6 +110,7 @@ import {
   TRADE_TTL,
   type Trade,
   takeOut,
+  tossCoin,
   tradesWhere,
   unclaimed,
   unwear,
@@ -110,19 +137,23 @@ import {
   withdraw,
 } from "../town/companies.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
+import { type HallOfFame, hallOfFame } from "../town/hall.ts";
 import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
 import { markPicnic } from "../town/picnic.ts";
+import { freezeDays, questBoard, questEvent } from "../town/quests.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import { migrate } from "../town/schema.ts";
 import { paperFacts } from "../town/street.ts";
 import { brand, push, pushOffice, pushPlayers } from "../town/sync.ts";
 import { giveTicket } from "../town/tickets.ts";
+import * as tourney from "../town/tournament.ts";
 import { levelOf, lookOf, type PlayerCore, playerCores, userById } from "../town/users.ts";
-import { parseCompanyName, parseUserName, parseWebsite } from "../validate.ts";
+import { parseBio, parseCompanyName, parseUserName, parseWebsite } from "../validate.ts";
 import type { registry } from "./registry.ts";
 import {
   all,
+  announceTown,
   authenticate,
   type Caller,
   type ConnParams,
@@ -167,6 +198,15 @@ export interface ActivityDay extends ActivityRow {
   day: string;
   /** Tokens past the per-minute cap, which count for nothing. */
   capped: number;
+  // The card's habits (`migrateCard`): optional, so an older player actor's report still lands.
+  /** Distinct sessions that day. */
+  sessions?: number;
+  /** Σ over 5-minute buckets of the subagents running. */
+  subBuckets?: number;
+  /** Active buckets by world hour: 24 numbers, comma-separated. */
+  hours?: string;
+  /** JSON `{source: tokens}`. */
+  sources?: string;
 }
 
 export interface Me {
@@ -195,6 +235,10 @@ const TRADES_PER_HOUR = 10;
 const ROOM_CHANGES_PER_MIN = 30;
 /** A new name is a new door sign: the building is rebuilt. */
 const RENAMES_PER_HOUR = 10;
+/** A bio is shown on every card; edits and reports are limited so it can't be flipped or flooded. */
+const BIO_EDITS_PER_HOUR = 5;
+const BIO_REPORTS_PER_HOUR = 5;
+const REGULARS_TTL = 60_000;
 const MIN = 60_000;
 const HOUR = 3_600_000;
 /** Drops nobody took go back to their droppers after this; the sweeper looks every `SWEEP_MS`. */
@@ -235,12 +279,23 @@ export const town = actor({
     offices: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     drops: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     renames: new RateLimiter(RENAMES_PER_HOUR, HOUR),
+    bioEdits: new RateLimiter(BIO_EDITS_PER_HOUR, HOUR),
+    bioReports: new RateLimiter(BIO_REPORTS_PER_HOUR, HOUR),
+    /** The weekly plaques, a minute at most (the Monday boundary is the decay: no cron). */
+    regulars: null as { at: number; day: string; rows: Promise<Pick<Regulars, "top" | "last">> } | null,
     /** `podiums` for a world day, for wallets and cards; a late sync or a wiped account drops it. */
     podiums: null as { day: string; rows: Promise<Podium[]> } | null,
     /** Today's paper (about yesterday): built on the first read of the day, then kept. */
     paper: null as { day: string; paper: Promise<Paper> } | null,
     /** `raidHistory`, shared by everyone polling the raid for a few seconds. */
     raids: null as { at: number; rows: Promise<RaidWeek[]> } | null,
+    /** Who synced since their badges were last looked at (`awardStep`), and when each last was. */
+    dirty: new Set<number>(),
+    swept: new Map<number, number>(),
+    /** `collectionOf` per player for a minute: opened from cards and the log, which poll nothing. */
+    collections: new Map<number, { at: number; state: Promise<CollectionState> }>(),
+    /** The Hall of Fame, a minute at most, gone with a fresh award. */
+    hall: null as { at: number; hall: Promise<HallOfFame> } | null,
   }),
   db: db({ onMigrate: migrate }),
   onCreate: (c) => requireMain(c),
@@ -524,8 +579,13 @@ export const town = actor({
 
     /** The morning paper: yesterday in town, the same front page all day. */
     paper: (c): Promise<Paper> => {
-      requireUser(c.conn.state);
-      const day = addDays(dayKey(Date.now()), -1);
+      const userId = requireUser(c.conn.state);
+      const now = Date.now();
+      const day = addDays(dayKey(now), -1);
+      // Opening it is the day's paper quest. ponytail: not checked against where they stand.
+      void c.vars
+        .serial(() => questEvent(c.db, userId, "paper", `paper:${dayKey(now)}`, now))
+        .catch((err) => console.warn(`[quests] ${userId}: ${String(err)}`));
       if (c.vars.paper?.day !== day)
         c.vars.paper = { day, paper: paperFacts(c.db, day).then((f) => ({ day, headlines: headlines(f) })) };
       const paper = c.vars.paper.paper;
@@ -595,6 +655,63 @@ export const town = actor({
       return pickUp(c.db, dropId, userId, room);
     },
 
+    /** Today's quests and the week's, with how far each is. Deals today's the first time. */
+    questBoard: (c): Promise<QuestBoard> => {
+      const userId = requireUser(c.conn.state);
+      return c.vars.serial(() => questBoard(c.db, userId, Date.now()));
+    },
+
+    // MARK: The basement's tournament board
+
+    /** The live bracket and the latest champion. Starts a due bracket first. */
+    tournament: (c): Promise<TournamentBoard> => {
+      requireUser(c.conn.state);
+      return c.vars.serial(async () => {
+        const { lines, ...board } = await tourney.board(c.db, Date.now());
+        await tellTown(c, lines);
+        return board;
+      });
+    },
+
+    /** Opens a bracket (a game, 4 or 8 players) with me signed up. */
+    tournamentOpen: (c, game: unknown, size: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      return c.vars.serial(async () =>
+        tellTown(c, (await tourney.open(c.db, userId, game, size, Date.now())).lines),
+      );
+    },
+
+    /** Signs me up for the open bracket, or out of it. */
+    tournamentJoin: (c, join: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      return c.vars.serial(async () =>
+        tellTown(c, (await tourney.signup(c.db, userId, join !== false, Date.now())).lines),
+      );
+    },
+
+    /** From `arcade`: a match ended. Counts if it was a waiting match of the running bracket. */
+    tournamentResult: (c, game: string, players: number[], winners: number[]): Promise<void> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(async () =>
+        tellTown(c, (await tourney.matchResult(c.db, game, players, winners, Date.now())).lines),
+      );
+    },
+
+    /** From `world`: `userId` did `kind` in town (once per `key` in a row). True when it counted. */
+    questEvent: (c, userId: number, kind: string, key: string): Promise<boolean> => {
+      requireInternal(c.conn.state);
+      const now = Date.now();
+      return c.vars.serial(() => questEvent(c.db, userId, kind, key, now));
+    },
+
+    /** From `world`: a coin in the fountain (1 coin out, and the day's fountain quest). */
+    toss: async (c, userId: number): Promise<void> => {
+      requireInternal(c.conn.state);
+      const now = Date.now();
+      const k = await kept(c, now);
+      await c.vars.serial(() => tossCoin(c.db, userId, now, k));
+    },
+
     /** From `world.sit`: on a blanket at the outage picnic that started at `since`. True the first time. */
     picnicked: (c, userId: number, since: number): Promise<boolean> => {
       requireInternal(c.conn.state);
@@ -619,6 +736,20 @@ export const town = actor({
         await c.db.execute("DELETE FROM trades WHERE at < ?", Date.now() - TRADE_TTL);
       } catch (err) {
         console.warn(`[sweep] trades: ${String(err)}`);
+      }
+      try {
+        const now = Date.now();
+        const { awards, backfilled } = await awardStep(
+          c.db,
+          c.vars.dirty,
+          c.vars.swept,
+          now,
+          await kept(c, now),
+        );
+        if (backfilled) c.vars.hall = null;
+        await told(c, awards);
+      } catch (err) {
+        console.warn(`[sweep] awards: ${String(err)}`);
       }
       const ids = await unclaimed(c.db, Date.now() - DROP_TTL);
       if (ids.length === 0) return;
@@ -766,19 +897,7 @@ export const town = actor({
                 r.reportedCostCents ?? 0,
               ]),
             );
-            await insertRows(
-              tx,
-              "INSERT OR REPLACE INTO activity_daily VALUES",
-              activity.map((a) => [
-                userId,
-                a.day,
-                a.prompts,
-                a.prs,
-                a.agentBuckets,
-                a.activeBuckets,
-                a.peakAgents,
-              ]),
-            );
+            await writeActivity(tx, userId, activity);
             await tx.execute(`DELETE FROM capped_daily WHERE user_id = ? AND ${inDays}`, userId, ...days);
             await insertRows(
               tx,
@@ -787,6 +906,8 @@ export const town = actor({
             );
             // Their company gets as many coins again.
             await matchCoins(tx, userId, days, Date.now());
+            // Each synced day's quests are dealt now, so a day nobody opened the town on still pays.
+            if (TAVERN) await freezeDays(tx, userId, days, Date.now());
             return grantRewards(tx, userId, await levelOf(tx, userId), Date.now());
           },
           { name: "report-usage" },
@@ -794,6 +915,9 @@ export const town = actor({
       );
       // A finished day changed: its podium may have too.
       if (days.some((d) => d < dayKey(Date.now()))) c.vars.podiums = null;
+      // Their badges are looked at in the next sweep, not here: a sync is busy enough.
+      c.vars.dirty.add(userId);
+      c.vars.collections.delete(userId);
       await placeStarter(c.client<typeof registry>(), drops);
       const u = await userById(c.db, userId);
       await push(c.db, c.client<typeof registry>(), {
@@ -821,7 +945,122 @@ export const town = actor({
     profile: async (c, targetId: unknown, rawRange: unknown): Promise<Profile> => {
       requireUser(c.conn.state);
       const range = isRangeKey(rawRange) ? rawRange : "30d";
-      return profile(c.db, playerId(targetId), range, Date.now(), await podiumsOf(c, Date.now()));
+      const id = playerId(targetId);
+      const p = await profile(c.db, id, range, Date.now(), await kept(c, Date.now()));
+      return { ...p, showcase: await shelfOf(c, id) };
+    },
+
+    /** My one line under my name; empty clears it. */
+    setBio: async (c, raw: unknown): Promise<string | null> => {
+      const userId = requireUser(c.conn.state);
+      const bio = parseBio(raw);
+      if (bio === null)
+        throw new UserError(`One line, up to ${BIO_MAX_LENGTH} characters, and no links.`, {
+          code: "invalid_bio",
+        });
+      if (!c.vars.bioEdits.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of edits. Try again in an hour.", { code: "rate_limited" });
+      const text = bio === "clear" ? null : bio;
+      await setBio(c.db, userId, text);
+      return text;
+    },
+
+    /** Flags someone's bio for the admin page: once per reporter, a few an hour. */
+    reportBio: async (c, targetId: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      const target = playerId(targetId);
+      if (!c.vars.bioReports.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of reports. Try again in an hour.", { code: "rate_limited" });
+      await reportBio(c.db, userId, target, Date.now());
+    },
+
+    /**
+     * My shelf: up to `PIN_MAX` collection ids, in order, each one I own (`ownedPins`). Returns them as
+     * the card shows them.
+     */
+    setShowcase: async (c, raw: unknown): Promise<PinView[]> => {
+      const userId = requireUser(c.conn.state);
+      const ids = Array.isArray(raw)
+        ? raw.map((p) => (typeof p === "string" ? p : (p as { id?: unknown } | null)?.id))
+        : null;
+      if (
+        !ids ||
+        ids.length > PIN_MAX ||
+        ids.some((id) => typeof id !== "string") ||
+        new Set(ids).size < ids.length
+      )
+        throw new UserError(`Up to ${PIN_MAX} different things.`, { code: "invalid_pins" });
+      const owned = ownedPins(await collectionFor(c, userId));
+      const views = (ids as string[]).map((id) => owned.find((o) => o.id === id));
+      if (views.some((v) => !v)) throw new UserError("You haven't earned that yet.", { code: "not_owned" });
+      await c.vars.serial(() => c.db.transaction((tx) => setPins(tx, userId, ids as string[])));
+      return views as PinView[];
+    },
+
+    /** This week's top five in the Tavern, and my own minutes. A minute at most for the board. */
+    regulars: async (c): Promise<Regulars> => {
+      const userId = requireUser(c.conn.state);
+      const now = Date.now();
+      const day = dayKey(now);
+      let hit = c.vars.regulars;
+      if (!hit || hit.day !== day || now - hit.at >= REGULARS_TTL) {
+        const rows = Promise.all([weeklyRegulars(c.db, day), lastWeekWinner(c.db, day)]).then(
+          ([top, last]) => ({ top, last }),
+        );
+        const entry = { at: now, day, rows };
+        c.vars.regulars = hit = entry;
+        // A failed one isn't kept.
+        rows.catch(() => {
+          if (c.vars.regulars === entry) c.vars.regulars = null;
+        });
+      }
+      const minutes = await minutesThisWeek(c.db, userId, day);
+      return { ...(await hit.rows), me: minutes === null ? null : { minutes } };
+    },
+
+    /**
+     * From `world`, every few minutes: who spent how long in the Tavern since the last call (`[userId,
+     * minutes, visits]`). Credit is capped per player per day; plaques give no coins.
+     */
+    tavernMinutes: async (c, day: unknown, rows: unknown): Promise<void> => {
+      requireInternal(c.conn.state);
+      if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !Array.isArray(rows)) return;
+      const clean = rows.filter(
+        (r): r is TavernRow => Array.isArray(r) && r.length === 3 && r.every((n) => typeof n === "number"),
+      );
+      const credited = await c.vars.serial(() =>
+        c.db.transaction((tx) => addTavernMinutes(tx, day, clean), { name: "tavern-minutes" }),
+      );
+      // Their Tavern badge is looked at in the next sweep.
+      for (const id of credited) c.vars.dirty.add(id);
+    },
+
+    /**
+     * Everything someone has earned, compact (`CollectionState`): the client has the words. Anyone may
+     * look, like cards and shelves. A minute at most per player.
+     */
+    collection: (c, targetId: unknown): Promise<CollectionState> => {
+      requireUser(c.conn.state);
+      return collectionFor(c, playerId(targetId));
+    },
+
+    /** What I could pin to my card: everything I own that's pinnable, as the card shows it. */
+    showcaseOptions: async (c): Promise<PinView[]> =>
+      ownedPins(await collectionFor(c, requireUser(c.conn.state))),
+
+    /** The Hall of Fame wall: the rarest honours, this week's firsts and winners. A minute at most. */
+    hallOfFame: (c): Promise<HallOfFame> => {
+      requireUser(c.conn.state);
+      const now = Date.now();
+      if (c.vars.hall && now - c.vars.hall.at < HALL_TTL) return c.vars.hall.hall;
+      const hall = raidsOf(c, now).then((weeks) => hallOfFame(c.db, now, weeks));
+      const entry = { at: now, hall };
+      c.vars.hall = entry;
+      // A failed one isn't kept.
+      hall.catch(() => {
+        if (c.vars.hall === entry) c.vars.hall = null;
+      });
+      return hall;
     },
 
     /** The trophies on someone's office shelf: anyone may look, like their badges. */
@@ -965,6 +1204,15 @@ export const town = actor({
       return set.coins;
     },
 
+    /** Takes someone's bio down (and its reports with it). */
+    adminClearBio: async (c, userId: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const user = await userOf(c.db, userId);
+      const was = await bioOf(c.db, user.id);
+      await setBio(c.db, user.id, null);
+      await logAdmin(c.db, "clear bio", who(user), was, Date.now());
+    },
+
     adminRenameUser: async (c, userId: unknown, rawName: unknown): Promise<void> => {
       requireAdmin(c.conn.state);
       const user = await userOf(c.db, userId);
@@ -1003,6 +1251,8 @@ export const town = actor({
       const now = Date.now();
       const changed = await c.vars.serial(() => deleteUser(c.db, user.id, now));
       c.vars.podiums = null;
+      c.vars.hall = null;
+      c.vars.collections.delete(user.id);
       await logAdmin(c.db, "delete user", who(user), null, now);
       const client = c.client<typeof registry>();
       await push(c.db, client, changed);
@@ -1140,6 +1390,77 @@ async function kept(
 }
 
 const RAID_TTL = 15_000;
+const HALL_TTL = 60_000;
+const COLLECTION_TTL = 60_000;
+const COLLECTION_MAX = 64;
+
+/** `collectionOf` for a player, kept a minute (and until they sync or earn something). */
+function collectionFor(
+  c: Parameters<typeof kept>[0] & {
+    vars: { collections: Map<number, { at: number; state: Promise<CollectionState> }> };
+  },
+  userId: number,
+): Promise<CollectionState> {
+  const now = Date.now();
+  const hit = c.vars.collections.get(userId);
+  if (hit && now - hit.at < COLLECTION_TTL) return hit.state;
+  if (c.vars.collections.size >= COLLECTION_MAX) c.vars.collections.clear();
+  const state = (async () => {
+    const u = await userById(c.db, userId);
+    // Trophies are the player's own events, kept in their actor; a sleeping one just shows none yet.
+    const trophies = await c
+      .client()
+      .player.get([String(u.id)], internal)
+      .trophies()
+      .catch(() => []);
+    return collectionOf(c.db, userId, now, await kept(c, now), trophies);
+  })();
+  const entry = { at: now, state };
+  c.vars.collections.set(userId, entry);
+  // A failed one isn't kept.
+  state.catch(() => {
+    if (c.vars.collections.get(userId) === entry) c.vars.collections.delete(userId);
+  });
+  return state;
+}
+
+/**
+ * Someone's shelf as the card shows it. A pin that isn't theirs any more is left out, and its row goes;
+ * if their collection can't be read the shelf is left alone and shown empty this once.
+ */
+async function shelfOf(
+  c: Parameters<typeof collectionFor>[0] & { vars: { serial: ReturnType<typeof serial> } },
+  userId: number,
+): Promise<PinView[]> {
+  const pins = await pinsOf(c.db, userId);
+  if (pins.length === 0) return [];
+  const state = await collectionFor(c, userId).catch(() => null);
+  if (!state) return [];
+  const views = resolvePins(state, pins);
+  if (views.length < pins.length)
+    await c.vars.serial(() =>
+      c.db.transaction((tx) =>
+        setPins(
+          tx,
+          userId,
+          views.map((v) => v.id),
+        ),
+      ),
+    );
+  return views;
+}
+
+/** Tells the town of each award worth it (gold, diamond, level 30 and up), and drops what they changed. */
+async function told(
+  c: { vars: { collections: Map<number, unknown>; hall: unknown }; client(): Client },
+  awards: Award[],
+): Promise<void> {
+  for (const a of awards) {
+    c.vars.collections.delete(a.userId);
+    if (a.announce) await announceTown(c.client(), a.announce, "collection", a.remark);
+  }
+  if (awards.length > 0) c.vars.hall = null;
+}
 
 /**
  * Every raid so far, worked out at most every few seconds however many people are watching. A new
@@ -1224,6 +1545,11 @@ async function offerTo(sql: Sql, userId: number, fromId: unknown, now: number): 
       : [];
   if (!trade) throw new UserError("That offer is gone.", { code: "not_found" });
   return trade;
+}
+
+/** Town-wide lines from the tournament board (a toast that opens it, and the chat). */
+async function tellTown(c: { client(): Client }, lines: string[]): Promise<void> {
+  for (const line of lines) await announceTown(c.client(), line, "tournament");
 }
 
 async function namesOf(sql: Sql, userIds: number[]): Promise<Record<number, string>> {

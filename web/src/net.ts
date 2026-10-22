@@ -1,4 +1,5 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import type { Outage } from "@tokenmaxxing/core/picnic.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
@@ -19,6 +20,7 @@ import {
 import type { Raid, registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
 import { errorCode } from "./errors.ts";
+import { playJukebox, stopJukebox } from "./game/jukebox.ts";
 import { noteLoot } from "./game/loot.ts";
 import { setOutage } from "./game/picnic.ts";
 import { noteRaid, setRaiders } from "./game/raid.ts";
@@ -110,7 +112,16 @@ export function connect(token: string): void {
     });
   conn = client.world.getOrCreate(["main"], { params: { token } }).connect();
 
+  // The jukebox plays for the Tavern only: a snapshot of any other room, or a dropped line, ends it.
+  conn.on("jukebox", (j: JukeboxNow | null) => {
+    hud.set({ jukebox: j });
+    playJukebox(j);
+  });
   conn.on("snapshot", (s: Snapshot) => {
+    if (s.room !== "inn") {
+      hud.set({ jukebox: null });
+      stopJukebox();
+    }
     loadSnapshot(s);
     setRaiders(s.raiders);
   });
@@ -131,6 +142,7 @@ export function connect(token: string): void {
   conn.on("jump", (id: number) => applyJump(id));
   conn.on("notice", (n: Notice) => {
     hud.set({ notice: { ...n, at: Date.now() } });
+    if (n.open === "tournament") void refreshTournament(true);
     void refreshMe();
     // A trade I offered settled: my coins and 🎒 moved.
     void refreshWallet();
@@ -155,6 +167,9 @@ export function connect(token: string): void {
     if (isUnauthorized(err)) signedOut();
   });
   conn.onClose(() => {
+    // Music stops with the connection; the Tavern sends it again when we're back in.
+    hud.set({ jukebox: null });
+    stopJukebox();
     if (hud.get().status === "ready") hud.set({ status: "offline" });
     // ponytail: the client retries on its own, but can stall after a long outage (a deploy);
     // a reload after 20 s always gets back in. Replace with a proper backoff if it annoys anyone.
@@ -175,7 +190,7 @@ export function connect(token: string): void {
     try {
       loadSnapshot(await conn.join());
       hud.set({ status: "ready" });
-      await Promise.all([refreshMe(), refreshStats()]);
+      await Promise.all([refreshMe(), refreshStats(), refreshTournament(true)]);
     } catch (err) {
       if (isUnauthorized(err)) signedOut();
     }
@@ -196,6 +211,21 @@ export async function refreshWallet(): Promise<void> {
   hud.set((s) => ({ wallet: same(s.wallet, wallet) }));
 }
 
+/** Today's quests and the week's. Asking also deals today's the first time, so a day's quests always exist. */
+export async function refreshQuests(): Promise<void> {
+  const questBoard = await town.questBoard().catch(() => null);
+  if (questBoard) hud.set((s) => ({ questBoard: same(s.questBoard, questBoard) }));
+}
+
+let tournamentAt = 0;
+/** The tournament board: the bracket on the big screen and the champion's chat title. At most every 15 s unless forced. */
+export async function refreshTournament(force = false): Promise<void> {
+  if (!force && Date.now() - tournamentAt < 15_000) return;
+  tournamentAt = Date.now();
+  const tournament = await town.tournament().catch(() => null);
+  if (tournament) hud.set((s) => ({ tournament: same(s.tournament, tournament) }));
+}
+
 let statsTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** My tokens, rank, level and coins today, at most every few seconds. */
@@ -214,6 +244,7 @@ async function refreshStats(force = false): Promise<void> {
     raid: same(s.raid, raid),
   }));
   gateTimer(raid);
+  void refreshQuests();
 }
 
 let gateAt = 0;

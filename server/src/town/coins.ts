@@ -1,7 +1,7 @@
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
-import { type DayFacts, EMPTY_DAY, QUESTS, questCoins } from "@tokenmaxxing/core/quests.ts";
+import { EMPTY_COUNTS, EMPTY_DAY, type Progress, questProgress } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidCoins } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import {
@@ -22,6 +22,7 @@ import { sumBy } from "hanzio";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { companyLedgerAdd } from "./companies.ts";
+import { bumpCount, dayPicks, loadQuestData, noQuestData, paidFrom, questPay } from "./quests.ts";
 import { raidHistory } from "./raid.ts";
 import { lookOf, signupDays, TOKENS, tokensIn, userById } from "./users.ts";
 
@@ -37,8 +38,8 @@ export interface Wallet {
   owned: string[];
   /** How many things are in my bag, rewards included. */
   items: number;
-  /** Today's quests, and which are done so far. */
-  quests: { id: string; text: string; coins: number; done: boolean }[];
+  /** Today's quests, and how far each is. */
+  quests: Progress[];
   /** An offer is open to or from me: the HUD shows the trades icon. */
   trading: boolean;
 }
@@ -149,16 +150,11 @@ export async function wallet(
     userId,
   );
   const days = everyDay.filter((d) => d.day >= from);
-  // ponytail: one more query per call for the quests, like the rest of the wallet.
-  const activity = await all<{ day: string } & Omit<DayFacts, "tokens">>(
-    sql,
-    `SELECT day, peak_agents AS peakAgents, active_buckets AS activeBuckets
-     FROM activity_daily WHERE user_id = ? AND day >= ?`,
-    userId,
-    from,
-  );
-  const facts = new Map<string, DayFacts>(days.map((d) => [d.day, { ...EMPTY_DAY, tokens: d.tokens }]));
-  for (const { day, ...a } of activity) facts.set(day, { ...EMPTY_DAY, ...facts.get(day), ...a });
+  // ponytail: a few more queries per call for the quests, like the rest of the wallet.
+  const data = (await loadQuestData(sql, { [userId]: from })).get(userId) ?? noQuestData();
+  // Pay only counts frozen days (as `balances` does); today's unfrozen picks are shown, and paid once frozen.
+  const live = today >= paidFrom() ? (data.picks.get(today) ?? (await dayPicks(sql, userId, today))) : null;
+  const pay = questPay(data);
   const places = (top ?? (await podiums(sql, now))).filter((p) => p.userId === userId);
   const spent = await scalar(sql, "SELECT SUM(price) AS n FROM purchases WHERE user_id = ?", userId);
   const wins = places.map((p) => ({ day: p.day, place: p.place, coins: PODIUM_COINS[p.place - 1]! }));
@@ -167,19 +163,21 @@ export async function wallet(
     sumBy(days, (d) => coinsForTokens(d.tokens)) +
     sumBy(wins, "coins") +
     raided +
-    sumBy([...facts.values()], questCoins) +
+    pay.total +
+    pay.weekly +
     milestoneCoins(levelFor(sumBy(everyDay, "tokens")));
   const since = addDays(today, -29);
-  const todays = facts.get(today) ?? EMPTY_DAY;
+  const todays = data.facts.get(today) ?? EMPTY_DAY;
+  const counts = data.counts.get(today) ?? EMPTY_COUNTS;
   const held = await bag(sql, userId);
   return {
     balance: earned - spent + (await ledgerSum(sql, userId)),
-    today: coinsForTokens(todays.tokens) + questCoins(todays),
+    today: coinsForTokens(todays.tokens) + (pay.daily.get(today) ?? 0),
     raids: raided,
     wins: wins.filter((w) => w.day >= since),
     owned: held.map((r) => r.item),
     items: sumBy(held, "count"),
-    quests: QUESTS.map(({ done, ...q }) => ({ ...q, done: done(todays) })),
+    quests: (live ?? []).map((q) => questProgress(q, todays, counts)),
     trading: !!(await one(
       sql,
       "SELECT 1 FROM trades WHERE (from_id = ? OR to_id = ?) AND at >= ? LIMIT 1",
@@ -244,20 +242,10 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
     firstDay,
   );
   for (const d of days) add(d.userId, coinsForTokens(d.tokens));
-  const activity = await all<{ userId: number; day: string } & Omit<DayFacts, "tokens">>(
-    sql,
-    `SELECT user_id AS userId, day, peak_agents AS peakAgents, active_buckets AS activeBuckets
-     FROM activity_daily JOIN json_each(?) s ON user_id = CAST(s.key AS INTEGER) AND day >= s.value`,
-    firstDay,
-  );
-  const facts = new Map<string, DayFacts & { userId: number }>(
-    days.map((d) => [`${d.userId} ${d.day}`, { ...EMPTY_DAY, userId: d.userId, tokens: d.tokens }]),
-  );
-  for (const a of activity) {
-    const key = `${a.userId} ${a.day}`;
-    facts.set(key, { ...EMPTY_DAY, ...facts.get(key), ...a });
+  for (const [userId, d] of await loadQuestData(sql, signups)) {
+    const pay = questPay(d);
+    add(userId, pay.total + pay.weekly);
   }
-  for (const f of facts.values()) add(f.userId, questCoins(f));
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);
   for (const [userId, tokens] of await tokensIn(sql, "all")) add(userId, milestoneCoins(levelFor(tokens)));
   const raids = await raidHistory(sql, now);
@@ -273,6 +261,25 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
   ))
     add(r.userId, r.n);
   return out;
+}
+
+/**
+ * One coin into the fountain: a ledger line (kind `fountain`, ref `fountain:<day>:<n>`, never positive), and
+ * the day's fountain quest counts it. Run it serialized with every other coin write.
+ */
+export async function tossCoin(sql: Sql, userId: number, now: number, kept?: Kept): Promise<void> {
+  if ((await wallet(sql, userId, now, kept)).balance < 1)
+    throw new UserError("Not a coin to spare right now.", { code: "too_poor" });
+  const day = dayKey(now);
+  const n = await scalar(
+    sql,
+    "SELECT COUNT(*) AS n FROM ledger WHERE user_id = ? AND kind = 'fountain' AND ref LIKE ?",
+    userId,
+    `fountain:${day}:%`,
+  );
+  const ref = `fountain:${day}:${n + 1}`;
+  await ledgerAdd(sql, userId, -1, "fountain", ref, now);
+  await bumpCount(sql, userId, day, "fountain", ref);
 }
 
 /**

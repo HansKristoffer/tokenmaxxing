@@ -42,6 +42,34 @@ describe("accounts", () => {
     expect(await a.town.searchNames("no spaces")).toEqual([]);
   });
 
+  test("the card: a bio (five edits an hour, reportable) and a showcase of what you own", async () => {
+    const a = await signUp("bio");
+    const b = await signUp("bio");
+    expect(await a.town.setBio("  Ships\non Fridays ")).toBe("Ships on Fridays");
+    expect((await b.town.profile(a.userId, "7d")).bio).toBe("Ships on Fridays");
+    await expect(a.town.setBio("see acme.com")).rejects.toThrow("no links");
+    await expect(a.town.setBio("x".repeat(121))).rejects.toThrow("120");
+    // Reports: not your own, and once is once.
+    await expect(a.town.reportBio(a.userId)).rejects.toThrow("own");
+    await b.town.reportBio(a.userId);
+    await b.town.reportBio(a.userId);
+    // One edit so far (the bad ones weren't counted); four more fit, a sixth doesn't.
+    for (let i = 0; i < 4; i++) await a.town.setBio(`edit ${i}`);
+    await expect(a.town.setBio("one too many")).rejects.toThrow("Try again");
+    expect((await b.town.profile(a.userId, "7d")).bio).toBe("edit 3");
+    // Nothing earned yet: nothing to pin, and an unknown id is refused too.
+    await expect(a.town.setShowcase([{ id: "badge:shipper" }])).rejects.toThrow("earned");
+    await expect(a.town.setShowcase([{ id: "nope" }])).rejects.toThrow("earned");
+    await expect(a.town.setShowcase([{ id: "a" }, { id: "a" }])).rejects.toThrow();
+    await expect(a.town.setShowcase("badge:shipper")).rejects.toThrow();
+    expect(await a.town.setShowcase([])).toEqual([]);
+    expect((await a.town.profile(a.userId, "7d")).showcase).toEqual([]);
+    // The Tavern's plaque board is readable by anyone, empty to begin with, and only `world` writes it.
+    const board = await b.town.regulars();
+    expect(board.me).toBeNull();
+    await expect(b.town.tavernMinutes("2026-10-22", [[b.userId, 60, 1]])).rejects.toThrow();
+  });
+
   test("everything but sign-up needs a token", async () => {
     await expect(client.town.getOrCreate(["main"]).me()).rejects.toThrow();
     await expect(client.town.getOrCreate(["main"]).report(1, [], [], [])).rejects.toThrow();

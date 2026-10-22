@@ -579,6 +579,11 @@ async function settle(c: ArcadeCtx, live: Live, outcome: Outcome): Promise<void>
   live.outcome = outcome;
   live.endedAt = Date.now();
   live.line = line;
+  // The tournament board counts a head-to-head result (it ignores matches that aren't its own).
+  if ("places" in outcome && live.players.length === 2)
+    await town
+      .tournamentResult(live.game, live.players, winners)
+      .catch((err) => console.warn(`[arcade] tournament result ${live.id}: ${String(err)}`));
   await release(c, live);
   for (const p of live.players) await tell(client, p, line);
 }

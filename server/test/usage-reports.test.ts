@@ -336,7 +336,7 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
   try {
     db.run(`CREATE TABLE events (day TEXT, model TEXT, timestamp INTEGER, message_type TEXT,
       session_id TEXT, agent_id TEXT, input_tokens INTEGER, output_tokens INTEGER,
-      cache_creation_tokens INTEGER, cache_read_tokens INTEGER, cost_cents REAL)`);
+      cache_creation_tokens INTEGER, cache_read_tokens INTEGER, cost_cents REAL, source TEXT)`);
     db.run("CREATE INDEX events_day ON events (day, message_type)");
     db.run(
       "CREATE INDEX events_assistant_time ON events (timestamp, session_id, agent_id) WHERE message_type = 'assistant'",
@@ -353,7 +353,7 @@ test("grouped rollups preserve per-model caps, activity, and indexed recent-agen
       creation = 0,
       read = 0,
     ) =>
-      db.run("INSERT INTO events VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, NULL)", [
+      db.run("INSERT INTO events VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, NULL, 'claude_code')", [
         day,
         model,
         time,

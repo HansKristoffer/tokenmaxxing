@@ -46,7 +46,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -63,7 +64,8 @@ button:hover {
   background: rgba(255, 255, 255, 0.16);
 }
 
-input {
+input,
+textarea {
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -71,7 +73,8 @@ input {
   outline: none;
 }
 
-input:focus {
+input:focus,
+textarea:focus {
   border-color: var(--accent);
 }
 
@@ -283,12 +286,19 @@ input:focus {
   left: 50%;
   bottom: 24px;
   transform: translateX(-50%);
-  width: min(560px, calc(100vw - 700px));
+  /* Clear of the chat dock (400px + margins) on the left, as wide on the right. */
+  width: min(560px, calc(100vw - 880px));
   min-width: 280px;
   font-size: 14px;
   background: rgba(251, 247, 239, 0.97);
   color: var(--ink);
   border: 3px solid var(--ink);
+}
+
+@media (max-width: 1150px) {
+  .dialog {
+    bottom: 230px;
+  }
 }
 
 /* The chat dock: the chat and the quick replies above it, stacked from the bottom-left corner. */
@@ -522,10 +532,17 @@ input:focus {
   width: min(640px, calc(100vw - 24px));
 }
 
+/* Stays at the top while a tall panel scrolls under it. */
 .modal-head {
+  position: sticky;
+  top: -14px;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin: -14px -16px 0;
+  padding: 14px 16px 6px;
+  background: var(--panel-solid);
 }
 
 .modal h2 {
@@ -958,6 +975,11 @@ input:focus {
 
 .shop li.wearing {
   border-color: var(--accent);
+}
+
+/* Buy / wear buttons sit at the card's bottom so prices line up across a row. */
+.shop li > button:last-child {
+  margin-top: auto;
 }
 
 .shop .avatar {
@@ -1995,4 +2017,403 @@ button.lb-item:hover {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+/*
+ * Badge tiers (PlayerCard, Collection): each frame differs in shape as well as colour. Bronze is a plain
+ * border, silver a double one, gold adds a gem on top, diamond a dashed, glowing edge.
+ */
+.badge[class*="badge--"] {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 1px 6px 2px;
+  border: 1px solid var(--tier);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+.badge--bronze {
+  --tier: #c98a4b;
+}
+.badge--silver {
+  --tier: #d5dbe4;
+  box-shadow:
+    0 0 0 2px rgba(27, 31, 42, 0.9),
+    0 0 0 3px var(--tier);
+  margin-right: 3px;
+}
+.badge--gold {
+  --tier: #ffd75e;
+  box-shadow: 0 0 6px rgba(255, 215, 94, 0.35);
+}
+.badge--gold::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: calc(50% - 3px);
+  width: 6px;
+  height: 6px;
+  background: var(--tier);
+  transform: rotate(45deg);
+}
+.badge--diamond {
+  --tier: #7fe8ff;
+  border-style: dashed;
+  box-shadow: 0 0 8px rgba(127, 232, 255, 0.5);
+}
+.badge-bar {
+  display: block;
+  height: 3px;
+  min-width: 48px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.badge-bar i {
+  display: block;
+  height: 100%;
+  background: var(--tier, var(--accent));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .badge--diamond {
+    animation: diamond-glint 2.4s ease-in-out infinite;
+  }
+}
+@keyframes diamond-glint {
+  50% {
+    box-shadow: 0 0 12px rgba(127, 232, 255, 0.85);
+  }
+}
+
+/* The collection log and the Hall of Fame: a grid of icon + words, unearned ones greyed. */
+.collection,
+.hall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 6px 12px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+.collection li,
+.hall li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.collection li > span:last-child,
+.hall li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.collection canvas,
+.hall canvas {
+  flex: none;
+  image-rendering: pixelated;
+}
+.collection .unearned > :first-child {
+  filter: grayscale(1);
+  opacity: 0.4;
+}
+.collection .unearned strong {
+  color: var(--muted);
+}
+.entry-icon {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 36px;
+}
+.entry-icon .entry-emoji {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+.entry-emoji {
+  font-size: 22px;
+}
+.hall-lines {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+.hall-lines li {
+  margin: 2px 0;
+}
+.tourney-champ {
+  margin: 4px 0 8px;
+}
+.tourney-players {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.tourney-bracket {
+  display: flex;
+  gap: 16px;
+  margin: 8px 0;
+  overflow-x: auto;
+}
+.tourney-round {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 8px;
+  min-width: 110px;
+}
+.tourney-match {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+.tourney-match span {
+  padding: 2px 6px;
+  min-height: 1.4em;
+}
+.tourney-match span + span {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.tourney-match .won {
+  font-weight: 700;
+  color: #ffd75a;
+}
+.tourney-match .empty {
+  opacity: 0.45;
+}
+.quests {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quests li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+}
+.quests li.done > span:first-child {
+  color: var(--good);
+}
+.quests .coins {
+  text-align: right;
+}
+.quest-bar {
+  grid-column: 1;
+  align-self: center;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.quest-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.quest-bar.done > span {
+  background: var(--good);
+}
+.quests li > .small {
+  text-align: right;
+}
+
+.quest-pips {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.quest-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  background: linear-gradient(to top, var(--accent) var(--fill, 0%), transparent var(--fill, 0%));
+}
+.quest-pip.done {
+  background: var(--good);
+  border-color: var(--good);
+}
+
+/* Player card v2: bio, showcase shelf, heatmap and "how they work". */
+.bio {
+  margin: 2px 0;
+}
+.bio-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0;
+}
+/* The text takes the whole row; the count and the buttons share the one below. */
+.bio-edit textarea {
+  flex: 1 0 100%;
+  resize: none;
+  font: inherit;
+}
+.bio-edit .count {
+  margin-right: auto;
+}
+.shelf ul,
+.shelf-picker .bag {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 2px;
+  padding: 0;
+  list-style: none;
+}
+.shelf li {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 74px;
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+.shelf li.empty {
+  background: none;
+  border: 1px dashed var(--line);
+}
+.shelf canvas {
+  image-rendering: pixelated;
+}
+.shelf-picker .bag {
+  flex-wrap: wrap;
+  gap: 8px 6px;
+}
+.shelf-picker .bag li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 92px;
+}
+.shelf-picker .cell {
+  width: 100%;
+}
+.pick-name {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.pick-name span {
+  font-size: 10px;
+  text-transform: capitalize;
+}
+.shelf-picker .cell .n {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.heatmap {
+  position: relative;
+  margin: 10px 0;
+}
+.heatmap li:focus-visible {
+  outline: 1px solid var(--accent);
+}
+.heat-tip {
+  position: absolute;
+  z-index: 1;
+  width: max-content;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateY(calc(-100% - 4px));
+}
+.heatmap ul {
+  display: grid;
+  grid-template-rows: repeat(7, 12px);
+  grid-auto-flow: column;
+  grid-auto-columns: 12px;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.heatmap li {
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.heatmap li.heat-blank {
+  background: none;
+}
+.heatmap li.heat-1 {
+  background: rgba(255, 211, 92, 0.3);
+}
+.heatmap li.heat-2 {
+  background: rgba(255, 211, 92, 0.52);
+}
+.heatmap li.heat-3 {
+  background: rgba(255, 211, 92, 0.76);
+}
+.heatmap li.heat-4 {
+  background: var(--accent);
+}
+.how h3 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+.how p {
+  margin: 4px 0;
+}
+.how .chip {
+  display: inline-block;
+  margin: 0 4px 2px 0;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+}
+.how .hours {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.how .hours svg {
+  width: 144px;
+  height: 36px;
+  fill: var(--accent);
+}
+.stats .muted-stat dd {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* The regulars' list sits in the modal, not a corner card: roomier rows. */
+.regulars li button {
+  font-size: 14px;
+  padding: 4px 6px;
+}
+.regulars .rank {
+  width: 22px;
+  flex: none;
 }
