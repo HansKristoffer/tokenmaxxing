@@ -100,10 +100,9 @@ describe("companies", () => {
       }
       return { id: co.id, people: [owner, ...mates] };
     };
-    // Five at a time: more sign-ups at once can time out creating their players on a busy CI runner.
+    // One at a time: sign-ups at once can time out creating their players on a busy CI runner.
     const companies = [];
-    for (let i = 0; i < 15; i += 5)
-      companies.push(...(await Promise.all([0, 1, 2, 3, 4].map((j) => company(i + j)))));
+    for (let i = 0; i < 15; i++) companies.push(await company(i));
     const ids = companies.map((co) => co.id);
     const people = companies.flatMap((co) => co.people);
     await Promise.all(people.map((u) => u.town.leaveCompany()));
