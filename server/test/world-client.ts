@@ -54,6 +54,16 @@ export async function connect(token: string) {
   conn.on("moves", (m: Moves) => events.moves.push(m));
   conn.on("chat", (l: ChatLine) => events.chat.push(l));
   conn.on("snapshot", (s: Snapshot) => events.snapshots.push(s));
+  // A reconnect is a new connection the world doesn't know has joined: join again, as the game does
+  // (`web/src/net.ts`), or this tab hears nothing more of its room. Said, so a loaded CI run shows it.
+  let opened = false;
+  conn.onOpen(() => {
+    if (opened) {
+      console.warn("[test] world connection reopened: joining again");
+      void conn.join();
+    }
+    opened = true;
+  });
   const snap = await conn.join();
   return { conn, snap, events };
 }
