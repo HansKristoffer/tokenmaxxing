@@ -29,9 +29,9 @@ jobs:
           echo "::warning::couldn't turn on quick ACKs on loopback; the tests will be slower"
       - run: bun run typecheck
       - run: bun run lint
-      # `bun run test`'s 12 workers each start a server and an engine. On the runner's 4 vCPUs that
-      # starves the engines until creating an actor times out, so one worker per vCPU here.
-      - run: bun test --timeout 60000 --parallel=4
+      # `bun run test`'s 12 workers each start a server and an engine. On the runner, more than two at
+      # once stall the engines (an actor's creation or a room's events wait 30 s), so two here.
+      - run: bun test --timeout 60000 --parallel=2
 
   desktop:
     runs-on: macos-15

@@ -515,7 +515,7 @@ These are deliberate, and marked `ponytail:` in the code:
 
 `bun run check` runs typecheck, lint and every test. `bun run test` runs the files in parallel; plain `bun test`
 runs them in one process. Actor tests start a real server in a subprocess per test process, with its own engine,
-free ports and data directory (`server/test/rivet.ts`), so they use the production code paths. CI runs one
-worker per vCPU, since more starve the engines, and turns on quick ACKs for loopback, which takes most of the
+free ports and data directory (`server/test/rivet.ts`), so they use the production code paths. CI runs two
+workers, since more stall the engines on its runner, and turns on quick ACKs for loopback, which takes most of the
 remaining wait out of each actor call (see `RIVET__GUARD__TCP_NODELAY`). Map, step, rest-spot and coin rules are
 pure and tested in `core/test/`.
