@@ -398,9 +398,7 @@ export interface Moves {
 
 /** What `step` answers when it didn't simply move you. */
 export type StepResult =
-  | null
-  | { notice: string }
-  | { x: number; y: number; facing: Facing; state: PlayerState; room: RoomId };
+  null | { notice: string } | { x: number; y: number; facing: Facing; state: PlayerState; room: RoomId };
 
 // MARK: Houses
 

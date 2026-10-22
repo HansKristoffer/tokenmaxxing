@@ -657,7 +657,9 @@ function drawBoarded(
   const [bx2, by2] = toScreen(x + 24, y + 28);
   labels.push(() => {
     const text =
-      Date.now() < r.launchAt ? `⚠️ Something is coming… ${countdown(r.launchAt)}` : "⚔️ The gate is opening…";
+      Date.now() < r.launchAt
+        ? `⚠️ Something is coming… ${countdown(r.launchAt)}`
+        : "⚔️ The gate is opening…";
     const { w, h } = pill(g, sx, sy, text, dpr, "rgba(20, 24, 34, 0.92)", "#f5d14a");
     gameHits.push({ x: sx - w / 2, y: sy - h, w, h, open: openRaid });
     gameHits.push({ x: bx, y: by, w: bx2 - bx, h: by2 - by, open: openRaid });

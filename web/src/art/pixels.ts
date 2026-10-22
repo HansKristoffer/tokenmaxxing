@@ -32,7 +32,7 @@ export class Pen {
   grid(rows: readonly string[], pal: Palette, ox = 0, oy = 0, flip = false): void {
     let last = "";
     rows.forEach((row, y) => {
-      for (let x = 0; x < row.length; ) {
+      for (let x = 0; x < row.length;) {
         const color = pal[row[x]!];
         let end = x + 1;
         while (color && end < row.length && pal[row[end]!] === color) end++;
