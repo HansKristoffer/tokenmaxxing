@@ -6,13 +6,14 @@ import { BASKET, BLANKETS, forcedOutage, type Outage, onBlanket } from "@tokenma
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { useSyncExternalStore } from "react";
 import { basket, blanket, bunting } from "../art/picnic.ts";
+import type { Frame } from "./frame.ts";
 import { world } from "./world.ts";
 
 const forced = forcedOutage(new URLSearchParams(location.search).get("picnic"), Date.now());
 let fromServer: Outage | null = null;
 const listeners = new Set<() => void>();
 
-export const outageNow = (): Outage | null => (forced === undefined ? fromServer : forced);
+const outageNow = (): Outage | null => (forced === undefined ? fromServer : forced);
 
 export function setOutage(o: Outage | null): void {
   fromServer = o;
@@ -35,10 +36,8 @@ const STRINGS: [number, number, number][] = [
   [3, 16, 6],
 ];
 
-type Draw = { y: number; draw: () => void };
-
 /** Blankets under everyone, the basket among them, bunting over the square. Town only, during an outage. */
-export function drawPicnic(g: CanvasRenderingContext2D, items: Draw[]): void {
+export function drawPicnic({ g, items }: Frame): void {
   if (world.room !== "town" || !outageNow()) return;
   for (const [i, b] of BLANKETS.entries()) {
     const sprite = blanket(b.w, b.h, i);

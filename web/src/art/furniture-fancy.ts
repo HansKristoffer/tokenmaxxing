@@ -3,15 +3,16 @@
  * three-quarter view: a lighter top, a darker front face, ink outlines, a soft shadow on the floor).
  * Each sprite is `w·TILE` wide and stands on the bottom of its footprint; tall things reach up over
  * the tiles behind them. Some animate (a couple of frames) and some take a colour (a company's, say).
- * Not wired into gameplay: `FANCY_FURNITURE` is the catalog, `fancySprite` bakes a frame.
+ * `FANCY_FURNITURE` is the catalog (company furniture, `COMPANY_FURNITURE` in core/src/office.ts, is
+ * drawn with it), `fancySprite` bakes a frame.
  */
 import { TILE } from "@tokenmaxxing/core/world.ts";
-import { C } from "./palette.ts";
+import { C, rgbOf, shade } from "./palette.ts";
 import { bake, cached, glyphPixels, type Pen } from "./pixels.ts";
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 /** Where a piece goes: on the floor, against the top wall, hanging from the ceiling, or flat (walk over it). */
-export type Placement = "floor" | "wall" | "ceiling" | "flat";
+type Placement = "floor" | "wall" | "ceiling" | "flat";
 
 export interface FancyPiece {
   id: string;
@@ -61,23 +62,7 @@ const K = {
   coffee: "#6b4226",
 } as const;
 
-const hex = (h: string): [number, number, number] => [
-  Number.parseInt(h.slice(1, 3), 16),
-  Number.parseInt(h.slice(3, 5), 16),
-  Number.parseInt(h.slice(5, 7), 16),
-];
-
-/** A colour moved towards white (`f` > 0) or black (`f` < 0). */
-export function shade(h: string, f: number): string {
-  const to = f > 0 ? 255 : 0;
-  const a = Math.abs(f);
-  return `#${hex(h)
-    .map((v) => Math.round(v + (to - v) * a))
-    .map((v) => v.toString(16).padStart(2, "0"))
-    .join("")}`;
-}
-
-const rgba = (h: string, a: number): string => `rgba(${hex(h).join(", ")}, ${a})`;
+const rgba = (h: string, a: number): string => `rgba(${rgbOf(h).join(", ")}, ${a})`;
 
 /** A filled rectangle with a one-pixel ink outline. */
 function box(p: Pen, x: number, y: number, w: number, h: number, fill: string): void {
@@ -1109,9 +1094,3 @@ const baked = cached(
 /** One baked frame of a piece, in its colour (or its default), memoized. */
 export const fancySprite = (id: string, frame = 0, tint?: string): HTMLCanvasElement =>
   baked(id, frame, tint);
-
-/** Where a piece's sprite goes relative to the top-left tile of its footprint. */
-export const fancyOffset = (piece: FancyPiece): { dx: number; dy: number } => ({
-  dx: 0,
-  dy: piece.h * TILE - piece.height,
-});

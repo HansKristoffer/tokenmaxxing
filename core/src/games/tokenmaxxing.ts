@@ -5,11 +5,11 @@
  * minutes after the end.
  */
 import { compact } from "../format.ts";
-import { type Callout, type GameDef, refused } from "./types.ts";
+import { byScore, type Callout, type GameDef, lastStanding, leave, leavers, refused } from "./types.ts";
 
 const MINUTES = [15, 30, 60, 240, 1440] as const;
 /** Everyone gets time to fire up their agents; the battle starts on the minute after this. */
-export const COUNTDOWN_MS = 60_000;
+const COUNTDOWN_MS = 60_000;
 /** Late syncs still count, for events stamped before the end. */
 export const GRACE_MS = 3 * 60_000;
 /** ponytail: a fixed cap per player per minute; tune it from real battles. */
@@ -104,7 +104,7 @@ export const tokenmaxxing: GameDef<TokenmaxxingState, TokenmaxxingView> = {
     };
   },
 
-  forfeit: (s, player) => (s.forfeited.includes(player) ? s : { ...s, forfeited: [...s.forfeited, player] }),
+  forfeit: leave,
 
   view: (s) => ({
     players: s.players,
@@ -120,13 +120,11 @@ export const tokenmaxxing: GameDef<TokenmaxxingState, TokenmaxxingView> = {
 
   outcome(s) {
     const left = ranked(s);
-    // Whoever left last places best among those who left.
-    const gone = [...s.forfeited].reverse().map((p) => [p]);
-    if (left.length <= 1) return { places: [left, ...gone].filter((g) => g.length > 0) };
+    const over = lastStanding(left, s.forfeited);
+    if (over) return over;
     if (s.phase !== "over") return null;
     if (left.every((p) => !s.tokens[p])) return { void: "Nobody burned a single token." };
-    const scores = [...new Set(left.map((p) => s.tokens[p] ?? 0))].sort((a, b) => b - a);
-    return { places: [...scores.map((n) => left.filter((p) => (s.tokens[p] ?? 0) === n)), ...gone] };
+    return { places: [...byScore(left, (p) => s.tokens[p] ?? 0), ...leavers(s.forfeited)] };
   },
 
   // The first 10% of the battle, at most 10 minutes: late bets can't just back the leader.

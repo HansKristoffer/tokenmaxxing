@@ -99,6 +99,9 @@ export const LEGEND: Record<string, TileKind> = {
   Γ: { name: "duck statue", text: "A golden rubber duck. It has heard every bug explained to it." },
 };
 
+/** `GameMap.find`'s answers, kept outside the map so two maps with the same tiles still compare equal. */
+const found = new WeakMap<GameMap, Map<string, readonly [number, number][]>>();
+
 /**
  * A map's tiles. `rows[0][0]` is tile (x0, y0): the town grows in every direction, so its tiles keep
  * their coordinates as it does (they can be negative); rooms start at (0, 0).
@@ -140,12 +143,20 @@ export class GameMap {
     return this.kind(x, y).walk === true;
   }
 
-  /** Every tile with character `ch`, in reading order. */
-  find(ch: string): [number, number][] {
+  /** Every tile with character `ch`, in reading order. Kept per character: the rows never change. */
+  find(ch: string): readonly [number, number][] {
+    let byCh = found.get(this);
+    if (!byCh) {
+      byCh = new Map();
+      found.set(this, byCh);
+    }
+    const hit = byCh.get(ch);
+    if (hit) return hit;
     const out: [number, number][] = [];
     this.rows.forEach((row, y) => {
       for (let x = 0; x < row.length; x++) if (row[x] === ch) out.push([x + this.x0, y + this.y0]);
     });
+    byCh.set(ch, out);
     return out;
   }
 }

@@ -1,6 +1,6 @@
 import { weekOf } from "@tokenmaxxing/core/raid.ts";
 
-export interface Config {
+interface Config {
   port: number;
   host: string;
   version: string;

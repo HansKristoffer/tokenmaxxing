@@ -291,8 +291,7 @@ input:focus {
   border: 3px solid var(--ink);
 }
 
-/* Chat dock, bottom left. */
-/* The chat and the quick replies above it, stacked from the bottom-left corner. */
+/* The chat dock: the chat and the quick replies above it, stacked from the bottom-left corner. */
 .chat-dock {
   position: absolute;
   left: 12px;
@@ -1622,10 +1621,10 @@ button.lb-item:hover {
 
 .milestone-toast.legendary {
   background: linear-gradient(135deg, rgba(60, 44, 12, 0.95), rgba(27, 31, 42, 0.95) 60%);
-  animation: legendary-glow 1.6s ease-in-out infinite alternate;
+  animation: milestone-glow 1.6s ease-in-out infinite alternate;
 }
 
-@keyframes legendary-glow {
+@keyframes milestone-glow {
   to {
     box-shadow: 0 0 30px rgba(255, 224, 102, 0.7);
   }

@@ -1,6 +1,6 @@
 import type { DeviceInfo } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
-import { withPlayer } from "../net.ts";
+import { connectPlayer, withPlayer } from "../net.ts";
 import { tauri } from "./AppUpdate.tsx";
 import { useRun } from "./ui.tsx";
 
@@ -18,7 +18,7 @@ function ago(at: number, now: number): string {
 }
 
 /**
- * On my own card: the computers whose usage counts for me (WORKHORSE.md). The app makes the line that
+ * On my own card: the computers whose usage counts for me (ARCHITECTURE.md, "Linked computers"). The app makes the line that
  * links another one; a plain browser can't, as only the app may.
  */
 export function Computers() {
@@ -30,11 +30,15 @@ export function Computers() {
   useEffect(() => {
     void devices().then(setList, () => {});
   }, []);
-  // While a line is out, watch for the new computer to show up.
+  // While a line is out, watch for the new computer to show up, over one connection for the while.
   useEffect(() => {
     if (!command) return;
-    const id = setInterval(() => void devices().then(setList, () => {}), 5000);
-    return () => clearInterval(id);
+    const player = connectPlayer();
+    const id = setInterval(() => void player.devices().then(setList, () => {}), 5000);
+    return () => {
+      clearInterval(id);
+      player.dispose();
+    };
   }, [command]);
 
   const link = run(async () => {
@@ -68,7 +72,7 @@ export function Computers() {
                 </small>
               </span>
               {d.kind === "linked" && (
-                <button type="button" className="link" disabled={busy} onClick={() => void remove(d.id)()}>
+                <button type="button" className="link" disabled={busy} onClick={remove(d.id)}>
                   Remove
                 </button>
               )}
@@ -83,7 +87,7 @@ export function Computers() {
           <p className="small">Run this in a terminal on the other computer (macOS or Linux):</p>
           <div className="command">
             <code>{command}</code>
-            <button type="button" onClick={() => void copy()}>
+            <button type="button" onClick={copy}>
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
@@ -92,7 +96,7 @@ export function Computers() {
           </p>
         </>
       ) : (
-        <button type="button" className="primary" disabled={busy} onClick={() => void link()}>
+        <button type="button" className="primary" disabled={busy} onClick={link}>
           Link a computer
         </button>
       )}

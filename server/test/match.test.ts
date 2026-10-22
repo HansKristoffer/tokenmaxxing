@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, jest, test } from "bun:test";
 import { createRequire } from "node:module";
 import { type TokenmaxxingState, tokenmaxxing } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Frame } from "@tokenmaxxing/core/games/wire.ts";
@@ -113,13 +113,18 @@ test("unchanged usage and ticks do not rewrite or broadcast a match", async () =
   expect(b.statusUpdates()).toBe(0);
   expect(b.frames).toEqual([]);
   const run = match.config.run as (c: Context) => Promise<void>;
+  // A tick on fake timers, instead of waiting out its second: it's over once the loop waits for the next.
+  jest.useFakeTimers();
   const running = run(b.ctx);
   try {
-    await Bun.sleep(1_100);
+    jest.advanceTimersToNextTimer();
+    for (let i = 0; jest.getTimerCount() === 0 && i < 1_000; i++) await Promise.resolve();
+    if (jest.getTimerCount() === 0) throw new Error("the tick didn't finish");
     expect(b.writes()).toBe(0);
     expect(b.statusUpdates()).toBe(0);
   } finally {
     b.controller.abort();
+    jest.useRealTimers();
     await running;
   }
 });

@@ -124,7 +124,7 @@ jobs:
             minisign -V -p "$dir/key.pub" -m "$dir/update" -x "$dir/update.minisig"
           done
 
-  # The CLI for linked computers (WORKHORSE.md): a binary per platform and their checksums on this
+  # The CLI for linked computers (ARCHITECTURE.md, "Linked computers"): a binary per platform and their checksums on this
   # release, where the server's /install.sh downloads them from. On a Mac, so Bun signs the Mac ones.
   cli:
     needs: release-please

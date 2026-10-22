@@ -3,7 +3,12 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fetchCursorUsage, loadCursorCredentials } from "../src/sources/cursor-api.ts";
+import {
+  type CursorApiOptions,
+  fetchCursorUsagePages,
+  loadCursorCredentials,
+} from "../src/sources/cursor-api.ts";
+import { cursorStateDbPath } from "../src/sources/paths.ts";
 import { loadState } from "../src/sync/state.ts";
 import { sync } from "../src/sync/sync.ts";
 import type { Source, TokenEvent } from "../src/types.ts";
@@ -32,6 +37,18 @@ const page = (rows: unknown[], total = rows.length) =>
   });
 const fetcher = (fn: (input: string | URL | Request, init?: RequestInit) => Promise<Response>) =>
   fn as typeof fetch;
+/** Every page's events, and the account they're for. */
+async function fetchCursorUsage(
+  opts: CursorApiOptions,
+): Promise<{ events: TokenEvent[]; accountId: string }> {
+  const events: TokenEvent[] = [];
+  let accountId = "";
+  for await (const page of fetchCursorUsagePages(opts)) {
+    events.push(...page.events);
+    accountId = page.accountId;
+  }
+  return { events, accountId };
+}
 const options = { dbPath: "unused", since: 0, until, credentials, pageSize: 100 };
 
 function database(value: string): string {
@@ -48,6 +65,14 @@ function jwt(subject: string): string {
 }
 
 describe("Cursor dashboard", () => {
+  test("reads credentials from state.vscdb under CURSOR_DATA_DIR", () => {
+    const prev = process.env.CURSOR_DATA_DIR;
+    process.env.CURSOR_DATA_DIR = "/tmp/cursor-global";
+    expect(cursorStateDbPath()).toBe("/tmp/cursor-global/state.vscdb");
+    if (prev === undefined) delete process.env.CURSOR_DATA_DIR;
+    else process.env.CURSOR_DATA_DIR = prev;
+  });
+
   test("loads a read-only JWT and derives the cookie from the final subject component", () => {
     const token = jwt("provider|user_123");
     const c = loadCursorCredentials(database(token));

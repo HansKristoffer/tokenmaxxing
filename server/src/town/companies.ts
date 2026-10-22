@@ -3,9 +3,9 @@ import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import { coinsForTokens, type Item } from "@tokenmaxxing/core/shop.ts";
 import { type Brand, COMPANY_CAP, type CompanyInfo, houseTier } from "@tokenmaxxing/core/world.ts";
 import { UserError } from "rivetkit";
-import { all, one, type Sql } from "../actors/shared.ts";
+import { all, one, type Sql, scalar } from "../actors/shared.ts";
 import { forgetLogo } from "../brand.ts";
-import { TOKENS, tokensIn, userById } from "./users.ts";
+import { among, type Ids, TOKENS, tokensIn, userById } from "./users.ts";
 
 export interface MyCompany {
   id: number;
@@ -89,12 +89,7 @@ export async function leave(sql: Sql, userId: number): Promise<Changed> {
       company.id,
     );
     if (heir) await sql.execute("UPDATE companies SET owner_id = ? WHERE id = ?", heir.id, company.id);
-    else {
-      await sql.execute("DELETE FROM companies WHERE id = ?", company.id);
-      await forgetFurniture(sql, company.id);
-      await sql.execute("DELETE FROM applications WHERE company_id = ?", company.id);
-      await forgetLogo(company.id);
-    }
+    else await dropCompany(sql, company.id);
   }
   return { users: [userId], companies: [company.id] };
 }
@@ -127,14 +122,28 @@ export async function myCompany(sql: Sql, companyId: number, viewer: number): Pr
 
 // MARK: The company wallet
 
-export const companyWallet = async (sql: Sql, companyId: number): Promise<number> =>
-  (
-    await one<{ n: number | null }>(
-      sql,
-      "SELECT SUM(amount) AS n FROM company_ledger WHERE company_id = ?",
-      companyId,
-    )
-  )?.n ?? 0;
+export const companyWallet = (sql: Sql, companyId: number): Promise<number> =>
+  scalar(sql, "SELECT SUM(amount) AS n FROM company_ledger WHERE company_id = ?", companyId);
+
+/** A line in a company's wallet (`company_ledger`): `amount` coins in (negative: out), `userId`'s doing. */
+export const companyLedgerAdd = (
+  sql: Sql,
+  companyId: number,
+  userId: number,
+  amount: number,
+  kind: WalletLine["kind"],
+  ref: string,
+  now: number,
+) =>
+  sql.execute(
+    "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, ?, ?, ?)",
+    companyId,
+    userId,
+    amount,
+    kind,
+    ref,
+    now,
+  );
 
 /** How many of a member's token coins for `day` are still to be matched: the day's coins, less what was. */
 export const matchDue = (dayCoins: number, matched: number): number => Math.max(0, dayCoins - matched);
@@ -154,30 +163,25 @@ export async function matchCoins(sql: Sql, userId: number, days: string[], now: 
   );
   if (!u || u.companyId === null || u.joinedAt === null) return;
   const from = [dayKey(u.joinedAt), dayKey(u.createdAt)].sort()[1]!;
-  for (const day of days) {
-    if (day < from) continue;
-    const [{ tokens }] = (await all<{ tokens: number | null }>(
-      sql,
-      `SELECT SUM(${TOKENS}) AS tokens FROM usage_daily WHERE user_id = ? AND day = ?`,
-      userId,
-      day,
-    )) as [{ tokens: number | null }];
-    const [{ matched }] = (await all<{ matched: number | null }>(
-      sql,
-      "SELECT SUM(amount) AS matched FROM company_ledger WHERE user_id = ? AND kind = 'match' AND ref = ?",
-      userId,
-      day,
-    )) as [{ matched: number | null }];
-    const due = matchDue(coinsForTokens(tokens ?? 0), matched ?? 0);
-    if (due > 0)
-      await sql.execute(
-        "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, 'match', ?, ?)",
-        u.companyId,
-        userId,
-        due,
-        day,
-        now,
-      );
+  const counted = [...new Set(days.filter((day) => day >= from))];
+  const perDay = async (query: string) =>
+    new Map(
+      (await all<{ day: string; n: number }>(sql, query, userId, JSON.stringify(counted))).map((r) => [
+        r.day,
+        r.n,
+      ]),
+    );
+  const tokens = await perDay(
+    `SELECT day, SUM(${TOKENS}) AS n FROM usage_daily
+     WHERE user_id = ? AND day IN (SELECT value FROM json_each(?)) GROUP BY day`,
+  );
+  const matched = await perDay(
+    `SELECT ref AS day, SUM(amount) AS n FROM company_ledger
+     WHERE user_id = ? AND kind = 'match' AND ref IN (SELECT value FROM json_each(?)) GROUP BY ref`,
+  );
+  for (const day of counted) {
+    const due = matchDue(coinsForTokens(tokens.get(day) ?? 0), matched.get(day) ?? 0);
+    if (due > 0) await companyLedgerAdd(sql, u.companyId, userId, due, "match", day, now);
   }
 }
 
@@ -226,14 +230,7 @@ export async function buyPiece(
     now,
     company.id,
   );
-  await sql.execute(
-    "INSERT INTO company_ledger (company_id, user_id, amount, kind, ref, at) VALUES (?, ?, ?, 'furniture', ?, ?)",
-    company.id,
-    userId,
-    -item.price,
-    item.id,
-    now,
-  );
+  await companyLedgerAdd(sql, company.id, userId, -item.price, "furniture", item.id, now);
   return row!.id;
 }
 
@@ -258,17 +255,22 @@ export async function unstore(
   return row.id;
 }
 
-/** A closing company's furniture goes with it, stored or on the floor (where `world` lifts it). */
-export async function forgetFurniture(sql: Sql, companyId: number): Promise<void> {
+/**
+ * A company with nobody left in it closes: its plot and logo are freed, its applications dropped, and its
+ * furniture goes with it, stored or on the floor (where `world` lifts it).
+ */
+export async function dropCompany(sql: Sql, companyId: number): Promise<void> {
+  await sql.execute("DELETE FROM companies WHERE id = ?", companyId);
   await sql.execute("DELETE FROM items WHERE company_id = ?", companyId);
+  await sql.execute("DELETE FROM applications WHERE company_id = ?", companyId);
+  await forgetLogo(companyId);
 }
 
 // MARK: Applying to join
 
 /** Every company, busiest first (30-day tokens per member), for choosing one to apply to. */
 export async function listings(sql: Sql): Promise<Listing[]> {
-  const ids = (await all<{ id: number }>(sql, "SELECT id FROM companies")).map((r) => r.id);
-  return (await companyInfos(sql, ids))
+  return (await companyInfos(sql, "all"))
     .map((c) => ({
       id: c.id,
       name: c.name,
@@ -307,14 +309,22 @@ async function applicants(sql: Sql, companyId: number): Promise<MyCompany["appli
 export const companyById = (sql: Sql, id: number) =>
   one<CompanyRow>(sql, `SELECT ${COMPANY_COLS} FROM companies WHERE id = ?`, id);
 
+/** The company with id `id` (as anyone may send it), or `not_found`. */
+export async function companyOrGone(sql: Sql, id: unknown): Promise<CompanyRow> {
+  const company = typeof id === "number" ? await companyById(sql, id) : undefined;
+  if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+  return company;
+}
+
+const membersOf = (sql: Sql, companyId: number): Promise<number> =>
+  scalar(sql, "SELECT COUNT(*) AS n FROM users WHERE company_id = ?", companyId);
+
 /** Asks to join `companyId`; one application at a time, so this replaces any other. Returns the owner. */
 export async function apply(sql: Sql, userId: number, companyId: number, now: number): Promise<CompanyRow> {
-  const company = await companyById(sql, companyId);
-  if (!company) throw new UserError("That company is gone.", { code: "not_found" });
+  const company = await companyOrGone(sql, companyId);
   const me = await userById(sql, userId);
   if (me.companyId === company.id) throw new UserError("You're already in it.", { code: "member" });
-  const [info] = await companyInfos(sql, [company.id]);
-  if ((info?.members ?? 0) >= COMPANY_CAP)
+  if ((await membersOf(sql, company.id)) >= COMPANY_CAP)
     throw new UserError("That company is full.", { code: "company_full" });
   await sql.execute(
     "INSERT OR REPLACE INTO applications (user_id, company_id, at) VALUES (?, ?, ?)",
@@ -352,8 +362,7 @@ export async function approve(
   now: number,
 ): Promise<Changed> {
   const userId = await applicationTo(sql, company, applicantId);
-  const [info] = await companyInfos(sql, [company.id]);
-  if ((info?.members ?? 0) >= COMPANY_CAP)
+  if ((await membersOf(sql, company.id)) >= COMPANY_CAP)
     throw new UserError("Your company is full.", { code: "company_full" });
   const left = await leave(sql, userId);
   await sql.execute("UPDATE users SET company_id = ?, joined_at = ? WHERE id = ?", company.id, now, userId);
@@ -368,8 +377,9 @@ export async function decline(sql: Sql, company: CompanyRow, applicantId: unknow
   return userId;
 }
 
-export async function companyInfos(sql: Sql, ids: number[]): Promise<CompanyInfo[]> {
+export async function companyInfos(sql: Sql, ids: Ids): Promise<CompanyInfo[]> {
   const today = dayKey(Date.now());
+  const [where, ...args] = among("c.id", ids);
   const rows = await all<Omit<CompanyInfo, "brand"> & { brand: string | null }>(
     sql,
     `SELECT c.id, c.name, c.plot, c.website, c.brand,
@@ -378,10 +388,10 @@ export async function companyInfos(sql: Sql, ids: number[]): Promise<CompanyInfo
                       JOIN users u ON u.id = d.user_id WHERE u.company_id = c.id AND d.day = ?), 0) AS todayTokens,
             COALESCE((SELECT SUM(${TOKENS}) FROM usage_daily d
                       JOIN users u ON u.id = d.user_id WHERE u.company_id = c.id AND d.day >= ?), 0) AS tokens30d
-     FROM companies c WHERE c.id IN (SELECT value FROM json_each(?))`,
+     FROM companies c WHERE ${where}`,
     today,
     addDays(today, -29),
-    JSON.stringify(ids),
+    ...args,
   );
   return rows.map((r) => ({ ...r, brand: r.brand === null ? null : (JSON.parse(r.brand) as Brand) }));
 }

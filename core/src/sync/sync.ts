@@ -28,7 +28,7 @@ interface SyncResult {
 }
 
 /** Server rejects bodies above this; batches are split to fit. */
-export const MAX_EVENTS_PER_REQUEST = 1000;
+const MAX_EVENTS_PER_REQUEST = 1000;
 
 /**
  * Read new events and send them. State is saved after every acked batch, so

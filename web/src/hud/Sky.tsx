@@ -6,9 +6,9 @@ import {
   sunTimes,
   type WeatherKind,
 } from "@tokenmaxxing/core/sky.ts";
-import { useEffect, useState } from "react";
 import { skyNow, weatherNow } from "../game/sky.ts";
 import { useHud } from "../store.ts";
+import { useTicker } from "./ui.tsx";
 
 const MOONS = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"];
 const WEATHER_ICON: Record<WeatherKind, string> = {
@@ -23,12 +23,8 @@ const WEATHER_ICON: Record<WeatherKind, string> = {
 
 /** World time and weather in the top bar: the next sun event, and the wind. Hover for the detail. */
 export function Sky() {
-  const [, tick] = useState(0);
   useHud((s) => s.weather);
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 30_000);
-    return () => clearInterval(id);
-  }, []);
+  useTicker(30_000);
   const now = skyNow();
   const light = lightAt(now);
   const moon = moonPhase(now);

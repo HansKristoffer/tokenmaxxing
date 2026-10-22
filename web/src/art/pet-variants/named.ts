@@ -1,18 +1,11 @@
 import { DOG_SHAPES } from "./dog-shapes.ts";
-import { type Patch, type PetVariant, swap } from "./types.ts";
+import { line, type Patch, type PetVariant, swap, up } from "./types.ts";
 
 /**
  * Costumes for named pets (`PET_NAMED` in core/src/pets.ts): a look of a pet with a few pixels dressed.
  * They're built on the plain look, so the picker's art and the costume never drift apart.
  */
 const dog = (id: string) => DOG_SHAPES.find((v) => v.id === id)!;
-
-/** The same pixels a row higher: the hop frame is the standing one lifted a row. */
-const up = (patches: Patch[]): Patch[] => patches.map(([y, x, c]) => [y - 1, x, c]);
-
-/** Pixels of `ch` along row `y`, columns `from` to `to` (inclusive). */
-const line = (y: number, from: number, to: number, ch: string): Patch[] =>
-  Array.from({ length: to - from + 1 }, (_, i): Patch => [y, from + i, ch]);
 
 /**
  * Penny, after the real dog: a dark chocolate knitted sweater from behind the neck to the hips, a chunky pink

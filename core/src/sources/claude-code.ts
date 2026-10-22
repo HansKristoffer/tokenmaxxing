@@ -3,7 +3,7 @@ import { type Source, type TokenEvent, tokenEvent } from "../types.ts";
 import { isNum, isString } from "./guards.ts";
 import { readNewlineLines } from "./read-slice.ts";
 
-export interface ParseClaudeCodeOptions {
+interface ParseClaudeCodeOptions {
   path: string;
   byteOffset: number;
   /** Source tag for emitted events; defaults to "claude_code". Cowork passes
@@ -11,7 +11,7 @@ export interface ParseClaudeCodeOptions {
   source?: Source;
 }
 
-export interface ParseClaudeCodeResult {
+interface ParseClaudeCodeResult {
   events: TokenEvent[];
   newOffset: number;
   /** Count of records dropped because they exceeded the read window (data
@@ -42,6 +42,16 @@ interface RawCCRecord {
 }
 
 /**
+ * Whether a line could be an event, before paying for `JSON.parse`: most of a log's bytes are tool
+ * results, attachments and progress lines. An assistant event has a `usage` block and a user one has
+ * `"type":"user"`; a line with no usage that holds a tool result is never a prompt.
+ */
+const mayBeEvent = (line: string): boolean =>
+  line.includes('"usage"')
+    ? line.includes('"assistant"') || line.includes('"user"')
+    : line.includes('"user"') && !line.includes('"tool_result"');
+
+/**
  * Tail-read a Claude Code session jsonl file from `byteOffset`.
  *
  * Returns parsed events plus a new byte offset that points at the start of
@@ -70,7 +80,6 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
   }
 
   const events: TokenEvent[] = [];
-  const localSeen = new Set<string>();
   // Claude Code writes one line per content block of a response, all with the
   // same message id, and only the last carries the final output_tokens. So a
   // repeat updates the event already taken.
@@ -90,6 +99,7 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
     }
     if (part.kind !== "line") continue;
     const line = part.text;
+    if (!mayBeEvent(line)) continue;
 
     let raw: RawCCRecord;
     try {
@@ -119,9 +129,7 @@ export async function parseClaudeCodeFile(opts: ParseClaudeCodeOptions): Promise
       ) {
         continue;
       }
-      const dedupKey = `${raw.uuid}:`;
-      if (localSeen.has(dedupKey)) continue;
-      localSeen.add(dedupKey);
+      // A prompt logged twice is sent once: `collect` drops repeats across every file.
       events.push(
         tokenEvent({
           source,

@@ -18,7 +18,7 @@ export interface BadgeFacts {
   picnics?: number;
 }
 
-export interface BadgeDef {
+interface BadgeDef {
   id: string;
   emoji: string;
   name: string;

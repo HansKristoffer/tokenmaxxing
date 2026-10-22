@@ -1,5 +1,5 @@
 import { blockOf, type GameMap, PLOT_H, PLOT_W, plotId } from "@tokenmaxxing/core/maps.ts";
-import { type Peek, TILE } from "@tokenmaxxing/core/world.ts";
+import { type CompanyInfo, type Peek, TILE } from "@tokenmaxxing/core/world.ts";
 import type { Pane } from "../art/buildings.ts";
 import { characterFrame, sleeperFrame } from "../art/characters.ts";
 import { world } from "./world.ts";
@@ -36,9 +36,17 @@ export function buildings(map: GameMap): Building[] {
 export const buildingAt = (x: number, y: number): Building | undefined =>
   buildings(world.map).find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
 
-export function companyOnPlot(plot: number) {
-  for (const c of world.companies.values()) if (c.plot === plot) return c;
-  return undefined;
+/** Each plot's company, worked out again when the world's companies are replaced (`setCompanies`). */
+let plotsOf: Map<number, CompanyInfo> | null = null;
+const onPlot = new Map<number, CompanyInfo>();
+
+export function companyOnPlot(plot: number): CompanyInfo | undefined {
+  if (plotsOf !== world.companies) {
+    plotsOf = world.companies;
+    onPlot.clear();
+    for (const c of world.companies.values()) if (!onPlot.has(c.plot)) onPlot.set(c.plot, c);
+  }
+  return onPlot.get(plot);
 }
 
 const logos = new Map<string, HTMLImageElement | null>();

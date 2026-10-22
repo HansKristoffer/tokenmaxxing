@@ -18,8 +18,9 @@ import { characterFrame } from "../art/characters.ts";
 import { MINION_H, MINION_W, minionFrame } from "../art/minions.ts";
 import { boardedGate, chairBack, dangerSign, plank } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
-import { hash } from "../art/pixels.ts";
+import { gradient, hash } from "../art/pixels.ts";
 import { hud } from "../store.ts";
+import type { Frame } from "./frame.ts";
 import { gameHits } from "./games.ts";
 import { bubble, FONT, pill, sign } from "./labels.ts";
 import { world } from "./world.ts";
@@ -49,7 +50,7 @@ const RUMBLE_MS = 700;
 const LURK_EVERY = 18_000;
 const LURK_MS = 4500;
 /** What's behind the boards says, before the first raid. */
-export const LURKING = [
+const LURKING = [
   "Your rate limit is coming.",
   "Try again Monday at 08:00.",
   "429 Too Early.",
@@ -58,7 +59,7 @@ export const LURKING = [
 ];
 
 /** Missiles a second from a laptop burning `burn` tokens a minute: 1 at 100k, ~3 at 1M, at most 6. */
-export const fireRate = (burn: number): number => (burn > 0 ? Math.min(6, Math.sqrt(burn / 1e5)) : 0);
+const fireRate = (burn: number): number => (burn > 0 ? Math.min(6, Math.sqrt(burn / 1e5)) : 0);
 /** Agents running with nothing synced lately: the odd sputter. */
 const SPUTTER = 0.08;
 
@@ -74,13 +75,11 @@ const BOSS_W = BOSS_SIZE * BOSS_SCALE;
 export const TARGET = { x: AT.x, y: AT.y - BOSS_W / 2 };
 
 /** Seats nearest the boss first: the busiest raiders get them when they arrive. */
-const SEATS = map
-  .find("r")
-  .sort(
-    ([ax, ay], [bx, by]) =>
-      Math.hypot(ax + 0.5 - AT.x / TILE, ay - AT.y / TILE) -
-        Math.hypot(bx + 0.5 - AT.x / TILE, by - AT.y / TILE) || ax - bx,
-  );
+const SEATS = [...map.find("r")].sort(
+  ([ax, ay], [bx, by]) =>
+    Math.hypot(ax + 0.5 - AT.x / TILE, ay - AT.y / TILE) -
+      Math.hypot(bx + 0.5 - AT.x / TILE, by - AT.y / TILE) || ax - bx,
+);
 /** Seats are handed out from the front, in bands this big (see `setRaiders`). */
 const SEAT_BAND = 10;
 const TORCHES = map.find("j");
@@ -111,17 +110,20 @@ const fx = {
   next: null as { boss: RungBoss; at: number } | null,
   /** When the gate burst open at the launch. */
   launch: null as number | null,
-  /** Shots owed per shooter (`id` or `id:minion`), so slow rates still fire now and then. */
-  owed: new Map<string, number>(),
+  /** Shots owed per shooter (`shooter`), so slow rates still fire now and then. */
+  owed: new Map<number, number>(),
   last: 0,
 };
+
+/** A shooter's key in `fx.owed`: a raider's laptop (`minion` -1) or one of their minions. */
+const shooter = (id: number, minion = -1) => id * 16 + minion + 1;
 
 /**
  * Who's raiding, and which seat each has: kept as they come and go, so nobody jumps around. A newcomer
  * gets the seat their id hashes to (or the next free one) among the front `zone` seats, so the same
  * person has the same desk after a reload too, and a half-full room still fills from the boss out.
  */
-export const dungeon = {
+const dungeon = {
   raiders: null as Raiders | null,
   seats: new Map<number, number>(),
 };
@@ -136,10 +138,12 @@ export function setRaiders(r: Raiders | null): void {
   dungeon.raiders = r;
   if (!r) {
     dungeon.seats.clear();
+    fx.owed.clear();
     return;
   }
   const ids = new Set(r.top.map((p) => p.id));
   for (const id of dungeon.seats.keys()) if (!ids.has(id)) dungeon.seats.delete(id);
+  for (const key of fx.owed.keys()) if (!ids.has(Math.floor(key / 16))) fx.owed.delete(key);
   const taken = new Set(dungeon.seats.values());
   // The front seats, in bands of 10, so the zone (and with it everyone's seat) only moves when the
   // crowd crosses a band; past it (people kept from a bigger crowd), the whole room.
@@ -188,25 +192,35 @@ export const left = (r: Raid): number => Math.max(0, r.hp - r.damage);
 export const opensAt = (r: Raid): string => `${String(r.rules.opensHour).padStart(2, "0")}:00`;
 const pct = (r: Raid) => (r.hp > 0 ? Math.ceil((left(r) / r.hp) * 100) : 0);
 
-type Draw = { y: number; draw: () => void };
-type ToScreen = (px: number, py: number) => readonly [number, number];
+const openRaid = () => hud.set({ panel: { kind: "raid" } });
 
-export function drawRaid(
-  g: CanvasRenderingContext2D,
-  items: Draw[],
-  labels: (() => void)[],
-  toScreen: ToScreen,
-  now: number,
-  dpr: number,
-): void {
+/** Where the boss's name goes, and its body (which opens the raid too), in canvas pixels. */
+function bossBox(f: Frame) {
+  const [sx, sy] = f.toScreen(AT.x, AT.y - BOSS_W - 4);
+  const [x0, y0] = f.toScreen(AT.x - BOSS_W / 2, AT.y - BOSS_W);
+  const [x1, y1] = f.toScreen(AT.x + BOSS_W / 2, AT.y);
+  return { sx, sy, x0, y0, x1, y1 };
+}
+
+/** Now and then a line from what's behind the boards, in a bubble over `bottom`. */
+function lurking(g: CanvasRenderingContext2D, cx: number, bottom: number, dpr: number): void {
+  const lurk = Date.now() % LURK_EVERY;
+  if (lurk < LURK_MS) {
+    const line = LURKING[Math.floor(Date.now() / LURK_EVERY) % LURKING.length]!;
+    bubble(g, cx, bottom, line, dpr, LURK_MS - lurk);
+  }
+}
+
+export function drawRaid(f: Frame): void {
+  const { g, items, labels, toScreen, now, dpr } = f;
   const r = hud.get().raid;
-  if (world.room === "town" && r) drawGate(g, items, labels, toScreen, r, dpr);
+  if (world.room === "town" && r) drawGate(f, r);
   if (world.room !== "dungeon") return;
   const dt = Math.min(100, now - (fx.last || now));
   fx.last = now;
   // Before the first raid: dark, nobody at the desks, and only the first boss's shadow on the dais.
   if (r?.prelaunch) {
-    drawLair(g, items, labels, toScreen, r, now, dpr);
+    drawLair(f, r);
     return;
   }
   // The week is over: last week's result, and nobody fires till the gate opens.
@@ -234,8 +248,7 @@ export function drawRaid(
     const px = seat[0] * TILE;
     const py = seat[1] * TILE;
     const rate = down ? 0 : fireRate(p.burn) || SPUTTER;
-    const laptop = { x: px + 8, y: py - TILE + 1 };
-    const firing = shoot(`${p.id}`, rate, dt, now, laptop, false);
+    const firing = shoot(shooter(p.id), rate, dt, now, px + 8, py - TILE + 1, false);
     // The laptop lights up, brighter as it fires.
     items.push({
       y: py - 0.9,
@@ -261,12 +274,13 @@ export function drawRaid(
       const mx = px - 8 + (i % 4) * MINION_W;
       const my = py + TILE - 2 + Math.floor(i / 4) * 5;
       const fired = shoot(
-        `${p.id}:${i}`,
+        shooter(p.id, i),
         // Smaller guns: a minion fires a third as fast, and only sputters when its raider does.
         rate && (fireRate(p.burn) ? Math.max(0.25, rate / 3) : rate / 2),
         dt,
         now,
-        { x: mx + 7, y: my + 6 },
+        mx + 7,
+        my + 6,
         true,
       );
       const frame = fired || Math.floor((now + i * 137) / 400) % 4 === 0 ? 1 : 0;
@@ -303,22 +317,23 @@ export function drawRaid(
     labels.push(() => sign(g, sx, sy, "No agents running right now. Start one and take a desk.", dpr, false));
   }
 
-  if (r) drawPlaques(g, items, labels, toScreen, r, dpr);
+  if (r) drawPlaques(f, r);
   // A week with kills ends in gold sparkles instead of missiles.
   if (down && r.kills.length > 0 && fx.sparks.length < MAX_SPARKS && Math.random() < dt / 60)
     spark(TARGET.x + (Math.random() - 0.5) * 70, TARGET.y + (Math.random() - 0.5) * 50, now, "#ffd35c", 1);
 
-  if (r) drawBoss(g, items, labels, toScreen, r, now, dpr);
-  drawShots(g, items, now);
+  if (r) drawBoss(f, r);
+  drawShots(f);
 }
 
-/** Fires from `from` at `rate` a second: true for a moment after each shot, for the art to react. */
+/** Fires from (`fromX`, `fromY`) at `rate` a second: true for a moment after each shot, for the art to react. */
 function shoot(
-  key: string,
+  key: number,
   rate: number,
   dt: number,
   now: number,
-  from: { x: number; y: number },
+  fromX: number,
+  fromY: number,
   minion: boolean,
 ) {
   if (rate <= 0) return false;
@@ -331,10 +346,10 @@ function shoot(
     const y1 = TARGET.y + (Math.random() - 0.5) * BOSS_W * 0.5;
     const lift = 30 + Math.random() * 40;
     fx.missiles.push({
-      x0: from.x,
-      y0: from.y,
-      cx: (from.x + x1) / 2 + (Math.random() - 0.5) * 60,
-      cy: Math.min(from.y, y1) - lift,
+      x0: fromX,
+      y0: fromY,
+      cx: (fromX + x1) / 2 + (Math.random() - 0.5) * 60,
+      cy: Math.min(fromY, y1) - lift,
       x1,
       y1,
       at: now,
@@ -356,24 +371,28 @@ function spark(x: number, y: number, now: number, color: string, n: number, ms =
   }
 }
 
-const along = (m: Missile, t: number) => {
+/** Where a missile is `t` of the way along its arc. */
+const alongX = (m: Missile, t: number) => {
   const u = 1 - t;
-  return [
-    u * u * m.x0 + 2 * u * t * m.cx + t * t * m.x1,
-    u * u * m.y0 + 2 * u * t * m.cy + t * t * m.y1,
-  ] as const;
+  return u * u * m.x0 + 2 * u * t * m.cx + t * t * m.x1;
+};
+const alongY = (m: Missile, t: number) => {
+  const u = 1 - t;
+  return u * u * m.y0 + 2 * u * t * m.cy + t * t * m.y1;
 };
 
 /** Missiles and sparks, over everything else in the room. */
-function drawShots(g: CanvasRenderingContext2D, items: Draw[], now: number): void {
-  fx.missiles = fx.missiles.filter((m) => {
-    if (now - m.at < m.ms) return true;
-    spark(m.x1, m.y1, now, m.minion ? "#9dff8a" : "#e0b3ff", m.minion ? 2 : 4);
-    // The boss flinches, not more than a few times a second.
-    if (now > fx.zapUntil + 120) fx.zapUntil = now + 60;
-    return false;
-  });
-  fx.sparks = fx.sparks.filter((s) => now - s.at < s.ms);
+function drawShots({ g, items, now }: Frame): void {
+  if (fx.missiles.length)
+    fx.missiles = fx.missiles.filter((m) => {
+      if (now - m.at < m.ms) return true;
+      spark(m.x1, m.y1, now, m.minion ? "#9dff8a" : "#e0b3ff", m.minion ? 2 : 4);
+      // The boss flinches, not more than a few times a second.
+      if (now > fx.zapUntil + 120) fx.zapUntil = now + 60;
+      return false;
+    });
+  if (fx.sparks.length) fx.sparks = fx.sparks.filter((s) => now - s.at < s.ms);
+  if (!fx.missiles.length && !fx.sparks.length) return;
   items.push({
     y: Number.POSITIVE_INFINITY,
     draw: () => {
@@ -382,15 +401,14 @@ function drawShots(g: CanvasRenderingContext2D, items: Draw[], now: number): voi
         const glow = m.minion ? "#9dff8a" : "#b98cff";
         // A short trail, then the bolt: a bright core in a glow.
         for (let k = 3; k >= 1; k--) {
-          const [x, y] = along(m, Math.max(0, t - k * 0.035));
+          const tk = Math.max(0, t - k * 0.035);
           g.globalAlpha = 0.5 - k * 0.12;
           g.fillStyle = glow;
-          g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
+          g.fillRect(Math.round(alongX(m, tk)) - 1, Math.round(alongY(m, tk)) - 1, 2, 2);
         }
         g.globalAlpha = 1;
-        const [x, y] = along(m, t);
-        const bx = Math.round(x);
-        const by = Math.round(y);
+        const bx = Math.round(alongX(m, t));
+        const by = Math.round(alongY(m, t));
         // A little star: a plus of glow round a white heart (a dot for a minion's).
         g.fillStyle = glow;
         if (m.minion) g.fillRect(bx - 1, by - 1, 2, 2);
@@ -417,15 +435,8 @@ function drawShots(g: CanvasRenderingContext2D, items: Draw[], now: number): voi
  * The boss on its dais: its rung and HP under its name, the town's hits floating off it, a taunt now and
  * then. Just after a kill, the fallen one slumps by a trophy, then the next drops in.
  */
-function drawBoss(
-  g: CanvasRenderingContext2D,
-  items: Draw[],
-  labels: (() => void)[],
-  toScreen: ToScreen,
-  r: Raid,
-  now: number,
-  dpr: number,
-): void {
+function drawBoss(f: Frame, r: Raid): void {
+  const { g, items, labels, now, dpr } = f;
   const fell = fx.fell && now - fx.fell.at < FALL_MS ? fx.fell : null;
   const next = fx.next && now - fx.next.at < BANNER_MS ? fx.next : null;
   const arriving = next && !fell ? Math.min(1, Math.max(0, (now - next.at) / ARRIVE_MS)) : 1;
@@ -460,9 +471,7 @@ function drawBoss(
     },
   });
 
-  const [sx, sy] = toScreen(AT.x, AT.y - BOSS_W - 4);
-  const [bx, byTop] = toScreen(AT.x - BOSS_W / 2, AT.y - BOSS_W);
-  const [bx2, byBottom] = toScreen(AT.x + BOSS_W / 2, AT.y);
+  const { sx, sy, x0: bx, y0: byTop, x1: bx2, y1: byBottom } = bossBox(f);
   labels.push(() => {
     const share = fell ? 0 : r.hp > 0 ? left(r) / r.hp : 0;
     const title = fell
@@ -496,10 +505,9 @@ function drawBoss(
     g.textAlign = "center";
     g.textBaseline = "middle";
     g.fillText(fell ? "0 HP" : `${compact(left(r))} / ${compact(r.hp)}`, sx, by + bh / 2 + 0.5 * dpr);
-    const open = () => hud.set({ panel: { kind: "raid" } });
-    gameHits.push({ x: sx - bw / 2, y: top - h, w: bw, h: h + bh + 6 * dpr, open });
+    gameHits.push({ x: sx - bw / 2, y: top - h, w: bw, h: h + bh + 6 * dpr, open: openRaid });
     // Its body opens the raid too.
-    gameHits.push({ x: bx, y: byTop, w: bx2 - bx, h: byBottom - byTop, open });
+    gameHits.push({ x: bx, y: byTop, w: bx2 - bx, h: byBottom - byTop, open: openRaid });
 
     // The next rung's, as it comes up.
     if (next && now >= next.at) {
@@ -516,18 +524,18 @@ function drawBoss(
     }
 
     // Hits float up off it and fade.
-    fx.floats = fx.floats.filter((f) => now - f.at < FLOAT_MS);
-    for (const f of fx.floats) {
-      const t = (now - f.at) / FLOAT_MS;
+    if (fx.floats.length) fx.floats = fx.floats.filter((fl) => now - fl.at < FLOAT_MS);
+    for (const fl of fx.floats) {
+      const t = (now - fl.at) / FLOAT_MS;
       if (t < 0) continue;
       g.globalAlpha = 1 - t;
       g.font = `800 ${14 * dpr}px ${FONT}`;
       g.lineWidth = 3 * dpr;
       g.strokeStyle = C.ink;
-      g.fillStyle = f.text.endsWith("you") ? "#ffd35c" : "#ff8a7a";
+      g.fillStyle = fl.text.endsWith("you") ? "#ffd35c" : "#ff8a7a";
       const fy = byTop + (byBottom - byTop) * 0.4 - t * 40 * dpr;
-      g.strokeText(f.text, (bx + bx2) / 2 + f.dx * dpr, fy);
-      g.fillText(f.text, (bx + bx2) / 2 + f.dx * dpr, fy);
+      g.strokeText(fl.text, (bx + bx2) / 2 + fl.dx * dpr, fy);
+      g.fillText(fl.text, (bx + bx2) / 2 + fl.dx * dpr, fy);
       g.globalAlpha = 1;
     }
 
@@ -542,14 +550,7 @@ function drawBoss(
 }
 
 /** This week's kills on the back wall: a gold-framed plaque of each boss, its rung under it. */
-function drawPlaques(
-  g: CanvasRenderingContext2D,
-  items: Draw[],
-  labels: (() => void)[],
-  toScreen: ToScreen,
-  r: Raid,
-  dpr: number,
-): void {
+function drawPlaques({ g, items, labels, toScreen, dpr }: Frame, r: Raid): void {
   const kills = r.kills.slice(-PLAQUES.length);
   kills.forEach((k, i) => {
     const [tx, ty] = PLAQUES[i]!;
@@ -573,23 +574,17 @@ function drawPlaques(
 }
 
 /** Over the gate in town: which boss is down there, its rung and how it's doing. Shut till the week opens. */
-function drawGate(
-  g: CanvasRenderingContext2D,
-  items: Draw[],
-  labels: (() => void)[],
-  toScreen: ToScreen,
-  r: Raid,
-  dpr: number,
-) {
+function drawGate(f: Frame, r: Raid) {
+  const { g, items, labels, toScreen, dpr } = f;
   const at = MAPS.town.find("G")[0];
   if (!at) return;
   const [gx, gy] = at;
   const now = performance.now();
   if (r.prelaunch) {
-    drawBoarded(g, items, labels, toScreen, r, gx, gy, now, dpr);
+    drawBoarded(f, r, gx, gy, now);
     return;
   }
-  if (fx.launch !== null && now - fx.launch < BURST_MS) drawBurst(g, items, gx, gy, now - fx.launch);
+  if (fx.launch !== null && now - fx.launch < BURST_MS) drawBurst(f, gx, gy, now - fx.launch);
   if (r.closed)
     // A portcullis over the way down.
     items.push({
@@ -607,7 +602,7 @@ function drawGate(
     : `⚔️ Raid Dungeon · ${r.boss.emoji} ${r.boss.name} · rung ${r.boss.rung} · ${pct(r)}%`;
   labels.push(() => {
     const { w, h } = pill(g, sx, sy, text, dpr, "rgba(20, 24, 34, 0.9)", "#ffd35c");
-    gameHits.push({ x: sx - w / 2, y: sy - h, w, h, open: () => hud.set({ panel: { kind: "raid" } }) });
+    gameHits.push({ x: sx - w / 2, y: sy - h, w, h, open: openRaid });
   });
 }
 
@@ -619,15 +614,11 @@ const gateBox = (gx: number, gy: number) => ({ x: gx * TILE - 4, y: gy * TILE + 
  * through the gaps, a rumble now and then, the odd line from inside, and the countdown over it.
  */
 function drawBoarded(
-  g: CanvasRenderingContext2D,
-  items: Draw[],
-  labels: (() => void)[],
-  toScreen: ToScreen,
+  { g, items, labels, toScreen, dpr }: Frame,
   r: Raid,
   gx: number,
   gy: number,
   now: number,
-  dpr: number,
 ) {
   const { x, y } = gateBox(gx, gy);
   const phase = Date.now() % RUMBLE_EVERY;
@@ -664,22 +655,17 @@ function drawBoarded(
   const [bx, by] = toScreen(x, y);
   const [bx2, by2] = toScreen(x + 24, y + 28);
   labels.push(() => {
-    const open = () => hud.set({ panel: { kind: "raid" } });
     const text =
       Date.now() < r.launchAt ? `⚠️ Something is coming… ${countdown(r.launchAt)}` : "⚔️ The gate is opening…";
     const { w, h } = pill(g, sx, sy, text, dpr, "rgba(20, 24, 34, 0.92)", "#f5d14a");
-    gameHits.push({ x: sx - w / 2, y: sy - h, w, h, open });
-    gameHits.push({ x: bx, y: by, w: bx2 - bx, h: by2 - by, open });
-    const lurk = Date.now() % LURK_EVERY;
-    if (lurk < LURK_MS) {
-      const line = LURKING[Math.floor(Date.now() / LURK_EVERY) % LURKING.length]!;
-      bubble(g, sx, sy - h - 2 * dpr, line, dpr, LURK_MS - lurk);
-    }
+    gameHits.push({ x: sx - w / 2, y: sy - h, w, h, open: openRaid });
+    gameHits.push({ x: bx, y: by, w: bx2 - bx, h: by2 - by, open: openRaid });
+    lurking(g, sx, sy - h - 2 * dpr, dpr);
   });
 }
 
 /** The launch, in town: the boards fly off the gate in a burst of gold and violet. */
-function drawBurst(g: CanvasRenderingContext2D, items: Draw[], gx: number, gy: number, age: number) {
+function drawBurst({ g, items }: Frame, gx: number, gy: number, age: number) {
   const { x, y } = gateBox(gx, gy);
   const t = age / BURST_MS;
   items.push({
@@ -718,15 +704,8 @@ function drawBurst(g: CanvasRenderingContext2D, items: Draw[], gx: number, gy: n
 }
 
 /** The dungeon before the first raid: dark and empty, the first boss only a shadow with eyes, waiting. */
-function drawLair(
-  g: CanvasRenderingContext2D,
-  items: Draw[],
-  labels: (() => void)[],
-  toScreen: ToScreen,
-  r: Raid,
-  now: number,
-  dpr: number,
-) {
+function drawLair(f: Frame, r: Raid) {
+  const { g, items, labels, now, dpr } = f;
   const breathe = Math.sin(now / 900);
   const blink = Math.floor(Date.now() / 300) % 17 === 0;
   const w = Math.round(BOSS_W * (1 + breathe * 0.02));
@@ -747,27 +726,24 @@ function drawLair(
   items.push({
     y: Number.POSITIVE_INFINITY,
     draw: () => {
-      const x0 = map.x0 * TILE;
-      const y0 = map.y0 * TILE;
-      const dark = g.createRadialGradient(
-        TARGET.x,
-        TARGET.y,
-        BOSS_W * 0.6,
-        TARGET.x,
-        TARGET.y,
-        map.width * TILE * 0.6,
-      );
-      dark.addColorStop(0, "rgba(8, 6, 14, 0.25)");
-      dark.addColorStop(1, "rgba(8, 6, 14, 0.82)");
-      g.fillStyle = dark;
-      g.fillRect(x0, y0, map.width * TILE, map.height * TILE);
+      g.fillStyle = gradient(g, "dungeon dark", () => {
+        const dark = g.createRadialGradient(
+          TARGET.x,
+          TARGET.y,
+          BOSS_W * 0.6,
+          TARGET.x,
+          TARGET.y,
+          map.width * TILE * 0.6,
+        );
+        dark.addColorStop(0, "rgba(8, 6, 14, 0.25)");
+        dark.addColorStop(1, "rgba(8, 6, 14, 0.82)");
+        return dark;
+      });
+      g.fillRect(map.x0 * TILE, map.y0 * TILE, map.width * TILE, map.height * TILE);
     },
   });
-  const [sx, sy] = toScreen(AT.x, AT.y - BOSS_W - 4);
-  const [bx, byTop] = toScreen(AT.x - BOSS_W / 2, AT.y - BOSS_W);
-  const [bx2, byBottom] = toScreen(AT.x + BOSS_W / 2, AT.y);
+  const { sx, sy, x0, y0, x1, y1 } = bossBox(f);
   labels.push(() => {
-    const open = () => hud.set({ panel: { kind: "raid" } });
     const top = sy - 6 * dpr;
     const { w, h } = pill(
       g,
@@ -778,20 +754,9 @@ function drawLair(
       "rgba(20, 24, 34, 0.92)",
       "#f5d14a",
     );
-    gameHits.push({ x: sx - w / 2, y: top - h, w, h, open });
-    gameHits.push({ x: bx, y: byTop, w: bx2 - bx, h: byBottom - byTop, open });
-    sign(
-      g,
-      sx,
-      byBottom + 30 * dpr,
-      "The desks are empty. For now. Monday 08:00, every agent fights.",
-      dpr,
-      false,
-    );
-    const lurk = Date.now() % LURK_EVERY;
-    if (lurk < LURK_MS) {
-      const line = LURKING[Math.floor(Date.now() / LURK_EVERY) % LURKING.length]!;
-      bubble(g, sx, top - h - 2 * dpr, line, dpr, LURK_MS - lurk);
-    }
+    gameHits.push({ x: sx - w / 2, y: top - h, w, h, open: openRaid });
+    gameHits.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0, open: openRaid });
+    sign(g, sx, y1 + 30 * dpr, "The desks are empty. For now. Monday 08:00, every agent fights.", dpr, false);
+    lurking(g, sx, top - h - 2 * dpr, dpr);
   });
 }

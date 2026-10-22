@@ -1,5 +1,6 @@
 import { picnicReward, TOUCHED_GRASS } from "@tokenmaxxing/core/picnic.ts";
-import { all, one, type Sql } from "../actors/shared.ts";
+import { all, type Sql, scalar } from "../actors/shared.ts";
+import { giveItem } from "./coins.ts";
 
 /**
  * The "I was there" badge: a row in `rewards` per outage someone sat on a blanket for, so it comes
@@ -18,16 +19,10 @@ export async function markPicnic(
     picnicReward(since),
   );
   if (fresh.length === 0) return false;
-  await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, TOUCHED_GRASS, now);
+  await giveItem(sql, userId, TOUCHED_GRASS, now);
   return true;
 }
 
 /** How many outage picnics someone was at, for their badge. */
-export async function picnicsOf(sql: Sql, userId: number): Promise<number> {
-  const row = await one<{ n: number }>(
-    sql,
-    "SELECT COUNT(*) AS n FROM rewards WHERE user_id = ? AND item LIKE 'picnic:%'",
-    userId,
-  );
-  return row?.n ?? 0;
-}
+export const picnicsOf = (sql: Sql, userId: number): Promise<number> =>
+  scalar(sql, "SELECT COUNT(*) AS n FROM rewards WHERE user_id = ? AND item LIKE 'picnic:%'", userId);

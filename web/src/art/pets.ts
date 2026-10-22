@@ -3,7 +3,6 @@ import { outfitArt, variantArt } from "./pet-variants/index.ts";
 import { bake, cached } from "./pixels.ts";
 import { drawPetwear, PET_HEADROOM } from "./wardrobe.ts";
 
-export type { Pet };
 // The sprites live in pet-base.ts so the variation files, which build on them and which this file
 // imports, can load first without a cycle.
 export { PET_H, PET_W, PETS };

@@ -1,4 +1,4 @@
-import { C } from "./palette.ts";
+import { C, hexOf } from "./palette.ts";
 import { bake } from "./pixels.ts";
 
 /**
@@ -213,9 +213,8 @@ export function sleeping(src: Grid, left: boolean, tick: number): Grid {
   return out;
 }
 
-const cache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
-
-const hex = (n: number) => n.toString(16).padStart(2, "0");
+/** Per source frame: its pixels, read once, and the sleeping frames made from them. */
+const cache = new WeakMap<HTMLCanvasElement, { grid: Grid; frames: Map<number, HTMLCanvasElement> }>();
 
 function readGrid(canvas: HTMLCanvasElement): Grid {
   const { width, height } = canvas;
@@ -223,7 +222,7 @@ function readGrid(canvas: HTMLCanvasElement): Grid {
   return Array.from({ length: height }, (_, y) =>
     Array.from({ length: width }, (_, x) => {
       const i = (y * width + x) * 4;
-      return d[i + 3]! < 128 ? null : `#${hex(d[i]!)}${hex(d[i + 1]!)}${hex(d[i + 2]!)}`;
+      return d[i + 3]! < 128 ? null : hexOf(d[i]!, d[i + 1]!, d[i + 2]!);
     }),
   );
 }
@@ -239,15 +238,16 @@ export function sleepingFrame(
 ): HTMLCanvasElement | null {
   if (!source) return null;
   const t = ((tick % Z_TICKS) + Z_TICKS) % Z_TICKS;
-  let frames = cache.get(source);
-  if (!frames) {
-    frames = new Map();
-    cache.set(source, frames);
+  let made = cache.get(source);
+  if (!made) {
+    made = { grid: readGrid(source), frames: new Map() };
+    cache.set(source, made);
   }
-  const key = `${left}:${t}`;
+  const { frames } = made;
+  const key = t * 2 + (left ? 1 : 0);
   let frame = frames.get(key);
   if (!frame) {
-    const grid = sleeping(readGrid(source), left, t);
+    const grid = sleeping(made.grid, left, t);
     frame = bake(SLEEP_W, SLEEP_H, (p) => {
       for (const [y, row] of grid.entries()) for (const [x, c] of row.entries()) if (c) p.px(x, y, c);
     });

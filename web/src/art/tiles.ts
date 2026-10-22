@@ -290,17 +290,10 @@ export function repaintGround(canvas: HTMLCanvasElement, map: GameMap, tiles: [n
 export function drawWaterGlints(g: CanvasRenderingContext2D, map: GameMap, t: number): void {
   g.fillStyle = C.waterLight;
   const phase = Math.floor(t / 600);
-  for (const [x, y] of waterTiles(map)) {
+  for (const [x, y] of map.find("~")) {
     if (hash(x, y, phase % 7) > 0.5) continue;
     const i = 2 + Math.floor(hash(x, y, phase) * 9);
     const j = 4 + Math.floor(hash(y, x, phase) * 8);
     g.fillRect(x * TILE + i, y * TILE + j, 3, 1);
   }
 }
-
-const waterCache = new WeakMap<GameMap, [number, number][]>();
-const waterTiles = (map: GameMap) => {
-  const tiles = waterCache.get(map) ?? map.find("~");
-  waterCache.set(map, tiles);
-  return tiles;
-};

@@ -41,18 +41,24 @@ import {
 import { conn } from "../net.ts";
 import { hud } from "../store.ts";
 import { camera } from "./camera.ts";
+import type { Frame } from "./frame.ts";
 import { burst, FONT, pill } from "./labels.ts";
 import { world } from "./world.ts";
-
-type Draw = { y: number; draw: () => void };
-type ToScreen = (px: number, py: number) => readonly [number, number];
 
 const forced = parseClock(new URLSearchParams(location.search).get("clock") ?? "");
 /** How far the dev clock (`?clock=`) is from the real one. */
 const offset = forced === null ? 0 : (forced - clockMinutes(Date.now())) * 60_000;
 
 /** Now, on the street's clock: the real one, unless `?clock=` moved it. */
-export const streetNow = (): number => Date.now() + offset;
+const streetNow = (): number => Date.now() + offset;
+
+/** Whether the pølsevogn is open, asked once a minute: it opens and shuts on the minute. */
+let cartAt = { minute: Number.NaN, open: false };
+function cartOpenAt(at: number): boolean {
+  const minute = Math.floor(at / 60_000);
+  if (minute !== cartAt.minute) cartAt = { minute, open: cartOpen(at) };
+  return cartAt.open;
+}
 
 /** What the snail says on E. The rare ones come up now and then. */
 const SNAIL_LINES = [
@@ -104,14 +110,7 @@ function papersAt(map: GameMap, m: number): { x: number; y: number; lift: number
 let finishedAt: number | null = null;
 let lastMinute: number | null = null;
 
-export function drawStreet(
-  g: CanvasRenderingContext2D,
-  items: Draw[],
-  labels: (() => void)[],
-  toScreen: ToScreen,
-  now: number,
-  dpr: number,
-): void {
+export function drawStreet({ g, items, labels, toScreen, now, dpr }: Frame): void {
   if (world.room !== "town") {
     lastMinute = null;
     return;
@@ -121,7 +120,7 @@ export function drawStreet(
   const map = world.map;
 
   // The pølsevogn.
-  const open = cartOpen(at);
+  const open = cartOpenAt(at);
   const [cx, cy] = CART[0]!;
   const cart = cartSprite(open);
   const left = cx * TILE;

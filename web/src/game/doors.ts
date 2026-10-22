@@ -1,6 +1,6 @@
 import { C } from "../art/palette.ts";
 import { bake } from "../art/pixels.ts";
-import { drawPos, world } from "./world.ts";
+import { world } from "./world.ts";
 
 /**
  * Town doors swing open when someone walks up to them and shut again once they've gone: a few frames
@@ -15,7 +15,7 @@ export const FRAME_MS = 60;
 /** How long a door stays open after the last person by it has gone. */
 export const LINGER_MS = 600;
 
-export interface Swing {
+interface Swing {
   frame: number;
   /** When someone was last by it. */
   seen: number;
@@ -40,17 +40,36 @@ export function swingStep(s: Swing, near: boolean, now: number): number {
 export const byDoor = (x: number, y: number, dx: number, dy: number): boolean =>
   Math.abs(x - dx) <= 1.2 && y >= dy - 0.5 && y <= dy + 1.6;
 
-const swings = new Map<string, Swing>();
+/** Each map's doors, by tile (`dx * 1e6 + dy`). */
+const swings = new Map<string, Map<number, Swing>>();
 
-/** This frame's swing for the door at (`dx`, `dy`), from everyone in the room (and anyone just leaving). */
-export function doorSwing(dx: number, dy: number, now: number): number {
-  const key = `${world.map.id}:${dx},${dy}`;
-  const s = swings.get(key) ?? shut();
-  swings.set(key, s);
-  const near = [...world.avatars.values(), ...world.leaving].some((a) => {
-    const p = drawPos(a, now);
-    return byDoor(p.x, p.y, dx, dy);
-  });
+/**
+ * This frame's swing for the door at (`dx`, `dy`), from where everyone in the room (and anyone just
+ * leaving) is drawn this frame: `spots`, in tiles.
+ */
+export function doorSwing(
+  dx: number,
+  dy: number,
+  now: number,
+  spots: readonly { x: number; y: number }[],
+): number {
+  let doors = swings.get(world.map.id);
+  if (!doors) {
+    doors = new Map();
+    swings.set(world.map.id, doors);
+  }
+  const key = dx * 1e6 + dy;
+  let s = doors.get(key);
+  if (!s) {
+    s = shut();
+    doors.set(key, s);
+  }
+  let near = false;
+  for (const p of spots)
+    if (byDoor(p.x, p.y, dx, dy)) {
+      near = true;
+      break;
+    }
   return swingStep(s, near, now);
 }
 

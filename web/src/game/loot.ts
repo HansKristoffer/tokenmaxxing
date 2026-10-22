@@ -10,6 +10,7 @@ import { itemFrame } from "../art/characters.ts";
 import { trophyAt } from "../art/loot.ts";
 import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
+import type { Frame } from "./frame.ts";
 import { FONT, pill } from "./labels.ts";
 import { deskOf, TARGET } from "./raid.ts";
 import { world } from "./world.ts";
@@ -64,7 +65,7 @@ export function noteLoot(news: readonly LootNews[]): void {
 }
 
 /** The item's own sprite: as it lies in the bag. */
-export function lootSprite(id: string): HTMLCanvasElement | null {
+function lootSprite(id: string): HTMLCanvasElement | null {
   const it = itemById(id);
   if (!it) return null;
   if (it.slot === "pet") return petFrame(it.index, false, false);
@@ -72,35 +73,20 @@ export function lootSprite(id: string): HTMLCanvasElement | null {
   return itemFrame(it);
 }
 
-type Draw = { y: number; draw: () => void };
-type ToScreen = (px: number, py: number) => readonly [number, number];
-
 const ease = (t: number) => 1 - (1 - t) ** 3;
 
 /** The flying loot (dungeon only) and the big-drop flash and banner (anywhere), for this frame. */
-export function drawLoot(
-  g: CanvasRenderingContext2D,
-  items: Draw[],
-  labels: (() => void)[],
-  toScreen: ToScreen,
-  now: number,
-  dpr: number,
-): void {
-  fx.flying = fx.flying.filter((f) => now - f.at < POP_MS + FLY_MS + LAND_MS);
-  if (world.room === "dungeon") for (const f of fx.flying) drawOne(g, items, labels, toScreen, f, now, dpr);
-  else fx.flying = fx.flying.filter((f) => f.at > now);
-  drawBig(g, labels, now, dpr);
+export function drawLoot(frame: Frame): void {
+  const { now } = frame;
+  if (fx.flying.length) {
+    fx.flying = fx.flying.filter((f) => now - f.at < POP_MS + FLY_MS + LAND_MS);
+    if (world.room === "dungeon") for (const f of fx.flying) drawOne(frame, f);
+    else fx.flying = fx.flying.filter((f) => f.at > now);
+  }
+  drawBig(frame);
 }
 
-function drawOne(
-  g: CanvasRenderingContext2D,
-  items: Draw[],
-  labels: (() => void)[],
-  toScreen: ToScreen,
-  f: Flying,
-  now: number,
-  dpr: number,
-): void {
+function drawOne({ g, items, labels, toScreen, now, dpr }: Frame, f: Flying): void {
   const t = now - f.at;
   if (t < 0) return;
   const color = RARITIES[f.rarity].color;
@@ -182,7 +168,7 @@ function drawOne(
 }
 
 /** A legendary (gold) or an epic (violet): the screen flashes, and a banner says who got what. */
-function drawBig(g: CanvasRenderingContext2D, labels: (() => void)[], now: number, dpr: number): void {
+function drawBig({ g, labels, now, dpr }: Frame): void {
   const big = fx.big;
   if (!big) return;
   const t = now - big.at;

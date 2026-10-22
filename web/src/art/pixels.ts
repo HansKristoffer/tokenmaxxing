@@ -26,14 +26,26 @@ export class Pen {
     }
   }
 
-  /** Paints a string grid; `.` and unknown characters are transparent. */
+  /** Paints a string grid; `.` and unknown characters are transparent. Each run of one colour is one rect. */
   grid(rows: readonly string[], pal: Palette, ox = 0, oy = 0, flip = false): void {
+    let last = "";
     rows.forEach((row, y) => {
-      for (let x = 0; x < row.length; x++) {
+      for (let x = 0; x < row.length; ) {
         const color = pal[row[x]!];
-        if (color) this.px(ox + (flip ? row.length - 1 - x : x), oy + y, color);
+        let end = x + 1;
+        while (color && end < row.length && pal[row[end]!] === color) end++;
+        if (color) {
+          if (color !== last) this.g.fillStyle = last = color;
+          this.g.fillRect(ox + (flip ? row.length - end : x), oy + y, end - x, 1);
+        }
+        x = end;
       }
     });
+  }
+
+  /** `text` in the 3×5 font (`GLYPHS`), its top-left at (`x`, `y`). */
+  text(text: string, x: number, y: number, color: string): void {
+    for (const [dx, dy] of glyphPixels(text)) this.px(x + dx, y + dy, color);
   }
 }
 
@@ -53,11 +65,64 @@ export function cached<A extends unknown[]>(
   const cache = new Map<string, HTMLCanvasElement>();
   return (...args: A) => {
     const k = key(...args);
-    const c = cache.get(k) ?? make(...args);
-    cache.set(k, c);
+    let c = cache.get(k);
+    if (!c) {
+      c = make(...args);
+      cache.set(k, c);
+    }
     return c;
   };
 }
+
+/** A sprite that takes no arguments, baked the first time it's asked for. */
+export function once(make: () => HTMLCanvasElement): () => HTMLCanvasElement {
+  let c: HTMLCanvasElement | undefined;
+  return () => (c ??= make());
+}
+
+const gradients = new WeakMap<CanvasRenderingContext2D, Map<string, CanvasGradient>>();
+
+/** A gradient for `g` made once per `key` rather than every frame: one whose place and stops never change. */
+export function gradient(
+  g: CanvasRenderingContext2D,
+  key: string,
+  make: () => CanvasGradient,
+): CanvasGradient {
+  let made = gradients.get(g);
+  if (!made) {
+    made = new Map();
+    gradients.set(g, made);
+  }
+  let grad = made.get(key);
+  if (!grad) {
+    grad = make();
+    made.set(key, grad);
+  }
+  return grad;
+}
+
+/**
+ * Memoizes `f` per object, for things that are replaced rather than edited (a look, a set). With
+ * `version`, it all starts again whenever that changes.
+ */
+export function perObject<K extends object, V>(f: (k: K) => V, version?: () => number): (k: K) => V {
+  let memo = new WeakMap<K, V>();
+  let at = version?.();
+  return (k) => {
+    if (version && version() !== at) {
+      memo = new WeakMap();
+      at = version();
+    }
+    if (memo.has(k)) return memo.get(k)!;
+    const v = f(k);
+    memo.set(k, v);
+    return v;
+  };
+}
+
+/** `pal` with every colour replaced by `to(key)`: a boss flashing white, a trophy's dim outline. */
+export const recolour = (pal: Palette, to: (key: string) => string): Palette =>
+  Object.fromEntries(Object.keys(pal).map((k) => [k, to(k)]));
 
 /** Deterministic noise in [0, 1) for tile variation. */
 export function hash(x: number, y: number, seed = 0): number {
@@ -68,7 +133,7 @@ export function hash(x: number, y: number, seed = 0): number {
 
 /** A 3×5 pixel font, row by row (`1` lit), for signs, initials on merch and the like. */
 // biome-ignore format: one glyph a line
-export const GLYPHS: Record<string, string> = {
+const GLYPHS: Record<string, string> = {
   A: "010101111101101", B: "110101110101110", C: "011100100100011", D: "110101101101110",
   E: "111100110100111", F: "111100110100100", G: "011100101101011", H: "101101111101101",
   I: "111010010010111", J: "001001001101010", K: "101101110101101", L: "100100100100111",

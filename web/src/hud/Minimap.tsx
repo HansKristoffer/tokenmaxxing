@@ -61,11 +61,19 @@ export function Minimap() {
   const scale = Math.max(1, Math.floor(MAX_WIDTH / map.width));
 
   useEffect(() => {
+    // What the last drawing showed: it's only drawn again when one of them changed.
+    let drawn: { map: GameMap; companies: typeof world.companies; avatars: string } | null = null;
     const draw = () => {
       const g = ref.current?.getContext("2d");
       if (!g) return;
       // As it is now: a drop or a take makes the room a new map.
-      g.drawImage(base(mapOf(room), scale), 0, 0);
+      const now = mapOf(room);
+      const avatars = `${world.selfId}:${[...world.avatars.values()]
+        .map((a) => `${a.info.id} ${a.x} ${a.y} ${a.info.online}`)
+        .join()}`;
+      if (drawn?.map === now && drawn.companies === world.companies && drawn.avatars === avatars) return;
+      drawn = { map: now, companies: world.companies, avatars };
+      g.drawImage(base(now, scale), 0, 0);
       for (const b of buildings(map)) {
         const company = b.plot === null ? null : companyOnPlot(b.plot);
         g.fillStyle = b.plot === null ? C.leaf : company?.id === myCompany ? C.flowerYellow : C.roofRed;

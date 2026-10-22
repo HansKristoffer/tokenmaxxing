@@ -5,12 +5,13 @@
  * what's on it all come from the clock; the server only keeps who bought which copy.
  */
 import { EDITIONS, type Edition } from "./editions.ts";
-import { addDays, dayKey, worldClock } from "./range.ts";
+import { OPENS_AT_HOUR, raidWeekAt } from "./raid.ts";
+import { worldClock } from "./range.ts";
 
 /** Editions on the cart each week. */
 export const PER_WEEK = 4;
-/** The week turns over on Monday at this hour. */
-export const WEEK_HOUR = 8;
+/** The week turns over on Monday at this hour, with the raid's. */
+const WEEK_HOUR = OPENS_AT_HOUR;
 /** The cart comes on Thursday (at `WEEK_HOUR`) and stays until the week turns over. */
 const ARRIVES = 4;
 
@@ -24,11 +25,7 @@ export const CART_W = 3;
 export const CART_H = 2;
 
 /** The week `now` is in: the date of its Monday (`YYYY-MM-DD`). Before 08:00 Monday is still last week. */
-export function weekOf(now: number): string {
-  const { day, hour } = worldClock(now);
-  const back = ((day + 6) % 7) + (day === 1 && hour < WEEK_HOUR ? 7 : 0);
-  return addDays(dayKey(now), -back);
-}
+export const weekOf = (now: number): string => raidWeekAt(now);
 
 /** Whether the cart is in town. */
 export function cartOpen(now: number): boolean {
@@ -49,18 +46,26 @@ const hash = (a: number, b: number): number =>
 /** Weeks in one rotation: every edition is on the cart once in it. */
 export const ROTATION = Math.ceil(EDITIONS.length / PER_WEEK);
 
+/** Each week's lineup, dealt once: the client asks every frame. */
+const lineups = new Map<string, readonly Edition[]>();
+
 /**
  * What the cart sells in `week`: the catalog is shuffled once per rotation and dealt out
  * `PER_WEEK` at a time, so nothing comes back until all of it has been round.
  */
-export function lineup(week: string): Edition[] {
-  const n = weekNumber(week);
-  const round = Math.floor(n / ROTATION);
-  const deck = EDITIONS.map((e, i) => ({ e, key: hash(round, i) }))
-    .sort((a, b) => a.key - b.key)
-    .map((x) => x.e);
-  const slot = n - round * ROTATION;
-  return deck.slice(slot * PER_WEEK, slot * PER_WEEK + PER_WEEK);
+export function lineup(week: string): readonly Edition[] {
+  let editions = lineups.get(week);
+  if (!editions) {
+    const n = weekNumber(week);
+    const round = Math.floor(n / ROTATION);
+    const deck = EDITIONS.map((e, i) => ({ e, key: hash(round, i) }))
+      .sort((a, b) => a.key - b.key)
+      .map((x) => x.e);
+    const slot = n - round * ROTATION;
+    editions = deck.slice(slot * PER_WEEK, slot * PER_WEEK + PER_WEEK);
+    lineups.set(week, editions);
+  }
+  return editions;
 }
 
 /** "#3 of 20". */

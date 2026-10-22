@@ -1,6 +1,7 @@
 import { editionAt } from "@tokenmaxxing/core/editions.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
+import type { View } from "./characters.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
 
@@ -9,8 +10,6 @@ import { bake, type Palette, type Pen } from "./pixels.ts";
  * `characters.ts`: hats over the head from row 0, glasses over the eyes from row 5. A grid per view;
  * a missing side or back view is the front one. Keyed by item id, so the catalog order is free.
  */
-
-type View = "down" | "side" | "up";
 
 interface Art {
   down: string[];
@@ -162,6 +161,3 @@ export function editionFrame(item: Item): HTMLCanvasElement | null {
   const art = artOf(item.slot, item.index);
   return art ? bake(16, art.down.length, (p) => p.grid(art.down, art.pal)) : null;
 }
-
-/** Every drawn edition id, for the tests and the gallery. */
-export const DRAWN = [...Object.keys(HATS), ...Object.keys(GLASSES)];

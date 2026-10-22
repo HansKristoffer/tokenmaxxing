@@ -5,7 +5,7 @@ import type { Raid } from "@tokenmaxxing/server/registry";
 import { world } from "../game/world.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemImage } from "./Shop.tsx";
-import { useFresh } from "./ui.tsx";
+import { ToastButton, useFresh } from "./ui.tsx";
 
 /** How long a drop's toast stays up. */
 const NEWS_MS = 10_000;
@@ -100,11 +100,7 @@ export function LootToast() {
   const shown = theirs.slice(0, NEWS_SHOWN);
   const more = theirs.length - shown.length;
   return (
-    <button
-      type="button"
-      className="toast mention-toast loot-toast"
-      onClick={() => hud.set({ lootNews: null, panel: { kind: "raid" } })}
-    >
+    <ToastButton open={{ kind: "raid" }} dismiss={() => hud.set({ lootNews: null })} className="loot-toast">
       {shown.map((n) => {
         const item = lootById(n.item);
         return (
@@ -114,6 +110,6 @@ export function LootToast() {
         );
       })}
       {more > 0 && <span className="muted">…and {more} more</span>}
-    </button>
+    </ToastButton>
   );
 }

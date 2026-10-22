@@ -50,7 +50,7 @@ const MAX_ID_LENGTH = 256;
  * No real turn comes near this (a whole context window is a few million), and it keeps sums far
  * from SQLite's 64-bit limit: `SUM` throws past it, which would break every leaderboard at once.
  */
-export const MAX_TOKENS_PER_EVENT = 1_000_000_000;
+const MAX_TOKENS_PER_EVENT = 1_000_000_000;
 /**
  * Model names are shown on profiles, so they can't carry free text. Real ones look like
  * `claude-opus-4-7`, `us.anthropic.claude-sonnet-4:0`, `claude-opus-4@20250514` or `<synthetic>`;

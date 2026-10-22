@@ -5,7 +5,7 @@
  * server got inside the race, at its own clock, and never faster than 250 WPM.
  */
 import { random } from "./random.ts";
-import { type Callout, type GameDef, refused } from "./types.ts";
+import { type Callout, type GameDef, lastStanding, leave, leavers, refused } from "./types.ts";
 
 /** The 200 most common English words, Monkeytype's "english" kind of list. */
 export const WORDS =
@@ -21,7 +21,7 @@ govern around possible head consider word program problem however lead system se
 fact group play stand increase early course change help line her`.split(/\s+/);
 
 const SECONDS = [30, 15, 60] as const;
-export const COUNTDOWN_MS = 3_000;
+const COUNTDOWN_MS = 3_000;
 /** A move sent just before the end may arrive this late and still count. */
 export const GRACE_MS = 500;
 /** Faster than this is a bot or a paste: the text is refused until the clock catches up. */
@@ -37,7 +37,7 @@ export const TRACK_WPM = 120;
 /** A lap of the square in town is 10 seconds at 100 WPM, so the leader pulls ahead lap by lap. */
 export const LAP_CHARS = (100 * 5 * 10) / 60;
 
-export interface Racer {
+interface Racer {
   /** Everything they've typed: words split by single spaces, the last one still being typed. */
   typed: string;
   /** When the server last took their text. */
@@ -60,7 +60,7 @@ export interface SprintState {
   forfeited: number[];
 }
 
-export interface Score {
+interface Score {
   /** Letters in correctly typed words, plus the spaces after them: what WPM counts. */
   correct: number;
   /** Every letter and space typed. */
@@ -186,7 +186,7 @@ export const sprint: GameDef<SprintState, SprintView> = {
 
   tick: (s, now) => (!s.over && now >= s.endsAt + GRACE_MS ? { ...s, over: true } : s),
 
-  forfeit: (s, player) => (s.forfeited.includes(player) ? s : { ...s, forfeited: [...s.forfeited, player] }),
+  forfeit: leave,
 
   view(s, viewer, now) {
     return {
@@ -203,9 +203,8 @@ export const sprint: GameDef<SprintState, SprintView> = {
 
   outcome(s) {
     const left = active(s);
-    // Whoever left last places best among those who left.
-    const gone = [...s.forfeited].reverse().map((p) => [p]);
-    if (left.length <= 1) return { places: [left, ...gone].filter((g) => g.length > 0) };
+    const over = lastStanding(left, s.forfeited);
+    if (over) return over;
     if (!s.over) return null;
     const sc = Object.fromEntries(left.map((p) => [p, scoreOf(s, p, s.endsAt)]));
     if (left.every((p) => sc[p]!.correct === 0)) return { void: "Nobody typed a word right." };
@@ -224,7 +223,7 @@ export const sprint: GameDef<SprintState, SprintView> = {
       if (group && better(group[0]!, p) === 0) group.push(p);
       else places.push([p]);
     }
-    return { places: [...places, ...gone] };
+    return { places: [...places, ...leavers(s.forfeited)] };
   },
 
   // Side bets stay open for the first few seconds of the race.

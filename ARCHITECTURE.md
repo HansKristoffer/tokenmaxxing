@@ -47,8 +47,11 @@ The game also runs in any browser; the app's window is that same page, at `/play
   the client sent.
 - `/play` and `/admin` send a CSP (`headers.ts`): our own scripts only, connections only back to us (and the
   desktop app's IPC for the game), no framing. The page files aren't served at their own paths.
-- `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` must be real environment variables: RivetKit's native side
-  ignores `process.env` changes made at runtime. The Dockerfile and `bun run dev` set them.
+- `RIVET__GUARD__TCP_NODELAY=true` turns off Nagle on the engine's sockets. Actors and the engine talk over
+  loopback, and without it each actor call waits ~40 ms on a delayed ACK. The runner's end of that connection
+  has no such switch yet (rivetkit 2.3.21), so a call still pays some of it.
+- `RIVETKIT_STORAGE_PATH`, `RIVET_LOG_LEVEL` and `RIVET__GUARD__TCP_NODELAY` must be real environment
+  variables: RivetKit's native side ignores `process.env` changes made at runtime. The Dockerfile and `bun run dev` set them.
 - Company logos live next to the Rivet data (`/data/logos` in Docker, `.data/logos` in dev).
 - A sync batch is about 300 KB, so `maxIncomingMessageSize` is 1 MB. Shutdown grace is 5 s.
 
@@ -63,7 +66,7 @@ The game also runs in any browser; the app's window is that same page, at `/play
 - A browser can still be signed in with `/#code=…`: the page redeems the code and removes it from the URL.
 - The app forgets its token when the server rejects it and goes back to picking a name.
 - There's no web sign-up: in a browser, without a session the page says to open the world from the app.
-- **Linked computers** (a second machine running agents; see `WORKHORSE.md`). The app mints a link code
+- **Linked computers** (a second machine running agents; see below). The app mints a link code
   (`mintLinkCode`, 10 minutes, single use); the other computer trades it for its own token
   (`redeemLinkCode`). That token only syncs: it can `ingest` and read `town.today` and `arcade.battle`
   (`requireSyncer`), and `requireUser` refuses it everywhere else. The player lists them (`devices`) and
@@ -118,7 +121,7 @@ The game also runs in any browser; the app's window is that same page, at `/play
 
 ## Linked computers
 
-A second computer running agents syncs into the same player (`WORKHORSE.md`).
+A second computer running agents syncs into the same player.
 
 - **The CLI** (`app/helper/src/cli.ts`) wraps the same `Helper` as the app: `link`, `run`, `sync`, `status`,
   `logs`, `unlink`. Its token and read positions are in `~/Library/Application Support/Tokenmaxxing CLI/` or
@@ -155,7 +158,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
   handed out), `loot` (raid drops handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
   `offices`, `company_ledger` (company wallets), `match_players` (one row per player per finished game),
-  `deleted_users`, `admin_log`.
+  `deleted_users`, `lost_signups` (ids of sign-ups whose `player` failed to start), `admin_log`.
 - Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename` (10 an hour), `setLook` (refuses items you don't hold), `me`.
 - Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
   `core/src/maps.ts`), leave, kick, rename, `setWebsite`. One company per person, at most 50 members. The
@@ -503,12 +506,16 @@ These are deliberate, and marked `ponytail:` in the code:
   per room);
 - rate limits are in memory, so a deploy resets them;
 - usage is reported by each user's machine: capped and flagged, but it can't be proven;
-- leaderboards and wallets are recomputed on every request;
+- leaderboards are kept until something on them changes (`boardsChanged`, called on every push to `world`),
+  and wallets are recomputed on every request, against podiums kept per day and the raid kept for 15 s;
 - a late sync can knock someone off a past podium after they spent the bonus;
 - the logo download checks DNS before fetching, so DNS rebinding in between isn't caught.
 
 ## Tests
 
-`bun run check` runs typecheck, lint and every test. Actor tests start a real server in a subprocess, with its
-own engine, port and data directory (`server/test/rivet.ts`), so they use the production code paths. Map, step,
-rest-spot and coin rules are pure and tested in `core/test/`.
+`bun run check` runs typecheck, lint and every test. `bun run test` runs the files in parallel; plain `bun test`
+runs them in one process. Actor tests start a real server in a subprocess per test process, with its own engine,
+free ports and data directory (`server/test/rivet.ts`), so they use the production code paths. CI runs two
+workers, since more stall the engines on its runner, and turns on quick ACKs for loopback, which takes most of the
+remaining wait out of each actor call (see `RIVET__GUARD__TCP_NODELAY`). Map, step, rest-spot and coin rules are
+pure and tested in `core/test/`.

@@ -279,7 +279,7 @@ function jump(): void {
 }
 
 /** E: talk to whoever or whatever is in front of you. */
-export function interact(): void {
+function interact(): void {
   const me = self();
   if (!me) return;
   const [dx, dy] = DIRS[me.facing];

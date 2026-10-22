@@ -693,10 +693,23 @@ export async function report(
      FROM events WHERE message_type = 'assistant' AND timestamp > ?`,
     now - LIVE_AGENTS_MS,
   )) as [{ agents: number }];
-  // How hard they're going: the dungeon fires their missiles at this rate.
-  const { tokens } = await tokensBetween(sql, now - LIVE_AGENTS_MS, now + 1);
-  const burn = Math.round(tokens / (LIVE_AGENTS_MS / 60_000));
-  // The last hour's burn, for the 429 Cop (`core/src/cop.ts`).
-  const hour = await tokensBetween(sql, now - BURN_WINDOW_MS, now);
-  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents, burn, hour.tokens);
+  // How hard they're going (the dungeon fires their missiles at this rate), and the last hour's burn
+  // for the 429 Cop (`core/src/cop.ts`): `tokensBetween` for both windows, in one pass.
+  const [recent] = (await sql.execute(
+    `SELECT COALESCE(SUM(MIN(live, ?)), 0) AS live, COALESCE(SUM(MIN(hour, ?)), 0) AS hour FROM (
+       SELECT SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN ${EVENT_TOKENS} ELSE 0 END) AS live,
+              SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN ${EVENT_TOKENS} ELSE 0 END) AS hour
+       FROM events WHERE message_type = 'assistant' AND timestamp >= ? AND timestamp < ?
+       GROUP BY timestamp / 60000)`,
+    MINUTE_CAP,
+    MINUTE_CAP,
+    now - LIVE_AGENTS_MS,
+    now + 1,
+    now - BURN_WINDOW_MS,
+    now,
+    Math.min(now - LIVE_AGENTS_MS, now - BURN_WINDOW_MS),
+    now + 1,
+  )) as [{ live: number; hour: number }];
+  const burn = Math.round(recent.live / (LIVE_AGENTS_MS / 60_000));
+  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents, burn, recent.hour);
 }

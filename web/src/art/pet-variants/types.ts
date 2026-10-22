@@ -35,3 +35,10 @@ export function swap(
     pal: { ...base.pal, ...pal },
   };
 }
+
+/** The same pixels a row higher: the hop frame is the standing one lifted a row. */
+export const up = (patches: Patch[]): Patch[] => patches.map(([y, x, ch]) => [y - 1, x, ch]);
+
+/** Pixels of `ch` along row `y`, columns `from` to `to` (inclusive). */
+export const line = (y: number, from: number, to: number, ch: string): Patch[] =>
+  Array.from({ length: to - from + 1 }, (_, i): Patch => [y, from + i, ch]);

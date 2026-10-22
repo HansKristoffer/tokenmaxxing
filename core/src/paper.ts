@@ -3,7 +3,7 @@
  * town has anyway. Pure and seeded by the day, so a day's paper reads the same to everyone and in
  * tests; `town` builds it once a day (`server/src/town/paper.ts`).
  */
-import { compact } from "./format.ts";
+import { compact, fill } from "./format.ts";
 import { random } from "./games/random.ts";
 
 /** What the paper can write about one world day. Nulls are things that didn't happen. */
@@ -23,7 +23,7 @@ export interface PaperFacts {
   game: { name: string; game: string; won: number } | null;
 }
 
-export interface Headline {
+interface Headline {
   title: string;
   /** The line under it. */
   deck: string;
@@ -112,9 +112,6 @@ function shuffle<T>(list: readonly T[], rand: () => number): T[] {
   }
   return out;
 }
-
-const fill = (s: string, vars: Record<string, string | number>) =>
-  s.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ""));
 
 /**
  * Yesterday's front page: the biggest burner leads, then up to three other stories picked by the

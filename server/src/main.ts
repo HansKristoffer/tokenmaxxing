@@ -45,9 +45,12 @@ if (existsSync(SITE))
 const { ENGINE_PORT, ENGINE_TOKEN, registry } = await import("./actors/registry.ts");
 const { createClient } = await import("rivetkit/client");
 const { pricing, main } = await import("./actors/shared.ts");
+const { boardsChanged } = await import("./town/boards.ts");
 
 const refreshPricing = async () => {
   const r = await pricing.refreshFromUpstream();
+  // The kept leaderboards show costs at the old prices.
+  if (!r.failed) boardsChanged();
   console.log(`[pricing] ${r.failed ? "refresh failed, keeping" : "refreshed"} ${r.updated} models`);
 };
 void refreshPricing();

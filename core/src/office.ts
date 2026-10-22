@@ -76,11 +76,13 @@ export const OFFICE_LEVEL = 10;
 /** Every piece an office can hold: the shop's, then the raid's trophies (`loot.ts`), never sold. */
 export const PIECES: readonly Piece[] = [...FURNITURE, ...TROPHIES];
 
-export const pieceOf = (ch: unknown): Piece | undefined =>
-  PIECES.find((f) => f.ch === ch) ?? COMPANY_FURNITURE.find((f) => f.ch === ch);
+const BY_CH = new Map<string, Piece>();
+for (const f of [...PIECES, ...COMPANY_FURNITURE]) if (!BY_CH.has(f.ch)) BY_CH.set(f.ch, f);
+
+export const pieceOf = (ch: unknown): Piece | undefined => BY_CH.get(ch as string);
 
 /** One placed piece: its top-left tile. */
-export interface Placed {
+interface Placed {
   ch: string;
   x: number;
   y: number;
@@ -98,9 +100,11 @@ export const STARTER_OFFICE: readonly Placed[] = [
  */
 export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
   const rows = base.rows.map((r) => [...r]);
-  for (const p of pieces)
-    for (let i = 0; i < (pieceOf(p.ch)?.w ?? 1); i++)
+  for (const p of pieces) {
+    const w = pieceOf(p.ch)?.w ?? 1;
+    for (let i = 0; i < w; i++)
       if (base.walkable(p.x + i, p.y)) rows[p.y - base.y0]![p.x + i - base.x0] = p.ch;
+  }
   return new GameMap(
     base.id,
     base.name,

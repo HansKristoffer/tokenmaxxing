@@ -4,7 +4,6 @@ import { levelFor, levelTitle } from "@tokenmaxxing/core/format.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
 import { addDays, dayKey, type RangeKey, rangeDays } from "@tokenmaxxing/core/range.ts";
 import { type Brand, houseTier, type Look } from "@tokenmaxxing/core/world.ts";
-import { UserError } from "rivetkit";
 import { all, one, pricing, type Sql } from "../actors/shared.ts";
 import {
   type ActivityRow,
@@ -18,11 +17,18 @@ import {
   type UsageRow,
 } from "../stats.ts";
 import { officeOf, type Podium } from "./coins.ts";
-import { COMPANY_COLS, type CompanyRow, companyById, companyInfos, companyWallet } from "./companies.ts";
+import {
+  COMPANY_COLS,
+  type CompanyRow,
+  companyById,
+  companyInfos,
+  companyOrGone,
+  companyWallet,
+} from "./companies.ts";
 import { type GameStats, gameStats } from "./games.ts";
 import { picnicsOf } from "./picnic.ts";
 import { ticketsOf } from "./tickets.ts";
-import { lookOf, TOKENS, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
+import { levelOf, lookOf, TOKENS, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
 
 export interface BoardPlayer extends Totals {
   rank: number;
@@ -114,14 +120,20 @@ const SUMS = `SUM(input) AS input, SUM(output) AS output, SUM(cache_creation) AS
               SUM(cache_read) AS cacheRead, SUM(turns) AS turns, SUM(reported_cost_cents) AS reportedCostCents`;
 
 /** `[from, to]` as SQL bounds; all time starts at the beginning. */
-export const bounds = (range: RangeKey, now: number): [string, string] => {
+const bounds = (range: RangeKey, now: number): [string, string] => {
   const { from, to } = rangeDays(range, now);
   return [from ?? "0000-00-00", to];
 };
 
-/** Every player's totals in the range, ranked by `sort`. */
-async function playerBoard(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
-  const [from, to] = bounds(range, now);
+type PlayerTotals = Omit<BoardPlayer, "rank">;
+type CompanyTotals = Omit<BoardCompany, "rank">;
+
+/** Every player's and company's totals in `[from, to]`, unranked. */
+async function buildBoard(
+  sql: Sql,
+  from: string,
+  to: string,
+): Promise<{ players: PlayerTotals[]; companies: CompanyTotals[] }> {
   const users = await all<UserRow>(sql, `SELECT ${USER_COLS} FROM users`);
   const usage = await all<UsageRow & { userId: number }>(
     sql,
@@ -136,15 +148,12 @@ async function playerBoard(sql: Sql, range: RangeKey, sort: SortKey, now: number
     to,
   );
   const companies = await all<CompanyRow>(sql, `SELECT ${COMPANY_COLS} FROM companies`);
-  const lifetime = await tokensIn(
-    sql,
-    users.map((u) => u.id),
-  );
+  const lifetime = await tokensIn(sql, "all");
   const companyName = new Map(companies.map((co) => [co.id, co.name]));
 
   const usageByUser = Map.groupBy(usage, (r) => r.userId);
   const activityByUser = new Map(activity.map((a) => [a.userId, a]));
-  const perUser = users.map((u) => ({
+  const players = users.map((u) => ({
     ...totals(pricing, usageByUser.get(u.id) ?? [], activityByUser.get(u.id) ?? null),
     userId: u.id,
     name: u.name,
@@ -153,31 +162,56 @@ async function playerBoard(sql: Sql, range: RangeKey, sort: SortKey, now: number
     companyId: u.companyId,
     company: u.companyId === null ? null : (companyName.get(u.companyId) ?? null),
   }));
-  return { players: rank(perUser, sort), perUser, companies };
+  const tokens30d = new Map((await companyInfos(sql, "all")).map((i) => [i.id, i.tokens30d]));
+  const byCompany = Map.groupBy(players, (p) => p.companyId);
+  return {
+    players,
+    companies: companies.map((co) => {
+      const members = byCompany.get(co.id) ?? [];
+      return {
+        ...companyTotals(members),
+        companyId: co.id,
+        name: co.name,
+        members: members.length,
+        tier: houseTier(tokens30d.get(co.id) ?? 0, members.length),
+      };
+    }),
+  };
 }
 
-export async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
-  const { players, perUser, companies } = await playerBoard(sql, range, sort, now);
-  const tokens30d = new Map(
-    (
-      await companyInfos(
-        sql,
-        companies.map((co) => co.id),
-      )
-    ).map((i) => [i.id, i.tokens30d]),
-  );
-  const byCompany = Map.groupBy(perUser, (p) => p.companyId);
-  const companyRows = companies.map((co) => {
-    const members = byCompany.get(co.id) ?? [];
-    return {
-      ...companyTotals(members),
-      companyId: co.id,
-      name: co.name,
-      members: members.length,
-      tier: houseTier(tokens30d.get(co.id) ?? 0, members.length),
-    };
+/**
+ * Boards per range, kept until anything on them changes: the leaderboard is polled every 30 s per open
+ * panel, and each one went over every player's usage. Every such change is pushed to `world`
+ * (`town/sync.ts`), which drops them (`boardsChanged`). Keyed by the range's days, so a new day starts
+ * afresh. Shared by every caller: never change what's in them.
+ */
+const byRange = new Map<string, ReturnType<typeof buildBoard>>();
+
+/** Something on the boards changed: a sync, a sign-up, a new name or look, someone joining or leaving. */
+export function boardsChanged(): void {
+  byRange.clear();
+}
+
+function boardOf(sql: Sql, range: RangeKey, now: number): ReturnType<typeof buildBoard> {
+  const [from, to] = bounds(range, now);
+  const key = `${from} ${to}`;
+  const hit = byRange.get(key);
+  if (hit) return hit;
+  // A few ranges a day: yesterday's go with the next change.
+  if (byRange.size > 16) byRange.clear();
+  const board = buildBoard(sql, from, to);
+  byRange.set(key, board);
+  // A failed one isn't kept.
+  board.catch(() => {
+    if (byRange.get(key) === board) byRange.delete(key);
   });
-  return { players, companies: rank(companyRows, sort) };
+  return board;
+}
+
+/** Every player and company in the range, ranked by `sort`. */
+async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
+  const board = await boardOf(sql, range, now);
+  return { players: rank(board.players, sort), companies: rank(board.companies, sort) };
 }
 
 /** `top`: every finished day's top 3 (`podiums`). */
@@ -205,17 +239,18 @@ export async function profile(
     to,
   );
   const daily = await last30Days(sql, "user_id = ?", userId, now);
-  const lifetime = (await tokensIn(sql, [userId])).get(userId) ?? 0;
-  const level = levelFor(lifetime);
-  const co = u.companyId === null ? undefined : await companyById(sql, u.companyId);
-  const company = co ? { id: co.id, name: co.name } : null;
-  const games = await gameStats(sql, userId);
-  // Badges: two small queries, and the podiums `town` keeps for the day.
+  // Every day's tokens: for the level, and the badges below.
   const days = await all<{ day: string; tokens: number }>(
     sql,
     `SELECT day, SUM(${TOKENS}) AS tokens FROM usage_daily WHERE user_id = ? GROUP BY day`,
     userId,
   );
+  const lifetime = days.reduce((n, d) => n + d.tokens, 0);
+  const level = levelFor(lifetime);
+  const co = u.companyId === null ? undefined : await companyById(sql, u.companyId);
+  const company = co ? { id: co.id, name: co.name } : null;
+  const games = await gameStats(sql, userId);
+  // Badges: the days above, one more small query, and the podiums `town` keeps for the day.
   const best = await one<{ peakAgents: number | null; prs: number | null }>(
     sql,
     "SELECT MAX(peak_agents) AS peakAgents, SUM(prs) AS prs FROM activity_daily WHERE user_id = ?",
@@ -284,10 +319,14 @@ export async function companyProfile(
   range: RangeKey,
   now: number,
 ): Promise<CompanyProfile> {
-  const company = await companyById(sql, companyId);
-  if (!company) throw new UserError("That company is gone.", { code: "not_found" });
-  const { players, companies } = await boards(sql, range, "tokens", now);
-  const row = companies.find((c) => c.companyId === companyId)!;
+  const company = await companyOrGone(sql, companyId);
+  const board = await boardOf(sql, range, now);
+  // Only the companies are ranked, and only its own people.
+  const row = rank(board.companies, "tokens").find((c) => c.companyId === companyId);
+  const people = rank(
+    board.players.filter((p) => p.companyId === companyId),
+    "tokens",
+  );
   const [info] = await companyInfos(sql, [companyId]);
   return {
     id: companyId,
@@ -295,21 +334,20 @@ export async function companyProfile(
     website: company.website,
     logo: info?.brand?.logo ?? null,
     brand: info?.brand ?? null,
-    tier: row.tier,
+    // Not on the board yet: it opened a moment ago, before the board heard (`boardsChanged`).
+    tier: row?.tier ?? houseTier(info?.tokens30d ?? 0, people.length),
     range,
-    rank: row.tokens > 0 ? row.rank : null,
+    rank: row && row.tokens > 0 ? row.rank : null,
     wallet: await companyWallet(sql, companyId),
-    totals: row,
-    members: players
-      .filter((p) => p.companyId === companyId)
-      .map((p) => ({
-        userId: p.userId,
-        name: p.name,
-        look: p.look,
-        level: p.level,
-        tokens: p.tokens,
-        isOwner: p.userId === company.ownerId,
-      })),
+    totals: row ?? companyTotals(people),
+    members: people.map((p) => ({
+      userId: p.userId,
+      name: p.name,
+      look: p.look,
+      level: p.level,
+      tokens: p.tokens,
+      isOwner: p.userId === company.ownerId,
+    })),
     daily: await last30Days(sql, "user_id IN (SELECT id FROM users WHERE company_id = ?)", companyId, now),
   };
 }
@@ -332,19 +370,30 @@ export async function leaderboard(
   };
 }
 
+/**
+ * The corner is polled by every open tab and after every sync, so it reads only today's usage (the
+ * `usage_day` index) rather than the whole board: anyone with no tokens today ranks below everyone here.
+ */
 export async function today(sql: Sql, userId: number, now: number): Promise<Today> {
-  const { players } = await playerBoard(sql, "today", "tokens", now);
-  const mine = players.find((p) => p.userId === userId)!;
-  const row = (p: BoardPlayer) => ({
-    rank: p.rank,
-    userId: p.userId,
-    name: p.name,
-    tokens: p.tokens,
-    isMe: p.userId === userId,
-  });
-  const top = players.filter((p) => p.tokens > 0).slice(0, TODAY_TOP);
+  const u = await userById(sql, userId);
+  const busy = await all<{ userId: number; name: string; tokens: number }>(
+    sql,
+    `SELECT u.id AS userId, u.name, SUM(${TOKENS}) AS tokens
+     FROM usage_daily d JOIN users u ON u.id = d.user_id WHERE d.day = ? GROUP BY u.id`,
+    dayKey(now),
+  );
+  // As `rank` sorts by tokens: the most first, ties by name.
+  const ranked = busy
+    .filter((p) => p.tokens > 0)
+    .sort((a, b) => b.tokens - a.tokens || a.name.localeCompare(b.name))
+    .map((p, i) => ({ ...p, rank: i + 1, isMe: p.userId === userId }));
+  const mine = ranked.find((p) => p.isMe);
+  const top = ranked.slice(0, TODAY_TOP);
   return {
-    me: { rank: mine.tokens > 0 ? mine.rank : null, tokensToday: mine.tokens, level: mine.level },
-    top: top.some((p) => p.userId === userId) ? top.map(row) : [...top.map(row), row(mine)],
+    me: { rank: mine?.rank ?? null, tokensToday: mine?.tokens ?? 0, level: await levelOf(sql, userId) },
+    top:
+      mine && mine.rank <= TODAY_TOP
+        ? top
+        : [...top, mine ?? { rank: ranked.length + 1, userId, name: u.name, tokens: 0, isMe: true }],
   };
 }

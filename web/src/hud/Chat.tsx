@@ -1,8 +1,9 @@
 import type { MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import { CHAT_MAX_LENGTH, mentionsIn } from "@tokenmaxxing/core/world.ts";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import { errorText } from "../errors.ts";
 import { roomName, world } from "../game/world.ts";
-import { conn, errorText, matchConn } from "../net.ts";
+import { conn, matchConn } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { MentionInput } from "./MentionInput.tsx";
 import { QuickReplies } from "./QuickReplies.tsx";
@@ -87,11 +88,53 @@ function Text({ text, me }: { text: string; me: string | undefined }) {
   );
 }
 
+/** The lines, kept apart from the input so typing doesn't redo all of them. */
+const ChatLines = memo(function ChatLines({
+  chat,
+  inGame,
+  myId,
+  myName,
+}: {
+  chat: MatchChatLine[];
+  inGame: boolean;
+  myId: number | undefined;
+  myName: string | undefined;
+}) {
+  const list = useRef<HTMLOListElement>(null);
+  // Keep the newest line in view as lines arrive.
+  useEffect(() => {
+    if (chat.length) list.current?.scrollTo(0, list.current.scrollHeight);
+  }, [chat]);
+  return (
+    <ol ref={list}>
+      {chat.length === 0 && (
+        <li className="muted">{inGame ? "Players and watchers talk here." : "No messages yet. Say hi!"}</li>
+      )}
+      {chat.map((l) => (
+        <li key={l.id} className={myName && mentionsIn(l.text).includes(myName) ? "mentions-me" : ""}>
+          {l.userId === 0 ? (
+            <span className="author">{l.name}</span>
+          ) : (
+            <button
+              type="button"
+              className={`author${l.userId === myId ? " me" : ""}`}
+              onClick={() => hud.set({ panel: { kind: "card", userId: l.userId } })}
+            >
+              {l.name}
+            </button>
+          )}
+          <Text text={l.text} me={myName} />
+        </li>
+      ))}
+    </ol>
+  );
+});
+
 /**
  * The room's chat. Beside a match (`match`) there's the match's own chat too, for its players and
- * whoever is watching, and it starts there.
+ * whoever is watching, and it starts there. Memoised: the panels it sits beside re-render often.
  */
-export function Chat({ match = false }: { match?: boolean }) {
+export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
   const [tab, setTab] = useState<"game" | "room">(match ? "game" : "room");
   const inGame = match && tab === "game";
   const roomChat = useHud((s) => s.chat);
@@ -100,12 +143,12 @@ export function Chat({ match = false }: { match?: boolean }) {
   const room = useHud((s) => s.room);
   const here = useHud((s) => s.occupancy[s.room] ?? 0);
   const focus = useHud((s) => s.chatFocus);
-  const me = useHud((s) => s.me);
+  const myId = useHud((s) => s.me?.userId);
+  const myName = useHud((s) => s.me?.name);
   useHud((s) => s.companies);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
-  const list = useRef<HTMLOListElement>(null);
   const say = (t: string) => (inGame ? matchConn!.say(t) : conn.say(t));
 
   // Enter asks for the chat; one opening beside a panel doesn't take the focus on its own.
@@ -114,10 +157,6 @@ export function Chat({ match = false }: { match?: boolean }) {
     if (focus !== focused.current) input.current?.focus();
     focused.current = focus;
   }, [focus]);
-  // Keep the newest line in view as lines arrive.
-  useEffect(() => {
-    if (chat.length) list.current?.scrollTo(0, list.current.scrollHeight);
-  }, [chat]);
 
   return (
     <div className="chat-dock">
@@ -141,29 +180,7 @@ export function Chat({ match = false }: { match?: boolean }) {
           )}
           {!inGame && <WhosHere count={here} />}
         </header>
-        <ol ref={list}>
-          {chat.length === 0 && (
-            <li className="muted">
-              {inGame ? "Players and watchers talk here." : "No messages yet. Say hi!"}
-            </li>
-          )}
-          {chat.map((l) => (
-            <li key={l.id} className={me && mentionsIn(l.text).includes(me.name) ? "mentions-me" : ""}>
-              {l.userId === 0 ? (
-                <span className="author">{l.name}</span>
-              ) : (
-                <button
-                  type="button"
-                  className={`author${l.userId === me?.userId ? " me" : ""}`}
-                  onClick={() => hud.set({ panel: { kind: "card", userId: l.userId } })}
-                >
-                  {l.name}
-                </button>
-              )}
-              <Text text={l.text} me={me?.name} />
-            </li>
-          ))}
-        </ol>
+        <ChatLines chat={chat} inGame={inGame} myId={myId} myName={myName} />
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -192,4 +209,4 @@ export function Chat({ match = false }: { match?: boolean }) {
       </section>
     </div>
   );
-}
+});

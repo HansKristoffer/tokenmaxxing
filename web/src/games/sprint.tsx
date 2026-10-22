@@ -4,7 +4,8 @@ import { GRACE_MS, MAX_EXTRA, type SprintView, score, TRACK_WPM } from "@tokenma
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { characterFrame } from "../art/characters.ts";
-import { useHud } from "../store.ts";
+import { Pixels } from "../hud/ui.tsx";
+import { hud } from "../store.ts";
 import type { GameProps } from "./types.ts";
 
 /** Each line of words is this tall (games.css), and three show at once. */
@@ -26,7 +27,6 @@ function edit(words: string[], typed: string, e: KeyboardEvent): string | null {
 }
 
 export function Sprint({ view, info, you, now, move, name, look }: GameProps<SprintView>) {
-  const skew = useHud((s) => s.clockSkew);
   const playing = you !== null && view.mine !== null && !view.forfeited.includes(you);
   const [typed, setTyped] = useState(view.mine ?? "");
   const [focused, setFocused] = useState(false);
@@ -42,14 +42,14 @@ export function Sprint({ view, info, you, now, move, name, look }: GameProps<Spr
     if (!playing || over) return;
     const id = setInterval(() => {
       const { typed, mine, move } = latest.current;
-      const t = Date.now() - skew;
+      const t = Date.now() - hud.get().clockSkew;
       if (t < view.startsAt || t > view.endsAt + GRACE_MS || typed === mine) return;
       if (typed === sent.current.text && Date.now() - sent.current.at < 600) return;
       sent.current = { text: typed, at: Date.now() };
       move({ typed });
     }, 100);
     return () => clearInterval(id);
-  }, [playing, over, skew, view.startsAt, view.endsAt]);
+  }, [playing, over, view.startsAt, view.endsAt]);
 
   // Ready to type from the countdown on.
   useEffect(() => {
@@ -59,7 +59,7 @@ export function Sprint({ view, info, you, now, move, name, look }: GameProps<Spr
   const onKey = (e: KeyboardEvent) => {
     // Tab and Escape leave; everything else is ours.
     if (e.key === "Tab" || e.key === "Escape") return;
-    const t = Date.now() - skew;
+    const t = Date.now() - hud.get().clockSkew;
     if (!playing || t < view.startsAt || t >= view.endsAt) return void e.preventDefault();
     const next = edit(view.words, typed, e);
     if (next === null) return;
@@ -217,7 +217,12 @@ function Lanes({
             </span>
             <span className="sprint-track">
               <span className="sprint-car" style={{ left: `${Math.min(100, (s.correct / track) * 100)}%` }}>
-                <Runner look={look(p)} step={s.typed % 2 === 1} />
+                {/* Running right, a step for every key. */}
+                <Pixels
+                  sprite={characterFrame(look(p), "right", s.typed % 2 === 1 ? "walkA" : "walkB")}
+                  width={48}
+                  height={48}
+                />
               </span>
             </span>
             <span className="sprint-wpm">
@@ -281,17 +286,4 @@ function Results({
       </tbody>
     </table>
   );
-}
-
-/** A player running right, a step for every key. */
-function Runner({ look, step }: { look: Look; step: boolean }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const g = ref.current?.getContext("2d");
-    if (!g) return;
-    g.imageSmoothingEnabled = false;
-    g.clearRect(0, 0, 48, 48);
-    g.drawImage(characterFrame(look, "right", step ? "walkA" : "walkB"), 0, 0, 48, 48);
-  }, [look, step]);
-  return <canvas ref={ref} width={48} height={48} />;
 }

@@ -10,7 +10,7 @@ const HOUR_MS = 3_600_000;
  * reads the whole history. Events are only appended, except by a wipe (which starts a new cache) and the
  * one-off Grok Bot cleanup (the next wake reads it right).
  */
-export interface TrophyCache {
+interface TrophyCache {
   lastId: number;
   hours: Map<number, HourFacts>;
   prs: PrFacts[];

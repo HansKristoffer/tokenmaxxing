@@ -2,15 +2,8 @@ import { compact } from "@tokenmaxxing/core/format.ts";
 import { houseTierName } from "@tokenmaxxing/core/world.ts";
 import type { AdminCompany, AdminLogEntry, AdminOverview, AdminUser } from "@tokenmaxxing/server/registry";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  type AdminConn,
-  connectAdmin,
-  errorText,
-  forgetToken,
-  isUnauthorized,
-  savedToken,
-  saveToken,
-} from "./api.ts";
+import { errorText } from "../errors.ts";
+import { type AdminConn, connectAdmin, forgetToken, isUnauthorized, savedToken, saveToken } from "./api.ts";
 
 type Tab = "overview" | "users" | "companies" | "log";
 type Act = (fn: () => Promise<unknown>, done: string) => Promise<void>;
@@ -208,15 +201,14 @@ function Table<T extends { id: number }>({
   initial: number;
 }) {
   const [by, setBy] = useState({ col: initial, desc: true });
-  const sorted = useMemo(() => {
-    const key = columns[by.col]?.sort;
-    if (!key) return rows;
-    return [...rows].sort((a, b) => {
-      const [x, y] = [key(a), key(b)];
-      const d = x < y ? -1 : x > y ? 1 : 0;
-      return by.desc ? -d : d;
-    });
-  }, [rows, columns, by]);
+  const key = columns[by.col]?.sort;
+  const sorted = !key
+    ? rows
+    : [...rows].sort((a, b) => {
+        const [x, y] = [key(a), key(b)];
+        const d = x < y ? -1 : x > y ? 1 : 0;
+        return by.desc ? -d : d;
+      });
   return (
     <div className="scroll">
       <table>
@@ -265,6 +257,12 @@ function Table<T extends { id: number }>({
 const date = (ms: number) => new Date(ms).toLocaleDateString(undefined, { dateStyle: "medium" });
 const matches = (q: string, ...texts: (string | number | null | undefined)[]) =>
   !q || texts.some((t) => t != null && String(t).toLowerCase().includes(q.toLowerCase()));
+
+/** A new name for `name`, asked for; null when cancelled or the same. */
+function askName(name: string): string | null {
+  const next = window.prompt(`New name for ${name}:`, name)?.trim();
+  return next && next !== name ? next : null;
+}
 
 /** Asks for the name again before something that can't be undone. */
 const confirmName = (what: string, name: string) =>
@@ -337,9 +335,8 @@ function Users({ users, conn, act }: { users: AdminUser[]; conn: AdminConn; act:
           <button
             type="button"
             onClick={() => {
-              const name = window.prompt(`New name for ${u.name}:`, u.name)?.trim();
-              if (name && name !== u.name)
-                void act(() => conn.adminRenameUser(u.id, name), `Renamed to ${name}.`);
+              const name = askName(u.name);
+              if (name) void act(() => conn.adminRenameUser(u.id, name), `Renamed to ${name}.`);
             }}
           >
             Rename
@@ -510,9 +507,8 @@ function Companies({ companies, conn, act }: { companies: AdminCompany[]; conn: 
           <button
             type="button"
             onClick={() => {
-              const name = window.prompt(`New name for ${c.name}:`, c.name)?.trim();
-              if (name && name !== c.name)
-                void act(() => conn.adminRenameCompany(c.id, name), `Renamed to ${name}.`);
+              const name = askName(c.name);
+              if (name) void act(() => conn.adminRenameCompany(c.id, name), `Renamed to ${name}.`);
             }}
           >
             Rename

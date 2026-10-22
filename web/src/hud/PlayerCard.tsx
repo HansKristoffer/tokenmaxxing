@@ -19,22 +19,18 @@ import {
 import type { RangeKey } from "@tokenmaxxing/core/range.ts";
 import { ITEMS } from "@tokenmaxxing/core/shop.ts";
 import type { Profile } from "@tokenmaxxing/server/registry";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { copFrame } from "../art/cop.ts";
 import { send } from "../game/input.ts";
 import { world } from "../game/world.ts";
-import { conn, errorText, town } from "../net.ts";
+import { conn, town } from "../net.ts";
 import { hud } from "../store.ts";
 import { Computers } from "./Computers.tsx";
+import { ranges } from "./format.ts";
 import { Tickets } from "./Tickets.tsx";
-import { AvatarImage, Modal, Pills } from "./ui.tsx";
+import { AvatarImage, Modal, Pills, useLoad } from "./ui.tsx";
 
-export const RANGES = [
-  ["today", "Today"],
-  ["7d", "7 days"],
-  ["30d", "30 days"],
-  ["all", "All"],
-] as const;
+export const RANGES = ranges("All");
 
 function doing(userId: number): string | null {
   const a = world.avatars.get(userId);
@@ -70,19 +66,7 @@ export function BotCard({ id }: { id: number }) {
 
 export function PlayerCard({ userId }: { userId: number }) {
   const [range, setRange] = useState<RangeKey>("7d");
-  const [p, setP] = useState<Profile | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    town.profile(userId, range).then(
-      (r) => live && setP(r),
-      (e) => live && setError(errorText(e)),
-    );
-    return () => {
-      live = false;
-    };
-  }, [userId, range]);
+  const { data: p, error } = useLoad(() => town.profile(userId, range), [userId, range]);
 
   if (error) return <Modal title="Player">{error}</Modal>;
   if (!p) return <Modal title="Player">Loading…</Modal>;
