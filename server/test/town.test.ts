@@ -90,18 +90,20 @@ describe("companies", () => {
 
   test("everyone leaving at once closes it in the world too", async () => {
     // Enough of them that, pushed out of order, one closed company used to stay standing.
-    const companies = await Promise.all(
-      Array.from({ length: 15 }, async (_, i) => {
-        const owner = await signUp("lv");
-        const co = await owner.town.createCompany(`Leavers ${i}`);
-        const mates = [await signUp("lv"), await signUp("lv")];
-        for (const mate of mates) {
-          await mate.town.apply(co.id);
-          await owner.town.approve(mate.userId);
-        }
-        return { id: co.id, people: [owner, ...mates] };
-      }),
-    );
+    const company = async (i: number) => {
+      const owner = await signUp("lv");
+      const co = await owner.town.createCompany(`Leavers ${i}`);
+      const mates = [await signUp("lv"), await signUp("lv")];
+      for (const mate of mates) {
+        await mate.town.apply(co.id);
+        await owner.town.approve(mate.userId);
+      }
+      return { id: co.id, people: [owner, ...mates] };
+    };
+    // Five at a time: more sign-ups at once can time out creating their players on a busy CI runner.
+    const companies = [];
+    for (let i = 0; i < 15; i += 5)
+      companies.push(...(await Promise.all([0, 1, 2, 3, 4].map((j) => company(i + j)))));
     const ids = companies.map((co) => co.id);
     const people = companies.flatMap((co) => co.people);
     await Promise.all(people.map((u) => u.town.leaveCompany()));
