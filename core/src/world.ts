@@ -9,7 +9,16 @@ import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
 import { LOOT_COUNT, LOOT_FIRST } from "./loot.ts";
 import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
-import { type Door, doorAt, HQS, type Piece, pieceOf, withPieces } from "./office.ts";
+import {
+  type Door,
+  doorAt,
+  HQS,
+  OFFICE_MAPS,
+  type OfficeTier,
+  type Piece,
+  pieceOf,
+  withPieces,
+} from "./office.ts";
 import { cleanPetName, MAX_PET_LOOKS, petLooks } from "./pets.ts";
 import { itemById } from "./shop.ts";
 import type { Weather } from "./sky.ts";
@@ -49,9 +58,10 @@ export const companyOfRoom = (room: RoomId): number | null =>
 export const ownerOfOffice = (room: RoomId): number | null =>
   room.startsWith("office:") ? Number(room.slice(7)) : null;
 
-/** Every office is the template (its furniture is its drops); a building nobody has built is the bare floor. */
+/** Every office is its owner's size and decor (its furniture is its drops); a building nobody has built is the bare floor. */
 export function baseMap(room: RoomId): GameMap {
-  if (ownerOfOffice(room) !== null) return MAPS.office;
+  const owner = ownerOfOffice(room);
+  if (owner !== null) return OFFICE_MAPS.get(owner) ?? MAPS.office;
   const company = companyOfRoom(room);
   return company !== null ? (HQS.get(company) ?? MAPS.hq) : MAPS[room as MapId];
 }
@@ -233,6 +243,8 @@ export interface PlayerInfo {
   polseUntil: number;
   /** Online but no input for `IDLE_MS`: snoozing in place. */
   dozing: boolean;
+  /** The desk setup they chose (a tier in `DESKS`, desks.ts). Absent from older servers: the laptop. */
+  desk?: number;
 }
 
 /**
@@ -286,6 +298,34 @@ export interface Brand {
   logo: string | null;
 }
 
+/** The print on a company's merch, drawn by its people: two colours and a small pixel grid. */
+export interface MerchDesign {
+  /** The shirt, cap and mug (`#rrggbb`). */
+  main: string;
+  /** The `a` pixels. */
+  accent: string;
+  /** `MERCH_PRINT_H` rows of `MERCH_PRINT_W` characters: `.` bare, `a` accent, `w` white, `k` dark. */
+  rows: string[];
+}
+
+export const MERCH_PRINT_W = 8;
+export const MERCH_PRINT_H = 6;
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/** A merch design from anything the wire hands over, or null if it isn't one. */
+export function parseMerchDesign(raw: unknown): MerchDesign | null {
+  const r = raw as Partial<MerchDesign> | null;
+  if (typeof r !== "object" || r === null) return null;
+  const { main, accent, rows } = r;
+  if (typeof main !== "string" || !HEX.test(main) || typeof accent !== "string" || !HEX.test(accent))
+    return null;
+  if (!Array.isArray(rows) || rows.length !== MERCH_PRINT_H) return null;
+  const grid = new RegExp(`^[.awk]{${MERCH_PRINT_W}}$`);
+  if (!rows.every((row) => typeof row === "string" && grid.test(row))) return null;
+  return { main: main.toLowerCase(), accent: accent.toLowerCase(), rows: [...rows] };
+}
+
 export interface CompanyInfo {
   id: number;
   name: string;
@@ -296,6 +336,10 @@ export interface CompanyInfo {
   /** Bare host, e.g. `acme.com`. */
   website: string | null;
   brand: Brand | null;
+  /** What its people drew for its merch; absent or null is its colours and initials. */
+  merch?: MerchDesign | null;
+  /** The house-wide desk tier the wallet bought (`DESKS`). Absent from older servers: the laptop. */
+  deskFleet?: number;
 }
 
 export interface ChatLine {
@@ -353,7 +397,7 @@ export interface Snapshot {
   /** Games being played in town, with their tables or arenas. */
   games: WorldGame[];
   /** Only in an office: whose it is (for the banner), and whether it's open (for its owner's Menu). */
-  owner: { id: number; name: string; open: boolean } | null;
+  owner: { id: number; name: string; open: boolean; tier: OfficeTier; wall?: string; floor?: string } | null;
   /** Only in a building: its office doors, to build the map and draw the names. */
   doors: Door[];
   /** What's on the floor: furniture (in the map too), wearables and pets. */
@@ -593,4 +637,25 @@ export function route(map: GameMap, from: [number, number], to: [number, number]
     }
   }
   return null;
+}
+
+/**
+ * Whether putting `piece` down in an office would cut something off from its door: a desk, a seat, the
+ * pet bed, a shelf or the piece itself that could be reached from the exit before. `map` has what is
+ * already down. So the door, the desk and every seat stay reachable (`route` ends one step short).
+ */
+export function cutsOff(map: GameMap, piece: { ch: string; x: number; y: number }): boolean {
+  const door = map.find("x")[0];
+  if (!door) return false;
+  const next = withPieces([piece], map);
+  for (let y = map.y0; y < map.y0 + map.height; y++)
+    for (let x = map.x0; x < map.x0 + map.width; x++) {
+      const ch = map.at(x, y);
+      if (ch === "W" || ch === "x" || map.walkable(x, y)) continue;
+      if (route(next, door, [x, y]) === null && route(map, door, [x, y]) !== null) return true;
+    }
+  // The new piece must be reachable too, or nobody could read it or pick it up.
+  for (let i = 0; i < (pieceOf(piece.ch)?.w ?? 1); i++)
+    if (route(next, door, [piece.x + i, piece.y]) === null) return true;
+  return false;
 }

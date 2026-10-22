@@ -24,6 +24,8 @@ import { Merchant } from "./Merchant.tsx";
 import { MilestoneToast } from "./MilestoneToast.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
+import { DeskPanel } from "./OfficeDesks.tsx";
+import { DecorPanel, OpenOfficesPanel } from "./Offices.tsx";
 import { PaperPanel } from "./Paper.tsx";
 import { PetLooks } from "./PetLooks.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
@@ -204,6 +206,8 @@ const MENU = [
   [{ kind: "trades" }, "🔁 Trades"],
   [{ kind: "arcade" }, "🎮 Arcade"],
   [{ kind: "raid" }, "⚔️ Raid"],
+  [{ kind: "openOffices" }, "🚪 Open offices"],
+  [{ kind: "desk" }, "🖥 Desk"],
   [{ kind: "company" }, "🏢 Company"],
   [{ kind: "leaderboard" }, "🏆 Leaderboard"],
 ] as const;
@@ -232,6 +236,9 @@ function Panel() {
     paper: () => <PaperPanel />,
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
     raid: () => <RaidPanel />,
+    openOffices: () => <OpenOfficesPanel />,
+    decor: () => <DecorPanel />,
+    desk: () => <DeskPanel />,
     menu: () => (
       <Modal title="Menu">
         <nav className="menu">
@@ -264,6 +271,9 @@ function OfficeLock() {
         })}
       >
         {open ? "🔓 Open to visitors" : "🔒 Closed"}
+      </button>
+      <button type="button" onClick={() => hud.set({ panel: { kind: "decor" } })}>
+        🎨 Decorate
       </button>
       {error && <p className="error">{error}</p>}
     </>

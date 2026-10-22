@@ -8,6 +8,7 @@
  */
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { withAlpha } from "hanzio";
+import { HOME_FURNITURE } from "./furniture-home.ts";
 import { C, shade } from "./palette.ts";
 import { bake, cached, glyphPixels, type Pen } from "./pixels.ts";
 
@@ -1075,7 +1076,9 @@ export const FANCY_FURNITURE: readonly FancyPiece[] = [
   piece("rubber-duck-statue", "Rubber-duck statue", 1, 1, 26, 1000, "legendary", duckStatue),
 ];
 
-export const fancyPiece = (id: string): FancyPiece | undefined => FANCY_FURNITURE.find((f) => f.id === id);
+/** A piece by id: the company's, or a personal office's (`furniture-home.ts`). */
+export const fancyPiece = (id: string): FancyPiece | undefined =>
+  FANCY_FURNITURE.find((f) => f.id === id) ?? HOME_FURNITURE.find((f) => f.id === id);
 
 /** Which frame a piece shows at time `now` (ms). */
 export const fancyFrame = (piece: FancyPiece, now: number): number =>

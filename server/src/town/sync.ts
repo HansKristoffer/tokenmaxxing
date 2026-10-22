@@ -43,10 +43,10 @@ export function push(sql: Sql, client: Client<typeof registry>, changed: Changed
   });
 }
 
-/** Someone's office opened or closed: the 🔒 on its door. */
+/** Someone's office opened or closed (the 🔒 on its door), or got a new wallpaper or floor. */
 export function pushOffice(sql: Sql, client: Client<typeof registry>, userId: number): Promise<void> {
   return inOrder(async () => {
-    await main(client).world.setOfficeOpen(userId, (await officeOf(sql, userId)).open);
+    await main(client).world.setOfficeInfo(userId, await officeOf(sql, userId));
   });
 }
 

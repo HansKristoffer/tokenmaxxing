@@ -295,6 +295,7 @@ function interact(): void {
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (kind.pours) return void send(conn.drink(me.facing));
   if (ch === "K") return void hud.set({ dialog: chalkboardText() });
+  if (ch === "w") return void hud.set({ panel: { kind: "openOffices" } });
   if (ch === "U") return void openTrophies();
   if (ch === "H") {
     const b = buildingAt(x, y);

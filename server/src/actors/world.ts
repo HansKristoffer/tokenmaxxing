@@ -21,14 +21,20 @@ import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { type GameMap, LEGEND, setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import {
+  canHang,
+  clearOffice,
   type Door,
   doorAt,
   doorsFor,
   HQS,
   OFFICE_LEVEL,
+  OFFICE_MAPS,
   OFFICE_PIECES,
+  officeTier,
   PASSAGE_X,
   setHq,
+  setOffice,
+  wallSpot,
   withPieces,
 } from "@tokenmaxxing/core/office.ts";
 import { type Outage, onBlanket, PICNIC_SEATS, sameOutage } from "@tokenmaxxing/core/picnic.ts";
@@ -43,6 +49,7 @@ import {
   type CompanyInfo,
   companyOfRoom,
   cupsLeft,
+  cutsOff,
   DIRS,
   DROPS,
   type Drop,
@@ -197,6 +204,7 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   coffeeUntil: p.coffeeUntil ?? 0,
   polseUntil: p.polseUntil ?? 0,
   dozing: online && !!p.dozing,
+  desk: p.desk ?? 0,
   x: p.x,
   y: p.y,
   facing: p.facing,
@@ -237,6 +245,8 @@ export const world = actor({
     outage: null as Outage | null,
     outageAt: 0,
     cop: { burns: new Map(), ticketed: new Map(), chase: null, freeAt: 0 } as CopVars,
+    /** Visits already sent to `town` today (`countVisit`), so a door in and out costs one write. */
+    visited: { day: "", keys: new Set<string>() },
     /** The sky: one fetch for everyone (`weather.ts`), kept when a fetch fails. */
     weather: initialWeather() as Weather,
     weatherAt: 0,
@@ -263,6 +273,7 @@ export const world = actor({
       c.state.seeded = true;
     }
     c.state.offices = seed.offices;
+    for (const id of Object.keys(c.state.players)) buildOffice(c.state, Number(id));
     delete (c.state as { drops?: unknown }).drops; // kept here before `seed` carried them
     placeBots(c.state);
     buildTown(c.state);
@@ -369,6 +380,7 @@ export const world = actor({
           const dest = portal(p.room, target, p.companyId, plots(c.state), doors);
           if ("notice" in dest) return { notice: dest.notice };
           Object.assign(p, dest);
+          countVisit(c, p);
           return correction(p);
         },
       });
@@ -519,7 +531,9 @@ export const world = actor({
       if (owner.id !== p.id && !officeOf(c.state, owner.id).open)
         return { notice: `🔒 ${owner.name}'s office is closed.` };
       touch(c, p, Date.now());
-      return enter(c, p, `office:${owner.id}`);
+      const arrived = enter(c, p, `office:${owner.id}`);
+      countVisit(c, p);
+      return arrived;
     },
 
     /** The raid panel's "Go to the dungeon": in through its gate, from anywhere. */
@@ -660,6 +674,8 @@ export const world = actor({
       if (companyOfRoom(p.room) !== null) c.vars.housesStale = true;
       // A door came, went or was renamed: in the old building and the new one.
       const lifted: number[] = [];
+      // A level that grew their office: the room grows right and down, so everyone inside stays valid.
+      if (buildOffice(c.state, p.id)) lifted.push(...(await rebuildOffice(c, p.id)));
       if (doorKey(p) !== hadDoor)
         for (const id of new Set([before, p.companyId]))
           if (id != null) lifted.push(...(await rebuildHq(c, id)));
@@ -679,6 +695,7 @@ export const world = actor({
       const ids = drops.map((d) => d.id);
       // Their office goes too; anyone inside stays until they leave.
       delete c.state.offices?.[userId];
+      clearOffice(userId);
       const p = c.state.players[userId];
       if (!p) return ids;
       sendToRoom(c, p.room, "moves", { room: p.room, join: [], m: [], leave: [userId] } satisfies Moves);
@@ -721,18 +738,41 @@ export const world = actor({
       return ids;
     },
 
-    /** From `town`: an office opened or closed. Whoever is inside sees it; closing throws nobody out. */
-    setOfficeOpen: async (c, userId: number, open: boolean): Promise<void> => {
+    /**
+     * From `town`: an office opened or closed, or its wallpaper or floor changed. Whoever is inside
+     * sees it; closing throws nobody out.
+     */
+    setOfficeInfo: async (c, userId: number, office: Office): Promise<void> => {
       requireInternal(c.conn.state);
-      if (officeOf(c.state, userId).open === open) return;
+      const was = officeOf(c.state, userId);
+      if (JSON.stringify(was) === JSON.stringify(office)) return;
       c.state.offices ??= {};
-      c.state.offices[userId] = { open };
+      c.state.offices[userId] = office;
+      if (buildOffice(c.state, userId)) await rebuildOffice(c, userId);
+      if (was.open === office.open) return;
       // What was said while it was closed stays private.
-      if (open) await c.db.execute("DELETE FROM chat WHERE room = ?", `office:${userId}`);
+      if (office.open) await c.db.execute("DELETE FROM chat WHERE room = ?", `office:${userId}`);
       await resend(c, `office:${userId}`);
       // The 🔒 on their door.
       const companyId = c.state.players[userId]?.companyId;
       if (companyId != null) await resend(c, `hq:${companyId}`);
+    },
+
+    /** From `town`, for the open offices list: every open office, as it is now. */
+    openOffices: (c) => {
+      requireInternal(c.conn.state);
+      return Object.values(c.state.players)
+        .filter((p) => hasOffice(p) && officeOf(c.state, p.id).open)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          level: p.level,
+          company: c.state.companies[p.companyId!]?.name ?? "",
+          tier: officeTier(p.level),
+          inside: Object.values(c.state.players).filter(
+            (o) => o.room === `office:${p.id}` && c.vars.online.has(o.id),
+          ).length,
+        }));
     },
 
     /** From `town`: a line for one player's open tabs (a company application, a trade, an answer). */
@@ -770,7 +810,9 @@ export const world = actor({
         ownerOfOffice(p?.room ?? "town") === null && co === undefined ? DROPS_PER_ROOM : OFFICE_PIECES;
       if (!p || here.length >= cap) return full;
       // Touched grass is earned, not loot: only onto your own office's floor, where nobody else takes it.
-      if (!canDropIn(item, p.room, by)) return { notice: "That one only goes down in your own office." };
+      // A company's piece isn't tradeable, so `canDropIn` would refuse it: it was checked against its building above.
+      if (co === undefined && !canDropIn(item, p.room, by))
+        return { notice: "That one only goes down in your own office." };
       const map = mapOf(p.room);
       const piece = pieceOfDrop({ item });
       const w = piece?.w ?? 1;
@@ -778,6 +820,11 @@ export const world = actor({
       // One drop per tile; furniture lands on nobody, and not in anyone's way.
       const taken = new Set<string>();
       for (const d of here) for (let i = 0; i < (pieceOfDrop(d)?.w ?? 1); i++) taken.add(`${d.x + i},${d.y}`);
+      // Nor in front of a poster, where it would hide it and keep anyone from taking it down.
+      if (piece && !piece.wall)
+        for (const d of here)
+          if (pieceOfDrop(d)?.wall)
+            for (let i = 0; i < (pieceOfDrop(d)?.w ?? 1); i++) taken.add(`${d.x + i},${d.y + 1}`);
       if (piece) {
         for (const o of people) taken.add(`${o.x},${o.y}`);
         for (const t of noFurniture(p.room, map)) taken.add(t);
@@ -794,12 +841,19 @@ export const world = actor({
         const next = withPieces([{ ch: piece!.ch, ...at }], map);
         return people.some((o) => !route(next, [o.x, o.y], exit!));
       };
-      let spot = findSpot(map, from, w, 1, games, taken);
-      while (spot && piece && exit && wallsIn(spot)) {
+      // A poster goes on the wall slot nearest them; it's wall already, so it blocks no one.
+      let spot = piece?.wall ? wallSpot(map, p.x, w, piece.home) : findSpot(map, from, w, 1, games, taken);
+      // In an office the door, the desk and every seat stay reachable too (`cutsOff`).
+      const blocks = (at: { x: number; y: number }) =>
+        wallsIn(at) || (ownerOfOffice(p.room) !== null && cutsOff(map, { ch: piece!.ch, ...at }));
+      while (spot && piece && !piece.wall && exit && blocks(spot)) {
         taken.add(`${spot.x},${spot.y}`);
         spot = findSpot(map, from, w, 1, games, taken);
       }
-      if (!spot) return full;
+      if (!spot)
+        return piece?.wall
+          ? { notice: "No bare wall left to hang it: it needs floor to stand on in front of it." }
+          : full;
       const drop: Drop = {
         id,
         item,
@@ -857,6 +911,7 @@ const hasOffice = (p: PlayerCore) => p.companyId !== null && p.level >= OFFICE_L
 
 type Vars = {
   online: Map<number, number>;
+  visited: { day: string; keys: Set<string> };
   dirty: Set<number>;
   announced: Map<number, RoomId>;
   hidden: Set<number>;
@@ -1302,6 +1357,22 @@ function copBeat(
     .catch((err) => console.warn("[world] ticket", err));
 }
 
+/** Someone stepped into another player's office: `town` counts them once a day for the open offices list. */
+function countVisit(c: { vars: Vars; client: () => Parameters<typeof main>[0] }, p: WorldPlayer): void {
+  const owner = ownerOfOffice(p.room);
+  if (owner === null || owner === p.id) return;
+  const now = Date.now();
+  const day = dayKey(now);
+  const seen = c.vars.visited;
+  if (seen.day !== day) Object.assign(seen, { day, keys: new Set<string>() });
+  const key = `${owner}:${p.id}`;
+  if (seen.keys.has(key)) return;
+  seen.keys.add(key);
+  void main(c.client())
+    .town.officeVisit(owner, p.id)
+    .catch((err) => console.warn(`[office] visit ${p.id} to ${owner}: ${String(err)}`));
+}
+
 /** The caller, unless they're at a game table: there only the game moves them. */
 function free(c: { conn: { state: ConnState }; state: WorldState }): WorldPlayer | null {
   const p = c.state.players[requireUser(c.conn.state)];
@@ -1363,7 +1434,13 @@ async function snapshot(
     owner:
       owner === null
         ? null
-        : { id: owner, name: s.players[owner]?.name ?? "Someone", open: officeOf(s, owner).open },
+        : {
+            id: owner,
+            name: s.players[owner]?.name ?? "Someone",
+            open: officeOf(s, owner).open,
+            tier: officeTier(s.players[owner]?.level ?? 0),
+            ...decorOf(s, owner),
+          },
     doors: companyId === null ? [] : doorsOf(s, companyId),
     drops: dropsIn(room),
     weather,
@@ -1478,12 +1555,38 @@ function liftMisplaced(c: Sender & { vars: Vars }, room: RoomId): number[] {
   const reserved = noFurniture(room, base);
   const out = dropsIn(room).filter((d) => {
     const piece = pieceOfDrop(d);
+    if (piece?.wall) return !canHang(base, d.x, d.y, piece.w ?? 1, piece.home);
     for (let i = 0; i < (piece?.w ?? 1); i++)
       if (!base.walkable(d.x + i, d.y) || (piece && reserved.has(`${d.x + i},${d.y}`))) return true;
     return false;
   });
   for (const d of out) lift(c, d);
   return out.map((d) => d.id);
+}
+
+/** Their wallpaper and floor, when they have any. */
+const decorOf = (s: WorldState, userId: number) => {
+  const { wall, floor } = officeOf(s, userId);
+  return { ...(wall && { wall }), ...(floor && { floor }) };
+};
+
+/**
+ * Sets an owner's office map from their level and decor (nothing under `OFFICE_LEVEL`). True if the map
+ * changed, so its room needs a rebuild: `mapOf` and the client's ground go by the map object.
+ */
+function buildOffice(s: WorldState, userId: number): boolean {
+  const before = OFFICE_MAPS.get(userId);
+  const p = s.players[userId];
+  if (p && p.level >= OFFICE_LEVEL) setOffice(userId, officeTier(p.level), decorOf(s, userId));
+  else clearOffice(userId);
+  return OFFICE_MAPS.get(userId) !== before;
+}
+
+/** An office grew or changed its look: drops it has no place for go back, and everyone inside sees it. */
+async function rebuildOffice(c: Sender & { vars: Vars; db: Sql }, userId: number): Promise<number[]> {
+  const lifted = liftMisplaced(c, `office:${userId}`);
+  await resend(c, `office:${userId}`);
+  return lifted;
 }
 
 /** Someone's office; one `town` has no row for yet is open. */

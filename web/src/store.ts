@@ -24,6 +24,9 @@ export type Panel =
   | { kind: "trades" }
   | { kind: "paper" }
   | { kind: "trophies"; userId: number; name: string }
+  | { kind: "openOffices" }
+  | { kind: "decor" }
+  | { kind: "desk" }
   | { kind: "raid" }
   | { kind: "menu" };
 

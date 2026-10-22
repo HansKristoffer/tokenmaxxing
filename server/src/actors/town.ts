@@ -106,12 +106,22 @@ import {
   matchCoins,
   myCompany,
   ownedCompany,
+  setMerchDesign,
   unstore,
   withdraw,
 } from "../town/companies.ts";
+import { buyDesk, buyDeskFleet, type MyDesk, myDesk, setDesk } from "../town/desks.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
+import {
+  applyDecor,
+  buyDecor,
+  type OpenOffice,
+  ownedDecor,
+  recordVisit,
+  visitorCounts,
+} from "../town/offices.ts";
 import { markPicnic } from "../town/picnic.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import { migrate } from "../town/schema.ts";
@@ -233,7 +243,10 @@ export const town = actor({
     applications: new RateLimiter(APPLICATIONS_PER_HOUR, HOUR),
     trades: new RateLimiter(TRADES_PER_HOUR, HOUR),
     offices: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
+    desks: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     drops: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
+    /** The open offices, read by everyone for a few seconds. */
+    openOffices: null as { at: number; rows: Promise<OpenOfficeRow[]> } | null,
     renames: new RateLimiter(RENAMES_PER_HOUR, HOUR),
     /** `podiums` for a world day, for wallets and cards; a late sync or a wiped account drops it. */
     podiums: null as { day: string; rows: Promise<Podium[]> } | null,
@@ -466,6 +479,13 @@ export const town = actor({
         if (website && canBrand()) c.waitUntil(brand(c.db, client, company.id, company.name, website));
       }
       return myCompany(c.db, company.id, userId);
+    },
+
+    /** Any member sets the company's merch design (null: back to the brand's colours). */
+    setMerch: async (c, raw: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      const companyId = await setMerchDesign(c.db, userId, raw);
+      await push(c.db, c.client<typeof registry>(), { companies: [companyId], users: [] });
     },
 
     wallet: async (c): Promise<Wallet> => {
@@ -733,6 +753,95 @@ export const town = actor({
       });
       await placeStarter(client, drops);
       await pushOffice(c.db, client, userId);
+    },
+
+    /** What wallpapers and floors I may use now, as `<kind>.<id>`. */
+    decorOwned: async (c): Promise<string[]> => ownedDecor(c.db, requireUser(c.conn.state)),
+
+    /** Buys a wallpaper or floor (`kind` wall or floor); `setDecor` puts it on. */
+    buyDecor: async (c, kind: unknown, id: unknown): Promise<Wallet> => {
+      const userId = requireUser(c.conn.state);
+      const now = Date.now();
+      const k = await kept(c, now);
+      return c.vars.serial(() => buyDecor(c.db, userId, kind, id, now, k));
+    },
+
+    /** Puts a wallpaper or floor I own on my office, for free (`null`: the plain one). */
+    setDecor: async (c, kind: unknown, id: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      if (!c.vars.offices.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
+      if (id !== null && typeof id !== "string") throw new UserError("Which one?", { code: "invalid_decor" });
+      const client = c.client<typeof registry>();
+      const { drops } = await c.vars.serial(() => applyDecor(c.db, userId, kind, id, Date.now()));
+      await placeStarter(client, drops);
+      await pushOffice(c.db, client, userId);
+    },
+
+    // MARK: Desk setups
+
+    /** Which desk setups I may use, and which I use. */
+    deskOwned: async (c): Promise<MyDesk> => myDesk(c.db, requireUser(c.conn.state)),
+
+    /** Buys a desk setup (a `DESKS` id) for my coins; `setDesk` puts it on. */
+    buyDesk: async (c, id: unknown): Promise<Wallet> => {
+      const userId = requireUser(c.conn.state);
+      if (!c.vars.desks.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
+      const now = Date.now();
+      const k = await kept(c, now);
+      return c.vars.serial(() => buyDesk(c.db, userId, id, now, k));
+    },
+
+    /** Switches to a desk setup I own, free. Everyone sees it at once. */
+    setDesk: async (c, id: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      if (!c.vars.desks.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
+      await c.vars.serial(() => setDesk(c.db, userId, id));
+      await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
+    },
+
+    /** Any member has the company buy its house the next desk tier from the wallet. */
+    buyDeskFleet: async (c): Promise<MyCompany> => {
+      const userId = requireUser(c.conn.state);
+      if (!c.vars.desks.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
+      const u = await userById(c.db, userId);
+      const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
+      if (!company) throw new UserError("Join a company first.", { code: "not_member" });
+      await c.vars.serial(() => buyDeskFleet(c.db, company, userId, Date.now()));
+      await push(c.db, c.client<typeof registry>(), { users: [], companies: [company.id] });
+      return myCompany(c.db, company.id, userId);
+    },
+
+    /** The open offices, busiest first. Everyone reads the same list for 5 seconds. */
+    openOffices: (c): Promise<OpenOfficeRow[]> => {
+      requireUser(c.conn.state);
+      const now = Date.now();
+      const kept = c.vars.openOffices;
+      if (kept && now - kept.at < OPEN_OFFICES_TTL) return kept.rows;
+      const rows = (async () => {
+        const [live, visitors] = await Promise.all([
+          main(c.client<typeof registry>()).world.openOffices(),
+          visitorCounts(c.db, now),
+        ]);
+        return live
+          .map((o) => ({ ...o, visitors: visitors[o.id] ?? 0 }))
+          .sort((a, b) => b.visitors - a.visitors || b.inside - a.inside || b.level - a.level || a.id - b.id)
+          .slice(0, OPEN_OFFICES_LIMIT);
+      })();
+      c.vars.openOffices = { at: now, rows };
+      rows.catch(() => {
+        if (c.vars.openOffices?.rows === rows) c.vars.openOffices = null;
+      });
+      return rows;
+    },
+
+    /** From `world`: `visitorId` stepped into `ownerId`'s office today. */
+    officeVisit: async (c, ownerId: number, visitorId: number): Promise<void> => {
+      requireInternal(c.conn.state);
+      await recordVisit(c.db, ownerId, visitorId, Date.now());
     },
 
     /** From `player` after an ingest: replaces those days' rollups and hands out level rewards reached. */
@@ -1215,6 +1324,12 @@ async function furnish(
   });
   return { notice, company: await myCompany(c.db, company.id, userId) };
 }
+
+const OPEN_OFFICES_TTL = 5_000;
+const OPEN_OFFICES_LIMIT = 30;
+
+/** An open office in the list, with how many different people came this week. */
+export type OpenOfficeRow = OpenOffice & { visitors: number };
 
 /** The open offer `fromId` made me, or `not_found`. */
 async function offerTo(sql: Sql, userId: number, fromId: unknown, now: number): Promise<Trade> {

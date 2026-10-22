@@ -1,13 +1,16 @@
 import { editionById } from "@tokenmaxxing/core/editions.ts";
+import { homePieceOf } from "@tokenmaxxing/core/home.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
 import { petOutfit, wearPet } from "@tokenmaxxing/core/pets.ts";
+import { posterOf } from "@tokenmaxxing/core/posters.ts";
 import { ITEMS, type Item, MERCH, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
 import { useEffect, useState } from "react";
 import { itemFrame } from "../art/characters.ts";
+import { posterSprite } from "../art/furniture-posters.ts";
 import { objectAt } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
@@ -240,7 +243,16 @@ const pieces = new Map<string, HTMLCanvasElement>();
 function pieceSprite(ch: string): HTMLCanvasElement {
   let sprite = pieces.get(ch);
   if (sprite) return sprite;
-  sprite = objectAt(withPieces([{ ch, x: 1, y: 1 }], MAPS.office), 1, 1)?.canvas;
+  // A poster is hung on a wall, not put down on a floor: its own picture.
+  const poster = posterOf(ch);
+  if (poster) {
+    sprite = posterSprite(poster.art);
+    pieces.set(ch, sprite);
+    return sprite;
+  }
+  // A personal office's frame or sign is hung on the office's top wall.
+  const row = homePieceOf(ch)?.wall ? 0 : 1;
+  sprite = objectAt(withPieces([{ ch, x: 1, y: row }], MAPS.office), 1, row)?.canvas;
   if (!sprite) {
     sprite = document.createElement("canvas");
     sprite.width = sprite.height = 16;

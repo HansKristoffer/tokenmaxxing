@@ -1,3 +1,4 @@
+import { effectiveDesk } from "@tokenmaxxing/core/desks.ts";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
@@ -14,6 +15,7 @@ import {
 import { clamp, typedSwitch, typedSwitchGroup } from "hanzio";
 import { house, inn } from "../art/buildings.ts";
 import { characterFrame, itemFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
+import { deskFrame, type ScreenMode } from "../art/desks.ts";
 import { type FancyPiece, fancyFrame, fancySprite, neonSprite } from "../art/furniture-fancy.ts";
 import { drawSparkle, wearsLegendary } from "../art/loot.ts";
 import { coloursOf } from "../art/merch.ts";
@@ -140,6 +142,24 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   // Only at a whole-number zoom: in between, the panes' soft edges would show what was under them.
   const relit = outdoors && Number.isInteger(scale) && lightsNow(now) > 0.05;
 
+  // Desk setups: who sits at a desk (on the chair below it) decides its screens; a house's fleet tier is
+  // every desk's floor, empty ones too. `world.avatars` has everyone in the room.
+  const fleet = world.companies.get(companyOfRoom(world.room) ?? -1)?.deskFleet;
+  let seated: Map<number, Avatar> | undefined;
+  const deskAt = (x: number, y: number): { tier: number; mode: ScreenMode } => {
+    if (!seated) {
+      seated = new Map();
+      for (const a of world.avatars.values())
+        if (a.state === "working" || a.state === "sit") seated.set(map.index(a.x, a.y), a);
+    }
+    const a = map.at(x, y + 1) === "c" ? seated.get(map.index(x, y + 1)) : undefined;
+    const tier = effectiveDesk(a?.info.desk, fleet);
+    return {
+      tier,
+      mode: !a ? "off" : a.state === "working" ? (Math.floor(now / 180) % 2 ? "typingA" : "typingB") : "lit",
+    };
+  };
+
   for (let y = y0; y < y1; y++)
     for (let x = x0; x < x1; x++) {
       const o = objectAt(map, x, y);
@@ -149,6 +169,10 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
         items.push({
           y: y * TILE + sortY(ch),
           draw: () => {
+            if (ch === "d") {
+              const { tier, mode } = deskAt(x, y);
+              if (tier > 0) return void g.drawImage(deskFrame(tier, mode), x * TILE, (y + 1) * TILE - 22);
+            }
             // The company building's pieces are indoors, out of the snow.
             if (o.fancy) g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
             else snowy(o.canvas, x * TILE + o.dx, y * TILE + o.dy, ch);

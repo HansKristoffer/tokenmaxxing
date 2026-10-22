@@ -273,7 +273,7 @@ describe("offices", () => {
     const sofa = await takeOut(sql, 8, "furn.s", 0);
     await placed(sql, { id: sofa, item: "furn.s", room: "office:8", x: 5, y: 3, by: 8, at: 0 });
     const laid: Drop[][] = [];
-    const world = { placeDrops: async (d: Drop[]) => void laid.push(d), setOfficeOpen: async () => {} };
+    const world = { placeDrops: async (d: Drop[]) => void laid.push(d), setOfficeInfo: async () => {} };
     const actor = { getOrCreate: () => world };
     const vars = { serial: serial(), offices: new RateLimiter(30, MIN) };
     const close = (userId: number) =>

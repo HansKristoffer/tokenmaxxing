@@ -3,8 +3,10 @@
  * `MAPS.office`, with the other rooms; what's in each office is what its owner dropped there.
  */
 import { sortBy } from "hanzio";
+import { HOME_PIECES } from "./home.ts";
 import { TROPHIES } from "./loot.ts";
-import { GameMap, MAPS } from "./maps.ts";
+import { GameMap, MAPS, officeRows } from "./maps.ts";
+import { POSTERS } from "./posters.ts";
 
 export interface Piece {
   ch: string;
@@ -14,6 +16,10 @@ export interface Piece {
   w?: number;
   /** Earned this way, never sold: it stays yours, and goes down only in your own office. */
   earned?: string;
+  /** Hung on a wall tile (`canHang`), never on the floor: a poster, or a personal office's frame. */
+  wall?: true;
+  /** For a personal office only, never the company building (`home.ts`). */
+  home?: true;
 }
 
 /** What an office can hold: furniture from the map legend, drawn as it is everywhere else. Sold as `furn.<ch>`. */
@@ -68,6 +74,8 @@ export const COMPANY_FURNITURE: readonly (Piece & { art: string })[] = [
   { ch: "ω", art: "gong", name: "Ship-it gong", price: 750, w: 2 },
   { ch: "λ", art: "chandelier", name: "Crystal chandelier", price: 900, w: 2 },
   { ch: "Γ", art: "rubber-duck-statue", name: "Rubber-duck statue", price: 1000 },
+  // Wall decor, after the floor pieces so every other piece keeps its place in the catalog.
+  ...POSTERS,
 ];
 /** At most this many drops on an office's floor, or a company building's. */
 export const OFFICE_PIECES = 40;
@@ -78,12 +86,12 @@ export const OFFICE_LEVEL = 10;
 export const PIECES: readonly Piece[] = [...FURNITURE, ...TROPHIES];
 
 const BY_CH = new Map<string, Piece>();
-for (const f of [...PIECES, ...COMPANY_FURNITURE]) if (!BY_CH.has(f.ch)) BY_CH.set(f.ch, f);
+for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES]) if (!BY_CH.has(f.ch)) BY_CH.set(f.ch, f);
 
 export const pieceOf = (ch: unknown): Piece | undefined => BY_CH.get(ch as string);
 
 /** One placed piece: its top-left tile. */
-interface Placed {
+export interface Placed {
   ch: string;
   x: number;
   y: number;
@@ -95,16 +103,59 @@ export const STARTER_OFFICE: readonly Placed[] = [
   { ch: "c", x: 5, y: 4 },
 ];
 
+/** The row of a company building's top wall that faces the floor: where posters hang. */
+export const WALL_ROW = 1;
+
+/** The row of a personal office's top wall: its face, with the floor right under it. */
+export const OFFICE_WALL_ROW = 0;
+
+/** The wall row pieces hang on in `map`, or null when it has none: a building's, or an office's. */
+export const wallRowOf = (map: GameMap): number | null =>
+  map.id === "hq" ? WALL_ROW : map.id === "office" ? OFFICE_WALL_ROW : null;
+
+/**
+ * Whether `w` tiles from (x, y) can take a wall piece: the room's wall face, every tile still bare
+ * wall (not the passage up to the hallways, not an office's corners, not another piece), and at least
+ * one floor tile below it free to stand on, so anyone can face it to read it or take it down (`take`).
+ * The piece stays a wall tile, so hanging one never changes where anyone can walk. A `home` piece
+ * (`home.ts`) hangs only in a personal office, any other (a poster) only in a company building.
+ */
+export const canHang = (map: GameMap, x: number, y: number, w: number, home = false): boolean => {
+  if (map.id !== (home ? "office" : "hq") || y !== wallRowOf(map)) return false;
+  const tiles = Array.from({ length: w }, (_, i) => x + i);
+  if (home && tiles.some((tx) => tx < 1 || tx > map.width - 2)) return false;
+  return tiles.every((tx) => map.at(tx, y) === "W") && tiles.some((tx) => map.walkable(tx, y + 1));
+};
+
+/**
+ * The wall slot for a `w`-wide piece nearest column `x`, or null when the wall is full. One with
+ * furniture in front of part of it (a shelf would hide it) only wins when nothing clear is as near.
+ */
+export function wallSpot(map: GameMap, x: number, w: number, home = false): { x: number; y: number } | null {
+  const row = wallRowOf(map);
+  if (row === null) return null;
+  const cost = (sx: number) =>
+    Math.abs(sx + w / 2 - x - 0.5) +
+    3 * Array.from({ length: w }, (_, i) => i).filter((i) => !map.walkable(sx + i, row + 1)).length;
+  let best: number | null = null;
+  for (let sx = map.x0; sx + w <= map.x0 + map.width; sx++)
+    if (canHang(map, sx, row, w, home) && (best === null || cost(sx) < cost(best))) best = sx;
+  return best === null ? null : { x: best, y: row };
+}
+
 /**
  * A map with these pieces written over its floor: a room's dropped furniture (`mapOf`). Only over floor:
- * a wall or door the map gained under a piece stays a wall or door.
+ * a wall or door the map gained under a piece stays a wall or door. A wall piece goes over bare wall.
  */
 export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
   const rows = base.rows.map((r) => [...r]);
   for (const p of pieces) {
-    const w = pieceOf(p.ch)?.w ?? 1;
+    const piece = pieceOf(p.ch);
+    const w = piece?.w ?? 1;
+    if (piece?.wall && !canHang(base, p.x, p.y, w, piece.home)) continue;
+    if (piece?.home && base.id !== "office") continue;
     for (let i = 0; i < w; i++)
-      if (base.walkable(p.x + i, p.y)) rows[p.y - base.y0]![p.x + i - base.x0] = p.ch;
+      if (piece?.wall || base.walkable(p.x + i, p.y)) rows[p.y - base.y0]![p.x + i - base.x0] = p.ch;
   }
   return new GameMap(
     base.id,
@@ -112,6 +163,7 @@ export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
     rows.map((r) => r.join("")),
     base.x0,
     base.y0,
+    base.decor,
   );
 }
 
@@ -175,3 +227,58 @@ export function setHq(companyId: number, doors: readonly Door[]): GameMap {
 /** The door at (x, y) in a building, if any. */
 export const doorAt = (doors: readonly Door[], x: number, y: number): Door | undefined =>
   doors.find((d) => d.x === x && d.y === y);
+
+// MARK: Sizes
+
+export type OfficeTier = 0 | 1 | 2;
+
+/**
+ * The three sizes, by the level they open at. Growth is only right and down, so every tile keeps its
+ * coordinates; only the pet bed and the door row move. ponytail: by the owner's level, not a house tier:
+ * if tiers ever come, `officeTier` is the one place to change.
+ */
+export const OFFICE_SIZES: readonly { w: number; h: number; level: number }[] = [
+  { w: 12, h: 9, level: OFFICE_LEVEL },
+  { w: 14, h: 10, level: 25 },
+  { w: 16, h: 12, level: 40 },
+];
+
+export const officeTier = (level: number): OfficeTier =>
+  level >= OFFICE_SIZES[2]!.level ? 2 : level >= OFFICE_SIZES[1]!.level ? 1 : 0;
+
+/** An office's template for a size and its wallpaper and floor. Tier 0, plain, is `MAPS.office`. */
+export const officeMap = (tier: OfficeTier, decor?: { wall?: string; floor?: string }): GameMap => {
+  const { w, h } = OFFICE_SIZES[tier]!;
+  return new GameMap("office", "Office", officeRows(w, h), 0, 0, decor);
+};
+
+/** Each owner's office, like `HQS`. ponytail: one process holds every office it has seen. */
+export const OFFICE_MAPS = new Map<number, GameMap>();
+const OFFICE_KEYS = new Map<number, string>();
+
+/**
+ * `userId`'s office for their size and decor. The same map object while nothing changed (`mapOf` keeps
+ * what it built on a map's identity, and the client its baked ground), a new one when either did.
+ */
+export function setOffice(
+  userId: number,
+  tier: OfficeTier,
+  decor: { wall?: string | null; floor?: string | null } = {},
+): GameMap {
+  const d = {
+    ...(decor.wall && { wall: decor.wall }),
+    ...(decor.floor && { floor: decor.floor }),
+  };
+  const key = `${tier}:${d.wall ?? ""}:${d.floor ?? ""}`;
+  const had = OFFICE_MAPS.get(userId);
+  if (had && OFFICE_KEYS.get(userId) === key) return had;
+  const map = tier === 0 && !d.wall && !d.floor ? MAPS.office : officeMap(tier, d);
+  OFFICE_MAPS.set(userId, map);
+  OFFICE_KEYS.set(userId, key);
+  return map;
+}
+
+export function clearOffice(userId: number): void {
+  OFFICE_MAPS.delete(userId);
+  OFFICE_KEYS.delete(userId);
+}

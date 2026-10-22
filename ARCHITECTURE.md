@@ -173,6 +173,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Coins: `wallet`, `buy`, `bag`; for `arcade`: `hold`, `pay`, `refund`, `recordMatch`. Games: `gameBoard`.
 - Trades: `offerTrade` (10 an hour; a new offer replaces your old one), `trades`, `acceptTrade`,
   `declineTrade`, `withdrawTrade`. See *Coins and the shop*.
+- Office decor: `setDecor` and `buyDecor` (wallpapers and floors), `setDesk` and `buyDesk` (desk setups), `buyDeskFleet`
+  (a company's), `openOffices` (who is open and who's in them); `setDecor` shares the next limit. See *Offices v2*.
 - Offices: `setOfficeOpen` (your own, from level 10; 30 a minute, since each one sends the office and its
   building to everyone inside). What's in an office is what its owner dropped there.
 - Drops: `drop` (30 a minute) takes one of a kind out of your bag (not a reward; at most 5 of yours on the
@@ -314,7 +316,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   from outside, from the owner's card. The template has a **pet bed** in its bottom right corner: the map
   tile `Q`, a prop like a plant (not walkable, so nothing can be dropped on it and it can't block a path).
   While its owner is in their own office their pet walks to it and sleeps there, for everyone in the room to
-  see; it's all drawn on the client (`game/pets.ts`), the server knows nothing of it.
+  see; it's all drawn on the client (`game/pets.ts`), the server knows nothing of it. Sizes, wallpapers and the
+  list of open offices are in *Offices v2*.
 
 ## Games
 
@@ -483,6 +486,48 @@ climbs it together (`core/src/raid.ts`).
     the boss and the odds.
   - `RAID_LOOT_BOOST` (dev and testing only, 1 to 1000, checked at boot) multiplies every drop's odds so
     rare ones can be seen without luck. The panel says when it's on.
+
+## Offices v2
+
+- **Sizes** go by the owner's level (`OFFICE_SIZES`): 12x9 from level 10, 14x10 at 25, 16x12 at 40
+  (`officeTier`, `officeMap`). An office only grows right and down, so every tile and placed piece keeps its
+  coordinates; the tier is in `owner` in the snapshot and the open-offices rows.
+- **Personal furniture** (`core/src/home.ts`, art in `web/src/art/furniture-home.ts`): 14 cosmetic pieces for
+  personal offices only, 40 to 260 coins from the shop (plants, a keyboard in a glass case, a whiteboard, a floor
+  lamp, bookcase, duck shelf, mini fridge, wool rug, bean bag, neon sign, framed certificate). They are `Piece`s
+  flagged `home`, ordinary tradeable bag items (`furn.<ch>`), but `canDropIn` lets them down only in your own
+  office, never the company house. Nothing earns or buffs anything. The wall ones (`wall`: whiteboard, certificate,
+  hanging plant, neon sign) hang on the office's single wall row (`OFFICE_WALL_ROW`, `canHang`/`wallSpot` with
+  `home`), over bare wall (not the corners or the trophy shelf) with free floor in front, so they never block a step;
+  their art is one tile (16 px) tall. A floor piece is refused (`cutsOff`, core/src/world.ts, checked in
+  `placeDrop`) if it would leave the door, the desk, a seat, the pet bed or itself unreachable from the exit.
+- **Decor** (`core/src/decor.ts`): 10 wallpapers and 10 floors per owner, not bag items. A paid one (40 to 300 coins)
+  is bought once (`buyDecor`, a `purchases` row `decor.<kind>.<id>`); Tivoli (level 25) and the Bornholm cobble
+  (level 40) come with the level and are never sold. `setDecor` switches between what you own for free, kept in
+  `offices.wall` and `offices.floor` (NULL is the plain one), and `world` rebuilds the office map.
+- **Open offices** (the Open offices entry in the Menu, or E on a `w` board tile): `town.openOffices` joins
+  `world.openOffices` (open offices with their level, company, size and how many are inside now) with distinct
+  visitors in the last 7 days (`office_visits (owner_id, visitor_id, day)`, written once a day per pair when
+  `world` sees someone step in: `countVisit`, `town.officeVisit`; older days are pruned on write). Busiest first,
+  at most 30, one read shared by everyone for 5 s. The `offices` table gains `wall` and `floor`; the code is in
+  `server/src/town/offices.ts`.
+
+## Desk setups and posters
+
+- **Desk setups** (`core/src/desks.ts`): five cosmetic tiers, Laptop (free), Dual monitors, Triple monitors, Ultrawide
+  and Battlestation, at 40, 120, 300 and 600 coins; Ultrawide and Battlestation also come free at levels 25 and 40.
+  A bought one is a `purchases` row `desk.<id>`; the one in use is `users.desk` (NULL is the laptop), set for free
+  with `setDesk` and carried to everyone as `PlayerInfo.desk`. Nothing about it is a gameplay edge.
+- **The company's desk fleet:** any member can buy the house's next tier from the wallet (300, 700, 1,400 and
+  2,500 coins; `companies.desk_fleet`, a `company_ledger` row of kind `desk`). At a desk in the house the client
+  draws the better of the sitter's own setup and the fleet (`effectiveDesk`); empty desks show the fleet tier with
+  dark screens. The art is `web/src/art/desks.ts`, and the Desk panel is `web/src/hud/OfficeDesks.tsx`.
+- **Posters** (`core/src/posters.ts`, art in `web/src/art/furniture-posters.ts`): ten parodies of well-known game genres,
+  60 to 250 coins from the company wallet, in the company furniture catalog (a "Posters" group). They are
+  `COMPANY_FURNITURE` entries flagged `wall`: they hang only on row 1 of the company building (`canHang`,
+  `wallSpot`), over a bare wall tile with a free floor tile in front, so walking is never affected. G takes one
+  down, and `liftMisplaced` returns one to the storeroom if the map changes under it. The stock house has room for
+  seven at a time.
 
 ## The client
 

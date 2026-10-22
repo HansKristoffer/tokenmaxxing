@@ -1,6 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import { MAPS } from "../src/maps.ts";
-import { doorsFor, FURNITURE, hqMap, STARTER_OFFICE, withPieces } from "../src/office.ts";
+import {
+  doorsFor,
+  FURNITURE,
+  hqMap,
+  OFFICE_LEVEL,
+  OFFICE_MAPS,
+  OFFICE_SIZES,
+  type OfficeTier,
+  officeMap,
+  officeTier,
+  STARTER_OFFICE,
+  setOffice,
+  withPieces,
+} from "../src/office.ts";
 import { route } from "../src/world.ts";
 
 describe("offices", () => {
@@ -78,5 +91,75 @@ describe("offices", () => {
       const map = withPieces([{ ch: f.ch, x: bx - (f.w ?? 1) + 1, y: by }], MAPS.office);
       expect(map.at(bx, by)).toBe("Q");
     }
+  });
+
+  test("tier 0 is the template every office had", () => {
+    expect(officeMap(0).rows).toEqual([
+      "WWWWWWWWWWWW",
+      "W____UUUU__W",
+      "W__________W",
+      "W__________W",
+      "W__________W",
+      "W__________W",
+      "W__________W",
+      "W_________QW",
+      "WWWWWxWWWWWW",
+    ]);
+    expect(MAPS.office.rows).toEqual(officeMap(0).rows);
+  });
+
+  test("tiers by level: 10, 25, 40", () => {
+    expect([0, 9, 10, 24].map(officeTier)).toEqual([0, 0, 0, 0]);
+    expect([25, 39].map(officeTier)).toEqual([1, 1]);
+    expect([40, 99].map(officeTier)).toEqual([2, 2]);
+    expect(OFFICE_SIZES[0]!.level).toBe(OFFICE_LEVEL);
+  });
+
+  for (const tier of [0, 1, 2] as OfficeTier[])
+    describe(`size ${tier}`, () => {
+      const { w, h } = OFFICE_SIZES[tier]!;
+      const map = officeMap(tier);
+
+      test("one door at x = 5, one pet bed in the corner, the shelf on the top row", () => {
+        expect([map.width, map.height]).toEqual([w, h]);
+        expect(map.find("x")).toEqual([[5, h - 1]]);
+        expect(map.find("Q")).toEqual([[w - 2, h - 2]]);
+        expect(map.find("U")).toEqual([5, 6, 7, 8].map((x) => [x, 1]));
+        expect(map.rows.every((r) => r.length === w)).toBe(true);
+      });
+
+      test("the bed is reachable from the door, with the starter desk down", () => {
+        const [bx, by] = map.find("Q")[0]!;
+        const starter = withPieces(STARTER_OFFICE, map);
+        for (const m of [map, starter]) {
+          expect(m.at(bx, by)).toBe("Q");
+          expect(route(m, [5, h - 2], [bx - 1, by])).not.toBeNull();
+        }
+        expect([starter.at(5, 3), starter.at(5, 4)]).toEqual(["d", "c"]);
+      });
+    });
+
+  test("growing keeps the floor and the shelf where they were", () => {
+    const small = officeMap(0);
+    for (const tier of [1, 2] as OfficeTier[]) {
+      const big = officeMap(tier);
+      for (let y = 0; y < small.height; y++)
+        for (let x = 0; x < small.width; x++) {
+          const was = small.at(x, y);
+          if (was === "_" || was === "U") expect(big.at(x, y)).toBe(was);
+        }
+    }
+  });
+
+  test("setOffice: a map per owner, kept while nothing changes, with decor on it", () => {
+    const a = setOffice(901, 1);
+    expect(a.width).toBe(14);
+    expect(setOffice(901, 1)).toBe(a);
+    const b = setOffice(901, 1, { wall: "nyhavn" });
+    expect(b).not.toBe(a);
+    expect(b.decor).toEqual({ wall: "nyhavn" });
+    expect(withPieces(STARTER_OFFICE, b).decor).toEqual({ wall: "nyhavn" });
+    expect(setOffice(902, 0)).toBe(MAPS.office);
+    expect(OFFICE_MAPS.get(901)).toBe(b);
   });
 });

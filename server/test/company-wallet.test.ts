@@ -6,10 +6,12 @@ import {
   buyPiece,
   type CompanyRow,
   companyById,
+  companyInfos,
   companyWallet,
   leave,
   matchCoins,
   matchDue,
+  setMerchDesign,
   storedPieces,
   unstore,
 } from "../src/town/companies.ts";
@@ -148,6 +150,22 @@ describe("company furniture", () => {
     expect(await storedPieces(sql, 1)).toEqual([{ item: "furn.Σ", count: 1 }]);
   });
 
+  test("a poster is bought from the wallet, kept in the storeroom, and hung on the wall like any piece", async () => {
+    const poster = itemById("furn.0")!;
+    expect(poster).toMatchObject({ name: "Counter-CI: Global Flake", price: 160, company: true });
+    await fund(1, 200);
+    const id = await buyPiece(sql, await row(1), 3, poster, NOW);
+    expect(await companyWallet(sql, 1)).toBe(40);
+    await expect(buyPiece(sql, await row(1), 3, poster, NOW)).rejects.toThrow("can't cover");
+    expect(await storedPieces(sql, 1)).toEqual([{ item: "furn.0", count: 1 }]);
+    expect(await unstore(sql, 1, poster.id, 2, NOW)).toBe(id);
+    // The wall row is a spot like any other for `placed`; it stays the company's, and stays put.
+    await placed(sql, { id, item: poster.id, room: "hq:1", x: 5, y: 1, by: 2, at: NOW, co: 1 });
+    expect(await unclaimed(sql, NOW + 86_400_000)).toEqual([]);
+    expect(await pickUp(sql, id, 2, "hq:1")).toBe(true);
+    expect(await storedPieces(sql, 1)).toEqual([{ item: "furn.0", count: 1 }]);
+  });
+
   test("a company that closes takes its furniture with it", async () => {
     await fund(2, 600);
     await buyPiece(sql, await row(2), 4, sofa, NOW);
@@ -183,5 +201,30 @@ describe("merch", () => {
     await expect(buyMerch(sql, 2, tee, NOW)).rejects.toThrow("one each");
     expect(await companyWallet(sql, 1)).toBe(0);
     await expect(buyMerch(sql, 2, itemById(merchId(9, "cap"))!, NOW)).rejects.toThrow("gone");
+  });
+});
+
+describe("the merch design: any member draws it", () => {
+  const design = {
+    main: "#3A6FB8",
+    accent: "#f5d14a",
+    rows: ["a......a", ".a....a.", "..awwa..", "..awwa..", ".k....k.", "k......k"],
+  };
+
+  test("a plain member saves it, and the company's info carries it", async () => {
+    expect(await setMerchDesign(sql, 2, design)).toBe(1);
+    const [info] = await companyInfos(sql, [1]);
+    expect(info!.merch).toEqual({ ...design, main: "#3a6fb8" });
+    await setMerchDesign(sql, 2, null);
+    expect((await companyInfos(sql, [1]))[0]!.merch).toBeNull();
+  });
+
+  test("a freelancer can't, nor can a malformed design in", async () => {
+    await expect(setMerchDesign(sql, 3, design)).rejects.toThrow("Join a company");
+    await expect(setMerchDesign(sql, 2, { ...design, rows: ["a"] })).rejects.toThrow("merch design");
+    await expect(setMerchDesign(sql, 2, { ...design, main: "red" })).rejects.toThrow("merch design");
+    await expect(
+      setMerchDesign(sql, 2, { ...design, rows: design.rows.map((r) => r.replace("a", "x")) }),
+    ).rejects.toThrow("merch design");
   });
 });

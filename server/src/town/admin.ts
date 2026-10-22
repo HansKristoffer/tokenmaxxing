@@ -260,6 +260,7 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
     userId,
     userId,
   );
+  await sql.execute("DELETE FROM office_visits WHERE owner_id = ? OR visitor_id = ?", userId, userId);
   await sql.execute("INSERT INTO deleted_users (id, name, at) VALUES (?, ?, ?)", userId, u.name, now);
   await sql.execute("DELETE FROM users WHERE id = ?", userId);
   return changed;

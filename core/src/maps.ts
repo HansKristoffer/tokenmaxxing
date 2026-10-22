@@ -4,6 +4,8 @@
  * One character per tile; `LEGEND` says what it is.
  */
 import { sortBy } from "hanzio";
+import { HOME_PIECES } from "./home.ts";
+import { POSTERS } from "./posters.ts";
 
 export type MapId = "town" | "hq" | "inn" | "office" | "dungeon";
 type SeatKind = "bench" | "sofa" | "bed" | "chair";
@@ -98,6 +100,23 @@ export const LEGEND: Record<string, TileKind> = {
   ω: { name: "gong", text: "Strike it when you ship to prod. Everyone will know." },
   λ: { name: "chandelier", walk: true, text: "Crystal chandelier. Series A money." },
   Γ: { name: "duck statue", text: "A golden rubber duck. It has heard every bug explained to it." },
+  w: { name: "open offices", text: "Offices that are open for visitors." },
+  // Posters (`POSTERS`): on the building's top wall, so they never block a step.
+  ...Object.fromEntries(
+    POSTERS.map((p) => [p.ch, { name: `${p.name} poster`, text: `🖼 ${p.name}. ${p.text}` }]),
+  ),
+  // Personal offices' own furniture (`HOME_PIECES`): a seat, a rug to walk over, or just something to look at.
+  ...Object.fromEntries(
+    HOME_PIECES.map((p): [string, TileKind] => [
+      p.ch,
+      {
+        name: p.name.toLowerCase(),
+        ...(p.text && { text: p.text }),
+        ...(p.seat && { seat: p.seat }),
+        ...(p.flat && { walk: true as const }),
+      },
+    ]),
+  ),
 };
 
 /** `GameMap.find`'s answers, kept outside the map so two maps with the same tiles still compare equal. */
@@ -117,6 +136,8 @@ export class GameMap {
     readonly rows: readonly string[],
     readonly x0 = 0,
     readonly y0 = 0,
+    /** An office's wallpaper and floor (`decor.ts`), which the client draws; unset is the plain room. */
+    readonly decor?: { wall?: string; floor?: string },
   ) {
     this.width = rows[0]!.length;
     this.height = rows.length;
@@ -361,6 +382,23 @@ export function setTown(plots: readonly number[]): GameMap {
 /** Where you arrive in town: the middle of the square. */
 export const TOWN_SPAWN: [number, number] = [9, 5];
 
+/** The door's column, in every office size: the room only grows right and down. */
+export const OFFICE_DOOR_X = 5;
+
+/**
+ * An office `w` × `h`: walls round the floor, the trophy shelf at the top from x = 5, the pet bed in the
+ * bottom right corner and the door in the bottom wall at `OFFICE_DOOR_X`. (12, 9) is the first office.
+ */
+export function officeRows(w: number, h: number): string[] {
+  const floor = `W${"_".repeat(w - 2)}W`;
+  const rows = Array.from({ length: h }, () => floor);
+  rows[0] = "W".repeat(w);
+  rows[1] = `W${"_".repeat(OFFICE_DOOR_X - 1)}UUUU${"_".repeat(w - OFFICE_DOOR_X - 5)}W`;
+  rows[h - 2] = `W${"_".repeat(w - 3)}QW`;
+  rows[h - 1] = `${"W".repeat(OFFICE_DOOR_X)}x${"W".repeat(w - OFFICE_DOOR_X - 1)}`;
+  return rows;
+}
+
 export const MAPS: Record<MapId, GameMap> = {
   // Rebuilt from the companies in it (setTown); until then, just the square.
   town: townMap([]),
@@ -393,20 +431,10 @@ export const MAPS: Record<MapId, GameMap> = {
     "Wp____________pW",
     "WWWWWWWxWWWWWWWW",
   ]),
-  // Everyone's office, before what they dropped in it (`mapOf`). ponytail: one template, with a pet bed in the bottom right corner
-  // (`Q`, a prop like a plant: nothing can be dropped on it); bigger
-  // offices per house tier would be an `OFFICE_SIZES` table.
-  office: new GameMap("office", "Office", [
-    "WWWWWWWWWWWW",
-    "W____UUUU__W",
-    "W__________W",
-    "W__________W",
-    "W__________W",
-    "W__________W",
-    "W__________W",
-    "W_________QW",
-    "WWWWWxWWWWWW",
-  ]),
+  // Everyone's office, before what they dropped in it (`mapOf`): the smallest size. Bigger ones come by
+  // level, per owner (`officeMap`, office.ts). A pet bed (`Q`, a prop: nothing can be dropped on it)
+  // sits in the bottom right corner.
+  office: new GameMap("office", "Office", officeRows(12, 9)),
   // The raid: the boss on its dais, and arcs of war desks facing it. Whoever has agents running is drawn
   // at one (web/src/game/raid.ts); the desks and seats are props, so visitors walk the aisles.
   dungeon: new GameMap("dungeon", "Raid Dungeon", [
