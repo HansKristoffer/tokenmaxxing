@@ -6,6 +6,7 @@
 import { LAP_CHARS } from "@tokenmaxxing/core/games/sprint.ts";
 import { PLAZA } from "@tokenmaxxing/core/maps.ts";
 import { type Facing, TILE, type WorldGame } from "@tokenmaxxing/core/world.ts";
+import { lerp } from "hanzio";
 import { C } from "../art/palette.ts";
 import type { Frame } from "./frame.ts";
 import { gamesOf, world } from "./world.ts";
@@ -56,7 +57,7 @@ export function racing(id: number, now: number): Lap | null {
   }
   const target = (g.board?.find((r) => r.player === id)?.value ?? 0) / LAP_CHARS;
   const was = shown.get(id) ?? { laps: 0, at: now };
-  const laps = was.laps + (target - was.laps) * Math.min(1, (now - was.at) / EASE_MS);
+  const laps = lerp(was.laps, target, Math.min(1, (now - was.at) / EASE_MS));
   shown.set(id, { laps, at: now });
   return { ...around(laps, lane(g, id)), running: target - laps > 0.002 };
 }

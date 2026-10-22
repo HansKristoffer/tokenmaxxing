@@ -1,4 +1,5 @@
 import { basename } from "node:path";
+import { clamp, safeJsonParse } from "hanzio";
 import { type TokenEvent, tokenEvent } from "../types.ts";
 import { isNum, isString } from "./guards.ts";
 import { readNewlineLines } from "./read-slice.ts";
@@ -187,12 +188,9 @@ async function lookAheadFirstTurnModel(
     // question. A false positive (some other line quoting the string) is
     // rejected by the type check below.
     if (!part.text.includes('"turn_context"')) continue;
-    let raw: CodexLine;
-    try {
-      raw = JSON.parse(part.text) as CodexLine;
-    } catch {
-      continue;
-    }
+    const parsed = safeJsonParse<CodexLine>(part.text);
+    if (!parsed.ok) continue;
+    const raw = parsed.data;
     if (raw.type !== "turn_context") continue;
     // Stop at the FIRST turn_context whether or not it names a model: it is
     // the nearest turn to the events we're labelling, and a later turn may
@@ -348,12 +346,9 @@ export async function parseCodexFile(opts: ParseCodexOptions): Promise<ParseCode
     const line = part.text;
     if (!seedActive && !mayMatter(line)) continue;
 
-    let raw: CodexLine;
-    try {
-      raw = JSON.parse(line) as CodexLine;
-    } catch {
-      continue;
-    }
+    const parsed = safeJsonParse<CodexLine>(line);
+    if (!parsed.ok) continue;
+    const raw = parsed.data;
 
     // Seed-burst tracking: a real event after the seed arrives at least a
     // model round-trip later; seed lines are written milliseconds apart.
@@ -524,7 +519,7 @@ export async function parseCodexFile(opts: ParseCodexOptions): Promise<ParseCode
     // ChatGPT-backend rollouts seen so far carry the field as a literal 0,
     // so cacheCreation stays 0 there.
     const cappedCached = Math.min(dCached, dInput);
-    const cappedWrite = Math.min(dCacheWrite, Math.max(0, dInput - cappedCached));
+    const cappedWrite = clamp(dInput - cappedCached, 0, dCacheWrite);
     const nonCachedInput = Math.max(0, dInput - cappedCached - cappedWrite);
 
     events.push(

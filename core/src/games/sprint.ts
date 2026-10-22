@@ -4,6 +4,7 @@
  * wins. The client sends the text as it's typed, and the rules score only what the
  * server got inside the race, at its own clock, and never faster than 250 WPM.
  */
+import { recordFromKeys } from "hanzio";
 import { random } from "./random.ts";
 import { type Callout, type GameDef, lastStanding, leave, leavers, refused } from "./types.ts";
 
@@ -153,7 +154,7 @@ export const sprint: GameDef<SprintState, SprintView> = {
       seconds,
       startsAt,
       endsAt: startsAt + seconds * 1000,
-      racers: Object.fromEntries(players.map((p) => [p, { typed: "", at: 0, scoredAt: 0, fixed: 0 }])),
+      racers: recordFromKeys(players, () => ({ typed: "", at: 0, scoredAt: 0, fixed: 0 })),
       over: false,
       forfeited: [],
     };
@@ -196,7 +197,7 @@ export const sprint: GameDef<SprintState, SprintView> = {
       endsAt: s.endsAt,
       over: s.over,
       mine: viewer !== null && s.players.includes(viewer) ? s.racers[viewer]!.typed : null,
-      scores: Object.fromEntries(s.players.map((p) => [p, scoreOf(s, p, now)])),
+      scores: recordFromKeys(s.players, (p) => scoreOf(s, p, now)),
       forfeited: s.forfeited,
     };
   },
@@ -206,7 +207,7 @@ export const sprint: GameDef<SprintState, SprintView> = {
     const over = lastStanding(left, s.forfeited);
     if (over) return over;
     if (!s.over) return null;
-    const sc = Object.fromEntries(left.map((p) => [p, scoreOf(s, p, s.endsAt)]));
+    const sc = recordFromKeys(left, (p) => scoreOf(s, p, s.endsAt));
     if (left.every((p) => sc[p]!.correct === 0)) return { void: "Nobody typed a word right." };
     // Highest WPM, then accuracy, then who got there first; nothing typed is last whatever else.
     const key = (p: number) =>

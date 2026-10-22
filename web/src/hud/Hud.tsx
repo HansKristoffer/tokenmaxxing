@@ -2,6 +2,7 @@ import { isBot } from "@tokenmaxxing/core/bots.ts";
 import { compact, levelTitle, plural } from "@tokenmaxxing/core/format.ts";
 import { milestonesBetween } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
+import { typedSwitch } from "hanzio";
 import { useEffect, useRef, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { town } from "../net.ts";
@@ -211,62 +212,42 @@ function Panel() {
   const panel = useHud((s) => s.panel);
   const inMyOffice = useHud((s) => s.room === `office:${world.selfId}`);
   if (!panel) return null;
-  switch (panel.kind) {
-    case "leaderboard":
-      return <Leaderboard />;
-    case "card":
-      return isBot(panel.userId) ? <BotCard id={panel.userId} /> : <PlayerCard userId={panel.userId} />;
-    case "companyCard":
-      return <CompanyCard companyId={panel.companyId} />;
-    case "company":
-      return <CompanyPanel />;
-    case "companyShop":
-      return <CompanyShop />;
-    case "merch":
-      return <MerchShop companyId={panel.companyId} />;
-    case "look":
-      return <LookPicker />;
-    case "shop":
-      return <Shop />;
-    case "merchant":
-      return <Merchant />;
-    case "bag":
-      return <Bag />;
-    case "petLooks":
-      return <PetLooks pet={panel.pet} />;
-    case "arcade":
-      return <ArcadePanel />;
-    case "newTable":
-      return <NewTable invite={panel.invite} inviteName={panel.inviteName} />;
-    case "match":
-      return <MatchPanel id={panel.id} />;
-    case "trade":
-      return <TradePanel userId={panel.userId} />;
-    case "trades":
-      return <TradesPanel />;
-    case "paper":
-      return <PaperPanel />;
-    case "trophies":
-      return <Trophies userId={panel.userId} name={panel.name} />;
-    case "raid":
-      return <RaidPanel />;
-    case "menu":
-      return (
-        <Modal title="Menu">
-          <nav className="menu">
-            {inMyOffice && <OfficeLock />}
-            {MENU.map(([open, label]) => (
-              <button key={open.kind} type="button" onClick={() => hud.set({ panel: open })}>
-                {label}
-              </button>
-            ))}
-            <a href="https://github.com/HansKristoffer/tokenmaxxing" target="_blank" rel="noreferrer">
-              ⌥ GitHub
-            </a>
-          </nav>
-        </Modal>
-      );
-  }
+  return typedSwitch(panel, "kind", {
+    leaderboard: () => <Leaderboard />,
+    card: (p) => (isBot(p.userId) ? <BotCard id={p.userId} /> : <PlayerCard userId={p.userId} />),
+    companyCard: (p) => <CompanyCard companyId={p.companyId} />,
+    company: () => <CompanyPanel />,
+    companyShop: () => <CompanyShop />,
+    merch: (p) => <MerchShop companyId={p.companyId} />,
+    look: () => <LookPicker />,
+    shop: () => <Shop />,
+    merchant: () => <Merchant />,
+    bag: () => <Bag />,
+    petLooks: (p) => <PetLooks pet={p.pet} />,
+    arcade: () => <ArcadePanel />,
+    newTable: (p) => <NewTable invite={p.invite} inviteName={p.inviteName} />,
+    match: (p) => <MatchPanel id={p.id} />,
+    trade: (p) => <TradePanel userId={p.userId} />,
+    trades: () => <TradesPanel />,
+    paper: () => <PaperPanel />,
+    trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
+    raid: () => <RaidPanel />,
+    menu: () => (
+      <Modal title="Menu">
+        <nav className="menu">
+          {inMyOffice && <OfficeLock />}
+          {MENU.map(([open, label]) => (
+            <button key={open.kind} type="button" onClick={() => hud.set({ panel: open })}>
+              {label}
+            </button>
+          ))}
+          <a href="https://github.com/HansKristoffer/tokenmaxxing" target="_blank" rel="noreferrer">
+            ⌥ GitHub
+          </a>
+        </nav>
+      </Modal>
+    ),
+  });
 }
 
 /** In my own office: open to visitors from my card, or only me, through the door. */

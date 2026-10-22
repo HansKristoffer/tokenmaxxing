@@ -1,11 +1,5 @@
-import {
-  forcedOutage,
-  isDown,
-  nextOutage,
-  type Outage,
-  type Provider,
-  STATUS_PAGES,
-} from "@tokenmaxxing/core/picnic.ts";
+import { forcedOutage, isDown, nextOutage, type Outage, STATUS_PAGES } from "@tokenmaxxing/core/picnic.ts";
+import { typedEntries, typedFromEntries } from "hanzio";
 
 /** One round for the whole world, not per player: two small requests every 5 minutes. */
 export const OUTAGE_EVERY_MS = 5 * 60_000;
@@ -27,11 +21,10 @@ export async function checkOutage(
   now: number,
   fetcher: typeof fetch = fetch,
 ): Promise<Outage | null> {
-  const pages = Object.entries(STATUS_PAGES) as [Provider, string][];
   const readings = await Promise.all(
-    pages.map(async ([p, url]) => [p, await readPage(url, fetcher)] as const),
+    typedEntries(STATUS_PAGES).map(async ([p, url]) => [p, await readPage(url, fetcher)] as const),
   );
-  return nextOutage(prev, Object.fromEntries(readings), now);
+  return nextOutage(prev, typedFromEntries(readings), now);
 }
 
 /**

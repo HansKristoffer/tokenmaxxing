@@ -2,6 +2,7 @@
  * Ship, Pivot, Raise: rock-paper-scissors for founders. Best of 5, both pick in
  * secret, and the other pick is hidden until both have picked.
  */
+import { recordFromKeys } from "hanzio";
 import { type GameDef, refused } from "./types.ts";
 
 export type Pick = "ship" | "pivot" | "raise";
@@ -110,7 +111,7 @@ export const spr: GameDef<SprState, SprView> = {
       players: s.players,
       wins: winsOf(s),
       mine: viewer !== null && s.players.includes(viewer) ? (s.picks[viewer] ?? null) : null,
-      picked: Object.fromEntries(s.players.map((p) => [p, Boolean(s.picks[p])])),
+      picked: recordFromKeys(s.players, (p) => Boolean(s.picks[p])),
       deadline: s.deadline,
       revealUntil: revealing ? s.revealUntil : null,
       rounds: s.rounds,

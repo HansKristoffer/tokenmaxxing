@@ -1,5 +1,6 @@
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
+import { typedSwitch } from "hanzio";
 import type { Pose, View } from "./characters.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
@@ -676,18 +677,18 @@ export function drawWardrobe(
   skin: string,
   flip: boolean,
 ): void {
-  if (layer === "body") {
-    outfitMarks(p, look.outfit, view, 9, flip);
-    return;
-  }
-  // From behind, a held thing peeks out behind the body; otherwise it's in front, over the back item's straps.
-  if (layer === "behind") {
-    if (view === "up") drawHeld(p, look.held, view, skin, flip);
-    drawBack(p, look.back, view, pose, "behind", flip);
-    return;
-  }
-  drawBack(p, look.back, view, pose, "front", flip);
-  if (view !== "up") drawHeld(p, look.held, view, skin, flip);
+  typedSwitch(layer, {
+    body: () => outfitMarks(p, look.outfit, view, 9, flip),
+    // From behind, a held thing peeks out behind the body; otherwise it's in front, over the back item's straps.
+    behind: () => {
+      if (view === "up") drawHeld(p, look.held, view, skin, flip);
+      drawBack(p, look.back, view, pose, "behind", flip);
+    },
+    front: () => {
+      drawBack(p, look.back, view, pose, "front", flip);
+      if (view !== "up") drawHeld(p, look.held, view, skin, flip);
+    },
+  });
 }
 
 // MARK: On a pet

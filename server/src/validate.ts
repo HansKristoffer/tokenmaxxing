@@ -1,5 +1,6 @@
 import { type MessageType, SOURCES, type Source, type TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { CHAT_MAX_LENGTH } from "@tokenmaxxing/core/world.ts";
+import { isOneOf, normalizeWhitespace } from "hanzio";
 
 /** Lowercase handle, 2–32 chars. Shown to other users, so no free-form text. */
 const NAME_RE = /^[a-z0-9][a-z0-9._-]{1,31}$/;
@@ -13,7 +14,7 @@ export function parseUserName(raw: unknown): string | null {
 /** Company names are display-only (React escapes them); trimmed, 1–32 chars, no control chars. */
 export function parseCompanyName(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
-  const name = raw.trim().replace(/\s+/g, " ");
+  const name = normalizeWhitespace(raw);
   // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control chars is the point
   if (name.length < 1 || name.length > 32 || /[\u0000-\u001f\u007f]/.test(name)) return null;
   return name;
@@ -66,7 +67,7 @@ const isId = (v: unknown): v is string => typeof v === "string" && v.length > 0 
 export function parseEvent(raw: unknown, now: number): TokenEvent | string {
   if (!raw || typeof raw !== "object") return "not an object";
   const e = raw as Record<string, unknown>;
-  if (!SOURCES.includes(e.source as Source)) return "source";
+  if (!isOneOf(SOURCES, e.source)) return "source";
   if (!isId(e.sessionId)) return "sessionId";
   if (e.agentId !== null && e.agentId !== undefined && !isId(e.agentId)) return "agentId";
   if (!isId(e.messageId)) return "messageId";

@@ -3,6 +3,7 @@
  * every client sees them in the same place without the server keeping any state. The paperboy at
  * 07:00, the pølsevogn from 11 to 14, and the build snail crossing the square all day.
  */
+import { lerp, normalize, sortBy } from "hanzio";
 import { BLOCK_H } from "./maps.ts";
 import { worldWall } from "./range.ts";
 import { DIRS, type Facing } from "./world.ts";
@@ -69,9 +70,9 @@ type SnailPhase = "queued" | "deploying" | "deployed";
 /** Where the snail is (a fractional tile) and how its build is going, at `ms`. */
 export function snailAt(ms: number): { x: number; y: number; phase: SnailPhase; progress: number } {
   const m = clockMinutes(ms);
-  const progress = Math.min(1, Math.max(0, (m - SNAIL.leaves) / (SNAIL.arrives - SNAIL.leaves)));
+  const progress = normalize(m, SNAIL.leaves, SNAIL.arrives);
   const phase = m < SNAIL.leaves ? "queued" : m < SNAIL.arrives ? "deploying" : "deployed";
-  return { x: SNAIL.from + (SNAIL.to - SNAIL.from) * progress, y: SNAIL.y, phase, progress };
+  return { x: lerp(SNAIL.from, SNAIL.to, progress), y: SNAIL.y, phase, progress };
 }
 
 /** The tile the snail is on, for E. */
@@ -105,9 +106,7 @@ export function paperRides(
   left: number,
   right: number,
 ): Ride[] {
-  const roads = [...new Set(doors.map(([, y]) => (Math.floor(y / BLOCK_H) + 1) * BLOCK_H))].sort(
-    (a, b) => a - b,
-  );
+  const roads = sortBy([...new Set(doors.map(([, y]) => (Math.floor(y / BLOCK_H) + 1) * BLOCK_H))]);
   const minutes = (right - left) / PAPER.tilesPerSecond / 60;
   return roads.map((y, i) => ({ y, from: left, to: right, at: PAPER.at + i * minutes }));
 }

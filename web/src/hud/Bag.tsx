@@ -2,6 +2,7 @@ import { editionLabel } from "@tokenmaxxing/core/merchant.ts";
 import { cleanPetName, PET_NAME_MAX, petLooks, wearPet } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import type { BagRow, Copy } from "@tokenmaxxing/server/registry";
+import { omit } from "hanzio";
 import { useEffect, useRef, useState } from "react";
 import { errorText } from "../errors.ts";
 import { world } from "../game/world.ts";
@@ -62,7 +63,7 @@ export function Bag() {
   const named = cleanPetName(petName);
   // Naming a pet wears it, like picking one of its looks; an empty name clears it.
   const saveName = run(async () => {
-    const { petName: _old, ...rest } = wearPet(me.look, naming!);
+    const rest = omit(wearPet(me.look, naming!), ["petName"]);
     await wear(named ? { ...rest, petName: named } : rest);
     setNaming(null);
   });

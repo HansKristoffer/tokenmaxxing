@@ -1,5 +1,6 @@
 import { FREE_OUTFITS, itemsIn } from "@tokenmaxxing/core/shop.ts";
 import { LOOK_OPTIONS, type Look, STYLE_NAMES } from "@tokenmaxxing/core/world.ts";
+import { typedKeys } from "hanzio";
 import { useState } from "react";
 import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
@@ -38,7 +39,7 @@ export function LookPicker() {
       <div className="look">
         <AvatarImage look={look} scale={8} />
         <div className="look-options">
-          {(Object.keys(LABELS) as Part[]).map((k) => (
+          {typedKeys(LABELS).map((k) => (
             <div key={k} className="cycle">
               <button type="button" aria-label={`Previous ${LABELS[k]}`} onClick={() => cycle(k, -1)}>
                 ◀

@@ -1,6 +1,7 @@
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
 import { defaultLook, type Look, parseLook } from "@tokenmaxxing/core/world.ts";
+import { must } from "hanzio";
 import { UserError } from "rivetkit";
 import { all, one, type Sql } from "../actors/shared.ts";
 
@@ -26,9 +27,10 @@ export const USER_COLS = "id, name, company_id AS companyId, look";
 export const lookOf = (u: UserRow): Look => parseLook(JSON.parse(u.look)) ?? defaultLook(u.id);
 
 export async function userById(sql: Sql, id: number): Promise<UserRow> {
-  const u = await one<UserRow>(sql, `SELECT ${USER_COLS} FROM users WHERE id = ?`, id);
-  if (!u) throw new UserError("Unknown player.", { code: "not_found" });
-  return u;
+  return must(
+    await one<UserRow>(sql, `SELECT ${USER_COLS} FROM users WHERE id = ?`, id),
+    () => new UserError("Unknown player.", { code: "not_found" }),
+  );
 }
 
 /** Tokens counted everywhere: input, output, cache writes and cache reads (a `usage_daily` row). */

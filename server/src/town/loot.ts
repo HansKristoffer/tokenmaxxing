@@ -10,6 +10,7 @@ import {
   raidDrops,
 } from "@tokenmaxxing/core/loot.ts";
 import { bossAt, type RaidWeek, type RungBoss, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
+import { sortBy } from "hanzio";
 import type { Client } from "rivetkit/client";
 import type { registry } from "../actors/registry.ts";
 import { all, main, notify, type Sql, type TxSql } from "../actors/shared.ts";
@@ -76,7 +77,7 @@ const baseOdds = (item: string): number => RARITIES[rarityOf(item)].odds;
 
 /** The line for whoever got `drops` (all theirs): the rarest first. */
 export function lootNotice(drops: readonly LootDrop[]): string {
-  const sorted = [...drops].sort((a, b) => a.odds - b.odds || baseOdds(a.item) - baseOdds(b.item));
+  const sorted = sortBy(drops, "odds", (d) => baseOdds(d.item));
   const best = sorted[0]!;
   const boss = bossAt(best.rung);
   const name = lootById(best.item)?.name ?? best.item;
@@ -106,10 +107,10 @@ export async function announceLoot(
   for (const [userId, drops] of byUser)
     await notify(client, userId, { text: lootNotice(drops), open: "bag" });
   const week = raidWeekAt(now);
-  const shown = fresh
-    .filter((d) => d.week === week)
-    .sort((a, b) => baseOdds(a.item) - baseOdds(b.item))
-    .slice(0, NEWS_MAX);
+  const shown = sortBy(
+    fresh.filter((d) => d.week === week),
+    (d) => baseOdds(d.item),
+  ).slice(0, NEWS_MAX);
   if (shown.length === 0) return;
   const names = await all<{ id: number; name: string }>(
     sql,

@@ -4,5 +4,8 @@
   "type": "module",
   "exports": {
     "./*": "./src/*"
+  },
+  "dependencies": {
+    "hanzio": "^3.3.0"
   }
 }

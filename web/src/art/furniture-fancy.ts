@@ -7,7 +7,8 @@
  * drawn with it), `fancySprite` bakes a frame.
  */
 import { TILE } from "@tokenmaxxing/core/world.ts";
-import { C, rgbOf, shade } from "./palette.ts";
+import { withAlpha } from "hanzio";
+import { C, shade } from "./palette.ts";
 import { bake, cached, glyphPixels, type Pen } from "./pixels.ts";
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
@@ -61,8 +62,6 @@ const K = {
   chrome: "#cfd6df",
   coffee: "#6b4226",
 } as const;
-
-const rgba = (h: string, a: number): string => `rgba(${rgbOf(h).join(", ")}, ${a})`;
 
 /** A filled rectangle with a one-pixel ink outline. */
 function box(p: Pen, x: number, y: number, w: number, h: number, fill: string): void {
@@ -118,7 +117,7 @@ function espressoBar(p: Pen, f: number): void {
       [19 - s, 1],
       [18 + s, -1 + 1],
     ],
-    rgba(C.white, 0.8),
+    withAlpha(C.white, 0.8),
   );
   p.rect(17, 5, 2, 1, C.metal);
   // A bean jar and a cup on its saucer.
@@ -208,7 +207,7 @@ function aquarium(p: Pen, f: number): void {
   }
   // Bubbles.
   for (let i = 0; i < 3; i++) p.px(24 + ((i + f) % 2), 10 - i * 3 - f, C.foam);
-  p.rect(2, 3, 1, 4, rgba(C.white, 0.6));
+  p.rect(2, 3, 1, 4, withAlpha(C.white, 0.6));
 }
 
 function neonSign(p: Pen, f: number, t: string): void {
@@ -248,7 +247,7 @@ function neon(p: Pen, f: number, t: string, text: string, flicker: number): void
         [0, -1],
         [0, 1],
       ] as const)
-        p.px(x + dx, y + dy, rgba(t, 0.35));
+        p.px(x + dx, y + dy, withAlpha(t, 0.35));
   for (const [x, y, late] of lit) p.px(x, y, on(late) ? shade(t, 0.55) : shade(t, -0.45));
   p.rect(6, 0, 1, 2, C.metal);
   p.rect(25, 0, 1, 2, C.metal);
@@ -360,7 +359,7 @@ function pingPong(p: Pen): void {
   p.rect(2, 18, 44, 1, C.white);
   p.rect(2, 6, 1, 13, C.white);
   p.rect(45, 6, 1, 13, C.white);
-  p.rect(2, 12, 44, 1, rgba(C.white, 0.7));
+  p.rect(2, 12, 44, 1, withAlpha(C.white, 0.7));
   // The net, standing up across the middle.
   p.rect(23, 1, 2, 20, C.ink);
   for (let y = 2; y < 20; y++) p.px(24, y, y % 2 ? C.white : C.stoneLight);
@@ -375,7 +374,7 @@ function pingPong(p: Pen): void {
   p.disc(37, 14, 1, "#2f3444");
   p.rect(33, 15, 2, 2, K.teak);
   p.px(30, 8, C.white);
-  p.px(31, 9, rgba(C.white, 0.4));
+  p.px(31, 9, withAlpha(C.white, 0.4));
 }
 
 function plantWall(p: Pen): void {
@@ -461,7 +460,7 @@ function trophyCase(p: Pen): void {
       [28, 17],
       [27, 18],
     ],
-    rgba(C.white, 0.5),
+    withAlpha(C.white, 0.5),
   );
   p.rect(1, 24, 30, 4, C.wood);
   p.rect(1, 24, 30, 1, C.woodLight);
@@ -470,8 +469,8 @@ function trophyCase(p: Pen): void {
 
 function chandelier(p: Pen, f: number): void {
   // A pool of warm light on the floor below.
-  oval(p, 16, 25, 13, 2, rgba(C.lamp, 0.22));
-  oval(p, 16, 25, 8, 1, rgba(C.lamp, 0.25));
+  oval(p, 16, 25, 13, 2, withAlpha(C.lamp, 0.22));
+  oval(p, 16, 25, 8, 1, withAlpha(C.lamp, 0.25));
   p.rect(15, 0, 2, 6, K.brassDark);
   p.rect(15, 0, 1, 6, K.brass);
   // Arms with candles.
@@ -483,7 +482,7 @@ function chandelier(p: Pen, f: number): void {
     const flick = (x + f * 3) % 2;
     p.px(x - 1 + flick, 6, C.lamp);
     p.px(x - 1 + flick, 5, f ? C.white : K.orange);
-    oval(p, x - 1, 6, 2, 2, rgba(C.lamp, 0.18));
+    oval(p, x - 1, 6, 2, 2, withAlpha(C.lamp, 0.18));
   }
   p.disc(16, 13, 3, K.brassDark);
   p.disc(16, 12, 3, K.brass);
@@ -628,7 +627,7 @@ function foosball(p: Pen): void {
   box(p, 0, 3, 32, 13, C.woodDark);
   p.rect(2, 4, 28, 8, C.leaf);
   for (let x = 2; x < 30; x += 4) p.rect(x, 4, 2, 8, C.leafDark);
-  p.rect(16, 4, 1, 8, rgba(C.white, 0.7));
+  p.rect(16, 4, 1, 8, withAlpha(C.white, 0.7));
   p.rect(1, 6, 1, 4, C.ink);
   p.rect(30, 6, 1, 4, C.ink);
   p.rect(1, 12, 30, 3, C.wood);
@@ -784,7 +783,7 @@ function coffeeTable(p: Pen): void {
 }
 
 function lavaLamp(p: Pen, f: number, t: string): void {
-  oval(p, 8, 9, 7, 7, rgba(t, 0.12));
+  oval(p, 8, 9, 7, 7, withAlpha(t, 0.12));
   shadow(p, 4, 20, 8);
   // Cone base and cap.
   p.rect(4, 15, 8, 6, C.ink);
@@ -805,7 +804,7 @@ function lavaLamp(p: Pen, f: number, t: string): void {
   p.rect(6, 14, 4, 1, blob);
   p.disc(f ? 9 : 7, f ? 6 : 8, 1, blob);
   p.px(f ? 7 : 9, f ? 9 : 5, blob);
-  p.px(6, 6, rgba(C.white, 0.6));
+  p.px(6, 6, withAlpha(C.white, 0.6));
 }
 
 function globe(p: Pen): void {
@@ -904,7 +903,7 @@ function vending(p: Pen, f: number, t: string): void {
     for (let c = 0; c < 3; c++) p.rect(3 + c * 2, 5 + r * 5, 1, 3, snacks[(r * 3 + c) % snacks.length]!);
     p.rect(3, 8 + r * 5, 6, 1, C.metal);
   }
-  p.rect(3, 4, 1, 3, rgba(C.white, 0.8));
+  p.rect(3, 4, 1, 3, withAlpha(C.white, 0.8));
   // Keypad and slot.
   p.rect(11, 4, 2, 2, f ? K.green : shade(K.green, -0.5));
   for (let y = 7; y < 13; y += 2) p.rect(11, y, 2, 1, C.metalLight);
@@ -923,7 +922,7 @@ function waterCooler(p: Pen, f: number): void {
   p.rect(5, 4, 6, 5, K.glassDark);
   p.px(6, f ? 6 : 7, C.foam);
   p.px(8, f ? 4 : 5, C.foam);
-  p.rect(6, 1, 1, 5, rgba(C.white, 0.6));
+  p.rect(6, 1, 1, 5, withAlpha(C.white, 0.6));
   p.rect(6, 9, 4, 2, C.ink);
   // The stand, its taps and a paper cup.
   box(p, 3, 10, 10, 15, C.white);
@@ -936,7 +935,7 @@ function waterCooler(p: Pen, f: number): void {
 }
 
 function arcLamp(p: Pen): void {
-  oval(p, 10, 28, 5, 1, rgba(C.lamp, 0.25));
+  oval(p, 10, 28, 5, 1, withAlpha(C.lamp, 0.25));
   shadow(p, 0, 30, 7);
   // Marble base, the arc, a domed shade.
   p.rect(0, 28, 7, 3, C.ink);
@@ -949,7 +948,7 @@ function arcLamp(p: Pen): void {
   p.rect(8, 9, 7, 3, C.metal);
   p.rect(9, 8, 4, 1, C.metalLight);
   p.rect(8, 12, 7, 1, C.lamp);
-  p.rect(10, 13, 3, 1, rgba(C.lamp, 0.5));
+  p.rect(10, 13, 3, 1, withAlpha(C.lamp, 0.5));
 }
 
 function bonsai(p: Pen): void {

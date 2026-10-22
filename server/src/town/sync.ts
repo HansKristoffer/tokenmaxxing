@@ -1,4 +1,5 @@
 import type { Brand } from "@tokenmaxxing/core/world.ts";
+import { getErrorMessage } from "hanzio";
 import type { Client } from "rivetkit/client";
 import type { registry } from "../actors/registry.ts";
 import { main, type Sql, serial } from "../actors/shared.ts";
@@ -58,7 +59,7 @@ export async function brand(
   website: string,
 ) {
   const result = await brandFor(id, name, website).catch((err) => {
-    console.warn(`[brand] ${website}: ${err instanceof Error ? err.message : err}`);
+    console.warn(`[brand] ${website}: ${getErrorMessage(err)}`);
     return null;
   });
   await sql.execute(

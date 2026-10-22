@@ -1,5 +1,6 @@
 import { PLOT_H, PLOT_W } from "@tokenmaxxing/core/maps.ts";
 import { type Brand, HOUSE_TIERS, TILE } from "@tokenmaxxing/core/world.ts";
+import { clamp } from "hanzio";
 import { C, shade } from "./palette.ts";
 import { bake, once, type Pen } from "./pixels.ts";
 
@@ -343,7 +344,7 @@ const plans = new Map<string, Plan>();
 
 /** A company's house by tier (0 basement … 5 mansion) and brand, bottom edge on the lot's bottom. */
 export function house(tier: number, brand: Brand | null): Plan {
-  const t = Math.max(0, Math.min(tier, HOUSE_TIERS - 1));
+  const t = clamp(tier, 0, HOUSE_TIERS - 1);
   const key = brand
     ? `${t}:${brand.roof}${brand.wall}${brand.trim}${brand.plaque}:${brand.logo !== null}`
     : `${t}`;

@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import type { Command, Message } from "@tokenmaxxing/core/protocol.ts";
+import { safeJsonParse } from "hanzio";
 import { APP_STATE_FILE, appStateDir, Helper } from "./helper.ts";
 
 const stateDir = process.env.TOKENMAXXING_STATE_DIR ?? appStateDir();
@@ -40,14 +41,12 @@ async function serve(): Promise<void> {
   for await (const raw of console) {
     const line = raw.trim();
     if (!line) continue;
-    let cmd: Command;
-    try {
-      cmd = JSON.parse(line) as Command;
-    } catch {
+    const cmd = safeJsonParse<Command>(line);
+    if (!cmd.ok) {
       console.error("ignoring malformed command line");
       continue;
     }
-    void helper.handle(cmd);
+    void helper.handle(cmd.data);
   }
   // stdin closed: the shell quit or crashed. Exit instead of running orphaned.
   helper.stop();

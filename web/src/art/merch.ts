@@ -4,6 +4,7 @@
  * on its own in the bag and the merch shop.
  */
 import type { Brand } from "@tokenmaxxing/core/world.ts";
+import { typedSwitch } from "hanzio";
 import { C, shade } from "./palette.ts";
 import { bake, cached, initialsOf, type Palette, type Pen } from "./pixels.ts";
 
@@ -92,20 +93,24 @@ export function drawTop(
   flip: boolean,
 ) {
   const x = (n: number) => (flip ? 15 - n : n);
-  if (view === "down") {
-    p.rect(7, 10, 2, hoodie ? 1 : 2, m.accent);
-    if (hoodie) {
-      p.px(6, 9, C.white);
-      p.px(9, 9, C.white);
-      p.rect(6, 11, 4, 1, m.shade);
-    }
-  } else if (view === "side") p.px(x(9), 10, m.accent);
-  else if (hoodie) {
-    // The hood, down the back of the head.
-    p.rect(4, 6, 8, 3, C.ink);
-    p.rect(5, 6, 6, 3, m.main);
-    p.rect(5, 8, 6, 1, m.shade);
-  }
+  typedSwitch(view, {
+    down: () => {
+      p.rect(7, 10, 2, hoodie ? 1 : 2, m.accent);
+      if (hoodie) {
+        p.px(6, 9, C.white);
+        p.px(9, 9, C.white);
+        p.rect(6, 11, 4, 1, m.shade);
+      }
+    },
+    side: () => p.px(x(9), 10, m.accent),
+    up: () => {
+      if (!hoodie) return;
+      // The hood, down the back of the head.
+      p.rect(4, 6, 8, 3, C.ink);
+      p.rect(5, 6, 6, 3, m.main);
+      p.rect(5, 8, 6, 1, m.shade);
+    },
+  });
 }
 
 /** The mug, in the right hand. From behind, it's hidden. */

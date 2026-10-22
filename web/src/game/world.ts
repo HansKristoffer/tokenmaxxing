@@ -26,6 +26,7 @@ import {
   WALK_STEP_MS,
   type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
+import { lerp } from "hanzio";
 import { setMerchCompanies } from "../art/merch.ts";
 import { bakeGround, repaintGround } from "../art/tiles.ts";
 import { hud } from "../store.ts";
@@ -244,7 +245,7 @@ export const stepping = (a: Avatar, now: number): boolean => a.from !== null && 
 export function drawPos(a: Avatar, now: number): { x: number; y: number } {
   if (!a.from || now >= a.from.at + a.from.ms) return { x: a.x, y: a.y };
   const t = (now - a.from.at) / a.from.ms;
-  return { x: a.from.x + (a.x - a.from.x) * t, y: a.from.y + (a.y - a.from.y) * t };
+  return { x: lerp(a.from.x, a.x, t), y: lerp(a.from.y, a.y, t) };
 }
 
 /** Someone else hopped (our own hops start locally). */

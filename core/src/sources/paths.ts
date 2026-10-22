@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, sep } from "node:path";
+import { typedSwitch } from "hanzio";
 
 function resolveDir(envValue: string | undefined, fallback: string): string {
   const raw = envValue && envValue.length > 0 ? envValue : fallback;
@@ -11,11 +12,14 @@ function resolveDir(envValue: string | undefined, fallback: string): string {
 
 /** Where desktop apps keep their data: Application Support on a Mac, `~/.config` on Linux. */
 const appSupport = () =>
-  process.platform === "darwin"
-    ? join(homedir(), "Library", "Application Support")
-    : process.platform === "win32"
-      ? (process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"))
-      : resolveDir(process.env.XDG_CONFIG_HOME, join(homedir(), ".config"));
+  typedSwitch(
+    process.platform,
+    {
+      darwin: () => join(homedir(), "Library", "Application Support"),
+      win32: () => process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"),
+    },
+    () => resolveDir(process.env.XDG_CONFIG_HOME, join(homedir(), ".config")),
+  );
 
 function claudeCodeProjectsDir(): string {
   // CLAUDE_CONFIG_DIR points at the .claude root; sessions live under projects/

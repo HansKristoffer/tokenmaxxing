@@ -2,6 +2,7 @@
  * Daily quests: the same two every day, paid in coins on top of the usual pay
  * (at most 7). Nothing is stored: a quest is done when the day's rollups pass its check.
  */
+import { sumBy } from "hanzio";
 
 /** One day's rollups: tokens from `usage_daily`, the rest from `activity_daily`. */
 export interface DayFacts {
@@ -28,4 +29,4 @@ export const QUESTS: readonly Quest[] = [
 export const EMPTY_DAY: DayFacts = { tokens: 0, peakAgents: 0, activeBuckets: 0 };
 
 /** Coins a day paid: the sum over the quests that are done. */
-export const questCoins = (f: DayFacts): number => QUESTS.reduce((n, q) => n + (q.done(f) ? q.coins : 0), 0);
+export const questCoins = (f: DayFacts): number => sumBy(QUESTS, (q) => (q.done(f) ? q.coins : 0));

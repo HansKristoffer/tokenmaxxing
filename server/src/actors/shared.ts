@@ -1,9 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
-import { setTimeout as delay } from "node:timers/promises";
 import type { Notice } from "@tokenmaxxing/core/world.ts";
+import { omit, promiseTimeout, withTimeout } from "hanzio";
+import { randomToken } from "hanzio/crypto";
 import { RivetError, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
-import { randomToken, sha256 } from "../crypto.ts";
+import { sha256 } from "../crypto.ts";
 import { PricingCache } from "../pricing.ts";
 import { CLIENT_IP_HEADER } from "../proxy.ts";
 import type { registry } from "./registry.ts";
@@ -23,8 +24,7 @@ export const internal = { params: { internal: INTERNAL_KEY } };
  */
 export function fromInside<T extends object>(input: (T & { internal?: string }) | undefined): T {
   if (input?.internal !== INTERNAL_KEY) throw new UserError("Not allowed.", { code: "forbidden" });
-  const { internal: _, ...rest } = input;
-  return rest as T;
+  return omit(input, ["internal"]) as T;
 }
 
 /** `town`, `world` and `arcade` are singletons: `["main"]` and nothing else. */
@@ -169,7 +169,7 @@ export async function authenticate(
   const stale = hit && now - hit.until < TOKEN_STALE_MS && hit.caller.kind === "user" ? hit.caller : null;
   if (stale) {
     const busy = Symbol();
-    const answer = await Promise.race([verify, delay(VERIFY_WAIT_MS).then(() => busy)]).catch(() => busy);
+    const answer = await withTimeout(verify, VERIFY_WAIT_MS).catch(() => busy);
     if (answer === busy) {
       // The next call asks again rather than waiting on a player that may never answer this one.
       forget(cache, token, verify);
@@ -217,7 +217,7 @@ export function serial() {
 /** A timer that ends immediately on shutdown, before the next tick touches actor state. */
 export async function waitForTick(signal: AbortSignal, ms: number): Promise<boolean> {
   try {
-    await delay(ms, undefined, { signal });
+    await promiseTimeout(ms, { signal });
     return !signal.aborted;
   } catch (err) {
     if (signal.aborted) return false;

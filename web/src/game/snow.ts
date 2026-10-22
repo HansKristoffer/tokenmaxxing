@@ -1,4 +1,5 @@
 import { snowCover } from "@tokenmaxxing/core/sky.ts";
+import { clamp } from "hanzio";
 import { C, rgbOf } from "../art/palette.ts";
 import { hash } from "../art/pixels.ts";
 import { skyNow, weatherNow } from "./sky.ts";
@@ -23,7 +24,7 @@ export function snowAmount(now: number): number {
   lastAt = now;
   if (amount < 0)
     amount = target; // a page that opens in the snow is already white
-  else amount += Math.min(dt / SETTLE_S, Math.max(-dt / MELT_S, target - amount));
+  else amount += clamp(target - amount, -dt / MELT_S, dt / SETTLE_S);
   return amount;
 }
 

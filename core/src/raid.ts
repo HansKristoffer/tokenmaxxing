@@ -5,6 +5,7 @@
  * coins, nothing is stored: a week's damage, the ladder, its kills and who gets paid are worked out
  * from the daily rollups, so a late sync still lands its hits. Pure functions, shared by server and client.
  */
+import { groupBy, sumBy } from "hanzio";
 import { addDays, dayKey } from "./range.ts";
 
 interface Boss {
@@ -214,19 +215,14 @@ export interface RaidWeek {
 
 /** One week's ladder, from its days (all in that week). */
 function ladder(week: string, hp: number, days: readonly RaidDay[]): RaidWeek {
-  const byDay = new Map<string, RaidDay[]>();
-  for (const d of days) {
-    const same = byDay.get(d.day);
-    if (same) same.push(d);
-    else byDay.set(d.day, [d]);
-  }
+  const byDay = groupBy(days, "day");
   const perUser = new Map<number, number>();
   const kills: Kill[] = [];
   let rung = 1;
   let pool = 0;
   let total = 0;
-  for (const day of [...byDay.keys()].sort()) {
-    for (const d of byDay.get(day)!) {
+  for (const day of Object.keys(byDay).sort()) {
+    for (const d of byDay[day]!) {
       const hit = dayDamage(d);
       perUser.set(d.userId, (perUser.get(d.userId) ?? 0) + hit);
       pool += hit;
@@ -260,7 +256,7 @@ function ladder(week: string, hp: number, days: readonly RaidDay[]): RaidWeek {
   };
 }
 
-const totalDamage = (days: readonly RaidDay[]): number => days.reduce((n, d) => n + dayDamage(d), 0);
+const totalDamage = (days: readonly RaidDay[]): number => sumBy(days, dayDamage);
 
 /** The first raid's rung 1 HP so far: from the damage the week before `start` (`hpFor`). */
 export const firstHp = (days: readonly RaidDay[], start: string): number => {
@@ -275,24 +271,18 @@ export const firstHp = (days: readonly RaidDay[], start: string): number => {
  */
 export function raidWeeks(days: readonly RaidDay[], now: number, start: string): RaidWeek[] {
   const current = raidWeekAt(now);
-  const byWeek = new Map<string, RaidDay[]>();
-  for (const d of days) {
-    const w = weekOf(d.day);
-    const same = byWeek.get(w);
-    if (same) same.push(d);
-    else byWeek.set(w, [d]);
-  }
+  const byWeek = groupBy(days, (d) => weekOf(d.day));
   // `firstHp`, from the week's own bucket.
-  const first = hpFor(totalDamage(byWeek.get(addDays(start, -7)) ?? []));
+  const first = hpFor(totalDamage(byWeek[addDays(start, -7)] ?? []));
   const out: RaidWeek[] = [];
   for (let week = start; week <= current; week = addDays(week, 7))
-    out.push(ladder(week, weekHp(first, out.length), byWeek.get(week) ?? []));
+    out.push(ladder(week, weekHp(first, out.length), byWeek[week] ?? []));
   return out;
 }
 
 /** What `userId` got for the kills in `weeks`. */
 export const raidCoins = (weeks: readonly RaidWeek[], userId: number): number =>
-  weeks.reduce((n, w) => n + w.kills.reduce((m, k) => m + (k.raiders.includes(userId) ? k.coins : 0), 0), 0);
+  sumBy(weeks, (w) => sumBy(w.kills, (k) => (k.raiders.includes(userId) ? k.coins : 0)));
 
 /**
  * A raider's war desk in the dungeon, of `seats`: the one their id hashes to, or the next free one

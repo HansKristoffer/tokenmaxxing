@@ -3,6 +3,7 @@
  * `BOTS`; the `world` actor walks it and makes it talk. Ids are negative, so they never meet a real
  * user's (those start at 1).
  */
+import { lerp } from "hanzio";
 import { COP } from "./cop.ts";
 import { BOT_LEVEL, compact, fill } from "./format.ts";
 import type { GameMap } from "./maps.ts";
@@ -228,7 +229,7 @@ export const isBot = (id: number): boolean => id < 0;
 
 /** Uniformly between `min` and `max`. */
 export const between = ([min, max]: readonly [number, number], rand = Math.random): number =>
-  min + (max - min) * rand();
+  lerp(min, max, rand());
 
 export const pick = <T>(list: readonly T[], rand = Math.random): T => list[Math.floor(rand() * list.length)]!;
 

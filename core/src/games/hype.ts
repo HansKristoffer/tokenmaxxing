@@ -4,6 +4,7 @@
  * seed whose hash everyone sees before the round and whose seed everyone sees
  * after, so nobody (not even the server) can move it mid-round.
  */
+import { clamp, recordFromKeys, sumBy } from "hanzio";
 import { random } from "./random.ts";
 import { sha256 } from "./sha256.ts";
 import { byScore, type GameDef, lastStanding, leave, leavers, refused } from "./types.ts";
@@ -23,7 +24,7 @@ export const msToReach = (m: number) => 12_000 * Math.log(m);
 /** The crash point for a round's seed, in hundredths: max(1, 0.99 / (1 − u)), capped at ×50. */
 export function crashPoint(seed: string): number {
   const u = Number.parseInt(sha256(`crash:${seed}`).slice(0, 13), 16) / 16 ** 13;
-  return Math.floor(Math.min(MAX_CRASH, Math.max(1, 0.99 / (1 - u))) * 100);
+  return Math.floor(clamp(0.99 / (1 - u), 1, MAX_CRASH) * 100);
 }
 
 interface HypeRound {
@@ -56,12 +57,7 @@ const current = (s: HypeState) => s.rounds.findIndex((r) => r.endedAt === null);
 const active = (s: HypeState) => s.players.filter((p) => !s.forfeited.includes(p));
 
 const totals = (s: HypeState) =>
-  Object.fromEntries(
-    s.players.map((p) => [
-      p,
-      s.rounds.reduce((n, r) => n + (r.endedAt !== null ? (r.cashed[p] ?? 0) : 0), 0),
-    ]),
-  );
+  recordFromKeys(s.players, (p) => sumBy(s.rounds, (r) => (r.endedAt !== null ? r.cashed[p] : 0)));
 
 /** Ends round `i` at `now` and schedules the next one. */
 function end(s: HypeState, i: number, now: number): HypeState {

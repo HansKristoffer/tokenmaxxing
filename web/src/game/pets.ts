@@ -1,4 +1,5 @@
 import { TILE } from "@tokenmaxxing/core/world.ts";
+import { typedSwitch } from "hanzio";
 import { type Avatar, world } from "./world.ts";
 
 /** Each pet's spot in world pixels (top-left). It trails its owner rather than sticking to them. */
@@ -24,15 +25,14 @@ export function followPet(a: Avatar, px: number, py: number, dt: number, bed?: r
   if (!a.info.look.pet) return null;
   if (bed) return sleepPet(a, px, py, dt, bedSpot(bed));
   const resting = a.state !== "idle";
-  const [tx, ty] = resting
+  const [tx, ty]: [number, number] = resting
     ? [px + 13, py + 6]
-    : a.facing === "right"
-      ? [px - 9, py + 6]
-      : a.facing === "left"
-        ? [px + 13, py + 6]
-        : a.facing === "down"
-          ? [px + 2, py - 4]
-          : [px + 2, py + 13];
+    : typedSwitch(a.facing, {
+        right: () => [px - 9, py + 6],
+        left: () => [px + 13, py + 6],
+        down: () => [px + 2, py - 4],
+        up: () => [px + 2, py + 13],
+      });
   let pet = pets.get(a.info.id);
   // New, or the owner jumped (a door, a warp): appear at the spot.
   if (!pet || pet.room !== world.room || Math.hypot(tx - pet.x, ty - pet.y) > 3 * TILE) {

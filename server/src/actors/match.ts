@@ -8,6 +8,7 @@ import { type GameId, isRefused, type Options, type Outcome } from "@tokenmaxxin
 import type { Frame, MatchChatLine, MatchInfo, Seat } from "@tokenmaxxing/core/games/wire.ts";
 import type { Battle } from "@tokenmaxxing/core/protocol.ts";
 import { CHAT_HISTORY } from "@tokenmaxxing/core/world.ts";
+import { recordFromKeys } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import { RateLimiter } from "../rate-limit.ts";
 import { parseChatText } from "../validate.ts";
@@ -355,8 +356,9 @@ async function apply(c: MatchCtx, next: unknown, before: unknown): Promise<void>
 async function reportStatus(c: MatchCtx, s: MatchState): Promise<void> {
   const def = defOf(s);
   const now = Date.now();
-  const status = Object.fromEntries(
-    s.players.map((p) => [p.userId, def.status?.(s.state, p.userId, now) ?? null]),
+  const status = recordFromKeys(
+    s.players.map((p) => p.userId),
+    (userId) => def.status?.(s.state, userId, now) ?? null,
   );
   await main(c.client())
     .world.gameStatus(s.id, {

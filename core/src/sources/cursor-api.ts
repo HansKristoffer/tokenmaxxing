@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
 import { createHash } from "node:crypto";
+import { clamp, isRecord } from "hanzio";
 import { CURSOR_API_MESSAGE_PREFIX, isGrokBotModel, type TokenEvent, tokenEvent } from "../types.ts";
 
 const URL = "https://cursor.com/api/dashboard/get-filtered-usage-events";
@@ -46,10 +47,8 @@ export interface CursorApiOptions {
 }
 
 function record(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Invalid Cursor usage response.");
-  }
-  return value as Record<string, unknown>;
+  if (!isRecord(value)) throw new Error("Invalid Cursor usage response.");
+  return value;
 }
 
 function count(value: unknown): number {
@@ -133,7 +132,7 @@ export async function* fetchCursorUsagePages(opts: CursorApiOptions): AsyncGener
     if (!Array.isArray(rows) || typeof data.totalUsageEventsCount !== "number") {
       throw new Error("Invalid Cursor usage response.");
     }
-    const expectedRows = Math.min(pageSize, Math.max(0, total - (page - 1) * pageSize));
+    const expectedRows = clamp(total - (page - 1) * pageSize, 0, pageSize);
     if (rows.length < expectedRows || rows.length > pageSize) {
       throw new Error("Incomplete Cursor usage response.");
     }

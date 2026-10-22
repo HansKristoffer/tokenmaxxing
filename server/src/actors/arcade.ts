@@ -17,6 +17,7 @@ import {
 import type { GameId, Options, Outcome } from "@tokenmaxxing/core/games/types.ts";
 import type { Lobby, MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
 import type { Battle } from "@tokenmaxxing/core/protocol.ts";
+import { isRecord, isString, must, sortBy } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { RateLimiter } from "../rate-limit.ts";
@@ -143,7 +144,7 @@ export const arcade = actor({
         const userId = requireUser(c.conn.state);
         const game = gameOf(rawGame);
         if (!game) throw new UserError("That game doesn't exist.", { code: "not_found" });
-        const o = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
+        const o: Record<string, unknown> = isRecord(raw) ? raw : {};
         const stake = parseStake(o.stake ?? 0);
         const seats = o.seats ?? game.players.max;
         if (
@@ -424,9 +425,7 @@ function parseStake(raw: unknown): number {
 }
 
 function tableOf(s: ArcadeState, id: unknown): Table {
-  const table = s.tables[String(id)];
-  if (!table) throw new UserError("That table is gone.", { code: "not_found" });
-  return table;
+  return must(s.tables[String(id)], () => new UserError("That table is gone.", { code: "not_found" }));
 }
 
 function hostedTable(s: ArcadeState, userId: number, id: unknown): Table {
@@ -454,7 +453,7 @@ async function learnNames(c: ArcadeCtx, userIds: number[]): Promise<void> {
 async function resolve(c: ArcadeCtx, raw: unknown): Promise<number[]> {
   const list = Array.isArray(raw) ? raw.slice(0, MAX_INVITEES) : [];
   const ids = list.filter((x): x is number => Number.isInteger(x));
-  const names = list.filter((x): x is string => typeof x === "string");
+  const names = list.filter(isString);
   if (names.length === 0) return ids;
   const found = await main(c.client()).town.ids(names);
   return [...ids, ...Object.values(found)];
@@ -702,7 +701,7 @@ function lobbyFor(s: ArcadeState, userId: number, views = shared(s)): Lobby {
   // Your running game; else the one you just finished (its end screen and rematch offer).
   const mineAll = Object.values(s.matches).filter((m) => m.players.includes(userId));
   const playing =
-    mineAll.find((m) => !m.outcome) ?? mineAll.sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0))[0];
+    mineAll.find((m) => !m.outcome) ?? sortBy(mineAll, { by: (m) => m.endedAt ?? 0, order: "desc" })[0];
   const bets: Lobby["me"]["bets"] = {};
   for (const m of Object.values(s.matches)) {
     const b = m.bets.find((x) => x.userId === userId);

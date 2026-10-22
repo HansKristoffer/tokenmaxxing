@@ -1,6 +1,7 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { houseTierName } from "@tokenmaxxing/core/world.ts";
 import type { AdminCompany, AdminLogEntry, AdminOverview, AdminUser } from "@tokenmaxxing/server/registry";
+import { typedSwitch } from "hanzio";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { errorText } from "../errors.ts";
 import { type AdminConn, connectAdmin, forgetToken, isUnauthorized, savedToken, saveToken } from "./api.ts";
@@ -140,14 +141,13 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
       <main>
         {!data ? (
           <p className="muted">{loading ? "Loading…" : "Nothing yet."}</p>
-        ) : tab === "overview" ? (
-          <Overview o={data.overview} />
-        ) : tab === "users" ? (
-          <Users users={data.users} conn={conn} act={act} />
-        ) : tab === "companies" ? (
-          <Companies companies={data.companies} conn={conn} act={act} />
         ) : (
-          <Log log={data.log} />
+          typedSwitch(tab, {
+            overview: () => <Overview o={data.overview} />,
+            users: () => <Users users={data.users} conn={conn} act={act} />,
+            companies: () => <Companies companies={data.companies} conn={conn} act={act} />,
+            log: () => <Log log={data.log} />,
+          })
         )}
       </main>
     </>

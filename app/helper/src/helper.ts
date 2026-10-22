@@ -7,6 +7,7 @@ import { emptyState, loadState } from "@tokenmaxxing/core/sync/state.ts";
 import { sync } from "@tokenmaxxing/core/sync/sync.ts";
 import type { SyncState, TokenEvent } from "@tokenmaxxing/core/types.ts";
 import type { registry } from "@tokenmaxxing/server/registry";
+import { trimTrailingSlash, typedSwitch } from "hanzio";
 import { createClient } from "rivetkit/client";
 
 /** Often enough that your character sits down at the desk soon after your agents start. */
@@ -46,7 +47,7 @@ const apiError = (err: unknown): ApiError => new ApiError(errorCode(err) ?? "off
  */
 export const clientFor = (serverUrl: string): Client =>
   createClient<typeof registry>({
-    endpoint: `${serverUrl.replace(/\/+$/, "")}/api/rivet`,
+    endpoint: `${trimTrailingSlash(serverUrl)}/api/rivet`,
     devtools: false,
     disableMetadataLookup: true,
   });
@@ -90,33 +91,31 @@ export class Helper {
   }
 
   private async run(cmd: Command): Promise<unknown> {
-    switch (cmd.cmd) {
-      case "init":
-        this.serverUrl = cmd.serverUrl.replace(/\/+$/, "");
+    return typedSwitch(cmd, "cmd", {
+      init: async (cmd) => {
+        this.serverUrl = trimTrailingSlash(cmd.serverUrl);
         this.client = clientFor(this.serverUrl);
         this.syncState = await loadState(this.opts.statePath);
         if (cmd.token) await this.signIn(cmd.token);
         else this.state.phase = "onboarding";
-        return;
-      case "signUp": {
+      },
+      signUp: async (cmd) => {
         const r = await this.call(() => this.api().town.getOrCreate(["main"]).signUp(cmd.name));
         this.opts.write({ event: "token", token: r.token });
         await this.signIn(r.token);
-        return;
-      }
-      case "syncNow":
+      },
+      syncNow: () => {
         // History imports can outlive the shell command timeout. Acknowledge the start now;
         // tick refreshes the UI when the shared background run finishes.
         void this.tick().catch((err) => this.log(`sync now failed: ${String(err)}`));
-        return;
-      case "openWorld":
-        return { code: await this.call(() => this.player().mintLoginCode()) };
-      case "linkComputer": {
+      },
+      openWorld: async () => ({ code: await this.call(() => this.player().mintLoginCode()) }),
+      linkComputer: async (): Promise<LinkComputer> => {
         const code = await this.call(() => this.player().mintLinkCode());
         const command = `curl -fsSL ${this.serverUrl}/install.sh | sh -s -- link ${code}`;
-        return { code, command } satisfies LinkComputer;
-      }
-    }
+        return { code, command };
+      },
+    });
   }
 
   private api(): Client {

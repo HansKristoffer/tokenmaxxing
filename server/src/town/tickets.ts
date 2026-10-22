@@ -1,4 +1,5 @@
 import { parseTicket, type Ticket, ticketKey } from "@tokenmaxxing/core/cop.ts";
+import { compact } from "hanzio";
 import { all, type Sql } from "../actors/shared.ts";
 
 /**
@@ -28,8 +29,5 @@ export async function ticketsOf(sql: Sql, userId: number): Promise<Ticket[]> {
     "SELECT item FROM rewards WHERE user_id = ? AND item LIKE 'ticket:%'",
     userId,
   );
-  return rows
-    .map((r) => parseTicket(r.item))
-    .filter((t): t is Ticket => t !== null)
-    .sort((a, b) => b.day.localeCompare(a.day));
+  return compact(rows.map((r) => parseTicket(r.item))).sort((a, b) => b.day.localeCompare(a.day));
 }
