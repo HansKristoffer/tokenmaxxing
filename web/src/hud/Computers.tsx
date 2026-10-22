@@ -18,7 +18,7 @@ function ago(at: number, now: number): string {
 }
 
 /**
- * On my own card: the computers whose usage counts for me (WORKHORSE.md). The app makes the line that
+ * On my own card: the computers whose usage counts for me (ARCHITECTURE.md, "Linked computers"). The app makes the line that
  * links another one; a plain browser can't, as only the app may.
  */
 export function Computers() {

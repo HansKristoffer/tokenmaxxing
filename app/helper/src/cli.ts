@@ -18,7 +18,7 @@ import {
 } from "./service.ts";
 
 /**
- * `tokenmaxxing`: sync a second computer's usage into your account (WORKHORSE.md). The app on your
+ * `tokenmaxxing`: sync a second computer's usage into your account (ARCHITECTURE.md, "Linked computers"). The app on your
  * main Mac makes a link code; `link` trades it for this computer's own token, which can only sync.
  */
 
