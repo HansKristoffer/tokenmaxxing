@@ -54,27 +54,14 @@ describe("drops", () => {
     expect(await m.conn.take()).toBeNull(); // a seat is taken from on it
     expect(await m.conn.sit(path.at(-1))).toMatchObject({ x: sofa.x, y: sofa.y, state: "sit" });
     expect(await m.conn.take()).toEqual({ notice: "🎒 Took the Sofa.", drop: sofa });
+    // The last the owner saw of them: a step (`m`), or their arrival if the world told the room of
+    // them only after all this (a slow tick).
     await eventually(() => {
-      const [, x, y, , state] = o.events.moves.flatMap((mv) => mv.m).findLast(([id]) => id === mate.userId)!;
-      expect([x, y, state]).toEqual([sofa.x, sofa.y, "idle"]);
-    }).catch((err) => {
-      // DIAGNOSTIC (temporary)
-      console.warn(
-        "[diag]",
-        JSON.stringify({
-          room,
-          mate: mate.userId,
-          owner: owner.userId,
-          oRoom: o.snap.room,
-          mRoom: m.snap.room,
-          oSnaps: o.events.snapshots.map((s) => [s.room, s.selfId, s.players.map((p) => p.id)]),
-          oMoves: o.events.moves,
-          mMoves: m.events.moves,
-          sofa,
-          path,
-        }),
-      );
-      throw err;
+      const seen = o.events.moves.flatMap((mv) => [
+        ...mv.join.filter((p) => p.id === mate.userId).map((p) => [p.x, p.y, p.state]),
+        ...mv.m.filter(([id]) => id === mate.userId).map(([, x, y, , state]) => [x, y, state]),
+      ]);
+      expect(seen.at(-1)).toEqual([sofa.x, sofa.y, "idle"]);
     });
     expect(await mate.town.bag()).toEqual([{ item: "furn.s", count: 1 }]);
     for (const c of [o, m]) await c.conn.dispose();
