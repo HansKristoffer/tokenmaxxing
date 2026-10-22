@@ -5,7 +5,8 @@ import { bake, cached } from "./pixels.ts";
  * A raider's robot minion: one per agent beyond their own, firing at the boss next to their desk.
  * Two frames: its antenna blinks and its blaster arm comes up as it fires.
  */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const FRAMES = [
   [
     "...a....",

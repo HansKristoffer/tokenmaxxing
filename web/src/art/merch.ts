@@ -72,7 +72,8 @@ export const coloursOf = (companyId: number): MerchColours => COMPANIES.get(comp
 export const merchKey = (companyId: number): string => COMPANIES.get(companyId)?.key ?? keyOf(FALLBACK);
 
 /** The cap over the head, from row 0: `c` crown, `C` brim, `L` the badge. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const CAP: Record<"down" | "side" | "up", string[]> = {
   down: ["................", ".....oooooo.....", "....occLLcco....", "...occcLLcccco..", "..oCCCCCCCCCCo.."],
   side: ["................", ".....oooooo.....", "....occccLco....", "...occcccLLco...", "...occcccCCCCCo."],

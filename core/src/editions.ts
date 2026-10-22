@@ -38,7 +38,8 @@ const edition = (
 });
 
 /** Never reorder or reuse: the ids are in bags. Add new ones at the end of their slot. */
-// biome-ignore format: a catalog reads best one edition a line
+// A catalog reads best one edition a line.
+// prettier-ignore
 export const EDITIONS: readonly Edition[] = [
   edition("hat", 0, "Prompt wizard hat", 220, 20, "Every star stitched on is a system prompt that worked first try."),
   edition("hat", 1, "Green-CI halo", 400, 12, "Glows for as long as the build stays green. So, briefly."),

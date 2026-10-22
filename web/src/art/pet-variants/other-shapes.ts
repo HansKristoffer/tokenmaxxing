@@ -2,7 +2,8 @@ import { C } from "../palette.ts";
 import type { PetVariant } from "./types.ts";
 
 /** The duck, cat, dragon and panda variations that need a different shape from the base pet. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const DUCK_SHAPES: PetVariant[] = [
   {
     id: "duckling",
@@ -67,7 +68,8 @@ export const DUCK_SHAPES: PetVariant[] = [
     pal: { o: C.ink, w: C.white, s: "#d8d4e0", k: "#3a3540", n: "#f08a3c" },
   },
 ];
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const CAT_SHAPES: PetVariant[] = [
   {
     id: "sphynx",
@@ -132,7 +134,8 @@ export const CAT_SHAPES: PetVariant[] = [
     pal: { o: C.ink, b: "#4a4358", p: "#7a55b8", y: "#f5d14a", e: "#f5d14a", n: "#e0584f" },
   },
 ];
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const DRAGON_SHAPES: PetVariant[] = [
   {
     id: "baby",
@@ -166,7 +169,8 @@ export const DRAGON_SHAPES: PetVariant[] = [
     pal: { o: C.ink, g: "#8ccf86", G: "#6fb571", w: "#f0a58a", y: "#f5e2a8", e: C.ink, n: "#ff8a3c", f: "#f5d14a" },
   },
 ];
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const PANDA_SHAPES: PetVariant[] = [
   {
     id: "red",

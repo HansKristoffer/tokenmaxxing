@@ -12,7 +12,8 @@ export interface Pet {
   pal: Palette;
 }
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const PETS: (Pet | null)[] = [
   null,
   // Duck.

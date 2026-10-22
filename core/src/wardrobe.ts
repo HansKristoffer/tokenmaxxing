@@ -17,7 +17,8 @@ interface Entry extends Wearable {
 }
 
 // Prices: a heavy day earns ~30 coins, so a common is a few days, an epic a month.
-// biome-ignore format: a catalog reads best one to a line
+// A catalog reads best one to a line.
+// prettier-ignore
 const ENTRIES: readonly Entry[] = [
   // Outfits, after the shop's 8–12.
   { slot: "outfit", index: 13, name: "Hoodie of infinite context", rarity: "epic", price: 700, blurb: "Never forgets. Never compacts. Slightly warm." },

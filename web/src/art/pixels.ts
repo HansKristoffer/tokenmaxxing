@@ -134,7 +134,8 @@ export function hash(x: number, y: number, seed = 0): number {
 }
 
 /** A 3×5 pixel font, row by row (`1` lit), for signs, initials on merch and the like. */
-// biome-ignore format: one glyph a line
+// One glyph a line.
+// prettier-ignore
 const GLYPHS: Record<string, string> = {
   A: "010101111101101", B: "110101110101110", C: "011100100100011", D: "110101101101110",
   E: "111100110100111", F: "111100110100100", G: "011100101101011", H: "101101111101101",

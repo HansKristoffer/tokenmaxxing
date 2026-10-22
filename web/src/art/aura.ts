@@ -14,7 +14,8 @@ export const AURA_H = 26;
 const FRAMES = 6;
 const FRAME_MS = 140;
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const HALO = [
   ".YwyyyyyY.",
   "Y........Y",
@@ -68,7 +69,8 @@ export const auraFrame = (now: number, glow = true): HTMLCanvasElement =>
 /** How far the halo reaches over the head, for the name tag to sit above it. */
 export const HALO_LIFT = 8;
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const CROWN = [
   "y.y.y",
   "yyryy",

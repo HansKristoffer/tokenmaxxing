@@ -146,7 +146,7 @@ All art is drawn in code (palette-string sprites and rectangles), so the repo ca
 
 ## Development
 
-Requires Bun 1.4+, Rust (stable) and Xcode's command line tools (macOS 14+).
+Requires Bun 1.4.4+ (for `bun check` and `bun fmt`), Rust (stable) and Xcode's command line tools (macOS 14+).
 
 ```bash
 bun install --ignore-scripts
@@ -154,7 +154,8 @@ bun run dev                            # http://localhost:8787 (the site; the ga
 bun run site:dev                       # the marketing site alone, with hot reload
 bun run dev:seed                       # a few people, two companies, and a link that signs you in
 bun run desktop:dev                    # the desktop app against localhost:8787
-bun run check                          # typecheck + lint + tests (tests start their own server)
+bun run check                          # typecheck (bun check) + lint (Biome, bun fmt --check) + tests (tests start their own server)
+bun run format                         # Biome's fixes, then bun fmt
 (cd app/desktop/src-tauri && cargo test)   # the Rust side, including the protocol contract test
 ```
 

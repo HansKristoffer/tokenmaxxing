@@ -23,9 +23,11 @@ const CHEEK = "#f29aa0";
 const Z_FILL = "#eef4ff";
 const Z_SHADE = "#6a77b3";
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const Z_SMALL = ["###", "..#", ".#.", "###"];
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const Z_BIG = ["####", "...#", "..#.", ".#..", "####"];
 
 const opaque = (g: Grid, x: number, y: number): boolean => g[y]?.[x] != null;

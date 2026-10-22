@@ -23,7 +23,8 @@ const FIRST_HAT = 5;
 /** Glasses before the pack: none, nerd specs, shades, heart glasses. */
 const FIRST_FACE = 4;
 
-// biome-ignore format: a catalog reads best one to a line
+// A catalog reads best one to a line.
+// prettier-ignore
 export const PACK_HATS: readonly Wearable[] = [
   { name: "Tinfoil hat", rarity: "common", price: 60, blurb: "Blocks telemetry. Probably." },
   { name: "Ship-it party hat", rarity: "common", price: 80, blurb: "Friday deploy? Celebrate first, roll back later." },
@@ -50,7 +51,8 @@ export const PACK_HATS: readonly Wearable[] = [
   { name: "Aurora crown", rarity: "legendary", level: 27, blurb: "Northern lights over Øresund, to fit." },
 ];
 
-// biome-ignore format: a catalog reads best one to a line
+// A catalog reads best one to a line.
+// prettier-ignore
 export const PACK_FACES: readonly Wearable[] = [
   { name: "Hallucination nose", rarity: "common", price: 70, blurb: "Confidently wrong, and red about it." },
   { name: "3D glasses", rarity: "common", price: 90, blurb: "Red, blue, and rendered in depth." },

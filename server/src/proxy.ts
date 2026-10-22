@@ -21,7 +21,7 @@ interface Upstream {
   ip: string;
   socket?: WebSocket;
   /** Messages from the client that arrived before the engine socket opened. */
-  pending: (string | Uint8Array)[];
+  pending: (string | Uint8Array<ArrayBuffer>)[];
 }
 
 /**

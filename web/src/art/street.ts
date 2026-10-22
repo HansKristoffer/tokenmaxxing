@@ -122,7 +122,8 @@ export const cartSprite = cached(
     }),
 );
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const SNAIL_FRAMES = [
   [
     "...........e..e.",
@@ -221,7 +222,8 @@ export const paperSprite = once(() =>
   }),
 );
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const SAUSAGE = [
   "..rrrrrrrrrr..",
   ".rRRRRRRRRRRr.",

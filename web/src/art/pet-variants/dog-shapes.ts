@@ -2,7 +2,8 @@ import { C } from "../palette.ts";
 import type { PetVariant } from "./types.ts";
 
 /** The dog breeds that need a different shape from the base dog. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const DOG_SHAPES: PetVariant[] = [
   {
     id: "pug",
