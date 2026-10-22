@@ -57,6 +57,24 @@ describe("drops", () => {
     await eventually(() => {
       const [, x, y, , state] = o.events.moves.flatMap((mv) => mv.m).findLast(([id]) => id === mate.userId)!;
       expect([x, y, state]).toEqual([sofa.x, sofa.y, "idle"]);
+    }).catch((err) => {
+      // DIAGNOSTIC (temporary)
+      console.warn(
+        "[diag]",
+        JSON.stringify({
+          room,
+          mate: mate.userId,
+          owner: owner.userId,
+          oRoom: o.snap.room,
+          mRoom: m.snap.room,
+          oSnaps: o.events.snapshots.map((s) => [s.room, s.selfId, s.players.map((p) => p.id)]),
+          oMoves: o.events.moves,
+          mMoves: m.events.moves,
+          sofa,
+          path,
+        }),
+      );
+      throw err;
     });
     expect(await mate.town.bag()).toEqual([{ item: "furn.s", count: 1 }]);
     for (const c of [o, m]) await c.conn.dispose();
