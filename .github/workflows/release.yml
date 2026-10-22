@@ -124,6 +124,114 @@ jobs:
             minisign -V -p "$dir/key.pub" -m "$dir/update" -x "$dir/update.minisig"
           done
 
+  # The desktop app for Windows (NSIS installer) and Linux (.deb and AppImage), added to the release
+  # after the Mac one: they run one after another because each merges its entries into latest.json,
+  # and two jobs rewriting it at once could drop one. UNSIGNED: no Authenticode certificate and no
+  # distro signing, so Windows SmartScreen warns on first run. Updates are still signed with the
+  # Tauri updater key, which installed apps check. Neither has been run by a person yet; see
+  # ARCHITECTURE.md ("Windows and Linux").
+  app-windows:
+    needs: [release-please, app]
+    if: needs.release-please.outputs.created == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: app/desktop/src-tauri
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOKENMAXXING_SERVER_URL: ${{ vars.TOKENMAXXING_SERVER_URL }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: app/desktop
+          tauriScript: bunx tauri
+          tagName: ${{ needs.release-please.outputs.tag }}
+          includeUpdaterJson: true
+          args: --target x86_64-pc-windows-msvc
+      # Also without the version in the name, so releases/latest/download/Tokenmaxxing-setup.exe is
+      # always the newest installer.
+      - name: Attach the installer under a stable name
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: |
+          set -euo pipefail
+          installer=$(ls app/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe)
+          mkdir -p dist
+          cp "$installer" dist/Tokenmaxxing-setup.exe
+          gh release upload "$TAG" dist/Tokenmaxxing-setup.exe --clobber
+
+  app-linux:
+    needs: [release-please, app-windows]
+    if: needs.release-please.outputs.created == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: app/desktop/src-tauri
+      # Built on 22.04, the oldest the Tauri docs support, so the AppImage runs on newer distros too.
+      - name: Linux system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev libdbus-1-dev pkg-config patchelf minisign
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOKENMAXXING_SERVER_URL: ${{ vars.TOKENMAXXING_SERVER_URL }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # linuxdeploy's bundled `strip` can't read newer distros' libraries and fails the AppImage.
+          NO_STRIP: "true"
+        with:
+          projectPath: app/desktop
+          tauriScript: bunx tauri
+          tagName: ${{ needs.release-please.outputs.tag }}
+          includeUpdaterJson: true
+          args: --target x86_64-unknown-linux-gnu
+      - name: Attach the packages under stable names
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: |
+          set -euo pipefail
+          bundle=app/desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle
+          mkdir -p dist
+          cp "$(ls $bundle/deb/*.deb)" dist/Tokenmaxxing.deb
+          cp "$(ls $bundle/appimage/*.AppImage)" dist/Tokenmaxxing.AppImage
+          gh release upload "$TAG" dist/Tokenmaxxing.deb dist/Tokenmaxxing.AppImage --clobber
+      # As for the Mac build: installed apps only take an update signed by the key they ship with.
+      # latest.json now has every platform, so check the Windows and Linux entries here.
+      - name: Check the updates installed apps will get
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          set -euo pipefail
+          dir=$(mktemp -d)
+          jq -r '.plugins.updater.pubkey' app/desktop/src-tauri/tauri.conf.json | base64 -d > "$dir/key.pub"
+          curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/latest.json" -o "$dir/latest.json"
+          jq -e --arg v "$VERSION" '.version == $v or .version == "v" + $v' "$dir/latest.json"
+          for platform in windows-x86_64 linux-x86_64; do
+            curl -fsSL "$(jq -er --arg p "$platform" '.platforms[$p].url' "$dir/latest.json")" -o "$dir/update"
+            jq -er --arg p "$platform" '.platforms[$p].signature' "$dir/latest.json" | base64 -d > "$dir/update.minisig"
+            minisign -V -p "$dir/key.pub" -m "$dir/update" -x "$dir/update.minisig"
+          done
+
   # The CLI for linked computers (ARCHITECTURE.md, "Linked computers"): a binary per platform and their checksums on this
   # release, where the server's /install.sh downloads them from. On a Mac, so Bun signs the Mac ones.
   cli:

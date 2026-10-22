@@ -107,29 +107,78 @@ The game also runs in any browser; the app's window is that same page, at `/play
     are otherwise denied (`build.rs`).
   - The app is in the Dock only while the window is open (`LSUIElement`, then the activation policy).
 - **`keychain.rs`**: the device token, in the login Keychain as `dk.hanskristoffer.tokenmaxxing` /
-  `api-token`. Dev builds use `….dev` and their own state dir.
+  `api-token`. Dev builds use `….dev` and their own state dir. On Windows and Linux the same names go to
+  Credential Manager and the Secret Service (the `keyring` crate); see "Windows and Linux" below.
+- **`paths.rs`**: the state and log directories per OS, the same ones `app/helper/src/paths.ts` computes.
 - **`updates.rs`**: Tauri's updater. It checks `latest.json` on this repo's latest release on launch and every
   hour. With no window open, a new version installs right away and the app restarts. While the game is open,
   it waits: the game shows an "Update" button (`web/src/hud/AppUpdate.tsx`) and the menu an "Update to…"
   item, and it installs when either is clicked or the window closes. After an update started with the game
   open, the game opens again. Downloads must be signed with the key in `TAURI_SIGNING_PRIVATE_KEY`, and the
   release job checks the published one against the app's public key before anyone installs it.
-- **Plugins:** single-instance (a second launch opens the world), window-state, autostart (a LaunchAgent) and
-  log.
+- **Plugins:** single-instance (a second launch opens the world), window-state, autostart (a LaunchAgent on
+  macOS, the per-user `Run` registry key on Windows, an autostart `.desktop` entry on Linux) and log.
 - **The server URL** is baked in at build time (`TOKENMAXXING_SERVER_URL`). A release build refuses to build
   without it; a dev build uses `localhost:8787`.
+
+### Windows and Linux
+
+The same app runs on Windows 10+ and Linux (x86_64), built from the same crate. Only the OS-facing edges
+differ; the helper, the protocol and the game window don't.
+
+| | macOS | Windows | Linux |
+|---|---|---|---|
+| State (sync positions) | `~/Library/Application Support/Tokenmaxxing` | `%APPDATA%\Tokenmaxxing` | `$XDG_STATE_HOME/tokenmaxxing` (`~/.local/state`) |
+| Helper log | `~/Library/Logs/Tokenmaxxing/helper.log` | `%LOCALAPPDATA%\Tokenmaxxing\Logs\helper.log` | `$XDG_STATE_HOME/tokenmaxxing/logs/helper.log` |
+| Token | login Keychain | Credential Manager | Secret Service, else `token` (mode 0600) in the state dir |
+| Tray | template bolt with the count as its title | colour bolt (`icons/tray-color.png`), count in the tooltip | colour bolt, count as the title where the panel shows one |
+| Clipboard ("Link a computer…") | `pbcopy` | `arboard` | `arboard` |
+| Launch at login | LaunchAgent | `Run` registry key | `~/.config/autostart/*.desktop` |
+| Installer | `.dmg` (universal, notarized) | NSIS `.exe`, per user, unsigned | `.deb` and `.AppImage`, unsigned |
+
+- **Paths** are decided in one place on each side (`paths.ts`, `paths.rs`), with tests that check all three
+  OSes from any machine. macOS's are the ones every release has used, so upgrades keep their state.
+- **The token** is kept in the system store under the same service and account names. If that fails (no
+  Secret Service on a bare window manager or a headless Linux box, a locked keyring nobody unlocks) it is
+  written to a file in the state dir that only its user can read, and read from there; nothing panics. A
+  keyring that works again takes over and removes the file.
+- **Sidecar naming:** Tauri wants `binaries/tokenmaxxing-helper-<target triple>` (`.exe` on Windows).
+  `app/desktop/scripts/helper.sh` builds `x86_64-pc-windows-msvc`, `x86_64-unknown-linux-gnu` and
+  `aarch64-unknown-linux-gnu` with `bun build --compile` (the x64 ones the baseline build, so CPUs without
+  AVX2 work), and `helper.rs` finds it next to the app's own binary, adding `.exe` on Windows and starting it
+  without a console window.
+- **Bundles:** `tauri.windows.conf.json` and `tauri.linux.conf.json` replace the macOS bundle targets and
+  icons for their OS (Tauri merges them over `tauri.conf.json`, which keeps the macOS section).
+- **Linux needs** `libwebkit2gtk-4.1`, GTK 3 and `libayatana-appindicator3` to run (the `.deb` depends on
+  them; the AppImage carries them), a tray host (GNOME needs the AppIndicator extension), and `libdbus` for
+  the Secret Service. To build: `libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+  libxdo-dev libssl-dev libdbus-1-dev pkg-config`.
+- **Unsigned:** no Authenticode certificate, so SmartScreen warns on first run of the Windows installer.
+  Updates are still signed with the Tauri updater key, and `latest.json` carries `windows-x86_64` and
+  `linux-x86_64`; the release job checks those signatures like the Mac ones.
+- **Not verified on real machines yet:** the Windows and Linux jobs, the tray on each desktop, autostart from
+  an AppImage, and the keyring fallback. CI (`desktop-other` in `ci.yml`) type-checks, tests the paths and
+  service files, and runs `cargo check` and `cargo test` on both.
 
 ## Linked computers
 
 A second computer running agents syncs into the same player.
 
 - **The CLI** (`app/helper/src/cli.ts`) wraps the same `Helper` as the app: `link`, `run`, `sync`, `status`,
-  `logs`, `unlink`. Its token and read positions are in `~/Library/Application Support/Tokenmaxxing CLI/` or
-  `$XDG_CONFIG_HOME/tokenmaxxing/` (`TOKENMAXXING_CLI_DIR` for tests), the token readable only by its user.
-  It won't link on a Mac where the app syncs already.
-- **The service** (`service.ts`): a LaunchAgent, or a `systemd --user` unit with lingering on, so it runs
-  while nobody's logged in. Both carry the `PATH` and log-location variables from when it was linked, and
-  restart it only when it fails: once its token is revoked, it removes itself and exits cleanly.
+  `logs`, `unlink`. Its token and read positions are in `~/Library/Application Support/Tokenmaxxing CLI/`,
+  `%APPDATA%\Tokenmaxxing CLI\` or `$XDG_CONFIG_HOME/tokenmaxxing/` (`TOKENMAXXING_CLI_DIR` for tests), the
+  token readable only by its user. It won't link on a computer where the app syncs already.
+- **The service** (`service.ts`): a LaunchAgent, a `systemd --user` unit with lingering on (so it runs
+  while nobody's logged in), or on Windows a per-user Scheduled Task. All carry the `PATH` and
+  log-location variables from when it was linked, and restart it only when it fails: once its token is
+  revoked, it removes itself and exits cleanly. The task (`schtasks /Create /XML`, UTF-16) runs at the
+  user's logon, hidden, with no time limit and `RestartOnFailure` every minute (the shortest Task Scheduler
+  allows, against 30 seconds for the others). It runs a batch file `service.cmd` in the log directory,
+  because a task has no environment or log of its own: the file sets the variables, appends the output to
+  `cli.log` and exits with `run`'s code. A task ends when its user signs out, and there's no lingering to
+  prevent that. `status` asks `Get-ScheduledTask` for the state (the `schtasks` text is translated), and
+  `logs` tails `cli.log` with PowerShell. The release has `tokenmaxxing-windows-x64.exe`; `/install.sh`
+  doesn't install it (there's no PowerShell installer), so it's downloaded by hand.
 - **Installing** (`server/src/install.sh`, served at `/install.sh` with the server's own origin filled in):
   picks the binary for the OS and CPU, checks it against `SHA256SUMS` from the latest release, and runs it
   with its arguments. The binaries are `bun build --compile` output (`app/helper/scripts/cli.sh`), built on a

@@ -25,6 +25,27 @@ and shows your tokens today next to the ⚡. **Open world** (from its menu, the 
 game in its own window, where everything else is: leaderboards, stats, companies and games. The app keeps
 itself up to date.
 
+### Windows and Linux
+
+The app runs on Windows 10+ and on Linux (x86_64) too, but it is new there and **unsigned**. Download from the
+[latest release](https://github.com/HansKristoffer/tokenmaxxing/releases/latest):
+
+- **Windows:** `Tokenmaxxing-setup.exe`. It installs for your user (no admin prompt). Windows SmartScreen
+  warns about an unknown publisher: choose **More info**, then **Run anyway**.
+- **Linux:** `Tokenmaxxing.deb` (`sudo apt install ./Tokenmaxxing.deb`) or `Tokenmaxxing.AppImage`
+  (`chmod +x` it and run it).
+
+It lives in the system tray instead of the menu bar: click the bolt for the menu (on Windows, hover for today's
+tokens; the tray may hide it under the `^` arrow). Everything else is the same. Your token is kept in
+Credential Manager (Windows) or the Secret Service, GNOME Keyring or KWallet (Linux); without a Secret Service
+it goes in a file only you can read, in `~/.local/state/tokenmaxxing`. State and logs are in `%APPDATA%\Tokenmaxxing`
+and `%LOCALAPPDATA%\Tokenmaxxing\Logs` on Windows, and in `~/.local/state/tokenmaxxing` (logs in `logs/`) on Linux.
+The app updates itself on both.
+
+On Linux you need a tray: KDE, XFCE and Cinnamon have one, GNOME needs the
+[AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/). The `.deb` pulls in
+WebKitGTK, GTK 3 and `libayatana-appindicator3`; the AppImage carries them.
+
 ### On a second computer
 
 Running agents on another machine too, like a Mac mini under the desk or a Linux box? Link it, and its tokens
@@ -36,8 +57,10 @@ curl -fsSL https://<server>/install.sh | sh -s -- link 42.Xk3…
 ```
 
 It installs the `tokenmaxxing` command (macOS or Linux, in `~/.local/bin`), links it, sends that computer's
-history, and keeps syncing in the background (a LaunchAgent, or a systemd user service). Then:
-`tokenmaxxing status`, `sync`, `logs` and `unlink`. A linked computer can only send usage: it can't chat,
+history, and keeps syncing in the background (a LaunchAgent, or a systemd user service). On Windows,
+download `tokenmaxxing-windows-x64.exe` from the release, rename it `tokenmaxxing.exe`, and run
+`tokenmaxxing link <code> --server https://<server>`: the background service is a Scheduled Task that
+runs while you're signed in. Then: `tokenmaxxing status`, `sync`, `logs` and `unlink`. A linked computer can only send usage: it can't chat,
 spend coins or open the world. Your card in the game lists your computers and removes them.
 
 **Coming from 0.5 or earlier?** The world is a new backend and starts fresh: update the app, pick a name again and
@@ -51,12 +74,15 @@ content never does. The app reads local logs and Cursor dashboard usage:
 
 | Source | Where |
 |---|---|
-| Claude Code | `~/.claude/projects/**/*.jsonl` (subagents included), and PostHog Desktop's agent sessions in `~/Library/Application Support/@posthog/posthog-code/claude/projects/**/*.jsonl` |
+| Claude Code | `~/.claude/projects/**/*.jsonl` (subagents included; the same on Windows and Linux), and PostHog Desktop's agent sessions in `~/Library/Application Support/@posthog/posthog-code/claude/projects/**/*.jsonl` |
 | Claude Cowork | `~/Library/Application Support/Claude/…/.claude/projects/**/*.jsonl` |
 | Codex | `~/.codex/sessions/**/*.jsonl` and `~/.codex/archived_sessions/**/*.jsonl`, and PostHog Desktop's gateway runs in `~/Library/Application Support/@posthog/posthog-code/codex-home/*/sessions/**/*.jsonl`. A rollout named in `state_*.sqlite` (`threads.rollout_path`) is included when that file still exists under the Codex home. `threads.tokens_used` is one running total with no per-turn split, so it is not counted. Consumer ChatGPT chats that never write a Codex rollout have no local token ledger |
 | Cursor | Dashboard usage API; signs in using `cursorAuth/accessToken` from the local `state.vscdb` |
 | Grok Bot | The same Cursor dashboard, for models `grok-bot` and `grok-bot-*`. The Grok Bot app's weekly plan percent is not a token count and is not read, so Grok Bot stays at 0 until those dashboard rows exist |
 | GitHub | PRs you opened, on every account the `gh` CLI is signed in to (github.com and Enterprise), or else with the github.com login git saved for HTTPS (at most every 15 minutes); only a hash of each PR's URL and when it was opened are sent. The menu says when neither is there |
+
+Where a path says `~/Library/Application Support`, Windows reads `%APPDATA%` and Linux `$XDG_CONFIG_HOME`
+(`~/.config`) instead.
 
 Cursor must be installed and signed in. Its session credential is read locally and sent only to
 `cursor.com`; it is never uploaded to Tokenmaxxing or saved in sync state. Every 15 minutes, the helper
@@ -146,7 +172,19 @@ All art is drawn in code (palette-string sprites and rectangles), so the repo ca
 
 ## Development
 
-Requires Bun 1.4.4+ (for `bun check` and `bun fmt`), Rust (stable) and Xcode's command line tools (macOS 14+).
+Requires Bun 1.4.4+ (for `bun check` and `bun fmt`), Rust (stable) and, for the desktop app, Xcode's command
+line tools (macOS 14+), or on Windows the Visual Studio C++ build tools, WebView2 (in Windows 11) and Git for
+Windows (Tauri runs `scripts/helper.sh` with `bash`), or on Linux:
+
+```bash
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+  libxdo-dev libssl-dev libdbus-1-dev pkg-config build-essential
+```
+
+`bun run desktop:dev` and `bun run desktop:build` work the same everywhere (a Windows or Linux build makes
+that OS's installers in `app/desktop/src-tauri/target/release/bundle/`). Dev builds use their own state
+directory and keyring entry on every OS. On Windows, run `bun`, `cargo` and the `bun run` scripts from
+PowerShell or Git Bash.
 
 ```bash
 bun install --ignore-scripts
@@ -203,10 +241,13 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org) (PR t
 tags the version, builds the desktop app (universal, signed and notarized, with `tauri-action`), attaches
 the `.dmg` and the updater's files (`.app.tar.gz`, `.sig`, `latest.json`), notarizes the `.dmg` too (and
 attaches it again as `Tokenmaxxing.dmg`, what the website's Download button fetches), attaches the CLI for
-linked computers (`tokenmaxxing-{darwin,linux}-{arm64,x64}` and `SHA256SUMS`, which `/install.sh` fetches), and
-updates the cask in `HansKristoffer/homebrew-tap`. Before that, it checks what people will get: the
-downloaded `.dmg` and the app in it pass Gatekeeper, and the published update's signature matches the
-app's public key.
+linked computers (`tokenmaxxing-{darwin,linux}-{arm64,x64}`, `tokenmaxxing-windows-x64.exe` and `SHA256SUMS`, which
+`/install.sh` fetches), and updates the cask in `HansKristoffer/homebrew-tap`. Before that, it checks what
+people will get: the downloaded `.dmg` and the app in it pass Gatekeeper, and the published update's signature
+matches the app's public key. After the Mac build, a Windows job (NSIS installer, attached again as
+`Tokenmaxxing-setup.exe`) and a Linux job (`.deb` and `.AppImage`, as `Tokenmaxxing.deb` and
+`Tokenmaxxing.AppImage`) add their installers and their `latest.json` entries to the same release, unsigned
+(no Windows or Linux signing secrets exist); their update signatures are checked too.
 Installed apps find the update through `latest.json` on the latest release (hourly), install it by themselves
 when no window is open, and otherwise show an "Update" button in the game.
 Railway deploys the server from `main`, and the game window picks that up on its own.
