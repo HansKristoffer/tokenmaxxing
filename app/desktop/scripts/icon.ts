@@ -2,7 +2,8 @@
  * The app icon, in pixel art on a 32×32 grid: a tiny round world with a house and a tree, and a lightning
  * bolt striking past it, on a night sky in the macOS rounded square (Apple's 824/1024 grid). Every size is
  * drawn from the grid with whole pixels, so it stays crisp. Writes the Mac app's icons (src-tauri/icons)
- * and the website's (site/public).
+ * and the website's (site/public), plus what Windows and Linux need: icon.ico and a colour bolt for the
+ * tray (their tray icons aren't tinted for the panel, as the Mac's template image is).
  *
  *   bun app/desktop/scripts/icon.ts
  */
@@ -191,6 +192,38 @@ function png(rgba: Uint8Array, size: number): Buffer {
   ]);
 }
 
+/** The bolt alone, centred, for the Windows and Linux tray: it has to read on light and dark panels. */
+function boltGrid(): Grid {
+  const grid: Grid = Array.from({ length: N }, () => Array<string | null>(N).fill(null));
+  const [x0, y0] = [Math.floor((N - BOLT[0]!.length) / 2), Math.floor((N - BOLT.length) / 2)];
+  BOLT.forEach((row, dy) => {
+    for (let dx = 0; dx < row.length; dx++) {
+      const ch = row[dx]!;
+      if (ch !== ".") grid[y0 + dy]![x0 + dx] = COLORS[ch]!;
+    }
+  });
+  return grid;
+}
+
+/** A Windows icon: PNGs (what Vista and later read) one after another behind a directory. */
+function ico(pngs: { size: number; data: Buffer }[]): Buffer {
+  const head = Buffer.alloc(6 + pngs.length * 16);
+  head.writeUInt16LE(1, 2); // icon
+  head.writeUInt16LE(pngs.length, 4);
+  let offset = head.length;
+  pngs.forEach(({ size, data }, i) => {
+    const at = 6 + i * 16;
+    head[at] = size === 256 ? 0 : size;
+    head[at + 1] = size === 256 ? 0 : size;
+    head.writeUInt16LE(1, at + 4); // planes
+    head.writeUInt16LE(32, at + 6); // bits per pixel
+    head.writeUInt32LE(data.length, at + 8);
+    head.writeUInt32LE(offset, at + 12);
+    offset += data.length;
+  });
+  return Buffer.concat([head, ...pngs.map((p) => p.data)]);
+}
+
 /** One rect per run of same-coloured cells: crisp at any size in a browser. */
 function svg(grid: Grid): string {
   const rects: string[] = [];
@@ -214,6 +247,11 @@ write(`${icons}/32x32.png`, 32);
 write(`${icons}/128x128.png`, 128);
 write(`${icons}/128x128@2x.png`, 256);
 write(`${icons}/icon.png`, 1024);
+writeFileSync(
+  join(ROOT, `${icons}/icon.ico`),
+  ico([16, 32, 64, 128, 256].map((size) => ({ size, data: png(pixels(grid, size), size) }))),
+);
+writeFileSync(join(ROOT, `${icons}/tray-color.png`), png(pixels(boltGrid(), 64), 64));
 const iconset = join(mkdtempSync(join(tmpdir(), "icon-")), "icon.iconset");
 execFileSync("mkdir", [iconset]);
 for (const size of [16, 32, 128, 256, 512]) {

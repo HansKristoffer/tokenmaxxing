@@ -4,6 +4,7 @@
 
 mod helper;
 mod keychain;
+mod paths;
 mod tray;
 mod updates;
 mod world;
@@ -57,6 +58,8 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        // A LaunchAgent on macOS (the launcher is ignored elsewhere), the per-user Run registry key on
+        // Windows, and an autostart .desktop entry on Linux.
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             Some(vec![AT_LOGIN]),
@@ -71,7 +74,8 @@ pub fn run() {
             updates::install_update
         ])
         .setup(|app| {
-            // Menu bar only until a window opens (Info.plist has LSUIElement too).
+            // Menu bar only until a window opens (Info.plist has LSUIElement too). Windows and Linux
+            // have no Dock: the tray icon is all there is until the window opens.
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             app.state::<Shared>().lock().unwrap().open_on_ready =

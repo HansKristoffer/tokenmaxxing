@@ -26,8 +26,16 @@ tauri-plugin-window-state = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
+
 # The device token lives in the login Keychain, where the Swift app kept it: see keychain.rs.
+[target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "3"
+
+# Elsewhere it's in Credential Manager (Windows) or the Secret Service over D-Bus (Linux; needs libdbus
+# to build), and the clipboard for "Link a computer…" comes from arboard (pbcopy on the Mac).
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+keyring = { version = "3", default-features = false, features = ["windows-native", "sync-secret-service", "crypto-rust"] }
+arboard = { version = "3", default-features = false, features = ["wayland-data-control"] }
 
 [profile.release]
 codegen-units = 1

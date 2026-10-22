@@ -6,7 +6,6 @@ use crate::helper::{Helper, State};
 use crate::updates::{self, Status};
 use crate::{world, Shared};
 use serde_json::json;
-use std::io::Write;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::image::Image;
@@ -18,11 +17,18 @@ use tauri_plugin_opener::OpenerExt;
 
 const ID: &str = "main";
 
+/// Black on clear, so macOS tints it for light and dark menu bars.
+#[cfg(target_os = "macos")]
+const ICON: &[u8] = include_bytes!("../icons/tray.png");
+/// The bolt in colour: nothing tints the tray on Windows and Linux, and it has to read on light and dark
+/// panels (app/desktop/scripts/icon.ts).
+#[cfg(not(target_os = "macos"))]
+const ICON: &[u8] = include_bytes!("../icons/tray-color.png");
+
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
     TrayIconBuilder::with_id(ID)
-        .icon(Image::from_bytes(include_bytes!("../icons/tray.png"))?)
-        // Black on clear, so macOS tints it for light and dark menu bars.
-        .icon_as_template(true)
+        .icon(Image::from_bytes(ICON)?)
+        .icon_as_template(cfg!(target_os = "macos"))
         .tooltip("Tokenmaxxing")
         .menu(&menu(app)?)
         .show_menu_on_left_click(true)
@@ -37,6 +43,12 @@ pub fn refresh(app: &AppHandle) {
         return;
     };
     let title = title(&app.state::<Shared>().lock().unwrap().state);
+    // Windows has no text beside a tray icon (Linux shows it where the panel does): the tooltip says it.
+    #[cfg(not(target_os = "macos"))]
+    let _ = tray.set_tooltip(Some(match &title {
+        Some(t) => format!("Tokenmaxxing: {t} tokens today"),
+        None => "Tokenmaxxing".to_string(),
+    }));
     let _ = tray.set_title(title);
     match menu(app) {
         Ok(menu) => {
@@ -197,6 +209,29 @@ fn copy(text: &str) -> Result<(), String> {
     if text.is_empty() {
         return Err("nothing to copy".into());
     }
+    copy_text(text)
+}
+
+/// Kept for the life of the app: on X11 the clipboard's owner serves its contents, so it must outlive
+/// the copy.
+#[cfg(not(target_os = "macos"))]
+static CLIPBOARD: std::sync::Mutex<Option<arboard::Clipboard>> = Mutex::new(None);
+
+#[cfg(not(target_os = "macos"))]
+fn copy_text(text: &str) -> Result<(), String> {
+    let mut held = CLIPBOARD.lock().map_err(|e| e.to_string())?;
+    if held.is_none() {
+        *held = Some(arboard::Clipboard::new().map_err(|e| e.to_string())?);
+    }
+    held.as_mut()
+        .ok_or("no clipboard")?
+        .set_text(text)
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "macos")]
+fn copy_text(text: &str) -> Result<(), String> {
+    use std::io::Write;
     let mut child = std::process::Command::new("/usr/bin/pbcopy")
         .stdin(std::process::Stdio::piped())
         .spawn()

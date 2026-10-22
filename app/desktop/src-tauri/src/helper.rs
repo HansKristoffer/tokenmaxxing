@@ -3,6 +3,7 @@
 //! reply; `state` and `token` events arrive on their own. If the helper dies it is restarted, with
 //! backoff, and re-sent `init`.
 
+use crate::paths;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -233,36 +234,52 @@ fn spawn() -> std::io::Result<Child> {
 /// app's read positions. Restart the app to pick up TypeScript changes.
 #[cfg(debug_assertions)]
 fn command() -> Command {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let bun = format!("{home}/.bun/bin/bun");
-    let mut cmd = Command::new(if std::path::Path::new(&bun).exists() {
-        bun.as_str()
+    let local = paths::home()
+        .join(".bun")
+        .join("bin")
+        .join(format!("bun{}", std::env::consts::EXE_SUFFIX));
+    let mut cmd = Command::new(if local.exists() {
+        local.into_os_string()
     } else {
-        "bun"
+        "bun".into()
     });
     cmd.arg(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../helper/src/main.ts"
     ))
-    .env(
-        "TOKENMAXXING_STATE_DIR",
-        format!("{home}/Library/Application Support/Tokenmaxxing Dev"),
-    );
+    .env("TOKENMAXXING_STATE_DIR", paths::state_dir());
+    no_window(&mut cmd);
     cmd
 }
 
-/// The compiled helper sits next to the app's own binary (Tauri puts sidecars in Contents/MacOS).
+/// The compiled helper sits next to the app's own binary: Tauri puts sidecars in Contents/MacOS, next to
+/// the .exe on Windows, and in /usr/bin beside the app on Linux (from the .deb; the AppImage likewise).
 #[cfg(not(debug_assertions))]
 fn command() -> Command {
     let exe = std::env::current_exe().expect("the app's own path");
-    Command::new(exe.with_file_name("tokenmaxxing-helper"))
+    let mut cmd = Command::new(exe.with_file_name(format!(
+        "tokenmaxxing-helper{}",
+        std::env::consts::EXE_SUFFIX
+    )));
+    no_window(&mut cmd);
+    cmd
 }
 
-/// The helper's stderr, in ~/Library/Logs/Tokenmaxxing/helper.log.
+/// The helper is a console program: without this, Windows flashes a console window each time it starts.
+#[cfg(windows)]
+fn no_window(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn no_window(_: &mut Command) {}
+
+/// The helper's stderr, in helper.log in the log directory (paths.rs).
 /// ponytail: truncated at 5 MB on start, not rotated; add rotation if it's ever needed.
 fn log_file() -> Stdio {
-    let dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-        .join("Library/Logs/Tokenmaxxing");
+    let dir = paths::log_dir();
     let path = dir.join("helper.log");
     let _ = std::fs::create_dir_all(&dir);
     if std::fs::metadata(&path)

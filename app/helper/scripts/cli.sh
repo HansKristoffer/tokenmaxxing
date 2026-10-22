@@ -12,6 +12,7 @@ targets=(
   "bun-darwin-x64 tokenmaxxing-darwin-x64"
   "bun-linux-arm64 tokenmaxxing-linux-arm64"
   "bun-linux-x64-baseline tokenmaxxing-linux-x64"
+  "bun-windows-x64-baseline tokenmaxxing-windows-x64.exe"
 )
 for t in "${targets[@]}"; do
   read -r target name <<<"$t"
