@@ -19,7 +19,8 @@ export interface Wear {
 const o = C.ink;
 const hat = (pal: Palette, down: string[], side = down, up = down): Wear => ({ down, side, up, pal });
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const HAT_ART: readonly Wear[] = [
   // Tinfoil hat: a crumpled silver cone.
   hat({ o, s: "#c9ced6", W: "#eef2f6", w: "#ffffff", d: "#8d95a3" }, [
@@ -274,7 +275,8 @@ const face = (pal: Palette, y: number, down: string[], side: string[], up?: stri
   pal,
 });
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const FACE_ART: readonly Wear[] = [
   // Hallucination nose: a red clown nose with a shine.
   face({ r: "#e0302e", w: "#ffb3a8" }, 7, [

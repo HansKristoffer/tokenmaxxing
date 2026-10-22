@@ -4,19 +4,18 @@ import { type CollectOptions, collect } from "./collect.ts";
 import { saveState } from "./state.ts";
 
 /** Every source is read unless `enabled` narrows it (tests); `githubAccounts: null` skips GitHub. */
-interface SyncOptions
-  extends Partial<
-    Pick<
-      CollectOptions,
-      | "enabled"
-      | "githubAccounts"
-      | "githubFetch"
-      | "now"
-      | "cursorDbPath"
-      | "cursorFetch"
-      | "cursorCredentials"
-    >
-  > {
+interface SyncOptions extends Partial<
+  Pick<
+    CollectOptions,
+    | "enabled"
+    | "githubAccounts"
+    | "githubFetch"
+    | "now"
+    | "cursorDbPath"
+    | "cursorFetch"
+    | "cursorCredentials"
+  >
+> {
   statePath: string;
   send: (events: TokenEvent[]) => Promise<IngestResponse>;
   onError?: (err: unknown, where: string) => void;

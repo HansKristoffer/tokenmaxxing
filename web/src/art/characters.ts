@@ -20,7 +20,8 @@ import { drawWardrobe, outfitMarks, wardrobeIcon, wardrobePalette } from "./ward
 export type View = "down" | "side" | "up";
 export type Pose = "stand" | "walkA" | "walkB" | "sit";
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const HEADS: Record<View, string[][]> = {
   down: [
     [
@@ -163,7 +164,8 @@ const HEADS: Record<View, string[][]> = {
   ],
 };
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const BODIES: Record<View, Record<Pose, string[]>> = {
   down: {
     stand: [
@@ -282,7 +284,8 @@ const BODIES: Record<View, Record<Pose, string[]>> = {
 };
 
 /** Glasses over the eyes (rows 5–7 of the head); from behind they don't show. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const GLASSES: Record<"down" | "side", string[]>[] = [
   { down: [], side: [] },
   // Nerd specs: round frames, eyes still showing.
@@ -308,7 +311,8 @@ const GLASSES_COLORS: Palette[] = [
 ];
 
 /** Hats over the top of the head, from row 0. `o` outline. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const HATS: Record<View, string[]>[] = [
   { down: [], side: [], up: [] },
   // Beanie with a bobble.
@@ -368,7 +372,8 @@ function wearOn(p: Pen, w: Wear | undefined, view: View, base: Palette, oy = 0, 
 }
 
 /** Server-rack armour (outfit 12): seams and blinking lights over the top of the body. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const RACK: Record<View, string[]> = {
   down: [".....g.y.g......", "....llllllll....", ".....g.g.y......"],
   side: [".......g.y......", ".....llllll.....", "......g........."],

@@ -140,7 +140,8 @@ const MERCHANT_LOOK: Look = {
 };
 
 /** The merchant's own hat: wide, plum, with a gold band and a feather. Not for sale. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const HAT = {
   down: ["...........ff...", ".....oooooofF...", "....oppppppo....", "....oYYYYYYo....", "..oPPPPPPPPPPo.."],
   side: ["......ff........", ".....oFfoooo....", "....oppppppo....", "....oYYYYYYo....", "...oPPPPPPPPPPo."],

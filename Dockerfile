@@ -3,7 +3,7 @@
 # Rivet engine and every actor; the game is bundled by Bun at startup from web/, and the
 # marketing site (site/, Astro) is built here to static files.
 # Keep in step with "packageManager" in package.json.
-ARG BUN_VERSION=1.4.2
+ARG BUN_VERSION=1.4.4
 FROM oven/bun:${BUN_VERSION}-slim
 WORKDIR /app
 

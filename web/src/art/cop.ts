@@ -24,7 +24,8 @@ const PAL: Palette = {
   g: "#f0b53c", // the pencil
 };
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const CAP: Record<View, string[]> = {
   down: [
     "................",
@@ -50,7 +51,8 @@ const CAP: Record<View, string[]> = {
 };
 
 /** Over the body, from row 9: collar and tie, a badge on the chest, the belt and its buckle. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const UNIFORM: Record<View, string[]> = {
   down: [
     "......wnnw......",
@@ -70,7 +72,8 @@ const UNIFORM: Record<View, string[]> = {
 };
 
 /** The notepad held up in front, from row 9; the pencil's tip moves along it (`scribble`). */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const NOTEPAD: Record<"down" | "side", string[]> = {
   down: [
     "........ooooo...",

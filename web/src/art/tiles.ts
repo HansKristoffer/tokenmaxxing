@@ -6,17 +6,7 @@ import { bake, hash, Pen } from "./pixels.ts";
 
 /** What a tile's ground is made of. Objects stand on whatever their neighbours are. */
 type Ground =
-  | "grass"
-  | "path"
-  | "plaza"
-  | "flowers"
-  | "water"
-  | "floor"
-  | "rug"
-  | "wall"
-  | "exit"
-  | "stone"
-  | "dais";
+  "grass" | "path" | "plaza" | "flowers" | "water" | "floor" | "rug" | "wall" | "exit" | "stone" | "dais";
 
 const GROUND: Record<string, Ground> = {
   ".": "grass",

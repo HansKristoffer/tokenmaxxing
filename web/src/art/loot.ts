@@ -14,7 +14,8 @@ import { bake, once, type Palette, perObject } from "./pixels.ts";
  */
 
 /** Hats from `LOOT_FIRST.hat` on (after the head pack), from row 0 of the head. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const LOOT_HATS: { rows: Record<View, string[]>; pal: Palette }[] = [
   // Hourglass hat: a little hourglass on a wooden brim.
   {
@@ -55,7 +56,8 @@ export const LOOT_HATS: { rows: Record<View, string[]>; pal: Palette }[] = [
 ];
 
 /** Glasses from `LOOT_FIRST.glasses` on (after the head pack), over rows 5–7 of the head. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const LOOT_GLASSES: { rows: Record<"down" | "side", string[]>; pal: Palette }[] = [
   // 429 shades: red lenses, a glint, too many requests.
   {
@@ -84,7 +86,8 @@ export const LOOT_GLASSES: { rows: Record<"down" | "side", string[]>; pal: Palet
 ];
 
 /** Outfits from `LOOT_FIRST.outfit` on (after the wardrobe): [main, shade], trousers, and what goes over the body (from row 9, like the rack armour). */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const LOOT_OUTFITS: { colors: [string, string]; pants: string; over: Record<View, string[]>; pal: Palette }[] = [
   // Compacting… scarf: a cream jumper and a striped scarf, its end hanging.
   {
@@ -122,7 +125,8 @@ export const LOOT_OUTFITS: { colors: [string, string]; pants: string; over: Reco
 ];
 
 /** Pets 7–10: 12×10, facing right, two frames to hop. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const LOOT_PETS: { frames: [string[], string[]]; pal: Palette }[] = [
   // Sand golem: a block of every second you waited, eyes glowing.
   {

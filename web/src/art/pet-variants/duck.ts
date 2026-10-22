@@ -5,7 +5,8 @@ import { line, type PetVariant, swap } from "./types.ts";
 const BASE = PETS[1]!;
 
 /** Colour swaps of the duck. Shapes are in shapes.ts. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 export const DUCK_SWAPS: PetVariant[] = [
   {
     id: "mallard",

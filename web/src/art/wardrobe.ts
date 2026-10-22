@@ -26,7 +26,8 @@ interface Outfit {
   pal: Palette;
 }
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const OUTFITS: Record<number, Outfit> = {
   // Hoodie of infinite context: a glowing ∞ on the chest, the hood down the back.
   13: {
@@ -180,7 +181,8 @@ interface Held {
   pal: Palette;
 }
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const HELD: (Held | null)[] = [
   null,
   // Coffee mug, steaming.
@@ -264,7 +266,8 @@ interface Back {
 }
 
 // Rows are full 16×16 frames, top row first; `.` is nothing.
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const BACKS: (Back | null)[] = [
   null,
   // Cape: red with a gold clasp at each shoulder, swaying when walking.
@@ -700,7 +703,8 @@ interface PetWear {
   pal: Palette;
 }
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const PETWEAR: (PetWear | null)[] = [
   null,
   { at: "neck", rows: ["rrrr", ".rR."], pal: { r: "#d23c3c", R: "#962626" } },

@@ -11,7 +11,8 @@ interface BossArt {
   pal: Palette;
 }
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const ART: Record<string, BossArt> = {
   // An hourglass with a grudge.
   "rate-limit": {
@@ -149,7 +150,8 @@ export const bossSilhouette = cached(
 );
 
 /** The town's trophy, on the dais by a fallen boss. */
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const TROPHY = [
   ".oooooooooo.",
   "oyyyyyyyyyyo",

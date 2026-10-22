@@ -20,7 +20,8 @@ interface Art {
 
 const o = C.ink;
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const HATS: Record<string, Art> = {
   // Prompt wizard hat: a starry cone, bent at the tip, on a wide brim.
   "hat.100": {
@@ -103,7 +104,8 @@ const HATS: Record<string, Art> = {
   },
 };
 
-// biome-ignore format: pixel art reads as a grid
+// Pixel art reads as a grid.
+// prettier-ignore
 const GLASSES: Record<string, Art> = {
   // VR visor: one dark slab with a glint, strapped round the back.
   "glasses.100": {

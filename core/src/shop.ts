@@ -90,42 +90,36 @@ export const ITEMS: readonly Item[] = [
   // Sold only off the traveling merchant's cart (`merchant.ts`).
   ...EDITIONS,
   ...WARDROBE,
-  ...FURNITURE.map(
-    (f, index): Item => ({
-      id: `furn.${f.ch}`,
-      slot: "furniture",
-      index,
-      name: f.name,
-      price: f.price,
-      tradeable: !f.earned,
-      ...(f.earned && { earned: f.earned }),
-    }),
-  ),
+  ...FURNITURE.map((f, index): Item => ({
+    id: `furn.${f.ch}`,
+    slot: "furniture",
+    index,
+    name: f.name,
+    price: f.price,
+    tradeable: !f.earned,
+    ...(f.earned && { earned: f.earned }),
+  })),
   // Raid loot: dropped by the bosses, never sold, and tradeable.
-  ...LOOT.map(
-    (l): Item => ({
-      id: l.id,
-      slot: l.slot,
-      index: l.index,
-      name: l.name,
-      price: 0,
-      tradeable: true,
-      rarity: l.rarity,
-      blurb: l.blurb,
-      loot: { boss: l.boss, rarity: l.rarity },
-    }),
-  ),
-  ...COMPANY_FURNITURE.map(
-    (f, index): Item => ({
-      id: `furn.${f.ch}`,
-      slot: "furniture",
-      index,
-      name: f.name,
-      price: f.price,
-      tradeable: false,
-      company: true,
-    }),
-  ),
+  ...LOOT.map((l): Item => ({
+    id: l.id,
+    slot: l.slot,
+    index: l.index,
+    name: l.name,
+    price: 0,
+    tradeable: true,
+    rarity: l.rarity,
+    blurb: l.blurb,
+    loot: { boss: l.boss, rarity: l.rarity },
+  })),
+  ...COMPANY_FURNITURE.map((f, index): Item => ({
+    id: `furn.${f.ch}`,
+    slot: "furniture",
+    index,
+    name: f.name,
+    price: f.price,
+    tradeable: false,
+    company: true,
+  })),
 ];
 
 /** The level items `level` has earned. */
