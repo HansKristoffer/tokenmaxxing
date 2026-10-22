@@ -2248,7 +2248,7 @@ button.lb-item:hover {
   border-color: var(--good);
 }
 
-/* Player card v2: bio, showcase shelf, heatmap and "how they work". */
+/* Player card v2: bio, showcase shelf and "how they work". */
 .bio {
   margin: 2px 0;
 }
@@ -2327,55 +2327,6 @@ button.lb-item:hover {
   right: 4px;
   font-weight: 700;
   color: var(--accent);
-}
-.heatmap {
-  position: relative;
-  margin: 10px 0;
-}
-.heatmap li:focus-visible {
-  outline: 1px solid var(--accent);
-}
-.heat-tip {
-  position: absolute;
-  z-index: 1;
-  width: max-content;
-  padding: 3px 7px;
-  border-radius: 6px;
-  background: var(--panel-solid);
-  border: 1px solid var(--line);
-  font-size: 11px;
-  white-space: nowrap;
-  pointer-events: none;
-  transform: translateY(calc(-100% - 4px));
-}
-.heatmap ul {
-  display: grid;
-  grid-template-rows: repeat(7, 12px);
-  grid-auto-flow: column;
-  grid-auto-columns: 12px;
-  gap: 3px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.heatmap li {
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.07);
-}
-.heatmap li.heat-blank {
-  background: none;
-}
-.heatmap li.heat-1 {
-  background: rgba(255, 211, 92, 0.3);
-}
-.heatmap li.heat-2 {
-  background: rgba(255, 211, 92, 0.52);
-}
-.heatmap li.heat-3 {
-  background: rgba(255, 211, 92, 0.76);
-}
-.heatmap li.heat-4 {
-  background: var(--accent);
 }
 .how h3 {
   margin: 10px 0 4px;

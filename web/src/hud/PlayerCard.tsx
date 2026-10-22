@@ -31,7 +31,6 @@ import { conn, town } from "../net.ts";
 import { hud } from "../store.ts";
 import { Computers } from "./Computers.tsx";
 import { dayText, ranges } from "./format.ts";
-import { Heatmap } from "./Heatmap.tsx";
 import { daysAgoText, sourceName } from "./heat.ts";
 import { Shelf, ShelfPicker } from "./Showcase.tsx";
 import { Tickets } from "./Tickets.tsx";
@@ -227,7 +226,6 @@ export function PlayerCard({ userId }: { userId: number }) {
       ) : (
         <Shelf pins={shelf ?? p.showcase ?? []} mine={mine} onEdit={() => setPicking(true)} />
       )}
-      <Heatmap daily={p.daily} />
       <HowYouWork p={p} />
       <Pills value={range} options={RANGES} onChange={setRange} />
       <StatsGrid totals={t} />
