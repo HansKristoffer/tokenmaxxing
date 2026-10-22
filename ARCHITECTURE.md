@@ -66,7 +66,7 @@ The game also runs in any browser; the app's window is that same page, at `/play
 - A browser can still be signed in with `/#code=…`: the page redeems the code and removes it from the URL.
 - The app forgets its token when the server rejects it and goes back to picking a name.
 - There's no web sign-up: in a browser, without a session the page says to open the world from the app.
-- **Linked computers** (a second machine running agents; see `WORKHORSE.md`). The app mints a link code
+- **Linked computers** (a second machine running agents; see below). The app mints a link code
   (`mintLinkCode`, 10 minutes, single use); the other computer trades it for its own token
   (`redeemLinkCode`). That token only syncs: it can `ingest` and read `town.today` and `arcade.battle`
   (`requireSyncer`), and `requireUser` refuses it everywhere else. The player lists them (`devices`) and
@@ -121,7 +121,7 @@ The game also runs in any browser; the app's window is that same page, at `/play
 
 ## Linked computers
 
-A second computer running agents syncs into the same player (`WORKHORSE.md`).
+A second computer running agents syncs into the same player.
 
 - **The CLI** (`app/helper/src/cli.ts`) wraps the same `Helper` as the app: `link`, `run`, `sync`, `status`,
   `logs`, `unlink`. Its token and read positions are in `~/Library/Application Support/Tokenmaxxing CLI/` or
@@ -515,6 +515,7 @@ These are deliberate, and marked `ponytail:` in the code:
 
 `bun run check` runs typecheck, lint and every test. `bun run test` runs the files in parallel; plain `bun test`
 runs them in one process. Actor tests start a real server in a subprocess per test process, with its own engine,
-free ports and data directory (`server/test/rivet.ts`), so they use the production code paths. CI turns on quick
-ACKs for loopback, which takes most of the remaining wait out of each actor call (see `RIVET__GUARD__TCP_NODELAY`). Map, step,
-rest-spot and coin rules are pure and tested in `core/test/`.
+free ports and data directory (`server/test/rivet.ts`), so they use the production code paths. CI runs one
+worker per vCPU, since more starve the engines, and turns on quick ACKs for loopback, which takes most of the
+remaining wait out of each actor call (see `RIVET__GUARD__TCP_NODELAY`). Map, step, rest-spot and coin rules are
+pure and tested in `core/test/`.

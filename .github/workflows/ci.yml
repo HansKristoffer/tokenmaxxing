@@ -27,7 +27,11 @@ jobs:
           sudo ip route change local 127.0.0.0/8 dev lo proto kernel scope host src 127.0.0.1 quickack 1 &&
           sudo ip route change local 127.0.0.1 dev lo proto kernel scope host src 127.0.0.1 quickack 1 ||
           echo "::warning::couldn't turn on quick ACKs on loopback; the tests will be slower"
-      - run: bun run check
+      - run: bun run typecheck
+      - run: bun run lint
+      # `bun run test`'s 12 workers each start a server and an engine. On the runner's 4 vCPUs that
+      # starves the engines until creating an actor times out, so one worker per vCPU here.
+      - run: bun test --timeout 60000 --parallel=4
 
   desktop:
     runs-on: macos-15
