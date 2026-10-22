@@ -1,22 +1,16 @@
 import "./quiet.ts";
 import { existsSync } from "node:fs";
 import { chmod, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { homedir, hostname } from "node:os";
+import { hostname } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import type { Message } from "@tokenmaxxing/core/protocol.ts";
 import { getErrorMessage } from "hanzio";
 import pkg from "../../../package.json" with { type: "json" };
-import { APP_STATE_FILE, appStateDir, clientFor, errorCode, Helper } from "./helper.ts";
-import {
-  configHome,
-  installService,
-  logsCommand,
-  runCommand,
-  serviceRunning,
-  uninstallService,
-} from "./service.ts";
+import { APP_STATE_FILE, clientFor, errorCode, Helper } from "./helper.ts";
+import { appStateDir, cliConfigDir } from "./paths.ts";
+import { installService, logsCommand, runCommand, serviceRunning, uninstallService } from "./service.ts";
 
 /**
  * `tokenmaxxing`: sync a second computer's usage into your account (ARCHITECTURE.md, "Linked computers"). The app on your
@@ -47,11 +41,7 @@ interface Config {
 /** Exits with `message` on stderr. */
 class Fail extends Error {}
 
-const configDir = (): string =>
-  process.env.TOKENMAXXING_CLI_DIR ||
-  (process.platform === "darwin"
-    ? join(homedir(), "Library", "Application Support", "Tokenmaxxing CLI")
-    : join(configHome(), "tokenmaxxing"));
+const configDir = (): string => cliConfigDir();
 
 const configPath = () => join(configDir(), "config.json");
 const statePath = () => join(configDir(), "state.json");
@@ -126,8 +116,8 @@ async function link(code: string | undefined, opts: { name?: string; server?: st
   if (!server) throw new Fail("Which server? Pass --server <url>, or use the install command from the app.");
   const existing = await loadConfig();
   if (existing) throw new Fail(`Already linked as "${existing.name}". Run tokenmaxxing unlink first.`);
-  if (process.platform === "darwin" && existsSync(appStatePath()))
-    throw new Fail("The Tokenmaxxing app already sends this Mac's usage, so there's nothing to link.");
+  if (existsSync(appStatePath()))
+    throw new Fail("The Tokenmaxxing app already sends this computer's usage, so there's nothing to link.");
 
   const name = (opts.name ?? hostname().replace(/\.local$/, "")).trim();
   const linked = await clientFor(server)
@@ -157,10 +147,11 @@ async function link(code: string | undefined, opts: { name?: string; server?: st
     if (s.note) console.log(s.note);
   } else {
     console.log(`Couldn't set up the background service (${s.why}). Keep it running with:`);
+    const words = runCommand().map((w) => JSON.stringify(w));
     console.log(
-      `  nohup ${runCommand()
-        .map((w) => JSON.stringify(w))
-        .join(" ")} >> ~/tokenmaxxing.log 2>&1 &`,
+      process.platform === "win32"
+        ? `  Start-Process -WindowStyle Hidden ${words[0]} -ArgumentList ${words.slice(1).join(",")}`
+        : `  nohup ${words.join(" ")} >> ~/tokenmaxxing.log 2>&1 &`,
     );
   }
 }

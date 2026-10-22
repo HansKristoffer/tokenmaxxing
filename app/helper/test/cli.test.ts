@@ -30,6 +30,11 @@ afterEach(() => rm(dir, { recursive: true, force: true }));
 const env = () => ({
   ...process.env,
   HOME: join(dir, "home"),
+  USERPROFILE: join(dir, "home"),
+  APPDATA: join(dir, "appdata"),
+  LOCALAPPDATA: join(dir, "localappdata"),
+  XDG_STATE_HOME: join(dir, "state"),
+  XDG_CONFIG_HOME: join(dir, "config"),
   TOKENMAXXING_CLI_DIR: join(dir, "cli"),
   CLAUDE_CONFIG_DIR: join(dir, "claude"),
   CODEX_HOME: join(dir, "codex"),

@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import type { Command, Message } from "@tokenmaxxing/core/protocol.ts";
 import { safeJsonParse } from "hanzio";
-import { APP_STATE_FILE, appStateDir, Helper } from "./helper.ts";
+import { APP_STATE_FILE, Helper } from "./helper.ts";
+import { appStateDir } from "./paths.ts";
 
 const stateDir = process.env.TOKENMAXXING_STATE_DIR ?? appStateDir();
 const statePath = join(stateDir, APP_STATE_FILE);

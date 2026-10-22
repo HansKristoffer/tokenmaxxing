@@ -1,6 +1,4 @@
 import { rm } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import type { AppState, Command, LinkComputer, Message } from "@tokenmaxxing/core/protocol.ts";
 import type { CollectOptions } from "@tokenmaxxing/core/sync/collect.ts";
 import { emptyState, loadState } from "@tokenmaxxing/core/sync/state.ts";
@@ -15,8 +13,7 @@ const SYNC_INTERVAL_MS = 2 * 60_000;
 /** During a Tokenmaxxing battle, so the scoreboard moves while you burn. */
 const BATTLE_SYNC_MS = 10_000;
 
-/** Where the desktop app keeps its sync state, unless `TOKENMAXXING_STATE_DIR` says (`main.ts`). */
-export const appStateDir = (): string => join(homedir(), "Library", "Application Support", "Tokenmaxxing");
+/** The desktop app's sync state is in `appStateDir()` (paths.ts), unless `TOKENMAXXING_STATE_DIR` says (`main.ts`). */
 /** v2: the world started from a fresh server, so every Mac re-reads its full history into it. */
 export const APP_STATE_FILE = "state.v2.json";
 
