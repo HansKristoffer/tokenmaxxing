@@ -5,6 +5,7 @@ import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
   type ChatLine,
   type CompanyInfo,
+  commonOfRoom,
   companyOfRoom,
   type Drop,
   defaultLook,
@@ -178,6 +179,11 @@ export function roomName(room: RoomId): string {
   if (room === "upstairs") return "Upstairs";
   if (room === "basement") return "The Basement";
   if (room === "dungeon") return "Raid Dungeon";
+  const common = commonOfRoom(room);
+  if (common !== null) {
+    const name = world.companies.get(common)?.name;
+    return name ? `${name}'s common room` : "Common room";
+  }
   if (ownerOfOffice(room) !== null)
     return room === world.room && world.owner ? `${world.owner.name}'s office` : "An office";
   const company = world.companies.get(Number(room.slice(3)));

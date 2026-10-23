@@ -44,6 +44,9 @@ const GROUND: Record<string, Ground> = {
   q: "stone",
   Z: "dais",
   e: "stage",
+  // The common room's windows and wall of wins hang in the wall's face.
+  Ψ: "wall",
+  Θ: "wall",
 };
 
 /** The dungeon's stone: darker than the square's, and lit by its torches. */
@@ -83,7 +86,7 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
   return typedSwitch(map.id, {
     town: () => "grass",
     dungeon: () => "stone",
-    ...typedSwitchGroup(map.id, ["hq", "inn", "upstairs", "basement", "office"], (): Ground => "floor"),
+    ...typedSwitchGroup(map.id, ["hq", "common", "inn", "upstairs", "basement", "office"], (): Ground => "floor"),
   });
 }
 
@@ -303,7 +306,7 @@ function dais(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
 function rug(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
   p.rect(ox, oy, TILE, TILE, C.rug);
   const edge = (dx: number, dy: number) =>
-    map.at(x + dx, y + dy) !== "=" && map.at(x + dx, y + dy) !== "t" && map.at(x + dx, y + dy) !== "s";
+    !"=tsμΩ".includes(map.at(x + dx, y + dy));
   if (edge(0, -1)) p.rect(ox, oy, TILE, 2, C.rugDark);
   if (edge(0, 1)) p.rect(ox, oy + TILE - 2, TILE, 2, C.rugDark);
   if (edge(-1, 0)) p.rect(ox, oy, 2, TILE, C.rugDark);
@@ -335,7 +338,7 @@ function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
   const topLight = dark ? DUNGEON.wallTopLight : C.wallTopLight;
   // The office door is in the wall's face, so the wall above it stays a wall top.
   const below = map.at(x, y + 1);
-  const face = !"WR".includes(below) && !isPoster(below) && map.contains(x, y + 1);
+  const face = !"WRΨΘ".includes(below) && !isPoster(below) && map.contains(x, y + 1);
   if (!face) {
     p.rect(ox, oy, TILE, TILE, top);
     if (hash(x, y, 5) < 0.3) p.rect(ox + 3, oy + 6, 6, 1, topLight);
@@ -443,8 +446,8 @@ const WALL_ART: Record<string, (p: Pen, ox: number, oy: number, x: number, y: nu
 
 function exit(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
   // The basement's way out is the stairs up, not a doormat; upstairs it is the stairs down.
-  if (map.id === "basement" || map.id === "upstairs") {
-    stairTile(p, ox, oy, x, y, map.id === "upstairs");
+  if (map.id === "basement" || map.id === "upstairs" || map.id === "common") {
+    stairTile(p, ox, oy, x, y, map.id !== "basement");
     return;
   }
   if (map.id === "dungeon") stone(p, ox, oy, x, y);

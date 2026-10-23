@@ -664,6 +664,31 @@ climbs it together (`core/src/raid.ts`).
   - `RAID_LOOT_BOOST` (dev and testing only, 1 to 1000, checked at boot) multiplies every drop's odds so
     rare ones can be seen without luck. The panel says when it's on.
 
+## The common room
+
+The company house has a second floor: `MAPS.common`, 24x14, room `common:<companyId>` ("Acme's common room"). It is a cosy
+lounge, additive and cosmetic: nothing in it pays, buffs or counts burn. One fixed size (house tiers only change the
+building's outside art, not its map).
+
+- **Stairs.** `u` (stairs up) is in the house's bottom wall at (3, 13); the common room's one exit `x` (stairs down, drawn like the
+  basement's) is at (11, 13). `portal` sends `hq:N` + `u` to `roomEntry("common:N")` for members only (anyone else gets
+  "The common room is for members only"), and the exit back to `roomEntry("hq:N", "u")`, just in front of the stairs, facing in.
+- **Room ids.** `commonOfRoom` reads `common:<id>`; `memberRoomOf` is the company of a house or a common room. `companyOfRoom` stays
+  houses only (it feeds the doors, the `houses` peek from town and the desk fleets). Presence and chat are the room's own
+  (`chat.room = 'common:<id>'`), so they stay inside the company; ids are never reused. Changing company or closing one moves you out
+  (`setPlayer`, `canReturn`), and `removeCompany` lifts the common room's pieces too.
+- **Layout.** Windows (`Ψ`) and the wall of wins (`Θ`, one letter of WINS per tile) hang in the top wall; a kitchenette (`ψ` fridge, `π`
+  counters, `α` espresso bar and `o` coffee machine, both pour, stools `v`); a stand-up stage (`e`, with a `ξ` whiteboard); the TV lounge
+  (rug, `tt`, `μ` armchairs, `Ω` coffee table, a six-tile `s` sofa); `ε` beanbags; `θ` ping-pong and `φ` foosball; a `Q` pet bed corner.
+  Seats are ordinary `seat` legend tiles, so E sits you right: sofas, armchairs and beanbags face down, stools face up.
+- **Furniture.** Company pieces bought from the wallet go down in the common room as in the house (`placeDrop` accepts
+  `hq:<co>` and `common:<co>`; drops are keyed by room string, each room with its own `OFFICE_PIECES` cap). Posters need the house's
+  wall (`canHang`), so they stay downstairs.
+- **For other renderers.** `core/src/common.ts`: `commonRoom(id)`, `COMMON_ZONES`, `commonSeats()` (position, tile, kind, facing),
+  `commonWindows()`, `wallOfWins()`, `commonStairs()`, `houseStairs()`. The 2D art is `web/src/art/common.ts`.
+- Left out on purpose: a mood board showing the company's posters and merch (the room's snapshot has no house drops), and a night sky
+  in the windows (they are a fixed daytime sky).
+
 ## Offices v2
 
 - **Sizes** go by the owner's level (`OFFICE_SIZES`): 12x9 from level 10, 14x10 at 25, 16x12 at 40
