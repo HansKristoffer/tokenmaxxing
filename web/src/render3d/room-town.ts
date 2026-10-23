@@ -3,6 +3,7 @@ import { dropPropsNight, setPropsNight } from "../demo3d/props.ts";
 import { buildTown3d, type Town3d } from "../demo3d/town3d.ts";
 import { disposeObject } from "./dispose.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "./rooms.ts";
+import { TownEvents } from "./town-events.ts";
 
 /** The picture height the town starts at: the square and a few houses. */
 const TOWN_VIEW = 12;
@@ -17,6 +18,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const town: Town3d = built.value;
   town.setClock(ctx.minutes);
   const [W, D] = town.size;
+  const events = new TownEvents((tx, ty) => town.toWorld(tx, ty));
   const group = new THREE.Group();
   group.add(town.group);
   const signs = (): Sign[] =>
@@ -40,9 +42,13 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     tick(t) {
       for (const f of built.ticks) f(t);
     },
+    extras: events.group,
+    frame: (f) => events.update(f),
+    onToss: (tx, ty) => events.toss(tx, ty),
     signs,
     night: (on) => setPropsNight(on),
     dispose() {
+      events.dispose();
       dropPropsNight(group);
       group.removeFromParent();
       disposeObject(group);

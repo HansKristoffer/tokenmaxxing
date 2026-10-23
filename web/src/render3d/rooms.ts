@@ -3,6 +3,7 @@ import type { CompanyInfo, RoomId } from "@tokenmaxxing/core/world.ts";
 import type * as THREE from "three";
 import { ticks } from "../demo3d/kit.ts";
 import type { ShopRoom } from "../demo3d/shops/index.ts";
+import type { Overlay } from "./overlay.ts";
 import type { Bounds } from "./rig.ts";
 
 /** A label fixed to a place in a room: a company's sign, the Tavern's, a door's name. */
@@ -15,6 +16,21 @@ export interface Sign {
   text?: string;
   /** The viewer's own (a door to their office): drawn as a light sign, like the 2D game's. */
   own?: boolean;
+}
+
+/** What a room's `frame` hook is given once a frame: the clock, the camera and where you stand. */
+export interface LiveFrame {
+  /** The frame's time in ms (the animation clock) and in seconds. */
+  now: number;
+  t: number;
+  /** Seconds since the last frame. */
+  dt: number;
+  camera: THREE.OrthographicCamera;
+  overlay: Overlay;
+  /** Where the local player is drawn (world x, z), if they are in the room. */
+  me: [number, number] | null;
+  /** Reduce motion. */
+  calm: boolean;
 }
 
 /** What a room needs to know to be drawn. */
@@ -46,6 +62,12 @@ export interface RoomView {
   seatY(tx: number, ty: number, kind: string): number;
   /** Once a frame: the clock `t` (s), `dt` (s) and the direction from the room to the camera. */
   tick(t: number, dt: number, toward: THREE.Vector3): void;
+  /** Once a frame, after the people are placed: the real game's events in the room (the merchant, the picnic, the tip jar...). */
+  frame?(f: LiveFrame): void;
+  /** Things drawn over the room that change as the game does (the street's events): added to the scene beside it, never batched. */
+  readonly extras?: THREE.Object3D;
+  /** A toss landed in the tip jar or fountain in front of this tile (the server said so). */
+  onToss?(tx: number, ty: number): void;
   /** Signs in the room, for the label layer. */
   signs(): Sign[];
   /** Bots whose bodies the room draws itself (the barkeep, a shopkeeper): the people layer leaves those bodies out. */

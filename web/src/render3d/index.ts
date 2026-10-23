@@ -131,6 +131,7 @@ class Renderer3D implements Renderer {
       rotate: (step) => this.rig.rotate(step),
       key: (dir) => keyDirection(dir as never, this.rig.turns) as never,
       shop: (_shop, x, y) => this.openShelf(x, y),
+      toss: (x, y) => this.stage?.view.onToss?.(x, y),
     };
     Object.assign(viewHooks, this.hooks3d);
     this.shops = installShops(this.shopWorld);
@@ -300,6 +301,7 @@ class Renderer3D implements Renderer {
       this.entities.update(now, dt, view, camera);
       this.signs.update(view, camera);
       this.drops.update(view, t);
+      view.frame?.({ now, t, dt: dt / 1000, camera, overlay: this.overlay, me, calm });
     } catch (e) {
       // A bad look or label shouldn't take the whole picture down; say so once in a while.
       if (this.errored++ % 300 === 0) console.error("3D entities:", e);
@@ -350,6 +352,7 @@ class Renderer3D implements Renderer {
 
   setQuality(s: GraphicsSettings): void {
     this.settings = s;
+    this.entities.calm = s.reduceMotion;
     applyGraphics(this.pipe, s);
     // Medium builds lean rooms (plain boxes, fewer segments); a change of tier rebuilds what is built.
     const detail = s.tier === "medium" ? 0 : 1;
@@ -634,6 +637,7 @@ class Renderer3D implements Renderer {
       delete viewHooks.rotate;
       delete viewHooks.key;
       delete viewHooks.shop;
+      delete viewHooks.toss;
     }
     this.placer.cancel();
     this.shops?.dispose();

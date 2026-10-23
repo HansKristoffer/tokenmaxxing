@@ -461,7 +461,7 @@ const NOTE_TEX = ["♪", "♫"].map((glyph) =>
 );
 
 /** `♪` and `♫` rising from the stage, each on its own slow loop, once the lights are on (or `forced`). */
-function driftingNotes(m: Model, w: number, d: number, count = 7): void {
+function driftingNotes(m: Model, w: number, d: number, count = 7, on: () => boolean = isLit): void {
   const rnd = seeded(33);
   const notes = Array.from({ length: count }, (_, i) => {
     const mat = new THREE.MeshBasicMaterial({
@@ -477,7 +477,7 @@ function driftingNotes(m: Model, w: number, d: number, count = 7): void {
   });
   let amount = 0;
   ticks.push((time) => {
-    amount += ((isLit() ? 1 : 0) - amount) * 0.05;
+    amount += ((on() ? 1 : 0) - amount) * 0.05;
     for (const [i, n] of notes.entries()) {
       const t = (time / 3.2 + n.phase) % 1;
       n.s.position.set(n.x + Math.sin(t * 6 + i) * 0.15, 0.7 + t * 1.5, n.z);
@@ -651,6 +651,7 @@ const jukebox = (): Model => {
     0.9,
     0.6,
     3,
+    () => m.playing,
   );
   return m;
 };
