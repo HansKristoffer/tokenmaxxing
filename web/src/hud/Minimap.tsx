@@ -1,11 +1,12 @@
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { mapOf } from "@tokenmaxxing/core/world.ts";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { C } from "../art/palette.ts";
-import { zoom } from "../game/camera.ts";
+import { viewHooks, zoom } from "../game/camera.ts";
 import { buildings, companyOnPlot } from "../game/houses.ts";
 import { walkTo } from "../game/input.ts";
 import { roomName, world } from "../game/world.ts";
+import { graphics } from "../settings/graphics.ts";
 import { useHud } from "../store.ts";
 
 /** Widest the map may be, in CSS pixels; each tile gets a whole number of pixels. */
@@ -83,6 +84,8 @@ export function Minimap() {
   const room = useHud((s) => s.room);
   const myCompany = useHud((s) => s.me?.company?.id);
   useHud((s) => s.companies); // the town grows with them
+  // Turning the view is the 3D renderer's.
+  const turnable = useSyncExternalStore(graphics.subscribe, () => graphics.effective().renderer === "3d");
   const map = mapOf(room);
   const scale = Math.max(1, Math.floor(MAX_WIDTH / map.width));
 
@@ -126,6 +129,26 @@ export function Minimap() {
       <header>
         <span>🗺 {roomName(room)}</span>
         <span className="zoom">
+          {turnable && (
+            <>
+              <button
+                type="button"
+                aria-label="Turn the view left"
+                title="Turn the view left (Q)"
+                onClick={() => viewHooks.rotate?.(-1)}
+              >
+                ⟲
+              </button>
+              <button
+                type="button"
+                aria-label="Turn the view right"
+                title="Turn the view right (R)"
+                onClick={() => viewHooks.rotate?.(1)}
+              >
+                ⟳
+              </button>
+            </>
+          )}
           <button type="button" aria-label="Zoom out" title="Zoom out (−)" onClick={() => zoom(-1)}>
             −
           </button>

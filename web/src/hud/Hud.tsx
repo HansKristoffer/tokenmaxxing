@@ -120,6 +120,8 @@ function Hints() {
         <dd>Menu</dd>
         <dt>+ −</dt>
         <dd>Zoom</dd>
+        <dt>Q R</dt>
+        <dd>Turn the view (3D)</dd>
       </dl>
     </div>
   );

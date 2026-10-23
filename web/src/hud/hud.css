@@ -27,6 +27,8 @@ body {
 }
 
 #stage > canvas {
+  /* Fingers on the world are the game's (tap to walk, pinch to zoom), not the page's. */
+  touch-action: none;
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -851,7 +853,20 @@ textarea:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 6px;
   font-size: 12px;
+}
+
+/* A long room name (a company's common room) gives way to the buttons instead of widening the map. */
+.minimap {
+  width: min-content;
+}
+
+.minimap header > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .minimap .zoom {

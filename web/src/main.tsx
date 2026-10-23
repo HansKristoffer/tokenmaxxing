@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { bindInput, updateSelf } from "./game/input.ts";
 import { exposeForQa } from "./game/qa.ts";
 import { startStage } from "./game/stage.ts";
+import { bindTouch } from "./game/touch.ts";
 import { advanceRemotes, world } from "./game/world.ts";
 import { tauri } from "./hud/AppUpdate.tsx";
 import { Hud } from "./hud/Hud.tsx";
@@ -26,6 +27,7 @@ const token = await signIn();
 if (token) {
   connect(token);
   bindInput(stage);
+  bindTouch(stage);
   startStage(stage, (now) => {
     if (!world.selfId) return false;
     updateSelf(now);
