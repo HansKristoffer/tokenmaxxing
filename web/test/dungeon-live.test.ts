@@ -1,6 +1,6 @@
 import { beforeAll, expect, test } from "bun:test";
-import { bossAt } from "@tokenmaxxing/core/raid.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
+import { bossAt } from "@tokenmaxxing/core/raid.ts";
 
 // A canvas that draws nothing: enough for the kit's painted textures to be "built" without a browser.
 const pixels = () => ({ data: new Uint8ClampedArray(1 << 22), width: 1024, height: 1024 });
@@ -146,7 +146,7 @@ test("when the week is over nobody fires, and before the first raid the room is 
   let missiles = 0;
   l.group.traverse((o) => {
     const m = o as import("three").InstancedMesh;
-    if (m.isInstancedMesh && m.userData.nobatch && m.count > 0 && m.material instanceof THREE.MeshBasicMaterial && m.geometry.parameters?.width === 0.08) missiles++;
+    if (m.isInstancedMesh && m.userData.nobatch && m.count > 0 && m.material instanceof THREE.MeshBasicMaterial && (m.geometry as { parameters?: { width?: number } }).parameters?.width === 0.08) missiles++;
   });
   expect(missiles).toBe(0);
   l.dispose();

@@ -45,10 +45,10 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     toWorld: (tx, ty) => town.toWorld(tx, ty),
     toTile: (x, z) => town.toTile(x, z),
     seatY: (_x, _y, kind) => (kind === "bench" ? 0.3 : 0.32),
-    tick(t) {
+    tick(t, _dt, toward) {
       for (const f of built.ticks) f(t);
       gateLive?.update(t);
-      games.update(t);
+      games.update(t, toward);
     },
     signs,
     liveSigns: () => [...(gateLive?.signs() ?? []), ...games.signs()],

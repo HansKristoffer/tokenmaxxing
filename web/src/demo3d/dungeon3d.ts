@@ -175,6 +175,7 @@ export class BossActor {
   private banner: string | null = null;
   private taunts: readonly string[] | null = null;
   private quiet = false;
+  private bar = true;
   private veil: THREE.Mesh | null = null;
   hp = 1;
   maxHp = 1;
@@ -236,14 +237,15 @@ export class BossActor {
    * The real raid's state, for the plate: its name and rung, HP, the line that replaces the title when the week is
    * over, and its own taunts. Nothing floats and nothing flashes; `flinch` is a hit.
    */
-  setInfo(o: { name: string; emoji: string; rung: number; hp: number; maxHp: number; banner?: string | null; taunts?: readonly string[] }): void {
+  setInfo(o: { name: string; emoji: string; rung: number; hp: number; maxHp: number; banner?: string | null; taunts?: readonly string[]; bar?: boolean }): void {
     const same =
-      this.info?.name === o.name && this.info.emoji === o.emoji && this.rung === o.rung && this.hp === o.hp && this.maxHp === o.maxHp && this.banner === (o.banner ?? null);
+      this.info?.name === o.name && this.info.emoji === o.emoji && this.rung === o.rung && this.hp === o.hp && this.maxHp === o.maxHp && this.banner === (o.banner ?? null) && this.bar === (o.bar ?? true);
     this.info = { name: o.name, emoji: o.emoji };
     this.rung = o.rung;
     this.hp = o.hp;
     this.maxHp = o.maxHp;
     this.banner = o.banner ?? null;
+    this.bar = o.bar ?? true;
     this.taunts = o.taunts ?? null;
     if (!same) this.draw();
   }
@@ -373,14 +375,16 @@ export class BossActor {
       22,
       W - 16,
     );
-    g.fillStyle = "#5b1f1a";
-    g.fillRect(16, 44, W - 32, 18);
-    const share = fell ? 0 : this.share;
-    g.fillStyle = hpColour(share);
-    g.fillRect(16, 44, Math.max(0, (W - 32) * share), 18);
-    g.font = "700 15px system-ui, sans-serif";
-    g.fillStyle = "#ffffff";
-    g.fillText(fell ? "0 HP" : `${compact(this.hp)} / ${compact(this.maxHp)}`, W / 2, 54);
+    if (this.bar) {
+      g.fillStyle = "#5b1f1a";
+      g.fillRect(16, 44, W - 32, 18);
+      const share = fell ? 0 : this.share;
+      g.fillStyle = hpColour(share);
+      g.fillRect(16, 44, Math.max(0, (W - 32) * share), 18);
+      g.font = "700 15px system-ui, sans-serif";
+      g.fillStyle = "#ffffff";
+      g.fillText(fell ? "0 HP" : `${compact(this.hp)} / ${compact(this.maxHp)}`, W / 2, 54);
+    }
     this.plateTex.needsUpdate = true;
   }
 

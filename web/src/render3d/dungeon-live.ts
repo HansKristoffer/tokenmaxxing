@@ -55,7 +55,7 @@ const HIT_COLOUR = new THREE.Color("#e0b3ff");
 const MINION_COLOUR = new THREE.Color("#9dff8a");
 const SEAT_Y = 0.33;
 const MINION_SCALE = 0.5;
-const MAX_NEW_PER_FRAME = 2;
+const MAX_NEW_PER_FRAME = 1;
 
 type Raider = Raiders["top"][number];
 
@@ -302,7 +302,7 @@ export class DungeonLive {
     const banner = r.prelaunch
       ? `⚠️ ??? · wakes in ${countdownOf(r.launchAt)}`
       : (weekOverText(r) ?? (this.t < this.bannerUntil ? this.bannerText : null));
-    boss.setInfo({ name: r.boss.name, emoji: r.boss.emoji, rung: r.boss.rung, hp: hpLeft(r), maxHp: r.hp, banner, taunts: r.boss.taunts });
+    boss.setInfo({ name: r.boss.name, emoji: r.boss.emoji, rung: r.boss.rung, hp: hpLeft(r), maxHp: r.hp, banner, taunts: r.boss.taunts, bar: !r.prelaunch });
     boss.setQuiet(r.closed || r.prelaunch);
   }
 

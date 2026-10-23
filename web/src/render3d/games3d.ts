@@ -85,7 +85,7 @@ export class GamesLayer {
   }
 
   /** Brings the props up to date with `world.games` (the world replaces a game's object whenever it changes). */
-  update(t: number): void {
+  update(t: number, toward?: THREE.Vector3): void {
     const live = new Set<number>();
     for (const game of world.games.values()) {
       live.add(game.id);
@@ -94,7 +94,11 @@ export class GamesLayer {
         s = this.make(game);
         this.shown.set(game.id, s);
       } else if (s.game !== game) this.refresh(s, game);
-      if (game.spot.kind === "arena") this.glow(s, t * 1000);
+      if (game.spot.kind === "arena") {
+        this.glow(s, t * 1000);
+        // The scoreboard turns to face wherever the camera is.
+        if (s.board && toward) s.board.rotation.y = Math.atan2(toward.x, toward.z);
+      }
     }
     for (const [id, s] of this.shown)
       if (!live.has(id)) {
@@ -242,6 +246,7 @@ export class GamesLayer {
     const now = performance.now();
     for (const s of this.shown.values()) {
       const game = s.game;
+      if (!game.seats.length) continue;
       const [cx, cz] = this.toWorld(game.spot.x + game.spot.w / 2 - 0.5, game.spot.y + (game.spot.kind === "table" ? 1 : 0));
       const head = Math.min(...game.seats.map((q) => q.y));
       const [, hz] = this.toWorld(0, head);
