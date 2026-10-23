@@ -34,9 +34,9 @@ import "./room-skin.ts";
 import "./room-furnished.ts";
 import "./room-town.ts";
 import { Signs } from "./signs.ts";
+import { lightPipeline, RoomStage } from "./stage3d.ts";
 import { signature as trophySignature, watchShelf } from "./trophies3d.ts";
 import { burstCap } from "./world-logic.ts";
-import { lightPipeline, RoomStage } from "./stage3d.ts";
 
 /**
  * The 3D renderer's entry, loaded on demand (`loadRenderer`) so Three.js is never downloaded on the Low

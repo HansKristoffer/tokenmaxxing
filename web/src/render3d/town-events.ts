@@ -27,11 +27,11 @@ import { mergeStill } from "./merge3d.ts";
 import { Burst, type Overlay } from "./overlay.ts";
 import type { LiveFrame } from "./rooms.ts";
 import {
+  burstCap,
   CART_SIGN_AWAY,
   CART_SIGN_HERE,
   crossed,
   goodsColors,
-  burstCap,
   isGrassNotice,
   polseSign,
   snailSign,
@@ -50,6 +50,8 @@ const ROLL_SPEED = 1.1;
 const NEAR_MERCHANT = 4;
 const GRASS_MS = 9000;
 const COINS = 3;
+/** The street's schedules are looked at this often. */
+const STREET_EVERY_MS = 250;
 const COIN_MS = 800;
 
 const v3 = new THREE.Vector3();
@@ -96,7 +98,11 @@ export class TownEvents {
   private cartState: "away" | "arriving" | "here" | "leaving" = "away";
   private cartAt = 0;
   private editionsMinute = Number.NaN;
+  private hereAt = -Infinity;
+  private hereNow = false;
   private readonly spot: [number, number];
+  /** Where the merchant stands: by the back wheel. */
+  private readonly stand: [number, number];
   private firstFrame = true;
   private weekShown: string;
 
@@ -113,6 +119,7 @@ export class TownEvents {
     new THREE.MeshBasicMaterial({ color: "#ebf0fa", transparent: true, opacity: 0.55, depthWrite: false }),
   );
   private lastMinute: number | null = null;
+  private readonly polseAt: [number, number];
   private rides: ReturnType<typeof paperRides> | null = null;
   private ridesFor: object | null = null;
 
@@ -141,6 +148,9 @@ export class TownEvents {
     const [cx, cz] = this.toWorld(CART_SPOT.x, CART_SPOT.y);
     // The middle of the three-by-two tiles the cart stands on.
     this.spot = [cx + (CART_W - 1) / 2, cz + (CART_H - 1) / 2];
+    const [px, pz] = this.toWorld(CART[0]![0], CART[0]![1]);
+    this.polseAt = [px + 0.5, pz];
+    this.stand = this.toWorld(CART_SPOT.x - 1, CART_SPOT.y);
 
     // The merchant's cart, stocked for this week: the lantern's flame and halo change colour, so they stay out of any batch.
     this.weekShown = weekOf(serverNow());
@@ -163,8 +173,7 @@ export class TownEvents {
       "voxel",
     );
     this.merchant.root.visible = false;
-    const [mx, mz] = this.toWorld(CART_SPOT.x - 1, CART_SPOT.y);
-    this.merchant.root.position.set(mx, 0, mz);
+    this.merchant.root.position.set(this.stand[0], 0, this.stand[1]);
     this.merchant.root.rotation.y = 0;
     this.post.position.set(this.spot[0], 0, this.spot[1] + 0.9);
     this.group.add(this.cartRoot, this.post, this.merchant.root);
@@ -365,19 +374,23 @@ export class TownEvents {
 
   private merchantFrame(f: LiveFrame, near: boolean, calm: boolean): void {
     const { cartRoot, merchant, spot } = this;
-    const at = serverNow();
-    const minute = Math.floor(at / 60_000);
-    const here = merchantIn(at);
+    // Whether the cart is in: asked once a second (the clock is read through `Intl`).
+    if (f.now - this.hereAt >= 1000) {
+      this.hereAt = f.now;
+      this.hereNow = merchantIn(serverNow());
+    }
+    const here = this.hereNow;
+    const minute = Math.floor(serverNow() / 60_000);
     if (minute !== this.editionsMinute) {
       this.editionsMinute = minute;
-      const week = weekOf(at);
+      const week = weekOf(serverNow());
       if (week !== this.weekShown) {
         // A new week, a new lineup on the counter: only the goods' colours change, so the cart is built again.
         this.weekShown = week;
         this.restock(goodsColors(lineup(week)));
       }
     }
-    const [mx, mz] = this.toWorld(CART_SPOT.x - 1, CART_SPOT.y);
+    const [mx, mz] = this.stand;
     const roll = ROLL_TILES;
     if (here && this.cartState === "away") {
       this.cartState = this.firstFrame ? "here" : "arriving";
@@ -497,43 +510,59 @@ export class TownEvents {
 
   // MARK: The street
 
-  private streetFrame(f: LiveFrame): void {
-    const at = skyNow();
-    const m = clockMinutes(at);
-    const open = polseOpen(at);
-    // The pølsevogn's sign over its two tiles.
-    const [c0x, c0z] = this.toWorld(CART[0]![0], CART[0]![1]);
-    v3.set(c0x + 0.5, 1.75, c0z);
-    this.pill("polse", "r3-sign", polseSign(open), v3, f.camera, undefined, open ? "rgba(216, 52, 60, 0.95)" : "rgba(43, 36, 51, 0.7)");
+  /** The street's clock-driven state, worked out four times a second (the clock is read through `Intl`) and drawn every frame. */
+  private readonly street = {
+    at: -Infinity,
+    m: 0,
+    open: false,
+    phase: "queued" as "queued" | "deploying" | "deployed",
+    snail: [0, 0] as [number, number],
+    trailFrom: 0,
+    boy: null as [number, number] | null,
+  };
 
-    // The snail: a sign on its shell, a silver trail behind it, and confetti when its build finishes while you watch.
-    const s = snailAt(at);
-    const [sx, sz] = this.toWorld(s.x, s.y);
-    const [fx] = this.toWorld(SNAIL.from, s.y);
+  private streetFrame(f: LiveFrame): void {
+    const st = this.street;
+    if (f.now - st.at >= STREET_EVERY_MS) {
+      st.at = f.now;
+      const at = skyNow();
+      const m = clockMinutes(at);
+      st.m = m;
+      st.open = polseOpen(at);
+      const s = snailAt(at);
+      st.phase = s.phase;
+      st.snail = this.toWorld(s.x, s.y);
+      st.trailFrom = this.toWorld(SNAIL.from, s.y)[0];
+      if (this.ridesFor !== world.map) {
+        this.ridesFor = world.map;
+        const map = world.map;
+        this.rides = paperRides([...map.find("D"), ...map.find("I")], map.x0 + 1, map.x0 + map.width - 1);
+      }
+      const boy = m >= PAPER.at ? paperboyAt(this.rides!, m) : null;
+      st.boy = boy ? this.toWorld(boy.x, boy.y) : null;
+      // The build finishing while you watch: confetti over the snail, once.
+      if (crossed(this.lastMinute, m, SNAIL.arrives)) {
+        this.burst(["🎉", "✨", "✅"], st.snail[0], 0.9, st.snail[1], f.now);
+        this.notify("🐌 Build succeeded. The snail has deployed to production.");
+      }
+      this.lastMinute = m;
+    }
+    // The pølsevogn's sign over its two tiles.
+    v3.set(this.polseAt[0], 1.75, this.polseAt[1]);
+    this.pill("polse", "r3-sign", polseSign(st.open), v3, f.camera, undefined, st.open ? "rgba(216, 52, 60, 0.95)" : "rgba(43, 36, 51, 0.7)");
+    // The snail: a sign on its shell and a silver trail behind it.
+    const [sx, sz] = st.snail;
     v3.set(sx, 0.95, sz);
-    this.pill("snail", "r3-sign", snailSign(s.phase), v3, f.camera, undefined, s.phase === "deployed" ? "rgba(88, 179, 106, 0.95)" : "rgba(212, 156, 103, 0.95)");
-    const long = sx - fx;
+    this.pill("snail", "r3-sign", snailSign(st.phase), v3, f.camera, undefined, st.phase === "deployed" ? "rgba(88, 179, 106, 0.95)" : "rgba(212, 156, 103, 0.95)");
+    const long = sx - st.trailFrom;
     this.trail.visible = long > 0.05;
     if (this.trail.visible) {
       this.trail.scale.x = long;
-      this.trail.position.set((sx + fx) / 2, 0.07, sz);
+      this.trail.position.set((sx + st.trailFrom) / 2, 0.07, sz);
     }
-    if (crossed(this.lastMinute, m, SNAIL.arrives)) {
-      this.burst(["🎉", "✨", "✅"], sx, 0.9, sz, f.now);
-      this.notify("🐌 Build succeeded. The snail has deployed to production.");
-    }
-    this.lastMinute = m;
-
     // The paperboy's tag follows him round (the bike and the papers are the town's own).
-    if (this.ridesFor !== world.map) {
-      this.ridesFor = world.map;
-      const map = world.map;
-      this.rides = paperRides([...map.find("D"), ...map.find("I")], map.x0 + 1, map.x0 + map.width - 1);
-    }
-    const boy = m >= PAPER.at ? paperboyAt(this.rides!, m) : null;
-    if (boy) {
-      const [bx, bz] = this.toWorld(boy.x, boy.y);
-      v3.set(bx, 1.6, bz);
+    if (st.boy) {
+      v3.set(st.boy[0], 1.6, st.boy[1]);
       this.pill("paper", "r3-sign own", "📰 Paper!", v3, f.camera);
     } else this.hide("paper");
   }

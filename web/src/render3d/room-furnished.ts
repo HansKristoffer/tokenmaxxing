@@ -12,8 +12,8 @@ import { type Placed, Room, type Turn } from "../demo3d/room.ts";
 import { TAVERN_ASSETS } from "../demo3d/tavern3d.ts";
 import { placeholder, type RoomSkin, WorldRoom } from "../demo3d/world.ts";
 import { viewOf } from "./room-skin.ts";
-import { earnedBy } from "./trophies3d.ts";
 import { type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
+import { earnedBy } from "./trophies3d.ts";
 
 /**
  * The rooms whose furniture is the players': an Office (its owner's drops) and a company's common room. The map

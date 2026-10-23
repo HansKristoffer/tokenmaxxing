@@ -1,7 +1,7 @@
 import { TUNES } from "@tokenmaxxing/core/tunes.ts";
 import * as THREE from "three";
-import { setTavernNight, type TavernRoom } from "../demo3d/tavern3d.ts";
 import { setPropsNight } from "../demo3d/props.ts";
+import { setTavernNight, type TavernRoom } from "../demo3d/tavern3d.ts";
 import { darknessNow, lightsNow, warmthNow } from "../game/sky.ts";
 import { hud } from "../store.ts";
 import type { LiveFrame } from "./rooms.ts";

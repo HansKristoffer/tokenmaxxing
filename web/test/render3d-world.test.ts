@@ -3,10 +3,11 @@ import type { PinView } from "@tokenmaxxing/core/collection.ts";
 import { SIREN, TICKET_MARK } from "@tokenmaxxing/core/cop.ts";
 import { lineup, weekOf } from "@tokenmaxxing/core/merchant.ts";
 import { BLANKETS } from "@tokenmaxxing/core/picnic.ts";
+import { earnedBy, signature, sigOf, watchShelf } from "../src/render3d/trophies3d.ts";
 import {
+  burstCap,
   CART_SIGN_AWAY,
   CART_SIGN_HERE,
-  burstCap,
   CHASE_MS,
   CopWatch,
   chipsOf,
@@ -21,7 +22,6 @@ import {
   tavernDim,
   tossLanded,
 } from "../src/render3d/world-logic.ts";
-import { sigOf, watchShelf, earnedBy, signature } from "../src/render3d/trophies3d.ts";
 
 test("the cop's siren starts with his pull-over line and goes out a minute later", () => {
   const w = new CopWatch();
