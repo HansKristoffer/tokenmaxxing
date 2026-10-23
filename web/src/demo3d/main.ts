@@ -1181,7 +1181,7 @@ async function drawIcons(): Promise<void> {
   scene.add(sun);
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 50);
   const bar = $("#inventory .inv");
-  for (const a of ASSETS) {
+  for (const a of CATALOG) {
     if (a.id === "neon-sign") continue;
     const m = a.build();
     scene.add(m);
