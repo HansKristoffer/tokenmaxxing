@@ -15,6 +15,14 @@ export interface Look {
   outfit: [string, string];
   pants: string;
   hat: Hat;
+  /** Extra cosmetics (`gear3d.ts`: `lookFrom2D` fills this in); the base look draws without it. */
+  gear?: Gear;
+}
+
+/** What `gear3d.ts` adds to an avatar: built once the body exists, then moved every frame. */
+export interface Gear {
+  dress(a: Avatar): void;
+  update?(a: Avatar, dt: number, t: number): void;
 }
 
 export const HATS: readonly Hat[] = ["none", "cap", "beanie", "headphones", "crown"];
@@ -347,8 +355,8 @@ export class Avatar {
   expression: Expression = "neutral";
   /** Talking: the mouth opens and shuts. */
   talking = false;
-  private readonly arms: Model[] = [];
-  private readonly legs: Model[] = [];
+  readonly arms: Model[] = [];
+  readonly legs: Model[] = [];
   pose: Pose = "stand";
   /** Seconds into the walk cycle. */
   private phase = Math.random() * 10;
@@ -393,6 +401,7 @@ export class Avatar {
     const hairs = head.part([0, HEAD_R * 0.86, 0]);
     hair(hairs, look);
     hat(hairs, look);
+    look.gear?.dress(this);
   }
 
   /** Moves the limbs for `pose`, `dt` seconds after the last frame. */
@@ -479,6 +488,7 @@ export class Avatar {
     if (blink && (face === "neutral" || face === "focus" || face === "surprised")) face = "blink";
     const map = faceTexture(face);
     if (this.face.map !== map) this.face.map = map;
+    this.look.gear?.update?.(this, dt, t);
   }
 }
 

@@ -314,6 +314,7 @@ label {
 }
 
 #worldbar[hidden],
-#room-name[hidden] {
+#room-name[hidden],
+.panel[hidden] {
   display: none;
 }
