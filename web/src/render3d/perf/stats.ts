@@ -66,6 +66,7 @@ const tracked: Tracked[] = [];
 /** Registers a renderer so the perf harness (and the console) can read `renderer.info` and the live scene. */
 export function trackRenderer(renderer: THREE.WebGLRenderer, scene: () => THREE.Scene | null): void {
   tracked.push({ renderer, scene });
+  (globalThis as unknown as Record<string, unknown>).__perfRenderer ??= renderer;
   (globalThis as unknown as Record<string, unknown>).__unbatched = () => {
     const sc = tracked[0]?.scene();
     return sc ? unbatched(sc) : null;

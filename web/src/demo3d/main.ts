@@ -36,6 +36,7 @@ import { INSET } from "./world-rooms.ts";
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
 const labelLayer = document.querySelector<HTMLDivElement>("#labels")!;
 const pipe = new Pipeline(canvas);
+(window as unknown as { __pipe?: Pipeline }).__pipe = pipe;
 
 const ELEVATION = Math.atan(0.5); // 2:1 pixel lines, like Habbo's.
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 160);
