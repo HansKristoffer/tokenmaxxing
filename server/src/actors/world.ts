@@ -644,7 +644,8 @@ export const world = actor({
       const p = free(c);
       const owner = typeof targetId === "number" ? c.state.players[targetId] : undefined;
       if (!p) return null;
-      if (!owner || !hasOffice(owner)) return { notice: "They don't have an office yet." };
+      if (!owner || !hasOffice(owner))
+        return { notice: owner?.id === p.id ? "You don't have an office yet." : "They don't have an office yet." };
       if (owner.id !== p.id && !officeOf(c.state, owner.id).open)
         return { notice: `🔒 ${owner.name}'s office is closed.` };
       touch(c, p, Date.now());
