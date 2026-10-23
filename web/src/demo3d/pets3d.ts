@@ -12,6 +12,7 @@ import type { Asset } from "./furniture.ts";
 import {
   checker,
   glow,
+  liveModel,
   Model,
   painted,
   tint,
@@ -128,7 +129,7 @@ function zGlyph(): Model {
 
 /** A pet from the 2D game. Same `root` / `moving` / `update(t)` as `avatar.ts`'s `Pet`, plus poses and gear. */
 export class Pet3D {
-  readonly root = new Model();
+  readonly root = liveModel();
   moving = false;
   pose: PetPose = "stand";
   /** `Look.petwear`: 0 is none, 1 to 7 the gear (`PETWEAR`). */

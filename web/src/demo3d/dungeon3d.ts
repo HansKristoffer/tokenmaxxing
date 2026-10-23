@@ -25,7 +25,7 @@ import {
   TROPHY_DEFS,
 } from "./data/dungeon.ts";
 import { type Asset, light } from "./furniture.ts";
-import { canvasTexture, codeScreen, glass, glow, Model, painted, ticks, tint, toon, type V3 } from "./kit.ts";
+import { canvasTexture, codeScreen, glass, glow, liveModel, Model, painted, ticks, tint, toon, type V3 } from "./kit.ts";
 import { petFrom2D } from "./pets3d.ts";
 
 // MARK: Dungeon colours (web/src/art/tiles.ts)
@@ -154,7 +154,7 @@ const hpColour = (share: number) => (share > 0.5 ? "#72bf52" : share > 0.2 ? "#e
 
 /** A boss on its dais: hovering, with its name and HP over it. `hit`, `kill` and `spawn` drive a fight. */
 export class BossActor {
-  readonly root = new Model();
+  readonly root = liveModel();
   private readonly body = new Model();
   private sc: Sculpt;
   private readonly plate: Model;

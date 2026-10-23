@@ -111,27 +111,50 @@ function matState(m: THREE.Material): string {
   return `${matKey(m)}|${m.visible}`;
 }
 
-/** Finds what moves by running every tick function at a few times and watching world matrices and materials. */
-function findMoving(root: THREE.Object3D, meshes: THREE.Mesh[]): Set<THREE.Mesh> {
-  const moving = new Set<THREE.Mesh>();
-  const snap = () => {
-    root.updateMatrixWorld(true);
-    return meshes.map((m) => `${m.matrixWorld.elements.join()}|${m.visible}|${matState(m.material as THREE.Material)}`);
-  };
-  const before = snap();
+interface Snap {
+  m: Float32Array;
+  state: string[];
+}
+
+function snapshot(root: THREE.Object3D, meshes: THREE.Mesh[]): Snap {
+  root.updateMatrixWorld(true);
+  const m = new Float32Array(meshes.length * 16);
+  const state: string[] = [];
+  meshes.forEach((mesh, i) => {
+    m.set(mesh.matrixWorld.elements, i * 16);
+    state.push(`${mesh.visible}|${matState(mesh.material as THREE.Material)}`);
+  });
+  return { m, state };
+}
+
+function noteMoved(a: Snap, b: Snap, moved: Set<number>): void {
+  for (let i = 0; i < a.state.length; i++) {
+    if (moved.has(i)) continue;
+    if (a.state[i] !== b.state[i]) {
+      moved.add(i);
+      continue;
+    }
+    for (let k = i * 16; k < i * 16 + 16; k++)
+      if (a.m[k] !== b.m[k]) {
+        moved.add(i);
+        break;
+      }
+  }
+}
+
+/** Runs every tick function at a few times and notes what they move (world matrices, materials). */
+function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<number>): void {
+  const base = snapshot(root, meshes);
   for (const t of SAMPLE_TIMES) {
     for (const tick of ticks) {
       try {
-        tick(t);
+        ((tick as { raw?: (t: number) => void }).raw ?? tick)(t);
       } catch {
         /* a tick that belongs to something torn down */
       }
     }
-    const after = snap();
-    for (let i = 0; i < meshes.length; i++) if (after[i] !== before[i]) moving.add(meshes[i]!);
+    noteMoved(base, snapshot(root, meshes), moved);
   }
-  // Put the animation back where the loop would have it next frame: the next real tick overwrites it anyway.
-  return moving;
 }
 
 const tmp = new THREE.Matrix4();
@@ -299,27 +322,33 @@ export class BakedLayer {
   }
 }
 
-/** Batches the static meshes under `root`; the originals stay in the tree, hidden once a variant shows. */
-export function bakeStatic(root: THREE.Object3D): BakedLayer | null {
-  root.updateMatrixWorld(true);
-  const candidates: THREE.Mesh[] = [];
+function collect(root: THREE.Object3D): { meshes: THREE.Mesh[]; why: Record<string, number> } {
+  const meshes: THREE.Mesh[] = [];
   const why = { live: 0, hidden: 0, unbakeable: 0, moving: 0, baked: 0 };
+  root.updateMatrixWorld(true);
   root.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     if (isLive(m, root)) why.live++;
     else if (hiddenAbove(m, root)) why.hidden++;
     else if (!bakeable(m)) why.unbakeable++;
-    else candidates.push(m);
+    else meshes.push(m);
   });
-  if (!candidates.length) return null;
-  const moving = findMoving(root, candidates);
+  return { meshes, why };
+}
+
+function layerOf(
+  root: THREE.Object3D,
+  meshes: THREE.Mesh[],
+  moved: Set<number>,
+  why: Record<string, number>,
+): BakedLayer | null {
   const reps = new Map<string, THREE.Material>();
   const sources: Source[] = [];
   const inverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
   const p = new THREE.Vector3();
-  for (const m of candidates) {
-    if (moving.has(m)) continue;
+  meshes.forEach((m, i) => {
+    if (moved.has(i)) return;
     const mat = m.material as THREE.Material;
     const key = matKey(mat);
     const fold = foldable(mat);
@@ -332,43 +361,84 @@ export function bakeStatic(root: THREE.Object3D): BakedLayer | null {
       material: reps.get(key)!,
       color: fold ? (mat as Lit).color : undefined,
     });
-  }
-  if (sources.length < 2) return null;
-  why.moving = candidates.length - sources.length;
+  });
+  why.moving = meshes.length - sources.length;
   why.baked = sources.length;
-  (globalThis as unknown as { __bakes?: unknown[] }).__bakes ??= [];
-  (globalThis as unknown as { __bakes: unknown[] }).__bakes.push({ root: root.name || root.type, ...why });
+  const g = globalThis as unknown as { __bakes?: unknown[]; __layers?: BakedLayer[] };
+  (g.__bakes ??= []).push({ root: root.name || root.type, ...why });
+  if (sources.length < 2) return null;
   const layer = new BakedLayer(root, sources);
-  (globalThis as unknown as { __layers?: BakedLayer[] }).__layers ??= [];
-  (globalThis as unknown as { __layers: BakedLayer[] }).__layers.push(layer);
-  layer.liveCount = candidates.length - sources.length;
+  layer.liveCount = why.moving;
+  (g.__layers ??= []).push(layer);
   return layer;
 }
 
+/** Batches the static meshes under `root` right now, trusting the tick sampling and the `live` flags. */
+export function bakeStatic(root: THREE.Object3D): BakedLayer | null {
+  const { meshes, why } = collect(root);
+  if (!meshes.length) return null;
+  const moved = new Set<number>();
+  sampleTicks(root, meshes, moved);
+  return layerOf(root, meshes, moved, why);
+}
+
+/** Frames a room is watched before it is batched: whatever an actor or animation moves in that time stays live. */
+const WARMUP = [3, 10, 24];
+
+interface Watch {
+  meshes: THREE.Mesh[];
+  why: Record<string, number>;
+  base: Snap;
+  moved: Set<number>;
+  frames: number;
+}
+
 const layers = new WeakMap<THREE.Object3D, BakedLayer | null>();
+const watching = new Map<THREE.Object3D, Watch>();
 const seen = new WeakMap<THREE.Scene, { epoch: number; mode: BakeMode | null; layers: BakedLayer[] }>();
 
-/** Bakes every flagged root (`userData.bake`) not yet baked, and shows the variant for `mode`. Cheap when nothing changed. */
+/**
+ * Called every frame by the pipeline: finds roots flagged `userData.bake`, watches each for a few frames of
+ * real animation, batches the still ones, and shows the variant for `mode`. Does nothing once it has settled.
+ */
 export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
   if (disabled) return [];
   let s = seen.get(scene);
   if (!s) seen.set(scene, (s = { epoch: -1, mode: null, layers: [] }));
-  if (s.epoch === epoch && s.mode === mode) return s.layers;
   if (s.epoch !== epoch) {
     s.epoch = epoch;
-    const found: THREE.Object3D[] = [];
-    scene.traverse((o) => {
-      if (o.userData[BAKE] && !layers.has(o)) found.push(o);
-    });
-    for (const root of found) {
-      const l = bakeStatic(root);
-      layers.set(root, l);
-      if (l) s.layers.push(l);
-    }
-    // Baking adds the layer groups: that is not a change worth another sweep.
+    // Flagged roots sit near the top of the scene: no need to walk every mesh each time something is added.
+    const look = (o: THREE.Object3D, depth: number) => {
+      if (o.userData[BAKE]) {
+        if (layers.has(o) || watching.has(o)) return;
+        const { meshes, why } = collect(o);
+        watching.set(o, { meshes, why, base: snapshot(o, meshes), moved: new Set(), frames: 0 });
+      } else if (depth < 3) for (const c of o.children) look(c, depth + 1);
+    };
+    look(scene, 0);
     s.epoch = epoch;
   }
-  s.mode = mode;
-  for (const l of s.layers) l.show(mode);
+  if (watching.size) {
+    for (const [root, w] of [...watching]) {
+      let top: THREE.Object3D | null = root;
+      while (top?.parent) top = top.parent;
+      if (top !== scene) continue;
+      w.frames++;
+      if (WARMUP.includes(w.frames)) noteMoved(w.base, snapshot(root, w.meshes), w.moved);
+      if (w.frames < WARMUP.at(-1)!) continue;
+      watching.delete(root);
+      sampleTicks(root, w.meshes, w.moved);
+      const l = layerOf(root, w.meshes, w.moved, w.why);
+      layers.set(root, l);
+      if (l) s.layers.push(l);
+      s.epoch = epoch;
+      s.mode = null;
+    }
+  }
+  if (s.mode !== mode) {
+    s.mode = mode;
+    for (const l of s.layers) l.show(mode);
+    s.epoch = epoch;
+  }
   return s.layers;
 }

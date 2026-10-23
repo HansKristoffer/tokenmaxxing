@@ -256,6 +256,13 @@ export class Model extends THREE.Group {
   }
 }
 
+/** A model something will animate (an avatar, a pet, a boss): the static batching leaves it alone. */
+export function liveModel(): Model {
+  const m = new Model();
+  m.userData.live = true;
+  return m;
+}
+
 /** A canvas texture, painted once, sampled as pixels (or smoothly, for the big HD surfaces). */
 export function canvasTexture(
   w: number,
