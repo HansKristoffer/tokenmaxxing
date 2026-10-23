@@ -374,6 +374,16 @@ export class Fx {
 
   // ——— Clock ———
 
+  /** Whether the sky dome is in the scene being shown (the town) rather than a plain background. */
+  hasSky(): boolean {
+    return this.sky.parent !== null;
+  }
+
+  /** The sky's colour at the horizon right now (for atmospheric haze). */
+  horizon(): THREE.Color {
+    return this.sky.material.uniforms.hor!.value as THREE.Color;
+  }
+
   /** Copenhagen time now on the sim clock. */
   now(): number {
     return this.live ? Date.now() : this.base + (performance.now() - this.from) * this.speed;

@@ -17,6 +17,28 @@ const BANDS = (() => {
   return t;
 })();
 
+/**
+ * Voxel (Plethora) style: the same bands become a smooth ramp, so every toon material shades like soft matte
+ * diffuse paint. All toon materials share this one texture, so swapping its data swaps them all (and back).
+ */
+let smoothBands = false;
+export function setSmoothBands(on: boolean): void {
+  if (on === smoothBands) return;
+  smoothBands = on;
+  const n = on ? 128 : 3;
+  const data = new Uint8Array(n);
+  if (on) {
+    for (let i = 0; i < n; i++) {
+      const dotNL = (i / (n - 1)) * 2 - 1;
+      data[i] = Math.round(255 * Math.min(1, Math.max(0, dotNL * 0.9 + 0.1)));
+    }
+  } else data.set([105, 175, 255]);
+  BANDS.dispose();
+  BANDS.image = { data, width: n, height: 1 };
+  BANDS.minFilter = BANDS.magFilter = on ? THREE.LinearFilter : THREE.NearestFilter;
+  BANDS.needsUpdate = true;
+}
+
 const toons = new Map<string, THREE.MeshToonMaterial>();
 /** The one material most things use: a colour, lit in bands. */
 export function toon(color: string): THREE.MeshToonMaterial {

@@ -1379,17 +1379,29 @@ function setStage(name: string): void {
 }
 
 function setStyle(px: number): void {
+  pipe.style = "classic";
   pipe.pixelSize = px;
   ($("#px") as HTMLInputElement).value = String(px);
   $("#px-value").textContent = px === 1 ? "smooth" : `${px}×`;
   choose("style", px === 1 ? "smooth" : "pixel");
   canvas.classList.toggle("smooth", px === 1);
+  localStorage.setItem("demo3d.style", px === 1 ? "smooth" : "pixel");
+}
+
+/** Voxel (Plethora): soft lit matte blocks, AO, haze and grading (see pipeline.ts). */
+function setVoxel(): void {
+  pipe.style = "voxel";
+  pipe.pixelSize = 1;
+  choose("style", "voxel");
+  canvas.classList.add("smooth");
+  localStorage.setItem("demo3d.style", "voxel");
 }
 
 for (const b of document.querySelectorAll<HTMLButtonElement>("[data-group=stage]"))
   b.onclick = () => setStage(b.dataset.value!);
 $("[data-value=pixel]").onclick = () => setStyle(3);
 $("[data-value=smooth]").onclick = () => setStyle(1);
+$("[data-value=voxel]").onclick = setVoxel;
 $<HTMLInputElement>("#px").oninput = (e) => setStyle(Number((e.target as HTMLInputElement).value));
 $<HTMLInputElement>("#outline").onchange = (e) =>
   (pipe.outline = pipe.crease = (e.target as HTMLInputElement).checked ? 1 : 0);
@@ -1513,6 +1525,15 @@ function frame(): void {
     if (k >= 0) popping.splice(i, 1);
   }
   updateHover();
+  const inTown = fx.hasSky();
+  pipe.gradient = !inTown;
+  pipe.night = night ? 1 : 0;
+  if (inTown) pipe.hazeColor.copy(fx.horizon());
+  else {
+    pipe.skyTop.set(night ? "#0d1226" : "#8ccbe6");
+    pipe.skyHor.set(night ? "#1a2240" : "#dcf0ee");
+    pipe.hazeColor.copy(pipe.skyHor);
+  }
   pipe.render(stage.scene, camera, w, h);
   for (const l of stage.labels) {
     if (l.el.style.display === "none") continue;
@@ -1522,7 +1543,17 @@ function frame(): void {
   requestAnimationFrame(frame);
 }
 
-setStyle(1);
+{
+  const saved = localStorage.getItem("demo3d.style");
+  if (saved === "smooth") setStyle(1);
+  else if (saved === "pixel") setStyle(3);
+  else setVoxel();
+  const q = new URLSearchParams(location.search).get("q");
+  if (q !== null) {
+    pipe.quality = Number(q);
+    pipe.autoQuality = false;
+  }
+}
 setStage(new URLSearchParams(location.search).get("stage") ?? "World");
 me.say("hi! click the floor to walk 👋", last + 0.5);
 requestAnimationFrame(frame);
