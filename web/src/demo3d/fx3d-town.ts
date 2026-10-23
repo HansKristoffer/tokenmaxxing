@@ -813,7 +813,7 @@ export class TownFx {
     this.group.add(this.sign);
   }
 
-  /** Whether the weekly cart is in town on the Copenhagen clock: Thursday 08:00 to Monday 08:00. */
+  /** Whether the weekly cart is in town on the Aarhus clock: Thursday 08:00 to Monday 08:00. */
   private merchantScheduled(ms: number): boolean {
     const w = worldWall(ms);
     const h = w.hour + w.minute / 60;

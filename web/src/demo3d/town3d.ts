@@ -91,7 +91,7 @@ export interface Town3d {
   boards: { leaderboard: Board; chalkboard: Chalkboard };
   /** The houses by plot, so a caller can wave at a window or restyle one. */
   houses: Map<number, Model>;
-  /** Street life, worked out from the clock (minutes since midnight in Copenhagen). */
+  /** Street life, worked out from the clock (minutes since midnight in Aarhus). */
   setClock: (minutes: () => number) => void;
 }
 
@@ -217,8 +217,8 @@ function dim(m: THREE.Object3D): void {
   for (const l of lights) l.parent?.remove(l);
 }
 
-/** Copenhagen's wall clock, in minutes since midnight (`?clock=HH:MM` moves it). */
-export function copenhagenMinutes(): number {
+/** Aarhus's wall clock, in minutes since midnight (`?clock=HH:MM` moves it). */
+export function aarhusMinutes(): number {
   const forced = /^(\d{1,2}):(\d{2})$/.exec(new URLSearchParams(location.search).get("clock") ?? "");
   if (forced) return Number(forced[1]) * 60 + Number(forced[2]);
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -535,7 +535,7 @@ export function buildTown3d(companies: readonly Company[] = DEMO_COMPANIES): Tow
   const bike = paperBike();
   bike.visible = false;
   g.add(bike);
-  let clock = copenhagenMinutes;
+  let clock = aarhusMinutes;
   const rides = rideList(
     doors.filter((d) => d.kind === "hq").map((d) => d.tile),
     map.x0,

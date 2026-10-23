@@ -1262,7 +1262,7 @@ function aim(w: number, h: number): void {
   camera.updateMatrixWorld();
 }
 
-// ——— Night, weather and street life (fx3d.ts): the light follows the Copenhagen clock ———
+// ——— Night, weather and street life (fx3d.ts): the light follows the Aarhus clock ———
 const fx = new Fx({
   stages,
   town: worldStage("town"),

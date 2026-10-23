@@ -1,6 +1,6 @@
 /**
  * A snapshot of the Tavern's 2D data for the 3D demo (no imports from core, which this base lacks).
- * Sources: `core/src/tavern.ts` (SPECIALS, specialIndex, STRIDE, copenhagenDay), `core/src/tunes.ts` (the six
+ * Sources: `core/src/tavern.ts` (SPECIALS, specialIndex, STRIDE, aarhusDay), `core/src/tunes.ts` (the six
  * jukebox tracks), `core/src/regulars.ts` (LEFT_PLATES, REGULARS_TOP, tabLine), `core/src/barkeep.ts` (his lines).
  */
 
@@ -58,19 +58,19 @@ export const SPECIALS: readonly string[] = [
 
 export const STRIDE = 17;
 
-const COPENHAGEN = new Intl.DateTimeFormat("en-CA", {
+const AARHUS = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Copenhagen",
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
 });
 
-/** Copenhagen's date at `at`, as days since 1970-01-01. */
-export const copenhagenDay = (at: Date): number =>
-  Math.round(Date.parse(`${COPENHAGEN.format(at)}T00:00:00Z`) / 86_400_000);
+/** Aarhus's date at `at`, as days since 1970-01-01. */
+export const aarhusDay = (at: Date): number =>
+  Math.round(Date.parse(`${AARHUS.format(at)}T00:00:00Z`) / 86_400_000);
 
-/** The special on Copenhagen's date at `at`. */
-export const specialOn = (at: Date): string => SPECIALS[((copenhagenDay(at) * STRIDE) % SPECIALS.length)]!;
+/** The special on Aarhus's date at `at`. */
+export const specialOn = (at: Date): string => SPECIALS[((aarhusDay(at) * STRIDE) % SPECIALS.length)]!;
 
 export const TUNES = [
   { id: "polka", name: "Merge Conflict Polka", emoji: "🪗" },

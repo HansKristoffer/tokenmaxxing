@@ -1,6 +1,6 @@
 /**
  * The world's atmosphere and street life for the 3D demo. `Fx` is the one controller `main.ts` talks to:
- * `setWeather`, `setTime`, `setEvent`. It ports `web/src/game/sky.ts` (a sky over Copenhagen with a sun that
+ * `setWeather`, `setTime`, `setEvent`. It ports `web/src/game/sky.ts` (a sky over Aarhus with a sun that
  * rises and sets, stars and a phased moon, clouds, fog, drizzle, rain, storms with lightning, snow) and
  * `game/emoji.ts` (emoji bursts), and mounts the town's street life (`fx3d-town.ts`): the cop and his siren,
  * the roaming merchant, the outage picnic and "touched grass", the build snail, the paperboy and the
@@ -9,8 +9,9 @@
  */
 
 import { dayKey, worldWall } from "@tokenmaxxing/core/range.ts";
-import { copenhagenToMs, lightAt, moonPhase, presetWeather, type Weather, type WeatherKind, winterSnow } from "@tokenmaxxing/core/sky.ts";
+import { copenhagenToMs as aarhusToMs, moonPhase, presetWeather, type Weather, type WeatherKind, winterSnow } from "@tokenmaxxing/core/sky.ts";
 import * as THREE from "three";
+import { AarhusWeather, lightAt } from "./aarhus.ts";
 import type { Avatar } from "./avatar.ts";
 import { FX_ASSETS, type FxCtx, type FxHost, type FxLabelHandle, type FxStageRef, TownFx } from "./fx3d-town.ts";
 import { ticks } from "./kit.ts";
@@ -293,6 +294,7 @@ export class Fx {
   private readonly fogBank: THREE.Mesh[] = [];
   private readonly floaters: Floater[] = [];
   private readonly toastEl: HTMLDivElement;
+  private readonly aarhus = new AarhusWeather(() => this.syncPanel());
   private weatherPick: FxWeather = "live";
   private weather: Weather = { kind: "clear", intensity: 0, windMs: 1.5, windDir: 270, cloud: 0.1 };
   private shown: Weather = { ...this.weather };
@@ -384,13 +386,13 @@ export class Fx {
     return this.sky.material.uniforms.hor!.value as THREE.Color;
   }
 
-  /** Copenhagen time now on the sim clock. */
+  /** Aarhus time now on the sim clock. */
   now(): number {
     return this.live ? Date.now() : this.base + (performance.now() - this.from) * this.speed;
   }
 
   /**
-   * `"live"` (the real Copenhagen clock), `"HH:MM"` or `"HH:MM:SS"` (today, Copenhagen), a full
+   * `"live"` (the real Aarhus clock), `"HH:MM"` or `"HH:MM:SS"` (today, Aarhus), a full
    * `"2026-10-21T22:30"`, or minutes since midnight as a number. The clock keeps running from there.
    */
   setTime(spec: "live" | string | number): void {
@@ -402,12 +404,12 @@ export class Fx {
     const day = dayKey(Date.now());
     let ms: number | null = null;
     if (typeof spec === "number") {
-      ms = copenhagenToMs(`${day}T${String(Math.floor(spec / 60)).padStart(2, "0")}:${String(Math.floor(spec % 60)).padStart(2, "0")}`);
+      ms = aarhusToMs(`${day}T${String(Math.floor(spec / 60)).padStart(2, "0")}:${String(Math.floor(spec % 60)).padStart(2, "0")}`);
     } else if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(spec)) {
       const [h, m, s = "0"] = spec.split(":");
-      ms = copenhagenToMs(`${day}T${h!.padStart(2, "0")}:${m}`);
+      ms = aarhusToMs(`${day}T${h!.padStart(2, "0")}:${m}`);
       if (ms !== null) ms += Number(s) * 1000;
-    } else ms = copenhagenToMs(spec);
+    } else ms = aarhusToMs(spec);
     if (ms === null) return;
     this.live = false;
     this.base = ms;
@@ -422,7 +424,7 @@ export class Fx {
     this.speed = x;
   }
 
-  /** Minutes since midnight in Copenhagen. */
+  /** Minutes since midnight in Aarhus. */
   minutes(): number {
     const w = worldWall(this.now());
     return w.hour * 60 + w.minute + w.second / 60;
@@ -439,8 +441,11 @@ export class Fx {
     const pick = this.weatherPick;
     const kind: WeatherKind = pick === "live" || pick === "winter" ? "clear" : pick;
     const base = presetWeather(kind)!;
-    // The real weather isn't fetched in the demo: "live" is a clear day, plus winter's snow rule in winter.
-    return pick === "winter" ? { ...presetWeather("cloudy")!, kind: "snow", intensity: 0.6 } : winterSnow(base, this.now());
+    if (pick === "winter") return { ...presetWeather("cloudy")!, kind: "snow", intensity: 0.6 };
+    // "Live" is Aarhus's real weather (Open-Meteo); until that has arrived, or offline with no cache, a clear day.
+    // Open-Meteo's own snow is real, so only the preset gets winter's snow rule.
+    if (pick === "live" && this.aarhus.latest) return { ...this.aarhus.latest.weather };
+    return winterSnow(base, this.now());
   }
 
   // ——— Events ———
@@ -898,6 +903,14 @@ export class Fx {
     }
     for (const b of this.panel.querySelectorAll<HTMLButtonElement>("[data-weather]"))
       b.classList.toggle("on", b.dataset.weather === this.weatherPick);
+    const ar = this.panel.querySelector<HTMLElement>("#fx-aarhus");
+    if (ar) {
+      const wall = (ms: number) => {
+        const w = worldWall(ms);
+        return `${String(w.hour).padStart(2, "0")}:${String(w.minute).padStart(2, "0")}`;
+      };
+      ar.textContent = `${this.aarhus.line()} · ${this.aarhus.sourceLine(wall)}${this.weatherPick === "live" ? "" : " · manual override"}`;
+    }
   }
 
   private buildPanel(): void {
@@ -922,7 +935,7 @@ export class Fx {
     el.innerHTML = `
       <div class="head" data-act="min">🌦️ Atmosphere &amp; street life <span id="fx-clock"></span></div>
       <div class="body">
-        <div class="lbl">Time (Copenhagen)</div>
+        <div class="lbl">Time (Aarhus)</div>
         <div class="row">
           ${btn("Live", 'data-time="live"')}
           ${btn("🌅 06:30", 'data-time="06:30"')}
@@ -932,9 +945,11 @@ export class Fx {
         </div>
         <div class="row"><input id="fx-time" type="range" min="0" max="1439" step="1" value="720" /> ${btn("▶ Day", 'data-act="cycle"')}</div>
         <div class="lbl">Weather</div>
+        <div class="lbl" id="fx-aarhus" style="line-height:1.35" title="Live weather for Aarhus from Open-Meteo"></div>
         <div class="row">
           ${(
             [
+              ["live", "📡 Live"],
               ["clear", "☀️"],
               ["cloudy", "☁️"],
               ["fog", "🌫️"],
@@ -945,7 +960,7 @@ export class Fx {
               ["winter", "❄️ winter"],
             ] as const
           )
-            .map(([k, e]) => btn(`${e} ${k === "winter" ? "" : k}`.trim(), `data-weather="${k}"`))
+            .map(([k, e]) => btn(k === "live" ? e : `${e} ${k === "winter" ? "" : k}`.trim(), `data-weather="${k}"`))
             .join("")}
           ${btn("⚡ Bolt", 'data-ev="lightning"')}
         </div>

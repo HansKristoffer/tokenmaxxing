@@ -26,7 +26,7 @@ export function onLanParty(fn: (on: boolean) => void): void {
   lanListeners.add(fn);
 }
 
-/** Fridays and Saturdays from 18:00 in Copenhagen (`core/src/tavern.ts` `isLanParty`). */
+/** Fridays and Saturdays from 18:00 in Aarhus (`core/src/tavern.ts` `isLanParty`). */
 export function isLanPartyAt(ms: number = Date.now()): boolean {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Copenhagen",

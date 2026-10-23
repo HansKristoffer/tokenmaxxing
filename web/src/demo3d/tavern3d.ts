@@ -13,7 +13,7 @@
 import * as THREE from "three";
 import { C, HAIRS, SKINS } from "../art/palette.ts";
 import { Avatar, type Look, personLook } from "./avatar.ts";
-import { copenhagenDay, SPECIALS, STRIDE, type TabRow } from "./data/tavern.ts";
+import { aarhusDay, SPECIALS, STRIDE, type TabRow } from "./data/tavern.ts";
 import { type Asset, assetById, light } from "./furniture.ts";
 import {
   canvasTexture,
@@ -826,7 +826,7 @@ const officeBoard = (): Model => {
 // ——— The easel ———
 
 function specialToday(): string {
-  const day = copenhagenDay(new Date());
+  const day = aarhusDay(new Date());
   return SPECIALS[(day * STRIDE) % SPECIALS.length]!;
 }
 

@@ -964,7 +964,7 @@ export const TROPHY_DEFS = [
  {
   "id": "3am",
   "name": "3 AM PR",
-  "how": "Open a PR between 3 and 4 AM (Copenhagen)"
+  "how": "Open a PR between 3 and 4 AM (Aarhus)"
  },
  {
   "id": "friday",
