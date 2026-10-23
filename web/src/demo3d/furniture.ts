@@ -31,7 +31,7 @@ export interface Asset {
 }
 
 /** A lamp's light: off by day, `intensity` at night. */
-function light(m: Model, at: V3, color: string, intensity: number, distance = 4): void {
+export function light(m: Model, at: V3, color: string, intensity: number, distance = 4): void {
   const l = new THREE.PointLight(color, 0, distance, 1.6);
   l.position.set(...at);
   l.userData.night = intensity;
