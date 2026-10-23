@@ -287,7 +287,9 @@ export class Fx {
   readonly town: TownFx;
   private readonly particles = new Particles();
   private readonly sky: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
-  private readonly snowCover: THREE.Mesh;
+  /** 0..1 how deep the snow lies; shared by every patched material. */
+  private readonly snowAmt = { value: 0 };
+  private snowScan = 0;
   private readonly fogBank: THREE.Mesh[] = [];
   private readonly floaters: Floater[] = [];
   private readonly toastEl: HTMLDivElement;
@@ -351,14 +353,8 @@ export class Fx {
     );
     this.sky.frustumCulled = false;
     this.sky.renderOrder = -1000;
-    // Snow on the ground: a thin sheet over the town, only while it's snowy.
-    this.snowCover = new THREE.Mesh(
-      new THREE.BoxGeometry(34, 0.02, 30),
-      new THREE.MeshToonMaterial({ color: "#f4f8ff", transparent: true, opacity: 0.0, depthWrite: false }),
-    );
-    this.snowCover.position.set(17, 0.11, 15);
-    this.snowCover.visible = false;
-    host.town.scene.add(this.snowCover);
+    // Snow settles on every upward-facing surface (ground, roofs, benches) via a shader patch, see `whiten`.
+    this.whiten(host.town.scene);
     // Fog banks: soft white slabs drifting over the ground.
     const fogMat = new THREE.MeshBasicMaterial({ color: "#e4e9ee", transparent: true, opacity: 0, depthWrite: false });
     for (let i = 0; i < 7; i++) {
@@ -703,11 +699,14 @@ export class Fx {
     );
     this.particles.group.visible = inTown;
     this.particles.update(dt, t, s, this.host.town.target, true, winds);
-    // Snow settles on the ground; fog banks drift.
+    // Snow settles on up-facing surfaces and melts away; fog banks drift.
     const snowy = (s.kind === "snow" && s.intensity > 0.05) || this.winter;
-    const sc = this.snowCover.material as THREE.MeshToonMaterial;
-    sc.opacity = lerp(sc.opacity, snowy ? 0.62 : 0, Math.min(1, dt * 0.8));
-    this.snowCover.visible = sc.opacity > 0.01 && inTown;
+    this.snowAmt.value = lerp(this.snowAmt.value, snowy ? 1 : 0, Math.min(1, dt * 0.5));
+    this.snowScan -= dt;
+    if (this.snowScan <= 0) {
+      this.snowScan = 1.5;
+      this.whiten(this.host.town.scene); // pick up props built since the last pass
+    }
     for (const m of this.fogBank) {
       const mat = m.material as THREE.MeshBasicMaterial;
       const want = s.kind === "fog" ? 0.14 * s.intensity : 0;
@@ -846,6 +845,36 @@ export class Fx {
     }
     void dt;
     void camera;
+  }
+
+  /** Teach every toon material in `root` to go white on surfaces that face up, scaled by `snowAmt`. */
+  private whiten(root: THREE.Object3D): void {
+    const uSnow = this.snowAmt;
+    root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        if (!(mat as THREE.MeshToonMaterial).isMeshToonMaterial || mat.userData.snowy) continue;
+        mat.userData.snowy = true;
+        mat.onBeforeCompile = (sh) => {
+          sh.uniforms.uSnow = uSnow;
+          sh.vertexShader = sh.vertexShader
+            .replace("#include <common>", "#include <common>\nvarying float vSnowUp;")
+            .replace(
+              "#include <beginnormal_vertex>",
+              "#include <beginnormal_vertex>\n  vSnowUp = normalize(mat3(modelMatrix) * objectNormal).y;",
+            );
+          sh.fragmentShader = sh.fragmentShader
+            .replace("#include <common>", "#include <common>\nvarying float vSnowUp;\nuniform float uSnow;")
+            .replace(
+              "#include <dithering_fragment>",
+              "#include <dithering_fragment>\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.94, 0.97, 1.0), smoothstep(0.5, 0.8, vSnowUp) * uSnow * 0.95);",
+            );
+        };
+        mat.customProgramCacheKey = () => "snowy";
+        mat.needsUpdate = true;
+      }
+    });
   }
 
   // ——— Debug panel ———
