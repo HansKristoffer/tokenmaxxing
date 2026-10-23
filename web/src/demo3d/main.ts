@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { Avatar, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
 import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
+import { DESK_TIER_ASSETS, FURNITURE_EXTRA_ASSETS } from "./furniture3d.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
 import { Pipeline } from "./pipeline.ts";
 import { car } from "./props.ts";
@@ -373,10 +374,11 @@ office.update = (dt, t) => {
 };
 
 // ——— The catalogue ———
+const CATALOG: readonly Asset[] = [...ASSETS, ...FURNITURE_EXTRA_ASSETS, ...DESK_TIER_ASSETS];
 const COLS = 6;
 const CELL_W = 3.2;
 const CELL_D = 4.4;
-const rows = Math.ceil(ASSETS.length / COLS) + 1;
+const rows = Math.ceil(CATALOG.length / COLS) + 1;
 const catW = COLS * CELL_W;
 const catD = rows * CELL_D;
 const catalog = newStage("Catalog", new THREE.Vector3(), Math.max(catW, catD) * 0.75, 12, "#1b1f2a");
@@ -408,7 +410,7 @@ const cell = (col: number, row: number) =>
   );
 catalog.target.copy(cell(COLS / 2 - 0.5, 1.5)).setY(0.5);
 const spinning: THREE.Object3D[] = [];
-ASSETS.forEach((a, i) => {
+CATALOG.forEach((a, i) => {
   const m = a.build();
   m.position.copy(cell(i % COLS, Math.floor(i / COLS) + 1));
   catalog.scene.add(m);
@@ -847,7 +849,7 @@ async function drawIcons(): Promise<void> {
   scene.add(sun);
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 50);
   const bar = $("#inventory .inv");
-  for (const a of ASSETS) {
+  for (const a of CATALOG) {
     if (a.id === "neon-sign") continue;
     const m = a.build();
     scene.add(m);
