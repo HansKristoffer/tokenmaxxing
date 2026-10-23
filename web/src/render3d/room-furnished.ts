@@ -1,6 +1,6 @@
+import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
 import { type GameMap, LEGEND } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE, FURNITURE } from "@tokenmaxxing/core/office.ts";
-import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
 import type { RoomId } from "@tokenmaxxing/core/world.ts";
 import { C } from "../art/palette.ts";
 import { applyDecor } from "../demo3d/decor3d.ts";
@@ -10,9 +10,9 @@ import { beginTickScope, canvasTexture, endTickScope, Model, painted } from "../
 import { PETS_ASSETS } from "../demo3d/pets3d.ts";
 import { type Placed, Room, type Turn } from "../demo3d/room.ts";
 import { TAVERN_ASSETS } from "../demo3d/tavern3d.ts";
-import { type RoomSkin, WorldRoom, placeholder } from "../demo3d/world.ts";
-import { type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
+import { placeholder, type RoomSkin, WorldRoom } from "../demo3d/world.ts";
 import { viewOf } from "./room-skin.ts";
+import { type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
 
 /**
  * The rooms whose furniture is the players': an Office (its owner's drops) and a company's common room. The map
@@ -33,8 +33,13 @@ for (const a of [...DUNGEON_ASSETS, ...PETS_ASSETS]) if (/^tile:[UYVQ]$/u.test(a
 const stool = TAVERN_ASSETS.find((a) => a.id === "tile:v");
 if (stool) ASSET_OF.set("v", stool);
 
+/** The demo's piece for a map character, if it has one. */
+export const assetOfChar = (ch: string): Asset | undefined => ASSET_OF.get(ch);
+
 /** Pieces that face the room's south (a chair at a desk, a sofa in front of the TV). */
 const TURN: Record<string, Turn> = { c: 2, s: 2, v: 2, μ: 2, Σ: 2 };
+
+export const turnOfChar = (ch: string): Turn => TURN[ch] ?? 0;
 
 /** A flat tile of rug or stage floor: `rug` is the id the room treats as walkable. */
 function flat(ch: string): Asset {
@@ -131,7 +136,7 @@ function buildFurnished(id: RoomId, ctx: RoomCtx): RoomView {
   endTickScope(scope, room.group);
   const skin: RoomSkin = { group: room.group, offset: inset, facing: (v) => room.facing(v), extra: built.value };
   const world = new WorldRoom(office ? "office" : "common", map, skin);
-  return viewOf(id, map, world, built.ticks, { extra: built.value, keepers: new Set() });
+  return viewOf(id, map, world, built.ticks, { extra: built.value, keepers: new Set(), decor: office ? (d) => applyDecor(room, d) : undefined });
 }
 
 registerRoom("office", buildFurnished);

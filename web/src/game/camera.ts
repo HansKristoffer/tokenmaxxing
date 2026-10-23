@@ -15,6 +15,8 @@ export const viewHooks: {
   rotate?: (step: 1 | -1) => void;
   /** The grid direction a key's direction means with the view as it is. */
   key?: <D extends string>(dir: D) => D;
+  /** E on a shop's display at this tile: true when the 3D buy panel took it. */
+  shop?: (shop: string, x: number, y: number) => boolean;
 } = {};
 
 /**

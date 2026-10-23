@@ -5,7 +5,7 @@
  * `core/src/posters.ts` (POSTERS) and `core/src/desks.ts` (DESKS). Keep in step by hand.
  */
 
-import { SHOP_BLOCKS, townMap as coreTown } from "@tokenmaxxing/core/maps.ts";
+import { townMap as coreTown, SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
 
 export const BLOCK_W = 10;

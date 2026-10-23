@@ -1,26 +1,32 @@
 import { worldWall } from "@tokenmaxxing/core/range.ts";
-import { houseTier, mapOf } from "@tokenmaxxing/core/world.ts";
+import { DIRS, type Facing, houseTier, mapOf, ownerOfOffice } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { setGeometryDetail } from "../demo3d/kit.ts";
 import { Pipeline } from "../demo3d/pipeline.ts";
+import { SHOP_INSET, type ShopDisplay, type ShopId } from "../demo3d/shops/index.ts";
 import { viewHooks } from "../game/camera.ts";
 import { gameHits } from "../game/games.ts";
 import { peekHits } from "../game/houses.ts";
+import { send, walkThen } from "../game/input.ts";
 import { chipHits, signHits } from "../game/labels.ts";
 import type { Renderer, Tile } from "../game/renderer.ts";
 import { skyNow } from "../game/sky.ts";
-import { world } from "../game/world.ts";
+import { self, world } from "../game/world.ts";
+import { conn, refreshMe, town } from "../net.ts";
 import type { GraphicsSettings } from "../settings/graphics.ts";
-import { applyGraphics } from "./perf/tiers.ts";
+import { hud } from "../store.ts";
 import { gpuNow } from "./dispose.ts";
 import { Drops } from "./drops.ts";
 import { Entities } from "./entities.ts";
 import { keyDirection } from "./motion.ts";
 import { Overlay } from "./overlay.ts";
+import { applyGraphics } from "./perf/tiers.ts";
 import { castAt } from "./pick.ts";
+import { Placer } from "./placer.ts";
 import { CameraRig } from "./rig.ts";
 import { buildRoom, type RoomCtx, type RoomView } from "./rooms.ts";
 import { SEE } from "./seethrough.ts";
+import { type InstalledShops, installShops, type ShopWorld } from "./shops/index.ts";
 import "./room-generic.ts";
 import "./room-skin.ts";
 import "./room-furnished.ts";
@@ -80,6 +86,10 @@ class Renderer3D implements Renderer {
   private w = 1;
   private h = 1;
   private detail: 0 | 1 | null = null;
+  private shops: InstalledShops | null = null;
+  private readonly placer = new Placer();
+  /** A piece bought for the Office while elsewhere: placing starts once we are there. */
+  private pendingPlace: string | null = null;
   private last = 0;
   private settings: GraphicsSettings | null = null;
   private fail?: (reason: string) => void;
@@ -119,8 +129,11 @@ class Renderer3D implements Renderer {
       zoom: (step) => this.rig.zoom(step),
       rotate: (step) => this.rig.rotate(step),
       key: (dir) => keyDirection(dir as never, this.rig.turns) as never,
+      shop: (_shop, x, y) => this.openShelf(x, y),
     };
     Object.assign(viewHooks, this.hooks3d);
+    this.shops = installShops(this.shopWorld);
+    this.bindShopping();
     // Panning: the middle button drags the picture; it settles back on you when you walk on.
     const down = (e: PointerEvent) => {
       if (e.button !== 1) return;
@@ -221,6 +234,15 @@ class Renderer3D implements Renderer {
     this.rig.frame(this.framing);
     this.rig.setAspect(this.w / this.h);
     this.selfAt = null;
+    if (roomChanged) {
+      this.shops?.panel.close();
+      this.placer.cancel();
+      if (this.pendingPlace && this.inOwnOffice()) {
+        const id = this.pendingPlace;
+        this.pendingPlace = null;
+        this.beginPlacing(id);
+      } else this.pendingPlace = null;
+    }
     if (roomChanged) {
       this.overlay.snapFade(this.settings?.reduceMotion ? 0 : 1);
       this.overlay.fadeTowards(0, this.settings?.reduceMotion ? 0 : FADE_IN_MS, now);
@@ -330,6 +352,161 @@ class Renderer3D implements Renderer {
     this.town?.stage.applySettings(s);
   }
 
+
+  // MARK: Shops
+
+  /** What the buy panel needs of this world (`render3d/shops`). */
+  private readonly shopWorld: ShopWorld = {
+    previewLook: (look) => this.entities.previewLook(look),
+    renderStyle: () => ({
+      style: this.pipe.style === "voxel" ? "voxel" : "classic",
+      pixelSize: this.pipe.pixelSize,
+      night: this.pipe.night > 0.5,
+    }),
+    startPlacement: (itemId) => this.startPlacement(itemId),
+    applyDecor: (d) => this.stage?.view.decor?.(d),
+  };
+
+  /** The display nearest a point of the window, within a few finger widths. */
+  private shelfAt(clientX: number, clientY: number): { shop: ShopId; display: ShopDisplay } | null {
+    const room = this.stage?.view.shop;
+    if (!room) return null;
+    const r = this.canvas.getBoundingClientRect();
+    const p = new THREE.Vector3();
+    let best: ShopDisplay | null = null;
+    let bestD = 30;
+    for (const d of room.displays) {
+      p.set(d.pos.x + SHOP_INSET[0], d.pos.y, d.pos.z + SHOP_INSET[1]).project(this.rig.camera);
+      const dist = Math.hypot(((p.x + 1) / 2) * r.width + r.left - clientX, ((1 - p.y) / 2) * r.height + r.top - clientY);
+      if (dist < bestD) {
+        bestD = dist;
+        best = d;
+      }
+    }
+    return best ? { shop: room.id, display: best } : null;
+  }
+
+  /** E on a display tile of the map: the buy panel on the first thing sold there. */
+  private openShelf(x: number, y: number): boolean {
+    const room = this.stage?.view.shop;
+    const d = room?.displays.find((q) => q.tile[0] + SHOP_INSET[0] === x && q.tile[1] + SHOP_INSET[1] === y);
+    if (!room || !d || !this.shops) return false;
+    this.shops.open(room.id, d.item);
+    return true;
+  }
+
+  /** Clicks on shelves, the price tip and the placement ghost: in the capture phase, before the game's own walking. */
+  private bindShopping(): void {
+    const click = (e: MouseEvent) => {
+      if (hud.get().panel) return;
+      if (this.placer.active) {
+        e.stopImmediatePropagation();
+        this.placeAt(e.clientX, e.clientY);
+        return;
+      }
+      const hit = this.shelfAt(e.clientX, e.clientY);
+      if (!hit || !this.shops) return;
+      e.stopImmediatePropagation();
+      this.shops.open(hit.shop, hit.display.item);
+    };
+    const move = (e: PointerEvent) => {
+      if (this.placer.active && this.stage) {
+        const t = this.pick(e.clientX, e.clientY);
+        this.placer.aim(this.stage.view, t, t !== null && this.floorFree(t.x, t.y));
+      }
+      if (!this.shops) return;
+      const near = this.stage?.view.shop && !this.placer.active ? this.shelfAt(e.clientX, e.clientY) : null;
+      const it = near?.display.item;
+      this.shops.panel.tip(it ? `${it.name}${it.price ? ` · 🪙 ${it.price}` : ""}` : null, e.clientX, e.clientY);
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || !this.placer.active) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      this.stopPlacing();
+    };
+    this.canvas.addEventListener("click", click, true);
+    this.canvas.addEventListener("pointermove", move);
+    window.addEventListener("keydown", key, true);
+    this.off.push(() => {
+      this.canvas.removeEventListener("click", click, true);
+      this.canvas.removeEventListener("pointermove", move);
+      window.removeEventListener("keydown", key, true);
+    });
+  }
+
+  // MARK: Placing furniture
+
+  private inOwnOffice(): boolean {
+    return ownerOfOffice(world.room) === world.selfId;
+  }
+
+  /** The Office placement mode for `itemId`; takes you to your Office first if you are elsewhere. */
+  private startPlacement(itemId: string): boolean {
+    if (!this.stage) return false;
+    if (!this.inOwnOffice()) {
+      this.pendingPlace = itemId;
+      hud.set({ dialog: "Taking you to your Office to put it down." });
+      send(conn.visit(world.selfId));
+      return true;
+    }
+    return this.beginPlacing(itemId);
+  }
+
+  private beginPlacing(itemId: string): boolean {
+    if (!this.stage || !this.placer.begin(itemId, this.stage.scene)) return false;
+    this.shops?.panel.close();
+    hud.set({ dialog: "Click where it goes. Esc to cancel." });
+    return true;
+  }
+
+  private stopPlacing(): void {
+    this.placer.cancel();
+    this.pendingPlace = null;
+    if (hud.get().dialog?.startsWith("Click where")) hud.set({ dialog: null });
+  }
+
+  /** Whether a piece can go on this tile: bare floor, nobody standing on it. */
+  private floorFree(x: number, y: number): boolean {
+    if (!world.map.walkable(x, y) || world.map.kind(x, y).portal) return false;
+    for (let i = 0; i < this.placer.width; i++) {
+      if (!world.map.walkable(x + i, y)) return false;
+      for (const a of world.avatars.values()) if (a.x === x + i && a.y === y) return false;
+    }
+    return true;
+  }
+
+  /** Walks up to the tile, faces it, and puts the piece down there: the server places it where you face. */
+  private placeAt(clientX: number, clientY: number): void {
+    const id = this.placer.itemId;
+    const tile = this.pick(clientX, clientY);
+    const me = self();
+    if (!id || !tile || !me || !this.floorFree(tile.x, tile.y)) return;
+    const dirs = (Object.entries(DIRS) as [Facing, [number, number]][])
+      .map(([facing, [dx, dy]]) => ({ facing, x: tile.x - dx, y: tile.y - dy }))
+      .filter((c) => world.map.walkable(c.x, c.y))
+      .sort((a, b) => Math.abs(a.x - me.x) + Math.abs(a.y - me.y) - (Math.abs(b.x - me.x) + Math.abs(b.y - me.y)));
+    const drop = () => {
+      this.stopPlacing();
+      town.drop(id).then(
+        async (r) => {
+          hud.set({ dialog: r.notice });
+          if (r.drop) hud.set((s) => ({ wallet: s.wallet && { ...s.wallet, items: s.wallet.items - 1 } }));
+          await refreshMe();
+        },
+        (e: unknown) => hud.set({ dialog: e instanceof Error ? e.message : "That didn't work." }),
+      );
+    };
+    for (const c of dirs) {
+      if (me.x === c.x && me.y === c.y && me.facing === c.facing) {
+        drop();
+        return;
+      }
+      if (walkThen(c.x, c.y, c.facing, drop)) return;
+    }
+    hud.set({ dialog: "There's no way to get to it from here." });
+  }
+
   // MARK: Picking
 
   /**
@@ -422,7 +599,11 @@ class Renderer3D implements Renderer {
       delete viewHooks.zoom;
       delete viewHooks.rotate;
       delete viewHooks.key;
+      delete viewHooks.shop;
     }
+    this.placer.cancel();
+    this.shops?.dispose();
+    this.shops = null;
     this.signs.dispose();
     this.entities.dispose();
     this.drops.dispose();

@@ -7,12 +7,12 @@ import type { WorldGame } from "@tokenmaxxing/core/world.ts";
 import type { BasementScene, BoardPairing, MatchRow, ScreenFeed } from "../demo3d/basement3d.ts";
 import { setLanParty } from "../demo3d/livescreen.ts";
 import { setBarTab, setPlaque, setSpecial, type TavernRoom } from "../demo3d/tavern3d.ts";
-import { askRegulars, regularsBoard } from "../game/regulars.ts";
 import { left } from "../game/raid.ts";
+import { askRegulars, regularsBoard } from "../game/regulars.ts";
 import { skyNow } from "../game/sky.ts";
+import { world } from "../game/world.ts";
 import { refreshTournament } from "../net.ts";
 import { hud } from "../store.ts";
-import { world } from "../game/world.ts";
 
 /**
  * The real game's data on the demo's boards: the Tavern's bar tab, plaques, easel and jukebox, and the

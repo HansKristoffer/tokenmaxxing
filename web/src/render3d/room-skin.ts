@@ -1,20 +1,20 @@
-import { companyOfRoom, type RoomId } from "@tokenmaxxing/core/world.ts";
+import type { GameMap, MapId } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { POSTERS } from "@tokenmaxxing/core/posters.ts";
-import type { GameMap, MapId } from "@tokenmaxxing/core/maps.ts";
 import { SHOP_IDS, SHOP_ROOM, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
+import { companyOfRoom, type RoomId } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { type BasementScene, dimBasement } from "../demo3d/basement3d.ts";
-import { TAVERN_ASSETS, type TavernRoom } from "../demo3d/tavern3d.ts";
 import { buildHq } from "../demo3d/hq3d.ts";
 import { beginTickScope, endTickScope } from "../demo3d/kit.ts";
 import { setPropsNight } from "../demo3d/props.ts";
 import { loadSlices } from "../demo3d/registry.ts";
-import { forgetShopRoom, shopRoom } from "../demo3d/shops/index.ts";
+import { forgetShopRoom, type ShopRoom, shopRoom } from "../demo3d/shops/index.ts";
+import { TAVERN_ASSETS, type TavernRoom } from "../demo3d/tavern3d.ts";
 import { buildRoomSkin, type RoomSkin, WorldRoom } from "../demo3d/world.ts";
 import "../demo3d/world-rooms.ts";
-import { liveBasement, liveTavern } from "./live.ts";
 import { disposeObject } from "./dispose.ts";
+import { liveBasement, liveTavern } from "./live.ts";
 import { type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
 
 /**
@@ -31,6 +31,10 @@ const WALL_H = 2.6;
 export interface SkinParts {
   /** Once a frame: the real game's data on the room's boards (`live.ts`). */
   live?: (t: number) => void;
+  /** A shop's interior, for picking its shelves. */
+  shop?: ShopRoom;
+  /** An Office's wallpaper and floor, at once. */
+  decor?: (d: { wall?: string; floor?: string }) => void;
   /** The basement's dim light. */
   dim?: boolean;
   /** The demo's own handles into the room (the Tavern's boards, the basement's screens...), by room. */
@@ -65,6 +69,8 @@ export function viewOf(
     room,
     parts,
     keepers: parts.keepers,
+    shop: parts.shop,
+    decor: parts.decor,
     lights: parts.dim ? (scene, hemi, sun) => dimBasement(scene, hemi, sun) : undefined,
     outdoors: false,
     bounds: { minX: 0, maxX: W, minZ: 0, maxZ: D, height: WALL_H },
@@ -110,7 +116,7 @@ function buildShop(id: RoomId, ctx: RoomCtx): RoomView {
   const mapId = SHOP_ROOM[shop] as MapId;
   const built = worldRoom(mapId, ctx.map, () => buildRoomSkin(mapId));
   const botId = SHOPKEEPER_BOT[shop];
-  return viewOf(id, ctx.map, built.value, built.ticks, { extra: shopRoom(shop), keepers: new Set([botId]) }, SHOP_VIEW[shop] ?? 8.5);
+  return viewOf(id, ctx.map, built.value, built.ticks, { extra: shopRoom(shop), shop: shopRoom(shop), keepers: new Set([botId]) }, SHOP_VIEW[shop] ?? 8.5);
 }
 
 /** The core bot behind each shop's counter. */

@@ -49,6 +49,8 @@ let interactOnArrival = false;
 let lastRoom = "";
 const carried = new Set<Facing>();
 let takeOnArrival = false;
+/** Runs once the clicked path is walked (the 3D renderer's furniture placement drops a piece there). */
+let onArrival: (() => void) | null = null;
 
 const typing = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
@@ -80,6 +82,7 @@ export function bindInput(canvas: HTMLElement): void {
       path = [];
       interactOnArrival = false;
       takeOnArrival = false;
+      onArrival = null;
       return;
     }
     switch (e.key.toLowerCase()) {
@@ -204,6 +207,25 @@ export function walkTo(x: number, y: number): void {
   interactOnArrival = path.length > 0 && !world.map.walkable(x, y) && !world.map.kind(x, y).portal;
 }
 
+/**
+ * Walks to (`x`, `y`) and ends facing `dir`, then runs `then`: the route to the tile behind it, and one more step
+ * the way it looks. False when there is no way (nothing changes).
+ */
+export function walkThen(x: number, y: number, dir: Facing, then: () => void): boolean {
+  const me = self();
+  if (!me) return false;
+  const [dx, dy] = DIRS[dir];
+  const behind: [number, number] = [x - dx, y - dy];
+  const there = world.map.walkable(...behind) ? route(world.map, [me.x, me.y], behind) : null;
+  const steps = there ? [...there, dir] : route(world.map, [me.x, me.y], [x, y]);
+  if (!steps) return false;
+  path = steps;
+  interactOnArrival = false;
+  takeOnArrival = false;
+  onArrival = then;
+  return true;
+}
+
 /** The server's answer to a move: a notice, a correction, or another room (its snapshot follows). */
 export function send(result: Promise<StepResult>): void {
   result
@@ -259,6 +281,11 @@ export function updateSelf(now: number): void {
     if (takeOnArrival) {
       takeOnArrival = false;
       take();
+    }
+    if (onArrival) {
+      const run = onArrival;
+      onArrival = null;
+      run();
     }
     return;
   }
@@ -317,6 +344,8 @@ function shopInteract(x: number, y: number): boolean {
   const shop = shopOfRoom(world.room);
   const kind = world.map.kind(x, y);
   if (!shop || !(kind.counter || kind.shop)) return false;
+  // The 3D renderer has its own buy panel for a shelf (the counter and the barber's mirror stay the page's).
+  if (kind.shop && viewHooks.shop?.(shop, x, y)) return true;
   const tab = kind.counter ? COUNTER_TAB[shop] : displayTab(shop, x, y);
   hud.set({ panel: tab === "look" || tab === null ? { kind: "look" } : { kind: "shop", tab } });
   return true;
