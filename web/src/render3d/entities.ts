@@ -347,7 +347,7 @@ export class Entities {
     if (near) av.update(dtS, t);
     if (r.cop) r.cop.gear.update(r.cop.watch.read(bubbleOn && a.bubble ? a.bubble.text : "", now), now, this.calm);
 
-    this.pet(r, a, me, view, camera, now, dt, t, near);
+    this.pet(r, a, me, view, camera, dt, t, near);
     const close = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;
     this.labels(r, a, camera, now, near, close, bubbleOn, pose, y);
   }
@@ -390,7 +390,7 @@ export class Entities {
     }
     const owner = ownerOfOffice(world.room);
     const bed = owner === a.info.id ? world.map.find("Q")[0] : undefined;
-    const pos = r.lap ?? drawPos(a, now);
+    const pos = r.at;
     const spot = followPet(a, pos.x * TILE, pos.y * TILE, dt, bed);
     if (!spot) return;
     // The 2D spot is the sprite's top-left in pixels; the 3D pet stands on its bottom middle.
