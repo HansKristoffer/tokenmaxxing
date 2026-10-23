@@ -45,6 +45,12 @@ test("slowness lowers the render scale first, then the tier", () => {
   expect(g.tier).not.toBe("high");
 });
 
+test("a machine far too slow skips the scale steps and drops a tier at once", () => {
+  const g = new Governor("high");
+  const r = run(g, 0, SUSTAIN_MS + 6000, 80);
+  expect(r.steps).toEqual([{ kind: "tier", tier: "medium", scaleMul: 1 }]);
+});
+
 test("a short stutter is ignored, and so is a hidden tab", () => {
   const g = new Governor("high");
   expect(run(g, 0, 2000, 40).steps).toEqual([]);

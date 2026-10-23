@@ -15,6 +15,8 @@ export const MIN_SCALE = 0.625;
 const GAP_MS = 500;
 /** Slow is the p75 frame taking more than this share over the target. */
 const SLOW_RATIO = 1.35;
+/** So slow (under a third of the target rate) that lowering the scale a notch won't do: go straight to the tier below. */
+export const SEVERE_RATIO = 3;
 
 export function percentile(sorted: readonly number[], p: number): number {
   if (sorted.length === 0) return 0;
@@ -79,7 +81,7 @@ export class Governor {
     if (slow) {
       this.lastSlow = now;
       this.slowSince ??= now;
-      if (now - this.slowSince >= SUSTAIN_MS) return this.stepDown(now);
+      if (now - this.slowSince >= SUSTAIN_MS) return this.stepDown(now, this.p(0.75) > target * SEVERE_RATIO);
       return null;
     }
     this.slowSince = null;
@@ -97,9 +99,9 @@ export class Governor {
     this.lastSlow = now;
   }
 
-  private stepDown(now: number): Step | null {
+  private stepDown(now: number, severe: boolean): Step | null {
     this.settle(now);
-    if (this.scaleMul - SCALE_STEP >= MIN_SCALE - 1e-9) {
+    if (!severe && this.scaleMul - SCALE_STEP >= MIN_SCALE - 1e-9) {
       this.scaleMul = Math.round((this.scaleMul - SCALE_STEP) * 1000) / 1000;
       return { kind: "scale", scaleMul: this.scaleMul };
     }
