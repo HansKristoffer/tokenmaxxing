@@ -69,9 +69,8 @@ export class RoomStage {
           town: ref,
           current: () => "Town",
           show: () => {},
-          label: (_stage, text, cls, at) => {
+          label: (_stage, text, cls) => {
             const el = overlay.make(cls, text);
-            void at;
             el.style.display = "none";
             return { el: el as HTMLDivElement, remove: () => el.remove() };
           },
@@ -164,8 +163,7 @@ export class RoomStage {
     return this.fx?.hasSky() ? this.fx.horizon() : null;
   }
 
-  dispose(overlay: Overlay | null = null): void {
-    void overlay;
+  dispose(): void {
     this.fx?.dispose();
     this.view.dispose();
     disposeObject(this.scene);

@@ -56,7 +56,6 @@ export class Overlay {
   dispose(): void {
     this.layer.remove();
     this.fade.remove();
-    document.getElementById(STYLE_ID)?.remove();
   }
 
   resize(w: number, h: number): void {

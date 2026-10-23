@@ -382,7 +382,6 @@ export class Entities {
       r.petLabel.remove();
       r.petLabel = null;
     }
-    void camera;
   }
 
   private labels(

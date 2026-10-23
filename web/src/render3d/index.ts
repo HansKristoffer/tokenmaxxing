@@ -1,5 +1,5 @@
 import { worldWall } from "@tokenmaxxing/core/range.ts";
-import { mapOf } from "@tokenmaxxing/core/world.ts";
+import { houseTier, mapOf } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { Pipeline } from "../demo3d/pipeline.ts";
 import { viewHooks } from "../game/camera.ts";
@@ -82,6 +82,7 @@ class Renderer3D implements Renderer {
   private selfAt: [number, number] | null = null;
   private drag: { x: number; y: number } | null = null;
   private errored = 0;
+  private hooks3d: Required<typeof viewHooks> | null = null;
   private framing: { view: number; bounds: RoomView["bounds"] } | null = null;
   /** While a room works out what moves (`batch.ts`), the hour its schedules read. */
   private probeMinutes: number | null = null;
@@ -112,9 +113,12 @@ class Renderer3D implements Renderer {
     this.overlay.mount(host);
     // The 2D game's click targets are in canvas pixels; they are not ours.
     for (const hits of [chipHits, signHits, peekHits, gameHits]) hits.length = 0;
-    viewHooks.zoom = (step) => this.rig.zoom(step);
-    viewHooks.rotate = (step) => this.rig.rotate(step);
-    viewHooks.key = (dir) => keyDirection(dir as never, this.rig.turns) as never;
+    this.hooks3d = {
+      zoom: (step) => this.rig.zoom(step),
+      rotate: (step) => this.rig.rotate(step),
+      key: (dir) => keyDirection(dir as never, this.rig.turns) as never,
+    };
+    Object.assign(viewHooks, this.hooks3d);
     // Panning: the middle button drags the picture; it settles back on you when you walk on.
     const down = (e: PointerEvent) => {
       if (e.button !== 1) return;
@@ -161,14 +165,24 @@ class Renderer3D implements Renderer {
     return { map: world.map, companies: [...world.companies.values()], minutes: () => this.probeMinutes ?? minutesNow() };
   }
 
-  /** What identifies the room as drawn: the room itself, and for the town the companies' plots. */
+  /** The town's identity, worked out once per list of companies (`setCompanies` replaces the map each time). */
+  private townKey: { companies: typeof world.companies; key: string } | null = null;
+
+  /**
+   * What identifies the room as drawn: the room itself, and for the town what its houses look like (each
+   * company's plot, tier and brand: a new company, a house that grew or a new logo is a new town).
+   */
   private roomKey(): string {
-    if (world.room === "town")
-      return `town:${[...world.companies.values()]
-        .map((c) => c.plot)
-        .sort((a, b) => a - b)
-        .join()}`;
-    return `${world.room}:${mapKey(world.map)}`;
+    if (world.room !== "town") return `${world.room}:${mapKey(world.map)}`;
+    if (this.townKey?.companies !== world.companies)
+      this.townKey = {
+        companies: world.companies,
+        key: `town:${[...world.companies.values()]
+          .map((c) => `${c.plot}.${houseTier(c.tokens30d, c.members)}.${c.brand?.roof ?? ""}${c.brand?.logo ?? ""}.${c.deskFleet ?? 0}`)
+          .sort()
+          .join()}`,
+      };
+    return this.townKey.key;
   }
 
   /** Makes the stage match `world.room`, building it (and clearing the people) when the room changes. */
@@ -193,9 +207,6 @@ class Renderer3D implements Renderer {
       }
     }
     if (old && old !== next && old !== this.town?.stage) old.dispose();
-    if (old && old === this.town?.stage && old !== next) {
-      // Keep it: just stop drawing it.
-    }
     next.scene.add(this.entities.group, this.drops.group);
     this.stage = next;
     this.key = key;
@@ -229,7 +240,7 @@ class Renderer3D implements Renderer {
     const calm = this.settings?.reduceMotion ?? false;
 
     // The camera: on you, off the room's edges, a pan easing back once you walk on.
-    const me = this.entities.positionOf(world.selfId);
+    const me = this.entities.positionOf(world.selfId) ?? this.spotOf(view);
     const focus = me ?? [(view.bounds.minX + view.bounds.maxX) / 2, (view.bounds.minZ + view.bounds.maxZ) / 2];
     if (this.rig.panned() && me && this.selfAt && Math.hypot(me[0] - this.selfAt[0], me[1] - this.selfAt[1]) > 0.7)
       this.rig.easePan(dt);
@@ -266,6 +277,12 @@ class Renderer3D implements Renderer {
     this.pipe.render(stage.scene, camera, this.w, this.h);
     this.stats.frames++;
     this.stats.cpuMs += (performance.now() - started - this.stats.cpuMs) * 0.05;
+  }
+
+  /** Where you stand in the room's units, from the game state: before your body has been drawn (a new room). */
+  private spotOf(view: RoomView): [number, number] | null {
+    const a = world.avatars.get(world.selfId);
+    return a ? view.toWorld(a.x, a.y) : null;
   }
 
   /** Where the ring that cuts trees and roofs away round you is, in render pixels. */
@@ -394,9 +411,12 @@ class Renderer3D implements Renderer {
 
   dispose(): void {
     for (const f of this.off) f();
-    delete viewHooks.zoom;
-    delete viewHooks.rotate;
-    delete viewHooks.key;
+    // Only our own hooks: a renderer that replaced us may have mounted before we were disposed.
+    if (this.hooks3d && viewHooks.zoom === this.hooks3d.zoom) {
+      delete viewHooks.zoom;
+      delete viewHooks.rotate;
+      delete viewHooks.key;
+    }
     this.signs.dispose();
     this.entities.dispose();
     this.drops.dispose();
