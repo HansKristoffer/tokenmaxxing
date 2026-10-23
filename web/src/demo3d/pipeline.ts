@@ -13,6 +13,7 @@ import {
   syncBaked,
   trackAdditions,
 } from "../render3d/perf/bake.ts";
+import { sweep, thawAll, view, watchAll } from "../render3d/perf/freeze.ts";
 import { classifyCasters } from "../render3d/perf/shadowcast.ts";
 import { trackRenderer } from "../render3d/perf/stats.ts";
 import { blockify, unblockify } from "./blocky.ts";
@@ -339,6 +340,7 @@ export class Pipeline {
   private readonly lights = new WeakMap<THREE.Scene, SceneLights>();
   private slow = 0;
   private frames = 0;
+  private mode: BakeMode | null = null;
   private lastAt = 0;
   private lastScene: THREE.Scene | null = null;
   private frameNo = 0;
@@ -810,6 +812,7 @@ export class Pipeline {
   render(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
     // World matrices once per frame: the shadow passes run before the renderer's own update would, and need them fresh.
     camera.layers.enable(STATIC_LAYER);
+    this.look(camera, w);
     scene.updateMatrixWorld();
     const auto = scene.matrixWorldAutoUpdate;
     scene.matrixWorldAutoUpdate = false;
@@ -820,6 +823,25 @@ export class Pipeline {
     }
   }
 
+  private readonly frustum = new THREE.Frustum();
+  private readonly viewMatrix = new THREE.Matrix4();
+  private readonly ball = new THREE.Sphere();
+
+  /** Tells animation code what the camera sees (`freeze.ts`): how big things are, and what is out of the picture. */
+  private look(camera: THREE.OrthographicCamera, w: number): void {
+    camera.updateMatrixWorld();
+    this.frustum.setFromProjectionMatrix(this.viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    view.pxPerUnit = w / ((camera.right - camera.left) / camera.zoom);
+    view.sees = (p, r) => {
+      this.ball.center.set(p.x, p.y + r * 0.5, p.z);
+      this.ball.radius = r;
+      return this.frustum.intersectsSphere(this.ball);
+    };
+    // Frozen copies of people who left every scene are freed now and then.
+    watchAll();
+    if (++view.frame % 300 === 0) sweep();
+  }
+
   private draw(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
     const r = this.renderer;
     this.frameNo++;
@@ -828,6 +850,10 @@ export class Pipeline {
     setActiveScene(scene);
     setSmoothBands(this.style === "voxel");
     const mode: BakeMode = this.style === "voxel" ? "block" : "smooth";
+    if (mode !== this.mode) {
+      this.mode = mode;
+      thawAll(mode);
+    }
     syncBaked(scene, mode);
     if (this.style === "voxel") {
       // Only when something was added since: swapping geometries is not free, and the scene is mostly still.

@@ -7,6 +7,7 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
+import { Freezer, view } from "../render3d/perf/freeze.ts";
 import { PET_NAME, PET_NAMED, PET_SPECIES, PET_VARIANTS, PETWEAR, type Species } from "./data/pets.ts";
 import type { Asset } from "./furniture.ts";
 import {
@@ -153,6 +154,7 @@ export class Pet3D {
     lifted: boolean;
   } | null = null;
   private readonly zs = [zGlyph(), zGlyph(), zGlyph()];
+  private readonly freezer = new Freezer(this.root);
 
   constructor(
     readonly species: Species,
@@ -174,6 +176,7 @@ export class Pet3D {
                 : species === "cat" || species === "dog" || species === "panda" || species === "forkedcat"
                   ? quad(species, variant, outfit)
                   : orb();
+    this.root.userData.actor = true;
     const { body: b, fore: f } = built;
     this.rig = built.rig;
     // Stand centred on the root, nose towards +z.
@@ -191,6 +194,28 @@ export class Pet3D {
   }
 
   update(t: number): void {
+    if (!view.sees(this.root.position, 1.5)) {
+      this.freezer.touch();
+      this.last = t;
+      return;
+    }
+    // At rest (standing or sitting, nothing spinning or sparkling) a pet is merged into a few meshes.
+    const settled = Math.abs(this.sit - (this.pose === "sit" ? 1 : 0)) < 0.01 && this.sleep < 0.01;
+    const calm = !this.moving && settled && !this.crown && !this.spin && !this.rig.fx && this.pose !== "sleep";
+    const key = calm ? `${this.pose}:${this.wear}` : null;
+    if (this.freezer.holds(key)) {
+      this.last = t;
+      return;
+    }
+    this.posed(t);
+    this.freezer.settle(key);
+  }
+
+  dispose(): void {
+    this.freezer.dispose();
+  }
+
+  private posed(t: number): void {
     const dt = Math.min(0.1, Math.max(0, t - this.last));
     this.last = t;
     const r = this.rig;

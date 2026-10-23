@@ -241,6 +241,10 @@ class Dress implements Gear {
     });
   }
 
+  get animated(): boolean {
+    return this.ticks.length > 0;
+  }
+
   update(a: Avatar, _dt: number, t: number): void {
     const walking = a.pose === "walk";
     for (const fn of this.ticks) fn(t, walking);

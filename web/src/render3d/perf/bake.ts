@@ -86,14 +86,14 @@ function hiddenAbove(o: THREE.Object3D, root: THREE.Object3D): boolean {
   return false;
 }
 
-function bakeable(m: THREE.Mesh): boolean {
+function bakeable(m: THREE.Mesh, literal = false): boolean {
   const mat = m.material;
   if (Array.isArray(mat) || (mat as THREE.Material).transparent || (mat as THREE.Material).userData.dynamic) return false;
   if ((m as THREE.InstancedMesh).isInstancedMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return false;
   if (m.renderOrder !== 0 || m.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) return false;
   const g = m.geometry;
   return (
-    !!g.getAttribute("position") && g.getAttribute("position").count > 0 && !g.morphAttributes.position && !blockMoves(m)
+    !!g.getAttribute("position") && g.getAttribute("position").count > 0 && !g.morphAttributes.position && (literal || !blockMoves(m))
   );
 }
 
@@ -191,7 +191,7 @@ function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<numb
 
 function prepared(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color?: THREE.Color): THREE.BufferGeometry {
   const g = src.clone();
-  for (const k of Object.keys(g.attributes)) if (k !== "position" && k !== "normal" && k !== "uv") g.deleteAttribute(k);
+  for (const k of Object.keys(g.attributes)) if (k !== "position" && k !== "normal" && k !== "uv" && !(k === "color" && !color)) g.deleteAttribute(k);
   if (!g.getAttribute("uv")) {
     g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(g.getAttribute("position").count * 2), 2));
   }
@@ -246,6 +246,11 @@ interface Source {
   glow?: "day" | "night";
 }
 
+/** Frozen models: one variant, built from the geometry the meshes have right now (the Voxel swap already happened). */
+interface LayerOptions {
+  literal?: boolean;
+}
+
 export class BakedLayer {
   readonly group = new THREE.Group();
   mode: BakeMode | null = null;
@@ -261,6 +266,7 @@ export class BakedLayer {
   constructor(
     readonly root: THREE.Object3D,
     sources: Source[],
+    private readonly options: LayerOptions = {},
   ) {
     this.sources = sources;
     if (sources.some((s) => s.glow)) this.offNight = onPropsNight((on) => this.setNight(on));
@@ -268,6 +274,11 @@ export class BakedLayer {
     this.group.matrixAutoUpdate = false;
     this.group.userData.noBake = true;
     root.add(this.group);
+  }
+
+  /** The static shadow map is stale, unless this batch belongs to something that moves (those cast their own shadow). */
+  private bump(): void {
+    if (!dynamicRoot(this.root)) shadowEpoch++;
   }
 
   get sourceMeshes(): THREE.Mesh[] {
@@ -292,13 +303,14 @@ export class BakedLayer {
       v = this.build(mode);
       this.variants[mode] = v;
       this.group.add(v);
-      shadowEpoch++;
+      this.bump();
       // Placed once: only a move of the room itself (a forced update) touches them again.
       this.group.updateMatrixWorld(true);
-      for (const c of v.children) c.matrixWorldAutoUpdate = false;
+      // Batches of something that moves (an avatar's limb, a wall) ride along with it.
+      if (!dynamicRoot(this.root)) for (const c of v.children) c.matrixWorldAutoUpdate = false;
     }
     for (const [m, g] of Object.entries(this.variants)) g!.visible = m === mode;
-    shadowEpoch++;
+    this.bump();
     // Sources a variant left out keep drawing themselves, the rest are hidden behind the merged copy.
     if (!this.sealed) this.seal();
   }
@@ -364,7 +376,7 @@ export class BakedLayer {
     for (const s of this.sources) {
       const m = s.mesh;
       let geo: THREE.BufferGeometry | null = m.geometry;
-      if (mode === "block") {
+      if (mode === "block" && !this.options.literal) {
         geo = blockStandIn(m) ?? m.geometry;
       }
       tmp.copy(s.local);
@@ -402,23 +414,43 @@ export class BakedLayer {
 
   disposed = false;
 
-  dispose(): void {
-    this.disposed = true;
-    shadowEpoch++;
-    for (const v of Object.values(this.variants)) {
-      for (const c of v!.children) (c as THREE.Mesh).geometry.dispose();
-    }
-    this.group.removeFromParent();
-    this.offNight?.();
+  /** Puts the originals back in the picture and hides the merged copy (it keeps its geometry for `resume`). */
+  suspend(): void {
+    this.bump();
+    for (const v of Object.values(this.variants)) v!.visible = false;
+    this.unseal();
+    this.mode = null;
+  }
+
+  /** Hides the originals again behind the kept merged copy. */
+  resume(mode: BakeMode): void {
+    if (this.disposed) return;
+    this.show(mode);
+  }
+
+  private unseal(): void {
+    this.sealed = false;
     for (const o of this.sleeping) {
       o.matrixAutoUpdate = true;
       o.matrixWorldAutoUpdate = true;
       o.visible = true;
     }
+    this.sleeping.length = 0;
     for (const s of this.sources) {
       s.mesh.visible = true;
       s.mesh.userData.bakedSource = false;
     }
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.bump();
+    for (const v of Object.values(this.variants)) {
+      for (const c of v!.children) (c as THREE.Mesh).geometry.dispose();
+    }
+    this.group.removeFromParent();
+    this.offNight?.();
+    this.unseal();
   }
 }
 
@@ -605,3 +637,61 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
   }
   return s.layers;
 }
+
+// MARK: Frozen models
+
+const frozen = new Set<BakedLayer>();
+
+function underRoot(o: THREE.Object3D, root: THREE.Object3D): boolean {
+  for (let p: THREE.Object3D | null = o; p; p = p.parent) if (p === root) return true;
+  return false;
+}
+
+/**
+ * Merges everything under `root` that can be merged, in the pose it is in right now, and hides the originals: a person
+ * standing still costs two draw calls instead of fifteen. `layer.suspend()` gives the live parts back, `resume` hides
+ * them again. Null while the model's own limbs are still being watched for batching, or when there is nothing to merge.
+ */
+export function freezeLayer(root: THREE.Object3D, mode: BakeMode = "smooth"): BakedLayer | null {
+  if (disabled) return null;
+  for (const w of watching.keys()) if (underRoot(w, root)) return null;
+  root.updateMatrixWorld(true);
+  const inverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const reps = new Map<string, THREE.Material>();
+  const sources: Source[] = [];
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || m.userData.bakedSource || hiddenAbove(m, root) || !bakeable(m, true)) return;
+    const mat = m.material as THREE.Material;
+    const key = matKey(mat);
+    const fold = foldable(mat);
+    if (!reps.has(key)) reps.set(key, fold ? folded(mat) : mat);
+    sources.push({
+      mesh: m,
+      key,
+      cell: "0",
+      material: reps.get(key)!,
+      local: new THREE.Matrix4().multiplyMatrices(inverse, m.matrixWorld),
+      color: fold ? (mat as Lit).color : undefined,
+    });
+  });
+  if (sources.length < 3) return null;
+  const layer = new BakedLayer(root, sources, { literal: true });
+  layer.show(mode);
+  frozen.add(layer);
+  return layer;
+}
+
+/** Frozen layers of models that have left every scene are freed (a person who left, a pet that was removed). */
+export function sweepFrozen(): void {
+  for (const l of frozen) {
+    let top: THREE.Object3D = l.root;
+    while (top.parent) top = top.parent;
+    if (!(top as THREE.Scene).isScene) {
+      l.dispose();
+      frozen.delete(l);
+    }
+  }
+}
+
+export const frozenCount = (): number => frozen.size;
