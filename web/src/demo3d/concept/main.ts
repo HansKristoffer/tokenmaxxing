@@ -1,15 +1,15 @@
 import * as THREE from "three";
+import { Pipeline } from "../pipeline.ts";
 import { setPropsNight } from "../props.ts";
 import { setTavernNight } from "../tavern3d.ts";
 import { type Crowd, crowdAt, populate } from "./chars.ts";
 import type { Theme } from "./city.ts";
+import { logDims } from "./dims.ts";
+import type { Landmarks } from "./landmarks.ts";
 import { addLandmarks } from "./landmarks.ts";
 import { clouds, cyberPass, farSkyline, streetDress } from "./neon.ts";
 import { finish, type PostOpts } from "./post.ts";
 import { addWet, aim, type Cam, makeWorld, type World } from "./scene.ts";
-import { Pipeline } from "../pipeline.ts";
-import type { Landmarks } from "./landmarks.ts";
-import { logDims } from "./dims.ts";
 
 interface Shot {
   theme: Theme;

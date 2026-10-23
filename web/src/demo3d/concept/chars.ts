@@ -1,5 +1,5 @@
 /** Voxel people and pets, scattered on terraces, bridges and the plaza (they reuse avatar.ts / pets3d.ts). */
-import * as THREE from "three";
+import type * as THREE from "three";
 import { Avatar, type Look, randomLook } from "../avatar.ts";
 import { seeded } from "../kit.ts";
 import { type Pet3D, petFrom2D } from "../pets3d.ts";

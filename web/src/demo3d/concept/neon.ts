@@ -4,8 +4,8 @@ import { Avatar } from "../avatar.ts";
 import { glow, seeded } from "../kit.ts";
 import { petFrom2D } from "../pets3d.ts";
 import { Batch, type V3 } from "./batch.ts";
-import { C, FL, type Vol } from "./city.ts";
 import { person } from "./chars.ts";
+import { C, FL, type Vol } from "./city.ts";
 import type { World } from "./scene.ts";
 import { sign } from "./signs.ts";
 

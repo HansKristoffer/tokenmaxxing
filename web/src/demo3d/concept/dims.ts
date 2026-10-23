@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { companyHouse, tavernBuilding } from "../town3d-houses.ts";
-import { grandFountain, hotDogCart, loungeSofa, parkBench, streetLamp, car, picnic, lanternTable, arcadeBuilding } from "../props.ts";
 import { Avatar, randomLook } from "../avatar.ts";
 import { petFrom2D } from "../pets3d.ts";
+import { arcadeBuilding, car, grandFountain, hotDogCart, lanternTable, loungeSofa, parkBench, picnic, streetLamp } from "../props.ts";
+import { companyHouse, tavernBuilding } from "../town3d-houses.ts";
 
 export function logDims(): void {
   const out: string[] = [];

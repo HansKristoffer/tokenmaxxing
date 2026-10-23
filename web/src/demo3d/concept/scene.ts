@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { Batch } from "./batch.ts";
 import { buildCity, C, type City, shade, type Theme } from "./city.ts";
-import { addBridges, planCity, type Plan } from "./plan.ts";
+import { addBridges, type Plan, planCity } from "./plan.ts";
 
 export interface Look {
   skyTop: string;
@@ -82,7 +82,6 @@ export function makeWorld(theme: Theme, seed = 11): World {
   // Ground
   const gb = new Batch();
   gb.jitter = 0.02;
-  const half = (plan.W * C) / 2;
   const night = theme === "cyber";
   const asphalt = night ? "#0c0d14" : "#6b6b6e";
   const paving = night ? "#1c1d28" : "#bdb6a4";

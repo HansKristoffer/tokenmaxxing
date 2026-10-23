@@ -169,7 +169,6 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
     const frameC = dim(pal.frame);
     const isOpen = v.kind === "open";
     const isLat = v.kind === "lattice";
-    const isGlassy = v.kind === "glass" || v.kind === "bridge";
     const isThin = v.kind === "walk";
     const y0 = v.f0 * FL;
     const y1 = v.f1 * FL;
@@ -239,15 +238,12 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
                     fb(lit, x, z, s, (gr - 0.5) * 2.7, 0, fy + 0.1 + hash3(f, k, s, i) * 1.4, 0.3 + gr * 0.4, 0.25 + hash3(k, f, j, s) * 0.5, 0.12 + gr * 0.14, GREENS[k % GREENS.length]!);
                   }
                 }
-                // Balconies on some floors
-                if (!night || true) {
                   if ((v.kind === "concrete" || v.kind === "white" || v.kind === "wood") && r < 0.2 && f > v.f0) {
                     fb(lit, x, z, s, 0, 0, fy, 2.2, 0.12, 0.85, bandC);
                     fb(lit, x, z, s, 0, 0.78, fy + 0.12, 2.2, 0.5, 0.05, frameC);
                     fb(lit, x, z, s, 0.9, 0.2, fy + 0.12, 0.45, 0.4, 0.4, GREENS[(f + i) % GREENS.length]!);
                     if (r < 0.08) fb(lit, x, z, s, -0.5, 0.25, fy + 0.12, 0.5, 0.35, 0.3, ["#e86a5a", "#f2c14e", "#5aa0e8"][(f + j) % 3]!);
                   }
-                }
                 break;
               }
               case "open": {
@@ -314,10 +310,9 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
             if (occ(nb[0], nb[1], v.f1 - 1) && !occ(nb[0], nb[1], v.f1)) return false; // flush roof
             return ex[s]!;
           }) as [boolean, boolean, boolean, boolean];
-          const greenTop = v.roof === "garden" || v.roof === "crops" || v.roof === "tech";
           const topC = v.roof === "garden" || v.roof === "crops" ? (theme === "cyber" ? "#2a5a3c" : theme === "dusk" ? "#3dbd5a" : DAY_GREEN) : v.roof === "plaza" ? dim("#c9c0ae") : dim("#a8a9a4");
           const lipC = dim(v.kind === "dark" || v.kind === "steel" ? "#8a8f8c" : "#e7e2d4");
-          if (isThin || isLat || v.kind === "bridge" || true) {
+          {
             lit.box(x, y1, z, C + 0.0, 0.2, C + 0.0, lipC);
             const mx = edge[0] ? 0.07 : 0;
             const nxx = edge[1] ? 0.07 : 0;
@@ -403,7 +398,6 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
     const v = r.vol;
     const k = hash3(v.id, r.i, r.j, 77);
     const { x, y, z } = r;
-    const anyEdge = r.edge.some(Boolean);
     r.clear = (v.roof === "plaza" && k >= 0.75) || (v.roof === "garden" && k >= 0.9) || v.roof === "bare";
     switch (v.roof) {
       case "garden":

@@ -7,8 +7,9 @@ import { Avatar, type Look } from "../avatar.ts";
 import { type Look2D, type LookOptions, lookFrom2D } from "../gear3d.ts";
 import { BACK_BUILDERS, HELD_BUILDERS } from "../gear3dBody.ts";
 import { band, FACE_BUILDERS, HAT_BUILDERS } from "../gear3dHead.ts";
-import { Model, ticks } from "../kit.ts";
+import { type Model, ticks } from "../kit.ts";
 import { merchProp } from "../merch3d.ts";
+import { VoxModel } from "../voxgear.ts";
 import { CLOTHES, type ClothesRow, FREE_OUTFIT_NAMES, MERCH_PIECES, type Rarity } from "./data/clothes.ts";
 
 export interface ShopItem {
@@ -124,20 +125,20 @@ const OWN_HATS: Record<string, (h: Model) => void> = {
 };
 
 function hatPreview(name: string): Model {
-  const m = new Model();
+  const m = new VoxModel();
   const head = bust(m);
   const hat = head.part();
   (OWN_HATS[name] ?? HAT_BUILDERS[name])?.(hat, CTX(m));
   return m;
 }
 function facePreview(name: string): Model {
-  const m = new Model();
+  const m = new VoxModel();
   const head = bust(m);
   FACE_BUILDERS[name]?.(head.part(), CTX(m));
   return m;
 }
 function heldPreview(name: string): Model {
-  const m = new Model();
+  const m = new VoxModel();
   m.cyl(0.14, 0.04, "#3a3040", [0, 0, 0], 0.14, 12);
   const h = m.part([0, 0.1, 0]);
   h.scale.setScalar(2.6);
@@ -146,7 +147,7 @@ function heldPreview(name: string): Model {
 }
 /** A torso seen from behind with the item on its back (the builders draw on the back face, `z = -0.1`). */
 function backPreview(name: string): Model {
-  const m = new Model();
+  const m = new VoxModel();
   const turn = m.part([0, 0, 0], Math.PI);
   turn.cyl(0.16, 0.03, "#3a3040", [0, 0, 0], 0.16, 12);
   turn.cyl(0.035, 0.3, "#6b5a7a", [0, 0.02, 0], 0.035, 8);

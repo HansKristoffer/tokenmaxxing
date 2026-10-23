@@ -5,10 +5,9 @@ import { arcadeBuilding, bush, grandFountain, hotDogCart, loungeSofa, parkBench,
 import { companyHouse, tavernBuilding } from "../town3d-houses.ts";
 import { Batch } from "./batch.ts";
 import { C, FL, type Vol } from "./city.ts";
-import { pixels, onWall, sign } from "./signs.ts";
 import type { World } from "./scene.ts";
+import { onWall, pixels, sign } from "./signs.ts";
 
-const GOLD = "#ffc94a";
 
 export interface Landmarks {
   /** Where the plaza sits (world), and its surface height. */
@@ -32,7 +31,6 @@ export function addLandmarks(world: World): Landmarks {
     return o;
   };
   const faceZ = (v: Vol) => city.cz(v.j1) + C / 2;
-  const faceX = (v: Vol) => city.cx(v.i1) + C / 2;
   const sg = (t: string, w: number, h: number, fg: string, extra: Partial<Parameters<typeof sign>[3]> = {}) => sign(t, w, h, { fg, theme, ...extra });
 
   // ——— The Tavern Square: ground plaza with the Tavern, fountain, trees, benches ———
