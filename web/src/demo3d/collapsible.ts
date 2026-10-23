@@ -1,4 +1,5 @@
 import { storage } from "../storage.ts";
+
 /** Makes every floating menu fold down to its header: click the header (▾) to hide or show the rest. */
 
 const HEADERS = ".title, .head, h4, .inv-head";

@@ -39,8 +39,8 @@ import {
   setCompanies,
   world,
 } from "./game/world.ts";
-import { hud } from "./store.ts";
 import { storage } from "./storage.ts";
+import { hud } from "./store.ts";
 
 const TOKEN_KEY = "tokenmaxxing.session";
 

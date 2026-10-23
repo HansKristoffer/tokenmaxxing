@@ -1,6 +1,6 @@
 import { TILE } from "@tokenmaxxing/core/world.ts";
-import { world } from "./world.ts";
 import { storage } from "../storage.ts";
+import { world } from "./world.ts";
 
 /** The current view, kept for turning clicks into tiles. */
 export const camera = { x: 0, y: 0, scale: 1, dpr: 1 };

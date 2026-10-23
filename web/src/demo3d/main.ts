@@ -23,6 +23,7 @@ import { loadSlices } from "./registry.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
 import "./tiles.ts";
 import "./collapsible.ts";
+import { storage } from "../storage.ts";
 import { applyDecor } from "./decor3d.ts";
 import { createDemoBackend } from "./shops/demoBackend.ts";
 import { type ShopDisplay, shopOfRoom, shopRoom } from "./shops/index.ts";
@@ -35,7 +36,6 @@ import { buildTown, setTownNight, TOWN_W } from "./town.ts";
 import type { Town3d } from "./town3d.ts";
 import { type MapId, type Portal, ROOM_ORDER, type World, World as WorldGraph, type WorldRoom } from "./world.ts";
 import { INSET, loadRoomSkins } from "./world-rooms.ts";
-import { storage } from "../storage.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
 const labelLayer = document.querySelector<HTMLDivElement>("#labels")!;

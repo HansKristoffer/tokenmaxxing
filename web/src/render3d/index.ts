@@ -9,6 +9,7 @@ import { viewHooks } from "../game/camera.ts";
 import { gameHits } from "../game/games.ts";
 import { peekHits } from "../game/houses.ts";
 import { send, walkThen, walkTo } from "../game/input.ts";
+import { hudInset } from "../game/inset.ts";
 import { chipHits, signHits } from "../game/labels.ts";
 import { setRaiders } from "../game/raid.ts";
 import type { Renderer, Tile } from "../game/renderer.ts";
@@ -314,6 +315,10 @@ class Renderer3D implements Renderer {
     if (this.rig.panned() && me && this.selfAt && Math.hypot(me[0] - this.selfAt[0], me[1] - this.selfAt[1]) > 0.7)
       this.rig.easePan(dt);
     if (!this.rig.panned() || !this.selfAt) this.selfAt = me ? [me[0], me[1]] : null;
+    if (this.insetSeen !== hudInset.version) {
+      this.insetSeen = hudInset.version;
+      this.applyInsets();
+    }
     this.rig.update(calm ? 1000 : dt, focus[0], focus[1]);
     const camera = this.rig.camera;
     camera.updateMatrixWorld();
@@ -380,11 +385,19 @@ class Renderer3D implements Renderer {
     );
   }
 
+  private insetSeen = -1;
+
+  private applyInsets(): void {
+    const i = hudInset;
+    this.rig.setInsets(i.left, i.top, i.right, i.bottom, this.w, this.h);
+  }
+
   resize(w: number, h: number, _dpr: number): void {
     this.w = Math.max(1, w);
     this.h = Math.max(1, h);
     this.overlay.resize(this.w, this.h);
     this.rig.setAspect(this.w / this.h);
+    this.applyInsets();
     if (this.settings) this.setQuality(this.settings);
   }
 

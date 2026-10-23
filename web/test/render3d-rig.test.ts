@@ -89,3 +89,20 @@ test("the saved zoom is read back", () => {
   expect(r.level).toBe(2);
   expect(new CameraRig({ getItem: () => "nonsense" }).level).toBe(0);
 });
+
+test("the HUD's insets put the player in the middle of the free area", () => {
+  const r = rig();
+  r.setAspect(2);
+  r.frame({ view: 9, bounds: room });
+  r.update(16, 12, 7, true);
+  const before = r.camera.top;
+  expect(r.camera.top + r.camera.bottom).toBeCloseTo(0);
+  // 50 px covered at the top and 100 at the bottom of 400: the free middle is above the screen's.
+  r.setInsets(0, 50, 0, 100, 800, 400);
+  r.update(16, 12, 7, true);
+  expect(r.camera.top + r.camera.bottom).toBeLessThan(0);
+  expect(r.camera.top - r.camera.bottom).toBeGreaterThan(before * 2);
+  r.setInsets(0, 0, 0, 0, 800, 400);
+  r.update(16, 12, 7, true);
+  expect(r.camera.top + r.camera.bottom).toBeCloseTo(0);
+});

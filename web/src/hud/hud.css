@@ -2442,3 +2442,99 @@ button.lb-item:hover {
   font-size: 11px;
   pointer-events: none;
 }
+
+.fps-meter {
+  white-space: nowrap;
+}
+
+.tray {
+  display: none;
+}
+
+/* A phone, or a short landscape screen: the side panels fold into the tray's icons, one open at a time. */
+@media (max-width: 700px), (max-height: 500px) {
+  .tray {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    display: flex;
+    gap: 6px;
+  }
+
+  .tray .icon {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    background: var(--panel);
+    border-radius: 10px;
+  }
+
+  .tray .icon.on {
+    outline: 2px solid var(--accent);
+  }
+
+  .hints {
+    top: 8px;
+    left: 8px;
+  }
+
+  .hints dl {
+    display: none;
+  }
+
+  .stats-chip {
+    top: 8px;
+    right: 8px;
+    left: 52px;
+    justify-content: flex-end;
+    overflow-x: auto;
+    padding: 4px;
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .fps-meter {
+    top: 54px;
+    font-size: 10px;
+  }
+
+  .corner,
+  .minimap,
+  .chat-dock {
+    top: auto;
+    right: auto;
+    left: 8px;
+    bottom: 60px;
+  }
+
+  .corner {
+    width: min(260px, calc(100vw - 16px));
+    max-height: calc(100vh - 130px);
+    overflow-y: auto;
+  }
+
+  .chat-dock {
+    width: calc(100vw - 16px);
+  }
+
+  .chat-dock .chat {
+    max-height: 38vh;
+  }
+
+  .dialog {
+    width: calc(100vw - 16px);
+    min-width: 0;
+    bottom: 60px;
+  }
+
+  .banner,
+  .toast,
+  #hud > .toasts {
+    top: 54px;
+    max-width: calc(100vw - 16px);
+  }
+
+  #hud > .toasts {
+    top: 90px;
+  }
+}

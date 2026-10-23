@@ -7,6 +7,7 @@ import { typedSwitch } from "hanzio";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { town } from "../net.ts";
+import { storage } from "../storage.ts";
 import { chatBeside, hud, useHud } from "../store.ts";
 import { AppSignIn } from "./AppSignIn.tsx";
 import { AppUpdate, tauri } from "./AppUpdate.tsx";
@@ -43,28 +44,52 @@ import { Sky } from "./Sky.tsx";
 import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
-import { Modal, ToastButton, useFresh, useRun } from "./ui.tsx";
-import { storage } from "../storage.ts";
+import { Modal, ToastButton, useFresh, useNarrow, useRun } from "./ui.tsx";
 
 export function Hud() {
   const status = useHud((s) => s.status);
   const beside = useHud((s) => chatBeside(s.panel));
   const room = useHud((s) => s.room);
+  const narrow = useNarrow();
+  const [tray, setTray] = useState<Tray | null>(null);
   if (status === "signedOut" || status === "expired")
     return tauri ? <AppSignIn /> : <SignedOut expired={status === "expired"} />;
   return (
     <>
       <Hints />
       <Stats />
-      <div className="corner">
-        <MiniBoard />
-        <GamesBox />
-        <RaidBox />
-      </div>
-      <Banner />
-      <PicnicBanner />
-      {!beside && <Chat />}
-      <Minimap />
+      {narrow ? (
+        <>
+          <div className="tray">
+            {TRAY.map(([id, icon, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={tray === id ? "icon on" : "icon"}
+                aria-label={label}
+                aria-pressed={tray === id}
+                title={label}
+                onClick={() => setTray(tray === id ? null : id)}
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
+          {tray === "info" && <Corner />}
+          {tray === "chat" && <Chat />}
+          {tray === "map" && <Minimap />}
+          <Banner />
+          <PicnicBanner />
+        </>
+      ) : (
+        <>
+          <Corner />
+          <Banner />
+          <PicnicBanner />
+          {!beside && <Chat />}
+          <Minimap />
+        </>
+      )}
       <Dialog />
       <Panel />
       {status === "connecting" && (
@@ -90,6 +115,24 @@ export function Hud() {
       <FpsMeter />
       <FirstVisit />
     </>
+  );
+}
+
+type Tray = (typeof TRAY)[number][0];
+/** On a small screen the chat, the map and the corner cards sit behind these icons, one open at a time. */
+const TRAY = [
+  ["chat", "💬", "Chat"],
+  ["map", "🗺", "Map"],
+  ["info", "🏅", "Scores and games"],
+] as const;
+
+function Corner() {
+  return (
+    <div className="corner">
+      <MiniBoard />
+      <GamesBox />
+      <RaidBox />
+    </div>
   );
 }
 

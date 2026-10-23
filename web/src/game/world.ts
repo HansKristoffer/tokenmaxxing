@@ -32,9 +32,9 @@ import {
 import { lerp } from "hanzio";
 import { setMerchCompanies } from "../art/merch.ts";
 import { bakeGround, repaintGround } from "../art/tiles.ts";
+import { storage } from "../storage.ts";
 import { hud } from "../store.ts";
 import { emojiOnly } from "./emoji.ts";
-import { storage } from "../storage.ts";
 
 /** Someone in the room, as drawn: a logical tile plus an in-flight step. */
 export interface Avatar {

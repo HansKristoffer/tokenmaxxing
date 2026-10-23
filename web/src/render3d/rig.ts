@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { approach } from "./motion.ts";
 import { storage } from "../storage.ts";
+import { approach } from "./motion.ts";
 
 /** The floor a room covers, in world units, and how tall its walls are. */
 export interface Bounds {
@@ -74,6 +74,9 @@ export class CameraRig {
   private pan: [number, number] = [0, 0];
   private framing: Framing = { view: 10, bounds: { minX: 0, maxX: 10, minZ: 0, maxZ: 10, height: 2.6 } };
   private aspect = 1.6;
+  /** The part of the screen the HUD leaves free (fractions of the width and height) and its centre's offset from the screen's, in half-screens. */
+  private free = { fx: 1, fy: 1, cx: 0, cy: 0 };
+  private freeTo = { fx: 1, fy: 1, cx: 0, cy: 0 };
   private placed = false;
 
   constructor(store: Pick<Storage, "getItem"> | undefined = storage) {
@@ -92,6 +95,16 @@ export class CameraRig {
     this.aspect = Math.max(0.2, aspect);
   }
 
+  /**
+   * The HUD's panels cover `left`/`top`/`right`/`bottom` pixels of a w x h screen: the player and the room's
+   * framing then centre in what is left. The picture eases there.
+   */
+  setInsets(left: number, top: number, right: number, bottom: number, w: number, h: number): void {
+    const fx = Math.max(0.4, 1 - (left + right) / w);
+    const fy = Math.max(0.4, 1 - (top + bottom) / h);
+    this.freeTo = { fx, fy, cx: (left - right) / w, cy: (top - bottom) / h };
+  }
+
   /** The levels the player can zoom to in this room: out to the whole room, in to a close-up. */
   private range(): { base: number; min: number; max: number } {
     const fit = this.fitNow();
@@ -107,7 +120,7 @@ export class CameraRig {
   /** The view height asked for: the room's own, zoomed, never wider than the room. */
   targetView(): number {
     const { base, min, max } = this.range();
-    return base * ZOOM_STEP ** Math.max(min, Math.min(max, this.level));
+    return (base * ZOOM_STEP ** Math.max(min, Math.min(max, this.level))) / this.free.fy;
   }
 
   /** One step in (+1) or out (-1); 0 puts the zoom back. */
@@ -120,7 +133,7 @@ export class CameraRig {
   }
 
   private fitNow(): number {
-    return fitView(this.framing.bounds, this.aspect, BASE_AZIMUTH + (this.quarter * Math.PI) / 2);
+    return fitView(this.framing.bounds, (this.aspect * this.free.fx) / this.free.fy, BASE_AZIMUTH + (this.quarter * Math.PI) / 2);
   }
 
   rotate(step: 1 | -1): void {
@@ -166,6 +179,16 @@ export class CameraRig {
     else if (delta < -Math.PI) delta += Math.PI * 2;
     this.azimuth = jump ? target : this.azimuth + delta * (1 - Math.exp(-tau / 85));
     if (Math.abs(delta) < 0.0005) this.azimuth = target;
+    const f = this.free;
+    const to = this.freeTo;
+    if (jump) this.free = { ...to };
+    else
+      this.free = {
+        fx: approach(f.fx, to.fx, tau, 140),
+        fy: approach(f.fy, to.fy, tau, 140),
+        cx: approach(f.cx, to.cx, tau, 140),
+        cy: approach(f.cy, to.cy, tau, 140),
+      };
     this.viewShown = jump ? this.targetView() : approach(this.viewShown, this.targetView(), tau, 110);
 
     const [fx, fz] = this.clamp(x + this.pan[0], z + this.pan[1]);
@@ -180,8 +203,8 @@ export class CameraRig {
     const { bounds: b } = this.framing;
     const [rx, rz] = rightOf(this.azimuth);
     const [ax, az] = awayOf(this.azimuth);
-    const hw = (this.viewShown / 2) * this.aspect;
-    const hf = this.viewShown / 2 / SIN_EL;
+    const hw = (this.viewShown / 2) * this.aspect * this.free.fx;
+    const hf = (this.viewShown / 2 / SIN_EL) * this.free.fy;
     let r0 = Infinity;
     let r1 = -Infinity;
     let a0 = Infinity;
@@ -219,10 +242,13 @@ export class CameraRig {
     );
     c.lookAt(t);
     const half = this.viewShown / 2;
-    c.left = -half * this.aspect;
-    c.right = half * this.aspect;
-    c.top = half;
-    c.bottom = -half;
+    // The HUD's free area is not the screen's middle: slide the window so the look-at point lands in its middle.
+    const sx = -this.free.cx * half * this.aspect;
+    const sy = this.free.cy * half;
+    c.left = -half * this.aspect + sx;
+    c.right = half * this.aspect + sx;
+    c.top = half + sy;
+    c.bottom = -half + sy;
     c.updateProjectionMatrix();
     c.updateMatrixWorld();
   }

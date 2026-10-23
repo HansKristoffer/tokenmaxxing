@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { bindInput, updateSelf } from "./game/input.ts";
+import { watchHudInsets } from "./game/inset.ts";
 import { exposeForQa } from "./game/qa.ts";
 import { startStage } from "./game/stage.ts";
 import { bindTouch } from "./game/touch.ts";
@@ -23,6 +24,7 @@ if (app)
   });
 
 exposeForQa();
+watchHudInsets();
 const token = await signIn();
 if (token) {
   connect(token);

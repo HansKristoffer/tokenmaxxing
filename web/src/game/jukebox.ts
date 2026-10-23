@@ -1,7 +1,7 @@
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import { drumHits, type Note, notes, STEPS, TUNES, type Tune } from "@tokenmaxxing/core/tunes.ts";
-import { hud, JUKE_KEY, type JukeSettings } from "../store.ts";
 import { storage } from "../storage.ts";
+import { hud, JUKE_KEY, type JukeSettings } from "../store.ts";
 
 /**
  * Plays the Tavern's jukebox with WebAudio: square, triangle and saw voices and a noise drum kit, made

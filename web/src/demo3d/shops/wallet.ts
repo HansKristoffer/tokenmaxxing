@@ -2,8 +2,9 @@
  * The demo wallet and the player's keepsakes: coins, what they own, the saved look and the pet, all in
  * localStorage so they survive a reload and travel with the player from room to room.
  */
-import type { Look2D } from "../gear3d.ts";
+
 import { storage } from "../../storage.ts";
+import type { Look2D } from "../gear3d.ts";
 
 const KEY = "demo3d.shops";
 export const START_COINS = 500;

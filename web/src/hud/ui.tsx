@@ -314,3 +314,19 @@ export function WalletLine({ balance, children }: { balance: number; children?: 
     </p>
   );
 }
+
+const NARROW = "(max-width: 700px), (max-height: 500px)";
+
+/** A phone or other small screen: the HUD folds its side panels into a row of icons. */
+export function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => typeof matchMedia === "function" && matchMedia(NARROW).matches);
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return;
+    const q = matchMedia(NARROW);
+    const on = () => setNarrow(q.matches);
+    on();
+    q.addEventListener("change", on);
+    return () => q.removeEventListener("change", on);
+  }, []);
+  return narrow;
+}
