@@ -8,7 +8,8 @@ type Shader = Parameters<THREE.Material["onBeforeCompile"]>[0];
  * sets never share a program.
  */
 export function addPatch(mat: THREE.Material, name: string, patch: (shader: Shader) => void): void {
-  const names = ((mat.userData.patches as string[] | undefined) ??= []);
+  const names: string[] = (mat.userData.patches as string[] | undefined) ?? [];
+  mat.userData.patches = names;
   if (names.includes(name)) return;
   names.push(name);
   const prev = mat.onBeforeCompile;
