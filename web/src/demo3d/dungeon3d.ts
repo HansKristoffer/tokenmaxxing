@@ -7,11 +7,9 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
+import { buildBoss, buildMinion, buildTrophy, flash, type Sculpt } from "./bossvox.ts";
 import {
   BADGE_DEFS,
-  BOSS_ART,
-  BOSS_TROPHY,
-  BOSS_TROPHY_PAL,
   DUNGEON_BOSSES,
   EDITION_GLASSES,
   EDITION_HATS,
@@ -19,10 +17,7 @@ import {
   LOOT_GLASSES,
   LOOT_HATS,
   LOOT_OUTFITS,
-  LOOT_PETS,
   LOOT_TABLE,
-  MINION_FRAMES,
-  MINION_PAL,
   type Palette,
   RARITY_INFO,
   TIER_COLORS,
@@ -31,6 +26,7 @@ import {
 } from "./data/dungeon.ts";
 import { type Asset, light } from "./furniture.ts";
 import { canvasTexture, codeScreen, glass, glow, Model, painted, ticks, tint, toon, type V3 } from "./kit.ts";
+import { petFrom2D } from "./pets3d.ts";
 
 // MARK: Dungeon colours (web/src/art/tiles.ts)
 
@@ -122,19 +118,6 @@ function tick(m: THREE.Object3D, fn: (t: number) => void): void {
   });
 }
 
-/** Two pixel frames, swapped every `period` seconds. */
-function twoFrames(a: Voxels, b: Voxels, period: number): Model {
-  const m = new Model();
-  m.add(a.model, b.model);
-  b.model.visible = false;
-  tick(m, (t) => {
-    const second = Math.floor(t / period) % 2 === 1;
-    a.model.visible = !second;
-    b.model.visible = second;
-  });
-  return m;
-}
-
 /** A few gold stars that come and go round `at`: a legendary's sparkle. */
 function sparkle(m: Model, at: V3, color: string, n = 4, spread = 0.45): void {
   const stars = Array.from({ length: n }, () => m.box([0.04, 0.04, 0.04], glow(color), at, 0));
@@ -165,18 +148,7 @@ const compact = (n: number): string =>
 
 // MARK: Bosses
 
-const BOSS_PX = 0.1;
-const BOSS_BODY_DEPTH = (ch: string) => (ch === "o" ? 0.24 : ch === "e" || ch === "p" ? 0.4 : ch === "m" || ch === "w" ? 0.3 : 0.34);
-
-const GLOW_FLASH = glow("#ffffff");
-
-function bossVoxels(id: string, silhouette: boolean): Voxels {
-  const art = BOSS_ART[id] ?? BOSS_ART["rate-limit"]!;
-  const pal: Palette = silhouette
-    ? Object.fromEntries(Object.entries(art.pal).map(([k]) => [k, k === "e" ? "#c9a2ff" : "#0b0a10"]))
-    : art.pal;
-  return voxels(art.rows, pal, BOSS_PX, { depth: BOSS_BODY_DEPTH, glows: silhouette ? "e" : "*<>" });
-}
+const bossSculpt = (id: string, silhouette: boolean): Sculpt => buildBoss(id, silhouette);
 
 const hpColour = (share: number) => (share > 0.5 ? "#72bf52" : share > 0.2 ? "#e9b73d" : "#e06c5f");
 
@@ -184,7 +156,7 @@ const hpColour = (share: number) => (share > 0.5 ? "#72bf52" : share > 0.2 ? "#e
 export class BossActor {
   readonly root = new Model();
   private readonly body = new Model();
-  private v: Voxels;
+  private sc: Sculpt;
   private readonly plate: Model;
   private readonly plateTex: THREE.CanvasTexture;
   private readonly floats: { m: Model; at: number }[] = [];
@@ -194,6 +166,8 @@ export class BossActor {
   private hitAt = -10;
   private fellAt = -10;
   private arriveAt = -10;
+  private attackAt = -10;
+  private nextAttack = 5;
   private taunt = { text: "", at: -100 };
   private nextTaunt = 3;
   hp = 1;
@@ -219,15 +193,15 @@ export class BossActor {
     this.rung = opts.rung ?? this.bossIndex + 1;
     this.root.add(this.body);
     this.root.cyl(0.85, 0.02, "#15121b", [0, 0, 0], 0.85, 24).castShadow = false;
-    this.v = bossVoxels(this.bossId, this.silhouette);
-    this.body.add(this.v.model);
+    this.sc = bossSculpt(this.bossId, this.silhouette);
+    this.body.add(this.sc.root);
     this.trophy = new Model();
     this.trophy.add(bossTrophy());
     this.trophy.visible = false;
     this.root.add(this.trophy);
 
     this.plate = new Model();
-    this.plate.position.y = 2.75;
+    this.plate.position.y = this.sc.height + 0.55;
     this.plateTex = canvasTexture(320, 76, () => {}, true);
     const face = this.plate.plane(2.8, 0.665, glow("#fff", this.plateTex), [0, 0, 0]);
     this.plate.visible = opts.plate !== false;
@@ -284,11 +258,13 @@ export class BossActor {
     this.fellAt = -10;
     this.arriveAt = this.now;
     this.trophy.visible = false;
-    this.body.remove(this.v.model);
-    this.v = bossVoxels(this.bossId, this.silhouette);
-    this.body.add(this.v.model);
+    this.body.remove(this.sc.root);
+    this.sc = bossSculpt(this.bossId, this.silhouette);
+    this.body.add(this.sc.root);
+    this.plate.position.y = this.sc.height + 0.55;
     this.body.scale.set(1, 1, 1);
     this.body.rotation.z = 0;
+    this.nextAttack = this.now + 3;
     this.draw();
   }
 
@@ -359,7 +335,7 @@ export class BossActor {
   }
 
   private flash(on: boolean): void {
-    for (const c of this.v.cells) c.mesh.material = on && c.ch !== "o" ? GLOW_FLASH : c.mat;
+    flash(this.sc.root, on);
   }
 
   private update(t: number): void {
@@ -367,23 +343,28 @@ export class BossActor {
     this.now = t;
     const hurt = t - this.hitAt < BossActor.HURT && !this.fallen;
     this.flash(hurt && Math.floor(t / 0.07) % 2 === 0);
-    const bob = this.fallen ? 0 : Math.sin(t * 2.4) * 0.05;
+    const bob = this.fallen ? 0 : Math.sin(t * 2.4) * 0.03;
     let y = 0.1 + bob;
-    let sy = 1;
-    let tilt = 0;
     const arrive = Math.min(1, Math.max(0, (t - this.arriveAt) / BossActor.ARRIVE));
-    y += (1 - arrive) * 3;
+    y += (1 - arrive) ** 2 * 3;
+    let fall = 0;
+    this.body.scale.set(1, 1, 1);
     if (this.fallen) {
       const u = (t - this.fellAt) / BossActor.FALL;
-      sy = 1 - 0.45 * Math.min(1, u * 2);
-      tilt = 0.25 * Math.min(1, u * 2);
-      this.body.scale.set(1 + 0.1 * Math.min(1, u * 2), sy, 1 + 0.1 * Math.min(1, u * 2));
-      if (u > 1) this.body.scale.multiplyScalar(Math.max(0.001, 1 - (u - 1) * 2));
+      fall = Math.min(1, u * 1.6);
+      if (u > 1) this.body.scale.setScalar(Math.max(0.001, 1 - (u - 1) * 2));
       y = 0.02;
       this.trophy.position.set(1.15, 0.04 + Math.min(1, u * 3) * 0.35, 0.3);
       this.trophy.rotation.y = t * 1.2;
-    } else this.body.scale.set(1, 1, 1);
-    this.body.rotation.z = tilt;
+    }
+    if (!this.fallen && t >= this.nextAttack && arrive >= 1) {
+      this.attackAt = t;
+      this.nextAttack = t + 6 + Math.random() * 4;
+    }
+    const attack = t - this.attackAt < 1.6 ? (t - this.attackAt) / 1.6 : -1;
+    const landing = arrive < 1 ? 0 : 1;
+    this.sc.update({ t, hurt: hurt ? 1 - (t - this.hitAt) / BossActor.HURT : 0, attack: attack * landing, fall });
+    this.body.rotation.z = 0;
     const shake = hurt ? 0.04 : 0;
     this.body.position.set((Math.random() - 0.5) * shake * 2, y, (Math.random() - 0.5) * shake * 2);
     for (let i = this.floats.length - 1; i >= 0; i--) {
@@ -413,26 +394,21 @@ export class BossActor {
 export const fightOf = (m: THREE.Object3D): BossActor | undefined => m.userData.boss as BossActor | undefined;
 
 function bossTrophy(): Model {
-  const v = voxels(BOSS_TROPHY, BOSS_TROPHY_PAL, 0.05, { depth: 0.14 });
-  return v.model;
+  const m = new Model();
+  m.add(buildTrophy());
+  return m;
 }
 
 // MARK: Minions
 
-/** The robot minion: two frames, its antenna blinking and its blaster arm coming up as it fires. */
+/** The robot minion: a voxel bot with a blinking antenna and a blaster arm that comes up as it fires. */
 function minion(): Model {
-  const px = 0.07;
-  const build = (i: number) => voxels(MINION_FRAMES[i]!, MINION_PAL, px, { depth: 0.22, glows: "eAm" });
   const m = new Model();
-  const a = build(0);
-  const b = build(1);
-  const bots = twoFrames(a, b, 0.4);
-  m.add(bots);
-  bots.position.y = 0.05;
+  const bot = buildMinion();
+  m.add(bot.root);
+  bot.root.position.y = 0.05;
   m.cyl(0.3, 0.02, "#15121b", [0, 0, 0], 0.3, 14).castShadow = false;
-  tick(m, (t) => {
-    bots.position.y = 0.06 + Math.abs(Math.sin(t * 3)) * 0.02;
-  });
+  tick(m, (t) => bot.update(t));
   return m;
 }
 
@@ -849,14 +825,12 @@ function lootItem(l: (typeof lootItems)[number]): Model {
     item.scale.setScalar(0.8);
     item.position.y = top + 0.05;
   } else {
-    const a = LOOT_PETS[l.nth]!;
-    const pet = twoFrames(
-      voxels(a.frames[0], a.pal, 0.06, { depth: 0.3 }),
-      voxels(a.frames[1], a.pal, 0.06, { depth: 0.3 }),
-      0.35,
-    );
-    pet.rotation.y = -Math.PI / 4;
-    item.add(pet);
+    // The 3D pet of that species (sand golem, goldfish, forked cat, ghost), as it would walk the town.
+    const pet = petFrom2D(7 + l.nth);
+    pet.root.scale.setScalar(1.05);
+    pet.root.rotation.y = -Math.PI / 4;
+    tick(m, (t) => pet.update(t));
+    item.add(pet.root);
     item.position.y = top + 0.15;
   }
   m.add(item);
