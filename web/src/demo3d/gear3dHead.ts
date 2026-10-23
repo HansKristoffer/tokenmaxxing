@@ -7,7 +7,9 @@
  * centre, +z the face, +y up, the skull about .25 across) and may register animations on the `Ctx`.
  */
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { glow, type Model, type Paint, tint, toon } from "./kit.ts";
+import { boxBand, boxRing, isVox, pixelPatch, place, squarePane, stepDome, tilt, voxShape } from "./voxgear.ts";
 
 export interface Ctx {
   skin: string;
@@ -52,18 +54,21 @@ export function mesh(m: THREE.Object3D, g: THREE.BufferGeometry, p: Paint, at: [
 
 /** A cap of a ball: the top `cut` (0..1) of its height, open underneath. */
 export function dome(m: THREE.Object3D, p: Paint, r: number, y = 0, cut = 0.5, seg = 18): THREE.Mesh {
+  if (isVox(m)) return stepDome(m, p, r, y, cut);
   const o = mesh(m, cached(`dome${r},${cut},${seg}`, () => new THREE.SphereGeometry(r, seg, 12, 0, Math.PI * 2, 0, Math.PI * cut)), p, [0, y, 0]);
   (o.material as THREE.Material).side = THREE.DoubleSide;
   return o;
 }
 /** A slice of a dome, `from`..`to` radians round (for panels). */
 function wedge(m: THREE.Object3D, p: Paint, r: number, y: number, cut: number, from: number, to: number): THREE.Mesh {
+  if (isVox(m)) return stepDome(m, p, r, y, cut, from, to);
   const o = mesh(m, cached(`wedge${r},${cut},${from},${to}`, () => new THREE.SphereGeometry(r, 16, 12, from, to - from, 0, Math.PI * cut)), p, [0, y, 0]);
   (o.material as THREE.Material).side = THREE.DoubleSide;
   return o;
 }
 /** A ring (a torus), flat by default (a halo, a brim); `tilt` stands it up. */
 export function ring(m: THREE.Object3D, p: Paint, R: number, tube: number, at: [number, number, number] = [0, 0, 0], flat = true): THREE.Mesh {
+  if (isVox(m)) return boxRing(m, p, R, tube, at, flat);
   const o = mesh(m, cached(`ring${R},${tube}`, () => new THREE.TorusGeometry(R, tube, 8, 28)), p, at);
   if (flat) o.rotation.x = Math.PI / 2;
   return o;
@@ -90,10 +95,14 @@ export function star(r: number, n = 5, inner = 0.45): THREE.Shape {
   return s;
 }
 export const shaped = (m: THREE.Object3D, key: string, shape: THREE.Shape, depth: number, p: Paint, at: [number, number, number]) =>
-  mesh(m, shapeGeo(key, shape, depth), p, at);
+  isVox(m) ? voxShape(m, key, shape, depth, p, at) : mesh(m, shapeGeo(key, shape, depth), p, at);
 
 /** A little canvas drawing on a flat plane, facing +z. */
 export function sign(m: THREE.Object3D, w: number, h: number, draw: (g: CanvasRenderingContext2D, cw: number, ch: number) => void, at: [number, number, number], px = 64, lightIt = false): THREE.Mesh {
+  if (isVox(m)) {
+    const cell = 0.0125;
+    return pixelPatch(m, { cols: Math.max(2, Math.round(w / cell)), rows: Math.max(2, Math.round(h / cell)), cell, depth: cell * 0.8, draw, at, lit: lightIt, fill: 0.3 });
+  }
   const cw = Math.round(w * px);
   const ch = Math.round(h * px);
   const c = document.createElement("canvas");
@@ -119,7 +128,7 @@ export const EYE_Y = -0.062;
 export const EYE_Z = 0.222;
 export function eyeAt(m: Model, side: -1 | 1): Model {
   const e = m.part([side * EYE_X, EYE_Y, EYE_Z]);
-  e.rotation.y = side * 0.36;
+  if (!isVox(m)) e.rotation.y = side * 0.36;
   return e;
 }
 /** The middle of the face, between the eyes. */
@@ -127,9 +136,24 @@ const mid = (m: Model, y = EYE_Y, z = 0.236) => m.part([0, y, z]);
 
 /** An open band (no top or bottom), so a crown is a ring you can see the hair through. */
 export function band(m: THREE.Object3D, p: Paint, r: number, h: number, y: number, top = r): THREE.Mesh {
+  if (isVox(m)) return boxBand(m, p, Math.max(r, top), h, y);
   const o = mesh(m, cached(`band${r},${h},${top}`, () => new THREE.CylinderGeometry(top, r, h, 20, 1, true).translate(0, h / 2, 0)), p, [0, y, 0]);
   (o.material as THREE.Material).side = THREE.DoubleSide;
   return o;
+}
+
+/** A point at angle `a` round a head: on a circle for smooth models, on the square band for blocky ones. */
+function roundAt(m: THREE.Object3D, a: number, r: number): [number, number] {
+  const x = Math.sin(a);
+  const z = Math.cos(a);
+  if (!isVox(m)) return [x * r, z * r];
+  const k = (r * 0.92) / Math.max(Math.abs(x), Math.abs(z));
+  return [x * k, z * k];
+}
+
+/** Blocks on a path, as [centre x, centre y, size] (a bent tip, a horn, a curl). */
+function path(m: Model, p: Paint, pts: [number, number, number][], z = 0, deep = 1): void {
+  for (const [x, y, sz] of pts) m.box([sz, sz, sz * deep], p, [x, y - sz / 2, z]);
 }
 
 /** A cone-shaped hat part: base radius `r`, height `h`, resting at `y`. */
@@ -143,10 +167,13 @@ function wizard(m: Model, c: { cone: string; dark: string; star: string; band: s
   brim(m, c.dark, 0.36, 0.12, 0.03);
   cone(m, c.cone, 0.21, 0.3, 0.14, [0, 0], 16, 0.1);
   m.cyl(0.215, 0.05, c.band, [0, 0.15, 0], 0.21, 16);
-  const tip = m.part([0, 0.43, 0]);
-  tip.cyl(0.1, 0.24, c.cone, [0, 0, 0], 0.012, 12).rotation.z = 0;
-  tip.rotation.z = -0.55;
-  tip.rotation.x = 0.1;
+  if (isVox(m)) path(m, c.cone, [[0.04, 0.5, 0.17], [0.09, 0.56, 0.13], [0.15, 0.6, 0.1], [0.21, 0.6, 0.075], [0.25, 0.55, 0.05]], 0, 1);
+  else {
+    const tip = m.part([0, 0.43, 0]);
+    tip.cyl(0.1, 0.24, c.cone, [0, 0, 0], 0.012, 12).rotation.z = 0;
+    tip.rotation.z = -0.55;
+    tip.rotation.x = 0.1;
+  }
   const stars: [number, number, number][] = [
     [0.12, 0.26, 0.13],
     [-0.1, 0.34, 0.08],
@@ -157,7 +184,8 @@ function wizard(m: Model, c: { cone: string; dark: string; star: string; band: s
     const s = m.ball(0.022, c.star, [x, y, z], [1, 1, 0.5], 5);
     s.rotation.z = 0.8;
   }
-  m.ball(0.024, c.star, [0.0, 0.5, 0.01], [1, 1, 1], 5);
+  if (isVox(m)) m.ball(0.024, c.star, [0.25, 0.53, 0.0], [1, 1, 1], 5);
+  else m.ball(0.024, c.star, [0.0, 0.5, 0.01], [1, 1, 1], 5);
 }
 
 /** A toque: pleated puffs on a band. */
@@ -171,7 +199,7 @@ function toque(m: Model, extra?: (m: Model) => void): void {
   m.ball(0.13, "#fbf7ef", [0, 0.31, 0]);
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2 + 0.3;
-    m.box([0.012, 0.09, 0.02], "#d9d3c6", [Math.sin(a) * 0.195, 0.12, Math.cos(a) * 0.195], 0.004).rotation.y = a;
+    tilt(m, m.box([0.02, 0.09, 0.02], "#d9d3c6", [Math.sin(a) * 0.195, 0.12, Math.cos(a) * 0.195], 0.004), 0, a, 0);
   }
   extra?.(m);
 }
@@ -181,8 +209,10 @@ function stetson(m: Model, p: { main: string; dark: string; band: string; dent?:
   const b = brim(m, p.main, 0.36, 0.13, 0.025);
   b.scale.set(1.05, 1, 0.95);
   for (const s of [-1, 1]) {
-    const curl = m.box([0.14, 0.03, 0.32], p.main, [s * 0.34, 0.145, 0], 0.01);
-    curl.rotation.z = -s * 0.5;
+    if (isVox(m)) {
+      m.box([0.1, 0.04, 0.34], p.main, [s * 0.36, 0.15, 0]);
+      m.box([0.07, 0.04, 0.3], p.main, [s * 0.43, 0.18, 0]);
+    } else m.box([0.14, 0.03, 0.32], p.main, [s * 0.34, 0.145, 0], 0.01).rotation.z = -s * 0.5;
   }
   m.cyl(0.19, 0.17, p.main, [0, 0.14, 0], 0.15, 18);
   m.cyl(0.192, 0.04, p.band, [0, 0.15, 0], 0.192, 18);
@@ -195,6 +225,13 @@ function horned(m: Model, p: { steel: string; rim: string; horn: string; tip: st
   dome(m, p.steel, 0.265, 0.02, 0.5);
   m.cyl(0.265, 0.04, p.rim, [0, 0.03, 0], 0.265, 20);
   if (p.guard) m.box([0.04, 0.14, 0.03], p.rim, [0, -0.12, 0.25], 0.012);
+  if (isVox(m)) {
+    for (const s of [-1, 1]) {
+      path(m, p.horn, [[s * 0.28, 0.12, 0.11], [s * 0.34, 0.15, 0.1], [s * 0.37, 0.22, 0.09], [s * 0.37, 0.3, 0.075], [s * 0.34, 0.37, 0.06], [s * 0.31, 0.42, 0.045]]);
+      m.box([0.03, 0.03, 0.03], p.tip, [s * 0.31, 0.42, -0.015]);
+    }
+    return;
+  }
   for (const s of [-1, 1]) {
     const h = m.part([s * 0.25, 0.1, 0]);
     h.rotation.z = -s * 0.5;
@@ -209,6 +246,26 @@ function horned(m: Model, p: { steel: string; rim: string; horn: string; tip: st
 /** A tricorn: a dark crown and three folded-up brims. */
 function tricorn(m: Model, p: { main: string; trim: string; emblem: "skull" | "coin" }): void {
   dome(m, p.main, 0.255, 0.04, 0.45);
+  if (isVox(m)) {
+    // Three brims folded up: a front slab and one over each ear, each with a lip and a gold edge.
+    m.box([0.46, 0.04, 0.16], p.main, [0, 0.1, 0.27]);
+    m.box([0.46, 0.05, 0.04], p.main, [0, 0.14, 0.34]);
+    m.box([0.46, 0.015, 0.02], p.trim, [0, 0.19, 0.34]);
+    for (const s of [-1, 1]) {
+      m.box([0.16, 0.04, 0.4], p.main, [s * 0.29, 0.1, 0]);
+      m.box([0.04, 0.05, 0.4], p.main, [s * 0.36, 0.14, 0]);
+      m.box([0.02, 0.015, 0.4], p.trim, [s * 0.36, 0.19, 0]);
+    }
+    m.box([0.4, 0.05, 0.12], p.main, [0, 0.1, -0.26]);
+    m.box([0.4, 0.05, 0.04], p.main, [0, 0.14, -0.31]);
+    if (p.emblem === "skull") {
+      m.box([0.08, 0.07, 0.02], "#fbf7ef", [0, 0.12, 0.355]);
+      m.box([0.02, 0.02, 0.01], "#1c1a24", [-0.02, 0.145, 0.366]);
+      m.box([0.02, 0.02, 0.01], "#1c1a24", [0.02, 0.145, 0.366]);
+      m.box([0.1, 0.015, 0.02], "#fbf7ef", [0, 0.1, 0.355]);
+    } else m.box([0.07, 0.07, 0.02], "#f5c842", [0, 0.12, 0.355]);
+    return;
+  }
   const wing = (rot: number, w: number) => {
     const part = m.part([0, 0.1, 0], rot);
     const b = part.box([w, 0.03, 0.17], p.main, [0, 0, 0.22], 0.012);
@@ -229,20 +286,41 @@ function tricorn(m: Model, p: { main: string; trim: string; emblem: "skull" | "c
 
 /** A headband with two springy stalks that end in glowing bobbles. */
 function antennae(m: Model, p: { band: string; bobble: string; stalk: string }, c: Ctx): void {
-  ring(m, p.band, 0.255, 0.014, [0, 0.06, 0], false).rotation.x = Math.PI / 2.6;
+  if (isVox(m)) band(m, p.band, 0.255, 0.045, 0.1);
+  else ring(m, p.band, 0.255, 0.014, [0, 0.06, 0], false).rotation.x = Math.PI / 2.6;
   const bobbles: THREE.Mesh[] = [];
   for (const s of [-1, 1]) {
     const stalk = m.part([s * 0.12, 0.2, -0.03]);
-    stalk.rotation.z = -s * 0.28;
-    stalk.cyl(0.01, 0.22, p.stalk, [0, 0, 0], 0.008, 6);
-    bobbles.push(stalk.ball(0.04, lit(p.bobble), [0, 0.24, 0], [1, 1, 1], 10));
+    if (isVox(m)) {
+      stalk.box([0.03, 0.12, 0.03], p.stalk, [0, -0.08, 0]);
+      stalk.box([0.03, 0.12, 0.03], p.stalk, [s * 0.03, 0.04, 0]);
+      stalk.box([0.03, 0.1, 0.03], p.stalk, [s * 0.06, 0.16, 0]);
+      bobbles.push(stalk.ball(0.04, lit(p.bobble), [s * 0.06, 0.3, 0], [1, 1, 1], 10));
+    } else {
+      stalk.rotation.z = -s * 0.28;
+      stalk.cyl(0.01, 0.22, p.stalk, [0, 0, 0], 0.008, 6);
+      bobbles.push(stalk.ball(0.04, lit(p.bobble), [0, 0.24, 0], [1, 1, 1], 10));
+    }
   }
   c.tick((t) => bobbles.forEach((b, i) => { b.scale.setScalar(1 + Math.max(0, Math.sin(t * 5 + i * Math.PI)) * 0.3); }));
 }
 
 /** Cat ears on a headband. */
 function ears(m: Model, p: { out: string; inner: string; band: string }): void {
-  ring(m, p.band, 0.25, 0.014, [0, 0.07, 0], false).rotation.x = Math.PI / 2.4;
+  if (isVox(m)) band(m, p.band, 0.25, 0.045, 0.1);
+  else ring(m, p.band, 0.25, 0.014, [0, 0.07, 0], false).rotation.x = Math.PI / 2.4;
+  if (isVox(m)) {
+    for (const s of [-1, 1]) {
+      const e = m.part([s * 0.14, 0.14, 0]);
+      e.box([0.14, 0.06, 0.07], p.out, [0, 0, 0]);
+      e.box([0.11, 0.06, 0.07], p.out, [0, 0.06, 0]);
+      e.box([0.07, 0.06, 0.07], p.out, [0, 0.12, 0]);
+      e.box([0.035, 0.05, 0.07], p.out, [0, 0.18, 0]);
+      e.box([0.07, 0.07, 0.02], p.inner, [0, 0.01, 0.045]);
+      e.box([0.04, 0.06, 0.02], p.inner, [0, 0.08, 0.045]);
+    }
+    return;
+  }
   for (const s of [-1, 1]) {
     const e = m.part([s * 0.14, 0.2, 0.0]);
     e.rotation.z = -s * 0.28;
@@ -269,7 +347,7 @@ function whirly(m: Model, c: Ctx, p: { a: string; b: string; brim: string; blade
 /** A party hat: a striped cone with a pompom. */
 function party(m: Model, p: { a: string; b: string; pom: string }): void {
   const h = m.part([0, 0.1, 0]);
-  h.rotation.z = -0.12;
+  if (!isVox(m)) h.rotation.z = -0.12;
   const R = 0.2;
   const H = 0.46;
   h.cyl(R, H, p.a, [0, 0, 0], 0.008, 16);
@@ -283,7 +361,7 @@ function party(m: Model, p: { a: string; b: string; pom: string }): void {
 /** The halo: a ring that floats a little and turns. */
 function halo(m: Model, c: Ctx, p: { ring: string; glowC: string; tilt: number }): void {
   const h = m.part([0, 0.36, 0]);
-  h.rotation.x = p.tilt;
+  if (!isVox(m)) h.rotation.x = p.tilt;
   ring(h, lit(p.ring), 0.17, 0.022);
   ring(h, see(p.glowC, 0.25, true), 0.17, 0.05);
   c.tick((t) => {
@@ -298,8 +376,9 @@ function wreath(m: Model): void {
   for (let i = 0; i < 18; i++) {
     const a = (i / 18) * Math.PI * 2;
     if (Math.abs(a - Math.PI) < 0.35) continue;
-    const leaf = m.ball(0.032, i % 2 ? "#72bf52" : "#4f9b3d", [Math.sin(a) * 0.268, 0.07 + (i % 2 ? 0.02 : -0.02), Math.cos(a) * 0.268], [0.5, 0.9, 1.5], 6);
-    leaf.rotation.y = a;
+    const [lx, lz] = roundAt(m, a, 0.268);
+    const leaf = m.ball(0.032, i % 2 ? "#72bf52" : "#4f9b3d", [lx, 0.07 + (i % 2 ? 0.02 : -0.02), lz], [0.5, 0.9, 1.5], 6);
+    tilt(m, leaf, 0, a, 0);
   }
   m.ball(0.035, "#f5c842", [0, 0.06, -0.27]);
   m.box([0.03, 0.12, 0.012], "#f5c842", [-0.03, -0.08, -0.265], 0.004).rotation.z = 0.2;
@@ -311,7 +390,8 @@ function spikes(m: Model, p: { base: string; tip: string; n: number; h: number; 
   band(m, p.base, p.r, 0.07, p.y, p.r * 1.05);
   for (let i = 0; i < p.n; i++) {
     const a = (i / p.n) * Math.PI * 2;
-    m.cyl(0.035, p.h, p.tip, [Math.sin(a) * p.r, p.y + 0.06, Math.cos(a) * p.r], 0.004, 5);
+    const [x, z] = roundAt(m, a, p.r);
+    m.cyl(0.035, p.h, p.tip, [x, p.y + 0.06, z], 0.004, 5);
   }
 }
 
@@ -382,6 +462,13 @@ export const HAT_BUILDERS: Record<string, Build> = {
   },
   "Julehue": (m) => {
     m.cyl(0.27, 0.3, "#d8283a", [0, 0.0, 0], 0.13, 18);
+    if (isVox(m)) {
+      path(m, "#d8283a", [[0.04, 0.34, 0.2], [0.12, 0.4, 0.17], [0.2, 0.4, 0.14], [0.27, 0.34, 0.11], [0.31, 0.26, 0.09]]);
+      m.ball(0.05, "#fbf7ef", [0.32, 0.18, 0]);
+      band(m, "#fbf7ef", 0.285, 0.075, -0.015, 0.285);
+      m.cyl(0.285, 0.012, "#fbf7ef", [0, 0.06, 0], 0.285, 18);
+      return;
+    }
     const tip = m.part([0, 0.29, 0]);
     tip.rotation.z = -0.85;
     tip.cyl(0.13, 0.2, "#d8283a", [0, 0, 0], 0.07, 14);
@@ -418,6 +505,11 @@ export const HAT_BUILDERS: Record<string, Build> = {
   "Pirate tricorn": (m) => tricorn(m, { main: "#2e2e3a", trim: "#f5c842", emblem: "skull" }),
   "Jailbreak horns": (m) => {
     for (const s of [-1, 1]) {
+      if (isVox(m)) {
+        path(m, "#d8283a", [[s * 0.16, 0.24, 0.1], [s * 0.2, 0.3, 0.085], [s * 0.2, 0.37, 0.07]], 0.02);
+        path(m, "#ff6b5e", [[s * 0.17, 0.43, 0.055], [s * 0.14, 0.48, 0.04]], 0.02);
+        continue;
+      }
       const h = m.part([s * 0.12, 0.2, 0.02]);
       h.rotation.z = -s * 0.35;
       h.cyl(0.05, 0.12, "#d8283a", [0, 0, 0], 0.03, 8);
@@ -443,10 +535,12 @@ export const HAT_BUILDERS: Record<string, Build> = {
     const tips: THREE.Mesh[] = [];
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
-      const p = [Math.sin(a) * 0.205, 0.24, Math.cos(a) * 0.205] as [number, number, number];
+      const [px, pz] = roundAt(m, a, 0.205);
+      const p = [px, 0.24, pz] as [number, number, number];
       m.cyl(0.03, 0.12, "#3ddc84", p, 0.005, 5);
       tips.push(m.ball(0.03, lit("#b6ffd4"), [p[0], 0.37, p[2]], [1, 1, 1], 8));
-      m.box([0.02, 0.02, 0.012], "#f5c842", [Math.sin(a + 0.5) * 0.219, 0.2, Math.cos(a + 0.5) * 0.219], 0.004).rotation.y = a + 0.5;
+      const [gx, gz] = roundAt(m, a + 0.5, 0.219);
+      m.box([0.02, 0.02, 0.012], "#f5c842", [gx, 0.2, gz], 0.004).rotation.y = a + 0.5;
     }
     m.box([0.1, 0.05, 0.02], "#2b2433", [0, 0.2, 0.22], 0.01);
     m.box([0.07, 0.012, 0.01], lit("#7dffb4"), [0, 0.205, 0.232], 0.002);
@@ -470,20 +564,23 @@ export const HAT_BUILDERS: Record<string, Build> = {
     const cols = ["#57e3a1", "#5fd8e8", "#b28cff"];
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2;
-      const r = new THREE.Mesh(cached("ribbon", () => new THREE.PlaneGeometry(0.1, 0.3, 1, 4).translate(0, 0.15, 0)), see(cols[i % 3]!, 0.7, true));
+      const r = new THREE.Mesh(isVox(m) ? cached("vribbon", () => new THREE.BoxGeometry(0.07, 0.3, 0.03).translate(0, 0.15, 0)) : cached("ribbon", () => new THREE.PlaneGeometry(0.1, 0.3, 1, 4).translate(0, 0.15, 0)), see(cols[i % 3]!, 0.7, true));
+      r.userData.noBlock = true;
       (r.material as THREE.Material).side = THREE.DoubleSide;
-      r.position.set(Math.sin(a) * 0.2, 0.22, Math.cos(a) * 0.2);
-      r.rotation.y = a;
+      const [rx, rz] = roundAt(m, a, 0.2);
+      r.position.set(rx, 0.22, rz);
+      r.rotation.y = isVox(m) ? 0 : a;
       m.add(r);
       ribbons.push(r);
     }
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2 + 0.3;
-      m.cyl(0.025, 0.06, "#f5c842", [Math.sin(a) * 0.222, 0.2, Math.cos(a) * 0.222], 0.004, 5);
+      const [cx, cz] = roundAt(m, a, 0.222);
+      m.cyl(0.025, 0.06, "#f5c842", [cx, 0.2, cz], 0.004, 5);
     }
     c.tick((t) => ribbons.forEach((r, i) => {
       r.scale.y = 0.85 + Math.sin(t * 2.2 + i * 1.3) * 0.2;
-      r.rotation.z = Math.sin(t * 1.7 + i) * 0.15;
+      r.rotation.z = isVox(m) ? 0 : Math.sin(t * 1.7 + i) * 0.15;
     }));
   },
   // Raid loot.
@@ -514,7 +611,8 @@ export const HAT_BUILDERS: Record<string, Build> = {
     ring(inf, lit("#5ff0ff"), 0.022, 0.006, [0.022, 0, 0], false);
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2 + Math.PI / 7;
-      m.ball(0.018, "#5ff0ff", [Math.sin(a) * 0.24, 0.31, Math.cos(a) * 0.24], [1, 1, 1], 6);
+      const [x, z] = roundAt(m, a, 0.24);
+      m.ball(0.018, "#5ff0ff", [x, 0.31, z], [1, 1, 1], 6);
     }
     c.tick((t) => (inf.scale.setScalar(1 + Math.sin(t * 3) * 0.1)));
   },
@@ -575,6 +673,10 @@ export const HAT_BUILDERS: Record<string, Build> = {
 /** One round lens: a ring and a see-through disc. */
 function roundLens(e: Model, frame: string, glass: string, r = 0.062, opacity = 0.5): void {
   ring(e, frame, r, 0.009, [0, 0, 0], false);
+  if (isVox(e)) {
+    squarePane(e, r * 0.95, see(glass, opacity), [0, 0, 0.002]);
+    return;
+  }
   const disc = new THREE.Mesh(cached(`disc${r}`, () => new THREE.CircleGeometry(r, 20)), see(glass, opacity));
   disc.position.z = 0.002;
   e.add(disc);
@@ -586,12 +688,44 @@ function bridge(m: Model, color: string, y = EYE_Y, width = 0.2): void {
 }
 /** A band round the head at eye height. */
 function strap(m: Model, color: string, y = EYE_Y, w = 0.03): void {
+  if (isVox(m)) {
+    // A square band round the block head: x is stretched 1.25 on the face frame, so it is 0.2 to each side.
+    const g = cached(`vstrap${w}`, () => {
+      const parts = [
+        new THREE.BoxGeometry(0.44, w, 0.03).translate(0, 0, 0.21),
+        new THREE.BoxGeometry(0.44, w, 0.03).translate(0, 0, -0.32),
+        new THREE.BoxGeometry(0.03, w, 0.5).translate(-0.215, 0, -0.055),
+        new THREE.BoxGeometry(0.03, w, 0.5).translate(0.215, 0, -0.055),
+      ].map((b) => b.toNonIndexed());
+      const out = mergeGeometries(parts)!;
+      for (const b of parts) b.dispose();
+      return out;
+    });
+    place(m, g, color, [0, y - w / 2, 0]);
+    return;
+  }
   const r = m.cyl(0.262, w, color, [0, y - w / 2, 0], 0.262, 24);
   r.scale.set(1.0, 1, 0.97);
   (r.material as THREE.Material).side = THREE.DoubleSide;
 }
 /** A flat panel across both eyes, bent round the face. */
 function visor(m: Model, p: { color: string | THREE.Material; w: number; h: number; y?: number; depth?: number }): THREE.Mesh {
+  if (isVox(m)) {
+    // A flat panel across the face with a short return at each temple.
+    const t = 0.03 + (p.depth ?? 0) * 0.5;
+    const wrap = p.w >= 0.38;
+    const g = cached(`vvisor${p.w},${p.h},${t}`, () => {
+      const parts = [new THREE.BoxGeometry(wrap ? 0.45 : Math.min(p.w, 0.4), p.h, t).translate(0, 0, 0.2 + t / 2)];
+      if (wrap) for (const s of [-1, 1]) parts.push(new THREE.BoxGeometry(t, p.h, 0.24).translate(s * (0.2 + t / 2 + 0.005), 0, 0.2 + t - 0.12));
+      const ng = parts.map((b) => b.toNonIndexed());
+      const out = mergeGeometries(ng)!;
+      for (const b of ng) b.dispose();
+      return out;
+    });
+    const o = place(m, g, p.color, [0, p.y ?? EYE_Y, 0]);
+    if (typeof p.color !== "string") (o.material as THREE.Material).side = THREE.DoubleSide;
+    return o;
+  }
   const geom = cached(`visor${p.w},${p.h}`, () => {
     const g = new THREE.CylinderGeometry(0.262, 0.262, p.h, 16, 1, true, Math.PI - p.w / 0.262 / 2 + Math.PI / 2 * 0, p.w / 0.262);
     return g;
@@ -635,9 +769,12 @@ function shades(m: Model, frame: string, lens: string, glint = true): void {
 function monocle(m: Model, frame: string, chain: string, tag = false): void {
   const e = eyeAt(m, 1);
   ring(e, frame, 0.058, 0.008, [0, 0, 0.002], false);
-  const d = new THREE.Mesh(new THREE.CircleGeometry(0.056, 20), see("#cde9f6", 0.35));
-  d.position.z = 0.004;
-  e.add(d);
+  if (isVox(e)) squarePane(e, 0.054, see("#cde9f6", 0.35), [0, 0, 0.004]);
+  else {
+    const d = new THREE.Mesh(new THREE.CircleGeometry(0.056, 20), see("#cde9f6", 0.35));
+    d.position.z = 0.004;
+    e.add(d);
+  }
   for (let i = 0; i < 5; i++) e.ball(0.008, chain, [0.02 - i * 0.005, -0.075 - i * 0.05, -0.005 - i * 0.01], [1, 1, 1], 5);
   if (tag) sign(e, 0.1, 0.06, (g, w, h) => {
     g.fillStyle = "#fbf7ef";
@@ -709,6 +846,10 @@ export const FACE_BUILDERS: Record<string, Build> = {
     const e = eyeAt(m, -1);
     e.ball(0.07, "#1c1a24", [0, -0.003, 0.0], [1, 0.9, 0.4], 14);
     // The strap runs up from the patch across the forehead and round the back.
+    if (isVox(m)) {
+      strap(m, "#1c1a24", EYE_Y + 0.045, 0.024);
+      return;
+    }
     const strap2 = band(m, "#1c1a24", 0.262, 0.022, 0.0);
     strap2.rotation.z = 0.36;
     strap2.scale.set(1, 1, 0.97);
@@ -717,9 +858,12 @@ export const FACE_BUILDERS: Record<string, Build> = {
     for (const s of [-1, 1] as const) {
       const e = eyeAt(m, s);
       ring(e, "#1c1a24", 0.066, 0.014, [0, 0, 0.004], false);
-      const d = new THREE.Mesh(new THREE.CircleGeometry(0.06, 20), see("#2fb5c9", 0.75));
-      d.position.z = 0.008;
-      e.add(d);
+      if (isVox(e)) squarePane(e, 0.058, see("#2fb5c9", 0.75), [0, 0, 0.008]);
+      else {
+        const d = new THREE.Mesh(new THREE.CircleGeometry(0.06, 20), see("#2fb5c9", 0.75));
+        d.position.z = 0.008;
+        e.add(d);
+      }
     }
     m.box([0.05, 0.014, 0.02], "#1c1a24", [0, EYE_Y, 0.246], 0.005);
     strap(m, "#1c1a24", EYE_Y + 0.02, 0.026);
@@ -728,6 +872,15 @@ export const FACE_BUILDERS: Record<string, Build> = {
   "Rockstar glasses": (m) => starLens(m, "#f5c842", "#ff6fa3", "rock"),
   "Prompt bandit bandana": (m) => {
     // Over the nose and mouth, tied at the back.
+    if (isVox(m)) {
+      m.box([0.42, 0.11, 0.03], "#c23a3a", [0, -0.19, 0.205]);
+      for (const s of [-1, 1]) m.box([0.03, 0.11, 0.3], "#c23a3a", [s * 0.215, -0.19, 0.05]);
+      m.box([0.42, 0.035, 0.03], "#a82a2a", [0, -0.092, 0.205]);
+      for (const [x, y] of [[-0.09, -0.15], [0.03, -0.19], [0.12, -0.14], [-0.14, -0.2]] as const) m.box([0.025, 0.025, 0.01], "#fbf7ef", [x, y, 0.222]);
+      m.box([0.04, 0.04, 0.04], "#c23a3a", [0.22, -0.13, -0.1]);
+      m.box([0.03, 0.1, 0.03], "#a82a2a", [0.22, -0.26, -0.1]);
+      return;
+    }
     const b = new THREE.Mesh(cached("bandana", () => new THREE.CylinderGeometry(0.262, 0.232, 0.13, 20, 1, true, -1.25, 2.5)), toon("#c23a3a"));
     (b.material as THREE.Material).side = THREE.DoubleSide;
     b.position.y = -0.13;
