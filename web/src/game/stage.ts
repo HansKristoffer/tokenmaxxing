@@ -23,6 +23,8 @@ export const pickTile = (clientX: number, clientY: number): Tile | null =>
 export function startStage(host: HTMLElement, tick: (now: number) => boolean): void {
   let renderer: Renderer | null = null;
   let loading: RendererKind | null = null;
+  /** Counts swaps: one that finds a newer one started while it loaded is out of date and drops its renderer. */
+  let swaps = 0;
   let size = "";
   let lastDraw = 0;
   let lastInput = performance.now();
@@ -43,7 +45,9 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
 
   const swap = async (kind: RendererKind) => {
     loading = kind;
+    const turn = ++swaps;
     const { renderer: next, reason, fellBack } = await loadRenderer(kind);
+    if (turn !== swaps) return next.dispose();
     loading = null;
     next.mount(host);
     next.onFail?.(fail);
