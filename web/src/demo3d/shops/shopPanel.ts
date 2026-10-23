@@ -5,10 +5,11 @@
  */
 import * as THREE from "three";
 import { Pipeline } from "../pipeline.ts";
+import type { ShopBackend } from "./backend.ts";
 import type { ShopId, ShopItem } from "./index.ts";
 import { SHOP_SPECS } from "./index.ts";
-import { actionsOf, type ItemInfo, infoOf, RARITY_COLOUR, type ShopHooks } from "./shopActions.ts";
-import { wallet } from "./wallet.ts";
+import { failOf, type Outcome } from "./purchase.ts";
+import { actionsOf, type ItemInfo, infoOf, type PanelHooks, RARITY_COLOUR } from "./shopActions.ts";
 
 const CSS = `
 #coins{position:fixed;top:108px;right:12px;padding:5px 12px;border-radius:999px;background:var(--panel);
@@ -39,22 +40,27 @@ export interface ShopPanel {
   open(shop: ShopId, item: ShopItem): void;
   close(): void;
   readonly isOpen: boolean;
+  /** Takes the card, the coin counter and the toast off the page. */
+  dispose(): void;
   toast(text: string): void;
   tip(text: string | null, x?: number, y?: number): void;
 }
 
 const ELEVATION = Math.atan(0.5);
 
-export function mountShopPanel(hooks: ShopHooks): ShopPanel {
+export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPanel {
   const style = document.createElement("style");
   style.textContent = CSS;
   document.head.append(style);
 
+  // The real game's HUD already counts coins; the demo has no HUD of its own.
   const coins = document.createElement("div");
   coins.id = "coins";
+  coins.hidden = backend.kind !== "demo";
   document.body.append(coins);
+  let lastCoins = backend.coins();
   const showCoins = (bump = false) => {
-    coins.textContent = `🪙 ${wallet.coins}`;
+    coins.textContent = `🪙 ${backend.coins()}`;
     if (bump) {
       coins.classList.remove("bump");
       void coins.offsetWidth;
@@ -164,7 +170,7 @@ export function mountShopPanel(hooks: ShopHooks): ShopPanel {
   const render = (): void => {
     if (!current) return;
     const { shop, item } = current;
-    const info: ItemInfo = infoOf(shop, item, hooks.level());
+    const info: ItemInfo = infoOf(shop, item, backend);
     $(".t").textContent = SHOP_SPECS[shop].name;
     $(".n").textContent = item.name;
     const rar = $<HTMLElement>(".r");
@@ -177,53 +183,70 @@ export function mountShopPanel(hooks: ShopHooks): ShopPanel {
     actions.replaceChildren();
     state.className = "shop-state";
     const g = info.gate;
-    const owned = wallet.owns(item.id);
+    const level = backend.level();
+    const purse = info.pays === "company" ? backend.companyCoins() : backend.coins();
     if (g.kind === "level") {
       state.classList.add("bad");
-      state.textContent = `🔒 Locked: reach level ${g.level} (you are ${hooks.level()})`;
+      state.textContent = `🔒 Locked: reach level ${g.level} (you are ${level})`;
     } else if (g.kind === "boss") {
       state.classList.add("bad");
       state.textContent = `🔒 Boss drop: ${g.boss} (raid loot, never sold)`;
     } else if (g.kind === "needs") {
       state.classList.add("bad");
       state.textContent = `🔒 Needs the ${g.what} first`;
-    } else if (info.have) {
+    } else if (info.have && !info.again) {
       state.classList.add("good");
       state.textContent =
-        g.kind === "earned" ? `✓ Earned at level ${g.level}` : g.kind === "free" ? "✓ Free" : "✓ Owned";
+        g.kind === "earned" ? `✓ Earned at level ${g.level}` : g.kind === "free" ? "✓ Free" : info.inUse ? "✓ Using it now" : "✓ Owned";
     } else if (g.kind === "price") {
-      const short = g.price - wallet.coins;
-      state.innerHTML = `<b>🪙 ${g.price}</b>${short > 0 ? ` · ${short} short` : ""}`;
+      const whose = info.pays === "company" ? "company wallet" : "coins";
+      const short = purse === null ? 0 : g.price - purse;
+      const held = info.count > 0 ? `✓ ${info.count} to put down · ` : "";
+      state.innerHTML =
+        purse === null
+          ? `${held}<b>🪙 ${g.price}</b> · join a company to buy this`
+          : `${held}<b>🪙 ${g.price}</b> from your ${whose}${short > 0 ? ` · ${short} short` : ""}`;
       const buy = document.createElement("button");
       buy.type = "button";
       buy.className = "primary";
-      buy.textContent = `Buy · 🪙 ${g.price}`;
-      buy.disabled = short > 0;
-      buy.onclick = () => {
-        if (!wallet.buy(item.id, g.price)) return;
-        showCoins(true);
-        toast(`Bought ${item.name} for 🪙 ${g.price}`);
-        render();
-      };
+      buy.textContent = pending ? "Buying…" : `Buy · 🪙 ${g.price}`;
+      buy.disabled = pending || purse === null || short > 0;
+      buy.onclick = () => void run(() => backend.buy(shop, item, g.price), `Bought ${item.name} for 🪙 ${g.price}`);
       actions.append(buy);
     }
     if (info.have) {
-      for (const a of actionsOf(shop, item, hooks)) {
+      for (const a of actionsOf(shop, item, hooks, backend)) {
         const b = document.createElement("button");
         b.type = "button";
         if (a.primary) b.className = "primary";
+        b.disabled = pending;
         b.textContent = a.label;
-        b.onclick = () => toast(a.run());
+        b.onclick = () => void run(a.run, a.done);
         actions.append(b);
       }
     }
-    void owned;
+  };
+
+  /** One write at a time: the buttons wait, then the card shows what the server decided and the toast says so. */
+  let pending = false;
+  const run = async (f: () => Promise<Outcome>, fallback: string): Promise<void> => {
+    if (pending) return;
+    pending = true;
+    render();
+    const shown = current;
+    const r = await f().catch(failOf);
+    pending = false;
+    toast(r.ok ? (r.message ?? fallback) : r.message);
+    // Another item may have been opened meanwhile: the card keeps showing that one.
+    if (current === shown) render();
   };
 
   const panel: ShopPanel = {
     open(shop, item) {
       hooks.previewLook(null);
       current = { shop, item };
+      // What the server holds may be newer than the cache (a trade, a drop): look again, then redraw.
+      void backend.refresh().then(() => current?.item === item && render());
       pipe ??= new Pipeline(canvas, { preserve: false });
       pipe.autoQuality = false;
       pipe.quality = 1;
@@ -241,6 +264,13 @@ export function mountShopPanel(hooks: ShopHooks): ShopPanel {
     get isOpen() {
       return !el.hidden;
     },
+    dispose() {
+      unsub();
+      cancelAnimationFrame(raf);
+      hooks.previewLook(null);
+      for (const n of [style, coins, toastEl, tipEl, el]) n.remove();
+      pipe?.renderer.dispose();
+    },
     toast,
     tip(text, x = 0, y = 0) {
       tipEl.hidden = text === null;
@@ -252,6 +282,10 @@ export function mountShopPanel(hooks: ShopHooks): ShopPanel {
     },
   };
   $<HTMLButtonElement>(".x").onclick = () => panel.close();
-  wallet.onChange(() => showCoins());
+  const unsub = backend.onChange(() => {
+    showCoins(backend.coins() > lastCoins);
+    lastCoins = backend.coins();
+    render();
+  });
   return panel;
 }

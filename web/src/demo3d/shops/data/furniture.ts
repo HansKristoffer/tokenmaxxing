@@ -7,6 +7,8 @@
  * (an `Asset` id in furniture.ts / furniture3d.ts / posters3d.ts, a look id in decor3d.ts, or a `DESK_TIERS`
  * index for desks). Keep in step by hand.
  */
+import { fromCore } from "./core.ts";
+
 
 export type FurnGroup = "Furniture" | "Company" | "Home" | "Posters" | "Desks" | "Wallpaper" | "Floors";
 
@@ -163,7 +165,7 @@ export const FLOOR_ROWS: readonly FurnRow[] = [
   row("Floors", "decor.floor.bornholm", "Bornholm cobble", 0, "bornholm", 1, { level: 40, blurb: "Stones from the island." }),
 ];
 
-export const FURNITURE_SHOP_ROWS: readonly FurnRow[] = [
+export const FURNITURE_SHOP_ROWS: readonly FurnRow[] = fromCore([
   ...FURNITURE_ROWS,
   ...COMPANY_ROWS,
   ...HOME_ROWS,
@@ -171,4 +173,4 @@ export const FURNITURE_SHOP_ROWS: readonly FurnRow[] = [
   ...DESK_ROWS,
   ...WALLPAPER_ROWS,
   ...FLOOR_ROWS,
-];
+]);

@@ -22,6 +22,7 @@ import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
 import "./tiles.ts";
 import "./collapsible.ts";
 import { applyDecor } from "./decor3d.ts";
+import { createDemoBackend } from "./shops/demoBackend.ts";
 import { type ShopDisplay, shopOfRoom, shopRoom } from "./shops/index.ts";
 import type { ShopHooks } from "./shops/shopActions.ts";
 import { mountShopPanel, type ShopPanel } from "./shops/shopPanel.ts";
@@ -1310,7 +1311,7 @@ const shopHooks: ShopHooks = {
   },
   renderStyle: () => ({ style: pipe.style === "voxel" ? "voxel" : "classic", pixelSize: pipe.pixelSize, night }),
 };
-const shopPanel: ShopPanel = mountShopPanel(shopHooks);
+const shopPanel: ShopPanel = mountShopPanel(shopHooks, createDemoBackend(shopHooks));
 if (wallet.decor.wall || wallet.decor.floor) applyDecor(room, wallet.decor);
 
 // For poking at the world from the console or a test: `world3d.go(x, y)` walks to a tile of the room.
