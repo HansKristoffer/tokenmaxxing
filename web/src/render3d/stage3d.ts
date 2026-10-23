@@ -1,13 +1,12 @@
 import { lightAt } from "@tokenmaxxing/core/sky.ts";
 import * as THREE from "three";
-import { blockify } from "../demo3d/blocky.ts";
 import { Fx } from "../demo3d/fx3d.ts";
 import type { Pipeline } from "../demo3d/pipeline.ts";
 import { skyNow, weatherNow } from "../game/sky.ts";
 import type { GraphicsSettings } from "../settings/graphics.ts";
-import { batchStatic } from "./batch.ts";
 import { disposeObject } from "./dispose.ts";
 import type { Overlay } from "./overlay.ts";
+import { batchWithoutWarmup, SAMPLE_TIMES } from "./perf/bake.ts";
 import type { RoomView } from "./rooms.ts";
 import { seeThrough } from "./seethrough.ts";
 
@@ -87,33 +86,33 @@ export class RoomStage {
     this.timing.see = performance.now() - t0;
     const opened = performance.getEntriesByType("navigation")[0]?.name ?? "";
     if (!opened.includes("nobatch")) this.batch(hooks);
-    else if (!opened.includes("noblock")) blockify(view.group);
     if (view.extras) scene.add(view.extras);
     this.timing.total = performance.now() - t0;
   }
 
-  /** Turns the parts of the room that never move into a few meshes: far fewer draw calls (`batch.ts`). */
+  /**
+   * Flags the room for the pipeline's static batching (`perf/bake.ts`): the still parts become a few merged meshes on the
+   * baked shadow layer, the rest (anything under `userData.live` or `nobatch`) stays as built. What moves is found by
+   * running the room's own animation through a few hours of the day and states of its lamps (`userData.sample`).
+   */
   private batch(hooks: StageHooks): void {
     const { view } = this;
-    const t0 = performance.now();
-    blockify(view.group);
-    this.timing.blockify = performance.now() - t0;
     const toward = new THREE.Vector3();
-    this.batched = batchStatic(view.group, {
-      chunk: 14,
-      samples: PROBE_MINUTES.length,
-      probe: (i) => {
-        hooks.clock(PROBE_MINUTES[i % PROBE_MINUTES.length]!);
-        view.night?.(i % 2 === 1);
-        const a = Math.PI / 4 + (i * Math.PI) / 2;
-        view.tick(0.11 + i * 1.37, 0.7, toward.set(Math.sin(a), 0, Math.cos(a)));
-      },
-    });
-    this.timing.batch = performance.now() - t0 - this.timing.blockify!;
-    hooks.clock(null);
-    view.night?.(false);
-    view.tick(0, 10, toward.set(Math.SQRT1_2, 0, Math.SQRT1_2));
-    this.scene.userData.blockyDone = true;
+    const root = view.group;
+    root.userData.bake = true;
+    root.userData.sample = (t: number) => {
+      const i = Math.max(0, SAMPLE_TIMES.indexOf(t));
+      hooks.clock(PROBE_MINUTES[(i * 2) % PROBE_MINUTES.length]!);
+      view.night?.(i % 2 === 1);
+      const a = Math.PI / 4 + (i * Math.PI) / 2;
+      view.tick(t, 0.7, toward.set(Math.sin(a), 0, Math.cos(a)));
+      if (i === SAMPLE_TIMES.length - 1) {
+        hooks.clock(null);
+        view.night?.(false);
+        view.tick(0, 10, toward.set(Math.SQRT1_2, 0, Math.SQRT1_2));
+      }
+    };
+    batchWithoutWarmup(root);
   }
 
   /** The sun's shadow box, `reach` world units either way. */

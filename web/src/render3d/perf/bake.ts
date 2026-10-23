@@ -30,7 +30,8 @@ export const RIGID = "rigid";
 export const BAKE = "bake";
 
 const cellSize = (): number => Number((globalThis as { __bakeCell?: number }).__bakeCell ?? 8);
-const SAMPLE_TIMES = [0.37, 3.91, 11.3, 29.77];
+/** The times (s) `sampleTicks` runs the tick functions and a root's `userData.sample` at. */
+export const SAMPLE_TIMES = [0.37, 3.91, 11.3, 29.77];
 
 /** `?nobake` turns batching off (to compare pictures, or to see what it costs). */
 const disabled = typeof location !== "undefined" && new URLSearchParams(location.search).has("nobake");
@@ -79,7 +80,7 @@ function dynamicRoot(root: THREE.Object3D): boolean {
 
 function isLive(o: THREE.Object3D, root: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o; p; p = p.parent) {
-    if (p.userData[LIVE] || p.userData.noBake || (p !== root && p.userData[RIGID])) return true;
+    if (p.userData[LIVE] || p.userData.nobatch || p.userData.noBake || (p !== root && p.userData[RIGID])) return true;
     if (p === root) break;
   }
   return false;
@@ -609,6 +610,13 @@ export function bakeStatic(root: THREE.Object3D): BakedLayer | null {
 }
 
 const watching = new Map<THREE.Object3D, Watch>();
+const rushed = new WeakSet<THREE.Object3D>();
+
+/**
+ * A root that is complete the moment it is built (the real game's rooms) skips the warm-up frames: the next `syncBaked`
+ * batches it from the tick sampling alone, so the first picture of a room is already batched.
+ */
+export const batchWithoutWarmup = (root: THREE.Object3D): void => void rushed.add(root);
 
 /** Frames a room is watched before it is batched: whatever an actor or animation moves in that time stays live. */
 const WARMUP = [3, 10, 24];
@@ -697,7 +705,7 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
       }
       w.frames++;
       if (WARMUP.includes(w.frames)) noteMoved(w.base, snapshot(root, w.meshes), w.moved);
-      if (w.frames < WARMUP.at(-1)!) continue;
+      if (w.frames < WARMUP.at(-1)! && !rushed.has(root)) continue;
       watching.delete(root);
       sampleTicks(root, w.meshes, w.moved);
       const l = layerOf(root, w.meshes, w.moved, w.why);
