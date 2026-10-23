@@ -4,11 +4,11 @@
  * the bar and its tap, back-bar shelves, stools, tables with candles, chairs, the hearth with its flames,
  * wall sconces, the stage with its drifting notes, barrels, the jukebox, the bar tab, quest board, Hall of
  * Fame, regulars' plaques, the open-offices board, the daily-special easel, the stairs and the exit, the
- * wishing fountain, Bent the barkeep and the dorm's beds.
+ * tip jar on the bar, the kitchen door, coat and umbrella stands, sofas, booths, Bent the barkeep and the dorm's beds.
  *
  * Ids follow the 2D catalogue: `tile:<char>` for map tiles, `tavern:<name>` for what has no tile.
  * Hooks (all additive, none needed): a boards's `redraw` (bar tab, plaques, easel), `JukeboxModel.playing`,
- * `FountainModel.toss()`, `setTavernNight()`.
+ * `FountainModel.toss()` (the tip jar's coin toss), `setTavernNight()`.
  */
 import * as THREE from "three";
 import { C, HAIRS, SKINS } from "../art/palette.ts";
@@ -299,9 +299,43 @@ function barStoolRed(): Model {
   return m;
 }
 
+/** A raised stool for the singer: the bar stool, standing on the stage's boards. */
+function stageStool(): Model {
+  const m = new Model();
+  const s = barStool(C.rug);
+  s.position.y = 0.14;
+  m.add(s);
+  return m;
+}
+
+/**
+ * A cushioned seat one tile wide, facing +z, with its back on -z. A sofa is two of them side by side (the
+ * left one has an arm at -x, the right one at +x), a booth bench the same with a taller back, an armchair has
+ * both arms. One seat anchor each, so every sitter is on a cushion of their own.
+ */
+function seatUnit(kind: "sofa" | "booth" | "armchair", leftArm: boolean, rightArm: boolean): () => Model {
+  return () => {
+    const m = new Model();
+    const colour = kind === "sofa" ? C.fabric : kind === "armchair" ? "#8a4a32" : C.rug;
+    const frame = kind === "booth" ? WOOD_DARK : tint(colour, -0.18);
+    const backH = kind === "booth" ? 0.78 : 0.42;
+    m.box([1, 0.24, 0.8], frame, [0, 0.05, 0], 0.05);
+    m.box([0.94, 0.12, 0.66], colour, [0, 0.28, 0.07], 0.05);
+    m.box([1, backH, kind === "booth" ? 0.12 : 0.2], kind === "booth" ? WOOD : colour, [0, 0.29, kind === "booth" ? -0.34 : -0.3], 0.07);
+    if (kind === "booth") m.box([0.9, 0.34, 0.06], colour, [0, 0.42, -0.27], 0.03);
+    for (const [on, x] of [[leftArm, -0.43], [rightArm, 0.43]] as const) {
+      if (!on) continue;
+      m.box([0.14, kind === "booth" ? 0.84 : 0.46, 0.8], kind === "booth" ? WOOD : tint(colour, -0.08), [x, 0.05, 0], 0.07);
+    }
+    for (const x of [-0.42, 0.42])
+      for (const z of [-0.33, 0.33]) m.cyl(0.03, 0.05, C.woodDark, [x, 0, z], 0.03, 8);
+    return m;
+  };
+}
+
 // ——— The hearth ———
 
-const hearth = (): Model => {
+const hearthInner = (): Model => {
   const m = new Model();
   const stone = C.stone;
   // Pillars, back wall, lintel and a hearthstone: the opening is real, so the fire sits in it.
@@ -374,10 +408,21 @@ const hearth = (): Model => {
   pool.position.set(0, 0.02, 1.1);
   m.add(pool);
   halo(m, [0, 0.4, 0.3], 1.9, "#ff9a3c", 2);
+  // Candlesticks on the mantel.
+  for (const s of [-1, 1]) candle(m, [s * 0.78, 1.28, 0.08], 12 + s);
   ticks.push((t) => {
     lit = fire.intensity > 0;
     (pool.material as THREE.MeshBasicMaterial).opacity = (lit ? 0.5 : 0.14) * (0.9 + 0.1 * Math.sin(t * 7));
   });
+  return m;
+};
+
+/** The hearth set into the north wall: its back (and the chimney breast) sits flush on the wall, and the flue goes up to the ceiling. */
+const hearth = (): Model => {
+  const m = new Model();
+  const inner = hearthInner();
+  inner.position.z = -0.14;
+  m.add(inner);
   return m;
 };
 
@@ -456,7 +501,7 @@ function stage(w: number, d: number): () => Model {
     m.box([w, 0.05, 0.1], WOOD_LIGHT, [0, 0.12, d / 2 - 0.05], 0.01);
     m.box([w, 0.04, 0.12], TRUNK_DARK, [0, 0, d / 2 - 0.06], 0.004);
     for (const s of [-1, 1]) m.box([0.05, 0.14, d], TRUNK_DARK, [s * (w / 2 - 0.025), 0, 0], 0.004);
-    // A lute leaning on a stand, a mic and a stool for the singer.
+    // A lute leaning on a stand and a mic (the singer's stool is its own seat, `tavern:stage-stool`).
     const lute = m.part([-w / 2 + 0.9, 0.14, -d / 4], 0.3);
     lute.ball(0.17, WOOD_LIGHT, [0, 0.4, 0], [1, 1.1, 0.5], 12);
     lute.box([0.05, 0.55, 0.04], WOOD_DARK, [0, 0.55, -0.01], 0.01);
@@ -465,9 +510,6 @@ function stage(w: number, d: number): () => Model {
     m.cyl(0.07, 0.02, INK, [0.2, 0.14, d / 4], 0.07, 10);
     m.cyl(0.012, 1.2, C.metal, [0.2, 0.15, d / 4], 0.012, 6);
     m.ball(0.04, "#2b2433", [0.2, 1.38, d / 4]);
-    const sit = barStool(C.rug);
-    sit.position.set(w / 2 - 0.9, 0.14, -d / 6);
-    m.add(sit);
     // Footlights along the lip.
     for (const x of [-w / 2 + 0.6, w / 2 - 0.6]) {
       m.cyl(0.05, 0.06, BRASS_DARK, [x, 0.14, d / 2 - 0.13], 0.06, 8);
@@ -947,95 +989,146 @@ const exitDoor = (): Model => {
   return m;
 };
 
-// ——— The wishing fountain ———
+// ——— The tip jar ———
 
 export interface FountainModel extends Model {
-  /** Throws a coin from the front of the basin; it arcs, splashes and sinks. */
+  /** Throws a coin from the stools; it arcs into the jar on the bar and clinks. */
   toss: () => void;
   /** Throw a coin every few seconds by itself. */
   auto: boolean;
 }
 
-const fountainToss = (): Model => {
+/** The tip jar on the bar (the indoor stand-in for the plaza's wishing fountain): coins land in it with a clink and a glint. */
+const tipJar = (): Model => {
   const m = new Model() as FountainModel;
   m.auto = true;
-  const R = 0.96;
-  m.cyl(R, 0.4, C.stoneDark, [0, 0, 0], R, 24);
-  m.cyl(R - 0.04, 0.045, C.stoneLight, [0, 0.4, 0], R, 24);
-  m.cyl(R - 0.14, 0.01, C.waterDark, [0, 0.38, 0], R - 0.14, 24);
-  const water = m.cyl(R - 0.14, 0.012, glass("#58a9e2", 0.82), [0, 0.37, 0], R - 0.14, 24);
-  // The pedestal with two bowls and a spray.
-  m.cyl(0.14, 0.55, C.stone, [0, 0.38, 0], 0.1, 14);
-  m.cyl(0.4, 0.06, C.stoneLight, [0, 0.82, 0], 0.18, 18);
-  m.cyl(0.07, 0.35, C.stone, [0, 0.88, 0], 0.07, 10);
-  m.cyl(0.2, 0.05, C.stoneLight, [0, 1.2, 0], 0.1, 14);
-  const drops = Array.from({ length: 8 }, (_, i) => ({
-    b: m.ball(0.035, glass(C.waterLight, 0.9), [0, 1.3, 0], [1, 1.3, 1], 6),
-    i,
-  }));
-  // A handful of coins on the rim, glinting.
-  for (const [x, z] of [[0.55, 0.8], [-0.3, 0.88], [0.8, 0.45]] as const)
-    m.cyl(0.05, 0.012, glow("#f5d14a"), [x, 0.44, z], 0.05, 10);
-  // Coins in the air and rings on the water.
+  m.cyl(0.115, 0.3, glass("#cfe9f0", 0.5), [0, 0, 0], 0.105, 14);
+  m.cyl(0.108, 0.02, BRASS_DARK, [0, 0.3, 0], 0.108, 14);
+  m.cyl(0.095, 0.1, glow("#f5d14a"), [0, 0.02, 0], 0.095, 12);
+  m.box([0.15, 0.07, 0.01], BRASS, [0, 0.14, 0.118], 0.004);
+  const glint = halo(m, [0, 0.25, 0], 0.5, "#fff0a8", 5);
   const coinMat = glow("#f5d14a");
-  const flights: { coin: THREE.Mesh; ring: THREE.Mesh; start: number; to: [number, number]; from: [number, number] }[] = [];
-  const toss = () => {
-    const a = Math.random() * 1.6 - 0.8;
-    const fromX = Math.sin(a) * 1.9;
-    const fromZ = 1.1 + Math.cos(a) * 0.9;
-    const coin = m.cyl(0.07, 0.014, coinMat, [0, 0, 0], 0.07, 10);
-    const ring = m.cyl(0.1, 0.004, glass("#e4f5fd", 0.7), [0, 0.39, 0], 0.1, 20);
-    ring.visible = false;
-    const aim = Math.random() * Math.PI * 2;
-    flights.push({
-      coin,
-      ring,
-      start: performance.now() / 1000,
-      from: [fromX, fromZ],
-      to: [Math.cos(aim) * 0.6, Math.sin(aim) * 0.6],
-    });
+  const flights: { coin: THREE.Mesh; start: number; from: [number, number] }[] = [];
+  let hit = -10;
+  m.toss = () => {
+    const coin = m.cyl(0.05, 0.012, coinMat, [0, 0, 0], 0.05, 10);
+    flights.push({ coin, start: performance.now() / 1000, from: [0.25 + Math.random() * 0.4, 0.8 + Math.random() * 0.3] });
   };
-  m.toss = toss;
-  let next = 2;
+  let next = 3;
   ticks.push((t) => {
-    water.position.y = 0.37 + Math.sin(t * 1.6) * 0.004;
-    for (const d of drops) {
-      const k = (t * 0.9 + d.i / drops.length) % 1;
-      const r = 0.05 + k * 0.28;
-      const a = d.i * 2.4;
-      d.b.position.set(Math.cos(a) * r, 1.3 + Math.sin(k * Math.PI) * 0.18 - k * 0.2, Math.sin(a) * r);
-    }
     if (m.auto && t > next) {
-      next = t + 4 + Math.random() * 4;
-      toss();
+      next = t + 5 + Math.random() * 5;
+      m.toss();
     }
     for (let i = flights.length - 1; i >= 0; i--) {
       const f = flights[i]!;
-      const k = (t - f.start) / 0.9;
-      if (k < 1) {
-        // A toss: an arc from the thrower to the water, turning end over end.
-        f.coin.position.set(
-          f.from[0] + (f.to[0] - f.from[0]) * k,
-          0.8 + Math.sin(k * Math.PI) * 1.2 - k * 0.4,
-          f.from[1] + (f.to[1] - f.from[1]) * k,
-        );
-        f.coin.rotation.set(k * 14, 0, k * 6);
-      } else if (k < 1.9) {
-        // Splash: the coin sinks, and a ring runs out over the water.
-        const s = k - 1;
-        f.coin.position.set(f.to[0], 0.4 - s * 0.35, f.to[1]);
-        f.coin.rotation.set(s * 3, 0, s);
-        f.ring.visible = true;
-        f.ring.position.set(f.to[0], 0.39, f.to[1]);
-        f.ring.scale.set(1 + s * 4, 1, 1 + s * 4);
-        (f.ring.material as THREE.MeshToonMaterial).opacity = 0.7 * (1 - s / 0.9);
-      } else {
+      const k = (t - f.start) / 0.8;
+      if (k >= 1) {
         f.coin.removeFromParent();
-        f.ring.removeFromParent();
         flights.splice(i, 1);
+        hit = t;
+        continue;
       }
+      f.coin.position.set(f.from[0] * (1 - k), 0.5 + (1 - k) * 0.35 + Math.sin(k * Math.PI) * 0.7, f.from[1] * (1 - k));
+      f.coin.rotation.set(k * 14, 0, k * 6);
     }
+    // After a clink the jar glints for a moment.
+    glint.visible = t - hit < 0.5;
+    (glint.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - (t - hit) * 2) * 0.9;
   });
+  return m;
+};
+
+// ——— Door to the kitchen, coat stand, umbrella stand, pictures ———
+
+/** The kitchen door behind the bar: a swing door in the north wall, a round porthole and a brass plate. */
+const kitchenDoor = (): Model => {
+  const m = new Model();
+  m.box([0.1, 2.0, 0.12], WOOD_DARK, [-0.45, 0, -0.43], 0.015);
+  m.box([0.1, 2.0, 0.12], WOOD_DARK, [0.45, 0, -0.43], 0.015);
+  m.box([1.0, 0.1, 0.12], WOOD_DARK, [0, 2.0, -0.43], 0.015);
+  for (const s of [-1, 1]) {
+    m.box([0.4, 1.8, 0.04], plank(WOOD, 9, 0.5), [s * 0.2, 0.05, -0.4], 0.01);
+    m.cyl(0.11, 0.02, glass("#8fe3ff", 0.7), [s * 0.2, 1.3, -0.37], 0.11, 12).rotation.x = Math.PI / 2;
+  }
+  m.box([0.5, 0.1, 0.02], BRASS, [0, 1.95 - 0.1, -0.36], 0.004);
+  return m;
+};
+
+/** A coat stand: a pole on a foot with four hooks, a coat, a scarf and a cap. */
+const coatStand = (): Model => {
+  const m = new Model();
+  m.cyl(0.2, 0.05, WOOD_DARK, [0, 0, 0], 0.2, 12);
+  m.cyl(0.03, 1.7, WOOD_DARK, [0, 0.05, 0], 0.03, 8);
+  for (const a of [0, 1, 2, 3]) {
+    const arm = m.box([0.04, 0.04, 0.26], BRASS_DARK, [Math.sin((a * Math.PI) / 2 + 0.7) * 0.12, 1.55, Math.cos((a * Math.PI) / 2 + 0.7) * 0.12], 0.01);
+    arm.rotation.y = (a * Math.PI) / 2 + 0.7;
+  }
+  m.box([0.34, 0.8, 0.12], "#3d5a80", [0.1, 0.72, 0.14], 0.04);
+  m.box([0.1, 0.5, 0.1], "#c4544b", [-0.14, 1.0, -0.12], 0.03);
+  m.cyl(0.13, 0.08, "#58b36a", [0, 1.7, 0], 0.13, 10);
+  return m;
+};
+
+/** An umbrella stand: a brass drum with three umbrellas in it. */
+const umbrellaStand = (): Model => {
+  const m = new Model();
+  m.cyl(0.2, 0.6, BRASS_DARK, [0, 0, 0], 0.17, 14);
+  m.cyl(0.2, 0.03, BRASS, [0, 0.6, 0], 0.2, 14);
+  const cols = ["#c4544b", "#4f8fe0", "#2b2433"];
+  for (const [i, c] of cols.entries()) {
+    const u = m.part([(i - 1) * 0.07, 0.3, (i % 2) * 0.05 - 0.02]);
+    u.rotation.z = (i - 1) * 0.12;
+    u.cyl(0.012, 0.75, WOOD_DARK, [0, 0, 0], 0.012, 6);
+    u.cyl(0.04, 0.22, c, [0, 0.58, 0], 0.012, 8);
+  }
+  return m;
+};
+
+/** A framed picture for a wall stretch (a harbour, a hop vine or a lone pint), hung on the north edge of its tile. */
+const picture = (kind: number) => (): Model => {
+  const m = new Model();
+  const p = panel(
+    0.8,
+    0.6,
+    (g, w, h) => {
+      if (kind === 0) {
+        const sky = g.createLinearGradient(0, 0, 0, h);
+        sky.addColorStop(0, "#f6c98a");
+        sky.addColorStop(0.6, "#ee8a5a");
+        sky.addColorStop(1, "#3d4a7a");
+        g.fillStyle = sky;
+        g.fillRect(0, 0, w, h);
+        g.fillStyle = "#2b3358";
+        g.fillRect(0, h * 0.68, w, h * 0.32);
+        g.fillStyle = "#1c1620";
+        g.fillRect(w * 0.45, h * 0.5, w * 0.1, h * 0.18);
+        g.beginPath();
+        g.moveTo(w * 0.5, h * 0.2);
+        g.lineTo(w * 0.68, h * 0.5);
+        g.lineTo(w * 0.5, h * 0.5);
+        g.fill();
+      } else if (kind === 1) {
+        g.fillStyle = "#d8c9a0";
+        g.fillRect(0, 0, w, h);
+        g.fillStyle = "#58b36a";
+        for (let i = 0; i < 12; i++) g.fillRect(w * (0.1 + i * 0.07), h * 0.1 + ((i * 7) % 5) * h * 0.08, w * 0.05, h * 0.1);
+        g.fillRect(w * 0.48, h * 0.05, w * 0.04, h * 0.9);
+      } else {
+        g.fillStyle = "#2f3d36";
+        g.fillRect(0, 0, w, h);
+        g.fillStyle = "#f5d14a";
+        g.fillRect(w * 0.38, h * 0.3, w * 0.24, h * 0.5);
+        g.fillStyle = "#fff";
+        g.fillRect(w * 0.38, h * 0.2, w * 0.24, h * 0.12);
+        g.fillStyle = PAPER;
+        g.fillRect(w * 0.62, h * 0.4, w * 0.08, h * 0.25);
+      }
+    },
+    { frame: WOOD_DARK, lift: 1.3, px: 64, smooth: true },
+  );
+  p.position.z = -0.46;
+  m.add(p);
   return m;
 };
 
@@ -1145,15 +1238,24 @@ const wide = (id: string, name: string, w: number, d: number, build: () => Model
   ...extra,
 });
 
+const CUSHION: V3 = [0, 0.43, 0.05];
+
 export const TAVERN_ASSETS: readonly Asset[] = [
   wide("tile:a", "Tavern bar", 1, 1, () => barCounter(false)),
   wide("tile:y", "Beer tap", 1, 1, () => barCounter(true)),
-  wide("tavern:back-bar", "Back-bar shelves", 4, 1, () => backBar(4)),
+  wide("tavern:back-bar", "Back-bar shelves", 7, 1, () => backBar(7)),
   wide("tile:k", "Tavern shelf", 1, 1, shelfUnit),
-  wide("tile:v", "Bar stool", 1, 1, barStoolRed, { seat: { at: [0, 0.62, 0], turn: 0 } }),
+  // Seats: `seat.at` is where the sitter's hips go (model space, facing +z), `turn` adds to the way it faces.
+  wide("tile:v", "Bar stool", 1, 1, barStoolRed, { seat: { at: [0, 0.66, 0], turn: 0 } }),
+  wide("tavern:stage-stool", "Singer's stool", 1, 1, stageStool, { seat: { at: [0, 0.8, 0], turn: 0 } }),
   wide("tile:n", "Tavern table", 1, 1, tavernTable(1)),
   wide("tavern:table-long", "Long tavern table", 2, 1, tavernTable(2)),
-  wide("tavern:chair", "Tavern chair", 1, 1, tavernChair, { seat: { at: [0, 0.38, 0.03], turn: 0 } }),
+  wide("tavern:chair", "Tavern chair", 1, 1, tavernChair, { seat: { at: [0, 0.46, 0.03], turn: 0 } }),
+  wide("tavern:sofa-l", "Sofa seat (arm left)", 1, 1, seatUnit("sofa", true, false), { seat: { at: CUSHION, turn: 0 } }),
+  wide("tavern:sofa-r", "Sofa seat (arm right)", 1, 1, seatUnit("sofa", false, true), { seat: { at: CUSHION, turn: 0 } }),
+  wide("tavern:armchair", "Armchair", 1, 1, seatUnit("armchair", true, true), { seat: { at: CUSHION, turn: 0 } }),
+  wide("tavern:booth-l", "Booth seat (end left)", 1, 1, seatUnit("booth", true, false), { seat: { at: CUSHION, turn: 0 } }),
+  wide("tavern:booth-r", "Booth seat (end right)", 1, 1, seatUnit("booth", false, true), { seat: { at: CUSHION, turn: 0 } }),
   wide("tile:f", "Hearth", 2, 1, hearth),
   wide("tavern:sconce", "Wall sconce", 1, 1, () => {
     const m = new Model();
@@ -1162,7 +1264,7 @@ export const TAVERN_ASSETS: readonly Asset[] = [
     return m;
   }),
   wide("tile:e", "Stage board", 1, 1, stageTile),
-  wide("tavern:stage", "Stage", 6, 2, stage(6, 2)),
+  wide("tavern:stage", "Stage", 5, 2, stage(5, 2)),
   wide("tile:h", "Barrel", 1, 1, barrel),
   wide("tile:z", "Jukebox", 1, 1, jukebox),
   wide("tile:J", "Bar tab", 4, 1, barTab),
@@ -1175,10 +1277,16 @@ export const TAVERN_ASSETS: readonly Asset[] = [
   wide("tile:S", "Stairs down", 1, 1, stairs(false)),
   wide("tile:u", "Stairs up", 1, 1, stairs(true)),
   wide("tile:x", "Exit door", 1, 1, exitDoor),
-  wide("tavern:fountain-toss", "Wishing fountain", 2, 2, fountainToss),
-  wide("tile:b", "Dorm bed", 1, 2, dormBed, { bed: [0, 0.3, -0.15] }),
+  wide("tavern:tip-jar", "Tip jar", 1, 1, tipJar),
+  wide("tavern:kitchen-door", "Kitchen door", 1, 1, kitchenDoor),
+  wide("tile:O", "Coat stand", 1, 1, coatStand),
+  wide("tavern:umbrella-stand", "Umbrella stand", 1, 1, umbrellaStand),
+  wide("tavern:picture-0", "Harbour picture", 1, 1, picture(0)),
+  wide("tavern:picture-1", "Hops picture", 1, 1, picture(1)),
+  wide("tavern:picture-2", "Pint picture", 1, 1, picture(2)),
+  wide("tile:b", "Dorm bed", 1, 2, dormBed, { bed: [0, 0.3, -0.27] }),
   wide("tavern:dorm-rug", "Dorm runner rug", 14, 1, dormRug(14)),
-  wide("tavern:cell-rug", "Barkeep's cell rug", 8, 1, cellRug(8)),
+  wide("tavern:cell-rug", "Barkeep's cell rug", 9, 1, cellRug(9)),
 ];
 
 // ——— The rooms ———
@@ -1187,77 +1295,184 @@ export interface TavernRoom {
   room: Room;
   barkeep: Barkeep;
   jukebox: JukeboxModel;
+  /** The tip jar on the bar: `toss()` throws a coin in. */
   fountain: FountainModel | null;
   /** Models by their asset id, for the hooks (`setBarTab`, `setPlaque`, `setSpecial`). */
   by: Map<string, Model[]>;
+  /** The tile character each tile of the 2D map should carry (room tiles, wall rows at -1 and `D`), for `maps.ts`. */
+  layout: Map<string, string>;
 }
 
-/** The Tavern's floor plan (`inn` in `core/src/maps.ts`), less its two rows of wall: 22 by 12 tiles. */
+/** The 2D tile character for an asset that is not a `tile:` one. */
+const CHARS: Record<string, string> = {
+  "tavern:back-bar": "k",
+  "tavern:table-long": "n",
+  "tavern:chair": "c",
+  "tavern:sofa-l": "s",
+  "tavern:sofa-r": "s",
+  "tavern:armchair": "s",
+  "tavern:booth-l": "B",
+  "tavern:booth-r": "B",
+  "tavern:stage": "e",
+  "tavern:stage-stool": "v",
+  "tavern:cell-rug": "=",
+  "tavern:umbrella-stand": "O",
+  "tavern:plaque-2": "P",
+  "coffee-table": "n",
+  plant: "p",
+  coffee: "o",
+  rug: "=",
+};
+
+export const TAVERN_W = 26;
+export const TAVERN_D = 16;
+
+/**
+ * The Tavern's floor plan (`inn` in `core/src/maps.ts`), less its walls: 26 by 16 tiles, north wall at the top.
+ * The bar runs along the north wall's west end with the barkeep's cell and the back-bar behind it, the boards
+ * hang on clear stretches of the north and west walls, the hearth is set into the north wall with its sofa nook,
+ * the stage and jukebox are on the west wall, dining tables and booths fill the floor round a two-wide aisle
+ * from the door, and the stairs are in the corners.
+ */
 export function buildTavernRoom(): TavernRoom {
-  const room = new Room(22, 12, { floor: "#9c6a40", wall: "#8a6a52", stripe: "#7a5a44", bare: true });
+  const W = TAVERN_W;
+  const D = TAVERN_D;
+  const room = new Room(W, D, { floor: "#9c6a40", wall: "#8a6a52", stripe: "#7a5a44", north: [19], door: null, west: [] });
   const by = new Map<string, Model[]>();
-  const put = (id: string, x: number, z: number, turn: Turn = 0) => {
-    const a = TAVERN_ASSETS.find((t) => t.id === id) ?? assetById.get(id)!;
+  const layout = new Map<string, string>();
+  const find = (id: string) => TAVERN_ASSETS.find((t) => t.id === id) ?? assetById.get(id)!;
+  const charOf = (id: string) => CHARS[id] ?? (id.startsWith("tile:") ? id.slice(5) : "_");
+  const mark = (ch: string, x: number, z: number, keep = false) => {
+    const k = `${x},${z}`;
+    if (!keep || !layout.has(k)) layout.set(k, ch);
+  };
+  const reg = (id: string, model: Model) => by.set(id, [...(by.get(id) ?? []), model]);
+  /** A piece on the floor: it blocks the tiles it stands on. */
+  const put = (id: string, x: number, z: number, turn: Turn = 0, face?: [number, number]) => {
+    const a = find(id);
     const p = room.place(a, x, z, turn);
-    by.set(id, [...(by.get(id) ?? []), p.model]);
+    if (face) p.model.rotation.y = Math.atan2(face[0] - p.model.position.x, face[1] - p.model.position.z);
+    reg(id, p.model);
+    const [w, d] = Room.footprint(a, turn);
+    for (let i = 0; i < w; i++) for (let j = 0; j < d; j++) mark(charOf(id), x + i, z + j, id === "rug");
     return p;
   };
-  // North wall: bar tab, back-bar, quest board, easel, Hall of Fame, tables with chairs.
-  put("tile:J", 0, 0);
-  put("tavern:back-bar", 4, 0);
-  put("tile:m", 8, 0);
-  put("tile:K", 10, 0);
-  put("tile:A", 11, 0);
-  put("tile:A", 13, 0);
-  for (const x of [15, 17, 19]) {
-    put("tile:n", x, 0);
-    put("tavern:chair", x, 1, 2);
-  }
-  put("tile:k", 8, 1);
-  put("coffee", 21, 1);
-  // The bar, its tap, the cell behind it and the stools.
-  put("tavern:cell-rug", 0, 1);
-  for (const x of [0, 1, 2, 4, 5, 6, 7]) put("tile:a", x, 2);
-  put("tile:y", 3, 2);
-  for (const x of [2, 4, 6]) put("tile:v", x, 3);
-  // The stage, and the long tables with chairs.
-  put("tavern:stage", 13, 3);
-  for (const x of [2, 7]) {
-    put("tavern:table-long", x, 5);
-    put("tavern:chair", x, 6, 2);
-    put("tavern:chair", x + 1, 6, 2);
-  }
-  // Jukebox on the west wall; the hearth between its plaques, and the sofas facing it.
-  const jb = put("tile:z", 0, 6, 1);
-  put("tile:P", 14, 7);
-  put("tile:f", 15, 7);
-  put("tavern:plaque-2", 17, 7);
-  put("rug", 14, 8);
-  put("rug", 16, 8);
-  put("sofa", 14, 9, 2);
-  put("sofa", 16, 9, 2);
-  // Corners: plants and barrels. The stairs and the door are in the south wall.
-  put("plant", 0, 10);
-  put("tile:h", 1, 10);
-  put("tile:h", 20, 10);
-  put("plant", 21, 10);
-  put("tile:S", 2, 11, 2);
-  put("tile:u", 6, 11, 2);
-  put("tile:x", 10, 11, 2);
-  // The open offices board and the fountain have no tile here; they sit by the door.
-  put("tile:w", 0, 3, 1);
-  // The wishing fountain: "coffee's at the fountain".
-  const fountain = put("tavern:fountain-toss", 10, 6).model as FountainModel;
-  // Sconces over the tables, hung on the wall.
-  for (const x of [16, 18, 20]) {
-    const s = TAVERN_ASSETS.find((a) => a.id === "tavern:sconce")!.build();
-    s.position.set(x + 0.5 - 0.0, 0, 0.5);
+  /** A piece hung on a wall (turn 0 north, 1 west, 2 south): it takes the wall's tiles, not the floor's. `ch` null: no tile. */
+  const hang = (id: string, x: number, z: number, turn: 0 | 1 | 2 = 0, ch: string | null = charOf(id)) => {
+    const a = find(id);
+    const [w, d] = Room.footprint(a, turn);
+    const model = a.build();
+    model.position.set(x + w / 2, 0, z + d / 2);
+    model.rotation.y = (turn * Math.PI) / 2;
+    room.group.add(model);
+    reg(id, model);
+    if (ch)
+      for (let i = 0; i < w; i++)
+        for (let j = 0; j < d; j++) mark(ch, turn === 1 ? -1 : x + i, turn === 0 ? -1 : turn === 2 ? D : z + j);
+    return model;
+  };
+  const sconceAt = (x: number, z: number, turn: 0 | 1 = 0) => {
+    const s = find("tavern:sconce").build();
+    s.position.set(x + 0.5, 0, z + 0.5);
+    s.rotation.y = (turn * Math.PI) / 2;
     room.group.add(s);
-  }
+  };
+
+  // ——— The bar and the barkeep's cell (x 0-8, z 0-1), sealed by the counter and two barrels ———
+  put("tavern:cell-rug", 0, 1);
+  mark("=", 7, 0);
+  put("tavern:back-bar", 0, 0);
+  hang("tavern:kitchen-door", 7, 0, 0, null);
+  put("tile:h", 8, 0);
+  put("tile:h", 9, 0);
+  put("tile:h", 9, 1);
+  for (let x = 0; x <= 9; x++) put(x === 3 ? "tile:y" : "tile:a", x, 2);
+  const jar = find("tavern:tip-jar").build();
+  jar.position.set(7.5, 1.03, 2.5);
+  room.group.add(jar);
+  reg("tavern:tip-jar", jar);
+  for (const x of [2, 4, 6, 8]) put("tile:v", x, 3, 2);
+
+  // ——— North wall: coffee, the quest board, the specials easel, the Hall of Fame, the hearth nook, books ———
+  put("coffee", 10, 0);
+  hang("tile:m", 11, 0);
+  put("tile:K", 13, 0);
+  hang("tile:A", 14, 0);
+  hang("tile:A", 16, 0);
+  put("tile:P", 20, 0);
+  put("tile:f", 21, 0);
+  put("tavern:plaque-2", 23, 0);
+  put("tile:k", 24, 0);
+  put("tile:k", 25, 0);
+  // The sofa nook round the hearth: rugs, a loveseat facing the fire over a coffee table, an armchair either side.
+  for (const [x, z] of [[19, 1], [22, 1], [19, 3], [22, 3]] as const) put("rug", x, z);
+  put("coffee-table", 21, 3);
+  put("tavern:sofa-r", 21, 4, 2);
+  put("tavern:sofa-l", 22, 4, 2);
+  put("tavern:armchair", 19, 2, 0, [22, 0.5]);
+  put("tavern:armchair", 24, 2, 0, [22, 0.5]);
+
+  // ——— West wall: the bar tab, the jukebox and the stage, the open-offices board, the stairs up ———
+  hang("tile:J", 0, 3, 1);
+  put("tile:z", 0, 7, 1);
+  put("tavern:stage", 0, 8, 1);
+  put("tavern:stage-stool", 0, 11, 1);
+  hang("tile:w", 0, 14, 1, null);
+  put("tile:u", 0, 15, 1);
+  put("plant", 1, 15);
+
+  // ——— Dining: long tables with a chair on every side facing the table ———
+  const dining = (x: number, z: number) => {
+    put("tavern:table-long", x, z);
+    for (const i of [0, 1]) {
+      put("tavern:chair", x + i, z - 1, 0);
+      put("tavern:chair", x + i, z + 1, 2);
+    }
+    put("tavern:chair", x - 1, z, 1);
+    put("tavern:chair", x + 2, z, 3);
+  };
+  dining(6, 7);
+  dining(15, 7);
+  dining(20, 7);
+  dining(20, 11);
+  // Booths along the south wall: benches against it, the table, and a bench facing it.
+  const booth = (x: number) => {
+    put("tavern:booth-r", x, 15, 2);
+    put("tavern:booth-l", x + 1, 15, 2);
+    put("tavern:table-long", x, 14);
+    put("tavern:booth-l", x, 13, 0);
+    put("tavern:booth-r", x + 1, 13, 0);
+  };
+  booth(3);
+  booth(7);
+  booth(15);
+
+  // ——— The entrance: a coat stand and an umbrella stand beside the door ———
+  hang("tile:x", 12, 15, 2);
+  put("tile:O", 10, 15);
+  put("tavern:umbrella-stand", 11, 15);
+  put("tile:S", 25, 14, 3);
+  put("plant", 25, 15);
+  put("plant", 25, 1);
+  put("tile:h", 25, 12);
+
+  // ——— Wall decor and lights ———
+  hang("tavern:picture-0", 8, 0, 0, null);
+  hang("tavern:picture-2", 0, 2, 1, null);
+  for (const x of [10, 18]) sconceAt(x, 0);
+  sconceAt(0, 13, 1);
+
   const barkeep = makeBarkeep();
   barkeep.root.position.set(4.5, 0.02, 1.5);
   room.group.add(barkeep.root);
-  return { room, barkeep, jukebox: jb.model as JukeboxModel, fountain, by };
+  return {
+    room,
+    barkeep,
+    jukebox: by.get("tile:z")![0] as JukeboxModel,
+    fountain: jar as FountainModel,
+    by,
+    layout,
+  };
 }
 
 export interface DormRoom {
