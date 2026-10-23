@@ -4,6 +4,7 @@
  * it's a clean cel-shaded look instead.
  */
 import * as THREE from "three";
+import { blockify, unblockify } from "./blocky.ts";
 import { setSmoothBands } from "./kit.ts";
 
 export type RenderStyle = "classic" | "voxel";
@@ -397,8 +398,14 @@ export class Pipeline {
     const r = this.renderer;
     setSmoothBands(this.style === "voxel");
     if (this.style === "voxel") {
+      blockify(scene);
+      scene.userData.blocky = true;
       this.renderVoxel(scene, camera, w, h);
       return;
+    }
+    if (scene.userData.blocky) {
+      unblockify(scene);
+      scene.userData.blocky = false;
     }
     if (this.fillScenes.size) this.leaveVoxel();
     r.setPixelRatio(this.pixelSize === 1 ? Math.min(window.devicePixelRatio || 1, 2) : 1);

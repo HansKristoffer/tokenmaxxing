@@ -189,7 +189,8 @@ export function tree(kind: TreeKind, seed: number, size = 1): Model {
     }
   const greens = CANOPY[kind];
   const n = kind === "oak" ? 11 : 7;
-  m.ball(0.55 * s, greens[0]!, [0, h + 0.4 * s, 0], [1.1, 0.85, 1.1], 14);
+  const first = m.ball(0.55 * s, greens[0]!, [0, h + 0.4 * s, 0], [1.1, 0.85, 1.1], 14);
+  first.userData.blockScale = 0.78;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + rnd();
     const r = (0.38 + rnd() * 0.2) * s;
@@ -199,9 +200,9 @@ export function tree(kind: TreeKind, seed: number, size = 1): Model {
       [Math.cos(a) * r, h + (0.3 + rnd() * 0.45) * s, Math.sin(a) * r],
       [1, 0.85, 1],
       10,
-    );
+    ).userData.blockScale = 0.72;
   }
-  m.ball(0.3 * s, greens[1]!, [0.05 * s, h + 0.85 * s, 0.05 * s], [1, 0.85, 1], 10);
+  m.ball(0.3 * s, greens[1]!, [0.05 * s, h + 0.85 * s, 0.05 * s], [1, 0.85, 1], 10).userData.blockScale = 0.78;
   return m;
 }
 

@@ -261,6 +261,7 @@ function hair(head: Model, look: Look): void {
     toon(c),
   );
   cap.rotation.x = -0.62;
+  cap.userData.voxelHair = true;
   cap.castShadow = true;
   head.add(cap);
   // A fringe over the forehead.
