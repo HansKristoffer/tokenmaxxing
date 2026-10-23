@@ -7,6 +7,23 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 export type V3 = [number, number, number];
+
+/**
+ * Lamps, neon and screens set colours from `#rrggbb` strings every frame, and three parses each one with a regex and
+ * a match array. `#rrggbb` is looked up instead (strings in the code are interned: the lookup allocates nothing).
+ */
+{
+  const stock = THREE.Color.prototype.setStyle;
+  const hex = new Map<string, number>();
+  THREE.Color.prototype.setStyle = function (this: THREE.Color, style: string, colorSpace?: string) {
+    if (style.length === 7 && style.charCodeAt(0) === 35) {
+      let n = hex.get(style);
+      if (n === undefined) hex.set(style, (n = Number.parseInt(style.slice(1), 16)));
+      if (!Number.isNaN(n)) return this.setHex(n, colorSpace as THREE.ColorSpace | undefined);
+    }
+    return stock.call(this, style, colorSpace as THREE.ColorSpace | undefined);
+  };
+}
 export type Paint = string | THREE.Material;
 
 /** Three flat light bands: shadow, mid, lit. */

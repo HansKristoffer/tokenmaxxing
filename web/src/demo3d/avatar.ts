@@ -118,8 +118,8 @@ export class Avatar {
 
   /** The state worth freezing in right now (null while the limbs animate): resting poses, or any pose when tiny. */
   private frozenKey(): string | null {
+    if (this.height * view.pxPerUnit < TINY_PX || this.root.userData.lod) return "tiny";
     if (!this.freezable) return null;
-    if (this.height * view.pxPerUnit < TINY_PX) return "tiny";
     return this.pose === "stand" || this.pose === "sit" || this.pose === "sleep" ? this.pose : null;
   }
 
@@ -325,7 +325,7 @@ export class Pet {
       this.freezer.touch();
       return;
     }
-    const key = this.moving ? null : "idle";
+    const key = this.root.userData.lod ? "far" : this.moving ? null : "idle";
     if (this.freezer.holds(key)) return;
     this.pose(t);
     this.freezer.settle(key);

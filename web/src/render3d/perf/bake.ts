@@ -52,6 +52,12 @@ let patched = false;
 export function trackAdditions(): void {
   if (patched) return;
   patched = true;
+  // A sleeping subtree (the hidden originals of a batch) is not walked for matrices at all: nothing in it moves.
+  const update = THREE.Object3D.prototype.updateMatrixWorld;
+  THREE.Object3D.prototype.updateMatrixWorld = function (this: THREE.Object3D, force?: boolean) {
+    if ((this as { asleep?: boolean }).asleep === true) return;
+    update.call(this, force);
+  };
   const add = THREE.Object3D.prototype.add;
   THREE.Object3D.prototype.add = function (this: THREE.Object3D, ...objs: THREE.Object3D[]) {
     epoch++;
@@ -345,6 +351,7 @@ export class BakedLayer {
           c.matrixAutoUpdate = false;
           c.matrixWorldAutoUpdate = false;
           c.visible = false;
+          (c as { asleep?: boolean }).asleep = true;
           this.sleeping.push(c);
         } else sleep(c);
       }
@@ -486,6 +493,7 @@ export class BakedLayer {
   private unseal(): void {
     this.sealed = false;
     for (const o of this.sleeping) {
+      (o as { asleep?: boolean }).asleep = false;
       o.matrixAutoUpdate = true;
       o.matrixWorldAutoUpdate = true;
       o.visible = true;

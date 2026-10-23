@@ -202,7 +202,8 @@ export class Pet3D {
     // At rest (standing or sitting, nothing spinning or sparkling) a pet is merged into a few meshes.
     const settled = Math.abs(this.sit - (this.pose === "sit" ? 1 : 0)) < 0.01 && this.sleep < 0.01;
     const calm = !this.moving && settled && !this.crown && !this.spin && !this.rig.fx && this.pose !== "sleep";
-    const key = calm ? `${this.pose}:${this.wear}` : null;
+    const far = this.root.userData.lod && !this.crown && !this.spin && !this.rig.fx;
+    const key = far ? "far" : calm ? `${this.pose}:${this.wear}` : null;
     if (this.freezer.holds(key)) {
       this.last = t;
       return;

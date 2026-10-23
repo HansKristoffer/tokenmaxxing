@@ -38,6 +38,13 @@ export type FxWeather = WeatherKind | "winter" | "live";
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const col = (hex: string) => new THREE.Color(hex);
+const constants = new Map<string, THREE.Color>();
+/** A colour that is only read (mixed from, copied): made once, not parsed from its string every frame. */
+const fixed = (hex: string): THREE.Color => {
+  let c = constants.get(hex);
+  if (!c) constants.set(hex, (c = new THREE.Color(hex)));
+  return c;
+};
 const mixCol = (a: THREE.Color, b: THREE.Color, k: number) => a.clone().lerp(b, clamp01(k));
 
 // MARK: Emoji
@@ -671,14 +678,14 @@ export class Fx {
       const sh = (camera.top - camera.bottom) * 1.05;
       this.sky.scale.set(sw, sh, 1);
       const u = this.sky.material.uniforms;
-      const day = col("#4f9be0");
-      const dayH = col("#bfe3f7");
-      const warmT = col("#5a78b8");
-      const warmH = col("#ffb27a");
-      const nightT = col("#070b1c");
-      const nightH = col("#1a2145");
-      const grey = col("#8c97a6");
-      const greyH = col("#c3c9d0");
+      const day = fixed("#4f9be0");
+      const dayH = fixed("#bfe3f7");
+      const warmT = fixed("#5a78b8");
+      const warmH = fixed("#ffb27a");
+      const nightT = fixed("#070b1c");
+      const nightH = fixed("#1a2145");
+      const grey = fixed("#8c97a6");
+      const greyH = fixed("#c3c9d0");
       let top = mixCol(day, warmT, warm * 0.85);
       let hor = mixCol(dayH, warmH, warm * 0.85);
       top = mixCol(top, nightT, dark ** 1.3);
@@ -688,7 +695,7 @@ export class Fx {
       hor = mixCol(hor, greyH.clone().multiplyScalar(1 - dark * 0.8 - storm), gk);
       u.top!.value.copy(top);
       u.hor!.value.copy(hor);
-      u.cloudCol!.value.copy(mixCol(col("#ffffff"), mixCol(col("#ffb89a"), col("#1b2038"), dark), Math.max(warm * 0.6, dark)).multiplyScalar(1 - storm * 2.2));
+      u.cloudCol!.value.copy(mixCol(fixed("#ffffff"), mixCol(fixed("#ffb89a"), fixed("#1b2038"), dark), Math.max(warm * 0.6, dark)).multiplyScalar(1 - storm * 2.2));
       u.dark!.value = dark;
       u.time!.value = t;
       u.cloud!.value = s.cloud;
@@ -739,12 +746,12 @@ export class Fx {
   }
 
   private applyLight(dark: number, warm: number, murk: number, ms: number, glow: number): void {
-    const dayHemi = col("#fff4e0");
-    const warmHemi = col("#ffc89a");
-    const nightHemi = col("#8fa0ff");
-    const daySun = col("#fff1d6");
-    const warmSun = col("#ff9a5c");
-    const nightSun = col("#9fb0ff");
+    const dayHemi = fixed("#fff4e0");
+    const warmHemi = fixed("#ffc89a");
+    const nightHemi = fixed("#8fa0ff");
+    const daySun = fixed("#fff1d6");
+    const warmSun = fixed("#ff9a5c");
+    const nightSun = fixed("#9fb0ff");
     const wall = worldWall(ms);
     const hours = wall.hour + wall.minute / 60;
     // Morning on the left, evening on the right; at night the moon takes the same arc.
@@ -767,7 +774,7 @@ export class Fx {
         s.target.z + reach * 0.35,
       );
       s.sun.target.position.copy(s.target);
-      (s.scene.background as THREE.Color | null)?.copy(mixCol(col("#1b1f2a"), col("#0f111a"), dark));
+      (s.scene.background as THREE.Color | null)?.copy(mixCol(fixed("#1b1f2a"), fixed("#0f111a"), dark));
     }
     void glow;
   }

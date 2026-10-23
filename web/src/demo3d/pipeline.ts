@@ -46,6 +46,13 @@ export type RenderStyle = "classic" | "voxel";
   }
 }
 
+/**
+ * Three draws a see-through double-sided material in two passes, flipping `side` and `needsUpdate` each time: a program
+ * lookup per object per frame (several MB of garbage a second in the town's clouds and light cones). One pass looks the
+ * same for the soft, mostly flat things the game makes see-through.
+ */
+Object.defineProperty(THREE.Material.prototype, "forceSinglePass", { get: () => true, set: () => {}, configurable: true });
+
 const VERTEX = /* glsl */ `
 varying vec2 vUv;
 void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
@@ -263,6 +270,10 @@ export interface PipelineOptions {
   dprCap: number;
   /** Shadow map edge in pixels, 0 for none. */
   shadowSize: number;
+  /** How many people and pets nearest the middle of the picture are animated in full; the rest are drawn frozen (`freeze.ts`). */
+  crowd: number;
+  /** Soft dark discs under people and pets (one draw call): the shadow of the tiers that have no shadow map. */
+  blob: boolean;
   /** The shadow map is redrawn every this many frames (static rooms barely notice 2). */
   shadowEvery: number;
   /** Ambient occlusion taps, 0 to 24. */
@@ -287,6 +298,39 @@ interface LightRef {
   ground: THREE.Color;
   intensity: number;
 }
+const BLOBS = 96;
+const blobMatrix = new THREE.Matrix4();
+interface BlobSet {
+  mesh: THREE.InstancedMesh;
+  actors: THREE.Object3D[];
+  epoch: number;
+  at: number;
+}
+
+/** A flat disc with a soft edge, lying on the floor. */
+function blobMesh(): THREE.InstancedMesh {
+  const c = document.createElement("canvas");
+  c.width = c.height = 32;
+  const g = c.getContext("2d")!;
+  const grad = g.createRadialGradient(16, 16, 2, 16, 16, 16);
+  grad.addColorStop(0, "rgba(0,0,0,0.55)");
+  grad.addColorStop(0.6, "rgba(0,0,0,0.28)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 32, 32);
+  const map = new THREE.CanvasTexture(c);
+  const mat = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false });
+  const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const mesh = new THREE.InstancedMesh(geo, mat, BLOBS);
+  mesh.frustumCulled = false;
+  mesh.castShadow = mesh.receiveShadow = false;
+  mesh.userData.noBake = true;
+  mesh.userData.live = true;
+  mesh.renderOrder = 1;
+  mesh.count = 0;
+  return mesh;
+}
+
 interface SplitShadow {
   dyn: THREE.DirectionalLight;
   /** What the baked map was drawn for: the batches' epoch, the sun's place, its size. */
@@ -476,6 +520,8 @@ export class Pipeline {
       renderScale: o.renderScale ?? (q === 0 ? 0.75 : 1),
       dprCap: o.dprCap ?? (q >= 2 ? 1.5 : 1),
       shadowSize: o.shadowSize ?? (q >= 2 ? 4096 : 2048),
+      blob: o.blob ?? false,
+      crowd: o.crowd ?? 16,
       shadowEvery: o.shadowEvery ?? 1,
       aoSamples: o.aoSamples ?? (q >= 2 ? 16 : q === 1 ? 10 : 0),
       aoScale: o.aoScale ?? (q >= 2 ? 0.5 : 0.25),
@@ -555,6 +601,47 @@ export class Pipeline {
   }
 
   private readonly splits = new WeakMap<THREE.Scene, SplitShadow>();
+  private readonly blobSets = new WeakMap<THREE.Scene, BlobSet>();
+
+  /** Under every person and pet in view, a soft disc: the whole job is one instanced draw. */
+  private blobs(scene: THREE.Scene, on: boolean): void {
+    let b = this.blobSets.get(scene);
+    if (!on) {
+      if (b) b.mesh.visible = false;
+      return;
+    }
+    if (!b) {
+      b = { mesh: blobMesh(), actors: [], epoch: -1, at: 0 };
+      scene.add(b.mesh);
+      this.blobSets.set(scene, b);
+    }
+    b.mesh.visible = true;
+    if (b.epoch !== sceneEpoch() && this.frameNo - b.at > 20) {
+      b.epoch = sceneEpoch();
+      b.at = this.frameNo;
+      b.actors.length = 0;
+      scene.traverseVisible((o) => {
+        if (o.userData.actor) b!.actors.push(o);
+      });
+    }
+    let n = 0;
+    const m = b.mesh;
+    for (const a of b.actors) {
+      if (n >= BLOBS) break;
+      if (!a.visible) continue;
+      const e = a.matrixWorld.elements;
+      const r = (a.userData.shadowRadius as number | undefined) ?? 0.34;
+      this.ball.center.set(e[12]!, e[13]!, e[14]!);
+      this.ball.radius = r * 2;
+      if (!this.frustum.intersectsSphere(this.ball)) continue;
+      const s = r * 2 * (a.scale.x || 1);
+      blobMatrix.makeScale(s, s, s).setPosition(e[12]!, e[13]! + 0.03, e[14]!);
+      m.setMatrixAt(n++, blobMatrix);
+    }
+    m.count = n;
+    m.instanceMatrix.needsUpdate = true;
+  }
+
   /** What the next render's shadow step does (see `shadowsFor`); null leaves it to three. */
   private plan: { sun: THREE.DirectionalLight; dyn: THREE.DirectionalLight; fixed: boolean; live: boolean } | null = null;
   private readonly staticCam = new THREE.Camera();
@@ -723,6 +810,7 @@ export class Pipeline {
       }
     }
     this.shadowsFor(scene, o.shadowSize, o.shadowEvery);
+    this.blobs(scene, o.blob);
     if (sun) {
       const sh = sun.shadow;
       sun.userData.classic ??= { size: sh.mapSize.x, radius: sh.radius, bias: sh.bias };
@@ -812,7 +900,7 @@ export class Pipeline {
   render(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
     // World matrices once per frame: the shadow passes run before the renderer's own update would, and need them fresh.
     camera.layers.enable(STATIC_LAYER);
-    this.look(camera, w);
+    this.look(scene, camera, w);
     scene.updateMatrixWorld();
     const auto = scene.matrixWorldAutoUpdate;
     scene.matrixWorldAutoUpdate = false;
@@ -823,13 +911,51 @@ export class Pipeline {
     }
   }
 
+  private readonly crowds = new WeakMap<THREE.Scene, { epoch: number; at: number; actors: THREE.Object3D[] }>();
+  private readonly rank: { o: THREE.Object3D; d: number }[] = [];
+  private readonly ndc = new THREE.Vector3();
+
+  /**
+   * Only the people nearest the middle of the picture are animated in full: past `crowd` of them the rest are drawn
+   * frozen, gliding without a stride. Marked on each one as `userData.lod` for the animation code to read.
+   */
+  private rankActors(scene: THREE.Scene): void {
+    let c = this.crowds.get(scene);
+    if (!c) this.crowds.set(scene, (c = { epoch: -1, at: -99, actors: [] }));
+    if (c.epoch !== sceneEpoch() && this.frameNo - c.at > 20) {
+      c.epoch = sceneEpoch();
+      c.at = this.frameNo;
+      c.actors.length = 0;
+      scene.traverseVisible((o) => {
+        if (o.userData.actor) c.actors.push(o);
+      });
+    }
+    const budget = this.voxelOptions().crowd;
+    if (c.actors.length <= budget) {
+      for (const a of c.actors) a.userData.lod = 0;
+      return;
+    }
+    this.rank.length = 0;
+    for (const a of c.actors) {
+      const e = a.matrixWorld.elements;
+      this.ndc.set(e[12]!, e[13]!, e[14]!).project(this.cam!);
+      this.rank.push({ o: a, d: this.ndc.x * this.ndc.x + this.ndc.y * this.ndc.y });
+    }
+    this.rank.sort((a, b) => a.d - b.d);
+    this.rank.forEach((r, i) => {
+      r.o.userData.lod = i < budget ? 0 : 1;
+    });
+  }
+
+  private cam?: THREE.Camera;
   private readonly frustum = new THREE.Frustum();
   private readonly viewMatrix = new THREE.Matrix4();
   private readonly ball = new THREE.Sphere();
 
   /** Tells animation code what the camera sees (`freeze.ts`): how big things are, and what is out of the picture. */
-  private look(camera: THREE.OrthographicCamera, w: number): void {
+  private look(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number): void {
     camera.updateMatrixWorld();
+    this.cam = camera;
     this.frustum.setFromProjectionMatrix(this.viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     view.pxPerUnit = w / ((camera.right - camera.left) / camera.zoom);
     view.sees = (p, r) => {
@@ -837,6 +963,7 @@ export class Pipeline {
       this.ball.radius = r;
       return this.frustum.intersectsSphere(this.ball);
     };
+    this.rankActors(scene);
     // Frozen copies of people who left every scene are freed now and then.
     watchAll();
     if (++view.frame % 300 === 0) sweep();
@@ -876,6 +1003,7 @@ export class Pipeline {
     const creased = this.crease > 0;
     this.targets(w, h, lines, creased);
     this.shadowsFor(scene, this.opts.shadowSize ?? 2048, this.opts.shadowEvery ?? 1);
+    this.blobs(scene, !!this.opts.blob);
     const q = creased ? this.quadCreased : this.quad;
     const u = q.material.uniforms;
     u.span!.value = camera.far - camera.near;

@@ -24,12 +24,13 @@ for (const room of rooms)
     for (const time of times) {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
       await ctx.addInitScript(seed);
-      await ctx.addInitScript((s) => localStorage.setItem("demo3d.style", s), mode === "smooth" ? "smooth" : "voxel");
+      await ctx.addInitScript((s) => localStorage.setItem("demo3d.style", s), mode === "smooth" || mode === "medium" ? "smooth" : "voxel");
       const page = await ctx.newPage();
       const errors = [];
       page.on("pageerror", (e) => errors.push(e.message));
+      const tier = ["medium", "high", "ultra"].includes(mode);
       const q = mode === "v1" ? 1 : 2;
-      await page.goto(`${url}/?stage=${/^[A-Z]/.test(room) ? room : `World:${room}`}&q=${q}${extra}`);
+      await page.goto(`${url}/?stage=${/^[A-Z]/.test(room) ? room : `World:${room}`}${tier ? `&tier=${mode}` : `&q=${q}`}${extra}`);
       await page.waitForFunction(() => window.world3d && window.__perfStats?.()[0]?.scene, null, { timeout: 60000 });
       await page.evaluate((t) => window.fx?.setTime(t), time);
       await page.addStyleTag({ content: "body > *:not(canvas){display:none !important}" });

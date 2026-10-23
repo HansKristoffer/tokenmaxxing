@@ -1,4 +1,4 @@
-// bun scripts/perf-harness.mjs [--url http://localhost:4652] [--out perf-results/run.json] [--rooms town,inn] [--styles hd,pixel,voxel0,voxel1,voxel2]
+// bun scripts/perf-harness.mjs [--url http://localhost:4652] [--out perf-results/run.json] [--rooms town,inn] [--styles hd,pixel,voxel0,voxel1,voxel2,medium,high,ultra]
 //   [--ms 4000] [--gl swiftshader|metal] [--viewport 1280x720]
 // Drives the 3D demo (web/demo3d.html) headless with a fixed seed, fixed rooms and the GL probe (scripts/perf/probe.js), then
 // writes frame times and hardware-independent counts (draw calls, triangles, programs, textures, bytes) per room x style.
@@ -41,6 +41,7 @@ const pct = (a, p) => {
 };
 const r1 = (n) => Math.round(n * 100) / 100;
 
+const TIERS = ["medium", "high", "ultra"];
 const STYLE = {
   hd: ["smooth", ""],
   pixel: ["pixel", ""],
@@ -52,7 +53,8 @@ const STYLE = {
 const results = [];
 for (const room of rooms) {
   for (const style of styles) {
-    const [stored, q] = STYLE[style];
+    const tier = TIERS.includes(style) ? style : null;
+    const [stored, q] = tier ? ["voxel", ""] : STYLE[style];
     const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
     await ctx.addInitScript(probe);
     if (process.env.BAKE_CELL) await ctx.addInitScript((c) => (window.__bakeCell = Number(c)), process.env.BAKE_CELL);
@@ -62,7 +64,7 @@ for (const room of rooms) {
     page.on("pageerror", (e) => errors.push(e.message));
     const t0 = Date.now();
     const stage = /^[A-Z]/.test(room) ? room : `World:${room}`;
-    await page.goto(`${url}/?stage=${stage}${q ? `&q=${q}` : ""}`, { waitUntil: "load" });
+    await page.goto(`${url}/?stage=${stage}${q ? `&q=${q}` : ""}${tier ? `&tier=${tier}` : ""}${process.env.EXTRA ?? ""}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.__probe?.frames > 3 && window.world3d, null, { timeout: 60000 });
     const ready = Date.now() - t0;
     await page.waitForTimeout(warm);
