@@ -80,7 +80,15 @@ export class Room {
   constructor(
     readonly W: number,
     readonly D: number,
-    opts: { floor?: string; wall?: string; stripe?: string } = {},
+    opts: {
+      floor?: string;
+      wall?: string;
+      stripe?: string;
+      /** Window x on the north wall, its door's x (null: no door), and window z on the west wall. */
+      north?: number[];
+      door?: number | null;
+      west?: number[];
+    } = {},
   ) {
     this.grid = Array(W * D).fill(null);
     const floor = planks(opts.floor ?? C.floor, 4);
@@ -119,11 +127,9 @@ export class Room {
     wall(W + WALL_T * 2, [W / 2, D + WALL_T / 2], Math.PI, [0, -1]);
     wall(D, [W + WALL_T / 2, D / 2], -Math.PI / 2, [-1, 0]);
     // Windows and the door, in each wall's own coordinates (x along it, from its centre).
-    windowOn(north, 3 - W / 2);
-    windowOn(north, 10.5 - W / 2);
-    doorOn(north, 7.5 - W / 2);
-    windowOn(west, D / 2 - 5.5);
-    windowOn(west, D / 2 - 8.5);
+    for (const x of opts.north ?? [3, 10.5]) windowOn(north, x - W / 2);
+    if (opts.door !== null) doorOn(north, (opts.door ?? 7.5) - W / 2);
+    for (const z of opts.west ?? [5.5, 8.5]) windowOn(west, D / 2 - z);
   }
 
   /** Lowers the walls between the camera and the room; `view` points from the room to the camera. */
