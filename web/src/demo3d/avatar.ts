@@ -120,7 +120,8 @@ export class Avatar {
   private frozenKey(): string | null {
     if (this.height * view.pxPerUnit < TINY_PX || this.root.userData.lod) return "tiny";
     if (!this.freezable) return null;
-    return this.pose === "stand" || this.pose === "sit" || this.pose === "sleep" ? this.pose : null;
+    // Typing moves the arms a few centimetres: not worth fifteen draw calls.
+    return this.pose === "stand" || this.pose === "sit" || this.pose === "sleep" || this.pose === "type" ? this.pose : null;
   }
 
   dispose(): void {

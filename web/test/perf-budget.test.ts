@@ -12,7 +12,7 @@ beforeAll(async () => {
   await h.loadAllSlices();
 });
 
-for (const room of Object.keys(BUDGETS)) {
+for (const room of Object.keys(BUDGETS.high)) {
   test(`${room} stays inside its draw-call and triangle budget`, () => {
     const s = h.measureRoom(room);
     const b = budgetFor(room);
@@ -43,4 +43,13 @@ test("tiers get lighter going down: Medium has no shadows or AO, Ultra has the m
   expect(hi.shadowSize!).toBeLessThan(u.shadowSize!);
   expect(hi.msaa).toBe(0);
   expect(u.dprCap! * u.renderScale!).toBeLessThanOrEqual(2.0001);
+});
+
+test("medium never budgets more than high", () => {
+  for (const room of Object.keys(BUDGETS.high)) {
+    const m = BUDGETS.medium[room]!;
+    const hi = BUDGETS.high[room]!;
+    expect(m.triangles).toBeLessThanOrEqual(hi.triangles);
+    expect(m.drawCalls).toBeLessThanOrEqual(hi.drawCalls);
+  }
 });

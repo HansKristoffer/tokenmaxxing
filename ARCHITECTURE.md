@@ -756,34 +756,64 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
 **What makes it cheap** (`web/src/render3d/perf/`, `web/src/demo3d/pipeline.ts`):
 - *Static batching* (`bake.ts`). A room is thousands of tiny meshes. Roots flagged `userData.bake` (every `WorldRoom`, every
   `Avatar`) are watched for ~24 frames and the tick functions are sampled; whatever never moves is merged per cell
-  (8 units) into meshes sharing one vertex-coloured toon material (textured ones per texture), and the originals are
-  hidden and put to sleep (no matrix updates). Two variants are kept per room (smooth, and the Voxel style's blocks) and
-  flipped on style change. Opt out with `userData.live = true` (night swaps, anything a caller keeps a handle to). `userData.rigid` marks things that
-  move as a whole but are fixed inside (a wall that lowers, an avatar's limbs): batched in their own space. Lamps and
-  windows with `nightGlow` get a day and a night copy flipped by `setPropsNight`/`setRoomNight`. Code that changes a room's
-  shape after it was batched calls `invalidateBaked(obj)` (`Room.build` does). `?nobake` turns it off to compare pictures.
-- *Geometry*: kit boxes with small bevels are 44-triangle chamfers (the rounded box was 300), round things get segments
-  by radius, `setGeometryDetail(0)` gives plain boxes for Medium. Ground texture capped at 2048 px.
-- *Pipeline*: lights are cached per scene (no per-frame traversal or allocation), geometry swaps for the Voxel style
-  only run when something was added (`sceneEpoch`), the shadow map is redrawn on a schedule (`shadowEvery`) and once, not once per
-  pass, classic styles skip the normals pass without creases and the depth texture without outlines, canvas size is only
-  touched when it changes. Ticks registered while a room builds only run while that room is on screen (`kit.ts`).
-- *Tiers* (`tiers.ts`, `applyGraphics(pipe, settings)`): Medium is the classic look at 0.75 scale with silhouette lines, no
-  shadows, no AO, plain geometry; High has AO (12 taps), haze, grade, a 2K shadow map every other frame; Ultra adds
-  tilt-shift, 4x MSAA, a 4K map every frame. Device pixel ratio times scale is capped at 2. Fps caps, idle and battery
+  (8 units) into meshes sharing one vertex-coloured toon material (textured ones per texture, small painted ones through an
+  atlas, see below; see-through ones too, one batch per opacity), and the originals are hidden and put to sleep (no matrix
+  updates, and `updateMatrixWorld` does not even walk them). Two variants are kept per room (smooth, and the Voxel style's
+  blocks) and flipped on style change. Opt out with `userData.live = true` (night swaps, anything a caller keeps a handle
+  to). `userData.rigid` marks things that move as a whole but are fixed inside (a wall that lowers, an avatar's limbs): batched
+  in their own space and riding along. Lamps and windows with `nightGlow` get a day and a night copy flipped by
+  `setPropsNight`/`setRoomNight`. Code that changes a room's shape after it was batched calls `invalidateBaked(obj)`
+  (`Room.build` does). `?nobake` turns it off to compare pictures.
+- *Atlas* (`atlas.ts`). Small nearest-filtered painted textures (signs, price tags, posters) of one material setup are packed in
+  one atlas (UVs remapped exactly, so no pixel changes); a picture the game repaints is painted into the atlas again, one that
+  repaints all the time is taken out. A room's textured props merge from one draw call per picture to one per setup.
+- *Freezing* (`freeze.ts`, `Freezer`). A person or pet who stands, sits or sleeps (`userData.actor`) is merged in that pose into
+  a couple of meshes and its limbs stop being posed; moving gives the limbs back (`bake.ts` `freezeLayer`, `suspend`, `resume`).
+  Models nobody animates (display pets) freeze after half a second. Past `crowd` people nearest the middle of the picture (8 / 16
+  / 32 on Medium / High / Ultra) the rest are drawn frozen even while they walk, as are people under 20 px tall. Animation of
+  anyone outside the camera's frustum is skipped (`view.sees`).
+- *Shadows*. Medium has none, a soft disc under each person and pet instead (`blob`, one instanced draw). High and Ultra draw
+  the room's static casters **once** into a big map (2K/4K) and again only when a room is re-batched, a caster stops or starts
+  travelling, or the sun has moved (`last.staticBakes` counts it); people, pets and walls that lower go into a small second map
+  (1K) every frame or two. Two shadow-casting directional lights, the second at intensity 0, and a patched
+  `lights_fragment_begin` that multiplies both lookups for the first light. Static batches sit on layer 2 (`STATIC_LAYER`), everything
+  else on 0; `shadowcast.ts` moves props that never travel (>0.25 units) onto the baked layer and back.
+- *AO* (`pipeline.ts`). Depth-only, its own pass at half size (`aoScale`) into one 8-bit channel, upsampled in the composite by
+  a four-tap depth-aware blend; the composite is the only full-size post pass (AO, haze, grade, tilt-shift, dither in one).
+- *Geometry and textures*: kit boxes with small bevels are 44-triangle chamfers, round things get segments by radius,
+  `setGeometryDetail(0)` gives plain boxes for Medium; painted smooth textures are capped (`setTextureCap`, 1024 px on Medium,
+  2048 elsewhere); `applyGraphics` sets both before rooms are built.
+- *Pipeline*: lights are cached per scene, geometry swaps for the Voxel style only run when something was added (`sceneEpoch`),
+  classic styles skip the normals pass without creases and the depth texture without outlines, canvas size is only touched when it
+  changes, ticks registered while a room builds only run while that room is on screen (`kit.ts`), see-through double-sided materials
+  render in one pass (three flips `needsUpdate` twice a frame for them), `#rrggbb` colour strings are looked up, not parsed.
+- *Rooms* (`world.ts`, `world-rooms.ts`, `registry.ts`). Each hand-built room's code is its own dynamic import
+  (`await world.load(id)`; `world.room(id)` is the synchronous accessor and throws for a room whose code is not in, rather than
+  drawing a blank one; the demo and the tests `await loadRoomSkins()`). Tile-drawn rooms build a few ms at a time, a frame
+  boundary between the pieces, so a loading veil paints. Built rooms are kept in an LRU (`maxBuilt`, `pinned`): `evict` drops the
+  least recently used one, stops its ticks, frees its batches and painted textures (shared geometry and materials upload again on
+  demand). `preload(id)` / `preloadNeighbours(id)` build a door's room when the browser is idle. `loadSlices(rooms)` imports only
+  the slices a set of rooms needs. The town's shop storefronts share a module with their interiors, so the shops ride with the town.
+- *Tiers* (`tiers.ts`, `applyGraphics(pipe, settings)`): Medium is the classic look at 0.75 scale with silhouette lines, blob shadows,
+  no AO, plain geometry, 1024 px textures; High has AO (10 taps, half size), haze, grade, a 2K baked shadow map; Ultra adds
+  tilt-shift, 4x MSAA, a 4K map, 20 AO taps. Device pixel ratio times scale is capped at 2. Fps caps, idle and battery
   throttling and the governor live in `game/stage.ts` / `settings/governor.ts`.
 
 **Measure** (dev server on `bun web/demo3d.html --port=4652`):
-- `bun scripts/perf-harness.mjs --out perf-results/run.json` runs every room in HD/Pixel/Voxel 0-2 headless, fixed seed and
-  camera, and records frame and CPU/GPU time p50/p95/p99, draw calls, triangles, programs, live GL objects, GPU bytes, JS
-  heap. Counts do not depend on the machine; times are for comparing runs on one machine (`--gl swiftshader` for software GL).
-  `bun scripts/perf-report.mjs run.json [baseline.json]` prints the markdown table with deltas.
-- `bun scripts/perf-audit.mjs` screenshots every room with and without batching (day and night) and diffs them, and checks no
-  batched mesh moved. `bun scripts/perf-leak.mjs` switches rooms and styles 50 times and fails if live GL objects or
-  heap grow. `bun scripts/perf/profile.mjs <room>` is a CPU profile (top self time and callers), `perf/inspect.mjs <room>` lists
-  what is still unbatched.
-- `web/test/perf-budget.test.ts` builds every room headlessly, batches it and fails above `render3d/perf/budgets.ts`
-  (draw calls, triangles, materials per room). Raise a budget only with a reason in the commit.
+- `bun scripts/perf-harness.mjs --out perf-results/run.json` runs every room in HD/Pixel/Voxel 0-2 (and `medium`, `high`,
+  `ultra`: the demo's `?tier=`) headless, fixed seed and camera, and records frame and CPU/GPU time p50/p95/p99, draw calls,
+  triangles, programs, live GL objects, GPU bytes, JS heap. Counts do not depend on the machine; times are for comparing runs on
+  one machine (`--gl swiftshader --viewport 960x540` is software GL: a stand-in for a weak GPU, where the shadow map and the full-size
+  passes show; `EXTRA='&crowd=40'` adds a crowd; `--check` compares the town with `FRAME_BUDGETS`).
+  `bun scripts/perf-report.mjs run.json [baseline.json] [--p1 first-pass.json]` prints the markdown table with deltas.
+- `bun scripts/perf-shots.mjs --out dir` screenshots every room per tier and time of day; `bun scripts/perf-diff.mjs a b` diffs two
+  runs (use it before and after any visual change); `bun scripts/perf-audit.mjs` diffs batched against `?nobake` and checks that
+  no batched mesh moved. `bun scripts/perf-leak.mjs` switches rooms and styles 50 times and fails if live GL objects or heap grow.
+- `bun scripts/perf/passes.mjs <room>` draws and triangles per render pass (shadow, scene, AO, composite), `perf/ablate.mjs`
+  frame time under option sets, `perf/alloc.mjs` where the page allocates (CDP heap sampling), `perf/profile.mjs` a CPU profile,
+  `perf/inspect.mjs` what is still unbatched, `perf/counts.ts medium|high` the per-room counts the budgets check.
+- `web/test/perf-budget.test.ts` builds every room headlessly (the real skins, not tile stand-ins), batches it, freezes its
+  people and fails above `render3d/perf/budgets.ts`; `perf-freeze.test.ts` and `world-lazy.test.ts` cover freezing and the room cache.
 
 ## One clock
 

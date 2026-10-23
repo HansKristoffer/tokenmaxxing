@@ -1,5 +1,5 @@
 // bun scripts/perf-harness.mjs [--url http://localhost:4652] [--out perf-results/run.json] [--rooms town,inn] [--styles hd,pixel,voxel0,voxel1,voxel2,medium,high,ultra]
-//   [--ms 4000] [--gl swiftshader|metal] [--viewport 1280x720]
+//   [--ms 4000] [--gl swiftshader|metal] [--viewport 1280x720] [--check]   (EXTRA='&crowd=40' adds URL parameters; --check compares the town per tier with the frame budgets)
 // Drives the 3D demo (web/demo3d.html) headless with a fixed seed, fixed rooms and the GL probe (scripts/perf/probe.js), then
 // writes frame times and hardware-independent counts (draw calls, triangles, programs, textures, bytes) per room x style.
 // Frame times under software GL are only relative; the counts are what budgets are checked against.
@@ -130,6 +130,23 @@ for (const room of rooms) {
   }
 }
 await browser.close();
+if (process.argv.includes("--check")) {
+  // The whole-frame budgets (web/src/render3d/perf/budgets.ts): the town at each tier, with the default crowd or with ?crowd=40.
+  const { FRAME_BUDGETS, CROWD_FRAME_BUDGETS } = await import("../web/src/render3d/perf/budgets.ts");
+  const table = /crowd=/.test(process.env.EXTRA ?? "") ? CROWD_FRAME_BUDGETS : FRAME_BUDGETS;
+  let bad = 0;
+  for (const r of results) {
+    const b = table[r.style];
+    if (!b || r.room !== "town") continue;
+    const over = [];
+    if (r.drawsPerFrame > b.drawCalls) over.push(`draws ${r.drawsPerFrame} > ${b.drawCalls}`);
+    if (r.trisPerFrame > b.triangles) over.push(`tris ${r.trisPerFrame} > ${b.triangles}`);
+    if (r.cpuMs.p95 > b.cpuP95Ms) over.push(`cpu p95 ${r.cpuMs.p95} > ${b.cpuP95Ms}`);
+    if (over.length) bad++;
+    console.log(`${over.length ? "OVER" : "ok  "} town ${r.style}: ${over.join(", ")}`);
+  }
+  if (bad) process.exitCode = 1;
+}
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify({ at: new Date().toISOString(), gl, viewport: [vw, vh], ms, results }, null, 1));
 console.log(`wrote ${out}`);

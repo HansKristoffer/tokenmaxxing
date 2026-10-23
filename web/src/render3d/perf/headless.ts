@@ -23,6 +23,10 @@ export interface RoomCost {
 }
 
 const world = () => ((globalThis as { __perfWorld?: World }).__perfWorld ??= new World());
+/** Forgets the built rooms (the geometry detail changed: rooms are built with whatever is set when they are made). */
+export function freshWorld(): void {
+  (globalThis as { __perfWorld?: World }).__perfWorld = new World();
+}
 
 /** Builds a room with no renderer and counts what one pass over it would draw once batched. */
 export function measureRoom(id: string): RoomCost {

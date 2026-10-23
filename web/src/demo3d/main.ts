@@ -4,6 +4,8 @@
  */
 import * as THREE from "three";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../art/palette.ts";
+import { applyGraphics } from "../render3d/perf/tiers.ts";
+import { resolveSettings, TIERS, type Tier } from "../settings/graphics.ts";
 import { Avatar, type CharStyle, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
 import { type BasementScene, buildBasement, dimBasement, isLanPartyAt, lanParty, setLanParty } from "./basement3d.ts";
 import { mountDecorPanel } from "./decorPanel.ts";
@@ -15,8 +17,6 @@ import { itemAt, type Look2D, lookFrom2D, nameTag, wornBy } from "./gear3d.ts";
 import type { Hq } from "./hq3d.ts";
 import { checker, type Model, painted, seeded, setGeometryDetail, ticks, tint, toon } from "./kit.ts";
 import { buildPetGallery, type Pet3D, petFrom2D } from "./pets3d.ts";
-import { applyGraphics } from "../render3d/perf/tiers.ts";
-import { resolveSettings, TIERS, type Tier } from "../settings/graphics.ts";
 import { Pipeline } from "./pipeline.ts";
 import { car } from "./props.ts";
 import { loadSlices } from "./registry.ts";
