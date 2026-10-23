@@ -1,16 +1,9 @@
 import { beforeAll, expect, test } from "bun:test";
 import { BUDGETS, budgetFor } from "../src/render3d/perf/budgets.ts";
 
-// A canvas that draws nothing: enough for the kit's painted textures to be "built" without a browser.
-const ctx = new Proxy({}, { get: (_t, k) => (k === "canvas" ? {} : () => ({ addColorStop() {} })), set: () => true });
-const fake = { width: 0, height: 0, style: {}, getContext: () => ctx, addEventListener() {} };
-Object.assign(globalThis, {
-  document: { createElement: () => ({ ...fake }), body: { append() {} }, addEventListener() {} },
-  window: globalThis,
-  localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
-  location: { search: "" },
-  navigator: { userAgent: "bun" },
-});
+import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
+
+installHeadlessGlobals();
 
 type Mod = typeof import("../src/render3d/perf/headless.ts");
 let h: Mod;
@@ -19,7 +12,7 @@ beforeAll(async () => {
   await h.loadAllSlices();
 });
 
-for (const room of Object.keys(BUDGETS)) {
+for (const room of Object.keys(BUDGETS.high)) {
   test(`${room} stays inside its draw-call and triangle budget`, () => {
     const s = h.measureRoom(room);
     const b = budgetFor(room);
@@ -50,4 +43,13 @@ test("tiers get lighter going down: Medium has no shadows or AO, Ultra has the m
   expect(hi.shadowSize!).toBeLessThan(u.shadowSize!);
   expect(hi.msaa).toBe(0);
   expect(u.dprCap! * u.renderScale!).toBeLessThanOrEqual(2.0001);
+});
+
+test("medium never budgets more than high", () => {
+  for (const room of Object.keys(BUDGETS.high)) {
+    const m = BUDGETS.medium[room]!;
+    const hi = BUDGETS.high[room]!;
+    expect(m.triangles).toBeLessThanOrEqual(hi.triangles);
+    expect(m.drawCalls).toBeLessThanOrEqual(hi.drawCalls);
+  }
 });

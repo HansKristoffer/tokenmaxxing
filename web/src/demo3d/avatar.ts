@@ -5,6 +5,7 @@
  */
 import type * as THREE from "three";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../art/palette.ts";
+import { Freezer, TINY_PX, view } from "../render3d/perf/freeze.ts";
 import { type Expression, type Face, faceTexture } from "./faces.ts";
 import { liveModel, Model, tint, type V3 } from "./kit.ts";
 import {
@@ -91,6 +92,9 @@ export class Avatar {
   /** Seconds into the walk cycle. */
   private phase = Math.random() * 10;
   private blinkAt = Math.random() * 4;
+  /** Idle people are merged into a couple of meshes (see `Freezer`); gear that animates keeps them live. */
+  private readonly freezer = new Freezer(this.root);
+  private freezable = true;
 
   constructor(
     readonly look: Look,
@@ -106,13 +110,54 @@ export class Avatar {
     look.gear?.dress(this);
     // The static batching merges what is fixed inside each limb (hair, clothes, gear): one mesh per limb, not per piece.
     this.root.userData.bake = true;
+    this.root.userData.actor = true;
     for (const bone of [this.body, this.head, ...this.arms, ...this.legs, ...this.knees]) bone.userData.rigid = true;
     for (const f of this.rig.faces) f.material.userData.dynamic = true;
+    this.freezable = !this.rig.tick && (!look.gear || look.gear.animated === false);
+    // The batching samples a walk and a stand to find the parts that gear and rigs move, and leaves those alone.
+    this.root.userData.sample = (t: number) => this.sampleMotion(t);
+  }
+
+  /** The state worth freezing in right now (null while the limbs animate): resting poses, or any pose when tiny. */
+  private frozenKey(): string | null {
+    if (this.height * view.pxPerUnit < TINY_PX || this.root.userData.lod) return "tiny";
+    if (!this.freezable) return null;
+    // Typing moves the arms a few centimetres: not worth fifteen draw calls.
+    return this.pose === "stand" || this.pose === "sit" || this.pose === "sleep" || this.pose === "type" ? this.pose : null;
+  }
+
+  dispose(): void {
+    this.freezer.dispose();
+  }
+
+  private sampleMotion(t: number): void {
+    const keep = this.pose;
+    for (const pose of ["walk", "stand"] as const) {
+      this.pose = pose;
+      this.posed(1 / 60, t);
+    }
+    this.pose = keep;
+    this.posed(1 / 60, t);
   }
 
   /** Moves the limbs for `pose`, `dt` seconds after the last frame. */
   update(dt: number, t: number): void {
     this.phase += dt;
+    // Out of the picture nobody sees the limbs: skip posing (the walk cycle keeps its phase).
+    if (!view.sees(this.root.position, this.height + 0.5)) {
+      this.freezer.touch();
+      return;
+    }
+    const key = this.frozenKey();
+    if (this.freezer.holds(key)) {
+      this.updateFace(t);
+      return;
+    }
+    this.posed(dt, t);
+    this.freezer.settle(key);
+  }
+
+  private posed(dt: number, t: number): void {
     const [legL, legR] = this.rig.legs;
     const [armL, armR] = this.rig.arms;
     const [kneeL, kneeR] = this.knees;
@@ -197,6 +242,12 @@ export class Avatar {
         break;
     }
 
+    this.updateFace(t);
+    this.rig.tick?.(t);
+    this.look.gear?.update?.(this, dt, t);
+  }
+
+  private updateFace(t: number): void {
     // Blink every few seconds, and move the mouth while talking.
     const blink = t > this.blinkAt && t < this.blinkAt + 0.12;
     if (t > this.blinkAt + 0.12) this.blinkAt = t + 2 + Math.random() * 4;
@@ -207,8 +258,6 @@ export class Avatar {
       const map = faceTexture(face, f.kind);
       if (f.material.map !== map) f.material.map = map;
     }
-    this.rig.tick?.(t);
-    this.look.gear?.update?.(this, dt, t);
   }
 }
 
@@ -220,11 +269,13 @@ export class Pet {
   private readonly body = this.root.part();
   private readonly tail?: THREE.Object3D;
   moving = false;
+  private readonly freezer = new Freezer(this.root);
 
   constructor(
     readonly kind: PetKind,
     color: string,
   ) {
+    this.root.userData.actor = true;
     const b = this.body;
     const eye = (at: V3) => b.ball(0.02, "#2b2433", at, [1, 1.2, 0.5], 8);
     switch (kind) {
@@ -283,6 +334,21 @@ export class Pet {
   }
 
   update(t: number): void {
+    if (!view.sees(this.root.position, 1)) {
+      this.freezer.touch();
+      return;
+    }
+    const key = this.root.userData.lod ? "far" : this.moving ? null : "idle";
+    if (this.freezer.holds(key)) return;
+    this.pose(t);
+    this.freezer.settle(key);
+  }
+
+  dispose(): void {
+    this.freezer.dispose();
+  }
+
+  private pose(t: number): void {
     const b = this.body;
     b.position.y = this.moving ? Math.abs(Math.sin(t * 14)) * 0.04 : 0;
     b.rotation.z = this.moving ? Math.sin(t * 14) * 0.06 : 0;

@@ -55,6 +55,8 @@ export interface Look {
 export interface Gear {
   dress(a: Avatar): void;
   update?(a: Avatar, dt: number, t: number): void;
+  /** False when `update` has nothing to move (the avatar can then be frozen while it rests). */
+  readonly animated?: boolean;
 }
 
 /** What a builder hands back to `Avatar`: the joints it poses, and the faces it repaints. */

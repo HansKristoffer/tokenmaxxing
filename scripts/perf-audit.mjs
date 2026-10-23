@@ -34,14 +34,21 @@ async function shot(room, style, nobake, time) {
   const png = await page.screenshot();
   // Sources that moved after the bake: baked copies would be stale.
   const stale = nobake ? [] : await page.evaluate(async () => {
-    const layers = window.__layers ?? [];
-    const before = layers.map((l) => l.sourceMeshes.map((m) => m.matrixWorld.elements.join()));
+    const layers = [...(window.__layers ?? [])].filter((l) => !l.disposed);
+    // From the pieces (position, rotation, scale) up to the layer's root: a rigid root (a wall, a limb) may move, what is
+    // inside must not. (World matrices of sleeping sources are not kept up to date, so they say nothing.)
+    const rel = (l, m) => {
+      const M = new m.matrix.constructor();
+      const tmp = new m.matrix.constructor();
+      for (let q = m; q && q !== l.root; q = q.parent) M.premultiply(tmp.compose(q.position, q.quaternion, q.scale));
+      return M.elements.map((x) => x.toFixed(3)).join();
+    };
+    const before = layers.map((l) => l.sourceMeshes.map((m) => rel(l, m)));
     await new Promise((r) => setTimeout(r, 6000));
     const bad = [];
     layers.forEach((l, i) =>
       l.sourceMeshes.forEach((m, j) => {
-        l.root.updateMatrixWorld(true);
-        if (m.matrixWorld.elements.join() !== before[i][j]) bad.push(m.name || m.geometry.type);
+        if (rel(l, m) !== before[i][j]) bad.push(m.name || m.geometry.type);
       }),
     );
     return bad.slice(0, 5);

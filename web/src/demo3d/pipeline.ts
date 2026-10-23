@@ -4,12 +4,66 @@
  * it's a clean cel-shaded look instead.
  */
 import * as THREE from "three";
-import { type BakeMode, sceneEpoch, syncBaked, trackAdditions } from "../render3d/perf/bake.ts";
+import {
+  type BakeMode,
+  bakePending,
+  STATIC_LAYER,
+  sceneEpoch,
+  staticShadowEpoch,
+  syncBaked,
+  trackAdditions,
+} from "../render3d/perf/bake.ts";
+import { sweep, thawAll, view, watchAll } from "../render3d/perf/freeze.ts";
+import { classifyCasters } from "../render3d/perf/shadowcast.ts";
 import { trackRenderer } from "../render3d/perf/stats.ts";
 import { blockify, unblockify } from "./blocky.ts";
 import { setActiveScene, setSmoothBands } from "./kit.ts";
 
 export type RenderStyle = "classic" | "voxel";
+
+/**
+ * Two shadow maps for one sun: a big one for what never moves, drawn once (and again when a room is re-batched or
+ * the sun has moved), and a small one for what does (people, pets, walls that lower), drawn every frame or two. The
+ * second is a second, intensity-0 directional light; the lit shaders multiply the two lookups for the first light.
+ */
+{
+  const chunk = THREE.ShaderChunk.lights_fragment_begin;
+  const key = "directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ]";
+  const at = chunk.indexOf(key);
+  const end = at < 0 ? -1 : chunk.indexOf("\n", at);
+  if (end > 0 && !chunk.includes("shadowDyn")) {
+    const original = chunk.slice(at, end);
+    const lookup = (n: number) =>
+      `getShadow( directionalShadowMap[ ${n} ], directionalLightShadows[ ${n} ].shadowMapSize, directionalLightShadows[ ${n} ].shadowIntensity, directionalLightShadows[ ${n} ].shadowBias, directionalLightShadows[ ${n} ].shadowRadius, vDirectionalShadowCoord[ ${n} ] )`;
+    // The small live map is soft enough with the hardware's own 4-tap compare: one fetch, not five.
+    const live = `dynShadow( directionalShadowMap[ 1 ], directionalLightShadows[ 1 ].shadowIntensity, directionalLightShadows[ 1 ].shadowBias, vDirectionalShadowCoord[ 1 ] )`;
+    const patched = `#if NUM_DIR_LIGHT_SHADOWS > 1
+		#if UNROLLED_LOOP_INDEX == 0
+		directLight.color *= ( directLight.visible && receiveShadow ) ? ${lookup(0)} * ${live} : 1.0; // shadowDyn
+		#endif
+		#else
+		${original}
+		#endif`;
+    THREE.ShaderChunk.lights_fragment_begin = chunk.slice(0, at) + patched + chunk.slice(end);
+    THREE.ShaderChunk.shadowmap_pars_fragment += `
+#if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 1 && defined( SHADOWMAP_TYPE_PCF )
+float dynShadow( sampler2DShadow shadowMap, float shadowIntensity, float shadowBias, vec4 shadowCoord ) {
+	shadowCoord.xyz /= shadowCoord.w;
+	shadowCoord.z += shadowBias;
+	bool inside = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0 && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0 && shadowCoord.z <= 1.0;
+	return mix( 1.0, inside ? texture( shadowMap, shadowCoord.xyz ) : 1.0, shadowIntensity );
+}
+#endif
+`;
+  }
+}
+
+/**
+ * Three draws a see-through double-sided material in two passes, flipping `side` and `needsUpdate` each time: a program
+ * lookup per object per frame (several MB of garbage a second in the town's clouds and light cones). One pass looks the
+ * same for the soft, mostly flat things the game makes see-through.
+ */
+Object.defineProperty(THREE.Material.prototype, "forceSinglePass", { get: () => true, set: () => {}, configurable: true });
 
 const VERTEX = /* glsl */ `
 varying vec2 vUv;
@@ -74,9 +128,9 @@ uniform sampler2D tDepth;
 uniform vec2 texel;
 uniform float span;
 uniform float pxPerUnit;
-uniform int aoSamples;
-uniform float aoRadius;
-uniform float aoStrength;
+uniform sampler2D tAo;
+uniform vec2 aoSize;
+uniform float aoOn;
 uniform float tilt;
 uniform float haze;
 uniform vec3 hazeColor;
@@ -90,6 +144,7 @@ varying vec2 vUv;
 
 float depthAt(vec2 uv) { return texture2D(tDepth, uv).x * span; }
 float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
+vec2 snap(vec2 uv) { return (floor(uv / texel) + 0.5) * texel; }
 
 vec3 aces(vec3 x) {
   return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
@@ -114,34 +169,25 @@ void main() {
   if (bg) {
     if (gradient > 0.5) color = mix(skyHor, skyTop, smoothstep(0.1, 1.0, vUv.y));
   } else {
-    // Ambient occlusion from depth alone: a neighbour that sits in front of this pixel's tangent plane
-    // (slope read from the smaller one-sided depth step) darkens it, so crevices and wall feet go soft.
-    float dl = depthAt(vUv - vec2(texel.x, 0.0));
-    float dr = depthAt(vUv + vec2(texel.x, 0.0));
-    float du = depthAt(vUv + vec2(0.0, texel.y));
-    float dd = depthAt(vUv - vec2(0.0, texel.y));
-    float sx = abs(dr - d) < abs(d - dl) ? dr - d : d - dl;
-    float sy = abs(du - d) < abs(d - dd) ? du - d : d - dd;
-    sx = clamp(sx, -2.0, 2.0);
-    sy = clamp(sy, -2.0, 2.0);
-    float R = aoRadius * pxPerUnit;
-    float rot = ign(gl_FragCoord.xy) * 6.2831853;
-    float occ = 0.0;
-    for (int i = 0; i < 24; i++) {
-      if (i >= aoSamples) break;
-      float f = (float(i) + 0.5) / float(aoSamples);
-      float a = rot + float(i) * 2.399963;
-      vec2 o = vec2(cos(a), sin(a)) * R * sqrt(f);
-      vec2 suv = vUv + o * texel;
-      float ds = depthAt(suv);
-      float pred = d + sx * o.x + sy * o.y;
-      float excess = pred - ds;
-      float near = smoothstep(0.05, 0.35, excess);
-      float far = 1.0 - smoothstep(0.9, 2.2, excess);
-      occ += near * far * (1.0 - f * 0.5);
+    // Ambient occlusion comes from its own (smaller) pass: a depth-aware blend of the four nearest samples.
+    float ao = 1.0;
+    if (aoOn > 0.5) {
+      vec2 p = vUv * aoSize - 0.5;
+      vec2 i0 = floor(p);
+      vec2 f = p - i0;
+      float acc = 0.0;
+      float wsum = 0.0;
+      for (int j = 0; j < 4; j++) {
+        vec2 o = vec2(float(j & 1), float(j >> 1));
+        vec2 uvc = (i0 + o + 0.5) / aoSize;
+        float w = (o.x > 0.5 ? f.x : 1.0 - f.x) * (o.y > 0.5 ? f.y : 1.0 - f.y);
+        float dz = abs(depthAt(snap(uvc)) - d);
+        w *= 1.0 / (0.03 + dz * dz * 40.0) + 1e-4;
+        acc += texture2D(tAo, uvc).r * w;
+        wsum += w;
+      }
+      ao = acc / wsum;
     }
-    occ /= max(float(aoSamples), 1.0);
-    float ao = 1.0 - clamp(occ * aoStrength, 0.0, 0.85);
     float lum = dot(color, vec3(0.299, 0.587, 0.114));
     ao = mix(ao, 1.0, smoothstep(0.8, 1.2, lum) * 0.6);
     color *= ao * mix(vec3(1.0), vec3(0.95, 1.0, 1.08), 1.0 - ao);
@@ -167,6 +213,53 @@ void main() {
 }
 `;
 
+/** Ambient occlusion from depth alone, drawn at a fraction of the frame's size into one 8-bit channel. */
+const AO_FRAGMENT = /* glsl */ `
+uniform sampler2D tDepth;
+uniform vec2 texel;
+uniform float span;
+uniform float pxPerUnit;
+uniform int aoSamples;
+uniform float aoRadius;
+uniform float aoStrength;
+varying vec2 vUv;
+
+float depthAt(vec2 uv) { return texture2D(tDepth, uv).x * span; }
+float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
+// The full-size pixel this (smaller) pixel stands for: its centre sits on a corner, where a depth read is a coin toss.
+vec2 snap(vec2 uv) { return (floor(uv / texel) + 0.5) * texel; }
+
+void main() {
+  vec2 uv = snap(vUv);
+  float d = depthAt(uv);
+  if (d > span * 0.999) { gl_FragColor = vec4(1.0); return; }
+  // A neighbour that sits in front of this pixel's tangent plane (slope read from the smaller one-sided
+  // depth step) darkens it, so crevices and wall feet go soft.
+  float dl = depthAt(uv - vec2(texel.x, 0.0));
+  float dr = depthAt(uv + vec2(texel.x, 0.0));
+  float du = depthAt(uv + vec2(0.0, texel.y));
+  float dd = depthAt(uv - vec2(0.0, texel.y));
+  float sx = abs(dr - d) < abs(d - dl) ? dr - d : d - dl;
+  float sy = abs(du - d) < abs(d - dd) ? du - d : d - dd;
+  sx = clamp(sx, -2.0, 2.0);
+  sy = clamp(sy, -2.0, 2.0);
+  float R = aoRadius * pxPerUnit;
+  float rot = ign(gl_FragCoord.xy) * 6.2831853;
+  float occ = 0.0;
+  for (int i = 0; i < 24; i++) {
+    if (i >= aoSamples) break;
+    float f = (float(i) + 0.5) / float(aoSamples);
+    float a = rot + float(i) * 2.399963;
+    vec2 o = vec2(cos(a), sin(a)) * R * sqrt(f);
+    float ds = depthAt(uv + o * texel);
+    float excess = d + sx * o.x + sy * o.y - ds;
+    occ += smoothstep(0.05, 0.35, excess) * (1.0 - smoothstep(0.9, 2.2, excess)) * (1.0 - f * 0.5);
+  }
+  occ /= float(aoSamples);
+  gl_FragColor = vec4(vec3(1.0 - clamp(occ * aoStrength, 0.0, 0.85)), 1.0);
+}
+`;
+
 const BLIT = /* glsl */ `
 uniform sampler2D tColor;
 varying vec2 vUv;
@@ -189,10 +282,16 @@ export interface PipelineOptions {
   dprCap: number;
   /** Shadow map edge in pixels, 0 for none. */
   shadowSize: number;
+  /** How many people and pets nearest the middle of the picture are animated in full; the rest are drawn frozen (`freeze.ts`). */
+  crowd: number;
+  /** Soft dark discs under people and pets (one draw call): the shadow of the tiers that have no shadow map. */
+  blob: boolean;
   /** The shadow map is redrawn every this many frames (static rooms barely notice 2). */
   shadowEvery: number;
   /** Ambient occlusion taps, 0 to 24. */
   aoSamples: number;
+  /** The AO pass draws at this fraction of the frame's size (1, 0.5, 0.25); the composite blends it back up depth-aware. */
+  aoScale: number;
   /** MSAA samples for the voxel target (0 off). */
   msaa: number;
   tilt: boolean;
@@ -210,6 +309,48 @@ interface LightRef {
   color: THREE.Color;
   ground: THREE.Color;
   intensity: number;
+}
+const BLOBS = 96;
+const blobMatrix = new THREE.Matrix4();
+interface BlobSet {
+  mesh: THREE.InstancedMesh;
+  actors: THREE.Object3D[];
+  epoch: number;
+  at: number;
+}
+
+/** A flat disc with a soft edge, lying on the floor. */
+function blobMesh(): THREE.InstancedMesh {
+  const c = document.createElement("canvas");
+  c.width = c.height = 32;
+  const g = c.getContext("2d")!;
+  const grad = g.createRadialGradient(16, 16, 2, 16, 16, 16);
+  grad.addColorStop(0, "rgba(0,0,0,0.55)");
+  grad.addColorStop(0.6, "rgba(0,0,0,0.28)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 32, 32);
+  const map = new THREE.CanvasTexture(c);
+  const mat = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false });
+  const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const mesh = new THREE.InstancedMesh(geo, mat, BLOBS);
+  mesh.frustumCulled = false;
+  mesh.castShadow = mesh.receiveShadow = false;
+  mesh.userData.noBake = true;
+  mesh.userData.live = true;
+  mesh.renderOrder = 1;
+  mesh.count = 0;
+  return mesh;
+}
+
+interface SplitShadow {
+  dyn: THREE.DirectionalLight;
+  /** What the baked map was drawn for: the batches' epoch, the sun's place, its size. */
+  epoch: number;
+  key: string;
+  size: number;
+  nextLive: number;
+  at: number;
 }
 interface SceneLights {
   epoch: number;
@@ -247,18 +388,22 @@ export class Pipeline {
   private vox?: THREE.WebGLRenderTarget;
   private voxKey = "";
   private readonly voxQuad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private readonly aoQuad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private ao?: THREE.WebGLRenderTarget;
+  private aoKey = "";
   private readonly fill = new THREE.DirectionalLight("#9ec4ff", 0);
   private readonly fillScenes = new Set<THREE.Scene>();
   private readonly lights = new WeakMap<THREE.Scene, SceneLights>();
   private slow = 0;
   private frames = 0;
+  private mode: BakeMode | null = null;
   private lastAt = 0;
   private lastScene: THREE.Scene | null = null;
   private frameNo = 0;
   private sized = "";
   private shadowsWere: boolean | null = null;
   /** Per-frame facts for the console and the perf harness. */
-  readonly last = { passes: 0, shadowUpdated: false };
+  readonly last = { passes: 0, shadowUpdated: false, staticBakes: 0 };
 
   constructor(canvas: HTMLCanvasElement, opts: { preserve?: boolean } = {}) {
     this.renderer = new THREE.WebGLRenderer({
@@ -272,6 +417,25 @@ export class Pipeline {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     // The shadow map is redrawn on the pipeline's schedule (`shadowEvery`), not on every render() call.
     this.renderer.shadowMap.autoUpdate = false;
+    this.staticCam.layers.set(STATIC_LAYER);
+    this.liveCam.layers.set(0);
+    // The shadow step runs inside `render`; split shadows draw the baked and the live map with their own layers.
+    const shadowMap = this.renderer.shadowMap;
+    const stock = shadowMap.render.bind(shadowMap);
+    shadowMap.render = (lights, scene, camera) => {
+      const plan = this.plan;
+      if (!plan) return stock(lights, scene, camera);
+      if (plan.fixed) {
+        plan.sun.shadow.needsUpdate = true;
+        stock([plan.sun], scene, this.staticCam);
+      }
+      if (plan.live) {
+        plan.dyn.shadow.needsUpdate = true;
+        shadowMap.needsUpdate = true;
+        stock([plan.dyn], scene, this.liveCam);
+      }
+      this.plan = null;
+    };
     trackAdditions();
     trackRenderer(this.renderer, () => this.lastScene);
     const plane = new THREE.PlaneGeometry(2, 2);
@@ -286,9 +450,9 @@ export class Pipeline {
           texel: { value: new THREE.Vector2() },
           span: { value: 1 },
           pxPerUnit: { value: 40 },
-          aoSamples: { value: 20 },
-          aoRadius: { value: 1.0 },
-          aoStrength: { value: 1.7 },
+          tAo: { value: null },
+          aoSize: { value: new THREE.Vector2(1, 1) },
+          aoOn: { value: 0 },
           tilt: { value: 1 },
           haze: { value: 0.3 },
           hazeColor: { value: this.hazeColor },
@@ -298,6 +462,24 @@ export class Pipeline {
           exposure: { value: 1 },
           night: { value: 0 },
           grade: { value: 1 },
+        },
+      }),
+    );
+    this.aoQuad = new THREE.Mesh(
+      plane,
+      new THREE.ShaderMaterial({
+        vertexShader: VERTEX,
+        fragmentShader: AO_FRAGMENT,
+        depthTest: false,
+        depthWrite: false,
+        uniforms: {
+          tDepth: { value: null },
+          texel: { value: new THREE.Vector2() },
+          span: { value: 1 },
+          pxPerUnit: { value: 40 },
+          aoSamples: { value: 12 },
+          aoRadius: { value: 1.0 },
+          aoStrength: { value: 2.4 },
         },
       }),
     );
@@ -350,8 +532,11 @@ export class Pipeline {
       renderScale: o.renderScale ?? (q === 0 ? 0.75 : 1),
       dprCap: o.dprCap ?? (q >= 2 ? 1.5 : 1),
       shadowSize: o.shadowSize ?? (q >= 2 ? 4096 : 2048),
+      blob: o.blob ?? false,
+      crowd: o.crowd ?? 16,
       shadowEvery: o.shadowEvery ?? 1,
-      aoSamples: o.aoSamples ?? (q >= 2 ? 24 : q === 1 ? 10 : 0),
+      aoSamples: o.aoSamples ?? (q >= 2 ? 16 : q === 1 ? 10 : 0),
+      aoScale: o.aoScale ?? (q >= 2 ? 0.5 : 0.25),
       msaa: o.msaa ?? (q >= 2 ? 4 : 0),
       tilt: o.tilt ?? q >= 2,
       haze: o.haze ?? true,
@@ -409,7 +594,7 @@ export class Pipeline {
     s = { epoch: sceneEpoch(), refs: [] };
     scene.traverse((o) => {
       const l = o as THREE.Light;
-      if (!l.isLight || o === this.fill) return;
+      if (!l.isLight || this.ours(o)) return;
       s!.refs.push({
         l,
         hemi: !!(l as THREE.HemisphereLight).isHemisphereLight,
@@ -425,6 +610,58 @@ export class Pipeline {
     });
     this.lights.set(scene, s);
     return s;
+  }
+
+  private readonly splits = new WeakMap<THREE.Scene, SplitShadow>();
+  private readonly blobSets = new WeakMap<THREE.Scene, BlobSet>();
+
+  /** Under every person and pet in view, a soft disc: the whole job is one instanced draw. */
+  private blobs(scene: THREE.Scene, on: boolean): void {
+    let b = this.blobSets.get(scene);
+    if (!on) {
+      if (b) b.mesh.visible = false;
+      return;
+    }
+    if (!b) {
+      b = { mesh: blobMesh(), actors: [], epoch: -1, at: 0 };
+      scene.add(b.mesh);
+      this.blobSets.set(scene, b);
+    }
+    b.mesh.visible = true;
+    if (b.epoch !== sceneEpoch() && this.frameNo - b.at > 20) {
+      b.epoch = sceneEpoch();
+      b.at = this.frameNo;
+      b.actors.length = 0;
+      scene.traverseVisible((o) => {
+        if (o.userData.actor) b!.actors.push(o);
+      });
+    }
+    let n = 0;
+    const m = b.mesh;
+    for (const a of b.actors) {
+      if (n >= BLOBS) break;
+      if (!a.visible) continue;
+      const e = a.matrixWorld.elements;
+      const r = (a.userData.shadowRadius as number | undefined) ?? 0.34;
+      this.ball.center.set(e[12]!, e[13]!, e[14]!);
+      this.ball.radius = r * 2;
+      if (!this.frustum.intersectsSphere(this.ball)) continue;
+      const s = r * 2 * (a.scale.x || 1);
+      blobMatrix.makeScale(s, s, s).setPosition(e[12]!, e[13]! + 0.03, e[14]!);
+      m.setMatrixAt(n++, blobMatrix);
+    }
+    m.count = n;
+    m.instanceMatrix.needsUpdate = true;
+  }
+
+  /** What the next render's shadow step does (see `shadowsFor`); null leaves it to three. */
+  private plan: { sun: THREE.DirectionalLight; dyn: THREE.DirectionalLight; fixed: boolean; live: boolean } | null = null;
+  private readonly staticCam = new THREE.Camera();
+  private readonly liveCam = new THREE.Camera();
+
+  /** A light is part of the scene's own lighting, not something the pipeline added. */
+  private ours(o: THREE.Object3D): boolean {
+    return o === this.fill || !!o.userData.shadowDyn;
   }
 
   private shadowsFor(scene: THREE.Scene, size: number, every: number): void {
@@ -447,11 +684,82 @@ export class Pipeline {
         sh.mapSize.set(size, size);
         sh.map?.dispose();
         sh.map = null;
+        const st = this.splits.get(scene);
+        if (st) st.size = 0;
       }
     }
-    const fresh = this.frameNo % Math.max(1, every) === 0 || !sun?.shadow.map;
-    r.shadowMap.needsUpdate = on && fresh;
-    this.last.shadowUpdated = on && fresh;
+    this.last.shadowUpdated = false;
+    // Once a room is batched its shadow splits in two (and stays split, so the shaders don't change back and forth).
+    let st = this.splits.get(scene);
+    if (!st && on && sun && !bakePending(scene) && this.frameNo > 30) {
+      const dyn = new THREE.DirectionalLight(0xffffff, 0);
+      dyn.userData.shadowDyn = true;
+      dyn.castShadow = true;
+      dyn.shadow.autoUpdate = false;
+      scene.add(dyn, dyn.target);
+      st = { dyn, epoch: -1, key: "", size: 0, nextLive: 0, at: 0 };
+      this.splits.set(scene, st);
+    }
+    if (!st || !sun) {
+      r.shadowMap.needsUpdate = on && (this.frameNo % Math.max(1, every) === 0 || !sun?.shadow.map);
+      this.last.shadowUpdated = r.shadowMap.needsUpdate;
+      return;
+    }
+    const dyn = st.dyn;
+    dyn.visible = dyn.castShadow = on;
+    this.plan = null;
+    if (!on) {
+      r.shadowMap.needsUpdate = false;
+      return;
+    }
+    // The small map follows the sun exactly.
+    const key = `${Math.round(sun.position.x / 0.2)},${Math.round(sun.position.y / 0.2)},${Math.round(sun.position.z / 0.2)},${Math.round(sun.target.position.x / 0.2)},${Math.round(sun.target.position.z / 0.2)}`;
+    const sc = sun.shadow.camera;
+    dyn.position.copy(sun.position);
+    dyn.target.position.copy(sun.target.position);
+    dyn.shadow.bias = sun.shadow.bias;
+    dyn.shadow.normalBias = sun.shadow.normalBias;
+    dyn.shadow.radius = sun.shadow.radius;
+    const liveSize = Math.max(512, Math.min(1024, size / 2));
+    if (dyn.shadow.mapSize.x !== liveSize) {
+      dyn.shadow.mapSize.set(liveSize, liveSize);
+      dyn.shadow.map?.dispose();
+      dyn.shadow.map = null;
+    }
+    const dc = dyn.shadow.camera;
+    if (dc.right !== sc.right || dc.top !== sc.top || dc.near !== sc.near || dc.far !== sc.far) {
+      dc.left = sc.left;
+      dc.right = sc.right;
+      dc.top = sc.top;
+      dc.bottom = sc.bottom;
+      dc.near = sc.near;
+      dc.far = sc.far;
+      dc.updateProjectionMatrix();
+    }
+    sun.shadow.autoUpdate = false;
+    sun.updateMatrixWorld();
+    sun.target.updateMatrixWorld();
+    dyn.updateMatrixWorld();
+    dyn.target.updateMatrixWorld();
+    classifyCasters(scene);
+    const now = performance.now();
+    const stale = st.epoch !== staticShadowEpoch() || st.key !== key || st.size !== size || !sun.shadow.map;
+    const plan = { sun, dyn, fixed: false, live: false };
+    if (stale && now - st.at > 120) {
+      st.epoch = staticShadowEpoch();
+      st.key = key;
+      st.size = size;
+      st.at = now;
+      plan.fixed = true;
+      this.last.staticBakes++;
+    }
+    if (this.frameNo >= st.nextLive || !dyn.shadow.map) {
+      st.nextLive = this.frameNo + Math.max(1, every);
+      plan.live = true;
+    }
+    this.plan = plan.fixed || plan.live ? plan : null;
+    r.shadowMap.needsUpdate = !!this.plan;
+    this.last.shadowUpdated = !!this.plan;
   }
 
   /** Soft lit matte look: smooth diffuse, retuned lights, big soft shadows, then AO/haze/grade in one pass. */
@@ -478,6 +786,24 @@ export class Pipeline {
       u.tDepth!.value = this.vox.depthTexture;
       u.texel!.value.set(1 / lw, 1 / lh);
     }
+    const aoW = Math.max(1, Math.round(lw * o.aoScale));
+    const aoH = Math.max(1, Math.round(lh * o.aoScale));
+    const aoKey = o.aoSamples > 0 ? `${aoW}x${aoH}` : "";
+    if (aoKey !== this.aoKey) {
+      this.aoKey = aoKey;
+      this.ao?.dispose();
+      this.ao = undefined;
+      if (aoKey) {
+        this.ao = new THREE.WebGLRenderTarget(aoW, aoH, {
+          type: THREE.UnsignedByteType,
+          depthBuffer: false,
+          minFilter: THREE.NearestFilter,
+          magFilter: THREE.NearestFilter,
+        });
+        this.voxQuad.material.uniforms.aoSize!.value.set(aoW, aoH);
+      }
+      this.voxQuad.material.uniforms.tAo!.value = this.ao?.texture ?? null;
+    }
     // Lights: cool sky over warm bounce, a warm sun with big soft shadows, a cool fill from the far side.
     const { refs, sun } = this.lightsOf(scene);
     for (const e of refs) {
@@ -496,6 +822,7 @@ export class Pipeline {
       }
     }
     this.shadowsFor(scene, o.shadowSize, o.shadowEvery);
+    this.blobs(scene, o.blob);
     if (sun) {
       const sh = sun.shadow;
       sun.userData.classic ??= { size: sh.mapSize.x, radius: sh.radius, bias: sh.bias };
@@ -520,11 +847,21 @@ export class Pipeline {
       if (e.hemi) (e.l as THREE.HemisphereLight).groundColor.copy(e.ground);
     }
 
+    const span = camera.far - camera.near;
+    if (this.ao) {
+      const a = this.aoQuad.material.uniforms;
+      a.tDepth!.value = this.vox!.depthTexture;
+      a.texel!.value.set(1 / lw, 1 / lh);
+      a.span!.value = span;
+      a.pxPerUnit!.value = lw / ((camera.right - camera.left) / camera.zoom);
+      a.aoSamples!.value = o.aoSamples;
+      a.aoStrength!.value = this.night > 0.5 ? 1.6 : 2.4;
+      r.setRenderTarget(this.ao);
+      r.render(this.aoQuad, this.quadCamera);
+    }
     const u = this.voxQuad.material.uniforms;
-    u.span!.value = camera.far - camera.near;
-    u.pxPerUnit!.value = lw / ((camera.right - camera.left) / camera.zoom);
-    u.aoSamples!.value = o.aoSamples;
-    u.aoStrength!.value = this.night > 0.5 ? 1.6 : 2.4;
+    u.span!.value = span;
+    u.aoOn!.value = this.ao ? 1 : 0;
     u.tilt!.value = o.tilt ? 1 : 0;
     u.haze!.value = scene.userData.noHaze || !o.haze ? 0 : 0.3;
     u.gradient!.value = this.gradient ? 1 : 0;
@@ -533,7 +870,7 @@ export class Pipeline {
     r.setRenderTarget(null);
     r.clear();
     r.render(this.voxQuad, this.quadCamera);
-    this.last.passes = 2;
+    this.last.passes = this.ao ? 3 : 2;
     this.watch();
   }
 
@@ -588,6 +925,81 @@ export class Pipeline {
   }
 
   render(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
+    // World matrices once per frame: the shadow passes run before the renderer's own update would, and need them fresh.
+    camera.layers.enable(STATIC_LAYER);
+    this.look(scene, camera, w);
+    scene.updateMatrixWorld();
+    const auto = scene.matrixWorldAutoUpdate;
+    scene.matrixWorldAutoUpdate = false;
+    try {
+      this.draw(scene, camera, w, h);
+    } finally {
+      scene.matrixWorldAutoUpdate = auto;
+    }
+  }
+
+  private readonly crowds = new WeakMap<THREE.Scene, { epoch: number; at: number; actors: THREE.Object3D[] }>();
+  private readonly rank: { o: THREE.Object3D; d: number }[] = [];
+  private readonly ndc = new THREE.Vector3();
+
+  /**
+   * Only the people nearest the middle of the picture are animated in full: past `crowd` of them the rest are drawn
+   * frozen, gliding without a stride. Marked on each one as `userData.lod` for the animation code to read.
+   */
+  private rankActors(scene: THREE.Scene): void {
+    let c = this.crowds.get(scene);
+    if (!c) {
+      c = { epoch: -1, at: -99, actors: [] };
+      this.crowds.set(scene, c);
+    }
+    if (c.epoch !== sceneEpoch() && this.frameNo - c.at > 20) {
+      c.epoch = sceneEpoch();
+      c.at = this.frameNo;
+      c.actors.length = 0;
+      scene.traverseVisible((o) => {
+        if (o.userData.actor) c.actors.push(o);
+      });
+    }
+    const budget = this.voxelOptions().crowd;
+    if (c.actors.length <= budget) {
+      for (const a of c.actors) a.userData.lod = 0;
+      return;
+    }
+    this.rank.length = 0;
+    for (const a of c.actors) {
+      const e = a.matrixWorld.elements;
+      this.ndc.set(e[12]!, e[13]!, e[14]!).project(this.cam!);
+      this.rank.push({ o: a, d: this.ndc.x * this.ndc.x + this.ndc.y * this.ndc.y });
+    }
+    this.rank.sort((a, b) => a.d - b.d);
+    this.rank.forEach((r, i) => {
+      r.o.userData.lod = i < budget ? 0 : 1;
+    });
+  }
+
+  private cam?: THREE.Camera;
+  private readonly frustum = new THREE.Frustum();
+  private readonly viewMatrix = new THREE.Matrix4();
+  private readonly ball = new THREE.Sphere();
+
+  /** Tells animation code what the camera sees (`freeze.ts`): how big things are, and what is out of the picture. */
+  private look(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number): void {
+    camera.updateMatrixWorld();
+    this.cam = camera;
+    this.frustum.setFromProjectionMatrix(this.viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    view.pxPerUnit = w / ((camera.right - camera.left) / camera.zoom);
+    view.sees = (p, r) => {
+      this.ball.center.set(p.x, p.y + r * 0.5, p.z);
+      this.ball.radius = r;
+      return this.frustum.intersectsSphere(this.ball);
+    };
+    this.rankActors(scene);
+    // Frozen copies of people who left every scene are freed now and then.
+    watchAll();
+    if (++view.frame % 300 === 0) sweep();
+  }
+
+  private draw(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
     const r = this.renderer;
     this.frameNo++;
     if (scene !== this.lastScene) this.frameNo = 0;
@@ -595,6 +1007,10 @@ export class Pipeline {
     setActiveScene(scene);
     setSmoothBands(this.style === "voxel");
     const mode: BakeMode = this.style === "voxel" ? "block" : "smooth";
+    if (mode !== this.mode) {
+      this.mode = mode;
+      thawAll(mode);
+    }
     syncBaked(scene, mode);
     if (this.style === "voxel") {
       // Only when something was added since: swapping geometries is not free, and the scene is mostly still.
@@ -618,6 +1034,7 @@ export class Pipeline {
     const creased = this.crease > 0;
     this.targets(w, h, lines, creased);
     this.shadowsFor(scene, this.opts.shadowSize ?? 2048, this.opts.shadowEvery ?? 1);
+    this.blobs(scene, !!this.opts.blob);
     const q = creased ? this.quadCreased : this.quad;
     const u = q.material.uniforms;
     u.span!.value = camera.far - camera.near;

@@ -4,6 +4,8 @@
  */
 import * as THREE from "three";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../art/palette.ts";
+import { applyGraphics } from "../render3d/perf/tiers.ts";
+import { resolveSettings, TIERS, type Tier } from "../settings/graphics.ts";
 import { Avatar, type CharStyle, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
 import { type BasementScene, buildBasement, dimBasement, isLanPartyAt, lanParty, setLanParty } from "./basement3d.ts";
 import { mountDecorPanel } from "./decorPanel.ts";
@@ -13,7 +15,7 @@ import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
 import { Fx } from "./fx3d.ts";
 import { itemAt, type Look2D, lookFrom2D, nameTag, wornBy } from "./gear3d.ts";
 import type { Hq } from "./hq3d.ts";
-import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
+import { checker, type Model, painted, seeded, setGeometryDetail, ticks, tint, toon } from "./kit.ts";
 import { buildPetGallery, type Pet3D, petFrom2D } from "./pets3d.ts";
 import { Pipeline } from "./pipeline.ts";
 import { car } from "./props.ts";
@@ -32,11 +34,18 @@ import { buildDormRoom, buildTavernRoom, type DormRoom, setBarTab, setPlaque, se
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
 import type { Town3d } from "./town3d.ts";
 import { type MapId, type Portal, ROOM_ORDER, type World, World as WorldGraph, type WorldRoom } from "./world.ts";
-import { INSET } from "./world-rooms.ts";
+import { INSET, loadRoomSkins } from "./world-rooms.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
 const labelLayer = document.querySelector<HTMLDivElement>("#labels")!;
 const pipe = new Pipeline(canvas);
+(window as unknown as { __pipe?: Pipeline }).__pipe = pipe;
+/** `?tier=medium|high|ultra` draws the way the game does at that graphics tier (see `render3d/perf/tiers.ts`). */
+const tierParam = new URLSearchParams(location.search).get("tier") as Tier | null;
+if (tierParam && TIERS.includes(tierParam)) {
+  setGeometryDetail(tierParam === "medium" || tierParam === "low" ? 0 : 1);
+  applyGraphics(pipe, resolveSettings(tierParam));
+}
 
 const ELEVATION = Math.atan(0.5); // 2:1 pixel lines, like Habbo's.
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 160);
@@ -45,6 +54,9 @@ const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 160);
 interface Label {
   el: HTMLDivElement;
   at: () => THREE.Vector3;
+  /** Where the label was last put (screen pixels): an unchanged spot is not written again. */
+  sx?: number;
+  sy?: number;
 }
 
 interface Stage {
@@ -430,6 +442,7 @@ office.update = (dt, t) => {
 // ——— The catalogue ———
 // Assets from the slice files (`registry.ts`) join the showroom after the shop's own.
 const sliceAssets = await loadSlices();
+await loadRoomSkins();
 const catalogAssets = [...ASSETS, ...sliceAssets.filter((a) => !assetById.has(a.id))];
 const COLS = 6;
 const CELL_W = 3.2;
@@ -1105,7 +1118,9 @@ function worldStage(id: MapId): Stage {
   // A few locals wander about.
   const folk: Walker[] = [];
   const pets: Companion[] = [];
-  const count = id === "dungeon" || id === "office" ? 1 : r.W * r.D > 300 ? 4 : 2;
+  // `?crowd=40`: a worst case for the harness, that many people and a third as many pets in every room.
+  const crowd = Number(new URLSearchParams(location.search).get("crowd") ?? 0);
+  const count = crowd || (id === "dungeon" || id === "office" ? 1 : r.W * r.D > 300 ? 4 : 2);
   const rnd = seeded(id.length * 97 + r.W);
   const spot = (): [number, number] | null => {
     for (let tries = 0; tries < 80; tries++) {
@@ -1122,6 +1137,16 @@ function worldStage(id: MapId): Stage {
     if (p) w.at(p[0] + 0.5, p[1] + 0.5);
     folk.push(w);
   }
+  for (let i = 0; i < Math.floor(crowd / 3); i++) {
+    const p = spot();
+    if (p)
+      pets.push(
+        new Companion(s, (["dog", "cat", "duck"] as const)[i % 3]!, 1, `Pet ${i}`, null, new THREE.Vector3(p[0] + 0.5, 0, p[1] + 0.5), () => {
+          const q = spot();
+          return q ? new THREE.Vector3(q[0] + 0.5, 0, q[1] + 0.5) : new THREE.Vector3();
+        }),
+      );
+  }
   if (id === "town" || id === "office") {
     const p = spot();
     if (p)
@@ -1135,7 +1160,7 @@ function worldStage(id: MapId): Stage {
   let nextWander = 0;
   s.update = (dt, t) => {
     if (t > nextWander) {
-      nextWander = t + 2 + Math.random() * 3;
+      nextWander = t + (crowd ? 0.15 : 2 + Math.random() * 3);
       const w = folk[Math.floor(Math.random() * folk.length)];
       if (w && !w.walking) {
         const from: [number, number] = [Math.floor(w.pos.x), Math.floor(w.pos.z)];
@@ -1808,7 +1833,15 @@ async function drawIcons(): Promise<void> {
 }
 
 // ——— The loop ———
+const SKY = {
+  nightTop: new THREE.Color("#0d1226"),
+  dayTop: new THREE.Color("#8ccbe6"),
+  nightHor: new THREE.Color("#1a2240"),
+  dayHor: new THREE.Color("#dcf0ee"),
+};
 const v = new THREE.Vector3();
+let lastCam = 0;
+let labelFrame = 0;
 let last = performance.now() / 1000;
 function frame(): void {
   const now = performance.now() / 1000;
@@ -1818,7 +1851,7 @@ function frame(): void {
   const h = canvas.clientHeight;
   if (isWorld(stage) && worldMe) follow(dt);
   aim(w, h);
-  for (const tick of ticks) tick(now);
+  for (let i = 0; i < ticks.length; i++) ticks[i]!(now);
   keyStep();
   stage.update(dt, now);
   fx.update(dt, now, camera);
@@ -1840,26 +1873,40 @@ function frame(): void {
   pipe.night = night ? 1 : 0;
   if (inTown) pipe.hazeColor.copy(fx.horizon());
   else {
-    pipe.skyTop.set(night ? "#0d1226" : "#8ccbe6");
-    pipe.skyHor.set(night ? "#1a2240" : "#dcf0ee");
+    pipe.skyTop.copy(night ? SKY.nightTop : SKY.dayTop);
+    pipe.skyHor.copy(night ? SKY.nightHor : SKY.dayHor);
     pipe.hazeColor.copy(pipe.skyHor);
   }
   pipe.render(stage.scene, camera, w, h);
-  for (const l of stage.labels) {
-    if (l.el.style.display === "none") continue;
-    v.copy(l.at()).project(camera);
-    l.el.style.transform = `translate(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h}px) translate(-50%, -100%)`;
-  }
+  // Labels follow the camera every frame, but follow walking people at a third of the rate: each write costs a style recalculation.
+  const camKey = camera.position.x + camera.position.z * 3 + camera.zoom * 7 + camera.position.y * 11;
+  const camMoved = camKey !== lastCam;
+  lastCam = camKey;
+  if (camMoved || ++labelFrame % 3 === 0)
+    for (const l of stage.labels) {
+      if (l.el.style.display === "none") continue;
+      v.copy(l.at()).project(camera);
+      const sx = Math.round(((v.x + 1) / 2) * w);
+      const sy = Math.round(((1 - v.y) / 2) * h);
+      if (l.sx === sx && l.sy === sy) continue;
+      l.sx = sx;
+      l.sy = sy;
+      l.el.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -100%)`;
+    }
   requestAnimationFrame(frame);
 }
 
 {
   const saved = localStorage.getItem("demo3d.style");
-  if (saved === "smooth") setStyle(1);
+  if (tierParam) {
+    // The tier decided the look; keep the panel's idea of it in step.
+    choose("style", pipe.style === "voxel" ? "voxel" : "pixel");
+    canvas.classList.toggle("smooth", pipe.style === "voxel" || pipe.pixelSize === 1);
+  } else if (saved === "smooth") setStyle(1);
   else if (saved === "pixel") setStyle(3);
   else setVoxel();
   const q = new URLSearchParams(location.search).get("q");
-  if (q !== null) {
+  if (q !== null && !tierParam) {
     pipe.quality = Number(q);
     pipe.autoQuality = false;
   }

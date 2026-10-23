@@ -1,3 +1,4 @@
+import { setGeometryDetail, setTextureCap } from "../../demo3d/kit.ts";
 import type { Pipeline, PipelineOptions } from "../../demo3d/pipeline.ts";
 import type { GraphicsSettings } from "../../settings/graphics.ts";
 
@@ -19,6 +20,8 @@ export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
       outline: 1,
       crease: 0,
       shadowSize: 0,
+      blob: true,
+      crowd: 8,
       shadowEvery: 1,
       dprCap: 1,
       renderScale: 1,
@@ -31,8 +34,11 @@ export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
     renderScale: s.renderScale,
     dprCap: ratioCap,
     shadowSize: s.shadows === "off" ? 0 : s.shadowMap,
+    blob: s.shadows === "off",
     shadowEvery: ultra ? 1 : 2,
-    aoSamples: s.ao ? (ultra ? 24 : 12) : 0,
+    aoSamples: s.ao ? (ultra ? 20 : 10) : 0,
+    aoScale: 0.5,
+    crowd: ultra ? 32 : 16,
     msaa: ultra ? 4 : 0,
     tilt: s.post.tiltShift,
     haze: s.post.haze,
@@ -42,5 +48,9 @@ export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
 
 /** The renderer's `setQuality` in one line: `applyGraphics(pipe, settings)`. */
 export function applyGraphics(pipe: Pipeline, s: GraphicsSettings): void {
+  // For rooms built from now on: plain boxes and 1024 px surfaces on Medium.
+  const lean = s.tier === "medium" || s.tier === "low";
+  setGeometryDetail(lean ? 0 : 1);
+  setTextureCap(lean ? 1024 : 2048);
   pipe.configure(pipelineOptions(s));
 }

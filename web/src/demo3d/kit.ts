@@ -7,6 +7,26 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 export type V3 = [number, number, number];
+
+/**
+ * Lamps, neon and screens set colours from `#rrggbb` strings every frame, and three parses each one with a regex and
+ * a match array. `#rrggbb` is looked up instead (strings in the code are interned: the lookup allocates nothing).
+ */
+{
+  const stock = THREE.Color.prototype.setStyle;
+  const hex = new Map<string, number>();
+  THREE.Color.prototype.setStyle = function (this: THREE.Color, style: string, colorSpace?: string) {
+    if (style.length === 7 && style.charCodeAt(0) === 35) {
+      let n = hex.get(style);
+      if (n === undefined) {
+        n = Number.parseInt(style.slice(1), 16);
+        hex.set(style, n);
+      }
+      if (!Number.isNaN(n)) return this.setHex(n, colorSpace as THREE.ColorSpace | undefined);
+    }
+    return stock.call(this, style, colorSpace as THREE.ColorSpace | undefined);
+  };
+}
 export type Paint = string | THREE.Material;
 
 /** Three flat light bands: shadow, mid, lit. */
@@ -281,6 +301,13 @@ export function liveModel(): Model {
   return m;
 }
 
+let textureEdge = 2048;
+/** The longest edge a painted smooth texture may have, for rooms built from now on (Medium keeps them at 1024). */
+export function setTextureCap(px: number): void {
+  textureEdge = Math.max(256, px);
+}
+export const textureCap = (): number => textureEdge;
+
 /** A canvas texture, painted once, sampled as pixels (or smoothly, for the big HD surfaces). */
 export function canvasTexture(
   w: number,
@@ -289,9 +316,13 @@ export function canvasTexture(
   smooth = false,
 ): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  draw(canvas.getContext("2d")!);
+  // A big smooth surface is painted smaller when the tier caps textures: the drawing code keeps its own coordinates.
+  const k = smooth && Math.max(w, h) > textureEdge ? textureEdge / Math.max(w, h) : 1;
+  canvas.width = Math.max(1, Math.round(w * k));
+  canvas.height = Math.max(1, Math.round(h * k));
+  const g = canvas.getContext("2d")!;
+  if (k !== 1) g.scale(k, k);
+  draw(g);
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = THREE.SRGBColorSpace;
   if (smooth) {
@@ -387,19 +418,26 @@ export type Tick = (t: number) => void;
 type Scoped = Tick & { raw: Tick };
 
 /** Ticks registered while a room is being built belong to it, and only run while that room is on screen. */
-interface TickScope {
+export interface TickScope {
   root: THREE.Object3D | null;
+  fns: Tick[];
 }
 let building: TickScope | null = null;
 let onScreen: THREE.Object3D | null = null;
 
 export function beginTickScope(): TickScope {
-  building = { root: null };
+  building = { root: null, fns: [] };
   return building;
 }
 export function endTickScope(scope: TickScope, root: THREE.Object3D): void {
   scope.root = root;
   if (building === scope) building = null;
+}
+/** A room that is no longer kept: its ticks stop running (and stop holding its models alive). */
+export function dropTickScope(scope: TickScope): void {
+  const gone = new Set(scope.fns);
+  for (let i = ticks.length - 1; i >= 0; i--) if (gone.has(ticks[i]!)) Array.prototype.splice.call(ticks, i, 1);
+  scope.fns.length = 0;
 }
 /** The scene being drawn: ticks of rooms in any other scene sit out. Null runs everything. */
 export function setActiveScene(scene: THREE.Object3D | null): void {
@@ -425,6 +463,7 @@ class TickList extends Array<Tick> {
           fn(t);
         }) as Scoped;
         w.raw = fn;
+        scope.fns.push(w);
         return w;
       }),
     );

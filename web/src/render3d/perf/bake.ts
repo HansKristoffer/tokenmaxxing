@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { blockMoves, blockStandIn } from "../../demo3d/blocky.ts";
 import { ticks } from "../../demo3d/kit.ts";
 import { isPropsNight, type NightGlow, onPropsNight } from "../../demo3d/props.ts";
+import { type Atlas, atlasable, packAtlas, remapUv, syncAtlas, uvInside } from "./atlas.ts";
 
 /**
  * Static batching. A room is hundreds to thousands of tiny meshes (a tree is a trunk and five balls), each its
@@ -34,6 +35,16 @@ const SAMPLE_TIMES = [0.37, 3.91, 11.3, 29.77];
 /** `?nobake` turns batching off (to compare pictures, or to see what it costs). */
 const disabled = typeof location !== "undefined" && new URLSearchParams(location.search).has("nobake");
 
+/**
+ * Merged static batches sit on this layer (and only this one): the baked shadow map draws just that layer, the small
+ * per-frame one draws the default layer (everything that moves or was never merged). The camera sees both.
+ */
+export const STATIC_LAYER = 2;
+let shadowEpoch = 0;
+/** Bumps whenever the set of static shadow casters changed (a room was batched, dropped or invalidated). */
+export const staticShadowEpoch = (): number => shadowEpoch;
+export const bumpStaticShadow = (): void => void shadowEpoch++;
+
 let epoch = 0;
 /** Bumps whenever anything is added to any object: cheap way to know the scene graph may have changed. */
 export const sceneEpoch = (): number => epoch;
@@ -41,6 +52,12 @@ let patched = false;
 export function trackAdditions(): void {
   if (patched) return;
   patched = true;
+  // A sleeping subtree (the hidden originals of a batch) is not walked for matrices at all: nothing in it moves.
+  const update = THREE.Object3D.prototype.updateMatrixWorld;
+  THREE.Object3D.prototype.updateMatrixWorld = function (this: THREE.Object3D, force?: boolean) {
+    if ((this as { asleep?: boolean }).asleep === true) return;
+    update.call(this, force);
+  };
   const add = THREE.Object3D.prototype.add;
   THREE.Object3D.prototype.add = function (this: THREE.Object3D, ...objs: THREE.Object3D[]) {
     epoch++;
@@ -52,6 +69,12 @@ export interface BakeStats {
   sources: number;
   live: number;
   merged: Record<BakeMode, { meshes: number; triangles: number } | undefined>;
+}
+
+/** Batches of something that moves as a whole (a wall, a limb) stay on the default layer: they cast their own shadow every frame. */
+function dynamicRoot(root: THREE.Object3D): boolean {
+  for (let p: THREE.Object3D | null = root; p; p = p.parent) if (p.userData[RIGID] || p.userData.actor) return true;
+  return false;
 }
 
 function isLive(o: THREE.Object3D, root: THREE.Object3D): boolean {
@@ -70,14 +93,14 @@ function hiddenAbove(o: THREE.Object3D, root: THREE.Object3D): boolean {
   return false;
 }
 
-function bakeable(m: THREE.Mesh): boolean {
+function bakeable(m: THREE.Mesh, literal = false): boolean {
   const mat = m.material;
-  if (Array.isArray(mat) || (mat as THREE.Material).transparent || (mat as THREE.Material).userData.dynamic) return false;
+  if (Array.isArray(mat) || (mat as THREE.Material).userData.dynamic) return false;
   if ((m as THREE.InstancedMesh).isInstancedMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return false;
   if (m.renderOrder !== 0 || m.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) return false;
   const g = m.geometry;
   return (
-    !!g.getAttribute("position") && g.getAttribute("position").count > 0 && !g.morphAttributes.position && !blockMoves(m)
+    !!g.getAttribute("position") && g.getAttribute("position").count > 0 && !g.morphAttributes.position && (literal || !blockMoves(m))
   );
 }
 
@@ -90,17 +113,17 @@ type Lit = THREE.MeshToonMaterial & { flatShading?: boolean; fog?: boolean };
 function foldable(m: THREE.Material): boolean {
   const a = m as Lit;
   if (m.type !== "MeshToonMaterial" && m.type !== "MeshBasicMaterial") return false;
-  if (a.map || m.alphaTest || m.opacity !== 1 || a.vertexColors) return false;
+  if (a.map || m.alphaTest || (m.opacity !== 1 && !m.transparent) || a.vertexColors) return false;
   return !a.emissive || a.emissive.getHex() === 0;
 }
 
 /** Two materials that look the same share a batch. */
-function matKey(m: THREE.Material): string {
+function matKey(m: THREE.Material, atlased = false): string {
   const a = m as Lit;
   const fold = foldable(m);
   return [
-    m.type, fold ? "vc" : (a.color?.getHexString() ?? ""), tex(a.map), tex(a.gradientMap), a.emissive?.getHexString() ?? "",
-    m.side, m.opacity, a.flatShading ? 1 : 0, m.alphaTest, a.vertexColors ? 1 : 0, a.fog ? 1 : 0, m.depthWrite ? 1 : 0,
+    m.type, fold ? "vc" : (a.color?.getHexString() ?? ""), atlased ? "atlas" : tex(a.map), tex(a.gradientMap), a.emissive?.getHexString() ?? "",
+    m.side, m.opacity, m.transparent ? 1 : 0, a.flatShading ? 1 : 0, m.alphaTest, a.vertexColors ? 1 : 0, a.fog ? 1 : 0, m.depthWrite ? 1 : 0,
   ].join("|");
 }
 
@@ -161,6 +184,18 @@ function noteMoved(a: Snap, b: Snap, moved: Set<number>): void {
 /** Runs every tick function at a few times and notes what they move (world matrices, materials). */
 function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<number>): void {
   const base = snapshot(root, meshes);
+  // Something above may animate its parts by its own means (an avatar's gear moves when it walks): it says how to sample that.
+  let sample: ((t: number) => void) | undefined;
+  for (let p: THREE.Object3D | null = root; p && !sample; p = p.parent) sample = p.userData.sample as typeof sample;
+  if (sample)
+    for (const t of SAMPLE_TIMES) {
+      try {
+        sample(t);
+      } catch {
+        /* a model torn down */
+      }
+      noteMoved(base, snapshot(root, meshes), moved);
+    }
   for (const t of SAMPLE_TIMES) {
     for (const tick of ticks) {
       try {
@@ -175,7 +210,7 @@ function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<numb
 
 function prepared(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color?: THREE.Color): THREE.BufferGeometry {
   const g = src.clone();
-  for (const k of Object.keys(g.attributes)) if (k !== "position" && k !== "normal" && k !== "uv") g.deleteAttribute(k);
+  for (const k of Object.keys(g.attributes)) if (k !== "position" && k !== "normal" && k !== "uv" && !(k === "color" && !color)) g.deleteAttribute(k);
   if (!g.getAttribute("uv")) {
     g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(g.getAttribute("position").count * 2), 2));
   }
@@ -230,6 +265,11 @@ interface Source {
   glow?: "day" | "night";
 }
 
+/** Frozen models: one variant, built from the geometry the meshes have right now (the Voxel swap already happened). */
+interface LayerOptions {
+  literal?: boolean;
+}
+
 export class BakedLayer {
   readonly group = new THREE.Group();
   mode: BakeMode | null = null;
@@ -245,6 +285,7 @@ export class BakedLayer {
   constructor(
     readonly root: THREE.Object3D,
     sources: Source[],
+    private readonly options: LayerOptions = {},
   ) {
     this.sources = sources;
     if (sources.some((s) => s.glow)) this.offNight = onPropsNight((on) => this.setNight(on));
@@ -252,6 +293,11 @@ export class BakedLayer {
     this.group.matrixAutoUpdate = false;
     this.group.userData.noBake = true;
     root.add(this.group);
+  }
+
+  /** The static shadow map is stale, unless this batch belongs to something that moves (those cast their own shadow). */
+  private bump(): void {
+    if (!dynamicRoot(this.root)) shadowEpoch++;
   }
 
   get sourceMeshes(): THREE.Mesh[] {
@@ -276,11 +322,14 @@ export class BakedLayer {
       v = this.build(mode);
       this.variants[mode] = v;
       this.group.add(v);
+      this.bump();
       // Placed once: only a move of the room itself (a forced update) touches them again.
       this.group.updateMatrixWorld(true);
-      for (const c of v.children) c.matrixWorldAutoUpdate = false;
+      // Batches of something that moves (an avatar's limb, a wall) ride along with it.
+      if (!dynamicRoot(this.root)) for (const c of v.children) c.matrixWorldAutoUpdate = false;
     }
     for (const [m, g] of Object.entries(this.variants)) g!.visible = m === mode;
+    this.bump();
     // Sources a variant left out keep drawing themselves, the rest are hidden behind the merged copy.
     if (!this.sealed) this.seal();
   }
@@ -314,6 +363,7 @@ export class BakedLayer {
           c.matrixAutoUpdate = false;
           c.matrixWorldAutoUpdate = false;
           c.visible = false;
+          (c as { asleep?: boolean }).asleep = true;
           this.sleeping.push(c);
         } else sleep(c);
       }
@@ -336,6 +386,12 @@ export class BakedLayer {
     return { sources: this.sources.length, live: this.liveCount, merged: { smooth: of("smooth"), block: of("block") } };
   }
 
+  private readonly atlases: Atlas[] = [];
+
+  get hasPictures(): boolean {
+    return this.atlases.length > 0;
+  }
+
   private build(mode: BakeMode): THREE.Group {
     const out = new THREE.Group();
     out.matrixAutoUpdate = false;
@@ -343,20 +399,46 @@ export class BakedLayer {
       string,
       { parts: THREE.BufferGeometry[]; mat: THREE.Material; cast: boolean; recv: boolean; glow?: "day" | "night" }
     >();
-    for (const s of this.sources) {
+    const items = this.sources.map((s) => {
       const m = s.mesh;
-      let geo: THREE.BufferGeometry | null = m.geometry;
-      if (mode === "block") {
-        geo = blockStandIn(m) ?? m.geometry;
-      }
+      const geo = (mode === "block" && !this.options.literal ? blockStandIn(m) : null) ?? m.geometry;
+      return { s, geo, atlased: false };
+    });
+    // Small painted textures share one atlas (and so one batch per material setup).
+    const pictures = items.filter(({ s, geo }) => atlasable((s.material as Lit).map) && uvInside(geo));
+    const atlas = packAtlas(pictures.map(({ s }) => (s.material as Lit).map as THREE.Texture));
+    if (atlas) {
+      this.atlases.push(atlas);
+      for (const it of pictures) it.atlased = atlas.rects.has((it.s.material as Lit).map as THREE.Texture);
+    }
+    const atlasMats = new Map<string, THREE.Material>();
+    for (const { s, geo, atlased } of items) {
+      const m = s.mesh;
       tmp.copy(s.local);
-      const key = `${s.key}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}${s.glow ? `|${s.glow}` : ""}`;
+      let key = `${s.key}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}${s.glow ? `|${s.glow}` : ""}`;
+      let material = s.material;
+      if (atlased && atlas) {
+        const shade = matKey(s.material, true);
+        key = `${shade}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}${s.glow ? `|${s.glow}` : ""}|atlas`;
+        let am = atlasMats.get(shade);
+        if (!am) {
+          am = s.material.clone();
+          (am as Lit).map = atlas.texture;
+          am.userData.baked = true;
+          am.onBeforeCompile = s.material.onBeforeCompile;
+          am.customProgramCacheKey = s.material.customProgramCacheKey;
+          atlasMats.set(shade, am);
+        }
+        material = am;
+      }
       let grp = groups.get(key);
       if (!grp) {
-        grp = { parts: [], mat: s.material, cast: m.castShadow, recv: m.receiveShadow, glow: s.glow };
+        grp = { parts: [], mat: material, cast: m.castShadow, recv: m.receiveShadow, glow: s.glow };
         groups.set(key, grp);
       }
-      grp.parts.push(prepared(geo!, tmp, s.color));
+      const part = prepared(geo, tmp, s.color);
+      if (atlased && atlas) remapUv(part, atlas.rects.get((s.material as Lit).map as THREE.Texture)!, atlas);
+      grp.parts.push(part);
     }
     for (const [key, grp] of groups) {
       const indexed = grp.parts.every((p) => p.index);
@@ -364,9 +446,17 @@ export class BakedLayer {
       const merged = mergeGeometries(flat, false);
       for (const p of grp.parts) p.dispose();
       if (!merged) continue;
-      merged.computeBoundingSphere();
       merged.computeBoundingBox();
       const mesh = new THREE.Mesh(merged, grp.mat);
+      if (grp.mat.transparent) {
+        // Blended things are drawn back to front by where their object sits: put the batch in the middle of what it holds.
+        const c = merged.boundingBox!.getCenter(new THREE.Vector3());
+        merged.translate(-c.x, -c.y, -c.z);
+        merged.computeBoundingBox();
+        mesh.position.copy(c);
+        mesh.updateMatrix();
+      }
+      merged.computeBoundingSphere();
       mesh.castShadow = grp.cast;
       mesh.receiveShadow = grp.recv;
       mesh.matrixAutoUpdate = false;
@@ -376,6 +466,7 @@ export class BakedLayer {
         mesh.visible = grp.glow === (isPropsNight() ? "night" : "day");
       }
       mesh.userData.noBake = true;
+      if (!dynamicRoot(this.root)) mesh.layers.set(STATIC_LAYER);
       out.add(mesh);
     }
     return out;
@@ -383,22 +474,60 @@ export class BakedLayer {
 
   disposed = false;
 
+  /** Pictures in this layer's atlases that were repainted since (a board updated by the game) are painted in again. */
+  syncPictures(): void {
+    for (const a of this.atlases) {
+      syncAtlas(a);
+      // One that keeps changing (a screen the warm-up never saw move) is taken out of the atlas for good.
+      if (a.repaints > 24) {
+        for (const t of a.rects.keys()) if (a.seen.get(t) !== undefined && t.version > 2) t.userData.animated = true;
+        a.repaints = 0;
+        invalidateBaked(this.root);
+        return;
+      }
+    }
+  }
+
+  /** Puts the originals back in the picture and hides the merged copy (it keeps its geometry for `resume`). */
+  suspend(): void {
+    this.bump();
+    for (const v of Object.values(this.variants)) v!.visible = false;
+    this.unseal();
+    this.mode = null;
+  }
+
+  /** Hides the originals again behind the kept merged copy. */
+  resume(mode: BakeMode): void {
+    if (this.disposed) return;
+    this.show(mode);
+  }
+
+  private unseal(): void {
+    this.sealed = false;
+    for (const o of this.sleeping) {
+      (o as { asleep?: boolean }).asleep = false;
+      o.matrixAutoUpdate = true;
+      o.matrixWorldAutoUpdate = true;
+      o.visible = true;
+    }
+    this.sleeping.length = 0;
+    for (const s of this.sources) {
+      s.mesh.visible = true;
+      s.mesh.userData.bakedSource = false;
+    }
+  }
+
   dispose(): void {
     this.disposed = true;
+    this.bump();
     for (const v of Object.values(this.variants)) {
       for (const c of v!.children) (c as THREE.Mesh).geometry.dispose();
     }
     this.group.removeFromParent();
     this.offNight?.();
-    for (const o of this.sleeping) {
-      o.matrixAutoUpdate = true;
-      o.matrixWorldAutoUpdate = true;
-      o.visible = true;
-    }
-    for (const s of this.sources) {
-      s.mesh.visible = true;
-      s.mesh.userData.bakedSource = false;
-    }
+    for (const a of this.atlases) a.texture.dispose();
+    this.atlases.length = 0;
+    this.unseal();
   }
 }
 
@@ -500,6 +629,7 @@ const layers = new WeakMap<THREE.Object3D, BakedLayer | null>();
  * the originals draw again and the root is watched and batched afresh a moment later.
  */
 export function invalidateBaked(obj: THREE.Object3D): void {
+  shadowEpoch++;
   for (let p: THREE.Object3D | null = obj; p; p = p.parent) {
     const l = layers.get(p);
     if (l) {
@@ -509,6 +639,23 @@ export function invalidateBaked(obj: THREE.Object3D): void {
     watching.delete(p);
   }
 }
+/** True while a root of `scene` is still being watched (not yet batched): its shadow can't be split into baked and live yet. */
+export function bakePending(scene: THREE.Object3D): boolean {
+  if (!watching.size) return false;
+  for (const root of watching.keys()) {
+    let top: THREE.Object3D | null = root;
+    while (top?.parent) top = top.parent;
+    if (top === scene) return true;
+  }
+  return false;
+}
+
+/** Whether `scene` has at least one static batch on the baked shadow layer. */
+export function hasStaticBatch(scene: THREE.Scene): boolean {
+  const s = seen.get(scene);
+  return !!s?.layers.some((l) => !l.disposed && !dynamicRoot(l.root));
+}
+
 const seen = new WeakMap<THREE.Scene, { epoch: number; mode: BakeMode | null; layers: BakedLayer[] }>();
 
 /**
@@ -560,6 +707,7 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
       s.mode = null;
     }
   }
+  for (const l of s.layers) if (l.hasPictures) l.syncPictures();
   if (s.mode !== mode) {
     s.mode = mode;
     for (const l of s.layers) l.show(mode);
@@ -567,3 +715,61 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
   }
   return s.layers;
 }
+
+// MARK: Frozen models
+
+const frozen = new Set<BakedLayer>();
+
+function underRoot(o: THREE.Object3D, root: THREE.Object3D): boolean {
+  for (let p: THREE.Object3D | null = o; p; p = p.parent) if (p === root) return true;
+  return false;
+}
+
+/**
+ * Merges everything under `root` that can be merged, in the pose it is in right now, and hides the originals: a person
+ * standing still costs two draw calls instead of fifteen. `layer.suspend()` gives the live parts back, `resume` hides
+ * them again. Null while the model's own limbs are still being watched for batching, or when there is nothing to merge.
+ */
+export function freezeLayer(root: THREE.Object3D, mode: BakeMode = "smooth"): BakedLayer | null {
+  if (disabled) return null;
+  for (const w of watching.keys()) if (underRoot(w, root)) return null;
+  root.updateMatrixWorld(true);
+  const inverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const reps = new Map<string, THREE.Material>();
+  const sources: Source[] = [];
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || m.userData.bakedSource || hiddenAbove(m, root) || !bakeable(m, true)) return;
+    const mat = m.material as THREE.Material;
+    const key = matKey(mat);
+    const fold = foldable(mat);
+    if (!reps.has(key)) reps.set(key, fold ? folded(mat) : mat);
+    sources.push({
+      mesh: m,
+      key,
+      cell: "0",
+      material: reps.get(key)!,
+      local: new THREE.Matrix4().multiplyMatrices(inverse, m.matrixWorld),
+      color: fold ? (mat as Lit).color : undefined,
+    });
+  });
+  if (sources.length < 3) return null;
+  const layer = new BakedLayer(root, sources, { literal: true });
+  layer.show(mode);
+  frozen.add(layer);
+  return layer;
+}
+
+/** Frozen layers of models that have left every scene are freed (a person who left, a pet that was removed). */
+export function sweepFrozen(): void {
+  for (const l of frozen) {
+    let top: THREE.Object3D = l.root;
+    while (top.parent) top = top.parent;
+    if (!(top as THREE.Scene).isScene) {
+      l.dispose();
+      frozen.delete(l);
+    }
+  }
+}
+
+export const frozenCount = (): number => frozen.size;

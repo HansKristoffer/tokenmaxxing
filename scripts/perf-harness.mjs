@@ -1,5 +1,5 @@
-// bun scripts/perf-harness.mjs [--url http://localhost:4652] [--out perf-results/run.json] [--rooms town,inn] [--styles hd,pixel,voxel0,voxel1,voxel2]
-//   [--ms 4000] [--gl swiftshader|metal] [--viewport 1280x720]
+// bun scripts/perf-harness.mjs [--url http://localhost:4652] [--out perf-results/run.json] [--rooms town,inn] [--styles hd,pixel,voxel0,voxel1,voxel2,medium,high,ultra]
+//   [--ms 4000] [--gl swiftshader|metal] [--viewport 1280x720] [--check]   (EXTRA='&crowd=40' adds URL parameters; --check compares the town per tier with the frame budgets)
 // Drives the 3D demo (web/demo3d.html) headless with a fixed seed, fixed rooms and the GL probe (scripts/perf/probe.js), then
 // writes frame times and hardware-independent counts (draw calls, triangles, programs, textures, bytes) per room x style.
 // Frame times under software GL are only relative; the counts are what budgets are checked against.
@@ -16,6 +16,7 @@ const rooms = arg("rooms", "town,inn,upstairs,basement,shop-furniture,shop-cloth
 const styles = arg("styles", "hd,pixel,voxel0,voxel1,voxel2").split(",");
 const ms = Number(arg("ms", "4000"));
 const gl = arg("gl", "metal");
+const warm = Number(arg("warm", gl === "metal" ? "2500" : "20000"));
 const [vw, vh] = arg("viewport", "1280x720").split("x").map(Number);
 
 const pw = await import(process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs");
@@ -40,6 +41,7 @@ const pct = (a, p) => {
 };
 const r1 = (n) => Math.round(n * 100) / 100;
 
+const TIERS = ["medium", "high", "ultra"];
 const STYLE = {
   hd: ["smooth", ""],
   pixel: ["pixel", ""],
@@ -51,7 +53,8 @@ const STYLE = {
 const results = [];
 for (const room of rooms) {
   for (const style of styles) {
-    const [stored, q] = STYLE[style];
+    const tier = TIERS.includes(style) ? style : null;
+    const [stored, q] = tier ? ["voxel", ""] : STYLE[style];
     const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
     await ctx.addInitScript(probe);
     if (process.env.BAKE_CELL) await ctx.addInitScript((c) => (window.__bakeCell = Number(c)), process.env.BAKE_CELL);
@@ -61,10 +64,10 @@ for (const room of rooms) {
     page.on("pageerror", (e) => errors.push(e.message));
     const t0 = Date.now();
     const stage = /^[A-Z]/.test(room) ? room : `World:${room}`;
-    await page.goto(`${url}/?stage=${stage}${q ? `&q=${q}` : ""}`, { waitUntil: "load" });
+    await page.goto(`${url}/?stage=${stage}${q ? `&q=${q}` : ""}${tier ? `&tier=${tier}` : ""}${process.env.EXTRA ?? ""}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.__probe?.frames > 3 && window.world3d, null, { timeout: 60000 });
     const ready = Date.now() - t0;
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(warm);
     await page.evaluate(() => {
       window.gc?.();
       window.__probe.reset();
@@ -127,6 +130,23 @@ for (const room of rooms) {
   }
 }
 await browser.close();
+if (process.argv.includes("--check")) {
+  // The whole-frame budgets (web/src/render3d/perf/budgets.ts): the town at each tier, with the default crowd or with ?crowd=40.
+  const { FRAME_BUDGETS, CROWD_FRAME_BUDGETS } = await import("../web/src/render3d/perf/budgets.ts");
+  const table = /crowd=/.test(process.env.EXTRA ?? "") ? CROWD_FRAME_BUDGETS : FRAME_BUDGETS;
+  let bad = 0;
+  for (const r of results) {
+    const b = table[r.style];
+    if (!b || r.room !== "town") continue;
+    const over = [];
+    if (r.drawsPerFrame > b.drawCalls) over.push(`draws ${r.drawsPerFrame} > ${b.drawCalls}`);
+    if (r.trisPerFrame > b.triangles) over.push(`tris ${r.trisPerFrame} > ${b.triangles}`);
+    if (r.cpuMs.p95 > b.cpuP95Ms) over.push(`cpu p95 ${r.cpuMs.p95} > ${b.cpuP95Ms}`);
+    if (over.length) bad++;
+    console.log(`${over.length ? "OVER" : "ok  "} town ${r.style}: ${over.join(", ")}`);
+  }
+  if (bad) process.exitCode = 1;
+}
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify({ at: new Date().toISOString(), gl, viewport: [vw, vh], ms, results }, null, 1));
 console.log(`wrote ${out}`);

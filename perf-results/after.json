@@ -1,5 +1,5 @@
 {
- "at": "2026-10-23T17:31:57.292Z",
+ "at": "2026-10-23T20:00:50.385Z",
  "gl": "metal",
  "viewport": [
   1280,
@@ -10,52 +10,52 @@
   {
    "room": "town",
    "style": "hd",
-   "readyMs": 1837,
-   "frames": 735,
-   "fps": 183.75,
+   "readyMs": 1655,
+   "frames": 1068,
+   "fps": 267,
    "frameMs": {
-    "p50": 4.9,
-    "p95": 8.8,
-    "p99": 9.9
+    "p50": 2.8,
+    "p95": 8.5,
+    "p99": 11.6
    },
    "gpuMs": {
-    "p50": 1.06,
-    "p95": 1.76,
-    "n": 733
+    "p50": 1.1,
+    "p95": 2.57,
+    "n": 611
    },
    "cpuMs": {
-    "p50": 4.4,
-    "p95": 5
+    "p50": 2.2,
+    "p95": 3.2
    },
-   "drawsPerFrame": 1032,
-   "trisPerFrame": 721075,
-   "programs": 46,
-   "liveTextures": 228,
-   "liveBuffers": 16487,
-   "livePrograms": 56,
+   "drawsPerFrame": 778,
+   "trisPerFrame": 452366,
+   "programs": 58,
+   "liveTextures": 230,
+   "liveBuffers": 16376,
+   "livePrograms": 76,
    "texUploadsPerFrame": 0,
-   "gpuMB": 133.03,
-   "heapMB": 271.89,
-   "heapGrowthMB": -15.73,
+   "gpuMB": 132.69,
+   "heapMB": 394.04,
+   "heapGrowthMB": 58.53,
    "longTasks": 0,
    "info": {
-    "geometries": 2621,
-    "textures": 40,
-    "programs": 28
+    "geometries": 2577,
+    "textures": 42,
+    "programs": 48
    },
    "scene": {
-    "objects": 1023,
-    "meshes": 693,
+    "objects": 900,
+    "meshes": 616,
     "instanced": 5,
-    "instances": 222,
-    "drawables": 698,
-    "triangles": 392460,
-    "geometries": 550,
-    "materials": 188,
-    "textures": 47,
-    "lights": 19,
-    "shadowCasters": 514,
-    "transparent": 117,
+    "instances": 190,
+    "drawables": 621,
+    "triangles": 390888,
+    "geometries": 505,
+    "materials": 148,
+    "textures": 44,
+    "lights": 20,
+    "shadowCasters": 454,
+    "transparent": 99,
     "ticks": 685
    },
    "errors": []
@@ -63,52 +63,52 @@
   {
    "room": "town",
    "style": "pixel",
-   "readyMs": 1798,
-   "frames": 705,
-   "fps": 176.25,
+   "readyMs": 1613,
+   "frames": 1355,
+   "fps": 338.75,
    "frameMs": {
-    "p50": 4.9,
-    "p95": 10.1,
-    "p99": 11.5
+    "p50": 2.6,
+    "p95": 6.6,
+    "p99": 8.7
    },
    "gpuMs": {
-    "p50": 2.05,
-    "p95": 2.84,
-    "n": 703
+    "p50": 1.1,
+    "p95": 1.95,
+    "n": 373
    },
    "cpuMs": {
-    "p50": 4.3,
-    "p95": 5
+    "p50": 2.1,
+    "p95": 3
    },
-   "drawsPerFrame": 1027,
-   "trisPerFrame": 720570,
-   "programs": 46,
-   "liveTextures": 228,
-   "liveBuffers": 16491,
-   "livePrograms": 56,
+   "drawsPerFrame": 779,
+   "trisPerFrame": 453109,
+   "programs": 50,
+   "liveTextures": 229,
+   "liveBuffers": 16366,
+   "livePrograms": 76,
    "texUploadsPerFrame": 0,
-   "gpuMB": 114.28,
-   "heapMB": 291.58,
-   "heapGrowthMB": 4.19,
+   "gpuMB": 113.89,
+   "heapMB": 378.65,
+   "heapGrowthMB": 0.94,
    "longTasks": 0,
    "info": {
-    "geometries": 2622,
-    "textures": 40,
-    "programs": 28
+    "geometries": 2576,
+    "textures": 41,
+    "programs": 48
    },
    "scene": {
-    "objects": 1023,
-    "meshes": 693,
+    "objects": 905,
+    "meshes": 621,
     "instanced": 5,
-    "instances": 222,
-    "drawables": 698,
-    "triangles": 392460,
-    "geometries": 550,
-    "materials": 188,
-    "textures": 47,
-    "lights": 19,
-    "shadowCasters": 514,
-    "transparent": 117,
+    "instances": 190,
+    "drawables": 626,
+    "triangles": 390864,
+    "geometries": 506,
+    "materials": 149,
+    "textures": 44,
+    "lights": 20,
+    "shadowCasters": 460,
+    "transparent": 98,
     "ticks": 685
    },
    "errors": []
@@ -116,52 +116,52 @@
   {
    "room": "town",
    "style": "voxel0",
-   "readyMs": 1882,
-   "frames": 988,
-   "fps": 247,
+   "readyMs": 1682,
+   "frames": 1708,
+   "fps": 427,
    "frameMs": {
-    "p50": 3.5,
-    "p95": 7.7,
-    "p99": 9.9
+    "p50": 2,
+    "p95": 5.5,
+    "p99": 7.6
    },
    "gpuMs": {
-    "p50": 1.22,
-    "p95": 2.63,
-    "n": 286
+    "p50": 0.67,
+    "p95": 1.12,
+    "n": 397
    },
    "cpuMs": {
-    "p50": 3.1,
-    "p95": 4
+    "p50": 1.6,
+    "p95": 2.8
    },
-   "drawsPerFrame": 793,
-   "trisPerFrame": 367036,
-   "programs": 43,
-   "liveTextures": 226,
-   "liveBuffers": 14649,
-   "livePrograms": 53,
+   "drawsPerFrame": 515,
+   "trisPerFrame": 188641,
+   "programs": 45,
+   "liveTextures": 228,
+   "liveBuffers": 14487,
+   "livePrograms": 69,
    "texUploadsPerFrame": 0,
-   "gpuMB": 114.2,
-   "heapMB": 306.39,
-   "heapGrowthMB": 43.29,
+   "gpuMB": 114.89,
+   "heapMB": 387,
+   "heapGrowthMB": 26.21,
    "longTasks": 0,
    "info": {
-    "geometries": 2625,
-    "textures": 39,
-    "programs": 25
+    "geometries": 2563,
+    "textures": 41,
+    "programs": 41
    },
    "scene": {
-    "objects": 1022,
-    "meshes": 694,
+    "objects": 907,
+    "meshes": 621,
     "instanced": 5,
-    "instances": 222,
-    "drawables": 699,
-    "triangles": 274186,
-    "geometries": 550,
-    "materials": 187,
-    "textures": 47,
-    "lights": 20,
-    "shadowCasters": 514,
-    "transparent": 118,
+    "instances": 96,
+    "drawables": 626,
+    "triangles": 271438,
+    "geometries": 506,
+    "materials": 149,
+    "textures": 44,
+    "lights": 21,
+    "shadowCasters": 460,
+    "transparent": 98,
     "ticks": 685
    },
    "errors": []
@@ -169,52 +169,52 @@
   {
    "room": "town",
    "style": "voxel1",
-   "readyMs": 1848,
-   "frames": 976,
-   "fps": 244,
+   "readyMs": 1653,
+   "frames": 1582,
+   "fps": 395.5,
    "frameMs": {
-    "p50": 3.7,
-    "p95": 7.5,
-    "p99": 8.8
+    "p50": 2,
+    "p95": 7.6,
+    "p99": 9.5
    },
    "gpuMs": {
-    "p50": 1.27,
-    "p95": 1.68,
-    "n": 225
+    "p50": 1.36,
+    "p95": 2.41,
+    "n": 306
    },
    "cpuMs": {
-    "p50": 3.2,
-    "p95": 4
+    "p50": 1.6,
+    "p95": 2.9
    },
-   "drawsPerFrame": 790,
-   "trisPerFrame": 367008,
-   "programs": 43,
-   "liveTextures": 226,
-   "liveBuffers": 14645,
-   "livePrograms": 53,
+   "drawsPerFrame": 530,
+   "trisPerFrame": 191375,
+   "programs": 47,
+   "liveTextures": 229,
+   "liveBuffers": 14514,
+   "livePrograms": 71,
    "texUploadsPerFrame": 0,
-   "gpuMB": 120.35,
-   "heapMB": 290.61,
-   "heapGrowthMB": 24.58,
+   "gpuMB": 121.29,
+   "heapMB": 374.84,
+   "heapGrowthMB": 13.22,
    "longTasks": 0,
    "info": {
-    "geometries": 2624,
-    "textures": 39,
-    "programs": 25
+    "geometries": 2571,
+    "textures": 42,
+    "programs": 43
    },
    "scene": {
-    "objects": 1023,
-    "meshes": 695,
+    "objects": 910,
+    "meshes": 624,
     "instanced": 5,
-    "instances": 222,
-    "drawables": 700,
-    "triangles": 274210,
-    "geometries": 551,
-    "materials": 188,
-    "textures": 48,
-    "lights": 20,
-    "shadowCasters": 514,
-    "transparent": 119,
+    "instances": 190,
+    "drawables": 629,
+    "triangles": 272638,
+    "geometries": 509,
+    "materials": 152,
+    "textures": 45,
+    "lights": 21,
+    "shadowCasters": 460,
+    "transparent": 101,
     "ticks": 685
    },
    "errors": []
@@ -222,52 +222,211 @@
   {
    "room": "town",
    "style": "voxel2",
-   "readyMs": 1885,
-   "frames": 875,
-   "fps": 218.75,
+   "readyMs": 1647,
+   "frames": 1375,
+   "fps": 343.75,
    "frameMs": {
-    "p50": 4,
-    "p95": 9.1,
-    "p99": 10.2
+    "p50": 2.4,
+    "p95": 8.2,
+    "p99": 9.7
    },
    "gpuMs": {
-    "p50": 1.89,
-    "p95": 1.97,
-    "n": 272
+    "p50": 1.37,
+    "p95": 2.11,
+    "n": 357
    },
    "cpuMs": {
-    "p50": 3.4,
-    "p95": 4.1
+    "p50": 1.9,
+    "p95": 3
    },
-   "drawsPerFrame": 797,
-   "trisPerFrame": 367361,
-   "programs": 43,
-   "liveTextures": 226,
-   "liveBuffers": 14643,
-   "livePrograms": 53,
+   "drawsPerFrame": 532,
+   "trisPerFrame": 191499,
+   "programs": 48,
+   "liveTextures": 229,
+   "liveBuffers": 14522,
+   "livePrograms": 71,
    "texUploadsPerFrame": 0,
-   "gpuMB": 258.54,
-   "heapMB": 293.98,
-   "heapGrowthMB": 30.96,
+   "gpuMB": 260.14,
+   "heapMB": 391.36,
+   "heapGrowthMB": 30,
    "longTasks": 0,
    "info": {
-    "geometries": 2623,
-    "textures": 39,
-    "programs": 25
+    "geometries": 2573,
+    "textures": 42,
+    "programs": 43
    },
    "scene": {
-    "objects": 1021,
-    "meshes": 693,
+    "objects": 911,
+    "meshes": 625,
     "instanced": 5,
-    "instances": 222,
-    "drawables": 698,
-    "triangles": 274162,
-    "geometries": 549,
-    "materials": 186,
-    "textures": 47,
-    "lights": 20,
-    "shadowCasters": 514,
-    "transparent": 117,
+    "instances": 190,
+    "drawables": 630,
+    "triangles": 272662,
+    "geometries": 510,
+    "materials": 153,
+    "textures": 44,
+    "lights": 21,
+    "shadowCasters": 460,
+    "transparent": 102,
+    "ticks": 685
+   },
+   "errors": []
+  },
+  {
+   "room": "town",
+   "style": "medium",
+   "readyMs": 1508,
+   "frames": 2375,
+   "fps": 593.75,
+   "frameMs": {
+    "p50": 1.5,
+    "p95": 2.6,
+    "p99": 5.8
+   },
+   "gpuMs": {
+    "p50": 0.38,
+    "p95": 0.96,
+    "n": 177
+   },
+   "cpuMs": {
+    "p50": 1.2,
+    "p95": 2.1
+   },
+   "drawsPerFrame": 293,
+   "trisPerFrame": 151031,
+   "programs": 41,
+   "liveTextures": 226,
+   "liveBuffers": 11749,
+   "livePrograms": 51,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 35.74,
+   "heapMB": 371.96,
+   "heapGrowthMB": 29.46,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1155,
+    "textures": 38,
+    "programs": 23
+   },
+   "scene": {
+    "objects": 887,
+    "meshes": 614,
+    "instanced": 6,
+    "instances": 194,
+    "drawables": 619,
+    "triangles": 322886,
+    "geometries": 502,
+    "materials": 148,
+    "textures": 45,
+    "lights": 19,
+    "shadowCasters": 450,
+    "transparent": 99,
+    "ticks": 685
+   },
+   "errors": []
+  },
+  {
+   "room": "town",
+   "style": "high",
+   "readyMs": 1627,
+   "frames": 1634,
+   "fps": 408.5,
+   "frameMs": {
+    "p50": 2.1,
+    "p95": 6.3,
+    "p99": 8.1
+   },
+   "gpuMs": {
+    "p50": 0.96,
+    "p95": 1.49,
+    "n": 316
+   },
+   "cpuMs": {
+    "p50": 1.7,
+    "p95": 2.8
+   },
+   "drawsPerFrame": 426,
+   "trisPerFrame": 167185,
+   "programs": 49,
+   "liveTextures": 229,
+   "liveBuffers": 14525,
+   "livePrograms": 71,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 122.26,
+   "heapMB": 401.82,
+   "heapGrowthMB": 41.1,
+   "longTasks": 0,
+   "info": {
+    "geometries": 2571,
+    "textures": 42,
+    "programs": 43
+   },
+   "scene": {
+    "objects": 878,
+    "meshes": 600,
+    "instanced": 5,
+    "instances": 190,
+    "drawables": 605,
+    "triangles": 272590,
+    "geometries": 491,
+    "materials": 145,
+    "textures": 44,
+    "lights": 21,
+    "shadowCasters": 439,
+    "transparent": 99,
+    "ticks": 685
+   },
+   "errors": []
+  },
+  {
+   "room": "town",
+   "style": "ultra",
+   "readyMs": 1626,
+   "frames": 1173,
+   "fps": 293.25,
+   "frameMs": {
+    "p50": 2.6,
+    "p95": 10.1,
+    "p99": 11.1
+   },
+   "gpuMs": {
+    "p50": 1.92,
+    "p95": 2.2,
+    "n": 393
+   },
+   "cpuMs": {
+    "p50": 2,
+    "p95": 2.9
+   },
+   "drawsPerFrame": 552,
+   "trisPerFrame": 193139,
+   "programs": 48,
+   "liveTextures": 229,
+   "liveBuffers": 14536,
+   "livePrograms": 71,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 292.28,
+   "heapMB": 387.57,
+   "heapGrowthMB": 27.45,
+   "longTasks": 0,
+   "info": {
+    "geometries": 2578,
+    "textures": 42,
+    "programs": 43
+   },
+   "scene": {
+    "objects": 922,
+    "meshes": 636,
+    "instanced": 5,
+    "instances": 190,
+    "drawables": 641,
+    "triangles": 272602,
+    "geometries": 511,
+    "materials": 151,
+    "textures": 44,
+    "lights": 21,
+    "shadowCasters": 474,
+    "transparent": 99,
     "ticks": 685
    },
    "errors": []
@@ -275,52 +434,52 @@
   {
    "room": "inn",
    "style": "hd",
-   "readyMs": 1783,
-   "frames": 1205,
-   "fps": 301.25,
+   "readyMs": 1569,
+   "frames": 1907,
+   "fps": 476.75,
    "frameMs": {
-    "p50": 2.9,
-    "p95": 7.4,
-    "p99": 8.3
+    "p50": 1.7,
+    "p95": 5.4,
+    "p99": 7.3
    },
    "gpuMs": {
-    "p50": 1.44,
-    "p95": 1.51,
-    "n": 456
+    "p50": 0.61,
+    "p95": 1.41,
+    "n": 492
    },
    "cpuMs": {
-    "p50": 2.6,
-    "p95": 3.1
+    "p50": 1.5,
+    "p95": 2.3
    },
-   "drawsPerFrame": 826,
-   "trisPerFrame": 191443,
-   "programs": 34,
-   "liveTextures": 245,
-   "liveBuffers": 8949,
-   "livePrograms": 43,
+   "drawsPerFrame": 590,
+   "trisPerFrame": 135516,
+   "programs": 37,
+   "liveTextures": 248,
+   "liveBuffers": 8960,
+   "livePrograms": 51,
    "texUploadsPerFrame": 0,
-   "gpuMB": 83,
-   "heapMB": 265.05,
-   "heapGrowthMB": 24.27,
+   "gpuMB": 90.27,
+   "heapMB": 385.1,
+   "heapGrowthMB": 51.53,
    "longTasks": 0,
    "info": {
-    "geometries": 677,
-    "textures": 57,
-    "programs": 15
+    "geometries": 674,
+    "textures": 60,
+    "programs": 23
    },
    "scene": {
-    "objects": 874,
-    "meshes": 596,
+    "objects": 710,
+    "meshes": 440,
     "instanced": 0,
     "instances": 0,
-    "drawables": 601,
-    "triangles": 84360,
-    "geometries": 411,
-    "materials": 338,
-    "textures": 56,
-    "lights": 10,
-    "shadowCasters": 501,
-    "transparent": 187,
+    "drawables": 445,
+    "triangles": 84324,
+    "geometries": 341,
+    "materials": 193,
+    "textures": 44,
+    "lights": 11,
+    "shadowCasters": 354,
+    "transparent": 64,
     "ticks": 742
    },
    "errors": []
@@ -328,847 +487,1324 @@
   {
    "room": "inn",
    "style": "pixel",
-   "readyMs": 1634,
-   "frames": 1312,
-   "fps": 328,
+   "readyMs": 1552,
+   "frames": 2220,
+   "fps": 555,
    "frameMs": {
-    "p50": 2.8,
-    "p95": 6.1,
+    "p50": 1.7,
+    "p95": 2.5,
+    "p99": 6.3
+   },
+   "gpuMs": {
+    "p50": 0.54,
+    "p95": 1.16,
+    "n": 212
+   },
+   "cpuMs": {
+    "p50": 1.5,
+    "p95": 2
+   },
+   "drawsPerFrame": 592,
+   "trisPerFrame": 136858,
+   "programs": 32,
+   "liveTextures": 248,
+   "liveBuffers": 8960,
+   "livePrograms": 51,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 71.52,
+   "heapMB": 370.59,
+   "heapGrowthMB": 26.2,
+   "longTasks": 0,
+   "info": {
+    "geometries": 674,
+    "textures": 60,
+    "programs": 23
+   },
+   "scene": {
+    "objects": 710,
+    "meshes": 440,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 445,
+    "triangles": 84324,
+    "geometries": 341,
+    "materials": 193,
+    "textures": 44,
+    "lights": 11,
+    "shadowCasters": 354,
+    "transparent": 64,
+    "ticks": 742
+   },
+   "errors": []
+  },
+  {
+   "room": "inn",
+   "style": "voxel0",
+   "readyMs": 1553,
+   "frames": 2372,
+   "fps": 593,
+   "frameMs": {
+    "p50": 1.4,
+    "p95": 4.5,
+    "p99": 6.8
+   },
+   "gpuMs": {
+    "p50": 0.46,
+    "p95": 1.17,
+    "n": 466
+   },
+   "cpuMs": {
+    "p50": 1.2,
+    "p95": 2
+   },
+   "drawsPerFrame": 401,
+   "trisPerFrame": 71469,
+   "programs": 33,
+   "liveTextures": 246,
+   "liveBuffers": 8858,
+   "livePrograms": 50,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 76.02,
+   "heapMB": 379.68,
+   "heapGrowthMB": 44.34,
+   "longTasks": 0,
+   "info": {
+    "geometries": 675,
+    "textures": 59,
+    "programs": 22
+   },
+   "scene": {
+    "objects": 713,
+    "meshes": 441,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 446,
+    "triangles": 73960,
+    "geometries": 341,
+    "materials": 194,
+    "textures": 44,
+    "lights": 12,
+    "shadowCasters": 354,
+    "transparent": 64,
+    "ticks": 742
+   },
+   "errors": []
+  },
+  {
+   "room": "inn",
+   "style": "voxel1",
+   "readyMs": 1538,
+   "frames": 2247,
+   "fps": 561.75,
+   "frameMs": {
+    "p50": 1.6,
+    "p95": 2.7,
+    "p99": 6.8
+   },
+   "gpuMs": {
+    "p50": 0.67,
+    "p95": 1.47,
+    "n": 235
+   },
+   "cpuMs": {
+    "p50": 1.4,
+    "p95": 2.3
+   },
+   "drawsPerFrame": 390,
+   "trisPerFrame": 69404,
+   "programs": 32,
+   "liveTextures": 247,
+   "liveBuffers": 8858,
+   "livePrograms": 51,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 82.4,
+   "heapMB": 369.89,
+   "heapGrowthMB": 26.68,
+   "longTasks": 0,
+   "info": {
+    "geometries": 675,
+    "textures": 60,
+    "programs": 23
+   },
+   "scene": {
+    "objects": 713,
+    "meshes": 441,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 446,
+    "triangles": 73960,
+    "geometries": 341,
+    "materials": 194,
+    "textures": 44,
+    "lights": 12,
+    "shadowCasters": 354,
+    "transparent": 64,
+    "ticks": 742
+   },
+   "errors": []
+  },
+  {
+   "room": "inn",
+   "style": "voxel2",
+   "readyMs": 1508,
+   "frames": 1886,
+   "fps": 471.5,
+   "frameMs": {
+    "p50": 1.7,
+    "p95": 6.9,
+    "p99": 9.2
+   },
+   "gpuMs": {
+    "p50": 1.35,
+    "p95": 2.3,
+    "n": 354
+   },
+   "cpuMs": {
+    "p50": 1.5,
+    "p95": 2.3
+   },
+   "drawsPerFrame": 400,
+   "trisPerFrame": 71504,
+   "programs": 34,
+   "liveTextures": 247,
+   "liveBuffers": 8858,
+   "livePrograms": 51,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 221.24,
+   "heapMB": 372.29,
+   "heapGrowthMB": 35.01,
+   "longTasks": 0,
+   "info": {
+    "geometries": 675,
+    "textures": 60,
+    "programs": 23
+   },
+   "scene": {
+    "objects": 714,
+    "meshes": 442,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 447,
+    "triangles": 73972,
+    "geometries": 341,
+    "materials": 195,
+    "textures": 44,
+    "lights": 12,
+    "shadowCasters": 354,
+    "transparent": 64,
+    "ticks": 742
+   },
+   "errors": []
+  },
+  {
+   "room": "inn",
+   "style": "medium",
+   "readyMs": 1458,
+   "frames": 2839,
+   "fps": 709.75,
+   "frameMs": {
+    "p50": 1.1,
+    "p95": 2.5,
+    "p99": 3.4
+   },
+   "gpuMs": {
+    "p50": 0.25,
+    "p95": 0.37,
+    "n": 112
+   },
+   "cpuMs": {
+    "p50": 1,
+    "p95": 2.3
+   },
+   "drawsPerFrame": 209,
+   "trisPerFrame": 40523,
+   "programs": 29,
+   "liveTextures": 244,
+   "liveBuffers": 9022,
+   "livePrograms": 43,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 22.95,
+   "heapMB": 366.68,
+   "heapGrowthMB": 29.49,
+   "longTasks": 0,
+   "info": {
+    "geometries": 476,
+    "textures": 56,
+    "programs": 15
+   },
+   "scene": {
+    "objects": 646,
+    "meshes": 397,
+    "instanced": 1,
+    "instances": 6,
+    "drawables": 402,
+    "triangles": 64668,
+    "geometries": 302,
+    "materials": 191,
+    "textures": 45,
+    "lights": 10,
+    "shadowCasters": 310,
+    "transparent": 65,
+    "ticks": 742
+   },
+   "errors": []
+  },
+  {
+   "room": "inn",
+   "style": "high",
+   "readyMs": 1504,
+   "frames": 2359,
+   "fps": 589.75,
+   "frameMs": {
+    "p50": 1.5,
+    "p95": 2.7,
+    "p99": 6.9
+   },
+   "gpuMs": {
+    "p50": 0.84,
+    "p95": 1.51,
+    "n": 209
+   },
+   "cpuMs": {
+    "p50": 1.3,
+    "p95": 2.3
+   },
+   "drawsPerFrame": 299,
+   "trisPerFrame": 57455,
+   "programs": 32,
+   "liveTextures": 248,
+   "liveBuffers": 8839,
+   "livePrograms": 51,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 83.04,
+   "heapMB": 359.84,
+   "heapGrowthMB": 16.21,
+   "longTasks": 0,
+   "info": {
+    "geometries": 671,
+    "textures": 61,
+    "programs": 23
+   },
+   "scene": {
+    "objects": 714,
+    "meshes": 442,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 447,
+    "triangles": 73972,
+    "geometries": 341,
+    "materials": 195,
+    "textures": 44,
+    "lights": 12,
+    "shadowCasters": 354,
+    "transparent": 64,
+    "ticks": 742
+   },
+   "errors": []
+  },
+  {
+   "room": "inn",
+   "style": "ultra",
+   "readyMs": 1598,
+   "frames": 1717,
+   "fps": 429.25,
+   "frameMs": {
+    "p50": 2,
+    "p95": 6.5,
+    "p99": 8.8
+   },
+   "gpuMs": {
+    "p50": 1.16,
+    "p95": 1.85,
+    "n": 287
+   },
+   "cpuMs": {
+    "p50": 1.8,
+    "p95": 2.6
+   },
+   "drawsPerFrame": 393,
+   "trisPerFrame": 69300,
+   "programs": 34,
+   "liveTextures": 248,
+   "liveBuffers": 8858,
+   "livePrograms": 51,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 253.38,
+   "heapMB": 362.36,
+   "heapGrowthMB": 22.37,
+   "longTasks": 0,
+   "info": {
+    "geometries": 675,
+    "textures": 61,
+    "programs": 23
+   },
+   "scene": {
+    "objects": 713,
+    "meshes": 441,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 446,
+    "triangles": 73960,
+    "geometries": 341,
+    "materials": 194,
+    "textures": 44,
+    "lights": 12,
+    "shadowCasters": 354,
+    "transparent": 64,
+    "ticks": 742
+   },
+   "errors": []
+  },
+  {
+   "room": "upstairs",
+   "style": "hd",
+   "readyMs": 1601,
+   "frames": 2440,
+   "fps": 610,
+   "frameMs": {
+    "p50": 1.4,
+    "p95": 4,
+    "p99": 6.7
+   },
+   "gpuMs": {
+    "p50": 0.31,
+    "p95": 0.97,
+    "n": 454
+   },
+   "cpuMs": {
+    "p50": 1.2,
+    "p95": 1.9
+   },
+   "drawsPerFrame": 464,
+   "trisPerFrame": 92288,
+   "programs": 34,
+   "liveTextures": 206,
+   "liveBuffers": 7253,
+   "livePrograms": 50,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 83.71,
+   "heapMB": 362.19,
+   "heapGrowthMB": 33.52,
+   "longTasks": 0,
+   "info": {
+    "geometries": 226,
+    "textures": 18,
+    "programs": 22
+   },
+   "scene": {
+    "objects": 315,
+    "meshes": 170,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 175,
+    "triangles": 33628,
+    "geometries": 140,
+    "materials": 63,
+    "textures": 13,
+    "lights": 3,
+    "shadowCasters": 150,
+    "transparent": 16,
+    "ticks": 685
+   },
+   "errors": []
+  },
+  {
+   "room": "upstairs",
+   "style": "pixel",
+   "readyMs": 1577,
+   "frames": 3147,
+   "fps": 786.75,
+   "frameMs": {
+    "p50": 1.2,
+    "p95": 1.8,
+    "p99": 4.3
+   },
+   "gpuMs": {
+    "p50": 0.27,
+    "p95": 1.02,
+    "n": 121
+   },
+   "cpuMs": {
+    "p50": 1,
+    "p95": 1.5
+   },
+   "drawsPerFrame": 471,
+   "trisPerFrame": 92200,
+   "programs": 31,
+   "liveTextures": 206,
+   "liveBuffers": 7253,
+   "livePrograms": 50,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 64.95,
+   "heapMB": 371.06,
+   "heapGrowthMB": 37.46,
+   "longTasks": 0,
+   "info": {
+    "geometries": 226,
+    "textures": 18,
+    "programs": 22
+   },
+   "scene": {
+    "objects": 315,
+    "meshes": 170,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 175,
+    "triangles": 33628,
+    "geometries": 140,
+    "materials": 63,
+    "textures": 13,
+    "lights": 3,
+    "shadowCasters": 150,
+    "transparent": 16,
+    "ticks": 685
+   },
+   "errors": []
+  },
+  {
+   "room": "upstairs",
+   "style": "voxel0",
+   "readyMs": 1543,
+   "frames": 2557,
+   "fps": 639.25,
+   "frameMs": {
+    "p50": 1.3,
+    "p95": 3.5,
+    "p99": 5.9
+   },
+   "gpuMs": {
+    "p50": 0.27,
+    "p95": 0.69,
+    "n": 488
+   },
+   "cpuMs": {
+    "p50": 1.1,
+    "p95": 2.3
+   },
+   "drawsPerFrame": 294,
+   "trisPerFrame": 58492,
+   "programs": 33,
+   "liveTextures": 204,
+   "liveBuffers": 7265,
+   "livePrograms": 49,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 71.02,
+   "heapMB": 367.69,
+   "heapGrowthMB": 41.06,
+   "longTasks": 0,
+   "info": {
+    "geometries": 232,
+    "textures": 17,
+    "programs": 21
+   },
+   "scene": {
+    "objects": 295,
+    "meshes": 153,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 158,
+    "triangles": 33336,
+    "geometries": 128,
+    "materials": 59,
+    "textures": 13,
+    "lights": 4,
+    "shadowCasters": 133,
+    "transparent": 16,
+    "ticks": 685
+   },
+   "errors": []
+  },
+  {
+   "room": "upstairs",
+   "style": "voxel1",
+   "readyMs": 1554,
+   "frames": 2490,
+   "fps": 622.5,
+   "frameMs": {
+    "p50": 1.4,
+    "p95": 2.7,
+    "p99": 5.7
+   },
+   "gpuMs": {
+    "p50": 0.42,
+    "p95": 1.03,
+    "n": 153
+   },
+   "cpuMs": {
+    "p50": 1.2,
+    "p95": 2.4
+   },
+   "drawsPerFrame": 306,
+   "trisPerFrame": 58429,
+   "programs": 31,
+   "liveTextures": 204,
+   "liveBuffers": 7245,
+   "livePrograms": 50,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 76.98,
+   "heapMB": 363.49,
+   "heapGrowthMB": 29.8,
+   "longTasks": 0,
+   "info": {
+    "geometries": 228,
+    "textures": 17,
+    "programs": 22
+   },
+   "scene": {
+    "objects": 293,
+    "meshes": 153,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 158,
+    "triangles": 33336,
+    "geometries": 128,
+    "materials": 59,
+    "textures": 13,
+    "lights": 4,
+    "shadowCasters": 133,
+    "transparent": 16,
+    "ticks": 685
+   },
+   "errors": []
+  },
+  {
+   "room": "upstairs",
+   "style": "voxel2",
+   "readyMs": 1663,
+   "frames": 2186,
+   "fps": 546.5,
+   "frameMs": {
+    "p50": 1.6,
+    "p95": 3,
     "p99": 7.4
    },
    "gpuMs": {
     "p50": 0.71,
-    "p95": 1.2,
-    "n": 1310
+    "p95": 1.41,
+    "n": 324
    },
    "cpuMs": {
-    "p50": 2.6,
-    "p95": 3.1
+    "p50": 1.3,
+    "p95": 2.4
    },
-   "drawsPerFrame": 828,
-   "trisPerFrame": 192261,
+   "drawsPerFrame": 308,
+   "trisPerFrame": 58471,
    "programs": 34,
-   "liveTextures": 245,
-   "liveBuffers": 8959,
-   "livePrograms": 43,
+   "liveTextures": 205,
+   "liveBuffers": 7255,
+   "livePrograms": 50,
    "texUploadsPerFrame": 0,
-   "gpuMB": 64.25,
-   "heapMB": 284.59,
-   "heapGrowthMB": 36.24,
+   "gpuMB": 216.04,
+   "heapMB": 370.17,
+   "heapGrowthMB": 37.64,
    "longTasks": 0,
    "info": {
-    "geometries": 679,
-    "textures": 57,
-    "programs": 15
+    "geometries": 230,
+    "textures": 18,
+    "programs": 22
    },
    "scene": {
-    "objects": 871,
-    "meshes": 591,
+    "objects": 319,
+    "meshes": 169,
     "instanced": 0,
     "instances": 0,
-    "drawables": 596,
-    "triangles": 84312,
-    "geometries": 411,
-    "materials": 334,
-    "textures": 56,
-    "lights": 10,
-    "shadowCasters": 500,
-    "transparent": 187,
-    "ticks": 742
+    "drawables": 174,
+    "triangles": 33336,
+    "geometries": 140,
+    "materials": 63,
+    "textures": 13,
+    "lights": 4,
+    "shadowCasters": 149,
+    "transparent": 16,
+    "ticks": 685
    },
    "errors": []
   },
   {
-   "room": "inn",
-   "style": "voxel0",
-   "readyMs": 1664,
-   "frames": 1711,
-   "fps": 427.75,
+   "room": "upstairs",
+   "style": "medium",
+   "readyMs": 1460,
+   "frames": 3105,
+   "fps": 776.25,
    "frameMs": {
-    "p50": 2.2,
-    "p95": 3.2,
-    "p99": 6.9
+    "p50": 1,
+    "p95": 2.7,
+    "p99": 3.2
    },
    "gpuMs": {
-    "p50": 0.63,
-    "p95": 1.12,
-    "n": 1058
+    "p50": 0.13,
+    "p95": 0.26,
+    "n": 107
    },
    "cpuMs": {
-    "p50": 1.9,
+    "p50": 0.8,
     "p95": 2.5
    },
-   "drawsPerFrame": 656,
-   "trisPerFrame": 117443,
-   "programs": 31,
-   "liveTextures": 243,
-   "liveBuffers": 8847,
+   "drawsPerFrame": 156,
+   "trisPerFrame": 28495,
+   "programs": 30,
+   "liveTextures": 202,
+   "liveBuffers": 8056,
    "livePrograms": 42,
    "texUploadsPerFrame": 0,
-   "gpuMB": 68.75,
-   "heapMB": 269.74,
-   "heapGrowthMB": 33.81,
+   "gpuMB": 20.26,
+   "heapMB": 334.97,
+   "heapGrowthMB": 5.43,
    "longTasks": 0,
    "info": {
-    "geometries": 678,
-    "textures": 56,
+    "geometries": 238,
+    "textures": 14,
     "programs": 14
    },
    "scene": {
-    "objects": 874,
-    "meshes": 594,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 599,
-    "triangles": 73960,
-    "geometries": 411,
-    "materials": 336,
-    "textures": 56,
-    "lights": 11,
-    "shadowCasters": 501,
-    "transparent": 187,
-    "ticks": 742
+    "objects": 290,
+    "meshes": 153,
+    "instanced": 1,
+    "instances": 10,
+    "drawables": 158,
+    "triangles": 28474,
+    "geometries": 133,
+    "materials": 61,
+    "textures": 14,
+    "lights": 2,
+    "shadowCasters": 132,
+    "transparent": 17,
+    "ticks": 685
    },
    "errors": []
   },
   {
-   "room": "inn",
-   "style": "voxel1",
-   "readyMs": 1653,
-   "frames": 1551,
-   "fps": 387.75,
+   "room": "upstairs",
+   "style": "high",
+   "readyMs": 1656,
+   "frames": 2371,
+   "fps": 592.75,
    "frameMs": {
-    "p50": 2.2,
-    "p95": 7.5,
-    "p99": 9.1
+    "p50": 1.4,
+    "p95": 3.1,
+    "p99": 6.6
    },
    "gpuMs": {
-    "p50": 1.69,
-    "p95": 1.74,
-    "n": 251
+    "p50": 0.39,
+    "p95": 0.98,
+    "n": 246
+   },
+   "cpuMs": {
+    "p50": 1.2,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 237,
+   "trisPerFrame": 45941,
+   "programs": 32,
+   "liveTextures": 205,
+   "liveBuffers": 7265,
+   "livePrograms": 50,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 77.68,
+   "heapMB": 362.78,
+   "heapGrowthMB": 29.78,
+   "longTasks": 0,
+   "info": {
+    "geometries": 233,
+    "textures": 18,
+    "programs": 22
+   },
+   "scene": {
+    "objects": 313,
+    "meshes": 163,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 168,
+    "triangles": 33336,
+    "geometries": 142,
+    "materials": 62,
+    "textures": 13,
+    "lights": 4,
+    "shadowCasters": 143,
+    "transparent": 16,
+    "ticks": 685
+   },
+   "errors": []
+  },
+  {
+   "room": "upstairs",
+   "style": "ultra",
+   "readyMs": 1656,
+   "frames": 1969,
+   "fps": 492.25,
+   "frameMs": {
+    "p50": 1.7,
+    "p95": 4.2,
+    "p99": 8.2
+   },
+   "gpuMs": {
+    "p50": 1.05,
+    "p95": 1.55,
+    "n": 342
+   },
+   "cpuMs": {
+    "p50": 1.5,
+    "p95": 2.4
+   },
+   "drawsPerFrame": 289,
+   "trisPerFrame": 58506,
+   "programs": 34,
+   "liveTextures": 205,
+   "liveBuffers": 7255,
+   "livePrograms": 50,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 248.17,
+   "heapMB": 355.18,
+   "heapGrowthMB": 25.1,
+   "longTasks": 0,
+   "info": {
+    "geometries": 230,
+    "textures": 18,
+    "programs": 22
+   },
+   "scene": {
+    "objects": 314,
+    "meshes": 164,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 169,
+    "triangles": 33336,
+    "geometries": 139,
+    "materials": 61,
+    "textures": 13,
+    "lights": 4,
+    "shadowCasters": 144,
+    "transparent": 16,
+    "ticks": 685
+   },
+   "errors": []
+  },
+  {
+   "room": "basement",
+   "style": "hd",
+   "readyMs": 1692,
+   "frames": 1133,
+   "fps": 283.25,
+   "frameMs": {
+    "p50": 2.6,
+    "p95": 7.6,
+    "p99": 10.5
+   },
+   "gpuMs": {
+    "p50": 1.07,
+    "p95": 2.56,
+    "n": 596
+   },
+   "cpuMs": {
+    "p50": 2.3,
+    "p95": 3
+   },
+   "drawsPerFrame": 903,
+   "trisPerFrame": 171351,
+   "programs": 46,
+   "liveTextures": 241,
+   "liveBuffers": 7894,
+   "livePrograms": 56,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 84.86,
+   "heapMB": 355.01,
+   "heapGrowthMB": 37.47,
+   "longTasks": 1,
+   "info": {
+    "geometries": 396,
+    "textures": 53,
+    "programs": 28
+   },
+   "scene": {
+    "objects": 1760,
+    "meshes": 1495,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 1500,
+    "triangles": 69758,
+    "geometries": 290,
+    "materials": 334,
+    "textures": 49,
+    "lights": 30,
+    "shadowCasters": 1262,
+    "transparent": 24,
+    "ticks": 732
+   },
+   "errors": []
+  },
+  {
+   "room": "basement",
+   "style": "pixel",
+   "readyMs": 1517,
+   "frames": 1440,
+   "fps": 360,
+   "frameMs": {
+    "p50": 2.2,
+    "p95": 6.7,
+    "p99": 9.3
+   },
+   "gpuMs": {
+    "p50": 1.1,
+    "p95": 2.53,
+    "n": 310
    },
    "cpuMs": {
     "p50": 2,
-    "p95": 2.7
+    "p95": 5.7
    },
-   "drawsPerFrame": 680,
-   "trisPerFrame": 120126,
-   "programs": 33,
+   "drawsPerFrame": 1054,
+   "trisPerFrame": 172917,
+   "programs": 39,
    "liveTextures": 242,
-   "liveBuffers": 8858,
-   "livePrograms": 42,
+   "liveBuffers": 7880,
+   "livePrograms": 56,
    "texUploadsPerFrame": 0,
-   "gpuMB": 74.91,
-   "heapMB": 271.42,
-   "heapGrowthMB": 35.64,
+   "gpuMB": 66.04,
+   "heapMB": 372.05,
+   "heapGrowthMB": 33.3,
    "longTasks": 0,
    "info": {
-    "geometries": 680,
-    "textures": 55,
-    "programs": 14
+    "geometries": 393,
+    "textures": 54,
+    "programs": 28
    },
    "scene": {
-    "objects": 862,
-    "meshes": 582,
+    "objects": 1745,
+    "meshes": 1482,
     "instanced": 0,
     "instances": 0,
-    "drawables": 587,
-    "triangles": 73936,
-    "geometries": 410,
-    "materials": 335,
-    "textures": 56,
-    "lights": 11,
-    "shadowCasters": 491,
-    "transparent": 187,
-    "ticks": 742
+    "drawables": 1487,
+    "triangles": 69746,
+    "geometries": 286,
+    "materials": 332,
+    "textures": 50,
+    "lights": 30,
+    "shadowCasters": 1249,
+    "transparent": 24,
+    "ticks": 732
    },
    "errors": []
   },
   {
-   "room": "inn",
-   "style": "voxel2",
-   "readyMs": 1649,
-   "frames": 1196,
-   "fps": 299,
+   "room": "basement",
+   "style": "voxel0",
+   "readyMs": 1555,
+   "frames": 1251,
+   "fps": 312.75,
    "frameMs": {
+    "p50": 2.2,
+    "p95": 8.7,
+    "p99": 12.1
+   },
+   "gpuMs": {
+    "p50": 1.44,
+    "p95": 4.31,
+    "n": 589
+   },
+   "cpuMs": {
+    "p50": 1.8,
+    "p95": 2.7
+   },
+   "drawsPerFrame": 580,
+   "trisPerFrame": 99023,
+   "programs": 44,
+   "liveTextures": 240,
+   "liveBuffers": 7881,
+   "livePrograms": 55,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 71.64,
+   "heapMB": 371.24,
+   "heapGrowthMB": 53.99,
+   "longTasks": 0,
+   "info": {
+    "geometries": 396,
+    "textures": 53,
+    "programs": 27
+   },
+   "scene": {
+    "objects": 1761,
+    "meshes": 1494,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 1499,
+    "triangles": 67270,
+    "geometries": 290,
+    "materials": 333,
+    "textures": 49,
+    "lights": 31,
+    "shadowCasters": 1261,
+    "transparent": 24,
+    "ticks": 732
+   },
+   "errors": []
+  },
+  {
+   "room": "basement",
+   "style": "voxel1",
+   "readyMs": 1573,
+   "frames": 1449,
+   "fps": 362.25,
+   "frameMs": {
+    "p50": 2.1,
+    "p95": 7.8,
+    "p99": 9.9
+   },
+   "gpuMs": {
+    "p50": 1.58,
+    "p95": 4.34,
+    "n": 297
+   },
+   "cpuMs": {
+    "p50": 1.8,
+    "p95": 4.2
+   },
+   "drawsPerFrame": 740,
+   "trisPerFrame": 101786,
+   "programs": 39,
+   "liveTextures": 241,
+   "liveBuffers": 7867,
+   "livePrograms": 56,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 77.95,
+   "heapMB": 365.64,
+   "heapGrowthMB": 27.3,
+   "longTasks": 0,
+   "info": {
+    "geometries": 393,
+    "textures": 54,
+    "programs": 28
+   },
+   "scene": {
+    "objects": 1747,
+    "meshes": 1482,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 1487,
+    "triangles": 67270,
+    "geometries": 286,
+    "materials": 332,
+    "textures": 49,
+    "lights": 31,
+    "shadowCasters": 1249,
+    "transparent": 24,
+    "ticks": 732
+   },
+   "errors": []
+  },
+  {
+   "room": "basement",
+   "style": "voxel2",
+   "readyMs": 1633,
+   "frames": 940,
+   "fps": 235,
+   "frameMs": {
+    "p50": 2.8,
+    "p95": 10.6,
+    "p99": 12.5
+   },
+   "gpuMs": {
+    "p50": 1.77,
+    "p95": 4.3,
+    "n": 466
+   },
+   "cpuMs": {
     "p50": 2.4,
+    "p95": 4.8
+   },
+   "drawsPerFrame": 609,
+   "trisPerFrame": 99428,
+   "programs": 45,
+   "liveTextures": 240,
+   "liveBuffers": 7881,
+   "livePrograms": 56,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 216.85,
+   "heapMB": 363.44,
+   "heapGrowthMB": 23.3,
+   "longTasks": 1,
+   "info": {
+    "geometries": 396,
+    "textures": 53,
+    "programs": 28
+   },
+   "scene": {
+    "objects": 1783,
+    "meshes": 1506,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 1511,
+    "triangles": 67282,
+    "geometries": 298,
+    "materials": 334,
+    "textures": 49,
+    "lights": 31,
+    "shadowCasters": 1273,
+    "transparent": 24,
+    "ticks": 732
+   },
+   "errors": []
+  },
+  {
+   "room": "basement",
+   "style": "medium",
+   "readyMs": 1705,
+   "frames": 2412,
+   "fps": 603,
+   "frameMs": {
+    "p50": 1.4,
+    "p95": 2.8,
+    "p99": 5.8
+   },
+   "gpuMs": {
+    "p50": 0.48,
+    "p95": 1.11,
+    "n": 222
+   },
+   "cpuMs": {
+    "p50": 1.1,
+    "p95": 2.6
+   },
+   "drawsPerFrame": 264,
+   "trisPerFrame": 49738,
+   "programs": 35,
+   "liveTextures": 237,
+   "liveBuffers": 8736,
+   "livePrograms": 45,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 22.3,
+   "heapMB": 343.08,
+   "heapGrowthMB": 7.58,
+   "longTasks": 0,
+   "info": {
+    "geometries": 405,
+    "textures": 49,
+    "programs": 17
+   },
+   "scene": {
+    "objects": 1621,
+    "meshes": 1395,
+    "instanced": 1,
+    "instances": 12,
+    "drawables": 1400,
+    "triangles": 49712,
+    "geometries": 226,
+    "materials": 317,
+    "textures": 50,
+    "lights": 29,
+    "shadowCasters": 1161,
+    "transparent": 25,
+    "ticks": 732
+   },
+   "errors": []
+  },
+  {
+   "room": "basement",
+   "style": "high",
+   "readyMs": 1520,
+   "frames": 1323,
+   "fps": 330.75,
+   "frameMs": {
+    "p50": 2.1,
+    "p95": 9.7,
+    "p99": 12.4
+   },
+   "gpuMs": {
+    "p50": 2.11,
+    "p95": 6.14,
+    "n": 401
+   },
+   "cpuMs": {
+    "p50": 1.7,
+    "p95": 4.7
+   },
+   "drawsPerFrame": 581,
+   "trisPerFrame": 84408,
+   "programs": 39,
+   "liveTextures": 240,
+   "liveBuffers": 7881,
+   "livePrograms": 56,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 78.67,
+   "heapMB": 372.59,
+   "heapGrowthMB": 35.27,
+   "longTasks": 0,
+   "info": {
+    "geometries": 396,
+    "textures": 53,
+    "programs": 28
+   },
+   "scene": {
+    "objects": 1782,
+    "meshes": 1505,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 1510,
+    "triangles": 67270,
+    "geometries": 298,
+    "materials": 333,
+    "textures": 49,
+    "lights": 31,
+    "shadowCasters": 1272,
+    "transparent": 24,
+    "ticks": 732
+   },
+   "errors": []
+  },
+  {
+   "room": "basement",
+   "style": "ultra",
+   "readyMs": 1574,
+   "frames": 942,
+   "fps": 235.5,
+   "frameMs": {
+    "p50": 2.5,
     "p95": 11.6,
     "p99": 13.2
    },
    "gpuMs": {
-    "p50": 2.75,
-    "p95": 3.5,
-    "n": 371
+    "p50": 2.53,
+    "p95": 6.49,
+    "n": 410
    },
    "cpuMs": {
-    "p50": 2.1,
-    "p95": 2.7
+    "p50": 2,
+    "p95": 5.8
    },
-   "drawsPerFrame": 664,
-   "trisPerFrame": 117609,
-   "programs": 33,
-   "liveTextures": 243,
-   "liveBuffers": 8843,
-   "livePrograms": 42,
+   "drawsPerFrame": 982,
+   "trisPerFrame": 105568,
+   "programs": 39,
+   "liveTextures": 241,
+   "liveBuffers": 7867,
+   "livePrograms": 56,
    "texUploadsPerFrame": 0,
-   "gpuMB": 213.09,
-   "heapMB": 256.05,
-   "heapGrowthMB": 26.02,
+   "gpuMB": 248.93,
+   "heapMB": 378.37,
+   "heapGrowthMB": 42.79,
    "longTasks": 0,
    "info": {
-    "geometries": 677,
-    "textures": 56,
-    "programs": 14
+    "geometries": 393,
+    "textures": 54,
+    "programs": 28
    },
    "scene": {
-    "objects": 872,
-    "meshes": 592,
+    "objects": 1747,
+    "meshes": 1482,
     "instanced": 0,
     "instances": 0,
-    "drawables": 597,
-    "triangles": 73936,
-    "geometries": 410,
-    "materials": 334,
-    "textures": 56,
-    "lights": 11,
-    "shadowCasters": 501,
-    "transparent": 187,
-    "ticks": 742
+    "drawables": 1487,
+    "triangles": 67270,
+    "geometries": 286,
+    "materials": 332,
+    "textures": 49,
+    "lights": 31,
+    "shadowCasters": 1249,
+    "transparent": 24,
+    "ticks": 732
    },
    "errors": []
   },
   {
-   "room": "upstairs",
+   "room": "shop-furniture",
    "style": "hd",
-   "readyMs": 1824,
-   "frames": 2099,
-   "fps": 524.75,
+   "readyMs": 1593,
+   "frames": 1195,
+   "fps": 298.75,
    "frameMs": {
-    "p50": 1.7,
-    "p95": 2.7,
-    "p99": 7
+    "p50": 2.2,
+    "p95": 9.5,
+    "p99": 11.8
    },
    "gpuMs": {
-    "p50": 0.87,
-    "p95": 0.94,
-    "n": 353
+    "p50": 1.45,
+    "p95": 2.69,
+    "n": 641
    },
    "cpuMs": {
-    "p50": 1.5,
-    "p95": 2.3
+    "p50": 1.8,
+    "p95": 2.6
    },
-   "drawsPerFrame": 596,
-   "trisPerFrame": 100345,
-   "programs": 34,
-   "liveTextures": 205,
-   "liveBuffers": 7236,
-   "livePrograms": 44,
+   "drawsPerFrame": 624,
+   "trisPerFrame": 175763,
+   "programs": 46,
+   "liveTextures": 333,
+   "liveBuffers": 10234,
+   "livePrograms": 60,
    "texUploadsPerFrame": 0,
-   "gpuMB": 76.21,
-   "heapMB": 251.62,
-   "heapGrowthMB": 15.68,
+   "gpuMB": 102.45,
+   "heapMB": 380.16,
+   "heapGrowthMB": -15.68,
    "longTasks": 0,
    "info": {
-    "geometries": 223,
-    "textures": 17,
-    "programs": 16
+    "geometries": 1071,
+    "textures": 145,
+    "programs": 32
    },
    "scene": {
-    "objects": 372,
-    "meshes": 206,
+    "objects": 488,
+    "meshes": 335,
     "instanced": 0,
     "instances": 0,
-    "drawables": 211,
-    "triangles": 33628,
-    "geometries": 169,
-    "materials": 68,
-    "textures": 13,
-    "lights": 2,
-    "shadowCasters": 186,
-    "transparent": 16,
-    "ticks": 685
+    "drawables": 340,
+    "triangles": 86040,
+    "geometries": 306,
+    "materials": 214,
+    "textures": 152,
+    "lights": 26,
+    "shadowCasters": 164,
+    "transparent": 21,
+    "ticks": 717
    },
    "errors": []
   },
   {
-   "room": "upstairs",
+   "room": "shop-furniture",
    "style": "pixel",
-   "readyMs": 1459,
-   "frames": 2098,
-   "fps": 524.5,
+   "readyMs": 1673,
+   "frames": 2085,
+   "fps": 521.25,
    "frameMs": {
     "p50": 1.7,
-    "p95": 2.7,
-    "p99": 6.5
+    "p95": 4.4,
+    "p99": 6.9
    },
    "gpuMs": {
-    "p50": 0.75,
-    "p95": 0.79,
-    "n": 198
+    "p50": 0.53,
+    "p95": 1.28,
+    "n": 317
    },
    "cpuMs": {
     "p50": 1.5,
     "p95": 2.2
    },
-   "drawsPerFrame": 605,
-   "trisPerFrame": 100336,
-   "programs": 34,
-   "liveTextures": 205,
-   "liveBuffers": 7229,
-   "livePrograms": 44,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 57.38,
-   "heapMB": 262.61,
-   "heapGrowthMB": 26.35,
-   "longTasks": 0,
-   "info": {
-    "geometries": 221,
-    "textures": 17,
-    "programs": 16
-   },
-   "scene": {
-    "objects": 372,
-    "meshes": 209,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 214,
-    "triangles": 33628,
-    "geometries": 174,
-    "materials": 67,
-    "textures": 14,
-    "lights": 2,
-    "shadowCasters": 189,
-    "transparent": 16,
-    "ticks": 685
-   },
-   "errors": []
-  },
-  {
-   "room": "upstairs",
-   "style": "voxel0",
-   "readyMs": 1515,
-   "frames": 2766,
-   "fps": 691.5,
-   "frameMs": {
-    "p50": 1.3,
-    "p95": 2,
-    "p99": 5.8
-   },
-   "gpuMs": {
-    "p50": 0.26,
-    "p95": 1.63,
-    "n": 186
-   },
-   "cpuMs": {
-    "p50": 1.2,
-    "p95": 1.7
-   },
-   "drawsPerFrame": 403,
-   "trisPerFrame": 66230,
-   "programs": 33,
-   "liveTextures": 202,
-   "liveBuffers": 7214,
-   "livePrograms": 43,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 63.03,
-   "heapMB": 253.36,
-   "heapGrowthMB": 26.75,
-   "longTasks": 0,
-   "info": {
-    "geometries": 221,
-    "textures": 15,
-    "programs": 15
-   },
-   "scene": {
-    "objects": 372,
-    "meshes": 207,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 212,
-    "triangles": 33336,
-    "geometries": 173,
-    "materials": 67,
-    "textures": 13,
-    "lights": 3,
-    "shadowCasters": 187,
-    "transparent": 16,
-    "ticks": 685
-   },
-   "errors": []
-  },
-  {
-   "room": "upstairs",
-   "style": "voxel1",
-   "readyMs": 1470,
-   "frames": 2144,
-   "fps": 536,
-   "frameMs": {
-    "p50": 1.6,
-    "p95": 2.9,
-    "p99": 7.2
-   },
-   "gpuMs": {
-    "p50": 1.17,
-    "p95": 1.22,
-    "n": 185
-   },
-   "cpuMs": {
-    "p50": 1.4,
-    "p95": 2.5
-   },
-   "drawsPerFrame": 421,
-   "trisPerFrame": 66252,
-   "programs": 33,
-   "liveTextures": 202,
-   "liveBuffers": 7204,
-   "livePrograms": 43,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 69.14,
-   "heapMB": 262.62,
-   "heapGrowthMB": 36.28,
-   "longTasks": 0,
-   "info": {
-    "geometries": 219,
-    "textures": 15,
-    "programs": 15
-   },
-   "scene": {
-    "objects": 385,
-    "meshes": 216,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 221,
-    "triangles": 33336,
-    "geometries": 178,
-    "materials": 71,
-    "textures": 13,
-    "lights": 3,
-    "shadowCasters": 196,
-    "transparent": 16,
-    "ticks": 685
-   },
-   "errors": []
-  },
-  {
-   "room": "upstairs",
-   "style": "voxel2",
-   "readyMs": 1550,
-   "frames": 1649,
-   "fps": 412.25,
-   "frameMs": {
-    "p50": 1.9,
-    "p95": 7.3,
-    "p99": 10.8
-   },
-   "gpuMs": {
-    "p50": 1.12,
-    "p95": 3.4,
-    "n": 317
-   },
-   "cpuMs": {
-    "p50": 1.6,
-    "p95": 3.2
-   },
-   "drawsPerFrame": 413,
-   "trisPerFrame": 66343,
-   "programs": 35,
-   "liveTextures": 202,
-   "liveBuffers": 7217,
-   "livePrograms": 43,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 207.42,
-   "heapMB": 262.79,
-   "heapGrowthMB": 39.65,
-   "longTasks": 0,
-   "info": {
-    "geometries": 222,
-    "textures": 15,
-    "programs": 15
-   },
-   "scene": {
-    "objects": 378,
-    "meshes": 210,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 215,
-    "triangles": 33336,
-    "geometries": 173,
-    "materials": 67,
-    "textures": 13,
-    "lights": 3,
-    "shadowCasters": 190,
-    "transparent": 16,
-    "ticks": 685
-   },
-   "errors": []
-  },
-  {
-   "room": "basement",
-   "style": "hd",
-   "readyMs": 2627,
-   "frames": 1130,
-   "fps": 282.5,
-   "frameMs": {
-    "p50": 2.8,
-    "p95": 10.2,
-    "p99": 12.7
-   },
-   "gpuMs": {
-    "p50": 2.35,
-    "p95": 6.79,
-    "n": 373
-   },
-   "cpuMs": {
-    "p50": 2.5,
-    "p95": 3.2
-   },
-   "drawsPerFrame": 1024,
-   "trisPerFrame": 207449,
-   "programs": 37,
-   "liveTextures": 240,
-   "liveBuffers": 7872,
-   "livePrograms": 45,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 339.25,
-   "heapMB": 274.49,
-   "heapGrowthMB": 35.25,
-   "longTasks": 0,
-   "info": {
-    "geometries": 394,
-    "textures": 52,
-    "programs": 17
-   },
-   "scene": {
-    "objects": 629,
-    "meshes": 363,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 368,
-    "triangles": 69758,
-    "geometries": 246,
-    "materials": 143,
-    "textures": 50,
-    "lights": 29,
-    "shadowCasters": 297,
-    "transparent": 25,
-    "ticks": 732
-   },
-   "errors": []
-  },
-  {
-   "room": "basement",
-   "style": "pixel",
-   "readyMs": 1541,
-   "frames": 1257,
-   "fps": 314.25,
-   "frameMs": {
-    "p50": 2.7,
-    "p95": 8.2,
-    "p99": 9.4
-   },
-   "gpuMs": {
-    "p50": 1.78,
-    "p95": 3.56,
-    "n": 337
-   },
-   "cpuMs": {
-    "p50": 2.5,
-    "p95": 3.1
-   },
-   "drawsPerFrame": 1009,
-   "trisPerFrame": 207403,
-   "programs": 37,
-   "liveTextures": 240,
-   "liveBuffers": 7887,
-   "livePrograms": 45,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 255.05,
-   "heapMB": 240.69,
-   "heapGrowthMB": 1.17,
-   "longTasks": 0,
-   "info": {
-    "geometries": 397,
-    "textures": 52,
-    "programs": 17
-   },
-   "scene": {
-    "objects": 626,
-    "meshes": 359,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 364,
-    "triangles": 69758,
-    "geometries": 247,
-    "materials": 144,
-    "textures": 49,
-    "lights": 29,
-    "shadowCasters": 293,
-    "transparent": 25,
-    "ticks": 732
-   },
-   "errors": []
-  },
-  {
-   "room": "basement",
-   "style": "voxel0",
-   "readyMs": 1548,
-   "frames": 1368,
-   "fps": 342,
-   "frameMs": {
-    "p50": 2.3,
-    "p95": 9.4,
-    "p99": 11.2
-   },
-   "gpuMs": {
-    "p50": 2.47,
-    "p95": 6.84,
-    "n": 308
-   },
-   "cpuMs": {
-    "p50": 2,
-    "p95": 3.1
-   },
-   "drawsPerFrame": 678,
-   "trisPerFrame": 132889,
-   "programs": 36,
-   "liveTextures": 239,
-   "liveBuffers": 7859,
-   "livePrograms": 44,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 260.26,
-   "heapMB": 270.51,
-   "heapGrowthMB": 41.73,
-   "longTasks": 0,
-   "info": {
-    "geometries": 394,
-    "textures": 52,
-    "programs": 16
-   },
-   "scene": {
-    "objects": 631,
-    "meshes": 363,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 368,
-    "triangles": 67282,
-    "geometries": 246,
-    "materials": 143,
-    "textures": 49,
-    "lights": 30,
-    "shadowCasters": 297,
-    "transparent": 25,
-    "ticks": 732
-   },
-   "errors": []
-  },
-  {
-   "room": "basement",
-   "style": "voxel1",
-   "readyMs": 1593,
-   "frames": 1493,
-   "fps": 373.25,
-   "frameMs": {
-    "p50": 2.3,
-    "p95": 6.8,
-    "p99": 9.6
-   },
-   "gpuMs": {
-    "p50": 1.4,
-    "p95": 3.52,
-    "n": 308
-   },
-   "cpuMs": {
-    "p50": 2.1,
-    "p95": 2.6
-   },
-   "drawsPerFrame": 677,
-   "trisPerFrame": 132868,
-   "programs": 36,
-   "liveTextures": 239,
-   "liveBuffers": 7859,
-   "livePrograms": 44,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 266.41,
-   "heapMB": 262.86,
-   "heapGrowthMB": 33.61,
-   "longTasks": 0,
-   "info": {
-    "geometries": 394,
-    "textures": 52,
-    "programs": 16
-   },
-   "scene": {
-    "objects": 632,
-    "meshes": 364,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 369,
-    "triangles": 67294,
-    "geometries": 246,
-    "materials": 144,
-    "textures": 50,
-    "lights": 30,
-    "shadowCasters": 298,
-    "transparent": 25,
-    "ticks": 732
-   },
-   "errors": []
-  },
-  {
-   "room": "basement",
-   "style": "voxel2",
-   "readyMs": 1911,
-   "frames": 1173,
-   "fps": 293.25,
-   "frameMs": {
-    "p50": 2.7,
-    "p95": 9.6,
-    "p99": 11.4
-   },
-   "gpuMs": {
-    "p50": 1.88,
-    "p95": 4.71,
-    "n": 384
-   },
-   "cpuMs": {
-    "p50": 2.3,
-    "p95": 3.3
-   },
-   "drawsPerFrame": 670,
-   "trisPerFrame": 132919,
-   "programs": 36,
-   "liveTextures": 238,
-   "liveBuffers": 7864,
-   "livePrograms": 44,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 404.61,
-   "heapMB": 268.85,
-   "heapGrowthMB": 40.31,
-   "longTasks": 0,
-   "info": {
-    "geometries": 395,
-    "textures": 51,
-    "programs": 16
-   },
-   "scene": {
-    "objects": 628,
-    "meshes": 358,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 363,
-    "triangles": 67270,
-    "geometries": 245,
-    "materials": 143,
-    "textures": 49,
-    "lights": 30,
-    "shadowCasters": 292,
-    "transparent": 25,
-    "ticks": 732
-   },
-   "errors": []
-  },
-  {
-   "room": "shop-furniture",
-   "style": "hd",
-   "readyMs": 2729,
-   "frames": 1386,
-   "fps": 346.5,
-   "frameMs": {
-    "p50": 2.5,
-    "p95": 6.2,
-    "p99": 8.7
-   },
-   "gpuMs": {
-    "p50": 0.77,
-    "p95": 1.68,
-    "n": 635
-   },
-   "cpuMs": {
-    "p50": 2.3,
-    "p95": 3.2
-   },
-   "drawsPerFrame": 773,
-   "trisPerFrame": 236212,
+   "drawsPerFrame": 586,
+   "trisPerFrame": 175339,
    "programs": 38,
-   "liveTextures": 332,
-   "liveBuffers": 10223,
-   "livePrograms": 47,
+   "liveTextures": 333,
+   "liveBuffers": 10234,
+   "livePrograms": 60,
    "texUploadsPerFrame": 0,
-   "gpuMB": 98.07,
-   "heapMB": 260.88,
-   "heapGrowthMB": 10.59,
+   "gpuMB": 83.7,
+   "heapMB": 379.52,
+   "heapGrowthMB": 22.14,
    "longTasks": 0,
    "info": {
     "geometries": 1071,
-    "textures": 144,
-    "programs": 19
+    "textures": 145,
+    "programs": 32
    },
    "scene": {
-    "objects": 566,
-    "meshes": 385,
+    "objects": 488,
+    "meshes": 335,
     "instanced": 0,
     "instances": 0,
-    "drawables": 390,
-    "triangles": 85032,
-    "geometries": 342,
-    "materials": 248,
-    "textures": 172,
-    "lights": 25,
-    "shadowCasters": 205,
-    "transparent": 26,
-    "ticks": 717
-   },
-   "errors": []
-  },
-  {
-   "room": "shop-furniture",
-   "style": "pixel",
-   "readyMs": 1599,
-   "frames": 1398,
-   "fps": 349.5,
-   "frameMs": {
-    "p50": 2.6,
-    "p95": 5.9,
-    "p99": 8.2
-   },
-   "gpuMs": {
-    "p50": 0.72,
-    "p95": 1.57,
-    "n": 449
-   },
-   "cpuMs": {
-    "p50": 2.4,
-    "p95": 3
-   },
-   "drawsPerFrame": 770,
-   "trisPerFrame": 236180,
-   "programs": 38,
-   "liveTextures": 330,
-   "liveBuffers": 10213,
-   "livePrograms": 47,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 79.07,
-   "heapMB": 266.76,
-   "heapGrowthMB": 14.19,
-   "longTasks": 0,
-   "info": {
-    "geometries": 1069,
-    "textures": 142,
-    "programs": 19
-   },
-   "scene": {
-    "objects": 562,
-    "meshes": 386,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 391,
-    "triangles": 85044,
-    "geometries": 341,
-    "materials": 247,
-    "textures": 171,
-    "lights": 25,
-    "shadowCasters": 206,
-    "transparent": 26,
+    "drawables": 340,
+    "triangles": 86040,
+    "geometries": 306,
+    "materials": 214,
+    "textures": 152,
+    "lights": 26,
+    "shadowCasters": 164,
+    "transparent": 21,
     "ticks": 717
    },
    "errors": []
@@ -1176,423 +1812,741 @@
   {
    "room": "shop-furniture",
    "style": "voxel0",
-   "readyMs": 1621,
-   "frames": 1900,
-   "fps": 475,
+   "readyMs": 1620,
+   "frames": 1594,
+   "fps": 398.5,
+   "frameMs": {
+    "p50": 1.8,
+    "p95": 7.2,
+    "p99": 9.1
+   },
+   "gpuMs": {
+    "p50": 0.81,
+    "p95": 1.9,
+    "n": 715
+   },
+   "cpuMs": {
+    "p50": 1.3,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 371,
+   "trisPerFrame": 91317,
+   "programs": 44,
+   "liveTextures": 331,
+   "liveBuffers": 9938,
+   "livePrograms": 59,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 88.59,
+   "heapMB": 358.58,
+   "heapGrowthMB": 31.7,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1072,
+    "textures": 144,
+    "programs": 31
+   },
+   "scene": {
+    "objects": 490,
+    "meshes": 335,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 340,
+    "triangles": 78344,
+    "geometries": 306,
+    "materials": 214,
+    "textures": 152,
+    "lights": 27,
+    "shadowCasters": 164,
+    "transparent": 21,
+    "ticks": 717
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-furniture",
+   "style": "voxel1",
+   "readyMs": 1602,
+   "frames": 1919,
+   "fps": 479.75,
+   "frameMs": {
+    "p50": 1.7,
+    "p95": 3.9,
+    "p99": 7.7
+   },
+   "gpuMs": {
+    "p50": 0.89,
+    "p95": 1.63,
+    "n": 297
+   },
+   "cpuMs": {
+    "p50": 1.5,
+    "p95": 2.7
+   },
+   "drawsPerFrame": 355,
+   "trisPerFrame": 90947,
+   "programs": 38,
+   "liveTextures": 332,
+   "liveBuffers": 9958,
+   "livePrograms": 60,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 94.99,
+   "heapMB": 382.07,
+   "heapGrowthMB": 30.14,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1076,
+    "textures": 145,
+    "programs": 32
+   },
+   "scene": {
+    "objects": 490,
+    "meshes": 331,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 336,
+    "triangles": 78344,
+    "geometries": 302,
+    "materials": 215,
+    "textures": 152,
+    "lights": 27,
+    "shadowCasters": 160,
+    "transparent": 21,
+    "ticks": 717
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-furniture",
+   "style": "voxel2",
+   "readyMs": 1619,
+   "frames": 1624,
+   "fps": 406,
    "frameMs": {
     "p50": 1.9,
+    "p95": 8,
+    "p99": 9.4
+   },
+   "gpuMs": {
+    "p50": 1.29,
+    "p95": 2.14,
+    "n": 482
+   },
+   "cpuMs": {
+    "p50": 1.6,
+    "p95": 2.7
+   },
+   "drawsPerFrame": 340,
+   "trisPerFrame": 91061,
+   "programs": 38,
+   "liveTextures": 331,
+   "liveBuffers": 9976,
+   "livePrograms": 60,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 233.93,
+   "heapMB": 376.61,
+   "heapGrowthMB": 32.12,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1080,
+    "textures": 144,
+    "programs": 32
+   },
+   "scene": {
+    "objects": 481,
+    "meshes": 324,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 329,
+    "triangles": 78344,
+    "geometries": 301,
+    "materials": 213,
+    "textures": 152,
+    "lights": 27,
+    "shadowCasters": 153,
+    "transparent": 21,
+    "ticks": 717
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-furniture",
+   "style": "medium",
+   "readyMs": 1939,
+   "frames": 2423,
+   "fps": 605.75,
+   "frameMs": {
+    "p50": 1.3,
     "p95": 3,
-    "p99": 7.8
+    "p99": 5.6
+   },
+   "gpuMs": {
+    "p50": 0.3,
+    "p95": 0.76,
+    "n": 259
+   },
+   "cpuMs": {
+    "p50": 1.1,
+    "p95": 2.6
+   },
+   "drawsPerFrame": 254,
+   "trisPerFrame": 45664,
+   "programs": 34,
+   "liveTextures": 329,
+   "liveBuffers": 10872,
+   "livePrograms": 46,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 32.27,
+   "heapMB": 368.7,
+   "heapGrowthMB": -32.76,
+   "longTasks": 0,
+   "info": {
+    "geometries": 938,
+    "textures": 141,
+    "programs": 18
+   },
+   "scene": {
+    "objects": 491,
+    "meshes": 338,
+    "instanced": 1,
+    "instances": 7,
+    "drawables": 343,
+    "triangles": 49504,
+    "geometries": 312,
+    "materials": 220,
+    "textures": 153,
+    "lights": 25,
+    "shadowCasters": 166,
+    "transparent": 22,
+    "ticks": 717
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-furniture",
+   "style": "high",
+   "readyMs": 1672,
+   "frames": 1860,
+   "fps": 465,
+   "frameMs": {
+    "p50": 1.8,
+    "p95": 6.2,
+    "p99": 8.5
+   },
+   "gpuMs": {
+    "p50": 1.13,
+    "p95": 2.37,
+    "n": 328
+   },
+   "cpuMs": {
+    "p50": 1.5,
+    "p95": 2.7
+   },
+   "drawsPerFrame": 307,
+   "trisPerFrame": 80851,
+   "programs": 38,
+   "liveTextures": 331,
+   "liveBuffers": 9938,
+   "livePrograms": 60,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 95.62,
+   "heapMB": 378.56,
+   "heapGrowthMB": 28.24,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1072,
+    "textures": 144,
+    "programs": 32
+   },
+   "scene": {
+    "objects": 490,
+    "meshes": 335,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 340,
+    "triangles": 78344,
+    "geometries": 306,
+    "materials": 214,
+    "textures": 152,
+    "lights": 27,
+    "shadowCasters": 164,
+    "transparent": 21,
+    "ticks": 717
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-furniture",
+   "style": "ultra",
+   "readyMs": 1967,
+   "frames": 1231,
+   "fps": 307.75,
+   "frameMs": {
+    "p50": 2.5,
+    "p95": 9.5,
+    "p99": 11.1
+   },
+   "gpuMs": {
+    "p50": 1.69,
+    "p95": 2.74,
+    "n": 388
+   },
+   "cpuMs": {
+    "p50": 2.2,
+    "p95": 3.7
+   },
+   "drawsPerFrame": 342,
+   "trisPerFrame": 91053,
+   "programs": 38,
+   "liveTextures": 332,
+   "liveBuffers": 9972,
+   "livePrograms": 60,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 266.03,
+   "heapMB": 373.62,
+   "heapGrowthMB": 25.84,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1079,
+    "textures": 145,
+    "programs": 32
+   },
+   "scene": {
+    "objects": 480,
+    "meshes": 323,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 328,
+    "triangles": 78332,
+    "geometries": 301,
+    "materials": 212,
+    "textures": 152,
+    "lights": 27,
+    "shadowCasters": 152,
+    "transparent": 21,
+    "ticks": 717
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-clothes",
+   "style": "hd",
+   "readyMs": 2291,
+   "frames": 882,
+   "fps": 220.5,
+   "frameMs": {
+    "p50": 3.3,
+    "p95": 10.3,
+    "p99": 13.5
+   },
+   "gpuMs": {
+    "p50": 1.35,
+    "p95": 2.59,
+    "n": 698
+   },
+   "cpuMs": {
+    "p50": 2.6,
+    "p95": 3.5
+   },
+   "drawsPerFrame": 813,
+   "trisPerFrame": 386492,
+   "programs": 50,
+   "liveTextures": 339,
+   "liveBuffers": 12132,
+   "livePrograms": 64,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 118.61,
+   "heapMB": 412.34,
+   "heapGrowthMB": 5.06,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1425,
+    "textures": 151,
+    "programs": 36
+   },
+   "scene": {
+    "objects": 1003,
+    "meshes": 463,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 468,
+    "triangles": 170510,
+    "geometries": 357,
+    "materials": 297,
+    "textures": 145,
+    "lights": 13,
+    "shadowCasters": 224,
+    "transparent": 76,
+    "ticks": 750
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-clothes",
+   "style": "pixel",
+   "readyMs": 1893,
+   "frames": 1143,
+   "fps": 285.75,
+   "frameMs": {
+    "p50": 2.9,
+    "p95": 7.7,
+    "p99": 9.6
+   },
+   "gpuMs": {
+    "p50": 0.8,
+    "p95": 1.97,
+    "n": 605
+   },
+   "cpuMs": {
+    "p50": 2.7,
+    "p95": 3.7
+   },
+   "drawsPerFrame": 849,
+   "trisPerFrame": 385728,
+   "programs": 46,
+   "liveTextures": 339,
+   "liveBuffers": 12110,
+   "livePrograms": 64,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 99.56,
+   "heapMB": 411.55,
+   "heapGrowthMB": 49.42,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1420,
+    "textures": 151,
+    "programs": 36
+   },
+   "scene": {
+    "objects": 1029,
+    "meshes": 483,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 488,
+    "triangles": 170534,
+    "geometries": 371,
+    "materials": 303,
+    "textures": 145,
+    "lights": 13,
+    "shadowCasters": 243,
+    "transparent": 78,
+    "ticks": 750
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-clothes",
+   "style": "voxel0",
+   "readyMs": 1871,
+   "frames": 1069,
+   "fps": 267.25,
+   "frameMs": {
+    "p50": 2.6,
+    "p95": 9,
+    "p99": 11.9
+   },
+   "gpuMs": {
+    "p50": 1.08,
+    "p95": 1.99,
+    "n": 692
+   },
+   "cpuMs": {
+    "p50": 2.1,
+    "p95": 3.2
+   },
+   "drawsPerFrame": 578,
+   "trisPerFrame": 237145,
+   "programs": 49,
+   "liveTextures": 337,
+   "liveBuffers": 12087,
+   "livePrograms": 63,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 104.49,
+   "heapMB": 397.04,
+   "heapGrowthMB": 51.28,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1429,
+    "textures": 150,
+    "programs": 35
+   },
+   "scene": {
+    "objects": 1033,
+    "meshes": 490,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 495,
+    "triangles": 161498,
+    "geometries": 366,
+    "materials": 303,
+    "textures": 145,
+    "lights": 14,
+    "shadowCasters": 250,
+    "transparent": 76,
+    "ticks": 750
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-clothes",
+   "style": "voxel1",
+   "readyMs": 1835,
+   "frames": 1213,
+   "fps": 303.25,
+   "frameMs": {
+    "p50": 2.3,
+    "p95": 9.2,
+    "p99": 12.6
+   },
+   "gpuMs": {
+    "p50": 1.41,
+    "p95": 2.62,
+    "n": 456
+   },
+   "cpuMs": {
+    "p50": 2.1,
+    "p95": 3.3
+   },
+   "drawsPerFrame": 557,
+   "trisPerFrame": 234740,
+   "programs": 48,
+   "liveTextures": 338,
+   "liveBuffers": 12073,
+   "livePrograms": 64,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 110.82,
+   "heapMB": 388.57,
+   "heapGrowthMB": 19.82,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1426,
+    "textures": 151,
+    "programs": 36
+   },
+   "scene": {
+    "objects": 1056,
+    "meshes": 506,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 511,
+    "triangles": 161510,
+    "geometries": 379,
+    "materials": 306,
+    "textures": 145,
+    "lights": 14,
+    "shadowCasters": 265,
+    "transparent": 78,
+    "ticks": 750
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-clothes",
+   "style": "voxel2",
+   "readyMs": 1836,
+   "frames": 1080,
+   "fps": 270,
+   "frameMs": {
+    "p50": 2.5,
+    "p95": 10.3,
+    "p99": 14
+   },
+   "gpuMs": {
+    "p50": 1.58,
+    "p95": 3.21,
+    "n": 530
+   },
+   "cpuMs": {
+    "p50": 2.1,
+    "p95": 3.2
+   },
+   "drawsPerFrame": 500,
+   "trisPerFrame": 236984,
+   "programs": 49,
+   "liveTextures": 338,
+   "liveBuffers": 12089,
+   "livePrograms": 65,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 249.84,
+   "heapMB": 426.43,
+   "heapGrowthMB": 79.95,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1429,
+    "textures": 151,
+    "programs": 37
+   },
+   "scene": {
+    "objects": 1010,
+    "meshes": 468,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 473,
+    "triangles": 161510,
+    "geometries": 359,
+    "materials": 300,
+    "textures": 145,
+    "lights": 14,
+    "shadowCasters": 228,
+    "transparent": 76,
+    "ticks": 750
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-clothes",
+   "style": "medium",
+   "readyMs": 1754,
+   "frames": 1896,
+   "fps": 474,
+   "frameMs": {
+    "p50": 1.8,
+    "p95": 5.7,
+    "p99": 7.6
+   },
+   "gpuMs": {
+    "p50": 0.89,
+    "p95": 1.08,
+    "n": 360
+   },
+   "cpuMs": {
+    "p50": 1.6,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 402,
+   "trisPerFrame": 130821,
+   "programs": 40,
+   "liveTextures": 335,
+   "liveBuffers": 12707,
+   "livePrograms": 51,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 51.93,
+   "heapMB": 390.9,
+   "heapGrowthMB": -11.19,
+   "longTasks": 0,
+   "info": {
+    "geometries": 1374,
+    "textures": 147,
+    "programs": 23
+   },
+   "scene": {
+    "objects": 1054,
+    "meshes": 507,
+    "instanced": 1,
+    "instances": 34,
+    "drawables": 512,
+    "triangles": 155658,
+    "geometries": 380,
+    "materials": 307,
+    "textures": 146,
+    "lights": 12,
+    "shadowCasters": 264,
+    "transparent": 79,
+    "ticks": 750
+   },
+   "errors": []
+  },
+  {
+   "room": "shop-clothes",
+   "style": "high",
+   "readyMs": 1811,
+   "frames": 1542,
+   "fps": 385.5,
+   "frameMs": {
+    "p50": 2.1,
+    "p95": 7,
+    "p99": 9.3
    },
    "gpuMs": {
     "p50": 1,
     "p95": 1.88,
-    "n": 211
+    "n": 416
    },
    "cpuMs": {
-    "p50": 1.7,
-    "p95": 2.4
-   },
-   "drawsPerFrame": 499,
-   "trisPerFrame": 145140,
-   "programs": 35,
-   "liveTextures": 329,
-   "liveBuffers": 9922,
-   "livePrograms": 46,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 83.97,
-   "heapMB": 262.72,
-   "heapGrowthMB": 23.23,
-   "longTasks": 0,
-   "info": {
-    "geometries": 1071,
-    "textures": 142,
-    "programs": 18
-   },
-   "scene": {
-    "objects": 564,
-    "meshes": 386,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 391,
-    "triangles": 77364,
-    "geometries": 341,
-    "materials": 247,
-    "textures": 171,
-    "lights": 26,
-    "shadowCasters": 206,
-    "transparent": 26,
-    "ticks": 717
-   },
-   "errors": []
-  },
-  {
-   "room": "shop-furniture",
-   "style": "voxel1",
-   "readyMs": 1617,
-   "frames": 1767,
-   "fps": 441.75,
-   "frameMs": {
-    "p50": 2,
-    "p95": 3.5,
-    "p99": 8.6
-   },
-   "gpuMs": {
-    "p50": 1.02,
-    "p95": 2.44,
-    "n": 228
-   },
-   "cpuMs": {
-    "p50": 1.8,
-    "p95": 2.5
-   },
-   "drawsPerFrame": 484,
-   "trisPerFrame": 144773,
-   "programs": 37,
-   "liveTextures": 329,
-   "liveBuffers": 9953,
-   "livePrograms": 46,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 90.21,
-   "heapMB": 279.69,
-   "heapGrowthMB": 39.63,
-   "longTasks": 0,
-   "info": {
-    "geometries": 1078,
-    "textures": 142,
-    "programs": 18
-   },
-   "scene": {
-    "objects": 562,
-    "meshes": 381,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 386,
-    "triangles": 77364,
-    "geometries": 340,
-    "materials": 249,
-    "textures": 171,
-    "lights": 26,
-    "shadowCasters": 201,
-    "transparent": 26,
-    "ticks": 717
-   },
-   "errors": []
-  },
-  {
-   "room": "shop-furniture",
-   "style": "voxel2",
-   "readyMs": 1940,
-   "frames": 1157,
-   "fps": 289.25,
-   "frameMs": {
-    "p50": 2.4,
-    "p95": 12.4,
-    "p99": 13.7
-   },
-   "gpuMs": {
-    "p50": 2.8,
-    "p95": 5.16,
-    "n": 415
-   },
-   "cpuMs": {
-    "p50": 2,
-    "p95": 2.7
-   },
-   "drawsPerFrame": 506,
-   "trisPerFrame": 145313,
-   "programs": 37,
-   "liveTextures": 329,
-   "liveBuffers": 9898,
-   "livePrograms": 46,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 228.32,
-   "heapMB": 262.5,
-   "heapGrowthMB": 29.58,
-   "longTasks": 0,
-   "info": {
-    "geometries": 1065,
-    "textures": 142,
-    "programs": 18
-   },
-   "scene": {
-    "objects": 564,
-    "meshes": 384,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 389,
-    "triangles": 77340,
-    "geometries": 341,
-    "materials": 246,
-    "textures": 171,
-    "lights": 26,
-    "shadowCasters": 204,
-    "transparent": 26,
-    "ticks": 717
-   },
-   "errors": []
-  },
-  {
-   "room": "shop-clothes",
-   "style": "hd",
-   "readyMs": 2831,
-   "frames": 404,
-   "fps": 101,
-   "frameMs": {
-    "p50": 8.2,
-    "p95": 14.1,
-    "p99": 20.5
-   },
-   "gpuMs": {
-    "p50": 2.61,
-    "p95": 2.68,
-    "n": 402
-   },
-   "cpuMs": {
-    "p50": 6.7,
-    "p95": 7.8
-   },
-   "drawsPerFrame": 2351,
-   "trisPerFrame": 429376,
-   "programs": 48,
-   "liveTextures": 337,
-   "liveBuffers": 11616,
-   "livePrograms": 50,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 101.99,
-   "heapMB": 282.05,
-   "heapGrowthMB": 38.65,
-   "longTasks": 0,
-   "info": {
-    "geometries": 1330,
-    "textures": 149,
-    "programs": 22
-   },
-   "scene": {
-    "objects": 1889,
-    "meshes": 1027,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 1032,
-    "triangles": 169826,
-    "geometries": 805,
-    "materials": 382,
-    "textures": 148,
-    "lights": 12,
-    "shadowCasters": 767,
-    "transparent": 102,
-    "ticks": 750
-   },
-   "errors": []
-  },
-  {
-   "room": "shop-clothes",
-   "style": "pixel",
-   "readyMs": 1909,
-   "frames": 476,
-   "fps": 119,
-   "frameMs": {
-    "p50": 7,
-    "p95": 12.6,
-    "p99": 20.9
-   },
-   "gpuMs": {
     "p50": 1.9,
-    "p95": 1.96,
-    "n": 474
+    "p95": 2.9
    },
-   "cpuMs": {
-    "p50": 6.2,
-    "p95": 7.4
-   },
-   "drawsPerFrame": 2296,
-   "trisPerFrame": 429118,
-   "programs": 48,
-   "liveTextures": 337,
-   "liveBuffers": 11626,
-   "livePrograms": 50,
+   "drawsPerFrame": 424,
+   "trisPerFrame": 185541,
+   "programs": 45,
+   "liveTextures": 339,
+   "liveBuffers": 12069,
+   "livePrograms": 64,
    "texUploadsPerFrame": 0,
-   "gpuMB": 83.26,
-   "heapMB": 301.41,
-   "heapGrowthMB": 68.63,
+   "gpuMB": 111.46,
+   "heapMB": 406.2,
+   "heapGrowthMB": 44.57,
    "longTasks": 0,
    "info": {
-    "geometries": 1332,
-    "textures": 149,
-    "programs": 22
+    "geometries": 1425,
+    "textures": 152,
+    "programs": 36
    },
    "scene": {
-    "objects": 1875,
-    "meshes": 1011,
+    "objects": 1007,
+    "meshes": 468,
     "instanced": 0,
     "instances": 0,
-    "drawables": 1016,
-    "triangles": 169826,
-    "geometries": 806,
-    "materials": 382,
-    "textures": 150,
-    "lights": 12,
-    "shadowCasters": 752,
-    "transparent": 102,
+    "drawables": 473,
+    "triangles": 161498,
+    "geometries": 358,
+    "materials": 300,
+    "textures": 145,
+    "lights": 14,
+    "shadowCasters": 228,
+    "transparent": 78,
     "ticks": 750
    },
    "errors": []
   },
   {
    "room": "shop-clothes",
-   "style": "voxel0",
-   "readyMs": 2783,
-   "frames": 606,
-   "fps": 151.5,
+   "style": "ultra",
+   "readyMs": 1883,
+   "frames": 996,
+   "fps": 249,
    "frameMs": {
-    "p50": 5.4,
-    "p95": 11.3,
-    "p99": 17.2
+    "p50": 3,
+    "p95": 9.7,
+    "p99": 12.7
    },
    "gpuMs": {
-    "p50": 1.2,
-    "p95": 2.28,
-    "n": 603
+    "p50": 1.61,
+    "p95": 2.25,
+    "n": 476
    },
    "cpuMs": {
-    "p50": 4.8,
-    "p95": 5.6
+    "p50": 2.6,
+    "p95": 3.5
    },
-   "drawsPerFrame": 1606,
-   "trisPerFrame": 271348,
-   "programs": 47,
-   "liveTextures": 335,
-   "liveBuffers": 11571,
-   "livePrograms": 49,
+   "drawsPerFrame": 636,
+   "trisPerFrame": 233717,
+   "programs": 49,
+   "liveTextures": 338,
+   "liveBuffers": 12046,
+   "livePrograms": 65,
    "texUploadsPerFrame": 0,
-   "gpuMB": 88.01,
-   "heapMB": 300.72,
-   "heapGrowthMB": 69.2,
+   "gpuMB": 281.31,
+   "heapMB": 374.26,
+   "heapGrowthMB": 26.63,
    "longTasks": 0,
    "info": {
-    "geometries": 1334,
-    "textures": 148,
-    "programs": 21
+    "geometries": 1420,
+    "textures": 151,
+    "programs": 37
    },
    "scene": {
-    "objects": 1891,
-    "meshes": 1027,
+    "objects": 1118,
+    "meshes": 547,
     "instanced": 0,
     "instances": 0,
-    "drawables": 1032,
-    "triangles": 160802,
-    "geometries": 805,
-    "materials": 382,
-    "textures": 148,
-    "lights": 13,
-    "shadowCasters": 767,
-    "transparent": 102,
-    "ticks": 750
-   },
-   "errors": []
-  },
-  {
-   "room": "shop-clothes",
-   "style": "voxel1",
-   "readyMs": 1868,
-   "frames": 589,
-   "fps": 147.25,
-   "frameMs": {
-    "p50": 5.6,
-    "p95": 11.9,
-    "p99": 16
-   },
-   "gpuMs": {
-    "p50": 1.63,
-    "p95": 2.66,
-    "n": 585
-   },
-   "cpuMs": {
-    "p50": 4.9,
-    "p95": 5.9
-   },
-   "drawsPerFrame": 1628,
-   "trisPerFrame": 271496,
-   "programs": 47,
-   "liveTextures": 335,
-   "liveBuffers": 11555,
-   "livePrograms": 49,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 94.09,
-   "heapMB": 287.45,
-   "heapGrowthMB": 14.29,
-   "longTasks": 0,
-   "info": {
-    "geometries": 1330,
-    "textures": 148,
-    "programs": 21
-   },
-   "scene": {
-    "objects": 1893,
-    "meshes": 1032,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 1037,
-    "triangles": 160802,
-    "geometries": 809,
-    "materials": 381,
-    "textures": 149,
-    "lights": 13,
-    "shadowCasters": 773,
-    "transparent": 102,
-    "ticks": 750
-   },
-   "errors": []
-  },
-  {
-   "room": "shop-clothes",
-   "style": "voxel2",
-   "readyMs": 2096,
-   "frames": 388,
-   "fps": 97,
-   "frameMs": {
-    "p50": 6.3,
-    "p95": 16.6,
-    "p99": 20.8
-   },
-   "gpuMs": {
-    "p50": 4.56,
-    "p95": 4.6,
-    "n": 375
-   },
-   "cpuMs": {
-    "p50": 4.8,
-    "p95": 5.6
-   },
-   "drawsPerFrame": 1621,
-   "trisPerFrame": 271916,
-   "programs": 47,
-   "liveTextures": 335,
-   "liveBuffers": 11559,
-   "livePrograms": 49,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 232.35,
-   "heapMB": 277.41,
-   "heapGrowthMB": 46.44,
-   "longTasks": 0,
-   "info": {
-    "geometries": 1331,
-    "textures": 148,
-    "programs": 21
-   },
-   "scene": {
-    "objects": 1893,
-    "meshes": 1029,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 1034,
-    "triangles": 160826,
-    "geometries": 806,
-    "materials": 384,
-    "textures": 149,
-    "lights": 13,
-    "shadowCasters": 769,
-    "transparent": 102,
+    "drawables": 552,
+    "triangles": 160874,
+    "geometries": 410,
+    "materials": 320,
+    "textures": 145,
+    "lights": 14,
+    "shadowCasters": 306,
+    "transparent": 78,
     "ticks": 750
    },
    "errors": []
@@ -1600,52 +2554,52 @@
   {
    "room": "dungeon",
    "style": "hd",
-   "readyMs": 2329,
-   "frames": 1065,
-   "fps": 266.25,
+   "readyMs": 1633,
+   "frames": 1387,
+   "fps": 346.75,
    "frameMs": {
-    "p50": 3.2,
-    "p95": 8.5,
-    "p99": 11.1
+    "p50": 2.2,
+    "p95": 8.1,
+    "p99": 10.4
    },
    "gpuMs": {
-    "p50": 0.89,
-    "p95": 2.08,
-    "n": 691
+    "p50": 1.06,
+    "p95": 2.05,
+    "n": 465
    },
    "cpuMs": {
-    "p50": 2.9,
-    "p95": 3.5
+    "p50": 2,
+    "p95": 2.7
    },
-   "drawsPerFrame": 1345,
-   "trisPerFrame": 303522,
-   "programs": 38,
-   "liveTextures": 204,
-   "liveBuffers": 7973,
-   "livePrograms": 46,
+   "drawsPerFrame": 985,
+   "trisPerFrame": 241888,
+   "programs": 45,
+   "liveTextures": 205,
+   "liveBuffers": 8070,
+   "livePrograms": 56,
    "texUploadsPerFrame": 0,
-   "gpuMB": 85.04,
-   "heapMB": 272.22,
-   "heapGrowthMB": 28.16,
+   "gpuMB": 93.1,
+   "heapMB": 382.42,
+   "heapGrowthMB": 56.37,
    "longTasks": 0,
    "info": {
-    "geometries": 411,
-    "textures": 16,
-    "programs": 18
+    "geometries": 428,
+    "textures": 17,
+    "programs": 28
    },
    "scene": {
-    "objects": 796,
-    "meshes": 473,
+    "objects": 652,
+    "meshes": 371,
     "instanced": 0,
     "instances": 0,
-    "drawables": 478,
-    "triangles": 108138,
-    "geometries": 334,
-    "materials": 120,
-    "textures": 8,
-    "lights": 7,
-    "shadowCasters": 439,
-    "transparent": 22,
+    "drawables": 376,
+    "triangles": 108152,
+    "geometries": 258,
+    "materials": 106,
+    "textures": 9,
+    "lights": 8,
+    "shadowCasters": 338,
+    "transparent": 21,
     "ticks": 691
    },
    "errors": []
@@ -1653,105 +2607,105 @@
   {
    "room": "dungeon",
    "style": "pixel",
-   "readyMs": 1632,
-   "frames": 1138,
-   "fps": 284.5,
+   "readyMs": 1573,
+   "frames": 1770,
+   "fps": 442.5,
    "frameMs": {
-    "p50": 3.1,
+    "p50": 2,
+    "p95": 3.3,
+    "p99": 7.8
+   },
+   "gpuMs": {
+    "p50": 0.72,
+    "p95": 1.51,
+    "n": 307
+   },
+   "cpuMs": {
+    "p50": 1.9,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 975,
+   "trisPerFrame": 241257,
+   "programs": 39,
+   "liveTextures": 206,
+   "liveBuffers": 8100,
+   "livePrograms": 56,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 74.95,
+   "heapMB": 389.65,
+   "heapGrowthMB": 39.36,
+   "longTasks": 0,
+   "info": {
+    "geometries": 434,
+    "textures": 18,
+    "programs": 28
+   },
+   "scene": {
+    "objects": 639,
+    "meshes": 363,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 368,
+    "triangles": 108140,
+    "geometries": 251,
+    "materials": 105,
+    "textures": 9,
+    "lights": 8,
+    "shadowCasters": 330,
+    "transparent": 21,
+    "ticks": 691
+   },
+   "errors": []
+  },
+  {
+   "room": "dungeon",
+   "style": "voxel0",
+   "readyMs": 1566,
+   "frames": 1824,
+   "fps": 456,
+   "frameMs": {
+    "p50": 1.7,
     "p95": 6.7,
     "p99": 8.7
    },
    "gpuMs": {
-    "p50": 0.84,
-    "p95": 1.58,
-    "n": 333
-   },
-   "cpuMs": {
-    "p50": 2.9,
-    "p95": 3.5
-   },
-   "drawsPerFrame": 1360,
-   "trisPerFrame": 307037,
-   "programs": 38,
-   "liveTextures": 205,
-   "liveBuffers": 7978,
-   "livePrograms": 46,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 66.28,
-   "heapMB": 262.28,
-   "heapGrowthMB": 18.02,
-   "longTasks": 0,
-   "info": {
-    "geometries": 412,
-    "textures": 17,
-    "programs": 18
-   },
-   "scene": {
-    "objects": 798,
-    "meshes": 475,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 480,
-    "triangles": 108162,
-    "geometries": 335,
-    "materials": 122,
-    "textures": 9,
-    "lights": 7,
-    "shadowCasters": 441,
-    "transparent": 22,
-    "ticks": 691
-   },
-   "errors": []
-  },
-  {
-   "room": "dungeon",
-   "style": "voxel0",
-   "readyMs": 1583,
-   "frames": 1532,
-   "fps": 383,
-   "frameMs": {
-    "p50": 2.3,
-    "p95": 6.1,
-    "p99": 8.8
-   },
-   "gpuMs": {
     "p50": 0.83,
     "p95": 1.56,
-    "n": 293
+    "n": 473
    },
    "cpuMs": {
-    "p50": 2.1,
-    "p95": 2.7
+    "p50": 1.5,
+    "p95": 2.3
    },
-   "drawsPerFrame": 906,
-   "trisPerFrame": 207765,
-   "programs": 37,
-   "liveTextures": 202,
-   "liveBuffers": 7969,
-   "livePrograms": 45,
+   "drawsPerFrame": 650,
+   "trisPerFrame": 148012,
+   "programs": 44,
+   "liveTextures": 204,
+   "liveBuffers": 8091,
+   "livePrograms": 55,
    "texUploadsPerFrame": 0,
-   "gpuMB": 71.82,
-   "heapMB": 278,
-   "heapGrowthMB": 41.12,
+   "gpuMB": 80.49,
+   "heapMB": 387.95,
+   "heapGrowthMB": 42.08,
    "longTasks": 0,
    "info": {
-    "geometries": 412,
-    "textures": 15,
-    "programs": 17
+    "geometries": 434,
+    "textures": 17,
+    "programs": 27
    },
    "scene": {
-    "objects": 799,
-    "meshes": 474,
+    "objects": 656,
+    "meshes": 370,
     "instanced": 0,
     "instances": 0,
-    "drawables": 479,
-    "triangles": 107598,
-    "geometries": 335,
-    "materials": 121,
-    "textures": 8,
-    "lights": 8,
-    "shadowCasters": 440,
-    "transparent": 22,
+    "drawables": 375,
+    "triangles": 107588,
+    "geometries": 258,
+    "materials": 105,
+    "textures": 9,
+    "lights": 9,
+    "shadowCasters": 337,
+    "transparent": 21,
     "ticks": 691
    },
    "errors": []
@@ -1759,52 +2713,52 @@
   {
    "room": "dungeon",
    "style": "voxel1",
-   "readyMs": 1588,
-   "frames": 1467,
-   "fps": 366.75,
+   "readyMs": 1575,
+   "frames": 1712,
+   "fps": 428,
    "frameMs": {
-    "p50": 2.4,
-    "p95": 6.7,
-    "p99": 8.5
+    "p50": 1.9,
+    "p95": 6.4,
+    "p99": 9.3
    },
    "gpuMs": {
-    "p50": 1.05,
-    "p95": 1.8,
-    "n": 295
+    "p50": 1.16,
+    "p95": 2.04,
+    "n": 282
    },
    "cpuMs": {
-    "p50": 2.2,
+    "p50": 1.7,
     "p95": 2.7
    },
-   "drawsPerFrame": 908,
-   "trisPerFrame": 207631,
-   "programs": 37,
-   "liveTextures": 202,
-   "liveBuffers": 7969,
-   "livePrograms": 45,
+   "drawsPerFrame": 645,
+   "trisPerFrame": 146230,
+   "programs": 40,
+   "liveTextures": 206,
+   "liveBuffers": 8091,
+   "livePrograms": 56,
    "texUploadsPerFrame": 0,
-   "gpuMB": 77.97,
-   "heapMB": 291.72,
-   "heapGrowthMB": 57.19,
+   "gpuMB": 86.86,
+   "heapMB": 400.14,
+   "heapGrowthMB": 53.53,
    "longTasks": 0,
    "info": {
-    "geometries": 412,
-    "textures": 15,
-    "programs": 17
+    "geometries": 434,
+    "textures": 19,
+    "programs": 28
    },
    "scene": {
-    "objects": 801,
-    "meshes": 475,
+    "objects": 641,
+    "meshes": 363,
     "instanced": 0,
     "instances": 0,
-    "drawables": 480,
-    "triangles": 107600,
-    "geometries": 336,
-    "materials": 122,
-    "textures": 10,
-    "lights": 8,
-    "shadowCasters": 440,
-    "transparent": 22,
+    "drawables": 368,
+    "triangles": 107588,
+    "geometries": 251,
+    "materials": 105,
+    "textures": 9,
+    "lights": 9,
+    "shadowCasters": 330,
+    "transparent": 21,
     "ticks": 691
    },
    "errors": []
@@ -1812,52 +2766,211 @@
   {
    "room": "dungeon",
    "style": "voxel2",
-   "readyMs": 1619,
-   "frames": 1175,
-   "fps": 293.75,
+   "readyMs": 1574,
+   "frames": 1556,
+   "fps": 389,
    "frameMs": {
-    "p50": 2.8,
-    "p95": 9,
-    "p99": 11.2
+    "p50": 2,
+    "p95": 7.4,
+    "p99": 10.3
    },
    "gpuMs": {
-    "p50": 1.48,
-    "p95": 2.36,
-    "n": 347
+    "p50": 1.16,
+    "p95": 2.56,
+    "n": 360
    },
    "cpuMs": {
-    "p50": 2.5,
-    "p95": 3.1
+    "p50": 1.8,
+    "p95": 2.8
    },
-   "drawsPerFrame": 919,
-   "trisPerFrame": 209468,
-   "programs": 37,
-   "liveTextures": 203,
-   "liveBuffers": 7969,
-   "livePrograms": 45,
+   "drawsPerFrame": 653,
+   "trisPerFrame": 147421,
+   "programs": 40,
+   "liveTextures": 204,
+   "liveBuffers": 8086,
+   "livePrograms": 56,
    "texUploadsPerFrame": 0,
-   "gpuMB": 216.16,
-   "heapMB": 241.24,
-   "heapGrowthMB": 8.16,
+   "gpuMB": 225.51,
+   "heapMB": 388.5,
+   "heapGrowthMB": 44.4,
    "longTasks": 0,
    "info": {
-    "geometries": 412,
-    "textures": 16,
+    "geometries": 433,
+    "textures": 17,
+    "programs": 28
+   },
+   "scene": {
+    "objects": 655,
+    "meshes": 370,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 375,
+    "triangles": 107588,
+    "geometries": 258,
+    "materials": 105,
+    "textures": 9,
+    "lights": 9,
+    "shadowCasters": 337,
+    "transparent": 21,
+    "ticks": 691
+   },
+   "errors": []
+  },
+  {
+   "room": "dungeon",
+   "style": "medium",
+   "readyMs": 1518,
+   "frames": 2685,
+   "fps": 671.25,
+   "frameMs": {
+    "p50": 1.1,
+    "p95": 2.8,
+    "p99": 4.5
+   },
+   "gpuMs": {
+    "p50": 0.25,
+    "p95": 0.6,
+    "n": 200
+   },
+   "cpuMs": {
+    "p50": 0.9,
+    "p95": 2.6
+   },
+   "drawsPerFrame": 187,
+   "trisPerFrame": 80440,
+   "programs": 32,
+   "liveTextures": 203,
+   "liveBuffers": 8935,
+   "livePrograms": 45,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 27.84,
+   "heapMB": 364.56,
+   "heapGrowthMB": 22.25,
+   "longTasks": 0,
+   "info": {
+    "geometries": 449,
+    "textures": 15,
     "programs": 17
    },
    "scene": {
-    "objects": 800,
-    "meshes": 475,
+    "objects": 406,
+    "meshes": 194,
+    "instanced": 1,
+    "instances": 16,
+    "drawables": 199,
+    "triangles": 82054,
+    "geometries": 159,
+    "materials": 70,
+    "textures": 9,
+    "lights": 7,
+    "shadowCasters": 163,
+    "transparent": 22,
+    "ticks": 691
+   },
+   "errors": []
+  },
+  {
+   "room": "dungeon",
+   "style": "high",
+   "readyMs": 1583,
+   "frames": 1865,
+   "fps": 466.25,
+   "frameMs": {
+    "p50": 1.9,
+    "p95": 3.4,
+    "p99": 7.7
+   },
+   "gpuMs": {
+    "p50": 0.75,
+    "p95": 1.25,
+    "n": 262
+   },
+   "cpuMs": {
+    "p50": 1.7,
+    "p95": 2.8
+   },
+   "drawsPerFrame": 500,
+   "trisPerFrame": 124162,
+   "programs": 39,
+   "liveTextures": 205,
+   "liveBuffers": 8066,
+   "livePrograms": 56,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 87.11,
+   "heapMB": 397.35,
+   "heapGrowthMB": 48.08,
+   "longTasks": 0,
+   "info": {
+    "geometries": 429,
+    "textures": 18,
+    "programs": 28
+   },
+   "scene": {
+    "objects": 639,
+    "meshes": 363,
     "instanced": 0,
     "instances": 0,
-    "drawables": 480,
-    "triangles": 107610,
-    "geometries": 335,
-    "materials": 122,
-    "textures": 8,
-    "lights": 8,
-    "shadowCasters": 441,
-    "transparent": 22,
+    "drawables": 368,
+    "triangles": 107588,
+    "geometries": 251,
+    "materials": 105,
+    "textures": 9,
+    "lights": 9,
+    "shadowCasters": 330,
+    "transparent": 21,
+    "ticks": 691
+   },
+   "errors": []
+  },
+  {
+   "room": "dungeon",
+   "style": "ultra",
+   "readyMs": 1570,
+   "frames": 1364,
+   "fps": 341,
+   "frameMs": {
+    "p50": 2.3,
+    "p95": 8.7,
+    "p99": 11.8
+   },
+   "gpuMs": {
+    "p50": 1.58,
+    "p95": 2.77,
+    "n": 383
+   },
+   "cpuMs": {
+    "p50": 2,
+    "p95": 2.9
+   },
+   "drawsPerFrame": 653,
+   "trisPerFrame": 145591,
+   "programs": 39,
+   "liveTextures": 205,
+   "liveBuffers": 8061,
+   "livePrograms": 56,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 257.24,
+   "heapMB": 388.91,
+   "heapGrowthMB": 45.39,
+   "longTasks": 0,
+   "info": {
+    "geometries": 428,
+    "textures": 18,
+    "programs": 28
+   },
+   "scene": {
+    "objects": 653,
+    "meshes": 370,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 375,
+    "triangles": 107588,
+    "geometries": 258,
+    "materials": 105,
+    "textures": 9,
+    "lights": 9,
+    "shadowCasters": 337,
+    "transparent": 21,
     "ticks": 691
    },
    "errors": []
@@ -1865,51 +2978,51 @@
   {
    "room": "hq",
    "style": "hd",
-   "readyMs": 1526,
-   "frames": 2165,
-   "fps": 541.25,
+   "readyMs": 1534,
+   "frames": 2676,
+   "fps": 669,
    "frameMs": {
-    "p50": 1.7,
-    "p95": 2.5,
-    "p99": 6.7
+    "p50": 1.3,
+    "p95": 2.7,
+    "p99": 5.4
    },
    "gpuMs": {
-    "p50": 0.91,
-    "p95": 0.98,
-    "n": 165
+    "p50": 0.34,
+    "p95": 1.24,
+    "n": 170
    },
    "cpuMs": {
-    "p50": 1.5,
-    "p95": 2.3
+    "p50": 1.1,
+    "p95": 2.4
    },
-   "drawsPerFrame": 512,
-   "trisPerFrame": 122409,
-   "programs": 33,
-   "liveTextures": 215,
-   "liveBuffers": 7544,
-   "livePrograms": 43,
+   "drawsPerFrame": 338,
+   "trisPerFrame": 100896,
+   "programs": 34,
+   "liveTextures": 220,
+   "liveBuffers": 7620,
+   "livePrograms": 52,
    "texUploadsPerFrame": 0,
-   "gpuMB": 78.28,
-   "heapMB": 249.21,
-   "heapGrowthMB": 20.64,
+   "gpuMB": 86.31,
+   "heapMB": 360,
+   "heapGrowthMB": 20.66,
    "longTasks": 0,
    "info": {
-    "geometries": 318,
-    "textures": 27,
-    "programs": 15
+    "geometries": 334,
+    "textures": 32,
+    "programs": 24
    },
    "scene": {
-    "objects": 384,
-    "meshes": 224,
+    "objects": 278,
+    "meshes": 157,
     "instanced": 0,
     "instances": 0,
-    "drawables": 229,
+    "drawables": 162,
     "triangles": 45290,
-    "geometries": 178,
-    "materials": 70,
-    "textures": 25,
-    "lights": 2,
-    "shadowCasters": 193,
+    "geometries": 130,
+    "materials": 64,
+    "textures": 23,
+    "lights": 3,
+    "shadowCasters": 127,
     "transparent": 14,
     "ticks": 693
    },
@@ -1918,51 +3031,51 @@
   {
    "room": "hq",
    "style": "pixel",
-   "readyMs": 1501,
-   "frames": 2431,
-   "fps": 607.75,
+   "readyMs": 1486,
+   "frames": 2624,
+   "fps": 656,
    "frameMs": {
-    "p50": 1.5,
-    "p95": 2.2,
-    "p99": 6
+    "p50": 1.2,
+    "p95": 2.7,
+    "p99": 4.4
    },
    "gpuMs": {
-    "p50": 0.74,
-    "p95": 0.93,
-    "n": 165
+    "p50": 0.33,
+    "p95": 0.45,
+    "n": 122
    },
    "cpuMs": {
-    "p50": 1.4,
-    "p95": 1.8
+    "p50": 1.1,
+    "p95": 2.5
    },
-   "drawsPerFrame": 512,
-   "trisPerFrame": 122419,
-   "programs": 33,
-   "liveTextures": 215,
-   "liveBuffers": 7544,
-   "livePrograms": 43,
+   "drawsPerFrame": 325,
+   "trisPerFrame": 100890,
+   "programs": 32,
+   "liveTextures": 220,
+   "liveBuffers": 7639,
+   "livePrograms": 52,
    "texUploadsPerFrame": 0,
-   "gpuMB": 59.53,
-   "heapMB": 270.15,
-   "heapGrowthMB": 41.59,
+   "gpuMB": 67.76,
+   "heapMB": 376.51,
+   "heapGrowthMB": 36.93,
    "longTasks": 0,
    "info": {
-    "geometries": 318,
-    "textures": 27,
-    "programs": 15
+    "geometries": 338,
+    "textures": 32,
+    "programs": 24
    },
    "scene": {
-    "objects": 384,
-    "meshes": 224,
+    "objects": 279,
+    "meshes": 157,
     "instanced": 0,
     "instances": 0,
-    "drawables": 229,
+    "drawables": 162,
     "triangles": 45290,
-    "geometries": 178,
-    "materials": 70,
-    "textures": 25,
-    "lights": 2,
-    "shadowCasters": 193,
+    "geometries": 130,
+    "materials": 64,
+    "textures": 23,
+    "lights": 3,
+    "shadowCasters": 127,
     "transparent": 14,
     "ticks": 693
    },
@@ -1971,157 +3084,316 @@
   {
    "room": "hq",
    "style": "voxel0",
-   "readyMs": 1502,
-   "frames": 2491,
-   "fps": 622.75,
+   "readyMs": 1488,
+   "frames": 2638,
+   "fps": 659.5,
    "frameMs": {
-    "p50": 1.4,
+    "p50": 1.1,
     "p95": 2.7,
-    "p99": 4.8
+    "p99": 4.9
    },
    "gpuMs": {
-    "p50": 0.37,
-    "p95": 0.8,
-    "n": 117
+    "p50": 0.42,
+    "p95": 0.99,
+    "n": 179
+   },
+   "cpuMs": {
+    "p50": 0.9,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 229,
+   "trisPerFrame": 61426,
+   "programs": 32,
+   "liveTextures": 218,
+   "liveBuffers": 7619,
+   "livePrograms": 51,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 73.08,
+   "heapMB": 376.41,
+   "heapGrowthMB": 37.69,
+   "longTasks": 0,
+   "info": {
+    "geometries": 338,
+    "textures": 31,
+    "programs": 23
+   },
+   "scene": {
+    "objects": 281,
+    "meshes": 157,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 162,
+    "triangles": 43106,
+    "geometries": 130,
+    "materials": 64,
+    "textures": 23,
+    "lights": 4,
+    "shadowCasters": 127,
+    "transparent": 14,
+    "ticks": 693
+   },
+   "errors": []
+  },
+  {
+   "room": "hq",
+   "style": "voxel1",
+   "readyMs": 1457,
+   "frames": 2564,
+   "fps": 641,
+   "frameMs": {
+    "p50": 1.2,
+    "p95": 2.8,
+    "p99": 5.3
+   },
+   "gpuMs": {
+    "p50": 0.41,
+    "p95": 0.93,
+    "n": 263
+   },
+   "cpuMs": {
+    "p50": 1,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 205,
+   "trisPerFrame": 59957,
+   "programs": 34,
+   "liveTextures": 217,
+   "liveBuffers": 7633,
+   "livePrograms": 52,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 79.51,
+   "heapMB": 364.23,
+   "heapGrowthMB": 25.84,
+   "longTasks": 0,
+   "info": {
+    "geometries": 341,
+    "textures": 30,
+    "programs": 24
+   },
+   "scene": {
+    "objects": 302,
+    "meshes": 168,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 173,
+    "triangles": 43106,
+    "geometries": 135,
+    "materials": 61,
+    "textures": 23,
+    "lights": 4,
+    "shadowCasters": 138,
+    "transparent": 14,
+    "ticks": 693
+   },
+   "errors": []
+  },
+  {
+   "room": "hq",
+   "style": "voxel2",
+   "readyMs": 1523,
+   "frames": 2347,
+   "fps": 586.75,
+   "frameMs": {
+    "p50": 1.4,
+    "p95": 2.9,
+    "p99": 7.3
+   },
+   "gpuMs": {
+    "p50": 0.74,
+    "p95": 1.44,
+    "n": 297
+   },
+   "cpuMs": {
+    "p50": 1.2,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 224,
+   "trisPerFrame": 59975,
+   "programs": 34,
+   "liveTextures": 219,
+   "liveBuffers": 7600,
+   "livePrograms": 52,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 218.1,
+   "heapMB": 354.07,
+   "heapGrowthMB": 16.09,
+   "longTasks": 0,
+   "info": {
+    "geometries": 334,
+    "textures": 32,
+    "programs": 24
+   },
+   "scene": {
+    "objects": 280,
+    "meshes": 157,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 162,
+    "triangles": 43106,
+    "geometries": 130,
+    "materials": 64,
+    "textures": 23,
+    "lights": 4,
+    "shadowCasters": 127,
+    "transparent": 14,
+    "ticks": 693
+   },
+   "errors": []
+  },
+  {
+   "room": "hq",
+   "style": "medium",
+   "readyMs": 1409,
+   "frames": 2963,
+   "fps": 740.75,
+   "frameMs": {
+    "p50": 0.7,
+    "p95": 2.7,
+    "p99": 5.6
+   },
+   "gpuMs": {
+    "p50": 0.24,
+    "p95": 0.38,
+    "n": 8
+   },
+   "cpuMs": {
+    "p50": 0.6,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 107,
+   "trisPerFrame": 29508,
+   "programs": 32,
+   "liveTextures": 214,
+   "liveBuffers": 8441,
+   "livePrograms": 42,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 21.35,
+   "heapMB": 337.89,
+   "heapGrowthMB": 7.86,
+   "longTasks": 0,
+   "info": {
+    "geometries": 332,
+    "textures": 26,
+    "programs": 14
+   },
+   "scene": {
+    "objects": 215,
+    "meshes": 108,
+    "instanced": 1,
+    "instances": 7,
+    "drawables": 113,
+    "triangles": 32672,
+    "geometries": 99,
+    "materials": 54,
+    "textures": 24,
+    "lights": 2,
+    "shadowCasters": 77,
+    "transparent": 15,
+    "ticks": 693
+   },
+   "errors": []
+  },
+  {
+   "room": "hq",
+   "style": "high",
+   "readyMs": 1446,
+   "frames": 2585,
+   "fps": 646.25,
+   "frameMs": {
+    "p50": 1.1,
+    "p95": 2.9,
+    "p99": 6.9
+   },
+   "gpuMs": {
+    "p50": 1.13,
+    "p95": 1.99,
+    "n": 8
+   },
+   "cpuMs": {
+    "p50": 0.9,
+    "p95": 2.6
+   },
+   "drawsPerFrame": 168,
+   "trisPerFrame": 48428,
+   "programs": 34,
+   "liveTextures": 217,
+   "liveBuffers": 7633,
+   "livePrograms": 52,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 80.17,
+   "heapMB": 365.8,
+   "heapGrowthMB": 27.7,
+   "longTasks": 0,
+   "info": {
+    "geometries": 341,
+    "textures": 30,
+    "programs": 24
+   },
+   "scene": {
+    "objects": 271,
+    "meshes": 147,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 152,
+    "triangles": 43106,
+    "geometries": 126,
+    "materials": 60,
+    "textures": 23,
+    "lights": 4,
+    "shadowCasters": 117,
+    "transparent": 14,
+    "ticks": 693
+   },
+   "errors": []
+  },
+  {
+   "room": "hq",
+   "style": "ultra",
+   "readyMs": 1484,
+   "frames": 2230,
+   "fps": 557.5,
+   "frameMs": {
+    "p50": 1.6,
+    "p95": 3,
+    "p99": 7.8
+   },
+   "gpuMs": {
+    "p50": 1.02,
+    "p95": 1.72,
+    "n": 362
    },
    "cpuMs": {
     "p50": 1.3,
     "p95": 2.4
    },
-   "drawsPerFrame": 352,
-   "trisPerFrame": 79811,
-   "programs": 31,
-   "liveTextures": 213,
-   "liveBuffers": 7535,
-   "livePrograms": 42,
+   "drawsPerFrame": 204,
+   "trisPerFrame": 59992,
+   "programs": 36,
+   "liveTextures": 217,
+   "liveBuffers": 7614,
+   "livePrograms": 52,
    "texUploadsPerFrame": 0,
-   "gpuMB": 64.84,
-   "heapMB": 268.14,
-   "heapGrowthMB": 39.68,
+   "gpuMB": 250.29,
+   "heapMB": 361.28,
+   "heapGrowthMB": 23.72,
    "longTasks": 0,
    "info": {
-    "geometries": 320,
-    "textures": 26,
-    "programs": 14
+    "geometries": 337,
+    "textures": 30,
+    "programs": 24
    },
    "scene": {
-    "objects": 386,
-    "meshes": 226,
+    "objects": 270,
+    "meshes": 147,
     "instanced": 0,
     "instances": 0,
-    "drawables": 231,
+    "drawables": 152,
     "triangles": 43106,
-    "geometries": 182,
-    "materials": 69,
-    "textures": 24,
-    "lights": 3,
-    "shadowCasters": 195,
-    "transparent": 14,
-    "ticks": 693
-   },
-   "errors": []
-  },
-  {
-   "room": "hq",
-   "style": "voxel1",
-   "readyMs": 1518,
-   "frames": 2344,
-   "fps": 586,
-   "frameMs": {
-    "p50": 1.5,
-    "p95": 2.7,
-    "p99": 5.9
-   },
-   "gpuMs": {
-    "p50": 0.69,
-    "p95": 1.22,
-    "n": 155
-   },
-   "cpuMs": {
-    "p50": 1.3,
-    "p95": 2.3
-   },
-   "drawsPerFrame": 370,
-   "trisPerFrame": 80369,
-   "programs": 32,
-   "liveTextures": 214,
-   "liveBuffers": 7534,
-   "livePrograms": 42,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 71.01,
-   "heapMB": 262.89,
-   "heapGrowthMB": 34.26,
-   "longTasks": 0,
-   "info": {
-    "geometries": 320,
-    "textures": 27,
-    "programs": 14
-   },
-   "scene": {
-    "objects": 384,
-    "meshes": 220,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 225,
-    "triangles": 43106,
-    "geometries": 179,
-    "materials": 71,
-    "textures": 24,
-    "lights": 3,
-    "shadowCasters": 189,
-    "transparent": 14,
-    "ticks": 693
-   },
-   "errors": []
-  },
-  {
-   "room": "hq",
-   "style": "voxel2",
-   "readyMs": 1606,
-   "frames": 1919,
-   "fps": 479.75,
-   "frameMs": {
-    "p50": 1.8,
-    "p95": 3.3,
-    "p99": 8
-   },
-   "gpuMs": {
-    "p50": 1.16,
-    "p95": 1.72,
-    "n": 258
-   },
-   "cpuMs": {
-    "p50": 1.6,
-    "p95": 2.3
-   },
-   "drawsPerFrame": 360,
-   "trisPerFrame": 79310,
-   "programs": 33,
-   "liveTextures": 213,
-   "liveBuffers": 7524,
-   "livePrograms": 42,
-   "texUploadsPerFrame": 0,
-   "gpuMB": 209.19,
-   "heapMB": 260.42,
-   "heapGrowthMB": 32.55,
-   "longTasks": 0,
-   "info": {
-    "geometries": 318,
-    "textures": 26,
-    "programs": 14
-   },
-   "scene": {
-    "objects": 386,
-    "meshes": 224,
-    "instanced": 0,
-    "instances": 0,
-    "drawables": 229,
-    "triangles": 43106,
-    "geometries": 178,
-    "materials": 70,
-    "textures": 24,
-    "lights": 3,
-    "shadowCasters": 193,
+    "geometries": 126,
+    "materials": 60,
+    "textures": 23,
+    "lights": 4,
+    "shadowCasters": 117,
     "transparent": 14,
     "ticks": 693
    },
@@ -2130,52 +3402,52 @@
   {
    "room": "office",
    "style": "hd",
-   "readyMs": 1521,
-   "frames": 2636,
-   "fps": 659,
+   "readyMs": 1498,
+   "frames": 2518,
+   "fps": 629.5,
    "frameMs": {
-    "p50": 1.5,
-    "p95": 2,
-    "p99": 2.7
+    "p50": 1.3,
+    "p95": 2.7,
+    "p99": 4.9
    },
    "gpuMs": {
-    "p50": 0.53,
-    "p95": 1.12,
-    "n": 42
+    "p50": 0.51,
+    "p95": 1.05,
+    "n": 136
    },
    "cpuMs": {
-    "p50": 1.3,
-    "p95": 1.8
+    "p50": 1.1,
+    "p95": 2.5
    },
-   "drawsPerFrame": 492,
-   "trisPerFrame": 78721,
-   "programs": 23,
-   "liveTextures": 202,
-   "liveBuffers": 6854,
-   "livePrograms": 43,
+   "drawsPerFrame": 347,
+   "trisPerFrame": 69870,
+   "programs": 32,
+   "liveTextures": 204,
+   "liveBuffers": 6879,
+   "livePrograms": 51,
    "texUploadsPerFrame": 0,
-   "gpuMB": 75.74,
-   "heapMB": 265.3,
-   "heapGrowthMB": 35.89,
+   "gpuMB": 82.64,
+   "heapMB": 362.73,
+   "heapGrowthMB": 32.94,
    "longTasks": 0,
    "info": {
-    "geometries": 135,
-    "textures": 14,
-    "programs": 15
+    "geometries": 140,
+    "textures": 16,
+    "programs": 23
    },
    "scene": {
-    "objects": 275,
-    "meshes": 189,
+    "objects": 202,
+    "meshes": 124,
     "instanced": 0,
     "instances": 0,
-    "drawables": 194,
+    "drawables": 129,
     "triangles": 26730,
-    "geometries": 106,
-    "materials": 110,
+    "geometries": 102,
+    "materials": 43,
     "textures": 10,
-    "lights": 2,
-    "shadowCasters": 168,
-    "transparent": 73,
+    "lights": 3,
+    "shadowCasters": 103,
+    "transparent": 8,
     "ticks": 687
    },
    "errors": []
@@ -2183,52 +3455,52 @@
   {
    "room": "office",
    "style": "pixel",
-   "readyMs": 1524,
-   "frames": 2470,
-   "fps": 617.5,
+   "readyMs": 1423,
+   "frames": 2595,
+   "fps": 648.75,
    "frameMs": {
-    "p50": 1.5,
-    "p95": 2.4,
-    "p99": 4.4
+    "p50": 1.2,
+    "p95": 2.7,
+    "p99": 3.1
    },
    "gpuMs": {
-    "p50": 0.78,
-    "p95": 0.83,
-    "n": 94
+    "p50": 0.61,
+    "p95": 1.07,
+    "n": 67
    },
    "cpuMs": {
-    "p50": 1.3,
-    "p95": 2.2
+    "p50": 1.1,
+    "p95": 2.5
    },
-   "drawsPerFrame": 493,
-   "trisPerFrame": 78777,
+   "drawsPerFrame": 346,
+   "trisPerFrame": 69808,
    "programs": 31,
-   "liveTextures": 202,
-   "liveBuffers": 6854,
-   "livePrograms": 43,
+   "liveTextures": 203,
+   "liveBuffers": 6879,
+   "livePrograms": 51,
    "texUploadsPerFrame": 0,
-   "gpuMB": 56.98,
-   "heapMB": 246.25,
-   "heapGrowthMB": 18.83,
+   "gpuMB": 63.89,
+   "heapMB": 351.81,
+   "heapGrowthMB": 18.66,
    "longTasks": 0,
    "info": {
-    "geometries": 135,
-    "textures": 14,
-    "programs": 15
+    "geometries": 140,
+    "textures": 15,
+    "programs": 23
    },
    "scene": {
-    "objects": 275,
-    "meshes": 189,
+    "objects": 206,
+    "meshes": 127,
     "instanced": 0,
     "instances": 0,
-    "drawables": 194,
-    "triangles": 26730,
-    "geometries": 106,
-    "materials": 110,
+    "drawables": 132,
+    "triangles": 26862,
+    "geometries": 102,
+    "materials": 44,
     "textures": 10,
-    "lights": 2,
-    "shadowCasters": 168,
-    "transparent": 73,
+    "lights": 3,
+    "shadowCasters": 106,
+    "transparent": 8,
     "ticks": 687
    },
    "errors": []
@@ -2236,52 +3508,52 @@
   {
    "room": "office",
    "style": "voxel0",
-   "readyMs": 1540,
-   "frames": 3348,
-   "fps": 837,
+   "readyMs": 1440,
+   "frames": 2715,
+   "fps": 678.75,
    "frameMs": {
-    "p50": 1.2,
-    "p95": 1.7,
-    "p99": 2.2
+    "p50": 1,
+    "p95": 2.7,
+    "p99": 4.4
    },
    "gpuMs": {
-    "p50": 0.23,
-    "p95": 0.42,
-    "n": 81
+    "p50": 0.29,
+    "p95": 0.65,
+    "n": 189
    },
    "cpuMs": {
-    "p50": 1,
-    "p95": 1.4
+    "p50": 0.8,
+    "p95": 2.5
    },
-   "drawsPerFrame": 369,
-   "trisPerFrame": 50955,
-   "programs": 14,
-   "liveTextures": 200,
-   "liveBuffers": 6847,
-   "livePrograms": 42,
+   "drawsPerFrame": 224,
+   "trisPerFrame": 42964,
+   "programs": 31,
+   "liveTextures": 202,
+   "liveBuffers": 6872,
+   "livePrograms": 50,
    "texUploadsPerFrame": 0,
-   "gpuMB": 62.44,
-   "heapMB": 247.16,
-   "heapGrowthMB": 13.84,
+   "gpuMB": 69.34,
+   "heapMB": 360.37,
+   "heapGrowthMB": 30.77,
    "longTasks": 0,
    "info": {
-    "geometries": 135,
-    "textures": 13,
-    "programs": 14
+    "geometries": 140,
+    "textures": 15,
+    "programs": 22
    },
    "scene": {
-    "objects": 277,
-    "meshes": 189,
+    "objects": 208,
+    "meshes": 127,
     "instanced": 0,
     "instances": 0,
-    "drawables": 194,
-    "triangles": 25850,
-    "geometries": 106,
-    "materials": 110,
+    "drawables": 132,
+    "triangles": 25982,
+    "geometries": 102,
+    "materials": 44,
     "textures": 10,
-    "lights": 3,
-    "shadowCasters": 168,
-    "transparent": 73,
+    "lights": 4,
+    "shadowCasters": 106,
+    "transparent": 8,
     "ticks": 687
    },
    "errors": []
@@ -2289,52 +3561,52 @@
   {
    "room": "office",
    "style": "voxel1",
-   "readyMs": 1521,
-   "frames": 2612,
-   "fps": 653,
+   "readyMs": 1421,
+   "frames": 2533,
+   "fps": 633.25,
    "frameMs": {
-    "p50": 1.4,
-    "p95": 2.4,
-    "p99": 3.5
+    "p50": 1.3,
+    "p95": 2.8,
+    "p99": 5.1
    },
    "gpuMs": {
-    "p50": 0.41,
-    "p95": 1.29,
-    "n": 98
+    "p50": 0.53,
+    "p95": 1.02,
+    "n": 147
    },
    "cpuMs": {
-    "p50": 1.2,
-    "p95": 2.2
+    "p50": 1.1,
+    "p95": 2.5
    },
-   "drawsPerFrame": 369,
-   "trisPerFrame": 50955,
-   "programs": 29,
-   "liveTextures": 200,
-   "liveBuffers": 6847,
-   "livePrograms": 42,
+   "drawsPerFrame": 225,
+   "trisPerFrame": 42981,
+   "programs": 32,
+   "liveTextures": 203,
+   "liveBuffers": 6872,
+   "livePrograms": 51,
    "texUploadsPerFrame": 0,
-   "gpuMB": 68.59,
-   "heapMB": 247.05,
-   "heapGrowthMB": 17.81,
+   "gpuMB": 75.71,
+   "heapMB": 343.46,
+   "heapGrowthMB": 13.63,
    "longTasks": 0,
    "info": {
-    "geometries": 135,
-    "textures": 13,
-    "programs": 14
+    "geometries": 140,
+    "textures": 16,
+    "programs": 23
    },
    "scene": {
-    "objects": 277,
-    "meshes": 189,
+    "objects": 208,
+    "meshes": 127,
     "instanced": 0,
     "instances": 0,
-    "drawables": 194,
-    "triangles": 25850,
-    "geometries": 106,
-    "materials": 110,
+    "drawables": 132,
+    "triangles": 25982,
+    "geometries": 102,
+    "materials": 44,
     "textures": 10,
-    "lights": 3,
-    "shadowCasters": 168,
-    "transparent": 73,
+    "lights": 4,
+    "shadowCasters": 106,
+    "transparent": 8,
     "ticks": 687
    },
    "errors": []
@@ -2342,52 +3614,211 @@
   {
    "room": "office",
    "style": "voxel2",
-   "readyMs": 1561,
-   "frames": 2039,
-   "fps": 509.75,
+   "readyMs": 1502,
+   "frames": 2372,
+   "fps": 593,
    "frameMs": {
-    "p50": 1.8,
+    "p50": 1.4,
     "p95": 2.9,
-    "p99": 7.4
+    "p99": 6.7
    },
    "gpuMs": {
-    "p50": 1.05,
-    "p95": 1.63,
-    "n": 202
+    "p50": 0.69,
+    "p95": 1.68,
+    "n": 154
    },
    "cpuMs": {
-    "p50": 1.5,
-    "p95": 2.1
+    "p50": 1.2,
+    "p95": 2.4
    },
-   "drawsPerFrame": 371,
-   "trisPerFrame": 51050,
-   "programs": 32,
-   "liveTextures": 200,
-   "liveBuffers": 6847,
-   "livePrograms": 42,
+   "drawsPerFrame": 226,
+   "trisPerFrame": 43000,
+   "programs": 33,
+   "liveTextures": 203,
+   "liveBuffers": 6872,
+   "livePrograms": 51,
    "texUploadsPerFrame": 0,
-   "gpuMB": 206.78,
-   "heapMB": 265.79,
-   "heapGrowthMB": 40.75,
+   "gpuMB": 214.56,
+   "heapMB": 371.15,
+   "heapGrowthMB": 41.96,
    "longTasks": 0,
    "info": {
-    "geometries": 135,
-    "textures": 13,
-    "programs": 14
+    "geometries": 140,
+    "textures": 16,
+    "programs": 23
    },
    "scene": {
-    "objects": 277,
-    "meshes": 189,
+    "objects": 204,
+    "meshes": 124,
     "instanced": 0,
     "instances": 0,
-    "drawables": 194,
+    "drawables": 129,
     "triangles": 25850,
-    "geometries": 106,
-    "materials": 110,
+    "geometries": 102,
+    "materials": 43,
     "textures": 10,
-    "lights": 3,
-    "shadowCasters": 168,
-    "transparent": 73,
+    "lights": 4,
+    "shadowCasters": 103,
+    "transparent": 8,
+    "ticks": 687
+   },
+   "errors": []
+  },
+  {
+   "room": "office",
+   "style": "medium",
+   "readyMs": 1425,
+   "frames": 2964,
+   "fps": 741,
+   "frameMs": {
+    "p50": 0.9,
+    "p95": 2.7,
+    "p99": 4.5
+   },
+   "gpuMs": {
+    "p50": 0.15,
+    "p95": 0.55,
+    "n": 26
+   },
+   "cpuMs": {
+    "p50": 0.8,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 135,
+   "trisPerFrame": 24069,
+   "programs": 30,
+   "liveTextures": 199,
+   "liveBuffers": 7638,
+   "livePrograms": 43,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 19.06,
+   "heapMB": 343.33,
+   "heapGrowthMB": 20.15,
+   "longTasks": 0,
+   "info": {
+    "geometries": 141,
+    "textures": 11,
+    "programs": 15
+   },
+   "scene": {
+    "objects": 205,
+    "meshes": 128,
+    "instanced": 1,
+    "instances": 5,
+    "drawables": 133,
+    "triangles": 24046,
+    "geometries": 103,
+    "materials": 45,
+    "textures": 11,
+    "lights": 2,
+    "shadowCasters": 106,
+    "transparent": 9,
+    "ticks": 687
+   },
+   "errors": []
+  },
+  {
+   "room": "office",
+   "style": "high",
+   "readyMs": 1474,
+   "frames": 2731,
+   "fps": 682.75,
+   "frameMs": {
+    "p50": 1.1,
+    "p95": 2.7,
+    "p99": 3.9
+   },
+   "gpuMs": {
+    "p50": 0.29,
+    "p95": 0.82,
+    "n": 117
+   },
+   "cpuMs": {
+    "p50": 1,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 180,
+   "trisPerFrame": 34523,
+   "programs": 31,
+   "liveTextures": 202,
+   "liveBuffers": 6872,
+   "livePrograms": 51,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 76.37,
+   "heapMB": 362.45,
+   "heapGrowthMB": 32.18,
+   "longTasks": 0,
+   "info": {
+    "geometries": 140,
+    "textures": 15,
+    "programs": 23
+   },
+   "scene": {
+    "objects": 204,
+    "meshes": 124,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 129,
+    "triangles": 25850,
+    "geometries": 102,
+    "materials": 43,
+    "textures": 10,
+    "lights": 4,
+    "shadowCasters": 103,
+    "transparent": 8,
+    "ticks": 687
+   },
+   "errors": []
+  },
+  {
+   "room": "office",
+   "style": "ultra",
+   "readyMs": 1520,
+   "frames": 2202,
+   "fps": 550.5,
+   "frameMs": {
+    "p50": 1.5,
+    "p95": 3.1,
+    "p99": 8.3
+   },
+   "gpuMs": {
+    "p50": 1.02,
+    "p95": 1.93,
+    "n": 288
+   },
+   "cpuMs": {
+    "p50": 1.3,
+    "p95": 2.5
+   },
+   "drawsPerFrame": 226,
+   "trisPerFrame": 43011,
+   "programs": 33,
+   "liveTextures": 203,
+   "liveBuffers": 6872,
+   "livePrograms": 51,
+   "texUploadsPerFrame": 0,
+   "gpuMB": 246.69,
+   "heapMB": 361.95,
+   "heapGrowthMB": 33.16,
+   "longTasks": 0,
+   "info": {
+    "geometries": 140,
+    "textures": 16,
+    "programs": 23
+   },
+   "scene": {
+    "objects": 204,
+    "meshes": 124,
+    "instanced": 0,
+    "instances": 0,
+    "drawables": 129,
+    "triangles": 25850,
+    "geometries": 102,
+    "materials": 43,
+    "textures": 10,
+    "lights": 4,
+    "shadowCasters": 103,
+    "transparent": 8,
     "ticks": 687
    },
    "errors": []
