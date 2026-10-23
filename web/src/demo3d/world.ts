@@ -116,6 +116,8 @@ const skins = new Map<MapId, () => RoomSkin>();
 export function registerRoomSkin(id: MapId, build: () => RoomSkin): void {
   skins.set(id, build);
 }
+/** A fresh skin of room `id` (the real game builds a room every time it is entered), or null when it has none. */
+export const buildRoomSkin = (id: MapId): RoomSkin | null => skins.get(id)?.() ?? null;
 
 // MARK: Maps
 

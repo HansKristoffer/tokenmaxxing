@@ -58,6 +58,9 @@ export interface ShopRoom {
 
 const cache = new Map<ShopId, ShopRoom>();
 
+/** Drops the kept room, so the next `shopRoom` builds a fresh one (the real game frees a room when you leave it). */
+export const forgetShopRoom = (id: ShopId): void => void cache.delete(id);
+
 export function shopRoom(id: ShopId): ShopRoom {
   let s = cache.get(id);
   if (s) return s;

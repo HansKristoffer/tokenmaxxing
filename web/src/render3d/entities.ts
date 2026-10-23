@@ -6,7 +6,7 @@ import { cupsLeft, JUMP_MS, ownerOfOffice, TILE } from "@tokenmaxxing/core/world
 import * as THREE from "three";
 import { PET_H, PET_W } from "../art/pets.ts";
 import { Avatar as Avatar3D } from "../demo3d/avatar.ts";
-import { lookFrom2D, nameTag, tagLift, wornBy } from "../demo3d/gear3d.ts";
+import { type Look2D, lookFrom2D, nameTag, tagLift, wornBy } from "../demo3d/gear3d.ts";
 import { Model } from "../demo3d/kit.ts";
 import { type Pet3D, petFrom2D } from "../demo3d/pets3d.ts";
 import { BURST_MS } from "../game/emoji.ts";
@@ -18,6 +18,7 @@ import { approach, hopHeight, poseOf, turnToward, YAW } from "./motion.ts";
 import { Burst, type Overlay } from "./overlay.ts";
 import type { RoomView } from "./rooms.ts";
 
+const NONE: ReadonlySet<number> = new Set();
 /** Pets are drawn a little bigger than life so they read from the iso camera. */
 const PET_SCALE = 1.25;
 /** Tiles within which other players' pets show their names. */
@@ -52,7 +53,7 @@ interface Rig {
   burst: Burst | null;
 }
 
-const lookSig = (info: GameAvatar["info"]): string => `${JSON.stringify(info.look)}|${info.level >= LEGENDARY_LEVEL}|${info.id === COP_ID}`;
+const lookSig = (info: GameAvatar["info"], look: GameAvatar["info"]["look"] = info.look): string => `${JSON.stringify(look)}|${info.level >= LEGENDARY_LEVEL}|${info.id === COP_ID}`;
 
 /** Everyone in the room: their voxel bodies, pets and the labels over them, keyed by player id. */
 export class Entities {
@@ -61,11 +62,25 @@ export class Entities {
   private frame = 0;
   /** New meshes were added (a person, a pet): the renderer swaps them for blocks. */
   dirty = false;
+  /** A try-on: the look shown on the local player in place of their saved one (the shops' fitting room). */
+  private fitting: Look2D | null = null;
+  /** Bots whose bodies the room draws itself. */
+  private keepers: ReadonlySet<number> = new Set();
   private readonly v = new THREE.Vector3();
   private readonly ray = new THREE.Raycaster();
 
   constructor(private readonly overlay: Overlay) {
     this.group.name = "entities";
+  }
+
+  /** Shows `look` on the local player for now; null puts the saved one back. */
+  previewLook(look: Look2D | null): void {
+    this.fitting = look;
+  }
+
+  /** What `info` is drawn wearing: their look, or the try-on if it is the local player. */
+  private lookOf(info: GameAvatar["info"]): GameAvatar["info"]["look"] {
+    return this.fitting && info.id === world.selfId ? { ...info.look, ...this.fitting } : info.look;
   }
 
   get size(): number {
@@ -97,7 +112,7 @@ export class Entities {
   }
 
   private create(a: GameAvatar, view: RoomView): Rig {
-    const look = lookFrom2D(a.info.look, { level: a.info.level });
+    const look = lookFrom2D(this.lookOf(a.info), { level: a.info.level });
     if (a.info.id === COP_ID) look.job = "officer";
     const avatar = new Avatar3D(look, "voxel");
     this.dirty = true;
@@ -126,7 +141,7 @@ export class Entities {
     return {
       id: a.info.id,
       info: a.info,
-      sig: lookSig(a.info),
+      sig: lookSig(a.info, this.lookOf(a.info)),
       avatar,
       root,
       x,
@@ -171,6 +186,7 @@ export class Entities {
 
   /** Brings the 3D people up to date with `world` for the frame at `now` (ms), `dt` ms after the last. */
   update(now: number, dt: number, view: RoomView, camera: THREE.OrthographicCamera): void {
+    this.keepers = view.keepers ?? NONE;
     const frame = ++this.frame;
     const dtS = dt / 1000;
     const t = now / 1000;
@@ -180,7 +196,7 @@ export class Entities {
     prunePets();
     for (const a of list) {
       let r = this.rigs.get(a.info.id);
-      if (r && r.info !== a.info && r.sig !== lookSig(a.info)) {
+      if (r && r.sig !== lookSig(a.info, this.lookOf(a.info))) {
         this.remove(r);
         r = undefined;
       }
@@ -292,7 +308,7 @@ export class Entities {
     // Off screen: positions keep up, but nothing is posed or labelled.
     this.v.set(r.x, 1, r.z).project(camera);
     const near = Math.abs(this.v.x) < 1.35 && Math.abs(this.v.y) < 1.35;
-    r.root.visible = near;
+    r.root.visible = near && !this.keepers.has(r.id);
     const bubbleOn = a.bubble !== null && now < a.bubble.until;
     av.talking = bubbleOn;
     if (near) av.update(dtS, t);
@@ -312,7 +328,7 @@ export class Entities {
     t: number,
     near: boolean,
   ): void {
-    const look = a.info.look;
+    const look = this.lookOf(a.info);
     if (!look.pet || a.warp) {
       if (r.pet) {
         r.pet.root.removeFromParent();

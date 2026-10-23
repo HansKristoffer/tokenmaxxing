@@ -22,6 +22,7 @@ import { CameraRig } from "./rig.ts";
 import { buildRoom, type RoomCtx, type RoomView } from "./rooms.ts";
 import { SEE } from "./seethrough.ts";
 import "./room-generic.ts";
+import "./room-skin.ts";
 import "./room-town.ts";
 import { Signs } from "./signs.ts";
 import { lightPipeline, RoomStage } from "./stage3d.ts";
@@ -369,6 +370,13 @@ class Renderer3D implements Renderer {
   }
 
   readonly world = world;
+
+  /** Shows room `id` from its core map without moving anyone (screenshots and tests); the next snapshot undoes it. */
+  debugRoom(id: string): void {
+    world.room = id as never;
+    world.map = mapOf(id as never);
+    world.avatars.clear();
+  }
 
   /** Counts of what is on the GPU now (see `__r3d.gpu()` in the console). */
   gpu() {

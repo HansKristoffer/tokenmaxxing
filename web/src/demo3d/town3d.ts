@@ -5,6 +5,7 @@
  * `TownDoor`s so the portal system can walk you in (`inn`, `hq`, `arcade`, the raid's `dungeon` gate).
  * World units are tiles: tile (tx, ty) covers x from `tx - x0 + MARGIN`, z from `ty - y0 + MARGIN`.
  */
+import { SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
 import {
@@ -273,26 +274,13 @@ export function buildTown3d(companies: readonly Company[] = DEMO_COMPANIES): Tow
     set(bx * BLOCK_W + 5, by * BLOCK_H + 6, "A");
     for (const dy of [7, 8]) set(bx * BLOCK_W + 5, by * BLOCK_H + dy, ",");
   }
-  // The four shops take the next parks nearest the square: a 5x4 storefront with its door on the street side.
-  const shopSlots: { id: ShopId; bx: number; by: number }[] = [];
-  const spare = [...plain.parks]
-    .filter((p) => p !== park)
-    .sort((a, b) => Math.hypot(a[0] - 0.5, a[1] - 0.5) - Math.hypot(b[0] - 0.5, b[1] - 0.5));
-  SHOP_IDS.forEach((id, i) => {
-    const p = spare[i];
-    if (!p) return;
-    const [bx, by] = p;
-    shopSlots.push({ id, bx, by });
-    for (let dy = 1; dy <= 6; dy++)
-      for (let dx = 1; dx <= 9; dx++) {
-        const tx = bx * BLOCK_W + dx;
-        const ty = by * BLOCK_H + dy;
-        if ("T^\"".includes(plain.at(tx, ty))) set(tx, ty, ".");
-      }
-    for (let dy = 3; dy <= 6; dy++) for (let dx = 3; dx <= 7; dx++) set(bx * BLOCK_W + dx, by * BLOCK_H + dy, "H");
-    set(bx * BLOCK_W + 5, by * BLOCK_H + 6, SHOP_DOOR_CHAR[id]);
-    for (const dy of [7, 8]) set(bx * BLOCK_W + 5, by * BLOCK_H + dy, ",");
-  });
+  // The four shops stand where the game's town has them (`SHOP_BLOCKS`): the map already has each 5x4 front (`Ħ`)
+  // with its door tile and the path down to the road.
+  const shopSlots: { id: ShopId; bx: number; by: number }[] = SHOP_IDS.flatMap((id) =>
+    plain.contains(SHOP_BLOCKS[id][0] * BLOCK_W + 5, SHOP_BLOCKS[id][1] * BLOCK_H + 6)
+      ? [{ id, bx: SHOP_BLOCKS[id][0], by: SHOP_BLOCKS[id][1] }]
+      : [],
+  );
   const map = new TownMap(
     rows.map((r) => r.join("")),
     plain.x0,

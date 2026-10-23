@@ -5,6 +5,9 @@
  * `core/src/posters.ts` (POSTERS) and `core/src/desks.ts` (DESKS). Keep in step by hand.
  */
 
+import { SHOP_BLOCKS, townMap as coreTown } from "@tokenmaxxing/core/maps.ts";
+import { SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
+
 export const BLOCK_W = 10;
 export const BLOCK_H = 9;
 /** Each company house is 7×5 tiles, with its door in the middle of the bottom row. */
@@ -21,64 +24,9 @@ export const CORE_BLOCKS: [number, number][] = [
 /** Where you arrive in town: the middle of the square. */
 export const TOWN_SPAWN: [number, number] = [9, 5];
 
-const CORE = [
-  ",,,,,,,,,,,,,,,,,,,,",
-  ",..T....,,,....T....",
-  ",..L::::::::::::L...",
-  ",..:B::::FF::::B:...",
-  ",..::N:::FF:::o::...",
-  ",..::::::::::::::...",
-  ",..L::::::::G:::L...",
-  ",.......,,,.........",
-  ",.......,,,.........",
-  ",,,,,,,,,,,,,,,,,,,,",
-  ",.^....,....T.......",
-  ",..~~~~,..HHHHHHH...",
-  ",.~~~~~,..HHHHHHH...",
-  ",.~~~~~,..HHHHHHH...",
-  ",..~~~.,..HHHIHHH...",
-  ',.."...,.....,.K....',
-  ",..T...,,,,,,,......",
-  ',..........".....^..',
-];
 
-const LOT = [
-  ",,,,,,,,,,",
-  ",.........",
-  ",.HHHHHHH.",
-  ",.HHHHHHH.",
-  ",.HHHHHHH.",
-  ",.HHHHHHH.",
-  ",.HHHDHHH.",
-  ",....,....",
-  ",....,....",
-];
 const DOOR: [number, number] = [5, 6];
 
-const PARKS = [
-  [
-    ",,,,,,,,,,",
-    ",.........",
-    ',..T....".',
-    ",....^....",
-    ',.".....T.',
-    ",.........",
-    ',..T..."..',
-    ",.........",
-    ",.....^...",
-  ],
-  [
-    ",,,,,,,,,,",
-    ',...."....',
-    ",.T.....T.",
-    ",.........",
-    ',...".^...',
-    ",.........",
-    ",.T.....T.",
-    ',......"..',
-    ",.........",
-  ],
-];
 
 export const plotId = (bx: number, by: number): number => (by + 500) * 1000 + (bx + 500);
 export const plotBlock = (plot: number): [number, number] => [
@@ -98,7 +46,7 @@ export function doorOf(plot: number): [number, number] {
 
 /** Tile kinds the 3D town cares about: walkable ground, and portals (stepping in changes room). */
 const WALK = new Set([".", ",", ":", '"']);
-const PORTAL = new Set(["I", "D", "G", "S", "u", "x", "R", "A"]);
+const PORTAL = new Set(["I", "D", "G", "S", "u", "x", "R", "A", ...Object.values(SHOP_DOOR_CHAR)]);
 export const TILE_TEXT: Record<string, string> = {
   T: "A tree. It has seen a lot of deploys.",
   "~": "The water is calm. Someone dropped a USB stick in there.",
@@ -145,54 +93,24 @@ export class TownMap {
 
 const isCore = (bx: number, by: number) => CORE_BLOCKS.some(([cx, cy]) => cx === bx && cy === by);
 
-/** The town for these company plots: the core, a lot per company, small parks in the gaps, trees round it. */
+/**
+ * The town for these company plots: the game's own (`core/src/maps.ts`: the core, the four shop blocks, a lot per
+ * company, small parks in the gaps, trees round it), with the blocks that are parks listed for the arcade.
+ */
 export function townMap(plots: readonly number[]): TownMap {
-  const blocks = [...CORE_BLOCKS, ...plots.map(plotBlock)];
-  const minBx = Math.min(...blocks.map(([x]) => x));
-  const maxBx = Math.max(...blocks.map(([x]) => x));
-  const minBy = Math.min(...blocks.map(([, y]) => y));
-  const maxBy = Math.max(...blocks.map(([, y]) => y));
-  const x0 = minBx * BLOCK_W - 1;
-  const y0 = minBy * BLOCK_H - 1;
-  const width = (maxBx - minBx + 1) * BLOCK_W + 3;
-  const height = (maxBy - minBy + 1) * BLOCK_H + 3;
-  const grid = Array.from({ length: height }, () => Array<string>(width).fill("."));
-  const put = (x: number, y: number, ch: string) => {
-    grid[y - y0]![x - x0] = ch;
-  };
+  const m = coreTown(plots);
   const taken = new Set(plots);
+  const shops = new Set(SHOP_IDS.map((id) => plotId(...SHOP_BLOCKS[id])));
   const parks: [number, number][] = [];
-  for (let by = minBy; by <= maxBy; by++)
-    for (let bx = minBx; bx <= maxBx; bx++) {
-      const park = !isCore(bx, by) && !taken.has(plotId(bx, by));
-      if (park) parks.push([bx, by]);
-      const rows = isCore(bx, by)
-        ? CORE.slice(by * BLOCK_H, (by + 1) * BLOCK_H).map((r) => r.slice(bx * BLOCK_W, (bx + 1) * BLOCK_W))
-        : park
-          ? PARKS[Math.abs(bx * 7 + by * 13) % PARKS.length]!
-          : LOT;
-      rows.forEach((row, dy) => {
-        for (let dx = 0; dx < BLOCK_W; dx++) put(bx * BLOCK_W + dx, by * BLOCK_H + dy, row[dx]!);
-      });
+  for (let by = Math.floor(m.y0 / BLOCK_H); by * BLOCK_H < m.y0 + m.height; by++)
+    for (let bx = Math.floor(m.x0 / BLOCK_W); bx * BLOCK_W < m.x0 + m.width; bx++) {
+      const id = plotId(bx, by);
+      if (!m.contains(bx * BLOCK_W + 1, by * BLOCK_H + 1) || isCore(bx, by) || taken.has(id) || shops.has(id)) continue;
+      // The ring of trees and the closing road are not blocks.
+      if (bx * BLOCK_W + BLOCK_W > m.x0 + m.width - 2 || by * BLOCK_H + BLOCK_H > m.y0 + m.height - 2) continue;
+      parks.push([bx, by]);
     }
-  const right = (maxBx + 1) * BLOCK_W;
-  const bottom = (maxBy + 1) * BLOCK_H;
-  for (let y = minBy * BLOCK_H; y <= bottom; y++) put(right, y, ",");
-  for (let x = minBx * BLOCK_W; x <= right; x++) put(x, bottom, ",");
-  for (let x = x0; x < x0 + width; x++) {
-    put(x, y0, "T");
-    put(x, y0 + height - 1, "T");
-  }
-  for (let y = y0; y < y0 + height; y++) {
-    put(x0, y, "T");
-    put(x0 + width - 1, y, "T");
-  }
-  return new TownMap(
-    grid.map((r) => r.join("")),
-    x0,
-    y0,
-    parks,
-  );
+  return new TownMap(m.rows, m.x0, m.y0, parks);
 }
 
 // MARK: Companies and houses

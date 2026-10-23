@@ -47,6 +47,8 @@ export interface RoomView {
   tick(t: number, dt: number, toward: THREE.Vector3): void;
   /** Signs in the room, for the label layer. */
   signs(): Sign[];
+  /** Bots whose bodies the room draws itself (the barkeep, a shopkeeper): the people layer leaves those bodies out. */
+  readonly keepers?: ReadonlySet<number>;
   /** Lamps and windows at night. */
   night?(on: boolean): void;
   dispose(): void;
