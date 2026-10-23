@@ -49,6 +49,8 @@ export interface RoomView {
   signs(): Sign[];
   /** Bots whose bodies the room draws itself (the barkeep, a shopkeeper): the people layer leaves those bodies out. */
   readonly keepers?: ReadonlySet<number>;
+  /** Sets the room's own light (the basement's dim): once, when its stage is made. */
+  lights?(scene: THREE.Scene, hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight): void;
   /** Lamps and windows at night. */
   night?(on: boolean): void;
   dispose(): void;

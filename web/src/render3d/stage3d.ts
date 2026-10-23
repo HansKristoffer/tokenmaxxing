@@ -62,6 +62,7 @@ export class RoomStage {
     this.setReach(Math.max(b.maxX - b.minX, b.maxZ - b.minZ) * 0.75);
     this.place();
     scene.add(this.hemi, sun, sun.target, view.group);
+    view.lights?.(scene, this.hemi, sun);
     if (view.outdoors) {
       const ref = { name: "Town", scene, sun, hemi: this.hemi, target: this.target };
       this.fx = new Fx(

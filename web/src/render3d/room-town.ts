@@ -25,6 +25,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       if (d.kind === "inn") return [{ key: "inn", at: [d.at[0], 3.4, d.at[1]], kind: "inn" }];
       if (d.kind === "hq" && d.companyId !== undefined)
         return [{ key: `co:${d.companyId}`, at, kind: "company", companyId: d.companyId }];
+      if (d.kind === "shop") return [{ key: d.id, at: [d.at[0], 2.6, d.at[1] + 0.2], kind: "door", text: `🛍 ${d.label}` }];
       return [];
     });
   return {

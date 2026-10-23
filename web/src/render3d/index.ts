@@ -23,6 +23,7 @@ import { buildRoom, type RoomCtx, type RoomView } from "./rooms.ts";
 import { SEE } from "./seethrough.ts";
 import "./room-generic.ts";
 import "./room-skin.ts";
+import "./room-furnished.ts";
 import "./room-town.ts";
 import { Signs } from "./signs.ts";
 import { lightPipeline, RoomStage } from "./stage3d.ts";

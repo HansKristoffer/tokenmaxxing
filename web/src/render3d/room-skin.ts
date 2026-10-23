@@ -4,6 +4,8 @@ import { POSTERS } from "@tokenmaxxing/core/posters.ts";
 import type { GameMap, MapId } from "@tokenmaxxing/core/maps.ts";
 import { SHOP_IDS, SHOP_ROOM, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import * as THREE from "three";
+import { type BasementScene, dimBasement } from "../demo3d/basement3d.ts";
+import { TAVERN_ASSETS, type TavernRoom } from "../demo3d/tavern3d.ts";
 import { buildHq } from "../demo3d/hq3d.ts";
 import { beginTickScope, endTickScope } from "../demo3d/kit.ts";
 import { setPropsNight } from "../demo3d/props.ts";
@@ -11,6 +13,7 @@ import { loadSlices } from "../demo3d/registry.ts";
 import { forgetShopRoom, shopRoom } from "../demo3d/shops/index.ts";
 import { buildRoomSkin, type RoomSkin, WorldRoom } from "../demo3d/world.ts";
 import "../demo3d/world-rooms.ts";
+import { liveBasement, liveTavern } from "./live.ts";
 import { disposeObject } from "./dispose.ts";
 import { type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
 
@@ -26,16 +29,23 @@ const WALL_H = 2.6;
 
 /** What a room builder hands back besides the picture. */
 export interface SkinParts {
+  /** Once a frame: the real game's data on the room's boards (`live.ts`). */
+  live?: (t: number) => void;
+  /** The basement's dim light. */
+  dim?: boolean;
   /** The demo's own handles into the room (the Tavern's boards, the basement's screens...), by room. */
   extra: unknown;
   /** Bots whose bodies the room draws itself (the barkeep, the shopkeepers): ids. */
   keepers: ReadonlySet<number>;
 }
 
+/** Bent, the barkeep: the Tavern draws him behind the bar himself. */
+const BARKEEP_BOT = -4;
+
 const kindOf = (id: string): string => (id.includes(":") ? id.slice(0, id.indexOf(":")) : id);
 
 /** The room as a `RoomView`: the world room's group, its walls that lower, and the tick functions it registered. */
-function viewOf(
+export function viewOf(
   id: string,
   map: GameMap,
   room: WorldRoom,
@@ -55,6 +65,7 @@ function viewOf(
     room,
     parts,
     keepers: parts.keepers,
+    lights: parts.dim ? (scene, hemi, sun) => dimBasement(scene, hemi, sun) : undefined,
     outdoors: false,
     bounds: { minX: 0, maxX: W, minZ: 0, maxZ: D, height: WALL_H },
     view,
@@ -63,6 +74,7 @@ function viewOf(
     seatY: (_x, _y, kind) => SEAT_Y[kind] ?? 0.33,
     tick(t, _dt, toward) {
       for (const f of ticks) f(t);
+      parts.live?.(t);
       room.facing(toward);
     },
     signs: () => [],
@@ -86,7 +98,9 @@ function worldRoom(mapId: MapId, map: GameMap, skin: () => RoomSkin | null) {
 function buildSkinned(id: RoomId, ctx: RoomCtx): RoomView {
   const mapId = kindOf(id) as MapId;
   const built = worldRoom(mapId, ctx.map, () => buildRoomSkin(mapId));
-  return viewOf(id, ctx.map, built.value, built.ticks, { extra: built.value.skin?.extra ?? null, keepers: new Set() });
+  const extra = built.value.skin?.extra ?? null;
+  const live = mapId === "inn" ? liveTavern(extra as TavernRoom) : mapId === "basement" ? liveBasement(extra as BasementScene) : undefined;
+  return viewOf(id, ctx.map, built.value, built.ticks, { extra, keepers: mapId === "inn" ? new Set([BARKEEP_BOT]) : new Set(), live, dim: mapId === "basement" });
 }
 
 /** A shop: the interior the demo built for it, with the shopkeeper the room draws itself. */
@@ -126,6 +140,16 @@ function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {
   const built = withTicks(() => buildHq({ fleet: co?.deskFleet ?? 0, placed: placedIn(ctx.map) }));
   const hq = built.value;
   endTickScope(scope, hq.room.group);
+  // The stairs up to the common room, in the south wall (`u`).
+  const stairs = TAVERN_ASSETS.find((a) => a.id === "tile:u");
+  for (const [sx, sy] of ctx.map.find("u")) {
+    if (!stairs) break;
+    const [rx, rz] = hq.tile(sx, sy);
+    const m = stairs.build();
+    m.position.set(rx + 0.5, 0, rz - 0.5);
+    m.rotation.y = Math.PI;
+    hq.room.group.add(m);
+  }
   const skin: RoomSkin = { group: hq.room.group, offset: [1, 2], facing: (v) => hq.room.facing(v), extra: hq };
   const room = new WorldRoom("hq", ctx.map, skin);
   return viewOf(id, ctx.map, room, built.ticks, { extra: hq, keepers: new Set() });
@@ -134,5 +158,6 @@ function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {
 registerRoom("inn", buildSkinned);
 registerRoom("upstairs", buildSkinned);
 registerRoom("basement", buildSkinned);
+registerRoom("dungeon", buildSkinned);
 registerRoom("hq", buildHouse);
 for (const shop of SHOP_IDS) registerRoom(SHOP_ROOM[shop], buildShop);

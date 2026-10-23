@@ -15,23 +15,30 @@ import { world } from "./world.ts";
 const REFRESH_MS = 60_000;
 const board = { rows: [] as Regular[], last: null as number | null, at: 0, asking: false };
 
+/** This week's board, asked for again at most once a `REFRESH_MS` (both renderers call it each frame in the Tavern). */
+export function askRegulars(): void {
+  const now = Date.now();
+  if (board.asking || now - board.at <= REFRESH_MS) return;
+  board.asking = true;
+  board.at = now;
+  void town
+    .regulars()
+    .then((r) => {
+      board.rows = r.top;
+      board.last = r.last?.userId ?? null;
+    })
+    .catch(() => {})
+    .finally(() => {
+      board.asking = false;
+    });
+}
+
+/** The board as last asked: the week's top, and last week's winner (who wears the crown). */
+export const regularsBoard = (): { rows: readonly Regular[]; last: number | null } => ({ rows: board.rows, last: board.last });
+
 /** In the Tavern: this week's top five as 3-letter names on the two plaques by the hearth. */
 export function drawRegulars({ g, items }: Frame): void {
-  const now = Date.now();
-  if (!board.asking && now - board.at > REFRESH_MS) {
-    board.asking = true;
-    board.at = now;
-    void town
-      .regulars()
-      .then((r) => {
-        board.rows = r.top;
-        board.last = r.last?.userId ?? null;
-      })
-      .catch(() => {})
-      .finally(() => {
-        board.asking = false;
-      });
-  }
+  askRegulars();
   const plaques = [...world.map.find("P")].sort((a, b) => a[0] - b[0]);
   for (const [i, [x, y]] of plaques.entries()) {
     // Rank order, three rows on the left plaque and two on the right; an empty rank is a dash.
