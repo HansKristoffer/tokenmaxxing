@@ -14,16 +14,16 @@ const client = from("10.9.9.9");
 /** A new player with a few turns of usage, so there is something to spend. */
 /**
  * `company`: also starts a company (a house, a common room) and, with `perTurn` around 8M, enough usage for the
- * level the Office needs.
+ * level the Office needs. `agoMin`: the usage stopped that many minutes ago (past 10 it does not count as working).
  */
-export async function signUp(prefix = "qa", perTurn = 40_000, company = false) {
+export async function signUp(prefix = "qa", perTurn = 40_000, company = false, agoMin = 0) {
   const name = `${prefix}${Date.now().toString(36).slice(-4)}${n++}`;
   const u = await from(`10.7.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`)
     .town.getOrCreate(["main"])
     .signUp(name);
   const now = Date.now();
   const events = [];
-  for (let t = now - 60 * 60_000; t < now; t += 60_000)
+  for (let t = now - (60 + agoMin) * 60_000; t < now - agoMin * 60_000; t += 60_000)
     events.push({
       source: "claude_code",
       sessionId: `${name}-s`,

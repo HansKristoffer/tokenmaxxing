@@ -2435,9 +2435,8 @@ button.lb-item:hover {
 
 .fps-meter {
   position: absolute;
-  left: 50%;
-  top: 8px;
-  transform: translateX(-50%);
+  left: 52px;
+  top: 14px;
   padding: 2px 8px;
   font-size: 11px;
   pointer-events: none;
@@ -2495,6 +2494,7 @@ button.lb-item:hover {
 
   .fps-meter {
     top: 54px;
+    left: 8px;
     font-size: 10px;
   }
 
