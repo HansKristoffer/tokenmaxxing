@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { type BasementScene, dimBasement } from "../demo3d/basement3d.ts";
 import { buildHq } from "../demo3d/hq3d.ts";
 import { beginTickScope, endTickScope } from "../demo3d/kit.ts";
+import { beginLanScope, endLanScope } from "../demo3d/livescreen.ts";
 import { setPropsNight } from "../demo3d/props.ts";
 import { loadSlices } from "../demo3d/registry.ts";
 import { forgetShopRoom, type ShopRoom, shopRoom } from "../demo3d/shops/index.ts";
@@ -47,6 +48,8 @@ export interface SkinParts {
   extra: unknown;
   /** Bots whose bodies the room draws itself (the barkeep, the shopkeepers): ids. */
   keepers: ReadonlySet<number>;
+  /** Lets go of what the room listens to outside itself (the LAN party), when it is thrown away. */
+  free?: () => void;
 }
 
 /** Bent, the barkeep: the Tavern draws him behind the bar himself. */
@@ -94,6 +97,7 @@ export function viewOf(
     night: (on) => setPropsNight(on),
     dispose() {
       parts.end?.();
+      parts.free?.();
       group.removeFromParent();
       disposeObject(group);
     },
@@ -101,11 +105,13 @@ export function viewOf(
 }
 
 /** A world room from `skin` (or tile by tile when null), with the ticks its builders registered. */
-function worldRoom(mapId: MapId, map: GameMap, skin: () => RoomSkin | null) {
+export function worldRoom(mapId: MapId, map: GameMap, skin: () => RoomSkin | null) {
   const scope = beginTickScope();
+  beginLanScope();
   const built = withTicks(() => new WorldRoom(mapId, map, skin()));
+  const free = endLanScope();
   endTickScope(scope, built.value.group);
-  return built;
+  return { ...built, free };
 }
 
 /** Any room of the demo's with a skin of its own (`world-rooms.ts`), or drawn tile by tile when it has none. */
@@ -124,6 +130,7 @@ function buildSkinned(id: RoomId, ctx: RoomCtx): RoomView {
     lights: inn ? (_scene, hemi, sun) => inn.lights(hemi, sun) : undefined,
     onToss: inn ? () => inn.toss() : undefined,
     end: inn ? () => inn.dispose() : undefined,
+    free: built.free,
   });
 }
 
@@ -134,7 +141,7 @@ function buildShop(id: RoomId, ctx: RoomCtx): RoomView {
   const mapId = SHOP_ROOM[shop] as MapId;
   const built = worldRoom(mapId, ctx.map, () => buildRoomSkin(mapId));
   const botId = SHOPKEEPER_BOT[shop];
-  return viewOf(id, ctx.map, built.value, built.ticks, { extra: shopRoom(shop), shop: shopRoom(shop), keepers: new Set([botId]) }, SHOP_VIEW[shop] ?? 8.5);
+  return viewOf(id, ctx.map, built.value, built.ticks, { extra: shopRoom(shop), shop: shopRoom(shop), keepers: new Set([botId]), free: built.free }, SHOP_VIEW[shop] ?? 8.5);
 }
 
 /** The core bot behind each shop's counter. */

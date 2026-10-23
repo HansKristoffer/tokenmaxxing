@@ -12,11 +12,12 @@ import { type Pet3D, petFrom2D } from "../demo3d/pets3d.ts";
 import { BURST_MS } from "../game/emoji.ts";
 import { followPet, prunePets } from "../game/pets.ts";
 import { type Lap, racing } from "../game/race.ts";
-import { drawPos, type Avatar as GameAvatar, gameTag, stepping, WARP_MS, world } from "../game/world.ts";
+import { drawPos, type Avatar as GameAvatar, gamesOf, gameTag, stepping, WARP_MS, world } from "../game/world.ts";
 import { town } from "../net.ts";
 import { hud } from "../store.ts";
 import { CopGear } from "./cop3d.ts";
 import { disposeObject } from "./dispose.ts";
+import { STOOL_Y, seatPose } from "./gamefx.ts";
 import { approach, hopHeight, poseOf, turnToward, YAW } from "./motion.ts";
 import { Burst, type Overlay } from "./overlay.ts";
 import type { RoomView } from "./rooms.ts";
@@ -42,6 +43,8 @@ interface Rig {
   yaw: number;
   placed: boolean;
   walkUntil: number;
+  /** Where the game says they are this frame, in tiles (a race's lap, else the step between two tiles). */
+  at: { x: number; y: number };
   seen: number;
   bedroll: Model | null;
   halo: THREE.Mesh | null;
@@ -164,6 +167,7 @@ export class Entities {
       yaw: YAW[a.facing],
       placed: false,
       walkUntil: 0,
+      at: { x: a.x, y: a.y },
       seen: 0,
       bedroll: null,
       halo: null,
@@ -245,6 +249,7 @@ export class Entities {
     const lap = racing(info.id, now);
     r.lap = lap;
     const p = lap ?? drawPos(a, now);
+    r.at = p;
     const [tx, tz] = view.toWorld(p.x, p.y);
     const dx = tx - r.x;
     const dz = tz - r.z;
@@ -260,7 +265,11 @@ export class Entities {
     if (moving) r.walkUntil = now + WALK_HOLD_MS;
     const seatKind = lap ? undefined : world.map.kind(a.x, a.y).seat;
     const onSeat = !lap && (a.state === "sit" || a.state === "working");
-    const { pose, lying } = poseOf({ state: lap ? "idle" : a.state, dozing: info.dozing && !lap }, onSeat ? seatKind : undefined, now < r.walkUntil);
+    const placed = poseOf({ state: lap ? "idle" : a.state, dozing: info.dozing && !lap }, onSeat ? seatKind : undefined, now < r.walkUntil);
+    const { lying } = placed;
+    // At a game table they sit on a stool, at an arena desk they type.
+    const gamePose = a.state === "playing" ? seatPose(gamesOf(info.id)[0], lap !== null) : null;
+    const pose = gamePose ?? placed.pose;
     const av = r.avatar;
     // On the Tavern's stage while the jukebox plays: dance.
     const dancing = pose === "stand" && world.room === "inn" && world.map.at(a.x, a.y) === "e" && hud.get().jukebox !== null;
@@ -269,6 +278,7 @@ export class Entities {
     // Sitters and sleepers lie on their seat's height; everyone else on the floor.
     let y = 0;
     if (lying) y = seatKind === "bed" ? view.seatY(a.x, a.y, "bed") : 0.02;
+    else if (gamePose) y = STOOL_Y;
     else if (pose === "sit" || pose === "type") y = seatKind ? view.seatY(a.x, a.y, seatKind) : 0.04;
     y += hop;
     let yawTarget = YAW[lap?.facing ?? a.facing];
@@ -348,7 +358,6 @@ export class Entities {
     me: GameAvatar | undefined,
     view: RoomView,
     camera: THREE.OrthographicCamera,
-    now: number,
     dt: number,
     t: number,
     near: boolean,

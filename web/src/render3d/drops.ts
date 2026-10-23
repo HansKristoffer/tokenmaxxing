@@ -1,3 +1,4 @@
+import { lootById, RARITIES } from "@tokenmaxxing/core/loot.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import type { Drop } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
@@ -11,6 +12,8 @@ interface Shown {
   drop: Drop;
   root: THREE.Group;
   pet: Pet3D | null;
+  /** The pillar of light over raid loot, in its rarity's colour. */
+  beam: THREE.Mesh | null;
 }
 
 /**
@@ -50,8 +53,21 @@ export class Drops {
         }
         const [x, z] = view.toWorld(d.x, d.y);
         root.position.set(x, 0, z);
+        // Raid loot lies in a beam of its rarity's colour (common green, rare blue, epic violet, legendary gold).
+        let beam: THREE.Mesh | null = null;
+        const loot = lootById(d.item);
+        if (loot) {
+          const w = 0.07 + 0.03 * ["common", "rare", "epic", "legendary"].indexOf(loot.rarity);
+          beam = new THREE.Mesh(
+            new THREE.BoxGeometry(w * 2, 3, w * 2),
+            new THREE.MeshBasicMaterial({ color: RARITIES[loot.rarity].color, transparent: true, opacity: 0.35, depthWrite: false }),
+          );
+          beam.position.y = 1.5;
+          beam.userData.nopick = true;
+          root.add(beam);
+        }
         this.group.add(root);
-        this.shown.set(d.id, { drop: d, root, pet });
+        this.shown.set(d.id, { drop: d, root, pet, beam });
         this.dirty = true;
       }
       for (const [id, s] of this.shown)
@@ -64,6 +80,7 @@ export class Drops {
     for (const s of this.shown.values()) {
       s.root.position.y = s.pet ? 0 : 0.04 + Math.abs(Math.sin(t * 2 + s.drop.id)) * 0.05;
       s.pet?.update(t);
+      if (s.beam) (s.beam.material as THREE.MeshBasicMaterial).opacity = 0.3 + 0.12 * Math.sin(t * 3 + s.drop.id);
     }
   }
 

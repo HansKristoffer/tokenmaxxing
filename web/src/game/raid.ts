@@ -135,6 +135,13 @@ export function deskOf(userId: number): { x: number; y: number } | null {
   return seat ? { x: seat[0] * TILE + 8, y: seat[1] * TILE - TILE + 2 } : null;
 }
 
+/** Who is raiding right now, and the tile of the seat each has (`setRaiders`): the 3D dungeon seats the same people. */
+export const raidersNow = (): Raiders | null => dungeon.raiders;
+export function seatTile(userId: number): [number, number] | null {
+  const seat = SEATS[dungeon.seats.get(userId) ?? -1];
+  return seat ? [seat[0], seat[1]] : null;
+}
+
 export function setRaiders(r: Raiders | null): void {
   dungeon.raiders = r;
   if (!r) {

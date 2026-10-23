@@ -201,6 +201,8 @@ let detail: 0 | 1 = 1;
 export function setGeometryDetail(level: 0 | 1): void {
   detail = level;
 }
+/** The detail rooms are being built with (0 on Medium): the busy rooms thin their crowds by it. */
+export const geometryDetail = (): 0 | 1 => detail;
 
 /** A group with shortcuts for the shapes assets are made of. Positions are bottom-centres unless noted. */
 export class Model extends THREE.Group {

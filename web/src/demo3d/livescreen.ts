@@ -21,9 +21,29 @@ export function setLanParty(on: boolean): void {
   for (const f of lanListeners) f(on);
 }
 
-/** Calls `fn` whenever LAN-party mode flips. */
-export function onLanParty(fn: (on: boolean) => void): void {
+/** The listeners registered since `beginLanScope`, to be released when what they paint is thrown away. */
+let lanScope: (() => void)[] | null = null;
+
+/** Calls `fn` whenever LAN-party mode flips; returns the way to stop (a room that is built every visit must). */
+export function onLanParty(fn: (on: boolean) => void): () => void {
   lanListeners.add(fn);
+  const off = () => {
+    lanListeners.delete(fn);
+  };
+  lanScope?.push(off);
+  return off;
+}
+
+/** Collects the LAN-party listeners made until `endLanScope`, which returns one function that releases them all. */
+export function beginLanScope(): void {
+  lanScope = [];
+}
+export function endLanScope(): () => void {
+  const offs = lanScope ?? [];
+  lanScope = null;
+  return () => {
+    for (const off of offs) off();
+  };
 }
 
 /** Fridays and Saturdays from 18:00 in Aarhus (`core/src/tavern.ts` `isLanParty`). */
@@ -245,7 +265,7 @@ export function liveScreen<S>(
     p.repaint();
   };
   p.repaint();
-  onLanParty(() => p.repaint());
+  p.userData.onDispose = onLanParty(() => p.repaint());
   if (fps > 0) {
     let last = -1;
     ticks.push((t) => {

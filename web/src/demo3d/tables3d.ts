@@ -80,9 +80,17 @@ const TABLE_TOP: Record<TableGame, { top: string; rim: string }> = {
   tokenmaxxing: { top: C.woodLight, rim: C.wood },
 };
 
-/** A square table for `game`, footprint 2×2, with a stool on two sides and the watcher billboard. */
+/** A stool at the origin: the seat of someone at a table (`gameTable` with `stools` off leaves the seating to the caller). */
+export function seatStool(): Model {
+  const m = new Model();
+  m.cyl(0.03, 0.3, C.metalLight, [0, 0, 0], 0.03, 8);
+  m.cyl(0.2, 0.08, C.fabric, [0, 0.3, 0], 0.2, 16);
+  return m;
+}
+
+/** A square table for `game`, footprint 2×2, with a stool on two sides (unless `stools` is off) and the watcher billboard. */
 export const gameTable =
-  (game: TableGame) =>
+  (game: TableGame, stools = true) =>
   (): GameTable => {
     const m = new Model() as GameTable;
     const h = 0.62;
@@ -92,8 +100,10 @@ export const gameTable =
     m.box([0.98, 0.07, 0.98], rim, [0, h - 0.07, 0], 0.025);
     m.box([0.9, 0.02, 0.9], top, [0, h, 0], 0.008);
     topOf(m, game, h + 0.02);
-    stool(m, 0.78, C.fabric);
-    stool(m, -0.78, C.fabric);
+    if (stools) {
+      stool(m, 0.78, C.fabric);
+      stool(m, -0.78, C.fabric);
+    }
     // The billboard: a sign on a post by the table's corner.
     const sign = liveScreen<number>(
       0.7,

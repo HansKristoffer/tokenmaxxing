@@ -580,7 +580,7 @@ const BOARD_ROUNDS: BoardPairing[][] = [
 ];
 
 /** The basement laid out like the 2D map (`core/src/maps.ts`), 20×12 tiles, every prop placed. */
-export function buildBasement(): BasementScene {
+export function buildBasement(opts: { demoTables?: boolean } = {}): BasementScene {
   const room = new Room(20, 12, { floor: "#3b3454", wall: "#2a2744", stripe: "#35315a", bare: true });
   const at = (id: string, x: number, z: number, turn: Turn = 0) =>
     room.place(BASEMENT_ASSETS.find((a) => a.id === id)!, x, z, turn);
@@ -605,12 +605,12 @@ export function buildBasement(): BasementScene {
   at("tile:s", 3, 10, 2);
   at("tile:x", 9, 11);
   at("stairs:down", 18, 11);
-  // Game tables with seats and a watcher billboard, in the free middle.
-  const tables = [
-    room.place(BASEMENT_ASSETS.find((a) => a.id === "table:dice")!, 9, 6),
-  ];
-  (tables[0]!.model as unknown as { setWatchers: (n: number) => void }).setWatchers(4);
-  at("arena-desk", 14, 6);
+  // Game tables with seats and a watcher billboard, in the free middle (the demo's; the game plays its matches in town).
+  if (opts.demoTables !== false) {
+    const tables = [room.place(BASEMENT_ASSETS.find((a) => a.id === "table:dice")!, 9, 6)];
+    (tables[0]!.model as unknown as { setWatchers: (n: number) => void }).setWatchers(4);
+    at("arena-desk", 14, 6);
+  }
   const screen = screenP.model as BigScreen;
   const board = boardP.model as TournamentBoard;
   const terminals: [Terminal, Terminal] = [t1.model as Terminal, t2.model as Terminal];

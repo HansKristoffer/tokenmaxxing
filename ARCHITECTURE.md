@@ -796,8 +796,8 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
   calls rather than three thousand; trees and roofs between the camera and you are dithered away round you
   (`seethrough.ts`). `dispose.ts` frees a room's geometries, materials and textures (kit-shared ones are marked
   `userData.shared` and left alone). `window.__r3d` has `gpu()`, `stats` and `cycle(n)`; opening the game with
-  `?r3dcheck` builds and frees every room four times and logs whether `renderer.info` moved. Not drawn in 3D yet: the
-  game tables and arenas, the raid and dungeon (the dungeon uses the demo's tile-by-tile room).
+  `?r3dcheck` builds and frees every room four times and logs whether `renderer.info` moved. The game tables, the raid
+  gate and the dungeon are live too (see their notes below).
   **World events** are drawn from the same state the 2D game reads, never simulated: a room's `RoomView.frame(f)` runs
   once a frame after the people (`LiveFrame`: clock, camera, overlay, where you stand, reduce motion, the tier's particle
   density) and `RoomView.extras` is a group added to the scene beside the room, outside its batching. The town's
@@ -822,6 +822,21 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
   are where the game has them). A room's `keepers` are bots whose bodies it draws itself (Bent, the four shopkeepers:
   `entities.ts` leaves theirs out). `live.ts` puts the game's data on the boards: the bar tab, plaques, easel and jukebox
   (`game/regulars.ts askRegulars`), the basement's livestream screen, tournament board and terminals.
+  **The raid and the games** (`room-dungeon.ts`, `dungeon-live.ts`, `gate3d.ts`, `games3d.ts`; the rules are pure and tested in
+  `raidfx.ts` and `gamefx.ts`): the dungeon is the demo's stone room built from the core map, plus a `DungeonLive` layer driven by
+  `hud.raid` and the raiders the server sends (`game/raid.ts` seats them: `seatTile`): the boss on its dais (`BossActor`: HP plate,
+  taunts, a hit flashes it and floats `-N` off it, the fall with its trophy, the next rung dropping in after, the dim of a week
+  that is over, a silhouette in the dark before the first raid), each raider at a war desk with the laptop open (one instanced lid
+  and screen for all) and their robot minions (`minions.ts`: the voxel robot merged once into two poses and instanced), missiles
+  from every laptop at its burn rate (`fireRate`) and sparks (`swarm.ts`: instanced boxes), loot beams flying to their winners'
+  desks (`onLoot` in `game/loot.ts`), the HP terminal and the week's kill plaques on the wall. Medium draws `CAPS.lean`: fewer
+  people (the rest are two instanced blocks of torso and head), minions and shots. In town `gate3d.ts` puts boards, tape and a
+  danger sign on the gate before the first raid (they burst off at the launch), a portcullis while the week is shut, and the
+  gate's sign (click: the raid panel). `GamesLayer` builds a table with stools (or arena desks and a live scoreboard) wherever
+  `world.games` has a game and frees it when it ends; players sit or type there (`seatPose` in `entities.ts`), a sprint race's
+  racers run their laps (`game/race.ts racing`), and the banner, the table's callouts, the watchers' count and the open
+  tables' "Join" are DOM labels (`RoomView.liveSigns`). Anything that moves in a room is `userData.live` and its group
+  `userData.nobatch`, which `batch.ts` honours up the tree.
   Shops: `installShops(world)` mounts the buy panel; the renderer is its `ShopWorld` (a try-on is `Entities.previewLook`,
   a shelf is picked by the pointer or E on its tile via `viewHooks.shop`, a bought piece for the Office is placed with
   `placer.ts`: a ghost follows the pointer, a click walks you up to the tile, faces it and drops it with the Bag's
@@ -869,6 +884,8 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   what is still unbatched.
 - `web/test/perf-budget.test.ts` builds every room headlessly, batches it and fails above `render3d/perf/budgets.ts`
   (draw calls, triangles, materials per room). Raise a budget only with a reason in the commit.
+  The budgets count the static room alone; `web/test/dungeon-live.test.ts` budgets the dungeon's live layer on top (about 590 draw calls
+  with all 40 war desks taken on High, a quarter of that on Medium) and `games3d.test.ts` that a game's props come and go.
 
 ## One clock
 

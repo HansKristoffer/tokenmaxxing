@@ -174,6 +174,13 @@ export class BossActor {
   private nextAttack = 5;
   private taunt = { text: "", at: -100 };
   private nextTaunt = 3;
+  /** The real raid's words for the plate (a rung's name with its numeral, the week-over line), taunts and quiet. */
+  private info: { name: string; emoji: string } | null = null;
+  private banner: string | null = null;
+  private taunts: readonly string[] | null = null;
+  private quiet = false;
+  private bar = true;
+  private veil: THREE.Mesh | null = null;
   hp = 1;
   maxHp = 1;
   rung = 1;
@@ -230,6 +237,50 @@ export class BossActor {
     return this.now - this.fellAt < 1e5 && this.fellAt > 0;
   }
 
+  /**
+   * The real raid's state, for the plate: its name and rung, HP, the line that replaces the title when the week is
+   * over, and its own taunts. Nothing floats and nothing flashes; `flinch` is a hit.
+   */
+  setInfo(o: { name: string; emoji: string; rung: number; hp: number; maxHp: number; banner?: string | null; taunts?: readonly string[]; bar?: boolean }): void {
+    const same =
+      this.info?.name === o.name && this.info.emoji === o.emoji && this.rung === o.rung && this.hp === o.hp && this.maxHp === o.maxHp && this.banner === (o.banner ?? null) && this.bar === (o.bar ?? true);
+    this.info = { name: o.name, emoji: o.emoji };
+    this.rung = o.rung;
+    this.hp = o.hp;
+    this.maxHp = o.maxHp;
+    this.banner = o.banner ?? null;
+    this.bar = o.bar ?? true;
+    this.taunts = o.taunts ?? null;
+    if (!same) this.draw();
+  }
+
+  /** Week over, or nobody fighting: no taunts, and a dark veil over the boss. */
+  setQuiet(on: boolean): void {
+    if (on === this.quiet) return;
+    this.quiet = on;
+    if (on && !this.veil) {
+      this.veil = new THREE.Mesh(
+        new THREE.SphereGeometry(0.9, 14, 10),
+        new THREE.MeshBasicMaterial({ color: "#0b0912", transparent: true, opacity: 0.5, depthWrite: false }),
+      );
+      this.veil.scale.set(1, 1.15, 0.9);
+      this.veil.userData.nopick = true;
+      this.veil.castShadow = false;
+      this.root.add(this.veil);
+    }
+    if (this.veil) {
+      this.veil.visible = on;
+      this.veil.position.y = this.sc.height * 0.5;
+    }
+  }
+
+  /** A hit that landed: the boss flashes and shakes, and `text` floats off it (`gold` for the viewer's own). */
+  flinch(text?: string, gold = false): void {
+    if (this.fallen) return;
+    this.hitAt = this.now;
+    if (text) this.float(text, gold ? "#ffd35c" : "#ff8a7a");
+  }
+
   /** A real hit: the boss flashes white, shakes, and `dmg` floats off it. */
   hit(dmg = 0): void {
     if (this.fallen) return;
@@ -282,7 +333,7 @@ export class BossActor {
     return this.maxHp > 0 ? this.hp / this.maxHp : 0;
   }
 
-  private float(text: string): void {
+  private float(text: string, colour = "#ff8a7a"): void {
     const tex = canvasTexture(
       128,
       40,
@@ -294,7 +345,7 @@ export class BossActor {
         g.font = "800 24px system-ui, sans-serif";
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.fillStyle = "#ff8a7a";
+        g.fillStyle = colour;
         g.fillText(text, 64, 21);
       },
       true,
@@ -312,7 +363,8 @@ export class BossActor {
     const W = 320;
     g.clearRect(0, 0, W, 76);
     const fell = this.fallen;
-    const talking = this.now - this.taunt.at < 4.5 && this.taunt.text;
+    const talking = !this.quiet && this.now - this.taunt.at < 4.5 && this.taunt.text;
+    const who = this.info ?? this.boss;
     g.fillStyle = "rgba(20, 24, 34, 0.94)";
     g.beginPath();
     g.roundRect(0, 0, W, 76, 14);
@@ -320,21 +372,23 @@ export class BossActor {
     g.font = "800 22px system-ui, sans-serif";
     g.textAlign = "center";
     g.textBaseline = "middle";
-    g.fillStyle = fell ? GOLD : "#ffd35c";
+    g.fillStyle = fell || this.banner ? GOLD : "#ffd35c";
     g.fillText(
-      fell ? `🏆 ${this.boss.name} fell!` : talking ? `“${this.taunt.text}”` : `${this.boss.emoji} ${this.boss.name} · Rung ${this.rung}`,
+      fell ? `🏆 ${who.name} fell!` : this.banner ? this.banner : talking ? `“${this.taunt.text}”` : `${who.emoji} ${who.name} · Rung ${this.rung}`,
       W / 2,
       22,
       W - 16,
     );
-    g.fillStyle = "#5b1f1a";
-    g.fillRect(16, 44, W - 32, 18);
-    const share = fell ? 0 : this.share;
-    g.fillStyle = hpColour(share);
-    g.fillRect(16, 44, Math.max(0, (W - 32) * share), 18);
-    g.font = "700 15px system-ui, sans-serif";
-    g.fillStyle = "#ffffff";
-    g.fillText(fell ? "0 HP" : `${compact(this.hp)} / ${compact(this.maxHp)}`, W / 2, 54);
+    if (this.bar) {
+      g.fillStyle = "#5b1f1a";
+      g.fillRect(16, 44, W - 32, 18);
+      const share = fell ? 0 : this.share;
+      g.fillStyle = hpColour(share);
+      g.fillRect(16, 44, Math.max(0, (W - 32) * share), 18);
+      g.font = "700 15px system-ui, sans-serif";
+      g.fillStyle = "#ffffff";
+      g.fillText(fell ? "0 HP" : `${compact(this.hp)} / ${compact(this.maxHp)}`, W / 2, 54);
+    }
     this.plateTex.needsUpdate = true;
   }
 
@@ -382,8 +436,8 @@ export class BossActor {
       f.m.position.y = 1.4 + k * 1.1;
       f.m.scale.setScalar(k > 0.7 ? Math.max(0.01, 1 - (k - 0.7) / 0.3) : 1);
     }
-    if (t >= this.nextTaunt && !this.fallen) {
-      const taunts = this.boss.taunts;
+    if (t >= this.nextTaunt && !this.fallen && !this.quiet) {
+      const taunts = this.taunts?.length ? this.taunts : this.boss.taunts;
       this.say(taunts[Math.floor(Math.random() * taunts.length)]!);
       this.nextTaunt = t + 25;
     }
@@ -811,10 +865,8 @@ function outfitDummy(nth: number): Model {
   return m;
 }
 
-function lootItem(l: (typeof lootItems)[number]): Model {
-  const m = new Model();
-  const { m: ped, top } = pedestal(l.rarity);
-  m.add(ped);
+/** The piece itself (no pedestal), standing at the origin, and the height it floats at. */
+function lootBody(l: (typeof lootItems)[number], top = 0.2): { item: Model; y0: number } {
   const item = new Model();
   if (l.slot === "hat") {
     const a = LOOT_HATS[l.nth]!;
@@ -833,15 +885,33 @@ function lootItem(l: (typeof lootItems)[number]): Model {
     const pet = petFrom2D(7 + l.nth);
     pet.root.scale.setScalar(1.05);
     pet.root.rotation.y = -Math.PI / 4;
-    tick(m, (t) => pet.update(t));
+    tick(item, (t) => pet.update(t));
     item.add(pet.root);
     item.position.y = top + 0.15;
   }
+  return { item, y0: item.position.y };
+}
+
+function lootItem(l: (typeof lootItems)[number]): Model {
+  const m = new Model();
+  const { m: ped, top } = pedestal(l.rarity);
+  m.add(ped);
+  const { item, y0 } = lootBody(l, top);
   m.add(item);
-  const y0 = item.position.y;
   tick(m, (t) => {
     item.position.y = y0 + Math.sin(t * 2 + l.nth) * 0.04;
   });
+  return m;
+}
+
+/** A raid drop by its shop id (`hat.28`, `furn.Y`), as a model that stands at the origin; null for an id the raid doesn't drop. */
+export function lootModel(id: string): Model | null {
+  if (id === "furn.Y") return hourglass();
+  if (id === "furn.V") return rebase();
+  const l = lootItems.find((q) => q.id === id);
+  if (!l) return null;
+  const m = new Model();
+  m.add(lootBody(l).item);
   return m;
 }
 

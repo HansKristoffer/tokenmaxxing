@@ -53,6 +53,12 @@ export function disposeObject(root: THREE.Object3D, freed: Freed = { geometries:
     free(m, "materials");
   };
   root.traverse((o) => {
+    // A thing that listens to something outside the scene (a screen to the LAN party) lets go.
+    const off = o.userData.onDispose as (() => void) | undefined;
+    if (off) {
+      o.userData.onDispose = undefined;
+      off();
+    }
     const any = o as THREE.Mesh;
     if (any.geometry) {
       free(any.geometry, "geometries");

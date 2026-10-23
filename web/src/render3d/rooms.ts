@@ -11,11 +11,17 @@ export interface Sign {
   key: string;
   /** World position of the label's bottom centre. */
   at: [number, number, number];
-  kind: "company" | "inn" | "door";
+  kind: "company" | "inn" | "door" | "label";
   companyId?: number;
   text?: string;
   /** The viewer's own (a door to their office): drawn as a light sign, like the 2D game's. */
   own?: boolean;
+  /** A colour for a `label` (`gold`, `green`, `cyan`, a loot rarity): see overlay.ts. */
+  cls?: string;
+  /** Makes the label a button. */
+  onClick?: () => void;
+  /** Screen pixels down from `at` (negative: up), to stack labels over one place. */
+  dy?: number;
 }
 
 /** What a room's `frame` hook is given once a frame: the clock, the camera and where you stand. */
@@ -72,6 +78,8 @@ export interface RoomView {
   onToss?(tx: number, ty: number): void;
   /** Signs in the room, for the label layer. */
   signs(): Sign[];
+  /** Signs that change with the game (the raid's names, a table's banner): asked for every frame, so return a kept list. */
+  liveSigns?(): Sign[];
   /** Bots whose bodies the room draws itself (the barkeep, a shopkeeper): the people layer leaves those bodies out. */
   readonly keepers?: ReadonlySet<number>;
   /** In a shop: its interior (the displays on its shelves), for picking what to buy. */
