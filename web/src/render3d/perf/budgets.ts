@@ -67,16 +67,16 @@ export interface FrameBudget {
   cpuP95Ms: number;
 }
 export const FRAME_BUDGETS: Record<"medium" | "high" | "ultra", FrameBudget> = {
-  medium: { drawCalls: 450, triangles: 300_000, cpuP95Ms: 6 },
-  high: { drawCalls: 650, triangles: 260_000, cpuP95Ms: 8 },
-  ultra: { drawCalls: 700, triangles: 360_000, cpuP95Ms: 10 },
+  medium: { drawCalls: 340, triangles: 185_000, cpuP95Ms: 3.5 },
+  high: { drawCalls: 480, triangles: 200_000, cpuP95Ms: 4.5 },
+  ultra: { drawCalls: 620, triangles: 230_000, cpuP95Ms: 5 },
 };
 
 /** The same, with `?crowd=40` (forty people and thirteen pets in the town): the worst case that must still hold. */
 export const CROWD_FRAME_BUDGETS: Record<"medium" | "high" | "ultra", FrameBudget> = {
-  medium: { drawCalls: 800, triangles: 300_000, cpuP95Ms: 11 },
-  high: { drawCalls: 1300, triangles: 320_000, cpuP95Ms: 16 },
-  ultra: { drawCalls: 1700, triangles: 400_000, cpuP95Ms: 20 },
+  medium: { drawCalls: 800, triangles: 270_000, cpuP95Ms: 4.5 },
+  high: { drawCalls: 1250, triangles: 320_000, cpuP95Ms: 6.5 },
+  ultra: { drawCalls: 1850, triangles: 410_000, cpuP95Ms: 8 },
 };
 
 /** Memory budgets for a whole session: live GL textures/buffers after 50 room switches may not grow past this share. */
