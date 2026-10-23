@@ -7,6 +7,7 @@ import { Avatar, type Expression, type Look, Pet, type Pose, randomLook } from "
 import { buildBasement, dimBasement, isLanPartyAt, lanParty, setLanParty } from "./basement3d.ts";
 import { buildDungeonGallery } from "./dungeon-gallery.ts";
 import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
+import { Fx } from "./fx3d.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
 import { buildPetGallery } from "./pets3d.ts";
 import { Pipeline } from "./pipeline.ts";
@@ -887,16 +888,46 @@ function aim(w: number, h: number): void {
   camera.updateMatrixWorld();
 }
 
-// ——— Night ———
+// ——— Night, weather and street life (fx3d.ts): the light follows the Copenhagen clock ———
 let night = false;
+const fx = new Fx({
+  stages,
+  town: townStage,
+  current: () => stage.name,
+  show: (name) => setStage(name),
+  label: (st, text, cls, at) => {
+    const el = label(text, cls);
+    const entry = { el, at };
+    el.hidden = stage !== st;
+    (st as Stage).labels.push(entry);
+    return {
+      el,
+      remove: () => {
+        el.remove();
+        const i = (st as Stage).labels.indexOf(entry);
+        if (i >= 0) (st as Stage).labels.splice(i, 1);
+      },
+    };
+  },
+  me: () => {
+    const w = stage === townStage ? townMe : stage === office ? me : null;
+    return w ? { avatar: w.avatar, top: () => w.top(), go: (x, z, arrive) => w.go([v3(x, z)], arrive) } : null;
+  },
+  applyNight: (on) => {
+    night = on;
+    setRoomNight(on);
+    setTavernNight(on);
+    setTownNight(on);
+    for (const s of stages) applyNight(s);
+    dimBasement(basement.scene, basement.hemi, basement.sun);
+    document.body.classList.toggle("night", on);
+    $("#night").textContent = on ? "☀️ Day" : "🌙 Night";
+  },
+});
+fx.setSleepers([{ name: "lin", level: 7 }]);
+Object.assign(window, { fx, townStage, office, catalog, spinning });
 function setNight(on: boolean): void {
-  night = on;
-  setRoomNight(on);
-  setTavernNight(on);
-  setTownNight(on);
-  for (const s of stages) applyNight(s);
-  dimBasement(basement.scene, basement.hemi, basement.sun);
-  document.body.classList.toggle("night", on);
+  fx.setTime(on ? "23:30" : "12:00");
 }
 function applyNight(s: Stage): void {
   const on = night;
@@ -1143,7 +1174,6 @@ $("#lan").onclick = () => {
 };
 $("#night").onclick = () => {
   setNight(!night);
-  $("#night").textContent = night ? "☀️ Day" : "🌙 Night";
 };
 $("#rot-l").onclick = () => rotate(-1);
 $("#rot-r").onclick = () => rotate(1);
@@ -1240,6 +1270,7 @@ function frame(): void {
   for (const tick of ticks) tick(now);
   keyStep();
   stage.update(dt, now);
+  fx.update(dt, now, camera);
   const view = camera.position.clone().sub(stage.target).setY(0).normalize();
   if (stage === office) room.facing(view);
   else roomOf.get(stage)?.facing(view);
