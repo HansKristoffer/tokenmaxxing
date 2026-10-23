@@ -7,6 +7,17 @@ export const camera = { x: 0, y: 0, scale: 1, dpr: 1 };
 const ZOOM_KEY = "tokenmaxxing.zoom";
 
 /**
+ * What the 3D renderer answers to while it is drawing (`render3d/index.ts` sets them): zooming and turning
+ * the view are its own, and the arrow keys follow the way the view is turned. Unset: the 2D game's.
+ */
+export const viewHooks: {
+  zoom?: (step: 1 | -1 | 0) => void;
+  rotate?: (step: 1 | -1) => void;
+  /** The grid direction a key's direction means with the view as it is. */
+  key?: <D extends string>(dir: D) => D;
+} = {};
+
+/**
  * Zoom is device pixels per world pixel, always a whole number so the pixel art
  * stays crisp. `null` follows the window size; the player's choice is saved.
  */
@@ -49,6 +60,10 @@ function targetScale(dpr: number, w: number, h: number): number {
 
 /** Zooms one step in (+1) or out (-1), or back to following the window (0). */
 export function zoom(step: 1 | -1 | 0): void {
+  if (viewHooks.zoom) {
+    viewHooks.zoom(step);
+    return;
+  }
   if (step === 0) chosenScale = null;
   else
     chosenScale = Math.max(

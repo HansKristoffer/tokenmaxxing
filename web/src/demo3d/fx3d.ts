@@ -9,12 +9,13 @@
  */
 
 import { dayKey, worldWall } from "@tokenmaxxing/core/range.ts";
-import { copenhagenToMs as aarhusToMs, moonPhase, presetWeather, type Weather, type WeatherKind, winterSnow } from "@tokenmaxxing/core/sky.ts";
+import { copenhagenToMs as aarhusToMs, type Light, moonPhase, presetWeather, type Weather, type WeatherKind, winterSnow } from "@tokenmaxxing/core/sky.ts";
 import * as THREE from "three";
 import { AarhusWeather, lightAt } from "./aarhus.ts";
 import type { Avatar } from "./avatar.ts";
 import { FX_ASSETS, type FxCtx, type FxHost, type FxLabelHandle, type FxStageRef, TownFx } from "./fx3d-town.ts";
 import { ticks } from "./kit.ts";
+import { addPatch } from "./patches.ts";
 
 export { FX_ASSETS, type FxHost, type FxLabelHandle, type FxStageRef };
 
@@ -34,6 +35,23 @@ export type FxEvent =
   | "chat-emoji";
 
 export type FxWeather = WeatherKind | "winter" | "live";
+
+/**
+ * How the real game drives `Fx` instead of the demo: its own clock and the server's weather (so no Open-Meteo,
+ * no debug panel, no scripted street life), and the game's sun. Left out, `Fx` is the demo's.
+ */
+export interface FxOptions {
+  /** Now, in ms: the game's sky clock. */
+  clock?: () => number;
+  /** The weather to show (already with winter's snow rule). */
+  weather?: () => Weather;
+  /** The sun's light at a time (the game's, over Copenhagen). */
+  light?: (ms: number) => Light;
+  /** The debug panel and the Aarhus weather fetch (default true). */
+  demo?: boolean;
+  /** The cop, merchant, picnic... of `fx3d-town.ts` (default true). */
+  streetLife?: boolean;
+}
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
@@ -144,6 +162,8 @@ class Particles {
   private readonly bolt = new THREE.Group();
   private boltUntil = 0;
   flash = 0;
+  density = 1;
+  calm = false;
   private nextBolt = 0;
 
   constructor() {
@@ -209,8 +229,8 @@ class Particles {
   update(dt: number, t: number, w: Weather, centre: THREE.Vector3, auto: boolean, wind: THREE.Vector2): void {
     const falls = w.kind === "rain" || w.kind === "drizzle" || w.kind === "storm";
     const snows = w.kind === "snow";
-    const rainN = falls ? Math.round(w.intensity * RAIN_MAX * (w.kind === "drizzle" ? 0.7 : 1)) : 0;
-    const snowN = snows ? Math.round(w.intensity * SNOW_MAX) : 0;
+    const rainN = falls ? Math.round(w.intensity * RAIN_MAX * this.density * (w.kind === "drizzle" ? 0.7 : 1)) : 0;
+    const snowN = snows ? Math.round(w.intensity * SNOW_MAX * this.density) : 0;
     this.rain.count = rainN;
     this.snow.count = snowN;
     this.group.position.set(centre.x, 0, centre.z);
@@ -258,14 +278,14 @@ class Particles {
       }
     }
     // Lightning: now and then in a storm, a double flicker and a bolt.
-    if (w.kind === "storm" && auto) {
+    if (w.kind === "storm" && auto && !this.calm) {
       if (t > this.nextBolt) {
         this.strike(t, centre);
         this.nextBolt = t + 5 + Math.random() * 8;
       }
     }
     const e = t - this.flashAt;
-    this.flash = e < 0.07 ? 0.9 : e < 0.13 ? 0.15 : e < 0.2 ? 0.8 : e < 0.5 ? 0.8 * (1 - (e - 0.2) / 0.3) : 0;
+    this.flash = this.calm ? 0 : e < 0.07 ? 0.9 : e < 0.13 ? 0.15 : e < 0.2 ? 0.8 : e < 0.5 ? 0.8 * (1 - (e - 0.2) / 0.3) : 0;
     this.bolt.visible = t < this.boltUntil && (e < 0.2 || Math.floor(e * 40) % 2 === 0);
   }
 
@@ -277,6 +297,9 @@ class Particles {
   }
 }
 
+/** How deep the snow lies, shared by every patched material (materials outlive a town and its `Fx`). */
+const SNOW = { value: 0 };
+
 // MARK: Fx
 
 /** Seconds a `setTime(..., smooth)` jump takes to blend. */
@@ -285,16 +308,18 @@ const BLEND = 0.35;
 export class Fx {
   private readonly ctx: FxCtx;
   private readonly host: FxHost;
-  readonly town: TownFx;
+  readonly town: TownFx | null;
   private readonly particles = new Particles();
+  private readonly opts: FxOptions;
+  private readonly lightOf: (ms: number) => Light;
   private readonly sky: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   /** 0..1 how deep the snow lies; shared by every patched material. */
-  private readonly snowAmt = { value: 0 };
+  private readonly snowAmt = SNOW;
   private snowScan = 0;
   private readonly fogBank: THREE.Mesh[] = [];
   private readonly floaters: Floater[] = [];
   private readonly toastEl: HTMLDivElement;
-  private readonly aarhus = new AarhusWeather(() => this.syncPanel());
+  private readonly aarhus: AarhusWeather | null;
   private weatherPick: FxWeather = "live";
   private weather: Weather = { kind: "clear", intensity: 0, windMs: 1.5, windDir: 270, cloud: 0.1 };
   private shown: Weather = { ...this.weather };
@@ -321,8 +346,26 @@ export class Fx {
   /** The clock being shown, updated every frame. */
   clockText = "";
 
-  constructor(host: FxHost) {
+  /** 0 to 1: how much of the rain and snow to draw (the graphics settings'). */
+  set density(d: number) {
+    this.particles.density = d;
+  }
+
+  /** How far the rain and snow spread round the middle: 1 is the demo's 17 units; wider for a wider picture. */
+  set spread(k: number) {
+    this.particles.group.scale.set(k, 1, k);
+  }
+
+  /** No lightning flashes. */
+  set calm(on: boolean) {
+    this.particles.calm = on;
+  }
+
+  constructor(host: FxHost, opts: FxOptions = {}) {
     this.host = host;
+    this.opts = opts;
+    this.lightOf = opts.light ?? lightAt;
+    this.aarhus = opts.demo === false ? null : new AarhusWeather(() => this.syncPanel());
     this.ctx = {
       host,
       burst: (emojis, at, stage) => this.burst(emojis, at, stage),
@@ -369,12 +412,33 @@ export class Fx {
       this.fogBank.push(m);
     }
     host.town.scene.add(this.particles.group);
-    this.town = new TownFx(this.ctx);
+    this.town = opts.streetLife === false ? null : new TownFx(this.ctx);
     this.setSleepers([]);
-    this.buildPanel();
+    if (opts.demo !== false) this.buildPanel();
+  }
+
+  /** Takes the toast and the panel out of the page; the scene's own objects go with the scene. */
+  dispose(): void {
+    this.toastEl.remove();
+    this.panel?.remove();
+    for (const f of this.floaters) {
+      f.mesh.removeFromParent();
+      (f.mesh.material as THREE.Material).dispose();
+      f.mesh.geometry.dispose();
+    }
+    this.floaters.length = 0;
+    for (const s of this.steam) s.m.removeFromParent();
+    this.steam.length = 0;
+    this.sleepTag?.remove();
+    this.chipTag?.remove();
   }
 
   // ——— Clock ———
+
+  /** How dark the sky is now, 0 (day) to 1 (night), as last shown. */
+  clockDark(): number {
+    return this.lit.dark;
+  }
 
   /** Whether the sky dome is in the scene being shown (the town) rather than a plain background. */
   hasSky(): boolean {
@@ -388,6 +452,7 @@ export class Fx {
 
   /** Aarhus time now on the sim clock. */
   now(): number {
+    if (this.opts.clock) return this.opts.clock();
     return this.live ? Date.now() : this.base + (performance.now() - this.from) * this.speed;
   }
 
@@ -438,13 +503,14 @@ export class Fx {
   }
 
   private resolve(): Weather {
+    if (this.opts.weather) return this.opts.weather();
     const pick = this.weatherPick;
     const kind: WeatherKind = pick === "live" || pick === "winter" ? "clear" : pick;
     const base = presetWeather(kind)!;
     if (pick === "winter") return { ...presetWeather("cloudy")!, kind: "snow", intensity: 0.6 };
     // "Live" is Aarhus's real weather (Open-Meteo); until that has arrived, or offline with no cache, a clear day.
     // Open-Meteo's own snow is real, so only the preset gets winter's snow rule.
-    if (pick === "live" && this.aarhus.latest) return { ...this.aarhus.latest.weather };
+    if (pick === "live" && this.aarhus?.latest) return { ...this.aarhus.latest.weather };
     return winterSnow(base, this.now());
   }
 
@@ -455,23 +521,23 @@ export class Fx {
     const me = this.host.me();
     switch (name) {
       case "cop":
-        this.town.pullOver(t);
+        this.town?.pullOver(t);
         break;
       case "merchant":
-        this.town.setMerchant(on === undefined ? !this.town.state().merchant : !!on);
+        this.town?.setMerchant(on === undefined ? !this.town.state().merchant : !!on);
         break;
       case "picnic":
-        this.town.setPicnic(on === undefined ? !this.town.state().picnic : !!on);
+        this.town?.setPicnic(on === undefined ? !this.town.state().picnic : !!on);
         break;
       case "grass":
-        this.town.touchGrass();
+        this.town?.touchGrass();
         break;
       case "race":
-        if (this.town.state().race && on !== true) this.town.endRace();
-        else this.town.startRace(t);
+        if (this.town?.state().race && on !== true) this.town.endRace();
+        else this.town?.startRace(t);
         break;
       case "paperboy":
-        this.town.paperboy(t);
+        this.town?.paperboy(t);
         break;
       case "snail":
         this.host.show("Town");
@@ -613,6 +679,14 @@ export class Fx {
     return this.host.stages.find((s) => s.name === this.host.current()) ?? this.host.town;
   }
 
+  /** Jumps the light and weather to where the clock and the weather say, without blending (a room just built). */
+  settle(t: number, camera: THREE.OrthographicCamera): void {
+    for (let i = 0; i < 3; i++) {
+      this.lastT = t - 0.5;
+      this.update(0, t, camera);
+    }
+  }
+
   /** Call once a frame, after the stage's own update. */
   update(_dt: number, t: number, camera: THREE.OrthographicCamera): void {
     // Our own frame time (main.ts clamps its dt to 50 ms, which would slow the weather on a slow machine).
@@ -621,7 +695,7 @@ export class Fx {
     const ms = this.now();
     const stage = this.current();
     const inTown = stage === this.host.town;
-    const l = lightAt(ms);
+    const l = this.lightOf(ms);
     // Weather eases in and out.
     this.weather = this.resolve();
     const w = this.weather;
@@ -733,7 +807,7 @@ export class Fx {
     }
 
     // Street life and emoji.
-    this.town.update(dt, t, ms, glow);
+    this.town?.update(dt, t, ms, glow);
     this.updateFloaters(t, camera);
     this.updateBuffs(dt, t, camera);
   }
@@ -760,7 +834,7 @@ export class Fx {
       s.sun.intensity = lerp(lerp(2.4, 1.8, warm), 0.35, dark) * (1 - murk * 1.1);
       s.sun.intensity = Math.max(0.15, s.sun.intensity);
       const reach = s.sun.shadow.camera.right;
-      const elev = clamp01(lightAt(ms).elevation / 55);
+      const elev = clamp01(this.lightOf(ms).elevation / 55);
       s.sun.position.set(
         s.target.x + az * reach * 0.7,
         lerp(7, 15, Math.max(elev, dark * 0.6)),
@@ -871,7 +945,7 @@ export class Fx {
       for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
         if (!(mat as THREE.MeshToonMaterial).isMeshToonMaterial || mat.userData.snowy) continue;
         mat.userData.snowy = true;
-        mat.onBeforeCompile = (sh) => {
+        addPatch(mat, "snowy", (sh) => {
           sh.uniforms.uSnow = uSnow;
           sh.vertexShader = sh.vertexShader
             .replace("#include <common>", "#include <common>\nvarying float vSnowUp;")
@@ -885,9 +959,7 @@ export class Fx {
               "#include <dithering_fragment>",
               "#include <dithering_fragment>\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.94, 0.97, 1.0), smoothstep(0.5, 0.8, vSnowUp) * uSnow * 0.95);",
             );
-        };
-        mat.customProgramCacheKey = () => "snowy";
-        mat.needsUpdate = true;
+        });
       }
     });
   }
@@ -896,7 +968,7 @@ export class Fx {
 
   private syncPanel(): void {
     if (!this.panel) return;
-    const st = this.town.state();
+    const st = this.town?.state() ?? {};
     for (const b of this.panel.querySelectorAll<HTMLButtonElement>("[data-ev]")) {
       const ev = b.dataset.ev as string;
       b.classList.toggle("on", !!st[ev as keyof typeof st]);
@@ -909,7 +981,7 @@ export class Fx {
         const w = worldWall(ms);
         return `${String(w.hour).padStart(2, "0")}:${String(w.minute).padStart(2, "0")}`;
       };
-      ar.textContent = `${this.aarhus.line()} · ${this.aarhus.sourceLine(wall)}${this.weatherPick === "live" ? "" : " · manual override"}`;
+      ar.textContent = `${this.aarhus?.line()} · ${this.aarhus?.sourceLine(wall)}${this.weatherPick === "live" ? "" : " · manual override"}`;
     }
   }
 

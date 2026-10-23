@@ -776,6 +776,29 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
   Graphics settings (`settings/graphics.ts`: tiers Low/Medium/High/Ultra/Auto plus overrides, saved under
   `tokenmaxxing.graphics`), hardware detection (`settings/detect.ts`, pure scoring in `score.ts`) and the
   Auto-mode FPS governor (`settings/governor.ts`) are all pure and tested in `web/test/`.
+- **The 3D renderer** (`web/src/render3d/`, loaded on demand) draws the same `world` state as `render.ts`; it adds no
+  game state of its own. `index.ts` is the `Renderer`: each frame it makes the stage match `world.room`
+  (`RoomView` from `rooms.ts`, a registry: `registerRoom(id, build)`; `room-town.ts` draws the town from the demo's
+  `buildTown3d`, `room-generic.ts` draws any core map from its legend as labelled blocks, so every room is walkable
+  and legible), lays `entities.ts` over it (a voxel body, pet, name tag, bubble and emoji burst per player id, walking
+  between the tiles the server gives, with `motion.ts` holding the pose and turning rules), follows the player with
+  `rig.ts` (the demo's isometric orthographic camera: follow, per-room framing, zoom steps, quarter turns on
+  Q and R or `[` and `]`, middle-drag pan), and draws through the demo's `Pipeline` with the graphics settings
+  (`renderScale`, `dprCap`, shadows, AO, haze, tilt-shift, grade). The town's sky, sun, moon, clouds, rain and snow are
+  the demo's `Fx` driven by the game's clock (`game/sky.ts skyNow`) and the server's weather (`weatherNow`);
+  indoors the light is fixed, as in 2D. Names, bubbles, signs and the `💤` marks are DOM in a `#labels3d` layer
+  (`overlay.ts`, `signs.ts`), over the canvas and under the HUD. Clicks go through `pick`: a person is their own
+  tile, a prop on a tile you can't walk on is that tile, otherwise the floor point, so `game/input.ts` runs the same
+  code as in 2D. The arrow keys follow the view when it is turned (`viewHooks` in `game/camera.ts`). The door fade
+  starts when the server is moving you (`world.portalPending`) and opens in the new room.
+  Performance: the parts of a room that never move are merged into a few meshes per material (`batch.ts`; the room's
+  own animation is run through several hours and views to find what moves), so the town is a few hundred draw
+  calls rather than three thousand; trees and roofs between the camera and you are dithered away round you
+  (`seethrough.ts`). `dispose.ts` frees a room's geometries, materials and textures (kit-shared ones are marked
+  `userData.shared` and left alone). `window.__r3d` has `gpu()`, `stats` and `cycle(n)`; opening the game with
+  `?r3dcheck` builds and frees every room four times and logs whether `renderer.info` moved. Not drawn in 3D yet: the
+  game tables and arenas, the raid and dungeon, the street's events (cop's siren, picnic, race), the Tavern's and
+  basement's own pieces and the shops: those rooms use the generic view until they are built from the core maps.
 - Every sprite is a palette-string grid baked into a canvas at runtime (`web/src/art/`), so there are no image
   assets.
 - Chat has quick replies above it: emoji and startup one-liners, sent with one click. A line made only of
