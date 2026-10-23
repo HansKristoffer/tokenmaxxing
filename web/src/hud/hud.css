@@ -26,13 +26,16 @@ body {
   font: 13px / 1.4 var(--font);
 }
 
-#world {
+#stage > canvas {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  image-rendering: pixelated;
   cursor: pointer;
+}
+
+#world {
+  image-rendering: pixelated;
 }
 
 #hud {
@@ -2390,4 +2393,37 @@ button.lb-item:hover {
 .regulars .rank {
   width: 22px;
   flex: none;
+}
+
+/* Graphics: the tier list, its advanced fold, and the FPS meter. */
+.graphics-tiers > button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.graphics-tiers .small {
+  display: block;
+}
+
+.graphics-adv {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.graphics-adv label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fps-meter {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  font-size: 11px;
+  pointer-events: none;
 }

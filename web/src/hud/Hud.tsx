@@ -17,6 +17,7 @@ import { Collection } from "./Collection.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
+import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
 import { Jukebox } from "./Jukebox.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
@@ -83,7 +84,9 @@ export function Hud() {
         <LevelToast />
         <RaidToast />
         <LootToast />
+        <GraphicsToast />
       </div>
+      <FpsMeter />
       <FirstVisit />
     </>
   );
@@ -243,6 +246,7 @@ const MENU = [
   [{ kind: "desk" }, "🖥 Desk"],
   [{ kind: "company" }, "🏢 Company"],
   [{ kind: "leaderboard" }, "🏆 Leaderboard"],
+  [{ kind: "graphics" }, "🖼 Graphics"],
 ] as const;
 
 function Panel() {
@@ -272,6 +276,7 @@ function Panel() {
     collection: () => <Collection />,
     regulars: () => <Regulars />,
     jukebox: () => <Jukebox />,
+    graphics: () => <GraphicsPanel />,
     paper: () => <PaperPanel />,
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
     raid: () => <RaidPanel />,

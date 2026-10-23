@@ -710,6 +710,13 @@ climbs it together (`core/src/raid.ts`).
 
 - Plain Canvas 2D with `imageSmoothingEnabled = false`, integer zoom, and grid movement: your own steps are
   predicted and corrected by the server; other players replay a short step queue.
+- The game draws through a `Renderer` (`web/src/game/renderer.ts`): `Renderer2D` wraps `render.ts` (the Low tier),
+  and the 3D renderer is `render3d/index.ts`'s `create3D()`, imported on demand so Three.js is never fetched on
+  Low. `game/stage.ts` runs the loop, swaps renderers when the graphics settings change, caps fps (idle, battery),
+  and falls back to 2D with a toast if 3D can't start or dies. Clicks become tiles through the renderer's `pick`.
+  Graphics settings (`settings/graphics.ts`: tiers Low/Medium/High/Ultra/Auto plus overrides, saved under
+  `tokenmaxxing.graphics`), hardware detection (`settings/detect.ts`, pure scoring in `score.ts`) and the
+  Auto-mode FPS governor (`settings/governor.ts`) are all pure and tested in `web/test/`.
 - Every sprite is a palette-string grid baked into a canvas at runtime (`web/src/art/`), so there are no image
   assets.
 - Chat has quick replies above it: emoji and startup one-liners, sent with one click. A line made only of

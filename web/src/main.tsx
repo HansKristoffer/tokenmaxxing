@@ -1,12 +1,12 @@
 import { createRoot } from "react-dom/client";
 import { bindInput, updateSelf } from "./game/input.ts";
-import { render } from "./game/render.ts";
+import { startStage } from "./game/stage.ts";
 import { advanceRemotes, world } from "./game/world.ts";
 import { tauri } from "./hud/AppUpdate.tsx";
 import { Hud } from "./hud/Hud.tsx";
 import { connect, signIn } from "./net.ts";
 
-const canvas = document.getElementById("world") as HTMLCanvasElement;
+const stage = document.getElementById("stage")!;
 createRoot(document.getElementById("hud")!).render(<Hud />);
 
 // In the desktop app, a link out of the game (a company's website) opens in the browser.
@@ -23,14 +23,11 @@ if (app)
 const token = await signIn();
 if (token) {
   connect(token);
-  bindInput(canvas);
-  const frame = (now: number) => {
-    if (world.selfId) {
-      updateSelf(now);
-      advanceRemotes(now);
-      render(canvas, now);
-    }
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
+  bindInput(stage);
+  startStage(stage, (now) => {
+    if (!world.selfId) return false;
+    updateSelf(now);
+    advanceRemotes(now);
+    return true;
+  });
 }

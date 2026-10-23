@@ -69,9 +69,8 @@ const LABEL_REACH = 160;
 /** A pet's costume, once per look. */
 const outfitOf = perObject(petOutfit);
 
-export function render(canvas: HTMLCanvasElement, now: number): void {
+export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devicePixelRatio || 1): void {
   const g = canvas.getContext("2d")!;
-  const dpr = window.devicePixelRatio || 1;
   const w = Math.floor(window.innerWidth * dpr);
   const h = Math.floor(window.innerHeight * dpr);
   if (canvas.width !== w || canvas.height !== h) {

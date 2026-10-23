@@ -38,6 +38,7 @@ export type Panel =
   | { kind: "collection" }
   | { kind: "regulars" }
   | { kind: "jukebox" }
+  | { kind: "graphics" }
   | { kind: "menu" };
 
 /** The jukebox's mute and volume, kept on this device. */

@@ -8,7 +8,6 @@ import {
   route,
   type StepResult,
   stepTarget,
-  TILE,
   WALK_STEP_MS,
 } from "@tokenmaxxing/core/world.ts";
 import { conn } from "../net.ts";
@@ -21,6 +20,7 @@ import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { merchantAt, openCart } from "./merchant.ts";
 import { picnicSeat } from "./picnic.ts";
+import { pickTile } from "./stage.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { openTrophies } from "./trophies.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
@@ -51,7 +51,7 @@ let takeOnArrival = false;
 
 const typing = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
-export function bindInput(canvas: HTMLCanvasElement): void {
+export function bindInput(canvas: HTMLElement): void {
   window.addEventListener("keydown", (e) => {
     // Escape is ours (menus, chat): unhandled, macOS takes it to leave full screen.
     if (e.key === "Escape") e.preventDefault();
@@ -158,8 +158,9 @@ export function bindInput(canvas: HTMLCanvasElement): void {
     if (peeked) return void hud.set({ panel: { kind: "card", userId: peeked.id } });
     const signed = signHits.find((h) => inside(h, sx, sy));
     if (signed) return void hud.set({ panel: { kind: "companyCard", companyId: signed.id } });
-    const x = Math.floor(gx / TILE);
-    const y = Math.floor(gy / TILE);
+    const tile = pickTile(e.clientX, e.clientY);
+    if (!tile) return;
+    const { x, y } = tile;
     const other = avatarAt(x, y);
     if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
     // A company's house (not its door, which you walk through) opens its page.
@@ -173,10 +174,10 @@ export function bindInput(canvas: HTMLCanvasElement): void {
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     if (hud.get().panel) return;
-    const x = Math.floor(((e.clientX * camera.dpr) / camera.scale + camera.x) / TILE);
-    const y = Math.floor(((e.clientY * camera.dpr) / camera.scale + camera.y) / TILE);
+    const tile = pickTile(e.clientX, e.clientY);
     const me = self();
-    if (!me || !dropAt(x, y)) return;
+    if (!tile || !me || !dropAt(tile.x, tile.y)) return;
+    const { x, y } = tile;
     if (x === me.x && y === me.y) return void take();
     walkTo(x, y);
     // A seat is sat on first; anything else is only taken.
