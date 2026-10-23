@@ -52,7 +52,7 @@ export function viewOf(
   room: WorldRoom,
   ticks: ((t: number) => void)[],
   parts: SkinParts,
-  view = Math.max(7, Math.min(10.5, Math.max(map.width * 0.5, map.height * 0.75))),
+  view = Math.max(7, Math.min(12, Math.max(map.width * 0.5, map.height * 0.75))),
 ): RoomView & { parts: SkinParts; room: WorldRoom } {
   const W = map.width;
   const D = map.height;
