@@ -5,8 +5,8 @@
  */
 import type * as THREE from "three";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../art/palette.ts";
-import { type Expression, type Face, faceTexture } from "./faces.ts";
 import { Freezer, TINY_PX, view } from "../render3d/perf/freeze.ts";
+import { type Expression, type Face, faceTexture } from "./faces.ts";
 import { liveModel, Model, tint, type V3 } from "./kit.ts";
 import {
   AGES,

@@ -382,19 +382,26 @@ export type Tick = (t: number) => void;
 type Scoped = Tick & { raw: Tick };
 
 /** Ticks registered while a room is being built belong to it, and only run while that room is on screen. */
-interface TickScope {
+export interface TickScope {
   root: THREE.Object3D | null;
+  fns: Tick[];
 }
 let building: TickScope | null = null;
 let onScreen: THREE.Object3D | null = null;
 
 export function beginTickScope(): TickScope {
-  building = { root: null };
+  building = { root: null, fns: [] };
   return building;
 }
 export function endTickScope(scope: TickScope, root: THREE.Object3D): void {
   scope.root = root;
   if (building === scope) building = null;
+}
+/** A room that is no longer kept: its ticks stop running (and stop holding its models alive). */
+export function dropTickScope(scope: TickScope): void {
+  const gone = new Set(scope.fns);
+  for (let i = ticks.length - 1; i >= 0; i--) if (gone.has(ticks[i]!)) Array.prototype.splice.call(ticks, i, 1);
+  scope.fns.length = 0;
 }
 /** The scene being drawn: ticks of rooms in any other scene sit out. Null runs everything. */
 export function setActiveScene(scene: THREE.Object3D | null): void {
@@ -420,6 +427,7 @@ class TickList extends Array<Tick> {
           fn(t);
         }) as Scoped;
         w.raw = fn;
+        scope.fns.push(w);
         return w;
       }),
     );

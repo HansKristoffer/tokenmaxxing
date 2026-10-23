@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { blockMoves, blockStandIn } from "../../demo3d/blocky.ts";
 import { ticks } from "../../demo3d/kit.ts";
 import { isPropsNight, type NightGlow, onPropsNight } from "../../demo3d/props.ts";
+import { type Atlas, atlasable, packAtlas, remapUv, syncAtlas, uvInside } from "./atlas.ts";
 
 /**
  * Static batching. A room is hundreds to thousands of tiny meshes (a tree is a trunk and five balls), each its
@@ -88,7 +89,7 @@ function hiddenAbove(o: THREE.Object3D, root: THREE.Object3D): boolean {
 
 function bakeable(m: THREE.Mesh, literal = false): boolean {
   const mat = m.material;
-  if (Array.isArray(mat) || (mat as THREE.Material).transparent || (mat as THREE.Material).userData.dynamic) return false;
+  if (Array.isArray(mat) || (mat as THREE.Material).userData.dynamic) return false;
   if ((m as THREE.InstancedMesh).isInstancedMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return false;
   if (m.renderOrder !== 0 || m.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) return false;
   const g = m.geometry;
@@ -106,17 +107,17 @@ type Lit = THREE.MeshToonMaterial & { flatShading?: boolean; fog?: boolean };
 function foldable(m: THREE.Material): boolean {
   const a = m as Lit;
   if (m.type !== "MeshToonMaterial" && m.type !== "MeshBasicMaterial") return false;
-  if (a.map || m.alphaTest || m.opacity !== 1 || a.vertexColors) return false;
+  if (a.map || m.alphaTest || (m.opacity !== 1 && !m.transparent) || a.vertexColors) return false;
   return !a.emissive || a.emissive.getHex() === 0;
 }
 
 /** Two materials that look the same share a batch. */
-function matKey(m: THREE.Material): string {
+function matKey(m: THREE.Material, atlased = false): string {
   const a = m as Lit;
   const fold = foldable(m);
   return [
-    m.type, fold ? "vc" : (a.color?.getHexString() ?? ""), tex(a.map), tex(a.gradientMap), a.emissive?.getHexString() ?? "",
-    m.side, m.opacity, a.flatShading ? 1 : 0, m.alphaTest, a.vertexColors ? 1 : 0, a.fog ? 1 : 0, m.depthWrite ? 1 : 0,
+    m.type, fold ? "vc" : (a.color?.getHexString() ?? ""), atlased ? "atlas" : tex(a.map), tex(a.gradientMap), a.emissive?.getHexString() ?? "",
+    m.side, m.opacity, m.transparent ? 1 : 0, a.flatShading ? 1 : 0, m.alphaTest, a.vertexColors ? 1 : 0, a.fog ? 1 : 0, m.depthWrite ? 1 : 0,
   ].join("|");
 }
 
@@ -366,6 +367,12 @@ export class BakedLayer {
     return { sources: this.sources.length, live: this.liveCount, merged: { smooth: of("smooth"), block: of("block") } };
   }
 
+  private readonly atlases: Atlas[] = [];
+
+  get hasPictures(): boolean {
+    return this.atlases.length > 0;
+  }
+
   private build(mode: BakeMode): THREE.Group {
     const out = new THREE.Group();
     out.matrixAutoUpdate = false;
@@ -373,20 +380,46 @@ export class BakedLayer {
       string,
       { parts: THREE.BufferGeometry[]; mat: THREE.Material; cast: boolean; recv: boolean; glow?: "day" | "night" }
     >();
-    for (const s of this.sources) {
+    const items = this.sources.map((s) => {
       const m = s.mesh;
-      let geo: THREE.BufferGeometry | null = m.geometry;
-      if (mode === "block" && !this.options.literal) {
-        geo = blockStandIn(m) ?? m.geometry;
-      }
+      const geo = (mode === "block" && !this.options.literal ? blockStandIn(m) : null) ?? m.geometry;
+      return { s, geo, atlased: false };
+    });
+    // Small painted textures share one atlas (and so one batch per material setup).
+    const pictures = items.filter(({ s, geo }) => atlasable((s.material as Lit).map) && uvInside(geo));
+    const atlas = packAtlas(pictures.map(({ s }) => (s.material as Lit).map as THREE.Texture));
+    if (atlas) {
+      this.atlases.push(atlas);
+      for (const it of pictures) it.atlased = atlas.rects.has((it.s.material as Lit).map as THREE.Texture);
+    }
+    const atlasMats = new Map<string, THREE.Material>();
+    for (const { s, geo, atlased } of items) {
+      const m = s.mesh;
       tmp.copy(s.local);
-      const key = `${s.key}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}${s.glow ? `|${s.glow}` : ""}`;
+      let key = `${s.key}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}${s.glow ? `|${s.glow}` : ""}`;
+      let material = s.material;
+      if (atlased && atlas) {
+        const shade = matKey(s.material, true);
+        key = `${shade}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}${s.glow ? `|${s.glow}` : ""}|atlas`;
+        let am = atlasMats.get(shade);
+        if (!am) {
+          am = s.material.clone();
+          (am as Lit).map = atlas.texture;
+          am.userData.baked = true;
+          am.onBeforeCompile = s.material.onBeforeCompile;
+          am.customProgramCacheKey = s.material.customProgramCacheKey;
+          atlasMats.set(shade, am);
+        }
+        material = am;
+      }
       let grp = groups.get(key);
       if (!grp) {
-        grp = { parts: [], mat: s.material, cast: m.castShadow, recv: m.receiveShadow, glow: s.glow };
+        grp = { parts: [], mat: material, cast: m.castShadow, recv: m.receiveShadow, glow: s.glow };
         groups.set(key, grp);
       }
-      grp.parts.push(prepared(geo!, tmp, s.color));
+      const part = prepared(geo, tmp, s.color);
+      if (atlased && atlas) remapUv(part, atlas.rects.get((s.material as Lit).map as THREE.Texture)!, atlas);
+      grp.parts.push(part);
     }
     for (const [key, grp] of groups) {
       const indexed = grp.parts.every((p) => p.index);
@@ -394,9 +427,17 @@ export class BakedLayer {
       const merged = mergeGeometries(flat, false);
       for (const p of grp.parts) p.dispose();
       if (!merged) continue;
-      merged.computeBoundingSphere();
       merged.computeBoundingBox();
       const mesh = new THREE.Mesh(merged, grp.mat);
+      if (grp.mat.transparent) {
+        // Blended things are drawn back to front by where their object sits: put the batch in the middle of what it holds.
+        const c = merged.boundingBox!.getCenter(new THREE.Vector3());
+        merged.translate(-c.x, -c.y, -c.z);
+        merged.computeBoundingBox();
+        mesh.position.copy(c);
+        mesh.updateMatrix();
+      }
+      merged.computeBoundingSphere();
       mesh.castShadow = grp.cast;
       mesh.receiveShadow = grp.recv;
       mesh.matrixAutoUpdate = false;
@@ -413,6 +454,20 @@ export class BakedLayer {
   }
 
   disposed = false;
+
+  /** Pictures in this layer's atlases that were repainted since (a board updated by the game) are painted in again. */
+  syncPictures(): void {
+    for (const a of this.atlases) {
+      syncAtlas(a);
+      // One that keeps changing (a screen the warm-up never saw move) is taken out of the atlas for good.
+      if (a.repaints > 24) {
+        for (const t of a.rects.keys()) if (a.seen.get(t) !== undefined && t.version > 2) t.userData.animated = true;
+        a.repaints = 0;
+        invalidateBaked(this.root);
+        return;
+      }
+    }
+  }
 
   /** Puts the originals back in the picture and hides the merged copy (it keeps its geometry for `resume`). */
   suspend(): void {
@@ -450,6 +505,8 @@ export class BakedLayer {
     }
     this.group.removeFromParent();
     this.offNight?.();
+    for (const a of this.atlases) a.texture.dispose();
+    this.atlases.length = 0;
     this.unseal();
   }
 }
@@ -630,6 +687,7 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
       s.mode = null;
     }
   }
+  for (const l of s.layers) if (l.hasPictures) l.syncPictures();
   if (s.mode !== mode) {
     s.mode = mode;
     for (const l of s.layers) l.show(mode);

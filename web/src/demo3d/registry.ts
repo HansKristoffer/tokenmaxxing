@@ -43,10 +43,27 @@ export const SLICES: Slice[] = [
   { load: () => import("./fx3d.ts") },
 ];
 
-export async function loadSlices(): Promise<Asset[]> {
+const seen = new Set<string>();
+const done = new Set<Slice>();
+
+/** The rooms a slice draws in (its default, and what its `scope` entries add); empty means every room. */
+function roomsOf(s: Slice): readonly MapId[] {
+  if (!s.rooms) return [];
+  return [...new Set([...s.rooms, ...Object.values(s.scope ?? {}).flat()])];
+}
+
+/**
+ * Imports the slices and registers their `tile:` assets. With `rooms` only the slices that draw in those rooms load (and
+ * the ones that draw everywhere): the dungeon, the Tavern, the basement and the shops are fetched when somebody goes there.
+ * Returns the assets of the slices loaded by this call.
+ */
+export async function loadSlices(rooms?: readonly MapId[]): Promise<Asset[]> {
   const out: Asset[] = [];
-  const seen = new Set<string>();
   for (const s of SLICES) {
+    if (done.has(s)) continue;
+    const mine = roomsOf(s);
+    if (rooms && mine.length && !mine.some((r) => rooms.includes(r))) continue;
+    done.add(s);
     const mod = await s.load();
     for (const [key, value] of Object.entries(mod)) {
       if (!key.endsWith("_ASSETS") || !Array.isArray(value)) continue;
@@ -54,8 +71,8 @@ export async function loadSlices(): Promise<Asset[]> {
       for (const a of list) seen.add(a.id);
       const byRoom = new Map<string, Asset[]>();
       for (const a of list) {
-        const rooms = s.scope?.[a.id] ?? s.rooms;
-        const k = rooms?.join(",") ?? "";
+        const rs = s.scope?.[a.id] ?? s.rooms;
+        const k = rs?.join(",") ?? "";
         byRoom.set(k, [...(byRoom.get(k) ?? []), a]);
       }
       for (const [k, assets] of byRoom) registerTileAssets(assets, k ? (k.split(",") as MapId[]) : undefined);

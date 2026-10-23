@@ -2,12 +2,14 @@ import * as THREE from "three";
 import { loadSlices } from "../../demo3d/registry.ts";
 import type { MapId } from "../../demo3d/world.ts";
 import { World } from "../../demo3d/world.ts";
-import { bakeStatic } from "./bake.ts";
+import { loadRoomSkins } from "../../demo3d/world-rooms.ts";
+import { bakeStatic, freezeLayer } from "./bake.ts";
 import { sceneStats } from "./stats.ts";
 
 /** Registers every slice's tiles, as the game does at start. */
 export async function loadAllSlices(): Promise<void> {
   await loadSlices();
+  await loadRoomSkins();
 }
 
 export interface RoomCost {
@@ -27,6 +29,12 @@ export function measureRoom(id: string): RoomCost {
   const before = sceneStats(scene);
   const layer = bakeStatic(room.group);
   if (layer) layer.show("smooth");
+  // People and pets that stand about are merged at run time (see `freeze.ts`): count them as the player sees them.
+  const actors: THREE.Object3D[] = [];
+  scene.traverse((o) => {
+    if (o.userData.actor) actors.push(o);
+  });
+  for (const a of actors) freezeLayer(a);
   const after = sceneStats(scene);
   let texBytes = 0;
   const seen = new Set<THREE.Texture>();

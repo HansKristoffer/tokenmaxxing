@@ -1,5 +1,5 @@
-import * as THREE from "three";
-import { bumpStaticShadow, sceneEpoch, STATIC_LAYER } from "./bake.ts";
+import type * as THREE from "three";
+import { bumpStaticShadow, STATIC_LAYER, sceneEpoch } from "./bake.ts";
 
 /**
  * Which shadow casters are worth redrawing. Whatever the batching left as separate meshes (live props, glass, signs,

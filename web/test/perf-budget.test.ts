@@ -1,16 +1,9 @@
 import { beforeAll, expect, test } from "bun:test";
 import { BUDGETS, budgetFor } from "../src/render3d/perf/budgets.ts";
 
-// A canvas that draws nothing: enough for the kit's painted textures to be "built" without a browser.
-const ctx = new Proxy({}, { get: (_t, k) => (k === "canvas" ? {} : () => ({ addColorStop() {} })), set: () => true });
-const fake = { width: 0, height: 0, style: {}, getContext: () => ctx, addEventListener() {} };
-Object.assign(globalThis, {
-  document: { createElement: () => ({ ...fake }), body: { append() {} }, addEventListener() {} },
-  window: globalThis,
-  localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
-  location: { search: "" },
-  navigator: { userAgent: "bun" },
-});
+import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
+
+installHeadlessGlobals();
 
 type Mod = typeof import("../src/render3d/perf/headless.ts");
 let h: Mod;

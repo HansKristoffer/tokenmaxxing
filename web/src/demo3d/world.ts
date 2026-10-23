@@ -8,9 +8,10 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
+import { invalidateBaked } from "../render3d/perf/bake.ts";
 import { GameMap, LEGEND, MAPS, type MapId, plotId, type SeatKind, TOWN_SPAWN, townMap } from "./data/maps.ts";
 import type { Asset } from "./furniture.ts";
-import { beginTickScope, canvasTexture, endTickScope, Model, painted, seeded, tint, toon, type V3 } from "./kit.ts";
+import { beginTickScope, canvasTexture, dropTickScope, endTickScope, Model, painted, seeded, type TickScope, tint, toon, type V3 } from "./kit.ts";
 
 export type { MapId, SeatKind };
 
@@ -309,6 +310,8 @@ export class WorldRoom {
     readonly id: MapId,
     readonly map: GameMap,
     skin: RoomSkin | null = null,
+    /** Tile-drawn rooms: leave the building to `steps()`, so a loader can spread it over several frames. */
+    staged = false,
   ) {
     this.W = map.width;
     this.D = map.height;
@@ -320,9 +323,17 @@ export class WorldRoom {
       this.findPortals();
       return;
     }
+    if (!staged) for (const _ of this.steps());
+  }
+
+  /** The tile-by-tile build in pieces (a row of tiles each): run it to the end, a little at a time. */
+  *steps(): Generator<void> {
+    if (this.skin) return;
     this.paintGround();
+    yield;
     this.buildWalls();
-    this.buildProps();
+    yield;
+    yield* this.props();
   }
 
   private findPortals(): void {
@@ -510,10 +521,11 @@ export class WorldRoom {
       }
   }
 
-  private buildProps(): void {
+  private *props(): Generator<void> {
     const { W, D } = this;
     const claimed = new Uint8Array(W * D);
-    for (let y = 0; y < D; y++)
+    for (let y = 0; y < D; y++) {
+      yield;
       for (let x = 0; x < W; x++) {
         if (claimed[y * W + x]) continue;
         const ch = this.ch(x, y);
@@ -546,28 +558,209 @@ export class WorldRoom {
         (edge ? this.wallGroups.get(edge)! : this.group).add(model);
         this.drawn.set(ch, [...(this.drawn.get(ch) ?? []), model]);
       }
+    }
   }
 }
 
 // MARK: The world
 
+/**
+ * How a room gets its code: world-rooms.ts registers a loader per hand-built room (a dynamic import of its builder and a
+ * `registerRoomSkin`), so a room's code is only fetched when someone is about to walk in. Rooms without a loader are
+ * drawn from the tile map alone and need nothing.
+ */
+const loaders = new Map<MapId, () => Promise<void>>();
+const loading = new Map<MapId, Promise<void>>();
+const loaded = new Set<MapId>();
+export function registerRoomLoader(id: MapId, load: () => Promise<void>): void {
+  loaders.set(id, load);
+}
+/** Loads the code for `id` (once). */
+export function loadRoomCode(id: MapId): Promise<void> {
+  const load = loaders.get(id);
+  if (!load || loaded.has(id)) return Promise.resolve();
+  let p = loading.get(id);
+  if (!p) {
+    p = load().then(() => void loaded.add(id));
+    loading.set(id, p);
+  }
+  return p;
+}
+export const roomCodeReady = (id: MapId): boolean => !loaders.has(id) || loaded.has(id);
+
+/** A frame boundary: lets the browser paint (the loading veil) between pieces of work. */
+const nextFrame = (): Promise<void> =>
+  new Promise((done) => {
+    const t = setTimeout(done, 48);
+    if (typeof requestAnimationFrame === "function")
+      requestAnimationFrame(() => {
+        clearTimeout(t);
+        done();
+      });
+  });
+
+/** Frees what a room held on the GPU; the shared kit geometry and materials upload again if another room uses them. */
+function disposeRoom(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    m.geometry.dispose();
+    // Materials are shared and cheap to keep (their programs are shared too); the painted maps are what weighs.
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) (mat as THREE.MeshToonMaterial | undefined)?.map?.dispose();
+  });
+}
+
 export class World {
   readonly maps: Record<MapId, GameMap> = worldMaps();
   private readonly built = new Map<MapId, WorldRoom>();
+  private readonly scopes = new Map<MapId, TickScope>();
+  /** Use order, least recent first: what `evict` drops when more than `maxBuilt` rooms are kept. */
+  private readonly used: MapId[] = [];
+  private readonly pending = new Map<MapId, Promise<WorldRoom>>();
+  /** Rooms that stay built whatever the cache says (the town, the room someone stands in). */
+  readonly pinned = new Set<MapId>(["town"]);
+  /** How many built rooms are kept; the least recently used go first. */
+  maxBuilt = 8;
   /** The portal you last came through into each room, so the way back leads to the same door. */
   private readonly back = new Map<MapId, { room: MapId; x: number; y: number; ch: string }>();
 
+  private touch(id: MapId): void {
+    const i = this.used.indexOf(id);
+    if (i >= 0) this.used.splice(i, 1);
+    this.used.push(id);
+  }
+
+  isBuilt(id: MapId): boolean {
+    return this.built.has(id);
+  }
+
+  /** A built room at once. Hand-built rooms need their code first (`load`); asking before that is a mistake, not a blank room. */
   room(id: MapId): WorldRoom {
     let r = this.built.get(id);
     if (!r) {
+      if (!roomCodeReady(id)) throw new Error(`room ${id} is not loaded: await world.load("${id}") first`);
       const scope = beginTickScope();
       const skin = skins.get(id)?.() ?? null;
       if (skin?.map) this.maps[id] = skin.map;
       r = new WorldRoom(id, this.maps[id], skin);
       endTickScope(scope, r.group);
       this.built.set(id, r);
+      this.scopes.set(id, scope);
     }
+    this.touch(id);
     return r;
+  }
+
+  /**
+   * Fetches the room's code and builds it a little at a time (a frame boundary between the steps, so a loading veil can
+   * paint and the game keeps running). Several calls for one room share one build. Resolves with the room.
+   */
+  load(id: MapId, onStep?: (done: number) => void): Promise<WorldRoom> {
+    const have = this.built.get(id);
+    if (have) {
+      this.touch(id);
+      return Promise.resolve(have);
+    }
+    let p = this.pending.get(id);
+    if (!p) {
+      p = this.build(id, onStep).finally(() => this.pending.delete(id));
+      this.pending.set(id, p);
+    }
+    return p;
+  }
+
+  private async build(id: MapId, onStep?: (done: number) => void): Promise<WorldRoom> {
+    await loadRoomCode(id);
+    await nextFrame();
+    if (this.built.has(id)) return this.built.get(id)!;
+    const skin = skins.get(id);
+    if (skin) {
+      // A hand-built room is one call; the frame boundary before and after is all the chunking it allows.
+      const r = this.room(id);
+      await nextFrame();
+      this.trim();
+      return r;
+    }
+    const scope = beginTickScope();
+    const r = new WorldRoom(id, this.maps[id], null, true);
+    // Ticks of props registered in each step belong to the room: the scope stays open between steps only within one synchronous slice.
+    endTickScope(scope, r.group);
+    const steps = r.steps();
+    let n = 0;
+    for (;;) {
+      const t0 = performance.now();
+      const open = beginTickScope();
+      let end = false;
+      while (performance.now() - t0 < 6) {
+        const s = steps.next();
+        if (s.done) {
+          end = true;
+          break;
+        }
+        n++;
+      }
+      endTickScope(open, r.group);
+      scope.fns.push(...open.fns);
+      onStep?.(n);
+      if (end) break;
+      await nextFrame();
+    }
+    this.built.set(id, r);
+    this.scopes.set(id, scope);
+    this.touch(id);
+    this.trim();
+    return r;
+  }
+
+  /** Builds the room in the background when the browser is idle: the next door someone is likely to take. */
+  preload(id: MapId): void {
+    if (this.built.has(id) || this.pending.has(id)) return;
+    const run = () => void this.load(id).catch(() => {});
+    const idle = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+    if (idle) idle(run, { timeout: 2000 });
+    else setTimeout(run, 200);
+  }
+
+  /** The rooms a portal of `id` leads to. */
+  neighbours(id: MapId): MapId[] {
+    const out = new Set<MapId>();
+    for (const [k, v] of Object.entries(LINKS)) if (k.startsWith(`${id}:`)) out.add(v[0]);
+    return [...out];
+  }
+
+  /** Preloads the doors of `id`. */
+  preloadNeighbours(id: MapId): void {
+    for (const n of this.neighbours(id)) this.preload(n);
+  }
+
+  /** Drops the least recently used rooms beyond `maxBuilt` (never a pinned one). */
+  trim(): void {
+    while (this.built.size > this.maxBuilt) {
+      const victim = this.used.find((id) => this.built.has(id) && !this.pinned.has(id));
+      if (!victim) return;
+      this.evict(victim);
+    }
+  }
+
+  /** Forgets a built room: its ticks stop, its batches and GPU copies are freed, and the next `room`/`load` builds it afresh. */
+  evict(id: MapId): boolean {
+    const r = this.built.get(id);
+    if (!r) return false;
+    const scope = this.scopes.get(id);
+    if (scope) dropTickScope(scope);
+    this.scopes.delete(id);
+    invalidateBaked(r.group);
+    r.group.removeFromParent();
+    disposeRoom(r.group);
+    this.built.delete(id);
+    this.used.splice(this.used.indexOf(id), 1);
+    return true;
+  }
+
+  /** `travel`, loading the far room first. */
+  async travelTo(from: WorldRoom, portal: Portal): Promise<{ room: WorldRoom; at: [number, number]; turn: number }> {
+    await this.load(LINKS[`${from.id}:${portal.ch}`]![0]);
+    return this.travel(from, portal);
   }
 
   /** Where taking `portal` of `from` puts you. */

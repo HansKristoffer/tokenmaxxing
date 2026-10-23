@@ -31,7 +31,7 @@ import { buildDormRoom, buildTavernRoom, type DormRoom, setBarTab, setPlaque, se
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
 import type { Town3d } from "./town3d.ts";
 import { type MapId, type Portal, ROOM_ORDER, type World, World as WorldGraph, type WorldRoom } from "./world.ts";
-import { INSET } from "./world-rooms.ts";
+import { INSET, loadRoomSkins } from "./world-rooms.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
 const labelLayer = document.querySelector<HTMLDivElement>("#labels")!;
@@ -430,6 +430,7 @@ office.update = (dt, t) => {
 // ——— The catalogue ———
 // Assets from the slice files (`registry.ts`) join the showroom after the shop's own.
 const sliceAssets = await loadSlices();
+await loadRoomSkins();
 const catalogAssets = [...ASSETS, ...sliceAssets.filter((a) => !assetById.has(a.id))];
 const COLS = 6;
 const CELL_W = 3.2;

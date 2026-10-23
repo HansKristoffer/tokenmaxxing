@@ -58,10 +58,12 @@
     };
     wrap("texImage2D", (a) => {
       P.texUploads++;
+      { const w = a.length >= 9 ? a[3] : a[5]?.width ?? 0, h = a.length >= 9 ? a[4] : a[5]?.height ?? 0; if (a[1] === 0) { const k = `${w}x${h}`; (P.sizes ??= {})[k] = (P.sizes[k] ?? 0) + 1; } if (w * h >= 262144) (P.big ??= []).push(["img", a[0], a[1], w, h, a[2]]); }
       const [w, h] = a.length >= 9 ? [a[3], a[4]] : [a[5]?.width ?? 0, a[5]?.height ?? 0];
       levelBytes(a[0], a[1], w, h, a[2], a.length >= 9 ? a[6] : a[3], a.length >= 9 ? a[7] : a[4]);
     });
     wrap("texStorage2D", (a) => {
+      if (a[3] * a[4] >= 262144) (P.big ??= []).push(["storage", a[0], a[1], a[3], a[4], a[2]]);
       const t = bound.tex.get(a[0]);
       if (!t) return;
       const bpp = a[2] === 34842 || a[2] === 36012 ? 8 : a[2] === 33326 ? 4 : a[2] === 35056 ? 4 : 4;
@@ -69,7 +71,8 @@
       for (let l = 0; l < a[1]; l++) { sum += w * h * bpp; w = Math.max(1, w >> 1); h = Math.max(1, h >> 1); }
       setBytes("texBytes", t, sum);
     });
-    wrap("generateMipmap", (a) => { const t = bound.tex.get(a[0]); if (t) { const b = bytes.get(t) ?? 0; setBytes("texBytes", t, b * 1.34); } });
+    wrap("generateMipmap", (a) => { const t = bound.tex.get(a[0]); if (t) { const base = t.__lv?.[0] ?? 0; if (base) setBytes("texBytes", t, base * 1.34); } });
+    wrap("renderbufferStorageMultisample", (a) => (P.big ??= []).push(["rbms", a[1], a[3], a[4], a[2]]) && 0);
     wrap("renderbufferStorageMultisample", (a) => setBytes("rbBytes", bound.rb, a[3] * a[4] * 4 * Math.max(1, a[1]) * (a[2] === 34842 ? 2 : 1)));
     wrap("renderbufferStorage", (a) => setBytes("rbBytes", bound.rb, a[2] * a[3] * 4));
     const sizeKind = { texture: "texBytes", buffer: "bufBytes", renderbuffer: "rbBytes" };
