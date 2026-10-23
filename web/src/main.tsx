@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { bindInput, updateSelf } from "./game/input.ts";
+import { exposeForQa } from "./game/qa.ts";
 import { startStage } from "./game/stage.ts";
 import { advanceRemotes, world } from "./game/world.ts";
 import { tauri } from "./hud/AppUpdate.tsx";
@@ -20,6 +21,7 @@ if (app)
     app.core.invoke("open_link", { url: a.href }).catch(() => window.open(a.href, "_blank"));
   });
 
+exposeForQa();
 const token = await signIn();
 if (token) {
   connect(token);
