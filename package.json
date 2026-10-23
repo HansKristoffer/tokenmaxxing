@@ -44,7 +44,8 @@
     "vendor:pricing": "bun server/scripts/vendor-pricing.ts",
     "site:dev": "bun run --cwd site dev",
     "site:build": "bun run --cwd site build",
-    "demo:3d": "bun --port=4477 web/demo3d.html"
+    "demo:3d": "bun --port=4477 web/demo3d.html",
+    "qa:tour": "bun scripts/qa/tour.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
