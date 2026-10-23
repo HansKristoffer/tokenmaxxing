@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tokenmaxxing 3D · asset demo</title>
+    <link rel="icon" href="../site/public/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./src/demo3d/demo.css" />
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="labels"></div>
+    <div class="panel top">
+      <div class="title">tokenmaxxing <strong>3D</strong> <span>asset demo</span></div>
+      <div class="row">
+        <button type="button" data-group="stage" data-value="Office">🏢 Office</button>
+        <button type="button" data-group="stage" data-value="Catalog">📦 Catalog</button>
+        <button type="button" data-group="stage" data-value="Town">🏘️ Town</button>
+      </div>
+      <div class="row">
+        <button type="button" data-group="style" data-value="smooth">🧸 HD (Tuber)</button>
+        <button type="button" data-group="style" data-value="pixel">👾 Pixel (Habbo)</button>
+      </div>
+      <div class="row">
+        <label class="slider">Pixel size <input id="px" type="range" min="1" max="6" step="1" value="3" /> <b id="px-value">3×</b></label>
+        <label><input id="outline" type="checkbox" checked /> Outlines</label>
+      </div>
+      <div class="row">
+        <button type="button" id="rot-l" title="Rotate (Q)">⟲</button>
+        <button type="button" id="rot-r" title="Rotate (E)">⟳</button>
+        <button type="button" id="night">🌙 Night</button>
+        <button type="button" id="look">🎲 New look</button>
+        <button type="button" id="spin" hidden>⏯ Spin</button>
+      </div>
+    </div>
+    <div class="panel help">
+      Click the floor to walk · click a chair, sofa or bed to sit or sleep · drag to pan · wheel to zoom · Q/E to rotate
+    </div>
+    <div class="panel emotes">
+      <button type="button" data-emote="happy" title="Happy">😊</button>
+      <button type="button" data-emote="laugh" title="Laugh">😂</button>
+      <button type="button" data-emote="surprised" title="Surprised">😮</button>
+      <button type="button" data-emote="love" title="Love">😍</button>
+      <button type="button" data-emote="wink" title="Wink">😉</button>
+      <button type="button" data-emote="focus" title="Focus">🧐</button>
+      <button type="button" data-emote="wave" title="Wave">👋</button>
+      <button type="button" data-emote="dance" title="Dance">💃</button>
+    </div>
+    <div id="inventory" class="panel">
+      <div class="inv-head">🎒 Furniture <span>pick one, click a tile · R turns it · Shift places more · Esc cancels</span></div>
+      <div class="inv"></div>
+    </div>
+    <script type="module" src="./src/demo3d/main.ts"></script>
+  </body>
+</html>

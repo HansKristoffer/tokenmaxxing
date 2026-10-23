@@ -43,7 +43,8 @@
     "check": "bun run typecheck && bun run lint && bun run test",
     "vendor:pricing": "bun server/scripts/vendor-pricing.ts",
     "site:dev": "bun run --cwd site dev",
-    "site:build": "bun run --cwd site build"
+    "site:build": "bun run --cwd site build",
+    "demo:3d": "bun --port=4477 web/demo3d.html"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
