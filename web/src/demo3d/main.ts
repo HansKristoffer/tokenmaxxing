@@ -4,6 +4,7 @@
  */
 import * as THREE from "three";
 import { Avatar, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
+import { buildBasement, dimBasement, isLanPartyAt, lanParty, setLanParty } from "./basement3d.ts";
 import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
 import { Pipeline } from "./pipeline.ts";
@@ -11,7 +12,7 @@ import { car } from "./props.ts";
 import { loadSlices } from "./registry.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
 import "./tiles.ts";
-import { buildDormRoom, buildTavernRoom, setBarTab, setPlaque, setTavernNight, TAVERN_ASSETS } from "./tavern3d.ts";
+import { buildDormRoom, buildTavernRoom, setBarTab, setPlaque, setTavernNight } from "./tavern3d.ts";
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
 import { type MapId, type Portal, ROOM_ORDER, type World, World as WorldGraph, type WorldRoom } from "./world.ts";
 
@@ -642,7 +643,29 @@ dormStage.scene.add(dorm.room.group);
   };
 }
 
-const stages = [office, catalog, townStage, tavernStage, dormStage];
+// ——— The basement net cafe ———
+const basementScene = buildBasement();
+const basement = newStage("Basement", new THREE.Vector3(10, 0.6, 6.5), 16, 15, "#0b0a16");
+basement.scene.add(basementScene.room.group);
+const sitting: Walker[] = [];
+{
+  const sitters = [0, 3, 6, 9, 13, 17];
+  sitters.forEach((ci, i) => {
+    const w = new Walker(basement, randomLook(seeded(i * 5 + 70)), NAMES[i % NAMES.length]!, 3 + i);
+    const s = basementScene.room.seatOf(basementScene.chairs[ci]!)!;
+    w.mood = "focus";
+    w.at(s.at.x, s.at.z, "type", s.turn, s.at.y - 0.02);
+    sitting.push(w);
+  });
+}
+basement.update = (dt, t) => {
+  basementScene.update(dt, t);
+  for (const w of sitting) w.update(dt, t);
+};
+dimBasement(basement.scene, basement.hemi, basement.sun);
+setLanParty(isLanPartyAt());
+
+const stages = [office, catalog, townStage, tavernStage, dormStage, basement];
 let stage = office;
 
 // ——— The world: the 2D town's rooms, walkable, joined by their doors ———
@@ -847,6 +870,7 @@ function setNight(on: boolean): void {
   setTavernNight(on);
   setTownNight(on);
   for (const s of stages) applyNight(s);
+  dimBasement(basement.scene, basement.hemi, basement.sun);
   document.body.classList.toggle("night", on);
 }
 function applyNight(s: Stage): void {
@@ -1087,6 +1111,10 @@ $("[data-value=smooth]").onclick = () => setStyle(1);
 $<HTMLInputElement>("#px").oninput = (e) => setStyle(Number((e.target as HTMLInputElement).value));
 $<HTMLInputElement>("#outline").onchange = (e) =>
   (pipe.outline = pipe.crease = (e.target as HTMLInputElement).checked ? 1 : 0);
+$("#lan").onclick = () => {
+  setLanParty(!lanParty());
+  $("#lan").textContent = lanParty() ? "🎉 LAN: on" : "🎉 LAN party";
+};
 $("#night").onclick = () => {
   setNight(!night);
   $("#night").textContent = night ? "☀️ Day" : "🌙 Night";
