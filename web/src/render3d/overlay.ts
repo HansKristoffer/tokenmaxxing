@@ -4,7 +4,7 @@ import { BURST_MS } from "../game/emoji.ts";
 const STYLE_ID = "r3d-style";
 
 const CSS = `
-#labels3d { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+#labels3d { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 #labels3d .label { position: absolute; left: 0; top: 0; white-space: nowrap; will-change: transform; color: #f4f1ea;
   font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
 #labels3d .r3-sign { padding: 1px 6px; border-radius: 4px; background: rgba(43, 36, 51, 0.7); font-size: 11px; font-weight: 600; }
@@ -25,7 +25,7 @@ const CSS = `
 #labels3d .r3-emoji { position: absolute; left: 0; top: 0; font-size: 18px; will-change: transform; line-height: 1;
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
 #labels3d .r3-pet { font-size: 9px; font-weight: 600; color: #fff; text-shadow: 0 0 3px rgba(27,31,42,.9), 0 0 3px rgba(27,31,42,.9); }
-#r3-fade { position: fixed; inset: 0; background: #1b1f2a; opacity: 0; pointer-events: none; z-index: 2; }
+#r3-fade { position: fixed; inset: 0; background: #1b1f2a; opacity: 0; pointer-events: none; }
 `;
 
 /** The DOM over the canvas: name tags, bubbles, signs and emoji bursts, positioned from the 3D scene. */

@@ -2,6 +2,7 @@ import { type GameMap, LEGEND } from "@tokenmaxxing/core/maps.ts";
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
 import { canvasTexture, Model, painted, seeded, tint, toon } from "../demo3d/kit.ts";
+import { batchStatic } from "./batch.ts";
 import { disposeObject } from "./dispose.ts";
 import { type RoomCtx, type RoomView, registerFallbackRoom } from "./rooms.ts";
 
@@ -46,6 +47,14 @@ function hash(s: string): number {
   for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return h;
 }
+
+/** Where a block's name goes: the offset from its middle and the turn that faces the plane outward. */
+const SIDES: readonly [number, number, number][] = [
+  [0, 1, 0],
+  [0, -1, Math.PI],
+  [1, 0, Math.PI / 2],
+  [-1, 0, -Math.PI / 2],
+];
 
 export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
   const map: GameMap = ctx.map;
@@ -141,6 +150,17 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
     return m;
   };
 
+  const boxes = new Map<number, THREE.BoxGeometry>();
+  const boxGeometry = (h: number) => {
+    let g = boxes.get(h);
+    if (!g) {
+      g = new THREE.BoxGeometry(0.88, h, 0.88);
+      g.translate(0, h / 2, 0);
+      boxes.set(h, g);
+    }
+    return g;
+  };
+  const plane = new THREE.PlaneGeometry(0.7, 0.26);
   const solid = new Model();
   group.add(solid);
   for (let y = 0; y < D; y++)
@@ -164,15 +184,23 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
       const colour = `#${new THREE.Color().setHSL(((hash(c) % 360) / 360 + 0.0) % 1, kind.seat ? 0.35 : 0.45, 0.55).getHexString()}`;
       const edge = edgeOf(x, y);
       const target = kind.portal && edge !== "none" ? wallOf(edge) : solid;
-      const top = toon(tint(colour, 0.15));
       const front = faceOf(kind.name, colour);
-      const geo = new THREE.BoxGeometry(0.88, h, 0.88);
-      geo.translate(0, h / 2, 0);
-      const mesh = new THREE.Mesh(geo, [front, front, top, top, front, front]);
-      mesh.position.set(x + 0.5, 0, y + 0.5);
-      mesh.castShadow = mesh.receiveShadow = true;
-      target.add(mesh);
+      const box = new THREE.Mesh(boxGeometry(h), toon(tint(colour, 0.1)));
+      box.position.set(x + 0.5, 0, y + 0.5);
+      box.castShadow = box.receiveShadow = true;
+      target.add(box);
+      // The name on every side, so it reads from whichever way the view is turned.
+      for (const [dx, dz, turn] of SIDES) {
+        const sign = new THREE.Mesh(plane, front);
+        sign.position.set(x + 0.5 + dx * 0.442, h * 0.55, y + 0.5 + dz * 0.442);
+        sign.rotation.y = turn;
+        target.add(sign);
+      }
     }
+
+  // Each wall group moves as one (it drops out of the camera's way), so what is inside it can be merged now.
+  group.updateMatrixWorld(true);
+  for (const g of [...walls.map((w) => w.model), solid]) batchStatic(g, { chunk: 1e9, samples: 1, probe: () => {} });
 
   const bounds = { minX: 0, maxX: W, minZ: 0, maxZ: D, height: WALL_H };
   return {

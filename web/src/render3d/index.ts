@@ -11,12 +11,13 @@ import { skyNow } from "../game/sky.ts";
 import { world } from "../game/world.ts";
 import type { GraphicsSettings } from "../settings/graphics.ts";
 import { gpuNow } from "./dispose.ts";
+import { Drops } from "./drops.ts";
 import { Entities } from "./entities.ts";
 import { keyDirection } from "./motion.ts";
 import { Overlay } from "./overlay.ts";
 import { castAt } from "./pick.ts";
 import { CameraRig } from "./rig.ts";
-import { buildRoom, type RoomCtx } from "./rooms.ts";
+import { buildRoom, type RoomCtx, type RoomView } from "./rooms.ts";
 import { SEE } from "./seethrough.ts";
 import "./room-generic.ts";
 import "./room-town.ts";
@@ -65,6 +66,7 @@ class Renderer3D implements Renderer {
   private readonly rig = new CameraRig();
   private readonly entities = new Entities(this.overlay);
   private readonly signs = new Signs(this.overlay);
+  private readonly drops = new Drops();
   private readonly caster = new THREE.Raycaster();
   private stage: RoomStage | null = null;
   /** The town is kept while you are indoors: coming back out doesn't rebuild it. */
@@ -80,6 +82,7 @@ class Renderer3D implements Renderer {
   private selfAt: [number, number] | null = null;
   private drag: { x: number; y: number } | null = null;
   private errored = 0;
+  private framing: { view: number; bounds: RoomView["bounds"] } | null = null;
   /** While a room works out what moves (`batch.ts`), the hour its schedules read. */
   private probeMinutes: number | null = null;
   private readonly hooks = { clock: (m: number | null) => (this.probeMinutes = m) };
@@ -139,6 +142,13 @@ class Renderer3D implements Renderer {
       this.canvas.removeEventListener("pointercancel", up);
     });
     Object.assign(window, { __r3d: this });
+    // `?r3dcheck`: builds and frees every room a few times over and says whether the GPU counts moved.
+    if (location.search.includes("r3dcheck"))
+      setTimeout(() => {
+        const { before, after } = this.cycle(4);
+        const leaked = before.geometries !== after.geometries || before.textures !== after.textures || before.programs !== after.programs;
+        (leaked ? console.error : console.info)("3D leak check", leaked ? "LEAKED" : "ok", before, after);
+      }, 3000);
   }
 
   onFail(cb: (reason: string) => void): void {
@@ -169,7 +179,9 @@ class Renderer3D implements Renderer {
     const roomChanged = world.room !== this.room;
     const old = this.stage;
     this.entities.group.removeFromParent();
+    this.drops.group.removeFromParent();
     if (roomChanged) this.entities.clear();
+    this.drops.clear();
     let next: RoomStage;
     if (world.room === "town" && this.town?.key === key) next = this.town.stage;
     else {
@@ -184,14 +196,15 @@ class Renderer3D implements Renderer {
     if (old && old === this.town?.stage && old !== next) {
       // Keep it: just stop drawing it.
     }
-    next.scene.add(this.entities.group);
+    next.scene.add(this.entities.group, this.drops.group);
     this.stage = next;
     this.key = key;
     this.room = world.room;
     if (this.settings) next.applySettings(this.settings);
     this.pipe.blocked(next.scene);
     const view = next.view;
-    this.rig.frame({ view: view.view, bounds: view.bounds });
+    this.framing = { view: view.view, bounds: view.bounds };
+    this.rig.frame(this.framing);
     this.rig.setAspect(this.w / this.h);
     this.selfAt = null;
     if (roomChanged) {
@@ -235,13 +248,14 @@ class Renderer3D implements Renderer {
     try {
       this.entities.update(now, dt, view, camera);
       this.signs.update(view, camera);
+      this.drops.update(view, t);
     } catch (e) {
       // A bad look or label shouldn't take the whole picture down; say so once in a while.
       if (this.errored++ % 300 === 0) console.error("3D entities:", e);
     }
     this.stats.entityMs += (performance.now() - e0 - this.stats.entityMs) * 0.05;
-    if (this.entities.size !== before || this.entities.dirty) {
-      this.entities.dirty = false;
+    if (this.entities.size !== before || this.entities.dirty || this.drops.dirty) {
+      this.entities.dirty = this.drops.dirty = false;
       this.pipe.blocked(stage.scene);
     }
 
@@ -330,11 +344,11 @@ class Renderer3D implements Renderer {
   // MARK: Debug
 
   /** The window position of a tile's middle (for tests that click on tiles). */
-  screenOf(tx: number, ty: number): [number, number] | null {
+  screenOf(tx: number, ty: number, y = 0.2): [number, number] | null {
     const view = this.stage?.view;
     if (!view) return null;
     const [x, z] = view.toWorld(tx, ty);
-    const [sx, sy] = this.overlay.project(new THREE.Vector3(x, 0.2, z), this.rig.camera);
+    const [sx, sy] = this.overlay.project(new THREE.Vector3(x, y, z), this.rig.camera);
     const r = this.canvas.getBoundingClientRect();
     return [r.left + sx, r.top + sy];
   }
@@ -372,7 +386,10 @@ class Renderer3D implements Renderer {
     this.pipe.renderer.renderLists.dispose();
     const before = this.gpu();
     for (let i = 0; i < n; i++) warm();
-    return { before, after: this.gpu() };
+    const after = this.gpu();
+    // The live room's camera was borrowed.
+    if (this.framing) this.rig.frame(this.framing);
+    return { before, after };
   }
 
   dispose(): void {
@@ -382,6 +399,7 @@ class Renderer3D implements Renderer {
     delete viewHooks.key;
     this.signs.dispose();
     this.entities.dispose();
+    this.drops.dispose();
     if (this.stage && this.stage !== this.town?.stage) this.stage.dispose();
     this.town?.stage.dispose();
     this.stage = null;
