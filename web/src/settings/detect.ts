@@ -36,6 +36,8 @@ if (typeof navigator !== "undefined")
 /** On battery and under 20%, or not charging at all (for the fps cap). */
 export const lowBattery = (): boolean => !!battery && !battery.charging && battery.level < 0.2;
 export const onBattery = (): boolean => !!battery && !battery.charging;
+/** Unplugged with under half left. */
+const powerSaver = (): boolean => !!battery && !battery.charging && battery.level < 0.5;
 
 export function collectSignals(benchMs: number | null = null): Signals {
   const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
@@ -46,6 +48,7 @@ export function collectSignals(benchMs: number | null = null): Signals {
     cores: nav.hardwareConcurrency,
     mobile: /Android|iPhone|iPad|iPod|Mobile/i.test(nav.userAgent),
     batteryLow: lowBattery(),
+    powerSaver: powerSaver(),
     saveData: nav.connection?.saveData === true,
     desktopApp: "__TAURI__" in window,
     benchMs,

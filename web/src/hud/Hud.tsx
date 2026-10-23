@@ -44,6 +44,7 @@ import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
 import { Modal, ToastButton, useFresh, useRun } from "./ui.tsx";
+import { storage } from "../storage.ts";
 
 export function Hud() {
   const status = useHud((s) => s.status);
@@ -349,8 +350,8 @@ const FIRST_VISIT_KEY = "tokenmaxxing.pickedCompany";
 function FirstVisit() {
   const me = useHud((s) => s.me);
   useEffect(() => {
-    if (!me || localStorage.getItem(FIRST_VISIT_KEY)) return;
-    localStorage.setItem(FIRST_VISIT_KEY, "1");
+    if (!me || storage.getItem(FIRST_VISIT_KEY)) return;
+    storage.setItem(FIRST_VISIT_KEY, "1");
     if (!me.company && !me.application) hud.set({ panel: { kind: "company" } });
   }, [me]);
   return null;

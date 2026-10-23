@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { approach } from "./motion.ts";
+import { storage } from "../storage.ts";
 
 /** The floor a room covers, in world units, and how tall its walls are. */
 export interface Bounds {
@@ -75,8 +76,8 @@ export class CameraRig {
   private aspect = 1.6;
   private placed = false;
 
-  constructor(storage: Pick<Storage, "getItem"> | undefined = typeof localStorage === "undefined" ? undefined : localStorage) {
-    const saved = Number(storage?.getItem(ZOOM_KEY));
+  constructor(store: Pick<Storage, "getItem"> | undefined = storage) {
+    const saved = Number(store?.getItem(ZOOM_KEY));
     if (Number.isFinite(saved)) this.level = Math.max(-6, Math.min(8, Math.round(saved)));
   }
 
@@ -114,7 +115,7 @@ export class CameraRig {
     const { min, max } = this.range();
     this.level = step === 0 ? 0 : Math.max(min, Math.min(max, Math.max(min, Math.min(max, this.level)) + step));
     try {
-      if (typeof localStorage !== "undefined") localStorage.setItem(ZOOM_KEY, String(this.level));
+      storage.setItem(ZOOM_KEY, String(this.level));
     } catch {}
   }
 

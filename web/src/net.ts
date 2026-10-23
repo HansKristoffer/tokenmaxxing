@@ -40,6 +40,7 @@ import {
   world,
 } from "./game/world.ts";
 import { hud } from "./store.ts";
+import { storage } from "./storage.ts";
 
 const TOKEN_KEY = "tokenmaxxing.session";
 
@@ -63,7 +64,7 @@ let session = "";
 /** Trades a single-use login code (`<userId>.<code>`) for a session, kept for the next load. */
 export async function redeem(code: string): Promise<void> {
   const player = client.player.get([code.split(".")[0]!]).connect();
-  localStorage.setItem(TOKEN_KEY, await player.redeemLoginCode(code).finally(() => player.dispose()));
+  storage.setItem(TOKEN_KEY, await player.redeemLoginCode(code).finally(() => player.dispose()));
 }
 
 /**
@@ -78,13 +79,13 @@ export async function signIn(): Promise<string | null> {
     try {
       await redeem(code);
     } catch {
-      if (!localStorage.getItem(TOKEN_KEY)) {
+      if (!storage.getItem(TOKEN_KEY)) {
         hud.set({ status: "expired" });
         return null;
       }
     }
   }
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = storage.getItem(TOKEN_KEY);
   if (!token) hud.set({ status: "signedOut" });
   return token;
 }
@@ -92,7 +93,7 @@ export async function signIn(): Promise<string | null> {
 const isUnauthorized = (err: unknown) => errorCode(err) === "unauthorized";
 
 function signedOut(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  storage.removeItem(TOKEN_KEY);
   conn?.dispose();
   town?.dispose();
   arcade?.dispose();

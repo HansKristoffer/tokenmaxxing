@@ -9,6 +9,7 @@ import type { TournamentBoard } from "@tokenmaxxing/core/tournament.ts";
 import type { ChatLine, CompanyInfo, Notice, RoomId } from "@tokenmaxxing/core/world.ts";
 import type { Me, Raid, Today, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
+import { storage } from "./storage.ts";
 
 export type Panel =
   | { kind: "leaderboard" }
@@ -51,7 +52,7 @@ export const JUKE_KEY = "tokenmaxxing.jukebox";
 
 function loadJukeSettings(): JukeSettings {
   try {
-    const s = JSON.parse(localStorage.getItem(JUKE_KEY) ?? "{}") as Partial<JukeSettings>;
+    const s = JSON.parse(storage.getItem(JUKE_KEY) ?? "{}") as Partial<JukeSettings>;
     const volume = typeof s.volume === "number" ? Math.min(1, Math.max(0, s.volume)) : 0.6;
     return { muted: s.muted === true, volume };
   } catch {

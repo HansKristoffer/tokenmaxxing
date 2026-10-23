@@ -7,6 +7,7 @@ import { buildHq } from "../demo3d/hq3d.ts";
 import { beginTickScope, endTickScope } from "../demo3d/kit.ts";
 import { beginLanScope, endLanScope } from "../demo3d/livescreen.ts";
 import { setPropsNight } from "../demo3d/props.ts";
+import { Room } from "../demo3d/room.ts";
 import { forgetShopRoom, type ShopRoom, shopRoom } from "../demo3d/shops/index.ts";
 import { TAVERN_ASSETS, type TavernRoom } from "../demo3d/tavern3d.ts";
 import { buildRoomSkin, type RoomSkin, WorldRoom } from "../demo3d/world.ts";

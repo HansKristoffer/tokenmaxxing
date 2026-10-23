@@ -3,6 +3,7 @@
  * localStorage so they survive a reload and travel with the player from room to room.
  */
 import type { Look2D } from "../gear3d.ts";
+import { storage } from "../../storage.ts";
 
 const KEY = "demo3d.shops";
 export const START_COINS = 500;
@@ -25,7 +26,7 @@ interface Saved {
 
 function load(): Saved {
   try {
-    const s = JSON.parse(localStorage.getItem(KEY) ?? "null") as Saved | null;
+    const s = JSON.parse(storage.getItem(KEY) ?? "null") as Saved | null;
     if (s && typeof s.coins === "number" && Array.isArray(s.owned)) return s;
   } catch {
     // fall through to a fresh purse
@@ -36,7 +37,7 @@ function load(): Saved {
 const state: Saved = load();
 const listeners = new Set<() => void>();
 const save = (): void => {
-  localStorage.setItem(KEY, JSON.stringify(state));
+  storage.setItem(KEY, JSON.stringify(state));
   for (const f of listeners) f();
 };
 

@@ -34,6 +34,7 @@ import { setMerchCompanies } from "../art/merch.ts";
 import { bakeGround, repaintGround } from "../art/tiles.ts";
 import { hud } from "../store.ts";
 import { emojiOnly } from "./emoji.ts";
+import { storage } from "../storage.ts";
 
 /** Someone in the room, as drawn: a logical tile plus an in-flight step. */
 export interface Avatar {
@@ -143,8 +144,8 @@ export function loadSnapshot(s: Snapshot): void {
   world.games = new Map(s.games.map((g) => [g.id, g]));
   gamesChanged();
   // The first time in your own office, how to furnish it.
-  const hint = changedRoom && s.room === `office:${s.selfId}` && !localStorage.getItem(OFFICE_HINT_KEY);
-  if (hint) localStorage.setItem(OFFICE_HINT_KEY, "1");
+  const hint = changedRoom && s.room === `office:${s.selfId}` && !storage.getItem(OFFICE_HINT_KEY);
+  if (hint) storage.setItem(OFFICE_HINT_KEY, "1");
   hud.set({
     room: s.room,
     occupancy: s.occupancy,

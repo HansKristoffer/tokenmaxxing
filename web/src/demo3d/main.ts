@@ -35,6 +35,7 @@ import { buildTown, setTownNight, TOWN_W } from "./town.ts";
 import type { Town3d } from "./town3d.ts";
 import { type MapId, type Portal, ROOM_ORDER, type World, World as WorldGraph, type WorldRoom } from "./world.ts";
 import { INSET, loadRoomSkins } from "./world-rooms.ts";
+import { storage } from "../storage.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
 const labelLayer = document.querySelector<HTMLDivElement>("#labels")!;
@@ -1717,7 +1718,7 @@ function setStyle(px: number): void {
   $("#px-value").textContent = px === 1 ? "smooth" : `${px}×`;
   choose("style", px === 1 ? "smooth" : "pixel");
   canvas.classList.toggle("smooth", px === 1);
-  localStorage.setItem("demo3d.style", px === 1 ? "smooth" : "pixel");
+  storage.setItem("demo3d.style", px === 1 ? "smooth" : "pixel");
 }
 
 /** Voxel (Plethora): soft lit matte blocks, AO, haze and grading (see pipeline.ts). */
@@ -1726,7 +1727,7 @@ function setVoxel(): void {
   pipe.pixelSize = 1;
   choose("style", "voxel");
   canvas.classList.add("smooth");
-  localStorage.setItem("demo3d.style", "voxel");
+  storage.setItem("demo3d.style", "voxel");
 }
 
 for (const b of document.querySelectorAll<HTMLButtonElement>("[data-group=stage]"))
@@ -1897,7 +1898,7 @@ function frame(): void {
 }
 
 {
-  const saved = localStorage.getItem("demo3d.style");
+  const saved = storage.getItem("demo3d.style");
   if (tierParam) {
     // The tier decided the look; keep the panel's idea of it in step.
     choose("style", pipe.style === "voxel" ? "voxel" : "pixel");

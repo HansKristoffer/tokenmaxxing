@@ -1,3 +1,4 @@
+import { storage } from "../storage.ts";
 /** Makes every floating menu fold down to its header: click the header (▾) to hide or show the rest. */
 
 const HEADERS = ".title, .head, h4, .inv-head";
@@ -11,7 +12,7 @@ style.textContent = `
 `;
 document.head.append(style);
 
-const saved: Record<string, boolean> = JSON.parse(localStorage.getItem("demo3d.collapsed") ?? "{}");
+const saved: Record<string, boolean> = JSON.parse(storage.getItem("demo3d.collapsed") ?? "{}");
 
 function attach(panel: HTMLElement): void {
   if (panel.dataset.cx) return;
@@ -27,7 +28,7 @@ function attach(panel: HTMLElement): void {
     if ((e.target as HTMLElement).closest("button, input, select, a")) return;
     const folded = panel.classList.toggle("cx-collapsed");
     saved[key] = folded;
-    localStorage.setItem("demo3d.collapsed", JSON.stringify(saved));
+    storage.setItem("demo3d.collapsed", JSON.stringify(saved));
   });
 }
 

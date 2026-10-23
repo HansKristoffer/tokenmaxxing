@@ -1,5 +1,6 @@
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { world } from "./world.ts";
+import { storage } from "../storage.ts";
 
 /** The current view, kept for turning clicks into tiles. */
 export const camera = { x: 0, y: 0, scale: 1, dpr: 1 };
@@ -25,7 +26,7 @@ export const viewHooks: {
  * Zoom is device pixels per world pixel, always a whole number so the pixel art
  * stays crisp. `null` follows the window size; the player's choice is saved.
  */
-let chosenScale: number | null = Number(localStorage.getItem(ZOOM_KEY)) || null;
+let chosenScale: number | null = Number(storage.getItem(ZOOM_KEY)) || null;
 
 const zoomRange = { min: 1, max: 12 };
 
@@ -77,6 +78,6 @@ export function zoom(step: 1 | -1 | 0): void {
         Math.round(chosenScale ?? camera.scale) + step * Math.max(1, Math.round(camera.dpr)),
       ),
     );
-  if (chosenScale === null) localStorage.removeItem(ZOOM_KEY);
-  else localStorage.setItem(ZOOM_KEY, String(chosenScale));
+  if (chosenScale === null) storage.removeItem(ZOOM_KEY);
+  else storage.setItem(ZOOM_KEY, String(chosenScale));
 }

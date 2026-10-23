@@ -31,10 +31,11 @@ test("no WebGL2 is Low", () => {
   expect(tier({ webgl2: false, gpu: "Apple M2" })).toBe("low");
 });
 
-test("a strong desktop is High, Ultra with a fast benchmark", () => {
+test("a strong desktop is High, never Ultra (that is opt-in)", () => {
   expect(tier({ gpu: "Apple M2" })).toBe("high");
-  expect(tier({ gpu: "Apple M2", benchMs: 1 })).toBe("ultra");
+  expect(tier({ gpu: "Apple M2", benchMs: 1 })).toBe("high");
   expect(tier({ gpu: "Apple M2", benchMs: 1, cores: 4 })).toBe("high");
+  expect(tier({ gpu: "Apple M2", benchMs: 1, powerSaver: true })).toBe("medium");
 });
 
 test("weak GPUs are Low unless the benchmark says otherwise", () => {

@@ -1,6 +1,7 @@
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import { drumHits, type Note, notes, STEPS, TUNES, type Tune } from "@tokenmaxxing/core/tunes.ts";
 import { hud, JUKE_KEY, type JukeSettings } from "../store.ts";
+import { storage } from "../storage.ts";
 
 /**
  * Plays the Tavern's jukebox with WebAudio: square, triangle and saw voices and a noise drum kit, made
@@ -16,7 +17,7 @@ const EVERY_MS = 100;
 
 /** Mutes or sets the volume, remembered on this device. */
 export function setSettings(next: JukeSettings): void {
-  localStorage.setItem(JUKE_KEY, JSON.stringify(next));
+  storage.setItem(JUKE_KEY, JSON.stringify(next));
   hud.set({ jukeSettings: next });
   if (master) master.gain.value = next.muted ? 0 : next.volume * LEVEL;
 }

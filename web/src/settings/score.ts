@@ -10,6 +10,8 @@ export interface Signals {
   cores?: number;
   mobile: boolean;
   batteryLow: boolean;
+  /** Unplugged and under half: a laptop saving power. */
+  powerSaver?: boolean;
   saveData: boolean;
   desktopApp: boolean;
   /** Milliseconds for the benchmark's frame; null if it didn't run. */
@@ -36,7 +38,7 @@ export function classifyGpu(gpu: string | null, mobile: boolean, desktopApp = fa
 const RANK: Tier[] = ["low", "medium", "high", "ultra"];
 const cap = (t: Tier, max: Tier): Tier => (RANK.indexOf(t) > RANK.indexOf(max) ? max : t);
 
-/** The recommended tier for what we know about this machine, and why. Pure. */
+/** The recommended tier (never Ultra) for what we know about this machine, and why. Pure. */
 export function scoreTier(s: Signals): { tier: Tier; reasons: string[] } {
   if (!s.webgl2) return { tier: "low", reasons: ["no WebGL2"] };
   const reasons: string[] = [];
@@ -46,7 +48,7 @@ export function scoreTier(s: Signals): { tier: Tier; reasons: string[] } {
   reasons.push(`${cls} GPU`);
   if (s.benchMs !== null) {
     if (s.benchMs <= BENCH_FAST_MS) {
-      tier = cls === "weak" ? "medium" : cls === "strong" ? "ultra" : "high";
+      tier = cls === "weak" ? "medium" : "high";
       reasons.push("fast benchmark");
     } else if (s.benchMs >= BENCH_SLOW_MS) {
       tier = tierBelow(tier);
@@ -59,9 +61,10 @@ export function scoreTier(s: Signals): { tier: Tier; reasons: string[] } {
   };
   if (s.mobile) limit("medium", "mobile");
   if (s.batteryLow) limit("medium", "low battery");
+  if (s.powerSaver) limit("medium", "battery saver");
   if (s.saveData) limit("medium", "data saver");
   if (s.memory !== undefined && s.memory <= 2) limit("low", "2 GB or less memory");
   if (s.cores !== undefined && s.cores <= 2) limit("medium", "2 cores");
-  if (tier === "ultra" && ((s.cores ?? 8) < 8 || (s.memory ?? 8) < 8)) limit("high", "not enough cores or memory for Ultra");
+  // Ultra is never picked for the player: it is opt-in, and the governor still steps down from whatever is chosen.
   return { tier, reasons };
 }

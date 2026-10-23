@@ -1,4 +1,5 @@
 import { clamp } from "hanzio";
+import { storage } from "../storage.ts";
 
 export const TIERS = ["low", "medium", "high", "ultra"] as const;
 export type Tier = (typeof TIERS)[number];
@@ -296,6 +297,6 @@ export function createGraphics(storage?: Storage, prefersReducedMotion = () => f
 export type GraphicsStore = ReturnType<typeof createGraphics>;
 
 export const graphics = createGraphics(
-  typeof localStorage === "undefined" ? undefined : localStorage,
+  storage,
   () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches,
 );

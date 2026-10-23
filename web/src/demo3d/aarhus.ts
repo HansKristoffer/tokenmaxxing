@@ -7,6 +7,7 @@
 
 import { type Light, type Weather, weatherFrom } from "@tokenmaxxing/core/sky.ts";
 import { clamp } from "hanzio";
+import { storage } from "../storage.ts";
 
 export const AARHUS = { lat: 56.1629, lon: 10.2039 } as const;
 
@@ -140,7 +141,7 @@ export class AarhusWeather {
   constructor(onChange: () => void) {
     this.onChange = onChange;
     try {
-      const raw = localStorage.getItem(CACHE_KEY);
+      const raw = storage.getItem(CACHE_KEY);
       if (raw) {
         const c = JSON.parse(raw) as { at: number; json: unknown };
         this.latest = parse(c.json, c.at, "cached");
@@ -163,7 +164,7 @@ export class AarhusWeather {
       this.latest = live;
       this.offline = false;
       try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ at, json }));
+        storage.setItem(CACHE_KEY, JSON.stringify({ at, json }));
       } catch {
         // Cache is a nicety.
       }
