@@ -152,9 +152,17 @@ const LINKS: Record<string, [MapId, string]> = {
   "basement:x": ["inn", "S"],
   "upstairs:x": ["inn", "u"],
   "dungeon:x": ["town", "G"],
+  "town:ƒ": ["shop-furniture", "x"],
+  "town:ç": ["shop-clothes", "x"],
+  "town:ß": ["shop-barber", "x"],
+  "town:π": ["shop-pets", "x"],
+  "shop-furniture:x": ["town", "ƒ"],
+  "shop-clothes:x": ["town", "ç"],
+  "shop-barber:x": ["town", "ß"],
+  "shop-pets:x": ["town", "π"],
 };
 
-export const ROOM_ORDER: MapId[] = ["town", "hq", "office", "inn", "upstairs", "basement", "dungeon"];
+export const ROOM_ORDER: MapId[] = ["town", "hq", "office", "inn", "upstairs", "basement", "dungeon", "shop-furniture", "shop-clothes", "shop-barber", "shop-pets"];
 
 export interface Portal {
   x: number;

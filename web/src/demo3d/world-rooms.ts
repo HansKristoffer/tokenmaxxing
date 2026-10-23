@@ -15,6 +15,7 @@ import { buildHq } from "./hq3d.ts";
 import type { Model } from "./kit.ts";
 import { PETS_ASSETS } from "./pets3d.ts";
 import { Room } from "./room.ts";
+import { SHOP_IDS, SHOP_ROOM, shopRoom } from "./shops/index.ts";
 import { buildDormRoom, buildTavernRoom } from "./tavern3d.ts";
 import { buildTown3d, MARGIN } from "./town3d.ts";
 import { registerRoomSkin, registerTile, type TileBuilder } from "./world.ts";
@@ -51,6 +52,13 @@ registerRoomSkin("upstairs", () => {
   const dorm = buildDormRoom();
   return { group: dorm.room.group, offset: INSET, facing: (v) => dorm.room.facing(v), extra: dorm };
 });
+
+// The four shops: the shop's own room, mounted like the Tavern, with the map its blocked tiles make.
+for (const id of SHOP_IDS)
+  registerRoomSkin(SHOP_ROOM[id], () => {
+    const shop = shopRoom(id);
+    return { group: shop.room.group, offset: INSET, facing: (v) => shop.room.facing(v), map: shop.map, extra: shop };
+  });
 
 registerRoomSkin("basement", () => {
   const b = buildBasement();

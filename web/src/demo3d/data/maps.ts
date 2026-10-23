@@ -6,7 +6,18 @@ const TAVERN = true;
 const POSTERS = "7689510234".split("").map((ch) => ({ ch, name: `Poster ${ch}`, text: "A wall poster." }));
 
 
-export type MapId = "town" | "hq" | "inn" | "upstairs" | "basement" | "office" | "dungeon";
+export type MapId =
+  | "town"
+  | "hq"
+  | "inn"
+  | "upstairs"
+  | "basement"
+  | "office"
+  | "dungeon"
+  | "shop-furniture"
+  | "shop-clothes"
+  | "shop-barber"
+  | "shop-pets";
 export type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 export interface TileKind {
@@ -85,6 +96,11 @@ export const LEGEND: Record<string, TileKind> = {
   M: { name: "wall terminal", text: "A wall terminal." },
   // The tournament board (`tournament.ts`); E opens it. The basement is the Tavern's, so `TAVERN` gates it.
   ...(TAVERN ? { i: { name: "tournament board", text: "The tournament board." } } : {}),
+  // The four shops on the town's streets (their doors; the shops are `shops/index.ts`).
+  "ƒ": { name: "furniture shop door", portal: true },
+  "ç": { name: "clothes shop door", portal: true },
+  "ß": { name: "barber shop door", portal: true },
+  "π": { name: "pet shop door", portal: true },
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
   R: { name: "office door", portal: true },
@@ -513,6 +529,11 @@ export const MAPS: Record<MapId, GameMap> = {
   office: new GameMap("office", "Office", officeRows(12, 9)),
   // The raid: the boss on its dais, and arcs of war desks facing it. Whoever has agents running is drawn
   // at one (web/src/game/raid.ts); the desks and seats are props, so visitors walk the aisles.
+  // The shops' rooms are drawn by their skins (`world-rooms.ts`), which bring their own maps; these are stand-ins.
+  "shop-furniture": new GameMap("shop-furniture", "Møbelhuset", ["WW", "Wx"]),
+  "shop-clothes": new GameMap("shop-clothes", "Thread & Token", ["WW", "Wx"]),
+  "shop-barber": new GameMap("shop-barber", "The Barber", ["WW", "Wx"]),
+  "shop-pets": new GameMap("shop-pets", "Pet shop", ["WW", "Wx"]),
   dungeon: new GameMap("dungeon", "Raid Dungeon", [
     "WWWWWWWWWWWWWWWWWWWWWWWWWWW",
     "WWWWWWWWWWWWWWWWWWWWWWWWWWW",

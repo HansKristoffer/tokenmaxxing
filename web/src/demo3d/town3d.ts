@@ -36,6 +36,7 @@ import {
   type TreeKind,
   tree,
 } from "./props.ts";
+import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_SPECS, type ShopId } from "./shops/index.ts";
 import { companyHouse, tavernBuilding } from "./town3d-houses.ts";
 import {
   type Board,
@@ -58,9 +59,10 @@ export const MARGIN = 3;
 export interface TownDoor {
   /** `inn`, `arcade`, `dungeon`, or `hq:<plot>`. */
   id: string;
-  kind: "inn" | "hq" | "arcade" | "dungeon";
+  kind: "inn" | "hq" | "arcade" | "dungeon" | "shop";
   label: string;
   plot?: number;
+  shop?: ShopId;
   companyId?: number;
   /** The tile you step on to go through, and its middle in world units (x, z). */
   tile: [number, number];
@@ -105,7 +107,7 @@ const GROUND: Record<string, Ground> = { ".": "grass", ",": "path", ":": "plaza"
 function groundAt(map: TownMap, x: number, y: number): Ground {
   const own = GROUND[map.at(x, y)];
   if (own) return own;
-  if ("IDA".includes(map.at(x, y))) return "path";
+  if ("IDAƒçßπ".includes(map.at(x, y))) return "path";
   const counts = new Map<Ground, number>();
   for (const [dx, dy] of [
     [0, 1],
@@ -271,6 +273,26 @@ export function buildTown3d(companies: readonly Company[] = DEMO_COMPANIES): Tow
     set(bx * BLOCK_W + 5, by * BLOCK_H + 6, "A");
     for (const dy of [7, 8]) set(bx * BLOCK_W + 5, by * BLOCK_H + dy, ",");
   }
+  // The four shops take the next parks nearest the square: a 5x4 storefront with its door on the street side.
+  const shopSlots: { id: ShopId; bx: number; by: number }[] = [];
+  const spare = [...plain.parks]
+    .filter((p) => p !== park)
+    .sort((a, b) => Math.hypot(a[0] - 0.5, a[1] - 0.5) - Math.hypot(b[0] - 0.5, b[1] - 0.5));
+  SHOP_IDS.forEach((id, i) => {
+    const p = spare[i];
+    if (!p) return;
+    const [bx, by] = p;
+    shopSlots.push({ id, bx, by });
+    for (let dy = 1; dy <= 6; dy++)
+      for (let dx = 1; dx <= 9; dx++) {
+        const tx = bx * BLOCK_W + dx;
+        const ty = by * BLOCK_H + dy;
+        if ("T^\"".includes(plain.at(tx, ty))) set(tx, ty, ".");
+      }
+    for (let dy = 3; dy <= 6; dy++) for (let dx = 3; dx <= 7; dx++) set(bx * BLOCK_W + dx, by * BLOCK_H + dy, "H");
+    set(bx * BLOCK_W + 5, by * BLOCK_H + 6, SHOP_DOOR_CHAR[id]);
+    for (const dy of [7, 8]) set(bx * BLOCK_W + 5, by * BLOCK_H + dy, ",");
+  });
   const map = new TownMap(
     rows.map((r) => r.join("")),
     plain.x0,
@@ -284,6 +306,12 @@ export function buildTown3d(companies: readonly Company[] = DEMO_COMPANIES): Tow
   const toWorld = (tx: number, ty: number): [number, number] => [wx(tx) + 0.5, wz(ty) + 0.5];
   const toTile = (x: number, z: number): [number, number] => [Math.floor(x) + map.x0 - MARGIN, Math.floor(z) + map.y0 - MARGIN];
 
+  // The street in front of each shop door stays clear of trees, so the storefront shows.
+  const clearOf = (x: number, z: number): boolean =>
+    shopSlots.some((q) => {
+      const [cx, cz] = toWorld(q.bx * BLOCK_W + 5, q.by * BLOCK_H + 6);
+      return x - cx > -3.2 && x - cx < 7 && z > cz + 1.6;
+    });
   const g = new THREE.Group();
   const px = Math.max(8, Math.min(32, Math.floor(4096 / Math.max(W, D))));
   const dirt = toon("#7a5638");
@@ -327,6 +355,7 @@ export function buildTown3d(companies: readonly Company[] = DEMO_COMPANIES): Tow
       const border = tx === map.x0 || ty === map.y0 || tx === map.x0 + map.width - 1 || ty === map.y0 + map.height - 1;
       switch (ch) {
         case "T": {
+          if (clearOf(cx, cz)) break;
           const kind = KINDS[Math.floor(hash(tx, ty, 3) * KINDS.length)]!;
           add(tree(kind, Math.floor(r * 1e6), (border ? 1.1 : 1) + hash(tx, ty, 4) * 0.3), cx + (r - 0.5) * 0.5, cz + (hash(tx, ty, 5) - 0.5) * 0.5);
           break;
@@ -462,7 +491,11 @@ export function buildTown3d(companies: readonly Company[] = DEMO_COMPANIES): Tow
       if (ring >= MARGIN) continue;
       if (rnd() < 0.5 + ring * 0.15) continue;
       const kind = KINDS[Math.floor(rnd() * KINDS.length)]!;
-      add(tree(kind, Math.floor(rnd() * 1e6), 1 + rnd() * 0.4), cx + 0.5 + (rnd() - 0.5) * 0.6, cz0(cy) + (rnd() - 0.5) * 0.6);
+      const seed = Math.floor(rnd() * 1e6);
+      const size = 1 + rnd() * 0.4;
+      const tx = cx + 0.5 + (rnd() - 0.5) * 0.6;
+      const tz = cz0(cy) + (rnd() - 0.5) * 0.6;
+      if (!clearOf(tx, tz)) add(tree(kind, seed, size), tx, tz);
     }
   function cz0(cy: number): number {
     return cy + 0.5;
@@ -509,6 +542,15 @@ export function buildTown3d(companies: readonly Company[] = DEMO_COMPANIES): Tow
     const [ax, ay] = arcade;
     add(arcadeBuilding(), wx(ax) + 0.5, wz(ay) - 2.2);
     doors.push({ id: "arcade", kind: "arcade", label: "Arcade", tile: [ax, ay], at: toWorld(ax, ay) });
+  }
+
+  // —— The shops (tiles ƒ ç ß π) ——
+  for (const slot of shopSlots) {
+    const dx = slot.bx * BLOCK_W + 5;
+    const dy = slot.by * BLOCK_H + 6;
+    const [cx] = toWorld(dx, dy);
+    add(SHOP_SPECS[slot.id].exterior(), cx, wz(dy) + 0.95);
+    doors.push({ id: `shop:${slot.id}`, kind: "shop", label: SHOP_SPECS[slot.id].name, shop: slot.id, tile: [dx, dy], at: toWorld(dx, dy) });
   }
 
   // —— Street lamps at every lot and park corner ——

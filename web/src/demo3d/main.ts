@@ -21,6 +21,11 @@ import { loadSlices } from "./registry.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
 import "./tiles.ts";
 import "./collapsible.ts";
+import { applyDecor } from "./decor3d.ts";
+import { type ShopDisplay, shopOfRoom, shopRoom } from "./shops/index.ts";
+import type { ShopHooks } from "./shops/shopActions.ts";
+import { mountShopPanel, type ShopPanel } from "./shops/shopPanel.ts";
+import { wallet } from "./shops/wallet.ts";
 import type { Age, Species, Top } from "./styles.ts";
 import { buildDormRoom, buildTavernRoom, type DormRoom, setBarTab, setPlaque, setTavernNight, type TavernRoom } from "./tavern3d.ts";
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
@@ -897,7 +902,7 @@ function person(s: Stage, look: Look2D, name: string, level: number, company?: {
 
 /** A pet (pets3d) trotting after someone, or pottering about its room. */
 class Companion {
-  readonly pet: Pet3D;
+  pet: Pet3D;
   private readonly entry: Label;
   private wander = new THREE.Vector3();
   constructor(
@@ -918,6 +923,18 @@ class Companion {
     const el = label(name, "tag pet");
     this.entry = { el, at: () => this.pet.root.position.clone().add(new THREE.Vector3(0, 0.7, 0)) };
     stage.labels.push(this.entry);
+  }
+  /** Swaps for another pet (the pet shop): same spot, new species, look and gear. */
+  swap(species: string, variant: string, name: string, wear = 0): void {
+    const old = this.pet.root;
+    this.pet = petFrom2D(species, variant, name);
+    this.pet.root.scale.setScalar(PET_SCALE);
+    this.pet.root.position.copy(old.position);
+    this.pet.root.rotation.copy(old.rotation);
+    this.pet.wear = wear;
+    old.removeFromParent();
+    this.stage.scene.add(this.pet.root);
+    this.entry.el.textContent = name;
   }
   enter(next: Stage): void {
     if (next === this.stage) return;
@@ -949,7 +966,8 @@ class Companion {
 }
 
 let worldPet: Companion | null = null;
-let playerLook: Look2D = look2dOf(3);
+let playerLook: Look2D = wallet.look ?? look2dOf(3);
+const PLAYER_LEVEL = Number(new URLSearchParams(location.search).get("level") ?? 6);
 
 /** What a room needs beyond its props: patrons, sleepers, the barkeep, the boss. Returns its per-frame update. */
 function roomActors(id: MapId, r: WorldRoom, s: Stage): ((dt: number, t: number) => void) | null {
@@ -1071,6 +1089,18 @@ function worldStage(id: MapId): Stage {
     s.labels.push({ el, at: () => new THREE.Vector3(p.x + 0.5, id === "town" ? 2.4 : 2.9, p.y + 0.5) });
   }
   const actors = roomActors(id, r, s);
+  const shopId = shopOfRoom(id);
+  if (shopId) {
+    const shop = shopRoom(shopId);
+    const keeper = shopId === "clothes" ? ["Bree", "Stylist"] : null;
+    if (keeper) {
+      const tag = nameTag({ name: keeper[0]!, level: 20, company: { name: keeper[1]!, color: "#3f7a78" } });
+      labelLayer.append(tag);
+      tag.hidden = true;
+      const p = new THREE.Vector3();
+      s.labels.push({ el: tag, at: () => p.setFromMatrixPosition(shop.shopkeeper.root.matrixWorld).setY(1.6) });
+    }
+  }
   // A few locals wander about.
   const folk: Walker[] = [];
   const pets: Companion[] = [];
@@ -1131,6 +1161,7 @@ function worldStage(id: MapId): Stage {
   if (id === "office") {
     const el = mountDecorPanel(r.skin!.extra as Room, s.target);
     el.hidden = true;
+    if (wallet.decor.wall || wallet.decor.floor) applyDecor(r.skin!.extra as Room, wallet.decor);
     decorPanels.set(s, el);
   }
   applyNight(s);
@@ -1148,7 +1179,11 @@ function placePlayer(id: MapId, at?: [number, number], turn = 0): void {
   worldMe.mood = "happy";
   const c = r.centre(...spot.at);
   worldMe.at(c.x, c.z, "stand", spot.turn);
-  if (!worldPet) worldPet = new Companion(s, "cat", 0, "Miso", worldMe, c.clone().add(new THREE.Vector3(0.6, 0, 0.6)));
+  if (!worldPet) {
+    const mine = wallet.pet;
+    worldPet = new Companion(s, mine?.species ?? "cat", 0, mine?.name ?? "Miso", worldMe, c.clone().add(new THREE.Vector3(0.6, 0, 0.6)));
+    if (mine) worldPet.swap(mine.species, mine.variant, mine.name, mine.wear);
+  }
   worldPet.enter(s);
   worldPet.pet.root.position.set(c.x + 0.6, 0, c.z + 0.6);
 }
@@ -1220,6 +1255,64 @@ function follow(dt: number): void {
   stage.target.z += (Math.min(Math.max(p.z, lo(r.D)), r.D - lo(r.D)) - stage.target.z) * k;
 }
 
+// ——— The shops: the buy panel, and what a purchase does to the player, their pet and their Office ———
+function shopPick(e: PointerEvent): ShopDisplay | null {
+  const id = shopOfRoom(roomOf.get(stage)?.id ?? "");
+  if (!id || !isWorld(stage)) return null;
+  const rect = canvas.getBoundingClientRect();
+  let best: ShopDisplay | null = null;
+  let bestD = 30;
+  const p = new THREE.Vector3();
+  for (const d of shopRoom(id).displays) {
+    p.set(d.pos.x + INSET[0], d.pos.y, d.pos.z + INSET[1]).project(camera);
+    const dist = Math.hypot(((p.x + 1) / 2) * rect.width + rect.left - e.clientX, ((1 - p.y) / 2) * rect.height + rect.top - e.clientY);
+    if (dist < bestD) {
+      bestD = dist;
+      best = d;
+    }
+  }
+  return best;
+}
+const shopHooks: ShopHooks = {
+  level: () => PLAYER_LEVEL,
+  look: () => playerLook,
+  previewLook: (l) => worldMe?.restyle(lookFrom2D(l ?? playerLook, { level: PLAYER_LEVEL })),
+  setLook(l) {
+    playerLook = l;
+    wallet.look = l;
+    worldMe?.restyle(lookFrom2D(l, { level: PLAYER_LEVEL }));
+  },
+  pet: () => wallet.pet ?? { species: "cat", variant: "", name: "Miso", wear: 0 },
+  setPet(p) {
+    wallet.pet = p;
+    worldPet?.swap(p.species, p.variant, p.name, p.wear);
+  },
+  placeFurniture(asset) {
+    if (!document.querySelector(`#inventory .inv button[data-id="${asset.id}"]`)) {
+      const b = document.createElement("button");
+      b.dataset.id = asset.id;
+      b.title = `${asset.name} (bought)`;
+      b.innerHTML = `<span>${asset.name}</span>`;
+      b.onclick = () => (placing?.asset === asset ? stopPlacing() : startPlacing(asset));
+      $("#inventory .inv").prepend(b);
+    }
+    setStage("Office");
+    startPlacing(asset);
+  },
+  decorOffice(d) {
+    applyDecor(room, d);
+    const wr = worldStages.has("office") ? (world.room("office").skin?.extra as Room | undefined) : undefined;
+    if (wr) applyDecor(wr, d);
+    for (const [, el] of decorPanels) {
+      if (d.wall) el.querySelector<HTMLSelectElement>("#d-wall")!.value = d.wall;
+      if (d.floor) el.querySelector<HTMLSelectElement>("#d-floor")!.value = d.floor;
+    }
+  },
+  renderStyle: () => ({ style: pipe.style === "voxel" ? "voxel" : "classic", pixelSize: pipe.pixelSize, night }),
+};
+const shopPanel: ShopPanel = mountShopPanel(shopHooks);
+if (wallet.decor.wall || wallet.decor.floor) applyDecor(room, wallet.decor);
+
 // For poking at the world from the console or a test: `world3d.go(x, y)` walks to a tile of the room.
 Object.assign(window, {
   world3d: {
@@ -1230,6 +1323,18 @@ Object.assign(window, {
     roomOf,
     worldStages,
     stages,
+    shopPanel,
+    shopRoom,
+    /** Where a shop display of the current room is on the screen (client px), for tests: by item id. */
+    shopScreen(itemId: string): [number, number] | null {
+      const id = shopOfRoom(roomOf.get(stage)?.id ?? "");
+      const d = id && shopRoom(id).displays.find((q) => q.item.id === itemId);
+      if (!d) return null;
+      const rect = canvas.getBoundingClientRect();
+      const p = new THREE.Vector3(d.pos.x + INSET[0], d.pos.y, d.pos.z + INSET[1]).project(camera);
+      return [((p.x + 1) / 2) * rect.width + rect.left, ((1 - p.y) / 2) * rect.height + rect.top];
+    },
+    wallet,
     get me() {
       return worldMe;
     },
@@ -1448,6 +1553,9 @@ canvas.addEventListener("pointerdown", (e) => {
 });
 canvas.addEventListener("pointermove", (e) => {
   hoverTile = tileUnder(e);
+  const near = shopPick(e);
+  canvas.style.cursor = near ? "pointer" : "";
+  shopPanel.tip(near ? `${near.item.name}${near.item.price ? ` · 🪙 ${near.item.price}` : ""}` : null, e.clientX, e.clientY);
   if (!drag || isWorld(stage)) return;
   const dx = e.clientX - drag.x;
   const dy = e.clientY - drag.y;
@@ -1466,6 +1574,12 @@ canvas.addEventListener("pointerup", (e) => {
   drag = null;
   if (!click) return;
   if (isWorld(stage)) {
+    const hit = shopPick(e);
+    if (hit) {
+      shopPanel.open(shopOfRoom(roomOf.get(stage)!.id)!, hit.item);
+      worldGo(hit.tile[0] + INSET[0], hit.tile[1] + INSET[1]);
+      return;
+    }
     const t = tileUnder(e);
     if (t) worldGo(...t);
     return;
@@ -1559,6 +1673,8 @@ function setStage(name: string): void {
   $("#room-name").textContent = roomOf.get(stage)?.name ?? "";
   $<HTMLSelectElement>("#room").value = worldRoom;
   stopPlacing();
+  shopPanel.tip(null);
+  if (!shopOfRoom(roomOf.get(stage)?.id ?? "")) shopPanel.close();
   for (const s of stages) for (const l of s.labels) l.el.hidden = s !== stage;
   $("#inventory").hidden = stage !== office;
   for (const [s, el] of decorPanels) el.hidden = s !== stage;
@@ -1610,6 +1726,7 @@ $("#spin").onclick = () => {
 $("#look").onclick = () => {
   if (!isWorld(stage)) return (stage === townStage ? townMe : me).restyle(randomLook());
   playerLook = look2dOf(Math.floor(Math.random() * 1e6));
+  wallet.look = playerLook;
   worldMe!.restyle(lookFrom2D(playerLook, { level: 6 }));
 };
 const picker = $<HTMLSelectElement>("#room");
