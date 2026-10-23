@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { Avatar, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
 import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
+import { FX_ASSETS, Fx } from "./fx3d.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
 import { Pipeline } from "./pipeline.ts";
 import { car } from "./props.ts";
@@ -376,7 +377,9 @@ office.update = (dt, t) => {
 const COLS = 6;
 const CELL_W = 3.2;
 const CELL_D = 4.4;
-const rows = Math.ceil(ASSETS.length / COLS) + 1;
+/** Everything in the showroom: the furniture, and the street-life pieces from `fx3d.ts`. */
+const SHOWROOM = [...ASSETS, ...FX_ASSETS];
+const rows = Math.ceil(SHOWROOM.length / COLS) + 1;
 const catW = COLS * CELL_W;
 const catD = rows * CELL_D;
 const catalog = newStage("Catalog", new THREE.Vector3(), Math.max(catW, catD) * 0.75, 12, "#1b1f2a");
@@ -408,7 +411,7 @@ const cell = (col: number, row: number) =>
   );
 catalog.target.copy(cell(COLS / 2 - 0.5, 1.5)).setY(0.5);
 const spinning: THREE.Object3D[] = [];
-ASSETS.forEach((a, i) => {
+SHOWROOM.forEach((a, i) => {
   const m = a.build();
   m.position.copy(cell(i % COLS, Math.floor(i / COLS) + 1));
   catalog.scene.add(m);
@@ -596,23 +599,43 @@ function aim(w: number, h: number): void {
   camera.updateMatrixWorld();
 }
 
-// ——— Night ———
+// ——— Night, weather and street life (fx3d.ts): the light follows the Copenhagen clock ———
 let night = false;
+const fx = new Fx({
+  stages,
+  town: townStage,
+  current: () => stage.name,
+  show: (name) => setStage(name),
+  label: (st, text, cls, at) => {
+    const el = label(text, cls);
+    const entry = { el, at };
+    el.hidden = stage !== st;
+    (st as Stage).labels.push(entry);
+    return {
+      el,
+      remove: () => {
+        el.remove();
+        const i = (st as Stage).labels.indexOf(entry);
+        if (i >= 0) (st as Stage).labels.splice(i, 1);
+      },
+    };
+  },
+  me: () => {
+    const w = stage === townStage ? townMe : stage === office ? me : null;
+    return w ? { avatar: w.avatar, top: () => w.top(), go: (x, z, arrive) => w.go([v3(x, z)], arrive) } : null;
+  },
+  applyNight: (on) => {
+    night = on;
+    setRoomNight(on);
+    setTownNight(on);
+    document.body.classList.toggle("night", on);
+    $("#night").textContent = on ? "☀️ Day" : "🌙 Night";
+  },
+});
+fx.setSleepers([{ name: "lin", level: 7 }]);
+Object.assign(window, { fx, townStage, office, catalog, spinning });
 function setNight(on: boolean): void {
-  night = on;
-  setRoomNight(on);
-  setTownNight(on);
-  for (const s of stages) {
-    s.hemi.intensity = on ? 0.55 : 1.6;
-    s.hemi.color.set(on ? "#8fa0ff" : "#fff4e0");
-    s.sun.intensity = on ? 0.35 : 2.4;
-    s.sun.color.set(on ? "#9fb0ff" : "#fff1d6");
-    (s.scene.background as THREE.Color).set(on ? "#0f111a" : "#1b1f2a");
-    s.scene.traverse((o) => {
-      if (o instanceof THREE.PointLight) o.intensity = on ? (o.userData.night ?? 0) : 0;
-    });
-  }
-  document.body.classList.toggle("night", on);
+  fx.setTime(on ? "23:30" : "12:00");
 }
 
 // ——— Placing furniture ———
@@ -796,7 +819,6 @@ $<HTMLInputElement>("#outline").onchange = (e) =>
   (pipe.outline = pipe.crease = (e.target as HTMLInputElement).checked ? 1 : 0);
 $("#night").onclick = () => {
   setNight(!night);
-  $("#night").textContent = night ? "☀️ Day" : "🌙 Night";
 };
 $("#rot-l").onclick = () => rotate(-1);
 $("#rot-r").onclick = () => rotate(1);
@@ -888,6 +910,7 @@ function frame(): void {
   aim(w, h);
   for (const tick of ticks) tick(now);
   stage.update(dt, now);
+  fx.update(dt, now, camera);
   if (stage === office) room.facing(camera.position.clone().sub(stage.target).setY(0).normalize());
   for (let i = popping.length - 1; i >= 0; i--) {
     const p = popping[i]!;
