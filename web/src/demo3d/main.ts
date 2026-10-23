@@ -11,6 +11,7 @@ import { car } from "./props.ts";
 import { loadSlices } from "./registry.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
 import "./tiles.ts";
+import { buildDormRoom, buildTavernRoom, setBarTab, setPlaque, setTavernNight, TAVERN_ASSETS } from "./tavern3d.ts";
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
 import { type MapId, type Portal, ROOM_ORDER, type World, World as WorldGraph, type WorldRoom } from "./world.ts";
 
@@ -594,7 +595,54 @@ townStage.update = (dt, t) => {
   }
 };
 
-const stages = [office, catalog, townStage];
+// ——— The Tavern and the dorm above it ———
+const tavern = buildTavernRoom();
+const tavernStage = newStage("Tavern", new THREE.Vector3(11, 0.6, 6), 15, 14, "#1b1f2a");
+tavernStage.scene.add(tavern.room.group);
+setBarTab(tavern.by.get("tile:J")![0]!, [["ADA", "21H"], ["NOAH", "14H"], ["SOFIE", "9.5H"], ["KAI", "6.2H"], ["MAJA", "3.0H"]], 0);
+setPlaque(tavern.by.get("tile:P")![0]!, ["ADA", "NOA", "SOF"]);
+setPlaque(tavern.by.get("tavern:plaque-2")![0]!, ["KAI", "MAJ"]);
+{
+  const seat = (x: number, z: number, look: number, name: string, pose: Pose = "sit") => {
+    const p = tavern.room.at(x, z)!;
+    const w = new Walker(tavernStage, randomLook(seeded(look)), name, 5 + (look % 9));
+    const s = tavern.room.seatOf(p)!;
+    w.at(s.at.x, s.at.z, pose, s.turn, s.at.y - 0.02);
+    return w;
+  };
+  const patrons = [
+    seat(2, 3, 61, "ida"),
+    seat(6, 3, 62, "theo"),
+    seat(2, 6, 63, "ellen"),
+    seat(8, 6, 64, "jonas"),
+    seat(14, 9, 65, "maja"),
+  ];
+  patrons[4]!.mood = "happy";
+  const keeper = new Walker(tavernStage, randomLook(), "Bent the Barkeep", 40);
+  tavernStage.scene.remove(keeper.avatar.root);
+  tavernStage.scene.add(tavern.barkeep.root);
+  tavernStage.labels.push({ el: keeper.tag, at: () => tavern.barkeep.root.position.clone().setY(1.3) });
+  tavernStage.update = (dt, t) => {
+    for (const p of patrons) p.update(dt, t);
+    tavern.barkeep.update(dt, t);
+  };
+}
+const dorm = buildDormRoom();
+const dormStage = newStage("Dorm", new THREE.Vector3(9, 0.6, 3.5), 12, 11, "#1b1f2a");
+dormStage.scene.add(dorm.room.group);
+{
+  const sleepers = [0, 3, 5, 8, 11, 14].map((i) => {
+    const w = new Walker(dormStage, randomLook(seeded(70 + i)), NAMES[i % NAMES.length]!, 3 + i);
+    const b = dorm.room.bedOf(dorm.beds[i]!)!;
+    w.at(b.at.x, b.at.z, "sleep", b.turn, b.at.y);
+    return w;
+  });
+  dormStage.update = (dt, t) => {
+    for (const w of sleepers) w.update(dt, t);
+  };
+}
+
+const stages = [office, catalog, townStage, tavernStage, dormStage];
 let stage = office;
 
 // ——— The world: the 2D town's rooms, walkable, joined by their doors ———
@@ -796,6 +844,7 @@ let night = false;
 function setNight(on: boolean): void {
   night = on;
   setRoomNight(on);
+  setTavernNight(on);
   setTownNight(on);
   for (const s of stages) applyNight(s);
   document.body.classList.toggle("night", on);
@@ -982,6 +1031,12 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "e" || e.key === "E") rotate(1);
   if ((e.key === "r" || e.key === "R") && placing) placing.turn = ((placing.turn + 1) % 4) as Turn;
   if (e.key === "Escape") stopPlacing();
+  // In the Tavern: J puts a record on (or takes it off), T tosses a coin in the fountain.
+  if ((e.key === "j" || e.key === "J") && stage === tavernStage) {
+    tavern.jukebox.playing = !tavern.jukebox.playing;
+    tavern.jukebox.track = "Green CI";
+  }
+  if (e.key === "t" || e.key === "T") tavern.fountain?.toss();
 });
 
 window.addEventListener("keyup", (e) => held.delete(e.key.toLowerCase()));
@@ -1134,6 +1189,8 @@ function frame(): void {
   const view = camera.position.clone().sub(stage.target).setY(0).normalize();
   if (stage === office) room.facing(view);
   else roomOf.get(stage)?.facing(view);
+  if (stage === tavernStage) tavern.room.facing(view);
+  if (stage === dormStage) dorm.room.facing(view);
   for (let i = popping.length - 1; i >= 0; i--) {
     const p = popping[i]!;
     const k = Math.min(1, (now - p.at) / 0.35) - 1;

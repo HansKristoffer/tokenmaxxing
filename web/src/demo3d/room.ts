@@ -81,6 +81,7 @@ export class Room {
     readonly W: number,
     readonly D: number,
     opts: {
+      bare?: boolean;
       floor?: string;
       wall?: string;
       stripe?: string;
@@ -127,6 +128,7 @@ export class Room {
     wall(W + WALL_T * 2, [W / 2, D + WALL_T / 2], Math.PI, [0, -1]);
     wall(D, [W + WALL_T / 2, D / 2], -Math.PI / 2, [-1, 0]);
     // Windows and the door, in each wall's own coordinates (x along it, from its centre).
+    if (opts.bare) return;
     for (const x of opts.north ?? [3, 10.5]) windowOn(north, x - W / 2);
     if (opts.door !== null) doorOn(north, (opts.door ?? 7.5) - W / 2);
     for (const z of opts.west ?? [5.5, 8.5]) windowOn(west, D / 2 - z);
