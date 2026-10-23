@@ -80,7 +80,7 @@ export class Room {
   constructor(
     readonly W: number,
     readonly D: number,
-    opts: { floor?: string; wall?: string; stripe?: string } = {},
+    opts: { floor?: string; wall?: string; stripe?: string; bare?: boolean } = {},
   ) {
     this.grid = Array(W * D).fill(null);
     const floor = planks(opts.floor ?? C.floor, 4);
@@ -118,6 +118,7 @@ export class Room {
     const west = wall(D, [-WALL_T / 2, D / 2], Math.PI / 2, [1, 0]);
     wall(W + WALL_T * 2, [W / 2, D + WALL_T / 2], Math.PI, [0, -1]);
     wall(D, [W + WALL_T / 2, D / 2], -Math.PI / 2, [-1, 0]);
+    if (opts.bare) return;
     // Windows and the door, in each wall's own coordinates (x along it, from its centre).
     windowOn(north, 3 - W / 2);
     windowOn(north, 10.5 - W / 2);

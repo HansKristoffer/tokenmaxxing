@@ -4,6 +4,7 @@
  */
 import * as THREE from "three";
 import { Avatar, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
+import { buildBasement, dimBasement, isLanPartyAt, lanParty, setLanParty } from "./basement3d.ts";
 import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
 import { Pipeline } from "./pipeline.ts";
@@ -568,7 +569,29 @@ townStage.update = (dt, t) => {
   }
 };
 
-const stages = [office, catalog, townStage];
+// ——— The basement net cafe ———
+const basementScene = buildBasement();
+const basement = newStage("Basement", new THREE.Vector3(10, 0.6, 6.5), 16, 15, "#0b0a16");
+basement.scene.add(basementScene.room.group);
+const sitting: Walker[] = [];
+{
+  const sitters = [0, 3, 6, 9, 13, 17];
+  sitters.forEach((ci, i) => {
+    const w = new Walker(basement, randomLook(seeded(i * 5 + 70)), NAMES[i % NAMES.length]!, 3 + i);
+    const s = basementScene.room.seatOf(basementScene.chairs[ci]!)!;
+    w.mood = "focus";
+    w.at(s.at.x, s.at.z, "type", s.turn, s.at.y - 0.02);
+    sitting.push(w);
+  });
+}
+basement.update = (dt, t) => {
+  basementScene.update(dt, t);
+  for (const w of sitting) w.update(dt, t);
+};
+dimBasement(basement.scene, basement.hemi, basement.sun);
+setLanParty(isLanPartyAt());
+
+const stages = [office, catalog, townStage, basement];
 let stage = office;
 
 // ——— Camera ———
@@ -612,6 +635,7 @@ function setNight(on: boolean): void {
       if (o instanceof THREE.PointLight) o.intensity = on ? (o.userData.night ?? 0) : 0;
     });
   }
+  dimBasement(basement.scene, basement.hemi, basement.sun);
   document.body.classList.toggle("night", on);
 }
 
@@ -794,6 +818,10 @@ $("[data-value=smooth]").onclick = () => setStyle(1);
 $<HTMLInputElement>("#px").oninput = (e) => setStyle(Number((e.target as HTMLInputElement).value));
 $<HTMLInputElement>("#outline").onchange = (e) =>
   (pipe.outline = pipe.crease = (e.target as HTMLInputElement).checked ? 1 : 0);
+$("#lan").onclick = () => {
+  setLanParty(!lanParty());
+  $("#lan").textContent = lanParty() ? "🎉 LAN: on" : "🎉 LAN party";
+};
 $("#night").onclick = () => {
   setNight(!night);
   $("#night").textContent = night ? "☀️ Day" : "🌙 Night";
@@ -888,6 +916,7 @@ function frame(): void {
   aim(w, h);
   for (const tick of ticks) tick(now);
   stage.update(dt, now);
+  if (stage === basement) basementScene.room.facing(camera.position.clone().sub(stage.target).setY(0).normalize());
   if (stage === office) room.facing(camera.position.clone().sub(stage.target).setY(0).normalize());
   for (let i = popping.length - 1; i >= 0; i--) {
     const p = popping[i]!;
