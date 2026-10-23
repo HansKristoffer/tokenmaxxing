@@ -231,7 +231,7 @@ export class Entities {
     // Sitters and sleepers lie on their seat's height; everyone else on the floor.
     let y = 0;
     if (lying) y = seatKind === "bed" ? view.seatY(a.x, a.y, "bed") : 0.02;
-    else if (pose === "sit" || pose === "type") y = view.seatY(a.x, a.y, seatKind ?? "chair");
+    else if (pose === "sit" || pose === "type") y = seatKind ? view.seatY(a.x, a.y, seatKind) : 0.04;
     y += hop;
     let yawTarget = YAW[a.facing];
     if (lying) yawTarget = 0;

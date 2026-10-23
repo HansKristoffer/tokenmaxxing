@@ -351,6 +351,11 @@ export class Fx {
     this.particles.density = d;
   }
 
+  /** How far the rain and snow spread round the middle: 1 is the demo's 17 units; wider for a wider picture. */
+  set spread(k: number) {
+    this.particles.group.scale.set(k, 1, k);
+  }
+
   /** No lightning flashes. */
   set calm(on: boolean) {
     this.particles.calm = on;
@@ -672,6 +677,14 @@ export class Fx {
 
   private current(): FxStageRef {
     return this.host.stages.find((s) => s.name === this.host.current()) ?? this.host.town;
+  }
+
+  /** Jumps the light and weather to where the clock and the weather say, without blending (a room just built). */
+  settle(t: number, camera: THREE.OrthographicCamera): void {
+    for (let i = 0; i < 3; i++) {
+      this.lastT = t - 0.5;
+      this.update(0, t, camera);
+    }
   }
 
   /** Call once a frame, after the stage's own update. */

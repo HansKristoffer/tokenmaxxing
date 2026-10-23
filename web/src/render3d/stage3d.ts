@@ -36,6 +36,7 @@ export class RoomStage {
   readonly fx: Fx | null;
   private reach = 0;
   private darkness = 0;
+  private settled = false;
 
   /** Milliseconds each step of making the stage took (for the debug handle). */
   readonly timing: Record<string, number> = {};
@@ -152,6 +153,11 @@ export class RoomStage {
     this.target.set(Math.round(focus.x * 2) / 2, 0, Math.round(focus.y * 2) / 2);
     this.setReach(Math.max(12, Math.min(34, viewHeight * 1.4)));
     if (this.fx) {
+      if (!this.settled) {
+        this.settled = true;
+        this.fx.settle(t, camera);
+      }
+      this.fx.spread = Math.max(1, Math.min(2.4, viewHeight / 12));
       this.fx.update(dt, t, camera);
       this.darkness = this.fx.clockDark();
     } else this.place();
