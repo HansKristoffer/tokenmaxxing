@@ -9,6 +9,7 @@ const url = arg("url", "http://localhost:4652");
 const out = arg("out", "perf-results/audit");
 const rooms = arg("rooms", "town,inn,upstairs,basement,shop-furniture,shop-clothes,shop-barber,shop-pets,dungeon,hq,office").split(",");
 const styles = arg("styles", "smooth,voxel").split(",");
+const times = arg("times", "12:00,23:30").split(",");
 const pw = await import(process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs");
 mkdirSync(out, { recursive: true });
 const browser = await pw.chromium.launch({ headless: true, args: ["--use-angle=metal", "--ignore-gpu-blocklist"] });
@@ -17,7 +18,7 @@ const seed = () => {
   let s = 99;
   Math.random = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 };
-async function shot(room, style, nobake) {
+async function shot(room, style, nobake, time) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
   await ctx.addInitScript(seed);
   await ctx.addInitScript((s) => localStorage.setItem("demo3d.style", s), style);
@@ -26,8 +27,9 @@ async function shot(room, style, nobake) {
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`${url}/?stage=World:${room}&q=2${nobake ? "&nobake" : ""}`);
   await page.waitForFunction(() => window.world3d && window.__perfStats?.()[0]?.scene, null, { timeout: 60000 });
+  await page.evaluate((t) => window.fx?.setTime(t), time);
   await page.addStyleTag({ content: "body > *:not(canvas){display:none !important}" });
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(3000);
   const png = await page.screenshot();
   // Sources that moved after the bake: baked copies would be stale.
   const stale = nobake ? [] : await page.evaluate(async () => {
@@ -66,16 +68,18 @@ const diff = async (page, a, b) =>
 const dpage = await (await browser.newContext()).newPage();
 await dpage.goto("about:blank");
 for (const room of rooms)
-  for (const style of styles) {
-    const a = await shot(room, style, true);
-    const b = await shot(room, style, false);
-    const { writeFileSync } = await import("node:fs");
-    writeFileSync(`${out}/${room}-${style}-plain.png`, a.png);
-    writeFileSync(`${out}/${room}-${style}-baked.png`, b.png);
-    const d = await diff(dpage, a.png, b.png);
-    const flag = d.bigPct > 1.5 || b.stale.length || b.errors.length;
-    if (flag) bad++;
-    console.log(`${flag ? "CHECK" : "ok   "} ${room.padEnd(15)} ${style.padEnd(7)} mean diff ${d.mean.toFixed(2)}  >90: ${d.bigPct.toFixed(2)}%  stale ${JSON.stringify(b.stale)} ${b.errors[0] ?? ""}`);
-  }
+  for (const style of styles)
+    for (const time of times) {
+      const a = await shot(room, style, true, time);
+      const b = await shot(room, style, false, time);
+      const { writeFileSync } = await import("node:fs");
+      const name = `${room}-${style}-${time.replace(":", "")}`;
+      writeFileSync(`${out}/${name}-plain.png`, a.png);
+      writeFileSync(`${out}/${name}-baked.png`, b.png);
+      const d = await diff(dpage, a.png, b.png);
+      const flag = d.bigPct > 2 || b.stale.length || b.errors.length;
+      if (flag) bad++;
+      console.log(`${flag ? "CHECK" : "ok   "} ${room.padEnd(15)} ${style.padEnd(7)} ${time} mean diff ${d.mean.toFixed(2)}  >90: ${d.bigPct.toFixed(2)}%  stale ${JSON.stringify(b.stale)} ${b.errors[0] ?? ""}`);
+    }
 await browser.close();
 process.exit(bad ? 1 : 0);

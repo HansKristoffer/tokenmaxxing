@@ -16,15 +16,38 @@ function light(m: Model, at: V3, color: string, intensity: number, distance = 5)
 }
 
 /** Things that glow only at night (lamp heads, windows): swapped by `setPropsNight`. */
-const nightGlows: { mesh: THREE.Mesh; day: THREE.Material; night: THREE.Material }[] = [];
+export interface NightGlow {
+  mesh: THREE.Mesh;
+  day: THREE.Material;
+  night: THREE.Material;
+}
+const nightGlows: NightGlow[] = [];
+const nightListeners = new Set<(on: boolean) => void>();
+let propsNight = false;
 export function nightGlow(mesh: THREE.Mesh, night: string): void {
-  mesh.userData.live = true;
-  nightGlows.push({ mesh, day: mesh.material as THREE.Material, night: glow(night) });
+  const g = { mesh, day: mesh.material as THREE.Material, night: glow(night) };
+  // The static batching builds a day and a night copy and flips between them (`onPropsNight`).
+  mesh.userData.nightGlow = g;
+  nightGlows.push(g);
 }
 const cones: THREE.Mesh[] = [];
+export const isPropsNight = (): boolean => propsNight;
+/** Called with the new state whenever `setPropsNight` runs. */
+export function onPropsNight(fn: (on: boolean) => void): () => void {
+  nightListeners.add(fn);
+  return () => nightListeners.delete(fn);
+}
 export function setPropsNight(on: boolean): void {
+  propsNight = on;
   for (const g of nightGlows) g.mesh.material = on ? g.night : g.day;
   for (const c of cones) (c.material as THREE.MeshBasicMaterial).opacity = on ? 0.16 : 0.05;
+  announceNight(on);
+}
+
+/** Tells the batches that it is night (or day) without swapping any prop: the rooms' own switch calls this. */
+export function announceNight(on: boolean): void {
+  propsNight = on;
+  for (const fn of nightListeners) fn(on);
 }
 
 const LEAF = ["#3f8f3a", "#4fa544", "#5fb84f", "#2f7a32"];

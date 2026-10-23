@@ -202,12 +202,15 @@ export function unblockify(scene: THREE.Object3D): void {
   });
 }
 
-/**
- * The block geometry a static mesh gets in the Voxel style (null: it keeps its own), or "reject" when the swap
- * also moves the mesh itself (face decals, hair caps), which a merged batch cannot do.
- */
-export function blockStandIn(mesh: THREE.Mesh): THREE.BufferGeometry | null | "reject" {
-  const g = standIn(mesh);
-  if (!g) return null;
-  return g.type === "PlaneGeometry" || mesh.userData.voxelHair ? "reject" : g;
+/** Whether the Voxel swap also moves the mesh itself (face decals, hair caps): a merged batch cannot do that. */
+export function blockMoves(mesh: THREE.Mesh): boolean {
+  if (mesh.userData.voxelHair) return true;
+  const g = mesh.geometry;
+  if (g.type !== "SphereGeometry" || Array.isArray(mesh.material) || !(mesh.material as THREE.MeshToonMaterial).map) return false;
+  return (g as THREE.SphereGeometry).parameters.phiLength < Math.PI * 2;
+}
+
+/** The block geometry a static mesh gets in the Voxel style, or null when it keeps its own. */
+export function blockStandIn(mesh: THREE.Mesh): THREE.BufferGeometry | null {
+  return standIn(mesh);
 }

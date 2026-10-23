@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { blockStandIn } from "../../demo3d/blocky.ts";
+import { blockMoves, blockStandIn } from "../../demo3d/blocky.ts";
 import { ticks } from "../../demo3d/kit.ts";
+import { isPropsNight, type NightGlow, onPropsNight } from "../../demo3d/props.ts";
 
 /**
  * Static batching. A room is hundreds to thousands of tiny meshes (a tree is a trunk and five balls), each its
@@ -70,7 +71,9 @@ function bakeable(m: THREE.Mesh): boolean {
   if ((m as THREE.InstancedMesh).isInstancedMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return false;
   if (m.renderOrder !== 0 || m.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) return false;
   const g = m.geometry;
-  return !!g.getAttribute("position") && g.getAttribute("position").count > 0 && !g.morphAttributes.position;
+  return (
+    !!g.getAttribute("position") && g.getAttribute("position").count > 0 && !g.morphAttributes.position && !blockMoves(m)
+  );
 }
 
 const tex = (t: THREE.Texture | null | undefined): string =>
@@ -103,6 +106,9 @@ function folded(m: THREE.Material): THREE.Material {
   c.vertexColors = true;
   c.color.set(0xffffff);
   c.userData.baked = true;
+  // A snow or tint shader the scene taught the original keeps working on the batch.
+  c.onBeforeCompile = m.onBeforeCompile;
+  c.customProgramCacheKey = m.customProgramCacheKey;
   if (a.gradientMap) (c as THREE.MeshToonMaterial).gradientMap = a.gradientMap;
   return c;
 }
@@ -158,7 +164,6 @@ function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<numb
 }
 
 const tmp = new THREE.Matrix4();
-const inv = new THREE.Matrix4();
 
 function prepared(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color?: THREE.Color): THREE.BufferGeometry {
   const g = src.clone();
@@ -209,8 +214,12 @@ interface Source {
   key: string;
   cell: string;
   material: THREE.Material;
+  /** The mesh's matrix relative to the root, when it was batched. */
+  local: THREE.Matrix4;
   /** Set when the colour goes into the vertices. */
   color?: THREE.Color;
+  /** A lamp or window that glows at night: one source per state, only the current one shows. */
+  glow?: "day" | "night";
 }
 
 export class BakedLayer {
@@ -218,15 +227,19 @@ export class BakedLayer {
   mode: BakeMode | null = null;
   private readonly variants: Partial<Record<BakeMode, THREE.Group>> = {};
   private sources: Source[] = [];
-  /** Sources a variant could not represent (the blocky swap wants the mesh itself kept). */
-  private readonly rejected = new Set<THREE.Mesh>();
   liveCount = 0;
+  private sealed = false;
+  /** Subtrees made of nothing but batched meshes: switched off for the scene graph walks (see `seal`). */
+  private readonly sleeping: THREE.Object3D[] = [];
+
+  private offNight?: () => void;
 
   constructor(
     readonly root: THREE.Object3D,
     sources: Source[],
   ) {
     this.sources = sources;
+    if (sources.some((s) => s.glow)) this.offNight = onPropsNight((on) => this.setNight(on));
     this.group.name = "baked";
     this.group.matrixAutoUpdate = false;
     this.group.userData.noBake = true;
@@ -235,6 +248,15 @@ export class BakedLayer {
 
   get sourceMeshes(): THREE.Mesh[] {
     return this.sources.map((s) => s.mesh);
+  }
+
+  /** Lamps and windows: the day copies or the night copies. */
+  setNight(on: boolean): void {
+    for (const v of Object.values(this.variants))
+      for (const c of v!.children) {
+        const g = c.userData.glow as string | undefined;
+        if (g) c.visible = g === (on ? "night" : "day");
+      }
   }
 
   /** Shows the variant for `mode`, building it the first time. */
@@ -246,13 +268,50 @@ export class BakedLayer {
       v = this.build(mode);
       this.variants[mode] = v;
       this.group.add(v);
+      // Placed once: only a move of the room itself (a forced update) touches them again.
+      this.group.updateMatrixWorld(true);
+      for (const c of v.children) c.matrixWorldAutoUpdate = false;
     }
     for (const [m, g] of Object.entries(this.variants)) g!.visible = m === mode;
     // Sources a variant left out keep drawing themselves, the rest are hidden behind the merged copy.
-    for (const s of this.sources) {
-      s.mesh.visible = mode === "block" && this.rejected.has(s.mesh);
-      s.mesh.userData.bakedSource = !s.mesh.visible;
+    if (!this.sealed) this.seal();
+  }
+
+  /**
+   * The originals are out of the picture for good: hide them, and put the subtrees that hold nothing else to
+   * sleep (no matrix updates, skipped by the draw-list walk), so a room of thousands of nodes costs a few hundred.
+   */
+  private seal(): void {
+    this.sealed = true;
+    const own = new Set(this.sources.map((s) => s.mesh));
+    for (const m of own) {
+      m.visible = false;
+      m.userData.bakedSource = true;
     }
+    const quiet = new Map<THREE.Object3D, boolean>();
+    const isQuiet = (o: THREE.Object3D): boolean => {
+      let q = quiet.get(o);
+      if (q !== undefined) return q;
+      if (o === this.group) q = false;
+      else if ((o as THREE.Mesh).isMesh) q = own.has(o as THREE.Mesh);
+      else if (o.userData[LIVE] || o.userData.noBake || (o as THREE.Light).isLight || (o as THREE.Sprite).isSprite) q = false;
+      else q = o.children.every(isQuiet);
+      quiet.set(o, q);
+      return q;
+    };
+    const sleep = (o: THREE.Object3D) => {
+      for (const c of o.children) {
+        if (c === this.group) continue;
+        if (isQuiet(c)) {
+          c.matrixAutoUpdate = false;
+          c.matrixWorldAutoUpdate = false;
+          c.visible = false;
+          this.sleeping.push(c);
+        } else sleep(c);
+      }
+    };
+    this.root.updateMatrixWorld(true);
+    sleep(this.root);
   }
 
   stats(): BakeStats {
@@ -272,23 +331,21 @@ export class BakedLayer {
   private build(mode: BakeMode): THREE.Group {
     const out = new THREE.Group();
     out.matrixAutoUpdate = false;
-    inv.copy(this.root.matrixWorld).invert();
-    const groups = new Map<string, { parts: THREE.BufferGeometry[]; mat: THREE.Material; cast: boolean; recv: boolean }>();
+    const groups = new Map<
+      string,
+      { parts: THREE.BufferGeometry[]; mat: THREE.Material; cast: boolean; recv: boolean; glow?: "day" | "night" }
+    >();
     for (const s of this.sources) {
       const m = s.mesh;
       let geo: THREE.BufferGeometry | null = m.geometry;
       if (mode === "block") {
-        const b = blockStandIn(m);
-        if (b === "reject") {
-          this.rejected.add(m);
-          continue;
-        }
-        geo = b ?? m.geometry;
+        geo = blockStandIn(m) ?? m.geometry;
       }
-      tmp.multiplyMatrices(inv, m.matrixWorld);
-      const key = `${s.key}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}`;
+      tmp.copy(s.local);
+      const key = `${s.key}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}${s.glow ? `|${s.glow}` : ""}`;
       let grp = groups.get(key);
-      if (!grp) groups.set(key, (grp = { parts: [], mat: s.material, cast: m.castShadow, recv: m.receiveShadow }));
+      if (!grp)
+        groups.set(key, (grp = { parts: [], mat: s.material, cast: m.castShadow, recv: m.receiveShadow, glow: s.glow }));
       grp.parts.push(prepared(geo!, tmp, s.color));
     }
     for (const [key, grp] of groups) {
@@ -304,17 +361,30 @@ export class BakedLayer {
       mesh.receiveShadow = grp.recv;
       mesh.matrixAutoUpdate = false;
       mesh.name = `baked:${key.split("|").slice(0, 2).join(":")}`;
+      if (grp.glow) {
+        mesh.userData.glow = grp.glow;
+        mesh.visible = grp.glow === (isPropsNight() ? "night" : "day");
+      }
       mesh.userData.noBake = true;
       out.add(mesh);
     }
     return out;
   }
 
+  disposed = false;
+
   dispose(): void {
+    this.disposed = true;
     for (const v of Object.values(this.variants)) {
       for (const c of v!.children) (c as THREE.Mesh).geometry.dispose();
     }
     this.group.removeFromParent();
+    this.offNight?.();
+    for (const o of this.sleeping) {
+      o.matrixAutoUpdate = true;
+      o.matrixWorldAutoUpdate = true;
+      o.visible = true;
+    }
     for (const s of this.sources) {
       s.mesh.visible = true;
       s.mesh.userData.bakedSource = false;
@@ -347,9 +417,7 @@ function layerOf(
   const sources: Source[] = [];
   const inverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
   const p = new THREE.Vector3();
-  meshes.forEach((m, i) => {
-    if (moved.has(i)) return;
-    const mat = m.material as THREE.Material;
+  const add = (m: THREE.Mesh, mat: THREE.Material, glow?: "day" | "night") => {
     const key = matKey(mat);
     const fold = foldable(mat);
     if (!reps.has(key)) reps.set(key, fold ? folded(mat) : mat);
@@ -359,14 +427,24 @@ function layerOf(
       key,
       cell: `${Math.floor(p.x / cellSize())},${Math.floor(p.z / cellSize())}`,
       material: reps.get(key)!,
+      local: new THREE.Matrix4().multiplyMatrices(inverse, m.matrixWorld),
       color: fold ? (mat as Lit).color : undefined,
+      glow,
     });
+  };
+  meshes.forEach((m, i) => {
+    if (moved.has(i)) return;
+    const g = m.userData.nightGlow as NightGlow | undefined;
+    if (g) {
+      add(m, g.day, "day");
+      add(m, g.night, "night");
+    } else add(m, m.material as THREE.Material);
   });
-  why.moving = meshes.length - sources.length;
-  why.baked = sources.length;
+  why.baked = new Set(sources.map((x) => x.mesh)).size;
+  why.moving = meshes.length - why.baked;
   const g = globalThis as unknown as { __bakes?: unknown[]; __layers?: BakedLayer[] };
   (g.__bakes ??= []).push({ root: root.name || root.type, ...why });
-  if (sources.length < 2) return null;
+  if (why.baked < 2) return null;
   const layer = new BakedLayer(root, sources);
   layer.liveCount = why.moving;
   (g.__layers ??= []).push(layer);
@@ -382,6 +460,8 @@ export function bakeStatic(root: THREE.Object3D): BakedLayer | null {
   return layerOf(root, meshes, moved, why);
 }
 
+const watching = new Map<THREE.Object3D, Watch>();
+
 /** Frames a room is watched before it is batched: whatever an actor or animation moves in that time stays live. */
 const WARMUP = [3, 10, 24];
 
@@ -394,7 +474,21 @@ interface Watch {
 }
 
 const layers = new WeakMap<THREE.Object3D, BakedLayer | null>();
-const watching = new Map<THREE.Object3D, Watch>();
+
+/**
+ * Something under a batched root changed shape (a room re-skinned, a prop removed): drop that root's batches so
+ * the originals draw again and the root is watched and batched afresh a moment later.
+ */
+export function invalidateBaked(obj: THREE.Object3D): void {
+  for (let p: THREE.Object3D | null = obj; p; p = p.parent) {
+    const l = layers.get(p);
+    if (l) {
+      l.dispose();
+      layers.delete(p);
+    }
+    watching.delete(p);
+  }
+}
 const seen = new WeakMap<THREE.Scene, { epoch: number; mode: BakeMode | null; layers: BakedLayer[] }>();
 
 /**
@@ -407,6 +501,7 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
   if (!s) seen.set(scene, (s = { epoch: -1, mode: null, layers: [] }));
   if (s.epoch !== epoch) {
     s.epoch = epoch;
+    s.layers = s.layers.filter((l) => !l.disposed);
     // Flagged roots sit near the top of the scene: no need to walk every mesh each time something is added.
     const look = (o: THREE.Object3D, depth: number) => {
       if (o.userData[BAKE]) {

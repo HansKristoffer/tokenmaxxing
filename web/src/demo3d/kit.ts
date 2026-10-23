@@ -366,7 +366,56 @@ export function checker(a: string, b: string, n = 4): THREE.CanvasTexture {
 
 /** Something that moves on its own: a screen scrolling code, a fish swimming. */
 export type Tick = (t: number) => void;
-export const ticks: Tick[] = [];
+type Scoped = Tick & { raw: Tick };
+
+/** Ticks registered while a room is being built belong to it, and only run while that room is on screen. */
+interface TickScope {
+  root: THREE.Object3D | null;
+}
+let building: TickScope | null = null;
+let onScreen: THREE.Object3D | null = null;
+
+export function beginTickScope(): TickScope {
+  return (building = { root: null });
+}
+export function endTickScope(scope: TickScope, root: THREE.Object3D): void {
+  scope.root = root;
+  if (building === scope) building = null;
+}
+/** The scene being drawn: ticks of rooms in any other scene sit out. Null runs everything. */
+export function setActiveScene(scene: THREE.Object3D | null): void {
+  onScreen = scene;
+}
+function inActive(root: THREE.Object3D): boolean {
+  let o: THREE.Object3D | null = root;
+  while (o) {
+    if (o === onScreen) return true;
+    o = o.parent;
+  }
+  return false;
+}
+
+class TickList extends Array<Tick> {
+  override push(...fns: Tick[]): number {
+    const scope = building;
+    return super.push(
+      ...fns.map((fn) => {
+        if (!scope) return fn;
+        const w = ((t: number) => {
+          if (onScreen && scope.root && !inActive(scope.root)) return;
+          fn(t);
+        }) as Scoped;
+        w.raw = fn;
+        return w;
+      }),
+    );
+  }
+  override indexOf(fn: Tick, from?: number): number {
+    const i = super.indexOf(fn, from);
+    return i >= 0 ? i : this.findIndex((t) => (t as Partial<Scoped>).raw === fn);
+  }
+}
+export const ticks: Tick[] = new TickList();
 
 const CODE_COLOURS = ["#ff7ab6", "#8fe3ff", "#ffe28a", "#a5d977", "#c9b6ff", "#e4f5fd"];
 /** A monitor showing an agent writing code, scrolling a line at a time. */

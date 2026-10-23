@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { C } from "../art/palette.ts";
 import { GameMap, LEGEND, MAPS, type MapId, plotId, type SeatKind, TOWN_SPAWN, townMap } from "./data/maps.ts";
 import type { Asset } from "./furniture.ts";
-import { canvasTexture, Model, painted, seeded, tint, toon, type V3 } from "./kit.ts";
+import { beginTickScope, canvasTexture, endTickScope, Model, painted, seeded, tint, toon, type V3 } from "./kit.ts";
 
 export type { MapId, SeatKind };
 
@@ -560,9 +560,11 @@ export class World {
   room(id: MapId): WorldRoom {
     let r = this.built.get(id);
     if (!r) {
+      const scope = beginTickScope();
       const skin = skins.get(id)?.() ?? null;
       if (skin?.map) this.maps[id] = skin.map;
       r = new WorldRoom(id, this.maps[id], skin);
+      endTickScope(scope, r.group);
       this.built.set(id, r);
     }
     return r;

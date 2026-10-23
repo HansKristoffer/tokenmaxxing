@@ -6,6 +6,8 @@
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
 import type { Asset } from "./furniture.ts";
+import { invalidateBaked } from "../render3d/perf/bake.ts";
+import { announceNight } from "./props.ts";
 import { canvasTexture, glow, Model, painted, planks, tint, toon, wallpaper } from "./kit.ts";
 
 export type Turn = 0 | 1 | 2 | 3;
@@ -49,13 +51,14 @@ let isNight = false;
 export function setRoomNight(night: boolean): void {
   isNight = night;
   for (const w of windows) w.material = night ? NIGHT_SKY : DAY_SKY;
+  announceNight(night);
 }
 
 /** A window on a wall's inner face; `at` is its bottom centre. */
 function windowOn(wall: Model, x: number): void {
   const w = wall.part([x, 1.2, WALL_T / 2 + 0.01]);
   const pane = w.plane(0.9, 0.85, isNight ? NIGHT_SKY : DAY_SKY, [0, 0.45, 0]);
-  pane.userData.live = true;
+  pane.userData.nightGlow = { mesh: pane, day: DAY_SKY, night: NIGHT_SKY };
   windows.push(pane);
   w.box([1.02, 0.07, 0.07], C.white, [0, -0.04, 0], 0.015);
   w.box([1.02, 0.07, 0.05], C.white, [0, 0.86, 0], 0.015);
@@ -154,6 +157,8 @@ export class Room {
 
   private build(): void {
     const { W, D } = this;
+    // The static batching holds copies of the old shell: let it go (and batch the new one).
+    invalidateBaked(this.group);
     this.shell.removeFromParent();
     this.shell.traverse((o) => {
       if (o instanceof THREE.Mesh && o.geometry instanceof THREE.BoxGeometry) o.geometry.dispose();
