@@ -1,6 +1,7 @@
 import { worldWall } from "@tokenmaxxing/core/range.ts";
 import { houseTier, mapOf } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
+import { setGeometryDetail } from "../demo3d/kit.ts";
 import { Pipeline } from "../demo3d/pipeline.ts";
 import { viewHooks } from "../game/camera.ts";
 import { gameHits } from "../game/games.ts";
@@ -10,6 +11,7 @@ import type { Renderer, Tile } from "../game/renderer.ts";
 import { skyNow } from "../game/sky.ts";
 import { world } from "../game/world.ts";
 import type { GraphicsSettings } from "../settings/graphics.ts";
+import { applyGraphics } from "./perf/tiers.ts";
 import { gpuNow } from "./dispose.ts";
 import { Drops } from "./drops.ts";
 import { Entities } from "./entities.ts";
@@ -75,7 +77,7 @@ class Renderer3D implements Renderer {
   private room = "";
   private w = 1;
   private h = 1;
-  private dpr = 1;
+  private detail: 0 | 1 | null = null;
   private last = 0;
   private settings: GraphicsSettings | null = null;
   private fail?: (reason: string) => void;
@@ -103,8 +105,6 @@ class Renderer3D implements Renderer {
     this.pipe.autoQuality = false;
     // Draw calls and triangles are counted over the whole frame (the passes), reset by hand.
     this.pipe.renderer.info.autoReset = false;
-    this.pipe.style = "voxel";
-    this.pipe.lazyBlockify = true;
     this.canvas.addEventListener("webglcontextlost", this.lost);
   }
 
@@ -214,7 +214,6 @@ class Renderer3D implements Renderer {
     this.key = key;
     this.room = world.room;
     if (this.settings) next.applySettings(this.settings);
-    this.pipe.blocked(next.scene);
     const view = next.view;
     this.framing = { view: view.view, bounds: view.bounds };
     this.rig.frame(this.framing);
@@ -267,10 +266,7 @@ class Renderer3D implements Renderer {
       if (this.errored++ % 300 === 0) console.error("3D entities:", e);
     }
     this.stats.entityMs += (performance.now() - e0 - this.stats.entityMs) * 0.05;
-    if (this.entities.size !== before || this.entities.dirty || this.drops.dirty) {
-      this.entities.dirty = this.drops.dirty = false;
-      this.pipe.blocked(stage.scene);
-    }
+    if (this.entities.size !== before || this.entities.dirty || this.drops.dirty) this.entities.dirty = this.drops.dirty = false;
 
     const dark = stage.update(dt / 1000, t, this.rig.focus, this.rig.viewShown, camera);
     view.tick(t, dt / 1000, this.rig.towardCamera());
@@ -305,10 +301,9 @@ class Renderer3D implements Renderer {
     );
   }
 
-  resize(w: number, h: number, dpr: number): void {
+  resize(w: number, h: number, _dpr: number): void {
     this.w = Math.max(1, w);
     this.h = Math.max(1, h);
-    this.dpr = dpr;
     this.overlay.resize(this.w, this.h);
     this.rig.setAspect(this.w / this.h);
     if (this.settings) this.setQuality(this.settings);
@@ -316,18 +311,19 @@ class Renderer3D implements Renderer {
 
   setQuality(s: GraphicsSettings): void {
     this.settings = s;
-    const p = this.pipe;
-    p.style = "voxel";
-    p.quality = s.tier === "ultra" ? 2 : s.tier === "high" ? 1 : 0;
-    p.game = {
-      pixelRatio: Math.max(0.35, Math.min(this.dpr, s.dprCap) * s.renderScale),
-      aoSamples: s.ao ? (s.tier === "ultra" ? 24 : 12) : 0,
-      tilt: s.post.tiltShift,
-      haze: s.post.haze,
-      grade: s.post.grade,
-      msaa: s.tier === "ultra" ? 4 : 0,
-      shadowMap: s.shadowMap,
-    };
+    applyGraphics(this.pipe, s);
+    // Medium builds lean rooms (plain boxes, fewer segments); a change of tier rebuilds what is built.
+    const detail = s.tier === "medium" ? 0 : 1;
+    if (detail !== this.detail) {
+      const changed = this.detail !== null;
+      this.detail = detail;
+      setGeometryDetail(detail);
+      if (changed) {
+        if (this.town && this.town.stage !== this.stage) this.town.stage.dispose();
+        this.town = null;
+        this.key = "";
+      }
+    }
     this.stage?.applySettings(s);
     this.town?.stage.applySettings(s);
   }
@@ -396,7 +392,6 @@ class Renderer3D implements Renderer {
         });
         this.rig.frame({ view: s.view.view, bounds: s.view.bounds });
         this.rig.update(16, s.view.bounds.maxX / 2, s.view.bounds.maxZ / 2, true);
-        this.pipe.blocked(s.scene);
         this.pipe.render(s.scene, this.rig.camera, this.w, this.h);
         s.dispose();
       }
