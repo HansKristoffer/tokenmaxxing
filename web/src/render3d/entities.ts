@@ -12,6 +12,7 @@ import { type Pet3D, petFrom2D } from "../demo3d/pets3d.ts";
 import { BURST_MS } from "../game/emoji.ts";
 import { followPet, prunePets } from "../game/pets.ts";
 import { drawPos, type Avatar as GameAvatar, gameTag, stepping, WARP_MS, world } from "../game/world.ts";
+import { hud } from "../store.ts";
 import { disposeObject } from "./dispose.ts";
 import { approach, hopHeight, poseOf, turnToward, YAW } from "./motion.ts";
 import { Burst, type Overlay } from "./overlay.ts";
@@ -223,7 +224,9 @@ export class Entities {
     const onSeat = a.state === "sit" || a.state === "working";
     const { pose, lying } = poseOf({ state: a.state, dozing: info.dozing }, onSeat ? seatKind : undefined, now < r.walkUntil);
     const av = r.avatar;
-    av.pose = pose;
+    // On the Tavern's stage while the jukebox plays: dance.
+    const dancing = pose === "stand" && world.room === "inn" && world.map.at(a.x, a.y) === "e" && hud.get().jukebox !== null;
+    av.pose = dancing ? "dance" : pose;
     const hop = a.jump === null ? 0 : hopHeight((now - a.jump) / JUMP_MS);
     // Sitters and sleepers lie on their seat's height; everyone else on the floor.
     let y = 0;

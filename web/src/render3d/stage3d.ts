@@ -37,6 +37,9 @@ export class RoomStage {
   private reach = 0;
   private darkness = 0;
 
+  /** Milliseconds each step of making the stage took (for the debug handle). */
+  readonly timing: Record<string, number> = {};
+
   /** What batching the still parts of the room into few meshes did. */
   batched = { before: 0, after: 0, batches: 0 };
 
@@ -78,14 +81,19 @@ export class RoomStage {
         { clock: skyNow, weather: weatherNow, light: lightAt, demo: false, streetLife: false },
       );
     } else this.fx = null;
+    const t0 = performance.now();
     seeThrough(view.group);
+    this.timing.see = performance.now() - t0;
     this.batch(hooks);
+    this.timing.total = performance.now() - t0;
   }
 
   /** Turns the parts of the room that never move into a few meshes: far fewer draw calls (`batch.ts`). */
   private batch(hooks: StageHooks): void {
     const { view } = this;
+    const t0 = performance.now();
     blockify(view.group);
+    this.timing.blockify = performance.now() - t0;
     const toward = new THREE.Vector3();
     this.batched = batchStatic(view.group, {
       chunk: 14,
@@ -97,6 +105,7 @@ export class RoomStage {
         view.tick(0.11 + i * 1.37, 0.7, toward.set(Math.sin(a), 0, Math.cos(a)));
       },
     });
+    this.timing.batch = performance.now() - t0 - this.timing.blockify!;
     hooks.clock(null);
     view.night?.(false);
     view.tick(0, 10, toward.set(Math.SQRT1_2, 0, Math.SQRT1_2));
