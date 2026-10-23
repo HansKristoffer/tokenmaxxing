@@ -126,3 +126,60 @@ export function withTicks<T>(make: () => T): { value: T; ticks: ((t: number) => 
   const value = make();
   return { value, ticks: ticks.splice(before) };
 }
+
+// MARK: Lazy rooms
+
+type Prep = () => Promise<void>;
+const preps = new Map<string, Prep>();
+const prepared = new Set<string>();
+const preparing = new Map<string, Promise<void>>();
+
+const kindOfRoom = (id: string): string => (id.includes(":") ? id.slice(0, id.indexOf(":")) : id);
+
+/** Registers the code a room kind needs before `buildRoom` may be called for it (its hand-built module, its art). */
+export function registerRoomPrep(kind: string, prep: Prep): void {
+  preps.set(kind, prep);
+}
+
+/** Whether `buildRoom(id)` may be called now: rooms with nothing to fetch are always ready. */
+export function roomReady(id: string): boolean {
+  const k = kindOfRoom(id);
+  return !preps.has(k) || prepared.has(k);
+}
+
+/** Fetches what the room needs (once; calls share it). Resolves when `buildRoom` can run. */
+export function prepareRoom(id: string): Promise<void> {
+  const k = kindOfRoom(id);
+  const prep = preps.get(k);
+  if (!prep || prepared.has(k)) return Promise.resolve();
+  let p = preparing.get(k);
+  if (!p) {
+    p = prep()
+      .then(() => void prepared.add(k))
+      .finally(() => preparing.delete(k));
+    preparing.set(k, p);
+  }
+  return p;
+}
+
+/** Fetches a room's code when the browser is idle: the door you are most likely to take next. */
+export function preloadRoom(id: string): void {
+  if (roomReady(id)) return;
+  const run = () => void prepareRoom(id).catch(() => {});
+  const idle = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+  if (idle) idle(run, { timeout: 2000 });
+  else setTimeout(run, 200);
+}
+
+/** The rooms a door of `id` leads to (kinds), for `preloadRoom`. */
+const NEXT: Record<string, readonly string[]> = {
+  town: ["inn", "hq", "dungeon", "shop-furniture", "shop-clothes", "shop-barber", "shop-pets"],
+  inn: ["upstairs", "basement", "town"],
+  upstairs: ["inn"],
+  basement: ["inn", "dungeon"],
+  dungeon: ["town", "basement"],
+  hq: ["common", "office", "town"],
+  common: ["hq"],
+  office: ["hq"],
+};
+export const roomsNextTo = (id: string): readonly string[] => NEXT[kindOfRoom(id)] ?? [];

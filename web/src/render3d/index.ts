@@ -27,13 +27,11 @@ import { applyGraphics } from "./perf/tiers.ts";
 import { castAt } from "./pick.ts";
 import { Placer } from "./placer.ts";
 import { CameraRig } from "./rig.ts";
-import { buildRoom, type RoomCtx, type RoomView } from "./rooms.ts";
+import { buildRoom, preloadRoom, prepareRoom, type RoomCtx, type RoomView, roomReady, roomsNextTo } from "./rooms.ts";
 import { SEE } from "./seethrough.ts";
 import { type InstalledShops, installShops, type ShopWorld } from "./shops/index.ts";
 import "./room-generic.ts";
-import "./room-skin.ts";
-import "./room-furnished.ts";
-import "./room-dungeon.ts";
+import "./room-loaders.ts";
 import "./room-town.ts";
 import { Signs } from "./signs.ts";
 import { lightPipeline, RoomStage } from "./stage3d.ts";
@@ -172,7 +170,8 @@ class Renderer3D implements Renderer {
     // (The address is read from the navigation entry: signing in rewrites the page's own.)
     const opened = performance.getEntriesByType("navigation")[0]?.name ?? location.href;
     if (opened.includes("r3dcheck"))
-      setTimeout(() => {
+      setTimeout(async () => {
+        await Promise.all(["town", "hq", "inn", "upstairs", "basement", "dungeon", "office"].map(prepareRoom));
         const { before, after } = this.cycle(4);
         const leaked = before.geometries !== after.geometries || before.textures !== after.textures || before.programs !== after.programs;
         (leaked ? console.error : console.info)("3D leak check", leaked ? "LEAKED" : "ok", before, after);
@@ -203,6 +202,7 @@ class Renderer3D implements Renderer {
   }
 
   /** The town's identity, worked out once per list of companies (`setCompanies` replaces the map each time). */
+  private preparing: string | null = null;
   private townKey: { companies: typeof world.companies; key: string } | null = null;
 
   /**
@@ -228,9 +228,22 @@ class Renderer3D implements Renderer {
   }
 
   /** Makes the stage match `world.room`, building it (and clearing the people) when the room changes. */
-  private ensureStage(now: number): void {
+  private ensureStage(now: number): boolean {
     const key = this.roomKey();
-    if (this.stage && key === this.key) return;
+    if (this.stage && key === this.key) return true;
+    if (!roomReady(world.room)) {
+      // The room's code is not in yet: the old room stays under the veil until it is (the next door is preloaded, so this is rare).
+      if (this.preparing !== world.room) {
+        const id = world.room;
+        this.preparing = id;
+        void prepareRoom(id)
+          .catch((e) => console.error("3D room code:", e))
+          .finally(() => {
+            if (this.preparing === id) this.preparing = null;
+          });
+      }
+      return false;
+    }
     const t0 = performance.now();
     const roomChanged = world.room !== this.room;
     const old = this.stage;
@@ -275,6 +288,8 @@ class Renderer3D implements Renderer {
     }
     this.stats.builds++;
     this.stats.lastBuildMs = performance.now() - t0;
+    if (roomChanged) for (const n of roomsNextTo(world.room)) preloadRoom(n);
+    return true;
   }
 
   // MARK: Frame
@@ -284,7 +299,10 @@ class Renderer3D implements Renderer {
     this.pipe.renderer.info.reset();
     const dt = this.last ? Math.min(100, Math.max(0.1, now - this.last)) : 16;
     this.last = now;
-    this.ensureStage(now);
+    if (!this.ensureStage(now)) {
+      this.waiting(now);
+      return;
+    }
     const stage = this.stage!;
     const view = stage.view;
     const t = now / 1000;
@@ -326,6 +344,16 @@ class Renderer3D implements Renderer {
     this.pipe.render(stage.scene, camera, this.w, this.h);
     this.stats.frames++;
     this.stats.cpuMs += (performance.now() - started - this.stats.cpuMs) * 0.05;
+  }
+
+  /** While a room's code is on its way: the last room, frozen, under a closing veil. */
+  private waiting(now: number): void {
+    const stage = this.stage;
+    this.overlay.fadeTowards(1, this.settings?.reduceMotion ? 0 : FADE_OUT_MS, now);
+    this.overlay.stepFade(now);
+    if (!stage) return;
+    stage.update(0, now / 1000, this.rig.focus, this.rig.viewShown, this.rig.camera);
+    this.pipe.render(stage.scene, this.rig.camera, this.w, this.h);
   }
 
   /** Where you stand in the room's units, from the game state: before your body has been drawn (a new room). */

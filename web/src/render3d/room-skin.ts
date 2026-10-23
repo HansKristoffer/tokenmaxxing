@@ -7,7 +7,6 @@ import { buildHq } from "../demo3d/hq3d.ts";
 import { beginTickScope, endTickScope } from "../demo3d/kit.ts";
 import { beginLanScope, endLanScope } from "../demo3d/livescreen.ts";
 import { setPropsNight } from "../demo3d/props.ts";
-import { loadSlices } from "../demo3d/registry.ts";
 import { forgetShopRoom, type ShopRoom, shopRoom } from "../demo3d/shops/index.ts";
 import { TAVERN_ASSETS, type TavernRoom } from "../demo3d/tavern3d.ts";
 import { buildRoomSkin, type RoomSkin, WorldRoom } from "../demo3d/world.ts";
@@ -23,8 +22,6 @@ import { TavernEvents } from "./tavern-events.ts";
  * company house and the offices, each built from the core map of the room the server says we are in (so the
  * tiles, doors, seats and displays are the game's own). The slices register their tile art at load.
  */
-await loadSlices();
-
 const SEAT_Y: Record<string, number> = { bench: 0.31, chair: 0.33, sofa: 0.36, bed: 0.3 };
 const WALL_H = 2.6;
 
