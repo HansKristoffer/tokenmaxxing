@@ -35,14 +35,26 @@ export type RenderStyle = "classic" | "voxel";
     const original = chunk.slice(at, end);
     const lookup = (n: number) =>
       `getShadow( directionalShadowMap[ ${n} ], directionalLightShadows[ ${n} ].shadowMapSize, directionalLightShadows[ ${n} ].shadowIntensity, directionalLightShadows[ ${n} ].shadowBias, directionalLightShadows[ ${n} ].shadowRadius, vDirectionalShadowCoord[ ${n} ] )`;
+    // The small live map is soft enough with the hardware's own 4-tap compare: one fetch, not five.
+    const live = `dynShadow( directionalShadowMap[ 1 ], directionalLightShadows[ 1 ].shadowIntensity, directionalLightShadows[ 1 ].shadowBias, vDirectionalShadowCoord[ 1 ] )`;
     const patched = `#if NUM_DIR_LIGHT_SHADOWS > 1
 		#if UNROLLED_LOOP_INDEX == 0
-		directLight.color *= ( directLight.visible && receiveShadow ) ? ${lookup(0)} * ${lookup(1)} : 1.0; // shadowDyn
+		directLight.color *= ( directLight.visible && receiveShadow ) ? ${lookup(0)} * ${live} : 1.0; // shadowDyn
 		#endif
 		#else
 		${original}
 		#endif`;
     THREE.ShaderChunk.lights_fragment_begin = chunk.slice(0, at) + patched + chunk.slice(end);
+    THREE.ShaderChunk.shadowmap_pars_fragment += `
+#if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 1 && defined( SHADOWMAP_TYPE_PCF )
+float dynShadow( sampler2DShadow shadowMap, float shadowIntensity, float shadowBias, vec4 shadowCoord ) {
+	shadowCoord.xyz /= shadowCoord.w;
+	shadowCoord.z += shadowBias;
+	bool inside = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0 && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0 && shadowCoord.z <= 1.0;
+	return mix( 1.0, inside ? texture( shadowMap, shadowCoord.xyz ) : 1.0, shadowIntensity );
+}
+#endif
+`;
   }
 }
 

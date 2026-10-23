@@ -9,10 +9,10 @@ await ctx.addInitScript(readFileSync(new URL("./probe.js", import.meta.url), "ut
 await ctx.addInitScript((s) => localStorage.setItem("demo3d.style", s), style);
 const page = await ctx.newPage();
 page.on("pageerror", (e) => console.log("[error]", e.message));
-await page.goto(`${url}/?stage=${/^[A-Z]/.test(room) ? room : `World:${room}`}&q=${q}${process.env.EXTRA ?? ""}`);
+await page.goto(`${url}/?stage=${/^[A-Z]/.test(room) ? room : `World:${room}`}&q=${q}${process.env.EXTRA ?? ""}`, { timeout: 120000 });
 await page.waitForFunction(() => window.world3d && window.__perfStats?.()[0]?.scene, null, { timeout: 60000 });
-await page.waitForTimeout(3500);
-const out = await page.evaluate(async () => {
+await page.waitForTimeout(Number(process.env.WAIT ?? 3500));
+const out = await page.evaluate(async (SAMPLE) => {
   const r = window.__perfRenderer;
   const P = window.__probe;
   const rows = [];
@@ -27,11 +27,12 @@ const out = await page.evaluate(async () => {
   const sm = r.shadowMap;
   const so = sm.render;
   sm.render = function (l, sc, cam) {
-    const d0 = P.draws, t0 = P.tris;
+    const d0 = P.draws, t0 = P.tris, w0 = performance.now();
     so.call(sm, l, sc, cam);
-    rows.push({ what: "shadow", draws: P.draws - d0, tris: P.tris - t0, rt: "shadow" });
+    if (P.draws > d0) P.gl.readPixels(0, 0, 1, 1, P.gl.RGBA, P.gl.UNSIGNED_BYTE, new Uint8Array(4));
+    rows.push({ what: "shadow", draws: P.draws - d0, tris: P.tris - t0, ms: Math.round(performance.now() - w0), rt: "shadow" });
   };
-  await new Promise((res) => setTimeout(res, 700));
+  await new Promise((res) => setTimeout(res, SAMPLE));
   const frames = [];
   let cur = [];
   for (const x of rows) {
@@ -40,6 +41,6 @@ const out = await page.evaluate(async () => {
   }
   r.render = o;
   return { frames, info: { ...r.info.memory }, progs: r.info.programs.length };
-});
+}, Number(process.env.SAMPLE ?? 700));
 console.log(JSON.stringify(out.frames.slice(-2)), JSON.stringify(out.info), out.progs);
 await browser.close();
