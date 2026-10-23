@@ -32,6 +32,8 @@ export class GateLive {
   private readonly boards = new THREE.Group();
   private readonly bars = new THREE.Group();
   private readonly planks: Plank[] = [];
+  /** The tape and the danger sign: they come off first in a burst. */
+  private readonly tags: THREE.Object3D[] = [];
   private readonly sparks = new Swarm(48, 0.05);
   private readonly dust = new Swarm(10, 0.04);
   private state: GateState | null = null;
@@ -75,6 +77,7 @@ export class GateLive {
     tape.rotation.z = -0.28;
     tape.userData.nopick = true;
     this.boards.add(tape);
+    this.tags.push(tape);
     const danger = canvasTexture(
       64,
       40,
@@ -96,6 +99,7 @@ export class GateLive {
     sign.position.set(0, 0.85, 0.4);
     sign.userData.nopick = true;
     this.boards.add(sign);
+    this.tags.push(sign);
     this.boards.visible = false;
     this.group.add(this.boards);
 
@@ -135,6 +139,7 @@ export class GateLive {
     if (this.state !== next) {
       this.state = next;
       this.boards.visible = next === "boarded";
+      for (const t of this.tags) t.visible = true;
       this.bars.visible = next === "shut";
       if (next === "boarded") this.restore();
     }
@@ -178,6 +183,7 @@ export class GateLive {
     const t = age / BURST_S;
     this.boards.visible = age < BURST_S * 0.9;
     this.boards.position.x = 0;
+    for (const t of this.tags) t.visible = age < 0.2;
     this.planks.forEach((p, i) => {
       const dir = i % 2 === 0 ? -1 : 1;
       p.mesh.position.set(p.home.x + dir * (0.5 + 0.7 * age), p.home.y + (1.6 + i * 0.3) * age - 3.2 * age * age, p.home.z + age * 1.2);

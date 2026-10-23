@@ -36,7 +36,7 @@ import {
 } from "./raidfx.ts";
 import type { Sign } from "./rooms.ts";
 import { withTicks } from "./rooms.ts";
-import { Swarm } from "./swarm.ts";
+import { Figures, Swarm } from "./swarm.ts";
 
 /**
  * The raid dungeon's cast, driven by the real raid (`hud.raid`) and the raiders the server says have agents running
@@ -84,6 +84,9 @@ interface Seated {
   /** Until when (clock seconds) the laptop is lit bright: it just fired. */
   lit: number;
   avatar: Avatar | null;
+  /** Shirt and skin, for the stand-in a crowded room draws instead of an avatar. */
+  shirt: string;
+  skin: string;
   bots: { owed: number; at: THREE.Vector3; lit: number }[];
 }
 
@@ -116,6 +119,7 @@ export class DungeonLive {
   private readonly lids: THREE.InstancedMesh;
   private readonly screens: THREE.InstancedMesh;
   private readonly minions: Minions;
+  private readonly figures: Figures;
   private readonly missiles: Swarm;
   private readonly sparks: Swarm;
   private readonly lair: THREE.Mesh;
@@ -181,6 +185,8 @@ export class DungeonLive {
     this.screens.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(LAPTOP_MAX * 3), 3);
     this.group.add(this.lids, this.screens);
 
+    this.figures = new Figures(LAPTOP_MAX);
+    this.group.add(this.figures.group);
     this.minions = new Minions(caps.minionsTotal);
     this.group.add(this.minions.group);
     this.missiles = new Swarm(caps.missiles * 2, 0.08);
@@ -316,7 +322,10 @@ export class DungeonLive {
       if (known) {
         known.raider = p;
         known.seat = seat;
-      } else this.seated.set(p.id, { raider: p, seat, idx: 0, owed: Math.random(), lit: 0, avatar: null, bots: [] });
+      } else {
+        const look = lookFrom2D(p.look as never, { level: 1 });
+        this.seated.set(p.id, { raider: p, seat, idx: 0, owed: Math.random(), lit: 0, avatar: null, shirt: look.outfit[0], skin: look.skin, bots: [] });
+      }
     }
     for (const [id, s] of this.seated)
       if (!ids.has(id)) {
@@ -628,6 +637,10 @@ export class DungeonLive {
       if (this.caps.people < 30 && (this.frame + s.idx) % 2) continue;
       s.avatar?.update(dt * (this.caps.people < 30 ? 2 : 1), t);
     }
+    this.figures.begin();
+    for (const s of this.seated.values())
+      if (!s.avatar) this.figures.add(s.seat[0] - this.map.x0 + 0.5, SEAT_Y, s.seat[1] - this.map.y0 + 0.5, s.shirt, s.skin);
+    this.figures.end();
     this.minions.begin();
     for (const s of this.seated.values())
       for (const [i, b] of s.bots.entries()) this.minions.add(b.at.x, b.at.z, Math.PI, MINION_SCALE, t < b.lit, Math.abs(Math.sin(t * 3 + s.idx + i)) * 0.03);

@@ -61,7 +61,8 @@ for (const id of SHOP_IDS)
   });
 
 registerRoomSkin("basement", () => {
-  const b = buildBasement();
+  // The game's matches are played in town: no demo tables down here.
+  const b = buildBasement({ demoTables: false });
   return { group: b.room.group, offset: INSET, facing: (v) => b.room.facing(v), extra: b };
 });
 

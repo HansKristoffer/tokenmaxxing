@@ -565,6 +565,7 @@ class Renderer3D implements Renderer {
   }
 
   readonly world = world;
+  readonly hud = hud;
 
   /** Where a shelf of the shop you are in is in the window, by item id (tests); the first one without an id. */
   shelfScreen(itemId?: string): { id: string; name: string; price: number; at: [number, number] } | null {

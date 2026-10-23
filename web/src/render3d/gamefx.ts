@@ -1,5 +1,5 @@
 import type { BoardRow } from "@tokenmaxxing/core/games/types.ts";
-import type { Facing, WorldGame } from "@tokenmaxxing/core/world.ts";
+import type { WorldGame } from "@tokenmaxxing/core/world.ts";
 
 /**
  * The town's games as the 3D renderer draws them: pure rules over the world's `WorldGame`s (where their tables and
@@ -60,13 +60,3 @@ export function startLineSpan(plazaLeft: number, plazaRight: number, plazaTop: n
   if (!lanes.length) return null;
   return { x: (plazaLeft + plazaRight) / 2 + 13 / 16, y0: plazaTop + Math.min(...lanes) + 6 / 16, y1: plazaTop + Math.max(...lanes) + 1 };
 }
-
-/** Where a seat's stool goes, and which way the sitter faces (a game's seat says which way they look). */
-export interface SeatSpot {
-  x: number;
-  y: number;
-  facing: Facing;
-}
-
-/** The sitters' seats as the spots stools go on: every seat of the game. */
-export const seatsOf = (game: Pick<WorldGame, "seats">): SeatSpot[] => game.seats.map((s) => ({ x: s.x, y: s.y, facing: s.facing }));

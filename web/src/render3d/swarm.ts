@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { toon } from "../demo3d/kit.ts";
 
 /**
  * Many small glowing boxes in one draw call: missiles, sparks and the like. Each frame `begin`, `add` the ones that are
@@ -13,9 +14,13 @@ export class Swarm {
   private readonly s = new THREE.Vector3();
   private readonly c = new THREE.Color();
 
-  constructor(readonly max: number, size = 0.06) {
+  constructor(
+    readonly max: number,
+    size = 0.06,
+    lit = false,
+  ) {
     const geometry = new THREE.BoxGeometry(size, size, size);
-    const material = new THREE.MeshBasicMaterial({ color: "#ffffff", toneMapped: false });
+    const material = lit ? toon("#ffffff") : new THREE.MeshBasicMaterial({ color: "#ffffff", toneMapped: false });
     this.mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, max));
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, max) * 3), 3);
     this.mesh.frustumCulled = false;
@@ -50,5 +55,43 @@ export class Swarm {
     this.mesh.visible = this.n > 0;
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+  }
+}
+
+/**
+ * Seated stand-ins for people the room is too busy to draw in full: a block of torso and one of head, each its own
+ * colour, two draw calls for the whole crowd. They sit like a raider at a desk, facing -z.
+ */
+export class Figures {
+  readonly group = new THREE.Group();
+  private readonly torso: Swarm;
+  private readonly head: Swarm;
+
+  constructor(max: number) {
+    this.torso = new Swarm(max, 1, true);
+    this.head = new Swarm(max, 1, true);
+    // Unit blocks, sized by the instance scale: the torso is wider than it is deep, the head a cube.
+    this.torso.mesh.geometry.dispose();
+    this.torso.mesh.geometry = new THREE.BoxGeometry(0.34, 0.42, 0.22);
+    this.head.mesh.geometry.dispose();
+    this.head.mesh.geometry = new THREE.BoxGeometry(0.24, 0.24, 0.24);
+    this.torso.mesh.castShadow = this.head.mesh.castShadow = true;
+    this.group.add(this.torso.mesh, this.head.mesh);
+  }
+
+  begin(): void {
+    this.torso.begin();
+    this.head.begin();
+  }
+
+  /** A sitter at (x, z) whose seat top is at `y`, in `shirt` and `skin`. */
+  add(x: number, y: number, z: number, shirt: THREE.ColorRepresentation, skin: THREE.ColorRepresentation): void {
+    this.torso.add(x, y + 0.3, z, 1, shirt);
+    this.head.add(x, y + 0.7, z, 1, skin);
+  }
+
+  end(): void {
+    this.torso.end();
+    this.head.end();
   }
 }
