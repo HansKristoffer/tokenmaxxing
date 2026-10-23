@@ -34,6 +34,16 @@ const SAMPLE_TIMES = [0.37, 3.91, 11.3, 29.77];
 /** `?nobake` turns batching off (to compare pictures, or to see what it costs). */
 const disabled = typeof location !== "undefined" && new URLSearchParams(location.search).has("nobake");
 
+/**
+ * Merged static batches sit on this layer (and only this one): the baked shadow map draws just that layer, the small
+ * per-frame one draws the default layer (everything that moves or was never merged). The camera sees both.
+ */
+export const STATIC_LAYER = 2;
+let shadowEpoch = 0;
+/** Bumps whenever the set of static shadow casters changed (a room was batched, dropped or invalidated). */
+export const staticShadowEpoch = (): number => shadowEpoch;
+export const bumpStaticShadow = (): void => void shadowEpoch++;
+
 let epoch = 0;
 /** Bumps whenever anything is added to any object: cheap way to know the scene graph may have changed. */
 export const sceneEpoch = (): number => epoch;
@@ -52,6 +62,12 @@ export interface BakeStats {
   sources: number;
   live: number;
   merged: Record<BakeMode, { meshes: number; triangles: number } | undefined>;
+}
+
+/** Batches of something that moves as a whole (a wall, a limb) stay on the default layer: they cast their own shadow every frame. */
+function dynamicRoot(root: THREE.Object3D): boolean {
+  for (let p: THREE.Object3D | null = root; p; p = p.parent) if (p.userData[RIGID] || p.userData.actor) return true;
+  return false;
 }
 
 function isLive(o: THREE.Object3D, root: THREE.Object3D): boolean {
@@ -276,11 +292,13 @@ export class BakedLayer {
       v = this.build(mode);
       this.variants[mode] = v;
       this.group.add(v);
+      shadowEpoch++;
       // Placed once: only a move of the room itself (a forced update) touches them again.
       this.group.updateMatrixWorld(true);
       for (const c of v.children) c.matrixWorldAutoUpdate = false;
     }
     for (const [m, g] of Object.entries(this.variants)) g!.visible = m === mode;
+    shadowEpoch++;
     // Sources a variant left out keep drawing themselves, the rest are hidden behind the merged copy.
     if (!this.sealed) this.seal();
   }
@@ -376,6 +394,7 @@ export class BakedLayer {
         mesh.visible = grp.glow === (isPropsNight() ? "night" : "day");
       }
       mesh.userData.noBake = true;
+      if (!dynamicRoot(this.root)) mesh.layers.set(STATIC_LAYER);
       out.add(mesh);
     }
     return out;
@@ -385,6 +404,7 @@ export class BakedLayer {
 
   dispose(): void {
     this.disposed = true;
+    shadowEpoch++;
     for (const v of Object.values(this.variants)) {
       for (const c of v!.children) (c as THREE.Mesh).geometry.dispose();
     }
@@ -500,6 +520,7 @@ const layers = new WeakMap<THREE.Object3D, BakedLayer | null>();
  * the originals draw again and the root is watched and batched afresh a moment later.
  */
 export function invalidateBaked(obj: THREE.Object3D): void {
+  shadowEpoch++;
   for (let p: THREE.Object3D | null = obj; p; p = p.parent) {
     const l = layers.get(p);
     if (l) {
@@ -509,6 +530,23 @@ export function invalidateBaked(obj: THREE.Object3D): void {
     watching.delete(p);
   }
 }
+/** True while a root of `scene` is still being watched (not yet batched): its shadow can't be split into baked and live yet. */
+export function bakePending(scene: THREE.Object3D): boolean {
+  if (!watching.size) return false;
+  for (const root of watching.keys()) {
+    let top: THREE.Object3D | null = root;
+    while (top?.parent) top = top.parent;
+    if (top === scene) return true;
+  }
+  return false;
+}
+
+/** Whether `scene` has at least one static batch on the baked shadow layer. */
+export function hasStaticBatch(scene: THREE.Scene): boolean {
+  const s = seen.get(scene);
+  return !!s?.layers.some((l) => !l.disposed && !dynamicRoot(l.root));
+}
+
 const seen = new WeakMap<THREE.Scene, { epoch: number; mode: BakeMode | null; layers: BakedLayer[] }>();
 
 /**

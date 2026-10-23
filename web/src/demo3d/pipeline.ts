@@ -4,12 +4,46 @@
  * it's a clean cel-shaded look instead.
  */
 import * as THREE from "three";
-import { type BakeMode, sceneEpoch, syncBaked, trackAdditions } from "../render3d/perf/bake.ts";
+import {
+  type BakeMode,
+  bakePending,
+  STATIC_LAYER,
+  sceneEpoch,
+  staticShadowEpoch,
+  syncBaked,
+  trackAdditions,
+} from "../render3d/perf/bake.ts";
+import { classifyCasters } from "../render3d/perf/shadowcast.ts";
 import { trackRenderer } from "../render3d/perf/stats.ts";
 import { blockify, unblockify } from "./blocky.ts";
 import { setActiveScene, setSmoothBands } from "./kit.ts";
 
 export type RenderStyle = "classic" | "voxel";
+
+/**
+ * Two shadow maps for one sun: a big one for what never moves, drawn once (and again when a room is re-batched or
+ * the sun has moved), and a small one for what does (people, pets, walls that lower), drawn every frame or two. The
+ * second is a second, intensity-0 directional light; the lit shaders multiply the two lookups for the first light.
+ */
+{
+  const chunk = THREE.ShaderChunk.lights_fragment_begin;
+  const key = "directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ]";
+  const at = chunk.indexOf(key);
+  const end = at < 0 ? -1 : chunk.indexOf("\n", at);
+  if (end > 0 && !chunk.includes("shadowDyn")) {
+    const original = chunk.slice(at, end);
+    const lookup = (n: number) =>
+      `getShadow( directionalShadowMap[ ${n} ], directionalLightShadows[ ${n} ].shadowMapSize, directionalLightShadows[ ${n} ].shadowIntensity, directionalLightShadows[ ${n} ].shadowBias, directionalLightShadows[ ${n} ].shadowRadius, vDirectionalShadowCoord[ ${n} ] )`;
+    const patched = `#if NUM_DIR_LIGHT_SHADOWS > 1
+		#if UNROLLED_LOOP_INDEX == 0
+		directLight.color *= ( directLight.visible && receiveShadow ) ? ${lookup(0)} * ${lookup(1)} : 1.0; // shadowDyn
+		#endif
+		#else
+		${original}
+		#endif`;
+    THREE.ShaderChunk.lights_fragment_begin = chunk.slice(0, at) + patched + chunk.slice(end);
+  }
+}
 
 const VERTEX = /* glsl */ `
 varying vec2 vUv;
@@ -252,6 +286,15 @@ interface LightRef {
   ground: THREE.Color;
   intensity: number;
 }
+interface SplitShadow {
+  dyn: THREE.DirectionalLight;
+  /** What the baked map was drawn for: the batches' epoch, the sun's place, its size. */
+  epoch: number;
+  key: string;
+  size: number;
+  nextLive: number;
+  at: number;
+}
 interface SceneLights {
   epoch: number;
   refs: LightRef[];
@@ -302,7 +345,7 @@ export class Pipeline {
   private sized = "";
   private shadowsWere: boolean | null = null;
   /** Per-frame facts for the console and the perf harness. */
-  readonly last = { passes: 0, shadowUpdated: false };
+  readonly last = { passes: 0, shadowUpdated: false, staticBakes: 0 };
 
   constructor(canvas: HTMLCanvasElement, opts: { preserve?: boolean } = {}) {
     this.renderer = new THREE.WebGLRenderer({
@@ -316,6 +359,25 @@ export class Pipeline {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     // The shadow map is redrawn on the pipeline's schedule (`shadowEvery`), not on every render() call.
     this.renderer.shadowMap.autoUpdate = false;
+    this.staticCam.layers.set(STATIC_LAYER);
+    this.liveCam.layers.set(0);
+    // The shadow step runs inside `render`; split shadows draw the baked and the live map with their own layers.
+    const shadowMap = this.renderer.shadowMap;
+    const stock = shadowMap.render.bind(shadowMap);
+    shadowMap.render = (lights, scene, camera) => {
+      const plan = this.plan;
+      if (!plan) return stock(lights, scene, camera);
+      if (plan.fixed) {
+        plan.sun.shadow.needsUpdate = true;
+        stock([plan.sun], scene, this.staticCam);
+      }
+      if (plan.live) {
+        plan.dyn.shadow.needsUpdate = true;
+        shadowMap.needsUpdate = true;
+        stock([plan.dyn], scene, this.liveCam);
+      }
+      this.plan = null;
+    };
     trackAdditions();
     trackRenderer(this.renderer, () => this.lastScene);
     const plane = new THREE.PlaneGeometry(2, 2);
@@ -472,7 +534,7 @@ export class Pipeline {
     s = { epoch: sceneEpoch(), refs: [] };
     scene.traverse((o) => {
       const l = o as THREE.Light;
-      if (!l.isLight || o === this.fill) return;
+      if (!l.isLight || this.ours(o)) return;
       s!.refs.push({
         l,
         hemi: !!(l as THREE.HemisphereLight).isHemisphereLight,
@@ -488,6 +550,17 @@ export class Pipeline {
     });
     this.lights.set(scene, s);
     return s;
+  }
+
+  private readonly splits = new WeakMap<THREE.Scene, SplitShadow>();
+  /** What the next render's shadow step does (see `shadowsFor`); null leaves it to three. */
+  private plan: { sun: THREE.DirectionalLight; dyn: THREE.DirectionalLight; fixed: boolean; live: boolean } | null = null;
+  private readonly staticCam = new THREE.Camera();
+  private readonly liveCam = new THREE.Camera();
+
+  /** A light is part of the scene's own lighting, not something the pipeline added. */
+  private ours(o: THREE.Object3D): boolean {
+    return o === this.fill || !!o.userData.shadowDyn;
   }
 
   private shadowsFor(scene: THREE.Scene, size: number, every: number): void {
@@ -510,11 +583,82 @@ export class Pipeline {
         sh.mapSize.set(size, size);
         sh.map?.dispose();
         sh.map = null;
+        const st = this.splits.get(scene);
+        if (st) st.size = 0;
       }
     }
-    const fresh = this.frameNo % Math.max(1, every) === 0 || !sun?.shadow.map;
-    r.shadowMap.needsUpdate = on && fresh;
-    this.last.shadowUpdated = on && fresh;
+    this.last.shadowUpdated = false;
+    // Once a room is batched its shadow splits in two (and stays split, so the shaders don't change back and forth).
+    let st = this.splits.get(scene);
+    if (!st && on && sun && !bakePending(scene) && this.frameNo > 30) {
+      const dyn = new THREE.DirectionalLight(0xffffff, 0);
+      dyn.userData.shadowDyn = true;
+      dyn.castShadow = true;
+      dyn.shadow.autoUpdate = false;
+      scene.add(dyn, dyn.target);
+      st = { dyn, epoch: -1, key: "", size: 0, nextLive: 0, at: 0 };
+      this.splits.set(scene, st);
+    }
+    if (!st || !sun) {
+      r.shadowMap.needsUpdate = on && (this.frameNo % Math.max(1, every) === 0 || !sun?.shadow.map);
+      this.last.shadowUpdated = r.shadowMap.needsUpdate;
+      return;
+    }
+    const dyn = st.dyn;
+    dyn.visible = dyn.castShadow = on;
+    this.plan = null;
+    if (!on) {
+      r.shadowMap.needsUpdate = false;
+      return;
+    }
+    // The small map follows the sun exactly.
+    const key = `${Math.round(sun.position.x / 0.2)},${Math.round(sun.position.y / 0.2)},${Math.round(sun.position.z / 0.2)},${Math.round(sun.target.position.x / 0.2)},${Math.round(sun.target.position.z / 0.2)}`;
+    const sc = sun.shadow.camera;
+    dyn.position.copy(sun.position);
+    dyn.target.position.copy(sun.target.position);
+    dyn.shadow.bias = sun.shadow.bias;
+    dyn.shadow.normalBias = sun.shadow.normalBias;
+    dyn.shadow.radius = sun.shadow.radius;
+    const liveSize = Math.max(512, Math.min(1024, size / 2));
+    if (dyn.shadow.mapSize.x !== liveSize) {
+      dyn.shadow.mapSize.set(liveSize, liveSize);
+      dyn.shadow.map?.dispose();
+      dyn.shadow.map = null;
+    }
+    const dc = dyn.shadow.camera;
+    if (dc.right !== sc.right || dc.top !== sc.top || dc.near !== sc.near || dc.far !== sc.far) {
+      dc.left = sc.left;
+      dc.right = sc.right;
+      dc.top = sc.top;
+      dc.bottom = sc.bottom;
+      dc.near = sc.near;
+      dc.far = sc.far;
+      dc.updateProjectionMatrix();
+    }
+    sun.shadow.autoUpdate = false;
+    sun.updateMatrixWorld();
+    sun.target.updateMatrixWorld();
+    dyn.updateMatrixWorld();
+    dyn.target.updateMatrixWorld();
+    classifyCasters(scene);
+    const now = performance.now();
+    const stale = st.epoch !== staticShadowEpoch() || st.key !== key || st.size !== size || !sun.shadow.map;
+    const plan = { sun, dyn, fixed: false, live: false };
+    if (stale && now - st.at > 120) {
+      st.epoch = staticShadowEpoch();
+      st.key = key;
+      st.size = size;
+      st.at = now;
+      plan.fixed = true;
+      this.last.staticBakes++;
+    }
+    if (this.frameNo >= st.nextLive || !dyn.shadow.map) {
+      st.nextLive = this.frameNo + Math.max(1, every);
+      plan.live = true;
+    }
+    this.plan = plan.fixed || plan.live ? plan : null;
+    r.shadowMap.needsUpdate = !!this.plan;
+    this.last.shadowUpdated = !!this.plan;
   }
 
   /** Soft lit matte look: smooth diffuse, retuned lights, big soft shadows, then AO/haze/grade in one pass. */
@@ -664,6 +808,19 @@ export class Pipeline {
   }
 
   render(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
+    // World matrices once per frame: the shadow passes run before the renderer's own update would, and need them fresh.
+    camera.layers.enable(STATIC_LAYER);
+    scene.updateMatrixWorld();
+    const auto = scene.matrixWorldAutoUpdate;
+    scene.matrixWorldAutoUpdate = false;
+    try {
+      this.draw(scene, camera, w, h);
+    } finally {
+      scene.matrixWorldAutoUpdate = auto;
+    }
+  }
+
+  private draw(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
     const r = this.renderer;
     this.frameNo++;
     if (scene !== this.lastScene) this.frameNo = 0;

@@ -106,6 +106,7 @@ export class Avatar {
     look.gear?.dress(this);
     // The static batching merges what is fixed inside each limb (hair, clothes, gear): one mesh per limb, not per piece.
     this.root.userData.bake = true;
+    this.root.userData.actor = true;
     for (const bone of [this.body, this.head, ...this.arms, ...this.legs, ...this.knees]) bone.userData.rigid = true;
     for (const f of this.rig.faces) f.material.userData.dynamic = true;
   }
@@ -225,6 +226,7 @@ export class Pet {
     readonly kind: PetKind,
     color: string,
   ) {
+    this.root.userData.actor = true;
     const b = this.body;
     const eye = (at: V3) => b.ball(0.02, "#2b2433", at, [1, 1.2, 0.5], 8);
     switch (kind) {

@@ -24,6 +24,13 @@ const out = await page.evaluate(async () => {
     const rt = r.getRenderTarget();
     rows.push({ what: sc.type === "Scene" ? "scene" : "quad", draws: P.draws - d0, tris: P.tris - t0, ms: Math.round(performance.now() - w0), rt: rt ? `${rt.width}x${rt.height}` : "screen" });
   };
+  const sm = r.shadowMap;
+  const so = sm.render;
+  sm.render = function (l, sc, cam) {
+    const d0 = P.draws, t0 = P.tris;
+    so.call(sm, l, sc, cam);
+    rows.push({ what: "shadow", draws: P.draws - d0, tris: P.tris - t0, rt: "shadow" });
+  };
   await new Promise((res) => setTimeout(res, 700));
   const frames = [];
   let cur = [];
