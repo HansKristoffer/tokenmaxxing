@@ -1,7 +1,12 @@
 import { expect, test } from "bun:test";
 import { computeInsets } from "../src/game/inset.ts";
 
-const rect = (left: number, top: number, w: number, h: number) => ({ left, top, right: left + w, bottom: top + h });
+const rect = (left: number, top: number, w: number, h: number) => ({
+  left,
+  top,
+  right: left + w,
+  bottom: top + h,
+});
 
 test("a lone corner chip leaves the picture alone", () => {
   const i = computeInsets([rect(12, 12, 40, 30)], 1440, 900);

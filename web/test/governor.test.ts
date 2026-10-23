@@ -10,7 +10,13 @@ import {
 } from "../src/settings/governor.ts";
 
 /** Feeds frames of `dt` ms until `ms` of time has passed; returns the steps taken. */
-function run(g: Governor, from: number, ms: number, dt: number, target = 16.7): { steps: Step[]; at: number } {
+function run(
+  g: Governor,
+  from: number,
+  ms: number,
+  dt: number,
+  target = 16.7,
+): { steps: Step[]; at: number } {
   const steps: Step[] = [];
   let t = from;
   while (t < from + ms) {

@@ -107,7 +107,8 @@ export class Signs {
 
   /** Who is at home, under a company house's sign: `💤 name Lv5`. */
   private chips(e: Shown, s: Sign, on: boolean, camera: THREE.Camera): void {
-    const people: readonly Peek[] = s.kind === "company" && s.companyId !== undefined ? (world.houses[s.companyId] ?? []) : [];
+    const people: readonly Peek[] =
+      s.kind === "company" && s.companyId !== undefined ? (world.houses[s.companyId] ?? []) : [];
     if (!people.length || !on) {
       if (e.chips) {
         e.chips.remove();

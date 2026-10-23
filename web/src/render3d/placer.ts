@@ -39,7 +39,12 @@ export class Placer {
     this.ghost.visible = false;
     this.ghost.userData.nopick = true;
     this.ghost.userData.live = true;
-    this.material = new THREE.MeshBasicMaterial({ color: "#5be08a", transparent: true, opacity: 0.45, depthWrite: false });
+    this.material = new THREE.MeshBasicMaterial({
+      color: "#5be08a",
+      transparent: true,
+      opacity: 0.45,
+      depthWrite: false,
+    });
     const model = this.asset?.build();
     if (model) {
       // One flat colour over the whole piece (the shape is what matters).

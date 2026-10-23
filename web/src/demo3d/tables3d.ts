@@ -62,7 +62,14 @@ function topOf(m: Model, game: TableGame, h: number): void {
   } else if (game === "sprint") {
     // A keyboard with a few keys lit.
     m.box([0.5, 0.04, 0.2], C.ink, [0, h, 0.05], 0.015);
-    for (let i = 0; i < 9; i++) for (const r of [0, 1]) m.box([0.04, 0.02, 0.04], i % 3 === r ? C.lamp : C.metalLight, [-0.2 + i * 0.05, h + 0.04, 0.0 + r * 0.07], 0.005);
+    for (let i = 0; i < 9; i++)
+      for (const r of [0, 1])
+        m.box(
+          [0.04, 0.02, 0.04],
+          i % 3 === r ? C.lamp : C.metalLight,
+          [-0.2 + i * 0.05, h + 0.04, 0.0 + r * 0.07],
+          0.005,
+        );
     m.box([0.3, 0.015, 0.03], C.white, [0, h + 0.04, 0.12]);
   } else {
     // A desk bell between two founders.
@@ -142,7 +149,8 @@ export interface ArenaDesk extends Model {
 export const arenaDesk = (): ArenaDesk => {
   const m = new Model() as ArenaDesk;
   m.box([0.9, 0.05, 0.6], C.woodLight, [0, 0.5, 0], 0.02);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) m.box([0.06, 0.5, 0.06], C.woodDark, [sx * 0.4, 0, sz * 0.24]);
+  for (const sx of [-1, 1])
+    for (const sz of [-1, 1]) m.box([0.06, 0.5, 0.06], C.woodDark, [sx * 0.4, 0, sz * 0.24]);
   m.box([0.42, 0.015, 0.3], C.metalLight, [0, 0.55, 0.05], 0.005);
   const lid = m.box([0.42, 0.3, 0.02], C.ink, [0, 0.56, -0.1], 0.008);
   lid.rotation.x = -0.15;
@@ -171,4 +179,3 @@ export const TABLE_ASSETS: readonly Asset[] = [
   tableAsset("tokenmaxxing", "Tokenmaxxing table"),
   { id: "arena-desk", name: "Arena desk", price: 0, w: 1, d: 1, build: arenaDesk },
 ];
-

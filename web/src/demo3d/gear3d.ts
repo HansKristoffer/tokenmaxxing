@@ -14,14 +14,27 @@ import * as THREE from "three";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../art/palette.ts";
 import { Avatar, type CharStyle, type Gear, type Look } from "./avatar.ts";
 import { EXTRA_OUTFITS, LEGENDARY_LEVEL, MERCH_PAIRS } from "./data/gear.ts";
-import { BACK_BUILDERS, type BodyCtx, HELD_BUILDERS, type MerchLook, merchCap, merchTop, OUTFIT_BUILDERS } from "./gear3dBody.ts";
+import {
+  BACK_BUILDERS,
+  type BodyCtx,
+  HELD_BUILDERS,
+  type MerchLook,
+  merchCap,
+  merchTop,
+  OUTFIT_BUILDERS,
+} from "./gear3dBody.ts";
 import { COVERS_HAIR, type Ctx, FACE_BUILDERS, HAT_BUILDERS, lit, ring, see } from "./gear3dHead.ts";
 import { Model, tint, toon } from "./kit.ts";
 import type { Hat, Look as VLook } from "./styles.ts";
 import { U, vpart } from "./voxgear.ts";
 
 /** Badge tier frames (`TIER_COLOR` in `core/src/rarity.ts` on the tavern branch). */
-export const TIER_COLOR = { bronze: "#c98a4b", silver: "#d5dbe4", gold: "#ffd75e", diamond: "#7fe8ff" } as const;
+export const TIER_COLOR = {
+  bronze: "#c98a4b",
+  silver: "#d5dbe4",
+  gold: "#ffd75e",
+  diamond: "#7fe8ff",
+} as const;
 
 export { BACK_BUILDERS, HELD_BUILDERS, OUTFIT_BUILDERS } from "./gear3dBody.ts";
 export { FACE_BUILDERS, HAT_BUILDERS } from "./gear3dHead.ts";
@@ -53,7 +66,8 @@ export interface LookOptions {
 
 type Slot = "hat" | "glasses" | "outfit" | "held" | "back";
 const bySlot = new Map<string, Item>();
-for (const i of ITEMS) if (i.slot !== "furniture" && i.slot !== "merch") bySlot.set(`${i.slot}.${i.index}`, i);
+for (const i of ITEMS)
+  if (i.slot !== "furniture" && i.slot !== "merch") bySlot.set(`${i.slot}.${i.index}`, i);
 
 /** The shop item behind a slot's index, if there is one. */
 export const itemAt = (slot: Slot, index: number): Item | undefined => bySlot.get(`${slot}.${index}`);
@@ -62,8 +76,18 @@ export const itemAt = (slot: Slot, index: number): Item | undefined => bySlot.ge
 const BASE_HATS: Record<number, Hat> = { 1: "beanie", 2: "headphones", 3: "crown" };
 
 /** The names the 2D game gives outfits that are only colours (0-7 are free; the rest are named in the catalogue). */
-const FREE_OUTFIT_NAMES = ["Red tee", "Blue tee", "Green tee", "Yellow tee", "Purple tee", "Charcoal tee", "Pink tee", "White tee"];
-export const outfitName = (i: number): string => FREE_OUTFIT_NAMES[i] ?? itemAt("outfit", i)?.name ?? `Outfit ${i}`;
+const FREE_OUTFIT_NAMES = [
+  "Red tee",
+  "Blue tee",
+  "Green tee",
+  "Yellow tee",
+  "Purple tee",
+  "Charcoal tee",
+  "Pink tee",
+  "White tee",
+];
+export const outfitName = (i: number): string =>
+  FREE_OUTFIT_NAMES[i] ?? itemAt("outfit", i)?.name ?? `Outfit ${i}`;
 
 /** Every outfit's colours: [main, dark] and trousers. */
 export function outfitColours(i: number): { outfit: [string, string]; pants: string } {
@@ -107,7 +131,8 @@ export function wornBy(look: Look2D): Worn {
   set("back", look.back);
   const outfit = itemAt("outfit", look.outfit);
   const all = [worn.hat, worn.glasses, worn.held, worn.back, outfit].filter((x): x is Item => !!x);
-  for (const it of all) if (RARITIES.indexOf(rarityOf(it)) > RARITIES.indexOf(worn.rarity)) worn.rarity = rarityOf(it);
+  for (const it of all)
+    if (RARITIES.indexOf(rarityOf(it)) > RARITIES.indexOf(worn.rarity)) worn.rarity = rarityOf(it);
   return worn;
 }
 
@@ -144,7 +169,8 @@ class Dress implements Gear {
     // The head: a hat (or the company cap), then the face piece. Builders draw for a round head 0.5 across
     // with its centre at the origin; `headFit` scales and moves that frame onto this style's head.
     // Voxel folk wear cubes: their frames draw blocks (`voxgear.ts`) however the builder asks for a ball or a cone.
-    const frame = (parent: Model, at: [number, number, number]): Model => (vox ? vpart(parent, at) : parent.part(at));
+    const frame = (parent: Model, at: [number, number, number]): Model =>
+      vox ? vpart(parent, at) : parent.part(at);
     const hat = frame(a.head, [0, fit.y + fit.lift, 0]);
     hat.scale.setScalar(fit.scale);
     const face = frame(a.head, [0, fit.y + fit.eyes, fit.front]);
@@ -165,7 +191,8 @@ class Dress implements Gear {
       if (vox) return;
       for (const arm of a.arms) {
         const sleeve = arm.children[0];
-        if (sleeve instanceof Object && "material" in sleeve) (sleeve as unknown as { material: unknown }).material = toon(color);
+        if (sleeve instanceof Object && "material" in sleeve)
+          (sleeve as unknown as { material: unknown }).material = toon(color);
       }
     };
     if (vox && chest) {
@@ -216,8 +243,15 @@ class Dress implements Gear {
     const glowBody = vox ? vpart(a.root, [0, a.height * 0.5, 0]) : a.root.part([0, a.height * 0.5, 0]);
     glowBody.scale.setScalar(k * 1.05);
     const rings: THREE.Mesh[] = [];
-    for (const [r, o] of [[0.5, 0.09], [0.4, 0.11], [0.3, 0.14]] as const) {
-      const m = new THREE.Mesh(vox ? new THREE.BoxGeometry(r * 1.7, r * 2.1, r * 1.5) : new THREE.SphereGeometry(r, 16, 12), see(o > 0.1 ? "#ffec96" : "#ffd64a", o, true));
+    for (const [r, o] of [
+      [0.5, 0.09],
+      [0.4, 0.11],
+      [0.3, 0.14],
+    ] as const) {
+      const m = new THREE.Mesh(
+        vox ? new THREE.BoxGeometry(r * 1.7, r * 2.1, r * 1.5) : new THREE.SphereGeometry(r, 16, 12),
+        see(o > 0.1 ? "#ffec96" : "#ffd64a", o, true),
+      );
       m.userData.noBlock = true;
       glowBody.add(m);
       rings.push(m);
@@ -273,12 +307,31 @@ function headFit(a: Avatar): HeadFit {
     const box = new THREE.Box3().setFromObject(arm);
     return box.min.y - arm.getWorldPosition(new THREE.Vector3()).y + 0.04;
   })();
-  if (a.style === "voxel") return { y: 0.1575, top: 0.36, scale: 0.63, lift: 0.025, front: 0.035, eyes: 0.045, wide: 1.25, hand: -0.33 };
+  if (a.style === "voxel")
+    return {
+      y: 0.1575,
+      top: 0.36,
+      scale: 0.63,
+      lift: 0.025,
+      front: 0.035,
+      eyes: 0.045,
+      wide: 1.25,
+      hand: -0.33,
+    };
   a.root.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(a.head);
   const c = a.head.worldToLocal(box.getCenter(new THREE.Vector3()));
   const top = a.head.worldToLocal(new THREE.Vector3(0, box.max.y, 0)).y;
-  return { y: c.y, top, scale: Math.min(1.4, Math.max(0.4, box.getSize(new THREE.Vector3()).x / 0.5)), lift: 0, front: 0, eyes: 0, wide: 1, hand };
+  return {
+    y: c.y,
+    top,
+    scale: Math.min(1.4, Math.max(0.4, box.getSize(new THREE.Vector3()).x / 0.5)),
+    lift: 0,
+    front: 0,
+    eyes: 0,
+    wide: 1,
+    hand,
+  };
 }
 
 /** The glasses and beards a voxel person draws in cubes themselves (`lookFrom2D` turns these on). */
@@ -331,7 +384,7 @@ export function lookFrom2D(look: Look2D, opts: LookOptions = {}): Look {
     beard: 0,
     glasses: false,
     // Under a hat that covers the crown, the hair's fringe, spikes and bun are tucked away.
-    covered: !!((bits & 4) || (worn.hat && COVERS_HAIR.has(worn.hat.name))),
+    covered: !!(bits & 4 || (worn.hat && COVERS_HAIR.has(worn.hat.name))),
   };
   const own = worn.glasses ? VOXEL_FACE[worn.glasses.name] : undefined;
   if (own) Object.assign(out, own);
@@ -340,7 +393,8 @@ export function lookFrom2D(look: Look2D, opts: LookOptions = {}): Look {
 }
 
 /** A 3D avatar for a saved 2D look. */
-export const avatarFor = (look: Look2D, opts?: LookOptions, style: CharStyle = "voxel"): Avatar => new Avatar(lookFrom2D(look, opts), style);
+export const avatarFor = (look: Look2D, opts?: LookOptions, style: CharStyle = "voxel"): Avatar =>
+  new Avatar(lookFrom2D(look, opts), style);
 
 /** The crown the legendary level puts on a pet, to add to a `Pet`'s `root` at its head. */
 export function petCrown(): Model {
@@ -356,7 +410,8 @@ export function petCrown(): Model {
 
 /** How far over a character's head a name tag should float, in world units: higher over a halo. */
 export const tagLift = (level = 0, pose = "stand"): number =>
-  (pose === "sleep" ? 0.55 : pose === "sit" || pose === "type" ? 0.97 : 1.35) + (level >= LEGENDARY_LEVEL ? 0.14 : 0);
+  (pose === "sleep" ? 0.55 : pose === "sit" || pose === "type" ? 0.97 : 1.35) +
+  (level >= LEGENDARY_LEVEL ? 0.14 : 0);
 
 // MARK: Overhead chips
 
@@ -444,4 +499,5 @@ export function nameTag(o: TagOptions): HTMLDivElement {
   return el;
 }
 
-const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+const escapeHtml = (s: string) =>
+  s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);

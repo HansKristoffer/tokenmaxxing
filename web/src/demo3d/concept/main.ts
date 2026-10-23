@@ -24,7 +24,12 @@ interface Shot {
 
 const SHOTS: Record<string, Shot> = {
   "1-day": { theme: "day", cam: { az: 40, el: 30, target: [22, 28, 22], view: 132 }, people: 160, pets: 30 },
-  "2-golden": { theme: "dusk", cam: { az: 40, el: 30, target: [22, 28, 22], view: 132 }, people: 160, pets: 30 },
+  "2-golden": {
+    theme: "dusk",
+    cam: { az: 40, el: 30, target: [22, 28, 22], view: 132 },
+    people: 160,
+    pets: 30,
+  },
   "4-street": {
     theme: "cyber",
     cam: (_w, lm) => ({ az: 16, el: 9, target: [lm.plaza.x - 3, 2.9, lm.plaza.z - 1], view: 13.5 }),
@@ -40,7 +45,12 @@ const SHOTS: Record<string, Shot> = {
   },
   "5-terrace": {
     theme: "day",
-    cam: (_w, lm) => ({ az: 30, el: 22, target: [lm.anchors.hq![0], lm.anchors.hq![1] + 2.5, lm.anchors.hq![2] - 1], view: 12.5 }),
+    cam: (_w, lm) => ({
+      az: 30,
+      el: 22,
+      target: [lm.anchors.hq![0], lm.anchors.hq![1] + 2.5, lm.anchors.hq![2] - 1],
+      view: 12.5,
+    }),
     people: 30,
     pets: 10,
     extra: (w, lm) => {
@@ -49,14 +59,24 @@ const SHOTS: Record<string, Shot> = {
       crowdAt(w, hx + 5, hz - 3, hy, 4, 1, 2.5, 32, 2);
     },
   },
-  "3-cyber-wide": { theme: "cyber", cam: { az: 40, el: 30, target: [22, 28, 22], view: 132 }, people: 100, pets: 20 },
+  "3-cyber-wide": {
+    theme: "cyber",
+    cam: { az: 40, el: 30, target: [22, 28, 22], view: 132 },
+    people: 100,
+    pets: 20,
+  },
 };
 
 const q = new URLSearchParams(location.search);
 const shotName = q.get("shot");
 const shot: Shot = (shotName && SHOTS[shotName]) || {
   theme: (q.get("theme") ?? "day") as Theme,
-  cam: { az: Number(q.get("az") ?? 40), el: Number(q.get("el") ?? 30), target: [Number(q.get("tx") ?? 20), Number(q.get("ty") ?? 22), Number(q.get("tz") ?? 20)], view: Number(q.get("view") ?? 110) },
+  cam: {
+    az: Number(q.get("az") ?? 40),
+    el: Number(q.get("el") ?? 30),
+    target: [Number(q.get("tx") ?? 20), Number(q.get("ty") ?? 22), Number(q.get("tz") ?? 20)],
+    view: Number(q.get("view") ?? 110),
+  },
   people: Number(q.get("people") ?? 60),
   pets: 12,
 };

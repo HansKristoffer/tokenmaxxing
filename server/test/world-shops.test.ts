@@ -17,7 +17,9 @@ describe("the shops", () => {
     const out = outsideDoor("inn");
     const door = MAPS.town.find(SHOP_DOOR_CHAR[shop])[0]!;
     // The sausage cart is a prop nobody walks through: a town without it, for the route.
-    const rows = MAPS.town.rows.map((r, y) => [...r].map((ch, x) => (isCart(x + MAPS.town.x0, y + MAPS.town.y0) ? "T" : ch)).join(""));
+    const rows = MAPS.town.rows.map((r, y) =>
+      [...r].map((ch, x) => (isCart(x + MAPS.town.x0, y + MAPS.town.y0) ? "T" : ch)).join(""),
+    );
     const streets = new GameMap("town", "Town", rows, MAPS.town.x0, MAPS.town.y0);
     const steps = await walk(c.conn, route(streets, [out.x, out.y], door)!);
     expect(steps.at(-1)).toMatchObject({ room: SHOP_ROOM[shop] });
@@ -52,7 +54,10 @@ describe("the shops", () => {
     await eventually(() => expect(one.c.events.chat.map((l) => l.text)).toContain("nice hats"));
     expect(other.events.chat.map((l) => l.text)).not.toContain("nice hats");
     const entry = roomEntry(SHOP_ROOM.clothes);
-    const out = await walk(one.c.conn, route(MAPS[SHOP_ROOM.clothes], [entry.x, entry.y], MAPS[SHOP_ROOM.clothes].find("x")[0]!)!);
+    const out = await walk(
+      one.c.conn,
+      route(MAPS[SHOP_ROOM.clothes], [entry.x, entry.y], MAPS[SHOP_ROOM.clothes].find("x")[0]!)!,
+    );
     expect(out.at(-1)).toEqual({ ...outsideDoor("clothes"), state: "idle" });
     await one.c.conn.dispose();
     await other.conn.dispose();

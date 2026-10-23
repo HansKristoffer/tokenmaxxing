@@ -11,6 +11,11 @@ export function mergeStill(root: THREE.Object3D, keep: (mesh: THREE.Mesh) => boo
   const was = root.visible;
   root.visible = true;
   blockify(root);
-  batchStatic(root, { chunk: 100, samples: 1, probe: () => {}, keep: (m) => m.userData.live === true || keep(m) });
+  batchStatic(root, {
+    chunk: 100,
+    samples: 1,
+    probe: () => {},
+    keep: (m) => m.userData.live === true || keep(m),
+  });
   root.visible = was;
 }

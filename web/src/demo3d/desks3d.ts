@@ -86,7 +86,11 @@ function laptop(m: Model): void {
   // Stickers on the lid's back, where the room sees them from behind a sitter.
   const rnd = seeded(5);
   for (const c of ["#e25d5d", "#f0b53c", "#4f8fe0", "#3ddc84", "#e86bd8"]) {
-    const s = lid.plane(0.05 + rnd() * 0.03, 0.04 + rnd() * 0.03, c, [(rnd() - 0.5) * 0.28, 0.06 + rnd() * 0.14, -0.0115]);
+    const s = lid.plane(0.05 + rnd() * 0.03, 0.04 + rnd() * 0.03, c, [
+      (rnd() - 0.5) * 0.28,
+      0.06 + rnd() * 0.14,
+      -0.0115,
+    ]);
     s.rotation.y = Math.PI;
   }
   m.box([0.07, 0.025, 0.1], "#3c4454", [-0.02, TOP + 0.05, 0.15], 0.012);

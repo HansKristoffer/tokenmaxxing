@@ -618,7 +618,9 @@ export function portal(
   if (common !== null) return roomEntry(`hq:${common}`, "u");
   const house = companyOfRoom(room);
   if (door.ch === "u" && house !== null)
-    return house === companyId ? roomEntry(`common:${house}`) : { notice: "🔒 The common room is for members only." };
+    return house === companyId
+      ? roomEntry(`common:${house}`)
+      : { notice: "🔒 The common room is for members only." };
   const plot = [...plots].find(([, c]) => c.id === house)?.[0];
   return plot === undefined ? townSpawn() : outsideDoor(plot);
 }

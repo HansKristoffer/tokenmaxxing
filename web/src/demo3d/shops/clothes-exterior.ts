@@ -24,7 +24,8 @@ function bay(m: Model, x: number, outfit: number, hat: number, flip: boolean): v
   // The shell: floor, sill, head, sides, and a backdrop on the wall.
   bw.box([w + 0.16, 0.12, depth + 0.1], PLUM, [0, sill - 0.12, depth / 2 - 0.02], 0.02);
   bw.box([w + 0.16, 0.12, depth + 0.1], PLUM, [0, sill + h, depth / 2 - 0.02], 0.02);
-  for (const s of [-1, 1]) bw.box([0.08, h, depth + 0.1], PLUM, [s * (w / 2 + 0.04), sill, depth / 2 - 0.02], 0.015);
+  for (const s of [-1, 1])
+    bw.box([0.08, h, depth + 0.1], PLUM, [s * (w / 2 + 0.04), sill, depth / 2 - 0.02], 0.015);
   const back = bw.box([w, h, 0.03], "#fbe9ee", [0, sill, 0.04], 0.004);
   nightGlow(back, "#ffe6bc");
   bw.box([w, 0.03, depth], "#d98aa6", [0, sill, depth / 2 + 0.03], 0.004);
@@ -64,7 +65,8 @@ function awning(m: Model, w: number, top: number, drop: number, reach: number): 
     m.box([sw * 0.9, 0.1, 0.03], c, [x, top - drop - 0.06, reach + 0.02], 0.012);
     m.ball(sw * 0.45, c, [x, top - drop - 0.07, reach + 0.03], [1, 0.55, 0.35], 8);
   }
-  for (const s of [-1, 1]) m.box([0.05, drop + 0.1, 0.05], GOLD, [s * (w / 2), top - drop - 0.1, reach], 0.008);
+  for (const s of [-1, 1])
+    m.box([0.05, drop + 0.1, 0.05], GOLD, [s * (w / 2), top - drop - 0.1, reach], 0.008);
 }
 
 function hangerSign(m: Model, at: [number, number, number]): void {

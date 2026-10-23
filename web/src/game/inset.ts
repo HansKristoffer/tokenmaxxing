@@ -20,7 +20,11 @@ interface Rect {
 type Side = "left" | "top" | "right" | "bottom";
 
 /** Pure: the insets for these panel rects in a w x h window. */
-export function computeInsets(rects: readonly Rect[], w: number, h: number): Omit<typeof hudInset, "version"> {
+export function computeInsets(
+  rects: readonly Rect[],
+  w: number,
+  h: number,
+): Omit<typeof hudInset, "version"> {
   const thick = { left: 0, top: 0, right: 0, bottom: 0 };
   const span = { left: 0, top: 0, right: 0, bottom: 0 };
   for (const r of rects) {
@@ -40,7 +44,8 @@ export function computeInsets(rects: readonly Rect[], w: number, h: number): Omi
         side = s;
       }
     }
-    const depth = side === "left" ? r.right : side === "right" ? w - r.left : side === "top" ? r.bottom : h - r.top;
+    const depth =
+      side === "left" ? r.right : side === "right" ? w - r.left : side === "top" ? r.bottom : h - r.top;
     thick[side] = Math.max(thick[side], Math.min(depth, (side === "left" || side === "right" ? w : h) * 0.5));
     span[side] += side === "left" || side === "right" ? rh / h : rw / w;
   }

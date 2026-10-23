@@ -19,7 +19,8 @@ export const SPUTTER = 0.08;
 export const raiderRate = (burn: number, closed: boolean): number => (closed ? 0 : fireRate(burn) || SPUTTER);
 
 /** A minion fires a third as fast as its raider, and sputters when its raider does. */
-export const minionRate = (burn: number, rate: number): number => (rate && (fireRate(burn) ? Math.max(0.25, rate / 3) : rate / 2));
+export const minionRate = (burn: number, rate: number): number =>
+  rate && (fireRate(burn) ? Math.max(0.25, rate / 3) : rate / 2);
 
 /** Shots due after `dtMs` at `rate` a second, given the fraction already `owed`: whole shots fired, the rest carried. */
 export function owedShots(owed: number, rate: number, dtMs: number): { owed: number; shots: number } {
@@ -53,7 +54,8 @@ export function raidEvents(before: Raid | null, after: Raid): RaidEvents {
 }
 
 /** How many minions to draw for a raider with `agents` running: the first agent is them. */
-export const minionsOf = (agents: number, perRaider: number): number => Math.max(0, Math.min(perRaider, agents - 1));
+export const minionsOf = (agents: number, perRaider: number): number =>
+  Math.max(0, Math.min(perRaider, agents - 1));
 
 /** What the dungeon draws at once, by how much the machine can take (the raid is the busiest room in the game). */
 export interface Caps {
@@ -93,7 +95,8 @@ const opensAt = (r: Pick<Raid, "rules">): string => `${String(r.rules.opensHour)
 /** The words over the gate (the 2D game's), or null when there is no raid yet. */
 export function gateText(r: Raid | null, now = Date.now()): string | null {
   if (!r) return null;
-  if (r.prelaunch) return now < r.launchAt ? `⚠️ Something is coming… ${countdown(r.launchAt)}` : "⚔️ The gate is opening…";
+  if (r.prelaunch)
+    return now < r.launchAt ? `⚠️ Something is coming… ${countdown(r.launchAt)}` : "⚔️ The gate is opening…";
   if (r.closed) return `⚔️ Raid Dungeon · shut · opens ${opensAt(r)}`;
   const pct = r.hp > 0 ? Math.ceil((hpLeft(r) / r.hp) * 100) : 0;
   return `⚔️ Raid Dungeon · ${r.boss.emoji} ${r.boss.name} · rung ${r.boss.rung} · ${pct}%`;

@@ -54,27 +54,29 @@ export function liveTavern(inn: TavernRoom): (t: number) => void {
   const tab = inn.by.get("tile:J")?.[0];
   const plaques = [inn.by.get("tile:P")?.[0], inn.by.get("tavern:plaque-2")?.[0]];
   const easel = inn.by.get("tile:K")?.[0];
-  const paintBoard = watch<{ rows: { rank: number; name: string; minutes: number }[]; last: number | null; ids: number[] }>(
-    ({ rows, last, ids }) => {
-      if (tab)
-        setBarTab(
-          tab,
-          rows.map((r) => tabLine(r)),
-          ids.indexOf(last ?? -1),
-        );
-      for (const [i, plaque] of plaques.entries()) {
-        if (!plaque) continue;
-        const first = i === 0 ? 1 : LEFT_PLATES + 1;
-        const lastRank = i === 0 ? LEFT_PLATES : REGULARS_TOP;
-        const names: string[] = [];
-        for (let rank = first; rank <= lastRank; rank++) {
-          const r = rows.find((q) => q.rank === rank && plaqueOf(q.rank) === i);
-          names.push(r ? plateText(r) : "");
-        }
-        setPlaque(plaque, names);
+  const paintBoard = watch<{
+    rows: { rank: number; name: string; minutes: number }[];
+    last: number | null;
+    ids: number[];
+  }>(({ rows, last, ids }) => {
+    if (tab)
+      setBarTab(
+        tab,
+        rows.map((r) => tabLine(r)),
+        ids.indexOf(last ?? -1),
+      );
+    for (const [i, plaque] of plaques.entries()) {
+      if (!plaque) continue;
+      const first = i === 0 ? 1 : LEFT_PLATES + 1;
+      const lastRank = i === 0 ? LEFT_PLATES : REGULARS_TOP;
+      const names: string[] = [];
+      for (let rank = first; rank <= lastRank; rank++) {
+        const r = rows.find((q) => q.rank === rank && plaqueOf(q.rank) === i);
+        names.push(r ? plateText(r) : "");
       }
-    },
-  );
+      setPlaque(plaque, names);
+    }
+  });
   const paintSpecial = watch<string>((s) => easel && setSpecial(easel, s));
   const officeBoard = inn.by.get("tile:w")?.[0];
   const paintOffices = watch<string[] | null>((names) => officeBoard && setOfficeBoard(officeBoard, names));
@@ -92,10 +94,14 @@ export function liveTavern(inn: TavernRoom): (t: number) => void {
 
 /** The matches the big screen lists, oldest first (as the 2D screen does). */
 const FEED_ROWS = 3;
-const feedOf = (games: Iterable<WorldGame>): WorldGame[] => [...games].sort((a, b) => a.id - b.id).slice(0, FEED_ROWS);
+const feedOf = (games: Iterable<WorldGame>): WorldGame[] =>
+  [...games].sort((a, b) => a.id - b.id).slice(0, FEED_ROWS);
 
 const nameOf = (id: number): string =>
-  hud.get().lobby?.matches.flatMap((m) => m.players).find((p) => p.userId === id)?.name ??
+  hud
+    .get()
+    .lobby?.matches.flatMap((m) => m.players)
+    .find((p) => p.userId === id)?.name ??
   world.avatars.get(id)?.info.name ??
   "?";
 
@@ -129,7 +135,8 @@ export function liveBasement(b: BasementScene): (t: number) => void {
         0,
         rounds.findIndex((round) => round.some((m) => m.winner === null)),
       );
-      const name = (id: number | null) => (id === null ? null : (running.players.find((p) => p.id === id)?.name ?? "?"));
+      const name = (id: number | null) =>
+        id === null ? null : (running.players.find((p) => p.id === id)?.name ?? "?");
       const side = (m: { a: number | null; b: number | null; winner: number | null }): "a" | "b" | null =>
         m.winner === null ? null : m.winner === m.a ? "a" : "b";
       showScreen({
@@ -137,8 +144,7 @@ export function liveBasement(b: BasementScene): (t: number) => void {
         bracket: {
           game: GAMES[running.game]!.name,
           round: roundName(rounds.length, r),
-          matches: rounds[r]!
-            .filter((m) => m.a !== null || m.b !== null)
+          matches: rounds[r]!.filter((m) => m.a !== null || m.b !== null)
             .slice(0, FEED_ROWS)
             .map((m) => ({ a: name(m.a), b: name(m.b), winner: side(m) })),
         },
@@ -153,7 +159,13 @@ export function liveBasement(b: BasementScene): (t: number) => void {
       showScreen({ matches: feedOf(world.games.values()).map(matchRow), total: world.games.size });
       showBoard(t?.champion ? { rounds: null, champion: t.champion.name } : { rounds: null });
     }
-    showTop(hud.get().board.filter((r) => r.tokens > 0).slice(0, 3).map((r) => ({ tokens: r.tokens })));
+    showTop(
+      hud
+        .get()
+        .board.filter((r) => r.tokens > 0)
+        .slice(0, 3)
+        .map((r) => ({ tokens: r.tokens })),
+    );
     const raid = hud.get().raid;
     showRaid(raid && !raid.prelaunch && !raid.closed && raid.hp > 0 ? left(raid) / raid.hp : null);
   };

@@ -31,7 +31,10 @@ if (view === "exterior") {
   const ext = SHOP_CLOTHES.exterior();
   scene.add(ext);
   // A pavement and a road for scale.
-  const walk = new THREE.Mesh(new THREE.BoxGeometry(14, 0.1, 9), new THREE.MeshToonMaterial({ color: "#cfc6b8" }));
+  const walk = new THREE.Mesh(
+    new THREE.BoxGeometry(14, 0.1, 9),
+    new THREE.MeshToonMaterial({ color: "#cfc6b8" }),
+  );
   walk.position.set(0, -0.06, -1);
   walk.receiveShadow = true;
   scene.add(walk);
@@ -109,7 +112,10 @@ window.addEventListener("pointermove", (e) => {
   const fwd = new THREE.Vector3(-Math.sin(azimuth), 0, -Math.cos(azimuth));
   target.addScaledVector(right, -dx).addScaledVector(fwd, dy);
 });
-window.addEventListener("wheel", (e) => (zoom = Math.max(0.1, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9)))));
+window.addEventListener(
+  "wheel",
+  (e) => (zoom = Math.max(0.1, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9)))),
+);
 window.addEventListener("keydown", (e) => {
   if (e.key === "q") azimuth -= Math.PI / 2;
   if (e.key === "e") azimuth += Math.PI / 2;

@@ -68,7 +68,9 @@ describe("the company common room", () => {
   });
 
   test("the house's own exit still goes out the door", () => {
-    expect(portal("hq:7", { ch: "x", x: 11, y: 13 }, 7, new Map([[1000, { id: 7, name: "Arox" }]]))).toMatchObject({
+    expect(
+      portal("hq:7", { ch: "x", x: 11, y: 13 }, 7, new Map([[1000, { id: 7, name: "Arox" }]])),
+    ).toMatchObject({
       room: "town",
     });
   });
@@ -134,7 +136,9 @@ describe("the company common room", () => {
 
   test("company furniture put out here is drawn into the room; its legend chars exist", () => {
     const sofa = COMPANY_FURNITURE.find((f) => f.art === "beanbag")!;
-    setDrops("common:7", [{ id: 1, item: `furn.${sofa.ch}`, room: "common:7", x: 3, y: 9, by: 1, at: 0, co: 7 }]);
+    setDrops("common:7", [
+      { id: 1, item: `furn.${sofa.ch}`, room: "common:7", x: 3, y: 9, by: 1, at: 0, co: 7 },
+    ]);
     expect(mapOf("common:7").at(3, 9)).toBe(sofa.ch);
     expect(mapOf("common:7").kind(3, 9).seat).toBe("sofa");
     // The same map object until something changes; the house stays untouched.

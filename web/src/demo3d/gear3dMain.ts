@@ -62,7 +62,8 @@ function show(cat: GearCategory): void {
     const cells = gallery.cells.slice(Number(row) * gallery.cols, (Number(row) + 1) * gallery.cols);
     for (const c of cells) pan.add(c.clone().divideScalar(cells.length));
   }
-  for (const b of document.querySelectorAll<HTMLButtonElement>("#cats button")) b.classList.toggle("on", b.dataset.value === cat);
+  for (const b of document.querySelectorAll<HTMLButtonElement>("#cats button"))
+    b.classList.toggle("on", b.dataset.value === cat);
   setWalk(walk);
 }
 
@@ -107,10 +108,14 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "q" || e.key === "Q") azimuthGoal -= Math.PI / 2;
   if (e.key === "e" || e.key === "E") azimuthGoal += Math.PI / 2;
 });
-canvas.addEventListener("wheel", (e) => {
-  e.preventDefault();
-  zoom = Math.min(2.2, Math.max(0.12, zoom * Math.exp(e.deltaY * 0.0012)));
-}, { passive: false });
+canvas.addEventListener(
+  "wheel",
+  (e) => {
+    e.preventDefault();
+    zoom = Math.min(2.2, Math.max(0.12, zoom * Math.exp(e.deltaY * 0.0012)));
+  },
+  { passive: false },
+);
 let drag: { x: number; y: number } | null = null;
 canvas.addEventListener("pointerdown", (e) => (drag = { x: e.clientX, y: e.clientY }));
 window.addEventListener("pointerup", () => (drag = null));

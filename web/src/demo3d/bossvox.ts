@@ -42,7 +42,13 @@ function wind(p: number): number {
 
 // MARK: Tools
 
-function part(parent: THREE.Object3D, g: Grid, pivot: V3, parentPivot: V3 = [0, 0, 0], o: BakeOpts = {}): THREE.Group {
+function part(
+  parent: THREE.Object3D,
+  g: Grid,
+  pivot: V3,
+  parentPivot: V3 = [0, 0, 0],
+  o: BakeOpts = {},
+): THREE.Group {
   const grp = new THREE.Group();
   grp.position.set(
     (pivot[0] - parentPivot[0]) * VOX,
@@ -64,7 +70,15 @@ function local(parent: THREE.Object3D, g: Grid, at: V3, o: BakeOpts = {}): THREE
 }
 
 /** A w x h x d block (flat shaded, for eyes and glints) centred on `at`, its front at `at` z. */
-function block(parent: THREE.Object3D, w: number, h: number, d: number, c: string, at: V3, o: BakeOpts = {}): THREE.Group {
+function block(
+  parent: THREE.Object3D,
+  w: number,
+  h: number,
+  d: number,
+  c: string,
+  at: V3,
+  o: BakeOpts = {},
+): THREE.Group {
   const g = new Grid().box(0, w - 1, 0, h - 1, 0, d - 1, c);
   const piv: V3 = [(w - 1) / 2, (h - 1) / 2, 0];
   const grp = new THREE.Group();
@@ -89,7 +103,8 @@ function lathe(
     if (rx <= 0 || rz <= 0) continue;
     for (let x = Math.ceil(cx - rx); x <= Math.floor(cx + rx); x++)
       for (let z = Math.ceil(cz - rz); z <= Math.floor(cz + rz); z++)
-        if (Math.abs((x - cx) / rx) ** pow + Math.abs((z - cz) / rz) ** pow <= 1.0001) g.box(x, x, y, y, z, z, p);
+        if (Math.abs((x - cx) / rx) ** pow + Math.abs((z - cz) / rz) ** pow <= 1.0001)
+          g.box(x, x, y, y, z, z, p);
   }
 }
 
@@ -126,7 +141,10 @@ type Build = (c: (k: string) => string) => Sculpt;
 const colours = (pal: Palette, silhouette: boolean) => (k: string) =>
   silhouette ? (k === "eye" ? SIL_EYE : SIL) : (pal[k] ?? "#ff00ff");
 
-const stripe = (a: string, b: string, n = 5): Paint => (p) => ((p.x * 3 + p.z * 5 + p.y) % n === 0 ? b : a);
+const stripe =
+  (a: string, b: string, n = 5): Paint =>
+  (p) =>
+    (p.x * 3 + p.z * 5 + p.y) % n === 0 ? b : a;
 
 // MARK: The Rate Limit
 
@@ -226,7 +244,16 @@ function rateLimit(c: (k: string) => string): Sculpt {
   const arms: THREE.Group[] = [];
   for (const sx of [-1, 1]) {
     const a = new Grid();
-    a.tube([[sx * 16, 38, 0], [sx * 17.5, 32, 2], [sx * 17.5, 26, 4]], 2, 2, wood);
+    a.tube(
+      [
+        [sx * 16, 38, 0],
+        [sx * 17.5, 32, 2],
+        [sx * 17.5, 26, 4],
+      ],
+      2,
+      2,
+      wood,
+    );
     a.box(sx * 17.5 - 3, sx * 17.5 + 3, 19, 25, 2, 8, c("woodDark"));
     a.box(sx * 17.5 - 3, sx * 17.5 + 3, 24, 25, 3, 9, c("gold"));
     for (let i = -1; i <= 1; i++) a.box(sx * 17.5 + i * 2, sx * 17.5 + i * 2, 20, 24, 9, 9, c("wood"));
@@ -247,7 +274,11 @@ function rateLimit(c: (k: string) => string): Sculpt {
       arms[1]!.rotation.x = -w * 2.3 - Math.sin(t * 1.7 + 1.5) * 0.07 + fall * 0.8;
       arms[0]!.rotation.z = -0.1 - w * 0.2;
       arms[1]!.rotation.z = 0.1 + w * 0.2;
-      streamPart.scale.set(0.7 + 0.5 * Math.abs(Math.sin(t * 9)), 1 - fall, 0.7 + 0.5 * Math.abs(Math.sin(t * 9)));
+      streamPart.scale.set(
+        0.7 + 0.5 * Math.abs(Math.sin(t * 9)),
+        1 - fall,
+        0.7 + 0.5 * Math.abs(Math.sin(t * 9)),
+      );
       for (const [i, e] of eyes.entries()) {
         const pulse = 1 + 0.06 * Math.sin(t * 4 + i) + hurt * 0.2;
         e.scale.set(pulse, (1 - fall * 0.9) * (1 + w * 0.2) * pulse, 1);
@@ -285,7 +316,9 @@ function contextWindow(c: (k: string) => string): Sculpt {
   const rig = new THREE.Group();
   root.add(rig);
   const g = new Grid();
-  g.box(-16, 16, 8, 38, -5, 5, (p) => (hash(p.x, p.y, p.z, 2) < 0.15 ? lighten(c("frame"), 0.06) : c("frame")));
+  g.box(-16, 16, 8, 38, -5, 5, (p) =>
+    hash(p.x, p.y, p.z, 2) < 0.15 ? lighten(c("frame"), 0.06) : c("frame"),
+  );
   // Front: title bar, recessed screen.
   g.box(-15, 15, 34, 37, 5, 5, c("title"));
   for (let x = -14; x <= 14; x++)
@@ -294,7 +327,8 @@ function contextWindow(c: (k: string) => string): Sculpt {
       g.del(x, y, 5);
       g.set(x, y, 3, (x + y) % 6 === 0 ? c("screenDark") : c("screen"));
     }
-  for (const [i, k] of (["red", "yellow", "green"] as const).entries()) g.box(-14 + i * 4, -13 + i * 4, 35, 36, 6, 6, c(k));
+  for (const [i, k] of (["red", "yellow", "green"] as const).entries())
+    g.box(-14 + i * 4, -13 + i * 4, 35, 36, 6, 6, c(k));
   // Mouth: recessed, with teeth.
   for (let x = -7; x <= 7; x++)
     for (let y = 15; y <= 19; y++) {
@@ -344,7 +378,15 @@ function contextWindow(c: (k: string) => string): Sculpt {
     const b = new Grid();
     for (let j = 0; j < 4; j++) {
       const k = hash(i, j, 1, 5);
-      b.box(j % 2, (j % 2) + 1, Math.floor(k * 3), Math.floor(k * 3) + 1, j >> 1, (j >> 1) + 1, hash(i, j, 2, 5) < 0.5 ? c("screen") : c("frame"));
+      b.box(
+        j % 2,
+        (j % 2) + 1,
+        Math.floor(k * 3),
+        Math.floor(k * 3) + 1,
+        j >> 1,
+        (j >> 1) + 1,
+        hash(i, j, 2, 5) < 0.5 ? c("screen") : c("frame"),
+      );
     }
     const x = (hash(i, 7, 7, 3) * 2 - 1) * 13;
     const z = (hash(i, 8, 8, 3) * 2 - 1) * 4;
@@ -427,7 +469,13 @@ function mergeConflict(c: (k: string) => string): Sculpt {
     // The seam: a crack down the middle, jagged.
     for (let y = 14; y <= 29; y++) if (y % 4 < 2) body.set(-1, y, 7, c("seam"));
     // The back's diff lines.
-    for (const [y, len] of [[18, 7], [20, 4], [26, 6], [28, 3]] as const) body.box(-11, -11 + len, y, y, -8, -8, light);
+    for (const [y, len] of [
+      [18, 7],
+      [20, 4],
+      [26, 6],
+      [28, 3],
+    ] as const)
+      body.box(-11, -11 + len, y, y, -8, -8, light);
     body.box(-9, -5, 22, 23, -8, -8, dark);
     // Head.
     const head = new Grid();
@@ -454,7 +502,16 @@ function mergeConflict(c: (k: string) => string): Sculpt {
     head.merge(brow);
     // Arm: shoulder to fist.
     const arm = new Grid();
-    arm.tube([[-14, 28, 0], [-16, 22, 2], [-16.5, 17, 4]], 2.8, 2.6, skin);
+    arm.tube(
+      [
+        [-14, 28, 0],
+        [-16, 22, 2],
+        [-16.5, 17, 4],
+      ],
+      2.8,
+      2.6,
+      skin,
+    );
     arm.box(-19, -14, 11, 17, 2, 8, dark);
     arm.box(-19, -14, 15, 16, 3, 9, light);
     if (sign === "-") arm.box(-18, -15, 12, 12, 9, 9, c("gold"));
@@ -505,7 +562,8 @@ function mergeConflict(c: (k: string) => string): Sculpt {
       for (const h of halves) {
         const sx = h.sx;
         h.grp.position.x = sx * (argue * 0.5 + Math.max(0, w) * 3.5 + (w < 0 ? w * 1.5 : 0)) * VOX;
-        h.grp.rotation.z = -sx * (0.03 + argue * 0.03 + Math.max(0, w) * 0.1) + hurt * 0.05 * Math.sin(t * 55);
+        h.grp.rotation.z =
+          -sx * (0.03 + argue * 0.03 + Math.max(0, w) * 0.1) + hurt * 0.05 * Math.sin(t * 55);
         h.grp.scale.y = 1 + breathe * 0.012;
         h.head.rotation.y = sx * (0.25 * Math.sin(t * 0.9 + (sx > 0 ? 1.7 : 0)) - 0.15 - w * 0.2);
         h.head.rotation.x = 0.06 * Math.sin(t * 1.4 + sx) + down * 0.6 + hurt * -0.2;
@@ -553,7 +611,7 @@ function hallucination(c: (k: string) => string): Sculpt {
     const th = Math.atan2(dy, dx);
     const r = Math.hypot(dx, dy);
     const face = p.z > 3 && Math.abs(p.x) < 10 && p.y > 13 && p.y < 31;
-    const band = (((th / (Math.PI * 2)) * 2 + r / 5.5) % 1 + 1) % 1;
+    const band = ((((th / (Math.PI * 2)) * 2 + r / 5.5) % 1) + 1) % 1;
     if (!face && band < 0.24) return c("swirl");
     if (p.y > 31 && hash(p.x, p.y, p.z, 8) < 0.25) return c("swirl");
     return p.y < 12 || (p.z < -4 && p.y < 20) ? c("bodyDark") : c("body");
@@ -561,7 +619,8 @@ function hallucination(c: (k: string) => string): Sculpt {
   g.ell(0, 21, 0, 13.5, 14, 11.5, skin, 2.5);
   g.ell(0, 11, 0, 12, 6, 10, skin, 2.6);
   for (const sx of [-1, 1])
-    for (const sz of [-1, 1]) g.ell(sx * 7.5, 4, sz * 5.5, 4.5, 4.5, 4.5, (p) => (p.z < 0 ? c("bodyDark") : c("body")), 2.4);
+    for (const sz of [-1, 1])
+      g.ell(sx * 7.5, 4, sz * 5.5, 4.5, 4.5, 4.5, (p) => (p.z < 0 ? c("bodyDark") : c("body")), 2.4);
   // Mouth.
   for (let x = -5; x <= 5; x++)
     for (let y = 14; y <= 17; y++) {
@@ -583,12 +642,31 @@ function hallucination(c: (k: string) => string): Sculpt {
   }
   for (const sx of [-1, 1]) {
     const a = new Grid();
-    a.tube([[sx * 13, 24, 0], [sx * 17, 19, 2], [sx * 19, 15, 4]], 2.6, 2.2, (p) => (p.u > 0.6 ? c("swirl") : c("body")));
+    a.tube(
+      [
+        [sx * 13, 24, 0],
+        [sx * 17, 19, 2],
+        [sx * 19, 15, 4],
+      ],
+      2.6,
+      2.2,
+      (p) => (p.u > 0.6 ? c("swirl") : c("body")),
+    );
     a.ell(sx * 19, 14, 4, 3.4, 3.4, 3.4, c("swirl"), 2.4);
     pupils.push(part(body, a, [sx * 13, 24, 0], [0, 10, 0]));
   }
   const tail = new Grid();
-  tail.tube([[0, 8, -9], [0, 5, -15], [0, 8, -21], [0, 16, -24]], 4, 1.4, (p) => mix(c("bodyDark"), c("swirl"), p.u * 0.6));
+  tail.tube(
+    [
+      [0, 8, -9],
+      [0, 5, -15],
+      [0, 8, -21],
+      [0, 16, -24],
+    ],
+    4,
+    1.4,
+    (p) => mix(c("bodyDark"), c("swirl"), p.u * 0.6),
+  );
   tail.ell(0, 18, -24, 2.4, 2.4, 2.4, c("tip"), 2.2);
   const tailPart = part(rig, tail, [0, 8, -9]);
   // Sparkles drifting round it.
@@ -612,7 +690,11 @@ function hallucination(c: (k: string) => string): Sculpt {
       const w = wind(attack);
       const swell = 1 + Math.sin(t * 2.2) * 0.025 + Math.max(0, w) * 0.14;
       rig.position.y = (3 + Math.sin(t * 1.6) * 1.2) * VOX * (1 - fall);
-      body.scale.set(swell * (1 + fall * 0.35), (swell + 0) * (1 - fall * 0.65) * (1 - hurt * 0.08), swell * (1 + fall * 0.35));
+      body.scale.set(
+        swell * (1 + fall * 0.35),
+        (swell + 0) * (1 - fall * 0.65) * (1 - hurt * 0.08),
+        swell * (1 + fall * 0.35),
+      );
       rig.rotation.z = Math.sin(t * 1.1) * 0.04 + hurt * 0.12 * Math.sin(t * 45);
       rig.rotation.y = Math.sin(t * 0.6) * 0.1 + w * 0.6;
       tailPart.rotation.y = Math.sin(t * 2.3) * 0.5;
@@ -628,7 +710,11 @@ function hallucination(c: (k: string) => string): Sculpt {
       for (const { m, i } of stars) {
         const a = t * (0.5 + (i % 3) * 0.15) + i * 0.9;
         const r = 21 + Math.max(0, w) * 10 + (i % 2) * 3;
-        m.position.set(Math.cos(a) * r * VOX, (22 + Math.sin(a * 1.7 + i) * 12 + (i % 3) * 3) * VOX, Math.sin(a) * r * 0.8 * VOX);
+        m.position.set(
+          Math.cos(a) * r * VOX,
+          (22 + Math.sin(a * 1.7 + i) * 12 + (i % 3) * 3) * VOX,
+          Math.sin(a) * r * 0.8 * VOX,
+        );
         m.scale.setScalar((0.5 + 0.9 * Math.abs(Math.sin(t * 2.4 + i * 1.3))) * (1 - fall));
         m.rotation.y = t + i;
       }
@@ -682,7 +768,9 @@ export function buildMinion(): Bot {
     g.box(sx * 2 - 1, sx * 2 + 1, 1, 4, -2, 2, BOT.metal);
     g.box(sx * 2 - 1, sx * 2 + 1, 0, 1, -2, 4, BOT.ink);
   }
-  g.box(-5, 5, 5, 11, -3, 3, (p) => (p.z === 3 && p.y > 6 && p.y < 10 && Math.abs(p.x) < 3 ? BOT.metal : BOT.metalLight));
+  g.box(-5, 5, 5, 11, -3, 3, (p) =>
+    p.z === 3 && p.y > 6 && p.y < 10 && Math.abs(p.x) < 3 ? BOT.metal : BOT.metalLight,
+  );
   g.box(-4, 4, 4, 4, -2, 2, BOT.metalDark);
   g.box(-3, 3, 7, 9, 4, 4, BOT.screen);
   g.box(-1, 1, 6, 6, 4, 4, BOT.gold);
@@ -696,7 +784,10 @@ export function buildMinion(): Bot {
   head.box(6, 6, 2, 4, -1, 1, BOT.ink);
   head.box(0, 0, 7, 8, 0, 0, BOT.ink);
   const headPart = local(rig, head, [0, 12, 0]);
-  const tip = [block(headPart, 2, 2, 2, BOT.red, [0, 9.5, 0]), block(headPart, 2, 2, 2, BOT.gold, [0, 9.5, 0])];
+  const tip = [
+    block(headPart, 2, 2, 2, BOT.red, [0, 9.5, 0]),
+    block(headPart, 2, 2, 2, BOT.gold, [0, 9.5, 0]),
+  ];
   const arm = new Grid();
   arm.box(-1, 1, -7, 0, -1, 1, BOT.metal);
   arm.box(-2, 2, -10, -7, -2, 2, BOT.ink);
@@ -736,8 +827,28 @@ export function buildTrophy(): THREE.Group {
   g.box(-5, 5, 2, 3, -4, 4, mix(C.woodDark, "#ffffff", 0.12));
   lathe(g, 4, 5, () => [4, 4], mix(gold, "#c9971f", 0.4));
   lathe(g, 6, 9, () => [1.4, 1.4], gold);
-  lathe(g, 10, 22, (y) => [3.2 + 5.6 * Math.sin(((y - 10) / 12) * 1.4 + 0.2), 3.2 + 5.6 * Math.sin(((y - 10) / 12) * 1.4 + 0.2)], (p) => (p.x < -3 && p.y > 13 && p.y < 20 ? lighten(gold, 0.45) : gold));
-  for (const sx of [-1, 1]) g.tube([[sx * 8, 20, 0], [sx * 11.5, 19, 0], [sx * 11, 14, 0], [sx * 7, 12.5, 0]], 1.4, 1.4, gold);
+  lathe(
+    g,
+    10,
+    22,
+    (y) => [
+      3.2 + 5.6 * Math.sin(((y - 10) / 12) * 1.4 + 0.2),
+      3.2 + 5.6 * Math.sin(((y - 10) / 12) * 1.4 + 0.2),
+    ],
+    (p) => (p.x < -3 && p.y > 13 && p.y < 20 ? lighten(gold, 0.45) : gold),
+  );
+  for (const sx of [-1, 1])
+    g.tube(
+      [
+        [sx * 8, 20, 0],
+        [sx * 11.5, 19, 0],
+        [sx * 11, 14, 0],
+        [sx * 7, 12.5, 0],
+      ],
+      1.4,
+      1.4,
+      gold,
+    );
   for (let x = -7; x <= 7; x++)
     for (let z = -7; z <= 7; z++)
       if (x * x + z * z < 40) {

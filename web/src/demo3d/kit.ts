@@ -119,12 +119,27 @@ export function chamferBox(w: number, h: number, d: number, r: number): THREE.Bu
     if (ax === 1) return [f(0), sg > 0 ? 1 - f(2) : f(2)];
     return [sg > 0 ? f(0) : 1 - f(0), f(1)];
   };
-  const tri = (a: number[], b: number[], c: number[], na: number[], nb: number[], nc: number[], face: number[]) => {
+  const tri = (
+    a: number[],
+    b: number[],
+    c: number[],
+    na: number[],
+    nb: number[],
+    nc: number[],
+    face: number[],
+  ) => {
     // Wind counter-clockwise seen from outside.
     const e1 = [b[0]! - a[0]!, b[1]! - a[1]!, b[2]! - a[2]!];
     const e2 = [c[0]! - a[0]!, c[1]! - a[1]!, c[2]! - a[2]!];
-    const cr = [e1[1]! * e2[2]! - e1[2]! * e2[1]!, e1[2]! * e2[0]! - e1[0]! * e2[2]!, e1[0]! * e2[1]! - e1[1]! * e2[0]!];
-    const out = cr[0]! * (na[0]! + nb[0]! + nc[0]!) + cr[1]! * (na[1]! + nb[1]! + nc[1]!) + cr[2]! * (na[2]! + nb[2]! + nc[2]!);
+    const cr = [
+      e1[1]! * e2[2]! - e1[2]! * e2[1]!,
+      e1[2]! * e2[0]! - e1[0]! * e2[2]!,
+      e1[0]! * e2[1]! - e1[1]! * e2[0]!,
+    ];
+    const out =
+      cr[0]! * (na[0]! + nb[0]! + nc[0]!) +
+      cr[1]! * (na[1]! + nb[1]! + nc[1]!) +
+      cr[2]! * (na[2]! + nb[2]! + nc[2]!);
     const v = out >= 0 ? [a, b, c] : [a, c, b];
     const n = out >= 0 ? [na, nb, nc] : [na, nc, nb];
     for (let i = 0; i < 3; i++) {
@@ -133,7 +148,15 @@ export function chamferBox(w: number, h: number, d: number, r: number): THREE.Bu
       uv.push(...uvOf(v[i]!, face));
     }
   };
-  const quad = (a: number[], b: number[], c: number[], d2: number[], na: number[], nb: number[], face: number[]) => {
+  const quad = (
+    a: number[],
+    b: number[],
+    c: number[],
+    d2: number[],
+    na: number[],
+    nb: number[],
+    face: number[],
+  ) => {
     tri(a, b, c, na, na, nb, face);
     tri(a, c, d2, na, nb, nb, face);
   };
@@ -153,7 +176,11 @@ export function chamferBox(w: number, h: number, d: number, r: number): THREE.Bu
       quad(c(-1, -1), c(1, -1), c(1, 1), c(-1, 1), n, n, n);
     }
   // Edge strips: face A (axis a) meets face B (axis b); the edge runs along c.
-  for (const [a, b, c] of [[0, 1, 2], [0, 2, 1], [1, 2, 0]] as const)
+  for (const [a, b, c] of [
+    [0, 1, 2],
+    [0, 2, 1],
+    [1, 2, 0],
+  ] as const)
     for (const sa of [-1, 1])
       for (const sb of [-1, 1]) {
         const na = dirs(a, sa);
@@ -244,9 +271,9 @@ export class Model extends THREE.Group {
           ? new THREE.BoxGeometry(w, h, d)
           : radius > 0.004 && radius < 0.06
             ? chamferBox(w, h, d, radius)
-          : radius > 0.004
-            ? new RoundedBoxGeometry(w, h, d, 2, radius)
-            : new THREE.BoxGeometry(w, h, d);
+            : radius > 0.004
+              ? new RoundedBoxGeometry(w, h, d, 2, radius)
+              : new THREE.BoxGeometry(w, h, d);
       b.translate(0, h / 2, 0);
       return b;
     });
@@ -436,7 +463,8 @@ export function endTickScope(scope: TickScope, root: THREE.Object3D): void {
 /** A room that is no longer kept: its ticks stop running (and stop holding its models alive). */
 export function dropTickScope(scope: TickScope): void {
   const gone = new Set(scope.fns);
-  for (let i = ticks.length - 1; i >= 0; i--) if (gone.has(ticks[i]!)) Array.prototype.splice.call(ticks, i, 1);
+  for (let i = ticks.length - 1; i >= 0; i--)
+    if (gone.has(ticks[i]!)) Array.prototype.splice.call(ticks, i, 1);
   scope.fns.length = 0;
 }
 /** The scene being drawn: ticks of rooms in any other scene sit out. Null runs everything. */

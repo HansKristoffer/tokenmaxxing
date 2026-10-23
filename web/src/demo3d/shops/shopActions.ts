@@ -104,12 +104,24 @@ function describe(shop: ShopId, item: ShopItem, level: number, backend: ShopBack
       const parent = petOf(item.id);
       // The server holds no variation: holding the pet (`setLook` checks it) unlocks every look.
       const have = !!parent && backend.owns(parent.id);
-      if (!have) return { group, gate: { kind: "needs", what: parent?.name ?? "the pet" }, have: false, blurb: "A look for a pet you already have." };
+      if (!have)
+        return {
+          group,
+          gate: { kind: "needs", what: parent?.name ?? "the pet" },
+          have: false,
+          blurb: "A look for a pet you already have.",
+        };
       return { group, gate: { kind: "free" }, blurb: "A look for your pet.", have: true };
     }
   }
   if (boss) return { group, rarity, blurb, gate: { kind: "boss", boss: pretty(boss) } };
-  if (lvl !== undefined) return { group, rarity, blurb, gate: level >= lvl ? { kind: "earned", level: lvl } : { kind: "level", level: lvl } };
+  if (lvl !== undefined)
+    return {
+      group,
+      rarity,
+      blurb,
+      gate: level >= lvl ? { kind: "earned", level: lvl } : { kind: "level", level: lvl },
+    };
   if (item.price <= 0) return { group, rarity, blurb, gate: { kind: "free" } };
   return { group, rarity, blurb, gate: { kind: "price", price: item.price } };
 }
@@ -119,7 +131,8 @@ export function infoOf(shop: ShopId, item: ShopItem, backend: ShopBackend): Item
   const g = d.gate;
   const count = backend.count(item.id);
   const again = backend.stackable(item.id);
-  const have = d.have ?? (again ? count > 0 : g.kind === "free" || g.kind === "earned" || backend.owns(item.id));
+  const have =
+    d.have ?? (again ? count > 0 : g.kind === "free" || g.kind === "earned" || backend.owns(item.id));
   return {
     group: d.group,
     rarity: d.rarity,
@@ -146,7 +159,10 @@ export interface Action {
 /** The things to do with an item the player has. */
 export function actionsOf(shop: ShopId, item: ShopItem, hooks: PanelHooks, backend: ShopBackend): Action[] {
   const out: Action[] = [];
-  const equip = (on = true) => () => backend.equip(shop, item, on);
+  const equip =
+    (on = true) =>
+    () =>
+      backend.equip(shop, item, on);
   const show = (): void => hooks.previewLook(backend.preview(shop, item));
   const tryIt = async (): Promise<Outcome> => {
     show();
@@ -156,21 +172,52 @@ export function actionsOf(shop: ShopId, item: ShopItem, hooks: PanelHooks, backe
     const row = FURNITURE_SHOP_ROWS.find((r) => r.id === item.id);
     if (!row) return out;
     if (row.group === "Wallpaper") {
-      out.push({ label: "Put on my Office walls", primary: true, done: `${row.name} is up in your Office`, run: equip() });
+      out.push({
+        label: "Put on my Office walls",
+        primary: true,
+        done: `${row.name} is up in your Office`,
+        run: equip(),
+      });
     } else if (row.group === "Floors") {
-      out.push({ label: "Lay it in my Office", primary: true, done: `${row.name} is down in your Office`, run: equip() });
+      out.push({
+        label: "Lay it in my Office",
+        primary: true,
+        done: `${row.name} is down in your Office`,
+        run: equip(),
+      });
     } else if (row.group === "Desks") {
       // The real game's desks are looks you switch between; the demo's are pieces you put down.
-      out.push({ label: backend.kind === "game" ? "Use this desk" : "Place in my Office", primary: true, done: `Your ${item.name.toLowerCase()} setup is ready`, run: equip() });
+      out.push({
+        label: backend.kind === "game" ? "Use this desk" : "Place in my Office",
+        primary: true,
+        done: `Your ${item.name.toLowerCase()} setup is ready`,
+        run: equip(),
+      });
     } else if (COMPANY_GROUPS.has(row.group)) {
-      out.push({ label: backend.kind === "game" ? "Put out in the company house" : "Place in my Office", primary: true, done: `The ${item.name} is out`, run: equip() });
+      out.push({
+        label: backend.kind === "game" ? "Put out in the company house" : "Place in my Office",
+        primary: true,
+        done: `The ${item.name} is out`,
+        run: equip(),
+      });
     } else {
-      out.push({ label: "Place in my Office", primary: true, done: `Pick a tile in your Office for the ${item.name}`, run: equip() });
+      out.push({
+        label: "Place in my Office",
+        primary: true,
+        done: `Pick a tile in your Office for the ${item.name}`,
+        run: equip(),
+      });
     }
   } else if (shop === "clothes") {
-    out.push({ label: "Try on", preview: show, done: `Trying on ${item.name} (close the card to take it off)`, run: tryIt });
+    out.push({
+      label: "Try on",
+      preview: show,
+      done: `Trying on ${item.name} (close the card to take it off)`,
+      run: tryIt,
+    });
     out.push({ label: "Wear", primary: true, done: `You are wearing ${item.name}`, run: equip() });
-    if (backend.kind === "game" && backend.inUse(item.id)) out.push({ label: "Take off", done: `${item.name} is off`, run: equip(false) });
+    if (backend.kind === "game" && backend.inUse(item.id))
+      out.push({ label: "Take off", done: `${item.name} is off`, run: equip(false) });
   } else if (shop === "barber") {
     out.push({ label: "Try it", preview: show, done: "Have a look in the mirror", run: tryIt });
     out.push({ label: "Apply", primary: true, done: `Done: ${item.name}`, run: equip() });
@@ -178,7 +225,12 @@ export function actionsOf(shop: ShopId, item: ShopItem, hooks: PanelHooks, backe
     out.push({ label: "Put on my pet", primary: true, done: "Your pet is dressed", run: equip() });
     out.push({ label: "Take off", done: "Gear off", run: equip(false) });
   } else if (item.id.startsWith("pet.")) {
-    out.push({ label: item.id.split(".").length === 3 ? "Use this look" : "Take it home", primary: true, done: "Your pet trots after you", run: equip() });
+    out.push({
+      label: item.id.split(".").length === 3 ? "Use this look" : "Take it home",
+      primary: true,
+      done: "Your pet trots after you",
+      run: equip(),
+    });
   }
   return out;
 }

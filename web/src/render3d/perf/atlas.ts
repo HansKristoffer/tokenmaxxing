@@ -33,7 +33,13 @@ interface Canvasish {
 }
 
 export function atlasable(t: THREE.Texture | null | undefined): t is THREE.Texture {
-  if (!t || !t.isTexture || t.userData.animated || (t as unknown as { isVideoTexture?: boolean }).isVideoTexture) return false;
+  if (
+    !t ||
+    !t.isTexture ||
+    t.userData.animated ||
+    (t as unknown as { isVideoTexture?: boolean }).isVideoTexture
+  )
+    return false;
   const img = t.image as Canvasish | null;
   if (!img || typeof img.getContext !== "function" || !(img.width > 0) || !(img.height > 0)) return false;
   if (img.width > MAX_EDGE || img.height > MAX_EDGE) return false;
@@ -71,13 +77,18 @@ export function uvInside(g: THREE.BufferGeometry): boolean {
 
 /** Packs the textures in shelves, largest first; returns null when fewer than two fit (nothing to gain). */
 export function packAtlas(textures: THREE.Texture[]): Atlas | null {
-  const list = [...new Set(textures)].sort((a, b) => (b.image as Canvasish).height - (a.image as Canvasish).height);
+  const list = [...new Set(textures)].sort(
+    (a, b) => (b.image as Canvasish).height - (a.image as Canvasish).height,
+  );
   if (list.length < 2) return null;
   let side = 128;
-  const total = list.reduce((n, t) => n + ((t.image as Canvasish).width + 1) * ((t.image as Canvasish).height + 1), 0);
+  const total = list.reduce(
+    (n, t) => n + ((t.image as Canvasish).width + 1) * ((t.image as Canvasish).height + 1),
+    0,
+  );
   while (side * side < total * 1.25 && side < MAX_ATLAS) side *= 2;
   const rects = new Map<THREE.Texture, Rect>();
-  for (;; side *= 2) {
+  for (; ; side *= 2) {
     rects.clear();
     let x = 0;
     let y = 0;

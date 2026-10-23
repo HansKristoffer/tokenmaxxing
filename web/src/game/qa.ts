@@ -1,7 +1,7 @@
 import { route } from "@tokenmaxxing/core/world.ts";
+import { town } from "../net.ts";
 import { graphics } from "../settings/graphics.ts";
 import { storage } from "../storage.ts";
-import { town } from "../net.ts";
 import { hud } from "../store.ts";
 import { camera, viewHooks } from "./camera.ts";
 import { walkTo } from "./input.ts";

@@ -126,14 +126,19 @@ export class CameraRig {
   /** One step in (+1) or out (-1); 0 puts the zoom back. */
   zoom(step: 1 | -1 | 0): void {
     const { min, max } = this.range();
-    this.level = step === 0 ? 0 : Math.max(min, Math.min(max, Math.max(min, Math.min(max, this.level)) + step));
+    this.level =
+      step === 0 ? 0 : Math.max(min, Math.min(max, Math.max(min, Math.min(max, this.level)) + step));
     try {
       storage.setItem(ZOOM_KEY, String(this.level));
     } catch {}
   }
 
   private fitNow(): number {
-    return fitView(this.framing.bounds, (this.aspect * this.free.fx) / this.free.fy, BASE_AZIMUTH + (this.quarter * Math.PI) / 2);
+    return fitView(
+      this.framing.bounds,
+      (this.aspect * this.free.fx) / this.free.fy,
+      BASE_AZIMUTH + (this.quarter * Math.PI) / 2,
+    );
   }
 
   rotate(step: 1 | -1): void {

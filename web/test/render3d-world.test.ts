@@ -35,7 +35,10 @@ test("the cop's siren starts with his pull-over line and goes out a minute later
 test("writing the ticket keeps the siren on and shows the pad, and ends the chase clock", () => {
   const w = new CopWatch();
   w.read(`${SIREN} @dax pull over!`, 2000);
-  expect(w.read(`${SIREN}${TICKET_MARK} Failure to /compact at 290M tokens/hour.`, 9000)).toEqual({ siren: true, writing: true });
+  expect(w.read(`${SIREN}${TICKET_MARK} Failure to /compact at 290M tokens/hour.`, 9000)).toEqual({
+    siren: true,
+    writing: true,
+  });
   // Once the ticket line is gone, so is the siren (the chase was over when he wrote it).
   expect(w.read("", 10_000)).toEqual({ siren: false, writing: false });
   expect(w.read("Nothing to see here.", 11_000).siren).toBe(false);
@@ -62,7 +65,11 @@ test("street signs and the snail's finish", () => {
 });
 
 test("the picnic's grass notice and blankets", () => {
-  expect(isGrassNotice("🧺 I was there. The outage picnic is on your card now, and 🌱 Touched grass is in your bag for your office.")).toBe(true);
+  expect(
+    isGrassNotice(
+      "🧺 I was there. The outage picnic is on your card now, and 🌱 Touched grass is in your bag for your office.",
+    ),
+  ).toBe(true);
   expect(isGrassNotice("Someone's already there.")).toBe(false);
   expect(isGrassNotice(undefined)).toBe(false);
   const b = BLANKETS[0]!;
@@ -90,7 +97,12 @@ test("the Tavern dims with the sky but never goes black", () => {
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
-const pin = (kind: PinView["kind"], id: string, frame: PinView["frame"] = null, emoji: string | null = "🏅"): PinView => ({
+const pin = (
+  kind: PinView["kind"],
+  id: string,
+  frame: PinView["frame"] = null,
+  emoji: string | null = "🏅",
+): PinView => ({
   id,
   kind,
   name: id,
@@ -102,7 +114,11 @@ const pin = (kind: PinView["kind"], id: string, frame: PinView["frame"] = null, 
 });
 
 test("showcase pins become a tag's badge and trophy chips", () => {
-  const { badges, trophies } = chipsOf([pin("badge", "badge:shipper", "gold"), pin("trophy", "trophy:3am", null, null), pin("title", "title:30")]);
+  const { badges, trophies } = chipsOf([
+    pin("badge", "badge:shipper", "gold"),
+    pin("trophy", "trophy:3am", null, null),
+    pin("title", "title:30"),
+  ]);
   expect(badges).toEqual([{ emoji: "🏅", title: "badge:shipper", frame: "gold" }]);
   expect(trophies).toEqual([{ emoji: undefined, title: "trophy:3am" }]);
 });

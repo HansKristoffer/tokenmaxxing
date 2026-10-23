@@ -1,13 +1,22 @@
 /** The town's places, reimagined as skyline landmarks and hung off the generated volumes. */
 import * as THREE from "three";
 import { glow, Model, seeded } from "../kit.ts";
-import { arcadeBuilding, bush, grandFountain, hotDogCart, loungeSofa, parkBench, picnic, stool, tree } from "../props.ts";
+import {
+  arcadeBuilding,
+  bush,
+  grandFountain,
+  hotDogCart,
+  loungeSofa,
+  parkBench,
+  picnic,
+  stool,
+  tree,
+} from "../props.ts";
 import { companyHouse, tavernBuilding } from "../town3d-houses.ts";
 import { Batch } from "./batch.ts";
 import { C, FL, type Vol } from "./city.ts";
 import type { World } from "./scene.ts";
 import { onWall, pixels, sign } from "./signs.ts";
-
 
 export interface Landmarks {
   /** Where the plaza sits (world), and its surface height. */
@@ -31,7 +40,8 @@ export function addLandmarks(world: World): Landmarks {
     return o;
   };
   const faceZ = (v: Vol) => city.cz(v.j1) + C / 2;
-  const sg = (t: string, w: number, h: number, fg: string, extra: Partial<Parameters<typeof sign>[3]> = {}) => sign(t, w, h, { fg, theme, ...extra });
+  const sg = (t: string, w: number, h: number, fg: string, extra: Partial<Parameters<typeof sign>[3]> = {}) =>
+    sign(t, w, h, { fg, theme, ...extra });
 
   // ——— The Tavern Square: ground plaza with the Tavern, fountain, trees, benches ———
   const pb = plan.blocks.find((b) => plan.plaza.some((p) => p.i0 === b.i0 && p.j0 === b.j0))!;
@@ -46,7 +56,13 @@ export function addLandmarks(world: World): Landmarks {
   add(grandFountain(), pcx + 3.4, 0.06, pcz + 3.4, 0, 0.8);
   const lamps = new Batch();
   // lamp posts around the square in neon-ish steel
-  for (const [lx, lz] of [[px0 + 0.5, pz0 + 0.5], [px0 + 11.5, pz0 + 0.5], [px0 + 0.5, pz0 + 11.5], [px0 + 11.5, pz0 + 11.5], [pcx, pz0 + 6.5]] as const) {
+  for (const [lx, lz] of [
+    [px0 + 0.5, pz0 + 0.5],
+    [px0 + 11.5, pz0 + 0.5],
+    [px0 + 0.5, pz0 + 11.5],
+    [px0 + 11.5, pz0 + 11.5],
+    [pcx, pz0 + 6.5],
+  ] as const) {
     lamps.box(lx, 0.06, lz, 0.1, 3.2, 0.1, "#3c4454");
     lamps.box(lx, 3.2, lz, 0.5, 0.08, 0.1, "#3c4454");
     const gl = new Batch();
@@ -66,10 +82,21 @@ export function addLandmarks(world: World): Landmarks {
   add(parkBench("#e08f7f"), pcx + 5.2, 0.06, pcz + 1.4, -Math.PI / 2);
   add(hotDogCart(), px0 + 10.2, 0.06, pz0 + 5.4, -Math.PI / 2 + 0.3, 1.1);
   for (let k = 0; k < 3; k++) {
-    add(picnic(["#e2443a", "#4f8fe0", "#f0b43a"][k]!), pcx - 4.4 + k * 2.0, 0.06, pcz + 3.6 - (k % 2) * 0.9, k * 0.4, 1.2);
+    add(
+      picnic(["#e2443a", "#4f8fe0", "#f0b43a"][k]!),
+      pcx - 4.4 + k * 2.0,
+      0.06,
+      pcz + 3.6 - (k % 2) * 0.9,
+      k * 0.4,
+      1.2,
+    );
     add(stool(), pcx - 4.2 + k * 1.9 + 1.2, 0.06, pcz + 1.0, 0);
   }
-  for (const b of [[px0 + 3.5, pz0 + 10.8], [px0 + 8.6, pz0 + 11.0]] as const) add(bush(Math.floor(b[0] * 3), "#4fb04a"), b[0], 0.06, b[1], 0, 1.4);
+  for (const b of [
+    [px0 + 3.5, pz0 + 10.8],
+    [px0 + 8.6, pz0 + 11.0],
+  ] as const)
+    add(bush(Math.floor(b[0] * 3), "#4fb04a"), b[0], 0.06, b[1], 0, 1.4);
   // ——— the Tavern Tower: mug on the roof, vertical neon, barrels on terraces ———
   const tt = m.tavern!;
   const topY = tt.f1 * FL;
@@ -110,15 +137,32 @@ export function addLandmarks(world: World): Landmarks {
   const hz = (j: number) => city.cz(j);
   const names = ["Basement", "Pixel Co", "Mint & Co", "Acme", "Globex", "Hooli"];
   // front row of L0 (rows j+2, j+3): tier 5 and 4
-  add(companyHouse(5, names[5]!, null), (hx(hq0.i0) + hx(hq0.i0 + 1)) / 2 + 0.2, hy0, hz(hq0.j0 + 3) - 0.3, 0, 0.78);
-  add(companyHouse(4, names[4]!, null), (hx(hq0.i0 + 2) + hx(hq0.i0 + 3)) / 2 + 0.2, hy0, hz(hq0.j0 + 3) - 0.3, 0, 0.78);
+  add(
+    companyHouse(5, names[5]!, null),
+    (hx(hq0.i0) + hx(hq0.i0 + 1)) / 2 + 0.2,
+    hy0,
+    hz(hq0.j0 + 3) - 0.3,
+    0,
+    0.78,
+  );
+  add(
+    companyHouse(4, names[4]!, null),
+    (hx(hq0.i0 + 2) + hx(hq0.i0 + 3)) / 2 + 0.2,
+    hy0,
+    hz(hq0.j0 + 3) - 0.3,
+    0,
+    0.78,
+  );
   // right column rows j+0..j+1: tier 3 (turned to face +x)
   add(companyHouse(3, names[3]!, null), hx(hq0.i0 + 3) + 0.0, hy0, hz(hq0.j0) + 1.5, Math.PI / 2, 0.8);
   // L1 roof: tier 2 and tier 1
   add(companyHouse(2, names[2]!, null), hx(hq1.i0 + 1) + 0.2, hy1, hz(hq1.j1) - 0.2, 0, 0.62);
   add(companyHouse(1, names[1]!, null), hx(hq1.i0 + 2) - 0.5, hy1, hz(hq1.j1) - 0.2, 0, 0.62);
   anchors.hq = [hx(hq0.i0 + 1), hy0, hz(hq0.j0 + 3)];
-  const hqsign = sg("HQ", 2.2, 1.1, cyber ? "#7fe9ff" : "#fff2c0", { alt: "#ff3d9a", bg: cyber ? "#0b0716" : "#254a8a" });
+  const hqsign = sg("HQ", 2.2, 1.1, cyber ? "#7fe9ff" : "#fff2c0", {
+    alt: "#ff3d9a",
+    bg: cyber ? "#0b0716" : "#254a8a",
+  });
   onWall(g, hqsign, hx(m.hqTop!.i0), (m.hqTop!.f0 + 1.2) * FL, hz(m.hqTop!.j1) + C / 2 + 0.1, 0, 1);
 
   // ——— Shops: four trades along the stack's front ———
@@ -143,7 +187,13 @@ export function addLandmarks(world: World): Landmarks {
       prop: (x, z) => {
         const rack = new Model();
         rack.box([1.4, 0.05, 0.05], "#cfd3da", [0, 1.1, 0]);
-        for (const [dx, c] of [[-0.5, "#e8584a"], [-0.2, "#4f8fe0"], [0.1, "#f2c14e"], [0.4, "#8f5ad8"]] as const) rack.box([0.22, 0.5, 0.06], c, [dx, 0.6, 0]);
+        for (const [dx, c] of [
+          [-0.5, "#e8584a"],
+          [-0.2, "#4f8fe0"],
+          [0.1, "#f2c14e"],
+          [0.4, "#8f5ad8"],
+        ] as const)
+          rack.box([0.22, 0.5, 0.06], c, [dx, 0.6, 0]);
         rack.box([0.05, 1.1, 0.05], "#cfd3da", [-0.7, 0, 0]);
         rack.box([0.05, 1.1, 0.05], "#cfd3da", [0.7, 0, 0]);
         add(rack, x, 0.06, z + 0.9);
@@ -156,7 +206,12 @@ export function addLandmarks(world: World): Landmarks {
       prop: (x, z) => {
         const pole = new Model();
         pole.box([0.34, 0.08, 0.34], "#cfd3da", [0, 0, 0]);
-        for (let k = 0; k < 8; k++) pole.box([0.24, 0.16, 0.24], ["#e83c4a", "#ffffff", "#3c6ae8", "#ffffff"][k % 4]!, [0, 0.08 + k * 0.16, 0]);
+        for (let k = 0; k < 8; k++)
+          pole.box([0.24, 0.16, 0.24], ["#e83c4a", "#ffffff", "#3c6ae8", "#ffffff"][k % 4]!, [
+            0,
+            0.08 + k * 0.16,
+            0,
+          ]);
         pole.box([0.32, 0.08, 0.32], "#cfd3da", [0, 1.36, 0]);
         add(pole, x - 0.6, 0.06, z + 0.9);
         const chair = new Model();
@@ -172,7 +227,8 @@ export function addLandmarks(world: World): Landmarks {
       prop: (x, z) => {
         const cage = new Model();
         cage.box([1.4, 0.06, 0.9], "#8c6a4a", [0, 0, 0]);
-        for (const dx of [-0.65, 0.65]) for (const dz of [-0.4, 0.4]) cage.box([0.05, 0.9, 0.05], "#e8e4d8", [dx, 0, dz]);
+        for (const dx of [-0.65, 0.65])
+          for (const dz of [-0.4, 0.4]) cage.box([0.05, 0.9, 0.05], "#e8e4d8", [dx, 0, dz]);
         cage.box([1.4, 0.05, 0.9], "#e8e4d8", [0, 0.9, 0]);
         add(cage, x, 0.06, z + 0.9);
       },
@@ -183,7 +239,13 @@ export function addLandmarks(world: World): Landmarks {
     const z = faceZ(sv);
     const awn = new Model();
     const stripe = (n: number) => (n % 2 ? "#ffffff" : t.colour);
-    for (let s = 0; s < 6; s++) awn.box([0.5, 0.12, 0.9], cyber ? (s % 2 ? "#251c3a" : t.colour) : stripe(s), [(s - 2.5) * 0.5, 0, 0], 0.01).rotation.x = 0.45;
+    for (let s = 0; s < 6; s++)
+      awn.box(
+        [0.5, 0.12, 0.9],
+        cyber ? (s % 2 ? "#251c3a" : t.colour) : stripe(s),
+        [(s - 2.5) * 0.5, 0, 0],
+        0.01,
+      ).rotation.x = 0.45;
     add(awn, x, 1.28, z + 0.5);
     const sp = sg(t.name, 2.7, 0.55, t.colour, { alt: t.alt });
     onWall(g, sp, x, 1.75, z + 0.1, 0, 1);
@@ -217,7 +279,16 @@ export function addLandmarks(world: World): Landmarks {
   g.add(cabinets.build(), cabGlow.build({ glow: true }));
   // the pixel invader on the roof
   const inv = pixels(
-    ["..x.....x..", "...x...x...", "..xxxxxxx..", ".xx.xxx.xx.", "xxxxxxxxxxx", "x.xxxxxxx.x", "x.x.....x.x", "...xx.xx..."],
+    [
+      "..x.....x..",
+      "...x...x...",
+      "..xxxxxxx..",
+      ".xx.xxx.xx.",
+      "xxxxxxxxxxx",
+      "x.xxxxxxx.x",
+      "x.x.....x.x",
+      "...xx.xx...",
+    ],
     0.32,
     { x: cyber ? "#7bffb5" : "#4fd06a" },
   );

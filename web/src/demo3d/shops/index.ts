@@ -32,7 +32,8 @@ export const SHOP_SPECS: Record<ShopId, ShopSpec> = {
 export const SHOP_IDS: ShopId[] = ["furniture", "clothes", "barber", "pets"];
 /** The rooms and the storefronts' door tiles are the game's own (`core/src/shoprooms.ts`). */
 export { SHOP_DOOR_CHAR, SHOP_ROOM } from "@tokenmaxxing/core/shoprooms.ts";
-export const shopOfRoom = (room: string): ShopId | null => SHOP_IDS.find((s) => SHOP_ROOM[s] === room) ?? null;
+export const shopOfRoom = (room: string): ShopId | null =>
+  SHOP_IDS.find((s) => SHOP_ROOM[s] === room) ?? null;
 
 export interface ShopDisplay {
   item: ShopItem;
@@ -73,7 +74,10 @@ export function warmShop(id: ShopId): boolean {
   const spec = SHOP_SPECS[id];
   if (!spec.slices || warmed.has(id)) return true;
   let g = warming.get(id);
-  if (!g) warming.set(id, (g = spec.slices()));
+  if (!g) {
+    g = spec.slices();
+    warming.set(id, g);
+  }
   const step = g.next();
   if (step.done) {
     warming.delete(id);
@@ -90,7 +94,10 @@ export function shopRoom(id: ShopId): ShopRoom {
   const ahead = warmed.get(id);
   warmed.delete(id);
   warming.delete(id);
-  const built = (ahead ?? spec.buildInterior()) as unknown as Omit<ReturnType<ShopSpec["buildInterior"]>, "displays"> & {
+  const built = (ahead ?? spec.buildInterior()) as unknown as Omit<
+    ReturnType<ShopSpec["buildInterior"]>,
+    "displays"
+  > & {
     displays: { item: ShopItem; at: [number, number]; world?: [number, number, number] }[];
   };
   const { room } = built;
@@ -128,7 +135,11 @@ export function shopRoom(id: ShopId): ShopRoom {
     else if (id === "furniture" && g in sampleIdx) {
       // The wall samples: two rows of five panels on the west wall, 1.55 apart.
       const i = sampleIdx[g]++;
-      pos = new THREE.Vector3(0.2, 0.62 + Math.floor(i / 5) * 1.12, (g === "Wallpaper" ? 1.675 : 10.375) + (i % 5) * 1.55);
+      pos = new THREE.Vector3(
+        0.2,
+        0.62 + Math.floor(i / 5) * 1.12,
+        (g === "Wallpaper" ? 1.675 : 10.375) + (i % 5) * 1.55,
+      );
     } else {
       // Items sharing a tile stand on shelf tiers: spread them up the wall so they can each be picked.
       const key = `${tile[0]},${tile[1]}`;

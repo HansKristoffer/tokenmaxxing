@@ -14,13 +14,7 @@ import {
   RARITY_INFO,
   TROPHY_DEFS,
 } from "./data/dungeon.ts";
-import {
-  BossActor,
-  DUNGEON_ASSETS,
-  STONE,
-  type Terminal,
-  trophyShelf,
-} from "./dungeon3d.ts";
+import { BossActor, DUNGEON_ASSETS, STONE, type Terminal, trophyShelf } from "./dungeon3d.ts";
 import type { Asset } from "./furniture.ts";
 import { checker, Model, painted, seeded, ticks, toon } from "./kit.ts";
 
@@ -59,7 +53,14 @@ export function buildDungeonGallery() {
     const tex = checker(STONE.floor, STONE.floorLight, 2);
     tex.repeat.set(w / 2, d / 2);
     const side = toon(STONE.floorDark);
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, d), [side, side, painted(tex), side, side, side]);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, d), [
+      side,
+      side,
+      painted(tex),
+      side,
+      side,
+      side,
+    ]);
     floor.position.set(at.x, -0.15, at.z);
     floor.receiveShadow = true;
     group.add(floor);
@@ -68,7 +69,14 @@ export function buildDungeonGallery() {
   const tag = (text: string, at: () => THREE.Vector3, cls = "tag item") => labels.push({ text, cls, at });
 
   /** Lays assets on a grid of `cols`; returns the slab size. */
-  function grid(origin: THREE.Vector3, ids: readonly string[], cols: number, cw: number, cd: number, names?: (a: Asset) => string) {
+  function grid(
+    origin: THREE.Vector3,
+    ids: readonly string[],
+    cols: number,
+    cw: number,
+    cd: number,
+    names?: (a: Asset) => string,
+  ) {
     const rows = Math.ceil(ids.length / cols);
     ids.forEach((id, i) => {
       const a = asset(id);
@@ -78,7 +86,9 @@ export function buildDungeonGallery() {
       m.position.set(x, 0, z);
       group.add(m);
       const top = new THREE.Box3().setFromObject(m).max.y;
-      tag(names ? names(a) : a.name, () => new THREE.Vector3(x, top + 0.25, z).applyAxisAngle(up, ROT).add(group.position));
+      tag(names ? names(a) : a.name, () =>
+        new THREE.Vector3(x, top + 0.25, z).applyAxisAngle(up, ROT).add(group.position),
+      );
     });
     return { w: cols * cw + 3, d: rows * cd + 3 };
   }
@@ -165,7 +175,10 @@ export function buildDungeonGallery() {
 
     // Magic missiles: they only show the burn; the real damage is a hit.
     const missiles = Array.from({ length: 14 }, () => {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: "#8fe3ff" }));
+      const m = new THREE.Mesh(
+        new THREE.SphereGeometry(0.07, 8, 6),
+        new THREE.MeshBasicMaterial({ color: "#8fe3ff" }),
+      );
       m.visible = false;
       group.add(m);
       return { m, from: new THREE.Vector3(), t0: 0, busy: false };
@@ -287,7 +300,9 @@ export function buildDungeonGallery() {
   {
     const at = new THREE.Vector3(80, 0, 0);
     const ids = [...LOOT_TABLE.filter((l) => l.slot !== "furniture").map((l) => l.id), "tile:Y", "tile:V"];
-    const size = grid(at, ids, 7, 2.3, 3.6, (a) => a.name.replace(/ \((Common|Rare|Epic|Legendary),.*/, " · $1"));
+    const size = grid(at, ids, 7, 2.3, 3.6, (a) =>
+      a.name.replace(/ \((Common|Rare|Epic|Legendary),.*/, " · $1"),
+    );
     slab(at, size.w, size.d);
     sections.push({ name: "Loot", at: at.clone().setY(0.7), view: 12 });
     void RARITY_INFO;
@@ -296,7 +311,14 @@ export function buildDungeonGallery() {
   // ——— Editions ———
   {
     const at = new THREE.Vector3(120, 0, 0);
-    const size = grid(at, EDITION_LIST.map((e) => e.id), 7, 2.0, 2.9, (a) => a.name.replace(/ \(#.*/, ""));
+    const size = grid(
+      at,
+      EDITION_LIST.map((e) => e.id),
+      7,
+      2.0,
+      2.9,
+      (a) => a.name.replace(/ \(#.*/, ""),
+    );
     slab(at, size.w, size.d);
     sections.push({ name: "Editions", at: at.clone().setY(0.4), view: 10 });
   }
@@ -304,7 +326,14 @@ export function buildDungeonGallery() {
   // ——— Trophies ———
   {
     const at = new THREE.Vector3(160, 0, 0);
-    const size = grid(at.clone().setZ(-3.2), TROPHY_DEFS.map((t) => `trophy:${t.id}`), 9, 1.6, 2.3, (a) => a.name.split(":")[0]!);
+    const size = grid(
+      at.clone().setZ(-3.2),
+      TROPHY_DEFS.map((t) => `trophy:${t.id}`),
+      9,
+      1.6,
+      2.3,
+      (a) => a.name.split(":")[0]!,
+    );
     const shelf = trophyShelf(new Set(TROPHY_DEFS.filter((_, i) => i % 4 !== 3).map((t) => t.id)));
     shelf.position.set(at.x, 0, at.z + 4.2);
     group.add(shelf);
@@ -317,7 +346,10 @@ export function buildDungeonGallery() {
   {
     const at = new THREE.Vector3(200, 0, 0);
     const ids = [...BADGE_DEFS.map((b) => `badge:${b.id}`), "badge:tiers"];
-    const size = grid(at, ids, 5, 2.9, 2.2, (a) => { const b = BADGE_DEFS.find((x) => `badge:${x.id}` === a.id); return b ? `${b.emoji} ${b.name}` : "Badge tiers"; });
+    const size = grid(at, ids, 5, 2.9, 2.2, (a) => {
+      const b = BADGE_DEFS.find((x) => `badge:${x.id}` === a.id);
+      return b ? `${b.emoji} ${b.name}` : "Badge tiers";
+    });
     slab(at, size.w, size.d);
     sections.push({ name: "Badges", at: at.clone().setY(0.4), view: 11 });
   }
@@ -325,7 +357,21 @@ export function buildDungeonGallery() {
   // ——— Props ———
   {
     const at = new THREE.Vector3(240, 0, 0);
-    const ids = ["tile:Z", "tile:j", "tile:l", "tile:l.open", "tile:r", "tile:G", "tile:G.boarded", "tile:R", "tile:D", "dungeon:exit", "tile:M", "dungeon:plaque", "dungeon:trophy"];
+    const ids = [
+      "tile:Z",
+      "tile:j",
+      "tile:l",
+      "tile:l.open",
+      "tile:r",
+      "tile:G",
+      "tile:G.boarded",
+      "tile:R",
+      "tile:D",
+      "dungeon:exit",
+      "tile:M",
+      "dungeon:plaque",
+      "dungeon:trophy",
+    ];
     const size = grid(at, ids, 4, 5.4, 3.8);
     slab(at, size.w, size.d);
     sections.push({ name: "Props", at: at.clone().setY(0.6), view: 12 });
@@ -351,7 +397,11 @@ export function buildDungeonGallery() {
     /** Hand over the stage (its camera target, sun and view) so the toolbar can move it. */
     attach(s: { target: THREE.Vector3; sun: THREE.DirectionalLight; view: number }) {
       stage = s;
-      const bar = (group.userData as { bar: HTMLElement; btn: (t: string, f: () => void) => void; fight: () => void });
+      const bar = group.userData as {
+        bar: HTMLElement;
+        btn: (t: string, f: () => void) => void;
+        fight: () => void;
+      };
       for (const sec of sections) bar.btn(sec.name, () => focus(sec.name));
       bar.fight();
       focus(new URLSearchParams(location.search).get("section") ?? "Arena");

@@ -23,7 +23,10 @@ const drawn = (root: THREE.Object3D): number => {
 
 test("an idle person is merged into a couple of meshes, and comes back when they move", () => {
   const scene = new THREE.Scene();
-  const a = new avatar.Avatar(avatar.randomLook(() => 0.3), "voxel");
+  const a = new avatar.Avatar(
+    avatar.randomLook(() => 0.3),
+    "voxel",
+  );
   scene.add(a.root);
   const before = drawn(a.root);
   expect(before).toBeGreaterThan(8);
@@ -41,7 +44,10 @@ test("an idle person is merged into a couple of meshes, and comes back when they
 
 test("a frozen copy follows its person", () => {
   const scene = new THREE.Scene();
-  const a = new avatar.Avatar(avatar.randomLook(() => 0.6), "voxel");
+  const a = new avatar.Avatar(
+    avatar.randomLook(() => 0.6),
+    "voxel",
+  );
   scene.add(a.root);
   for (let i = 0; i < 30; i++) a.update(1 / 60, i / 60);
   a.root.position.set(5, 0, 7);
@@ -60,7 +66,10 @@ test("a frozen copy follows its person", () => {
 
 test("freezing frees what it made when the person leaves", () => {
   const scene = new THREE.Scene();
-  const a = new avatar.Avatar(avatar.randomLook(() => 0.9), "voxel");
+  const a = new avatar.Avatar(
+    avatar.randomLook(() => 0.9),
+    "voxel",
+  );
   scene.add(a.root);
   for (let i = 0; i < 30; i++) a.update(1 / 60, i / 60);
   const held = bake.frozenCount();

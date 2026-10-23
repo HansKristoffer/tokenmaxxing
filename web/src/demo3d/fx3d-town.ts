@@ -36,7 +36,11 @@ export interface FxHost {
   show: (name: string) => void;
   label: (stage: FxStageRef, text: string, cls: string, at: () => THREE.Vector3) => FxLabelHandle;
   /** The player on the stage being shown. */
-  me: () => { avatar: Avatar; top: () => THREE.Vector3; go: (x: number, z: number, arrive?: () => void) => void } | null;
+  me: () => {
+    avatar: Avatar;
+    top: () => THREE.Vector3;
+    go: (x: number, z: number, arrive?: () => void) => void;
+  } | null;
   /** Lamps and windows on or off (the part of night that is a switch, not a dimmer). */
   applyNight: (on: boolean) => void;
 }
@@ -115,15 +119,16 @@ export class Actor {
   }
 }
 
-const lookOf = (outfit: [string, string], pants: string, rnd: number, extra: Partial<Look> = {}): Look => personLook({
-  skin: ["#f4d0b0", "#e0a97a", "#b9784a", "#7a4b2e"][rnd % 4]!,
-  hair: ["#2b2433", "#5a3a22", "#c9853a", "#a8a8b8"][rnd % 4]!,
-  style: rnd % 5,
-  outfit,
-  pants,
-  hat: "none",
-  ...extra,
-});
+const lookOf = (outfit: [string, string], pants: string, rnd: number, extra: Partial<Look> = {}): Look =>
+  personLook({
+    skin: ["#f4d0b0", "#e0a97a", "#b9784a", "#7a4b2e"][rnd % 4]!,
+    hair: ["#2b2433", "#5a3a22", "#c9853a", "#a8a8b8"][rnd % 4]!,
+    style: rnd % 5,
+    outfit,
+    pants,
+    hat: "none",
+    ...extra,
+  });
 
 // MARK: Models
 
@@ -218,7 +223,10 @@ export function buntingModel(a: V3, b: V3, sag = 0.3): THREE.Group {
   const A = v3(...a);
   const B = v3(...b);
   const len = A.distanceTo(B);
-  const at = (f: number) => A.clone().lerp(B, f).add(v3(0, -4 * sag * f * (1 - f), 0));
+  const at = (f: number) =>
+    A.clone()
+      .lerp(B, f)
+      .add(v3(0, -4 * sag * f * (1 - f), 0));
   const segs = Math.max(6, Math.round(len * 3));
   const cord = toon("#5e3d28");
   const seg = new THREE.BoxGeometry(1, 0.02, 0.02);
@@ -350,7 +358,8 @@ export function merchantCart(goods: readonly string[] = ["#c9b6ff", "#f5d14a", "
   m.plane(0.62, 0.3, glow("#fff", board), [0, 0.47, D / 2 + 0.012]);
   // Posts, curtain and awning.
   for (const sx of [-1, 1])
-    for (const sz of [-1, 1]) m.cyl(0.035, 1.12, "#5e3d28", [sx * (W / 2 - 0.05), 0.75, sz * (D / 2 - 0.05)], 0.035, 8);
+    for (const sz of [-1, 1])
+      m.cyl(0.035, 1.12, "#5e3d28", [sx * (W / 2 - 0.05), 0.75, sz * (D / 2 - 0.05)], 0.035, 8);
   m.box([W - 0.1, 0.95, 0.04], "#4b3f7a", [0, 0.75, -D / 2 + 0.05], 0.01);
   for (let x = -0.8; x <= 0.81; x += 0.2) m.box([0.025, 0.9, 0.05], "#6a5aa8", [x, 0.78, -D / 2 + 0.06]);
   const stripes = gingham("#e2443a");
@@ -373,7 +382,12 @@ export function merchantCart(goods: readonly string[] = ["#c9b6ff", "#f5d14a", "
   );
   const front = new THREE.Mesh(
     new THREE.PlaneGeometry(W + 0.3, 0.24),
-    new THREE.MeshToonMaterial({ map: val, transparent: true, alphaTest: 0.5, gradientMap: toon("#fff").gradientMap }),
+    new THREE.MeshToonMaterial({
+      map: val,
+      transparent: true,
+      alphaTest: 0.5,
+      gradientMap: toon("#fff").gradientMap,
+    }),
   );
   front.position.set(0, 1.72, D / 2 + 0.26);
   front.castShadow = true;
@@ -384,8 +398,12 @@ export function merchantCart(goods: readonly string[] = ["#c9b6ff", "#f5d14a", "
   m.add(bunt);
   // Goods on the counter.
   const shelf = [
-    () => m.box([0.2, 0.05, 0.14], goods[0]!, [-0.7, 0.75, 0.05], 0.01) && m.box([0.17, 0.05, 0.12], "#fbf7ef", [-0.7, 0.8, 0.05], 0.01),
-    () => m.cyl(0.1, 0.06, goods[1]!, [-0.25, 0.75, 0.05], 0.1, 12) && m.cyl(0.06, 0.1, goods[1]!, [-0.25, 0.81, 0.05], 0.03, 12),
+    () =>
+      m.box([0.2, 0.05, 0.14], goods[0]!, [-0.7, 0.75, 0.05], 0.01) &&
+      m.box([0.17, 0.05, 0.12], "#fbf7ef", [-0.7, 0.8, 0.05], 0.01),
+    () =>
+      m.cyl(0.1, 0.06, goods[1]!, [-0.25, 0.75, 0.05], 0.1, 12) &&
+      m.cyl(0.06, 0.1, goods[1]!, [-0.25, 0.81, 0.05], 0.03, 12),
     () => m.cyl(0.05, 0.2, goods[2]!, [0.2, 0.75, 0.05], 0.05, 10),
     () => m.ball(0.09, goods[3]!, [0.65, 0.84, 0.05]),
   ];
@@ -574,7 +592,12 @@ export class TownFx {
   glow = 0;
 
   // Cop
-  private cop!: { actor: Actor; parts: ReturnType<typeof dressCop>; light: THREE.PointLight; pool: THREE.Mesh };
+  private cop!: {
+    actor: Actor;
+    parts: ReturnType<typeof dressCop>;
+    light: THREE.PointLight;
+    pool: THREE.Mesh;
+  };
   private copSay!: FxLabelHandle;
   private copState: "patrol" | "chase" | "ticket" | "return" = "patrol";
   private copUntil = 0;
@@ -714,7 +737,11 @@ export class TownFx {
       this.cop.actor.face(s.pos.x, s.pos.z);
       this.cop.parts.pad.visible = true;
       this.cop.parts.pencil.visible = true;
-      this.copSays(`🚨 ${["429 Too Many Requests!", "Do you know how fast you were burning?"][Math.floor(Math.random() * 2)]} @${name}`, performance.now() / 1000, 4);
+      this.copSays(
+        `🚨 ${["429 Too Many Requests!", "Do you know how fast you were burning?"][Math.floor(Math.random() * 2)]} @${name}`,
+        performance.now() / 1000,
+        4,
+      );
       this.ctx.burst(["🚨"], () => this.cop.actor.top(0.3));
       this.ctx.toast(`🚨 Officer 429 pulled @${name} over: 240M tokens/hour in a residential zone.`);
     });
@@ -793,16 +820,19 @@ export class TownFx {
       f.rotation.z = -0.7;
       h.box([0.02, 0.15, 0.04], "#f5d14a", [0.24, 0.13, 0.0], 0.01).rotation.z = -0.9;
     };
-    this.merchant = new Actor(this.scene, personLook({
-      skin: "#e0a97a",
-      hair: "#a8a8b8",
-      style: 0,
-      outfit: ["#7a3b6e", "#5a2a52"],
-      pants: "#3c4454",
-      hat: "none",
-      age: "senior",
-      beard: 1,
-    }));
+    this.merchant = new Actor(
+      this.scene,
+      personLook({
+        skin: "#e0a97a",
+        hair: "#a8a8b8",
+        style: 0,
+        outfit: ["#7a3b6e", "#5a2a52"],
+        pants: "#3c4454",
+        hat: "none",
+        age: "senior",
+        beard: 1,
+      }),
+    );
     hat(this.merchant.avatar);
     this.merchant.avatar.root.visible = false;
     this.merchant.speed = 1.1;
@@ -875,7 +905,8 @@ export class TownFx {
     // The lantern flickers between two flames; its halo follows the lights.
     const flick = Math.floor(t * 7) % 2 === 0;
     (this.cart.flame.material as THREE.MeshBasicMaterial).color.set(flick ? "#ffd04a" : "#ffe9a8");
-    (this.cart.halo.material as THREE.MeshBasicMaterial).opacity = (0.08 + this.glow * 0.18) * (flick ? 1 : 0.85);
+    (this.cart.halo.material as THREE.MeshBasicMaterial).opacity =
+      (0.08 + this.glow * 0.18) * (flick ? 1 : 0.85);
     if (this.merchantState === "away" && this.merchantTag) this.merchantTag.el.style.display = "none";
     m.update(dt, t);
     if (this.merchantState === "here" && !m.walking) {
@@ -957,7 +988,9 @@ export class TownFx {
     this.grassAt = Infinity;
     const onSat = () => {
       this.ctx.burst(["🌱", "🌿", "✨", "🧺", "🌼"], () => (me ? me.top() : v3(18, 1.2, 9)));
-      this.ctx.toast("🌱 Touched grass. A patch from an outage picnic: the agents stopped, and you went outside.");
+      this.ctx.toast(
+        "🌱 Touched grass. A patch from an outage picnic: the agents stopped, and you went outside.",
+      );
       this.grassAt = performance.now() / 1000;
     };
     if (me) {
@@ -1051,9 +1084,15 @@ export class TownFx {
     this.trail.scale.z = Math.max(0.01, z - SNAIL_Z0);
     this.trail.position.z = (z + SNAIL_Z0) / 2;
     this.trail.position.x = SNAIL_X;
-    this.snailTag.el.textContent = s.phase === "queued" ? "queued" : s.phase === "deploying" ? "deploying..." : "✓ deployed";
+    this.snailTag.el.textContent =
+      s.phase === "queued" ? "queued" : s.phase === "deploying" ? "deploying..." : "✓ deployed";
     // The build finishing while you watch.
-    if (this.lastSnailMinute !== null && this.lastSnailMinute < SNAIL.arrives && m >= SNAIL.arrives && m - this.lastSnailMinute < 5) {
+    if (
+      this.lastSnailMinute !== null &&
+      this.lastSnailMinute < SNAIL.arrives &&
+      m >= SNAIL.arrives &&
+      m - this.lastSnailMinute < 5
+    ) {
       this.ctx.burst(["🎉", "✨", "✅"], () => this.snail.model.position.clone().setY(0.6));
       this.ctx.toast("🐌 Build succeeded. The snail has deployed to production.");
     }
@@ -1101,7 +1140,11 @@ export class TownFx {
       }
       const k = Math.min(1, (t - p.thrown) / 0.7);
       const tz = p.door[1] + 0.55;
-      p.m.position.set(p.door[0] + 0.7 + 0.5 * (1 - k), 0.06 + Math.sin(k * Math.PI) * 0.7, p.fromZ + (tz - p.fromZ) * k);
+      p.m.position.set(
+        p.door[0] + 0.7 + 0.5 * (1 - k),
+        0.06 + Math.sin(k * Math.PI) * 0.7,
+        p.fromZ + (tz - p.fromZ) * k,
+      );
       p.m.rotation.y = k * 6;
     }
   }

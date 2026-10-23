@@ -31,46 +31,239 @@ type Role = (i0: number, j0: number, add: Add, marks: Record<string, Vol>, rnd: 
 const ROLES: Record<string, Role> = {
   // THE TAVERN TOWER: timber, warm windows, a beer garden on a lattice-propped terrace
   "5,2": (i, j, add, marks) => {
-    add({ i0: i, j0: j, i1: i + 3, j1: j + 3, f0: 0, f1: 3, kind: "wood", roof: "plaza", stairs: true, lit: 0.8, wall: "#b98a5a" });
-    add({ i0: i + 1, j0: j, i1: i + 3, j1: j + 2, f0: 3, f1: 7, kind: "wood", roof: "plaza", stairs: true, lit: 0.85, wall: "#c49563" });
-    add({ i0: i + 1, j0: j, i1: i + 2, j1: j + 1, f0: 7, f1: 11, kind: "concrete", roof: "garden", lit: 0.9, wall: "#e6d6b4" });
-    add({ i0: i + 1, j0: j, i1: i + 1, j1: j + 1, f0: 11, f1: 15, kind: "wood", roof: "plaza", lit: 0.9, wall: "#b98a5a" });
-    marks.tavern = add({ i0: i + 1, j0: j + 1, i1: i + 1, j1: j + 1, f0: 15, f1: 19, kind: "wood", roof: "none", lit: 1, wall: "#a47848" });
+    add({
+      i0: i,
+      j0: j,
+      i1: i + 3,
+      j1: j + 3,
+      f0: 0,
+      f1: 3,
+      kind: "wood",
+      roof: "plaza",
+      stairs: true,
+      lit: 0.8,
+      wall: "#b98a5a",
+    });
+    add({
+      i0: i + 1,
+      j0: j,
+      i1: i + 3,
+      j1: j + 2,
+      f0: 3,
+      f1: 7,
+      kind: "wood",
+      roof: "plaza",
+      stairs: true,
+      lit: 0.85,
+      wall: "#c49563",
+    });
+    add({
+      i0: i + 1,
+      j0: j,
+      i1: i + 2,
+      j1: j + 1,
+      f0: 7,
+      f1: 11,
+      kind: "concrete",
+      roof: "garden",
+      lit: 0.9,
+      wall: "#e6d6b4",
+    });
+    add({
+      i0: i + 1,
+      j0: j,
+      i1: i + 1,
+      j1: j + 1,
+      f0: 11,
+      f1: 15,
+      kind: "wood",
+      roof: "plaza",
+      lit: 0.9,
+      wall: "#b98a5a",
+    });
+    marks.tavern = add({
+      i0: i + 1,
+      j0: j + 1,
+      i1: i + 1,
+      j1: j + 1,
+      f0: 15,
+      f1: 19,
+      kind: "wood",
+      roof: "none",
+      lit: 1,
+      wall: "#a47848",
+    });
   },
   // THE HQ ZIGGURAT: company houses on the rims, biggest on top
   "4,2": (i, j, add, marks) => {
-    marks.hq0 = add({ i0: i, j0: j, i1: i + 3, j1: j + 3, f0: 0, f1: 5, kind: "concrete", roof: "garden", reserve: true, lit: 0.6, wall: "#d9d1bf", stairs: true });
-    marks.hq1 = add({ i0: i, j0: j, i1: i + 1, j1: j + 1, f0: 5, f1: 11, kind: "white", roof: "garden", reserve: true, lit: 0.7 });
+    marks.hq0 = add({
+      i0: i,
+      j0: j,
+      i1: i + 3,
+      j1: j + 3,
+      f0: 0,
+      f1: 5,
+      kind: "concrete",
+      roof: "garden",
+      reserve: true,
+      lit: 0.6,
+      wall: "#d9d1bf",
+      stairs: true,
+    });
+    marks.hq1 = add({
+      i0: i,
+      j0: j,
+      i1: i + 1,
+      j1: j + 1,
+      f0: 5,
+      f1: 11,
+      kind: "white",
+      roof: "garden",
+      reserve: true,
+      lit: 0.7,
+    });
     add({ i0: i, j0: j, i1: i, j1: j, f0: 11, f1: 22, kind: "glass", roof: "garden", lit: 0.8 });
     add({ i0: i, j0: j, i1: i, j1: j, f0: 22, f1: 31, kind: "white", roof: "garden", lit: 0.7 });
     marks.hqTop = add({ i0: i, j0: j, i1: i, j1: j, f0: 31, f1: 34, kind: "steel", roof: "tech", lit: 1 });
   },
   // SHOPS: a stack of storefront floors, each a different trade
   "4,3": (i, j, add, marks) => {
-    marks.shops = add({ i0: i, j0: j, i1: i + 3, j1: j + 3, f0: 0, f1: 2, kind: "concrete", roof: "plaza", lit: 0.9, wall: "#e9dcc4" });
-    marks.shops2 = add({ i0: i, j0: j, i1: i + 3, j1: j + 2, f0: 2, f1: 4, kind: "concrete", roof: "plaza", lit: 0.9, wall: "#f0d9c0" });
-    marks.shops3 = add({ i0: i, j0: j, i1: i + 1, j1: j + 1, f0: 4, f1: 9, kind: "wood", roof: "garden", lit: 0.9 });
+    marks.shops = add({
+      i0: i,
+      j0: j,
+      i1: i + 3,
+      j1: j + 3,
+      f0: 0,
+      f1: 2,
+      kind: "concrete",
+      roof: "plaza",
+      lit: 0.9,
+      wall: "#e9dcc4",
+    });
+    marks.shops2 = add({
+      i0: i,
+      j0: j,
+      i1: i + 3,
+      j1: j + 2,
+      f0: 2,
+      f1: 4,
+      kind: "concrete",
+      roof: "plaza",
+      lit: 0.9,
+      wall: "#f0d9c0",
+    });
+    marks.shops3 = add({
+      i0: i,
+      j0: j,
+      i1: i + 1,
+      j1: j + 1,
+      f0: 4,
+      f1: 9,
+      kind: "wood",
+      roof: "garden",
+      lit: 0.9,
+    });
   },
   // THE BASEMENT: a wide purple arcade podium with a big pixel-invader on its roof
   "3,3": (i, j, add, marks) => {
-    marks.arcade = add({ i0: i, j0: j, i1: i + 3, j1: j + 3, f0: 0, f1: 3, kind: "dark", roof: "plaza", lit: 1, wall: "#4b3a78" });
-    add({ i0: i, j0: j, i1: i + 2, j1: j + 2, f0: 3, f1: 4, kind: "dark", roof: "plaza", lit: 1, wall: "#4b3a78" });
+    marks.arcade = add({
+      i0: i,
+      j0: j,
+      i1: i + 3,
+      j1: j + 3,
+      f0: 0,
+      f1: 3,
+      kind: "dark",
+      roof: "plaza",
+      lit: 1,
+      wall: "#4b3a78",
+    });
+    add({
+      i0: i,
+      j0: j,
+      i1: i + 2,
+      j1: j + 2,
+      f0: 3,
+      f1: 4,
+      kind: "dark",
+      roof: "plaza",
+      lit: 1,
+      wall: "#4b3a78",
+    });
     add({ i0: i, j0: j, i1: i + 1, j1: j + 2, f0: 4, f1: 8, kind: "steel", roof: "garden", lit: 0.9 });
   },
   // THE RAID GATE: a dark keep
   "2,0": (i, j, add, marks) => {
-    marks.raid = add({ i0: i, j0: j, i1: i + 3, j1: j + 1, f0: 0, f1: 26, kind: "steel", roof: "bare", lit: 0.35, wall: "#3a3640" });
-    add({ i0: i, j0: j + 2, i1: i + 3, j1: j + 3, f0: 0, f1: 16, kind: "dark", roof: "plaza", lit: 0.35, wall: "#46404f" });
-    add({ i0: i + 1, j0: j, i1: i + 2, j1: j + 1, f0: 26, f1: 38, kind: "steel", roof: "bare", lit: 0.3, wall: "#34303c" });
-    marks.raidTop = add({ i0: i + 1, j0: j, i1: i + 1, j1: j, f0: 38, f1: 45, kind: "steel", roof: "tech", lit: 0.5, wall: "#2c2834" });
+    marks.raid = add({
+      i0: i,
+      j0: j,
+      i1: i + 3,
+      j1: j + 1,
+      f0: 0,
+      f1: 26,
+      kind: "steel",
+      roof: "bare",
+      lit: 0.35,
+      wall: "#3a3640",
+    });
+    add({
+      i0: i,
+      j0: j + 2,
+      i1: i + 3,
+      j1: j + 3,
+      f0: 0,
+      f1: 16,
+      kind: "dark",
+      roof: "plaza",
+      lit: 0.35,
+      wall: "#46404f",
+    });
+    add({
+      i0: i + 1,
+      j0: j,
+      i1: i + 2,
+      j1: j + 1,
+      f0: 26,
+      f1: 38,
+      kind: "steel",
+      roof: "bare",
+      lit: 0.3,
+      wall: "#34303c",
+    });
+    marks.raidTop = add({
+      i0: i + 1,
+      j0: j,
+      i1: i + 1,
+      j1: j,
+      f0: 38,
+      f1: 45,
+      kind: "steel",
+      roof: "tech",
+      lit: 0.5,
+      wall: "#2c2834",
+    });
   },
 };
 
-const HS: Record<string, number> = { "3,2": 4, "2,2": 4, "2,3": 4, "1,3": 5, "0,3": 6, "4,1": 11, "3,1": 12, "2,1": 15, "3,0": 22, "5,1": 13, "1,2": 8, "0,2": 10, "1,1": 14 };
+const HS: Record<string, number> = {
+  "3,2": 4,
+  "2,2": 4,
+  "2,3": 4,
+  "1,3": 5,
+  "0,3": 6,
+  "4,1": 11,
+  "3,1": 12,
+  "2,1": 15,
+  "3,0": 22,
+  "5,1": 13,
+  "1,2": 8,
+  "0,2": 10,
+  "1,1": 14,
+};
 
 export function planCity(seed = 11): Plan {
   const rnd = seeded(seed);
-  const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rnd() * xs.length)]!;
+  const pick = <T>(xs: readonly T[]) => xs[Math.floor(rnd() * xs.length)]!;
   const vols: Vol[] = [];
   const marks: Record<string, Vol> = {};
   const blocks: Plan["blocks"] = [];
@@ -82,7 +275,20 @@ export function planCity(seed = 11): Plan {
   };
   const plaza: Plan["plaza"] = [];
 
-  const BODY: Kind[] = ["concrete", "concrete", "white", "glass", "dark", "wood", "open", "green", "concrete", "steel", "white", "wood"];
+  const BODY: Kind[] = [
+    "concrete",
+    "concrete",
+    "white",
+    "glass",
+    "dark",
+    "wood",
+    "open",
+    "green",
+    "concrete",
+    "steel",
+    "white",
+    "wood",
+  ];
   const ROOF: Roof[] = ["garden", "garden", "garden", "garden", "plaza", "crops", "tech", "garden", "solar"];
 
   for (let bz = 0; bz < BZ; bz++)
@@ -120,7 +326,14 @@ export function planCity(seed = 11): Plan {
       const used = Array.from({ length: 4 }, () => Array<boolean>(4).fill(false));
       if (lat) {
         const L = podiumH + 3 + Math.floor(rnd() * 6);
-        add({ ...rect(0, 0, latW, latD), f0: 0, f1: L, kind: "lattice", roof: pick(["garden", "garden", "crops", "plaza"]), stairs: rnd() < 0.4 });
+        add({
+          ...rect(0, 0, latW, latD),
+          f0: 0,
+          f1: L,
+          kind: "lattice",
+          roof: pick(["garden", "garden", "crops", "plaza"]),
+          stairs: rnd() < 0.4,
+        });
         for (let a = 0; a <= latW; a++) for (let b = 0; b <= latD; b++) used[b]![a] = true;
         // podium: whatever is left
         for (let b = 0; b < 4; b++) {
@@ -137,7 +350,17 @@ export function planCity(seed = 11): Plan {
           }
         }
       } else {
-        add({ i0, j0, i1: i0 + 3, j1: j0 + 3, f0: 0, f1: podiumH, kind: podK, roof: "garden", stairs: rnd() < 0.5 });
+        add({
+          i0,
+          j0,
+          i1: i0 + 3,
+          j1: j0 + 3,
+          f0: 0,
+          f1: podiumH,
+          kind: podK,
+          roof: "garden",
+          stairs: rnd() < 0.5,
+        });
       }
       const towerUsed = Array.from({ length: 4 }, () => Array<boolean>(4).fill(false));
       for (let b = 0; b < 4; b++) for (let a = 0; a < 4; a++) towerUsed[b]![a] = used[b]![a]!;
@@ -161,7 +384,14 @@ export function planCity(seed = 11): Plan {
           while (f < fEnd) {
             const seg = Math.min(fEnd - f, 3 + Math.floor(rnd() * 7));
             const last = f + seg >= fEnd;
-            const v = add({ ...r, f0: f, f1: f + seg, kind, roof: last ? pick(ROOF) : pick(["garden", "garden", "plaza", "crops"]), stairs: rnd() < 0.38 && kind !== "glass" && kind !== "open" });
+            const v = add({
+              ...r,
+              f0: f,
+              f1: f + seg,
+              kind,
+              roof: last ? pick(ROOF) : pick(["garden", "garden", "plaza", "crops"]),
+              stairs: rnd() < 0.38 && kind !== "glass" && kind !== "open",
+            });
             if (first && last === false) first = false;
             f += seg;
             if (last) {
@@ -195,7 +425,14 @@ export function planCity(seed = 11): Plan {
           towerUsed[b]![a] = true;
           const k = 2 + Math.floor(rnd() * 3);
           add({ ...r, f0: podiumH, f1: podiumH + k, kind: "lattice", roof: "none" });
-          add({ ...r, f0: podiumH + k, f1: podiumH + k + 2 + Math.floor(rnd() * 2), kind: pick<Kind>(["wood", "open", "concrete"]), roof: pick(["garden", "garden", "tech"]), stairs: rnd() < 0.4 });
+          add({
+            ...r,
+            f0: podiumH + k,
+            f1: podiumH + k + 2 + Math.floor(rnd() * 2),
+            kind: pick<Kind>(["wood", "open", "concrete"]),
+            roof: pick(["garden", "garden", "tech"]),
+            stairs: rnd() < 0.4,
+          });
         }
     }
   for (const v of vols) v.lit = 0.18 + rnd() * 0.5;
@@ -213,14 +450,21 @@ export function addBridges(plan: Plan, seed = 5): void {
         if (!col.has(k)) col.set(k, []);
         col.get(k)!.push(v);
       }
-  const occ = (i: number, j: number, f: number) => col.get(j * 1000 + i)?.some((v) => f >= v.f0 && f < v.f1) ?? false;
+  const occ = (i: number, j: number, f: number) =>
+    col.get(j * 1000 + i)?.some((v) => f >= v.f0 && f < v.f1) ?? false;
   let id = 1000;
   const used = new Set<string>();
   const tryBridge = (i: number, j: number, di: number, dj: number) => {
     // along (di, dj): cells (i - di, j - dj) and (i + di, j + dj) must be built at floor f
     for (let t = 0; t < 8; t++) {
       const f = 3 + Math.floor(rnd() * 30);
-      if (occ(i - di, j - dj, f) && occ(i + di, j + dj, f) && occ(i - di, j - dj, f + 1) && occ(i + di, j + dj, f + 1) && !occ(i, j, f)) {
+      if (
+        occ(i - di, j - dj, f) &&
+        occ(i + di, j + dj, f) &&
+        occ(i - di, j - dj, f + 1) &&
+        occ(i + di, j + dj, f + 1) &&
+        !occ(i, j, f)
+      ) {
         // keep spacing between bridges in a street cell
         const key = `${i},${j}`;
         let clash = false;
@@ -228,7 +472,18 @@ export function addBridges(plan: Plan, seed = 5): void {
         if (clash) continue;
         used.add(`${key},${f}`);
         const kind: Kind = rnd() < 0.5 ? "bridge" : "walk";
-        const v: Vol = { id: id++, i0: i, j0: j, i1: i, j1: j, f0: f, f1: f + (kind === "walk" ? 1 : 1), kind, roof: "bare", lit: 0.7 };
+        const v: Vol = {
+          id: id++,
+          i0: i,
+          j0: j,
+          i1: i,
+          j1: j,
+          f0: f,
+          f1: f + (kind === "walk" ? 1 : 1),
+          kind,
+          roof: "bare",
+          lit: 0.7,
+        };
         plan.vols.push(v);
         return;
       }

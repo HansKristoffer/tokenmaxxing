@@ -102,7 +102,19 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     town: () => C.leafInk,
     basement: () => "#100e1e",
     dungeon: () => "#110f16",
-    ...typedSwitchGroup(map.id, ["hq", "common", "inn", "upstairs", "office", "shop-furniture", "shop-clothes", "shop-barber", "shop-pets"],
+    ...typedSwitchGroup(
+      map.id,
+      [
+        "hq",
+        "common",
+        "inn",
+        "upstairs",
+        "office",
+        "shop-furniture",
+        "shop-clothes",
+        "shop-barber",
+        "shop-pets",
+      ],
       () => "#1b1f2a",
     ),
   });

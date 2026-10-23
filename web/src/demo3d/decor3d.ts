@@ -230,7 +230,13 @@ export interface Look<T> {
 }
 
 const FLOOR_SPAN = 4;
-const floorLook = (id: string, name: string, price: number, color: string, level?: number): Look<Texture> => ({
+const floorLook = (
+  id: string,
+  name: string,
+  price: number,
+  color: string,
+  level?: number,
+): Look<Texture> => ({
   id,
   name,
   price,
@@ -241,7 +247,8 @@ const floorLook = (id: string, name: string, price: number, color: string, level
     const art = FLOOR_ART[id]!;
     const t = canvasTexture(TILE * FLOOR_SPAN, TILE * FLOOR_SPAN, (g) => {
       const p = penOf(g);
-      for (let y = 0; y < FLOOR_SPAN; y++) for (let x = 0; x < FLOOR_SPAN; x++) art(p, x * TILE, y * TILE, x, y);
+      for (let y = 0; y < FLOOR_SPAN; y++)
+        for (let x = 0; x < FLOOR_SPAN; x++) art(p, x * TILE, y * TILE, x, y);
     });
     t.wrapS = t.wrapT = RepeatWrapping;
     return t;

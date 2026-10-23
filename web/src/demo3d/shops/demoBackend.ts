@@ -17,7 +17,14 @@ import { done, fail, type Outcome } from "./purchase.ts";
 import type { ShopHooks } from "./shopActions.ts";
 import { wallet } from "./wallet.ts";
 
-const PET_NAMES: Record<string, string> = { cat: "Miso", dog: "Waffle", duck: "Ducky", dragon: "Ember", panda: "Bao", orb: "Orb" };
+const PET_NAMES: Record<string, string> = {
+  cat: "Miso",
+  dog: "Waffle",
+  duck: "Ducky",
+  dragon: "Ember",
+  panda: "Bao",
+  orb: "Orb",
+};
 const petOf = (id: string) => CATALOG_PETS.find((p) => p.id === id.split(".").slice(0, 2).join("."));
 const assetOf = (id: string): Asset | undefined => assetById.get(id) ?? extraAssetById.get(id);
 const SLOT_OF = /^(outfit|hat|glasses|held|back)\.(\d+)$/;
@@ -28,7 +35,9 @@ export function createDemoBackend(hooks: ShopHooks): ShopBackend {
     if (shop !== "barber") return null;
     const [slot, n] = item.id.split(".") as [string, string];
     const change = slot === "glasses" ? { face: Number(n) } : { [slot]: Number(n) };
-    const next = restyle(hooks.look() as unknown as CoreLook, change, { level: hooks.level() }) as unknown as Look2D;
+    const next = restyle(hooks.look() as unknown as CoreLook, change, {
+      level: hooks.level(),
+    }) as unknown as Look2D;
     return { ...hooks.look(), style: next.style, hair: next.hair, skin: next.skin, glasses: next.glasses };
   };
 
@@ -46,7 +55,8 @@ export function createDemoBackend(hooks: ShopHooks): ShopBackend {
     stackable: () => false,
     inUse(id) {
       const slot = SLOT_OF.exec(id);
-      if (slot) return (hooks.look() as unknown as Record<string, number | undefined>)[slot[1]!] === Number(slot[2]);
+      if (slot)
+        return (hooks.look() as unknown as Record<string, number | undefined>)[slot[1]!] === Number(slot[2]);
       const w = SHOP_PETWEAR.find((x) => x.id === id);
       return w ? hooks.pet().wear === w.index : false;
     },

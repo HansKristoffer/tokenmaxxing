@@ -15,7 +15,14 @@ const mixed = (a: string, b: string, p: Cell, seed: number, k = 0.3) =>
   hash(p.x, p.y, p.z, seed) < k * 0.8 ? mix(a, b, 0.55) : a;
 
 /** A mesh from a grid, placed at `at` (cells), its origin on `origin` (cells). */
-function put(parent: THREE.Object3D, g: Grid, at: V3, origin: V3 = [0, 0, 0], seed = 0, opacity = 1): THREE.Mesh {
+function put(
+  parent: THREE.Object3D,
+  g: Grid,
+  at: V3,
+  origin: V3 = [0, 0, 0],
+  seed = 0,
+  opacity = 1,
+): THREE.Mesh {
   const m = bake(g, { origin, seed, opacity });
   m.position.set(U(at[0]), U(at[1]), U(at[2]));
   parent.add(m);
@@ -40,7 +47,10 @@ interface DuckSpec {
 const duckBase = (): DuckSpec => ({
   k: 1,
   hk: 1,
-  eyes: [[DARK, GLINT], [DARK, DARK]],
+  eyes: [
+    [DARK, GLINT],
+    [DARK, DARK],
+  ],
   feet: "#f08a3c",
   coat: (part, c) => {
     const y = "#f5d14a";
@@ -66,7 +76,8 @@ const ducks: Record<string, () => DuckSpec> = {
       if (part === "tail") return c.t > 0.5 ? "#2a2832" : "#6f655d";
       if (part === "wing") {
         // The blue speculum, edged in white.
-        if (c.u > 0.45 && c.u < 0.7 && c.t > 0.3 && c.t < 0.75) return c.u < 0.5 || c.u > 0.65 ? "#fbf7ef" : "#3a5fc0";
+        if (c.u > 0.45 && c.u < 0.7 && c.t > 0.3 && c.t < 0.75)
+          return c.u < 0.5 || c.u > 0.65 ? "#fbf7ef" : "#3a5fc0";
         return mixed("#6f655d", "#8c8077", c, 5, 0.4);
       }
       if (c.u > 0.65 && c.t > 0.3) return mixed("#7a4a2e", "#8a5a3a", c, 6, 0.3);
@@ -101,7 +112,10 @@ const ducks: Record<string, () => DuckSpec> = {
   }),
   swedish: () => ({
     ...duckBase(),
-    eyes: [["#ffffff", "#ffffff"], ["#ffffff", DARK]],
+    eyes: [
+      ["#ffffff", "#ffffff"],
+      ["#ffffff", DARK],
+    ],
     coat: (part, c) => {
       const b = "#3b4762";
       if (part === "bill") return c.t < 0.42 ? "#6a7488" : "#8a94a8";
@@ -110,7 +124,8 @@ const ducks: Record<string, () => DuckSpec> = {
       if (part === "neck") return mixed(b, "#46547a", c, 2, 0.3);
       if (part === "tail") return "#2e384e";
       // The white bib.
-      if (c.u > 0.62 && c.t > 0.25 && c.t < 0.75 && Math.abs(c.s) < 0.7) return mixed("#fbf7ef", "#e9e4dc", c, 6, 0.3);
+      if (c.u > 0.62 && c.t > 0.25 && c.t < 0.75 && Math.abs(c.s) < 0.7)
+        return mixed("#fbf7ef", "#e9e4dc", c, 6, 0.3);
       return mixed(b, "#46547a", c, 3, 0.35);
     },
   }),
@@ -126,14 +141,31 @@ const ducks: Record<string, () => DuckSpec> = {
       return mixed(y, "#fff0b0", c, 3, 0.35);
     },
     extra: ({ head }) => {
-      head.tube([[0, 7, 0], [0, 9, -0.5]], 0.6, 0.4, "#f7e08a");
+      head.tube(
+        [
+          [0, 7, 0],
+          [0, 9, -0.5],
+        ],
+        0.6,
+        0.4,
+        "#f7e08a",
+      );
     },
   }),
   ghost: () => ({
     ...duckBase(),
     ghost: true,
-    eyes: [["#3a3540", "#3a3540"], ["#3a3540", "#3a3540"], ["#3a3540", "#3a3540"]],
-    coat: (part, c) => (part === "bill" ? "#fdf5e6" : part === "wing" ? mixed("#d8d4e0", "#e8e4f0", c, 4, 0.5) : mixed("#fbf7ef", "#eeeaf6", c, 3, 0.3)),
+    eyes: [
+      ["#3a3540", "#3a3540"],
+      ["#3a3540", "#3a3540"],
+      ["#3a3540", "#3a3540"],
+    ],
+    coat: (part, c) =>
+      part === "bill"
+        ? "#fdf5e6"
+        : part === "wing"
+          ? mixed("#d8d4e0", "#e8e4f0", c, 4, 0.5)
+          : mixed("#fbf7ef", "#eeeaf6", c, 3, 0.3),
   }),
 };
 
@@ -185,7 +217,11 @@ export function duck(variant: string): { rig: Rig; body: Model; fore: Model } {
   bill.box(-bw + 1, bw - 1, 1, 1, 0, bl - 1, "#fff");
   bill.set(-1, 2, bl - 2, "#fff");
   bill.set(1, 2, bl - 2, "#fff");
-  bill.paint((c) => (Math.abs(c.x) < 1 && c.y === 1 && c.z > bl - 3 ? mix(s.coat("bill", c), "#14101c", 0.5) : s.coat("bill", c)));
+  bill.paint((c) =>
+    Math.abs(c.x) < 1 && c.y === 1 && c.z > bl - 3
+      ? mix(s.coat("bill", c), "#14101c", 0.5)
+      : s.coat("bill", c),
+  );
   hg.merge(bill, 0, by - 1, bz);
   s.extra?.({ body: new Grid(), head: hg, k });
   put(head, hg, [0, 0, 0], [0, 0, 0], 2, s.ghost ? 0.6 : 1);
@@ -213,7 +249,16 @@ export function duck(variant: string): { rig: Rig; body: Model; fore: Model } {
   // Tail tuft and feet.
   const tail = new Model();
   const tg = new Grid();
-  tg.tube([[0, 0, 0], [0, 1.2 * k, -2.5 * k], [0, 3 * k, -3.6 * k]], 2.2 * k, 1.1 * k, "#fff");
+  tg.tube(
+    [
+      [0, 0, 0],
+      [0, 1.2 * k, -2.5 * k],
+      [0, 3 * k, -3.6 * k],
+    ],
+    2.2 * k,
+    1.1 * k,
+    "#fff",
+  );
   tg.paint((c) => s.coat("tail", c));
   put(tail, tg, [0, 0, 0], [0, 0, 0], 3, s.ghost ? 0.6 : 1);
   tail.position.set(0, U(cy + 0.3 * k), U(-7 * k));
@@ -285,8 +330,24 @@ const dragons: Record<string, Partial<DragonSpec>> = {
   red: { g: "#c94a3f", g2: "#a83a32", w: "#f19a8a", y: "#f7e6c2", n: "#f5d14a" },
   ice: { g: "#9fd8ee", g2: "#82c2dc", w: "#dff3ff", y: "#fbf7ef", n: "#7fd4ff" },
   gold: { g: "#e0b23a", g2: "#c99a28", w: "#f7eaa0", y: "#fbf0d0", n: "#f08a3c" },
-  shadow: { g: "#463f86", g2: "#383270", w: "#7d4fb0", y: "#5b5680", e: "*#ff4fd2", n: "#b070ff", glowEyes: true },
-  skeleton: { g: "#f1ead6", g2: "#d6cdb4", w: "#4a4158", y: "#d6cdb4", e: "#14101c", n: "#fffaf0", bone: true },
+  shadow: {
+    g: "#463f86",
+    g2: "#383270",
+    w: "#7d4fb0",
+    y: "#5b5680",
+    e: "*#ff4fd2",
+    n: "#b070ff",
+    glowEyes: true,
+  },
+  skeleton: {
+    g: "#f1ead6",
+    g2: "#d6cdb4",
+    w: "#4a4158",
+    y: "#d6cdb4",
+    e: "#14101c",
+    n: "#fffaf0",
+    bone: true,
+  },
   baby: { g: "#8ccf86", g2: "#74b86e", w: "#f0a58a", y: "#f5e2a8", n: "#f5d14a", baby: true },
 };
 
@@ -301,7 +362,8 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
   const zF = Math.round(11 * k);
   const by = lh + 4;
   const bone = !!d.bone;
-  const scale = (c: Cell, a: string, b: string) => ((c.x + c.z + c.y) % 3 === 0 ? mix(a, b, 0.6) : mixed(a, b, c, 3, 0.2));
+  const scale = (c: Cell, a: string, b: string) =>
+    (c.x + c.z + c.y) % 3 === 0 ? mix(a, b, 0.6) : mixed(a, b, c, 3, 0.2);
   const bg = new Grid();
   bg.ell(0, by, zF / 2, 6.2 * k, 5.4 * k, zF / 2 + 4 * k, "#fff", 2.4);
   bg.ell(0, by + 1 * k, zF - 0.5, 4.8 * k, 4.8 * k, 4 * k, "#fff", 2.4);
@@ -337,7 +399,8 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
     const top = bg.top(0, z);
     if (top === undefined) continue;
     const h = i === 2 || i === 3 ? 3 : 2;
-    for (let j = 0; j < h; j++) spine.box(0, 0, top + 1 + j, top + 1 + j, z - (h - 1 - j > 0 ? 0 : 0), z, bone ? d.g : d.y);
+    for (let j = 0; j < h; j++)
+      spine.box(0, 0, top + 1 + j, top + 1 + j, z - (h - 1 - j > 0 ? 0 : 0), z, bone ? d.g : d.y);
   }
   bg.merge(spine);
   // The head.
@@ -356,15 +419,35 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
   for (const sd of SIDES) hg.set(sd, Math.round(1.1 * hk), nose, "*" + d.n);
   // Horns and ear fins.
   const horn = new Grid();
-  horn.tube([[0, 0, 0], [0.8, 3, -1.5], [1.2, 5.5, -4]], 1.5 * hk, 0.5, bone ? d.g : d.y);
+  horn.tube(
+    [
+      [0, 0, 0],
+      [0.8, 3, -1.5],
+      [1.2, 5.5, -4],
+    ],
+    1.5 * hk,
+    0.5,
+    bone ? d.g : d.y,
+  );
   for (const sd of SIDES) hg.merge(sd > 0 ? horn : horn.mirrored(), sd * 2.6 * hk, 3.6 * hk, 0.5 * hk);
   const fin = new Grid();
-  fin.tube([[0, 0, 0], [2.5, 1.5, -1.5]], 1.2, 0.5, bone ? d.g : d.w);
+  fin.tube(
+    [
+      [0, 0, 0],
+      [2.5, 1.5, -1.5],
+    ],
+    1.2,
+    0.5,
+    bone ? d.g : d.w,
+  );
   for (const sd of SIDES) hg.merge(sd > 0 ? fin : fin.mirrored(), sd * 3.4 * hk, 1.5 * hk, -0.5 * hk);
   put(head, hg, [0, 0, 0], [0, 0, 0], 2);
   head.position.set(U(hx), U(hy), U(hz));
   body.add(head);
-  const eyeRows = [[d.e, d.glowEyes ? d.e : GLINT], [d.e, d.e]];
+  const eyeRows = [
+    [d.e, d.glowEyes ? d.e : GLINT],
+    [d.e, d.e],
+  ];
   const eyes: THREE.Mesh[] = [];
   for (const sd of SIDES) {
     const e = eye(eyeRows);
@@ -393,7 +476,9 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
       [fore, fores, zF],
     ] as const) {
       const lg = new Grid();
-      lg.box(-1, 1, 1, lh + 2, -1, 1, (c) => (c.y < 2 ? (bone ? "#e4dcc4" : d.g2) : bone ? d.g : scale(c, d.g, d.g2)));
+      lg.box(-1, 1, 1, lh + 2, -1, 1, (c) =>
+        c.y < 2 ? (bone ? "#e4dcc4" : d.g2) : bone ? d.g : scale(c, d.g, d.g2),
+      );
       lg.box(-1, 1, 0, 0, -1, 2, bone ? "#e4dcc4" : d.g2);
       // Claws.
       for (const x of [-1, 0, 1]) lg.set(x, 0, 3, bone ? "#fffaf0" : d.y);
@@ -423,10 +508,31 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
   };
   for (let x = 0; x <= 16 * k; x++)
     for (let z = -14 * k; z <= 1; z++)
-      if (inside(x, z) && (!bone || hash(x, 0, z, 9) < 0.5)) wg.set(x, 0, z, mixed(d.w, lighten(d.w, 0.18), { x, y: 0, z, u: 0, t: 0, s: 0, c: "" }, 3, 0.3));
-  wg.tube([[0, 0.5, 0], [9 * k, 0.5, -1]], 1.2, 0.8, d.g);
-  for (const [x, z] of [[15 * k, -6 * k], [13 * k, -11 * k], [8 * k, -13 * k]] as const) {
-    wg.tube([[9 * k, 0.5, -1], [x, 0.5, z]], 0.8, 0.4, d.g);
+      if (inside(x, z) && (!bone || hash(x, 0, z, 9) < 0.5))
+        wg.set(x, 0, z, mixed(d.w, lighten(d.w, 0.18), { x, y: 0, z, u: 0, t: 0, s: 0, c: "" }, 3, 0.3));
+  wg.tube(
+    [
+      [0, 0.5, 0],
+      [9 * k, 0.5, -1],
+    ],
+    1.2,
+    0.8,
+    d.g,
+  );
+  for (const [x, z] of [
+    [15 * k, -6 * k],
+    [13 * k, -11 * k],
+    [8 * k, -13 * k],
+  ] as const) {
+    wg.tube(
+      [
+        [9 * k, 0.5, -1],
+        [x, 0.5, z],
+      ],
+      0.8,
+      0.4,
+      d.g,
+    );
   }
   for (const sd of SIDES) {
     const wing = new Model();
@@ -440,7 +546,17 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
   const tail = new Model();
   const tg = new Grid();
   const tl = 18 * k;
-  tg.tube([[0, 0, 0], [0, -1, -tl * 0.4], [0, -0.5, -tl * 0.8], [0, 1, -tl]], 3 * k, 0.8, (c) => (bone ? ((c.z | 0) % 3 === 0 ? d.g : "#4a4258") : scale(c, d.g, d.g2)));
+  tg.tube(
+    [
+      [0, 0, 0],
+      [0, -1, -tl * 0.4],
+      [0, -0.5, -tl * 0.8],
+      [0, 1, -tl],
+    ],
+    3 * k,
+    0.8,
+    (c) => (bone ? ((c.z | 0) % 3 === 0 ? d.g : "#4a4258") : scale(c, d.g, d.g2)),
+  );
   for (let i = 1; i < 5; i++) {
     const z = -Math.round((tl * i) / 5.4);
     tg.set(0, Math.round(2.6 * k - i * 0.4), z, bone ? d.g : d.y);
@@ -449,8 +565,7 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
   const tz = -tl - 0.5;
   if (baby) tg.ell(0, ty, tz - 1, 1.5, 1.5, 2.2, "*" + d.n, 2);
   else {
-    for (let i = 0; i < 4; i++)
-      tg.box(-i, i, ty, ty, tz - 2 - i * 1.0, tz - 2 - i * 1.0, bone ? d.g : d.y);
+    for (let i = 0; i < 4; i++) tg.box(-i, i, ty, ty, tz - 2 - i * 1.0, tz - 2 - i * 1.0, bone ? d.g : d.y);
     tg.box(-1, 1, ty, ty, tz - 6, tz - 6, bone ? d.g : d.y);
   }
   put(tail, tg, [0, 0, 0], [0, 0, 0], 12);
@@ -498,13 +613,21 @@ export function golem(): { rig: Rig; body: Model; fore: Model } {
   const torso = new Grid();
   torso.ell(0, 14, 2, 7.2, 6.2, 5.6, "#fff", 4);
   torso.paint((c) => sand(c, S, "#d6b068"));
-  for (const [x, y, z] of [[-3, 21, 5], [3, 21, 6], [0, 21, -1], [-5, 20, 0]] as const)
+  for (const [x, y, z] of [
+    [-3, 21, 5],
+    [3, 21, 6],
+    [0, 21, -1],
+    [-5, 20, 0],
+  ] as const)
     torso.ell(x, y, z, 1.8, 1.4, 1.8, D, 3);
   torso.box(-7, 7, 11, 11, -3, 7, D);
   const fores: THREE.Mesh[] = [];
   const hinds: THREE.Mesh[] = [];
   for (const sd of SIDES) {
-    for (const [parent, list, z0] of [[body, hinds, -1], [fore, fores, 2]] as const) {
+    for (const [parent, list, z0] of [
+      [body, hinds, -1],
+      [fore, fores, 2],
+    ] as const) {
       const lg = new Grid();
       lg.box(-2, 2, 0, 8, -2, 2, (c) => (c.y < 3 ? D : sand(c, D, "#a8843f", 2)));
       list.push(put(parent, lg, [sd * 3.6, 0, z0], [0, 0, 0], 2));
@@ -529,7 +652,10 @@ export function golem(): { rig: Rig; body: Model; fore: Model } {
   body.add(head);
   const eyes: THREE.Mesh[] = [];
   for (const sd of SIDES) {
-    const e = eye([[hl, hl], [hl, hl]]);
+    const e = eye([
+      [hl, hl],
+      [hl, hl],
+    ]);
     e.position.set(U(sd * 2.5), U(6), U(5.4));
     head.add(e);
     eyes.push(e);
@@ -593,7 +719,11 @@ export function goldfish(): { rig: Rig; body: Model; fore: Model } {
   body.add(head);
   const eyes: THREE.Mesh[] = [];
   for (const sd of SIDES) {
-    const e = eye([["#ffffff", "#ffffff"], ["#ffffff", DARK], ["#ffffff", DARK]]);
+    const e = eye([
+      ["#ffffff", "#ffffff"],
+      ["#ffffff", DARK],
+      ["#ffffff", DARK],
+    ]);
     e.rotation.y = sd * 0.6;
     e.position.set(U(sd * 4.4), U(1.5), U(1.6));
     head.add(e);
@@ -608,7 +738,15 @@ export function goldfish(): { rig: Rig; body: Model; fore: Model } {
   const tg = new Grid();
   for (let i = 0; i < 9; i++) {
     const w = 1 + Math.floor(i * 0.9);
-    tg.box(-w, w, -1 - Math.floor(i * 0.3), 1 + Math.floor(i * 0.5), -i, -i, hash(i, 0, 0, 1) < 0.4 ? mix(G, g, 0.4) : G);
+    tg.box(
+      -w,
+      w,
+      -1 - Math.floor(i * 0.3),
+      1 + Math.floor(i * 0.5),
+      -i,
+      -i,
+      hash(i, 0, 0, 1) < 0.4 ? mix(G, g, 0.4) : G,
+    );
   }
   put(tail, tg, [0, 0, 0], [0, 0, 0], 2);
   tail.position.set(0, 0, U(-7.5));
@@ -673,7 +811,11 @@ export function ghost(): { rig: Rig; body: Model; fore: Model } {
   body.add(head);
   const eyes: THREE.Mesh[] = [];
   for (const sd of SIDES) {
-    const e = eye([[DARK, DARK], [DARK, GLINT], [DARK, DARK]]);
+    const e = eye([
+      [DARK, DARK],
+      [DARK, GLINT],
+      [DARK, DARK],
+    ]);
     e.position.set(U(sd * 3), U(1.5), U(7.35));
     head.add(e);
     eyes.push(e);
@@ -726,7 +868,13 @@ export function orb(): { rig: Rig; body: Model; fore: Model } {
       const t = (a / 90) * Math.PI * 2;
       const x = Math.round(Math.cos(t) * r);
       const z = Math.round(Math.sin(t) * r);
-      for (let j = 0; j < th; j++) rg.set(x, y + j, z, hash(x, 0, z, soft) < 0.2 ? lighten(col.replace("*", ""), 0.25).replace("#", "*#") : col);
+      for (let j = 0; j < th; j++)
+        rg.set(
+          x,
+          y + j,
+          z,
+          hash(x, 0, z, soft) < 0.2 ? lighten(col.replace("*", ""), 0.25).replace("#", "*#") : col,
+        );
     }
   };
   ringTone(10, 0, "*#9b6fd6", 2);
@@ -760,4 +908,3 @@ export function orb(): { rig: Rig; body: Model; fore: Model } {
     fore,
   };
 }
-

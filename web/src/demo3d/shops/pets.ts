@@ -27,16 +27,7 @@ import {
   toyShelf,
   wearRack,
 } from "./pets-fixtures.ts";
-import {
-  animate,
-  bowl,
-  bubble,
-  crownProp,
-  cushion,
-  live,
-  nameChip,
-  sparkles,
-} from "./pets-parts.ts";
+import { animate, bowl, bubble, crownProp, cushion, live, nameChip, sparkles } from "./pets-parts.ts";
 
 // MARK: The contract (a local copy; the integrator unifies it)
 
@@ -82,7 +73,11 @@ const VARIANT_NAME: Record<string, string> = {
 const looks = (v: string) => VARIANT_NAME[v] ?? cap(v);
 
 /** A pet standing on a plinth-less spot, for the buy panel. */
-function petPreview(species: string, variant: string, opts: { wear?: number; crown?: boolean; pose?: "stand" | "sit" } = {}): Model {
+function petPreview(
+  species: string,
+  variant: string,
+  opts: { wear?: number; crown?: boolean; pose?: "stand" | "sit" } = {},
+): Model {
   const m = new Model();
   const p = petFrom2D(species, variant);
   p.wear = opts.wear ?? 0;
@@ -134,7 +129,12 @@ for (const p of CATALOG_PETS) {
       group: "Pets",
       preview: () => petPreview(p.species, ""),
     },
-    { species: p.species, variant: "", line: priced ? `${p.price}` : `Lv ${p.level}`, kind: priced ? "price" : "level" },
+    {
+      species: p.species,
+      variant: "",
+      line: priced ? `${p.price}` : `Lv ${p.level}`,
+      kind: priced ? "price" : "level",
+    },
     p.species === "orb" ? "Orb" : `${p.name}`,
   );
   if (p.species === "orb") continue;
@@ -177,7 +177,9 @@ ITEMS.push({
 
 const item = (id: string): ShopItem => ITEMS.find((i) => i.id === id)!;
 const entries = (prefix: string, exact = false): Entry[] =>
-  ITEMS.filter((i) => (exact ? i.id === prefix : i.id === prefix || i.id.startsWith(`${prefix}.`))).map((i) => ENTRY.get(i.id)!);
+  ITEMS.filter((i) => (exact ? i.id === prefix : i.id === prefix || i.id.startsWith(`${prefix}.`))).map((i) =>
+    ENTRY.get(i.id)!,
+  );
 
 // MARK: The keeper
 
@@ -217,7 +219,12 @@ function makeKeeper(): Avatar {
   const chip = nameChip("Wren", "Pet keeper");
   chip.position.set(0, avatar.height + 0.22, 0);
   avatar.root.add(chip);
-  const say = bubble(["Welcome in! Pet anyone you like.", "Every look comes with its pet.", "Ask me about the gear!", "Mind the dragons, they sneeze."]);
+  const say = bubble([
+    "Welcome in! Pet anyone you like.",
+    "Every look comes with its pet.",
+    "Ask me about the gear!",
+    "Mind the dragons, they sneeze.",
+  ]);
   say.position.set(0, avatar.height + 0.6, 0);
   avatar.root.add(say);
   let last = 0;
@@ -252,7 +259,12 @@ const gable = (m: Model, w: number, d: number, y: number, color: string, wall: s
   m.box([w + 0.36, 0.08, 0.14], tint(color, -0.25), [0, y + rise - 0.04, 0], 0.03);
   for (const s of [-1, 1])
     for (const f of [0.3, 0.55, 0.8]) {
-      const c = m.box([w + 0.3, 0.025, 0.04], tint(color, -0.18), [0, y + rise * (1 - f), s * half * f], 0.005);
+      const c = m.box(
+        [w + 0.3, 0.025, 0.04],
+        tint(color, -0.18),
+        [0, y + rise * (1 - f), s * half * f],
+        0.005,
+      );
       c.rotation.x = s * Math.atan(rise / half);
     }
   const end = new THREE.Shape();
@@ -302,8 +314,26 @@ function petsExterior(): Model {
   for (const x of [-w / 2, w / 2]) m.box([0.14, h - 0.2, 0.1], C.white, [x, 0.2, 0.0], 0.02);
   gable(m.part([0, 0, -d / 2]), w, d, h, "#c4544b", tint(wall, -0.04));
   // Two window cases, either side of the door, with live pets.
-  m.add(windowCase(-1.45, [["cat", "siamese", 0.8], ["dog", "corgi", 0.75]], 11));
-  m.add(windowCase(1.45, [["dog", "pug", 0.75], ["duck", "duckling", 0.9]], 21));
+  m.add(
+    windowCase(
+      -1.45,
+      [
+        ["cat", "siamese", 0.8],
+        ["dog", "corgi", 0.75],
+      ],
+      11,
+    ),
+  );
+  m.add(
+    windowCase(
+      1.45,
+      [
+        ["dog", "pug", 0.75],
+        ["duck", "duckling", 0.9],
+      ],
+      21,
+    ),
+  );
   // The door.
   const door = m.part([0, 0.2, 0.04]);
   door.box([1.0, 1.2, 0.08], C.white, [0, 0, 0], 0.03);
@@ -315,8 +345,10 @@ function petsExterior(): Model {
   // The striped awning.
   const awn = m.part([0, 1.5, 0.06]);
   awn.rotation.x = 0.5;
-  for (let i = 0; i < 10; i++) awn.box([0.52, 0.05, 0.62], i % 2 ? C.white : TEAL, [-2.34 + i * 0.52, 0, 0], 0.01);
-  for (let i = 0; i < 10; i++) awn.box([0.52, 0.12, 0.04], i % 2 ? C.white : TEAL, [-2.34 + i * 0.52, -0.05, 0.62], 0.01);
+  for (let i = 0; i < 10; i++)
+    awn.box([0.52, 0.05, 0.62], i % 2 ? C.white : TEAL, [-2.34 + i * 0.52, 0, 0], 0.01);
+  for (let i = 0; i < 10; i++)
+    awn.box([0.52, 0.12, 0.04], i % 2 ? C.white : TEAL, [-2.34 + i * 0.52, -0.05, 0.62], 0.01);
   // The sign.
   const sign = panel(
     3.4,
@@ -342,7 +374,15 @@ function petsExterior(): Model {
         g.fill();
         for (const dx of [-0.2, -0.07, 0.07, 0.2]) {
           g.beginPath();
-          g.ellipse(x + dx * ch, ch * (0.4 - (Math.abs(dx) < 0.1 ? 0.04 : 0)), ch * 0.045, ch * 0.065, 0, 0, Math.PI * 2);
+          g.ellipse(
+            x + dx * ch,
+            ch * (0.4 - (Math.abs(dx) < 0.1 ? 0.04 : 0)),
+            ch * 0.045,
+            ch * 0.065,
+            0,
+            0,
+            Math.PI * 2,
+          );
           g.fill();
         }
       }
@@ -356,7 +396,8 @@ function petsExterior(): Model {
   hang.box([0.04, 0.04, 0.5], C.woodDark, [0, 0.1, -0.2]);
   const swing = hang.part([0, 0, 0]);
   swing.box([0.5, 0.16, 0.05], "#f4ead2", [0, -0.35, 0], 0.02);
-  for (const sx of [-1, 1]) for (const sy of [0, 0.16]) swing.ball(0.07, "#f4ead2", [sx * 0.25, -0.35 + sy, 0], [1, 1, 0.5], 8);
+  for (const sx of [-1, 1])
+    for (const sy of [0, 0.16]) swing.ball(0.07, "#f4ead2", [sx * 0.25, -0.35 + sy, 0], [1, 1, 0.5], 8);
   ticks.push((time) => (swing.rotation.z = Math.sin(time * 1.5) * 0.08));
   // A kennel and a dog by the door, a planter each side.
   const kennel = m.part([-2.9, 0, 0.7], 0.3);
@@ -373,7 +414,14 @@ function petsExterior(): Model {
   m.add(pb);
   for (const x of [-1.15, 1.15]) {
     m.box([0.7, 0.3, 0.3], "#c4544b", [x, 0, 0.35], 0.04);
-    for (let i = 0; i < 4; i++) m.ball(0.11, ["#e0788f", "#f5d14a", "#fbf7ef", "#e0584f"][i]!, [x - 0.27 + i * 0.18, 0.4, 0.35], [1, 0.9, 1], 8);
+    for (let i = 0; i < 4; i++)
+      m.ball(
+        0.11,
+        ["#e0788f", "#f5d14a", "#fbf7ef", "#e0584f"][i]!,
+        [x - 0.27 + i * 0.18, 0.4, 0.35],
+        [1, 0.9, 1],
+        8,
+      );
   }
   // Lamps by the door.
   for (const x of [-0.85, 0.85]) {
@@ -420,23 +468,72 @@ function* interiorSlices(): Generator<void, Interior, void> {
   // The back wall: cats, dragons, gear.
   put("pets:cats", "Cat condo", 0, 0, 6, 1, (reg) => catCondo(entries("pet.2"), reg));
   put("pets:dragons", "Dragon terrariums", 6, 0, 7, 1, (reg) => terrariums(entries("pet.4"), reg));
-  put("pets:gear", "Pet gear rack", 13, 0, 5, 1, (reg) => wearRack(SHOP_PETWEAR.map((w) => ENTRY.get(w.id)!), reg));
+  put("pets:gear", "Pet gear rack", 13, 0, 5, 1, (reg) =>
+    wearRack(
+      SHOP_PETWEAR.map((w) => ENTRY.get(w.id)!),
+      reg,
+    ),
+  );
   // Pens: two for dogs, ducks with a pond, pandas among the bamboo.
   const dogs = entries("pet.3");
   put("pets:dogs-a", "Dog pen", 2, 2, 5, 3, (reg) =>
-    petPen({ w: 5, d: 3, entries: dogs.slice(0, 7), reg, title: "DOGS", sub: "14 breeds, one price", accent: "#4f8fe0", cols: 4, seed: 1 }),
+    petPen({
+      w: 5,
+      d: 3,
+      entries: dogs.slice(0, 7),
+      reg,
+      title: "DOGS",
+      sub: "14 breeds, one price",
+      accent: "#4f8fe0",
+      cols: 4,
+      seed: 1,
+    }),
   );
   yield;
   put("pets:dogs-b", "Dog pen", 7, 2, 5, 3, (reg) =>
-    petPen({ w: 5, d: 3, entries: dogs.slice(7), reg, title: "MORE DOGS", sub: "all with the Dog", accent: "#4f8fe0", cols: 4, seed: 2 }),
+    petPen({
+      w: 5,
+      d: 3,
+      entries: dogs.slice(7),
+      reg,
+      title: "MORE DOGS",
+      sub: "all with the Dog",
+      accent: "#4f8fe0",
+      cols: 4,
+      seed: 2,
+    }),
   );
   yield;
   put("pets:ducks", "Duck pen", 13, 2, 5, 3, (reg) =>
-    petPen({ w: 5, d: 3, entries: entries("pet.1"), reg, title: "DUCKS", sub: "7 looks, pond included", accent: "#e0a82e", cols: 4, seed: 3, pond: true, floor: ["#9bcf6a", "#7ab04a"] }),
+    petPen({
+      w: 5,
+      d: 3,
+      entries: entries("pet.1"),
+      reg,
+      title: "DUCKS",
+      sub: "7 looks, pond included",
+      accent: "#e0a82e",
+      cols: 4,
+      seed: 3,
+      pond: true,
+      floor: ["#9bcf6a", "#7ab04a"],
+    }),
   );
   yield;
   put("pets:pandas", "Panda pen", 13, 5, 5, 3, (reg) =>
-    petPen({ w: 5, d: 3, entries: entries("pet.5"), reg, title: "PANDAS", sub: "bamboo on the house", accent: "#58b36a", cols: 3, seed: 4, bamboo: true, floor: ["#a5d977", "#86c35e"] }),
+    petPen({
+      w: 5,
+      d: 3,
+      entries: entries("pet.5"),
+      reg,
+      title: "PANDAS",
+      sub: "bamboo on the house",
+      accent: "#58b36a",
+      cols: 3,
+      seed: 4,
+      bamboo: true,
+      floor: ["#a5d977", "#86c35e"],
+    }),
   );
   yield;
   put("pets:fish", "Goldfish tank", 0, 2, 4, 1, () => fishTank(), 1);

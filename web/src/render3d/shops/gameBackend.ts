@@ -190,7 +190,13 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
   }
 
   async function refresh(): Promise<void> {
-    const got = await Promise.allSettled([net.decorOwned(), net.deskOwned(), net.bag(), net.refreshWallet(), net.refreshMe()]);
+    const got = await Promise.allSettled([
+      net.decorOwned(),
+      net.deskOwned(),
+      net.bag(),
+      net.refreshWallet(),
+      net.refreshMe(),
+    ]);
     const [d, k, b] = got;
     if (d.status === "fulfilled") decorOwned = new Set(d.value);
     if (k.status === "fulfilled") desks = { owned: new Set(k.value.owned), using: k.value.using };
@@ -228,7 +234,8 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     const price = p.kind === "merch" ? merchPrice(item.id.split(".")[2] as MerchKind, employee) : listed;
     const company = me.company;
     if (p.kind === "piece") {
-      if (!company) return fail("company", "Join a company first: its furniture is paid from the company wallet.");
+      if (!company)
+        return fail("company", "Join a company first: its furniture is paid from the company wallet.");
       if (company.wallet < price) return fail("coins", "The company wallet can't cover that yet.");
     } else if (w.balance < price) {
       return fail("coins", `Not enough coins yet: you need 🪙 ${price - w.balance} more.`);
@@ -237,7 +244,14 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     // Optimistic: spend now, put it back if the server says no.
     const was = { wallet: w, me };
     if (p.kind === "piece") store.setMe({ ...me, company: { ...company!, wallet: company!.wallet - price } });
-    else store.setWallet({ ...w, balance: w.balance - price, owned: stackable(item.id) ? w.owned : [...w.owned, p.kind === "item" || p.kind === "merch" ? p.id : item.id] });
+    else
+      store.setWallet({
+        ...w,
+        balance: w.balance - price,
+        owned: stackable(item.id)
+          ? w.owned
+          : [...w.owned, p.kind === "item" || p.kind === "merch" ? p.id : item.id],
+      });
     try {
       switch (p.kind) {
         case "item":
@@ -270,10 +284,13 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     let used: Outcome = done();
     if (eq.kind === "decor") used = await applyDecorTo(eq.decor, eq.id);
     else if (eq.kind === "desk") used = await applyDeskTo(eq.id);
-    else if (eq.kind === "wear" || eq.kind === "pet" || eq.kind === "petwear") used = await commitLook(lookWith(look(), eq));
+    else if (eq.kind === "wear" || eq.kind === "pet" || eq.kind === "petwear")
+      used = await commitLook(lookWith(look(), eq));
     else if (isFurniture(item.id)) bag.set(item.id, (bag.get(item.id) ?? 0) + 1);
     changed();
-    return used.ok ? done(`Bought ${item.name} for 🪙 ${price}`) : done(`Bought ${item.name}, but ${used.message}`);
+    return used.ok
+      ? done(`Bought ${item.name} for 🪙 ${price}`)
+      : done(`Bought ${item.name}, but ${used.message}`);
   }
 
   async function equipItem(_shop: ShopId, item: ShopItem, on = true): Promise<Outcome> {
@@ -310,7 +327,9 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     buy,
     preview(_shop, item) {
       const eq = equip(item.id);
-      return eq.kind === "wear" || eq.kind === "restyle" || eq.kind === "pet" || eq.kind === "petwear" ? lookWith(look(), eq) : null;
+      return eq.kind === "wear" || eq.kind === "restyle" || eq.kind === "pet" || eq.kind === "petwear"
+        ? lookWith(look(), eq)
+        : null;
     },
     equip: equipItem,
     refresh,

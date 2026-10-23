@@ -213,7 +213,13 @@ export function tag(
 // MARK: Surfaces
 
 /** Straw, or any speckled floor, `w`×`d` tiles. */
-export function speckle(base: string, fleck: string, w: number, d: number, seed: number): THREE.CanvasTexture {
+export function speckle(
+  base: string,
+  fleck: string,
+  w: number,
+  d: number,
+  seed: number,
+): THREE.CanvasTexture {
   let s = seed;
   const rnd = () => {
     s = (s * 1664525 + 1013904223) >>> 0;
@@ -232,7 +238,14 @@ export function speckle(base: string, fleck: string, w: number, d: number, seed:
 }
 
 /** A low wooden fence round a `w`×`d` pen, centred on the origin. */
-export function fence(m: Model, w: number, d: number, color: string, h = 0.5, gap?: { x: number; w: number }): void {
+export function fence(
+  m: Model,
+  w: number,
+  d: number,
+  color: string,
+  h = 0.5,
+  gap?: { x: number; w: number },
+): void {
   const post = tint(color, -0.15);
   const run = (x0: number, z0: number, x1: number, z1: number) => {
     const len = Math.hypot(x1 - x0, z1 - z0);
@@ -364,8 +377,21 @@ export function crownProp(scale = 1): Model {
   m.cyl(0.17 * s, 0.015 * s, "#fff1a8", [0, 0.07 * s, 0], 0.17 * s, 18);
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
-    m.cyl(0.05 * s, 0.14 * s, "#ffe066", [Math.cos(a) * 0.14 * s, 0.07 * s, Math.sin(a) * 0.14 * s], 0.005, 4);
-    m.ball(0.022 * s, glow("#fff1a8"), [Math.cos(a) * 0.14 * s, 0.22 * s, Math.sin(a) * 0.14 * s], [1, 1, 1], 6);
+    m.cyl(
+      0.05 * s,
+      0.14 * s,
+      "#ffe066",
+      [Math.cos(a) * 0.14 * s, 0.07 * s, Math.sin(a) * 0.14 * s],
+      0.005,
+      4,
+    );
+    m.ball(
+      0.022 * s,
+      glow("#fff1a8"),
+      [Math.cos(a) * 0.14 * s, 0.22 * s, Math.sin(a) * 0.14 * s],
+      [1, 1, 1],
+      6,
+    );
   }
   m.ball(0.04 * s, glow("#e0405a"), [0, 0.035 * s, 0.18 * s], [1, 1, 0.6], 8);
   return m;
@@ -392,7 +418,11 @@ export function sparkles(m: Model, at: [number, number, number], r: number, n = 
   live(m, (t) =>
     stars.forEach((s, i) => {
       const a = t * 1.6 + (i * Math.PI * 2) / n;
-      s.position.set(at[0] + Math.cos(a) * r, at[1] + Math.sin(t * 2.6 + i * 2) * 0.07, at[2] + Math.sin(a) * r);
+      s.position.set(
+        at[0] + Math.cos(a) * r,
+        at[1] + Math.sin(t * 2.6 + i * 2) * 0.07,
+        at[2] + Math.sin(a) * r,
+      );
       s.scale.setScalar(0.6 + 0.6 * Math.abs(Math.sin(t * 3.3 + i * 1.7)));
     }),
   );

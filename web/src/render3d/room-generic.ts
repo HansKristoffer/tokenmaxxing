@@ -36,9 +36,11 @@ function heightOf(name: string, seat: string | undefined, portal: boolean): numb
   if (portal) return 2.1;
   if (seat === "bed") return 0.26;
   if (seat) return 0.3;
-  if (/shelf|case|rack|fridge|plant wall|machine|cabinet|terminal|board|window|screen|aquarium/.test(name)) return 1.7;
+  if (/shelf|case|rack|fridge|plant wall|machine|cabinet|terminal|board|window|screen|aquarium/.test(name))
+    return 1.7;
   if (/tree|statue|lamp|monstera|bonsai|gong|globe|chandelier/.test(name)) return 1.4;
-  if (/desk|table|counter|bar|rug|bench|stool|stage|chalk|coffee|barrel|taps?|tap$|tv/.test(name)) return 0.85;
+  if (/desk|table|counter|bar|rug|bench|stool|stage|chalk|coffee|barrel|taps?|tap$|tv/.test(name))
+    return 0.85;
   return 0.9;
 }
 
@@ -82,7 +84,8 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
           g.globalAlpha = 1;
         } else if (c === "." || c === '"') {
           g.fillStyle = "#86c76d";
-          for (let i = 0; i < 4; i++) g.fillRect(x * PX + Math.floor(rnd() * 10), y * PX + Math.floor(rnd() * 10), 1, 1);
+          for (let i = 0; i < 4; i++)
+            g.fillRect(x * PX + Math.floor(rnd() * 10), y * PX + Math.floor(rnd() * 10), 1, 1);
         } else if (c === "~") {
           g.fillStyle = "#8fd3f5";
           g.fillRect(x * PX + 2 + ((x + y) % 4), y * PX + 5, 4, 1);
@@ -90,7 +93,14 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
       }
   });
   const side = toon(tint(base === "." ? "#6fb35a" : C.floor, -0.4));
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [side, side, painted(tex), side, side, side]);
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [
+    side,
+    side,
+    painted(tex),
+    side,
+    side,
+    side,
+  ]);
   slab.position.set(W / 2, -0.175, D / 2);
   slab.receiveShadow = true;
   group.add(slab);
@@ -131,8 +141,10 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
           g.textAlign = "center";
           g.textBaseline = "middle";
           const words = name.split(" ");
-          const lines = words.length > 1 && name.length > 9 ? [words.slice(0, -1).join(" "), words.at(-1)!] : [name];
-          for (const [i, l] of lines.entries()) g.fillText(l.slice(0, 11), 64, 24 + (i - (lines.length - 1) / 2) * 20);
+          const lines =
+            words.length > 1 && name.length > 9 ? [words.slice(0, -1).join(" "), words.at(-1)!] : [name];
+          for (const [i, l] of lines.entries())
+            g.fillText(l.slice(0, 11), 64, 24 + (i - (lines.length - 1) / 2) * 20);
         },
         true,
       );
@@ -200,7 +212,8 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
 
   // Each wall group moves as one (it drops out of the camera's way), so what is inside it can be merged now.
   group.updateMatrixWorld(true);
-  for (const g of [...walls.map((w) => w.model), solid]) batchStatic(g, { chunk: 1e9, samples: 1, probe: () => {} });
+  for (const g of [...walls.map((w) => w.model), solid])
+    batchStatic(g, { chunk: 1e9, samples: 1, probe: () => {} });
 
   const bounds = { minX: 0, maxX: W, minZ: 0, maxZ: D, height: WALL_H };
   return {

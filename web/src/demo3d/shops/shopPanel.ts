@@ -198,7 +198,13 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     } else if (info.have && !info.again) {
       state.classList.add("good");
       state.textContent =
-        g.kind === "earned" ? `✓ Earned at level ${g.level}` : g.kind === "free" ? "✓ Free" : info.inUse ? "✓ Using it now" : "✓ Owned";
+        g.kind === "earned"
+          ? `✓ Earned at level ${g.level}`
+          : g.kind === "free"
+            ? "✓ Free"
+            : info.inUse
+              ? "✓ Using it now"
+              : "✓ Owned";
     } else if (g.kind === "price") {
       const whose = info.pays === "company" ? "company wallet" : "coins";
       const short = purse === null ? 0 : g.price - purse;
@@ -212,7 +218,8 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
       buy.className = "primary";
       buy.textContent = pending ? "Buying…" : `Buy · 🪙 ${g.price}`;
       buy.disabled = pending || purse === null || short > 0;
-      buy.onclick = () => void run(() => backend.buy(shop, item, g.price), `Bought ${item.name} for 🪙 ${g.price}`);
+      buy.onclick = () =>
+        void run(() => backend.buy(shop, item, g.price), `Bought ${item.name} for 🪙 ${g.price}`);
       actions.append(buy);
     }
     if (info.have) {

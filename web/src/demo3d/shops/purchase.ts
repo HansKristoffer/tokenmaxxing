@@ -120,7 +120,8 @@ export function equipOf(id: string, companies: readonly Co[] = []): Equip {
   }
   const d = decorOf(id);
   if (d) return { kind: "decor", decor: d.kind, id: d.d.id };
-  if (id.startsWith("desk.")) return DESKS.some((x) => `desk.${x.id}` === id) ? { kind: "desk", id: id.slice(5) } : { kind: "none" };
+  if (id.startsWith("desk."))
+    return DESKS.some((x) => `desk.${x.id}` === id) ? { kind: "desk", id: id.slice(5) } : { kind: "none" };
   const item = itemById(id);
   if (!item) return { kind: "none" };
   if (item.slot === "furniture") return { kind: "place", id };
@@ -135,7 +136,10 @@ export function lookWith(look: Look, eq: Equip, on = true): Look {
     case "restyle":
       return { ...look, [eq.slot]: eq.index };
     case "pet":
-      return { ...wearPet(look, eq.pet), petVariant: eq.variant || (look.pet === eq.pet ? look.petVariant : 0) };
+      return {
+        ...wearPet(look, eq.pet),
+        petVariant: eq.variant || (look.pet === eq.pet ? look.petVariant : 0),
+      };
     case "petwear":
       return { ...look, petwear: on ? eq.index : 0 };
     case "wear": {
@@ -169,15 +173,7 @@ export function wornIn(look: Look, id: string, companies: readonly Co[] = []): b
 // MARK: Failures
 
 export type FailReason =
-  | "coins"
-  | "level"
-  | "owned"
-  | "unowned"
-  | "company"
-  | "unavailable"
-  | "slow"
-  | "offline"
-  | "other";
+  "coins" | "level" | "owned" | "unowned" | "company" | "unavailable" | "slow" | "offline" | "other";
 
 export type Outcome = { ok: true; message?: string } | { ok: false; reason: FailReason; message: string };
 

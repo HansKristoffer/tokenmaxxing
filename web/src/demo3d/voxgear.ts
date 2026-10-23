@@ -28,7 +28,11 @@ const material = (p: Paint): THREE.Material => (typeof p === "string" ? toon(p) 
 type Cube = [number, number, number, number, number, number];
 /** Merged boxes: each is [centre x, y, z, width, height, depth]. */
 function boxes(list: Cube[]): THREE.BufferGeometry {
-  const parts = list.map(([x, y, z, w, h, d]) => new THREE.BoxGeometry(Math.max(w, 0.001), Math.max(h, 0.001), Math.max(d, 0.001)).translate(x, y, z).toNonIndexed());
+  const parts = list.map(([x, y, z, w, h, d]) =>
+    new THREE.BoxGeometry(Math.max(w, 0.001), Math.max(h, 0.001), Math.max(d, 0.001))
+      .translate(x, y, z)
+      .toNonIndexed(),
+  );
   const g = mergeGeometries(parts)!;
   for (const p of parts) p.dispose();
   return g;
@@ -47,7 +51,13 @@ export function place(m: THREE.Object3D, g: THREE.BufferGeometry, p: Paint, at: 
 
 /** Keeps a block square to the grid: whatever tilt it is given snaps to the nearest quarter turn. */
 function snapped(mesh: THREE.Mesh): void {
-  const e = mesh.rotation as unknown as { _onChangeCallback: () => void; _x: number; _y: number; _z: number; _onChange(cb: () => void): void };
+  const e = mesh.rotation as unknown as {
+    _onChangeCallback: () => void;
+    _x: number;
+    _y: number;
+    _z: number;
+    _onChange(cb: () => void): void;
+  };
   const keep = e._onChangeCallback;
   const q = Math.PI / 2;
   e._onChange(() => {
@@ -72,7 +82,13 @@ export class VoxModel extends Model {
   }
 
   /** A ball is a cube of the same width (a touch smaller, so it keeps the ball's mass). */
-  override ball(radius: number, paint: Paint, at: V3 = [0, 0, 0], scale: V3 = [1, 1, 1], _seg = 0): THREE.Mesh {
+  override ball(
+    radius: number,
+    paint: Paint,
+    at: V3 = [0, 0, 0],
+    scale: V3 = [1, 1, 1],
+    _seg = 0,
+  ): THREE.Mesh {
     const s = radius * 1.8;
     const g = cached(`vl${s}`, () => new THREE.BoxGeometry(s, s, s));
     const o = this.put(new THREE.Mesh(g, material(paint)), at);
@@ -81,7 +97,14 @@ export class VoxModel extends Model {
   }
 
   /** A cylinder is a square prism; a cone, a stack of narrowing blocks. */
-  override cyl(radius: number, h: number, paint: Paint, at: V3 = [0, 0, 0], top = radius, _seg = 0): THREE.Mesh {
+  override cyl(
+    radius: number,
+    h: number,
+    paint: Paint,
+    at: V3 = [0, 0, 0],
+    top = radius,
+    _seg = 0,
+  ): THREE.Mesh {
     const g = cached(`vc${radius},${h},${top}`, () => prismOrSteps(radius, top, h));
     return this.put(new THREE.Mesh(g, material(paint)), at);
   }
@@ -130,7 +153,14 @@ function prismOrSteps(radius: number, top: number, h: number): THREE.BufferGeome
 // MARK: Rings, domes, bands
 
 /** A square ring of blocks, flat (a halo, a brim) or standing up, `R` to its centre line. */
-export function boxRing(m: THREE.Object3D, p: Paint, R: number, tube: number, at: V3 = [0, 0, 0], flat = true): THREE.Mesh {
+export function boxRing(
+  m: THREE.Object3D,
+  p: Paint,
+  R: number,
+  tube: number,
+  at: V3 = [0, 0, 0],
+  flat = true,
+): THREE.Mesh {
   const t = Math.max(tube * 2, 0.022);
   const r = R * 0.95;
   const g = cached(`vring${r},${t},${flat}`, () => {
@@ -164,7 +194,15 @@ export function boxBand(m: THREE.Object3D, p: Paint, r: number, h: number, y: nu
 }
 
 /** A dome as stacked slabs, `cut` of a ball's height, narrowing upwards. A quadrant when `from`..`to` is given. */
-export function stepDome(m: THREE.Object3D, p: Paint, r: number, y: number, cut: number, from = 0, to = Math.PI * 2): THREE.Mesh {
+export function stepDome(
+  m: THREE.Object3D,
+  p: Paint,
+  r: number,
+  y: number,
+  cut: number,
+  from = 0,
+  to = Math.PI * 2,
+): THREE.Mesh {
   const n = cut >= 0.4 ? 3 : 2;
   const g = cached(`vdome${r},${cut},${from},${to}`, () => {
     const list: Cube[] = [];
@@ -195,7 +233,15 @@ export function squarePane(m: THREE.Object3D, r: number, p: Paint, at: V3): THRE
 // MARK: Shapes and pixels
 
 /** A flat shape (heart, star, wedge) rebuilt from cubes about `cell` wide, its depth along z. */
-export function voxShape(m: THREE.Object3D, key: string, shape: THREE.Shape, depth: number, p: Paint, at: V3, cell = 0.03): THREE.Mesh {
+export function voxShape(
+  m: THREE.Object3D,
+  key: string,
+  shape: THREE.Shape,
+  depth: number,
+  p: Paint,
+  at: V3,
+  cell = 0.03,
+): THREE.Mesh {
   const g = cached(`vshape${key}${cell}${depth}`, () => {
     const pts = shape.getPoints(24);
     const box = new THREE.Box2().setFromPoints(pts);
@@ -224,7 +270,14 @@ export function voxShape(m: THREE.Object3D, key: string, shape: THREE.Shape, dep
         if (on && run < 0) run = i;
         if (!on && run >= 0) {
           const w = ((i - run) * size.x) / nx;
-          list.push([box.min.x + (run * size.x) / nx + w / 2 - centre.x, box.min.y + (j + 0.5) * (size.y / ny) - centre.y, 0, w, size.y / ny, Math.max(depth, 0.02)]);
+          list.push([
+            box.min.x + (run * size.x) / nx + w / 2 - centre.x,
+            box.min.y + (j + 0.5) * (size.y / ny) - centre.y,
+            0,
+            w,
+            size.y / ny,
+            Math.max(depth, 0.02),
+          ]);
           run = -1;
         }
       }
@@ -244,7 +297,17 @@ const vertexLit = new THREE.MeshBasicMaterial({ vertexColors: true });
  */
 export function pixelPatch(
   m: THREE.Object3D,
-  o: { cols: number; rows: number; cell: number; depth: number; draw: (g: CanvasRenderingContext2D, w: number, h: number) => void; scale?: number; fill?: number; lit?: boolean; at: V3 },
+  o: {
+    cols: number;
+    rows: number;
+    cell: number;
+    depth: number;
+    draw: (g: CanvasRenderingContext2D, w: number, h: number) => void;
+    scale?: number;
+    fill?: number;
+    lit?: boolean;
+    at: V3;
+  },
 ): THREE.Mesh {
   const k = o.scale ?? 3;
   const cw = o.cols * k;
@@ -284,11 +347,16 @@ export function pixelPatch(
       if (run >= 0 && col !== cur) {
         const w = (i - run) * o.cell;
         const box = new THREE.BoxGeometry(w, o.cell, o.depth).toNonIndexed();
-        box.translate((run - o.cols / 2) * o.cell + w / 2, ((o.rows - 1 - j) - o.rows / 2) * o.cell + o.cell / 2, o.depth / 2);
+        box.translate(
+          (run - o.cols / 2) * o.cell + w / 2,
+          (o.rows - 1 - j - o.rows / 2) * o.cell + o.cell / 2,
+          o.depth / 2,
+        );
         const [r, gg, b] = cur!.split(",").map(Number);
         colour.setRGB(r! / 255, gg! / 255, b! / 255, THREE.SRGBColorSpace);
         const arr = new Float32Array(box.getAttribute("position").count * 3);
-        for (let q = 0; q < arr.length; q += 3) [arr[q], arr[q + 1], arr[q + 2]] = [colour.r, colour.g, colour.b];
+        for (let q = 0; q < arr.length; q += 3)
+          [arr[q], arr[q + 1], arr[q + 2]] = [colour.r, colour.g, colour.b];
         box.setAttribute("color", new THREE.BufferAttribute(arr, 3));
         parts.push(box);
         run = -1;

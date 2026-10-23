@@ -1,5 +1,12 @@
 import { PLAZA } from "@tokenmaxxing/core/maps.ts";
-import { CART_H, CART_SPOT, CART_W, lineup, cartOpen as merchantIn, weekOf } from "@tokenmaxxing/core/merchant.ts";
+import {
+  CART_H,
+  CART_SPOT,
+  CART_W,
+  lineup,
+  cartOpen as merchantIn,
+  weekOf,
+} from "@tokenmaxxing/core/merchant.ts";
 import { BASKET, BLANKETS } from "@tokenmaxxing/core/picnic.ts";
 import {
   CART,
@@ -128,7 +135,8 @@ export class TownEvents {
   private lineKey = "";
 
   // The fountain's coins: a few in the air at a time, and the ripple where one lands.
-  private readonly coins: { mesh: THREE.Mesh; from: [number, number]; to: [number, number]; at: number }[] = [];
+  private readonly coins: { mesh: THREE.Mesh; from: [number, number]; to: [number, number]; at: number }[] =
+    [];
   private readonly ripple: THREE.Mesh;
   private rippleAt = -10;
   private rippleWhere: [number, number] = [0, 0];
@@ -231,7 +239,10 @@ export class TownEvents {
       },
       false,
     );
-    this.line = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    this.line = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true }),
+    );
     this.line.rotation.x = -Math.PI / 2;
     this.line.position.y = 0.08;
     this.line.visible = false;
@@ -251,7 +262,13 @@ export class TownEvents {
     }
     this.ripple = new THREE.Mesh(
       new THREE.RingGeometry(0.2, 0.26, 20),
-      new THREE.MeshBasicMaterial({ color: "#e8f6ff", transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({
+        color: "#e8f6ff",
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
     );
     this.ripple.rotation.x = -Math.PI / 2;
     this.ripple.visible = false;
@@ -262,7 +279,15 @@ export class TownEvents {
 
   // MARK: Labels
 
-  private pill(key: string, cls: string, text: string, at: THREE.Vector3, camera: THREE.Camera, click?: () => void, style?: string): void {
+  private pill(
+    key: string,
+    cls: string,
+    text: string,
+    at: THREE.Vector3,
+    camera: THREE.Camera,
+    click?: () => void,
+    style?: string,
+  ): void {
     const overlay = this.overlay!;
     let p = this.pills.get(key);
     if (!p) {
@@ -329,7 +354,11 @@ export class TownEvents {
         this.rippleWhere = c.to;
         continue;
       }
-      c.mesh.position.set(c.from[0] + (c.to[0] - c.from[0]) * k, 1.1 + Math.sin(k * Math.PI) * 0.8 - k * 0.5, c.from[1] + (c.to[1] - c.from[1]) * k);
+      c.mesh.position.set(
+        c.from[0] + (c.to[0] - c.from[0]) * k,
+        1.1 + Math.sin(k * Math.PI) * 0.8 - k * 0.5,
+        c.from[1] + (c.to[1] - c.from[1]) * k,
+      );
       c.mesh.rotation.set(k * 14, 0, k * 6);
     }
     const r = (f.now - this.rippleAt) / 900;
@@ -429,7 +458,8 @@ export class TownEvents {
       cartRoot.rotation.y = 0;
       const flick = Math.floor(f.now / 260) % 5 !== 0;
       (this.cart.flame.material as THREE.MeshBasicMaterial).color.set(flick ? "#ffd04a" : "#ffe9a8");
-      (this.cart.halo.material as THREE.MeshBasicMaterial).opacity = (0.05 + lightsNow(f.now) * 0.1) * (flick ? 1 : 0.85);
+      (this.cart.halo.material as THREE.MeshBasicMaterial).opacity =
+        (0.05 + lightsNow(f.now) * 0.1) * (flick ? 1 : 0.85);
       // The merchant walks beside it, then stands by the back wheel and nods at the square now and then.
       const m = merchant.root;
       if (state === "here") {
@@ -549,11 +579,27 @@ export class TownEvents {
     }
     // The pølsevogn's sign over its two tiles.
     v3.set(this.polseAt[0], 1.75, this.polseAt[1]);
-    this.pill("polse", "r3-sign", polseSign(st.open), v3, f.camera, undefined, st.open ? "rgba(216, 52, 60, 0.95)" : "rgba(43, 36, 51, 0.7)");
+    this.pill(
+      "polse",
+      "r3-sign",
+      polseSign(st.open),
+      v3,
+      f.camera,
+      undefined,
+      st.open ? "rgba(216, 52, 60, 0.95)" : "rgba(43, 36, 51, 0.7)",
+    );
     // The snail: a sign on its shell and a silver trail behind it.
     const [sx, sz] = st.snail;
     v3.set(sx, 0.95, sz);
-    this.pill("snail", "r3-sign", snailSign(st.phase), v3, f.camera, undefined, st.phase === "deployed" ? "rgba(88, 179, 106, 0.95)" : "rgba(212, 156, 103, 0.95)");
+    this.pill(
+      "snail",
+      "r3-sign",
+      snailSign(st.phase),
+      v3,
+      f.camera,
+      undefined,
+      st.phase === "deployed" ? "rgba(88, 179, 106, 0.95)" : "rgba(212, 156, 103, 0.95)",
+    );
     const long = sx - st.trailFrom;
     this.trail.visible = long > 0.05;
     if (this.trail.visible) {
@@ -593,7 +639,10 @@ export class TownEvents {
       this.line.position.set(x0, 0.08, (z0 + z1) / 2);
       this.line.scale.set(0.4, z1 - z0, 1);
       this.line.rotation.z = 0;
-      (this.line.material as THREE.MeshBasicMaterial).map!.repeat.set(1, Math.max(2, Math.round((z1 - z0) / 0.2) / 12));
+      (this.line.material as THREE.MeshBasicMaterial).map!.repeat.set(
+        1,
+        Math.max(2, Math.round((z1 - z0) / 0.2) / 12),
+      );
     }
     this.line.visible = true;
   }

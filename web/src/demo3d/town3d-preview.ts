@@ -67,7 +67,7 @@ if (view === "town") {
   }
 } else if (view === "hq") {
   const fleet = Number(q.get("fleet") ?? 2);
-    const placed = [
+  const placed = [
     { ch: "κ", x: 13, y: 2 },
     { ch: "ξ", x: 15, y: 4 },
     { ch: "Ξ", x: 20, y: 1 },
@@ -108,7 +108,10 @@ if (view === "town") {
     holder.position.set((i % cols) * gap, 0, Math.floor(i / cols) * gap);
     holder.rotation.y = Math.PI / 5;
     scene.add(holder);
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(gap - 1, 0.1, gap - 1), new THREE.MeshToonMaterial({ color: "#2a2f3e" }));
+    const plate = new THREE.Mesh(
+      new THREE.BoxGeometry(gap - 1, 0.1, gap - 1),
+      new THREE.MeshToonMaterial({ color: "#2a2f3e" }),
+    );
     plate.position.set(holder.position.x, -0.06, holder.position.z);
     scene.add(plate);
   });
@@ -164,7 +167,10 @@ window.addEventListener("pointermove", (e) => {
   const fwd = new THREE.Vector3(-Math.sin(azimuth), 0, -Math.cos(azimuth));
   target.addScaledVector(right, -dx).addScaledVector(fwd, dy);
 });
-window.addEventListener("wheel", (e) => (zoom = Math.max(0.15, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9)))));
+window.addEventListener(
+  "wheel",
+  (e) => (zoom = Math.max(0.15, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9)))),
+);
 window.addEventListener("keydown", (e) => {
   if (e.key === "q") azimuth -= Math.PI / 2;
   if (e.key === "e") azimuth += Math.PI / 2;

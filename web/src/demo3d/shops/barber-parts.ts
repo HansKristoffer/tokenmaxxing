@@ -54,7 +54,10 @@ ticks.push((t) => {
 });
 
 /** A head on a little wooden stand, like a wig or a window dummy. `scale` grows the head, not the stand. */
-export function headOnStand(look: Look2D, opts: { voxelStyle?: number; scale?: number; live?: boolean } = {}): Model {
+export function headOnStand(
+  look: Look2D,
+  opts: { voxelStyle?: number; scale?: number; live?: boolean } = {},
+): Model {
   const m = new Model();
   const { head, avatar } = bareHead(look, opts.voxelStyle);
   const s = opts.scale ?? 1.1;
@@ -111,7 +114,13 @@ function wrap(text: string, max: number): string[] {
  * A slim price card: the name (wrapped) and the price (a coin and the number, or `Free`) on cream, under a
  * stripe in the rarity's colour. `h` is the card; it has only a thin frame, so it hides little behind it.
  */
-export function priceCard(row: Pick<BarberRow, "name" | "price" | "level" | "rarity">, w = 0.86, h = 0.34, label?: string, font = 9): Model {
+export function priceCard(
+  row: Pick<BarberRow, "name" | "price" | "level" | "rarity">,
+  w = 0.86,
+  h = 0.34,
+  label?: string,
+  font = 9,
+): Model {
   const px = 100;
   const rowH = font + 1;
   const m = new Model();
@@ -151,7 +160,14 @@ export function priceCard(row: Pick<BarberRow, "name" | "price" | "level" | "rar
 }
 
 /** A card lying back on a ledge, so it can be read from above without hiding what stands behind it. */
-export function leanCard(m: Model, row: Pick<BarberRow, "name" | "price" | "level" | "rarity">, at: [number, number, number], w?: number, h?: number, label?: string): void {
+export function leanCard(
+  m: Model,
+  row: Pick<BarberRow, "name" | "price" | "level" | "rarity">,
+  at: [number, number, number],
+  w?: number,
+  h?: number,
+  label?: string,
+): void {
   const c = priceCard(row, w, h, label);
   c.position.set(...at);
   c.rotation.x = -1.2;
@@ -159,7 +175,13 @@ export function leanCard(m: Model, row: Pick<BarberRow, "name" | "price" | "leve
 }
 
 /** A card hung on the front lip of a shelf, upright, so nothing stands in front of it. */
-export function lipCard(m: Model, row: Pick<BarberRow, "name" | "price" | "level" | "rarity">, at: [number, number, number], w = 0.9, h = 0.3): void {
+export function lipCard(
+  m: Model,
+  row: Pick<BarberRow, "name" | "price" | "level" | "rarity">,
+  at: [number, number, number],
+  w = 0.9,
+  h = 0.3,
+): void {
   const c = priceCard(row, w, h, undefined, 8);
   c.position.set(...at);
   m.add(c);
@@ -168,7 +190,12 @@ export function lipCard(m: Model, row: Pick<BarberRow, "name" | "price" | "level
 // MARK: Shelves
 
 /** A wall unit: back board, sides, `tiers` boards at the given heights and a cabinet underneath. */
-export function shelfUnit(w: number, depth: number, tierY: number[], opts: { cabinet?: number; wood?: string; top?: number; back?: string } = {}): Model {
+export function shelfUnit(
+  w: number,
+  depth: number,
+  tierY: number[],
+  opts: { cabinet?: number; wood?: string; top?: number; back?: string } = {},
+): Model {
   const m = new Model();
   const wood = opts.wood ?? C.woodLight;
   const dark = tint(wood, -0.25);
@@ -290,7 +317,8 @@ export function mirror(w: number, h: number, bulbs = true): Model {
 /** A jar of blue disinfectant with combs standing in it (the barbicide). */
 function combJar(m: Model, at: [number, number, number]): void {
   m.cyl(0.07, 0.2, glass("#7ec8ee", 0.7), at, 0.07, 12);
-  for (const i of [-1, 0, 1]) m.box([0.012, 0.22, 0.05], i % 2 ? "#2b2433" : "#e25d5d", [at[0] + i * 0.03, at[1] + 0.02, at[2]], 0.003);
+  for (const i of [-1, 0, 1])
+    m.box([0.012, 0.22, 0.05], i % 2 ? "#2b2433" : "#e25d5d", [at[0] + i * 0.03, at[1] + 0.02, at[2]], 0.003);
   m.cyl(0.075, 0.025, "#2e5fa8", [at[0], at[1] + 0.2, at[2]], 0.075, 12);
 }
 
@@ -299,7 +327,8 @@ function scissors(m: Model, at: [number, number, number], rot = 0): void {
   s.rotation.y = rot;
   s.box([0.2, 0.012, 0.02], CHROME, [0, 0, 0], 0.003).rotation.y = 0.14;
   s.box([0.2, 0.012, 0.02], CHROME, [0, 0.002, 0], 0.003).rotation.y = -0.14;
-  for (const z of [-0.025, 0.025]) m.ball(0.02, "#e25d5d", [at[0] - 0.1, at[1] + 0.01, at[2] + z], [1, 0.4, 1], 8);
+  for (const z of [-0.025, 0.025])
+    m.ball(0.02, "#e25d5d", [at[0] - 0.1, at[1] + 0.01, at[2] + z], [1, 0.4, 1], 8);
 }
 
 function clippers(m: Model, at: [number, number, number], rot = 0): void {
@@ -308,7 +337,8 @@ function clippers(m: Model, at: [number, number, number], rot = 0): void {
   c.box([0.08, 0.015, 0.04], CHROME, [0, 0.02, 0.12], 0.004);
   c.box([0.02, 0.012, 0.02], "#6ad28a", [0, 0.05, -0.02], 0.004);
   // The cord.
-  for (let i = 0; i < 5; i++) c.ball(0.008, "#2b2433", [Math.sin(i * 1.2) * 0.05, 0.005, -0.12 - i * 0.05], [1, 1, 1], 4);
+  for (let i = 0; i < 5; i++)
+    c.ball(0.008, "#2b2433", [Math.sin(i * 1.2) * 0.05, 0.005, -0.12 - i * 0.05], [1, 1, 1], 4);
 }
 
 /**
@@ -330,7 +360,8 @@ export function station(seed: number): Model {
   // Spray bottle and a folded towel stack.
   m.cyl(0.04, 0.16, glass("#9ed9f0", 0.7), [0.62, 0.85, -0.35], 0.04, 10);
   m.box([0.03, 0.04, 0.04], "#e25d5d", [0.62, 1.0, -0.35], 0.01);
-  for (let i = 0; i < 3; i++) m.box([0.26, 0.05, 0.2], i % 2 ? CREAM : "#e8dcc4", [0.78, 0.85 + i * 0.05, -0.28], 0.015);
+  for (let i = 0; i < 3; i++)
+    m.box([0.26, 0.05, 0.2], i % 2 ? CREAM : "#e8dcc4", [0.78, 0.85 + i * 0.05, -0.28], 0.015);
   const mi = mirror(1.35, 0.95, true);
   mi.position.set(0, 1.12, -0.46);
   m.add(mi);
@@ -351,7 +382,8 @@ export function sinks(): Model {
     m.cyl(0.05, 0.16, glass(s > 0 ? "#f0a8c8" : "#9ed9f0", 0.8), [s * 0.8, 0.84, -0.46], 0.05, 10);
   }
   m.box([1.9, 0.05, 0.07], CHROME, [0, 1.5, -0.44], 0.01);
-  for (const [i, x] of [-0.6, -0.2, 0.25, 0.65].entries()) m.box([0.26, 0.5, 0.05], i % 2 ? CREAM : "#e8dcc4", [x, 1.0, -0.4], 0.02);
+  for (const [i, x] of [-0.6, -0.2, 0.25, 0.65].entries())
+    m.box([0.26, 0.5, 0.05], i % 2 ? CREAM : "#e8dcc4", [x, 1.0, -0.4], 0.02);
   m.box([1.9, 0.8, 0.04], "#dfe9ee", [0, 0.9, -0.48], 0.01).scale.y = 0.5;
   return m;
 }
@@ -363,7 +395,8 @@ export function towelWarmer(): Model {
   m.box([0.7, 0.8, 0.03], glass("#cfe8f4", 0.5), [0, 0.2, 0.06], 0.01);
   for (const y of [0.3, 0.5, 0.7, 0.9]) {
     m.box([0.62, 0.02, 0.4], CHROME_DARK, [0, y, -0.2], 0.005);
-    for (const x of [-0.2, 0, 0.2]) m.cyl(0.07, 0.14, CREAM, [x, y + 0.02, -0.2], 0.07, 10).rotation.x = Math.PI / 2;
+    for (const x of [-0.2, 0, 0.2])
+      m.cyl(0.07, 0.14, CREAM, [x, y + 0.02, -0.2], 0.07, 10).rotation.x = Math.PI / 2;
   }
   m.box([0.5, 0.12, 0.04], "#2b2433", [0, 1.18, 0.0], 0.01);
   m.box([0.8, 0.05, 0.56], "#5b3a24", [0, 1.15, -0.2], 0.02);
@@ -383,7 +416,12 @@ export function towelWarmer(): Model {
 // MARK: People
 
 /** In-scene text over a head: a name chip or a speech bubble that always faces the camera. */
-export function billboardText(draw: (g: CanvasRenderingContext2D, w: number, h: number) => void, w: number, h: number, px = 64): { mesh: THREE.Mesh; redraw: () => void } {
+export function billboardText(
+  draw: (g: CanvasRenderingContext2D, w: number, h: number) => void,
+  w: number,
+  h: number,
+  px = 64,
+): { mesh: THREE.Mesh; redraw: () => void } {
   const cw = Math.round(w * px);
   const ch = Math.round(h * px);
   const tex = canvasTexture(cw, ch, (g) => draw(g, cw, ch), true);
@@ -464,7 +502,8 @@ export function chatter(a: Avatar, lines: string[], lift = 0.62): void {
         } else cur = cur ? `${cur} ${wd}` : wd;
       }
       rows.push(cur);
-      for (const [k, r] of rows.entries()) g.fillText(r, w / 2, (h - 14) / 2 + (k - (rows.length - 1) / 2) * 17);
+      for (const [k, r] of rows.entries())
+        g.fillText(r, w / 2, (h - 14) / 2 + (k - (rows.length - 1) / 2) * 17);
     },
     1.5,
     0.62,
@@ -490,7 +529,9 @@ export function chatter(a: Avatar, lines: string[], lift = 0.62): void {
 function barberApron(a: Avatar, stripe: boolean): void {
   const b = a.body;
   b.box([0.27, 0.34, 0.025], stripe ? "#fbf7ef" : "#2b2433", [0, 0.42, 0.1], 0.008);
-  if (stripe) for (let i = -2; i <= 2; i++) b.box([0.034, 0.34, 0.03], i % 2 ? RED : "#fbf7ef", [i * 0.052, 0.42, 0.1], 0.004);
+  if (stripe)
+    for (let i = -2; i <= 2; i++)
+      b.box([0.034, 0.34, 0.03], i % 2 ? RED : "#fbf7ef", [i * 0.052, 0.42, 0.1], 0.004);
   b.box([0.04, 0.03, 0.02], "#2b2433", [0, 0.72, 0.1], 0.004);
   b.box([0.05, 0.036, 0.02], RED, [-0.045, 0.72, 0.105], 0.006);
   b.box([0.05, 0.036, 0.02], RED, [0.045, 0.72, 0.105], 0.006);
@@ -559,7 +600,15 @@ export interface Sitter {
 }
 
 /** A customer under a cape, in the chair; head turns a little, clippings fall. */
-export function makeCustomer(skin: string, hair: string, style: number, cape1: string, trim: string, beard = 0, seed = 0): Sitter {
+export function makeCustomer(
+  skin: string,
+  hair: string,
+  style: number,
+  cape1: string,
+  trim: string,
+  beard = 0,
+  seed = 0,
+): Sitter {
   const look: Look = personLook({
     skin,
     hair,
@@ -585,7 +634,11 @@ export function makeCustomer(skin: string, hair: string, style: number, cape1: s
       a.head.rotation.x = 0.12 + Math.sin(t * 0.9 + seed) * 0.04;
       bits.forEach((p, i) => {
         const f = (t * 0.5 + phase[i]!) % 1;
-        p.position.set(Math.sin(phase[i]! * 40) * 0.12, 0.62 - f * 0.55, 0.05 + Math.cos(phase[i]! * 30) * 0.1);
+        p.position.set(
+          Math.sin(phase[i]! * 40) * 0.12,
+          0.62 - f * 0.55,
+          0.05 + Math.cos(phase[i]! * 30) * 0.1,
+        );
         p.visible = f < 0.9;
       });
     },
@@ -644,7 +697,12 @@ export function clippings(m: Model, colours: string[], at: [number, number], see
   for (let i = 0; i < 16; i++) {
     const a = rnd() * Math.PI * 2;
     const r = 0.1 + rnd() * 0.45;
-    const b = m.box([0.05 + rnd() * 0.04, 0.008, 0.02], colours[i % colours.length]!, [at[0] + Math.cos(a) * r, 0.003, at[1] + Math.sin(a) * r], 0.002);
+    const b = m.box(
+      [0.05 + rnd() * 0.04, 0.008, 0.02],
+      colours[i % colours.length]!,
+      [at[0] + Math.cos(a) * r, 0.003, at[1] + Math.sin(a) * r],
+      0.002,
+    );
     b.rotation.y = rnd() * Math.PI;
     b.castShadow = false;
   }

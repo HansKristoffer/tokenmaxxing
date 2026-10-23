@@ -70,7 +70,7 @@ export const aarhusDay = (at: Date): number =>
   Math.round(Date.parse(`${AARHUS.format(at)}T00:00:00Z`) / 86_400_000);
 
 /** The special on Aarhus's date at `at`. */
-export const specialOn = (at: Date): string => SPECIALS[((aarhusDay(at) * STRIDE) % SPECIALS.length)]!;
+export const specialOn = (at: Date): string => SPECIALS[(aarhusDay(at) * STRIDE) % SPECIALS.length]!;
 
 export const TUNES = [
   { id: "polka", name: "Merge Conflict Polka", emoji: "🪗" },

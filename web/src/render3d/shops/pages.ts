@@ -8,7 +8,12 @@ import type { ShopId } from "../../demo3d/shops/index.ts";
 import { purchaseOf } from "../../demo3d/shops/purchase.ts";
 import { hud, type Panel } from "../../store.ts";
 
-const TAB: Record<ShopId, Item["slot"]> = { clothes: "outfit", barber: "glasses", pets: "pet", furniture: "furniture" };
+const TAB: Record<ShopId, Item["slot"]> = {
+  clothes: "outfit",
+  barber: "glasses",
+  pets: "pet",
+  furniture: "furniture",
+};
 
 /** The page a shop's counter opens in 2D: the Shop page on the tab that shop sells. */
 export const pageForShop = (shop: ShopId): Panel => ({ kind: "shop", tab: TAB[shop] });

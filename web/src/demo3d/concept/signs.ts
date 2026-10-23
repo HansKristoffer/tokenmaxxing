@@ -52,7 +52,12 @@ export function sign(text: string, w: number, h: number, o: SignOpts): Panel {
       const sz = Math.min(cw * 0.62, (ch * 0.86) / chars.length);
       g.font = `900 ${sz}px Impact, 'Arial Black', system-ui, sans-serif`;
       chars.forEach((c, k) => {
-        const yy = ch * 0.07 + sz * 0.5 + (k * (ch * 0.86)) / chars.length + ((ch * 0.86) / chars.length - sz) / 2 + sz * 0.1;
+        const yy =
+          ch * 0.07 +
+          sz * 0.5 +
+          (k * (ch * 0.86)) / chars.length +
+          ((ch * 0.86) / chars.length - sz) / 2 +
+          sz * 0.1;
         if (neon) {
           g.shadowColor = o.fg;
           g.shadowBlur = cw * 0.14;
@@ -90,7 +95,15 @@ export function sign(text: string, w: number, h: number, o: SignOpts): Panel {
 }
 
 /** Place a model on a wall: `nx, nz` the outward normal; the model's +z faces out. */
-export function onWall(parent: THREE.Object3D, m: THREE.Object3D, x: number, y: number, z: number, nx: number, nz: number): void {
+export function onWall(
+  parent: THREE.Object3D,
+  m: THREE.Object3D,
+  x: number,
+  y: number,
+  z: number,
+  nx: number,
+  nz: number,
+): void {
   m.position.set(x, y, z);
   m.rotation.y = Math.atan2(nx, nz);
   parent.add(m);
@@ -104,7 +117,12 @@ export function pixels(rows: string[], cell: number, colours: Record<string, str
     for (let cx = 0; cx < row.length; cx++) {
       const c = colours[row[cx]!];
       if (!c) continue;
-      m.box([cell, cell, 0.12], lit ? glow(c) : c, [(cx - row.length / 2 + 0.5) * cell, (h - 1 - ry) * cell, 0], 0);
+      m.box(
+        [cell, cell, 0.12],
+        lit ? glow(c) : c,
+        [(cx - row.length / 2 + 0.5) * cell, (h - 1 - ry) * cell, 0],
+        0,
+      );
     }
   });
   return m;

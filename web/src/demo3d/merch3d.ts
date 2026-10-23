@@ -107,7 +107,12 @@ export function merchProp(c: MerchCompany, kind: MerchKind): Model {
       // Laid flat: a body, two sleeves, a collar.
       out.box([0.34, 0.42, 0.06], m.main, [0, 0, 0], 0.03);
       for (const s of [-1, 1]) {
-        const sleeve = out.box([0.2, hood ? 0.38 : 0.16, 0.055], m.main, [s * 0.25, hood ? 0.04 : 0.26, 0], 0.025);
+        const sleeve = out.box(
+          [0.2, hood ? 0.38 : 0.16, 0.055],
+          m.main,
+          [s * 0.25, hood ? 0.04 : 0.26, 0],
+          0.025,
+        );
         sleeve.rotation.z = s * -0.5;
         out.box([0.2, 0.03, 0.06], m.shade, [s * 0.3, hood ? 0.0 : 0.22, 0], 0.01).rotation.z = s * -0.5;
       }
@@ -132,7 +137,10 @@ export function merchProp(c: MerchCompany, kind: MerchKind): Model {
     case "mug": {
       out.cyl(0.11, 0.24, m.main, [0, 0, 0], 0.1, 16);
       out.cyl(0.1, 0.012, m.glow, [0, 0.235, 0], 0.1, 16);
-      const handle = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.016, 6, 12), new THREE.MeshToonMaterial({ color: m.shade }));
+      const handle = new THREE.Mesh(
+        new THREE.TorusGeometry(0.06, 0.016, 6, 12),
+        new THREE.MeshToonMaterial({ color: m.shade }),
+      );
       handle.position.set(0.12, 0.12, 0);
       handle.castShadow = true;
       out.add(handle);

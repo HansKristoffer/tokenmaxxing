@@ -181,7 +181,14 @@ export const MERCH_COMPANIES = [
 
 // MARK: The list
 
-const GROUP: Record<string, string> = { outfit: "Outfits", hat: "Hats", glasses: "Face", held: "Held", back: "Back", merch: "Merch" };
+const GROUP: Record<string, string> = {
+  outfit: "Outfits",
+  hat: "Hats",
+  glasses: "Face",
+  held: "Held",
+  back: "Back",
+  merch: "Merch",
+};
 
 function fromRow(r: ClothesRow): ShopItem {
   metaOf.set(r.id, { slot: r.slot, index: r.index, rarity: r.rarity, level: r.level, boss: r.boss });
@@ -224,12 +231,25 @@ function merchItems(): ShopItem[] {
     const c = MERCH_COMPANIES[i % MERCH_COMPANIES.length]!;
     const id = `merch.${c.id}.${p.kind}`;
     metaOf.set(id, { slot: "merch", index: p.bit, rarity: "common" });
-    return { id, name: `${c.name} ${p.name.toLowerCase()}`, price: p.price, group: "Merch", preview: () => merchProp(c, p.kind) };
+    return {
+      id,
+      name: `${c.name} ${p.name.toLowerCase()}`,
+      price: p.price,
+      group: "Merch",
+      preview: () => merchProp(c, p.kind),
+    };
   });
 }
 
 /** Outfits in id order (the free tees, then the shop's), the rest by rarity then price. */
-export function buildClothesItems(): { outfits: ShopItem[]; hats: ShopItem[]; faces: ShopItem[]; held: ShopItem[]; backs: ShopItem[]; merch: ShopItem[] } {
+export function buildClothesItems(): {
+  outfits: ShopItem[];
+  hats: ShopItem[];
+  faces: ShopItem[];
+  held: ShopItem[];
+  backs: ShopItem[];
+  merch: ShopItem[];
+} {
   metaOf.clear();
   const outfits = [...freeOutfits(), ...rows("outfit").map(fromRow)];
   return {
@@ -257,7 +277,8 @@ export function tryOnLook2D(item: Pick<ShopItem, "id">, look: Look2D): Look2D {
     const same = look.merch === Number(merch[1]);
     // A hoodie goes over a tee: wearing one clears the other.
     const bits = same ? (look.merchWorn ?? 0) : 0;
-    const next = piece.kind === "hoodie" ? (bits & ~1) | 2 : piece.kind === "tee" ? (bits & ~2) | 1 : bits | piece.bit;
+    const next =
+      piece.kind === "hoodie" ? (bits & ~1) | 2 : piece.kind === "tee" ? (bits & ~2) | 1 : bits | piece.bit;
     return { ...look, merch: Number(merch[1]), merchWorn: next };
   }
   return { ...look };

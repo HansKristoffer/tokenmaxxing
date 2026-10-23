@@ -1,5 +1,14 @@
 import { expect, test } from "bun:test";
-import { angleDelta, approach, hopHeight, isMoving, keyDirection, poseOf, turnToward, YAW } from "../src/render3d/motion.ts";
+import {
+  angleDelta,
+  approach,
+  hopHeight,
+  isMoving,
+  keyDirection,
+  poseOf,
+  turnToward,
+  YAW,
+} from "../src/render3d/motion.ts";
 
 test("turning takes the short way round", () => {
   expect(angleDelta(0, Math.PI / 2)).toBeCloseTo(Math.PI / 2);
@@ -19,8 +28,11 @@ test("easing never overshoots and doesn't depend on the frame rate", () => {
 });
 
 test("poses follow the 2D game's states", () => {
-  const p = (state: "idle" | "sit" | "away" | "working" | "playing", seat: string | undefined, walking = false) =>
-    poseOf({ state, dozing: false }, seat, walking);
+  const p = (
+    state: "idle" | "sit" | "away" | "working" | "playing",
+    seat: string | undefined,
+    walking = false,
+  ) => poseOf({ state, dozing: false }, seat, walking);
   expect(p("idle", undefined).pose).toBe("stand");
   expect(p("idle", undefined, true).pose).toBe("walk");
   expect(p("sit", "bench").pose).toBe("sit");

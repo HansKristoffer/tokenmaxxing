@@ -645,7 +645,9 @@ export const world = actor({
       const owner = typeof targetId === "number" ? c.state.players[targetId] : undefined;
       if (!p) return null;
       if (!owner || !hasOffice(owner))
-        return { notice: owner?.id === p.id ? "You don't have an office yet." : "They don't have an office yet." };
+        return {
+          notice: owner?.id === p.id ? "You don't have an office yet." : "They don't have an office yet.",
+        };
       if (owner.id !== p.id && !officeOf(c.state, owner.id).open)
         return { notice: `🔒 ${owner.name}'s office is closed.` };
       touch(c, p, Date.now());
@@ -933,7 +935,8 @@ export const world = actor({
       requireInternal(c.conn.state);
       const p = c.state.players[by];
       const full = { notice: "There's no room on the floor here." };
-      if (p && shopOfRoom(p.room)) return { notice: "The shopkeeper shakes her head: not on the shop floor." };
+      if (p && shopOfRoom(p.room))
+        return { notice: "The shopkeeper shakes her head: not on the shop floor." };
       // Company furniture goes only in its own building, or its common room upstairs.
       if (co !== undefined && p?.room !== `hq:${co}` && p?.room !== commonRoom(co))
         return { notice: "Go into your building to put it out." };

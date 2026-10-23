@@ -4,16 +4,47 @@ import type { Me, Wallet } from "@tokenmaxxing/server/registry";
 import type { ShopItem } from "../src/demo3d/shops/index.ts";
 import { createGameBackend, type GameNet } from "../src/render3d/shops/gameBackend.ts";
 
-const LOOK: Look = { style: 0, skin: 0, hair: 0, outfit: 0, glasses: 0, hat: 0, pet: 0, held: 0, back: 0, petwear: 0, petVariant: 0, merch: 0, merchWorn: 0 };
-const wallet = (balance: number, owned: string[] = []): Wallet => ({ balance, today: 0, raids: 0, wins: [], owned, items: owned.length, quests: [], trading: false });
+const LOOK: Look = {
+  style: 0,
+  skin: 0,
+  hair: 0,
+  outfit: 0,
+  glasses: 0,
+  hat: 0,
+  pet: 0,
+  held: 0,
+  back: 0,
+  petwear: 0,
+  petVariant: 0,
+  merch: 0,
+  merchWorn: 0,
+};
+const wallet = (balance: number, owned: string[] = []): Wallet => ({
+  balance,
+  today: 0,
+  raids: 0,
+  wins: [],
+  owned,
+  items: owned.length,
+  quests: [],
+  trading: false,
+});
 const item = (id: string, price = 100): ShopItem => ({ id, name: id, price, preview: () => null as never });
 const err = (code: string, message: string) => Object.assign(new Error(message), { code });
 
-function setup(opts: { balance?: number; owned?: string[]; company?: { wallet: number } | null; level?: number } = {}) {
+function setup(
+  opts: { balance?: number; owned?: string[]; company?: { wallet: number } | null; level?: number } = {},
+) {
   let w = wallet(opts.balance ?? 500, opts.owned);
   // What the server holds; the store's copy moves ahead of it while a call is out.
   let server = w;
-  let me = { userId: 1, name: "me", look: LOOK, company: opts.company === undefined ? null : { id: 7, wallet: opts.company?.wallet ?? 0, stored: [] }, application: null } as unknown as Me;
+  let me = {
+    userId: 1,
+    name: "me",
+    look: LOOK,
+    company: opts.company === undefined ? null : { id: 7, wallet: opts.company?.wallet ?? 0, stored: [] },
+    application: null,
+  } as unknown as Me;
   const calls: string[] = [];
   const preview: (Look | null)[] = [];
   const decor: unknown[] = [];
@@ -86,9 +117,17 @@ function setup(opts: { balance?: number; owned?: string[]; company?: { wallet: n
       subscribe: () => () => {},
     },
   });
-  return { b, calls, preview, decor, wallet: () => w, me: () => me, reject: (e: Error | null) => {
+  return {
+    b,
+    calls,
+    preview,
+    decor,
+    wallet: () => w,
+    me: () => me,
+    reject: (e: Error | null) => {
       reject = e;
-    } };
+    },
+  };
 }
 
 test("buying spends coins, owns it and puts it on", async () => {
@@ -118,9 +157,15 @@ test("short of coins, owned, locked and companyless never reach the server", asy
   expect(await has.b.buy("clothes", item("outfit.12", 0), 0)).toMatchObject({ ok: false, reason: "level" });
   expect(await has.b.buy("pets", item("pet.2.black", 0), 0)).toMatchObject({ ok: false, reason: "owned" });
   const solo = setup();
-  expect(await solo.b.buy("furniture", item("furn.ε", 35), 35)).toMatchObject({ ok: false, reason: "company" });
+  expect(await solo.b.buy("furniture", item("furn.ε", 35), 35)).toMatchObject({
+    ok: false,
+    reason: "company",
+  });
   const broke = setup({ company: { wallet: 10 } });
-  expect(await broke.b.buy("furniture", item("furn.ε", 35), 35)).toMatchObject({ ok: false, reason: "coins" });
+  expect(await broke.b.buy("furniture", item("furn.ε", 35), 35)).toMatchObject({
+    ok: false,
+    reason: "coins",
+  });
   for (const t of [poor, has, solo, broke]) expect(t.calls).toEqual([]);
 });
 

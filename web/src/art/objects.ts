@@ -12,7 +12,18 @@ import { trophyAt } from "./loot.ts";
 import { C } from "./palette.ts";
 import { bake, cached, once, type Pen } from "./pixels.ts";
 import { coatStand, fixture, shopCounter, shopDisplay, storefront } from "./shops.ts";
-import { bar, barJar, barrel, hallWall, hearth, jukebox, plaque, questBoard, stool, table } from "./tavern.ts";
+import {
+  bar,
+  barJar,
+  barrel,
+  hallWall,
+  hearth,
+  jukebox,
+  plaque,
+  questBoard,
+  stool,
+  table,
+} from "./tavern.ts";
 
 /** A baked sprite and where it sits relative to its tile's top-left corner. */
 interface Placed {

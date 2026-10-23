@@ -63,7 +63,10 @@ export class Governor {
 
   /** Percentile of the recent frame gaps (ms). */
   p(p: number): number {
-    return percentile([...this.times].sort((a, b) => a - b), p);
+    return percentile(
+      [...this.times].sort((a, b) => a - b),
+      p,
+    );
   }
 
   /** One drawn frame: `dt` ms since the last, against `target` ms (the fps cap). Returns a change to make, if any. */

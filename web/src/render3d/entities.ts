@@ -12,14 +12,22 @@ import { type Pet3D, petFrom2D } from "../demo3d/pets3d.ts";
 import { BURST_MS } from "../game/emoji.ts";
 import { followPet, prunePets } from "../game/pets.ts";
 import { type Lap, racing } from "../game/race.ts";
-import { drawPos, type Avatar as GameAvatar, gamesOf, gameTag, stepping, WARP_MS, world } from "../game/world.ts";
+import {
+  drawPos,
+  type Avatar as GameAvatar,
+  gamesOf,
+  gameTag,
+  stepping,
+  WARP_MS,
+  world,
+} from "../game/world.ts";
 import { town } from "../net.ts";
 import { hud } from "../store.ts";
 import { CopGear } from "./cop3d.ts";
+import { declutterTags } from "./declutter.ts";
 import { disposeObject } from "./dispose.ts";
 import { STOOL_Y, seatPose } from "./gamefx.ts";
 import { approach, hopHeight, poseOf, turnToward, YAW } from "./motion.ts";
-import { declutterTags } from "./declutter.ts";
 import { Burst, type Overlay } from "./overlay.ts";
 import type { RoomView } from "./rooms.ts";
 import { CopWatch, ShowcaseCache } from "./world-logic.ts";
@@ -53,7 +61,16 @@ interface Rig {
   cop: { gear: CopGear; watch: CopWatch } | null;
   /** Where a Sprint Race has them (laps of the square) this frame, when it has. */
   lap: Lap | null;
-  pet: { model: Pet3D; root: THREE.Group; sig: string; x: number; z: number; yaw: number; moving: boolean; placed: boolean } | null;
+  pet: {
+    model: Pet3D;
+    root: THREE.Group;
+    sig: string;
+    x: number;
+    z: number;
+    yaw: number;
+    moving: boolean;
+    placed: boolean;
+  } | null;
   // Labels
   stack: HTMLDivElement;
   tag: HTMLElement | null;
@@ -76,7 +93,8 @@ interface Rig {
   burst: Burst | null;
 }
 
-const lookSig = (info: GameAvatar["info"], look: GameAvatar["info"]["look"] = info.look): string => `${JSON.stringify(look)}|${info.level >= LEGENDARY_LEVEL}|${info.id === COP_ID}`;
+const lookSig = (info: GameAvatar["info"], look: GameAvatar["info"]["look"] = info.look): string =>
+  `${JSON.stringify(look)}|${info.level >= LEGENDARY_LEVEL}|${info.id === COP_ID}`;
 
 /** Everyone in the room: their voxel bodies, pets and the labels over them, keyed by player id. */
 export class Entities {
@@ -100,7 +118,9 @@ export class Entities {
   private readonly v = new THREE.Vector3();
   private readonly ray = new THREE.Raycaster();
   /** Showcase pins of those near me, for the chips on their name tags (asked a few at a time). */
-  private readonly showcase = new ShowcaseCache({ fetch: (id) => town.profile(id, "today").then((p) => p.showcase ?? []) });
+  private readonly showcase = new ShowcaseCache({
+    fetch: (id) => town.profile(id, "today").then((p) => p.showcase ?? []),
+  });
 
   constructor(private readonly overlay: Overlay) {
     this.group.name = "entities";
@@ -314,14 +334,22 @@ export class Entities {
     if (moving) r.walkUntil = now + WALK_HOLD_MS;
     const seatKind = lap ? undefined : world.map.kind(a.x, a.y).seat;
     const onSeat = !lap && (a.state === "sit" || a.state === "working");
-    const placed = poseOf({ state: lap ? "idle" : a.state, dozing: info.dozing && !lap }, onSeat ? seatKind : undefined, now < r.walkUntil);
+    const placed = poseOf(
+      { state: lap ? "idle" : a.state, dozing: info.dozing && !lap },
+      onSeat ? seatKind : undefined,
+      now < r.walkUntil,
+    );
     const { lying } = placed;
     // At a game table they sit on a stool, at an arena desk they type.
     const gamePose = a.state === "playing" ? seatPose(gamesOf(info.id)[0], lap !== null) : null;
     const pose = gamePose ?? placed.pose;
     const av = r.avatar;
     // On the Tavern's stage while the jukebox plays: dance.
-    const dancing = pose === "stand" && world.room === "inn" && world.map.at(a.x, a.y) === "e" && hud.get().jukebox !== null;
+    const dancing =
+      pose === "stand" &&
+      world.room === "inn" &&
+      world.map.at(a.x, a.y) === "e" &&
+      hud.get().jukebox !== null;
     av.pose = dancing ? "dance" : pose;
     const hop = a.jump === null ? 0 : hopHeight((now - a.jump) / JUMP_MS);
     // Sitters and sleepers lie on their seat's height; everyone else on the floor.
@@ -339,7 +367,9 @@ export class Entities {
     // Coffee and the Tavern's special: a buzz, or a warm glow.
     const unow = Date.now();
     const special = hasSpecial(info.specialUntil ?? 0, unow) ? specialBuff(info.specialUntil ?? 0) : null;
-    const shake = this.calm ? 0 : Math.min(4, Math.max(cupsLeft(info.coffeeUntil, unow), special === "jitter" ? 1.5 : 0));
+    const shake = this.calm
+      ? 0
+      : Math.min(4, Math.max(cupsLeft(info.coffeeUntil, unow), special === "jitter" ? 1.5 : 0));
     const jx = shake > 0 ? ((Math.random() * 2 - 1) * shake) / TILE : 0;
     const jz = shake > 0 ? ((Math.random() * 2 - 1) * shake * 0.5) / TILE : 0;
     r.root.position.set(r.x + jx, y, r.z + jz);
@@ -396,7 +426,8 @@ export class Entities {
     const bubbleOn = a.bubble !== null && now < a.bubble.until;
     av.talking = bubbleOn;
     if (near) av.update(dtS, t);
-    if (r.cop) r.cop.gear.update(r.cop.watch.read(bubbleOn && a.bubble ? a.bubble.text : "", now), now, this.calm);
+    if (r.cop)
+      r.cop.gear.update(r.cop.watch.read(bubbleOn && a.bubble ? a.bubble.text : "", now), now, this.calm);
 
     this.pet(r, a, me, view, camera, dt, t, near);
     const close = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;

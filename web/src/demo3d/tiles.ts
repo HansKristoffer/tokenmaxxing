@@ -63,7 +63,9 @@ if (bedAsset)
 
 // MARK: Outdoors
 
-registerTile("T", (c) => tree((["round", "oak", "pine"] as const)[(c.x * 7 + c.y * 3) % 3]!, c.x * 31 + c.y, 0.9));
+registerTile("T", (c) =>
+  tree((["round", "oak", "pine"] as const)[(c.x * 7 + c.y * 3) % 3]!, c.x * 31 + c.y, 0.9),
+);
 registerTile("^", (c) => bush(c.x * 13 + c.y));
 registerTile("L", () => streetLamp(), { face: false });
 registerTile("B", () => parkBench());
@@ -117,7 +119,12 @@ function stairs(down: boolean): TileBuilder {
       const h = down ? 0.02 : 0.2 + i * 0.28;
       const z = down ? 0.05 + i * 0.12 : -0.05 + i * 0.13;
       const top = down ? 0.12 - i * 0.03 : h;
-      m.box([0.84, Math.max(0.04, top), 0.13], down ? tint("#8a7a6a", -i * 0.12) : tint("#b99a73", i * 0.04), [0, 0, z], 0.01);
+      m.box(
+        [0.84, Math.max(0.04, top), 0.13],
+        down ? tint("#8a7a6a", -i * 0.12) : tint("#b99a73", i * 0.04),
+        [0, 0, z],
+        0.01,
+      );
     }
     m.box([0.84, 0.08, 0.04], down ? "#ff8a80" : "#ffd35c", [0, 1.95, 0.02], 0.01);
     void c;

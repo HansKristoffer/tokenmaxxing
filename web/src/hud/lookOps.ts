@@ -49,4 +49,3 @@ export function withItem(item: Item, look: Look, on: boolean): Look {
     (slot) => ({ ...look, [slot]: on ? item.index : 0 }),
   );
 }
-

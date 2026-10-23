@@ -11,9 +11,30 @@ import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_ROOM } from "@tokenmaxxing/core/shoproom
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
 import { invalidateBaked } from "../render3d/perf/bake.ts";
-import { GameMap, LEGEND, MAPS, type MapId, plotId, type SeatKind, TOWN_SPAWN, townMap } from "./data/maps.ts";
+import {
+  GameMap,
+  LEGEND,
+  MAPS,
+  type MapId,
+  plotId,
+  type SeatKind,
+  TOWN_SPAWN,
+  townMap,
+} from "./data/maps.ts";
 import type { Asset } from "./furniture.ts";
-import { beginTickScope, canvasTexture, dropTickScope, endTickScope, Model, painted, seeded, type TickScope, tint, toon, type V3 } from "./kit.ts";
+import {
+  beginTickScope,
+  canvasTexture,
+  dropTickScope,
+  endTickScope,
+  Model,
+  painted,
+  seeded,
+  type TickScope,
+  tint,
+  toon,
+  type V3,
+} from "./kit.ts";
 
 export type { MapId, SeatKind };
 
@@ -89,7 +110,8 @@ export function hasTile(ch: string): boolean {
 }
 
 /** The entry for a character in a room: the room's own registration first, else the general one. */
-const tileFor = (room: MapId, ch: string): TileEntry | undefined => tiles.get(`${room}:${ch}`) ?? tiles.get(ch);
+const tileFor = (room: MapId, ch: string): TileEntry | undefined =>
+  tiles.get(`${room}:${ch}`) ?? tiles.get(ch);
 
 /** Registers every `tile:<ch>` asset of a slice's `*_ASSETS` list. Other assets are left to the catalogue. */
 export function registerTileAssets(list: readonly Asset[], rooms?: readonly MapId[]): void {
@@ -165,7 +187,19 @@ const LINKS: Record<string, [MapId, string]> = {
   ),
 };
 
-export const ROOM_ORDER: MapId[] = ["town", "hq", "office", "inn", "upstairs", "basement", "dungeon", "shop-furniture", "shop-clothes", "shop-barber", "shop-pets"];
+export const ROOM_ORDER: MapId[] = [
+  "town",
+  "hq",
+  "office",
+  "inn",
+  "upstairs",
+  "basement",
+  "dungeon",
+  "shop-furniture",
+  "shop-clothes",
+  "shop-barber",
+  "shop-pets",
+];
 
 export interface Portal {
   x: number;
@@ -266,8 +300,10 @@ function nameTexture(name: string, colour: string): THREE.CanvasTexture {
         g.textAlign = "center";
         g.textBaseline = "middle";
         const words = name.split(" ");
-        const lines = words.length > 1 && name.length > 9 ? [words.slice(0, -1).join(" "), words.at(-1)!] : [name];
-        for (const [i, l] of lines.entries()) g.fillText(l.slice(0, 11), 64, 24 + (i - (lines.length - 1) / 2) * 20);
+        const lines =
+          words.length > 1 && name.length > 9 ? [words.slice(0, -1).join(" "), words.at(-1)!] : [name];
+        for (const [i, l] of lines.entries())
+          g.fillText(l.slice(0, 11), 64, 24 + (i - (lines.length - 1) / 2) * 20);
       },
       true,
     );
@@ -385,7 +421,15 @@ export class WorldRoom {
   route(from: [number, number], x: number, y: number): [number, number][] | null {
     if (this.walkable(x, y) || this.portalAt(x, y) || this.seatAt(x, y)) {
       if (from[0] === x && from[1] === y) return [];
-      return walk(this.W, this.D, from, (gx, gy) => gx === x && gy === y, (gx, gy) => this.walkable(gx, gy))?.slice(1) ?? null;
+      return (
+        walk(
+          this.W,
+          this.D,
+          from,
+          (gx, gy) => gx === x && gy === y,
+          (gx, gy) => this.walkable(gx, gy),
+        )?.slice(1) ?? null
+      );
     }
     // A prop: go and stand beside it.
     return (
@@ -411,7 +455,8 @@ export class WorldRoom {
 
   /** Where you start in the room by default. */
   spawn(): { at: [number, number]; turn: number } {
-    if (this.id === "town") return { at: [TOWN_SPAWN[0] - this.map.x0, TOWN_SPAWN[1] - this.map.y0], turn: 0 };
+    if (this.id === "town")
+      return { at: [TOWN_SPAWN[0] - this.map.x0, TOWN_SPAWN[1] - this.map.y0], turn: 0 };
     const exit = this.portals[0];
     return exit ? this.beside(exit.x, exit.y) : { at: [1, 1], turn: 0 };
   }
@@ -454,7 +499,8 @@ export class WorldRoom {
             g.globalAlpha = 1;
           } else if (ch === "." || ch === '"') {
             g.fillStyle = "#86c76d";
-            for (let i = 0; i < 3; i++) g.fillRect(x * px + Math.floor(rnd() * 7), y * px + Math.floor(rnd() * 7), 1, 1);
+            for (let i = 0; i < 3; i++)
+              g.fillRect(x * px + Math.floor(rnd() * 7), y * px + Math.floor(rnd() * 7), 1, 1);
             if (ch === '"') {
               for (const col of ["#f28bb2", "#f0b53c", "#fbf7ef"]) {
                 g.fillStyle = col;
@@ -478,7 +524,14 @@ export class WorldRoom {
         }
     });
     const side = toon(tint(base === "." ? "#6fb35a" : C.floor, -0.4));
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [side, side, painted(tex), side, side, side]);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [
+      side,
+      side,
+      painted(tex),
+      side,
+      side,
+      side,
+    ]);
     slab.position.set(W / 2, -0.175, D / 2);
     slab.receiveShadow = true;
     this.group.add(slab);
@@ -547,7 +600,8 @@ export class WorldRoom {
         if (bw > 1 || bd > 1) {
           let fits = x + bw <= W && y + bd <= D;
           for (let j = 0; fits && j < bd; j++)
-            for (let i = 0; fits && i < bw; i++) if (this.ch(x + i, y + j) !== ch || claimed[(y + j) * W + x + i]) fits = false;
+            for (let i = 0; fits && i < bw; i++)
+              if (this.ch(x + i, y + j) !== ch || claimed[(y + j) * W + x + i]) fits = false;
           if (fits) {
             w = bw;
             d = bd;
@@ -613,7 +667,8 @@ function disposeRoom(root: THREE.Object3D): void {
     if (!m.isMesh) return;
     m.geometry.dispose();
     // Materials are shared and cheap to keep (their programs are shared too); the painted maps are what weighs.
-    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) (mat as THREE.MeshToonMaterial | undefined)?.map?.dispose();
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material])
+      (mat as THREE.MeshToonMaterial | undefined)?.map?.dispose();
   });
 }
 
@@ -723,7 +778,8 @@ export class World {
   preload(id: MapId): void {
     if (this.built.has(id) || this.pending.has(id)) return;
     const run = () => void this.load(id).catch(() => {});
-    const idle = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+    const idle = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void })
+      .requestIdleCallback;
     if (idle) idle(run, { timeout: 2000 });
     else setTimeout(run, 200);
   }
@@ -765,7 +821,10 @@ export class World {
   }
 
   /** `travel`, loading the far room first. */
-  async travelTo(from: WorldRoom, portal: Portal): Promise<{ room: WorldRoom; at: [number, number]; turn: number }> {
+  async travelTo(
+    from: WorldRoom,
+    portal: Portal,
+  ): Promise<{ room: WorldRoom; at: [number, number]; turn: number }> {
     await this.load(LINKS[`${from.id}:${portal.ch}`]![0]);
     return this.travel(from, portal);
   }
@@ -776,7 +835,9 @@ export class World {
     const room = this.room(link[0]);
     const memory = this.back.get(from.id);
     // The way back leads to the door you came in by, when there is a choice.
-    const matching = room.map.find(link[1]).map(([x, y]) => [x - room.map.x0, y - room.map.y0] as [number, number]);
+    const matching = room.map
+      .find(link[1])
+      .map(([x, y]) => [x - room.map.x0, y - room.map.y0] as [number, number]);
     let door = matching[0] ?? [1, 1];
     if (memory && memory.room === room.id && memory.ch === link[1]) door = [memory.x, memory.y];
     this.back.set(room.id, { room: from.id, x: portal.x, y: portal.y, ch: portal.ch });

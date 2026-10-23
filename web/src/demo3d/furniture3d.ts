@@ -15,17 +15,7 @@ import { C } from "../art/palette.ts";
 import { glyphPixels, Pen } from "../art/pixels.ts";
 import { DESK_TIERS, deskTier } from "./desks3d.ts";
 import { type Asset, light } from "./furniture.ts";
-import {
-  canvasTexture,
-  glass,
-  glow,
-  Model,
-  painted,
-  seeded,
-  ticks,
-  tint,
-  type V3,
-} from "./kit.ts";
+import { canvasTexture, glass, glow, Model, painted, seeded, ticks, tint, type V3 } from "./kit.ts";
 import { merchColours, merchPrintTexture, merchProp, merchShirtTexture } from "./merch3d.ts";
 import { panel } from "./panel.ts";
 import { POSTER_ASSETS, POSTER_TEXT } from "./posters3d.ts";
@@ -123,14 +113,27 @@ const touchedGrass = (): Model => {
       const a = rnd() * Math.PI * 2;
       const r = rnd() * 0.22;
       const h = 0.1 + (0.22 - r) * 0.8 + rnd() * 0.06;
-      const blade = m.cyl(0.014, h, shades[i % shades.length]!, [cx + Math.cos(a) * r, 0.2, 0.1 + Math.sin(a) * r * 0.8], 0.002, 4);
+      const blade = m.cyl(
+        0.014,
+        h,
+        shades[i % shades.length]!,
+        [cx + Math.cos(a) * r, 0.2, 0.1 + Math.sin(a) * r * 0.8],
+        0.002,
+        4,
+      );
       blade.rotation.set((rnd() - 0.5) * 0.5, 0, (rnd() - 0.5) * 0.5);
     }
   // A daisy, and a red bud.
   m.cyl(0.008, 0.2, C.leafDark, [-0.3, 0.2, 0.3], 0.008, 5);
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
-    m.ball(0.022, C.flowerWhite, [-0.3 + Math.cos(a) * 0.035, 0.41, 0.3 + Math.sin(a) * 0.035], [1, 0.4, 1], 6);
+    m.ball(
+      0.022,
+      C.flowerWhite,
+      [-0.3 + Math.cos(a) * 0.035, 0.41, 0.3 + Math.sin(a) * 0.035],
+      [1, 0.4, 1],
+      6,
+    );
   }
   m.ball(0.02, C.flowerYellow, [-0.3, 0.415, 0.3], [1, 0.8, 1], 6);
   m.cyl(0.008, 0.2, C.leafDark, [0.35, 0.2, 0.32], 0.008, 5);
@@ -206,7 +209,10 @@ const globe = (): Model => {
   const ball = m.ball(0.17, painted(tex), [0, 0.36, 0], [1, 1, 1], 20);
   ball.rotation.z = 0.4;
   // The brass meridian.
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.011, 6, 28), new THREE.MeshToonMaterial({ color: BRASS }));
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.19, 0.011, 6, 28),
+    new THREE.MeshToonMaterial({ color: BRASS }),
+  );
   ring.position.set(0, 0.36, 0);
   ring.rotation.y = Math.PI / 2;
   ring.castShadow = true;
@@ -261,7 +267,10 @@ const chandelier = (): Model => {
   m.cyl(0.015, 0.55, BRASS, [0, top - 0.55, 0], 0.015, 6);
   m.cyl(0.06, 0.02, GOLD_DARK, [0, top - 0.02, 0], 0.06, 12);
   m.ball(0.09, BRASS, [0, top - 0.6, 0], [1, 1, 1], 12);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.022, 6, 32), new THREE.MeshToonMaterial({ color: BRASS }));
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.72, 0.022, 6, 32),
+    new THREE.MeshToonMaterial({ color: BRASS }),
+  );
   ring.position.set(0, top - 0.62, 0);
   ring.rotation.x = Math.PI / 2;
   ring.scale.set(1, 0.42, 1);
@@ -345,7 +354,10 @@ const goldenRebase = (): Model => {
   m.cyl(0.1, 0.3, GOLD, [0, 0.49, 0], 0.18, 18);
   m.cyl(0.18, 0.02, GOLD_LIGHT, [0, 0.79, 0], 0.18, 18);
   for (const s of [-1, 1]) {
-    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.016, 6, 14, Math.PI), new THREE.MeshToonMaterial({ color: GOLD_DARK }));
+    const handle = new THREE.Mesh(
+      new THREE.TorusGeometry(0.075, 0.016, 6, 14, Math.PI),
+      new THREE.MeshToonMaterial({ color: GOLD_DARK }),
+    );
     handle.position.set(s * 0.17, 0.66, 0);
     handle.rotation.z = s > 0 ? -Math.PI / 2 : Math.PI / 2;
     handle.castShadow = true;
@@ -432,7 +444,13 @@ const hangingPlant = (): Model => {
   ] as const)
     for (let i = 0; i < 8; i++) {
       const y = 0.55 - (i / 8) * len;
-      m.ball(0.035 + rnd() * 0.015, i % 2 ? C.leaf : C.leafLight, [x0 + (rnd() - 0.5) * 0.04, y, 0.08 + rnd() * 0.04], [1, 0.8, 0.6], 6);
+      m.ball(
+        0.035 + rnd() * 0.015,
+        i % 2 ? C.leaf : C.leafLight,
+        [x0 + (rnd() - 0.5) * 0.04, y, 0.08 + rnd() * 0.04],
+        [1, 0.8, 0.6],
+        6,
+      );
     }
   m.ball(0.06, C.leaf, [-0.15, 0.7, 0.0], [1, 0.7, 1], 8);
   m.ball(0.06, C.leafDark, [0.15, 0.7, 0.0], [1, 0.7, 1], 8);
@@ -476,7 +494,13 @@ const fiddleFig = (): Model => {
     const r = 0.14 + (i % 3) * 0.04;
     const stem = m.cyl(0.008, r + 0.06, C.trunkDark, [0, y, 0], 0.008, 4);
     stem.rotation.set(Math.sin(a) * 1.1, 0, -Math.cos(a) * 1.1);
-    const leaf = m.ball(0.12, i % 2 ? C.leaf : C.leafDark, [Math.cos(a) * (r + 0.1), y + 0.04, Math.sin(a) * (r + 0.1)], [0.75, 0.14, 1], 10);
+    const leaf = m.ball(
+      0.12,
+      i % 2 ? C.leaf : C.leafDark,
+      [Math.cos(a) * (r + 0.1), y + 0.04, Math.sin(a) * (r + 0.1)],
+      [0.75, 0.14, 1],
+      10,
+    );
     leaf.rotation.set(0, -a, 0.35);
   }
   m.ball(0.11, C.leafLight, [0, rim + 0.78, 0], [1, 0.4, 1], 8);
@@ -556,7 +580,8 @@ const bonsaiStand = (): Model => {
   // A teak stand: top, legs and a shelf between them.
   m.box([0.42, 0.05, 0.3], TEAK, [0, 0.45, 0], 0.012);
   m.box([0.38, 0.012, 0.26], TEAK_LIGHT, [0, 0.5, 0]);
-  for (const x of [-0.17, 0.17]) for (const z of [-0.11, 0.11]) m.box([0.04, 0.45, 0.04], TEAK_DARK, [x, 0, z]);
+  for (const x of [-0.17, 0.17])
+    for (const z of [-0.11, 0.11]) m.box([0.04, 0.45, 0.04], TEAK_DARK, [x, 0, z]);
   m.box([0.34, 0.025, 0.22], TEAK_DARK, [0, 0.2, 0]);
   // A glazed tray and a twisty trunk with three pads.
   m.box([0.32, 0.07, 0.22], "#3c5a6b", [0, 0.51, 0], 0.02);
@@ -652,7 +677,12 @@ const keyboardCase = (): Model => {
   for (let row = 0; row < 4; row++)
     for (let i = 0; i < 14; i++) {
       const accent = row === 0 && (i === 0 || i === 13);
-      tilt.box([0.06, 0.03, 0.06], accent ? "#f08a3c" : caps[(i + row * 2) % caps.length]!, [-0.56 + i * 0.086, 0.05, -0.15 + row * 0.09], 0.01);
+      tilt.box(
+        [0.06, 0.03, 0.06],
+        accent ? "#f08a3c" : caps[(i + row * 2) % caps.length]!,
+        [-0.56 + i * 0.086, 0.05, -0.15 + row * 0.09],
+        0.01,
+      );
     }
   tilt.box([0.6, 0.03, 0.06], "#f2f0ea", [0, 0.05, 0.19], 0.01);
   // Underglow, a different colour in each beat.

@@ -9,7 +9,9 @@ export interface Bunting {
   sag: number;
 }
 
-const PENNANT = ["#e2443a", "#f5d14a", "#6f7fc9", "#a5d977", "#fbf7ef", "#f2a6c8"].map((c) => new THREE.Color(c));
+const PENNANT = ["#e2443a", "#f5d14a", "#6f7fc9", "#a5d977", "#fbf7ef", "#f2a6c8"].map(
+  (c) => new THREE.Color(c),
+);
 
 /**
  * Strings of bunting as two meshes in all (the cords, and every pennant with its colour in the vertices),
@@ -34,7 +36,11 @@ export function buntingMeshes(strings: readonly Bunting[]): THREE.Group {
     A.set(...s.a);
     B.set(...s.b);
     const len = A.distanceTo(B);
-    const at = (f: number, out = new THREE.Vector3()) => out.copy(A).lerp(B, f).setY(A.y + (B.y - A.y) * f - 4 * s.sag * f * (1 - f));
+    const at = (f: number, out = new THREE.Vector3()) =>
+      out
+        .copy(A)
+        .lerp(B, f)
+        .setY(A.y + (B.y - A.y) * f - 4 * s.sag * f * (1 - f));
     const segs = Math.max(6, Math.round(len * 3));
     const p = new THREE.Vector3();
     const n = new THREE.Vector3();
@@ -42,7 +48,12 @@ export function buntingMeshes(strings: readonly Bunting[]): THREE.Group {
       at(i / segs, p);
       at((i + 1) / segs, n);
       const g = new THREE.BoxGeometry(p.distanceTo(n), 0.02, 0.02);
-      e.set(0, -Math.atan2(n.z - p.z, n.x - p.x), Math.atan2(n.y - p.y, Math.hypot(n.x - p.x, n.z - p.z)), "YXZ");
+      e.set(
+        0,
+        -Math.atan2(n.z - p.z, n.x - p.x),
+        Math.atan2(n.y - p.y, Math.hypot(n.x - p.x, n.z - p.z)),
+        "YXZ",
+      );
       m.compose(p.clone().add(n).multiplyScalar(0.5), q.setFromEuler(e), one);
       g.applyMatrix4(m);
       cords.push(g);
@@ -74,7 +85,11 @@ export function buntingMeshes(strings: readonly Bunting[]): THREE.Group {
   if (pennants) {
     const mesh = new THREE.Mesh(
       pennants,
-      new THREE.MeshToonMaterial({ vertexColors: true, side: THREE.DoubleSide, gradientMap: toon("#fff").gradientMap }),
+      new THREE.MeshToonMaterial({
+        vertexColors: true,
+        side: THREE.DoubleSide,
+        gradientMap: toon("#fff").gradientMap,
+      }),
     );
     mesh.userData.nopick = true;
     mesh.userData.noBlock = true;

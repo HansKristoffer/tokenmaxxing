@@ -77,7 +77,8 @@ export const INSET: [number, number] = [1, 2];
 
 // MARK: Previews
 
-const lookById = <T extends { id: string }>(list: readonly T[], id: string): T => list.find((l) => l.id === id)!;
+const lookById = <T extends { id: string }>(list: readonly T[], id: string): T =>
+  list.find((l) => l.id === id)!;
 
 /** A small free-standing sample of a wallpaper: a framed board. */
 function wallpaperPreview(id: string): Model {
@@ -233,7 +234,10 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   checker.box([9, 0.02, 3], "#e8e2d4", [0, 0, 0], 0.002);
   for (let i = 0; i < 9; i++)
     for (let j = 0; j < 3; j++)
-      if ((i + j) % 2) checker.box([1, 0.025, 1], "#3b3f50", [-4 + i + 0.0 - 0.0 + 0.0, 0, -1 + j + 0.0], 0.001).position.set(-4 + i, 0, -1 + j);
+      if ((i + j) % 2)
+        checker
+          .box([1, 0.025, 1], "#3b3f50", [-4 + i + 0.0 - 0.0 + 0.0, 0, -1 + j + 0.0], 0.001)
+          .position.set(-4 + i, 0, -1 + j);
   checker.position.set(23.5, 0.005, 11.5);
   room.group.add(checker);
   put("coffee", 20, 10);
@@ -262,7 +266,14 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     return { id, model: assetOf(id)!.build(), row };
   });
   const bank = shelfBank(4, slots);
-  const bankAsset: Asset = { id: "shop:bank", name: "Shelf bank", price: 0, w: 4, d: 1, build: () => bank.model };
+  const bankAsset: Asset = {
+    id: "shop:bank",
+    name: "Shelf bank",
+    price: 0,
+    w: 4,
+    d: 1,
+    build: () => bank.model,
+  };
   room.place(bankAsset, BANK_X, BANK_Z, 0, bank.model);
   slots.forEach((s, i) => {
     show(s.row, BANK_X + bank.cols[i]!, BANK_Z);
@@ -271,10 +282,24 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   // — The counter, the till and Freja —
   const CTR_X = 22;
   const CTR_Z = 14;
-  const ctrAsset: Asset = { id: "shop:counter", name: "Counter", price: 0, w: 6, d: 1, build: () => counter(6) };
+  const ctrAsset: Asset = {
+    id: "shop:counter",
+    name: "Counter",
+    price: 0,
+    w: 6,
+    d: 1,
+    build: () => counter(6),
+  };
   room.place(ctrAsset, CTR_X, CTR_Z, 0);
   const rolls = wallpaperRolls();
-  const rollsAsset: Asset = { id: "shop:rolls", name: "Wallpaper rolls", price: 0, w: 1, d: 1, build: () => rolls };
+  const rollsAsset: Asset = {
+    id: "shop:rolls",
+    name: "Wallpaper rolls",
+    price: 0,
+    w: 1,
+    d: 1,
+    build: () => rolls,
+  };
   room.place(rollsAsset, 20, 13, 0, rolls);
   const keeper = makeShopkeeper();
   keeper.avatar.root.position.set(CTR_X - 0.9, 0.02, CTR_Z + 0.55);
@@ -316,7 +341,14 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     show(r, Math.floor(px + w / 2), 0);
     px += w + 0.3;
   }
-  const hangings = ["certificate", "hanging-plant", "wall-whiteboard", "wall-neon", "neon-sign", "plant-wall"];
+  const hangings = [
+    "certificate",
+    "hanging-plant",
+    "wall-whiteboard",
+    "wall-neon",
+    "neon-sign",
+    "plant-wall",
+  ];
   let hx = 18.1;
   for (const id of hangings) {
     const r = rowByAsset(id);
@@ -338,7 +370,12 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     m.rotation.y = Math.PI / 2;
     room.group.add(m);
   };
-  const sampleBlock = (rows: readonly FurnRow[], z0: number, make: (r: FurnRow) => THREE.Texture, thick: number) => {
+  const sampleBlock = (
+    rows: readonly FurnRow[],
+    z0: number,
+    make: (r: FurnRow) => THREE.Texture,
+    thick: number,
+  ) => {
     rows.forEach((r, i) => {
       const col = i % 5;
       const rowIdx = Math.floor(i / 5);
@@ -373,14 +410,24 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   // (the poster wall is labelled by its own tags; no extra header)
 
   // — Placards for the floor pieces —
-  const tileOpen = (x: number, z: number) => room.inside(x, z) && room.open(x, z) && !used.has(tile(x, z)) && z < D - 1;
+  const tileOpen = (x: number, z: number) =>
+    room.inside(x, z) && room.open(x, z) && !used.has(tile(x, z)) && z < D - 1;
   for (const { p, row } of floorPlaced) {
     const [fw, fd] = Room.footprint(p.asset, p.turn);
     const front = p.z + fd;
     const spots: { cx: number; z: number; tiles: number[] }[] = [];
-    spots.push({ cx: p.x + fw / 2, z: front, tiles: Array.from({ length: fw === 1 ? 1 : 2 }, (_, i) => (fw === 1 ? p.x : Math.floor(p.x + fw / 2) - 1 + i)) });
+    spots.push({
+      cx: p.x + fw / 2,
+      z: front,
+      tiles: Array.from({ length: fw === 1 ? 1 : 2 }, (_, i) =>
+        fw === 1 ? p.x : Math.floor(p.x + fw / 2) - 1 + i,
+      ),
+    });
     for (let i = 0; i < fw; i++) spots.push({ cx: p.x + i + 0.5, z: front, tiles: [p.x + i] });
-    spots.push({ cx: p.x - 0.5, z: front - 0.0, tiles: [p.x - 1] }, { cx: p.x + fw + 0.5, z: front, tiles: [p.x + fw] });
+    spots.push(
+      { cx: p.x - 0.5, z: front - 0.0, tiles: [p.x - 1] },
+      { cx: p.x + fw + 0.5, z: front, tiles: [p.x + fw] },
+    );
     let spot = spots.find((s) => s.tiles.every((x) => tileOpen(x, front)));
     spot ??= spots[0]!;
     for (const x of spot.tiles) used.add(tile(x, front));
@@ -423,7 +470,8 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
 
   // — Every catalogue item has a display, and none is missing —
   const missing = ITEMS.filter((i) => !seen.has(i.id));
-  if (missing.length) throw new Error(`furniture shop: not on display: ${missing.map((m) => m.id).join(", ")}`);
+  if (missing.length)
+    throw new Error(`furniture shop: not on display: ${missing.map((m) => m.id).join(", ")}`);
 
   return {
     room,

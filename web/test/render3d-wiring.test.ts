@@ -8,7 +8,10 @@ import { placedIn } from "../src/render3d/placed.ts";
 const pixels = () => ({ data: new Uint8ClampedArray(1 << 22), width: 1024, height: 1024 });
 const ctx = new Proxy(
   {},
-  { get: (_t, k) => (k === "canvas" ? {} : k === "getImageData" ? pixels : () => ({ addColorStop() {} })), set: () => true },
+  {
+    get: (_t, k) => (k === "canvas" ? {} : k === "getImageData" ? pixels : () => ({ addColorStop() {} })),
+    set: () => true,
+  },
 );
 const fake = { width: 0, height: 0, style: {}, getContext: () => ctx, addEventListener() {} };
 Object.assign(globalThis, {
@@ -37,7 +40,9 @@ test("the 3D town is the core map: each shop's front and door stand where the ga
   }
   // The 3D map and the game's are one: not a tile differs, but the arcade park (3D only): its door, its path and the lawn.
   const core = MAPS.town;
-  const differing = t.map.rows.flatMap((row, y) => [...row].filter((ch, x) => ch !== core.at(x + t.map.x0, y + t.map.y0)));
+  const differing = t.map.rows.flatMap((row, y) =>
+    [...row].filter((ch, x) => ch !== core.at(x + t.map.x0, y + t.map.y0)),
+  );
   expect(differing.every((ch) => ".A,".includes(ch))).toBe(true);
 });
 

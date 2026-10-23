@@ -8,7 +8,17 @@ import { ITEMS, type Item } from "@tokenmaxxing/core/shop.ts";
 import * as THREE from "three";
 import type { Avatar } from "./avatar.ts";
 import { Pet } from "./avatar.ts";
-import { avatarFor, LEGENDARY_LEVEL, type Look2D, merchFor, nameTag, outfitName, petCrown, tagLift, wornBy } from "./gear3d.ts";
+import {
+  avatarFor,
+  LEGENDARY_LEVEL,
+  type Look2D,
+  merchFor,
+  nameTag,
+  outfitName,
+  petCrown,
+  tagLift,
+  wornBy,
+} from "./gear3d.ts";
 import { checker, painted, tint, toon } from "./kit.ts";
 
 export const GEAR_CATEGORIES = ["Hats", "Face", "Held", "Back", "Outfits", "Merch & aura", "Tags"] as const;
@@ -75,7 +85,13 @@ export function buildGearGallery(category: GearCategory): Gallery {
     }
   };
 
-  const add = (look: Look2D, i: number, name: string, extra: { level?: number; rarityKey?: string } = {}, content?: string | HTMLElement) => {
+  const add = (
+    look: Look2D,
+    i: number,
+    name: string,
+    extra: { level?: number; rarityKey?: string } = {},
+    content?: string | HTMLElement,
+  ) => {
     const a = avatarFor(look, { level: extra.level });
     a.root.position.set(slots[i]!.x, 0, slots[i]!.z);
     a.root.rotation.y = 0;
@@ -85,7 +101,9 @@ export function buildGearGallery(category: GearCategory): Gallery {
     const w = wornBy(look);
     labels.push({
       content: content ?? name,
-      at: content ? new THREE.Vector3(slots[i]!.x, tagLift(extra.level, "stand") - 0.02, slots[i]!.z) : new THREE.Vector3(slots[i]!.x, -0.04, slots[i]!.z + 0.25),
+      at: content
+        ? new THREE.Vector3(slots[i]!.x, tagLift(extra.level, "stand") - 0.02, slots[i]!.z)
+        : new THREE.Vector3(slots[i]!.x, -0.04, slots[i]!.z + 0.25),
       below: !content,
       cls: `tag item gear-rarity-${w.rarity}`,
     });
@@ -99,7 +117,8 @@ export function buildGearGallery(category: GearCategory): Gallery {
     case "Face":
     case "Held":
     case "Back": {
-      const slot = { Hats: "hat", Face: "glasses", Held: "held", Back: "back" }[category] as "hat" | "glasses" | "held" | "back";
+      const slot = { Hats: "hat", Face: "glasses", Held: "held", Back: "back" }[category] as
+        "hat" | "glasses" | "held" | "back";
       const list = itemsIn(slot);
       place(list.length);
       list.forEach((it, i) => {
@@ -121,9 +140,21 @@ export function buildGearGallery(category: GearCategory): Gallery {
     case "Merch & aura": {
       cols = 5;
       const looks: { look: Look2D; name: string; level?: number }[] = [
-        { look: { ...base(0), outfit: 25, hat: 0, glasses: 0 }, name: "Lv50: golden regalia + aura", level: LEGENDARY_LEVEL },
-        { look: { ...base(1), outfit: 25, glasses: 20 }, name: "Lv50 + Nebula visor", level: LEGENDARY_LEVEL },
-        { look: { ...base(2), outfit: 20, hat: 24, back: 4 }, name: "Lv50 + wings + GPU crown", level: LEGENDARY_LEVEL },
+        {
+          look: { ...base(0), outfit: 25, hat: 0, glasses: 0 },
+          name: "Lv50: golden regalia + aura",
+          level: LEGENDARY_LEVEL,
+        },
+        {
+          look: { ...base(1), outfit: 25, glasses: 20 },
+          name: "Lv50 + Nebula visor",
+          level: LEGENDARY_LEVEL,
+        },
+        {
+          look: { ...base(2), outfit: 20, hat: 24, back: 4 },
+          name: "Lv50 + wings + GPU crown",
+          level: LEGENDARY_LEVEL,
+        },
         { look: { ...base(3), hat: 24 }, name: "Lv49 (no aura)", level: 49 },
         { look: { ...base(4), outfit: 20, glasses: 20 }, name: "Nebula visor", level: 40 },
         { look: { ...base(0), merch: 1, merchWorn: 1 }, name: "Company tee" },
@@ -144,7 +175,11 @@ export function buildGearGallery(category: GearCategory): Gallery {
         pet.root.add(crown);
         group.add(pet.root);
         extras.push((_dt, t) => pet.update(t));
-        labels.push({ content: "Lv50 pet crown", at: new THREE.Vector3(slots[looks.length + k]!.x, 0.55, slots[looks.length + k]!.z), cls: "tag item" });
+        labels.push({
+          content: "Lv50 pet crown",
+          at: new THREE.Vector3(slots[looks.length + k]!.x, 0.55, slots[looks.length + k]!.z),
+          cls: "tag item",
+        });
       }
       void merchFor;
       break;
@@ -153,11 +188,63 @@ export function buildGearGallery(category: GearCategory): Gallery {
       cols = 4;
       const specs = [
         { look: { ...base(0), hat: 1 } as Look2D, name: "noah", level: 3, extra: {} },
-        { look: { ...base(1), hat: 8, glasses: 7 } as Look2D, name: "sofie", level: 12, extra: { company: { name: "Acme AI", color: "#3a6fb8" }, badges: [{ emoji: "🔥", frame: "bronze" as const, title: "Streak" }] } },
-        { look: { ...base(2), hat: 24, back: 3 } as Look2D, name: "maja", level: 27, extra: { company: { name: "Nordlys", color: "#5b3fbf" }, badges: [{ emoji: "🧠", frame: "silver" as const }, { emoji: "🏆", frame: "gold" as const }], trophies: [{ emoji: "🌙", title: "Midnight Oil" }] } },
-        { look: { ...base(3), hat: 20, back: 4, glasses: 20 } as Look2D, name: "lin", level: 38, extra: { badges: [{ emoji: "🐋", frame: "diamond" as const }, { emoji: "⚔️", frame: "gold" as const }, { emoji: "🍺", frame: "bronze" as const }], trophies: [{ title: "Dead Beef", emoji: "🥩" }, { title: "Millionaire", emoji: "💰" }] } },
-        { look: { ...base(4), outfit: 25, glasses: 20, hat: 24 } as Look2D, name: "ada", level: LEGENDARY_LEVEL, extra: { company: { name: "Golden Legends", color: "#b98a1f" }, badges: [{ emoji: "🏆", frame: "diamond" as const }, { emoji: "🐙", frame: "gold" as const }], trophies: [{ title: "Billionaire", emoji: "💎" }] } },
-        { look: { ...base(5), hat: 6 } as Look2D, name: "oskar (offline)", level: 8, extra: { online: false } },
+        {
+          look: { ...base(1), hat: 8, glasses: 7 } as Look2D,
+          name: "sofie",
+          level: 12,
+          extra: {
+            company: { name: "Acme AI", color: "#3a6fb8" },
+            badges: [{ emoji: "🔥", frame: "bronze" as const, title: "Streak" }],
+          },
+        },
+        {
+          look: { ...base(2), hat: 24, back: 3 } as Look2D,
+          name: "maja",
+          level: 27,
+          extra: {
+            company: { name: "Nordlys", color: "#5b3fbf" },
+            badges: [
+              { emoji: "🧠", frame: "silver" as const },
+              { emoji: "🏆", frame: "gold" as const },
+            ],
+            trophies: [{ emoji: "🌙", title: "Midnight Oil" }],
+          },
+        },
+        {
+          look: { ...base(3), hat: 20, back: 4, glasses: 20 } as Look2D,
+          name: "lin",
+          level: 38,
+          extra: {
+            badges: [
+              { emoji: "🐋", frame: "diamond" as const },
+              { emoji: "⚔️", frame: "gold" as const },
+              { emoji: "🍺", frame: "bronze" as const },
+            ],
+            trophies: [
+              { title: "Dead Beef", emoji: "🥩" },
+              { title: "Millionaire", emoji: "💰" },
+            ],
+          },
+        },
+        {
+          look: { ...base(4), outfit: 25, glasses: 20, hat: 24 } as Look2D,
+          name: "ada",
+          level: LEGENDARY_LEVEL,
+          extra: {
+            company: { name: "Golden Legends", color: "#b98a1f" },
+            badges: [
+              { emoji: "🏆", frame: "diamond" as const },
+              { emoji: "🐙", frame: "gold" as const },
+            ],
+            trophies: [{ title: "Billionaire", emoji: "💎" }],
+          },
+        },
+        {
+          look: { ...base(5), hat: 6 } as Look2D,
+          name: "oskar (offline)",
+          level: 8,
+          extra: { online: false },
+        },
       ];
       place(specs.length);
       specs.forEach((s, i) => {
@@ -176,10 +263,14 @@ export function buildGearGallery(category: GearCategory): Gallery {
   const rows = Math.ceil(count / cols);
   const fw = cols * CELL + 0.6;
   const fd = rows * CELL * ROW + 0.6;
-  const floor = new THREE.Mesh(
-    new THREE.BoxGeometry(fw, 0.3, fd),
-    [toon(tint("#dccdb0", -0.4)), toon(tint("#dccdb0", -0.4)), painted(withRepeat(checker("#e8dcc4", "#dccdb0", 2), fw / 2, fd / 2)), toon("#000"), toon(tint("#dccdb0", -0.4)), toon(tint("#dccdb0", -0.4))],
-  );
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(fw, 0.3, fd), [
+    toon(tint("#dccdb0", -0.4)),
+    toon(tint("#dccdb0", -0.4)),
+    painted(withRepeat(checker("#e8dcc4", "#dccdb0", 2), fw / 2, fd / 2)),
+    toon("#000"),
+    toon(tint("#dccdb0", -0.4)),
+    toon(tint("#dccdb0", -0.4)),
+  ]);
   floor.position.y = -0.15;
   floor.receiveShadow = true;
   group.add(floor);
@@ -204,7 +295,9 @@ export function buildGearGallery(category: GearCategory): Gallery {
     labels: labels.map((l) => ({ ...l, at: l.at.clone() })),
     view,
     target: lift.set(0, 0.55, 0),
-    cells: slots.map((s) => new THREE.Vector3(s.x, 0, s.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4)),
+    cells: slots.map((s) =>
+      new THREE.Vector3(s.x, 0, s.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4),
+    ),
     avatars,
     cols,
     update(dt, t) {

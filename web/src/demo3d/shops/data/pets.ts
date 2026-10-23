@@ -8,7 +8,6 @@
  */
 import { fromCore } from "./core.ts";
 
-
 export interface ShopPet {
   /** `pet.<index>`, like the 2D item id. */
   id: string;
@@ -66,13 +65,62 @@ export interface ShopPetwear {
 }
 
 const WEAR_SNAPSHOT: readonly ShopPetwear[] = [
-  { id: "petwear.1", index: 1, name: "Red bandana", price: 60, rarity: "common", blurb: "Very good dog energy, any species." },
-  { id: "petwear.2", index: 2, name: "Pink bow", price: 60, rarity: "common", blurb: "Adorable, and it knows it." },
-  { id: "petwear.3", index: 3, name: "Bow tie", price: 140, rarity: "rare", blurb: "For pets who attend standups." },
-  { id: "petwear.4", index: 4, name: "Party hat", price: 160, rarity: "rare", blurb: "Every merge is a birthday." },
-  { id: "petwear.5", index: 5, name: "Gold collar", price: 450, rarity: "epic", blurb: "The tag says: 10x pet." },
-  { id: "petwear.6", index: 6, name: "Propeller cap", price: 200, rarity: "rare", blurb: "Spins up when it's thinking." },
-  { id: "petwear.7", index: 7, name: "Winter scarf", price: 90, rarity: "common", blurb: "Hygge, for the small ones." },
+  {
+    id: "petwear.1",
+    index: 1,
+    name: "Red bandana",
+    price: 60,
+    rarity: "common",
+    blurb: "Very good dog energy, any species.",
+  },
+  {
+    id: "petwear.2",
+    index: 2,
+    name: "Pink bow",
+    price: 60,
+    rarity: "common",
+    blurb: "Adorable, and it knows it.",
+  },
+  {
+    id: "petwear.3",
+    index: 3,
+    name: "Bow tie",
+    price: 140,
+    rarity: "rare",
+    blurb: "For pets who attend standups.",
+  },
+  {
+    id: "petwear.4",
+    index: 4,
+    name: "Party hat",
+    price: 160,
+    rarity: "rare",
+    blurb: "Every merge is a birthday.",
+  },
+  {
+    id: "petwear.5",
+    index: 5,
+    name: "Gold collar",
+    price: 450,
+    rarity: "epic",
+    blurb: "The tag says: 10x pet.",
+  },
+  {
+    id: "petwear.6",
+    index: 6,
+    name: "Propeller cap",
+    price: 200,
+    rarity: "rare",
+    blurb: "Spins up when it's thinking.",
+  },
+  {
+    id: "petwear.7",
+    index: 7,
+    name: "Winter scarf",
+    price: 90,
+    rarity: "common",
+    blurb: "Hygge, for the small ones.",
+  },
 ];
 
 export const SHOP_PETWEAR: readonly ShopPetwear[] = fromCore(WEAR_SNAPSHOT);

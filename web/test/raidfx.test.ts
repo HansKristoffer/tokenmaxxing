@@ -70,7 +70,9 @@ test("slow rates still fire now and then: the owed fraction is carried", () => {
 
 test("a poll's hits, a kill and the launch are told from the two raids either side of it", () => {
   const before = raid();
-  expect(raidEvents(before, raid({ totalDamage: 8e8, me: { damage: 4e7, rank: 3, weekCoins: 0, coins: 0 } }))).toEqual({ launch: false, kill: null, hit: 3e8, mine: 3e7 });
+  expect(
+    raidEvents(before, raid({ totalDamage: 8e8, me: { damage: 4e7, rank: 3, weekCoins: 0, coins: 0 } })),
+  ).toEqual({ launch: false, kill: null, hit: 3e8, mine: 3e7 });
   // A kill: the boss that fell, and the damage since.
   const fell = { rung: 1, boss: bossAt(1), day: "2026-10-20", coins: 10, raiders: 3, paid: true };
   const killed = raid({ boss: bossAt(2), kills: [fell], totalDamage: 2.5e9, damage: 5e8 });
@@ -78,8 +80,18 @@ test("a poll's hits, a kill and the launch are told from the two raids either si
   // Nothing new, nothing shown.
   expect(raidEvents(before, before)).toEqual({ launch: false, kill: null, hit: 0, mine: 0 });
   // A new week replays nothing; the launch does.
-  expect(raidEvents(before, raid({ week: "2026-10-26", totalDamage: 9e9 }))).toEqual({ launch: false, kill: null, hit: 0, mine: 0 });
-  expect(raidEvents(raid({ prelaunch: true }), raid())).toEqual({ launch: true, kill: null, hit: 0, mine: 0 });
+  expect(raidEvents(before, raid({ week: "2026-10-26", totalDamage: 9e9 }))).toEqual({
+    launch: false,
+    kill: null,
+    hit: 0,
+    mine: 0,
+  });
+  expect(raidEvents(raid({ prelaunch: true }), raid())).toEqual({
+    launch: true,
+    kill: null,
+    hit: 0,
+    mine: 0,
+  });
   expect(raidEvents(null, raid())).toEqual({ launch: false, kill: null, hit: 0, mine: 0 });
   // A viewer who isn't in the raid has no hits of their own.
   expect(raidEvents(raid({ me: null }), raid({ me: null, totalDamage: 6e8 })).mine).toBe(0);
@@ -128,7 +140,9 @@ test("the words over the gate are the 2D game's", () => {
 
 test("a closed week says how many fell and when it opens", () => {
   expect(weekOverText(raid())).toBeNull();
-  expect(weekOverText(raid({ closed: true, kills: [{}, {}] as Raid["kills"] }))).toBe("🏁 Week over · 2 fell · opens 08:00 Mon");
+  expect(weekOverText(raid({ closed: true, kills: [{}, {}] as Raid["kills"] }))).toBe(
+    "🏁 Week over · 2 fell · opens 08:00 Mon",
+  );
 });
 
 test("a missile's arc starts and ends where it should and rises between", () => {

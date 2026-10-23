@@ -18,7 +18,13 @@ test("everything a room holds is freed once, shared things are left alone", () =
   const mat = new THREE.MeshBasicMaterial({ map: tex });
   const sharedMat = new THREE.MeshBasicMaterial();
   sharedMat.userData.shared = true;
-  const counts = { geo: counted(geo), shared: counted(shared), tex: counted(tex), mat: counted(mat), sharedMat: counted(sharedMat) };
+  const counts = {
+    geo: counted(geo),
+    shared: counted(shared),
+    tex: counted(tex),
+    mat: counted(mat),
+    sharedMat: counted(sharedMat),
+  };
   // Two meshes on the same geometry and material: still one dispose each.
   for (const g of [geo, geo, shared]) root.add(new THREE.Mesh(g, g === shared ? sharedMat : mat));
   const freed = disposeObject(root);

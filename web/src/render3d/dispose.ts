@@ -30,7 +30,10 @@ export interface Freed {
  * kit shares between every model (`userData.shared`) are left alone. Safe to call on an object that is
  * still shared: three re-uploads what a later frame needs.
  */
-export function disposeObject(root: THREE.Object3D, freed: Freed = { geometries: 0, materials: 0, textures: 0 }): Freed {
+export function disposeObject(
+  root: THREE.Object3D,
+  freed: Freed = { geometries: 0, materials: 0, textures: 0 },
+): Freed {
   const seen = new Set<unknown>();
   const free = (thing: { dispose(): void; userData: Record<string, unknown> }, kind: keyof Freed) => {
     if (seen.has(thing) || shared(thing)) return;
@@ -48,7 +51,8 @@ export function disposeObject(root: THREE.Object3D, freed: Freed = { geometries:
       }
       const uniforms = (m as THREE.ShaderMaterial).uniforms;
       if (uniforms)
-        for (const u of Object.values(uniforms)) if (u.value instanceof THREE.Texture) free(u.value, "textures");
+        for (const u of Object.values(uniforms))
+          if (u.value instanceof THREE.Texture) free(u.value, "textures");
     }
     free(m, "materials");
   };
@@ -65,7 +69,8 @@ export function disposeObject(root: THREE.Object3D, freed: Freed = { geometries:
       const saved = o.userData.voxelSaved as { geometry?: THREE.BufferGeometry } | undefined;
       if (saved?.geometry) free(saved.geometry, "geometries");
     }
-    if (any.material) for (const m of Array.isArray(any.material) ? any.material : [any.material]) material(m);
+    if (any.material)
+      for (const m of Array.isArray(any.material) ? any.material : [any.material]) material(m);
     if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose();
     const lit = o as THREE.DirectionalLight;
     if (lit.isLight && lit.shadow) lit.shadow.dispose();

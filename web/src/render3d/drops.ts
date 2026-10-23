@@ -60,7 +60,12 @@ export class Drops {
           const w = 0.07 + 0.03 * ["common", "rare", "epic", "legendary"].indexOf(loot.rarity);
           beam = new THREE.Mesh(
             new THREE.BoxGeometry(w * 2, 3, w * 2),
-            new THREE.MeshBasicMaterial({ color: RARITIES[loot.rarity].color, transparent: true, opacity: 0.35, depthWrite: false }),
+            new THREE.MeshBasicMaterial({
+              color: RARITIES[loot.rarity].color,
+              transparent: true,
+              opacity: 0.35,
+              depthWrite: false,
+            }),
           );
           beam.position.y = 1.5;
           beam.userData.nopick = true;
@@ -80,7 +85,8 @@ export class Drops {
     for (const s of this.shown.values()) {
       s.root.position.y = s.pet ? 0 : 0.04 + Math.abs(Math.sin(t * 2 + s.drop.id)) * 0.05;
       s.pet?.update(t);
-      if (s.beam) (s.beam.material as THREE.MeshBasicMaterial).opacity = 0.3 + 0.12 * Math.sin(t * 3 + s.drop.id);
+      if (s.beam)
+        (s.beam.material as THREE.MeshBasicMaterial).opacity = 0.3 + 0.12 * Math.sin(t * 3 + s.drop.id);
     }
   }
 

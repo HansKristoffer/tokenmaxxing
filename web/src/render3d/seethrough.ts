@@ -24,7 +24,10 @@ const patch = (sh: Parameters<THREE.Material["onBeforeCompile"]>[0]) => {
       "#include <project_vertex>\n  vSeeZ = -mvPosition.z;\n  vSeeY = (modelMatrix * vec4(transformed, 1.0)).y;",
     );
   sh.fragmentShader = sh.fragmentShader
-    .replace("#include <common>", "#include <common>\nvarying float vSeeZ;\nvarying float vSeeY;\nuniform vec4 uSee;")
+    .replace(
+      "#include <common>",
+      "#include <common>\nvarying float vSeeZ;\nvarying float vSeeY;\nuniform vec4 uSee;",
+    )
     .replace(
       "#include <clipping_planes_fragment>",
       `#include <clipping_planes_fragment>

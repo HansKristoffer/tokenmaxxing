@@ -102,7 +102,13 @@ const ink = () => (lan ? "#ff7be0" : "#7be0ff");
 const rowFill = () => (lan ? "rgba(120, 30, 110, 0.45)" : "rgba(40, 90, 140, 0.4)");
 
 /** The big screen's face: up to three live rows, a "+N more" strip, or the empty state. */
-export function paintFeed(g: CanvasRenderingContext2D, w: number, h: number, feed: ScreenFeed, t: number): void {
+export function paintFeed(
+  g: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  feed: ScreenFeed,
+  t: number,
+): void {
   g.fillStyle = "#0e1420";
   g.fillRect(0, 0, w, h);
   g.fillStyle = lan ? "#3a1a44" : "#1d2a44";
@@ -141,7 +147,8 @@ export function paintFeed(g: CanvasRenderingContext2D, w: number, h: number, fee
     }
     g.font = `500 ${rowH * 0.27}px ${FONT}`;
     g.fillStyle = "#d6e4f0";
-    const head = m.endsInMin != null ? `${m.headline ?? "Live"} · ends in ${m.endsInMin}m` : (m.headline ?? "Starting…");
+    const head =
+      m.endsInMin != null ? `${m.headline ?? "Live"} · ends in ${m.endsInMin}m` : (m.headline ?? "Starting…");
     g.fillText(cut(g, `${head} · ${m.players.join(" vs ")}`, w - 2 * pad), pad, y + rowH * 0.72);
   }
   if (more > 0) {
@@ -177,7 +184,11 @@ export function paintBracketScreen(g: CanvasRenderingContext2D, w: number, h: nu
     g.fillStyle = "#d6e4f0";
     const side = (n: string | null, won: boolean) => `${n ?? "…"}${won ? " ✓" : ""}`;
     g.fillText(
-      cut(g, `${side(m.a, m.winner === "a")} vs ${m.b === null ? "bye" : side(m.b, m.winner === "b")}`, w - 2 * pad),
+      cut(
+        g,
+        `${side(m.a, m.winner === "a")} vs ${m.b === null ? "bye" : side(m.b, m.winner === "b")}`,
+        w - 2 * pad,
+      ),
       pad,
       y + rowH * 0.5,
     );
@@ -185,15 +196,26 @@ export function paintBracketScreen(g: CanvasRenderingContext2D, w: number, h: nu
 }
 
 /** Paints a feed or, while a tournament runs, its bracket. */
-export const paintScreen = (g: CanvasRenderingContext2D, w: number, h: number, feed: ScreenFeed, t: number): void =>
-  feed.bracket ? paintBracketScreen(g, w, h, feed.bracket) : paintFeed(g, w, h, feed, t);
+export const paintScreen = (
+  g: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  feed: ScreenFeed,
+  t: number,
+): void => (feed.bracket ? paintBracketScreen(g, w, h, feed.bracket) : paintFeed(g, w, h, feed, t));
 
 // ——— Terminals ———
 export interface BoardRow {
   tokens: number;
 }
 /** The leaderboard terminal: today's top three as gold, silver and bronze bars, no numbers. */
-export function paintLeaderboard(g: CanvasRenderingContext2D, w: number, h: number, rows: BoardRow[], t: number): void {
+export function paintLeaderboard(
+  g: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  rows: BoardRow[],
+  t: number,
+): void {
   g.fillStyle = "#0e1f17";
   g.fillRect(0, 0, w, h);
   scanLines(g, w, h);
@@ -208,7 +230,13 @@ export function paintLeaderboard(g: CanvasRenderingContext2D, w: number, h: numb
 }
 
 /** The raid terminal: the boss's HP bar, green to red as it falls. `share` is 0-1, or null with no raid. */
-export function paintRaid(g: CanvasRenderingContext2D, w: number, h: number, share: number | null, t: number): void {
+export function paintRaid(
+  g: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  share: number | null,
+  t: number,
+): void {
   g.fillStyle = "#0e1f17";
   g.fillRect(0, 0, w, h);
   scanLines(g, w, h);

@@ -24,11 +24,17 @@ const win = window as unknown as Record<string, unknown>;
 let onFrame: (() => void) | null = null;
 
 if (view === "outside") {
-  const ground = new THREE.Mesh(new THREE.BoxGeometry(16, 0.2, 12), new THREE.MeshToonMaterial({ color: "#86c35e" }));
+  const ground = new THREE.Mesh(
+    new THREE.BoxGeometry(16, 0.2, 12),
+    new THREE.MeshToonMaterial({ color: "#86c35e" }),
+  );
   ground.position.set(0, -0.1, -1);
   ground.receiveShadow = true;
   scene.add(ground);
-  const path = new THREE.Mesh(new THREE.BoxGeometry(2, 0.21, 4), new THREE.MeshToonMaterial({ color: "#e6cc98" }));
+  const path = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 0.21, 4),
+    new THREE.MeshToonMaterial({ color: "#e6cc98" }),
+  );
   path.position.set(0, -0.1, 2.5);
   scene.add(path);
   const ext = SHOP_PETS.exterior();
@@ -109,7 +115,10 @@ window.addEventListener("pointermove", (e) => {
   const fwd = new THREE.Vector3(-Math.sin(azimuth), 0, -Math.cos(azimuth));
   target.addScaledVector(right, -dx).addScaledVector(fwd, dy);
 });
-window.addEventListener("wheel", (e) => (zoom = Math.max(0.1, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9)))));
+window.addEventListener(
+  "wheel",
+  (e) => (zoom = Math.max(0.1, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9)))),
+);
 window.addEventListener("keydown", (e) => {
   if (e.key === "q") azimuth -= Math.PI / 2;
   if (e.key === "e") azimuth += Math.PI / 2;

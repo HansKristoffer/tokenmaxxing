@@ -27,10 +27,23 @@ const bind = (ch: string, id: string) => {
   const a = assetById.get(id);
   if (a) ASSET_OF.set(ch, a);
 };
-for (const [ch, id] of Object.entries({ p: "plant", L: "lamp", c: "chair", k: "shelf", B: "bench", d: "desk", o: "coffee", b: "bed", s: "sofa", t: "tv" })) bind(ch, id);
+for (const [ch, id] of Object.entries({
+  p: "plant",
+  L: "lamp",
+  c: "chair",
+  k: "shelf",
+  B: "bench",
+  d: "desk",
+  o: "coffee",
+  b: "bed",
+  s: "sofa",
+  t: "tv",
+}))
+  bind(ch, id);
 for (const f of COMPANY_FURNITURE) bind(f.ch, f.art);
 for (const h of HOME_PIECES) bind(h.ch, h.art);
-for (const a of [...DUNGEON_ASSETS, ...PETS_ASSETS]) if (/^tile:[UYVQ]$/u.test(a.id)) ASSET_OF.set(a.id.slice(5), a);
+for (const a of [...DUNGEON_ASSETS, ...PETS_ASSETS])
+  if (/^tile:[UYVQ]$/u.test(a.id)) ASSET_OF.set(a.id.slice(5), a);
 const stool = TAVERN_ASSETS.find((a) => a.id === "tile:v");
 if (stool) ASSET_OF.set("v", stool);
 
@@ -66,11 +79,18 @@ function flat(ch: string): Asset {
 }
 
 /** Furniture characters: what is placed from the map, with the footprint width of each. */
-const WIDTH = new Map<string, number>([...FURNITURE, ...COMPANY_FURNITURE, ...HOME_PIECES].map((p): [string, number] => [p.ch, p.w ?? 1]));
+const WIDTH = new Map<string, number>(
+  [...FURNITURE, ...COMPANY_FURNITURE, ...HOME_PIECES].map((p): [string, number] => [p.ch, p.w ?? 1]),
+);
 const FLAT = new Set(["=", "e"]);
 
 /** Fills `room` with what the map has on its floor. `at` maps a map tile to the room's. */
-export function furnish(room: Room, map: GameMap, inset: [number, number], models: Partial<Record<string, () => Model>> = {}): Placed[] {
+export function furnish(
+  room: Room,
+  map: GameMap,
+  inset: [number, number],
+  models: Partial<Record<string, () => Model>> = {},
+): Placed[] {
   const placed: Placed[] = [];
   const done = new Set<string>();
   map.rows.forEach((row, ry) => {
@@ -88,8 +108,21 @@ export function furnish(room: Room, map: GameMap, inset: [number, number], model
       const asset = ASSET_OF.get(ch);
       if (!asset) {
         // Things the legend names but no one has drawn: a labelled block, so the tile is not empty.
-        if (LEGEND[ch]?.name && !LEGEND[ch]?.walk && !LEGEND[ch]?.portal && !"WΨΘπ".includes(ch) && ch !== "_" && WIDTH.has(ch))
-          placed.push(room.place({ id: `ph:${ch}`, name: LEGEND[ch]!.name, price: 0, w: 1, d: 1, build: () => placeholder(ch) }, x, z));
+        if (
+          LEGEND[ch]?.name &&
+          !LEGEND[ch]?.walk &&
+          !LEGEND[ch]?.portal &&
+          !"WΨΘπ".includes(ch) &&
+          ch !== "_" &&
+          WIDTH.has(ch)
+        )
+          placed.push(
+            room.place(
+              { id: `ph:${ch}`, name: LEGEND[ch]!.name, price: 0, w: 1, d: 1, build: () => placeholder(ch) },
+              x,
+              z,
+            ),
+          );
         continue;
       }
       // A piece several tiles wide writes its character on each.
@@ -132,12 +165,22 @@ function buildFurnished(id: RoomId, ctx: RoomCtx): RoomView {
     if (map.decor) applyDecor(room, map.decor);
     // The owner's trophies are on the shelf: the real ones (the room is built again when they change).
     const owner = ownerOfOffice(id);
-    const placed = furnish(room, map, inset, owner === null ? {} : { U: () => trophyShelf(earnedBy(owner), true) });
+    const placed = furnish(
+      room,
+      map,
+      inset,
+      owner === null ? {} : { U: () => trophyShelf(earnedBy(owner), true) },
+    );
     return { room, placed } satisfies Furnished;
   });
   const { room } = built.value;
   endTickScope(scope, room.group);
-  const skin: RoomSkin = { group: room.group, offset: inset, facing: (v) => room.facing(v), extra: built.value };
+  const skin: RoomSkin = {
+    group: room.group,
+    offset: inset,
+    facing: (v) => room.facing(v),
+    extra: built.value,
+  };
   const world = new WorldRoom(office ? "office" : "common", map, skin);
   return viewOf(id, map, world, built.ticks, { extra: built.value, keepers: new Set() });
 }

@@ -37,11 +37,51 @@ const q = new THREE.Quaternion();
 const e = new THREE.Euler();
 const v = new THREE.Vector3();
 const FACES: { n: V3; c: V3[] }[] = [
-  { n: [1, 0, 0], c: [[1, -1, 1], [1, -1, -1], [1, 1, -1], [1, 1, 1]] },
-  { n: [-1, 0, 0], c: [[-1, -1, -1], [-1, -1, 1], [-1, 1, 1], [-1, 1, -1]] },
-  { n: [0, 1, 0], c: [[-1, 1, 1], [1, 1, 1], [1, 1, -1], [-1, 1, -1]] },
-  { n: [0, 0, 1], c: [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]] },
-  { n: [0, 0, -1], c: [[1, -1, -1], [-1, -1, -1], [-1, 1, -1], [1, 1, -1]] },
+  {
+    n: [1, 0, 0],
+    c: [
+      [1, -1, 1],
+      [1, -1, -1],
+      [1, 1, -1],
+      [1, 1, 1],
+    ],
+  },
+  {
+    n: [-1, 0, 0],
+    c: [
+      [-1, -1, -1],
+      [-1, -1, 1],
+      [-1, 1, 1],
+      [-1, 1, -1],
+    ],
+  },
+  {
+    n: [0, 1, 0],
+    c: [
+      [-1, 1, 1],
+      [1, 1, 1],
+      [1, 1, -1],
+      [-1, 1, -1],
+    ],
+  },
+  {
+    n: [0, 0, 1],
+    c: [
+      [-1, -1, 1],
+      [1, -1, 1],
+      [1, 1, 1],
+      [-1, 1, 1],
+    ],
+  },
+  {
+    n: [0, 0, -1],
+    c: [
+      [1, -1, -1],
+      [-1, -1, -1],
+      [-1, 1, -1],
+      [1, 1, -1],
+    ],
+  },
 ];
 
 export class Batch {
@@ -66,7 +106,19 @@ export class Batch {
   }
 
   /** A box turned by Euler angles about its centre (x, y, z are the centre). */
-  tilted(x: number, y: number, z: number, w: number, h: number, d: number, rx: number, ry: number, rz: number, colour: string, gain = 1): void {
+  tilted(
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+    h: number,
+    d: number,
+    rx: number,
+    ry: number,
+    rz: number,
+    colour: string,
+    gain = 1,
+  ): void {
     this.raw(x, y, z, w, h, d, rx, ry, rz, colour, gain);
   }
 
@@ -82,13 +134,35 @@ export class Batch {
     this.rawQ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2, t, t, len, q, colour, gain);
   }
 
-  private raw(x: number, y: number, z: number, w: number, h: number, d: number, rx: number, ry: number, rz: number, colour: string, gain: number): void {
+  private raw(
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+    h: number,
+    d: number,
+    rx: number,
+    ry: number,
+    rz: number,
+    colour: string,
+    gain: number,
+  ): void {
     e.set(rx, ry, rz, "YXZ");
     q.setFromEuler(e);
     this.rawQ(x, y, z, w, h, d, q, colour, gain);
   }
 
-  private rawQ(x: number, y: number, z: number, w: number, h: number, d: number, quat: THREE.Quaternion, colour: string, gain: number): void {
+  private rawQ(
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+    h: number,
+    d: number,
+    quat: THREE.Quaternion,
+    colour: string,
+    gain: number,
+  ): void {
     const c = rgb(colour);
     const j = 1 + (this.rand() - 0.5) * 2 * this.jitter;
     const r = c.r * j * gain;
@@ -129,7 +203,11 @@ export class Batch {
     g.setAttribute("position", new THREE.BufferAttribute(this.pos.a.slice(0, this.pos.n), 3));
     g.setAttribute("normal", new THREE.BufferAttribute(this.nor.a.slice(0, this.nor.n), 3));
     g.setAttribute("color", new THREE.BufferAttribute(this.col.a.slice(0, this.col.n), 3));
-    g.setIndex(this.verts > 65535 ? new THREE.Uint32BufferAttribute(this.idx, 1) : new THREE.Uint16BufferAttribute(this.idx, 1));
+    g.setIndex(
+      this.verts > 65535
+        ? new THREE.Uint32BufferAttribute(this.idx, 1)
+        : new THREE.Uint16BufferAttribute(this.idx, 1),
+    );
     let mat: THREE.Material;
     if (opts.glow) {
       mat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });

@@ -3,7 +3,10 @@
 import { openGame, playwright, portals, ready, room, signUp, through } from "./lib.mjs";
 
 const pw = await playwright();
-const browser = await pw.chromium.launch({ headless: true, args: ["--use-angle=metal", "--ignore-gpu-blocklist"] });
+const browser = await pw.chromium.launch({
+  headless: true,
+  args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
+});
 const tier = process.argv[2] ?? "high";
 const page = await openGame(browser, await signUp("ht", 400_000), tier);
 await ready(page);
@@ -30,12 +33,17 @@ const go = async (ch) => {
   return r;
 };
 await go("x");
-for (const [name, door] of [["furniture", "ƒ"], ["clothes", "Ç"], ["barber", "Ð"], ["pets", "ð"]]) {
+for (const [name, door] of [
+  ["furniture", "ƒ"],
+  ["clothes", "Ç"],
+  ["barber", "Ð"],
+  ["pets", "ð"],
+]) {
   await worst();
   const r = await go(door);
   const w = await worst();
   console.log(name, "->", r, "worst frame ms:", w);
-  await go("x") ?? (await go("X"));
+  (await go("x")) ?? (await go("X"));
   await page.waitForTimeout(1500);
   await worst();
 }

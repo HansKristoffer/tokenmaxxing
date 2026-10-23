@@ -187,6 +187,8 @@ export class AarhusWeather {
     const l = this.latest;
     if (!l) return "Open-Meteo";
     const when = wall(l.at);
-    return this.offline || l.source === "cached" ? `Open-Meteo · cached ${when}${this.offline ? " (offline)" : ""}` : `Open-Meteo · updated ${when}`;
+    return this.offline || l.source === "cached"
+      ? `Open-Meteo · cached ${when}${this.offline ? " (offline)" : ""}`
+      : `Open-Meteo · updated ${when}`;
   }
 }

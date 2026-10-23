@@ -8,12 +8,20 @@ const arg = (k, d) => {
 };
 const url = arg("url", "http://localhost:4652");
 const out = arg("out", "perf-results/audit");
-const rooms = arg("rooms", "town,inn,upstairs,basement,shop-furniture,shop-clothes,shop-barber,shop-pets,dungeon,hq,office").split(",");
+const rooms = arg(
+  "rooms",
+  "town,inn,upstairs,basement,shop-furniture,shop-clothes,shop-barber,shop-pets,dungeon,hq,office",
+).split(",");
 const styles = arg("styles", "smooth,voxel").split(",");
 const times = arg("times", "12:00,23:30").split(",");
-const pw = await import(process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs");
+const pw = await import(
+  process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs"
+);
 mkdirSync(out, { recursive: true });
-const browser = await pw.chromium.launch({ headless: true, args: ["--use-angle=metal", "--ignore-gpu-blocklist"] });
+const browser = await pw.chromium.launch({
+  headless: true,
+  args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
+});
 let bad = 0;
 const seed = () => {
   let s = 99;
@@ -29,44 +37,65 @@ async function shot(room, style, nobake, time) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(`${url}/?stage=${/^[A-Z]/.test(room) ? room : `World:${room}`}&q=2${nobake ? "&nobake" : ""}`);
-  await page.waitForFunction(() => window.world3d && window.__perfStats?.()[0]?.scene, null, { timeout: 60000 });
+  await page.goto(
+    `${url}/?stage=${/^[A-Z]/.test(room) ? room : `World:${room}`}&q=2${nobake ? "&nobake" : ""}`,
+  );
+  await page.waitForFunction(() => window.world3d && window.__perfStats?.()[0]?.scene, null, {
+    timeout: 60000,
+  });
   await page.evaluate((t) => window.fx?.setTime(t), time);
   await page.addStyleTag({ content: "body > *:not(canvas){display:none !important}" });
   await page.waitForTimeout(3000);
   const png = await page.screenshot();
   // Sources that moved after the bake: baked copies would be stale.
-  const stale = nobake ? [] : await page.evaluate(async () => {
-    const layers = [...(window.__layers ?? [])].filter((l) => !l.disposed);
-    // From the pieces (position, rotation, scale) up to the layer's root: a rigid root (a wall, a limb) may move, what is
-    // inside must not. (World matrices of sleeping sources are not kept up to date, so they say nothing.)
-    const rel = (l, m) => {
-      const M = new m.matrix.constructor();
-      const tmp = new m.matrix.constructor();
-      for (let q = m; q && q !== l.root; q = q.parent) M.premultiply(tmp.compose(q.position, q.quaternion, q.scale));
-      return M.elements.map((x) => x.toFixed(3)).join();
-    };
-    const before = layers.map((l) => l.sourceMeshes.map((m) => rel(l, m)));
-    await new Promise((r) => setTimeout(r, 6000));
-    const bad = [];
-    layers.forEach((l, i) => {
-      l.sourceMeshes.forEach((m, j) => {
-        if (rel(l, m) !== before[i][j]) bad.push(m.name || m.geometry.type);
+  const stale = nobake
+    ? []
+    : await page.evaluate(async () => {
+        const layers = [...(window.__layers ?? [])].filter((l) => !l.disposed);
+        // From the pieces (position, rotation, scale) up to the layer's root: a rigid root (a wall, a limb) may move, what is
+        // inside must not. (World matrices of sleeping sources are not kept up to date, so they say nothing.)
+        const rel = (l, m) => {
+          const M = new m.matrix.constructor();
+          const tmp = new m.matrix.constructor();
+          for (let q = m; q && q !== l.root; q = q.parent)
+            M.premultiply(tmp.compose(q.position, q.quaternion, q.scale));
+          return M.elements.map((x) => x.toFixed(3)).join();
+        };
+        const before = layers.map((l) => l.sourceMeshes.map((m) => rel(l, m)));
+        await new Promise((r) => setTimeout(r, 6000));
+        const bad = [];
+        layers.forEach((l, i) => {
+          l.sourceMeshes.forEach((m, j) => {
+            if (rel(l, m) !== before[i][j]) bad.push(m.name || m.geometry.type);
+          });
+        });
+        return bad.slice(0, 5);
       });
-    });
-    return bad.slice(0, 5);
-  });
   await ctx.close();
   return { png, errors, stale };
 }
 const diff = async (page, a, b) =>
   page.evaluate(
     async ([x, y]) => {
-      const load = (d) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.src = `data:image/png;base64,${d}`; });
+      const load = (d) =>
+        new Promise((res) => {
+          const i = new Image();
+          i.onload = () => res(i);
+          i.src = `data:image/png;base64,${d}`;
+        });
       const [ia, ib] = await Promise.all([load(x), load(y)]);
-      const get = (i) => { const c = document.createElement("canvas"); c.width = i.width; c.height = i.height; const g = c.getContext("2d"); g.drawImage(i, 0, 0); return g.getImageData(0, 0, i.width, i.height).data; };
-      const A = get(ia), B = get(ib);
-      let sum = 0, big = 0;
+      const get = (i) => {
+        const c = document.createElement("canvas");
+        c.width = i.width;
+        c.height = i.height;
+        const g = c.getContext("2d");
+        g.drawImage(i, 0, 0);
+        return g.getImageData(0, 0, i.width, i.height).data;
+      };
+      const A = get(ia),
+        B = get(ib);
+      let sum = 0,
+        big = 0;
       for (let k = 0; k < A.length; k += 4) {
         const d = Math.abs(A[k] - B[k]) + Math.abs(A[k + 1] - B[k + 1]) + Math.abs(A[k + 2] - B[k + 2]);
         sum += d;
@@ -90,7 +119,9 @@ for (const room of rooms)
       const d = await diff(dpage, a.png, b.png);
       const flag = d.bigPct > 2 || b.stale.length || b.errors.length;
       if (flag) bad++;
-      console.log(`${flag ? "CHECK" : "ok   "} ${room.padEnd(15)} ${style.padEnd(7)} ${time} mean diff ${d.mean.toFixed(2)}  >90: ${d.bigPct.toFixed(2)}%  stale ${JSON.stringify(b.stale)} ${b.errors[0] ?? ""}`);
+      console.log(
+        `${flag ? "CHECK" : "ok   "} ${room.padEnd(15)} ${style.padEnd(7)} ${time} mean diff ${d.mean.toFixed(2)}  >90: ${d.bigPct.toFixed(2)}%  stale ${JSON.stringify(b.stale)} ${b.errors[0] ?? ""}`,
+      );
     }
 await browser.close();
 process.exit(bad ? 1 : 0);

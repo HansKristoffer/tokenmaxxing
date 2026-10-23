@@ -39,7 +39,9 @@ function roomLight(m: Model, at: V3, color: string, intensity: number, distance 
 
 /** A glowing material whose colour multiplies a map, so ticks can dim it to flicker. */
 const flick = (t: number, seed: number): number =>
-  0.82 + 0.18 * Math.sin(t * 9 + seed * 2.1) * Math.sin(t * 3.7 + seed) - (Math.sin(t * 1.3 + seed * 5) > 0.97 ? 0.3 : 0);
+  0.82 +
+  0.18 * Math.sin(t * 9 + seed * 2.1) * Math.sin(t * 3.7 + seed) -
+  (Math.sin(t * 1.3 + seed * 5) > 0.97 ? 0.3 : 0);
 
 // ——— Cabinets ———
 export const CABINET_GAMES = ["spr", "hype", "dice", "sprint", "tokenmaxxing"] as const;
@@ -143,7 +145,14 @@ const cabinet = (i: number) => (): Model => {
   m.cyl(0.015, 0.08, "#2b2433", [-0.15, 0.97, 0.22], 0.015, 6);
   m.ball(0.032, "#e25d5d", [-0.15, 1.06, 0.22]);
   for (let b = 0; b < 3; b++)
-    m.cyl(0.025, 0.02, ["#f0b53c", "#4f8fe0", "#3ddc84"][b]!, [0.05 + b * 0.08, 0.99, 0.2 - b * 0.01], 0.025, 8);
+    m.cyl(
+      0.025,
+      0.02,
+      ["#f0b53c", "#4f8fe0", "#3ddc84"][b]!,
+      [0.05 + b * 0.08, 0.99, 0.2 - b * 0.01],
+      0.025,
+      8,
+    );
   m.box([0.1, 0.12, 0.02], "#2b2433", [0, 0.35, 0.355], 0.005);
   m.plane(0.03, 0.05, glow(hex), [0, 0.38, 0.367]);
   roomLight(m, [0, 1.5, 0.7], hex, 1.1, 2.6);
@@ -174,12 +183,18 @@ const bigScreen = (): BigScreen => {
   const z = -0.4;
   m.box([5.9, 2.4, 0.14], C.metal, [0, 0.62, z], 0.04);
   m.box([5.9, 0.03, 0.15], C.metalLight, [0, 3.0, z], 0.01);
-  const screen = liveScreen<ScreenFeed>(5.52, 2.0, { matches: [] }, (g, w, h, feed, t) => paintScreen(g, w, h, feed, t), {
-    px: 64,
-    frame: INK,
-    lift: 0.78,
-    fps: 3,
-  });
+  const screen = liveScreen<ScreenFeed>(
+    5.52,
+    2.0,
+    { matches: [] },
+    (g, w, h, feed, t) => paintScreen(g, w, h, feed, t),
+    {
+      px: 64,
+      frame: INK,
+      lift: 0.78,
+      fps: 3,
+    },
+  );
   screen.position.set(0, 0, z + 0.04);
   m.add(screen);
   // A shelf of cables and the mounting bar under it; the standby LED.
@@ -364,7 +379,10 @@ const terminal = (kind: "board" | "raid") => (): Terminal => {
     0.68,
     0.5,
     state,
-    (g, w, h, s, t) => (kind === "board" ? paintLeaderboard(g, w, h, (s.v as BoardRow[]) ?? [], t) : paintRaid(g, w, h, s.v as number | null, t)),
+    (g, w, h, s, t) =>
+      kind === "board"
+        ? paintLeaderboard(g, w, h, (s.v as BoardRow[]) ?? [], t)
+        : paintRaid(g, w, h, s.v as number | null, t),
     { px: 64, frame: INK, lift: 1.2, fps: 2, smooth: false },
   );
   screen.position.set(0, 0, z + 0.23);
@@ -402,7 +420,8 @@ const pcDesk = (): Model => {
   }
   const hue = n % PC_HUES.length;
   const paint = (on: boolean, t = 0) => {
-    for (const mat of mats) mat.color.set(on ? LAN_PINK : PC_HUES[hue]!).multiplyScalar(0.7 + 0.3 * flick(t, n));
+    for (const mat of mats)
+      mat.color.set(on ? LAN_PINK : PC_HUES[hue]!).multiplyScalar(0.7 + 0.3 * flick(t, n));
   };
   paint(lanParty());
   onLanParty((on) => paint(on));
@@ -429,7 +448,8 @@ const rack = (): Model => {
       });
       m.plane(0.03, 0.03, leds.at(-1)!.mat, [-0.28 + j * 0.06, 0.18 + i * 0.2, 0.361]);
     }
-    for (let k = 0; k < 5; k++) m.box([0.06, 0.08, 0.005], "#1b1f2a", [0.04 + k * 0.05, 0.14 + i * 0.2, 0.362], 0.002);
+    for (let k = 0; k < 5; k++)
+      m.box([0.06, 0.08, 0.005], "#1b1f2a", [0.04 + k * 0.05, 0.14 + i * 0.2, 0.362], 0.002);
   }
   ticks.push((t) => {
     for (const l of leds) l.mat.color.set(Math.floor((t + l.phase) / l.period) % 2 === 0 ? l.on : "#183021");
@@ -534,7 +554,11 @@ export const BASEMENT_ASSETS: readonly Asset[] = [
 
 // ——— The room ———
 /** Dim lights for the basement scene: a low constant, point lights always on (cabinets, screens, neon). */
-export function dimBasement(scene: THREE.Scene, hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight): void {
+export function dimBasement(
+  scene: THREE.Scene,
+  hemi: THREE.HemisphereLight,
+  sun: THREE.DirectionalLight,
+): void {
   hemi.intensity = 0.95;
   hemi.color.set("#8d86d8");
   sun.intensity = 0.28;
@@ -559,7 +583,14 @@ export interface BasementScene {
 const names = ["mira", "kai", "oskar", "lin", "juno", "ravi"];
 const GAME_ROWS = [
   { emoji: "✊", name: "SPR", headline: "Best of 3 · 1-1", players: [names[0]!, names[1]!], watchers: 3 },
-  { emoji: "📈", name: "HYPE", headline: "Round 4", players: [names[2]!, names[3]!], watchers: 0, endsInMin: 4 },
+  {
+    emoji: "📈",
+    name: "HYPE",
+    headline: "Round 4",
+    players: [names[2]!, names[3]!],
+    watchers: 0,
+    endsInMin: 4,
+  },
   { emoji: "🎲", name: "Dice", headline: "Pot 120", players: [names[4]!, names[5]!], watchers: 12 },
   { emoji: "⌨️", name: "Sprint", headline: "92 wpm", players: [names[1]!, names[3]!], watchers: 1 },
 ];
@@ -583,7 +614,12 @@ const BOARD_ROUNDS: BoardPairing[][] = [
 export function buildBasement(opts: { demoTables?: boolean } = {}): BasementScene {
   const room = new Room(20, 12, { floor: "#3b3454", wall: "#2a2744", stripe: "#35315a", bare: true });
   const at = (id: string, x: number, z: number, turn: Turn = 0) =>
-    room.place(BASEMENT_ASSETS.find((a) => a.id === id)!, x, z, turn);
+    room.place(
+      BASEMENT_ASSETS.find((a) => a.id === id)!,
+      x,
+      z,
+      turn,
+    );
   for (let x = 0; x < 6; x++) at("tile:η", x, 0);
   const screenP = at("tile:E", 6, 0);
   const [t1, t2] = [at("tile:M", 12, 0), at("tile:M:raid", 13, 0)];
@@ -607,7 +643,13 @@ export function buildBasement(opts: { demoTables?: boolean } = {}): BasementScen
   at("stairs:down", 18, 11);
   // Game tables with seats and a watcher billboard, in the free middle (the demo's; the game plays its matches in town).
   if (opts.demoTables !== false) {
-    const tables = [room.place(BASEMENT_ASSETS.find((a) => a.id === "table:dice")!, 9, 6)];
+    const tables = [
+      room.place(
+        BASEMENT_ASSETS.find((a) => a.id === "table:dice")!,
+        9,
+        6,
+      ),
+    ];
     (tables[0]!.model as unknown as { setWatchers: (n: number) => void }).setWatchers(4);
     at("arena-desk", 14, 6);
   }
@@ -625,7 +667,13 @@ export function buildBasement(opts: { demoTables?: boolean } = {}): BasementScen
     else if (p === 2) screen.show({ matches: [] });
     else if (p === 3) screen.show({ matches: [], bracket: BRACKET });
     else screen.show({ matches: GAME_ROWS.slice(0, 2), total: 2 });
-    board.show(p === 3 ? { rounds: BOARD_ROUNDS } : p === 4 ? { rounds: BOARD_ROUNDS, champion: "mira" } : { rounds: null });
+    board.show(
+      p === 3
+        ? { rounds: BOARD_ROUNDS }
+        : p === 4
+          ? { rounds: BOARD_ROUNDS, champion: "mira" }
+          : { rounds: null },
+    );
     terminals[0].show(p % 2 ? [{ tokens: 90 }, { tokens: 60 }, { tokens: 25 }] : []);
     terminals[1].show(p === 2 ? null : [0.8, 0.45, 0.12, 0.65][p % 4]!);
   };

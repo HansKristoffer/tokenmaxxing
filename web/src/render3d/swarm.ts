@@ -20,7 +20,9 @@ export class Swarm {
     lit = false,
   ) {
     const geometry = new THREE.BoxGeometry(size, size, size);
-    const material = lit ? toon("#ffffff") : new THREE.MeshBasicMaterial({ color: "#ffffff", toneMapped: false });
+    const material = lit
+      ? toon("#ffffff")
+      : new THREE.MeshBasicMaterial({ color: "#ffffff", toneMapped: false });
     this.mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, max));
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, max) * 3), 3);
     this.mesh.frustumCulled = false;
@@ -85,7 +87,13 @@ export class Figures {
   }
 
   /** A sitter at (x, z) whose seat top is at `y`, in `shirt` and `skin`. */
-  add(x: number, y: number, z: number, shirt: THREE.ColorRepresentation, skin: THREE.ColorRepresentation): void {
+  add(
+    x: number,
+    y: number,
+    z: number,
+    shirt: THREE.ColorRepresentation,
+    skin: THREE.ColorRepresentation,
+  ): void {
     this.torso.add(x, y + 0.3, z, 1, shirt);
     this.head.add(x, y + 0.7, z, 1, skin);
   }

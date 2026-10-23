@@ -2,14 +2,21 @@
 // Needs playwright (any copy; set PLAYWRIGHT to its path) and the dev server on PORT (default 4638).
 import { writeFileSync } from "node:fs";
 
-const pw = await import(process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs");
+const pw = await import(
+  process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs"
+);
 const [name, query = "", port = "4638"] = process.argv.slice(2);
 const params = new URLSearchParams(query);
 const w = Number(params.get("w") ?? 1600);
 const h = Number(params.get("h") ?? 900);
 const browser = await pw.chromium.launch({
   headless: true,
-  args: ["--use-angle=metal", "--enable-gpu-rasterization", "--ignore-gpu-blocklist", "--enable-unsafe-swiftshader"],
+  args: [
+    "--use-angle=metal",
+    "--enable-gpu-rasterization",
+    "--ignore-gpu-blocklist",
+    "--enable-unsafe-swiftshader",
+  ],
 });
 const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
 page.on("console", (m) => console.log("[page]", m.text()));

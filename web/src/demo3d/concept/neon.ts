@@ -33,7 +33,11 @@ export function farSkyline(world: World, count = 90): void {
     const w = 7 + rnd() * 10;
     const d = 7 + rnd() * 10;
     const h = 30 + rnd() * 90 * (1 - Math.min(0.5, Math.hypot(x, z) / 700));
-    const base = night ? ["#171833", "#1b1530", "#12182c"][n % 3]! : dusk ? ["#c9a7a8", "#b79aa8", "#d4b0a0"][n % 3]! : ["#b5cfcf", "#c2d6d2", "#a9c4c8", "#bcd0c0"][n % 3]!;
+    const base = night
+      ? ["#171833", "#1b1530", "#12182c"][n % 3]!
+      : dusk
+        ? ["#c9a7a8", "#b79aa8", "#d4b0a0"][n % 3]!
+        : ["#b5cfcf", "#c2d6d2", "#a9c4c8", "#bcd0c0"][n % 3]!;
     b.box(x, -0.5, z, w, h, d, base);
     b.box(x, h - 0.5, z, w * 0.7, h * 0.18, d * 0.7, base);
     if (!night) b.box(x + (rnd() - 0.5) * 2, h - 0.5 + h * 0.18, z, w * 0.5, 0.4, d * 0.5, "#6fbf6a");
@@ -45,7 +49,8 @@ export function farSkyline(world: World, count = 90): void {
           if (rnd() > 0.28) continue;
           const col = ["#ffd27a", "#7fe9ff", "#ff5ad8", "#a98bff", "#ffe8b0"][Math.floor(rnd() * 5)]!;
           lit.box(x - w / 2 + 0.9 + c * 1.8, r * 2.2 - 0.5, z + d / 2 + 0.03, 0.9, 0.9, 0.04, col, 1.3);
-          if (rnd() < 0.25) lit.box(x + w / 2 + 0.03, r * 2.2 - 0.5, z - d / 2 + 0.9 + c * 1.8, 0.04, 0.9, 0.9, col, 1.3);
+          if (rnd() < 0.25)
+            lit.box(x + w / 2 + 0.03, r * 2.2 - 0.5, z - d / 2 + 0.9 + c * 1.8, 0.04, 0.9, 0.9, col, 1.3);
         }
       }
       if (rnd() < 0.5) lit.box(x, h + h * 0.18 - 0.5, z, 0.3, 0.3, 0.3, NEON[n % NEON.length]!, 2.5);
@@ -66,7 +71,15 @@ export function clouds(world: World, tint = "#ffffff", count = 16): void {
     const y = 125 + rnd() * 50;
     for (let p = 0; p < 6; p++) {
       const w = 4 + rnd() * 6;
-      b.box(x + (p - 2.5) * 5 + rnd() * 3, y + (p % 2) * 1.2, z + (rnd() - 0.5) * 5, w, 2 + rnd() * 2.2, 5 + rnd() * 4, tint);
+      b.box(
+        x + (p - 2.5) * 5 + rnd() * 3,
+        y + (p % 2) * 1.2,
+        z + (rnd() - 0.5) * 5,
+        w,
+        2 + rnd() * 2.2,
+        5 + rnd() * 4,
+        tint,
+      );
     }
   }
   const m = b.build({ shadows: false });
@@ -74,7 +87,26 @@ export function clouds(world: World, tint = "#ffffff", count = 16): void {
   world.scene.add(m);
 }
 
-const WORDS = ["NOODLES", "24H BAR", "ARCADE", "COMPILE", "HOTEL", "BANK", "SHIP IT", "CAFE", "DEBUG", "MERGE", "SYNTH", "RAMEN", "MEGACORP", "LGTM", "SUDO", "TOKENS", "CLINIC", "SPA"];
+const WORDS = [
+  "NOODLES",
+  "24H BAR",
+  "ARCADE",
+  "COMPILE",
+  "HOTEL",
+  "BANK",
+  "SHIP IT",
+  "CAFE",
+  "DEBUG",
+  "MERGE",
+  "SYNTH",
+  "RAMEN",
+  "MEGACORP",
+  "LGTM",
+  "SUDO",
+  "TOKENS",
+  "CLINIC",
+  "SPA",
+];
 
 function vertical(text: string, w: number, h: number, fg: string, alt: string): THREE.Object3D {
   const s = sign(text, h, w, { fg, alt, theme: "cyber" });
@@ -99,7 +131,11 @@ export function cyberPass(world: World): void {
       const x = city.cx(v.i1) + C / 2 + 0.05;
       const z = city.cz(v.j1) + C / 2 + 0.05;
       // only where the corner is really exposed
-      if (!city.occ(v.i1 + 1, v.j1, v.f0 + 1) && !city.occ(v.i1, v.j1 + 1, v.f0 + 1) && !city.occ(v.i1 + 1, v.j1 + 1, v.f0 + 1)) {
+      if (
+        !city.occ(v.i1 + 1, v.j1, v.f0 + 1) &&
+        !city.occ(v.i1, v.j1 + 1, v.f0 + 1) &&
+        !city.occ(v.i1 + 1, v.j1 + 1, v.f0 + 1)
+      ) {
         neon.box(x, v.f0 * FL + 0.2, z, 0.09, (v.f1 - v.f0) * FL - 0.2, 0.09, col, 2.2);
       }
     }
@@ -115,9 +151,13 @@ export function cyberPass(world: World): void {
   // 2. Billboards on faces that look out over open air (+z wide boards, +x blade signs)
   const used = new Set<string>();
   let nb = 0;
-  const clearOutZ = (i: number, j: number, f: number) => [1, 2, 3].every((d) => !city.occ(i, j + d, f) && !city.occ(i, j + d, f + 2));
-  const clearOutX = (i: number, j: number, f: number) => [1, 2, 3].every((d) => !city.occ(i + d, j, f) && !city.occ(i + d, j, f + 2));
-  const vols = [...city.vols].filter((v) => v.kind !== "bridge" && v.kind !== "walk" && v.f1 - v.f0 >= 4).sort(() => rnd() - 0.5);
+  const clearOutZ = (i: number, j: number, f: number) =>
+    [1, 2, 3].every((d) => !city.occ(i, j + d, f) && !city.occ(i, j + d, f + 2));
+  const clearOutX = (i: number, j: number, f: number) =>
+    [1, 2, 3].every((d) => !city.occ(i + d, j, f) && !city.occ(i + d, j, f + 2));
+  const vols = [...city.vols]
+    .filter((v) => v.kind !== "bridge" && v.kind !== "walk" && v.f1 - v.f0 >= 4)
+    .sort(() => rnd() - 0.5);
   for (const v of vols) {
     if (nb > 44) break;
     const col = NEON[nb % NEON.length]!;
@@ -136,7 +176,12 @@ export function cyberPass(world: World): void {
       const j = v.j0 + Math.floor(rnd() * (v.j1 - v.j0 + 1));
       if (!clearOutX(v.i1, j, f) || used.has(`x${v.i1},${j},${f}`)) continue;
       used.add(`x${v.i1},${j},${f}`);
-      const s = sign(word.replace(/ /g, ""), 2.8, Math.min(18, 2.4 * word.length + 2), { fg: col, alt, theme: "cyber", vertical: true });
+      const s = sign(word.replace(/ /g, ""), 2.8, Math.min(18, 2.4 * word.length + 2), {
+        fg: col,
+        alt,
+        theme: "cyber",
+        vertical: true,
+      });
       s.rotation.y = Math.PI / 2;
       s.position.set(city.cx(v.i1) + C / 2 + 0.1, f * FL - 0.5, city.cz(j));
       g.add(s);
@@ -153,13 +198,24 @@ export function cyberPass(world: World): void {
     if (d < 4 || d > 22 || Math.abs(a.y - b2.y) > 14) continue;
     const sag = 0.7 + d * 0.06;
     const N = 12;
-    const at = (t: number): V3 => [a.x + (b2.x - a.x) * t, a.y + 0.6 + (b2.y - a.y) * t - 4 * sag * t * (1 - t), a.z + (b2.z - a.z) * t];
+    const at = (t: number): V3 => [
+      a.x + (b2.x - a.x) * t,
+      a.y + 0.6 + (b2.y - a.y) * t - 4 * sag * t * (1 - t),
+      a.z + (b2.z - a.z) * t,
+    ];
     for (let i = 0; i < N; i++) cables.beam(at(i / N), at((i + 1) / N), 0.045, "#0c0a14");
   }
   g.add(cables.build());
 
   // 4. Holograms
-  const holoMat = (hex: string) => new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false });
+  const holoMat = (hex: string) =>
+    new THREE.MeshBasicMaterial({
+      color: hex,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
   const holo = (obj: THREE.Object3D, hex: string) => {
     obj.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -212,7 +268,10 @@ export function cyberPass(world: World): void {
     const ci = Math.round(x / C + city.W / 2 - 0.5);
     const cj = Math.round(z / C + city.D / 2 - 0.5);
     const f0 = Math.floor(y / FL);
-    if ([-1, 0, 1].some((a) => [-1, 0, 1].some((b2) => [0, 1].some((c2) => city.occ(ci + a, cj + b2, f0 + c2))))) continue;
+    if (
+      [-1, 0, 1].some((a) => [-1, 0, 1].some((b2) => [0, 1].some((c2) => city.occ(ci + a, cj + b2, f0 + c2))))
+    )
+      continue;
     const col = ["#1d2038", "#2a1740", "#12303c", "#3a1a2e", "#202a44"][k % 5]!;
     const L = 2.1 * sc;
     const W = 0.95 * sc;
@@ -222,14 +281,49 @@ export function cyberPass(world: World): void {
     const dx = (alongX ? L : W) * 1;
     const dz = (alongX ? W : L) * 1;
     cars.box(x, y, z, dx, H, dz, col);
-    cars.box(x - sx * 0.1 * sc * dir, y + H, z - sz * 0.1 * sc * dir, alongX ? L * 0.5 : W * 0.85, 0.32 * sc, alongX ? W * 0.85 : L * 0.5, "#0a0f1a");
+    cars.box(
+      x - sx * 0.1 * sc * dir,
+      y + H,
+      z - sz * 0.1 * sc * dir,
+      alongX ? L * 0.5 : W * 0.85,
+      0.32 * sc,
+      alongX ? W * 0.85 : L * 0.5,
+      "#0a0f1a",
+    );
     const ncol = NEON[k % NEON.length]!;
     lights.box(x, y - 0.04, z, dx * 0.8, 0.06, dz * 0.8, ncol, 2.4);
     // headlights (front) and tail lights
-    lights.box(x + sx * dir * (L / 2), y + H * 0.35, z + sz * dir * (L / 2), alongX ? 0.06 : W * 0.7, 0.14 * sc, alongX ? W * 0.7 : 0.06, "#fff6d8", 2.8);
-    lights.box(x - sx * dir * (L / 2), y + H * 0.35, z - sz * dir * (L / 2), alongX ? 0.06 : W * 0.7, 0.12 * sc, alongX ? W * 0.7 : 0.06, "#ff2d4a", 2.6);
+    lights.box(
+      x + sx * dir * (L / 2),
+      y + H * 0.35,
+      z + sz * dir * (L / 2),
+      alongX ? 0.06 : W * 0.7,
+      0.14 * sc,
+      alongX ? W * 0.7 : 0.06,
+      "#fff6d8",
+      2.8,
+    );
+    lights.box(
+      x - sx * dir * (L / 2),
+      y + H * 0.35,
+      z - sz * dir * (L / 2),
+      alongX ? 0.06 : W * 0.7,
+      0.12 * sc,
+      alongX ? W * 0.7 : 0.06,
+      "#ff2d4a",
+      2.6,
+    );
     const tl = 3 + rnd() * 4;
-    trails.box(x - sx * dir * (L / 2 + tl / 2), y + H * 0.35, z - sz * dir * (L / 2 + tl / 2), alongX ? tl : 0.08, 0.08, alongX ? 0.08 : tl, "#ff3d6a", 1.3);
+    trails.box(
+      x - sx * dir * (L / 2 + tl / 2),
+      y + H * 0.35,
+      z - sz * dir * (L / 2 + tl / 2),
+      alongX ? tl : 0.08,
+      0.08,
+      alongX ? 0.08 : tl,
+      "#ff3d6a",
+      1.3,
+    );
   }
   g.add(cars.build(), lights.build({ glow: true }), trails.build({ glow: true, opacity: 0.45 }));
 
@@ -242,7 +336,16 @@ export function cyberPass(world: World): void {
     const sc = 0.8 + rnd() * 0.8;
     for (let p = 0; p < 7; p++) {
       const s = (0.6 + p * 0.28) * sc;
-      steam.box(r.x + (rnd() - 0.5) * 0.4 + p * 0.1, r.y + 0.6 + p * 0.7 * sc, r.z + (rnd() - 0.5) * 0.4, s, s * 0.8, s, k % 3 === 0 ? "#d9a6ff" : k % 3 === 1 ? "#a6f0ff" : "#ffd6e8", 0.9);
+      steam.box(
+        r.x + (rnd() - 0.5) * 0.4 + p * 0.1,
+        r.y + 0.6 + p * 0.7 * sc,
+        r.z + (rnd() - 0.5) * 0.4,
+        s,
+        s * 0.8,
+        s,
+        k % 3 === 0 ? "#d9a6ff" : k % 3 === 1 ? "#a6f0ff" : "#ffd6e8",
+        0.9,
+      );
     }
   }
   void steam;
@@ -253,11 +356,22 @@ export function cyberPass(world: World): void {
   for (let k = 0; k < 4; k++) {
     const r = roofs[Math.floor(rnd() * roofs.length)]!;
     const col = ["#7fe9ff", "#ff6bd6", "#ffd27a", "#9b6bff"][k]!;
-    beams.beam([r.x, r.y + 0.3, r.z], [r.x + (rnd() - 0.5) * 30, r.y + 90, r.z - 20 - rnd() * 20], 1.2 + rnd(), col, 1.2);
+    beams.beam(
+      [r.x, r.y + 0.3, r.z],
+      [r.x + (rnd() - 0.5) * 30, r.y + 90, r.z - 20 - rnd() * 20],
+      1.2 + rnd(),
+      col,
+      1.2,
+    );
   }
   // landmark beacons
   const m = world.plan.marks;
-  const pts: [Vol, string][] = [[m.tavern!, "#ffb347"], [m.hqTop!, "#2fe0ff"], [m.raidTop!, "#ff3d9a"], [m.arcade!, "#7bffb5"]];
+  const pts: [Vol, string][] = [
+    [m.tavern!, "#ffb347"],
+    [m.hqTop!, "#2fe0ff"],
+    [m.raidTop!, "#ff3d9a"],
+    [m.arcade!, "#7bffb5"],
+  ];
   for (const [v, col] of pts) {
     const x = city.cx(v.i0);
     const z = city.cz(v.j0);
@@ -295,7 +409,17 @@ export function streetDress(world: World, px: number, pz: number): void {
     gl.box(x, 0.7, pz + 6.25, 0.24, 0.06, 0.24, NEON[(k + 1) % NEON.length]!, 2.4);
   }
   // puddle glow strips (reflections do the rest)
-  for (let k = 0; k < 6; k++) gl.box(px - 12 + rnd() * 24, 0.075, pz + 2 + rnd() * 10, 1.4 + rnd() * 2, 0.01, 0.5 + rnd() * 0.5, NEON[k % NEON.length]!, 0.9);
+  for (let k = 0; k < 6; k++)
+    gl.box(
+      px - 12 + rnd() * 24,
+      0.075,
+      pz + 2 + rnd() * 10,
+      1.4 + rnd() * 2,
+      0.01,
+      0.5 + rnd() * 0.5,
+      NEON[k % NEON.length]!,
+      0.9,
+    );
   g.add(b.build(), gl.build({ glow: true }));
 
   // steam vents
@@ -306,7 +430,16 @@ export function streetDress(world: World, px: number, pz: number): void {
     const z = pz + 8 + rnd() * 3;
     for (let p = 0; p < 5; p++) {
       const s = 0.35 + p * 0.22;
-      steam.box(x + Math.sin(p * 1.3 + k) * 0.2 * p, 0.2 + p * 0.5, z + Math.cos(p) * 0.15, s, s * 0.7, s, k % 2 ? "#7a4aa8" : "#3a8ab0", 1);
+      steam.box(
+        x + Math.sin(p * 1.3 + k) * 0.2 * p,
+        0.2 + p * 0.5,
+        z + Math.cos(p) * 0.15,
+        s,
+        s * 0.7,
+        s,
+        k % 2 ? "#7a4aa8" : "#3a8ab0",
+        1,
+      );
     }
   }
   g.add(steam.build({ glow: true, opacity: 0.07 }));

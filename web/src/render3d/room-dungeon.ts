@@ -22,10 +22,15 @@ function buildDungeon(id: RoomId, ctx: RoomCtx): RoomView {
   const live = made.value;
   room.group.add(live.group);
   let t = 0;
-  const view = viewOf(id, map, room, [...built.ticks, ...made.ticks], { extra: live, keepers: new Set(), free: built.free, live: (now) => {
-    t = now;
-    live.update(t);
-  } });
+  const view = viewOf(id, map, room, [...built.ticks, ...made.ticks], {
+    extra: live,
+    keepers: new Set(),
+    free: built.free,
+    live: (now) => {
+      t = now;
+      live.update(t);
+    },
+  });
   const dispose = view.dispose;
   return Object.assign(view, {
     liveSigns: () => live.signs(),

@@ -45,7 +45,11 @@ function blockOf(box: THREE.Box3, textured: boolean, bevel = BEVEL): THREE.Buffe
 function prism(top: number, bottom: number, h: number, sides: number): THREE.BufferGeometry {
   const g = new THREE.CylinderGeometry(top, bottom, h, sides, 1);
   g.rotateY(Math.PI / sides);
-  g.scale(1 / Math.cos(Math.PI / sides) ** (sides === 4 ? 0.5 : 1), 1, 1 / Math.cos(Math.PI / sides) ** (sides === 4 ? 0.5 : 1));
+  g.scale(
+    1 / Math.cos(Math.PI / sides) ** (sides === 4 ? 0.5 : 1),
+    1,
+    1 / Math.cos(Math.PI / sides) ** (sides === 4 ? 0.5 : 1),
+  );
   const flat = g.toNonIndexed();
   flat.computeVertexNormals();
   g.dispose();
@@ -69,7 +73,13 @@ function steps(top: number, bottom: number, h: number, n: number): THREE.BufferG
 function ring(g: THREE.TorusGeometry): THREE.BufferGeometry {
   const { radius, tube, arc } = g.parameters;
   const tubular = radius > 0.5 ? 16 : 8;
-  const t = new THREE.TorusGeometry(radius, tube, 4, Math.max(2, Math.round((tubular * arc) / (Math.PI * 2))), arc);
+  const t = new THREE.TorusGeometry(
+    radius,
+    tube,
+    4,
+    Math.max(2, Math.round((tubular * arc) / (Math.PI * 2))),
+    arc,
+  );
   // Square section: rotate the tube's diamond a quarter-eighth turn.
   const p = t.getAttribute("position");
   for (let i = 0; i < p.count; i++) {
@@ -140,7 +150,8 @@ function convert(mesh: THREE.Mesh, textured: boolean): THREE.BufferGeometry | nu
     case "ConeGeometry": {
       const p = (g as THREE.CylinderGeometry).parameters;
       const mat = mesh.material as THREE.Material;
-      if (p.openEnded || p.thetaLength < Math.PI * 2 - 0.01 || mat.transparent || p.radialSegments <= 4) return null;
+      if (p.openEnded || p.thetaLength < Math.PI * 2 - 0.01 || mat.transparent || p.radialSegments <= 4)
+        return null;
       const big = Math.max(p.radiusTop, p.radiusBottom);
       const small = Math.min(p.radiusTop, p.radiusBottom);
       const taper = small / Math.max(big, 1e-6);
@@ -211,7 +222,12 @@ export function unblockify(scene: THREE.Object3D): void {
 export function blockMoves(mesh: THREE.Mesh): boolean {
   if (mesh.userData.voxelHair) return true;
   const g = mesh.geometry;
-  if (g.type !== "SphereGeometry" || Array.isArray(mesh.material) || !(mesh.material as THREE.MeshToonMaterial).map) return false;
+  if (
+    g.type !== "SphereGeometry" ||
+    Array.isArray(mesh.material) ||
+    !(mesh.material as THREE.MeshToonMaterial).map
+  )
+    return false;
   return (g as THREE.SphereGeometry).parameters.phiLength < Math.PI * 2;
 }
 

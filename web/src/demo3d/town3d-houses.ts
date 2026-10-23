@@ -35,13 +35,7 @@ const PLINTH = 0.2;
 
 const logos = new Map<string, HTMLImageElement | null>();
 /** A company logo fitted into a box, smoothly; `again` runs once it has loaded. */
-function drawLogo(
-  g: CanvasRenderingContext2D,
-  src: string,
-  w: number,
-  h: number,
-  again: () => void,
-): void {
+function drawLogo(g: CanvasRenderingContext2D, src: string, w: number, h: number, again: () => void): void {
   if (!logos.has(src)) {
     logos.set(src, null);
     const img = new Image();
@@ -93,7 +87,12 @@ function gableRoof(m: Model, w: number, d: number, y: number, color: string, gab
   // Shingle courses on both slopes.
   for (const s of [-1, 1])
     for (const f of [0.3, 0.55, 0.8]) {
-      const c = m.box([w + 0.3, 0.025, 0.04], tint(color, -0.18), [0, y + rise * (1 - f), s * half * f], 0.005);
+      const c = m.box(
+        [w + 0.3, 0.025, 0.04],
+        tint(color, -0.18),
+        [0, y + rise * (1 - f), s * half * f],
+        0.005,
+      );
       c.rotation.x = s * Math.atan(rise / half);
     }
   const end = new THREE.Shape();
@@ -118,7 +117,8 @@ function windowOn(face: Model, x: number, y: number, trim: string, box = false):
   face.box([0.03, 0.44, 0.06], C.white, [x, y + 0.02, 0.01]);
   face.box([0.38, 0.03, 0.06], C.white, [x, y + 0.22, 0.01]);
   face.box([0.58, 0.05, 0.1], C.white, [x, y - 0.06, 0.03], 0.01);
-  for (const s of [-1, 1]) face.box([0.1, 0.54, 0.03], tint(trim, 0.05), [x + s * 0.33, y - 0.03, 0.02], 0.01);
+  for (const s of [-1, 1])
+    face.box([0.1, 0.54, 0.03], tint(trim, 0.05), [x + s * 0.33, y - 0.03, 0.02], 0.01);
   if (box) face.box([0.5, 0.08, 0.12], C.leafLight, [x, y - 0.12, 0.08], 0.03);
 }
 
@@ -245,14 +245,20 @@ export function companyHouse(tier: number, name: string, brand: Brand | null): M
   if (t === 1) {
     // Planks.
     m.box([w, h - PLINTH, d], s.wall, [0, PLINTH, -d / 2], 0.02);
-    for (let x = -w / 2 + 0.25; x < w / 2; x += 0.25) m.box([0.015, h - PLINTH - 0.04, 0.02], tint(s.wall, -0.14), [x, PLINTH + 0.02, 0.01]);
+    for (let x = -w / 2 + 0.25; x < w / 2; x += 0.25)
+      m.box([0.015, h - PLINTH - 0.04, 0.02], tint(s.wall, -0.14), [x, PLINTH + 0.02, 0.01]);
   } else {
     m.box([w, h - PLINTH, d], s.wall, [0, PLINTH, -d / 2], 0.02);
     for (let y = PLINTH + 0.15; y < h - 0.1; y += 0.2)
       m.box([w + 0.005, 0.012, d + 0.005], tint(s.wall, -0.07), [0, y, -d / 2], 0.002);
   }
   for (let f = 1; f < floors; f++)
-    m.box([w + 0.05, 0.07, d + 0.05], t >= 4 ? s.trim : tint(s.wall, -0.14), [0, PLINTH + f * FLOOR, -d / 2], 0.01);
+    m.box(
+      [w + 0.05, 0.07, d + 0.05],
+      t >= 4 ? s.trim : tint(s.wall, -0.14),
+      [0, PLINTH + f * FLOOR, -d / 2],
+      0.01,
+    );
   const eave = h;
   const roofGroup = m.part([0, 0, -d / 2]);
   const rise = gableRoof(roofGroup, w, d, eave, s.roof, tint(s.wall, -0.04));
@@ -284,8 +290,18 @@ export function companyHouse(tier: number, name: string, brand: Brand | null): M
   doorOn(door, s.trim);
   if (t <= 3) {
     const cx = w / 2 - 0.55;
-    m.box([0.36, 0.5 + rise + 0.25, 0.36], t === 1 ? C.metalLight : "#b0443a", [cx, eave, -d / 2 - 0.2], 0.03);
-    m.box([0.46, 0.08, 0.46], t === 1 ? C.metal : "#8a3a32", [cx, eave + 0.75 + rise * 0.5, -d / 2 - 0.2], 0.02);
+    m.box(
+      [0.36, 0.5 + rise + 0.25, 0.36],
+      t === 1 ? C.metalLight : "#b0443a",
+      [cx, eave, -d / 2 - 0.2],
+      0.03,
+    );
+    m.box(
+      [0.46, 0.08, 0.46],
+      t === 1 ? C.metal : "#8a3a32",
+      [cx, eave + 0.75 + rise * 0.5, -d / 2 - 0.2],
+      0.02,
+    );
   }
   if (wide) {
     // Two columns and a lintel framing the door, a balcony ledge over it.
@@ -295,7 +311,8 @@ export function companyHouse(tier: number, name: string, brand: Brand | null): M
     }
     m.box([1.6, 0.1, 0.5], s.trim, [0, PLINTH + 1.15, 0.2], 0.02);
     m.box([1.7, 0.05, 0.6], C.white, [0, PLINTH + 1.25, 0.2], 0.015);
-    for (const x of [-0.78, -0.52, -0.26, 0, 0.26, 0.52, 0.78]) m.box([0.03, 0.2, 0.03], C.white, [x, PLINTH + 1.3, 0.46]);
+    for (const x of [-0.78, -0.52, -0.26, 0, 0.26, 0.52, 0.78])
+      m.box([0.03, 0.2, 0.03], C.white, [x, PLINTH + 1.3, 0.46]);
     m.box([1.7, 0.04, 0.04], C.white, [0, PLINTH + 1.5, 0.46]);
     for (const x of [-w / 2 + 0.2, w / 2 - 0.2]) m.add(placed(bush(Math.round(x * 31) + t), x, 0.3));
     m.add(placed(hedge(2.0, 0.45, 0.4), -2.4, 0.5));
@@ -412,7 +429,8 @@ export function tavernBuilding(): Model {
   m.box([w + 0.2, 0.22, d + 0.2], C.stone, [0, 0, -d / 2], 0.02);
   m.box([w, h - 0.22, d], wall, [0, 0.22, -d / 2], 0.02);
   // Timber framing.
-  for (let x = -w / 2; x <= w / 2 + 0.01; x += w / 8) m.box([0.12, h - 0.22, 0.05], C.woodDark, [x, 0.22, 0.0], 0.01);
+  for (let x = -w / 2; x <= w / 2 + 0.01; x += w / 8)
+    m.box([0.12, h - 0.22, 0.05], C.woodDark, [x, 0.22, 0.0], 0.01);
   m.box([w + 0.05, 0.12, 0.06], C.woodDark, [0, h - 0.14, 0.0], 0.01);
   m.box([w + 0.05, 0.1, 0.06], C.woodDark, [0, 0.22, 0.0], 0.01);
   const roofGroup = m.part([0, 0, -d / 2]);

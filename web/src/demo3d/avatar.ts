@@ -111,7 +111,8 @@ export class Avatar {
     // The static batching merges what is fixed inside each limb (hair, clothes, gear): one mesh per limb, not per piece.
     this.root.userData.bake = true;
     this.root.userData.actor = true;
-    for (const bone of [this.body, this.head, ...this.arms, ...this.legs, ...this.knees]) bone.userData.rigid = true;
+    for (const bone of [this.body, this.head, ...this.arms, ...this.legs, ...this.knees])
+      bone.userData.rigid = true;
     for (const f of this.rig.faces) f.material.userData.dynamic = true;
     this.freezable = !this.rig.tick && (!look.gear || look.gear.animated === false);
     // The batching samples a walk and a stand to find the parts that gear and rigs move, and leaves those alone.
@@ -123,7 +124,9 @@ export class Avatar {
     if (this.height * view.pxPerUnit < TINY_PX || this.root.userData.lod) return "tiny";
     if (!this.freezable) return null;
     // Typing moves the arms a few centimetres: not worth fifteen draw calls.
-    return this.pose === "stand" || this.pose === "sit" || this.pose === "sleep" || this.pose === "type" ? this.pose : null;
+    return this.pose === "stand" || this.pose === "sit" || this.pose === "sleep" || this.pose === "type"
+      ? this.pose
+      : null;
   }
 
   dispose(): void {

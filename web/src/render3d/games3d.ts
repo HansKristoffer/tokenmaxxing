@@ -111,7 +111,16 @@ export class GamesLayer {
 
   private make(game: WorldGame): Shown {
     const group = new THREE.Group();
-    const s: Shown = { game, group, table: null, desks: [], board: null, boardKey: "", line: null, watchers: -1 };
+    const s: Shown = {
+      game,
+      group,
+      table: null,
+      desks: [],
+      board: null,
+      boardKey: "",
+      line: null,
+      watchers: -1,
+    };
     this.group.add(group);
     this.build(s, game);
     return s;
@@ -121,7 +130,11 @@ export class GamesLayer {
     const was = s.game;
     s.game = game;
     // The props change only when the seats do (a player joined or left); a headline or a count changes the labels.
-    if (was.players.join() !== game.players.join() || was.spot.kind !== game.spot.kind || was.game !== game.game) {
+    if (
+      was.players.join() !== game.players.join() ||
+      was.spot.kind !== game.spot.kind ||
+      was.game !== game.game
+    ) {
       for (const c of [...s.group.children]) {
         c.removeFromParent();
         disposeObject(c);
@@ -169,7 +182,14 @@ export class GamesLayer {
   }
 
   private nameOf(id: number): string {
-    return hud.get().lobby?.matches.flatMap((m) => m.players).find((p) => p.userId === id)?.name ?? world.avatars.get(id)?.info.name ?? "?";
+    return (
+      hud
+        .get()
+        .lobby?.matches.flatMap((m) => m.players)
+        .find((p) => p.userId === id)?.name ??
+      world.avatars.get(id)?.info.name ??
+      "?"
+    );
   }
 
   /** Counts, scoreboard and the race's start line: what changes while the game runs. */
@@ -196,7 +216,12 @@ export class GamesLayer {
           s.board.removeFromParent();
           disposeObject(s.board);
         }
-        s.board = liveScreen<ScoreLine[]>(w, h, lines, (g, cw, ch, st) => paintScore(g, cw, ch, st), { px: 64, frame: "#e9b73d", lift: 1.1, lit: true });
+        s.board = liveScreen<ScoreLine[]>(w, h, lines, (g, cw, ch, st) => paintScore(g, cw, ch, st), {
+          px: 64,
+          frame: "#e9b73d",
+          lift: 1.1,
+          lit: true,
+        });
         s.board.userData.rows = lines.length;
         s.board.userData.w = w;
         const [cx, cz] = this.toWorld(game.spot.x + game.spot.w / 2 - 0.5, game.spot.y);
@@ -208,7 +233,12 @@ export class GamesLayer {
     if (game.game === "sprint") {
       const racing = raceLive(game);
       if (racing && !s.line) {
-        const span = startLineSpan(PLAZA.left, PLAZA.right, PLAZA.top, game.players.map((p) => lane(game, p)));
+        const span = startLineSpan(
+          PLAZA.left,
+          PLAZA.right,
+          PLAZA.top,
+          game.players.map((p) => lane(game, p)),
+        );
         if (span) {
           const [x, z0] = this.toWorld(span.x - 0.5, span.y0 - 0.5);
           const [, z1] = this.toWorld(span.x - 0.5, span.y1 - 0.5);
@@ -247,7 +277,10 @@ export class GamesLayer {
     for (const s of this.shown.values()) {
       const game = s.game;
       if (!game.seats.length) continue;
-      const [cx, cz] = this.toWorld(game.spot.x + game.spot.w / 2 - 0.5, game.spot.y + (game.spot.kind === "table" ? 1 : 0));
+      const [cx, cz] = this.toWorld(
+        game.spot.x + game.spot.w / 2 - 0.5,
+        game.spot.y + (game.spot.kind === "table" ? 1 : 0),
+      );
       const head = Math.min(...game.seats.map((q) => q.y));
       const [, hz] = this.toWorld(0, head);
       list.push({
@@ -260,7 +293,14 @@ export class GamesLayer {
       });
       const said = world.tableBubbles.get(game.id);
       if (said && now < said.until)
-        list.push({ key: `say:${game.id}`, at: [cx, game.spot.kind === "arena" ? 2.3 : 2.5, game.spot.kind === "arena" ? cz - 0.2 : hz], kind: "label", text: said.text, cls: "bubble", dy: -26 });
+        list.push({
+          key: `say:${game.id}`,
+          at: [cx, game.spot.kind === "arena" ? 2.3 : 2.5, game.spot.kind === "arena" ? cz - 0.2 : hz],
+          kind: "label",
+          text: said.text,
+          cls: "bubble",
+          dy: -26,
+        });
     }
     // "🎮 Hype Cycle 2/6 · 🪙 50 · Join" over the host of an open table: people passing by can join.
     const lobby = hud.get().lobby;

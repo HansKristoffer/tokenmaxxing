@@ -73,7 +73,12 @@ export function isMoving(dx: number, dz: number, dtMs: number, minTilesPerSec = 
  */
 const VECTOR: Record<Facing, [number, number]> = { up: [0, -1], right: [1, 0], down: [0, 1], left: [-1, 0] };
 /** Each key's place on screen at quarter 0: [right, up]. */
-const SCREEN: Record<Facing, [number, number]> = { up: [1, 1], right: [1, -1], down: [-1, -1], left: [-1, 1] };
+const SCREEN: Record<Facing, [number, number]> = {
+  up: [1, 1],
+  right: [1, -1],
+  down: [-1, -1],
+  left: [-1, 1],
+};
 
 export function keyDirection(key: Facing, quarter: number, base = Math.PI / 4): Facing {
   const az = base + (quarter * Math.PI) / 2;

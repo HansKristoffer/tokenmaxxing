@@ -9,7 +9,17 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { glow, type Model, type Paint, tint, toon } from "./kit.ts";
-import { boxBand, boxRing, isVox, pixelPatch, place, squarePane, stepDome, tilt, voxShape } from "./voxgear.ts";
+import {
+  boxBand,
+  boxRing,
+  isVox,
+  pixelPatch,
+  place,
+  squarePane,
+  stepDome,
+  tilt,
+  voxShape,
+} from "./voxgear.ts";
 
 export interface Ctx {
   skin: string;
@@ -44,7 +54,12 @@ export function see(color: string, opacity = 0.5, lit = false): THREE.Material {
 /** An emissive material that ignores lights. */
 export const lit = (color: string): THREE.Material => glow(color);
 
-export function mesh(m: THREE.Object3D, g: THREE.BufferGeometry, p: Paint, at: [number, number, number] = [0, 0, 0]): THREE.Mesh {
+export function mesh(
+  m: THREE.Object3D,
+  g: THREE.BufferGeometry,
+  p: Paint,
+  at: [number, number, number] = [0, 0, 0],
+): THREE.Mesh {
   const o = new THREE.Mesh(g, mat(p));
   o.position.set(...at);
   o.castShadow = true;
@@ -55,26 +70,70 @@ export function mesh(m: THREE.Object3D, g: THREE.BufferGeometry, p: Paint, at: [
 /** A cap of a ball: the top `cut` (0..1) of its height, open underneath. */
 export function dome(m: THREE.Object3D, p: Paint, r: number, y = 0, cut = 0.5, seg = 18): THREE.Mesh {
   if (isVox(m)) return stepDome(m, p, r, y, cut);
-  const o = mesh(m, cached(`dome${r},${cut},${seg}`, () => new THREE.SphereGeometry(r, seg, 12, 0, Math.PI * 2, 0, Math.PI * cut)), p, [0, y, 0]);
+  const o = mesh(
+    m,
+    cached(
+      `dome${r},${cut},${seg}`,
+      () => new THREE.SphereGeometry(r, seg, 12, 0, Math.PI * 2, 0, Math.PI * cut),
+    ),
+    p,
+    [0, y, 0],
+  );
   (o.material as THREE.Material).side = THREE.DoubleSide;
   return o;
 }
 /** A slice of a dome, `from`..`to` radians round (for panels). */
-function wedge(m: THREE.Object3D, p: Paint, r: number, y: number, cut: number, from: number, to: number): THREE.Mesh {
+function wedge(
+  m: THREE.Object3D,
+  p: Paint,
+  r: number,
+  y: number,
+  cut: number,
+  from: number,
+  to: number,
+): THREE.Mesh {
   if (isVox(m)) return stepDome(m, p, r, y, cut, from, to);
-  const o = mesh(m, cached(`wedge${r},${cut},${from},${to}`, () => new THREE.SphereGeometry(r, 16, 12, from, to - from, 0, Math.PI * cut)), p, [0, y, 0]);
+  const o = mesh(
+    m,
+    cached(
+      `wedge${r},${cut},${from},${to}`,
+      () => new THREE.SphereGeometry(r, 16, 12, from, to - from, 0, Math.PI * cut),
+    ),
+    p,
+    [0, y, 0],
+  );
   (o.material as THREE.Material).side = THREE.DoubleSide;
   return o;
 }
 /** A ring (a torus), flat by default (a halo, a brim); `tilt` stands it up. */
-export function ring(m: THREE.Object3D, p: Paint, R: number, tube: number, at: [number, number, number] = [0, 0, 0], flat = true): THREE.Mesh {
+export function ring(
+  m: THREE.Object3D,
+  p: Paint,
+  R: number,
+  tube: number,
+  at: [number, number, number] = [0, 0, 0],
+  flat = true,
+): THREE.Mesh {
   if (isVox(m)) return boxRing(m, p, R, tube, at, flat);
-  const o = mesh(m, cached(`ring${R},${tube}`, () => new THREE.TorusGeometry(R, tube, 8, 28)), p, at);
+  const o = mesh(
+    m,
+    cached(`ring${R},${tube}`, () => new THREE.TorusGeometry(R, tube, 8, 28)),
+    p,
+    at,
+  );
   if (flat) o.rotation.x = Math.PI / 2;
   return o;
 }
 const shapeGeo = (key: string, shape: THREE.Shape, depth: number) =>
-  cached(key, () => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSize: depth * 0.25, bevelThickness: depth * 0.25, bevelSegments: 1 }).center());
+  cached(key, () =>
+    new THREE.ExtrudeGeometry(shape, {
+      depth,
+      bevelEnabled: true,
+      bevelSize: depth * 0.25,
+      bevelThickness: depth * 0.25,
+      bevelSegments: 1,
+    }).center(),
+  );
 
 export function heart(s: number): THREE.Shape {
   const h = new THREE.Shape();
@@ -94,14 +153,37 @@ export function star(r: number, n = 5, inner = 0.45): THREE.Shape {
   s.closePath();
   return s;
 }
-export const shaped = (m: THREE.Object3D, key: string, shape: THREE.Shape, depth: number, p: Paint, at: [number, number, number]) =>
-  isVox(m) ? voxShape(m, key, shape, depth, p, at) : mesh(m, shapeGeo(key, shape, depth), p, at);
+export const shaped = (
+  m: THREE.Object3D,
+  key: string,
+  shape: THREE.Shape,
+  depth: number,
+  p: Paint,
+  at: [number, number, number],
+) => (isVox(m) ? voxShape(m, key, shape, depth, p, at) : mesh(m, shapeGeo(key, shape, depth), p, at));
 
 /** A little canvas drawing on a flat plane, facing +z. */
-export function sign(m: THREE.Object3D, w: number, h: number, draw: (g: CanvasRenderingContext2D, cw: number, ch: number) => void, at: [number, number, number], px = 64, lightIt = false): THREE.Mesh {
+export function sign(
+  m: THREE.Object3D,
+  w: number,
+  h: number,
+  draw: (g: CanvasRenderingContext2D, cw: number, ch: number) => void,
+  at: [number, number, number],
+  px = 64,
+  lightIt = false,
+): THREE.Mesh {
   if (isVox(m)) {
     const cell = 0.0125;
-    return pixelPatch(m, { cols: Math.max(2, Math.round(w / cell)), rows: Math.max(2, Math.round(h / cell)), cell, depth: cell * 0.8, draw, at, lit: lightIt, fill: 0.3 });
+    return pixelPatch(m, {
+      cols: Math.max(2, Math.round(w / cell)),
+      rows: Math.max(2, Math.round(h / cell)),
+      cell,
+      depth: cell * 0.8,
+      draw,
+      at,
+      lit: lightIt,
+      fill: 0.3,
+    });
   }
   const cw = Math.round(w * px);
   const ch = Math.round(h * px);
@@ -115,7 +197,12 @@ export function sign(m: THREE.Object3D, w: number, h: number, draw: (g: CanvasRe
   t.generateMipmaps = false;
   const material = lightIt
     ? new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.4 })
-    : new THREE.MeshToonMaterial({ map: t, transparent: true, alphaTest: 0.4, gradientMap: toon("#fff").gradientMap });
+    : new THREE.MeshToonMaterial({
+        map: t,
+        transparent: true,
+        alphaTest: 0.4,
+        gradientMap: toon("#fff").gradientMap,
+      });
   const o = new THREE.Mesh(new THREE.PlaneGeometry(w, h), material);
   o.position.set(...at);
   m.add(o);
@@ -137,7 +224,14 @@ const mid = (m: Model, y = EYE_Y, z = 0.236) => m.part([0, y, z]);
 /** An open band (no top or bottom), so a crown is a ring you can see the hair through. */
 export function band(m: THREE.Object3D, p: Paint, r: number, h: number, y: number, top = r): THREE.Mesh {
   if (isVox(m)) return boxBand(m, p, Math.max(r, top), h, y);
-  const o = mesh(m, cached(`band${r},${h},${top}`, () => new THREE.CylinderGeometry(top, r, h, 20, 1, true).translate(0, h / 2, 0)), p, [0, y, 0]);
+  const o = mesh(
+    m,
+    cached(`band${r},${h},${top}`, () =>
+      new THREE.CylinderGeometry(top, r, h, 20, 1, true).translate(0, h / 2, 0),
+    ),
+    p,
+    [0, y, 0],
+  );
   (o.material as THREE.Material).side = THREE.DoubleSide;
   return o;
 }
@@ -157,7 +251,16 @@ function path(m: Model, p: Paint, pts: [number, number, number][], z = 0, deep =
 }
 
 /** A cone-shaped hat part: base radius `r`, height `h`, resting at `y`. */
-const cone = (m: Model, p: Paint, r: number, h: number, y: number, at: [number, number] = [0, 0], seg = 14, top = 0.004) => m.cyl(r, h, p, [at[0], y, at[1]], top, seg);
+const cone = (
+  m: Model,
+  p: Paint,
+  r: number,
+  h: number,
+  y: number,
+  at: [number, number] = [0, 0],
+  seg = 14,
+  top = 0.004,
+) => m.cyl(r, h, p, [at[0], y, at[1]], top, seg);
 
 /** A flat brim ring of radius `r`. */
 const brim = (m: Model, p: Paint, r: number, y: number, t = 0.03) => m.cyl(r, t, p, [0, y, 0], r, 24);
@@ -167,7 +270,20 @@ function wizard(m: Model, c: { cone: string; dark: string; star: string; band: s
   brim(m, c.dark, 0.36, 0.12, 0.03);
   cone(m, c.cone, 0.21, 0.3, 0.14, [0, 0], 16, 0.1);
   m.cyl(0.215, 0.05, c.band, [0, 0.15, 0], 0.21, 16);
-  if (isVox(m)) path(m, c.cone, [[0.04, 0.5, 0.17], [0.09, 0.56, 0.13], [0.15, 0.6, 0.1], [0.21, 0.6, 0.075], [0.25, 0.55, 0.05]], 0, 1);
+  if (isVox(m))
+    path(
+      m,
+      c.cone,
+      [
+        [0.04, 0.5, 0.17],
+        [0.09, 0.56, 0.13],
+        [0.15, 0.6, 0.1],
+        [0.21, 0.6, 0.075],
+        [0.25, 0.55, 0.05],
+      ],
+      0,
+      1,
+    );
   else {
     const tip = m.part([0, 0.43, 0]);
     tip.cyl(0.1, 0.24, c.cone, [0, 0, 0], 0.012, 12).rotation.z = 0;
@@ -199,7 +315,13 @@ function toque(m: Model, extra?: (m: Model) => void): void {
   m.ball(0.13, "#fbf7ef", [0, 0.31, 0]);
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2 + 0.3;
-    tilt(m, m.box([0.02, 0.09, 0.02], "#d9d3c6", [Math.sin(a) * 0.195, 0.12, Math.cos(a) * 0.195], 0.004), 0, a, 0);
+    tilt(
+      m,
+      m.box([0.02, 0.09, 0.02], "#d9d3c6", [Math.sin(a) * 0.195, 0.12, Math.cos(a) * 0.195], 0.004),
+      0,
+      a,
+      0,
+    );
   }
   extra?.(m);
 }
@@ -221,13 +343,23 @@ function stetson(m: Model, p: { main: string; dark: string; band: string; dent?:
 }
 
 /** A helmet with horns (viking, force-push). */
-function horned(m: Model, p: { steel: string; rim: string; horn: string; tip: string; guard: boolean }): void {
+function horned(
+  m: Model,
+  p: { steel: string; rim: string; horn: string; tip: string; guard: boolean },
+): void {
   dome(m, p.steel, 0.265, 0.02, 0.5);
   m.cyl(0.265, 0.04, p.rim, [0, 0.03, 0], 0.265, 20);
   if (p.guard) m.box([0.04, 0.14, 0.03], p.rim, [0, -0.12, 0.25], 0.012);
   if (isVox(m)) {
     for (const s of [-1, 1]) {
-      path(m, p.horn, [[s * 0.28, 0.12, 0.11], [s * 0.34, 0.15, 0.1], [s * 0.37, 0.22, 0.09], [s * 0.37, 0.3, 0.075], [s * 0.34, 0.37, 0.06], [s * 0.31, 0.42, 0.045]]);
+      path(m, p.horn, [
+        [s * 0.28, 0.12, 0.11],
+        [s * 0.34, 0.15, 0.1],
+        [s * 0.37, 0.22, 0.09],
+        [s * 0.37, 0.3, 0.075],
+        [s * 0.34, 0.37, 0.06],
+        [s * 0.31, 0.42, 0.045],
+      ]);
       m.box([0.03, 0.03, 0.03], p.tip, [s * 0.31, 0.42, -0.015]);
     }
     return;
@@ -302,7 +434,11 @@ function antennae(m: Model, p: { band: string; bobble: string; stalk: string }, 
       bobbles.push(stalk.ball(0.04, lit(p.bobble), [0, 0.24, 0], [1, 1, 1], 10));
     }
   }
-  c.tick((t) => bobbles.forEach((b, i) => { b.scale.setScalar(1 + Math.max(0, Math.sin(t * 5 + i * Math.PI)) * 0.3); }));
+  c.tick((t) =>
+    bobbles.forEach((b, i) => {
+      b.scale.setScalar(1 + Math.max(0, Math.sin(t * 5 + i * Math.PI)) * 0.3);
+    }),
+  );
 }
 
 /** Cat ears on a headband. */
@@ -330,7 +466,11 @@ function ears(m: Model, p: { out: string; inner: string; band: string }): void {
 }
 
 /** A propeller beanie: coloured panels, a brim, a spinning rotor. */
-function whirly(m: Model, c: Ctx, p: { a: string; b: string; brim: string; blade: string; hub: string }): void {
+function whirly(
+  m: Model,
+  c: Ctx,
+  p: { a: string; b: string; brim: string; blade: string; hub: string },
+): void {
   wedge(m, p.a, 0.265, 0.03, 0.5, 0, Math.PI / 2);
   wedge(m, p.b, 0.265, 0.03, 0.5, Math.PI / 2, Math.PI);
   wedge(m, p.a, 0.265, 0.03, 0.5, Math.PI, Math.PI * 1.5);
@@ -377,7 +517,13 @@ function wreath(m: Model): void {
     const a = (i / 18) * Math.PI * 2;
     if (Math.abs(a - Math.PI) < 0.35) continue;
     const [lx, lz] = roundAt(m, a, 0.268);
-    const leaf = m.ball(0.032, i % 2 ? "#72bf52" : "#4f9b3d", [lx, 0.07 + (i % 2 ? 0.02 : -0.02), lz], [0.5, 0.9, 1.5], 6);
+    const leaf = m.ball(
+      0.032,
+      i % 2 ? "#72bf52" : "#4f9b3d",
+      [lx, 0.07 + (i % 2 ? 0.02 : -0.02), lz],
+      [0.5, 0.9, 1.5],
+      6,
+    );
     tilt(m, leaf, 0, a, 0);
   }
   m.ball(0.035, "#f5c842", [0, 0.06, -0.27]);
@@ -386,7 +532,10 @@ function wreath(m: Model): void {
 }
 
 /** A crown with `n` points. */
-function spikes(m: Model, p: { base: string; tip: string; n: number; h: number; r: number; y: number }): void {
+function spikes(
+  m: Model,
+  p: { base: string; tip: string; n: number; h: number; r: number; y: number },
+): void {
   band(m, p.base, p.r, 0.07, p.y, p.r * 1.05);
   for (let i = 0; i < p.n; i++) {
     const a = (i / p.n) * Math.PI * 2;
@@ -397,7 +546,14 @@ function spikes(m: Model, p: { base: string; tip: string; n: number; h: number; 
 
 // MARK: Hats
 
-const letters = (g: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, color: string) => {
+const letters = (
+  g: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+) => {
   g.fillStyle = color;
   g.font = `700 ${size}px ui-monospace, Menlo, monospace`;
   g.textAlign = "center";
@@ -407,7 +563,7 @@ const letters = (g: CanvasRenderingContext2D, text: string, x: number, y: number
 
 // biome-ignore format: a catalogue reads best one to a line
 export const HAT_BUILDERS: Record<string, Build> = {
-  "Beanie": (m) => {
+  Beanie: (m) => {
     m.ball(0.275, "#e25d5d", [0, 0.05, -0.01], [1, 0.75, 1]);
     m.cyl(0.275, 0.08, "#b8443f", [0, 0.02, -0.01], 0.275, 18);
     m.ball(0.06, "#fbf7ef", [0, 0.28, -0.02]);
@@ -423,7 +579,14 @@ export const HAT_BUILDERS: Record<string, Build> = {
     body.rotation.z = 0.04;
     for (let i = 0; i < 5; i++) {
       const a = i * 1.26;
-      const f = m.cyl(0.055, 0.22, i % 2 ? "#eef2f6" : "#8d95a3", [Math.sin(a) * 0.1, 0.13 + (i % 2) * 0.03, Math.cos(a) * 0.1], 0.004, 4);
+      const f = m.cyl(
+        0.055,
+        0.22,
+        i % 2 ? "#eef2f6" : "#8d95a3",
+        [Math.sin(a) * 0.1, 0.13 + (i % 2) * 0.03, Math.cos(a) * 0.1],
+        0.004,
+        4,
+      );
       f.rotation.set(Math.cos(a) * 0.3, a, Math.sin(a) * 0.3);
     }
     m.ball(0.02, "#ffffff", [0.06, 0.34, 0.03], [1, 1, 1], 6);
@@ -438,12 +601,17 @@ export const HAT_BUILDERS: Record<string, Build> = {
     m.box([0.03, 0.012, 0.2], "#fbf7ef", [-0.04, 0.294, -0.03], 0.004);
     m.ball(0.022, "#a81d2c", [0, 0.305, 0]);
   },
-  "Cykelhjelm": (m) => {
+  Cykelhjelm: (m) => {
     dome(m, "#3fb8a8", 0.28, 0.03, 0.5);
     m.cyl(0.28, 0.03, "#2a8b7f", [0, 0.045, 0], 0.28, 20);
     for (let i = 0; i < 4; i++) {
       const a = -0.55 + i * 0.37;
-      m.box([0.045, 0.02, 0.22], "#1c3b3a", [Math.sin(a) * 0.12, 0.26, Math.cos(a) * 0.04], 0.008).rotation.y = a * 0.4;
+      m.box(
+        [0.045, 0.02, 0.22],
+        "#1c3b3a",
+        [Math.sin(a) * 0.12, 0.26, Math.cos(a) * 0.04],
+        0.008,
+      ).rotation.y = a * 0.4;
     }
     m.box([0.3, 0.02, 0.14], "#2a8b7f", [0, 0.1, 0.25], 0.01).rotation.x = -0.1;
     for (const s of [-1, 1]) {
@@ -460,10 +628,16 @@ export const HAT_BUILDERS: Record<string, Build> = {
     m.box([0.3, 0.025, 0.11], "#f5c842", [0, 0.07, 0.29], 0.01).rotation.x = -0.15;
     m.ball(0.016, "#fff0a8", [0.1, 0.22, 0.2]);
   },
-  "Julehue": (m) => {
+  Julehue: (m) => {
     m.cyl(0.27, 0.3, "#d8283a", [0, 0.0, 0], 0.13, 18);
     if (isVox(m)) {
-      path(m, "#d8283a", [[0.04, 0.34, 0.2], [0.12, 0.4, 0.17], [0.2, 0.4, 0.14], [0.27, 0.34, 0.11], [0.31, 0.26, 0.09]]);
+      path(m, "#d8283a", [
+        [0.04, 0.34, 0.2],
+        [0.12, 0.4, 0.17],
+        [0.2, 0.4, 0.14],
+        [0.27, 0.34, 0.11],
+        [0.31, 0.26, 0.09],
+      ]);
       m.ball(0.05, "#fbf7ef", [0.32, 0.18, 0]);
       band(m, "#fbf7ef", 0.285, 0.075, -0.015, 0.285);
       m.cyl(0.285, 0.012, "#fbf7ef", [0, 0.06, 0], 0.285, 18);
@@ -479,7 +653,8 @@ export const HAT_BUILDERS: Record<string, Build> = {
     band(m, "#fbf7ef", 0.285, 0.075, -0.015, 0.285);
     m.cyl(0.285, 0.012, "#fbf7ef", [0, 0.06, 0], 0.285, 18);
   },
-  "Whirlybird beanie": (m, c) => whirly(m, c, { a: "#f5d14a", b: "#4f8fe0", brim: "#e0584f", blade: "#3ddc84", hub: "#e0584f" }),
+  "Whirlybird beanie": (m, c) =>
+    whirly(m, c, { a: "#f5d14a", b: "#4f8fe0", brim: "#e0584f", blade: "#3ddc84", hub: "#e0584f" }),
   "Prompt chef toque": (m) => toque(m),
   "Cowboy coder hat": (m) => stetson(m, { main: "#9a6236", dark: "#6e4224", band: "#c23a3a" }),
   "Smørrebrød hat": (m) => {
@@ -487,8 +662,18 @@ export const HAT_BUILDERS: Record<string, Build> = {
     m.box([0.44, 0.02, 0.34], "#f5d98a", [0, 0.25, 0], 0.01);
     m.ball(0.065, "#fbf7ef", [-0.05, 0.28, 0.02], [1.3, 0.35, 1.1], 10);
     m.ball(0.03, "#f5c842", [-0.05, 0.295, 0.02], [1, 0.6, 1], 8);
-    for (const [x, z] of [[0.12, -0.06], [0.14, 0.07], [0.08, 0.02]] as const) m.ball(0.036, "#f28c78", [x, 0.285, z], [1, 0.7, 1.4], 6);
-    for (const [x, z] of [[-0.14, -0.1], [0.0, -0.1], [-0.1, 0.11]] as const) m.box([0.012, 0.03, 0.012], "#4f9b3d", [x, 0.27, z], 0.004).rotation.z = 0.5;
+    for (const [x, z] of [
+      [0.12, -0.06],
+      [0.14, 0.07],
+      [0.08, 0.02],
+    ] as const)
+      m.ball(0.036, "#f28c78", [x, 0.285, z], [1, 0.7, 1.4], 6);
+    for (const [x, z] of [
+      [-0.14, -0.1],
+      [0.0, -0.1],
+      [-0.1, 0.11],
+    ] as const)
+      m.box([0.012, 0.03, 0.012], "#4f9b3d", [x, 0.27, z], 0.004).rotation.z = 0.5;
   },
   "PhD mortarboard": (m) => {
     m.cyl(0.2, 0.09, "#1c1a24", [0, 0.1, 0], 0.2, 16);
@@ -501,13 +686,31 @@ export const HAT_BUILDERS: Record<string, Build> = {
     t.cyl(0.004, 0.14, "#f5c842", [0, -0.14, 0], 0.004, 4);
     t.cyl(0.02, 0.07, "#f5c842", [0, -0.21, 0], 0.016, 8);
   },
-  "Viking helmet": (m) => horned(m, { steel: "#8a93a1", rim: "#b0793a", horn: "#f4efe4", tip: "#cbbf9f", guard: true }),
+  "Viking helmet": (m) =>
+    horned(m, { steel: "#8a93a1", rim: "#b0793a", horn: "#f4efe4", tip: "#cbbf9f", guard: true }),
   "Pirate tricorn": (m) => tricorn(m, { main: "#2e2e3a", trim: "#f5c842", emblem: "skull" }),
   "Jailbreak horns": (m) => {
     for (const s of [-1, 1]) {
       if (isVox(m)) {
-        path(m, "#d8283a", [[s * 0.16, 0.24, 0.1], [s * 0.2, 0.3, 0.085], [s * 0.2, 0.37, 0.07]], 0.02);
-        path(m, "#ff6b5e", [[s * 0.17, 0.43, 0.055], [s * 0.14, 0.48, 0.04]], 0.02);
+        path(
+          m,
+          "#d8283a",
+          [
+            [s * 0.16, 0.24, 0.1],
+            [s * 0.2, 0.3, 0.085],
+            [s * 0.2, 0.37, 0.07],
+          ],
+          0.02,
+        );
+        path(
+          m,
+          "#ff6b5e",
+          [
+            [s * 0.17, 0.43, 0.055],
+            [s * 0.14, 0.48, 0.04],
+          ],
+          0.02,
+        );
         continue;
       }
       const h = m.part([s * 0.12, 0.2, 0.02]);
@@ -521,8 +724,16 @@ export const HAT_BUILDERS: Record<string, Build> = {
   "Thinking cloud": (m, c) => {
     const cloud = m.part([0, 0.5, 0]);
     cloud.scale.setScalar(1.3);
-    for (const [x, y, r] of [[0, 0, 0.1], [-0.12, -0.02, 0.075], [0.12, -0.02, 0.08], [-0.05, 0.06, 0.07], [0.06, 0.06, 0.075]] as const) cloud.ball(r, "#fbf7ef", [x, y, 0], [1, 0.9, 0.7]);
-    for (let i = 0; i < 3; i++) cloud.ball(0.016, lit("#6d7fc4"), [-0.05 + i * 0.05, 0, 0.07], [1, 1, 0.6], 8);
+    for (const [x, y, r] of [
+      [0, 0, 0.1],
+      [-0.12, -0.02, 0.075],
+      [0.12, -0.02, 0.08],
+      [-0.05, 0.06, 0.07],
+      [0.06, 0.06, 0.075],
+    ] as const)
+      cloud.ball(r, "#fbf7ef", [x, y, 0], [1, 0.9, 0.7]);
+    for (let i = 0; i < 3; i++)
+      cloud.ball(0.016, lit("#6d7fc4"), [-0.05 + i * 0.05, 0, 0.07], [1, 1, 0.6], 8);
     m.ball(0.04, "#fbf7ef", [0.05, 0.33, 0.04], [1, 1, 0.8]);
     m.ball(0.025, "#fbf7ef", [0.02, 0.27, 0.05]);
     c.tick((t) => (cloud.position.y = 0.5 + Math.sin(t * 1.8) * 0.012));
@@ -544,7 +755,11 @@ export const HAT_BUILDERS: Record<string, Build> = {
     }
     m.box([0.1, 0.05, 0.02], "#2b2433", [0, 0.2, 0.22], 0.01);
     m.box([0.07, 0.012, 0.01], lit("#7dffb4"), [0, 0.205, 0.232], 0.002);
-    c.tick((t) => tips.forEach((b, i) => { b.scale.setScalar(0.85 + (0.5 + 0.5 * Math.sin(t * 4 + i)) * 0.5); }));
+    c.tick((t) =>
+      tips.forEach((b, i) => {
+        b.scale.setScalar(0.85 + (0.5 + 0.5 * Math.sin(t * 4 + i)) * 0.5);
+      }),
+    );
   },
   "Rubber-duck hat": (m) => {
     m.ball(0.14, "#f5d14a", [0, 0.31, -0.01], [1.1, 0.8, 1.2]);
@@ -555,7 +770,8 @@ export const HAT_BUILDERS: Record<string, Build> = {
   },
   "Lego brick hat": (m) => {
     m.box([0.36, 0.14, 0.26], "#d8283a", [0, 0.2, 0], 0.012);
-    for (const x of [-0.11, 0, 0.11]) for (const z of [-0.06, 0.06]) m.cyl(0.04, 0.045, "#ff7a6e", [x, 0.34, z], 0.04, 12);
+    for (const x of [-0.11, 0, 0.11])
+      for (const z of [-0.06, 0.06]) m.cyl(0.04, 0.045, "#ff7a6e", [x, 0.34, z], 0.04, 12);
   },
   "Aurora crown": (m, c) => {
     band(m, "#f5c842", 0.22, 0.06, 0.17, 0.225);
@@ -564,7 +780,12 @@ export const HAT_BUILDERS: Record<string, Build> = {
     const cols = ["#57e3a1", "#5fd8e8", "#b28cff"];
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2;
-      const r = new THREE.Mesh(isVox(m) ? cached("vribbon", () => new THREE.BoxGeometry(0.07, 0.3, 0.03).translate(0, 0.15, 0)) : cached("ribbon", () => new THREE.PlaneGeometry(0.1, 0.3, 1, 4).translate(0, 0.15, 0)), see(cols[i % 3]!, 0.7, true));
+      const r = new THREE.Mesh(
+        isVox(m)
+          ? cached("vribbon", () => new THREE.BoxGeometry(0.07, 0.3, 0.03).translate(0, 0.15, 0))
+          : cached("ribbon", () => new THREE.PlaneGeometry(0.1, 0.3, 1, 4).translate(0, 0.15, 0)),
+        see(cols[i % 3]!, 0.7, true),
+      );
       r.userData.noBlock = true;
       (r.material as THREE.Material).side = THREE.DoubleSide;
       const [rx, rz] = roundAt(m, a, 0.2);
@@ -578,10 +799,12 @@ export const HAT_BUILDERS: Record<string, Build> = {
       const [cx, cz] = roundAt(m, a, 0.222);
       m.cyl(0.025, 0.06, "#f5c842", [cx, 0.2, cz], 0.004, 5);
     }
-    c.tick((t) => ribbons.forEach((r, i) => {
-      r.scale.y = 0.85 + Math.sin(t * 2.2 + i * 1.3) * 0.2;
-      r.rotation.z = isVox(m) ? 0 : Math.sin(t * 1.7 + i) * 0.15;
-    }));
+    c.tick((t) =>
+      ribbons.forEach((r, i) => {
+        r.scale.y = 0.85 + Math.sin(t * 2.2 + i * 1.3) * 0.2;
+        r.rotation.z = isVox(m) ? 0 : Math.sin(t * 1.7 + i) * 0.15;
+      }),
+    );
   },
   // Raid loot.
   "Hourglass hat": (m, c) => {
@@ -614,14 +837,22 @@ export const HAT_BUILDERS: Record<string, Build> = {
       const [x, z] = roundAt(m, a, 0.24);
       m.ball(0.018, "#5ff0ff", [x, 0.31, z], [1, 1, 1], 6);
     }
-    c.tick((t) => (inf.scale.setScalar(1 + Math.sin(t * 3) * 0.1)));
+    c.tick((t) => inf.scale.setScalar(1 + Math.sin(t * 3) * 0.1));
   },
   "<<<<<<< HEAD band": (m) => {
     ring(m, "#e0584f", 0.262, 0.03, [0, 0.1, 0]).scale.set(1.03, 1.03, 1.0);
-    sign(m, 0.2, 0.06, (g, w, h) => letters(g, "<<<<<<<", w / 2, h / 2, h * 1.1, "#fbf7ef"), [0, 0.1, 0.285], 80);
+    sign(
+      m,
+      0.2,
+      0.06,
+      (g, w, h) => letters(g, "<<<<<<<", w / 2, h / 2, h * 1.1, "#fbf7ef"),
+      [0, 0.1, 0.285],
+      80,
+    );
     const knot = m.part([0, 0.1, -0.27]);
     knot.ball(0.04, "#e0584f", [0, 0, 0]);
-    for (const s of [-1, 1]) knot.box([0.035, 0.16, 0.012], "#b8443f", [s * 0.03, -0.15, -0.02], 0.004).rotation.z = s * 0.2;
+    for (const s of [-1, 1])
+      knot.box([0.035, 0.16, 0.012], "#b8443f", [s * 0.03, -0.15, -0.02], 0.004).rotation.z = s * 0.2;
   },
   "Citation Needed crown": (m) => {
     spikes(m, { base: "#e8eef5", tip: "#9aa7b8", n: 5, h: 0.1, r: 0.235, y: 0.16 });
@@ -629,16 +860,21 @@ export const HAT_BUILDERS: Record<string, Build> = {
     sign(m, 0.1, 0.06, (g, w, h) => letters(g, "[?]", w / 2, h / 2, h * 1.1, "#3366cc"), [0, 0.2, 0.245], 80);
   },
   // The traveling merchant's editions.
-  "Prompt wizard hat": (m) => wizard(m, { cone: "#6a4bc4", dark: "#3b2a78", star: "#f5d14a", band: "#4d3596" }),
+  "Prompt wizard hat": (m) =>
+    wizard(m, { cone: "#6a4bc4", dark: "#3b2a78", star: "#f5d14a", band: "#4d3596" }),
   "Green-CI halo": (m, c) => halo(m, c, { ring: "#3ddc84", glowC: "#b6ffc6", tilt: 0.28 }),
   "Release party hat": (m) => party(m, { a: "#f5d14a", b: "#e8584f", pom: "#fbf7ef" }),
-  "Propeller beanie": (m, c) => whirly(m, c, { a: "#e0584f", b: "#4f8fe0", brim: "#f5d14a", blade: "#f5d14a", hub: "#5d6470" }),
-  "Spaghetti chef's toque": (m) => toque(m, (t) => {
-    const noodle = t.cyl(0.012, 0.0001, "#f0c45a", [0, 0, 0]);
-    noodle.visible = false;
-    for (let i = 0; i < 8; i++) t.ball(0.015, "#f0c45a", [-0.12 + i * 0.034, 0.1 + Math.sin(i * 1.4) * 0.018, 0.2], [1.2, 1, 1], 6);
-  }),
-  "Friday deploy stetson": (m) => stetson(m, { main: "#9a6a3c", dark: "#6e4a2a", band: "#c23a3a", dent: true }),
+  "Propeller beanie": (m, c) =>
+    whirly(m, c, { a: "#e0584f", b: "#4f8fe0", brim: "#f5d14a", blade: "#f5d14a", hub: "#5d6470" }),
+  "Spaghetti chef's toque": (m) =>
+    toque(m, (t) => {
+      const noodle = t.cyl(0.012, 0.0001, "#f0c45a", [0, 0, 0]);
+      noodle.visible = false;
+      for (let i = 0; i < 8; i++)
+        t.ball(0.015, "#f0c45a", [-0.12 + i * 0.034, 0.1 + Math.sin(i * 1.4) * 0.018, 0.2], [1.2, 1, 1], 6);
+    }),
+  "Friday deploy stetson": (m) =>
+    stetson(m, { main: "#9a6a3c", dark: "#6e4a2a", band: "#c23a3a", dent: true }),
   "Force-push helm": (m) => {
     horned(m, { steel: "#cfccc7", rim: "#e9b73d", horn: "#f1e6d2", tip: "#8a93a1", guard: false });
     for (const x of [-0.12, 0, 0.12]) m.ball(0.014, "#8a93a1", [x, 0.15, 0.24], [1, 1, 1], 6);
@@ -648,20 +884,35 @@ export const HAT_BUILDERS: Record<string, Build> = {
   "Cache-hit mushroom": (m) => {
     dome(m, "#d9574a", 0.34, 0.0, 0.46, 20);
     m.cyl(0.3, 0.03, "#b0443a", [0, 0.1, 0], 0.3, 20);
-    for (const [x, y, z, r] of [[0, 0.33, 0, 0.05], [0.15, 0.25, 0.1, 0.04], [-0.14, 0.26, 0.12, 0.045], [0.08, 0.24, -0.17, 0.04], [-0.12, 0.25, -0.12, 0.035]] as const) m.ball(r, "#fbf7ef", [x, y, z], [1, 0.5, 1], 8);
+    for (const [x, y, z, r] of [
+      [0, 0.33, 0, 0.05],
+      [0.15, 0.25, 0.1, 0.04],
+      [-0.14, 0.26, 0.12, 0.045],
+      [0.08, 0.24, -0.17, 0.04],
+      [-0.12, 0.25, -0.12, 0.035],
+    ] as const)
+      m.ball(r, "#fbf7ef", [x, y, z], [1, 0.5, 1], 8);
   },
   "Borrowed-token tricorn": (m) => tricorn(m, { main: "#2f2a3a", trim: "#f5c842", emblem: "coin" }),
   "429 bucket hat": (m) => {
     m.cyl(0.215, 0.17, "#4fb3a9", [0, 0.07, 0], 0.2, 18);
     m.cyl(0.215, 0.05, "#3a8c84", [0, 0.07, 0], 0.34, 22).position.y = 0.08;
     m.box([0.07, 0.07, 0.012], "#e0584f", [0.19, 0.16, 0.12], 0.004).rotation.y = 0.9;
-    sign(m, 0.06, 0.05, (g, w, h) => letters(g, "429", w / 2, h / 2, h * 0.9, "#fbf7ef"), [0.2, 0.16, 0.122], 80).rotation.y = 0.9;
+    sign(
+      m,
+      0.06,
+      0.05,
+      (g, w, h) => letters(g, "429", w / 2, h / 2, h * 0.9, "#fbf7ef"),
+      [0.2, 0.16, 0.122],
+      80,
+    ).rotation.y = 0.9;
   },
   "Benchmark laurels": (m) => wreath(m),
   "Copenhagen ushanka": (m) => {
     dome(m, "#6b4a34", 0.285, 0.0, 0.5);
     m.cyl(0.285, 0.1, "#c9a27a", [0, 0.02, 0], 0.285, 20);
-    for (const s of [-1, 1]) m.box([0.07, 0.2, 0.13], "#6b4a34", [s * 0.275, -0.17, 0.0], 0.03).rotation.z = -s * 0.1;
+    for (const s of [-1, 1])
+      m.box([0.07, 0.2, 0.13], "#6b4a34", [s * 0.275, -0.17, 0.0], 0.03).rotation.z = -s * 0.1;
     m.box([0.07, 0.05, 0.012], "#c8102e", [0, 0.1, 0.287], 0.004);
     m.box([0.012, 0.07, 0.012], "#fbf7ef", [-0.012, 0.1, 0.29], 0.002);
     m.box([0.07, 0.012, 0.012], "#fbf7ef", [0, 0.1, 0.29], 0.002);
@@ -677,14 +928,18 @@ function roundLens(e: Model, frame: string, glass: string, r = 0.062, opacity = 
     squarePane(e, r * 0.95, see(glass, opacity), [0, 0, 0.002]);
     return;
   }
-  const disc = new THREE.Mesh(cached(`disc${r}`, () => new THREE.CircleGeometry(r, 20)), see(glass, opacity));
+  const disc = new THREE.Mesh(
+    cached(`disc${r}`, () => new THREE.CircleGeometry(r, 20)),
+    see(glass, opacity),
+  );
   disc.position.z = 0.002;
   e.add(disc);
 }
 /** A bridge between the two lenses and arms back round the head. */
 function bridge(m: Model, color: string, y = EYE_Y, width = 0.2): void {
   m.box([width * 0.35, 0.012, 0.012], color, [0, y, 0.246], 0.004);
-  for (const s of [-1, 1]) m.box([0.012, 0.012, 0.18], color, [s * 0.255, y + 0.005, 0.1], 0.004).rotation.y = s * -0.12;
+  for (const s of [-1, 1])
+    m.box([0.012, 0.012, 0.18], color, [s * 0.255, y + 0.005, 0.1], 0.004).rotation.y = s * -0.12;
 }
 /** A band round the head at eye height. */
 function strap(m: Model, color: string, y = EYE_Y, w = 0.03): void {
@@ -709,14 +964,23 @@ function strap(m: Model, color: string, y = EYE_Y, w = 0.03): void {
   (r.material as THREE.Material).side = THREE.DoubleSide;
 }
 /** A flat panel across both eyes, bent round the face. */
-function visor(m: Model, p: { color: string | THREE.Material; w: number; h: number; y?: number; depth?: number }): THREE.Mesh {
+function visor(
+  m: Model,
+  p: { color: string | THREE.Material; w: number; h: number; y?: number; depth?: number },
+): THREE.Mesh {
   if (isVox(m)) {
     // A flat panel across the face with a short return at each temple.
     const t = 0.03 + (p.depth ?? 0) * 0.5;
     const wrap = p.w >= 0.38;
     const g = cached(`vvisor${p.w},${p.h},${t}`, () => {
-      const parts = [new THREE.BoxGeometry(wrap ? 0.45 : Math.min(p.w, 0.4), p.h, t).translate(0, 0, 0.2 + t / 2)];
-      if (wrap) for (const s of [-1, 1]) parts.push(new THREE.BoxGeometry(t, p.h, 0.24).translate(s * (0.2 + t / 2 + 0.005), 0, 0.2 + t - 0.12));
+      const parts = [
+        new THREE.BoxGeometry(wrap ? 0.45 : Math.min(p.w, 0.4), p.h, t).translate(0, 0, 0.2 + t / 2),
+      ];
+      if (wrap)
+        for (const s of [-1, 1])
+          parts.push(
+            new THREE.BoxGeometry(t, p.h, 0.24).translate(s * (0.2 + t / 2 + 0.005), 0, 0.2 + t - 0.12),
+          );
       const ng = parts.map((b) => b.toNonIndexed());
       const out = mergeGeometries(ng)!;
       for (const b of ng) b.dispose();
@@ -727,7 +991,16 @@ function visor(m: Model, p: { color: string | THREE.Material; w: number; h: numb
     return o;
   }
   const geom = cached(`visor${p.w},${p.h}`, () => {
-    const g = new THREE.CylinderGeometry(0.262, 0.262, p.h, 16, 1, true, Math.PI - p.w / 0.262 / 2 + Math.PI / 2 * 0, p.w / 0.262);
+    const g = new THREE.CylinderGeometry(
+      0.262,
+      0.262,
+      p.h,
+      16,
+      1,
+      true,
+      Math.PI - p.w / 0.262 / 2 + (Math.PI / 2) * 0,
+      p.w / 0.262,
+    );
     return g;
   });
   const o = new THREE.Mesh(geom, typeof p.color === "string" ? toon(p.color) : p.color);
@@ -775,12 +1048,21 @@ function monocle(m: Model, frame: string, chain: string, tag = false): void {
     d.position.z = 0.004;
     e.add(d);
   }
-  for (let i = 0; i < 5; i++) e.ball(0.008, chain, [0.02 - i * 0.005, -0.075 - i * 0.05, -0.005 - i * 0.01], [1, 1, 1], 5);
-  if (tag) sign(e, 0.1, 0.06, (g, w, h) => {
-    g.fillStyle = "#fbf7ef";
-    g.fillRect(0, 0, w, h);
-    letters(g, "$$$", w / 2, h / 2, h * 0.8, "#e0584f");
-  }, [-0.01, -0.34, -0.03], 70);
+  for (let i = 0; i < 5; i++)
+    e.ball(0.008, chain, [0.02 - i * 0.005, -0.075 - i * 0.05, -0.005 - i * 0.01], [1, 1, 1], 5);
+  if (tag)
+    sign(
+      e,
+      0.1,
+      0.06,
+      (g, w, h) => {
+        g.fillStyle = "#fbf7ef";
+        g.fillRect(0, 0, w, h);
+        letters(g, "$$$", w / 2, h / 2, h * 0.8, "#e0584f");
+      },
+      [-0.01, -0.34, -0.03],
+      70,
+    );
   else e.box([0.07, 0.035, 0.012], "#cde9f6", [0.0, -0.31, -0.03], 0.004);
 }
 
@@ -811,7 +1093,7 @@ export const FACE_BUILDERS: Record<string, Build> = {
     m.box([0.05, 0.014, 0.014], "#6b4226", [0, EYE_Y + 0.012, 0.245], 0.004);
     bridge(m, "#6b4226");
   },
-  "Shades": (m) => shades(m, "#2b2433", "#1c1a24"),
+  Shades: (m) => shades(m, "#2b2433", "#1c1a24"),
   "Heart glasses": (m) => {
     for (const s of [-1, 1] as const) {
       const e = eyeAt(m, s);
@@ -842,7 +1124,7 @@ export const FACE_BUILDERS: Record<string, Build> = {
       n.ball(0.024, c.hair, [s * 0.12, 0.014, -0.02], [1, 1, 0.8], 8);
     }
   },
-  "Eyepatch": (m) => {
+  Eyepatch: (m) => {
     const e = eyeAt(m, -1);
     e.ball(0.07, "#1c1a24", [0, -0.003, 0.0], [1, 0.9, 0.4], 14);
     // The strap runs up from the patch across the forehead and round the back.
@@ -868,7 +1150,7 @@ export const FACE_BUILDERS: Record<string, Build> = {
     m.box([0.05, 0.014, 0.02], "#1c1a24", [0, EYE_Y, 0.246], 0.005);
     strap(m, "#1c1a24", EYE_Y + 0.02, 0.026);
   },
-  "Monocle": (m) => monocle(m, "#f5c842", "#c9971f"),
+  Monocle: (m) => monocle(m, "#f5c842", "#c9971f"),
   "Rockstar glasses": (m) => starLens(m, "#f5c842", "#ff6fa3", "rock"),
   "Prompt bandit bandana": (m) => {
     // Over the nose and mouth, tied at the back.
@@ -876,23 +1158,49 @@ export const FACE_BUILDERS: Record<string, Build> = {
       m.box([0.42, 0.11, 0.03], "#c23a3a", [0, -0.19, 0.205]);
       for (const s of [-1, 1]) m.box([0.03, 0.11, 0.3], "#c23a3a", [s * 0.215, -0.19, 0.05]);
       m.box([0.42, 0.035, 0.03], "#a82a2a", [0, -0.092, 0.205]);
-      for (const [x, y] of [[-0.09, -0.15], [0.03, -0.19], [0.12, -0.14], [-0.14, -0.2]] as const) m.box([0.025, 0.025, 0.01], "#fbf7ef", [x, y, 0.222]);
+      for (const [x, y] of [
+        [-0.09, -0.15],
+        [0.03, -0.19],
+        [0.12, -0.14],
+        [-0.14, -0.2],
+      ] as const)
+        m.box([0.025, 0.025, 0.01], "#fbf7ef", [x, y, 0.222]);
       m.box([0.04, 0.04, 0.04], "#c23a3a", [0.22, -0.13, -0.1]);
       m.box([0.03, 0.1, 0.03], "#a82a2a", [0.22, -0.26, -0.1]);
       return;
     }
-    const b = new THREE.Mesh(cached("bandana", () => new THREE.CylinderGeometry(0.262, 0.232, 0.13, 20, 1, true, -1.25, 2.5)), toon("#c23a3a"));
+    const b = new THREE.Mesh(
+      cached("bandana", () => new THREE.CylinderGeometry(0.262, 0.232, 0.13, 20, 1, true, -1.25, 2.5)),
+      toon("#c23a3a"),
+    );
     (b.material as THREE.Material).side = THREE.DoubleSide;
     b.position.y = -0.13;
     b.scale.set(1.0, 1, 0.99);
     b.castShadow = true;
     m.add(b);
-    for (const [x, y, z] of [[-0.07, -0.11, 0.222], [0.05, -0.15, 0.22], [0.11, -0.1, 0.2], [-0.12, -0.15, 0.19], [0.0, -0.09, 0.232]] as const) m.ball(0.011, "#fbf7ef", [x, y, z], [1, 1, 0.4], 6);
+    for (const [x, y, z] of [
+      [-0.07, -0.11, 0.222],
+      [0.05, -0.15, 0.22],
+      [0.11, -0.1, 0.2],
+      [-0.12, -0.15, 0.19],
+      [0.0, -0.09, 0.232],
+    ] as const)
+      m.ball(0.011, "#fbf7ef", [x, y, z], [1, 1, 0.4], 6);
     m.ball(0.04, "#c23a3a", [0.19, -0.13, -0.1], [1, 1, 1], 8);
     m.box([0.04, 0.12, 0.012], "#a82a2a", [0.19, -0.25, -0.11], 0.004).rotation.z = 0.2;
   },
   "CopenHill ski goggles": (m) => {
-    visor(m, { color: gradientLens([[0, "#b04fc2"], [0.5, "#f5b342"], [1, "#b04fc2"]]), w: 0.37, h: 0.11, y: EYE_Y - 0.005, depth: 0.025 });
+    visor(m, {
+      color: gradientLens([
+        [0, "#b04fc2"],
+        [0.5, "#f5b342"],
+        [1, "#b04fc2"],
+      ]),
+      w: 0.37,
+      h: 0.11,
+      y: EYE_Y - 0.005,
+      depth: 0.025,
+    });
     // The frame, top and bottom.
     visor(m, { color: "#2e2e3a", w: 0.37, h: 0.018, y: EYE_Y + 0.052, depth: 0.03 });
     visor(m, { color: "#2e2e3a", w: 0.37, h: 0.018, y: EYE_Y - 0.065, depth: 0.03 });
@@ -903,12 +1211,21 @@ export const FACE_BUILDERS: Record<string, Build> = {
     const leds: THREE.Mesh[] = [];
     for (let i = 0; i < 9; i++) {
       const a = (i - 4) * 0.17;
-      const led = m.box([0.026, 0.026, 0.01], lit("#ff5a4f"), [Math.sin(a) * 0.272, EYE_Y - 0.013, Math.cos(a) * 0.262], 0.004);
+      const led = m.box(
+        [0.026, 0.026, 0.01],
+        lit("#ff5a4f"),
+        [Math.sin(a) * 0.272, EYE_Y - 0.013, Math.cos(a) * 0.262],
+        0.004,
+      );
       led.rotation.y = a;
       leds.push(led);
     }
     strap(m, "#2e2e3a", EYE_Y + 0.02, 0.05);
-    c.tick((t) => leds.forEach((l, i) => { l.scale.setScalar(Math.abs(((t * 6) % 9) - i) < 1.4 ? 1.25 : 0.7); }));
+    c.tick((t) =>
+      leds.forEach((l, i) => {
+        l.scale.setScalar(Math.abs(((t * 6) % 9) - i) < 1.4 ? 1.25 : 0.7);
+      }),
+    );
   },
   "Viking beard": (m, c) => {
     const b = mid(m, -0.15, 0.17);
@@ -933,7 +1250,8 @@ export const FACE_BUILDERS: Record<string, Build> = {
       e.box([0.14, 0.095, 0.016], "#3a3f4b", [0, -0.048, 0.005], 0.006);
       e.box([0.14, 0.02, 0.018], "#fbf7ef", [0, 0.0, 0.006], 0.004);
       e.box([0.115, 0.06, 0.02], see("#cde9f6", 0.45), [0, -0.04, 0.012], 0.004);
-      for (const [i, col] of ["#ff5f57", "#febc2e", "#28c840"].entries()) e.ball(0.007, lit(col), [-0.05 + i * 0.018, 0.002, 0.018], [1, 1, 0.5], 6);
+      for (const [i, col] of ["#ff5f57", "#febc2e", "#28c840"].entries())
+        e.ball(0.007, lit(col), [-0.05 + i * 0.018, 0.002, 0.018], [1, 1, 0.5], 6);
     }
     bridge(m, "#3a3f4b");
   },
@@ -970,12 +1288,24 @@ export const FACE_BUILDERS: Record<string, Build> = {
       beam.castShadow = false;
       beams.push(beam);
     }
-    c.tick((t) => beams.forEach((b, i) => {
-      b.scale.set(1 + Math.sin(t * 20 + i) * 0.25, 0.6 + Math.sin(t * 3) * 0.1 + 0.3, 1 + Math.sin(t * 20 + i) * 0.25);
-    }));
+    c.tick((t) =>
+      beams.forEach((b, i) => {
+        b.scale.set(
+          1 + Math.sin(t * 20 + i) * 0.25,
+          0.6 + Math.sin(t * 3) * 0.1 + 0.3,
+          1 + Math.sin(t * 20 + i) * 0.25,
+        );
+      }),
+    );
   },
   "Nebula visor": (m, c) => {
-    const lens = gradientLens([[0, "#3b2a8f"], [0.25, "#7a6cf0"], [0.5, "#8fe3ff"], [0.75, "#7a6cf0"], [1, "#3b2a8f"]]);
+    const lens = gradientLens([
+      [0, "#3b2a8f"],
+      [0.25, "#7a6cf0"],
+      [0.5, "#8fe3ff"],
+      [0.75, "#7a6cf0"],
+      [1, "#3b2a8f"],
+    ]);
     visor(m, { color: lens, w: 0.44, h: 0.1, y: EYE_Y, depth: 0.045 });
     visor(m, { color: "#3b2a8f", w: 0.44, h: 0.014, y: EYE_Y + 0.052, depth: 0.05 });
     visor(m, { color: "#3b2a8f", w: 0.44, h: 0.014, y: EYE_Y - 0.052, depth: 0.05 });
@@ -993,7 +1323,13 @@ export const FACE_BUILDERS: Record<string, Build> = {
     for (const s of [-1, 1] as const) {
       const e = eyeAt(m, s);
       e.box([0.13, 0.085, 0.016], "#f4efe4", [0, -0.043, 0.005], 0.006);
-      for (const [x, y] of [[-0.027, -0.02], [0.027, -0.02], [-0.027, -0.062], [0.027, -0.062]] as const) e.box([0.05, 0.035, 0.02], see("#8fd3ff", 0.7), [x, y - 0.0, 0.012], 0.003);
+      for (const [x, y] of [
+        [-0.027, -0.02],
+        [0.027, -0.02],
+        [-0.027, -0.062],
+        [0.027, -0.062],
+      ] as const)
+        e.box([0.05, 0.035, 0.02], see("#8fd3ff", 0.7), [x, y - 0.0, 0.012], 0.003);
     }
     bridge(m, "#f4efe4");
   },
@@ -1019,7 +1355,14 @@ export const FACE_BUILDERS: Record<string, Build> = {
       const e = eyeAt(m, s);
       e.box([0.135, 0.085, 0.016], "#fbf7ef", [0, -0.043, 0.005], 0.008);
       e.box([0.11, 0.06, 0.02], see(cols[i]!, 0.75), [0, -0.031, 0.014], 0.006);
-      sign(e, 0.05, 0.05, (g, w, h) => letters(g, i ? "+" : "-", w / 2, h / 2, h * 1.1, "#fbf7ef"), [0, -0.031, 0.026], 60);
+      sign(
+        e,
+        0.05,
+        0.05,
+        (g, w, h) => letters(g, i ? "+" : "-", w / 2, h / 2, h * 1.1, "#fbf7ef"),
+        [0, -0.031, 0.026],
+        60,
+      );
     });
     bridge(m, "#fbf7ef");
   },
@@ -1048,9 +1391,33 @@ export const FACE_BUILDERS: Record<string, Build> = {
 
 /** Hats that cover the crown of the head: the hair's fringe, spikes and bun are tucked under them. */
 export const COVERS_HAIR = new Set([
-  "Beanie", "Top hat", "Tinfoil hat", "Ship-it party hat", "Danish flag cap", "Cykelhjelm", "Prod hard hat", "Julehue",
-  "Whirlybird beanie", "Prompt chef toque", "Cowboy coder hat", "Smørrebrød hat", "PhD mortarboard", "Viking helmet",
-  "Pirate tricorn", "Archmage hat", "Prompt wizard hat", "Release party hat", "Propeller beanie", "Spaghetti chef's toque",
-  "Friday deploy stetson", "Force-push helm", "Cache-hit mushroom", "Borrowed-token tricorn", "429 bucket hat",
-  "Copenhagen ushanka", "Rubber-duck hat", "Lego brick hat", "Hourglass hat",
+  "Beanie",
+  "Top hat",
+  "Tinfoil hat",
+  "Ship-it party hat",
+  "Danish flag cap",
+  "Cykelhjelm",
+  "Prod hard hat",
+  "Julehue",
+  "Whirlybird beanie",
+  "Prompt chef toque",
+  "Cowboy coder hat",
+  "Smørrebrød hat",
+  "PhD mortarboard",
+  "Viking helmet",
+  "Pirate tricorn",
+  "Archmage hat",
+  "Prompt wizard hat",
+  "Release party hat",
+  "Propeller beanie",
+  "Spaghetti chef's toque",
+  "Friday deploy stetson",
+  "Force-push helm",
+  "Cache-hit mushroom",
+  "Borrowed-token tricorn",
+  "429 bucket hat",
+  "Copenhagen ushanka",
+  "Rubber-duck hat",
+  "Lego brick hat",
+  "Hourglass hat",
 ]);

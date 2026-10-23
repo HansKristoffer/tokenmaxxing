@@ -1,6 +1,14 @@
 import { expect, test } from "bun:test";
 import { seatsFor } from "@tokenmaxxing/core/games/gather.ts";
-import { arenaGlow, propTilesOf, rankOf, STOOL_Y, scoreLines, seatPose, startLineSpan } from "../src/render3d/gamefx.ts";
+import {
+  arenaGlow,
+  propTilesOf,
+  rankOf,
+  STOOL_Y,
+  scoreLines,
+  seatPose,
+  startLineSpan,
+} from "../src/render3d/gamefx.ts";
 
 const table = { x: 7, y: 5, w: 3, h: 3, kind: "table" } as const;
 const arena = { x: 7, y: 5, w: 4, h: 3, kind: "arena" } as const;
@@ -57,7 +65,14 @@ test("the scoreboard's bars are against the best, with a sliver for nothing, and
     { player: 2, value: 250, label: "" },
     { player: 7, value: 0, label: "" },
   ];
-  const lines = scoreLines(board, new Map([[4, "anna"], [2, "bo"]]), (n) => `${n}t`);
+  const lines = scoreLines(
+    board,
+    new Map([
+      [4, "anna"],
+      [2, "bo"],
+    ]),
+    (n) => `${n}t`,
+  );
   expect(lines.map((l) => l.name)).toEqual(["anna", "bo", "?"]);
   expect(lines.map((l) => l.share)).toEqual([1, 0.25, 0.02]);
   expect(lines.map((l) => l.label)).toEqual(["1.0k", "250t", "0t"]);

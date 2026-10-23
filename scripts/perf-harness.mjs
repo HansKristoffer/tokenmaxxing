@@ -12,14 +12,18 @@ const arg = (k, d) => {
 };
 const url = arg("url", "http://localhost:4652");
 const out = arg("out", "perf-results/run.json");
-const rooms = arg("rooms", "town,inn,upstairs,basement,shop-furniture,shop-clothes,dungeon,hq,office").split(",");
+const rooms = arg("rooms", "town,inn,upstairs,basement,shop-furniture,shop-clothes,dungeon,hq,office").split(
+  ",",
+);
 const styles = arg("styles", "hd,pixel,voxel0,voxel1,voxel2").split(",");
 const ms = Number(arg("ms", "4000"));
 const gl = arg("gl", "metal");
 const warm = Number(arg("warm", gl === "metal" ? "2500" : "20000"));
 const [vw, vh] = arg("viewport", "1280x720").split("x").map(Number);
 
-const pw = await import(process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs");
+const pw = await import(
+  process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs"
+);
 const probe = readFileSync(new URL("./perf/probe.js", import.meta.url), "utf8");
 const browser = await pw.chromium.launch({
   headless: true,
@@ -57,14 +61,18 @@ for (const room of rooms) {
     const [stored, q] = tier ? ["voxel", ""] : STYLE[style];
     const ctx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
     await ctx.addInitScript(probe);
-    if (process.env.BAKE_CELL) await ctx.addInitScript((c) => (window.__bakeCell = Number(c)), process.env.BAKE_CELL);
+    if (process.env.BAKE_CELL)
+      await ctx.addInitScript((c) => (window.__bakeCell = Number(c)), process.env.BAKE_CELL);
     await ctx.addInitScript((s) => localStorage.setItem("demo3d.style", s), stored);
     const page = await ctx.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     const t0 = Date.now();
     const stage = /^[A-Z]/.test(room) ? room : `World:${room}`;
-    await page.goto(`${url}/?stage=${stage}${q ? `&q=${q}` : ""}${tier ? `&tier=${tier}` : ""}${process.env.EXTRA ?? ""}`, { waitUntil: "load" });
+    await page.goto(
+      `${url}/?stage=${stage}${q ? `&q=${q}` : ""}${tier ? `&tier=${tier}` : ""}${process.env.EXTRA ?? ""}`,
+      { waitUntil: "load" },
+    );
     await page.waitForFunction(() => window.__probe?.frames > 3 && window.world3d, null, { timeout: 60000 });
     const ready = Date.now() - t0;
     await page.waitForTimeout(warm);
@@ -148,5 +156,8 @@ if (process.argv.includes("--check")) {
   if (bad) process.exitCode = 1;
 }
 mkdirSync(dirname(out), { recursive: true });
-writeFileSync(out, JSON.stringify({ at: new Date().toISOString(), gl, viewport: [vw, vh], ms, results }, null, 1));
+writeFileSync(
+  out,
+  JSON.stringify({ at: new Date().toISOString(), gl, viewport: [vw, vh], ms, results }, null, 1),
+);
 console.log(`wrote ${out}`);

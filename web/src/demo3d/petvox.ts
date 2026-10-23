@@ -133,16 +133,7 @@ export class Grid {
       const r = r0 + (r1 - r0) * (i / n);
       const t = i / n;
       const at = (j: number) => a[j]! + (b[j]! - a[j]!) * k;
-      this.ell(
-        at(0),
-        at(1),
-        at(2),
-        r,
-        r,
-        r,
-        typeof p === "string" ? p : (c) => p({ ...c, u: t }),
-        pow,
-      );
+      this.ell(at(0), at(1), at(2), r, r, r, typeof p === "string" ? p : (c) => p({ ...c, u: t }), pow);
     }
     return this;
   }
@@ -206,7 +197,18 @@ export class Grid {
   }
 
   /** Grows a fuzz of extra cells off the surface (not downwards), copying (and varying) the colour beneath. */
-  fluff(prob: number, seed = 1, light = 0.06, dirs: V3[] = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]): this {
+  fluff(
+    prob: number,
+    seed = 1,
+    light = 0.06,
+    dirs: V3[] = [
+      [1, 0, 0],
+      [-1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1],
+      [0, 0, -1],
+    ],
+  ): this {
     const add: [number, V3, Rgb][] = [];
     this.each((x, y, z, c) => {
       for (const d of dirs) {

@@ -117,8 +117,16 @@ export const LEGEND: Record<string, TileKind> = {
   // Inside them: the counter, each shop's displays and the fixtures that are only to look at.
   "¢": { name: "shop counter", counter: true, text: "The counter. Press E to browse the shop." },
   "¤": { name: "furniture display", shop: "furniture", text: "A showroom piece with a price tag." },
-  "§": { name: "clothes rack", shop: "clothes", text: "A rack of clothes and accessories, price tags swinging." },
-  "¶": { name: "styling station", shop: "barber", text: "A styling station: mirror, combs and a rack of colours." },
+  "§": {
+    name: "clothes rack",
+    shop: "clothes",
+    text: "A rack of clothes and accessories, price tags swinging.",
+  },
+  "¶": {
+    name: "styling station",
+    shop: "barber",
+    text: "A styling station: mirror, combs and a rack of colours.",
+  },
   "¥": { name: "pet pen", shop: "pets", text: "A pen. Somebody inside is already looking at you." },
   "‡": { name: "fixture", text: "Part of the shop's fittings." },
   x: { name: "exit", portal: true },
@@ -168,7 +176,10 @@ export const LEGEND: Record<string, TileKind> = {
   w: { name: "open offices", text: "Offices that are open for visitors." },
   // The company's common room upstairs (`MAPS.common`, `common.ts`): its own pieces, so nothing clashes.
   Ψ: { name: "window", text: "A big window. The sky out there is somebody else's problem." },
-  Θ: { name: "wall of wins", text: "The wall of wins. Shipped, merged, launched: every win is up here, big or small." },
+  Θ: {
+    name: "wall of wins",
+    text: "The wall of wins. Shipped, merged, launched: every win is up here, big or small.",
+  },
   π: { name: "kitchen counter", text: "A kitchen counter. The oat milk has someone's name on it." },
   // Posters (`POSTERS`): on the building's top wall, so they never block a step.
   ...Object.fromEntries(
@@ -267,7 +278,14 @@ export interface RoomLayout {
 }
 
 export function layoutOf(map: GameMap): RoomLayout {
-  const layout: RoomLayout = { id: map.id, width: map.width, height: map.height, doors: [], seats: [], displays: [] };
+  const layout: RoomLayout = {
+    id: map.id,
+    width: map.width,
+    height: map.height,
+    doors: [],
+    seats: [],
+    displays: [],
+  };
   map.rows.forEach((row, ry) => {
     for (let rx = 0; rx < row.length; rx++) {
       const ch = row[rx]!;

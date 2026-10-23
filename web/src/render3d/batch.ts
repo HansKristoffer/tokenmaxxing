@@ -82,7 +82,11 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
   const candidates = all.filter((m) => {
     const mat = m.material;
     if (Array.isArray(mat) || (mat as THREE.Material).transparent) return false;
-    if ((m as unknown as THREE.InstancedMesh).isInstancedMesh || (m as unknown as THREE.SkinnedMesh).isSkinnedMesh) return false;
+    if (
+      (m as unknown as THREE.InstancedMesh).isInstancedMesh ||
+      (m as unknown as THREE.SkinnedMesh).isSkinnedMesh
+    )
+      return false;
     if (m.userData.nopick || m.userData.nobatch || o.keep?.(m) || kept(m, root)) return false;
     return m.matrixWorld.determinant() > 0 && m.geometry.attributes.position !== undefined;
   });
@@ -125,9 +129,11 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
       // The vertex colours stay when the material reads them (the voxel people's bodies are painted that way).
       const colours = (m.material as THREE.MeshStandardMaterial).vertexColors === true;
       for (const name of Object.keys(g.attributes))
-        if (name !== "position" && name !== "normal" && name !== "uv" && !(colours && name === "color")) g.deleteAttribute(name);
+        if (name !== "position" && name !== "normal" && name !== "uv" && !(colours && name === "color"))
+          g.deleteAttribute(name);
       const n = g.attributes.position!.count;
-      if (colours && !g.attributes.color) g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+      if (colours && !g.attributes.color)
+        g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3));
       if (!g.attributes.normal) g.computeVertexNormals();
       if (!g.attributes.uv) g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(n * 2), 2));
       g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverse, m.matrixWorld));
@@ -155,5 +161,12 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
     batches++;
   }
   root.add(out);
-  return { before: all.length, after: all.length - [...groups.values()].filter((l) => l.length > 1).reduce((a, l) => a + l.length, 0) + batches, batches };
+  return {
+    before: all.length,
+    after:
+      all.length -
+      [...groups.values()].filter((l) => l.length > 1).reduce((a, l) => a + l.length, 0) +
+      batches,
+    batches,
+  };
 }

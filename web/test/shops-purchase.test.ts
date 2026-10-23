@@ -7,9 +7,31 @@ import { FACE_ROWS } from "../src/demo3d/shops/data/barber.ts";
 import { CLOTHES } from "../src/demo3d/shops/data/clothes.ts";
 import { FURNITURE_SHOP_ROWS } from "../src/demo3d/shops/data/furniture.ts";
 import { CATALOG_PETS, SHOP_PETWEAR, SHOP_VARIANTS } from "../src/demo3d/shops/data/pets.ts";
-import { equipOf, failOf, lookWith, petVariantOf, purchaseOf, realMerchId, wornIn } from "../src/demo3d/shops/purchase.ts";
+import {
+  equipOf,
+  failOf,
+  lookWith,
+  petVariantOf,
+  purchaseOf,
+  realMerchId,
+  wornIn,
+} from "../src/demo3d/shops/purchase.ts";
 
-const LOOK = { style: 0, skin: 0, hair: 0, outfit: 0, glasses: 0, hat: 0, pet: 0, held: 0, back: 0, petwear: 0, petVariant: 0, merch: 0, merchWorn: 0 };
+const LOOK = {
+  style: 0,
+  skin: 0,
+  hair: 0,
+  outfit: 0,
+  glasses: 0,
+  hat: 0,
+  pet: 0,
+  held: 0,
+  back: 0,
+  petwear: 0,
+  petVariant: 0,
+  merch: 0,
+  merchWorn: 0,
+};
 
 test("every shelf id maps onto a core item, decor or desk", () => {
   const ids = [
@@ -26,7 +48,8 @@ test("every shelf id maps onto a core item, decor or desk", () => {
     expect(i.price, r.id).toBe(r.price);
     expect(i.level, r.id).toBe((r as { level?: number }).level);
   }
-  for (const r of FURNITURE_SHOP_ROWS.filter((x) => x.id.startsWith("furn."))) expect(itemById(r.id)?.price, r.id).toBe(r.price);
+  for (const r of FURNITURE_SHOP_ROWS.filter((x) => x.id.startsWith("furn.")))
+    expect(itemById(r.id)?.price, r.id).toBe(r.price);
 });
 
 test("every pet variation on the shelf is one core knows", () => {

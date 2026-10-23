@@ -28,7 +28,8 @@ export type RenderStyle = "classic" | "voxel";
  */
 {
   const chunk = THREE.ShaderChunk.lights_fragment_begin;
-  const key = "directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ]";
+  const key =
+    "directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ]";
   const at = chunk.indexOf(key);
   const end = at < 0 ? -1 : chunk.indexOf("\n", at);
   if (end > 0 && !chunk.includes("shadowDyn")) {
@@ -63,7 +64,11 @@ float dynShadow( sampler2DShadow shadowMap, float shadowIntensity, float shadowB
  * lookup per object per frame (several MB of garbage a second in the town's clouds and light cones). One pass looks the
  * same for the soft, mostly flat things the game makes see-through.
  */
-Object.defineProperty(THREE.Material.prototype, "forceSinglePass", { get: () => true, set: () => {}, configurable: true });
+Object.defineProperty(THREE.Material.prototype, "forceSinglePass", {
+  get: () => true,
+  set: () => {},
+  configurable: true,
+});
 
 const VERTEX = /* glsl */ `
 varying vec2 vUv;
@@ -120,7 +125,6 @@ void main() {
   #include <colorspace_fragment>
 }
 `;
-
 
 const VOXEL_FRAGMENT = /* glsl */ `
 uniform sampler2D tColor;
@@ -506,7 +510,11 @@ export class Pipeline {
     this.quadCreased = classic(true);
     this.blit = new THREE.Mesh(
       plane,
-      new THREE.ShaderMaterial({ vertexShader: VERTEX, fragmentShader: BLIT, uniforms: { tColor: { value: null } } }),
+      new THREE.ShaderMaterial({
+        vertexShader: VERTEX,
+        fragmentShader: BLIT,
+        uniforms: { tColor: { value: null } },
+      }),
     );
   }
 
@@ -655,7 +663,12 @@ export class Pipeline {
   }
 
   /** What the next render's shadow step does (see `shadowsFor`); null leaves it to three. */
-  private plan: { sun: THREE.DirectionalLight; dyn: THREE.DirectionalLight; fixed: boolean; live: boolean } | null = null;
+  private plan: {
+    sun: THREE.DirectionalLight;
+    dyn: THREE.DirectionalLight;
+    fixed: boolean;
+    live: boolean;
+  } | null = null;
   private readonly staticCam = new THREE.Camera();
   private readonly liveCam = new THREE.Camera();
 
@@ -938,7 +951,10 @@ export class Pipeline {
     }
   }
 
-  private readonly crowds = new WeakMap<THREE.Scene, { epoch: number; at: number; actors: THREE.Object3D[] }>();
+  private readonly crowds = new WeakMap<
+    THREE.Scene,
+    { epoch: number; at: number; actors: THREE.Object3D[] }
+  >();
   private readonly rank: { o: THREE.Object3D; d: number }[] = [];
   private readonly ndc = new THREE.Vector3();
 
@@ -986,7 +1002,9 @@ export class Pipeline {
   private look(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number): void {
     camera.updateMatrixWorld();
     this.cam = camera;
-    this.frustum.setFromProjectionMatrix(this.viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    this.frustum.setFromProjectionMatrix(
+      this.viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse),
+    );
     view.pxPerUnit = w / ((camera.right - camera.left) / camera.zoom);
     view.sees = (p, r) => {
       this.ball.center.set(p.x, p.y + r * 0.5, p.z);

@@ -6,7 +6,10 @@ import { bossAt } from "@tokenmaxxing/core/raid.ts";
 const pixels = () => ({ data: new Uint8ClampedArray(1 << 22), width: 1024, height: 1024 });
 const ctx = new Proxy(
   {},
-  { get: (_t, k) => (k === "canvas" ? {} : k === "getImageData" ? pixels : () => ({ addColorStop() {} })), set: () => true },
+  {
+    get: (_t, k) => (k === "canvas" ? {} : k === "getImageData" ? pixels : () => ({ addColorStop() {} })),
+    set: () => true,
+  },
 );
 const fake = { width: 0, height: 0, style: {}, getContext: () => ctx, addEventListener() {} };
 Object.assign(globalThis, {
@@ -51,9 +54,29 @@ const raid = (o: Record<string, unknown> = {}) =>
     ...o,
   }) as never;
 
-const look = { style: 0, skin: 0, hair: 0, outfit: 0, glasses: 0, hat: 0, pet: 0, held: 0, back: 0, petwear: 0, petVariant: 0, merchWorn: 0, merch: 0 };
+const look = {
+  style: 0,
+  skin: 0,
+  hair: 0,
+  outfit: 0,
+  glasses: 0,
+  hat: 0,
+  pet: 0,
+  held: 0,
+  back: 0,
+  petwear: 0,
+  petVariant: 0,
+  merchWorn: 0,
+  merch: 0,
+};
 const crowd = (n: number) => ({
-  top: Array.from({ length: n }, (_, i) => ({ id: i + 1, name: `r${i}`, look: { ...look, hair: i % 8, outfit: i % 12 }, agents: 1 + (i % 6), burn: 1e5 * (1 + (i % 7)) })),
+  top: Array.from({ length: n }, (_, i) => ({
+    id: i + 1,
+    name: `r${i}`,
+    look: { ...look, hair: i % 8, outfit: i % 12 },
+    agents: 1 + (i % 6),
+    burn: 1e5 * (1 + (i % 7)),
+  })),
   more: 0,
 });
 
@@ -139,21 +162,38 @@ test("a kill makes the boss fall and the next rung arrive, with a plaque for the
 });
 
 test("when the week is over nobody fires, and before the first raid the room is dark", () => {
-  store.hud.set({ raid: raid({ closed: true, kills: [{ rung: 1, boss: bossAt(1), day: "2026-10-20", coins: 10, raiders: 3, paid: true }] }) });
+  store.hud.set({
+    raid: raid({
+      closed: true,
+      kills: [{ rung: 1, boss: bossAt(1), day: "2026-10-20", coins: 10, raiders: 3, paid: true }],
+    }),
+  });
   raidState.setRaiders(crowd(5));
   const l = new live.DungeonLive(MAPS.dungeon, fx.CAPS.full);
   run(l, 2);
   let missiles = 0;
   l.group.traverse((o) => {
     const m = o as import("three").InstancedMesh;
-    if (m.isInstancedMesh && m.userData.nobatch && m.count > 0 && m.material instanceof THREE.MeshBasicMaterial && (m.geometry as { parameters?: { width?: number } }).parameters?.width === 0.08) missiles++;
+    if (
+      m.isInstancedMesh &&
+      m.userData.nobatch &&
+      m.count > 0 &&
+      m.material instanceof THREE.MeshBasicMaterial &&
+      (m.geometry as { parameters?: { width?: number } }).parameters?.width === 0.08
+    )
+      missiles++;
   });
   expect(missiles).toBe(0);
   l.dispose();
   store.hud.set({ raid: raid({ prelaunch: true, closed: true, launchAt: Date.now() + 36e5 }) });
   const lair = new live.DungeonLive(MAPS.dungeon, fx.CAPS.full);
   run(lair, 1);
-  const dark = lair.group.children.find((c) => (c as import("three").Mesh).isMesh && (c as import("three").Mesh).geometry.type === "PlaneGeometry" && c.visible);
+  const dark = lair.group.children.find(
+    (c) =>
+      (c as import("three").Mesh).isMesh &&
+      (c as import("three").Mesh).geometry.type === "PlaneGeometry" &&
+      c.visible,
+  );
   expect(dark).toBeDefined();
   expect(lair.boss.silhouette).toBe(true);
   lair.dispose();

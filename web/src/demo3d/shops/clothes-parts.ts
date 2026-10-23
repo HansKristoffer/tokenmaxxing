@@ -96,7 +96,10 @@ export function priceTag(item: ShopItem, w = 0.8, h = 0.3): Model {
 /** A padlock about a tenth of a tile across: gold for a level reward, red for a boss drop. */
 export function padlock(color: string): Model {
   const m = new Model();
-  const arc = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.012, 6, 10, Math.PI), new THREE.MeshToonMaterial({ color: "#c9ced6" }));
+  const arc = new THREE.Mesh(
+    new THREE.TorusGeometry(0.045, 0.012, 6, 10, Math.PI),
+    new THREE.MeshToonMaterial({ color: "#c9ced6" }),
+  );
   arc.position.set(0, 0.09, 0);
   m.add(arc);
   m.box([0.13, 0.1, 0.05], color, [0, 0, 0], 0.012);
@@ -109,7 +112,12 @@ export function lockFor(id: string): Model {
 }
 
 /** A hanging board: a lit sign in the shop's pink and gold. */
-export function signBoard(text: string, w: number, h: number, opts: { sub?: string; lit?: boolean } = {}): Model {
+export function signBoard(
+  text: string,
+  w: number,
+  h: number,
+  opts: { sub?: string; lit?: boolean } = {},
+): Model {
   const px = 120;
   const cw = Math.round(w * px);
   const ch = Math.round(h * px);
@@ -179,7 +187,9 @@ export function bubble(lines: string[], name: string): { sprite: THREE.Sprite; s
     tex.needsUpdate = true;
   };
   draw(lines[0] ?? "Welcome!");
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }),
+  );
   sprite.scale.set(1.5, 1.5 * (ch / cw), 1);
   sprite.center.set(0.5, 0);
   sprite.renderOrder = 10;

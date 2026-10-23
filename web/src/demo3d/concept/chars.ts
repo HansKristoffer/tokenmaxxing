@@ -40,7 +40,13 @@ export function pet(rnd: () => number): Pet3D {
 }
 
 /** Put `people` avatars and `pets` pets on cleared roofs (and a few on `extra` spots). */
-export function populate(world: World, people: number, pets: number, extra: [number, number, number][] = [], seed = 3): Crowd {
+export function populate(
+  world: World,
+  people: number,
+  pets: number,
+  extra: [number, number, number][] = [],
+  seed = 3,
+): Crowd {
   const rnd = seeded(seed);
   const cyber = world.theme === "cyber";
   const avatars: Avatar[] = [];
@@ -74,7 +80,17 @@ export function populate(world: World, people: number, pets: number, extra: [num
 }
 
 /** A little crowd standing or walking about on one level, round (cx, cz). */
-export function crowdAt(world: World, cx: number, cz: number, y: number, n: number, rx: number, rz: number, seed = 8, pets = 0): void {
+export function crowdAt(
+  world: World,
+  cx: number,
+  cz: number,
+  y: number,
+  n: number,
+  rx: number,
+  rz: number,
+  seed = 8,
+  pets = 0,
+): void {
   const rnd = seeded(seed);
   const cyber = world.theme === "cyber";
   for (let k = 0; k < n; k++) {

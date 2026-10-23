@@ -44,7 +44,11 @@ export interface ScoreLine {
 }
 
 /** The arena scoreboard's rows: the bar of each against the best (at least a sliver), names from `names`. */
-export function scoreLines(board: readonly BoardRow[] | null, names: ReadonlyMap<number, string>, compact: (n: number) => string): ScoreLine[] {
+export function scoreLines(
+  board: readonly BoardRow[] | null,
+  names: ReadonlyMap<number, string>,
+  compact: (n: number) => string,
+): ScoreLine[] {
   const rows = board ?? [];
   const top = rows[0]?.value || 1;
   return rows.map((r, i) => ({
@@ -56,7 +60,16 @@ export function scoreLines(board: readonly BoardRow[] | null, names: ReadonlyMap
 }
 
 /** The chequered strip across a race's lanes, in tiles: its x, and the top and bottom of the lanes it spans. */
-export function startLineSpan(plazaLeft: number, plazaRight: number, plazaTop: number, lanes: readonly number[]): { x: number; y0: number; y1: number } | null {
+export function startLineSpan(
+  plazaLeft: number,
+  plazaRight: number,
+  plazaTop: number,
+  lanes: readonly number[],
+): { x: number; y0: number; y1: number } | null {
   if (!lanes.length) return null;
-  return { x: (plazaLeft + plazaRight) / 2 + 13 / 16, y0: plazaTop + Math.min(...lanes) + 6 / 16, y1: plazaTop + Math.max(...lanes) + 1 };
+  return {
+    x: (plazaLeft + plazaRight) / 2 + 13 / 16,
+    y0: plazaTop + Math.min(...lanes) + 6 / 16,
+    y1: plazaTop + Math.max(...lanes) + 1,
+  };
 }

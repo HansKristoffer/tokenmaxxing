@@ -10,7 +10,9 @@ const flag = (k) => {
 };
 const [file, base] = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
 if (!file) {
-  console.error("usage: perf-report.mjs run.json [baseline.json] [--p1 pass1.json] [--rooms a,b] [--styles x,y] [--full]");
+  console.error(
+    "usage: perf-report.mjs run.json [baseline.json] [--p1 pass1.json] [--rooms a,b] [--styles x,y] [--full]",
+  );
   process.exit(1);
 }
 const load = (f) => (f ? JSON.parse(readFileSync(f, "utf8")) : null);

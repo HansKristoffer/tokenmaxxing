@@ -168,7 +168,8 @@ export function prepareRoom(id: string): Promise<void> {
 export function preloadRoom(id: string): void {
   if (roomReady(id)) return;
   const run = () => void prepareRoom(id).catch(() => {});
-  const idle = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+  const idle = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void })
+    .requestIdleCallback;
   if (idle) idle(run, { timeout: 2000 });
   else setTimeout(run, 200);
 }

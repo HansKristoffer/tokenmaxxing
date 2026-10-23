@@ -15,7 +15,12 @@ export function mountDecorPanel(room: Room, target: THREE.Vector3, host = docume
   const el = document.createElement("div");
   el.className = "decor";
   const opts = (xs: typeof FLOORS) =>
-    xs.map((d) => `<option value="${d.id}">${d.name} · ${d.level ? `Lv${d.level}` : d.price ? `${d.price}c` : "free"}</option>`).join("");
+    xs
+      .map(
+        (d) =>
+          `<option value="${d.id}">${d.name} · ${d.level ? `Lv${d.level}` : d.price ? `${d.price}c` : "free"}</option>`,
+      )
+      .join("");
   el.innerHTML = `<h4>🎨 Decorate</h4>
     <label>Wall <select id="d-wall">${opts(WALLPAPERS)}</select></label>
     <label>Floor <select id="d-floor">${opts(FLOORS)}</select></label>

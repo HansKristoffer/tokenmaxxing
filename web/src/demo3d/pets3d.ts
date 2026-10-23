@@ -10,15 +10,7 @@ import { C } from "../art/palette.ts";
 import { Freezer, view } from "../render3d/perf/freeze.ts";
 import { PET_NAME, PET_NAMED, PET_SPECIES, PET_VARIANTS, PETWEAR, type Species } from "./data/pets.ts";
 import type { Asset } from "./furniture.ts";
-import {
-  checker,
-  glow,
-  liveModel,
-  Model,
-  painted,
-  tint,
-  toon,
-} from "./kit.ts";
+import { checker, glow, liveModel, Model, painted, tint, toon } from "./kit.ts";
 import { dragon, duck, ghost, goldfish, golem, orb } from "./pets3d-misc.ts";
 import { quad } from "./pets3d-quad.ts";
 import type { Rig } from "./petvox.ts";
@@ -201,7 +193,8 @@ export class Pet3D {
     }
     // At rest (standing or sitting, nothing spinning or sparkling) a pet is merged into a few meshes.
     const settled = Math.abs(this.sit - (this.pose === "sit" ? 1 : 0)) < 0.01 && this.sleep < 0.01;
-    const calm = !this.moving && settled && !this.crown && !this.spin && !this.rig.fx && this.pose !== "sleep";
+    const calm =
+      !this.moving && settled && !this.crown && !this.spin && !this.rig.fx && this.pose !== "sleep";
     const far = this.root.userData.lod && !this.crown && !this.spin && !this.rig.fx;
     const key = far ? "far" : calm ? `${this.pose}:${this.wear}` : null;
     if (this.freezer.holds(key)) {

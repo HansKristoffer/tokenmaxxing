@@ -181,7 +181,10 @@ export class DungeonLive {
     const lid = new THREE.BoxGeometry(0.42, 0.3, 0.02).translate(0, 0.15, 0);
     const screen = new THREE.PlaneGeometry(0.37, 0.25).translate(0, 0.16, 0.011);
     this.lids = this.instanced(lid, new THREE.MeshToonMaterial({ color: "#2b2433" }));
-    this.screens = this.instanced(screen, new THREE.MeshBasicMaterial({ color: "#ffffff", toneMapped: false }));
+    this.screens = this.instanced(
+      screen,
+      new THREE.MeshBasicMaterial({ color: "#ffffff", toneMapped: false }),
+    );
     this.screens.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(LAPTOP_MAX * 3), 3);
     this.group.add(this.lids, this.screens);
 
@@ -262,7 +265,11 @@ export class DungeonLive {
   private wall(): void {
     const r = this.raid;
     const share = r && !r.prelaunch && !r.closed && r.hp > 0 && !this.boss.fallen ? hpLeft(r) / r.hp : null;
-    if (this.terminal && share !== this.terminalShare && (share === null || this.terminalShare == null || Math.abs(share - this.terminalShare) > 0.004)) {
+    if (
+      this.terminal &&
+      share !== this.terminalShare &&
+      (share === null || this.terminalShare == null || Math.abs(share - this.terminalShare) > 0.004)
+    ) {
       this.terminalShare = share;
       this.terminal.set(share);
     }
@@ -276,11 +283,22 @@ export class DungeonLive {
     }
     this.plaqueSigns = [];
     kills.forEach((k, i) => {
-      const m = plaque(Math.max(0, DUNGEON_BOSSES.findIndex((b) => b.id === k.boss.id)));
+      const m = plaque(
+        Math.max(
+          0,
+          DUNGEON_BOSSES.findIndex((b) => b.id === k.boss.id),
+        ),
+      );
       const x = PLAQUE_X[i]! + 0.5 - this.map.x0;
       m.position.set(x, 0, 2.0);
       this.plaques.add(m);
-      this.plaqueSigns.push({ key: `plaque:${i}`, at: [x, 1.05, 2.2], kind: "label", text: `${k.rung}`, cls: "gold" });
+      this.plaqueSigns.push({
+        key: `plaque:${i}`,
+        at: [x, 1.05, 2.2],
+        kind: "label",
+        text: `${k.rung}`,
+        cls: "gold",
+      });
     });
     this.signKey = "";
   }
@@ -302,7 +320,16 @@ export class DungeonLive {
     const banner = r.prelaunch
       ? `⚠️ ??? · wakes in ${countdownOf(r.launchAt)}`
       : (weekOverText(r) ?? (this.t < this.bannerUntil ? this.bannerText : null));
-    boss.setInfo({ name: r.boss.name, emoji: r.boss.emoji, rung: r.boss.rung, hp: hpLeft(r), maxHp: r.hp, banner, taunts: r.boss.taunts, bar: !r.prelaunch });
+    boss.setInfo({
+      name: r.boss.name,
+      emoji: r.boss.emoji,
+      rung: r.boss.rung,
+      hp: hpLeft(r),
+      maxHp: r.hp,
+      banner,
+      taunts: r.boss.taunts,
+      bar: !r.prelaunch,
+    });
     boss.setQuiet(r.closed || r.prelaunch);
   }
 
@@ -324,7 +351,17 @@ export class DungeonLive {
         known.seat = seat;
       } else {
         const look = lookFrom2D(p.look as never, { level: 1 });
-        this.seated.set(p.id, { raider: p, seat, idx: 0, owed: Math.random(), lit: 0, avatar: null, shirt: look.outfit[0], skin: look.skin, bots: [] });
+        this.seated.set(p.id, {
+          raider: p,
+          seat,
+          idx: 0,
+          owed: Math.random(),
+          lit: 0,
+          avatar: null,
+          shirt: look.outfit[0],
+          skin: look.skin,
+          bots: [],
+        });
       }
     }
     for (const [id, s] of this.seated)
@@ -345,7 +382,12 @@ export class DungeonLive {
   /** The laptops on their desks, and who gets to be drawn as a person. */
   private layout(): void {
     const all = [...this.seated.values()];
-    const shown = new Set(peopleShown(all.map((s) => ({ id: s.raider.id, burn: s.raider.burn })), this.caps.people).map((p) => p.id));
+    const shown = new Set(
+      peopleShown(
+        all.map((s) => ({ id: s.raider.id, burn: s.raider.burn })),
+        this.caps.people,
+      ).map((p) => p.id),
+    );
     let bots = 0;
     all.forEach((s, i) => {
       s.idx = i;
@@ -353,7 +395,11 @@ export class DungeonLive {
       // The desk is the tile north of the seat.
       const dx = sx - this.map.x0 + 0.5;
       const dz = sy - 1 - this.map.y0 + 0.5;
-      this.mat.compose(this.tmp.set(dx, 0.72, dz - 0.07), this.quat.setFromEuler(new THREE.Euler(-0.35, 0, 0)), new THREE.Vector3(1, 1, 1));
+      this.mat.compose(
+        this.tmp.set(dx, 0.72, dz - 0.07),
+        this.quat.setFromEuler(new THREE.Euler(-0.35, 0, 0)),
+        new THREE.Vector3(1, 1, 1),
+      );
       this.lids.setMatrixAt(i, this.mat);
       this.screens.setMatrixAt(i, this.mat);
       this.paintScreen(i, false);
@@ -363,7 +409,9 @@ export class DungeonLive {
         s.avatar = null;
       }
       // Minions behind the chair, while the crowd is small enough.
-      const want = shown.has(s.raider.id) ? Math.min(minionsOf(s.raider.agents, this.caps.minions), Math.max(0, this.caps.minionsTotal - bots)) : 0;
+      const want = shown.has(s.raider.id)
+        ? Math.min(minionsOf(s.raider.agents, this.caps.minions), Math.max(0, this.caps.minionsTotal - bots))
+        : 0;
       bots += want;
       s.bots.length = Math.min(s.bots.length, want);
     });
@@ -382,7 +430,10 @@ export class DungeonLive {
   private build(): void {
     let budget = MAX_NEW_PER_FRAME;
     const shown = new Set(
-      peopleShown([...this.seated.values()].map((s) => ({ id: s.raider.id, burn: s.raider.burn })), this.caps.people).map((p) => p.id),
+      peopleShown(
+        [...this.seated.values()].map((s) => ({ id: s.raider.id, burn: s.raider.burn })),
+        this.caps.people,
+      ).map((p) => p.id),
     );
     let bots = [...this.seated.values()].reduce((a, s) => a + s.bots.length, 0);
     for (const s of this.seated.values()) {
@@ -399,10 +450,17 @@ export class DungeonLive {
         s.avatar = av;
         budget--;
       }
-      const want = Math.min(minionsOf(s.raider.agents, this.caps.minions), Math.max(0, this.caps.minionsTotal - (bots - s.bots.length)));
+      const want = Math.min(
+        minionsOf(s.raider.agents, this.caps.minions),
+        Math.max(0, this.caps.minionsTotal - (bots - s.bots.length)),
+      );
       while (s.bots.length < want && budget > 0) {
         const i = s.bots.length;
-        s.bots.push({ owed: Math.random(), at: new THREE.Vector3(x + (i - (want - 1) / 2) * 0.3, 0, z + 0.62), lit: 0 });
+        s.bots.push({
+          owed: Math.random(),
+          at: new THREE.Vector3(x + (i - (want - 1) / 2) * 0.3, 0, z + 0.62),
+          lit: 0,
+        });
         bots++;
       }
     }
@@ -422,16 +480,36 @@ export class DungeonLive {
       Math.max(from.y, to.y) + 1.2 + Math.random() * 1.2,
       (from.z + to.z) / 2,
     );
-    this.flying.push({ from: from.clone(), control, to, at: this.t, s: 0.75 * (0.8 + Math.random() * 0.5), minion });
+    this.flying.push({
+      from: from.clone(),
+      control,
+      to,
+      at: this.t,
+      s: 0.75 * (0.8 + Math.random() * 0.5),
+      minion,
+    });
   }
 
-  private burstAt(x: number, y: number, z: number, colour: THREE.ColorRepresentation, n: number, life = 0.32): void {
+  private burstAt(
+    x: number,
+    y: number,
+    z: number,
+    colour: THREE.ColorRepresentation,
+    n: number,
+    life = 0.32,
+  ): void {
     const c = new THREE.Color(colour);
     for (let i = 0; i < n && this.burst.length < this.caps.sparks; i++) {
       const a = Math.random() * Math.PI * 2;
       const up = Math.random() * 0.8 + 0.1;
       const v = (0.7 + Math.random() * 1.4) * (0.32 / life) ** 0.5;
-      this.burst.push({ p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(Math.cos(a) * v, up * v * 1.4, Math.sin(a) * v), at: this.t, s: life, colour: c });
+      this.burst.push({
+        p: new THREE.Vector3(x, y, z),
+        v: new THREE.Vector3(Math.cos(a) * v, up * v * 1.4, Math.sin(a) * v),
+        at: this.t,
+        s: life,
+        colour: c,
+      });
     }
   }
 
@@ -480,7 +558,13 @@ export class DungeonLive {
       // A short trail behind the bolt.
       for (let j = 2; j >= 0; j--) {
         const kk = Math.max(0, k - j * 0.04);
-        this.missiles.add(arc(m.from.x, m.control.x, m.to.x, kk), arc(m.from.y, m.control.y, m.to.y, kk), arc(m.from.z, m.control.z, m.to.z, kk), j === 0 ? (m.minion ? 0.8 : 1.2) : 0.7 - j * 0.15, j === 0 ? "#ffffff" : colour);
+        this.missiles.add(
+          arc(m.from.x, m.control.x, m.to.x, kk),
+          arc(m.from.y, m.control.y, m.to.y, kk),
+          arc(m.from.z, m.control.z, m.to.z, kk),
+          j === 0 ? (m.minion ? 0.8 : 1.2) : 0.7 - j * 0.15,
+          j === 0 ? "#ffffff" : colour,
+        );
       }
     }
     this.missiles.end();
@@ -514,9 +598,15 @@ export class DungeonLive {
       const model = made.value;
       if (model) root.add(model);
       const w = beamWidth(RANK[rarity]);
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(w * 2, 1, w * 2), new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.35, depthWrite: false }));
+      const beam = new THREE.Mesh(
+        new THREE.BoxGeometry(w * 2, 1, w * 2),
+        new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.35, depthWrite: false }),
+      );
       beam.userData.nopick = true;
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 28).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0, depthWrite: false }));
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.9, 1, 28).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0, depthWrite: false }),
+      );
       ring.userData.nopick = true;
       this.group.add(root, beam, ring);
       beam.visible = ring.visible = false;
@@ -562,13 +652,21 @@ export class DungeonLive {
       let landed = false;
       if (age < LOOT_POP_S) {
         const u = ease(age / LOOT_POP_S);
-        root.position.set(start.x + (top.x - start.x) * u, BOSS_Y + BOSS_MID + (top.y - BOSS_Y - BOSS_MID) * u, start.z);
+        root.position.set(
+          start.x + (top.x - start.x) * u,
+          BOSS_Y + BOSS_MID + (top.y - BOSS_Y - BOSS_MID) * u,
+          start.z,
+        );
         scale = 0.4 + 0.8 * u;
       } else if (age < LOOT_POP_S + LOOT_FLY_S) {
         const u = ease((age - LOOT_POP_S) / LOOT_FLY_S);
         const cx = (top.x + f.to.x) / 2;
         const cy = Math.max(top.y, f.to.y) + 0.8;
-        root.position.set(arc(top.x, cx, f.to.x, u), arc(top.y, cy, f.to.y, u), arc(top.z, (top.z + f.to.z) / 2, f.to.z, u));
+        root.position.set(
+          arc(top.x, cx, f.to.x, u),
+          arc(top.y, cy, f.to.y, u),
+          arc(top.z, (top.z + f.to.z) / 2, f.to.z, u),
+        );
         scale = 1.2 - 0.3 * u;
       } else {
         landed = true;
@@ -603,7 +701,9 @@ export class DungeonLive {
   /** A raider's desk, where their loot lands. */
   private deskOf(userId: number): THREE.Vector3 | null {
     const seat = seatTile(userId);
-    return seat ? new THREE.Vector3(seat[0] - this.map.x0 + 0.5, 0.95, seat[1] - 1 - this.map.y0 + 0.5) : null;
+    return seat
+      ? new THREE.Vector3(seat[0] - this.map.x0 + 0.5, 0.95, seat[1] - 1 - this.map.y0 + 0.5)
+      : null;
   }
 
   // MARK: Frame
@@ -628,7 +728,14 @@ export class DungeonLive {
     this.build();
     // A week with kills ends in gold sparkles instead of missiles.
     if (r?.closed && !r.prelaunch && r.kills.length > 0 && Math.random() < dt * 4)
-      this.burstAt(this.bossAt.x + (Math.random() - 0.5) * 1.8, BOSS_Y + BOSS_MID + (Math.random() - 0.5) * 1.2, this.bossAt.z, "#ffd35c", 1, 0.9);
+      this.burstAt(
+        this.bossAt.x + (Math.random() - 0.5) * 1.8,
+        BOSS_Y + BOSS_MID + (Math.random() - 0.5) * 1.2,
+        this.bossAt.z,
+        "#ffd35c",
+        1,
+        0.9,
+      );
     this.shoot(dt, closed);
     this.flyShots();
     this.flyLoot();
@@ -639,11 +746,26 @@ export class DungeonLive {
     }
     this.figures.begin();
     for (const s of this.seated.values())
-      if (!s.avatar) this.figures.add(s.seat[0] - this.map.x0 + 0.5, SEAT_Y, s.seat[1] - this.map.y0 + 0.5, s.shirt, s.skin);
+      if (!s.avatar)
+        this.figures.add(
+          s.seat[0] - this.map.x0 + 0.5,
+          SEAT_Y,
+          s.seat[1] - this.map.y0 + 0.5,
+          s.shirt,
+          s.skin,
+        );
     this.figures.end();
     this.minions.begin();
     for (const s of this.seated.values())
-      for (const [i, b] of s.bots.entries()) this.minions.add(b.at.x, b.at.z, Math.PI, MINION_SCALE, t < b.lit, Math.abs(Math.sin(t * 3 + s.idx + i)) * 0.03);
+      for (const [i, b] of s.bots.entries())
+        this.minions.add(
+          b.at.x,
+          b.at.z,
+          Math.PI,
+          MINION_SCALE,
+          t < b.lit,
+          Math.abs(Math.sin(t * 3 + s.idx + i)) * 0.03,
+        );
     this.minions.end();
   }
 
@@ -659,16 +781,45 @@ export class DungeonLive {
     for (const s of this.seated.values()) {
       const x = s.seat[0] - x0 + 0.5;
       const z = s.seat[1] - y0 + 0.5;
-      list.push({ key: `raider:${s.raider.id}`, at: [x, 1.75, z], kind: "label", text: s.raider.name, own: s.raider.id === world.selfId });
+      list.push({
+        key: `raider:${s.raider.id}`,
+        at: [x, 1.75, z],
+        kind: "label",
+        text: s.raider.name,
+        own: s.raider.id === world.selfId,
+      });
       const extra = s.raider.agents - 1 - s.bots.length;
-      if (extra > 0) list.push({ key: `extra:${s.raider.id}`, at: [x + 0.55, 0.9, z + 0.5], kind: "label", text: `+${extra}`, cls: "green" });
+      if (extra > 0)
+        list.push({
+          key: `extra:${s.raider.id}`,
+          at: [x + 0.55, 0.9, z + 0.5],
+          kind: "label",
+          text: `+${extra}`,
+          cls: "green",
+        });
     }
     const more = this.crowd?.more ?? 0;
-    if (more > 0) list.push({ key: "more", at: [this.map.width / 2, 0.8, this.map.height - 1.5], kind: "label", text: `⚔️ +${more} more raiding` });
+    if (more > 0)
+      list.push({
+        key: "more",
+        at: [this.map.width / 2, 0.8, this.map.height - 1.5],
+        kind: "label",
+        text: `⚔️ +${more} more raiding`,
+      });
     if (!this.crowd?.top.length && !this.raid?.prelaunch)
-      list.push({ key: "empty", at: [this.bossAt.x, 0.4, this.bossAt.z + 2.6], kind: "label", text: "No agents running right now. Start one and take a desk." });
+      list.push({
+        key: "empty",
+        at: [this.bossAt.x, 0.4, this.bossAt.z + 2.6],
+        kind: "label",
+        text: "No agents running right now. Start one and take a desk.",
+      });
     if (this.raid?.prelaunch)
-      list.push({ key: "desks", at: [this.bossAt.x, 0.4, this.bossAt.z + 2.6], kind: "label", text: "The desks are empty. For now. Monday 08:00, every agent fights." });
+      list.push({
+        key: "desks",
+        at: [this.bossAt.x, 0.4, this.bossAt.z + 2.6],
+        kind: "label",
+        text: "The desks are empty. For now. Monday 08:00, every agent fights.",
+      });
     list.push({
       key: "raidlink",
       at: [this.bossAt.x, 0.2, this.bossAt.z + 1.4],
@@ -678,8 +829,18 @@ export class DungeonLive {
       onClick: () => hud.set({ panel: { kind: "raid" } }),
     });
     for (const f of this.lootQueue)
-      if (f.to && this.t - f.start > LOOT_POP_S + LOOT_FLY_S && this.t - f.start < LOOT_POP_S + LOOT_FLY_S + LOOT_LAND_S)
-        list.push({ key: `loot:${f.news.userId}:${f.news.item}`, at: [f.to.x, 1.4, f.to.z], kind: "label", text: f.label, cls: f.rarity });
+      if (
+        f.to &&
+        this.t - f.start > LOOT_POP_S + LOOT_FLY_S &&
+        this.t - f.start < LOOT_POP_S + LOOT_FLY_S + LOOT_LAND_S
+      )
+        list.push({
+          key: `loot:${f.news.userId}:${f.news.item}`,
+          at: [f.to.x, 1.4, f.to.z],
+          kind: "label",
+          text: f.label,
+          cls: f.rarity,
+        });
     list.push(...this.plaqueSigns);
     this.signList = list;
     return list;

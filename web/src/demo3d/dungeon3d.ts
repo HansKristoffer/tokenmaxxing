@@ -25,7 +25,19 @@ import {
   TROPHY_DEFS,
 } from "./data/dungeon.ts";
 import { type Asset, light } from "./furniture.ts";
-import { canvasTexture, codeScreen, glass, glow, liveModel, Model, painted, ticks, tint, toon, type V3 } from "./kit.ts";
+import {
+  canvasTexture,
+  codeScreen,
+  glass,
+  glow,
+  liveModel,
+  Model,
+  painted,
+  ticks,
+  tint,
+  toon,
+  type V3,
+} from "./kit.ts";
 import { petFrom2D } from "./pets3d.ts";
 
 // MARK: Dungeon colours (web/src/art/tiles.ts)
@@ -87,8 +99,7 @@ export function voxels(rows: readonly string[], pal: Palette, px: number, opts: 
   const cells: Cell[] = [];
   const width = Math.max(...rows.map((r) => r.length));
   const H = rows.length;
-  const depthOf = (ch: string) =>
-    typeof opts.depth === "function" ? opts.depth(ch) : (opts.depth ?? 0.2);
+  const depthOf = (ch: string) => (typeof opts.depth === "function" ? opts.depth(ch) : (opts.depth ?? 0.2));
   rows.forEach((row, r) => {
     const line = opts.flip ? [...row].reverse().join("") : row;
     let x = 0;
@@ -99,14 +110,20 @@ export function voxels(rows: readonly string[], pal: Palette, px: number, opts: 
       const colour = pal[ch];
       if (colour !== undefined && !(ch === "." && !(ch in pal))) {
         const d = depthOf(ch);
-        const paint = opts.ghost && opts.solidGhost
-          ? toon(tint(colour.startsWith("rgba") ? "#14101c" : colour, -0.62))
-          : opts.ghost
-          ? glass(colour.startsWith("rgba") ? "#14101c" : colour, 0.35)
-          : opts.glows?.includes(ch)
-            ? glow(colour)
-            : toon(colour);
-        const mesh = m.box([n * px, px, d], paint, [(x + n / 2 - width / 2) * px, (H - 1 - r) * px + (opts.y ?? 0), 0], 0);
+        const paint =
+          opts.ghost && opts.solidGhost
+            ? toon(tint(colour.startsWith("rgba") ? "#14101c" : colour, -0.62))
+            : opts.ghost
+              ? glass(colour.startsWith("rgba") ? "#14101c" : colour, 0.35)
+              : opts.glows?.includes(ch)
+                ? glow(colour)
+                : toon(colour);
+        const mesh = m.box(
+          [n * px, px, d],
+          paint,
+          [(x + n / 2 - width / 2) * px, (H - 1 - r) * px + (opts.y ?? 0), 0],
+          0,
+        );
         cells.push({ mesh, ch, mat: mesh.material as THREE.Material });
       }
       x += n;
@@ -129,7 +146,11 @@ function sparkle(m: Model, at: V3, color: string, n = 4, spread = 0.45): void {
     stars.forEach((s, i) => {
       const k = (((t / 1.1 + i * 0.27) % 1) + 1) % 1;
       const a = i * 1.7 + Math.floor(t / 1.1 + i * 0.27) * 2.3;
-      s.position.set(at[0] + Math.cos(a) * spread, at[1] + Math.sin(a * 1.3) * spread * 0.5 + k * 0.2, at[2] + Math.sin(a) * spread * 0.6);
+      s.position.set(
+        at[0] + Math.cos(a) * spread,
+        at[1] + Math.sin(a * 1.3) * spread * 0.5 + k * 0.2,
+        at[2] + Math.sin(a) * spread * 0.6,
+      );
       s.scale.setScalar(k < 0.6 ? 1.6 - k * 2 : 0.001);
     });
   });
@@ -148,7 +169,13 @@ function billboard(group: THREE.Object3D, mesh: THREE.Mesh): void {
 }
 
 const compact = (n: number): string =>
-  n >= 1e9 ? `${+(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${+(n / 1e3).toFixed(1)}k` : String(Math.round(n));
+  n >= 1e9
+    ? `${+(n / 1e9).toFixed(1)}B`
+    : n >= 1e6
+      ? `${+(n / 1e6).toFixed(1)}M`
+      : n >= 1e3
+        ? `${+(n / 1e3).toFixed(1)}k`
+        : String(Math.round(n));
 
 // MARK: Bosses
 
@@ -192,7 +219,14 @@ export class BossActor {
 
   constructor(
     bossId = "rate-limit",
-    opts: { silhouette?: boolean; hp?: number; maxHp?: number; rung?: number; taunts?: boolean; plate?: boolean } = {},
+    opts: {
+      silhouette?: boolean;
+      hp?: number;
+      maxHp?: number;
+      rung?: number;
+      taunts?: boolean;
+      plate?: boolean;
+    } = {},
   ) {
     this.silhouette = opts.silhouette ?? false;
     this.bossIndex = Math.max(
@@ -241,9 +275,24 @@ export class BossActor {
    * The real raid's state, for the plate: its name and rung, HP, the line that replaces the title when the week is
    * over, and its own taunts. Nothing floats and nothing flashes; `flinch` is a hit.
    */
-  setInfo(o: { name: string; emoji: string; rung: number; hp: number; maxHp: number; banner?: string | null; taunts?: readonly string[]; bar?: boolean }): void {
+  setInfo(o: {
+    name: string;
+    emoji: string;
+    rung: number;
+    hp: number;
+    maxHp: number;
+    banner?: string | null;
+    taunts?: readonly string[];
+    bar?: boolean;
+  }): void {
     const same =
-      this.info?.name === o.name && this.info.emoji === o.emoji && this.rung === o.rung && this.hp === o.hp && this.maxHp === o.maxHp && this.banner === (o.banner ?? null) && this.bar === (o.bar ?? true);
+      this.info?.name === o.name &&
+      this.info.emoji === o.emoji &&
+      this.rung === o.rung &&
+      this.hp === o.hp &&
+      this.maxHp === o.maxHp &&
+      this.banner === (o.banner ?? null) &&
+      this.bar === (o.bar ?? true);
     this.info = { name: o.name, emoji: o.emoji };
     this.rung = o.rung;
     this.hp = o.hp;
@@ -374,7 +423,13 @@ export class BossActor {
     g.textBaseline = "middle";
     g.fillStyle = fell || this.banner ? GOLD : "#ffd35c";
     g.fillText(
-      fell ? `🏆 ${who.name} fell!` : this.banner ? this.banner : talking ? `“${this.taunt.text}”` : `${who.emoji} ${who.name} · Rung ${this.rung}`,
+      fell
+        ? `🏆 ${who.name} fell!`
+        : this.banner
+          ? this.banner
+          : talking
+            ? `“${this.taunt.text}”`
+            : `${who.emoji} ${who.name} · Rung ${this.rung}`,
       W / 2,
       22,
       W - 16,
@@ -421,7 +476,12 @@ export class BossActor {
     }
     const attack = t - this.attackAt < 1.6 ? (t - this.attackAt) / 1.6 : -1;
     const landing = arrive < 1 ? 0 : 1;
-    this.sc.update({ t, hurt: hurt ? 1 - (t - this.hitAt) / BossActor.HURT : 0, attack: attack * landing, fall });
+    this.sc.update({
+      t,
+      hurt: hurt ? 1 - (t - this.hitAt) / BossActor.HURT : 0,
+      attack: attack * landing,
+      fall,
+    });
     this.body.rotation.z = 0;
     const shake = hurt ? 0.04 : 0;
     this.body.position.set((Math.random() - 0.5) * shake * 2, y, (Math.random() - 0.5) * shake * 2);
@@ -570,7 +630,12 @@ function gate(boarded: boolean): Model {
   for (const sx of [-1, 1]) m.box([0.26, cy, 0.5], C.stoneDark, [sx * (R + 0.02), 0, 0], 0.03);
   for (let i = 0; i <= 8; i++) {
     const a = (i / 8) * Math.PI;
-    const b = m.box([0.26, 0.3, 0.5], i % 2 ? C.stone : C.stoneDark, [Math.cos(a) * (R + 0.02), cy + Math.sin(a) * R - 0.12, 0], 0.03);
+    const b = m.box(
+      [0.26, 0.3, 0.5],
+      i % 2 ? C.stone : C.stoneDark,
+      [Math.cos(a) * (R + 0.02), cy + Math.sin(a) * R - 0.12, 0],
+      0.03,
+    );
     b.rotation.z = a - Math.PI / 2 + Math.PI;
     b.rotation.z = a + Math.PI / 2;
   }
@@ -686,7 +751,8 @@ function dungeonExit(): Model {
   for (const sx of [-1, 1]) m.box([0.12, 1.5, 0.3], STONE.wallTop, [sx * 0.5, 0, 0], 0.02);
   m.box([1.12, 0.12, 0.3], STONE.wallTop, [0, 1.5, 0], 0.02);
   m.box([0.9, 1.5, 0.05], glow("#d8c8ff"), [0, 0, -0.1], 0);
-  for (let i = 0; i < 5; i++) m.box([0.9, 0.06, 0.16], tint(C.stone, 0.4 - i * 0.12), [0, i * 0.06, 0.34 - i * 0.14], 0);
+  for (let i = 0; i < 5; i++)
+    m.box([0.9, 0.06, 0.16], tint(C.stone, 0.4 - i * 0.12), [0, i * 0.06, 0.34 - i * 0.14], 0);
   return m;
 }
 
@@ -774,7 +840,8 @@ function hourglass(): Model {
   m.box([0.5, 0.025, 0.34], "#5a5468", [0, 0.2, 0], 0.01);
   m.box([0.46, 0.07, 0.3], GOLD, [0, 0.22, 0], 0.02);
   m.box([0.46, 0.07, 0.3], GOLD, [0, 0.98, 0], 0.02);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) m.cyl(0.018, 0.7, GOLD_DARK, [sx * 0.2, 0.28, sz * 0.12], 0.018, 8);
+  for (const sx of [-1, 1])
+    for (const sz of [-1, 1]) m.cyl(0.018, 0.7, GOLD_DARK, [sx * 0.2, 0.28, sz * 0.12], 0.018, 8);
   const sand = "#f2c46b";
   m.cyl(0.18, 0.34, glass("#e9f6fb", 0.5), [0, 0.29, 0], 0.025, 16);
   m.cyl(0.025, 0.34, glass("#e9f6fb", 0.5), [0, 0.63, 0], 0.18, 16);
@@ -819,7 +886,12 @@ function pedestal(rarity: Rarity): { m: Model; top: number } {
   m.cyl(0.3, 0.06, "#5a5468", [0, 0.14, 0], 0.3, 20);
   const ring = glow(colour);
   m.cyl(0.33, 0.02, ring, [0, 0.2, 0], 0.33, 24);
-  const beam = new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.16, depthWrite: false });
+  const beam = new THREE.MeshBasicMaterial({
+    color: colour,
+    transparent: true,
+    opacity: 0.16,
+    depthWrite: false,
+  });
   const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.3, 1.0, 18, 1, true), beam);
   cone.position.y = 0.2 + 0.5;
   m.add(cone);
@@ -1003,7 +1075,8 @@ export function trophyShelf(earned: ReadonlySet<string>, solidGhost = false): Mo
   for (const sx of [-1, 1]) m.box([0.07, H, D], wood, [sx * (W / 2 - 0.035), 0, 0], 0.02);
   m.box([W, 0.09, D], C.wood, [0, 0, 0], 0.02);
   m.box([W, 0.09, D + 0.02], C.woodLight, [0, H - 0.09, 0], 0.02);
-  for (let s = 1; s < rows; s++) m.box([W - 0.1, 0.035, D - 0.04], C.woodLight, [0, 0.09 + s * rowH - 0.035, 0], 0.01);
+  for (let s = 1; s < rows; s++)
+    m.box([W - 0.1, 0.035, D - 0.04], C.woodLight, [0, 0.09 + s * rowH - 0.035, 0], 0.01);
   TROPHY_DEFS.forEach((t, i) => {
     const col = i % 7;
     const row = Math.floor(i / 7);
@@ -1087,7 +1160,8 @@ export function medal(emoji: string, frame: Frame): Model {
   // A stand behind.
   m.box([0.12, 0.26, 0.04], C.woodDark, [0, 0.02, -0.07], 0.01).rotation.x = -0.25;
   m.box([0.32, 0.04, 0.2], C.woodDark, [0, 0, 0.0], 0.01);
-  if (frame === "gold" || frame === "diamond") sparkle(m, [0, 0.5, 0.1], frame === "gold" ? GOLD_LIGHT : "#bff6ff", 2, 0.3);
+  if (frame === "gold" || frame === "diamond")
+    sparkle(m, [0, 0.5, 0.1], frame === "gold" ? GOLD_LIGHT : "#bff6ff", 2, 0.3);
   return m;
 }
 
@@ -1198,7 +1272,28 @@ export const DUNGEON_ASSETS: readonly Asset[] = [
   ...editionAssets,
   ...trophyAssets,
   ...badgeAssets,
-  { id: "badge:tiers", name: "Badge tiers: bronze, silver, gold, diamond", price: 0, w: 3, d: 1, build: tierSet },
+  {
+    id: "badge:tiers",
+    name: "Badge tiers: bronze, silver, gold, diamond",
+    price: 0,
+    w: 3,
+    d: 1,
+    build: tierSet,
+  },
 ];
 
-export { badgeRow, dais, editionItem, gate, lootItem, lootItems, minion, plaque, raiderSeat, terminal, tierSet, torch, warDesk };
+export {
+  badgeRow,
+  dais,
+  editionItem,
+  gate,
+  lootItem,
+  lootItems,
+  minion,
+  plaque,
+  raiderSeat,
+  terminal,
+  tierSet,
+  torch,
+  warDesk,
+};

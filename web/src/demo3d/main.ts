@@ -7,7 +7,14 @@ import { HAIRS, OUTFITS, PANTS, SKINS } from "../art/palette.ts";
 import { applyGraphics } from "../render3d/perf/tiers.ts";
 import { resolveSettings, TIERS, type Tier } from "../settings/graphics.ts";
 import { Avatar, type CharStyle, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
-import { type BasementScene, buildBasement, dimBasement, isLanPartyAt, lanParty, setLanParty } from "./basement3d.ts";
+import {
+  type BasementScene,
+  buildBasement,
+  dimBasement,
+  isLanPartyAt,
+  lanParty,
+  setLanParty,
+} from "./basement3d.ts";
 import { mountDecorPanel } from "./decorPanel.ts";
 import { buildDungeonGallery } from "./dungeon-gallery.ts";
 import { BossActor } from "./dungeon3d.ts";
@@ -31,10 +38,25 @@ import type { ShopHooks } from "./shops/shopActions.ts";
 import { mountShopPanel, type ShopPanel } from "./shops/shopPanel.ts";
 import { wallet } from "./shops/wallet.ts";
 import type { Age, Species, Top } from "./styles.ts";
-import { buildDormRoom, buildTavernRoom, type DormRoom, setBarTab, setPlaque, setTavernNight, type TavernRoom } from "./tavern3d.ts";
+import {
+  buildDormRoom,
+  buildTavernRoom,
+  type DormRoom,
+  setBarTab,
+  setPlaque,
+  setTavernNight,
+  type TavernRoom,
+} from "./tavern3d.ts";
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
 import type { Town3d } from "./town3d.ts";
-import { type MapId, type Portal, ROOM_ORDER, type World, World as WorldGraph, type WorldRoom } from "./world.ts";
+import {
+  type MapId,
+  type Portal,
+  ROOM_ORDER,
+  type World,
+  World as WorldGraph,
+  type WorldRoom,
+} from "./world.ts";
 import { INSET, loadRoomSkins } from "./world-rooms.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
@@ -644,7 +666,17 @@ townStage.update = (dt, t) => {
 const tavern = buildTavernRoom();
 const tavernStage = newStage("Tavern", new THREE.Vector3(13, 0.6, 8), 20, 22, "#1b1f2a");
 tavernStage.scene.add(tavern.room.group);
-setBarTab(tavern.by.get("tile:J")![0]!, [["ADA", "21H"], ["NOAH", "14H"], ["SOFIE", "9.5H"], ["KAI", "6.2H"], ["MAJA", "3.0H"]], 0);
+setBarTab(
+  tavern.by.get("tile:J")![0]!,
+  [
+    ["ADA", "21H"],
+    ["NOAH", "14H"],
+    ["SOFIE", "9.5H"],
+    ["KAI", "6.2H"],
+    ["MAJA", "3.0H"],
+  ],
+  0,
+);
 setPlaque(tavern.by.get("tile:P")![0]!, ["ADA", "NOA", "SOF"]);
 setPlaque(tavern.by.get("tavern:plaque-2")![0]!, ["KAI", "MAJ"]);
 {
@@ -731,7 +763,6 @@ const petsStage = newStage("Pets", new THREE.Vector3(0, 0.4, 0), 14, 17, "#1b1f2
   }
   petsStage.update = gallery.update;
 }
-
 
 // ——— The characters: the styles side by side, trying on faces and moves ———
 interface CastRow {
@@ -891,7 +922,12 @@ const decorPanels = new Map<Stage, HTMLElement>();
 // ——— The people of the world: 2D looks dressed by gear3d, tags by nameTag, pets by pets3d ———
 const gearIdx = (slot: "hat" | "glasses" | "held" | "back") =>
   [...Array(40).keys()].filter((i) => i > 0 && itemAt(slot, i));
-const GEAR = { hat: gearIdx("hat"), glasses: gearIdx("glasses"), held: gearIdx("held"), back: gearIdx("back") };
+const GEAR = {
+  hat: gearIdx("hat"),
+  glasses: gearIdx("glasses"),
+  held: gearIdx("held"),
+  back: gearIdx("back"),
+};
 /** A made-up saved look (`Look2D`): half of the people wear something from each slot. */
 function look2dOf(seed: number): Look2D {
   const r = seeded(seed);
@@ -908,9 +944,18 @@ function look2dOf(seed: number): Look2D {
     back: some(GEAR.back),
   };
 }
-const COMPANIES = [{ name: "Nightshift", color: "#3f7a78" }, { name: "Lumen", color: "#7a5ab8" }];
+const COMPANIES = [
+  { name: "Nightshift", color: "#3f7a78" },
+  { name: "Lumen", color: "#7a5ab8" },
+];
 /** Someone in the world: a `Walker` in their 2D look, under a gear3d name tag. */
-function person(s: Stage, look: Look2D, name: string, level: number, company?: { name: string; color: string }): Walker {
+function person(
+  s: Stage,
+  look: Look2D,
+  name: string,
+  level: number,
+  company?: { name: string; color: string },
+): Walker {
   const tagEl = nameTag({ name, level, rarity: wornBy(look).rarity, company });
   return new Walker(s, lookFrom2D(look, { level }), name, level, tagEl);
 }
@@ -968,7 +1013,8 @@ class Companion {
       const o = this.owner.pos;
       const ry = this.owner.avatar.root.rotation.y;
       goal = new THREE.Vector3(o.x - Math.sin(ry) * 0.7, 0, o.z - Math.cos(ry) * 0.7);
-    } else if (p.distanceTo(this.wander) < 0.1 && Math.random() < dt * 0.4 && this.roam) this.wander = this.roam();
+    } else if (p.distanceTo(this.wander) < 0.1 && Math.random() < dt * 0.4 && this.roam)
+      this.wander = this.roam();
     const d = goal.clone().sub(p).setY(0);
     const far = d.length();
     this.pet.moving = far > (this.owner ? 0.45 : 0.05);
@@ -997,14 +1043,34 @@ function roomActors(id: MapId, r: WorldRoom, s: Stage): ((dt: number, t: number)
   const ex = r.skin?.extra;
   if (id === "inn") {
     const inn = ex as TavernRoom;
-    setBarTab(inn.by.get("tile:J")![0]!, [["ADA", "21H"], ["NOAH", "14H"], ["SOFIE", "9.5H"], ["KAI", "6.2H"], ["MAJA", "3.0H"]], 0);
+    setBarTab(
+      inn.by.get("tile:J")![0]!,
+      [
+        ["ADA", "21H"],
+        ["NOAH", "14H"],
+        ["SOFIE", "9.5H"],
+        ["KAI", "6.2H"],
+        ["MAJA", "3.0H"],
+      ],
+      0,
+    );
     setPlaque(inn.by.get("tile:P")![0]!, ["ADA", "NOA", "SOF"]);
     setPlaque(inn.by.get("tavern:plaque-2")![0]!, ["KAI", "MAJ"]);
-    const patrons = [[2, 3, "ida"], [6, 3, "theo"], [5, 7, "ellen"], [0, 11, "jonas"], [22, 4, "maja"], [16, 8, "kai"], [4, 15, "sofie"]].map(([x, z, n], i) =>
-      sit(61 + i, n as string, inn.room.at(x as number, z as number)!, inn.room),
-    );
+    const patrons = [
+      [2, 3, "ida"],
+      [6, 3, "theo"],
+      [5, 7, "ellen"],
+      [0, 11, "jonas"],
+      [22, 4, "maja"],
+      [16, 8, "kai"],
+      [4, 15, "sofie"],
+    ].map(([x, z, n], i) => sit(61 + i, n as string, inn.room.at(x as number, z as number)!, inn.room));
     patrons[4]!.mood = "happy";
-    const tag = nameTag({ name: "Bent the Barkeep", level: 40, company: { name: "Barkeep", color: "#8a5a3a" } });
+    const tag = nameTag({
+      name: "Bent the Barkeep",
+      level: 40,
+      company: { name: "Barkeep", color: "#8a5a3a" },
+    });
     labelLayer.append(tag);
     tag.hidden = true;
     const p = new THREE.Vector3();
@@ -1065,15 +1131,17 @@ function roomActors(id: MapId, r: WorldRoom, s: Stage): ((dt: number, t: number)
     if (dais) boss.root.position.set(dais.position.x, 0.28, dais.position.z);
     s.scene.add(boss.root);
     // Raiders at every other war-desk seat, typing at the boss.
-    const raiders = (r.drawn.get("r") ?? []).filter((_, i) => i % 3 === 0).map((m, i) => {
-      const w = person(s, look2dOf(300 + i), NAMES[i % NAMES.length]!, 10 + i);
-      const dx = (dais?.position.x ?? 13) - m.position.x;
-      const dz = (dais?.position.z ?? 4) - m.position.z;
-      w.at(m.position.x, m.position.z, "type", Math.atan2(dx, dz), 0.33);
-      w.mood = "focus";
-      w.quiet = true;
-      return w;
-    });
+    const raiders = (r.drawn.get("r") ?? [])
+      .filter((_, i) => i % 3 === 0)
+      .map((m, i) => {
+        const w = person(s, look2dOf(300 + i), NAMES[i % NAMES.length]!, 10 + i);
+        const dx = (dais?.position.x ?? 13) - m.position.x;
+        const dz = (dais?.position.z ?? 4) - m.position.z;
+        w.at(m.position.x, m.position.z, "type", Math.atan2(dx, dz), 0.33);
+        w.mood = "focus";
+        w.quiet = true;
+        return w;
+      });
     let nextHit = 3;
     return (dt, t) => {
       for (const w of raiders) w.update(dt, t);
@@ -1092,7 +1160,13 @@ function worldStage(id: MapId): Stage {
   const r = world.room(id);
   const reach = Math.max(r.W, r.D) * 0.75;
   // The town's stage is "Town": the street life (`fx3d.ts`) looks for it by that name.
-  s = newStage(id === "town" ? "Town" : `World:${id}`, new THREE.Vector3(r.W / 2, 0.5, r.D / 2), reach, id === "town" ? 14 : 11.5, "#1b1f2a");
+  s = newStage(
+    id === "town" ? "Town" : `World:${id}`,
+    new THREE.Vector3(r.W / 2, 0.5, r.D / 2),
+    reach,
+    id === "town" ? 14 : 11.5,
+    "#1b1f2a",
+  );
   if (reach > 14) s.sun.shadow.mapSize.set(4096, 4096);
   s.scene.add(r.group);
   worldStages.set(id, s);
@@ -1113,7 +1187,10 @@ function worldStage(id: MapId): Stage {
       labelLayer.append(tag);
       tag.hidden = true;
       const p = new THREE.Vector3();
-      s.labels.push({ el: tag, at: () => p.setFromMatrixPosition(shop.shopkeeper.root.matrixWorld).setY(1.6) });
+      s.labels.push({
+        el: tag,
+        at: () => p.setFromMatrixPosition(shop.shopkeeper.root.matrixWorld).setY(1.6),
+      });
     }
   }
   // A few locals wander about.
@@ -1132,7 +1209,13 @@ function worldStage(id: MapId): Stage {
     return null;
   };
   for (let i = 0; i < count; i++) {
-    const w = person(s, look2dOf(i * 11 + r.W), NAMES[(i * 3 + r.D) % NAMES.length]!, 3 + i * 5, COMPANIES[i % 3]);
+    const w = person(
+      s,
+      look2dOf(i * 11 + r.W),
+      NAMES[(i * 3 + r.D) % NAMES.length]!,
+      3 + i * 5,
+      COMPANIES[i % 3],
+    );
     w.quiet = true;
     const p = spot();
     if (p) w.at(p[0] + 0.5, p[1] + 0.5);
@@ -1142,20 +1225,36 @@ function worldStage(id: MapId): Stage {
     const p = spot();
     if (p)
       pets.push(
-        new Companion(s, (["dog", "cat", "duck"] as const)[i % 3]!, 1, `Pet ${i}`, null, new THREE.Vector3(p[0] + 0.5, 0, p[1] + 0.5), () => {
-          const q = spot();
-          return q ? new THREE.Vector3(q[0] + 0.5, 0, q[1] + 0.5) : new THREE.Vector3();
-        }),
+        new Companion(
+          s,
+          (["dog", "cat", "duck"] as const)[i % 3]!,
+          1,
+          `Pet ${i}`,
+          null,
+          new THREE.Vector3(p[0] + 0.5, 0, p[1] + 0.5),
+          () => {
+            const q = spot();
+            return q ? new THREE.Vector3(q[0] + 0.5, 0, q[1] + 0.5) : new THREE.Vector3();
+          },
+        ),
       );
   }
   if (id === "town" || id === "office") {
     const p = spot();
     if (p)
       pets.push(
-        new Companion(s, id === "town" ? "dog" : "duck", 1, id === "town" ? "Waffle" : "Ducky", null, new THREE.Vector3(p[0] + 0.5, 0, p[1] + 0.5), () => {
-          const q = spot();
-          return q ? new THREE.Vector3(q[0] + 0.5, 0, q[1] + 0.5) : new THREE.Vector3();
-        }),
+        new Companion(
+          s,
+          id === "town" ? "dog" : "duck",
+          1,
+          id === "town" ? "Waffle" : "Ducky",
+          null,
+          new THREE.Vector3(p[0] + 0.5, 0, p[1] + 0.5),
+          () => {
+            const q = spot();
+            return q ? new THREE.Vector3(q[0] + 0.5, 0, q[1] + 0.5) : new THREE.Vector3();
+          },
+        ),
       );
   }
   let nextWander = 0;
@@ -1208,7 +1307,14 @@ function placePlayer(id: MapId, at?: [number, number], turn = 0): void {
   worldMe.at(c.x, c.z, "stand", spot.turn);
   if (!worldPet) {
     const mine = wallet.pet;
-    worldPet = new Companion(s, mine?.species ?? "cat", 0, mine?.name ?? "Miso", worldMe, c.clone().add(new THREE.Vector3(0.6, 0, 0.6)));
+    worldPet = new Companion(
+      s,
+      mine?.species ?? "cat",
+      0,
+      mine?.name ?? "Miso",
+      worldMe,
+      c.clone().add(new THREE.Vector3(0.6, 0, 0.6)),
+    );
     if (mine) worldPet.swap(mine.species, mine.variant, mine.name, mine.wear);
   }
   worldPet.enter(s);
@@ -1292,7 +1398,10 @@ function shopPick(e: PointerEvent): ShopDisplay | null {
   const p = new THREE.Vector3();
   for (const d of shopRoom(id).displays) {
     p.set(d.pos.x + INSET[0], d.pos.y, d.pos.z + INSET[1]).project(camera);
-    const dist = Math.hypot(((p.x + 1) / 2) * rect.width + rect.left - e.clientX, ((1 - p.y) / 2) * rect.height + rect.top - e.clientY);
+    const dist = Math.hypot(
+      ((p.x + 1) / 2) * rect.width + rect.left - e.clientX,
+      ((1 - p.y) / 2) * rect.height + rect.top - e.clientY,
+    );
     if (dist < bestD) {
       bestD = dist;
       best = d;
@@ -1335,7 +1444,11 @@ const shopHooks: ShopHooks = {
       if (d.floor) el.querySelector<HTMLSelectElement>("#d-floor")!.value = d.floor;
     }
   },
-  renderStyle: () => ({ style: pipe.style === "voxel" ? "voxel" : "classic", pixelSize: pipe.pixelSize, night }),
+  renderStyle: () => ({
+    style: pipe.style === "voxel" ? "voxel" : "classic",
+    pixelSize: pipe.pixelSize,
+    night,
+  }),
 };
 const shopPanel: ShopPanel = mountShopPanel(shopHooks, createDemoBackend(shopHooks));
 if (wallet.decor.wall || wallet.decor.floor) applyDecor(room, wallet.decor);
@@ -1452,7 +1565,9 @@ const fx = new Fx({
   },
   me: () => {
     const w = stage.name === "Town" ? worldMe : stage === office ? me : null;
-    return w ? { avatar: w.avatar, top: () => w.top(), go: (x, z, arrive) => w.go([v3(x, z)], arrive) } : null;
+    return w
+      ? { avatar: w.avatar, top: () => w.top(), go: (x, z, arrive) => w.go([v3(x, z)], arrive) }
+      : null;
   },
   applyNight: (on) => {
     night = on;
@@ -1515,7 +1630,7 @@ function stopPlacing(): void {
 
 function updateWorldHover(): void {
   const r = roomOf.get(stage);
-  if (!r || !hoverTile || !r.walkable(...hoverTile) && r.ch(...hoverTile) === "W") {
+  if (!r || !hoverTile || (!r.walkable(...hoverTile) && r.ch(...hoverTile) === "W")) {
     hover.visible = false;
     return;
   }
@@ -1582,7 +1697,11 @@ canvas.addEventListener("pointermove", (e) => {
   hoverTile = tileUnder(e);
   const near = shopPick(e);
   canvas.style.cursor = near ? "pointer" : "";
-  shopPanel.tip(near ? `${near.item.name}${near.item.price ? ` · 🪙 ${near.item.price}` : ""}` : null, e.clientX, e.clientY);
+  shopPanel.tip(
+    near ? `${near.item.name}${near.item.price ? ` · 🪙 ${near.item.price}` : ""}` : null,
+    e.clientX,
+    e.clientY,
+  );
   if (!drag || isWorld(stage)) return;
   const dx = e.clientX - drag.x;
   const dy = e.clientY - drag.y;

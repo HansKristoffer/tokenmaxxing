@@ -19,8 +19,8 @@ import { self, world } from "../game/world.ts";
 import { conn, refreshMe, town } from "../net.ts";
 import type { GraphicsSettings } from "../settings/graphics.ts";
 import { hud } from "../store.ts";
-import { gpuNow } from "./dispose.ts";
 import { tagCap } from "./declutter.ts";
+import { gpuNow } from "./dispose.ts";
 import { Drops } from "./drops.ts";
 import { Entities } from "./entities.ts";
 import { keyDirection } from "./motion.ts";
@@ -29,7 +29,15 @@ import { applyGraphics } from "./perf/tiers.ts";
 import { castAt } from "./pick.ts";
 import { Placer } from "./placer.ts";
 import { CameraRig } from "./rig.ts";
-import { buildRoom, preloadRoom, prepareRoom, type RoomCtx, type RoomView, roomReady, roomsNextTo } from "./rooms.ts";
+import {
+  buildRoom,
+  preloadRoom,
+  prepareRoom,
+  type RoomCtx,
+  type RoomView,
+  roomReady,
+  roomsNextTo,
+} from "./rooms.ts";
 import { SEE } from "./seethrough.ts";
 import { type InstalledShops, installShops, type ShopWorld } from "./shops/index.ts";
 import "./room-generic.ts";
@@ -174,9 +182,14 @@ class Renderer3D implements Renderer {
     const opened = performance.getEntriesByType("navigation")[0]?.name ?? location.href;
     if (opened.includes("r3dcheck"))
       setTimeout(async () => {
-        await Promise.all(["town", "hq", "inn", "upstairs", "basement", "dungeon", "office"].map(prepareRoom));
+        await Promise.all(
+          ["town", "hq", "inn", "upstairs", "basement", "dungeon", "office"].map(prepareRoom),
+        );
         const { before, after } = this.cycle(4);
-        const leaked = before.geometries !== after.geometries || before.textures !== after.textures || before.programs !== after.programs;
+        const leaked =
+          before.geometries !== after.geometries ||
+          before.textures !== after.textures ||
+          before.programs !== after.programs;
         (leaked ? console.error : console.info)("3D leak check", leaked ? "LEAKED" : "ok", before, after);
       }, 3000);
   }
@@ -201,7 +214,11 @@ class Renderer3D implements Renderer {
 
   private ctx(): RoomCtx {
     const map = this.decorNow && this.decorNow.base === world.map ? this.decorNow.map : world.map;
-    return { map, companies: [...world.companies.values()], minutes: () => this.probeMinutes ?? minutesNow() };
+    return {
+      map,
+      companies: [...world.companies.values()],
+      minutes: () => this.probeMinutes ?? minutesNow(),
+    };
   }
 
   /** The town's identity, worked out once per list of companies (`setCompanies` replaces the map each time). */
@@ -223,7 +240,10 @@ class Renderer3D implements Renderer {
       this.townKey = {
         companies: world.companies,
         key: `town:${[...world.companies.values()]
-          .map((c) => `${c.plot}.${houseTier(c.tokens30d, c.members)}.${c.brand?.roof ?? ""}${c.brand?.logo ?? ""}.${c.deskFleet ?? 0}`)
+          .map(
+            (c) =>
+              `${c.plot}.${houseTier(c.tokens30d, c.members)}.${c.brand?.roof ?? ""}${c.brand?.logo ?? ""}.${c.deskFleet ?? 0}`,
+          )
           .sort()
           .join()}`,
       };
@@ -313,8 +333,16 @@ class Renderer3D implements Renderer {
 
     // The camera: on you, off the room's edges, a pan easing back once you walk on.
     const me = this.entities.positionOf(world.selfId) ?? this.spotOf(view);
-    const focus = me ?? [(view.bounds.minX + view.bounds.maxX) / 2, (view.bounds.minZ + view.bounds.maxZ) / 2];
-    if (this.rig.panned() && me && this.selfAt && Math.hypot(me[0] - this.selfAt[0], me[1] - this.selfAt[1]) > 0.7)
+    const focus = me ?? [
+      (view.bounds.minX + view.bounds.maxX) / 2,
+      (view.bounds.minZ + view.bounds.maxZ) / 2,
+    ];
+    if (
+      this.rig.panned() &&
+      me &&
+      this.selfAt &&
+      Math.hypot(me[0] - this.selfAt[0], me[1] - this.selfAt[1]) > 0.7
+    )
       this.rig.easePan(dt);
     if (!this.rig.panned() || !this.selfAt) this.selfAt = me ? [me[0], me[1]] : null;
     const mine = world.avatars.get(world.selfId);
@@ -329,7 +357,8 @@ class Renderer3D implements Renderer {
 
     // The fade over a door: close it when the server is moving us, open it in the new room (ensureStage).
     if (world.portalPending && !calm) this.overlay.fadeTowards(1, FADE_OUT_MS, now);
-    else if (this.overlay.faded > 0 && !world.portalPending) this.overlay.fadeTowards(0, calm ? 0 : FADE_IN_MS, now);
+    else if (this.overlay.faded > 0 && !world.portalPending)
+      this.overlay.fadeTowards(0, calm ? 0 : FADE_IN_MS, now);
     this.overlay.stepFade(now);
 
     const before = this.entities.size;
@@ -338,13 +367,23 @@ class Renderer3D implements Renderer {
       this.entities.update(now, dt, view, camera);
       this.signs.update(view, camera);
       this.drops.update(view, t);
-      view.frame?.({ now, t, dt: dt / 1000, camera, overlay: this.overlay, me, calm, density: this.settings?.weather ?? 1 });
+      view.frame?.({
+        now,
+        t,
+        dt: dt / 1000,
+        camera,
+        overlay: this.overlay,
+        me,
+        calm,
+        density: this.settings?.weather ?? 1,
+      });
     } catch (e) {
       // A bad look or label shouldn't take the whole picture down; say so once in a while.
       if (this.errored++ % 300 === 0) console.error("3D entities:", e);
     }
     this.stats.entityMs += (performance.now() - e0 - this.stats.entityMs) * 0.05;
-    if (this.entities.size !== before || this.entities.dirty || this.drops.dirty) this.entities.dirty = this.drops.dirty = false;
+    if (this.entities.size !== before || this.entities.dirty || this.drops.dirty)
+      this.entities.dirty = this.drops.dirty = false;
 
     const dark = stage.update(dt / 1000, t, this.rig.focus, this.rig.viewShown, camera);
     view.tick(t, dt / 1000, this.rig.towardCamera());
@@ -427,7 +466,6 @@ class Renderer3D implements Renderer {
     this.town?.stage.applySettings(s);
   }
 
-
   // MARK: Shops
 
   /** What the buy panel needs of this world (`render3d/shops`). */
@@ -452,7 +490,10 @@ class Renderer3D implements Renderer {
     let bestD = 30;
     for (const d of room.displays) {
       p.set(d.pos.x + SHOP_INSET[0], d.pos.y, d.pos.z + SHOP_INSET[1]).project(this.rig.camera);
-      const dist = Math.hypot(((p.x + 1) / 2) * r.width + r.left - clientX, ((1 - p.y) / 2) * r.height + r.top - clientY);
+      const dist = Math.hypot(
+        ((p.x + 1) / 2) * r.width + r.left - clientX,
+        ((1 - p.y) / 2) * r.height + r.top - clientY,
+      );
       if (dist < bestD) {
         bestD = dist;
         best = d;
@@ -492,7 +533,11 @@ class Renderer3D implements Renderer {
       if (!this.shops) return;
       const near = this.stage?.view.shop && !this.placer.active ? this.shelfAt(e.clientX, e.clientY) : null;
       const it = near?.display.item;
-      this.shops.panel.tip(it ? `${it.name}${it.price ? ` · 🪙 ${it.price}` : ""}` : null, e.clientX, e.clientY);
+      this.shops.panel.tip(
+        it ? `${it.name}${it.price ? ` · 🪙 ${it.price}` : ""}` : null,
+        e.clientX,
+        e.clientY,
+      );
     };
     const key = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || !this.placer.active) return;
@@ -560,7 +605,9 @@ class Renderer3D implements Renderer {
     const dirs = (Object.entries(DIRS) as [Facing, [number, number]][])
       .map(([facing, [dx, dy]]) => ({ facing, x: tile.x - dx, y: tile.y - dy }))
       .filter((c) => world.map.walkable(c.x, c.y))
-      .sort((a, b) => Math.abs(a.x - me.x) + Math.abs(a.y - me.y) - (Math.abs(b.x - me.x) + Math.abs(b.y - me.y)));
+      .sort(
+        (a, b) => Math.abs(a.x - me.x) + Math.abs(a.y - me.y) - (Math.abs(b.x - me.x) + Math.abs(b.y - me.y)),
+      );
     const drop = () => {
       this.stopPlacing();
       town.drop(id).then(
@@ -593,7 +640,10 @@ class Renderer3D implements Renderer {
     if (!stage) return null;
     const r = this.canvas.getBoundingClientRect();
     if (!r.width || !r.height) return null;
-    const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -(((clientY - r.top) / r.height) * 2 - 1));
+    const ndc = new THREE.Vector2(
+      ((clientX - r.left) / r.width) * 2 - 1,
+      -(((clientY - r.top) / r.height) * 2 - 1),
+    );
     this.caster.setFromCamera(ndc, this.rig.camera);
     const ray = this.caster.ray;
     const who = this.entities.pick(ray);
@@ -629,9 +679,16 @@ class Renderer3D implements Renderer {
   shelfScreen(itemId?: string): { id: string; name: string; price: number; at: [number, number] } | null {
     const d = this.stage?.view.shop?.displays.find((q) => !itemId || q.item.id === itemId);
     if (!d) return null;
-    const p = new THREE.Vector3(d.pos.x + SHOP_INSET[0], d.pos.y, d.pos.z + SHOP_INSET[1]).project(this.rig.camera);
+    const p = new THREE.Vector3(d.pos.x + SHOP_INSET[0], d.pos.y, d.pos.z + SHOP_INSET[1]).project(
+      this.rig.camera,
+    );
     const r = this.canvas.getBoundingClientRect();
-    return { id: d.item.id, name: d.item.name, price: d.item.price, at: [((p.x + 1) / 2) * r.width + r.left, ((1 - p.y) / 2) * r.height + r.top] };
+    return {
+      id: d.item.id,
+      name: d.item.name,
+      price: d.item.price,
+      at: [((p.x + 1) / 2) * r.width + r.left, ((1 - p.y) / 2) * r.height + r.top],
+    };
   }
 
   /** Goes to your own Office from anywhere, as the card's button does (tests). */
@@ -674,13 +731,20 @@ class Renderer3D implements Renderer {
    * Builds and frees every room `n` times over, for leak checks: the GPU counts after should equal those
    * before. Builds from the core maps, so it needs no server moves.
    */
-  cycle(n: number, rooms: string[] = ["town", "hq", "inn", "upstairs", "basement", "dungeon", "office"]): {
+  cycle(
+    n: number,
+    rooms: string[] = ["town", "hq", "inn", "upstairs", "basement", "dungeon", "office"],
+  ): {
     before: ReturnType<typeof gpuNow>;
     after: ReturnType<typeof gpuNow>;
   } {
     const warm = () => {
       for (const id of rooms) {
-        const s = new RoomStage(buildRoom(id as never, { ...this.ctx(), map: mapOf(id as never) }), this.overlay, this.hooks);
+        const s = new RoomStage(
+          buildRoom(id as never, { ...this.ctx(), map: mapOf(id as never) }),
+          this.overlay,
+          this.hooks,
+        );
         // Draw all of it once (nothing is uploaded until it is drawn), so freeing it is a real test.
         s.scene.traverse((o) => {
           o.frustumCulled = false;
@@ -727,6 +791,7 @@ class Renderer3D implements Renderer {
     this.pipe.dispose();
     this.pipe.renderer.forceContextLoss();
     this.canvas.remove();
-    if ((window as unknown as { __r3d?: unknown }).__r3d === this) delete (window as unknown as { __r3d?: unknown }).__r3d;
+    if ((window as unknown as { __r3d?: unknown }).__r3d === this)
+      delete (window as unknown as { __r3d?: unknown }).__r3d;
   }
 }

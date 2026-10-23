@@ -4,7 +4,10 @@ import type { WorldGame } from "@tokenmaxxing/core/world.ts";
 const pixels = () => ({ data: new Uint8ClampedArray(1 << 22), width: 1024, height: 1024 });
 const ctx = new Proxy(
   {},
-  { get: (_t, k) => (k === "canvas" ? {} : k === "getImageData" ? pixels : () => ({ addColorStop() {} })), set: () => true },
+  {
+    get: (_t, k) => (k === "canvas" ? {} : k === "getImageData" ? pixels : () => ({ addColorStop() {} })),
+    set: () => true,
+  },
 );
 const fake = { width: 0, height: 0, style: {}, getContext: () => ctx, addEventListener() {} };
 Object.assign(globalThis, {
@@ -93,7 +96,10 @@ test("a third player at the table means another stool; a changed headline doesn'
   w.world.games.set(1, table(1, { headline: "Round 3/3", watchers: 3 }));
   layer.update(0.1);
   expect(layer.group.children[0]).toBe(same);
-  w.world.games.set(1, table(1, { players: [2, 3, 4], seats: [...table(1).seats, { x: 8, y: 7, facing: "up" }] }));
+  w.world.games.set(
+    1,
+    table(1, { players: [2, 3, 4], seats: [...table(1).seats, { x: 8, y: 7, facing: "up" }] }),
+  );
   layer.update(0.2);
   expect(meshes(layer.group)).toBeGreaterThan(two);
   layer.dispose();

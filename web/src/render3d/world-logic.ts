@@ -51,7 +51,7 @@ const GOOD_COLOR: Record<string, string> = {
 };
 
 export function goodsColors(lineup: readonly Edition[]): string[] {
-  const out = lineup.map((e) => GOOD_COLOR[String(e.rarity)] ??"#c9b6ff");
+  const out = lineup.map((e) => GOOD_COLOR[String(e.rarity)] ?? "#c9b6ff");
   const fill = ["#c9b6ff", "#f5d14a", "#8fe3ff", "#ff7ab6"];
   for (let i = out.length; i < 4; i++) out.push(fill[i]!);
   return out.slice(0, 4);
@@ -77,7 +77,8 @@ export function crossed(last: number | null, now: number, at: number): boolean {
 // MARK: The picnic
 
 /** Where the picnic's grass patch sprouts for someone who sat on a blanket: the first of its seats. */
-export const grassSpot = (x: number, y: number): boolean => onBlanket(x, y) || PICNIC_SEATS.some(([sx, sy]) => sx === x && sy === y);
+export const grassSpot = (x: number, y: number): boolean =>
+  onBlanket(x, y) || PICNIC_SEATS.some(([sx, sy]) => sx === x && sy === y);
 
 /** Whether a notice is the picnic badge's (the server sends it the first time you sit on a blanket in an outage). */
 export const isGrassNotice = (text: string | undefined): boolean => !!text && text.includes("Touched grass");
@@ -98,7 +99,8 @@ export interface TagChips {
 export function chipsOf(pins: readonly PinView[]): TagChips {
   const out: TagChips = { badges: [], trophies: [] };
   for (const p of pins) {
-    if (p.kind === "badge") out.badges.push({ emoji: p.emoji ?? "🏅", title: p.name, frame: p.frame ?? undefined });
+    if (p.kind === "badge")
+      out.badges.push({ emoji: p.emoji ?? "🏅", title: p.name, frame: p.frame ?? undefined });
     else if (p.kind === "trophy") out.trophies.push({ emoji: p.emoji ?? undefined, title: p.name });
   }
   return out;
@@ -177,4 +179,5 @@ export const tavernDim = (dark: number, dusk: number): number => Math.min(0.7, d
 // MARK: Effects per tier
 
 /** Emoji bursts alive at once, from the tier's particle density (0 to 1): each is ten DOM nodes. */
-export const burstCap = (density: number): number => Math.max(2, Math.round(10 * Math.min(1, Math.max(0, density))));
+export const burstCap = (density: number): number =>
+  Math.max(2, Math.round(10 * Math.min(1, Math.max(0, density))));

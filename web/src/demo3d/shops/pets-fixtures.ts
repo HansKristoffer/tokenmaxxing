@@ -114,7 +114,9 @@ export function petPen(o: PenOptions): Model {
     water.scale.set(pw / 2, 1, pd / 2);
     const water2 = m.cyl(1, 0.012, glass("#a8dcf7", 0.5), [-w * 0.2, 0.135, -d * 0.04], 1, 24);
     water2.scale.set(pw / 2 - 0.1, 1, pd / 2 - 0.1);
-    live(m, (t) => water2.scale.set(pw / 2 - 0.1 + Math.sin(t * 1.3) * 0.03, 1, pd / 2 - 0.1 + Math.cos(t * 1.1) * 0.02));
+    live(m, (t) =>
+      water2.scale.set(pw / 2 - 0.1 + Math.sin(t * 1.3) * 0.03, 1, pd / 2 - 0.1 + Math.cos(t * 1.1) * 0.02),
+    );
     for (const [x, z] of [
       [-w * 0.2 - pw * 0.5 - 0.1, d * 0.1],
       [-w * 0.2 + pw * 0.46, -d * 0.2],
@@ -206,7 +208,8 @@ export function catCondo(entries: Entry[], reg: Reg): Model {
   });
   // Posts wrapped in rope up one side.
   m.cyl(0.08, H - 0.1, "#d8c090", [-W / 2 + 0.22, 0.05, 0.34], 0.08, 8);
-  for (let y = 0.15; y < H - 0.2; y += 0.12) m.cyl(0.088, 0.025, "#a8905a", [-W / 2 + 0.22, y, 0.34], 0.088, 8);
+  for (let y = 0.15; y < H - 0.2; y += 0.12)
+    m.cyl(0.088, 0.025, "#a8905a", [-W / 2 + 0.22, y, 0.34], 0.088, 8);
   let n = 0;
   tiers.forEach((y) => {
     [-2, 0, 2].forEach((cx) => {
@@ -280,7 +283,14 @@ const THEMES: Record<string, Theme> = {
     glow: "#ffd96a",
     deco: (t) => {
       for (let i = 0; i < 9; i++)
-        t.cyl(0.07, 0.025, "#f5c842", [-0.3 + (i % 3) * 0.1, i > 5 ? 0.05 : i > 2 ? 0.025 : 0, 0.25 - Math.floor(i / 3) * 0.02], 0.07, 8);
+        t.cyl(
+          0.07,
+          0.025,
+          "#f5c842",
+          [-0.3 + (i % 3) * 0.1, i > 5 ? 0.05 : i > 2 ? 0.025 : 0, 0.25 - Math.floor(i / 3) * 0.02],
+          0.07,
+          8,
+        );
       t.box([0.18, 0.12, 0.12], "#8c5c36", [0.3, 0, -0.3], 0.02);
     },
   },
@@ -296,7 +306,8 @@ const THEMES: Record<string, Theme> = {
     floor: "#d8d0c0",
     glow: "#e8e2d4",
     deco: (t) => {
-      for (let i = 0; i < 4; i++) t.cyl(0.03, 0.34, "#f4ead2", [-0.3 + i * 0.08, 0, -0.3], 0.025, 5).rotation.z = 0.7 - i * 0.2;
+      for (let i = 0; i < 4; i++)
+        t.cyl(0.03, 0.34, "#f4ead2", [-0.3 + i * 0.08, 0, -0.3], 0.025, 5).rotation.z = 0.7 - i * 0.2;
       t.ball(0.07, "#f4ead2", [0.3, 0.07, 0.25], [1, 0.9, 1.1], 7);
     },
   },
@@ -364,7 +375,8 @@ export function fishTank(): Model {
   water.renderOrder = 2;
   m.box([W - 0.1, H, D - 0.1], glass("#d8f0fa", 0.14), [0, y0, 0], 0.01).renderOrder = 3;
   for (const sx of [-1, 1])
-    for (const sz of [-1, 1]) m.box([0.05, H + 0.05, 0.05], "#2b2433", [sx * (W / 2 - 0.04), y0, sz * (D / 2 - 0.04)], 0.01);
+    for (const sz of [-1, 1])
+      m.box([0.05, H + 0.05, 0.05], "#2b2433", [sx * (W / 2 - 0.04), y0, sz * (D / 2 - 0.04)], 0.01);
   m.box([W + 0.02, 0.05, 0.1], "#2b2433", [0, y0 + H, -D / 2 + 0.05], 0.01);
   m.box([W - 0.3, 0.05, 0.08], glow("#cfe9ff"), [0, y0 + H - 0.04, 0.2], 0.01);
   nightGlow(m.box([W - 0.4, 0.04, 0.1], "#e8f4ff", [0, y0 + H - 0.04, -0.2], 0.01), "#bfe6ff");
@@ -417,7 +429,9 @@ export function fishTank(): Model {
     });
   });
   // Bubbles rise from a stone.
-  const bubbles = Array.from({ length: 7 }, () => m.ball(0.022, glass("#ffffff", 0.7), [0, 0, 0], [1, 1, 1], 6));
+  const bubbles = Array.from({ length: 7 }, () =>
+    m.ball(0.022, glass("#ffffff", 0.7), [0, 0, 0], [1, 1, 1], 6),
+  );
   live(m, (t) =>
     bubbles.forEach((b, i) => {
       const u = (t * 0.35 + i / 7) % 1;
@@ -550,7 +564,15 @@ export function counter(): Model {
         g.fill();
         for (const dx of [-0.6, -0.2, 0.2, 0.6]) {
           g.beginPath();
-          g.ellipse(x + dx * s, y - s * (0.2 + (Math.abs(dx) < 0.3 ? 0.15 : 0)), s * 0.2, s * 0.27, 0, 0, Math.PI * 2);
+          g.ellipse(
+            x + dx * s,
+            y - s * (0.2 + (Math.abs(dx) < 0.3 ? 0.15 : 0)),
+            s * 0.2,
+            s * 0.27,
+            0,
+            0,
+            Math.PI * 2,
+          );
           g.fill();
         }
       };
@@ -571,17 +593,31 @@ export function counter(): Model {
   scr.rotation.x = -0.25;
   const disp = till.plane(0.28, 0.14, glow("#8fe0a8"), [0, 0.2, -0.065]);
   disp.rotation.x = -0.25;
-  for (let i = 0; i < 6; i++) till.box([0.06, 0.02, 0.05], i % 2 ? "#e8e2d4" : "#c4cad4", [-0.15 + (i % 3) * 0.075, 0.14, 0.08 - Math.floor(i / 3) * 0.07], 0.005);
+  for (let i = 0; i < 6; i++)
+    till.box(
+      [0.06, 0.02, 0.05],
+      i % 2 ? "#e8e2d4" : "#c4cad4",
+      [-0.15 + (i % 3) * 0.075, 0.14, 0.08 - Math.floor(i / 3) * 0.07],
+      0.005,
+    );
   // The bell.
   m.cyl(0.07, 0.03, "#e0a82e", [-0.5, 0.78, 0.15], 0.07, 12);
   m.cyl(0.055, 0.06, "#f5c842", [-0.5, 0.81, 0.15], 0.012, 12);
   // A jar of biscuits.
   m.cyl(0.13, 0.28, glass("#d8f0fa", 0.4), [1.4, 0.78, 0.1], 0.13, 14);
-  for (let i = 0; i < 9; i++) bone(m, 1.4 + Math.cos(i * 2.1) * 0.05, 0.8 + (i % 4) * 0.055, 0.1 + Math.sin(i * 2.1) * 0.05, i);
+  for (let i = 0; i < 9; i++)
+    bone(m, 1.4 + Math.cos(i * 2.1) * 0.05, 0.8 + (i % 4) * 0.055, 0.1 + Math.sin(i * 2.1) * 0.05, i);
   m.cyl(0.14, 0.04, "#e0584f", [1.4, 1.06, 0.1], 0.14, 14);
   // A plant and a little sign.
   m.cyl(0.09, 0.12, "#c4544b", [2.1, 0.78, 0.1], 0.07, 10);
-  for (let i = 0; i < 5; i++) m.ball(0.07, "#5fb84f", [2.1 + Math.cos(i * 1.3) * 0.07, 0.96 + (i % 2) * 0.05, 0.1 + Math.sin(i * 1.3) * 0.06], [1, 1.3, 0.5], 6);
+  for (let i = 0; i < 5; i++)
+    m.ball(
+      0.07,
+      "#5fb84f",
+      [2.1 + Math.cos(i * 1.3) * 0.07, 0.96 + (i % 2) * 0.05, 0.1 + Math.sin(i * 1.3) * 0.06],
+      [1, 1.3, 0.5],
+      6,
+    );
   const memo = panel(
     0.7,
     0.3,
@@ -612,22 +648,18 @@ export function toyShelf(): Model {
   const ys = [0.0, 0.62, 1.24, 1.84];
   for (const y of ys) m.box([W - 0.1, 0.06, 0.9], WOOD_L, [0, y, 0.0], 0.012);
   // Bottom: bags of food.
-  [
-    "#e0584f",
-    "#4f8fe0",
-    "#58b36a",
-    "#f0b53c",
-    "#9b6fd6",
-    "#e0788f",
-  ].forEach((c, i) => {
+  ["#e0584f", "#4f8fe0", "#58b36a", "#f0b53c", "#9b6fd6", "#e0788f"].forEach((c, i) => {
     foodBag(m, -1.25 + i * 0.5, 0.06, 0.0 + (i % 2) * 0.04, c);
   });
   // Treats and tins.
-  ["#e0584f", "#4f8fe0", "#58b36a", "#f0b53c", "#9b6fd6", "#3fa7a0", "#f28bb2", "#e8e2d4", "#c4544b"].forEach((c, i) => {
-    tin(m, -1.3 + i * 0.32, ys[1]! + 0.06, -0.15 + (i % 2) * 0.22, c);
-  });
+  ["#e0584f", "#4f8fe0", "#58b36a", "#f0b53c", "#9b6fd6", "#3fa7a0", "#f28bb2", "#e8e2d4", "#c4544b"].forEach(
+    (c, i) => {
+      tin(m, -1.3 + i * 0.32, ys[1]! + 0.06, -0.15 + (i % 2) * 0.22, c);
+    },
+  );
   // Toys.
-  for (let i = 0; i < 4; i++) ball(m, -1.2 + i * 0.16, ys[2]! + 0.06, 0.25, ["#d6e64a", "#e0584f", "#4f8fe0", "#f5c842"][i]);
+  for (let i = 0; i < 4; i++)
+    ball(m, -1.2 + i * 0.16, ys[2]! + 0.06, 0.25, ["#d6e64a", "#e0584f", "#4f8fe0", "#f5c842"][i]);
   for (let i = 0; i < 3; i++) bone(m, -0.45 + i * 0.28, ys[2]! + 0.06, 0.1 + (i % 2) * 0.12, i * 0.5);
   for (let i = 0; i < 3; i++) squeakyDuck(m, 0.5 + i * 0.22, ys[2]! + 0.06, 0.1, 0.3 * i);
   toyMouse(m, 1.2, ys[2]! + 0.06, 0.25, 0.5);
@@ -636,7 +668,12 @@ export function toyShelf(): Model {
   // Top: leashes and a feather wand on hooks.
   for (let i = 0; i < 6; i++) {
     const x = -1.3 + i * 0.5;
-    m.box([0.02, 0.4, 0.02], ["#e0584f", "#4f8fe0", "#f5c842", "#3ddc84", "#9b6fd6", "#e0788f"][i]!, [x, ys[3]! - 0.5, -0.4], 0.005);
+    m.box(
+      [0.02, 0.4, 0.02],
+      ["#e0584f", "#4f8fe0", "#f5c842", "#3ddc84", "#9b6fd6", "#e0788f"][i]!,
+      [x, ys[3]! - 0.5, -0.4],
+      0.005,
+    );
     m.box([0.05, 0.05, 0.05], "#5d6470", [x, ys[3]! - 0.12, -0.4], 0.005);
   }
   return m;

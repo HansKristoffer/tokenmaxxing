@@ -63,7 +63,13 @@ export function leaderboard(): Board {
     });
   };
   for (const x of [-0.6, 0.6]) m.box([0.09, 1.55, 0.09], C.woodDark, [x, 0, -0.04], 0.02);
-  const face = panel(1.3, 1.1, paint(SAMPLE_ROWS), { frame: "#5b3a24", lift: 0.35, px: 130, smooth: true, lit: true });
+  const face = panel(1.3, 1.1, paint(SAMPLE_ROWS), {
+    frame: "#5b3a24",
+    lift: 0.35,
+    px: 130,
+    smooth: true,
+    lit: true,
+  });
   face.position.z = 0.02;
   m.add(face);
   const roof = m.box([1.65, 0.1, 0.5], C.roofRed, [0, 1.62, 0.02], 0.03);
@@ -125,11 +131,16 @@ export function openOfficesBoard(): Board {
     });
   };
   for (const x of [-0.5, 0.5]) m.box([0.08, 1.4, 0.08], C.woodDark, [x, 0, -0.04], 0.02);
-  const face = panel(1.2, 1.0, paint([
-    { name: "Ada", value: "knock" },
-    { name: "Linus", value: "knock" },
-    { name: "Grace", value: "knock" },
-  ]), { frame: "#4a3a26", lift: 0.35, px: 130, smooth: true });
+  const face = panel(
+    1.2,
+    1.0,
+    paint([
+      { name: "Ada", value: "knock" },
+      { name: "Linus", value: "knock" },
+      { name: "Grace", value: "knock" },
+    ]),
+    { frame: "#4a3a26", lift: 0.35, px: 130, smooth: true },
+  );
   face.position.z = 0.02;
   m.add(face);
   m.face = face;
@@ -195,7 +206,12 @@ export function coffeeStand(): Model {
   }
   for (const x of [-0.45, 0.45]) m.cyl(0.025, 1.55, C.metal, [x, 0, -0.25], 0.025, 8);
   for (let i = 0; i < 6; i++) {
-    const stripe = m.box([0.2, 0.04, 0.75], i % 2 ? "#fbf7ef" : "#8c5c36", [-0.5 + 0.1 + i * 0.2, 1.6, 0.0], 0.01);
+    const stripe = m.box(
+      [0.2, 0.04, 0.75],
+      i % 2 ? "#fbf7ef" : "#8c5c36",
+      [-0.5 + 0.1 + i * 0.2, 1.6, 0.0],
+      0.01,
+    );
     stripe.rotation.x = -0.2;
   }
   const sign = canvasTexture(
@@ -387,10 +403,11 @@ export function goalFlag(): Model {
   m.cyl(0.03, 1.5, C.metal, [0, 0, 0], 0.03, 8);
   m.ball(0.06, C.metalLight, [0, 1.5, 0]);
   const tex = canvasTexture(32, 24, (g) => {
-    for (let y = 0; y < 3; y++) for (let x = 0; x < 4; x++) {
-      g.fillStyle = (x + y) % 2 ? C.ink : C.white;
-      g.fillRect(x * 8, y * 8, 8, 8);
-    }
+    for (let y = 0; y < 3; y++)
+      for (let x = 0; x < 4; x++) {
+        g.fillStyle = (x + y) % 2 ? C.ink : C.white;
+        g.fillRect(x * 8, y * 8, 8, 8);
+      }
   });
   const flag = m.plane(0.6, 0.45, painted(tex), [0.32, 1.25, 0]);
   (flag.material as THREE.MeshToonMaterial).side = THREE.DoubleSide;

@@ -105,7 +105,8 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
     const settings = graphics.effective();
     const idle = now - lastInput > IDLE_MS;
     const saving = graphics.get().choice === "auto" && onBattery();
-    const cap = idle || saving ? (settings.fpsCap === 0 ? 30 : Math.min(30, settings.fpsCap)) : settings.fpsCap;
+    const cap =
+      idle || saving ? (settings.fpsCap === 0 ? 30 : Math.min(30, settings.fpsCap)) : settings.fpsCap;
     const target = cap === 0 ? 0 : 1000 / cap;
     // A little slack, or a 60 Hz screen drops to every third frame at a 30 fps cap.
     if (target && now - lastDraw < target - 2) return;
@@ -129,7 +130,10 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
       gaps.push(gap);
       if (gaps.length > 60) gaps.shift();
       perf.ms = gap;
-      perf.p95 = percentile([...gaps].sort((a, b) => a - b), 0.95);
+      perf.p95 = percentile(
+        [...gaps].sort((a, b) => a - b),
+        0.95,
+      );
     }
     fpsFrames++;
     if (now - fpsSince >= 500) {

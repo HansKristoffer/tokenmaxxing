@@ -12,7 +12,18 @@ export const C = 3; // cell size
 export const FL = 1.8; // floor height
 export const PITCH = 5; // cells per block incl. street
 
-export type Kind = "glass" | "concrete" | "white" | "dark" | "wood" | "green" | "open" | "lattice" | "bridge" | "walk" | "steel";
+export type Kind =
+  | "glass"
+  | "concrete"
+  | "white"
+  | "dark"
+  | "wood"
+  | "green"
+  | "open"
+  | "lattice"
+  | "bridge"
+  | "walk"
+  | "steel";
 export type Roof = "garden" | "plaza" | "crops" | "tech" | "solar" | "bare" | "none";
 export type Theme = "day" | "dusk" | "cyber";
 
@@ -102,7 +113,8 @@ const PAL: Record<Kind, Pal> = {
   steel: { wall: "#4a5058", band: "#2b3036", frame: "#262b30", glass: "#2e4450", glassLit: "#6ab0c4" },
 };
 
-const hash3 = (a: number, b: number, c: number, d = 0) => seeded((a * 73856093) ^ (b * 19349663) ^ (c * 83492791) ^ (d * 2654435761))();
+const hash3 = (a: number, b: number, c: number, d = 0) =>
+  seeded((a * 73856093) ^ (b * 19349663) ^ (c * 83492791) ^ (d * 2654435761))();
 
 export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed = 7): City {
   const night = theme === "cyber";
@@ -121,8 +133,10 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
         const k = j * 1000 + i;
         (col.get(k) ?? col.set(k, []).get(k)!).push(v);
       }
-  const occ = (i: number, j: number, f: number): Vol | undefined => col.get(j * 1000 + i)?.find((v) => f >= v.f0 && f < v.f1);
-  const top = (i: number, j: number): number => Math.max(0, ...(col.get(j * 1000 + i) ?? []).map((v) => v.f1));
+  const occ = (i: number, j: number, f: number): Vol | undefined =>
+    col.get(j * 1000 + i)?.find((v) => f >= v.f0 && f < v.f1);
+  const top = (i: number, j: number): number =>
+    Math.max(0, ...(col.get(j * 1000 + i) ?? []).map((v) => v.f1));
   const roofs: RoofSlot[] = [];
   const faces: FaceSlot[] = [];
 
@@ -139,7 +153,20 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
   const TZ = [1, -1, 0, 0] as const;
 
   /** A box on a cell face. u: along the face, `inner`: from the face plane outwards, y: bottom. */
-  const fb = (b: Batch, x: number, z: number, s: number, u: number, inner: number, y: number, w: number, h: number, t: number, c: string, gain = 1) => {
+  const fb = (
+    b: Batch,
+    x: number,
+    z: number,
+    s: number,
+    u: number,
+    inner: number,
+    y: number,
+    w: number,
+    h: number,
+    t: number,
+    c: string,
+    gain = 1,
+  ) => {
     const n = C / 2 + inner + t / 2;
     const px = x + NX[s]! * n + TX[s]! * u;
     const pz = z + NZ[s]! * n + TZ[s]! * u;
@@ -151,7 +178,7 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
     if (night) {
       const p = (v.lit ?? 0.35) * 0.42;
       if (r < p) {
-        const k = (r / p) * 7.3 % 1;
+        const k = ((r / p) * 7.3) % 1;
         const cols = ["#ffd27a", "#ffc46b", "#ffe8b0", "#7fe9ff", "#ff5ad8", "#a98bff", "#ffd27a", "#8affc7"];
         return { c: cols[Math.floor(k * cols.length) % cols.length]!, on: true };
       }
@@ -184,7 +211,12 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
           // an open walkway: only a slab and rails
         } else if (isLat) {
           lit.box(x, y0, z, C - 0.35, y1 - y0, C - 0.35, "#241d19");
-          for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
+          for (const [dx, dz] of [
+            [-1, -1],
+            [1, -1],
+            [-1, 1],
+            [1, 1],
+          ] as const)
             lit.box(x + dx * (C / 2 - 0.08), y0, z + dz * (C / 2 - 0.08), 0.16, y1 - y0, 0.16, "#b98a57");
         } else if (isOpen) {
           // cutaway floors drawn below
@@ -208,7 +240,20 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
               case "bridge": {
                 for (const u of [-0.75, 0.75]) {
                   const w = windowColour(v, hash3(v.id, i * 5 + s, j * 3 + (u > 0 ? 1 : 0), f), pal);
-                  fb(w.on ? glow : glass, x, z, s, u, -0.01, fy + 0.2, 1.3, FL - 0.38, 0.06, w.c, w.on && night ? 1.35 : 1);
+                  fb(
+                    w.on ? glow : glass,
+                    x,
+                    z,
+                    s,
+                    u,
+                    -0.01,
+                    fy + 0.2,
+                    1.3,
+                    FL - 0.38,
+                    0.06,
+                    w.c,
+                    w.on && night ? 1.35 : 1,
+                  );
                 }
                 fb(lit, x, z, s, 0, 0, fy + 0.17, 0.07, FL - 0.17, 0.09, frameC);
                 fb(lit, x, z, s, -C / 2 + 0.03, 0, fy + 0.17, 0.07, FL - 0.17, 0.09, frameC);
@@ -235,15 +280,44 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
                 if (v.kind === "green" && r < 0.85) {
                   for (let k = 0; k < 7; k++) {
                     const gr = hash3(v.id, i, j, f * 9 + k + s * 99);
-                    fb(lit, x, z, s, (gr - 0.5) * 2.7, 0, fy + 0.1 + hash3(f, k, s, i) * 1.4, 0.3 + gr * 0.4, 0.25 + hash3(k, f, j, s) * 0.5, 0.12 + gr * 0.14, GREENS[k % GREENS.length]!);
+                    fb(
+                      lit,
+                      x,
+                      z,
+                      s,
+                      (gr - 0.5) * 2.7,
+                      0,
+                      fy + 0.1 + hash3(f, k, s, i) * 1.4,
+                      0.3 + gr * 0.4,
+                      0.25 + hash3(k, f, j, s) * 0.5,
+                      0.12 + gr * 0.14,
+                      GREENS[k % GREENS.length]!,
+                    );
                   }
                 }
-                  if ((v.kind === "concrete" || v.kind === "white" || v.kind === "wood") && r < 0.2 && f > v.f0) {
-                    fb(lit, x, z, s, 0, 0, fy, 2.2, 0.12, 0.85, bandC);
-                    fb(lit, x, z, s, 0, 0.78, fy + 0.12, 2.2, 0.5, 0.05, frameC);
-                    fb(lit, x, z, s, 0.9, 0.2, fy + 0.12, 0.45, 0.4, 0.4, GREENS[(f + i) % GREENS.length]!);
-                    if (r < 0.08) fb(lit, x, z, s, -0.5, 0.25, fy + 0.12, 0.5, 0.35, 0.3, ["#e86a5a", "#f2c14e", "#5aa0e8"][(f + j) % 3]!);
-                  }
+                if (
+                  (v.kind === "concrete" || v.kind === "white" || v.kind === "wood") &&
+                  r < 0.2 &&
+                  f > v.f0
+                ) {
+                  fb(lit, x, z, s, 0, 0, fy, 2.2, 0.12, 0.85, bandC);
+                  fb(lit, x, z, s, 0, 0.78, fy + 0.12, 2.2, 0.5, 0.05, frameC);
+                  fb(lit, x, z, s, 0.9, 0.2, fy + 0.12, 0.45, 0.4, 0.4, GREENS[(f + i) % GREENS.length]!);
+                  if (r < 0.08)
+                    fb(
+                      lit,
+                      x,
+                      z,
+                      s,
+                      -0.5,
+                      0.25,
+                      fy + 0.12,
+                      0.5,
+                      0.35,
+                      0.3,
+                      ["#e86a5a", "#f2c14e", "#5aa0e8"][(f + j) % 3]!,
+                    );
+                }
                 break;
               }
               case "open": {
@@ -251,7 +325,20 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
                 const fr = hash3(v.id, i + s * 17, j, f);
                 if (fr < 0.5) {
                   const w = windowColour(v, fr * 2, pal);
-                  fb(w.on ? glow : glass, x, z, s, 0, -0.01, fy + 0.2, C - 0.3, FL - 0.4, 0.05, w.c, w.on && night ? 1.35 : 1);
+                  fb(
+                    w.on ? glow : glass,
+                    x,
+                    z,
+                    s,
+                    0,
+                    -0.01,
+                    fy + 0.2,
+                    C - 0.3,
+                    FL - 0.4,
+                    0.05,
+                    w.c,
+                    w.on && night ? 1.35 : 1,
+                  );
                   fb(lit, x, z, s, 0, 0, fy + 0.17, 0.07, FL - 0.17, 0.08, frameC);
                 } else {
                   fb(lit, x, z, s, 0, -0.1, fy + 0.17, C - 0.25, 0.4, 0.06, frameC);
@@ -263,23 +350,47 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
                 for (let k = -3; k <= 3; k++) fb(lit, x, z, s, k * 0.42, -0.05, fy, t, FL, t, "#b98a57");
                 for (let k = 0; k < 4; k++) fb(lit, x, z, s, 0, -0.01, fy + k * (FL / 4), C, t, t, "#a97c4b");
                 if (r < 0.4) fb(lit, x, z, s, 0, -0.08, fy, C, 0.05, 0.05, "#d9b078");
-                if (r < 0.4) lit.beam([x + NX[s]! * (C / 2) - TX[s]! * (C / 2) , fy, z + NZ[s]! * (C / 2) - TZ[s]! * (C / 2)], [x + NX[s]! * (C / 2) + TX[s]! * (C / 2), fy + FL, z + NZ[s]! * (C / 2) + TZ[s]! * (C / 2)], 0.07, "#a97c4b");
+                if (r < 0.4)
+                  lit.beam(
+                    [x + NX[s]! * (C / 2) - TX[s]! * (C / 2), fy, z + NZ[s]! * (C / 2) - TZ[s]! * (C / 2)],
+                    [
+                      x + NX[s]! * (C / 2) + TX[s]! * (C / 2),
+                      fy + FL,
+                      z + NZ[s]! * (C / 2) + TZ[s]! * (C / 2),
+                    ],
+                    0.07,
+                    "#a97c4b",
+                  );
                 break;
               }
               case "walk":
                 break;
             }
-            if (s === 0 || s === 2) if (r < 0.04) faces.push({ x: x + NX[s]! * C / 2, y: fy + FL / 2, z: z + NZ[s]! * C / 2, nx: NX[s]!, nz: NZ[s]!, vol: v, f });
+            if (s === 0 || s === 2)
+              if (r < 0.04)
+                faces.push({
+                  x: x + (NX[s]! * C) / 2,
+                  y: fy + FL / 2,
+                  z: z + (NZ[s]! * C) / 2,
+                  nx: NX[s]!,
+                  nz: NZ[s]!,
+                  vol: v,
+                  f,
+                });
           }
           // Open interiors and floors
           if (isOpen) {
             lit.box(x, fy, z, C, 0.16, C, bandC);
-            for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const)
+            for (const [dx, dz] of [
+              [-1, -1],
+              [1, -1],
+              [-1, 1],
+              [1, 1],
+            ] as const)
               lit.box(x + dx * (C / 2 - 0.1), fy + 0.16, z + dz * (C / 2 - 0.1), 0.2, FL - 0.16, 0.2, frameC);
             const r = hash3(v.id, i, j, f + 500);
             // back wall on a closed side
-            for (let s = 0; s < 4; s++)
-              if (!ex[s] || hash3(v.id, i, j * 3 + s, f) < 0.15) continue;
+            for (let s = 0; s < 4; s++) if (!ex[s] || hash3(v.id, i, j * 3 + s, f) < 0.15) continue;
             const props: [string, number, number, number][] = [
               ["#e57f6a", 1.0, 0.55, 0.6],
               ["#6a8fd9", 0.9, 0.5, 0.9],
@@ -293,7 +404,16 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
               const oz = (hash3(j, i, f, k + 8) - 0.5) * (C - 1.4);
               lit.box(x + ox, fy + 0.16, z + oz, p[1], p[2], p[3], dim(p[0]));
             }
-            if (night && r < (v.lit ?? 0.4)) glow.box(x, fy + FL - 0.22, z, C - 0.5, 0.06, C - 0.5, hash3(i, j, f, 4) < 0.7 ? "#ffd69a" : "#8ff0ff");
+            if (night && r < (v.lit ?? 0.4))
+              glow.box(
+                x,
+                fy + FL - 0.22,
+                z,
+                C - 0.5,
+                0.06,
+                C - 0.5,
+                hash3(i, j, f, 4) < 0.7 ? "#ffd69a" : "#8ff0ff",
+              );
           }
           if (isThin) {
             lit.box(x, fy, z, C, 0.2, C, bandC);
@@ -310,7 +430,16 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
             if (occ(nb[0], nb[1], v.f1 - 1) && !occ(nb[0], nb[1], v.f1)) return false; // flush roof
             return ex[s]!;
           }) as [boolean, boolean, boolean, boolean];
-          const topC = v.roof === "garden" || v.roof === "crops" ? (theme === "cyber" ? "#2a5a3c" : theme === "dusk" ? "#3dbd5a" : DAY_GREEN) : v.roof === "plaza" ? dim("#c9c0ae") : dim("#a8a9a4");
+          const topC =
+            v.roof === "garden" || v.roof === "crops"
+              ? theme === "cyber"
+                ? "#2a5a3c"
+                : theme === "dusk"
+                  ? "#3dbd5a"
+                  : DAY_GREEN
+              : v.roof === "plaza"
+                ? dim("#c9c0ae")
+                : dim("#a8a9a4");
           const lipC = dim(v.kind === "dark" || v.kind === "steel" ? "#8a8f8c" : "#e7e2d4");
           {
             lit.box(x, y1, z, C + 0.0, 0.2, C + 0.0, lipC);
@@ -354,11 +483,43 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
             for (let k = 0; k < n; k++) {
               const u0 = -C / 2 + 0.3 + (k / n) * (C - 0.6);
               const u = dirflip ? -u0 : u0;
-              fb(lit, x, z, s, u, 0.02, f * FL + ((k + 1) * FL) / n - 0.1, (C - 0.6) / n + 0.02, 0.1, 0.8, dim(stairColour));
+              fb(
+                lit,
+                x,
+                z,
+                s,
+                u,
+                0.02,
+                f * FL + ((k + 1) * FL) / n - 0.1,
+                (C - 0.6) / n + 0.02,
+                0.1,
+                0.8,
+                dim(stairColour),
+              );
             }
-            fb(lit, x, z, s, dirflip ? -C / 2 + 0.15 : C / 2 - 0.15, 0.02, f * FL + FL - 0.12, 0.3, 0.1, 0.8, dim(stairColour));
-            const a: V3 = [x + NX[s]! * (C / 2 + 0.85) + TX[s]! * (dirflip ? C / 2 - 0.3 : -C / 2 + 0.3), f * FL + 0.9, z + NZ[s]! * (C / 2 + 0.85) + TZ[s]! * (dirflip ? C / 2 - 0.3 : -C / 2 + 0.3)];
-            const b2: V3 = [x + NX[s]! * (C / 2 + 0.85) + TX[s]! * (dirflip ? -C / 2 + 0.3 : C / 2 - 0.3), f * FL + 0.9 + FL, z + NZ[s]! * (C / 2 + 0.85) + TZ[s]! * (dirflip ? -C / 2 + 0.3 : C / 2 - 0.3)];
+            fb(
+              lit,
+              x,
+              z,
+              s,
+              dirflip ? -C / 2 + 0.15 : C / 2 - 0.15,
+              0.02,
+              f * FL + FL - 0.12,
+              0.3,
+              0.1,
+              0.8,
+              dim(stairColour),
+            );
+            const a: V3 = [
+              x + NX[s]! * (C / 2 + 0.85) + TX[s]! * (dirflip ? C / 2 - 0.3 : -C / 2 + 0.3),
+              f * FL + 0.9,
+              z + NZ[s]! * (C / 2 + 0.85) + TZ[s]! * (dirflip ? C / 2 - 0.3 : -C / 2 + 0.3),
+            ];
+            const b2: V3 = [
+              x + NX[s]! * (C / 2 + 0.85) + TX[s]! * (dirflip ? -C / 2 + 0.3 : C / 2 - 0.3),
+              f * FL + 0.9 + FL,
+              z + NZ[s]! * (C / 2 + 0.85) + TZ[s]! * (dirflip ? -C / 2 + 0.3 : C / 2 - 0.3),
+            ];
             lit.beam(a, b2, 0.05, dim("#f2efe6"));
             dirflip = !dirflip;
           }
@@ -368,7 +529,7 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
 
   // ———————————————————————————— roof decor ————————————————————————————
   const rr = seeded(seed * 31 + 5);
-  const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rr() * xs.length)]!;
+  const pick = <T>(xs: readonly T[]) => xs[Math.floor(rr() * xs.length)]!;
   const treeCluster = (x: number, y: number, z: number, n: number) => {
     for (let k = 0; k < n; k++) {
       const w = 0.5 + rr() * 0.5;
@@ -378,7 +539,16 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
       lit.box(px, y, pz, 0.12, 0.3, 0.12, "#6b4a2f");
       const c = night ? shade(pick(GREENS), 0.5, [0.7, 1.1, 1]) : pick(GREENS);
       lit.box(px, y + 0.25, pz, w, h, w * (0.8 + rr() * 0.4), c);
-      if (rr() < 0.5) lit.box(px, y + 0.25 + h * 0.7, pz, w * 0.7, h * 0.5, w * 0.7, night ? shade(pick(GREENS), 0.5, [0.7, 1.1, 1]) : pick(GREENS));
+      if (rr() < 0.5)
+        lit.box(
+          px,
+          y + 0.25 + h * 0.7,
+          pz,
+          w * 0.7,
+          h * 0.5,
+          w * 0.7,
+          night ? shade(pick(GREENS), 0.5, [0.7, 1.1, 1]) : pick(GREENS),
+        );
     }
   };
   const turbine = (x: number, y: number, z: number, hgt: number) => {
@@ -390,7 +560,12 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
       const a = a0 + (k * Math.PI * 2) / 3;
       const dx = Math.cos(a) * 0.5;
       const dy = Math.sin(a) * 0.5;
-      lit.beam([x, y + hgt + 0.06, z + 0.12], [x + dx * Math.cos(yaw), y + hgt + 0.06 + dy, z + 0.12 + dx * Math.sin(yaw)], 0.045, dim("#ffffff"));
+      lit.beam(
+        [x, y + hgt + 0.06, z + 0.12],
+        [x + dx * Math.cos(yaw), y + hgt + 0.06 + dy, z + 0.12 + dx * Math.sin(yaw)],
+        0.045,
+        dim("#ffffff"),
+      );
     }
   };
   for (const r of roofs) {
@@ -407,7 +582,16 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
           if (rr() < 0.6) treeCluster(x + 0.3, y, z + 0.3, 1);
         } else if (k < 0.9) {
           // flower bed and a bench
-          for (let a = 0; a < 5; a++) lit.box(x + (rr() - 0.5) * 2, y, z + (rr() - 0.5) * 2, 0.35, 0.22 + rr() * 0.15, 0.35, pick(night ? ["#b04a9a", "#4a8ab0", "#c08a3a"] : ["#ee6b9a", "#5b8fe8", "#f2c14e", "#f4f1ea"]));
+          for (let a = 0; a < 5; a++)
+            lit.box(
+              x + (rr() - 0.5) * 2,
+              y,
+              z + (rr() - 0.5) * 2,
+              0.35,
+              0.22 + rr() * 0.15,
+              0.35,
+              pick(night ? ["#b04a9a", "#4a8ab0", "#c08a3a"] : ["#ee6b9a", "#5b8fe8", "#f2c14e", "#f4f1ea"]),
+            );
         } else {
           lit.box(x, y, z, 1.2, 0.35, 0.4, dim("#9b7a52"));
           treeCluster(x + 0.8, y, z - 0.8, 1);
@@ -415,13 +599,30 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
         break;
       case "crops": {
         lit.box(x, y, z, C - 0.4, 0.14, C - 0.4, dim("#7a5a3a"));
-        for (let a = -3; a <= 3; a++) lit.box(x + a * 0.36, y + 0.14, z, 0.18, 0.3 + (a % 2 ? 0.1 : 0), C - 0.7, night ? "#3c7a46" : (a % 3 === 0 ? "#e0c050" : "#58b84a"));
+        for (let a = -3; a <= 3; a++)
+          lit.box(
+            x + a * 0.36,
+            y + 0.14,
+            z,
+            0.18,
+            0.3 + (a % 2 ? 0.1 : 0),
+            C - 0.7,
+            night ? "#3c7a46" : a % 3 === 0 ? "#e0c050" : "#58b84a",
+          );
         break;
       }
       case "plaza": {
         if (k < 0.35) {
           lit.box(x, y, z, 0.06, 1.0, 0.06, dim("#e8e4d8"));
-          lit.box(x, y + 1.0, z, 1.5, 0.12, 1.5, pick(night ? ["#a43c78", "#2c8aa0"] : ["#e8584a", "#4a90d8", "#f2c14e", "#f4f1ea"]));
+          lit.box(
+            x,
+            y + 1.0,
+            z,
+            1.5,
+            0.12,
+            1.5,
+            pick(night ? ["#a43c78", "#2c8aa0"] : ["#e8584a", "#4a90d8", "#f2c14e", "#f4f1ea"]),
+          );
           lit.box(x + 0.7, y, z + 0.6, 0.5, 0.45, 0.5, dim("#8c6a4a"));
           lit.box(x - 0.7, y, z - 0.6, 0.5, 0.45, 0.5, dim("#8c6a4a"));
         } else if (k < 0.6) treeCluster(x, y, z, 2);
@@ -438,7 +639,8 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
           for (let a = 0; a < 5; a++) lit.box(x - 0.9 + a * 0.2, y + 0.7, z, 0.04, 0.05, 0.8, dim("#6a7476"));
         } else if (k < 0.5) {
           lit.box(x, y + 0.4, z, 0.7, 0.9, 0.7, dim("#b9805a"));
-          for (const dx of [-0.3, 0.3]) for (const dz of [-0.3, 0.3]) lit.box(x + dx, y, z + dz, 0.06, 0.4, 0.06, dim("#4a4a4a"));
+          for (const dx of [-0.3, 0.3])
+            for (const dz of [-0.3, 0.3]) lit.box(x + dx, y, z + dz, 0.06, 0.4, 0.06, dim("#4a4a4a"));
         } else if (k < 0.65) {
           lit.box(x, y, z, 0.05, 2.0 + rr(), 0.05, dim("#cfd4d6"));
           glow.box(x, y + 2.1 + rr() * 0.5, z, 0.08, 0.08, 0.08, "#ff3b3b", night ? 2.4 : 0.9);
@@ -449,13 +651,15 @@ export function buildCity(vols: Vol[], W: number, D: number, theme: Theme, seed 
         break;
       }
       case "solar": {
-        for (let a = -1; a <= 1; a++) lit.tilted(x + a * 0.9, y + 0.35, z, 0.8, 0.05, 1.3, -0.5, 0, 0, dim("#2a4b7a"));
+        for (let a = -1; a <= 1; a++)
+          lit.tilted(x + a * 0.9, y + 0.35, z, 0.8, 0.05, 1.3, -0.5, 0, 0, dim("#2a4b7a"));
         break;
       }
       default:
         break;
     }
-    if (k > 0.8 && v.roof !== "none" && v.roof !== "crops") turbine(x + (rr() - 0.5) * 2, y, z + (rr() - 0.5) * 2, 1.0 + rr() * 0.6);
+    if (k > 0.8 && v.roof !== "none" && v.roof !== "crops")
+      turbine(x + (rr() - 0.5) * 2, y, z + (rr() - 0.5) * 2, 1.0 + rr() * 0.6);
   }
 
   return { vols, W, D, lit, glow, glass, roofs, faces, occ, top, cx, cz };

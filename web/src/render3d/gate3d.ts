@@ -72,7 +72,10 @@ export class GateLive {
     });
     tapeTex.wrapS = THREE.RepeatWrapping;
     tapeTex.repeat.set(4, 1);
-    const tape = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.14), new THREE.MeshBasicMaterial({ map: tapeTex }));
+    const tape = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.0, 0.14),
+      new THREE.MeshBasicMaterial({ map: tapeTex }),
+    );
     tape.position.set(0, 0.9, 0.36);
     tape.rotation.z = -0.28;
     tape.userData.nopick = true;
@@ -95,7 +98,10 @@ export class GateLive {
       },
       true,
     );
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.44), new THREE.MeshBasicMaterial({ map: danger }));
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.7, 0.44),
+      new THREE.MeshBasicMaterial({ map: danger }),
+    );
     sign.position.set(0, 0.85, 0.4);
     sign.userData.nopick = true;
     this.boards.add(sign);
@@ -120,7 +126,10 @@ export class GateLive {
       this.bars.add(m);
     }
     // And a veil over the portal's glow.
-    const veil = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.7), new THREE.MeshBasicMaterial({ color: "#0b0912", transparent: true, opacity: 0.6, depthWrite: false }));
+    const veil = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.05, 1.7),
+      new THREE.MeshBasicMaterial({ color: "#0b0912", transparent: true, opacity: 0.6, depthWrite: false }),
+    );
     veil.position.set(0, 0.95, 0.27);
     veil.userData.nopick = true;
     this.bars.add(veil);
@@ -128,7 +137,14 @@ export class GateLive {
     this.group.add(this.bars);
 
     this.group.add(this.sparks.mesh, this.dust.mesh);
-    this.sign = { key: "gate", at: [at[0], 2.75, at[1]], kind: "label", text: "", cls: "dark", onClick: openRaid };
+    this.sign = {
+      key: "gate",
+      at: [at[0], 2.75, at[1]],
+      kind: "label",
+      text: "",
+      cls: "dark",
+      onClick: openRaid,
+    };
   }
 
   /** Once a frame, `t` seconds on the room's clock. */
@@ -186,14 +202,24 @@ export class GateLive {
     for (const t of this.tags) t.visible = age < 0.2;
     this.planks.forEach((p, i) => {
       const dir = i % 2 === 0 ? -1 : 1;
-      p.mesh.position.set(p.home.x + dir * (0.5 + 0.7 * age), p.home.y + (1.6 + i * 0.3) * age - 3.2 * age * age, p.home.z + age * 1.2);
+      p.mesh.position.set(
+        p.home.x + dir * (0.5 + 0.7 * age),
+        p.home.y + (1.6 + i * 0.3) * age - 3.2 * age * age,
+        p.home.z + age * 1.2,
+      );
       p.mesh.rotation.set(0, 0, p.roll + dir * age * 7);
     });
     this.sparks.begin();
     for (let i = 0; i < 40; i++) {
       const a = (((i * 2654435761) >>> 0) % 628) / 100;
       const v = 0.7 + ((((i * 40503) >>> 0) % 100) / 100) * 1.8;
-      this.sparks.add(Math.cos(a) * v * age, 0.9 + Math.sin(a) * v * age * 0.7 - age * age * 0.6, 0.4 + age * 0.5, Math.max(0, 1 - t * 1.2), i % 3 === 0 ? "#ffd35c" : "#c9a2ff");
+      this.sparks.add(
+        Math.cos(a) * v * age,
+        0.9 + Math.sin(a) * v * age * 0.7 - age * age * 0.6,
+        0.4 + age * 0.5,
+        Math.max(0, 1 - t * 1.2),
+        i % 3 === 0 ? "#ffd35c" : "#c9a2ff",
+      );
     }
     this.sparks.end();
   }

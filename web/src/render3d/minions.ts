@@ -26,7 +26,8 @@ function pose(t: number): { pose: Pose; solid: THREE.Material | null; glow: THRE
     // A glow mesh is a child of a solid one: both are visible only when their parents are.
     for (let p: THREE.Object3D | null = m; p; p = p.parent) if (!p.visible) return;
     const g = m.geometry.clone();
-    for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal" && name !== "color") g.deleteAttribute(name);
+    for (const name of Object.keys(g.attributes))
+      if (name !== "position" && name !== "normal" && name !== "color") g.deleteAttribute(name);
     g.applyMatrix4(m.matrixWorld);
     const mat = m.material as THREE.Material;
     const list = parts.get(mat) ?? [];
@@ -66,8 +67,16 @@ function blobDiscs(max: number): THREE.InstancedMesh {
   grad.addColorStop(1, "rgba(0,0,0,0)");
   g.fillStyle = grad;
   g.fillRect(0, 0, 32, 32);
-  const mat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false });
-  const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), mat, Math.max(1, max));
+  const mat = new THREE.MeshBasicMaterial({
+    map: new THREE.CanvasTexture(c),
+    transparent: true,
+    depthWrite: false,
+  });
+  const mesh = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+    mat,
+    Math.max(1, max),
+  );
   mesh.count = 0;
   mesh.frustumCulled = false;
   mesh.renderOrder = 1;
@@ -130,11 +139,18 @@ export class Minions {
     const i = this.counts[k]!;
     if (i >= this.max) return;
     this.counts[k] = i + 1;
-    this.m.compose(this.p.set(x, bob, z), this.q.setFromEuler(this.e.set(0, yaw, 0)), this.s.setScalar(scale));
+    this.m.compose(
+      this.p.set(x, bob, z),
+      this.q.setFromEuler(this.e.set(0, yaw, 0)),
+      this.s.setScalar(scale),
+    );
     for (const mesh of this.meshes[k]!) mesh.setMatrixAt(i, this.m);
     if (this.blobs < this.max) {
       const d = BLOB_RADIUS * 2 * scale;
-      this.blob.setMatrixAt(this.blobs++, this.m.compose(this.p.set(x, 0.03, z), this.q.identity(), this.s.set(d, d, d)));
+      this.blob.setMatrixAt(
+        this.blobs++,
+        this.m.compose(this.p.set(x, 0.03, z), this.q.identity(), this.s.set(d, d, d)),
+      );
     }
   }
 

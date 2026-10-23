@@ -9,11 +9,26 @@
  */
 
 import { dayKey, worldWall } from "@tokenmaxxing/core/range.ts";
-import { copenhagenToMs as aarhusToMs, type Light, moonPhase, presetWeather, type Weather, type WeatherKind, winterSnow } from "@tokenmaxxing/core/sky.ts";
+import {
+  copenhagenToMs as aarhusToMs,
+  type Light,
+  moonPhase,
+  presetWeather,
+  type Weather,
+  type WeatherKind,
+  winterSnow,
+} from "@tokenmaxxing/core/sky.ts";
 import * as THREE from "three";
 import { AarhusWeather, lightAt } from "./aarhus.ts";
 import type { Avatar } from "./avatar.ts";
-import { FX_ASSETS, type FxCtx, type FxHost, type FxLabelHandle, type FxStageRef, TownFx } from "./fx3d-town.ts";
+import {
+  FX_ASSETS,
+  type FxCtx,
+  type FxHost,
+  type FxLabelHandle,
+  type FxStageRef,
+  TownFx,
+} from "./fx3d-town.ts";
 import { ticks } from "./kit.ts";
 import { addPatch } from "./patches.ts";
 
@@ -193,12 +208,20 @@ class Particles {
       m.count = 0;
       this.group.add(m);
     }
-    for (let i = 0; i < RAIN_MAX; i++) this.rainPos.push(new THREE.Vector3(rnd(REACH), Math.random() * 11, rnd(REACH)));
-    for (let i = 0; i < SNOW_MAX; i++) this.snowPos.push(new THREE.Vector3(rnd(REACH), Math.random() * 10, rnd(REACH)));
+    for (let i = 0; i < RAIN_MAX; i++)
+      this.rainPos.push(new THREE.Vector3(rnd(REACH), Math.random() * 11, rnd(REACH)));
+    for (let i = 0; i < SNOW_MAX; i++)
+      this.snowPos.push(new THREE.Vector3(rnd(REACH), Math.random() * 10, rnd(REACH)));
     for (let i = 0; i < 18; i++) {
       const m = new THREE.Mesh(
         new THREE.RingGeometry(0.06, 0.09, 12),
-        new THREE.MeshBasicMaterial({ color: "#d6e4fa", transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
+        new THREE.MeshBasicMaterial({
+          color: "#d6e4fa",
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
       );
       m.rotation.x = -Math.PI / 2;
       m.visible = false;
@@ -224,7 +247,10 @@ class Particles {
       const len = Math.hypot(nx - px, ny - py, nz - pz);
       const seg = new THREE.Mesh(new THREE.BoxGeometry(0.07, len, 0.07), mat);
       seg.position.set((px + nx) / 2, (py + ny) / 2, (pz + nz) / 2);
-      seg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(nx - px, ny - py, nz - pz).normalize());
+      seg.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        new THREE.Vector3(nx - px, ny - py, nz - pz).normalize(),
+      );
       this.bolt.add(seg);
       px = nx;
       py = ny;
@@ -239,7 +265,9 @@ class Particles {
   update(dt: number, t: number, w: Weather, centre: THREE.Vector3, auto: boolean, wind: THREE.Vector2): void {
     const falls = w.kind === "rain" || w.kind === "drizzle" || w.kind === "storm";
     const snows = w.kind === "snow";
-    const rainN = falls ? Math.round(w.intensity * RAIN_MAX * this.density * (w.kind === "drizzle" ? 0.7 : 1)) : 0;
+    const rainN = falls
+      ? Math.round(w.intensity * RAIN_MAX * this.density * (w.kind === "drizzle" ? 0.7 : 1))
+      : 0;
     const snowN = snows ? Math.round(w.intensity * SNOW_MAX * this.density) : 0;
     this.rain.count = rainN;
     this.snow.count = snowN;
@@ -271,7 +299,8 @@ class Particles {
         p.y -= dt * (0.7 + (i % 5) * 0.15) * (1 + w.intensity);
         p.x += (wind.x * 0.5 + Math.sin(t * 0.9 + i) * 0.4) * dt;
         p.z += (wind.y * 0.5 + Math.cos(t * 0.8 + i * 1.7) * 0.3) * dt;
-        if (p.y < 0.05) p.set((Math.random() - 0.5) * 2 * REACH, 9 + Math.random() * 2, (Math.random() - 0.5) * 2 * REACH);
+        if (p.y < 0.05)
+          p.set((Math.random() - 0.5) * 2 * REACH, 9 + Math.random() * 2, (Math.random() - 0.5) * 2 * REACH);
         this.m4.compose(p, this.q, this.s);
         this.snow.setMatrixAt(i, this.m4);
       }
@@ -295,7 +324,17 @@ class Particles {
       }
     }
     const e = t - this.flashAt;
-    this.flash = this.calm ? 0 : e < 0.07 ? 0.9 : e < 0.13 ? 0.15 : e < 0.2 ? 0.8 : e < 0.5 ? 0.8 * (1 - (e - 0.2) / 0.3) : 0;
+    this.flash = this.calm
+      ? 0
+      : e < 0.07
+        ? 0.9
+        : e < 0.13
+          ? 0.15
+          : e < 0.2
+            ? 0.8
+            : e < 0.5
+              ? 0.8 * (1 - (e - 0.2) / 0.3)
+              : 0;
     this.bolt.visible = t < this.boltUntil && (e < 0.2 || Math.floor(e * 40) % 2 === 0);
   }
 
@@ -411,7 +450,12 @@ export class Fx {
     // Snow settles on every upward-facing surface (ground, roofs, benches) via a shader patch, see `whiten`.
     this.whiten(host.town.scene);
     // Fog banks: soft white slabs drifting over the ground.
-    const fogMat = new THREE.MeshBasicMaterial({ color: "#e4e9ee", transparent: true, opacity: 0, depthWrite: false });
+    const fogMat = new THREE.MeshBasicMaterial({
+      color: "#e4e9ee",
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
     for (let i = 0; i < 7; i++) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), fogMat.clone());
       m.scale.set(5 + Math.random() * 4, 0.6 + Math.random() * 0.5, 3 + Math.random() * 2);
@@ -479,7 +523,9 @@ export class Fx {
     const day = dayKey(Date.now());
     let ms: number | null = null;
     if (typeof spec === "number") {
-      ms = aarhusToMs(`${day}T${String(Math.floor(spec / 60)).padStart(2, "0")}:${String(Math.floor(spec % 60)).padStart(2, "0")}`);
+      ms = aarhusToMs(
+        `${day}T${String(Math.floor(spec / 60)).padStart(2, "0")}:${String(Math.floor(spec % 60)).padStart(2, "0")}`,
+      );
     } else if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(spec)) {
       const [h, m, s = "0"] = spec.split(":");
       ms = aarhusToMs(`${day}T${h!.padStart(2, "0")}:${m}`);
@@ -573,7 +619,13 @@ export class Fx {
         this.setSleepers(
           on === false || (on === undefined && this.sleepers.length > 2)
             ? []
-            : [...this.sleepers, { name: ["lin", "ida", "ellen", "ada"][this.sleepers.length % 4]!, level: 4 + this.sleepers.length }],
+            : [
+                ...this.sleepers,
+                {
+                  name: ["lin", "ida", "ellen", "ada"][this.sleepers.length % 4]!,
+                  level: 4 + this.sleepers.length,
+                },
+              ],
         );
         break;
     }
@@ -587,7 +639,12 @@ export class Fx {
     this.chipTag?.remove();
     this.sleepTag = this.chipTag = undefined;
     if (!list.length) return;
-    this.sleepTag = this.host.label(this.host.town, `💤 ${list.length} asleep`, "tag", () => new THREE.Vector3(18, 2.1, 2.4));
+    this.sleepTag = this.host.label(
+      this.host.town,
+      `💤 ${list.length} asleep`,
+      "tag",
+      () => new THREE.Vector3(18, 2.1, 2.4),
+    );
     this.chipTag = this.host.label(
       this.host.town,
       list
@@ -714,7 +771,8 @@ export class Fx {
     if (s.kind !== w.kind) {
       // Cross over: fade the old intensity out first, then switch.
       s.intensity = lerp(s.intensity, 0, Math.min(1, dt * 3));
-      if (s.intensity < 0.05 || w.kind === "clear" || w.kind === "cloudy" || w.kind === "fog") s.kind = w.kind;
+      if (s.intensity < 0.05 || w.kind === "clear" || w.kind === "cloudy" || w.kind === "fog")
+        s.kind = w.kind;
     }
     s.intensity = lerp(s.intensity, w.intensity, k);
     s.cloud = lerp(s.cloud, w.cloud, k);
@@ -725,7 +783,10 @@ export class Fx {
     // The light of the sky, with clouds dimming it.
     const storm = s.kind === "storm" ? 0.2 : 0;
     const murk = s.cloud * 0.35 + storm + (s.kind === "fog" ? 0.1 * s.intensity : 0);
-    const glowTarget = Math.min(1, Math.max(l.darkness, l.warmth * 0.5, s.cloud * 0.25 * (s.kind === "storm" ? 2 : 1)));
+    const glowTarget = Math.min(
+      1,
+      Math.max(l.darkness, l.warmth * 0.5, s.cloud * 0.25 * (s.kind === "storm" ? 2 : 1)),
+    );
     const blend = Math.min(1, dt / BLEND);
     this.lit.dark = lerp(this.lit.dark, l.darkness, blend);
     this.lit.warm = lerp(this.lit.warm, l.warmth, blend);
@@ -772,7 +833,13 @@ export class Fx {
       hor = mixCol(hor, greyH.clone().multiplyScalar(1 - dark * 0.8 - storm), gk);
       u.top!.value.copy(top);
       u.hor!.value.copy(hor);
-      u.cloudCol!.value.copy(mixCol(fixed("#ffffff"), mixCol(fixed("#ffb89a"), fixed("#1b2038"), dark), Math.max(warm * 0.6, dark)).multiplyScalar(1 - storm * 2.2));
+      u.cloudCol!.value.copy(
+        mixCol(
+          fixed("#ffffff"),
+          mixCol(fixed("#ffb89a"), fixed("#1b2038"), dark),
+          Math.max(warm * 0.6, dark),
+        ).multiplyScalar(1 - storm * 2.2),
+      );
       u.dark!.value = dark;
       u.time!.value = t;
       u.cloud!.value = s.cloud;
@@ -925,7 +992,8 @@ export class Fx {
         continue;
       }
       b.halo.scale.setScalar(1 + 0.12 * Math.sin(t * 3.1));
-      (b.halo.material as THREE.MeshBasicMaterial).opacity = 0.22 + 0.1 * Math.sin(t * 3.1) + this.lit.glow * 0.12;
+      (b.halo.material as THREE.MeshBasicMaterial).opacity =
+        0.22 + 0.1 * Math.sin(t * 3.1) + this.lit.glow * 0.12;
     }
     for (let i = this.steam.length - 1; i >= 0; i--) {
       const p = this.steam[i]!;
@@ -1042,7 +1110,9 @@ export class Fx {
               ["winter", "❄️ winter"],
             ] as const
           )
-            .map(([k, e]) => btn(k === "live" ? e : `${e} ${k === "winter" ? "" : k}`.trim(), `data-weather="${k}"`))
+            .map(([k, e]) =>
+              btn(k === "live" ? e : `${e} ${k === "winter" ? "" : k}`.trim(), `data-weather="${k}"`),
+            )
             .join("")}
           ${btn("⚡ Bolt", 'data-ev="lightning"')}
         </div>
@@ -1061,7 +1131,9 @@ export class Fx {
     const range = el.querySelector<HTMLInputElement>("#fx-time")!;
     const clock = el.querySelector<HTMLElement>("#fx-clock")!;
     el.addEventListener("click", (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>("[data-time],[data-weather],[data-ev],[data-act]");
+      const b = (e.target as HTMLElement).closest<HTMLElement>(
+        "[data-time],[data-weather],[data-ev],[data-act]",
+      );
       if (!b) return;
       if (b.dataset.time) {
         this.setTime(b.dataset.time);

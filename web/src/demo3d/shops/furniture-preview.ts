@@ -29,7 +29,10 @@ let facing: ((v: THREE.Vector3) => void) | null = null;
 if (view === "exterior") {
   const ex = SHOP_FURNITURE.exterior();
   scene.add(ex);
-  const ground = new THREE.Mesh(new THREE.BoxGeometry(14, 0.1, 10), new THREE.MeshToonMaterial({ color: "#d9d3c6" }));
+  const ground = new THREE.Mesh(
+    new THREE.BoxGeometry(14, 0.1, 10),
+    new THREE.MeshToonMaterial({ color: "#d9d3c6" }),
+  );
   ground.position.set(0, -0.06, -1);
   scene.add(ground);
   target.set(0, 1, -1);
@@ -120,7 +123,10 @@ window.addEventListener("pointermove", (e) => {
   const fwd = new THREE.Vector3(-Math.sin(azimuth), 0, -Math.cos(azimuth));
   target.addScaledVector(right, -dx).addScaledVector(fwd, dy);
 });
-window.addEventListener("wheel", (e) => (zoom = Math.max(0.1, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9)))));
+window.addEventListener(
+  "wheel",
+  (e) => (zoom = Math.max(0.1, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9)))),
+);
 window.addEventListener("keydown", (e) => {
   if (e.key === "q") azimuth -= Math.PI / 2;
   if (e.key === "e") azimuth += Math.PI / 2;

@@ -20,7 +20,14 @@ import { avatarFor, type Look2D } from "../gear3d.ts";
 import { canvasTexture, glass, glow, Model, painted, ticks, tint } from "../kit.ts";
 import { Room, type Turn } from "../room.ts";
 import { clothesExterior } from "./clothes-exterior.ts";
-import { buildClothesItems, isLocked, mannequin, metaOf, RARITY_HEX, type ShopItem } from "./clothes-items.ts";
+import {
+  buildClothesItems,
+  isLocked,
+  mannequin,
+  metaOf,
+  RARITY_HEX,
+  type ShopItem,
+} from "./clothes-items.ts";
 import { bubble, CREAM, GOLD, INK, lockFor, PINK, PLUM, priceTag, signBoard } from "./clothes-parts.ts";
 
 export { tryOn, tryOnLook2D } from "./clothes-items.ts";
@@ -47,7 +54,11 @@ export interface ShopSpec {
 /** What the interior adds beyond the contract. */
 export interface ClothesInterior {
   room: Room;
-  displays: { item: ShopItem; at: [number, number]; /** Room-local position of the item itself, for picking by ray. */ world: [number, number, number] }[];
+  displays: {
+    item: ShopItem;
+    at: [number, number];
+    /** Room-local position of the item itself, for picking by ray. */ world: [number, number, number];
+  }[];
   shopkeeper: Avatar;
   counter: [number, number];
   door: [number, number];
@@ -70,7 +81,14 @@ const STRIPE = "#e8d2c0";
 const wood = "#a5784f";
 const woodDark = "#6e4a30";
 
-const asset = (id: string, w: number, d: number, build: () => Model): Asset => ({ id, name: id, price: 0, w, d, build });
+const asset = (id: string, w: number, d: number, build: () => Model): Asset => ({
+  id,
+  name: id,
+  price: 0,
+  w,
+  d,
+  build,
+});
 
 /** Shrinks a preview to fit a box, keeps its feet on the ground, and centres it. */
 function fitted(preview: Model, maxW: number, maxH: number, cap = 1): Model {
@@ -108,7 +126,10 @@ interface ShelfOpts {
  * A pegboard wall with shelves, `w` tiles long and one deep (its back on `z = -0.5`). Items stand on the
  * boards in rows of `per`, a price tag on each board's lip and a padlock on what can't be bought.
  */
-function shelfWall(items: ShopItem[], o: ShelfOpts): { model: Model; spots: { item: ShopItem; holder: THREE.Object3D; x: number }[] } {
+function shelfWall(
+  items: ShopItem[],
+  o: ShelfOpts,
+): { model: Model; spots: { item: ShopItem; holder: THREE.Object3D; x: number }[] } {
   const m = new Model();
   const spots: { item: ShopItem; holder: THREE.Object3D; x: number }[] = [];
   const back = -0.5;
@@ -136,7 +157,8 @@ function shelfWall(items: ShopItem[], o: ShelfOpts): { model: Model; spots: { it
   o.tiers.forEach((y, ti) => {
     m.box([o.w, 0.05, 0.38], wood, [0, y - 0.05, back + 0.2], 0.01);
     m.box([o.w, 0.03, 0.02], GOLD, [0, y - 0.04, back + 0.4], 0.004);
-    for (let k = 0; k <= o.per; k += 3) m.box([0.04, 0.12, 0.3], woodDark, [-o.w / 2 + k * gap, y - 0.17, back + 0.2], 0.008);
+    for (let k = 0; k <= o.per; k += 3)
+      m.box([0.04, 0.12, 0.3], woodDark, [-o.w / 2 + k * gap, y - 0.17, back + 0.2], 0.008);
     for (let c = 0; c < o.per; c++) {
       const item = items[ti * o.per + c];
       if (!item) continue;
@@ -227,7 +249,8 @@ function counterModel(w: number): Model {
   m.box([0.14, 0.04, 0.1], "#3a3040", [-0.4, 1.02, 0.12], 0.01);
   m.cyl(0.07, 0.03, "#f5d14a", [0.1, 1.02, 0.15], 0.07, 12);
   m.ball(0.07, "#d23c3c", [-1.1, 1.08, 0.12], [1, 0.7, 1], 10);
-  for (let i = 0; i < 6; i++) m.cyl(0.004, 0.06, "#f4efe4", [-1.1 + Math.cos(i) * 0.03, 1.1, 0.12 + Math.sin(i) * 0.03], 0.004, 4);
+  for (let i = 0; i < 6; i++)
+    m.cyl(0.004, 0.06, "#f4efe4", [-1.1 + Math.cos(i) * 0.03, 1.1, 0.12 + Math.sin(i) * 0.03], 0.004, 4);
   return m;
 }
 
@@ -235,7 +258,9 @@ function table(w: number, d: number): Model {
   const m = new Model();
   m.box([w, 0.08, d], "#f1e7d8", [0, 0.72, 0], 0.02);
   m.box([w - 0.1, 0.3, d - 0.1], PLUM, [0, 0.42, 0], 0.02);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) m.cyl(0.04, 0.42, woodDark, [sx * (w / 2 - 0.12), 0, sz * (d / 2 - 0.12)], 0.04, 8);
+  for (const sx of [-1, 1])
+    for (const sz of [-1, 1])
+      m.cyl(0.04, 0.42, woodDark, [sx * (w / 2 - 0.12), 0, sz * (d / 2 - 0.12)], 0.04, 8);
   return m;
 }
 
@@ -267,7 +292,9 @@ function merchTable(items: ShopItem[], spots: { item: ShopItem; holder: THREE.Ob
     spots.push({ item, holder });
   });
   for (const s of [-1, 1]) m.cyl(0.03, 1.1, woodDark, [s * 2.2, 0.8, -0.8], 0.03, 8);
-  const banner = signBoard("COMPANY MERCH", 3.6, 0.5, { sub: "every company's colours · outsiders pay, the company earns" });
+  const banner = signBoard("COMPANY MERCH", 3.6, 0.5, {
+    sub: "every company's colours · outsiders pay, the company earns",
+  });
   banner.position.set(0, 1.55, -0.85);
   m.add(banner);
   return m;
@@ -422,26 +449,74 @@ function makeShopkeeper(): { avatar: Avatar; update: (dt: number, t: number) => 
 export function buildClothesInterior(items = buildClothesItems()): ClothesInterior {
   const room = new Room(W, D, { floor: FLOOR, wall: WALL, stripe: STRIPE, bare: true });
   const placements: Placement[] = [];
-  const put = (a: Asset, x: number, z: number, turn: Turn = 0, model?: Model) => room.place(a, x, z, turn, model);
+  const put = (a: Asset, x: number, z: number, turn: Turn = 0, model?: Model) =>
+    room.place(a, x, z, turn, model);
 
   // Runners under the aisles between the mannequin rows.
-  for (const z of [5, 7, 9]) put(asset("rug", 20, 1, () => runner(20, 1)), 1, z);
-  put(asset("rug", 3, 3, () => runner(3, 3)), 15, 1);
-  put(asset("rug", 5, 2, () => runner(5, 2)), 8, 13);
+  for (const z of [5, 7, 9])
+    put(
+      asset("rug", 20, 1, () => runner(20, 1)),
+      1,
+      z,
+    );
+  put(
+    asset("rug", 3, 3, () => runner(3, 3)),
+    15,
+    1,
+  );
+  put(
+    asset("rug", 5, 2, () => runner(5, 2)),
+    8,
+    13,
+  );
 
   // Hats along the north wall, face pieces and held items down the west.
-  const hats = shelfWall(items.hats, { w: 13, tiers: [0.42, 1.2, 1.98], per: 15, maxH: 0.62, cap: 0.72, tagH: 0.2 });
-  put(asset("hat-wall", 13, 1, () => hats.model), 1, 0, 0, hats.model);
-  const faces = shelfWall(items.faces, { w: 7, tiers: [0.42, 1.2, 1.98], per: 10, maxH: 0.58, cap: 0.66, tagH: 0.2 });
-  put(asset("face-wall", 7, 1, () => faces.model), 0, 1, 1, faces.model);
+  const hats = shelfWall(items.hats, {
+    w: 13,
+    tiers: [0.42, 1.2, 1.98],
+    per: 15,
+    maxH: 0.62,
+    cap: 0.72,
+    tagH: 0.2,
+  });
+  put(
+    asset("hat-wall", 13, 1, () => hats.model),
+    1,
+    0,
+    0,
+    hats.model,
+  );
+  const faces = shelfWall(items.faces, {
+    w: 7,
+    tiers: [0.42, 1.2, 1.98],
+    per: 10,
+    maxH: 0.58,
+    cap: 0.66,
+    tagH: 0.2,
+  });
+  put(
+    asset("face-wall", 7, 1, () => faces.model),
+    0,
+    1,
+    1,
+    faces.model,
+  );
   const held = shelfWall(items.held, { w: 7, tiers: [0.6, 1.5], per: 5, maxH: 0.7, cap: 1, tagH: 0.26 });
-  put(asset("held-wall", 7, 1, () => held.model), 0, 8, 1, held.model);
-  for (const s of hats.spots) placements.push({ item: s.item, holder: s.holder, tile: [Math.floor(1 + 6.5 + s.x), 0] });
+  put(
+    asset("held-wall", 7, 1, () => held.model),
+    0,
+    8,
+    1,
+    held.model,
+  );
+  for (const s of hats.spots)
+    placements.push({ item: s.item, holder: s.holder, tile: [Math.floor(1 + 6.5 + s.x), 0] });
   for (const s of faces.spots) {
     // The west wall runs along z; the shelf's local x maps to world z (turned a quarter).
     placements.push({ item: s.item, holder: s.holder, tile: [0, Math.floor(1 + 3.5 - s.x)] });
   }
-  for (const s of held.spots) placements.push({ item: s.item, holder: s.holder, tile: [0, Math.floor(8 + 3.5 - s.x)] });
+  for (const s of held.spots)
+    placements.push({ item: s.item, holder: s.holder, tile: [0, Math.floor(8 + 3.5 - s.x)] });
 
   // Outfit mannequins, ten to a row, three rows.
   items.outfits.forEach((item, i) => {
@@ -451,7 +526,13 @@ export function buildClothesInterior(items = buildClothesItems()): ClothesInteri
     const meta = metaOf.get(item.id)!;
     const a = mannequin({ style: 0, skin: 0, hair: 1, outfit: meta.index });
     const m = podium(item, a, pose(a, i));
-    put(asset(`pod:${item.id}`, 1, 1, () => m), x, z, 0, m);
+    put(
+      asset(`pod:${item.id}`, 1, 1, () => m),
+      x,
+      z,
+      0,
+      m,
+    );
     placements.push({ item, holder: a.root, tile: [x, z] });
   });
   // Back items, their mannequins turned away so the cape faces the room.
@@ -460,18 +541,40 @@ export function buildClothesInterior(items = buildClothesItems()): ClothesInteri
     const x = 2 + i * 2;
     const a = mannequin({ style: 0, skin: 0, hair: 1, outfit: 13 + ((i * 3) % 6), back: meta.index });
     const m = podium(item, a, Math.PI + [0.25, -0.2, 0.1, -0.3][i % 4]!);
-    put(asset(`pod:${item.id}`, 1, 1, () => m), x, 10, 0, m);
+    put(
+      asset(`pod:${item.id}`, 1, 1, () => m),
+      x,
+      10,
+      0,
+      m,
+    );
     placements.push({ item, holder: a.root, tile: [x, 10] });
   });
 
   // The merch table.
   const merchSpots: { item: ShopItem; holder: THREE.Object3D }[] = [];
   const mt = merchTable(items.merch, merchSpots);
-  put(asset("merch-table", 5, 2, () => mt), 16, 10, 0, mt);
-  for (const s of merchSpots) placements.push({ item: s.item, holder: s.holder, tile: [16 + Math.floor((merchSpots.indexOf(s) + 0.5) * (5 / merchSpots.length)), 10] });
+  put(
+    asset("merch-table", 5, 2, () => mt),
+    16,
+    10,
+    0,
+    mt,
+  );
+  for (const s of merchSpots)
+    placements.push({
+      item: s.item,
+      holder: s.holder,
+      tile: [16 + Math.floor((merchSpots.indexOf(s) + 0.5) * (5 / merchSpots.length)), 10],
+    });
 
   // The till, with Bree behind it (north of the counter, facing the customers).
-  put(asset("counter", 6, 1, () => counterModel(6)), 8, 12, 0);
+  put(
+    asset("counter", 6, 1, () => counterModel(6)),
+    8,
+    12,
+    0,
+  );
   const keeper = makeShopkeeper();
   keeper.avatar.root.position.set(14.6, 0.02, 12.6);
   room.group.add(keeper.avatar.root);
@@ -480,7 +583,13 @@ export function buildClothesInterior(items = buildClothesItems()): ClothesInteri
 
   // The fitting room, the mirror and the try-on spot.
   const stall = fittingRoom();
-  put(asset("fitting-room", 4, 3, () => stall), 18, 0, 0, stall);
+  put(
+    asset("fitting-room", 4, 3, () => stall),
+    18,
+    0,
+    0,
+    stall,
+  );
   const mirror = mirrorModel(2.2, 1.7);
   mirror.position.set(16.5, 0.55, 0.06);
   room.group.add(mirror);
@@ -547,7 +656,14 @@ export function buildClothesInterior(items = buildClothesItems()): ClothesInteri
 // MARK: The spec
 
 const catalogue = buildClothesItems();
-export const CLOTHES_ITEMS: ShopItem[] = [...catalogue.outfits, ...catalogue.hats, ...catalogue.faces, ...catalogue.held, ...catalogue.backs, ...catalogue.merch];
+export const CLOTHES_ITEMS: ShopItem[] = [
+  ...catalogue.outfits,
+  ...catalogue.hats,
+  ...catalogue.faces,
+  ...catalogue.held,
+  ...catalogue.backs,
+  ...catalogue.merch,
+];
 
 export const SHOP_CLOTHES: ShopSpec = {
   id: "clothes",

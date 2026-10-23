@@ -151,7 +151,13 @@ export class RoomStage {
    * Once a frame. `focus` is the player's spot; `viewHeight` the camera's picture height. Outdoors this runs
    * the sky and returns how dark it is (0 day, 1 night) for the composite's exposure.
    */
-  update(dt: number, t: number, focus: THREE.Vector2, viewHeight: number, camera: THREE.OrthographicCamera): number {
+  update(
+    dt: number,
+    t: number,
+    focus: THREE.Vector2,
+    viewHeight: number,
+    camera: THREE.OrthographicCamera,
+  ): number {
     // The shadow box and the weather follow the player, in half-tile steps so shadows don't crawl.
     this.target.set(Math.round(focus.x * 2) / 2, 0, Math.round(focus.y * 2) / 2);
     this.setReach(Math.max(12, Math.min(34, viewHeight * 1.4)));

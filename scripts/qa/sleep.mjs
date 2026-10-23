@@ -6,10 +6,15 @@ import { openGame, playwright, ready, room, signUp } from "./lib.mjs";
 const { ITEMS } = await import("../../core/src/shop.ts");
 const { doorOf } = await import("../../core/src/maps.ts");
 const pw = await playwright();
-const browser = await pw.chromium.launch({ headless: true, args: ["--use-angle=metal", "--ignore-gpu-blocklist"] });
+const browser = await pw.chromium.launch({
+  headless: true,
+  args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
+});
 const tier = process.argv[2] ?? "high";
 mkdirSync("/tmp/v2-qa-shots", { recursive: true });
-const hat = ITEMS.filter((i) => i.slot === "hat" && i.tradeable && i.price > 0).sort((a, b) => a.price - b.price)[0];
+const hat = ITEMS.filter((i) => i.slot === "hat" && i.tradeable && i.price > 0).sort(
+  (a, b) => a.price - b.price,
+)[0];
 
 // A starts a company; B (usage that stopped half an hour ago, so asleep rather than at a desk) joins it.
 const a = await openGame(browser, await signUp("lk", 400_000, true), tier);
@@ -45,12 +50,19 @@ await b.context().close();
 await a.waitForTimeout(1500);
 
 await toTown(a);
-console.log("town drops: world", await a.evaluate(() => window.__tm.world.drops.length), "drawn", await a.evaluate(() => window.__r3d?.drops?.group?.children.length ?? null));
+console.log(
+  "town drops: world",
+  await a.evaluate(() => window.__tm.world.drops.length),
+  "drawn",
+  await a.evaluate(() => window.__r3d?.drops?.group?.children.length ?? null),
+);
 await a.screenshot({ path: "/tmp/v2-qa-shots/sleep-drops.png" });
 // Into the company house.
 const [dx, dy] = doorOf(company.plot);
 await a.evaluate(([x, y]) => window.__tm.walkTo(x, y), [dx, dy]);
-await a.waitForFunction(() => window.__tm.world.room.startsWith("hq"), null, { timeout: 30000 }).catch(() => {});
+await a
+  .waitForFunction(() => window.__tm.world.room.startsWith("hq"), null, { timeout: 30000 })
+  .catch(() => {});
 await a.waitForTimeout(2500);
 const house = await a.evaluate((id) => {
   const w = window.__tm.world;

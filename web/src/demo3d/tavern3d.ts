@@ -15,18 +15,7 @@ import { C, HAIRS, SKINS } from "../art/palette.ts";
 import { Avatar, type Look, personLook } from "./avatar.ts";
 import { aarhusDay, SPECIALS, STRIDE, type TabRow } from "./data/tavern.ts";
 import { type Asset, assetById, light } from "./furniture.ts";
-import {
-  canvasTexture,
-  glass,
-  glow,
-  Model,
-  painted,
-  planks,
-  seeded,
-  ticks,
-  tint,
-  type V3,
-} from "./kit.ts";
+import { canvasTexture, glass, glow, Model, painted, planks, seeded, ticks, tint, type V3 } from "./kit.ts";
 import { type Panel, panel } from "./panel.ts";
 import { stool as barStool } from "./props.ts";
 import { type Placed, Room, type Turn } from "./room.ts";
@@ -52,7 +41,14 @@ export function setTavernNight(on: boolean | null): void {
 }
 
 /** A point light that flickers with a candle's or fire's wobble, on only when night turns lights on. */
-function flame(m: Model, at: V3, color: string, intensity: number, distance: number, seed: number): THREE.PointLight {
+function flame(
+  m: Model,
+  at: V3,
+  color: string,
+  intensity: number,
+  distance: number,
+  seed: number,
+): THREE.PointLight {
   light(m, at, color, intensity, distance);
   const l = m.children[m.children.length - 1] as THREE.PointLight;
   ticks.push((t) => {
@@ -157,7 +153,16 @@ function onWall(p: Panel, w: Model): Panel {
   return out;
 }
 
-const text = (g: CanvasRenderingContext2D, s: string, x: number, y: number, size: number, color: string, bold = true, align: CanvasTextAlign = "left") => {
+const text = (
+  g: CanvasRenderingContext2D,
+  s: string,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  bold = true,
+  align: CanvasTextAlign = "left",
+) => {
   g.font = `${bold ? "bold " : ""}${Math.round(size)}px ${FONT}`;
   g.fillStyle = color;
   g.textAlign = align;
@@ -207,7 +212,12 @@ function backBar(w: number): Model {
   const z = -0.38;
   m.box([w - 0.04, 0.78, 0.46], WOOD_DARK, [0, 0, z + 0.06], 0.015);
   for (let i = 0; i < w * 2; i++)
-    m.box([0.46, 0.62, 0.015], tint(WOOD_DARK, (i % 2) * 0.1 - 0.05), [-w / 2 + 0.27 + i * 0.5, 0.08, z + 0.3], 0.006);
+    m.box(
+      [0.46, 0.62, 0.015],
+      tint(WOOD_DARK, (i % 2) * 0.1 - 0.05),
+      [-w / 2 + 0.27 + i * 0.5, 0.08, z + 0.3],
+      0.006,
+    );
   for (let i = 0; i < w * 2; i++) m.ball(0.018, BRASS_LIGHT, [-w / 2 + 0.27 + i * 0.5 + 0.17, 0.4, z + 0.31]);
   m.box([w - 0.04, 0.05, 0.54], WOOD_LIGHT, [0, 0.78, z + 0.08], 0.01);
   // The wall behind: a dark panel with three shelves.
@@ -216,7 +226,8 @@ function backBar(w: number): Model {
   const colours = ["#58b36a", "#c4544b", "#f0b53c", "#8fe3ff", "#9b6fd6", "#e8e2d4"];
   for (const [i, y] of [1.05, 1.5, 1.9].entries()) {
     m.box([w - 0.1, 0.045, 0.24], WOOD, [0, y - 0.045, z + 0.02], 0.01);
-    for (const s of [-1, 1]) m.box([0.04, 0.12, 0.2], WOOD_DARK, [s * (w / 2 - 0.1), y - 0.12, z + 0.02], 0.01);
+    for (const s of [-1, 1])
+      m.box([0.04, 0.12, 0.2], WOOD_DARK, [s * (w / 2 - 0.1), y - 0.12, z + 0.02], 0.01);
     for (let b = 0; b < Math.floor(w * 3.4); b++) {
       const x = -w / 2 + 0.2 + b * 0.29 + rnd() * 0.05;
       const kind = (b + i) % 4;
@@ -248,11 +259,23 @@ function shelfUnit(): Model {
     let x = -0.4;
     while (x < 0.36) {
       if (rnd() < 0.28) {
-        m.cyl(0.04, 0.2, glass(colours[Math.floor(rnd() * colours.length)]!, 0.88), [x + 0.04, y + 0.04, -0.28], 0.04, 8);
+        m.cyl(
+          0.04,
+          0.2,
+          glass(colours[Math.floor(rnd() * colours.length)]!, 0.88),
+          [x + 0.04, y + 0.04, -0.28],
+          0.04,
+          8,
+        );
         x += 0.1;
       } else {
         const w = 0.04 + rnd() * 0.03;
-        m.box([w, 0.22 + rnd() * 0.12, 0.2], colours[Math.floor(rnd() * colours.length)]!, [x + w / 2, y + 0.04, -0.28], 0.006);
+        m.box(
+          [w, 0.22 + rnd() * 0.12, 0.2],
+          colours[Math.floor(rnd() * colours.length)]!,
+          [x + w / 2, y + 0.04, -0.28],
+          0.006,
+        );
         x += w + 0.004;
       }
     }
@@ -321,11 +344,24 @@ function seatUnit(kind: "sofa" | "booth" | "armchair", leftArm: boolean, rightAr
     const backH = kind === "booth" ? 0.78 : 0.42;
     m.box([1, 0.24, 0.8], frame, [0, 0.05, 0], 0.05);
     m.box([0.94, 0.12, 0.66], colour, [0, 0.28, 0.07], 0.05);
-    m.box([1, backH, kind === "booth" ? 0.12 : 0.2], kind === "booth" ? WOOD : colour, [0, 0.29, kind === "booth" ? -0.34 : -0.3], 0.07);
+    m.box(
+      [1, backH, kind === "booth" ? 0.12 : 0.2],
+      kind === "booth" ? WOOD : colour,
+      [0, 0.29, kind === "booth" ? -0.34 : -0.3],
+      0.07,
+    );
     if (kind === "booth") m.box([0.9, 0.34, 0.06], colour, [0, 0.42, -0.27], 0.03);
-    for (const [on, x] of [[leftArm, -0.43], [rightArm, 0.43]] as const) {
+    for (const [on, x] of [
+      [leftArm, -0.43],
+      [rightArm, 0.43],
+    ] as const) {
       if (!on) continue;
-      m.box([0.14, kind === "booth" ? 0.84 : 0.46, 0.8], kind === "booth" ? WOOD : tint(colour, -0.08), [x, 0.05, 0], 0.07);
+      m.box(
+        [0.14, kind === "booth" ? 0.84 : 0.46, 0.8],
+        kind === "booth" ? WOOD : tint(colour, -0.08),
+        [x, 0.05, 0],
+        0.07,
+      );
     }
     for (const x of [-0.42, 0.42])
       for (const z of [-0.33, 0.33]) m.cyl(0.03, 0.05, C.woodDark, [x, 0, z], 0.03, 8);
@@ -363,8 +399,7 @@ const hearthInner = (): Model => {
   m.box([2.0, 0.025, 0.86], WOOD_LIGHT, [0, 1.27, 0.02], 0.008);
   m.box([1.5, 0.9, 0.56], stone, [0, 1.3, -0.08], 0.02);
   m.box([1.2, 0.4, 0.42], stone, [0, 2.2, -0.12], 0.02);
-  for (const y of [1.55, 1.85, 2.15])
-    m.box([1.52, 0.016, 0.012], C.stoneDark, [0, y, 0.205], 0.003);
+  for (const y of [1.55, 1.85, 2.15]) m.box([1.52, 0.016, 0.012], C.stoneDark, [0, y, 0.205], 0.003);
   // Logs, and embers.
   m.cyl(0.065, 0.62, C.trunk, [0.31, 0.1, 0.1], 0.065, 8).rotation.z = Math.PI / 2;
   m.cyl(0.055, 0.5, TRUNK_DARK, [0.25, 0.19, 0.06], 0.055, 8).rotation.z = Math.PI / 2 + 0.1;
@@ -374,7 +409,11 @@ const hearthInner = (): Model => {
   const reds = ["#c0412f", "#ee7a2c", "#f8c43a", "#fff0a8"];
   const flames: { mesh: THREE.Mesh; base: number; speed: number; x: number }[] = [];
   const tongues: [number, number, number, number][] = [
-    [-0.3, 0.14, 0, 0], [-0.1, 0.3, 0, 0], [0.12, 0.34, 0, 0], [0.3, 0.2, 0, 0], [0, 0.4, -0.04, 0],
+    [-0.3, 0.14, 0, 0],
+    [-0.1, 0.3, 0, 0],
+    [0.12, 0.34, 0, 0],
+    [0.3, 0.2, 0, 0],
+    [0, 0.4, -0.04, 0],
   ];
   for (const [i, [x, h, z]] of tongues.entries()) {
     for (const [layer, col] of reds.entries()) {
@@ -506,7 +545,8 @@ function stage(w: number, d: number): () => Model {
     lute.ball(0.17, WOOD_LIGHT, [0, 0.4, 0], [1, 1.1, 0.5], 12);
     lute.box([0.05, 0.55, 0.04], WOOD_DARK, [0, 0.55, -0.01], 0.01);
     lute.ball(0.045, INK, [0, 0.4, 0.07], [1, 1, 0.4], 8);
-    for (const s of [-1, 1]) lute.cyl(0.015, 0.4, WOOD_DARK, [s * 0.08, 0, -0.05], 0.012, 6).rotation.z = s * -0.25;
+    for (const s of [-1, 1])
+      lute.cyl(0.015, 0.4, WOOD_DARK, [s * 0.08, 0, -0.05], 0.012, 6).rotation.z = s * -0.25;
     m.cyl(0.07, 0.02, INK, [0.2, 0.14, d / 4], 0.07, 10);
     m.cyl(0.012, 1.2, C.metal, [0.2, 0.15, d / 4], 0.012, 6);
     m.ball(0.04, "#2b2433", [0.2, 1.38, d / 4]);
@@ -609,7 +649,12 @@ const jukebox = (): Model => {
     g.fillStyle = INK;
     g.fillRect(25, 18, 2, 2);
     // Corner lamps in the window, as the 2D art has.
-    for (const [x, y, c] of [[3, 3, "#f2a0b8"], [47, 3, "#72bf52"], [3, 35, "#72bf52"], [47, 35, "#f2a0b8"]] as const) {
+    for (const [x, y, c] of [
+      [3, 3, "#f2a0b8"],
+      [47, 3, "#72bf52"],
+      [3, 35, "#72bf52"],
+      [47, 35, "#f2a0b8"],
+    ] as const) {
       g.fillStyle = on ? c : tint(c, -0.55);
       g.fillRect(x, y, 3, 3);
     }
@@ -659,7 +704,10 @@ const jukebox = (): Model => {
 // ——— Boards ———
 
 /** Draws the bar tab: BAR TAB, five rows of `[name, hours]` best first, a chalk crown on `crown`. */
-export function barTabDraw(rows: readonly TabRow[], crown = -1): (g: CanvasRenderingContext2D, w: number, h: number) => void {
+export function barTabDraw(
+  rows: readonly TabRow[],
+  crown = -1,
+): (g: CanvasRenderingContext2D, w: number, h: number) => void {
   return (g, w, h) => {
     g.fillStyle = "#2f3b3a";
     g.fillRect(0, 0, w, h);
@@ -706,7 +754,9 @@ export function setBarTab(model: Model, rows: readonly TabRow[], crown = -1): vo
 }
 
 /** Draws a regular's plaque: a brass board with a 3-letter name a row, best first; an empty one is a dash. */
-export function plaqueDraw(names: readonly string[]): (g: CanvasRenderingContext2D, w: number, h: number) => void {
+export function plaqueDraw(
+  names: readonly string[],
+): (g: CanvasRenderingContext2D, w: number, h: number) => void {
   return (g, w, h) => {
     g.fillStyle = BRASS;
     g.fillRect(0, 0, w, h);
@@ -722,7 +772,12 @@ const plaque = (rows: number) => (): Model => {
   const m = new Model();
   m.box([0.12, 0.9, 0.1], WOOD_DARK, [0, 0, -0.1], 0.015);
   m.box([0.14, 0.04, 0.14], INK, [0, 0, -0.1], 0.01);
-  const p = panel(0.78, 0.18 + rows * 0.2, plaqueDraw(Array(rows).fill("")), { frame: WOOD_DARK, lift: 0.7, px: 64, smooth: true });
+  const p = panel(0.78, 0.18 + rows * 0.2, plaqueDraw(Array(rows).fill("")), {
+    frame: WOOD_DARK,
+    lift: 0.7,
+    px: 64,
+    smooth: true,
+  });
   p.position.z = -0.04;
   m.add(p);
   (m as Panel).redraw = p.redraw;
@@ -748,12 +803,21 @@ const questBoard = (): Model => {
     g.fillStyle = "#dcab76";
     g.fillRect(0, 0, 96, 1);
   });
-  const p = panel(W, H, (g, w, h) => g.drawImage(cork.image as HTMLCanvasElement, 0, 0, w, h), { frame: WOOD_DARK, lift, px: 40 });
+  const p = panel(W, H, (g, w, h) => g.drawImage(cork.image as HTMLCanvasElement, 0, 0, w, h), {
+    frame: WOOD_DARK,
+    lift,
+    px: 40,
+  });
   p.position.z = -0.46;
   m.add(p);
   // Notes: paper, a pin and a few scribbled lines each, as in the 2D art's six.
   const notes: [number, number, number, string][] = [
-    [4, 4, 7, PAPER], [13, 3, 6, "#f8e3a3"], [21, 5, 7, PAPER], [8, 11, 7, "#f8e3a3"], [18, 11, 6, PAPER], [25, 11, 4, "#f2a0b8"],
+    [4, 4, 7, PAPER],
+    [13, 3, 6, "#f8e3a3"],
+    [21, 5, 7, PAPER],
+    [8, 11, 7, "#f8e3a3"],
+    [18, 11, 6, PAPER],
+    [25, 11, 4, "#f2a0b8"],
   ];
   const cy = lift + (H + 0.12) / 2;
   for (const [i, [x, y, w, color]] of notes.entries()) {
@@ -766,16 +830,25 @@ const questBoard = (): Model => {
       const rnd = seeded(i + 40);
       for (const ly of [6, 11, 16]) g.fillRect(3, ly, Math.floor((w * 4 - 8) * (0.55 + rnd() * 0.45)), 2);
     });
-    const note = m.plane(nw, nh, painted(tex), [((x + w / 2 - 14) / 28) * W, cy + ((8 - (y + 3)) / 16) * H, -0.46 + 0.056]);
+    const note = m.plane(nw, nh, painted(tex), [
+      ((x + w / 2 - 14) / 28) * W,
+      cy + ((8 - (y + 3)) / 16) * H,
+      -0.46 + 0.056,
+    ]);
     note.rotation.z = (((i * 37) % 11) - 5) * 0.012;
     m.ball(0.022, C.rug, [note.position.x, note.position.y + nh / 2 - 0.04, -0.46 + 0.07], [1, 1, 0.6], 8);
   }
   // A plank over it: QUESTS.
-  const sign = panel(0.8, 0.2, (g, w, h) => {
-    g.fillStyle = WOOD;
-    g.fillRect(0, 0, w, h);
-    text(g, "QUESTS", w / 2, h * 0.14, h * 0.72, PAPER, true, "center");
-  }, { frame: INK, lift: lift + H + 0.18, px: 64, smooth: true });
+  const sign = panel(
+    0.8,
+    0.2,
+    (g, w, h) => {
+      g.fillStyle = WOOD;
+      g.fillRect(0, 0, w, h);
+      text(g, "QUESTS", w / 2, h * 0.14, h * 0.72, PAPER, true, "center");
+    },
+    { frame: INK, lift: lift + H + 0.18, px: 64, smooth: true },
+  );
   sign.position.z = -0.46;
   m.add(sign);
   return m;
@@ -790,47 +863,58 @@ const hallOfFame = (): Model => {
     g.fillStyle = "#4d3a4a";
     g.fillRect(0, 0, w, Math.max(2, h * 0.03));
   };
-  const crest = panel(0.82, 1.2, (g, w, h) => {
-    dark(g, w, h);
-    g.fillStyle = INK;
-    g.beginPath();
-    g.moveTo(w * 0.15, h * 0.2);
-    g.lineTo(w * 0.85, h * 0.2);
-    g.lineTo(w * 0.85, h * 0.6);
-    g.quadraticCurveTo(w * 0.85, h * 0.78, w / 2, h * 0.86);
-    g.quadraticCurveTo(w * 0.15, h * 0.78, w * 0.15, h * 0.6);
-    g.closePath();
-    g.fill();
-    g.fillStyle = C.rug;
-    g.beginPath();
-    g.moveTo(w * 0.22, h * 0.25);
-    g.lineTo(w * 0.78, h * 0.25);
-    g.lineTo(w * 0.78, h * 0.6);
-    g.quadraticCurveTo(w * 0.78, h * 0.74, w / 2, h * 0.8);
-    g.quadraticCurveTo(w * 0.22, h * 0.74, w * 0.22, h * 0.6);
-    g.closePath();
-    g.fill();
-    // The star.
-    g.fillStyle = BRASS_LIGHT;
-    g.beginPath();
-    for (let i = 0; i < 10; i++) {
-      const a = -Math.PI / 2 + (i * Math.PI) / 5;
-      const r = (i % 2 ? 0.1 : 0.2) * w;
-      g.lineTo(w / 2 + Math.cos(a) * r, h * 0.5 + Math.sin(a) * r);
-    }
-    g.fill();
-  }, { frame: BRASS, lift: 0.7, px: 64, smooth: true });
+  const crest = panel(
+    0.82,
+    1.2,
+    (g, w, h) => {
+      dark(g, w, h);
+      g.fillStyle = INK;
+      g.beginPath();
+      g.moveTo(w * 0.15, h * 0.2);
+      g.lineTo(w * 0.85, h * 0.2);
+      g.lineTo(w * 0.85, h * 0.6);
+      g.quadraticCurveTo(w * 0.85, h * 0.78, w / 2, h * 0.86);
+      g.quadraticCurveTo(w * 0.15, h * 0.78, w * 0.15, h * 0.6);
+      g.closePath();
+      g.fill();
+      g.fillStyle = C.rug;
+      g.beginPath();
+      g.moveTo(w * 0.22, h * 0.25);
+      g.lineTo(w * 0.78, h * 0.25);
+      g.lineTo(w * 0.78, h * 0.6);
+      g.quadraticCurveTo(w * 0.78, h * 0.74, w / 2, h * 0.8);
+      g.quadraticCurveTo(w * 0.22, h * 0.74, w * 0.22, h * 0.6);
+      g.closePath();
+      g.fill();
+      // The star.
+      g.fillStyle = BRASS_LIGHT;
+      g.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const r = (i % 2 ? 0.1 : 0.2) * w;
+        g.lineTo(w / 2 + Math.cos(a) * r, h * 0.5 + Math.sin(a) * r);
+      }
+      g.fill();
+    },
+    { frame: BRASS, lift: 0.7, px: 64, smooth: true },
+  );
   crest.position.set(-0.5, 0, -0.46);
   m.add(crest);
-  const scroll = panel(0.82, 1.2, (g, w, h) => {
-    dark(g, w, h);
-    g.fillStyle = PAPER;
-    g.fillRect(w * 0.14, h * 0.1, w * 0.72, h * 0.8);
-    g.fillStyle = C.stoneLight;
-    g.fillRect(w * 0.14, h * 0.1, w * 0.72, h * 0.03);
-    g.fillStyle = C.stoneDark;
-    for (let i = 0; i < 8; i++) g.fillRect(w * 0.22, h * (0.2 + i * 0.09), w * (0.3 + ((i * 3) % 3) * 0.1), h * 0.02);
-  }, { frame: BRASS, lift: 0.7, px: 64, smooth: true });
+  const scroll = panel(
+    0.82,
+    1.2,
+    (g, w, h) => {
+      dark(g, w, h);
+      g.fillStyle = PAPER;
+      g.fillRect(w * 0.14, h * 0.1, w * 0.72, h * 0.8);
+      g.fillStyle = C.stoneLight;
+      g.fillRect(w * 0.14, h * 0.1, w * 0.72, h * 0.03);
+      g.fillStyle = C.stoneDark;
+      for (let i = 0; i < 8; i++)
+        g.fillRect(w * 0.22, h * (0.2 + i * 0.09), w * (0.3 + ((i * 3) % 3) * 0.1), h * 0.02);
+    },
+    { frame: BRASS, lift: 0.7, px: 64, smooth: true },
+  );
   scroll.position.set(0.5, 0, -0.46);
   m.add(scroll);
   return m;
@@ -840,7 +924,9 @@ const hallOfFame = (): Model => {
 export type OfficeBoardRows = readonly string[] | null;
 
 /** Draws the open-offices sign: a little house with a lit window, and under it how many are open and the first few names. */
-export function officeBoardDraw(open: OfficeBoardRows): (g: CanvasRenderingContext2D, w: number, h: number) => void {
+export function officeBoardDraw(
+  open: OfficeBoardRows,
+): (g: CanvasRenderingContext2D, w: number, h: number) => void {
   return (g, w, h) => {
     g.fillStyle = "#c89460";
     g.fillRect(0, 0, w, h);
@@ -863,7 +949,11 @@ export function officeBoardDraw(open: OfficeBoardRows): (g: CanvasRenderingConte
     g.textBaseline = "middle";
     g.fillStyle = INK;
     g.font = `800 ${Math.round(h * 0.085)}px system-ui, sans-serif`;
-    g.fillText(open === null ? "OPEN OFFICES" : open.length === 0 ? "NONE OPEN" : `${open.length} OPEN`, w / 2, h * 0.55);
+    g.fillText(
+      open === null ? "OPEN OFFICES" : open.length === 0 ? "NONE OPEN" : `${open.length} OPEN`,
+      w / 2,
+      h * 0.55,
+    );
     g.font = `600 ${Math.round(h * 0.075)}px system-ui, sans-serif`;
     for (const [i, name] of (open ?? []).slice(0, 3).entries())
       g.fillText(name.length > 12 ? `${name.slice(0, 11)}…` : name, w / 2, h * (0.67 + i * 0.1));
@@ -918,7 +1008,8 @@ export function specialDraw(special: string): (g: CanvasRenderingContext2D, w: n
       } else line = next;
     }
     lines.push(line);
-    for (const [i, l] of lines.slice(0, 6).entries()) text(g, l, w / 2, h * 0.24 + i * h * 0.095, h * 0.078, i ? CHALK_DIM : CHALK, true, "center");
+    for (const [i, l] of lines.slice(0, 6).entries())
+      text(g, l, w / 2, h * 0.24 + i * h * 0.095, h * 0.078, i ? CHALK_DIM : CHALK, true, "center");
     // A doodle in pink chalk: a heart.
     const hx = w * 0.82;
     const hy = h * 0.86;
@@ -936,14 +1027,20 @@ const easel = (): Model => {
   const tilt = 0.2;
   const front = m.part([0, 0, 0.06], 0);
   front.rotation.x = -tilt;
-  const board = panel(0.74, 1.0, specialDraw(specialToday()), { frame: WOOD, lift: 0.25, px: 100, smooth: true });
+  const board = panel(0.74, 1.0, specialDraw(specialToday()), {
+    frame: WOOD,
+    lift: 0.25,
+    px: 100,
+    smooth: true,
+  });
   front.add(board);
   (m as Panel).redraw = board.redraw;
   // The back leg and a pair of front feet, splayed; chalk on the tray.
   const back = m.box([0.05, 1.45, 0.04], WOOD_DARK, [0, 0, -0.34], 0.01);
   back.rotation.x = 0.28;
   m.box([0.9, 0.05, 0.1], WOOD_DARK, [0, 0.2, 0.16], 0.01);
-  for (const s of [-1, 1]) m.box([0.05, 0.45, 0.05], WOOD_DARK, [s * 0.4, 0, 0.1], 0.01).rotation.z = s * 0.06;
+  for (const s of [-1, 1])
+    m.box([0.05, 0.45, 0.05], WOOD_DARK, [s * 0.4, 0, 0.1], 0.01).rotation.z = s * 0.06;
   m.box([0.1, 0.02, 0.02], CHALK, [0.2, 0.245, 0.2], 0.005);
   m.box([0.14, 0.04, 0.04], C.metalLight, [0, 1.46, -0.08], 0.01);
   return m;
@@ -1035,7 +1132,11 @@ const tipJar = (): Model => {
   let hit = -10;
   m.toss = () => {
     const coin = m.cyl(0.05, 0.012, coinMat, [0, 0, 0], 0.05, 10);
-    flights.push({ coin, start: performance.now() / 1000, from: [0.25 + Math.random() * 0.4, 0.8 + Math.random() * 0.3] });
+    flights.push({
+      coin,
+      start: performance.now() / 1000,
+      from: [0.25 + Math.random() * 0.4, 0.8 + Math.random() * 0.3],
+    });
   };
   let next = 3;
   ticks.push((t) => {
@@ -1052,7 +1153,11 @@ const tipJar = (): Model => {
         hit = t;
         continue;
       }
-      f.coin.position.set(f.from[0] * (1 - k), 0.5 + (1 - k) * 0.35 + Math.sin(k * Math.PI) * 0.7, f.from[1] * (1 - k));
+      f.coin.position.set(
+        f.from[0] * (1 - k),
+        0.5 + (1 - k) * 0.35 + Math.sin(k * Math.PI) * 0.7,
+        f.from[1] * (1 - k),
+      );
       f.coin.rotation.set(k * 14, 0, k * 6);
     }
     // After a clink the jar glints for a moment.
@@ -1084,7 +1189,12 @@ const coatStand = (): Model => {
   m.cyl(0.2, 0.05, WOOD_DARK, [0, 0, 0], 0.2, 12);
   m.cyl(0.03, 1.7, WOOD_DARK, [0, 0.05, 0], 0.03, 8);
   for (const a of [0, 1, 2, 3]) {
-    const arm = m.box([0.04, 0.04, 0.26], BRASS_DARK, [Math.sin((a * Math.PI) / 2 + 0.7) * 0.12, 1.55, Math.cos((a * Math.PI) / 2 + 0.7) * 0.12], 0.01);
+    const arm = m.box(
+      [0.04, 0.04, 0.26],
+      BRASS_DARK,
+      [Math.sin((a * Math.PI) / 2 + 0.7) * 0.12, 1.55, Math.cos((a * Math.PI) / 2 + 0.7) * 0.12],
+      0.01,
+    );
     arm.rotation.y = (a * Math.PI) / 2 + 0.7;
   }
   m.box([0.34, 0.8, 0.12], "#3d5a80", [0.1, 0.72, 0.14], 0.04);
@@ -1135,7 +1245,8 @@ const picture = (kind: number) => (): Model => {
         g.fillStyle = "#d8c9a0";
         g.fillRect(0, 0, w, h);
         g.fillStyle = "#58b36a";
-        for (let i = 0; i < 12; i++) g.fillRect(w * (0.1 + i * 0.07), h * 0.1 + ((i * 7) % 5) * h * 0.08, w * 0.05, h * 0.1);
+        for (let i = 0; i < 12; i++)
+          g.fillRect(w * (0.1 + i * 0.07), h * 0.1 + ((i * 7) % 5) * h * 0.08, w * 0.05, h * 0.1);
         g.fillRect(w * 0.48, h * 0.05, w * 0.04, h * 0.9);
       } else {
         g.fillStyle = "#2f3d36";
@@ -1157,7 +1268,17 @@ const picture = (kind: number) => (): Model => {
 
 // ——— The dorm ———
 
-const BLANKETS = ["#6d7fc4", "#58b36a", "#e25d5d", "#f0b53c", "#9b6fd6", "#f28bb2", "#4f8fe0", "#c4544b", "#3f9a8c"];
+const BLANKETS = [
+  "#6d7fc4",
+  "#58b36a",
+  "#e25d5d",
+  "#f0b53c",
+  "#9b6fd6",
+  "#f28bb2",
+  "#4f8fe0",
+  "#c4544b",
+  "#3f9a8c",
+];
 let bedCount = 0;
 
 /** A dorm bed, head to -z: a timber frame, a pillow and a duvet in its own colour. */
@@ -1251,7 +1372,14 @@ export function makeBarkeep(): Barkeep {
 
 // ——— The catalogue ———
 
-const wide = (id: string, name: string, w: number, d: number, build: () => Model, extra: Partial<Asset> = {}): Asset => ({
+const wide = (
+  id: string,
+  name: string,
+  w: number,
+  d: number,
+  build: () => Model,
+  extra: Partial<Asset> = {},
+): Asset => ({
   id,
   name,
   price: 0,
@@ -1274,11 +1402,21 @@ export const TAVERN_ASSETS: readonly Asset[] = [
   wide("tile:n", "Tavern table", 1, 1, tavernTable(1)),
   wide("tavern:table-long", "Long tavern table", 2, 1, tavernTable(2)),
   wide("tavern:chair", "Tavern chair", 1, 1, tavernChair, { seat: { at: [0, 0.46, 0.03], turn: 0 } }),
-  wide("tavern:sofa-l", "Sofa seat (arm left)", 1, 1, seatUnit("sofa", true, false), { seat: { at: CUSHION, turn: 0 } }),
-  wide("tavern:sofa-r", "Sofa seat (arm right)", 1, 1, seatUnit("sofa", false, true), { seat: { at: CUSHION, turn: 0 } }),
-  wide("tavern:armchair", "Armchair", 1, 1, seatUnit("armchair", true, true), { seat: { at: CUSHION, turn: 0 } }),
-  wide("tavern:booth-l", "Booth seat (end left)", 1, 1, seatUnit("booth", true, false), { seat: { at: CUSHION, turn: 0 } }),
-  wide("tavern:booth-r", "Booth seat (end right)", 1, 1, seatUnit("booth", false, true), { seat: { at: CUSHION, turn: 0 } }),
+  wide("tavern:sofa-l", "Sofa seat (arm left)", 1, 1, seatUnit("sofa", true, false), {
+    seat: { at: CUSHION, turn: 0 },
+  }),
+  wide("tavern:sofa-r", "Sofa seat (arm right)", 1, 1, seatUnit("sofa", false, true), {
+    seat: { at: CUSHION, turn: 0 },
+  }),
+  wide("tavern:armchair", "Armchair", 1, 1, seatUnit("armchair", true, true), {
+    seat: { at: CUSHION, turn: 0 },
+  }),
+  wide("tavern:booth-l", "Booth seat (end left)", 1, 1, seatUnit("booth", true, false), {
+    seat: { at: CUSHION, turn: 0 },
+  }),
+  wide("tavern:booth-r", "Booth seat (end right)", 1, 1, seatUnit("booth", false, true), {
+    seat: { at: CUSHION, turn: 0 },
+  }),
   wide("tile:f", "Hearth", 2, 1, hearth),
   wide("tavern:sconce", "Wall sconce", 1, 1, () => {
     const m = new Model();
@@ -1360,7 +1498,14 @@ export const TAVERN_D = 16;
 export function buildTavernRoom(): TavernRoom {
   const W = TAVERN_W;
   const D = TAVERN_D;
-  const room = new Room(W, D, { floor: "#9c6a40", wall: "#8a6a52", stripe: "#7a5a44", north: [19], door: null, west: [] });
+  const room = new Room(W, D, {
+    floor: "#9c6a40",
+    wall: "#8a6a52",
+    stripe: "#7a5a44",
+    north: [19],
+    door: null,
+    west: [],
+  });
   const by = new Map<string, Model[]>();
   const layout = new Map<string, string>();
   const find = (id: string) => TAVERN_ASSETS.find((t) => t.id === id) ?? assetById.get(id)!;
@@ -1391,7 +1536,8 @@ export function buildTavernRoom(): TavernRoom {
     reg(id, model);
     if (ch)
       for (let i = 0; i < w; i++)
-        for (let j = 0; j < d; j++) mark(ch, turn === 1 ? -1 : x + i, turn === 0 ? -1 : turn === 2 ? D : z + j);
+        for (let j = 0; j < d; j++)
+          mark(ch, turn === 1 ? -1 : x + i, turn === 0 ? -1 : turn === 2 ? D : z + j);
     return model;
   };
   const sconceAt = (x: number, z: number, turn: 0 | 1 = 0) => {
@@ -1428,7 +1574,13 @@ export function buildTavernRoom(): TavernRoom {
   put("tile:k", 24, 0);
   put("tile:k", 25, 0);
   // The sofa nook round the hearth: rugs, a loveseat facing the fire over a coffee table, an armchair either side.
-  for (const [x, z] of [[19, 1], [22, 1], [19, 3], [22, 3]] as const) put("rug", x, z);
+  for (const [x, z] of [
+    [19, 1],
+    [22, 1],
+    [19, 3],
+    [22, 3],
+  ] as const)
+    put("rug", x, z);
   put("coffee-table", 21, 3);
   put("tavern:sofa-r", 21, 4, 2);
   put("tavern:sofa-l", 22, 4, 2);

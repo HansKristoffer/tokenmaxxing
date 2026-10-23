@@ -24,9 +24,7 @@ export const CORE_BLOCKS: [number, number][] = [
 /** Where you arrive in town: the middle of the square. */
 export const TOWN_SPAWN: [number, number] = [9, 5];
 
-
 const DOOR: [number, number] = [5, 6];
-
 
 export const plotId = (bx: number, by: number): number => (by + 500) * 1000 + (bx + 500);
 export const plotBlock = (plot: number): [number, number] => [
@@ -105,9 +103,11 @@ export function townMap(plots: readonly number[]): TownMap {
   for (let by = Math.floor(m.y0 / BLOCK_H); by * BLOCK_H < m.y0 + m.height; by++)
     for (let bx = Math.floor(m.x0 / BLOCK_W); bx * BLOCK_W < m.x0 + m.width; bx++) {
       const id = plotId(bx, by);
-      if (!m.contains(bx * BLOCK_W + 1, by * BLOCK_H + 1) || isCore(bx, by) || taken.has(id) || shops.has(id)) continue;
+      if (!m.contains(bx * BLOCK_W + 1, by * BLOCK_H + 1) || isCore(bx, by) || taken.has(id) || shops.has(id))
+        continue;
       // The ring of trees and the closing road are not blocks.
-      if (bx * BLOCK_W + BLOCK_W > m.x0 + m.width - 2 || by * BLOCK_H + BLOCK_H > m.y0 + m.height - 2) continue;
+      if (bx * BLOCK_W + BLOCK_W > m.x0 + m.width - 2 || by * BLOCK_H + BLOCK_H > m.y0 + m.height - 2)
+        continue;
       parks.push([bx, by]);
     }
   return new TownMap(m.rows, m.x0, m.y0, parks);
@@ -204,16 +204,76 @@ export const COMPANY_FURNITURE: readonly { ch: string; art: string; name: string
 
 /** The wall posters (`POSTERS`): map character, art name, title, width in tiles, the joke E shows. */
 export const POSTERS: readonly { ch: string; art: string; name: string; w: number; text: string }[] = [
-  { ch: "7", art: "super-merge", name: "Super Merge Bros", w: 1, text: "World 1-1: resolve the conflict, grab the flag. The princess is in another repo." },
-  { ch: "6", art: "dark-deploys", name: "Dark Deploys", w: 1, text: "YOU DIED. Rolled back to the last checkpoint: Friday, 4:59 pm." },
-  { ch: "8", art: "slay-backlog", name: "Slay the Backlog", w: 1, text: "Pick a card: refactor, hotfix or quick sync. The deck has no way to remove meetings." },
-  { ch: "9", art: "last-dev", name: "Last Dev Standing", w: 1, text: "100 devs drop in. The storm is the sprint deadline. Nobody remembers where the loot was." },
-  { ch: "5", art: "pipeline-valley", name: "Pipeline Valley", w: 2, text: "Plant a commit, water it with CI, harvest a green build. The cows are on call." },
-  { ch: "1", art: "deploy-league", name: "Deploy League", w: 2, text: "A rocket-powered car, a very large ball and no rollback plan. GOAL! (To prod.)" },
-  { ch: "0", art: "counter-ci", name: "Counter-CI: Global Flake", w: 2, text: "The bomb is defused, the pipeline goes red, a rerun fixes it. Nobody knows why." },
-  { ch: "2", art: "league-linters", name: "League of Linters", w: 2, text: "5v5, one lane, 40 minutes. The ancient is a 2,000-line function. Surrender at 20 (warnings)." },
-  { ch: "3", art: "defense-deps", name: "Defense of the Dependencies", w: 2, text: "Three lanes, 120 heroes, and every patch breaks the meta. node_modules is the final boss." },
-  { ch: "4", art: "lootborn", name: "Lootborn", w: 2, text: "Kill the same boss 300 times for a helmet one power level higher. Season pass not included." },
+  {
+    ch: "7",
+    art: "super-merge",
+    name: "Super Merge Bros",
+    w: 1,
+    text: "World 1-1: resolve the conflict, grab the flag. The princess is in another repo.",
+  },
+  {
+    ch: "6",
+    art: "dark-deploys",
+    name: "Dark Deploys",
+    w: 1,
+    text: "YOU DIED. Rolled back to the last checkpoint: Friday, 4:59 pm.",
+  },
+  {
+    ch: "8",
+    art: "slay-backlog",
+    name: "Slay the Backlog",
+    w: 1,
+    text: "Pick a card: refactor, hotfix or quick sync. The deck has no way to remove meetings.",
+  },
+  {
+    ch: "9",
+    art: "last-dev",
+    name: "Last Dev Standing",
+    w: 1,
+    text: "100 devs drop in. The storm is the sprint deadline. Nobody remembers where the loot was.",
+  },
+  {
+    ch: "5",
+    art: "pipeline-valley",
+    name: "Pipeline Valley",
+    w: 2,
+    text: "Plant a commit, water it with CI, harvest a green build. The cows are on call.",
+  },
+  {
+    ch: "1",
+    art: "deploy-league",
+    name: "Deploy League",
+    w: 2,
+    text: "A rocket-powered car, a very large ball and no rollback plan. GOAL! (To prod.)",
+  },
+  {
+    ch: "0",
+    art: "counter-ci",
+    name: "Counter-CI: Global Flake",
+    w: 2,
+    text: "The bomb is defused, the pipeline goes red, a rerun fixes it. Nobody knows why.",
+  },
+  {
+    ch: "2",
+    art: "league-linters",
+    name: "League of Linters",
+    w: 2,
+    text: "5v5, one lane, 40 minutes. The ancient is a 2,000-line function. Surrender at 20 (warnings).",
+  },
+  {
+    ch: "3",
+    art: "defense-deps",
+    name: "Defense of the Dependencies",
+    w: 2,
+    text: "Three lanes, 120 heroes, and every patch breaks the meta. node_modules is the final boss.",
+  },
+  {
+    ch: "4",
+    art: "lootborn",
+    name: "Lootborn",
+    w: 2,
+    text: "Kill the same boss 300 times for a helmet one power level higher. Season pass not included.",
+  },
 ];
 
 /** The company fleet's desk tiers, in order of grandeur (`DESKS`). */

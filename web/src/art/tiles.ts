@@ -86,7 +86,9 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
   return typedSwitch(map.id, {
     town: () => "grass",
     dungeon: () => "stone",
-    ...typedSwitchGroup(map.id, [
+    ...typedSwitchGroup(
+      map.id,
+      [
         "hq",
         "common",
         "inn",
@@ -318,8 +320,7 @@ function dais(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
 
 function rug(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
   p.rect(ox, oy, TILE, TILE, C.rug);
-  const edge = (dx: number, dy: number) =>
-    !"=tsμΩ".includes(map.at(x + dx, y + dy));
+  const edge = (dx: number, dy: number) => !"=tsμΩ".includes(map.at(x + dx, y + dy));
   if (edge(0, -1)) p.rect(ox, oy, TILE, 2, C.rugDark);
   if (edge(0, 1)) p.rect(ox, oy + TILE - 2, TILE, 2, C.rugDark);
   if (edge(-1, 0)) p.rect(ox, oy, 2, TILE, C.rugDark);

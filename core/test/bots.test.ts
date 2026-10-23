@@ -89,7 +89,10 @@ describe("bots", () => {
       expect(MAPS[room as MapId].walkable(x, y)).toBe(true);
     }
     // Only the barkeep and the shopkeepers never walk; the town's characters still start in the square.
-    expect(BOTS.filter((b) => b.still).map((b) => b.id)).toEqual([BARKEEP.id, ...SHOPKEEPERS.map((b) => b.id)]);
+    expect(BOTS.filter((b) => b.still).map((b) => b.id)).toEqual([
+      BARKEEP.id,
+      ...SHOPKEEPERS.map((b) => b.id),
+    ]);
     expect(BOTS.filter((b) => !b.home).length).toBeGreaterThanOrEqual(3);
   });
 

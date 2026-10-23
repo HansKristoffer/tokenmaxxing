@@ -7,12 +7,7 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
-import {
-  COMPANY_FURNITURE,
-  DESKS,
-  HQ_ROWS,
-  POSTERS,
-} from "./data/town.ts";
+import { COMPANY_FURNITURE, DESKS, HQ_ROWS, POSTERS } from "./data/town.ts";
 import { type Asset, assetById, light } from "./furniture.ts";
 import { canvasTexture, codeScreen, glow, Model, painted, seeded, ticks, tint } from "./kit.ts";
 import { type Panel, panel } from "./panel.ts";
@@ -153,7 +148,10 @@ const globe = (): Model => {
   const ball = m.ball(0.2, painted(tex), [0, 0.42, 0], [1, 1, 1], 16);
   ball.rotation.z = 0.4;
   ticks.push((t) => (ball.rotation.y = t * 0.4));
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.012, 6, 24, Math.PI * 1.3), new THREE.MeshToonMaterial({ color: "#d4a93a" }));
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.24, 0.012, 6, 24, Math.PI * 1.3),
+    new THREE.MeshToonMaterial({ color: "#d4a93a" }),
+  );
   ring.position.set(0, 0.42, 0);
   ring.rotation.set(0, Math.PI / 2, 0.4);
   m.add(ring);
@@ -166,8 +164,15 @@ const plantWall = (): Model => {
   const rnd = seeded(14);
   const greens = ["#3f8f3a", "#4fa544", "#5fb84f", "#2f7a32", "#6aa84a"];
   for (let i = 0; i < 70; i++)
-    m.ball(0.09 + rnd() * 0.07, greens[i % greens.length]!, [(rnd() - 0.5) * 1.8, 0.5 + rnd() * 1.3, -0.1 + rnd() * 0.08], [1, 0.9, 0.7], 8);
-  for (let i = 0; i < 6; i++) m.ball(0.04, "#ff7ab6", [(rnd() - 0.5) * 1.7, 0.7 + rnd() * 1.0, -0.04], [1, 1, 1], 6);
+    m.ball(
+      0.09 + rnd() * 0.07,
+      greens[i % greens.length]!,
+      [(rnd() - 0.5) * 1.8, 0.5 + rnd() * 1.3, -0.1 + rnd() * 0.08],
+      [1, 0.9, 0.7],
+      8,
+    );
+  for (let i = 0; i < 6; i++)
+    m.ball(0.04, "#ff7ab6", [(rnd() - 0.5) * 1.7, 0.7 + rnd() * 1.0, -0.04], [1, 1, 1], 6);
   m.box([1.9, 0.32, 0.4], "#eeeae2", [0, 0, -0.1], 0.03);
   return m;
 };
@@ -176,7 +181,10 @@ const chandelier = (): Model => {
   const m = new Model();
   m.cyl(0.015, 0.7, C.metal, [0, 1.9, 0], 0.015, 6);
   m.cyl(0.06, 0.05, "#d4a93a", [0, 1.85, 0], 0.06, 10);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.02, 6, 24), new THREE.MeshToonMaterial({ color: "#d4a93a" }));
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.4, 0.02, 6, 24),
+    new THREE.MeshToonMaterial({ color: "#d4a93a" }),
+  );
   ring.rotation.x = Math.PI / 2;
   ring.position.y = 1.85;
   m.add(ring);
@@ -198,7 +206,14 @@ const fill = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w: n
   g.fillStyle = c;
   g.fillRect(x, y, w, h);
 };
-const title = (g: CanvasRenderingContext2D, w: number, h: number, text: string, color = "#fbf7ef", back = "rgba(0,0,0,0.55)") => {
+const title = (
+  g: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  text: string,
+  color = "#fbf7ef",
+  back = "rgba(0,0,0,0.55)",
+) => {
   fill(g, back, 0, h - 22, w, 22);
   g.fillStyle = color;
   g.font = "900 13px system-ui, sans-serif";
@@ -253,7 +268,8 @@ const POSTER_ART: Record<string, Painter> = {
   "pipeline-valley": (g, w, h) => {
     fill(g, "#a8dcf7", 0, 0, w, h);
     fill(g, "#86c35e", 0, h * 0.45, w, h);
-    for (let i = 0; i < 8; i++) fill(g, i % 2 ? "#6aa84a" : "#a5d977", 4 + i * (w / 8), h * 0.55, w / 8 - 3, 22);
+    for (let i = 0; i < 8; i++)
+      fill(g, i % 2 ? "#6aa84a" : "#a5d977", 4 + i * (w / 8), h * 0.55, w / 8 - 3, 22);
     fill(g, "#fbf7ef", w - 40, h * 0.4, 18, 10);
     fill(g, "#2b2433", w - 36, h * 0.42, 5, 5);
     fill(g, "#c8734a", 10, h * 0.28, 22, 18);
@@ -370,7 +386,11 @@ export const HQ_ASSETS: readonly Asset[] = [
 const own = new Map(HQ_ASSETS.map((a) => [a.id, a]));
 /** The asset for a 2D art name: `furniture.ts`'s piece if it has one, else this slice's. */
 function assetFor(art: string): Asset | undefined {
-  return assetById.get(art) ?? own.get(art) ?? (art === "bookshelf-library" ? assetById.get("bookshelf") : undefined);
+  return (
+    assetById.get(art) ??
+    own.get(art) ??
+    (art === "bookshelf-library" ? assetById.get("bookshelf") : undefined)
+  );
 }
 
 // MARK: The room
@@ -419,7 +439,13 @@ export function buildHq(opts: HqOptions = {}): Hq {
   const beds: Placed[] = [];
   const posters: Placed[] = [];
   const get = (id: string) => assetById.get(id);
-  const put = (id: string, x: number, y: number, turn: Turn = 0, asset: Asset | undefined = get(id)): Placed | null => {
+  const put = (
+    id: string,
+    x: number,
+    y: number,
+    turn: Turn = 0,
+    asset: Asset | undefined = get(id),
+  ): Placed | null => {
     if (!asset) return null;
     const [rx, rz] = tile(x, y);
     if (!room.fits(asset, rx, rz, turn)) return null;

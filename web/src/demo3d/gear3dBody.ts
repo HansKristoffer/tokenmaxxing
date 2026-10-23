@@ -45,7 +45,16 @@ const px = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w = 1,
 /** Raised marks on the chest, and (when given) the back. `lightIt` makes them shine. */
 function marks(c: BodyCtx, front?: Paint2D, back?: Paint2D, lightIt = false): void {
   const patch = (draw: Paint2D, z: number, turn: number, lit2: boolean) => {
-    const o = pixelPatch(c.body, { cols: CHEST_COLS, rows: CHEST_ROWS, cell: CELL, depth: 0.011, draw, at: [0, CHEST_Y, z], lit: lit2, fill: 0.3 });
+    const o = pixelPatch(c.body, {
+      cols: CHEST_COLS,
+      rows: CHEST_ROWS,
+      cell: CELL,
+      depth: 0.011,
+      draw,
+      at: [0, CHEST_Y, z],
+      lit: lit2,
+      fill: 0.3,
+    });
     o.rotation.y = turn;
   };
   if (front) patch(front, FRONT, 0, lightIt);
@@ -96,7 +105,12 @@ function lapels(c: BodyCtx, color: string, shirt: string, base = 3.5): void {
   const v = grid(c);
   v.b(-1.5, base + 0.5, FRONT / U, 3, 8 - base - 0.5, 0.3, shirt);
   v.b(-0.5, base - 1, FRONT / U, 1, 1.6, 0.3, shirt);
-  const rows: [number, number][] = [[7, 2.5], [6, 2], [5, 1.5], [4, 1]];
+  const rows: [number, number][] = [
+    [7, 2.5],
+    [6, 2],
+    [5, 1.5],
+    [4, 1],
+  ];
   for (const [y, x] of rows) {
     if (y < base) continue;
     v.b(-x - 0.5, y, 2, 1, 1, 0.5, color);
@@ -180,7 +194,11 @@ function steppedCape(parent: VoxModel, o: CapeLook, tick: BodyCtx["tick"], z: nu
     const colW = [w * 0.34, w * 0.32, w * 0.34];
     let x = -w / 2;
     for (let col = 0; col < 3; col++) {
-      at.box([colW[col]! * U, o.h * U, thick * U], o.colour(i, col), [(x + colW[col]! / 2) * U, -o.h * U, -(thick / 2) * U]);
+      at.box([colW[col]! * U, o.h * U, thick * U], o.colour(i, col), [
+        (x + colW[col]! / 2) * U,
+        -o.h * U,
+        -(thick / 2) * U,
+      ]);
       x += colW[col]!;
     }
     const next = vpart(at, [0, -o.h * U, 0]);
@@ -190,7 +208,9 @@ function steppedCape(parent: VoxModel, o: CapeLook, tick: BodyCtx["tick"], z: nu
   tick((t, walking) => {
     steps.forEach((s, i) => {
       const lag = Math.sin(t * 11 - i * 0.8);
-      s.rotation.x = walking ? 0.1 + Math.abs(Math.sin(t * 11)) * 0.1 * (i ? 0.7 : 1.3) + lag * 0.06 * i : 0.03 + (Math.sin(t * 1.6 - i * 0.6) + 1) * 0.018 * (i + 1);
+      s.rotation.x = walking
+        ? 0.1 + Math.abs(Math.sin(t * 11)) * 0.1 * (i ? 0.7 : 1.3) + lag * 0.06 * i
+        : 0.03 + (Math.sin(t * 1.6 - i * 0.6) + 1) * 0.018 * (i + 1);
       s.rotation.z = walking ? Math.sin(t * 5.5) * 0.03 * i : Math.sin(t * 0.9 + i) * 0.01 * i;
     });
   });
@@ -206,7 +226,10 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
   // Hacker hoodie: green drawstrings, a pouch and a hood.
   8: (c) => {
     marks(c, (g) => {
-      for (const x of [21, 35]) { px(g, "#3ddc84", x, 0, 2, 13); px(g, "#3ddc84", x - 1, 13, 4, 3); }
+      for (const x of [21, 35]) {
+        px(g, "#3ddc84", x, 0, 2, 13);
+        px(g, "#3ddc84", x - 1, 13, 4, 3);
+      }
       text(g, "</>", 29, 31, 11, "#3ddc84");
     });
     hood(c, c.dark, "#101814");
@@ -229,14 +252,31 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
   // Galaxy jacket: stars on violet, pink trim and zip.
   10: (c) => {
     const rnd = seeded(10);
-    marks(c, (g, w, h) => {
-      for (let i = 0; i < 20; i++) { const x = Math.floor(rnd() * (w - 4)), y = Math.floor(rnd() * (h - 6)); px(g, i % 3 ? "#ffd1f4" : "#ffffff", x, y, 2, 2); }
-      px(g, "#e86bd8", 27, 0, 3, h);
-      for (const [x, y] of [[10, 10], [44, 18], [18, 26]] as const) { px(g, "#fff", x, y - 2, 2, 6); px(g, "#fff", x - 2, y, 6, 2); }
-    }, (g, w, h) => {
-      for (let i = 0; i < 24; i++) px(g, i % 3 ? "#ffd1f4" : "#ffffff", Math.floor(rnd() * (w - 2)), Math.floor(rnd() * h), 2, 2);
-      px(g, "#7a4fe0", 18, 10, 22, 14); px(g, "#a07af0", 22, 14, 14, 6);
-    });
+    marks(
+      c,
+      (g, w, h) => {
+        for (let i = 0; i < 20; i++) {
+          const x = Math.floor(rnd() * (w - 4)),
+            y = Math.floor(rnd() * (h - 6));
+          px(g, i % 3 ? "#ffd1f4" : "#ffffff", x, y, 2, 2);
+        }
+        px(g, "#e86bd8", 27, 0, 3, h);
+        for (const [x, y] of [
+          [10, 10],
+          [44, 18],
+          [18, 26],
+        ] as const) {
+          px(g, "#fff", x, y - 2, 2, 6);
+          px(g, "#fff", x - 2, y, 6, 2);
+        }
+      },
+      (g, w, h) => {
+        for (let i = 0; i < 24; i++)
+          px(g, i % 3 ? "#ffd1f4" : "#ffffff", Math.floor(rnd() * (w - 2)), Math.floor(rnd() * h), 2, 2);
+        px(g, "#7a4fe0", 18, 10, 22, 14);
+        px(g, "#a07af0", 22, 14, 14, 6);
+      },
+    );
     roll(c, "#e86bd8", 1, 0.3);
     const v = grid(c);
     v.b(-3.7, 0, -2.3, 7.4, 1, 4.6, "#e86bd8");
@@ -251,44 +291,75 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
   },
   // Server-rack armour: seams, rivets and blinking lights.
   12: (c) => {
-    marks(c, (g, w, h) => {
-      px(g, "#8a93a1", 3, 3, w - 6, 4); px(g, "#8a93a1", 3, 18, w - 6, 3); px(g, "#8a93a1", 3, 33, w - 6, 4);
-      px(g, "#3a3f4b", 27, 0, 3, h);
-      for (const x of [5, 50]) for (const y of [10, 25, 38]) px(g, "#c4ccd6", x, y, 3, 3);
-    }, (g, w) => {
-      px(g, "#8a93a1", 3, 6, w - 6, 4); px(g, "#8a93a1", 3, 20, w - 6, 4);
-      for (let x = 8; x < w - 8; x += 9) px(g, "#3a3f4b", x, 27, 4, 11);
-    });
+    marks(
+      c,
+      (g, w, h) => {
+        px(g, "#8a93a1", 3, 3, w - 6, 4);
+        px(g, "#8a93a1", 3, 18, w - 6, 3);
+        px(g, "#8a93a1", 3, 33, w - 6, 4);
+        px(g, "#3a3f4b", 27, 0, 3, h);
+        for (const x of [5, 50]) for (const y of [10, 25, 38]) px(g, "#c4ccd6", x, y, 3, 3);
+      },
+      (g, w) => {
+        px(g, "#8a93a1", 3, 6, w - 6, 4);
+        px(g, "#8a93a1", 3, 20, w - 6, 4);
+        for (let x = 8; x < w - 8; x += 9) px(g, "#3a3f4b", x, 27, 4, 11);
+      },
+    );
     pauldrons(c, "#8a93a1", "#c4ccd6");
     roll(c, "#3a3f4b", 1, 0.3);
     const v = grid(c);
-    const leds = [[-2.2, "#3ddc84"], [-0.7, "#f5c842"], [0.8, "#3ddc84"], [2.1, "#ff5a4f"]] as const;
+    const leds = [
+      [-2.2, "#3ddc84"],
+      [-0.7, "#f5c842"],
+      [0.8, "#3ddc84"],
+      [2.1, "#ff5a4f"],
+    ] as const;
     const boxes = leds.map(([x, col], i) => v.b(x - 0.3, 5.3 + (i % 2) * 1.1, 2.3, 0.6, 0.6, 0.3, lit(col)));
-    c.tick((t) => boxes.forEach((b, i) => { b.visible = Math.sin(t * 4 + i * 1.7) > -0.1; }));
+    c.tick((t) =>
+      boxes.forEach((b, i) => {
+        b.visible = Math.sin(t * 4 + i * 1.7) > -0.1;
+      }),
+    );
   },
   // Hoodie of infinite context: a glowing infinity on the chest, hood down the back.
   13: (c) => {
     const lemniscate = (g: CanvasRenderingContext2D, w: number, h: number, lw: number, col: string) => {
-      g.strokeStyle = col; g.lineWidth = lw; g.lineCap = "butt"; g.beginPath();
+      g.strokeStyle = col;
+      g.lineWidth = lw;
+      g.lineCap = "butt";
+      g.beginPath();
       for (let i = 0; i <= 40; i++) {
         const a = (i / 40) * Math.PI * 2;
         const d = 1 + Math.sin(a) ** 2;
         const x = w / 2 + (19 * Math.cos(a)) / d;
         const y = h / 2 + 2 + (19 * Math.sin(a) * Math.cos(a)) / d;
-        if (i) g.lineTo(x, y); else g.moveTo(x, y);
+        if (i) g.lineTo(x, y);
+        else g.moveTo(x, y);
       }
       g.stroke();
     };
     marks(c, (g, w, h) => lemniscate(g, w, h, 4.5, "#7fe8ff"), undefined, true);
-    marks(c, undefined, (g, w) => { px(g, "#4a3d82", 6, 0, w - 12, 5); });
+    marks(c, undefined, (g, w) => {
+      px(g, "#4a3d82", 6, 0, w - 12, 5);
+    });
     hood(c, "#4a3d82", "#2a2150");
   },
   // Rain jacket: a zip, drawstrings and a hood.
   14: (c) => {
-    marks(c, (g, _w, h) => {
-      px(g, "#8a6a10", 27, 0, 3, h);
-      for (const x of [21, 36]) { px(g, "#f4efe4", x, 0, 2, 11); px(g, "#f4efe4", x - 1, 11, 4, 4); }
-    }, (g, w) => { px(g, "#c99a1a", 6, 0, w - 12, 4); });
+    marks(
+      c,
+      (g, _w, h) => {
+        px(g, "#8a6a10", 27, 0, 3, h);
+        for (const x of [21, 36]) {
+          px(g, "#f4efe4", x, 0, 2, 11);
+          px(g, "#f4efe4", x - 1, 11, 4, 4);
+        }
+      },
+      (g, w) => {
+        px(g, "#c99a1a", 6, 0, w - 12, 4);
+      },
+    );
     hood(c, "#c99a1a", "#8a6a10");
     const v = grid(c);
     for (const s of [-1, 1]) v.b(s > 0 ? 0.9 : -3.1, 1.3, 2, 2.2, 1.3, 0.4, "#a87c12");
@@ -296,12 +367,20 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
   },
   // Lab coat: open over a blue shirt, a red pen in the pocket.
   15: (c) => {
-    marks(c, (g, _w, h) => {
-      px(g, "#6fa8dc", 21, 0, 16, h);
-      px(g, "#cfd3d6", 18, 0, 3, h); px(g, "#cfd3d6", 37, 0, 3, h);
-      px(g, "#e0584f", 8, 17, 3, 9); px(g, "#3a3f4b", 13, 18, 3, 8);
-      px(g, "#cfd3d6", 5, 26, 12, 2);
-    }, (g, _w, h) => { px(g, "#e2e4e2", 27, 0, 3, h); });
+    marks(
+      c,
+      (g, _w, h) => {
+        px(g, "#6fa8dc", 21, 0, 16, h);
+        px(g, "#cfd3d6", 18, 0, 3, h);
+        px(g, "#cfd3d6", 37, 0, 3, h);
+        px(g, "#e0584f", 8, 17, 3, 9);
+        px(g, "#3a3f4b", 13, 18, 3, 8);
+        px(g, "#cfd3d6", 5, 26, 12, 2);
+      },
+      (g, _w, h) => {
+        px(g, "#e2e4e2", 27, 0, 3, h);
+      },
+    );
     roll(c, "#e8eaec", 1, 0.45);
     const v = grid(c);
     for (const s of [-1, 1]) {
@@ -312,26 +391,49 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
   },
   // Flannel shirt: red checks.
   16: (c) => {
-    marks(c, (g, w, h) => { plaid(g, w, h, "#c43b3b", "#8a2424", "#4a1214"); px(g, "#4a1214", 27, 0, 3, h); for (const y of [4, 14, 24, 34]) px(g, "#f4efe4", 27, y, 3, 3); },
-      (g, w, h) => plaid(g, w, h, "#c43b3b", "#8a2424", "#4a1214"));
+    marks(
+      c,
+      (g, w, h) => {
+        plaid(g, w, h, "#c43b3b", "#8a2424", "#4a1214");
+        px(g, "#4a1214", 27, 0, 3, h);
+        for (const y of [4, 14, 24, 34]) px(g, "#f4efe4", 27, y, 3, 3);
+      },
+      (g, w, h) => plaid(g, w, h, "#c43b3b", "#8a2424", "#4a1214"),
+    );
     roll(c, "#8a2424", 0.9, 0.3);
   },
   // Founder vest: grey fleece over a blue shirt, a tiny logo.
   17: (c) => {
     sleevesOver(c, "#7fb0e6", 6);
-    marks(c, (g, w, h) => {
-      px(g, "#7fb0e6", 0, 0, 6, h); px(g, "#7fb0e6", w - 6, 0, 6, h);
-      px(g, "#7fb0e6", 20, 0, 18, 4);
-      px(g, "#3a3f46", 27, 4, 3, h); px(g, "#7fb0e6", 40, 8, 9, 9); px(g, "#f4f1ea", 43, 11, 3, 3);
-    }, (g, w) => { px(g, "#7fb0e6", 0, 0, 6, 42); px(g, "#7fb0e6", w - 6, 0, 6, 42); });
+    marks(
+      c,
+      (g, w, h) => {
+        px(g, "#7fb0e6", 0, 0, 6, h);
+        px(g, "#7fb0e6", w - 6, 0, 6, h);
+        px(g, "#7fb0e6", 20, 0, 18, 4);
+        px(g, "#3a3f46", 27, 4, 3, h);
+        px(g, "#7fb0e6", 40, 8, 9, 9);
+        px(g, "#f4f1ea", 43, 11, 3, 3);
+      },
+      (g, w) => {
+        px(g, "#7fb0e6", 0, 0, 6, 42);
+        px(g, "#7fb0e6", w - 6, 0, 6, 42);
+      },
+    );
     roll(c, "#3a3f46", 1, 0.3);
   },
   // Merge-conflict sweater: a red and white zigzag, and the markers across the chest.
   18: (c) => {
-    marks(c, (g, w, _h) => {
-      for (let x = 0; x < w; x += 6) px(g, x % 12 ? "#f4efe4" : "#e0584f", x, 8 + (x % 12 ? 0 : 5), 6, 6);
-      text(g, "<<<", 29, 30, 13, "#f4efe4");
-    }, (g, w) => { for (let x = 0; x < w; x += 6) px(g, x % 12 ? "#f4efe4" : "#e0584f", x, 10 + (x % 12 ? 0 : 5), 6, 6); });
+    marks(
+      c,
+      (g, w, _h) => {
+        for (let x = 0; x < w; x += 6) px(g, x % 12 ? "#f4efe4" : "#e0584f", x, 8 + (x % 12 ? 0 : 5), 6, 6);
+        text(g, "<<<", 29, 30, 13, "#f4efe4");
+      },
+      (g, w) => {
+        for (let x = 0; x < w; x += 6) px(g, x % 12 ? "#f4efe4" : "#e0584f", x, 10 + (x % 12 ? 0 : 5), 6, 6);
+      },
+    );
     roll(c, "#e8e0d0", 1.8, 0.5);
     const v = grid(c);
     v.b(-3.7, 0, -2.3, 7.4, 0.9, 4.6, "#e8e0d0");
@@ -349,25 +451,51 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
   },
   // Space suit: an orange collar ring, a chest panel of lights.
   20: (c) => {
-    marks(c, (g, w, _h) => {
-      px(g, "#3a3f4b", 17, 9, 24, 15);
-      px(g, "#b8bec8", 4, 30, w - 8, 3);
-      px(g, "#e0584f", 4, 3, 9, 6); px(g, "#4f8fe0", 4, 3, 4, 6); px(g, "#fbf7ef", 8, 6, 5, 2);
-    }, (g, w, _h) => { px(g, "#9aa3b0", 12, 4, w - 24, 26); px(g, "#6a7380", 14, 8, w - 28, 18); });
+    marks(
+      c,
+      (g, w, _h) => {
+        px(g, "#3a3f4b", 17, 9, 24, 15);
+        px(g, "#b8bec8", 4, 30, w - 8, 3);
+        px(g, "#e0584f", 4, 3, 9, 6);
+        px(g, "#4f8fe0", 4, 3, 4, 6);
+        px(g, "#fbf7ef", 8, 6, 5, 2);
+      },
+      (g, w, _h) => {
+        px(g, "#9aa3b0", 12, 4, w - 24, 26);
+        px(g, "#6a7380", 14, 8, w - 28, 18);
+      },
+    );
     roll(c, "#f08a3c", 1.4, 0.55);
     const v = grid(c);
     v.b(-3.7, 0.4, -2.3, 7.4, 0.8, 4.6, "#b8bec8");
-    const lights = [[-1.5, "#3ddc84"], [0, "#e0584f"], [1.5, "#8fe3ff"]] as const;
+    const lights = [
+      [-1.5, "#3ddc84"],
+      [0, "#e0584f"],
+      [1.5, "#8fe3ff"],
+    ] as const;
     const boxes = lights.map(([x, col]) => v.b(x - 0.4, 5, 2.3, 0.8, 0.8, 0.3, lit(col)));
-    c.tick((t) => boxes.forEach((b, i) => { b.visible = Math.sin(t * 3 + i * 2.1) > -0.2; }));
+    c.tick((t) =>
+      boxes.forEach((b, i) => {
+        b.visible = Math.sin(t * 3 + i * 2.1) > -0.2;
+      }),
+    );
   },
   // Retro tracksuit: white stripes down the sleeves, a white collar and zip.
   21: (c) => {
-    marks(c, (g, w, h) => {
-      px(g, "#f4f4f0", 27, 0, 3, h);
-      px(g, "#2fa39a", 20, 0, 18, 3);
-      px(g, "#f4f4f0", 0, 0, 3, h); px(g, "#f4f4f0", w - 3, 0, 3, h);
-    }, (g, w, h) => { px(g, "#f4f4f0", 0, 0, 3, h); px(g, "#f4f4f0", w - 3, 0, 3, h); px(g, "#f4f4f0", 14, 0, w - 28, 3); });
+    marks(
+      c,
+      (g, w, h) => {
+        px(g, "#f4f4f0", 27, 0, 3, h);
+        px(g, "#2fa39a", 20, 0, 18, 3);
+        px(g, "#f4f4f0", 0, 0, 3, h);
+        px(g, "#f4f4f0", w - 3, 0, 3, h);
+      },
+      (g, w, h) => {
+        px(g, "#f4f4f0", 0, 0, 3, h);
+        px(g, "#f4f4f0", w - 3, 0, 3, h);
+        px(g, "#f4f4f0", 14, 0, w - 28, 3);
+      },
+    );
     roll(c, "#f4f4f0", 1.4, 0.4);
     sleeveStripes(c, "#f4f4f0");
   },
@@ -389,45 +517,106 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
     const rnd = seeded(23);
     const stars = (g: CanvasRenderingContext2D, w: number, h: number, n: number) => {
       for (let i = 0; i < n; i++) {
-        const x = 3 + Math.floor(rnd() * (w - 8)), y = 3 + Math.floor(rnd() * (h - 8));
+        const x = 3 + Math.floor(rnd() * (w - 8)),
+          y = 3 + Math.floor(rnd() * (h - 8));
         px(g, "#f5d14a", x, y, 2, 2);
-        if (i % 3 === 0) { px(g, "#f5d14a", x - 2, y, 6, 2); px(g, "#f5d14a", x, y - 2, 2, 6); }
+        if (i % 3 === 0) {
+          px(g, "#f5d14a", x - 2, y, 6, 2);
+          px(g, "#f5d14a", x, y - 2, 2, 6);
+        }
       }
     };
-    marks(c, (g, w, h) => { stars(g, w, h, 10); px(g, "#f5d14a", 0, 39, w, 3); }, (g, w, h) => stars(g, w, h, 12));
+    marks(
+      c,
+      (g, w, h) => {
+        stars(g, w, h, 10);
+        px(g, "#f5d14a", 0, 39, w, 3);
+      },
+      (g, w, h) => stars(g, w, h, 12),
+    );
     // A skirt of stepped blocks, wider the lower it goes, down to the ankles.
     const v = grid(c);
-    const layers: [number, number, number, number][] = [[-0.9, 1.1, 8, 4.8], [-3, 2.1, 8.6, 5.4], [-5.2, 2.2, 9.2, 6], [-7.4, 2.2, 9.8, 6.4]];
+    const layers: [number, number, number, number][] = [
+      [-0.9, 1.1, 8, 4.8],
+      [-3, 2.1, 8.6, 5.4],
+      [-5.2, 2.2, 9.2, 6],
+      [-7.4, 2.2, 9.8, 6.4],
+    ];
     for (const [y, h, w, d] of layers) v.b(-w / 2, y, -d / 2, w, h, d, c.main);
     v.b(-5, -8.1, -3.4, 10, 0.7, 6.8, "#f5d14a");
     v.b(-3.9, 0, -2.4, 7.8, 0.7, 4.8, "#f5d14a");
-    for (const [x, y] of [[-3, -2], [2, -4], [-1, -6], [3, -6.6], [-3.5, -4.6]] as const) v.b(x, y, 3.1 - Math.abs(y) * 0.05 + 0.05, 0.7, 0.7, 0.3, "#f5d14a");
+    for (const [x, y] of [
+      [-3, -2],
+      [2, -4],
+      [-1, -6],
+      [3, -6.6],
+      [-3.5, -4.6],
+    ] as const)
+      v.b(x, y, 3.1 - Math.abs(y) * 0.05 + 0.05, 0.7, 0.7, 0.3, "#f5d14a");
     roll(c, c.dark, 1, 0.3);
   },
   // Hazard vest: reflective strips.
   24: (c) => {
-    marks(c, (g, w, h) => {
-      px(g, "#e8eef2", 7, 0, 8, h); px(g, "#e8eef2", w - 15, 0, 8, h); px(g, "#e8eef2", 7, 26, w - 14, 6);
-    }, (g, w, h) => {
-      g.strokeStyle = "#e8eef2"; g.lineWidth = 6;
-      g.beginPath(); g.moveTo(10, 2); g.lineTo(w - 10, h - 6); g.moveTo(w - 10, 2); g.lineTo(10, h - 6); g.stroke();
-    });
+    marks(
+      c,
+      (g, w, h) => {
+        px(g, "#e8eef2", 7, 0, 8, h);
+        px(g, "#e8eef2", w - 15, 0, 8, h);
+        px(g, "#e8eef2", 7, 26, w - 14, 6);
+      },
+      (g, w, h) => {
+        g.strokeStyle = "#e8eef2";
+        g.lineWidth = 6;
+        g.beginPath();
+        g.moveTo(10, 2);
+        g.lineTo(w - 10, h - 6);
+        g.moveTo(w - 10, 2);
+        g.lineTo(10, h - 6);
+        g.stroke();
+      },
+    );
     roll(c, c.dark, 0.8, 0.25);
   },
   // Golden regalia: an ermine collar, a ruby brooch and a purple sash with a gold buckle.
   25: (c) => {
-    marks(c, (g, w, h) => {
-      g.strokeStyle = "#7a4fb8"; g.lineWidth = 9; g.beginPath(); g.moveTo(8, -2); g.lineTo(w - 6, h - 6); g.stroke();
-      px(g, "#fff1a8", 36, 24, 7, 7); px(g, "#b07a12", 38, 26, 3, 3);
-      px(g, "#d99a16", 0, 38, w, 4);
-    }, (g, w, h) => {
-      g.strokeStyle = "#7a4fb8"; g.lineWidth = 9; g.beginPath(); g.moveTo(w - 8, -2); g.lineTo(6, h - 6); g.stroke();
-    });
+    marks(
+      c,
+      (g, w, h) => {
+        g.strokeStyle = "#7a4fb8";
+        g.lineWidth = 9;
+        g.beginPath();
+        g.moveTo(8, -2);
+        g.lineTo(w - 6, h - 6);
+        g.stroke();
+        px(g, "#fff1a8", 36, 24, 7, 7);
+        px(g, "#b07a12", 38, 26, 3, 3);
+        px(g, "#d99a16", 0, 38, w, 4);
+      },
+      (g, w, h) => {
+        g.strokeStyle = "#7a4fb8";
+        g.lineWidth = 9;
+        g.beginPath();
+        g.moveTo(w - 8, -2);
+        g.lineTo(6, h - 6);
+        g.stroke();
+      },
+    );
     // The ermine collar: two rings of white blocks, black spots, a ruby on the clasp.
     const v = grid(c);
     roll(c, "#fbf7ef", 1.3, 0.8);
     v.b(-4.6, 6.6, -2.8, 9.2, 0.7, 5.6, "#fbf7ef");
-    for (const [x, z] of [[-4, 1.5], [-2, 2.7], [0.5, 2.9], [2.7, 2.2], [4, 0.5], [-4.2, -1.5], [4, -1.8], [-2, -2.9], [2, -2.9]] as const) v.b(x - 0.25, 6.65, z - 0.25, 0.5, 0.75, 0.5, "#1c1a24");
+    for (const [x, z] of [
+      [-4, 1.5],
+      [-2, 2.7],
+      [0.5, 2.9],
+      [2.7, 2.2],
+      [4, 0.5],
+      [-4.2, -1.5],
+      [4, -1.8],
+      [-2, -2.9],
+      [2, -2.9],
+    ] as const)
+      v.b(x - 0.25, 6.65, z - 0.25, 0.5, 0.75, 0.5, "#1c1a24");
     v.b(-0.5, 5.2, 2.7, 1, 1, 0.5, "#e0405a");
     v.b(-3.7, 0, -2.3, 7.4, 0.9, 4.6, "#d99a16");
   },
@@ -444,16 +633,30 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
       v.b(3.2, 6.9, -2.7 + i * 1.8, 0.9, 1.2, 1.8, cols[(i + 1) % 2]!);
     }
     for (let i = 0; i < 5; i++) v.b(1.2, 5.8 - i * 1.2, 2.7, 1.6, 1.2, 0.6, cols[i % 2]!);
-    marks(c, (g, w) => { for (let x = 0; x < w; x += 6) px(g, "#c9c0ad", x, 22, 2, 20); });
+    marks(c, (g, w) => {
+      for (let x = 0; x < w; x += 6) px(g, "#c9c0ad", x, 22, 2, 20);
+    });
   },
   // Two-tone suit: ours on the left, theirs on the right.
   27: (c) => {
-    marks(c, (g, _w, h) => {
-      px(g, "#e0584f", 29, 0, 28, h);
-      px(g, "#14161f", 27, 0, 3, h);
-      for (const y of [12, 24]) px(g, "#f4f4f0", 23, y, 3, 3);
-      g.fillStyle = "#f4f4f0"; g.beginPath(); g.moveTo(20, 0); g.lineTo(37, 0); g.lineTo(28, 14); g.fill();
-    }, (g, _w, h) => { px(g, "#e0584f", 29, 0, 28, h); px(g, "#14161f", 27, 0, 3, h); });
+    marks(
+      c,
+      (g, _w, h) => {
+        px(g, "#e0584f", 29, 0, 28, h);
+        px(g, "#14161f", 27, 0, 3, h);
+        for (const y of [12, 24]) px(g, "#f4f4f0", 23, y, 3, 3);
+        g.fillStyle = "#f4f4f0";
+        g.beginPath();
+        g.moveTo(20, 0);
+        g.lineTo(37, 0);
+        g.lineTo(28, 14);
+        g.fill();
+      },
+      (g, _w, h) => {
+        px(g, "#e0584f", 29, 0, 28, h);
+        px(g, "#14161f", 27, 0, 3, h);
+      },
+    );
     sleevesOver(c, "#e0584f", 6, 1);
     const v = grid(c);
     v.b(0, 7, 2, 3.9, 1, 0.4, "#e0584f");
@@ -464,7 +667,20 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
   28: (c) => {
     const rnd = seeded(28);
     const grad = ["#b57cff", "#8b5cf0", "#5b3fbf", "#4a5fd0", "#3fa8d8", "#5ff0d0"];
-    steppedCape(c.body, { w: 7.4, flare: 0.5, steps: 6, h: 1.5, y: 7.6, thick: 0.7, colour: (i, col) => (rnd() > 0.88 ? "#ffd35c" : tint(grad[i]!, col === 1 ? 0 : -0.12)) }, c.tick, -2.4);
+    steppedCape(
+      c.body,
+      {
+        w: 7.4,
+        flare: 0.5,
+        steps: 6,
+        h: 1.5,
+        y: 7.6,
+        thick: 0.7,
+        colour: (i, col) => (rnd() > 0.88 ? "#ffd35c" : tint(grad[i]!, col === 1 ? 0 : -0.12)),
+      },
+      c.tick,
+      -2.4,
+    );
     const v = grid(c);
     for (const s of [-1, 1]) {
       v.b(s > 0 ? 2.9 : -5.6, 7.6, -2.4, 2.7, 1, 5, "#5b3fbf");
@@ -488,24 +704,39 @@ export interface MerchLook {
 
 /** A tee or hoodie in the company's colours with its logo on the chest. */
 export function merchTop(c: BodyCtx, m: MerchLook, hoodie: boolean): void {
-  marks(c, (g, _w, _h) => {
-    const logo = (cx: number, cy: number, scale: number) => {
-      if (m.design?.length) {
-        const rows = m.design;
-        const pal: Record<string, string> = { a: m.accent, w: "#fbf7ef", k: "#2b2433" };
-        rows.forEach((row, y) => {
-          [...row].forEach((ch, x) => {
-            if (pal[ch]) px(g, pal[ch]!, Math.round(cx - (row.length * scale) / 2 + x * scale), Math.round(cy + y * scale), scale, scale);
+  marks(
+    c,
+    (g, _w, _h) => {
+      const logo = (cx: number, cy: number, scale: number) => {
+        if (m.design?.length) {
+          const rows = m.design;
+          const pal: Record<string, string> = { a: m.accent, w: "#fbf7ef", k: "#2b2433" };
+          rows.forEach((row, y) => {
+            [...row].forEach((ch, x) => {
+              if (pal[ch])
+                px(
+                  g,
+                  pal[ch]!,
+                  Math.round(cx - (row.length * scale) / 2 + x * scale),
+                  Math.round(cy + y * scale),
+                  scale,
+                  scale,
+                );
+            });
           });
-        });
-      } else text(g, m.initials, cx, cy + 4, hoodie ? 12 : 16, m.accent);
-    };
-    logo(29, hoodie ? 9 : 12, 3);
-    if (hoodie) {
-      px(g, m.shade, 12, 28, 34, 3); px(g, m.shade, 12, 28, 3, 14); px(g, m.shade, 43, 28, 3, 14);
-      px(g, "#fbf7ef", 21, 0, 2, 11); px(g, "#fbf7ef", 35, 0, 2, 11);
-    }
-  }, hoodie ? (g, w) => px(g, m.shade, 4, 0, w - 8, 3) : undefined);
+        } else text(g, m.initials, cx, cy + 4, hoodie ? 12 : 16, m.accent);
+      };
+      logo(29, hoodie ? 9 : 12, 3);
+      if (hoodie) {
+        px(g, m.shade, 12, 28, 34, 3);
+        px(g, m.shade, 12, 28, 3, 14);
+        px(g, m.shade, 43, 28, 3, 14);
+        px(g, "#fbf7ef", 21, 0, 2, 11);
+        px(g, "#fbf7ef", 35, 0, 2, 11);
+      }
+    },
+    hoodie ? (g, w) => px(g, m.shade, 4, 0, w - 8, 3) : undefined,
+  );
   if (hoodie) hood(c, m.main, m.shade);
   else roll(c, m.shade, 0.8, 0.25);
 }
@@ -514,15 +745,22 @@ export function merchCap(h: Model, m: MerchLook): void {
   dome(h, m.main, 0.275, 0.03, 0.42);
   h.box([0.34, 0.025, 0.2], m.shade, [0, 0.11, 0.24], 0.01).rotation.x = -0.12;
   h.ball(0.025, m.shade, [0, 0.3, 0]);
-  sign(h, 0.1, 0.07, (g, w, hh) => {
-    g.fillStyle = m.accent;
-    g.fillRect(2, 2, w - 4, hh - 4);
-    g.fillStyle = m.shade;
-    g.font = `700 ${hh * 0.6}px ui-monospace, Menlo, monospace`;
-    g.textAlign = "center";
-    g.textBaseline = "middle";
-    g.fillText(m.initials.slice(0, 2), w / 2, hh / 2 + 1);
-  }, [0, 0.19, 0.262], 80);
+  sign(
+    h,
+    0.1,
+    0.07,
+    (g, w, hh) => {
+      g.fillStyle = m.accent;
+      g.fillRect(2, 2, w - 4, hh - 4);
+      g.fillStyle = m.shade;
+      g.font = `700 ${hh * 0.6}px ui-monospace, Menlo, monospace`;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText(m.initials.slice(0, 2), w / 2, hh / 2 + 1);
+    },
+    [0, 0.19, 0.262],
+    80,
+  );
 }
 
 // MARK: Held
@@ -538,11 +776,13 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
     ring(h, "#f4efe4", 0.026, 0.008, [0.05, 0.04, 0.06], false);
     h.cyl(0.036, 0.004, "#5b3a24", [0, 0.083, 0.06], 0.036, 12);
     const puffs = [0, 1, 2].map(() => h.ball(0.014, see("#ffffff", 0.6, true), [0, 0.1, 0.06]));
-    tick((t) => puffs.forEach((p, i) => {
-      const k = (t * 0.7 + i / 3) % 1;
-      p.position.set(Math.sin(k * 9 + i) * 0.01, 0.1 + k * 0.12, 0.06);
-      p.scale.setScalar(1 - k * 0.6);
-    }));
+    tick((t) =>
+      puffs.forEach((p, i) => {
+        const k = (t * 0.7 + i / 3) % 1;
+        p.position.set(Math.sin(k * 9 + i) * 0.01, 0.1 + k * 0.12, 0.06);
+        p.scale.setScalar(1 - k * 0.6);
+      }),
+    );
   },
   "Rubber duck": (h) => {
     h.ball(0.055, "#f5d14a", [0, 0.04, 0.06], [1, 0.85, 1.15]);
@@ -556,14 +796,26 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
     const lid = h.part([0, 0.014, 0.0]);
     lid.rotation.x = -1.7;
     lid.box([0.2, 0.012, 0.14], "#aab3bf", [0, 0, 0.0], 0.005).position.z = -0.0;
-    const stick = [["#e0584f", -0.06, 0.04], ["#4f8fe0", 0.0, 0.07], ["#f5c842", 0.05, 0.035], ["#3ddc84", -0.03, 0.1]] as const;
+    const stick = [
+      ["#e0584f", -0.06, 0.04],
+      ["#4f8fe0", 0.0, 0.07],
+      ["#f5c842", 0.05, 0.035],
+      ["#3ddc84", -0.03, 0.1],
+    ] as const;
     for (const [col, x, z] of stick) lid.box([0.035, 0.004, 0.035], col, [x, 0.0075, z - 0.07], 0.004);
     h.position.z += 0;
   },
   "Bubble tea": (h) => {
     h.cyl(0.035, 0.11, see("#f6ece0", 0.55), [0, 0.0, 0.06], 0.045, 12);
     h.cyl(0.034, 0.075, "#d9a46a", [0, 0.005, 0.06], 0.041, 12);
-    for (let i = 0; i < 6; i++) h.ball(0.008, "#3a2e24", [Math.sin(i * 1.3) * 0.02, 0.012 + (i % 2) * 0.008, 0.06 + Math.cos(i * 1.3) * 0.02], [1, 1, 1], 5);
+    for (let i = 0; i < 6; i++)
+      h.ball(
+        0.008,
+        "#3a2e24",
+        [Math.sin(i * 1.3) * 0.02, 0.012 + (i % 2) * 0.008, 0.06 + Math.cos(i * 1.3) * 0.02],
+        [1, 1, 1],
+        5,
+      );
     h.cyl(0.047, 0.012, "#e86bd8", [0, 0.11, 0.06], 0.047, 12);
     const straw = h.cyl(0.011, 0.14, "#e86bd8", [0.01, 0.06, 0.06], 0.011, 6);
     straw.rotation.z = -0.15;
@@ -571,22 +823,49 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
   "Mechanical keyboard": (h) => {
     h.box([0.22, 0.03, 0.09], "#2b2433", [0, 0.0, 0.07], 0.01);
     const cols = ["#f4efe4", "#3ddc84", "#f4efe4", "#4f8fe0", "#f4efe4", "#e0584f"];
-    for (let r = 0; r < 3; r++) for (let i = 0; i < 6; i++) h.box([0.028, 0.012, 0.022], cols[(i + r) % 6]!, [-0.088 + i * 0.035, 0.03, 0.04 + r * 0.027], 0.004);
+    for (let r = 0; r < 3; r++)
+      for (let i = 0; i < 6; i++)
+        h.box([0.028, 0.012, 0.022], cols[(i + r) % 6]!, [-0.088 + i * 0.035, 0.03, 0.04 + r * 0.027], 0.004);
   },
   "Pizza slice": (h) => {
     const wedge2 = new THREE.Shape();
-    wedge2.moveTo(0, 0.1); wedge2.lineTo(-0.065, -0.07); wedge2.lineTo(0.065, -0.07); wedge2.closePath();
+    wedge2.moveTo(0, 0.1);
+    wedge2.lineTo(-0.065, -0.07);
+    wedge2.lineTo(0.065, -0.07);
+    wedge2.closePath();
     const cheese = shaped(h, "pizza", wedge2, 0.014, "#f5d14a", [0, 0.03, 0.09]);
     cheese.rotation.x = -Math.PI / 2;
     cheese.rotation.z = Math.PI;
     h.box([0.15, 0.022, 0.02], "#c98e3c", [0, 0.0, 0.145], 0.008).position.y = 0.02;
-    for (const [x, z] of [[0, 0.1], [-0.025, 0.065], [0.03, 0.07]] as const) h.cyl(0.017, 0.008, "#e0584f", [x, 0.04, z], 0.017, 10);
+    for (const [x, z] of [
+      [0, 0.1],
+      [-0.025, 0.065],
+      [0.03, 0.07],
+    ] as const)
+      h.cyl(0.017, 0.008, "#e0584f", [x, 0.04, z], 0.017, 10);
   },
   "Energy drink": (h) => {
     h.cyl(0.032, 0.11, "#3ddc84", [0, 0.0, 0.06], 0.032, 14);
     h.cyl(0.0325, 0.012, "#aab3bf", [0, 0.0, 0.06], 0.0325, 14);
     h.cyl(0.0325, 0.012, "#aab3bf", [0, 0.1, 0.06], 0.0325, 14);
-    sign(h, 0.05, 0.07, (g, w, hh) => { g.fillStyle = "#f5f542"; g.beginPath(); g.moveTo(w * 0.6, 0); g.lineTo(w * 0.2, hh * 0.55); g.lineTo(w * 0.48, hh * 0.55); g.lineTo(w * 0.35, hh); g.lineTo(w * 0.85, hh * 0.4); g.lineTo(w * 0.55, hh * 0.4); g.fill(); }, [0, 0.055, 0.0925], 80);
+    sign(
+      h,
+      0.05,
+      0.07,
+      (g, w, hh) => {
+        g.fillStyle = "#f5f542";
+        g.beginPath();
+        g.moveTo(w * 0.6, 0);
+        g.lineTo(w * 0.2, hh * 0.55);
+        g.lineTo(w * 0.48, hh * 0.55);
+        g.lineTo(w * 0.35, hh);
+        g.lineTo(w * 0.85, hh * 0.4);
+        g.lineTo(w * 0.55, hh * 0.4);
+        g.fill();
+      },
+      [0, 0.055, 0.0925],
+      80,
+    );
   },
   "Magnifying glass": (h) => {
     const g = h.part([0, 0.0, 0.05]);
@@ -608,13 +887,14 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
     ring(h, "#2b2433", 0.04, 0.007, [0.05, 0.12, 0.06], false).rotation.y = Math.PI / 2;
     h.box([0.07, 0.05, 0.005], "#f4f4f0", [0, 0.06, 0.1075], 0.002);
   },
-  "Baguette": (h) => {
+  Baguette: (h) => {
     const b = h.part([0, 0.0, 0.05]);
     b.rotation.z = -0.5;
     b.rotation.x = -0.2;
     b.cyl(0.03, 0.34, "#e8b464", [0, -0.1, 0.0], 0.03, 10);
     b.ball(0.03, "#e8b464", [0, 0.24, 0], [1, 0.7, 1], 8);
-    for (let i = 0; i < 4; i++) b.box([0.052, 0.008, 0.012], "#a86e2a", [0, 0.01 + i * 0.065, 0.026], 0.003).rotation.z = 0.5;
+    for (let i = 0; i < 4; i++)
+      b.box([0.052, 0.008, 0.012], "#a86e2a", [0, 0.01 + i * 0.065, 0.026], 0.003).rotation.z = 0.5;
   },
 };
 
@@ -628,8 +908,21 @@ type BackBuilder = (b: VoxModel, tick: (fn: (t: number, walking: boolean) => voi
  */
 // biome-ignore format: a catalogue reads best one to a line
 export const BACK_BUILDERS: Record<string, BackBuilder> = {
-  "Cape": (b, tick) => {
-    steppedCape(b, { w: 6.8, flare: 0.45, steps: 6, h: 1.55, y: -0.25, thick: 0.7, colour: (i, col) => (col === 1 ? "#962626" : i % 2 ? "#c23535" : "#d23c3c") }, tick, -0.05);
+  Cape: (b, tick) => {
+    steppedCape(
+      b,
+      {
+        w: 6.8,
+        flare: 0.45,
+        steps: 6,
+        h: 1.55,
+        y: -0.25,
+        thick: 0.7,
+        colour: (i, col) => (col === 1 ? "#962626" : i % 2 ? "#c23535" : "#d23c3c"),
+      },
+      tick,
+      -0.05,
+    );
     const v = new Vx(b);
     for (const s of [-1, 1]) {
       v.b(s > 0 ? 2.4 : -3.4, -0.9, -0.9, 1, 1, 1.5, "#f5c842");
@@ -637,7 +930,7 @@ export const BACK_BUILDERS: Record<string, BackBuilder> = {
     }
     v.b(-2.6, -0.2, -1, 5.2, 0.7, 0.9, "#a82a2a");
   },
-  "Jetpack": (b, tick) => {
+  Jetpack: (b, tick) => {
     const v = new Vx(b);
     v.b(-2.6, -6, -0.9, 5.2, 5, 0.9, "#7c8592");
     v.b(-2.1, -5.4, -1.2, 4.2, 0.6, 0.3, "#5d6470");
@@ -656,14 +949,16 @@ export const BACK_BUILDERS: Record<string, BackBuilder> = {
       ]);
     }
     for (const f of flames.flat()) f.castShadow = false;
-    tick((t, walking) => flames.forEach((f, i) => {
-      const k = Math.sin(t * 22 + i * 2.1) > 0 ? 1 : 0;
-      f[1]!.visible = walking || k === 1;
-      f[2]!.visible = walking && k === 1;
-      f[3]!.visible = true;
-    }));
+    tick((t, walking) =>
+      flames.forEach((f, i) => {
+        const k = Math.sin(t * 22 + i * 2.1) > 0 ? 1 : 0;
+        f[1]!.visible = walking || k === 1;
+        f[2]!.visible = walking && k === 1;
+        f[3]!.visible = true;
+      }),
+    );
   },
-  "Backpack": (b) => {
+  Backpack: (b) => {
     const v = new Vx(b);
     v.b(-3, -7.6, -3.2, 6, 7.2, 3.2, "#4f8fe0");
     v.b(-3.2, -2.5, -3.4, 6.4, 1.3, 3.6, "#3a74c4");
@@ -678,7 +973,13 @@ export const BACK_BUILDERS: Record<string, BackBuilder> = {
   },
   "Pixel wings": (b, tick) => {
     const sides: { root: VoxModel; segs: VoxModel[]; s: number }[] = [];
-    const sizes: [number, number][] = [[2.2, 3.4], [2.2, 4.2], [2.2, 5], [2, 4.4], [1.6, 3.4]];
+    const sizes: [number, number][] = [
+      [2.2, 3.4],
+      [2.2, 4.2],
+      [2.2, 5],
+      [2, 4.4],
+      [1.6, 3.4],
+    ];
     for (const s of [-1, 1]) {
       const root = vpart(b, [s * 1.2 * U, -1.8 * U, -0.5 * U]);
       let at: VoxModel = root;
@@ -704,7 +1005,7 @@ export const BACK_BUILDERS: Record<string, BackBuilder> = {
       }
     });
   },
-  "Guitar": (b) => {
+  Guitar: (b) => {
     const g = vpart(b, [0, -4.2 * U, -1.5 * U]);
     g.rotation.z = 0.7;
     const v = new Vx(g, U * 0.8);
@@ -718,7 +1019,8 @@ export const BACK_BUILDERS: Record<string, BackBuilder> = {
     v.b(-0.6, 4.1, -0.9, 1.2, 8, 1, "#6b4226");
     for (let i = 0; i < 5; i++) v.b(-0.65, 5 + i * 1.5, -1.0, 1.3, 0.25, 0.3, "#d8d0c0");
     v.b(-1.1, 12.1, -1.0, 2.2, 2.8, 1.2, "#6b4226");
-    for (const s of [-1, 1]) for (let i = 0; i < 2; i++) v.b(s > 0 ? 1.1 : -1.6, 12.4 + i * 1.2, -0.7, 0.5, 0.6, 0.6, "#d8d0c0");
+    for (const s of [-1, 1])
+      for (let i = 0; i < 2; i++) v.b(s > 0 ? 1.1 : -1.6, 12.4 + i * 1.2, -0.7, 0.5, 0.6, 0.6, "#d8d0c0");
     // The strap over the chest, a staircase of blocks.
     const f = new Vx(b);
     for (let i = 0; i < 6; i++) f.b(-3.4 + i * 1.15, -0.8 - i * 1.0, 4.0, 1.4, 1.3, 0.4, "#3a2e2a");
@@ -736,7 +1038,7 @@ export const BACK_BUILDERS: Record<string, BackBuilder> = {
     v.b(-3.3, -1.2, -0.9, 0.9, 0.6, 1, "#5a3f8a");
     v.b(2.4, -1.2, -0.9, 0.9, 0.6, 1, "#5a3f8a");
   },
-  "Katana": (b) => {
+  Katana: (b) => {
     const k = vpart(b, [0, -4.4 * U, -1.2 * U]);
     k.rotation.z = 0.85;
     const v = new Vx(k, U * 0.7);

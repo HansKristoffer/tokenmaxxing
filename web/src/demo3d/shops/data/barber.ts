@@ -24,13 +24,25 @@ export interface BarberRow {
   blurb: string;
 }
 
-export const STYLE_NAMES = ["Short hair and tee", "Cap and hoodie", "Bun and jacket", "Long hair and skirt"] as const;
+export const STYLE_NAMES = [
+  "Short hair and tee",
+  "Cap and hoodie",
+  "Bun and jacket",
+  "Long hair and skirt",
+] as const;
 export const SKIN_COLOURS = ["#f6d3b3", "#e9b38c", "#c68a5f", "#8d5a3c"] as const;
 export const SKIN_NAMES = ["Porcelain", "Sand", "Caramel", "Umber"] as const;
 export const HAIR_COLOURS = ["#3b2a22", "#6b4226", "#c9853a", "#e8cf7a", "#2e2e3a", "#b2463d"] as const;
 export const HAIR_NAMES = ["Espresso", "Chestnut", "Ginger", "Blonde", "Midnight", "Auburn"] as const;
 
-const row = (slot: FaceSlot, index: number, name: string, price: number, blurb: string, extra: Partial<BarberRow> = {}): BarberRow => ({
+const row = (
+  slot: FaceSlot,
+  index: number,
+  name: string,
+  price: number,
+  blurb: string,
+  extra: Partial<BarberRow> = {},
+): BarberRow => ({
   id: `${slot}.${index}`,
   slot,
   index,
@@ -40,9 +52,15 @@ const row = (slot: FaceSlot, index: number, name: string, price: number, blurb: 
   ...extra,
 });
 
-export const STYLE_ROWS: readonly BarberRow[] = STYLE_NAMES.map((n, i) => row("style", i, n, 0, "Free from the character creator."));
-export const SKIN_ROWS: readonly BarberRow[] = SKIN_NAMES.map((n, i) => row("skin", i, `${n} skin`, 0, "Free from the character creator."));
-export const HAIR_ROWS: readonly BarberRow[] = HAIR_NAMES.map((n, i) => row("hair", i, `${n} hair`, 0, "Free from the character creator."));
+export const STYLE_ROWS: readonly BarberRow[] = STYLE_NAMES.map((n, i) =>
+  row("style", i, n, 0, "Free from the character creator."),
+);
+export const SKIN_ROWS: readonly BarberRow[] = SKIN_NAMES.map((n, i) =>
+  row("skin", i, `${n} skin`, 0, "Free from the character creator."),
+);
+export const HAIR_ROWS: readonly BarberRow[] = HAIR_NAMES.map((n, i) =>
+  row("hair", i, `${n} hair`, 0, "Free from the character creator."),
+);
 
 // prettier-ignore
 const FACE_SNAPSHOT: readonly BarberRow[] = [

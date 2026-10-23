@@ -16,7 +16,15 @@ const GOLD = "#a86b00";
 const PAPER = "#f6edd8";
 
 /** Draws `text` at a font size shrunk until it fits `maxW`. */
-function fit(g: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, size: number, weight = 700) {
+function fit(
+  g: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxW: number,
+  size: number,
+  weight = 700,
+) {
   let s = size;
   g.font = `${weight} ${s}px system-ui, sans-serif`;
   while (g.measureText(text).width > maxW && s > 8) {
@@ -43,15 +51,25 @@ function coin(g: CanvasRenderingContext2D, x: number, y: number, r: number): voi
 }
 
 /** What the placard says about the cost: a number, FREE, or the level / feat that earns it. */
-export function costOf(row: Pick<FurnRow, "price" | "level" | "earned">): { text: string; coin: boolean; note?: string } {
+export function costOf(row: Pick<FurnRow, "price" | "level" | "earned">): {
+  text: string;
+  coin: boolean;
+  note?: string;
+} {
   if (row.earned) return { text: "EARNED", coin: false, note: "never sold" };
-  if (row.level !== undefined) return { text: `LV ${row.level}`, coin: false, note: row.price > 0 ? `or ${row.price}` : "free to earn" };
+  if (row.level !== undefined)
+    return { text: `LV ${row.level}`, coin: false, note: row.price > 0 ? `or ${row.price}` : "free to earn" };
   if (row.price === 0) return { text: "FREE", coin: false };
   return { text: String(row.price), coin: true };
 }
 
 /** The placard art: name above, price below. */
-function drawTag(g: CanvasRenderingContext2D, w: number, h: number, row: Pick<FurnRow, "name" | "price" | "level" | "earned">): void {
+function drawTag(
+  g: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  row: Pick<FurnRow, "name" | "price" | "level" | "earned">,
+): void {
   g.fillStyle = INK;
   g.fillRect(0, 0, w, h);
   g.fillStyle = PAPER;
@@ -99,7 +117,12 @@ export function priceTag(row: Pick<FurnRow, "name" | "price" | "level" | "earned
 export function wallTag(row: Pick<FurnRow, "name" | "price" | "level" | "earned">, w = 1.0): Model {
   const m = new Model();
   const h = w * 0.34;
-  const tex = canvasTexture(256, Math.round(256 * 0.34), (g) => drawTag(g, 256, Math.round(256 * 0.34), row), true);
+  const tex = canvasTexture(
+    256,
+    Math.round(256 * 0.34),
+    (g) => drawTag(g, 256, Math.round(256 * 0.34), row),
+    true,
+  );
   m.box([w + 0.05, h + 0.05, 0.04], INK, [0, 0, 0], 0.01);
   m.plane(w, h, glow("#fff", tex), [0, (h + 0.05) / 2, 0.025]);
   return m;
@@ -118,7 +141,12 @@ export function samplePanel(
   m.box([w + 0.1, h + 0.1, thick], INK, [0, 0, 0], 0.012);
   m.box([w + 0.06, h + 0.06, thick + 0.012], C.woodLight, [0, 0.02, 0], 0.012);
   m.plane(w, h - strip, glow("#fff", texture), [0, 0.05 + strip + (h - strip) / 2, thick / 2 + 0.012]);
-  const tex = canvasTexture(256, Math.round((256 * strip) / w), (g) => drawTag(g, 256, Math.round((256 * strip) / w), row), true);
+  const tex = canvasTexture(
+    256,
+    Math.round((256 * strip) / w),
+    (g) => drawTag(g, 256, Math.round((256 * strip) / w), row),
+    true,
+  );
   m.plane(w, strip, glow("#fff", tex), [0, 0.05 + strip / 2, thick / 2 + 0.014]);
   return m;
 }
@@ -206,7 +234,11 @@ export interface BankSlot {
 export function fitTo(m: THREE.Object3D, maxH: number, maxW: number): void {
   m.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(m);
-  const s = Math.min(1, maxH / Math.max(0.01, box.max.y - box.min.y), maxW / Math.max(0.01, box.max.x - box.min.x));
+  const s = Math.min(
+    1,
+    maxH / Math.max(0.01, box.max.y - box.min.y),
+    maxW / Math.max(0.01, box.max.x - box.min.x),
+  );
   m.scale.setScalar(s);
 }
 
@@ -258,7 +290,8 @@ export function shelfBank(w: number, slots: readonly BankSlot[]): { model: Model
 export function counter(w: number): Model {
   const m = new Model();
   m.box([w, 0.9, 0.9], C.woodLight, [0, 0, 0], 0.02);
-  for (let x = -w / 2 + 0.2; x < w / 2 - 0.1; x += 0.25) m.box([0.03, 0.78, 0.02], C.wood, [x, 0.06, 0.46], 0.005);
+  for (let x = -w / 2 + 0.2; x < w / 2 - 0.1; x += 0.25)
+    m.box([0.03, 0.78, 0.02], C.wood, [x, 0.06, 0.46], 0.005);
   m.box([w + 0.12, 0.08, 1.0], "#f3ead8", [0, 0.9, 0], 0.02);
   m.box([w - 0.1, 0.1, 0.04], C.woodDark, [0, 0.0, 0.47], 0.01);
   // The till on the right.
@@ -266,7 +299,9 @@ export function counter(w: number): Model {
   till.box([0.62, 0.2, 0.5], "#4a4f63", [0, 0, 0], 0.03);
   till.box([0.5, 0.16, 0.04], "#2b2433", [0, 0.14, 0.12], 0.01).rotation.x = -0.4;
   till.plane(0.44, 0.12, glow("#7ee0a0"), [0, 0.22, 0.17]).rotation.x = -0.4;
-  for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) till.box([0.09, 0.03, 0.07], "#e8e2d4", [-0.15 + i * 0.15, 0.2, 0.0 - j * 0.0 + 0.0 + j * 0.0], 0.008);
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 2; j++)
+      till.box([0.09, 0.03, 0.07], "#e8e2d4", [-0.15 + i * 0.15, 0.2, 0.0 - j * 0.0 + 0.0 + j * 0.0], 0.008);
   till.box([0.5, 0.05, 0.26], "#3b3f50", [0, 0, 0.28], 0.015);
   // A big tape measure on a hook, a stack of catalogues, a brass bell and a pencil jar.
   const tape = m.part([-w / 2 + 1.3, 0.98, 0.1]);
@@ -282,7 +317,11 @@ export function counter(w: number): Model {
   m.ball(0.08, "#f5c842", [-w / 2 + 2.2, 1.04, 0.18], [1, 0.8, 1], 12);
   const jar = m.part([w / 2 - 2.2, 0.98, 0.2]);
   jar.cyl(0.07, 0.15, glass("#d6ecf2", 0.8), [0, 0, 0], 0.07, 10);
-  for (const [x, c] of [[-0.02, "#f2c230"], [0.02, "#e8584f"], [0.0, "#4f8fe0"]] as const) {
+  for (const [x, c] of [
+    [-0.02, "#f2c230"],
+    [0.02, "#e8584f"],
+    [0.0, "#4f8fe0"],
+  ] as const) {
     const p = jar.box([0.02, 0.28, 0.02], c, [x, 0.02, 0.0], 0.004);
     p.rotation.z = x * 3;
   }
@@ -329,7 +368,11 @@ const GREETINGS = [
   "Everything here is real oak. Mostly.",
 ];
 
-function spriteOf(w: number, h: number, draw: (g: CanvasRenderingContext2D, cw: number, ch: number) => void): THREE.Sprite {
+function spriteOf(
+  w: number,
+  h: number,
+  draw: (g: CanvasRenderingContext2D, cw: number, ch: number) => void,
+): THREE.Sprite {
   const cw = Math.round(w * 160);
   const ch = Math.round(h * 160);
   const tex = canvasTexture(cw, ch, (g) => draw(g, cw, ch), true);
@@ -529,7 +572,8 @@ function roofArmchair(m: Model, at: V3): void {
   a.box([0.9, 0.2, 0.75], cloth, [0, 0.34, 0.03], 0.05);
   a.box([0.9, 0.7, 0.18], cloth, [0, 0.28, -0.32], 0.06);
   for (const s of [-1, 1]) a.box([0.18, 0.4, 0.76], tint(cloth, -0.06), [s * 0.5, 0.2, 0], 0.05);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) a.box([0.07, 0.2, 0.07], C.woodDark, [sx * 0.44, 0, sz * 0.34], 0.01);
+  for (const sx of [-1, 1])
+    for (const sz of [-1, 1]) a.box([0.07, 0.2, 0.07], C.woodDark, [sx * 0.44, 0, sz * 0.34], 0.01);
   a.box([0.34, 0.3, 0.1], "#f4efe4", [0.22, 0.52, -0.2], 0.04).rotation.z = 0.15;
 }
 
@@ -568,13 +612,24 @@ export function furnitureStorefront(): Model {
     const win = m.part([s * winX, 0, 0]);
     win.box([winW + 0.1, 0.07, 0.15], trim, [0, winY[0] - 0.05, -0.04], 0.01);
     win.box([winW + 0.1, 0.07, 0.15], trim, [0, winY[1], -0.04], 0.01);
-    for (const x of [-1, 1]) win.box([0.06, winY[1] - winY[0], 0.15], trim, [x * (winW / 2 + 0.02), winY[0], -0.04], 0.01);
+    for (const x of [-1, 1])
+      win.box([0.06, winY[1] - winY[0], 0.15], trim, [x * (winW / 2 + 0.02), winY[0], -0.04], 0.01);
     win.box([0.04, winY[1] - winY[0], 0.12], trim, [0, winY[0], -0.04], 0.005);
-    const glassPane = win.box([winW - 0.02, winY[1] - winY[0] - 0.05, 0.02], glass("#bfe4f2", 0.28), [0, winY[0] + 0.02, -0.01], 0.002);
+    const glassPane = win.box(
+      [winW - 0.02, winY[1] - winY[0] - 0.05, 0.02],
+      glass("#bfe4f2", 0.28),
+      [0, winY[0] + 0.02, -0.01],
+      0.002,
+    );
     glassPane.castShadow = false;
     // The niche floor and its warm back wall, lit at night.
     win.box([winW, 0.04, niche], tint(C.floor, 0.1), [0, winY[0] - 0.03, -niche / 2 - 0.02], 0.004);
-    const back = win.box([winW - 0.04, winY[1] - winY[0] - 0.05, 0.02], glow("#ffecc4"), [0, winY[0] + 0.02, -niche + 0.04], 0.002);
+    const back = win.box(
+      [winW - 0.04, winY[1] - winY[0] - 0.05, 0.02],
+      glow("#ffecc4"),
+      [0, winY[0] + 0.02, -niche + 0.04],
+      0.002,
+    );
     nightGlow(back, "#ffe6a8");
     return win;
   };
@@ -602,7 +657,12 @@ export function furnitureStorefront(): Model {
     for (let i = 0; i < 6; i++) {
       const x = -winW / 2 - 0.1 + (i + 0.5) * ((winW + 0.2) / 6);
       const strip = aw.part([x, 0, 0]);
-      const board = strip.box([(winW + 0.2) / 6, 0.04, 0.5], i % 2 ? "#f4efe4" : "#c4544b", [0, 0, 0.0], 0.005);
+      const board = strip.box(
+        [(winW + 0.2) / 6, 0.04, 0.5],
+        i % 2 ? "#f4efe4" : "#c4544b",
+        [0, 0, 0.0],
+        0.005,
+      );
       board.position.set(0, -0.08, 0.24);
       board.rotation.x = 0.4;
       strip.box([(winW + 0.2) / 6, 0.1, 0.03], i % 2 ? "#f4efe4" : "#c4544b", [0, -0.21, 0.43], 0.005);
@@ -706,4 +766,3 @@ export function furnitureStorefront(): Model {
   light(m, [0, 1.0, 0.9], "#ffcf7a", 3, 6);
   return m;
 }
-

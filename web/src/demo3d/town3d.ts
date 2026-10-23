@@ -103,7 +103,13 @@ export interface Town3d {
 const hash = (x: number, y: number, k: number): number => seeded(x * 7919 + y * 104729 + k * 31)();
 
 type Ground = "grass" | "path" | "plaza" | "flowers" | "water";
-const GROUND: Record<string, Ground> = { ".": "grass", ",": "path", ":": "plaza", '"': "flowers", "~": "water" };
+const GROUND: Record<string, Ground> = {
+  ".": "grass",
+  ",": "path",
+  ":": "plaza",
+  '"': "flowers",
+  "~": "water",
+};
 
 function groundAt(map: TownMap, x: number, y: number): Ground {
   const own = GROUND[map.at(x, y)];
@@ -155,7 +161,9 @@ function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
               for (let k = 0; k < 4; k++) {
                 const fx = ox + (2 + Math.floor(hash(tx, ty, 10 + k) * 11)) * (px / 16);
                 const fy = oy + (2 + Math.floor(hash(tx, ty, 20 + k) * 11)) * (px / 16);
-                g.fillStyle = [C.flowerRed, C.flowerYellow, C.flowerWhite][Math.floor(hash(tx, ty, 30 + k) * 3)]!;
+                g.fillStyle = [C.flowerRed, C.flowerYellow, C.flowerWhite][
+                  Math.floor(hash(tx, ty, 30 + k) * 3)
+                ]!;
                 g.fillRect(fx - px / 16, fy, (px * 3) / 16, px / 16);
                 g.fillRect(fx, fy - px / 16, px / 16, (px * 3) / 16);
               }
@@ -237,12 +245,66 @@ export function aarhusMinutes(): number {
 
 /** Companies for the demo: one of each house tier, round the square, with parks in the gaps. */
 export const DEMO_COMPANIES: Company[] = [
-  { id: 1, name: "Nightshift Labs", plot: plotId(2, 0), members: 4, tokens30d: 400e9, brand: { roof: "#3f7a78", wall: "#f6ecd6", trim: "#d4a93a", plaque: "#1f2a3c", logo: logo("N", "#d4a93a", "#1f2a3c") } },
-  { id: 2, name: "Pixel Forge", plot: plotId(2, 1), members: 6, tokens30d: 150e9, brand: { roof: "#4f8fe0", wall: "#fbf4e6", trim: "#8a6d3b", plaque: "#ffffff", logo: logo("P", "#4f8fe0", "#ffffff") }, deskFleet: 3 },
-  { id: 3, name: "Rubber Duck", plot: plotId(-1, 0), members: 3, tokens30d: 30e9, brand: { roof: "#e25d5d", wall: "#ffffff", trim: "#3b62a8", plaque: "#f5d14a", logo: logo("D", "#e25d5d", "#f5d14a") }, deskFleet: 1 },
+  {
+    id: 1,
+    name: "Nightshift Labs",
+    plot: plotId(2, 0),
+    members: 4,
+    tokens30d: 400e9,
+    brand: {
+      roof: "#3f7a78",
+      wall: "#f6ecd6",
+      trim: "#d4a93a",
+      plaque: "#1f2a3c",
+      logo: logo("N", "#d4a93a", "#1f2a3c"),
+    },
+  },
+  {
+    id: 2,
+    name: "Pixel Forge",
+    plot: plotId(2, 1),
+    members: 6,
+    tokens30d: 150e9,
+    brand: {
+      roof: "#4f8fe0",
+      wall: "#fbf4e6",
+      trim: "#8a6d3b",
+      plaque: "#ffffff",
+      logo: logo("P", "#4f8fe0", "#ffffff"),
+    },
+    deskFleet: 3,
+  },
+  {
+    id: 3,
+    name: "Rubber Duck",
+    plot: plotId(-1, 0),
+    members: 3,
+    tokens30d: 30e9,
+    brand: {
+      roof: "#e25d5d",
+      wall: "#ffffff",
+      trim: "#3b62a8",
+      plaque: "#f5d14a",
+      logo: logo("D", "#e25d5d", "#f5d14a"),
+    },
+    deskFleet: 1,
+  },
   { id: 4, name: "Solo", plot: plotId(-1, 1), members: 1, tokens30d: 3e9, brand: null },
   { id: 5, name: "Hobby Hackers", plot: plotId(0, 2), members: 5, tokens30d: 1e9, brand: null },
-  { id: 6, name: "Cellar Dwellers", plot: plotId(3, 0), members: 9, tokens30d: 0.2e9, brand: { roof: "#7a5a9a", wall: "#d49c67", trim: "#5b3fbf", plaque: "#e4f5fd", logo: logo("C", "#5b3fbf", "#e4f5fd") } },
+  {
+    id: 6,
+    name: "Cellar Dwellers",
+    plot: plotId(3, 0),
+    members: 9,
+    tokens30d: 0.2e9,
+    brand: {
+      roof: "#7a5a9a",
+      wall: "#d49c67",
+      trim: "#5b3fbf",
+      plaque: "#e4f5fd",
+      logo: logo("C", "#5b3fbf", "#e4f5fd"),
+    },
+  },
 ];
 
 /** A little SVG monogram as a data URL, so the demo has logos without any files. */
@@ -273,7 +335,7 @@ export function buildTown3d(
       for (let dx = 1; dx <= 9; dx++) {
         const tx = bx * BLOCK_W + dx;
         const ty = by * BLOCK_H + dy;
-        if ("T^\"".includes(plain.at(tx, ty))) set(tx, ty, ".");
+        if ('T^"'.includes(plain.at(tx, ty))) set(tx, ty, ".");
       }
     set(bx * BLOCK_W + 5, by * BLOCK_H + 6, "A");
     for (const dy of [7, 8]) set(bx * BLOCK_W + 5, by * BLOCK_H + dy, ",");
@@ -296,7 +358,10 @@ export function buildTown3d(
   const wx = (tx: number) => tx - map.x0 + MARGIN;
   const wz = (ty: number) => ty - map.y0 + MARGIN;
   const toWorld = (tx: number, ty: number): [number, number] => [wx(tx) + 0.5, wz(ty) + 0.5];
-  const toTile = (x: number, z: number): [number, number] => [Math.floor(x) + map.x0 - MARGIN, Math.floor(z) + map.y0 - MARGIN];
+  const toTile = (x: number, z: number): [number, number] => [
+    Math.floor(x) + map.x0 - MARGIN,
+    Math.floor(z) + map.y0 - MARGIN,
+  ];
 
   // The street in front of each shop door stays clear of trees, so the storefront shows.
   const clearOf = (x: number, z: number): boolean =>
@@ -344,12 +409,17 @@ export function buildTown3d(
       const ch = map.at(tx, ty);
       const [cx, cz] = toWorld(tx, ty);
       const r = hash(tx, ty, 77);
-      const border = tx === map.x0 || ty === map.y0 || tx === map.x0 + map.width - 1 || ty === map.y0 + map.height - 1;
+      const border =
+        tx === map.x0 || ty === map.y0 || tx === map.x0 + map.width - 1 || ty === map.y0 + map.height - 1;
       switch (ch) {
         case "T": {
           if (clearOf(cx, cz)) break;
           const kind = KINDS[Math.floor(hash(tx, ty, 3) * KINDS.length)]!;
-          add(tree(kind, Math.floor(r * 1e6), (border ? 1.1 : 1) + hash(tx, ty, 4) * 0.3), cx + (r - 0.5) * 0.5, cz + (hash(tx, ty, 5) - 0.5) * 0.5);
+          add(
+            tree(kind, Math.floor(r * 1e6), (border ? 1.1 : 1) + hash(tx, ty, 4) * 0.3),
+            cx + (r - 0.5) * 0.5,
+            cz + (hash(tx, ty, 5) - 0.5) * 0.5,
+          );
           break;
         }
         case "^":
@@ -411,8 +481,16 @@ export function buildTown3d(
   if (flowers.length) {
     const colours = ["#e8584f", "#f5d14a", "#fbf7ef", "#c86bd8", "#ff8a5c", "#ff7ab6", "#8fb8ff"];
     const per = 6;
-    const blossoms = new THREE.InstancedMesh(new THREE.SphereGeometry(0.055, 6, 5), toon("#ffffff"), flowers.length * per);
-    const tufts = new THREE.InstancedMesh(new THREE.SphereGeometry(0.08, 6, 5), toon(C.leaf), flowers.length * per);
+    const blossoms = new THREE.InstancedMesh(
+      new THREE.SphereGeometry(0.055, 6, 5),
+      toon("#ffffff"),
+      flowers.length * per,
+    );
+    const tufts = new THREE.InstancedMesh(
+      new THREE.SphereGeometry(0.08, 6, 5),
+      toon(C.leaf),
+      flowers.length * per,
+    );
     const m4 = new THREE.Matrix4();
     flowers.forEach(([x, z], i) => {
       const rnd = seeded(i * 97 + 3);
@@ -441,7 +519,12 @@ export function buildTown3d(
       }
     });
     glint.wrapS = glint.wrapT = THREE.RepeatWrapping;
-    const mat = new THREE.MeshBasicMaterial({ map: glint, transparent: true, depthWrite: false, opacity: 0.8 });
+    const mat = new THREE.MeshBasicMaterial({
+      map: glint,
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.8,
+    });
     ticks.push((t) => glint.offset.set((t * 0.05) % 1, (t * 0.02) % 1));
     const sheet = glass("#58a9e2", 0.55);
     for (const [x, z] of water) {
@@ -453,13 +536,21 @@ export function buildTown3d(
       tint2.position.set(x, 0.03, z);
       g.add(tint2, tile);
     }
-    const rock = new THREE.InstancedMesh(new THREE.SphereGeometry(0.17, 8, 6), toon(C.stoneLight), stones.length * 2);
+    const rock = new THREE.InstancedMesh(
+      new THREE.SphereGeometry(0.17, 8, 6),
+      toon(C.stoneLight),
+      stones.length * 2,
+    );
     const m4 = new THREE.Matrix4();
     stones.forEach(([x, z, side], i) => {
       for (let k = 0; k < 2; k++) {
         const along = (k - 0.5) * 0.5 + (hash(i, k, 9) - 0.5) * 0.1;
         const horizontal = side < 2;
-        m4.makeScale(horizontal ? 1.5 : 0.9, 0.55, horizontal ? 0.9 : 1.5).setPosition(horizontal ? x + along : x, 0.06, horizontal ? z : z + along);
+        m4.makeScale(horizontal ? 1.5 : 0.9, 0.55, horizontal ? 0.9 : 1.5).setPosition(
+          horizontal ? x + along : x,
+          0.06,
+          horizontal ? z : z + along,
+        );
         rock.setMatrixAt(i * 2 + k, m4);
         rock.setColorAt(i * 2 + k, new THREE.Color((i + k) % 3 ? C.stoneLight : C.stone));
       }
@@ -542,7 +633,14 @@ export function buildTown3d(
     const dy = slot.by * BLOCK_H + 6;
     const [cx] = toWorld(dx, dy);
     add(SHOP_SPECS[slot.id].exterior(), cx, wz(dy) + 0.95);
-    doors.push({ id: `shop:${slot.id}`, kind: "shop", label: SHOP_SPECS[slot.id].name, shop: slot.id, tile: [dx, dy], at: toWorld(dx, dy) });
+    doors.push({
+      id: `shop:${slot.id}`,
+      kind: "shop",
+      label: SHOP_SPECS[slot.id].name,
+      shop: slot.id,
+      tile: [dx, dy],
+      at: toWorld(dx, dy),
+    });
   }
 
   // —— Street lamps at every lot and park corner ——
@@ -638,7 +736,9 @@ export function buildTown3d(
 
 /** The paperboy's rounds (`paperRides`): along the road below each row of blocks that has a door. */
 function rideList(doors: readonly [number, number][], left: number, right: number) {
-  const roads = [...new Set(doors.map(([, y]) => (Math.floor(y / BLOCK_H) + 1) * BLOCK_H))].sort((a, b) => a - b);
+  const roads = [...new Set(doors.map(([, y]) => (Math.floor(y / BLOCK_H) + 1) * BLOCK_H))].sort(
+    (a, b) => a - b,
+  );
   const minutes = (right - left) / 4 / 60;
   return roads.map((y, i) => ({ y, from: left, to: right, at: 7 * 60 + i * minutes }));
 }
@@ -654,7 +754,14 @@ const footprint = (m: Model, w: number, d: number, dz: number): Model => {
   return out;
 };
 
-const tileAsset = (id: string, name: string, build: () => Model, w = 1, d = 1, extra: Partial<Asset> = {}): Asset => ({
+const tileAsset = (
+  id: string,
+  name: string,
+  build: () => Model,
+  w = 1,
+  d = 1,
+  extra: Partial<Asset> = {},
+): Asset => ({
   id,
   name,
   price: 0,
@@ -669,12 +776,18 @@ export const TOWN3D_ASSETS: readonly Asset[] = [
   tileAsset("tile:T", "Tree", () => tree("oak", 6, 1)),
   tileAsset("tile:^", "Bush", () => bush(5)),
   tileAsset("tile:L", "Lamp", lanternPillar),
-  tileAsset("tile:F", "Fountain", () => {
-    const m = new Model();
-    m.add(grandFountain());
-    m.scale.setScalar(0.62);
-    return m;
-  }, 2, 2),
+  tileAsset(
+    "tile:F",
+    "Fountain",
+    () => {
+      const m = new Model();
+      m.add(grandFountain());
+      m.scale.setScalar(0.62);
+      return m;
+    },
+    2,
+    2,
+  ),
   tileAsset("tile:B", "Bench", parkBench, 1, 1, { seat: { at: [0, 0.38, 0.05], turn: 0 } }),
   tileAsset("tile:N", "Leaderboard", leaderboard),
   tileAsset("tile:K", "Chalkboard", chalkboard),
@@ -684,7 +797,13 @@ export const TOWN3D_ASSETS: readonly Asset[] = [
   tileAsset("building:inn", "The Tavern", () => footprint(tavernBuilding(), 7, 4, 1.6), 7, 4),
   tileAsset("building:arcade", "Arcade", () => footprint(arcadeBuilding(), 7, 5, 0), 7, 5),
   ...HOUSE_TIER_NAMES.map((n, i) =>
-    tileAsset(`building:house-${i}`, `${n} house`, () => footprint(companyHouse(i, n, null), 7, 5, 1.75), 7, 5),
+    tileAsset(
+      `building:house-${i}`,
+      `${n} house`,
+      () => footprint(companyHouse(i, n, null), 7, 5, 1.75),
+      7,
+      5,
+    ),
   ),
   tileAsset("street:polse-cart", "Pølsevogn", polseCart, 2, 1),
   tileAsset("street:snail", "Build snail", buildSnail),

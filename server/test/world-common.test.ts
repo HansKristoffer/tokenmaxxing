@@ -58,7 +58,11 @@ describe("the common room", () => {
       return s;
     });
     expect(snap.room).toBe(`common:${co.id}`);
-    expect(ca.events.drops.at(-1) ?? snap.drops[0]).toMatchObject({ item: "furn.ρ", room: `common:${co.id}`, co: co.id });
+    expect(ca.events.drops.at(-1) ?? snap.drops[0]).toMatchObject({
+      item: "furn.ρ",
+      room: `common:${co.id}`,
+      co: co.id,
+    });
     await ca.conn.dispose();
   });
 });

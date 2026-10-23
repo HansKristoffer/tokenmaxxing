@@ -35,7 +35,10 @@ room(["town"], async () => {
 });
 
 room(["hq"], async () => {
-  const [{ buildHq }, { DUNGEON_ASSETS }] = await Promise.all([import("./hq3d.ts"), import("./dungeon3d.ts")]);
+  const [{ buildHq }, { DUNGEON_ASSETS }] = await Promise.all([
+    import("./hq3d.ts"),
+    import("./dungeon3d.ts"),
+  ]);
   registerRoomSkin("hq", () => {
     const hq = buildHq();
     // The hallway of office doors on the north wall, drawn as the registered `R` tile.
@@ -69,7 +72,13 @@ room(["shop-furniture", "shop-clothes", "shop-barber", "shop-pets"], async () =>
   for (const id of SHOP_IDS)
     registerRoomSkin(SHOP_ROOM[id], () => {
       const shop = shopRoom(id);
-      return { group: shop.room.group, offset: INSET, facing: (v) => shop.room.facing(v), map: shop.map, extra: shop };
+      return {
+        group: shop.room.group,
+        offset: INSET,
+        facing: (v) => shop.room.facing(v),
+        map: shop.map,
+        extra: shop,
+      };
     });
 });
 
@@ -111,7 +120,19 @@ room(["dungeon"], async () => {
   if (exit) registerTile("x", exit, { rooms: ["dungeon"] });
 });
 
-const ALL: MapId[] = ["town", "hq", "inn", "upstairs", "shop-furniture", "shop-clothes", "shop-barber", "shop-pets", "basement", "office", "dungeon"];
+const ALL: MapId[] = [
+  "town",
+  "hq",
+  "inn",
+  "upstairs",
+  "shop-furniture",
+  "shop-clothes",
+  "shop-barber",
+  "shop-pets",
+  "basement",
+  "office",
+  "dungeon",
+];
 
 /** Fetches the code of every hand-built room (or of `ids`): for the demo, the tests and anything that builds them all. */
 export async function loadRoomSkins(ids: readonly MapId[] = ALL): Promise<void> {

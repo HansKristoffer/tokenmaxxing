@@ -18,9 +18,42 @@ export interface Look {
 }
 
 export const LOOKS: Record<Theme, Look> = {
-  day: { skyTop: "#7ec9e6", skyHor: "#dff3ec", haze: "#cfe9e6", sun: "#fff0d0", sunI: 2.6, sunPos: [-1, 1.35, 0.7], hemiSky: "#fff6e6", hemiGround: "#8a8a7a", hemiI: 1.5, night: false },
-  dusk: { skyTop: "#5b6fb5", skyHor: "#ffb36b", haze: "#e8a07e", sun: "#ff9a4a", sunI: 3.0, sunPos: [1.4, 0.5, 0.3], hemiSky: "#b9a0d8", hemiGround: "#8a5a4a", hemiI: 1.1, night: false },
-  cyber: { skyTop: "#06050f", skyHor: "#2b0f3f", haze: "#2a1646", sun: "#9fb4ff", sunI: 1.5, sunPos: [-1, 1.2, 0.6], hemiSky: "#5a6cff", hemiGround: "#3a1450", hemiI: 0.55, night: true },
+  day: {
+    skyTop: "#7ec9e6",
+    skyHor: "#dff3ec",
+    haze: "#cfe9e6",
+    sun: "#fff0d0",
+    sunI: 2.6,
+    sunPos: [-1, 1.35, 0.7],
+    hemiSky: "#fff6e6",
+    hemiGround: "#8a8a7a",
+    hemiI: 1.5,
+    night: false,
+  },
+  dusk: {
+    skyTop: "#5b6fb5",
+    skyHor: "#ffb36b",
+    haze: "#e8a07e",
+    sun: "#ff9a4a",
+    sunI: 3.0,
+    sunPos: [1.4, 0.5, 0.3],
+    hemiSky: "#b9a0d8",
+    hemiGround: "#8a5a4a",
+    hemiI: 1.1,
+    night: false,
+  },
+  cyber: {
+    skyTop: "#06050f",
+    skyHor: "#2b0f3f",
+    haze: "#2a1646",
+    sun: "#9fb4ff",
+    sunI: 1.5,
+    sunPos: [-1, 1.2, 0.6],
+    hemiSky: "#5a6cff",
+    hemiGround: "#3a1450",
+    hemiI: 0.55,
+    night: true,
+  },
 };
 
 export interface World {
@@ -120,7 +153,11 @@ export function aim(camera: THREE.OrthographicCamera, c: Cam, aspect: number): v
   const el = (c.el * Math.PI) / 180;
   const dist = 200;
   const t = new THREE.Vector3(...c.target);
-  camera.position.set(t.x + dist * Math.cos(el) * Math.sin(az), t.y + dist * Math.sin(el), t.z + dist * Math.cos(el) * Math.cos(az));
+  camera.position.set(
+    t.x + dist * Math.cos(el) * Math.sin(az),
+    t.y + dist * Math.sin(el),
+    t.z + dist * Math.cos(el) * Math.cos(az),
+  );
   camera.lookAt(t);
   camera.near = 1;
   camera.far = 520;

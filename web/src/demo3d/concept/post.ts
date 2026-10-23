@@ -41,7 +41,11 @@ export function finish(src: HTMLCanvasElement, o: PostOpts): HTMLCanvasElement {
     sg.drawImage(src, 0, 0, small.width, small.height);
     sg.filter = "none";
     g.globalCompositeOperation = "lighter";
-    for (const [blur, a] of [[w / 400, 0.55], [w / 140, 0.7], [w / 55, 0.6]] as const) {
+    for (const [blur, a] of [
+      [w / 400, 0.55],
+      [w / 140, 0.7],
+      [w / 55, 0.6],
+    ] as const) {
       g.filter = `blur(${blur}px)`;
       g.globalAlpha = Math.min(1, a * bl);
       g.drawImage(small, 0, 0, w, h);

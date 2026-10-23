@@ -7,7 +7,11 @@ export function installHeadlessGlobals(): void {
         k === "canvas"
           ? {}
           : k === "getImageData"
-            ? (_x: number, _y: number, w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h })
+            ? (_x: number, _y: number, w: number, h: number) => ({
+                data: new Uint8ClampedArray(w * h * 4),
+                width: w,
+                height: h,
+              })
             : () => ({ addColorStop() {} }),
       set: () => true,
     },
@@ -24,5 +28,4 @@ export function installHeadlessGlobals(): void {
     location: { search: "" },
     navigator: { userAgent: "bun" },
   });
-
 }

@@ -198,7 +198,9 @@ export function parseSaved(raw: string | null): Saved {
           ? {
               tier: d.tier,
               gpu: typeof d.gpu === "string" ? d.gpu : null,
-              reasons: Array.isArray(d.reasons) ? d.reasons.filter((r: unknown) => typeof r === "string") : [],
+              reasons: Array.isArray(d.reasons)
+                ? d.reasons.filter((r: unknown) => typeof r === "string")
+                : [],
               at: d.at,
             }
           : null,

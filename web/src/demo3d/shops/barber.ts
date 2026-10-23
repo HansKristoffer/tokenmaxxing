@@ -138,7 +138,8 @@ export interface LookChange {
   face?: number;
 }
 
-const inRange = (n: number | undefined, count: number): n is number => n !== undefined && Number.isInteger(n) && n >= 0 && n < count;
+const inRange = (n: number | undefined, count: number): n is number =>
+  n !== undefined && Number.isInteger(n) && n >= 0 && n < count;
 
 /**
  * A look with `change` applied: a new object, the old one untouched. Out-of-range numbers and face things
@@ -159,7 +160,10 @@ export function restyle(look: Look, change: LookChange, opts: { level?: number }
 
 /** The coins a change costs: only face things are sold; the creator's parts are free. */
 export function restylePrice(look: Look, change: LookChange): number {
-  const row = change.face !== undefined && change.face !== look.glasses ? FACE_ROWS.find((r) => r.index === change.face) : undefined;
+  const row =
+    change.face !== undefined && change.face !== look.glasses
+      ? FACE_ROWS.find((r) => r.index === change.face)
+      : undefined;
   return row?.price ?? 0;
 }
 
@@ -210,7 +214,11 @@ function exterior(): Model {
   for (const s of [-1, 1]) {
     const sideBrick = brickTexture();
     sideBrick.repeat.set(d * 1.2, (h - 0.16) * 1.2);
-    const side = m.plane(d, h - 0.16, painted(sideBrick), [s * (w / 2 + 0.012), 0.16 + (h - 0.16) / 2, -d / 2]);
+    const side = m.plane(d, h - 0.16, painted(sideBrick), [
+      s * (w / 2 + 0.012),
+      0.16 + (h - 0.16) / 2,
+      -d / 2,
+    ]);
     side.rotation.y = s * (Math.PI / 2);
   }
   // Roof slab, parapets and a cornice along the front.
@@ -255,7 +263,10 @@ function exterior(): Model {
     face.add(mi);
   }
   for (const [x, hair, style, skin] of heads) {
-    const hd = headOnStand(lookOf(style, hair, skin, 0, hair), { voxelStyle: style === 2 ? 3 : undefined, scale: 0.9 });
+    const hd = headOnStand(lookOf(style, hair, skin, 0, hair), {
+      voxelStyle: style === 2 ? 3 : undefined,
+      scale: 0.9,
+    });
     hd.scale.setScalar(0.85);
     hd.position.set(x, 0.5, -0.05);
     face.add(hd);
@@ -263,7 +274,14 @@ function exterior(): Model {
   // Flower boxes.
   for (const sx of [-1.52, 1.52]) {
     face.box([1.1, 0.12, 0.14], C.woodDark, [sx, 0.2, 0.14], 0.02);
-    for (let i = 0; i < 6; i++) face.ball(0.05, ["#e8584f", "#f5d14a", "#ff7ab6"][i % 3]!, [sx - 0.45 + i * 0.18, 0.36, 0.14], [1, 1, 1], 6);
+    for (let i = 0; i < 6; i++)
+      face.ball(
+        0.05,
+        ["#e8584f", "#f5d14a", "#ff7ab6"][i % 3]!,
+        [sx - 0.45 + i * 0.18, 0.36, 0.14],
+        [1, 1, 1],
+        6,
+      );
   }
 
   // The door: glass panel, kick plate, brass handle, and a hanging sign.
@@ -348,7 +366,8 @@ function exterior(): Model {
       g.fillText("WALK-INS", cw / 2, 22);
       g.font = "12px system-ui, sans-serif";
       g.fillStyle = "#ffe28a";
-      for (const [i, l] of ["Trim", "Colour", "Beard", "New face"].entries()) g.fillText(l, cw / 2, 44 + i * 18);
+      for (const [i, l] of ["Trim", "Colour", "Beard", "New face"].entries())
+        g.fillText(l, cw / 2, 44 + i * 18);
       g.fillStyle = "#f08a8a";
       g.fillText("free styles!", cw / 2, ch - 12);
     },
@@ -371,7 +390,14 @@ function exterior(): Model {
 const W = 20;
 const D = 11;
 
-const asset = (id: string, name: string, w: number, d: number, build: () => Model, extra: Partial<Asset> = {}): Asset => ({
+const asset = (
+  id: string,
+  name: string,
+  w: number,
+  d: number,
+  build: () => Model,
+  extra: Partial<Asset> = {},
+): Asset => ({
   id,
   name,
   price: 0,
@@ -382,7 +408,15 @@ const asset = (id: string, name: string, w: number, d: number, build: () => Mode
 });
 
 /** A header sign on top of a fixture: a lit board, `w` wide. */
-function header(m: Model, text: string, sub: string, w: number, y: number, z: number, colour = "#1f2a44"): void {
+function header(
+  m: Model,
+  text: string,
+  sub: string,
+  w: number,
+  y: number,
+  z: number,
+  colour = "#1f2a44",
+): void {
   const p = panel(
     w,
     0.26,
@@ -396,7 +430,8 @@ function header(m: Model, text: string, sub: string, w: number, y: number, z: nu
       g.textBaseline = "middle";
       const fit = (size: number, weight: string, t: string) => {
         g.font = `${weight} ${size}px system-ui, sans-serif`;
-        while (g.measureText(t).width > cw - 12 && size > 6) g.font = `${weight} ${--size}px system-ui, sans-serif`;
+        while (g.measureText(t).width > cw - 12 && size > 6)
+          g.font = `${weight} ${--size}px system-ui, sans-serif`;
       };
       fit(14, "900", text);
       g.fillText(text, cw / 2, ch * 0.36);
@@ -428,7 +463,13 @@ function wigWall(): Model {
       h.rotation.y = -0.5;
       h.position.set(-1.8 + c * 0.82, y, 0.25);
       wall.add(h);
-      leanCard(wall, { ...hair, name: hair.name.replace(" hair", "") }, [-1.8 + c * 0.82, y, 0.52], 0.76, 0.2);
+      leanCard(
+        wall,
+        { ...hair, name: hair.name.replace(" hair", "") },
+        [-1.8 + c * 0.82, y, 0.52],
+        0.76,
+        0.2,
+      );
     });
   });
   // Towels, wig caps and spare dummies in the cabinet doors' top; a hairdryer on the highest board.
@@ -459,7 +500,12 @@ function swatchWall(): Model {
     // The clip, then the tress: a wavy plait of cubes.
     wall.box([0.22, 0.05, 0.05], CHROME, [x, 1.82, 0.12], 0.01);
     for (let k = 0; k < 6; k++) {
-      const seg = wall.box([0.17 - k * 0.012, 0.11, 0.07], tint(col, k % 2 ? -0.12 : 0.08), [x + Math.sin(k * 1.4) * 0.022, 1.72 - k * 0.09, 0.13], 0.015);
+      const seg = wall.box(
+        [0.17 - k * 0.012, 0.11, 0.07],
+        tint(col, k % 2 ? -0.12 : 0.08),
+        [x + Math.sin(k * 1.4) * 0.022, 1.72 - k * 0.09, 0.13],
+        0.015,
+      );
       seg.castShadow = true;
     }
     wall.box([0.07, 0.07, 0.06], tint(col, -0.2), [x, 1.17, 0.13], 0.02);
@@ -512,8 +558,19 @@ function beardBar(): Model {
   unit.position.z = -0.5 + depth / 2;
   m.add(unit);
   const wall = m.part([0, 0, -0.5]);
-  header(m, "MOUSTACHE & BEARD", "grown in your own hair colour", 1.86, top - 0.3, -0.5 + depth + 0.03, "#3a2a1c");
-  const [hyg, vik] = FACE_ROWS.filter((r) => (FACIAL_HAIR_IDS as readonly string[]).includes(r.id)) as [BarberRow, BarberRow];
+  header(
+    m,
+    "MOUSTACHE & BEARD",
+    "grown in your own hair colour",
+    1.86,
+    top - 0.3,
+    -0.5 + depth + 0.03,
+    "#3a2a1c",
+  );
+  const [hyg, vik] = FACE_ROWS.filter((r) => (FACIAL_HAIR_IDS as readonly string[]).includes(r.id)) as [
+    BarberRow,
+    BarberRow,
+  ];
   // The shaving kit between the moustaches: a mug with its brush, a bar of soap, an open razor.
   const y0 = tiers[0]!;
   wall.cyl(0.06, 0.09, "#fbf7ef", [-0.07, y0, 0.36], 0.055, 12);
@@ -558,10 +615,17 @@ function skinChart(): Model {
     hd.position.set(x, tiers[tier]!, 0.22);
     hd.rotation.y = i % 2 ? 0.15 : -0.15;
     wall.add(hd);
-    lipCard(wall, { ...row, name: row.name.replace(" skin", "") }, [x, tiers[tier]! - 0.2, depth + 0.012], 0.8, 0.16);
+    lipCard(
+      wall,
+      { ...row, name: row.name.replace(" skin", "") },
+      [x, tiers[tier]! - 0.2, depth + 0.012],
+      0.8,
+      0.16,
+    );
   }
   // The four tones as chips on the cabinet doors.
-  for (let i = 0; i < 4; i++) wall.box([0.3, 0.2, 0.015], SKIN_COLOURS[i]!, [-0.66 + i * 0.44, 0.08, depth + 0.012], 0.006);
+  for (let i = 0; i < 4; i++)
+    wall.box([0.3, 0.2, 0.015], SKIN_COLOURS[i]!, [-0.66 + i * 0.44, 0.08, depth + 0.012], 0.006);
   return m;
 }
 
@@ -573,7 +637,8 @@ function counter(): Model {
   m.box([w, 0.9, 0.7], "#f1ede0", [0, 0, 0], 0.03);
   m.box([w + 0.1, 0.06, 0.8], "#2b2f3a", [0, 0.9, 0], 0.02);
   m.box([w - 0.2, 0.7, 0.03], "#1f2a44", [0, 0.1, 0.36], 0.01);
-  for (let i = 0; i < 8; i++) m.box([0.03, 0.7, 0.035], i % 2 ? RED : "#fbf7ef", [-w / 2 + 0.3 + i * 0.5, 0.1, 0.37], 0.004);
+  for (let i = 0; i < 8; i++)
+    m.box([0.03, 0.7, 0.035], i % 2 ? RED : "#fbf7ef", [-w / 2 + 0.3 + i * 0.5, 0.1, 0.37], 0.004);
   // The till.
   m.box([0.5, 0.2, 0.4], "#8a93a1", [-1.2, 0.96, 0.0], 0.03);
   m.box([0.4, 0.22, 0.04], "#2b2433", [-1.2, 1.16, -0.12], 0.01).rotation.x = -0.35;
@@ -591,7 +656,13 @@ function counter(): Model {
   m.add(pole);
   m.cyl(0.09, 0.22, glass("#fbd7e6", 0.6), [0.8, 0.96, 0.05], 0.09, 12);
   for (let i = 0; i < 5; i++) {
-    const pop = m.ball(0.04, ["#e8584f", "#f5d14a", "#58b36a", "#4f8fe0", "#c86bd8"][i]!, [0.8 + (i - 2) * 0.03, 1.2 + (i % 2) * 0.03, 0.05], [1, 1, 0.5], 8);
+    const pop = m.ball(
+      0.04,
+      ["#e8584f", "#f5d14a", "#58b36a", "#4f8fe0", "#c86bd8"][i]!,
+      [0.8 + (i - 2) * 0.03, 1.2 + (i % 2) * 0.03, 0.05],
+      [1, 1, 0.5],
+      8,
+    );
     pop.castShadow = true;
     m.cyl(0.006, 0.12, "#fbf7ef", [0.8 + (i - 2) * 0.03, 1.1, 0.05], 0.006, 4);
   }
@@ -695,15 +766,31 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   for (const [i, r] of HAIR_ROWS.entries()) show(r, [6 + Math.round((i * 3) / 5), 1]);
   const plainFaces = FACE_ROWS.filter((r) => !(FACIAL_HAIR_IDS as readonly string[]).includes(r.id));
   for (const [i, r] of plainFaces.entries()) show(r, [10 + (i % 6), 1]);
-  for (const [i, id] of FACIAL_HAIR_IDS.entries()) show(FACE_ROWS.find((r) => r.id === id)!, [16 + i, 1]);
+  for (const [i, id] of FACIAL_HAIR_IDS.entries())
+    show(
+      FACE_ROWS.find((r) => r.id === id)!,
+      [16 + i, 1],
+    );
   for (const [i, r] of SKIN_ROWS.entries()) show(r, [18 + (i % 2), 1]);
 
   // West wall: three mirror stations, a chair each, the shampoo sinks and the towel warmer.
   const chairs: Placed[] = [];
   for (const [i, z] of [1, 3, 5].entries()) {
-    put(asset(`barber:station-${i}`, "Mirror station", 2, 1, () => station(i)), 0, z, 1);
+    put(
+      asset(`barber:station-${i}`, "Mirror station", 2, 1, () => station(i)),
+      0,
+      z,
+      1,
+    );
     chairs.push(
-      put(asset(`barber:chair-${i}`, "Barber chair", 2, 1, barberChair, { seat: { at: [0, 0.52, 0], turn: 0 } }), 1, z, 3),
+      put(
+        asset(`barber:chair-${i}`, "Barber chair", 2, 1, barberChair, {
+          seat: { at: [0, 0.52, 0], turn: 0 },
+        }),
+        1,
+        z,
+        3,
+      ),
     );
   }
   put(asset("barber:sinks", "Shampoo sinks", 2, 1, sinks), 0, 7, 1);
@@ -730,7 +817,10 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     s.avatar.root.rotation.y = -Math.PI / 2;
     room.group.add(s.avatar.root);
     customers.push(s);
-    const ap = makeApprentice(i ? SKIN_COLOURS[1]! : SKIN_COLOURS[3]!, i ? HAIR_COLOURS[1]! : HAIR_COLOURS[0]!);
+    const ap = makeApprentice(
+      i ? SKIN_COLOURS[1]! : SKIN_COLOURS[3]!,
+      i ? HAIR_COLOURS[1]! : HAIR_COLOURS[0]!,
+    );
     ap.root.position.set(at.x + 0.62, 0.02, at.z + (i ? -0.1 : 0.1));
     ap.root.rotation.y = -Math.PI / 2;
     room.group.add(ap.root);
@@ -811,4 +901,3 @@ export const SHOP_BARBER: ShopSpec = {
   footprint: { w: 5, d: 4 },
   buildInterior,
 };
-

@@ -24,8 +24,19 @@ export function sceneStats(scene: THREE.Object3D): SceneStats {
   const mats = new Set<THREE.Material>();
   const texs = new Set<THREE.Texture>();
   const s: SceneStats = {
-    objects: 0, meshes: 0, instanced: 0, instances: 0, drawables: 0, triangles: 0, geometries: 0,
-    materials: 0, textures: 0, lights: 0, shadowCasters: 0, transparent: 0, ticks: ticks.length,
+    objects: 0,
+    meshes: 0,
+    instanced: 0,
+    instances: 0,
+    drawables: 0,
+    triangles: 0,
+    geometries: 0,
+    materials: 0,
+    textures: 0,
+    lights: 0,
+    shadowCasters: 0,
+    transparent: 0,
+    ticks: ticks.length,
   };
   scene.traverseVisible((o) => {
     s.objects++;

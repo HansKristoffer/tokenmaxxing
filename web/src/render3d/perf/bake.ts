@@ -74,13 +74,15 @@ export interface BakeStats {
 
 /** Batches of something that moves as a whole (a wall, a limb) stay on the default layer: they cast their own shadow every frame. */
 function dynamicRoot(root: THREE.Object3D): boolean {
-  for (let p: THREE.Object3D | null = root; p; p = p.parent) if (p.userData[RIGID] || p.userData.actor) return true;
+  for (let p: THREE.Object3D | null = root; p; p = p.parent)
+    if (p.userData[RIGID] || p.userData.actor) return true;
   return false;
 }
 
 function isLive(o: THREE.Object3D, root: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o; p; p = p.parent) {
-    if (p.userData[LIVE] || p.userData.nobatch || p.userData.noBake || (p !== root && p.userData[RIGID])) return true;
+    if (p.userData[LIVE] || p.userData.nobatch || p.userData.noBake || (p !== root && p.userData[RIGID]))
+      return true;
     if (p === root) break;
   }
   return false;
@@ -101,7 +103,10 @@ function bakeable(m: THREE.Mesh, literal = false): boolean {
   if (m.renderOrder !== 0 || m.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) return false;
   const g = m.geometry;
   return (
-    !!g.getAttribute("position") && g.getAttribute("position").count > 0 && !g.morphAttributes.position && (literal || !blockMoves(m))
+    !!g.getAttribute("position") &&
+    g.getAttribute("position").count > 0 &&
+    !g.morphAttributes.position &&
+    (literal || !blockMoves(m))
   );
 }
 
@@ -123,8 +128,19 @@ function matKey(m: THREE.Material, atlased = false): string {
   const a = m as Lit;
   const fold = foldable(m);
   return [
-    m.type, fold ? "vc" : (a.color?.getHexString() ?? ""), atlased ? "atlas" : tex(a.map), tex(a.gradientMap), a.emissive?.getHexString() ?? "",
-    m.side, m.opacity, m.transparent ? 1 : 0, a.flatShading ? 1 : 0, m.alphaTest, a.vertexColors ? 1 : 0, a.fog ? 1 : 0, m.depthWrite ? 1 : 0,
+    m.type,
+    fold ? "vc" : (a.color?.getHexString() ?? ""),
+    atlased ? "atlas" : tex(a.map),
+    tex(a.gradientMap),
+    a.emissive?.getHexString() ?? "",
+    m.side,
+    m.opacity,
+    m.transparent ? 1 : 0,
+    a.flatShading ? 1 : 0,
+    m.alphaTest,
+    a.vertexColors ? 1 : 0,
+    a.fog ? 1 : 0,
+    m.depthWrite ? 1 : 0,
   ].join("|");
 }
 
@@ -187,7 +203,8 @@ function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<numb
   const base = snapshot(root, meshes);
   // Something above may animate its parts by its own means (an avatar's gear moves when it walks): it says how to sample that.
   let sample: ((t: number) => void) | undefined;
-  for (let p: THREE.Object3D | null = root; p && !sample; p = p.parent) sample = p.userData.sample as typeof sample;
+  for (let p: THREE.Object3D | null = root; p && !sample; p = p.parent)
+    sample = p.userData.sample as typeof sample;
   if (sample)
     for (const t of SAMPLE_TIMES) {
       try {
@@ -209,11 +226,19 @@ function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<numb
   }
 }
 
-function prepared(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color?: THREE.Color): THREE.BufferGeometry {
+function prepared(
+  src: THREE.BufferGeometry,
+  matrix: THREE.Matrix4,
+  color?: THREE.Color,
+): THREE.BufferGeometry {
   const g = src.clone();
-  for (const k of Object.keys(g.attributes)) if (k !== "position" && k !== "normal" && k !== "uv" && !(k === "color" && !color)) g.deleteAttribute(k);
+  for (const k of Object.keys(g.attributes))
+    if (k !== "position" && k !== "normal" && k !== "uv" && !(k === "color" && !color)) g.deleteAttribute(k);
   if (!g.getAttribute("uv")) {
-    g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(g.getAttribute("position").count * 2), 2));
+    g.setAttribute(
+      "uv",
+      new THREE.BufferAttribute(new Float32Array(g.getAttribute("position").count * 2), 2),
+    );
   }
   if (!g.getAttribute("normal")) g.computeVertexNormals();
   g.clearGroups();
@@ -352,7 +377,13 @@ export class BakedLayer {
       if (q !== undefined) return q;
       if (o === this.group) q = false;
       else if ((o as THREE.Mesh).isMesh) q = own.has(o as THREE.Mesh);
-      else if (o.userData[LIVE] || o.userData.noBake || (o as THREE.Light).isLight || (o as THREE.Sprite).isSprite) q = false;
+      else if (
+        o.userData[LIVE] ||
+        o.userData.noBake ||
+        (o as THREE.Light).isLight ||
+        (o as THREE.Sprite).isSprite
+      )
+        q = false;
       else q = o.children.every(isQuiet);
       quiet.set(o, q);
       return q;
@@ -384,7 +415,11 @@ export class BakedLayer {
       }
       return { meshes: v.children.length, triangles: tris };
     };
-    return { sources: this.sources.length, live: this.liveCount, merged: { smooth: of("smooth"), block: of("block") } };
+    return {
+      sources: this.sources.length,
+      live: this.liveCount,
+      merged: { smooth: of("smooth"), block: of("block") },
+    };
   }
 
   private readonly atlases: Atlas[] = [];
@@ -398,7 +433,13 @@ export class BakedLayer {
     out.matrixAutoUpdate = false;
     const groups = new Map<
       string,
-      { parts: THREE.BufferGeometry[]; mat: THREE.Material; cast: boolean; recv: boolean; glow?: "day" | "night" }
+      {
+        parts: THREE.BufferGeometry[];
+        mat: THREE.Material;
+        cast: boolean;
+        recv: boolean;
+        glow?: "day" | "night";
+      }
     >();
     const items = this.sources.map((s) => {
       const m = s.mesh;
@@ -481,7 +522,8 @@ export class BakedLayer {
       syncAtlas(a);
       // One that keeps changing (a screen the warm-up never saw move) is taken out of the atlas for good.
       if (a.repaints > 24) {
-        for (const t of a.rects.keys()) if (a.seen.get(t) !== undefined && t.version > 2) t.userData.animated = true;
+        for (const t of a.rects.keys())
+          if (a.seen.get(t) !== undefined && t.version > 2) t.userData.animated = true;
         a.repaints = 0;
         invalidateBaked(this.root);
         return;
@@ -532,7 +574,11 @@ export class BakedLayer {
   }
 }
 
-function collect(root: THREE.Object3D): { meshes: THREE.Mesh[]; why: Record<string, number>; rigids: THREE.Object3D[] } {
+function collect(root: THREE.Object3D): {
+  meshes: THREE.Mesh[];
+  why: Record<string, number>;
+  rigids: THREE.Object3D[];
+} {
   const meshes: THREE.Mesh[] = [];
   const rigids: THREE.Object3D[] = [];
   const why = { live: 0, hidden: 0, unbakeable: 0, moving: 0, baked: 0 };

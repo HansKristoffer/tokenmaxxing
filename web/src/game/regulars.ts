@@ -1,10 +1,4 @@
-import {
-  LEFT_PLATES,
-  plaqueOf,
-  plateText,
-  REGULARS_TOP,
-  type Regular,
-} from "@tokenmaxxing/core/regulars.ts";
+import { LEFT_PLATES, plaqueOf, plateText, REGULARS_TOP, type Regular } from "@tokenmaxxing/core/regulars.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { barTabSide, nameboard } from "../art/tavern.ts";
 import { town } from "../net.ts";
@@ -34,7 +28,10 @@ export function askRegulars(): void {
 }
 
 /** The board as last asked: the week's top, and last week's winner (who wears the crown). */
-export const regularsBoard = (): { rows: readonly Regular[]; last: number | null } => ({ rows: board.rows, last: board.last });
+export const regularsBoard = (): { rows: readonly Regular[]; last: number | null } => ({
+  rows: board.rows,
+  last: board.last,
+});
 
 /** In the Tavern: this week's top five as 3-letter names on the two plaques by the hearth. */
 export function drawRegulars({ g, items }: Frame): void {
@@ -63,7 +60,10 @@ export function drawBarTab({ g, items }: Frame): void {
   const top = world.map.find("J").find(([x, y]) => world.map.at(x, y - 1) !== "J");
   if (!top) return;
   const rows = board.rows.map((r) => plateText(r));
-  const sprite = barTabSide(rows, board.rows.findIndex((r) => r.userId === board.last));
+  const sprite = barTabSide(
+    rows,
+    board.rows.findIndex((r) => r.userId === board.last),
+  );
   const [x, y] = top;
   items.push({
     y: y * TILE + sprite.height - 1,

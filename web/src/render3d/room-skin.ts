@@ -152,7 +152,12 @@ function buildSkinned(id: RoomId, ctx: RoomCtx): RoomView {
   const mapId = kindOf(id) as MapId;
   const built = worldRoom(mapId, ctx.map, () => buildRoomSkin(mapId));
   const extra = built.value.skin?.extra ?? null;
-  const live = mapId === "inn" ? liveTavern(extra as TavernRoom) : mapId === "basement" ? liveBasement(extra as BasementScene) : undefined;
+  const live =
+    mapId === "inn"
+      ? liveTavern(extra as TavernRoom)
+      : mapId === "basement"
+        ? liveBasement(extra as BasementScene)
+        : undefined;
   const inn = mapId === "inn" ? new TavernEvents(extra as TavernRoom) : null;
   return viewOf(id, ctx.map, built.value, built.ticks, {
     extra,
@@ -174,12 +179,29 @@ function buildShop(id: RoomId, ctx: RoomCtx): RoomView {
   const mapId = SHOP_ROOM[shop] as MapId;
   const built = worldRoom(mapId, ctx.map, () => buildRoomSkin(mapId));
   const botId = SHOPKEEPER_BOT[shop];
-  return viewOf(id, ctx.map, built.value, built.ticks, { extra: shopRoom(shop), shop: shopRoom(shop), keepers: new Set([botId]), free: built.free }, SHOP_VIEW[shop] ?? 8.5);
+  return viewOf(
+    id,
+    ctx.map,
+    built.value,
+    built.ticks,
+    { extra: shopRoom(shop), shop: shopRoom(shop), keepers: new Set([botId]), free: built.free },
+    SHOP_VIEW[shop] ?? 8.5,
+  );
 }
 
 /** The core bot behind each shop's counter. */
-export const SHOPKEEPER_BOT: Record<(typeof SHOP_IDS)[number], number> = { furniture: -5, clothes: -6, barber: -7, pets: -8 };
-const SHOP_VIEW: Partial<Record<(typeof SHOP_IDS)[number], number>> = { furniture: 11, clothes: 8.5, barber: 8, pets: 8.5 };
+export const SHOPKEEPER_BOT: Record<(typeof SHOP_IDS)[number], number> = {
+  furniture: -5,
+  clothes: -6,
+  barber: -7,
+  pets: -8,
+};
+const SHOP_VIEW: Partial<Record<(typeof SHOP_IDS)[number], number>> = {
+  furniture: 11,
+  clothes: 8.5,
+  barber: 8,
+  pets: 8.5,
+};
 
 /** The company house, with its dropped furniture and posters and the company's desk fleet and colours. */
 function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {
@@ -198,7 +220,12 @@ function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {
     m.rotation.y = Math.PI;
     hq.room.group.add(m);
   }
-  const skin: RoomSkin = { group: hq.room.group, offset: [1, 2], facing: (v) => hq.room.facing(v), extra: hq };
+  const skin: RoomSkin = {
+    group: hq.room.group,
+    offset: [1, 2],
+    facing: (v) => hq.room.facing(v),
+    extra: hq,
+  };
   const room = new WorldRoom("hq", ctx.map, skin);
   return viewOf(id, ctx.map, room, built.ticks, { extra: hq, keepers: new Set() });
 }

@@ -1,7 +1,14 @@
 import { expect, test } from "bun:test";
 import { declutterTags, TAG_H, type TagSlot } from "../src/render3d/declutter.ts";
 
-const slot = (tx: number, ty: number, tdist: number): TagSlot => ({ tx, ty, tdist, tshift: 0, talpha: 1, thide: false });
+const slot = (tx: number, ty: number, tdist: number): TagSlot => ({
+  tx,
+  ty,
+  tdist,
+  tshift: 0,
+  talpha: 1,
+  thide: false,
+});
 
 test("tags that would cover each other stack, the nearest keeps its place", () => {
   const items = [slot(100, 200, 8), slot(104, 200, 2), slot(98, 200, 4)];

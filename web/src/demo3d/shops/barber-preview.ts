@@ -28,11 +28,17 @@ if (view === "exterior") {
   const m = SHOP_BARBER.exterior();
   m.position.set(0, 0, 2);
   scene.add(m);
-  const ground = new THREE.Mesh(new THREE.BoxGeometry(14, 0.2, 10), new THREE.MeshToonMaterial({ color: "#86c35e" }));
+  const ground = new THREE.Mesh(
+    new THREE.BoxGeometry(14, 0.2, 10),
+    new THREE.MeshToonMaterial({ color: "#86c35e" }),
+  );
   ground.position.set(0, -0.1, -1);
   ground.receiveShadow = true;
   scene.add(ground);
-  const path = new THREE.Mesh(new THREE.BoxGeometry(14, 0.02, 2), new THREE.MeshToonMaterial({ color: "#e6cc98" }));
+  const path = new THREE.Mesh(
+    new THREE.BoxGeometry(14, 0.02, 2),
+    new THREE.MeshToonMaterial({ color: "#e6cc98" }),
+  );
   path.position.set(0, 0.01, 3.4);
   scene.add(path);
   target.set(0, 0.8, 0);
@@ -112,7 +118,10 @@ window.addEventListener("pointermove", (e) => {
   const fwd = new THREE.Vector3(-Math.sin(azimuth), 0, -Math.cos(azimuth));
   target.addScaledVector(right, -dx).addScaledVector(fwd, dy);
 });
-window.addEventListener("wheel", (e) => (zoom = Math.max(0.15, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9)))));
+window.addEventListener(
+  "wheel",
+  (e) => (zoom = Math.max(0.15, Math.min(2.5, zoom * (e.deltaY > 0 ? 1.1 : 0.9)))),
+);
 window.addEventListener("keydown", (e) => {
   if (e.key === "q") azimuth -= Math.PI / 2;
   if (e.key === "e") azimuth += Math.PI / 2;

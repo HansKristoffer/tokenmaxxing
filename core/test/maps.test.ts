@@ -129,11 +129,30 @@ describe("maps", () => {
       expect(BARKEEP.home).toEqual(BARKEEP_HOME);
       // Everything behind the bar line is rug or shelf, never `_`.
       for (let x = 1; x <= 9; x++) expect(map.at(x, 3)).toBe("=");
-      for (const t of cells("=").filter(([x, y]) => y === 3 && x < 10)) expect(seen.has(t.join(","))).toBe(false);
+      for (const t of cells("=").filter(([x, y]) => y === 3 && x < 10))
+        expect(seen.has(t.join(","))).toBe(false);
     });
 
     test("the boards, the tap, the tip jar and the coat stands are all there, each walkable up to", () => {
-      for (const ch of ["a", "y", "$", "m", "A", "P", "f", "n", "e", "h", "K", "o", "z", "J", "O", "S", "u"]) {
+      for (const ch of [
+        "a",
+        "y",
+        "$",
+        "m",
+        "A",
+        "P",
+        "f",
+        "n",
+        "e",
+        "h",
+        "K",
+        "o",
+        "z",
+        "J",
+        "O",
+        "S",
+        "u",
+      ]) {
         expect(cells(ch).length).toBeGreaterThan(0);
         const standable = cells(ch).some(([x, y]) =>
           [
@@ -233,12 +252,14 @@ describe("the shops", () => {
     test(`${id}: the door leads in from the town and back out below the storefront`, () => {
       const [dx, dy] = MAPS.town.find(SHOP_DOOR_CHAR[id])[0]!;
       expect(portal("town", { ch: SHOP_DOOR_CHAR[id], x: dx, y: dy }, null, none)).toEqual(entry);
-      expect(portal(SHOP_ROOM[id], { ch: "x", ...{ x: shop.door[0], y: shop.door[1] } }, null, none)).toEqual({
-        room: "town",
-        x: dx,
-        y: dy + 1,
-        facing: "down",
-      });
+      expect(portal(SHOP_ROOM[id], { ch: "x", ...{ x: shop.door[0], y: shop.door[1] } }, null, none)).toEqual(
+        {
+          room: "town",
+          x: dx,
+          y: dy + 1,
+          facing: "down",
+        },
+      );
     });
   }
 
