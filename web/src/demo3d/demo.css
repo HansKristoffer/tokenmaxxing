@@ -269,3 +269,7 @@ label {
     margin-top: -26px;
   }
 }
+
+.panel[hidden] {
+  display: none;
+}
