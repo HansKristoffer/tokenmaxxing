@@ -35,7 +35,7 @@ describe("the basement", () => {
     for (const row of map.rows) for (const ch of row) expect(LEGEND[ch]).toBeDefined();
     expect(LEGEND.S).toMatchObject({ portal: true });
     expect(LEGEND.x).toMatchObject({ portal: true });
-    expect(MAPS.inn.find("S")).toEqual([[3, 13]]);
+    expect(MAPS.inn.find("S")).toEqual([[26, 16]]);
     expect(MAPS.inn.find("x")).toHaveLength(1);
   });
 
@@ -49,7 +49,7 @@ describe("the basement", () => {
       facing: "up",
     });
     // The Tavern's own door still leads outside.
-    expect(portal("inn", { ch: "x", x: 11, y: 13 }, null, none)).toMatchObject({ room: "town" });
+    expect(portal("inn", { ch: "x", x: 13, y: 18 }, null, none)).toMatchObject({ room: "town" });
   });
 
   test("the basement counts as Tavern time", () => {

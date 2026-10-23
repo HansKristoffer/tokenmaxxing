@@ -40,6 +40,21 @@ export const bar = cached(
     }),
 );
 
+/** The bar with the tip jar on it (the coin toss, `tosses`): a glass jar with a few coins and a handwritten label. */
+export const barJar = once(() =>
+  bake(16, 22, (p) => {
+    p.g.drawImage(bar(false), 0, 0);
+    p.rect(5, 0, 6, 1, C.ink);
+    p.rect(4, 1, 8, 6, C.ink);
+    p.rect(5, 1, 6, 5, "#cfeaf4");
+    p.rect(5, 1, 6, 1, C.white);
+    p.rect(5, 4, 6, 2, BRASS);
+    p.px(6, 4, BRASS_LIGHT);
+    p.px(9, 5, BRASS_LIGHT);
+    p.rect(6, 7, 4, 1, PAPER);
+  }),
+);
+
 const STOOL: { rows: string[]; pal: Palette } = {
   rows: [
     "..oooo..",
@@ -252,39 +267,29 @@ export const nameboard = cached(
 
 const CHALK = "#f1ede0";
 const CHALK_DIM = "#a9b0b4";
-/** Tiles the bar tab runs along the wall. */
-export const TAB_TILES = 4;
-const TAB_ROW = 6;
-
 /**
- * The bar tab: a slate in a wood frame, `TAB_TILES` wide. `rows` are `[name, hours]` best first (fewer than
- * five leaves dashes); `crown` is the row of last week's winner, who gets a small chalk crown.
+ * The bar tab as it hangs on the west wall: a slate one tile wide and four tall, the week's best as
+ * three-letter names (the full list is a click away); `crown` is the row of last week's winner.
  */
-export const barTab = cached(
-  (rows: [string, string][], crown: number) => `${rows.map((r) => r.join(":")).join("|")}#${crown}`,
-  (rows: [string, string][], crown: number) => {
-    const w = TAB_TILES * 16;
-    const h = 14 + TAB_ROW * 5;
-    return bake(w, h, (p) => {
-      p.rect(0, 0, w, h, C.ink);
-      p.rect(1, 1, w - 2, h - 2, C.woodDark);
-      p.rect(2, 2, w - 4, h - 4, "#2f3b3a");
-      p.rect(2, 2, w - 4, 1, "#3d4b49");
-      p.text("BAR TAB", 4, 4, CHALK);
-      p.rect(4, 10, w - 8, 1, CHALK_DIM);
+export const barTabSide = cached(
+  (names: string[], crown: number) => `${names.join("|")}#${crown}`,
+  (names: string[], crown: number) =>
+    bake(16, 64, (p) => {
+      p.rect(0, 0, 16, 64, C.ink);
+      p.rect(1, 1, 14, 62, C.woodDark);
+      p.rect(2, 2, 12, 60, "#2f3b3a");
+      p.rect(2, 2, 12, 1, "#3d4b49");
+      p.text("TAB", 3, 5, CHALK);
+      p.rect(3, 11, 10, 1, CHALK_DIM);
       for (let i = 0; i < 5; i++) {
-        const y = 12 + i * TAB_ROW;
-        const [name, hours] = rows[i] ?? ["---", ""];
+        const y = 16 + i * 9;
         if (i === crown) {
-          // A chalk crown: three points on a band.
-          for (const x of [4, 6, 8]) p.px(x, y, CHALK);
-          p.rect(4, y + 1, 5, 2, CHALK);
+          for (const x of [3, 5, 7]) p.px(x, y - 3, CHALK);
+          p.rect(3, y - 2, 5, 1, CHALK);
         }
-        p.text(name, 11, y, rows[i] ? CHALK : CHALK_DIM);
-        p.text(hours, w - 4 - hours.length * 4, y, CHALK_DIM);
+        p.text(names[i] ?? "---", 3, y, names[i] ? CHALK : CHALK_DIM);
       }
-    });
-  },
+    }),
 );
 
 /** A table top, one tile of a run: `left` and `right` say which ends are the table's own. */

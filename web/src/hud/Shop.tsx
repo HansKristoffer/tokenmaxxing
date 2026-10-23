@@ -34,10 +34,10 @@ const TABS = [
 
 const PLACES = ["🥇", "🥈", "🥉"];
 
-export function Shop() {
+export function Shop({ tab: first }: { tab?: Item["slot"] }) {
   const me = useHud((s) => s.me);
   const wallet = useHud((s) => s.wallet);
-  const [tab, setTab] = useState<Item["slot"]>("outfit");
+  const [tab, setTab] = useState<Item["slot"]>(first ?? "outfit");
   const [bag, setBag] = useState<BagRow[]>([]);
   const [failed, setFailed] = useState<string | null>(null);
   const { error, run } = useRun();

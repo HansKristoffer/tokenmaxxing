@@ -107,7 +107,7 @@ const GROUND: Record<string, Ground> = { ".": "grass", ",": "path", ":": "plaza"
 function groundAt(map: TownMap, x: number, y: number): Ground {
   const own = GROUND[map.at(x, y)];
   if (own) return own;
-  if ("IDAƒçßπ".includes(map.at(x, y))) return "path";
+  if ("IDA".includes(map.at(x, y)) || Object.values(SHOP_DOOR_CHAR).includes(map.at(x, y))) return "path";
   const counts = new Map<Ground, number>();
   for (const [dx, dy] of [
     [0, 1],

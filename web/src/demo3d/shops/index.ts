@@ -5,9 +5,11 @@
  * and the room's blocked tiles become a `GameMap` (`W` is wall, `H` a prop, `c` a seat, `x` the door) so the
  * world's walking, seats and portals all work in them.
  */
+
+import { SHOP_ROOM } from "@tokenmaxxing/core/shoprooms.ts";
 import * as THREE from "three";
 import type { Avatar } from "../avatar.ts";
-import { GameMap, type MapId } from "../data/maps.ts";
+import { GameMap } from "../data/maps.ts";
 import type { Model } from "../kit.ts";
 import type { Room } from "../room.ts";
 import { SHOP_BARBER } from "./barber.ts";
@@ -28,14 +30,8 @@ export const SHOP_SPECS: Record<ShopId, ShopSpec> = {
   pets: SHOP_PETS,
 };
 export const SHOP_IDS: ShopId[] = ["furniture", "clothes", "barber", "pets"];
-export const SHOP_ROOM: Record<ShopId, MapId> = {
-  furniture: "shop-furniture",
-  clothes: "shop-clothes",
-  barber: "shop-barber",
-  pets: "shop-pets",
-};
-/** The tile character of each storefront's door in the town. */
-export const SHOP_DOOR_CHAR: Record<ShopId, string> = { furniture: "ƒ", clothes: "ç", barber: "ß", pets: "π" };
+/** The rooms and the storefronts' door tiles are the game's own (`core/src/shoprooms.ts`). */
+export { SHOP_DOOR_CHAR, SHOP_ROOM } from "@tokenmaxxing/core/shoprooms.ts";
 export const shopOfRoom = (room: string): ShopId | null => SHOP_IDS.find((s) => SHOP_ROOM[s] === room) ?? null;
 
 export interface ShopDisplay {

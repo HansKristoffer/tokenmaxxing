@@ -13,11 +13,10 @@ import { world } from "./world.ts";
  * light it, and the stage plays music. By day it's bright and the glow is faint.
  */
 
-/** Wall sconces: tiles on the wall face (row 1), over the tables. */
+/** Wall sconces: tiles on the wall face (row 1), either side of the boards. */
 const SCONCES: readonly (readonly [number, number])[] = [
-  [17, 1],
+  [11, 1],
   [19, 1],
-  [21, 1],
 ];
 
 const FIRE = "255,150,60";

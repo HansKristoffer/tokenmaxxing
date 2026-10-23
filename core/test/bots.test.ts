@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { BARKEEP } from "../src/barkeep.ts";
 import { BOTS, type BotDef, BUSY_CROWD, chase, EMPTY_CROWD, lineFor, toCoffee, wander } from "../src/bots.ts";
 import { MAX_LEVEL } from "../src/format.ts";
-import { MAPS, plotId, townMap } from "../src/maps.ts";
+import { MAPS, type MapId, plotId, townMap } from "../src/maps.ts";
 import { worldClock } from "../src/range.ts";
+import { SHOPKEEPERS } from "../src/shopkeepers.ts";
+import { shopOfRoom } from "../src/shoprooms.ts";
 import { SPECIALS, specialOn } from "../src/tavern.ts";
 import { CHAT_MAX_LENGTH, DIRS, parseLook } from "../src/world.ts";
 
@@ -83,11 +85,11 @@ describe("bots", () => {
     expect(homed.map((b) => b.id)).toContain(BARKEEP.id);
     for (const b of homed) {
       const { room, x, y } = b.home!;
-      expect(room).toBe("inn");
-      expect(MAPS.inn.walkable(x, y)).toBe(true);
+      expect(room === "inn" || shopOfRoom(room) !== null).toBe(true);
+      expect(MAPS[room as MapId].walkable(x, y)).toBe(true);
     }
-    // Only the barkeep never walks; the town's characters still start in the square.
-    expect(BOTS.filter((b) => b.still).map((b) => b.id)).toEqual([BARKEEP.id]);
+    // Only the barkeep and the shopkeepers never walk; the town's characters still start in the square.
+    expect(BOTS.filter((b) => b.still).map((b) => b.id)).toEqual([BARKEEP.id, ...SHOPKEEPERS.map((b) => b.id)]);
     expect(BOTS.filter((b) => !b.home).length).toBeGreaterThanOrEqual(3);
   });
 

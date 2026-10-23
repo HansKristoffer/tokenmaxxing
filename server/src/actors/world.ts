@@ -51,6 +51,7 @@ import {
 import { type Outage, onBlanket, PICNIC_SEATS, sameOutage } from "@tokenmaxxing/core/picnic.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
 import { canDropIn } from "@tokenmaxxing/core/shop.ts";
+import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { cartOpen, facesCart, hasPolse, isCart, POLSE, stepPace } from "@tokenmaxxing/core/street.ts";
 import {
@@ -470,14 +471,14 @@ export const world = actor({
       return correction(p);
     },
 
-    /** E while facing the fountain in the town square: a coin in (1 coin out of the wallet, `town.toss`). */
+    /** E while facing the fountain in the town square or the tip jar on the Tavern's bar: a coin in (1 coin out of the wallet, `town.toss`). */
     toss: async (c, facing: unknown): Promise<StepResult> => {
       const p = free(c);
-      if (p?.room !== "town") return null;
+      if (p?.room !== "town" && p?.room !== "inn") return null;
       touch(c, p, Date.now());
       if (isFacing(facing)) p.facing = facing;
       const [dx, dy] = DIRS[p.facing];
-      if (mapOf(p.room).kind(p.x + dx, p.y + dy).name !== "fountain") return null;
+      if (mapOf(p.room).kind(p.x + dx, p.y + dy).tosses !== true) return null;
       const now = Date.now();
       if (now - (c.vars.tosses.get(p.id) ?? 0) < TOSS_MS) return { notice: "⛲ One coin at a time." };
       c.vars.tosses.set(p.id, now);
@@ -931,6 +932,7 @@ export const world = actor({
       requireInternal(c.conn.state);
       const p = c.state.players[by];
       const full = { notice: "There's no room on the floor here." };
+      if (p && shopOfRoom(p.room)) return { notice: "The shopkeeper shakes her head: not on the shop floor." };
       // Company furniture goes only in its own building, or its common room upstairs.
       if (co !== undefined && p?.room !== `hq:${co}` && p?.room !== commonRoom(co))
         return { notice: "Go into your building to put it out." };

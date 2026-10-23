@@ -7,10 +7,23 @@ import { sortBy } from "hanzio";
 import { HOME_PIECES } from "./home.ts";
 import { POSTERS } from "./posters.ts";
 
+import { SHOP_BODY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS, SHOPS, type ShopId } from "./shoprooms.ts";
 import { TAVERN } from "./tavern.ts";
 
-export type MapId = "town" | "hq" | "common" | "inn" | "upstairs" | "basement" | "office" | "dungeon";
-type SeatKind = "bench" | "sofa" | "bed" | "chair";
+export type MapId =
+  | "town"
+  | "hq"
+  | "common"
+  | "inn"
+  | "upstairs"
+  | "basement"
+  | "office"
+  | "dungeon"
+  | "shop-furniture"
+  | "shop-clothes"
+  | "shop-barber"
+  | "shop-pets";
+export type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 interface TileKind {
   name: string;
@@ -25,6 +38,12 @@ interface TileKind {
   pours?: true;
   /** E while facing it serves the day's special (`tavern`, the Tavern's tap). */
   serves?: true;
+  /** E while facing it tosses a coin in (`toss`): the square's fountain, the Tavern's tip jar. */
+  tosses?: true;
+  /** A shop's display: E while facing it opens the Shop page on the matching tab (`displayTab`). */
+  shop?: ShopId;
+  /** A shop's counter: E while facing it opens the Shop page. */
+  counter?: true;
 }
 
 export const LEGEND: Record<string, TileKind> = {
@@ -38,7 +57,7 @@ export const LEGEND: Record<string, TileKind> = {
   "~": { name: "water", text: "The water is calm. Someone dropped a USB stick in there." },
   "^": { name: "bush", text: "Just a bush. It rustles." },
   L: { name: "lamp", text: "The lamp hums quietly. It's always on, like a good server." },
-  F: { name: "fountain", text: "A fountain. People toss spare tokens in for luck." },
+  F: { name: "fountain", tosses: true, text: "A fountain. People toss spare tokens in for luck." },
   N: { name: "board", text: "The leaderboard." },
   // The chalkboards (outside the Tavern, and inside it): the client writes today's special on them.
   K: { name: "chalkboard" },
@@ -72,6 +91,8 @@ export const LEGEND: Record<string, TileKind> = {
   P: { name: "plaque", text: "The regulars' plaque." },
   // The bar tab: a run of wall tiles; the client chalks the week's top five by time on it (`regulars.ts`).
   J: { name: "bar tab", text: "The bar tab. Who has spent the most time here this week." },
+  // The tip jar on the bar (the indoor stand-in for the fountain): E tosses a coin in.
+  $: { name: "tip jar", tosses: true, text: "A tip jar on the bar. A spare coin clinks nicely." },
   z: { name: "jukebox", text: "A jukebox. It hums, waiting for a coin it never asks for." },
   Q: { name: "pet bed", text: "A round cushion basket. Your pet curls up here when you're in your office." },
   I: { name: "inn door", portal: true },
@@ -80,11 +101,26 @@ export const LEGEND: Record<string, TileKind> = {
   S: { name: "stairs down", portal: true },
   // The Tavern's way up to the rooms, where everyone without a company sleeps.
   u: { name: "stairs up", portal: true },
+  // The Tavern's coat and umbrella stands by the door.
+  O: { name: "coat stand", text: "Coats, scarves and one very damp umbrella." },
   C: { name: "cabinet", text: "INSERT TOKEN." },
   E: { name: "big screen", text: "The livestream. Every match in town, live." },
   M: { name: "wall terminal", text: "A wall terminal." },
   // The tournament board (`tournament.ts`); E opens it. The basement is the Tavern's, so `TAVERN` gates it.
   ...(TAVERN ? { i: { name: "tournament board", text: "The tournament board." } } : {}),
+  // The four shops on the town's streets: a 5×4 front (`Ħ`) with its door in the middle (`shoprooms.ts`).
+  ƒ: { name: "furniture shop door", portal: true },
+  Ç: { name: "clothes shop door", portal: true },
+  Ð: { name: "barber shop door", portal: true },
+  ð: { name: "pet shop door", portal: true },
+  Ħ: { name: "shop front", text: "A shop front. The door is open: come on in." },
+  // Inside them: the counter, each shop's displays and the fixtures that are only to look at.
+  "¢": { name: "shop counter", counter: true, text: "The counter. Press E to browse the shop." },
+  "¤": { name: "furniture display", shop: "furniture", text: "A showroom piece with a price tag." },
+  "§": { name: "clothes rack", shop: "clothes", text: "A rack of clothes and accessories, price tags swinging." },
+  "¶": { name: "styling station", shop: "barber", text: "A styling station: mirror, combs and a rack of colours." },
+  "¥": { name: "pet pen", shop: "pets", text: "A pen. Somebody inside is already looking at you." },
+  "‡": { name: "fixture", text: "Part of the shop's fittings." },
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
   R: { name: "office door", portal: true },
@@ -216,6 +252,36 @@ export class GameMap {
   }
 }
 
+/**
+ * What a 3D builder needs of a room, read off its tiles: the size, every portal (a door or stairs), every
+ * seat and every tile that says something when you press E (a board, a display, the counter).
+ */
+export interface RoomLayout {
+  id: MapId;
+  width: number;
+  height: number;
+  doors: { ch: string; x: number; y: number }[];
+  seats: { ch: string; kind: SeatKind; x: number; y: number }[];
+  /** Shops' displays and counters. */
+  displays: { ch: string; shop: ShopId | "counter"; x: number; y: number }[];
+}
+
+export function layoutOf(map: GameMap): RoomLayout {
+  const layout: RoomLayout = { id: map.id, width: map.width, height: map.height, doors: [], seats: [], displays: [] };
+  map.rows.forEach((row, ry) => {
+    for (let rx = 0; rx < row.length; rx++) {
+      const ch = row[rx]!;
+      const kind = LEGEND[ch];
+      const [x, y] = [rx + map.x0, ry + map.y0];
+      if (kind?.portal) layout.doors.push({ ch, x, y });
+      if (kind?.seat) layout.seats.push({ ch, kind: kind.seat, x, y });
+      if (kind?.shop) layout.displays.push({ ch, shop: kind.shop, x, y });
+      else if (kind?.counter) layout.displays.push({ ch, shop: "counter", x, y });
+    }
+  });
+  return layout;
+}
+
 // MARK: The town
 
 /**
@@ -280,6 +346,39 @@ const LOT = [
 /** Where the door is in a LOT. */
 const DOOR: [number, number] = [5, 6];
 
+/**
+ * The four shops' blocks, in the corners round the core and the companies' ring: a company never builds
+ * here (`frontier`). A block a company already holds (it started before the shops) stays the company's.
+ */
+export const SHOP_BLOCKS: Record<ShopId, [number, number]> = {
+  furniture: [-1, -1],
+  clothes: [2, -1],
+  barber: [-1, 2],
+  pets: [2, 2],
+};
+
+/** A shop's block: a lawn, its 5×4 front with the door in the middle of the bottom row, and the path down to the road. */
+const shopLot = (id: ShopId): string[] => {
+  const body = SHOP_BODY_CHAR.repeat(5);
+  const front = `${SHOP_BODY_CHAR.repeat(2)}${SHOP_DOOR_CHAR[id]}${SHOP_BODY_CHAR.repeat(2)}`;
+  return [
+    ",,,,,,,,,,",
+    ",.........",
+    ",.........",
+    `,..${body}..`,
+    `,..${body}..`,
+    `,..${body}..`,
+    `,..${front}..`,
+    ",....,....",
+    ",....,....",
+  ];
+};
+/** Where the door is in a shop's block. */
+export const SHOP_DOOR: [number, number] = [5, 6];
+
+const shopAt = (bx: number, by: number): ShopId | undefined =>
+  SHOP_IDS.find((id) => SHOP_BLOCKS[id][0] === bx && SHOP_BLOCKS[id][1] === by);
+
 /** Empty blocks inside the town: small parks. */
 const PARKS = [
   [
@@ -331,6 +430,7 @@ export function doorOf(plot: number): [number, number] {
  */
 export function frontier(plots: readonly number[]): number[] {
   const used = new Set([...plots, ...CORE_BLOCKS.map(([x, y]) => plotId(x, y))]);
+  const shops = new Set(SHOP_IDS.map((id) => plotId(...SHOP_BLOCKS[id])));
   const out = new Set<number>();
   for (const id of used) {
     const [bx, by] = plotBlock(id);
@@ -341,7 +441,7 @@ export function frontier(plots: readonly number[]): number[] {
       [0, -1],
     ] as const) {
       const next = plotId(bx + dx, by + dy);
-      if (!used.has(next)) out.add(next);
+      if (!used.has(next) && !shops.has(next)) out.add(next);
     }
   }
   // From the middle of the core: the corner where its four blocks meet.
@@ -354,7 +454,7 @@ export function frontier(plots: readonly number[]): number[] {
 
 /** The town for these company plots. */
 export function townMap(plots: readonly number[]): GameMap {
-  const blocks = [...CORE_BLOCKS, ...plots.map(plotBlock)];
+  const blocks = [...CORE_BLOCKS, ...SHOP_IDS.map((id) => SHOP_BLOCKS[id]), ...plots.map(plotBlock)];
   const minBx = Math.min(...blocks.map(([x]) => x));
   const maxBx = Math.max(...blocks.map(([x]) => x));
   const minBy = Math.min(...blocks.map(([, y]) => y));
@@ -377,7 +477,9 @@ export function townMap(plots: readonly number[]): GameMap {
           )
         : taken.has(plotId(bx, by))
           ? LOT
-          : PARKS[Math.abs(bx * 7 + by * 13) % PARKS.length]!;
+          : shopAt(bx, by)
+            ? shopLot(shopAt(bx, by)!)
+            : PARKS[Math.abs(bx * 7 + by * 13) % PARKS.length]!;
       rows.forEach((row, dy) => {
         for (let dx = 0; dx < BLOCK_W; dx++) put(bx * BLOCK_W + dx, by * BLOCK_H + dy, row[dx]!);
       });
@@ -471,25 +573,34 @@ export const MAPS: Record<MapId, GameMap> = {
     "Wp_____Λ________Λ_____pW",
     "WWWWWWWWWWWxWWWWWWWWWWWW",
   ]),
-  // The Inn is the Tavern: a bar with a sealed cell for the barkeep (its floor is a rug, not `_`, so
-  // `restSpot` never beds anyone behind the bar), boards on the north wall, a row of tables by the north wall, a stage, tables,
-  // and a hearth with the regulars' plaques. One exit, so `roomEntry` still finds it.
+  // The Inn is the Tavern (26 by 16 inside; the 3D room is built from this plan): the bar along the north wall's west
+  // end with a sealed cell for the barkeep (its floor is a rug, not `_`, so `restSpot` never beds anyone behind it),
+  // the boards on the clear wall stretches (m, A, P and the bar tab J sit in wall tiles, so the floor in front of
+  // them is free), the hearth in a nook of the north wall with its sofas, the stage and jukebox on the west wall,
+  // four-sided dining tables and booths round a two-wide aisle from the door, a coat stand by it, and the stairs
+  // in the corners (S down in the south-east, u up in the south-west). The tip jar stands on the bar; the
+  // chalkboard on the floor by the barrels. One exit, so `roomEntry` still finds it.
   inn: TAVERN
     ? new GameMap("inn", "The Tavern", [
-        "WWWWWWWWWWWWWWWWWWWWWWWW",
-        "WWWWWWWWWWWWWWWWWWWWWWWW",
-        "WJJJJkkkkmmKAAAAn_n_n__W",
-        "W========k______c_c_c_oW",
-        "Waaayaaaa______________W",
-        "W__v_v_v______eeeeee___W",
-        "W_____________eeeeee___W",
-        "W__nn___nn_____________W",
-        "z__cc___cc_____________W",
-        "W______________PffP____W",
-        "W_____________======___W",
-        "W_____________=ssss=___W",
-        "Wph__________________hpW",
-        "WWWSWWWuWWWxWWWWWWWWWWWW",
+        "WWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+        "WWWWWWWWWWWWmmWAAAAWWWWWWWWW",
+        "Wkkkkkkk=hho__K______PffPkkW",
+        "W=========h_________======pW",
+        "Waaayaaa$aa_________s====s_W",
+        "J__v_v_v_v__________==nn==_W",
+        "J___________________==ss==_W",
+        "J__________________________W",
+        "J______cc_______cc___cc____W",
+        "Wz____cnnc_____cnnc_cnnc___W",
+        "Wee____cc_______cc___cc____W",
+        "Wee________________________W",
+        "Wee__________________cc____W",
+        "Wve_________________cnnc___W",
+        "Wee__________________cc___hW",
+        "W___BB__BB______BB_________W",
+        "W___nn__nn______nn________SW",
+        "Wup_BB__BB_OO___BB________pW",
+        "WWWWWWWWWWWWWxWWWWWWWWWWWWWW",
       ])
     : new GameMap("inn", "The Inn", [
         "WWWWWWWWWWWWWWWW",
@@ -509,11 +620,11 @@ export const MAPS: Record<MapId, GameMap> = {
     "WWWWWWWWWWWWWWWWWWWW",
     "WWWWWWWWWWWWWWWWWWWW",
     "Wb_b_b_b_b_b_b_b_bpW",
-    "W__________________W",
+    "Wb_b_b_b_b_b_b_b_b_W",
     "W__==============__W",
     "W__________________W",
     "Wb_b_b_b_b_b_b_b_b_W",
-    "W__________________W",
+    "Wb_b_b_b_b_b_b_b_b_W",
     "Wp_______________p_W",
     "WWWWWWWWWWxWWWWWWWWW",
   ]),
@@ -540,6 +651,11 @@ export const MAPS: Record<MapId, GameMap> = {
   // level, per owner (`officeMap`, office.ts). A pet bed (`Q`, a prop: nothing can be dropped on it)
   // sits in the bottom right corner.
   office: new GameMap("office", "Office", officeRows(12, 9)),
+  // The four shops (`shoprooms.ts`): the 3D shops' interiors, tile for tile.
+  "shop-furniture": new GameMap("shop-furniture", SHOPS.furniture.name, SHOPS.furniture.rows),
+  "shop-clothes": new GameMap("shop-clothes", SHOPS.clothes.name, SHOPS.clothes.rows),
+  "shop-barber": new GameMap("shop-barber", SHOPS.barber.name, SHOPS.barber.rows),
+  "shop-pets": new GameMap("shop-pets", SHOPS.pets.name, SHOPS.pets.rows),
   // The raid: the boss on its dais, and arcs of war desks facing it. Whoever has agents running is drawn
   // at one (web/src/game/raid.ts); the desks and seats are props, so visitors walk the aisles.
   dungeon: new GameMap("dungeon", "Raid Dungeon", [

@@ -3,6 +3,7 @@ import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
+import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
 import type { TournamentBoard } from "@tokenmaxxing/core/tournament.ts";
 import type { ChatLine, CompanyInfo, Notice, RoomId } from "@tokenmaxxing/core/world.ts";
@@ -17,7 +18,7 @@ export type Panel =
   | { kind: "companyShop" }
   | { kind: "merch"; companyId: number }
   | { kind: "look" }
-  | { kind: "shop" }
+  | { kind: "shop"; tab?: Item["slot"] }
   | { kind: "merchant" }
   | { kind: "bag" }
   | { kind: "petLooks"; pet: number }

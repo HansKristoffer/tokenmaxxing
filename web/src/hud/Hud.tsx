@@ -261,7 +261,7 @@ function Panel() {
     companyShop: () => <CompanyShop />,
     merch: (p) => <MerchShop companyId={p.companyId} />,
     look: () => <LookPicker />,
-    shop: () => <Shop />,
+    shop: (p) => <Shop tab={p.tab} />,
     merchant: () => <Merchant />,
     bag: () => <Bag />,
     petLooks: (p) => <PetLooks pet={p.pet} />,

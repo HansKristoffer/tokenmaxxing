@@ -21,6 +21,7 @@ import {
 } from "./office.ts";
 import { cleanPetName, MAX_PET_LOOKS, petLooks } from "./pets.ts";
 import { itemById } from "./shop.ts";
+import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_ROOM, type ShopId, shopOfRoom } from "./shoprooms.ts";
 import type { Weather } from "./sky.ts";
 import { TAVERN } from "./tavern.ts";
 import { WARDROBE_OPTIONS } from "./wardrobe.ts";
@@ -52,6 +53,10 @@ export type RoomId =
   | "upstairs"
   | "basement"
   | "dungeon"
+  | "shop-furniture"
+  | "shop-clothes"
+  | "shop-barber"
+  | "shop-pets"
   | `hq:${number}`
   | `common:${number}`
   | `office:${number}`;
@@ -549,10 +554,18 @@ export function roomEntry(room: RoomId, ch = "x"): Place {
 }
 
 /** Just outside a town door (a company's plot, the Inn, or the dungeon's gate), facing away from it. */
-export function outsideDoor(plot: number | "inn" | "dungeon"): Place {
-  const [x, y] =
-    plot === "inn" ? MAPS.town.find("I")[0]! : plot === "dungeon" ? MAPS.town.find("G")[0]! : doorOf(plot);
-  return { room: "town", x, y: y + 1, facing: "down" };
+export function outsideDoor(plot: number | "inn" | "dungeon" | ShopId): Place {
+  const door =
+    plot === "inn"
+      ? MAPS.town.find("I")[0]!
+      : plot === "dungeon"
+        ? MAPS.town.find("G")[0]!
+        : typeof plot === "string"
+          ? MAPS.town.find(SHOP_DOOR_CHAR[plot])[0]
+          : doorOf(plot);
+  // A shop whose block a company holds has no door: back to the square.
+  if (!door) return townSpawn();
+  return { room: "town", x: door[0], y: door[1] + 1, facing: "down" };
 }
 
 /**
@@ -582,6 +595,8 @@ export function portal(
   if (room === "town") {
     if (door.ch === "I") return roomEntry("inn");
     if (door.ch === "G") return roomEntry("dungeon");
+    const shop = SHOP_IDS.find((id) => SHOP_DOOR_CHAR[id] === door.ch);
+    if (shop) return roomEntry(SHOP_ROOM[shop]);
     const holder = plots.get(plotId(...blockOf(door.x, door.y)));
     if (!holder) return { notice: "Nobody lives here any more." };
     if (holder.id !== companyId) return { notice: `🔒 ${holder.name}'s house. Members only.` };
@@ -596,6 +611,8 @@ export function portal(
   if (room === "basement") return roomEntry("inn", "S");
   if (room === "upstairs") return roomEntry("inn", "u");
   if (room === "dungeon") return outsideDoor("dungeon");
+  const leaving = shopOfRoom(room);
+  if (leaving) return outsideDoor(leaving);
   // The common room is up the stairs `u` from the house, for its members only: the stairs down lead back.
   const common = commonOfRoom(room);
   if (common !== null) return roomEntry(`hq:${common}`, "u");
