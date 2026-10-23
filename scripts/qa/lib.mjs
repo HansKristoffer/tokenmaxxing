@@ -12,7 +12,11 @@ const from = (ip) => createClient({ endpoint: `${ORIGIN}/api/rivet`, headers: { 
 const client = from("10.9.9.9");
 
 /** A new player with a few turns of usage, so there is something to spend. */
-export async function signUp(prefix = "qa", perTurn = 40_000) {
+/**
+ * `company`: also starts a company (a house, a common room) and, with `perTurn` around 8M, enough usage for the
+ * level the Office needs.
+ */
+export async function signUp(prefix = "qa", perTurn = 40_000, company = false) {
   const name = `${prefix}${Date.now().toString(36).slice(-4)}${n++}`;
   const u = await from(`10.7.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`)
     .town.getOrCreate(["main"])
@@ -36,6 +40,8 @@ export async function signUp(prefix = "qa", perTurn = 40_000) {
       reasoningTokens: null,
     });
   await client.player.get([String(u.userId)], { params: { token: u.token } }).ingest(events);
+  if (company)
+    await client.town.getOrCreate(["main"], { params: { token: u.token } }).createCompany(`Co ${name}`);
   return u;
 }
 
