@@ -84,7 +84,7 @@ function geometry(key: string, make: () => THREE.BufferGeometry): THREE.BufferGe
 
 /** A group with shortcuts for the shapes assets are made of. Positions are bottom-centres unless noted. */
 export class Model extends THREE.Group {
-  private put(mesh: THREE.Mesh, at: V3): THREE.Mesh {
+  protected put(mesh: THREE.Mesh, at: V3): THREE.Mesh {
     mesh.position.set(...at);
     mesh.castShadow = mesh.receiveShadow = true;
     this.add(mesh);

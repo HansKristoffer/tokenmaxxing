@@ -18,6 +18,7 @@ import { BACK_BUILDERS, type BodyCtx, HELD_BUILDERS, type MerchLook, merchCap, m
 import { COVERS_HAIR, type Ctx, FACE_BUILDERS, HAT_BUILDERS, lit, ring, see } from "./gear3dHead.ts";
 import { Model, tint, toon } from "./kit.ts";
 import type { Hat, Look as VLook } from "./styles.ts";
+import { U, vpart } from "./voxgear.ts";
 
 /** Badge tier frames (`TIER_COLOR` in `core/src/rarity.ts` on the tavern branch). */
 export const TIER_COLOR = { bronze: "#c98a4b", silver: "#d5dbe4", gold: "#ffd75e", diamond: "#7fe8ff" } as const;
@@ -142,9 +143,11 @@ class Dress implements Gear {
 
     // The head: a hat (or the company cap), then the face piece. Builders draw for a round head 0.5 across
     // with its centre at the origin; `headFit` scales and moves that frame onto this style's head.
-    const hat = a.head.part([0, fit.y + fit.lift, 0]);
+    // Voxel folk wear cubes: their frames draw blocks (`voxgear.ts`) however the builder asks for a ball or a cone.
+    const frame = (parent: Model, at: [number, number, number]): Model => (vox ? vpart(parent, at) : parent.part(at));
+    const hat = frame(a.head, [0, fit.y + fit.lift, 0]);
     hat.scale.setScalar(fit.scale);
-    const face = a.head.part([0, fit.y + fit.eyes, fit.front]);
+    const face = frame(a.head, [0, fit.y + fit.eyes, fit.front]);
     face.scale.set(fit.scale * fit.wide, fit.scale, fit.scale);
     if (merch && worn.merch.cap) merchCap(hat, merch);
     else {
@@ -166,10 +169,9 @@ class Dress implements Gear {
       }
     };
     if (vox && chest) {
-      const frame = chest.part([0, -0.24, 0]);
-      frame.scale.set(1.05, 1.2, 0.9);
+      const torso = vpart(chest, [0, 0, 0]);
       const body: BodyCtx = {
-        body: frame,
+        body: torso,
         arms: a.arms as [Model, Model],
         main: this.outfit[0],
         dark: this.outfit[1],
@@ -180,14 +182,14 @@ class Dress implements Gear {
       if (merch && worn.merch.top) merchTop(body, merch, worn.merch.hoodie);
       else OUTFIT_BUILDERS[l.outfit]?.(body);
       if (worn.back) {
-        const back = frame.part([0, 0.37, -0.1]);
+        const back = vpart(chest, [0, 8 * U, -2 * U]);
         BACK_BUILDERS[worn.back.name]?.(back, tick);
       }
     }
 
     // In the right hand.
     const heldIn = (): Model => {
-      const hand = a.arms[1].part([0, fit.hand, 0.01]);
+      const hand = frame(a.arms[1], [0, fit.hand, 0.01]);
       hand.scale.setScalar(vox ? 1.4 : 1.5 * (a.height / 0.95));
       return hand;
     };
@@ -201,7 +203,8 @@ class Dress implements Gear {
   private aura(a: Avatar, top: number, tick: (fn: Tick) => void): void {
     const k = a.height / 0.95;
     const base = top + 0.11 * k;
-    const halo = a.head.part([0, base, 0]);
+    const vox = a.style === "voxel";
+    const halo = vox ? vpart(a.head, [0, base, 0]) : a.head.part([0, base, 0]);
     halo.scale.setScalar(0.9 * k);
     ring(halo, lit("#ffe066"), 0.15, 0.02);
     ring(halo, lit("#c98e22"), 0.15, 0.012, [0, -0.012, 0]);
@@ -210,17 +213,19 @@ class Dress implements Gear {
       halo.position.y = base + (Math.floor(t * 3.5) % 2) * 0.012;
       halo.rotation.y = t * 0.6;
     });
-    const glowBody = a.root.part([0, a.height * 0.5, 0]);
+    const glowBody = vox ? vpart(a.root, [0, a.height * 0.5, 0]) : a.root.part([0, a.height * 0.5, 0]);
     glowBody.scale.setScalar(k * 1.05);
     const rings: THREE.Mesh[] = [];
     for (const [r, o] of [[0.5, 0.09], [0.4, 0.11], [0.3, 0.14]] as const) {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), see(o > 0.1 ? "#ffec96" : "#ffd64a", o, true));
+      const m = new THREE.Mesh(vox ? new THREE.BoxGeometry(r * 1.7, r * 2.1, r * 1.5) : new THREE.SphereGeometry(r, 16, 12), see(o > 0.1 ? "#ffec96" : "#ffd64a", o, true));
+      m.userData.noBlock = true;
       glowBody.add(m);
       rings.push(m);
     }
     const sparks: THREE.Mesh[] = [];
     for (let i = 0; i < 6; i++) {
-      const s = new THREE.Mesh(sparkGeometry, lit(i % 2 ? "#ffe066" : "#fffbe0"));
+      const s = new THREE.Mesh(vox ? sparkCube : sparkGeometry, lit(i % 2 ? "#ffe066" : "#fffbe0"));
+      s.userData.noBlock = true;
       glowBody.add(s);
       sparks.push(s);
     }
@@ -280,10 +285,12 @@ const VOXEL_FACE: Record<string, Partial<VLook>> = {
   "Viking beard": { beard: 2 },
 };
 
+const sparkCube = new THREE.BoxGeometry(0.045, 0.045, 0.045);
 const sparkGeometry = new THREE.OctahedronGeometry(0.035).scale(0.7, 1.3, 0.7);
 
 /** The company mug, in the hand. */
 function mug(h: Model, m: MerchLook): void {
+  ring(h, "#f4efe4", 0.026, 0.008, [0.05, 0.04, 0.06], false);
   h.cyl(0.04, 0.085, "#f4efe4", [0, 0, 0.06], 0.045, 14);
   h.box([0.04, 0.04, 0.012], m.accent, [0, 0.02, 0.102], 0.004);
   h.cyl(0.0415, 0.02, m.main, [0, 0.04, 0.06], 0.0415, 14);
