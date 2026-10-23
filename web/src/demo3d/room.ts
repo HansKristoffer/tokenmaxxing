@@ -45,14 +45,16 @@ const DAY_SKY = glow("#fff", skyTexture(false));
 const NIGHT_SKY = glow("#fff", skyTexture(true));
 const windows: THREE.Mesh[] = [];
 
+let isNight = false;
 export function setRoomNight(night: boolean): void {
+  isNight = night;
   for (const w of windows) w.material = night ? NIGHT_SKY : DAY_SKY;
 }
 
 /** A window on a wall's inner face; `at` is its bottom centre. */
 function windowOn(wall: Model, x: number): void {
   const w = wall.part([x, 1.2, WALL_T / 2 + 0.01]);
-  const pane = w.plane(0.9, 0.85, DAY_SKY, [0, 0.45, 0]);
+  const pane = w.plane(0.9, 0.85, isNight ? NIGHT_SKY : DAY_SKY, [0, 0.45, 0]);
   windows.push(pane);
   w.box([1.02, 0.07, 0.07], C.white, [0, -0.04, 0], 0.015);
   w.box([1.02, 0.07, 0.05], C.white, [0, 0.86, 0], 0.015);
@@ -74,18 +76,91 @@ function doorOn(wall: Model, x: number): void {
 export class Room {
   readonly group = new THREE.Group();
   readonly placed: Placed[] = [];
-  private readonly grid: (Placed | null)[];
-  private readonly walls: { model: Model; normal: THREE.Vector3 }[] = [];
+  private grid: (Placed | null)[];
+  private walls: { model: Model; normal: THREE.Vector3 }[] = [];
+  /** The floor slab and walls, rebuilt whenever the size or the decor changes. */
+  private shell = new THREE.Group();
+  private shellWindows: THREE.Mesh[] = [];
+  private look: {
+    floor: THREE.Texture;
+    floorSpan: number;
+    floorColor: string;
+    wall: THREE.Texture;
+    wallSpan: number;
+  };
 
   constructor(
-    readonly W: number,
-    readonly D: number,
+    public W: number,
+    public D: number,
     opts: { floor?: string; wall?: string; stripe?: string } = {},
   ) {
     this.grid = Array(W * D).fill(null);
-    const floor = planks(opts.floor ?? C.floor, 4);
-    floor.repeat.set(W / 4, D / 4);
-    const side = toon(tint(opts.floor ?? C.floor, -0.35));
+    this.look = {
+      floor: planks(opts.floor ?? C.floor, 4),
+      floorSpan: 4,
+      floorColor: opts.floor ?? C.floor,
+      wall: wallpaper(opts.wall ?? C.wall, opts.stripe ?? C.wallDark),
+      wallSpan: 1,
+    };
+    this.group.add(this.shell);
+    this.build();
+  }
+
+  /** Re-skins the room: a floor texture (`span` tiles per repeat) and/or a wall one. Furniture stays. */
+  setDecor(d: {
+    floor?: { texture: THREE.Texture; span: number; color: string };
+    wall?: { texture: THREE.Texture; span: number };
+  }): void {
+    if (d.floor) {
+      this.look.floor = d.floor.texture;
+      this.look.floorSpan = d.floor.span;
+      this.look.floorColor = d.floor.color;
+    }
+    if (d.wall) {
+      this.look.wall = d.wall.texture;
+      this.look.wallSpan = d.wall.span;
+    }
+    this.build();
+  }
+
+  /** Grows or shrinks the room to `W`x`D` tiles. Furniture that no longer fits is hidden, and comes back if it does again. */
+  resize(W: number, D: number): void {
+    this.W = W;
+    this.D = D;
+    this.grid = Array(W * D).fill(null);
+    for (const p of this.placed) {
+      const [w, d] = Room.footprint(p.asset, p.turn);
+      const fits = this.inside(p.x, p.z) && this.inside(p.x + w - 1, p.z + d - 1);
+      p.model.visible = fits;
+      if (!fits) continue;
+      for (let i = 0; i < w; i++)
+        for (let j = 0; j < d; j++) {
+          const cell = (p.z + j) * W + p.x + i;
+          if (p.asset.id !== "rug" || !this.grid[cell]) this.grid[cell] = p;
+        }
+    }
+    this.build();
+  }
+
+  private build(): void {
+    const { W, D } = this;
+    this.shell.removeFromParent();
+    this.shell.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.geometry instanceof THREE.BoxGeometry) o.geometry.dispose();
+    });
+    for (const w of this.shellWindows) {
+      const i = windows.indexOf(w);
+      if (i >= 0) windows.splice(i, 1);
+    }
+    this.shellWindows = [];
+    this.shell = new THREE.Group();
+    this.group.add(this.shell);
+    this.walls = [];
+
+    const floor = this.look.floor.clone();
+    floor.repeat.set(W / this.look.floorSpan, D / this.look.floorSpan);
+    floor.needsUpdate = true;
+    const side = toon(tint(this.look.floorColor, -0.35));
     const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [
       side,
       side,
@@ -96,21 +171,21 @@ export class Room {
     ]);
     slab.position.set(W / 2, -0.175, D / 2);
     slab.receiveShadow = true;
-    this.group.add(slab);
+    this.shell.add(slab);
 
-    const paper = wallpaper(opts.wall ?? C.wall, opts.stripe ?? C.wallDark);
+    const paper = this.look.wall;
     const wall = (length: number, at: [number, number], turn: number, normal: [number, number]) => {
       const m = new Model();
       m.position.set(at[0], 0, at[1]);
       m.rotation.y = turn;
       const tex = paper.clone();
-      tex.repeat.set(length, 1);
+      tex.repeat.set(length / this.look.wallSpan, 1);
       tex.needsUpdate = true;
       const face = m.box([length, WALL_H, WALL_T], painted(tex), [0, 0, 0], 0);
       face.castShadow = false;
       m.box([length + 0.02, 0.12, WALL_T + 0.04], C.woodDark, [0, 0, 0.01], 0.01);
       m.box([length + 0.04, 0.08, WALL_T + 0.06], C.wallTop, [0, WALL_H, 0], 0.01);
-      this.group.add(m);
+      this.shell.add(m);
       this.walls.push({ model: m, normal: new THREE.Vector3(normal[0], 0, normal[1]) });
       return m;
     };
@@ -119,11 +194,13 @@ export class Room {
     wall(W + WALL_T * 2, [W / 2, D + WALL_T / 2], Math.PI, [0, -1]);
     wall(D, [W + WALL_T / 2, D / 2], -Math.PI / 2, [-1, 0]);
     // Windows and the door, in each wall's own coordinates (x along it, from its centre).
+    const before = windows.length;
     windowOn(north, 3 - W / 2);
     windowOn(north, 10.5 - W / 2);
     doorOn(north, 7.5 - W / 2);
     windowOn(west, D / 2 - 5.5);
     windowOn(west, D / 2 - 8.5);
+    this.shellWindows = windows.slice(before);
   }
 
   /** Lowers the walls between the camera and the room; `view` points from the room to the camera. */

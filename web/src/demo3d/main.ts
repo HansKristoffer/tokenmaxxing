@@ -8,6 +8,7 @@ import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
 import { Pipeline } from "./pipeline.ts";
 import { car } from "./props.ts";
+import { mountDecorPanel } from "./decorPanel.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
 
@@ -252,6 +253,7 @@ function newStage(
 // ——— The office ———
 const office = newStage("Office", new THREE.Vector3(6, 0.6, 5), 11, 11.5, "#1b1f2a");
 const room = new Room(12, 10);
+mountDecorPanel(room, office.target);
 office.scene.add(room.group);
 const put = (id: string, x: number, z: number, turn: Turn = 0, model?: Model) =>
   room.place(assetById.get(id)!, x, z, turn, model);
