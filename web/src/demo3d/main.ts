@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { Avatar, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
 import { buildBasement, dimBasement, isLanPartyAt, lanParty, setLanParty } from "./basement3d.ts";
+import { buildDungeonGallery } from "./dungeon-gallery.ts";
 import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
 import { Pipeline } from "./pipeline.ts";
@@ -665,7 +666,15 @@ basement.update = (dt, t) => {
 dimBasement(basement.scene, basement.hemi, basement.sun);
 setLanParty(isLanPartyAt());
 
-const stages = [office, catalog, townStage, tavernStage, dormStage, basement];
+// ——— The dungeon gallery ———
+const dungeonGallery = buildDungeonGallery();
+const dungeon = newStage("Dungeon", new THREE.Vector3(), 22, 17, "#14121b");
+dungeon.scene.add(dungeonGallery.group);
+dungeonGallery.attach(dungeon);
+for (const l of dungeonGallery.labels) dungeon.labels.push({ el: label(l.text, l.cls), at: l.at });
+dungeon.update = (dt, t) => dungeonGallery.update(dt, t);
+
+const stages = [office, catalog, townStage, tavernStage, dormStage, basement, dungeon];
 let stage = office;
 
 // ——— The world: the 2D town's rooms, walkable, joined by their doors ———
@@ -1094,6 +1103,7 @@ function setStage(name: string): void {
   for (const s of stages) for (const l of s.labels) l.el.hidden = s !== stage;
   $("#inventory").hidden = stage !== office;
   $("#spin").hidden = stage !== catalog;
+  dungeonGallery.show(stage === dungeon);
 }
 
 function setStyle(px: number): void {
