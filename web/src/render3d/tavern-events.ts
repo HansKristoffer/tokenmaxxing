@@ -1,9 +1,11 @@
 import { TUNES } from "@tokenmaxxing/core/tunes.ts";
 import * as THREE from "three";
-import type { TavernRoom } from "../demo3d/tavern3d.ts";
+import { setTavernNight, type TavernRoom } from "../demo3d/tavern3d.ts";
+import { setPropsNight } from "../demo3d/props.ts";
+import { darknessNow, lightsNow, warmthNow } from "../game/sky.ts";
 import { hud } from "../store.ts";
 import type { LiveFrame } from "./rooms.ts";
-import { jukeboxSign } from "./world-logic.ts";
+import { jukeboxSign, tavernDim } from "./world-logic.ts";
 
 const v = new THREE.Vector3();
 
@@ -17,9 +19,46 @@ export class TavernEvents {
   private text = "";
   private readonly at = new THREE.Vector3();
   private placed = false;
+  private hemi: THREE.HemisphereLight | null = null;
+  private sun: THREE.DirectionalLight | null = null;
+  private base = { hemi: 1, sun: 1 };
+  private readonly night = { hemi: new THREE.Color("#7f8fdc"), sun: new THREE.Color("#8d9cf0") };
+  private readonly day = { hemi: new THREE.Color(), sun: new THREE.Color() };
+  private lampsOn = false;
 
   constructor(private readonly inn: TavernRoom) {
     if (inn.fountain) inn.fountain.auto = false;
+  }
+
+  /** The stage's lights, kept so the room can dim with the sky as the 2D Tavern does. */
+  lights(hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight): void {
+    this.hemi = hemi;
+    this.sun = sun;
+    this.base = { hemi: hemi.intensity, sun: sun.intensity };
+    this.day.hemi.copy(hemi.color);
+    this.day.sun.copy(sun.color);
+  }
+
+  /** The room's light and lamps for the hour: dimmer and bluer after dark, warmer at dusk, the candles on (no real lights). */
+  private sky(now: number): void {
+    const dark = darknessNow(now);
+    const dusk = warmthNow(now) * (1 - dark);
+    const dim = tavernDim(dark, dusk);
+    const { hemi, sun } = this;
+    if (hemi && sun) {
+      const k = Math.min(1, dark * 0.9);
+      hemi.intensity = this.base.hemi * (1 - dim * 0.8);
+      sun.intensity = this.base.sun * (1 - dim);
+      hemi.color.copy(this.day.hemi).lerp(this.night.hemi, k);
+      sun.color.copy(this.day.sun).lerp(this.night.sun, k);
+    }
+    // Lamps and windows on and off with a margin, as the town's do (`Fx`).
+    const glow = lightsNow(now);
+    if (!this.lampsOn && glow > 0.4) this.lampsOn = true;
+    else if (this.lampsOn && glow < 0.3) this.lampsOn = false;
+    else return;
+    setPropsNight(this.lampsOn);
+    setTavernNight(this.lampsOn);
   }
 
   /** A coin into the tip jar. */
@@ -28,6 +67,7 @@ export class TavernEvents {
   }
 
   update(f: LiveFrame): void {
+    this.sky(f.now);
     const { jukebox } = this.inn;
     if (!this.placed) {
       jukebox.updateWorldMatrix(true, false);
@@ -50,6 +90,7 @@ export class TavernEvents {
   }
 
   dispose(): void {
+    setTavernNight(null);
     this.el?.remove();
     this.el = null;
   }

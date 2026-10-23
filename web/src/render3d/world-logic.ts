@@ -168,3 +168,13 @@ export function jukeboxSign(
   if (!now || !track) return "🎵 Jukebox · pick a track";
   return `${track} · on by ${now.byName} · ⏭ ${now.votes}/${now.need}`;
 }
+
+// MARK: The Tavern at night
+
+/** How much the room dims: blue at night, brown at dusk (`lightTavern` in the 2D game's `tavern.ts`). */
+export const tavernDim = (dark: number, dusk: number): number => Math.min(0.7, dark * 0.66 + dusk * 0.45);
+
+// MARK: Effects per tier
+
+/** Emoji bursts alive at once, from the tier's particle density (0 to 1): each is ten DOM nodes. */
+export const burstCap = (density: number): number => Math.max(2, Math.round(10 * Math.min(1, Math.max(0, density))));

@@ -35,6 +35,8 @@ export interface SkinParts {
   frame?: (f: LiveFrame) => void;
   /** A coin was tossed into the tip jar or fountain in front of this tile. */
   onToss?: (tx: number, ty: number) => void;
+  /** The room's own light, once: given the stage's lights (the Tavern keeps them to dim after dark). */
+  lights?: (scene: THREE.Scene, hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight) => void;
   /** Frees what `frame` made (labels). */
   end?: () => void;
   /** A shop's interior, for picking its shelves. */
@@ -74,7 +76,7 @@ export function viewOf(
     parts,
     keepers: parts.keepers,
     shop: parts.shop,
-    lights: parts.dim ? (scene, hemi, sun) => dimBasement(scene, hemi, sun) : undefined,
+    lights: parts.lights ?? (parts.dim ? (scene, hemi, sun) => dimBasement(scene, hemi, sun) : undefined),
     outdoors: false,
     bounds: { minX: 0, maxX: W, minZ: 0, maxZ: D, height: WALL_H },
     view,
@@ -119,6 +121,7 @@ function buildSkinned(id: RoomId, ctx: RoomCtx): RoomView {
     live,
     dim: mapId === "basement",
     frame: inn ? (f) => inn.update(f) : undefined,
+    lights: inn ? (_scene, hemi, sun) => inn.lights(hemi, sun) : undefined,
     onToss: inn ? () => inn.toss() : undefined,
     end: inn ? () => inn.dispose() : undefined,
   });

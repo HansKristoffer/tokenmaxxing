@@ -1,10 +1,10 @@
 import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
 import { type GameMap, LEGEND } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE, FURNITURE } from "@tokenmaxxing/core/office.ts";
-import type { RoomId } from "@tokenmaxxing/core/world.ts";
+import { ownerOfOffice, type RoomId } from "@tokenmaxxing/core/world.ts";
 import { C } from "../art/palette.ts";
 import { applyDecor } from "../demo3d/decor3d.ts";
-import { DUNGEON_ASSETS } from "../demo3d/dungeon3d.ts";
+import { DUNGEON_ASSETS, trophyShelf } from "../demo3d/dungeon3d.ts";
 import { type Asset, assetById } from "../demo3d/furniture.ts";
 import { beginTickScope, canvasTexture, endTickScope, Model, painted } from "../demo3d/kit.ts";
 import { PETS_ASSETS } from "../demo3d/pets3d.ts";
@@ -12,6 +12,7 @@ import { type Placed, Room, type Turn } from "../demo3d/room.ts";
 import { TAVERN_ASSETS } from "../demo3d/tavern3d.ts";
 import { placeholder, type RoomSkin, WorldRoom } from "../demo3d/world.ts";
 import { viewOf } from "./room-skin.ts";
+import { earnedBy } from "./trophies3d.ts";
 import { type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
 
 /**
@@ -69,7 +70,7 @@ const WIDTH = new Map<string, number>([...FURNITURE, ...COMPANY_FURNITURE, ...HO
 const FLAT = new Set(["=", "e"]);
 
 /** Fills `room` with what the map has on its floor. `at` maps a map tile to the room's. */
-export function furnish(room: Room, map: GameMap, inset: [number, number]): Placed[] {
+export function furnish(room: Room, map: GameMap, inset: [number, number], models: Partial<Record<string, () => Model>> = {}): Placed[] {
   const placed: Placed[] = [];
   const done = new Set<string>();
   map.rows.forEach((row, ry) => {
@@ -94,7 +95,7 @@ export function furnish(room: Room, map: GameMap, inset: [number, number]): Plac
       // A piece several tiles wide writes its character on each.
       const w = Math.max(1, Math.round(WIDTH.get(ch) ?? asset.w));
       for (let i = 1; i < w; i++) done.add(`${rx + i},${ry}`);
-      placed.push(room.place(asset, x, z, TURN[ch] ?? 0));
+      placed.push(room.place(asset, x, z, TURN[ch] ?? 0, models[ch]?.()));
     }
   });
   return placed;
@@ -129,7 +130,9 @@ function buildFurnished(id: RoomId, ctx: RoomCtx): RoomView {
       ...(office ? {} : { floor: "#c9a574", wall: "#efe4cf", stripe: "#e1d3b6" }),
     });
     if (map.decor) applyDecor(room, map.decor);
-    const placed = furnish(room, map, inset);
+    // The owner's trophies are on the shelf: the real ones (the room is built again when they change).
+    const owner = ownerOfOffice(id);
+    const placed = furnish(room, map, inset, owner === null ? {} : { U: () => trophyShelf(earnedBy(owner), true) });
     return { room, placed } satisfies Furnished;
   });
   const { room } = built.value;

@@ -31,6 +31,8 @@ export interface LiveFrame {
   me: [number, number] | null;
   /** Reduce motion. */
   calm: boolean;
+  /** How lively the effects may be, 0 to 1 (the graphics tier's particle density): caps the emoji bursts. */
+  density: number;
 }
 
 /** What a room needs to know to be drawn. */

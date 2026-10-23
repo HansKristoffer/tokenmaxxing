@@ -74,6 +74,9 @@ export class Entities {
   private fitting: Look2D | null = null;
   /** Reduce motion: the siren glows steadily. */
   calm = false;
+  /** Most emoji bursts at once, from the tier (each is ten DOM nodes). */
+  maxBursts = 10;
+  private bursts = 0;
   /** Bots whose bodies the room draws itself. */
   private keepers: ReadonlySet<number> = new Set();
   private readonly v = new THREE.Vector3();
@@ -208,6 +211,8 @@ export class Entities {
     const list: GameAvatar[] = [...world.avatars.values()];
     for (const l of world.leaving) if (!world.avatars.has(l.info.id)) list.push(l);
     prunePets();
+    this.bursts = 0;
+    for (const r of this.rigs.values()) if (r.burst) this.bursts++;
     for (const a of list) {
       let r = this.rigs.get(a.info.id);
       if (r && r.sig !== lookSig(a.info, this.lookOf(a.info))) {
@@ -273,7 +278,7 @@ export class Entities {
     // Coffee and the Tavern's special: a buzz, or a warm glow.
     const unow = Date.now();
     const special = hasSpecial(info.specialUntil ?? 0, unow) ? specialBuff(info.specialUntil ?? 0) : null;
-    const shake = Math.min(4, Math.max(cupsLeft(info.coffeeUntil, unow), special === "jitter" ? 1.5 : 0));
+    const shake = this.calm ? 0 : Math.min(4, Math.max(cupsLeft(info.coffeeUntil, unow), special === "jitter" ? 1.5 : 0));
     const jx = shake > 0 ? ((Math.random() * 2 - 1) * shake) / TILE : 0;
     const jz = shake > 0 ? ((Math.random() * 2 - 1) * shake * 0.5) / TILE : 0;
     r.root.position.set(r.x + jx, y, r.z + jz);
@@ -285,7 +290,7 @@ export class Entities {
           new THREE.MeshBasicMaterial({
             color: "#ffde78",
             transparent: true,
-            opacity: 0.3,
+            opacity: 0.2,
             depthWrite: false,
             blending: THREE.AdditiveBlending,
           }),
@@ -491,8 +496,14 @@ export class Entities {
     if (a.burst && now - a.burst.at < BURST_MS) {
       if (!r.burst?.matches(a.burst.emojis, a.burst.at)) {
         r.burst?.dispose();
-        r.burst = new Burst(this.overlay, a.burst.emojis, a.burst.at);
+        r.burst = null;
+        // Busy rooms: past the tier's cap a new burst waits (and is skipped once its time is up).
+        if (this.bursts < this.maxBursts) {
+          r.burst = new Burst(this.overlay, a.burst.emojis, a.burst.at);
+          this.bursts++;
+        }
       }
+      if (!r.burst) return;
       const [sx, sy] = this.overlay.project(this.v.set(r.x, y + lift - 0.2, r.z), camera);
       if (!r.burst.step(now, sx, sy)) {
         r.burst.dispose();

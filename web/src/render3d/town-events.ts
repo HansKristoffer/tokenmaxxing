@@ -13,7 +13,7 @@ import {
 } from "@tokenmaxxing/core/street.ts";
 import * as THREE from "three";
 import { Avatar, personLook } from "../demo3d/avatar.ts";
-import { basketModel, blanketModel, buntingModel, grassPatch, merchantCart, signpost } from "../demo3d/fx3d-town.ts";
+import { basketModel, blanketModel, grassPatch, merchantCart, signpost } from "../demo3d/fx3d-town.ts";
 import { canvasTexture } from "../demo3d/kit.ts";
 import { openCart } from "../game/merchant.ts";
 import { outageNow } from "../game/picnic.ts";
@@ -21,7 +21,9 @@ import { lane, live as raceLive } from "../game/race.ts";
 import { lightsNow, skyNow } from "../game/sky.ts";
 import { serverNow, world } from "../game/world.ts";
 import { hud } from "../store.ts";
+import { buntingMeshes } from "./bunting3d.ts";
 import { disposeObject } from "./dispose.ts";
+import { mergeStill } from "./merge3d.ts";
 import { Burst, type Overlay } from "./overlay.ts";
 import type { LiveFrame } from "./rooms.ts";
 import {
@@ -29,6 +31,7 @@ import {
   CART_SIGN_HERE,
   crossed,
   goodsColors,
+  burstCap,
   isGrassNotice,
   polseSign,
   snailSign,
@@ -45,8 +48,6 @@ const CALLS = [
 const ROLL_TILES = 3.4;
 const ROLL_SPEED = 1.1;
 const NEAR_MERCHANT = 4;
-/** Most emoji bursts alive at once: each is ten DOM nodes. */
-const MAX_BURSTS = 4;
 const GRASS_MS = 9000;
 const COINS = 3;
 const COIN_MS = 800;
@@ -129,6 +130,7 @@ export class TownEvents {
 
   // Labels and bursts
   private readonly pills = new Map<string, Pill>();
+  private maxBursts = 4;
   private bursts: { burst: Burst; at: number; x: number; y: number; z: number }[] = [];
   private overlay: Overlay | null = null;
 
@@ -144,6 +146,7 @@ export class TownEvents {
     this.weekShown = weekOf(serverNow());
     this.cart = merchantCart(goodsColors(lineup(this.weekShown)));
     prep(this.cart);
+    mergeStill(this.cart.model);
     this.cartRoot.add(this.cart.model);
     this.cartRoot.visible = false;
     this.merchant = new Avatar(
@@ -186,11 +189,18 @@ export class TownEvents {
     const tr = lamp(PLAZA.right, PLAZA.top);
     const bl = lamp(PLAZA.left, PLAZA.bottom);
     const br = lamp(PLAZA.right, PLAZA.bottom);
-    this.picnic.add(buntingModel(tl, tr, 0.5), buntingModel(bl, br, 0.5), buntingModel(tl, bl, 0.4), buntingModel(tr, br, 0.4));
+    mergeStill(this.picnic);
+    this.picnic.add(
+      buntingMeshes([
+        { a: tl, b: tr, sag: 0.5 },
+        { a: bl, b: br, sag: 0.5 },
+        { a: tl, b: bl, sag: 0.4 },
+        { a: tr, b: br, sag: 0.4 },
+      ]),
+    );
     this.picnic.visible = false;
-    this.picnic.userData.live = true;
+    mergeStill(this.grass);
     this.grass.visible = false;
-    this.grass.userData.live = true;
     this.group.add(this.picnic, this.grass);
 
     // The snail's trail (its body and the goal flag are the town's own).
@@ -271,7 +281,7 @@ export class TownEvents {
   private burst(emojis: string[], x: number, y: number, z: number, now: number): void {
     const overlay = this.overlay;
     if (!overlay) return;
-    if (this.bursts.length >= MAX_BURSTS) this.bursts.shift()?.burst.dispose();
+    if (this.bursts.length >= this.maxBursts) this.bursts.shift()?.burst.dispose();
     this.bursts.push({ burst: new Burst(overlay, emojis, now), at: now, x, y, z });
   }
 
@@ -324,6 +334,7 @@ export class TownEvents {
 
   update(f: LiveFrame): void {
     this.overlay = f.overlay;
+    this.maxBursts = Math.max(1, Math.round(burstCap(f.density) / 2));
     this.clock = f.now;
     this.lastMe = f.me;
     this.coinsFrame(f);
@@ -405,7 +416,7 @@ export class TownEvents {
       cartRoot.rotation.y = 0;
       const flick = Math.floor(f.now / 260) % 5 !== 0;
       (this.cart.flame.material as THREE.MeshBasicMaterial).color.set(flick ? "#ffd04a" : "#ffe9a8");
-      (this.cart.halo.material as THREE.MeshBasicMaterial).opacity = (0.08 + lightsNow(f.now) * 0.18) * (flick ? 1 : 0.85);
+      (this.cart.halo.material as THREE.MeshBasicMaterial).opacity = (0.05 + lightsNow(f.now) * 0.1) * (flick ? 1 : 0.85);
       // The merchant walks beside it, then stands by the back wheel and nods at the square now and then.
       const m = merchant.root;
       if (state === "here") {
@@ -445,6 +456,7 @@ export class TownEvents {
     const was = this.cart.model;
     const next = merchantCart(colors);
     prep(next);
+    mergeStill(next.model);
     this.cartRoot.remove(was);
     disposeObject(was);
     this.cartRoot.add(next.model);
