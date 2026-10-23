@@ -797,8 +797,23 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
   (`seethrough.ts`). `dispose.ts` frees a room's geometries, materials and textures (kit-shared ones are marked
   `userData.shared` and left alone). `window.__r3d` has `gpu()`, `stats` and `cycle(n)`; opening the game with
   `?r3dcheck` builds and frees every room four times and logs whether `renderer.info` moved. Not drawn in 3D yet: the
-  game tables and arenas, the raid and dungeon (the dungeon uses the demo's tile-by-tile room), the street's events
-  (cop's siren, picnic, race).
+  game tables and arenas, the raid and dungeon (the dungeon uses the demo's tile-by-tile room).
+  **World events** are drawn from the same state the 2D game reads, never simulated: a room's `RoomView.frame(f)` runs
+  once a frame after the people (`LiveFrame`: clock, camera, overlay, where you stand, reduce motion, the tier's particle
+  density) and `RoomView.extras` is a group added to the scene beside the room, outside its batching. The town's
+  `TownEvents` (`town-events.ts`) draws the merchant's cart and signpost on `cartOpen(serverNow())` (it rolls in and out
+  when you watch the hour change; the goods are this week's `lineup`), the outage picnic (blankets, basket, bunting from
+  `outageNow()`; the "Touched grass" notice sprouts a patch where you sit), the pølsevogn's sign, the snail's status and
+  trail and the paperboy's tag (all from `skyNow()`), the Sprint Race's start line, and the fountain's coin (`viewHooks.toss`,
+  fired when the server's answer to `toss` is "Plink"). `Entities` puts Officer 429's light bar, pad and siren glow on
+  his body from his lines (`CopWatch`, as `game/cop.ts`), runs racers round the square from `game/race.ts`, caps emoji
+  bursts by tier and keeps the jitter off with reduce motion, and adds other players' showcase pins (badge and trophy
+  chips) to their name tags (`ShowcaseCache`: one `profile` request at a time, only for people near you, never bots).
+  The Tavern's `TavernEvents` puts a sign over the jukebox (track, who put it on, skip votes; the sound is still
+  `game/jukebox.ts`), throws the tip jar's coin, and dims the room with the game's sky (lamps and candles by `lightsNow`,
+  no real lights). An Office's trophy shelf is built from the owner's real trophies (`trophies3d.ts`); a new trophy
+  builds the room again. The pure rules are in `world-logic.ts` (tests: `web/test/render3d-world.test.ts`). Events that
+  are many small meshes are merged once when built (`merge3d.ts`, `bunting3d.ts`).
   The demo's hand-built rooms are the game's: `room-skin.ts` builds the Tavern, dorm, basement, the four shops and the
   company house from the core map of the room you are in (`buildRoomSkin`, the demo's `world-rooms.ts` skins; the
   slices register at load with `loadSlices`), `room-furnished.ts` builds an Office or a company's common room as a

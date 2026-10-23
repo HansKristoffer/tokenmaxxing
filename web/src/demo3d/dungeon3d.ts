@@ -74,6 +74,8 @@ interface VoxelOpts {
   flip?: boolean;
   /** A key to colour as a ghost (translucent). */
   ghost?: boolean;
+  /** A ghost drawn in dark opaque paint instead, so many of them can share a draw call (the game's shelf). */
+  solidGhost?: boolean;
 }
 
 /**
@@ -97,7 +99,9 @@ export function voxels(rows: readonly string[], pal: Palette, px: number, opts: 
       const colour = pal[ch];
       if (colour !== undefined && !(ch === "." && !(ch in pal))) {
         const d = depthOf(ch);
-        const paint = opts.ghost
+        const paint = opts.ghost && opts.solidGhost
+          ? toon(tint(colour.startsWith("rgba") ? "#14101c" : colour, -0.62))
+          : opts.ghost
           ? glass(colour.startsWith("rgba") ? "#14101c" : colour, 0.35)
           : opts.glows?.includes(ch)
             ? glow(colour)
@@ -898,13 +902,14 @@ function editionItem(e: (typeof EDITION_LIST)[number]): Model {
 const PLINTH_KEYS = "kK";
 
 /** One trophy: its 7x8 pixel art extruded, on a small base. An unearned one is a ghost of the same shape. */
-export function trophy(id: string, earned = true, px = 0.1): Model {
+export function trophy(id: string, earned = true, px = 0.1, solidGhost = false): Model {
   const art = TROPHY_ART[id];
   const m = new Model();
   if (!art) return m;
   const v = voxels(art.rows, art.pal, px, {
     depth: (ch) => (PLINTH_KEYS.includes(ch) ? 0.36 : 0.2),
     ghost: !earned,
+    solidGhost,
     glows: id === "leet" || id === "zeros" ? "ga" : id === "3am" ? "w" : id === "newyear" ? "w" : "",
   });
   v.model.position.y = 0.03;
@@ -916,7 +921,7 @@ export function trophy(id: string, earned = true, px = 0.1): Model {
 const TROPHY_SIZE = 7;
 
 /** The shelf: four tiles wide, four glass-fronted shelves of seven. */
-export function trophyShelf(earned: ReadonlySet<string>): Model {
+export function trophyShelf(earned: ReadonlySet<string>, solidGhost = false): Model {
   const m = new Model();
   const W = 3.9;
   const rowH = 0.52;
@@ -932,7 +937,7 @@ export function trophyShelf(earned: ReadonlySet<string>): Model {
   TROPHY_DEFS.forEach((t, i) => {
     const col = i % 7;
     const row = Math.floor(i / 7);
-    const tr = trophy(t.id, earned.has(t.id), 0.045);
+    const tr = trophy(t.id, earned.has(t.id), 0.045, solidGhost);
     tr.position.set((col - 3) * 0.5, 0.09 + (rows - 1 - row) * rowH, 0.02);
     m.add(tr);
   });

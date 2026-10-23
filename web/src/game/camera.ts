@@ -17,6 +17,8 @@ export const viewHooks: {
   key?: <D extends string>(dir: D) => D;
   /** E on a shop's display at this tile: true when the 3D buy panel took it. */
   shop?: (shop: string, x: number, y: number) => boolean;
+  /** A coin landed in the fountain or the Tavern's tip jar at this tile: the 3D renderer throws it. */
+  toss?: (x: number, y: number) => void;
 } = {};
 
 /**

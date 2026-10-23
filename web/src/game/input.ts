@@ -12,6 +12,7 @@ import {
   WALK_STEP_MS,
 } from "@tokenmaxxing/core/world.ts";
 import { conn } from "../net.ts";
+import { tossLanded } from "../render3d/world-logic.ts";
 import { chatBeside, hud } from "../store.ts";
 import { basementInteract } from "./basement.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
@@ -367,7 +368,13 @@ function interact(): void {
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (kind.pours) return void send(conn.drink(me.facing));
-  if (kind.tosses) return void send(conn.toss(me.facing));
+  if (kind.tosses)
+    return void send(
+      conn.toss(me.facing).then((r) => {
+        if (r && "notice" in r && tossLanded(r.notice)) viewHooks.toss?.(x, y);
+        return r;
+      }),
+    );
   if (kind.serves) return void send(conn.tavern(me.facing));
   // The Tavern's boards: the bar and the quest board give out quests, the wall is the Hall of Fame.
   if (world.room === "inn") {

@@ -14,7 +14,8 @@ import "../demo3d/world-rooms.ts";
 import { disposeObject } from "./dispose.ts";
 import { liveBasement, liveTavern } from "./live.ts";
 import { placedIn } from "./placed.ts";
-import { type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
+import { type LiveFrame, type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
+import { TavernEvents } from "./tavern-events.ts";
 
 /**
  * The demo's hand-built rooms, as the real game's: the Tavern and the dorm, the basement, the four shops, the
@@ -30,6 +31,14 @@ const WALL_H = 2.6;
 export interface SkinParts {
   /** Once a frame: the real game's data on the room's boards (`live.ts`). */
   live?: (t: number) => void;
+  /** Once a frame, after the people: the real game's events in the room (the Tavern's jukebox sign). */
+  frame?: (f: LiveFrame) => void;
+  /** A coin was tossed into the tip jar or fountain in front of this tile. */
+  onToss?: (tx: number, ty: number) => void;
+  /** The room's own light, once: given the stage's lights (the Tavern keeps them to dim after dark). */
+  lights?: (scene: THREE.Scene, hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight) => void;
+  /** Frees what `frame` made (labels). */
+  end?: () => void;
   /** A shop's interior, for picking its shelves. */
   shop?: ShopRoom;
   /** The basement's dim light. */
@@ -67,7 +76,7 @@ export function viewOf(
     parts,
     keepers: parts.keepers,
     shop: parts.shop,
-    lights: parts.dim ? (scene, hemi, sun) => dimBasement(scene, hemi, sun) : undefined,
+    lights: parts.lights ?? (parts.dim ? (scene, hemi, sun) => dimBasement(scene, hemi, sun) : undefined),
     outdoors: false,
     bounds: { minX: 0, maxX: W, minZ: 0, maxZ: D, height: WALL_H },
     view,
@@ -79,9 +88,12 @@ export function viewOf(
       parts.live?.(t);
       room.facing(toward);
     },
+    frame: parts.frame,
+    onToss: parts.onToss,
     signs: () => [],
     night: (on) => setPropsNight(on),
     dispose() {
+      parts.end?.();
       group.removeFromParent();
       disposeObject(group);
     },
@@ -102,7 +114,17 @@ function buildSkinned(id: RoomId, ctx: RoomCtx): RoomView {
   const built = worldRoom(mapId, ctx.map, () => buildRoomSkin(mapId));
   const extra = built.value.skin?.extra ?? null;
   const live = mapId === "inn" ? liveTavern(extra as TavernRoom) : mapId === "basement" ? liveBasement(extra as BasementScene) : undefined;
-  return viewOf(id, ctx.map, built.value, built.ticks, { extra, keepers: mapId === "inn" ? new Set([BARKEEP_BOT]) : new Set(), live, dim: mapId === "basement" });
+  const inn = mapId === "inn" ? new TavernEvents(extra as TavernRoom) : null;
+  return viewOf(id, ctx.map, built.value, built.ticks, {
+    extra,
+    keepers: mapId === "inn" ? new Set([BARKEEP_BOT]) : new Set(),
+    live,
+    dim: mapId === "basement",
+    frame: inn ? (f) => inn.update(f) : undefined,
+    lights: inn ? (_scene, hemi, sun) => inn.lights(hemi, sun) : undefined,
+    onToss: inn ? () => inn.toss() : undefined,
+    end: inn ? () => inn.dispose() : undefined,
+  });
 }
 
 /** A shop: the interior the demo built for it, with the shopkeeper the room draws itself. */

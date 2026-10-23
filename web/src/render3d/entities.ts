@@ -11,12 +11,16 @@ import { Model } from "../demo3d/kit.ts";
 import { type Pet3D, petFrom2D } from "../demo3d/pets3d.ts";
 import { BURST_MS } from "../game/emoji.ts";
 import { followPet, prunePets } from "../game/pets.ts";
+import { type Lap, racing } from "../game/race.ts";
 import { drawPos, type Avatar as GameAvatar, gameTag, stepping, WARP_MS, world } from "../game/world.ts";
+import { town } from "../net.ts";
 import { hud } from "../store.ts";
+import { CopGear } from "./cop3d.ts";
 import { disposeObject } from "./dispose.ts";
 import { approach, hopHeight, poseOf, turnToward, YAW } from "./motion.ts";
 import { Burst, type Overlay } from "./overlay.ts";
 import type { RoomView } from "./rooms.ts";
+import { CopWatch, ShowcaseCache } from "./world-logic.ts";
 
 const NONE: ReadonlySet<number> = new Set();
 /** Pets are drawn a little bigger than life so they read from the iso camera. */
@@ -41,6 +45,10 @@ interface Rig {
   seen: number;
   bedroll: Model | null;
   halo: THREE.Mesh | null;
+  /** Officer 429 only: his light bar and notepad, and what his lines say he is doing. */
+  cop: { gear: CopGear; watch: CopWatch } | null;
+  /** Where a Sprint Race has them (laps of the square) this frame, when it has. */
+  lap: Lap | null;
   pet: { model: Pet3D; root: THREE.Group; sig: string; x: number; z: number; yaw: number; moving: boolean; placed: boolean } | null;
   // Labels
   stack: HTMLDivElement;
@@ -64,10 +72,17 @@ export class Entities {
   dirty = false;
   /** A try-on: the look shown on the local player in place of their saved one (the shops' fitting room). */
   private fitting: Look2D | null = null;
+  /** Reduce motion: the siren glows steadily. */
+  calm = false;
+  /** Most emoji bursts at once, from the tier (each is ten DOM nodes). */
+  maxBursts = 10;
+  private bursts = 0;
   /** Bots whose bodies the room draws itself. */
   private keepers: ReadonlySet<number> = new Set();
   private readonly v = new THREE.Vector3();
   private readonly ray = new THREE.Raycaster();
+  /** Showcase pins of those near me, for the chips on their name tags (asked a few at a time). */
+  private readonly showcase = new ShowcaseCache({ fetch: (id) => town.profile(id, "today").then((p) => p.showcase ?? []) });
 
   constructor(private readonly overlay: Overlay) {
     this.group.name = "entities";
@@ -152,6 +167,8 @@ export class Entities {
       seen: 0,
       bedroll: null,
       halo: null,
+      cop: a.info.id === COP_ID ? { gear: new CopGear(avatar, root), watch: new CopWatch() } : null,
+      lap: null,
       pet: null,
       stack,
       tag: null,
@@ -194,6 +211,8 @@ export class Entities {
     const list: GameAvatar[] = [...world.avatars.values()];
     for (const l of world.leaving) if (!world.avatars.has(l.info.id)) list.push(l);
     prunePets();
+    this.bursts = 0;
+    for (const r of this.rigs.values()) if (r.burst) this.bursts++;
     for (const a of list) {
       let r = this.rigs.get(a.info.id);
       if (r && r.sig !== lookSig(a.info, this.lookOf(a.info))) {
@@ -222,7 +241,10 @@ export class Entities {
   ): void {
     const info = a.info;
     // Where they are: the 2D game's own step interpolation, eased so corners round off.
-    const p = drawPos(a, now);
+    // In a Sprint Race they run laps of the square instead of standing at their table.
+    const lap = racing(info.id, now);
+    r.lap = lap;
+    const p = lap ?? drawPos(a, now);
     const [tx, tz] = view.toWorld(p.x, p.y);
     const dx = tx - r.x;
     const dz = tz - r.z;
@@ -234,11 +256,11 @@ export class Entities {
       r.x = approach(r.x, tx, dt, 45);
       r.z = approach(r.z, tz, dt, 45);
     }
-    const moving = stepping(a, now) || Math.hypot(tx - r.x, tz - r.z) > 0.04;
+    const moving = (lap ? lap.running : stepping(a, now)) || Math.hypot(tx - r.x, tz - r.z) > 0.04;
     if (moving) r.walkUntil = now + WALK_HOLD_MS;
-    const seatKind = world.map.kind(a.x, a.y).seat;
-    const onSeat = a.state === "sit" || a.state === "working";
-    const { pose, lying } = poseOf({ state: a.state, dozing: info.dozing }, onSeat ? seatKind : undefined, now < r.walkUntil);
+    const seatKind = lap ? undefined : world.map.kind(a.x, a.y).seat;
+    const onSeat = !lap && (a.state === "sit" || a.state === "working");
+    const { pose, lying } = poseOf({ state: lap ? "idle" : a.state, dozing: info.dozing && !lap }, onSeat ? seatKind : undefined, now < r.walkUntil);
     const av = r.avatar;
     // On the Tavern's stage while the jukebox plays: dance.
     const dancing = pose === "stand" && world.room === "inn" && world.map.at(a.x, a.y) === "e" && hud.get().jukebox !== null;
@@ -249,14 +271,14 @@ export class Entities {
     if (lying) y = seatKind === "bed" ? view.seatY(a.x, a.y, "bed") : 0.02;
     else if (pose === "sit" || pose === "type") y = seatKind ? view.seatY(a.x, a.y, seatKind) : 0.04;
     y += hop;
-    let yawTarget = YAW[a.facing];
+    let yawTarget = YAW[lap?.facing ?? a.facing];
     if (lying) yawTarget = 0;
     r.yaw = turnToward(r.yaw, yawTarget, dt, 70);
 
     // Coffee and the Tavern's special: a buzz, or a warm glow.
     const unow = Date.now();
     const special = hasSpecial(info.specialUntil ?? 0, unow) ? specialBuff(info.specialUntil ?? 0) : null;
-    const shake = Math.min(4, Math.max(cupsLeft(info.coffeeUntil, unow), special === "jitter" ? 1.5 : 0));
+    const shake = this.calm ? 0 : Math.min(4, Math.max(cupsLeft(info.coffeeUntil, unow), special === "jitter" ? 1.5 : 0));
     const jx = shake > 0 ? ((Math.random() * 2 - 1) * shake) / TILE : 0;
     const jz = shake > 0 ? ((Math.random() * 2 - 1) * shake * 0.5) / TILE : 0;
     r.root.position.set(r.x + jx, y, r.z + jz);
@@ -268,13 +290,14 @@ export class Entities {
           new THREE.MeshBasicMaterial({
             color: "#ffde78",
             transparent: true,
-            opacity: 0.3,
+            opacity: 0.2,
             depthWrite: false,
             blending: THREE.AdditiveBlending,
           }),
         );
         r.halo.position.y = 0.55;
         r.halo.userData.nopick = true;
+        r.halo.userData.noBlock = true;
         r.root.add(r.halo);
       }
       r.halo.scale.setScalar(1 + 0.12 * Math.sin(t * 3.1));
@@ -312,9 +335,11 @@ export class Entities {
     const bubbleOn = a.bubble !== null && now < a.bubble.until;
     av.talking = bubbleOn;
     if (near) av.update(dtS, t);
+    if (r.cop) r.cop.gear.update(r.cop.watch.read(bubbleOn && a.bubble ? a.bubble.text : "", now), now, this.calm);
 
     this.pet(r, a, me, view, camera, now, dt, t, near);
-    this.labels(r, a, camera, now, near, bubbleOn, pose, y);
+    const close = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;
+    this.labels(r, a, camera, now, near, close, bubbleOn, pose, y);
   }
 
   private pet(
@@ -356,7 +381,7 @@ export class Entities {
     }
     const owner = ownerOfOffice(world.room);
     const bed = owner === a.info.id ? world.map.find("Q")[0] : undefined;
-    const pos = drawPos(a, now);
+    const pos = r.lap ?? drawPos(a, now);
     const spot = followPet(a, pos.x * TILE, pos.y * TILE, dt, bed);
     if (!spot) return;
     // The 2D spot is the sprite's top-left in pixels; the 3D pet stands on its bottom middle.
@@ -406,6 +431,7 @@ export class Entities {
     camera: THREE.OrthographicCamera,
     now: number,
     near: boolean,
+    close: boolean,
     bubbleOn: boolean,
     pose: string,
     y: number,
@@ -418,8 +444,10 @@ export class Entities {
     const resting = a.state === "away";
     // The name tag: name, level, rarity ring, company; yours is left off, you know who you are.
     const company = info.companyId === null ? undefined : world.companies.get(info.companyId);
-    const tagKey = `${info.name}|${info.level}|${info.online}|${company?.name ?? ""}|${company?.brand?.roof ?? ""}|${info.look.hat}|${info.look.outfit}`;
     const isMe = info.id === world.selfId;
+    if (close && !isMe) this.showcase.want(info.id, now);
+    const pins = isMe ? null : this.showcase.get(info.id);
+    const tagKey = `${info.name}|${info.level}|${info.online}|${company?.name ?? ""}|${company?.brand?.roof ?? ""}|${info.look.hat}|${info.look.outfit}|${pins?.key ?? ""}`;
     if (!isMe && (!r.tag || r.tagKey !== tagKey)) {
       r.tag?.remove();
       r.tag = nameTag({
@@ -428,6 +456,8 @@ export class Entities {
         rarity: wornBy(info.look).rarity,
         online: info.online,
         company: company ? { name: company.name, color: company.brand?.roof ?? "#3f7a78" } : undefined,
+        badges: pins?.chips.badges,
+        trophies: pins?.chips.trophies,
       });
       r.tag.classList.remove("label");
       r.tagKey = tagKey;
@@ -466,8 +496,14 @@ export class Entities {
     if (a.burst && now - a.burst.at < BURST_MS) {
       if (!r.burst?.matches(a.burst.emojis, a.burst.at)) {
         r.burst?.dispose();
-        r.burst = new Burst(this.overlay, a.burst.emojis, a.burst.at);
+        r.burst = null;
+        // Busy rooms: past the tier's cap a new burst waits (and is skipped once its time is up).
+        if (this.bursts < this.maxBursts) {
+          r.burst = new Burst(this.overlay, a.burst.emojis, a.burst.at);
+          this.bursts++;
+        }
       }
+      if (!r.burst) return;
       const [sx, sy] = this.overlay.project(this.v.set(r.x, y + lift - 0.2, r.z), camera);
       if (!r.burst.step(now, sx, sy)) {
         r.burst.dispose();

@@ -23,14 +23,14 @@ const shown = new Map<number, { laps: number; at: number }>();
 /** Updates arrive a few times a second; this smooths the steps between them. */
 const EASE_MS = 400;
 
-const live = (g: WorldGame) => g.game === "sprint" && g.headline !== "Over";
+export const live = (g: WorldGame) => g.game === "sprint" && g.headline !== "Over";
 
 function raceOf(id: number): WorldGame | undefined {
   return world.room === "town" ? gamesOf(id).find(live) : undefined;
 }
 
 /** Each racer's own lane, in tiles in from the edge: the first innermost, the rest outwards. */
-function lane(g: WorldGame, id: number): number {
+export function lane(g: WorldGame, id: number): number {
   const n = g.players.length;
   return 0.35 - g.players.indexOf(id) * (n > 1 ? Math.min(0.45, 1.4 / (n - 1)) : 0);
 }

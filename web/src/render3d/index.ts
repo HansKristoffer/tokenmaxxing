@@ -12,6 +12,7 @@ import { send, walkThen, walkTo } from "../game/input.ts";
 import { chipHits, signHits } from "../game/labels.ts";
 import type { Renderer, Tile } from "../game/renderer.ts";
 import { skyNow } from "../game/sky.ts";
+import { loadTrophies } from "../game/trophies.ts";
 import { self, world } from "../game/world.ts";
 import { conn, refreshMe, town } from "../net.ts";
 import type { GraphicsSettings } from "../settings/graphics.ts";
@@ -34,6 +35,8 @@ import "./room-furnished.ts";
 import "./room-town.ts";
 import { Signs } from "./signs.ts";
 import { lightPipeline, RoomStage } from "./stage3d.ts";
+import { signature as trophySignature, watchShelf } from "./trophies3d.ts";
+import { burstCap } from "./world-logic.ts";
 
 /**
  * The 3D renderer's entry, loaded on demand (`loadRenderer`) so Three.js is never downloaded on the Low
@@ -131,6 +134,7 @@ class Renderer3D implements Renderer {
       rotate: (step) => this.rig.rotate(step),
       key: (dir) => keyDirection(dir as never, this.rig.turns) as never,
       shop: (_shop, x, y) => this.openShelf(x, y),
+      toss: (x, y) => this.stage?.view.onToss?.(x, y),
     };
     Object.assign(viewHooks, this.hooks3d);
     this.shops = installShops(this.shopWorld);
@@ -204,7 +208,12 @@ class Renderer3D implements Renderer {
    * company's plot, tier and brand: a new company, a house that grew or a new logo is a new town).
    */
   private roomKey(): string {
-    if (world.room !== "town") return `${world.room}:${mapKey(world.map)}`;
+    if (world.room !== "town") {
+      // An office's shelf of trophies is asked for while you are there; a new trophy builds the room again.
+      const owner = ownerOfOffice(world.room);
+      if (owner !== null) watchShelf(owner, performance.now(), loadTrophies);
+      return `${world.room}:${mapKey(world.map)}${owner === null ? "" : `:${trophySignature(owner)}`}`;
+    }
     if (this.townKey?.companies !== world.companies)
       this.townKey = {
         companies: world.companies,
@@ -300,6 +309,7 @@ class Renderer3D implements Renderer {
       this.entities.update(now, dt, view, camera);
       this.signs.update(view, camera);
       this.drops.update(view, t);
+      view.frame?.({ now, t, dt: dt / 1000, camera, overlay: this.overlay, me, calm, density: this.settings?.weather ?? 1 });
     } catch (e) {
       // A bad look or label shouldn't take the whole picture down; say so once in a while.
       if (this.errored++ % 300 === 0) console.error("3D entities:", e);
@@ -350,6 +360,8 @@ class Renderer3D implements Renderer {
 
   setQuality(s: GraphicsSettings): void {
     this.settings = s;
+    this.entities.calm = s.reduceMotion;
+    this.entities.maxBursts = burstCap(s.weather);
     applyGraphics(this.pipe, s);
     // Medium builds lean rooms (plain boxes, fewer segments); a change of tier rebuilds what is built.
     const detail = s.tier === "medium" ? 0 : 1;
@@ -634,6 +646,7 @@ class Renderer3D implements Renderer {
       delete viewHooks.rotate;
       delete viewHooks.key;
       delete viewHooks.shop;
+      delete viewHooks.toss;
     }
     this.placer.cancel();
     this.shops?.dispose();

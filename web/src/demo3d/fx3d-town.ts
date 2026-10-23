@@ -130,7 +130,7 @@ const lookOf = (outfit: [string, string], pants: string, rnd: number, extra: Par
 const ink = "#2b2433";
 
 /** Officer 429's cap, badge, belt, notepad and siren, put on an `Avatar`. Returns the siren's parts. */
-function dressCop(a: Avatar) {
+export function dressCop(a: Avatar) {
   // The voxel officer already has the cap, buttons and badge; this adds the light bar on top and the notepad.
   const cap = a.head.part([0, 0.4, 0]);
   cap.scale.setScalar(0.7);

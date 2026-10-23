@@ -13,7 +13,7 @@ const forced = forcedOutage(new URLSearchParams(location.search).get("picnic"), 
 let fromServer: Outage | null = null;
 const listeners = new Set<() => void>();
 
-const outageNow = (): Outage | null => (forced === undefined ? fromServer : forced);
+export const outageNow = (): Outage | null => (forced === undefined ? fromServer : forced);
 
 export function setOutage(o: Outage | null): void {
   fromServer = o;
