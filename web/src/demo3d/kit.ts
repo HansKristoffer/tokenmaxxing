@@ -293,6 +293,13 @@ export function liveModel(): Model {
   return m;
 }
 
+let textureEdge = 2048;
+/** The longest edge a painted smooth texture may have, for rooms built from now on (Medium keeps them at 1024). */
+export function setTextureCap(px: number): void {
+  textureEdge = Math.max(256, px);
+}
+export const textureCap = (): number => textureEdge;
+
 /** A canvas texture, painted once, sampled as pixels (or smoothly, for the big HD surfaces). */
 export function canvasTexture(
   w: number,
@@ -301,9 +308,13 @@ export function canvasTexture(
   smooth = false,
 ): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  draw(canvas.getContext("2d")!);
+  // A big smooth surface is painted smaller when the tier caps textures: the drawing code keeps its own coordinates.
+  const k = smooth && Math.max(w, h) > textureEdge ? textureEdge / Math.max(w, h) : 1;
+  canvas.width = Math.max(1, Math.round(w * k));
+  canvas.height = Math.max(1, Math.round(h * k));
+  const g = canvas.getContext("2d")!;
+  if (k !== 1) g.scale(k, k);
+  draw(g);
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = THREE.SRGBColorSpace;
   if (smooth) {

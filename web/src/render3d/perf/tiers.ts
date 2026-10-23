@@ -1,4 +1,5 @@
 import type { Pipeline, PipelineOptions } from "../../demo3d/pipeline.ts";
+import { setGeometryDetail, setTextureCap } from "../../demo3d/kit.ts";
 import type { GraphicsSettings } from "../../settings/graphics.ts";
 
 /** Past this many device pixels per CSS pixel nobody sees the difference, and the fill cost keeps growing. */
@@ -47,5 +48,9 @@ export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
 
 /** The renderer's `setQuality` in one line: `applyGraphics(pipe, settings)`. */
 export function applyGraphics(pipe: Pipeline, s: GraphicsSettings): void {
+  // For rooms built from now on: plain boxes and 1024 px surfaces on Medium.
+  const lean = s.tier === "medium" || s.tier === "low";
+  setGeometryDetail(lean ? 0 : 1);
+  setTextureCap(lean ? 1024 : 2048);
   pipe.configure(pipelineOptions(s));
 }

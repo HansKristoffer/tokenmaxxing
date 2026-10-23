@@ -24,7 +24,7 @@ import {
   townMap,
 } from "./data/town.ts";
 import type { Asset } from "./furniture.ts";
-import { canvasTexture, glass, Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
+import { canvasTexture, glass, Model, painted, seeded, textureCap, ticks, tint, toon } from "./kit.ts";
 import {
   arcadeBuilding,
   bush,
@@ -313,7 +313,7 @@ export function buildTown3d(companies: readonly Company[] = DEMO_COMPANIES): Tow
       return x - cx > -3.2 && x - cx < 7 && z > cz + 1.6;
     });
   const g = new THREE.Group();
-  const px = Math.max(8, Math.min(32, Math.floor(2048 / Math.max(W, D))));
+  const px = Math.max(8, Math.min(32, Math.floor(textureCap() / Math.max(W, D))));
   const dirt = toon("#7a5638");
   const ground = new THREE.Mesh(new THREE.BoxGeometry(W, 0.6, D), [
     dirt,

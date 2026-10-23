@@ -17,6 +17,9 @@ export interface RoomCost {
   triangles: number;
   materials: number;
   textureMB: number;
+  /** Canvas textures a room holds (after atlasing) and its largest edge in pixels. */
+  textures: number;
+  biggest: number;
 }
 
 const world = () => ((globalThis as { __perfWorld?: World }).__perfWorld ??= new World());
@@ -37,6 +40,7 @@ export function measureRoom(id: string): RoomCost {
   for (const a of actors) freezeLayer(a);
   const after = sceneStats(scene);
   let texBytes = 0;
+  let biggest = 0;
   const seen = new Set<THREE.Texture>();
   scene.traverse((o) => {
     const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
@@ -45,6 +49,7 @@ export function measureRoom(id: string): RoomCost {
       const img = t?.isTexture ? (t.image as { width?: number; height?: number } | null) : null;
       if (!img || seen.has(t)) continue;
       seen.add(t);
+      biggest = Math.max(biggest, img.width ?? 0, img.height ?? 0);
       texBytes += (img.width ?? 0) * (img.height ?? 0) * 4 * (t.generateMipmaps ? 1.34 : 1);
     }
   });
@@ -54,5 +59,7 @@ export function measureRoom(id: string): RoomCost {
     triangles: Math.round(after.triangles),
     materials: after.materials,
     textureMB: Math.round((texBytes / 1048576) * 10) / 10,
+    textures: seen.size,
+    biggest,
   };
 }
