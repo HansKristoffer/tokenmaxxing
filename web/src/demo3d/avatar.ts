@@ -6,7 +6,7 @@
 import type * as THREE from "three";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../art/palette.ts";
 import { type Expression, type Face, faceTexture } from "./faces.ts";
-import { Model, tint, type V3 } from "./kit.ts";
+import { liveModel, Model, tint, type V3 } from "./kit.ts";
 import {
   AGES,
   type Age,
@@ -71,7 +71,7 @@ export function personLook(
 export type Pose = "stand" | "walk" | "sit" | "type" | "sleep" | "wave" | "dance" | "dj";
 
 export class Avatar {
-  readonly root = new Model();
+  readonly root = liveModel();
   readonly body = this.root.part();
   readonly head: Model;
   /** Standing height, to the top of the head, and the hips, which a sitter drops by. */
@@ -104,6 +104,10 @@ export class Avatar {
     this.arms = this.rig.arms;
     this.legs = this.rig.legs;
     look.gear?.dress(this);
+    // The static batching merges what is fixed inside each limb (hair, clothes, gear): one mesh per limb, not per piece.
+    this.root.userData.bake = true;
+    for (const bone of [this.body, this.head, ...this.arms, ...this.legs, ...this.knees]) bone.userData.rigid = true;
+    for (const f of this.rig.faces) f.material.userData.dynamic = true;
   }
 
   /** Moves the limbs for `pose`, `dt` seconds after the last frame. */
@@ -212,7 +216,7 @@ export type PetKind = "cat" | "dog" | "duck";
 
 /** A pet, about a third of a tile tall, with a `bob` for walking. */
 export class Pet {
-  readonly root = new Model();
+  readonly root = liveModel();
   private readonly body = this.root.part();
   private readonly tail?: THREE.Object3D;
   moving = false;

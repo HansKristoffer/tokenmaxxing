@@ -12,8 +12,8 @@
  * Flat things (circles, planes), 4-sided cones (roofs), open tubes and anything see-through stay as they are.
  */
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { chamferBox } from "./kit.ts";
 
 const BEVEL = 0.014;
 /** Per original geometry (and whether it carries a texture): its blocky stand-in, or null to leave it be. */
@@ -36,7 +36,7 @@ function blockOf(box: THREE.Box3, textured: boolean, bevel = BEVEL): THREE.Buffe
   const r = Math.min(bevel, s.x / 2 - 0.001, s.y / 2 - 0.001, s.z / 2 - 0.001);
   const g =
     r > 0.004 && !textured
-      ? new RoundedBoxGeometry(s.x, s.y, s.z, 1, r)
+      ? chamferBox(s.x, s.y, s.z, r)
       : new THREE.BoxGeometry(Math.max(s.x, 0.001), Math.max(s.y, 0.001), Math.max(s.z, 0.001));
   return g.translate(c.x, c.y, c.z);
 }
@@ -182,7 +182,7 @@ function standIn(mesh: THREE.Mesh): THREE.BufferGeometry | null {
 export function blockify(scene: THREE.Object3D): void {
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (!m.isMesh || m.userData[SAVED]) return;
+    if (!m.isMesh || m.userData[SAVED] || m.userData.bakedSource) return;
     const g = standIn(m);
     if (!g) return;
     const saved: Saved = { geometry: m.geometry };
@@ -205,4 +205,17 @@ export function unblockify(scene: THREE.Object3D): void {
     if (s.rotX !== undefined) m.rotation.x = s.rotX;
     m.userData[SAVED] = undefined;
   });
+}
+
+/** Whether the Voxel swap also moves the mesh itself (face decals, hair caps): a merged batch cannot do that. */
+export function blockMoves(mesh: THREE.Mesh): boolean {
+  if (mesh.userData.voxelHair) return true;
+  const g = mesh.geometry;
+  if (g.type !== "SphereGeometry" || Array.isArray(mesh.material) || !(mesh.material as THREE.MeshToonMaterial).map) return false;
+  return (g as THREE.SphereGeometry).parameters.phiLength < Math.PI * 2;
+}
+
+/** The block geometry a static mesh gets in the Voxel style, or null when it keeps its own. */
+export function blockStandIn(mesh: THREE.Mesh): THREE.BufferGeometry | null {
+  return standIn(mesh);
 }

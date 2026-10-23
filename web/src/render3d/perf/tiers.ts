@@ -1,0 +1,46 @@
+import type { Pipeline, PipelineOptions } from "../../demo3d/pipeline.ts";
+import type { GraphicsSettings } from "../../settings/graphics.ts";
+
+/** Past this many device pixels per CSS pixel nobody sees the difference, and the fill cost keeps growing. */
+export const MAX_PIXEL_RATIO = 2;
+
+/**
+ * What each graphics tier means for the 3D pipeline. Medium is the genuinely light one: the classic look at a
+ * lower resolution with silhouette lines only (one scene pass, no normals, no depth float, no shadows).
+ * High has AO, haze and grade with a 2K shadow map redrawn every other frame; Ultra adds tilt-shift, 4x MSAA
+ * and a 4K shadow map drawn every frame.
+ */
+export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
+  const ratioCap = Math.min(s.dprCap, MAX_PIXEL_RATIO / Math.max(0.5, s.renderScale));
+  if (s.tier === "medium" || s.tier === "low") {
+    return {
+      style: "classic",
+      pixelSize: Math.max(1, Math.round(3 / s.renderScale)),
+      outline: 1,
+      crease: 0,
+      shadowSize: 0,
+      shadowEvery: 1,
+      dprCap: 1,
+      renderScale: 1,
+    };
+  }
+  const ultra = s.tier === "ultra";
+  return {
+    style: "voxel",
+    pixelSize: 1,
+    renderScale: s.renderScale,
+    dprCap: ratioCap,
+    shadowSize: s.shadows === "off" ? 0 : s.shadowMap,
+    shadowEvery: ultra ? 1 : 2,
+    aoSamples: s.ao ? (ultra ? 24 : 12) : 0,
+    msaa: ultra ? 4 : 0,
+    tilt: s.post.tiltShift,
+    haze: s.post.haze,
+    grade: s.post.grade,
+  };
+}
+
+/** The renderer's `setQuality` in one line: `applyGraphics(pipe, settings)`. */
+export function applyGraphics(pipe: Pipeline, s: GraphicsSettings): void {
+  pipe.configure(pipelineOptions(s));
+}

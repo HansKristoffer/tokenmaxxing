@@ -16,9 +16,19 @@ function light(m: Model, at: V3, color: string, intensity: number, distance = 5)
 }
 
 /** Things that glow only at night (lamp heads, windows): swapped by `setPropsNight`. */
-const nightGlows: { mesh: THREE.Mesh; day: THREE.Material; night: THREE.Material }[] = [];
+export interface NightGlow {
+  mesh: THREE.Mesh;
+  day: THREE.Material;
+  night: THREE.Material;
+}
+const nightGlows: NightGlow[] = [];
+const nightListeners = new Set<(on: boolean) => void>();
+let propsNight = false;
 export function nightGlow(mesh: THREE.Mesh, night: string): void {
-  nightGlows.push({ mesh, day: mesh.material as THREE.Material, night: glow(night) });
+  const g = { mesh, day: mesh.material as THREE.Material, night: glow(night) };
+  // The static batching builds a day and a night copy and flips between them (`onPropsNight`).
+  mesh.userData.nightGlow = g;
+  nightGlows.push(g);
 }
 /** Forgets the glows (and light cones) under `root`, when its room is thrown away. */
 export function dropPropsNight(root: THREE.Object3D): void {
@@ -30,9 +40,23 @@ export function dropPropsNight(root: THREE.Object3D): void {
   for (let i = cones.length - 1; i >= 0; i--) if (inside(cones[i]!)) cones.splice(i, 1);
 }
 const cones: THREE.Mesh[] = [];
+export const isPropsNight = (): boolean => propsNight;
+/** Called with the new state whenever `setPropsNight` runs. */
+export function onPropsNight(fn: (on: boolean) => void): () => void {
+  nightListeners.add(fn);
+  return () => nightListeners.delete(fn);
+}
 export function setPropsNight(on: boolean): void {
+  propsNight = on;
   for (const g of nightGlows) g.mesh.material = on ? g.night : g.day;
   for (const c of cones) (c.material as THREE.MeshBasicMaterial).opacity = on ? 0.16 : 0.05;
+  announceNight(on);
+}
+
+/** Tells the batches that it is night (or day) without swapping any prop: the rooms' own switch calls this. */
+export function announceNight(on: boolean): void {
+  propsNight = on;
+  for (const fn of nightListeners) fn(on);
 }
 
 const LEAF = ["#3f8f3a", "#4fa544", "#5fb84f", "#2f7a32"];
@@ -208,10 +232,10 @@ export function tree(kind: TreeKind, seed: number, size = 1): Model {
       greens[i % greens.length]!,
       [Math.cos(a) * r, h + (0.3 + rnd() * 0.45) * s, Math.sin(a) * r],
       [1, 0.85, 1],
-      10,
+      8,
     ).userData.blockScale = 0.72;
   }
-  m.ball(0.3 * s, greens[1]!, [0.05 * s, h + 0.85 * s, 0.05 * s], [1, 0.85, 1], 10).userData.blockScale = 0.78;
+  m.ball(0.3 * s, greens[1]!, [0.05 * s, h + 0.85 * s, 0.05 * s], [1, 0.85, 1], 8).userData.blockScale = 0.78;
   return m;
 }
 

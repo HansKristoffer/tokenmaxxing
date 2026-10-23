@@ -806,6 +806,42 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
 - React draws only the HUD and reads a small `useSyncExternalStore` store (`store.ts`). Game state never passes
   through React.
 
+## 3D performance
+
+The 3D engine is measured, not guessed: a headless harness, hardware-independent counts, budgets that a test enforces.
+
+**What makes it cheap** (`web/src/render3d/perf/`, `web/src/demo3d/pipeline.ts`):
+- *Static batching* (`bake.ts`). A room is thousands of tiny meshes. Roots flagged `userData.bake` (every `WorldRoom`, every
+  `Avatar`) are watched for ~24 frames and the tick functions are sampled; whatever never moves is merged per cell
+  (8 units) into meshes sharing one vertex-coloured toon material (textured ones per texture), and the originals are
+  hidden and put to sleep (no matrix updates). Two variants are kept per room (smooth, and the Voxel style's blocks) and
+  flipped on style change. Opt out with `userData.live = true` (night swaps, anything a caller keeps a handle to). `userData.rigid` marks things that
+  move as a whole but are fixed inside (a wall that lowers, an avatar's limbs): batched in their own space. Lamps and
+  windows with `nightGlow` get a day and a night copy flipped by `setPropsNight`/`setRoomNight`. Code that changes a room's
+  shape after it was batched calls `invalidateBaked(obj)` (`Room.build` does). `?nobake` turns it off to compare pictures.
+- *Geometry*: kit boxes with small bevels are 44-triangle chamfers (the rounded box was 300), round things get segments
+  by radius, `setGeometryDetail(0)` gives plain boxes for Medium. Ground texture capped at 2048 px.
+- *Pipeline*: lights are cached per scene (no per-frame traversal or allocation), geometry swaps for the Voxel style
+  only run when something was added (`sceneEpoch`), the shadow map is redrawn on a schedule (`shadowEvery`) and once, not once per
+  pass, classic styles skip the normals pass without creases and the depth texture without outlines, canvas size is only
+  touched when it changes. Ticks registered while a room builds only run while that room is on screen (`kit.ts`).
+- *Tiers* (`tiers.ts`, `applyGraphics(pipe, settings)`): Medium is the classic look at 0.75 scale with silhouette lines, no
+  shadows, no AO, plain geometry; High has AO (12 taps), haze, grade, a 2K shadow map every other frame; Ultra adds
+  tilt-shift, 4x MSAA, a 4K map every frame. Device pixel ratio times scale is capped at 2. Fps caps, idle and battery
+  throttling and the governor live in `game/stage.ts` / `settings/governor.ts`.
+
+**Measure** (dev server on `bun web/demo3d.html --port=4652`):
+- `bun scripts/perf-harness.mjs --out perf-results/run.json` runs every room in HD/Pixel/Voxel 0-2 headless, fixed seed and
+  camera, and records frame and CPU/GPU time p50/p95/p99, draw calls, triangles, programs, live GL objects, GPU bytes, JS
+  heap. Counts do not depend on the machine; times are for comparing runs on one machine (`--gl swiftshader` for software GL).
+  `bun scripts/perf-report.mjs run.json [baseline.json]` prints the markdown table with deltas.
+- `bun scripts/perf-audit.mjs` screenshots every room with and without batching (day and night) and diffs them, and checks no
+  batched mesh moved. `bun scripts/perf-leak.mjs` switches rooms and styles 50 times and fails if live GL objects or
+  heap grow. `bun scripts/perf/profile.mjs <room>` is a CPU profile (top self time and callers), `perf/inspect.mjs <room>` lists
+  what is still unbatched.
+- `web/test/perf-budget.test.ts` builds every room headlessly, batches it and fails above `render3d/perf/budgets.ts`
+  (draw calls, triangles, materials per room). Raise a budget only with a reason in the commit.
+
 ## One clock
 
 "Today" is `Europe/Copenhagen` for everyone (`core/src/range.ts`); the Tavern's special is picked by that day too

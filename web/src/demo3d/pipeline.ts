@@ -4,8 +4,10 @@
  * it's a clean cel-shaded look instead.
  */
 import * as THREE from "three";
+import { type BakeMode, sceneEpoch, syncBaked, trackAdditions } from "../render3d/perf/bake.ts";
+import { trackRenderer } from "../render3d/perf/stats.ts";
 import { blockify, unblockify } from "./blocky.ts";
-import { setSmoothBands } from "./kit.ts";
+import { setActiveScene, setSmoothBands } from "./kit.ts";
 
 export type RenderStyle = "classic" | "voxel";
 
@@ -17,7 +19,9 @@ void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
 const FRAGMENT = /* glsl */ `
 uniform sampler2D tColor;
 uniform sampler2D tDepth;
+#ifdef CREASE
 uniform sampler2D tNormal;
+#endif
 uniform vec2 texel;
 uniform float span;
 uniform float outline;
@@ -25,12 +29,16 @@ uniform float crease;
 varying vec2 vUv;
 
 float depthAt(vec2 uv) { return texture2D(tDepth, uv).x * span; }
+#ifdef CREASE
 vec3 normalAt(vec2 uv) { return texture2D(tNormal, uv).xyz * 2.0 - 1.0; }
+#endif
 
 void main() {
   vec3 color = texture2D(tColor, vUv).rgb;
   float d = depthAt(vUv);
+#ifdef CREASE
   vec3 n = normalAt(vUv);
+#endif
   vec2 dirs[4];
   dirs[0] = vec2(texel.x, 0.0);
   dirs[1] = vec2(-texel.x, 0.0);
@@ -42,13 +50,17 @@ void main() {
     float nd = depthAt(vUv + dirs[i]);
     // Only the nearer side of a gap draws the line, so it's one pixel thick.
     silhouette = max(silhouette, step(0.12, nd - d));
+#ifdef CREASE
     // Creases: a turn in the surface, drawn on the side that faces up or left.
     vec3 nn = normalAt(vUv + dirs[i]);
     float bias = step(0.0, dot(n - nn, vec3(-1.0, 1.0, 0.0)));
     edge = max(edge, step(0.35, 1.0 - dot(n, nn)) * bias * step(abs(nd - d), 0.12));
+#endif
   }
   if (d > span * 0.999) silhouette = 0.0;
+#ifdef CREASE
   color = mix(color, color * 1.28 + 0.03, edge * crease * (1.0 - silhouette));
+#endif
   color = mix(color, color * 0.32, silhouette * outline);
   gl_FragColor = vec4(color, 1.0);
   #include <colorspace_fragment>
@@ -147,11 +159,63 @@ void main() {
     vec2 q = vUv - 0.5;
     color *= 1.0 - dot(q, q) * 0.45;
     color += (ign(gl_FragCoord.xy + 17.0) - 0.5) / 255.0;
-  } else color = clamp(color, 0.0, 1.0);
+  } else {
+    color = clamp(color, 0.0, 1.0);
+  }
   gl_FragColor = vec4(max(color, 0.0), 1.0);
   #include <colorspace_fragment>
 }
 `;
+
+const BLIT = /* glsl */ `
+uniform sampler2D tColor;
+varying vec2 vUv;
+void main() {
+  gl_FragColor = vec4(texture2D(tColor, vUv).rgb, 1.0);
+  #include <colorspace_fragment>
+}
+`;
+
+/** What the pipeline draws with. `Pipeline.configure` takes any part of it; `tiers.ts` derives it from the graphics settings. */
+export interface PipelineOptions {
+  style: RenderStyle;
+  /** Classic styles: one rendered pixel is this many screen pixels. */
+  pixelSize: number;
+  /** Classic: dark silhouette lines (from depth) and light crease lines (from normals, costs a second scene pass). */
+  outline: number;
+  crease: number;
+  /** Voxel: render resolution is `min(devicePixelRatio, dprCap) * renderScale`. */
+  renderScale: number;
+  dprCap: number;
+  /** Shadow map edge in pixels, 0 for none. */
+  shadowSize: number;
+  /** The shadow map is redrawn every this many frames (static rooms barely notice 2). */
+  shadowEvery: number;
+  /** Ambient occlusion taps, 0 to 24. */
+  aoSamples: number;
+  /** MSAA samples for the voxel target (0 off). */
+  msaa: number;
+  tilt: boolean;
+  haze: boolean;
+  grade: boolean;
+}
+
+const HEMI_SKY = new THREE.Color("#b9d6ff");
+const HEMI_GROUND = new THREE.Color("#b89a78");
+const SUN_WARM = new THREE.Color("#ffd9a8");
+
+interface LightRef {
+  l: THREE.Light;
+  hemi: boolean;
+  color: THREE.Color;
+  ground: THREE.Color;
+  intensity: number;
+}
+interface SceneLights {
+  epoch: number;
+  refs: LightRef[];
+  sun?: THREE.DirectionalLight;
+}
 
 export class Pipeline {
   readonly renderer: THREE.WebGLRenderer;
@@ -162,6 +226,8 @@ export class Pipeline {
   private normal?: THREE.WebGLRenderTarget;
   private readonly normals = new THREE.MeshNormalMaterial();
   private readonly quad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private readonly quadCreased: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private readonly blit: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   private readonly quadCamera = new THREE.Camera();
   private size = "";
 
@@ -176,26 +242,23 @@ export class Pipeline {
   skyHor = new THREE.Color("#d6efee");
   gradient = false;
   night = 0;
+  /** Set by `configure`; until then everything follows `quality`, as before. */
+  private opts: Partial<PipelineOptions> = {};
   private vox?: THREE.WebGLRenderTarget;
   private voxKey = "";
   private readonly voxQuad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   private readonly fill = new THREE.DirectionalLight("#9ec4ff", 0);
   private readonly fillScenes = new Set<THREE.Scene>();
+  private readonly lights = new WeakMap<THREE.Scene, SceneLights>();
   private slow = 0;
   private frames = 0;
   private lastAt = 0;
-  /**
-   * The real game's settings (`render3d/`), in place of the demo's quality rules: the render resolution as a
-   * pixel ratio, the AO samples (0 off), tilt-shift, haze and grade on or off, the multisampling, and the
-   * sun's shadow map (0 = leave the lights alone).
-   */
-  game: { pixelRatio: number; aoSamples: number; tilt: boolean; haze: boolean; grade: boolean; msaa: number; shadowMap: number } | null = null;
-  /** Blocky stand-ins are swapped in once per `blocked()`, not by walking the scene every frame. */
-  lazyBlockify = false;
-  /** The scene has new meshes: swap them for blocks on the next frame (with `lazyBlockify`). */
-  blocked(scene: THREE.Object3D): void {
-    scene.userData.blockyDone = false;
-  }
+  private lastScene: THREE.Scene | null = null;
+  private frameNo = 0;
+  private sized = "";
+  private shadowsWere: boolean | null = null;
+  /** Per-frame facts for the console and the perf harness. */
+  readonly last = { passes: 0, shadowUpdated: false };
 
   constructor(canvas: HTMLCanvasElement, opts: { preserve?: boolean } = {}) {
     this.renderer = new THREE.WebGLRenderer({
@@ -203,11 +266,17 @@ export class Pipeline {
       antialias: false,
       alpha: true,
       preserveDrawingBuffer: opts.preserve ?? false,
+      powerPreference: "high-performance",
     });
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // The shadow map is redrawn on the pipeline's schedule (`shadowEvery`), not on every render() call.
+    this.renderer.shadowMap.autoUpdate = false;
+    trackAdditions();
+    trackRenderer(this.renderer, () => this.lastScene);
+    const plane = new THREE.PlaneGeometry(2, 2);
     this.voxQuad = new THREE.Mesh(
-      new THREE.PlaneGeometry(2, 2),
+      plane,
       new THREE.ShaderMaterial({
         vertexShader: VERTEX,
         fragmentShader: VOXEL_FRAGMENT,
@@ -232,71 +301,174 @@ export class Pipeline {
         },
       }),
     );
-    this.quad = new THREE.Mesh(
-      new THREE.PlaneGeometry(2, 2),
-      new THREE.ShaderMaterial({
-        vertexShader: VERTEX,
-        fragmentShader: FRAGMENT,
-        uniforms: {
-          tColor: { value: null },
-          tDepth: { value: null },
-          tNormal: { value: null },
-          texel: { value: new THREE.Vector2() },
-          span: { value: 1 },
-          outline: { value: 1 },
-          crease: { value: 1 },
-        },
-        transparent: true,
-      }),
+    const classic = (creased: boolean) =>
+      new THREE.Mesh(
+        plane,
+        new THREE.ShaderMaterial({
+          vertexShader: VERTEX,
+          fragmentShader: FRAGMENT,
+          defines: creased ? { CREASE: "" } : {},
+          uniforms: {
+            tColor: { value: null },
+            tDepth: { value: null },
+            tNormal: { value: null },
+            texel: { value: new THREE.Vector2() },
+            span: { value: 1 },
+            outline: { value: 1 },
+            crease: { value: 1 },
+          },
+          transparent: true,
+        }),
+      );
+    this.quad = classic(false);
+    this.quadCreased = classic(true);
+    this.blit = new THREE.Mesh(
+      plane,
+      new THREE.ShaderMaterial({ vertexShader: VERTEX, fragmentShader: BLIT, uniforms: { tColor: { value: null } } }),
     );
   }
 
+  /** Applies explicit settings (see `PipelineOptions`); unset fields keep following `quality`. */
+  configure(o: Partial<PipelineOptions>): void {
+    Object.assign(this.opts, o);
+    if (o.style) this.style = o.style;
+    if (o.pixelSize !== undefined) this.pixelSize = o.pixelSize;
+    if (o.outline !== undefined) this.outline = o.outline;
+    if (o.crease !== undefined) this.crease = o.crease;
+    this.autoQuality = false;
+  }
+
+  /** What a voxel frame is drawn with right now: the explicit options, or what `quality` implies. */
+  private voxelOptions(): PipelineOptions {
+    const q = this.quality;
+    const o = this.opts;
+    return {
+      style: "voxel",
+      pixelSize: 1,
+      outline: 0,
+      crease: 0,
+      renderScale: o.renderScale ?? (q === 0 ? 0.75 : 1),
+      dprCap: o.dprCap ?? (q >= 2 ? 1.5 : 1),
+      shadowSize: o.shadowSize ?? (q >= 2 ? 4096 : 2048),
+      shadowEvery: o.shadowEvery ?? 1,
+      aoSamples: o.aoSamples ?? (q >= 2 ? 24 : q === 1 ? 10 : 0),
+      msaa: o.msaa ?? (q >= 2 ? 4 : 0),
+      tilt: o.tilt ?? q >= 2,
+      haze: o.haze ?? true,
+      grade: o.grade ?? true,
+    };
+  }
+
   /** Low-resolution targets for a canvas of `w`×`h` CSS pixels. */
-  private targets(w: number, h: number): void {
-    const dpr = this.pixelSize === 1 ? Math.min(window.devicePixelRatio || 1, 2) : 1;
-    const lw = Math.max(1, Math.floor((w * dpr) / this.pixelSize));
-    const lh = Math.max(1, Math.floor((h * dpr) / this.pixelSize));
-    const key = `${lw}x${lh}`;
+  private targets(w: number, h: number, depth: boolean, creased: boolean): void {
+    const dpr = this.pixelSize === 1 ? Math.min(window.devicePixelRatio || 1, this.opts.dprCap ?? 2) : 1;
+    const scale = this.pixelSize === 1 ? (this.opts.renderScale ?? 1) : 1;
+    const lw = Math.max(1, Math.floor((w * dpr * scale) / this.pixelSize));
+    const lh = Math.max(1, Math.floor((h * dpr * scale) / this.pixelSize));
+    const key = `${lw}x${lh}${depth ? "d" : ""}${creased ? "n" : ""}`;
     if (key === this.size) return;
     this.size = key;
     this.color?.dispose();
     this.normal?.dispose();
+    this.normal = undefined;
     const filter = this.pixelSize === 1 ? THREE.LinearFilter : THREE.NearestFilter;
+    // Only the outline pass reads depth; the plain blit gets by with a depth buffer and an 8-bit colour target.
     this.color = new THREE.WebGLRenderTarget(lw, lh, {
-      type: THREE.HalfFloatType,
+      type: depth ? THREE.HalfFloatType : THREE.UnsignedByteType,
       minFilter: filter,
       magFilter: filter,
-      depthTexture: new THREE.DepthTexture(lw, lh, THREE.FloatType),
+      depthTexture: depth ? new THREE.DepthTexture(lw, lh, THREE.FloatType) : undefined,
     });
-    this.normal = new THREE.WebGLRenderTarget(lw, lh, {
-      minFilter: THREE.NearestFilter,
-      magFilter: THREE.NearestFilter,
+    if (creased)
+      this.normal = new THREE.WebGLRenderTarget(lw, lh, {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+      });
+    for (const q of [this.quad, this.quadCreased]) {
+      const u = q.material.uniforms;
+      u.tColor!.value = this.color.texture;
+      u.tDepth!.value = this.color.depthTexture;
+      u.tNormal!.value = this.normal?.texture ?? null;
+      u.texel!.value.set(1 / lw, 1 / lh);
+    }
+    this.blit.material.uniforms.tColor!.value = this.color.texture;
+  }
+
+  private setSize(w: number, h: number, dpr: number): void {
+    const key = `${w}x${h}@${dpr}`;
+    if (key === this.sized) return;
+    this.sized = key;
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(w, h, false);
+  }
+
+  /** The lights of a scene, found once and again only after something was added. */
+  private lightsOf(scene: THREE.Scene): SceneLights {
+    let s = this.lights.get(scene);
+    if (s && s.epoch === sceneEpoch()) return s;
+    s = { epoch: sceneEpoch(), refs: [] };
+    scene.traverse((o) => {
+      const l = o as THREE.Light;
+      if (!l.isLight || o === this.fill) return;
+      s!.refs.push({
+        l,
+        hemi: !!(l as THREE.HemisphereLight).isHemisphereLight,
+        color: new THREE.Color(),
+        ground: new THREE.Color(),
+        intensity: 0,
+      });
+      const d = l as THREE.DirectionalLight;
+      if (d.isDirectionalLight && (d.castShadow || d.userData.sunShadow)) {
+        d.userData.sunShadow = true;
+        s!.sun = d;
+      }
     });
-    const u = this.quad.material.uniforms;
-    u.tColor!.value = this.color.texture;
-    u.tDepth!.value = this.color.depthTexture;
-    u.tNormal!.value = this.normal.texture;
-    u.texel!.value.set(1 / lw, 1 / lh);
+    this.lights.set(scene, s);
+    return s;
+  }
+
+  private shadowsFor(scene: THREE.Scene, size: number, every: number): void {
+    const r = this.renderer;
+    const { sun } = this.lightsOf(scene);
+    const on = size > 0 && !!sun;
+    if (this.shadowsWere !== on) {
+      // Programs bake in whether shadows are on: they recompile once when it flips.
+      this.shadowsWere = on;
+      r.shadowMap.enabled = size > 0;
+      scene.traverse((o) => {
+        const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+        for (const x of Array.isArray(m) ? m : m ? [m] : []) x.needsUpdate = true;
+      });
+    }
+    if (sun) {
+      sun.castShadow = size > 0;
+      const sh = sun.shadow;
+      if (size > 0 && sh.mapSize.x !== size) {
+        sh.mapSize.set(size, size);
+        sh.map?.dispose();
+        sh.map = null;
+      }
+    }
+    const fresh = this.frameNo % Math.max(1, every) === 0 || !sun?.shadow.map;
+    r.shadowMap.needsUpdate = on && fresh;
+    this.last.shadowUpdated = on && fresh;
   }
 
   /** Soft lit matte look: smooth diffuse, retuned lights, big soft shadows, then AO/haze/grade in one pass. */
   private renderVoxel(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
     const r = this.renderer;
-    const q = this.quality;
-    const g = this.game;
-    const dpr = g ? g.pixelRatio : Math.min(window.devicePixelRatio || 1, q >= 2 ? 1.5 : 1) * (q === 0 ? 0.75 : 1);
-    r.setPixelRatio(dpr);
-    r.setSize(w, h, false);
+    const o = this.voxelOptions();
+    const dpr = Math.min(window.devicePixelRatio || 1, o.dprCap) * o.renderScale;
+    this.setSize(w, h, dpr);
     const lw = Math.max(1, Math.floor(w * dpr));
     const lh = Math.max(1, Math.floor(h * dpr));
-    const samples = g ? g.msaa : q >= 2 ? 4 : 0;
-    const key = `${lw}x${lh}x${samples}`;
+    const key = `${lw}x${lh}x${o.msaa}`;
     if (key !== this.voxKey) {
       this.voxKey = key;
       this.vox?.dispose();
       this.vox = new THREE.WebGLRenderTarget(lw, lh, {
         type: THREE.HalfFloatType,
-        samples,
+        samples: o.msaa,
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
         depthTexture: new THREE.DepthTexture(lw, lh, THREE.FloatType),
@@ -307,40 +479,27 @@ export class Pipeline {
       u.texel!.value.set(1 / lw, 1 / lh);
     }
     // Lights: cool sky over warm bounce, a warm sun with big soft shadows, a cool fill from the far side.
-    const lights: { l: THREE.Light; color: THREE.Color; intensity: number; ground?: THREE.Color }[] = [];
-    let sun: THREE.DirectionalLight | undefined;
-    scene.traverse((o) => {
-      const l = o as THREE.Light;
-      if (!l.isLight || o === this.fill) return;
-      lights.push({
-        l,
-        color: l.color.clone(),
-        intensity: l.intensity,
-        ground: (l as THREE.HemisphereLight).isHemisphereLight ? (l as THREE.HemisphereLight).groundColor.clone() : undefined,
-      });
-      if ((l as THREE.DirectionalLight).isDirectionalLight && (l.castShadow || l.userData.sun)) sun = l as THREE.DirectionalLight;
-    });
-    for (const e of lights) {
-      const hemi = e.l as THREE.HemisphereLight;
-      if (hemi.isHemisphereLight) {
-        hemi.color.lerp(new THREE.Color("#b9d6ff"), 0.4);
-        hemi.groundColor.lerp(new THREE.Color("#b89a78"), 0.5);
+    const { refs, sun } = this.lightsOf(scene);
+    for (const e of refs) {
+      const l = e.l;
+      e.color.copy(l.color);
+      e.intensity = l.intensity;
+      if (e.hemi) {
+        const hemi = l as THREE.HemisphereLight;
+        e.ground.copy(hemi.groundColor);
+        hemi.color.lerp(HEMI_SKY, 0.4);
+        hemi.groundColor.lerp(HEMI_GROUND, 0.5);
         hemi.intensity = e.intensity * 0.6;
-      } else if ((e.l as THREE.DirectionalLight).isDirectionalLight && (e.l.castShadow || e.l.userData.sun)) {
-        e.l.color.lerp(new THREE.Color("#ffd9a8"), 0.35);
-        e.l.intensity = e.intensity * 1.4;
+      } else if (l === sun) {
+        l.color.lerp(SUN_WARM, 0.35);
+        l.intensity = e.intensity * 1.4;
       }
     }
-    const shadowSize = g ? g.shadowMap : q >= 2 ? 4096 : 2048;
+    this.shadowsFor(scene, o.shadowSize, o.shadowEvery);
     if (sun) {
       const sh = sun.shadow;
       sun.userData.classic ??= { size: sh.mapSize.x, radius: sh.radius, bias: sh.bias };
-      if (shadowSize && sh.mapSize.x !== shadowSize) {
-        sh.mapSize.set(shadowSize, shadowSize);
-        sh.map?.dispose();
-        sh.map = null;
-      }
-      sh.radius = q >= 1 ? 4 : 2;
+      sh.radius = o.shadowSize >= 2048 ? 4 : 2;
       sh.bias = -0.0006;
       if (this.fill.parent !== scene) {
         scene.add(this.fill, this.fill.target);
@@ -355,25 +514,26 @@ export class Pipeline {
     r.setRenderTarget(this.vox!);
     r.render(scene, camera);
 
-    for (const e of lights) {
+    for (const e of refs) {
       e.l.color.copy(e.color);
       e.l.intensity = e.intensity;
-      if (e.ground) (e.l as THREE.HemisphereLight).groundColor.copy(e.ground);
+      if (e.hemi) (e.l as THREE.HemisphereLight).groundColor.copy(e.ground);
     }
 
     const u = this.voxQuad.material.uniforms;
     u.span!.value = camera.far - camera.near;
     u.pxPerUnit!.value = lw / ((camera.right - camera.left) / camera.zoom);
-    u.aoSamples!.value = g ? g.aoSamples : q >= 2 ? 24 : q === 1 ? 10 : 0;
+    u.aoSamples!.value = o.aoSamples;
     u.aoStrength!.value = this.night > 0.5 ? 1.6 : 2.4;
-    u.tilt!.value = g ? (g.tilt ? 1 : 0) : q >= 2 ? 1 : 0;
-    u.haze!.value = scene.userData.noHaze || (g && !g.haze) ? 0 : 0.3;
-    u.grade!.value = g && !g.grade ? 0 : 1;
+    u.tilt!.value = o.tilt ? 1 : 0;
+    u.haze!.value = scene.userData.noHaze || !o.haze ? 0 : 0.3;
     u.gradient!.value = this.gradient ? 1 : 0;
     u.exposure!.value = this.night > 0.5 ? 1.5 : 1.05;
+    u.grade!.value = o.grade ? 1 : 0;
     r.setRenderTarget(null);
     r.clear();
     r.render(this.voxQuad, this.quadCamera);
+    this.last.passes = 2;
     this.watch();
   }
 
@@ -429,11 +589,18 @@ export class Pipeline {
 
   render(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
     const r = this.renderer;
+    this.frameNo++;
+    if (scene !== this.lastScene) this.frameNo = 0;
+    this.lastScene = scene;
+    setActiveScene(scene);
     setSmoothBands(this.style === "voxel");
+    const mode: BakeMode = this.style === "voxel" ? "block" : "smooth";
+    syncBaked(scene, mode);
     if (this.style === "voxel") {
-      if (!this.lazyBlockify || !scene.userData.blockyDone) {
+      // Only when something was added since: swapping geometries is not free, and the scene is mostly still.
+      if (!scene.userData.blocky || scene.userData.blockEpoch !== sceneEpoch()) {
         blockify(scene);
-        scene.userData.blockyDone = true;
+        scene.userData.blockEpoch = sceneEpoch();
       }
       scene.userData.blocky = true;
       this.renderVoxel(scene, camera, w, h);
@@ -445,37 +612,47 @@ export class Pipeline {
       scene.userData.blockyDone = false;
     }
     if (this.fillScenes.size) this.leaveVoxel();
-    r.setPixelRatio(this.pixelSize === 1 ? Math.min(window.devicePixelRatio || 1, 2) : 1);
-    r.setSize(w, h, false);
-    this.targets(w, h);
-    const u = this.quad.material.uniforms;
+    const dpr = this.pixelSize === 1 ? Math.min(window.devicePixelRatio || 1, this.opts.dprCap ?? 2) : 1;
+    this.setSize(w, h, dpr);
+    const lines = this.outline > 0 || this.crease > 0;
+    const creased = this.crease > 0;
+    this.targets(w, h, lines, creased);
+    this.shadowsFor(scene, this.opts.shadowSize ?? 2048, this.opts.shadowEvery ?? 1);
+    const q = creased ? this.quadCreased : this.quad;
+    const u = q.material.uniforms;
     u.span!.value = camera.far - camera.near;
     u.outline!.value = this.outline;
     u.crease!.value = this.crease;
 
     r.setRenderTarget(this.color!);
     r.render(scene, camera);
+    this.last.passes = 2;
 
-    // Normals of everything solid: see-through things (glass, faces, light cones) would draw lines.
-    const hidden: THREE.Object3D[] = [];
-    scene.traverseVisible((o) => {
-      if (o instanceof THREE.Mesh && !Array.isArray(o.material) && o.material.transparent) hidden.push(o);
-    });
-    for (const o of hidden) o.visible = false;
-    const background = scene.background;
-    scene.background = null;
-    scene.overrideMaterial = this.normals;
-    r.setRenderTarget(this.normal!);
-    r.setClearColor(0x8080ff, 1);
-    r.clear();
-    r.render(scene, camera);
-    scene.overrideMaterial = null;
-    scene.background = background;
-    for (const o of hidden) o.visible = true;
-    r.setClearColor(0x000000, 0);
+    if (creased) {
+      // Normals of everything solid: see-through things (glass, faces, light cones) would draw lines.
+      const hidden: THREE.Object3D[] = [];
+      scene.traverseVisible((o) => {
+        if (o instanceof THREE.Mesh && !Array.isArray(o.material) && o.material.transparent) hidden.push(o);
+      });
+      for (const o of hidden) o.visible = false;
+      const background = scene.background;
+      scene.background = null;
+      scene.overrideMaterial = this.normals;
+      r.setRenderTarget(this.normal!);
+      r.setClearColor(0x8080ff, 1);
+      r.clear();
+      // The shadow map from the colour pass is still good: this one only reads normals.
+      r.shadowMap.needsUpdate = false;
+      r.render(scene, camera);
+      scene.overrideMaterial = null;
+      scene.background = background;
+      for (const o of hidden) o.visible = true;
+      r.setClearColor(0x000000, 0);
+      this.last.passes = 3;
+    }
 
     r.setRenderTarget(null);
     r.clear();
-    r.render(this.quad, this.quadCamera);
+    r.render(lines ? q : this.blit, this.quadCamera);
   }
 }
