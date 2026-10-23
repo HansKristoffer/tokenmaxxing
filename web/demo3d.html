@@ -10,12 +10,19 @@
   <body>
     <canvas id="view"></canvas>
     <div id="labels"></div>
+    <div id="room-name" hidden></div>
+    <div id="fade"></div>
     <div class="panel top">
       <div class="title">tokenmaxxing <strong>3D</strong> <span>asset demo</span></div>
       <div class="row">
         <button type="button" data-group="stage" data-value="Office">🏢 Office</button>
         <button type="button" data-group="stage" data-value="Catalog">📦 Catalog</button>
         <button type="button" data-group="stage" data-value="Town">🏘️ Town</button>
+        <button type="button" data-group="stage" data-value="World">🌍 World</button>
+      </div>
+      <div class="row" id="worldbar" hidden>
+        <label>Room <select id="room"></select></label>
+        <span class="muted">WASD / arrows or click to walk · step on a door to go through</span>
       </div>
       <div class="row">
         <button type="button" data-group="style" data-value="smooth">🧸 HD (Tuber)</button>

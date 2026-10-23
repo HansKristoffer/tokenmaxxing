@@ -8,8 +8,11 @@ import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
 import { Pipeline } from "./pipeline.ts";
 import { car } from "./props.ts";
+import { loadSlices } from "./registry.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
+import "./tiles.ts";
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
+import { type MapId, type Portal, ROOM_ORDER, type World, World as WorldGraph, type WorldRoom } from "./world.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
 const labelLayer = document.querySelector<HTMLDivElement>("#labels")!;
@@ -78,8 +81,11 @@ class Walker {
   quiet = false;
   private moodUntil = 0;
 
+  private tagEntry: Label;
+  private bubbleEntry?: Label;
+
   constructor(
-    readonly stage: Stage,
+    public stage: Stage,
     look: Look,
     readonly name: string,
     level: number,
@@ -87,7 +93,23 @@ class Walker {
     this.avatar = new Avatar(look);
     stage.scene.add(this.avatar.root);
     this.tag = label(`${name} · Lv${level}`);
-    stage.labels.push({ el: this.tag, at: () => this.top() });
+    this.tagEntry = { el: this.tag, at: () => this.top() };
+    stage.labels.push(this.tagEntry);
+  }
+
+  /** Moves to another stage (a room of the world), keeping the look. */
+  enter(next: Stage): void {
+    if (next === this.stage) return;
+    this.stage.scene.remove(this.avatar.root);
+    next.scene.add(this.avatar.root);
+    for (const e of [this.tagEntry, this.bubbleEntry]) {
+      if (!e) continue;
+      const i = this.stage.labels.indexOf(e);
+      if (i >= 0) this.stage.labels.splice(i, 1);
+      next.labels.push(e);
+      e.el.hidden = next !== stage;
+    }
+    this.stage = next;
   }
 
   /** A new look, keeping where they are and what they're doing. */
@@ -138,7 +160,8 @@ class Walker {
   say(text: string, now: number): void {
     if (!this.bubble) {
       this.bubble = label("", "bubble");
-      this.stage.labels.push({ el: this.bubble, at: () => this.top().add(new THREE.Vector3(0, 0.32, 0)) });
+      this.bubbleEntry = { el: this.bubble, at: () => this.top().add(new THREE.Vector3(0, 0.32, 0)) };
+      this.stage.labels.push(this.bubbleEntry);
     }
     this.bubble.textContent = text;
     this.bubble.style.display = "";
@@ -373,10 +396,13 @@ office.update = (dt, t) => {
 };
 
 // ——— The catalogue ———
+// Assets from the slice files (`registry.ts`) join the showroom after the shop's own.
+const sliceAssets = await loadSlices();
+const catalogAssets = [...ASSETS, ...sliceAssets.filter((a) => !assetById.has(a.id))];
 const COLS = 6;
 const CELL_W = 3.2;
 const CELL_D = 4.4;
-const rows = Math.ceil(ASSETS.length / COLS) + 1;
+const rows = Math.ceil(catalogAssets.length / COLS) + 1;
 const catW = COLS * CELL_W;
 const catD = rows * CELL_D;
 const catalog = newStage("Catalog", new THREE.Vector3(), Math.max(catW, catD) * 0.75, 12, "#1b1f2a");
@@ -408,7 +434,7 @@ const cell = (col: number, row: number) =>
   );
 catalog.target.copy(cell(COLS / 2 - 0.5, 1.5)).setY(0.5);
 const spinning: THREE.Object3D[] = [];
-ASSETS.forEach((a, i) => {
+catalogAssets.forEach((a, i) => {
   const m = a.build();
   m.position.copy(cell(i % COLS, Math.floor(i / COLS) + 1));
   catalog.scene.add(m);
@@ -571,6 +597,175 @@ townStage.update = (dt, t) => {
 const stages = [office, catalog, townStage];
 let stage = office;
 
+// ——— The world: the 2D town's rooms, walkable, joined by their doors ———
+const world: World = new WorldGraph();
+const worldStages = new Map<MapId, Stage>();
+const roomOf = new Map<Stage, WorldRoom>();
+const isWorld = (s: Stage): boolean => roomOf.has(s);
+const roomParam = new URLSearchParams(location.search).get("room") as MapId | null;
+let worldRoom: MapId = roomParam && ROOM_ORDER.includes(roomParam) ? roomParam : "town";
+let worldMe: Walker | null = null;
+let fading = false;
+
+function worldStage(id: MapId): Stage {
+  let s = worldStages.get(id);
+  if (s) return s;
+  const r = world.room(id);
+  const reach = Math.max(r.W, r.D) * 0.75;
+  s = newStage(`World:${id}`, new THREE.Vector3(r.W / 2, 0.5, r.D / 2), reach, id === "town" ? 14 : 11.5, "#1b1f2a");
+  if (reach > 14) s.sun.shadow.mapSize.set(4096, 4096);
+  s.scene.add(r.group);
+  worldStages.set(id, s);
+  roomOf.set(s, r);
+  stages.push(s);
+  for (const p of r.portals) {
+    const el = label(`→ ${world.maps[p.to].name}`, "tag item");
+    el.hidden = true;
+    s.labels.push({ el, at: () => new THREE.Vector3(p.x + 0.5, id === "town" ? 2.4 : 2.9, p.y + 0.5) });
+  }
+  // A few locals wander about.
+  const folk: Walker[] = [];
+  const count = r.W * r.D > 300 ? 3 : 2;
+  const rnd = seeded(id.length * 97 + r.W);
+  for (let i = 0; i < count; i++) {
+    const w = new Walker(s, randomLook(seeded(i * 11 + r.W)), NAMES[(i * 3 + r.D) % NAMES.length]!, 3 + i);
+    w.quiet = true;
+    for (let tries = 0; tries < 50; tries++) {
+      const x = Math.floor(rnd() * r.W);
+      const y = Math.floor(rnd() * r.D);
+      if (r.walkable(x, y)) {
+        w.at(x + 0.5, y + 0.5);
+        break;
+      }
+    }
+    for (const l of s.labels) l.el.hidden = true;
+    folk.push(w);
+  }
+  let nextWander = 0;
+  s.update = (dt, t) => {
+    if (t > nextWander) {
+      nextWander = t + 2 + Math.random() * 3;
+      const w = folk[Math.floor(Math.random() * folk.length)]!;
+      if (!w.walking) {
+        const from: [number, number] = [Math.floor(w.pos.x), Math.floor(w.pos.z)];
+        for (let tries = 0; tries < 12; tries++) {
+          const x = from[0] + Math.floor(Math.random() * 11) - 5;
+          const y = from[1] + Math.floor(Math.random() * 11) - 5;
+          if (!r.walkable(x, y)) continue;
+          const steps = r.route(from, x, y);
+          if (steps?.length) {
+            w.go(steps.map(([a, b]) => r.centre(a, b)));
+            if (Math.random() < 0.3) w.say(CHAT[Math.floor(Math.random() * CHAT.length)]!, t);
+            break;
+          }
+        }
+      }
+    }
+    for (const w of folk) w.update(dt, t);
+    if (worldMe?.stage === s) worldMe.update(dt, t);
+  };
+  if (typeof applyNight === "function") applyNight(s);
+  return s;
+}
+
+/** Puts the player in a room (at its default spawn, or at `at`). */
+function placePlayer(id: MapId, at?: [number, number], turn = 0): void {
+  const s = worldStage(id);
+  const r = world.room(id);
+  const spot = at ? { at, turn } : r.spawn();
+  worldMe ??= new Walker(s, randomLook(seeded(3)), "you", 6);
+  worldMe.enter(s);
+  worldMe.go([]);
+  worldMe.mood = "happy";
+  const c = r.centre(...spot.at);
+  worldMe.at(c.x, c.z, "stand", spot.turn);
+}
+
+/** Walks the player to a tile; a seat sits, a portal travels, a prop is looked at. */
+function worldGo(x: number, y: number): void {
+  const me = worldMe;
+  if (fading || !me || !isWorld(stage) || me.stage !== stage) return;
+  const r = roomOf.get(stage)!;
+  const from: [number, number] = [Math.floor(me.pos.x), Math.floor(me.pos.z)];
+  const steps = r.route(from, x, y);
+  if (!steps) return;
+  const portal = r.portalAt(x, y);
+  const seat = r.seatAt(x, y);
+  const text = !portal && !seat && !r.walkable(x, y) ? r.textAt(x, y) : null;
+  const arrive = () => {
+    const now = performance.now() / 1000;
+    if (portal) travel(portal);
+    else if (seat) {
+      const prev = steps.at(-2) ?? from;
+      const turn = Math.atan2(x - prev[0], y - prev[1]);
+      const c = r.centre(x, y);
+      if (seat.kind === "bed") me.at(c.x, c.z + 0.35, "sleep", 0, seat.y);
+      else me.at(c.x, c.z, "sit", turn, seat.y - 0.02);
+    } else if (text) me.say(text, now);
+  };
+  const points = steps.map(([a, b]) => r.centre(a, b));
+  me.go(points, arrive);
+  if (!points.length) arrive();
+}
+
+function travel(portal: Portal): void {
+  if (fading || !worldMe) return;
+  fading = true;
+  $("#fade").classList.add("on");
+  setTimeout(() => {
+    const t = world.travel(roomOf.get(stage)!, portal);
+    placePlayer(t.room.id, t.at, t.turn);
+    setStage(`World:${t.room.id}`);
+    $("#fade").classList.remove("on");
+    setTimeout(() => (fading = false), 200);
+  }, 230);
+}
+
+/** Camera follow: the view keeps the player in frame, but not past the room's edge. */
+function follow(dt: number): void {
+  const r = roomOf.get(stage)!;
+  const p = worldMe!.pos;
+  const m = 4;
+  const k = 1 - Math.exp(-dt * 5);
+  const lo = (size: number) => Math.min(size / 2, m);
+  stage.target.x += (Math.min(Math.max(p.x, lo(r.W)), r.W - lo(r.W)) - stage.target.x) * k;
+  stage.target.z += (Math.min(Math.max(p.z, lo(r.D)), r.D - lo(r.D)) - stage.target.z) * k;
+}
+
+// For poking at the world from the console or a test: `world3d.go(x, y)` walks to a tile of the room.
+Object.assign(window, { world3d: { go: worldGo, world, travel } });
+
+const held = new Set<string>();
+/** Arrow keys and WASD step across the grid, relative to the screen. */
+function keyStep(): void {
+  const me = worldMe;
+  if (!me || fading || me.walking || !isWorld(stage) || me.stage !== stage) return;
+  let fx = 0;
+  let fy = 0;
+  if (held.has("w") || held.has("arrowup")) fy += 1;
+  if (held.has("s") || held.has("arrowdown")) fy -= 1;
+  if (held.has("d") || held.has("arrowright")) fx += 1;
+  if (held.has("a") || held.has("arrowleft")) fx -= 1;
+  if (!fx && !fy) return;
+  const r = roomOf.get(stage)!;
+  const vx = fy * -Math.sin(azimuth) + fx * Math.cos(azimuth);
+  const vz = fy * -Math.cos(azimuth) + fx * -Math.sin(azimuth);
+  const len = Math.hypot(vx, vz);
+  const dx = Math.abs(vx) > 0.38 * len ? Math.sign(vx) : 0;
+  const dz = Math.abs(vz) > 0.38 * len ? Math.sign(vz) : 0;
+  const x = Math.floor(me.pos.x);
+  const z = Math.floor(me.pos.z);
+  const ok = (a: number, b: number) => r.walkable(a, b) || r.portalAt(a, b) !== null;
+  const tries: [number, number][] = [[dx, dz]];
+  if (dx && dz) tries.push([dx, 0], [0, dz]);
+  for (const [a, b] of tries) {
+    if (!ok(x + a, z + b)) continue;
+    if (a && b && !(r.walkable(x + a, z) && r.walkable(x, z + b))) continue;
+    worldGo(x + a, z + b);
+    return;
+  }
+}
+
 // ——— Camera ———
 let azimuth = Math.PI / 4;
 let azimuthGoal = azimuth;
@@ -602,17 +797,19 @@ function setNight(on: boolean): void {
   night = on;
   setRoomNight(on);
   setTownNight(on);
-  for (const s of stages) {
-    s.hemi.intensity = on ? 0.55 : 1.6;
-    s.hemi.color.set(on ? "#8fa0ff" : "#fff4e0");
-    s.sun.intensity = on ? 0.35 : 2.4;
-    s.sun.color.set(on ? "#9fb0ff" : "#fff1d6");
-    (s.scene.background as THREE.Color).set(on ? "#0f111a" : "#1b1f2a");
-    s.scene.traverse((o) => {
-      if (o instanceof THREE.PointLight) o.intensity = on ? (o.userData.night ?? 0) : 0;
-    });
-  }
+  for (const s of stages) applyNight(s);
   document.body.classList.toggle("night", on);
+}
+function applyNight(s: Stage): void {
+  const on = night;
+  s.hemi.intensity = on ? 0.55 : 1.6;
+  s.hemi.color.set(on ? "#8fa0ff" : "#fff4e0");
+  s.sun.intensity = on ? 0.35 : 2.4;
+  s.sun.color.set(on ? "#9fb0ff" : "#fff1d6");
+  (s.scene.background as THREE.Color).set(on ? "#0f111a" : "#1b1f2a");
+  s.scene.traverse((o) => {
+    if (o instanceof THREE.PointLight) o.intensity = on ? (o.userData.night ?? 0) : 0;
+  });
 }
 
 // ——— Placing furniture ———
@@ -645,7 +842,28 @@ function stopPlacing(): void {
   for (const b of document.querySelectorAll(".inv button")) b.classList.remove("on");
 }
 
+function updateWorldHover(): void {
+  const r = roomOf.get(stage);
+  if (!r || !hoverTile || !r.walkable(...hoverTile) && r.ch(...hoverTile) === "W") {
+    hover.visible = false;
+    return;
+  }
+  if (hover.parent !== stage.scene) stage.scene.add(hover);
+  const [x, z] = hoverTile;
+  hover.scale.set(1, 1, 1);
+  hover.position.set(x + 0.5, 0.012, z + 0.5);
+  hover.material.color.set(
+    r.portalAt(x, z) || r.seatAt(x, z) ? "#ffd35c" : r.walkable(x, z) ? "#ffffff" : "#ff8a80",
+  );
+  hover.visible = x >= 0 && z >= 0 && x < r.W && z < r.D;
+}
+
 function updateHover(): void {
+  if (isWorld(stage)) {
+    updateWorldHover();
+    return;
+  }
+  if (hover.parent !== office.scene) office.scene.add(hover);
   if (stage !== office || !hoverTile) {
     hover.visible = false;
     if (placing) placing.ghost.visible = false;
@@ -691,7 +909,7 @@ canvas.addEventListener("pointerdown", (e) => {
 });
 canvas.addEventListener("pointermove", (e) => {
   hoverTile = tileUnder(e);
-  if (!drag) return;
+  if (!drag || isWorld(stage)) return;
   const dx = e.clientX - drag.x;
   const dy = e.clientY - drag.y;
   if (!drag.moved && Math.hypot(dx, dy) < 5) return;
@@ -708,6 +926,11 @@ canvas.addEventListener("pointerup", (e) => {
   const click = drag && !drag.moved;
   drag = null;
   if (!click) return;
+  if (isWorld(stage)) {
+    const t = tileUnder(e);
+    if (t) worldGo(...t);
+    return;
+  }
   if (stage === townStage) {
     const r = canvas.getBoundingClientRect();
     ray.setFromCamera(
@@ -753,11 +976,16 @@ canvas.addEventListener("contextmenu", (e) => {
 const popping: { m: Model; at: number }[] = [];
 
 window.addEventListener("keydown", (e) => {
+  held.add(e.key.toLowerCase());
+  if (e.key.startsWith("Arrow") && isWorld(stage)) e.preventDefault();
   if (e.key === "q" || e.key === "Q") rotate(-1);
   if (e.key === "e" || e.key === "E") rotate(1);
   if ((e.key === "r" || e.key === "R") && placing) placing.turn = ((placing.turn + 1) % 4) as Turn;
   if (e.key === "Escape") stopPlacing();
 });
+
+window.addEventListener("keyup", (e) => held.delete(e.key.toLowerCase()));
+window.addEventListener("blur", () => held.clear());
 
 function rotate(dir: number): void {
   azimuthGoal += (dir * Math.PI) / 2;
@@ -771,8 +999,18 @@ function choose(group: string, value: string): void {
 }
 
 function setStage(name: string): void {
+  if (name === "World") name = `World:${worldRoom}`;
+  if (name.startsWith("World:")) {
+    const id = name.slice(6) as MapId;
+    if (worldMe?.stage !== worldStage(id)) placePlayer(id);
+    worldRoom = id;
+  }
   stage = stages.find((s) => s.name === name)!;
-  choose("stage", name);
+  choose("stage", isWorld(stage) ? "World" : name);
+  $("#worldbar").hidden = !isWorld(stage);
+  $("#room-name").hidden = !isWorld(stage);
+  $("#room-name").textContent = roomOf.get(stage)?.name ?? "";
+  $<HTMLSelectElement>("#room").value = worldRoom;
   stopPlacing();
   for (const s of stages) for (const l of s.labels) l.el.hidden = s !== stage;
   $("#inventory").hidden = stage !== office;
@@ -803,7 +1041,10 @@ $("#rot-r").onclick = () => rotate(1);
 $("#spin").onclick = () => {
   spin = !spin;
 };
-$("#look").onclick = () => (stage === townStage ? townMe : me).restyle(randomLook());
+$("#look").onclick = () => (isWorld(stage) ? worldMe! : stage === townStage ? townMe : me).restyle(randomLook());
+const picker = $<HTMLSelectElement>("#room");
+for (const id of ROOM_ORDER) picker.append(new Option(world.maps[id].name, id));
+picker.onchange = () => setStage(`World:${picker.value}`);
 
 // ——— Emotes: a face (or a move) for a few seconds, with the emoji over your head ———
 for (const b of document.querySelectorAll<HTMLButtonElement>("[data-emote]")) {
@@ -814,7 +1055,7 @@ for (const b of document.querySelectorAll<HTMLButtonElement>("[data-emote]")) {
       for (const a of parade) a.expression = emote as Expression;
       return;
     }
-    const w = stage === townStage ? townMe : me;
+    const w = isWorld(stage) ? worldMe! : stage === townStage ? townMe : me;
     if (emote === "dance" || emote === "wave") {
       if (w.walking || w.avatar.pose === "sit" || w.avatar.pose === "sleep") return;
       w.avatar.pose = emote;
@@ -885,10 +1126,14 @@ function frame(): void {
   last = now;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
+  if (isWorld(stage) && worldMe) follow(dt);
   aim(w, h);
   for (const tick of ticks) tick(now);
+  keyStep();
   stage.update(dt, now);
-  if (stage === office) room.facing(camera.position.clone().sub(stage.target).setY(0).normalize());
+  const view = camera.position.clone().sub(stage.target).setY(0).normalize();
+  if (stage === office) room.facing(view);
+  else roomOf.get(stage)?.facing(view);
   for (let i = popping.length - 1; i >= 0; i--) {
     const p = popping[i]!;
     const k = Math.min(1, (now - p.at) / 0.35) - 1;

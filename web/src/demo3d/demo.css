@@ -269,3 +269,51 @@ label {
     margin-top: -26px;
   }
 }
+
+/* The world: room header, room picker and the fade between rooms. */
+#room-name {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 18px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+#fade {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+#fade.on {
+  opacity: 1;
+}
+
+#worldbar select {
+  background: #2b2f3b;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font: inherit;
+}
+
+#worldbar .muted {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+#worldbar[hidden],
+#room-name[hidden] {
+  display: none;
+}
