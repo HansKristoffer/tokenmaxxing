@@ -622,7 +622,7 @@ townStage.update = (dt, t) => {
 
 // ——— The Tavern and the dorm above it ———
 const tavern = buildTavernRoom();
-const tavernStage = newStage("Tavern", new THREE.Vector3(11, 0.6, 6), 15, 14, "#1b1f2a");
+const tavernStage = newStage("Tavern", new THREE.Vector3(13, 0.6, 8), 20, 22, "#1b1f2a");
 tavernStage.scene.add(tavern.room.group);
 setBarTab(tavern.by.get("tile:J")![0]!, [["ADA", "21H"], ["NOAH", "14H"], ["SOFIE", "9.5H"], ["KAI", "6.2H"], ["MAJA", "3.0H"]], 0);
 setPlaque(tavern.by.get("tile:P")![0]!, ["ADA", "NOA", "SOF"]);
@@ -638,9 +638,11 @@ setPlaque(tavern.by.get("tavern:plaque-2")![0]!, ["KAI", "MAJ"]);
   const patrons = [
     seat(2, 3, 61, "ida"),
     seat(6, 3, 62, "theo"),
-    seat(2, 6, 63, "ellen"),
-    seat(8, 6, 64, "jonas"),
-    seat(14, 9, 65, "maja"),
+    seat(5, 7, 63, "ellen"),
+    seat(0, 11, 64, "jonas"),
+    seat(22, 4, 65, "maja"),
+    seat(16, 8, 66, "kai"),
+    seat(4, 15, 67, "sofie"),
   ];
   patrons[4]!.mood = "happy";
   const keeper = new Walker(tavernStage, randomLook(), "Bent the Barkeep", 40);
@@ -955,7 +957,7 @@ function roomActors(id: MapId, r: WorldRoom, s: Stage): ((dt: number, t: number)
   const sit = (look: number, name: string, p: Placed, room: Room, pose: Pose = "sit") => {
     const w = person(s, look2dOf(look), name, 3 + (look % 9));
     const seat = room.seatOf(p)!;
-    const [x, y, z] = at(seat.at);
+    const [x, y, z] = at(room.group.worldToLocal(seat.at.clone()));
     w.at(x, z, pose, seat.turn, y - 0.02);
     return w;
   };
@@ -965,7 +967,7 @@ function roomActors(id: MapId, r: WorldRoom, s: Stage): ((dt: number, t: number)
     setBarTab(inn.by.get("tile:J")![0]!, [["ADA", "21H"], ["NOAH", "14H"], ["SOFIE", "9.5H"], ["KAI", "6.2H"], ["MAJA", "3.0H"]], 0);
     setPlaque(inn.by.get("tile:P")![0]!, ["ADA", "NOA", "SOF"]);
     setPlaque(inn.by.get("tavern:plaque-2")![0]!, ["KAI", "MAJ"]);
-    const patrons = [[2, 3, "ida"], [6, 3, "theo"], [2, 6, "ellen"], [8, 6, "jonas"], [14, 9, "maja"]].map(([x, z, n], i) =>
+    const patrons = [[2, 3, "ida"], [6, 3, "theo"], [5, 7, "ellen"], [0, 11, "jonas"], [22, 4, "maja"], [16, 8, "kai"], [4, 15, "sofie"]].map(([x, z, n], i) =>
       sit(61 + i, n as string, inn.room.at(x as number, z as number)!, inn.room),
     );
     patrons[4]!.mood = "happy";
@@ -984,7 +986,7 @@ function roomActors(id: MapId, r: WorldRoom, s: Stage): ((dt: number, t: number)
     const sleepers = [0, 3, 5, 8, 11, 14].map((i) => {
       const w = person(s, look2dOf(70 + i), NAMES[i % NAMES.length]!, 3 + i);
       const b = dorm.room.bedOf(dorm.beds[i]!)!;
-      const [x, y, z] = at(b.at);
+      const [x, y, z] = at(dorm.room.group.worldToLocal(b.at.clone()));
       w.at(x, z, "sleep", b.turn, y);
       return w;
     });
@@ -1151,6 +1153,20 @@ function placePlayer(id: MapId, at?: [number, number], turn = 0): void {
   worldPet.pet.root.position.set(c.x + 0.6, 0, c.z + 0.6);
 }
 
+/** Puts `w` on the seat (or bed) the room's 3D skin has at a map tile: its own anchor and facing, not the tile's centre. */
+function sitOnPlaced(r: WorldRoom, x: number, y: number, w: Walker): boolean {
+  const room = (r.skin?.extra as { room?: Room } | undefined)?.room;
+  const p = room?.at(x - INSET[0], y - INSET[1]);
+  if (!room || !p) return false;
+  const s = room.seatOf(p);
+  const b = s ? null : room.bedOf(p);
+  const a = s ?? b;
+  if (!a) return false;
+  const local = room.group.worldToLocal(a.at.clone());
+  w.at(local.x + INSET[0], local.z + INSET[1], b ? "sleep" : "sit", a.turn, local.y - (b ? 0 : 0.02));
+  return true;
+}
+
 /** Walks the player to a tile; a seat sits, a portal travels, a prop is looked at. */
 function worldGo(x: number, y: number): void {
   const me = worldMe;
@@ -1165,7 +1181,9 @@ function worldGo(x: number, y: number): void {
   const arrive = () => {
     const now = performance.now() / 1000;
     if (portal) travel(portal);
-    else if (seat) {
+    else if (seat && sitOnPlaced(r, x, y, me)) {
+      // Seated or in bed on the skin's own anchor.
+    } else if (seat) {
       const prev = steps.at(-2) ?? from;
       const turn = Math.atan2(x - prev[0], y - prev[1]);
       const c = r.centre(x, y);
@@ -1203,7 +1221,25 @@ function follow(dt: number): void {
 }
 
 // For poking at the world from the console or a test: `world3d.go(x, y)` walks to a tile of the room.
-Object.assign(window, { world3d: { go: worldGo, world, travel, setStage, roomOf, worldStages, get me() { return worldMe; } } });
+Object.assign(window, {
+  world3d: {
+    go: worldGo,
+    world,
+    travel,
+    setStage,
+    roomOf,
+    worldStages,
+    stages,
+    get me() {
+      return worldMe;
+    },
+    /** The camera: azimuth in radians (default pi/4), zoom factor. */
+    cam(az?: number, z?: number) {
+      if (az !== undefined) azimuth = azimuthGoal = az;
+      if (z !== undefined) zoom = z;
+    },
+  },
+});
 
 const held = new Set<string>();
 /** Arrow keys and WASD step across the grid, relative to the screen. */

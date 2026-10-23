@@ -78,6 +78,8 @@ export const LEGEND: Record<string, TileKind> = {
   S: { name: "stairs down", portal: true },
   // The Tavern's way up to the rooms, where everyone without a company sleeps.
   u: { name: "stairs up", portal: true },
+  // The Tavern's coat and umbrella stands by the door.
+  O: { name: "coat stand", text: "Coats, scarves and one very damp umbrella." },
   C: { name: "cabinet", text: "INSERT TOKEN." },
   E: { name: "big screen", text: "The livestream. Every match in town, live." },
   M: { name: "wall terminal", text: "A wall terminal." },
@@ -433,25 +435,32 @@ export const MAPS: Record<MapId, GameMap> = {
     "Wp__________________pW",
     "WWWWWWWWWWWxWWWWWWWWWW",
   ]),
-  // The Inn is the Tavern: a bar with a sealed cell for the barkeep (its floor is a rug, not `_`, so
-  // `restSpot` never beds anyone behind the bar), boards on the north wall, a row of tables by the north wall, a stage, tables,
-  // and a hearth with the regulars' plaques. One exit, so `roomEntry` still finds it.
+  // The Inn is the Tavern (26 by 16 inside): a bar along the north wall's west end with a sealed cell for the barkeep
+  // (its floor is a rug, not `_`, so `restSpot` never beds anyone behind the bar), boards on the clear wall stretches
+  // (J, m, A, P sit in the wall rows, so the floor in front of them is free), the hearth in the north wall with its
+  // sofa nook, the stage and jukebox on the west wall, dining tables and booths round a two-wide aisle from the door,
+  // and the stairs in the corners (S down in the south-east, u up in the south-west). One exit, so `roomEntry` still finds it.
   inn: TAVERN
     ? new GameMap("inn", "The Tavern", [
-        "WWWWWWWWWWWWWWWWWWWWWWWW",
-        "WWWWWWWWWWWWWWWWWWWWWWWW",
-        "WJJJJkkkkmmKAAAAn_n_n__W",
-        "W========k______c_c_c_oW",
-        "Waaayaaaa______________W",
-        "W__v_v_v______eeeeee___W",
-        "W_____________eeeeee___W",
-        "W__nn___nn_____________W",
-        "z__cc___cc_____________W",
-        "W______________PffP____W",
-        "W_____________======___W",
-        "W_____________=ssss=___W",
-        "Wph__________________hpW",
-        "WWWSWWWuWWWxWWWWWWWWWWWW",
+        "WWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+        "WWWWWWWWWWWWmmWAAAAWWWWWWWWW",
+        "Wkkkkkkk=hho__K______PffPkkW",
+        "W=========h_________======pW",
+        "Waaayaaaaaa_________s====s_W",
+        "J__v_v_v_v__________==nn==_W",
+        "J___________________==ss==_W",
+        "J__________________________W",
+        "J______cc_______cc___cc____W",
+        "Wz____cnnc_____cnnc_cnnc___W",
+        "Wee____cc_______cc___cc____W",
+        "Wee________________________W",
+        "Wee__________________cc____W",
+        "Wve_________________cnnc___W",
+        "Wee__________________cc___hW",
+        "W___BB__BB______BB_________W",
+        "W___nn__nn______nn________SW",
+        "Wup_BB__BB_OO___BB________pW",
+        "WWWWWWWWWWWWWxWWWWWWWWWWWWWW",
       ])
     : new GameMap("inn", "The Inn", [
         "WWWWWWWWWWWWWWWW",
@@ -471,11 +480,11 @@ export const MAPS: Record<MapId, GameMap> = {
     "WWWWWWWWWWWWWWWWWWWW",
     "WWWWWWWWWWWWWWWWWWWW",
     "Wb_b_b_b_b_b_b_b_bpW",
-    "W__________________W",
+    "Wb_b_b_b_b_b_b_b_b_W",
     "W__==============__W",
     "W__________________W",
     "Wb_b_b_b_b_b_b_b_b_W",
-    "W__________________W",
+    "Wb_b_b_b_b_b_b_b_b_W",
     "Wp_______________p_W",
     "WWWWWWWWWWxWWWWWWWWW",
   ]),
