@@ -31,7 +31,8 @@ const SHADOWS: readonly (readonly [Shadows, string])[] = [
 
 /** Esc menu, Graphics: the quality tier, the detected hardware, and the individual settings. */
 export function GraphicsPanel() {
-  const { choice, detected, meter } = useGraphics((s) => s);
+  const { choice, detected, meter, runtime } = useGraphics((s) => s);
+  const { failed3d } = runtime;
   const effective = graphics.effective();
   const gpu = detected?.gpu ?? gpuName();
   const recommended = TIER_NAMES[detected?.tier ?? graphics.get().runtime.quick ?? "medium"];
@@ -41,6 +42,11 @@ export function GraphicsPanel() {
       <p className="muted small">
         Detected: {gpu ?? "unknown GPU"} → recommended {recommended}
       </p>
+      {failed3d && (
+        <p className="muted small" role="status">
+          3D stopped ({failed3d}), so the game is on Low. Pick a tier to try again.
+        </p>
+      )}
       <nav className="menu graphics-tiers" aria-label="Quality">
         {CHOICES.map((c) => (
           <button key={c} type="button" aria-pressed={c === choice} onClick={() => graphics.setChoice(c)}>

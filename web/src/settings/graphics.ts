@@ -270,9 +270,9 @@ export function createGraphics(storage?: Storage, prefersReducedMotion = () => f
       const s = resolveSettings(tier(), state.overrides, prefersReducedMotion());
       return { ...s, renderScale: clamp(s.renderScale * state.runtime.scaleMul, 0.5, 1.5) };
     },
-    /** A new tier choice drops the governor's adjustments. */
+    /** A new tier choice drops the governor's adjustments, and gives 3D another go if it had stopped. */
     setChoice(choice: TierChoice) {
-      set({ choice, runtime: { ...state.runtime, governed: null, scaleMul: 1 } });
+      set({ choice, runtime: { ...state.runtime, governed: null, scaleMul: 1, failed3d: null } });
     },
     setOverrides(overrides: Overrides) {
       set({ overrides: sanitizeOverrides(overrides) });

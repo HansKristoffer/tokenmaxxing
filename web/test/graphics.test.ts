@@ -86,6 +86,9 @@ test("a failed 3D renderer pins the game to 2D", () => {
   g.setChoice("ultra");
   g.setRuntime({ failed3d: "context lost" });
   expect(g.effective().renderer).toBe("2d");
+  // Picking a tier again is a retry.
+  g.setChoice("high");
+  expect(g.effective().renderer).toBe("3d");
 });
 
 test("subscribers hear about changes", () => {
