@@ -32,6 +32,22 @@ const COLORS: Record<string, string> = {
   j: "#e9733d",
 };
 
+/** An office's wallpaper and floor by id (`decor.ts`): one colour for the whole tile, near the art's. */
+const WALL_COLORS: Record<string, string> = {
+  hygge: "#f5e3bd",
+  nyhavn: "#d9a642",
+  rundetaarn: "#a14d3b",
+  jacobsen: "#9fb59a",
+  tivoli: "#1f2a54",
+};
+const FLOOR_COLORS: Record<string, string> = {
+  linoleum: "#7fa88a",
+  parquet: "#6f4326",
+  fiskebenet: "#dcc08e",
+  checker: "#a9a7a6",
+  bornholm: "#7c828c",
+};
+
 const bases = new WeakMap<GameMap, HTMLCanvasElement>();
 
 /** The map's tiles, one block per tile, drawn once per map. */
@@ -42,9 +58,19 @@ function base(map: GameMap, scale: number): HTMLCanvasElement {
   canvas.width = map.width * scale;
   canvas.height = map.height * scale;
   const g = canvas.getContext("2d")!;
+  const colors: Record<string, string> = {
+    ...COLORS,
+    ...(map.decor?.wall && WALL_COLORS[map.decor.wall] && { W: WALL_COLORS[map.decor.wall]! }),
+    ...(map.decor?.floor && FLOOR_COLORS[map.decor.floor] && { _: FLOOR_COLORS[map.decor.floor]! }),
+  };
   for (let y = 0; y < map.height; y++)
     for (let x = 0; x < map.width; x++) {
-      g.fillStyle = COLORS[map.at(map.x0 + x, map.y0 + y)] ?? (map.id === "town" ? C.grass : C.woodDark);
+      const ch = map.at(map.x0 + x, map.y0 + y);
+      // Only a wall's face has the wallpaper (the game's own rule); its top stays plain.
+      const face =
+        ch !== "W" ||
+        (!"WR".includes(map.at(map.x0 + x, map.y0 + y + 1)) && map.contains(map.x0 + x, map.y0 + y + 1));
+      g.fillStyle = (face ? colors[ch] : COLORS[ch]) ?? (map.id === "town" ? C.grass : C.woodDark);
       g.fillRect(x * scale, y * scale, scale, scale);
     }
   bases.set(map, canvas);

@@ -1,5 +1,5 @@
 import { type GameMap, setTown } from "@tokenmaxxing/core/maps.ts";
-import { type Door, setHq } from "@tokenmaxxing/core/office.ts";
+import { type Door, setHq, setOffice } from "@tokenmaxxing/core/office.ts";
 import { stepPace } from "@tokenmaxxing/core/street.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
@@ -121,6 +121,7 @@ export function loadSnapshot(s: Snapshot): void {
   setCompanies(s.companies);
   const company = companyOfRoom(s.room);
   if (company !== null) setHq(company, s.doors);
+  if (s.owner) setOffice(s.owner.id, s.owner.tier, s.owner);
   world.doors = s.doors;
   setDrops(s.room, s.drops);
   world.drops = s.drops;

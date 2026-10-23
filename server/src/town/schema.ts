@@ -1,7 +1,10 @@
 import type { Sql } from "../actors/shared.ts";
 import { migrateAwards } from "./awards.ts";
 import { migrateCard } from "./card.ts";
+import { migrateMerch } from "./companies.ts";
+import { migrateDesks } from "./desks.ts";
 import { migrateMerchant } from "./merchant.ts";
+import { migrateOffices } from "./offices.ts";
 import { migrateQuests } from "./quests.ts";
 import { migrateTournament } from "./tournament.ts";
 
@@ -94,6 +97,9 @@ export async function migrate(sql: Sql): Promise<void> {
   // Whether each office is open. A row is also "the desk and chair are given" (`starterDrops`).
   await sql.execute(`CREATE TABLE IF NOT EXISTS offices (
     user_id INTEGER PRIMARY KEY, open INTEGER NOT NULL DEFAULT 1)`);
+  await migrateOffices(sql);
+  await migrateDesks(sql);
+  await migrateMerch(sql);
   // One row per player per finished game (void games aren't recorded), for stats and the Games board.
   await sql.execute(`CREATE TABLE IF NOT EXISTS match_players (
     match_id INTEGER NOT NULL, user_id INTEGER NOT NULL, game TEXT NOT NULL, place INTEGER NOT NULL,

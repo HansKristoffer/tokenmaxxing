@@ -7,6 +7,37 @@ import { coins } from "./format.ts";
 import { PieceImage } from "./Shop.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
+type Act = (fn: () => Promise<{ notice: string }>) => () => Promise<void>;
+
+function Catalogue({
+  pieces,
+  wallet,
+  act,
+}: {
+  pieces: readonly (typeof COMPANY_FURNITURE)[number][];
+  wallet: number;
+  act: Act;
+}) {
+  return (
+    <ul className="shop">
+      {pieces.map((f) => (
+        <li key={f.ch}>
+          <PieceImage ch={f.ch} />
+          <span>{f.name}</span>
+          <button
+            type="button"
+            className="primary"
+            disabled={wallet < f.price}
+            onClick={act(() => town.buyPiece(`furn.${f.ch}`))}
+          >
+            🪙 {f.price}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /**
  * The company building's furniture, from the company wallet. Any member buys; whoever is in the
  * building puts it down in front of them (otherwise it waits in the storeroom); any member puts out
@@ -60,22 +91,10 @@ export function CompanyShop() {
         </>
       )}
       <h3>Catalogue</h3>
-      <ul className="shop">
-        {COMPANY_FURNITURE.map((f) => (
-          <li key={f.ch}>
-            <PieceImage ch={f.ch} />
-            <span>{f.name}</span>
-            <button
-              type="button"
-              className="primary"
-              disabled={co.wallet < f.price}
-              onClick={act(() => town.buyPiece(`furn.${f.ch}`))}
-            >
-              🪙 {f.price}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <Catalogue pieces={COMPANY_FURNITURE.filter((f) => !f.wall)} wallet={co.wallet} act={act} />
+      <h3>🖼 Posters</h3>
+      <p className="muted small">Parodies, hung on the building's top wall, on the free spot nearest you.</p>
+      <Catalogue pieces={COMPANY_FURNITURE.filter((f) => f.wall)} wallet={co.wallet} act={act} />
       <p className="muted small">
         <button type="button" className="link" onClick={() => hud.set({ panel: { kind: "company" } })}>
           ← {co.name}

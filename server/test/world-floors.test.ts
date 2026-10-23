@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hqMap } from "@tokenmaxxing/core/office.ts";
+import { hqMap, setOffice } from "@tokenmaxxing/core/office.ts";
 import { DROPS, type Drop, mapOf, route, setDrops } from "@tokenmaxxing/core/world.ts";
 import { serial } from "../src/actors/shared.ts";
 import { town } from "../src/actors/town.ts";
@@ -49,6 +49,7 @@ describe("drops", () => {
       expect(snap.room).toBe(room);
       return snap;
     });
+    setOffice(inside.owner!.id, inside.owner!.tier, inside.owner!); // a veteran's office is the second size
     setDrops(room, inside.drops); // the desk and chair, for `route` here
     const exit = mapOf(room).find("x")[0]!;
     // The guest in the top-left corner; the owner puts a plant to their right, then one below them.
@@ -95,8 +96,8 @@ describe("drops", () => {
     await Promise.all(Array.from({ length: 28 }, () => owner.town.buy("furn.=")));
     const o = await connect(owner.token);
     const room = `office:${owner.userId}` as const;
-    expect(await o.conn.visit(owner.userId)).toMatchObject({ room, x: 5, y: 7, facing: "up" });
-    expect(await drop(owner, "furn.d")).toMatchObject({ room, x: 5, y: 6 });
+    expect(await o.conn.visit(owner.userId)).toMatchObject({ room, x: 5, y: 8, facing: "up" });
+    expect(await drop(owner, "furn.d")).toMatchObject({ room, x: 5, y: 7 });
     // Your own office's floor isn't loot: no five at a time.
     for (let i = 0; i < 27; i++) await drop(owner, "furn.="); // 30
     for (let n = 0; n < 2; n++) {

@@ -1,3 +1,4 @@
+import { DESKS } from "@tokenmaxxing/core/desks.ts";
 import { compact, plural } from "@tokenmaxxing/core/format.ts";
 import { CORE_BLOCKS, frontier, plotBlock } from "@tokenmaxxing/core/maps.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
@@ -82,6 +83,9 @@ export function CompanyPanel() {
         </button>
         <button type="button" onClick={() => hud.set({ panel: { kind: "merch", companyId: co.id } })}>
           👕 Merch
+        </button>
+        <button type="button" onClick={() => hud.set({ panel: { kind: "desk" } })}>
+          🖥 Desks
         </button>
       </p>
       {co.log.length > 0 && (
@@ -187,6 +191,7 @@ function walletLine(l: WalletLine): string {
   return typedSwitch(l.kind, {
     match: () => `⚡ ${who}'s tokens, matched`,
     merch: () => `👕 ${who} bought merch (${itemById(l.ref)?.name.toLowerCase() ?? "?"})`,
+    desk: () => `🖥 ${who} upgraded the desks (${DESKS.find((d) => d.id === l.ref)?.name ?? "?"})`,
     furniture: () => `🛋 ${who} bought a ${itemById(l.ref)?.name ?? "piece"}`,
     admin: () => "🛠 Town admin",
   });
