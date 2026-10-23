@@ -1,0 +1,50 @@
+import * as THREE from "three";
+import { loadSlices } from "../../demo3d/registry.ts";
+import type { MapId } from "../../demo3d/world.ts";
+import { World } from "../../demo3d/world.ts";
+import { bakeStatic } from "./bake.ts";
+import { sceneStats } from "./stats.ts";
+
+/** Registers every slice's tiles, as the game does at start. */
+export async function loadAllSlices(): Promise<void> {
+  await loadSlices();
+}
+
+export interface RoomCost {
+  drawCalls: number;
+  triangles: number;
+  materials: number;
+  textureMB: number;
+}
+
+const world = () => ((globalThis as { __perfWorld?: World }).__perfWorld ??= new World());
+
+/** Builds a room with no renderer and counts what one pass over it would draw once batched. */
+export function measureRoom(id: string): RoomCost {
+  const room = world().room(id as MapId);
+  const scene = new THREE.Scene();
+  scene.add(room.group);
+  const before = sceneStats(scene);
+  const layer = bakeStatic(room.group);
+  if (layer) layer.show("smooth");
+  const after = sceneStats(scene);
+  let texBytes = 0;
+  const seen = new Set<THREE.Texture>();
+  scene.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+    for (const v of (Array.isArray(m) ? m : [m]).flatMap((x) => Object.values(x ?? {}))) {
+      const t = v as THREE.Texture;
+      const img = t?.isTexture ? (t.image as { width?: number; height?: number } | null) : null;
+      if (!img || seen.has(t)) continue;
+      seen.add(t);
+      texBytes += (img.width ?? 0) * (img.height ?? 0) * 4 * (t.generateMipmaps ? 1.34 : 1);
+    }
+  });
+  void before;
+  return {
+    drawCalls: after.drawables,
+    triangles: Math.round(after.triangles),
+    materials: after.materials,
+    textureMB: Math.round((texBytes / 1048576) * 10) / 10,
+  };
+}

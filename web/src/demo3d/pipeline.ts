@@ -4,9 +4,9 @@
  * it's a clean cel-shaded look instead.
  */
 import * as THREE from "three";
-import { blockify, unblockify } from "./blocky.ts";
 import { type BakeMode, sceneEpoch, syncBaked, trackAdditions } from "../render3d/perf/bake.ts";
 import { trackRenderer } from "../render3d/perf/stats.ts";
+import { blockify, unblockify } from "./blocky.ts";
 import { setActiveScene, setSmoothBands } from "./kit.ts";
 
 export type RenderStyle = "classic" | "voxel";

@@ -185,7 +185,18 @@ function geometry(key: string, make: () => THREE.BufferGeometry): THREE.BufferGe
  * is 308 triangles). Scales with the radius, never above what the asset asked for.
  */
 function segmentsFor(radius: number, wanted: number): number {
-  return Math.max(6, Math.min(wanted, Math.round(radius * 44)));
+  return detail === 0
+    ? Math.max(5, Math.min(wanted, Math.round(radius * 28)))
+    : Math.max(6, Math.min(wanted, Math.round(radius * 44)));
+}
+
+/**
+ * Geometry detail for rooms built from now on: 0 is the lean set for the Medium tier (plain boxes, fewer round
+ * segments), 1 the normal one. Rooms already built keep what they have, so set it before building.
+ */
+let detail: 0 | 1 = 1;
+export function setGeometryDetail(level: 0 | 1): void {
+  detail = level;
 }
 
 /** A group with shortcuts for the shapes assets are made of. Positions are bottom-centres unless noted. */
@@ -201,11 +212,13 @@ export class Model extends THREE.Group {
   box(size: V3, paint: Paint, at: V3 = [0, 0, 0], r = 0.025): THREE.Mesh {
     const [w, h, d] = size;
     const radius = Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001);
-    const g = geometry(`box${w},${h},${d},${radius}`, () => {
+    const g = geometry(`box${w},${h},${d},${radius},${detail}`, () => {
       // Small bevels (nearly all of them) are a chamfer: a third of the triangles of the rounded box, same look at game scale.
       const b =
-        radius > 0.004 && radius < 0.06
-          ? chamferBox(w, h, d, radius)
+        detail === 0 && radius < 0.06
+          ? new THREE.BoxGeometry(w, h, d)
+          : radius > 0.004 && radius < 0.06
+            ? chamferBox(w, h, d, radius)
           : radius > 0.004
             ? new RoundedBoxGeometry(w, h, d, 2, radius)
             : new THREE.BoxGeometry(w, h, d);
@@ -277,7 +290,7 @@ export function canvasTexture(
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = THREE.SRGBColorSpace;
   if (smooth) {
-    t.anisotropy = 8;
+    t.anisotropy = 4;
     return t;
   }
   t.magFilter = THREE.NearestFilter;
@@ -376,7 +389,8 @@ let building: TickScope | null = null;
 let onScreen: THREE.Object3D | null = null;
 
 export function beginTickScope(): TickScope {
-  return (building = { root: null });
+  building = { root: null };
+  return building;
 }
 export function endTickScope(scope: TickScope, root: THREE.Object3D): void {
   scope.root = root;

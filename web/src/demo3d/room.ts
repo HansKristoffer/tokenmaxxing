@@ -5,10 +5,10 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
-import type { Asset } from "./furniture.ts";
 import { invalidateBaked } from "../render3d/perf/bake.ts";
-import { announceNight } from "./props.ts";
+import type { Asset } from "./furniture.ts";
 import { canvasTexture, glow, Model, painted, planks, tint, toon, wallpaper } from "./kit.ts";
+import { announceNight } from "./props.ts";
 
 export type Turn = 0 | 1 | 2 | 3;
 export interface Placed {

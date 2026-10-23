@@ -352,8 +352,10 @@ export class BakedLayer {
       tmp.copy(s.local);
       const key = `${s.key}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}${s.glow ? `|${s.glow}` : ""}`;
       let grp = groups.get(key);
-      if (!grp)
-        groups.set(key, (grp = { parts: [], mat: s.material, cast: m.castShadow, recv: m.receiveShadow, glow: s.glow }));
+      if (!grp) {
+        grp = { parts: [], mat: s.material, cast: m.castShadow, recv: m.receiveShadow, glow: s.glow };
+        groups.set(key, grp);
+      }
       grp.parts.push(prepared(geo!, tmp, s.color));
     }
     for (const [key, grp] of groups) {
@@ -457,17 +459,20 @@ function layerOf(
   why.baked = new Set(sources.map((x) => x.mesh)).size;
   why.moving = meshes.length - why.baked;
   const g = globalThis as unknown as { __bakes?: unknown[]; __layers?: BakedLayer[] };
-  (g.__bakes ??= []).push({ root: root.name || root.type, ...why });
+  g.__bakes ??= [];
+  g.__bakes.push({ root: root.name || root.type, ...why });
   if (why.baked < 2) return null;
   const layer = new BakedLayer(root, sources);
   layer.liveCount = why.moving;
-  (g.__layers ??= []).push(layer);
+  g.__layers ??= [];
+  g.__layers.push(layer);
   return layer;
 }
 
 /** Batches the static meshes under `root` right now, trusting the tick sampling and the `live` flags. */
 export function bakeStatic(root: THREE.Object3D): BakedLayer | null {
-  const { meshes, why } = collect(root);
+  const { meshes, why, rigids } = collect(root);
+  for (const r of rigids) bakeStatic(r)?.show("smooth");
   if (!meshes.length) return null;
   const moved = new Set<number>();
   sampleTicks(root, meshes, moved);
@@ -513,7 +518,10 @@ const seen = new WeakMap<THREE.Scene, { epoch: number; mode: BakeMode | null; la
 export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
   if (disabled) return [];
   let s = seen.get(scene);
-  if (!s) seen.set(scene, (s = { epoch: -1, mode: null, layers: [] }));
+  if (!s) {
+    s = { epoch: -1, mode: null, layers: [] };
+    seen.set(scene, s);
+  }
   if (s.epoch !== epoch) {
     s.epoch = epoch;
     s.layers = s.layers.filter((l) => !l.disposed);

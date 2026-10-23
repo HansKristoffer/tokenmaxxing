@@ -29,7 +29,7 @@
     wrap("drawElementsInstanced", (a) => { P.draws++; P.instances += a[4]; P.tris += trisOf(a[0], a[1]) * a[4]; });
     wrap("drawArraysInstanced", (a) => { P.draws++; P.instances += a[3]; P.tris += trisOf(a[0], a[2]) * a[3]; });
     wrap("drawRangeElements", (a) => { P.draws++; P.tris += trisOf(a[0], a[4]); });
-    wrap("useProgram", function (a) { if (a[0]) P.programsUsed.add(a[0]); });
+    wrap("useProgram", (a) => { if (a[0]) P.programsUsed.add(a[0]); });
     wrap("drawElements", () => {});
     // Live bytes per object: set on upload, dropped on delete, so rebuilds and leaks show as they are.
     const bytes = new WeakMap();

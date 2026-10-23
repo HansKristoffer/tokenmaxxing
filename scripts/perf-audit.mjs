@@ -1,6 +1,7 @@
 // bun scripts/perf-audit.mjs [--url ...] [--rooms ...] [--out perf-results/audit]: batching must not change the picture.
 // Per room and style, screenshots with and without `?nobake`, a pixel diff, and a check that nothing batched has moved.
 import { mkdirSync } from "node:fs";
+
 const arg = (k, d) => {
   const i = process.argv.indexOf(`--${k}`);
   return i > 0 ? process.argv[i + 1] : d;

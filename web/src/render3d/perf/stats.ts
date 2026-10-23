@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import type * as THREE from "three";
 import { ticks } from "../../demo3d/kit.ts";
 
 /** Hardware-independent facts about a scene: what the CPU has to walk and what the GPU is asked to draw. */
