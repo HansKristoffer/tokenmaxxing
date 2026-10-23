@@ -6,12 +6,12 @@ import { TUNES } from "@tokenmaxxing/core/tunes.ts";
 import type { WorldGame } from "@tokenmaxxing/core/world.ts";
 import type { BasementScene, BoardPairing, MatchRow, ScreenFeed } from "../demo3d/basement3d.ts";
 import { setLanParty } from "../demo3d/livescreen.ts";
-import { setBarTab, setPlaque, setSpecial, type TavernRoom } from "../demo3d/tavern3d.ts";
+import { setBarTab, setOfficeBoard, setPlaque, setSpecial, type TavernRoom } from "../demo3d/tavern3d.ts";
 import { left } from "../game/raid.ts";
 import { askRegulars, regularsBoard } from "../game/regulars.ts";
 import { skyNow } from "../game/sky.ts";
 import { world } from "../game/world.ts";
-import { refreshTournament } from "../net.ts";
+import { refreshTournament, town } from "../net.ts";
 import { hud } from "../store.ts";
 
 /**
@@ -29,6 +29,24 @@ function watch<T>(paint: (v: T) => void): (v: T) => void {
     last = key;
     paint(v);
   };
+}
+
+const OFFICES_EVERY_MS = 30_000;
+let openOffices: string[] | null = null;
+let officesAt = -Infinity;
+
+/** The names of the offices left open, asked for again every half minute (the server keeps its own for a while too). */
+function officesOpen(now: number): string[] | null {
+  if (now - officesAt > OFFICES_EVERY_MS) {
+    officesAt = now;
+    town.openOffices().then(
+      (rows) => {
+        openOffices = rows.map((r) => r.name);
+      },
+      () => {},
+    );
+  }
+  return openOffices;
 }
 
 /** The Tavern: this week's regulars on the bar tab and the plaques, the day's special on the easel, the jukebox on. */
@@ -58,11 +76,14 @@ export function liveTavern(inn: TavernRoom): (t: number) => void {
     },
   );
   const paintSpecial = watch<string>((s) => easel && setSpecial(easel, s));
+  const officeBoard = inn.by.get("tile:w")?.[0];
+  const paintOffices = watch<string[] | null>((names) => officeBoard && setOfficeBoard(officeBoard, names));
   return () => {
     askRegulars();
     const { rows, last } = regularsBoard();
     paintBoard({ rows: [...rows], last, ids: rows.map((r) => r.userId) });
     paintSpecial(specialOn(new Date()));
+    paintOffices(officesOpen(Date.now()));
     const playing = hud.get().jukebox;
     inn.jukebox.playing = playing !== null;
     if (playing) inn.jukebox.track = TUNES.find((t) => t.id === playing.track)?.name ?? playing.track;

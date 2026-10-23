@@ -836,35 +836,57 @@ const hallOfFame = (): Model => {
   return m;
 };
 
-/** The open-offices board: a small sign with a little house and a lit window. */
-const officeBoard = (): Model => {
-  const m = new Model();
-  const p = panel(0.62, 0.78, (g, w, h) => {
+/** What the open-offices board paints: the names of the offices left open (null until they are known). */
+export type OfficeBoardRows = readonly string[] | null;
+
+/** Draws the open-offices sign: a little house with a lit window, and under it how many are open and the first few names. */
+export function officeBoardDraw(open: OfficeBoardRows): (g: CanvasRenderingContext2D, w: number, h: number) => void {
+  return (g, w, h) => {
     g.fillStyle = "#c89460";
     g.fillRect(0, 0, w, h);
     g.fillStyle = "#dcab76";
     g.fillRect(0, 0, w, h * 0.04);
     g.fillStyle = C.rug;
     g.beginPath();
-    g.moveTo(w * 0.15, h * 0.52);
-    g.lineTo(w / 2, h * 0.22);
-    g.lineTo(w * 0.85, h * 0.52);
+    g.moveTo(w * 0.28, h * 0.3);
+    g.lineTo(w / 2, h * 0.1);
+    g.lineTo(w * 0.72, h * 0.3);
     g.closePath();
     g.fill();
     g.fillStyle = PAPER;
-    g.fillRect(w * 0.24, h * 0.52, w * 0.52, h * 0.34);
+    g.fillRect(w * 0.34, h * 0.3, w * 0.32, h * 0.16);
     g.fillStyle = WOOD_DARK;
-    g.fillRect(w * 0.34, h * 0.64, w * 0.14, h * 0.22);
-    g.fillStyle = "#f8c43a";
-    g.fillRect(w * 0.56, h * 0.58, w * 0.12, h * 0.12);
-  }, { frame: INK, lift: 0.85, px: 64 });
+    g.fillRect(w * 0.4, h * 0.36, w * 0.08, h * 0.1);
+    g.fillStyle = open && open.length > 0 ? "#f8c43a" : "#8a7a60";
+    g.fillRect(w * 0.54, h * 0.34, w * 0.07, h * 0.07);
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillStyle = INK;
+    g.font = `800 ${Math.round(h * 0.085)}px system-ui, sans-serif`;
+    g.fillText(open === null ? "OPEN OFFICES" : open.length === 0 ? "NONE OPEN" : `${open.length} OPEN`, w / 2, h * 0.55);
+    g.font = `600 ${Math.round(h * 0.075)}px system-ui, sans-serif`;
+    for (const [i, name] of (open ?? []).slice(0, 3).entries())
+      g.fillText(name.length > 12 ? `${name.slice(0, 11)}…` : name, w / 2, h * (0.67 + i * 0.1));
+  };
+}
+
+/** The open-offices board: a small sign with a little house and a lit window, and the offices open now. */
+const officeBoard = (): Model => {
+  const m = new Model();
+  const p = panel(0.62, 0.78, officeBoardDraw(null), { frame: INK, lift: 0.85, px: 150 });
   p.position.z = -0.46;
   m.add(p);
+  (m as Panel).redraw = p.redraw;
   // The window is lit from inside.
   m.plane(0.1, 0.1, glow("#f8c43a"), [0.1, 0.85 + 0.06 + 0.78 * 0.5 - 0.1 + 0.02, -0.46 + 0.05]);
   light(m, [0, 1.3, -0.2], "#f8c43a", 0.5, 2.5);
   return m;
 };
+
+/** Paints the offices that are open on the board (`tile:w`). */
+export function setOfficeBoard(model: Model, open: OfficeBoardRows): void {
+  (model as Panel).redraw(officeBoardDraw(open));
+}
 
 // ——— The easel ———
 
