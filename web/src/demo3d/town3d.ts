@@ -252,12 +252,16 @@ function logo(letter: string, fg: string, bg: string): string {
 }
 
 /** Builds the town for these companies. */
-export function buildTown3d(companies: readonly Company[] = DEMO_COMPANIES): Town3d {
+export function buildTown3d(
+  companies: readonly Company[] = DEMO_COMPANIES,
+  /** `arcade: false`: the real game's town, which has no arcade (its games are tables on the square). */
+  opts: { arcade?: boolean } = {},
+): Town3d {
   const plain = townMap(companies.map((c) => c.plot));
   // The arcade has no tile in the 2D map: it takes the park nearest the square (if the town has one),
   // with its door tile `A` and a path down to the road.
   const rows = plain.rows.map((r) => [...r]);
-  const park = [...plain.parks].sort(
+  const park = (opts.arcade === false ? [] : [...plain.parks]).sort(
     (a, b) => Math.hypot(a[0] - 0.5, a[1] - 0.5) - Math.hypot(b[0] - 0.5, b[1] - 0.5),
   )[0];
   const set = (tx: number, ty: number, ch: string) => {

@@ -13,7 +13,7 @@ const TOWN_VIEW = 12;
  * the game's clock.
  */
 export function buildTownView(id: string, ctx: RoomCtx): RoomView {
-  const built = withTicks(() => buildTown3d([...ctx.companies]));
+  const built = withTicks(() => buildTown3d([...ctx.companies], { arcade: false }));
   const town: Town3d = built.value;
   town.setClock(ctx.minutes);
   const [W, D] = town.size;

@@ -1,9 +1,8 @@
 import { beforeAll, expect, test } from "bun:test";
 import { MAPS, SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
-import { placedIn } from "../src/render3d/placed.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
-
 import { SHOP_BODY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
+import { placedIn } from "../src/render3d/placed.ts";
 
 // A canvas that draws nothing: enough for the kit's painted textures to be "built" without a browser.
 const pixels = () => ({ data: new Uint8ClampedArray(1 << 22), width: 1024, height: 1024 });
