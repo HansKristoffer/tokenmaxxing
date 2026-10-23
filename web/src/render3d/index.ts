@@ -147,7 +147,9 @@ class Renderer3D implements Renderer {
     });
     Object.assign(window, { __r3d: this });
     // `?r3dcheck`: builds and frees every room a few times over and says whether the GPU counts moved.
-    if (location.search.includes("r3dcheck"))
+    // (The address is read from the navigation entry: signing in rewrites the page's own.)
+    const opened = performance.getEntriesByType("navigation")[0]?.name ?? location.href;
+    if (opened.includes("r3dcheck"))
       setTimeout(() => {
         const { before, after } = this.cycle(4);
         const leaked = before.geometries !== after.geometries || before.textures !== after.textures || before.programs !== after.programs;
