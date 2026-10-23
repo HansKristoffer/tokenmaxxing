@@ -114,6 +114,8 @@ export class Avatar {
     for (const bone of [this.body, this.head, ...this.arms, ...this.legs, ...this.knees]) bone.userData.rigid = true;
     for (const f of this.rig.faces) f.material.userData.dynamic = true;
     this.freezable = !this.rig.tick && (!look.gear || look.gear.animated === false);
+    // The batching samples a walk and a stand to find the parts that gear and rigs move, and leaves those alone.
+    this.root.userData.sample = (t: number) => this.sampleMotion(t);
   }
 
   /** The state worth freezing in right now (null while the limbs animate): resting poses, or any pose when tiny. */
@@ -126,6 +128,16 @@ export class Avatar {
 
   dispose(): void {
     this.freezer.dispose();
+  }
+
+  private sampleMotion(t: number): void {
+    const keep = this.pose;
+    for (const pose of ["walk", "stand"] as const) {
+      this.pose = pose;
+      this.posed(1 / 60, t);
+    }
+    this.pose = keep;
+    this.posed(1 / 60, t);
   }
 
   /** Moves the limbs for `pose`, `dt` seconds after the last frame. */

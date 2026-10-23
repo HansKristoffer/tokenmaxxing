@@ -18,7 +18,10 @@ export type V3 = [number, number, number];
   THREE.Color.prototype.setStyle = function (this: THREE.Color, style: string, colorSpace?: string) {
     if (style.length === 7 && style.charCodeAt(0) === 35) {
       let n = hex.get(style);
-      if (n === undefined) hex.set(style, (n = Number.parseInt(style.slice(1), 16)));
+      if (n === undefined) {
+        n = Number.parseInt(style.slice(1), 16);
+        hex.set(style, n);
+      }
       if (!Number.isNaN(n)) return this.setHex(n, colorSpace as THREE.ColorSpace | undefined);
     }
     return stock.call(this, style, colorSpace as THREE.ColorSpace | undefined);

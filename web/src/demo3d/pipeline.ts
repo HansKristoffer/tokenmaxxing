@@ -921,7 +921,10 @@ export class Pipeline {
    */
   private rankActors(scene: THREE.Scene): void {
     let c = this.crowds.get(scene);
-    if (!c) this.crowds.set(scene, (c = { epoch: -1, at: -99, actors: [] }));
+    if (!c) {
+      c = { epoch: -1, at: -99, actors: [] };
+      this.crowds.set(scene, c);
+    }
     if (c.epoch !== sceneEpoch() && this.frameNo - c.at > 20) {
       c.epoch = sceneEpoch();
       c.at = this.frameNo;

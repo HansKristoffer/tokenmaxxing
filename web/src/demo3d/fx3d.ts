@@ -42,7 +42,10 @@ const constants = new Map<string, THREE.Color>();
 /** A colour that is only read (mixed from, copied): made once, not parsed from its string every frame. */
 const fixed = (hex: string): THREE.Color => {
   let c = constants.get(hex);
-  if (!c) constants.set(hex, (c = new THREE.Color(hex)));
+  if (!c) {
+    c = new THREE.Color(hex);
+    constants.set(hex, c);
+  }
   return c;
 };
 const mixCol = (a: THREE.Color, b: THREE.Color, k: number) => a.clone().lerp(b, clamp01(k));

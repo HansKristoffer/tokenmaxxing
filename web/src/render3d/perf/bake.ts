@@ -184,6 +184,18 @@ function noteMoved(a: Snap, b: Snap, moved: Set<number>): void {
 /** Runs every tick function at a few times and notes what they move (world matrices, materials). */
 function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<number>): void {
   const base = snapshot(root, meshes);
+  // Something above may animate its parts by its own means (an avatar's gear moves when it walks): it says how to sample that.
+  let sample: ((t: number) => void) | undefined;
+  for (let p: THREE.Object3D | null = root; p && !sample; p = p.parent) sample = p.userData.sample as typeof sample;
+  if (sample)
+    for (const t of SAMPLE_TIMES) {
+      try {
+        sample(t);
+      } catch {
+        /* a model torn down */
+      }
+      noteMoved(base, snapshot(root, meshes), moved);
+    }
   for (const t of SAMPLE_TIMES) {
     for (const tick of ticks) {
       try {
