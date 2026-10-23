@@ -25,7 +25,7 @@ async function shot(room, style, nobake, time) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(`${url}/?stage=World:${room}&q=2${nobake ? "&nobake" : ""}`);
+  await page.goto(`${url}/?stage=${/^[A-Z]/.test(room) ? room : `World:${room}`}&q=2${nobake ? "&nobake" : ""}`);
   await page.waitForFunction(() => window.world3d && window.__perfStats?.()[0]?.scene, null, { timeout: 60000 });
   await page.evaluate((t) => window.fx?.setTime(t), time);
   await page.addStyleTag({ content: "body > *:not(canvas){display:none !important}" });

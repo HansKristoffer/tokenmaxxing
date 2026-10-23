@@ -8,7 +8,7 @@ await ctx.addInitScript((s) => localStorage.setItem("demo3d.style", s), style);
 const page = await ctx.newPage();
 page.on("pageerror", (e) => console.log("[error]", e.message));
 page.on("console", (m) => m.type() === "error" && console.log("[console]", m.text()));
-await page.goto(`${url}/?stage=World:${room}&q=2`);
+await page.goto(`${url}/?stage=${/^[A-Z]/.test(room) ? room : `World:${room}`}&q=2`);
 await page.waitForFunction(() => window.world3d && window.__perfStats?.()[0]?.scene, null, { timeout: 60000 });
 await page.waitForTimeout(3000);
 const out = await page.evaluate(() => {

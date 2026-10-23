@@ -20,6 +20,11 @@ export type BakeMode = "smooth" | "block";
 
 /** Set on an object (or anything above it) to keep it out of the batches. */
 export const LIVE = "live";
+/**
+ * Set on an object that moves as a whole (a wall that lowers) but whose insides are fixed relative to it: it
+ * is batched on its own, in its own space, and the batch rides along.
+ */
+export const RIGID = "rigid";
 /** Set on a room's root: `bakeScene` batches it. */
 export const BAKE = "bake";
 
@@ -51,7 +56,7 @@ export interface BakeStats {
 
 function isLive(o: THREE.Object3D, root: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o; p; p = p.parent) {
-    if (p.userData[LIVE] || p.userData.noBake) return true;
+    if (p.userData[LIVE] || p.userData.noBake || (p !== root && p.userData[RIGID])) return true;
     if (p === root) break;
   }
   return false;
@@ -59,7 +64,7 @@ function isLive(o: THREE.Object3D, root: THREE.Object3D): boolean {
 
 function hiddenAbove(o: THREE.Object3D, root: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o; p; p = p.parent) {
-    if (!p.visible) return true;
+    if (p !== root && !p.visible) return true;
     if (p === root) break;
   }
   return false;
@@ -67,7 +72,7 @@ function hiddenAbove(o: THREE.Object3D, root: THREE.Object3D): boolean {
 
 function bakeable(m: THREE.Mesh): boolean {
   const mat = m.material;
-  if (Array.isArray(mat) || (mat as THREE.Material).transparent) return false;
+  if (Array.isArray(mat) || (mat as THREE.Material).transparent || (mat as THREE.Material).userData.dynamic) return false;
   if ((m as THREE.InstancedMesh).isInstancedMesh || (m as THREE.SkinnedMesh).isSkinnedMesh) return false;
   if (m.renderOrder !== 0 || m.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) return false;
   const g = m.geometry;
@@ -117,6 +122,9 @@ function matState(m: THREE.Material): string {
   return `${matKey(m)}|${m.visible}`;
 }
 
+const tmp = new THREE.Matrix4();
+const inv = new THREE.Matrix4();
+
 interface Snap {
   m: Float32Array;
   state: string[];
@@ -126,8 +134,10 @@ function snapshot(root: THREE.Object3D, meshes: THREE.Mesh[]): Snap {
   root.updateMatrixWorld(true);
   const m = new Float32Array(meshes.length * 16);
   const state: string[] = [];
+  // Relative to the root: a rigid root (a wall) may itself move, what is inside must not.
+  inv.copy(root.matrixWorld).invert();
   meshes.forEach((mesh, i) => {
-    m.set(mesh.matrixWorld.elements, i * 16);
+    m.set(tmp.multiplyMatrices(inv, mesh.matrixWorld).elements, i * 16);
     state.push(`${mesh.visible}|${matState(mesh.material as THREE.Material)}`);
   });
   return { m, state };
@@ -162,8 +172,6 @@ function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<numb
     noteMoved(base, snapshot(root, meshes), moved);
   }
 }
-
-const tmp = new THREE.Matrix4();
 
 function prepared(src: THREE.BufferGeometry, matrix: THREE.Matrix4, color?: THREE.Color): THREE.BufferGeometry {
   const g = src.clone();
@@ -392,11 +400,17 @@ export class BakedLayer {
   }
 }
 
-function collect(root: THREE.Object3D): { meshes: THREE.Mesh[]; why: Record<string, number> } {
+function collect(root: THREE.Object3D): { meshes: THREE.Mesh[]; why: Record<string, number>; rigids: THREE.Object3D[] } {
   const meshes: THREE.Mesh[] = [];
+  const rigids: THREE.Object3D[] = [];
   const why = { live: 0, hidden: 0, unbakeable: 0, moving: 0, baked: 0 };
   root.updateMatrixWorld(true);
   root.traverse((o) => {
+    if (o !== root && o.userData[RIGID]) {
+      let nested = false;
+      for (let p = o.parent; p && p !== root; p = p.parent) nested ||= !!p.userData[RIGID];
+      if (!nested) rigids.push(o);
+    }
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     if (isLive(m, root)) why.live++;
@@ -404,7 +418,7 @@ function collect(root: THREE.Object3D): { meshes: THREE.Mesh[]; why: Record<stri
     else if (!bakeable(m)) why.unbakeable++;
     else meshes.push(m);
   });
-  return { meshes, why };
+  return { meshes, why, rigids };
 }
 
 function layerOf(
@@ -471,6 +485,7 @@ interface Watch {
   base: Snap;
   moved: Set<number>;
   frames: number;
+  orphan: number;
 }
 
 const layers = new WeakMap<THREE.Object3D, BakedLayer | null>();
@@ -503,12 +518,15 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
     s.epoch = epoch;
     s.layers = s.layers.filter((l) => !l.disposed);
     // Flagged roots sit near the top of the scene: no need to walk every mesh each time something is added.
+    const watch = (o: THREE.Object3D) => {
+      if (layers.has(o) || watching.has(o)) return;
+      const { meshes, why, rigids } = collect(o);
+      watching.set(o, { meshes, why, base: snapshot(o, meshes), moved: new Set(), frames: 0, orphan: 0 });
+      for (const r of rigids) watch(r);
+    };
     const look = (o: THREE.Object3D, depth: number) => {
-      if (o.userData[BAKE]) {
-        if (layers.has(o) || watching.has(o)) return;
-        const { meshes, why } = collect(o);
-        watching.set(o, { meshes, why, base: snapshot(o, meshes), moved: new Set(), frames: 0 });
-      } else if (depth < 3) for (const c of o.children) look(c, depth + 1);
+      if (o.userData[BAKE]) watch(o);
+      else if (depth < 3) for (const c of o.children) look(c, depth + 1);
     };
     look(scene, 0);
     s.epoch = epoch;
@@ -517,7 +535,11 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
     for (const [root, w] of [...watching]) {
       let top: THREE.Object3D | null = root;
       while (top?.parent) top = top.parent;
-      if (top !== scene) continue;
+      if (top !== scene) {
+        // Never reached the scene (or left it): don't carry it for ever.
+        if (++w.orphan > 900) watching.delete(root);
+        continue;
+      }
       w.frames++;
       if (WARMUP.includes(w.frames)) noteMoved(w.base, snapshot(root, w.meshes), w.moved);
       if (w.frames < WARMUP.at(-1)!) continue;

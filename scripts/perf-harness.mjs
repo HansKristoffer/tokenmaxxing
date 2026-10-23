@@ -60,7 +60,7 @@ for (const room of rooms) {
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     const t0 = Date.now();
-    const stage = room === "town" ? "World:town" : `World:${room}`;
+    const stage = /^[A-Z]/.test(room) ? room : `World:${room}`;
     await page.goto(`${url}/?stage=${stage}${q ? `&q=${q}` : ""}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.__probe?.frames > 3 && window.world3d, null, { timeout: 60000 });
     const ready = Date.now() - t0;

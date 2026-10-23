@@ -104,6 +104,10 @@ export class Avatar {
     this.arms = this.rig.arms;
     this.legs = this.rig.legs;
     look.gear?.dress(this);
+    // The static batching merges what is fixed inside each limb (hair, clothes, gear): one mesh per limb, not per piece.
+    this.root.userData.bake = true;
+    for (const bone of [this.body, this.head, ...this.arms, ...this.legs, ...this.knees]) bone.userData.rigid = true;
+    for (const f of this.rig.faces) f.material.userData.dynamic = true;
   }
 
   /** Moves the limbs for `pose`, `dt` seconds after the last frame. */

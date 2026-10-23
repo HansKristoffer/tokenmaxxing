@@ -493,7 +493,7 @@ export class WorldRoom {
       const m = new Model();
       this.group.add(m);
       groups.set(k, m);
-      m.userData.live = true;
+      m.userData.rigid = true;
       this.walls.push({ model: m, normal });
     }
     for (let y = 0; y < this.D; y++)

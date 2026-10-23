@@ -201,7 +201,7 @@ export class Room {
       m.box([length + 0.02, 0.12, WALL_T + 0.04], C.woodDark, [0, 0, 0.01], 0.01);
       m.box([length + 0.04, 0.08, WALL_T + 0.06], C.wallTop, [0, WALL_H, 0], 0.01);
       this.shell.add(m);
-      m.userData.live = true;
+      m.userData.rigid = true;
       this.walls.push({ model: m, normal: new THREE.Vector3(normal[0], 0, normal[1]) });
       return m;
     };
