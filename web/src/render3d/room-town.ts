@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { dropPropsNight, setPropsNight } from "../demo3d/props.ts";
 import { buildTown3d, type Town3d } from "../demo3d/town3d.ts";
 import { disposeObject } from "./dispose.ts";
+import { GamesLayer } from "./games3d.ts";
+import { GateLive } from "./gate3d.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "./rooms.ts";
 
 /** The picture height the town starts at: the square and a few houses. */
@@ -19,6 +21,12 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const [W, D] = town.size;
   const group = new THREE.Group();
   group.add(town.group);
+  // What changes with the game: the raid gate's boards, and the tables of the games on the square.
+  const gate = town.doors.find((d) => d.kind === "dungeon");
+  const gateLive = gate ? new GateLive([gate.at[0], gate.at[1] + 0.25]) : null;
+  const games = new GamesLayer((tx, ty) => town.toWorld(tx, ty));
+  if (gateLive) group.add(gateLive.group);
+  group.add(games.group);
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
@@ -39,10 +47,15 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     seatY: (_x, _y, kind) => (kind === "bench" ? 0.3 : 0.32),
     tick(t) {
       for (const f of built.ticks) f(t);
+      gateLive?.update(t);
+      games.update(t);
     },
     signs,
+    liveSigns: () => [...(gateLive?.signs() ?? []), ...games.signs()],
     night: (on) => setPropsNight(on),
     dispose() {
+      games.dispose();
+      gateLive?.dispose();
       dropPropsNight(group);
       group.removeFromParent();
       disposeObject(group);

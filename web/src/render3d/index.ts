@@ -10,6 +10,7 @@ import { gameHits } from "../game/games.ts";
 import { peekHits } from "../game/houses.ts";
 import { send, walkThen, walkTo } from "../game/input.ts";
 import { chipHits, signHits } from "../game/labels.ts";
+import { setRaiders } from "../game/raid.ts";
 import type { Renderer, Tile } from "../game/renderer.ts";
 import { skyNow } from "../game/sky.ts";
 import { self, world } from "../game/world.ts";
@@ -31,6 +32,7 @@ import { type InstalledShops, installShops, type ShopWorld } from "./shops/index
 import "./room-generic.ts";
 import "./room-skin.ts";
 import "./room-furnished.ts";
+import "./room-dungeon.ts";
 import "./room-town.ts";
 import { Signs } from "./signs.ts";
 import { lightPipeline, RoomStage } from "./stage3d.ts";
@@ -588,6 +590,20 @@ class Renderer3D implements Renderer {
     world.room = id as never;
     world.map = mapOf(id as never);
     world.avatars.clear();
+  }
+
+  /** Seats `n` made-up raiders at the war desks (screenshots and measuring a full dungeon); the next real list undoes it. */
+  debugRaiders(n: number): void {
+    const look = world.avatars.get(world.selfId)?.info.look;
+    if (!look) return;
+    const top = Array.from({ length: n }, (_, i) => ({
+      id: -1000 - i,
+      name: `raider${i + 1}`,
+      look: { ...look, hair: i % 8, outfit: i % 12, skin: i % 5 },
+      agents: 1 + (i % 6),
+      burn: 1e5 * (1 + (i % 7)) * (i % 3 === 0 ? 0 : 1),
+    }));
+    setRaiders({ top, more: 0 });
   }
 
   /** Counts of what is on the GPU now (see `__r3d.gpu()` in the console). */

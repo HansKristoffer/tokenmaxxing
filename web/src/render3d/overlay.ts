@@ -10,6 +10,15 @@ const CSS = `
 #labels3d .r3-sign { padding: 1px 6px; border-radius: 4px; background: rgba(43, 36, 51, 0.7); font-size: 11px; font-weight: 600; }
 #labels3d .r3-sign.own { background: rgba(251, 247, 239, 0.95); color: #2b2433; }
 #labels3d .r3-sign.link { pointer-events: auto; cursor: pointer; }
+#labels3d .r3-sign.gold { background: rgba(233, 183, 61, 0.95); color: #2b2433; }
+#labels3d .r3-sign.green { background: rgba(157, 255, 138, 0.9); color: #2b2433; }
+#labels3d .r3-sign.cyan { background: rgba(143, 227, 255, 0.95); color: #2b2433; }
+#labels3d .r3-sign.bubble { max-width: 190px; white-space: normal; text-align: center; padding: 3px 7px; border-radius: 6px; background: #fbf7ef; color: #2b2433; border: 2px solid #2b2433; font-weight: 500; }
+#labels3d .r3-sign.dark { background: rgba(20, 24, 34, 0.9); color: #ffd35c; }
+#labels3d .r3-sign.common { background: #7fcf6a; color: #2b2433; }
+#labels3d .r3-sign.rare { background: #5aa8ff; color: #2b2433; }
+#labels3d .r3-sign.epic { background: #b57cff; color: #2b2433; }
+#labels3d .r3-sign.legendary { background: #ffc93c; color: #2b2433; }
 #labels3d .r3-chips { display: flex; gap: 3px; }
 #labels3d .r3-chip { padding: 0 5px; border-radius: 4px; background: rgba(27, 31, 42, 0.82); font-size: 10px; line-height: 14px; pointer-events: auto; cursor: pointer; }
 #labels3d .r3-stack { display: flex; flex-direction: column; align-items: center; gap: 2px; }

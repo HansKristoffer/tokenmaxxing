@@ -15,6 +15,8 @@ interface Shown {
   text: string;
   chips: HTMLDivElement | null;
   chipsKey: string;
+  cls: string;
+  click: (() => void) | undefined;
 }
 
 /**
@@ -34,6 +36,8 @@ export class Signs {
     // The room's own fixed signs, computed once; doors come from the snapshot and change with it.
     if (this.listed?.view !== view) this.listed = { view, list: view.signs() };
     const out = [...this.listed.list];
+    const more = view.liveSigns?.();
+    if (more) out.push(...more);
     for (const d of world.doors) {
       const [x, z] = view.toWorld(d.x, d.y);
       out.push({
@@ -49,7 +53,7 @@ export class Signs {
 
   private textOf(s: Sign): string | null {
     if (s.kind === "inn") return `🛏 The ${TAVERN ? "Tavern" : "Inn"}`;
-    if (s.kind === "door") return s.text ?? null;
+    if (s.kind === "door" || s.kind === "label") return s.text ?? null;
     const c = world.companies.get(s.companyId ?? -1);
     return c ? `🏢 ${c.name} · ${compact(c.todayTokens)} today` : null;
   }
@@ -69,15 +73,27 @@ export class Signs {
           el.addEventListener("click", () => hud.set({ panel: { kind: "companyCard", companyId: id } }));
         }
         if (s.own || s.kind === "company" || s.kind === "inn") el.classList.add("own");
-        e = { el, text: "", chips: null, chipsKey: "" };
+        e = { el, text: "", chips: null, chipsKey: "", cls: "", click: undefined };
         this.shown.set(s.key, e);
+        if (s.kind === "label")
+          el.addEventListener("click", () => {
+            this.shown.get(s.key)?.click?.();
+          });
+      }
+      if (s.kind === "label") {
+        const cls = [s.own ? "own" : "", s.cls ?? "", s.onClick ? "link" : ""].filter(Boolean).join(" ");
+        if (e.cls !== cls) {
+          e.cls = cls;
+          e.el.className = `label r3-sign ${cls}`.trim();
+        }
+        e.click = s.onClick;
       }
       if (e.text !== text) {
         e.text = text;
         e.el.textContent = text;
       }
       this.at.set(...s.at);
-      const on = this.overlay.place(e.el, this.at, camera);
+      const on = this.overlay.place(e.el, this.at, camera, 0, s.dy ?? 0);
       this.chips(e, s, on, camera);
     }
     for (const [key, e] of this.shown)

@@ -498,6 +498,11 @@ export class WorldRoom {
       m.userData.rigid = true;
       this.walls.push({ model: m, normal });
     }
+    // The dungeon's walls are stone (`STONE` in dungeon3d.ts), not the rooms' plaster.
+    const stone = this.id === "dungeon";
+    const wall = stone ? "#3a3446" : C.wall;
+    const top = stone ? "#1c1924" : C.wallTop;
+    const base = stone ? "#2a2533" : C.woodDark;
     for (let y = 0; y < this.D; y++)
       for (let x = 0; x < this.W; x++) {
         if (this.ch(x, y) !== "W") continue;
@@ -505,10 +510,10 @@ export class WorldRoom {
         // Interior walls and the north wall keep their height; the rest are lowered with the group.
         const tx = x + 0.5;
         const tz = y + 0.5;
-        const face = g.box([1, WALL_H, 1], y <= 1 ? C.wall : tint(C.wall, -0.03), [tx, 0, tz], 0);
+        const face = g.box([1, WALL_H, 1], y <= 1 ? wall : tint(wall, -0.03), [tx, 0, tz], 0);
         face.castShadow = true;
-        g.box([1.02, 0.1, 1.02], C.wallTop, [tx, WALL_H, tz], 0.01);
-        g.box([1.01, 0.12, 1.01], C.woodDark, [tx, 0, tz], 0.01);
+        g.box([1.02, 0.1, 1.02], top, [tx, WALL_H, tz], 0.01);
+        g.box([1.01, 0.12, 1.01], base, [tx, 0, tz], 0.01);
       }
   }
 

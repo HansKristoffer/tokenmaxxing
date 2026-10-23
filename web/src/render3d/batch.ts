@@ -29,6 +29,15 @@ interface Snapshot {
 
 const isMesh = (o: THREE.Object3D): o is THREE.Mesh => (o as THREE.Mesh).isMesh === true;
 
+/** Whether `o` or anything above it (up to `root`) is set to stay out of the batches (`userData.nobatch`): a boss, a crowd, a gate's boards. */
+function kept(o: THREE.Object3D, root: THREE.Object3D): boolean {
+  for (let p: THREE.Object3D | null = o; p; p = p.parent) {
+    if (p.userData.nobatch === true) return true;
+    if (p === root) break;
+  }
+  return false;
+}
+
 function visibleThroughout(o: THREE.Object3D, root: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o; p; p = p.parent) {
     if (!p.visible) return false;
@@ -74,7 +83,7 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
     const mat = m.material;
     if (Array.isArray(mat) || (mat as THREE.Material).transparent) return false;
     if ((m as unknown as THREE.InstancedMesh).isInstancedMesh || (m as unknown as THREE.SkinnedMesh).isSkinnedMesh) return false;
-    if (m.userData.nopick || m.userData.nobatch || o.keep?.(m)) return false;
+    if (m.userData.nopick || m.userData.nobatch || o.keep?.(m) || kept(m, root)) return false;
     return m.matrixWorld.determinant() > 0 && m.geometry.attributes.position !== undefined;
   });
   // Which of them move: a snapshot in each of the room's states.
