@@ -1,6 +1,4 @@
 import type { GameMap, MapId } from "@tokenmaxxing/core/maps.ts";
-import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
-import { POSTERS } from "@tokenmaxxing/core/posters.ts";
 import { SHOP_IDS, SHOP_ROOM, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { companyOfRoom, type RoomId } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
@@ -15,6 +13,7 @@ import { buildRoomSkin, type RoomSkin, WorldRoom } from "../demo3d/world.ts";
 import "../demo3d/world-rooms.ts";
 import { disposeObject } from "./dispose.ts";
 import { liveBasement, liveTavern } from "./live.ts";
+import { placedIn } from "./placed.ts";
 import { type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
 
 /**
@@ -119,22 +118,6 @@ function buildShop(id: RoomId, ctx: RoomCtx): RoomView {
 /** The core bot behind each shop's counter. */
 export const SHOPKEEPER_BOT: Record<(typeof SHOP_IDS)[number], number> = { furniture: -5, clothes: -6, barber: -7, pets: -8 };
 const SHOP_VIEW: Partial<Record<(typeof SHOP_IDS)[number], number>> = { furniture: 11, clothes: 8.5, barber: 8, pets: 8.5 };
-
-const pieceChars = new Map<string, number>([...COMPANY_FURNITURE, ...POSTERS].map((p): [string, number] => [p.ch, p.w ?? 1]));
-
-/** What a company has dropped in its house, read off the map (a piece writes its character on every tile it covers). */
-export function placedIn(map: GameMap): { ch: string; x: number; y: number }[] {
-  const out: { ch: string; x: number; y: number }[] = [];
-  map.rows.forEach((row, ry) => {
-    for (let rx = 0; rx < row.length; rx++) {
-      const w = pieceChars.get(row[rx]!);
-      if (!w) continue;
-      out.push({ ch: row[rx]!, x: rx + map.x0, y: ry + map.y0 });
-      rx += w - 1;
-    }
-  });
-  return out;
-}
 
 /** The company house, with its dropped furniture and posters and the company's desk fleet and colours. */
 function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {

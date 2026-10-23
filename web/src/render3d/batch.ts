@@ -113,8 +113,12 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
     for (const m of list) {
       const src = m.geometry;
       const g = src.index ? src.toNonIndexed() : src.clone();
-      for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal" && name !== "uv") g.deleteAttribute(name);
+      // The vertex colours stay when the material reads them (the voxel people's bodies are painted that way).
+      const colours = (m.material as THREE.MeshStandardMaterial).vertexColors === true;
+      for (const name of Object.keys(g.attributes))
+        if (name !== "position" && name !== "normal" && name !== "uv" && !(colours && name === "color")) g.deleteAttribute(name);
       const n = g.attributes.position!.count;
+      if (colours && !g.attributes.color) g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3));
       if (!g.attributes.normal) g.computeVertexNormals();
       if (!g.attributes.uv) g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(n * 2), 2));
       g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverse, m.matrixWorld));

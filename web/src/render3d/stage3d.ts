@@ -85,7 +85,9 @@ export class RoomStage {
     const t0 = performance.now();
     seeThrough(view.group);
     this.timing.see = performance.now() - t0;
-    this.batch(hooks);
+    const opened = performance.getEntriesByType("navigation")[0]?.name ?? "";
+    if (!opened.includes("nobatch")) this.batch(hooks);
+    else if (!opened.includes("noblock")) blockify(view.group);
     this.timing.total = performance.now() - t0;
   }
 

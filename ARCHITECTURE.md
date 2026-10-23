@@ -797,8 +797,21 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
   (`seethrough.ts`). `dispose.ts` frees a room's geometries, materials and textures (kit-shared ones are marked
   `userData.shared` and left alone). `window.__r3d` has `gpu()`, `stats` and `cycle(n)`; opening the game with
   `?r3dcheck` builds and frees every room four times and logs whether `renderer.info` moved. Not drawn in 3D yet: the
-  game tables and arenas, the raid and dungeon, the street's events (cop's siren, picnic, race), the Tavern's and
-  basement's own pieces and the shops: those rooms use the generic view until they are built from the core maps.
+  game tables and arenas, the raid and dungeon (the dungeon uses the demo's tile-by-tile room), the street's events
+  (cop's siren, picnic, race).
+  The demo's hand-built rooms are the game's: `room-skin.ts` builds the Tavern, dorm, basement, the four shops and the
+  company house from the core map of the room you are in (`buildRoomSkin`, the demo's `world-rooms.ts` skins; the
+  slices register at load with `loadSlices`), `room-furnished.ts` builds an Office or a company's common room as a
+  `Room` with every dropped piece placed from its map character and the owner's wallpaper and floor, and `room-town.ts`
+  draws the town from the core `townMap` (`demo3d/data/town.ts` wraps it, so the storefronts `Ħ` and their door tiles
+  are where the game has them). A room's `keepers` are bots whose bodies it draws itself (Bent, the four shopkeepers:
+  `entities.ts` leaves theirs out). `live.ts` puts the game's data on the boards: the bar tab, plaques, easel and jukebox
+  (`game/regulars.ts askRegulars`), the basement's livestream screen, tournament board and terminals.
+  Shops: `installShops(world)` mounts the buy panel; the renderer is its `ShopWorld` (a try-on is `Entities.previewLook`,
+  a shelf is picked by the pointer or E on its tile via `viewHooks.shop`, a bought piece for the Office is placed with
+  `placer.ts`: a ghost follows the pointer, a click walks you up to the tile, faces it and drops it with the Bag's
+  `town.drop`, and the wallpaper and floor rebuild the Office from its map). Graphics go through perf's
+  `applyGraphics(pipe, settings)`; Medium builds with `setGeometryDetail(0)` (a tier change rebuilds the rooms).
 - Every sprite is a palette-string grid baked into a canvas at runtime (`web/src/art/`), so there are no image
   assets.
 - Chat has quick replies above it: emoji and startup one-liners, sent with one click. A line made only of
