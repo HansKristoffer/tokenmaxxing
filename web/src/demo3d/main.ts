@@ -20,6 +20,7 @@ import { car } from "./props.ts";
 import { loadSlices } from "./registry.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
 import "./tiles.ts";
+import "./collapsible.ts";
 import { buildDormRoom, buildTavernRoom, type DormRoom, setBarTab, setPlaque, setTavernNight, type TavernRoom } from "./tavern3d.ts";
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
 import type { Town3d } from "./town3d.ts";
