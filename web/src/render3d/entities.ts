@@ -282,6 +282,8 @@ export class Entities {
     else if (pose === "sit" || pose === "type") y = seatKind ? view.seatY(a.x, a.y, seatKind) : 0.04;
     y += hop;
     let yawTarget = YAW[lap?.facing ?? a.facing];
+    // A sitter faces where their seat is turned (the server only says "up" for a chair and "down" for the rest).
+    if (pose === "sit" && !lying) yawTarget = view.seatYaw?.(a.x, a.y) ?? yawTarget;
     if (lying) yawTarget = 0;
     r.yaw = turnToward(r.yaw, yawTarget, dt, 70);
 

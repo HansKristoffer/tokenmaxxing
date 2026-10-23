@@ -68,6 +68,8 @@ export interface RoomView {
   toTile(x: number, z: number): [number, number];
   /** How high a seat or bed on this tile is. */
   seatY(tx: number, ty: number, kind: string): number;
+  /** Which way a sitter on this tile faces (a yaw), as the seat piece is turned; null where the room can't say. */
+  seatYaw?(tx: number, ty: number): number | null;
   /** Once a frame: the clock `t` (s), `dt` (s) and the direction from the room to the camera. */
   tick(t: number, dt: number, toward: THREE.Vector3): void;
   /** Once a frame, after the people are placed: the real game's events in the room (the merchant, the picnic, the tip jar...). */

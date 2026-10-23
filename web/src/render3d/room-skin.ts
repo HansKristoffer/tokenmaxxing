@@ -54,6 +54,25 @@ const BARKEEP_BOT = -4;
 
 const kindOf = (id: string): string => (id.includes(":") ? id.slice(0, id.indexOf(":")) : id);
 
+/**
+ * Which way each seat of a room is turned (a yaw), by the middle of its tile in the view's units. The server only
+ * knows a chair as "up" and a bench as "down"; the pieces are turned to the table or the bar, and a sitter should
+ * face where their seat does.
+ */
+function seatYaws(group: THREE.Group, extra: unknown): { x: number; z: number; yaw: number }[] {
+  const room = (extra as { room?: unknown } | null)?.room;
+  if (!(room instanceof Room)) return [];
+  group.updateMatrixWorld(true);
+  const origin = group.getWorldPosition(new THREE.Vector3());
+  const out: { x: number; z: number; yaw: number }[] = [];
+  for (const p of room.placed) {
+    if (!p.asset.seat) continue;
+    const seat = room.seatOf(p);
+    if (seat) out.push({ x: seat.at.x - origin.x, z: seat.at.z - origin.z, yaw: seat.turn });
+  }
+  return out;
+}
+
 /** The room as a `RoomView`: the world room's group, its walls that lower, and the tick functions it registered. */
 export function viewOf(
   id: string,
@@ -67,6 +86,7 @@ export function viewOf(
   const D = map.height;
   const group = new THREE.Group();
   group.add(room.group);
+  let yaws: ReturnType<typeof seatYaws> | null = null;
   // The static batching of the renderer's stage does the merging; the demo's own flag would batch twice.
   room.group.userData.bake = false;
   return {
@@ -83,6 +103,21 @@ export function viewOf(
     toWorld: (tx, ty) => [tx - map.x0 + 0.5, ty - map.y0 + 0.5],
     toTile: (x, z) => [Math.floor(x) + map.x0, Math.floor(z) + map.y0],
     seatY: (_x, _y, kind) => SEAT_Y[kind] ?? 0.33,
+    seatYaw(tx, ty) {
+      yaws ??= seatYaws(group, parts.extra);
+      const x = tx - map.x0 + 0.5;
+      const z = ty - map.y0 + 0.5;
+      let best: number | null = null;
+      let bestD = 0.6;
+      for (const s of yaws) {
+        const d = Math.hypot(s.x - x, s.z - z);
+        if (d < bestD) {
+          bestD = d;
+          best = s.yaw;
+        }
+      }
+      return best;
+    },
     tick(t, _dt, toward) {
       for (const f of ticks) f(t);
       parts.live?.(t);
