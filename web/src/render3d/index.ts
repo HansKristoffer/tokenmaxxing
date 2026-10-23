@@ -20,6 +20,7 @@ import { conn, refreshMe, town } from "../net.ts";
 import type { GraphicsSettings } from "../settings/graphics.ts";
 import { hud } from "../store.ts";
 import { gpuNow } from "./dispose.ts";
+import { tagCap } from "./declutter.ts";
 import { Drops } from "./drops.ts";
 import { Entities } from "./entities.ts";
 import { keyDirection } from "./motion.ts";
@@ -405,6 +406,7 @@ class Renderer3D implements Renderer {
     this.settings = s;
     this.entities.calm = s.reduceMotion;
     this.entities.maxBursts = burstCap(s.weather);
+    this.entities.maxTags = tagCap(s.tier);
     applyGraphics(this.pipe, s);
     // Medium builds lean rooms (plain boxes, fewer segments); a change of tier rebuilds what is built.
     const detail = s.tier === "medium" ? 0 : 1;

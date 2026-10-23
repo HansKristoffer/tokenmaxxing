@@ -44,6 +44,9 @@ export class Overlay {
   private readonly v = new THREE.Vector3();
   width = 1;
   height = 1;
+  /** Where `place` last put an element, in CSS pixels. */
+  px = 0;
+  py = 0;
   private fadeTo = 0;
   private fadeNow = 0;
 
@@ -92,8 +95,15 @@ export class Overlay {
       return false;
     }
     if (el.style.display === "none") el.style.display = "";
+    this.px = x;
+    this.py = y;
     el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
     return true;
+  }
+
+  /** Moves an element placed this frame to another screen point (a label lifted off the ones below). */
+  lift(el: HTMLElement, x: number, y: number): void {
+    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
   }
 
   /** The screen point of a world position, in CSS pixels. */

@@ -19,6 +19,7 @@ import { CopGear } from "./cop3d.ts";
 import { disposeObject } from "./dispose.ts";
 import { STOOL_Y, seatPose } from "./gamefx.ts";
 import { approach, hopHeight, poseOf, turnToward, YAW } from "./motion.ts";
+import { declutterTags } from "./declutter.ts";
 import { Burst, type Overlay } from "./overlay.ts";
 import type { RoomView } from "./rooms.ts";
 import { CopWatch, ShowcaseCache } from "./world-logic.ts";
@@ -57,6 +58,17 @@ interface Rig {
   stack: HTMLDivElement;
   tag: HTMLElement | null;
   tagKey: string;
+  /** The tag is on screen this frame. */
+  tagOn: boolean;
+  // The name-tag pass (declutter.ts)
+  tx: number;
+  ty: number;
+  tdist: number;
+  tshift: number;
+  talpha: number;
+  thide: boolean;
+  /** What the tag shows now, so unchanged frames write nothing. */
+  tagShown: { hide: boolean; alpha: number };
   bubble: HTMLDivElement;
   bubbleText: string;
   pills: { polse: HTMLDivElement; game: HTMLDivElement; work: HTMLDivElement; zzz: HTMLDivElement };
@@ -79,6 +91,9 @@ export class Entities {
   calm = false;
   /** Most emoji bursts at once, from the tier (each is ten DOM nodes). */
   maxBursts = 10;
+  /** Most name tags at once, from the tier. */
+  maxTags = 12;
+  private readonly tagged: Rig[] = [];
   private bursts = 0;
   /** Bots whose bodies the room draws itself. */
   private keepers: ReadonlySet<number> = new Set();
@@ -177,6 +192,14 @@ export class Entities {
       stack,
       tag: null,
       tagKey: "",
+      tagOn: false,
+      tx: 0,
+      ty: 0,
+      tdist: 0,
+      tshift: 0,
+      talpha: 1,
+      thide: false,
+      tagShown: { hide: false, alpha: 1 },
       bubble,
       bubbleText: "",
       pills,
@@ -230,6 +253,32 @@ export class Entities {
       this.step(r, a, me, view, camera, now, dt, dtS, t);
     }
     for (const r of [...this.rigs.values()]) if (r.seen !== frame) this.remove(r);
+    this.declutter();
+  }
+
+  /** Tags that would cover each other stack up, the farthest fade, and a crowd shows only the nearest. */
+  private declutter(): void {
+    const tagged = this.tagged;
+    let n = 0;
+    for (const r of this.rigs.values()) {
+      if (r.tag && r.tagOn) tagged[n++] = r;
+    }
+    tagged.length = n;
+    declutterTags(tagged, n, this.maxTags);
+    for (const r of tagged) {
+      const tag = r.tag!;
+      const shown = r.tagShown;
+      if (shown.hide !== r.thide) {
+        shown.hide = r.thide;
+        tag.style.visibility = r.thide ? "hidden" : "";
+      }
+      const alpha = Math.round(r.talpha * 10) / 10;
+      if (shown.alpha !== alpha) {
+        shown.alpha = alpha;
+        tag.style.opacity = alpha === 1 ? "" : String(alpha);
+      }
+      if (r.tshift > 0) this.overlay.lift(r.stack, r.tx, r.ty - r.tshift);
+    }
   }
 
   private step(
@@ -351,7 +400,7 @@ export class Entities {
 
     this.pet(r, a, me, view, camera, dt, t, near);
     const close = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;
-    this.labels(r, a, camera, now, near, close, bubbleOn, pose, y);
+    this.labels(r, a, camera, now, near, close, bubbleOn, pose, y, me);
   }
 
   private pet(
@@ -446,8 +495,10 @@ export class Entities {
     bubbleOn: boolean,
     pose: string,
     y: number,
+    me: GameAvatar | undefined,
   ): void {
     const info = a.info;
+    r.tagOn = false;
     if (!near || a.warp?.out) {
       if (r.stack.style.display !== "none") r.stack.style.display = "none";
       return;
@@ -501,7 +552,12 @@ export class Entities {
     set(r.pills.zzz, resting || info.dozing ? "z" : null);
     const lift = tagLift(info.level, pose);
     this.v.set(r.x, y + lift - (pose === "sleep" ? 0 : 0) + 0.05, r.z);
-    this.overlay.place(r.stack, this.v, camera);
+    if (this.overlay.place(r.stack, this.v, camera) && r.tag) {
+      r.tagOn = true;
+      r.tx = this.overlay.px;
+      r.ty = this.overlay.py;
+      r.tdist = me ? Math.hypot(a.x - me.x, a.y - me.y) : 0;
+    }
 
     // Emoji-only lines burst round the head instead of showing a bubble.
     if (a.burst && now - a.burst.at < BURST_MS) {
