@@ -25,10 +25,29 @@ The game also runs in any browser; the app's window is that same page, at `/play
 | `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `quests`, `awards` (badge awards and their sweep), `hall` (the Hall of Fame), `card` (bios, showcase, habits, the Tavern's minutes), `sync` (pushes to `world`) |
 | `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (one Open-Meteo fetch per 15 min, for the `world` actor), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
-| `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels) |
+| `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels), `render3d/` (the 3D renderer), `demo3d/` (the 3D demo and the builders the game reuses), `settings/` (graphics tiers, detection, governor) |
 | `app/helper/` | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar |
 | `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, updates |
 | `site/` | The marketing site at `/` (Astro, static): `bun run site:dev` to work on it, `bun run site:build` before serving it |
+
+## 3D and graphics: where to look
+
+The game draws through a `Renderer`; on Medium and up that is a Three.js voxel renderer built on the standalone 3D demo.
+
+| Topic | Where |
+|---|---|
+| Graphics tiers (Low / Medium / High / Ultra, Auto), overrides, saved settings | `web/src/settings/graphics.ts`; hardware detection `detect.ts` and its pure scoring `score.ts` (Auto never picks Ultra: it is opt-in, and a laptop saving power is biased to Medium); the FPS governor `governor.ts`; the Graphics panel `web/src/hud/Graphics.tsx`. See "The client" and "3D performance" below |
+| The `Renderer` interface | `web/src/game/renderer.ts` (`Renderer2D` wraps `render.ts`; `render3d/index.ts` `create3D()` is loaded on demand). `game/stage.ts` runs the loop and swaps them |
+| The 3D architecture | `web/src/render3d/` (rooms registry `rooms.ts`, entities, camera `rig.ts`, overlay labels, shops, live data), reusing the demo's builders in `web/src/demo3d/`. Described in "The client" |
+| The camera and the HUD | `rig.ts` centres the player and the room's framing in the area the HUD leaves free: `game/inset.ts` measures the HUD panels' real rects (resize, panel open and close) into `hudInset`, and `CameraRig.setInsets` eases the picture there. On a phone (`useNarrow`, under 700 px wide or 500 px high) chat, map and corner cards fold into a tray of icons |
+| Name tags in a crowd | `render3d/declutter.ts`: nearest keep their place, the next stack up, the rest hide, farther ones fade, capped by tier (`tagCap`); no per-frame allocation |
+| Perf budgets and how to profile | "3D performance" below: `web/src/render3d/perf/budgets.ts` (checked by `web/test/perf-budget.test.ts`), `scripts/perf-harness.mjs`, `scripts/perf/*`, `perf-results/REPORT.md` |
+| The shops and `ShopBackend` | "The physical shops (ShopBackend)" and "The shops" below. The pet shop builds in slices as you near its door (`warmShop` in `demo3d/shops/index.ts`, `render3d/warm.ts`) so entering it does not hitch a frame |
+| The common room | "The common room" below (`core/src/common.ts`, `render3d/room-furnished.ts`) |
+| The demo | `bun run demo:3d` serves `web/demo3d.html` on :4477: every room, shop, gear and the pipeline with its own panels, on a localStorage purse. The game reuses its builders, so a change there shows in the game |
+| Concept art | `web/concept.html` (`web/src/demo3d/concept/`, stills in `media/concept/`, note in `CONCEPT.md`): a "vertical town" concept rendered by the demo's engine. It is art direction, not shipped in the game |
+| Manual QA of the real game | `scripts/qa/*.mjs` drive it headless with Playwright against a local server (`bun run qa:tour`, `qa:sleep`, `qa:hitch`; others run with `bun scripts/qa/<name>.mjs [tier]`). Set `localStorage["tokenmaxxing.qa"] = "1"` for the `window.__tm` handle (`game/qa.ts`) |
+| Blocked storage | Everything in `web/src` reads and writes `localStorage` through `web/src/storage.ts`, which falls back to memory (private mode, blocked cookies) instead of throwing |
 
 ## Serving
 
@@ -872,7 +891,7 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   Models nobody animates (display pets) freeze after half a second. Past `crowd` people nearest the middle of the picture (8 / 16
   / 32 on Medium / High / Ultra) the rest are drawn frozen even while they walk, as are people under 20 px tall. Animation of
   anyone outside the camera's frustum is skipped (`view.sees`).
-- *Shadows*. Medium has none, a soft disc under each person and pet instead (`blob`, one instanced draw). High and Ultra draw
+- *Shadows*. Medium has none, a soft disc under each person and pet instead (`blob`, one instanced draw; the raid's minions have their own instanced discs in `minions.ts`). High and Ultra draw
   the room's static casters **once** into a big map (2K/4K) and again only when a room is re-batched, a caster stops or starts
   travelling, or the sun has moved (`last.staticBakes` counts it); people, pets and walls that lower go into a small second map
   (1K) every frame or two. Two shadow-casting directional lights, the second at intensity 0, and a patched
@@ -895,7 +914,7 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   demand). `preload(id)` / `preloadNeighbours(id)` build a door's room when the browser is idle. `loadSlices(rooms)` imports only
   the slices a set of rooms needs. The town's shop storefronts share a module with their interiors, so the shops ride with the town.
 - *Tiers* (`tiers.ts`, `applyGraphics(pipe, settings)`): Medium is the classic look at 0.75 scale with silhouette lines, blob shadows,
-  no AO, plain geometry, 1024 px textures; High has AO (10 taps, half size), haze, grade, a 2K baked shadow map; Ultra adds
+  no AO, plain geometry, 1024 px textures; High has AO (10 taps, half size), haze, grade, a 2K baked shadow map; Ultra (opt-in, never chosen by Auto) adds
   tilt-shift, 4x MSAA, a 4K map, 20 AO taps. Device pixel ratio times scale is capped at 2. Fps caps, idle and battery
   throttling and the governor live in `game/stage.ts` / `settings/governor.ts`.
 

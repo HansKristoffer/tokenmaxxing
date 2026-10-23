@@ -45,7 +45,9 @@
     "site:dev": "bun run --cwd site dev",
     "site:build": "bun run --cwd site build",
     "demo:3d": "bun --port=4477 web/demo3d.html",
-    "qa:tour": "bun scripts/qa/tour.mjs"
+    "qa:tour": "bun scripts/qa/tour.mjs",
+    "qa:sleep": "bun scripts/qa/sleep.mjs",
+    "qa:hitch": "bun scripts/qa/hitch.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
