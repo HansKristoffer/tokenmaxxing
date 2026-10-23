@@ -61,11 +61,36 @@ const cache = new Map<ShopId, ShopRoom>();
 /** Drops the kept room, so the next `shopRoom` builds a fresh one (the real game frees a room when you leave it). */
 export const forgetShopRoom = (id: ShopId): void => void cache.delete(id);
 
+/** Interiors being built ahead, a slice at a time (`warmShop`), and those finished and waiting for the player to walk in. */
+const warming = new Map<ShopId, Generator<void, ReturnType<ShopSpec["buildInterior"]>, void>>();
+const warmed = new Map<ShopId, ReturnType<ShopSpec["buildInterior"]>>();
+
+/**
+ * Builds a bit of the shop's interior ahead of the player walking in (one slice per call), when its spec can
+ * be sliced. True when there is nothing more to do: it is ready, or can only be built whole.
+ */
+export function warmShop(id: ShopId): boolean {
+  const spec = SHOP_SPECS[id];
+  if (!spec.slices || warmed.has(id)) return true;
+  let g = warming.get(id);
+  if (!g) warming.set(id, (g = spec.slices()));
+  const step = g.next();
+  if (step.done) {
+    warming.delete(id);
+    warmed.set(id, step.value);
+    return true;
+  }
+  return false;
+}
+
 export function shopRoom(id: ShopId): ShopRoom {
   let s = cache.get(id);
   if (s) return s;
   const spec = SHOP_SPECS[id];
-  const built = spec.buildInterior() as unknown as Omit<ReturnType<ShopSpec["buildInterior"]>, "displays"> & {
+  const ahead = warmed.get(id);
+  warmed.delete(id);
+  warming.delete(id);
+  const built = (ahead ?? spec.buildInterior()) as unknown as Omit<ReturnType<ShopSpec["buildInterior"]>, "displays"> & {
     displays: { item: ShopItem; at: [number, number]; world?: [number, number, number] }[];
   };
   const { room } = built;

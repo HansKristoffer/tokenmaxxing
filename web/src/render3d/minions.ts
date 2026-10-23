@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { buildMinion } from "../demo3d/bossvox.ts";
+import { graphics } from "../settings/graphics.ts";
 
 /**
  * The raid's robot minions, as a few instanced draws: the demo's voxel robot (a dozen meshes, each its own draw call
@@ -54,8 +55,37 @@ function pose(t: number): { pose: Pose; solid: THREE.Material | null; glow: THRE
 const IDLE_T = 0.63;
 const FIRE_T = 0.2;
 
+/** Where no shadow map runs (Medium, or shadows off) each minion gets a soft disc on the floor, in one instanced draw. */
+function blobDiscs(max: number): THREE.InstancedMesh {
+  const c = document.createElement("canvas");
+  c.width = c.height = 32;
+  const g = c.getContext("2d")!;
+  const grad = g.createRadialGradient(16, 16, 2, 16, 16, 16);
+  grad.addColorStop(0, "rgba(0,0,0,0.55)");
+  grad.addColorStop(0.6, "rgba(0,0,0,0.28)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 32, 32);
+  const mat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false });
+  const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), mat, Math.max(1, max));
+  mesh.count = 0;
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 1;
+  mesh.userData.live = true;
+  mesh.userData.nopick = true;
+  mesh.userData.nobatch = true;
+  mesh.userData.noBake = true;
+  return mesh;
+}
+
+const BLOB_RADIUS = 0.34;
+
 export class Minions {
   readonly group = new THREE.Group();
+  private readonly blob: THREE.InstancedMesh;
+  private blobs = 0;
+  private seen: unknown = null;
+  private blobOn = false;
   private readonly meshes: THREE.InstancedMesh[][] = [[], []];
   private readonly counts = [0, 0];
   private readonly m = new THREE.Matrix4();
@@ -66,6 +96,8 @@ export class Minions {
 
   constructor(readonly max: number) {
     this.group.userData.live = true;
+    this.blob = blobDiscs(max);
+    this.group.add(this.blob);
     const idle = pose(IDLE_T);
     const fire = pose(FIRE_T);
     [idle, fire].forEach((v, i) => {
@@ -89,6 +121,7 @@ export class Minions {
 
   begin(): void {
     this.counts[0] = this.counts[1] = 0;
+    this.blobs = 0;
   }
 
   /** A minion standing at (x, z) facing `yaw`, `scale` times the robot's size; `firing` raises the blaster. `bob` lifts it. */
@@ -99,9 +132,24 @@ export class Minions {
     this.counts[k] = i + 1;
     this.m.compose(this.p.set(x, bob, z), this.q.setFromEuler(this.e.set(0, yaw, 0)), this.s.setScalar(scale));
     for (const mesh of this.meshes[k]!) mesh.setMatrixAt(i, this.m);
+    if (this.blobs < this.max) {
+      const d = BLOB_RADIUS * 2 * scale;
+      this.blob.setMatrixAt(this.blobs++, this.m.compose(this.p.set(x, 0.03, z), this.q.identity(), this.s.set(d, d, d)));
+    }
   }
 
   end(): void {
+    // Only without a shadow map: with one, the robots cast their own.
+    const st = graphics.get();
+    if (st !== this.seen) {
+      this.seen = st;
+      const g = graphics.effective();
+      this.blobOn = g.tier === "medium" || g.tier === "low" || g.shadows === "off";
+    }
+    const on = this.blobOn;
+    this.blob.count = on ? this.blobs : 0;
+    this.blob.visible = on && this.blobs > 0;
+    this.blob.instanceMatrix.needsUpdate = on;
     for (const k of [0, 1])
       for (const mesh of this.meshes[k]!) {
         mesh.count = this.counts[k]!;

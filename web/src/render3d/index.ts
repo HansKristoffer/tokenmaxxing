@@ -38,6 +38,7 @@ import "./room-town.ts";
 import { Signs } from "./signs.ts";
 import { lightPipeline, RoomStage } from "./stage3d.ts";
 import { signature as trophySignature, watchShelf } from "./trophies3d.ts";
+import { warmNearShops } from "./warm.ts";
 import { burstCap } from "./world-logic.ts";
 
 /**
@@ -316,6 +317,8 @@ class Renderer3D implements Renderer {
     if (this.rig.panned() && me && this.selfAt && Math.hypot(me[0] - this.selfAt[0], me[1] - this.selfAt[1]) > 0.7)
       this.rig.easePan(dt);
     if (!this.rig.panned() || !this.selfAt) this.selfAt = me ? [me[0], me[1]] : null;
+    const mine = world.avatars.get(world.selfId);
+    if (mine && world.room === "town" && !world.portalPending) warmNearShops(world.map, mine.x, mine.y);
     if (this.insetSeen !== hudInset.version) {
       this.insetSeen = hudInset.version;
       this.applyInsets();

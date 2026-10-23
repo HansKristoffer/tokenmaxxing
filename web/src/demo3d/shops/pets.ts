@@ -64,6 +64,7 @@ interface ShopSpec {
     counter: [number, number];
     door: [number, number];
   };
+  slices?: () => Generator<void, Interior, void>;
 }
 
 // MARK: The catalog
@@ -388,7 +389,10 @@ function petsExterior(): Model {
 const W = 18;
 const D = 12;
 
-function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
+type Interior = ReturnType<ShopSpec["buildInterior"]>;
+
+/** The shop is built in slices (a yield between the big pieces), so the renderer can build it a bit per frame as the player nears the door. */
+function* interiorSlices(): Generator<void, Interior, void> {
   const room = new Room(W, D, { floor: "#d6a873", wall: "#f7e5cd", stripe: "#eed3b6", bare: true });
   const displays: { item: ShopItem; at: [number, number] }[] = [];
   /** Places `model` on its footprint and files its `reg`istered items under the tiles they stand on. */
@@ -422,16 +426,21 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   put("pets:dogs-a", "Dog pen", 2, 2, 5, 3, (reg) =>
     petPen({ w: 5, d: 3, entries: dogs.slice(0, 7), reg, title: "DOGS", sub: "14 breeds, one price", accent: "#4f8fe0", cols: 4, seed: 1 }),
   );
+  yield;
   put("pets:dogs-b", "Dog pen", 7, 2, 5, 3, (reg) =>
     petPen({ w: 5, d: 3, entries: dogs.slice(7), reg, title: "MORE DOGS", sub: "all with the Dog", accent: "#4f8fe0", cols: 4, seed: 2 }),
   );
+  yield;
   put("pets:ducks", "Duck pen", 13, 2, 5, 3, (reg) =>
     petPen({ w: 5, d: 3, entries: entries("pet.1"), reg, title: "DUCKS", sub: "7 looks, pond included", accent: "#e0a82e", cols: 4, seed: 3, pond: true, floor: ["#9bcf6a", "#7ab04a"] }),
   );
+  yield;
   put("pets:pandas", "Panda pen", 13, 5, 5, 3, (reg) =>
     petPen({ w: 5, d: 3, entries: entries("pet.5"), reg, title: "PANDAS", sub: "bamboo on the house", accent: "#58b36a", cols: 3, seed: 4, bamboo: true, floor: ["#a5d977", "#86c35e"] }),
   );
+  yield;
   put("pets:fish", "Goldfish tank", 0, 2, 4, 1, () => fishTank(), 1);
+  yield;
   // The counter, the crown and the orb.
   put("pets:counter", "Counter", 7, 8, 5, 1, () => counter());
   put("pets:crown", "Crown pedestal", 6, 8, 1, 1, (reg) => {
@@ -455,6 +464,7 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
       "#9b6fd6",
     );
   });
+  yield;
   // Toys, treats and food on the west wall; bowls and beds on the floor.
   put("pets:toys", "Toy shelf", 0, 7, 3, 1, () => toyShelf(), 1);
   for (const [x, kind] of [
@@ -471,6 +481,7 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
       m.add(a, b);
       return m;
     });
+  yield;
   [
     [2, 9, "cat", "witch"],
     [3, 9, "dog", "corgi"],
@@ -486,9 +497,11 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     room.group.add(sleeper.root);
     animate(sleeper, (x as number) * 3, "sleep");
   });
+  yield;
   // The way out.
   room.place({ id: "pets:door", name: "Exit door", price: 0, w: 1, d: 1, build: exitDoor }, 15, 11, 2);
 
+  yield;
   // The wall: a lit sign over the dragons, pennants, framed photos.
   const sign = panel(
     5.6,
@@ -516,11 +529,20 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     f.position.set(x, 2.33 + Math.sin(i * 0.5) * 0.04 * 0, 0.12);
     room.group.add(f);
   }
+  yield;
   const keeper = makeKeeper();
   keeper.root.position.set(9.5, 0.02, 7.1);
   room.group.add(keeper.root);
 
   return { room, displays, shopkeeper: keeper, counter: [9, 8], door: [15, 11] };
+}
+
+function buildInterior(): Interior {
+  const slices = interiorSlices();
+  for (;;) {
+    const step = slices.next();
+    if (step.done) return step.value;
+  }
 }
 
 export const SHOP_PETS: ShopSpec = {
@@ -531,4 +553,5 @@ export const SHOP_PETS: ShopSpec = {
   exterior: petsExterior,
   footprint: { w: 5, d: 4 },
   buildInterior,
+  slices: interiorSlices,
 };

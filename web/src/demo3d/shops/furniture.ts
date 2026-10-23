@@ -68,6 +68,8 @@ export interface ShopSpec {
     counter: [number, number];
     door: [number, number];
   };
+  /** The same interior built in slices (a yield between pieces), for shops heavy enough to hitch a frame. */
+  slices?: () => Generator<void, ReturnType<ShopSpec["buildInterior"]>, void>;
 }
 
 /** How far the room sits in the world grid: two wall rows on top, one column on the left. */
