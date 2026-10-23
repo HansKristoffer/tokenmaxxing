@@ -324,7 +324,10 @@ const cache = new Map<string, Texture>();
 const cached = (kind: string, look: Look<Texture>) => {
   const key = `${kind}.${look.id}`;
   let t = cache.get(key);
-  if (!t) cache.set(key, (t = look.texture()));
+  if (!t) {
+    t = look.texture();
+    cache.set(key, t);
+  }
   return t;
 };
 

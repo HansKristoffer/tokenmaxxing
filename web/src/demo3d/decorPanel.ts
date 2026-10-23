@@ -1,5 +1,5 @@
 /** A minimal Decorate control for the demo: pick a wallpaper, a floor and an office level, live. */
-import * as THREE from "three";
+import type * as THREE from "three";
 import { applyDecor, FLOORS, officeSize, WALLPAPERS } from "./decor3d.ts";
 import type { Room } from "./room.ts";
 

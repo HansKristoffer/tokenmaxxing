@@ -40,6 +40,8 @@ export interface TileOpts {
   walk?: boolean;
   /** Turn the model to face the room when the tile is in an edge wall (default true). */
   face?: boolean;
+  /** Only in these rooms: the same character means different things in different maps (`M` is the basement's wall terminal and the dungeon's). */
+  rooms?: readonly MapId[];
 }
 interface TileEntry {
   build: TileBuilder;
@@ -56,12 +58,16 @@ const tiles = new Map<string, TileEntry>();
  * (a sofa of three tiles) is scaled to fit.
  */
 export function registerTile(ch: string, src: Asset | TileBuilder, opts: TileOpts = {}): void {
+  const keys = opts.rooms?.length ? opts.rooms.map((r) => `${r}:${ch}`) : [ch];
+  const set = (e: TileEntry) => {
+    for (const k of keys) tiles.set(k, e);
+  };
   if (typeof src === "function") {
-    tiles.set(ch, { build: src, block: opts.block ?? [1, 1], walk: opts.walk, face: opts.face ?? true });
+    set({ build: src, block: opts.block ?? [1, 1], walk: opts.walk, face: opts.face ?? true });
     return;
   }
   const block = opts.block ?? [src.w, src.d];
-  tiles.set(ch, {
+  set({
     block,
     walk: opts.walk,
     face: opts.face ?? true,
@@ -79,9 +85,34 @@ export function hasTile(ch: string): boolean {
   return tiles.has(ch);
 }
 
+/** The entry for a character in a room: the room's own registration first, else the general one. */
+const tileFor = (room: MapId, ch: string): TileEntry | undefined => tiles.get(`${room}:${ch}`) ?? tiles.get(ch);
+
 /** Registers every `tile:<ch>` asset of a slice's `*_ASSETS` list. Other assets are left to the catalogue. */
-export function registerTileAssets(list: readonly Asset[]): void {
-  for (const a of list) if (a.id.startsWith("tile:")) registerTile(a.id.slice(5), a);
+export function registerTileAssets(list: readonly Asset[], rooms?: readonly MapId[]): void {
+  for (const a of list) if (/^tile:[^:.]$/u.test(a.id)) registerTile(a.id.slice(5), a, { rooms });
+}
+
+// MARK: Hand-built rooms
+
+/**
+ * A room drawn by a slice instead of tile by tile (the town, the hq, the Tavern...). The room's map still
+ * says where you can walk and where the doors are; the skin only supplies the picture. `offset` is where
+ * the skin's own (0, 0) sits on the map's tile grid, in tiles.
+ */
+export interface RoomSkin {
+  group: THREE.Object3D;
+  offset: [number, number];
+  /** Called every frame with the view from the room to the camera (to lower walls). */
+  facing?: (view: THREE.Vector3) => void;
+  /** A map of its own (the town's, which has the arcade written in). */
+  map?: GameMap;
+  /** Whatever else the slice wants to hand the integrator (models to hook, actors...). */
+  extra?: unknown;
+}
+const skins = new Map<MapId, () => RoomSkin>();
+export function registerRoomSkin(id: MapId, build: () => RoomSkin): void {
+  skins.set(id, build);
 }
 
 // MARK: Maps
@@ -262,16 +293,36 @@ export class WorldRoom {
   /** Walls that lower when the camera looks through them. */
   private readonly walls: { model: Model; normal: THREE.Vector3 }[] = [];
   private readonly wallGroups = new Map<string, Model>();
+  /** The models drawn for each tile character, for hooks (a bar tab's names, a plaque's regulars). */
+  readonly drawn = new Map<string, Model[]>();
+  readonly skin: RoomSkin | null;
 
   constructor(
     readonly id: MapId,
     readonly map: GameMap,
+    skin: RoomSkin | null = null,
   ) {
     this.W = map.width;
     this.D = map.height;
+    this.skin = skin;
+    if (skin) {
+      skin.group.position.set(skin.offset[0], 0, skin.offset[1]);
+      this.group.add(skin.group);
+      this.findPortals();
+      return;
+    }
     this.paintGround();
     this.buildWalls();
     this.buildProps();
+  }
+
+  private findPortals(): void {
+    for (let y = 0; y < this.D; y++)
+      for (let x = 0; x < this.W; x++) {
+        const ch = this.ch(x, y);
+        const link = LINKS[`${this.id}:${ch}`];
+        if (link && LEGEND[ch]?.portal) this.portals.push({ x, y, ch, to: link[0] });
+      }
   }
 
   get name(): string {
@@ -286,7 +337,7 @@ export class WorldRoom {
   /** Whether you can stand on the tile. */
   walkable(x: number, y: number): boolean {
     const ch = this.ch(x, y);
-    const own = tiles.get(ch)?.walk;
+    const own = tileFor(this.id, ch)?.walk;
     return own ?? LEGEND[ch]?.walk === true;
   }
 
@@ -345,6 +396,7 @@ export class WorldRoom {
 
   /** Lowers the walls between the camera and the room; `view` points from the room to the camera. */
   facing(view: THREE.Vector3): void {
+    this.skin?.facing?.(view);
     for (const w of this.walls) {
       const front = w.normal.lengthSq() > 0 && w.normal.dot(view) < -0.01;
       const target = front ? 0.06 : 1;
@@ -457,7 +509,7 @@ export class WorldRoom {
         const ch = this.ch(x, y);
         const link = LINKS[`${this.id}:${ch}`];
         if (link && LEGEND[ch]?.portal) this.portals.push({ x, y, ch, to: link[0] });
-        const entry = tiles.get(ch);
+        const entry = tileFor(this.id, ch);
         const kind = LEGEND[ch];
         if (!entry && (GROUND.has(ch) || !kind)) continue;
         const [bw, bd] = entry?.block ?? [1, 1];
@@ -482,6 +534,7 @@ export class WorldRoom {
           model.rotation.y = { n: 0, s: Math.PI, w: Math.PI / 2, e: -Math.PI / 2 }[edge];
         // Things in an edge wall lower with it when the camera looks through.
         (edge ? this.wallGroups.get(edge)! : this.group).add(model);
+        this.drawn.set(ch, [...(this.drawn.get(ch) ?? []), model]);
       }
   }
 }
@@ -489,7 +542,7 @@ export class WorldRoom {
 // MARK: The world
 
 export class World {
-  readonly maps = worldMaps();
+  readonly maps: Record<MapId, GameMap> = worldMaps();
   private readonly built = new Map<MapId, WorldRoom>();
   /** The portal you last came through into each room, so the way back leads to the same door. */
   private readonly back = new Map<MapId, { room: MapId; x: number; y: number; ch: string }>();
@@ -497,7 +550,9 @@ export class World {
   room(id: MapId): WorldRoom {
     let r = this.built.get(id);
     if (!r) {
-      r = new WorldRoom(id, this.maps[id]);
+      const skin = skins.get(id)?.() ?? null;
+      if (skin?.map) this.maps[id] = skin.map;
+      r = new WorldRoom(id, this.maps[id], skin);
       this.built.set(id, r);
     }
     return r;

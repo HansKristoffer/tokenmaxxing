@@ -3,22 +3,28 @@
  * of the town, all built in code (`kit.ts`) and drawn as pixel art or smooth cel shading (`pipeline.ts`).
  */
 import * as THREE from "three";
+import { HAIRS, OUTFITS, SKINS } from "../art/palette.ts";
 import { Avatar, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
-import { buildBasement, dimBasement, isLanPartyAt, lanParty, setLanParty } from "./basement3d.ts";
+import { type BasementScene, buildBasement, dimBasement, isLanPartyAt, lanParty, setLanParty } from "./basement3d.ts";
+import { mountDecorPanel } from "./decorPanel.ts";
 import { buildDungeonGallery } from "./dungeon-gallery.ts";
+import { BossActor } from "./dungeon3d.ts";
 import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
 import { Fx } from "./fx3d.ts";
+import { itemAt, type Look2D, lookFrom2D, nameTag, wornBy } from "./gear3d.ts";
+import type { Hq } from "./hq3d.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
-import { buildPetGallery } from "./pets3d.ts";
+import { buildPetGallery, type Pet3D, petFrom2D } from "./pets3d.ts";
 import { Pipeline } from "./pipeline.ts";
 import { car } from "./props.ts";
 import { loadSlices } from "./registry.ts";
-import { mountDecorPanel } from "./decorPanel.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
 import "./tiles.ts";
-import { buildDormRoom, buildTavernRoom, setBarTab, setPlaque, setTavernNight } from "./tavern3d.ts";
+import { buildDormRoom, buildTavernRoom, type DormRoom, setBarTab, setPlaque, setTavernNight, type TavernRoom } from "./tavern3d.ts";
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
+import type { Town3d } from "./town3d.ts";
 import { type MapId, type Portal, ROOM_ORDER, type World, World as WorldGraph, type WorldRoom } from "./world.ts";
+import { INSET } from "./world-rooms.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
 const labelLayer = document.querySelector<HTMLDivElement>("#labels")!;
@@ -95,10 +101,12 @@ class Walker {
     look: Look,
     readonly name: string,
     level: number,
+    tagEl?: HTMLDivElement,
   ) {
     this.avatar = new Avatar(look);
     stage.scene.add(this.avatar.root);
-    this.tag = label(`${name} · Lv${level}`);
+    if (tagEl) labelLayer.append(tagEl);
+    this.tag = tagEl ?? label(`${name} · Lv${level}`);
     this.tagEntry = { el: this.tag, at: () => this.top() };
     stage.labels.push(this.tagEntry);
   }
@@ -281,7 +289,7 @@ function newStage(
 // ——— The office ———
 const office = newStage("Office", new THREE.Vector3(6, 0.6, 5), 11, 11.5, "#1b1f2a");
 const room = new Room(12, 10);
-mountDecorPanel(room, office.target);
+const officeDecor = mountDecorPanel(room, office.target);
 office.scene.add(room.group);
 const put = (id: string, x: number, z: number, turn: Turn = 0, model?: Model) =>
   room.place(assetById.get(id)!, x, z, turn, model);
@@ -487,7 +495,7 @@ catalog.update = (dt, t) => {
 // ——— The town ———
 const town = buildTown();
 const spots = town.spots;
-const townStage = newStage("Town", new THREE.Vector3(18, 0.5, 15), 24, 15, "#1b1f2a");
+const townStage = newStage("Old town", new THREE.Vector3(18, 0.5, 15), 24, 15, "#1b1f2a");
 townStage.sun.shadow.mapSize.set(4096, 4096);
 townStage.scene.add(town.group);
 const v3 = (x: number, z: number) => new THREE.Vector3(x, 0, z);
@@ -703,13 +711,199 @@ const roomParam = new URLSearchParams(location.search).get("room") as MapId | nu
 let worldRoom: MapId = roomParam && ROOM_ORDER.includes(roomParam) ? roomParam : "town";
 let worldMe: Walker | null = null;
 let fading = false;
+let night = false;
+const decorPanels = new Map<Stage, HTMLElement>();
+
+// ——— The people of the world: 2D looks dressed by gear3d, tags by nameTag, pets by pets3d ———
+const gearIdx = (slot: "hat" | "glasses" | "held" | "back") =>
+  [...Array(40).keys()].filter((i) => i > 0 && itemAt(slot, i));
+const GEAR = { hat: gearIdx("hat"), glasses: gearIdx("glasses"), held: gearIdx("held"), back: gearIdx("back") };
+/** A made-up saved look (`Look2D`): half of the people wear something from each slot. */
+function look2dOf(seed: number): Look2D {
+  const r = seeded(seed);
+  const pick = (n: number) => Math.floor(r() * n);
+  const some = (xs: number[]) => (r() < 0.5 || !xs.length ? 0 : xs[pick(xs.length)]!);
+  return {
+    style: pick(4),
+    skin: pick(SKINS.length),
+    hair: pick(HAIRS.length),
+    outfit: pick(OUTFITS.length),
+    glasses: some(GEAR.glasses),
+    hat: some(GEAR.hat),
+    held: some(GEAR.held),
+    back: some(GEAR.back),
+  };
+}
+const COMPANIES = [{ name: "Nightshift", color: "#3f7a78" }, { name: "Lumen", color: "#7a5ab8" }];
+/** Someone in the world: a `Walker` in their 2D look, under a gear3d name tag. */
+function person(s: Stage, look: Look2D, name: string, level: number, company?: { name: string; color: string }): Walker {
+  const tagEl = nameTag({ name, level, rarity: wornBy(look).rarity, company });
+  return new Walker(s, lookFrom2D(look, { level }), name, level, tagEl);
+}
+
+/** A pet (pets3d) trotting after someone, or pottering about its room. */
+class Companion {
+  readonly pet: Pet3D;
+  private readonly entry: Label;
+  private wander = new THREE.Vector3();
+  constructor(
+    public stage: Stage,
+    species: string,
+    variant: number,
+    readonly name: string,
+    readonly owner: Walker | null,
+    start: THREE.Vector3,
+    private readonly roam?: () => THREE.Vector3,
+  ) {
+    this.pet = petFrom2D(species, variant, name);
+    this.pet.root.position.copy(start);
+    this.wander.copy(start);
+    stage.scene.add(this.pet.root);
+    const el = label(name, "tag pet");
+    this.entry = { el, at: () => this.pet.root.position.clone().add(new THREE.Vector3(0, 0.55, 0)) };
+    stage.labels.push(this.entry);
+  }
+  enter(next: Stage): void {
+    if (next === this.stage) return;
+    this.stage.scene.remove(this.pet.root);
+    next.scene.add(this.pet.root);
+    const i = this.stage.labels.indexOf(this.entry);
+    if (i >= 0) this.stage.labels.splice(i, 1);
+    next.labels.push(this.entry);
+    this.entry.el.hidden = next !== stage;
+    this.stage = next;
+  }
+  update(dt: number, t: number): void {
+    const p = this.pet.root.position;
+    let goal = this.wander;
+    if (this.owner) {
+      const o = this.owner.pos;
+      const ry = this.owner.avatar.root.rotation.y;
+      goal = new THREE.Vector3(o.x - Math.sin(ry) * 0.7, 0, o.z - Math.cos(ry) * 0.7);
+    } else if (p.distanceTo(this.wander) < 0.1 && Math.random() < dt * 0.4 && this.roam) this.wander = this.roam();
+    const d = goal.clone().sub(p).setY(0);
+    const far = d.length();
+    this.pet.moving = far > (this.owner ? 0.45 : 0.05);
+    if (this.pet.moving) {
+      p.add(d.normalize().multiplyScalar(Math.min(far, dt * (this.owner ? 2.4 : 1.2))));
+      this.pet.root.rotation.y = Math.atan2(d.x, d.z);
+    }
+    this.pet.update(t);
+  }
+}
+
+let worldPet: Companion | null = null;
+let playerLook: Look2D = look2dOf(3);
+
+/** What a room needs beyond its props: patrons, sleepers, the barkeep, the boss. Returns its per-frame update. */
+function roomActors(id: MapId, r: WorldRoom, s: Stage): ((dt: number, t: number) => void) | null {
+  const at = (v: THREE.Vector3, y = v.y): [number, number, number] => [v.x + INSET[0], y, v.z + INSET[1]];
+  const sit = (look: number, name: string, p: Placed, room: Room, pose: Pose = "sit") => {
+    const w = person(s, look2dOf(look), name, 3 + (look % 9));
+    const seat = room.seatOf(p)!;
+    const [x, y, z] = at(seat.at);
+    w.at(x, z, pose, seat.turn, y - 0.02);
+    return w;
+  };
+  const ex = r.skin?.extra;
+  if (id === "inn") {
+    const inn = ex as TavernRoom;
+    setBarTab(inn.by.get("tile:J")![0]!, [["ADA", "21H"], ["NOAH", "14H"], ["SOFIE", "9.5H"], ["KAI", "6.2H"], ["MAJA", "3.0H"]], 0);
+    setPlaque(inn.by.get("tile:P")![0]!, ["ADA", "NOA", "SOF"]);
+    setPlaque(inn.by.get("tavern:plaque-2")![0]!, ["KAI", "MAJ"]);
+    const patrons = [[2, 3, "ida"], [6, 3, "theo"], [2, 6, "ellen"], [8, 6, "jonas"], [14, 9, "maja"]].map(([x, z, n], i) =>
+      sit(61 + i, n as string, inn.room.at(x as number, z as number)!, inn.room),
+    );
+    patrons[4]!.mood = "happy";
+    const tag = nameTag({ name: "Bent the Barkeep", level: 40, company: { name: "Barkeep", color: "#8a5a3a" } });
+    labelLayer.append(tag);
+    tag.hidden = true;
+    const p = new THREE.Vector3();
+    s.labels.push({ el: tag, at: () => p.setFromMatrixPosition(inn.barkeep.root.matrixWorld).setY(1.55) });
+    return (dt, t) => {
+      for (const w of patrons) w.update(dt, t);
+      inn.barkeep.update(dt, t);
+    };
+  }
+  if (id === "upstairs") {
+    const dorm = ex as DormRoom;
+    const sleepers = [0, 3, 5, 8, 11, 14].map((i) => {
+      const w = person(s, look2dOf(70 + i), NAMES[i % NAMES.length]!, 3 + i);
+      const b = dorm.room.bedOf(dorm.beds[i]!)!;
+      const [x, y, z] = at(b.at);
+      w.at(x, z, "sleep", b.turn, y);
+      return w;
+    });
+    return (dt, t) => {
+      for (const w of sleepers) w.update(dt, t);
+    };
+  }
+  if (id === "basement") {
+    const b = ex as BasementScene;
+    const sitters = [0, 3, 6, 9, 13, 17].map((ci, i) => {
+      const w = sit(i * 5 + 70, NAMES[i % NAMES.length]!, b.chairs[ci]!, b.room, "type");
+      w.mood = "focus";
+      return w;
+    });
+    return (dt, t) => {
+      b.update(dt, t);
+      for (const w of sitters) w.update(dt, t);
+    };
+  }
+  if (id === "hq") {
+    const hq = ex as Hq;
+    const workers = [0, 1, 4].map((ci, i) => {
+      const w = sit(i * 7 + 20, NAMES[(i + 4) % NAMES.length]!, hq.chairs[ci]!, hq.room, "type");
+      w.mood = "focus";
+      return w;
+    });
+    return (dt, t) => {
+      for (const w of workers) w.update(dt, t);
+    };
+  }
+  if (id === "office") {
+    // The pet sleeps in its basket.
+    const bed = r.map.find("Q")[0];
+    if (bed) {
+      const c = new Companion(s, "cat", 0, "Miso", null, new THREE.Vector3(bed[0] + 0.5, 0.1, bed[1] + 0.5));
+      c.pet.pose = "sleep";
+      return (dt, t) => c.update(dt, t);
+    }
+  }
+  if (id === "dungeon") {
+    const dais = r.drawn.get("Z")?.[0];
+    const boss = new BossActor("rate-limit", { maxHp: 2e9, hp: 1.7e9 });
+    if (dais) boss.root.position.set(dais.position.x, 0.28, dais.position.z);
+    s.scene.add(boss.root);
+    // Raiders at every other war-desk seat, typing at the boss.
+    const raiders = (r.drawn.get("r") ?? []).filter((_, i) => i % 3 === 0).map((m, i) => {
+      const w = person(s, look2dOf(300 + i), NAMES[i % NAMES.length]!, 10 + i);
+      const dx = (dais?.position.x ?? 13) - m.position.x;
+      const dz = (dais?.position.z ?? 4) - m.position.z;
+      w.at(m.position.x, m.position.z, "type", Math.atan2(dx, dz), 0.33);
+      w.mood = "focus";
+      w.quiet = true;
+      return w;
+    });
+    let nextHit = 3;
+    return (dt, t) => {
+      for (const w of raiders) w.update(dt, t);
+      if (t > nextHit) {
+        nextHit = t + 2.5 + Math.random() * 2;
+        boss.hit(2e7);
+      }
+    };
+  }
+  return null;
+}
 
 function worldStage(id: MapId): Stage {
   let s = worldStages.get(id);
   if (s) return s;
   const r = world.room(id);
   const reach = Math.max(r.W, r.D) * 0.75;
-  s = newStage(`World:${id}`, new THREE.Vector3(r.W / 2, 0.5, r.D / 2), reach, id === "town" ? 14 : 11.5, "#1b1f2a");
+  // The town's stage is "Town": the street life (`fx3d.ts`) looks for it by that name.
+  s = newStage(id === "town" ? "Town" : `World:${id}`, new THREE.Vector3(r.W / 2, 0.5, r.D / 2), reach, id === "town" ? 14 : 11.5, "#1b1f2a");
   if (reach > 14) s.sun.shadow.mapSize.set(4096, 4096);
   s.scene.add(r.group);
   worldStages.set(id, s);
@@ -720,30 +914,43 @@ function worldStage(id: MapId): Stage {
     el.hidden = true;
     s.labels.push({ el, at: () => new THREE.Vector3(p.x + 0.5, id === "town" ? 2.4 : 2.9, p.y + 0.5) });
   }
+  const actors = roomActors(id, r, s);
   // A few locals wander about.
   const folk: Walker[] = [];
-  const count = r.W * r.D > 300 ? 3 : 2;
+  const pets: Companion[] = [];
+  const count = id === "dungeon" || id === "office" ? 1 : r.W * r.D > 300 ? 4 : 2;
   const rnd = seeded(id.length * 97 + r.W);
-  for (let i = 0; i < count; i++) {
-    const w = new Walker(s, randomLook(seeded(i * 11 + r.W)), NAMES[(i * 3 + r.D) % NAMES.length]!, 3 + i);
-    w.quiet = true;
-    for (let tries = 0; tries < 50; tries++) {
+  const spot = (): [number, number] | null => {
+    for (let tries = 0; tries < 80; tries++) {
       const x = Math.floor(rnd() * r.W);
       const y = Math.floor(rnd() * r.D);
-      if (r.walkable(x, y)) {
-        w.at(x + 0.5, y + 0.5);
-        break;
-      }
+      if (r.walkable(x, y)) return [x, y];
     }
-    for (const l of s.labels) l.el.hidden = true;
+    return null;
+  };
+  for (let i = 0; i < count; i++) {
+    const w = person(s, look2dOf(i * 11 + r.W), NAMES[(i * 3 + r.D) % NAMES.length]!, 3 + i * 5, COMPANIES[i % 3]);
+    w.quiet = true;
+    const p = spot();
+    if (p) w.at(p[0] + 0.5, p[1] + 0.5);
     folk.push(w);
+  }
+  if (id === "town" || id === "office") {
+    const p = spot();
+    if (p)
+      pets.push(
+        new Companion(s, id === "town" ? "dog" : "duck", 1, id === "town" ? "Waffle" : "Ducky", null, new THREE.Vector3(p[0] + 0.5, 0, p[1] + 0.5), () => {
+          const q = spot();
+          return q ? new THREE.Vector3(q[0] + 0.5, 0, q[1] + 0.5) : new THREE.Vector3();
+        }),
+      );
   }
   let nextWander = 0;
   s.update = (dt, t) => {
     if (t > nextWander) {
       nextWander = t + 2 + Math.random() * 3;
-      const w = folk[Math.floor(Math.random() * folk.length)]!;
-      if (!w.walking) {
+      const w = folk[Math.floor(Math.random() * folk.length)];
+      if (w && !w.walking) {
         const from: [number, number] = [Math.floor(w.pos.x), Math.floor(w.pos.z)];
         for (let tries = 0; tries < 12; tries++) {
           const x = from[0] + Math.floor(Math.random() * 11) - 5;
@@ -759,9 +966,18 @@ function worldStage(id: MapId): Stage {
       }
     }
     for (const w of folk) w.update(dt, t);
+    for (const p of pets) p.update(dt, t);
+    actors?.(dt, t);
     if (worldMe?.stage === s) worldMe.update(dt, t);
+    if (worldPet?.stage === s) worldPet.update(dt, t);
   };
-  if (typeof applyNight === "function") applyNight(s);
+  if (id === "basement") dimBasement(s.scene, s.hemi, s.sun);
+  if (id === "office") {
+    const el = mountDecorPanel(r.skin!.extra as Room, s.target);
+    el.hidden = true;
+    decorPanels.set(s, el);
+  }
+  applyNight(s);
   return s;
 }
 
@@ -770,12 +986,15 @@ function placePlayer(id: MapId, at?: [number, number], turn = 0): void {
   const s = worldStage(id);
   const r = world.room(id);
   const spot = at ? { at, turn } : r.spawn();
-  worldMe ??= new Walker(s, randomLook(seeded(3)), "you", 6);
+  worldMe ??= person(s, playerLook, "you", 6);
   worldMe.enter(s);
   worldMe.go([]);
   worldMe.mood = "happy";
   const c = r.centre(...spot.at);
   worldMe.at(c.x, c.z, "stand", spot.turn);
+  if (!worldPet) worldPet = new Companion(s, "cat", 0, "Miso", worldMe, c.clone().add(new THREE.Vector3(0.6, 0, 0.6)));
+  worldPet.enter(s);
+  worldPet.pet.root.position.set(c.x + 0.6, 0, c.z + 0.6);
 }
 
 /** Walks the player to a tile; a seat sits, a portal travels, a prop is looked at. */
@@ -830,7 +1049,7 @@ function follow(dt: number): void {
 }
 
 // For poking at the world from the console or a test: `world3d.go(x, y)` walks to a tile of the room.
-Object.assign(window, { world3d: { go: worldGo, world, travel } });
+Object.assign(window, { world3d: { go: worldGo, world, travel, setStage, roomOf, worldStages, get me() { return worldMe; } } });
 
 const held = new Set<string>();
 /** Arrow keys and WASD step across the grid, relative to the screen. */
@@ -889,10 +1108,9 @@ function aim(w: number, h: number): void {
 }
 
 // ——— Night, weather and street life (fx3d.ts): the light follows the Copenhagen clock ———
-let night = false;
 const fx = new Fx({
   stages,
-  town: townStage,
+  town: worldStage("town"),
   current: () => stage.name,
   show: (name) => setStage(name),
   label: (st, text, cls, at) => {
@@ -910,7 +1128,7 @@ const fx = new Fx({
     };
   },
   me: () => {
-    const w = stage === townStage ? townMe : stage === office ? me : null;
+    const w = stage.name === "Town" ? worldMe : stage === office ? me : null;
     return w ? { avatar: w.avatar, top: () => w.top(), go: (x, z, arrive) => w.go([v3(x, z)], arrive) } : null;
   },
   applyNight: (on) => {
@@ -925,6 +1143,7 @@ const fx = new Fx({
   },
 });
 fx.setSleepers([{ name: "lin", level: 7 }]);
+(roomOf.get(worldStage("town"))!.skin!.extra as Town3d).setClock(() => fx.minutes());
 Object.assign(window, { fx, townStage, office, catalog, spinning });
 function setNight(on: boolean): void {
   fx.setTime(on ? "23:30" : "12:00");
@@ -1135,10 +1354,12 @@ function choose(group: string, value: string): void {
 
 function setStage(name: string): void {
   if (name === "World") name = `World:${worldRoom}`;
+  if (name === "Town") name = "World:town";
   if (name.startsWith("World:")) {
     const id = name.slice(6) as MapId;
     if (worldMe?.stage !== worldStage(id)) placePlayer(id);
     worldRoom = id;
+    name = worldStage(id).name;
   }
   stage = stages.find((s) => s.name === name)!;
   choose("stage", isWorld(stage) ? "World" : name);
@@ -1149,6 +1370,9 @@ function setStage(name: string): void {
   stopPlacing();
   for (const s of stages) for (const l of s.labels) l.el.hidden = s !== stage;
   $("#inventory").hidden = stage !== office;
+  for (const [s, el] of decorPanels) el.hidden = s !== stage;
+  officeDecor.hidden = stage !== office;
+  if (fx.panel) fx.panel.hidden = stage.name !== "Town";
   $("#spin").hidden = stage !== catalog;
   dungeonGallery.show(stage === dungeon);
 }
@@ -1180,7 +1404,11 @@ $("#rot-r").onclick = () => rotate(1);
 $("#spin").onclick = () => {
   spin = !spin;
 };
-$("#look").onclick = () => (isWorld(stage) ? worldMe! : stage === townStage ? townMe : me).restyle(randomLook());
+$("#look").onclick = () => {
+  if (!isWorld(stage)) return (stage === townStage ? townMe : me).restyle(randomLook());
+  playerLook = look2dOf(Math.floor(Math.random() * 1e6));
+  worldMe!.restyle(lookFrom2D(playerLook, { level: 6 }));
+};
 const picker = $<HTMLSelectElement>("#room");
 for (const id of ROOM_ORDER) picker.append(new Option(world.maps[id].name, id));
 picker.onchange = () => setStage(`World:${picker.value}`);
@@ -1294,7 +1522,7 @@ function frame(): void {
 }
 
 setStyle(1);
-setStage(new URLSearchParams(location.search).get("stage") ?? "Office");
+setStage(new URLSearchParams(location.search).get("stage") ?? "World");
 me.say("hi! click the floor to walk 👋", last + 0.5);
 requestAnimationFrame(frame);
 void drawIcons();

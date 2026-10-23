@@ -318,3 +318,8 @@ label {
 .panel[hidden] {
   display: none;
 }
+
+/* Labels and bars that set their own display still hide when asked. */
+[hidden] {
+  display: none !important;
+}
