@@ -20,6 +20,15 @@ const nightGlows: { mesh: THREE.Mesh; day: THREE.Material; night: THREE.Material
 export function nightGlow(mesh: THREE.Mesh, night: string): void {
   nightGlows.push({ mesh, day: mesh.material as THREE.Material, night: glow(night) });
 }
+/** Forgets the glows (and light cones) under `root`, when its room is thrown away. */
+export function dropPropsNight(root: THREE.Object3D): void {
+  const inside = (m: THREE.Object3D) => {
+    for (let o: THREE.Object3D | null = m; o; o = o.parent) if (o === root) return true;
+    return false;
+  };
+  for (let i = nightGlows.length - 1; i >= 0; i--) if (inside(nightGlows[i]!.mesh)) nightGlows.splice(i, 1);
+  for (let i = cones.length - 1; i >= 0; i--) if (inside(cones[i]!)) cones.splice(i, 1);
+}
 const cones: THREE.Mesh[] = [];
 export function setPropsNight(on: boolean): void {
   for (const g of nightGlows) g.mesh.material = on ? g.night : g.day;

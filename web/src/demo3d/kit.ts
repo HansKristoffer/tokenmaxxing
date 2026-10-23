@@ -12,6 +12,7 @@ export type Paint = string | THREE.Material;
 /** Three flat light bands: shadow, mid, lit. */
 const BANDS = (() => {
   const t = new THREE.DataTexture(new Uint8Array([105, 175, 255]), 3, 1, THREE.RedFormat);
+  t.userData.shared = true;
   t.minFilter = t.magFilter = THREE.NearestFilter;
   t.needsUpdate = true;
   return t;
@@ -45,6 +46,7 @@ export function toon(color: string): THREE.MeshToonMaterial {
   let m = toons.get(color);
   if (!m) {
     m = new THREE.MeshToonMaterial({ color, gradientMap: BANDS });
+    m.userData.shared = true;
     toons.set(color, m);
   }
   return m;
@@ -77,6 +79,7 @@ function geometry(key: string, make: () => THREE.BufferGeometry): THREE.BufferGe
   let g = geometries.get(key);
   if (!g) {
     g = make();
+    g.userData.shared = true;
     geometries.set(key, g);
   }
   return g;

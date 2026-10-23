@@ -503,6 +503,7 @@ export function faceTexture(face: Face, kind: FaceKind): THREE.CanvasTexture {
   if (!t) {
     if (kind === "voxel" || kind === "voxel-eyes" || kind === "voxel-mouth") {
       t = pixelTexture((g) => drawVoxelFace(g, face, kind !== "voxel-mouth", kind !== "voxel-eyes"));
+      t.userData.shared = true;
       faces.set(key, t);
       return t;
     }
@@ -518,6 +519,7 @@ export function faceTexture(face: Face, kind: FaceKind): THREE.CanvasTexture {
     t = new THREE.CanvasTexture(canvas);
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 4;
+    t.userData.shared = true;
     faces.set(key, t);
   }
   return t;

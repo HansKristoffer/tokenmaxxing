@@ -169,7 +169,12 @@ function standIn(mesh: THREE.Mesh): THREE.BufferGeometry | null {
     table.set(mesh.geometry, per);
   }
   const key = `${textured ? "t" : "p"}${mesh.userData.voxelHair ? "h" : ""}${mesh.userData.blockScale ?? ""}`;
-  if (!per.has(key)) per.set(key, convert(mesh, textured));
+  if (!per.has(key)) {
+    const made = convert(mesh, textured);
+    // A block made from a shared geometry is shared too: freeing one room's must not free the others'.
+    if (made && mesh.geometry.userData.shared) made.userData.shared = true;
+    per.set(key, made);
+  }
   return per.get(key)!;
 }
 

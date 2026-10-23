@@ -73,6 +73,7 @@ uniform vec3 skyHor;
 uniform float gradient;
 uniform float exposure;
 uniform float night;
+uniform float grade;
 varying vec2 vUv;
 
 float depthAt(vec2 uv) { return texture2D(tDepth, uv).x * span; }
@@ -127,7 +128,7 @@ void main() {
       float far = 1.0 - smoothstep(0.9, 2.2, excess);
       occ += near * far * (1.0 - f * 0.5);
     }
-    occ /= float(aoSamples);
+    occ /= max(float(aoSamples), 1.0);
     float ao = 1.0 - clamp(occ * aoStrength, 0.0, 0.85);
     float lum = dot(color, vec3(0.299, 0.587, 0.114));
     ao = mix(ao, 1.0, smoothstep(0.8, 1.2, lum) * 0.6);
@@ -138,13 +139,15 @@ void main() {
   }
   // Grade: exposure, filmic curve, a touch of saturation, warm lights and cool shadows.
   color *= exposure;
-  color = aces(color);
-  float l = dot(color, vec3(0.2126, 0.7152, 0.0722));
-  color = mix(vec3(l), color, 1.14);
-  color *= mix(vec3(0.94, 0.98, 1.06), vec3(1.05, 1.0, 0.94), smoothstep(0.15, 0.75, l));
-  vec2 q = vUv - 0.5;
-  color *= 1.0 - dot(q, q) * 0.45;
-  color += (ign(gl_FragCoord.xy + 17.0) - 0.5) / 255.0;
+  if (grade > 0.5) {
+    color = aces(color);
+    float l = dot(color, vec3(0.2126, 0.7152, 0.0722));
+    color = mix(vec3(l), color, 1.14);
+    color *= mix(vec3(0.94, 0.98, 1.06), vec3(1.05, 1.0, 0.94), smoothstep(0.15, 0.75, l));
+    vec2 q = vUv - 0.5;
+    color *= 1.0 - dot(q, q) * 0.45;
+    color += (ign(gl_FragCoord.xy + 17.0) - 0.5) / 255.0;
+  } else color = clamp(color, 0.0, 1.0);
   gl_FragColor = vec4(max(color, 0.0), 1.0);
   #include <colorspace_fragment>
 }
@@ -181,6 +184,18 @@ export class Pipeline {
   private slow = 0;
   private frames = 0;
   private lastAt = 0;
+  /**
+   * The real game's settings (`render3d/`), in place of the demo's quality rules: the render resolution as a
+   * pixel ratio, the AO samples (0 off), tilt-shift, haze and grade on or off, the multisampling, and the
+   * sun's shadow map (0 = leave the lights alone).
+   */
+  game: { pixelRatio: number; aoSamples: number; tilt: boolean; haze: boolean; grade: boolean; msaa: number; shadowMap: number } | null = null;
+  /** Blocky stand-ins are swapped in once per `blocked()`, not by walking the scene every frame. */
+  lazyBlockify = false;
+  /** The scene has new meshes: swap them for blocks on the next frame (with `lazyBlockify`). */
+  blocked(scene: THREE.Object3D): void {
+    scene.userData.blockyDone = false;
+  }
 
   constructor(canvas: HTMLCanvasElement, opts: { preserve?: boolean } = {}) {
     this.renderer = new THREE.WebGLRenderer({
@@ -213,6 +228,7 @@ export class Pipeline {
           gradient: { value: 0 },
           exposure: { value: 1 },
           night: { value: 0 },
+          grade: { value: 1 },
         },
       }),
     );
@@ -267,12 +283,13 @@ export class Pipeline {
   private renderVoxel(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
     const r = this.renderer;
     const q = this.quality;
-    const dpr = Math.min(window.devicePixelRatio || 1, q >= 2 ? 1.5 : 1) * (q === 0 ? 0.75 : 1);
+    const g = this.game;
+    const dpr = g ? g.pixelRatio : Math.min(window.devicePixelRatio || 1, q >= 2 ? 1.5 : 1) * (q === 0 ? 0.75 : 1);
     r.setPixelRatio(dpr);
     r.setSize(w, h, false);
     const lw = Math.max(1, Math.floor(w * dpr));
     const lh = Math.max(1, Math.floor(h * dpr));
-    const samples = q >= 2 ? 4 : 0;
+    const samples = g ? g.msaa : q >= 2 ? 4 : 0;
     const key = `${lw}x${lh}x${samples}`;
     if (key !== this.voxKey) {
       this.voxKey = key;
@@ -301,7 +318,7 @@ export class Pipeline {
         intensity: l.intensity,
         ground: (l as THREE.HemisphereLight).isHemisphereLight ? (l as THREE.HemisphereLight).groundColor.clone() : undefined,
       });
-      if ((l as THREE.DirectionalLight).isDirectionalLight && l.castShadow) sun = l as THREE.DirectionalLight;
+      if ((l as THREE.DirectionalLight).isDirectionalLight && (l.castShadow || l.userData.sun)) sun = l as THREE.DirectionalLight;
     });
     for (const e of lights) {
       const hemi = e.l as THREE.HemisphereLight;
@@ -309,16 +326,16 @@ export class Pipeline {
         hemi.color.lerp(new THREE.Color("#b9d6ff"), 0.4);
         hemi.groundColor.lerp(new THREE.Color("#b89a78"), 0.5);
         hemi.intensity = e.intensity * 0.6;
-      } else if ((e.l as THREE.DirectionalLight).isDirectionalLight && e.l.castShadow) {
+      } else if ((e.l as THREE.DirectionalLight).isDirectionalLight && (e.l.castShadow || e.l.userData.sun)) {
         e.l.color.lerp(new THREE.Color("#ffd9a8"), 0.35);
         e.l.intensity = e.intensity * 1.4;
       }
     }
-    const shadowSize = q >= 2 ? 4096 : 2048;
+    const shadowSize = g ? g.shadowMap : q >= 2 ? 4096 : 2048;
     if (sun) {
       const sh = sun.shadow;
       sun.userData.classic ??= { size: sh.mapSize.x, radius: sh.radius, bias: sh.bias };
-      if (sh.mapSize.x !== shadowSize) {
+      if (shadowSize && sh.mapSize.x !== shadowSize) {
         sh.mapSize.set(shadowSize, shadowSize);
         sh.map?.dispose();
         sh.map = null;
@@ -347,16 +364,32 @@ export class Pipeline {
     const u = this.voxQuad.material.uniforms;
     u.span!.value = camera.far - camera.near;
     u.pxPerUnit!.value = lw / ((camera.right - camera.left) / camera.zoom);
-    u.aoSamples!.value = q >= 2 ? 24 : q === 1 ? 10 : 0;
+    u.aoSamples!.value = g ? g.aoSamples : q >= 2 ? 24 : q === 1 ? 10 : 0;
     u.aoStrength!.value = this.night > 0.5 ? 1.6 : 2.4;
-    u.tilt!.value = q >= 2 ? 1 : 0;
-    u.haze!.value = scene.userData.noHaze ? 0 : 0.3;
+    u.tilt!.value = g ? (g.tilt ? 1 : 0) : q >= 2 ? 1 : 0;
+    u.haze!.value = scene.userData.noHaze || (g && !g.haze) ? 0 : 0.3;
+    u.grade!.value = g && !g.grade ? 0 : 1;
     u.gradient!.value = this.gradient ? 1 : 0;
     u.exposure!.value = this.night > 0.5 ? 1.5 : 1.05;
     r.setRenderTarget(null);
     r.clear();
     r.render(this.voxQuad, this.quadCamera);
     this.watch();
+  }
+
+  /** Frees the render targets, the composite passes and the renderer itself. */
+  dispose(): void {
+    this.color?.dispose();
+    this.normal?.dispose();
+    this.vox?.dispose();
+    this.color = this.normal = this.vox = undefined;
+    for (const quad of [this.quad, this.voxQuad]) {
+      quad.geometry.dispose();
+      quad.material.dispose();
+    }
+    this.normals.dispose();
+    this.fill.shadow.map?.dispose();
+    this.renderer.dispose();
   }
 
   /** If frames keep taking too long, step down a quality level. */
@@ -398,7 +431,10 @@ export class Pipeline {
     const r = this.renderer;
     setSmoothBands(this.style === "voxel");
     if (this.style === "voxel") {
-      blockify(scene);
+      if (!this.lazyBlockify || !scene.userData.blockyDone) {
+        blockify(scene);
+        scene.userData.blockyDone = true;
+      }
       scene.userData.blocky = true;
       this.renderVoxel(scene, camera, w, h);
       return;
@@ -406,6 +442,7 @@ export class Pipeline {
     if (scene.userData.blocky) {
       unblockify(scene);
       scene.userData.blocky = false;
+      scene.userData.blockyDone = false;
     }
     if (this.fillScenes.size) this.leaveVoxel();
     r.setPixelRatio(this.pixelSize === 1 ? Math.min(window.devicePixelRatio || 1, 2) : 1);

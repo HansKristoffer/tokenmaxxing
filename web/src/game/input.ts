@@ -13,7 +13,7 @@ import {
 import { conn } from "../net.ts";
 import { chatBeside, hud } from "../store.ts";
 import { basementInteract } from "./basement.ts";
-import { camera, zoom } from "./camera.ts";
+import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
@@ -103,6 +103,14 @@ export function bindInput(canvas: HTMLElement): void {
         return;
       case "l":
         hud.set({ panel: { kind: "leaderboard" } });
+        return;
+      case "q":
+      case "[":
+        viewHooks.rotate?.(-1);
+        return;
+      case "r":
+      case "]":
+        viewHooks.rotate?.(1);
         return;
       case "+":
       case "=":
@@ -238,7 +246,9 @@ export function updateSelf(now: number): void {
     path = [];
     return;
   }
-  const dir = held.at(-1) ?? tapped ?? path.shift();
+  // Keys are kept as pressed; the 3D view may be turned since, so they mean a direction only now.
+  const pressed = held.at(-1) ?? tapped;
+  const dir = pressed ? (viewHooks.key?.(pressed) ?? pressed) : path.shift();
   tapped = null;
   if (!dir) {
     if (interactOnArrival) {
