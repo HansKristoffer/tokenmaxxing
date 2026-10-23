@@ -11,6 +11,7 @@ import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.t
 import { Pipeline } from "./pipeline.ts";
 import { car } from "./props.ts";
 import { loadSlices } from "./registry.ts";
+import { mountDecorPanel } from "./decorPanel.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
 import "./tiles.ts";
 import { buildDormRoom, buildTavernRoom, setBarTab, setPlaque, setTavernNight } from "./tavern3d.ts";
@@ -278,6 +279,7 @@ function newStage(
 // ——— The office ———
 const office = newStage("Office", new THREE.Vector3(6, 0.6, 5), 11, 11.5, "#1b1f2a");
 const room = new Room(12, 10);
+mountDecorPanel(room, office.target);
 office.scene.add(room.group);
 const put = (id: string, x: number, z: number, turn: Turn = 0, model?: Model) =>
   room.place(assetById.get(id)!, x, z, turn, model);
@@ -1181,7 +1183,7 @@ async function drawIcons(): Promise<void> {
   scene.add(sun);
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 50);
   const bar = $("#inventory .inv");
-  for (const a of CATALOG) {
+  for (const a of catalogAssets) {
     if (a.id === "neon-sign") continue;
     const m = a.build();
     scene.add(m);
