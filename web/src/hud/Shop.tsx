@@ -2,12 +2,11 @@ import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { homePieceOf } from "@tokenmaxxing/core/home.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
-import { petOutfit, wearPet } from "@tokenmaxxing/core/pets.ts";
+import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { posterOf } from "@tokenmaxxing/core/posters.ts";
-import { ITEMS, type Item, MERCH, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
+import { ITEMS, type Item, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
-import { typedSwitch } from "hanzio";
 import { useEffect, useState } from "react";
 import { itemFrame } from "../art/characters.ts";
 import { posterSprite } from "../art/furniture-posters.ts";
@@ -19,6 +18,7 @@ import { refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemTag } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
+import { isWorn, withItem, withoutMerchTop } from "./lookOps.ts";
 import { AvatarImage, Modal, Pills, Pixels, useRun, WalletLine } from "./ui.tsx";
 
 const TABS = [
@@ -37,7 +37,8 @@ const PLACES = ["🥇", "🥈", "🥉"];
 export function Shop() {
   const me = useHud((s) => s.me);
   const wallet = useHud((s) => s.wallet);
-  const [tab, setTab] = useState<Item["slot"]>("outfit");
+  const opened = useHud((s) => (s.panel?.kind === "shop" ? s.panel.tab : undefined));
+  const [tab, setTab] = useState<Item["slot"]>(opened ?? "outfit");
   const [bag, setBag] = useState<BagRow[]>([]);
   const [failed, setFailed] = useState<string | null>(null);
   const { error, run } = useRun();
@@ -137,52 +138,7 @@ export const wear = async (look: Look) => {
   await refreshMe();
 };
 
-/** Whether `look` wears `item`: in its slot, or as one of the company merch it wears. */
-export function isWorn(item: Item, look: Look): boolean {
-  return typedSwitch(
-    item.slot,
-    {
-      furniture: () => false,
-      merch: () => look.merch === item.companyId && (look.merchWorn & item.index) > 0,
-    },
-    (slot) => look[slot] === item.index,
-  );
-}
-
-const MERCH_TOPS = MERCH.filter((m) => m.kind === "tee" || m.kind === "hoodie").reduce(
-  (n, m) => n | m.bit,
-  0,
-);
-
-/** `look` without its merch tee or hoodie (the cap and mug stay): a new outfit replaces it. */
-export function withoutMerchTop(look: Look): Look {
-  const bits = look.merchWorn & ~MERCH_TOPS;
-  return { ...look, merch: bits ? look.merch : 0, merchWorn: bits };
-}
-
-/**
- * `look` with `item` on (or off). Merch is one company's at a time, and a hoodie and a tee don't go
- * over each other, nor over an outfit: whichever goes on last replaces the other.
- */
-export function withItem(item: Item, look: Look, on: boolean): Look {
-  return typedSwitch(
-    item.slot,
-    {
-      furniture: () => look,
-      // A different pet starts in its original look.
-      pet: () => (on ? wearPet(look, item.index) : { ...look, pet: 0, petVariant: 0 }),
-      outfit: () => (on ? withoutMerchTop({ ...look, outfit: item.index }) : { ...look, outfit: 0 }),
-      merch: () => {
-        const mine = look.merch === item.companyId ? look.merchWorn : 0;
-        const bits = on
-          ? (item.index & MERCH_TOPS ? mine & ~MERCH_TOPS : mine) | item.index
-          : mine & ~item.index;
-        return { ...look, merch: bits ? item.companyId! : 0, merchWorn: bits };
-      },
-    },
-    (slot) => ({ ...look, [slot]: on ? item.index : 0 }),
-  );
-}
+export { isWorn, withItem, withoutMerchTop };
 
 const wearIt = (item: Item, look: Look, on: boolean) =>
   item.slot === "furniture" ? Promise.resolve() : wear(withItem(item, look, on));

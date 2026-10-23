@@ -731,6 +731,40 @@ building's outside art, not its map).
   down, and `liftMisplaced` returns one to the storeroom if the map changes under it. The stock house has room for
   seven at a time.
 
+## The physical shops (ShopBackend)
+
+The four 3D shops (furniture, clothes, barber, pets; `web/src/demo3d/shops/`) share one buy panel (`shopPanel.ts`) and one
+set of item actions (`shopActions.ts`). Everything that costs, saves or asks "do I have it" goes through a
+`ShopBackend` (`backend.ts`); there are two:
+
+- **`DemoBackend`** (`demoBackend.ts`): the standalone demo's localStorage purse (`wallet.ts`) and the demo's `ShopHooks`.
+- **`GameBackend`** (`web/src/render3d/shops/gameBackend.ts`): the real game. Coins, the bag (`wallet.owned`), the look, the
+  company wallet and stored pieces are read from the HUD store; it sends what the Shop page sends: `town.buy` (outfit,
+  hat, glasses, held, back, pet, petwear, personal furniture, company merch), `buyDecor` + `setDecor`, `buyDesk` + `setDesk`,
+  `buyPiece` (company wallet: company furniture and posters), `setLook` (wear, restyle, adopt a pet or one of its looks,
+  pet gear), `placePiece`, `drop`. Its connection, store and renderer come in as `GameDeps` (`GameNet`, `GameStore`,
+  `ShopWorld`), so `web/test/shops-game-backend.test.ts` runs it on fakes; `render3d/shops/wiring.ts` is the real wiring.
+
+Every write returns an `Outcome` (`{ ok } | { ok: false, reason, message }`) and never throws; the panel toasts it. The UI is
+optimistic: coins, ownership and the look move first and are put back with the server's own words if it refuses
+(`too_poor` -> `coins`, `owned`, `not_owned` -> `unowned`, `not_member` -> `company`, `rate_limited` -> `slow`; locked
+levels are caught before the call, `level`). Client checks only save a round trip: the server still decides.
+
+`purchase.ts` is the pure mapping from shelf ids to the real server ids and calls (`purchaseOf`, `equipOf`, `lookWith`,
+`wornIn`, `failOf`, tested in `web/test/shops-purchase.test.ts`): `pet.<n>.<variant>` is not an item, it is `Look.petVariant`
+and is free to anyone holding `pet.<n>` (`setLook` enforces it); `merch.<company slug>.<kind>` becomes
+`merch.<companyId>.<kind>` by company name or is unavailable; `furn.<ch>` is personal furniture unless core marks it
+`company` (then `buyPiece`); `decor.<kind>.<id>` and `desk.<id>` have their own calls. The shelf rows' names, prices and
+levels are overwritten from core (`data/core.ts`), so a price changed in core reaches the shelves; the test asserts it.
+
+Try on / Try it call `ShopWorld.previewLook(look)` with the look the item would give, which the renderer shows on the local
+player's avatar without saving; closing the card (or a failed write) calls `previewLook(null)`. Nothing is saved until Buy,
+Wear or Apply. "Place in my Office" calls `ShopWorld.startPlacement(itemId)`, the renderer's Office placement mode (it ends
+in `town.drop`, the same call as the Bag); without one the backend drops where the player stands. `ShopWorld.applyDecor`
+shows a wallpaper or floor at once. `installShops(world)` (`render3d/shops/index.ts`) mounts the panel on a `GameBackend`
+for the renderer; in 2D mode, or on Low, a shop counter opens the old pages instead: `pageForShop(shop)` /
+`pageForItem(id)` give the Shop page tab (`{ kind: "shop", tab }`), Decorate, Desk, the company shop or a company's merch.
+
 ## The client
 
 - Plain Canvas 2D with `imageSmoothingEnabled = false`, integer zoom, and grid movement: your own steps are

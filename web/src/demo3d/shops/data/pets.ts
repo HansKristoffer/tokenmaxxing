@@ -6,6 +6,8 @@
  * `core/src/milestones.ts` (`LEGENDARY_LEVEL`: the pet crown comes with the top level, never sold).
  * Only ever append, like the originals.
  */
+import { fromCore } from "./core.ts";
+
 
 export interface ShopPet {
   /** `pet.<index>`, like the 2D item id. */
@@ -19,7 +21,7 @@ export interface ShopPet {
   level?: number;
 }
 
-export const CATALOG_PETS: readonly ShopPet[] = [
+const PET_SNAPSHOT: readonly ShopPet[] = [
   { id: "pet.1", index: 1, name: "Duck", species: "duck", price: 250 },
   { id: "pet.2", index: 2, name: "Cat", species: "cat", price: 400 },
   { id: "pet.3", index: 3, name: "Dog", species: "dog", price: 400 },
@@ -27,6 +29,8 @@ export const CATALOG_PETS: readonly ShopPet[] = [
   { id: "pet.5", index: 5, name: "Panda", species: "panda", price: 800 },
   { id: "pet.6", index: 6, name: "Singularity orb", species: "orb", price: 0, level: 30 },
 ];
+
+export const CATALOG_PETS: readonly ShopPet[] = fromCore(PET_SNAPSHOT);
 
 /** `Look.petVariant` n is `PET_VARIANTS[species][n - 1]`; 0 is the pet as the shop sells it. */
 export const SHOP_VARIANTS: Record<"duck" | "cat" | "dog" | "dragon" | "panda", readonly string[]> = {
@@ -61,7 +65,7 @@ export interface ShopPetwear {
   blurb: string;
 }
 
-export const SHOP_PETWEAR: readonly ShopPetwear[] = [
+const WEAR_SNAPSHOT: readonly ShopPetwear[] = [
   { id: "petwear.1", index: 1, name: "Red bandana", price: 60, rarity: "common", blurb: "Very good dog energy, any species." },
   { id: "petwear.2", index: 2, name: "Pink bow", price: 60, rarity: "common", blurb: "Adorable, and it knows it." },
   { id: "petwear.3", index: 3, name: "Bow tie", price: 140, rarity: "rare", blurb: "For pets who attend standups." },
@@ -70,6 +74,8 @@ export const SHOP_PETWEAR: readonly ShopPetwear[] = [
   { id: "petwear.6", index: 6, name: "Propeller cap", price: 200, rarity: "rare", blurb: "Spins up when it's thinking." },
   { id: "petwear.7", index: 7, name: "Winter scarf", price: 90, rarity: "common", blurb: "Hygge, for the small ones." },
 ];
+
+export const SHOP_PETWEAR: readonly ShopPetwear[] = fromCore(WEAR_SNAPSHOT);
 
 /** The top level: owners this high have their pet crowned (`LEGENDARY_LEVEL` in `core/src/milestones.ts`). */
 export const CROWN_LEVEL = 50;

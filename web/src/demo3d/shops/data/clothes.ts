@@ -5,6 +5,8 @@
  * (`FREE_OUTFITS`) and the company merch (`MERCH`). Rarity is `rarityOf` already resolved.
  * Regenerate by re-reading those files; ids are `<slot>.<index>`.
  */
+import { fromCore } from "./core.ts";
+
 
 export type ClothesSlot = "outfit" | "hat" | "glasses" | "held" | "back";
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
@@ -32,7 +34,7 @@ export const MERCH_PIECES = [
   { kind: "mug", name: "Mug", price: 40, bit: 8 },
 ] as const;
 
-export const CLOTHES: readonly ClothesRow[] = [
+const SNAPSHOT: readonly ClothesRow[] = [
   { id: "outfit.8", slot: "outfit", index: 8, name: "Hacker hoodie", price: 150, rarity: "common" },
   { id: "outfit.9", slot: "outfit", index: 9, name: "Sharp suit", price: 250, rarity: "uncommon" },
   { id: "outfit.10", slot: "outfit", index: 10, name: "Galaxy jacket", price: 350, rarity: "rare" },
@@ -146,3 +148,5 @@ export const CLOTHES: readonly ClothesRow[] = [
   { id: "back.6", slot: "back", index: 6, name: "Yoga mat", price: 100, rarity: "common" },
   { id: "back.7", slot: "back", index: 7, name: "Katana", price: 650, rarity: "epic" },
 ];
+
+export const CLOTHES: readonly ClothesRow[] = fromCore(SNAPSHOT);

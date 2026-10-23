@@ -7,6 +7,8 @@
  *    things (`core/src/headwear.ts` `PACK_FACES`, from index 4). Two of those are facial hair.
  * Ids are `<slot>.<index>` like the 2D shop's; `style.`, `skin.` and `hair.` index the free `Look` fields.
  */
+import { fromCore } from "./core.ts";
+
 export type FaceSlot = "style" | "skin" | "hair" | "glasses";
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
@@ -43,7 +45,7 @@ export const SKIN_ROWS: readonly BarberRow[] = SKIN_NAMES.map((n, i) => row("ski
 export const HAIR_ROWS: readonly BarberRow[] = HAIR_NAMES.map((n, i) => row("hair", i, `${n} hair`, 0, "Free from the character creator."));
 
 // prettier-ignore
-export const FACE_ROWS: readonly BarberRow[] = [
+const FACE_SNAPSHOT: readonly BarberRow[] = [
   row("glasses", 1, "Nerd specs", 60, "Round and bookish."),
   row("glasses", 2, "Shades", 100, "Too bright to look at."),
   row("glasses", 3, "Heart glasses", 150, "Love at first sight."),
@@ -65,6 +67,8 @@ export const FACE_ROWS: readonly BarberRow[] = [
   row("glasses", 19, "Laser eyes", 1800, "Tokens to the moon.", { rarity: "legendary" }),
   row("glasses", 20, "Nebula visor", 0, "One wraparound lens, violet to cyan. Sees the whole context.", { rarity: "legendary", level: 40 }),
 ];
+
+export const FACE_ROWS: readonly BarberRow[] = fromCore(FACE_SNAPSHOT);
 
 /** The two face things that are hair: the moustache and the beard, grown in your hair colour. */
 export const FACIAL_HAIR_IDS = ["glasses.6", "glasses.14"] as const;
