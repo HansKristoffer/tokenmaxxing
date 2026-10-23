@@ -10,6 +10,7 @@ import {
   cupsLeft,
   houseTier,
   JUMP_MS,
+  memberRoomOf,
   ownerOfOffice,
   TILE,
 } from "@tokenmaxxing/core/world.ts";
@@ -101,7 +102,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     town: () => C.leafInk,
     basement: () => "#100e1e",
     dungeon: () => "#110f16",
-    ...typedSwitchGroup(map.id, ["hq", "inn", "upstairs", "office"], () => "#1b1f2a"),
+    ...typedSwitchGroup(map.id, ["hq", "common", "inn", "upstairs", "office"], () => "#1b1f2a"),
   });
   g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = false;
@@ -397,7 +398,7 @@ const neonText = perObject((company: CompanyInfo) => {
 function fancyCanvas(piece: FancyPiece, now: number): HTMLCanvasElement {
   const frame = fancyFrame(piece, now);
   if (piece.id !== "neon-sign") return fancySprite(piece.id, frame);
-  const id = companyOfRoom(world.room);
+  const id = memberRoomOf(world.room);
   const company = id === null ? undefined : world.companies.get(id);
   if (!company) return fancySprite(piece.id, frame);
   return neonSprite(neonText(company), frame, coloursOf(company.id).glow);

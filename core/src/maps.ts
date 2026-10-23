@@ -9,7 +9,7 @@ import { POSTERS } from "./posters.ts";
 
 import { TAVERN } from "./tavern.ts";
 
-export type MapId = "town" | "hq" | "inn" | "upstairs" | "basement" | "office" | "dungeon";
+export type MapId = "town" | "hq" | "common" | "inn" | "upstairs" | "basement" | "office" | "dungeon";
 type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 interface TileKind {
@@ -130,6 +130,10 @@ export const LEGEND: Record<string, TileKind> = {
   λ: { name: "chandelier", walk: true, text: "Crystal chandelier. Series A money." },
   Γ: { name: "duck statue", text: "A golden rubber duck. It has heard every bug explained to it." },
   w: { name: "open offices", text: "Offices that are open for visitors." },
+  // The company's common room upstairs (`MAPS.common`, `common.ts`): its own pieces, so nothing clashes.
+  Ψ: { name: "window", text: "A big window. The sky out there is somebody else's problem." },
+  Θ: { name: "wall of wins", text: "The wall of wins. Shipped, merged, launched: every win is up here, big or small." },
+  π: { name: "kitchen counter", text: "A kitchen counter. The oat milk has someone's name on it." },
   // Posters (`POSTERS`): on the building's top wall, so they never block a step.
   ...Object.fromEntries(
     POSTERS.map((p) => [p.ch, { name: `${p.name} poster`, text: `🖼 ${p.name}. ${p.text}` }]),
@@ -446,7 +450,26 @@ export const MAPS: Record<MapId, GameMap> = {
     "W__======____________W",
     "W__=ssss=____________W",
     "Wp__________________pW",
-    "WWWWWWWWWWWxWWWWWWWWWW",
+    "WWWuWWWWWWWxWWWWWWWWWW",
+  ]),
+  // The company's common room, up the stairs `u` from its house: a lounge round a rug and a TV, a kitchenette
+  // (fridge, counter, espresso bar, coffee machine, stools), a stage for stand-ups, a ping-pong and a foosball
+  // table, a pet corner, a wall of wins, and windows. One exit, the stairs down. Members only (`portal`).
+  common: new GameMap("common", "Common room", [
+    "WWWWWWWWWWWWWWWWWWWWWWWW",
+    "WΨΨWΨΨWΘΘΘΘWΨΨWΨΨWΨΨWWWW",
+    "Wkk_p__________ψπππααopW",
+    "W_______________v_v____W",
+    "Weeξξee________________W",
+    "Weeeeee________________W",
+    "W______________________W",
+    "W_ε_ε_ε_===tt===_θθθ___W",
+    "W_______========_______W",
+    "W_______=μ=ΩΩ=μ=___φφ__W",
+    "W_______========_______W",
+    "W_Q_____=ssssss=_______W",
+    "Wp_____Λ________Λ_____pW",
+    "WWWWWWWWWWWxWWWWWWWWWWWW",
   ]),
   // The Inn is the Tavern: a bar with a sealed cell for the barkeep (its floor is a rug, not `_`, so
   // `restSpot` never beds anyone behind the bar), boards on the north wall, a row of tables by the north wall, a stage, tables,

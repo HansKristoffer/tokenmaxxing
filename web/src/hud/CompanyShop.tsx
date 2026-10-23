@@ -46,7 +46,7 @@ function Catalogue({
 export function CompanyShop() {
   const me = useHud((s) => s.me);
   const co = me?.company;
-  const inside = useHud((s) => co != null && s.room === `hq:${co.id}`);
+  const inside = useHud((s) => co != null && (s.room === `hq:${co.id}` || s.room === `common:${co.id}`));
   const [notice, setNotice] = useState<string | null>(null);
   const { error, run } = useRun();
   if (!me || !co) return <Modal title="🛋 Company furniture">Join a company first.</Modal>;
@@ -67,7 +67,7 @@ export function CompanyShop() {
         You spend the company wallet.
         {inside
           ? "It goes down in front of you; G takes a piece back to the storeroom."
-          : "Walk into your building to put things out."}
+          : "Walk into your building, or its common room upstairs, to put things out."}
       </p>
       {notice && <p className="muted">{notice}</p>}
       {error && <p className="error">{error}</p>}

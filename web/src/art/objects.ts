@@ -4,6 +4,7 @@ import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { isPoster, posterOf } from "@tokenmaxxing/core/posters.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { bigScreen, SCREEN_H, SCREEN_TILES, tournamentBoard, wallTerminal } from "./basement.ts";
+import { counter, windowPane, winsTile } from "./common.ts";
 import { type FancyPiece, fancyPiece, fancySprite } from "./furniture-fancy.ts";
 import { POSTER_H, posterSprite } from "./furniture-posters.ts";
 import { trophyAt } from "./loot.ts";
@@ -489,6 +490,16 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
   switch (ch) {
     case "w":
       return at(officeBoard(), 2);
+    // The common room: windows and the wall of wins in the wall's face, the kitchen counter on the floor.
+    case "Ψ":
+      return at(windowPane(), 0, 0);
+    case "Θ": {
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return at(winsTile(n), 0, 0);
+    }
+    case "π":
+      return at(counter(map.at(x - 1, y) !== "π"));
     case "T":
       return at(tree());
     case "^":

@@ -47,7 +47,14 @@ export type Facing = "up" | "down" | "left" | "right";
 /** `playing`: at a game table in town, until the match ends (see core/src/games/gather.ts). */
 export type PlayerState = "idle" | "sit" | "away" | "working" | "playing";
 export type RoomId =
-  "town" | "inn" | "upstairs" | "basement" | "dungeon" | `hq:${number}` | `office:${number}`;
+  | "town"
+  | "inn"
+  | "upstairs"
+  | "basement"
+  | "dungeon"
+  | `hq:${number}`
+  | `common:${number}`
+  | `office:${number}`;
 
 export const DIRS: Record<Facing, [number, number]> = {
   up: [0, -1],
@@ -59,6 +66,11 @@ export const isFacing = (v: unknown): v is Facing => typeof v === "string" && v 
 
 export const companyOfRoom = (room: RoomId): number | null =>
   room.startsWith("hq:") ? Number(room.slice(3)) : null;
+/** The company whose common room (upstairs from its house, `MAPS.common`) this is. */
+export const commonOfRoom = (room: RoomId): number | null =>
+  room.startsWith("common:") ? Number(room.slice(7)) : null;
+/** The company a room belongs to, house or common room: who may be in it, and whose furniture goes in it. */
+export const memberRoomOf = (room: RoomId): number | null => companyOfRoom(room) ?? commonOfRoom(room);
 export const ownerOfOffice = (room: RoomId): number | null =>
   room.startsWith("office:") ? Number(room.slice(7)) : null;
 
@@ -67,7 +79,8 @@ export function baseMap(room: RoomId): GameMap {
   const owner = ownerOfOffice(room);
   if (owner !== null) return OFFICE_MAPS.get(owner) ?? MAPS.office;
   const company = companyOfRoom(room);
-  return company !== null ? (HQS.get(company) ?? MAPS.hq) : MAPS[room as MapId];
+  if (company !== null) return HQS.get(company) ?? MAPS.hq;
+  return commonOfRoom(room) !== null ? MAPS.common : MAPS[room as MapId];
 }
 
 /**
@@ -583,7 +596,13 @@ export function portal(
   if (room === "basement") return roomEntry("inn", "S");
   if (room === "upstairs") return roomEntry("inn", "u");
   if (room === "dungeon") return outsideDoor("dungeon");
-  const plot = [...plots].find(([, c]) => c.id === companyOfRoom(room))?.[0];
+  // The common room is up the stairs `u` from the house, for its members only: the stairs down lead back.
+  const common = commonOfRoom(room);
+  if (common !== null) return roomEntry(`hq:${common}`, "u");
+  const house = companyOfRoom(room);
+  if (door.ch === "u" && house !== null)
+    return house === companyId ? roomEntry(`common:${house}`) : { notice: "🔒 The common room is for members only." };
+  const plot = [...plots].find(([, c]) => c.id === house)?.[0];
   return plot === undefined ? townSpawn() : outsideDoor(plot);
 }
 

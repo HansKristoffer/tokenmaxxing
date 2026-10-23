@@ -1,5 +1,6 @@
 import { BARKEEP, mayRemark } from "@tokenmaxxing/core/barkeep.ts";
 import { BOTS, between, chase, isBot, lineFor, pick, toCoffee, wander } from "@tokenmaxxing/core/bots.ts";
+import { commonRoom } from "@tokenmaxxing/core/common.ts";
 import {
   BURN_FRESH_MS,
   type Burn,
@@ -84,6 +85,7 @@ import {
   JUMP_MS,
   type Moves,
   mapOf,
+  memberRoomOf,
   mentionsIn,
   type Notice,
   ownerOfOffice,
@@ -776,7 +778,7 @@ export const world = actor({
         // and resting players move to the new one.
         if (!online) rest(c.state, p, p.state === "working" ? "working" : "away");
         else if (
-          (p.room.startsWith("hq:") && p.room !== `hq:${p.companyId}`) ||
+          (memberRoomOf(p.room) !== null && memberRoomOf(p.room) !== p.companyId) ||
           (p.companyId === null && ownerOfOffice(p.room) !== null)
         )
           Object.assign(p, townSpawn());
@@ -844,7 +846,7 @@ export const world = actor({
     removeCompany: async (c, id: number): Promise<number[]> => {
       requireInternal(c.conn.state);
       delete c.state.companies[id];
-      const drops = dropsIn(`hq:${id}`);
+      const drops = [...dropsIn(`hq:${id}`), ...dropsIn(commonRoom(id))];
       for (const d of drops) lift(c, d);
       buildTown(c.state, c.vars.dirty);
       const ids = [...drops.map((d) => d.id), ...liftMisplaced(c, "town")];
@@ -929,8 +931,8 @@ export const world = actor({
       requireInternal(c.conn.state);
       const p = c.state.players[by];
       const full = { notice: "There's no room on the floor here." };
-      // Company furniture goes only in its own building.
-      if (co !== undefined && p?.room !== `hq:${co}`)
+      // Company furniture goes only in its own building, or its common room upstairs.
+      if (co !== undefined && p?.room !== `hq:${co}` && p?.room !== commonRoom(co))
         return { notice: "Go into your building to put it out." };
       const here = p ? dropsIn(p.room) : [];
       const cap =
@@ -1192,7 +1194,7 @@ function rest(s: WorldState, p: WorldPlayer, state: "away" | "working"): void {
  */
 function canReturn(s: WorldState, p: WorldPlayer, to: Place): boolean {
   const tile = mapOf(to.room).kind(to.x, to.y);
-  const house = companyOfRoom(to.room);
+  const house = memberRoomOf(to.room);
   const owner = ownerOfOffice(to.room);
   const o = owner === null ? undefined : s.players[owner];
   return (
