@@ -17,7 +17,10 @@ const browser = await pw.chromium.launch({ headless: true, args: ["--use-angle=m
 let bad = 0;
 const seed = () => {
   let s = 99;
-  Math.random = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  Math.random = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
 };
 async function shot(room, style, nobake, time) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
@@ -46,11 +49,11 @@ async function shot(room, style, nobake, time) {
     const before = layers.map((l) => l.sourceMeshes.map((m) => rel(l, m)));
     await new Promise((r) => setTimeout(r, 6000));
     const bad = [];
-    layers.forEach((l, i) =>
+    layers.forEach((l, i) => {
       l.sourceMeshes.forEach((m, j) => {
         if (rel(l, m) !== before[i][j]) bad.push(m.name || m.geometry.type);
-      }),
-    );
+      });
+    });
     return bad.slice(0, 5);
   });
   await ctx.close();

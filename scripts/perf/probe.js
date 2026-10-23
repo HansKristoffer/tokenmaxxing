@@ -10,12 +10,13 @@
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-  const P = (window.__probe = {
+  const P = {
     draws: 0, tris: 0, instances: 0, programsUsed: new Set(), texBytes: 0, bufBytes: 0, rbBytes: 0,
     live: { texture: 0, buffer: 0, program: 0, framebuffer: 0, renderbuffer: 0, vao: 0 },
     created: { texture: 0, buffer: 0, program: 0 },
     texUploads: 0, gpuMs: [], timing: false, rafMs: [], gaps: [], frames: 0, cb: 0, longTasks: 0, gcs: 0,
-  });
+  };
+  window.__probe = P;
   const trisOf = (mode, n) => (mode === 4 ? n / 3 : mode === 5 || mode === 6 ? Math.max(0, n - 2) : 0);
   for (const C of [window.WebGL2RenderingContext, window.WebGLRenderingContext]) {
     if (!C) continue;
@@ -50,7 +51,8 @@
       let bpp = type === 5131 || ifmt === 34842 ? 8 : type === 5126 ? (ifmt === 33326 ? 4 : 16) : (BPP[ifmt] ?? BPP[fmt] ?? 4);
       if (ifmt === 36012 || ifmt === 33326) bpp = 4;
       const n = w * h * bpp;
-      const per = (t.__lv ??= {});
+      t.__lv ??= {};
+      const per = t.__lv;
       per[level] = n;
       let sum = 0;
       for (const k in per) sum += per[k];
