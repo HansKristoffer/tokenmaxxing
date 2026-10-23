@@ -313,6 +313,7 @@ export class WorldRoom {
     this.W = map.width;
     this.D = map.height;
     this.skin = skin;
+    this.group.userData.bake = true;
     if (skin) {
       skin.group.position.set(skin.offset[0], 0, skin.offset[1]);
       this.group.add(skin.group);
@@ -492,6 +493,7 @@ export class WorldRoom {
       const m = new Model();
       this.group.add(m);
       groups.set(k, m);
+      m.userData.live = true;
       this.walls.push({ model: m, normal });
     }
     for (let y = 0; y < this.D; y++)

@@ -18,6 +18,7 @@ function light(m: Model, at: V3, color: string, intensity: number, distance = 5)
 /** Things that glow only at night (lamp heads, windows): swapped by `setPropsNight`. */
 const nightGlows: { mesh: THREE.Mesh; day: THREE.Material; night: THREE.Material }[] = [];
 export function nightGlow(mesh: THREE.Mesh, night: string): void {
+  mesh.userData.live = true;
   nightGlows.push({ mesh, day: mesh.material as THREE.Material, night: glow(night) });
 }
 const cones: THREE.Mesh[] = [];
@@ -199,10 +200,10 @@ export function tree(kind: TreeKind, seed: number, size = 1): Model {
       greens[i % greens.length]!,
       [Math.cos(a) * r, h + (0.3 + rnd() * 0.45) * s, Math.sin(a) * r],
       [1, 0.85, 1],
-      10,
+      8,
     ).userData.blockScale = 0.72;
   }
-  m.ball(0.3 * s, greens[1]!, [0.05 * s, h + 0.85 * s, 0.05 * s], [1, 0.85, 1], 10).userData.blockScale = 0.78;
+  m.ball(0.3 * s, greens[1]!, [0.05 * s, h + 0.85 * s, 0.05 * s], [1, 0.85, 1], 8).userData.blockScale = 0.78;
   return m;
 }
 

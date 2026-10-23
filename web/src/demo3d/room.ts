@@ -55,6 +55,7 @@ export function setRoomNight(night: boolean): void {
 function windowOn(wall: Model, x: number): void {
   const w = wall.part([x, 1.2, WALL_T / 2 + 0.01]);
   const pane = w.plane(0.9, 0.85, isNight ? NIGHT_SKY : DAY_SKY, [0, 0.45, 0]);
+  pane.userData.live = true;
   windows.push(pane);
   w.box([1.02, 0.07, 0.07], C.white, [0, -0.04, 0], 0.015);
   w.box([1.02, 0.07, 0.05], C.white, [0, 0.86, 0], 0.015);
@@ -195,6 +196,7 @@ export class Room {
       m.box([length + 0.02, 0.12, WALL_T + 0.04], C.woodDark, [0, 0, 0.01], 0.01);
       m.box([length + 0.04, 0.08, WALL_T + 0.06], C.wallTop, [0, WALL_H, 0], 0.01);
       this.shell.add(m);
+      m.userData.live = true;
       this.walls.push({ model: m, normal: new THREE.Vector3(normal[0], 0, normal[1]) });
       return m;
     };

@@ -70,6 +70,104 @@ export function painted(map: THREE.Texture, color = "#ffffff"): THREE.MeshToonMa
   return new THREE.MeshToonMaterial({ color, map, gradientMap: BANDS });
 }
 
+const AXES = [0, 1, 2] as const;
+
+/**
+ * A box with a one-step bevel in 44 triangles (the rounded box of three's addons is 108 at its leanest and 300
+ * at two steps): flat faces, a strip per edge turning from one face's normal to the next, a triangle per corner.
+ * Centred on the origin, with box-style UVs.
+ */
+export function chamferBox(w: number, h: number, d: number, r: number): THREE.BufferGeometry {
+  const half = [w / 2, h / 2, d / 2];
+  const rr = Math.max(0, Math.min(r, ...half.map((x) => x - 1e-4)));
+  const inner = half.map((x) => x - rr);
+  const pos: number[] = [];
+  const nor: number[] = [];
+  const uv: number[] = [];
+  const dirs = (axis: number, sign: number): number[] => {
+    const n = [0, 0, 0];
+    n[axis] = sign;
+    return n;
+  };
+  const uvOf = (p: number[], n: number[]): [number, number] => {
+    const ax = n.findIndex((x) => Math.abs(x) > 0.5);
+    const sg = n[ax]!;
+    const f = (i: number) => (p[i]! + half[i]!) / (half[i]! * 2);
+    if (ax === 0) return [sg > 0 ? 1 - f(2) : f(2), f(1)];
+    if (ax === 1) return [f(0), sg > 0 ? 1 - f(2) : f(2)];
+    return [sg > 0 ? f(0) : 1 - f(0), f(1)];
+  };
+  const tri = (a: number[], b: number[], c: number[], na: number[], nb: number[], nc: number[], face: number[]) => {
+    // Wind counter-clockwise seen from outside.
+    const e1 = [b[0]! - a[0]!, b[1]! - a[1]!, b[2]! - a[2]!];
+    const e2 = [c[0]! - a[0]!, c[1]! - a[1]!, c[2]! - a[2]!];
+    const cr = [e1[1]! * e2[2]! - e1[2]! * e2[1]!, e1[2]! * e2[0]! - e1[0]! * e2[2]!, e1[0]! * e2[1]! - e1[1]! * e2[0]!];
+    const out = cr[0]! * (na[0]! + nb[0]! + nc[0]!) + cr[1]! * (na[1]! + nb[1]! + nc[1]!) + cr[2]! * (na[2]! + nb[2]! + nc[2]!);
+    const v = out >= 0 ? [a, b, c] : [a, c, b];
+    const n = out >= 0 ? [na, nb, nc] : [na, nc, nb];
+    for (let i = 0; i < 3; i++) {
+      pos.push(...v[i]!);
+      nor.push(...n[i]!);
+      uv.push(...uvOf(v[i]!, face));
+    }
+  };
+  const quad = (a: number[], b: number[], c: number[], d2: number[], na: number[], nb: number[], face: number[]) => {
+    tri(a, b, c, na, na, nb, face);
+    tri(a, c, d2, na, nb, nb, face);
+  };
+  const pt = (vals: [number, number, number]) => vals;
+  for (const ax of AXES)
+    for (const sg of [-1, 1]) {
+      const n = dirs(ax, sg);
+      const u = (ax + 1) % 3;
+      const v = (ax + 2) % 3;
+      const c = (a: number, b: number) => {
+        const p = [0, 0, 0];
+        p[ax] = sg * half[ax]!;
+        p[u] = a * inner[u]!;
+        p[v] = b * inner[v]!;
+        return p;
+      };
+      quad(c(-1, -1), c(1, -1), c(1, 1), c(-1, 1), n, n, n);
+    }
+  // Edge strips: face A (axis a) meets face B (axis b); the edge runs along c.
+  for (const [a, b, c] of [[0, 1, 2], [0, 2, 1], [1, 2, 0]] as const)
+    for (const sa of [-1, 1])
+      for (const sb of [-1, 1]) {
+        const na = dirs(a, sa);
+        const nb = dirs(b, sb);
+        const onA = (t: number) => {
+          const p = [0, 0, 0];
+          p[a] = sa * half[a]!;
+          p[b] = sb * inner[b]!;
+          p[c] = t * inner[c]!;
+          return p;
+        };
+        const onB = (t: number) => {
+          const p = [0, 0, 0];
+          p[a] = sa * inner[a]!;
+          p[b] = sb * half[b]!;
+          p[c] = t * inner[c]!;
+          return p;
+        };
+        quad(onA(-1), onA(1), onB(1), onB(-1), na, nb, na);
+      }
+  // Corners.
+  for (const sx of [-1, 1])
+    for (const sy of [-1, 1])
+      for (const sz of [-1, 1]) {
+        const px = pt([sx * half[0]!, sy * inner[1]!, sz * inner[2]!]);
+        const py = pt([sx * inner[0]!, sy * half[1]!, sz * inner[2]!]);
+        const pz = pt([sx * inner[0]!, sy * inner[1]!, sz * half[2]!]);
+        tri(px, py, pz, dirs(0, sx), dirs(1, sy), dirs(2, sz), dirs(2, sz));
+      }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  return g;
+}
+
 const asMaterial = (p: Paint) => (typeof p === "string" ? toon(p) : p);
 
 const geometries = new Map<string, THREE.BufferGeometry>();
@@ -80,6 +178,14 @@ function geometry(key: string, make: () => THREE.BufferGeometry): THREE.BufferGe
     geometries.set(key, g);
   }
   return g;
+}
+
+/**
+ * Round things are a few pixels across at game scale: a 0.1 ball needs 6 segments, not 14 (a 14 x 11 sphere
+ * is 308 triangles). Scales with the radius, never above what the asset asked for.
+ */
+function segmentsFor(radius: number, wanted: number): number {
+  return Math.max(6, Math.min(wanted, Math.round(radius * 44)));
 }
 
 /** A group with shortcuts for the shapes assets are made of. Positions are bottom-centres unless noted. */
@@ -96,7 +202,13 @@ export class Model extends THREE.Group {
     const [w, h, d] = size;
     const radius = Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001);
     const g = geometry(`box${w},${h},${d},${radius}`, () => {
-      const b = radius > 0.004 ? new RoundedBoxGeometry(w, h, d, 2, radius) : new THREE.BoxGeometry(w, h, d);
+      // Small bevels (nearly all of them) are a chamfer: a third of the triangles of the rounded box, same look at game scale.
+      const b =
+        radius > 0.004 && radius < 0.06
+          ? chamferBox(w, h, d, radius)
+          : radius > 0.004
+            ? new RoundedBoxGeometry(w, h, d, 2, radius)
+            : new THREE.BoxGeometry(w, h, d);
       b.translate(0, h / 2, 0);
       return b;
     });
@@ -105,6 +217,7 @@ export class Model extends THREE.Group {
 
   /** A cylinder (or a cone, with `top`), its bottom centre at `at`. */
   cyl(radius: number, h: number, paint: Paint, at: V3 = [0, 0, 0], top = radius, seg = 14): THREE.Mesh {
+    seg = segmentsFor(Math.max(radius, top), seg);
     const g = geometry(`cyl${radius},${h},${top},${seg}`, () => {
       const c = new THREE.CylinderGeometry(top, radius, h, seg);
       c.translate(0, h / 2, 0);
@@ -115,6 +228,7 @@ export class Model extends THREE.Group {
 
   /** A ball, its centre at `at`, squashed by `scale`. */
   ball(radius: number, paint: Paint, at: V3 = [0, 0, 0], scale: V3 = [1, 1, 1], seg = 14): THREE.Mesh {
+    seg = segmentsFor(radius * Math.max(...scale), seg);
     const g = geometry(
       `ball${radius},${seg}`,
       () => new THREE.SphereGeometry(radius, seg, Math.round(seg * 0.75)),

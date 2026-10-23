@@ -5,6 +5,8 @@
  */
 import * as THREE from "three";
 import { blockify, unblockify } from "./blocky.ts";
+import { sceneEpoch, syncBaked, trackAdditions } from "../render3d/perf/bake.ts";
+import { trackRenderer } from "../render3d/perf/stats.ts";
 import { setSmoothBands } from "./kit.ts";
 
 export type RenderStyle = "classic" | "voxel";
@@ -181,6 +183,7 @@ export class Pipeline {
   private slow = 0;
   private frames = 0;
   private lastAt = 0;
+  private lastScene: THREE.Scene | null = null;
 
   constructor(canvas: HTMLCanvasElement, opts: { preserve?: boolean } = {}) {
     this.renderer = new THREE.WebGLRenderer({
@@ -190,6 +193,8 @@ export class Pipeline {
       preserveDrawingBuffer: opts.preserve ?? false,
     });
     this.renderer.shadowMap.enabled = true;
+    trackAdditions();
+    trackRenderer(this.renderer, () => this.lastScene);
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.voxQuad = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
@@ -396,9 +401,15 @@ export class Pipeline {
 
   render(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
     const r = this.renderer;
+    this.lastScene = scene;
     setSmoothBands(this.style === "voxel");
+    syncBaked(scene, this.style === "voxel" ? "block" : "smooth");
     if (this.style === "voxel") {
-      blockify(scene);
+      // Only when something was added since: swapping geometries is not free, and the scene is mostly still.
+      if (!scene.userData.blocky || scene.userData.blockEpoch !== sceneEpoch()) {
+        blockify(scene);
+        scene.userData.blockEpoch = sceneEpoch();
+      }
       scene.userData.blocky = true;
       this.renderVoxel(scene, camera, w, h);
       return;
