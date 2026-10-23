@@ -6,6 +6,8 @@
  * walkable and legible from day one. Walking is on the tile grid with collision, and stepping on a portal
  * tile moves you to the next room (`World.travel`).
  */
+
+import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_ROOM } from "@tokenmaxxing/core/shoprooms.ts";
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
 import { GameMap, LEGEND, MAPS, type MapId, plotId, type SeatKind, TOWN_SPAWN, townMap } from "./data/maps.ts";
@@ -152,14 +154,12 @@ const LINKS: Record<string, [MapId, string]> = {
   "basement:x": ["inn", "S"],
   "upstairs:x": ["inn", "u"],
   "dungeon:x": ["town", "G"],
-  "town:ƒ": ["shop-furniture", "x"],
-  "town:ç": ["shop-clothes", "x"],
-  "town:ß": ["shop-barber", "x"],
-  "town:π": ["shop-pets", "x"],
-  "shop-furniture:x": ["town", "ƒ"],
-  "shop-clothes:x": ["town", "ç"],
-  "shop-barber:x": ["town", "ß"],
-  "shop-pets:x": ["town", "π"],
+  ...Object.fromEntries(
+    SHOP_IDS.flatMap((id) => [
+      [`town:${SHOP_DOOR_CHAR[id]}`, [SHOP_ROOM[id], "x"]],
+      [`${SHOP_ROOM[id]}:x`, ["town", SHOP_DOOR_CHAR[id]]],
+    ]),
+  ),
 };
 
 export const ROOM_ORDER: MapId[] = ["town", "hq", "office", "inn", "upstairs", "basement", "dungeon", "shop-furniture", "shop-clothes", "shop-barber", "shop-pets"];

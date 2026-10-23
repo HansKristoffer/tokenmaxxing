@@ -1,3 +1,4 @@
+import { displayTab, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { stepPace } from "@tokenmaxxing/core/street.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
@@ -298,8 +299,18 @@ function jump(): void {
   void conn.jump().catch(() => {});
 }
 
-/** The last bar tile under the chalkboard (`J`, x 1-4): the counter you can reach it from. */
-const BAR_TAB_X = 3;
+/** What the shop pages open on at each shop's counter. */
+const COUNTER_TAB = { furniture: "furniture", clothes: "outfit", barber: "look", pets: "pet" } as const;
+
+/** E in a shop room on its counter or a display: the Shop page on the matching tab (the barber opens the look picker). */
+function shopInteract(x: number, y: number): boolean {
+  const shop = shopOfRoom(world.room);
+  const kind = world.map.kind(x, y);
+  if (!shop || !(kind.counter || kind.shop)) return false;
+  const tab = kind.counter ? COUNTER_TAB[shop] : displayTab(shop, x, y);
+  hud.set({ panel: tab === "look" || tab === null ? { kind: "look" } : { kind: "shop", tab } });
+  return true;
+}
 
 /** E: talk to whoever or whatever is in front of you. */
 function interact(): void {
@@ -317,17 +328,16 @@ function interact(): void {
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (kind.pours) return void send(conn.drink(me.facing));
-  if (kind.name === "fountain") return void send(conn.toss(me.facing));
+  if (kind.tosses) return void send(conn.toss(me.facing));
   if (kind.serves) return void send(conn.tavern(me.facing));
   // The Tavern's boards: the bar and the quest board give out quests, the wall is the Hall of Fame.
   if (world.room === "inn") {
-    // The left of the bar sits under the bar tab chalkboard (`J`, behind the bar, out of reach): it opens the same panel.
-    if (ch === "a" && x <= BAR_TAB_X) return void hud.set({ panel: { kind: "regulars" } });
     if (ch === "a" || ch === "m") return void hud.set({ panel: { kind: "quests" } });
     if (ch === "A") return void hud.set({ panel: { kind: "hallOfFame" } });
     if (ch === "P" || ch === "J") return void hud.set({ panel: { kind: "regulars" } });
     if (ch === "z") return void hud.set({ panel: { kind: "jukebox" } });
   }
+  if (shopInteract(x, y)) return;
   if (basementInteract(x, y)) return;
   if (ch === "K") return void hud.set({ dialog: chalkboardText() });
   if (ch === "w") return void hud.set({ panel: { kind: "openOffices" } });

@@ -32,7 +32,7 @@ describe("steps", () => {
 
   test("walks onto open ground, not into trees, water or furniture", () => {
     expect(stepTarget(town, 9, 5, "down")).toEqual({ kind: "move", x: 9, y: 6 });
-    expect(stepTarget(town, 0, 2, "left").kind).toBe("blocked"); // border tree
+    expect(stepTarget(town, town.x0 + 1, 2, "left").kind).toBe("blocked"); // border tree
     expect(stepTarget(town, 8, 4, "right").kind).toBe("blocked"); // fountain
   });
 

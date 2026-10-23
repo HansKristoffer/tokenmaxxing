@@ -329,7 +329,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 
 ## The Tavern
 
-The Inn is The Tavern: `MAPS.inn`, 24x14, still room id `inn` (saved positions, `homeRoom` and the sleepers' count
+The Inn is The Tavern: `MAPS.inn`, 28x19 (26x16 inside; the 3D room is built from the same plan), still room id `inn` (saved positions, `homeRoom` and the sleepers' count
 all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and `outsideDoor` work as before; the
 `I` door in town is unchanged.
 
@@ -338,12 +338,12 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   quests keep their old rule (`paidFrom` becomes "never", `freezeDays` and `questEvent` do nothing). Tables and
   columns stay. The Hall of Fame, badges and the card aren't behind it.
 - **Tiles** (`LEGEND`; E acts on the one you face, `interact` in `web/src/game/input.ts`):
-  - `m` quest board and the right of the bar `a`: the quests panel; the left of the bar, under the chalkboard: the regulars. `A` the wall: the Hall of Fame. `P` a plaque: the regulars.
-    `K` chalkboard: a dialog with today's special.
+  - `m` quest board and the bar `a`: the quests panel. `J` the bar tab on the west wall and `P` a plaque: the regulars. `A` the wall: the Hall of Fame.
+    `K` chalkboard: a dialog with today's special. `$` the tip jar on the bar (`tosses`, like the fountain): a coin in. `O` coat stands by the door.
   - `y` the tap (`serves`): the `tavern` action. `o` the coffee machine, as everywhere.
   - `v` a stool: sits (a `chair`-kind seat). `b` the dorm's beds.
   - `n` table, `f` hearth, `h` barrel, `k` shelf: a line of text. `e` the stage (walkable).
-  - `S` stairs down to the basement (a portal), `x` the exit.
+  - `S` stairs down to the basement (south-east corner), `u` stairs up to the dorm (south-west), `x` the exit.
 - **The barkeep's cell** is the rug behind the bar (`=`, not `_`: `restSpot` puts sleepers on free `_` tiles, so nobody
   is bedded there), walled in by shelves and the bar. `tidyInn` runs when `world` wakes: anyone saved on a tile that
   is a wall or furniture now, or can't reach the door, goes back to bed or the door, and a sitter with no seat under
@@ -777,3 +777,20 @@ free ports and data directory (`server/test/rivet.ts`), so they use the producti
 workers, since more stall the engines on its runner, and turns on quick ACKs for loopback, which takes most of the
 remaining wait out of each actor call (see `RIVET__GUARD__TCP_NODELAY`). Map, step, rest-spot and coin rules are
 pure and tested in `core/test/`.
+
+## The shops
+
+The four physical shops are public rooms like the Tavern: `shop-furniture` (Møbelhuset, Freja), `shop-clothes`
+(Thread & Token, Bree), `shop-barber` (Figaro's, Figaro) and `shop-pets` (the pet shop, Wren). `core/src/shoprooms.ts`
+is their single source of truth: the plans (the 3D shops' interiors tile for tile, at the world-grid inset
+`SHOP_INSET` of two wall rows and one column), the door, counter, shopkeeper spot and `displays` (a tile and the Shop
+tab E opens), and `SHOP_DOOR_CHAR` for the storefronts in town. `maps.ts` builds the `GameMap`s and `layoutOf(map)`
+reads a room's size, doors, seats and displays for a 3D builder.
+
+- **In town** each shop has a 5x4 front (`Ħ`, door `ƒ Ç Ð ð`) on its own block in the corners round the core
+  (`SHOP_BLOCKS`; `frontier` never offers them to a company). A block a company already holds stays the company's.
+- **Tiles**: `¢` the counter, `¤ § ¶ ¥` a shop's display (shelf, rack, styling station, pen; on a wall, sample boards),
+  `‡` fixtures. E on the counter or a display opens the Shop page on the matching tab (`shopInteract`; the barber opens
+  the look picker). Dropping anything on a shop floor is refused. The shopkeepers are `still` bots (`SHOPKEEPERS`, ids -5
+  to -8) with idle chatter only. Art: `web/src/art/shops.ts`.
+- **Core is the source of truth for every map**: `web/src/demo3d/data/maps.ts` just re-exports `core/src/maps.ts`.

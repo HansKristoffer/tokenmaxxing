@@ -9,6 +9,7 @@ import { COP } from "./cop.ts";
 import { BOT_LEVEL, compact, fill } from "./format.ts";
 import type { GameMap } from "./maps.ts";
 import { worldClock } from "./range.ts";
+import { SHOPKEEPERS } from "./shopkeepers.ts";
 import type { WeatherKind } from "./sky.ts";
 import { specialOn, TAVERN } from "./tavern.ts";
 import { type Facing, type Look, lookWith, type Place, route } from "./world.ts";
@@ -242,6 +243,7 @@ export const BOTS: BotDef[] = [
   },
   COP,
   ...(TAVERN ? [BARKEEP] : []),
+  ...SHOPKEEPERS,
 ];
 
 export const isBot = (id: number): boolean => id < 0;

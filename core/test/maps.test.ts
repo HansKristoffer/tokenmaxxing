@@ -5,13 +5,16 @@ import {
   frontier,
   type GameMap,
   LEGEND,
+  layoutOf,
   MAPS,
   plotBlock,
   plotId,
+  SHOP_BLOCKS,
   TOWN_SPAWN,
   townMap,
 } from "../src/maps.ts";
-import { RAIDERS_SHOWN, roomEntry } from "../src/world.ts";
+import { displayTab, SHOP_DOOR_CHAR, SHOP_IDS, SHOP_ROOM, SHOPS } from "../src/shoprooms.ts";
+import { portal, RAIDERS_SHOWN, roomEntry } from "../src/world.ts";
 
 /** Tiles you can walk onto or stand next to (to sit, read or open a door) from (x, y). */
 function reachable(map: GameMap, x: number, y: number): Set<string> {
@@ -105,16 +108,16 @@ describe("maps", () => {
     const seen = reachable(map, entry.x, entry.y);
     const cells = (ch: string) => map.find(ch);
 
-    test("24x14, one exit, the door steps in just above it", () => {
-      expect([map.width, map.height]).toEqual([24, 14]);
+    test("28x19 (26x16 inside), one exit, the door steps in just above it", () => {
+      expect([map.width, map.height]).toEqual([28, 19]);
       expect(map.name).toBe("The Tavern");
-      expect(cells("x")).toEqual([[11, 13]]);
-      expect([entry.x, entry.y]).toEqual([11, 12]);
+      expect(cells("x")).toEqual([[13, 18]]);
+      expect([entry.x, entry.y]).toEqual([13, 17]);
       expect(map.walkable(entry.x, entry.y)).toBe(true);
     });
 
-    test("every chair, stool and sofa is reachable from the door", () => {
-      for (const ch of ["c", "v", "s"]) {
+    test("every chair, stool, sofa and bench is reachable from the door", () => {
+      for (const ch of ["c", "v", "s", "B"]) {
         expect(cells(ch).length).toBeGreaterThan(0);
         for (const t of cells(ch)) expect(seen.has(t.join(","))).toBe(true);
       }
@@ -125,12 +128,12 @@ describe("maps", () => {
       expect(seen.has(`${BARKEEP_HOME.x},${BARKEEP_HOME.y}`)).toBe(false);
       expect(BARKEEP.home).toEqual(BARKEEP_HOME);
       // Everything behind the bar line is rug or shelf, never `_`.
-      for (let x = 1; x <= 8; x++) expect(map.at(x, 3)).toBe("=");
-      for (const t of cells("=").filter(([, y]) => y === 3)) expect(seen.has(t.join(","))).toBe(false);
+      for (let x = 1; x <= 9; x++) expect(map.at(x, 3)).toBe("=");
+      for (const t of cells("=").filter(([x, y]) => y === 3 && x < 10)) expect(seen.has(t.join(","))).toBe(false);
     });
 
-    test("the boards and the tap are all there, and each can be walked up to", () => {
-      for (const ch of ["a", "y", "m", "A", "P", "f", "n", "e", "h", "K", "o"]) {
+    test("the boards, the tap, the tip jar and the coat stands are all there, each walkable up to", () => {
+      for (const ch of ["a", "y", "$", "m", "A", "P", "f", "n", "e", "h", "K", "o", "z", "J", "O", "S", "u"]) {
         expect(cells(ch).length).toBeGreaterThan(0);
         const standable = cells(ch).some(([x, y]) =>
           [
@@ -145,13 +148,105 @@ describe("maps", () => {
       expect(cells("A")).toHaveLength(4);
       expect(cells("P")).toHaveLength(2);
       expect(LEGEND.y!.serves).toBe(true);
-      // The stage is walkable; the stairs down are in the bottom wall.
+      expect(LEGEND.$!.tosses).toBe(true);
+      // The tip jar sits on the bar, within the tap's run; no fountain indoors.
+      expect(cells("$")).toEqual([[8, 4]]);
+      expect(cells("F")).toHaveLength(0);
+      // The stage is walkable; the stairs are in the corners.
       expect(LEGEND.e!.walk).toBe(true);
-      expect(cells("S")).toEqual([[3, 13]]);
+      expect(cells("S")).toEqual([[26, 16]]);
+      expect(cells("u")).toEqual([[1, 17]]);
     });
 
     test("the stage can be walked across", () => {
       for (const t of cells("e")) expect(seen.has(t.join(","))).toBe(true);
     });
+  });
+});
+
+describe("the shops", () => {
+  const none = new Map();
+  // A busy town, so the shops sit among companies on every side.
+  const plots: number[] = [];
+  for (let i = 0; i < 12; i++) plots.push(frontier(plots)[i % 3]!);
+  const towns = [townMap([]), townMap(plots)];
+
+  test("companies never build on a shop's block", () => {
+    const blocks = SHOP_IDS.map((id) => plotId(...SHOP_BLOCKS[id]));
+    expect(frontier([]).filter((p) => blocks.includes(p))).toEqual([]);
+    for (const p of plots) expect(blocks).not.toContain(p);
+  });
+
+  for (const [i, town] of towns.entries()) {
+    test(`town ${i}: each storefront has one door, reachable from the spawn, and a 5x4 front`, () => {
+      const seen = reachable(town, ...TOWN_SPAWN);
+      for (const id of SHOP_IDS) {
+        const doors = town.find(SHOP_DOOR_CHAR[id]);
+        expect(doors).toHaveLength(1);
+        expect(seen.has(doors[0]!.join(","))).toBe(true);
+        expect(LEGEND[SHOP_DOOR_CHAR[id]]!.portal).toBe(true);
+        const [dx, dy] = doors[0]!;
+        // The door is in the middle of the front's bottom row, and the street below it is open.
+        expect(town.at(dx - 2, dy)).toBe("Ħ");
+        expect(town.at(dx + 2, dy - 3)).toBe("Ħ");
+        expect(town.walkable(dx, dy + 1)).toBe(true);
+        expect(town.find("Ħ")).toHaveLength(SHOP_IDS.length * 19);
+      }
+    });
+  }
+
+  for (const id of SHOP_IDS) {
+    const shop = SHOPS[id];
+    const map = MAPS[SHOP_ROOM[id]];
+    const entry = roomEntry(SHOP_ROOM[id]);
+    const seen = reachable(map, entry.x, entry.y);
+
+    test(`${id}: ${shop.w}x${shop.d} inside like the 3D room, one exit, the entry steps in above it`, () => {
+      expect([map.width, map.height]).toEqual([shop.w + 2, shop.d + 3]);
+      for (const row of map.rows) expect(row.length).toBe(map.width);
+      expect(map.name).toBe(shop.name);
+      expect(map.find("x")).toEqual([shop.door]);
+      expect([entry.x, entry.y]).toEqual([shop.door[0], shop.door[1] - 1]);
+      expect(map.walkable(entry.x, entry.y)).toBe(true);
+    });
+
+    test(`${id}: the counter, the keeper's spot, every seat and every display can be reached`, () => {
+      expect(map.kind(...shop.counter).counter).toBe(true);
+      expect(map.walkable(...shop.keeper)).toBe(true);
+      expect(shop.displays.length).toBeGreaterThan(0);
+      const next = (x: number, y: number) =>
+        [
+          [0, 1],
+          [0, -1],
+          [1, 0],
+          [-1, 0],
+        ].some(([dx, dy]) => seen.has(`${x + dx!},${y + dy!}`) && map.walkable(x + dx!, y + dy!));
+      expect(next(...shop.counter)).toBe(true);
+      for (const [x, y, tab] of shop.displays) {
+        expect(map.kind(x, y).shop).toBe(id);
+        expect(displayTab(id, x, y)).toBe(tab);
+        expect(next(x, y)).toBe(true);
+      }
+      for (const s of layoutOf(map).seats) expect(seen.has(`${s.x},${s.y}`) || next(s.x, s.y)).toBe(true);
+    });
+
+    test(`${id}: the door leads in from the town and back out below the storefront`, () => {
+      const [dx, dy] = MAPS.town.find(SHOP_DOOR_CHAR[id])[0]!;
+      expect(portal("town", { ch: SHOP_DOOR_CHAR[id], x: dx, y: dy }, null, none)).toEqual(entry);
+      expect(portal(SHOP_ROOM[id], { ch: "x", ...{ x: shop.door[0], y: shop.door[1] } }, null, none)).toEqual({
+        room: "town",
+        x: dx,
+        y: dy + 1,
+        facing: "down",
+      });
+    });
+  }
+
+  test("layoutOf reads a room's size, doors and seats", () => {
+    const tavern = layoutOf(MAPS.inn);
+    expect([tavern.width, tavern.height]).toEqual([28, 19]);
+    expect(tavern.doors.map((d) => d.ch).sort()).toEqual(["S", "u", "x"]);
+    expect(tavern.seats.length).toBeGreaterThan(20);
+    expect(layoutOf(MAPS["shop-barber"]).displays.some((d) => d.shop === "counter")).toBe(true);
   });
 });

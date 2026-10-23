@@ -2,6 +2,7 @@ import { HOME_PIECES, isHomePiece } from "@tokenmaxxing/core/home.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { isPoster, posterOf } from "@tokenmaxxing/core/posters.ts";
+import { SHOP_DISPLAY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { bigScreen, SCREEN_H, SCREEN_TILES, tournamentBoard, wallTerminal } from "./basement.ts";
 import { counter, windowPane, winsTile } from "./common.ts";
@@ -10,7 +11,8 @@ import { POSTER_H, posterSprite } from "./furniture-posters.ts";
 import { trophyAt } from "./loot.ts";
 import { C } from "./palette.ts";
 import { bake, cached, once, type Pen } from "./pixels.ts";
-import { bar, barrel, hallWall, hearth, jukebox, plaque, questBoard, stool, table } from "./tavern.ts";
+import { coatStand, fixture, shopCounter, shopDisplay, storefront } from "./shops.ts";
+import { bar, barJar, barrel, hallWall, hearth, jukebox, plaque, questBoard, stool, table } from "./tavern.ts";
 
 /** A baked sprite and where it sits relative to its tile's top-left corner. */
 interface Placed {
@@ -500,6 +502,31 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
     }
     case "π":
       return at(counter(map.at(x - 1, y) !== "π"));
+    // The shops: a front is one picture from its top-left tile, the tiles inside draw one each.
+    case "Ħ": {
+      if (map.at(x - 1, y) === ch || map.at(x, y - 1) === ch) return null;
+      const shop = SHOP_IDS.find((id) => SHOP_DOOR_CHAR[id] === map.at(x + 2, y + 3));
+      return shop ? at(storefront(shop), 0, 0) : null;
+    }
+    case "¢": {
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return at(shopCounter(n % 3 === 1));
+    }
+    case "¤":
+    case "§":
+    case "¶":
+    case "¥": {
+      const shop = SHOP_IDS.find((id) => SHOP_DISPLAY_CHAR[id] === ch)!;
+      const wall = x === map.x0 || y <= 1;
+      return wall ? at(shopDisplay(shop, true, x, y), 0, 0) : at(shopDisplay(shop, false, x, y));
+    }
+    case "‡":
+      return at(fixture());
+    case "O":
+      return at(coatStand());
+    case "$":
+      return at(barJar());
     case "T":
       return at(tree());
     case "^":

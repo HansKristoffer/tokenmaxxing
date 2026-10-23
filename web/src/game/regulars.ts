@@ -4,10 +4,9 @@ import {
   plateText,
   REGULARS_TOP,
   type Regular,
-  tabLine,
 } from "@tokenmaxxing/core/regulars.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
-import { barTab, nameboard } from "../art/tavern.ts";
+import { barTabSide, nameboard } from "../art/tavern.ts";
 import { town } from "../net.ts";
 import type { Frame } from "./frame.ts";
 import { world } from "./world.ts";
@@ -52,17 +51,15 @@ export function drawRegulars({ g, items }: Frame): void {
   }
 }
 
-/** The bar tab on the north wall (a run of `J`): the week's names and hours, last week's winner crowned. */
+/** The bar tab on the west wall (a run of `J`): the week's top names, last week's winner crowned. */
 export function drawBarTab({ g, items }: Frame): void {
-  const left = world.map.find("J").find(([x, y]) => world.map.at(x - 1, y) !== "J");
-  if (!left) return;
-  const sprite = barTab(
-    board.rows.map(tabLine),
-    board.rows.findIndex((r) => r.userId === board.last),
-  );
-  const [x, y] = left;
+  const top = world.map.find("J").find(([x, y]) => world.map.at(x, y - 1) !== "J");
+  if (!top) return;
+  const rows = board.rows.map((r) => plateText(r));
+  const sprite = barTabSide(rows, board.rows.findIndex((r) => r.userId === board.last));
+  const [x, y] = top;
   items.push({
-    y: y * TILE + TILE - 1,
-    draw: () => g.drawImage(sprite, x * TILE, (y + 1) * TILE - sprite.height),
+    y: y * TILE + sprite.height - 1,
+    draw: () => g.drawImage(sprite, x * TILE, y * TILE),
   });
 }

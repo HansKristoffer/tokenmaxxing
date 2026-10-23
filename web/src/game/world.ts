@@ -1,5 +1,6 @@
 import { type GameMap, setTown } from "@tokenmaxxing/core/maps.ts";
 import { type Door, setHq, setOffice } from "@tokenmaxxing/core/office.ts";
+import { SHOPS, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { stepPace } from "@tokenmaxxing/core/street.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
@@ -179,6 +180,8 @@ export function roomName(room: RoomId): string {
   if (room === "upstairs") return "Upstairs";
   if (room === "basement") return "The Basement";
   if (room === "dungeon") return "Raid Dungeon";
+  const shop = shopOfRoom(room);
+  if (shop) return SHOPS[shop].name;
   const common = commonOfRoom(room);
   if (common !== null) {
     const name = world.companies.get(common)?.name;

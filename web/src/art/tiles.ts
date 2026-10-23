@@ -86,7 +86,20 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
   return typedSwitch(map.id, {
     town: () => "grass",
     dungeon: () => "stone",
-    ...typedSwitchGroup(map.id, ["hq", "common", "inn", "upstairs", "basement", "office"], (): Ground => "floor"),
+    ...typedSwitchGroup(map.id, [
+        "hq",
+        "common",
+        "inn",
+        "upstairs",
+        "basement",
+        "office",
+        "shop-furniture",
+        "shop-clothes",
+        "shop-barber",
+        "shop-pets",
+      ],
+      (): Ground => "floor",
+    ),
   });
 }
 
