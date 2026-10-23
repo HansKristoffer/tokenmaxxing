@@ -3,12 +3,14 @@
  * of the town, all built in code (`kit.ts`) and drawn as pixel art or smooth cel shading (`pipeline.ts`).
  */
 import * as THREE from "three";
-import { Avatar, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
+import { OUTFITS, PANTS } from "../art/palette.ts";
+import { Avatar, type CharStyle, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
 import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
 import { Pipeline } from "./pipeline.ts";
 import { car } from "./props.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
+import type { Age, Species, Top } from "./styles.ts";
 import { buildTown, setTownNight, TOWN_W } from "./town.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
@@ -30,6 +32,8 @@ interface Stage {
   target: THREE.Vector3;
   /** World units shown top to bottom. */
   view: number;
+  /** How far the camera looks down, if not the usual. */
+  elevation?: number;
   labels: Label[];
   update: (dt: number, t: number) => void;
   sun: THREE.DirectionalLight;
@@ -64,6 +68,10 @@ function lights(scene: THREE.Scene, centre: THREE.Vector3, reach: number) {
 }
 
 /** Someone walking from point to point, sitting, sleeping or typing when they arrive. */
+/** How everyone is drawn; the panel switches it for the whole world. */
+let charStyle: CharStyle = "voxel";
+const everyone: Walker[] = [];
+
 class Walker {
   avatar: Avatar;
   private path: THREE.Vector3[] = [];
@@ -84,22 +92,22 @@ class Walker {
     readonly name: string,
     level: number,
   ) {
-    this.avatar = new Avatar(look);
+    this.avatar = new Avatar(look, charStyle);
+    everyone.push(this);
     stage.scene.add(this.avatar.root);
     this.tag = label(`${name} · Lv${level}`);
     stage.labels.push({ el: this.tag, at: () => this.top() });
   }
 
-  /** A new look, keeping where they are and what they're doing. */
-  restyle(look: Look): void {
-    const old = this.avatar.root;
-    const expression = this.avatar.expression;
-    this.avatar = new Avatar(look);
-    this.avatar.expression = expression;
-    this.avatar.root.position.copy(old.position);
-    this.avatar.root.rotation.copy(old.rotation);
-    this.avatar.pose = this.walking ? "walk" : "wave";
-    this.stage.scene.remove(old);
+  /** A new look or style, keeping where they are and what they're doing (or waving, `hello`). */
+  restyle(look: Look, hello = true): void {
+    const old = this.avatar;
+    this.avatar = new Avatar(look, charStyle);
+    this.avatar.expression = old.expression;
+    this.avatar.root.position.copy(old.root.position);
+    this.avatar.root.rotation.copy(old.root.rotation);
+    this.avatar.pose = this.walking ? "walk" : hello ? "wave" : old.pose;
+    old.root.removeFromParent();
     this.stage.scene.add(this.avatar.root);
   }
 
@@ -108,12 +116,13 @@ class Walker {
   }
 
   top(): THREE.Vector3 {
+    const a = this.avatar;
     const lift =
-      this.avatar.pose === "sleep"
+      a.pose === "sleep"
         ? 0.55
-        : this.avatar.pose === "sit" || this.avatar.pose === "type"
-          ? 1.0
-          : 1.2;
+        : a.pose === "sit" || a.pose === "type"
+          ? a.height - a.hip + 0.25
+          : a.height + 0.22;
     return this.pos.clone().add(new THREE.Vector3(0, lift, 0));
   }
 
@@ -568,7 +577,147 @@ townStage.update = (dt, t) => {
   }
 };
 
-const stages = [office, catalog, townStage];
+// ——— The characters: the styles side by side, trying on faces and moves ———
+interface CastRow {
+  name: string;
+  style: CharStyle;
+  /** Who stands where, by column; `undefined` leaves a gap. */
+  cast: (Partial<Look> | undefined)[];
+  /** A caption over each head. */
+  captions?: string[];
+}
+const mixed = (species: Species[]) => species.map((s) => ({ species: s, job: undefined }));
+/** One of them at three ages, dressed for each: a green hoodie, a blue blazer, a mustard cardigan. */
+const aged = (species: Species, tops: Top[], beards: number[]) =>
+  (["young", "adult", "senior"] as Age[]).map((age, i) => ({
+    species,
+    age,
+    top: tops[i]!,
+    outfit: OUTFITS[[2, 1, 3][i]!]!,
+    pants: PANTS[[2, 1, 2][i]!]!,
+    beard: beards[i]!,
+    glasses: age === "senior",
+    hat: "none" as const,
+    job: undefined,
+  }));
+const CAST_ROWS: CastRow[] = [
+  {
+    name: "🧊 Voxel",
+    style: "voxel",
+    cast: [
+      { species: "human", age: "adult", job: "chef", hat: "none" },
+      { species: "human", age: "young", top: "hoodie", job: undefined },
+      { species: "human", age: "adult", job: "farmer" },
+      { species: "human", age: "adult", top: "blazer", beard: 2, job: undefined },
+      { species: "human", age: "senior", top: "cardigan", job: undefined },
+      { species: "human", age: "adult", job: "officer" },
+      { species: "human", age: "young", top: "tee", hat: "headphones", job: undefined },
+    ],
+  },
+  {
+    name: "🦊 Voxel animals",
+    style: "voxel",
+    cast: mixed(["cat", "dog", "bunny", "bear", "pig", "fox", "mouse"]),
+  },
+  {
+    name: "⏳ Aging",
+    style: "voxel",
+    cast: [
+      ...aged("human", ["hoodie", "blazer", "cardigan"], [0, 1, 2]),
+      undefined,
+      ...aged("dog", ["tee", "blazer", "cardigan"], [0, 0, 0]),
+    ],
+    captions: ["20s", "40s", "70s", "", "20s", "40s", "70s"],
+  },
+  {
+    name: "🧑 Smooth",
+    style: "grown",
+    cast: mixed(["human", "fox", "human", "bear", "human", "cat", "human"]),
+  },
+];
+const CAST_COLS = 7;
+const CAST_W = 1.3;
+const CAST_D = 1.6;
+/** Each row stands a step above the one in front, like a class photo. */
+const CAST_STEP = 0.95;
+const castW = CAST_COLS * CAST_W + 2;
+const castD = CAST_ROWS.length * CAST_D;
+const cast = newStage("Characters", new THREE.Vector3(), 9, 8.3, "#1b1f2a");
+// Lower than elsewhere, to look them in the face.
+cast.elevation = 0.24;
+const rise = (row: number) => (CAST_ROWS.length - 1 - row) * CAST_STEP;
+const spot = (col: number, row: number) =>
+  new THREE.Vector3(
+    1 + (col + 0.5) * CAST_W - castW / 2,
+    rise(row),
+    (row + 0.5) * CAST_D - castD / 2,
+  ).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
+{
+  const show = new THREE.Group();
+  show.rotation.y = Math.PI / 4;
+  cast.scene.add(show);
+  const side = toon(tint("#dccdb0", -0.4));
+  CAST_ROWS.forEach((_, row) => {
+    const tex = checker("#e8dcc4", "#dccdb0", 2);
+    tex.repeat.set(castW / 2, CAST_D / 2);
+    const h = rise(row) + 0.3;
+    const step = new THREE.Mesh(new THREE.BoxGeometry(castW, h, CAST_D), [
+      side,
+      side,
+      painted(tex),
+      side,
+      side,
+      side,
+    ]);
+    step.position.set(0, rise(row) - h / 2, (row + 0.5) * CAST_D - castD / 2);
+    step.castShadow = step.receiveShadow = true;
+    show.add(step);
+  });
+}
+cast.target.copy(spot(3, 1.5)).setY(2.95);
+const CAST_POSES: Pose[] = ["wave", "stand", "dance", "stand", "walk", "stand", "dance"];
+const CAST_FACES: Expression[] = ["happy", "laugh", "surprised", "love", "wink", "focus", "neutral"];
+const castAvatars: { a: Avatar; i: number }[] = [];
+CAST_ROWS.forEach((row, r) => {
+  const el = label(row.name, "tag style-name");
+  const at = spot(-0.8, r).add(new THREE.Vector3(0, 0.4, 0));
+  cast.labels.push({ el, at: () => at });
+  // The aging row is the same two, so they share a look.
+  const base = row.captions ? randomLook(seeded(77)) : undefined;
+  row.cast.forEach((who, i) => {
+    if (!who) return;
+    const look = { ...(base ?? randomLook(seeded(r * 31 + i * 7 + 3))), ...who };
+    const a = new Avatar(look, row.style);
+    a.root.position.copy(spot(i, r));
+    a.root.rotation.y = Math.PI / 4;
+    a.pose = row.captions ? "stand" : CAST_POSES[i]!;
+    cast.scene.add(a.root);
+    castAvatars.push({ a, i: i + r * 2 });
+    const caption = row.captions?.[i];
+    if (caption) {
+      const tag = label(caption);
+      // On the step at their feet.
+      const over = spot(i, r).add(new THREE.Vector3(0, -0.12, 0));
+      cast.labels.push({ el: tag, at: () => over });
+    }
+  });
+});
+cast.update = (dt, t) => {
+  for (const { a, i } of castAvatars) {
+    // Each tries the faces in turn, out of step with its neighbours.
+    a.expression = CAST_FACES[(Math.floor(t / 2.2) + i) % CAST_FACES.length]!;
+    a.talking = a.expression === "neutral";
+    a.update(dt, t);
+  }
+};
+
+function setCharStyle(id: CharStyle): void {
+  charStyle = id;
+  for (const w of everyone) w.restyle(w.avatar.look, false);
+  choose("chars", id);
+}
+
+const stages = [office, catalog, townStage, cast];
 let stage = office;
 
 // ——— Camera ———
@@ -580,10 +729,11 @@ function aim(w: number, h: number): void {
   azimuth += (azimuthGoal - azimuth) * 0.15;
   const dist = 60;
   const t = stage.target;
+  const el = stage.elevation ?? ELEVATION;
   camera.position.set(
-    t.x + dist * Math.cos(ELEVATION) * Math.sin(azimuth),
-    t.y + dist * Math.sin(ELEVATION),
-    t.z + dist * Math.cos(ELEVATION) * Math.cos(azimuth),
+    t.x + dist * Math.cos(el) * Math.sin(azimuth),
+    t.y + dist * Math.sin(el),
+    t.z + dist * Math.cos(el) * Math.cos(azimuth),
   );
   camera.lookAt(t);
   const half = (stage.view * zoom) / 2;
@@ -702,7 +852,7 @@ canvas.addEventListener("pointermove", (e) => {
   stage.target
     .copy(drag.target)
     .addScaledVector(right, -dx * perPx)
-    .addScaledVector(fwd, (dy * perPx) / Math.sin(ELEVATION));
+    .addScaledVector(fwd, (dy * perPx) / Math.sin(stage.elevation ?? ELEVATION));
 });
 canvas.addEventListener("pointerup", (e) => {
   const click = drag && !drag.moved;
@@ -804,6 +954,8 @@ $("#spin").onclick = () => {
   spin = !spin;
 };
 $("#look").onclick = () => (stage === townStage ? townMe : me).restyle(randomLook());
+for (const b of document.querySelectorAll<HTMLButtonElement>("[data-group=chars]"))
+  b.onclick = () => setCharStyle(b.dataset.value as CharStyle);
 
 // ——— Emotes: a face (or a move) for a few seconds, with the emoji over your head ———
 for (const b of document.querySelectorAll<HTMLButtonElement>("[data-emote]")) {
@@ -908,6 +1060,7 @@ function frame(): void {
 
 setStyle(1);
 setStage(new URLSearchParams(location.search).get("stage") ?? "Office");
+setCharStyle((new URLSearchParams(location.search).get("chars") as CharStyle | null) ?? "voxel");
 me.say("hi! click the floor to walk 👋", last + 0.5);
 requestAnimationFrame(frame);
 void drawIcons();

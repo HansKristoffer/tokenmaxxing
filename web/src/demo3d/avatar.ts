@@ -1,27 +1,50 @@
 /**
- * Characters: a big round head on a small body, in the game's skins, hairs and outfits
+ * Characters: one look (skin, hair, outfit, hat, species, age) worn in any of five styles (`styles.ts`), all
+ * posed the same way here, with painted faces (`faces.ts`). The colours are the game's own
  * (`web/src/art/palette.ts`), so every look a player has today has a 3D twin. Pets are built the same way.
  */
-import * as THREE from "three";
+import type * as THREE from "three";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../art/palette.ts";
-import { Model, tint, toon, type V3 } from "./kit.ts";
+import { type Expression, type Face, faceTexture } from "./faces.ts";
+import { Model, tint, type V3 } from "./kit.ts";
+import {
+  AGES,
+  type Age,
+  ANIMALS,
+  animal,
+  bot,
+  type CharStyle,
+  chibi,
+  grown,
+  type Hat,
+  type Job,
+  type Look,
+  type Rig,
+  type Top,
+} from "./styles.ts";
+import { voxel } from "./voxel.ts";
 
-export type Hat = "none" | "cap" | "beanie" | "headphones" | "crown";
-export interface Look {
-  skin: string;
-  hair: string;
-  /** 0 short, 1 spiky, 2 bob, 3 bun, 4 ponytail. */
-  style: number;
-  outfit: [string, string];
-  pants: string;
-  hat: Hat;
-}
+const BUILD: Record<CharStyle, (body: Model, look: Look) => Rig> = { voxel, grown, animal, chibi, bot };
+
+export type { Expression } from "./faces.ts";
+export type { CharStyle, Look } from "./styles.ts";
 
 export const HATS: readonly Hat[] = ["none", "cap", "beanie", "headphones", "crown"];
+
+const JOBS: readonly Job[] = ["chef", "farmer", "officer"];
+
+/** What people wear at each age. */
+const TOPS: Record<Age, readonly Top[]> = {
+  young: ["tee", "hoodie", "hoodie"],
+  adult: ["tee", "hoodie", "blazer", "blazer"],
+  senior: ["cardigan", "cardigan", "blazer"],
+};
 
 export function randomLook(rnd = Math.random): Look {
   const pick = <T>(xs: readonly T[]) => xs[Math.floor(rnd() * xs.length)]!;
   const outfit = Math.floor(rnd() * OUTFITS.length);
+  // Mostly working age.
+  const age: Age = rnd() < 0.15 ? "senior" : pick(AGES.slice(0, 2));
   return {
     skin: pick(SKINS),
     hair: pick(HAIRS),
@@ -29,377 +52,54 @@ export function randomLook(rnd = Math.random): Look {
     outfit: OUTFITS[outfit]!,
     pants: PANTS[outfit] ?? PANTS[0]!,
     hat: rnd() < 0.55 ? "none" : pick(HATS.slice(1)),
+    species: rnd() < 0.5 ? "human" : pick(ANIMALS),
+    age,
+    top: pick(TOPS[age]),
+    beard: age !== "young" && rnd() < 0.4 ? 1 + Math.floor(rnd() * 2) : 0,
+    glasses: age === "senior" || rnd() < 0.2,
+    job: rnd() < 0.2 ? pick(JOBS) : undefined,
   };
 }
 
 export type Pose = "stand" | "walk" | "sit" | "type" | "sleep" | "wave" | "dance" | "dj";
 
-export type Expression = "neutral" | "happy" | "laugh" | "surprised" | "love" | "wink" | "focus" | "sleep";
-/** What's drawn: an expression, or a frame of one (mid-blink, mid-word). */
-type Face = Expression | "blink" | "talk";
-
-const INK = "#2b2433";
-/** Draws a face on a 256×128 canvas, as it wraps the front of the head: eyes, brows, mouth, blush. */
-function drawFace(g: CanvasRenderingContext2D, face: Face): void {
-  const [lx, rx, ey, my] = [92, 164, 66, 96];
-  g.lineCap = g.lineJoin = "round";
-  // Blush.
-  g.fillStyle = "rgba(242, 120, 160, 0.45)";
-  for (const x of [lx - 26, rx + 26]) {
-    g.beginPath();
-    g.ellipse(x, ey + 22, 13, 7, 0, 0, Math.PI * 2);
-    g.fill();
-  }
-  const eye = (x: number, big = 1) => {
-    g.fillStyle = INK;
-    g.beginPath();
-    g.ellipse(x, ey, 12 * big, 18 * big, 0, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = "#5a4a7a";
-    g.beginPath();
-    g.ellipse(x, ey + 7 * big, 9 * big, 9 * big, 0, 0, Math.PI);
-    g.fill();
-    g.fillStyle = "#ffffff";
-    g.beginPath();
-    g.arc(x + 5 * big, ey - 7 * big, 5.5 * big, 0, Math.PI * 2);
-    g.arc(x - 3 * big, ey + 6 * big, 2 * big, 0, Math.PI * 2);
-    g.fill();
-  };
-  const arc = (x: number, up: boolean) => {
-    g.strokeStyle = INK;
-    g.lineWidth = 5;
-    g.beginPath();
-    if (up) g.arc(x, ey + 6, 11, Math.PI * 1.15, Math.PI * 1.85);
-    else g.arc(x, ey - 6, 11, Math.PI * 0.15, Math.PI * 0.85);
-    g.stroke();
-  };
-  const brows = (lift: number, tilt = 0) => {
-    g.strokeStyle = tint(INK, 0.15);
-    g.lineWidth = 4;
-    for (const [x, s] of [
-      [lx, -1],
-      [rx, 1],
-    ] as const) {
-      g.beginPath();
-      g.moveTo(x - 10, ey - 24 - lift + s * tilt);
-      g.lineTo(x + 10, ey - 24 - lift - s * tilt);
-      g.stroke();
-    }
-  };
-  const heart = (x: number) => {
-    g.fillStyle = "#ff4f8b";
-    g.beginPath();
-    g.moveTo(x, ey + 12);
-    g.bezierCurveTo(x - 18, ey, x - 12, ey - 16, x, ey - 6);
-    g.bezierCurveTo(x + 12, ey - 16, x + 18, ey, x, ey + 12);
-    g.fill();
-    g.fillStyle = "#ffffff";
-    g.beginPath();
-    g.arc(x + 5, ey - 5, 2.5, 0, Math.PI * 2);
-    g.fill();
-  };
-  const smile = (w: number, open = false) => {
-    g.strokeStyle = INK;
-    g.lineWidth = 4;
-    g.beginPath();
-    if (open) {
-      g.fillStyle = "#7a2a3a";
-      g.moveTo(128 - w, my - 2);
-      g.quadraticCurveTo(128, my + w * 1.6, 128 + w, my - 2);
-      g.closePath();
-      g.fill();
-      g.stroke();
-      g.fillStyle = "#ff8a9a";
-      g.beginPath();
-      g.ellipse(128, my + w * 0.55, w * 0.45, w * 0.25, 0, 0, Math.PI * 2);
-      g.fill();
-    } else {
-      g.arc(128, my - w * 0.6, w, Math.PI * 0.2, Math.PI * 0.8);
-      g.stroke();
-    }
-  };
-  const flat = (w: number) => {
-    g.strokeStyle = INK;
-    g.lineWidth = 4;
-    g.beginPath();
-    g.moveTo(128 - w, my);
-    g.lineTo(128 + w, my);
-    g.stroke();
-  };
-  const oh = (r: number) => {
-    g.fillStyle = "#7a2a3a";
-    g.strokeStyle = INK;
-    g.lineWidth = 3.5;
-    g.beginPath();
-    g.ellipse(128, my + 2, r * 0.8, r, 0, 0, Math.PI * 2);
-    g.fill();
-    g.stroke();
-  };
-  switch (face) {
-    case "neutral":
-      brows(0);
-      eye(lx);
-      eye(rx);
-      smile(9);
-      break;
-    case "talk":
-      brows(1);
-      eye(lx);
-      eye(rx);
-      oh(7);
-      break;
-    case "blink":
-      brows(0);
-      arc(lx, false);
-      arc(rx, false);
-      smile(9);
-      break;
-    case "happy":
-      brows(3);
-      arc(lx, true);
-      arc(rx, true);
-      smile(12, true);
-      break;
-    case "laugh":
-      brows(5, -2);
-      for (const [x, s] of [
-        [lx, 1],
-        [rx, -1],
-      ] as const) {
-        g.strokeStyle = INK;
-        g.lineWidth = 5;
-        g.beginPath();
-        g.moveTo(x - 9 * s, ey - 10);
-        g.lineTo(x + 7 * s, ey);
-        g.lineTo(x - 9 * s, ey + 10);
-        g.stroke();
-      }
-      smile(17, true);
-      break;
-    case "surprised":
-      brows(9);
-      eye(lx, 1.2);
-      eye(rx, 1.2);
-      oh(9);
-      break;
-    case "love":
-      brows(3);
-      heart(lx);
-      heart(rx);
-      smile(11, true);
-      break;
-    case "wink":
-      brows(2, 2);
-      eye(lx);
-      arc(rx, true);
-      smile(12);
-      break;
-    case "focus":
-      brows(-2, 3);
-      eye(lx, 0.85);
-      eye(rx, 0.85);
-      // Lids halfway down.
-      g.strokeStyle = INK;
-      g.lineWidth = 4;
-      for (const x of [lx, rx]) {
-        g.beginPath();
-        g.moveTo(x - 12, ey - 4);
-        g.lineTo(x + 12, ey - 4);
-        g.stroke();
-      }
-      flat(7);
-      break;
-    case "sleep":
-      arc(lx, false);
-      arc(rx, false);
-      oh(4);
-      break;
-  }
-}
-
-const faces = new Map<Face, THREE.CanvasTexture>();
-function faceTexture(face: Face): THREE.CanvasTexture {
-  let t = faces.get(face);
-  if (!t) {
-    const canvas = document.createElement("canvas");
-    canvas.width = 256;
-    canvas.height = 128;
-    const g = canvas.getContext("2d")!;
-    // Drawn a third bigger than laid out, and a touch low: big chibi eyes.
-    g.translate(128, 70);
-    g.scale(1.35, 1.35);
-    g.translate(-128, -64);
-    drawFace(g, face);
-    t = new THREE.CanvasTexture(canvas);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 4;
-    faces.set(face, t);
-  }
-  return t;
-}
-
-/** The front of a sphere, `r` across, for a face to be painted on. */
-const FACE_GEOMETRY = new THREE.SphereGeometry(1, 32, 16, Math.PI / 2 - 0.95, 1.9, Math.PI / 2 - 0.75, 1.5);
-
-const HEAD_R = 0.25;
-const HIP = 0.24;
-const NECK = 0.52;
-
-/** Hair: a cap over the head, then the style's own pieces. */
-function hair(head: Model, look: Look): void {
-  const c = look.hair;
-  const cap = new THREE.Mesh(
-    new THREE.SphereGeometry(HEAD_R * 1.07, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),
-    toon(c),
-  );
-  cap.rotation.x = -0.62;
-  cap.castShadow = true;
-  head.add(cap);
-  // A fringe over the forehead.
-  head.ball(0.09, c, [-0.08, 0.17, 0.15], [1.3, 0.45, 0.7], 10);
-  head.ball(0.08, c, [0.09, 0.18, 0.15], [1.2, 0.4, 0.7], 10);
-  switch (look.style) {
-    case 1:
-      for (let i = 0; i < 5; i++) {
-        const a = -0.9 + i * 0.45;
-        const spike = head.cyl(
-          0.07,
-          0.16,
-          c,
-          [Math.sin(a) * 0.12, 0.2, -0.03 + Math.cos(a) * 0.02],
-          0.005,
-          6,
-        );
-        spike.rotation.set(-0.5, 0, -a * 0.8);
-      }
-      break;
-    case 2:
-      head.box([0.54, 0.34, 0.3], c, [0, -0.2, -0.08], 0.12);
-      break;
-    case 3:
-      head.ball(0.12, c, [0, 0.27, -0.1]);
-      break;
-    case 4: {
-      head.ball(0.08, c, [0, 0.12, -0.26]);
-      const tail = head.cyl(0.07, 0.3, c, [0, -0.2, -0.3], 0.04, 8);
-      tail.rotation.x = 0.2;
-      break;
-    }
-  }
-}
-
-function hat(head: Model, look: Look): void {
-  const [main, dark] = look.outfit;
-  switch (look.hat) {
-    case "cap": {
-      const crown = new THREE.Mesh(
-        new THREE.SphereGeometry(HEAD_R * 1.1, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.42),
-        toon(main),
-      );
-      crown.castShadow = true;
-      crown.position.y = 0.03;
-      head.add(crown);
-      head.box([0.34, 0.025, 0.2], dark, [0, 0.12, 0.24], 0.01).rotation.x = -0.12;
-      head.ball(0.025, dark, [0, 0.3, 0]);
-      break;
-    }
-    case "beanie":
-      head.ball(HEAD_R * 1.1, "#e25d5d", [0, 0.08, -0.01], [1, 0.75, 1]);
-      head.cyl(HEAD_R * 1.08, 0.08, "#b8443f", [0, 0.05, -0.01], HEAD_R * 1.08, 18);
-      head.ball(0.06, C_WHITE, [0, 0.3, -0.02]);
-      break;
-    case "headphones": {
-      const band = new THREE.Mesh(
-        new THREE.TorusGeometry(HEAD_R * 1.12, 0.022, 6, 20, Math.PI),
-        toon("#2b2433"),
-      );
-      band.castShadow = true;
-      head.add(band);
-      for (const s of [-1, 1]) {
-        const cup = head.cyl(0.07, 0.07, "#2b2433", [s * 0.27, -0.02, 0], 0.07, 12);
-        cup.rotation.z = (s * Math.PI) / 2;
-        head.ball(0.045, "#3ddc84", [s * 0.31, -0.02, 0], [0.4, 1, 1]);
-      }
-      break;
-    }
-    case "crown": {
-      head.cyl(0.13, 0.08, "#e9b73d", [0, 0.24, 0], 0.15, 10);
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2;
-        head.cyl(0.03, 0.08, "#e9b73d", [Math.sin(a) * 0.13, 0.31, Math.cos(a) * 0.13], 0.002, 5);
-      }
-      head.ball(0.025, "#e25d5d", [0, 0.29, 0.15]);
-      break;
-    }
-    case "none":
-      break;
-  }
-}
-
-const C_WHITE = "#fbf7ef";
-
 export class Avatar {
   readonly root = new Model();
   readonly body = this.root.part();
   readonly head: Model;
-  private readonly face: THREE.MeshToonMaterial;
+  /** Standing height, to the top of the head, and the hips, which a sitter drops by. */
+  readonly height: number;
+  readonly hip: number;
+  private readonly rig: Rig;
+  /** Short legs don't bend; theirs are stand-ins. */
+  private readonly knees: [Model, Model];
   /** How they look; a blink or a word passes over it for a moment. */
   expression: Expression = "neutral";
   /** Talking: the mouth opens and shuts. */
   talking = false;
-  private readonly arms: Model[] = [];
-  private readonly legs: Model[] = [];
   pose: Pose = "stand";
   /** Seconds into the walk cycle. */
   private phase = Math.random() * 10;
   private blinkAt = Math.random() * 4;
 
-  constructor(readonly look: Look) {
-    const { skin } = look;
-    const [main, dark] = look.outfit;
-    const b = this.body;
-
-    for (const s of [-1, 1]) {
-      const leg = b.part([s * 0.075, HIP, 0]);
-      leg.box([0.11, HIP - 0.04, 0.12], look.pants, [0, -HIP + 0.04, 0], 0.04);
-      leg.box([0.12, 0.07, 0.17], "#2b2433", [0, -HIP, 0.025], 0.03);
-      this.legs.push(leg);
-    }
-    b.box([0.3, 0.26, 0.2], main, [0, HIP - 0.02, 0], 0.08);
-    b.box([0.31, 0.05, 0.21], dark, [0, HIP - 0.02, 0], 0.025);
-    b.ball(0.06, dark, [0, NECK - 0.05, 0.06], [1.6, 0.5, 0.8]);
-    for (const s of [-1, 1]) {
-      const arm = b.part([s * 0.18, NECK - 0.07, 0]);
-      const sleeve = arm.box([0.085, 0.16, 0.09], main, [0, -0.16, 0], 0.04);
-      sleeve.rotation.z = s * 0.08;
-      arm.ball(0.05, skin, [s * 0.012, -0.19, 0]);
-      this.arms.push(arm);
-    }
-
-    const head = b.part([0, NECK, 0]);
-    this.head = head;
-    const skull = head.ball(HEAD_R, skin, [0, HEAD_R * 0.86, 0], [1.05, 0.95, 1], 24);
-    this.face = new THREE.MeshToonMaterial({
-      map: faceTexture("neutral"),
-      transparent: true,
-      depthWrite: false,
-      gradientMap: toon(skin).gradientMap,
-    });
-    const face = new THREE.Mesh(FACE_GEOMETRY, this.face);
-    face.scale.setScalar(HEAD_R * 1.008);
-    // Tipped down a little, so the eyes sit low and big under the fringe, as chibis' do.
-    face.rotation.x = 0.26;
-    skull.add(face);
-    const hairs = head.part([0, HEAD_R * 0.86, 0]);
-    hair(hairs, look);
-    hat(hairs, look);
+  constructor(
+    readonly look: Look,
+    readonly style: CharStyle = "grown",
+  ) {
+    this.rig = BUILD[style](this.body, look);
+    this.head = this.rig.head;
+    this.height = this.rig.height;
+    this.hip = this.rig.hip;
+    this.knees = this.rig.knees ?? [new Model(), new Model()];
   }
 
   /** Moves the limbs for `pose`, `dt` seconds after the last frame. */
   update(dt: number, t: number): void {
     this.phase += dt;
-    const [legL, legR] = this.legs as [Model, Model];
-    const [armL, armR] = this.arms as [Model, Model];
+    const [legL, legR] = this.rig.legs;
+    const [armL, armR] = this.rig.arms;
+    const [kneeL, kneeR] = this.knees;
+    const HIP = this.rig.hip;
     const b = this.body;
     b.position.set(0, 0, 0);
     b.rotation.set(0, 0, 0);
@@ -409,12 +109,17 @@ export class Avatar {
     legR.rotation.set(0, 0, 0);
     armL.rotation.set(0, 0, 0);
     armR.rotation.set(0, 0, 0);
+    kneeL.rotation.set(0, 0, 0);
+    kneeR.rotation.set(0, 0, 0);
 
     switch (this.pose) {
       case "walk": {
         const s = Math.sin(this.phase * 11);
         legL.rotation.x = s * 0.6;
         legR.rotation.x = -s * 0.6;
+        // The leg behind bends at the knee.
+        kneeL.rotation.x = Math.max(0, s) * 0.8;
+        kneeR.rotation.x = Math.max(0, -s) * 0.8;
         armL.rotation.x = -s * 0.7;
         armR.rotation.x = s * 0.7;
         b.position.y = Math.abs(Math.cos(this.phase * 11)) * 0.035;
@@ -425,6 +130,7 @@ export class Avatar {
       case "type":
         b.position.y = -HIP + 0.02;
         legL.rotation.x = legR.rotation.x = -Math.PI / 2;
+        kneeL.rotation.x = kneeR.rotation.x = 1.35;
         if (this.pose === "type") {
           armL.rotation.x = armR.rotation.x = -1.15;
           armL.rotation.x += Math.sin(t * 22) * 0.07;
@@ -437,7 +143,8 @@ export class Avatar {
         break;
       case "sleep":
         b.rotation.x = -Math.PI / 2;
-        b.position.set(0, 0.06, 0.32);
+        // Feet to the foot of the bed, however tall.
+        b.position.set(0, 0.06, 0.32 + Math.max(0, this.height - 0.97));
         b.scale.y = 1 + Math.sin(t * 1.6) * 0.02;
         armL.rotation.z = 0.15;
         armR.rotation.z = -0.15;
@@ -454,6 +161,8 @@ export class Avatar {
         armR.rotation.z = 2.4 - Math.sin(beat) * 0.4;
         legL.rotation.x = Math.max(0, Math.sin(beat)) * -0.5;
         legR.rotation.x = Math.max(0, -Math.sin(beat)) * -0.5;
+        kneeL.rotation.x = Math.max(0, Math.sin(beat)) * 0.9;
+        kneeR.rotation.x = Math.max(0, -Math.sin(beat)) * 0.9;
         this.head.rotation.z = Math.sin(beat) * 0.12;
         break;
       }
@@ -477,8 +186,11 @@ export class Avatar {
     let face: Face = this.pose === "sleep" ? "sleep" : this.expression;
     if (face === "neutral" && this.talking && Math.sin(t * 16) > 0) face = "talk";
     if (blink && (face === "neutral" || face === "focus" || face === "surprised")) face = "blink";
-    const map = faceTexture(face);
-    if (this.face.map !== map) this.face.map = map;
+    for (const f of this.rig.faces) {
+      const map = faceTexture(face, f.kind);
+      if (f.material.map !== map) f.material.map = map;
+    }
+    this.rig.tick?.(t);
   }
 }
 
