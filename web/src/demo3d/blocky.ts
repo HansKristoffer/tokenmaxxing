@@ -161,7 +161,7 @@ function convert(mesh: THREE.Mesh, textured: boolean): THREE.BufferGeometry | nu
 
 function standIn(mesh: THREE.Mesh): THREE.BufferGeometry | null {
   const mat = mesh.material;
-  if (Array.isArray(mat)) return null;
+  if (Array.isArray(mat) || mesh.userData.noBlock) return null;
   const textured = !!(mat as THREE.MeshToonMaterial).map;
   let per = table.get(mesh.geometry);
   if (!per) {

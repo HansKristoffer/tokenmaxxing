@@ -323,3 +323,10 @@ label {
 [hidden] {
   display: none !important;
 }
+
+.tag.style-name {
+  font-size: 15px;
+  padding: 3px 10px;
+  background: var(--accent);
+  color: var(--ink);
+}

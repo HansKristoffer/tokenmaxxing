@@ -12,11 +12,12 @@ import { RARITIES, RARITY_COLOR, type Rarity, rarityOf } from "@tokenmaxxing/cor
 import { ITEMS, type Item } from "@tokenmaxxing/core/shop.ts";
 import * as THREE from "three";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../art/palette.ts";
-import { Avatar, type Gear, type Hat, type Look } from "./avatar.ts";
+import { Avatar, type CharStyle, type Gear, type Look } from "./avatar.ts";
 import { EXTRA_OUTFITS, LEGENDARY_LEVEL, MERCH_PAIRS } from "./data/gear.ts";
 import { BACK_BUILDERS, type BodyCtx, HELD_BUILDERS, type MerchLook, merchCap, merchTop, OUTFIT_BUILDERS } from "./gear3dBody.ts";
 import { COVERS_HAIR, type Ctx, FACE_BUILDERS, HAT_BUILDERS, lit, ring, see } from "./gear3dHead.ts";
 import { Model, tint, toon } from "./kit.ts";
+import type { Hat, Look as VLook } from "./styles.ts";
 
 /** Badge tier frames (`TIER_COLOR` in `core/src/rarity.ts` on the tavern branch). */
 export const TIER_COLOR = { bronze: "#c98a4b", silver: "#d5dbe4", gold: "#ffd75e", diamond: "#7fe8ff" } as const;
@@ -136,67 +137,81 @@ class Dress implements Gear {
       pants: this.pants,
       tick: (fn) => tick((t) => fn(t)),
     };
+    const vox = a.style === "voxel";
+    const fit = headFit(a);
 
-    // The head: a hat (or the company cap), then the face piece.
-    // Under a hat that covers the crown, the hair's fringe, spikes and bun are tucked away.
-    const hairs = a.head.children.at(-1);
-    const covered = (merch && worn.merch.cap) || (worn.hat && COVERS_HAIR.has(worn.hat.name)) || l.hat === 1 || (l.style === 1 && !l.hat);
-    if (covered && hairs) for (const p of hairs.children) if (p.position.y > 0.1 && p.position.z > -0.2) p.visible = false;
-    const head = a.head.part([0, 0.215, 0]);
-    if (merch && worn.merch.cap) merchCap(head, merch);
+    // The head: a hat (or the company cap), then the face piece. Builders draw for a round head 0.5 across
+    // with its centre at the origin; `headFit` scales and moves that frame onto this style's head.
+    const hat = a.head.part([0, fit.y + fit.lift, 0]);
+    hat.scale.setScalar(fit.scale);
+    const face = a.head.part([0, fit.y + fit.eyes, fit.front]);
+    face.scale.set(fit.scale * fit.wide, fit.scale, fit.scale);
+    if (merch && worn.merch.cap) merchCap(hat, merch);
     else {
-      const hat = worn.hat && !BASE_HATS[l.hat ?? 0] ? HAT_BUILDERS[worn.hat.name] : undefined;
-      hat?.(head, ctx);
+      const build = worn.hat && !BASE_HATS[l.hat ?? 0] ? HAT_BUILDERS[worn.hat.name] : undefined;
+      build?.(hat, ctx);
     }
-    if (worn.glasses) FACE_BUILDERS[worn.glasses.name]?.(head, ctx);
+    // Voxel folk wear these two drawn in cubes (`lookFrom2D` sets them on the look).
+    const own = vox && worn.glasses && VOXEL_FACE[worn.glasses.name];
+    if (worn.glasses && !own) FACE_BUILDERS[worn.glasses.name]?.(face, ctx);
 
-    // The body.
+    // The body, in the frame the builders know (a torso 0.3 wide, floor-up 0.22 to 0.48), stretched over the
+    // blocky torso. Other styles' bodies are too different, so they skip the marks.
+    const chest = a.arms[0].parent as Model | null;
     const sleeves = (color: string) => {
+      if (vox) return;
       for (const arm of a.arms) {
         const sleeve = arm.children[0];
         if (sleeve instanceof Object && "material" in sleeve) (sleeve as unknown as { material: unknown }).material = toon(color);
       }
     };
-    const body: BodyCtx = {
-      body: a.body,
-      arms: a.arms as [Model, Model],
-      main: this.outfit[0],
-      dark: this.outfit[1],
-      pants: this.pants,
-      tick,
-      sleeves,
+    if (vox && chest) {
+      const frame = chest.part([0, -0.24, 0]);
+      frame.scale.set(1.05, 1.2, 0.9);
+      const body: BodyCtx = {
+        body: frame,
+        arms: a.arms as [Model, Model],
+        main: this.outfit[0],
+        dark: this.outfit[1],
+        pants: this.pants,
+        tick,
+        sleeves,
+      };
+      if (merch && worn.merch.top) merchTop(body, merch, worn.merch.hoodie);
+      else OUTFIT_BUILDERS[l.outfit]?.(body);
+      if (worn.back) {
+        const back = frame.part([0, 0.37, -0.1]);
+        BACK_BUILDERS[worn.back.name]?.(back, tick);
+      }
+    }
+
+    // In the right hand.
+    const heldIn = (): Model => {
+      const hand = a.arms[1].part([0, fit.hand, 0.01]);
+      hand.scale.setScalar(vox ? 1.4 : 1.5 * (a.height / 0.95));
+      return hand;
     };
-    if (merch && worn.merch.top) merchTop(body, merch, worn.merch.hoodie);
-    else OUTFIT_BUILDERS[l.outfit]?.(body);
+    if (worn.held) HELD_BUILDERS[worn.held.name]?.(heldIn(), (fn) => tick((t) => fn(t)));
+    else if (merch && worn.merch.mug) mug(heldIn(), merch);
 
-    if (worn.held) {
-      const hand = a.arms[1]!.part([0.012, -0.19, 0]);
-      hand.scale.setScalar(1.5);
-      HELD_BUILDERS[worn.held.name]?.(hand, (fn) => tick((t) => fn(t)));
-    } else if (merch && worn.merch.mug) {
-      const hand = a.arms[1]!.part([0.012, -0.19, 0]);
-      hand.scale.setScalar(1.5);
-      mug(hand, merch);
-    }
-    if (worn.back) {
-      const back = a.body.part([0, 0.37, -0.1]);
-      BACK_BUILDERS[worn.back.name]?.(back, tick);
-    }
-
-    if ((this.opts.level ?? 0) >= LEGENDARY_LEVEL) this.aura(a, tick);
+    if ((this.opts.level ?? 0) >= LEGENDARY_LEVEL) this.aura(a, fit.top, tick);
   }
 
   /** The legendary level: a golden halo over the head, a soft glow round the body, sparkles drifting up. */
-  private aura(a: Avatar, tick: (fn: Tick) => void): void {
-    const halo = a.head.part([0, 0.215 + 0.34, 0]);
+  private aura(a: Avatar, top: number, tick: (fn: Tick) => void): void {
+    const k = a.height / 0.95;
+    const base = top + 0.11 * k;
+    const halo = a.head.part([0, base, 0]);
+    halo.scale.setScalar(0.9 * k);
     ring(halo, lit("#ffe066"), 0.15, 0.02);
     ring(halo, lit("#c98e22"), 0.15, 0.012, [0, -0.012, 0]);
     ring(halo, see("#fff3a8", 0.3, true), 0.15, 0.05);
     tick((t) => {
-      halo.position.y = 0.215 + 0.34 + (Math.floor(t * 3.5) % 2) * 0.012;
+      halo.position.y = base + (Math.floor(t * 3.5) % 2) * 0.012;
       halo.rotation.y = t * 0.6;
     });
-    const glowBody = a.root.part([0, 0.42, 0]);
+    const glowBody = a.root.part([0, a.height * 0.5, 0]);
+    glowBody.scale.setScalar(k * 1.05);
     const rings: THREE.Mesh[] = [];
     for (const [r, o] of [[0.5, 0.09], [0.4, 0.11], [0.3, 0.14]] as const) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), see(o > 0.1 ? "#ffec96" : "#ffd64a", o, true));
@@ -227,6 +242,44 @@ class Dress implements Gear {
   }
 }
 
+/** Where the head is, for the builders' round head (0.5 across, centred on the origin). */
+interface HeadFit {
+  /** Head-local height of its centre, and of its top. */
+  y: number;
+  top: number;
+  scale: number;
+  /** Extra height for a hat to clear the hair, and a step forward for flat faces (the builders curve round a ball). */
+  lift: number;
+  front: number;
+  /** The eyes sit higher and wider on a voxel face than on the builders' ball.  */
+  eyes: number;
+  wide: number;
+  /** Hand height, from the shoulder. */
+  hand: number;
+}
+function headFit(a: Avatar): HeadFit {
+  const hand = (() => {
+    a.root.updateMatrixWorld(true);
+    const arm = a.arms[1];
+    const box = new THREE.Box3().setFromObject(arm);
+    return box.min.y - arm.getWorldPosition(new THREE.Vector3()).y + 0.04;
+  })();
+  if (a.style === "voxel") return { y: 0.1575, top: 0.36, scale: 0.63, lift: 0.025, front: 0.035, eyes: 0.045, wide: 1.25, hand: -0.33 };
+  a.root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(a.head);
+  const c = a.head.worldToLocal(box.getCenter(new THREE.Vector3()));
+  const top = a.head.worldToLocal(new THREE.Vector3(0, box.max.y, 0)).y;
+  return { y: c.y, top, scale: Math.min(1.4, Math.max(0.4, box.getSize(new THREE.Vector3()).x / 0.5)), lift: 0, front: 0, eyes: 0, wide: 1, hand };
+}
+
+/** The glasses and beards a voxel person draws in cubes themselves (`lookFrom2D` turns these on). */
+const VOXEL_FACE: Record<string, Partial<VLook>> = {
+  "Nerd specs": { glasses: true },
+  "Pane glasses": { glasses: true },
+  "Hygge moustache": { beard: 1 },
+  "Viking beard": { beard: 2 },
+};
+
 const sparkGeometry = new THREE.OctahedronGeometry(0.035).scale(0.7, 1.3, 0.7);
 
 /** The company mug, in the hand. */
@@ -251,21 +304,32 @@ export function lookFrom2D(look: Look2D, opts: LookOptions = {}): Look {
   const colours: [string, string] = wearsTop ? [company!.main, company!.shade] : outfit;
   const hat = look.hat ?? 0;
   const base: Hat = BASE_HATS[hat] ?? (look.style === 1 && !hat ? "cap" : "none");
+  const worn = wornBy(look);
   const out: Look = {
     skin: SKINS[look.skin] ?? SKINS[0]!,
     hair: HAIRS[look.hair] ?? HAIRS[0]!,
-    // 2D: short, cap, spiky, long.
-    style: [0, 0, 1, 2][look.style] ?? 0,
+    // 2D: short, cap, spiky, long. Long is a bob or a ponytail, by hair colour.
+    style: look.style === 3 ? (look.hair % 2 ? 4 : 2) : ([0, 0, 1][look.style] ?? 0),
     outfit: colours,
     pants,
     hat: bits & 4 ? "none" : base,
+    // The 2D head is a person, in a tee; the beards and glasses the voxel face draws itself are its own.
+    species: "human",
+    age: "adult",
+    top: bits & 2 && wearsTop ? "hoodie" : "tee",
+    beard: 0,
+    glasses: false,
+    // Under a hat that covers the crown, the hair's fringe, spikes and bun are tucked away.
+    covered: !!((bits & 4) || (worn.hat && COVERS_HAIR.has(worn.hat.name))),
   };
+  const own = worn.glasses ? VOXEL_FACE[worn.glasses.name] : undefined;
+  if (own) Object.assign(out, own);
   out.gear = new Dress(look, colours, pants, out.skin, out.hair, opts);
   return out;
 }
 
 /** A 3D avatar for a saved 2D look. */
-export const avatarFor = (look: Look2D, opts?: LookOptions): Avatar => new Avatar(lookFrom2D(look, opts));
+export const avatarFor = (look: Look2D, opts?: LookOptions, style: CharStyle = "voxel"): Avatar => new Avatar(lookFrom2D(look, opts), style);
 
 /** The crown the legendary level puts on a pet, to add to a `Pet`'s `root` at its head. */
 export function petCrown(): Model {
@@ -281,7 +345,7 @@ export function petCrown(): Model {
 
 /** How far over a character's head a name tag should float, in world units: higher over a halo. */
 export const tagLift = (level = 0, pose = "stand"): number =>
-  (pose === "sleep" ? 0.55 : pose === "sit" || pose === "type" ? 1.0 : 1.2) + (level >= LEGENDARY_LEVEL ? 0.14 : 0);
+  (pose === "sleep" ? 0.55 : pose === "sit" || pose === "type" ? 0.97 : 1.35) + (level >= LEGENDARY_LEVEL ? 0.14 : 0);
 
 // MARK: Overhead chips
 

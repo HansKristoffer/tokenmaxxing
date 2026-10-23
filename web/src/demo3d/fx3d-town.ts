@@ -9,7 +9,7 @@ import { bannerFor } from "@tokenmaxxing/core/picnic.ts";
 import { worldWall } from "@tokenmaxxing/core/range.ts";
 import { clockMinutes, PAPER, POLSE, SNAIL, snailAt } from "@tokenmaxxing/core/street.ts";
 import * as THREE from "three";
-import { Avatar, type Look, type Pose } from "./avatar.ts";
+import { Avatar, type Look, type Pose, personLook } from "./avatar.ts";
 import { light } from "./furniture.ts";
 import { canvasTexture, glow, Model, painted, seeded, ticks, tint, toon, type V3 } from "./kit.ts";
 import { car } from "./props.ts";
@@ -115,43 +115,36 @@ export class Actor {
   }
 }
 
-const lookOf = (outfit: [string, string], pants: string, rnd: number): Look => ({
+const lookOf = (outfit: [string, string], pants: string, rnd: number, extra: Partial<Look> = {}): Look => personLook({
   skin: ["#f4d0b0", "#e0a97a", "#b9784a", "#7a4b2e"][rnd % 4]!,
   hair: ["#2b2433", "#5a3a22", "#c9853a", "#a8a8b8"][rnd % 4]!,
   style: rnd % 5,
   outfit,
   pants,
   hat: "none",
+  ...extra,
 });
 
 // MARK: Models
 
-const GOLD = "#f5c842";
 const ink = "#2b2433";
 
 /** Officer 429's cap, badge, belt, notepad and siren, put on an `Avatar`. Returns the siren's parts. */
 function dressCop(a: Avatar) {
-  const cap = a.head.part([0, 0.215, 0]);
-  cap.cyl(0.27, 0.1, "#33498f", [0, 0.01, 0], 0.26, 18);
-  cap.cyl(0.275, 0.035, "#24336b", [0, 0.01, 0], 0.275, 18);
-  cap.box([0.34, 0.025, 0.17], "#15161f", [0, 0.045, 0.2], 0.01).rotation.x = -0.1;
-  cap.box([0.06, 0.055, 0.02], GOLD, [0, 0.07, 0.27], 0.01);
-  // The light bar.
-  cap.box([0.2, 0.05, 0.07], ink, [0, 0.14, 0], 0.015);
+  // The voxel officer already has the cap, buttons and badge; this adds the light bar on top and the notepad.
+  const cap = a.head.part([0, 0.4, 0]);
+  cap.scale.setScalar(0.7);
+  cap.box([0.2, 0.05, 0.07], ink, [0, 0.04, 0], 0.015);
   const red = new THREE.MeshBasicMaterial({ color: "#ff4a4a" });
   const blue = new THREE.MeshBasicMaterial({ color: "#4a9bff" });
-  const l = cap.box([0.085, 0.06, 0.06], red, [-0.052, 0.18, 0], 0.01);
-  const r = cap.box([0.085, 0.06, 0.06], blue, [0.052, 0.18, 0], 0.01);
+  const l = cap.box([0.085, 0.06, 0.06], red, [-0.052, 0.08, 0], 0.01);
+  const r = cap.box([0.085, 0.06, 0.06], blue, [0.052, 0.08, 0], 0.01);
   const b = a.body;
-  b.box([0.34, 0.045, 0.23], "#15161f", [0, 0.22, 0], 0.015);
-  b.box([0.05, 0.04, 0.02], GOLD, [0, 0.235, 0.115], 0.008);
-  b.box([0.045, 0.045, 0.02], GOLD, [0.08, 0.38, 0.105], 0.012);
-  b.box([0.06, 0.1, 0.02], "#fbf7ef", [0, 0.4, 0.103], 0.01);
   const pad = new Model();
   pad.box([0.13, 0.17, 0.02], "#fbf7ef", [0, 0, 0], 0.01);
   pad.box([0.1, 0.01, 0.005], "#8fb3d9", [0, 0.06, 0.012]);
   pad.box([0.1, 0.01, 0.005], "#8fb3d9", [0, 0.1, 0.012]);
-  pad.position.set(0.1, 0.27, 0.19);
+  pad.position.set(0.1, 0.55, 0.2);
   pad.rotation.x = -0.4;
   pad.visible = false;
   b.add(pad);
@@ -494,14 +487,14 @@ export function goalFlag(): Model {
   return m;
 }
 
-const PAPERBOY: Look = {
+const PAPERBOY: Look = personLook({
   skin: "#f4d0b0",
   hair: "#c9853a",
   style: 1,
   outfit: ["#f0b53c", "#c9971f"],
   pants: "#3c4454",
   hat: "beanie",
-};
+});
 
 /** The paperboy's bike, facing +x. */
 export function bikeModel(): { model: Model; wheels: THREE.Object3D[] } {
@@ -653,7 +646,7 @@ export class TownFx {
 
   // ——— Cop ———
   private buildCop(): void {
-    const actor = new Actor(this.scene, lookOf(["#33498f", "#24336b"], "#24336b", 1));
+    const actor = new Actor(this.scene, lookOf(["#33498f", "#24336b"], "#24336b", 1, { job: "officer" }));
     const parts = dressCop(actor.avatar);
     actor.at(8.5, WALK_Z, "stand", Math.PI / 2);
     actor.speed = 1.2;
@@ -791,24 +784,25 @@ export class TownFx {
     this.cartRoot.visible = false;
     this.group.add(this.cartRoot);
     const hat = (a: Avatar) => {
-      const h = a.head.part([0, 0.215, 0]);
+      const h = a.head.part([0, 0.18, 0]);
+      h.scale.setScalar(0.63);
       h.cyl(0.42, 0.035, "#7a3b6e", [0, 0.0, 0], 0.42, 20);
       h.cyl(0.24, 0.17, "#5a2a52", [0, 0.03, 0], 0.22, 16);
       h.cyl(0.245, 0.04, "#e9b73d", [0, 0.04, 0], 0.245, 16);
       const f = h.box([0.025, 0.2, 0.05], "#e8584f", [0.2, 0.1, 0.02], 0.01);
       f.rotation.z = -0.7;
       h.box([0.02, 0.15, 0.04], "#f5d14a", [0.24, 0.13, 0.0], 0.01).rotation.z = -0.9;
-      // A grey moustache.
-      a.head.box([0.12, 0.03, 0.04], "#d9d3c6", [0, 0.135, 0.245], 0.012);
     };
-    this.merchant = new Actor(this.scene, {
+    this.merchant = new Actor(this.scene, personLook({
       skin: "#e0a97a",
       hair: "#a8a8b8",
       style: 0,
       outfit: ["#7a3b6e", "#5a2a52"],
       pants: "#3c4454",
       hat: "none",
-    });
+      age: "senior",
+      beard: 1,
+    }));
     hat(this.merchant.avatar);
     this.merchant.avatar.root.visible = false;
     this.merchant.speed = 1.1;

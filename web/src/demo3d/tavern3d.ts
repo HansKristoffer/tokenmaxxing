@@ -12,7 +12,7 @@
  */
 import * as THREE from "three";
 import { C, HAIRS, SKINS } from "../art/palette.ts";
-import { Avatar, type Look } from "./avatar.ts";
+import { Avatar, type Look, personLook } from "./avatar.ts";
 import { copenhagenDay, SPECIALS, STRIDE, type TabRow } from "./data/tavern.ts";
 import { type Asset, assetById, light } from "./furniture.ts";
 import {
@@ -1097,30 +1097,30 @@ export interface Barkeep {
 
 /** Bent the Barkeep: short hair, a white tee, denim overalls for an apron, and a mug in hand. */
 export function makeBarkeep(): Barkeep {
-  const look: Look = {
+  const look: Look = personLook({
     skin: SKINS[2]!,
     hair: HAIRS[3]!,
     style: 0,
     outfit: ["#f2f0ea", "#cfcac0"],
     pants: "#3f6fb0",
     hat: "none",
-  };
+    beard: 1,
+  });
   const avatar = new Avatar(look);
   const denim = "#3f6fb0";
   const b = avatar.body;
-  // The apron: a bib over the chest, straps over the shoulders, a skirt over the thighs and two brass buttons.
-  b.box([0.22, 0.22, 0.025], denim, [0, 0.24, 0.1], 0.01);
-  b.box([0.3, 0.12, 0.025], denim, [0, 0.12, 0.1], 0.01);
+  // The apron: a bib over the chest and two straps over the shoulders, on the voxel torso (0.405 to 0.765 up).
+  b.box([0.25, 0.22, 0.02], denim, [0, 0.55, 0.1], 0.008);
   for (const s of [-1, 1]) {
-    b.box([0.035, 0.05, 0.215], denim, [s * 0.085, 0.45, 0], 0.01);
-    b.ball(0.016, "#f5c842", [s * 0.085, 0.43, 0.116], [1, 1, 0.5], 6);
+    b.box([0.04, 0.03, 0.2], denim, [s * 0.09, 0.755, 0], 0.006);
+    b.box([0.04, 0.2, 0.02], denim, [s * 0.09, 0.66, 0.1], 0.006);
+    b.box([0.03, 0.03, 0.01], "#f5c842", [s * 0.09, 0.62, 0.112], 0.004);
   }
-  b.box([0.1, 0.07, 0.02], tint(denim, 0.2), [0, 0.3, 0.115], 0.006);
   // The mug, in the right hand.
-  const arms = (avatar as unknown as { arms: Model[] }).arms;
-  const hand = arms[1]!;
-  hand.cyl(0.04, 0.09, glass("#f5d14a", 0.92), [0.0, -0.25, 0.07], 0.038, 10);
-  hand.cyl(0.04, 0.02, C.white, [0.0, -0.16, 0.07], 0.04, 10);
+  const arms = avatar.arms;
+  const hand = arms[1];
+  hand.cyl(0.04, 0.09, glass("#f5d14a", 0.92), [0.0, -0.3, 0.08], 0.038, 10);
+  hand.cyl(0.04, 0.02, C.white, [0.0, -0.22, 0.08], 0.04, 10);
   return {
     avatar,
     root: avatar.root,
