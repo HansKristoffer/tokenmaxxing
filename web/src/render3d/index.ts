@@ -1,3 +1,4 @@
+import { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { worldWall } from "@tokenmaxxing/core/range.ts";
 import { DIRS, type Facing, houseTier, mapOf, ownerOfOffice } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
@@ -7,7 +8,7 @@ import { SHOP_INSET, type ShopDisplay, type ShopId } from "../demo3d/shops/index
 import { viewHooks } from "../game/camera.ts";
 import { gameHits } from "../game/games.ts";
 import { peekHits } from "../game/houses.ts";
-import { send, walkThen } from "../game/input.ts";
+import { send, walkThen, walkTo } from "../game/input.ts";
 import { chipHits, signHits } from "../game/labels.ts";
 import type { Renderer, Tile } from "../game/renderer.ts";
 import { skyNow } from "../game/sky.ts";
@@ -178,8 +179,21 @@ class Renderer3D implements Renderer {
 
   // MARK: Rooms
 
+  /** The Office's wallpaper and floor as just chosen (the server's snapshot, which replaces the map, supersedes it). */
+  private decorNow: { base: GameMap; map: GameMap } | null = null;
+
+  /** Puts a wallpaper and floor on the Office at once: the room is built again from its map with them. */
+  private applyDecor(d: { wall?: string; floor?: string }): void {
+    if (ownerOfOffice(world.room) === null) return;
+    const base = world.map;
+    const m = this.decorNow?.base === base ? this.decorNow.map : base;
+    this.decorNow = { base, map: new GameMap(m.id, m.name, m.rows, m.x0, m.y0, { ...m.decor, ...d }) };
+    this.key = "";
+  }
+
   private ctx(): RoomCtx {
-    return { map: world.map, companies: [...world.companies.values()], minutes: () => this.probeMinutes ?? minutesNow() };
+    const map = this.decorNow && this.decorNow.base === world.map ? this.decorNow.map : world.map;
+    return { map, companies: [...world.companies.values()], minutes: () => this.probeMinutes ?? minutesNow() };
   }
 
   /** The town's identity, worked out once per list of companies (`setCompanies` replaces the map each time). */
@@ -236,6 +250,7 @@ class Renderer3D implements Renderer {
     this.selfAt = null;
     if (roomChanged) {
       this.shops?.panel.close();
+      this.shops?.panel.tip(null);
       this.placer.cancel();
       if (this.pendingPlace && this.inOwnOffice()) {
         const id = this.pendingPlace;
@@ -364,7 +379,7 @@ class Renderer3D implements Renderer {
       night: this.pipe.night > 0.5,
     }),
     startPlacement: (itemId) => this.startPlacement(itemId),
-    applyDecor: (d) => this.stage?.view.decor?.(d),
+    applyDecor: (d) => this.applyDecor(d),
   };
 
   /** The display nearest a point of the window, within a few finger widths. */
@@ -548,6 +563,25 @@ class Renderer3D implements Renderer {
   }
 
   readonly world = world;
+
+  /** Where a shelf of the shop you are in is in the window, by item id (tests); the first one without an id. */
+  shelfScreen(itemId?: string): { id: string; name: string; price: number; at: [number, number] } | null {
+    const d = this.stage?.view.shop?.displays.find((q) => !itemId || q.item.id === itemId);
+    if (!d) return null;
+    const p = new THREE.Vector3(d.pos.x + SHOP_INSET[0], d.pos.y, d.pos.z + SHOP_INSET[1]).project(this.rig.camera);
+    const r = this.canvas.getBoundingClientRect();
+    return { id: d.item.id, name: d.item.name, price: d.item.price, at: [((p.x + 1) / 2) * r.width + r.left, ((1 - p.y) / 2) * r.height + r.top] };
+  }
+
+  /** Goes to your own Office from anywhere, as the card's button does (tests). */
+  visitOffice(): void {
+    send(conn.visit(world.selfId));
+  }
+
+  /** Walks to a tile of the room as a click would (tests). */
+  go(x: number, y: number): void {
+    walkTo(x, y);
+  }
 
   /** Shows room `id` from its core map without moving anyone (screenshots and tests); the next snapshot undoes it. */
   debugRoom(id: string): void {

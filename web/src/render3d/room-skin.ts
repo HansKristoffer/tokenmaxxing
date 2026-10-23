@@ -33,8 +33,6 @@ export interface SkinParts {
   live?: (t: number) => void;
   /** A shop's interior, for picking its shelves. */
   shop?: ShopRoom;
-  /** An Office's wallpaper and floor, at once. */
-  decor?: (d: { wall?: string; floor?: string }) => void;
   /** The basement's dim light. */
   dim?: boolean;
   /** The demo's own handles into the room (the Tavern's boards, the basement's screens...), by room. */
@@ -70,7 +68,6 @@ export function viewOf(
     parts,
     keepers: parts.keepers,
     shop: parts.shop,
-    decor: parts.decor,
     lights: parts.dim ? (scene, hemi, sun) => dimBasement(scene, hemi, sun) : undefined,
     outdoors: false,
     bounds: { minX: 0, maxX: W, minZ: 0, maxZ: D, height: WALL_H },

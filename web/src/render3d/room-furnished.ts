@@ -136,7 +136,7 @@ function buildFurnished(id: RoomId, ctx: RoomCtx): RoomView {
   endTickScope(scope, room.group);
   const skin: RoomSkin = { group: room.group, offset: inset, facing: (v) => room.facing(v), extra: built.value };
   const world = new WorldRoom(office ? "office" : "common", map, skin);
-  return viewOf(id, map, world, built.ticks, { extra: built.value, keepers: new Set(), decor: office ? (d) => applyDecor(room, d) : undefined });
+  return viewOf(id, map, world, built.ticks, { extra: built.value, keepers: new Set() });
 }
 
 registerRoom("office", buildFurnished);

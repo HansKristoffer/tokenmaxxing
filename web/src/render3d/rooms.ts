@@ -52,8 +52,6 @@ export interface RoomView {
   readonly keepers?: ReadonlySet<number>;
   /** In a shop: its interior (the displays on its shelves), for picking what to buy. */
   readonly shop?: ShopRoom;
-  /** In an Office: puts a wallpaper and floor on it at once (the buy panel's try-on, before the server answers). */
-  decor?(d: { wall?: string; floor?: string }): void;
   /** Sets the room's own light (the basement's dim): once, when its stage is made. */
   lights?(scene: THREE.Scene, hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight): void;
   /** Lamps and windows at night. */

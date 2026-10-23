@@ -29,6 +29,7 @@ const CSS = `
 .shop-state.good{color:#7fe3a6}
 .shop-card .row button.primary{background:var(--accent);color:var(--ink);font-weight:700;border-color:transparent}
 .shop-card .row button:disabled{opacity:.45;cursor:not-allowed}
+.shop-card[hidden]{display:none}
 #shop-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);padding:8px 16px;border-radius:10px;
   background:#fbf7ef;color:var(--ink);font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:20}
 #shop-toast.on{opacity:1;transform:translate(-50%,0)}
