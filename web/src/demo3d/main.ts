@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { Avatar, type Expression, type Look, Pet, type Pose, randomLook } from "./avatar.ts";
 import { ASSETS, type Asset, assetById, deskWithScreen } from "./furniture.ts";
 import { checker, type Model, painted, seeded, ticks, tint, toon } from "./kit.ts";
+import { buildPetGallery } from "./pets3d.ts";
 import { Pipeline } from "./pipeline.ts";
 import { car } from "./props.ts";
 import { type Placed, Room, setRoomNight, type Turn } from "./room.ts";
@@ -568,7 +569,20 @@ townStage.update = (dt, t) => {
   }
 };
 
-const stages = [office, catalog, townStage];
+// ——— The pets gallery (pets3d.ts) ———
+const petsStage = newStage("Pets", new THREE.Vector3(0, 0.4, 0), 14, 17, "#1b1f2a");
+{
+  const gallery = buildPetGallery();
+  gallery.group.rotation.y = Math.PI / 4;
+  petsStage.scene.add(gallery.group);
+  for (const l of gallery.labels) {
+    const at = l.at.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
+    petsStage.labels.push({ el: label(l.text, "tag item"), at: () => at });
+  }
+  petsStage.update = gallery.update;
+}
+
+const stages = [office, catalog, townStage, petsStage];
 let stage = office;
 
 // ——— Camera ———
