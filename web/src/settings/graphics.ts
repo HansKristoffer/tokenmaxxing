@@ -6,6 +6,8 @@ export type Tier = (typeof TIERS)[number];
 export type TierChoice = Tier | "auto";
 export type Shadows = "off" | "low" | "high";
 export type FpsCap = 30 | 60 | 0;
+/** Which labels over things show: those near the player (fading with distance) or all of them. */
+export type Labels = "near" | "all";
 
 export interface Post {
   haze: boolean;
@@ -31,6 +33,7 @@ export interface GraphicsSettings {
   /** The most device pixels per CSS pixel to render at. */
   dprCap: number;
   reduceMotion: boolean;
+  labels: Labels;
 }
 
 export type Overrides = Partial<Omit<GraphicsSettings, "tier" | "renderer" | "shadowMap" | "post">> & {
@@ -55,7 +58,7 @@ export const TIER_BLURBS: Record<TierChoice, string> = {
 const ALL_POST: Post = { haze: true, tiltShift: true, grade: true };
 const NO_POST: Post = { haze: false, tiltShift: false, grade: false };
 
-type TierBase = Omit<GraphicsSettings, "tier" | "shadowMap" | "reduceMotion">;
+type TierBase = Omit<GraphicsSettings, "tier" | "shadowMap" | "reduceMotion" | "labels">;
 
 const BASE: Record<Tier, TierBase> = {
   low: {
@@ -126,6 +129,7 @@ export function resolveSettings(
     weather: clamp(overrides.weather ?? base.weather, 0, 1),
     dprCap: clamp(overrides.dprCap ?? base.dprCap, 1, 4),
     reduceMotion: overrides.reduceMotion ?? prefersReducedMotion,
+    labels: overrides.labels ?? "near",
   };
 }
 
@@ -171,6 +175,7 @@ export function sanitizeOverrides(raw: unknown): Overrides {
   if (isNum(o.dprCap)) out.dprCap = clamp(o.dprCap, 1, 4);
   const reduce = bool(o.reduceMotion);
   if (reduce !== undefined) out.reduceMotion = reduce;
+  if (o.labels === "near" || o.labels === "all") out.labels = o.labels;
   if (typeof o.post === "object" && o.post) {
     const p = o.post as Record<string, unknown>;
     const post: Partial<Post> = {};

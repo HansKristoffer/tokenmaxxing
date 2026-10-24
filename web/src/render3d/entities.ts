@@ -10,6 +10,7 @@ import { type Look2D, lookFrom2D, nameTag, tagLift, wornBy } from "../demo3d/gea
 import { Model } from "../demo3d/kit.ts";
 import { type Pet3D, petFrom2D } from "../demo3d/pets3d.ts";
 import { BURST_MS } from "../game/emoji.ts";
+import { LABEL_FAR } from "../game/near.ts";
 import { followPet, prunePets } from "../game/pets.ts";
 import { type Lap, racing } from "../game/race.ts";
 import {
@@ -36,7 +37,7 @@ const NONE: ReadonlySet<number> = new Set();
 /** Pets are drawn a little bigger than life so they read from the iso camera. */
 const PET_SCALE = 1.25;
 /** Tiles within which other players' pets show their names. */
-const NAME_RANGE = 6;
+const NAME_RANGE = LABEL_FAR;
 /** A step that has stopped keeps the walk going this long, so a gap between two steps doesn't flicker. */
 const WALK_HOLD_MS = 140;
 
@@ -509,7 +510,7 @@ export class Entities {
       }
       if (r.petLabel.textContent !== name) r.petLabel.textContent = name;
       this.v.set(pet.x, 0.5, pet.z);
-      this.overlay.place(r.petLabel, this.v, camera, 0, 14);
+      this.overlay.place(r.petLabel, this.v, camera, 0, 14, true);
     } else if (r.petLabel) {
       r.petLabel.remove();
       r.petLabel = null;

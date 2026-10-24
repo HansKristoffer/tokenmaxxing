@@ -93,7 +93,7 @@ export class Signs {
         e.el.textContent = text;
       }
       this.at.set(...s.at);
-      const on = this.overlay.place(e.el, this.at, camera, 0, s.dy ?? 0);
+      const on = this.overlay.place(e.el, this.at, camera, 0, s.dy ?? 0, true);
       this.chips(e, s, on, camera);
     }
     for (const [key, e] of this.shown)
@@ -138,7 +138,7 @@ export class Signs {
       e.chipsKey = key;
     }
     this.at.set(...s.at);
-    this.overlay.place(e.chips, this.at, camera, 0, 24);
+    this.overlay.place(e.chips, this.at, camera, 0, 24, true);
   }
 
   /** `💤 N asleep` over the room's top middle: the offline players the Inn only counts. */

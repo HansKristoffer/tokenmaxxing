@@ -21,6 +21,7 @@ import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { merchantAt, openCart } from "./merchant.ts";
+import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
 import { pickTile } from "./stage.ts";
 import { blocksStep, streetInteract } from "./street.ts";
@@ -156,6 +157,17 @@ export function bindInput(canvas: HTMLElement): void {
     },
     { passive: false },
   );
+  // Pointing at (or, on touch, tapping) something far away brings its label back: see near.ts.
+  let pointedAt = 0;
+  const point = (e: PointerEvent) => {
+    const now = performance.now();
+    if (e.type === "pointermove" && now - pointedAt < 50) return;
+    pointedAt = now;
+    setHover(pickTile(e.clientX, e.clientY), now);
+  };
+  canvas.addEventListener("pointermove", point, { passive: true });
+  canvas.addEventListener("pointerdown", point, { passive: true });
+  canvas.addEventListener("pointerleave", () => setHover(null, performance.now()));
   canvas.addEventListener("click", (e) => {
     if (hud.get().panel) return;
     // Someone inside a house: their name chip (screen pixels) or their face in a window (world pixels).

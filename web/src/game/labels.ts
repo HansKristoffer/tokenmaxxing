@@ -1,7 +1,9 @@
-import type { Peek } from "@tokenmaxxing/core/world.ts";
+import { type Peek, TILE } from "@tokenmaxxing/core/world.ts";
 import { clamp, sumBy } from "hanzio";
 import { C } from "../art/palette.ts";
+import { camera } from "./camera.ts";
 import { BURST_MS } from "./emoji.ts";
+import { hover, hoverStrength, labelAlpha } from "./near.ts";
 import { polseTag } from "./street.ts";
 import { type Avatar, gameTag, world } from "./world.ts";
 
@@ -14,6 +16,25 @@ export const signHits: { x: number; y: number; w: number; h: number; id: number 
 const CHIPS_MAX = 4;
 
 export const FONT = "ui-monospace, SFMono-Regular, Menlo, monospace";
+
+/** Where the labels over things are judged from this frame: the player's tile (NaN: all show) and the hover's reveal. */
+const focus = { x: NaN, y: NaN, hover: 0 };
+
+/** Once a frame, before any label: who the labels are near to (`null`, or `all`, shows every one). */
+export function focusLabels(me: { x: number; y: number } | null, all: boolean, now: number): void {
+  focus.x = all || !me ? NaN : me.x + 0.5;
+  focus.y = all || !me ? NaN : me.y + 0.5;
+  focus.hover = hoverStrength(now);
+}
+
+/** A label's alpha for its spot on screen (canvas pixels): fainter the farther away the player is, unless hovered. */
+export function alphaAt(sx: number, sy: number): number {
+  if (Number.isNaN(focus.x)) return 1;
+  const tx = (sx / camera.scale + camera.x) / TILE;
+  const ty = (sy / camera.scale + camera.y) / TILE;
+  const dist = Math.hypot(tx - focus.x, ty - focus.y);
+  return labelAlpha(dist, Math.hypot(tx - hover.x - 0.5, ty - hover.y - 0.5), focus.hover);
+}
 
 /** The labels' fonts at `dpr`, made once rather than for every label (dpr only changes with the screen). */
 const fonts = { dpr: 0, pill: "", chip: "", pet: "", bubble: "" };
@@ -53,6 +74,9 @@ export const chipsWidth = (g: CanvasRenderingContext2D, people: Peek[], dpr: num
 
 /** One row of `💤 name Lv5` chips centred under a house's sign; clicking one opens their card. */
 export function chips(g: CanvasRenderingContext2D, cx: number, y: number, people: Peek[], dpr: number): void {
+  const alpha = alphaAt(cx, y);
+  if (alpha <= 0) return;
+  g.globalAlpha = alpha;
   const { texts, widths, w: total } = chipRow(g, people, dpr);
   g.font = fontsAt(dpr).chip;
   const pad = 5 * dpr;
@@ -73,6 +97,7 @@ export function chips(g: CanvasRenderingContext2D, cx: number, y: number, people
     if (p) chipHits.push({ x, y, w, h, id: p.id });
     x += w + gap;
   }
+  g.globalAlpha = 1;
 }
 
 /** A pill's text, cut to fit, and its width: measured once per font, width and text, not every frame. */
@@ -122,6 +147,9 @@ export function petLabel(
   name: string,
   dpr: number,
 ): void {
+  const alpha = alphaAt(cx, y);
+  if (alpha <= 0) return;
+  g.globalAlpha = alpha;
   g.font = fontsAt(dpr).pet;
   g.textAlign = "center";
   g.textBaseline = "top";
@@ -131,6 +159,27 @@ export function petLabel(
   g.strokeText(name, cx, y);
   g.fillStyle = C.white;
   g.fillText(name, cx, y);
+  g.globalAlpha = 1;
+}
+
+/** A `pill` over a thing (not a person): faded by how far the player is from it, gone past `LABEL_FAR`. */
+export function nearPill(
+  g: CanvasRenderingContext2D,
+  cx: number,
+  y: number,
+  text: string,
+  dpr: number,
+  bg: string,
+  fg: string,
+  maxW?: number,
+): { w: number; h: number } {
+  const alpha = alphaAt(cx, y);
+  if (alpha <= 0) return { w: 0, h: 0 };
+  const was = g.globalAlpha;
+  g.globalAlpha = was * alpha;
+  const out = pill(g, cx, y, text, dpr, bg, fg, maxW);
+  g.globalAlpha = was;
+  return out;
 }
 
 export function sign(
@@ -142,7 +191,7 @@ export function sign(
   owned: boolean,
   maxW?: number,
 ) {
-  return pill(
+  return nearPill(
     g,
     cx,
     y,

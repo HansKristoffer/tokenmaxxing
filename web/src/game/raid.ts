@@ -23,7 +23,7 @@ import { gradient, hash } from "../art/pixels.ts";
 import { hud } from "../store.ts";
 import type { Frame } from "./frame.ts";
 import { gameHits } from "./games.ts";
-import { bubble, FONT, pill, sign } from "./labels.ts";
+import { bubble, FONT, nearPill, pill, sign } from "./labels.ts";
 import { world } from "./world.ts";
 
 const HURT_MS = 450;
@@ -609,7 +609,7 @@ function drawGate(f: Frame, r: Raid) {
     ? `⚔️ Raid Dungeon · shut · opens ${opensAt(r)}`
     : `⚔️ Raid Dungeon · ${r.boss.emoji} ${r.boss.name} · rung ${r.boss.rung} · ${pct(r)}%`;
   labels.push(() => {
-    const { w, h } = pill(g, sx, sy, text, dpr, "rgba(20, 24, 34, 0.9)", "#ffd35c");
+    const { w, h } = nearPill(g, sx, sy, text, dpr, "rgba(20, 24, 34, 0.9)", "#ffd35c");
     gameHits.push({ x: sx - w / 2, y: sy - h, w, h, open: openRaid });
   });
 }
