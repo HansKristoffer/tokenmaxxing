@@ -1,11 +1,11 @@
-import { CALM, CPH, presetWeather, type Weather, weatherFrom } from "@tokenmaxxing/core/sky.ts";
+import { AARHUS, CALM, presetWeather, type Weather, weatherFrom } from "@tokenmaxxing/core/sky.ts";
 
 /** One fetch for the whole world: 4 requests an hour. Swap the source here (`fetchWeather`) if needed. */
 export const WEATHER_EVERY_MS = 15 * 60_000;
 const TIMEOUT_MS = 5_000;
 
 const URL =
-  `https://api.open-meteo.com/v1/forecast?latitude=${CPH.lat}&longitude=${CPH.lon}` +
+  `https://api.open-meteo.com/v1/forecast?latitude=${AARHUS.lat}&longitude=${AARHUS.lon}` +
   "&current=weather_code,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms";
 
 /** Copenhagen's weather right now from Open-Meteo, or null if it can't be had. */

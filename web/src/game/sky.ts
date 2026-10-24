@@ -12,7 +12,7 @@ import { hud } from "../store.ts";
 import { bakeGlow } from "./glow.ts";
 
 /**
- * Sky and weather on the canvas. The town (and only the town) is tinted by the sun over Copenhagen,
+ * Sky and weather on the canvas. The town (and only the town) is tinted by the sun over Aarhus,
  * its lamps and windows glow at night, and the weather the server shares falls on it. Cheap by design:
  * one multiply fill for the light, a few baked glow sprites, and capped particles drawn in one path.
  *
