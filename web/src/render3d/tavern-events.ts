@@ -86,7 +86,7 @@ export class TavernEvents {
       this.text = text;
       this.el.textContent = text;
     }
-    f.overlay.place(this.el, v.copy(this.at), f.camera);
+    f.overlay.place(this.el, v.copy(this.at), f.camera, 0, 0, true);
   }
 
   dispose(): void {

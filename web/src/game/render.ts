@@ -27,6 +27,7 @@ import { SLEEP_H, SLEEP_W, sleepingFrame } from "../art/pet-sleep.ts";
 import { PET_H, PET_W, petFrame } from "../art/pets.ts";
 import { hash, initialsOf, perObject } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
+import { graphics } from "../settings/graphics.ts";
 import { drawBasement, lightBasement } from "./basement.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
@@ -36,10 +37,11 @@ import { type Frame, inView } from "./frame.ts";
 import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
-import { avatarLabels, chipHits, chips, chipsWidth, petLabel, sign, signHits } from "./labels.ts";
+import { avatarLabels, chipHits, chips, chipsWidth, focusLabels, petLabel, pill, sign, signHits } from "./labels.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
+import { LABEL_FAR } from "./near.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
@@ -63,7 +65,7 @@ import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 let lastFrame = performance.now();
 
 /** Tiles within which other players' pet names show. */
-const NAME_RANGE = 6;
+const NAME_RANGE = LABEL_FAR;
 /** How far (in canvas pixels, per device pixel) labels reach past what they're over: bubbles, emoji bursts. */
 const LABEL_REACH = 160;
 
@@ -84,6 +86,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   const viewH = h / scale;
   const me = world.avatars.get(world.selfId);
   const focus = me ? drawPos(me, now) : { x: map.x0 + map.width / 2, y: map.y0 + map.height / 2 };
+  focusLabels(me ? focus : null, graphics.get().overrides.labels === "all", now);
   const clampCam = (center: number, view: number, start: number, size: number) =>
     start + (size <= view ? (size - view) / 2 : clamp(center - start - view / 2, 0, size - view));
   const camX =
@@ -308,7 +311,9 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
 
   if (world.asleep > 0) {
     const [sx, sy] = toScreen((map.x0 + map.width / 2) * TILE, (map.y0 + 2) * TILE);
-    labels.push(() => sign(g, sx, sy - 2 * dpr, `💤 ${world.asleep} asleep`, dpr, false));
+    labels.push(() =>
+      pill(g, sx, sy - 2 * dpr, `💤 ${world.asleep} asleep`, dpr, "rgba(43, 36, 51, 0.7)", C.white),
+    );
   }
 
   const dt = Math.min(100, now - lastFrame);

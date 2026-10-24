@@ -304,7 +304,8 @@ export class TownEvents {
       p.el.textContent = text;
     }
     if (style !== undefined && p.el.style.background !== style) p.el.style.background = style;
-    overlay.place(p.el, at, camera);
+    // The paperboy's tag is a "come here" beacon; the rest are signs over things, shown near the player.
+    overlay.place(p.el, at, camera, 0, 0, key !== "paper");
   }
 
   private hide(key: string): void {

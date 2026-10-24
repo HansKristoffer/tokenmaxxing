@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { BURST_MS } from "../game/emoji.ts";
+import { labelAlpha } from "../game/near.ts";
 
 const STYLE_ID = "r3d-style";
 
@@ -49,6 +50,8 @@ export class Overlay {
   py = 0;
   private fadeTo = 0;
   private fadeNow = 0;
+  /** Where the labels over things are judged from, in world units: the player (NaN: all show), the pointed tile and its reveal. */
+  private readonly focus = { x: NaN, z: NaN, hx: NaN, hz: NaN, hover: 0 };
 
   constructor() {
     if (!document.getElementById(STYLE_ID)) {
@@ -84,17 +87,38 @@ export class Overlay {
     return el;
   }
 
-  /** Puts `el` at the screen position of a world point; false (and hidden) when it's off screen. */
-  place(el: HTMLElement, at: THREE.Vector3, camera: THREE.Camera, dx = 0, dy = 0): boolean {
+  /** Once a frame: who the `near` labels are near to (`null`: all show), and the pointed tile with its reveal (0 to 1). */
+  focusAt(me: readonly [number, number] | null, hovered: readonly [number, number] | null, hover: number): void {
+    const f = this.focus;
+    f.x = me ? me[0] : NaN;
+    f.z = me ? me[1] : NaN;
+    f.hx = hovered ? hovered[0] : NaN;
+    f.hz = hovered ? hovered[1] : NaN;
+    f.hover = hover;
+  }
+
+  /**
+   * Puts `el` at the screen position of a world point; false (and hidden) when it's off screen. A `near` label
+   * (one over a thing, not a person) fades with the player's distance (see near.ts) and is hidden when far.
+   */
+  place(el: HTMLElement, at: THREE.Vector3, camera: THREE.Camera, dx = 0, dy = 0, near = false): boolean {
     this.v.copy(at).project(camera);
     const x = ((this.v.x + 1) / 2) * this.width + dx;
     const y = ((1 - this.v.y) / 2) * this.height + dy;
-    const off = this.v.z > 1 || x < -240 || x > this.width + 240 || y < -80 || y > this.height + 200;
+    let off = this.v.z > 1 || x < -240 || x > this.width + 240 || y < -80 || y > this.height + 200;
+    let opacity = "";
+    const f = this.focus;
+    if (near && !off && !Number.isNaN(f.x)) {
+      const a = labelAlpha(Math.hypot(at.x - f.x, at.z - f.z), Math.hypot(at.x - f.hx, at.z - f.hz), f.hover);
+      if (a <= 0) off = true;
+      else if (a < 0.995) opacity = (Math.round(a * 20) / 20).toFixed(2);
+    }
     if (off) {
       if (el.style.display !== "none") el.style.display = "none";
       return false;
     }
     if (el.style.display === "none") el.style.display = "";
+    if (near && el.style.opacity !== opacity) el.style.opacity = opacity;
     this.px = x;
     this.py = y;
     el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;

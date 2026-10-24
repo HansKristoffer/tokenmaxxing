@@ -11,6 +11,7 @@ import { peekHits } from "../game/houses.ts";
 import { send, walkThen, walkTo } from "../game/input.ts";
 import { hudInset } from "../game/inset.ts";
 import { chipHits, signHits } from "../game/labels.ts";
+import { hover, hoverStrength } from "../game/near.ts";
 import { setRaiders } from "../game/raid.ts";
 import type { Renderer, Tile } from "../game/renderer.ts";
 import { skyNow } from "../game/sky.ts";
@@ -107,6 +108,7 @@ class Renderer3D implements Renderer {
   private pendingPlace: string | null = null;
   private last = 0;
   private settings: GraphicsSettings | null = null;
+  private labelsAll = false;
   private fail?: (reason: string) => void;
   private selfAt: [number, number] | null = null;
   private drag: { x: number; y: number } | null = null;
@@ -360,6 +362,8 @@ class Renderer3D implements Renderer {
     else if (this.overlay.faded > 0 && !world.portalPending)
       this.overlay.fadeTowards(0, calm ? 0 : FADE_IN_MS, now);
     this.overlay.stepFade(now);
+    const reveal = hoverStrength(now);
+    this.overlay.focusAt(this.labelsAll ? null : me, reveal > 0 ? view.toWorld(hover.x, hover.y) : null, reveal);
 
     const before = this.entities.size;
     const e0 = performance.now();
@@ -446,6 +450,7 @@ class Renderer3D implements Renderer {
 
   setQuality(s: GraphicsSettings): void {
     this.settings = s;
+    this.labelsAll = s.labels === "all";
     this.entities.calm = s.reduceMotion;
     this.entities.maxBursts = burstCap(s.weather);
     this.entities.maxTags = tagCap(s.tier);

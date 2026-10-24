@@ -5,6 +5,7 @@ import {
   type FpsCap,
   type GraphicsState,
   graphics,
+  type Labels,
   type Shadows,
   TIER_BLURBS,
   TIER_NAMES,
@@ -22,6 +23,10 @@ const FPS: readonly (readonly [string, string])[] = [
   ["30", "30"],
   ["60", "60"],
   ["0", "Uncapped"],
+];
+const LABELS: readonly (readonly [Labels, string])[] = [
+  ["near", "Nearby"],
+  ["all", "All"],
 ];
 const SHADOWS: readonly (readonly [Shadows, string])[] = [
   ["off", "Off"],
@@ -59,6 +64,9 @@ export function GraphicsPanel() {
         <input type="checkbox" checked={meter} onChange={(e) => graphics.setMeter(e.target.checked)} /> Show
         FPS meter
       </label>
+      <span>
+        Labels <Pills value={effective.labels} options={LABELS} onChange={(v) => set("labels", v)} />
+      </span>
       <details>
         <summary>Advanced</summary>
         {effective.renderer === "2d" && (
