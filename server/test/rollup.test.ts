@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { Client } from "rivetkit/client";
-import { migrateEvents, report } from "../src/actors/player.ts";
+import { migrateEvents, report, requeueEveryDay } from "../src/actors/player.ts";
 import type { registry } from "../src/actors/registry.ts";
 import type { ActivityDay } from "../src/actors/town.ts";
 import { flushUsageReports } from "../src/usage-reports.ts";
@@ -90,6 +90,9 @@ test("card v2 re-queues every stored day once, through the same drain", async ()
     db.run("DELETE FROM usage_report_migrations WHERE version = 5");
     expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([]);
     await migrateEvents(sql);
+    // Not while starting: a big history read cold outlived the startup limit there.
+    expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([]);
+    await requeueEveryDay(sql);
     expect(db.query("SELECT day FROM pending_usage_days ORDER BY day").all()).toEqual([
       { day: "2026-09-29" },
       { day: "2026-09-30" },
@@ -104,7 +107,31 @@ test("card v2 re-queues every stored day once, through the same drain", async ()
     expect(reported).toEqual([["2026-09-29", "2026-09-30"]]);
     // Waking again does not queue them again.
     await migrateEvents(sql);
+    await requeueEveryDay(sql);
     expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([]);
+  } finally {
+    db.close();
+  }
+});
+
+test("card v2's re-queue picks up where an interrupted start left it", async () => {
+  const { db, sql } = memorySql();
+  try {
+    await migrateEvents(sql);
+    const insert = db.prepare(`INSERT INTO events (id, source, session_id, message_id, timestamp, day, model,
+      message_type, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
+      VALUES (?, 'claude_code', 's', ?, ?, ?, 'a', 'assistant', 1, 0, 0, 0)`);
+    insert.run(10, "early", 1, "2026-09-01");
+    insert.run(5_000, "late", 2, "2026-09-02");
+    await flushUsageReports(sql, async () => {});
+    db.run("DELETE FROM usage_report_migrations WHERE version = 5");
+    // Stopped after the first batch: its days are queued (and maybe reported) already.
+    db.run("INSERT INTO requeue_cursor VALUES (2000)");
+    await requeueEveryDay(sql);
+    expect(db.query("SELECT day FROM pending_usage_days").all()).toEqual([{ day: "2026-09-02" }]);
+    expect(db.query("SELECT 1 AS done FROM usage_report_migrations WHERE version = 5").get()).toEqual({
+      done: 1,
+    });
   } finally {
     db.close();
   }
