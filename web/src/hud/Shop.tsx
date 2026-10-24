@@ -4,7 +4,7 @@ import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { posterOf } from "@tokenmaxxing/core/posters.ts";
-import { ITEMS, type Item, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
+import { ITEMS, type Item, type MerchKind, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
@@ -15,7 +15,9 @@ import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
 import { errorText } from "../errors.ts";
 import { refreshMe, refreshWallet, town } from "../net.ts";
+import type { IconSpec } from "../render3d/icons.ts";
 import { hud, useHud } from "../store.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
 import { ItemTag } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
 import { isWorn, withItem, withoutMerchTop } from "./lookOps.ts";
@@ -162,19 +164,52 @@ export function WearButton({
   );
 }
 
+/** The company a merch item belongs to, as its 3D prop wants it (a stand-in in its colours if it left town). */
+const merchCompany = (item: Item): IconSpec & { kind: "merch" } => ({
+  kind: "merch",
+  company: hud.get().companies.find((c) => c.id === item.companyId) ?? {
+    id: item.companyId ?? 0,
+    name: "",
+    brand: null,
+  },
+  merch: item.id.split(".")[2] as MerchKind,
+});
+
+/** The 3D twin of `ItemSprite`'s picture. */
+function itemIcon(item: Item, look: Look, bare?: boolean, worn?: boolean): IconSpec {
+  if (item.slot === "pet") {
+    const mine = worn && look.pet === item.index;
+    return { kind: "pet", pet: item.index, variant: mine ? look.petVariant : 0, name: mine ? look.petName : "" };
+  }
+  if (item.slot === "furniture") return { kind: "piece", ch: item.id.slice(5) };
+  if (item.slot === "petwear") return { kind: "pet", pet: look.pet || 1, wear: item.index };
+  if (bare && item.slot === "merch") return merchCompany(item);
+  return {
+    kind: "avatar",
+    look: withItem(item, look, true),
+    focus: bare && (item.slot === "hat" || item.slot === "glasses") ? "head" : "body",
+    facing: item.slot === "back" ? "back" : "front",
+  };
+}
+
 /** An item as it looks: on me (or `bare`, on its own), the pet, or the piece. */
-export function ItemImage({
-  item,
-  look,
-  bare,
-  worn,
-}: {
+export function ItemImage(props: {
   item: Item;
   look: Look;
   bare?: boolean;
   /** A pet in the look I wear it in, if I wear it (the shop sells the original). */
   worn?: boolean;
 }) {
+  const { item, look, bare, worn } = props;
+  return (
+    <ItemIcon spec={itemIcon(item, look, bare, worn)} size={64} className="avatar">
+      <ItemSprite {...props} />
+    </ItemIcon>
+  );
+}
+
+/** The 2D picture: the pet's frame, the piece as placed, the item's own sprite, or me wearing it. */
+function ItemSprite({ item, look, bare, worn }: { item: Item; look: Look; bare?: boolean; worn?: boolean }) {
   if (item.slot === "pet") {
     const mine = worn && look.pet === item.index;
     const sprite = petFrame(
@@ -186,7 +221,7 @@ export function ItemImage({
     );
     return <SpriteImage sprite={sprite} stand />;
   }
-  if (item.slot === "furniture") return <PieceImage ch={item.id.slice(5)} />;
+  if (item.slot === "furniture") return <PieceSprite ch={item.id.slice(5)} />;
   if (bare) return <SpriteImage sprite={itemFrame(item)} />;
   // Pet gear on my pet (a duck if I have none); a back item from the side, where it shows.
   if (item.slot === "petwear")
@@ -232,6 +267,14 @@ function pieceSprite(ch: string): HTMLCanvasElement {
 
 /** A piece as the world draws it, in a two-tile box (three for the widest). */
 export function PieceImage({ ch, scale = 2 }: { ch: string; scale?: number }) {
+  return (
+    <ItemIcon spec={{ kind: "piece", ch }} size={32 * scale} className="avatar">
+      <PieceSprite ch={ch} scale={scale} />
+    </ItemIcon>
+  );
+}
+
+function PieceSprite({ ch, scale = 2 }: { ch: string; scale?: number }) {
   const sprite = pieceSprite(ch);
   const box = Math.max(32, sprite.width);
   return (

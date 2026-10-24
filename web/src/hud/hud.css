@@ -2538,3 +2538,176 @@ button.lb-item:hover {
     top: 90px;
   }
 }
+
+/*
+ * MARK: Block Hood skin. On the 3D tiers (`stage.ts` sets `data-tier` on <html>) the panels read like the voxel
+ * world's labels: cream on ink, gold accents, chunky bevelled borders and flat blocky shadows. Low keeps the
+ * classic look above untouched.
+ */
+html[data-tier]:not([data-tier="low"]) {
+  --ink: #2b2433;
+  --panel: rgba(43, 36, 51, 0.94);
+  --panel-solid: #2b2433;
+  --line: rgba(251, 247, 239, 0.16);
+  --text: #fbf7ef;
+  --muted: #c4b9cf;
+  --accent: #e9b73d;
+  --edge: #16121f;
+  --bevel-light: rgba(251, 247, 239, 0.18);
+  --bevel-dark: rgba(0, 0, 0, 0.45);
+  --block: 0 0 0 2px var(--edge);
+}
+
+html[data-tier]:not([data-tier="low"]) .panel {
+  border: 2px solid var(--edge);
+  border-radius: 4px;
+  backdrop-filter: none;
+  box-shadow:
+    inset 2px 2px 0 var(--bevel-light),
+    inset -2px -2px 0 var(--bevel-dark),
+    6px 6px 0 rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) .modal-head {
+  box-shadow: 0 2px 0 var(--edge);
+}
+
+html[data-tier]:not([data-tier="low"]) button {
+  border: 2px solid var(--edge);
+  border-radius: 3px;
+  background: #3b3249;
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-light),
+    inset -1px -1px 0 var(--bevel-dark),
+    2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) button:hover {
+  background: #4a405c;
+}
+
+html[data-tier]:not([data-tier="low"]) button:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-dark),
+    1px 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) button.primary {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: #6b4f0e;
+}
+
+html[data-tier]:not([data-tier="low"]) button.primary:hover {
+  background: #f2c653;
+}
+
+html[data-tier]:not([data-tier="low"]) button.link,
+html[data-tier]:not([data-tier="low"]) button.backdrop,
+html[data-tier]:not([data-tier="low"]) .pills button,
+html[data-tier]:not([data-tier="low"]) .bag .eye,
+html[data-tier]:not([data-tier="low"]) .merch-grid button {
+  border: none;
+  box-shadow: none;
+  transform: none;
+}
+
+html[data-tier]:not([data-tier="low"]) .pills {
+  border-radius: 3px;
+  box-shadow: var(--block);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) .pills button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--ink);
+  border-radius: 2px;
+}
+
+html[data-tier]:not([data-tier="low"]) input,
+html[data-tier]:not([data-tier="low"]) textarea {
+  border: 2px solid var(--edge);
+  border-radius: 3px;
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* Item tiles: a little larger, bevelled, each icon standing on an isometric floor tile. */
+html[data-tier]:not([data-tier="low"]) .shop {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+html[data-tier]:not([data-tier="low"]) .bag {
+  grid-template-columns: repeat(auto-fill, 84px);
+}
+
+html[data-tier]:not([data-tier="low"]) .bag .cell {
+  width: 84px;
+  height: 84px;
+}
+
+html[data-tier]:not([data-tier="low"]) .shop li,
+html[data-tier]:not([data-tier="low"]) .bag .cell,
+html[data-tier]:not([data-tier="low"]) .loot-table li,
+html[data-tier]:not([data-tier="low"]) .pet-looks .cell,
+html[data-tier]:not([data-tier="low"]) .trophies li,
+html[data-tier]:not([data-tier="low"]) .collection li,
+html[data-tier]:not([data-tier="low"]) .hall li {
+  border: 2px solid var(--edge);
+  border-radius: 3px;
+  background: #352c41;
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-light),
+    3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) .shop li.wearing,
+html[data-tier]:not([data-tier="low"]) .bag .cell.wearing,
+html[data-tier]:not([data-tier="low"]) .pet-looks .cell[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-light),
+    3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) .bag .cell[aria-pressed="true"] {
+  background: #4a3d2a;
+}
+
+html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
+  background: none;
+}
+
+.icon3d {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  vertical-align: bottom;
+}
+
+/* The floor tile under the icon. */
+.icon3d::before {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 2%;
+  height: 40%;
+  background: rgba(251, 247, 239, 0.1);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.icon3d > canvas {
+  position: relative;
+  image-rendering: auto;
+  display: block;
+}
+
+.icon3d-wait {
+  position: relative;
+  display: grid;
+  place-items: center;
+  filter: blur(0.6px) saturate(0.6);
+  opacity: 0.5;
+}

@@ -135,6 +135,8 @@ class Renderer3D implements Renderer {
     // Draw calls and triangles are counted over the whole frame (the passes), reset by hand.
     this.pipe.renderer.info.autoReset = false;
     this.canvas.addEventListener("webglcontextlost", this.lost);
+    // The HUD's item icons share this look: their shaders compile in idle time, not when the first shop opens.
+    void import("./icons.ts").then((m) => m.warmIcons());
   }
 
   mount(host: HTMLElement): void {

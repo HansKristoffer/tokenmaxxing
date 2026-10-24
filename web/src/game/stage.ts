@@ -63,6 +63,8 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
 
   const sync = () => {
     const s = graphics.effective();
+    // The HUD's skin follows the tier (hud.css `html[data-tier]`).
+    document.documentElement.dataset.tier = graphics.tier();
     if (s.renderer !== (loading ?? renderer?.kind)) void swap(s.renderer);
     else renderer?.setQuality(s);
     const { choice } = graphics.get();

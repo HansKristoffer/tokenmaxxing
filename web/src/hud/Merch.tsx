@@ -12,6 +12,7 @@ import { type MerchCompany, merchColours, merchPreview } from "../art/merch.ts";
 import { errorText } from "../errors.ts";
 import { refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
 import { ItemImage, isWorn, WearButton, withItem } from "./Shop.tsx";
 import { Modal, Pixels, useRun, WalletLine } from "./ui.tsx";
 
@@ -148,15 +149,10 @@ function MerchEditor({ company, onClose }: { company: MerchCompany; onClose: () 
           )}
         </div>
         <div className="merch-pics">
-          {[1, 2, 4, 8].map((bit) => (
-            <Pixels
-              key={bit}
-              sprite={merchPreview(draft, bit)}
-              width={64}
-              height={64}
-              scale={4}
-              className="avatar"
-            />
+          {MERCH.map((m) => (
+            <ItemIcon key={m.kind} spec={{ kind: "merch", company: draft, merch: m.kind }} size={64} className="avatar">
+              <Pixels sprite={merchPreview(draft, m.bit)} width={64} height={64} scale={4} className="avatar" />
+            </ItemIcon>
           ))}
         </div>
       </div>
