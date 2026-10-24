@@ -8,7 +8,7 @@
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
 import { gaitSettled, newGait, stepGait, walkPose } from "../render3d/motion.ts";
-import { Freezer, view } from "../render3d/perf/freeze.ts";
+import { Freezer, TINY_PX, view } from "../render3d/perf/freeze.ts";
 import { PET_NAME, PET_NAMED, PET_SPECIES, PET_VARIANTS, PETWEAR, type Species } from "./data/pets.ts";
 import type { Asset } from "./furniture.ts";
 import { checker, glow, liveModel, Model, painted, tint, toon } from "./kit.ts";
@@ -211,7 +211,10 @@ export class Pet3D {
       !this.spin &&
       !this.rig.fx &&
       this.pose !== "sleep";
-    const far = this.root.userData.lod && !this.crown && !this.spin && !this.rig.fx;
+    // Far down the crowd, or a few pixels tall (a display in a shop window seen from the street): a stride, a breath or
+    // a blink is invisible, so it is drawn frozen whatever it does. Height: about half a unit, times the scale it is drawn at.
+    const tiny = Math.hypot(e[4]!, e[5]!, e[6]!) * 0.5 * view.pxPerUnit < TINY_PX;
+    const far = (this.root.userData.lod || tiny) && !this.crown && !this.spin && !this.rig.fx;
     const key = far ? "far" : calm ? `${this.pose}:${this.wear}` : null;
     if (this.freezer.holds(key)) {
       this.last = t;

@@ -178,7 +178,10 @@ function snapshot(root: THREE.Object3D, meshes: THREE.Mesh[]): Snap {
   inv.copy(root.matrixWorld).invert();
   meshes.forEach((mesh, i) => {
     m.set(tmp.multiplyMatrices(inv, mesh.matrixWorld).elements, i * 16);
-    state.push(`${mesh.visible}|${matState(mesh.material as THREE.Material)}`);
+    // A night glow's swap of materials is batched as a day and a night copy (`layerOf`): sampling the hours must not
+    // count it as moving, or every lamp and window in town stays out of the batches.
+    const glow = mesh.userData.nightGlow as NightGlow | undefined;
+    state.push(`${mesh.visible}|${matState(glow ? glow.day : (mesh.material as THREE.Material))}`);
   });
   return { m, state };
 }

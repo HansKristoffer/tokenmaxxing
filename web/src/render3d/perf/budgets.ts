@@ -26,11 +26,12 @@ const room = (drawCalls: number, triangles: number, materials: number, textureMB
 
 // The dorm's stairs down are the shared exit kit's (`exits3d.ts`): the lit well and the lamp's pool add two batches.
 // The town carries the four shop fronts of the real game (+35 draw calls, +70k triangles, +2.8 MB of textures over the pass-2
-// measurement, which had bare houses there); the live layers (gate, tables, events) are budgeted apart.
+// measurement, which had bare houses there); the live layers (gate, tables, events) are budgeted apart. Its lamps and lit
+// windows batch as day and night copies since the sampling of the hours stopped counting their swap as moving (353 -> 312).
 export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
   // Plain boxes and round things with fewer segments.
   medium: {
-    town: room(360, 370_000, 90, 17),
+    town: room(320, 370_000, 90, 17),
     hq: room(35, 10_000, 20, 1),
     office: room(35, 7_500, 25, 1),
     inn: room(180, 35_000, 140, 2),
@@ -44,7 +45,7 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
   },
   // Chamfered boxes: High, and Ultra, which only differs in post and shadows.
   high: {
-    town: room(360, 445_000, 90, 17),
+    town: room(320, 445_000, 90, 17),
     hq: room(35, 24_000, 20, 1),
     office: room(35, 10_000, 25, 1),
     inn: room(180, 56_000, 140, 2),
