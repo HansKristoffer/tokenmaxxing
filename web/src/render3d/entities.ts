@@ -45,6 +45,10 @@ interface Rig {
   id: number;
   info: GameAvatar["info"];
   sig: string;
+  /** The try-on `sig` was worked out with: with `info`, what the look is made from. */
+  fitting: Look2D | null;
+  /** `info` or the try-on changed this frame: the signatures below are worked out again, otherwise reused. */
+  changed: boolean;
   avatar: Avatar3D;
   root: THREE.Group;
   /** Where they are drawn, in world units. */
@@ -76,6 +80,10 @@ interface Rig {
   stack: HTMLDivElement;
   tag: HTMLElement | null;
   tagKey: string;
+  /** The `tagKey` the tag on screen was made for. */
+  tagMade: string;
+  /** What `tagKey` was made from (info, company, showcase pins), compared by identity. */
+  tagFrom: [unknown, unknown, unknown];
   /** The tag is on screen this frame. */
   tagOn: boolean;
   // The name-tag pass (declutter.ts)
@@ -92,6 +100,16 @@ interface Rig {
   pills: { polse: HTMLDivElement; game: HTMLDivElement; work: HTMLDivElement; zzz: HTMLDivElement };
   petLabel: HTMLDivElement | null;
   burst: Burst | null;
+}
+
+/** Shows `text` in `el`, or hides it for null; writes the DOM only when that changes. */
+function show(el: HTMLElement, text: string | null): void {
+  if (text === null) {
+    if (el.style.display !== "none") el.style.display = "none";
+    return;
+  }
+  if (el.style.display === "none") el.style.display = "";
+  if (el.textContent !== text) el.textContent = text;
 }
 
 const lookSig = (info: GameAvatar["info"], look: GameAvatar["info"]["look"] = info.look): string =>
@@ -196,6 +214,8 @@ export class Entities {
       id: a.info.id,
       info: a.info,
       sig: lookSig(a.info, this.lookOf(a.info)),
+      fitting: this.fitting,
+      changed: true,
       avatar,
       root,
       x,
@@ -213,6 +233,8 @@ export class Entities {
       stack,
       tag: null,
       tagKey: "",
+      tagMade: "",
+      tagFrom: [null, null, null],
       tagOn: false,
       tx: 0,
       ty: 0,
@@ -263,14 +285,18 @@ export class Entities {
     for (const r of this.rigs.values()) if (r.burst) this.bursts++;
     for (const a of list) {
       let r = this.rigs.get(a.info.id);
-      if (r && r.sig !== lookSig(a.info, this.lookOf(a.info))) {
+      // The server replaces `info` when it changes, so the look is only compared then (or for a try-on).
+      const changed = !!r && (r.info !== a.info || r.fitting !== this.fitting);
+      if (r && changed && r.sig !== lookSig(a.info, this.lookOf(a.info))) {
         this.remove(r);
         r = undefined;
       }
       r ??= this.create(a, view);
       if (!this.rigs.has(r.id)) this.rigs.set(r.id, r);
       r.seen = frame;
+      r.changed = changed;
       r.info = a.info;
+      r.fitting = this.fitting;
       this.step(r, a, me, view, camera, now, dt, dtS, t);
     }
     for (const r of [...this.rigs.values()]) if (r.seen !== frame) this.remove(r);
@@ -458,7 +484,10 @@ export class Entities {
       }
       return;
     }
-    const sig = `${look.pet}|${look.petVariant}|${look.petName ?? ""}|${look.petwear}|${a.info.level >= LEGENDARY_LEVEL}`;
+    const sig =
+      r.pet && !r.changed
+        ? r.pet.sig
+        : `${look.pet}|${look.petVariant}|${look.petName ?? ""}|${look.petwear}|${a.info.level >= LEGENDARY_LEVEL}`;
     if (r.pet && r.pet.sig !== sig) {
       r.pet.root.removeFromParent();
       disposeObject(r.pet.root);
@@ -548,8 +577,14 @@ export class Entities {
     const isMe = info.id === world.selfId;
     if (close && !isMe) this.showcase.want(info.id, now);
     const pins = isMe ? null : this.showcase.get(info.id);
-    const tagKey = `${info.name}|${info.level}|${info.online}|${company?.name ?? ""}|${company?.brand?.roof ?? ""}|${info.look.hat}|${info.look.outfit}|${pins?.key ?? ""}`;
-    if (!isMe && (!r.tag || r.tagKey !== tagKey)) {
+    const from = r.tagFrom;
+    if (from[0] !== info || from[1] !== company || from[2] !== pins) {
+      from[0] = info;
+      from[1] = company;
+      from[2] = pins;
+      r.tagKey = `${info.name}|${info.level}|${info.online}|${company?.name ?? ""}|${company?.brand?.roof ?? ""}|${info.look.hat}|${info.look.outfit}|${pins?.key ?? ""}`;
+    }
+    if (!isMe && (!r.tag || r.tagMade !== r.tagKey)) {
       r.tag?.remove();
       r.tag = nameTag({
         name: info.name,
@@ -561,21 +596,13 @@ export class Entities {
         trophies: pins?.chips.trophies,
       });
       r.tag.classList.remove("label");
-      r.tagKey = tagKey;
+      r.tagMade = r.tagKey;
       r.stack.append(r.tag);
     } else if (isMe && r.tag) {
       r.tag.remove();
       r.tag = null;
     }
     // Over their head, top to bottom: what they said, a sausage, the game they are in, the desk, the nap.
-    const set = (el: HTMLElement, text: string | null) => {
-      if (text === null) {
-        if (el.style.display !== "none") el.style.display = "none";
-        return;
-      }
-      if (el.style.display === "none") el.style.display = "";
-      if (el.textContent !== text) el.textContent = text;
-    };
     if (bubbleOn && a.bubble && !resting) {
       if (r.bubbleText !== a.bubble.text) {
         r.bubbleText = a.bubble.text;
@@ -585,10 +612,10 @@ export class Entities {
       const left = a.bubble.until - now;
       r.bubble.style.opacity = left < 400 ? String(Math.max(0, left / 400)) : "1";
     } else r.bubble.style.display = "none";
-    set(r.pills.polse, hasPolse(info.polseUntil, Date.now()) ? "🌭" : null);
-    set(r.pills.game, gameTag(info.id));
-    set(r.pills.work, a.state === "working" ? `💻 ×${Math.max(1, info.liveAgents)}` : null);
-    set(r.pills.zzz, resting || info.dozing ? "z" : null);
+    show(r.pills.polse, hasPolse(info.polseUntil, Date.now()) ? "🌭" : null);
+    show(r.pills.game, gameTag(info.id));
+    show(r.pills.work, a.state === "working" ? `💻 ×${Math.max(1, info.liveAgents)}` : null);
+    show(r.pills.zzz, resting || info.dozing ? "z" : null);
     const lift = tagLift(info.level, pose);
     this.v.set(r.x, y + lift - (pose === "sleep" ? 0 : 0) + 0.05, r.z);
     if (this.overlay.place(r.stack, this.v, camera) && r.tag) {

@@ -13,6 +13,7 @@ import {
   syncBaked,
   trackAdditions,
 } from "../render3d/perf/bake.ts";
+import { sortWithoutBoxing } from "../render3d/perf/boxing.ts";
 import { sweep, thawAll, view, watchAll } from "../render3d/perf/freeze.ts";
 import { classifyCasters } from "../render3d/perf/shadowcast.ts";
 import { trackRenderer } from "../render3d/perf/stats.ts";
@@ -417,6 +418,7 @@ export class Pipeline {
       preserveDrawingBuffer: opts.preserve ?? false,
       powerPreference: "high-performance",
     });
+    sortWithoutBoxing(this.renderer);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     // The shadow map is redrawn on the pipeline's schedule (`shadowEvery`), not on every render() call.

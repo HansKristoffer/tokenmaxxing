@@ -7,6 +7,7 @@
  */
 import { SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { C } from "../art/palette.ts";
 import {
   BLOCK_H,
@@ -528,14 +529,25 @@ export function buildTown3d(
     ticks.push((t) => glint.offset.set((t * 0.05) % 1, (t * 0.02) % 1));
     const sheet = glass("#58a9e2", 0.55);
     for (const [x, z] of water) {
-      const tile = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
-      tile.rotation.x = -Math.PI / 2;
-      tile.position.set(x, 0.035, z);
       const tint2 = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sheet);
       tint2.rotation.x = -Math.PI / 2;
       tint2.position.set(x, 0.03, z);
-      g.add(tint2, tile);
+      g.add(tint2);
     }
+    // The sparkle drifts, so the batching leaves it alone: one mesh for the whole pond rather than one per tile. It sits
+    // in the middle of the pond (blended things sort by where they are), drawn after the water sheet as the tiles were.
+    const [cx, cz] = water.reduce(([a, b], [x, z]) => [a + x / water.length, b + z / water.length], [0, 0]);
+    const glints = new THREE.Mesh(
+      mergeGeometries(
+        water.map(([x, z]) =>
+          new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(x - cx, 0.035, z - cz),
+        ),
+      )!,
+      mat,
+    );
+    glints.position.set(cx, 0, cz);
+    glints.renderOrder = 1;
+    g.add(glints);
     const rock = new THREE.InstancedMesh(
       new THREE.SphereGeometry(0.17, 8, 6),
       toon(C.stoneLight),

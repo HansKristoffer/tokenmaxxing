@@ -188,6 +188,22 @@ const PICNIC_BADGE =
 /** At most this many drops on one room's floor (an office holds `OFFICE_PIECES`). */
 const DROPS_PER_ROOM = 30;
 const REST_CHECK_EVERY = 10; // ticks
+/**
+ * `WORLD_PERF=1` (the load test, `scripts/perf/load.ts`): how long each tick took and how late it
+ * started, in ms, on stdout once a second.
+ */
+const PERF = process.env.WORLD_PERF === "1" ? { tick: [] as number[], lag: [] as number[], at: 0 } : null;
+
+function perfTick(began: number, ended: number): number {
+  const now = performance.now();
+  PERF!.tick.push(now - began);
+  PERF!.lag.push(began - ended - TICK_MS);
+  if (now - PERF!.at >= 1000) {
+    console.log(`[perf] ${JSON.stringify({ tick: PERF!.tick, lag: PERF!.lag })}`);
+    Object.assign(PERF!, { tick: [], lag: [], at: now });
+  }
+  return now;
+}
 /** Head counts go to every connection, so at most once a second: a burst of joins changes them every tick. */
 const COUNTS_EVERY = 10; // ticks
 /** How often the dungeon hears who's raiding. */
@@ -251,6 +267,11 @@ export const world = actor({
   createVars: () => ({
     /** Open game connections per player. */
     online: new Map<number, number>(),
+    /**
+     * Who each connection is once it has joined (null until then, or not a player's), by connection id:
+     * `conn.state` builds a proxy on every read, and sending reads it for every connection.
+     */
+    users: new Map<string, number | null>(),
     /** Players that moved or changed room since the last tick. */
     dirty: new Set<number>(),
     /** The room each player was last announced in. */
@@ -324,6 +345,8 @@ export const world = actor({
     for (const d of seed.drops) lay(c, d);
   },
   onDisconnect: (c, conn) => {
+    // It's out of `c.conns` by now, so no send puts it back in.
+    c.vars.users.delete(conn.id);
     const s = conn.state as ConnState;
     if (s.kind !== "user" || !s.joined) return;
     const left = (c.vars.online.get(s.userId) ?? 1) - 1;
@@ -331,21 +354,24 @@ export const world = actor({
     c.vars.online.delete(s.userId);
     const p = c.state.players[s.userId];
     if (!p) return;
+    const from = p.room;
     // At a game table they stay put: the match decides what happens if they don't come back.
     if (p.state !== "playing") rest(c.state, p, restState(p, Date.now()));
     c.vars.dirty.add(p.id);
-    c.broadcast("info", info(p, false));
+    sendInfo(c, p, info(p, false), from);
   },
   run: async (c) => {
     const signal = c.abortSignal;
     let n = 0;
+    let ended = performance.now();
     while (await waitForTick(signal, TICK_MS)) {
+      const began = performance.now();
       const now = Date.now();
       if (++n % REST_CHECK_EVERY === 0)
-        for (const p of settle(c.state, c.vars, now)) c.broadcast("info", info(p, true));
+        for (const p of settle(c.state, c.vars, now)) sendInfo(c, p, info(p, true));
       // With nobody to see them, the bots stand still (and don't write their walks to state).
       if (n % BOT_STEP_EVERY === 0 && c.vars.online.size > 0) {
-        for (const p of walkBots(c.state, c.vars, now)) c.broadcast("info", info(p, true));
+        for (const p of walkBots(c.state, c.vars, now)) sendInfo(c, p, info(p, true));
         talkBots(c, now);
       }
       if (now >= c.vars.outageAt) {
@@ -368,6 +394,7 @@ export const world = actor({
           c.broadcast("occupancy", counts);
         }
       }
+      if (PERF) ended = perfTick(began, ended);
     }
   },
   actions: {
@@ -376,11 +403,13 @@ export const world = actor({
       const userId = requireUser(c.conn.state);
       const p = must(c.state.players[userId], () => new UserError("Unknown player.", { code: "not_found" }));
       (c.conn.state as ConnState).joined = true;
+      c.vars.users.set(c.conn.id, userId);
       c.vars.online.set(userId, (c.vars.online.get(userId) ?? 0) + 1);
       p.lastInputAt = Date.now();
       p.dozing = false;
+      const from = p.room;
       if (wake(c.state, p)) c.vars.dirty.add(p.id);
-      c.broadcast("info", info(p, true));
+      sendInfo(c, p, info(p, true), from);
       c.conn.send("outage", c.vars.outage);
       if (p.room === "inn") sendJukebox(c, Date.now(), userId);
       return snapshot(c.state, c.vars.online, c.vars.weather, p, chatOf(c.db, p.room));
@@ -503,7 +532,7 @@ export const world = actor({
       const [dx, dy] = DIRS[p.facing];
       if (!mapOf(p.room).kind(p.x + dx, p.y + dy).pours) return null;
       p.coffeeUntil = drinkCoffee(p.coffeeUntil ?? 0, now);
-      c.broadcast("info", info(p, c.vars.online.has(p.id)));
+      sendInfo(c, p, info(p, c.vars.online.has(p.id)));
       if (TAVERN && p.room === "inn") questEvent(c, p.id, "coffee", `coffee:${now}`);
       const cups = Math.round(cupsLeft(p.coffeeUntil, now));
       return { notice: COFFEE_LINES[Math.min(cups, COFFEE_LINES.length) - 1]! };
@@ -520,7 +549,7 @@ export const world = actor({
       if (!cartOpen(now)) return { notice: "🌭 Lukket. The pølsevogn opens 11:00 to 14:00." };
       if (hasPolse(p.polseUntil ?? 0, now)) return { notice: "🌭 You're still full from the last one." };
       p.polseUntil = now + POLSE.ms;
-      c.broadcast("info", info(p, c.vars.online.has(p.id)));
+      sendInfo(c, p, info(p, c.vars.online.has(p.id)));
       return { notice: `🌭 One rød pølse, med det hele. You walk quicker for ${POLSE.ms / 60_000} minutes.` };
     },
 
@@ -535,7 +564,7 @@ export const world = actor({
       if (!mapOf(p.room).kind(p.x + dx, p.y + dy).serves) return null;
       if (hasSpecial(p.specialUntil ?? 0, now)) return { notice: "🍽 You've still got the last one in you." };
       p.specialUntil = serveUntil(now);
-      c.broadcast("info", info(p, c.vars.online.has(p.id)));
+      sendInfo(c, p, info(p, c.vars.online.has(p.id)));
       const how = specialBuff(p.specialUntil) === "glow" ? "You glow" : "You buzz";
       return {
         notice: `${specialOn(new Date(now))}. On the house. ${how} for ${SPECIAL.ms / 60_000} minutes.`,
@@ -629,9 +658,9 @@ export const world = actor({
       const named = new Set(mentionsIn(text));
       if (named.size === 0) return;
       for (const conn of c.conns.values()) {
-        const s = conn.state as ConnState;
-        if (s.kind !== "user" || !s.joined || s.userId === userId) continue;
-        const other = c.state.players[s.userId];
+        const id = joinedUser(c, conn);
+        if (id === null || id === userId) continue;
+        const other = c.state.players[id];
         if (other && other.room !== line.room && named.has(other.name)) conn.send("mention", line);
       }
     },
@@ -777,6 +806,7 @@ export const world = actor({
       // Before `upsert` writes over it: every sync pushes, and most change nothing anyone sees.
       const shown = old && JSON.stringify(info(old, online));
       const p = upsert(c.state, core, Date.now());
+      const from = p.room;
       if (before !== undefined && before !== p.companyId) {
         // Changed company: out of the old house (and out of any office with no company at all),
         // and resting players move to the new one.
@@ -789,7 +819,7 @@ export const world = actor({
         c.vars.dirty.add(p.id);
       }
       const next = info(p, online);
-      if (JSON.stringify(next) !== shown) c.broadcast("info", next);
+      if (JSON.stringify(next) !== shown) sendInfo(c, p, next, from);
       // A new name, level or look shows through the house's walls too.
       if (companyOfRoom(p.room) !== null) c.vars.housesStale = true;
       // A door came, went or was renamed: in the old building and the new one.
@@ -906,10 +936,7 @@ export const world = actor({
     announceTown: async (c, text: string, open?: Notice["open"], remark?: string): Promise<void> => {
       requireInternal(c.conn.state);
       const notice: Notice = open ? { text, open } : { text };
-      for (const conn of c.conns.values()) {
-        const s = conn.state as ConnState;
-        if (s.kind === "user" && s.joined) conn.send("notice", notice);
-      }
+      for (const conn of c.conns.values()) if (joinedUser(c, conn) !== null) conn.send("notice", notice);
       await announce(c, "town", text);
       if (TAVERN && remark) barkeepRemark(c, remark);
     },
@@ -917,10 +944,7 @@ export const world = actor({
     /** From `town`: what this week's kills dropped, for everyone (the dungeon flies it to their desk). */
     announceLoot: (c, news: LootNews[]): void => {
       requireInternal(c.conn.state);
-      for (const conn of c.conns.values()) {
-        const s = conn.state as ConnState;
-        if (s.kind === "user" && s.joined) conn.send("loot", news);
-      }
+      for (const conn of c.conns.values()) if (joinedUser(c, conn) !== null) conn.send("loot", news);
     },
 
     /**
@@ -1027,6 +1051,7 @@ export const world = actor({
       p.liveAgents = liveAgents;
       p.burn = burn;
       const online = c.vars.online.has(userId);
+      const from = p.room;
       if (!online) {
         const want = restState(p, Date.now());
         if (p.state !== want) {
@@ -1034,7 +1059,7 @@ export const world = actor({
           c.vars.dirty.add(p.id);
         }
       }
-      if (changed) c.broadcast("info", info(p, online));
+      if (changed) sendInfo(c, p, info(p, online), from);
     },
   },
 });
@@ -1046,6 +1071,7 @@ const hasOffice = (p: PlayerCore) => p.companyId !== null && p.level >= OFFICE_L
 
 type Vars = {
   online: Map<number, number>;
+  users: Map<string, number | null>;
   visited: { day: string; keys: Set<string> };
   dirty: Set<number>;
   announced: Map<number, RoomId>;
@@ -1234,11 +1260,11 @@ function wake(s: WorldState, p: WorldPlayer): boolean {
 }
 
 /** Input from `p`: wakes them if they were dozing. */
-function touch(c: { broadcast(name: string, ...args: unknown[]): void }, p: WorldPlayer, now: number): void {
+function touch(c: Sender & { vars: Vars }, p: WorldPlayer, now: number): void {
   p.lastInputAt = now;
   if (!p.dozing) return;
   p.dozing = false;
-  c.broadcast("info", info(p, true));
+  sendInfo(c, p, info(p, true));
 }
 
 /**
@@ -1835,16 +1861,34 @@ async function chatOf(sql: Sql, room: RoomId) {
   return rows.reverse();
 }
 
+type Conn = { id: string; state: unknown; send(name: string, ...args: unknown[]): void };
+
 interface Sender {
-  conns: Map<string, { state: unknown; send(name: string, ...args: unknown[]): void }>;
+  conns: Map<string, Conn>;
   state: WorldState;
+  vars: { users: Map<string, number | null> };
 }
 
-function sendToRoom(c: Sender, room: RoomId, event: string, payload: unknown): void {
-  for (const conn of c.conns.values()) {
+/** The player behind `conn` once it has joined, else null (`users`). */
+function joinedUser(c: Sender, conn: Conn): number | null {
+  const id = conn.id;
+  let userId = c.vars.users.get(id);
+  if (userId === undefined) {
     const s = conn.state as ConnState;
-    if (s.kind === "user" && s.joined && c.state.players[s.userId]?.room === room) conn.send(event, payload);
+    userId = s.kind === "user" && s.joined ? s.userId : null;
+    c.vars.users.set(id, userId);
   }
+  return userId;
+}
+
+/** The room of the player behind `conn`, if it has joined. */
+const roomOf = (c: Sender, conn: Conn): RoomId | undefined => {
+  const userId = joinedUser(c, conn);
+  return userId === null ? undefined : c.state.players[userId]?.room;
+};
+
+function sendToRoom(c: Sender, room: RoomId, event: string, payload: unknown): void {
+  for (const conn of c.conns.values()) if (roomOf(c, conn) === room) conn.send(event, payload);
 }
 
 /**
@@ -1857,12 +1901,30 @@ function sendToScreens(c: Sender, event: "game" | "gameOver", payload: unknown):
   if (TAVERN) sendToRoom(c, "basement", event, payload);
 }
 
+/**
+ * `p`'s `info`, to their own tabs and whoever can see them: in their room, the room they were just in
+ * (`from`), or the one last told they're there (`announced`; `flush` moves them over next). The game
+ * reads it only for someone it shows (`applyInfo`) and for itself. Sent to every connection, each sync
+ * of each player (tokens today, agents) went to every tab, and a burst of joins cost joins × tabs.
+ */
+function sendInfo(
+  c: Sender & { vars: { announced: Map<number, RoomId> } },
+  p: WorldPlayer,
+  payload: PlayerInfo,
+  from = p.room,
+): void {
+  const was = c.vars.announced.get(p.id);
+  for (const conn of c.conns.values()) {
+    const userId = joinedUser(c, conn);
+    if (userId === null) continue;
+    const room = c.state.players[userId]?.room;
+    if (userId === p.id || room === p.room || room === from || room === was) conn.send("info", payload);
+  }
+}
+
 /** To every tab `userId` has open. */
 function sendToUser(c: Sender, userId: number, event: string, payload: unknown): void {
-  for (const conn of c.conns.values()) {
-    const s = conn.state as ConnState;
-    if (s.kind === "user" && s.joined && s.userId === userId) conn.send(event, payload);
-  }
+  for (const conn of c.conns.values()) if (joinedUser(c, conn) === userId) conn.send(event, payload);
 }
 
 /** A player who changed room (a door, or sent to bed) gets the new room whole. */
@@ -1884,11 +1946,9 @@ async function resend(c: Sender & { vars: Vars; db: Sql }, room: RoomId): Promis
   if (!someone) return;
   const snap = await snapshot(c.state, c.vars.online, c.vars.weather, someone, chatOf(c.db, room));
   // Whoever left meanwhile gets their new room from `flush`.
-  for (const conn of c.conns.values()) {
-    const s = conn.state as ConnState;
-    if (s.kind === "user" && s.joined && c.state.players[s.userId]?.room === room)
-      conn.send("snapshot", { ...snap, selfId: s.userId } satisfies Snapshot);
-  }
+  for (const conn of c.conns.values())
+    if (roomOf(c, conn) === room)
+      conn.send("snapshot", { ...snap, selfId: joinedUser(c, conn)! } satisfies Snapshot);
 }
 
 /**
@@ -1944,7 +2004,11 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
     }
     dirty.clear();
     if (recount) at(DORM).asleep = asleepAtInn(c.state, online);
-    for (const [room, m] of rooms) sendToRoom(c, room, "moves", m);
+    // One pass over the connections for every room's moves.
+    for (const conn of c.conns.values()) {
+      const m = rooms.get(roomOf(c, conn)!);
+      if (m) conn.send("moves", m);
+    }
   }
   // Who's inside each house, when someone in one moved or changed (a rename or level-up too, from
   // `setPlayer`), for whoever is in town to see. Joining town, the snapshot has it anyway.

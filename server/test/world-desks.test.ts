@@ -7,6 +7,8 @@ describe("world: desk setups", () => {
     const a = await rich("desk", 200);
     const b = await signUp("desk");
     const watcher = await connect(b.token);
+    // In the room with them: `info` goes to whoever can see them.
+    const seen = await connect(a.token);
     await a.town.buyDesk("dual");
     await a.town.setDesk("dual");
     await eventually(() =>
@@ -20,7 +22,7 @@ describe("world: desk setups", () => {
     await eventually(() =>
       expect(watcher.events.infos.filter((i) => i.id === a.userId).at(-1)?.desk).toBe(0),
     );
-    await Promise.all([watcher.conn.dispose(), late.conn.dispose()]);
+    await Promise.all([watcher.conn.dispose(), seen.conn.dispose(), late.conn.dispose()]);
   });
 
   test("the company's fleet tier is on the wire for everyone; a non-member can't buy it", async () => {

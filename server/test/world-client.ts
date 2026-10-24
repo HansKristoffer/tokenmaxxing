@@ -75,7 +75,10 @@ export async function walk(conn: Conn, dirs: string[]) {
   return results;
 }
 
-/** Closes `c`'s tab, and waits until `watcher` hears they're offline: in bed, remembering where they were. */
+/**
+ * Closes `c`'s tab, and waits until `watcher` (in their room: `info` goes there) hears they're offline:
+ * in bed, remembering where they were.
+ */
 export async function asleep(c: Awaited<ReturnType<typeof connect>>, watcher: typeof c, userId: number) {
   await c.conn.dispose();
   await eventually(() => expect(watcher.events.infos.findLast((i) => i.id === userId)?.online).toBe(false));

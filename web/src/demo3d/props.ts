@@ -15,7 +15,7 @@ function light(m: Model, at: V3, color: string, intensity: number, distance = 5)
   m.add(l);
 }
 
-/** Things that glow only at night (lamp heads, windows): swapped by `setPropsNight`. */
+/** Things that glow only at night (lamp heads, windows, light cones): swapped by `setPropsNight`. */
 export interface NightGlow {
   mesh: THREE.Mesh;
   day: THREE.Material;
@@ -24,22 +24,25 @@ export interface NightGlow {
 const nightGlows: NightGlow[] = [];
 const nightListeners = new Set<(on: boolean) => void>();
 let propsNight = false;
-export function nightGlow(mesh: THREE.Mesh, night: string): void {
-  const g = { mesh, day: mesh.material as THREE.Material, night: glow(night) };
+/** `night`: the glow's colour, or the material to wear at night. */
+export function nightGlow(mesh: THREE.Mesh, night: string | THREE.Material): void {
+  const g = {
+    mesh,
+    day: mesh.material as THREE.Material,
+    night: typeof night === "string" ? glow(night) : night,
+  };
   // The static batching builds a day and a night copy and flips between them (`onPropsNight`).
   mesh.userData.nightGlow = g;
   nightGlows.push(g);
 }
-/** Forgets the glows (and light cones) under `root`, when its room is thrown away. */
+/** Forgets the glows under `root`, when its room is thrown away. */
 export function dropPropsNight(root: THREE.Object3D): void {
   const inside = (m: THREE.Object3D) => {
     for (let o: THREE.Object3D | null = m; o; o = o.parent) if (o === root) return true;
     return false;
   };
   for (let i = nightGlows.length - 1; i >= 0; i--) if (inside(nightGlows[i]!.mesh)) nightGlows.splice(i, 1);
-  for (let i = cones.length - 1; i >= 0; i--) if (inside(cones[i]!)) cones.splice(i, 1);
 }
-const cones: THREE.Mesh[] = [];
 export const isPropsNight = (): boolean => propsNight;
 /** Called with the new state whenever `setPropsNight` runs. */
 export function onPropsNight(fn: (on: boolean) => void): () => void {
@@ -49,7 +52,6 @@ export function onPropsNight(fn: (on: boolean) => void): () => void {
 export function setPropsNight(on: boolean): void {
   propsNight = on;
   for (const g of nightGlows) g.mesh.material = on ? g.night : g.day;
-  for (const c of cones) (c.material as THREE.MeshBasicMaterial).opacity = on ? 0.16 : 0.05;
   announceNight(on);
 }
 
@@ -283,19 +285,19 @@ export function streetLamp(): Model {
   m.box([0.22, 0.08, 0.32], "#2b2f3a", [0, 2.28, 0.42], 0.03);
   nightGlow(m.box([0.16, 0.02, 0.24], "#cfd8e8", [0, 2.27, 0.42], 0.005), "#fff4c8");
   m.box([0.03, 0.03, 0.03], glow("#8fe3ff"), [0, 0.15, 0.1]);
-  const cone = new THREE.Mesh(
-    new THREE.ConeGeometry(0.75, 2.2, 20, 1, true),
+  const beam = (opacity: number) =>
     new THREE.MeshBasicMaterial({
       color: "#fff4c8",
       transparent: true,
-      opacity: 0.05,
+      opacity,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
-    }),
-  );
+    });
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.75, 2.2, 20, 1, true), beam(0.05));
   cone.position.set(0, 1.17, 0.42);
-  cones.push(cone);
+  // Brighter at night: a glow swap like the head's, so the batching keeps a day and a night copy of it too.
+  nightGlow(cone, beam(0.16));
   m.add(cone);
   light(m, [0, 2.0, 0.42], "#ffe6a8", 4, 6);
   return m;
@@ -366,21 +368,30 @@ export function grandFountain(): Model {
   boltMesh.position.z = -0.04;
   bolt.add(boltMesh);
   ticks.push((t) => (bolt.rotation.y = t * 0.6));
-  // Falling water: rings of drops from each tier.
-  const drops: { mesh: THREE.Mesh; a: number; r0: number; y0: number; drop: number }[] = [];
-  const foam = glass("#e4f5fd", 0.85);
+  // Falling water: rings of drops from each tier, all one instanced draw (they move, so they can't be batched).
+  const drops: { a: number; r0: number; y0: number; drop: number }[] = [];
   for (const [r0, y0, drop, n] of [
     [0.4, 2.06, 0.55, 10],
     [0.85, 1.48, 0.92, 16],
   ] as const)
-    for (let i = 0; i < n; i++)
-      drops.push({ mesh: m.ball(0.035, foam, [0, 0, 0]), a: (i / n) * Math.PI * 2, r0, y0, drop });
+    for (let i = 0; i < n; i++) drops.push({ a: (i / n) * Math.PI * 2, r0, y0, drop });
+  const drop = m.ball(0.035, glass("#e4f5fd", 0.85));
+  drop.removeFromParent();
+  const spray = new THREE.InstancedMesh(drop.geometry, drop.material, drops.length);
+  spray.castShadow = spray.receiveShadow = true;
+  // Bounds worked out once would not follow the drops.
+  spray.frustumCulled = false;
+  m.add(spray);
+  const at = new THREE.Object3D();
   ticks.push((t) => {
-    for (const d of drops) {
+    drops.forEach((d, i) => {
       const f = (t * 1.2 + d.a * 0.37) % 1;
       const r = d.r0 + f * 0.18;
-      d.mesh.position.set(Math.cos(d.a) * r, d.y0 - f * f * d.drop, Math.sin(d.a) * r);
-    }
+      at.position.set(Math.cos(d.a) * r, d.y0 - f * f * d.drop, Math.sin(d.a) * r);
+      at.updateMatrix();
+      spray.setMatrixAt(i, at.matrix);
+    });
+    spray.instanceMatrix.needsUpdate = true;
   });
   light(m, [0, 1.0, 0], "#8fe3ff", 3, 5);
   return m;

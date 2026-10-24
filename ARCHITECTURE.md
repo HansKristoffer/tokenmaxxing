@@ -226,7 +226,13 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 **`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room).
 - A 10 Hz tick sends each room its `moves`, and who's inside each house (`houses`, for town) when it changes.
   Head counts (`occupancy`) go to every connection, so at most once a second: sent every tick, a burst of joins
-  stalled the world at 300 connections.
+  stalled the world at 300 connections. Someone's `info` (look, tokens today, agents, coffee, online) goes only
+  to their own tabs and whoever is in their room: the game reads it for nobody else, and sent to everyone,
+  each player's sync and each join went to every tab.
+- **Messages, not CPU, are the limit.** Everything every actor sends goes through the engine's one connection
+  to this process, about 3,000 messages a second; past that it all queues, `town` (and `/health`) too.
+  A player walking costs about 15 a second (`moves` every tick, their step's answer, `occupancy`, chat), so
+  that's about 170 players walking at once. `bun scripts/perf/load.ts` measures it.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
   `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
   `tavern` (the Tavern's tap: the day's special, sent as `specialUntil`), `toss` (a coin in the fountain),
@@ -880,8 +886,10 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   updates, and `updateMatrixWorld` does not even walk them). Two variants are kept per room (smooth, and the Voxel style's
   blocks) and flipped on style change. Opt out with `userData.live = true` (night swaps, anything a caller keeps a handle
   to). `userData.rigid` marks things that move as a whole but are fixed inside (a wall that lowers, an avatar's limbs): batched
-  in their own space and riding along. Lamps and windows with `nightGlow` get a day and a night copy flipped by
-  `setPropsNight`/`setRoomNight`. Code that changes a room's shape after it was batched calls `invalidateBaked(obj)`
+  in their own space and riding along. Lamps, windows and light cones with `nightGlow` get a day and a night copy flipped by
+  `setPropsNight`/`setRoomNight` (sampling the hours records a glow by its day material, so the swap is not "moving"). Things
+  that really move in place are drawn as few meshes as they can be: the fountain's drops are one `InstancedMesh`, the pond's
+  drifting sparkle one merged mesh. Code that changes a room's shape after it was batched calls `invalidateBaked(obj)`
   (`Room.build` does). `?nobake` turns it off to compare pictures.
 - *Atlas* (`atlas.ts`). Small nearest-filtered painted textures (signs, price tags, posters) of one material setup are packed in
   one atlas (UVs remapped exactly, so no pixel changes); a picture the game repaints is painted into the atlas again, one that
@@ -889,7 +897,8 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
 - *Freezing* (`freeze.ts`, `Freezer`). A person or pet who stands, sits or sleeps (`userData.actor`) is merged in that pose into
   a couple of meshes and its limbs stop being posed; moving gives the limbs back (`bake.ts` `freezeLayer`, `suspend`, `resume`).
   Models nobody animates (display pets) freeze after half a second. Past `crowd` people nearest the middle of the picture (8 / 16
-  / 32 on Medium / High / Ultra) the rest are drawn frozen even while they walk, as are people under 20 px tall. Animation of
+  / 32 on Medium / High / Ultra) the rest are drawn frozen even while they walk, as are people and pets under 20 px tall (the
+  pet shop's window pets, seen from the street, even asleep). Animation of
   anyone outside the camera's frustum is skipped (`view.sees`).
 - *Shadows*. Medium has none, a soft disc under each person and pet instead (`blob`, one instanced draw; the raid's minions have their own instanced discs in `minions.ts`). High and Ultra draw
   the room's static casters **once** into a big map (2K/4K) and again only when a room is re-batched, a caster stops or starts
@@ -930,7 +939,14 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   no batched mesh moved. `bun scripts/perf-leak.mjs` switches rooms and styles 50 times and fails if live GL objects or heap grow.
 - `bun scripts/perf/passes.mjs <room>` draws and triangles per render pass (shadow, scene, AO, composite), `perf/ablate.mjs`
   frame time under option sets, `perf/alloc.mjs` where the page allocates (CDP heap sampling), `perf/profile.mjs` a CPU profile,
-  `perf/inspect.mjs` what is still unbatched, `perf/counts.ts medium|high` the per-room counts the budgets check.
+  `perf/inspect.mjs` what is still unbatched, `perf/counts.ts medium|high` the per-room counts the budgets check,
+  `perf/heap.mjs` what the JS heap holds (by constructor, and what retains the geometry buffers).
+- `bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--throttle 4] [--profile|--alloc|--nodes|--heap]` measures
+  the real game rather than the demo: it starts its own production server (`bun run site:build` once), signs up `walkers` players
+  who walk out into the town and wander it over the wire, and opens an observer per tier with no fps cap: the renderer's own CPU
+  time per frame, frame gaps, long tasks, draws, heap, and on request a CPU profile, garbage per function, the nodes the scene
+  walks visit, or a heap snapshot. `--throttle` slows the CPU (a stand-in for a weak laptop). The demo builds every stage up front,
+  so its heap is not the game's.
 - `web/test/perf-budget.test.ts` builds every room headlessly (the real skins, not tile stand-ins), batches it, freezes its
   people and fails above `render3d/perf/budgets.ts`; `perf-freeze.test.ts` and `world-lazy.test.ts` cover freezing and the room cache.
   The budgets count the static room alone; `web/test/dungeon-live.test.ts` budgets the dungeon's live layer on top and `games3d.test.ts` that a game's props come and go.
@@ -944,7 +960,7 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
 
 These are deliberate, and marked `ponytail:` in the code:
 - one `world` actor for everyone (split it per room when hundreds are online at once; the protocol is already
-  per room);
+  per room, but in one process the rooms would share the message limit above);
 - rate limits are in memory, so a deploy resets them;
 - usage is reported by each user's machine: capped and flagged, but it can't be proven;
 - leaderboards are kept until something on them changes (`boardsChanged`, called on every push to `world`),
