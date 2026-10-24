@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.2](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.8.1...v1.8.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **server:** re-queue every day for card v2 in the background, not while a player starts ([#75](https://github.com/HansKristoffer/tokenmaxxing/issues/75)) ([38a5531](https://github.com/HansKristoffer/tokenmaxxing/commit/38a5531d46a7f736934b4e4014702a61ec9c2cfa))
+
 ## [1.8.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.8.0...v1.8.1) (2026-10-24)
 
 
