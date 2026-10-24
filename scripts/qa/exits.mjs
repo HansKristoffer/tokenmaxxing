@@ -143,7 +143,7 @@ if (r?.startsWith("hq:")) {
     inventory.push({ room: r, ch: "passage", x, y, shot: file });
     console.log("hq way", name, "->", file);
   }
-  if ((await take("R")) ?.startsWith("office:")) {
+  if ((await take("R"))?.startsWith("office:")) {
     await shootHere();
     await take("x");
   }

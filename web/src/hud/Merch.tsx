@@ -150,8 +150,19 @@ function MerchEditor({ company, onClose }: { company: MerchCompany; onClose: () 
         </div>
         <div className="merch-pics">
           {MERCH.map((m) => (
-            <ItemIcon key={m.kind} spec={{ kind: "merch", company: draft, merch: m.kind }} size={64} className="avatar">
-              <Pixels sprite={merchPreview(draft, m.bit)} width={64} height={64} scale={4} className="avatar" />
+            <ItemIcon
+              key={m.kind}
+              spec={{ kind: "merch", company: draft, merch: m.kind }}
+              size={64}
+              className="avatar"
+            >
+              <Pixels
+                sprite={merchPreview(draft, m.bit)}
+                width={64}
+                height={64}
+                scale={4}
+                className="avatar"
+              />
             </ItemIcon>
           ))}
         </div>

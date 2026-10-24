@@ -37,7 +37,17 @@ import { type Frame, inView } from "./frame.ts";
 import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
-import { avatarLabels, chipHits, chips, chipsWidth, focusLabels, petLabel, pill, sign, signHits } from "./labels.ts";
+import {
+  avatarLabels,
+  chipHits,
+  chips,
+  chipsWidth,
+  focusLabels,
+  petLabel,
+  pill,
+  sign,
+  signHits,
+} from "./labels.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";

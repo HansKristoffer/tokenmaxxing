@@ -45,7 +45,9 @@ describe("exits", () => {
   }
 
   test("a house's office doors are reached through the passage, hallway by hallway", () => {
-    const map = hqMap(doorsFor(Array.from({ length: 25 }, (_, i) => ({ userId: i + 1, name: `u${i}`, open: true }))));
+    const map = hqMap(
+      doorsFor(Array.from({ length: 25 }, (_, i) => ({ userId: i + 1, name: `u${i}`, open: true }))),
+    );
     expect(map.find("R")).toHaveLength(25);
     for (const [x, y] of map.find("R")) expect(route(map, entry(map), [x, y])).not.toBeNull();
   });

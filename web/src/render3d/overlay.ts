@@ -88,7 +88,11 @@ export class Overlay {
   }
 
   /** Once a frame: who the `near` labels are near to (`null`: all show), and the pointed tile with its reveal (0 to 1). */
-  focusAt(me: readonly [number, number] | null, hovered: readonly [number, number] | null, hover: number): void {
+  focusAt(
+    me: readonly [number, number] | null,
+    hovered: readonly [number, number] | null,
+    hover: number,
+  ): void {
     const f = this.focus;
     f.x = me ? me[0] : NaN;
     f.z = me ? me[1] : NaN;

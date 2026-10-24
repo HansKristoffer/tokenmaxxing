@@ -23,7 +23,10 @@ export function Trophies({ userId, name }: { userId: number; name: string }) {
           const day = earned.get(t.id);
           return (
             <li key={t.id} className={day ? "" : "unearned"}>
-              <ItemIcon spec={{ kind: "trophy", id: t.id, earned: day !== undefined }} size={TROPHY_H * SCALE}>
+              <ItemIcon
+                spec={{ kind: "trophy", id: t.id, earned: day !== undefined }}
+                size={TROPHY_H * SCALE}
+              >
                 <Pixels
                   sprite={trophySprite(t.id, day !== undefined)}
                   width={TROPHY_W * SCALE}

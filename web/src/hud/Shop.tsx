@@ -179,7 +179,12 @@ const merchCompany = (item: Item): IconSpec & { kind: "merch" } => ({
 function itemIcon(item: Item, look: Look, bare?: boolean, worn?: boolean): IconSpec {
   if (item.slot === "pet") {
     const mine = worn && look.pet === item.index;
-    return { kind: "pet", pet: item.index, variant: mine ? look.petVariant : 0, name: mine ? look.petName : "" };
+    return {
+      kind: "pet",
+      pet: item.index,
+      variant: mine ? look.petVariant : 0,
+      name: mine ? look.petName : "",
+    };
   }
   if (item.slot === "furniture") return { kind: "piece", ch: item.id.slice(5) };
   if (item.slot === "petwear") return { kind: "pet", pet: look.pet || 1, wear: item.index };

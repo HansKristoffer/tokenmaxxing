@@ -87,7 +87,12 @@ function plateMaterial(text: string, arrow: "up" | "down" | "out" | null): THREE
 }
 
 /** The plate on a wall: its centre at `at`, facing +z. */
-export function exitPlate(m: Model, text: string, arrow: "up" | "down" | "out" | null, at: [number, number, number]): void {
+export function exitPlate(
+  m: Model,
+  text: string,
+  arrow: "up" | "down" | "out" | null,
+  at: [number, number, number],
+): void {
   m.box([0.46, 0.2, 0.02], "#2b2433", [at[0], at[1] - 0.1, at[2] - 0.012], 0.004);
   m.plane(0.44, 0.19, plateMaterial(text, arrow), at);
 }

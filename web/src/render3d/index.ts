@@ -365,7 +365,11 @@ class Renderer3D implements Renderer {
       this.overlay.fadeTowards(0, calm ? 0 : FADE_IN_MS, now);
     this.overlay.stepFade(now);
     const reveal = hoverStrength(now);
-    this.overlay.focusAt(this.labelsAll ? null : me, reveal > 0 ? view.toWorld(hover.x, hover.y) : null, reveal);
+    this.overlay.focusAt(
+      this.labelsAll ? null : me,
+      reveal > 0 ? view.toWorld(hover.x, hover.y) : null,
+      reveal,
+    );
 
     const before = this.entities.size;
     const e0 = performance.now();

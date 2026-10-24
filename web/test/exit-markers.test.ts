@@ -10,7 +10,11 @@ test("an exit's threshold is the walkable tile it is taken from", () => {
   // The Tavern's stairs down stand by the east wall: the tile above them is the way on.
   const [sx, sy] = MAPS.inn.find("S")[0]!;
   expect(MAPS.inn.walkable(...thresholdOf(MAPS.inn, sx, sy))).toBe(true);
-  expect(exitsOf(MAPS.inn).map((e) => e.ch).sort()).toEqual(["S", "u", "x"]);
+  expect(
+    exitsOf(MAPS.inn)
+      .map((e) => e.ch)
+      .sort(),
+  ).toEqual(["S", "u", "x"]);
 });
 
 test("a marker shows only while the player is within reach, pulsing on one shared material", () => {

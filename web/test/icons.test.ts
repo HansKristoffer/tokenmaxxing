@@ -25,7 +25,12 @@ function harness(budgetMs = 4, cost = 1.5) {
 
 test("the LRU keeps the most recent, within the entry and cost caps, and tells what it drops", () => {
   const gone: number[] = [];
-  const c = new LruCache<number>(3, 10, (v) => v, (v) => gone.push(v));
+  const c = new LruCache<number>(
+    3,
+    10,
+    (v) => v,
+    (v) => gone.push(v),
+  );
   c.set("a", 1);
   c.set("b", 2);
   c.set("c", 3);

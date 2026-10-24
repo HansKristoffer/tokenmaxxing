@@ -47,7 +47,11 @@ function solar(ms: number): { decl: number; eqTime: number } {
 }
 
 /** The sun's height above the horizon in degrees (negative below), and whether it's still morning. */
-function sunElevation(ms: number, lat = AARHUS.lat, lon = AARHUS.lon): { elevation: number; morning: boolean } {
+function sunElevation(
+  ms: number,
+  lat = AARHUS.lat,
+  lon = AARHUS.lon,
+): { elevation: number; morning: boolean } {
   const { decl, eqTime } = solar(ms);
   const utcMin = (((ms / 60_000) % 1440) + 1440) % 1440;
   const hourAngle = ((((utcMin + eqTime + 4 * lon) % 1440) + 1440) % 1440) / 4 - 180;
@@ -60,7 +64,11 @@ function sunElevation(ms: number, lat = AARHUS.lat, lon = AARHUS.lon): { elevati
 const RISE_DEG = 90.833;
 
 /** Sunrise and sunset (ms) on the Copenhagen day `ms` falls in. */
-export function sunTimes(ms: number, lat = AARHUS.lat, lon = AARHUS.lon): { sunrise: number; sunset: number } {
+export function sunTimes(
+  ms: number,
+  lat = AARHUS.lat,
+  lon = AARHUS.lon,
+): { sunrise: number; sunset: number } {
   const [y, m, d] = dayKey(ms).split("-").map(Number);
   const noon = Date.UTC(y!, m! - 1, d!, 12);
   let rise = noon - 6 * 3_600_000;

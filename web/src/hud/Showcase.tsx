@@ -17,7 +17,12 @@ function PinIcon({ pin }: { pin: PinView }) {
     const id = pin.id.slice(pin.id.indexOf(":") + 1);
     return (
       <ItemIcon spec={{ kind: "trophy", id }} size={TROPHY_H * SCALE} label={pin.name}>
-        <Pixels sprite={trophySprite(id, true)} width={TROPHY_W * SCALE} height={TROPHY_H * SCALE} label={pin.name} />
+        <Pixels
+          sprite={trophySprite(id, true)}
+          width={TROPHY_W * SCALE}
+          height={TROPHY_H * SCALE}
+          label={pin.name}
+        />
       </ItemIcon>
     );
   }

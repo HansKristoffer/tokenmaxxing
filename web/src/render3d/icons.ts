@@ -240,7 +240,11 @@ class IconRenderer {
     let minY = Infinity;
     let maxY = -Infinity;
     for (let i = 0; i < 8; i++) {
-      this.corner.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z);
+      this.corner.set(
+        i & 1 ? box.max.x : box.min.x,
+        i & 2 ? box.max.y : box.min.y,
+        i & 4 ? box.max.z : box.min.z,
+      );
       this.corner.applyMatrix4(cam.matrixWorldInverse);
       minX = Math.min(minX, this.corner.x);
       maxX = Math.max(maxX, this.corner.x);
@@ -385,7 +389,9 @@ export function disposeIcons(): void {
 }
 
 const idle = (fn: () => void) =>
-  typeof requestIdleCallback === "function" ? requestIdleCallback(fn, { timeout: 8000 }) : setTimeout(fn, 1500);
+  typeof requestIdleCallback === "function"
+    ? requestIdleCallback(fn, { timeout: 8000 })
+    : setTimeout(fn, 1500);
 
 /**
  * Compiles the shaders the icons need (a dressed character, a pet, a piece) on tiny pictures in idle time, so the
@@ -417,7 +423,12 @@ graphics.subscribe(() => {
 });
 
 /** What the queue did, for the QA scripts and the perf harness. */
-export const iconStats = () => ({ ...queue.stats, cached: cache.size, pixels: cache.cost, pending: queue.pending });
+export const iconStats = () => ({
+  ...queue.stats,
+  cached: cache.size,
+  pixels: cache.cost,
+  pending: queue.pending,
+});
 
 if (storage.getItem("tokenmaxxing.qa") === "1")
   (globalThis as unknown as { __tmIcons: unknown }).__tmIcons = { stats: iconStats, request: requestIcon };

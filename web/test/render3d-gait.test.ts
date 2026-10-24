@@ -115,7 +115,10 @@ function legsOf(a: InstanceType<typeof import("../src/demo3d/avatar.ts").Avatar>
 }
 
 test("the feet stay on the legs through the whole stride and the legs pivot at the hip", () => {
-  const a = new avatar.Avatar(avatar.randomLook(() => 0.3), "voxel");
+  const a = new avatar.Avatar(
+    avatar.randomLook(() => 0.3),
+    "voxel",
+  );
   new THREE.Scene().add(a.root);
   a.pose = "walk";
   const hips = legsOf(a).map((l) => l.hip.clone());
@@ -140,7 +143,10 @@ test("the feet stay on the legs through the whole stride and the legs pivot at t
 });
 
 test("a person who stops ends in the neutral pose, and sitting and sleeping still work", () => {
-  const a = new avatar.Avatar(avatar.randomLook(() => 0.7), "voxel");
+  const a = new avatar.Avatar(
+    avatar.randomLook(() => 0.7),
+    "voxel",
+  );
   new THREE.Scene().add(a.root);
   a.pose = "walk";
   for (let i = 0; i < 20; i++) a.update(1 / 60, i / 60, 2.5 / 60);
