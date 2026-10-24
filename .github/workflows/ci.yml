@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [main]
@@ -34,9 +35,29 @@ jobs:
       - run: bun test --timeout 60000 --parallel=2
 
   desktop:
-    runs-on: macos-15
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Preserve the existing macOS check name for branch protection.
+          - os: macos-15
+            name: desktop
+          - os: ubuntu-22.04
+            name: desktop (Linux)
+          - os: windows-latest
+            name: desktop (Windows)
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
+      - name: Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev libdbus-1-dev patchelf
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -48,15 +69,33 @@ jobs:
           workspaces: app/desktop/src-tauri
       - run: bun install --frozen-lockfile --ignore-scripts
       # Regenerates the protocol fixture from the TS types; the Rust side must decode it (cargo test).
-      - run: bun test app/helper/test/protocol.test.ts
+      - run: bun test app/helper/test/protocol.test.ts app/helper/test/platform-paths.test.ts
       - run: git diff --exit-code app/desktop/src-tauri/tests/fixtures
       # The build checks the sidecar exists.
-      - run: bash app/desktop/scripts/helper.sh
+      - run: bun app/desktop/scripts/helper.ts
       - working-directory: app/desktop/src-tauri
         run: |
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings
           cargo test
+
+      # Linux/Windows are preview installers until native manual QA and signing are complete.
+      # Fork PRs without the repository variable build against a local development server.
+      - name: Build preview installer
+        if: runner.os != 'macOS'
+        env:
+          TOKENMAXXING_SERVER_URL: ${{ vars.TOKENMAXXING_SERVER_URL || 'http://localhost:8787' }}
+        run: bun run desktop:build
+      - name: Upload preview installer
+        if: runner.os != 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            app/desktop/src-tauri/target/release/bundle/deb/*.deb
+            app/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+            app/desktop/src-tauri/target/release/bundle/nsis/*.exe
 
   pr-title:
     if: github.event_name == 'pull_request'
