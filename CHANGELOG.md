@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.8.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.7.0...v1.8.0) (2026-10-24)
+
+
+### Features
+
+* Tokenmaxxing 2.0 ([#72](https://github.com/HansKristoffer/tokenmaxxing/issues/72)) ([915505d](https://github.com/HansKristoffer/tokenmaxxing/commit/915505d6be8623a0aefcb70e485354e800580853))
+
+
+### Bug Fixes
+
+* **helper:** forget a removed computer even while the helper deletes its state ([bc59a5c](https://github.com/HansKristoffer/tokenmaxxing/commit/bc59a5cb7f5d121c9dbaa2f11943689f95005419))
+* **hud:** give the legendary milestone toast its own glow ([3505043](https://github.com/HansKristoffer/tokenmaxxing/commit/3505043ff2f5a46ad742ff527e90259a2eb19828))
+* **server:** close the gaps the review found in the new caches ([0f76129](https://github.com/HansKristoffer/tokenmaxxing/commit/0f76129c72bdf5e7db2671aa0364124ac9d8a12b))
+* **town:** a failed sign-up's id is never handed out again ([1692f03](https://github.com/HansKristoffer/tokenmaxxing/commit/1692f03a86ba3203dcd488d69b2d17f773c1dbd0))
+
+
+### Performance Improvements
+
+* a faster, smaller codebase across server, core, web and tests ([6f25adc](https://github.com/HansKristoffer/tokenmaxxing/commit/6f25adc333fd3004b9653f73bd4cfa93f8c459a7))
+* **arcade:** build each push's lobbies once ([fe0a66b](https://github.com/HansKristoffer/tokenmaxxing/commit/fe0a66b58548679e6f6d7d877ef4ccbad1f29823))
+* **core:** bucket raid days without copying, and cache each day's week ([00d5933](https://github.com/HansKristoffer/tokenmaxxing/commit/00d5933ff30df3779fcb16b384fa077051479616))
+* **core:** findSpot walks only each ring's edge ([601683c](https://github.com/HansKristoffer/tokenmaxxing/commit/601683c6d1066f2de2621e4c50d444f054251d01))
+* **core:** keep GameMap.find's tiles per character ([801bd97](https://github.com/HansKristoffer/tokenmaxxing/commit/801bd976d7f718fa8111f1e40d148a2de5f2937e))
+* **core:** list Codex's indexed rollouts with less file system work ([0318766](https://github.com/HansKristoffer/tokenmaxxing/commit/03187664adcdd0aa7b17f9a02d2d6220fef20f37))
+* **core:** look items and pieces up in maps ([f5ea1ee](https://github.com/HansKristoffer/tokenmaxxing/commit/f5ea1ee768963649b45fcee6485a4adf472aa922))
+* **core:** one world clock, with its UTC offset kept per hour ([eeef543](https://github.com/HansKristoffer/tokenmaxxing/commit/eeef54368490045cfb15e30f7a4224370a6c09f5))
+* **core:** roll each raid kill's loot once ([9b23bc0](https://github.com/HansKristoffer/tokenmaxxing/commit/9b23bc02b312136ee5ea599385e008db5c9aa90b))
+* **core:** route over typed arrays with a moving queue head ([3f5dc10](https://github.com/HansKristoffer/tokenmaxxing/commit/3f5dc10ef6cc3c0283f22e771f0dd609aee5d917))
+* **core:** skip Claude Code lines that can't be events before parsing ([0529983](https://github.com/HansKristoffer/tokenmaxxing/commit/0529983e52446df5eccf79c479aed81ea4eca55b))
+* **core:** skip Codex lines that can't matter before parsing ([f15f9d2](https://github.com/HansKristoffer/tokenmaxxing/commit/f15f9d21df08457dd4963d7918f485d3eb0533d0))
+* **core:** stat a sync's files in batches ([294e7ad](https://github.com/HansKristoffer/tokenmaxxing/commit/294e7ad304c1cde8debc6889988f29a8ef26da1d))
+* **game:** cull off-screen buildings and people; one Frame for drawing ([f0db4d1](https://github.com/HansKristoffer/tokenmaxxing/commit/f0db4d12d4c622288e1c077c7d4bcbfa2152603a))
+* **hud:** fewer re-renders, refetches and redraws ([2156700](https://github.com/HansKristoffer/tokenmaxxing/commit/215670048bb628e726d94e9c6d726bb0b598815a))
+* **match:** copy less of the state per tick ([82b8ac2](https://github.com/HansKristoffer/tokenmaxxing/commit/82b8ac261c6abe019fe6a187b2ce85d590066218))
+* **server:** fewer queries per sync and per priced row ([762c714](https://github.com/HansKristoffer/tokenmaxxing/commit/762c7143b41762de7b205804f502cff005e6dc6c))
+* **server:** one token cache for every actor, and one check per token at a time ([5eae4d9](https://github.com/HansKristoffer/tokenmaxxing/commit/5eae4d9b31a247b12f48cbcdbf30781db1b6f5b2))
+* TCP_NODELAY on the engine's sockets ([f4c5eb9](https://github.com/HansKristoffer/tokenmaxxing/commit/f4c5eb9d677484be1f49380d139ded53feee327e))
+* **town:** check wallets against the podiums and raids the town keeps ([72a0a2a](https://github.com/HansKristoffer/tokenmaxxing/commit/72a0a2a395f1d64e4885dec92c8a3d1b075a8974))
+* **town:** keep the leaderboards until something on them changes ([68f103a](https://github.com/HansKristoffer/tokenmaxxing/commit/68f103aeaa9840489debd6233d500fedb9d4982e))
+* **town:** today's corner reads only today's usage ([753e9ab](https://github.com/HansKristoffer/tokenmaxxing/commit/753e9ab0a397d0c327db8d859103512eea086ea5))
+* **world:** don't rebuild or rebroadcast what didn't change ([ea148c5](https://github.com/HansKristoffer/tokenmaxxing/commit/ea148c530c5fab190997fbdd0d50803d89c9968e))
+* **world:** work out who's in the houses only when it can have changed ([6f0807b](https://github.com/HansKristoffer/tokenmaxxing/commit/6f0807bc2236f12252c79411e6bfad3051698d30))
+
 ## [1.7.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.6.0...v1.7.0) (2026-10-21)
 
 
