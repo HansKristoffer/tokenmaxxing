@@ -3,8 +3,9 @@
  * posed the same way here, with painted faces (`faces.ts`). The colours are the game's own
  * (`web/src/art/palette.ts`), so every look a player has today has a 3D twin. Pets are built the same way.
  */
-import type * as THREE from "three";
+import * as THREE from "three";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../art/palette.ts";
+import { type Gait, gaitSettled, newGait, stepGait, walkPose } from "../render3d/motion.ts";
 import { Freezer, TINY_PX, view } from "../render3d/perf/freeze.ts";
 import { type Expression, type Face, faceTexture } from "./faces.ts";
 import { liveModel, Model, tint, type V3 } from "./kit.ts";
@@ -89,8 +90,13 @@ export class Avatar {
   readonly arms: [Model, Model];
   readonly legs: [Model, Model];
   pose: Pose = "stand";
-  /** Seconds into the walk cycle. */
-  private phase = Math.random() * 10;
+  /** Where they are in their stride: driven by the ground covered (`update`'s `moved`), not by the clock. */
+  readonly gait: Gait = newGait(Math.random());
+  /** Walking speed assumed when `update` isn't told how far they moved (the demo's walkers say). */
+  nominalSpeed = 2.1;
+  /** Offsets the breathing so a crowd doesn't heave in step. */
+  private readonly breath = Math.random() * 10;
+  private readonly at = new THREE.Vector3();
   private blinkAt = Math.random() * 4;
   /** Idle people are merged into a couple of meshes (see `Freezer`); gear that animates keeps them live. */
   private readonly freezer = new Freezer(this.root);
@@ -122,7 +128,7 @@ export class Avatar {
   /** The state worth freezing in right now (null while the limbs animate): resting poses, or any pose when tiny. */
   private frozenKey(): string | null {
     if (this.height * view.pxPerUnit < TINY_PX || this.root.userData.lod) return "tiny";
-    if (!this.freezable) return null;
+    if (!this.freezable || !gaitSettled(this.gait)) return null;
     // Typing moves the arms a few centimetres: not worth fifteen draw calls.
     return this.pose === "stand" || this.pose === "sit" || this.pose === "sleep" || this.pose === "type"
       ? this.pose
@@ -135,19 +141,32 @@ export class Avatar {
 
   private sampleMotion(t: number): void {
     const keep = this.pose;
-    for (const pose of ["walk", "stand"] as const) {
-      this.pose = pose;
-      this.posed(1 / 60, t);
-    }
+    const g = this.gait;
+    const { phase, weight } = g;
+    // Mid-stride at a different point for each sample time: whatever the walk moves shows as moving.
+    g.phase = phase + t * 1.7;
+    g.weight = 1;
+    this.pose = "walk";
+    this.posed(1 / 60, t);
+    g.phase = phase;
+    g.weight = weight;
+    this.pose = "stand";
+    this.posed(1 / 60, t);
     this.pose = keep;
     this.posed(1 / 60, t);
   }
 
-  /** Moves the limbs for `pose`, `dt` seconds after the last frame. */
-  update(dt: number, t: number): void {
-    this.phase += dt;
+  /**
+   * Moves the limbs for `pose`, `dt` seconds after the last frame, having come `moved` world units since (the walk
+   * cycle turns with the ground; left out, the walk is assumed to go at `nominalSpeed`).
+   */
+  update(dt: number, t: number, moved?: number): void {
+    const walking = this.pose === "walk";
+    stepGait(this.gait, moved ?? (walking ? this.nominalSpeed * dt : 0), dt, walking);
     // Out of the picture nobody sees the limbs: skip posing (the walk cycle keeps its phase).
-    if (!view.sees(this.root.position, this.height + 0.5)) {
+    const e = this.root.matrixWorld.elements;
+    this.at.set(e[12]!, e[13]!, e[14]!);
+    if (!view.sees(this.at, this.height + 0.5)) {
       this.freezer.touch();
       return;
     }
@@ -177,20 +196,26 @@ export class Avatar {
     kneeL.rotation.set(0, 0, 0);
     kneeR.rotation.set(0, 0, 0);
 
+    // The stride: legs turn at the hip and arms at the shoulder, the opposite way; the body bobs twice a step and
+    // leans only while the pace changes. It also plays out the last half-step of someone who just stopped.
+    const stride = (): void => {
+      const g = this.gait;
+      const w = walkPose(g.phase, g.weight);
+      legL.rotation.x = w.leg;
+      legR.rotation.x = -w.leg;
+      kneeL.rotation.x = w.knee[0];
+      kneeR.rotation.x = w.knee[1];
+      armL.rotation.x = w.arm;
+      armR.rotation.x = -w.arm;
+      b.position.y = w.bob;
+      b.rotation.z = w.sway;
+      b.rotation.x = g.lean;
+    };
+
     switch (this.pose) {
-      case "walk": {
-        const s = Math.sin(this.phase * 11);
-        legL.rotation.x = s * 0.6;
-        legR.rotation.x = -s * 0.6;
-        // The leg behind bends at the knee.
-        kneeL.rotation.x = Math.max(0, s) * 0.8;
-        kneeR.rotation.x = Math.max(0, -s) * 0.8;
-        armL.rotation.x = -s * 0.7;
-        armR.rotation.x = s * 0.7;
-        b.position.y = Math.abs(Math.cos(this.phase * 11)) * 0.035;
-        b.rotation.z = s * 0.04;
+      case "walk":
+        stride();
         break;
-      }
       case "sit":
       case "type":
         b.position.y = -HIP + 0.02;
@@ -219,7 +244,7 @@ export class Avatar {
         this.head.rotation.z = Math.sin(t * 3) * 0.06;
         break;
       case "dance": {
-        const beat = t * 7 + this.phase;
+        const beat = t * 7 + this.breath;
         b.position.y = Math.abs(Math.sin(beat)) * 0.07;
         b.rotation.y = Math.sin(beat * 0.5) * 0.4;
         armL.rotation.z = -2.4 - Math.sin(beat) * 0.4;
@@ -239,7 +264,11 @@ export class Avatar {
         b.position.y = Math.abs(Math.sin(t * 7)) * 0.02;
         break;
       case "stand":
-        b.position.y = Math.sin(t * 2.2 + this.phase) * 0.006;
+        if (!gaitSettled(this.gait)) {
+          stride();
+          break;
+        }
+        b.position.y = Math.sin(t * 2.2 + this.breath) * 0.006;
         armL.rotation.z = -0.04 - Math.sin(t * 2.2) * 0.02;
         armR.rotation.z = 0.04 + Math.sin(t * 2.2) * 0.02;
         break;
@@ -272,6 +301,11 @@ export class Pet {
   private readonly body = this.root.part();
   private readonly tail?: THREE.Object3D;
   moving = false;
+  /** Pace assumed when `update` isn't told how far it came. */
+  nominalSpeed = 1.6;
+  private readonly gait = newGait(Math.random());
+  private readonly at = new THREE.Vector3();
+  private last = -1;
   private readonly freezer = new Freezer(this.root);
 
   constructor(
@@ -336,12 +370,18 @@ export class Pet {
     }
   }
 
-  update(t: number): void {
-    if (!view.sees(this.root.position, 1)) {
+  /** `moved`: how far it came since the last frame, world units (left out: `nominalSpeed` while `moving`). */
+  update(t: number, moved?: number): void {
+    const dt = this.last < 0 ? 1 / 60 : Math.min(0.1, Math.max(0, t - this.last));
+    this.last = t;
+    stepGait(this.gait, moved ?? (this.moving ? this.nominalSpeed * dt : 0), dt, this.moving);
+    const e = this.root.matrixWorld.elements;
+    this.at.set(e[12]!, e[13]!, e[14]!);
+    if (!view.sees(this.at, 1)) {
       this.freezer.touch();
       return;
     }
-    const key = this.root.userData.lod ? "far" : this.moving ? null : "idle";
+    const key = this.root.userData.lod ? "far" : this.moving || !gaitSettled(this.gait) ? null : "idle";
     if (this.freezer.holds(key)) return;
     this.pose(t);
     this.freezer.settle(key);
@@ -353,8 +393,10 @@ export class Pet {
 
   private pose(t: number): void {
     const b = this.body;
-    b.position.y = this.moving ? Math.abs(Math.sin(t * 14)) * 0.04 : 0;
-    b.rotation.z = this.moving ? Math.sin(t * 14) * 0.06 : 0;
+    // A trot: the same cycle as the people's, shorter legs bobbing twice as much.
+    const w = walkPose(this.gait.phase * 2, this.gait.weight);
+    b.position.y = w.bob * 1.6;
+    b.rotation.z = w.sway * 2;
     if (this.tail) this.tail.rotation.y = Math.sin(t * (this.moving ? 12 : 3)) * 0.5;
   }
 }

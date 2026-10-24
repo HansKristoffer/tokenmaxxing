@@ -7,6 +7,7 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
+import { gaitSettled, newGait, stepGait, walkPose } from "../render3d/motion.ts";
 import { Freezer, view } from "../render3d/perf/freeze.ts";
 import { PET_NAME, PET_NAMED, PET_SPECIES, PET_VARIANTS, PETWEAR, type Species } from "./data/pets.ts";
 import type { Asset } from "./furniture.ts";
@@ -136,6 +137,10 @@ export class Pet3D {
   private sit = 0;
   private sleep = 0;
   private last = 0;
+  /** The trot: driven by the ground covered (`update`'s `moved`), assumed at `nominalSpeed` when not told. */
+  private readonly gait = newGait(Math.random());
+  nominalSpeed = 1.6;
+  private readonly at = new THREE.Vector3();
   private blinkAt = 2;
   private worn = 0;
   private wornGroup?: THREE.Object3D;
@@ -185,8 +190,13 @@ export class Pet3D {
     return PET_NAME[this.species];
   }
 
-  update(t: number): void {
-    if (!view.sees(this.root.position, 1.5)) {
+  update(t: number, moved?: number): void {
+    const dt = Math.min(0.1, Math.max(0, t - this.last));
+    const walking = this.moving && this.pose === "stand";
+    stepGait(this.gait, moved ?? (walking ? this.nominalSpeed * dt : 0), dt, walking);
+    const e = this.root.matrixWorld.elements;
+    this.at.set(e[12]!, e[13]!, e[14]!);
+    if (!view.sees(this.at, 1.5)) {
       this.freezer.touch();
       this.last = t;
       return;
@@ -194,7 +204,13 @@ export class Pet3D {
     // At rest (standing or sitting, nothing spinning or sparkling) a pet is merged into a few meshes.
     const settled = Math.abs(this.sit - (this.pose === "sit" ? 1 : 0)) < 0.01 && this.sleep < 0.01;
     const calm =
-      !this.moving && settled && !this.crown && !this.spin && !this.rig.fx && this.pose !== "sleep";
+      !this.moving &&
+      gaitSettled(this.gait) &&
+      settled &&
+      !this.crown &&
+      !this.spin &&
+      !this.rig.fx &&
+      this.pose !== "sleep";
     const far = this.root.userData.lod && !this.crown && !this.spin && !this.rig.fx;
     const key = far ? "far" : calm ? `${this.pose}:${this.wear}` : null;
     if (this.freezer.holds(key)) {
@@ -223,8 +239,10 @@ export class Pet3D {
     // Posture: sit back on the haunches (or settle); lie down curled up and breathe.
     const breath = Math.sin(t * 2.2) * 0.025 * sl;
     b.rotation.x = r.tilt ? -0.62 * si : 0;
-    b.rotation.z = walk ? Math.sin(t * 14) * 0.06 : 0;
-    b.position.y = (r.tilt ? 0 : -0.07 * si) - 0.04 * sl + (walk ? Math.abs(Math.sin(t * 14)) * 0.04 : 0);
+    // The trot: the people's cycle at twice the cadence, settling to rest instead of stopping dead.
+    const trot = walkPose(this.gait.phase * 2, this.gait.weight);
+    b.rotation.z = trot.sway * 2;
+    b.position.y = (r.tilt ? 0 : -0.07 * si) - 0.04 * sl + trot.bob * 1.6;
     b.scale.set(1 + 0.05 * sl, 1 - 0.28 * sl + breath, 1);
     this.fore.position.y = b.position.y;
     r.head.rotation.x = (r.tilt ? 0.55 * si : 0) + 0.6 * sl;
