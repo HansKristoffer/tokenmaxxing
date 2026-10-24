@@ -2711,3 +2711,34 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   filter: blur(0.6px) saturate(0.6);
   opacity: 0.5;
 }
+
+.phone-pairing {
+  margin-top: 20px;
+  border-top: 1px solid var(--line, #454b57);
+  padding-top: 12px;
+}
+.phone-pairing > img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: white;
+  image-rendering: pixelated;
+}
+.phone-pairing .command code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.phone-signin,
+.phone-signin label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.phone-signin input {
+  width: 100%;
+  min-width: 0;
+}
+.phone-signin button {
+  align-self: flex-start;
+}

@@ -179,6 +179,13 @@ TOKENMAXXING_CLI_DIR=.data/cli bun app/helper/src/cli.ts link <code> --server ht
 bash app/helper/scripts/cli.sh dist/cli    # the release binaries, for every platform
 ```
 
+### Android companion preview
+
+See [app/android/README.md](app/android/README.md) for building the APK and connecting your existing
+account. In the game on your computer: player card → Computers → **Connect phone**; scan the two-minute,
+single-use QR in the Android app, or paste the code. The phone plays the same character while computers
+keep syncing usage. The companion pairing changes must be deployed on the server before this works.
+
 ### 3D and graphics
 
 The world runs on a voxel 3D renderer (Three.js, loaded only when needed) on the Medium, High and Ultra graphics tiers, and
