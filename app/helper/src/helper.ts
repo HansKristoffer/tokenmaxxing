@@ -16,7 +16,11 @@ const SYNC_INTERVAL_MS = 2 * 60_000;
 const BATTLE_SYNC_MS = 10_000;
 
 /** Where the desktop app keeps its sync state, unless `TOKENMAXXING_STATE_DIR` says (`main.ts`). */
-export const appStateDir = (): string => join(homedir(), "Library", "Application Support", "Tokenmaxxing");
+export function appStateDir(platform = process.platform, env = process.env, home = homedir()): string {
+  if (platform === "darwin") return join(home, "Library", "Application Support", "Tokenmaxxing");
+  if (platform === "win32") return join(env.LOCALAPPDATA || join(home, "AppData", "Local"), "Tokenmaxxing");
+  return join(env.XDG_DATA_HOME || join(home, ".local", "share"), "Tokenmaxxing");
+}
 /** v2: the world started from a fresh server, so every Mac re-reads its full history into it. */
 export const APP_STATE_FILE = "state.v2.json";
 
