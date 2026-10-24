@@ -229,6 +229,7 @@ export const player = actor({
     while (!signal.aborted) {
       try {
         await c.keepAwake(cleanExcludedEvents(c.db, signal));
+        await c.keepAwake(requeueEveryDay(c.db, signal));
         await c.keepAwake(
           drainUsageReports(c.db, c.vars.serial, signal, (days) => {
             signal.throwIfAborted();
@@ -539,15 +540,10 @@ export async function migrateEvents(d: Sql): Promise<void> {
     await d.execute("INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events");
     await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (1)");
   }
-  // Card v2's habit columns (sessions, subagents, hours, sources) are new on `activity_daily`: every
-  // stored day is re-reported once, through the same drain, so history fills them in. A player's
-  // actor does this when it next wakes.
-  if (!(await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 5")).length) {
-    await d.execute("INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events");
-    await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (5)");
-  }
-  // Where the excluded-bots cleanup has got to (`cleanExcludedEvents`), by event id.
+  // Where the excluded-bots cleanup and card v2's re-queue have got to (`cleanExcludedEvents`,
+  // `requeueEveryDay`), by event id.
   await d.execute("CREATE TABLE IF NOT EXISTS excluded_cleanup (last_id INTEGER NOT NULL)");
+  await d.execute("CREATE TABLE IF NOT EXISTS requeue_cursor (last_id INTEGER NOT NULL)");
 }
 
 /** Events per batch of `cleanExcludedEvents`: each is a short scan, so the actor stays responsive. */
@@ -591,6 +587,34 @@ export async function cleanExcludedEvents(d: Sql, signal?: AbortSignal): Promise
     await d.execute("INSERT INTO excluded_cleanup VALUES (?)", to);
   }
   await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (4)");
+}
+
+/**
+ * Card v2's habit columns (sessions, subagents, hours, sources) are new on `activity_daily`: every
+ * stored day is re-reported once, through the same drain, so history fills them in. In the
+ * background, a range of ids at a time, picking up where it stopped: in `onMigrate`, reading a big
+ * history cold outlived the 30 s startup limit, rolled back, and every start tried it again.
+ */
+export async function requeueEveryDay(d: Sql, signal?: AbortSignal): Promise<void> {
+  if ((await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 5")).length) return;
+  const [{ last } = { last: 0 }] = (await d.execute("SELECT last_id AS last FROM requeue_cursor")) as {
+    last: number;
+  }[];
+  const [{ max } = { max: 0 }] = (await d.execute("SELECT COALESCE(MAX(id), 0) AS max FROM events")) as {
+    max: number;
+  }[];
+  for (let from = last; from < max; from += CLEANUP_BATCH) {
+    signal?.throwIfAborted();
+    const to = from + CLEANUP_BATCH;
+    await d.execute(
+      "INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events WHERE id > ? AND id <= ?",
+      from,
+      to,
+    );
+    await d.execute("DELETE FROM requeue_cursor");
+    await d.execute("INSERT INTO requeue_cursor VALUES (?)", to);
+  }
+  await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (5)");
 }
 
 const EVENT_TOKENS = "input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens";
