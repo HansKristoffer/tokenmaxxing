@@ -14,6 +14,7 @@ import { world } from "../game/world.ts";
 import { town } from "../net.ts";
 import { hud } from "../store.ts";
 import { dayText } from "./format.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
 import { Modal, Pills, Pixels, useLoad } from "./ui.tsx";
 
 const SCALE = 3;
@@ -53,12 +54,14 @@ function Icon({ e, tier }: { e: CatalogEntry; tier: number }) {
   const key = e.id.slice(e.id.indexOf(":") + 1);
   if (e.kind === "trophy")
     return (
-      <Pixels
-        sprite={trophySprite(key, tier > 0)}
-        width={TROPHY_W * SCALE}
-        height={TROPHY_H * SCALE}
-        label={e.name}
-      />
+      <ItemIcon spec={{ kind: "trophy", id: key, earned: tier > 0 }} size={TROPHY_H * SCALE} label={e.name}>
+        <Pixels
+          sprite={trophySprite(key, tier > 0)}
+          width={TROPHY_W * SCALE}
+          height={TROPHY_H * SCALE}
+          label={e.name}
+        />
+      </ItemIcon>
     );
   if (e.kind === "title") return <span className="entry-emoji">🏅</span>;
   const def = BADGES.find((x) => x.id === key)!;

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { badgeFrame, FRAME_SIZE, TROPHY_H, TROPHY_W, trophySprite } from "../art/trophies.ts";
 import { town } from "../net.ts";
 import { dayText } from "./format.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
 import { Pixels, useLoad, useRun } from "./ui.tsx";
 
 const SCALE = 3;
@@ -12,15 +13,14 @@ const DATE = { day: "numeric", month: "short", year: "numeric" } as const;
 
 /** A pin's picture: a badge's tier frame with its emoji in it, or the trophy. */
 function PinIcon({ pin }: { pin: PinView }) {
-  if (pin.kind === "trophy")
+  if (pin.kind === "trophy") {
+    const id = pin.id.slice(pin.id.indexOf(":") + 1);
     return (
-      <Pixels
-        sprite={trophySprite(pin.id.slice(pin.id.indexOf(":") + 1), true)}
-        width={TROPHY_W * SCALE}
-        height={TROPHY_H * SCALE}
-        label={pin.name}
-      />
+      <ItemIcon spec={{ kind: "trophy", id }} size={TROPHY_H * SCALE} label={pin.name}>
+        <Pixels sprite={trophySprite(id, true)} width={TROPHY_W * SCALE} height={TROPHY_H * SCALE} label={pin.name} />
+      </ItemIcon>
     );
+  }
   return (
     <span className="entry-icon">
       {pin.frame && <Pixels sprite={badgeFrame(pin.frame)} width={SIZE} height={SIZE} />}

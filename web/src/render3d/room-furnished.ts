@@ -56,7 +56,7 @@ const TURN: Record<string, Turn> = { c: 2, s: 2, v: 2, μ: 2, Σ: 2 };
 export const turnOfChar = (ch: string): Turn => TURN[ch] ?? 0;
 
 /** A flat tile of rug or stage floor: `rug` is the id the room treats as walkable. */
-function flat(ch: string): Asset {
+export function flat(ch: string): Asset {
   const colour = ch === "e" ? "#8c5c36" : C.rug;
   return {
     id: "rug",

@@ -4,6 +4,7 @@ import { typedKeys } from "hanzio";
 import { useState } from "react";
 import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
 import { withoutMerchTop } from "./Shop.tsx";
 import { AvatarImage, Modal, useRun } from "./ui.tsx";
 
@@ -42,7 +43,9 @@ export function LookPicker() {
         .
       </p>
       <div className="look">
-        <AvatarImage look={look} scale={8} />
+        <ItemIcon spec={{ kind: "avatar", look }} size={128} className="avatar">
+          <AvatarImage look={look} scale={8} />
+        </ItemIcon>
         <div className="look-options">
           {typedKeys(LABELS).map((k) => (
             <div key={k} className="cycle">

@@ -4,11 +4,14 @@ import { deskFrame } from "../art/desks.ts";
 import { refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { coins } from "./format.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
 import { Modal, Pixels, useRun, WalletLine } from "./ui.tsx";
 
 /** A setup's desk with its screens on, 4× in a box. */
 const Preview = ({ tier, mode = "lit" }: { tier: number; mode?: "lit" | "off" }) => (
-  <Pixels sprite={deskFrame(tier, mode)} width={64} height={88} scale={4} stand className="avatar" />
+  <ItemIcon spec={{ kind: "desk", tier }} size={88} className="avatar">
+    <Pixels sprite={deskFrame(tier, mode)} width={64} height={88} scale={4} stand className="avatar" />
+  </ItemIcon>
 );
 
 /**

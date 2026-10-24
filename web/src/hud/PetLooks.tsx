@@ -3,6 +3,7 @@ import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { variantArt } from "../art/pet-variants/index.ts";
 import { PET_H, PET_W, petFrame } from "../art/pets.ts";
 import { hud, useHud } from "../store.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
 import { wear } from "./Shop.tsx";
 import { Modal, Pixels, useRun, useTicker } from "./ui.tsx";
 
@@ -54,12 +55,18 @@ export function PetLooks({ pet }: { pet: number }) {
                 aria-label={`${name}${soon ? ", coming soon" : ""}${v === worn ? ", wearing" : ""}`}
                 onClick={run(() => wear({ ...me.look, pet, petVariant: v }))}
               >
-                <Pixels
-                  sprite={petFrame(pet, false, hop, v, v === worn ? petOutfit(me.look) : null)}
-                  width={PET_W * SCALE}
-                  height={PET_H * SCALE}
+                <ItemIcon
+                  spec={{ kind: "pet", pet, variant: v, name: v === worn ? me.look.petName : "" }}
+                  size={PET_W * SCALE}
                   className="avatar"
-                />
+                >
+                  <Pixels
+                    sprite={petFrame(pet, false, hop, v, v === worn ? petOutfit(me.look) : null)}
+                    width={PET_W * SCALE}
+                    height={PET_H * SCALE}
+                    className="avatar"
+                  />
+                </ItemIcon>
                 <span className="name">{name}</span>
                 {soon && <span className="soon">coming soon</span>}
               </button>
