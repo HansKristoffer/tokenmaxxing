@@ -323,13 +323,17 @@ export class Entities {
     const [tx, tz] = view.toWorld(p.x, p.y);
     const dx = tx - r.x;
     const dz = tz - r.z;
+    // How far they came this frame, for the stride (a jump into place is not a step).
+    let moved = 0;
     if (!r.placed || Math.hypot(dx, dz) > 3) {
       r.x = tx;
       r.z = tz;
       r.placed = true;
     } else {
+      const [wasX, wasZ] = [r.x, r.z];
       r.x = approach(r.x, tx, dt, 45);
       r.z = approach(r.z, tz, dt, 45);
+      moved = Math.hypot(r.x - wasX, r.z - wasZ);
     }
     const moving = (lap ? lap.running : stepping(a, now)) || Math.hypot(tx - r.x, tz - r.z) > 0.04;
     if (moving) r.walkUntil = now + WALK_HOLD_MS;
@@ -426,7 +430,7 @@ export class Entities {
     r.root.visible = near && !this.keepers.has(r.id);
     const bubbleOn = a.bubble !== null && now < a.bubble.until;
     av.talking = bubbleOn;
-    if (near) av.update(dtS, t);
+    if (near) av.update(dtS, t, moved);
     if (r.cop)
       r.cop.gear.update(r.cop.watch.read(bubbleOn && a.bubble ? a.bubble.text : "", now), now, this.calm);
 
@@ -481,13 +485,16 @@ export class Entities {
     const pet = r.pet;
     const ddx = wx - pet.x;
     const ddz = wz - pet.z;
+    let came = 0;
     if (!pet.placed) {
       pet.x = wx;
       pet.z = wz;
       pet.placed = true;
     } else {
+      const [wasX, wasZ] = [pet.x, pet.z];
       pet.x = approach(pet.x, wx, dt, 60);
       pet.z = approach(pet.z, wz, dt, 60);
+      came = Math.hypot(pet.x - wasX, pet.z - wasZ);
     }
     const speed = Math.hypot(ddx, ddz) / Math.max(dt / 1000, 0.001);
     const pm = spot.moving && !spot.asleep;
@@ -499,7 +506,7 @@ export class Entities {
     pet.root.position.set(pet.x, 0, pet.z);
     pet.root.rotation.y = pet.yaw;
     pet.root.visible = near;
-    if (near) pet.model.update(t);
+    if (near) pet.model.update(t, came);
     // Its name, for mine and for those close to me.
     const name = look.petName;
     const close = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;

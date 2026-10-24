@@ -98,3 +98,87 @@ export function keyDirection(key: Facing, quarter: number, base = Math.PI / 4): 
   }
   return best;
 }
+
+// ——— The walk cycle ———
+
+/** World units one full cycle (two steps) covers: the legs turn with the ground, so feet don't slide. */
+export const STRIDE = 1.5;
+/** How the legs, arms and knees swing, in radians, and how high the body bobs, in world units. */
+export const SWING = { leg: 0.52, arm: 0.44, knee: 0.55, bob: 0.025, sway: 0.03, lean: 0.12 };
+/** Blending in and out of the walk, in ms. */
+const BLEND_MS = 100;
+/** Someone who stops keeps the legs going to the next half-step at least this fast (cycles a second). */
+const MIN_SETTLE_RATE = 1.6;
+
+/** Where someone is in their stride and how much of it shows. */
+export interface Gait {
+  /** Cycles walked; `k / 2` are the moments the legs pass each other (the neutral pose). */
+  phase: number;
+  /** 0 standing, 1 walking; eases between. */
+  weight: number;
+  /** Smoothed speed, world units a second. */
+  speed: number;
+  /** Lean of the torso (radians, forward positive): only while speeding up or slowing down. */
+  lean: number;
+}
+
+export function newGait(phase = 0): Gait {
+  return { phase, weight: 0, speed: 0, lean: 0 };
+}
+
+/**
+ * Advances a gait by `moved` world units over `dtS` seconds. Walking, the phase follows the distance (a speed change
+ * changes the cadence, not the stride); stopping, the legs run on at their last pace to the next neutral and settle
+ * there, never freezing mid-stride.
+ */
+export function stepGait(g: Gait, moved: number, dtS: number, walking: boolean): void {
+  if (dtS <= 0) return;
+  const dtMs = dtS * 1000;
+  const v = Math.max(0, moved) / dtS;
+  const on = walking && moved > 0;
+  if (on) {
+    g.phase += moved / STRIDE;
+    g.weight = approach(g.weight, 1, dtMs, BLEND_MS);
+  } else {
+    const next = Math.max(g.phase, Math.ceil(g.phase * 2 - 1e-6) / 2);
+    const rate = Math.max(MIN_SETTLE_RATE, g.speed / STRIDE);
+    g.phase = Math.min(next, g.phase + rate * dtS);
+    g.weight = g.phase >= next ? 0 : approach(g.weight, 0, dtMs, BLEND_MS);
+  }
+  // The lean follows the difference between this frame's pace and the smoothed one: nothing at a steady walk.
+  const want = on ? Math.max(-SWING.lean, Math.min(SWING.lean, (v - g.speed) * 0.05)) : 0;
+  g.lean = approach(g.lean, want, dtMs, 120);
+  g.speed = approach(g.speed, on ? v : 0, dtMs, 80);
+}
+
+export interface WalkPose {
+  /** Hip turn of the left leg (the right is its mirror); positive swings back. */
+  leg: number;
+  /** Knee bend of each leg: the one swinging forward bends. */
+  knee: [number, number];
+  /** Shoulder turn of the left arm (the right is its mirror): opposite to the leg. */
+  arm: number;
+  /** Rise of the body, highest as the legs pass each other, twice a cycle. */
+  bob: number;
+  /** Side-to-side roll of the body. */
+  sway: number;
+}
+
+/** The limbs at a point in the walk, scaled by how much of the walk shows. */
+export function walkPose(phase: number, weight: number): WalkPose {
+  const a = phase * Math.PI * 2;
+  const s = Math.sin(a) * weight;
+  const c = Math.cos(a);
+  return {
+    leg: SWING.leg * s,
+    knee: [SWING.knee * Math.max(0, -c) * weight, SWING.knee * Math.max(0, c) * weight],
+    arm: -SWING.arm * s,
+    bob: (SWING.bob * weight * (1 + Math.cos(a * 2))) / 2,
+    sway: SWING.sway * s,
+  };
+}
+
+/** Whether a gait is at rest: the neutral pose, nothing left to settle. */
+export function gaitSettled(g: Gait): boolean {
+  return g.weight < 1e-3 && Math.abs(g.lean) < 1e-3;
+}

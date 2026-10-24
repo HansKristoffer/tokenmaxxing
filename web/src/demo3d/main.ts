@@ -241,9 +241,11 @@ class Walker {
 
   update(dt: number, t: number): void {
     const next = this.path[0];
+    let moved = 0;
     if (next) {
       const d = next.clone().sub(this.pos).setY(0);
       const step = this.speed * dt;
+      moved = Math.min(d.length(), step);
       if (d.length() <= step) {
         this.pos.set(next.x, this.pos.y, next.z);
         this.path.shift();
@@ -263,7 +265,7 @@ class Walker {
     this.avatar.talking = t < this.bubbleUntil - 1.6;
     if (this.quiet) this.tag.style.display = t < this.bubbleUntil ? "" : "none";
     if (t > this.moodUntil) this.avatar.expression = this.mood;
-    this.avatar.update(dt, t);
+    this.avatar.update(dt, t, moved);
   }
 }
 
@@ -305,11 +307,13 @@ class Follower {
     const d = goal.clone().sub(p).setY(0);
     const far = d.length();
     this.pet.moving = far > (this.owner ? 0.45 : 0.05);
+    let came = 0;
     if (this.pet.moving) {
-      p.add(d.normalize().multiplyScalar(Math.min(far, dt * (this.owner ? 2.4 : 1.2))));
+      came = Math.min(far, dt * (this.owner ? 2.4 : 1.2));
+      p.add(d.normalize().multiplyScalar(came));
       this.pet.root.rotation.y = Math.atan2(d.x, d.z);
     }
-    this.pet.update(t);
+    this.pet.update(t, came);
   }
 }
 
