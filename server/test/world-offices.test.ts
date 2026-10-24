@@ -138,6 +138,8 @@ describe("world", () => {
     const g = await connect(guest.token);
     const w = await connect(owner.token);
     expect(await g.conn.visit(owner.userId)).toMatchObject({ room: `office:${owner.userId}` });
+    // The owner in there too, to see the guest go (`info` goes to the room).
+    await w.conn.visit(owner.userId);
     // Closing the tab remembers the office...
     await asleep(g, w, guest.userId);
     await owner.town.setOfficeOpen(false);
@@ -155,6 +157,7 @@ describe("world", () => {
     const g = await connect(guest.token);
     const w = await connect(owner.token);
     expect(await g.conn.visit(owner.userId)).toMatchObject({ room: `office:${owner.userId}` });
+    await w.conn.visit(owner.userId);
     await asleep(g, w, guest.userId);
     await owner.town.leaveCompany(); // still open, but no office without a company
     const again = await connect(guest.token);
