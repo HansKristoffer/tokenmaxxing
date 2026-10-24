@@ -1,9 +1,11 @@
 import { type GameMap, LEGEND } from "@tokenmaxxing/core/maps.ts";
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
+import { exitDoorway } from "../demo3d/exits3d.ts";
 import { canvasTexture, Model, painted, seeded, tint, toon } from "../demo3d/kit.ts";
 import { batchStatic } from "./batch.ts";
 import { disposeObject } from "./dispose.ts";
+import { ExitMarkers } from "./exit-markers.ts";
 import { type RoomCtx, type RoomView, registerFallbackRoom } from "./rooms.ts";
 
 /**
@@ -192,10 +194,18 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
       }
       // Walk-through tiles with no ground colour of their own (the stage, a chandelier): leave the floor.
       if (kind.walk) continue;
-      const h = heightOf(kind.name, kind.seat, kind.portal === true);
-      const colour = `#${new THREE.Color().setHSL(((hash(c) % 360) / 360 + 0.0) % 1, kind.seat ? 0.35 : 0.45, 0.55).getHexString()}`;
       const edge = edgeOf(x, y);
-      const target = kind.portal && edge !== "none" ? wallOf(edge) : solid;
+      if (kind.portal) {
+        // A way out: a doorway facing the room, never lowered with the wall it is in.
+        const door = exitDoorway({ block: edge !== "none", outside: id !== "town" });
+        door.position.set(x + 0.5, 0, y + 0.5);
+        door.rotation.y = { n: 0, s: Math.PI, w: Math.PI / 2, e: -Math.PI / 2, none: 0 }[edge];
+        solid.add(door);
+        continue;
+      }
+      const h = heightOf(kind.name, kind.seat, false);
+      const colour = `#${new THREE.Color().setHSL(((hash(c) % 360) / 360 + 0.0) % 1, kind.seat ? 0.35 : 0.45, 0.55).getHexString()}`;
+      const target = solid;
       const front = faceOf(kind.name, colour);
       const box = new THREE.Mesh(boxGeometry(h), toon(tint(colour, 0.1)));
       box.position.set(x + 0.5, 0, y + 0.5);
@@ -214,6 +224,9 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
   group.updateMatrixWorld(true);
   for (const g of [...walls.map((w) => w.model), solid])
     batchStatic(g, { chunk: 1e9, samples: 1, probe: () => {} });
+
+  const markers = new ExitMarkers(map, toWorld);
+  group.add(markers.group);
 
   const bounds = { minX: 0, maxX: W, minZ: 0, maxZ: D, height: WALL_H };
   return {
@@ -235,8 +248,10 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
         w.model.visible = w.model.scale.y > 0.02;
       }
     },
+    frame: (f) => markers.update(f.me, f.t),
     signs: () => [],
     dispose() {
+      markers.dispose();
       group.removeFromParent();
       disposeObject(group);
       for (const t of labels.values()) t.dispose();

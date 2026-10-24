@@ -24,6 +24,7 @@ import {
   TROPHY_ART,
   TROPHY_DEFS,
 } from "./data/dungeon.ts";
+import { exitPlate } from "./exits3d.ts";
 import { type Asset, light } from "./furniture.ts";
 import {
   canvasTexture,
@@ -753,6 +754,7 @@ function dungeonExit(): Model {
   m.box([0.9, 1.5, 0.05], glow("#d8c8ff"), [0, 0, -0.1], 0);
   for (let i = 0; i < 5; i++)
     m.box([0.9, 0.06, 0.16], tint(C.stone, 0.4 - i * 0.12), [0, i * 0.06, 0.34 - i * 0.14], 0);
+  exitPlate(m, "OUT", "up", [0.8, 1.82, 0.52]);
   return m;
 }
 

@@ -5,6 +5,7 @@ import { ownerOfOffice, type RoomId } from "@tokenmaxxing/core/world.ts";
 import { C } from "../art/palette.ts";
 import { applyDecor } from "../demo3d/decor3d.ts";
 import { DUNGEON_ASSETS, trophyShelf } from "../demo3d/dungeon3d.ts";
+import { exitDoorway, exitStairs } from "../demo3d/exits3d.ts";
 import { type Asset, assetById } from "../demo3d/furniture.ts";
 import { beginTickScope, canvasTexture, endTickScope, Model, painted } from "../demo3d/kit.ts";
 import { PETS_ASSETS } from "../demo3d/pets3d.ts";
@@ -171,6 +172,16 @@ function buildFurnished(id: RoomId, ctx: RoomCtx): RoomView {
       inset,
       owner === null ? {} : { U: () => trophyShelf(earnedBy(owner), true) },
     );
+    // The way out, which `furnish` leaves to the room: the Office's door in its south wall, the common room's
+    // stairs down. A door stands on its wall tile; stairs on the floor tile in front (the Room's wall is thin).
+    for (const [ex, ey] of map.find("x")) {
+      const x = ex + map.x0 - inset[0];
+      const z = ey + map.y0 - inset[1];
+      const exit = office ? exitDoorway() : exitStairs("down");
+      exit.position.set(x + 0.5, 0, office ? z + 0.5 : z - 0.5);
+      exit.rotation.y = Math.PI;
+      room.group.add(exit);
+    }
     return { room, placed } satisfies Furnished;
   });
   const { room } = built.value;
