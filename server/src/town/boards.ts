@@ -1,11 +1,20 @@
-import { type Badge, badgesFor, streakOf } from "@tokenmaxxing/core/badges.ts";
+import type { AgentType } from "@tokenmaxxing/core/agentType.ts";
+import {
+  type Badge,
+  type BadgeFacts,
+  badgesFor,
+  longestRun,
+  POLYGLOT_MIN,
+  streakOf,
+} from "@tokenmaxxing/core/badges.ts";
+import type { PinView } from "@tokenmaxxing/core/collection.ts";
 import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import { levelFor, levelTitle } from "@tokenmaxxing/core/format.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
 import { addDays, dayKey, type RangeKey, rangeDays } from "@tokenmaxxing/core/range.ts";
 import { type Brand, houseTier, type Look } from "@tokenmaxxing/core/world.ts";
 import { sortBy, sumBy } from "hanzio";
-import { all, one, pricing, type Sql } from "../actors/shared.ts";
+import { all, one, pricing, type Sql, scalar } from "../actors/shared.ts";
 import {
   type ActivityRow,
   companyTotals,
@@ -17,7 +26,8 @@ import {
   totals,
   type UsageRow,
 } from "../stats.ts";
-import { officeOf, type Podium } from "./coins.ts";
+import { bioOf, type Habits, habitsOf, lastActiveOf, tavernDaysOf, tavernSince } from "./card.ts";
+import { type Kept, officeOf } from "./coins.ts";
 import {
   COMPANY_COLS,
   type CompanyRow,
@@ -28,6 +38,7 @@ import {
 } from "./companies.ts";
 import { type GameStats, gameStats } from "./games.ts";
 import { picnicsOf } from "./picnic.ts";
+import { questsCleared } from "./quests.ts";
 import { ticketsOf } from "./tickets.ts";
 import { levelOf, lookOf, TOKENS, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
 
@@ -102,6 +113,18 @@ export interface Profile {
   office: "open" | "closed" | null;
   /** The 429 Cop's tickets, newest first. */
   tickets: Ticket[];
+  // Added with card v2: optional, so an older client ignores them.
+  /** One line, public. */
+  bio?: string | null;
+  /** The first world day in the Tavern; null before they came. */
+  since?: string | null;
+  /** The latest world day with usage; null if none. */
+  lastActive?: string | null;
+  /** The shelf, as shown (`town.profile` fills it in: it needs the collection). */
+  showcase?: PinView[];
+  /** The last 30 days of how they work, whatever the range. */
+  habits?: Habits;
+  agentType?: AgentType;
 }
 
 /** The HUD's corner: my numbers today, and today's top 5 (with me pinned below when I'm not in it). */
@@ -215,13 +238,82 @@ async function boards(sql: Sql, range: RangeKey, sort: SortKey, now: number) {
   return { players: rank(board.players, sort), companies: rank(board.companies, sort) };
 }
 
-/** `top`: every finished day's top 3 (`podiums`). */
+/**
+ * What the badges read: all of a player's days, activity, models, games, loot and raids. The card, the
+ * collection log and the award sweep share it, so they always agree. `kept`: the finished days' top 3s
+ * and the raids, which `town` keeps. `extra`: facts someone else counts (the Tavern's days, quests helped).
+ */
+export async function badgeFactsOf(
+  sql: Sql,
+  userId: number,
+  now: number,
+  kept: Pick<Kept, "top" | "raids">,
+  games?: GameStats | null,
+  extra: Partial<BadgeFacts> = {},
+): Promise<{ facts: BadgeFacts; lifetime: number; level: number }> {
+  // Every day's tokens: for the level, and the badges.
+  const days = await all<{ day: string; tokens: number }>(
+    sql,
+    `SELECT day, SUM(${TOKENS}) AS tokens FROM usage_daily WHERE user_id = ? GROUP BY day`,
+    userId,
+  );
+  const lifetime = days.reduce((n, d) => n + d.tokens, 0);
+  const g = games === undefined ? await gameStats(sql, userId) : games;
+  const best = await one<{ peakAgents: number | null; prs: number | null; shipDays: number | null }>(
+    sql,
+    `SELECT MAX(peak_agents) AS peakAgents, SUM(prs) AS prs, SUM(prs > 0) AS shipDays
+     FROM activity_daily WHERE user_id = ?`,
+    userId,
+  );
+  // One pass over the models: how many are real, and how much came from the cache.
+  const models = await all<{ tokens: number; cacheRead: number; fresh: number }>(
+    sql,
+    `SELECT SUM(${TOKENS}) AS tokens, SUM(cache_read) AS cacheRead,
+            SUM(input + cache_creation + cache_read) AS fresh
+     FROM usage_daily WHERE user_id = ? GROUP BY model`,
+    userId,
+  );
+  const fresh = models.reduce((n, m) => n + m.fresh, 0);
+  const withTokens = new Set(days.filter((d) => d.tokens > 0).map((d) => d.day));
+  const facts: BadgeFacts = {
+    streak: streakOf(withTokens, dayKey(now)),
+    bestDay: Math.max(0, ...days.map((d) => d.tokens)),
+    podiums: kept.top.filter((p) => p.userId === userId).length,
+    peakAgents: best?.peakAgents ?? 0,
+    prs: best?.prs ?? 0,
+    wins: g?.wins ?? 0,
+    biggestPot: g?.biggestPot ?? 0,
+    // An owner is always a member (`leave` hands over), so owning a company says it.
+    founder: (await scalar(sql, "SELECT COUNT(*) AS n FROM companies WHERE owner_id = ?", userId)) > 0,
+    picnics: await picnicsOf(sql, userId),
+    shipDays: best?.shipDays ?? 0,
+    models: models.filter((m) => m.tokens >= POLYGLOT_MIN).length,
+    cacheShare: fresh > 0 ? models.reduce((n, m) => n + m.cacheRead, 0) / fresh : 0,
+    lifetime,
+    longestRun: longestRun(withTokens),
+    raidKills: kept.raids.reduce((n, w) => n + w.kills.filter((k) => k.raiders.includes(userId)).length, 0),
+    lootOwned: await scalar(sql, "SELECT COUNT(DISTINCT item) AS n FROM loot WHERE user_id = ?", userId),
+    gamesPlayed: g?.played ?? 0,
+    gameTypes: await scalar(
+      sql,
+      "SELECT COUNT(DISTINCT game) AS n FROM match_players WHERE user_id = ?",
+      userId,
+    ),
+    // The Tavern's days and the quests cleared: counted here so the card, the log and the sweep agree.
+    tavernDays: await tavernDaysOf(sql, userId),
+    helped: await questsCleared(sql, userId),
+    ...extra,
+  };
+  return { facts, lifetime, level: levelFor(lifetime) };
+}
+
+/** `kept`: every finished day's top 3 (`podiums`) and the raids. */
 export async function profile(
   sql: Sql,
   userId: number,
   range: RangeKey,
   now: number,
-  top: Podium[],
+  kept: Pick<Kept, "top" | "raids">,
 ): Promise<Profile> {
   const u = await userById(sql, userId);
   const [from, to] = bounds(range, now);
@@ -240,35 +332,12 @@ export async function profile(
     to,
   );
   const daily = await last30Days(sql, "user_id = ?", userId, now);
-  // Every day's tokens: for the level, and the badges below.
-  const days = await all<{ day: string; tokens: number }>(
-    sql,
-    `SELECT day, SUM(${TOKENS}) AS tokens FROM usage_daily WHERE user_id = ? GROUP BY day`,
-    userId,
-  );
-  const lifetime = sumBy(days, "tokens");
-  const level = levelFor(lifetime);
   const co = u.companyId === null ? undefined : await companyById(sql, u.companyId);
   const company = co ? { id: co.id, name: co.name } : null;
   const games = await gameStats(sql, userId);
-  // Badges: the days above, one more small query, and the podiums `town` keeps for the day.
-  const best = await one<{ peakAgents: number | null; prs: number | null }>(
-    sql,
-    "SELECT MAX(peak_agents) AS peakAgents, SUM(prs) AS prs FROM activity_daily WHERE user_id = ?",
-    userId,
-  );
-  const badges = badgesFor({
-    streak: streakOf(new Set(days.filter((d) => d.tokens > 0).map((d) => d.day)), dayKey(now)),
-    bestDay: Math.max(0, ...days.map((d) => d.tokens)),
-    podiums: top.filter((p) => p.userId === userId).length,
-    peakAgents: best?.peakAgents ?? 0,
-    prs: best?.prs ?? 0,
-    wins: games?.wins ?? 0,
-    biggestPot: games?.biggestPot ?? 0,
-    // An owner is always a member (`leave` hands over), so their own company says it.
-    founder: co?.ownerId === userId,
-    picnics: await picnicsOf(sql, userId),
-  });
+  const { facts, lifetime, level } = await badgeFactsOf(sql, userId, now, kept, games);
+  const badges = badgesFor(facts);
+  const { habits, agentType } = await habitsOf(sql, userId, now, daily.filter((d) => d.tokens > 0).length);
   return {
     userId,
     name: u.name,
@@ -293,6 +362,11 @@ export async function profile(
     badges,
     office: level < OFFICE_LEVEL || !company ? null : (await officeOf(sql, userId)).open ? "open" : "closed",
     tickets: await ticketsOf(sql, userId),
+    bio: await bioOf(sql, userId),
+    since: await tavernSince(sql, userId),
+    lastActive: await lastActiveOf(sql, userId),
+    habits,
+    agentType,
   };
 }
 

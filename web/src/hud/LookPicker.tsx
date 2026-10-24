@@ -4,6 +4,8 @@ import { typedKeys } from "hanzio";
 import { useState } from "react";
 import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
+import { withoutMerchTop } from "./Shop.tsx";
 import { AvatarImage, Modal, useRun } from "./ui.tsx";
 
 /** The free parts; glasses, hats, pets and fancier outfits are worn from the shop. */
@@ -19,7 +21,11 @@ export function LookPicker() {
   const [saved, setSaved] = useState(false);
   if (!me || !look) return <Modal title="Your character">Loading…</Modal>;
 
-  const cycle = (k: Part, d: number) => setLook({ ...look, [k]: (look[k] + d + COUNTS[k]) % COUNTS[k] });
+  const cycle = (k: Part, d: number) => {
+    const next = { ...look, [k]: (look[k] + d + COUNTS[k]) % COUNTS[k] };
+    // A new outfit replaces a merch top rather than hiding under it.
+    setLook(k === "outfit" ? withoutMerchTop(next) : next);
+  };
   const label = (k: Part) =>
     k === "style"
       ? STYLE_NAMES[look.style]
@@ -37,7 +43,9 @@ export function LookPicker() {
         .
       </p>
       <div className="look">
-        <AvatarImage look={look} scale={8} />
+        <ItemIcon spec={{ kind: "avatar", look }} size={128} className="avatar">
+          <AvatarImage look={look} scale={8} />
+        </ItemIcon>
         <div className="look-options">
           {typedKeys(LABELS).map((k) => (
             <div key={k} className="cycle">

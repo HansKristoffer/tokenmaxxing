@@ -1,11 +1,11 @@
 /**
- * The sky over Copenhagen: where the sun and moon are, and what the weather is doing. Pure maths and
+ * The sky over Aarhus: where the sun and moon are, and what the weather is doing. Pure maths and
  * tables, no network: the server fetches the weather (`server/src/weather.ts`), the client draws all of it.
  */
 import { clamp, typedSwitch, typedSwitchGroup } from "hanzio";
 import { dayKey, pad2, worldWall } from "./range.ts";
 
-export const CPH = { lat: 55.6761, lon: 12.5683 } as const;
+export const AARHUS = { lat: 56.1629, lon: 10.2039 } as const;
 
 const RAD = Math.PI / 180;
 const DAY_MS = 86_400_000;
@@ -47,7 +47,11 @@ function solar(ms: number): { decl: number; eqTime: number } {
 }
 
 /** The sun's height above the horizon in degrees (negative below), and whether it's still morning. */
-function sunElevation(ms: number, lat = CPH.lat, lon = CPH.lon): { elevation: number; morning: boolean } {
+function sunElevation(
+  ms: number,
+  lat = AARHUS.lat,
+  lon = AARHUS.lon,
+): { elevation: number; morning: boolean } {
   const { decl, eqTime } = solar(ms);
   const utcMin = (((ms / 60_000) % 1440) + 1440) % 1440;
   const hourAngle = ((((utcMin + eqTime + 4 * lon) % 1440) + 1440) % 1440) / 4 - 180;
@@ -60,7 +64,11 @@ function sunElevation(ms: number, lat = CPH.lat, lon = CPH.lon): { elevation: nu
 const RISE_DEG = 90.833;
 
 /** Sunrise and sunset (ms) on the Copenhagen day `ms` falls in. */
-export function sunTimes(ms: number, lat = CPH.lat, lon = CPH.lon): { sunrise: number; sunset: number } {
+export function sunTimes(
+  ms: number,
+  lat = AARHUS.lat,
+  lon = AARHUS.lon,
+): { sunrise: number; sunset: number } {
   const [y, m, d] = dayKey(ms).split("-").map(Number);
   const noon = Date.UTC(y!, m! - 1, d!, 12);
   let rise = noon - 6 * 3_600_000;

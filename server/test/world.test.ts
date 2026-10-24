@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { BARKEEP, BARKEEP_HOME } from "@tokenmaxxing/core/barkeep.ts";
 import { BOTS } from "@tokenmaxxing/core/bots.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
+import { SPECIAL } from "@tokenmaxxing/core/tavern.ts";
 import {
   cupsLeft,
   outsideDoor,
@@ -9,7 +11,7 @@ import {
   roomEntry,
   route,
 } from "@tokenmaxxing/core/world.ts";
-import { admit, as, event, eventually, signUp } from "./rivet.ts";
+import { admit, as, event, eventually, rich, signUp } from "./rivet.ts";
 import { connect, walk } from "./world-client.ts";
 
 describe("world", () => {
@@ -23,25 +25,34 @@ describe("world", () => {
     await conn.dispose();
   });
 
-  test("offline sleepers at the Inn are a head count; waking up joins the room, falling asleep leaves it", async () => {
+  /** Walks `v` from where they woke at the Tavern up its stairs, to where everyone without a company sleeps. */
+  const goUpstairs = async (v: Awaited<ReturnType<typeof connect>>) => {
+    const me = v.snap.players.find((p) => p.id === v.snap.selfId)!;
+    const path = route(MAPS.inn, [me.x, me.y], MAPS.inn.find("u")[0]!)!;
+    expect((await walk(v.conn, path)).at(-1)).toMatchObject({ room: "upstairs" });
+    return eventually(() => {
+      const snap = v.events.snapshots.at(-1)!;
+      expect(snap.room).toBe("upstairs");
+      return snap;
+    });
+  };
+
+  test("offline sleepers upstairs are a head count; waking up leaves it, falling asleep joins it", async () => {
     const sleeper = await signUp("inn");
     const viewer = await signUp("inn");
     const v = await connect(viewer.token);
     expect(v.snap.room).toBe("inn");
-    expect(v.snap.players.map((p) => p.id)).not.toContain(sleeper.userId);
-    expect(v.snap.asleep).toBeGreaterThan(0);
+    expect(v.snap.asleep).toBe(0); // the Tavern itself holds nobody asleep
+    const up = await goUpstairs(v);
+    expect(up.players.map((p) => p.id)).not.toContain(sleeper.userId);
+    expect(up.asleep).toBeGreaterThan(0);
 
+    // Waking up takes them out of the count, and they get up at the Tavern's door.
     const s = await connect(sleeper.token);
-    const awake = await eventually(() => {
-      const joined = v.events.moves.find((m) => m.join.some((p) => p.id === sleeper.userId));
-      expect(joined?.asleep).toBeNumber();
-      return joined!.asleep!;
-    });
+    expect(s.snap.room).toBe("inn");
+    await eventually(() => expect(v.events.moves.some((m) => m.asleep === up.asleep - 1)).toBe(true));
     await s.conn.dispose();
-    await eventually(() => {
-      const left = v.events.moves.find((m) => m.leave.includes(sleeper.userId));
-      expect(left?.asleep).toBe(awake + 1);
-    });
+    await eventually(() => expect(v.events.moves.at(-1)?.asleep).toBe(up.asleep));
     await v.conn.dispose();
   });
 
@@ -53,6 +64,20 @@ describe("world", () => {
     const results = await walk(conn, path);
     expect(results.at(-1)).toEqual({ ...outsideDoor("inn"), state: "idle" });
     await eventually(() => expect(events.snapshots.at(-1)!.room).toBe("town"));
+    await conn.dispose();
+  });
+
+  test("the Tavern's stairs lead down to the basement, and its stairs up lead back to the landing", async () => {
+    const a = await signUp("w");
+    const { conn, events, snap } = await connect(a.token);
+    const me = snap.players.find((p) => p.id === a.userId)!;
+    const down = await walk(conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("S")[0]!)!);
+    expect(down.at(-1)).toEqual({ ...roomEntry("basement"), state: "idle" });
+    await eventually(() => expect(events.snapshots.at(-1)!.room).toBe("basement"));
+    const entry = roomEntry("basement");
+    const up = await walk(conn, route(MAPS.basement, [entry.x, entry.y], MAPS.basement.find("x")[0]!)!);
+    expect(up.at(-1)).toEqual({ ...roomEntry("inn", "S"), state: "idle" });
+    await eventually(() => expect(events.snapshots.at(-1)!.room).toBe("inn"));
     await conn.dispose();
   });
 
@@ -98,6 +123,69 @@ describe("world", () => {
       const until = infos.filter((i) => i.id === a.userId).at(-1)?.coffeeUntil ?? 0;
       expect(cupsLeft(until, Date.now())).toBeGreaterThan(1.5);
     });
+    await conn.dispose();
+  });
+
+  test("the tap serves the day's special: free, cosmetic, and not again while it lasts", async () => {
+    const a = await rich("tavern", 40);
+    const before = (await a.town.wallet()).balance;
+    const { conn, snap, events } = await connect(a.token);
+    expect(snap.room).toBe("inn");
+    const me = snap.players.find((p) => p.id === a.userId)!;
+    const path = route(MAPS.inn, [me.x, me.y], MAPS.inn.find("y")[0]!)!;
+    await walk(conn, path.slice(0, -1));
+    expect(await conn.tavern("down")).toBeNull(); // not facing the tap
+    const served = await conn.tavern(path.at(-1));
+    expect(served).toEqual({ notice: expect.stringContaining("On the house") });
+    const until = await eventually(() => {
+      const i = events.infos.filter((x) => x.id === a.userId).at(-1);
+      expect(i?.specialUntil).toBeGreaterThan(Date.now() + 14 * 60_000);
+      return i!.specialUntil!;
+    });
+    expect(until).toBeLessThanOrEqual(Date.now() + SPECIAL.ms);
+    // Again while it lasts: a notice, and no new clock.
+    expect(await conn.tavern(path.at(-1))).toEqual({ notice: expect.stringContaining("still got") });
+    expect(
+      events.infos.filter((x) => x.id === a.userId && x.specialUntil !== until && x.specialUntil),
+    ).toEqual([]);
+    // Free: the wallet is as it was.
+    expect((await a.town.wallet()).balance).toBe(before);
+    await conn.dispose();
+  });
+
+  test("only the tap serves: the bar, the coffee machine and other rooms refuse", async () => {
+    const a = await signUp("tavern");
+    const { conn, snap, events } = await connect(a.token);
+    const me = snap.players.find((p) => p.id === a.userId)!;
+    // Facing the bar counter: it talks, it doesn't serve.
+    const bar = route(MAPS.inn, [me.x, me.y], [2, 4])!;
+    await walk(conn, bar.slice(0, -1));
+    expect(await conn.tavern(bar.at(-1))).toBeNull();
+    const to = route(MAPS.inn, [2, 5], MAPS.inn.find("x")[0]!)!;
+    await walk(conn, to);
+    await eventually(() => expect(events.snapshots.at(-1)!.room).toBe("town"));
+    // The town has no tap.
+    expect(await conn.tavern("down")).toBeNull();
+    expect(events.infos.some((i) => i.id === a.userId && i.specialUntil)).toBe(false);
+    await conn.dispose();
+  });
+
+  test("the barkeep stands in his cell at the bar and never walks", async () => {
+    const a = await signUp("keep");
+    const { conn, snap, events } = await connect(a.token);
+    const keep = snap.players.find((p) => p.id === BARKEEP.id)!;
+    expect(keep).toMatchObject({
+      name: BARKEEP.name,
+      online: true,
+      state: "idle",
+      x: BARKEEP_HOME.x,
+      y: BARKEEP_HOME.y,
+      facing: BARKEEP_HOME.facing,
+    });
+    // The world takes steps for bots now and then; a round trip later, he hasn't moved.
+    await conn.say("one round");
+    await eventually(() => expect(events.chat.map((l) => l.text)).toContain("one round"));
+    expect(events.moves.some((m) => m.m.some(([id]) => id === BARKEEP.id))).toBe(false);
     await conn.dispose();
   });
 
@@ -179,7 +267,8 @@ describe("world", () => {
   test("offline players work at a desk while agents run, and sleep otherwise", async () => {
     const a = await signUp("rest");
     const viewer = await signUp("rest");
-    const v = await connect(viewer.token); // both freelancers: both at the Inn
+    const v = await connect(viewer.token); // both freelancers: both sleep upstairs
+    await goUpstairs(v);
     await as(a.token)
       .player(a.userId)
       .ingest([event({ timestamp: Date.now() - 60_000 })]);

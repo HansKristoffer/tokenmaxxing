@@ -41,7 +41,7 @@ export function Sky() {
           };
   const wind = Math.round(weather.windMs);
   const detail = [
-    `Copenhagen ${clockTime(now)}, ${light.phase}`,
+    `Aarhus ${clockTime(now)}, ${light.phase}`,
     `Sunrise ${clockTime(sunrise)}, sunset ${clockTime(sunset)}`,
     `Moon: ${moon.name} (${Math.round(moon.lit * 100)}% lit)`,
     `${weather.kind[0]!.toUpperCase()}${weather.kind.slice(1)}, cloud ${Math.round(weather.cloud * 100)}%`,

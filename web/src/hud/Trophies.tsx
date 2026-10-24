@@ -2,6 +2,7 @@ import { TROPHIES } from "@tokenmaxxing/core/trophies.ts";
 import { TROPHY_H, TROPHY_W, trophySprite } from "../art/trophies.ts";
 import { loadTrophies } from "../game/trophies.ts";
 import { dayText } from "./format.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
 import { Modal, Pixels, useLoad } from "./ui.tsx";
 
 const SCALE = 4;
@@ -22,11 +23,16 @@ export function Trophies({ userId, name }: { userId: number; name: string }) {
           const day = earned.get(t.id);
           return (
             <li key={t.id} className={day ? "" : "unearned"}>
-              <Pixels
-                sprite={trophySprite(t.id, day !== undefined)}
-                width={TROPHY_W * SCALE}
-                height={TROPHY_H * SCALE}
-              />
+              <ItemIcon
+                spec={{ kind: "trophy", id: t.id, earned: day !== undefined }}
+                size={TROPHY_H * SCALE}
+              >
+                <Pixels
+                  sprite={trophySprite(t.id, day !== undefined)}
+                  width={TROPHY_W * SCALE}
+                  height={TROPHY_H * SCALE}
+                />
+              </ItemIcon>
               <span>
                 <strong>{t.name}</strong>
                 <span className="muted small">{t.how}</span>

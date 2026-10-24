@@ -1,3 +1,4 @@
+import { deskIndex } from "@tokenmaxxing/core/desks.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
 import { defaultLook, type Look, parseLook } from "@tokenmaxxing/core/world.ts";
@@ -13,6 +14,8 @@ export interface PlayerCore {
   level: number;
   companyId: number | null;
   todayTokens: number;
+  /** Their chosen desk setup, a tier in `DESKS`; optional so older world state still fits. */
+  desk?: number;
 }
 
 export interface UserRow {
@@ -80,10 +83,12 @@ export async function playerCores(sql: Sql, userIds: Ids): Promise<PlayerCore[]>
   const [where, ...args] = among("id", userIds);
   const users = await all<UserRow>(sql, `SELECT ${USER_COLS} FROM users WHERE ${where}`, ...args);
   const today = dayKey(Date.now());
-  const [lifetime, todays] = await Promise.all([
+  const [lifetime, todays, desks] = await Promise.all([
     tokensIn(sql, userIds),
     tokensIn(sql, userIds, [today, today]),
+    all<{ id: number; desk: string | null }>(sql, `SELECT id, desk FROM users WHERE ${where}`, ...args),
   ]);
+  const deskOf = new Map(desks.map((d) => [d.id, deskIndex(d.desk)]));
   return users.map((u) => ({
     id: u.id,
     name: u.name,
@@ -91,5 +96,6 @@ export async function playerCores(sql: Sql, userIds: Ids): Promise<PlayerCore[]>
     level: levelFor(lifetime.get(u.id) ?? 0),
     companyId: u.companyId,
     todayTokens: todays.get(u.id) ?? 0,
+    desk: deskOf.get(u.id) ?? 0,
   }));
 }

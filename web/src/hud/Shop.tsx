@@ -1,21 +1,26 @@
 import { editionById } from "@tokenmaxxing/core/editions.ts";
+import { homePieceOf } from "@tokenmaxxing/core/home.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
-import { petOutfit, wearPet } from "@tokenmaxxing/core/pets.ts";
-import { ITEMS, type Item, MERCH, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
+import { petOutfit } from "@tokenmaxxing/core/pets.ts";
+import { posterOf } from "@tokenmaxxing/core/posters.ts";
+import { ITEMS, type Item, type MerchKind, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
-import { typedSwitch } from "hanzio";
 import { useEffect, useState } from "react";
 import { itemFrame } from "../art/characters.ts";
+import { posterSprite } from "../art/furniture-posters.ts";
 import { objectAt } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
 import { errorText } from "../errors.ts";
 import { refreshMe, refreshWallet, town } from "../net.ts";
+import type { IconSpec } from "../render3d/icons.ts";
 import { hud, useHud } from "../store.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
 import { ItemTag } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
+import { isWorn, withItem, withoutMerchTop } from "./lookOps.ts";
 import { AvatarImage, Modal, Pills, Pixels, useRun, WalletLine } from "./ui.tsx";
 
 const TABS = [
@@ -31,10 +36,11 @@ const TABS = [
 
 const PLACES = ["🥇", "🥈", "🥉"];
 
-export function Shop() {
+export function Shop({ tab: first }: { tab?: Item["slot"] }) {
   const me = useHud((s) => s.me);
   const wallet = useHud((s) => s.wallet);
-  const [tab, setTab] = useState<Item["slot"]>("outfit");
+  const opened = useHud((s) => (s.panel?.kind === "shop" ? s.panel.tab : undefined));
+  const [tab, setTab] = useState<Item["slot"]>(first ?? opened ?? "outfit");
   const [bag, setBag] = useState<BagRow[]>([]);
   const [failed, setFailed] = useState<string | null>(null);
   const { error, run } = useRun();
@@ -134,42 +140,7 @@ export const wear = async (look: Look) => {
   await refreshMe();
 };
 
-/** Whether `look` wears `item`: in its slot, or as one of the company merch it wears. */
-export function isWorn(item: Item, look: Look): boolean {
-  return typedSwitch(
-    item.slot,
-    {
-      furniture: () => false,
-      merch: () => look.merch === item.companyId && (look.merchWorn & item.index) > 0,
-    },
-    (slot) => look[slot] === item.index,
-  );
-}
-
-/**
- * `look` with `item` on (or off). Merch is one company's at a time, and a hoodie and a tee don't go
- * over each other.
- */
-export function withItem(item: Item, look: Look, on: boolean): Look {
-  return typedSwitch(
-    item.slot,
-    {
-      furniture: () => look,
-      // A different pet starts in its original look.
-      pet: () => (on ? wearPet(look, item.index) : { ...look, pet: 0, petVariant: 0 }),
-      merch: () => {
-        const tops = MERCH.filter((m) => m.kind === "tee" || m.kind === "hoodie").reduce(
-          (n, m) => n | m.bit,
-          0,
-        );
-        const mine = look.merch === item.companyId ? look.merchWorn : 0;
-        const bits = on ? (item.index & tops ? mine & ~tops : mine) | item.index : mine & ~item.index;
-        return { ...look, merch: bits ? item.companyId! : 0, merchWorn: bits };
-      },
-    },
-    (slot) => ({ ...look, [slot]: on ? item.index : 0 }),
-  );
-}
+export { isWorn, withItem, withoutMerchTop };
 
 const wearIt = (item: Item, look: Look, on: boolean) =>
   item.slot === "furniture" ? Promise.resolve() : wear(withItem(item, look, on));
@@ -193,19 +164,57 @@ export function WearButton({
   );
 }
 
+/** The company a merch item belongs to, as its 3D prop wants it (a stand-in in its colours if it left town). */
+const merchCompany = (item: Item): IconSpec & { kind: "merch" } => ({
+  kind: "merch",
+  company: hud.get().companies.find((c) => c.id === item.companyId) ?? {
+    id: item.companyId ?? 0,
+    name: "",
+    brand: null,
+  },
+  merch: item.id.split(".")[2] as MerchKind,
+});
+
+/** The 3D twin of `ItemSprite`'s picture. */
+function itemIcon(item: Item, look: Look, bare?: boolean, worn?: boolean): IconSpec {
+  if (item.slot === "pet") {
+    const mine = worn && look.pet === item.index;
+    return {
+      kind: "pet",
+      pet: item.index,
+      variant: mine ? look.petVariant : 0,
+      name: mine ? look.petName : "",
+    };
+  }
+  if (item.slot === "furniture") return { kind: "piece", ch: item.id.slice(5) };
+  if (item.slot === "petwear") return { kind: "pet", pet: look.pet || 1, wear: item.index };
+  if (bare && item.slot === "merch") return merchCompany(item);
+  return {
+    kind: "avatar",
+    look: withItem(item, look, true),
+    focus: bare && (item.slot === "hat" || item.slot === "glasses") ? "head" : "body",
+    facing: item.slot === "back" ? "back" : "front",
+  };
+}
+
 /** An item as it looks: on me (or `bare`, on its own), the pet, or the piece. */
-export function ItemImage({
-  item,
-  look,
-  bare,
-  worn,
-}: {
+export function ItemImage(props: {
   item: Item;
   look: Look;
   bare?: boolean;
   /** A pet in the look I wear it in, if I wear it (the shop sells the original). */
   worn?: boolean;
 }) {
+  const { item, look, bare, worn } = props;
+  return (
+    <ItemIcon spec={itemIcon(item, look, bare, worn)} size={64} className="avatar">
+      <ItemSprite {...props} />
+    </ItemIcon>
+  );
+}
+
+/** The 2D picture: the pet's frame, the piece as placed, the item's own sprite, or me wearing it. */
+function ItemSprite({ item, look, bare, worn }: { item: Item; look: Look; bare?: boolean; worn?: boolean }) {
   if (item.slot === "pet") {
     const mine = worn && look.pet === item.index;
     const sprite = petFrame(
@@ -217,7 +226,7 @@ export function ItemImage({
     );
     return <SpriteImage sprite={sprite} stand />;
   }
-  if (item.slot === "furniture") return <PieceImage ch={item.id.slice(5)} />;
+  if (item.slot === "furniture") return <PieceSprite ch={item.id.slice(5)} />;
   if (bare) return <SpriteImage sprite={itemFrame(item)} />;
   // Pet gear on my pet (a duck if I have none); a back item from the side, where it shows.
   if (item.slot === "petwear")
@@ -240,7 +249,16 @@ const pieces = new Map<string, HTMLCanvasElement>();
 function pieceSprite(ch: string): HTMLCanvasElement {
   let sprite = pieces.get(ch);
   if (sprite) return sprite;
-  sprite = objectAt(withPieces([{ ch, x: 1, y: 1 }], MAPS.office), 1, 1)?.canvas;
+  // A poster is hung on a wall, not put down on a floor: its own picture.
+  const poster = posterOf(ch);
+  if (poster) {
+    sprite = posterSprite(poster.art);
+    pieces.set(ch, sprite);
+    return sprite;
+  }
+  // A personal office's frame or sign is hung on the office's top wall.
+  const row = homePieceOf(ch)?.wall ? 0 : 1;
+  sprite = objectAt(withPieces([{ ch, x: 1, y: row }], MAPS.office), 1, row)?.canvas;
   if (!sprite) {
     sprite = document.createElement("canvas");
     sprite.width = sprite.height = 16;
@@ -254,6 +272,14 @@ function pieceSprite(ch: string): HTMLCanvasElement {
 
 /** A piece as the world draws it, in a two-tile box (three for the widest). */
 export function PieceImage({ ch, scale = 2 }: { ch: string; scale?: number }) {
+  return (
+    <ItemIcon spec={{ kind: "piece", ch }} size={32 * scale} className="avatar">
+      <PieceSprite ch={ch} scale={scale} />
+    </ItemIcon>
+  );
+}
+
+function PieceSprite({ ch, scale = 2 }: { ch: string; scale?: number }) {
   const sprite = pieceSprite(ch);
   const box = Math.max(32, sprite.width);
   return (

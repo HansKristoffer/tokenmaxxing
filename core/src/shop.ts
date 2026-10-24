@@ -7,6 +7,7 @@
 import { isRecord } from "hanzio";
 import { EDITIONS } from "./editions.ts";
 import { HEADWEAR_ITEMS } from "./headwear.ts";
+import { HOME_PIECES } from "./home.ts";
 import { LOOT, type Rarity as LootRarity } from "./loot.ts";
 import { COMPANY_FURNITURE, FURNITURE } from "./office.ts";
 import type { Rarity } from "./rarity.ts";
@@ -46,6 +47,8 @@ export interface Item {
   loot?: { boss: string; rarity: LootRarity };
   /** Company furniture: bought from a company wallet, for its building. */
   company?: true;
+  /** Personal-office furniture: it goes down only in your own office (`canDropIn`). */
+  home?: true;
   /** Merch: whose. */
   companyId?: number;
 }
@@ -98,6 +101,16 @@ export const ITEMS: readonly Item[] = [
     price: f.price,
     tradeable: !f.earned,
     ...(f.earned && { earned: f.earned }),
+  })),
+  // For personal offices only (`home.ts`): bought with coins, put down only in your own office.
+  ...HOME_PIECES.map((f, index): Item => ({
+    id: `furn.${f.ch}`,
+    slot: "furniture",
+    index,
+    name: f.name,
+    price: f.price,
+    tradeable: true,
+    home: true,
   })),
   // Raid loot: dropped by the bosses, never sold, and tradeable.
   ...LOOT.map((l): Item => ({
@@ -205,10 +218,13 @@ export const isTradeable = (id: unknown): boolean => itemById(id)?.tradeable ?? 
 
 /**
  * Whether `by` can put `item` down in `room`: anything that can change hands, anywhere; an earned piece
- * of furniture (Touched grass) only in their own office, where nobody else can pick it up.
+ * of furniture (Touched grass) and personal-office furniture (`home.ts`) only in their own office,
+ * where nobody else can pick it up (and never in the company building).
  */
 export const canDropIn = (item: unknown, room: string, by: number): boolean =>
-  isTradeable(item) || (isKeepsake(item) && room === `office:${by}`);
+  itemById(item)?.home
+    ? room === `office:${by}`
+    : isTradeable(item) || (isKeepsake(item) && room === `office:${by}`);
 
 /** An earned piece of furniture: it leaves your bag only for your own office's floor (`canDropIn`). */
 export function isKeepsake(id: unknown): boolean {

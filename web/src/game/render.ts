@@ -1,19 +1,23 @@
+import { effectiveDesk } from "@tokenmaxxing/core/desks.ts";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
+import { hasSpecial, specialBuff, TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
   type CompanyInfo,
   companyOfRoom,
   cupsLeft,
   houseTier,
   JUMP_MS,
+  memberRoomOf,
   ownerOfOffice,
   TILE,
 } from "@tokenmaxxing/core/world.ts";
 import { clamp, typedSwitch, typedSwitchGroup } from "hanzio";
 import { house, inn } from "../art/buildings.ts";
 import { characterFrame, itemFrame, lookPalette, poseFor, sleeperFrame } from "../art/characters.ts";
+import { deskFrame, type ScreenMode } from "../art/desks.ts";
 import { type FancyPiece, fancyFrame, fancySprite, neonSprite } from "../art/furniture-fancy.ts";
 import { drawSparkle, wearsLegendary } from "../art/loot.ts";
 import { coloursOf } from "../art/merch.ts";
@@ -23,17 +27,31 @@ import { SLEEP_H, SLEEP_W, sleepingFrame } from "../art/pet-sleep.ts";
 import { PET_H, PET_W, petFrame } from "../art/pets.ts";
 import { hash, initialsOf, perObject } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
+import { graphics } from "../settings/graphics.ts";
+import { drawBasement, lightBasement } from "./basement.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
 import { drawCop, isCop } from "./cop.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { type Frame, inView } from "./frame.ts";
 import { drawGames } from "./games.ts";
+import { drawGlow } from "./glow.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
-import { avatarLabels, chipHits, chips, chipsWidth, petLabel, sign, signHits } from "./labels.ts";
+import {
+  avatarLabels,
+  chipHits,
+  chips,
+  chipsWidth,
+  focusLabels,
+  petLabel,
+  pill,
+  sign,
+  signHits,
+} from "./labels.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
+import { LABEL_FAR } from "./near.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
@@ -50,22 +68,22 @@ import {
 } from "./sky.ts";
 import { snowAmount, snowLayers } from "./snow.ts";
 import { drawStreet } from "./street.ts";
+import { drawTavern, lightTavern } from "./tavern.ts";
 import { drawTrophies } from "./trophies.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
 
 /** Tiles within which other players' pet names show. */
-const NAME_RANGE = 6;
+const NAME_RANGE = LABEL_FAR;
 /** How far (in canvas pixels, per device pixel) labels reach past what they're over: bubbles, emoji bursts. */
 const LABEL_REACH = 160;
 
 /** A pet's costume, once per look. */
 const outfitOf = perObject(petOutfit);
 
-export function render(canvas: HTMLCanvasElement, now: number): void {
+export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devicePixelRatio || 1): void {
   const g = canvas.getContext("2d")!;
-  const dpr = window.devicePixelRatio || 1;
   const w = Math.floor(window.innerWidth * dpr);
   const h = Math.floor(window.innerHeight * dpr);
   if (canvas.width !== w || canvas.height !== h) {
@@ -78,19 +96,40 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   const viewH = h / scale;
   const me = world.avatars.get(world.selfId);
   const focus = me ? drawPos(me, now) : { x: map.x0 + map.width / 2, y: map.y0 + map.height / 2 };
+  focusLabels(me ? focus : null, graphics.get().overrides.labels === "all", now);
   const clampCam = (center: number, view: number, start: number, size: number) =>
     start + (size <= view ? (size - view) / 2 : clamp(center - start - view / 2, 0, size - view));
   const camX =
     Math.round(clampCam((focus.x + 0.5) * TILE, viewW, map.x0 * TILE, map.width * TILE) * scale) / scale;
+  // The chat sits over the bottom left: let the map scroll up past its last row by the chat's height, so
+  // a door in the bottom wall (the Tavern's stairs, the basement's way out) isn't under it.
+  const dock = document.querySelector<HTMLElement>(".chat-dock");
+  const chatPad = dock ? (dock.offsetHeight * dpr) / scale : 0;
   const camY =
-    Math.round(clampCam((focus.y + 0.5) * TILE, viewH, map.y0 * TILE, map.height * TILE) * scale) / scale;
+    Math.round(clampCam((focus.y + 0.5) * TILE, viewH, map.y0 * TILE, map.height * TILE + chatPad) * scale) /
+    scale;
   Object.assign(camera, { x: camX, y: camY, scale, dpr });
 
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.fillStyle = typedSwitch(map.id, {
     town: () => C.leafInk,
+    basement: () => "#100e1e",
     dungeon: () => "#110f16",
-    ...typedSwitchGroup(map.id, ["hq", "inn", "office"], () => "#1b1f2a"),
+    ...typedSwitchGroup(
+      map.id,
+      [
+        "hq",
+        "common",
+        "inn",
+        "upstairs",
+        "office",
+        "shop-furniture",
+        "shop-clothes",
+        "shop-barber",
+        "shop-pets",
+      ],
+      () => "#1b1f2a",
+    ),
   });
   g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = false;
@@ -140,6 +179,24 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   // Only at a whole-number zoom: in between, the panes' soft edges would show what was under them.
   const relit = outdoors && Number.isInteger(scale) && lightsNow(now) > 0.05;
 
+  // Desk setups: who sits at a desk (on the chair below it) decides its screens; a house's fleet tier is
+  // every desk's floor, empty ones too. `world.avatars` has everyone in the room.
+  const fleet = world.companies.get(companyOfRoom(world.room) ?? -1)?.deskFleet;
+  let seated: Map<number, Avatar> | undefined;
+  const deskAt = (x: number, y: number): { tier: number; mode: ScreenMode } => {
+    if (!seated) {
+      seated = new Map();
+      for (const a of world.avatars.values())
+        if (a.state === "working" || a.state === "sit") seated.set(map.index(a.x, a.y), a);
+    }
+    const a = map.at(x, y + 1) === "c" ? seated.get(map.index(x, y + 1)) : undefined;
+    const tier = effectiveDesk(a?.info.desk, fleet);
+    return {
+      tier,
+      mode: !a ? "off" : a.state === "working" ? (Math.floor(now / 180) % 2 ? "typingA" : "typingB") : "lit",
+    };
+  };
+
   for (let y = y0; y < y1; y++)
     for (let x = x0; x < x1; x++) {
       const o = objectAt(map, x, y);
@@ -149,6 +206,10 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
         items.push({
           y: y * TILE + sortY(ch),
           draw: () => {
+            if (ch === "d") {
+              const { tier, mode } = deskAt(x, y);
+              if (tier > 0) return void g.drawImage(deskFrame(tier, mode), x * TILE, (y + 1) * TILE - 22);
+            }
             // The company building's pieces are indoors, out of the snow.
             if (o.fancy) g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
             else snowy(o.canvas, x * TILE + o.dx, y * TILE + o.dy, ch);
@@ -217,7 +278,9 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
       },
     });
     const [sx, sy] = toScreen(cx, top);
-    const text = company ? `🏢 ${company.name} · ${compact(company.todayTokens)} today` : "🛏 The Inn";
+    const text = company
+      ? `🏢 ${company.name} · ${compact(company.todayTokens)} today`
+      : `🛏 The ${TAVERN ? "Tavern" : "Inn"}`;
     labels.push(() => {
       const y = sy - 6 * dpr;
       const { w, h } = sign(g, sx, y, text, dpr, company !== null, (BLOCK_W - 0.5) * TILE * scale);
@@ -250,13 +313,17 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
   drawStreet(f);
   drawPicnic(f);
   drawChalkboards(f);
+  drawTavern(f);
+  drawBasement(f);
   drawMerchant(f);
   drawRaid(f);
   drawLoot(f);
 
   if (world.asleep > 0) {
     const [sx, sy] = toScreen((map.x0 + map.width / 2) * TILE, (map.y0 + 2) * TILE);
-    labels.push(() => sign(g, sx, sy - 2 * dpr, `💤 ${world.asleep} asleep`, dpr, false));
+    labels.push(() =>
+      pill(g, sx, sy - 2 * dpr, `💤 ${world.asleep} asleep`, dpr, "rgba(43, 36, 51, 0.7)", C.white),
+    );
   }
 
   const dt = Math.min(100, now - lastFrame);
@@ -327,6 +394,9 @@ export function render(canvas: HTMLCanvasElement, now: number): void {
 
   items.sort((a, b) => a.y - b.y);
   for (const i of items) i.draw();
+  // The Tavern's fire and candles (and the dark, after sunset): `inn` only.
+  lightTavern(f);
+  lightBasement(f);
 
   // The sky: the sun's tint over the town, lights shining through it, then the weather. Labels
   // (and the HTML HUD) come after, so they stay readable.
@@ -357,7 +427,7 @@ const neonText = perObject((company: CompanyInfo) => {
 function fancyCanvas(piece: FancyPiece, now: number): HTMLCanvasElement {
   const frame = fancyFrame(piece, now);
   if (piece.id !== "neon-sign") return fancySprite(piece.id, frame);
-  const id = companyOfRoom(world.room);
+  const id = memberRoomOf(world.room);
   const company = id === null ? undefined : world.companies.get(id);
   if (!company) return fancySprite(piece.id, frame);
   return neonSprite(neonText(company), frame, coloursOf(company.id).glow);
@@ -373,12 +443,19 @@ function drawAvatar(
   lap: Lap | null,
 ): void {
   const look = a.info.look;
-  // Coffee: a random nudge every frame, a pixel per cup still in their system.
-  const shake = Math.min(4, cupsLeft(a.info.coffeeUntil, Date.now()));
+  // Coffee: a random nudge every frame, a pixel per cup still in their system. The Tavern's special
+  // (15 minutes) is a buzz like one and a half cups, or a warm glow behind you.
+  const until = a.info.specialUntil ?? 0;
+  const special = hasSpecial(until, Date.now()) ? specialBuff(until) : null;
+  const shake = Math.min(
+    4,
+    Math.max(cupsLeft(a.info.coffeeUntil, Date.now()), special === "jitter" ? 1.5 : 0),
+  );
   if (shake > 0) {
     px += Math.round((Math.random() * 2 - 1) * shake);
     py += Math.round((Math.random() * 2 - 1) * shake * 0.5);
   }
+  if (special === "glow") drawGlow(g, px + 8, py + 8, 17, "255,222,120", 0.55 + 0.15 * Math.sin(now / 320));
   if (a.warp) {
     const t = Math.min(1, (now - a.warp.at) / WARP_MS);
     g.globalAlpha = a.warp.out ? 1 - t : t;

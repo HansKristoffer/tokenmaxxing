@@ -8,10 +8,12 @@
     "hanzio": "^3.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "rivetkit": "2.3.21"
+    "rivetkit": "2.3.21",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0"
+    "@types/react-dom": "^19.1.0",
+    "@types/three": "^0.186.0"
   }
 }

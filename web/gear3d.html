@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tokenmaxxing 3D · gear gallery</title>
+    <link rel="icon" href="../site/public/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./src/demo3d/demo.css" />
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="labels"></div>
+    <div class="panel top">
+      <div class="title">tokenmaxxing <strong>3D</strong> <span>gear gallery</span></div>
+      <div class="row" id="cats"></div>
+      <div class="row">
+        <button type="button" data-group="style" data-value="smooth">🧸 HD (Tuber)</button>
+        <button type="button" data-group="style" data-value="pixel">👾 Pixel (Habbo)</button>
+      </div>
+      <div class="row">
+        <button type="button" id="rot-l" title="Rotate (Q)">⟲</button>
+        <button type="button" id="rot-r" title="Rotate (E)">⟳</button>
+        <button type="button" id="spin">⏯ Spin</button>
+        <button type="button" id="walk">🚶 Walk</button>
+        <button type="button" id="night">🌙 Night</button>
+      </div>
+    </div>
+    <div class="panel help">Drag to pan · wheel to zoom · Q/E to rotate · URL: ?cat=Hats&amp;zoom=0.3&amp;at=7</div>
+    <script type="module" src="./src/demo3d/gear3dMain.ts"></script>
+  </body>
+</html>

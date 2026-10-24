@@ -121,8 +121,8 @@ test("the badge: I was there, then five", () => {
     founder: false,
   };
   expect(badgesFor(facts)).toEqual([]);
-  expect(badgesFor({ ...facts, picnics: 1 })).toEqual([
-    { id: "picnic", emoji: "🧺", label: "I was there", tier: 1 },
+  expect(badgesFor({ ...facts, picnics: 1 }).map((b) => [b.id, b.label, b.tier])).toEqual([
+    ["picnic", "I was there", 1],
   ]);
   expect(badgesFor({ ...facts, picnics: 6 })[0]?.label).toBe("5 outage picnics");
 });

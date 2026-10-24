@@ -2,19 +2,25 @@ import { isBot } from "@tokenmaxxing/core/bots.ts";
 import { compact, levelTitle, plural } from "@tokenmaxxing/core/format.ts";
 import { milestonesBetween } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
+import type { Wallet } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { roomName, world } from "../game/world.ts";
 import { town } from "../net.ts";
+import { storage } from "../storage.ts";
 import { chatBeside, hud, useHud } from "../store.ts";
 import { AppSignIn } from "./AppSignIn.tsx";
 import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
 import { Bag } from "./Bag.tsx";
 import { Chat } from "./Chat.tsx";
+import { Collection } from "./Collection.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
+import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
+import { HallOfFame } from "./HallOfFame.tsx";
+import { Jukebox } from "./Jukebox.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LookPicker } from "./LookPicker.tsx";
 import { LootToast } from "./Loot.tsx";
@@ -24,36 +30,66 @@ import { Merchant } from "./Merchant.tsx";
 import { MilestoneToast } from "./MilestoneToast.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
+import { DeskPanel } from "./OfficeDesks.tsx";
+import { DecorPanel, OpenOfficesPanel } from "./Offices.tsx";
 import { PaperPanel } from "./Paper.tsx";
 import { PetLooks } from "./PetLooks.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
+import { Quests } from "./Quests.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
+import { Regulars } from "./Regulars.tsx";
 import { Shop } from "./Shop.tsx";
 import { Sky } from "./Sky.tsx";
+import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
-import { Modal, ToastButton, useFresh, useRun } from "./ui.tsx";
+import { Modal, ToastButton, useFresh, useNarrow, useRun } from "./ui.tsx";
 
 export function Hud() {
   const status = useHud((s) => s.status);
   const beside = useHud((s) => chatBeside(s.panel));
   const room = useHud((s) => s.room);
+  const narrow = useNarrow();
+  const [tray, setTray] = useState<Tray | null>(null);
   if (status === "signedOut" || status === "expired")
     return tauri ? <AppSignIn /> : <SignedOut expired={status === "expired"} />;
   return (
     <>
       <Hints />
       <Stats />
-      <div className="corner">
-        <MiniBoard />
-        <GamesBox />
-        <RaidBox />
-      </div>
-      <Banner />
-      <PicnicBanner />
-      {!beside && <Chat />}
-      <Minimap />
+      {narrow ? (
+        <>
+          <div className="tray">
+            {TRAY.map(([id, icon, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={tray === id ? "icon on" : "icon"}
+                aria-label={label}
+                aria-pressed={tray === id}
+                title={label}
+                onClick={() => setTray(tray === id ? null : id)}
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
+          {tray === "info" && <Corner />}
+          {tray === "chat" && <Chat />}
+          {tray === "map" && <Minimap />}
+          <Banner />
+          <PicnicBanner />
+        </>
+      ) : (
+        <>
+          <Corner />
+          <Banner />
+          <PicnicBanner />
+          {!beside && <Chat />}
+          <Minimap />
+        </>
+      )}
       <Dialog />
       <Panel />
       {status === "connecting" && (
@@ -74,9 +110,29 @@ export function Hud() {
         <LevelToast />
         <RaidToast />
         <LootToast />
+        <GraphicsToast />
       </div>
+      <FpsMeter />
       <FirstVisit />
     </>
+  );
+}
+
+type Tray = (typeof TRAY)[number][0];
+/** On a small screen the chat, the map and the corner cards sit behind these icons, one open at a time. */
+const TRAY = [
+  ["chat", "💬", "Chat"],
+  ["map", "🗺", "Map"],
+  ["info", "🏅", "Scores and games"],
+] as const;
+
+function Corner() {
+  return (
+    <div className="corner">
+      <MiniBoard />
+      <GamesBox />
+      <RaidBox />
+    </div>
   );
 }
 
@@ -108,8 +164,35 @@ function Hints() {
         <dd>Menu</dd>
         <dt>+ −</dt>
         <dd>Zoom</dd>
+        <dt>Q R</dt>
+        <dd>Turn the view (3D)</dd>
       </dl>
     </div>
+  );
+}
+
+/** Three pips beside the coins, one per daily quest: filled as it goes, solid when done. A click opens the board. */
+function QuestTracker({ quests }: { quests: Wallet["quests"] }) {
+  const done = quests.filter((q) => q.done).length;
+  return (
+    <button
+      type="button"
+      className="chip"
+      title={quests.map((q) => `${q.done ? "✓" : "·"} ${q.text} (${q.value}/${q.target})`).join("\n")}
+      aria-label={`Quests: ${done} of ${quests.length} done`}
+      onClick={() => hud.set({ panel: { kind: "quests" } })}
+    >
+      🧾
+      <span className="quest-pips" aria-hidden>
+        {quests.map((q) => (
+          <span
+            key={q.id}
+            className={`quest-pip${q.done ? " done" : ""}`}
+            style={{ "--fill": `${Math.min(100, (q.value / q.target) * 100)}%` } as CSSProperties}
+          />
+        ))}
+      </span>
+    </button>
   );
 }
 
@@ -143,6 +226,7 @@ function Stats() {
           🪙 <strong>{wallet.balance.toLocaleString()}</strong>
         </button>
       )}
+      {wallet && wallet.quests.length > 0 && <QuestTracker quests={wallet.quests} />}
       <button
         type="button"
         className="icon"
@@ -204,8 +288,11 @@ const MENU = [
   [{ kind: "trades" }, "🔁 Trades"],
   [{ kind: "arcade" }, "🎮 Arcade"],
   [{ kind: "raid" }, "⚔️ Raid"],
+  [{ kind: "openOffices" }, "🚪 Open offices"],
+  [{ kind: "desk" }, "🖥 Desk"],
   [{ kind: "company" }, "🏢 Company"],
   [{ kind: "leaderboard" }, "🏆 Leaderboard"],
+  [{ kind: "graphics" }, "🖼 Graphics"],
 ] as const;
 
 function Panel() {
@@ -220,18 +307,28 @@ function Panel() {
     companyShop: () => <CompanyShop />,
     merch: (p) => <MerchShop companyId={p.companyId} />,
     look: () => <LookPicker />,
-    shop: () => <Shop />,
+    shop: (p) => <Shop tab={p.tab} />,
     merchant: () => <Merchant />,
     bag: () => <Bag />,
     petLooks: (p) => <PetLooks pet={p.pet} />,
     arcade: () => <ArcadePanel />,
-    newTable: (p) => <NewTable invite={p.invite} inviteName={p.inviteName} />,
+    newTable: (p) => <NewTable invite={p.invite} inviteName={p.inviteName} game={p.game} />,
     match: (p) => <MatchPanel id={p.id} />,
     trade: (p) => <TradePanel userId={p.userId} />,
     trades: () => <TradesPanel />,
+    quests: () => <Quests />,
+    tournament: () => <Tournament />,
+    hallOfFame: () => <HallOfFame />,
+    collection: () => <Collection />,
+    regulars: () => <Regulars />,
+    jukebox: () => <Jukebox />,
+    graphics: () => <GraphicsPanel />,
     paper: () => <PaperPanel />,
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
     raid: () => <RaidPanel />,
+    openOffices: () => <OpenOfficesPanel />,
+    decor: () => <DecorPanel />,
+    desk: () => <DeskPanel />,
     menu: () => (
       <Modal title="Menu">
         <nav className="menu">
@@ -265,6 +362,9 @@ function OfficeLock() {
       >
         {open ? "🔓 Open to visitors" : "🔒 Closed"}
       </button>
+      <button type="button" onClick={() => hud.set({ panel: { kind: "decor" } })}>
+        🎨 Decorate
+      </button>
       {error && <p className="error">{error}</p>}
     </>
   );
@@ -293,14 +393,22 @@ const FIRST_VISIT_KEY = "tokenmaxxing.pickedCompany";
 function FirstVisit() {
   const me = useHud((s) => s.me);
   useEffect(() => {
-    if (!me || localStorage.getItem(FIRST_VISIT_KEY)) return;
-    localStorage.setItem(FIRST_VISIT_KEY, "1");
+    if (!me || storage.getItem(FIRST_VISIT_KEY)) return;
+    storage.setItem(FIRST_VISIT_KEY, "1");
     if (!me.company && !me.application) hud.set({ panel: { kind: "company" } });
   }, [me]);
   return null;
 }
 
-const NOTICE_ICONS = { company: "🏢", trades: "🔁", bag: "🎒" } as const;
+const NOTICE_ICONS = {
+  company: "🏢",
+  trades: "🔁",
+  bag: "🎒",
+  quests: "🧾",
+  hallOfFame: "🏆",
+  tournament: "🏆",
+  collection: "📖",
+} as const;
 
 /** A line for me from the server (a company application, a trade); a click opens what it's about. */
 function NoticeToast() {
@@ -380,7 +488,7 @@ function QuestToast() {
   }, [quests]);
   if (!useFresh(fresh?.at, MENTION_MS) || !fresh) return null;
   return (
-    <ToastButton open={{ kind: "shop" }} dismiss={() => setFresh(null)}>
+    <ToastButton open={{ kind: "quests" }} dismiss={() => setFresh(null)}>
       {fresh.quests.map((q) => `✓ ${q.text} · 🪙 ${q.coins}`).join("  ")}
     </ToastButton>
   );

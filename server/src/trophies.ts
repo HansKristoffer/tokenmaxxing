@@ -28,15 +28,24 @@ export async function trophiesOf(sql: Sql, cache: TrophyCache, now: number): Pro
       `SELECT timestamp / ${HOUR_MS} AS h,
               SUM(CASE WHEN message_type = 'assistant'
                   THEN input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens ELSE 0 END) AS tokens,
-              SUM(message_type = 'user') AS prompts
+              SUM(message_type = 'user') AS prompts,
+              GROUP_CONCAT(DISTINCT CASE WHEN message_type = 'assistant'
+                  AND input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens > 0
+                  THEN source END) AS sources
        FROM events WHERE id > ? AND id <= ? GROUP BY h`,
       cache.lastId,
       maxId,
-    )) as { h: number; tokens: number; prompts: number }[];
+    )) as { h: number; tokens: number; prompts: number; sources: string | null }[];
     for (const r of hours) {
       const at = r.h * HOUR_MS;
       const was = cache.hours.get(at) ?? { hour: at, tokens: 0, prompts: 0 };
-      cache.hours.set(at, { hour: at, tokens: was.tokens + r.tokens, prompts: was.prompts + r.prompts });
+      const sources = new Set([...(was.sources ?? []), ...(r.sources?.split(",") ?? [])]);
+      cache.hours.set(at, {
+        hour: at,
+        tokens: was.tokens + r.tokens,
+        prompts: was.prompts + r.prompts,
+        sources: [...sources],
+      });
     }
     const prs = (await sql.execute(
       "SELECT timestamp AS at, message_id AS hash FROM events WHERE id > ? AND id <= ? AND message_type = 'pr'",

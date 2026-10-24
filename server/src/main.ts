@@ -28,6 +28,8 @@ if (!storage && !config.development) throw new Error("set RIVETKIT_STORAGE_PATH 
 const web = await Bun.build({
   entrypoints: [join(import.meta.dir, "../../web/index.html"), join(import.meta.dir, "../../web/admin.html")],
   target: "browser",
+  // The 3D renderer (Three.js) is a dynamic import: its own chunk, fetched only on the 3D tiers.
+  splitting: true,
   minify: !config.development,
   sourcemap: config.development ? "inline" : "none",
 });

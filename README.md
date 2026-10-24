@@ -10,6 +10,7 @@ AI earns **coins**, and so does finishing a day in the top 3; spend them on clot
 pets that follow you around (hold a pet and pick any of its colours and breeds with the eye in your bag; they curl up asleep in the pet bed of your office while you're in it). Or play for them: challenge someone to a game in the town square, from
 rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
 the most real tokens in an hour.
+The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.
@@ -71,7 +72,8 @@ Grok Bot models on that dashboard are stored as Grok Bot, not Cursor. An older c
 history once so rows that used to be skipped are included.
 
 Every source that's installed is read. **Everything is public in the world:** anyone can see your
-totals, cost, parallelism, models and daily activity, and the leaderboard ranks everyone.
+totals, cost, parallelism, models and daily activity, and the leaderboard ranks everyone. So are your bio and the badges you pin
+to your card (a bio is one line and can be reported), when you work, and your time in the Tavern.
 
 **Company websites.** When a company's owner sets its website, the server asks
 [Firecrawl](https://firecrawl.dev) to read that site's colours and logo, sends those to Claude to pick the
@@ -95,6 +97,7 @@ data is sent anywhere for this.
   (15B) and a mansion with a tower (40B). A big team of light users stays in the basement.
 - **Coins:** from the day you sign up, every day pays `√(tokens ÷ 1M)`: 100M tokens is 10 coins, 1B is 31. A heavy day earns more,
   but not wildly more. Finishing a day 1st, 2nd or 3rd adds 25, 15 or 10.
+- **Quests:** three a day, worth 1, 2 and 3 coins, picked for you and scaled to your own last 30 days (at most 6 a day), plus a weekly one for 15. Some are errands in town. Badges have bronze, silver and gold tiers, and some a diamond; the town hears of the golds and diamonds.
 - **The raid:** from the first Monday after launch, every Monday at 08:00 a ladder of bosses opens in the Raid Dungeon, down the gate in the square,
   easiest first, each week's 10% tougher than the last. Every token you sync hits the one up now, no cap, and
   every PR you open is a 25M special attack. When one falls the next, 1.5× tougher, appears at once; each kill pays everyone who'd hit for
@@ -175,6 +178,21 @@ keep it off your real config with `TOKENMAXXING_CLI_DIR`:
 TOKENMAXXING_CLI_DIR=.data/cli bun app/helper/src/cli.ts link <code> --server http://localhost:8787 --no-service
 bash app/helper/scripts/cli.sh dist/cli    # the release binaries, for every platform
 ```
+
+### 3D and graphics
+
+The world runs on a voxel 3D renderer (Three.js, loaded only when needed) on the Medium, High and Ultra graphics tiers, and
+on the classic 2D canvas on Low. **Auto** picks from the machine (High at most; Ultra is opt-in) and a frame-rate governor steps
+down if it can't keep up; the **Graphics** panel (Esc menu) changes it. The 3D asset demo runs on its own:
+
+```bash
+bun run demo:3d                        # http://localhost:4477: every room, shop and avatar, no server needed
+bun run qa:tour                        # headless tour of the real game's rooms (needs a local server and Playwright; see scripts/qa/lib.mjs)
+bun scripts/perf-harness.mjs --out perf-results/run.json   # frame budgets and counts (against the demo)
+```
+
+Architecture, the `Renderer` interface, the perf budgets and how to profile are in [ARCHITECTURE.md](ARCHITECTURE.md#3d-and-graphics-where-to-look).
+`web/concept.html` is a separate concept-art page (a vertical town; see [CONCEPT.md](CONCEPT.md)), not part of the game.
 
 ### Server config
 

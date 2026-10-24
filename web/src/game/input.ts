@@ -1,4 +1,6 @@
+import { displayTab, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { stepPace } from "@tokenmaxxing/core/street.ts";
+import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
   DIRS,
   type Facing,
@@ -7,18 +9,21 @@ import {
   route,
   type StepResult,
   stepTarget,
-  TILE,
   WALK_STEP_MS,
 } from "@tokenmaxxing/core/world.ts";
 import { conn } from "../net.ts";
+import { tossLanded } from "../render3d/world-logic.ts";
 import { chatBeside, hud } from "../store.ts";
-import { camera, zoom } from "./camera.ts";
+import { basementInteract } from "./basement.ts";
+import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { merchantAt, openCart } from "./merchant.ts";
+import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
+import { pickTile } from "./stage.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { openTrophies } from "./trophies.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
@@ -42,11 +47,16 @@ let tapped: Facing | null = null;
 /** Click-to-walk: the remaining steps, and whether to interact, or take what's there, on arrival. */
 let path: Facing[] = [];
 let interactOnArrival = false;
+/** The room the last frame was in, and the keys held through a change of room (see `updateSelf`). */
+let lastRoom = "";
+const carried = new Set<Facing>();
 let takeOnArrival = false;
+/** Runs once the clicked path is walked (the 3D renderer's furniture placement drops a piece there). */
+let onArrival: (() => void) | null = null;
 
 const typing = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
-export function bindInput(canvas: HTMLCanvasElement): void {
+export function bindInput(canvas: HTMLElement): void {
   window.addEventListener("keydown", (e) => {
     // Escape is ours (menus, chat): unhandled, macOS takes it to leave full screen.
     if (e.key === "Escape") e.preventDefault();
@@ -66,11 +76,15 @@ export function bindInput(canvas: HTMLCanvasElement): void {
     const dir = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];
     if (dir) {
       e.preventDefault();
+      // A key still held from the last room: its repeats don't walk back out of the door we arrived at.
+      if (carried.has(dir) && e.repeat) return;
+      carried.delete(dir);
       if (!held.includes(dir)) held.push(dir);
       tapped = dir;
       path = [];
       interactOnArrival = false;
       takeOnArrival = false;
+      onArrival = null;
       return;
     }
     switch (e.key.toLowerCase()) {
@@ -96,6 +110,14 @@ export function bindInput(canvas: HTMLCanvasElement): void {
       case "l":
         hud.set({ panel: { kind: "leaderboard" } });
         return;
+      case "q":
+      case "[":
+        viewHooks.rotate?.(-1);
+        return;
+      case "r":
+      case "]":
+        viewHooks.rotate?.(1);
+        return;
       case "+":
       case "=":
         zoom(1);
@@ -111,7 +133,10 @@ export function bindInput(canvas: HTMLCanvasElement): void {
   });
   window.addEventListener("keyup", (e) => {
     const dir = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];
-    if (dir) held.splice(held.indexOf(dir), 1);
+    if (dir) {
+      if (held.includes(dir)) held.splice(held.indexOf(dir), 1);
+      carried.delete(dir);
+    }
     if (e.key.toLowerCase() === "x" || e.key === "Shift") running = false;
   });
   window.addEventListener("blur", () => {
@@ -132,6 +157,17 @@ export function bindInput(canvas: HTMLCanvasElement): void {
     },
     { passive: false },
   );
+  // Pointing at (or, on touch, tapping) something far away brings its label back: see near.ts.
+  let pointedAt = 0;
+  const point = (e: PointerEvent) => {
+    const now = performance.now();
+    if (e.type === "pointermove" && now - pointedAt < 50) return;
+    pointedAt = now;
+    setHover(pickTile(e.clientX, e.clientY), now);
+  };
+  canvas.addEventListener("pointermove", point, { passive: true });
+  canvas.addEventListener("pointerdown", point, { passive: true });
+  canvas.addEventListener("pointerleave", () => setHover(null, performance.now()));
   canvas.addEventListener("click", (e) => {
     if (hud.get().panel) return;
     // Someone inside a house: their name chip (screen pixels) or their face in a window (world pixels).
@@ -147,8 +183,9 @@ export function bindInput(canvas: HTMLCanvasElement): void {
     if (peeked) return void hud.set({ panel: { kind: "card", userId: peeked.id } });
     const signed = signHits.find((h) => inside(h, sx, sy));
     if (signed) return void hud.set({ panel: { kind: "companyCard", companyId: signed.id } });
-    const x = Math.floor(gx / TILE);
-    const y = Math.floor(gy / TILE);
+    const tile = pickTile(e.clientX, e.clientY);
+    if (!tile) return;
+    const { x, y } = tile;
     const other = avatarAt(x, y);
     if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
     // A company's house (not its door, which you walk through) opens its page.
@@ -162,10 +199,10 @@ export function bindInput(canvas: HTMLCanvasElement): void {
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     if (hud.get().panel) return;
-    const x = Math.floor(((e.clientX * camera.dpr) / camera.scale + camera.x) / TILE);
-    const y = Math.floor(((e.clientY * camera.dpr) / camera.scale + camera.y) / TILE);
+    const tile = pickTile(e.clientX, e.clientY);
     const me = self();
-    if (!me || !dropAt(x, y)) return;
+    if (!tile || !me || !dropAt(tile.x, tile.y)) return;
+    const { x, y } = tile;
     if (x === me.x && y === me.y) return void take();
     walkTo(x, y);
     // A seat is sat on first; anything else is only taken.
@@ -181,6 +218,25 @@ export function walkTo(x: number, y: number): void {
   if (!me || (x === me.x && y === me.y)) return;
   path = route(world.map, [me.x, me.y], [x, y]) ?? [];
   interactOnArrival = path.length > 0 && !world.map.walkable(x, y) && !world.map.kind(x, y).portal;
+}
+
+/**
+ * Walks to (`x`, `y`) and ends facing `dir`, then runs `then`: the route to the tile behind it, and one more step
+ * the way it looks. False when there is no way (nothing changes).
+ */
+export function walkThen(x: number, y: number, dir: Facing, then: () => void): boolean {
+  const me = self();
+  if (!me) return false;
+  const [dx, dy] = DIRS[dir];
+  const behind: [number, number] = [x - dx, y - dy];
+  const there = world.map.walkable(...behind) ? route(world.map, [me.x, me.y], behind) : null;
+  const steps = there ? [...there, dir] : route(world.map, [me.x, me.y], [x, y]);
+  if (!steps) return false;
+  path = steps;
+  interactOnArrival = false;
+  takeOnArrival = false;
+  onArrival = then;
+  return true;
 }
 
 /** The server's answer to a move: a notice, a correction, or another room (its snapshot follows). */
@@ -212,13 +268,23 @@ export function send(result: Promise<StepResult>): void {
 export function updateSelf(now: number): void {
   const me = self();
   if (!me || world.portalPending || stepping(me, now)) return;
+  // Through a door with a key held, you arrive right in front of the way back (the Tavern's stairs and the
+  // basement's, one tile from each other): let go of it, or the held key bounces you between the two.
+  if (world.room !== lastRoom) {
+    if (lastRoom) for (const d of held) carried.add(d);
+    held.length = 0;
+    tapped = null;
+    lastRoom = world.room;
+  }
   // At a game table: stay put until the game is over.
   if (me.state === "playing") {
     tapped = null;
     path = [];
     return;
   }
-  const dir = held.at(-1) ?? tapped ?? path.shift();
+  // Keys are kept as pressed; the 3D view may be turned since, so they mean a direction only now.
+  const pressed = held.at(-1) ?? tapped;
+  const dir = pressed ? (viewHooks.key?.(pressed) ?? pressed) : path.shift();
   tapped = null;
   if (!dir) {
     if (interactOnArrival) {
@@ -228,6 +294,11 @@ export function updateSelf(now: number): void {
     if (takeOnArrival) {
       takeOnArrival = false;
       take();
+    }
+    if (onArrival) {
+      const run = onArrival;
+      onArrival = null;
+      run();
     }
     return;
   }
@@ -278,6 +349,21 @@ function jump(): void {
   void conn.jump().catch(() => {});
 }
 
+/** What the shop pages open on at each shop's counter. */
+const COUNTER_TAB = { furniture: "furniture", clothes: "outfit", barber: "look", pets: "pet" } as const;
+
+/** E in a shop room on its counter or a display: the Shop page on the matching tab (the barber opens the look picker). */
+function shopInteract(x: number, y: number): boolean {
+  const shop = shopOfRoom(world.room);
+  const kind = world.map.kind(x, y);
+  if (!shop || !(kind.counter || kind.shop)) return false;
+  // The 3D renderer has its own buy panel for a shelf (the counter and the barber's mirror stay the page's).
+  if (kind.shop && viewHooks.shop?.(shop, x, y)) return true;
+  const tab = kind.counter ? COUNTER_TAB[shop] : displayTab(shop, x, y);
+  hud.set({ panel: tab === "look" || tab === null ? { kind: "look" } : { kind: "shop", tab } });
+  return true;
+}
+
 /** E: talk to whoever or whatever is in front of you. */
 function interact(): void {
   const me = self();
@@ -294,14 +380,35 @@ function interact(): void {
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (kind.pours) return void send(conn.drink(me.facing));
+  if (kind.tosses)
+    return void send(
+      conn.toss(me.facing).then((r) => {
+        if (r && "notice" in r && tossLanded(r.notice)) viewHooks.toss?.(x, y);
+        return r;
+      }),
+    );
+  if (kind.serves) return void send(conn.tavern(me.facing));
+  // The Tavern's boards: the bar and the quest board give out quests, the wall is the Hall of Fame.
+  if (world.room === "inn") {
+    if (ch === "a" || ch === "m") return void hud.set({ panel: { kind: "quests" } });
+    if (ch === "A") return void hud.set({ panel: { kind: "hallOfFame" } });
+    if (ch === "P" || ch === "J") return void hud.set({ panel: { kind: "regulars" } });
+    if (ch === "z") return void hud.set({ panel: { kind: "jukebox" } });
+  }
+  if (shopInteract(x, y)) return;
+  if (basementInteract(x, y)) return;
   if (ch === "K") return void hud.set({ dialog: chalkboardText() });
+  if (ch === "w") return void hud.set({ panel: { kind: "openOffices" } });
   if (ch === "U") return void openTrophies();
   if (ch === "H") {
     const b = buildingAt(x, y);
     const company = b?.plot ? companyOnPlot(b.plot) : null;
     // A company's house opens its page.
     if (company) return void hud.set({ panel: { kind: "companyCard", companyId: company.id } });
-    return void hud.set({ dialog: b?.plot === null ? "The Inn. Beds for anyone without a company." : null });
+    return void hud.set({
+      dialog:
+        b?.plot === null ? `The ${TAVERN ? "Tavern" : "Inn"}. Beds for anyone without a company.` : null,
+    });
   }
   if (kind.text) hud.set({ dialog: kind.text });
 }

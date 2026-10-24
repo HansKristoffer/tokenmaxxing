@@ -18,11 +18,11 @@ const mins = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice
 describe("sun", () => {
   test("midsummer and midwinter sunrise and sunset in local time", () => {
     const summer = sunTimes(Date.UTC(2026, 5, 21, 10));
-    expect(Math.abs(mins(clockTime(summer.sunrise)) - mins("04:26"))).toBeLessThanOrEqual(3);
-    expect(Math.abs(mins(clockTime(summer.sunset)) - mins("22:00"))).toBeLessThanOrEqual(3);
+    expect(Math.abs(mins(clockTime(summer.sunrise)) - mins("04:31"))).toBeLessThanOrEqual(3);
+    expect(Math.abs(mins(clockTime(summer.sunset)) - mins("22:10"))).toBeLessThanOrEqual(3);
     const winter = sunTimes(Date.UTC(2026, 11, 21, 10));
-    expect(Math.abs(mins(clockTime(winter.sunrise)) - mins("08:37"))).toBeLessThanOrEqual(3);
-    expect(Math.abs(mins(clockTime(winter.sunset)) - mins("15:37"))).toBeLessThanOrEqual(3);
+    expect(Math.abs(mins(clockTime(winter.sunrise)) - mins("08:49"))).toBeLessThanOrEqual(3);
+    expect(Math.abs(mins(clockTime(winter.sunset)) - mins("15:44"))).toBeLessThanOrEqual(3);
   });
 
   test("the clock follows daylight saving", () => {

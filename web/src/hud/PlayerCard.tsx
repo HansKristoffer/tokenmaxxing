@@ -1,4 +1,6 @@
-import { BADGES } from "@tokenmaxxing/core/badges.ts";
+import { workHours } from "@tokenmaxxing/core/agentType.ts";
+import { progressOf } from "@tokenmaxxing/core/badges.ts";
+import { BARKEEP } from "@tokenmaxxing/core/barkeep.ts";
 import { BOTS } from "@tokenmaxxing/core/bots.ts";
 import { COP_ID } from "@tokenmaxxing/core/cop.ts";
 import {
@@ -16,8 +18,9 @@ import {
   milestoneTitle,
   nextMilestone,
 } from "@tokenmaxxing/core/milestones.ts";
-import type { RangeKey } from "@tokenmaxxing/core/range.ts";
+import { dayKey, type RangeKey } from "@tokenmaxxing/core/range.ts";
 import { ITEMS } from "@tokenmaxxing/core/shop.ts";
+import { BIO_MAX_LENGTH } from "@tokenmaxxing/core/world.ts";
 import type { Profile } from "@tokenmaxxing/server/registry";
 import { sortBy } from "hanzio";
 import { useState } from "react";
@@ -27,9 +30,11 @@ import { world } from "../game/world.ts";
 import { conn, town } from "../net.ts";
 import { hud } from "../store.ts";
 import { Computers } from "./Computers.tsx";
-import { ranges } from "./format.ts";
+import { dayText, ranges } from "./format.ts";
+import { daysAgoText, sourceName } from "./heat.ts";
+import { Shelf, ShelfPicker } from "./Showcase.tsx";
 import { Tickets } from "./Tickets.tsx";
-import { AvatarImage, Modal, Pills, useLoad } from "./ui.tsx";
+import { AvatarImage, Modal, Pills, useLoad, useRun } from "./ui.tsx";
 
 export const RANGES = ranges("All");
 
@@ -43,6 +48,8 @@ function doing(userId: number): string | null {
 }
 
 /** A town character: no stats, just who they are. */
+const ROLES: Record<number, string> = { [BARKEEP.id]: "🍺 Barkeep of the Tavern" };
+
 export function BotCard({ id }: { id: number }) {
   const bot = BOTS.find((b) => b.id === id);
   if (!bot) return <Modal title="Player">Gone for a walk.</Modal>;
@@ -56,7 +63,7 @@ export function BotCard({ id }: { id: number }) {
         />
         <div>
           <p>
-            <strong>Level {bot.level}</strong> · 🤖 Town character
+            <strong>Level {bot.level}</strong> · {ROLES[bot.id] ?? "🤖 Town character"}
           </p>
           <p className="muted">{bot.bio}</p>
         </div>
@@ -68,6 +75,9 @@ export function BotCard({ id }: { id: number }) {
 export function PlayerCard({ userId }: { userId: number }) {
   const [range, setRange] = useState<RangeKey>("7d");
   const { data: p, error } = useLoad(() => town.profile(userId, range), [userId, range]);
+  // What I changed on my own card, until the next load.
+  const [shelf, setShelf] = useState<Profile["showcase"]>();
+  const [picking, setPicking] = useState(false);
 
   if (error) return <Modal title="Player">{error}</Modal>;
   if (!p) return <Modal title="Player">Loading…</Modal>;
@@ -107,6 +117,14 @@ export function PlayerCard({ userId }: { userId: number }) {
             {today > 0 && <span className="xp-today small"> · +{compact(today)} today</span>}
           </p>
           <XpBar level={p.level} tokens={p.lifetimeTokens} today={today} />
+          <Bio userId={userId} bio={p.bio ?? null} mine={mine} />
+          {(p.since || (!status && p.lastActive)) && (
+            <p className="muted small">
+              {p.since && <>Regular since {dayText(p.since, { month: "short", year: "numeric" })}</>}
+              {p.since && !status && p.lastActive && " · "}
+              {!status && p.lastActive && <>last active {daysAgoText(p.lastActive, dayKey(Date.now()))}</>}
+            </p>
+          )}
           <p className="muted small">
             {p.level >= MAX_LEVEL ? (
               "Max level"
@@ -129,15 +147,36 @@ export function PlayerCard({ userId }: { userId: number }) {
           )}
           {p.badges.length > 0 && (
             <ul className="badges">
-              {p.badges.map((b) => {
-                const next = BADGES.find((d) => d.id === b.id)?.tiers[b.tier];
-                return (
-                  <li key={b.id} className="badge" title={next && `${next.label} next`}>
-                    {b.emoji} {b.label}
-                  </li>
-                );
-              })}
+              {p.badges.map((b) => (
+                <li
+                  key={b.id}
+                  className={`badge badge--${b.frame}`}
+                  title={
+                    b.next
+                      ? `${b.next.label} next (${compact(b.value)} of ${compact(b.next.at)})`
+                      : "Top tier"
+                  }
+                >
+                  {b.emoji} {b.label}
+                  {b.next && (
+                    <span className="badge-bar" aria-hidden="true">
+                      <i style={{ width: `${progressOf(b) * 100}%` }} />
+                    </span>
+                  )}
+                </li>
+              ))}
             </ul>
+          )}
+          {mine && p.badges.length > 0 && (
+            <p>
+              <button
+                type="button"
+                className="link"
+                onClick={() => hud.set({ panel: { kind: "collection" } })}
+              >
+                📖 Collection
+              </button>
+            </p>
           )}
           <Tickets tickets={p.tickets} />
           {p.company ? (
@@ -175,14 +214,30 @@ export function PlayerCard({ userId }: { userId: number }) {
           {p.office === "closed" && !mine && <p className="muted">🔒 Office closed</p>}
         </div>
       </div>
+      {picking ? (
+        <ShelfPicker
+          current={shelf ?? p.showcase ?? []}
+          onSaved={(pins) => {
+            setShelf(pins);
+            setPicking(false);
+          }}
+          onCancel={() => setPicking(false)}
+        />
+      ) : (
+        <Shelf pins={shelf ?? p.showcase ?? []} mine={mine} onEdit={() => setPicking(true)} />
+      )}
+      <HowYouWork p={p} />
       <Pills value={range} options={RANGES} onChange={setRange} />
       <StatsGrid totals={t} />
       {p.models.length > 0 && (
         <p className="muted small">
-          Top model: <strong>{p.models[0]!.model}</strong>
+          Top models:{" "}
+          {p.models
+            .slice(0, 3)
+            .map((m) => m.model)
+            .join(", ")}
         </p>
       )}
-      <DailyChart daily={p.daily} />
       {p.games && (
         <p className="muted small">
           🎮 {plural(p.games.played, "game")} · {Math.round((p.games.wins / p.games.played) * 100)}% won ·{" "}
@@ -192,6 +247,118 @@ export function PlayerCard({ userId }: { userId: number }) {
       )}
       {userId === world.selfId && <Computers />}
     </Modal>
+  );
+}
+
+/** The line under the name: their words, with Edit on my own card and Report on someone else's. */
+function Bio({ userId, bio, mine }: { userId: number; bio: string | null; mine: boolean }) {
+  const [text, setText] = useState(bio);
+  const [draft, setDraft] = useState<string | null>(null);
+  const [said, setSaid] = useState<string | null>(null);
+  const { error, busy, run } = useRun();
+  const save = run(async () => {
+    setText(await town.setBio(draft ?? ""));
+    setDraft(null);
+  });
+  const report = run(async () => {
+    await town.reportBio(userId);
+    setSaid("Thanks, an admin will take a look.");
+  });
+  if (draft !== null)
+    return (
+      <form className="bio-edit" onSubmit={save}>
+        <textarea
+          rows={2}
+          value={draft}
+          maxLength={BIO_MAX_LENGTH}
+          placeholder="One line about you. No links."
+          aria-label="Your bio"
+          // biome-ignore lint/a11y/noAutofocus: opened by pressing Edit
+          autoFocus
+          onChange={(e) => setDraft(e.target.value.replace(/\s*\n\s*/g, " "))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
+        />
+        <span className="muted small count">
+          {[...draft].length}/{BIO_MAX_LENGTH}
+        </span>
+        <button type="submit" disabled={busy}>
+          Save
+        </button>
+        <button type="button" onClick={() => setDraft(null)}>
+          Cancel
+        </button>
+        {error && <span className="error small">{error}</span>}
+      </form>
+    );
+  return (
+    <p className="bio">
+      {text && <span className="muted">{text}</span>}{" "}
+      {mine && (
+        <button type="button" className="link small" onClick={() => setDraft(text ?? "")}>
+          {text ? "✏️ Edit" : "✏️ Add a bio"}
+        </button>
+      )}
+      {!mine && text && !said && (
+        <button type="button" className="link small" onClick={report} disabled={busy}>
+          Report
+        </button>
+      )}
+      {(said || error) && <span className={`small ${error ? "error" : "muted"}`}> {said ?? error}</span>}
+    </p>
+  );
+}
+
+/** The last 30 days of how they work: when, with how many agents, through what, and the type that makes. */
+function HowYouWork({ p }: { p: Profile }) {
+  const h = p.habits;
+  if (!h) return null;
+  const when = workHours(h.hours);
+  const peak = Math.max(1, ...h.hours);
+  return (
+    <section className="how" aria-label="How they work">
+      <h3>How they work</h3>
+      {p.agentType && (
+        <p>
+          <strong>{p.agentType.label}</strong> <span className="muted small">{p.agentType.blurb}</span>
+        </p>
+      )}
+      {when && (
+        <p className="hours">
+          <svg viewBox="0 0 48 12" role="img" aria-label={`Active hours of the day: ${when.label}`}>
+            {h.hours.map((n, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: the hour is the identity
+              <rect key={i} x={i * 2} y={12 - (n / peak) * 11} width={1.5} height={(n / peak) * 11 + 0.5}>
+                <title>{String(i).padStart(2, "0")}:00</title>
+              </rect>
+            ))}
+          </svg>
+          <span className="chip">{when.label}</span>
+        </p>
+      )}
+      <p className="muted small">
+        {h.parallelism !== null && (
+          <>
+            {h.parallelism.toFixed(1)}× agents at once · peak {h.peakAgents}
+          </>
+        )}
+        {h.subShare > 0 && <> · {Math.round(h.subShare * 100)}% subagents</>}
+        {h.turnsPerPrompt !== null && <> · {Math.round(h.turnsPerPrompt)} turns a prompt</>}
+        {h.sessions > 0 && <> · {plural(h.sessions, "session")}</>}
+      </p>
+      <p className="small">
+        {h.cacheHit !== null && <span className="muted">{Math.round(h.cacheHit * 100)}% cache hits </span>}
+        {h.sources.map((src) => (
+          <span key={src.source} className="chip" title={`${Math.round(src.share * 100)}% of tokens`}>
+            {sourceName(src.source)} {Math.round(src.share * 100)}%
+          </span>
+        ))}
+      </p>
+    </section>
   );
 }
 
@@ -220,10 +387,6 @@ export function StatsGrid({ totals: t }: { totals: Profile["totals"] }) {
         <dd>{compact(t.tokens)}</dd>
       </div>
       <div>
-        <dt>Cost</dt>
-        <dd>{usd(t.costUsd)}</dd>
-      </div>
-      <div>
         <dt>Agent hours</dt>
         <dd>{hoursText(t.activeHours)}</dd>
       </div>
@@ -242,6 +405,10 @@ export function StatsGrid({ totals: t }: { totals: Profile["totals"] }) {
       <div>
         <dt>PRs</dt>
         <dd>{t.prs}</dd>
+      </div>
+      <div className="muted-stat">
+        <dt>Cost</dt>
+        <dd>{usd(t.costUsd)}</dd>
       </div>
     </dl>
   );

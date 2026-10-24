@@ -289,6 +289,23 @@ function Users({ users, conn, act }: { users: AdminUser[]; conn: AdminConn; act:
           <span className="muted">—</span>
         ),
     },
+    {
+      label: "Bio",
+      sort: (u) => u.bioReports,
+      cell: (u) =>
+        u.bio ? (
+          <>
+            {u.bio}
+            {u.bioReports > 0 && (
+              <span className="tag bad" title="People who reported this bio">
+                ⚑ {u.bioReports}
+              </span>
+            )}
+          </>
+        ) : (
+          ""
+        ),
+    },
     { label: "Lvl", num: true, sort: (u) => u.level, cell: (u) => u.level },
     { label: "Today", num: true, sort: (u) => u.tokensToday, cell: (u) => compact(u.tokensToday) },
     { label: "30 days", num: true, sort: (u) => u.tokens30d, cell: (u) => compact(u.tokens30d) },
@@ -341,6 +358,17 @@ function Users({ users, conn, act }: { users: AdminUser[]; conn: AdminConn; act:
           >
             Rename
           </button>
+          {u.bio && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Clear ${u.name}'s bio?`))
+                  void act(() => conn.adminClearBio(u.id), `Cleared ${u.name}'s bio.`);
+              }}
+            >
+              Clear bio
+            </button>
+          )}
           {u.company && (
             <button
               type="button"

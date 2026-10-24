@@ -46,8 +46,16 @@ const fx = {
 const rarityOf = (item: string): Rarity => lootById(item)?.rarity ?? "common";
 const RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
 
+const listeners = new Set<(news: readonly LootNews[]) => void>();
+/** Calls `fn` with every batch of drops (the 3D dungeon's); returns the way to stop. */
+export function onLoot(fn: (news: readonly LootNews[]) => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
 /** A batch of drops from the world: queued to fly, the rarest first. */
 export function noteLoot(news: readonly LootNews[]): void {
+  for (const fn of listeners) fn(news);
   const now = performance.now();
   const sorted = sortBy(news, { by: (n) => RANK[rarityOf(n.item)], order: "desc" });
   const room = MAX_FLYING - fx.flying.length;

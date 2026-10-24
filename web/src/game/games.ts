@@ -31,7 +31,7 @@ export function drawGames(f: Frame): void {
   drawSigns(f);
 }
 
-function banner(game: WorldGame, serverNow: number): string {
+export function banner(game: WorldGame, serverNow: number): string {
   const def = GAMES[game.game]!;
   const info = hud.get().lobby?.matches.find((m) => m.id === game.id);
   return [

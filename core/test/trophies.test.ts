@@ -90,3 +90,38 @@ test("palindrome dates", () => {
   ]);
   expect(["2026-10-21", "2026-06-19"].map(palindromeDate)).toEqual([false, false]);
 });
+
+test("switch-hitter: three tools in one day, across its hours", () => {
+  const h = (iso: string, sources: string[]) => ({ ...hour(iso, 100), sources });
+  expect(ids({ hours: [h("2026-07-07T09:00:00", ["a", "b"]), h("2026-07-07T10:00:00", ["b"])] })).toEqual([]);
+  const f = { hours: [h("2026-07-07T09:00:00", ["a", "b"]), h("2026-07-07T10:00:00", ["c"])] };
+  expect(trophiesFor({ ...none, ...f }).find((t) => t.id === "switch")).toEqual({
+    id: "switch",
+    day: "2026-07-07",
+  });
+  // Three tools over three days is not it.
+  expect(
+    ids({
+      hours: [
+        h("2026-07-07T09:00:00", ["a"]),
+        h("2026-07-08T09:00:00", ["b"]),
+        h("2026-07-09T09:00:00", ["c"]),
+      ],
+    }),
+  ).not.toContain("switch");
+});
+
+test("perfect week: tokens every day from a Monday to the Sunday, dated that Sunday", () => {
+  // 6 July 2026 is a Monday.
+  const days = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) =>
+      hour(`2026-07-${String(from + i).padStart(2, "0")}T12:00:00`, 10),
+    );
+  expect(ids({ hours: days(6, 11) })).not.toContain("perfectweek");
+  expect(trophiesFor({ ...none, hours: days(6, 12) }).find((t) => t.id === "perfectweek")).toEqual({
+    id: "perfectweek",
+    day: "2026-07-12",
+  });
+  // Seven in a row, but Tuesday to Monday.
+  expect(ids({ hours: days(7, 13) })).not.toContain("perfectweek");
+});

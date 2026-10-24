@@ -1,10 +1,29 @@
+import { HOME_PIECES, isHomePiece } from "@tokenmaxxing/core/home.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
+import { isPoster, posterOf } from "@tokenmaxxing/core/posters.ts";
+import { SHOP_DISPLAY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
+import { bigScreen, SCREEN_H, SCREEN_TILES, tournamentBoard, wallTerminal } from "./basement.ts";
+import { counter, windowPane, winsTile } from "./common.ts";
 import { type FancyPiece, fancyPiece, fancySprite } from "./furniture-fancy.ts";
+import { POSTER_H, posterSprite } from "./furniture-posters.ts";
 import { trophyAt } from "./loot.ts";
 import { C } from "./palette.ts";
 import { bake, cached, once, type Pen } from "./pixels.ts";
+import { coatStand, fixture, shopCounter, shopDisplay, storefront } from "./shops.ts";
+import {
+  bar,
+  barJar,
+  barrel,
+  hallWall,
+  hearth,
+  jukebox,
+  plaque,
+  questBoard,
+  stool,
+  table,
+} from "./tavern.ts";
 
 /** A baked sprite and where it sits relative to its tile's top-left corner. */
 interface Placed {
@@ -15,8 +34,13 @@ interface Placed {
   fancy?: FancyPiece;
 }
 
-/** Company furniture by map character, with its art. */
-const FANCY = new Map(COMPANY_FURNITURE.map((f) => [f.ch, { w: f.w ?? 1, art: fancyPiece(f.art)! }]));
+/** Company furniture and personal offices' furniture (`HOME_PIECES`) by map character, with its art. */
+const FANCY = new Map(
+  [...COMPANY_FURNITURE.filter((f) => !f.wall), ...HOME_PIECES].map((f) => [
+    f.ch,
+    { w: f.w ?? 1, art: fancyPiece(f.art)! },
+  ]),
+);
 
 const tree = once(() =>
   bake(16, 26, (p) => {
@@ -437,6 +461,23 @@ const touchedGrass = once(() =>
   }),
 );
 
+/** The open-offices board: a small wooden sign with a little house and a lit window. */
+const officeBoard = once(() =>
+  bake(16, 20, (p) => {
+    p.rect(2, 18, 12, 2, C.shadow);
+    p.rect(1, 0, 14, 17, C.ink);
+    p.rect(2, 1, 12, 15, C.woodDark);
+    p.rect(3, 2, 10, 13, "#c89460");
+    // A house: roof, walls, a door and a lit window.
+    p.rect(5, 5, 6, 1, C.rug);
+    p.rect(4, 6, 8, 1, C.rug);
+    p.rect(5, 7, 6, 6, "#f1e6d2");
+    p.rect(7, 10, 2, 3, C.woodDark);
+    p.rect(9, 8, 2, 2, "#f8c43a");
+    p.rect(3, 2, 10, 1, "#dcab76");
+  }),
+);
+
 const at = (canvas: HTMLCanvasElement, dx = 0, dy = TILE - canvas.height): Placed => ({ canvas, dx, dy });
 
 /** Maps are fixed, so each map's objects are worked out once (the render loop asks every frame). */
@@ -460,6 +501,43 @@ export function objectAt(map: GameMap, x: number, y: number): Placed | null {
 function placeObject(map: GameMap, x: number, y: number): Placed | null {
   const ch = map.at(x, y);
   switch (ch) {
+    case "w":
+      return at(officeBoard(), 2);
+    // The common room: windows and the wall of wins in the wall's face, the kitchen counter on the floor.
+    case "Ψ":
+      return at(windowPane(), 0, 0);
+    case "Θ": {
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return at(winsTile(n), 0, 0);
+    }
+    case "π":
+      return at(counter(map.at(x - 1, y) !== "π"));
+    // The shops: a front is one picture from its top-left tile, the tiles inside draw one each.
+    case "Ħ": {
+      if (map.at(x - 1, y) === ch || map.at(x, y - 1) === ch) return null;
+      const shop = SHOP_IDS.find((id) => SHOP_DOOR_CHAR[id] === map.at(x + 2, y + 3));
+      return shop ? at(storefront(shop), 0, 0) : null;
+    }
+    case "¢": {
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return at(shopCounter(n % 3 === 1));
+    }
+    case "¤":
+    case "§":
+    case "¶":
+    case "¥": {
+      const shop = SHOP_IDS.find((id) => SHOP_DISPLAY_CHAR[id] === ch)!;
+      const wall = x === map.x0 || y <= 1;
+      return wall ? at(shopDisplay(shop, true, x, y), 0, 0) : at(shopDisplay(shop, false, x, y));
+    }
+    case "‡":
+      return at(fixture());
+    case "O":
+      return at(coatStand());
+    case "$":
+      return at(barJar());
     case "T":
       return at(tree());
     case "^":
@@ -503,7 +581,53 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(torch());
     case "G":
       return at(gate(), -4);
+    // The Tavern: runs of two (the hearth, the quest board) draw from their left tile.
+    case "a":
+    case "y":
+      return at(bar(ch === "y"));
+    case "v":
+      return at(stool(), 4);
+    case "h":
+      return at(barrel(), 3);
+    case "n":
+      return at(table(map.at(x - 1, y) !== "n", map.at(x + 1, y) !== "n"));
+    case "P":
+      return at(plaque());
+    case "z":
+      return at(jukebox(), 2);
+    case "A": {
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return at(hallWall(n % 2 === 0));
+    }
+    // The basement: the big screen is a run of six, the cabinet is the office arcade machine.
+    case "E": {
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return n % SCREEN_TILES === 0 ? at(bigScreen(), 0, TILE - SCREEN_H) : null;
+    }
+    case "M":
+      return at(wallTerminal(), 0, 0);
+    case "i":
+      return at(tournamentBoard(), 0, 0);
+    case "C": {
+      const art = FANCY.get("β")!.art;
+      return { canvas: fancySprite(art.id), dx: 0, dy: TILE - art.height, fancy: art };
+    }
+    case "f":
+    case "m": {
+      let n = 0;
+      while (map.at(x - n - 1, y) === ch) n++;
+      return n % 2 === 0 ? at(ch === "f" ? hearth() : questBoard()) : null;
+    }
     default: {
+      // A poster: a run of its own character is one picture, from the run's left tile, over the wall.
+      if (isPoster(ch)) {
+        const w = posterOf(ch)!.w ?? 1;
+        let n = 0;
+        while (map.at(x - n - 1, y) === ch) n++;
+        return n % w === 0 ? at(posterSprite(posterOf(ch)!.art), 0, TILE - POSTER_H) : null;
+      }
       const fancy = FANCY.get(ch);
       // The raid's trophies (art/loot.ts).
       if (!fancy) return trophyAt(ch);
@@ -519,9 +643,11 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
 
 /** Where on the tile the object's "feet" are, for depth sorting against people. */
 export const sortY = (ch: string): number => {
+  // Posters hang behind everyone, like a rug under them.
+  if (isPoster(ch)) return -TILE;
   const placement = FANCY.get(ch)?.art.placement;
-  // A rug lies under everyone, a chandelier hangs over them.
-  if (placement === "flat") return -TILE;
+  // A rug lies under everyone, a chandelier hangs over them; a personal office's wall pieces hang behind.
+  if (placement === "flat" || (placement === "wall" && isHomePiece(ch))) return -TILE;
   if (placement === "ceiling") return TILE * 4;
   return ch === "F" ? TILE * 2 - 2 : ch === "b" || ch === "s" || ch === "Q" ? 0 : TILE - 1;
 };

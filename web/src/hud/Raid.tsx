@@ -9,6 +9,7 @@ import { world } from "../game/world.ts";
 import { conn } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { dayText } from "./format.ts";
+import { ItemIcon } from "./ItemIcon.tsx";
 import { LootSection } from "./Loot.tsx";
 import { Modal, Pixels, RankList, ToastButton, useFresh, useTicker } from "./ui.tsx";
 
@@ -136,13 +137,15 @@ function Teaser({ raid }: { raid: Raid }) {
       <div className="raid raid-teaser">
         <div className="raid-shadow">
           {/* The first boss's shadow, big and crisp. */}
-          <Pixels
-            sprite={bossSilhouette(raid.boss.id)}
-            width={132}
-            height={132}
-            className="raid-silhouette"
-            label="A shadow, waiting"
-          />
+          <ItemIcon spec={{ kind: "boss", id: raid.boss.id }} size={132} className="raid-silhouette">
+            <Pixels
+              sprite={bossSilhouette(raid.boss.id)}
+              width={132}
+              height={132}
+              className="raid-silhouette"
+              label="A shadow, waiting"
+            />
+          </ItemIcon>
           <span className="raid-qqq">???</span>
         </div>
         <p className="raid-hint muted small">It has a limit. Soon, so will you.</p>

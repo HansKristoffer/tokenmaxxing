@@ -69,7 +69,7 @@ describe("world", () => {
       { item: "furn.d", x: 5, y: 3, by: owner.userId },
       { item: "furn.c", x: 5, y: 4, by: owner.userId },
     ]);
-    expect(inside.owner).toEqual({ id: owner.userId, name: owner.name, open: true });
+    expect(inside.owner).toEqual({ id: owner.userId, name: owner.name, open: true, tier: 1 }); // a veteran: level 25 to 39
     // Only its owner opens or closes it: anyone else's call is about their own, and they have none.
     await expect(guest.town.setOfficeOpen(false)).rejects.toMatchObject({ code: "not_found" });
     expect((await guest.town.profile(owner.userId, "7d")).office).toBe("open");
@@ -87,6 +87,47 @@ describe("world", () => {
     const again = await connect(guest.token);
     expect(again.snap).toMatchObject({ room, drops: [] });
     for (const c of [g, again]) await c.conn.dispose();
+  });
+
+  test("a wallpaper is bought once and shows to visitors; the open list counts them, not the owner", async () => {
+    const owner = await signUp("decor");
+    await owner.town.createCompany("Walls");
+    await veteran(owner);
+    await admin().adminSetCoins(owner.userId, 500);
+    const guest = await signUp("decor");
+    await expect(owner.town.setDecor("wall", "nyhavn")).rejects.toMatchObject({ code: "not_owned" });
+    await owner.town.buyDecor("wall", "nyhavn");
+    await owner.town.setDecor("wall", "nyhavn");
+    expect(await owner.town.decorOwned()).toContain("wall.nyhavn");
+    await expect(guest.town.setDecor("wall", null)).rejects.toMatchObject({ code: "not_found" });
+
+    const g = await connect(guest.token);
+    expect(await g.conn.visit(owner.userId)).toMatchObject({ room: `office:${owner.userId}` });
+    const inside = await eventually(() => {
+      const snap = g.events.snapshots.at(-1)!;
+      expect(snap.owner).toMatchObject({ id: owner.userId, tier: 1, wall: "nyhavn" });
+      return snap;
+    });
+    expect(inside.owner!.floor).toBeUndefined();
+
+    // Changing it while someone is inside sends them the room again.
+    await owner.town.setDecor("wall", null);
+    await eventually(() => expect(g.events.snapshots.at(-1)!.owner?.wall).toBeUndefined());
+
+    // The owner going in doesn't count, the guest does (the list is cached for 5 s).
+    const o = await connect(owner.token);
+    expect(await o.conn.visit(owner.userId)).toMatchObject({ room: `office:${owner.userId}` });
+    const row = await eventually(async () => {
+      const mine = (await guest.town.openOffices()).find((r) => r.id === owner.userId);
+      expect(mine).toMatchObject({ company: "Walls", tier: 1, visitors: 1 });
+      return mine!;
+    }, 8_000);
+    expect(row.inside).toBeGreaterThanOrEqual(1);
+    await owner.town.setOfficeOpen(false);
+    await eventually(async () => {
+      expect((await guest.town.openOffices()).some((r) => r.id === owner.userId)).toBe(false);
+    }, 8_000);
+    for (const c of [g, o]) await c.conn.dispose();
   });
 
   test("an office that closed while you slept isn't where you wake up", async () => {

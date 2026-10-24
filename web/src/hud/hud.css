@@ -26,13 +26,18 @@ body {
   font: 13px / 1.4 var(--font);
 }
 
-#world {
+#stage > canvas {
+  /* Fingers on the world are the game's (tap to walk, pinch to zoom), not the page's. */
+  touch-action: none;
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  image-rendering: pixelated;
   cursor: pointer;
+}
+
+#world {
+  image-rendering: pixelated;
 }
 
 #hud {
@@ -46,7 +51,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -63,7 +69,8 @@ button:hover {
   background: rgba(255, 255, 255, 0.16);
 }
 
-input {
+input,
+textarea {
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -71,7 +78,8 @@ input {
   outline: none;
 }
 
-input:focus {
+input:focus,
+textarea:focus {
   border-color: var(--accent);
 }
 
@@ -283,12 +291,19 @@ input:focus {
   left: 50%;
   bottom: 24px;
   transform: translateX(-50%);
-  width: min(560px, calc(100vw - 700px));
+  /* Clear of the chat dock (400px + margins) on the left, as wide on the right. */
+  width: min(560px, calc(100vw - 880px));
   min-width: 280px;
   font-size: 14px;
   background: rgba(251, 247, 239, 0.97);
   color: var(--ink);
   border: 3px solid var(--ink);
+}
+
+@media (max-width: 1150px) {
+  .dialog {
+    bottom: 230px;
+  }
 }
 
 /* The chat dock: the chat and the quick replies above it, stacked from the bottom-left corner. */
@@ -522,10 +537,17 @@ input:focus {
   width: min(640px, calc(100vw - 24px));
 }
 
+/* Stays at the top while a tall panel scrolls under it. */
 .modal-head {
+  position: sticky;
+  top: -14px;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin: -14px -16px 0;
+  padding: 14px 16px 6px;
+  background: var(--panel-solid);
 }
 
 .modal h2 {
@@ -831,7 +853,20 @@ input:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 6px;
   font-size: 12px;
+}
+
+/* A long room name (a company's common room) gives way to the buttons instead of widening the map. */
+.minimap {
+  width: min-content;
+}
+
+.minimap header > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .minimap .zoom {
@@ -960,6 +995,11 @@ input:focus {
   border-color: var(--accent);
 }
 
+/* Buy / wear buttons sit at the card's bottom so prices line up across a row. */
+.shop li > button:last-child {
+  margin-top: auto;
+}
+
 .shop .avatar {
   align-self: center;
 }
@@ -969,6 +1009,29 @@ input:focus {
   justify-content: center;
   align-items: end;
   gap: 4px;
+}
+
+.merch-editor {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.merch-grid {
+  display: grid;
+  gap: 1px;
+  padding: 4px;
+  border: 1px solid var(--border, #444);
+  border-radius: 6px;
+}
+
+.merch-grid button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 0;
 }
 
 .company-actions {
@@ -1995,4 +2058,656 @@ button.lb-item:hover {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+/*
+ * Badge tiers (PlayerCard, Collection): each frame differs in shape as well as colour. Bronze is a plain
+ * border, silver a double one, gold adds a gem on top, diamond a dashed, glowing edge.
+ */
+.badge[class*="badge--"] {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 1px 6px 2px;
+  border: 1px solid var(--tier);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+.badge--bronze {
+  --tier: #c98a4b;
+}
+.badge--silver {
+  --tier: #d5dbe4;
+  box-shadow:
+    0 0 0 2px rgba(27, 31, 42, 0.9),
+    0 0 0 3px var(--tier);
+  margin-right: 3px;
+}
+.badge--gold {
+  --tier: #ffd75e;
+  box-shadow: 0 0 6px rgba(255, 215, 94, 0.35);
+}
+.badge--gold::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: calc(50% - 3px);
+  width: 6px;
+  height: 6px;
+  background: var(--tier);
+  transform: rotate(45deg);
+}
+.badge--diamond {
+  --tier: #7fe8ff;
+  border-style: dashed;
+  box-shadow: 0 0 8px rgba(127, 232, 255, 0.5);
+}
+.badge-bar {
+  display: block;
+  height: 3px;
+  min-width: 48px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.badge-bar i {
+  display: block;
+  height: 100%;
+  background: var(--tier, var(--accent));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .badge--diamond {
+    animation: diamond-glint 2.4s ease-in-out infinite;
+  }
+}
+@keyframes diamond-glint {
+  50% {
+    box-shadow: 0 0 12px rgba(127, 232, 255, 0.85);
+  }
+}
+
+/* The collection log and the Hall of Fame: a grid of icon + words, unearned ones greyed. */
+.collection,
+.hall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 6px 12px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+.collection li,
+.hall li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.collection li > span:last-child,
+.hall li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.collection canvas,
+.hall canvas {
+  flex: none;
+  image-rendering: pixelated;
+}
+.collection .unearned > :first-child {
+  filter: grayscale(1);
+  opacity: 0.4;
+}
+.collection .unearned strong {
+  color: var(--muted);
+}
+.entry-icon {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 36px;
+}
+.entry-icon .entry-emoji {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+.entry-emoji {
+  font-size: 22px;
+}
+.hall-lines {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+.hall-lines li {
+  margin: 2px 0;
+}
+.tourney-champ {
+  margin: 4px 0 8px;
+}
+.tourney-players {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.tourney-bracket {
+  display: flex;
+  gap: 16px;
+  margin: 8px 0;
+  overflow-x: auto;
+}
+.tourney-round {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 8px;
+  min-width: 110px;
+}
+.tourney-match {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+.tourney-match span {
+  padding: 2px 6px;
+  min-height: 1.4em;
+}
+.tourney-match span + span {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.tourney-match .won {
+  font-weight: 700;
+  color: #ffd75a;
+}
+.tourney-match .empty {
+  opacity: 0.45;
+}
+.quests {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quests li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+}
+.quests li.done > span:first-child {
+  color: var(--good);
+}
+.quests .coins {
+  text-align: right;
+}
+.quest-bar {
+  grid-column: 1;
+  align-self: center;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.quest-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.quest-bar.done > span {
+  background: var(--good);
+}
+.quests li > .small {
+  text-align: right;
+}
+
+.quest-pips {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.quest-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  background: linear-gradient(to top, var(--accent) var(--fill, 0%), transparent var(--fill, 0%));
+}
+.quest-pip.done {
+  background: var(--good);
+  border-color: var(--good);
+}
+
+/* Player card v2: bio, showcase shelf and "how they work". */
+.bio {
+  margin: 2px 0;
+}
+.bio-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0;
+}
+/* The text takes the whole row; the count and the buttons share the one below. */
+.bio-edit textarea {
+  flex: 1 0 100%;
+  resize: none;
+  font: inherit;
+}
+.bio-edit .count {
+  margin-right: auto;
+}
+.shelf ul,
+.shelf-picker .bag {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 2px;
+  padding: 0;
+  list-style: none;
+}
+.shelf li {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 74px;
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+.shelf li.empty {
+  background: none;
+  border: 1px dashed var(--line);
+}
+.shelf canvas {
+  image-rendering: pixelated;
+}
+.shelf-picker .bag {
+  flex-wrap: wrap;
+  gap: 8px 6px;
+}
+.shelf-picker .bag li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 92px;
+}
+.shelf-picker .cell {
+  width: 100%;
+}
+.pick-name {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.pick-name span {
+  font-size: 10px;
+  text-transform: capitalize;
+}
+.shelf-picker .cell .n {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.how h3 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+.how p {
+  margin: 4px 0;
+}
+.how .chip {
+  display: inline-block;
+  margin: 0 4px 2px 0;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+}
+.how .hours {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.how .hours svg {
+  width: 144px;
+  height: 36px;
+  fill: var(--accent);
+}
+.stats .muted-stat dd {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* The regulars' list sits in the modal, not a corner card: roomier rows. */
+.regulars li button {
+  font-size: 14px;
+  padding: 4px 6px;
+}
+.regulars .rank {
+  width: 22px;
+  flex: none;
+}
+
+/* Graphics: the tier list, its advanced fold, and the FPS meter. */
+.graphics-tiers > button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.graphics-tiers .small {
+  display: block;
+}
+
+.graphics-adv {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.graphics-adv label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fps-meter {
+  position: absolute;
+  left: 52px;
+  top: 14px;
+  padding: 2px 8px;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.fps-meter {
+  white-space: nowrap;
+}
+
+.tray {
+  display: none;
+}
+
+/* A phone, or a short landscape screen: the side panels fold into the tray's icons, one open at a time. */
+@media (max-width: 700px), (max-height: 500px) {
+  .tray {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    display: flex;
+    gap: 6px;
+  }
+
+  .tray .icon {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    background: var(--panel);
+    border-radius: 10px;
+  }
+
+  .tray .icon.on {
+    outline: 2px solid var(--accent);
+  }
+
+  .hints {
+    top: 8px;
+    left: 8px;
+  }
+
+  .hints dl {
+    display: none;
+  }
+
+  .stats-chip {
+    top: 8px;
+    right: 8px;
+    left: 52px;
+    justify-content: flex-end;
+    overflow-x: auto;
+    padding: 4px;
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .fps-meter {
+    top: 54px;
+    left: 8px;
+    font-size: 10px;
+  }
+
+  .corner,
+  .minimap,
+  .chat-dock {
+    top: auto;
+    right: auto;
+    left: 8px;
+    bottom: 60px;
+  }
+
+  .corner {
+    width: min(260px, calc(100vw - 16px));
+    max-height: calc(100vh - 130px);
+    overflow-y: auto;
+  }
+
+  .chat-dock {
+    width: calc(100vw - 16px);
+  }
+
+  .chat-dock .chat {
+    max-height: 38vh;
+  }
+
+  .dialog {
+    width: calc(100vw - 16px);
+    min-width: 0;
+    bottom: 60px;
+  }
+
+  .banner,
+  .toast,
+  #hud > .toasts {
+    top: 54px;
+    max-width: calc(100vw - 16px);
+  }
+
+  #hud > .toasts {
+    top: 90px;
+  }
+}
+
+/*
+ * MARK: Block Hood skin. On the 3D tiers (`stage.ts` sets `data-tier` on <html>) the panels read like the voxel
+ * world's labels: cream on ink, gold accents, chunky bevelled borders and flat blocky shadows. Low keeps the
+ * classic look above untouched.
+ */
+html[data-tier]:not([data-tier="low"]) {
+  --ink: #2b2433;
+  --panel: rgba(43, 36, 51, 0.94);
+  --panel-solid: #2b2433;
+  --line: rgba(251, 247, 239, 0.16);
+  --text: #fbf7ef;
+  --muted: #c4b9cf;
+  --accent: #e9b73d;
+  --edge: #16121f;
+  --bevel-light: rgba(251, 247, 239, 0.18);
+  --bevel-dark: rgba(0, 0, 0, 0.45);
+  --block: 0 0 0 2px var(--edge);
+}
+
+html[data-tier]:not([data-tier="low"]) .panel {
+  border: 2px solid var(--edge);
+  border-radius: 4px;
+  backdrop-filter: none;
+  box-shadow:
+    inset 2px 2px 0 var(--bevel-light),
+    inset -2px -2px 0 var(--bevel-dark),
+    6px 6px 0 rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) .modal-head {
+  box-shadow: 0 2px 0 var(--edge);
+}
+
+html[data-tier]:not([data-tier="low"]) button {
+  border: 2px solid var(--edge);
+  border-radius: 3px;
+  background: #3b3249;
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-light),
+    inset -1px -1px 0 var(--bevel-dark),
+    2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) button:hover {
+  background: #4a405c;
+}
+
+html[data-tier]:not([data-tier="low"]) button:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-dark),
+    1px 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) button.primary {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: #6b4f0e;
+}
+
+html[data-tier]:not([data-tier="low"]) button.primary:hover {
+  background: #f2c653;
+}
+
+html[data-tier]:not([data-tier="low"]) button.link,
+html[data-tier]:not([data-tier="low"]) button.backdrop,
+html[data-tier]:not([data-tier="low"]) .pills button,
+html[data-tier]:not([data-tier="low"]) .bag .eye,
+html[data-tier]:not([data-tier="low"]) .merch-grid button {
+  border: none;
+  box-shadow: none;
+  transform: none;
+}
+
+html[data-tier]:not([data-tier="low"]) .pills {
+  border-radius: 3px;
+  box-shadow: var(--block);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) .pills button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--ink);
+  border-radius: 2px;
+}
+
+html[data-tier]:not([data-tier="low"]) input,
+html[data-tier]:not([data-tier="low"]) textarea {
+  border: 2px solid var(--edge);
+  border-radius: 3px;
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* Item tiles: a little larger, bevelled, each icon standing on an isometric floor tile. */
+html[data-tier]:not([data-tier="low"]) .shop {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+html[data-tier]:not([data-tier="low"]) .bag {
+  grid-template-columns: repeat(auto-fill, 84px);
+}
+
+html[data-tier]:not([data-tier="low"]) .bag .cell {
+  width: 84px;
+  height: 84px;
+}
+
+html[data-tier]:not([data-tier="low"]) .shop li,
+html[data-tier]:not([data-tier="low"]) .bag .cell,
+html[data-tier]:not([data-tier="low"]) .loot-table li,
+html[data-tier]:not([data-tier="low"]) .pet-looks .cell,
+html[data-tier]:not([data-tier="low"]) .trophies li,
+html[data-tier]:not([data-tier="low"]) .collection li,
+html[data-tier]:not([data-tier="low"]) .hall li {
+  border: 2px solid var(--edge);
+  border-radius: 3px;
+  background: #352c41;
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-light),
+    3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) .shop li.wearing,
+html[data-tier]:not([data-tier="low"]) .bag .cell.wearing,
+html[data-tier]:not([data-tier="low"]) .pet-looks .cell[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-light),
+    3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+html[data-tier]:not([data-tier="low"]) .bag .cell[aria-pressed="true"] {
+  background: #4a3d2a;
+}
+
+html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
+  background: none;
+}
+
+.icon3d {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  vertical-align: bottom;
+}
+
+/* The floor tile under the icon. */
+.icon3d::before {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 2%;
+  height: 40%;
+  background: rgba(251, 247, 239, 0.1);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.icon3d > canvas {
+  position: relative;
+  image-rendering: auto;
+  display: block;
+}
+
+.icon3d-wait {
+  position: relative;
+  display: grid;
+  place-items: center;
+  filter: blur(0.6px) saturate(0.6);
+  opacity: 0.5;
 }

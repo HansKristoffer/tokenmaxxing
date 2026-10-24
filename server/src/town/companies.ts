@@ -1,7 +1,14 @@
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import { coinsForTokens, type Item } from "@tokenmaxxing/core/shop.ts";
-import { type Brand, COMPANY_CAP, type CompanyInfo, houseTier } from "@tokenmaxxing/core/world.ts";
+import {
+  type Brand,
+  COMPANY_CAP,
+  type CompanyInfo,
+  houseTier,
+  type MerchDesign,
+  parseMerchDesign,
+} from "@tokenmaxxing/core/world.ts";
 import { must, sortBy } from "hanzio";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar } from "../actors/shared.ts";
@@ -23,6 +30,8 @@ export interface MyCompany {
   applicants: { userId: number; name: string; level: number; at: number }[];
   /** Coins in the company wallet: members' token coins matched, and merch sold, less furniture. */
   wallet: number;
+  /** The house-wide desk tier its wallet has bought (`DESKS`, desks.ts). */
+  deskFleet: number;
   /** Company furniture off the floor, per kind: any member can put it out again. */
   stored: { item: string; count: number }[];
   /** The wallet's latest moves, newest first: who earned, bought or paid what. */
@@ -31,7 +40,7 @@ export interface MyCompany {
 
 export interface WalletLine {
   at: number;
-  kind: "match" | "merch" | "furniture" | "admin";
+  kind: "match" | "merch" | "furniture" | "desk" | "admin";
   /** Who earned it, bought it or paid it; null once they're deleted. */
   name: string | null;
   /** The world day matched, or the item bought. */
@@ -67,6 +76,27 @@ export async function ownedCompany(sql: Sql, userId: number): Promise<CompanyRow
   if (!company || company.ownerId !== userId)
     throw new UserError("Only the owner can do that.", { code: "not_owner" });
   return company;
+}
+
+/** `companies.merch`: the merch design its people drew (JSON; NULL is the brand's colours and initials). Additive. */
+export async function migrateMerch(sql: Sql): Promise<void> {
+  const columns = (await sql.execute("PRAGMA table_info(companies)")) as { name: string }[];
+  if (!columns.some((c) => c.name === "merch"))
+    await sql.execute("ALTER TABLE companies ADD COLUMN merch TEXT");
+}
+
+/** A member (not only the owner) sets the company's merch design. */
+export async function setMerchDesign(sql: Sql, userId: number, raw: unknown): Promise<number> {
+  const u = await userById(sql, userId);
+  if (u.companyId === null) throw new UserError("Join a company first.", { code: "not_member" });
+  const design: MerchDesign | null = raw === null ? null : parseMerchDesign(raw);
+  if (raw !== null && !design) throw new UserError("That isn't a merch design.", { code: "invalid_design" });
+  await sql.execute(
+    "UPDATE companies SET merch = ? WHERE id = ?",
+    design && JSON.stringify(design),
+    u.companyId,
+  );
+  return u.companyId;
 }
 
 export interface Changed {
@@ -116,6 +146,7 @@ export async function myCompany(sql: Sql, companyId: number, viewer: number): Pr
     members: members.map((m) => ({ ...m, isOwner: m.userId === company.ownerId })),
     applicants: isOwner ? await applicants(sql, companyId) : [],
     wallet: await companyWallet(sql, companyId),
+    deskFleet: info?.deskFleet ?? 0,
     stored: await storedPieces(sql, companyId),
     log: await walletLog(sql, companyId),
   };
@@ -383,9 +414,11 @@ export async function decline(sql: Sql, company: CompanyRow, applicantId: unknow
 export async function companyInfos(sql: Sql, ids: Ids): Promise<CompanyInfo[]> {
   const today = dayKey(Date.now());
   const [where, ...args] = among("c.id", ids);
-  const rows = await all<Omit<CompanyInfo, "brand"> & { brand: string | null }>(
+  const rows = await all<
+    Omit<CompanyInfo, "brand" | "merch"> & { brand: string | null; merch: string | null }
+  >(
     sql,
-    `SELECT c.id, c.name, c.plot, c.website, c.brand,
+    `SELECT c.id, c.name, c.plot, c.website, c.brand, c.merch, c.desk_fleet AS deskFleet,
             (SELECT COUNT(*) FROM users u WHERE u.company_id = c.id) AS members,
             COALESCE((SELECT SUM(${TOKENS}) FROM usage_daily d
                       JOIN users u ON u.id = d.user_id WHERE u.company_id = c.id AND d.day = ?), 0) AS todayTokens,
@@ -396,5 +429,9 @@ export async function companyInfos(sql: Sql, ids: Ids): Promise<CompanyInfo[]> {
     addDays(today, -29),
     ...args,
   );
-  return rows.map((r) => ({ ...r, brand: r.brand === null ? null : (JSON.parse(r.brand) as Brand) }));
+  return rows.map((r) => ({
+    ...r,
+    brand: r.brand === null ? null : (JSON.parse(r.brand) as Brand),
+    merch: r.merch === null ? null : parseMerchDesign(JSON.parse(r.merch)),
+  }));
 }

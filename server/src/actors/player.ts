@@ -2,7 +2,7 @@ import { BURN_WINDOW_MS } from "@tokenmaxxing/core/cop.ts";
 import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Usage } from "@tokenmaxxing/core/games/types.ts";
 import type { TodayBySource } from "@tokenmaxxing/core/protocol.ts";
-import { dayKey } from "@tokenmaxxing/core/range.ts";
+import { dayKey, worldClock } from "@tokenmaxxing/core/range.ts";
 import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
 import type { IngestResponse, Source, TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { chunkArray, sumBy } from "hanzio";
@@ -539,6 +539,13 @@ export async function migrateEvents(d: Sql): Promise<void> {
     await d.execute("INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events");
     await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (1)");
   }
+  // Card v2's habit columns (sessions, subagents, hours, sources) are new on `activity_daily`: every
+  // stored day is re-reported once, through the same drain, so history fills them in. A player's
+  // actor does this when it next wakes.
+  if (!(await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 5")).length) {
+    await d.execute("INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events");
+    await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (5)");
+  }
   // Where the excluded-bots cleanup has got to (`cleanExcludedEvents`), by event id.
   await d.execute("CREATE TABLE IF NOT EXISTS excluded_cleanup (last_id INTEGER NOT NULL)");
 }
@@ -659,28 +666,46 @@ export async function report(
   )) as { day: string; prompts: number; prs: number }[];
   // ponytail: 5-minute buckets. Two sessions inside one bucket count as 2, and a
   // silent tool call over 5 min drops out. Merge activity intervals if people compare decimals.
-  const buckets = (await sql.execute(
-    `WITH b AS (
-       SELECT day, timestamp / ? AS bucket,
-              COUNT(DISTINCT session_id || ':' || COALESCE(agent_id, '')) AS agents
-       FROM events WHERE ${inDays} AND message_type = 'assistant'
-       GROUP BY day, bucket)
-     SELECT day, SUM(agents) AS agentBuckets, COUNT(*) AS activeBuckets, MAX(agents) AS peakAgents
-     FROM b GROUP BY day`,
+  // One row per active bucket (at most 288 a day): the sums, the subagents and the hour of day are
+  // worked out below, the hour on the world's clock (DST-correct, which SQL isn't).
+  const bucketRows = (await sql.execute(
+    `SELECT day, timestamp / ? AS bucket,
+            COUNT(DISTINCT session_id || ':' || COALESCE(agent_id, '')) AS agents,
+            COUNT(DISTINCT CASE WHEN COALESCE(agent_id, '') != '' THEN session_id || ':' || agent_id END) AS subs
+     FROM events WHERE ${inDays} AND message_type = 'assistant'
+     GROUP BY day, bucket`,
     AGENT_BUCKET_MS,
     ...days,
-  )) as { day: string; agentBuckets: number; activeBuckets: number; peakAgents: number }[];
+  )) as { day: string; bucket: number; agents: number; subs: number }[];
+  const sessions = (await sql.execute(
+    `SELECT day, COUNT(DISTINCT session_id) AS n FROM events
+     WHERE ${inDays} AND message_type = 'assistant' GROUP BY day`,
+    ...days,
+  )) as { day: string; n: number }[];
+  const sourceTokens = (await sql.execute(
+    `SELECT day, source, SUM(${EVENT_TOKENS}) AS tokens FROM events
+     WHERE ${inDays} AND message_type = 'assistant' GROUP BY day, source`,
+    ...days,
+  )) as { day: string; source: string; tokens: number }[];
   const activity: ActivityDay[] = days.map((day) => {
     const n = counts.find((r) => r.day === day);
-    const b = buckets.find((r) => r.day === day);
+    const rows = bucketRows.filter((r) => r.day === day);
+    const hours = Array<number>(24).fill(0);
+    for (const r of rows) hours[worldClock(r.bucket * AGENT_BUCKET_MS).hour]!++;
+    const sources: Record<string, number> = {};
+    for (const r of sourceTokens) if (r.day === day && r.tokens > 0) sources[r.source] = r.tokens;
     return {
       day,
       prompts: n?.prompts ?? 0,
       prs: n?.prs ?? 0,
-      agentBuckets: b?.agentBuckets ?? 0,
-      activeBuckets: b?.activeBuckets ?? 0,
-      peakAgents: b?.peakAgents ?? 0,
+      agentBuckets: rows.reduce((t, r) => t + r.agents, 0),
+      activeBuckets: rows.length,
+      peakAgents: rows.reduce((m, r) => Math.max(m, r.agents), 0),
       capped: capped.find((r) => r.day === day)?.tokens ?? 0,
+      sessions: sessions.find((r) => r.day === day)?.n ?? 0,
+      subBuckets: rows.reduce((t, r) => t + r.subs, 0),
+      hours: hours.join(","),
+      sources: rows.length ? JSON.stringify(sources) : "",
     };
   });
   await main(client).town.report(userId, days, usage, activity);

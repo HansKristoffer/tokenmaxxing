@@ -43,7 +43,7 @@ import { conn } from "../net.ts";
 import { hud } from "../store.ts";
 import { camera } from "./camera.ts";
 import type { Frame } from "./frame.ts";
-import { burst, FONT, pill } from "./labels.ts";
+import { burst, FONT, nearPill, pill } from "./labels.ts";
 import { world } from "./world.ts";
 
 const forced = parseClock(new URLSearchParams(location.search).get("clock") ?? "");
@@ -129,7 +129,7 @@ export function drawStreet({ g, items, labels, toScreen, now, dpr }: Frame): voi
   items.push({ y: bottom - 1, draw: () => g.drawImage(cart, left, bottom - CART_H) });
   const [sx, sy] = toScreen(left + CART_W / 2, bottom - CART_H);
   labels.push(() =>
-    pill(
+    nearPill(
       g,
       sx,
       sy - 2 * dpr,

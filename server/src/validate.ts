@@ -1,6 +1,27 @@
 import { type MessageType, SOURCES, type Source, type TokenEvent } from "@tokenmaxxing/core/types.ts";
-import { CHAT_MAX_LENGTH } from "@tokenmaxxing/core/world.ts";
+import { BIO_MAX_LENGTH, CHAT_MAX_LENGTH } from "@tokenmaxxing/core/world.ts";
 import { isOneOf, normalizeWhitespace } from "hanzio";
+
+/** Zero-width, bidi and byte-order marks: they hide text or flip it. */
+const INVISIBLE = /[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this strips
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
+/** A scheme, `www.`, or something dotted that ends in a common top-level domain. */
+const LINKISH =
+  /(?:[a-z][a-z0-9+.-]*:\/\/|\bwww\.|\b[a-z0-9-]+\.(?:com|net|org|io|dev|app|co|me|ai|xyz|gg|ly|sh|tv|info|biz|us|uk|de|dk|ru|cn|fr|nl|se|no|eu|ch|gl|to|cc|link|site|online|store|tech)\b)/i;
+
+/**
+ * A bio as stored: one line (newlines and runs of space become one space), no control, zero-width or
+ * bidi characters, at most `BIO_MAX_LENGTH` code points, no links. Empty is `"clear"`; null is
+ * refused. There is deliberately no word list: moderation is escaped text, reports and the admin page.
+ */
+export function parseBio(raw: unknown): string | null | "clear" {
+  if (typeof raw !== "string" || raw.length > BIO_MAX_LENGTH * 8) return null;
+  const text = raw.replace(INVISIBLE, "").replace(CONTROL, " ").replace(/\s+/g, " ").trim();
+  if (text === "") return "clear";
+  if ([...text].length > BIO_MAX_LENGTH || LINKISH.test(text)) return null;
+  return text;
+}
 
 /** Lowercase handle, 2–32 chars. Shown to other users, so no free-form text. */
 const NAME_RE = /^[a-z0-9][a-z0-9._-]{1,31}$/;

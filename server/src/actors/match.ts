@@ -2,13 +2,12 @@
  * One game being played. It runs the game's rules (core/src/games), keeps its
  * timers, sends each viewer their own view, and tells `arcade` it moved on and how it ended.
  */
-import { gameOf } from "@tokenmaxxing/core/games/index.ts";
+import { gameOf, publicStatus } from "@tokenmaxxing/core/games/index.ts";
 import type { Split } from "@tokenmaxxing/core/games/payouts.ts";
 import { type GameId, isRefused, type Options, type Outcome } from "@tokenmaxxing/core/games/types.ts";
 import type { Frame, MatchChatLine, MatchInfo, Seat } from "@tokenmaxxing/core/games/wire.ts";
 import type { Battle } from "@tokenmaxxing/core/protocol.ts";
 import { CHAT_HISTORY } from "@tokenmaxxing/core/world.ts";
-import { recordFromKeys } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import { RateLimiter } from "../rate-limit.ts";
 import { parseChatText } from "../validate.ts";
@@ -355,19 +354,15 @@ async function apply(c: MatchCtx, next: unknown, before: unknown): Promise<void>
 /** The live status over each player's head in the world, and the arena's scoreboard. */
 async function reportStatus(c: MatchCtx, s: MatchState): Promise<void> {
   const def = defOf(s);
-  const now = Date.now();
-  const status = recordFromKeys(
+  const update = publicStatus(
+    def,
+    s.state,
     s.players.map((p) => p.userId),
-    (userId) => def.status?.(s.state, userId, now) ?? null,
+    watchersOf(c, s),
+    Date.now(),
   );
   await main(c.client())
-    .world.gameStatus(s.id, {
-      status,
-      board: def.board?.(s.state, now) ?? null,
-      watchers: watchersOf(c, s),
-      headline: def.headline?.(s.state, now) ?? null,
-      endsAt: def.endsAt?.(s.state) ?? null,
-    })
+    .world.gameStatus(s.id, update)
     .catch(() => {});
 }
 

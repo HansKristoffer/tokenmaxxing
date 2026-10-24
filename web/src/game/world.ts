@@ -1,9 +1,12 @@
 import { type GameMap, setTown } from "@tokenmaxxing/core/maps.ts";
-import { type Door, setHq } from "@tokenmaxxing/core/office.ts";
+import { type Door, setHq, setOffice } from "@tokenmaxxing/core/office.ts";
+import { SHOPS, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { stepPace } from "@tokenmaxxing/core/street.ts";
+import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
   type ChatLine,
   type CompanyInfo,
+  commonOfRoom,
   companyOfRoom,
   type Drop,
   defaultLook,
@@ -29,6 +32,7 @@ import {
 import { lerp } from "hanzio";
 import { setMerchCompanies } from "../art/merch.ts";
 import { bakeGround, repaintGround } from "../art/tiles.ts";
+import { storage } from "../storage.ts";
 import { hud } from "../store.ts";
 import { emojiOnly } from "./emoji.ts";
 
@@ -120,6 +124,7 @@ export function loadSnapshot(s: Snapshot): void {
   setCompanies(s.companies);
   const company = companyOfRoom(s.room);
   if (company !== null) setHq(company, s.doors);
+  if (s.owner) setOffice(s.owner.id, s.owner.tier, s.owner);
   world.doors = s.doors;
   setDrops(s.room, s.drops);
   world.drops = s.drops;
@@ -139,8 +144,8 @@ export function loadSnapshot(s: Snapshot): void {
   world.games = new Map(s.games.map((g) => [g.id, g]));
   gamesChanged();
   // The first time in your own office, how to furnish it.
-  const hint = changedRoom && s.room === `office:${s.selfId}` && !localStorage.getItem(OFFICE_HINT_KEY);
-  if (hint) localStorage.setItem(OFFICE_HINT_KEY, "1");
+  const hint = changedRoom && s.room === `office:${s.selfId}` && !storage.getItem(OFFICE_HINT_KEY);
+  if (hint) storage.setItem(OFFICE_HINT_KEY, "1");
   hud.set({
     room: s.room,
     occupancy: s.occupancy,
@@ -172,8 +177,17 @@ export function setCompanies(list: CompanyInfo[]): void {
 
 export function roomName(room: RoomId): string {
   if (room === "town") return "Town square";
-  if (room === "inn") return "The Inn";
+  if (room === "inn") return TAVERN ? "The Tavern" : "The Inn";
+  if (room === "upstairs") return "Upstairs";
+  if (room === "basement") return "The Basement";
   if (room === "dungeon") return "Raid Dungeon";
+  const shop = shopOfRoom(room);
+  if (shop) return SHOPS[shop].name;
+  const common = commonOfRoom(room);
+  if (common !== null) {
+    const name = world.companies.get(common)?.name;
+    return name ? `${name}'s common room` : "Common room";
+  }
   if (ownerOfOffice(room) !== null)
     return room === world.room && world.owner ? `${world.owner.name}'s office` : "An office";
   const company = world.companies.get(Number(room.slice(3)));
