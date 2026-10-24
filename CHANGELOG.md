@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.8.0...v1.8.1) (2026-10-24)
+
+
+### Performance Improvements
+
+* batch the town's night glows, lighter world broadcasts, real-game perf harness ([#73](https://github.com/HansKristoffer/tokenmaxxing/issues/73)) ([2dbf70c](https://github.com/HansKristoffer/tokenmaxxing/commit/2dbf70c7b827272e511ae99be8dbbd5f97b8ec92))
+
 ## [1.8.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.7.0...v1.8.0) (2026-10-24)
 
 
