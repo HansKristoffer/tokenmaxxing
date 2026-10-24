@@ -615,8 +615,9 @@ export class WorldRoom {
         model.position.set(x + w / 2, 0, y + d / 2);
         if (edge && (entry?.face ?? true))
           model.rotation.y = { n: 0, s: Math.PI, w: Math.PI / 2, e: -Math.PI / 2 }[edge];
-        // Things in an edge wall lower with it when the camera looks through.
-        (edge ? this.wallGroups.get(edge)! : this.group).add(model);
+        // Things in an edge wall lower with it when the camera looks through; a door or stairs stays up, so the way out
+        // is seen through the skirting the wall becomes.
+        (edge && !kind?.portal ? this.wallGroups.get(edge)! : this.group).add(model);
         this.drawn.set(ch, [...(this.drawn.get(ch) ?? []), model]);
       }
     }

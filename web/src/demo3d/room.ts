@@ -81,7 +81,7 @@ export class Room {
   readonly group = new THREE.Group();
   readonly placed: Placed[] = [];
   private grid: (Placed | null)[];
-  private walls: { model: Model; normal: THREE.Vector3 }[] = [];
+  private walls: { model: Model; normal: THREE.Vector3; low?: boolean }[] = [];
   /** The floor slab and walls, rebuilt whenever the size or the decor changes. */
   private shell = new THREE.Group();
   private shellWindows: THREE.Mesh[] = [];
@@ -222,11 +222,16 @@ export class Room {
   /** Lowers the walls between the camera and the room; `view` points from the room to the camera. */
   facing(view: THREE.Vector3): void {
     for (const w of this.walls) {
-      const front = w.normal.dot(view) < -0.01;
+      const front = w.low || w.normal.dot(view) < -0.01;
       const target = front ? 0.06 : 1;
       w.model.scale.y += (target - w.model.scale.y) * 0.25;
       w.model.visible = w.model.scale.y > 0.02;
     }
+  }
+
+  /** Keeps the wall with this normal (as `[x, z]`) lowered whatever the camera does: a cutaway while someone is behind it. */
+  cutaway(normal: [number, number], on: boolean): void {
+    for (const w of this.walls) if (w.normal.x === normal[0] && w.normal.z === normal[1]) w.low = on;
   }
 
   static footprint(asset: Asset, turn: Turn): [number, number] {

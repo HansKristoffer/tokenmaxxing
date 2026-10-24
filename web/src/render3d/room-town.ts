@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { dropPropsNight, setPropsNight } from "../demo3d/props.ts";
 import { buildTown3d, type Town3d } from "../demo3d/town3d.ts";
 import { disposeObject } from "./dispose.ts";
+import { ExitMarkers } from "./exit-markers.ts";
 import { GamesLayer } from "./games3d.ts";
 import { GateLive } from "./gate3d.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "./rooms.ts";
@@ -29,6 +30,8 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const games = new GamesLayer((tx, ty) => town.toWorld(tx, ty));
   if (gateLive) group.add(gateLive.group);
   group.add(games.group);
+  const markers = new ExitMarkers(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  group.add(markers.group);
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
@@ -54,12 +57,16 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       games.update(t, toward);
     },
     extras: events.group,
-    frame: (f) => events.update(f),
+    frame(f) {
+      markers.update(f.me, f.t);
+      events.update(f);
+    },
     onToss: (tx, ty) => events.toss(tx, ty),
     signs,
     liveSigns: () => [...(gateLive?.signs() ?? []), ...games.signs()],
     night: (on) => setPropsNight(on),
     dispose() {
+      markers.dispose();
       events.dispose();
       games.dispose();
       gateLive?.dispose();

@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { C, HAIRS, SKINS } from "../art/palette.ts";
 import { Avatar, type Look, personLook } from "./avatar.ts";
 import { aarhusDay, SPECIALS, STRIDE, type TabRow } from "./data/tavern.ts";
+import { exitPlate, exitStairs } from "./exits3d.ts";
 import { type Asset, assetById, light } from "./furniture.ts";
 import { canvasTexture, glass, glow, Model, painted, planks, seeded, ticks, tint, type V3 } from "./kit.ts";
 import { type Panel, panel } from "./panel.ts";
@@ -1073,6 +1074,7 @@ const stairs = (up: boolean) => (): Model => {
     }
     m.box([0.9, 1.3, 0.06], "#1c1620", [0, 0.2, -0.47], 0.01);
     halo(m, [0, 1.3, -0.3], 0.8, "#ffe0a0", 3);
+    exitPlate(m, "UP", "up", [0.8, 1.82, -0.345]);
   } else {
     m.box([0.88, 0.02, 0.9], "#14101a", [0, 0, 0], 0.003);
     for (let i = 0; i < n; i++) {
@@ -1098,6 +1100,7 @@ const exitDoor = (): Model => {
   m.box([1.02, 0.12, 0.14], WOOD_DARK, [0, 2.1, -0.42], 0.015);
   m.box([0.82, 2.0, 0.03], glow("#fff1c9"), [0, 0.02, -0.45], 0.002);
   halo(m, [0, 1.0, -0.2], 1.6, "#fff1c9", 7);
+  exitPlate(m, "EXIT", "out", [0.78, 1.82, -0.345]);
   // The door leaf, opened inwards.
   const leaf = m.part([-0.41, 0, -0.38], 1.0);
   leaf.box([0.8, 2.0, 0.05], WOOD_DARK, [0.4, 0, 0], 0.012);
@@ -1435,7 +1438,7 @@ export const TAVERN_ASSETS: readonly Asset[] = [
   wide("tavern:plaque-2", "Regulars' plaque (right)", 1, 1, plaque(2)),
   wide("tile:w", "Open offices board", 1, 1, officeBoard),
   wide("tile:K", "Daily special easel", 1, 1, easel),
-  wide("tile:S", "Stairs down", 1, 1, stairs(false)),
+  wide("tile:S", "Stairs down", 1, 1, () => exitStairs("down", { wall: "#8a6a52" })),
   wide("tile:u", "Stairs up", 1, 1, stairs(true)),
   wide("tile:x", "Exit door", 1, 1, exitDoor),
   wide("tavern:tip-jar", "Tip jar", 1, 1, tipJar),

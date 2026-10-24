@@ -24,6 +24,7 @@ const room = (drawCalls: number, triangles: number, materials: number, textureMB
   textureMB,
 });
 
+// The dorm's stairs down are the shared exit kit's (`exits3d.ts`): the lit well and the lamp's pool add two batches.
 // The town carries the four shop fronts of the real game (+35 draw calls, +70k triangles, +2.8 MB of textures over the pass-2
 // measurement, which had bare houses there); the live layers (gate, tables, events) are budgeted apart.
 export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
@@ -33,7 +34,7 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
     hq: room(35, 10_000, 20, 1),
     office: room(35, 7_500, 25, 1),
     inn: room(180, 35_000, 140, 2),
-    upstairs: room(24, 3_500, 15, 1),
+    upstairs: room(26, 3_500, 15, 1),
     basement: room(70, 19_000, 55, 1),
     dungeon: room(50, 15_000, 20, 1),
     "shop-furniture": room(235, 36_000, 180, 13),
@@ -47,7 +48,7 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
     hq: room(35, 24_000, 20, 1),
     office: room(35, 10_000, 25, 1),
     inn: room(180, 56_000, 140, 2),
-    upstairs: room(24, 9_000, 15, 1),
+    upstairs: room(26, 9_000, 15, 1),
     basement: room(70, 41_000, 55, 1),
     dungeon: room(50, 43_000, 20, 1),
     "shop-furniture": room(235, 76_000, 180, 13),

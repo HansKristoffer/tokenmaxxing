@@ -8,6 +8,7 @@
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
 import { COMPANY_FURNITURE, DESKS, HQ_ROWS, POSTERS } from "./data/town.ts";
+import { exitDoorway } from "./exits3d.ts";
 import { type Asset, assetById, light } from "./furniture.ts";
 import { canvasTexture, codeScreen, glow, Model, painted, seeded, ticks, tint } from "./kit.ts";
 import { type Panel, panel } from "./panel.ts";
@@ -536,13 +537,12 @@ export function buildHq(opts: HqOptions = {}): Hq {
     if (room.fits(a, rx, rz, 0)) room.place(a, rx, rz, 0);
   }
 
-  // The exit: a mat and a lamp by the south wall's door tile.
+  // The exit: the front door in the south wall's door tile, opening on daylight, with its lamp and mat.
   const [ex, ez] = tile(11, 13);
-  const mat = new Model();
-  mat.box([1.0, 0.03, 0.7], "#6d7fc4", [0, 0, 0], 0.01);
-  mat.box([0.8, 0.032, 0.5], "#f4efe4", [0, 0, 0], 0.01);
-  mat.position.set(ex + 0.5, 0, ez - 0.3);
-  room.group.add(mat);
+  const front = exitDoorway({ outside: true, wall: opts.wall ?? "#efe4cf" });
+  front.position.set(ex + 0.5, 0, ez + 0.5);
+  front.rotation.y = Math.PI;
+  room.group.add(front);
   void tint;
   return { room, exit: { x: ex, z: ez }, chairs, beds, posters, tile };
 }

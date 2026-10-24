@@ -6,6 +6,7 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
+import { exitPlate } from "./exits3d.ts";
 import { type Asset, assetById, light } from "./furniture.ts";
 import { canvasTexture, codeScreen, glow, Model, seeded, ticks, tint, type V3 } from "./kit.ts";
 import {
@@ -519,6 +520,7 @@ const stairs = (down: boolean) => (): Model => {
   }
   m.box([0.04, 0.04, 1.0], C.woodDark, [-0.36, 0.7, 0]).rotation.x = Math.atan2(-0.64, 1);
   roomLight(m, [0, 1.2, 0.5], "#ffe0a8", 0.7, 2.5);
+  exitPlate(m.part([0, 0, 0], Math.PI), "UP", "up", [-0.8, 1.82, 0.52]);
   return m;
 };
 

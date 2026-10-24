@@ -5,10 +5,11 @@
  * loads, so theirs win.
  */
 import { C } from "../art/palette.ts";
+import { exitDoorway, exitStairs } from "./exits3d.ts";
 import { assetById } from "./furniture.ts";
 import { glow, Model, seeded, tint } from "./kit.ts";
 import { bush, flowerBed, grandFountain, parkBench, streetLamp, tree } from "./props.ts";
-import { registerTile, type TileBuilder, type TileCtx, WALL_HEIGHT } from "./world.ts";
+import { registerTile, type TileBuilder, type TileCtx } from "./world.ts";
 
 /** 2D tile character -> the catalogue asset that is the same thing. */
 const FURNITURE: Record<string, string> = {
@@ -95,42 +96,25 @@ registerTile("H", house);
 
 // MARK: Doors, stairs and the gate
 
-/** A wall tile with a door in its room-facing side. */
-function doorTile(c: TileCtx, frame = C.white, leaf = C.woodDark, wallColour = C.wall): Model {
-  const m = new Model();
+/** A wall tile with a door in its room-facing side (`exits3d.ts`); in the town, a house tile with the door. */
+function doorTile(c: TileCtx): Model {
   const inTown = c.room === "town";
-  m.box([1, inTown ? 1.7 : WALL_HEIGHT, 1], inTown ? "#efe3c8" : wallColour, [0, 0, 0], 0);
-  if (inTown) m.box([1.08, 0.14, 1.08], "#c4544b", [0, 1.7, 0], 0.02);
-  m.box([0.86, 1.62, 0.06], frame, [0, 0, 0.5], 0.02);
-  m.box([0.7, 1.52, 0.06], leaf, [0, 0, 0.53], 0.02);
-  for (const y of [0.15, 0.85]) m.box([0.5, 0.55, 0.02], tint(leaf, 0.12), [0, y, 0.565], 0.015);
+  if (!inTown) return exitDoorway({ block: true, outside: c.ch === "x" && c.room !== "office" });
+  const m = new Model();
+  m.box([1, 1.7, 1], "#efe3c8", [0, 0, 0], 0);
+  m.box([1.08, 0.14, 1.08], "#c4544b", [0, 1.7, 0], 0.02);
+  m.box([0.86, 1.62, 0.06], C.white, [0, 0, 0.5], 0.02);
+  m.box([0.7, 1.52, 0.06], C.woodDark, [0, 0, 0.53], 0.02);
+  for (const y of [0.15, 0.85]) m.box([0.5, 0.55, 0.02], tint(C.woodDark, 0.12), [0, y, 0.565], 0.015);
   m.ball(0.04, "#e9b73d", [0.25, 0.8, 0.6]);
   return m;
 }
 for (const ch of ["x", "D", "R", "I"]) registerTile(ch, (c) => doorTile(c), { face: true });
 
-/** Stairs: a dark well in the wall with steps going down (`down`) or up. */
-function stairs(down: boolean): TileBuilder {
-  return (c) => {
-    const m = new Model();
-    m.box([1, WALL_HEIGHT, 0.5], C.wall, [0, 0, -0.25], 0);
-    m.box([0.9, 1.9, 0.02], "#1c1a22", [0, 0, 0.0], 0);
-    for (let i = 0; i < 4; i++) {
-      const h = down ? 0.02 : 0.2 + i * 0.28;
-      const z = down ? 0.05 + i * 0.12 : -0.05 + i * 0.13;
-      const top = down ? 0.12 - i * 0.03 : h;
-      m.box(
-        [0.84, Math.max(0.04, top), 0.13],
-        down ? tint("#8a7a6a", -i * 0.12) : tint("#b99a73", i * 0.04),
-        [0, 0, z],
-        0.01,
-      );
-    }
-    m.box([0.84, 0.08, 0.04], down ? "#ff8a80" : "#ffd35c", [0, 1.95, 0.02], 0.01);
-    void c;
-    return m;
-  };
-}
+/** Stairs on their tile, the well in the wall behind them (`exits3d.ts`). */
+const stairs = (down: boolean): TileBuilder => {
+  return () => exitStairs(down ? "down" : "up");
+};
 registerTile("S", stairs(true));
 registerTile("u", stairs(false));
 
