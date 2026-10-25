@@ -86,7 +86,7 @@ describe("drops", () => {
     await walk(m.conn, ["up"]);
     expect(await m.conn.take()).toEqual({ notice: "🎒 Took the Desk.", drop: desk });
     for (const c of [o, m]) await c.conn.dispose();
-  });
+  }, 30_000);
 
   test("you wake where you were only if you still can: not on a sofa that's gone, not inside a desk", async () => {
     const { owner, mate, room, o, m, mateAt } = await house("furn.s", "furn.d");

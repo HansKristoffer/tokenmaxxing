@@ -208,11 +208,24 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `CLIENT_IP_HEADER` | `x-real-ip` | Where the client's IP is, for per-IP limits. Railway's edge sets `x-real-ip` |
 | `GATEWAY_REQUESTS_PER_MIN` | `1200` | Requests to the actors per client IP a minute |
 | `GATEWAY_SOCKETS_PER_MIN` | `300` | New WebSockets per client IP a minute |
+| `HEALTH_FAILURES` | `5` | The server exits (so the host restarts it) after this many failed actor probes in a row... |
+| `HEALTH_WINDOW_MS` | `120000` | ...the first of them at least this long ago. One success starts over |
+| `HEALTH_INTERVAL_MS` | `30000` | Time between probes |
+| `HEALTH_TIMEOUT_MS` | `20000` | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine |
 | `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
 | `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
 
 `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` are read by RivetKit's native side, so they must be set in
 the environment before the process starts.
+
+To keep a local server up on its own (for a tailnet game, say), `scripts/supervise.sh` runs
+`bun server/src/main.ts` and restarts it when it exits (1 s, doubling to 30 s; a run of 60 s resets it).
+The environment is passed through; `SUPERVISE_LOG=path` appends everything to a file; SIGINT/SIGTERM stop
+the server, and its engine, cleanly.
+
+```sh
+PORT=8787 RIVETKIT_STORAGE_PATH=$HOME/tm-data SUPERVISE_LOG=$HOME/tm.log scripts/supervise.sh
+```
 
 ### Releases
 

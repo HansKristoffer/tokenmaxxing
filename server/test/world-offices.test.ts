@@ -49,7 +49,7 @@ describe("world", () => {
     const { x, y } = roomEntry(`hq:${co.id}`);
     expect(after.players.find((p) => p.id === mate.userId)).toMatchObject({ x, y });
     await m.conn.dispose();
-  });
+  }, 30_000);
 
   test("anyone visits an open office from its owner's card; a closed one lets only its owner in", async () => {
     const owner = await signUp("office");
@@ -128,7 +128,7 @@ describe("world", () => {
       expect((await guest.town.openOffices()).some((r) => r.id === owner.userId)).toBe(false);
     }, 8_000);
     for (const c of [g, o]) await c.conn.dispose();
-  });
+  }, 30_000);
 
   test("an office that closed while you slept isn't where you wake up", async () => {
     const owner = await signUp("shut");

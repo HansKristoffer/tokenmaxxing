@@ -87,8 +87,8 @@ const output = (path: string) =>
     .text()
     .catch(() => "");
 
-/** Starts the server; another try on fresh ports if it dies first (a port taken in the meantime). */
-async function start(attempts = 3): Promise<string> {
+/** Starts the server; another try on fresh ports if it dies first (a port taken in the meantime, or a machine too busy for the engine to come up). */
+async function start(attempts = 5): Promise<string> {
   for (let attempt = 1; ; attempt++) {
     const port = freePort();
     // RivetKit puts the engine's peer API on +1 and its metrics on +10.
@@ -134,7 +134,10 @@ async function start(attempts = 3): Promise<string> {
     }
     const why = (await output(log)) + (await output(`${log}.err`));
     await stop();
+    // On a saturated machine the engine can miss RivetKit's startup health check; if every file
+    // fails at import, nothing after it runs. Give it room: a pause, then fresh ports.
     if (attempt >= attempts) throw new Error(`test server didn't start:\n${why.slice(-2_000)}`);
+    await Bun.sleep(attempt * 2_000);
   }
 }
 
