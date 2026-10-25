@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { hqMap } from "@tokenmaxxing/core/office.ts";
 import { roomEntry, route } from "@tokenmaxxing/core/world.ts";
-import { admin, admit, eventually, signUp, veteran } from "./rivet.ts";
+import { admin, admit, eventually, rich, signUp, veteran } from "./rivet.ts";
 import { asleep, connect, step, walk } from "./world-client.ts";
 
 // Offices and their doors.
@@ -196,5 +196,57 @@ describe("world", () => {
     const late = await connect(owner.token);
     expect(late.snap.drops.find((d) => d.id === chair.id)).toMatchObject({ x: 3, y: 6 });
     for (const c of [o, late]) await c.conn.dispose();
+  });
+  test("an owner puts the whole office away, places a piece on a chosen tile, and undoes it by id", async () => {
+    const owner = await rich("tidy", 200);
+    await owner.town.createCompany("Tidy");
+    await veteran(owner);
+    const room = `office:${owner.userId}` as const;
+    const o = await connect(owner.token);
+    const at = o.snap.players.find((p) => p.id === owner.userId)!;
+    const door = o.snap.doors.find((d) => d.userId === owner.userId)!;
+    // Nothing of an office to put away out in the company's building.
+    expect(await o.conn.putAway()).toEqual({
+      notice: "Nothing to put away here.",
+      count: 0,
+    });
+    await walk(o.conn, route(hqMap(o.snap.doors), [at.x, at.y], [door.x, door.y])!);
+    const here = await eventually(() => {
+      const snap = o.events.snapshots.at(-1)!;
+      expect(snap.room).toBe(room);
+      return snap.drops;
+    });
+    expect(here.length).toBeGreaterThan(0);
+    const chair = here.find((d) => d.item === "furn.c")!;
+    const desk = here.find((d) => d.item === "furn.d")!;
+    // All of it to the bag, in one go.
+    const n = here.length;
+    expect(await o.conn.putAway()).toEqual({ notice: `Put away ${n} piece${n === 1 ? "" : "s"}.`, count: n });
+    expect(await o.conn.putAway()).toEqual({ notice: "Nothing to put away here.", count: 0 });
+    expect(await owner.town.bag()).toContainEqual({ item: "furn.c", count: 1 });
+    // The desk goes where it stood (a chosen tile), the chair on top of it does not fit, and stays in the bag.
+    const placedDesk = await owner.town.drop("furn.d", { x: desk.x, y: desk.y });
+    expect(placedDesk.drop).toMatchObject({ item: "furn.d", x: desk.x, y: desk.y });
+    expect(await owner.town.drop("furn.c", { x: desk.x, y: desk.y })).toEqual({
+      notice: "It doesn't fit there.",
+    });
+    expect(await owner.town.bag()).toContainEqual({ item: "furn.c", count: 1 });
+    // Not a tile: a bad request, and nothing consumed.
+    await expect(owner.town.drop("furn.c", { x: 1.5, y: 2 })).rejects.toThrow();
+    const back = await o.conn.putBack(placedDesk.drop!.id);
+    expect(back).toMatchObject({ drop: { id: placedDesk.drop!.id } });
+    expect(await o.conn.putBack(placedDesk.drop!.id)).toEqual({ notice: "That's gone." });
+    expect(await o.conn.putBack(chair.id + 9999)).toEqual({ notice: "That's gone." });
+    // Somebody else's floor: no putting away, no putting back.
+    const guest = await signUp("tidy");
+    const g = await connect(guest.token);
+    expect(await g.conn.visit(owner.userId)).toMatchObject({ room });
+    const again = await owner.town.drop("furn.d", { x: desk.x, y: desk.y });
+    expect(await g.conn.putBack(again.drop!.id)).toEqual({ notice: `That's ${owner.name}'s floor.` });
+    expect(await g.conn.putAway()).toEqual({
+      notice: "Put things away in your own office or your company's building.",
+      count: 0,
+    });
+    for (const c of [o, g]) await c.conn.dispose();
   });
 });

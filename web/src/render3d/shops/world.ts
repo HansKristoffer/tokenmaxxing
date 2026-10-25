@@ -16,7 +16,7 @@ export interface ShopWorld {
    * taking the player to their Office first if need be. The renderer ends it with a drop through the same call
    * the Bag uses (`town.drop`). False when it has no placement mode (the caller then drops where the player stands).
    */
-  startPlacement(itemId: string): boolean;
+  startPlacement(itemId: string, company?: boolean): boolean;
   /** The Office's wallpaper and floor, as core `decor.ts` ids; what the player sets changes at once, before the server answers. */
   applyDecor(d: { wall?: string; floor?: string }): void;
 }

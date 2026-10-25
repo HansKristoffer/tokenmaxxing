@@ -1,7 +1,8 @@
 import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { useState } from "react";
-import { refreshMe, town } from "../net.ts";
+import { startPlace } from "../game/furniture.ts";
+import { conn, refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { coins } from "./format.ts";
 import { PieceImage } from "./Shop.tsx";
@@ -58,6 +59,16 @@ export function CompanyShop() {
       await refreshMe();
     });
 
+  // Put out with a ghost to aim (`startPlace`): the piece stays in the storeroom until it is put down.
+  const putOut = (item: string) => () => {
+    startPlace(item, true);
+  };
+  const putAway = run(async () => {
+    setNotice(null);
+    setNotice((await conn.putAway()).notice);
+    await Promise.all([refreshMe(), refreshWallet()]);
+  });
+
   return (
     <Modal title={`🛋 ${co.name}: furniture`} wide>
       <p className="wallet">
@@ -71,9 +82,24 @@ export function CompanyShop() {
       </p>
       {notice && <p className="muted">{notice}</p>}
       {error && <p className="error">{error}</p>}
+      {co.stored.length === 0 && inside && (
+        <p className="muted small">
+          <button type="button" onClick={putAway}>
+            Put everything in this room away
+          </button>
+        </p>
+      )}
       {co.stored.length > 0 && (
         <>
           <h3>📦 Storeroom</h3>
+          <p className="muted small">
+            <button type="button" disabled={!inside} onClick={act(() => town.placeAll())}>
+              Place all
+            </button>{" "}
+            <button type="button" disabled={!inside} onClick={putAway}>
+              Put everything in this room away
+            </button>
+          </p>
           <ul className="shop">
             {co.stored.map((s) => (
               <li key={s.item}>
@@ -82,8 +108,8 @@ export function CompanyShop() {
                   {itemById(s.item)?.name}
                   {s.count > 1 && <span className="muted"> ×{s.count}</span>}
                 </span>
-                <button type="button" disabled={!inside} onClick={act(() => town.placePiece(s.item))}>
-                  Put out
+                <button type="button" disabled={!inside} onClick={putOut(s.item)}>
+                  Put out…
                 </button>
               </li>
             ))}

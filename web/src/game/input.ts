@@ -19,13 +19,14 @@ import { chatBeside, hud } from "../store.ts";
 import { basementInteract } from "./basement.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
+import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
-import { perf, pickTile } from "./stage.ts";
+import { pickTile } from "./stage.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { openTrophies } from "./trophies.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
@@ -59,6 +60,8 @@ let onArrival: (() => void) | null = null;
 const typing = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
 export function bindInput(canvas: HTMLElement): void {
+  // Ahead of the keys and clicks below: the furniture ghost and Ctrl/Cmd+Z.
+  bindGhost(canvas);
   window.addEventListener("keydown", (e) => {
     // Escape is ours (menus, chat): unhandled, macOS takes it to leave full screen.
     if (e.key === "Escape") e.preventDefault();
@@ -270,6 +273,7 @@ export function send(result: Promise<StepResult>): void {
 export function updateSelf(now: number): void {
   const me = self();
   updatePieceHint(me);
+  tickGhost();
   if (!me || world.portalPending || stepping(me, now)) return;
   // Through a door with a key held, you arrive right in front of the way back (the Tavern's stairs and the
   // basement's, one tile from each other): let go of it, or the held key bounces you between the two.
@@ -341,7 +345,7 @@ function updatePieceHint(me: ReturnType<typeof self>): void {
       : undefined;
   const text = !piece
     ? null
-    : `${dropName(piece)}: G ${piece.co === undefined ? "puts it in your bag" : "takes it back to the storeroom"}${perf.renderer === "3d" ? " · M moves it" : ""}`;
+    : `${dropName(piece)}: G ${piece.co === undefined ? "puts it in your bag" : "takes it back to the storeroom"} · M moves it`;
   if (hud.get().pieceHint !== text) hud.set({ pieceHint: text });
 }
 
@@ -349,7 +353,10 @@ function updatePieceHint(me: ReturnType<typeof self>): void {
 function take(): void {
   send(
     conn.take().then((r) => {
-      if (r?.drop) hud.set((s) => ({ wallet: s.wallet && { ...s.wallet, items: s.wallet.items + 1 } }));
+      if (r?.drop) {
+        recordTake(r.drop);
+        hud.set((s) => ({ wallet: s.wallet && { ...s.wallet, items: s.wallet.items + 1 } }));
+      }
       return r;
     }),
   );
