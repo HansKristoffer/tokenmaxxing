@@ -1054,44 +1054,6 @@ export function setSpecial(model: Model, special: string): void {
 
 // ——— Stairs and the exit ———
 
-const stairs = (up: boolean) => (): Model => {
-  const m = new Model();
-  const n = 5;
-  // A frame round the stairwell, and the steps in it. Up: they climb away from the room towards -z and a
-  // dark landing; down: a hatch whose treads fall into the dark.
-  m.box([0.06, 0.1, 1], WOOD_DARK, [-0.47, 0, 0], 0.01);
-  m.box([0.06, 0.1, 1], WOOD_DARK, [0.47, 0, 0], 0.01);
-  if (up) {
-    for (let i = 0; i < n; i++) {
-      const h = 0.18 + i * 0.2;
-      const shade = 0.45 + (n - 1 - i) * 0.0 + i * 0.1;
-      m.box([0.88, h, 0.17], tint(WOOD_LIGHT, shade - 0.7 + 0.2), [0, 0, 0.42 - i * 0.18], 0.01);
-      m.box([0.88, 0.025, 0.17], tint(WOOD_LIGHT, 0.15 + i * 0.03), [0, h, 0.42 - i * 0.18], 0.004);
-    }
-    for (const s of [-1, 1]) {
-      m.box([0.05, 0.05, 1.0], WOOD_DARK, [s * 0.45, 1.0, 0], 0.008).rotation.x = -0.52;
-      m.cyl(0.02, 0.9, WOOD_DARK, [s * 0.45, 0.2, 0.45], 0.02, 6);
-    }
-    m.box([0.9, 1.3, 0.06], "#1c1620", [0, 0.2, -0.47], 0.01);
-    halo(m, [0, 1.3, -0.3], 0.8, "#ffe0a0", 3);
-    exitPlate(m, "UP", "up", [0.8, 1.82, -0.345]);
-  } else {
-    m.box([0.88, 0.02, 0.9], "#14101a", [0, 0, 0], 0.003);
-    for (let i = 0; i < n; i++) {
-      const shade = 0.55 - i * 0.14;
-      m.box([0.84, 0.02, 0.15], tint(WOOD_LIGHT, shade - 0.45), [0, 0.02, -0.34 + i * 0.16], 0.004);
-      m.box([0.84, 0.012, 0.015], INK, [0, 0.04, -0.27 + i * 0.16], 0.002);
-    }
-    for (const s of [-1, 1]) {
-      m.cyl(0.025, 0.55, WOOD_DARK, [s * 0.45, 0, 0.42], 0.025, 6);
-      m.box([0.04, 0.04, 0.95], WOOD_DARK, [s * 0.45, 0.55, 0], 0.008);
-    }
-    m.box([0.94, 0.09, 0.06], WOOD_DARK, [0, 0, -0.47], 0.01);
-    m.box([0.9, 0.05, 0.07], WOOD_DARK, [0, 0, 0.47], 0.01);
-  }
-  return m;
-};
-
 /** The way out: a doorframe in the wall with a door ajar on warm daylight, and a red doormat on the floor. */
 const exitDoor = (): Model => {
   const m = new Model();
@@ -1438,8 +1400,12 @@ export const TAVERN_ASSETS: readonly Asset[] = [
   wide("tavern:plaque-2", "Regulars' plaque (right)", 1, 1, plaque(2)),
   wide("tile:w", "Open offices board", 1, 1, officeBoard),
   wide("tile:K", "Daily special easel", 1, 1, easel),
-  wide("tile:S", "Stairs down", 1, 1, () => exitStairs("down", { wall: "#8a6a52" })),
-  wide("tile:u", "Stairs up", 1, 1, stairs(true)),
+  wide("tile:S", "Stairs down", 1, 1, () =>
+    exitStairs("down", { wall: "#8a6a52", wood: WOOD_DARK, tread: WOOD_LIGHT }),
+  ),
+  wide("tile:u", "Stairs up", 1, 1, () =>
+    exitStairs("up", { wall: "#8a6a52", wood: WOOD_DARK, tread: WOOD_LIGHT }),
+  ),
   wide("tile:x", "Exit door", 1, 1, exitDoor),
   wide("tavern:tip-jar", "Tip jar", 1, 1, tipJar),
   wide("tavern:kitchen-door", "Kitchen door", 1, 1, kitchenDoor),
@@ -1597,7 +1563,7 @@ export function buildTavernRoom(): TavernRoom {
   put("tavern:stage-stool", 0, 11, 1);
   hang("tile:w", 0, 14, 1, null);
   put("tile:u", 0, 15, 1);
-  put("plant", 1, 15);
+  put("plant", 0, 13);
 
   // ——— Dining: long tables with a chair on every side facing the table ———
   const dining = (x: number, z: number) => {
@@ -1630,7 +1596,7 @@ export function buildTavernRoom(): TavernRoom {
   put("tile:O", 10, 15);
   put("tavern:umbrella-stand", 11, 15);
   put("tile:S", 25, 14, 3);
-  put("plant", 25, 15);
+  put("plant", 24, 15);
   put("plant", 25, 1);
   put("tile:h", 25, 12);
 
