@@ -2,6 +2,7 @@ import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
@@ -117,6 +118,10 @@ interface HudState {
   /** What the Tavern's jukebox is playing for the room, or null (`world` sends `jukebox`). */
   jukebox: JukeboxNow | null;
   jukeSettings: JukeSettings;
+  /** The Tavern's poker table as the room sees it, and when it arrived (its clocks are counted from then); null away from the Tavern. */
+  poker: (PokerState & { at: number }) | null;
+  /** My two cards at the poker table (`world` sends `pokerHole` to me alone). */
+  pokerHole: Card[];
 }
 
 let state: HudState = {
@@ -141,6 +146,8 @@ let state: HudState = {
   lootNews: null,
   jukebox: null,
   jukeSettings: loadJukeSettings(),
+  poker: null,
+  pokerHole: [],
   notice: null,
   lobby: null,
   frame: null,

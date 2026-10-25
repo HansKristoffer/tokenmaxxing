@@ -311,6 +311,10 @@ export function send(result: Promise<StepResult>): void {
     });
 }
 
+/** Whether I hold a seat at the Tavern's poker table (a hand in play is mine to fold, so the arrow keys wait). */
+const atPoker = (): boolean =>
+  hud.get().poker?.seats.some((s) => s?.userId === world.selfId && !s.leaving) ?? false;
+
 /** Called every frame: start the next step if a key is held or a clicked path remains. */
 export function updateSelf(now: number): void {
   const me = self();
@@ -331,8 +335,8 @@ export function updateSelf(now: number): void {
   }
   if (heading && (held.length > 0 || tapped)) heading = null;
   if (heading && path.length === 0 && !onArrival) planTrip(me);
-  // At a game table: stay put until the game is over.
-  if (me.state === "playing") {
+  // At a game table: stay put until the game is over. At the poker table: until you leave it.
+  if (me.state === "playing" || atPoker()) {
     tapped = null;
     path = [];
     return;
@@ -450,6 +454,7 @@ function interact(): void {
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
+  if (kind.poker) return void send(conn.pokerSit(me.facing));
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (kind.pours) return void send(conn.drink(me.facing));
   if (kind.tosses)

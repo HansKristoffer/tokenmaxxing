@@ -335,3 +335,44 @@ export const jukebox = once(() =>
     p.rect(7, 17, 2, 1, BRASS_LIGHT);
   }),
 );
+
+const FELT = "#2f7a4a";
+const FELT_DARK = "#1f5a35";
+const FELT_LIGHT = "#3f9460";
+
+/**
+ * One tile of the poker table (a 4×2 block of them): green felt in a wooden rim. `left`, `right`, `top` and
+ * `bottom` say which sides are the table's own edge: those get the rim (the bottom edge also the skirt and its
+ * shadow), the inner sides run on into the next tile's felt.
+ */
+export const pokerTable = cached(
+  (left: boolean, right: boolean, top: boolean, bottom: boolean) => `${+left}${+right}${+top}${+bottom}`,
+  (left: boolean, right: boolean, top: boolean, bottom: boolean) =>
+    bake(16, 16, (p) => {
+      const y0 = top ? 3 : 0;
+      const y1 = bottom ? 12 : 16;
+      if (bottom) p.rect(0, 14, 16, 2, C.shadow);
+      // Wood under everything, then the felt inside the rim.
+      p.rect(0, y0, 16, y1 - y0, C.ink);
+      p.rect(
+        left ? 1 : 0,
+        top ? 4 : 0,
+        16 - (left ? 1 : 0) - (right ? 1 : 0),
+        y1 - (top ? 4 : 0) - (bottom ? 1 : 0),
+        C.woodLight,
+      );
+      const fx = left ? 3 : 0;
+      const fy = top ? 6 : 0;
+      p.rect(fx, fy, 16 - fx - (right ? 3 : 0), y1 - fy - (bottom ? 3 : 0), FELT);
+      // A lit edge along the top of the felt, a darker one along the bottom, the table's own light.
+      if (top) p.rect(fx, fy, 16 - fx - (right ? 3 : 0), 1, FELT_LIGHT);
+      if (bottom) p.rect(fx, y1 - 4, 16 - fx - (right ? 3 : 0), 1, FELT_DARK);
+      if (top) p.rect(left ? 1 : 0, 4, 16 - (left ? 1 : 0) - (right ? 1 : 0), 1, C.white);
+      if (bottom) {
+        p.rect(0, 12, 16, 3, C.ink);
+        p.rect(left ? 1 : 0, 12, 16 - (left ? 1 : 0) - (right ? 1 : 0), 2, C.woodDark);
+      }
+      if (bottom && left) p.rect(2, 13, 2, 2, C.ink);
+      if (bottom && right) p.rect(12, 13, 2, 2, C.ink);
+    }),
+);

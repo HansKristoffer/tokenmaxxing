@@ -431,7 +431,19 @@ async function worker() {
   const client = createClient<typeof Registry>(
     flag("direct") ? { endpoint: origin, token: "default" } : { endpoint: `${origin}/api/rivet` },
   );
-  const EVENTS = ["moves", "info", "occupancy", "snapshot", "chat", "bubble", "houses", "jukebox", "jump"];
+  const EVENTS = [
+    "moves",
+    "info",
+    "occupancy",
+    "snapshot",
+    "chat",
+    "bubble",
+    "houses",
+    "jukebox",
+    "poker",
+    "pokerHole",
+    "jump",
+  ];
   const players = await Promise.all(
     tokens.map(async (token, i) => {
       await Bun.sleep(i * 20);

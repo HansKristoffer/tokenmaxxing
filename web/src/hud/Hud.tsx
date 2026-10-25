@@ -36,6 +36,7 @@ import { PaperPanel } from "./Paper.tsx";
 import { PetLooks } from "./PetLooks.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
+import { Poker } from "./Poker.tsx";
 import { Quests } from "./Quests.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Regulars } from "./Regulars.tsx";
@@ -94,6 +95,7 @@ export function Hud() {
       )}
       <Dialog />
       <PieceHint />
+      <Poker />
       <Panel />
       {status === "connecting" && (
         <div className="toast" role="status">

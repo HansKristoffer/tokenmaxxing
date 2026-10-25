@@ -20,6 +20,7 @@ import {
   hearth,
   jukebox,
   plaque,
+  pokerTable,
   questBoard,
   stool,
   table,
@@ -620,6 +621,18 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(plaque());
     case "z":
       return at(jukebox(), 2);
+    // The poker table: a block of felt tiles, its rim on the sides that have no neighbour of its own.
+    case "♠":
+      return at(
+        pokerTable(
+          map.at(x - 1, y) !== ch,
+          map.at(x + 1, y) !== ch,
+          map.at(x, y - 1) !== ch,
+          map.at(x, y + 1) !== ch,
+        ),
+      );
+    case "♣":
+      return at(chair());
     case "A": {
       let n = 0;
       while (map.at(x - n - 1, y) === ch) n++;

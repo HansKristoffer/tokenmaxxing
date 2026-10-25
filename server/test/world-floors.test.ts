@@ -130,7 +130,7 @@ describe("drops", () => {
       state: { seeded: true, players: {}, companies: {} },
       conns: new Map(),
       client: () => {
-        const actor = { getOrCreate: () => ({ seed: async () => seed }) };
+        const actor = { getOrCreate: () => ({ seed: async () => seed, pokerRelease: async () => 0 }) };
         return { town: actor, world: actor, arcade: actor };
       },
     } as never);
