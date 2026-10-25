@@ -147,6 +147,7 @@ import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/mercha
 import {
   applyDecor,
   buyDecor,
+  decorNow,
   type OpenOffice,
   ownedDecor,
   recordVisit,
@@ -967,6 +968,9 @@ export const town = actor({
     /** What wallpapers and floors I may use now, as `<kind>.<id>`. */
     decorOwned: async (c): Promise<string[]> => ownedDecor(c.db, requireUser(c.conn.state)),
 
+    /** What my office wears now, so the panel can say "In use" wherever I stand. */
+    decorNow: async (c) => decorNow(c.db, requireUser(c.conn.state)),
+
     /** Buys a wallpaper or floor (`kind` wall or floor); `setDecor` puts it on. */
     buyDecor: async (c, kind: unknown, id: unknown): Promise<Wallet> => {
       const userId = requireUser(c.conn.state);
@@ -1013,14 +1017,14 @@ export const town = actor({
       await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
     },
 
-    /** Any member has the company buy its house the next desk tier from the wallet. */
+    /** The owner has the company buy its house the next desk tier from the wallet. */
     buyDeskFleet: async (c): Promise<MyCompany> => {
       const userId = requireUser(c.conn.state);
       if (!c.vars.desks.take(String(userId), Date.now()))
         throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
       const u = await userById(c.db, userId);
-      const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
-      if (!company) throw new UserError("Join a company first.", { code: "not_member" });
+      if (u.companyId === null) throw new UserError("Join a company first.", { code: "not_member" });
+      const company = await ownedCompany(c.db, userId);
       await inShop(c, userId, "furniture");
       await c.vars.serial(() => buyDeskFleet(c.db, company, userId, Date.now()));
       await push(c.db, c.client<typeof registry>(), { users: [], companies: [company.id] });

@@ -52,6 +52,11 @@ export function DecorGoods({ buy }: { buy: boolean }) {
   useEffect(() => {
     void refreshWallet();
     void town.decorOwned().then(setOwned);
+    void town.decorNow().then((d) => {
+      applied.wall = d.wall;
+      applied.floor = d.floor;
+      setNow(d);
+    });
   }, []);
   if (!wallet || !owned) return <p className="muted">Loading…</p>;
 
@@ -193,7 +198,7 @@ export function DeskGoods({ buy }: { buy: boolean }) {
 
 /**
  * The company's house desks: every desk in the house gets this setup, whoever sits there. The wallet pays
- * (and any member may buy the next tier, in the shop); outside the shop it only shows the tier.
+ * (and the owner buys the next tier, in the shop); outside the shop it only shows the tier.
  */
 export function DeskFleet({ buy }: { buy: boolean }) {
   const co = useHud((s) => s.me?.company);
@@ -216,8 +221,8 @@ export function DeskFleet({ buy }: { buy: boolean }) {
         </p>
       )}
       <p className="muted small">
-        Every desk in the house gets this setup, whoever sits there. The wallet pays and any member can buy
-        the next one. In the house you see the better of yours and this.
+        Every desk in the house gets this setup, whoever sits there. The wallet pays and the owner buys the
+        next one. In the house you see the better of yours and this.
       </p>
       <ul className="shop">
         <li className="wearing">
@@ -229,7 +234,7 @@ export function DeskFleet({ buy }: { buy: boolean }) {
           <li>
             <DeskPreview tier={next.tier} />
             <strong>{next.setup.name}</strong>
-            {buy ? (
+            {buy && co.isOwner ? (
               <button
                 type="button"
                 className="primary"
@@ -242,7 +247,9 @@ export function DeskFleet({ buy }: { buy: boolean }) {
                 Buy · 🪙 {next.setup.fleet}
               </button>
             ) : (
-              <span className="muted small">🪙 {next.setup.fleet} at Møbelhuset</span>
+              <span className="muted small">
+                🪙 {next.setup.fleet} {buy ? "· the owner buys it" : "at Møbelhuset"}
+              </span>
             )}
           </li>
         )}

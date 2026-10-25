@@ -311,9 +311,11 @@ export function buildStairs(opts: StairsOpts): Model {
     const k = Math.max(4, Math.min(8, opts.steps ?? 6));
     const run = 0.8 / k;
     for (let i = 0; i < k; i++) {
-      const fade = 0.12 - i * (0.5 / k);
+      const fade = 0.1 - i * (0.3 / k);
       const z = 0.4 - run * (i + 0.5);
-      m.box([0.76, 0.05, run - 0.03], tint(i % 2 ? lit : tread, fade), [0, 0.02, z], 0.004);
+      m.box([0.76, 0.06, run - 0.02], tint(i % 2 ? lit : tread, fade), [0, 0.02, z], 0.004);
+      // The nosing: a lighter edge on each tread, so the flight reads as steps and not a striped floor.
+      m.box([0.76, 0.02, 0.035], tint(lit, fade + 0.12), [0, 0.08, z + (run - 0.02) / 2 - 0.02], 0.004);
     }
     for (const s of [-1, 1]) {
       m.box([0.08, 0.12, 0.96], wood, [s * 0.46, 0, 0], 0.008);
