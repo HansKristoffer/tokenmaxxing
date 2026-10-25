@@ -233,7 +233,7 @@ function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {
   // The stairs up to the common room, in the south wall (`u`): on the floor tile in front of it.
   for (const [sx, sy] of ctx.map.find("u")) {
     const [rx, rz] = hq.tile(sx, sy);
-    const m = exitStairs("up", { wall: "#efe4cf", plate: "LOUNGE" });
+    const m = exitStairs("up", { wall: "#efe4cf", plate: "LOUNGE", layout: "side" });
     m.position.set(rx + 0.5, 0, rz - 0.5);
     m.rotation.y = Math.PI;
     hq.room.group.add(m);

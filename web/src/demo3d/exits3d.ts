@@ -175,6 +175,61 @@ export interface StairsOpts {
   plate?: string | null;
   /** The lamp over the opening and its pool on the floor. */
   lamp?: boolean;
+  /**
+   * Up only. `front` (default): the flight climbs straight to the wall. `side`: it runs along the wall, rising
+   * toward +x, with solid stepped stringers and the risers facing -x, for walls the camera looks over.
+   */
+  layout?: "front" | "side";
+}
+
+/** The flight of `buildStairs` running along the wall (up, `layout: "side"`): the foot at x -0.5, the landing at +0.5. */
+function sideFlight(m: Model, o: { wood: string; tread: string; wall: string; plate: string }): void {
+  const { wood, tread } = o;
+  const n = 6;
+  const run = 0.9 / n;
+  const rise = 0.15;
+  const w = 0.64; // how far into the room the flight reaches
+  const zc = -0.5 + w / 2;
+  const riser = tint(tread, -0.18);
+  const xAt = (i: number) => -0.5 + run * (i + 0.5);
+  for (let i = 0; i < n; i++) {
+    const h = rise * (i + 1);
+    m.box([run, h, w], riser, [xAt(i), 0, zc], 0.004);
+    m.box(
+      [run + 0.01, 0.035, w + 0.01],
+      i % 2 ? tint(tread, 0.22) : tint(tread, 0.04),
+      [xAt(i), h, zc],
+      0.004,
+    );
+    // Solid stepped stringers on both faces, the wall side the one the camera sees.
+    for (const z of [-0.5 + 0.035, -0.5 + w - 0.035])
+      m.box([run, h + 0.1, 0.07], wood, [xAt(i), 0, z], 0.004);
+  }
+  // The open side's rail: four posts on the stringer, a rail along their tops, a cap on the first.
+  const zr = -0.5 + w - 0.035;
+  const post = (i: number): [number, number] => [xAt(i), rise * (i + 1) + 0.1 + 0.5];
+  const posts = [0, 2, 3, 5];
+  for (const i of posts) m.box([0.06, 0.52, 0.06], wood, [xAt(i), rise * (i + 1) + 0.09, zr], 0.008);
+  const a = post(0);
+  const b = post(5);
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const rail = m.box([len, 0.06, 0.06], tint(wood, 0.12), [0, 0, 0], 0.01);
+  rail.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]);
+  rail.position.set((a[0] + b[0]) / 2 - 0.0, (a[1] + b[1]) / 2 - 0.03 + 0.03, zr);
+  // The landing: a lit doorway in the wall above the top step, framed, with the plate on its lintel both ways.
+  const top = rise * n;
+  const dx = 0.3;
+  m.box([0.5, 0.7, 0.02], glow("#3b2d3d"), [dx, top, -0.49], 0);
+  m.box([0.5, 0.6, 0.02], glow("#ffe3a8"), [dx, top + 0.7, -0.49], 0);
+  for (const s of [-1, 1]) m.box([0.07, 1.42, 0.1], wood, [dx + s * 0.285, top, -0.45], 0.008);
+  m.box([0.64, 0.24, 0.1], wood, [dx, top + 1.3, -0.45], 0.008);
+  exitPlate(m, o.plate, "up", [dx, top + 1.42, -0.395]);
+  const back = m.part([dx, top + 1.42, -0.5], Math.PI);
+  exitPlate(back, o.plate, "up", [0, 0, 0.105]);
+  lintelLamp(m, [dx, top + 1.56, -0.42], 0.3);
+  // A mat across the front of the flight.
+  m.box([0.9, 0.025, 0.3], C.rugLight, [0, 0, 0.34], 0.006);
+  m.box([0.8, 0.03, 0.22], C.rug, [0, 0, 0.34], 0.006);
 }
 
 /**
@@ -198,11 +253,20 @@ export function buildStairs(opts: StairsOpts): Model {
     m.box([1, 2.6, 1], wall, [0, 0, -1], 0);
     m.box([1.02, 0.1, 1.02], C.wallTop, [0, 2.6, -1], 0.01);
   }
+  if (dir === "up" && opts.layout === "side") {
+    sideFlight(m, { wood, tread, wall, plate: opts.plate ?? "UP" });
+    return m;
+  }
   // The opening in the wall: a dark well with the jambs and a lintel carrying the plate.
   m.plane(0.92, 2.0, glow("#1c1620"), [0, 1.0, -0.49]);
   for (const s of [-1, 1]) m.box([0.09, 2.24, 0.12], wood, [s * 0.47, 0, -0.44], 0.012);
   m.box([1.04, 0.24, 0.12], wood, [0, 2.0, -0.44], 0.012);
-  if (opts.plate !== null) exitPlate(m, opts.plate ?? (dir === "up" ? "UP" : "DOWN"), dir, [0, 2.12, -0.371]);
+  if (opts.plate !== null) {
+    const text = opts.plate ?? (dir === "up" ? "UP" : "DOWN");
+    exitPlate(m, text, dir, [0, 2.12, -0.371]);
+    // And the same plate on the wall's far face, for a camera looking over the wall.
+    exitPlate(m.part([0, 2.12, -0.5], Math.PI), text, dir, [0, 0, 0.13]);
+  }
   if (opts.lamp !== false) lintelLamp(m, [0, 2.3, -0.42], dir === "up" ? 0.3 : 0.2);
   if (dir === "up") {
     const n = Math.max(4, Math.min(8, opts.steps ?? 6));
@@ -242,35 +306,23 @@ export function buildStairs(opts: StairsOpts): Model {
   } else {
     // The hatch: a rim of low boards, the well and its treads fading into the dark, posts with the rails.
     m.box([0.92, 0.03, 0.96], "#14101a", [0, 0, 0], 0.003);
-    const k = Math.max(3, Math.min(9, opts.steps ?? 5));
-    const run = 0.2;
-    const drop = 0.17;
-    const z0 = 0.36;
+    // Seen from over the wall: the stairwell's rim, the treads on the well's floor fading into the dark, and a
+    // solid rail down each side on four posts. (Nothing hangs past the wall: there is no floor to hold it.)
+    const k = Math.max(4, Math.min(8, opts.steps ?? 6));
+    const run = 0.8 / k;
     for (let i = 0; i < k; i++) {
-      const z = z0 - i * run;
-      const y = 0.035 - i * drop;
-      const fade = -0.04 - i * 0.07;
-      m.box([0.8, 0.16, run], tint(riser, fade), [0, y - 0.16, z], 0.004);
-      m.box([0.8, 0.03, run + 0.01], tint(i % 2 ? lit : tread, fade), [0, y, z], 0.004);
-      for (const s of [-1, 1]) m.box([0.07, 0.34, run], wood, [s * 0.435, y - 0.32, z], 0.006);
+      const fade = 0.12 - i * (0.5 / k);
+      const z = 0.4 - run * (i + 0.5);
+      m.box([0.76, 0.05, run - 0.03], tint(i % 2 ? lit : tread, fade), [0, 0.02, z], 0.004);
     }
-    // Rim boards round the hatch at the foot end and along the sides.
-    for (const s of [-1, 1]) m.box([0.08, 0.1, 0.96], wood, [s * 0.46, 0, 0], 0.008);
-    m.box([0.92, 0.07, 0.07], wood, [0, 0, 0.465], 0.008);
-    const zLast = z0 - (k - 1) * run;
-    const yLast = 0.035 - (k - 1) * drop;
-    const post = { z: z0 + 0.06, y: 0.7 };
-    const end = { z: zLast, y: yLast + 0.6 };
     for (const s of [-1, 1]) {
-      const x = s * 0.455;
-      m.cyl(0.035, post.y, wood, [x, 0, post.z], 0.035, 6);
-      m.box([0.08, 0.05, 0.08], tint(wood, 0.12), [x, post.y, post.z], 0.01);
-      m.cyl(0.03, end.y - yLast + 0.3, wood, [x, yLast - 0.3, end.z], 0.03, 6);
-      const len = Math.hypot(post.y - end.y, post.z - end.z);
-      const rail = m.box([0.055, 0.055, len], tint(wood, 0.1), [x, 0, 0], 0.01);
-      rail.rotation.x = -Math.atan2(post.y - end.y, post.z - end.z);
-      rail.position.set(x, (post.y + end.y) / 2 - 0.03, (post.z + end.z) / 2);
+      m.box([0.08, 0.12, 0.96], wood, [s * 0.46, 0, 0], 0.008);
+      const x = s * 0.46;
+      for (const z of [0.42, 0.14, -0.14, -0.4]) m.box([0.07, 0.62, 0.07], wood, [x, 0.12, z], 0.008);
+      m.box([0.09, 0.06, 0.92], tint(wood, 0.12), [x, 0.74, 0], 0.01);
+      m.box([0.1, 0.07, 0.1], tint(wood, 0.2), [x, 0.74, 0.42], 0.01);
     }
+    m.box([0.92, 0.07, 0.07], wood, [0, 0, 0.465], 0.008);
   }
   return m;
 }
