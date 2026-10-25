@@ -50,7 +50,7 @@ function useAct() {
       setNotice((await fn()).notice);
       await refreshMe();
     });
-  return { act, notice, error };
+  return { act, notice, error, run, setNotice };
 }
 
 /**
@@ -87,7 +87,7 @@ export function CompanyShop() {
   const me = useHud((s) => s.me);
   const co = me?.company;
   const inside = useHud((s) => co != null && (s.room === `hq:${co.id}` || s.room === `common:${co.id}`));
-  const { act, notice, error } = useAct();
+  const { act, notice, error, run, setNotice } = useAct();
   if (!me || !co) return <Modal title="🛋 Company furniture">Join a company first.</Modal>;
 
   // Put out with a ghost to aim (`startPlace`): the piece stays in the storeroom until it is put down.
