@@ -713,3 +713,19 @@ export function view(t: Table, now: number): TableView {
 
 /** `userId`'s own two cards: only ever sent to them. */
 export const holeOf = (t: Table, userId: number): Card[] => t.seats[seatOf(t, userId)]?.hole ?? [];
+
+/** What the room is sent: the table, and the names of everyone it mentions (seated, or in the last result). */
+export interface PokerState extends TableView {
+  names: Record<number, string>;
+}
+
+export function wire(t: Table, now: number, nameOf: (userId: number) => string): PokerState {
+  const state = view(t, now);
+  const ids = new Set<number>([
+    ...state.seats.flatMap((s) => (s ? [s.userId] : [])),
+    ...(state.result
+      ? [...Object.keys(state.result.won).map(Number), ...state.result.shown.map((s) => s.userId)]
+      : []),
+  ]);
+  return { ...state, names: Object.fromEntries([...ids].map((id) => [id, nameOf(id)])) };
+}

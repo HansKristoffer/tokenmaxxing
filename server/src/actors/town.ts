@@ -154,6 +154,7 @@ import {
   visitorCounts,
 } from "../town/offices.ts";
 import { markPicnic } from "../town/picnic.ts";
+import { type PokerSettle, pokerRelease, pokerSettle, pokerSit } from "../town/poker.ts";
 import { freezeDays, questBoard, questEvent } from "../town/quests.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import { migrate } from "../town/schema.ts";
@@ -1311,6 +1312,28 @@ export const town = actor({
     refund: async (c, ref: string, userIds?: number[]): Promise<void> => {
       requireInternal(c.conn.state);
       await c.vars.serial(() => refund(c.db, ref, Date.now(), userIds));
+    },
+
+    // MARK: The Tavern's poker table (from `world` only; `town/poker.ts`)
+
+    /** Takes the buy-in from `userId`'s wallet for a seat: a `UserError` says why not (the day's limit, too poor). */
+    pokerSit: async (c, userId: number): Promise<void> => {
+      requireInternal(c.conn.state);
+      const now = Date.now();
+      const k = await kept(c, now);
+      await c.vars.serial(() => pokerSit(c.db, userId, now, k));
+    },
+
+    /** The table's stacks after a hand, and the seats that stood up (their stacks go back to their wallets). */
+    pokerSettle: async (c, s: PokerSettle): Promise<void> => {
+      requireInternal(c.conn.state);
+      await c.vars.serial(() => pokerSettle(c.db, s, Date.now()));
+    },
+
+    /** The world woke without its table: everyone still seated gets their stack back. */
+    pokerRelease: async (c): Promise<number> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => pokerRelease(c.db, Date.now()));
     },
 
     /** A finished game, for stats. */

@@ -32,6 +32,7 @@ import {
   TURN_MS,
   tick,
   view,
+  wire,
 } from "../src/poker.ts";
 import { CHAIR_CHAR, chairAt, pokerChairs, pokerTable } from "../src/pokertable.ts";
 import { DIRS, route } from "../src/world.ts";
@@ -622,6 +623,15 @@ describe("what each side may see", () => {
     play(t, 0, "fold");
     expect(JSON.stringify(view(t, 0))).not.toContain('"hole"');
     expect(view(t, 0).seats.some((s) => s?.cards)).toBe(false);
+  });
+
+  test("the wire form names everyone the table mentions", () => {
+    const t = table({ 0: 200, 1: 200 });
+    deal(t);
+    play(t, 0, "fold");
+    const state = wire(t, 0, (id) => `p${id}`);
+    expect(state.names).toEqual({ 100: "p100", 101: "p101" });
+    expect(state.result!.won).toEqual({ 101: 15 });
   });
 
   test("the pot and the clock", () => {
