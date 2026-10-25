@@ -85,6 +85,8 @@ interface HudState {
   panel: Panel | null;
   /** A line of text at the bottom (inspecting things, locked doors). */
   dialog: string | null;
+  /** Facing one of my own pieces of furniture: what G and M do to it (null: none). */
+  pieceHint: string | null;
   /** The room name, shown briefly on entering. */
   banner: { text: string; at: number } | null;
   /** Bumped to ask the chat input to take focus. */
@@ -127,6 +129,7 @@ let state: HudState = {
   chat: [],
   panel: null,
   dialog: null,
+  pieceHint: null,
   banner: null,
   chatFocus: 0,
   mention: null,

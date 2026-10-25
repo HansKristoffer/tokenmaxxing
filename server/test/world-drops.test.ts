@@ -51,7 +51,6 @@ describe("drops", () => {
     // Walking into it only turns you to face it.
     const path = route(mapOf(room), [mateAt.x, mateAt.y], [sofa.x, sofa.y])!;
     await walk(m.conn, path);
-    expect(await m.conn.take()).toBeNull(); // a seat is taken from on it
     expect(await m.conn.sit(path.at(-1))).toMatchObject({ x: sofa.x, y: sofa.y, state: "sit" });
     expect(await m.conn.take()).toEqual({ notice: "🎒 Took the Sofa.", drop: sofa });
     // The last the owner saw of them: a step (`m`), or their arrival if the world told the room of

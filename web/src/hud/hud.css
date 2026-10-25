@@ -300,7 +300,24 @@ textarea:focus {
   border: 3px solid var(--ink);
 }
 
+/* Above the dialog's place: what G and M do to the piece you face. */
+.piece-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  font-size: 13px;
+  background: rgba(251, 247, 239, 0.97);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 @media (max-width: 1150px) {
+  .piece-hint {
+    bottom: 230px;
+  }
   .dialog {
     bottom: 230px;
   }

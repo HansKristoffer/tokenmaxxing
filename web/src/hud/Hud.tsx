@@ -91,6 +91,7 @@ export function Hud() {
         </>
       )}
       <Dialog />
+      <PieceHint />
       <Panel />
       {status === "connecting" && (
         <div className="toast" role="status">
@@ -276,6 +277,18 @@ function Dialog() {
     <div className="panel dialog" role="status">
       {dialog}
       <span className="muted small"> ▼ E</span>
+    </div>
+  );
+}
+
+/** Facing a piece of mine: it can be taken back (the storeroom, the bag) or moved. */
+function PieceHint() {
+  const hint = useHud((s) => s.pieceHint);
+  const busy = useHud((s) => s.dialog !== null || s.panel !== null);
+  if (!hint || busy) return null;
+  return (
+    <div className="panel piece-hint" role="status">
+      {hint}
     </div>
   );
 }

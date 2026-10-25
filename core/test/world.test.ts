@@ -16,6 +16,7 @@ import {
   mapOf,
   mentionsIn,
   namesIn,
+  ownPieceAt,
   outsideDoor,
   parseLook,
   portal,
@@ -284,5 +285,32 @@ describe("pet variants", () => {
       expect(itemById(`pet.${pet}`)).toBeDefined();
       for (const id of ids) expect(id).toMatch(/^[a-z]+$/);
     }
+  });
+});
+
+describe("ownPieceAt", () => {
+  const at = (item: string, x: number, y: number, co?: number): Drop => ({
+    id: x * 10 + y,
+    item,
+    room: "common:3",
+    x,
+    y,
+    by: 1,
+    at: 0,
+    ...(co !== undefined && { co }),
+  });
+  const beanbag = at("furn.ε", 5, 5, 3);
+  test("a company piece, a seat or a rug too, is the one faced; mine, not another company's", () => {
+    expect(ownPieceAt("common:3", { x: 5, y: 6, facing: "up" }, [beanbag], 1, 3)).toBe(beanbag);
+    expect(ownPieceAt("common:3", { x: 5, y: 7, facing: "up" }, [beanbag], 1, 3)).toBeUndefined();
+    expect(ownPieceAt("common:3", { x: 5, y: 6, facing: "up" }, [beanbag], 1, 4)).toBeUndefined();
+    expect(ownPieceAt("common:3", { x: 5, y: 5, facing: "down" }, [beanbag], 1, 3)).toBe(beanbag);
+  });
+  test("in an office, only the owner's; hats are not furniture", () => {
+    const grass = { ...at("furn.g", 3, 3), room: "office:7" as const };
+    const hat = at("hat.1", 3, 4);
+    expect(ownPieceAt("office:7", { x: 4, y: 3, facing: "left" }, [grass], 7, null)).toBe(grass);
+    expect(ownPieceAt("office:7", { x: 4, y: 3, facing: "left" }, [grass], 8, null)).toBeUndefined();
+    expect(ownPieceAt("office:7", { x: 3, y: 5, facing: "up" }, [hat], 7, null)).toBeUndefined();
   });
 });

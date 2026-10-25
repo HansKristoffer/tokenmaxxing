@@ -1,6 +1,18 @@
 import { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { worldWall } from "@tokenmaxxing/core/range.ts";
-import { DIRS, type Facing, houseTier, mapOf, ownerOfOffice } from "@tokenmaxxing/core/world.ts";
+import { canHang } from "@tokenmaxxing/core/office.ts";
+import {
+  baseMap,
+  DIRS,
+  type Drop,
+  dropCovers,
+  type Facing,
+  houseTier,
+  mapOf,
+  ownerOfOffice,
+  ownPieceAt,
+  pieceOfDrop,
+} from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { setGeometryDetail } from "../demo3d/kit.ts";
 import { Pipeline } from "../demo3d/pipeline.ts";
@@ -106,6 +118,13 @@ class Renderer3D implements Renderer {
   private readonly placer = new Placer();
   /** A piece bought for the Office while elsewhere: placing starts once we are there. */
   private pendingPlace: string | null = null;
+  /** M on a piece of yours: it stays put while a ghost of it follows the pointer or your steps, until a click or E. */
+  private moving: {
+    drop: Drop;
+    aim: Tile | null;
+    pose: string;
+    timer: ReturnType<typeof setInterval>;
+  } | null = null;
   private last = 0;
   private settings: GraphicsSettings | null = null;
   private labelsAll = false;
@@ -303,6 +322,7 @@ class Renderer3D implements Renderer {
       this.shops?.panel.close();
       this.shops?.panel.tip(null);
       this.placer.cancel();
+      this.stopMoving();
       if (this.pendingPlace && this.inOwnOffice()) {
         const id = this.pendingPlace;
         this.pendingPlace = null;
@@ -526,6 +546,13 @@ class Renderer3D implements Renderer {
   private bindShopping(): void {
     const click = (e: MouseEvent) => {
       if (hud.get().panel) return;
+      if (this.moving) {
+        e.stopImmediatePropagation();
+        const t = this.pick(e.clientX, e.clientY);
+        if (t) this.aimMove(t);
+        this.confirmMove();
+        return;
+      }
       if (this.placer.active) {
         e.stopImmediatePropagation();
         this.placeAt(e.clientX, e.clientY);
@@ -537,7 +564,11 @@ class Renderer3D implements Renderer {
       this.shops.open(hit.shop, hit.display.item);
     };
     const move = (e: PointerEvent) => {
-      if (this.placer.active && this.stage) {
+      if (this.moving) {
+        const t = this.pick(e.clientX, e.clientY);
+        if (t) this.aimMove(t);
+      }
+      if (this.placer.active && this.stage && !this.moving) {
         const t = this.pick(e.clientX, e.clientY);
         this.placer.aim(this.stage.view, t, t !== null && this.floorFree(t.x, t.y));
       }
@@ -551,6 +582,26 @@ class Renderer3D implements Renderer {
       );
     };
     const key = (e: KeyboardEvent) => {
+      if (this.moving && !hud.get().panel) {
+        const k = e.key.toLowerCase();
+        if (k === "escape" || k === "e" || k === "enter" || k === "m") {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+          if (k === "escape" || k === "m") this.stopMoving(true);
+          else this.confirmMove();
+        }
+        return;
+      }
+      if (
+        e.key.toLowerCase() === "m" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !hud.get().panel &&
+        !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
+      ) {
+        this.startMove();
+        return;
+      }
       if (e.key !== "Escape" || !this.placer.active) return;
       e.stopImmediatePropagation();
       e.preventDefault();
@@ -595,6 +646,88 @@ class Renderer3D implements Renderer {
     this.placer.cancel();
     this.pendingPlace = null;
     if (hud.get().dialog?.startsWith("Click where")) hud.set({ dialog: null });
+  }
+
+  // MARK: Moving furniture
+
+  /** M facing (or on) a piece of yours: carry a ghost of it about until you put it down. */
+  private startMove(): void {
+    const me = self();
+    if (!this.stage || !me || me.state !== "idle" || this.placer.active) return;
+    const drop = ownPieceAt(world.room, me, world.drops, world.selfId, me.info.companyId);
+    if (!drop) {
+      hud.set({ dialog: "Face one of your own pieces of furniture, then press M to move it." });
+      return;
+    }
+    if (!this.placer.begin(drop.item, this.stage.scene)) return;
+    hud.set({
+      dialog: "Moving it: point or walk to a spot (green fits). Click or E puts it down, Esc keeps it here.",
+    });
+    const timer = setInterval(() => this.followSteps(), 120);
+    this.moving = { drop, aim: null, pose: "", timer };
+    this.aimMove({ x: drop.x, y: drop.y });
+  }
+
+  /** Walking about aims the ghost at the tile you face. */
+  private followSteps(): void {
+    const m = this.moving;
+    const me = self();
+    if (!m || !me) return;
+    const pose = `${me.x},${me.y},${me.facing}`;
+    if (m.pose === pose) return;
+    const first = m.pose === "";
+    m.pose = pose;
+    if (first) return;
+    const [dx, dy] = DIRS[me.facing];
+    this.aimMove({ x: me.x + dx, y: me.y + dy });
+  }
+
+  /** Whether the moving piece can stand with its left end on `t`: bare floor (or its own), or bare wall for a poster. */
+  private moveFits(t: Tile): boolean {
+    const m = this.moving;
+    const piece = m && pieceOfDrop(m.drop);
+    if (!m || !piece) return false;
+    const w = piece.w ?? 1;
+    for (let i = 0; i < w; i++) {
+      const x = t.x + i;
+      if (world.drops.some((o) => o.id !== m.drop.id && dropCovers(o, x, t.y))) return false;
+      if (piece.wall) continue;
+      const own = dropCovers(m.drop, x, t.y);
+      if (!own && (!world.map.walkable(x, t.y) || world.map.kind(x, t.y).portal)) return false;
+      for (const a of world.avatars.values()) if (a.x === x && a.y === t.y) return false;
+    }
+    return !piece.wall || canHang(baseMap(world.room), t.x, t.y, w, piece.home);
+  }
+
+  private aimMove(t: Tile): void {
+    if (!this.moving || !this.stage) return;
+    this.moving.aim = t;
+    this.placer.aim(this.stage.view, t, this.moveFits(t));
+  }
+
+  /** The server decides (and keeps the piece where it was if the spot is no good). */
+  private confirmMove(): void {
+    const m = this.moving;
+    if (!m?.aim) return;
+    if (!this.moveFits(m.aim)) {
+      hud.set({ dialog: "It doesn't fit there. Pick a green spot." });
+      return;
+    }
+    const { drop, aim } = m;
+    this.stopMoving();
+    conn.move(drop.id, aim.x, aim.y).then(
+      (r) => hud.set({ dialog: r.notice }),
+      (e: unknown) => hud.set({ dialog: e instanceof Error ? e.message : "That didn't work." }),
+    );
+  }
+
+  private stopMoving(say = false): void {
+    const m = this.moving;
+    if (!m) return;
+    clearInterval(m.timer);
+    this.moving = null;
+    this.placer.cancel();
+    hud.set({ dialog: say ? "Left where it was." : null });
   }
 
   /** Whether a piece can go on this tile: bare floor, nobody standing on it. */
@@ -787,6 +920,8 @@ class Renderer3D implements Renderer {
       delete viewHooks.toss;
     }
     this.placer.cancel();
+    if (this.moving) clearInterval(this.moving.timer);
+    this.moving = null;
     this.shops?.dispose();
     this.shops = null;
     this.signs.dispose();

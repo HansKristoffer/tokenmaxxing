@@ -675,6 +675,20 @@ export const town = actor({
       return pickUp(c.db, dropId, userId, room);
     },
 
+    /** From `world.move`: where a piece of furniture now stands. False if its row is gone or in a bag. */
+    moved: async (c, d: Drop): Promise<boolean> => {
+      requireInternal(c.conn.state);
+      const rows = await all(
+        c.db,
+        "UPDATE items SET x = ?, y = ? WHERE id = ? AND room = ? AND owner_id IS NULL RETURNING id",
+        d.x,
+        d.y,
+        d.id,
+        d.room,
+      );
+      return rows.length > 0;
+    },
+
     /** Today's quests and the week's, with how far each is. Deals today's the first time. */
     questBoard: (c): Promise<QuestBoard> => {
       const userId = requireUser(c.conn.state);

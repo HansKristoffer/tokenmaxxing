@@ -3,9 +3,11 @@ import { stepPace } from "@tokenmaxxing/core/street.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
   DIRS,
+  dropName,
   type Facing,
   JUMP_MS,
   RUN_STEP_MS,
+  ownPieceAt,
   route,
   type StepResult,
   stepTarget,
@@ -23,7 +25,7 @@ import { chipHits, signHits } from "./labels.ts";
 import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
-import { pickTile } from "./stage.ts";
+import { perf, pickTile } from "./stage.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { openTrophies } from "./trophies.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
@@ -267,6 +269,7 @@ export function send(result: Promise<StepResult>): void {
 /** Called every frame: start the next step if a key is held or a clicked path remains. */
 export function updateSelf(now: number): void {
   const me = self();
+  updatePieceHint(me);
   if (!me || world.portalPending || stepping(me, now)) return;
   // Through a door with a key held, you arrive right in front of the way back (the Tavern's stairs and the
   // basement's, one tile from each other): let go of it, or the held key bounces you between the two.
@@ -328,6 +331,18 @@ export function updateSelf(now: number): void {
       (running ? RUN_STEP_MS : WALK_STEP_MS) * stepPace(me.info.polseUntil, Date.now()),
     );
   send(conn.step(dir));
+}
+
+/** Facing one of my own pieces: the keys that take it back or move it, shown at the bottom. */
+function updatePieceHint(me: ReturnType<typeof self>): void {
+  const piece =
+    me && me.state === "idle"
+      ? ownPieceAt(world.room, me, world.drops, world.selfId, me.info.companyId)
+      : undefined;
+  const text = !piece
+    ? null
+    : `${dropName(piece)}: G ${piece.co === undefined ? "puts it in your bag" : "takes it back to the storeroom"}${perf.renderer === "3d" ? " · M moves it" : ""}`;
+  if (hud.get().pieceHint !== text) hud.set({ pieceHint: text });
 }
 
 /** G, or a right-click: take what's there. It goes in the bag, so 🎒 counts one more. */

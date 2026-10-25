@@ -88,6 +88,7 @@ import {
   mapOf,
   memberRoomOf,
   mentionsIn,
+  piecesIn,
   type Notice,
   ownerOfOffice,
   type Place,
@@ -615,8 +616,14 @@ export const world = actor({
       const [fx, fy] = [p.x + dx, p.y + dy];
       const here = dropsIn(p.room);
       const on = here.find((d) => dropCovers(d, p.x, p.y) && (p.state === "sit" || map.walkable(p.x, p.y)));
+      // Facing it: what blocks, or any piece of furniture, even a seat or a rug that you could stand on.
       const d =
-        on ?? here.find((d) => dropCovers(d, fx, fy) && !map.walkable(fx, fy) && !map.kind(fx, fy).seat);
+        on ??
+        here.find(
+          (d) =>
+            dropCovers(d, fx, fy) &&
+            ((!map.walkable(fx, fy) && !map.kind(fx, fy).seat) || pieceOfDrop(d) !== undefined),
+        );
       if (!d) return null;
       const owner = ownerOfOffice(p.room);
       if (owner !== null && owner !== userId)
@@ -643,6 +650,45 @@ export const world = actor({
           d.co === undefined ? `🎒 Took the ${dropName(d)}.` : `📦 The ${dropName(d)} is in the storeroom.`,
         drop: d,
       };
+    },
+
+    /**
+     * Moves a piece of furniture you may take (your office's, or your company's) to the tile (x, y), in one
+     * step: it is on the floor the whole time, and if the spot is no good or `town` can't write it down, it
+     * stays where it was. `at` is the tile's left end, as for a drop.
+     */
+    move: async (c, id: unknown, x: unknown, y: unknown): Promise<{ notice: string; drop?: Drop }> => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || (p.state !== "idle" && p.state !== "sit")) return { notice: "Not now." };
+      if (![id, x, y].every((n) => Number.isInteger(n)))
+        throw new UserError("Pick a tile.", { code: "bad_request" });
+      touch(c, p, Date.now());
+      const d = dropsIn(p.room).find((o) => o.id === id);
+      const piece = d && pieceOfDrop(d);
+      if (!d || !piece) return { notice: "That's gone." };
+      if (d.co !== undefined ? d.co !== p.companyId : ownerOfOffice(p.room) !== userId)
+        return { notice: "Only its owner moves that." };
+      const people = Object.values(c.state.players).filter((o) => o.room === p.room);
+      if (people.some((o) => o.state === "sit" && dropCovers(d, o.x, o.y)))
+        return { notice: "Someone is on it." };
+      if (!fitsAt(p.room, d, piece, x as number, y as number, people))
+        return { notice: "It doesn't fit there." };
+      const moved: Drop = { ...d, x: x as number, y: y as number };
+      setDrops(p.room, [...dropsIn(p.room).filter((o) => o.id !== d.id), moved]);
+      const wrote = await main(c.client())
+        .town.moved(moved)
+        .catch((err) => {
+          console.warn(`[move] ${d.id}: ${String(err)}`);
+          return false;
+        });
+      if (!wrote) {
+        setDrops(p.room, [...dropsIn(p.room).filter((o) => o.id !== d.id), d]);
+        sendToRoom(c, p.room, "drop", d);
+        return { notice: "That didn't work. Try again." };
+      }
+      sendToRoom(c, p.room, "drop", moved);
+      return { notice: `Moved the ${dropName(moved)}.`, drop: moved };
     },
 
     say: async (c, rawText: unknown): Promise<void> => {
@@ -1808,6 +1854,43 @@ function liftMisplaced(c: Sender & { vars: Vars }, room: RoomId): number[] {
   });
   for (const d of out) lift(c, d);
   return out.map((d) => d.id);
+}
+
+/**
+ * Whether drop `d` (a `piece`) could stand with its left end on (x, y) in `room` with the rest of the floor as
+ * it is: bare floor or, for a wall piece, bare wall; one piece to a tile; nobody under it, nobody walled in,
+ * and in an office every door, desk and seat still reachable. The same rules as `placeDrop`.
+ */
+function fitsAt(
+  room: RoomId,
+  d: Drop,
+  piece: NonNullable<ReturnType<typeof pieceOfDrop>>,
+  x: number,
+  y: number,
+  people: readonly { x: number; y: number }[],
+): boolean {
+  const base = baseMap(room);
+  const w = piece.w ?? 1;
+  const others = dropsIn(room).filter((o) => o.id !== d.id);
+  const taken = new Set<string>();
+  for (const o of others) for (let i = 0; i < (pieceOfDrop(o)?.w ?? 1); i++) taken.add(`${o.x + i},${o.y}`);
+  for (let i = 0; i < w; i++) if (taken.has(`${x + i},${y}`)) return false;
+  if (piece.wall) {
+    if (!canHang(base, x, y, w, piece.home)) return false;
+    for (let i = 0; i < w; i++) if (taken.has(`${x + i},${y + 1}`)) return false;
+    return true;
+  }
+  const map = withPieces(piecesIn(others), base);
+  const reserved = noFurniture(room, base);
+  for (let i = 0; i < w; i++) {
+    if (!map.walkable(x + i, y) || map.kind(x + i, y).portal || reserved.has(`${x + i},${y}`)) return false;
+    if (people.some((o) => o.x === x + i && o.y === y)) return false;
+    for (const o of others) if (pieceOfDrop(o)?.wall && dropCovers(o, x + i, y - 1)) return false;
+  }
+  const next = withPieces([{ ch: piece.ch, x, y }], map);
+  const exit = map.find("x")[0];
+  if (exit && people.some((o) => !route(next, [o.x, o.y], exit))) return false;
+  return !(ownerOfOffice(room) !== null && cutsOff(map, { ch: piece.ch, x, y }));
 }
 
 /** Their wallpaper and floor, when they have any. */

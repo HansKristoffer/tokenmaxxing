@@ -103,7 +103,7 @@ export function mapOf(room: RoomId): GameMap {
 }
 
 /** The furniture among `drops`, as pieces of a map. */
-const piecesIn = (drops: readonly Drop[]) =>
+export const piecesIn = (drops: readonly Drop[]) =>
   drops.flatMap((d) => {
     const piece = pieceOfDrop(d);
     return piece ? [{ ch: piece.ch, x: d.x, y: d.y }] : [];
@@ -141,6 +141,27 @@ export const pieceOfDrop = (d: Pick<Drop, "item">): Piece | undefined =>
 export const dropName = (d: Pick<Drop, "item">): string => itemById(d.item)?.name ?? "Something";
 
 /** Whether a drop lies on (x, y): a TV is two tiles. */
+/**
+ * The piece of furniture G takes and M moves for someone: one of theirs (their office's, their company's),
+ * the one they are on, else the one they face, whether it blocks, seats or is a rug.
+ */
+export function ownPieceAt(
+  room: RoomId,
+  at: { x: number; y: number; facing: Facing },
+  drops: readonly Drop[],
+  userId: number,
+  companyId: number | null,
+): Drop | undefined {
+  const owner = ownerOfOffice(room);
+  const mine = (d: Drop) =>
+    pieceOfDrop(d) !== undefined && (d.co !== undefined ? d.co === companyId : owner === userId);
+  const [dx, dy] = DIRS[at.facing];
+  return (
+    drops.find((d) => mine(d) && dropCovers(d, at.x, at.y)) ??
+    drops.find((d) => mine(d) && dropCovers(d, at.x + dx, at.y + dy))
+  );
+}
+
 export const dropCovers = (d: Drop, x: number, y: number): boolean =>
   d.y === y && x >= d.x && x < d.x + (pieceOfDrop(d)?.w ?? 1);
 

@@ -164,4 +164,36 @@ describe("world", () => {
     expect(again.snap.room).toBe("inn");
     for (const c of [w, again]) await c.conn.dispose();
   });
+
+  test("its owner moves a piece to a free tile, one step, and nobody else does", async () => {
+    const owner = await signUp("office");
+    await owner.town.createCompany("Movers");
+    await veteran(owner);
+    const guest = await signUp("office");
+    const room = `office:${owner.userId}` as const;
+    const g = await connect(guest.token);
+    expect(await g.conn.visit(owner.userId)).toMatchObject({ room });
+    const chair = await eventually(() => g.events.snapshots.at(-1)!.drops.find((d) => d.item === "furn.c")!);
+    expect(await g.conn.move(chair.id, 3, 6)).toEqual({ notice: "Only its owner moves that." });
+    await g.conn.dispose();
+    const o = await connect(owner.token);
+    const at = o.snap.players.find((p) => p.id === owner.userId)!;
+    await walk(o.conn, route(hqMap(o.snap.doors), [at.x, at.y], [1, -2])!);
+    await eventually(() => expect(o.events.snapshots.at(-1)?.room).toBe(room));
+    // Onto the desk's tile, onto the wall, and off the map: it stays where it was.
+    for (const [x, y] of [
+      [5, 3],
+      [0, 0],
+      [99, 99],
+    ] as const)
+      expect(await o.conn.move(chair.id, x, y)).toEqual({ notice: "It doesn't fit there." });
+    expect(await o.conn.move(chair.id, 3, 6)).toMatchObject({
+      notice: "Moved the Chair.",
+      drop: { x: 3, y: 6 },
+    });
+    // Still the owner's, and on the floor where it was put: a new visitor sees it there.
+    const late = await connect(owner.token);
+    expect(late.snap.drops.find((d) => d.id === chair.id)).toMatchObject({ x: 3, y: 6 });
+    for (const c of [o, late]) await c.conn.dispose();
+  });
 });
