@@ -13,7 +13,15 @@ import {
   TOWN_SPAWN,
   townMap,
 } from "../src/maps.ts";
-import { displayTab, SHOP_DOOR_CHAR, SHOP_IDS, SHOP_ROOM, SHOPS } from "../src/shoprooms.ts";
+import {
+  displayTab,
+  SHOP_DOOR_CHAR,
+  SHOP_IDS,
+  SHOP_ROOM,
+  SHOP_TABS,
+  SHOPS,
+  SUPPLIES_DESK,
+} from "../src/shoprooms.ts";
 import { portal, RAIDERS_SHOWN, roomEntry } from "../src/world.ts";
 
 /** Tiles you can walk onto or stand next to (to sit, read or open a door) from (x, y). */
@@ -249,6 +257,11 @@ describe("the shops", () => {
       for (const s of layoutOf(map).seats) expect(seen.has(`${s.x},${s.y}`) || next(s.x, s.y)).toBe(true);
     });
 
+    test(`${id}: every display opens a tab this shop carries`, () => {
+      for (const [, , tab] of shop.displays)
+        expect(tab === "look" ? id === "barber" : SHOP_TABS[id].includes(tab)).toBe(true);
+    });
+
     test(`${id}: the door leads in from the town and back out below the storefront`, () => {
       const [dx, dy] = MAPS.town.find(SHOP_DOOR_CHAR[id])[0]!;
       expect(portal("town", { ch: SHOP_DOOR_CHAR[id], x: dx, y: dy }, null, none)).toEqual(entry);
@@ -269,5 +282,45 @@ describe("the shops", () => {
     expect(tavern.doors.map((d) => d.ch).sort()).toEqual(["S", "u", "x"]);
     expect(tavern.seats.length).toBeGreaterThan(20);
     expect(layoutOf(MAPS["shop-barber"]).displays.some((d) => d.shop === "counter")).toBe(true);
+  });
+});
+
+describe("Møbelhuset sells everything a room needs, at displays you walk up to", () => {
+  const shop = SHOPS.furniture;
+  const map = MAPS[SHOP_ROOM.furniture];
+  const entry = roomEntry(SHOP_ROOM.furniture);
+  const seen = reachable(map, entry.x, entry.y);
+  const stand = (x: number, y: number) =>
+    [
+      [0, 1],
+      [0, -1],
+      [1, 0],
+      [-1, 0],
+    ].some(([dx, dy]) => seen.has(`${x + dx!},${y + dy!}`) && map.walkable(x + dx!, y + dy!));
+
+  test("it has tabs for furniture, wallpaper and floors, monitors and company supplies", () => {
+    expect(SHOP_TABS.furniture).toEqual(["furniture", "decor", "desk", "company"]);
+    for (const tab of SHOP_TABS.furniture)
+      expect(shop.displays.filter(([, , t]) => t === tab).length).toBeGreaterThanOrEqual(5);
+  });
+
+  test("the monitor setups, the wallpaper and floor samples and the supplies desk each open their tab", () => {
+    expect(displayTab("furniture", 3, 3)).toBe("desk");
+    expect(displayTab("furniture", 15, 3)).toBe("desk");
+    expect(displayTab("furniture", 0, 3)).toBe("decor");
+    expect(displayTab("furniture", 0, 18)).toBe("decor");
+    const [sx, sy] = SUPPLIES_DESK;
+    expect(displayTab("furniture", sx, sy)).toBe("company");
+    expect(displayTab("furniture", sx + 1, sy)).toBe("company");
+  });
+
+  test("a customer can stand at every tab's display tiles", () => {
+    for (const tab of SHOP_TABS.furniture) {
+      const tiles = shop.displays.filter(([, , t]) => t === tab);
+      expect(tiles.filter(([x, y]) => stand(x, y)).length).toBe(tiles.length);
+    }
+    const [sx, sy] = SUPPLIES_DESK;
+    expect(map.kind(sx, sy).shop).toBe("furniture");
+    expect(stand(sx, sy) && stand(sx + 1, sy)).toBe(true);
   });
 });

@@ -5,6 +5,7 @@ import { startPlace } from "../game/furniture.ts";
 import { conn, refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { coins } from "./format.ts";
+import { DeskFleet } from "./RoomGoods.tsx";
 import { PieceImage } from "./Shop.tsx";
 import { TakeMeThere } from "./ShopDirectory.tsx";
 import { Modal, useRun } from "./ui.tsx";
@@ -54,13 +55,15 @@ function useAct() {
 }
 
 /**
- * The company's catalogue, from the company wallet: only the owner buys, and only here, in Møbelhuset
- * (the Shop page's "Company" tab). It goes to the storeroom; the building puts it out.
+ * The company's supplies, from the company wallet (the Shop page's "Company" tab, Møbelhuset only): only the
+ * owner orders furniture and posters, and only here. They go to the storeroom; the building puts them out.
+ * Every member sees what is stored and who orders, and may buy the house desks' next tier.
  */
 export function CompanyOrder() {
   const co = useHud((s) => s.me?.company);
   const { act, notice, error } = useAct();
   if (!co) return <p className="muted">Join a company first.</p>;
+  const owner = co.members.find((m) => m.isOwner)?.name;
   return (
     <>
       <p className="wallet">
@@ -71,10 +74,36 @@ export function CompanyOrder() {
       </p>
       {notice && <p className="muted">{notice}</p>}
       {error && <p className="error">{error}</p>}
-      <Catalogue pieces={COMPANY_FURNITURE.filter((f) => !f.wall)} wallet={co.wallet} act={act} />
-      <h3>🖼 Posters</h3>
-      <p className="muted small">Parodies, hung on the building's top wall.</p>
-      <Catalogue pieces={COMPANY_FURNITURE.filter((f) => f.wall)} wallet={co.wallet} act={act} />
+      <h3>📦 Storeroom</h3>
+      {co.stored.length > 0 ? (
+        <ul className="shop">
+          {co.stored.map((s) => (
+            <li key={s.item}>
+              <PieceImage ch={s.item.slice(5)} />
+              <span>
+                {itemById(s.item)?.name}
+                {s.count > 1 && <span className="muted"> ×{s.count}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted small">Nothing is stored right now.</p>
+      )}
+      {co.isOwner ? (
+        <>
+          <h3>🛋 Company furniture</h3>
+          <Catalogue pieces={COMPANY_FURNITURE.filter((f) => !f.wall)} wallet={co.wallet} act={act} />
+          <h3>🖼 Posters</h3>
+          <p className="muted small">Parodies, hung on the building's top wall.</p>
+          <Catalogue pieces={COMPANY_FURNITURE.filter((f) => f.wall)} wallet={co.wallet} act={act} />
+        </>
+      ) : (
+        <p className="muted small">
+          Company furniture and posters are ordered by {owner ?? "the owner"}, who owns {co.name}.
+        </p>
+      )}
+      <DeskFleet buy />
     </>
   );
 }

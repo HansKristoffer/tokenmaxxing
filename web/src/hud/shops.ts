@@ -28,7 +28,10 @@ export const SHOP_DIRECTORY: readonly ShopEntry[] = SHOP_IDS.map((id) => ({
 
 /** The Shop page's tabs (item slots) in a shop: only its own goods. */
 export const shopSlots = (shop: ShopId): readonly ShopTab[] =>
-  SHOP_TABS[shop].filter((t): t is Exclude<ShopTab, "look"> => t !== "look");
+  SHOP_TABS[shop].filter((t) => !(NOT_SLOTS as readonly string[]).includes(t));
+
+/** Tabs that are not item slots: the barber's looks and Møbelhuset's wallpaper, monitors and company supplies. */
+const NOT_SLOTS = ["look", "decor", "desk", "company"] as const;
 
 /** "Buy hats at Thread & Token": where an item slot is sold, or null if it isn't sold in a shop. */
 export function buyHint(slot: string, noun: string): string | null {
@@ -57,7 +60,7 @@ export const MENU = [
   [{ kind: "arcade" }, "🎮 Arcade"],
   [{ kind: "raid" }, "⚔️ Raid"],
   [{ kind: "openOffices" }, "🚪 Open offices"],
-  [{ kind: "desk" }, "🖥 Desk"],
+  [{ kind: "desk" }, "🖥 My desk"],
   [{ kind: "company" }, "🏢 Company"],
   [{ kind: "leaderboard" }, "🏆 Leaderboard"],
   [{ kind: "graphics" }, "🖼 Graphics"],
