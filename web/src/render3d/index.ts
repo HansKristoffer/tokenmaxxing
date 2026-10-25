@@ -1,6 +1,6 @@
 import { GameMap } from "@tokenmaxxing/core/maps.ts";
-import { worldWall } from "@tokenmaxxing/core/range.ts";
 import { canHang } from "@tokenmaxxing/core/office.ts";
+import { worldWall } from "@tokenmaxxing/core/range.ts";
 import {
   baseMap,
   DIRS,
@@ -411,8 +411,10 @@ class Renderer3D implements Renderer {
    * frame it opens. One step a frame, once per room.
    */
   private warmAhead(now: number): void {
-    if (this.warming)
-      return now - this.stillSince > STILL_MS && !this.warming.draw ? this.finishAhead() : undefined;
+    if (this.warming) {
+      if (now - this.stillSince > STILL_MS && !this.warming.draw) this.finishAhead();
+      return;
+    }
     if (!this.settings || !this.stage || this.warmed === this.room || world.portalPending) return;
     if (now - this.since < WARM_AFTER_MS || now - this.stillSince < STILL_MS || this.stats.lastGap > 40)
       return;

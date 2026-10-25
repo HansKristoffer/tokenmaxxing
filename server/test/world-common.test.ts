@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { commonStairs, houseStairs } from "@tokenmaxxing/core/common.ts";
-import { withPieces } from "@tokenmaxxing/core/office.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
+import { withPieces } from "@tokenmaxxing/core/office.ts";
 import { route } from "@tokenmaxxing/core/world.ts";
 import { admin, admit, eventually, signUp } from "./rivet.ts";
 import { connect, walk } from "./world-client.ts";
