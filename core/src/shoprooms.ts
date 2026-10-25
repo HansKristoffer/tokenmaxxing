@@ -386,3 +386,42 @@ export const SHOPS: Record<ShopId, ShopLayout> = {
 export function displayTab(shop: ShopId, x: number, y: number): ShopTab | null {
   return SHOPS[shop].displays.find(([dx, dy]) => dx === x && dy === y)?.[2] ?? null;
 }
+
+/** What each shop sells, for the directory and for hints ("Buy hats at Thread & Token"). */
+export const SHOP_SELLS: Record<ShopId, string> = {
+  furniture: "Furniture, wallpapers, floors, desks and your company's furniture",
+  clothes: "Outfits, hats, glasses, things to hold, back items and company merch",
+  barber: "Haircuts and colours (free), at the mirror",
+  pets: "Pets and pet gear",
+};
+
+/** The shop that sells an item of this slot: where `buy` must be called from. */
+export function shopForSlot(slot: string): ShopId | null {
+  switch (slot) {
+    case "furniture":
+      return "furniture";
+    case "outfit":
+    case "glasses":
+    case "hat":
+    case "held":
+    case "back":
+    case "merch":
+      return "clothes";
+    case "pet":
+    case "petwear":
+      return "pets";
+    default:
+      return null;
+  }
+}
+
+/** The shop for a ShopTab (E on a display), so the Shop page can be filtered to it. */
+export const SHOP_TABS: Record<ShopId, readonly ShopTab[]> = {
+  furniture: ["furniture"],
+  clothes: ["outfit", "hat", "glasses", "held", "back"],
+  barber: ["look"],
+  pets: ["pet", "petwear"],
+};
+
+/** "Go to Møbelhuset to buy that." */
+export const goToShop = (shop: ShopId): string => `Go to ${SHOPS[shop].name} to buy that.`;

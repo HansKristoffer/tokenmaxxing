@@ -1119,6 +1119,12 @@ export const world = actor({
       return drop;
     },
 
+    /** From `town`: the room a player stands in right now (null: not in the world), for what is sold where. */
+    roomOfPlayer: (c, userId: number): string | null => {
+      requireInternal(c.conn.state);
+      return c.state.players[userId]?.room ?? null;
+    },
+
     /** From `town`: drops already on a floor (an office's desk and chair, at level 10). */
     placeDrops: (c, drops: Drop[]): void => {
       requireInternal(c.conn.state);

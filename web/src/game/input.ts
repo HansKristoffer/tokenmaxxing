@@ -1,4 +1,12 @@
-import { displayTab, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
+import { MAPS } from "@tokenmaxxing/core/maps.ts";
+import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
+import {
+  displayTab,
+  SHOP_DOOR_CHAR,
+  SHOP_ROOM,
+  type ShopId,
+  shopOfRoom,
+} from "@tokenmaxxing/core/shoprooms.ts";
 import { stepPace } from "@tokenmaxxing/core/street.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
@@ -56,6 +64,9 @@ const carried = new Set<Facing>();
 let takeOnArrival = false;
 /** Runs once the clicked path is walked (the 3D renderer's furniture placement drops a piece there). */
 let onArrival: (() => void) | null = null;
+/** "Take me there": the shop the auto-walk is heading for, replanned in each room it passes through. */
+let heading: ShopId | null = null;
+let greetings = 0;
 
 const typing = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
@@ -216,8 +227,39 @@ export function bindInput(canvas: HTMLElement): void {
   });
 }
 
+/**
+ * "Take me there": walks to a shop's door. In the town that is its storefront; from anywhere else it walks
+ * out of the room first (each room's exit), room after room. Any key press or click on the map stops it.
+ * False when the shop has no door in the town right now (a company holds its block).
+ */
+export function goToShopDoor(shop: ShopId): boolean {
+  if (!MAPS.town.find(SHOP_DOOR_CHAR[shop])[0]) return false;
+  heading = shop;
+  hud.set({ panel: null });
+  return true;
+}
+
+/** The next leg of the trip to `heading`: the shop's door in town, otherwise this room's way out. */
+function planTrip(me: { x: number; y: number }): void {
+  const shop = heading!;
+  if (world.room === SHOP_ROOM[shop]) {
+    heading = null;
+    return;
+  }
+  const to = world.room === "town" ? MAPS.town.find(SHOP_DOOR_CHAR[shop])[0] : world.map.find("x")[0];
+  const steps = to ? route(world.map, [me.x, me.y], to) : null;
+  if (!steps?.length) {
+    heading = null;
+    return;
+  }
+  path = steps;
+  interactOnArrival = false;
+  takeOnArrival = false;
+}
+
 /** Click-to-walk (the world or the minimap): route there, and interact if it's a thing, not floor. */
 export function walkTo(x: number, y: number): void {
+  heading = null;
   const me = self();
   takeOnArrival = false;
   if (!me || (x === me.x && y === me.y)) return;
@@ -281,8 +323,14 @@ export function updateSelf(now: number): void {
     if (lastRoom) for (const d of held) carried.add(d);
     held.length = 0;
     tapped = null;
+    // Walking out of a shop closes its page; walking in, the keeper says hello.
+    if (shopOfRoom(lastRoom) && hud.get().panel?.kind === "shop") hud.set({ panel: null });
+    const shop = shopOfRoom(world.room);
+    if (shop && lastRoom) hud.set({ dialog: greeting(shop, greetings++) });
     lastRoom = world.room;
   }
+  if (heading && (held.length > 0 || tapped)) heading = null;
+  if (heading && path.length === 0 && !onArrival) planTrip(me);
   // At a game table: stay put until the game is over.
   if (me.state === "playing") {
     tapped = null;

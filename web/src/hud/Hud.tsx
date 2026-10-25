@@ -40,7 +40,9 @@ import { Quests } from "./Quests.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Regulars } from "./Regulars.tsx";
 import { Shop } from "./Shop.tsx";
+import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
+import { MENU } from "./shops.ts";
 import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
@@ -220,9 +222,9 @@ function Stats() {
         <button
           type="button"
           className="chip"
-          title="Shop"
-          aria-label={`Shop: ${wallet.balance} coins`}
-          onClick={() => hud.set({ panel: { kind: "shop" } })}
+          title="Wallet"
+          aria-label={`Wallet: ${wallet.balance} coins`}
+          onClick={() => hud.set({ panel: { kind: "bag" } })}
         >
           🪙 <strong>{wallet.balance.toLocaleString()}</strong>
         </button>
@@ -293,21 +295,6 @@ function PieceHint() {
   );
 }
 
-/** Esc's menu: a button per panel. */
-const MENU = [
-  [{ kind: "look" }, "🎨 Your character"],
-  [{ kind: "shop" }, "🪙 Shop"],
-  [{ kind: "bag" }, "🎒 Bag"],
-  [{ kind: "trades" }, "🔁 Trades"],
-  [{ kind: "arcade" }, "🎮 Arcade"],
-  [{ kind: "raid" }, "⚔️ Raid"],
-  [{ kind: "openOffices" }, "🚪 Open offices"],
-  [{ kind: "desk" }, "🖥 Desk"],
-  [{ kind: "company" }, "🏢 Company"],
-  [{ kind: "leaderboard" }, "🏆 Leaderboard"],
-  [{ kind: "graphics" }, "🖼 Graphics"],
-] as const;
-
 function Panel() {
   const panel = useHud((s) => s.panel);
   const inMyOffice = useHud((s) => s.room === `office:${world.selfId}`);
@@ -321,6 +308,7 @@ function Panel() {
     merch: (p) => <MerchShop companyId={p.companyId} />,
     look: () => <LookPicker />,
     shop: (p) => <Shop tab={p.tab} />,
+    shops: () => <ShopDirectory />,
     merchant: () => <Merchant />,
     bag: () => <Bag />,
     petLooks: (p) => <PetLooks pet={p.pet} />,

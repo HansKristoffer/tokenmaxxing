@@ -85,3 +85,27 @@ export const SHOPKEEPERS: BotDef[] = [
     every: [40_000, 120_000],
   }),
 ];
+
+/** What the keeper says when you step in or come up to the counter. */
+export const GREETINGS: Record<ShopId, readonly string[]> = {
+  furniture: [
+    "Welcome to Møbelhuset. Sit on anything. Buy anything.",
+    "Hej! Looking for something for the office, or for the company?",
+  ],
+  clothes: [
+    "Welcome to Thread & Token. Try anything on, the mirror is by the door.",
+    "Hi! Hats north, outfits in the middle, everything else wherever I left it.",
+  ],
+  barber: [
+    "Take a seat. A little off the top?",
+    "Welcome to Figaro's. The mirror is free, the small talk is too.",
+  ],
+  pets: [
+    "Welcome! Mind the dragon, it only looks hungry.",
+    "Hello! Take your time, they are choosing you as much as you are choosing them.",
+  ],
+};
+
+/** The keeper's greeting as a line, `n` picks which of them (any number). */
+export const greeting = (shop: ShopId, n = 0): string =>
+  `${SHOPS[shop].keeperName}: "${GREETINGS[shop][n % GREETINGS[shop].length]}"`;

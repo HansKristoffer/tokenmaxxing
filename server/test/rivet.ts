@@ -110,6 +110,8 @@ async function start(attempts = 5): Promise<string> {
         FIRECRAWL_API_KEY: "",
         ANTHROPIC_API_KEY: "",
         ADMIN_TOKEN,
+        // Most tests buy from wherever they stand; the shop rule is tested with `strictShops`.
+        SHOPS_ANYWHERE: "1",
         // Every test comes from 127.0.0.1; `signUp` below poses as a new address each time instead.
         GATEWAY_REQUESTS_PER_MIN: "1000000",
         GATEWAY_SOCKETS_PER_MIN: "1000000",

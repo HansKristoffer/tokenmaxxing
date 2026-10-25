@@ -19,7 +19,8 @@ export type Panel =
   | { kind: "companyShop" }
   | { kind: "merch"; companyId: number }
   | { kind: "look" }
-  | { kind: "shop"; tab?: Item["slot"] }
+  | { kind: "shop"; tab?: Item["slot"] | "company" }
+  | { kind: "shops" }
   | { kind: "merchant" }
   | { kind: "bag" }
   | { kind: "petLooks"; pet: number }
