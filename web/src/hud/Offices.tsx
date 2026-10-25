@@ -1,7 +1,7 @@
 import { DECORS, type DecorKind } from "@tokenmaxxing/core/decor.ts";
-import { OFFICE_SIZES } from "@tokenmaxxing/core/office.ts";
+import { directory, OFFICE_LEVEL, OFFICE_SIZES } from "@tokenmaxxing/core/office.ts";
 import { useEffect, useState } from "react";
-import { send } from "../game/input.ts";
+import { send, walkTo } from "../game/input.ts";
 import { world } from "../game/world.ts";
 import { conn, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
@@ -113,6 +113,39 @@ export function OpenOfficesPanel() {
               </span>
               <button type="button" onClick={visit(o.id)}>
                 🚪 {o.id === world.selfId ? "My office" : "Visit"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
+  );
+}
+
+/** The company house's directory board: every office in the building, and a way to its door. */
+export function DirectoryPanel() {
+  const rows = directory(world.doors, world.selfId);
+  const walk = (x: number, y: number) => () => {
+    hud.set({ panel: null });
+    walkTo(x, y);
+  };
+  return (
+    <Modal title="🚪 Office directory">
+      <p className="muted small">Everyone in the building with an office, in door order.</p>
+      {rows.length === 0 ? (
+        <p className="muted">No one here has an office yet. Offices open at level {OFFICE_LEVEL}.</p>
+      ) : (
+        <ul className="members offices">
+          {rows.map((r) => (
+            <li key={r.userId}>
+              <span>
+                <strong>{r.name}</strong>{" "}
+                <span className="muted small facts">
+                  <span>{r.mine ? "Your office" : r.open ? "Open" : "🔒 Closed"}</span>
+                </span>
+              </span>
+              <button type="button" disabled={!r.canEnter} onClick={walk(r.x, r.y)}>
+                {r.canEnter ? "🚶 Walk there" : "🔒 Locked"}
               </button>
             </li>
           ))}
