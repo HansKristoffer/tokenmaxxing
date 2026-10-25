@@ -31,6 +31,7 @@ export type Panel =
   | { kind: "paper" }
   | { kind: "trophies"; userId: number; name: string }
   | { kind: "openOffices" }
+  | { kind: "directory" }
   | { kind: "decor" }
   | { kind: "desk" }
   | { kind: "raid" }

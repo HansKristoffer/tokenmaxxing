@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { MAPS } from "../src/maps.ts";
 import {
+  assignSlots,
+  directory,
   doorsFor,
   FURNITURE,
   hqMap,
@@ -12,7 +14,9 @@ import {
   officeTier,
   STARTER_OFFICE,
   setOffice,
+  slotSpot,
   withPieces,
+  withSlots,
 } from "../src/office.ts";
 import { route } from "../src/world.ts";
 
@@ -23,16 +27,73 @@ describe("offices", () => {
       name: `u${id}`,
       open: true,
     }));
-    const doors = doorsFor(owners);
+    const doors = doorsFor(withSlots(owners));
     expect(doors.map((d) => d.userId)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(doors.slice(0, 6).map((d) => [d.x, d.y])).toEqual([3, 6, 9, 12, 15, 18].map((x) => [x, -3]));
     expect(doors[6]).toMatchObject({ userId: 7, x: 3, y: -7 });
   });
 
+  test("slots: a door keeps its place when another owner goes, a newcomer takes the lowest free one", () => {
+    const ids = [1, 2, 3, 4, 5, 6, 7, 8];
+    const first = assignSlots(ids, new Map());
+    // The migration: nothing stored packs by id, which is where every door stood before.
+    expect(ids.map((id) => first.get(id))).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    const owner = (id: number, slot: number) => ({ userId: id, name: `u${id}`, open: true, slot });
+    const before = doorsFor(ids.map((id) => owner(id, first.get(id)!)));
+    // Owner 3 leaves: nobody else's slot (so door) moves.
+    const rest = ids.filter((id) => id !== 3);
+    const after = assignSlots(rest, first);
+    for (const id of rest) expect(after.get(id)).toBe(first.get(id));
+    const doorsAfter = doorsFor(rest.map((id) => owner(id, after.get(id)!)));
+    for (const d of doorsAfter) expect(d).toEqual(before.find((b) => b.userId === d.userId)!);
+    // A later joiner, whatever their id, takes the freed slot.
+    const joined = assignSlots([...rest, 99], after);
+    expect(joined.get(99)).toBe(first.get(3)!);
+    expect(doorsFor([owner(99, joined.get(99)!)])[0]).toMatchObject(slotSpot(first.get(3)!));
+    // Two holding one slot, or a bad one: the lower id keeps it, the other is placed afresh.
+    const clash = assignSlots(
+      [1, 2, 3],
+      new Map([
+        [1, 4],
+        [2, 4],
+        [3, -1],
+      ]),
+    );
+    expect([...clash.values()].sort()).toEqual([0, 1, 4]);
+    expect(clash.get(1)).toBe(4);
+  });
+
+  test("the directory lists every door, yours first, and only open ones (or yours) can be walked to", () => {
+    const doors = doorsFor(
+      withSlots([
+        { userId: 4, name: "ada", open: true },
+        { userId: 9, name: "bo", open: false },
+        { userId: 12, name: "cy", open: true },
+      ]),
+    );
+    const rows = directory(doors, 9);
+    expect(rows.map((r) => r.name)).toEqual(["bo", "ada", "cy"]);
+    expect(rows.map((r) => r.canEnter)).toEqual([true, true, true]);
+    const other = directory(doors, 4);
+    expect(other.map((r) => [r.name, r.mine, r.canEnter])).toEqual([
+      ["ada", true, true],
+      ["bo", false, false],
+      ["cy", false, true],
+    ]);
+    // Each row points at its door, and the route from the floor reaches it.
+    const map = hqMap(doors);
+    const [ex, ey] = MAPS.hq.find("x")[0]!;
+    for (const r of other) {
+      expect(map.at(r.x, r.y)).toBe("R");
+      expect(route(map, [ex, ey - 1], [r.x, r.y])).not.toBeNull();
+    }
+    expect(directory([], 1)).toEqual([]);
+  });
+
   test("the building: today's floor, with hallways of doors above it, all reachable", () => {
     expect(MAPS.hq.find("R")).toEqual([]);
     expect(hqMap([])).toEqual(MAPS.hq);
-    const three = doorsFor([1, 2, 3].map((id) => ({ userId: id, name: `u${id}`, open: true })));
+    const three = doorsFor(withSlots([1, 2, 3].map((id) => ({ userId: id, name: `u${id}`, open: true }))));
     const map = hqMap(three);
     expect(map.y0).toBe(-4);
     expect(map.find("R")).toEqual(three.map((d) => [d.x, d.y]));
@@ -40,7 +101,7 @@ describe("offices", () => {
       expect([map.at(d.x, d.y - 1), map.at(d.x, d.y + 1), map.at(d.x, d.y + 2)]).toEqual(["W", "_", "_"]);
     expect(map.rows.slice(2 - map.y0)).toEqual(MAPS.hq.rows.slice(2)); // the floor, where it was
     const tower = hqMap(
-      doorsFor(Array.from({ length: 25 }, (_, i) => ({ userId: i, name: "", open: true }))),
+      doorsFor(withSlots(Array.from({ length: 25 }, (_, i) => ({ userId: i, name: "", open: true })))),
     );
     const [ex, ey] = tower.find("x")[0]!;
     for (const [x, y] of tower.find("R")) expect(route(tower, [ex, ey - 1], [x, y])).not.toBeNull();

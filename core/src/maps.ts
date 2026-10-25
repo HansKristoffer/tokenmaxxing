@@ -174,6 +174,8 @@ export const LEGEND: Record<string, TileKind> = {
   λ: { name: "chandelier", walk: true, text: "Crystal chandelier. Series A money." },
   Γ: { name: "duck statue", text: "A golden rubber duck. It has heard every bug explained to it." },
   w: { name: "open offices", text: "Offices that are open for visitors." },
+  // The company house's directory (`MAPS.hq`): E lists the building's offices, and walks you to a door.
+  ς: { name: "office directory", text: "The office directory." },
   // The company's common room upstairs (`MAPS.common`, `common.ts`): its own pieces, so nothing clashes.
   Ψ: { name: "window", text: "A big window. The sky out there is somebody else's problem." },
   Θ: {
@@ -569,7 +571,7 @@ export const MAPS: Record<MapId, GameMap> = {
     "W__==tt==____________W",
     "W__======____________W",
     "W__=ssss=____________W",
-    "Wp__________________pW",
+    "Wp____________ς_____pW",
     "WWWuWWWWWWWxWWWWWWWWWW",
   ]),
   // The company's common room, up the stairs `u` from its house: a lounge round a rug and a TV, a kitchenette

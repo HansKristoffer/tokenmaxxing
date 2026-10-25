@@ -478,6 +478,29 @@ const officeBoard = once(() =>
   }),
 );
 
+/** The company house's office directory: a wooden board on two posts with a row of little doors. */
+const directoryBoard = once(() =>
+  bake(16, 20, (p) => {
+    p.rect(2, 18, 12, 2, C.shadow);
+    p.rect(3, 12, 2, 7, C.woodDark);
+    p.rect(11, 12, 2, 7, C.woodDark);
+    p.rect(1, 0, 14, 14, C.ink);
+    p.rect(2, 1, 12, 12, C.woodDark);
+    p.rect(3, 2, 10, 10, "#c89460");
+    p.rect(3, 2, 10, 1, "#dcab76");
+    // Three doors, the middle one lit.
+    for (const [x, lit] of [
+      [4, false],
+      [7, true],
+      [10, false],
+    ] as const) {
+      p.rect(x, 5, 2, 5, C.woodDark);
+      p.px(x + 1, 8, lit ? "#f8c43a" : "#dcab76");
+    }
+    p.rect(4, 11, 8, 1, C.woodDark);
+  }),
+);
+
 const at = (canvas: HTMLCanvasElement, dx = 0, dy = TILE - canvas.height): Placed => ({ canvas, dx, dy });
 
 /** Maps are fixed, so each map's objects are worked out once (the render loop asks every frame). */
@@ -503,6 +526,8 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
   switch (ch) {
     case "w":
       return at(officeBoard(), 2);
+    case "ς":
+      return at(directoryBoard(), 0);
     // The common room: windows and the wall of wins in the wall's face, the kitchen counter on the floor.
     case "Ψ":
       return at(windowPane(), 0, 0);

@@ -6,7 +6,7 @@ import { C } from "../art/palette.ts";
 import { type BasementScene, dimBasement } from "../demo3d/basement3d.ts";
 import { DUNGEON_ASSETS } from "../demo3d/dungeon3d.ts";
 import { exitPlate, exitStairs } from "../demo3d/exits3d.ts";
-import { buildHq, type Hq } from "../demo3d/hq3d.ts";
+import { buildHq, directoryBoard, type Hq } from "../demo3d/hq3d.ts";
 import { beginTickScope, endTickScope, glow, Model, painted, planks } from "../demo3d/kit.ts";
 import { beginLanScope, endLanScope } from "../demo3d/livescreen.ts";
 import { setPropsNight } from "../demo3d/props.ts";
@@ -236,6 +236,13 @@ function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {
     const m = exitStairs("up", { wall: "#efe4cf", plate: "LOUNGE" });
     m.position.set(rx + 0.5, 0, rz - 0.5);
     m.rotation.y = Math.PI;
+    hq.room.group.add(m);
+  }
+  // The office directory (`ς`) stands on its floor tile, facing south.
+  for (const [bx, by] of ctx.map.find("ς")) {
+    const [rx, rz] = hq.tile(bx, by);
+    const m = directoryBoard();
+    m.position.set(rx + 0.5, 0, rz + 0.5);
     hq.room.group.add(m);
   }
   // The house's floor keeps its tiles as the hallways grow above it (negative y, `hqMap`): the picture is placed by

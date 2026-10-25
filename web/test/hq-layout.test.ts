@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
-import { doorsFor, hqMap, PASSAGE_W, PASSAGE_X } from "@tokenmaxxing/core/office.ts";
+import { doorsFor, hqMap, PASSAGE_W, PASSAGE_X, withSlots } from "@tokenmaxxing/core/office.ts";
 import { hallwayTiles, houseOffset, housePassage, houseTile } from "../src/render3d/hq-layout.ts";
 
 const doors = (n: number) =>
-  doorsFor(Array.from({ length: n }, (_, i) => ({ userId: i + 1, name: `u${i}`, open: i % 2 === 0 })));
+  doorsFor(
+    withSlots(Array.from({ length: n }, (_, i) => ({ userId: i + 1, name: `u${i}`, open: i % 2 === 0 }))),
+  );
 
 test("the house's picture follows the map's origin: room tile (0, 0) is map tile (1, 2) whatever the hallways", () => {
   for (const map of [MAPS.hq, hqMap(doors(3)), hqMap(doors(25))]) {

@@ -84,60 +84,90 @@ function duck(m: Model, at: V3, pirate = false): void {
 
 const touchedGrass = (): Model => {
   const m = new Model();
-  // The sign behind: a plank on two stakes.
-  for (const x of [-0.7, 0.7]) m.box([0.05, 0.62, 0.05], C.woodDark, [x, 0, -0.26]);
-  const sign = panel(
-    1.5,
-    0.6,
-    (g, w, h) => {
-      const p = new Pen(g);
-      p.rect(0, 0, w, h, C.woodLight);
-      p.rect(0, 0, w, 1, tint(C.woodLight, 0.15));
-      const line = (t: string, y: number) => p.text(t, Math.round((w - (t.length * 4 - 1)) / 2), y, C.ink);
-      line("TOUCHED", 3);
-      line("GRASS", 9);
-    },
-    { frame: C.woodDark, lift: 0.34, px: 24 },
-  );
-  sign.position.set(0, 0, -0.26);
-  m.add(sign);
-  // The sod: soil under a carpet of grass, a little of it hanging over the edge.
-  m.box([1.78, 0.14, 0.66], C.trunk, [0, 0, 0.1], 0.03);
-  m.box([1.84, 0.07, 0.7], C.grassDark, [0, 0.13, 0.1], 0.03);
-  m.box([1.74, 0.04, 0.6], C.leaf, [0, 0.19, 0.1], 0.02);
-  // Three tufts of blades, tallest in the middle of each.
   const rnd = seeded(11);
+  // The sod: soil under a turf that hangs a little over the edge, and a few raised clumps so it is not flat.
+  m.box([1.84, 0.12, 0.84], C.trunk, [0, 0, 0], 0.03);
+  m.box([1.92, 0.07, 0.92], C.grassDark, [0, 0.11, 0], 0.03);
+  m.box([1.82, 0.05, 0.8], C.leaf, [0, 0.17, 0], 0.02);
+  for (let i = 0; i < 9; i++) {
+    const w = 0.24 + rnd() * 0.2;
+    const d = 0.16 + rnd() * 0.16;
+    const x = (rnd() * 2 - 1) * (0.9 - w / 2);
+    const z = (rnd() * 2 - 1) * (0.4 - d / 2);
+    m.box([w, 0.045, d], i % 2 ? C.leafLight : C.grass, [x, 0.215, z], 0.015);
+  }
+  // Tufts of blades, tallest in the middle of each, leaning a little.
   const shades = [C.leafDark, C.leaf, C.leafLight, C.grass, C.grassLight];
-  for (const cx of [-0.55, 0, 0.55])
-    for (let i = 0; i < 26; i++) {
+  const tufts: [number, number, number][] = [
+    [-0.64, 0.12, 1],
+    [-0.28, 0.2, 0.8],
+    [0.06, -0.15, 1.15],
+    [0.42, 0.18, 0.9],
+    [0.7, -0.1, 1.05],
+  ];
+  for (const [cx, cz, k] of tufts)
+    for (let i = 0; i < 12; i++) {
       const a = rnd() * Math.PI * 2;
-      const r = rnd() * 0.22;
-      const h = 0.1 + (0.22 - r) * 0.8 + rnd() * 0.06;
+      const r = rnd() * 0.17;
+      const h = (0.14 + (0.17 - r) * 1.3 + rnd() * 0.06) * k;
       const blade = m.cyl(
-        0.014,
+        0.024,
         h,
         shades[i % shades.length]!,
-        [cx + Math.cos(a) * r, 0.2, 0.1 + Math.sin(a) * r * 0.8],
+        [cx + Math.cos(a) * r, 0.22, cz + Math.sin(a) * r * 0.8],
         0.002,
         4,
       );
       blade.rotation.set((rnd() - 0.5) * 0.5, 0, (rnd() - 0.5) * 0.5);
     }
-  // A daisy, and a red bud.
-  m.cyl(0.008, 0.2, C.leafDark, [-0.3, 0.2, 0.3], 0.008, 5);
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    m.ball(
-      0.022,
-      C.flowerWhite,
-      [-0.3 + Math.cos(a) * 0.035, 0.41, 0.3 + Math.sin(a) * 0.035],
-      [1, 0.4, 1],
-      6,
-    );
+  // Tiny flowers on thin stems: daisies, a buttercup, a red bud.
+  const flowers: [number, number, string, number][] = [
+    [-0.45, 0.2, C.flowerWhite, 0.2],
+    [-0.12, -0.25, C.flowerYellow, 0.17],
+    [0.28, 0.02, C.flowerWhite, 0.22],
+    [0.58, 0.27, C.flowerRed, 0.18],
+    [-0.8, 0.25, C.flowerYellow, 0.15],
+    [0.84, 0.2, C.flowerWhite, 0.16],
+  ];
+  for (const [fx, fz, colour, h] of flowers) {
+    m.cyl(0.008, h, C.leafDark, [fx, 0.22, fz], 0.006, 5);
+    const top = 0.22 + h;
+    if (colour === C.flowerRed) m.ball(0.026, colour, [fx, top, fz], [1, 1, 1], 6);
+    else {
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        m.ball(
+          0.02,
+          colour === C.flowerYellow ? "#fff4b8" : colour,
+          [fx + Math.cos(a) * 0.032, top, fz + Math.sin(a) * 0.032],
+          [1, 0.4, 1],
+          6,
+        );
+      }
+      m.ball(
+        0.017,
+        colour === C.flowerYellow ? C.flowerYellow : "#f5c43a",
+        [fx, top + 0.006, fz],
+        [1, 0.8, 1],
+        6,
+      );
+    }
   }
-  m.ball(0.02, C.flowerYellow, [-0.3, 0.415, 0.3], [1, 0.8, 1], 6);
-  m.cyl(0.008, 0.2, C.leafDark, [0.35, 0.2, 0.32], 0.008, 5);
-  m.ball(0.026, C.flowerRed, [0.35, 0.42, 0.32], [1, 1, 1], 6);
+  // A little stake with a plaque at the back corner.
+  m.box([0.03, 0.2, 0.03], C.woodDark, [-0.66, 0.2, -0.36], 0.008);
+  const sign = panel(
+    0.46,
+    0.2,
+    (g, w, h) => {
+      const p = new Pen(g);
+      p.rect(0, 0, w, h, C.woodLight);
+      p.rect(0, 0, w, 1, tint(C.woodLight, 0.15));
+      p.text("GRASS", Math.round((w - 19) / 2), 3, C.ink);
+    },
+    { frame: C.woodDark, lift: 0.34, px: 24 },
+  );
+  sign.position.set(-0.66, 0.04, -0.34);
+  m.add(sign);
   return m;
 };
 

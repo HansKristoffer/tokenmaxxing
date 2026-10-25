@@ -7,6 +7,7 @@ import { applyDecor } from "../demo3d/decor3d.ts";
 import { DUNGEON_ASSETS, trophyShelf } from "../demo3d/dungeon3d.ts";
 import { exitDoorway, exitStairs } from "../demo3d/exits3d.ts";
 import { type Asset, assetById } from "../demo3d/furniture.ts";
+import { extraAssetById } from "../demo3d/furniture3d.ts";
 import { beginTickScope, canvasTexture, endTickScope, Model, painted } from "../demo3d/kit.ts";
 import { PETS_ASSETS } from "../demo3d/pets3d.ts";
 import { type Placed, Room, type Turn } from "../demo3d/room.ts";
@@ -25,7 +26,7 @@ import { earnedBy } from "./trophies3d.ts";
 /** The demo's piece for each map character that is furniture. */
 const ASSET_OF = new Map<string, Asset>();
 const bind = (ch: string, id: string) => {
-  const a = assetById.get(id);
+  const a = assetById.get(id) ?? extraAssetById.get(id);
   if (a) ASSET_OF.set(ch, a);
 };
 for (const [ch, id] of Object.entries({
@@ -39,6 +40,8 @@ for (const [ch, id] of Object.entries({
   b: "bed",
   s: "sofa",
   t: "tv",
+  // Earned at an outage picnic (`picnic.ts`), a patch of sod two tiles wide.
+  g: "touched-grass",
 }))
   bind(ch, id);
 for (const f of COMPANY_FURNITURE) bind(f.ch, f.art);

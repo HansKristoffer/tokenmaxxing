@@ -7,6 +7,7 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
+import { Pen } from "../art/pixels.ts";
 import { COMPANY_FURNITURE, DESKS, HQ_ROWS, POSTERS } from "./data/town.ts";
 import { exitDoorway } from "./exits3d.ts";
 import { type Asset, assetById, light } from "./furniture.ts";
@@ -392,6 +393,36 @@ function assetFor(art: string): Asset | undefined {
     own.get(art) ??
     (art === "bookshelf-library" ? assetById.get("bookshelf") : undefined)
   );
+}
+
+/**
+ * The office directory (`ς` on the floor, `MAPS.hq`): a wooden board on two posts, a little door per office
+ * on its face and "OFFICES" over them. Facing south, where you stand to read it.
+ */
+export function directoryBoard(): Model {
+  const m = new Model();
+  for (const x of [-0.42, 0.42]) m.box([0.07, 1.2, 0.07], C.woodDark, [x, 0, 0], 0.015);
+  const face = panel(
+    1.15,
+    0.8,
+    (g, w, h) => {
+      const p = new Pen(g);
+      p.rect(0, 0, w, h, "#c89460");
+      p.rect(0, 0, w, 1, "#dcab76");
+      const title = "OFFICES";
+      p.text(title, Math.round((w - (title.length * 4 - 1)) / 2), 3, C.ink);
+      for (let i = 0; i < 5; i++) {
+        const x = 7 + i * 10;
+        p.rect(x, 11, 5, 9, C.woodDark);
+        p.rect(x + 1, 12, 3, 7, i % 2 ? "#f8c43a" : "#8a5a36");
+        p.px(x + 3, 16, C.ink);
+      }
+    },
+    { frame: "#4a3a26", lift: 0.5, px: 52 },
+  );
+  face.position.z = 0.05;
+  m.add(face);
+  return m;
 }
 
 // MARK: The room

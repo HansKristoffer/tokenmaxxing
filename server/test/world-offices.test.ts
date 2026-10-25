@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hqMap } from "@tokenmaxxing/core/office.ts";
+import { hqMap, slotSpot } from "@tokenmaxxing/core/office.ts";
 import { roomEntry, route } from "@tokenmaxxing/core/world.ts";
 import { admin, admit, eventually, signUp, veteran } from "./rivet.ts";
 import { asleep, connect, step, walk } from "./world-client.ts";
@@ -16,7 +16,7 @@ describe("world", () => {
     // Only the owner has a door: the colleague is level 0.
     const m = await connect(mate.token);
     expect(m.snap.room).toBe(`hq:${co.id}`);
-    const door = { userId: owner.userId, name: owner.name, open: true, x: 3, y: -3 };
+    const door = { userId: owner.userId, name: owner.name, open: true, slot: 0, ...slotSpot(0) };
     expect(m.snap.doors).toEqual([door]);
     const me = m.snap.players.find((p) => p.id === mate.userId)!;
     const path = route(hqMap(m.snap.doors), [me.x, me.y], [door.x, door.y])!;
@@ -24,8 +24,8 @@ describe("world", () => {
     // Out again: below the door.
     expect(await step(m.conn, "down")).toEqual({
       room: `hq:${co.id}`,
-      x: 3,
-      y: -2,
+      x: door.x,
+      y: door.y + 1,
       facing: "down",
       state: "idle",
     });
@@ -50,6 +50,45 @@ describe("world", () => {
     expect(after.players.find((p) => p.id === mate.userId)).toMatchObject({ x, y });
     await m.conn.dispose();
   }, 30_000);
+
+  test("a door keeps its slot when an owner before it leaves; a later joiner takes the free one", async () => {
+    const a = await signUp("slot");
+    const co = await a.town.createCompany("Slots");
+    await veteran(a);
+    const b = await signUp("slot");
+    await admit(a, b, co.id);
+    await veteran(b);
+    const c = await signUp("slot");
+    await admit(a, c, co.id);
+    await veteran(c);
+    const watch = await connect(c.token);
+    const doorsNow = () => (watch.events.snapshots.at(-1) ?? watch.snap).doors;
+    const full = await eventually(() => {
+      expect(doorsNow()).toHaveLength(3);
+      return [...doorsNow()];
+    });
+    const of = (doors: typeof full, u: { userId: number }) => doors.find((d) => d.userId === u.userId)!;
+    // Packed by id to begin with.
+    expect(full.map((d) => d.slot).sort()).toEqual([0, 1, 2]);
+    await b.town.leaveCompany();
+    const less = await eventually(() => {
+      expect(doorsNow()).toHaveLength(2);
+      return [...doorsNow()];
+    });
+    expect(of(less, a)).toMatchObject({ x: of(full, a).x, y: of(full, a).y });
+    expect(of(less, c)).toMatchObject({ x: of(full, c).x, y: of(full, c).y });
+    // Someone new, with a higher id than everyone, lands in the slot b left.
+    const d = await signUp("slot");
+    await admit(a, d, co.id);
+    await veteran(d);
+    const more = await eventually(() => {
+      expect(doorsNow()).toHaveLength(3);
+      return [...doorsNow()];
+    });
+    expect(of(more, d)).toMatchObject({ slot: of(full, b).slot, x: of(full, b).x, y: of(full, b).y });
+    for (const u of [a, c]) expect(of(more, u)).toMatchObject({ x: of(full, u).x, y: of(full, u).y });
+    await watch.conn.dispose();
+  });
 
   test("anyone visits an open office from its owner's card; a closed one lets only its owner in", async () => {
     const owner = await signUp("office");

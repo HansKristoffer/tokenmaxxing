@@ -32,6 +32,7 @@ import {
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { type GameMap, LEGEND, setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import {
+  assignSlots,
   canHang,
   clearOffice,
   type Door,
@@ -167,6 +168,11 @@ interface WorldState {
   games?: Record<string, WorldGame>;
   /** Whether each office is open, by owner (optional, like games). No entry is open: `officeOf`. */
   offices?: Record<string, Office>;
+  /**
+   * Each office owner's door slot in their company's building (`assignSlots`), by user id. Optional: a world
+   * from before slots has none, and its first rebuild packs them by id, which is where every door stood.
+   */
+  doorSlots?: Record<string, { company: number; slot: number }>;
 }
 
 type ConnState = Caller & { joined?: boolean };
@@ -1203,13 +1209,37 @@ function buildTown(s: WorldState, dirty?: Set<number>): void {
   }
 }
 
-/** The doors in a company's building: its members from `OFFICE_LEVEL`, by id. */
-const doorsOf = (s: WorldState, companyId: number): Door[] =>
-  doorsFor(
-    Object.values(s.players)
-      .filter((p) => p.companyId === companyId && p.level >= OFFICE_LEVEL)
-      .map((p) => ({ userId: p.id, name: p.name, open: officeOf(s, p.id).open })),
+/**
+ * The doors in a company's building: its members from `OFFICE_LEVEL`, each at the slot stored for them. A
+ * new owner takes the lowest free slot; one who left (or moved company, or lost the level) frees theirs, and
+ * nobody else's moves.
+ */
+function doorsOf(s: WorldState, companyId: number): Door[] {
+  const members = Object.values(s.players).filter(
+    (p) => p.companyId === companyId && p.level >= OFFICE_LEVEL,
   );
+  s.doorSlots ??= {};
+  const slots = s.doorSlots;
+  const kept = new Map<number, number>();
+  for (const [id, v] of Object.entries(slots)) {
+    if (v.company !== companyId) continue;
+    if (members.some((p) => p.id === Number(id))) kept.set(Number(id), v.slot);
+    else delete slots[id];
+  }
+  const placed = assignSlots(
+    members.map((p) => p.id),
+    kept,
+  );
+  for (const [id, slot] of placed) slots[id] = { company: companyId, slot };
+  return doorsFor(
+    members.map((p) => ({
+      userId: p.id,
+      name: p.name,
+      open: officeOf(s, p.id).open,
+      slot: placed.get(p.id)!,
+    })),
+  );
+}
 
 /** What puts a door in a building: their company and name, from level 10. */
 const doorKey = (p?: PlayerCore) =>

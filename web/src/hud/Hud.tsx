@@ -31,7 +31,7 @@ import { MilestoneToast } from "./MilestoneToast.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { DeskPanel } from "./OfficeDesks.tsx";
-import { DecorPanel, OpenOfficesPanel } from "./Offices.tsx";
+import { DecorPanel, DirectoryPanel, OpenOfficesPanel } from "./Offices.tsx";
 import { PaperPanel } from "./Paper.tsx";
 import { PetLooks } from "./PetLooks.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
@@ -340,6 +340,7 @@ function Panel() {
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
     raid: () => <RaidPanel />,
     openOffices: () => <OpenOfficesPanel />,
+    directory: () => <DirectoryPanel />,
     decor: () => <DecorPanel />,
     desk: () => <DeskPanel />,
     menu: () => (

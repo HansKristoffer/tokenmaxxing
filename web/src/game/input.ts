@@ -414,6 +414,7 @@ function interact(): void {
   if (basementInteract(x, y)) return;
   if (ch === "K") return void hud.set({ dialog: chalkboardText() });
   if (ch === "w") return void hud.set({ panel: { kind: "openOffices" } });
+  if (ch === "ς") return void hud.set({ panel: { kind: "directory" } });
   if (ch === "U") return void openTrophies();
   if (ch === "H") {
     const b = buildingAt(x, y);
