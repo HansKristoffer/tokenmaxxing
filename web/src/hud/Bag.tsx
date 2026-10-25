@@ -1,7 +1,8 @@
 import { editionLabel } from "@tokenmaxxing/core/merchant.ts";
 import { cleanPetName, PET_NAME_MAX, petLooks, wearPet } from "@tokenmaxxing/core/pets.ts";
-import { itemById } from "@tokenmaxxing/core/shop.ts";
-import type { BagRow, Copy } from "@tokenmaxxing/server/registry";
+import { itemById, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
+import { shopForSlot } from "@tokenmaxxing/core/shoprooms.ts";
+import type { BagRow, Copy, Wallet } from "@tokenmaxxing/server/registry";
 import { omit } from "hanzio";
 import { useEffect, useRef, useState } from "react";
 import { errorText } from "../errors.ts";
@@ -13,7 +14,9 @@ import { lootLine, rarityClass } from "./Loot.tsx";
 import { merchName } from "./Merch.tsx";
 import { variantName } from "./PetLooks.tsx";
 import { ItemImage, isWorn, WearButton, wear } from "./Shop.tsx";
-import { Modal, useRun } from "./ui.tsx";
+import { TakeMeThere } from "./ShopDirectory.tsx";
+import { buyHint, SLOT_NOUN } from "./shops.ts";
+import { Modal, useRun, WalletLine } from "./ui.tsx";
 
 /**
  * What I hold, one square per kind with how many. Picking one shows its name, Wear, and Drop (onto
@@ -70,13 +73,9 @@ export function Bag() {
 
   return (
     <Modal title="🎒 Bag" wide>
+      {wallet && <WalletInfo wallet={wallet} />}
       {bag.length === 0 ? (
-        <p className="muted">
-          Nothing yet.{" "}
-          <button type="button" className="link" onClick={() => hud.set({ panel: { kind: "shop" } })}>
-            🪙 Shop
-          </button>
-        </p>
+        <p className="muted">Nothing yet. Things are bought in the shops.</p>
       ) : (
         <div className="bag-pick">
           {item ? (
@@ -185,7 +184,56 @@ export function Bag() {
           );
         })}
       </ul>
+      <ul className="members shop-hints">
+        {HINT_SLOTS.filter((slot) => !bag.some((b) => itemById(b.item)?.slot === slot)).map((slot) => (
+          <li key={slot}>
+            <ShopHint slot={slot} />
+          </li>
+        ))}
+      </ul>
     </Modal>
+  );
+}
+
+/** The slots the bag hints at, when it holds nothing of them. */
+const HINT_SLOTS = ["hat", "outfit", "pet", "furniture"] as const;
+
+/** "Buy hats at Thread & Token" with a way there, for a slot you have nothing in. */
+function ShopHint({ slot }: { slot: string }) {
+  const text = buyHint(slot, SLOT_NOUN[slot] ?? slot);
+  const shop = shopForSlot(slot);
+  if (!text || !shop) return null;
+  return (
+    <span className="shop-hint">
+      {text} <TakeMeThere shop={shop} />
+    </span>
+  );
+}
+
+/** The wallet at the top of the bag: coins, how they are earned, today's quests. */
+function WalletInfo({ wallet }: { wallet: Wallet }) {
+  return (
+    <>
+      <WalletLine balance={wallet.balance}>
+        <span className="muted"> · +{wallet.today} from today so far</span>
+      </WalletLine>
+      <p className="muted small">
+        Every day you earn √(tokens ÷ 1M) coins: 100M tokens is 10, 1B is 31. Finish a day 1st, 2nd or 3rd for{" "}
+        {PODIUM_COINS.join(", ")} more. Spend them in the shops.
+      </p>
+      {wallet.quests.length > 0 && (
+        <ul className="members">
+          {wallet.quests.map((q) => (
+            <li key={q.id} className={q.done ? undefined : "muted"}>
+              <span>
+                {q.done ? "✓" : "○"} {q.text}
+              </span>
+              <span>🪙 {q.coins}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 

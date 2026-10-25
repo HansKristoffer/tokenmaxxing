@@ -5,6 +5,7 @@ import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { coins } from "./format.ts";
 import { PieceImage } from "./Shop.tsx";
+import { TakeMeThere } from "./ShopDirectory.tsx";
 import { Modal, useRun } from "./ui.tsx";
 
 type Act = (fn: () => Promise<{ notice: string }>) => () => Promise<void>;
@@ -38,25 +39,55 @@ function Catalogue({
   );
 }
 
-/**
- * The company building's furniture, from the company wallet. Any member buys; whoever is in the
- * building puts it down in front of them (otherwise it waits in the storeroom); any member puts out
- * what's stored, and G takes a piece back in.
- */
-export function CompanyShop() {
-  const me = useHud((s) => s.me);
-  const co = me?.company;
-  const inside = useHud((s) => co != null && (s.room === `hq:${co.id}` || s.room === `common:${co.id}`));
+/** Runs a purchase or put-out and keeps its notice and error. */
+function useAct() {
   const [notice, setNotice] = useState<string | null>(null);
   const { error, run } = useRun();
-  if (!me || !co) return <Modal title="🛋 Company furniture">Join a company first.</Modal>;
-
-  const act = (fn: () => Promise<{ notice: string }>) =>
+  const act: Act = (fn) =>
     run(async () => {
       setNotice(null);
       setNotice((await fn()).notice);
       await refreshMe();
     });
+  return { act, notice, error };
+}
+
+/**
+ * The company's catalogue, from the company wallet: only the owner buys, and only here, in Møbelhuset
+ * (the Shop page's "Company" tab). It goes to the storeroom; the building puts it out.
+ */
+export function CompanyOrder() {
+  const co = useHud((s) => s.me?.company);
+  const { act, notice, error } = useAct();
+  if (!co) return <p className="muted">Join a company first.</p>;
+  return (
+    <>
+      <p className="wallet">
+        <strong>{coins(co.wallet)}</strong> in the company wallet
+      </p>
+      <p className="muted small">
+        Paid from the company wallet. What you order waits in the storeroom: put it out from your building.
+      </p>
+      {notice && <p className="muted">{notice}</p>}
+      {error && <p className="error">{error}</p>}
+      <Catalogue pieces={COMPANY_FURNITURE.filter((f) => !f.wall)} wallet={co.wallet} act={act} />
+      <h3>🖼 Posters</h3>
+      <p className="muted small">Parodies, hung on the building's top wall.</p>
+      <Catalogue pieces={COMPANY_FURNITURE.filter((f) => f.wall)} wallet={co.wallet} act={act} />
+    </>
+  );
+}
+
+/**
+ * The company's storeroom: any member puts out what is stored, in the building. Ordering is done at
+ * Møbelhuset, so this page only points there.
+ */
+export function CompanyShop() {
+  const me = useHud((s) => s.me);
+  const co = me?.company;
+  const inside = useHud((s) => co != null && (s.room === `hq:${co.id}` || s.room === `common:${co.id}`));
+  const { act, notice, error } = useAct();
+  if (!me || !co) return <Modal title="🛋 Company furniture">Join a company first.</Modal>;
 
   return (
     <Modal title={`🛋 ${co.name}: furniture`} wide>
@@ -64,14 +95,13 @@ export function CompanyShop() {
         <strong>{coins(co.wallet)}</strong> in the company wallet
       </p>
       <p className="muted small">
-        You spend the company wallet.
         {inside
-          ? "It goes down in front of you; G takes a piece back to the storeroom."
+          ? "Put out what is stored; it goes down in front of you, and G takes a piece back to the storeroom."
           : "Walk into your building, or its common room upstairs, to put things out."}
       </p>
       {notice && <p className="muted">{notice}</p>}
       {error && <p className="error">{error}</p>}
-      {co.stored.length > 0 && (
+      {co.stored.length > 0 ? (
         <>
           <h3>📦 Storeroom</h3>
           <ul className="shop">
@@ -89,12 +119,17 @@ export function CompanyShop() {
             ))}
           </ul>
         </>
+      ) : (
+        <p className="muted">The storeroom is empty.</p>
       )}
-      <h3>Catalogue</h3>
-      <Catalogue pieces={COMPANY_FURNITURE.filter((f) => !f.wall)} wallet={co.wallet} act={act} />
-      <h3>🖼 Posters</h3>
-      <p className="muted small">Parodies, hung on the building's top wall, on the free spot nearest you.</p>
-      <Catalogue pieces={COMPANY_FURNITURE.filter((f) => f.wall)} wallet={co.wallet} act={act} />
+      {co.isOwner ? (
+        <p>
+          <TakeMeThere shop="furniture" label="Order at Møbelhuset" />
+          <span className="muted small"> The owner orders in the shop, under "Company".</span>
+        </p>
+      ) : (
+        <p className="muted small">Your company's owner orders furniture at Møbelhuset.</p>
+      )}
       <p className="muted small">
         <button type="button" className="link" onClick={() => hud.set({ panel: { kind: "company" } })}>
           ← {co.name}

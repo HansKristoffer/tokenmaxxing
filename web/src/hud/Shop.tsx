@@ -4,7 +4,9 @@ import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { posterOf } from "@tokenmaxxing/core/posters.ts";
-import { ITEMS, type Item, type MerchKind, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
+import { ITEMS, type Item, type MerchKind } from "@tokenmaxxing/core/shop.ts";
+import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
+import { SHOPS, type ShopId, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
@@ -17,10 +19,13 @@ import { errorText } from "../errors.ts";
 import { refreshMe, refreshWallet, town } from "../net.ts";
 import type { IconSpec } from "../render3d/icons.ts";
 import { hud, useHud } from "../store.ts";
+import { CompanyOrder } from "./CompanyShop.tsx";
 import { ItemIcon } from "./ItemIcon.tsx";
 import { ItemTag } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
 import { isWorn, withItem, withoutMerchTop } from "./lookOps.ts";
+import { ShopDirectory } from "./ShopDirectory.tsx";
+import { shopSlots } from "./shops.ts";
 import { AvatarImage, Modal, Pills, Pixels, useRun, WalletLine } from "./ui.tsx";
 
 const TABS = [
@@ -34,13 +39,30 @@ const TABS = [
   ["furniture", "Furniture"],
 ] as const;
 
-const PLACES = ["🥇", "🥈", "🥉"];
+/**
+ * The Shop page: only ever the goods of the shop you stand in (its tabs, its keeper, "Leave"). Out in the
+ * street there is no shop to open: the directory shows the way instead.
+ */
+export function Shop(props: { tab?: Item["slot"] | "company" }) {
+  const shop = useHud((s) => shopOfRoom(s.room));
+  return shop ? <ShopPage shop={shop} {...props} /> : <ShopDirectory />;
+}
 
-export function Shop({ tab: first }: { tab?: Item["slot"] }) {
+function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: Item["slot"] | "company" }) {
   const me = useHud((s) => s.me);
+  const [hello] = useState(() => greeting(shop, Math.floor(Math.random() * 8)));
+  const slots = shopSlots(shop);
+  const owner = shop === "furniture" && me?.company?.isOwner === true;
+  const tabs = [
+    ...TABS.filter(([t]) => (slots as readonly string[]).includes(t)),
+    ...(owner ? ([["company", "🏢 Company"]] as const) : []),
+  ];
   const wallet = useHud((s) => s.wallet);
   const opened = useHud((s) => (s.panel?.kind === "shop" ? s.panel.tab : undefined));
-  const [tab, setTab] = useState<Item["slot"]>(first ?? opened ?? "outfit");
+  const wanted = first ?? opened;
+  const [tab, setTab] = useState<Item["slot"] | "company">(
+    tabs.some(([t]) => t === wanted) ? wanted! : (tabs[0]?.[0] ?? "outfit"),
+  );
   const [bag, setBag] = useState<BagRow[]>([]);
   const [failed, setFailed] = useState<string | null>(null);
   const { error, run } = useRun();
@@ -49,7 +71,7 @@ export function Shop({ tab: first }: { tab?: Item["slot"] }) {
     void refreshWallet().catch(fail);
     void town.bag().then(setBag, fail);
   }, []);
-  if (!me || !wallet) return <Modal title="🪙 Shop">{failed ?? "Loading…"}</Modal>;
+  if (!me || !wallet) return <Modal title={`🛍 ${SHOPS[shop].name}`}>{failed ?? "Loading…"}</Modal>;
 
   // The first one bought goes on; another is for trading.
   const buy = (item: Item) =>
@@ -60,76 +82,68 @@ export function Shop({ tab: first }: { tab?: Item["slot"] }) {
     });
 
   return (
-    <Modal title="🪙 Shop" wide>
+    <Modal title={`🛍 ${SHOPS[shop].name}`} wide>
+      <p className="muted small">{hello}</p>
       <WalletLine balance={wallet.balance}>
-        <span className="muted"> · +{wallet.today} from today so far</span>
+        <span className="muted"> · </span>
+        <button type="button" className="link" onClick={() => hud.set({ panel: null })}>
+          Leave
+        </button>
       </WalletLine>
-      <p className="muted small">
-        Every day you earn √(tokens ÷ 1M) coins: 100M tokens is 10, 1B is 31. Finish a day 1st, 2nd or 3rd for{" "}
-        {PODIUM_COINS.join(", ")} more.
-        {wallet.wins.length > 0 &&
-          ` Lately: ${wallet.wins
-            .slice(0, 5)
-            .map((w) => `${PLACES[w.place - 1]} ${w.day.slice(5)}`)
-            .join(" ")}`}
-      </p>
-      <h3>📜 Today's quests</h3>
-      <ul className="members">
-        {wallet.quests.map((q) => (
-          <li key={q.id} className={q.done ? undefined : "muted"}>
-            <span>
-              {q.done ? "✓" : "○"} {q.text}
-            </span>
-            <span>🪙 {q.coins}</span>
-          </li>
-        ))}
-      </ul>
-      <Pills value={tab} options={TABS} onChange={setTab} />
-      <ul className="shop">
-        {ITEMS.filter((i) => i.slot === tab && !editionById(i.id) && !i.earned && !i.company).map((item) => {
-          const owned = wallet.owned.includes(item.id);
-          const wearing = isWorn(item, me.look);
-          const n = bag.find((b) => b.item === item.id)?.count ?? 0;
-          return (
-            <li
-              key={item.id}
-              className={`${wearing ? "wearing" : ""}${rarityClass(item)}`.trim() || undefined}
-              title={lootLine(item) ?? undefined}
-            >
-              <ItemImage item={item} look={me.look} />
-              <span>
-                {item.name}
-                {n > 0 && <span className="muted"> ×{n}</span>}
-              </span>
-              <ItemTag item={item} />
-              {item.loot && <span className={`small rarity-text-${item.loot.rarity}`}>{lootLine(item)}</span>}
-              {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
-              {item.loot ? (
-                !owned && (
-                  <button type="button" disabled>
-                    ⚔️ Raid drop
-                  </button>
-                )
-              ) : item.level !== undefined ? (
-                !owned && (
-                  <button type="button" disabled>
-                    🔒 Lv {item.level}
-                  </button>
-                )
-              ) : (
-                <button
-                  type="button"
-                  className="primary"
-                  disabled={wallet.balance < item.price}
-                  onClick={buy(item)}
+      {tabs.length > 1 && <Pills value={tab} options={tabs} onChange={setTab} />}
+      {tab === "company" ? (
+        <CompanyOrder />
+      ) : (
+        <ul className="shop">
+          {ITEMS.filter((i) => i.slot === tab && !editionById(i.id) && !i.earned && !i.company).map(
+            (item) => {
+              const owned = wallet.owned.includes(item.id);
+              const wearing = isWorn(item, me.look);
+              const n = bag.find((b) => b.item === item.id)?.count ?? 0;
+              return (
+                <li
+                  key={item.id}
+                  className={`${wearing ? "wearing" : ""}${rarityClass(item)}`.trim() || undefined}
+                  title={lootLine(item) ?? undefined}
                 >
-                  🪙 {item.price}
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+                  <ItemImage item={item} look={me.look} />
+                  <span>
+                    {item.name}
+                    {n > 0 && <span className="muted"> ×{n}</span>}
+                  </span>
+                  <ItemTag item={item} />
+                  {item.loot && (
+                    <span className={`small rarity-text-${item.loot.rarity}`}>{lootLine(item)}</span>
+                  )}
+                  {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
+                  {item.loot ? (
+                    !owned && (
+                      <button type="button" disabled>
+                        ⚔️ Raid drop
+                      </button>
+                    )
+                  ) : item.level !== undefined ? (
+                    !owned && (
+                      <button type="button" disabled>
+                        🔒 Lv {item.level}
+                      </button>
+                    )
+                  ) : (
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={wallet.balance < item.price}
+                      onClick={buy(item)}
+                    >
+                      🪙 {item.price}
+                    </button>
+                  )}
+                </li>
+              );
+            },
+          )}
+        </ul>
+      )}
       {error && <p className="error">{error}</p>}
     </Modal>
   );

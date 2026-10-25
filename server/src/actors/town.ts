@@ -23,6 +23,7 @@ import {
   TRADE_COINS_CAP,
   TRADE_ITEMS_CAP,
 } from "@tokenmaxxing/core/shop.ts";
+import { goToShop, SHOP_ROOM, type ShopId, shopForSlot } from "@tokenmaxxing/core/shoprooms.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import type { TournamentBoard } from "@tokenmaxxing/core/tournament.ts";
 import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
@@ -289,6 +290,8 @@ export const town = actor({
     offices: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     desks: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     drops: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
+    /** Test servers sell anywhere (`SHOPS_ANYWHERE`); these players are held to the shop rule anyway. */
+    strictShops: new Set<number>(),
     /** The open offices, read by everyone for a few seconds. */
     openOffices: null as { at: number; rows: Promise<OpenOfficeRow[]> } | null,
     renames: new RateLimiter(RENAMES_PER_HOUR, HOUR),
@@ -573,6 +576,7 @@ export const town = actor({
         throw new UserError("That one is for company buildings, from the company wallet.", {
           code: "not_for_sale",
         });
+      await inShop(c, userId, shopForSlot(item.slot));
       const k = await kept(c, Date.now());
       if (item.slot === "merch") return c.vars.serial(() => buyMerch(c.db, userId, item, Date.now(), k));
       return c.vars.serial(() => buy(c.db, userId, item, Date.now(), k));
@@ -588,6 +592,7 @@ export const town = actor({
       const userId = requireUser(c.conn.state);
       const item = itemById(itemId);
       if (!item?.company) throw new UserError("That's not for company buildings.", { code: "not_found" });
+      await inShop(c, userId, "furniture");
       return furnish(c, userId, "buy", (company, now) => buyPiece(c.db, company, userId, item, now));
     },
 
@@ -906,6 +911,7 @@ export const town = actor({
     /** Buys a wallpaper or floor (`kind` wall or floor); `setDecor` puts it on. */
     buyDecor: async (c, kind: unknown, id: unknown): Promise<Wallet> => {
       const userId = requireUser(c.conn.state);
+      await inShop(c, userId, "furniture");
       const now = Date.now();
       const k = await kept(c, now);
       return c.vars.serial(() => buyDecor(c.db, userId, kind, id, now, k));
@@ -933,6 +939,7 @@ export const town = actor({
       const userId = requireUser(c.conn.state);
       if (!c.vars.desks.take(String(userId), Date.now()))
         throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
+      await inShop(c, userId, "furniture");
       const now = Date.now();
       const k = await kept(c, now);
       return c.vars.serial(() => buyDesk(c.db, userId, id, now, k));
@@ -955,6 +962,7 @@ export const town = actor({
       const u = await userById(c.db, userId);
       const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
       if (!company) throw new UserError("Join a company first.", { code: "not_member" });
+      await inShop(c, userId, "furniture");
       await c.vars.serial(() => buyDeskFleet(c.db, company, userId, Date.now()));
       await push(c.db, c.client<typeof registry>(), { users: [], companies: [company.id] });
       return myCompany(c.db, company.id, userId);
@@ -1327,6 +1335,12 @@ export const town = actor({
       return set.coins;
     },
 
+    /** Test servers only sell anywhere; this holds one player to the shop rule anyway. */
+    adminStrictShops: (c, userId: unknown): void => {
+      requireAdmin(c.conn.state);
+      c.vars.strictShops.add(Number(userId));
+    },
+
     /** Takes someone's bio down (and its reports with it). */
     adminClearBio: async (c, userId: unknown): Promise<void> => {
       requireAdmin(c.conn.state);
@@ -1624,6 +1638,21 @@ async function placeStarter(client: Client, drops: Drop[]): Promise<void> {
   await main(client)
     .world.placeDrops(drops)
     .catch((err) => console.warn(`[office] ${String(err)}`));
+}
+
+/**
+ * Buying happens in the shop that sells it: `shop` is where the player must stand (null: sold nowhere, so
+ * refused by the caller's own rules). The world knows the room; a player who isn't in it can't buy at all.
+ */
+async function inShop(
+  c: { client: () => Client; vars: { strictShops: Set<number> } },
+  userId: number,
+  shop: ShopId | null,
+): Promise<void> {
+  if (process.env.SHOPS_ANYWHERE === "1" && !c.vars.strictShops.has(userId)) return;
+  if (shop === null) throw new UserError("That isn't sold in any shop.", { code: "not_for_sale" });
+  const room = await main(c.client()).world.roomOfPlayer(userId);
+  if (room !== SHOP_ROOM[shop]) throw new UserError(goToShop(shop), { code: "not_in_shop" });
 }
 
 /**
