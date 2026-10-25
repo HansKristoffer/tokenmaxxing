@@ -62,7 +62,7 @@ describe("world", () => {
     await admit(a, c, co.id);
     await veteran(c);
     const watch = await connect(c.token);
-    const doorsNow = () => watch.events.snapshots.at(-1)!.doors;
+    const doorsNow = () => (watch.events.snapshots.at(-1) ?? watch.snap).doors;
     const full = await eventually(() => {
       expect(doorsNow()).toHaveLength(3);
       return [...doorsNow()];
