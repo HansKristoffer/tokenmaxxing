@@ -427,9 +427,11 @@ function shopInteract(x: number, y: number): boolean {
   const shop = shopOfRoom(world.room);
   const kind = world.map.kind(x, y);
   if (!shop || !(kind.counter || kind.shop)) return false;
-  // The 3D renderer has its own buy panel for a shelf (the counter and the barber's mirror stay the page's).
-  if (kind.shop && viewHooks.shop?.(shop, x, y)) return true;
   const tab = kind.counter ? COUNTER_TAB[shop] : displayTab(shop, x, y);
+  // The 3D renderer has its own buy card for a shelf of goods (the counter, the barber's mirror and
+  // Møbelhuset's wallpaper, monitors and company supplies open the page's tab instead).
+  const tabbed = tab === "decor" || tab === "desk" || tab === "company";
+  if (kind.shop && !tabbed && viewHooks.shop?.(shop, x, y)) return true;
   hud.set({ panel: tab === "look" || tab === null ? { kind: "look" } : { kind: "shop", tab } });
   return true;
 }

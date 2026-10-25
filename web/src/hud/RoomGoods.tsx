@@ -162,27 +162,25 @@ export function DeskGoods({ buy }: { buy: boolean }) {
             <li key={d.id} className={using ? "wearing" : undefined}>
               <DeskPreview tier={i} />
               <strong>{d.name}</strong>
-              <span className="muted small">{d.blurb}</span>
+              <span className="muted small">
+                {d.blurb}
+                {!has && d.level !== undefined && ` Free at Lv ${d.level}.`}
+              </span>
               {has ? (
                 <button type="button" disabled={using} onClick={use(d.id)}>
                   {using ? "In use" : "Apply"}
                 </button>
               ) : buy ? (
-                <>
-                  <button
-                    type="button"
-                    className="primary"
-                    disabled={wallet.balance < d.price}
-                    onClick={purchase(d.id)}
-                  >
-                    🪙 {d.price}
-                  </button>
-                  {d.level !== undefined && <span className="muted small">or free at Lv {d.level}</span>}
-                </>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={wallet.balance < d.price}
+                  onClick={purchase(d.id)}
+                >
+                  🪙 {d.price}
+                </button>
               ) : (
-                <span className="muted small">
-                  🪙 {d.price} at Møbelhuset{d.level !== undefined && `, or free at Lv ${d.level}`}
-                </span>
+                <span className="muted small">🪙 {d.price} at Møbelhuset</span>
               )}
             </li>
           );
@@ -212,9 +210,11 @@ export function DeskFleet({ buy }: { buy: boolean }) {
   return (
     <>
       <h3>🏢 {co.name}: house desks</h3>
-      <p className="wallet">
-        <strong>{coins(co.wallet)}</strong> in the company wallet
-      </p>
+      {!buy && (
+        <p className="wallet">
+          <strong>{coins(co.wallet)}</strong> in the company wallet
+        </p>
+      )}
       <p className="muted small">
         Every desk in the house gets this setup, whoever sits there. The wallet pays and any member can buy
         the next one. In the house you see the better of yours and this.

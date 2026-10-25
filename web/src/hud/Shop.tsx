@@ -64,6 +64,11 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
   const [tab, setTab] = useState<ShopPageTab>(
     tabs.some(([t]) => t === wanted) ? wanted! : (tabs[0]?.[0] ?? "outfit"),
   );
+  // Opening the page again on another tab (E on another display) while it is up switches to that tab.
+  const known = tabs.some(([t]) => t === wanted);
+  useEffect(() => {
+    if (known && wanted) setTab(wanted);
+  }, [known, wanted]);
   const [bag, setBag] = useState<BagRow[]>([]);
   const [failed, setFailed] = useState<string | null>(null);
   const { error, run } = useRun();
