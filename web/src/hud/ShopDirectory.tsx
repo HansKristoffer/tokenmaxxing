@@ -1,7 +1,7 @@
-import { SHOPS, type ShopId } from "@tokenmaxxing/core/shoprooms.ts";
+import { SHOPS, type ShopId, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { useState } from "react";
 import { goToShopDoor } from "../game/input.ts";
-import { hud } from "../store.ts";
+import { hud, useHud } from "../store.ts";
 import { SHOP_DIRECTORY } from "./shops.ts";
 import { Modal } from "./ui.tsx";
 
@@ -22,6 +22,25 @@ export function TakeMeThere({ shop, label = "Take me there" }: { shop: ShopId; l
       </button>
       {gone && <span className="error small"> {SHOPS[shop].name} has no door in town right now.</span>}
     </>
+  );
+}
+
+/**
+ * "Buy at Møbelhuset" for the panels that no longer sell (My room): the way to the shop's door, or, standing
+ * in the shop already, the tab that sells it.
+ */
+export function BuyAtMobelhuset({ tab }: { tab: "decor" | "desk" | "company" }) {
+  const here = useHud((s) => shopOfRoom(s.room) === "furniture");
+  return (
+    <p className="buy-at">
+      {here ? (
+        <button type="button" className="primary" onClick={() => hud.set({ panel: { kind: "shop", tab } })}>
+          Buy in this shop
+        </button>
+      ) : (
+        <TakeMeThere shop="furniture" label="Buy at Møbelhuset" />
+      )}
+    </p>
   );
 }
 

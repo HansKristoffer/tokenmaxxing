@@ -11,6 +11,9 @@ import type { Me, Raid, Today, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
 import { storage } from "./storage.ts";
 
+/** A tab of the Shop page: an item slot, or one of Møbelhuset's: wallpaper and floors, monitors, company supplies. */
+export type ShopPageTab = Item["slot"] | "decor" | "desk" | "company";
+
 export type Panel =
   | { kind: "leaderboard" }
   | { kind: "card"; userId: number }
@@ -19,7 +22,7 @@ export type Panel =
   | { kind: "companyShop" }
   | { kind: "merch"; companyId: number }
   | { kind: "look" }
-  | { kind: "shop"; tab?: Item["slot"] | "company" }
+  | { kind: "shop"; tab?: ShopPageTab }
   | { kind: "shops" }
   | { kind: "merchant" }
   | { kind: "bag" }

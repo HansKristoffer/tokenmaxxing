@@ -11,9 +11,24 @@
 export type ShopId = "furniture" | "clothes" | "barber" | "pets";
 export const SHOP_IDS: readonly ShopId[] = ["furniture", "clothes", "barber", "pets"];
 
-/** What E on a display opens in the Shop page: an item slot's tab, `furniture`, or the barber's look picker. */
+/**
+ * What E on a display opens in the Shop page: an item slot's tab, or one of Møbelhuset's own: `furniture`,
+ * `decor` (wallpaper and floors), `desk` (monitor setups) and `company` (the company's supplies), or the
+ * barber's look picker.
+ */
 export type ShopTab =
-  "outfit" | "glasses" | "hat" | "held" | "back" | "pet" | "petwear" | "furniture" | "look";
+  | "outfit"
+  | "glasses"
+  | "hat"
+  | "held"
+  | "back"
+  | "pet"
+  | "petwear"
+  | "furniture"
+  | "decor"
+  | "desk"
+  | "company"
+  | "look";
 
 /** The room's own size (what the 3D room is built at), without the walls the map adds. */
 export interface ShopLayout {
@@ -68,6 +83,9 @@ export const SHOP_ROOM: Record<ShopId, ShopRoomId> = {
 export const shopOfRoom = (room: string): ShopId | null =>
   SHOP_IDS.find((s) => SHOP_ROOM[s] === room) ?? null;
 
+/** Møbelhuset's company-supplies catalogue desk: two tiles wide, its left tile (a desk with a ledger and poster tubes). */
+export const SUPPLIES_DESK: readonly [number, number] = [18, 17];
+
 export const SHOPS: Record<ShopId, ShopLayout> = {
   furniture: {
     id: "furniture",
@@ -98,76 +116,78 @@ export const SHOPS: Record<ShopId, ShopLayout> = {
       "W___b¤_c_¤¤‡__¤‡_¤‡___________W",
       "¤___b________________‡________W",
       "W______________________¢¢¢¢¢¢_W",
-      "¤_____________________________W",
+      "¤_________________¤¤__________W",
       "¤_____________________________W",
       "W__________x__________________W",
       "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
     ],
     displays: [
-      [3, 3, "furniture"],
-      [6, 3, "furniture"],
-      [9, 3, "furniture"],
-      [12, 3, "furniture"],
-      [15, 3, "furniture"],
-      [7, 8, "furniture"],
-      [6, 6, "furniture"],
-      [4, 6, "furniture"],
-      [4, 8, "furniture"],
+      [3, 3, "desk"],
+      [6, 3, "desk"],
+      [9, 3, "desk"],
+      [12, 3, "desk"],
+      [15, 3, "desk"],
+      [7, 8, "company"],
+      [6, 6, "company"],
+      [4, 6, "company"],
+      [4, 8, "company"],
       [4, 10, "furniture"],
       [5, 14, "furniture"],
       [9, 14, "furniture"],
       [10, 14, "furniture"],
-      [14, 6, "furniture"],
-      [18, 6, "furniture"],
-      [19, 6, "furniture"],
-      [14, 10, "furniture"],
-      [17, 10, "furniture"],
-      [14, 12, "furniture"],
-      [17, 12, "furniture"],
+      [14, 6, "company"],
+      [18, 6, "company"],
+      [19, 6, "company"],
+      [14, 10, "company"],
+      [17, 10, "company"],
+      [14, 12, "company"],
+      [17, 12, "company"],
       [14, 14, "furniture"],
-      [17, 14, "furniture"],
+      [17, 14, "company"],
       [20, 4, "furniture"],
       [21, 4, "furniture"],
-      [23, 4, "furniture"],
-      [26, 4, "furniture"],
-      [20, 7, "furniture"],
+      [23, 4, "company"],
+      [26, 4, "company"],
+      [20, 7, "company"],
       [23, 7, "furniture"],
       [26, 7, "furniture"],
       [21, 12, "furniture"],
-      [22, 12, "furniture"],
-      [24, 12, "furniture"],
-      [25, 12, "furniture"],
+      [22, 12, "company"],
+      [24, 12, "company"],
+      [25, 12, "company"],
       [26, 12, "furniture"],
-      [27, 12, "furniture"],
+      [27, 12, "company"],
       [20, 9, "furniture"],
       [22, 9, "furniture"],
       [23, 9, "furniture"],
-      [2, 1, "furniture"],
-      [3, 1, "furniture"],
-      [4, 1, "furniture"],
-      [5, 1, "furniture"],
-      [7, 1, "furniture"],
-      [9, 1, "furniture"],
-      [11, 1, "furniture"],
-      [14, 1, "furniture"],
-      [16, 1, "furniture"],
-      [18, 1, "furniture"],
+      [2, 1, "company"],
+      [3, 1, "company"],
+      [4, 1, "company"],
+      [5, 1, "company"],
+      [7, 1, "company"],
+      [9, 1, "company"],
+      [11, 1, "company"],
+      [14, 1, "company"],
+      [16, 1, "company"],
+      [18, 1, "company"],
       [19, 1, "furniture"],
       [20, 1, "furniture"],
       [21, 1, "furniture"],
       [23, 1, "furniture"],
-      [25, 1, "furniture"],
-      [27, 1, "furniture"],
-      [0, 3, "furniture"],
-      [0, 5, "furniture"],
-      [0, 6, "furniture"],
-      [0, 8, "furniture"],
-      [0, 9, "furniture"],
-      [0, 12, "furniture"],
-      [0, 13, "furniture"],
-      [0, 15, "furniture"],
-      [0, 17, "furniture"],
-      [0, 18, "furniture"],
+      [25, 1, "company"],
+      [27, 1, "company"],
+      [0, 3, "decor"],
+      [0, 5, "decor"],
+      [0, 6, "decor"],
+      [0, 8, "decor"],
+      [0, 9, "decor"],
+      [0, 12, "decor"],
+      [0, 13, "decor"],
+      [0, 15, "decor"],
+      [0, 17, "decor"],
+      [0, 18, "decor"],
+      [SUPPLIES_DESK[0], SUPPLIES_DESK[1], "company"],
+      [SUPPLIES_DESK[0] + 1, SUPPLIES_DESK[1], "company"],
     ],
   },
   clothes: {
@@ -389,7 +409,8 @@ export function displayTab(shop: ShopId, x: number, y: number): ShopTab | null {
 
 /** What each shop sells, for the directory and for hints ("Buy hats at Thread & Token"). */
 export const SHOP_SELLS: Record<ShopId, string> = {
-  furniture: "Furniture, wallpapers, floors, desks and your company's furniture",
+  furniture:
+    "Furniture, wallpaper and floors, monitors and desk setups, and company supplies (furniture, posters, house desks)",
   clothes: "Outfits, hats, glasses, things to hold, back items and company merch",
   barber: "Haircuts and colours (free), at the mirror",
   pets: "Pets and pet gear",
@@ -417,7 +438,7 @@ export function shopForSlot(slot: string): ShopId | null {
 
 /** The shop for a ShopTab (E on a display), so the Shop page can be filtered to it. */
 export const SHOP_TABS: Record<ShopId, readonly ShopTab[]> = {
-  furniture: ["furniture"],
+  furniture: ["furniture", "decor", "desk", "company"],
   clothes: ["outfit", "hat", "glasses", "held", "back"],
   barber: ["look"],
   pets: ["pet", "petwear"],

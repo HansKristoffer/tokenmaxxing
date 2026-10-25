@@ -365,7 +365,7 @@ function OfficeLock() {
         {open ? "🔓 Open to visitors" : "🔒 Closed"}
       </button>
       <button type="button" onClick={() => hud.set({ panel: { kind: "decor" } })}>
-        🎨 Decorate
+        🏠 My room
       </button>
       {error && <p className="error">{error}</p>}
     </>

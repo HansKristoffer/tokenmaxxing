@@ -6,7 +6,7 @@ import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { posterOf } from "@tokenmaxxing/core/posters.ts";
 import { ITEMS, type Item, type MerchKind } from "@tokenmaxxing/core/shop.ts";
 import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
-import { SHOPS, type ShopId, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
+import { SHOP_TABS, SHOPS, type ShopId, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
@@ -18,14 +18,14 @@ import { petFrame } from "../art/pets.ts";
 import { errorText } from "../errors.ts";
 import { refreshMe, refreshWallet, town } from "../net.ts";
 import type { IconSpec } from "../render3d/icons.ts";
-import { hud, useHud } from "../store.ts";
+import { hud, type ShopPageTab, useHud } from "../store.ts";
 import { CompanyOrder } from "./CompanyShop.tsx";
 import { ItemIcon } from "./ItemIcon.tsx";
 import { ItemTag } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
 import { isWorn, withItem, withoutMerchTop } from "./lookOps.ts";
+import { DecorGoods, DeskGoods } from "./RoomGoods.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
-import { shopSlots } from "./shops.ts";
 import { AvatarImage, Modal, Pills, Pixels, useRun, WalletLine } from "./ui.tsx";
 
 const TABS = [
@@ -37,30 +37,31 @@ const TABS = [
   ["pet", "Pets"],
   ["petwear", "Pet gear"],
   ["furniture", "Furniture"],
+  ["decor", "Wallpaper & floors"],
+  ["desk", "Monitors"],
 ] as const;
 
 /**
  * The Shop page: only ever the goods of the shop you stand in (its tabs, its keeper, "Leave"). Out in the
  * street there is no shop to open: the directory shows the way instead.
  */
-export function Shop(props: { tab?: Item["slot"] | "company" }) {
+export function Shop(props: { tab?: ShopPageTab }) {
   const shop = useHud((s) => shopOfRoom(s.room));
   return shop ? <ShopPage shop={shop} {...props} /> : <ShopDirectory />;
 }
 
-function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: Item["slot"] | "company" }) {
+function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
   const me = useHud((s) => s.me);
   const [hello] = useState(() => greeting(shop, Math.floor(Math.random() * 8)));
-  const slots = shopSlots(shop);
-  const owner = shop === "furniture" && me?.company?.isOwner === true;
   const tabs = [
-    ...TABS.filter(([t]) => (slots as readonly string[]).includes(t)),
-    ...(owner ? ([["company", "🏢 Company"]] as const) : []),
+    ...TABS.filter(([t]) => (SHOP_TABS[shop] as readonly string[]).includes(t)),
+    // Company supplies are for company members: the owner orders, the rest see what is stored.
+    ...(shop === "furniture" && me?.company ? ([["company", "🏢 Company"]] as const) : []),
   ];
   const wallet = useHud((s) => s.wallet);
   const opened = useHud((s) => (s.panel?.kind === "shop" ? s.panel.tab : undefined));
   const wanted = first ?? opened;
-  const [tab, setTab] = useState<Item["slot"] | "company">(
+  const [tab, setTab] = useState<ShopPageTab>(
     tabs.some(([t]) => t === wanted) ? wanted! : (tabs[0]?.[0] ?? "outfit"),
   );
   const [bag, setBag] = useState<BagRow[]>([]);
@@ -93,6 +94,10 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: Item["slot"] | "co
       {tabs.length > 1 && <Pills value={tab} options={tabs} onChange={setTab} />}
       {tab === "company" ? (
         <CompanyOrder />
+      ) : tab === "decor" ? (
+        <DecorGoods buy />
+      ) : tab === "desk" ? (
+        <DeskGoods buy />
       ) : (
         <ul className="shop">
           {ITEMS.filter((i) => i.slot === tab && !editionById(i.id) && !i.earned && !i.company).map(

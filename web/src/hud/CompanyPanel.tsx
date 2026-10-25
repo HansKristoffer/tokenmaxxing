@@ -87,7 +87,7 @@ export function CompanyPanel() {
           👕 Merch
         </button>
         <button type="button" onClick={() => hud.set({ panel: { kind: "desk" } })}>
-          🖥 Desks
+          🖥 My desk
         </button>
       </p>
       {co.log.length > 0 && (
