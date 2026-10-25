@@ -30,7 +30,7 @@ import {
   wire,
 } from "@tokenmaxxing/core/jukebox.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
-import { type GameMap, LEGEND, setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
+import { setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import {
   canHang,
   clearOffice,
@@ -42,8 +42,6 @@ import {
   OFFICE_MAPS,
   OFFICE_PIECES,
   officeTier,
-  PASSAGE_W,
-  PASSAGE_X,
   setHq,
   setOffice,
   wallSpot,
@@ -79,6 +77,7 @@ import {
   dropCovers,
   dropName,
   type Facing,
+  furnitureFits,
   type GameStatus,
   type Houses,
   homeRoom,
@@ -90,6 +89,7 @@ import {
   memberRoomOf,
   mentionsIn,
   type Notice,
+  noFurniture,
   ownerOfOffice,
   type Place,
   type PlayerInfo,
@@ -97,7 +97,6 @@ import {
   type PlayerState,
   type PlayerView,
   pieceOfDrop,
-  piecesIn,
   portal,
   RAIDERS_SHOWN,
   type Raiders,
@@ -702,7 +701,7 @@ export const world = actor({
       const people = Object.values(c.state.players).filter((o) => o.room === p.room);
       if (people.some((o) => o.state === "sit" && dropCovers(d, o.x, o.y)))
         return { notice: "Someone is on it." };
-      if (!fitsAt(p.room, d, piece, x as number, y as number, people))
+      if (!furnitureFits(p.room, d, piece, x as number, y as number, people))
         return { notice: "It doesn't fit there." };
       const moved: Drop = { ...d, x: x as number, y: y as number };
       setDrops(p.room, [...dropsIn(p.room).filter((o) => o.id !== d.id), moved]);
@@ -1081,7 +1080,7 @@ export const world = actor({
       if (
         onto &&
         piece &&
-        !fitsAt(p.room, { id, item, room: p.room, ...onto, by, at: 0 }, piece, onto.x, onto.y, people)
+        !furnitureFits(p.room, { id, item, room: p.room, ...onto, by, at: 0 }, piece, onto.x, onto.y, people)
       )
         return { notice: "It doesn't fit there." };
       let spot =
@@ -1902,23 +1901,6 @@ async function takeDrop(
 }
 
 /**
- * Where furniture can't go in `room`: in front of a door, and in a building, above its floor (the
- * hallways, and the passage up to them, foot included), so it never blocks anyone's office door.
- */
-function noFurniture(room: RoomId, map: GameMap): Set<string> {
-  const out = new Set<string>();
-  for (const [ch, kind] of Object.entries(LEGEND)) {
-    if (!kind.portal) continue;
-    for (const [x, y] of map.find(ch))
-      for (const [dx, dy] of Object.values(DIRS)) out.add(`${x + dx},${y + dy}`);
-  }
-  if (companyOfRoom(room) === null) return out;
-  for (let i = 0; i < PASSAGE_W; i++) out.add(`${PASSAGE_X + i},2`);
-  for (let y = map.y0; y < 2; y++) for (let x = map.x0; x < map.x0 + map.width; x++) out.add(`${x},${y}`);
-  return out;
-}
-
-/**
  * After `room`'s map is rebuilt: drops it has no place for any more (on what's a wall or a door now, or
  * furniture where `noFurniture` says) come off the floor. Returns their ids, for `town` to give back.
  */
@@ -1934,43 +1916,6 @@ function liftMisplaced(c: Sender & { vars: Vars }, room: RoomId): number[] {
   });
   for (const d of out) lift(c, d);
   return out.map((d) => d.id);
-}
-
-/**
- * Whether drop `d` (a `piece`) could stand with its left end on (x, y) in `room` with the rest of the floor as
- * it is: bare floor or, for a wall piece, bare wall; one piece to a tile; nobody under it, nobody walled in,
- * and in an office every door, desk and seat still reachable. The same rules as `placeDrop`.
- */
-function fitsAt(
-  room: RoomId,
-  d: Drop,
-  piece: NonNullable<ReturnType<typeof pieceOfDrop>>,
-  x: number,
-  y: number,
-  people: readonly { x: number; y: number }[],
-): boolean {
-  const base = baseMap(room);
-  const w = piece.w ?? 1;
-  const others = dropsIn(room).filter((o) => o.id !== d.id);
-  const taken = new Set<string>();
-  for (const o of others) for (let i = 0; i < (pieceOfDrop(o)?.w ?? 1); i++) taken.add(`${o.x + i},${o.y}`);
-  for (let i = 0; i < w; i++) if (taken.has(`${x + i},${y}`)) return false;
-  if (piece.wall) {
-    if (!canHang(base, x, y, w, piece.home)) return false;
-    for (let i = 0; i < w; i++) if (taken.has(`${x + i},${y + 1}`)) return false;
-    return true;
-  }
-  const map = withPieces(piecesIn(others), base);
-  const reserved = noFurniture(room, base);
-  for (let i = 0; i < w; i++) {
-    if (!map.walkable(x + i, y) || map.kind(x + i, y).portal || reserved.has(`${x + i},${y}`)) return false;
-    if (people.some((o) => o.x === x + i && o.y === y)) return false;
-    for (const o of others) if (pieceOfDrop(o)?.wall && dropCovers(o, x + i, y - 1)) return false;
-  }
-  const next = withPieces([{ ch: piece.ch, x, y }], map);
-  const exit = map.find("x")[0];
-  if (exit && people.some((o) => !route(next, [o.x, o.y], exit))) return false;
-  return !(ownerOfOffice(room) !== null && cutsOff(map, { ch: piece.ch, x, y }));
 }
 
 /** Their wallpaper and floor, when they have any. */

@@ -75,9 +75,9 @@ export function CompanyShop() {
         <strong>{coins(co.wallet)}</strong> in the company wallet
       </p>
       <p className="muted small">
-        You spend the company wallet.
+        You spend the company wallet.{" "}
         {inside
-          ? "It goes down in front of you; G takes a piece back to the storeroom."
+          ? "It goes down where you aim the ghost; G takes a piece back to the storeroom, Ctrl/Cmd+Z undoes."
           : "Walk into your building, or its common room upstairs, to put things out."}
       </p>
       {notice && <p className="muted">{notice}</p>}

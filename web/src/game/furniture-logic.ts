@@ -1,42 +1,23 @@
-import type { GameMap } from "@tokenmaxxing/core/maps.ts";
-import { canHang } from "@tokenmaxxing/core/office.ts";
-import { type Drop, dropCovers, pieceOfDrop, type RoomId } from "@tokenmaxxing/core/world.ts";
+import { type Drop, furnitureFits, pieceOfDrop, type RoomId } from "@tokenmaxxing/core/world.ts";
 
 // MARK: Where a piece can stand
 
-/** What the ghost is checked against: the room as the client sees it. */
-export interface FitsWorld {
-  drops: readonly Drop[];
-  /** The map with the furniture on it. */
-  map: Pick<GameMap, "walkable" | "kind">;
-  /** The map without any, for hanging a poster. */
-  base: GameMap;
-  people: readonly { x: number; y: number }[];
-}
-
 /**
- * Whether a piece (`item`, `furn.<ch>`) can stand with its left end on `t`: bare floor nobody stands on (or the
- * floor the piece being moved, `moving`, stands on), or bare wall for a poster. The server decides in the end
- * (`fitsAt`); this is what the green and the red are.
+ * Whether a piece (`item`, `furn.<ch>`) could stand with its left end on `t` in `room` (whose floor is
+ * `setDrops`'s): the very rules the server checks (`furnitureFits`), so the green and the red are what it will
+ * say. `moving` is the drop being moved (its own tile is free for it); `people` are everyone in the room.
  */
 export function ghostFits(
-  w: FitsWorld,
+  room: RoomId,
   item: string,
   moving: Drop | null,
   t: { x: number; y: number },
+  people: readonly { x: number; y: number }[],
 ): boolean {
   const piece = pieceOfDrop({ item });
   if (!piece) return false;
-  const width = piece.w ?? 1;
-  for (let i = 0; i < width; i++) {
-    const x = t.x + i;
-    if (w.drops.some((o) => o.id !== moving?.id && dropCovers(o, x, t.y))) return false;
-    if (piece.wall) continue;
-    const own = moving !== null && dropCovers(moving, x, t.y);
-    if (!own && (!w.map.walkable(x, t.y) || w.map.kind(x, t.y).portal)) return false;
-    for (const a of w.people) if (a.x === x && a.y === t.y) return false;
-  }
-  return !piece.wall || canHang(w.base, t.x, t.y, width, piece.home);
+  const d: Drop = moving ?? { id: -1, item, room, x: t.x, y: t.y, by: 0, at: 0 };
+  return furnitureFits(room, d, piece, t.x, t.y, people);
 }
 
 // MARK: Undo

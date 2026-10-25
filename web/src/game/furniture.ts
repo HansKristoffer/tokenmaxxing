@@ -1,5 +1,4 @@
 import {
-  baseMap,
   DIRS,
   type Drop,
   ownerOfOffice,
@@ -42,12 +41,9 @@ const itemOf = (m: GhostMode) => (m.kind === "move" ? m.drop.item : m.item);
 
 /** Whether a piece of furniture could stand with its left end on `t`, as the client sees the room. */
 export function fitsHere(mode: GhostMode, t: Tile): boolean {
-  return ghostFits(
-    { drops: world.drops, map: world.map, base: baseMap(world.room), people: [...world.avatars.values()] },
-    itemOf(mode),
-    mode.kind === "move" ? mode.drop : null,
-    t,
-  );
+  return ghostFits(world.room, itemOf(mode), mode.kind === "move" ? mode.drop : null, t, [
+    ...world.avatars.values(),
+  ]);
 }
 
 function show(): void {

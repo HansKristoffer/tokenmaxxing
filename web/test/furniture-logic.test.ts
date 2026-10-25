@@ -1,68 +1,89 @@
-import { expect, test } from "bun:test";
-import { MAPS } from "@tokenmaxxing/core/maps.ts";
-import { COMPANY_FURNITURE, canHang, withPieces } from "@tokenmaxxing/core/office.ts";
-import type { Drop } from "@tokenmaxxing/core/world.ts";
+import { afterEach, expect, test } from "bun:test";
+import { COMPANY_FURNITURE, canHang } from "@tokenmaxxing/core/office.ts";
+import { baseMap, type Drop, noFurniture, setDrops } from "@tokenmaxxing/core/world.ts";
 import { ghostFits, UNDO_DEPTH, UndoStack } from "../src/game/furniture-logic.ts";
 
-const base = MAPS.hq;
+const ROOM = "hq:1";
+const base = baseMap(ROOM);
 const floor: [number, number][] = [];
 for (let y = base.y0; y < base.y0 + base.height; y++)
   for (let x = base.x0; x < base.x0 + base.width; x++)
     if (base.walkable(x, y) && !base.kind(x, y).portal) floor.push([x, y]);
+const reserved = noFurniture(ROOM, base);
+/** Bare floor a piece may stand on: not in front of a door, not up in the hallways. */
+const open = floor.filter(([x, y]) => !reserved.has(`${x},${y}`));
 const bonsai = COMPANY_FURNITURE.find((f) => f.name === "Bonsai")!;
 const drop = (id: number, x: number, y: number, ch = bonsai.ch): Drop => ({
   id,
   item: `furn.${ch}`,
-  room: "hq:1",
+  room: ROOM,
   x,
   y,
   by: 1,
   at: 0,
 });
-const world = (drops: Drop[], people: { x: number; y: number }[] = []) => ({
-  drops,
-  map: withPieces(
-    drops.map((d) => ({ ch: d.item.slice(5), x: d.x, y: d.y })),
-    base,
-  ),
-  base,
-  people,
-});
+const fits = (drops: Drop[], item: string, moving: Drop | null, t: { x: number; y: number }, people = []) => {
+  setDrops(ROOM, drops);
+  return ghostFits(ROOM, item, moving, t, people);
+};
+afterEach(() => setDrops(ROOM, []));
 
 test("a ghost is green on bare floor, red on a wall, a piece, a person or off the map", () => {
-  const [x, y] = floor[0]!;
-  const w = world([]);
-  expect(ghostFits(w, `furn.${bonsai.ch}`, null, { x, y })).toBe(true);
-  expect(ghostFits(w, `furn.${bonsai.ch}`, null, { x: 0, y: 0 })).toBe(false);
-  expect(ghostFits(w, `furn.${bonsai.ch}`, null, { x: 999, y: 999 })).toBe(false);
-  expect(ghostFits(world([], [{ x, y }]), `furn.${bonsai.ch}`, null, { x, y })).toBe(false);
-  expect(ghostFits(world([drop(1, x, y)]), `furn.${bonsai.ch}`, null, { x, y })).toBe(false);
+  const [x, y] = open[0]!;
+  const item = `furn.${bonsai.ch}`;
+  expect(fits([], item, null, { x, y })).toBe(true);
+  expect(fits([], item, null, { x: 0, y: 0 })).toBe(false);
+  expect(fits([], item, null, { x: 999, y: 999 })).toBe(false);
+  expect(fits([], item, null, { x, y }, [{ x, y }] as never)).toBe(false);
+  expect(fits([drop(1, x, y)], item, null, { x, y })).toBe(false);
   // Not furniture: no ghost to show.
-  expect(ghostFits(w, "hat.1", null, { x, y })).toBe(false);
+  expect(fits([], "hat.1", null, { x, y })).toBe(false);
+});
+
+test("a ghost is red where the server keeps furniture off: in front of a door, up in the hallways", () => {
+  const item = `furn.${bonsai.ch}`;
+  const kept = floor.filter(([x, y]) => reserved.has(`${x},${y}`));
+  expect(kept.length).toBeGreaterThan(0);
+  for (const [x, y] of kept) expect(fits([], item, null, { x, y }), `${x},${y}`).toBe(false);
 });
 
 test("a piece being moved fits on its own tile, and its own tile is free for it, but nothing else's", () => {
-  const [x, y] = floor[0]!;
-  const [x2, y2] = floor.find(([fx, fy]) => fx !== x || fy !== y)!;
+  const [x, y] = open[0]!;
+  const [x2, y2] = open.find(([fx, fy]) => fx !== x || fy !== y)!;
   const mine = drop(1, x, y);
-  const other = drop(2, x2, y2);
-  const w = world([mine, other]);
-  expect(ghostFits(w, mine.item, mine, { x, y })).toBe(true);
-  expect(ghostFits(w, mine.item, mine, { x: x2, y: y2 })).toBe(false);
+  const world = [mine, drop(2, x2, y2)];
+  expect(fits(world, mine.item, mine, { x, y })).toBe(true);
+  expect(fits(world, mine.item, mine, { x: x2, y: y2 })).toBe(false);
   // A new piece (not moving) cannot go where one stands.
-  expect(ghostFits(w, mine.item, null, { x, y })).toBe(false);
+  expect(fits(world, mine.item, null, { x, y })).toBe(false);
 });
 
 test("a wide piece needs all its tiles", () => {
-  const wide = COMPANY_FURNITURE.find((f) => (f.w ?? 1) > 1 && !f.wall);
-  if (!wide) return;
-  const free = floor.find(([x, y]) =>
-    Array.from({ length: wide.w! }, (_, i) => base.walkable(x + i, y)).every(Boolean),
+  const wide = COMPANY_FURNITURE.find((f) => (f.w ?? 1) > 1 && !f.wall)!;
+  const w = wide.w ?? 1;
+  const at = open.find(([x, y]) =>
+    Array.from({ length: w }, (_, i) => open.some(([ox, oy]) => ox === x + i && oy === y)).every(Boolean),
   )!;
-  expect(ghostFits(world([]), `furn.${wide.ch}`, null, { x: free[0], y: free[1] })).toBe(true);
+  const item = `furn.${wide.ch}`;
+  expect(fits([], item, null, { x: at[0], y: at[1] })).toBe(true);
   // Its second tile taken by a bonsai.
-  const w = world([drop(3, free[0] + 1, free[1])]);
-  expect(ghostFits(w, `furn.${wide.ch}`, null, { x: free[0], y: free[1] })).toBe(false);
+  expect(fits([drop(3, at[0] + 1, at[1])], item, null, { x: at[0], y: at[1] })).toBe(false);
+});
+
+test("a poster hangs only where the wall has room for it", () => {
+  const poster = COMPANY_FURNITURE.find((f) => f.wall)!;
+  const w = poster.w ?? 1;
+  const spots: [number, number][] = [];
+  for (let y = base.y0; y < base.y0 + base.height; y++)
+    for (let x = base.x0; x < base.x0 + base.width; x++)
+      if (canHang(base, x, y, w, false)) spots.push([x, y]);
+  expect(spots.length).toBeGreaterThan(0);
+  const [x, y] = spots[0]!;
+  const item = `furn.${poster.ch}`;
+  expect(fits([], item, null, { x, y })).toBe(true);
+  expect(fits([drop(4, x, y, poster.ch)], item, null, { x, y })).toBe(false);
+  // Floor is not wall.
+  expect(fits([], item, null, { x: open[0]![0], y: open[0]![1] })).toBe(false);
 });
 
 test("the undo stack keeps the last ten steps, newest first out", () => {
@@ -89,20 +110,4 @@ test("a piece put down again is a new row: the steps naming the old one follow i
   s.push({ kind: "move", room: "hq:1", id: 1, x: 0, y: 0 });
   s.clear();
   expect(s.peek()).toBeUndefined();
-});
-
-test("a poster hangs only where the wall has room for it", () => {
-  const poster = COMPANY_FURNITURE.find((f) => f.wall)!;
-  const w = poster.w ?? 1;
-  const spots: [number, number][] = [];
-  for (let y = base.y0; y < base.y0 + base.height; y++)
-    for (let x = base.x0; x < base.x0 + base.width; x++)
-      if (canHang(base, x, y, w, false)) spots.push([x, y]);
-  expect(spots.length).toBeGreaterThan(0);
-  const [x, y] = spots[0]!;
-  expect(ghostFits(world([]), `furn.${poster.ch}`, null, { x, y })).toBe(true);
-  expect(ghostFits(world([drop(4, x, y, poster.ch)]), `furn.${poster.ch}`, null, { x, y })).toBe(false);
-  // Floor is not wall.
-  const [fx, fy] = floor[0]!;
-  expect(ghostFits(world([]), `furn.${poster.ch}`, null, { x: fx, y: fy })).toBe(false);
 });
