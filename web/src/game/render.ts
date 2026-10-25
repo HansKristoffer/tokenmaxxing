@@ -69,6 +69,7 @@ import {
 import { snowAmount, snowLayers } from "./snow.ts";
 import { drawStreet } from "./street.ts";
 import { drawTavern, lightTavern } from "./tavern.ts";
+import { tremor2d, tremorPhase } from "./tremor.ts";
 import { drawTrophies } from "./trophies.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
@@ -443,17 +444,15 @@ function drawAvatar(
   lap: Lap | null,
 ): void {
   const look = a.info.look;
-  // Coffee: a random nudge every frame, a pixel per cup still in their system. The Tavern's special
-  // (15 minutes) is a buzz like one and a half cups, or a warm glow behind you.
+  // Coffee: a small tremor off the clock in whole pixels (`tremor.ts`), the same at any frame rate. The
+  // Tavern's special (15 minutes) is a buzz like one and a half cups, or a warm glow behind you.
   const until = a.info.specialUntil ?? 0;
   const special = hasSpecial(until, Date.now()) ? specialBuff(until) : null;
-  const shake = Math.min(
-    4,
-    Math.max(cupsLeft(a.info.coffeeUntil, Date.now()), special === "jitter" ? 1.5 : 0),
-  );
-  if (shake > 0) {
-    px += Math.round((Math.random() * 2 - 1) * shake);
-    py += Math.round((Math.random() * 2 - 1) * shake * 0.5);
+  const cups = Math.max(cupsLeft(a.info.coffeeUntil, Date.now()), special === "jitter" ? 1.5 : 0);
+  if (cups > 0) {
+    const shake = tremor2d(cups, Date.now(), tremorPhase(a.info.id));
+    px += shake.dx;
+    py += shake.dy;
   }
   if (special === "glow") drawGlow(g, px + 8, py + 8, 17, "255,222,120", 0.55 + 0.15 * Math.sin(now / 320));
   if (a.warp) {

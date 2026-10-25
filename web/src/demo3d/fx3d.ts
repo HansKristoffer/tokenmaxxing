@@ -19,6 +19,7 @@ import {
   winterSnow,
 } from "@tokenmaxxing/core/sky.ts";
 import * as THREE from "three";
+import { tremor } from "../game/tremor.ts";
 import { AarhusWeather, lightAt } from "./aarhus.ts";
 import type { Avatar } from "./avatar.ts";
 import {
@@ -386,7 +387,7 @@ export class Fx {
   private sleepers: { name: string; level: number }[] = [];
   private sleepTag?: FxLabelHandle;
   private chipTag?: FxLabelHandle;
-  private jitter = new Map<Avatar, { until: number; cups: number }>();
+  private jitter = new Map<Avatar, { until: number; cups: number; phase: number; last: THREE.Vector3 }>();
   private glowBuff = new Map<Avatar, { until: number; halo: THREE.Mesh }>();
   private steam: { m: THREE.Mesh; born: number; avatar: Avatar }[] = [];
   private flashBoost = 0;
@@ -697,7 +698,12 @@ export class Fx {
 
   /** The coffee station: a cup's steam, and a shake a little per cup left (`render.ts drawAvatar`). */
   coffee(a: Avatar, cups: number, seconds = 10): void {
-    this.jitter.set(a, { until: performance.now() / 1000 + seconds, cups });
+    this.jitter.set(a, {
+      until: performance.now() / 1000 + seconds,
+      cups,
+      phase: this.jitter.get(a)?.phase ?? Math.random() * Math.PI * 2,
+      last: this.jitter.get(a)?.last ?? new THREE.Vector3(),
+    });
     const t = performance.now() / 1000;
     for (let i = 0; i < 5; i++) {
       const m = new THREE.Mesh(
@@ -976,14 +982,18 @@ export class Fx {
   private updateBuffs(dt: number, t: number, camera: THREE.Camera): void {
     for (const [a, j] of this.jitter) {
       if (t > j.until) {
+        a.body.position.sub(j.last);
         this.jitter.delete(a);
         continue;
       }
-      // A nudge every frame, a little per cup still in their system; it wears off.
+      // A smooth tremor off the clock, a little per cup still in their system; it wears off (`tremor.ts`).
       const left = Math.min(4, j.cups * (1 - (t - (j.until - 10)) / 10 + 0.2));
-      a.body.position.x += (Math.random() * 2 - 1) * left * 0.012;
-      a.body.position.z += (Math.random() * 2 - 1) * left * 0.012;
-      a.body.position.y += Math.random() * left * 0.004;
+      const shake = tremor(left, t, j.phase);
+      // Only the change since last frame is added, so the body keeps its place and the buzz leaves no drift.
+      a.body.position.x += shake.dx - j.last.x;
+      a.body.position.z += shake.dz - j.last.z;
+      a.body.position.y += shake.lift - j.last.y;
+      j.last.set(shake.dx, shake.lift, shake.dz);
     }
     for (const [a, b] of this.glowBuff) {
       if (t > b.until) {
