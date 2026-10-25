@@ -94,8 +94,7 @@ export class PokerEvents {
     this.pot = this.pot ?? f.overlay.make("r3-sign");
     this.say(this.pot, tableText(state), state.street === null && state.result ? "gold" : "dark");
     table.centreWorld(v);
-    v.y += 0.55;
-    f.overlay.place(this.pot, v, f.camera, 0, 0, true);
+    f.overlay.place(this.pot, v, f.camera, 0, 22, true);
   }
 
   dispose(): void {
