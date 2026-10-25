@@ -110,4 +110,50 @@ describe("the common room", () => {
     expect(await cb.conn.move(bag.id, 4, 10)).toEqual({ notice: "That's gone." });
     for (const c of [ca, cb]) await c.conn.dispose();
   });
+  test("the building's pieces go to the storeroom in one action, and come out near you, or on a chosen tile", async () => {
+    const a = await signUp("bulk");
+    const co = await a.town.createCompany("Bulk");
+    await admin().adminSetCompanyCoins(co.id, 1000);
+    const ca = await connect(a.token);
+    expect(ca.snap.room).toBe(`hq:${co.id}`);
+    expect(await ca.conn.putAway()).toEqual({ notice: "Nothing to put away here.", count: 0 });
+    for (const item of ["furn.ρ", "furn.ε", "furn.ρ"]) await a.town.buyPiece(item);
+    const laid = await eventually(() => {
+      const all = [...ca.snap.drops, ...ca.events.drops].filter((d) => d.co === co.id);
+      expect(new Set(all.map((d) => d.id)).size).toBe(3);
+      return all;
+    });
+    const plant = laid.find((d) => d.item === "furn.ρ")!;
+    expect(await ca.conn.putAway()).toEqual({ notice: "Put 3 pieces in the storeroom.", count: 3 });
+    expect((await a.town.me()).company?.stored).toEqual(
+      expect.arrayContaining([
+        { item: "furn.ρ", count: 2 },
+        { item: "furn.ε", count: 1 },
+      ]),
+    );
+    // One goes down on the exact tile it stood on; one onto a tile that is taken does not fit and stays stored.
+    const one = await a.town.placePiece("furn.ρ", { x: plant.x, y: plant.y });
+    expect(one.drop).toMatchObject({ item: "furn.ρ", x: plant.x, y: plant.y, co: co.id });
+    expect(await a.town.placePiece("furn.ε", { x: plant.x, y: plant.y })).toMatchObject({
+      notice: "It doesn't fit there.",
+    });
+    expect((await a.town.me()).company?.stored).toContainEqual({ item: "furn.ε", count: 1 });
+    // The rest, near you.
+    const all = await a.town.placeAll();
+    expect(all.notice).toBe("Placed 2 pieces.");
+    expect(all.company.stored).toEqual([]);
+    expect((await a.town.placeAll()).notice).toBe("The storeroom is empty.");
+    // Undo: the exact piece goes back to the storeroom by id; again, it is gone.
+    expect(await ca.conn.putBack(one.drop!.id)).toMatchObject({
+      notice: "📦 The Bonsai is in the storeroom.",
+    });
+    expect(await ca.conn.putBack(one.drop!.id)).toEqual({ notice: "That's gone." });
+    // Another company's people can neither put away nor put back what is not theirs.
+    const b = await signUp("bulk");
+    await b.town.createCompany("Other");
+    const cb = await connect(b.token);
+    expect(await cb.conn.putAway()).toEqual({ notice: "Nothing to put away here.", count: 0 });
+    expect((await a.town.me()).company?.stored?.length).toBe(1);
+    for (const c of [ca, cb]) await c.conn.dispose();
+  });
 });

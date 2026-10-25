@@ -1,12 +1,14 @@
 import { editionLabel } from "@tokenmaxxing/core/merchant.ts";
 import { cleanPetName, PET_NAME_MAX, petLooks, wearPet } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
+import { pieceOfDrop } from "@tokenmaxxing/core/world.ts";
 import type { BagRow, Copy } from "@tokenmaxxing/server/registry";
 import { omit } from "hanzio";
 import { useEffect, useRef, useState } from "react";
 import { errorText } from "../errors.ts";
+import { startPlace } from "../game/furniture.ts";
 import { world } from "../game/world.ts";
-import { refreshMe, town } from "../net.ts";
+import { conn, refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemTag, rarityRing } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
@@ -43,6 +45,16 @@ export function Bag() {
   }, [wallet, notice]);
   if (!me || !bag) return <Modal title="🎒 Bag">{failed ?? "Loading…"}</Modal>;
 
+  // A piece of furniture is put down with a ghost to aim (`startPlace`); nothing leaves the bag until it is.
+  const place = (item: string) => () => {
+    startPlace(item);
+  };
+  const putAway = run(async () => {
+    setDropped(null);
+    const r = await conn.putAway();
+    setDropped(r.notice);
+    await Promise.all([refreshMe(), refreshWallet()]);
+  });
   const drop = (item: string) =>
     run(async () => {
       setDropped(null); // a refused one shows only its error
@@ -100,8 +112,15 @@ export function Bag() {
               )}
               <WearButton item={item} look={me.look} run={run} />
               {(item.tradeable || (item.earned && inMyOffice)) && (
-                <button type="button" onClick={drop(item.id)}>
-                  {inMyOffice ? "Drop here" : "Drop"}
+                <button
+                  type="button"
+                  onClick={pieceOfDrop({ item: item.id }) && inMyOffice ? place(item.id) : drop(item.id)}
+                >
+                  {pieceOfDrop({ item: item.id }) && inMyOffice
+                    ? "Place…"
+                    : inMyOffice
+                      ? "Drop here"
+                      : "Drop"}
                 </button>
               )}
             </>
@@ -130,6 +149,13 @@ export function Bag() {
             Cancel
           </button>
         </form>
+      )}
+      {inMyOffice && (
+        <p className="muted small">
+          <button type="button" onClick={putAway}>
+            Put everything in this room away
+          </button>
+        </p>
       )}
       {dropped && <p className="muted">{dropped}</p>}
       {error && <p className="error">{error}</p>}

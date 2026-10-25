@@ -176,6 +176,7 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     if (count(id) < 1) return fail("unowned", "You have none to put down: buy one first.");
     try {
       if (purchase(id).kind === "piece") {
+        if (world.startPlacement(id, true)) return done("Pick a tile in your building");
         const r = await net.placePiece(id);
         store.setMe({ ...store.me()!, company: r.company });
         return done(r.notice);

@@ -39,6 +39,7 @@ import { chunkArray, must } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { canBrand } from "../brand.ts";
+import { placeAllNotice } from "../furniture-notices.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { type ActivityRow, isSortKey, type UsageRow } from "../stats.ts";
 import {
@@ -592,9 +593,66 @@ export const town = actor({
     },
 
     /** Any member puts a piece from the storeroom down in front of them, in the building. */
-    placePiece: async (c, itemId: unknown): Promise<{ notice: string; company: MyCompany }> => {
+    placePiece: async (
+      c,
+      itemId: unknown,
+      onto?: unknown,
+    ): Promise<{ notice: string; company: MyCompany; drop?: Drop }> => {
       const userId = requireUser(c.conn.state);
-      return furnish(c, userId, "place", (company, now) => unstore(c.db, company.id, itemId, userId, now));
+      const at = tileArg(onto);
+      return furnish(
+        c,
+        userId,
+        "place",
+        (company, now) => unstore(c.db, company.id, itemId, userId, now),
+        at,
+      );
+    },
+
+    /**
+     * Any member puts out everything in the storeroom they have floor for, near where they stand. One
+     * piece at a time (a full room stops the rest in the storeroom), with one summary line.
+     */
+    placeAll: async (c): Promise<{ notice: string; company: MyCompany }> => {
+      const userId = requireUser(c.conn.state);
+      const u = await userById(c.db, userId);
+      const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
+      if (!company) throw new UserError("Join a company first.", { code: "not_member" });
+      const notice = await c.vars.serial(async () => {
+        const stored = await all<{ id: number; item: string }>(
+          c.db,
+          "SELECT id, item FROM items WHERE company_id = ? AND room IS NULL ORDER BY id",
+          company.id,
+        );
+        if (stored.length === 0) return "The storeroom is empty.";
+        let placedCount = 0;
+        let first: string | undefined;
+        for (const row of stored) {
+          // Only a row still in the storeroom: a colleague may have put it out meanwhile.
+          const took = await all(
+            c.db,
+            "UPDATE items SET dropped_by = ?, dropped_at = ? WHERE id = ? AND company_id = ? AND room IS NULL RETURNING id",
+            userId,
+            Date.now(),
+            row.id,
+            company.id,
+          );
+          if (took.length === 0) continue;
+          const put = await main(c.client())
+            .world.placeDrop({ id: row.id, item: row.item, by: userId, co: company.id })
+            .catch((err) => {
+              console.warn(`[placeAll] ${row.id}: ${String(err)}`);
+              return { notice: "That didn't work. Try again." };
+            });
+          if ("notice" in put) first ??= put.notice;
+          else {
+            await placed(c.db, put);
+            placedCount++;
+          }
+        }
+        return placeAllNotice(placedCount, stored.length - placedCount, first);
+      });
+      return { notice, company: await myCompany(c.db, company.id, userId) };
     },
 
     /** The morning paper: yesterday in town, the same front page all day. */
@@ -637,8 +695,9 @@ export const town = actor({
      * One of mine onto the floor where I am, for anyone to take. A full room says so (the notice is for
      * the Bag), and the item stays mine.
      */
-    drop: async (c, itemId: unknown): Promise<{ notice: string; drop?: Drop }> => {
+    drop: async (c, itemId: unknown, onto?: unknown): Promise<{ notice: string; drop?: Drop }> => {
       const userId = requireUser(c.conn.state);
+      const at = tileArg(onto);
       if (!c.vars.drops.take(String(userId), Date.now()))
         throw new UserError("That's a lot of drops. Try again in a minute.", { code: "rate_limited" });
       const client = c.client<typeof registry>();
@@ -649,7 +708,7 @@ export const town = actor({
       // ponytail: one that landed but timed out stays on the floor with its row back here: taking it
       // gets nothing (`pickUp` is false). `removeDrops` it here if that ever shows up.
       const put = await main(client)
-        .world.placeDrop({ id, item: itemId as string, by: userId })
+        .world.placeDrop({ id, item: itemId as string, by: userId, ...(at && { onto: at }) })
         .catch((err) => {
           console.warn(`[drop] ${id}: ${String(err)}`);
           return { notice: "That didn't work. Try again." };
@@ -1637,16 +1696,18 @@ async function furnish(
   userId: number,
   action: "buy" | "place",
   take: (company: NonNullable<Awaited<ReturnType<typeof companyById>>>, now: number) => Promise<number>,
-): Promise<{ notice: string; company: MyCompany }> {
+  onto?: { x: number; y: number },
+): Promise<{ notice: string; company: MyCompany; drop?: Drop }> {
   const u = await userById(c.db, userId);
   const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
   if (!company) throw new UserError("Join a company first.", { code: "not_member" });
+  let drop: Drop | undefined;
   const notice = await c.vars.serial(async () => {
     const now = Date.now();
     const id = await take(company, now);
     const item = (await one<{ item: string }>(c.db, "SELECT item FROM items WHERE id = ?", id))!.item;
     const put = await main(c.client())
-      .world.placeDrop({ id, item, by: userId, co: company.id })
+      .world.placeDrop({ id, item, by: userId, co: company.id, ...(onto && { onto }) })
       .catch((err) => {
         console.warn(`[furnish] ${id}: ${String(err)}`);
         return { notice: "That didn't work. Try again." };
@@ -1655,9 +1716,19 @@ async function furnish(
     if ("notice" in put)
       return action === "buy" ? `${put.notice} The ${name} is in the storeroom.` : put.notice;
     await placed(c.db, put);
+    drop = put;
     return `${action === "buy" ? "Bought" : "Put out"} the ${name}.`;
   });
-  return { notice, company: await myCompany(c.db, company.id, userId) };
+  return { notice, company: await myCompany(c.db, company.id, userId), ...(drop && { drop }) };
+}
+
+/** A tile the client picked, or none; anything else is a bad request. */
+function tileArg(raw: unknown): { x: number; y: number } | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const t = raw as { x?: unknown; y?: unknown };
+  if (!Number.isInteger(t.x) || !Number.isInteger(t.y))
+    throw new UserError("Pick a tile.", { code: "bad_request" });
+  return { x: t.x as number, y: t.y as number };
 }
 
 const OPEN_OFFICES_TTL = 5_000;
