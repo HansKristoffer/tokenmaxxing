@@ -26,9 +26,9 @@ test("the tier table", () => {
     resolveSettings(t),
   );
   expect(low).toMatchObject({ renderer: "2d", shadows: "off", ao: false });
-  expect(medium).toMatchObject({ renderer: "3d", fpsCap: 30, renderScale: 0.75, shadowMap: 0, ao: false });
+  expect(medium).toMatchObject({ renderer: "3d", fpsCap: 0, renderScale: 0.75, shadowMap: 0, ao: false });
   expect(medium!.post).toEqual({ haze: false, tiltShift: false, grade: false });
-  expect(high).toMatchObject({ renderer: "3d", ao: true, shadowMap: 2048, fpsCap: 60 });
+  expect(high).toMatchObject({ renderer: "3d", ao: true, shadowMap: 2048, fpsCap: 0 });
   expect(ultra).toMatchObject({ fpsCap: 0, shadowMap: 4096, ao: true });
   expect(ultra!.post).toEqual({ haze: true, tiltShift: true, grade: true });
 });

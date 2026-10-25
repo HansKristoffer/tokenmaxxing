@@ -33,9 +33,8 @@ if (typeof navigator !== "undefined")
     () => {},
   );
 
-/** On battery and under 20%, or not charging at all (for the fps cap). */
+/** On battery and under 20%, or not charging at all . */
 export const lowBattery = (): boolean => !!battery && !battery.charging && battery.level < 0.2;
-export const onBattery = (): boolean => !!battery && !battery.charging;
 /** Unplugged with under half left. */
 const powerSaver = (): boolean => !!battery && !battery.charging && battery.level < 0.5;
 
