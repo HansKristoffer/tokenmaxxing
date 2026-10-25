@@ -59,8 +59,8 @@ describe("poster catalog", () => {
 
 describe("hanging them", () => {
   const house = doorsFor([1, 2, 3].map((id) => ({ userId: id, name: `u${id}`, open: true })));
-  // Row 2 under the wall: shelves at 1-2, beds at 4 6 8 10, a plant at 12, desks at 15-18, a coffee machine at 20.
-  const clear = [3, 5, 7, 9, 11, 13, 19];
+  // Row 2 under the wall: shelves at 1-2, beds at 4 6 8 10, a plant at 12, the passage at 13-14, desks at 15-18, a coffee machine at 20.
+  const clear = [3, 5, 7, 9, 11, 19];
 
   test("only on the building's top wall, over bare wall, with floor to stand on below it", () => {
     const map = hqMap(house);
@@ -81,6 +81,7 @@ describe("hanging them", () => {
     expect(map.at(PASSAGE_X, WALL_ROW)).toBe("_");
     expect(canHang(map, PASSAGE_X - 1, WALL_ROW, 2)).toBe(false);
     expect(canHang(map, PASSAGE_X, WALL_ROW, 1)).toBe(false);
+    expect(canHang(map, PASSAGE_X + 1, WALL_ROW, 1)).toBe(false);
     expect(canHang(map, 0, WALL_ROW, 1)).toBe(false);
   });
 

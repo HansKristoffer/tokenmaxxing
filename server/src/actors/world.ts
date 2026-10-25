@@ -42,6 +42,7 @@ import {
   OFFICE_MAPS,
   OFFICE_PIECES,
   officeTier,
+  PASSAGE_W,
   PASSAGE_X,
   setHq,
   setOffice,
@@ -1833,7 +1834,7 @@ function noFurniture(room: RoomId, map: GameMap): Set<string> {
       for (const [dx, dy] of Object.values(DIRS)) out.add(`${x + dx},${y + dy}`);
   }
   if (companyOfRoom(room) === null) return out;
-  out.add(`${PASSAGE_X},2`);
+  for (let i = 0; i < PASSAGE_W; i++) out.add(`${PASSAGE_X + i},2`);
   for (let y = map.y0; y < 2; y++) for (let x = map.x0; x < map.x0 + map.width; x++) out.add(`${x},${y}`);
   return out;
 }

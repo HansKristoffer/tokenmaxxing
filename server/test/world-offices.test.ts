@@ -16,7 +16,7 @@ describe("world", () => {
     // Only the owner has a door: the colleague is level 0.
     const m = await connect(mate.token);
     expect(m.snap.room).toBe(`hq:${co.id}`);
-    const door = { userId: owner.userId, name: owner.name, open: true, x: 1, y: -2 };
+    const door = { userId: owner.userId, name: owner.name, open: true, x: 3, y: -3 };
     expect(m.snap.doors).toEqual([door]);
     const me = m.snap.players.find((p) => p.id === mate.userId)!;
     const path = route(hqMap(m.snap.doors), [me.x, me.y], [door.x, door.y])!;
@@ -24,8 +24,8 @@ describe("world", () => {
     // Out again: below the door.
     expect(await step(m.conn, "down")).toEqual({
       room: `hq:${co.id}`,
-      x: 1,
-      y: -1,
+      x: 3,
+      y: -2,
       facing: "down",
       state: "idle",
     });

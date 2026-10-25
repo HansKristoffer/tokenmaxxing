@@ -2,11 +2,12 @@ import type { GameMap, MapId } from "@tokenmaxxing/core/maps.ts";
 import { SHOP_IDS, SHOP_ROOM, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { companyOfRoom, type RoomId } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
+import { C } from "../art/palette.ts";
 import { type BasementScene, dimBasement } from "../demo3d/basement3d.ts";
 import { DUNGEON_ASSETS } from "../demo3d/dungeon3d.ts";
-import { exitDoorway, exitStairs } from "../demo3d/exits3d.ts";
+import { exitPlate, exitStairs } from "../demo3d/exits3d.ts";
 import { buildHq, type Hq } from "../demo3d/hq3d.ts";
-import { beginTickScope, canvasTexture, endTickScope, glow, Model } from "../demo3d/kit.ts";
+import { beginTickScope, endTickScope, glow, Model, painted, planks } from "../demo3d/kit.ts";
 import { beginLanScope, endLanScope } from "../demo3d/livescreen.ts";
 import { setPropsNight } from "../demo3d/props.ts";
 import { Room } from "../demo3d/room.ts";
@@ -17,7 +18,7 @@ import "../demo3d/world-rooms.ts";
 import { world } from "../game/world.ts";
 import { disposeObject } from "./dispose.ts";
 import { ExitMarkers } from "./exit-markers.ts";
-import { hallwayTiles, houseOffset, housePassage } from "./hq-layout.ts";
+import { hallwayTiles, houseOffset, housePassage, PASSAGE_W } from "./hq-layout.ts";
 import { liveBasement, liveTavern } from "./live.ts";
 import { placedIn } from "./placed.ts";
 import { type LiveFrame, type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
@@ -219,7 +220,14 @@ const SHOP_VIEW: Partial<Record<(typeof SHOP_IDS)[number], number>> = {
 function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {
   const co = ctx.companies.find((c) => c.id === companyOfRoom(id));
   const scope = beginTickScope();
-  const built = withTicks(() => buildHq({ fleet: co?.deskFleet ?? 0, placed: placedIn(ctx.map) }));
+  const passage = housePassage(ctx.map);
+  const built = withTicks(() =>
+    buildHq({
+      fleet: co?.deskFleet ?? 0,
+      placed: placedIn(ctx.map),
+      gap: passage ? [passage[0], PASSAGE_W] : undefined,
+    }),
+  );
   const hq = built.value;
   endTickScope(scope, hq.room.group);
   // The stairs up to the common room, in the south wall (`u`): on the floor tile in front of it.
@@ -253,32 +261,33 @@ function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {
   });
 }
 
-/** The owner's name over an office door, on a plate; shut doors get a padlock. */
-function namePlate(door: Model, name: string, open: boolean): void {
-  const text = `${open ? "" : "🔒 "}${name}`.slice(0, 14);
-  const tex = canvasTexture(128, 28, (g) => {
-    g.fillStyle = "#2b2433";
-    g.fillRect(0, 0, 128, 28);
-    g.fillStyle = "#fbf7ef";
-    g.font = "bold 14px ui-monospace, Menlo, monospace";
-    g.textAlign = "center";
-    g.textBaseline = "middle";
-    g.fillText(text, 64, 15);
-  });
-  door.box([0.96, 0.24, 0.03], "#2b2433", [0, 2.08, 0.1], 0.004);
-  door.plane(0.92, 0.2, glow("#fff", tex), [0, 2.2, 0.12]);
+/** The plank floor of the hallways, one slab per run of corridor tiles, its planks laid on the house floor's grid. */
+function floorSlab(x: number, z: number, w: number, d: number, plank: THREE.Material): THREE.Mesh {
+  const g = new THREE.PlaneGeometry(w, d);
+  g.rotateX(-Math.PI / 2);
+  const pos = g.getAttribute("position");
+  const uv = g.getAttribute("uv");
+  for (let i = 0; i < uv.count; i++)
+    uv.setXY(i, (x + pos.getX(i) + w / 2) / 4, -(z + pos.getZ(i) + d / 2) / 4);
+  const mesh = new THREE.Mesh(g, plank);
+  mesh.position.set(x + w / 2, 0, z + d / 2);
+  mesh.receiveShadow = true;
+  return mesh;
 }
 
 /**
- * The hallways of office doors above the house's floor (`hqMap`: three rows per ten offices, a corridor behind a
- * wall of doors, joined to the floor by a passage through the north wall). Drawn tile by tile in the room's own
- * coordinates: wall blocks, corridor floor, the dungeon slice's office door on every `R`, and a doorway where the
- * passage meets the floor. The walls between you and the camera go down to a skirting while you are up there
- * (`facing`, `player`), like the room's own.
+ * The hallways of office doors above the house's floor (`hqMap`: four rows per six offices, a wall of doors three
+ * tiles apart over a corridor two tiles deep, joined to the floor by a two-wide passage through the north wall).
+ * Drawn tile by tile in the room's own coordinates: wall blocks, the house's plank floor, the dungeon slice's office
+ * door on every `R` (flush with the wall under a header, a mat in front, a lamp on the wall between two doors), and an
+ * opening in the floor's north wall with a lintel and a runner where the passage meets each hallway. The walls
+ * between you and the camera go down to a skirting while you are up there (`facing`, `player`), like the room's own.
+ * The owner's name is a near label (`signs.ts`), so it shows when you are close.
  */
 function buildHallways(map: GameMap, hq: Hq) {
   const group = new THREE.Group();
   const WALL = "#efe4cf";
+  const CAP = "#5b4a44";
   const rows = new Map<number, { model: Model; z: number }>();
   const rowOf = (y: number) => {
     let r = rows.get(y);
@@ -292,33 +301,86 @@ function buildHallways(map: GameMap, hq: Hq) {
     return r;
   };
   const door = DUNGEON_ASSETS.find((a) => a.id === "tile:R");
-  for (const t of hallwayTiles(map)) {
+  const tiles = hallwayTiles(map);
+  const floors = new Map<number, number[]>();
+  const fixtures = new Model();
+  group.add(fixtures);
+  for (const t of tiles) {
     const at: [number, number, number] = [t.rx + 0.5, 0, t.rz + 0.5];
     if (t.kind === "wall") {
       const row = rowOf(t.y).model;
       row.box([1, WALL_H, 1], WALL, at, 0);
-      row.box([1.02, 0.1, 1.02], "#5b4a44", [at[0], WALL_H, at[2]], 0.01);
+      row.box([1.02, 0.1, 1.02], CAP, [at[0], WALL_H, at[2]], 0.01);
+      // A skirting on the face that has a corridor in front of it.
+      if (map.walkable(t.x, t.y + 1)) row.box([1.02, 0.16, 0.06], CAP, [at[0], 0, at[2] + 0.5], 0.008);
     } else if (t.kind === "door") {
+      const row = rowOf(t.y).model;
+      // A header over the door and the door at the wall's face, not sunk into a niche.
+      row.box([1, WALL_H - 2.0, 1], WALL, [at[0], 2.0, at[2]], 0);
+      row.box([1.02, 0.1, 1.02], CAP, [at[0], WALL_H, at[2]], 0.01);
       const m = door?.build();
-      if (!m) continue;
-      m.position.set(...at);
-      // Whose office, as the 2D game writes over each door; a lock when it is shut.
+      if (m) {
+        m.position.set(at[0], 0, at[2] + 0.4);
+        row.add(m);
+      }
+      // A brass plaque by the door (the name is the near label over it), and the mat to stand on.
+      row.box([0.34, 0.14, 0.03], "#f5c842", [at[0], 2.2, at[2] + 0.52], 0.004);
       const d = world.doors.find((q) => q.x === t.x && q.y === t.y);
-      if (d) namePlate(m, d.name, d.open);
-      rowOf(t.y).model.add(m);
+      const mine = d?.userId === world.selfId;
+      fixtures.box([0.84, 0.025, 0.56], mine ? C.rug : C.rugLight, [at[0], 0, at[2] + 1.05], 0.006);
+      fixtures.box([0.7, 0.03, 0.42], mine ? C.rugLight : C.rug, [at[0], 0, at[2] + 1.05], 0.006);
     } else {
-      const floor = new Model();
-      floor.box([1, 0.35, 1], "#c9a574", [at[0], -0.35, at[2]], 0);
-      floor.box([0.9, 0.012, 0.04], "#b08a5c", at, 0.002);
-      group.add(floor);
+      const run = floors.get(t.rz) ?? [];
+      run.push(t.rx);
+      floors.set(t.rz, run);
+    }
+  }
+  // Wall lamps on the wall between two doors: the glow is the lamp, the pool on the floor in front of it.
+  const lit = new Set<number>();
+  for (const t of tiles)
+    if (t.kind === "door" && map.at(t.x + 2, t.y) === "W" && map.at(t.x + 3, t.y) === "R") lit.add(t.rx);
+  for (const t of tiles)
+    if (t.kind === "door" && lit.has(t.rx)) {
+      const lx = t.rx + 2;
+      const lz = t.rz + 0.5;
+      fixtures.box([0.1, 0.34, 0.12], C.metal, [lx, 1.9, lz + 0.56], 0.01);
+      fixtures.box([0.06, 0.2, 0.06], glow("#ffe9b0"), [lx, 1.97, lz + 0.62], 0.004);
+    }
+  // The plank floor: a slab per run of corridor tiles in a row.
+  const plank = painted(planks("#c9a574", 4));
+  for (const [z, xs] of floors) {
+    xs.sort((a, b) => a - b);
+    let i = 0;
+    while (i < xs.length) {
+      let j = i;
+      while (j + 1 < xs.length && xs[j + 1] === xs[j]! + 1) j++;
+      const w = xs[j]! - xs[i]! + 1;
+      group.add(floorSlab(xs[i]!, z, w, 1, plank));
+      i = j + 1;
     }
   }
   const passage = housePassage(map);
   if (passage) {
-    // The way up to the hallways: a doorway in the north wall where the passage meets the floor.
-    const d = exitDoorway({ plate: "UP" });
-    d.position.set(passage[0] + 0.5, 0, passage[1] + 0.5);
-    group.add(d);
+    const [px] = passage;
+    // The opening in the floor's north wall: jambs, a lintel with its plate and a lamp, a runner through it.
+    const open = new Model();
+    open.userData.rigid = true;
+    const w = PASSAGE_W;
+    for (const x of [px, px + w]) open.box([0.16, 2.3, 0.34], C.woodDark, [x, 0, 0], 0.015);
+    open.box([w + 0.16, 0.12, 0.34], C.woodDark, [px + w / 2, 2.3, 0], 0.015);
+    open.box([w + 0.16, WALL_H - 2.42, 0.2], WALL, [px + w / 2, 2.42, 0], 0);
+    exitPlate(open, "UP", "up", [px + w / 2, 2.12, 0.19]);
+    open.box([0.34, 0.08, 0.2], C.metal, [px + w / 2 - 0.55, 2.2, 0.28], 0.01);
+    open.box([0.26, 0.05, 0.14], glow("#ffe9b0"), [px + w / 2 - 0.55, 2.15, 0.28], 0.004);
+    open.box([0.34, 0.08, 0.2], C.metal, [px + w / 2 + 0.55, 2.2, 0.28], 0.01);
+    open.box([0.26, 0.05, 0.14], glow("#ffe9b0"), [px + w / 2 + 0.55, 2.15, 0.28], 0.004);
+    group.add(open);
+    // A runner from the floor up the passage, carried across every hallway it comes out in as a landing.
+    for (const t of tiles) {
+      if (t.kind !== "floor" || t.rx !== px) continue;
+      fixtures.box([w - 0.2, 0.025, 0.8], C.rugLight, [px + w / 2, 0, t.rz + 0.5], 0.006);
+      fixtures.box([w - 0.34, 0.03, 0.68], C.rug, [px + w / 2, 0, t.rz + 0.5], 0.006);
+    }
   }
   let me: [number, number] | null = null;
   return {

@@ -105,6 +105,8 @@ export class Room {
       north?: number[];
       door?: number | null;
       west?: number[];
+      /** An opening in the north wall, from x to x + width (a passage through to somewhere else). */
+      gap?: [number, number];
     } = {},
   ) {
     this.grid = Array(W * D).fill(null);
@@ -205,7 +207,14 @@ export class Room {
       this.walls.push({ model: m, normal: new THREE.Vector3(normal[0], 0, normal[1]) });
       return m;
     };
-    const north = wall(W + WALL_T * 2, [W / 2, -WALL_T / 2], 0, [0, 1]);
+    const gap = this.opts.gap;
+    let north: Model;
+    if (gap) {
+      // Two pieces of wall, the opening between them.
+      const [g0, g1] = [gap[0], gap[0] + gap[1]];
+      north = wall(g0 + WALL_T, [(g0 - WALL_T) / 2, -WALL_T / 2], 0, [0, 1]);
+      wall(W + WALL_T - g1, [(g1 + W + WALL_T) / 2, -WALL_T / 2], 0, [0, 1]);
+    } else north = wall(W + WALL_T * 2, [W / 2, -WALL_T / 2], 0, [0, 1]);
     const west = wall(D, [-WALL_T / 2, D / 2], Math.PI / 2, [1, 0]);
     wall(W + WALL_T * 2, [W / 2, D + WALL_T / 2], Math.PI, [0, -1]);
     wall(D, [W + WALL_T / 2, D / 2], -Math.PI / 2, [-1, 0]);

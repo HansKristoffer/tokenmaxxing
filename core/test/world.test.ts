@@ -152,7 +152,7 @@ describe("drops", () => {
     setDrops("hq:77", [drop(1, "furn.d", 2, 4, "hq:77")]);
     expect(mapOf("hq:77").at(2, 4)).toBe("d");
     setHq(77, doorsFor([{ userId: 1, name: "ada", open: true }]));
-    expect([mapOf("hq:77").at(1, -2), mapOf("hq:77").at(2, 4)]).toEqual(["R", "d"]);
+    expect([mapOf("hq:77").at(3, -3), mapOf("hq:77").at(2, 4)]).toEqual(["R", "d"]);
     setDrops("hq:77", []);
   });
 });

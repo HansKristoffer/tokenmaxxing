@@ -405,6 +405,8 @@ export interface HqOptions {
   floor?: string;
   wall?: string;
   stripe?: string;
+  /** An opening in the north wall (room tiles: x, width) where the passage to the hallways leaves the floor. */
+  gap?: [number, number];
 }
 
 export interface Hq {
@@ -434,6 +436,7 @@ export function buildHq(opts: HqOptions = {}): Hq {
     north: [],
     door: null,
     west: [3.5, 7.5],
+    gap: opts.gap,
   });
   const tile = (x: number, y: number): [number, number] => [x - 1, y - 2];
   const chairs: Placed[] = [];

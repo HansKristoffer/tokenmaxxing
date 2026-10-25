@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
-import { doorsFor, hqMap, PASSAGE_X } from "@tokenmaxxing/core/office.ts";
+import { doorsFor, hqMap, PASSAGE_W, PASSAGE_X } from "@tokenmaxxing/core/office.ts";
 import { hallwayTiles, houseOffset, housePassage, houseTile } from "../src/render3d/hq-layout.ts";
 
 const doors = (n: number) =>
@@ -16,11 +16,11 @@ test("the house's picture follows the map's origin: room tile (0, 0) is map tile
     expect(houseTile(1, map.y0 + map.height - 2)[1]).toBe(MAPS.hq.height - 3 - 1);
   }
   expect(houseOffset(MAPS.hq)).toEqual([1, 2]);
-  expect(houseOffset(hqMap(doors(3)))).toEqual([1, 5]);
+  expect(houseOffset(hqMap(doors(3)))).toEqual([1, 6]);
 });
 
 test("the hallways are built from the live map: a tile is floor in 3D exactly when the map lets you walk on it", () => {
-  for (const n of [0, 1, 12, 25]) {
+  for (const n of [0, 1, 7, 25]) {
     const map = hqMap(doors(n));
     const tiles = hallwayTiles(map);
     const byKey = new Map(tiles.map((t) => [`${t.x},${t.y}`, t]));
@@ -34,6 +34,11 @@ test("the hallways are built from the live map: a tile is floor in 3D exactly wh
       }
     expect(tiles.filter((t) => t.kind === "door")).toHaveLength(n);
     if (n === 0) expect(housePassage(map)).toBeNull();
-    else expect(housePassage(map)).toEqual([PASSAGE_X - 1, -1]);
+    else {
+      expect(housePassage(map)).toEqual([PASSAGE_X - 1, -1]);
+      // Two tiles wide at its foot, through the floor's two wall rows.
+      for (const y of [0, 1])
+        expect(tiles.filter((t) => t.kind === "floor" && t.y === y)).toHaveLength(PASSAGE_W);
+    }
   }
 });

@@ -177,35 +177,52 @@ export interface Door {
   x: number;
   y: number;
 }
-const DOORS_PER_HALLWAY = 10;
-/** The gap up through the walls from the floor (from y = 2) to every hallway: between two doors. */
-export const PASSAGE_X = 14;
+/** Doors per hallway: three tiles apart, so each office has its own stretch of wall. */
+export const DOORS_PER_HALLWAY = 6;
+/** A hallway is four rows: a wall top, the wall face with the doors, and a corridor two tiles deep. */
+export const HALL_H = 4;
+/** The first door's column, and the spacing between doors (two wall tiles make the stub between neighbours). */
+const DOOR_X0 = 3;
+const DOOR_GAP = 3;
+/**
+ * The way up from the floor to every hallway: two tiles wide (this column and the next), between the doors at
+ * 12 and 15, from the floor's top row (y = 2) through its two wall rows and up through each hallway's wall rows.
+ */
+export const PASSAGE_X = 13;
+export const PASSAGE_W = 2;
 
 /**
- * Door slots for these owners (sorted by id): slot n is hallway ⌊n/10⌋, tile 1 + 2·(n mod 10).
+ * Door slots for these owners (sorted by id): slot n is hallway ⌊n/6⌋, tile 3 + 3·(n mod 6).
  * ponytail: packed, not stored, so when a door goes the later ones move down a slot; store slots if
  * people mind their door moving.
  */
 export function doorsFor(owners: readonly Omit<Door, "x" | "y">[]): Door[] {
   return sortBy(owners, "userId").map((o, n) => ({
     ...o,
-    x: 1 + 2 * (n % DOORS_PER_HALLWAY),
-    y: -3 * Math.floor(n / DOORS_PER_HALLWAY) - 2,
+    x: DOOR_X0 + DOOR_GAP * (n % DOORS_PER_HALLWAY),
+    y: -HALL_H * Math.floor(n / DOORS_PER_HALLWAY) - 3,
   }));
 }
 
 /**
- * The building with a hallway of doors per 10 offices, above today's floor (negative y, like the town),
+ * The building with a hallway of doors per 6 offices, above today's floor (negative y, like the town),
  * so every tile it had keeps its coordinates. A hallway is a wall top, a wall face with the doors, and a
- * corridor.
+ * corridor two tiles deep; the two-wide passage joins them to the floor.
  */
 export function hqMap(doors: readonly Door[]): GameMap {
   const floor = MAPS.hq;
   const y0 = Math.min(0, ...doors.map((d) => d.y - 1));
-  const hall = ["W".repeat(floor.width), "W".repeat(floor.width), `W${"_".repeat(floor.width - 2)}W`];
-  const rows = [...Array.from({ length: -y0 }, (_, i) => hall[i % 3]!), ...floor.rows].map((r) => [...r]);
+  const hall = [
+    "W".repeat(floor.width),
+    "W".repeat(floor.width),
+    `W${"_".repeat(floor.width - 2)}W`,
+    `W${"_".repeat(floor.width - 2)}W`,
+  ];
+  const rows = [...Array.from({ length: -y0 }, (_, i) => hall[i % HALL_H]!), ...floor.rows].map((r) => [
+    ...r,
+  ]);
   for (const d of doors) rows[d.y - y0]![d.x] = "R";
-  for (let y = y0 + 3; y < 2; y++) rows[y - y0]![PASSAGE_X] = "_";
+  for (let y = y0 + 2; y < 2; y++) for (let i = 0; i < PASSAGE_W; i++) rows[y - y0]![PASSAGE_X + i] = "_";
   return new GameMap(
     "hq",
     floor.name,

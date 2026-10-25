@@ -17,18 +17,16 @@ import {
 import { route } from "../src/world.ts";
 
 describe("offices", () => {
-  test("doors: 10 to a hallway, by id", () => {
-    const owners = [5, 3, 11, 1, 2, 4, 6, 7, 8, 9, 10].map((id) => ({
+  test("doors: 6 to a hallway, three tiles apart, by id", () => {
+    const owners = [5, 3, 7, 1, 2, 4, 6].map((id) => ({
       userId: id,
       name: `u${id}`,
       open: true,
     }));
     const doors = doorsFor(owners);
-    expect(doors.map((d) => d.userId)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-    expect(doors.slice(0, 10).map((d) => [d.x, d.y])).toEqual(
-      [1, 3, 5, 7, 9, 11, 13, 15, 17, 19].map((x) => [x, -2]),
-    );
-    expect(doors[10]).toMatchObject({ userId: 11, x: 1, y: -5 });
+    expect(doors.map((d) => d.userId)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(doors.slice(0, 6).map((d) => [d.x, d.y])).toEqual([3, 6, 9, 12, 15, 18].map((x) => [x, -3]));
+    expect(doors[6]).toMatchObject({ userId: 7, x: 3, y: -7 });
   });
 
   test("the building: today's floor, with hallways of doors above it, all reachable", () => {
@@ -36,9 +34,10 @@ describe("offices", () => {
     expect(hqMap([])).toEqual(MAPS.hq);
     const three = doorsFor([1, 2, 3].map((id) => ({ userId: id, name: `u${id}`, open: true })));
     const map = hqMap(three);
-    expect(map.y0).toBe(-3);
+    expect(map.y0).toBe(-4);
     expect(map.find("R")).toEqual(three.map((d) => [d.x, d.y]));
-    for (const d of three) expect([map.at(d.x, d.y - 1), map.at(d.x, d.y + 1)]).toEqual(["W", "_"]);
+    for (const d of three)
+      expect([map.at(d.x, d.y - 1), map.at(d.x, d.y + 1), map.at(d.x, d.y + 2)]).toEqual(["W", "_", "_"]);
     expect(map.rows.slice(2 - map.y0)).toEqual(MAPS.hq.rows.slice(2)); // the floor, where it was
     const tower = hqMap(
       doorsFor(Array.from({ length: 25 }, (_, i) => ({ userId: i, name: "", open: true }))),
