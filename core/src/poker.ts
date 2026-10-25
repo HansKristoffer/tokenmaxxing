@@ -33,6 +33,12 @@ const RANKS = "23456789TJQKA";
 const SUITS = "♣♦♥♠";
 /** `A♠`, `T♥`: for logs and tests. */
 export const cardName = (c: Card): string => `${RANKS[rankOf(c)]}${SUITS[suitOf(c)]}`;
+/** A card to draw: "10", "♠", and whether the suit is red. */
+export const cardFace = (c: Card): { rank: string; suit: string; red: boolean } => ({
+  rank: rankOf(c) === 8 ? "10" : RANKS[rankOf(c)]!,
+  suit: SUITS[suitOf(c)]!,
+  red: suitOf(c) === 1 || suitOf(c) === 2,
+});
 export const isCard = (v: unknown): v is Card =>
   Number.isInteger(v) && (v as number) >= 0 && (v as number) < 52;
 
@@ -673,6 +679,8 @@ export interface TableView {
   bet: number;
   raise: number;
   toAct: number;
+  /** What the player to act may do (the calls and raises are public: the bets are on the table). */
+  legal: Legal | null;
   /** Ms left on the clock of the player to act, and until the next hand: counted down on the client. */
   turnMs: number;
   nextMs: number;
@@ -705,6 +713,7 @@ export function view(t: Table, now: number): TableView {
     bet: t.bet,
     raise: t.raise,
     toAct: t.toAct,
+    legal: t.toAct >= 0 ? legal(t, t.toAct) : null,
     turnMs: t.toAct >= 0 ? Math.max(0, t.deadline - now) : 0,
     nextMs: t.street === null && t.nextAt > 0 ? Math.max(0, t.nextAt - now) : 0,
     result: t.result,

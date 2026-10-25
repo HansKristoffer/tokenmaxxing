@@ -644,6 +644,7 @@ describe("what each side may see", () => {
       turnMs: TURN_MS - 1_000,
       nextMs: 0,
       street: "preflop",
+      legal: { toCall: 5, canCheck: false, canRaise: true, minTo: 20, maxTo: 200 },
     });
   });
 });
