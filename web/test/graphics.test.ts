@@ -115,3 +115,16 @@ test("no tier caps the frame rate by default, and a chosen cap still holds", () 
   for (const t of TIERS) expect(resolveSettings(t).fpsCap).toBe(0);
   expect(resolveSettings("high", { fpsCap: 60 }).fpsCap).toBe(60);
 });
+
+test("the FPS meter is off by default, saved with the other settings, and junk values leave it off", () => {
+  expect(parseSaved(null).meter).toBe(false);
+  expect(createGraphics(memory()).get().meter).toBe(false);
+  const storage = memory();
+  const g = createGraphics(storage);
+  g.setMeter(true);
+  g.setChoice("high");
+  expect(JSON.parse(storage.data[GRAPHICS_KEY]!)).toMatchObject({ v: 1, choice: "high", meter: true });
+  expect(createGraphics(storage).get().meter).toBe(true);
+  for (const junk of ["yes", 1, null, {}])
+    expect(parseSaved(JSON.stringify({ v: 1, meter: junk })).meter).toBe(false);
+});
