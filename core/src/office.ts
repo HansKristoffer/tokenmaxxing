@@ -174,6 +174,8 @@ export interface Door {
   userId: number;
   name: string;
   open: boolean;
+  /** Its place along the hallways: stored per owner, so it never moves when another door goes (`assignSlots`). */
+  slot: number;
   x: number;
   y: number;
 }
@@ -191,17 +193,84 @@ const DOOR_GAP = 3;
 export const PASSAGE_X = 13;
 export const PASSAGE_W = 2;
 
+/** One line of a building's office directory: whose office, where its door is, and whether you can walk there. */
+export interface DirectoryRow {
+  userId: number;
+  name: string;
+  open: boolean;
+  /** Your own office, which you can always enter. */
+  mine: boolean;
+  /** Open, or yours: a closed door is shown locked and is no use to anyone else. */
+  canEnter: boolean;
+  /** The door's tile: where "Walk there" routes to. */
+  x: number;
+  y: number;
+}
+
+/** The directory for `doors` (a building's, from its snapshot) as `me` reads it: yours first, then by door. */
+export function directory(doors: readonly Door[], me: number | null): DirectoryRow[] {
+  const rows = sortBy(doors, "slot").map((d) => ({
+    userId: d.userId,
+    name: d.name,
+    open: d.open,
+    mine: d.userId === me,
+    canEnter: d.open || d.userId === me,
+    x: d.x,
+    y: d.y,
+  }));
+  return [...rows.filter((r) => r.mine), ...rows.filter((r) => !r.mine)];
+}
+
+/** Where slot `n` is: hallway ⌊n/6⌋, tile 3 + 3·(n mod 6). */
+export const slotSpot = (n: number): { x: number; y: number } => ({
+  x: DOOR_X0 + DOOR_GAP * (n % DOORS_PER_HALLWAY),
+  y: -HALL_H * Math.floor(n / DOORS_PER_HALLWAY) - 3,
+});
+
 /**
- * Door slots for these owners (sorted by id): slot n is hallway ⌊n/6⌋, tile 3 + 3·(n mod 6).
- * ponytail: packed, not stored, so when a door goes the later ones move down a slot; store slots if
- * people mind their door moving.
+ * Doors for these owners, each at its own stored slot (`assignSlots`), so a door goes only when its owner does.
+ * Sorted by slot.
  */
 export function doorsFor(owners: readonly Omit<Door, "x" | "y">[]): Door[] {
-  return sortBy(owners, "userId").map((o, n) => ({
-    ...o,
-    x: DOOR_X0 + DOOR_GAP * (n % DOORS_PER_HALLWAY),
-    y: -HALL_H * Math.floor(n / DOORS_PER_HALLWAY) - 3,
-  }));
+  return sortBy(owners, "slot").map((o) => ({ ...o, ...slotSpot(o.slot) }));
+}
+
+/** Owners with slots packed by id, as every building stood before slots were stored. */
+export const withSlots = (owners: readonly Omit<Door, "x" | "y" | "slot">[]): Omit<Door, "x" | "y">[] => {
+  const slots = assignSlots(
+    owners.map((o) => o.userId),
+    new Map(),
+  );
+  return owners.map((o) => ({ ...o, slot: slots.get(o.userId)! }));
+};
+
+/**
+ * The slot of each of these members: one in `kept` stays (when it is a whole number, and nobody else holds
+ * it), and the others, lowest id first, take the lowest slot still free. With nothing kept that packs them
+ * by id, which is where every door stood before slots were stored: the migration.
+ */
+export function assignSlots(
+  userIds: readonly number[],
+  kept: ReadonlyMap<number, number>,
+): Map<number, number> {
+  const out = new Map<number, number>();
+  const taken = new Set<number>();
+  const ids = [...userIds].sort((a, b) => a - b);
+  for (const id of ids) {
+    const slot = kept.get(id);
+    if (slot !== undefined && Number.isInteger(slot) && slot >= 0 && !taken.has(slot)) {
+      out.set(id, slot);
+      taken.add(slot);
+    }
+  }
+  let next = 0;
+  for (const id of ids) {
+    if (out.has(id)) continue;
+    while (taken.has(next)) next++;
+    out.set(id, next);
+    taken.add(next);
+  }
+  return out;
 }
 
 /**

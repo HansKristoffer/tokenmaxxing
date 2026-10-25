@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { doorOf, MAPS, plotId, townMap } from "../src/maps.ts";
-import { doorsFor, setHq } from "../src/office.ts";
+import { doorsFor, setHq, withSlots } from "../src/office.ts";
 import { MAX_PET_LOOKS, PET_VARIANTS, petLooks, wearPet } from "../src/pets.ts";
 import { addDays, dayKey, rangeDays } from "../src/range.ts";
 import { itemById } from "../src/shop.ts";
@@ -94,10 +94,12 @@ describe("portals", () => {
   });
 
   test("bo's door takes you to bo's office; its exit to below the door for a member, or the Inn", () => {
-    const doors = doorsFor([
-      { userId: 4, name: "ada", open: true },
-      { userId: 9, name: "bo", open: true },
-    ]);
+    const doors = doorsFor(
+      withSlots([
+        { userId: 4, name: "ada", open: true },
+        { userId: 9, name: "bo", open: true },
+      ]),
+    );
     const bo = doors[1]!;
     expect(portal("hq:3", { ch: "R", x: bo.x, y: bo.y }, 3, plots, doors)).toEqual(roomEntry("office:9"));
     expect(portal("hq:5", { ch: "R", x: bo.x, y: bo.y }, 3, plots, [])).toEqual({
@@ -151,7 +153,7 @@ describe("drops", () => {
   test("a room's own map changing shows through, drops and all", () => {
     setDrops("hq:77", [drop(1, "furn.d", 2, 4, "hq:77")]);
     expect(mapOf("hq:77").at(2, 4)).toBe("d");
-    setHq(77, doorsFor([{ userId: 1, name: "ada", open: true }]));
+    setHq(77, doorsFor(withSlots([{ userId: 1, name: "ada", open: true }])));
     expect([mapOf("hq:77").at(3, -3), mapOf("hq:77").at(2, 4)]).toEqual(["R", "d"]);
     setDrops("hq:77", []);
   });
