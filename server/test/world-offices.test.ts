@@ -178,7 +178,8 @@ describe("world", () => {
     await g.conn.dispose();
     const o = await connect(owner.token);
     const at = o.snap.players.find((p) => p.id === owner.userId)!;
-    await walk(o.conn, route(hqMap(o.snap.doors), [at.x, at.y], [1, -2])!);
+    const door = o.snap.doors.find((d) => d.userId === owner.userId)!;
+    await walk(o.conn, route(hqMap(o.snap.doors), [at.x, at.y], [door.x, door.y])!);
     await eventually(() => expect(o.events.snapshots.at(-1)?.room).toBe(room));
     // Onto the desk's tile, onto the wall, and off the map: it stays where it was.
     for (const [x, y] of [
