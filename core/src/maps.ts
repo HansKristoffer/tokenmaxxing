@@ -34,6 +34,8 @@ interface TileKind {
   portal?: true;
   /** Shown when you press E facing it. */
   text?: string;
+  /** E while facing the seat sits you down at the Tavern's poker table (`pokerSit`), not just on the chair. */
+  poker?: true;
   /** E while facing it pours you a coffee (`drink`). */
   pours?: true;
   /** E while facing it serves the day's special (`tavern`, the Tavern's tap). */
@@ -94,6 +96,21 @@ export const LEGEND: Record<string, TileKind> = {
   // The tip jar on the bar (the indoor stand-in for the fountain): E tosses a coin in.
   $: { name: "tip jar", tosses: true, text: "A tip jar on the bar. A spare coin clinks nicely." },
   z: { name: "jukebox", text: "A jukebox. It hums, waiting for a coin it never asks for." },
+  // The poker table (`poker.ts`): a 4×2 table of felt, and the six chairs round it; E on a chair buys you in.
+  ...(TAVERN
+    ? {
+        "♠": {
+          name: "poker table",
+          text: "A poker table. Texas Hold'em, 5 and 10 blinds. Sit in a chair to buy in.",
+        },
+        "♣": {
+          name: "poker chair",
+          seat: "chair",
+          poker: true,
+          text: "A card-room chair. E buys you in at the poker table.",
+        },
+      }
+    : {}),
   Q: { name: "pet bed", text: "A round cushion basket. Your pet curls up here when you're in your office." },
   I: { name: "inn door", portal: true },
   // The basement net cafe under the Tavern: stairs down in the Tavern's bottom wall, five cabinets (one per
@@ -613,10 +630,10 @@ export const MAPS: Record<MapId, GameMap> = {
         "J______cc_______cc___cc____W",
         "Wz____cnnc_____cnnc_cnnc___W",
         "Wee____cc_______cc___cc____W",
-        "Wee________________________W",
-        "Wee__________________cc____W",
-        "Wve_________________cnnc___W",
-        "Wee__________________cc___hW",
+        "Wee_____________♣♣_________W",
+        "Wee____________♠♠♠♠♣_cc____W",
+        "Wve___________♣♠♠♠♠_cnnc___W",
+        "Wee_____________♣♣___cc___hW",
         "Wp__BB__BB______BB_________W",
         "W___nn__nn______nn________SW",
         "Wu__BB__BB_OO___BB_______p_W",
