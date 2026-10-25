@@ -89,6 +89,12 @@ const mapKey = (m: object): number => {
 /** A blink between rooms: how long the screen takes to close when the server is moving us, and to open. */
 const FADE_OUT_MS = 170;
 const FADE_IN_MS = 360;
+/** Rooms worth building before the door is taken (fixed maps, one door away), and how long after arriving to wait. */
+const WARM_KINDS: readonly string[] = ["town", "inn"];
+const WARM_AFTER_MS = 1500;
+const TEXTURES_PER_FRAME = 6;
+/** Building ahead costs a few hundred ms in all: it waits until you have stood still this long. */
+const STILL_MS = 600;
 
 /**
  * The game, in 3D: the room the server says we are in, everyone in it as voxel people with their pets, name
@@ -111,6 +117,22 @@ class Renderer3D implements Renderer {
   private town: { stage: RoomStage; key: string } | null = null;
   private key = "";
   private room = "";
+  /** A room next door, built and its shaders compiled in a quiet moment, for the frame its door is taken. */
+  private ahead: { id: string; map: GameMap; stage: RoomStage } | null = null;
+  /** When the current room was entered (frame clock), and whether this room's neighbour has been seen to. */
+  private since = 0;
+  private warmed = "";
+  private stillSince = 0;
+  private stillAt: [number, number] | null = null;
+  /** A room built ahead whose batching and shaders are still to do (next frame). */
+  private warming: {
+    stage: RoomStage;
+    textures: THREE.Texture[] | null;
+    compiled: boolean;
+    draw?: boolean;
+  } | null = null;
+  /** A room change waiting for the veil to close: it draws closed first, so the build happens behind it. */
+  private veiled = false;
   private w = 1;
   private h = 1;
   private detail: 0 | 1 | null = null;
@@ -139,7 +161,7 @@ class Renderer3D implements Renderer {
   private readonly hooks = { clock: (m: number | null) => (this.probeMinutes = m) };
   private readonly off: (() => void)[] = [];
   /** What the last frame cost, for the debug handle. */
-  readonly stats = { frames: 0, builds: 0, lastBuildMs: 0, cpuMs: 0, entityMs: 0 };
+  readonly stats = { frames: 0, builds: 0, lastBuildMs: 0, lastGap: 0, cpuMs: 0, entityMs: 0 };
 
   private readonly lost = (e: Event) => {
     e.preventDefault();
@@ -259,6 +281,11 @@ class Renderer3D implements Renderer {
       if (owner !== null) watchShelf(owner, performance.now(), loadTrophies);
       return `${world.room}:${mapKey(world.map)}${owner === null ? "" : `:${trophySignature(owner)}`}`;
     }
+    return this.townIdentity();
+  }
+
+  /** What the town looks like now: its companies' plots, tiers, brands. */
+  private townIdentity(): string {
     if (this.townKey?.companies !== world.companies)
       this.townKey = {
         companies: world.companies,
@@ -290,8 +317,23 @@ class Renderer3D implements Renderer {
       }
       return false;
     }
-    const t0 = performance.now();
     const roomChanged = world.room !== this.room;
+    // Nothing next door was ready: close the veil first and build on the frame after, so the stall is under black
+    // rather than the old room freezing in view.
+    if (
+      roomChanged &&
+      this.stage &&
+      !this.veiled &&
+      this.overlay.faded < 0.95 &&
+      !this.settings?.reduceMotion &&
+      !this.aheadFor(key)
+    ) {
+      this.veiled = true;
+      this.overlay.snapFade(1);
+      return false;
+    }
+    this.veiled = false;
+    const t0 = performance.now();
     const old = this.stage;
     this.entities.group.removeFromParent();
     this.drops.group.removeFromParent();
@@ -299,7 +341,14 @@ class Renderer3D implements Renderer {
     this.drops.clear();
     let next: RoomStage;
     if (world.room === "town" && this.town?.key === key) next = this.town.stage;
-    else {
+    else if (
+      this.ahead?.id === world.room &&
+      this.ahead.map === world.map &&
+      key === `${world.room}:${mapKey(world.map)}`
+    ) {
+      next = this.ahead.stage;
+      this.ahead = null;
+    } else {
       next = new RoomStage(buildRoom(world.room, this.ctx()), this.overlay, this.hooks);
       if (world.room === "town") {
         // A town for other plots replaces the one kept.
@@ -335,8 +384,120 @@ class Renderer3D implements Renderer {
     }
     this.stats.builds++;
     this.stats.lastBuildMs = performance.now() - t0;
-    if (roomChanged) for (const n of roomsNextTo(world.room)) preloadRoom(n);
+    if (roomChanged) {
+      this.since = now;
+      this.warmed = "";
+      const near = roomsNextTo(world.room);
+      if (this.ahead && !near.includes(this.ahead.id)) this.dropAhead();
+      for (const n of near) preloadRoom(n);
+    }
     return true;
+  }
+
+  /** Whether the room for `key` is already built (the kept town, or the one built ahead). */
+  private aheadFor(key: string): boolean {
+    if (world.room === "town") return this.town?.key === key;
+    return this.ahead?.id === world.room && this.ahead.map === world.map;
+  }
+
+  private dropAhead(): void {
+    this.ahead?.stage.dispose();
+    this.ahead = null;
+  }
+
+  /**
+   * In a quiet moment after arriving, builds the room one door away that is worth it (the town, the Tavern) and
+   * starts its shaders compiling in parallel with the page, so taking the door doesn't build and compile on the
+   * frame it opens. One step a frame, once per room.
+   */
+  private warmAhead(now: number): void {
+    if (this.warming)
+      return now - this.stillSince > STILL_MS && !this.warming.draw ? this.finishAhead() : undefined;
+    if (!this.settings || !this.stage || this.warmed === this.room || world.portalPending) return;
+    if (now - this.since < WARM_AFTER_MS || now - this.stillSince < STILL_MS || this.stats.lastGap > 40)
+      return;
+    const id = roomsNextTo(world.room).find((k) => WARM_KINDS.includes(k) && roomReady(k));
+    this.warmed = this.room;
+    if (!id) return;
+    let stage: RoomStage;
+    if (id === "town") {
+      const key = this.townIdentity();
+      if (this.town?.key === key) return;
+      stage = new RoomStage(
+        buildRoom("town", { ...this.ctx(), map: mapOf("town") }),
+        this.overlay,
+        this.hooks,
+      );
+      if (this.town && this.town.stage !== this.stage) this.town.stage.dispose();
+      this.town = { stage, key };
+    } else {
+      const map = mapOf(id as never);
+      if (this.ahead?.id === id && this.ahead.map === map) return;
+      this.dropAhead();
+      stage = new RoomStage(buildRoom(id as never, { ...this.ctx(), map }), this.overlay, this.hooks);
+      this.ahead = { id, map, stage };
+    }
+    stage.applySettings(this.settings);
+    this.warming = { stage, textures: null, compiled: false };
+  }
+
+  /**
+   * The rest of warming, one small step a frame so none is a hitch: batching, then the shaders (compiled off the
+   * main thread), then the textures (a Tavern's are thirty-odd uploads) a few at a time.
+   */
+  private finishAhead(): void {
+    const w = this.warming;
+    if (!w) return;
+    if (w.stage !== this.ahead?.stage && w.stage !== this.town?.stage) {
+      this.warming = null;
+      return;
+    }
+    if (!w.textures) {
+      this.pipe.prepare(w.stage.scene);
+      w.textures = [];
+      return;
+    }
+    if (!w.compiled) {
+      w.compiled = true;
+      const seen = new Set<THREE.Texture>();
+      const list: THREE.Texture[] = [];
+      w.stage.scene.traverse((o) => {
+        const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+        for (const mat of Array.isArray(m) ? m : m ? [m] : [])
+          for (const v of Object.values(mat))
+            if (v instanceof THREE.Texture && !seen.has(v)) {
+              seen.add(v);
+              list.push(v);
+            }
+      });
+      w.textures = list;
+      this.pipe.renderer.compileAsync(w.stage.scene, this.rig.camera).catch(() => {});
+      return;
+    }
+    for (const t of w.textures.splice(0, TEXTURES_PER_FRAME)) this.pipe.renderer.initTexture(t);
+    if (!w.textures.length) w.draw = true;
+  }
+
+  /**
+   * The last warming step: draws the room once into the picture buffer, so the frame it is first shown on has its
+   * geometry on the GPU and every shader linked (the compile above misses the shadow and ambient passes). It runs
+   * just before the real frame, which draws over it, so it is never shown.
+   */
+  private drawAhead(): void {
+    const w = this.warming;
+    if (!w?.draw) return;
+    this.warming = null;
+    const b = w.stage.view.bounds;
+    const r = Math.max(b.maxX - b.minX, b.maxZ - b.minZ) * 0.8;
+    const cx = (b.minX + b.maxX) / 2;
+    const cz = (b.minZ + b.maxZ) / 2;
+    const aspect = this.w / this.h;
+    const cam = new THREE.OrthographicCamera(-r * aspect, r * aspect, r, -r, 0.1, 400);
+    cam.position.set(cx + r, r * 1.2, cz + r);
+    cam.lookAt(cx, 0, cz);
+    cam.updateMatrixWorld();
+    lightPipeline(this.pipe, w.stage, 0);
+    this.pipe.render(w.stage.scene, cam, this.w, this.h);
   }
 
   // MARK: Frame
@@ -374,6 +535,10 @@ class Renderer3D implements Renderer {
     if (this.insetSeen !== hudInset.version) {
       this.insetSeen = hudInset.version;
       this.applyInsets();
+    }
+    if (!me || !this.stillAt || Math.hypot(me[0] - this.stillAt[0], me[1] - this.stillAt[1]) > 0.05) {
+      this.stillAt = me ? [me[0], me[1]] : null;
+      this.stillSince = now;
     }
     this.rig.update(calm ? 1000 : dt, focus[0], focus[1]);
     const camera = this.rig.camera;
@@ -419,8 +584,12 @@ class Renderer3D implements Renderer {
     view.tick(t, dt / 1000, this.rig.towardCamera());
     lightPipeline(this.pipe, stage, dark);
     this.seeSelf(me, camera);
+    if (this.warming?.draw && now - this.stillSince > STILL_MS) this.drawAhead();
+    lightPipeline(this.pipe, stage, dark);
     this.pipe.render(stage.scene, camera, this.w, this.h);
     this.stats.frames++;
+    this.stats.lastGap = dt;
+    this.warmAhead(now);
     this.stats.cpuMs += (performance.now() - started - this.stats.cpuMs) * 0.05;
   }
 
@@ -929,6 +1098,7 @@ class Renderer3D implements Renderer {
     this.drops.dispose();
     if (this.stage && this.stage !== this.town?.stage) this.stage.dispose();
     this.town?.stage.dispose();
+    this.dropAhead();
     this.stage = null;
     this.town = null;
     this.overlay.dispose();

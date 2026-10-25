@@ -7,6 +7,7 @@ import {
   parseSaved,
   resolveSettings,
   sanitizeOverrides,
+  TIERS,
   tierBelow,
 } from "../src/settings/graphics.ts";
 
@@ -108,4 +109,9 @@ test("detection results expire, and with the GPU", () => {
   expect(freshDetected(d, "y", 2000)).toBe(false);
   expect(freshDetected(null, "x")).toBe(false);
   expect(tierBelow("low")).toBe("low");
+});
+
+test("no tier caps the frame rate by default, and a chosen cap still holds", () => {
+  for (const t of TIERS) expect(resolveSettings(t).fpsCap).toBe(0);
+  expect(resolveSettings("high", { fpsCap: 60 }).fpsCap).toBe(60);
 });
