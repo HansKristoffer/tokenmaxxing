@@ -6,7 +6,7 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
-import { exitPlate } from "./exits3d.ts";
+import { buildStairs } from "./exits3d.ts";
 import { type Asset, assetById, light } from "./furniture.ts";
 import { canvasTexture, codeScreen, glow, Model, seeded, ticks, tint, type V3 } from "./kit.ts";
 import {
@@ -495,34 +495,15 @@ const neon = (): Model => {
 };
 
 // ——— Stairs ———
-/** The stairs tile: up (the basement's `x`, lit) rises to the south wall; down is the dark one on the Tavern's `S`. */
-const stairs = (down: boolean) => (): Model => {
-  const m = new Model();
-  m.box([0.1, 0.9, 1], C.woodDark, [-0.45, 0, 0], 0.01).scale.y = down ? 0.02 : 1;
-  m.box([0.1, 0.9, 1], C.woodDark, [0.45, 0, 0], 0.01).scale.y = down ? 0.02 : 1;
-  if (down) {
-    // Steps going into the floor: drawn flat, darker towards the bottom.
-    const tex = canvasTexture(16, 16, (g) => {
-      g.fillStyle = INK;
-      g.fillRect(0, 0, 16, 16);
-      for (let i = 0; i < 5; i++) {
-        const k = 0.9 - i * 0.17;
-        g.fillStyle = `rgb(${Math.round(190 * k)}, ${Math.round(128 * k)}, ${Math.round(78 * k)})`;
-        g.fillRect(2, 2 + i * 3, 12, 2);
-      }
-    });
-    m.plane(0.9, 0.9, glow("#fff", tex), [0, 0.02, 0]).rotation.x = -Math.PI / 2;
-    return m;
-  }
-  for (let i = 0; i < 5; i++) {
-    const h = 0.16 * (i + 1);
-    m.box([0.8, h, 0.2], tint("#be804e", i * 0.04 - 0.1), [0, 0, -0.4 + i * 0.2], 0.01);
-  }
-  m.box([0.04, 0.04, 1.0], C.woodDark, [-0.36, 0.7, 0]).rotation.x = Math.atan2(-0.64, 1);
-  roomLight(m, [0, 1.2, 0.5], "#ffe0a8", 0.7, 2.5);
-  exitPlate(m.part([0, 0, 0], Math.PI), "UP", "up", [-0.8, 1.82, 0.52]);
-  return m;
-};
+/** The stairs tile (the shared `buildStairs`, wall at -z; the room turns it to the south wall): up is the basement's `x`; down is the dark hatch. */
+const stairs = (down: boolean) => (): Model =>
+  buildStairs({
+    dir: down ? "down" : "up",
+    wall: "#2a2744",
+    wood: C.woodDark,
+    tread: "#be804e",
+    plate: down ? null : undefined,
+  });
 
 // ——— Catalogue ———
 const tile = (
@@ -641,8 +622,8 @@ export function buildBasement(opts: { demoTables?: boolean } = {}): BasementScen
   }
   at("tile:s", 1, 10, 2);
   at("tile:s", 3, 10, 2);
-  at("tile:x", 9, 11);
-  at("stairs:down", 18, 11);
+  at("tile:x", 9, 11, 2);
+  at("stairs:down", 18, 11, 2);
   // Game tables with seats and a watcher billboard, in the free middle (the demo's; the game plays its matches in town).
   if (opts.demoTables !== false) {
     const tables = [

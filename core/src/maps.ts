@@ -615,9 +615,9 @@ export const MAPS: Record<MapId, GameMap> = {
         "Wee__________________cc____W",
         "Wve_________________cnnc___W",
         "Wee__________________cc___hW",
-        "W___BB__BB______BB_________W",
+        "Wp__BB__BB______BB_________W",
         "W___nn__nn______nn________SW",
-        "Wup_BB__BB_OO___BB________pW",
+        "Wu__BB__BB_OO___BB_______p_W",
         "WWWWWWWWWWWWWxWWWWWWWWWWWWWW",
       ])
     : new GameMap("inn", "The Inn", [

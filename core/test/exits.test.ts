@@ -9,7 +9,7 @@ import {
   PASSAGE_W,
   PASSAGE_X,
 } from "../src/office.ts";
-import { route } from "../src/world.ts";
+import { route, townSpawn } from "../src/world.ts";
 
 /** Every room but the town, in the sizes the game builds them: the fixed rooms, a house with three hallways, every Office size. */
 const rooms = (): GameMap[] => [
@@ -51,6 +51,54 @@ describe("exits", () => {
       }
     });
   }
+
+  test("every stairs and door has a free approach: no plant or furniture on, or hard against, its way in", () => {
+    const around = [
+      [0, 1],
+      [0, -1],
+      [1, 0],
+      [-1, 0],
+    ] as const;
+    for (const map of rooms()) {
+      for (const d of layoutOf(map).doors) {
+        // Each side of a portal is a wall, or a floor tile you can stand on: never a prop that closes it off.
+        for (const [dx, dy] of around) {
+          const ch = map.at(d.x + dx, d.y + dy);
+          const kind = map.kind(d.x + dx, d.y + dy);
+          expect(
+            ch === "W" || kind.walk === true || kind.portal === true,
+            `${map.id}: ${d.ch} at ${d.x},${d.y} has "${ch}" (${kind.name}) beside it`,
+          ).toBe(true);
+        }
+        // The foot of a flight (the side opposite a wall) is a floor tile, reached from the entry.
+        const foot = around.filter(
+          ([dx, dy]) => map.walkable(d.x + dx, d.y + dy) && map.at(d.x - dx, d.y - dy) === "W",
+        );
+        expect(foot.length, `${map.id}: ${d.ch} at ${d.x},${d.y} has no way in straight on`).toBeGreaterThan(
+          0,
+        );
+        for (const [dx, dy] of foot) {
+          const front: [number, number] = [d.x + dx, d.y + dy];
+          expect(route(map, entry(map), front), `${map.id}: ${d.ch} front ${front}`).not.toBeNull();
+        }
+      }
+    }
+  });
+
+  test("the town's doors and gates are reached from the spawn, from a walkable tile beside them", () => {
+    const town = MAPS.town;
+    const spawn: [number, number] = [townSpawn().x, townSpawn().y];
+    for (const d of layoutOf(town).doors) {
+      const beside = [
+        [0, 1],
+        [0, -1],
+        [1, 0],
+        [-1, 0],
+      ].some(([dx, dy]) => town.walkable(d.x + dx!, d.y + dy!));
+      expect(beside, `town: ${d.ch} at ${d.x},${d.y}`).toBe(true);
+      expect(route(town, spawn, [d.x, d.y]), `town: ${d.ch} at ${d.x},${d.y}`).not.toBeNull();
+    }
+  });
 
   test("every office door of a full house is reachable from the ground floor, from a walkable tile in front of it", () => {
     for (const n of [1, DOORS_PER_HALLWAY, DOORS_PER_HALLWAY + 1, 3 * DOORS_PER_HALLWAY + 2]) {

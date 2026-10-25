@@ -26,15 +26,20 @@ function shared(): { geometry: THREE.RingGeometry; material: THREE.MeshBasicMate
   return { geometry: ringGeometry, material: ringMaterial };
 }
 
-/** The walkable tile an exit at (x, y) is taken from: the one in front of a door in a wall, or beside stairs. */
+/**
+ * The walkable tile an exit at (x, y) is taken from: the one straight on to it (a wall behind the exit on the
+ * far side: the foot of a flight, the mat of a door), else any walkable neighbour.
+ */
 export function thresholdOf(map: GameMap, x: number, y: number): [number, number] {
-  for (const [dx, dy] of [
+  const sides = [
+    [1, 0],
+    [-1, 0],
     [0, 1],
     [0, -1],
-    [-1, 0],
-    [1, 0],
-  ] as const)
-    if (map.walkable(x + dx, y + dy)) return [x + dx, y + dy];
+  ] as const;
+  for (const [dx, dy] of sides)
+    if (map.walkable(x + dx, y + dy) && map.at(x - dx, y - dy) === "W") return [x + dx, y + dy];
+  for (const [dx, dy] of sides) if (map.walkable(x + dx, y + dy)) return [x + dx, y + dy];
   return [x, y];
 }
 
