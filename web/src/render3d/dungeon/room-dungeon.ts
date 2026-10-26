@@ -22,15 +22,23 @@ function buildDungeon(id: RoomId, ctx: RoomCtx): RoomView {
   const live = made.value;
   room.group.add(live.group);
   let t = 0;
-  const view = viewOf(id, map, room, [...built.ticks, ...made.ticks], {
-    extra: live,
-    keepers: new Set(),
-    free: built.free,
-    live: (now) => {
-      t = now;
-      live.update(t);
+  // The dungeon is wide: its own framing (9), closer than the generic room's, so the bosses and clones read.
+  const view = viewOf(
+    id,
+    map,
+    room,
+    [...built.ticks, ...made.ticks],
+    {
+      extra: live,
+      keepers: new Set(),
+      free: built.free,
+      live: (now) => {
+        t = now;
+        live.update(t);
+      },
     },
-  });
+    9,
+  );
   const dispose = view.dispose;
   return Object.assign(view, {
     liveSigns: () => live.signs(),

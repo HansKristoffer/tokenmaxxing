@@ -5,6 +5,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { errorText } from "../errors.ts";
 import { roomName, world } from "../game/world.ts";
 import { conn, matchConn } from "../net.ts";
+import { storage } from "../storage.ts";
 import { hud, useHud } from "../store.ts";
 import { MentionInput } from "./MentionInput.tsx";
 import { QuickReplies } from "./QuickReplies.tsx";
@@ -134,6 +135,10 @@ const ChatLines = memo(function ChatLines({
   );
 });
 
+const OPEN_KEY = "tokenmaxxing.chatOpen";
+/** How long the chat stays fully opaque after a line arrives. */
+const FRESH_MS = 6000;
+
 /**
  * The room's chat. Beside a match (`match`) there's the match's own chat too, for its players and
  * whoever is watching, and it starts there. Memoised: the panels it sits beside re-render often.
@@ -153,17 +158,63 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  // Folded away to a small tab (kept between visits); lines that come in meanwhile are counted on it.
+  const [open, setOpen] = useState(() => storage.getItem(OPEN_KEY) !== "0");
+  const [unread, setUnread] = useState(0);
+  const [fresh, setFresh] = useState(false);
+  const seen = useRef<{ id: number | string | undefined; room: string }>({ id: undefined, room: "" });
+  const setShown = (v: boolean) => {
+    setOpen(v);
+    storage.setItem(OPEN_KEY, v ? "1" : "0");
+    if (v) setUnread(0);
+  };
+  const last = roomChat[roomChat.length - 1];
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reacts to a new last line only
+  useEffect(() => {
+    const prev = seen.current;
+    seen.current = { id: last?.id, room };
+    // First look, or a new room's backlog: nothing "just said".
+    if (!last || prev.room !== room || prev.id === last.id) return;
+    if (!open && last.userId !== myId) setUnread((n) => n + 1);
+    setFresh(true);
+    const t = setTimeout(() => setFresh(false), FRESH_MS);
+    return () => clearTimeout(t);
+  }, [last?.id, room]);
   const say = (t: string) => (inGame ? matchConn!.say(t) : conn.say(t));
 
   // Enter asks for the chat; one opening beside a panel doesn't take the focus on its own.
   const focused = useRef(focus);
+  const wantInput = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reacts to a new Enter (`focus`) only
   useEffect(() => {
-    if (focus !== focused.current) input.current?.focus();
+    if (focus !== focused.current) {
+      wantInput.current = true;
+      if (!open) setShown(true);
+      else input.current?.focus();
+    }
     focused.current = focus;
   }, [focus]);
+  useEffect(() => {
+    if (open && wantInput.current) input.current?.focus();
+    wantInput.current = false;
+  }, [open]);
+
+  if (!open)
+    return (
+      <div className="chat-dock folded">
+        <button
+          type="button"
+          className="panel chat-tab"
+          aria-label={unread ? `Open chat, ${unread} new` : "Open chat"}
+          onClick={() => setShown(true)}
+        >
+          💬{unread > 0 && <span className="count">{unread > 9 ? "9+" : unread}</span>}
+        </button>
+      </div>
+    );
 
   return (
-    <div className="chat-dock">
+    <div className={`chat-dock${fresh ? " fresh" : ""}`}>
       <QuickReplies say={say} onError={setError} />
       <section className="panel chat" aria-label="Chat">
         <header>
@@ -183,6 +234,9 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
             <span>📍 {roomName(room)}</span>
           )}
           {!inGame && <WhosHere count={here} />}
+          <button type="button" className="chat-fold" aria-label="Hide chat" onClick={() => setShown(false)}>
+            –
+          </button>
         </header>
         <ChatLines chat={chat} inGame={inGame} myId={myId} myName={myName} />
         <form

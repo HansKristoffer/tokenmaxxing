@@ -109,7 +109,9 @@ test("the HUD's insets put the player in the middle of the free area", () => {
   r.frame({ view: 9, bounds: room });
   r.update(16, 12, 7, true);
   const before = r.camera.top;
-  expect(r.camera.top + r.camera.bottom).toBeCloseTo(0);
+  // With nothing covered the player still stands a little below the middle: what lies ahead gets the room.
+  const rest = r.camera.top + r.camera.bottom;
+  expect(rest).toBeGreaterThan(0);
   // 50 px covered at the top and 100 at the bottom of 400: the free middle is above the screen's.
   r.setInsets(0, 50, 0, 100, 800, 400);
   r.update(16, 12, 7, true);
@@ -117,5 +119,5 @@ test("the HUD's insets put the player in the middle of the free area", () => {
   expect(r.camera.top - r.camera.bottom).toBeGreaterThan(before * 2);
   r.setInsets(0, 0, 0, 0, 800, 400);
   r.update(16, 12, 7, true);
-  expect(r.camera.top + r.camera.bottom).toBeCloseTo(0);
+  expect(r.camera.top + r.camera.bottom).toBeCloseTo(rest);
 });

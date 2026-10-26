@@ -410,8 +410,44 @@ textarea:focus {
   gap: 6px;
 }
 
+.chat-fold {
+  padding: 0 8px;
+  line-height: 1.2;
+  border-radius: 6px;
+}
+
+.chat-tab {
+  position: relative;
+  align-self: flex-start;
+  padding: 6px 10px;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.chat-tab:hover {
+  opacity: 1;
+}
+
+.chat-tab .count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+}
+
 .quick {
   padding: 6px 8px;
+}
+
+/* At rest the chat is a faint overlay, so it doesn't hide the room: it comes up on hover, focus or a new line. */
+.chat-dock .chat,
+.chat-dock .quick {
+  transition: opacity 0.2s;
+}
+
+.chat-dock:not(:hover):not(:focus-within):not(.fresh) .chat,
+.chat-dock:not(:hover):not(:focus-within):not(.fresh) .quick {
+  opacity: 0.4;
 }
 
 /* One line, however wide the platform draws its emoji (WebKit's are wider): the buttons share the row. */

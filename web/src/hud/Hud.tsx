@@ -268,6 +268,15 @@ function Stats() {
       >
         🏢{waiting > 0 && <span className="count">{waiting}</span>}
       </button>
+      <button
+        type="button"
+        className="icon"
+        title="Menu (Esc)"
+        aria-label="Menu"
+        onClick={() => hud.set({ panel: { kind: "menu" } })}
+      >
+        ☰
+      </button>
     </div>
   );
 }
