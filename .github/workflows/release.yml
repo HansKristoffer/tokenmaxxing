@@ -26,6 +26,30 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+  # release-please links each change to its commit but not to who made it: credit the authors
+  # on the release PR, so the changelog and "What's new" in the game name them. Runs again
+  # whenever release-please rewrites the PR.
+  credit:
+    needs: release-please
+    if: needs.release-please.outputs.prs_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun server/scripts/changelog-authors.ts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          git diff --quiet CHANGELOG.md && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: credit changelog authors"
+          git push
+
   # The desktop app: a universal build, signed, notarized, and its updater archive signed; the
   # .dmg, .app.tar.gz, .sig and latest.json go on this release, where installed apps look for updates.
   app:

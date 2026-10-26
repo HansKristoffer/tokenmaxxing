@@ -21,6 +21,8 @@ COPY core core
 COPY server server
 COPY web web
 COPY site site
+# The game shows the changelog after an update (web/src/changelog.ts).
+COPY CHANGELOG.md ./
 RUN bun run site:build
 
 # Mount the Railway volume at /data: the engine keeps every actor's state and SQLite there,

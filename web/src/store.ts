@@ -13,7 +13,11 @@ export type Panel =
   | { kind: "arcade" }
   | { kind: "newTable"; invite?: number }
   | { kind: "match"; id: number }
-  | { kind: "menu" };
+  | { kind: "menu" }
+  | { kind: "changelog" };
+
+/** Set on the first visit to town (see FirstVisit in hud/Hud.tsx). */
+export const FIRST_VISIT_KEY = "tokenmaxxing.pickedCompany";
 
 /** Game panels keep the chat usable beside them. */
 export const chatBeside = (panel: Panel | null): boolean =>

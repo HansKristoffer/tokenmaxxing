@@ -2,7 +2,7 @@ import { isBot } from "@tokenmaxxing/core/bots.ts";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { useEffect, useState } from "react";
 import { roomName, world } from "../game/world.ts";
-import { chatBeside, hud, useHud } from "../store.ts";
+import { chatBeside, FIRST_VISIT_KEY, hud, useHud } from "../store.ts";
 import { AppSignIn } from "./AppSignIn.tsx";
 import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
@@ -17,6 +17,7 @@ import { Minimap } from "./Minimap.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Shop } from "./Shop.tsx";
 import { Modal } from "./ui.tsx";
+import { ChangelogPanel, WhatsNewToast } from "./WhatsNew.tsx";
 
 export function Hud() {
   const status = useHud((s) => s.status);
@@ -49,6 +50,7 @@ export function Hud() {
       <MentionToast />
       <NoticeToast />
       <InviteToast />
+      <WhatsNewToast />
       <FirstVisit />
     </>
   );
@@ -178,6 +180,8 @@ function Panel() {
       return <NewTable invite={panel.invite} />;
     case "match":
       return <MatchPanel id={panel.id} />;
+    case "changelog":
+      return <ChangelogPanel />;
     case "menu":
       return (
         <Modal title="Menu">
@@ -196,6 +200,9 @@ function Panel() {
             </button>
             <button type="button" onClick={() => hud.set({ panel: { kind: "leaderboard" } })}>
               🏆 Leaderboard
+            </button>
+            <button type="button" onClick={() => hud.set({ panel: { kind: "changelog" } })}>
+              📜 Changelog
             </button>
             <a href="https://github.com/HansKristoffer/tokenmaxxing" target="_blank" rel="noreferrer">
               ⌥ GitHub
@@ -222,8 +229,6 @@ function SignedOut({ expired }: { expired: boolean }) {
     </div>
   );
 }
-
-const FIRST_VISIT_KEY = "tokenmaxxing.pickedCompany";
 
 /** Right after signing up: the first time in town without a company, offer to start or join one. */
 function FirstVisit() {

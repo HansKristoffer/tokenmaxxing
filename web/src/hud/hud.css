@@ -1252,3 +1252,132 @@ button.lb-item:hover {
   white-space: nowrap;
   user-select: all;
 }
+
+/* What's new after an update: top left, under the controls ⓘ (which opens over it). */
+.hints:is(:hover, :focus-within) {
+  z-index: 1;
+}
+
+.whats-new {
+  position: absolute;
+  top: 54px;
+  left: 12px;
+  width: min(360px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  overflow: hidden;
+  animation: whats-new-in 0.2s ease-out;
+}
+
+.whats-new header {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.whats-new-head,
+.whats-new-head:hover {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.whats-new-head strong {
+  color: var(--accent);
+}
+
+.whats-new-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: min(420px, calc(100vh - 140px));
+  overflow-y: auto;
+}
+
+.whats-new-body .link {
+  align-self: flex-start;
+  padding: 0;
+}
+
+/* Drains over the 10 s it stays; hovering holds it. */
+.whats-new-timer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent);
+  transform-origin: left;
+  animation: drain 10s linear forwards;
+}
+
+.whats-new:is(:hover, :focus-within) .whats-new-timer {
+  animation-play-state: paused;
+}
+
+@keyframes drain {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes whats-new-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.changelog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.release h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.release h3 .muted {
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.release h4 {
+  margin: 8px 0 2px;
+  font-size: 12px;
+}
+
+.release ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.release li {
+  margin: 3px 0;
+}
+
+.release .scope {
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgba(143, 227, 255, 0.15);
+  color: var(--good);
+  font-size: 11px;
+}
+
+.release a {
+  color: inherit;
+}
