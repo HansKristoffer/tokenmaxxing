@@ -50,6 +50,7 @@ test("guessing phone codes is rate limited", async () => {
   const u = await signUp("phoneguess");
   const { code } = await as(u.token).player(u.userId).mintPhoneLoginCode();
   const player = client.player.get([String(u.userId)]);
-  for (let i = 0; i < 10; i++) await expect(player.redeemLoginCode(`${u.userId}-AAAA-AAAA`)).rejects.toThrow("expired");
+  for (let i = 0; i < 10; i++)
+    await expect(player.redeemLoginCode(`${u.userId}-AAAA-AAAA`)).rejects.toThrow("expired");
   await expect(player.redeemLoginCode(code)).rejects.toThrow("Too many tries");
 });

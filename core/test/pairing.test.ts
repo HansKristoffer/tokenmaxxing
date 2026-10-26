@@ -15,6 +15,15 @@ test("a phone code reads however it was typed", () => {
 });
 
 test("anything else is not a phone code", () => {
-  for (const typed of ["", "42", "K7QF-M2XP", "42-K7QF-M2X", "42-K7QF-M2XU", "42.Abcdefghijklmnop_0123", null, 42])
+  for (const typed of [
+    "",
+    "42",
+    "K7QF-M2XP",
+    "42-K7QF-M2X",
+    "42-K7QF-M2XU",
+    "42.Abcdefghijklmnop_0123",
+    null,
+    42,
+  ])
     expect(parsePhoneCode(typed)).toBeNull();
 });
