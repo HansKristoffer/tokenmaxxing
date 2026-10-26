@@ -184,6 +184,7 @@ import {
   requireSyncer,
   requireUser,
   type Sql,
+  scalar,
   serial,
   type TxSql,
 } from "./shared.ts";
@@ -333,6 +334,11 @@ export const town = actor({
     health: async (c): Promise<void> => {
       requireInternal(c.conn.state);
       await c.db.execute("SELECT 1");
+    },
+    /** Everyone who has signed up, for the landing page. */
+    playerCount: (c): Promise<number> => {
+      requireInternal(c.conn.state);
+      return scalar(c.db, "SELECT COUNT(*) AS n FROM users");
     },
     signUp: async (c, rawName: unknown): Promise<{ userId: number; name: string; token: string }> => {
       const name = userName(rawName);
