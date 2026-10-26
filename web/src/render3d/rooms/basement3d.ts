@@ -586,6 +586,12 @@ export function buildBasement(): BasementScene {
     at("tile:c", x, 9, 2);
     at("tile:c", x + 1, 9, 2);
   }
+  // The two plants in the corners the map has (`p`).
+  for (const [px, pz] of [
+    [19, 0],
+    [18, 10],
+  ] as const)
+    room.place(assetById.get("plant")!, px, pz);
   at("tile:s", 1, 10, 2);
   at("tile:s", 3, 10, 2);
   at("tile:x", 9, 11, 2);
