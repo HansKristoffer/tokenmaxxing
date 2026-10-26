@@ -36,7 +36,7 @@ The debug APK is installable and signed with the build machine's development key
 ends in `.debug` so it can coexist with a future release. Independently built debug APKs may have
 different keys: to switch between local and CI builds, uninstall the old preview first (clears sign-in).
 Production signing and Play Store publishing are not configured; do not use the preview key for releases.
-The Android companion workflow builds APK artifacts on PRs and manual runs.
+CI does not build the APK or run its tests, so run the command above before merging Android changes.
 
 To test another deployment with the companion changes:
 
