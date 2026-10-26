@@ -42,7 +42,7 @@ export class Signs {
       const [x, z] = view.toWorld(d.x, d.y);
       out.push({
         key: `door:${d.x},${d.y}`,
-        at: [x, 2.1, z],
+        at: [x, 2.3, z + 0.5],
         kind: "door",
         text: `${d.open ? "" : "🔒 "}${d.name}`,
         own: d.userId === world.selfId,

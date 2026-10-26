@@ -10,6 +10,8 @@
  * Hooks (all additive, none needed): a boards's `redraw` (bar tab, plaques, easel), `JukeboxModel.playing`,
  * `FountainModel.toss()` (the tip jar's coin toss), `setTavernNight()`.
  */
+import { MAPS } from "@tokenmaxxing/core/maps.ts";
+import { pokerChairs, pokerTable } from "@tokenmaxxing/core/pokertable.ts";
 import * as THREE from "three";
 import { C, HAIRS, SKINS } from "../art/palette.ts";
 import { Avatar, type Look, personLook } from "./avatar.ts";
@@ -18,6 +20,7 @@ import { exitPlate, exitStairs } from "./exits3d.ts";
 import { type Asset, assetById, light } from "./furniture.ts";
 import { canvasTexture, glass, glow, Model, painted, planks, seeded, ticks, tint, type V3 } from "./kit.ts";
 import { type Panel, panel } from "./panel.ts";
+import { type PokerModel, pokerTable3d } from "./poker3d.ts";
 import { stool as barStool } from "./props.ts";
 import { type Placed, Room, type Turn } from "./room.ts";
 
@@ -294,6 +297,13 @@ function tavernChair(): Model {
   m.box([0.42, 0.06, 0.42], WOOD_LIGHT, [0, 0.4, 0], 0.02);
   for (const sx of [-1, 1]) m.box([0.04, 0.5, 0.04], WOOD_DARK, [sx * 0.17, 0.44, -0.18], 0.012);
   for (const y of [0.62, 0.76]) m.box([0.38, 0.07, 0.03], WOOD, [0, y, -0.18], 0.01);
+  return m;
+}
+
+/** A chair at the poker table: the tavern's, with a red cushion. */
+function pokerChair(): Model {
+  const m = tavernChair();
+  m.box([0.38, 0.05, 0.38], C.rug, [0, 0.455, 0.01], 0.02);
   return m;
 }
 
@@ -1054,44 +1064,6 @@ export function setSpecial(model: Model, special: string): void {
 
 // ——— Stairs and the exit ———
 
-const stairs = (up: boolean) => (): Model => {
-  const m = new Model();
-  const n = 5;
-  // A frame round the stairwell, and the steps in it. Up: they climb away from the room towards -z and a
-  // dark landing; down: a hatch whose treads fall into the dark.
-  m.box([0.06, 0.1, 1], WOOD_DARK, [-0.47, 0, 0], 0.01);
-  m.box([0.06, 0.1, 1], WOOD_DARK, [0.47, 0, 0], 0.01);
-  if (up) {
-    for (let i = 0; i < n; i++) {
-      const h = 0.18 + i * 0.2;
-      const shade = 0.45 + (n - 1 - i) * 0.0 + i * 0.1;
-      m.box([0.88, h, 0.17], tint(WOOD_LIGHT, shade - 0.7 + 0.2), [0, 0, 0.42 - i * 0.18], 0.01);
-      m.box([0.88, 0.025, 0.17], tint(WOOD_LIGHT, 0.15 + i * 0.03), [0, h, 0.42 - i * 0.18], 0.004);
-    }
-    for (const s of [-1, 1]) {
-      m.box([0.05, 0.05, 1.0], WOOD_DARK, [s * 0.45, 1.0, 0], 0.008).rotation.x = -0.52;
-      m.cyl(0.02, 0.9, WOOD_DARK, [s * 0.45, 0.2, 0.45], 0.02, 6);
-    }
-    m.box([0.9, 1.3, 0.06], "#1c1620", [0, 0.2, -0.47], 0.01);
-    halo(m, [0, 1.3, -0.3], 0.8, "#ffe0a0", 3);
-    exitPlate(m, "UP", "up", [0.8, 1.82, -0.345]);
-  } else {
-    m.box([0.88, 0.02, 0.9], "#14101a", [0, 0, 0], 0.003);
-    for (let i = 0; i < n; i++) {
-      const shade = 0.55 - i * 0.14;
-      m.box([0.84, 0.02, 0.15], tint(WOOD_LIGHT, shade - 0.45), [0, 0.02, -0.34 + i * 0.16], 0.004);
-      m.box([0.84, 0.012, 0.015], INK, [0, 0.04, -0.27 + i * 0.16], 0.002);
-    }
-    for (const s of [-1, 1]) {
-      m.cyl(0.025, 0.55, WOOD_DARK, [s * 0.45, 0, 0.42], 0.025, 6);
-      m.box([0.04, 0.04, 0.95], WOOD_DARK, [s * 0.45, 0.55, 0], 0.008);
-    }
-    m.box([0.94, 0.09, 0.06], WOOD_DARK, [0, 0, -0.47], 0.01);
-    m.box([0.9, 0.05, 0.07], WOOD_DARK, [0, 0, 0.47], 0.01);
-  }
-  return m;
-};
-
 /** The way out: a doorframe in the wall with a door ajar on warm daylight, and a red doormat on the floor. */
 const exitDoor = (): Model => {
   const m = new Model();
@@ -1405,6 +1377,8 @@ export const TAVERN_ASSETS: readonly Asset[] = [
   wide("tile:n", "Tavern table", 1, 1, tavernTable(1)),
   wide("tavern:table-long", "Long tavern table", 2, 1, tavernTable(2)),
   wide("tavern:chair", "Tavern chair", 1, 1, tavernChair, { seat: { at: [0, 0.46, 0.03], turn: 0 } }),
+  wide("tavern:poker-table", "Poker table", 4, 2, pokerTable3d),
+  wide("tavern:poker-chair", "Card-room chair", 1, 1, pokerChair, { seat: { at: [0, 0.5, 0.03], turn: 0 } }),
   wide("tavern:sofa-l", "Sofa seat (arm left)", 1, 1, seatUnit("sofa", true, false), {
     seat: { at: CUSHION, turn: 0 },
   }),
@@ -1438,8 +1412,12 @@ export const TAVERN_ASSETS: readonly Asset[] = [
   wide("tavern:plaque-2", "Regulars' plaque (right)", 1, 1, plaque(2)),
   wide("tile:w", "Open offices board", 1, 1, officeBoard),
   wide("tile:K", "Daily special easel", 1, 1, easel),
-  wide("tile:S", "Stairs down", 1, 1, () => exitStairs("down", { wall: "#8a6a52" })),
-  wide("tile:u", "Stairs up", 1, 1, stairs(true)),
+  wide("tile:S", "Stairs down", 1, 1, () =>
+    exitStairs("down", { wall: "#8a6a52", wood: WOOD_DARK, tread: WOOD_LIGHT }),
+  ),
+  wide("tile:u", "Stairs up", 1, 1, () =>
+    exitStairs("up", { wall: "#8a6a52", wood: WOOD_DARK, tread: WOOD_LIGHT }),
+  ),
   wide("tile:x", "Exit door", 1, 1, exitDoor),
   wide("tavern:tip-jar", "Tip jar", 1, 1, tipJar),
   wide("tavern:kitchen-door", "Kitchen door", 1, 1, kitchenDoor),
@@ -1459,6 +1437,8 @@ export interface TavernRoom {
   room: Room;
   barkeep: Barkeep;
   jukebox: JukeboxModel;
+  /** The poker table, for the game on it (`show`); null if the map has none. */
+  poker: PokerModel | null;
   /** The tip jar on the bar: `toss()` throws a coin in. */
   fountain: FountainModel | null;
   /** Models by their asset id, for the hooks (`setBarTab`, `setPlaque`, `setSpecial`). */
@@ -1472,6 +1452,8 @@ const CHARS: Record<string, string> = {
   "tavern:back-bar": "k",
   "tavern:table-long": "n",
   "tavern:chair": "c",
+  "tavern:poker-table": "♠",
+  "tavern:poker-chair": "♣",
   "tavern:sofa-l": "s",
   "tavern:sofa-r": "s",
   "tavern:armchair": "s",
@@ -1487,6 +1469,9 @@ const CHARS: Record<string, string> = {
   coffee: "o",
   rug: "=",
 };
+
+/** The turn that faces a chair the way a sitter looks (a chair at turn 0 faces +z, towards the table below it). */
+const CHAIR_TURN: Record<"down" | "right" | "up" | "left", Turn> = { down: 0, right: 1, up: 2, left: 3 };
 
 export const TAVERN_W = 26;
 export const TAVERN_D = 16;
@@ -1597,7 +1582,15 @@ export function buildTavernRoom(): TavernRoom {
   put("tavern:stage-stool", 0, 11, 1);
   hang("tile:w", 0, 14, 1, null);
   put("tile:u", 0, 15, 1);
-  put("plant", 1, 15);
+  put("plant", 0, 13);
+
+  // ——— The poker table and its six chairs, where the map says (a tile of the map is a tile here, less the walls) ———
+  const felt = pokerTable(MAPS.inn);
+  if (felt) {
+    put("tavern:poker-table", felt.x - 1, felt.y - 2);
+    for (const ch of pokerChairs(MAPS.inn))
+      put("tavern:poker-chair", ch.x - 1, ch.y - 2, CHAIR_TURN[ch.facing]);
+  }
 
   // ——— Dining: long tables with a chair on every side facing the table ———
   const dining = (x: number, z: number) => {
@@ -1630,7 +1623,7 @@ export function buildTavernRoom(): TavernRoom {
   put("tile:O", 10, 15);
   put("tavern:umbrella-stand", 11, 15);
   put("tile:S", 25, 14, 3);
-  put("plant", 25, 15);
+  put("plant", 24, 15);
   put("plant", 25, 1);
   put("tile:h", 25, 12);
 
@@ -1647,6 +1640,7 @@ export function buildTavernRoom(): TavernRoom {
     room,
     barkeep,
     jukebox: by.get("tile:z")![0] as JukeboxModel,
+    poker: (by.get("tavern:poker-table")?.[0] as PokerModel | undefined) ?? null,
     fountain: jar as FountainModel,
     by,
     layout,

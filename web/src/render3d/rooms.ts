@@ -90,6 +90,8 @@ export interface RoomView {
   lights?(scene: THREE.Scene, hemi: THREE.HemisphereLight, sun: THREE.DirectionalLight): void;
   /** Lamps and windows at night. */
   night?(on: boolean): void;
+  /** The room stays built but is no longer shown (the kept town): take down what it put in the label layer. */
+  leave?(): void;
   dispose(): void;
 }
 

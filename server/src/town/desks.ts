@@ -84,7 +84,7 @@ export async function setDesk(sql: Sql, userId: number, id: unknown): Promise<st
 }
 
 /**
- * The company buys its house the next desk tier from its wallet (any member's doing, like furniture).
+ * The company buys its house the next desk tier from its wallet (the owner's doing, in the shop).
  * Tiers go one at a time. Run it serialized, so two buys can't spend the same coins.
  */
 export async function buyDeskFleet(

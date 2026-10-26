@@ -37,7 +37,7 @@ export function LookPicker() {
     <Modal title="Your character">
       <p className="muted small">
         Other people in town see it too. Glasses, hats, pets and fancier clothes are in the{" "}
-        <button type="button" className="link" onClick={() => hud.set({ panel: { kind: "shop" } })}>
+        <button type="button" className="link" onClick={() => hud.set({ panel: { kind: "shops" } })}>
           shop
         </button>
         .

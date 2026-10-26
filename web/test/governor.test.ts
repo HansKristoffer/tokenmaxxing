@@ -4,6 +4,7 @@ import {
   Governor,
   MIN_SCALE,
   percentile,
+  refreshInterval,
   STABLE_MS,
   type Step,
   SUSTAIN_MS,
@@ -105,4 +106,18 @@ test("a change from outside starts fresh", () => {
   run(g, 0, SUSTAIN_MS - 500, 40);
   g.reset("medium", 1, 5000);
   expect(run(g, 5000, 3000, 40).steps).toEqual([]);
+});
+
+test("the refresh interval is the median of the first gaps, bounded to 60-240 Hz", () => {
+  expect(refreshInterval(Array(30).fill(8.33))).toBeCloseTo(8.33);
+  expect(refreshInterval([8.3, 8.4, 8.3, 40, 8.3, 8.4, 90, 8.3])).toBeCloseTo(8.35, 0);
+  expect(refreshInterval(Array(30).fill(33))).toBeCloseTo(1000 / 60);
+  expect(refreshInterval(Array(30).fill(1))).toBeCloseTo(1000 / 240);
+  expect(refreshInterval([16, 16])).toBeCloseTo(1000 / 60);
+});
+
+test("on a 120 Hz screen a steady 60 fps is slow and gets judged so", () => {
+  const g = new Governor("high");
+  const r = run(g, 0, SUSTAIN_MS + 14_000, 16.7, 8.33);
+  expect(r.steps.length).toBeGreaterThan(0);
 });

@@ -650,6 +650,13 @@ export class TownEvents {
 
   // MARK: Teardown
 
+  /** The town is kept while you are elsewhere: its signs and bursts are DOM labels and would hang over another room. */
+  leave(): void {
+    for (const k of this.pills.keys()) this.hide(k);
+    for (const b of this.bursts) b.burst.dispose();
+    this.bursts = [];
+  }
+
   dispose(): void {
     for (const b of this.bursts) b.burst.dispose();
     this.bursts = [];

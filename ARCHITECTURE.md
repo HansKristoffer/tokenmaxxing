@@ -397,6 +397,28 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   `web/src/game/jukebox.ts` with WebAudio (oscillators and noise, no files), looped for about a minute. Any other
   snapshot or a closed connection stops it; mute and volume are kept in localStorage. Actions: `jukeboxPlay`,
   `jukeboxSkip` (each returns a reason or null).
+- **Poker** (a 4x2 table of `♠` and six `♣` chairs in the Tavern's middle; E on a chair buys you in). Texas Hold'em
+  at 5/10 blinds for 🪙 200 a seat, from the wallet. `core/src/poker.ts` is the whole game, pure: the deck (Fisher-Yates
+  over `crypto.getRandomValues`, `randomInt`), `evaluate` (a hand as one number: category, then base 13 kickers, wheel
+  included), the betting round (`act`, `legal`: min-raise, a short all-in doesn't reopen, all-in as a raise to the stack),
+  side pots (`pots`), the clock (`tick`: 25 s a turn, a check if free else a fold, two timeouts in a row stand you up, 5 s
+  between hands) and what each side may see (`view` has no hole cards, `holeOf` is the owner's). `core/src/pokertable.ts`
+  reads the chairs off the map, clockwise from the top left: seat `i` of the engine is chair `i`. The `world` actor keeps
+  one `Table` in `vars.poker` (memory only) and sends the room `poker` (the table, names, clocks as ms left) whenever its
+  `v` changes, and each player their own cards as `pokerHole`; neither is ever in a snapshot or a log. Actions:
+  `pokerSit` (facing a `♣` chair), `pokerAct` (`fold`/`check`/`call`/`raise` with the total to raise to; the rate
+  limit is `POKER_PER_MIN`), `pokerLeave`; each returns a reason or null. Walking out of the Tavern, closing the last
+  tab or leaving stands you up: a hand in play is folded first and the seat goes when it ends. Coins move only in the
+  town (`town/poker.ts`, under the town's `serial`, in a transaction): sitting down debits 200 to the `poker:inn`
+  ledger ref and writes a `poker_seats` row; standing up pays the stack back; `pokerSettle` writes every stack after a
+  hand and refuses stacks that don't add up to what the rows held, so the table can't make or lose a coin. A loss limit of
+  🪙 600 a UTC day (buy-ins counted, from the ledger) refuses a seat with a `UserError`. A `world` that wakes without
+  its table asks the town to give every row back (`pokerRelease`). The client: `hud.poker` / `hud.pokerHole`
+  (`net.ts`), the docked `hud/Poker.tsx` (cards, pot, clock, fold/check/call, raise slider, leave), `game/input.ts`
+  (E on a chair; no walking while seated), the 2D table (`art/tavern.ts pokerTable`, board, pot and stacks drawn by
+  `game/poker.ts`) and the 3D one (`demo3d/poker3d.ts`: felt, rail, chips and cards laid by `show`; `render3d/poker-events.ts`
+  puts a name, stack and clock over each seat). Tests: `core/test/poker.test.ts` (rules, side pots, chip conservation),
+  `server/test/poker.test.ts` and `poker-town.test.ts`, `web/test/poker.test.ts`.
 - **The basement** (`MAPS.basement`, 22x13, room `basement`): the net cafe under the Tavern, open to everyone. `S`
   takes you down and its one exit `x` up (`roomEntry(room, ch = "x")` and the portal branches in `core/src/world.ts`).
   It's never a home room; idlers doze there like anywhere. Time in it counts for the plaques (`isTavernRoom`).

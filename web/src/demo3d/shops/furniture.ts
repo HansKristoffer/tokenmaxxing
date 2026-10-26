@@ -9,6 +9,7 @@
  * `INSET` (the two wall rows on top and one column on the left, as for every hand-built room), and so are
  * `counter` (the tile a customer stands on to talk to the shopkeeper) and `door`.
  */
+import { SUPPLIES_DESK } from "@tokenmaxxing/core/shoprooms.ts";
 import * as THREE from "three";
 import type { Avatar } from "../avatar.ts";
 import { FLOORS, WALLPAPERS } from "../decor3d.ts";
@@ -34,6 +35,7 @@ import {
   samplePanel,
   setSign,
   shelfBank,
+  suppliesDesk,
   wallpaperRolls,
   wallTag,
   windowOf,
@@ -301,6 +303,15 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     build: () => rolls,
   };
   room.place(rollsAsset, 20, 13, 0, rolls);
+  // The company-supplies catalogue desk by the door: E on it opens the Company tab (`SUPPLIES_DESK` in core).
+  const supplies = suppliesDesk();
+  room.place(
+    { id: "shop:supplies", name: "Company supplies", price: 0, w: 2, d: 1, build: () => supplies },
+    SUPPLIES_DESK[0] - INSET[0],
+    SUPPLIES_DESK[1] - INSET[1],
+    0,
+    supplies,
+  );
   const keeper = makeShopkeeper();
   keeper.avatar.root.position.set(CTR_X - 0.9, 0.02, CTR_Z + 0.55);
   keeper.avatar.root.rotation.y = 0.35;
@@ -401,9 +412,9 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     (r) => windowOf(lookById(FLOORS, r.asset).texture(), 0.45, 0.234, 0, 0.1),
     0.1,
   );
-  const hdrW = headerBoard("WALLPAPER", "10 patterns · touch to browse", 7.8, 0.28);
+  const hdrW = headerBoard("WALLPAPER", "10 patterns · E to browse", 7.8, 0.28);
   west(hdrW, 1.0 + 3.9, 2.38 - 0.0);
-  const hdrF = headerBoard("FLOOR SAMPLES", "10 floors · walk right up", 7.8, 0.28);
+  const hdrF = headerBoard("FLOOR SAMPLES", "10 floors · E to browse", 7.8, 0.28);
   west(hdrF, 9.7 + 3.9, 2.38 - 0.0);
   const hdrP = headerBoard("POSTER WALL", "10 prints", 3.2, 0.26);
   hdrP.position.set(4.2, 2.36, 0.012);
@@ -438,7 +449,8 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
 
   // — Section signs —
   const signs: [string, string, number, number][] = [
-    ["DESK SETUPS", "laptop to battlestation", 17.3, 2.4],
+    ["MONITORS", "desk setups · laptop to battlestation", 17.3, 2.4],
+    ["COMPANY SUPPLIES", "furniture · posters · house desks", 15.5, 14.7],
     ["THE LOUNGE", "sofas · rugs · TV", 11.9, 5.0],
     ["BEDROOM NOOK", "bed · lamp · books", 6.5, 15.4],
     ["GAMES & BIG PIECES", "ping-pong to gong", 15.5, 7.1],

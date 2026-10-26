@@ -8,13 +8,16 @@ import { editionAt } from "./editions.ts";
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
 import { LOOT_COUNT, LOOT_FIRST } from "./loot.ts";
-import { blockOf, doorOf, type GameMap, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
+import { blockOf, doorOf, type GameMap, LEGEND, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
 import {
+  canHang,
   type Door,
   doorAt,
   HQS,
   OFFICE_MAPS,
   type OfficeTier,
+  PASSAGE_W,
+  PASSAGE_X,
   type Piece,
   pieceOf,
   withPieces,
@@ -103,7 +106,7 @@ export function mapOf(room: RoomId): GameMap {
 }
 
 /** The furniture among `drops`, as pieces of a map. */
-const piecesIn = (drops: readonly Drop[]) =>
+export const piecesIn = (drops: readonly Drop[]) =>
   drops.flatMap((d) => {
     const piece = pieceOfDrop(d);
     return piece ? [{ ch: piece.ch, x: d.x, y: d.y }] : [];
@@ -141,6 +144,27 @@ export const pieceOfDrop = (d: Pick<Drop, "item">): Piece | undefined =>
 export const dropName = (d: Pick<Drop, "item">): string => itemById(d.item)?.name ?? "Something";
 
 /** Whether a drop lies on (x, y): a TV is two tiles. */
+/**
+ * The piece of furniture G takes and M moves for someone: one of theirs (their office's, their company's),
+ * the one they are on, else the one they face, whether it blocks, seats or is a rug.
+ */
+export function ownPieceAt(
+  room: RoomId,
+  at: { x: number; y: number; facing: Facing },
+  drops: readonly Drop[],
+  userId: number,
+  companyId: number | null,
+): Drop | undefined {
+  const owner = ownerOfOffice(room);
+  const mine = (d: Drop) =>
+    pieceOfDrop(d) !== undefined && (d.co !== undefined ? d.co === companyId : owner === userId);
+  const [dx, dy] = DIRS[at.facing];
+  return (
+    drops.find((d) => mine(d) && dropCovers(d, at.x, at.y)) ??
+    drops.find((d) => mine(d) && dropCovers(d, at.x + dx, at.y + dy))
+  );
+}
+
 export const dropCovers = (d: Drop, x: number, y: number): boolean =>
   d.y === y && x >= d.x && x < d.x + (pieceOfDrop(d)?.w ?? 1);
 
@@ -713,4 +737,60 @@ export function cutsOff(map: GameMap, piece: { ch: string; x: number; y: number 
   for (let i = 0; i < (pieceOf(piece.ch)?.w ?? 1); i++)
     if (route(next, door, [piece.x + i, piece.y]) === null) return true;
   return false;
+}
+
+// MARK: Where furniture can stand
+
+/**
+ * Where furniture can't go in `room`: in front of a door, and in a building, above its floor (the
+ * hallways, and the passage up to them, foot included), so it never blocks anyone's office door.
+ */
+export function noFurniture(room: RoomId, map: GameMap): Set<string> {
+  const out = new Set<string>();
+  for (const [ch, kind] of Object.entries(LEGEND)) {
+    if (!kind.portal) continue;
+    for (const [x, y] of map.find(ch))
+      for (const [dx, dy] of Object.values(DIRS)) out.add(`${x + dx},${y + dy}`);
+  }
+  if (companyOfRoom(room) === null) return out;
+  for (let i = 0; i < PASSAGE_W; i++) out.add(`${PASSAGE_X + i},2`);
+  for (let y = map.y0; y < 2; y++) for (let x = map.x0; x < map.x0 + map.width; x++) out.add(`${x},${y}`);
+  return out;
+}
+
+/**
+ * Whether drop `d` (a `piece`) could stand with its left end on (x, y) in `room` with the rest of the floor as
+ * it is: bare floor or, for a wall piece, bare wall; one piece to a tile; nobody under it, nobody walled in,
+ * and in an office every door, desk and seat still reachable. The same rules as `placeDrop`.
+ */
+export function furnitureFits(
+  room: RoomId,
+  d: Drop,
+  piece: NonNullable<ReturnType<typeof pieceOfDrop>>,
+  x: number,
+  y: number,
+  people: readonly { x: number; y: number }[],
+): boolean {
+  const base = baseMap(room);
+  const w = piece.w ?? 1;
+  const others = (DROPS.get(room) ?? []).filter((o) => o.id !== d.id);
+  const taken = new Set<string>();
+  for (const o of others) for (let i = 0; i < (pieceOfDrop(o)?.w ?? 1); i++) taken.add(`${o.x + i},${o.y}`);
+  for (let i = 0; i < w; i++) if (taken.has(`${x + i},${y}`)) return false;
+  if (piece.wall) {
+    if (!canHang(base, x, y, w, piece.home)) return false;
+    for (let i = 0; i < w; i++) if (taken.has(`${x + i},${y + 1}`)) return false;
+    return true;
+  }
+  const map = withPieces(piecesIn(others), base);
+  const reserved = noFurniture(room, base);
+  for (let i = 0; i < w; i++) {
+    if (!map.walkable(x + i, y) || map.kind(x + i, y).portal || reserved.has(`${x + i},${y}`)) return false;
+    if (people.some((o) => o.x === x + i && o.y === y)) return false;
+    for (const o of others) if (pieceOfDrop(o)?.wall && dropCovers(o, x + i, y - 1)) return false;
+  }
+  const next = withPieces([{ ch: piece.ch, x, y }], map);
+  const exit = map.find("x")[0];
+  if (exit && people.some((o) => !route(next, [o.x, o.y], exit))) return false;
+  return !(ownerOfOffice(room) !== null && cutsOff(map, { ch: piece.ch, x, y }));
 }

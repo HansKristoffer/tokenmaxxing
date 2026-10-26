@@ -23,6 +23,21 @@ export function percentile(sorted: readonly number[], p: number): number {
   return sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]!;
 }
 
+/** Fastest and slowest refresh intervals taken as a display's own (240 Hz, 60 Hz): a slow machine must not look like a slow screen. */
+const MIN_REFRESH_MS = 1000 / 240;
+const MAX_REFRESH_MS = 1000 / 60;
+
+/** The display's refresh interval from the gaps between its first animation frames: their median, bounded. */
+export function refreshInterval(gaps: readonly number[]): number {
+  const ok = gaps.filter((g) => g > 0 && g < GAP_MS);
+  if (ok.length < 5) return MAX_REFRESH_MS;
+  const med = percentile(
+    [...ok].sort((a, b) => a - b),
+    0.5,
+  );
+  return Math.min(MAX_REFRESH_MS, Math.max(MIN_REFRESH_MS, med));
+}
+
 export type Step =
   | { kind: "scale"; scaleMul: number }
   | { kind: "tier"; tier: Tier; scaleMul: 1 }

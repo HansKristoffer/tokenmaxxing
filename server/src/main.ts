@@ -3,10 +3,12 @@ import { basename, join } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
 import { LOGO_DIR, LOGO_FILE } from "./brand.ts";
 import { loadConfig } from "./config.ts";
+import { stopEngine } from "./engine.ts";
 import { type Page, pageHeaders } from "./headers.ts";
 import { healthCheck } from "./health.ts";
 import { installScript } from "./install.ts";
 import { rivetProxy } from "./proxy.ts";
+import { diagnose, failureWindow, type ProbeResult, watchdogConfig } from "./watchdog.ts";
 
 // Once startup is done, Bun exits on any unhandled rejection: one missed `.catch` would take the
 // whole town down. Log it loudly and keep going. A throw may have stopped synchronous code halfway,
@@ -14,7 +16,7 @@ import { rivetProxy } from "./proxy.ts";
 process.on("unhandledRejection", (err) => console.error("[unhandledRejection]", err));
 process.on("uncaughtException", (err) => {
   console.error("[uncaughtException]", err);
-  process.exit(1);
+  void stopEngine(undefined, 1_000).finally(() => process.exit(1));
 });
 
 const config = loadConfig(process.env, pkg.version);
@@ -65,18 +67,74 @@ const proxy = rivetProxy(`127.0.0.1:${ENGINE_PORT}`, ENGINE_TOKEN, config.gatewa
 const localClient = createClient<typeof registry>({
   endpoint: `http://127.0.0.1:${ENGINE_PORT}`,
   token: ENGINE_TOKEN,
+  // The engine is our own child, already up (`startAndWait`): skip the client's startup metadata
+  // lookup (as RivetKit's internal clients do). Under load its 14 retries ran out, and the failure
+  // arrived as an uncaughtException that killed the server (and, in tests, every later file).
+  disableMetadataLookup: true,
 });
 const health = healthCheck(() => main(localClient).town.health(), config.version);
 
 // If the engine dies, every actor stops but this process stays up, so Railway never restarts it.
-// Unhealthy for two minutes: exit.
-let unhealthy = 0;
+// Probe an actor now and then: when probes keep failing, exit. A busy machine is slow, not dead, so
+// a probe gets a long timeout and several must fail in a row over a window (watchdog.ts has the
+// HEALTH_* settings). Every failure is logged with what failed, how long it took and how late the
+// event loop was, so an exit can be told apart from a laptop under load.
+const dog = watchdogConfig(process.env);
+const failing = failureWindow(dog);
+let lastProbe: ProbeResult = { ok: true, ms: 0, reason: "ok" };
+const watchdogProbe = healthCheck(
+  () => main(localClient).town.health(),
+  config.version,
+  dog.timeoutMs,
+  (r) => {
+    lastProbe = r;
+  },
+);
+// How far behind its schedule a 1 s timer fires: the event loop's lag, the worst since the last probe.
+let loopLag = 0;
+let lastRecovered = 0;
+let tickAt = performance.now();
+setInterval(() => {
+  const now = performance.now();
+  loopLag = Math.max(loopLag, now - tickAt - 1_000);
+  tickAt = now;
+}, 1_000);
+let probing = false;
 setInterval(async () => {
-  unhealthy = (await health()).ok ? 0 : unhealthy + 1;
-  if (unhealthy < 4) return;
-  console.error("[tokenmaxxing] unhealthy for 2 minutes, exiting");
-  process.exit(1);
-}, 30_000);
+  if (probing) return;
+  probing = true;
+  const lag = loopLag;
+  loopLag = 0;
+  const ok = (await watchdogProbe()).ok;
+  probing = false;
+  const exit = failing.record(ok, Date.now());
+  if (!ok)
+    console.error(`[tokenmaxxing] health ${failing.streak}/${dog.failures}: ${diagnose(lastProbe, lag)}`);
+  else if (lastRecovered)
+    console.log(`[tokenmaxxing] health recovered after ${lastRecovered} failed probes (${lastProbe.ms} ms)`);
+  lastRecovered = failing.streak;
+  if (!exit) return;
+  console.error(
+    `[tokenmaxxing] unhealthy: ${dog.failures} probes failed over ${Math.round(dog.windowMs / 1000)}+ s, exiting`,
+  );
+  await shutdown(1);
+}, dog.intervalMs);
+
+// One way out for every exit: drain the actors, then stop the engine child (it would otherwise be
+// left running, orphaned, with its port and data dir), so the next start comes up clean.
+let leaving = false;
+async function shutdown(code: number) {
+  if (leaving) return;
+  leaving = true;
+  // A drain that hangs (the case this exit is for) can't keep the process alive.
+  const force = setTimeout(() => process.exit(code), 8_000);
+  await registry.shutdown().catch(() => {});
+  await stopEngine(ENGINE_PORT).catch(() => {});
+  clearTimeout(force);
+  process.exit(code);
+}
+process.on("SIGTERM", () => void shutdown(0));
+process.on("SIGINT", () => void shutdown(0));
 
 const headersFor = (page: Page, req: Request, extra: Record<string, string>) => ({
   ...pageHeaders(page, new URL(req.url).host, !config.development),

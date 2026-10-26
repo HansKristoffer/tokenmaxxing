@@ -2,6 +2,7 @@ import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import type { Outage } from "@tokenmaxxing/core/picnic.ts";
+import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
 import {
   CHAT_HISTORY,
@@ -120,9 +121,12 @@ export function connect(token: string): void {
     hud.set({ jukebox: j });
     playJukebox(j);
   });
+  // The poker table is the Tavern's too: the table for the room, my own two cards for me alone.
+  conn.on("poker", (p: PokerState) => hud.set({ poker: { ...p, at: Date.now() } }));
+  conn.on("pokerHole", (h: Card[]) => hud.set({ pokerHole: h }));
   conn.on("snapshot", (s: Snapshot) => {
     if (s.room !== "inn") {
-      hud.set({ jukebox: null });
+      hud.set({ jukebox: null, poker: null, pokerHole: [] });
       stopJukebox();
     }
     loadSnapshot(s);
@@ -171,7 +175,7 @@ export function connect(token: string): void {
   });
   conn.onClose(() => {
     // Music stops with the connection; the Tavern sends it again when we're back in.
-    hud.set({ jukebox: null });
+    hud.set({ jukebox: null, poker: null, pokerHole: [] });
     stopJukebox();
     if (hud.get().status === "ready") hud.set({ status: "offline" });
     // ponytail: the client retries on its own, but can stall after a long outage (a deploy);

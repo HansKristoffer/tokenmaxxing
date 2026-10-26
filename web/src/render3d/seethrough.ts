@@ -3,8 +3,8 @@ import { addPatch } from "../demo3d/patches.ts";
 
 /**
  * Seeing yourself through trees and roofs: everything that stands up from the floor, is nearer the camera
- * than the player and falls within a ring round them on screen is cut away in a dither (the pixels drop out
- * more towards the middle). One uniform shared by every patched material:
+ * than the player and falls within a ring round them on screen is cut away in a clean circle, its edge lit
+ * like a cut and shaded just outside so the hole reads as a window. One uniform shared by every patched material:
  * x, y: the player's place in the render target's pixels; z: their depth from the camera; w: the ring's
  * radius in those pixels (0 turns it off).
  */
@@ -14,6 +14,8 @@ export const SEE = { value: new THREE.Vector4(0, 0, 0, 0) };
 const NEARER = 0.9;
 /** Below this height (the floor, a lawn, a path) nothing is cut. */
 const FLOOR_TOP = 0.14;
+/** The hole's radius, as a share of the ring's; the rim and the shade round it take the rest. */
+const HOLE = 0.78;
 
 const patch = (sh: Parameters<THREE.Material["onBeforeCompile"]>[0]) => {
   sh.uniforms.uSee = SEE;
@@ -31,14 +33,19 @@ const patch = (sh: Parameters<THREE.Material["onBeforeCompile"]>[0]) => {
     .replace(
       "#include <clipping_planes_fragment>",
       `#include <clipping_planes_fragment>
+  float seeRim = 0.0;
+  float seeShade = 0.0;
   if (uSee.w > 0.0 && vSeeY > ${FLOOR_TOP.toFixed(2)} && vSeeZ < uSee.z - ${NEARER.toFixed(2)}) {
-    float seeD = distance(gl_FragCoord.xy, uSee.xy) / uSee.w;
-    if (seeD < 1.0) {
-      float keep = smoothstep(0.35, 1.0, seeD);
-      float dith = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-      if (dith > keep) discard;
-    }
+    float seeOut = distance(gl_FragCoord.xy, uSee.xy) - uSee.w * ${HOLE.toFixed(2)};
+    if (seeOut < 0.0) discard;
+    seeRim = 1.0 - smoothstep(0.0, uSee.w * 0.035, seeOut);
+    seeShade = 1.0 - smoothstep(0.0, uSee.w * ${(1 - HOLE).toFixed(2)}, seeOut);
   }`,
+    )
+    .replace(
+      "#include <opaque_fragment>",
+      `outgoingLight = mix(outgoingLight * (1.0 - 0.3 * seeShade * seeShade), vec3(1.0, 0.96, 0.86), seeRim * 0.75);
+  #include <opaque_fragment>`,
     );
 };
 

@@ -552,6 +552,63 @@ export function wallpaperRolls(): Model {
   return m;
 }
 
+/**
+ * The company-supplies catalogue desk: two tiles wide, a ledger open on top, a rack of poster tubes, a small
+ * lamp and a sign on the front. It opens the shop's Company tab. Faces +z like the counter.
+ */
+export function suppliesDesk(): Model {
+  const m = new Model();
+  const w = 2;
+  m.box([w, 0.9, 0.9], C.woodLight, [0, 0, 0], 0.02);
+  m.box([w + 0.1, 0.08, 1.0], "#f3ead8", [0, 0.9, 0], 0.02);
+  m.box([w - 0.1, 0.1, 0.04], C.woodDark, [0, 0.0, 0.47], 0.01);
+  // The ledger: two pages, a spine, and a ribbon.
+  const book = m.part([-0.4, 0.98, 0.05]);
+  book.box([0.5, 0.05, 0.4], "#8a3f30", [0, 0, 0], 0.01);
+  book.box([0.23, 0.02, 0.36], PAPER, [-0.125, 0.05, 0], 0.004);
+  book.box([0.23, 0.02, 0.36], PAPER, [0.125, 0.05, 0], 0.004);
+  for (let i = 0; i < 3; i++) book.box([0.16, 0.004, 0.012], INK, [-0.125, 0.072, -0.1 + i * 0.09]);
+  book.box([0.02, 0.005, 0.3], "#c8503c", [0.02, 0.072, 0.02]);
+  // A stack of order slips and a pen.
+  const slips = m.part([0.1, 0.98, 0.05]);
+  ["#f5e3bd", "#fff", "#f3d983"].forEach((c, i) => {
+    slips.box([0.3, 0.012, 0.22], c, [0, i * 0.013, 0], 0.003).rotation.y = i * 0.2;
+  });
+  m.box([0.2, 0.015, 0.02], "#4f8fe0", [0.1, 1.04, 0.2], 0.004).rotation.y = 0.5;
+  // Poster tubes standing in a rack at the right end.
+  const rack = m.part([0.72, 0.98, -0.05]);
+  rack.box([0.4, 0.04, 0.3], C.woodDark, [0, 0, 0], 0.01);
+  [-0.12, 0, 0.12].forEach((x, i) => {
+    rack.cyl(0.05, 0.55 + i * 0.04, ["#c8503c", "#4f8fe0", "#f0b53c"][i]!, [x, 0.03, 0], 0.05, 10);
+  });
+  // A small desk lamp on the left end.
+  const lamp = m.part([-0.85, 0.98, -0.1]);
+  lamp.cyl(0.08, 0.03, C.woodDark, [0, 0, 0], 0.08, 10);
+  lamp.box([0.02, 0.3, 0.02], "#4a4f63", [0, 0.03, 0], 0.004);
+  lamp.cyl(0.1, 0.1, glow("#ffe9b0"), [0.0, 0.3, 0.04], 0.04, 10);
+  // The sign on the front.
+  const tex = canvasTexture(
+    192,
+    48,
+    (g) => {
+      g.fillStyle = INK;
+      g.fillRect(0, 0, 192, 48);
+      g.strokeStyle = "#d4a93a";
+      g.lineWidth = 2;
+      g.strokeRect(3, 3, 186, 42);
+      g.fillStyle = "#ffe28a";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      fit(g, "COMPANY SUPPLIES", 96, 18, 170, 22, 900);
+      g.fillStyle = "#d9c9a4";
+      fit(g, "order from the catalogue", 96, 36, 170, 12, 600);
+    },
+    true,
+  );
+  m.plane(1.7, 0.42, glow("#fff", tex), [0, 0.4, 0.48]);
+  return m;
+}
+
 /** A pendant lamp that lights at night: a cord, a shade, a warm point light. */
 export function pendant(color = "#ffd9a0", intensity = 5, distance = 8): Model {
   const m = new Model();

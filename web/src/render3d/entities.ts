@@ -13,6 +13,7 @@ import { BURST_MS } from "../game/emoji.ts";
 import { LABEL_FAR } from "../game/near.ts";
 import { followPet, prunePets } from "../game/pets.ts";
 import { type Lap, racing } from "../game/race.ts";
+import { tremor, tremorPhase } from "../game/tremor.ts";
 import {
   drawPos,
   type Avatar as GameAvatar,
@@ -398,11 +399,12 @@ export class Entities {
     // Coffee and the Tavern's special: a buzz, or a warm glow.
     const unow = Date.now();
     const special = hasSpecial(info.specialUntil ?? 0, unow) ? specialBuff(info.specialUntil ?? 0) : null;
-    const shake = this.calm
-      ? 0
-      : Math.min(4, Math.max(cupsLeft(info.coffeeUntil, unow), special === "jitter" ? 1.5 : 0));
-    const jx = shake > 0 ? ((Math.random() * 2 - 1) * shake) / TILE : 0;
-    const jz = shake > 0 ? ((Math.random() * 2 - 1) * shake * 0.5) / TILE : 0;
+    // A smooth tremor off the clock (`tremor.ts`), the same at any frame rate. The Tavern special's jitter counts as 1.5 cups.
+    const cups = this.calm ? 0 : Math.max(cupsLeft(info.coffeeUntil, unow), special === "jitter" ? 1.5 : 0);
+    const shake = cups > 0 ? tremor(cups, unow / 1000, tremorPhase(info.id)) : null;
+    const jx = shake?.dx ?? 0;
+    const jz = shake?.dz ?? 0;
+    y += shake?.lift ?? 0;
     r.root.position.set(r.x + jx, y, r.z + jz);
     r.root.rotation.y = r.yaw;
     if (special === "glow") {

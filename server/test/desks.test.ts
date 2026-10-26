@@ -100,7 +100,7 @@ describe("a personal setup", () => {
 });
 
 describe("the company's fleet", () => {
-  test("any member buys the next tier from the wallet, one at a time, and it lands in the ledger", async () => {
+  test("the company buys the next tier from the wallet, one at a time, and it lands in the ledger", async () => {
     await fund(1000);
     expect(await buyDeskFleet(sql, await company(), 2, NOW)).toBe(1);
     expect(await companyWallet(sql, 1)).toBe(700);

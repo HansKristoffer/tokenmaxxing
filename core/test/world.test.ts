@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { doorOf, MAPS, plotId, townMap } from "../src/maps.ts";
-import { doorsFor, setHq } from "../src/office.ts";
+import { doorsFor, setHq, withSlots } from "../src/office.ts";
 import { MAX_PET_LOOKS, PET_VARIANTS, petLooks, wearPet } from "../src/pets.ts";
 import { addDays, dayKey, rangeDays } from "../src/range.ts";
 import { itemById } from "../src/shop.ts";
@@ -17,6 +17,7 @@ import {
   mentionsIn,
   namesIn,
   outsideDoor,
+  ownPieceAt,
   parseLook,
   portal,
   RUN_STEP_MS,
@@ -93,10 +94,12 @@ describe("portals", () => {
   });
 
   test("bo's door takes you to bo's office; its exit to below the door for a member, or the Inn", () => {
-    const doors = doorsFor([
-      { userId: 4, name: "ada", open: true },
-      { userId: 9, name: "bo", open: true },
-    ]);
+    const doors = doorsFor(
+      withSlots([
+        { userId: 4, name: "ada", open: true },
+        { userId: 9, name: "bo", open: true },
+      ]),
+    );
     const bo = doors[1]!;
     expect(portal("hq:3", { ch: "R", x: bo.x, y: bo.y }, 3, plots, doors)).toEqual(roomEntry("office:9"));
     expect(portal("hq:5", { ch: "R", x: bo.x, y: bo.y }, 3, plots, [])).toEqual({
@@ -150,8 +153,8 @@ describe("drops", () => {
   test("a room's own map changing shows through, drops and all", () => {
     setDrops("hq:77", [drop(1, "furn.d", 2, 4, "hq:77")]);
     expect(mapOf("hq:77").at(2, 4)).toBe("d");
-    setHq(77, doorsFor([{ userId: 1, name: "ada", open: true }]));
-    expect([mapOf("hq:77").at(1, -2), mapOf("hq:77").at(2, 4)]).toEqual(["R", "d"]);
+    setHq(77, doorsFor(withSlots([{ userId: 1, name: "ada", open: true }])));
+    expect([mapOf("hq:77").at(3, -3), mapOf("hq:77").at(2, 4)]).toEqual(["R", "d"]);
     setDrops("hq:77", []);
   });
 });
@@ -284,5 +287,32 @@ describe("pet variants", () => {
       expect(itemById(`pet.${pet}`)).toBeDefined();
       for (const id of ids) expect(id).toMatch(/^[a-z]+$/);
     }
+  });
+});
+
+describe("ownPieceAt", () => {
+  const at = (item: string, x: number, y: number, co?: number): Drop => ({
+    id: x * 10 + y,
+    item,
+    room: "common:3",
+    x,
+    y,
+    by: 1,
+    at: 0,
+    ...(co !== undefined && { co }),
+  });
+  const beanbag = at("furn.ε", 5, 5, 3);
+  test("a company piece, a seat or a rug too, is the one faced; mine, not another company's", () => {
+    expect(ownPieceAt("common:3", { x: 5, y: 6, facing: "up" }, [beanbag], 1, 3)).toBe(beanbag);
+    expect(ownPieceAt("common:3", { x: 5, y: 7, facing: "up" }, [beanbag], 1, 3)).toBeUndefined();
+    expect(ownPieceAt("common:3", { x: 5, y: 6, facing: "up" }, [beanbag], 1, 4)).toBeUndefined();
+    expect(ownPieceAt("common:3", { x: 5, y: 5, facing: "down" }, [beanbag], 1, 3)).toBe(beanbag);
+  });
+  test("in an office, only the owner's; hats are not furniture", () => {
+    const grass = { ...at("furn.g", 3, 3), room: "office:7" as const };
+    const hat = at("hat.1", 3, 4);
+    expect(ownPieceAt("office:7", { x: 4, y: 3, facing: "left" }, [grass], 7, null)).toBe(grass);
+    expect(ownPieceAt("office:7", { x: 4, y: 3, facing: "left" }, [grass], 8, null)).toBeUndefined();
+    expect(ownPieceAt("office:7", { x: 3, y: 5, facing: "up" }, [hat], 7, null)).toBeUndefined();
   });
 });

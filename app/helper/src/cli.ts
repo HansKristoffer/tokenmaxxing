@@ -126,8 +126,8 @@ async function link(code: string | undefined, opts: { name?: string; server?: st
   if (!server) throw new Fail("Which server? Pass --server <url>, or use the install command from the app.");
   const existing = await loadConfig();
   if (existing) throw new Fail(`Already linked as "${existing.name}". Run tokenmaxxing unlink first.`);
-  if (process.platform === "darwin" && existsSync(appStatePath()))
-    throw new Fail("The Tokenmaxxing app already sends this Mac's usage, so there's nothing to link.");
+  if (existsSync(appStatePath()))
+    throw new Fail("The Tokenmaxxing app already sends this computer's usage, so there's nothing to link.");
 
   const name = (opts.name ?? hostname().replace(/\.local$/, "")).trim();
   const linked = await clientFor(server)

@@ -4,6 +4,7 @@ import { setPropsNight } from "../demo3d/props.ts";
 import { setTavernNight, type TavernRoom } from "../demo3d/tavern3d.ts";
 import { darknessNow, lightsNow, warmthNow } from "../game/sky.ts";
 import { hud } from "../store.ts";
+import { PokerEvents } from "./poker-events.ts";
 import type { LiveFrame } from "./rooms.ts";
 import { jukeboxSign, tavernDim } from "./world-logic.ts";
 
@@ -26,8 +27,11 @@ export class TavernEvents {
   private readonly day = { hemi: new THREE.Color(), sun: new THREE.Color() };
   private lampsOn = false;
 
+  private readonly poker: PokerEvents;
+
   constructor(private readonly inn: TavernRoom) {
     if (inn.fountain) inn.fountain.auto = false;
+    this.poker = new PokerEvents(inn.poker);
   }
 
   /** The stage's lights, kept so the room can dim with the sky as the 2D Tavern does. */
@@ -87,10 +91,12 @@ export class TavernEvents {
       this.el.textContent = text;
     }
     f.overlay.place(this.el, v.copy(this.at), f.camera, 0, 0, true);
+    this.poker.update(f);
   }
 
   dispose(): void {
     setTavernNight(null);
+    this.poker.dispose();
     this.el?.remove();
     this.el = null;
   }

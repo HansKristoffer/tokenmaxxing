@@ -7,6 +7,7 @@ import {
   parseSaved,
   resolveSettings,
   sanitizeOverrides,
+  TIERS,
   tierBelow,
 } from "../src/settings/graphics.ts";
 
@@ -26,9 +27,9 @@ test("the tier table", () => {
     resolveSettings(t),
   );
   expect(low).toMatchObject({ renderer: "2d", shadows: "off", ao: false });
-  expect(medium).toMatchObject({ renderer: "3d", fpsCap: 30, renderScale: 0.75, shadowMap: 0, ao: false });
+  expect(medium).toMatchObject({ renderer: "3d", fpsCap: 0, renderScale: 0.75, shadowMap: 0, ao: false });
   expect(medium!.post).toEqual({ haze: false, tiltShift: false, grade: false });
-  expect(high).toMatchObject({ renderer: "3d", ao: true, shadowMap: 2048, fpsCap: 60 });
+  expect(high).toMatchObject({ renderer: "3d", ao: true, shadowMap: 2048, fpsCap: 0 });
   expect(ultra).toMatchObject({ fpsCap: 0, shadowMap: 4096, ao: true });
   expect(ultra!.post).toEqual({ haze: true, tiltShift: true, grade: true });
 });
@@ -108,4 +109,22 @@ test("detection results expire, and with the GPU", () => {
   expect(freshDetected(d, "y", 2000)).toBe(false);
   expect(freshDetected(null, "x")).toBe(false);
   expect(tierBelow("low")).toBe("low");
+});
+
+test("no tier caps the frame rate by default, and a chosen cap still holds", () => {
+  for (const t of TIERS) expect(resolveSettings(t).fpsCap).toBe(0);
+  expect(resolveSettings("high", { fpsCap: 60 }).fpsCap).toBe(60);
+});
+
+test("the FPS meter is off by default, saved with the other settings, and junk values leave it off", () => {
+  expect(parseSaved(null).meter).toBe(false);
+  expect(createGraphics(memory()).get().meter).toBe(false);
+  const storage = memory();
+  const g = createGraphics(storage);
+  g.setMeter(true);
+  g.setChoice("high");
+  expect(JSON.parse(storage.data[GRAPHICS_KEY]!)).toMatchObject({ v: 1, choice: "high", meter: true });
+  expect(createGraphics(storage).get().meter).toBe(true);
+  for (const junk of ["yes", 1, null, {}])
+    expect(parseSaved(JSON.stringify({ v: 1, meter: junk })).meter).toBe(false);
 });
