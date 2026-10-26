@@ -1,3 +1,4 @@
+import { REQUEST_MAX, REQUEST_MIN } from "@tokenmaxxing/core/requests.ts";
 import { type MessageType, SOURCES, type Source, type TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { BIO_MAX_LENGTH, CHAT_MAX_LENGTH } from "@tokenmaxxing/core/world.ts";
 import { isOneOf, normalizeWhitespace } from "hanzio";
@@ -21,6 +22,17 @@ export function parseBio(raw: unknown): string | null | "clear" {
   if (text === "") return "clear";
   if ([...text].length > BIO_MAX_LENGTH || LINKISH.test(text)) return null;
   return text;
+}
+
+/**
+ * A request for the Tavern's pile as stored: one line, no control, zero-width or bidi characters, between
+ * `REQUEST_MIN` and `REQUEST_MAX` code points, no links. Null is refused.
+ */
+export function parseRequest(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.length > REQUEST_MAX * 8) return null;
+  const text = raw.replace(INVISIBLE, "").replace(CONTROL, " ").replace(/\s+/g, " ").trim();
+  const n = [...text].length;
+  return n < REQUEST_MIN || n > REQUEST_MAX || LINKISH.test(text) ? null : text;
 }
 
 /** Lowercase handle, 2–32 chars. Shown to other users, so no free-form text. */

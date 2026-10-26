@@ -125,6 +125,10 @@ export const LEGEND: Record<string, TileKind> = {
   M: { name: "wall terminal", text: "A wall terminal." },
   // The tournament board (`tournament.ts`); E opens it. The basement is the Tavern's, so `TAVERN` gates it.
   ...(TAVERN ? { i: { name: "tournament board", text: "The tournament board." } } : {}),
+  // The request pile (`requests.ts`), on the Tavern's north wall; E opens it.
+  ...(TAVERN
+    ? { "?": { name: "request pile", text: "The request pile. What people would like in the game." } }
+    : {}),
   // The four shops on the town's streets: a 5×4 front (`Ħ`) with its door in the middle (`shoprooms.ts`).
   ƒ: { name: "furniture shop door", portal: true },
   Ç: { name: "clothes shop door", portal: true },
@@ -620,7 +624,7 @@ export const MAPS: Record<MapId, GameMap> = {
   inn: TAVERN
     ? new GameMap("inn", "The Tavern", [
         "WWWWWWWWWWWWWWWWWWWWWWWWWWWW",
-        "WWWWWWWWWWWWmmWAAAAWWWWWWWWW",
+        "WWWWWWWWWWWWmmWAAAA?WWWWWWWW",
         "Wkkkkkkk=hho__K______PffPkkW",
         "W=========h_________======pW",
         "Waaayaaa$aa_________s====s_W",

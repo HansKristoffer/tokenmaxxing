@@ -45,7 +45,8 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
     town: room(320, 445_000, 90, 17),
     hq: room(35, 24_000, 20, 1),
     office: room(35, 10_000, 25, 1),
-    inn: room(180, 56_000, 140, 2),
+    // +500 for the request pile's board on the north wall (cork, four notes, a plank).
+    inn: room(180, 56_500, 140, 2),
     upstairs: room(26, 9_000, 15, 1),
     basement: room(70, 41_000, 55, 1),
     dungeon: room(50, 43_000, 20, 1),

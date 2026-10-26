@@ -477,6 +477,7 @@ function interact(): void {
     if (ch === "A") return void hud.set({ panel: { kind: "hallOfFame" } });
     if (ch === "P" || ch === "J") return void hud.set({ panel: { kind: "regulars" } });
     if (ch === "z") return void hud.set({ panel: { kind: "jukebox" } });
+    if (ch === "?") return void hud.set({ panel: { kind: "requests" } });
   }
   if (shopInteract(x, y)) return;
   if (basementInteract(x, y)) return;

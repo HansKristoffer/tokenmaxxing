@@ -444,6 +444,14 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
     the feed; the last champion's name sits under the board and a crown by it in chat until the next one. Nothing
     is paid: no coins, no edge, no reward for burn.
 
+- **Request pile** (`?` on the Tavern's north wall; E opens the `requests` panel `Requests.tsx`). A corkboard where
+  anyone writes what they'd like in the game (`core/src/requests.ts` rules, `server/src/town/requests.ts`, tables
+  `requests` and `request_votes`, `town.request*`) and everyone can 👍 it: 8 to 280 characters on one line, no
+  links (`parseRequest`), 5 open ones a player, a minute between posts, no repeat of one already open. The pile
+  reads planned first, then open by 👍, then the last few done or turned down. Authors take back their own open
+  request. The admin page's Requests tab marks each open, planned, done or not now, or removes it (logged);
+  deleting a player takes their requests and 👍 with them. Free: no coins.
+
 ## Quests
 
 Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/town/quests.ts`).

@@ -22,6 +22,7 @@ import {
   plaque,
   pokerTable,
   questBoard,
+  requestPile,
   stool,
   table,
 } from "./tavern.ts";
@@ -621,6 +622,8 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(plaque());
     case "z":
       return at(jukebox(), 2);
+    case "?":
+      return at(requestPile(), 0, 0);
     // The poker table: a block of felt tiles, its rim on the sides that have no neighbour of its own.
     case "♠":
       return at(

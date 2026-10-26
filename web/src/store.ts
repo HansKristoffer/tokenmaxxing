@@ -40,6 +40,7 @@ export type Panel =
   | { kind: "raid" }
   | { kind: "quests" }
   | { kind: "tournament" }
+  | { kind: "requests" }
   | { kind: "hallOfFame" }
   | { kind: "collection" }
   | { kind: "regulars" }
