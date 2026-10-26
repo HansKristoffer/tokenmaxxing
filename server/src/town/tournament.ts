@@ -165,7 +165,7 @@ export async function open(
 export async function signup(sql: Sql, userId: number, join: boolean, now: number): Promise<Result> {
   const lines: string[] = [];
   const row = await tick(sql, now, lines);
-  if (!row || row.status !== "open") throw new UserError("No bracket is taking names.", { code: "closed" });
+  if (row?.status !== "open") throw new UserError("No bracket is taking names.", { code: "closed" });
   const players = idsOf(row);
   const has = players.includes(userId);
   if (join && has) throw new UserError("You're signed up already.", { code: "joined" });
