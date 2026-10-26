@@ -9,20 +9,20 @@ import {
   hpFor,
   launchWeek,
   MIN_HP,
+  nextWeekHp,
   opensAt,
   PR_HIT,
-  RAID_COIN_CAP,
   RAID_COINS,
   RAIDER_AT,
   type RaidDay,
   raidCoins,
   raidWeekAt,
   raidWeeks,
+  REWARD_GROWTH,
   rewardFor,
   rungHp,
   seatFor,
   WEEKLY_GROWTH,
-  weekHp,
   weekOf,
 } from "../src/raid.ts";
 import { addDays, dayKey } from "../src/range.ts";
@@ -62,27 +62,33 @@ test("the gate opens at 08:00 on Monday, Copenhagen time, summer and winter", ()
   }
 });
 
-test("the ladder goes from the easiest, round and round with a level", () => {
-  expect([1, 2, 3, 4].map((r) => bossAt(r).name)).toEqual([
+test('the ladder is five bosses, easiest first, and a level makes the same five "II", "III"…', () => {
+  expect([1, 2, 3, 4, 5].map((r) => bossAt(r).name)).toEqual([
     "The Rate Limit",
     "The Context Window",
     "Merge Conflict",
     "The Hallucination",
+    "The Invoice",
   ]);
   expect(bossAt(1).id).toBe(BOSSES[0]!.id);
-  expect(bossAt(7)).toMatchObject({ id: "merge-conflict", name: "Merge Conflict II", rung: 7, level: 2 });
-  expect(bossAt(9)).toMatchObject({ id: "rate-limit", name: "The Rate Limit III", level: 3 });
+  expect(bossAt(1, 2)).toMatchObject({ id: "rate-limit", name: "The Rate Limit II", rung: 1, level: 2 });
+  expect(bossAt(3, 2)).toMatchObject({ id: "merge-conflict", name: "Merge Conflict II", rung: 3, level: 2 });
+  expect(bossAt(5, 3)).toMatchObject({ id: "invoice", name: "The Invoice III", level: 3 });
 });
 
-test("each rung has 1.5× the HP and pays 1.5× the coins", () => {
+test("each rung has 1.5× the HP; a kill pays 10, 25, 50, 75, 100, and 10% more each level", () => {
   expect(rungHp(2e9, 1)).toBe(2e9);
   expect(rungHp(2e9, 2)).toBe(3e9);
   expect(rungHp(2e9, 3)).toBe(4.5e9);
   expect(HP_GROWTH).toBe(1.5);
-  expect([1, 2, 3, 4, 5, 6].map(rewardFor)).toEqual([10, 15, 25, 35, 50, 50]);
-  // However high the ladder goes, a kill never pays more than the cap.
-  expect(rewardFor(30)).toBe(RAID_COIN_CAP);
+  expect([1, 2, 3, 4, 5].map((r) => rewardFor(r))).toEqual([10, 25, 50, 75, 100]);
   expect(rewardFor(1)).toBe(RAID_COINS);
+  expect(REWARD_GROWTH).toBe(1.1);
+  // A level up pays 10% more, level on level.
+  expect([1, 2, 3].map((l) => rewardFor(5, l))).toEqual([100, 110, 121]);
+  expect(rewardFor(1, 2)).toBe(11);
+  expect(rewardFor(2, 2)).toBe(28); // 27.5, rounded
+
 });
 
 test("a day hits for all its tokens, no cap, and a PR is a special attack", () => {
@@ -123,25 +129,75 @@ test("a big day brings down several, all that day, in order", () => {
   expect(raidCoins([w!], 1)).toBe(rewardFor(1) + rewardFor(2));
 });
 
-test("the first raid's rung 1 follows the week before; every week after is 10% tougher, whatever the town did", () => {
+test("the first raid's rung 1 follows the week before; a week's ladder only levels up if the one before cleared it", () => {
   expect(WEEKLY_GROWTH).toBe(1.1);
   expect(hpFor(0)).toBe(MIN_HP);
+  expect(BOSSES).toHaveLength(5);
   const history = Array.from({ length: 20 }, (_, u) => hit(u, day(-7), 2e9)); // 40B the week before
-  const first = 40e9 * HP_SHARE;
-  const quiet = raids(history, noon(day(21)));
-  // A huge week 1 and nothing at all after it: the ladder doesn't care.
+  const first = 40e9 * HP_SHARE; // 4B: all five rungs are 4B × 13.1875 = 52.75B
+  // A huge week 1 clears every rung; nothing at all after it: the next weeks stay at level 2.
   const busy = raids(
-    [...history, ...Array.from({ length: 20 }, (_, u) => hit(u, day(8), 50e9))],
+    [...history, ...Array.from({ length: 20 }, (_, u) => hit(u, day(0), 3e9))], // 60B
     noon(day(21)),
   );
-  for (const weeks of [quiet, busy]) {
-    expect(weeks.map((w) => w.week)).toEqual([day(0), day(7), day(14), day(21)]);
-    expect(weeks.map((w) => w.hp)).toEqual([first, first * 1.1, first * 1.21, first * 1.331].map(Math.round));
-  }
-  expect(busy[1]!.damage).toBe(1000e9);
-  expect(weekHp(first, 3)).toBe(Math.round(first * 1.331));
-  // No history: the first raid has the least HP, and the rest grow from it.
-  expect(raids([], noon(day(7))).map((w) => w.hp)).toEqual([MIN_HP, Math.round(MIN_HP * 1.1)]);
+  expect(busy.map((w) => w.week)).toEqual([day(0), day(7), day(14), day(21)]);
+  expect(busy[0]!.cleared).toBe(true);
+  expect(busy.map((w) => w.cleared)).toEqual([true, false, false, false]);
+  expect(busy.map((w) => w.level)).toEqual([1, 2, 2, 2]);
+  expect(busy.map((w) => w.hp)).toEqual([first, first * 1.1, first * 1.1, first * 1.1].map(Math.round));
+  expect(busy[1]!.current.boss.name).toBe("The Rate Limit II");
+  // A town that never gets through the whole ladder never levels up.
+  const stalled = raids(
+    [...history, ...Array.from({ length: 20 }, (_, u) => hit(u, day(0), 1e9))], // 20B: three rungs
+    noon(day(21)),
+  );
+  expect(stalled[0]!.kills.length).toBeLessThan(5);
+  expect(stalled.map((w) => w.level)).toEqual([1, 1, 1, 1]);
+  expect(stalled.map((w) => w.hp)).toEqual([first, first, first, first]);
+  // Four rungs is not enough; five is.
+  expect(nextWeekHp(first, 4)).toBe(first);
+  expect(nextWeekHp(first, 5)).toBe(Math.round(first * 1.1));
+  // Level 2 cleared too: level 3, and 10% more again. Level 2 not cleared: back at level 2.
+  const days = [
+    ...history,
+    ...Array.from({ length: 20 }, (_, u) => hit(u, day(0), 3e9)),
+    ...Array.from({ length: 20 }, (_, u) => hit(u, day(7), 4e9)), // 80B against 4.4B × 13.1875 = 58B
+  ];
+  const twice = raids(days, noon(day(14)));
+  expect(twice.map((w) => w.level)).toEqual([1, 2, 3]);
+  expect(twice.map((w) => w.hp)).toEqual([first, first * 1.1, first * 1.21].map(Math.round));
+  expect(twice[2]!.current.boss.name).toBe("The Rate Limit III");
+  const failed = raids(
+    [...history, ...Array.from({ length: 20 }, (_, u) => hit(u, day(0), 3e9)), hit(1, day(7), 1e9)],
+    noon(day(14)),
+  );
+  expect(failed.map((w) => w.level)).toEqual([1, 2, 2]);
+  expect(failed.map((w) => w.hp)).toEqual([first, first * 1.1, first * 1.1].map(Math.round));
+  // No history: the first raid has the least HP, and a quiet week leaves the next the same.
+  expect(raids([], noon(day(7))).map((w) => w.hp)).toEqual([MIN_HP, MIN_HP]);
+});
+
+test("once the Invoice falls the ladder is cleared: no more bosses, the overflow still counts as damage", () => {
+  // Rung 1 is 2B: the five cost 26.375B. 30B on day 0 clears it with 3.6B over.
+  const [w] = raids(
+    Array.from({ length: 10 }, (_, u) => hit(u, day(0), 3e9)),
+    noon(day(3)),
+  );
+  expect(w!.kills.map((k) => k.rung)).toEqual([1, 2, 3, 4, 5]);
+  expect(w!.kills.map((k) => k.boss.name).at(-1)).toBe("The Invoice");
+  expect(w!.cleared).toBe(true);
+  expect(w!.damage).toBe(30e9);
+  expect(w!.current.boss.name).toBe("The Invoice");
+  expect(w!.current.damage).toBe(w!.current.hp);
+  expect(w!.raiders).toHaveLength(10);
+  // More after it hits nothing: no sixth kill, and the same coins.
+  const [more] = raids(
+    [...Array.from({ length: 10 }, (_, u) => hit(u, day(0), 3e9)), hit(1, day(2), 500e9)],
+    noon(day(3)),
+  );
+  expect(more!.kills).toHaveLength(5);
+  expect(more!.damage).toBe(530e9);
+  expect(raidCoins([more!], 1)).toBe(raidCoins([w!], 1) + 0);
 });
 
 test("a steady town clears about four rungs in the first week", () => {
@@ -150,10 +206,10 @@ test("a steady town clears about four rungs in the first week", () => {
   for (let w = -1; w < 3; w++)
     for (let d = 0; d < 7; d++) for (let u = 1; u <= 20; u++) days.push(hit(u, day(7 * w + d), 300e6));
   const weeks = raids(days, noon(day(20)));
-  // Rung 1 is 4.2B, then 4.62B: four fall each week, 10 + 15 + 25 + 35 coins.
+  // Rung 1 is 4.2B, then 4.62B: four fall each week, 10 + 25 + 50 + 75 coins.
   for (const w of weeks.slice(0, 2)) {
     expect(w.current.boss.rung).toBe(5);
-    expect(raidCoins([w], 1)).toBe(85);
+    expect(raidCoins([w], 1)).toBe(160);
   }
   // A quieter week (60%) still gets past the first three; a busier one (1.7×) five.
   const busy = (share: number) => {
@@ -238,8 +294,8 @@ test("until 08:00 Monday it's last week, as it ended, and its kills still pay", 
   expect(raidCoins(early, 10)).toBe(0);
   const open = raids(days, opensAt(next));
   expect(open.map((w) => w.week)).toEqual([START, next]);
-  // Monday's early tokens are in: 6B against a 2.2B rung 1 (10% up on last week's) and 3.3B rung 2.
-  expect(open[1]!.hp).toBe(Math.round(MIN_HP * WEEKLY_GROWTH));
+  // Monday's early tokens are in: 6B against a 2B rung 1 (last week only cleared one, so no 10% up) and 3B rung 2.
+  expect(open[1]!.hp).toBe(MIN_HP);
   expect(open[1]!.damage).toBe(6e9);
   expect(open[1]!.kills.map((k) => k.rung)).toEqual([1, 2]);
   expect(raidCoins(open, 10)).toBe(rewardFor(1) + rewardFor(2));

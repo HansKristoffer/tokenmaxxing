@@ -1,5 +1,5 @@
 import { compact, countdown, plural } from "@tokenmaxxing/core/format.ts";
-import { bossAt } from "@tokenmaxxing/core/raid.ts";
+import { BOSSES, bossAt, rewardFor } from "@tokenmaxxing/core/raid.ts";
 import type { Raid } from "@tokenmaxxing/server/registry";
 import { useEffect, useRef, useState } from "react";
 import { bossSilhouette } from "../art/bosses.ts";
@@ -72,7 +72,11 @@ export function RaidBox() {
         </span>
         <small className="muted">
           {raid.kills.length > 0 && `🏆${raid.kills.length} · `}
-          {raid.closed ? "week over" : `rung ${raid.boss.rung} · ${Math.ceil(share(raid) * 100)}%`}
+          {raid.closed
+            ? "week over"
+            : raid.cleared
+              ? "cleared"
+              : `rung ${raid.boss.rung} · ${Math.ceil(share(raid) * 100)}%`}
         </small>
       </div>
       <HpBar raid={raid} />
@@ -86,7 +90,7 @@ const AHEAD = 3;
 /** This week's ladder: the kills, the rung being fought, and the next few. */
 function Ladder({ raid }: { raid: Raid }) {
   const { rules } = raid;
-  const reward = (rung: number) => rules.rewards[rung - 1] ?? rules.rewards.at(-1)!;
+  const reward = (rung: number) => rewardFor(rung, raid.level);
   return (
     <ol className="raid-ladder">
       {raid.kills.map((k) => (
@@ -101,18 +105,26 @@ function Ladder({ raid }: { raid: Raid }) {
           </span>
         </li>
       ))}
-      <li className="now">
-        <span className="rung">{raid.boss.rung}</span>
-        <span className="who">
-          {raid.boss.emoji} {raid.boss.name}
-        </span>
-        <span className="muted small">
-          {compact(left(raid))} / {compact(raid.hp)} · 🪙 {reward(raid.boss.rung)}
-        </span>
-      </li>
+      {raid.cleared ? (
+        <li className="now">
+          <span className="who">🏁 Ladder cleared</span>
+          <span className="muted small">Next one opens Monday {opensAt(raid)}</span>
+        </li>
+      ) : (
+        <li className="now">
+          <span className="rung">{raid.boss.rung}</span>
+          <span className="who">
+            {raid.boss.emoji} {raid.boss.name}
+          </span>
+          <span className="muted small">
+            {compact(left(raid))} / {compact(raid.hp)} · 🪙 {reward(raid.boss.rung)}
+          </span>
+        </li>
+      )}
       {!raid.closed &&
-        Array.from({ length: AHEAD }, (_, i) => {
-          const b = bossAt(raid.boss.rung + i + 1);
+        !raid.cleared &&
+        Array.from({ length: Math.min(AHEAD, BOSSES.length - raid.boss.rung) }, (_, i) => {
+          const b = bossAt(raid.boss.rung + i + 1, raid.level);
           return (
             <li key={b.rung} className="ahead">
               <span className="rung">{b.rung}</span>
@@ -166,8 +178,9 @@ function Teaser({ raid }: { raid: Raid }) {
         <ul className="raid-rules muted small">
           <li>
             Every Monday at {opensAt(raid)} a ladder of bosses opens. Kill one and the next, ×{rules.hpGrowth}{" "}
-            tougher, steps up at once, with the overflow carried over. Each week starts{" "}
-            {Math.round((rules.weeklyGrowth - 1) * 100)}% tougher than the last.
+            tougher, steps up at once, with the overflow carried over. Clear all five and the ladder is done
+            till next Monday, when it comes back one level up, {Math.round((rules.weeklyGrowth - 1) * 100)}%
+            tougher; fall short and it starts again at the same level.
           </li>
           <li>
             Every token you sync hits the boss, no cap, wherever you are. Every PR you open is a{" "}
@@ -179,7 +192,7 @@ function Teaser({ raid }: { raid: Raid }) {
           </li>
           <li>
             Every kill pays everyone with {compact(rules.raiderAt)}+ that week so far: 🪙{" "}
-            {rules.rewards.slice(0, 5).join(", ")}… a rung.
+            {rules.rewards.join(", ")} a rung, {Math.round((rules.rewardGrowth - 1) * 100)}% more each level.
           </li>
         </ul>
       </div>
@@ -287,12 +300,14 @@ export function RaidPanel() {
         <ul className="raid-rules muted small">
           <li>
             A new ladder opens every Monday at {opensAt(raid)}. The first ladder was set from the town's week
-            before the raid opened; every week since is {Math.round((rules.weeklyGrowth - 1) * 100)}% tougher.
-            Each rung has ×{rules.hpGrowth} the HP of the one before.
+            before the raid opened. Clear all five bosses in a week and the next ladder is one level up ("II",
+            "III"…) and {Math.round((rules.weeklyGrowth - 1) * 100)}% tougher; otherwise it starts the same as
+            this one. Each rung has ×{rules.hpGrowth} the HP of the one before.
           </li>
           <li>
             Kill a boss and the next one steps up at once: Rate Limit, Context Window, Merge Conflict,
-            Hallucination, then the four again as "II", and so on. Damage past a kill carries over.
+            Hallucination, the Invoice. Damage past a kill carries over, but once the Invoice falls the ladder
+            is done and the bosses rest until Monday.
           </li>
           <li>Every token you sync hits it, no cap.</li>
           <li>Every PR you open is a special attack for {compact(rules.prHit)}.</li>
@@ -303,7 +318,7 @@ export function RaidPanel() {
           </li>
           <li>
             Every kill pays everyone with {compact(rules.raiderAt)}+ that week so far: 🪙{" "}
-            {rules.rewards.slice(0, 5).join(", ")}… (×{rules.hpGrowth} a rung).
+            {rules.rewards.join(", ")} a rung, {Math.round((rules.rewardGrowth - 1) * 100)}% more each level up.
           </li>
         </ul>
         {raid.last && (

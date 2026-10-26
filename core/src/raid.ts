@@ -1,7 +1,8 @@
 /**
  * The weekly raid: a ladder of bosses in the town square that the whole town fights together. Every
  * token anyone syncs that week hits the boss on the current rung, and every PR they open is a special
- * attack. When a boss falls the next, harder one appears at once and the overflow carries over. Like
+ * attack. When a boss falls the next, harder one appears at once and the overflow carries over; when the
+ * fifth falls the ladder is cleared and the town waits for next Monday. Like
  * coins, nothing is stored: a week's damage, the ladder, its kills and who gets paid are worked out
  * from the daily rollups, so a late sync still lands its hits. Pure functions, shared by server and client.
  */
@@ -16,7 +17,7 @@ interface Boss {
   taunts: readonly string[];
 }
 
-/** The ladder's order, easiest first; after the last it starts over as "II", "III"… */
+/** The ladder's order, easiest first. A week has just these, once each; clearing them all earns a harder ladder, "II", "III"… */
 export const BOSSES: readonly Boss[] = [
   {
     id: "rate-limit",
@@ -52,6 +53,12 @@ export const BOSSES: readonly Boss[] = [
       "Citation needed.",
     ],
   },
+  {
+    id: "invoice",
+    name: "The Invoice",
+    emoji: "🧾",
+    taunts: ["Net 30.", "Usage this month: ∞.", "Please remit payment.", "Overage charges apply."],
+  },
 ];
 
 /**
@@ -60,7 +67,10 @@ export const BOSSES: readonly Boss[] = [
  * four bosses and stands at the fifth.
  */
 export const HP_SHARE = 0.1;
-/** Every week after the first, rung 1 has this many times the HP of the week before's. */
+/**
+ * Every week after the first, rung 1 has this many times the HP of the week before's, but only if
+ * the town cleared the whole ladder (`BOSSES.length` rungs) that week; otherwise it stays the same.
+ */
 export const WEEKLY_GROWTH = 1.1;
 /** Each rung has this many times the HP of the one before. */
 export const HP_GROWTH = 1.5;
@@ -70,17 +80,19 @@ export const MIN_HP = 2e9;
 export const PR_HIT = 25e6;
 /** Damage that week, up to the day of a kill, to count as one of its raiders and be paid for it. */
 export const RAIDER_AT = 10e6;
-/** What each raider gets for rung 1's kill; each rung after pays ×1.5, to the nearest 5, up to `RAID_COIN_CAP`. */
-export const RAID_COINS = 10;
-/** The most one kill pays a raider, however high the ladder goes. */
-export const RAID_COIN_CAP = 50;
+/** What each raider gets when the boss on rungs 1 to 5 falls, on a level 1 ladder. */
+export const RAID_REWARDS: readonly number[] = [10, 25, 50, 75, 100];
+/** What rung 1 pays. */
+export const RAID_COINS = RAID_REWARDS[0]!;
+/** Every level of the ladder pays this many times what the one before did. */
+export const REWARD_GROWTH = 1.1;
 /** The week's gate opens at this hour on Monday, world time. */
 export const OPENS_AT_HOUR = 8;
 
-/** A boss on a rung of the ladder: "Merge Conflict II" is rung 7, level 2. */
+/** A boss on a rung of the ladder: "Merge Conflict II" is rung 3 of the level 2 ladder. */
 export interface RungBoss extends Boss {
   rung: number;
-  /** 1 the first time round the ladder, 2 the second ("II"), and so on. */
+  /** The ladder's level: 1 the first time, one more for each ladder the town has cleared ("II", "III"…). */
   level: number;
 }
 
@@ -105,10 +117,9 @@ const roman = (n: number): string => {
   return out;
 };
 
-/** The boss on `rung` (1 is the easiest). */
-export function bossAt(rung: number): RungBoss {
-  const boss = BOSSES[(rung - 1) % BOSSES.length]!;
-  const level = Math.floor((rung - 1) / BOSSES.length) + 1;
+/** The boss on `rung` (1 is the easiest, `BOSSES.length` the last) of a level `level` ladder. */
+export function bossAt(rung: number, level = 1): RungBoss {
+  const boss = BOSSES[Math.min(rung, BOSSES.length) - 1]!;
   return { ...boss, name: level > 1 ? `${boss.name} ${roman(level)}` : boss.name, rung, level };
 }
 
@@ -116,15 +127,19 @@ export function bossAt(rung: number): RungBoss {
 export const hpFor = (lastWeekDamage: number): number =>
   Math.max(MIN_HP, Math.round(lastWeekDamage * HP_SHARE));
 
-/** Rung 1's HP `n` weeks after the first raid, whose rung 1 had `first`: 10% more each week. */
-export const weekHp = (first: number, n: number): number => Math.round(first * WEEKLY_GROWTH ** n);
+/** Whether a week's kills got through every boss (the 5 of `BOSSES`): that's what earns the next level's ladder, 10% tougher. */
+export const ladderCleared = (kills: number): boolean => kills >= BOSSES.length;
+
+/** Rung 1's HP the week after one whose rung 1 had `hp` and which had `kills` kills: +10% if it cleared the ladder, else the same. */
+export const nextWeekHp = (hp: number, kills: number): number =>
+  ladderCleared(kills) ? Math.round(hp * WEEKLY_GROWTH) : hp;
 
 /** The HP of `rung`, from rung 1's. */
 export const rungHp = (base: number, rung: number): number => Math.round(base * HP_GROWTH ** (rung - 1));
 
-/** What each raider gets when the boss on `rung` falls: 10, 15, 25, 35, 50, then 50 a kill. */
-export const rewardFor = (rung: number): number =>
-  Math.min(RAID_COIN_CAP, 5 * Math.round((RAID_COINS * HP_GROWTH ** (rung - 1)) / 5));
+/** What each raider gets when the boss on `rung` falls on a level `level` ladder: 10, 25, 50, 75, 100, and 10% more each level. */
+export const rewardFor = (rung: number, level = 1): number =>
+  Math.round(RAID_REWARDS[Math.min(rung, RAID_REWARDS.length) - 1]! * REWARD_GROWTH ** (level - 1));
 
 /** One player's world day, as the raid sees it. */
 export interface RaidDay {
@@ -201,20 +216,27 @@ interface Kill {
 
 export interface RaidWeek {
   week: string;
+  /** The ladder's level: 1, then one more after each week that cleared it. */
+  level: number;
   /** Rung 1's HP; rung n has `rungHp(hp, n)`. */
   hp: number;
   /** Everything the town hit that week. */
   damage: number;
   /** The bosses that fell, in order. */
   kills: Kill[];
-  /** The rung still standing, and how much of its HP has been hit (the overflow included). */
+  /** Every boss has fallen: the ladder is done and nothing more happens till next Monday. */
+  cleared: boolean;
+  /**
+   * The rung still standing, and how much of its HP has been hit (the overflow included). Once the
+   * ladder is `cleared` it's the last boss, fallen: its whole HP hit, whatever came after.
+   */
   current: { boss: RungBoss; hp: number; damage: number };
   /** Damage per player, highest first. */
   raiders: { userId: number; damage: number }[];
 }
 
-/** One week's ladder, from its days (all in that week). */
-function ladder(week: string, hp: number, days: readonly RaidDay[]): RaidWeek {
+/** One week's ladder of level `level`, from its days (all in that week). */
+function ladder(week: string, level: number, hp: number, days: readonly RaidDay[]): RaidWeek {
   const byDay = groupBy(days, "day");
   const perUser = new Map<number, number>();
   const kills: Kill[] = [];
@@ -228,14 +250,15 @@ function ladder(week: string, hp: number, days: readonly RaidDay[]): RaidWeek {
       pool += hit;
       total += hit;
     }
-    // A big day can bring down several, all on that day, in order.
-    while (pool >= rungHp(hp, rung)) {
+    // A big day can bring down several, all on that day, in order, up to the last boss. What's left
+    // after that still counts as damage, but there's nothing more to hit.
+    while (rung <= BOSSES.length && pool >= rungHp(hp, rung)) {
       pool -= rungHp(hp, rung);
       kills.push({
         rung,
-        boss: bossAt(rung),
+        boss: bossAt(rung, level),
         day,
-        coins: rewardFor(rung),
+        coins: rewardFor(rung, level),
         raiders: [...perUser]
           .filter(([, n]) => n >= RAIDER_AT)
           .map(([userId]) => userId)
@@ -244,12 +267,20 @@ function ladder(week: string, hp: number, days: readonly RaidDay[]): RaidWeek {
       rung++;
     }
   }
+  const cleared = rung > BOSSES.length;
+  const standing = Math.min(rung, BOSSES.length);
   return {
     week,
+    level,
     hp,
     damage: total,
     kills,
-    current: { boss: bossAt(rung), hp: rungHp(hp, rung), damage: pool },
+    cleared,
+    current: {
+      boss: bossAt(standing, level),
+      hp: rungHp(hp, standing),
+      damage: cleared ? rungHp(hp, standing) : pool,
+    },
     raiders: [...perUser]
       .map(([userId, damage]) => ({ userId, damage }))
       .sort((a, b) => b.damage - a.damage || a.userId - b.userId),
@@ -267,7 +298,8 @@ export const firstHp = (days: readonly RaidDay[], start: string): number => {
 /**
  * Every raid from the first, `start` (a Monday), to the week shown at `now` (`raidWeekAt`), oldest
  * first; none before `start` opens. The first raid's HP comes from the damage the week before it
- * (`firstHp`); every week after is 10% tougher than the last (`weekHp`), whatever the town did.
+ * (`firstHp`); every week after has the same ladder again, or, if the town cleared the whole ladder
+ * that week, the next level's: its bosses "II", "III"… and 10% tougher (`nextWeekHp`).
  */
 export function raidWeeks(days: readonly RaidDay[], now: number, start: string): RaidWeek[] {
   const current = raidWeekAt(now);
@@ -275,8 +307,16 @@ export function raidWeeks(days: readonly RaidDay[], now: number, start: string):
   // `firstHp`, from the week's own bucket.
   const first = hpFor(totalDamage(byWeek[addDays(start, -7)] ?? []));
   const out: RaidWeek[] = [];
-  for (let week = start; week <= current; week = addDays(week, 7))
-    out.push(ladder(week, weekHp(first, out.length), byWeek[week] ?? []));
+  let hp = first;
+  let level = 1;
+  for (let week = start; week <= current; week = addDays(week, 7)) {
+    const prev = out[out.length - 1];
+    if (prev?.cleared) {
+      hp = nextWeekHp(hp, prev.kills.length);
+      level++;
+    }
+    out.push(ladder(week, level, hp, byWeek[week] ?? []));
+  }
   return out;
 }
 

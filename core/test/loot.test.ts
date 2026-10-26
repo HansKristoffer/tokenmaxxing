@@ -101,8 +101,8 @@ test("odds: 10%, 2.5%, 0.5% and 0.1%, ×1.05 a lap round the ladder, at most ×1
   expect(lapBonus(49)).toBe(LAP_CAP);
   expect(lapBonus(500)).toBe(LAP_CAP);
   expect(lootOdds("legendary", 500)).toBeCloseTo(0.01, 8);
-  // "II" is rung 5: the lap after the first.
-  expect(lootOdds("legendary", bossAt(5).level)).toBeCloseTo(0.00105, 8);
+  // "II" is the level after the first.
+  expect(lootOdds("legendary", bossAt(1, 2).level)).toBeCloseTo(0.00105, 8);
   expect(lootOdds("rare", 2)).toBeCloseTo(0.02625, 8);
   // The dev boost, and never past certain.
   expect(lootOdds("epic", 1, 100)).toBeCloseTo(0.5, 8);
@@ -110,7 +110,7 @@ test("odds: 10%, 2.5%, 0.5% and 0.1%, ×1.05 a lap round the ladder, at most ×1
 });
 
 test("a kill's drops: only its raiders roll, each item on its own, from that boss's table", () => {
-  const kill = { rung: 2, day: "2026-10-21", raiders: [1, 2, 3] };
+  const kill = { rung: 2, level: 1, day: "2026-10-21", raiders: [1, 2, 3] };
   const all = killDrops("2026-10-19", kill, 1000);
   // Certain odds: every raider gets the whole Context Window table.
   expect(all).toHaveLength(12);
@@ -136,8 +136,10 @@ test("a kill's drops: only its raiders roll, each item on its own, from that bos
 test("a week's drops follow its kills, and the same weeks give the same drops", () => {
   const week = (w: string, rungs: number[]): RaidWeek => ({
     week: w,
+    level: 1,
     hp: 1,
     damage: 0,
+    cleared: false,
     kills: rungs.map((rung) => ({ rung, boss: bossAt(rung), day: w, coins: 20, raiders: [1, 2] })),
     current: { boss: bossAt(rungs.length + 1), hp: 1, damage: 0 },
     raiders: [],
