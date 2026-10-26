@@ -74,6 +74,19 @@ const localClient = createClient<typeof registry>({
 });
 const health = healthCheck(() => main(localClient).town.health(), config.version);
 
+// The landing page says how many have signed up: counted once a minute, and written into the page's
+// `<!--players-->` as it goes out. Until there's a count (or without a server, in `astro dev`) the
+// page hides that line.
+const landing = await site.get("/index.html")?.text();
+let players: number | null = null;
+const countPlayers = async () => {
+  players = await main(localClient)
+    .town.playerCount()
+    .catch(() => players);
+};
+void countPlayers();
+setInterval(countPlayers, 60_000);
+
 // If the engine dies, every actor stops but this process stays up, so Railway never restarts it.
 // Probe an actor now and then: when probes keep failing, exit. A busy machine is slow, not dead, so
 // a probe gets a long timeout and several must fail in a row over a window (watchdog.ts has the
@@ -172,7 +185,18 @@ const server = Bun.serve({
     const asset = path.endsWith(".html") ? undefined : assets.get(path);
     if (asset)
       return new Response(asset, { headers: { "cache-control": "public, max-age=31536000, immutable" } });
-    const page = site.get(path.endsWith("/") ? `${path}index.html` : path);
+    const file = path.endsWith("/") ? `${path}index.html` : path;
+    if (file === "/index.html" && landing)
+      return new Response(
+        players === null ? landing : landing.replace("<!--players-->", players.toLocaleString("en-US")),
+        {
+          headers: headersFor("site", req, {
+            "cache-control": "no-cache",
+            "content-type": "text/html;charset=utf-8",
+          }),
+        },
+      );
+    const page = site.get(file);
     if (page)
       return new Response(page, {
         headers: headersFor("site", req, {
