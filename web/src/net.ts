@@ -45,6 +45,14 @@ import { hud } from "./store.ts";
 
 const TOKEN_KEY = "tokenmaxxing.session";
 
+// Rivetkit opens its sockets on the endpoint's http(s) URL. Chromium only takes those from 125, so an
+// older WebView (Huawei's ships 114) throws a SyntaxError: hand it ws(s) instead.
+globalThis.WebSocket = class extends WebSocket {
+  constructor(url: string | URL, protocols?: string | string[]) {
+    super(String(url).replace(/^http(s?):/, "ws$1:"), protocols);
+  }
+};
+
 // Actions go over connections, not stateless HTTP: the client streams request bodies, which
 // Chrome only allows over HTTP/2 (so it breaks on plain-http localhost).
 const client = createClient<typeof registry>({ endpoint: `${location.origin}/api/rivet`, devtools: false });
