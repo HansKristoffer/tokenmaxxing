@@ -2,6 +2,7 @@ import type { DeviceInfo } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
 import { connectPlayer, withPlayer } from "../net.ts";
 import { tauri } from "./AppUpdate.tsx";
+import { PhonePairing } from "./PhonePairing.tsx";
 import { useRun } from "./ui.tsx";
 
 const PLATFORMS: Record<string, string> = { darwin: "macOS", linux: "Linux", win32: "Windows" };
@@ -101,6 +102,7 @@ export function Computers() {
         </button>
       )}
       {error && <p className="error">{error}</p>}
+      <PhonePairing />
     </>
   );
 }

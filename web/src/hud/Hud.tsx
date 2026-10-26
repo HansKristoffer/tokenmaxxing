@@ -6,7 +6,7 @@ import type { Wallet } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { roomName, world } from "../game/world.ts";
-import { town } from "../net.ts";
+import { redeem, town } from "../net.ts";
 import { storage } from "../storage.ts";
 import { chatBeside, hud, useHud } from "../store.ts";
 import { AppSignIn } from "./AppSignIn.tsx";
@@ -375,16 +375,46 @@ function OfficeLock() {
 }
 
 function SignedOut({ expired }: { expired: boolean }) {
+  const [code, setCode] = useState("");
+  const { busy, error, run } = useRun();
+  const submit = run(async () => {
+    const value = code.trim();
+    if (!/^\d{1,12}\.[A-Za-z0-9_-]{16,128}$/.test(value))
+      throw new Error("Paste the sign-in code from your computer.");
+    await redeem(value);
+    location.reload();
+  });
   return (
     <div className="signed-out">
       <div className="panel">
         <p className="title">⚡ tokenmaxxing</p>
-        <p>{expired ? "That link has expired." : "A tiny town for people who run AI coding agents."}</p>
         <p>
-          Open the world from the <strong>tokenmaxxing</strong> menu bar app to walk in.
+          {expired
+            ? "That link has expired. Make a new code on your computer."
+            : "Connect to your existing account."}
         </p>
+        <p>
+          On your computer, open your player card → Computers → Connect phone. Scan the QR in the Android app,
+          or paste its code here.
+        </p>
+        <form className="phone-signin" onSubmit={submit}>
+          <label>
+            Sign-in code
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+            />
+          </label>
+          <button type="submit" className="primary" disabled={busy || !code.trim()}>
+            Sign in
+          </button>
+        </form>
+        {error && <p className="error">{error}</p>}
         <p className="muted">
-          Don't have it yet? <code>brew install --cask hanskristoffer/tap/tokenmaxxing</code>
+          New here? <a href="/">Get the desktop app</a> to create an account and sync your usage.
         </p>
       </div>
     </div>
