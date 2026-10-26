@@ -149,7 +149,10 @@ All art is drawn in code (palette-string sprites and rectangles), so the repo ca
 
 ## Development
 
-Requires Bun 1.4.4+ (for `bun check` and `bun fmt`), Rust (stable) and Xcode's command line tools (macOS 14+).
+Requires Bun 1.4.4+ (for `bun check` and `bun fmt`), Rust (stable), and the native
+[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS. macOS needs Xcode's command
+line tools (macOS 14+); Windows needs MSVC C++ build tools and WebView2; Linux needs WebKitGTK 4.1,
+GTK/AppIndicator and D-Bus development packages (see the desktop CI job for the Ubuntu package list).
 
 ```bash
 bun install --ignore-scripts
@@ -163,8 +166,38 @@ bun run format                         # Biome's fixes, then bun fmt
 ```
 
 Dev builds of the desktop app run the helper from source (so TypeScript changes only need an app restart),
-with their own Keychain entry and state dir, so they never touch the installed app's account. Point one at
+with their own credential-store entry and state dir, so they never touch the installed app's account. Point one at
 another server with `TOKENMAXXING_SERVER_URL=… bun run desktop:dev`.
+### Linux and Windows desktop preview
+
+The desktop app can be built natively on Linux and Windows with `bun run desktop:dev` or
+`bun run desktop:build`. Build on the target OS: Linux produces `.deb` and `.AppImage` packages;
+Windows x64 produces an NSIS `.exe` installer. The helper build hook uses Bun, so Git Bash is not
+required for local Windows builds. The existing signed macOS release pipeline is unchanged.
+
+CI checks Rust on all three platforms and uploads unsigned Linux/Windows preview installers as
+`desktop-Linux` and `desktop-Windows` artifacts. These use the repository's `TOKENMAXXING_SERVER_URL`
+variable, or `http://localhost:8787` when it is unavailable (such as on a fork). A local release build
+must set `TOKENMAXXING_SERVER_URL` explicitly; in PowerShell:
+
+```powershell
+$env:TOKENMAXXING_SERVER_URL = "http://localhost:8787"
+bun run desktop:build
+```
+
+Tokens stay in macOS Keychain, Windows Credential Manager, or the Linux desktop's Secret Service
+(e.g. GNOME Keyring, with an unlocked login keyring and session D-Bus). There is no plaintext token
+fallback. Sync state is in `~/Library/Application Support/Tokenmaxxing` on macOS,
+`%LOCALAPPDATA%/Tokenmaxxing` on Windows, and `$XDG_DATA_HOME/Tokenmaxxing` (default
+`~/.local/share/Tokenmaxxing`) on Linux. Dev state uses `Tokenmaxxing Dev` instead. Helper logs keep
+`~/Library/Logs/Tokenmaxxing` on macOS and use `Tokenmaxxing/logs` inside the data directory elsewhere.
+
+Native manual QA is still required: onboarding, restart with saved credentials, tray menu and
+clipboard, token sync, launch at login, and closing/reopening the world. Linux needs a tray host
+(GNOME may require an AppIndicator extension). Windows signing, Linux/Windows updater artifacts and
+release publishing remain follow-ups; previews disable update checks and do not generate signed updater artifacts.
+The linked-computer CLI installer and service manager still support macOS/Linux only.
+
 To sync without the UI:
 
 ```bash
