@@ -262,6 +262,13 @@ function prepared(
     g.setAttribute("color", new THREE.BufferAttribute(c, 3));
   }
   g.applyMatrix4(matrix);
+  // The source piece's middle, for the see-through cut (`engine/seethrough.ts`): it decides per piece, not per pixel.
+  g.computeBoundingBox();
+  const at = g.boundingBox!.getCenter(new THREE.Vector3());
+  const n = g.getAttribute("position").count;
+  const seeAt = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) seeAt.set([at.x, at.y, at.z, 2], i * 4);
+  g.setAttribute("seeAt", new THREE.BufferAttribute(seeAt, 4));
   if (matrix.determinant() < 0) {
     // A mirrored copy turns inside out: flip the winding.
     if (g.index) {

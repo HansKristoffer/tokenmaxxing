@@ -22,6 +22,7 @@ import {
   type Entry,
   fishTank,
   petPen,
+  prebuildPet,
   type Reg,
   terrariums,
   toyShelf,
@@ -474,9 +475,21 @@ function* interiorSlices(): Generator<void, Interior, void> {
     return p;
   };
 
+  /** A fixture's pets built ahead, two a slice: a pen of seven at once is a stutter outside the shop. */
+  function* pets(list: readonly Entry[]): Generator<void, void, void> {
+    for (const [i, e] of list.entries()) {
+      prebuildPet(e);
+      if (i % 2) yield;
+    }
+    yield;
+  }
+
   // The back wall: cats, dragons, gear.
+  yield* pets(entries("pet.2"));
   put("pets:cats", "Cat condo", 0, 0, 6, 1, (reg) => catCondo(entries("pet.2"), reg));
+  yield* pets(entries("pet.4"));
   put("pets:dragons", "Dragon terrariums", 6, 0, 7, 1, (reg) => terrariums(entries("pet.4"), reg));
+  yield;
   put("pets:gear", "Pet gear rack", 13, 0, 5, 1, (reg) =>
     wearRack(
       SHOP_PETWEAR.map((w) => ENTRY.get(w.id)!),
@@ -484,7 +497,9 @@ function* interiorSlices(): Generator<void, Interior, void> {
     ),
   );
   // Pens: two for dogs, ducks with a pond, pandas among the bamboo.
+  yield;
   const dogs = entries("pet.3");
+  yield* pets(dogs.slice(0, 7));
   put("pets:dogs-a", "Dog pen", 2, 2, 5, 3, (reg) =>
     petPen({
       w: 5,
@@ -498,7 +513,7 @@ function* interiorSlices(): Generator<void, Interior, void> {
       seed: 1,
     }),
   );
-  yield;
+  yield* pets(dogs.slice(7));
   put("pets:dogs-b", "Dog pen", 7, 2, 5, 3, (reg) =>
     petPen({
       w: 5,
@@ -512,7 +527,7 @@ function* interiorSlices(): Generator<void, Interior, void> {
       seed: 2,
     }),
   );
-  yield;
+  yield* pets(entries("pet.1"));
   put("pets:ducks", "Duck pen", 13, 2, 5, 3, (reg) =>
     petPen({
       w: 5,
@@ -528,7 +543,7 @@ function* interiorSlices(): Generator<void, Interior, void> {
       floor: ["#9bcf6a", "#7ab04a"],
     }),
   );
-  yield;
+  yield* pets(entries("pet.5"));
   put("pets:pandas", "Panda pen", 13, 5, 5, 3, (reg) =>
     petPen({
       w: 5,

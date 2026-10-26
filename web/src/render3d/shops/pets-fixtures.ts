@@ -8,7 +8,7 @@ import { C } from "../../art/palette.ts";
 import { light } from "../furniture/furniture.ts";
 import { glass, glow, Model, painted, tint } from "../kit/kit.ts";
 import { panel } from "../kit/panel.ts";
-import { petFrom2D } from "../pets/pets3d.ts";
+import { type Pet3D, petFrom2D } from "../pets/pets3d.ts";
 import { nightGlow } from "../town/props.ts";
 import {
   animate,
@@ -52,6 +52,17 @@ const WOOD = C.wood;
 const WOOD_D = C.woodDark;
 const WOOD_L = C.woodLight;
 
+/** Pets built ahead, a slice at a time (`prebuildPet`), for the fixture that stands them up next. */
+const pool = new Map<string, Pet3D[]>();
+const poolKey = (e: Entry) => `${e.species}:${e.variant}`;
+
+/** Builds `e`'s pet now, so a fixture built later takes it instead of building it then (the shop's warm slices). */
+export function prebuildPet(e: Entry): void {
+  const list = pool.get(poolKey(e)) ?? [];
+  list.push(petFrom2D(e.species, e.variant));
+  pool.set(poolKey(e), list);
+}
+
 /** Puts the pet of `e` at (x, y, z) on `m`, alive. */
 function stand(
   m: Model,
@@ -63,7 +74,7 @@ function stand(
   turn = 0,
   scale = 1,
 ): THREE.Object3D {
-  const p = petFrom2D(e.species, e.variant);
+  const p = pool.get(poolKey(e))?.pop() ?? petFrom2D(e.species, e.variant);
   p.wear = e.wear ?? 0;
   p.crown = !!e.crown;
   p.root.position.set(x, y, z);
