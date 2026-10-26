@@ -1,6 +1,12 @@
-/** Reserved message ids for authoritative Cursor dashboard events. */
-export const CURSOR_API_MESSAGE_PREFIX = "cursor-api:";
+import type {
+  TokenEvent as Extracted,
+  MessageType as ExtractedType,
+  ExtractState,
+} from "llm-usage-extraction";
 
+export { CURSOR_API_MESSAGE_PREFIX, type ExtractState, type FileState } from "llm-usage-extraction";
+
+/** `cursor_local` is Cursor's dashboard usage (`cursor_api` in llm-usage-extraction), kept for the stored rows. */
 export const SOURCES = [
   "claude_code",
   "claude_cowork",
@@ -24,27 +30,12 @@ export function isGrokBotModel(model: string): boolean {
 }
 
 /** `pr` marks a pull request the user created (GitHub source, zero tokens). */
-export type MessageType = "user" | "assistant" | "pr";
+export type MessageType = ExtractedType | "pr";
 
-/** One model turn read from a local log. Never carries message content. */
-export interface TokenEvent {
+/** One model turn read from a local log or Cursor's dashboard, or a PR. Never carries message content. */
+export interface TokenEvent extends Omit<Extracted, "source" | "messageType"> {
   source: Source;
-  sessionId: string;
-  /** Subagent id within a session (Claude Code `agentId`); null for the main agent. */
-  agentId: string | null;
-  messageId: string;
-  requestId: string | null;
-  timestamp: number;
-  model: string;
-  /** User events carry zero tokens; they exist only for message counts. */
   messageType: MessageType;
-  inputTokens: number;
-  outputTokens: number;
-  cacheCreationTokens: number;
-  cacheReadTokens: number;
-  reasoningTokens: number | null;
-  /** Cursor-reported request cents, used only when no model price matches. */
-  costCents?: number | null;
 }
 
 export interface IngestResponse {
@@ -52,29 +43,10 @@ export interface IngestResponse {
   duplicates: number;
 }
 
-export interface FileState {
-  path: string;
-  mtimeMs: number;
-  byteOffset: number;
-  /** Codex only: cumulative totals at the end of the last read. */
-  lastSessionTotals?: {
-    sessionId: string;
-    inputTokens: number;
-    outputTokens: number;
-    cachedInputTokens: number;
-    cacheWriteInputTokens: number;
-    reasoningTokens: number;
-  };
-  /** Codex only: model in effect at the end of the last read, carried into the next one. */
-  lastModel?: string;
-}
-
 /** Why no PRs can be counted, for the menu: no `gh` (nor a saved git login), or `gh` signed out. */
 export type GithubProblem = "no_gh" | "signed_out";
 
-export interface SyncState {
-  files: Record<string, FileState>;
-  cursorApi?: { accountId: string; checkedAt: number; costVersion?: number };
+export interface SyncState extends ExtractState {
   /**
    * Per GitHub account (`host/login`), the newest PR `createdAt` fetched; when we last asked; and,
    * when no PRs could be counted, why (shown in the menu).

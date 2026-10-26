@@ -6,6 +6,7 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "hanzio": "^3.3.0"
+    "hanzio": "^3.3.0",
+    "llm-usage-extraction": "^0.2.0"
   }
 }
