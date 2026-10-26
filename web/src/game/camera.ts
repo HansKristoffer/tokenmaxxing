@@ -20,6 +20,8 @@ export const viewHooks: {
   shop?: (shop: string, x: number, y: number) => boolean;
   /** A coin landed in the fountain or the Tavern's tip jar at this tile: the 3D renderer throws it. */
   toss?: (x: number, y: number) => void;
+  /** The furniture ghost (`furniture.ts`): the piece to show over a tile and whether it fits there, or null to clear. */
+  ghost?: (g: { item: string; tile: { x: number; y: number } | null; fits: boolean } | null) => void;
 } = {};
 
 /**

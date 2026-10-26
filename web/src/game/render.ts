@@ -1,6 +1,8 @@
 import { effectiveDesk } from "@tokenmaxxing/core/desks.ts";
 import { compact } from "@tokenmaxxing/core/format.ts";
+import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
+import { withPieces } from "@tokenmaxxing/core/office.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { hasSpecial, specialBuff, TAVERN } from "@tokenmaxxing/core/tavern.ts";
@@ -12,6 +14,7 @@ import {
   JUMP_MS,
   memberRoomOf,
   ownerOfOffice,
+  pieceOfDrop,
   TILE,
 } from "@tokenmaxxing/core/world.ts";
 import { clamp, typedSwitch, typedSwitchGroup } from "hanzio";
@@ -34,6 +37,7 @@ import { drawChalkboards } from "./chalkboard.ts";
 import { drawCop, isCop } from "./cop.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { type Frame, inView } from "./frame.ts";
+import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
@@ -69,6 +73,7 @@ import {
 import { snowAmount, snowLayers } from "./snow.ts";
 import { drawStreet } from "./street.ts";
 import { drawTavern, lightTavern } from "./tavern.ts";
+import { tremor2d, tremorPhase } from "./tremor.ts";
 import { drawTrophies } from "./trophies.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
@@ -394,6 +399,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
 
   items.sort((a, b) => a.y - b.y);
   for (const i of items) i.draw();
+  drawGhost(g, map, now, fancyCanvas);
   // The Tavern's fire and candles (and the dark, after sunset): `inn` only.
   lightTavern(f);
   lightBasement(f);
@@ -443,17 +449,15 @@ function drawAvatar(
   lap: Lap | null,
 ): void {
   const look = a.info.look;
-  // Coffee: a random nudge every frame, a pixel per cup still in their system. The Tavern's special
-  // (15 minutes) is a buzz like one and a half cups, or a warm glow behind you.
+  // Coffee: a small tremor off the clock in whole pixels (`tremor.ts`), the same at any frame rate. The
+  // Tavern's special (15 minutes) is a buzz like one and a half cups, or a warm glow behind you.
   const until = a.info.specialUntil ?? 0;
   const special = hasSpecial(until, Date.now()) ? specialBuff(until) : null;
-  const shake = Math.min(
-    4,
-    Math.max(cupsLeft(a.info.coffeeUntil, Date.now()), special === "jitter" ? 1.5 : 0),
-  );
-  if (shake > 0) {
-    px += Math.round((Math.random() * 2 - 1) * shake);
-    py += Math.round((Math.random() * 2 - 1) * shake * 0.5);
+  const cups = Math.max(cupsLeft(a.info.coffeeUntil, Date.now()), special === "jitter" ? 1.5 : 0);
+  if (cups > 0) {
+    const shake = tremor2d(cups, Date.now(), tremorPhase(a.info.id));
+    px += shake.dx;
+    py += shake.dy;
   }
   if (special === "glow") drawGlow(g, px + 8, py + 8, 17, "255,222,120", 0.55 + 0.15 * Math.sin(now / 320));
   if (a.warp) {
@@ -499,4 +503,33 @@ function drawAvatar(
     else g.drawImage(characterFrame(look, facing, pose), px, top);
   }
   g.globalAlpha = 1;
+}
+
+/** The ghost of a piece being moved or placed (`furniture.ts`): its art over the aimed tiles, tinted green where it fits, red where it does not. */
+function drawGhost(
+  g: CanvasRenderingContext2D,
+  map: GameMap,
+  now: number,
+  fancy: (piece: FancyPiece, now: number) => HTMLCanvasElement,
+): void {
+  const mode = ghost.mode;
+  const t = ghost.aim;
+  const piece = mode && pieceOfDrop({ item: mode.kind === "move" ? mode.drop.item : mode.item });
+  if (!mode || !t || !piece) return;
+  const w = piece.w ?? 1;
+  const colour = ghost.fits ? "91, 224, 138" : "232, 88, 79";
+  g.save();
+  const o = objectAt(withPieces([{ ch: piece.ch, x: t.x, y: t.y }], map), t.x, t.y);
+  if (o) {
+    g.globalAlpha = 0.6;
+    g.drawImage(o.fancy ? fancy(o.fancy, now) : o.canvas, t.x * TILE + o.dx, t.y * TILE + o.dy);
+  }
+  g.globalAlpha = 0.4;
+  g.fillStyle = `rgb(${colour})`;
+  g.fillRect(t.x * TILE, t.y * TILE, w * TILE, TILE);
+  g.globalAlpha = 0.9;
+  g.strokeStyle = `rgb(${colour})`;
+  g.lineWidth = 1;
+  g.strokeRect(t.x * TILE + 0.5, t.y * TILE + 0.5, w * TILE - 1, TILE - 1);
+  g.restore();
 }

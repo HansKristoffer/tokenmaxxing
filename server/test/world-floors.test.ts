@@ -25,7 +25,7 @@ describe("drops", () => {
     await walk(m.conn, [...route(hqMap(m.snap.doors), [me.x, me.y], [9, -1])!, "left"]);
     const plant = await drop(mate, "furn.p");
     expect(plant.y).toBeGreaterThanOrEqual(2); // down on the floor
-    expect(plant).not.toMatchObject({ x: 14, y: 2 }); // not at the foot of the passage either
+    expect([13, 14].some((x) => plant.x === x && plant.y === 2)).toBe(false); // not at the foot of the passage either
     const hat = await drop(mate, "hat.1");
     expect(hat).toMatchObject({ x: 8, y: -1 });
     // The owner leaves: no door, no hallway, and the hat is back in the mate's bag.
@@ -130,7 +130,7 @@ describe("drops", () => {
       state: { seeded: true, players: {}, companies: {} },
       conns: new Map(),
       client: () => {
-        const actor = { getOrCreate: () => ({ seed: async () => seed }) };
+        const actor = { getOrCreate: () => ({ seed: async () => seed, pokerRelease: async () => 0 }) };
         return { town: actor, world: actor, arcade: actor };
       },
     } as never);

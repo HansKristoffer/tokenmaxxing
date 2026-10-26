@@ -6,6 +6,7 @@ import {
   merchId,
   merchPrice,
 } from "@tokenmaxxing/core/shop.ts";
+import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { MERCH_PRINT_H, MERCH_PRINT_W, type MerchDesign } from "@tokenmaxxing/core/world.ts";
 import { useEffect, useState } from "react";
 import { type MerchCompany, merchColours, merchPreview } from "../art/merch.ts";
@@ -14,6 +15,7 @@ import { refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemIcon } from "./ItemIcon.tsx";
 import { ItemImage, isWorn, WearButton, withItem } from "./Shop.tsx";
+import { TakeMeThere } from "./ShopDirectory.tsx";
 import { Modal, Pixels, useRun, WalletLine } from "./ui.tsx";
 
 /** "Acme tee": merch says whose it is; everything else is its own name. */
@@ -32,6 +34,7 @@ export function MerchShop({ companyId }: { companyId: number }) {
   const wallet = useHud((s) => s.wallet);
   const company = useHud((s) => s.companies.find((c) => c.id === companyId));
   const { error, run } = useRun();
+  const atShop = useHud((s) => shopOfRoom(s.room) === "clothes");
   const [editing, setEditing] = useState(false);
   useEffect(() => {
     void refreshWallet().catch((e) => hud.set({ dialog: errorText(e) }));
@@ -58,6 +61,11 @@ export function MerchShop({ companyId }: { companyId: number }) {
             : `You work here: ${off}% off, and what you pay goes into the company wallet.`
           : `Everything you pay goes into ${company.name}'s company wallet. Its people get theirs ${off === 100 ? "free" : `${off}% off`}.`}
       </p>
+      {!atShop && (
+        <p className="muted small">
+          Merch is sold at Thread &amp; Token. <TakeMeThere shop="clothes" />
+        </p>
+      )}
       <WalletLine balance={wallet.balance} />
       {employee && (
         <button type="button" onClick={() => setEditing(true)}>
@@ -81,7 +89,7 @@ export function MerchShop({ companyId }: { companyId: number }) {
                 <button
                   type="button"
                   className="primary"
-                  disabled={wallet.balance < price}
+                  disabled={!atShop || wallet.balance < price}
                   onClick={buy(item)}
                 >
                   {price === 0 ? "Free" : `🪙 ${price}`}

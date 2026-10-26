@@ -31,16 +31,19 @@ import { MilestoneToast } from "./MilestoneToast.tsx";
 import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { DeskPanel } from "./OfficeDesks.tsx";
-import { DecorPanel, OpenOfficesPanel } from "./Offices.tsx";
+import { DecorPanel, DirectoryPanel, OpenOfficesPanel } from "./Offices.tsx";
 import { PaperPanel } from "./Paper.tsx";
 import { PetLooks } from "./PetLooks.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
+import { Poker } from "./Poker.tsx";
 import { Quests } from "./Quests.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Regulars } from "./Regulars.tsx";
 import { Shop } from "./Shop.tsx";
+import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
+import { MENU } from "./shops.ts";
 import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
@@ -91,6 +94,8 @@ export function Hud() {
         </>
       )}
       <Dialog />
+      <PieceHint />
+      <Poker />
       <Panel />
       {status === "connecting" && (
         <div className="toast" role="status">
@@ -219,9 +224,9 @@ function Stats() {
         <button
           type="button"
           className="chip"
-          title="Shop"
-          aria-label={`Shop: ${wallet.balance} coins`}
-          onClick={() => hud.set({ panel: { kind: "shop" } })}
+          title="Wallet"
+          aria-label={`Wallet: ${wallet.balance} coins`}
+          onClick={() => hud.set({ panel: { kind: "bag" } })}
         >
           🪙 <strong>{wallet.balance.toLocaleString()}</strong>
         </button>
@@ -280,20 +285,17 @@ function Dialog() {
   );
 }
 
-/** Esc's menu: a button per panel. */
-const MENU = [
-  [{ kind: "look" }, "🎨 Your character"],
-  [{ kind: "shop" }, "🪙 Shop"],
-  [{ kind: "bag" }, "🎒 Bag"],
-  [{ kind: "trades" }, "🔁 Trades"],
-  [{ kind: "arcade" }, "🎮 Arcade"],
-  [{ kind: "raid" }, "⚔️ Raid"],
-  [{ kind: "openOffices" }, "🚪 Open offices"],
-  [{ kind: "desk" }, "🖥 Desk"],
-  [{ kind: "company" }, "🏢 Company"],
-  [{ kind: "leaderboard" }, "🏆 Leaderboard"],
-  [{ kind: "graphics" }, "🖼 Graphics"],
-] as const;
+/** Facing a piece of mine: it can be taken back (the storeroom, the bag) or moved. */
+function PieceHint() {
+  const hint = useHud((s) => s.pieceHint);
+  const busy = useHud((s) => s.dialog !== null || s.panel !== null);
+  if (!hint || busy) return null;
+  return (
+    <div className="panel piece-hint" role="status">
+      {hint}
+    </div>
+  );
+}
 
 function Panel() {
   const panel = useHud((s) => s.panel);
@@ -308,6 +310,7 @@ function Panel() {
     merch: (p) => <MerchShop companyId={p.companyId} />,
     look: () => <LookPicker />,
     shop: (p) => <Shop tab={p.tab} />,
+    shops: () => <ShopDirectory />,
     merchant: () => <Merchant />,
     bag: () => <Bag />,
     petLooks: (p) => <PetLooks pet={p.pet} />,
@@ -327,6 +330,7 @@ function Panel() {
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
     raid: () => <RaidPanel />,
     openOffices: () => <OpenOfficesPanel />,
+    directory: () => <DirectoryPanel />,
     decor: () => <DecorPanel />,
     desk: () => <DeskPanel />,
     menu: () => (
@@ -363,7 +367,7 @@ function OfficeLock() {
         {open ? "🔓 Open to visitors" : "🔒 Closed"}
       </button>
       <button type="button" onClick={() => hud.set({ panel: { kind: "decor" } })}>
-        🎨 Decorate
+        🏠 My room
       </button>
       {error && <p className="error">{error}</p>}
     </>

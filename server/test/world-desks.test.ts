@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { admin, eventually, rich, signUp } from "./rivet.ts";
+import { admin, admit, eventually, rich, signUp } from "./rivet.ts";
 import { connect } from "./world-client.ts";
 
 describe("world: desk setups", () => {
@@ -25,13 +25,16 @@ describe("world: desk setups", () => {
     await Promise.all([watcher.conn.dispose(), seen.conn.dispose(), late.conn.dispose()]);
   });
 
-  test("the company's fleet tier is on the wire for everyone; a non-member can't buy it", async () => {
+  test("the company's fleet tier is on the wire for everyone; only the owner can buy it", async () => {
     const owner = await signUp("fleet");
     const co = await owner.town.createCompany("Screens");
     const outsider = await signUp("fleet");
     await expect(outsider.town.buyDeskFleet()).rejects.toMatchObject({ code: "not_member" });
     await expect(owner.town.buyDeskFleet()).rejects.toMatchObject({ code: "too_poor" });
     await admin().adminSetCompanyCoins(co.id, 500);
+    const mate = await signUp("fleet");
+    await admit(owner, mate, co.id);
+    await expect(mate.town.buyDeskFleet()).rejects.toMatchObject({ code: "not_owner" });
     const bought = await owner.town.buyDeskFleet();
     expect(bought).toMatchObject({ deskFleet: 1, wallet: 200 });
     const watcher = await connect(outsider.token);

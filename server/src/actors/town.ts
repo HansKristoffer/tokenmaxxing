@@ -23,6 +23,7 @@ import {
   TRADE_COINS_CAP,
   TRADE_ITEMS_CAP,
 } from "@tokenmaxxing/core/shop.ts";
+import { goToShop, SHOP_ROOM, type ShopId, shopForSlot } from "@tokenmaxxing/core/shoprooms.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import type { TournamentBoard } from "@tokenmaxxing/core/tournament.ts";
 import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
@@ -39,6 +40,7 @@ import { chunkArray, must } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { canBrand } from "../brand.ts";
+import { placeAllNotice } from "../furniture-notices.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { type ActivityRow, isSortKey, type UsageRow } from "../stats.ts";
 import {
@@ -145,12 +147,14 @@ import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/mercha
 import {
   applyDecor,
   buyDecor,
+  decorNow,
   type OpenOffice,
   ownedDecor,
   recordVisit,
   visitorCounts,
 } from "../town/offices.ts";
 import { markPicnic } from "../town/picnic.ts";
+import { type PokerSettle, pokerRelease, pokerSettle, pokerSit } from "../town/poker.ts";
 import { freezeDays, questBoard, questEvent } from "../town/quests.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import { migrate } from "../town/schema.ts";
@@ -289,6 +293,8 @@ export const town = actor({
     offices: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     desks: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     drops: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
+    /** Test servers sell anywhere (`SHOPS_ANYWHERE`); these players are held to the shop rule anyway. */
+    strictShops: new Set<number>(),
     /** The open offices, read by everyone for a few seconds. */
     openOffices: null as { at: number; rows: Promise<OpenOfficeRow[]> } | null,
     renames: new RateLimiter(RENAMES_PER_HOUR, HOUR),
@@ -573,6 +579,7 @@ export const town = actor({
         throw new UserError("That one is for company buildings, from the company wallet.", {
           code: "not_for_sale",
         });
+      await inShop(c, userId, shopForSlot(item.slot));
       const k = await kept(c, Date.now());
       if (item.slot === "merch") return c.vars.serial(() => buyMerch(c.db, userId, item, Date.now(), k));
       return c.vars.serial(() => buy(c.db, userId, item, Date.now(), k));
@@ -588,13 +595,71 @@ export const town = actor({
       const userId = requireUser(c.conn.state);
       const item = itemById(itemId);
       if (!item?.company) throw new UserError("That's not for company buildings.", { code: "not_found" });
+      await inShop(c, userId, "furniture");
       return furnish(c, userId, "buy", (company, now) => buyPiece(c.db, company, userId, item, now));
     },
 
     /** Any member puts a piece from the storeroom down in front of them, in the building. */
-    placePiece: async (c, itemId: unknown): Promise<{ notice: string; company: MyCompany }> => {
+    placePiece: async (
+      c,
+      itemId: unknown,
+      onto?: unknown,
+    ): Promise<{ notice: string; company: MyCompany; drop?: Drop }> => {
       const userId = requireUser(c.conn.state);
-      return furnish(c, userId, "place", (company, now) => unstore(c.db, company.id, itemId, userId, now));
+      const at = tileArg(onto);
+      return furnish(
+        c,
+        userId,
+        "place",
+        (company, now) => unstore(c.db, company.id, itemId, userId, now),
+        at,
+      );
+    },
+
+    /**
+     * Any member puts out everything in the storeroom they have floor for, near where they stand. One
+     * piece at a time (a full room stops the rest in the storeroom), with one summary line.
+     */
+    placeAll: async (c): Promise<{ notice: string; company: MyCompany }> => {
+      const userId = requireUser(c.conn.state);
+      const u = await userById(c.db, userId);
+      const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
+      if (!company) throw new UserError("Join a company first.", { code: "not_member" });
+      const notice = await c.vars.serial(async () => {
+        const stored = await all<{ id: number; item: string }>(
+          c.db,
+          "SELECT id, item FROM items WHERE company_id = ? AND room IS NULL ORDER BY id",
+          company.id,
+        );
+        if (stored.length === 0) return "The storeroom is empty.";
+        let placedCount = 0;
+        let first: string | undefined;
+        for (const row of stored) {
+          // Only a row still in the storeroom: a colleague may have put it out meanwhile.
+          const took = await all(
+            c.db,
+            "UPDATE items SET dropped_by = ?, dropped_at = ? WHERE id = ? AND company_id = ? AND room IS NULL RETURNING id",
+            userId,
+            Date.now(),
+            row.id,
+            company.id,
+          );
+          if (took.length === 0) continue;
+          const put = await main(c.client())
+            .world.placeDrop({ id: row.id, item: row.item, by: userId, co: company.id })
+            .catch((err) => {
+              console.warn(`[placeAll] ${row.id}: ${String(err)}`);
+              return { notice: "That didn't work. Try again." };
+            });
+          if ("notice" in put) first ??= put.notice;
+          else {
+            await placed(c.db, put);
+            placedCount++;
+          }
+        }
+        return placeAllNotice(placedCount, stored.length - placedCount, first);
+      });
+      return { notice, company: await myCompany(c.db, company.id, userId) };
     },
 
     /** The morning paper: yesterday in town, the same front page all day. */
@@ -637,8 +702,9 @@ export const town = actor({
      * One of mine onto the floor where I am, for anyone to take. A full room says so (the notice is for
      * the Bag), and the item stays mine.
      */
-    drop: async (c, itemId: unknown): Promise<{ notice: string; drop?: Drop }> => {
+    drop: async (c, itemId: unknown, onto?: unknown): Promise<{ notice: string; drop?: Drop }> => {
       const userId = requireUser(c.conn.state);
+      const at = tileArg(onto);
       if (!c.vars.drops.take(String(userId), Date.now()))
         throw new UserError("That's a lot of drops. Try again in a minute.", { code: "rate_limited" });
       const client = c.client<typeof registry>();
@@ -649,7 +715,7 @@ export const town = actor({
       // ponytail: one that landed but timed out stays on the floor with its row back here: taking it
       // gets nothing (`pickUp` is false). `removeDrops` it here if that ever shows up.
       const put = await main(client)
-        .world.placeDrop({ id, item: itemId as string, by: userId })
+        .world.placeDrop({ id, item: itemId as string, by: userId, ...(at && { onto: at }) })
         .catch((err) => {
           console.warn(`[drop] ${id}: ${String(err)}`);
           return { notice: "That didn't work. Try again." };
@@ -673,6 +739,20 @@ export const town = actor({
     pickUp: async (c, dropId: number, userId: number, room: string): Promise<boolean> => {
       requireInternal(c.conn.state);
       return pickUp(c.db, dropId, userId, room);
+    },
+
+    /** From `world.move`: where a piece of furniture now stands. False if its row is gone or in a bag. */
+    moved: async (c, d: Drop): Promise<boolean> => {
+      requireInternal(c.conn.state);
+      const rows = await all(
+        c.db,
+        "UPDATE items SET x = ?, y = ? WHERE id = ? AND room = ? AND owner_id IS NULL RETURNING id",
+        d.x,
+        d.y,
+        d.id,
+        d.room,
+      );
+      return rows.length > 0;
     },
 
     /** Today's quests and the week's, with how far each is. Deals today's the first time. */
@@ -889,9 +969,13 @@ export const town = actor({
     /** What wallpapers and floors I may use now, as `<kind>.<id>`. */
     decorOwned: async (c): Promise<string[]> => ownedDecor(c.db, requireUser(c.conn.state)),
 
+    /** What my office wears now, so the panel can say "In use" wherever I stand. */
+    decorNow: async (c) => decorNow(c.db, requireUser(c.conn.state)),
+
     /** Buys a wallpaper or floor (`kind` wall or floor); `setDecor` puts it on. */
     buyDecor: async (c, kind: unknown, id: unknown): Promise<Wallet> => {
       const userId = requireUser(c.conn.state);
+      await inShop(c, userId, "furniture");
       const now = Date.now();
       const k = await kept(c, now);
       return c.vars.serial(() => buyDecor(c.db, userId, kind, id, now, k));
@@ -919,6 +1003,7 @@ export const town = actor({
       const userId = requireUser(c.conn.state);
       if (!c.vars.desks.take(String(userId), Date.now()))
         throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
+      await inShop(c, userId, "furniture");
       const now = Date.now();
       const k = await kept(c, now);
       return c.vars.serial(() => buyDesk(c.db, userId, id, now, k));
@@ -933,14 +1018,15 @@ export const town = actor({
       await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
     },
 
-    /** Any member has the company buy its house the next desk tier from the wallet. */
+    /** The owner has the company buy its house the next desk tier from the wallet. */
     buyDeskFleet: async (c): Promise<MyCompany> => {
       const userId = requireUser(c.conn.state);
       if (!c.vars.desks.take(String(userId), Date.now()))
         throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
       const u = await userById(c.db, userId);
-      const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
-      if (!company) throw new UserError("Join a company first.", { code: "not_member" });
+      if (u.companyId === null) throw new UserError("Join a company first.", { code: "not_member" });
+      const company = await ownedCompany(c.db, userId);
+      await inShop(c, userId, "furniture");
       await c.vars.serial(() => buyDeskFleet(c.db, company, userId, Date.now()));
       await push(c.db, c.client<typeof registry>(), { users: [], companies: [company.id] });
       return myCompany(c.db, company.id, userId);
@@ -1228,6 +1314,28 @@ export const town = actor({
       await c.vars.serial(() => refund(c.db, ref, Date.now(), userIds));
     },
 
+    // MARK: The Tavern's poker table (from `world` only; `town/poker.ts`)
+
+    /** Takes the buy-in from `userId`'s wallet for a seat: a `UserError` says why not (the day's limit, too poor). */
+    pokerSit: async (c, userId: number): Promise<void> => {
+      requireInternal(c.conn.state);
+      const now = Date.now();
+      const k = await kept(c, now);
+      await c.vars.serial(() => pokerSit(c.db, userId, now, k));
+    },
+
+    /** The table's stacks after a hand, and the seats that stood up (their stacks go back to their wallets). */
+    pokerSettle: async (c, s: PokerSettle): Promise<void> => {
+      requireInternal(c.conn.state);
+      await c.vars.serial(() => pokerSettle(c.db, s, Date.now()));
+    },
+
+    /** The world woke without its table: everyone still seated gets their stack back. */
+    pokerRelease: async (c): Promise<number> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => pokerRelease(c.db, Date.now()));
+    },
+
     /** A finished game, for stats. */
     recordMatch: async (
       c,
@@ -1311,6 +1419,12 @@ export const town = actor({
         now,
       );
       return set.coins;
+    },
+
+    /** Test servers only sell anywhere; this holds one player to the shop rule anyway. */
+    adminStrictShops: (c, userId: unknown): void => {
+      requireAdmin(c.conn.state);
+      c.vars.strictShops.add(Number(userId));
     },
 
     /** Takes someone's bio down (and its reports with it). */
@@ -1613,6 +1727,21 @@ async function placeStarter(client: Client, drops: Drop[]): Promise<void> {
 }
 
 /**
+ * Buying happens in the shop that sells it: `shop` is where the player must stand (null: sold nowhere, so
+ * refused by the caller's own rules). The world knows the room; a player who isn't in it can't buy at all.
+ */
+async function inShop(
+  c: { client: () => Client; vars: { strictShops: Set<number> } },
+  userId: number,
+  shop: ShopId | null,
+): Promise<void> {
+  if (process.env.SHOPS_ANYWHERE === "1" && !c.vars.strictShops.has(userId)) return;
+  if (shop === null) throw new UserError("That isn't sold in any shop.", { code: "not_for_sale" });
+  const room = await main(c.client()).world.roomOfPlayer(userId);
+  if (room !== SHOP_ROOM[shop]) throw new UserError(goToShop(shop), { code: "not_in_shop" });
+}
+
+/**
  * A piece of company furniture onto the building's floor, from the storeroom (`take` is how the row was
  * picked: bought or unstored). Under `serial` the whole way, `world` included, so two members can't put
  * out the same stored row. Without room (or out of the building) it stays in the storeroom.
@@ -1623,16 +1752,18 @@ async function furnish(
   userId: number,
   action: "buy" | "place",
   take: (company: NonNullable<Awaited<ReturnType<typeof companyById>>>, now: number) => Promise<number>,
-): Promise<{ notice: string; company: MyCompany }> {
+  onto?: { x: number; y: number },
+): Promise<{ notice: string; company: MyCompany; drop?: Drop }> {
   const u = await userById(c.db, userId);
   const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
   if (!company) throw new UserError("Join a company first.", { code: "not_member" });
+  let drop: Drop | undefined;
   const notice = await c.vars.serial(async () => {
     const now = Date.now();
     const id = await take(company, now);
     const item = (await one<{ item: string }>(c.db, "SELECT item FROM items WHERE id = ?", id))!.item;
     const put = await main(c.client())
-      .world.placeDrop({ id, item, by: userId, co: company.id })
+      .world.placeDrop({ id, item, by: userId, co: company.id, ...(onto && { onto }) })
       .catch((err) => {
         console.warn(`[furnish] ${id}: ${String(err)}`);
         return { notice: "That didn't work. Try again." };
@@ -1641,9 +1772,19 @@ async function furnish(
     if ("notice" in put)
       return action === "buy" ? `${put.notice} The ${name} is in the storeroom.` : put.notice;
     await placed(c.db, put);
+    drop = put;
     return `${action === "buy" ? "Bought" : "Put out"} the ${name}.`;
   });
-  return { notice, company: await myCompany(c.db, company.id, userId) };
+  return { notice, company: await myCompany(c.db, company.id, userId), ...(drop && { drop }) };
+}
+
+/** A tile the client picked, or none; anything else is a bad request. */
+function tileArg(raw: unknown): { x: number; y: number } | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const t = raw as { x?: unknown; y?: unknown };
+  if (!Number.isInteger(t.x) || !Number.isInteger(t.y))
+    throw new UserError("Pick a tile.", { code: "bad_request" });
+  return { x: t.x as number, y: t.y as number };
 }
 
 const OPEN_OFFICES_TTL = 5_000;

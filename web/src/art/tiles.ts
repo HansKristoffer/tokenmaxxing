@@ -1,3 +1,4 @@
+import type { DecorKind } from "@tokenmaxxing/core/decor.ts";
 import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { isPoster, POSTERS } from "@tokenmaxxing/core/posters.ts";
@@ -5,7 +6,7 @@ import { TILE } from "@tokenmaxxing/core/world.ts";
 import { typedSwitch, typedSwitchGroup } from "hanzio";
 import { stairs } from "./basement.ts";
 import { C } from "./palette.ts";
-import { bake, hash, Pen } from "./pixels.ts";
+import { bake, cached, hash, Pen } from "./pixels.ts";
 
 /** What a tile's ground is made of. Objects stand on whatever their neighbours are. */
 type Ground =
@@ -529,3 +530,30 @@ export function drawWaterGlints(g: CanvasRenderingContext2D, map: GameMap, t: nu
     g.fillRect(x * TILE + i, y * TILE + j, 3, 1);
   }
 }
+
+/**
+ * A wallpaper or floor as a sample for the shop: three tiles across, two deep. A wall is shown the way a
+ * room draws it (its face, the lip on top, the skirting below); an id nobody knows is the plain one.
+ */
+export const decorSwatch = cached(
+  (kind: DecorKind, id: string) => `${kind}.${id}`,
+  (kind, id) =>
+    bake(3 * TILE, 2 * TILE, (p) => {
+      for (let y = 0; y < 2; y++)
+        for (let x = 0; x < 3; x++) {
+          const [ox, oy] = [x * TILE, y * TILE];
+          if (kind === "floor") {
+            floor(p, ox, oy, x, y, id);
+            continue;
+          }
+          const paper = WALL_ART[id];
+          if (paper) paper(p, ox, oy, x, y);
+          else {
+            p.rect(ox, oy, TILE, TILE, C.wall);
+            for (let i = 0; i < TILE; i += 4) p.rect(ox + i, oy + 2, 1, TILE - 5, C.wallDark);
+          }
+          if (y === 0) p.rect(ox, oy, TILE, 2, C.wallTopLight);
+          if (y === 1) p.rect(ox, oy + TILE - 3, TILE, 3, C.woodDark);
+        }
+    }),
+);

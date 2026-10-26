@@ -1019,6 +1019,20 @@ export class Pipeline {
     if (++view.frame % 300 === 0) sweep();
   }
 
+  /**
+   * The CPU work a scene's first frame would do (batching its still parts, swapping in the blocky geometry), done
+   * early on a room that is built but not yet shown, so the frame it is first shown on is only the draw.
+   */
+  prepare(scene: THREE.Scene): void {
+    const voxel = this.style === "voxel";
+    if (this.mode !== (voxel ? "block" : "smooth")) return;
+    syncBaked(scene, this.mode);
+    if (voxel) {
+      blockify(scene);
+      scene.userData.blockEpoch = sceneEpoch();
+    }
+  }
+
   private draw(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
     const r = this.renderer;
     this.frameNo++;

@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { coins } from "./format.ts";
+import { TakeMeThere } from "./ShopDirectory.tsx";
 import { Modal, useLoad, useRun } from "./ui.tsx";
 
 export function CompanyPanel() {
@@ -79,13 +80,14 @@ export function CompanyPanel() {
       </p>
       <p className="company-actions">
         <button type="button" className="primary" onClick={() => hud.set({ panel: { kind: "companyShop" } })}>
-          🛋 Furniture{co.stored.length > 0 && ` (📦 ${sumBy(co.stored, "count")})`}
+          🛋 Storeroom{co.stored.length > 0 && ` (📦 ${sumBy(co.stored, "count")})`}
         </button>
+        {co.isOwner && <TakeMeThere shop="furniture" label="🛋 Order at Møbelhuset" />}
         <button type="button" onClick={() => hud.set({ panel: { kind: "merch", companyId: co.id } })}>
           👕 Merch
         </button>
         <button type="button" onClick={() => hud.set({ panel: { kind: "desk" } })}>
-          🖥 Desks
+          🖥 My desk
         </button>
       </p>
       {co.log.length > 0 && (

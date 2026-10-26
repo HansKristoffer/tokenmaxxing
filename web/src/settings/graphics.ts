@@ -50,9 +50,9 @@ export const TIER_NAMES: Record<Tier, string> = {
 export const TIER_BLURBS: Record<TierChoice, string> = {
   auto: "Picks for this machine and eases off if it stutters.",
   low: "The original pixel canvas. Lightest on old laptops and batteries.",
-  medium: "3D town at 30 fps and 75% resolution. No shadows or effects.",
+  medium: "3D town at 75% resolution. No shadows or effects.",
   high: "Voxel look with ambient occlusion, soft shadows, haze and colour grade.",
-  ultra: "Everything: 4K shadows, full effects, uncapped frame rate.",
+  ultra: "Everything: 4K shadows, full effects.",
 };
 
 const ALL_POST: Post = { haze: true, tiltShift: true, grade: true };
@@ -64,7 +64,7 @@ const BASE: Record<Tier, TierBase> = {
   low: {
     renderer: "2d",
     renderScale: 1,
-    fpsCap: 60,
+    fpsCap: 0,
     shadows: "off",
     ao: false,
     post: NO_POST,
@@ -74,7 +74,7 @@ const BASE: Record<Tier, TierBase> = {
   medium: {
     renderer: "3d",
     renderScale: 0.75,
-    fpsCap: 30,
+    fpsCap: 0,
     shadows: "off",
     ao: false,
     post: NO_POST,
@@ -84,7 +84,7 @@ const BASE: Record<Tier, TierBase> = {
   high: {
     renderer: "3d",
     renderScale: 1,
-    fpsCap: 60,
+    fpsCap: 0,
     shadows: "high",
     ao: true,
     post: { haze: true, tiltShift: false, grade: true },

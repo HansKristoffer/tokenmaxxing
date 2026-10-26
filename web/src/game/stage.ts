@@ -1,13 +1,13 @@
-import { onBattery, startDetection } from "../settings/detect.ts";
-import { Governor, percentile, type Step } from "../settings/governor.ts";
+import { startDetection } from "../settings/detect.ts";
+import { Governor, percentile, refreshInterval, type Step } from "../settings/governor.ts";
 import { graphics, TIER_NAMES } from "../settings/graphics.ts";
 import { loadRenderer, type Renderer, type RendererKind, type Tile } from "./renderer.ts";
 
 /** Live numbers for the FPS meter. */
 export const perf = { fps: 0, ms: 0, p95: 0, renderer: "", scale: 1 };
 
-/** With no input for this long the frame rate drops to 30. */
-const IDLE_MS = 15_000;
+/** How long the first frames are watched to learn the display's refresh interval. */
+const REFRESH_PROBE_MS = 1000;
 const UNDO_HOLD_MS = 5 * 60_000;
 
 let active: Renderer | null = null;
@@ -27,16 +27,18 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
   let swaps = 0;
   let size = "";
   let lastDraw = 0;
-  let lastInput = performance.now();
+  /** Gaps between the first animation frames, to measure the display's refresh rate. */
+  const probe: number[] = [];
+  let probeLast = 0;
+  /** ms per display refresh: 60 Hz until measured. */
+  let refreshMs = 1000 / 60;
+  const probeStart = performance.now();
   let fpsFrames = 0;
   let fpsSince = performance.now();
   const gaps: number[] = [];
   const governor = new Governor(graphics.tier(), graphics.get().runtime.scaleMul, performance.now());
   /** The tier and scale the governor last set, to tell its changes from the player's. */
   let mine = `${governor.tier}:${governor.scaleMul}`;
-
-  for (const type of ["keydown", "pointerdown", "pointermove", "wheel"])
-    window.addEventListener(type, () => (lastInput = performance.now()), { passive: true });
 
   const fail = (reason: string) => {
     graphics.setRuntime({ failed3d: reason });
@@ -101,15 +103,19 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
 
   const frame = (now: number) => {
     requestAnimationFrame(frame);
+    if (now - probeStart < REFRESH_PROBE_MS) {
+      if (probeLast) probe.push(now - probeLast);
+      probeLast = now;
+    } else if (probe.length) {
+      refreshMs = refreshInterval(probe);
+      probe.length = 0;
+    }
     const draw = tick(now);
     if (!draw || !renderer || document.hidden) return;
 
     const settings = graphics.effective();
-    const idle = now - lastInput > IDLE_MS;
-    const saving = graphics.get().choice === "auto" && onBattery();
-    const cap =
-      idle || saving ? (settings.fpsCap === 0 ? 30 : Math.min(30, settings.fpsCap)) : settings.fpsCap;
-    const target = cap === 0 ? 0 : 1000 / cap;
+    // Uncapped (0) draws on every animation frame, whatever the display's rate; a cap is only the player's choice.
+    const target = settings.fpsCap === 0 ? 0 : 1000 / settings.fpsCap;
     // A little slack, or a 60 Hz screen drops to every third frame at a 30 fps cap.
     if (target && now - lastDraw < target - 2) return;
     const gap = now - lastDraw;
@@ -147,8 +153,8 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
     perf.scale = settings.renderScale;
 
     if (graphics.get().choice === "auto" && settings.tier !== "low" && gap < 500) {
-      // Judged against the fps the settings ask for, not a battery or idle cap we chose.
-      const step = governor.push(gap, settings.fpsCap === 0 ? 1000 / 60 : 1000 / settings.fpsCap, now);
+      // Judged against what the display can show (or the player's own cap), so a 120 Hz screen is held to 120.
+      const step = governor.push(gap, settings.fpsCap === 0 ? refreshMs : 1000 / settings.fpsCap, now);
       if (step) apply(step);
     }
   };

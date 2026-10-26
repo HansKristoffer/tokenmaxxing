@@ -174,38 +174,124 @@ export interface Door {
   userId: number;
   name: string;
   open: boolean;
+  /** Its place along the hallways: stored per owner, so it never moves when another door goes (`assignSlots`). */
+  slot: number;
   x: number;
   y: number;
 }
-const DOORS_PER_HALLWAY = 10;
-/** The gap up through the walls from the floor (from y = 2) to every hallway: between two doors. */
-export const PASSAGE_X = 14;
+/** Doors per hallway: three tiles apart, so each office has its own stretch of wall. */
+export const DOORS_PER_HALLWAY = 6;
+/** A hallway is four rows: a wall top, the wall face with the doors, and a corridor two tiles deep. */
+export const HALL_H = 4;
+/** The first door's column, and the spacing between doors (two wall tiles make the stub between neighbours). */
+const DOOR_X0 = 3;
+const DOOR_GAP = 3;
+/**
+ * The way up from the floor to every hallway: two tiles wide (this column and the next), between the doors at
+ * 12 and 15, from the floor's top row (y = 2) through its two wall rows and up through each hallway's wall rows.
+ */
+export const PASSAGE_X = 13;
+export const PASSAGE_W = 2;
+
+/** One line of a building's office directory: whose office, where its door is, and whether you can walk there. */
+export interface DirectoryRow {
+  userId: number;
+  name: string;
+  open: boolean;
+  /** Your own office, which you can always enter. */
+  mine: boolean;
+  /** Open, or yours: a closed door is shown locked and is no use to anyone else. */
+  canEnter: boolean;
+  /** The door's tile: where "Walk there" routes to. */
+  x: number;
+  y: number;
+}
+
+/** The directory for `doors` (a building's, from its snapshot) as `me` reads it: yours first, then by door. */
+export function directory(doors: readonly Door[], me: number | null): DirectoryRow[] {
+  const rows = sortBy(doors, "slot").map((d) => ({
+    userId: d.userId,
+    name: d.name,
+    open: d.open,
+    mine: d.userId === me,
+    canEnter: d.open || d.userId === me,
+    x: d.x,
+    y: d.y,
+  }));
+  return [...rows.filter((r) => r.mine), ...rows.filter((r) => !r.mine)];
+}
+
+/** Where slot `n` is: hallway ⌊n/6⌋, tile 3 + 3·(n mod 6). */
+export const slotSpot = (n: number): { x: number; y: number } => ({
+  x: DOOR_X0 + DOOR_GAP * (n % DOORS_PER_HALLWAY),
+  y: -HALL_H * Math.floor(n / DOORS_PER_HALLWAY) - 3,
+});
 
 /**
- * Door slots for these owners (sorted by id): slot n is hallway ⌊n/10⌋, tile 1 + 2·(n mod 10).
- * ponytail: packed, not stored, so when a door goes the later ones move down a slot; store slots if
- * people mind their door moving.
+ * Doors for these owners, each at its own stored slot (`assignSlots`), so a door goes only when its owner does.
+ * Sorted by slot.
  */
 export function doorsFor(owners: readonly Omit<Door, "x" | "y">[]): Door[] {
-  return sortBy(owners, "userId").map((o, n) => ({
-    ...o,
-    x: 1 + 2 * (n % DOORS_PER_HALLWAY),
-    y: -3 * Math.floor(n / DOORS_PER_HALLWAY) - 2,
-  }));
+  return sortBy(owners, "slot").map((o) => ({ ...o, ...slotSpot(o.slot) }));
+}
+
+/** Owners with slots packed by id, as every building stood before slots were stored. */
+export const withSlots = (owners: readonly Omit<Door, "x" | "y" | "slot">[]): Omit<Door, "x" | "y">[] => {
+  const slots = assignSlots(
+    owners.map((o) => o.userId),
+    new Map(),
+  );
+  return owners.map((o) => ({ ...o, slot: slots.get(o.userId)! }));
+};
+
+/**
+ * The slot of each of these members: one in `kept` stays (when it is a whole number, and nobody else holds
+ * it), and the others, lowest id first, take the lowest slot still free. With nothing kept that packs them
+ * by id, which is where every door stood before slots were stored: the migration.
+ */
+export function assignSlots(
+  userIds: readonly number[],
+  kept: ReadonlyMap<number, number>,
+): Map<number, number> {
+  const out = new Map<number, number>();
+  const taken = new Set<number>();
+  const ids = [...userIds].sort((a, b) => a - b);
+  for (const id of ids) {
+    const slot = kept.get(id);
+    if (slot !== undefined && Number.isInteger(slot) && slot >= 0 && !taken.has(slot)) {
+      out.set(id, slot);
+      taken.add(slot);
+    }
+  }
+  let next = 0;
+  for (const id of ids) {
+    if (out.has(id)) continue;
+    while (taken.has(next)) next++;
+    out.set(id, next);
+    taken.add(next);
+  }
+  return out;
 }
 
 /**
- * The building with a hallway of doors per 10 offices, above today's floor (negative y, like the town),
+ * The building with a hallway of doors per 6 offices, above today's floor (negative y, like the town),
  * so every tile it had keeps its coordinates. A hallway is a wall top, a wall face with the doors, and a
- * corridor.
+ * corridor two tiles deep; the two-wide passage joins them to the floor.
  */
 export function hqMap(doors: readonly Door[]): GameMap {
   const floor = MAPS.hq;
   const y0 = Math.min(0, ...doors.map((d) => d.y - 1));
-  const hall = ["W".repeat(floor.width), "W".repeat(floor.width), `W${"_".repeat(floor.width - 2)}W`];
-  const rows = [...Array.from({ length: -y0 }, (_, i) => hall[i % 3]!), ...floor.rows].map((r) => [...r]);
+  const hall = [
+    "W".repeat(floor.width),
+    "W".repeat(floor.width),
+    `W${"_".repeat(floor.width - 2)}W`,
+    `W${"_".repeat(floor.width - 2)}W`,
+  ];
+  const rows = [...Array.from({ length: -y0 }, (_, i) => hall[i % HALL_H]!), ...floor.rows].map((r) => [
+    ...r,
+  ]);
   for (const d of doors) rows[d.y - y0]![d.x] = "R";
-  for (let y = y0 + 3; y < 2; y++) rows[y - y0]![PASSAGE_X] = "_";
+  for (let y = y0 + 2; y < 2; y++) for (let i = 0; i < PASSAGE_W; i++) rows[y - y0]![PASSAGE_X + i] = "_";
   return new GameMap(
     "hq",
     floor.name,

@@ -16,6 +16,7 @@ const CSS = `
 #labels3d .r3-sign.cyan { background: rgba(143, 227, 255, 0.95); color: #2b2433; }
 #labels3d .r3-sign.bubble { max-width: 190px; white-space: normal; text-align: center; padding: 3px 7px; border-radius: 6px; background: #fbf7ef; color: #2b2433; border: 2px solid #2b2433; font-weight: 500; }
 #labels3d .r3-sign.dark { background: rgba(20, 24, 34, 0.9); color: #ffd35c; }
+#labels3d .r3-sign.dim { background: rgba(43, 36, 51, 0.6); color: #a7adbb; }
 #labels3d .r3-sign.common { background: #7fcf6a; color: #2b2433; }
 #labels3d .r3-sign.rare { background: #5aa8ff; color: #2b2433; }
 #labels3d .r3-sign.epic { background: #b57cff; color: #2b2433; }

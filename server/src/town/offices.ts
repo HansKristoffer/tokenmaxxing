@@ -93,6 +93,18 @@ export async function ownedDecor(sql: Sql, userId: number): Promise<string[]> {
   return out;
 }
 
+/** The wallpaper and floor on `userId`'s office now (`null`: the plain one, or no office yet). */
+export async function decorNow(
+  sql: Sql,
+  userId: number,
+): Promise<{ wall: string | null; floor: string | null }> {
+  const [row] = (await sql.execute("SELECT wall, floor FROM offices WHERE user_id = ?", userId)) as {
+    wall: string | null;
+    floor: string | null;
+  }[];
+  return { wall: row?.wall ?? null, floor: row?.floor ?? null };
+}
+
 /** Buys a wallpaper or floor for `userId`'s coins, once. Run it serialized, like `buy`. */
 export async function buyDecor(
   sql: Sql,

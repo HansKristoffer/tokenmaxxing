@@ -2,6 +2,7 @@ import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
@@ -11,6 +12,9 @@ import type { Me, Raid, Today, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
 import { storage } from "./storage.ts";
 
+/** A tab of the Shop page: an item slot, or one of Møbelhuset's: wallpaper and floors, monitors, company supplies. */
+export type ShopPageTab = Item["slot"] | "decor" | "desk" | "company";
+
 export type Panel =
   | { kind: "leaderboard" }
   | { kind: "card"; userId: number }
@@ -19,7 +23,8 @@ export type Panel =
   | { kind: "companyShop" }
   | { kind: "merch"; companyId: number }
   | { kind: "look" }
-  | { kind: "shop"; tab?: Item["slot"] }
+  | { kind: "shop"; tab?: ShopPageTab }
+  | { kind: "shops" }
   | { kind: "merchant" }
   | { kind: "bag" }
   | { kind: "petLooks"; pet: number }
@@ -31,6 +36,7 @@ export type Panel =
   | { kind: "paper" }
   | { kind: "trophies"; userId: number; name: string }
   | { kind: "openOffices" }
+  | { kind: "directory" }
   | { kind: "decor" }
   | { kind: "desk" }
   | { kind: "raid" }
@@ -85,6 +91,8 @@ interface HudState {
   panel: Panel | null;
   /** A line of text at the bottom (inspecting things, locked doors). */
   dialog: string | null;
+  /** Facing one of my own pieces of furniture: what G and M do to it (null: none). */
+  pieceHint: string | null;
   /** The room name, shown briefly on entering. */
   banner: { text: string; at: number } | null;
   /** Bumped to ask the chat input to take focus. */
@@ -110,6 +118,10 @@ interface HudState {
   /** What the Tavern's jukebox is playing for the room, or null (`world` sends `jukebox`). */
   jukebox: JukeboxNow | null;
   jukeSettings: JukeSettings;
+  /** The Tavern's poker table as the room sees it, and when it arrived (its clocks are counted from then); null away from the Tavern. */
+  poker: (PokerState & { at: number }) | null;
+  /** My two cards at the poker table (`world` sends `pokerHole` to me alone). */
+  pokerHole: Card[];
 }
 
 let state: HudState = {
@@ -127,12 +139,15 @@ let state: HudState = {
   chat: [],
   panel: null,
   dialog: null,
+  pieceHint: null,
   banner: null,
   chatFocus: 0,
   mention: null,
   lootNews: null,
   jukebox: null,
   jukeSettings: loadJukeSettings(),
+  poker: null,
+  pokerHole: [],
   notice: null,
   lobby: null,
   frame: null,
