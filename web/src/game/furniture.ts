@@ -37,6 +37,14 @@ export const ghost: {
 /** The last furnishing steps of this session (Ctrl/Cmd+Z). */
 export const undoStack = new UndoStack();
 
+/** Told whenever the mode starts or ends (the hotbar redraws its selected slot). */
+export const ghostListeners = new Set<() => void>();
+/** Told with the item after a piece from the bag was put down for real (the hotbar keeps going with the next). */
+export const placedListeners = new Set<(item: string) => void>();
+const changed = () => {
+  for (const l of ghostListeners) l();
+};
+
 const itemOf = (m: GhostMode) => (m.kind === "move" ? m.drop.item : m.item);
 
 /** Whether a piece of furniture could stand with its left end on `t`, as the client sees the room. */
@@ -57,6 +65,7 @@ function begin(mode: GhostMode, first: Tile, text: string): void {
   ghost.pose = "";
   hud.set({ panel: null, dialog: text });
   aim(first);
+  changed();
 }
 
 /** M on (or facing) a piece of mine: carry a ghost of it about until it is put down. */
@@ -122,6 +131,7 @@ export function cancel(say = false): void {
   ghost.aim = null;
   ghost.fits = false;
   show();
+  changed();
   hud.set({ dialog: say ? (was.kind === "move" ? "Left where it was." : "Kept it.") : null });
 }
 
@@ -158,6 +168,7 @@ export function confirm(): void {
       ...(r.drop.co !== undefined && { co: r.drop.co }),
     });
     await Promise.all([refreshMe(), refreshWallet()]);
+    if (!m.company) for (const l of placedListeners) l(m.item);
   }, fail);
 }
 

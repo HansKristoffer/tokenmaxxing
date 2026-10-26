@@ -29,6 +29,7 @@ import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
+import { inMyOffice, pickSlot, stepSlot } from "./hotbar-state.ts";
 import { buildingAt, companyOnPlot, doorOf, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { merchantAt, openCart } from "./merchant.ts";
@@ -103,6 +104,13 @@ export function bindInput(canvas: HTMLElement): void {
       onArrival = null;
       return;
     }
+    // The hotbar (own office only): 1-9 pick a slot, [ ] step through them while a piece is held, F takes the piece faced.
+    if (!e.altKey) {
+      if (/^[1-9]$/.test(e.key) && pickSlot(Number(e.key) - 1)) return void e.preventDefault();
+      if ((e.key === "[" || e.key === "]") && stepSlot(e.key === "]" ? 1 : -1))
+        return void e.preventDefault();
+      if (e.key.toLowerCase() === "f" && inMyOffice()) return void take();
+    }
     switch (e.key.toLowerCase()) {
       case "x":
       case "shift":
@@ -168,6 +176,11 @@ export function bindInput(canvas: HTMLElement): void {
       wheel += e.deltaY;
       const notch = e.ctrlKey ? 12 : 60;
       if (Math.abs(wheel) < notch) return;
+      // Holding a piece in your office, the wheel steps through the hotbar instead of zooming.
+      if (!e.ctrlKey && stepSlot(wheel > 0 ? 1 : -1)) {
+        wheel = 0;
+        return;
+      }
       zoom(wheel < 0 ? 1 : -1);
       wheel = 0;
     },
@@ -401,7 +414,7 @@ function updatePieceHint(me: ReturnType<typeof self>): void {
 }
 
 /** G, or a right-click: take what's there. It goes in the bag, so 🎒 counts one more. */
-function take(): void {
+export function take(): void {
   send(
     conn.take().then((r) => {
       if (r?.drop) {
