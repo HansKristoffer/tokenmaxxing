@@ -337,7 +337,10 @@ class Renderer3D implements Renderer {
         this.town = { stage: next, key };
       }
     }
-    if (old && old !== next && old !== this.town?.stage) old.dispose();
+    if (old && old !== next) {
+      if (old === this.town?.stage) old.view.leave?.();
+      else old.dispose();
+    }
     next.scene.add(this.entities.group, this.drops.group);
     this.stage = next;
     this.key = key;

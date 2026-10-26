@@ -62,6 +62,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       events.update(f);
     },
     onToss: (tx, ty) => events.toss(tx, ty),
+    leave: () => events.leave(),
     signs,
     liveSigns: () => [...(gateLive?.signs() ?? []), ...games.signs()],
     night: (on) => setPropsNight(on),
