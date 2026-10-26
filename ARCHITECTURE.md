@@ -671,7 +671,7 @@ climbs it together (`core/src/raid.ts`).
   - **Your own seat:** walk up to your clone (or its laptop) and press E (or click it): you sit at your own desk, your
     real body typing there and the clone not drawn, and E or any step stands you up (`game/raidseat.ts`, rules in
     `core/src/raidseat.ts`). It is only what you see, nothing is sent: others' seats and a seat you don't have are never
-    offered. Your pet fires little missiles of its own (peach, a quarter of your rate, `petRate`) while your desk fires.
+    offered. Your pet fires little missiles of its own (peach, a quarter of your rate, `petRate`) only while you sit in your seat.
   - **Burn:** after each ingest `player.report` sends `world.activity` the live agents and the tokens a
     minute over the last 10 minutes of events (minute-capped like the games). `world` fades it linearly to 0
     as that last event gets 10 minutes old, so someone who stopped slows down before they leave their desk.

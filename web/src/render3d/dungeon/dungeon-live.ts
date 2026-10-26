@@ -552,13 +552,13 @@ export class DungeonLive {
   }
 
   /**
-   * Your pet helps: while your own desk is firing it sends little missiles of its own from where it stands (`raidPet`,
-   * set by the 3D people), a quarter as fast as you. Only the show, like the rest; the real hits are your synced tokens.
+   * Your pet helps while you sit at your own desk (`seated`): it sends little missiles of its own from where it stands
+   * (`raidPet`, set by the 3D people), a quarter as fast as you. Stand up and it stops. Only the show, like the rest; the real hits are your synced tokens.
    */
   private shootPet(dt: number, closed: boolean): void {
     const mine = this.seated.get(world.selfId);
     const pet = world.avatars.get(world.selfId)?.info.look.pet ?? mine?.raider.look.pet ?? 0;
-    if (!mine || !pet) {
+    if (!mine || !pet || !seated()) {
       this.petOwed = 0;
       return;
     }
