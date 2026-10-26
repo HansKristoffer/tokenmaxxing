@@ -7,7 +7,7 @@ import type { Wallet } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { roomName, world } from "../game/world.ts";
-import { redeem, town } from "../net.ts";
+import { redeem } from "../net.ts";
 import { storage } from "../storage.ts";
 import { chatBeside, hud, useHud } from "../store.ts";
 import { AppSignIn } from "./AppSignIn.tsx";
@@ -21,9 +21,9 @@ import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
 import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
+import { Hotbar } from "./Hotbar.tsx";
 import { Jukebox } from "./Jukebox.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
-import { LookPicker } from "./LookPicker.tsx";
 import { LootToast } from "./Loot.tsx";
 import { MatchPanel } from "./Match.tsx";
 import { MerchShop } from "./Merch.tsx";
@@ -34,13 +34,13 @@ import { Minimap } from "./Minimap.tsx";
 import { DeskPanel } from "./OfficeDesks.tsx";
 import { DecorPanel, DirectoryPanel, OpenOfficesPanel } from "./Offices.tsx";
 import { PaperPanel } from "./Paper.tsx";
-import { PetLooks } from "./PetLooks.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Poker } from "./Poker.tsx";
 import { Quests } from "./Quests.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Regulars } from "./Regulars.tsx";
+import { RoomsBox } from "./RoomsBox.tsx";
 import { Shop } from "./Shop.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
@@ -94,6 +94,7 @@ export function Hud() {
           <Minimap />
         </>
       )}
+      <Hotbar />
       <Dialog />
       <PieceHint />
       <Poker />
@@ -137,6 +138,7 @@ function Corner() {
     <div className="corner">
       <MiniBoard />
       <GamesBox />
+      <RoomsBox />
       <RaidBox />
     </div>
   );
@@ -309,12 +311,10 @@ function Panel() {
     company: () => <CompanyPanel />,
     companyShop: () => <CompanyShop />,
     merch: (p) => <MerchShop companyId={p.companyId} />,
-    look: () => <LookPicker />,
     shop: (p) => <Shop tab={p.tab} />,
     shops: () => <ShopDirectory />,
     merchant: () => <Merchant />,
-    bag: () => <Bag />,
-    petLooks: (p) => <PetLooks pet={p.pet} />,
+    bag: (p) => <Bag tab={p.tab} />,
     arcade: () => <ArcadePanel />,
     newTable: (p) => <NewTable invite={p.invite} inviteName={p.inviteName} game={p.game} />,
     match: (p) => <MatchPanel id={p.id} />,
@@ -337,7 +337,11 @@ function Panel() {
     menu: () => (
       <Modal title="Menu">
         <nav className="menu">
-          {inMyOffice && <OfficeLock />}
+          {inMyOffice && (
+            <button type="button" onClick={() => hud.set({ panel: { kind: "decor" } })}>
+              🏠 My room
+            </button>
+          )}
           {MENU.map(([open, label]) => (
             <button key={open.kind} type="button" onClick={() => hud.set({ panel: open })}>
               {label}
@@ -350,29 +354,6 @@ function Panel() {
       </Modal>
     ),
   });
-}
-
-/** In my own office: open to visitors from my card, or only me, through the door. */
-function OfficeLock() {
-  const [open, setOpen] = useState(world.owner?.open ?? true);
-  const { error, run } = useRun();
-  return (
-    <>
-      <button
-        type="button"
-        onClick={run(async () => {
-          await town.setOfficeOpen(!open);
-          setOpen(!open);
-        })}
-      >
-        {open ? "🔓 Open to visitors" : "🔒 Closed"}
-      </button>
-      <button type="button" onClick={() => hud.set({ panel: { kind: "decor" } })}>
-        🏠 My room
-      </button>
-      {error && <p className="error">{error}</p>}
-    </>
-  );
 }
 
 function SignedOut({ expired }: { expired: boolean }) {

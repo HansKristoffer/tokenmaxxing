@@ -60,3 +60,17 @@ test("a company house's furniture is read off the map, a wide piece once", () =>
   // The house's own plan holds none of the company's pieces.
   expect(placedIn(MAPS.hq)).toEqual([]);
 });
+
+test("every company house, yard and fence included, stays on its block's lawn", async () => {
+  const THREE = await import("three");
+  const { companyHouse } = await import("../src/render3d/town/town3d-houses.ts");
+  // The town puts a house's origin over its door tile, a quarter tile in: x 5.5 and z 6.25 of the block,
+  // whose lawn runs from 1 to 10 across and 1 to 9 down (the roads take the first row and column).
+  for (let tier = 0; tier <= 5; tier++) {
+    const box = new THREE.Box3().setFromObject(companyHouse(tier, "Nightshift Labs", null));
+    expect(box.min.x).toBeGreaterThanOrEqual(1 - 5.5);
+    expect(box.max.x).toBeLessThanOrEqual(10 - 5.5);
+    expect(box.min.z).toBeGreaterThanOrEqual(1 - 6.25);
+    expect(box.max.z).toBeLessThanOrEqual(9 - 6.25);
+  }
+});

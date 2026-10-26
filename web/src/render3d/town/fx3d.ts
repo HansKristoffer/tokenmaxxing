@@ -449,8 +449,9 @@ export class Fx {
     // The dome.
     if (inTown) {
       if (this.sky.parent !== stage.scene) stage.scene.add(this.sky);
-      const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-      this.sky.position.copy(camera.position).addScaledVector(dir, 150);
+      // Centred on the frustum, not the camera: the rig slides the window off-centre to clear the HUD.
+      const at = new THREE.Vector3((camera.left + camera.right) / 2, (camera.top + camera.bottom) / 2, -150);
+      this.sky.position.copy(at.applyQuaternion(camera.quaternion)).add(camera.position);
       this.sky.quaternion.copy(camera.quaternion);
       const sw = (camera.right - camera.left) * 1.05;
       const sh = (camera.top - camera.bottom) * 1.05;
@@ -545,13 +546,8 @@ export class Fx {
       s.hemi.intensity = lerp(1.6, 0.55, dark) * (1 - murk * 0.25) * (1 - warm * 0.08) + flash * 2.4;
       s.sun.intensity = lerp(lerp(2.4, 1.8, warm), 0.35, dark) * (1 - murk * 1.1);
       s.sun.intensity = Math.max(0.15, s.sun.intensity);
-      const reach = s.sun.shadow.camera.right;
       const elev = clamp01(this.opts.light(ms).elevation / 55);
-      s.sun.position.set(
-        s.target.x + az * reach * 0.7,
-        lerp(7, 15, Math.max(elev, dark * 0.6)),
-        s.target.z + reach * 0.35,
-      );
+      s.sun.position.set(s.target.x + az * 14, lerp(7, 15, Math.max(elev, dark * 0.6)), s.target.z + 7);
       s.sun.target.position.copy(s.target);
       (s.scene.background as THREE.Color | null)?.copy(mixCol(fixed("#1b1f2a"), fixed("#0f111a"), dark));
     }

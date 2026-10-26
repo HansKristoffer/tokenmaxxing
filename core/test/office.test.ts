@@ -25,7 +25,6 @@ describe("offices", () => {
     const owners = [5, 3, 7, 1, 2, 4, 6].map((id) => ({
       userId: id,
       name: `u${id}`,
-      open: true,
     }));
     const doors = doorsFor(withSlots(owners));
     expect(doors.map((d) => d.userId)).toEqual([1, 2, 3, 4, 5, 6, 7]);
@@ -38,7 +37,7 @@ describe("offices", () => {
     const first = assignSlots(ids, new Map());
     // The migration: nothing stored packs by id, which is where every door stood before.
     expect(ids.map((id) => first.get(id))).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
-    const owner = (id: number, slot: number) => ({ userId: id, name: `u${id}`, open: true, slot });
+    const owner = (id: number, slot: number) => ({ userId: id, name: `u${id}`, slot });
     const before = doorsFor(ids.map((id) => owner(id, first.get(id)!)));
     // Owner 3 leaves: nobody else's slot (so door) moves.
     const rest = ids.filter((id) => id !== 3);
@@ -63,22 +62,20 @@ describe("offices", () => {
     expect(clash.get(1)).toBe(4);
   });
 
-  test("the directory lists every door, yours first, and only open ones (or yours) can be walked to", () => {
+  test("the directory lists every door, yours first", () => {
     const doors = doorsFor(
       withSlots([
-        { userId: 4, name: "ada", open: true },
-        { userId: 9, name: "bo", open: false },
-        { userId: 12, name: "cy", open: true },
+        { userId: 4, name: "ada" },
+        { userId: 9, name: "bo" },
+        { userId: 12, name: "cy" },
       ]),
     );
-    const rows = directory(doors, 9);
-    expect(rows.map((r) => r.name)).toEqual(["bo", "ada", "cy"]);
-    expect(rows.map((r) => r.canEnter)).toEqual([true, true, true]);
+    expect(directory(doors, 9).map((r) => r.name)).toEqual(["bo", "ada", "cy"]);
     const other = directory(doors, 4);
-    expect(other.map((r) => [r.name, r.mine, r.canEnter])).toEqual([
-      ["ada", true, true],
-      ["bo", false, false],
-      ["cy", false, true],
+    expect(other.map((r) => [r.name, r.mine])).toEqual([
+      ["ada", true],
+      ["bo", false],
+      ["cy", false],
     ]);
     // Each row points at its door, and the route from the floor reaches it.
     const map = hqMap(doors);
@@ -93,16 +90,14 @@ describe("offices", () => {
   test("the building: today's floor, with hallways of doors above it, all reachable", () => {
     expect(MAPS.hq.find("R")).toEqual([]);
     expect(hqMap([])).toEqual(MAPS.hq);
-    const three = doorsFor(withSlots([1, 2, 3].map((id) => ({ userId: id, name: `u${id}`, open: true }))));
+    const three = doorsFor(withSlots([1, 2, 3].map((id) => ({ userId: id, name: `u${id}` }))));
     const map = hqMap(three);
     expect(map.y0).toBe(-4);
     expect(map.find("R")).toEqual(three.map((d) => [d.x, d.y]));
     for (const d of three)
       expect([map.at(d.x, d.y - 1), map.at(d.x, d.y + 1), map.at(d.x, d.y + 2)]).toEqual(["W", "_", "_"]);
     expect(map.rows.slice(2 - map.y0)).toEqual(MAPS.hq.rows.slice(2)); // the floor, where it was
-    const tower = hqMap(
-      doorsFor(withSlots(Array.from({ length: 25 }, (_, i) => ({ userId: i, name: "", open: true })))),
-    );
+    const tower = hqMap(doorsFor(withSlots(Array.from({ length: 25 }, (_, i) => ({ userId: i, name: "" })))));
     const [ex, ey] = tower.find("x")[0]!;
     for (const [x, y] of tower.find("R")) expect(route(tower, [ex, ey - 1], [x, y])).not.toBeNull();
   });

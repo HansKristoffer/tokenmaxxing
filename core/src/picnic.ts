@@ -78,7 +78,7 @@ export const bannerFor = (o: Outage): string =>
 
 // MARK: The blankets
 
-/** A blanket on the grass below the square, in town tiles (the square is always at block (0, 0)). */
+/** A blanket on the lawn across the road below the square, in town tiles (the square is always at block (0, 0)). */
 interface Blanket {
   x: number;
   y: number;
@@ -87,12 +87,12 @@ interface Blanket {
 }
 
 export const BLANKETS: readonly Blanket[] = [
-  { x: 4, y: 7, w: 3, h: 2 },
-  { x: 12, y: 7, w: 3, h: 2 },
+  { x: 3, y: 10, w: 3, h: 2 },
+  { x: 11, y: 10, w: 3, h: 2 },
 ];
 
 /** The picnic basket, beside the right-hand blanket. Just grass to walk on, like the blankets. */
-export const BASKET: readonly [number, number] = [15, 8];
+export const BASKET: readonly [number, number] = [15, 11];
 
 export const onBlanket = (x: number, y: number): boolean =>
   BLANKETS.some((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);

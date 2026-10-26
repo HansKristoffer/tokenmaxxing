@@ -59,7 +59,7 @@ describe("poster catalog", () => {
 });
 
 describe("hanging them", () => {
-  const house = doorsFor(withSlots([1, 2, 3].map((id) => ({ userId: id, name: `u${id}`, open: true }))));
+  const house = doorsFor(withSlots([1, 2, 3].map((id) => ({ userId: id, name: `u${id}` }))));
   // Row 2 under the wall: shelves at 1-2, beds at 4 6 8 10, a plant at 12, the passage at 13-14, desks at 15-18, a coffee machine at 20.
   const clear = [3, 5, 7, 9, 11, 19];
 

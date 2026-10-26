@@ -4,7 +4,9 @@ import { graphics } from "../settings/graphics.ts";
 
 type Icons = typeof import("../render3d/icons.ts");
 let icons: Promise<Icons> | null = null;
-const load = () => (icons ??= import("../render3d/icons.ts"));
+/** The 3D icons module, loaded once and only on the 3D tiers (the Bag's stage uses it too). */
+export const loadIcons = () => (icons ??= import("../render3d/icons.ts"));
+const load = loadIcons;
 
 /**
  * An item as the world shows it. On the 3D tiers: its voxel model, drawn by `render3d/icons.ts` once its turn

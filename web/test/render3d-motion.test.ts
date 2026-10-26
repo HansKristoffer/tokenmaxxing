@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import {
   angleDelta,
   approach,
+  crowdOffset,
   hopHeight,
   isMoving,
   keyDirection,
@@ -69,4 +70,15 @@ test("keys keep their place on screen when the view is turned", () => {
   // Turning twice flips every key.
   expect(keyDirection("up", 2)).toBe("down");
   expect(keyDirection("left", 2)).toBe("right");
+});
+
+test("people sharing a tile stand apart on it, the lone one in its middle", () => {
+  expect(crowdOffset(0, 1)).toEqual([0, 0]);
+  for (const n of [2, 3, 4]) {
+    const spots = Array.from({ length: n }, (_, i) => crowdOffset(i, n));
+    for (const [x, z] of spots) expect(Math.max(Math.abs(x), Math.abs(z))).toBeLessThan(0.5);
+    for (let i = 0; i < n; i++)
+      for (let j = i + 1; j < n; j++)
+        expect(Math.hypot(spots[i]![0] - spots[j]![0], spots[i]![1] - spots[j]![1])).toBeGreaterThan(0.3);
+  }
 });

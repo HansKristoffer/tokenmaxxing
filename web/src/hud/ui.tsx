@@ -195,7 +195,8 @@ export function Modal({
 }: {
   title: ReactNode;
   children: ReactNode;
-  wide?: boolean;
+  /** Wider than the usual panel; "xl" for a whole workspace (the Bag's dressing room). */
+  wide?: boolean | "xl";
   /** Shown next to the dialog, still usable (the chat, beside a game). */
   beside?: ReactNode;
 }) {
@@ -215,7 +216,7 @@ export function Modal({
       <section
         ref={ref}
         tabIndex={-1}
-        className={`panel modal${wide ? " wide" : ""}`}
+        className={`panel modal${wide ? " wide" : ""}${wide === "xl" ? " xl" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

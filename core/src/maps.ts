@@ -337,30 +337,30 @@ export const PLOT_H = 5;
 
 /**
  * Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard, coffee and the raid dungeon's
- * gate, the pond and the Inn.
+ * gate filling the top two, then the picnic lawn, the pond and the Inn.
  */
 const CORE = [
   ",,,,,,,,,,,,,,,,,,,,",
-  ",..T....,,,....T....",
-  ",..L::::::::::::L...",
-  ",..:B::::FF::::B:...",
-  ",..::N:::FF:::o::...",
-  ",..::::::::::::::...",
-  ",..L::::::::G:::L...",
-  ",.......,,,.........",
-  ",.......,,,.........",
+  ",L:::::::::::::::::L",
+  ",:::G::::::::::N::::",
+  ",::::::B:FF:B:::::o:",
+  ",::::::B:FF:B:::::::",
+  ",:::::::::::::::::::",
+  ",:::::::::::::::::::",
+  ",:::::::::::::::::::",
+  ",L:::::::::::::::::L",
   ",,,,,,,,,,,,,,,,,,,,",
-  ",.^....,....T.......",
+  ",......,............",
+  ",^.....,..........^.",
   ",..~~~~,..HHHHHHH...",
   ",.~~~~~,..HHHHHHH...",
   ",.~~~~~,..HHHHHHH...",
   ",..~~~.,..HHHIHHH...",
-  ',.."...,.....,.K....',
-  ",..T...,,,,,,,......",
-  ',..........".....^..',
+  ',.."...,,,,,,,.K....',
+  ',..T........".....^.',
 ];
 /** The square's paving in CORE, lamp to lamp: Sprint Race runs laps round its edge. */
-export const PLAZA = { left: 3, top: 2, right: 16, bottom: 6 };
+export const PLAZA = { left: 1, top: 1, right: 19, bottom: 8 };
 export const CORE_BLOCKS: [number, number][] = [
   [0, 0],
   [1, 0],

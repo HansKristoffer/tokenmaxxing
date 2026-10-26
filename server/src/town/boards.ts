@@ -27,7 +27,7 @@ import {
   type UsageRow,
 } from "../stats.ts";
 import { bioOf, type Habits, habitsOf, lastActiveOf, tavernDaysOf, tavernSince } from "./card.ts";
-import { type Kept, officeOf } from "./coins.ts";
+import type { Kept } from "./coins.ts";
 import {
   COMPANY_COLS,
   type CompanyRow,
@@ -109,8 +109,8 @@ export interface Profile {
   /** All time; null for someone who never finished a game. */
   games: GameStats | null;
   badges: Badge[];
-  /** Null without one: under `OFFICE_LEVEL`, or not in a company. */
-  office: "open" | "closed" | null;
+  /** Whether they have an office (from `OFFICE_LEVEL`, in a company): anyone can visit it. */
+  office: boolean;
   /** The 429 Cop's tickets, newest first. */
   tickets: Ticket[];
   // Added with card v2: optional, so an older client ignores them.
@@ -360,7 +360,7 @@ export async function profile(
     daily,
     games,
     badges,
-    office: level < OFFICE_LEVEL || !company ? null : (await officeOf(sql, userId)).open ? "open" : "closed",
+    office: level >= OFFICE_LEVEL && !!company,
     tickets: await ticketsOf(sql, userId),
     bio: await bioOf(sql, userId),
     since: await tavernSince(sql, userId),

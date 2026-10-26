@@ -1,13 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { petLooks } from "@tokenmaxxing/core/pets.ts";
-import type { Drop, Notice } from "@tokenmaxxing/core/world.ts";
-import { serial } from "../src/actors/shared.ts";
-import { town } from "../src/actors/town.ts";
-import { RateLimiter } from "../src/rate-limit.ts";
-import { bag, offices, placed, takeOut, unwear } from "../src/town/coins.ts";
+import type { Notice } from "@tokenmaxxing/core/world.ts";
+import { unwear } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
-import { admin, as, event, eventually, MIN, rich, signUp, veteran } from "./rivet.ts";
+import { admin, as, event, eventually, MIN, rich, signUp } from "./rivet.ts";
 
 describe("coins and the shop", () => {
   test("usage earns coins, square-rooted per day", async () => {
@@ -238,64 +235,5 @@ describe("trades", () => {
     await eventually(() => expect(got).toContainEqual({ text: `${bo.name} passed on your trade.` }));
     expect((await ada.town.trades()).outgoing).toBeNull();
     await conn.dispose();
-  });
-});
-
-describe("offices", () => {
-  test("only from level 10; thirty changes a minute, since each one sends the office and its building again", async () => {
-    const a = await signUp("office");
-    await a.town.createCompany("Thirty");
-    await expect(a.town.setOfficeOpen(false)).rejects.toMatchObject({ code: "not_found" });
-    await veteran(a);
-    for (let i = 0; i < 29; i++) await a.town.setOfficeOpen(i % 2 === 1);
-    expect((await a.town.profile(a.userId, "7d")).office).toBe("closed");
-    await expect(a.town.setOfficeOpen(true)).rejects.toMatchObject({ code: "rate_limited" });
-  });
-
-  test("level 10 from before offices had rows: closing it makes the row, with the desk and chair", async () => {
-    // In this process, on an in-memory database: the server makes the row at the sync that reaches level 10.
-    const { sql } = memorySql();
-    await migrate(sql);
-    for (const id of [7, 8, 9]) {
-      await sql.execute(
-        "INSERT INTO users (id, name, look, created_at) VALUES (?, ?, '{}', 0)",
-        id,
-        `u${id}`,
-      );
-      if (id !== 9)
-        await sql.execute(
-          "INSERT INTO usage_daily (user_id, day, model, input, output, cache_creation, cache_read, turns) VALUES (?, '2024-01-01', 'm', 50e9, 0, 0, 0, 1)",
-          id,
-        );
-    }
-    // 8 furnished theirs already: the desk and chair go in the bag.
-    await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (8, 'furn.s', 0)");
-    const sofa = await takeOut(sql, 8, "furn.s", 0);
-    await placed(sql, { id: sofa, item: "furn.s", room: "office:8", x: 5, y: 3, by: 8, at: 0 });
-    const laid: Drop[][] = [];
-    const world = { placeDrops: async (d: Drop[]) => void laid.push(d), setOfficeInfo: async () => {} };
-    const actor = { getOrCreate: () => world };
-    const vars = { serial: serial(), offices: new RateLimiter(30, MIN) };
-    const close = (userId: number) =>
-      town.config.actions!.setOfficeOpen(
-        {
-          conn: { state: { kind: "user", userId, via: "session" } },
-          db: sql,
-          vars,
-          client: () => ({ town: actor, world: actor, arcade: actor }),
-        } as never,
-        false,
-      );
-    await close(7);
-    await close(8);
-    await expect(close(9)).rejects.toMatchObject({ code: "not_found" });
-    expect(await offices(sql)).toEqual({ 7: { open: false }, 8: { open: false } });
-    expect(laid).toMatchObject([
-      [
-        { item: "furn.d", room: "office:7" },
-        { item: "furn.c", room: "office:7" },
-      ],
-    ]);
-    expect(await bag(sql, 8)).toContainEqual({ item: "furn.d", count: 1 });
   });
 });

@@ -50,7 +50,11 @@ export function measureRoom(id: string): RoomCost {
       if (!img || seen.has(t)) continue;
       seen.add(t);
       biggest = Math.max(biggest, img.width ?? 0, img.height ?? 0);
-      texBytes += (img.width ?? 0) * (img.height ?? 0) * 4 * (t.generateMipmaps ? 1.34 : 1);
+      if (t.mipmaps.length > 0) {
+        for (const mip of t.mipmaps) {
+          if ("width" in mip && "height" in mip) texBytes += mip.width * mip.height * 4;
+        }
+      } else texBytes += (img.width ?? 0) * (img.height ?? 0) * 4 * (t.generateMipmaps ? 1.34 : 1);
     }
   });
   void before;

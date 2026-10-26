@@ -1,6 +1,6 @@
 /**
  * The Barber: a walk-in barber shop and salon in the 3D town. Every look option of the 2D character creator
- * (`hud/LookPicker.tsx`: style, skin, hair) and every face thing of the shop (glasses, masks, the moustache and
+ * (`hud/Bag.tsx`, its You tab: style, skin, hair) and every face thing of the shop (glasses, masks, the moustache and
  * the beard) is physically on show: wigs on stands in every hairstyle and hair colour, a colour swatch wall,
  * a skin-tone chart, a moustache and beard bar and a rack of faces, plus chairs, mirrors, sinks, towels and
  * clippers. Figaro the barber minds the till; two apprentices trim customers under capes.
@@ -15,6 +15,7 @@ import { type Asset, assetById, light } from "../furniture/furniture.ts";
 import { canvasTexture, checker, glass, glow, Model, painted, ticks, tint } from "../kit/kit.ts";
 import { panel } from "../kit/panel.ts";
 import type { Avatar } from "../people/avatar.ts";
+import { exitDoorway } from "../rooms/exits3d.ts";
 import { type Placed, Room, type Turn } from "../rooms/room.ts";
 import { nightGlow } from "../town/props.ts";
 import {
@@ -716,21 +717,6 @@ function priceBoard(): Model {
   return m;
 }
 
-/** The doorway in the south wall: a frame, a mat, an OPEN sign swinging on the glass. */
-function doorway(): Model {
-  const m = new Model();
-  m.box([0.1, 2.1, 0.16], C.woodDark, [-0.55, 0, 0.3], 0.02);
-  m.box([0.1, 2.1, 0.16], C.woodDark, [0.55, 0, 0.3], 0.02);
-  m.box([1.2, 0.12, 0.16], C.woodDark, [0, 2.0, 0.3], 0.02);
-  m.box([0.9, 0.012, 0.6], RED, [0, 0, 0.0], 0.004);
-  m.box([0.84, 0.014, 0.54], "#fbf7ef", [0, 0, 0.0], 0.004).scale.set(0.9, 0.6, 0.8);
-  const sign = m.part([0, 1.7, 0.32]);
-  sign.box([0.36, 0.16, 0.02], "#fbf7ef", [0, 0, 0], 0.01);
-  sign.box([0.3, 0.1, 0.022], BLUE, [0, 0.03, 0.002], 0.006);
-  ticks.push((t) => (sign.rotation.z = Math.sin(t * 1.3) * 0.05));
-  return m;
-}
-
 function magazineTable(): Model {
   const m = new Model();
   m.cyl(0.35, 0.05, C.woodDark, [0, 0.4, 0], 0.35, 14);
@@ -851,7 +837,10 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   put(asset("barber:menu", "The menu", 1, 1, priceBoard), 18, 8);
   put(assetById.get("plant")!, 19, 9);
   const doorAt: [number, number] = [10, 10];
-  put(asset("barber:door", "Door", 1, 1, doorway), 10, 10, 2);
+  const door = exitDoorway({ outside: true, wall: "#c3e0d4", leaf: BLUE });
+  door.position.set(10.5, 0, D + 0.5);
+  door.rotation.y = Math.PI;
+  room.group.add(door);
   put(assetById.get("lamp")!, 12, 10);
 
   // The waiting corner, east: sofa, magazine table, plant, and someone waiting.

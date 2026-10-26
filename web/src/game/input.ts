@@ -425,7 +425,7 @@ function jump(): void {
 /** What the shop pages open on at each shop's counter. */
 const COUNTER_TAB = { furniture: "furniture", clothes: "outfit", barber: "look", pets: "pet" } as const;
 
-/** E in a shop room on its counter or a display: the Shop page on the matching tab (the barber opens the look picker). */
+/** E in a shop room on its counter or a display: the Shop page on the matching tab (the barber opens the Bag on You). */
 function shopInteract(x: number, y: number): boolean {
   const shop = shopOfRoom(world.room);
   const kind = world.map.kind(x, y);
@@ -435,7 +435,7 @@ function shopInteract(x: number, y: number): boolean {
   // Møbelhuset's wallpaper, monitors and company supplies open the page's tab instead).
   const tabbed = tab === "decor" || tab === "desk" || tab === "company";
   if (kind.shop && !tabbed && viewHooks.shop?.(shop, x, y)) return true;
-  hud.set({ panel: tab === "look" || tab === null ? { kind: "look" } : { kind: "shop", tab } });
+  hud.set({ panel: tab === "look" || tab === null ? { kind: "bag", tab: "you" } : { kind: "shop", tab } });
   return true;
 }
 

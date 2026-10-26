@@ -41,7 +41,8 @@ test("tiers get lighter going down: Medium has no shadows or AO, Ultra has the m
   expect(m.crease).toBe(0);
   expect(hi.aoSamples!).toBeLessThan(u.aoSamples!);
   expect(hi.shadowSize!).toBeLessThan(u.shadowSize!);
-  expect(hi.msaa).toBe(0);
+  expect(hi.msaa!).toBeGreaterThan(0);
+  expect(hi.msaa!).toBeLessThan(u.msaa!);
   expect(u.dprCap! * u.renderScale!).toBeLessThanOrEqual(2.0001);
 });
 

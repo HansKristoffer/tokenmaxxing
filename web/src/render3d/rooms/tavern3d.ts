@@ -364,12 +364,13 @@ function seatUnit(kind: "sofa" | "booth" | "armchair", leftArm: boolean, rightAr
     const colour = kind === "sofa" ? C.fabric : kind === "armchair" ? "#8a4a32" : C.rug;
     const frame = kind === "booth" ? WOOD_DARK : tint(colour, -0.18);
     const backH = kind === "booth" ? 0.78 : 0.42;
-    m.box([1, 0.24, 0.8], frame, [0, 0.05, 0], 0.05);
-    m.box([0.94, 0.12, 0.66], colour, [0, 0.28, 0.07], 0.05);
+    // Inset the base and back so the arms have their own outer faces in both geometry styles.
+    m.box([0.98, 0.24, 0.78], frame, [0, 0.05, 0], 0.05);
+    m.box([0.94, 0.12, 0.64], colour, [0, 0.28, 0.07], 0.05);
     m.box(
-      [1, backH, kind === "booth" ? 0.12 : 0.2],
+      [0.98, backH, kind === "booth" ? 0.12 : 0.2],
       kind === "booth" ? WOOD : colour,
-      [0, 0.29, kind === "booth" ? -0.34 : -0.3],
+      [0, 0.29, kind === "booth" ? -0.33 : -0.29],
       0.07,
     );
     if (kind === "booth") m.box([0.9, 0.34, 0.06], colour, [0, 0.42, -0.27], 0.03);
@@ -558,9 +559,10 @@ const stageTile = (): Model => {
 function stage(w: number, d: number): () => Model {
   return () => {
     const m = new Model();
-    m.box([w, 0.14, d], STAGE_BOARDS, [0, 0, 0], 0.01);
-    m.box([w, 0.05, 0.1], WOOD_LIGHT, [0, 0.12, d / 2 - 0.05], 0.01);
-    m.box([w, 0.04, 0.12], TRUNK_DARK, [0, 0, d / 2 - 0.06], 0.004);
+    // The boards and front trim fit between the end caps instead of sharing their exposed faces.
+    m.box([w - 0.1, 0.14, d - 0.02], STAGE_BOARDS, [0, 0, 0], 0.01);
+    m.box([w - 0.1, 0.05, 0.1], WOOD_LIGHT, [0, 0.12, d / 2 - 0.05], 0.01);
+    m.box([w - 0.1, 0.04, 0.12], TRUNK_DARK, [0, 0, d / 2 - 0.06], 0.004);
     for (const s of [-1, 1]) m.box([0.05, 0.14, d], TRUNK_DARK, [s * (w / 2 - 0.025), 0, 0], 0.004);
     // A lute leaning on a stand and a mic (the singer's stool is its own seat, `tavern:stage-stool`).
     const lute = m.part([-w / 2 + 0.9, 0.14, -d / 4], 0.3);

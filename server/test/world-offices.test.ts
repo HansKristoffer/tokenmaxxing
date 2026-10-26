@@ -6,7 +6,7 @@ import { asleep, connect, step, walk } from "./world-client.ts";
 
 // Offices and their doors.
 describe("world", () => {
-  test("a level-10 member's door is in the building; colleagues walk through it unless it's closed", async () => {
+  test("a level-10 member's door is in the building; colleagues walk through it", async () => {
     const owner = await signUp("door");
     const co = await owner.town.createCompany("Doors");
     await veteran(owner);
@@ -16,7 +16,7 @@ describe("world", () => {
     // Only the owner has a door: the colleague is level 0.
     const m = await connect(mate.token);
     expect(m.snap.room).toBe(`hq:${co.id}`);
-    const door = { userId: owner.userId, name: owner.name, open: true, slot: 0, ...slotSpot(0) };
+    const door = { userId: owner.userId, name: owner.name, slot: 0, ...slotSpot(0) };
     expect(m.snap.doors).toEqual([door]);
     const me = m.snap.players.find((p) => p.id === mate.userId)!;
     const path = route(hqMap(m.snap.doors), [me.x, me.y], [door.x, door.y])!;
@@ -30,9 +30,9 @@ describe("world", () => {
       state: "idle",
     });
 
-    await owner.town.setOfficeOpen(false);
-    await eventually(() => expect(m.events.snapshots.at(-1)!.doors).toEqual([{ ...door, open: false }]));
-    expect(await step(m.conn, "up")).toEqual({ notice: `🔒 ${owner.name}'s office is closed.` });
+    // Anyone in the building walks in through a door: every office is open. Back out to the hallway.
+    expect(await step(m.conn, "up")).toMatchObject({ room });
+    expect(await step(m.conn, "down")).toMatchObject({ room: `hq:${co.id}`, x: door.x, y: door.y + 1 });
     const o = await connect(owner.token);
     const at = o.snap.players.find((p) => p.id === owner.userId)!;
     const own = await walk(o.conn, route(hqMap(o.snap.doors), [at.x, at.y], [door.x, door.y])!);
@@ -90,9 +90,9 @@ describe("world", () => {
     await watch.conn.dispose();
   });
 
-  test("anyone visits an open office from its owner's card; a closed one lets only its owner in", async () => {
+  test("anyone visits an office from its owner's card, or goes there from the rooms list", async () => {
     const owner = await signUp("office");
-    await owner.town.createCompany("Tower");
+    const co = await owner.town.createCompany("Tower");
     await veteran(owner);
     const guest = await signUp("office");
     const g = await connect(guest.token);
@@ -108,18 +108,18 @@ describe("world", () => {
       { item: "furn.d", x: 5, y: 3, by: owner.userId },
       { item: "furn.c", x: 5, y: 4, by: owner.userId },
     ]);
-    expect(inside.owner).toEqual({ id: owner.userId, name: owner.name, open: true, tier: 1 }); // a veteran: level 25 to 39
-    // Only its owner opens or closes it: anyone else's call is about their own, and they have none.
-    await expect(guest.town.setOfficeOpen(false)).rejects.toMatchObject({ code: "not_found" });
-    expect((await guest.town.profile(owner.userId, "7d")).office).toBe("open");
+    expect(inside.owner).toEqual({ id: owner.userId, name: owner.name, tier: 1 }); // a veteran: level 25 to 39
+    expect((await guest.town.profile(owner.userId, "7d")).office).toBe(true);
     expect(await g.conn.visit(owner.userId)).toMatchObject({ room });
-
-    await owner.town.setOfficeOpen(false);
-    expect(await g.conn.visit(owner.userId)).toEqual({ notice: `🔒 ${owner.name}'s office is closed.` });
-    expect((await guest.town.profile(owner.userId, "7d")).office).toBe("closed");
     const o = await connect(owner.token);
     expect(await o.conn.visit(owner.userId)).toMatchObject({ room });
     await o.conn.dispose();
+
+    // The rooms list goes straight there too, and to the square; not into a company you're not in.
+    await g.conn.goTo("town");
+    expect(await g.conn.goTo(room)).toMatchObject({ room, state: "idle" });
+    expect(await g.conn.goTo(`hq:${co.id}`)).toEqual({ notice: "You can't get in there." });
+    expect(await g.conn.goTo("nowhere")).toBeNull();
 
     // Deleted, their office goes from the world too, furniture and all; the guest still inside sees a bare one.
     await admin().adminDeleteUser(owner.userId);
@@ -162,31 +162,8 @@ describe("world", () => {
       return mine!;
     }, 8_000);
     expect(row.inside).toBeGreaterThanOrEqual(1);
-    await owner.town.setOfficeOpen(false);
-    await eventually(async () => {
-      expect((await guest.town.openOffices()).some((r) => r.id === owner.userId)).toBe(false);
-    }, 8_000);
     for (const c of [g, o]) await c.conn.dispose();
   }, 30_000);
-
-  test("an office that closed while you slept isn't where you wake up", async () => {
-    const owner = await signUp("shut");
-    await owner.town.createCompany("Shutters");
-    await veteran(owner);
-    const guest = await signUp("shut");
-    const g = await connect(guest.token);
-    const w = await connect(owner.token);
-    expect(await g.conn.visit(owner.userId)).toMatchObject({ room: `office:${owner.userId}` });
-    // The owner in there too, to see the guest go (`info` goes to the room).
-    await w.conn.visit(owner.userId);
-    // Closing the tab remembers the office...
-    await asleep(g, w, guest.userId);
-    await owner.town.setOfficeOpen(false);
-    // ...but it's closed now, so they're up in their bed at the Inn.
-    const again = await connect(guest.token);
-    expect(again.snap.room).toBe("inn");
-    for (const c of [w, again]) await c.conn.dispose();
-  });
 
   test("nor is the office of someone who left their company", async () => {
     const owner = await signUp("left");

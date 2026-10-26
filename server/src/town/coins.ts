@@ -339,8 +339,8 @@ export async function buyMerch(
   return wallet(sql, userId, now, kept);
 }
 
+/** Someone's office. Every office is open: anyone can walk in. */
 export interface Office {
-  open: boolean;
   /** Wallpaper and floor (`decor.ts`); none is the plain one. */
   wall?: string;
   floor?: string;
@@ -348,23 +348,20 @@ export interface Office {
 
 /** Every office (or only `userId`'s), by owner. */
 export async function offices(sql: Sql, userId: number | null = null): Promise<Record<number, Office>> {
-  const rows = await all<{ userId: number; open: number; wall: string | null; floor: string | null }>(
+  const rows = await all<{ userId: number; wall: string | null; floor: string | null }>(
     sql,
-    "SELECT user_id AS userId, open, wall, floor FROM offices WHERE ? IS NULL OR user_id = ?",
+    "SELECT user_id AS userId, wall, floor FROM offices WHERE ? IS NULL OR user_id = ?",
     userId,
     userId,
   );
   return Object.fromEntries(
-    rows.map((r) => [
-      r.userId,
-      { open: !!r.open, ...(r.wall && { wall: r.wall }), ...(r.floor && { floor: r.floor }) },
-    ]),
+    rows.map((r) => [r.userId, { ...(r.wall && { wall: r.wall }), ...(r.floor && { floor: r.floor }) }]),
   );
 }
 
-/** Someone's office; one with no row yet is open. */
+/** Someone's office (plain, with no row yet). */
 export const officeOf = async (sql: Sql, userId: number): Promise<Office> =>
-  (await offices(sql, userId))[userId] ?? { open: true };
+  (await offices(sql, userId))[userId] ?? {};
 
 /**
  * A new office's desk and chair, free: two rows already on its floor at the `STARTER_OFFICE` tiles,

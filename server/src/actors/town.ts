@@ -953,25 +953,6 @@ export const town = actor({
       return { name: u.name, owned: (await ownedItems(c.db, u.id)).filter(isTradeable) };
     },
 
-    /** Open: anyone can visit from my player card. Closed: only I get in, through the door. */
-    setOfficeOpen: async (c, open: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
-      if (!c.vars.offices.take(String(userId), Date.now()))
-        throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
-      if (typeof open !== "boolean") throw new UserError("Open or closed?", { code: "invalid_office" });
-      const client = c.client<typeof registry>();
-      const drops = await c.vars.serial(async () => {
-        // Level 10 from before offices had rows: its row, and its desk and chair, come now.
-        const drops = await grantRewards(c.db, userId, await levelOf(c.db, userId), Date.now());
-        const set = "UPDATE offices SET open = ? WHERE user_id = ? RETURNING user_id";
-        if (!(await one(c.db, set, open ? 1 : 0, userId)))
-          throw new UserError("You don't have an office yet.", { code: "not_found" });
-        return drops;
-      });
-      await placeStarter(client, drops);
-      await pushOffice(c.db, client, userId);
-    },
-
     /** What wallpapers and floors I may use now, as `<kind>.<id>`. */
     decorOwned: async (c): Promise<string[]> => ownedDecor(c.db, requireUser(c.conn.state)),
 

@@ -64,6 +64,24 @@ export type RoomId =
   | `common:${number}`
   | `office:${number}`;
 
+const FIXED_ROOMS: readonly string[] = [
+  "town",
+  "inn",
+  "upstairs",
+  "basement",
+  "dungeon",
+  "shop-furniture",
+  "shop-clothes",
+  "shop-barber",
+  "shop-pets",
+];
+
+/** A room id from the wire, or null: one of the fixed rooms, or a company's house or common room, or an office. */
+export function parseRoom(raw: unknown): RoomId | null {
+  if (typeof raw !== "string") return null;
+  return FIXED_ROOMS.includes(raw) || /^(hq|common|office):[1-9]\d{0,9}$/.test(raw) ? (raw as RoomId) : null;
+}
+
 export const DIRS: Record<Facing, [number, number]> = {
   up: [0, -1],
   down: [0, 1],
@@ -444,8 +462,8 @@ export interface Snapshot {
   houses: Houses;
   /** Games being played in town, with their tables or arenas. */
   games: WorldGame[];
-  /** Only in an office: whose it is (for the banner), and whether it's open (for its owner's Menu). */
-  owner: { id: number; name: string; open: boolean; tier: OfficeTier; wall?: string; floor?: string } | null;
+  /** Only in an office: whose it is (for the banner). */
+  owner: { id: number; name: string; tier: OfficeTier; wall?: string; floor?: string } | null;
   /** Only in a building: its office doors, to build the map and draw the names. */
   doors: Door[];
   /** What's on the floor: furniture (in the map too), wearables and pets. */

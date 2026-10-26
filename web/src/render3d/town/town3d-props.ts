@@ -46,6 +46,11 @@ export function leaderboard(): Board {
     g.textAlign = "center";
     g.textBaseline = "middle";
     g.fillText("LEADERBOARD", w / 2, 19);
+    if (!rows.length) {
+      g.fillStyle = "#8a93ad";
+      g.font = "700 15px system-ui, sans-serif";
+      g.fillText("Nobody yet today", w / 2, h / 2 + 14);
+    }
     rows.slice(0, 5).forEach((r, i) => {
       const y = 44 + i * 27;
       g.fillStyle = i % 2 ? "#262c40" : "#2b3249";
@@ -54,9 +59,13 @@ export function leaderboard(): Board {
       g.font = "900 18px system-ui, sans-serif";
       g.textAlign = "left";
       g.fillText(`${i + 1}`, 14, y + 13);
-      g.fillStyle = "#e4f5fd";
       g.font = "700 16px system-ui, sans-serif";
-      g.fillText(r.name.length > 14 ? `${r.name.slice(0, 13)}…` : r.name, 36, y + 13);
+      // The name gives way to the number: shortened until it ends a gap short of it.
+      const room = w - 14 - g.measureText(r.value).width - 8 - 36;
+      let name = r.name;
+      while (name.length > 1 && g.measureText(name).width > room) name = name.slice(0, -1);
+      g.fillStyle = "#e4f5fd";
+      g.fillText(name === r.name ? name : `${name.slice(0, -1)}…`, 36, y + 13);
       g.fillStyle = "#8fe3ff";
       g.textAlign = "right";
       g.fillText(r.value, w - 14, y + 13);
@@ -71,6 +80,8 @@ export function leaderboard(): Board {
     lit: true,
   });
   face.position.z = 0.02;
+  // Repainted with today's board (`show`), so batching leaves it be.
+  face.userData.live = true;
   m.add(face);
   const roof = m.box([1.65, 0.1, 0.5], C.roofRed, [0, 1.62, 0.02], 0.03);
   roof.rotation.x = 0.12;

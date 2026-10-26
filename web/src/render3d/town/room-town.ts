@@ -1,4 +1,6 @@
+import { compact } from "@tokenmaxxing/core/format.ts";
 import * as THREE from "three";
+import { hud } from "../../store.ts";
 import { GateLive } from "../dungeon/gate3d.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { ExitMarkers } from "../rooms/exit-markers.ts";
@@ -30,6 +32,17 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const games = new GamesLayer((tx, ty) => town.toWorld(tx, ty));
   if (gateLive) group.add(gateLive.group);
   group.add(games.group);
+  // The leaderboard on the square shows today's top five, as the HUD's mini board has them.
+  let board: ReturnType<typeof hud.get>["board"] | null = null;
+  const showBoard = () => {
+    if (board === hud.get().board) return;
+    board = hud.get().board;
+    town.boards.leaderboard.show(
+      board
+        .filter((r) => r.rank <= 5 && r.tokens > 0)
+        .map((r) => ({ name: r.name, value: compact(r.tokens) })),
+    );
+  };
   const markers = new ExitMarkers(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(markers.group);
   const signs = (): Sign[] =>
@@ -58,6 +71,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     },
     extras: events.group,
     frame(f) {
+      showBoard();
       markers.update(f.me, f.t);
       events.update(f);
     },

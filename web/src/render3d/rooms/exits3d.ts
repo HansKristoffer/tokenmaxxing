@@ -135,8 +135,10 @@ export function exitDoorway(opts: DoorwayOpts = {}): Model {
   // (daylight, or a hall with a lamp). An exit in the wall the camera cuts away is seen from behind: through the
   // open frame the leaf shows, so it is a door from either side.
   const dark = tint(wall, -0.45);
-  for (const s of [-1, 1]) m.box([0.06, 2.08, 0.3], dark, [s * 0.42, 0, 0.36], 0.004);
-  m.box([0.9, 0.06, 0.3], dark, [0, 2.02, 0.36], 0.004);
+  // A little shallower than the frame (z 0.21 to 0.55), so their backs don't share a plane and flicker when the
+  // wall is lowered and the doorway is seen from behind.
+  for (const s of [-1, 1]) m.box([0.06, 2.08, 0.26], dark, [s * 0.42, 0, 0.37], 0.004);
+  m.box([0.9, 0.06, 0.26], dark, [0, 2.02, 0.37], 0.004);
   const beyond = opts.outside ? "#bfe6ff" : "#fff1c9";
   m.plane(0.84, 2.02, glow(beyond), [0, 1.03, 0.5]);
   if (opts.outside) m.plane(0.84, 0.5, glow("#8fcff5"), [0, 1.74, 0.502]);

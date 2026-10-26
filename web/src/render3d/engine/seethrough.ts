@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { addPatch } from "../kit/patches.ts";
+import { pickable } from "./pick.ts";
 
 /**
- * Seeing yourself through trees and roofs: everything that stands up from the floor, is nearer the camera
- * than the player and falls within a ring round them on screen is cut away in a clean circle, its edge lit
- * like a cut and shaded just outside so the hole reads as a window. One uniform shared by every patched material:
+ * A cutaway through foreground scenery when it hides most of the player's upper body.
+ * One uniform shared by every patched material:
  * x, y: the player's place in the render target's pixels; z: their depth from the camera; w: the ring's
  * radius in those pixels (0 turns it off).
  */
@@ -44,7 +44,7 @@ const patch = (sh: Parameters<THREE.Material["onBeforeCompile"]>[0]) => {
     )
     .replace(
       "#include <opaque_fragment>",
-      `outgoingLight = mix(outgoingLight * (1.0 - 0.3 * seeShade * seeShade), vec3(1.0, 0.96, 0.86), seeRim * 0.75);
+      `outgoingLight = mix(outgoingLight * (1.0 - 0.08 * seeShade * seeShade), vec3(1.0, 0.96, 0.86), seeRim * 0.14);
   #include <opaque_fragment>`,
     );
 };
@@ -57,4 +57,59 @@ export function seeThrough(root: THREE.Object3D): void {
     for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
       if ((mat as THREE.MeshToonMaterial).isMeshToonMaterial && !mat.transparent) addPatch(mat, "see", patch);
   });
+}
+
+/** Probe the head and torso, so a narrow post or a low prop does not open a cutaway. */
+export class PlayerOcclusion {
+  private readonly caster = new THREE.Raycaster();
+  private readonly point = new THREE.Vector3();
+  private readonly right = new THREE.Vector3();
+  private readonly projected = new THREE.Vector3();
+  private readonly ndc = new THREE.Vector2();
+  private readonly hits: THREE.Intersection[] = [];
+  private hidden = false;
+  private elapsed = Infinity;
+  private amount = 0;
+
+  constructor(private readonly root: THREE.Object3D) {}
+
+  update(at: THREE.Vector3, camera: THREE.OrthographicCamera, dt: number, calm: boolean): number {
+    this.elapsed += dt;
+    if (this.elapsed >= 0.08) {
+      this.elapsed = 0;
+      this.root.updateMatrixWorld(true);
+      const meshes = pickable(this.root).filter((o): o is THREE.Mesh => {
+        const mesh = o as THREE.Mesh;
+        return !Array.isArray(mesh.material) && mesh.material.userData.patches?.includes("see");
+      });
+      this.right.setFromMatrixColumn(camera.matrixWorld, 0);
+      let blocked = 0;
+      for (let row = 0; row < 3; row++) {
+        for (let column = -1; column <= 1; column++) {
+          this.point.copy(at).addScaledVector(this.right, column * 0.14);
+          this.point.y += -0.35 + row * 0.22;
+          const depth = -this.projected.copy(this.point).applyMatrix4(camera.matrixWorldInverse).z;
+          this.projected.copy(this.point).project(camera);
+          this.ndc.set(this.projected.x, this.projected.y);
+          this.caster.setFromCamera(this.ndc, camera);
+          this.caster.far = depth - NEARER;
+          this.hits.length = 0;
+          for (const mesh of meshes) {
+            mesh.raycast(this.caster, this.hits);
+            if (this.hits.some((hit) => hit.point.y > FLOOR_TOP)) {
+              blocked++;
+              break;
+            }
+            this.hits.length = 0;
+          }
+        }
+      }
+      // Hysteresis keeps a roof edge from flickering between adjacent samples while walking.
+      this.hidden = blocked >= (this.hidden ? 4 : 5);
+    }
+    const target = this.hidden ? 1 : 0;
+    this.amount = calm ? target : THREE.MathUtils.damp(this.amount, target, this.hidden ? 18 : 12, dt);
+    if (Math.abs(this.amount - target) < 0.005) this.amount = target;
+    return this.amount;
+  }
 }

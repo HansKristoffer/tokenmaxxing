@@ -16,6 +16,7 @@ import { type Asset, assetById, light } from "../furniture/furniture.ts";
 import { DESK_TIER_ASSETS, extraAssetById } from "../furniture/furniture3d.ts";
 import { glow, Model, painted, ticks } from "../kit/kit.ts";
 import type { Avatar } from "../people/avatar.ts";
+import { exitDoorway } from "../rooms/exits3d.ts";
 import { type Placed, Room, type Turn } from "../rooms/room.ts";
 import {
   DESK_ROWS,
@@ -27,7 +28,6 @@ import {
 } from "./data/furniture.ts";
 import {
   counter,
-  exitDoor,
   furnitureStorefront,
   headerBoard,
   makeShopkeeper,
@@ -329,8 +329,10 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
 
   // — The way out —
   const DOOR_X = 10;
-  const doorAsset: Asset = { id: "shop:door", name: "Door", price: 0, w: 1, d: 1, build: exitDoor };
-  room.place(doorAsset, DOOR_X, D - 1, 2);
+  const door = exitDoorway({ outside: true, wall: "#efe3cc", leaf: "#2c5f5a" });
+  door.position.set(DOOR_X + 0.5, 0, D + 0.5);
+  door.rotation.y = Math.PI;
+  room.group.add(door);
 
   // — Wall pieces on the north wall: posters, then the hangings —
   const measure = (m: Model): THREE.Box3 => {

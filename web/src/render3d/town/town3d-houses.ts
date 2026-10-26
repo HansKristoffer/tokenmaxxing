@@ -90,21 +90,25 @@ function gableRoof(m: Model, w: number, d: number, y: number, color: string, gab
       const c = m.box(
         [w + 0.3, 0.025, 0.04],
         tint(color, -0.18),
-        [0, y + rise * (1 - f), s * half * f],
+        [0, y + rise * (1 - f) + 0.008, s * half * f],
         0.005,
       );
       c.rotation.x = s * Math.atan(rise / half);
+      c.userData.detailSize = 0.025;
     }
   const end = new THREE.Shape();
   end.moveTo(-d / 2, 0);
   end.lineTo(0, rise - 0.12);
   end.lineTo(d / 2, 0);
-  const eg = new THREE.ExtrudeGeometry(end, { depth: w - 0.02, bevelEnabled: false });
-  eg.translate(0, 0, -(w - 0.02) / 2);
-  const ends = new THREE.Mesh(eg, toon(gable));
-  ends.rotation.y = Math.PI / 2;
-  ends.position.y = y;
-  m.add(ends);
+  // End panels sit outside the roof caps; a second solid prism would overlap the roof's underside.
+  const eg = new THREE.ShapeGeometry(end);
+  for (const s of [-1, 1]) {
+    const face = new THREE.Mesh(eg, toon(gable));
+    face.rotation.y = (s * Math.PI) / 2;
+    face.position.set(s * ((w + 0.3) / 2 + 0.008), y, 0);
+    face.receiveShadow = true;
+    m.add(face);
+  }
   return rise;
 }
 
@@ -114,8 +118,8 @@ function windowOn(face: Model, x: number, y: number, trim: string, box = false):
   const pane = face.box([0.38, 0.44, 0.05], "#a8dcf7", [x, y + 0.02, 0.01], 0.005);
   pane.castShadow = false;
   nightGlow(pane, "#ffd98a");
-  face.box([0.03, 0.44, 0.06], C.white, [x, y + 0.02, 0.01]);
-  face.box([0.38, 0.03, 0.06], C.white, [x, y + 0.22, 0.01]);
+  face.box([0.03, 0.44, 0.06], C.white, [x, y + 0.02, 0.01]).userData.detailSize = 0.03;
+  face.box([0.38, 0.03, 0.06], C.white, [x, y + 0.22, 0.01]).userData.detailSize = 0.03;
   face.box([0.58, 0.05, 0.1], C.white, [x, y - 0.06, 0.03], 0.01);
   for (const s of [-1, 1])
     face.box([0.1, 0.54, 0.03], tint(trim, 0.05), [x + s * 0.33, y - 0.03, 0.02], 0.01);
@@ -132,18 +136,20 @@ function doorOn(m: Model, trim: string, width = 0.62): void {
   nightGlow(m.box([0.08, 0.16, 0.08], "#f4e6c0", [width / 2 + 0.18, 0.7, 0.07], 0.02), "#ffe28a");
 }
 
-/** A white picket fence along x from `x0` to `x1`. */
+/** A white picket fence along x from `x0` to `x1` at `z`; `alongZ`, along z from `x0` to `x1` at x = `z`. */
 function picket(m: Model, x0: number, x1: number, z: number, alongZ = false): void {
   const n = Math.max(1, Math.round(Math.abs(x1 - x0) * 3));
-  const part = alongZ ? m.part([z, 0, 0], Math.PI / 2) : m.part([0, 0, z]);
+  // A quarter turn the other way would run it from -x1 to -x0: out over the street.
+  const part = alongZ ? m.part([z, 0, 0], -Math.PI / 2) : m.part([0, 0, z]);
   const a = Math.min(x0, x1);
   for (let i = 0; i <= n; i++) {
     const x = a + (i / n) * Math.abs(x1 - x0);
     part.box([0.07, 0.42, 0.05], "#fbf7ef", [x, 0, 0], 0.015);
     part.cyl(0.035, 0.06, "#fbf7ef", [x, 0.42, 0], 0.001, 4);
   }
-  part.box([Math.abs(x1 - x0), 0.05, 0.03], "#fbf7ef", [(x0 + x1) / 2, 0.12, 0.03]);
-  part.box([Math.abs(x1 - x0), 0.05, 0.03], "#fbf7ef", [(x0 + x1) / 2, 0.3, 0.03]);
+  part.box([Math.abs(x1 - x0), 0.05, 0.03], "#fbf7ef", [(x0 + x1) / 2, 0.12, 0.03]).userData.detailSize =
+    0.05;
+  part.box([Math.abs(x1 - x0), 0.05, 0.03], "#fbf7ef", [(x0 + x1) / 2, 0.3, 0.03]).userData.detailSize = 0.05;
 }
 
 /** The lot's fence: back, sides, and the front with a gap for the path to the door. */
@@ -324,7 +330,7 @@ export function companyHouse(tier: number, name: string, brand: Brand | null): M
   }
 
   // The name on its sign; the logo on the roof, or the tower.
-  if (floors >= 2) nameBoard(m, name, PLINTH + 1.02, s.trim);
+  if (floors >= 2) nameBoard(m, name, PLINTH + (wide ? 0.96 : 1.02), s.trim);
   else nameSign(m, name, [1.5, 0.35], s.trim);
   if (brand?.logo != null && t !== 5) {
     const half = d / 2 + 0.2;
@@ -384,7 +390,7 @@ function basement(m: Model, name: string, s: Style, brand: Brand | null): Model 
   m.box([2.3, 0.2, 1.5], C.stoneDark, [0, 0, -0.35], 0.03);
   m.box([1.8, 0.02, 1.1], "#1f1b19", [0, 0.2, -0.35]);
   ["#5a5048", "#4a423c", "#3a3430", "#2c2724"].forEach((c, i) => {
-    m.box([1.7, 0.012, 0.22], c, [0, 0.205 + i * 0.001, -0.02 - i * 0.26]);
+    m.box([1.7, 0.012, 0.22], c, [0, 0.225 + i * 0.001, -0.02 - i * 0.26]);
   });
   for (const sx of [-1, 1]) {
     const door = m.part([sx * 1.45, 0.05, -0.35]);

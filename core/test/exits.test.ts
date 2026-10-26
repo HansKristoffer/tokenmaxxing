@@ -15,9 +15,7 @@ import { route, townSpawn } from "../src/world.ts";
 /** Every room but the town, in the sizes the game builds them: the fixed rooms, a house with three hallways, every Office size. */
 const rooms = (): GameMap[] => [
   ...Object.values(MAPS).filter((m) => m.id !== "town"),
-  hqMap(
-    doorsFor(withSlots(Array.from({ length: 14 }, (_, i) => ({ userId: i + 1, name: `u${i}`, open: true })))),
-  ),
+  hqMap(doorsFor(withSlots(Array.from({ length: 14 }, (_, i) => ({ userId: i + 1, name: `u${i}` }))))),
   officeMap(1),
   officeMap(2),
 ];
@@ -106,7 +104,7 @@ describe("exits", () => {
   test("every office door of a full house is reachable from the ground floor, from a walkable tile in front of it", () => {
     for (const n of [1, DOORS_PER_HALLWAY, DOORS_PER_HALLWAY + 1, 3 * DOORS_PER_HALLWAY + 2]) {
       const doors = doorsFor(
-        withSlots(Array.from({ length: n }, (_, i) => ({ userId: i + 1, name: `u${i}`, open: true }))),
+        withSlots(Array.from({ length: n }, (_, i) => ({ userId: i + 1, name: `u${i}` }))),
       );
       const map = hqMap(doors);
       expect(map.find("R")).toHaveLength(n);
@@ -122,7 +120,7 @@ describe("exits", () => {
 
   test("a hallway is a wall top, a wall face and a two-deep corridor; doors are three tiles apart with wall between", () => {
     const doors = doorsFor(
-      withSlots(Array.from({ length: 8 }, (_, i) => ({ userId: i + 1, name: `u${i}`, open: true }))),
+      withSlots(Array.from({ length: 8 }, (_, i) => ({ userId: i + 1, name: `u${i}` }))),
     );
     const map = hqMap(doors);
     expect(map.y0).toBe(-2 * HALL_H);

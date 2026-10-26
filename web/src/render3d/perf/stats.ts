@@ -47,13 +47,14 @@ export function sceneStats(scene: THREE.Object3D): SceneStats {
     const list = Array.isArray(m.material) ? m.material : [m.material];
     const g = m.geometry;
     geos.add(g);
-    const tris = (g.index ? g.index.count : (g.getAttribute("position")?.count ?? 0)) / 3;
+    const available = (g.index?.count ?? g.getAttribute("position")?.count ?? 0) - g.drawRange.start;
+    const tris = Math.max(0, Math.min(available, g.drawRange.count)) / 3;
     const n = (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1;
     if (n !== 1 || (m as THREE.InstancedMesh).isInstancedMesh) {
       s.instanced++;
       s.instances += n;
     }
-    s.drawables += (m as THREE.InstancedMesh).isInstancedMesh ? list.length : list.length;
+    if (tris > 0) s.drawables += list.length;
     s.triangles += tris * n;
     if (m.castShadow) s.shadowCasters++;
     for (const mat of list) {

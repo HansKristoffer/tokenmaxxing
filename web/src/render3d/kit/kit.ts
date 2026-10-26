@@ -1,10 +1,11 @@
 /**
  * The modelling kit: every 3D asset is built in code from rounded boxes, cylinders and balls, shaded
  * with a few flat bands (toon), the way the 2D sprites are drawn from string grids. Textures (planks,
- * wallpaper, screens) are painted on small canvases and sampled without smoothing, so they stay pixel art.
+ * wallpaper, screens) are painted on small canvases. Surface texel edges are antialiased while pixel interiors stay sharp.
  */
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { addPatch } from "./patches.ts";
 
 export type V3 = [number, number, number];
 
@@ -89,7 +90,29 @@ export function glass(color: string, opacity = 0.45): THREE.MeshToonMaterial {
 
 /** A toon material with a painted texture. */
 export function painted(map: THREE.Texture, color = "#ffffff"): THREE.MeshToonMaterial {
-  return new THREE.MeshToonMaterial({ color, map, gradientMap: BANDS });
+  const material = new THREE.MeshToonMaterial({ color, map, gradientMap: BANDS });
+  if (map.userData.pixelSurface) {
+    addPatch(material, "pixel-surface", (shader) => {
+      // Blend only the screen pixel that straddles a texel edge. Keep the original derivatives for mip selection.
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <map_fragment>",
+        /* glsl */ `
+#ifdef USE_MAP
+  vec2 surfaceSize = vec2(textureSize(map, 0));
+  vec2 surfaceUv = vMapUv * surfaceSize;
+  vec2 footprint = clamp(fwidth(surfaceUv), vec2(0.0001), vec2(1.0));
+  vec2 phase = fract(surfaceUv);
+  vec2 edge = phase - clamp(phase, footprint * 0.5, 1.0 - footprint * 0.5);
+  vec2 filteredUv = (floor(surfaceUv) + 0.5 + edge / footprint) / surfaceSize;
+#endif
+${THREE.ShaderChunk.map_fragment.replace(
+  "texture2D( map, vMapUv )",
+  "textureGrad( map, filteredUv, dFdx(vMapUv), dFdy(vMapUv) )",
+)}`,
+      );
+    });
+  }
+  return material;
 }
 
 const AXES = [0, 1, 2] as const;
@@ -381,6 +404,16 @@ export function tint(hex: string, f: number): string {
   return `#${c.getHexString()}`;
 }
 
+/** Pixel interiors stay sharp; trilinear mipmaps and anisotropy smooth receding surfaces. */
+function pixelSurface(t: THREE.CanvasTexture) {
+  t.userData.pixelSurface = true;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.anisotropy = 4;
+  t.generateMipmaps = true;
+  return t;
+}
+
 /** Wood planks, one tile per 16 texels. */
 export function planks(base: string, seed = 1): THREE.CanvasTexture {
   const rnd = seeded(seed);
@@ -405,7 +438,7 @@ export function planks(base: string, seed = 1): THREE.CanvasTexture {
     }
   });
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
+  return pixelSurface(t);
 }
 
 /** Striped wallpaper with a dado rail, one tile wide per 16 texels. */
@@ -424,7 +457,7 @@ export function wallpaper(base: string, stripe: string): THREE.CanvasTexture {
     for (let x = 0; x < 16; x += 4) g.fillRect(x, 32, 1, 16);
   });
   t.wrapS = THREE.RepeatWrapping;
-  return t;
+  return pixelSurface(t);
 }
 
 /** A checker of two colours, `n`×`n` squares over the texture. */
@@ -437,7 +470,7 @@ export function checker(a: string, b: string, n = 4): THREE.CanvasTexture {
       }
   });
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
+  return pixelSurface(t);
 }
 
 /** Something that moves on its own: a screen scrolling code, a fish swimming. */

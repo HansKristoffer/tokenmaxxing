@@ -38,10 +38,10 @@ export const POLSE = {
   closes: 14 * 60,
 } as const;
 
-/** The cart's two tiles, on the grass just right of the square. Nobody walks through it. */
+/** The cart's two tiles, on the square below the coffee. Nobody walks through it. */
 export const CART: readonly [number, number][] = [
+  [16, 4],
   [17, 4],
-  [18, 4],
 ];
 
 export const isCart = (x: number, y: number): boolean => CART.some(([cx, cy]) => cx === x && cy === y);
@@ -63,7 +63,7 @@ export const stepPace = (polseUntil: number, now: number): number =>
 // MARK: The build snail
 
 /** It leaves at 07:00 from the left of the square and reaches the goal flag at 17:00, along row `y`. */
-export const SNAIL = { y: 5, from: 4, to: 14, leaves: 7 * 60, arrives: 17 * 60 } as const;
+export const SNAIL = { y: 7, from: 4, to: 14, leaves: 7 * 60, arrives: 17 * 60 } as const;
 
 type SnailPhase = "queued" | "deploying" | "deployed";
 

@@ -15,7 +15,7 @@ function light(m: Model, at: V3, color: string, intensity: number, distance = 5)
   m.add(l);
 }
 
-/** Things that glow only at night (lamp heads, windows, light cones): swapped by `setPropsNight`. */
+/** Things that glow only at night (lamp heads, windows, light pools): swapped by `setPropsNight`. */
 export interface NightGlow {
   mesh: THREE.Mesh;
   day: THREE.Material;
@@ -230,7 +230,36 @@ export function parkBench(slats = "#9b7fe0"): Model {
   return m;
 }
 
-/** A modern street lamp: a dark pole, an arm, a head that throws a cone of light. */
+let lampPoolTexture: THREE.CanvasTexture | null = null;
+
+/** A shared radial falloff keeps each street lamp's ground light soft at every zoom level. */
+function lampPool(opacity: number): THREE.MeshBasicMaterial {
+  lampPoolTexture ??= canvasTexture(
+    64,
+    64,
+    (g) => {
+      const gradient = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gradient.addColorStop(0, "rgba(255,255,255,0.55)");
+      gradient.addColorStop(0.25, "rgba(255,255,255,0.42)");
+      gradient.addColorStop(0.55, "rgba(255,255,255,0.15)");
+      gradient.addColorStop(0.8, "rgba(255,255,255,0.035)");
+      gradient.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = gradient;
+      g.fillRect(0, 0, 64, 64);
+    },
+    true,
+  );
+  return new THREE.MeshBasicMaterial({
+    map: lampPoolTexture,
+    color: "#ffdda0",
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+}
+
+/** A modern street lamp with a warm, feathered pool under its head. */
 export function streetLamp(): Model {
   const m = new Model();
   m.cyl(0.11, 0.1, "#3c4454", [0, 0, 0], 0.09, 12);
@@ -239,20 +268,10 @@ export function streetLamp(): Model {
   m.box([0.22, 0.08, 0.32], "#2b2f3a", [0, 2.28, 0.42], 0.03);
   nightGlow(m.box([0.16, 0.02, 0.24], "#cfd8e8", [0, 2.27, 0.42], 0.005), "#fff4c8");
   m.box([0.03, 0.03, 0.03], glow("#8fe3ff"), [0, 0.15, 0.1]);
-  const beam = (opacity: number) =>
-    new THREE.MeshBasicMaterial({
-      color: "#fff4c8",
-      transparent: true,
-      opacity,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide,
-    });
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.75, 2.2, 20, 1, true), beam(0.05));
-  cone.position.set(0, 1.17, 0.42);
-  // Brighter at night: a glow swap like the head's, so the batching keeps a day and a night copy of it too.
-  nightGlow(cone, beam(0.16));
-  m.add(cone);
+  const pool = m.plane(2.8, 2.5, lampPool(0.025), [0, 0.025, 0.42]);
+  pool.rotation.x = -Math.PI / 2;
+  pool.receiveShadow = false;
+  nightGlow(pool, lampPool(0.5));
   light(m, [0, 2.0, 0.42], "#ffe6a8", 4, 6);
   return m;
 }
@@ -276,10 +295,10 @@ export function lanternPillar(): Model {
 export function grandFountain(): Model {
   const m = new Model();
   const water = glass("#5cc8f0", 0.8);
-  // A low basin: a stone floor, water nearly to the brim, a rounded rim with lights set in it.
+  // A low basin: a stone floor, water nearly to the brim, a rounded rim with lights set in it. Each pool of water
+  // floats a little over the stone it sits in, and inside its edge: on the same plane the two flicker.
   m.cyl(1.75, 0.14, "#e8e0cc", [0, 0, 0], 1.8, 32);
-  m.cyl(1.5, 0.2, "#3f9fd0", [0, 0.14, 0], 1.5, 32);
-  m.cyl(1.5, 0.03, water, [0, 0.36, 0], 1.5, 32);
+  m.cyl(1.45, 0.03, water, [0, 0.42, 0], 1.45, 32);
   const rim = new THREE.Mesh(new THREE.TorusGeometry(1.55, 0.13, 10, 40), toon("#f4efe4"));
   rim.rotation.x = Math.PI / 2;
   rim.position.y = 0.4;
@@ -292,10 +311,10 @@ export function grandFountain(): Model {
   }
   m.cyl(0.32, 1.0, "#f4efe4", [0, 0.38, 0], 0.26, 16);
   m.cyl(0.95, 0.16, "#f4efe4", [0, 1.35, 0], 0.8, 24);
-  m.cyl(0.85, 0.03, water, [0, 1.48, 0], 0.85, 24);
+  m.cyl(0.75, 0.03, water, [0, 1.52, 0], 0.75, 24);
   m.cyl(0.2, 0.55, "#f4efe4", [0, 1.45, 0], 0.16, 14);
   m.cyl(0.48, 0.12, "#f4efe4", [0, 1.98, 0], 0.4, 20);
-  m.cyl(0.4, 0.03, water, [0, 2.07, 0], 0.4, 20);
+  m.cyl(0.36, 0.03, water, [0, 2.11, 0], 0.36, 20);
   // The bolt, in gold.
   const bolt = m.part([0, 2.1, 0]);
   const shape = new THREE.Shape();
@@ -325,8 +344,8 @@ export function grandFountain(): Model {
   // Falling water: rings of drops from each tier, all one instanced draw (they move, so they can't be batched).
   const drops: { a: number; r0: number; y0: number; drop: number }[] = [];
   for (const [r0, y0, drop, n] of [
-    [0.4, 2.06, 0.55, 10],
-    [0.85, 1.48, 0.92, 16],
+    [0.38, 2.13, 0.6, 10],
+    [0.78, 1.54, 0.98, 16],
   ] as const)
     for (let i = 0; i < n; i++) drops.push({ a: (i / n) * Math.PI * 2, r0, y0, drop });
   const drop = m.ball(0.035, glass("#e4f5fd", 0.85));
@@ -365,7 +384,7 @@ export function arcadeBuilding(): Model {
   }
   // Corner columns, lit in purple.
   for (const x of [-w / 2 + 0.25, w / 2 - 0.25]) {
-    m.box([0.5, h + 0.2, 0.5], "#f4efe4", [x, 0.18, d / 2 - 0.1], 0.03);
+    m.box([0.52, h + 0.2, 0.5], "#f4efe4", [x, 0.18, d / 2 - 0.1], 0.03);
     m.box([0.08, h - 0.4, 0.04], glow("#b47cff"), [x, 0.4, d / 2 + 0.16]);
   }
   // The shopfront: windows onto the machines, and the doors.

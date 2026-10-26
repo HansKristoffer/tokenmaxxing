@@ -82,11 +82,11 @@ export function DirectoryPanel() {
               <span>
                 <strong>{r.name}</strong>{" "}
                 <span className="muted small facts">
-                  <span>{r.mine ? "Your office" : r.open ? "Open" : "🔒 Closed"}</span>
+                  <span>{r.mine ? "Your office" : "Open"}</span>
                 </span>
               </span>
-              <button type="button" disabled={!r.canEnter} onClick={walk(r.x, r.y)}>
-                {r.canEnter ? "🚶 Walk there" : "🔒 Locked"}
+              <button type="button" onClick={walk(r.x, r.y)}>
+                🚶 Walk there
               </button>
             </li>
           ))}
