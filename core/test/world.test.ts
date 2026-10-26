@@ -19,6 +19,7 @@ import {
   outsideDoor,
   ownPieceAt,
   parseLook,
+  parseRoom,
   portal,
   RUN_STEP_MS,
   restSpot,
@@ -96,8 +97,8 @@ describe("portals", () => {
   test("bo's door takes you to bo's office; its exit to below the door for a member, or the Inn", () => {
     const doors = doorsFor(
       withSlots([
-        { userId: 4, name: "ada", open: true },
-        { userId: 9, name: "bo", open: true },
+        { userId: 4, name: "ada" },
+        { userId: 9, name: "bo" },
       ]),
     );
     const bo = doors[1]!;
@@ -153,7 +154,7 @@ describe("drops", () => {
   test("a room's own map changing shows through, drops and all", () => {
     setDrops("hq:77", [drop(1, "furn.d", 2, 4, "hq:77")]);
     expect(mapOf("hq:77").at(2, 4)).toBe("d");
-    setHq(77, doorsFor(withSlots([{ userId: 1, name: "ada", open: true }])));
+    setHq(77, doorsFor(withSlots([{ userId: 1, name: "ada" }])));
     expect([mapOf("hq:77").at(3, -3), mapOf("hq:77").at(2, 4)]).toEqual(["R", "d"]);
     setDrops("hq:77", []);
   });
@@ -315,4 +316,13 @@ describe("ownPieceAt", () => {
     expect(ownPieceAt("office:7", { x: 4, y: 3, facing: "left" }, [grass], 8, null)).toBeUndefined();
     expect(ownPieceAt("office:7", { x: 3, y: 5, facing: "up" }, [hat], 7, null)).toBeUndefined();
   });
+});
+
+test("a room id from the wire is one of ours, or nothing", () => {
+  expect(parseRoom("town")).toBe("town");
+  expect(parseRoom("shop-pets")).toBe("shop-pets");
+  expect(parseRoom("office:12")).toBe("office:12");
+  expect(parseRoom("common:3")).toBe("common:3");
+  for (const bad of ["", "office:", "office:0", "office:-1", "hq:1x", "attic", 7, null])
+    expect(parseRoom(bad)).toBeNull();
 });

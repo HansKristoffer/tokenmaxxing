@@ -5,9 +5,10 @@ import type { GraphicsSettings } from "../../settings/graphics.ts";
 import { batchWithoutWarmup, SAMPLE_TIMES } from "../perf/bake.ts";
 import type { RoomView } from "../rooms/rooms.ts";
 import { Fx } from "../town/fx3d.ts";
+import { isPropsNight } from "../town/props.ts";
 import { disposeObject } from "./dispose.ts";
 import type { Pipeline } from "./pipeline.ts";
-import { seeThrough } from "./seethrough.ts";
+import { PlayerOcclusion, seeThrough } from "./seethrough.ts";
 
 const ROOM_BACKGROUND = "#1b1f2a";
 const SHADOW_FAR = 90;
@@ -32,6 +33,7 @@ export class RoomStage {
   /** Where the sun looks: near the player, so shadows follow and weather falls where they are. */
   readonly target = new THREE.Vector3();
   readonly fx: Fx | null;
+  readonly occlusion: PlayerOcclusion;
   private reach = 0;
   private darkness = 0;
   private settled = false;
@@ -74,6 +76,7 @@ export class RoomStage {
     } else this.fx = null;
     const t0 = performance.now();
     seeThrough(view.group);
+    this.occlusion = new PlayerOcclusion(view.group);
     this.timing.see = performance.now() - t0;
     const opened = performance.getEntriesByType("navigation")[0]?.name ?? "";
     if (!opened.includes("nobatch")) this.batch(hooks);
@@ -90,16 +93,18 @@ export class RoomStage {
     const { view } = this;
     const toward = new THREE.Vector3();
     const root = view.group;
+    let nightBeforeProbe = false;
     root.userData.bake = true;
     root.userData.sample = (t: number) => {
       const i = Math.max(0, SAMPLE_TIMES.indexOf(t));
+      if (i === 0) nightBeforeProbe = isPropsNight();
       hooks.clock(PROBE_MINUTES[(i * 2) % PROBE_MINUTES.length]!);
       view.night?.(i % 2 === 1);
       const a = Math.PI / 4 + (i * Math.PI) / 2;
       view.tick(t, 0.7, toward.set(Math.sin(a), 0, Math.cos(a)));
       if (i === SAMPLE_TIMES.length - 1) {
         hooks.clock(null);
-        view.night?.(false);
+        view.night?.(nightBeforeProbe);
         view.tick(0, 10, toward.set(Math.SQRT1_2, 0, Math.SQRT1_2));
       }
     };
@@ -119,7 +124,7 @@ export class RoomStage {
   private place(): void {
     const { sun, target } = this;
     if (this.view.outdoors) return;
-    sun.position.set(target.x - this.reach * 0.55, 14, target.z + this.reach * 0.35);
+    sun.position.set(target.x - 11, 14, target.z + 7);
     sun.target.position.copy(target);
   }
 
@@ -149,8 +154,7 @@ export class RoomStage {
     viewHeight: number,
     camera: THREE.OrthographicCamera,
   ): number {
-    // The shadow box and the weather follow the player, in half-tile steps so shadows don't crawl.
-    this.target.set(Math.round(focus.x * 2) / 2, 0, Math.round(focus.y * 2) / 2);
+    this.target.set(focus.x, 0, focus.y);
     this.setReach(Math.max(12, Math.min(34, viewHeight * 1.4)));
     if (this.fx) {
       if (!this.settled) {

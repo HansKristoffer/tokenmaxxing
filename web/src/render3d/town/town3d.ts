@@ -6,6 +6,7 @@
  * World units are tiles: tile (tx, ty) covers x from `tx - x0 + MARGIN`, z from `ty - y0 + MARGIN`.
  */
 import { SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
+import { CART, SNAIL } from "@tokenmaxxing/core/street.ts";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { C } from "../../art/palette.ts";
@@ -406,6 +407,11 @@ export function buildTown3d(
   const stones: [number, number, number][] = [];
   const water: [number, number][] = [];
   const fountains = map.find("F");
+  const fxs = fountains.map(([x]) => x);
+  const fys = fountains.map(([, y]) => y);
+  // The middle of its 2x2 tiles.
+  const fountainX = wx((Math.min(...fxs) + Math.max(...fxs) + 1) / 2);
+  const fountainZ = wz((Math.min(...fys) + Math.max(...fys) + 1) / 2);
   const boards = { leaderboard: leaderboard(), chalkboard: chalkboard() };
   let lampIndex = 0;
   for (let ty = map.y0; ty < map.y0 + map.height; ty++)
@@ -434,9 +440,9 @@ export function buildTown3d(
           lampIndex++;
           break;
         case "B": {
-          // Benches face the fountain.
-          const [fx, fz] = fountains.length ? toWorld(...fountains[0]!) : [cx, cz + 1];
-          const turn = Math.atan2(fx + 0.5 - cx, fz + 0.5 - cz);
+          // Benches face the fountain square-on, along whichever axis it lies further.
+          const [dx, dz] = fountains.length ? [fountainX - cx, fountainZ - cz] : [0, 1];
+          const turn = Math.abs(dx) > Math.abs(dz) ? (Math.sign(dx) * Math.PI) / 2 : dz < 0 ? Math.PI : 0;
           add(parkBench(), cx, cz, turn);
           seats.push({ at: [cx + Math.sin(turn) * 0.05, cz + Math.cos(turn) * 0.05], y: 0.38, turn });
           break;
@@ -473,13 +479,7 @@ export function buildTown3d(
   void lampIndex;
 
   // The fountain, over its 2x2 tiles.
-  if (fountains.length) {
-    const xs = fountains.map(([x]) => x);
-    const ys = fountains.map(([, y]) => y);
-    const cxw = wx((Math.min(...xs) + Math.max(...xs) + 1) / 2);
-    const czw = wz((Math.min(...ys) + Math.max(...ys) + 1) / 2);
-    add(grandFountain(), cxw, czw, 0, 0.62);
-  }
+  if (fountains.length) add(grandFountain(), fountainX, fountainZ, 0, 0.62);
 
   // Flower meadows: a few blossoms on every flower tile, one instanced mesh.
   if (flowers.length) {
@@ -669,16 +669,12 @@ export function buildTown3d(
     }
 
   // —— Street life ——
-  const cartTiles = [
-    [17, 4],
-    [18, 4],
-  ] as const;
   const cart = polseCart();
-  add(cart, wx(cartTiles[0][0]) + 1, wz(cartTiles[0][1]) + 0.5);
+  add(cart, wx(CART[0]![0]) + 1, wz(CART[0]![1]) + 0.5);
   const snail = buildSnail();
   g.add(snail);
   const flag = goalFlag();
-  add(flag, wx(14) + 0.5, wz(5) + 0.5);
+  add(flag, wx(SNAIL.to) + 0.5, wz(SNAIL.y) + 0.5);
   const bike = paperBike();
   bike.visible = false;
   g.add(bike);
@@ -696,9 +692,9 @@ export function buildTown3d(
       lastOpen = open;
       cart.setOpen(open);
     }
-    // The snail: 07:00 to 17:00 along row 5, from tile 4 to tile 14.
-    const p = Math.min(1, Math.max(0, (m - 7 * 60) / (10 * 60)));
-    snail.position.set(wx(4 + 10 * p) + 0.5, 0, wz(5) + 0.5);
+    // The snail: 07:00 to 17:00 along its row.
+    const p = Math.min(1, Math.max(0, (m - SNAIL.leaves) / (SNAIL.arrives - SNAIL.leaves)));
+    snail.position.set(wx(SNAIL.from + (SNAIL.to - SNAIL.from) * p) + 0.5, 0, wz(SNAIL.y) + 0.5);
     snail.inch(t);
     // The paperboy.
     const ride = rides.find((r) => m >= r.at && m < r.at + (r.to - r.from) / 4 / 60);

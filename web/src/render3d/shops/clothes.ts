@@ -18,6 +18,7 @@ import { type Asset, assetById, light } from "../furniture/furniture.ts";
 import { canvasTexture, glass, glow, Model, painted, ticks, tint } from "../kit/kit.ts";
 import type { Avatar } from "../people/avatar.ts";
 import { avatarFor, type Look2D } from "../people/gear3d.ts";
+import { exitDoorway } from "../rooms/exits3d.ts";
 import { Room, type Turn } from "../rooms/room.ts";
 import { clothesExterior } from "./clothes-exterior.ts";
 import {
@@ -384,26 +385,6 @@ function fittingRoom(): Model {
   return m;
 }
 
-function doorModel(): Model {
-  const m = new Model();
-  m.box([0.1, 2.2, 0.16], woodDark, [-0.5, 0, 0], 0.015);
-  m.box([0.1, 2.2, 0.16], woodDark, [0.5, 0, 0], 0.015);
-  m.box([1.1, 0.12, 0.16], woodDark, [0, 2.2, 0], 0.015);
-  m.box([0.9, 2.12, 0.03], glow("#fff1c9"), [0, 0.02, 0.06], 0.002);
-  // The leaf, opened inwards (towards -z).
-  const leaf = m.part([-0.45, 0, -0.04], -0.9);
-  leaf.box([0.9, 2.1, 0.05], PLUM, [0.45, 0, 0], 0.012);
-  for (const y of [0.18, 1.12]) leaf.box([0.62, 0.74, 0.02], "#8a5a86", [0.45, y, -0.03], 0.012);
-  leaf.ball(0.035, GOLD, [0.8, 1.0, -0.05]);
-  m.box([0.9, 0.025, 0.6], "#d98aa6", [0, 0, -0.4], 0.006);
-  m.box([0.78, 0.03, 0.48], PLUM, [0, 0, -0.4], 0.006);
-  const open = signBoard("OPEN", 0.5, 0.2, { lit: true });
-  open.position.set(0, 2.35, -0.02);
-  open.rotation.y = Math.PI;
-  m.add(open);
-  return m;
-}
-
 // MARK: The shopkeeper
 
 const GREETINGS = [
@@ -601,8 +582,9 @@ export function buildClothesInterior(items = buildClothesItems()): ClothesInteri
   room.group.add(mirrorSign);
 
   // The way out, plants, lamps.
-  const door = doorModel();
-  door.position.set(5.5, 0, D - 0.02);
+  const door = exitDoorway({ outside: true, wall: WALL, leaf: PLUM });
+  door.position.set(5.5, 0, D + 0.5);
+  door.rotation.y = Math.PI;
   room.group.add(door);
   for (const [x, z] of [
     [0, 0],

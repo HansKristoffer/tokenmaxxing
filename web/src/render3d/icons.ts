@@ -221,10 +221,20 @@ class IconRenderer {
   }
 
   /** Frames `focus` (or the whole model): the camera on the game's iso angle, the frustum snug round it. */
-  private aim(root: THREE.Object3D, focus: THREE.Object3D): void {
+  aim(root: THREE.Object3D, focus: THREE.Object3D, pad = PAD): void {
+    this.aimAt(this.measure(root, focus), pad);
+  }
+
+  /** The box round `focus` (a unit cube for an empty model): what `aimAt` frames. */
+  measure(root: THREE.Object3D, focus: THREE.Object3D, into = this.box): THREE.Box3 {
     root.updateMatrixWorld(true);
-    const box = this.box.setFromObject(focus);
+    const box = into.setFromObject(focus);
     if (box.isEmpty()) box.set(new THREE.Vector3(-0.5, 0, -0.5), new THREE.Vector3(0.5, 1, 0.5));
+    return box;
+  }
+
+  /** The camera, sun and shadow catcher round `box`. The icons share them, so a kept model aims again each frame. */
+  aimAt(box: THREE.Box3, pad = PAD): void {
     const c = box.getCenter(this.centre);
     const cam = this.camera;
     const az = Math.PI / 4;
@@ -251,7 +261,7 @@ class IconRenderer {
       minY = Math.min(minY, this.corner.y);
       maxY = Math.max(maxY, this.corner.y);
     }
-    const half = (Math.max(maxX - minX, maxY - minY) / 2) * PAD;
+    const half = (Math.max(maxX - minX, maxY - minY) / 2) * pad;
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
     cam.left = cx - half;
@@ -271,7 +281,7 @@ class IconRenderer {
     sc.updateProjectionMatrix();
     this.fill.target.position.copy(c);
     this.fill.position.set(c.x + r * 2.2, c.y + r * 2, c.z - r * 1.4);
-    this.ground.position.y = this.box.min.y;
+    this.ground.position.y = box.min.y;
   }
 
   draw(spec: IconSpec, px: number, voxel: boolean, shadow: boolean): HTMLCanvasElement {
@@ -296,6 +306,32 @@ class IconRenderer {
       built.root.removeFromParent();
       built.dispose();
       disposeObject(built.root);
+    }
+  }
+
+  /** Draws a model kept between frames (the Bag's stage) into `out`, `px` square, framed round `box`. */
+  drawLive(
+    root: THREE.Object3D,
+    box: THREE.Box3,
+    px: number,
+    voxel: boolean,
+    shadow: boolean,
+    out: HTMLCanvasElement,
+  ): void {
+    const { scene, renderer } = this;
+    scene.add(root);
+    try {
+      setSmoothBands(voxel);
+      this.light(voxel, shadow);
+      this.aimAt(box, STAGE_PAD);
+      renderer.setSize(px, px, false);
+      renderer.render(scene, this.camera);
+      if (out.width !== px) out.width = out.height = px;
+      const g = out.getContext("2d");
+      g?.clearRect(0, 0, px, px);
+      g?.drawImage(renderer.domElement, 0, 0);
+    } finally {
+      root.removeFromParent();
     }
   }
 
@@ -421,6 +457,120 @@ export function warmIcons(): void {
 graphics.subscribe(() => {
   if (graphics.tier() === "low" && renderer) disposeIcons();
 });
+
+// MARK: The stage
+
+/** How far the stage's character turns each way on its own, and how long after a drag it starts again. */
+const SWAY = 0.45;
+const SWAY_AFTER_MS = 3000;
+/** Where the pet stands: to the character's right on screen and a little in front, turned to the camera. */
+const PET_AT = new THREE.Vector3(0.85, 0, -0.35);
+/** Room round the stage's model to turn in, and for its shadow. */
+const STAGE_PAD = 1.3;
+
+/**
+ * The Bag's live picture: you, big, breathing and turning slowly (drag to turn yourself), with your pet beside
+ * you. It keeps the models between frames and draws them through the icons' renderer into `out`, so it costs
+ * no WebGL context of its own. Null when the browser can't draw them.
+ */
+export class IconStage {
+  private root: THREE.Group | null = null;
+  /** What the camera frames, measured once facing front: framing each frame would breathe with the turn. */
+  private readonly box = new THREE.Box3();
+  private avatar: ReturnType<typeof avatarFor> | null = null;
+  private pet: ReturnType<typeof petFrom2D> | null = null;
+  private turn = 0;
+  private draggedAt = -Infinity;
+  private sway = 0;
+  private last = 0;
+
+  private constructor(private readonly out: HTMLCanvasElement) {}
+
+  static open(out: HTMLCanvasElement): IconStage | null {
+    return iconsAvailable() ? new IconStage(out) : null;
+  }
+
+  /** Dresses the stage: a new look rebuilds it. */
+  set(look: Look2D, pet: { pet: number; variant: number; name: string; wear: number } | null): void {
+    this.clear();
+    if (!renderer) return;
+    const root = new THREE.Group();
+    const scope = beginTickScope();
+    const avatar = avatarFor(look);
+    root.add(avatar.root);
+    let p: ReturnType<typeof petFrom2D> | null = null;
+    if (pet && pet.pet > 0) {
+      p = petFrom2D(pet.pet, pet.variant, pet.name);
+      p.wear = pet.wear;
+      p.root.position.copy(PET_AT);
+      p.root.rotation.y = TO_CAMERA;
+      root.add(p.root);
+    }
+    endTickScope(scope, root);
+    dropTickScope(scope);
+    // A lamp's own light would change the shader for every material: lit by the sun alone, like the icons.
+    const lights: THREE.Object3D[] = [];
+    root.traverse((o) => {
+      if ((o as THREE.Light).isLight) lights.push(o);
+    });
+    for (const l of lights) l.removeFromParent();
+    if (graphics.tier() !== "medium") blockify(root);
+    this.pose(avatar, p, 0, 1 / 60);
+    renderer.measure(root, root, this.box);
+    this.root = root;
+    this.avatar = avatar;
+    this.pet = p;
+  }
+
+  /** A drag across the picture turns the character with it. */
+  spin(dxCss: number): void {
+    this.turn += dxCss * 0.012;
+    this.draggedAt = performance.now();
+  }
+
+  /** One frame: `now` is the page's clock in ms. `px` is the canvas's size in device pixels. */
+  frame(now: number, px: number): void {
+    const { root, avatar } = this;
+    if (!root || !avatar || !renderer || renderer.lost) return;
+    const dt = Math.min(0.1, Math.max(0, (now - this.last) / 1000));
+    this.last = now;
+    const idle = now - this.draggedAt > SWAY_AFTER_MS;
+    this.sway += ((idle ? 1 : 0) - this.sway) * Math.min(1, dt * 1.5);
+    avatar.root.rotation.y = this.turn + Math.sin(now / 1600) * SWAY * this.sway;
+    this.pose(avatar, this.pet, now / 1000, dt);
+    const voxel = graphics.tier() !== "medium";
+    renderer.drawLive(root, this.box, px, voxel, voxel, this.out);
+  }
+
+  /** Breathing and blinking: the culling test has no camera here, so it must see them. */
+  private pose(
+    avatar: ReturnType<typeof avatarFor>,
+    pet: ReturnType<typeof petFrom2D> | null,
+    t: number,
+    dt: number,
+  ) {
+    const sees = view.sees;
+    view.sees = () => true;
+    try {
+      avatar.root.updateMatrixWorld(true);
+      avatar.update(dt, t);
+      pet?.update(t);
+    } finally {
+      view.sees = sees;
+    }
+  }
+
+  private clear(): void {
+    this.avatar?.dispose();
+    this.pet?.dispose();
+    if (this.root) disposeObject(this.root);
+    this.root = this.avatar = this.pet = null;
+  }
+
+  dispose(): void {
+    this.clear();
+  }
+}
 
 /** What the queue did, for the QA scripts and the perf harness. */
 export const iconStats = () => ({

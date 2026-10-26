@@ -8,21 +8,19 @@
 import { townMap as coreTown, SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
 
+export { PLAZA, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
+
 export const BLOCK_W = 10;
 export const BLOCK_H = 9;
 /** Each company house is 7×5 tiles, with its door in the middle of the bottom row. */
 export const PLOT_W = 7;
 export const PLOT_H = 5;
-/** The square's paving in CORE, lamp to lamp. */
-export const PLAZA = { left: 3, top: 2, right: 16, bottom: 6 };
 export const CORE_BLOCKS: [number, number][] = [
   [0, 0],
   [1, 0],
   [0, 1],
   [1, 1],
 ];
-/** Where you arrive in town: the middle of the square. */
-export const TOWN_SPAWN: [number, number] = [9, 5];
 
 const DOOR: [number, number] = [5, 6];
 

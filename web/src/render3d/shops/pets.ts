@@ -10,6 +10,7 @@ import { glass, Model, ticks, tint, toon } from "../kit/kit.ts";
 import { panel } from "../kit/panel.ts";
 import { Avatar, personLook } from "../people/avatar.ts";
 import { PETS_ASSETS, petFrom2D } from "../pets/pets3d.ts";
+import { exitDoorway } from "../rooms/exits3d.ts";
 import { Room, type Turn } from "../rooms/room.ts";
 import { nightGlow } from "../town/props.ts";
 import { CATALOG_PETS, CROWN_LEVEL, SHOP_PETWEAR, SHOP_VARIANTS } from "./data/pets.ts";
@@ -19,7 +20,6 @@ import {
   crownDome,
   dome,
   type Entry,
-  exitDoor,
   fishTank,
   petPen,
   type Reg,
@@ -605,7 +605,10 @@ function* interiorSlices(): Generator<void, Interior, void> {
   });
   yield;
   // The way out.
-  room.place({ id: "pets:door", name: "Exit door", price: 0, w: 1, d: 1, build: exitDoor }, 15, 11, 2);
+  const door = exitDoorway({ outside: true, wall: "#f7e5cd", leaf: "#3fa7a0" });
+  door.position.set(15.5, 0, D + 0.5);
+  door.rotation.y = Math.PI;
+  room.group.add(door);
 
   yield;
   // The wall: a lit sign over the dragons, pennants, framed photos.

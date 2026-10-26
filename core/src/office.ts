@@ -173,7 +173,6 @@ export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
 export interface Door {
   userId: number;
   name: string;
-  open: boolean;
   /** Its place along the hallways: stored per owner, so it never moves when another door goes (`assignSlots`). */
   slot: number;
   x: number;
@@ -197,11 +196,8 @@ export const PASSAGE_W = 2;
 export interface DirectoryRow {
   userId: number;
   name: string;
-  open: boolean;
-  /** Your own office, which you can always enter. */
+  /** Your own office. */
   mine: boolean;
-  /** Open, or yours: a closed door is shown locked and is no use to anyone else. */
-  canEnter: boolean;
   /** The door's tile: where "Walk there" routes to. */
   x: number;
   y: number;
@@ -212,9 +208,7 @@ export function directory(doors: readonly Door[], me: number | null): DirectoryR
   const rows = sortBy(doors, "slot").map((d) => ({
     userId: d.userId,
     name: d.name,
-    open: d.open,
     mine: d.userId === me,
-    canEnter: d.open || d.userId === me,
     x: d.x,
     y: d.y,
   }));

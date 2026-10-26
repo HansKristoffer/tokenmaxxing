@@ -506,39 +506,6 @@ export function makeShopkeeper(): Shopkeeper {
 
 // MARK: Door and bits
 
-/** The way out: a glass shop door in the south wall, an OPEN sign, a welcome mat. */
-export function exitDoor(): Model {
-  const m = new Model();
-  const frame = "#2c5f5a";
-  m.box([0.1, 2.1, 0.14], frame, [-0.46, 0, 0.42], 0.015);
-  m.box([0.1, 2.1, 0.14], frame, [0.46, 0, 0.42], 0.015);
-  m.box([1.02, 0.12, 0.14], frame, [0, 2.1, 0.42], 0.015);
-  m.box([0.82, 2.0, 0.03], glow("#fff1c9"), [0, 0.02, 0.45], 0.002);
-  const leaf = m.part([-0.41, 0, 0.38], -1.0);
-  leaf.box([0.8, 2.0, 0.05], frame, [0.4, 0, 0], 0.012);
-  leaf.box([0.6, 1.1, 0.02], glass("#d6ecf2", 0.55), [0.4, 0.7, 0.03], 0.004);
-  leaf.box([0.6, 0.5, 0.02], tint(frame, 0.15), [0.4, 0.12, 0.03], 0.004);
-  leaf.ball(0.035, "#e9b73d", [0.7, 1.0, 0.06]);
-  const sign = canvasTexture(
-    96,
-    40,
-    (g) => {
-      g.fillStyle = "#c4544b";
-      g.fillRect(0, 0, 96, 40);
-      g.fillStyle = "#fff";
-      g.font = "900 24px system-ui, sans-serif";
-      g.textAlign = "center";
-      g.textBaseline = "middle";
-      g.fillText("OPEN", 48, 22);
-    },
-    true,
-  );
-  m.plane(0.36, 0.15, glow("#fff", sign), [0, 1.65, 0.5]);
-  m.box([0.8, 0.025, 0.5], C.rugLight, [0, 0, -0.1], 0.006);
-  m.box([0.7, 0.03, 0.4], "#2c5f5a", [0, 0, -0.1], 0.006);
-  return m;
-}
-
 /** A rack of rolled wallpaper in a crate: for the wall behind the counter. */
 export function wallpaperRolls(): Model {
   const m = new Model();
@@ -786,7 +753,7 @@ export function furnitureStorefront(): Model {
     const pot = m.part([s * 2.45, 0, 0.45]);
     pot.cyl(0.17, 0.3, "#c9835a", [0, 0, 0], 0.13, 10);
     pot.ball(0.28, C.leaf, [0, 0.55, 0], [1, 1.25, 1], 8);
-    pot.ball(0.18, C.leafLight, [0.1, 0.8, 0.03], [1, 1, 1], 8);
+    pot.ball(0.18, C.leafLight, [0.12, 0.8, 0.03], [1, 1, 1], 8);
   }
   const board = m.part([1.75, 0, 0.8], -0.25);
   board.box([0.7, 0.8, 0.06], INK, [0, 0, 0], 0.01);

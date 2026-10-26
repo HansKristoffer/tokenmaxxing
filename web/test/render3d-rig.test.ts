@@ -84,6 +84,19 @@ test("panning moves the view and settles back", () => {
   expect(r.panned()).toBe(false);
 });
 
+test("a pan stops at the room's edge, so dragging back moves the view at once", () => {
+  const r = rig();
+  r.setAspect(1.6);
+  r.frame({ view: 9, bounds: { minX: 0, maxX: 80, minZ: 0, maxZ: 80, height: 3 } });
+  r.update(16, 40, 40, true);
+  for (let i = 0; i < 50; i++) r.panBy(-400, 0, 800);
+  r.update(16, 40, 40, true);
+  const edge = r.focus.clone();
+  r.panBy(100, 0, 800);
+  r.update(16, 40, 40, true);
+  expect(r.focus.distanceTo(edge)).toBeGreaterThan(0.5);
+});
+
 test("the saved zoom is read back", () => {
   const r = new CameraRig({ getItem: () => "2" });
   expect(r.level).toBe(2);

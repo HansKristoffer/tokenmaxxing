@@ -16,7 +16,9 @@ import {
   trackAdditions,
 } from "../perf/bake.ts";
 import { sortWithoutBoxing } from "../perf/boxing.ts";
+import { updateDetails } from "../perf/details.ts";
 import { sweep, thawAll, view, watchAll } from "../perf/freeze.ts";
+import { stabilizeShadow } from "../perf/shadow-grid.ts";
 import { classifyCasters } from "../perf/shadowcast.ts";
 import { trackRenderer } from "../perf/stats.ts";
 
@@ -37,8 +39,7 @@ export type RenderStyle = "classic" | "voxel";
     const original = chunk.slice(at, end);
     const lookup = (n: number) =>
       `getShadow( directionalShadowMap[ ${n} ], directionalLightShadows[ ${n} ].shadowMapSize, directionalLightShadows[ ${n} ].shadowIntensity, directionalLightShadows[ ${n} ].shadowBias, directionalLightShadows[ ${n} ].shadowRadius, vDirectionalShadowCoord[ ${n} ] )`;
-    // The small live map takes a 3-texel tent (see `pcfTent5` below): its texels are two to four times the baked
-    // map's, so that is about as soft as the baked map's 5-texel one.
+    // Five live texels cover about the same area as nine static texels at twice the resolution.
     const live = `dynShadow( directionalShadowMap[ 1 ], directionalLightShadows[ 1 ].shadowMapSize, directionalLightShadows[ 1 ].shadowIntensity, directionalLightShadows[ 1 ].shadowBias, vDirectionalShadowCoord[ 1 ] )`;
     const patched = `#if NUM_DIR_LIGHT_SHADOWS > 1
 		#if UNROLLED_LOOP_INDEX == 0
@@ -54,7 +55,7 @@ float dynShadow( sampler2DShadow shadowMap, vec2 shadowMapSize, float shadowInte
 	shadowCoord.xyz /= shadowCoord.w;
 	shadowCoord.z += shadowBias;
 	bool inside = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0 && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0 && shadowCoord.z <= 1.0;
-	return inside ? mix( 1.0, pcfTent3( shadowMap, shadowMapSize, shadowCoord.xyz ), shadowIntensity ) : 1.0;
+	return inside ? mix( 1.0, pcfTent( shadowMap, shadowMapSize, shadowCoord.xyz, 3 ), shadowIntensity ) : 1.0;
 }
 #endif
 `;
@@ -62,10 +63,8 @@ float dynShadow( sampler2DShadow shadowMap, vec2 shadowMapSize, float shadowInte
 }
 
 /**
- * Three's PCF filter spins five taps per pixel by screen-space noise and leaves the rest to a temporal blur this
- * pipeline doesn't have, so every penumbra came out as a dotted weave. Castaño's tent PCF is smooth without one: a
- * few hardware-compared (so bilinear) taps, placed and weighted to add up to an exact 3- or 5-texel tent. The baked
- * map takes the 5-texel one (9 taps), about the softness of the radius 4 the voxel tiers set, which it ignores.
+ * Deterministic tent PCF avoids screen-space noise. Nine static texels or five live texels blend shadow edges;
+ * pairing adjacent comparisons into bilinear taps needs 25 or 9 reads, respectively.
  */
 {
   const chunk = THREE.ShaderChunk.shadowmap_pars_fragment;
@@ -73,41 +72,32 @@ float dynShadow( sampler2DShadow shadowMap, vec2 shadowMapSize, float shadowInte
   const from = chunk.indexOf("float phi = interleavedGradientNoise( gl_FragCoord.xy ) * PI2;", head);
   const to = from < 0 ? -1 : chunk.indexOf("* 0.2;", from);
   if (head >= 0 && to > 0) {
-    const tents = /* glsl */ `float pcfTent3( sampler2DShadow map, vec2 size, vec3 c ) {
-			vec2 uv = c.xy * size;
-			vec2 b = floor( uv + 0.5 );
-			vec2 s = uv + 0.5 - b;
-			b = ( b - 0.5 ) / size;
-			vec2 w0 = 3.0 - 2.0 * s;
-			vec2 w1 = 1.0 + 2.0 * s;
-			vec2 o0 = ( ( 2.0 - s ) / w0 - 1.0 ) / size;
-			vec2 o1 = ( s / w1 + 1.0 ) / size;
-			return ( w0.x * w0.y * texture( map, vec3( b + o0, c.z ) ) + w1.x * w0.y * texture( map, vec3( b + vec2( o1.x, o0.y ), c.z ) )
-				+ w0.x * w1.y * texture( map, vec3( b + vec2( o0.x, o1.y ), c.z ) ) + w1.x * w1.y * texture( map, vec3( b + o1, c.z ) ) ) / 16.0;
+    const tents = /* glsl */ `
+		vec2 tentPair( float offset, float phase, float width ) {
+			float a = max( 0.0, width - abs( offset - phase ) );
+			float b = max( 0.0, width - abs( offset + 1.0 - phase ) );
+			return vec2( offset + b / ( a + b ), a + b );
 		}
-		float pcfTent5( sampler2DShadow map, vec2 size, vec3 c ) {
-			vec2 uv = c.xy * size;
-			vec2 b = floor( uv + 0.5 );
-			vec2 s = uv + 0.5 - b;
-			b = ( b - 0.5 ) / size;
-			vec3 wx = vec3( 4.0 - 3.0 * s.x, 7.0, 1.0 + 3.0 * s.x );
-			vec3 wy = vec3( 4.0 - 3.0 * s.y, 7.0, 1.0 + 3.0 * s.y );
-			vec3 ox = vec3( ( 3.0 - 2.0 * s.x ) / wx.x - 2.0, ( 3.0 + s.x ) / 7.0, s.x / wx.z + 2.0 ) / size.x;
-			vec3 oy = vec3( ( 3.0 - 2.0 * s.y ) / wy.x - 2.0, ( 3.0 + s.y ) / 7.0, s.y / wy.z + 2.0 ) / size.y;
-			// Corners and centre first: where they agree the pixel is fully lit or fully shaded (most are), done in five.
-			float c00 = texture( map, vec3( b + vec2( ox.x, oy.x ), c.z ) );
-			float c20 = texture( map, vec3( b + vec2( ox.z, oy.x ), c.z ) );
-			float c02 = texture( map, vec3( b + vec2( ox.x, oy.z ), c.z ) );
-			float c22 = texture( map, vec3( b + vec2( ox.z, oy.z ), c.z ) );
-			float c11 = texture( map, vec3( b + vec2( ox.y, oy.y ), c.z ) );
-			float sum = c00 + c20 + c02 + c22 + c11;
-			if ( sum < 0.001 || sum > 4.999 ) return sum * 0.2;
-			return ( wx.x * wy.x * c00 + wx.z * wy.x * c20 + wx.x * wy.z * c02 + wx.z * wy.z * c22 + 49.0 * c11
-				+ wx.y * wy.x * texture( map, vec3( b + vec2( ox.y, oy.x ), c.z ) ) + wx.x * wy.y * texture( map, vec3( b + vec2( ox.x, oy.y ), c.z ) )
-				+ wx.z * wy.y * texture( map, vec3( b + vec2( ox.z, oy.y ), c.z ) ) + wx.y * wy.z * texture( map, vec3( b + vec2( ox.y, oy.z ), c.z ) ) ) / 144.0;
+		float pcfTent( sampler2DShadow map, vec2 size, vec3 c, int pairs ) {
+			vec2 uv = c.xy * size - 0.5;
+			vec2 base = floor( uv );
+			vec2 s = uv - base;
+			float width = float( pairs );
+			vec2 b = ( base + 0.5 ) / size;
+			float sum = 0.0;
+			for ( int y = 0; y < 5; y++ ) {
+				if ( y >= pairs ) break;
+				vec2 ty = tentPair( 2.0 * float( y ) - width + 1.0, s.y, width );
+				for ( int x = 0; x < 5; x++ ) {
+					if ( x >= pairs ) break;
+					vec2 tx = tentPair( 2.0 * float( x ) - width + 1.0, s.x, width );
+					sum += tx.y * ty.y * texture( map, vec3( b + vec2( tx.x, ty.x ) / size, c.z ) );
+				}
+			}
+			return sum / ( width * width * width * width );
 		}
 		`;
-    THREE.ShaderChunk.shadowmap_pars_fragment = `${chunk.slice(0, head)}${tents}${chunk.slice(head, from)}shadow = pcfTent5( shadowMap, shadowMapSize, shadowCoord.xyz );${chunk.slice(to + "* 0.2;".length)}`;
+    THREE.ShaderChunk.shadowmap_pars_fragment = `${chunk.slice(0, head)}${tents}${chunk.slice(head, from)}shadow = pcfTent( shadowMap, shadowMapSize, shadowCoord.xyz, 5 );${chunk.slice(to + "* 0.2;".length)}`;
   }
 }
 
@@ -178,11 +168,31 @@ void main() {
 }
 `;
 
-const VOXEL_FRAGMENT = /* glsl */ `
-uniform sampler2D tColor;
+/** Depth reads shared by the AO pass and its blur, both drawn at a fraction of the frame's size. */
+const AO_COMMON = /* glsl */ `
 uniform sampler2D tDepth;
 uniform vec2 texel;
 uniform float span;
+varying vec2 vUv;
+
+float depthAt(vec2 uv) { return texture2D(tDepth, uv).x * span; }
+// The full-size pixel this (smaller) pixel stands for: its centre sits on a corner, where a depth read is a coin toss.
+vec2 snap(vec2 uv) { return (floor(uv / texel) + 0.5) * texel; }
+// Depth change per full-size pixel along this pixel's surface, from the smaller one-sided step (so not across an edge).
+vec2 slope(vec2 uv, float d) {
+  float dl = depthAt(uv - vec2(texel.x, 0.0));
+  float dr = depthAt(uv + vec2(texel.x, 0.0));
+  float du = depthAt(uv + vec2(0.0, texel.y));
+  float dd = depthAt(uv - vec2(0.0, texel.y));
+  float sx = abs(dr - d) < abs(d - dl) ? dr - d : d - dl;
+  float sy = abs(du - d) < abs(d - dd) ? du - d : d - dd;
+  return clamp(vec2(sx, sy), -2.0, 2.0);
+}
+`;
+
+const VOXEL_FRAGMENT = /* glsl */ `
+${AO_COMMON}
+uniform sampler2D tColor;
 uniform float pxPerUnit;
 uniform sampler2D tAo;
 uniform vec2 aoSize;
@@ -196,11 +206,7 @@ uniform float gradient;
 uniform float exposure;
 uniform float night;
 uniform float grade;
-varying vec2 vUv;
-
-float depthAt(vec2 uv) { return texture2D(tDepth, uv).x * span; }
 float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
-vec2 snap(vec2 uv) { return (floor(uv / texel) + 0.5) * texel; }
 
 vec3 aces(vec3 x) {
   return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
@@ -231,13 +237,17 @@ void main() {
       vec2 p = vUv * aoSize - 0.5;
       vec2 i0 = floor(p);
       vec2 f = p - i0;
+      vec2 centerUv = snap(vUv);
+      float centerDepth = depthAt(centerUv);
+      vec2 surfaceSlope = slope(centerUv, centerDepth);
       float acc = 0.0;
       float wsum = 0.0;
       for (int j = 0; j < 4; j++) {
         vec2 o = vec2(float(j & 1), float(j >> 1));
         vec2 uvc = (i0 + o + 0.5) / aoSize;
         float w = (o.x > 0.5 ? f.x : 1.0 - f.x) * (o.y > 0.5 ? f.y : 1.0 - f.y);
-        float dz = abs(depthAt(snap(uvc)) - d);
+        vec2 sampleUv = snap(uvc);
+        float dz = depthAt(sampleUv) - centerDepth - dot(surfaceSlope, (sampleUv - centerUv) / texel);
         w *= 1.0 / (0.03 + dz * dz * 40.0) + 1e-4;
         acc += texture2D(tAo, uvc).r * w;
         wsum += w;
@@ -271,29 +281,7 @@ void main() {
 }
 `;
 
-/** Depth reads shared by the AO pass and its blur, both drawn at a fraction of the frame's size. */
-const AO_COMMON = /* glsl */ `
-uniform sampler2D tDepth;
-uniform vec2 texel;
-uniform float span;
-varying vec2 vUv;
-
-float depthAt(vec2 uv) { return texture2D(tDepth, uv).x * span; }
-// The full-size pixel this (smaller) pixel stands for: its centre sits on a corner, where a depth read is a coin toss.
-vec2 snap(vec2 uv) { return (floor(uv / texel) + 0.5) * texel; }
-// Depth change per full-size pixel along this pixel's surface, from the smaller one-sided step (so not across an edge).
-vec2 slope(vec2 uv, float d) {
-  float dl = depthAt(uv - vec2(texel.x, 0.0));
-  float dr = depthAt(uv + vec2(texel.x, 0.0));
-  float du = depthAt(uv + vec2(0.0, texel.y));
-  float dd = depthAt(uv - vec2(0.0, texel.y));
-  float sx = abs(dr - d) < abs(d - dl) ? dr - d : d - dl;
-  float sy = abs(du - d) < abs(d - dd) ? du - d : d - dd;
-  return clamp(vec2(sx, sy), -2.0, 2.0);
-}
-`;
-
-/** Ambient occlusion from depth alone into one 8-bit channel, sampled in a 4×4 interleave that `AO_BLUR` averages out. */
+/** A fixed sampling kernel avoids screen-anchored noise crawling over surfaces as the camera moves. */
 const AO_FRAGMENT = /* glsl */ `
 ${AO_COMMON}
 uniform float pxPerUnit;
@@ -305,26 +293,24 @@ void main() {
   vec2 uv = snap(vUv);
   float d = depthAt(uv);
   if (d > span * 0.999) { gl_FragColor = vec4(1.0); return; }
-  // A neighbour that sits in front of this pixel's tangent plane darkens it, so crevices and wall feet go soft.
   vec2 s = slope(uv, d);
+  vec3 normal = normalize(vec3(s * pxPerUnit, 1.0));
   // Capped in pixels: zoomed in, a unit is over a hundred of them, and the few taps a pixel takes leave clouds.
   float R = min(aoRadius * pxPerUnit, 48.0);
-  // Each pixel of a 4×4 block takes every sixteenth point of one spiral (in Bayer order, so neighbours differ most):
-  // a few taps per pixel, sixteen times as many once the blur has averaged the block.
-  vec2 c = mod(floor(gl_FragCoord.xy), 4.0);
-  vec2 h = mod(c, 2.0);
-  vec2 q = floor(c * 0.5);
-  float jit = (4.0 * (h.x * 2.0 + abs(h.x - h.y)) + q.x * 2.0 + abs(q.x - q.y) + 0.5) / 16.0;
   float occ = 0.0;
   for (int i = 0; i < 24; i++) {
     if (i >= aoSamples) break;
-    float f = (float(i) + jit) / float(aoSamples);
-    float a = (float(i) + jit) * 2.399963;
+    float f = (float(i) + 0.5) / float(aoSamples);
+    float a = (float(i) + 0.5) * 2.399963;
     // Rounded to the pixel the depth read lands in: a steep plane's half-pixel error would read as occlusion.
     vec2 o = floor(vec2(cos(a), sin(a)) * R * sqrt(f) + 0.5);
     float ds = depthAt(uv + o * texel);
-    float excess = d + dot(s, o) - ds;
-    occ += smoothstep(0.05, 0.35, excess) * (1.0 - smoothstep(0.9, 2.2, excess)) * (1.0 - f * 0.5);
+    // Measure proximity in view space: raised furniture must not leave an AO copy on distant floor pixels.
+    vec3 delta = vec3(o / pxPerUnit, d - ds);
+    float distance = max(length(delta), 0.0001);
+    float facing = max(dot(normal, delta) / distance - 0.1, 0.0);
+    float nearby = 1.0 - smoothstep(aoRadius * 0.15, aoRadius, distance);
+    occ += facing * nearby;
   }
   occ /= float(aoSamples);
   gl_FragColor = vec4(vec3(1.0 - clamp(occ * aoStrength, 0.0, 0.85)), 1.0);
@@ -332,13 +318,12 @@ void main() {
 `;
 
 /**
- * Averages each 4×4 block of the AO pass back into one smooth value. A tap counts in full when it lies on this
- * pixel's plane (so a wall seen edge-on still cancels the interleave) and hardly at all across an edge.
+ * Separable bilateral filtering smooths contact shading along surfaces without crossing silhouettes.
  */
 const AO_BLUR = /* glsl */ `
 ${AO_COMMON}
 uniform sampler2D tAo;
-uniform vec2 aoTexel;
+uniform vec2 blurStep;
 
 void main() {
   vec2 uv = snap(vUv);
@@ -347,11 +332,13 @@ void main() {
   vec2 s = slope(uv, d);
   float acc = 0.0;
   float wsum = 0.0;
-  for (int j = 0; j < 16; j++) {
-    vec2 at = vUv + (vec2(float(j & 3), float(j >> 2)) - 2.0) * aoTexel;
+  for (int j = -3; j <= 3; j++) {
+    float offset = float(j);
+    vec2 at = vUv + offset * blurStep;
     vec2 su = snap(at);
     float dz = depthAt(su) - d - dot(s, (su - uv) / texel);
-    float w = 1.0 / (0.02 + dz * dz * 40.0);
+    float spatial = exp(-offset * offset / 4.5);
+    float w = spatial / (0.02 + dz * dz * 40.0);
     acc += texture2D(tAo, at).r * w;
     wsum += w;
   }
@@ -580,8 +567,8 @@ export class Pipeline {
           span: { value: 1 },
           pxPerUnit: { value: 40 },
           aoSamples: { value: 12 },
-          aoRadius: { value: 1.0 },
-          aoStrength: { value: 2.4 },
+          aoRadius: { value: 0.35 },
+          aoStrength: { value: 1.3 },
         },
       }),
     );
@@ -596,7 +583,7 @@ export class Pipeline {
           tDepth: { value: null },
           tAo: { value: null },
           texel: { value: new THREE.Vector2() },
-          aoTexel: { value: new THREE.Vector2() },
+          blurStep: { value: new THREE.Vector2() },
           span: { value: 1 },
         },
       }),
@@ -814,6 +801,7 @@ export class Pipeline {
         const st = this.splits.get(scene);
         if (st) st.size = 0;
       }
+      if (on) stabilizeShadow(sun);
     }
     this.last.shadowUpdated = false;
     // Once a room is batched its shadow splits in two (and stays split, so the shaders don't change back and forth).
@@ -840,29 +828,55 @@ export class Pipeline {
       return;
     }
     // The small map follows the sun exactly.
-    const key = `${Math.round(sun.position.x / 0.2)},${Math.round(sun.position.y / 0.2)},${Math.round(sun.position.z / 0.2)},${Math.round(sun.target.position.x / 0.2)},${Math.round(sun.target.position.z / 0.2)}`;
     const sc = sun.shadow.camera;
+    const key = [
+      Math.round(sun.position.x / 0.2),
+      Math.round(sun.position.y / 0.2),
+      Math.round(sun.position.z / 0.2),
+      Math.round(sun.target.position.x / 0.2),
+      Math.round(sun.target.position.y / 0.2),
+      Math.round(sun.target.position.z / 0.2),
+      sc.left,
+      sc.right,
+      sc.top,
+      sc.bottom,
+      sc.near,
+      sc.far,
+      sc.zoom,
+      sun.shadow.bias,
+      sun.shadow.normalBias,
+    ].join(",");
     dyn.position.copy(sun.position);
     dyn.target.position.copy(sun.target.position);
     dyn.shadow.bias = sun.shadow.bias;
     dyn.shadow.normalBias = sun.shadow.normalBias;
     dyn.shadow.radius = sun.shadow.radius;
-    const liveSize = Math.max(512, Math.min(1024, size / 2));
+    const liveSize = Math.max(512, Math.min(2048, size / 2));
     if (dyn.shadow.mapSize.x !== liveSize) {
       dyn.shadow.mapSize.set(liveSize, liveSize);
       dyn.shadow.map?.dispose();
       dyn.shadow.map = null;
     }
     const dc = dyn.shadow.camera;
-    if (dc.right !== sc.right || dc.top !== sc.top || dc.near !== sc.near || dc.far !== sc.far) {
+    if (
+      dc.left !== sc.left ||
+      dc.right !== sc.right ||
+      dc.top !== sc.top ||
+      dc.bottom !== sc.bottom ||
+      dc.near !== sc.near ||
+      dc.far !== sc.far ||
+      dc.zoom !== sc.zoom
+    ) {
       dc.left = sc.left;
       dc.right = sc.right;
       dc.top = sc.top;
       dc.bottom = sc.bottom;
       dc.near = sc.near;
       dc.far = sc.far;
+      dc.zoom = sc.zoom;
       dc.updateProjectionMatrix();
     }
+    stabilizeShadow(dyn);
     sun.shadow.autoUpdate = false;
     sun.updateMatrixWorld();
     sun.target.updateMatrixWorld();
@@ -870,9 +884,9 @@ export class Pipeline {
     dyn.target.updateMatrixWorld();
     classifyCasters(scene);
     const now = performance.now();
-    const stale = st.epoch !== staticShadowEpoch() || st.key !== key || st.size !== size || !sun.shadow.map;
+    const invalid = st.epoch !== staticShadowEpoch() || st.size !== size || !sun.shadow.map;
     const plan = { sun, dyn, fixed: false, live: false };
-    if (stale && now - st.at > 120) {
+    if (invalid || (st.key !== key && now - st.at > 120)) {
       st.epoch = staticShadowEpoch();
       st.key = key;
       st.size = size;
@@ -880,7 +894,7 @@ export class Pipeline {
       plan.fixed = true;
       this.last.staticBakes++;
     }
-    if (this.frameNo >= st.nextLive || !dyn.shadow.map) {
+    if (plan.fixed || this.frameNo >= st.nextLive || !dyn.shadow.map) {
       st.nextLive = this.frameNo + Math.max(1, every);
       plan.live = true;
     }
@@ -932,10 +946,8 @@ export class Pipeline {
         this.aoRaw = target();
         this.ao = target();
         this.voxQuad.material.uniforms.aoSize!.value.set(aoW, aoH);
-        this.aoBlurQuad.material.uniforms.tAo!.value = this.aoRaw.texture;
-        this.aoBlurQuad.material.uniforms.aoTexel!.value.set(1 / aoW, 1 / aoH);
       }
-      this.voxQuad.material.uniforms.tAo!.value = this.ao?.texture ?? null;
+      this.voxQuad.material.uniforms.tAo!.value = this.aoRaw?.texture ?? null;
     }
     // Lights: cool sky over warm bounce, a warm sun with big soft shadows, a cool fill from the far side.
     const { refs, sun } = this.lightsOf(scene);
@@ -954,7 +966,6 @@ export class Pipeline {
         l.intensity = e.intensity * 1.4;
       }
     }
-    this.shadowsFor(scene, o.shadowSize, o.shadowEvery);
     this.blobs(scene, o.blob);
     if (sun) {
       const sh = sun.shadow;
@@ -970,6 +981,7 @@ export class Pipeline {
       this.fill.position.set(2 * t.x - sun.position.x, 6, 2 * t.z - sun.position.z);
       this.fill.intensity = Math.min(1.2, sun.intensity * 0.22);
     }
+    this.shadowsFor(scene, o.shadowSize, o.shadowEvery);
 
     r.setRenderTarget(this.vox!);
     r.render(scene, camera);
@@ -988,14 +1000,20 @@ export class Pipeline {
       a.span!.value = span;
       a.pxPerUnit!.value = lw / ((camera.right - camera.left) / camera.zoom);
       a.aoSamples!.value = o.aoSamples;
-      a.aoStrength!.value = this.night > 0.5 ? 1.6 : 2.4;
+      a.aoStrength!.value = this.night > 0.5 ? 1.0 : 1.3;
       r.setRenderTarget(this.aoRaw!);
       r.render(this.aoQuad, this.quadCamera);
       const b = this.aoBlurQuad.material.uniforms;
       b.tDepth!.value = this.vox!.depthTexture;
       b.texel!.value.set(1 / lw, 1 / lh);
       b.span!.value = span;
+      b.tAo!.value = this.aoRaw!.texture;
+      b.blurStep!.value.set(1 / aoW, 0);
       r.setRenderTarget(this.ao);
+      r.render(this.aoBlurQuad, this.quadCamera);
+      b.tAo!.value = this.ao.texture;
+      b.blurStep!.value.set(0, 1 / aoH);
+      r.setRenderTarget(this.aoRaw!);
       r.render(this.aoBlurQuad, this.quadCamera);
     }
     const u = this.voxQuad.material.uniforms;
@@ -1009,7 +1027,7 @@ export class Pipeline {
     r.setRenderTarget(null);
     r.clear();
     r.render(this.voxQuad, this.quadCamera);
-    this.last.passes = this.ao ? 4 : 2;
+    this.last.passes = this.ao ? 5 : 2;
     this.watch();
   }
 
@@ -1173,6 +1191,7 @@ export class Pipeline {
       thawAll(mode);
     }
     syncBaked(scene, mode);
+    updateDetails(scene, view.pxPerUnit);
     if (this.style === "voxel") {
       // Only when something was added since: swapping geometries is not free, and the scene is mostly still.
       if (!scene.userData.blocky || scene.userData.blockEpoch !== sceneEpoch()) {

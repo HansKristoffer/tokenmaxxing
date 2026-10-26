@@ -3,16 +3,13 @@ import { bumpStaticShadow, STATIC_LAYER, sceneEpoch } from "./bake.ts";
 
 /**
  * Which shadow casters are worth redrawing. Whatever the batching left as separate meshes (live props, glass, signs,
- * a lamp that sways) is watched: while it stays within a few steps of where it was first seen it casts its shadow
- * from the baked map (a spinning sail or a bobbing sign keeps the pose it was baked in); one that travels (a car, a
- * door, a boss) stays on the per-frame layer, and goes back to the baked one after a long rest. People and pets
- * (`userData.actor`) always stay on the per-frame layer, so a crowd stopping and starting never re-bakes anything.
+ * a lamp that sways) is watched for changes to its full world transform. Moving props stay on the per-frame
+ * layer and go back to the baked one after a long rest. Actors, skinned meshes and instanced animations
+ * always stay live, since their silhouette can change without moving the mesh itself.
  */
 interface Caster {
   mesh: THREE.Mesh;
-  x: number;
-  y: number;
-  z: number;
+  transform: number[];
   vis: boolean;
   calm: number;
   flips: number;
@@ -29,8 +26,7 @@ interface State {
 export const why = { vis: 0, unfix: 0, fix: 0 };
 (globalThis as unknown as { __shadowWhy: typeof why }).__shadowWhy = why;
 const states = new WeakMap<THREE.Object3D, State>();
-/** How far (world units, squared) a mesh may drift from where it was first seen and still count as still. */
-const DRIFT2 = 0.25 * 0.25;
+const TRANSFORM_EPSILON = 1e-5;
 /** Calm frames before a mesh moves to the baked layer; a mesh that has travelled before waits much longer. */
 const CALM = 180;
 const CALM_AFTER_TRAVEL = 400;
@@ -62,9 +58,19 @@ export function classifyCasters(scene: THREE.Scene): boolean {
       let c = s!.known.get(m);
       if (!c) {
         // Merged batches are already on the baked layer; actors never leave the live one.
-        if (m.layers.mask !== 1 || actorUp(m)) return;
-        const e = m.matrixWorld.elements;
-        c = { mesh: m, x: e[12]!, y: e[13]!, z: e[14]!, vis: true, calm: 0, flips: 0, fixed: false };
+        const deforming =
+          (m as THREE.InstancedMesh).isInstancedMesh ||
+          (m as THREE.SkinnedMesh).isSkinnedMesh ||
+          (m.morphTargetInfluences?.length ?? 0) > 0;
+        if (m.layers.mask !== 1 || actorUp(m) || deforming) return;
+        c = {
+          mesh: m,
+          transform: m.matrixWorld.elements.slice(),
+          vis: true,
+          calm: 0,
+          flips: 0,
+          fixed: false,
+        };
         s!.known.set(m, c);
       }
       list.push(c);
@@ -92,15 +98,17 @@ export function classifyCasters(scene: THREE.Scene): boolean {
       }
       continue;
     }
-    const dx = e[12]! - c.x;
-    const dy = e[13]! - c.y;
-    const dz = e[14]! - c.z;
-    if (dx * dx + dy * dy + dz * dz > DRIFT2) {
+    let moved = false;
+    for (let i = 0; i < 16; i++) {
+      if (Math.abs(e[i]! - c.transform[i]!) > TRANSFORM_EPSILON) {
+        moved = true;
+        break;
+      }
+    }
+    if (moved) {
       c.calm = 0;
       c.flips++;
-      c.x = e[12]!;
-      c.y = e[13]!;
-      c.z = e[14]!;
+      for (let i = 0; i < 16; i++) c.transform[i] = e[i]!;
       if (c.fixed) {
         c.fixed = false;
         m.layers.set(0);

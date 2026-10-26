@@ -84,6 +84,8 @@ const WARM_AFTER_MS = 1500;
 const TEXTURES_PER_FRAME = 6;
 /** Building ahead costs a few hundred ms in all: it waits until you have stood still this long. */
 const STILL_MS = 600;
+/** How far a press moves (CSS pixels) before it is a drag of the picture, not a click. */
+const DRAG_PX = 6;
 
 /**
  * The game, in 3D: the room the server says we are in, everyone in it as voxel people with their pets, name
@@ -132,7 +134,7 @@ class Renderer3D implements Renderer {
   private labelsAll = false;
   private fail?: (reason: string) => void;
   private selfAt: [number, number] | null = null;
-  private drag: { x: number; y: number } | null = null;
+  private drag: { x: number; y: number; id: number; moving: boolean } | null = null;
   private errored = 0;
   private hooks3d: Required<typeof viewHooks> | null = null;
   private framing: { view: number; bounds: RoomView["bounds"] } | null = null;
@@ -174,34 +176,59 @@ class Renderer3D implements Renderer {
       ghost: (g) => this.showGhost(g),
     };
     Object.assign(viewHooks, this.hooks3d);
-    this.shops = installShops(this.shopWorld);
-    this.bindShopping();
-    // Panning: the middle button drags the picture; it settles back on you when you walk on.
+    // Panning: drag the picture (the left or middle button, or one finger); it settles back on you when you
+    // walk on. Two fingers pinch and twist instead (`touch.ts`). A press only pans once it has moved a few
+    // pixels, and the click that ends a drag is swallowed, so a drag never walks you anywhere.
+    const fingers = new Set<number>();
+    let dragged = false;
     const down = (e: PointerEvent) => {
-      if (e.button !== 1) return;
-      e.preventDefault();
-      this.drag = { x: e.clientX, y: e.clientY };
-      this.canvas.setPointerCapture(e.pointerId);
+      dragged = false;
+      if (e.pointerType === "touch") fingers.add(e.pointerId);
+      if (fingers.size > 1 || (e.button !== 0 && e.button !== 1)) {
+        this.drag = null;
+        return;
+      }
+      if (e.button === 1) e.preventDefault();
+      this.drag = { x: e.clientX, y: e.clientY, id: e.pointerId, moving: e.button === 1 };
     };
     const move = (e: PointerEvent) => {
-      if (!this.drag) return;
-      this.rig.panBy(e.clientX - this.drag.x, e.clientY - this.drag.y, this.h);
-      this.drag = { x: e.clientX, y: e.clientY };
+      const d = this.drag;
+      if (!d || d.id !== e.pointerId) return;
+      if (!d.moving) {
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < DRAG_PX) return;
+        d.moving = true;
+        this.canvas.setPointerCapture(e.pointerId);
+      }
+      this.rig.panBy(e.clientX - d.x, e.clientY - d.y, this.h);
+      d.x = e.clientX;
+      d.y = e.clientY;
     };
-    const up = () => {
+    const up = (e: PointerEvent) => {
+      fingers.delete(e.pointerId);
+      if (this.drag?.id !== e.pointerId) return;
+      dragged = this.drag.moving;
       this.drag = null;
+    };
+    // In the capture phase and before the shops' own: nothing else hears the click.
+    const click = (e: MouseEvent) => {
+      if (dragged) e.stopImmediatePropagation();
+      dragged = false;
     };
     this.canvas.addEventListener("pointerdown", down);
     this.canvas.addEventListener("pointermove", move);
     this.canvas.addEventListener("pointerup", up);
     this.canvas.addEventListener("pointercancel", up);
+    this.canvas.addEventListener("click", click, true);
     this.canvas.addEventListener("auxclick", (e) => e.preventDefault());
     this.off.push(() => {
       this.canvas.removeEventListener("pointerdown", down);
       this.canvas.removeEventListener("pointermove", move);
       this.canvas.removeEventListener("pointerup", up);
       this.canvas.removeEventListener("pointercancel", up);
+      this.canvas.removeEventListener("click", click, true);
     });
+    this.shops = installShops(this.shopWorld);
+    this.bindShopping();
     Object.assign(window, { __r3d: this });
     // `?r3dcheck`: builds and frees every room a few times over and says whether the GPU counts moved.
     // (The address is read from the navigation entry: signing in rewrites the page's own.)
@@ -559,7 +586,7 @@ class Renderer3D implements Renderer {
     const dark = stage.update(dt / 1000, t, this.rig.focus, this.rig.viewShown, camera);
     view.tick(t, dt / 1000, this.rig.towardCamera());
     lightPipeline(this.pipe, stage, dark);
-    this.seeSelf(me, camera);
+    this.seeSelf(me, camera, dt / 1000, calm);
     if (this.warming?.draw && now - this.stillSince > STILL_MS) this.drawAhead();
     lightPipeline(this.pipe, stage, dark);
     this.pipe.render(stage.scene, camera, this.w, this.h);
@@ -586,12 +613,18 @@ class Renderer3D implements Renderer {
   }
 
   /** Where the ring that cuts trees and roofs away round you is, in render pixels. */
-  private seeSelf(me: [number, number] | null | undefined, camera: THREE.OrthographicCamera): void {
+  private seeSelf(
+    me: [number, number] | null | undefined,
+    camera: THREE.OrthographicCamera,
+    dt: number,
+    calm: boolean,
+  ): void {
     if (!me) {
       SEE.value.w = 0;
       return;
     }
     const at = new THREE.Vector3(me[0], 0.9, me[1]);
+    const reveal = this.stage!.occlusion.update(at, camera, dt, calm);
     const depth = -at.clone().applyMatrix4(camera.matrixWorldInverse).z;
     at.project(camera);
     const ratio = this.pipe.renderer.getPixelRatio();
@@ -599,7 +632,7 @@ class Renderer3D implements Renderer {
       (at.x * 0.5 + 0.5) * this.w * ratio,
       (at.y * 0.5 + 0.5) * this.h * ratio,
       depth,
-      (this.h / this.rig.viewShown) * 0.95 * ratio,
+      (this.h / this.rig.viewShown) * 0.95 * ratio * Math.sqrt(reveal),
     );
   }
 

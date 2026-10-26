@@ -22,12 +22,10 @@ export type Panel =
   | { kind: "company" }
   | { kind: "companyShop" }
   | { kind: "merch"; companyId: number }
-  | { kind: "look" }
   | { kind: "shop"; tab?: ShopPageTab }
   | { kind: "shops" }
   | { kind: "merchant" }
-  | { kind: "bag" }
-  | { kind: "petLooks"; pet: number }
+  | { kind: "bag"; tab?: "you" | "pet" | "things" }
   | { kind: "arcade" }
   | { kind: "newTable"; invite?: number; inviteName?: string; game?: GameId }
   | { kind: "match"; id: number }

@@ -87,7 +87,7 @@ interface Pill {
 /**
  * The town's world events, drawn from the real game's state (the 2D game's `merchant.ts`, `picnic.ts`,
  * `street.ts`, `race.ts`): the traveling merchant's cart on the server's clock, the outage picnic with its
- * bunting and the "touched grass" moment, the pølsevogn's sign, the build snail's status and trail and the
+ * bunting and the "touched grass" moment, the pølsevogn's sign, the build snail's status and the
  * paperboy's tag, and the Sprint Race's start line. Officer 429 and the racers are people, drawn by `Entities`.
  *
  * Everything is built once per town and only shown and hidden, positions are set in place, labels are a few
@@ -121,10 +121,6 @@ export class TownEvents {
   private noticeAt = 0;
 
   // The street
-  private readonly trail = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 0.012, 0.07),
-    new THREE.MeshBasicMaterial({ color: "#ebf0fa", transparent: true, opacity: 0.55, depthWrite: false }),
-  );
   private lastMinute: number | null = null;
   private readonly polseAt: [number, number];
   private rides: ReturnType<typeof paperRides> | null = null;
@@ -219,12 +215,6 @@ export class TownEvents {
     mergeStill(this.grass);
     this.grass.visible = false;
     this.group.add(this.picnic, this.grass);
-
-    // The snail's trail (its body and the goal flag are the town's own).
-    this.trail.userData.live = true;
-    this.trail.userData.nopick = true;
-    this.trail.visible = false;
-    this.group.add(this.trail);
 
     // The race's start line: a chequered strip across the lanes.
     const tex = canvasTexture(
@@ -548,7 +538,6 @@ export class TownEvents {
     open: false,
     phase: "queued" as "queued" | "deploying" | "deployed",
     snail: [0, 0] as [number, number],
-    trailFrom: 0,
     boy: null as [number, number] | null,
   };
 
@@ -563,7 +552,6 @@ export class TownEvents {
       const s = snailAt(at);
       st.phase = s.phase;
       st.snail = this.toWorld(s.x, s.y);
-      st.trailFrom = this.toWorld(SNAIL.from, s.y)[0];
       if (this.ridesFor !== world.map) {
         this.ridesFor = world.map;
         const map = world.map;
@@ -589,7 +577,7 @@ export class TownEvents {
       undefined,
       st.open ? "rgba(216, 52, 60, 0.95)" : "rgba(43, 36, 51, 0.7)",
     );
-    // The snail: a sign on its shell and a silver trail behind it.
+    // The snail: a sign on its shell.
     const [sx, sz] = st.snail;
     v3.set(sx, 0.95, sz);
     this.pill(
@@ -601,12 +589,6 @@ export class TownEvents {
       undefined,
       st.phase === "deployed" ? "rgba(88, 179, 106, 0.95)" : "rgba(212, 156, 103, 0.95)",
     );
-    const long = sx - st.trailFrom;
-    this.trail.visible = long > 0.05;
-    if (this.trail.visible) {
-      this.trail.scale.x = long;
-      this.trail.position.set((sx + st.trailFrom) / 2, 0.07, sz);
-    }
     // The paperboy's tag follows him round (the bike and the papers are the town's own).
     if (st.boy) {
       v3.set(st.boy[0], 1.6, st.boy[1]);

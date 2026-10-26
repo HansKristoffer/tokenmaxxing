@@ -72,6 +72,8 @@ export class CameraRig {
   readonly focus = new THREE.Vector2();
   viewShown = 10;
   private pan: [number, number] = [0, 0];
+  /** The floor point followed last frame: a pan only goes as far as the picture can. */
+  private followed: [number, number] = [0, 0];
   private framing: Framing = { view: 10, bounds: { minX: 0, maxX: 10, minZ: 0, maxZ: 10, height: 2.6 } };
   private aspect = 1.6;
   /** The part of the screen the HUD leaves free (fractions of the width and height) and its centre's offset from the screen's, in half-screens. */
@@ -152,8 +154,9 @@ export class CameraRig {
     const [ax, az] = awayOf(this.azimuth);
     const r = -dx * per;
     const a = (dy * per) / SIN_EL;
-    this.pan[0] += rx * r + ax * a;
-    this.pan[1] += rz * r + az * a;
+    const [x, z] = this.followed;
+    const [cx, cz] = this.clamp(x + this.pan[0] + rx * r + ax * a, z + this.pan[1] + rz * r + az * a);
+    this.pan = [cx - x, cz - z];
   }
 
   panned(): boolean {
@@ -196,6 +199,7 @@ export class CameraRig {
       };
     this.viewShown = jump ? this.targetView() : approach(this.viewShown, this.targetView(), tau, 110);
 
+    this.followed = [x, z];
     const [fx, fz] = this.clamp(x + this.pan[0], z + this.pan[1]);
     if (jump) this.focus.set(fx, fz);
     else this.focus.set(approach(this.focus.x, fx, tau, 120), approach(this.focus.y, fz, tau, 120));

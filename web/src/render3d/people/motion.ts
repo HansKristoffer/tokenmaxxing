@@ -179,3 +179,16 @@ export function walkPose(phase: number, weight: number): WalkPose {
 export function gaitSettled(g: Gait): boolean {
   return g.weight < 1e-3 && Math.abs(g.lean) < 1e-3;
 }
+
+/** How far from the tile's middle people sharing a tile stand (tiles), so their figures don't overlap and flicker. */
+const CROWD_RADIUS = 0.27;
+
+/**
+ * Where the `index`-th of `count` people on one tile stands, off its middle: round a ring, starting across the
+ * default camera's line of sight, so two stand side by side on screen rather than one behind the other.
+ */
+export function crowdOffset(index: number, count: number): [number, number] {
+  if (count < 2) return [0, 0];
+  const a = Math.PI / 4 + (index / count) * Math.PI * 2;
+  return [Math.sin(a) * CROWD_RADIUS, -Math.cos(a) * CROWD_RADIUS];
+}

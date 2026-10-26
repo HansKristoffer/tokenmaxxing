@@ -1,6 +1,6 @@
 /**
  * The barber's catalogue, a snapshot of what the 2D game lets you change about a face and a head:
- *  - style / skin / hair: the character creator (`web/src/hud/LookPicker.tsx`), `LOOK_OPTIONS` in
+ *  - style / skin / hair: the Bag's You tab (`web/src/hud/Bag.tsx`), `LOOK_OPTIONS` in
  *    `core/src/world.ts` (style 4, skin 4, hair 6) and `STYLE_NAMES`. They are free; the colours are
  *    `SKINS` and `HAIRS` in `web/src/art/palette.ts`. The 2D game has no names for colours; these are ours.
  *  - face: `look.glasses` (`core/src/shop.ts` Nerd specs, Shades, Heart glasses) and the head pack's face

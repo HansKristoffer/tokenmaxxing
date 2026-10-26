@@ -36,7 +36,6 @@ import {
   canHang,
   clearOffice,
   type Door,
-  doorAt,
   doorsFor,
   HQS,
   OFFICE_LEVEL,
@@ -114,6 +113,7 @@ import {
   type PlayerPos,
   type PlayerState,
   type PlayerView,
+  parseRoom,
   pieceOfDrop,
   portal,
   RAIDERS_SHOWN,
@@ -499,9 +499,6 @@ export const world = actor({
         blocked: () => (wasSeated ? correction(p) : null),
         portal: (target) => {
           const doors = p.companyId === null ? [] : doorsOf(c.state, p.companyId);
-          const door = target.ch === "R" ? doorAt(doors, target.x, target.y) : undefined;
-          if (door && door.userId !== p.id && !door.open)
-            return { notice: `🔒 ${door.name}'s office is closed.` };
           const dest = portal(p.room, target, p.companyId, plots(c.state), doors);
           if ("notice" in dest) return { notice: dest.notice };
           Object.assign(p, dest);
@@ -838,7 +835,7 @@ export const world = actor({
     },
 
     /**
-     * From a player card: into their office, if they have one and it's open (your own always is).
+     * From a player card or the rooms list: into their office, if they have one. Every office is open to everyone.
      * It bypasses their building's door on purpose: its exit leads into your own building.
      */
     visit: (c, targetId: unknown): StepResult => {
@@ -849,8 +846,6 @@ export const world = actor({
         return {
           notice: owner?.id === p.id ? "You don't have an office yet." : "They don't have an office yet.",
         };
-      if (owner.id !== p.id && !officeOf(c.state, owner.id).open)
-        return { notice: `🔒 ${owner.name}'s office is closed.` };
       touch(c, p, Date.now());
       const arrived = enter(c, p, `office:${owner.id}`);
       countVisit(c, p);
@@ -863,6 +858,23 @@ export const world = actor({
       if (!p) return null;
       touch(c, p, Date.now());
       return enter(c, p, "dungeon");
+    },
+
+    /**
+     * The rooms list: straight into a room, without walking there. Only where you could walk in yourself: your own
+     * company's house and common room, and an office whose owner still has one.
+     */
+    goTo: (c, rawRoom: unknown): StepResult => {
+      const p = free(c);
+      const room = parseRoom(rawRoom);
+      if (!p || !room || room === p.room) return null;
+      const to = room === "town" ? townSpawn() : roomEntry(room);
+      if (!canReturn(c.state, p, to)) return { notice: "You can't get in there." };
+      touch(c, p, Date.now());
+      Object.assign(p, to, { state: "idle" });
+      c.vars.dirty.add(p.id);
+      countVisit(c, p);
+      return correction(p);
     },
 
     /** After a game: back to where you were before it. */
@@ -1061,10 +1073,7 @@ export const world = actor({
       return ids;
     },
 
-    /**
-     * From `town`: an office opened or closed, or its wallpaper or floor changed. Whoever is inside
-     * sees it; closing throws nobody out.
-     */
+    /** From `town`: an office's wallpaper or floor changed. Whoever is inside sees it. */
     setOfficeInfo: async (c, userId: number, office: Office): Promise<void> => {
       requireInternal(c.conn.state);
       const was = officeOf(c.state, userId);
@@ -1072,20 +1081,13 @@ export const world = actor({
       c.state.offices ??= {};
       c.state.offices[userId] = office;
       if (buildOffice(c.state, userId)) await rebuildOffice(c, userId);
-      if (was.open === office.open) return;
-      // What was said while it was closed stays private.
-      if (office.open) await c.db.execute("DELETE FROM chat WHERE room = ?", `office:${userId}`);
-      await resend(c, `office:${userId}`);
-      // The 🔒 on their door.
-      const companyId = c.state.players[userId]?.companyId;
-      if (companyId != null) await resend(c, `hq:${companyId}`);
     },
 
-    /** From `town`, for the open offices list: every open office, as it is now. */
+    /** From `town`, for the offices list: every office, as it is now. */
     openOffices: (c) => {
       requireInternal(c.conn.state);
       return Object.values(c.state.players)
-        .filter((p) => hasOffice(p) && officeOf(c.state, p.id).open)
+        .filter((p) => hasOffice(p))
         .map((p) => ({
           id: p.id,
           name: p.name,
@@ -1378,7 +1380,6 @@ function doorsOf(s: WorldState, companyId: number): Door[] {
     members.map((p) => ({
       userId: p.id,
       name: p.name,
-      open: officeOf(s, p.id).open,
       slot: placed.get(p.id)!,
     })),
   );
@@ -1452,7 +1453,7 @@ function canReturn(s: WorldState, p: WorldPlayer, to: Place): boolean {
   return (
     (!!tile.walk || !!tile.seat) &&
     (house === null || house === p.companyId) &&
-    (owner === null || (!!o && hasOffice(o) && (owner === p.id || officeOf(s, owner).open)))
+    (owner === null || (!!o && hasOffice(o)))
   );
 }
 
@@ -1903,7 +1904,6 @@ async function snapshot(
         : {
             id: owner,
             name: s.players[owner]?.name ?? "Someone",
-            open: officeOf(s, owner).open,
             tier: officeTier(s.players[owner]?.level ?? 0),
             ...decorOf(s, owner),
           },
@@ -2076,8 +2076,8 @@ async function rebuildOffice(c: Sender & { vars: Vars; db: Sql }, userId: number
   return lifted;
 }
 
-/** Someone's office; one `town` has no row for yet is open. */
-const officeOf = (s: WorldState, userId: number): Office => s.offices?.[userId] ?? { open: true };
+/** Someone's office; plain while `town` has no row for it yet. */
+const officeOf = (s: WorldState, userId: number): Office => s.offices?.[userId] ?? {};
 
 /** Everyone inside each company house, for drawing them through its walls from town. */
 function houses(s: WorldState): Houses {

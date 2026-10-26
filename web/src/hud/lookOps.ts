@@ -49,3 +49,12 @@ export function withItem(item: Item, look: Look, on: boolean): Look {
     (slot) => ({ ...look, [slot]: on ? item.index : 0 }),
   );
 }
+
+/**
+ * Whether two looks are the same, field by field: the server's copy and a draft can list their fields in another
+ * order, and leave out what is empty (no pet name, no merch) or spell it out as nothing.
+ */
+export function sameLook(a: Look, b: Look): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof Look>;
+  return [...keys].every((k) => (a[k] || undefined) === (b[k] || undefined));
+}

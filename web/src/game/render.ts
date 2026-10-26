@@ -294,11 +294,10 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     if (inside.length) labels.push(() => chips(g, sx, sy + 4 * dpr, inside, dpr));
   }
 
-  // Office doors: the owner's name over each, 🔒 when it's closed; yours stands out.
+  // Office doors: the owner's name over each; yours stands out.
   for (const d of world.doors) {
     const [sx, sy] = toScreen((d.x + 0.5) * TILE, d.y * TILE);
-    const text = `${d.open ? "" : "🔒 "}${d.name}`;
-    labels.push(() => sign(g, sx, sy, text, dpr, d.userId === world.selfId, 1.9 * TILE * scale));
+    labels.push(() => sign(g, sx, sy, d.name, dpr, d.userId === world.selfId, 1.9 * TILE * scale));
   }
 
   // Drops: furniture is in the map; a pet or a wearable lies there as itself.

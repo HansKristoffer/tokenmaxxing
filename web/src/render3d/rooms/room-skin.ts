@@ -11,7 +11,7 @@ import { setPropsNight } from "../town/props.ts";
 import { type BasementScene, dimBasement } from "./basement3d.ts";
 import { exitPlate, exitStairs } from "./exits3d.ts";
 import { buildHq, directoryBoard, type Hq } from "./hq3d.ts";
-import { Room } from "./room.ts";
+import { Room, WALL_T } from "./room.ts";
 import type { TavernRoom } from "./tavern3d.ts";
 import { buildRoomSkin, type RoomSkin, WorldRoom } from "./world.ts";
 import "./world-rooms.ts";
@@ -331,10 +331,14 @@ function buildHallways(map: GameMap, hq: Hq) {
     const at: [number, number, number] = [t.rx + 0.5, 0, t.rz + 0.5];
     if (t.kind === "wall") {
       const row = rowOf(t.y).model;
-      row.box([1, WALL_H, 1], WALL, at, 0);
-      row.box([1.02, 0.1, 1.02], CAP, [at[0], WALL_H, at[2]], 0.01);
+      // The floor's own top wall row: the room draws its face and skirting there. The block stops behind them, or the
+      // two faces share a plane and flicker in turn.
+      const behind = t.rz === -1 ? WALL_T + 0.01 : 0;
+      row.box([1, WALL_H, 1 - behind], WALL, [at[0], 0, at[2] - behind / 2], 0);
+      row.box([1.02, 0.1, 1.02 - behind], CAP, [at[0], WALL_H, at[2] - behind / 2], 0.01);
       // A skirting on the face that has a corridor in front of it.
-      if (map.walkable(t.x, t.y + 1)) row.box([1.02, 0.16, 0.06], CAP, [at[0], 0, at[2] + 0.5], 0.008);
+      if (!behind && map.walkable(t.x, t.y + 1))
+        row.box([1.02, 0.16, 0.06], CAP, [at[0], 0, at[2] + 0.5], 0.008);
     } else if (t.kind === "door") {
       const row = rowOf(t.y).model;
       // A header over the door and the door at the wall's face, not sunk into a niche.

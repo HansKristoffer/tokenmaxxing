@@ -688,19 +688,3 @@ export function toyShelf(): Model {
   }
   return m;
 }
-
-/** The exit: a frame in the front wall with daylight beyond, and a doormat. */
-export function exitDoor(): Model {
-  const m = new Model();
-  m.box([0.1, 2.1, 0.14], "#2f8a84", [-0.46, 0, -0.42], 0.015);
-  m.box([0.1, 2.1, 0.14], "#2f8a84", [0.46, 0, -0.42], 0.015);
-  m.box([1.02, 0.12, 0.14], "#2f8a84", [0, 2.1, -0.42], 0.015);
-  m.box([0.82, 2.0, 0.03], glow("#fff1c9"), [0, 0.02, -0.45], 0.002);
-  const leaf = m.part([-0.41, 0, -0.38], 1.0);
-  leaf.box([0.8, 2.0, 0.05], "#3fa7a0", [0.4, 0, 0], 0.012);
-  for (const y of [0.18, 1.1]) leaf.box([0.58, 0.7, 0.02], "#5fc4bd", [0.4, y, 0.03], 0.012);
-  leaf.ball(0.035, "#e9b73d", [0.7, 1.0, 0.06]);
-  m.box([0.8, 0.025, 0.5], C.rugLight, [0, 0, 0.1], 0.006);
-  m.box([0.7, 0.03, 0.4], "#3fa7a0", [0, 0, 0.1], 0.006);
-  return m;
-}

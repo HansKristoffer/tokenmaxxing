@@ -194,7 +194,7 @@ export function PlayerCard({ userId }: { userId: number }) {
             <Shelf pins={shelf ?? p.showcase ?? []} mine={mine} onEdit={() => setPicking(true)} />
           )}
           <p className="company-actions">
-            {p.office && (mine || p.office === "open") && (
+            {p.office && (
               <button type="button" onClick={visit}>
                 🚪 {mine ? "My office" : "Visit office"}
               </button>
@@ -217,7 +217,6 @@ export function PlayerCard({ userId }: { userId: number }) {
                 </button>
               </>
             )}
-            {p.office === "closed" && !mine && <span className="muted small">🔒 Office closed</span>}
           </p>
         </>
       ) : (

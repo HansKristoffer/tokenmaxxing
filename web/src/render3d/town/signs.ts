@@ -44,7 +44,7 @@ export class Signs {
         key: `door:${d.x},${d.y}`,
         at: [x, 2.3, z + 0.5],
         kind: "door",
-        text: `${d.open ? "" : "🔒 "}${d.name}`,
+        text: d.name,
         own: d.userId === world.selfId,
       });
     }

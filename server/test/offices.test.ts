@@ -79,12 +79,12 @@ describe("wallpapers and floors", () => {
     const { drops } = await applyDecor(sql, 1, "wall", "nyhavn", NOW);
     expect(drops).toHaveLength(2); // the desk and chair, with the row
     expect((await wallet(sql, 1, NOW)).balance).toBe(paid);
-    expect(await offices(sql)).toEqual({ 1: { open: true, wall: "nyhavn" } });
+    expect(await offices(sql)).toEqual({ 1: { wall: "nyhavn" } });
     await applyDecor(sql, 1, "floor", "boards", NOW);
     await applyDecor(sql, 1, "wall", "tivoli", NOW); // earned by level, no purchase
-    expect((await offices(sql))[1]).toEqual({ open: true, wall: "tivoli" });
+    expect((await offices(sql))[1]).toEqual({ wall: "tivoli" });
     await applyDecor(sql, 1, "wall", null, NOW);
-    expect(await offices(sql)).toEqual({ 1: { open: true } });
+    expect(await offices(sql)).toEqual({ 1: {} });
     await expect(applyDecor(sql, 1, "floor", "nope", NOW)).rejects.toMatchObject({ code: "not_found" });
   });
 

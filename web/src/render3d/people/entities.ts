@@ -32,7 +32,7 @@ import { CopWatch, ShowcaseCache } from "../town/world-logic.ts";
 import { Avatar as Avatar3D } from "./avatar.ts";
 import { CopGear } from "./cop3d.ts";
 import { type Look2D, lookFrom2D, nameTag, tagLift, wornBy } from "./gear3d.ts";
-import { approach, hopHeight, poseOf, turnToward, YAW } from "./motion.ts";
+import { approach, crowdOffset, hopHeight, poseOf, turnToward, YAW } from "./motion.ts";
 
 const NONE: ReadonlySet<number> = new Set();
 /** Pets are drawn a little bigger than life so they read from the iso camera. */
@@ -284,6 +284,16 @@ export class Entities {
     prunePets();
     this.bursts = 0;
     for (const r of this.rigs.values()) if (r.burst) this.bursts++;
+    // Who shares a tile (seats are one each, and the server keeps them so), in a fixed order: each gets a spot.
+    const crowds = new Map<string, number[]>();
+    for (const a of list) {
+      if (world.map.kind(a.x, a.y).seat) continue;
+      const key = `${a.x},${a.y}`;
+      crowds.set(
+        key,
+        [...(crowds.get(key) ?? []), a.info.id].sort((p, q) => p - q),
+      );
+    }
     for (const a of list) {
       let r = this.rigs.get(a.info.id);
       // The server replaces `info` when it changes, so the look is only compared then (or for a try-on).
@@ -298,7 +308,9 @@ export class Entities {
       r.changed = changed;
       r.info = a.info;
       r.fitting = this.fitting;
-      this.step(r, a, me, view, camera, now, dt, dtS, t);
+      const crowd = crowds.get(`${a.x},${a.y}`);
+      const spread = crowd ? crowdOffset(crowd.indexOf(a.info.id), crowd.length) : ([0, 0] as const);
+      this.step(r, a, me, view, camera, now, dt, dtS, t, spread);
     }
     for (const r of [...this.rigs.values()]) if (r.seen !== frame) this.remove(r);
     this.declutter();
@@ -339,6 +351,7 @@ export class Entities {
     dt: number,
     dtS: number,
     t: number,
+    spread: readonly [number, number],
   ): void {
     const info = a.info;
     // Where they are: the 2D game's own step interpolation, eased so corners round off.
@@ -347,7 +360,9 @@ export class Entities {
     r.lap = lap;
     const p = lap ?? drawPos(a, now);
     r.at = p;
-    const [tx, tz] = view.toWorld(p.x, p.y);
+    const [cx, cz] = view.toWorld(p.x, p.y);
+    // Off the tile's middle when someone else stands on it too (not while running laps).
+    const [tx, tz] = lap ? [cx, cz] : [cx + spread[0], cz + spread[1]];
     const dx = tx - r.x;
     const dz = tz - r.z;
     // How far they came this frame, for the stride (a jump into place is not a step).

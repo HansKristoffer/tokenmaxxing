@@ -19,7 +19,8 @@ export interface Placed {
 }
 
 const WALL_H = 2.6;
-const WALL_T = 0.15;
+/** How thick a room's walls are: they stand just outside its floor, their inner face on its edge. */
+export const WALL_T = 0.15;
 
 /** The sky through a window, by day or night. */
 const skyTexture = (night: boolean) =>

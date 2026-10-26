@@ -53,9 +53,8 @@ export const SLOT_NOUN: Record<string, string> = {
 
 /** Esc's menu: a button per panel. No store in it: buying happens at the shops (see "Shops"). */
 export const MENU = [
-  [{ kind: "look" }, "🎨 Your character"],
   [{ kind: "shops" }, "🧭 Shops"],
-  [{ kind: "bag" }, "🎒 Bag"],
+  [{ kind: "bag" }, "🎒 Bag and character"],
   [{ kind: "trades" }, "🔁 Trades"],
   [{ kind: "arcade" }, "🎮 Arcade"],
   [{ kind: "raid" }, "⚔️ Raid"],

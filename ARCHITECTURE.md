@@ -912,8 +912,9 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   drifting sparkle one merged mesh. Code that changes a room's shape after it was batched calls `invalidateBaked(obj)`
   (`Room.build` does). `?nobake` turns it off to compare pictures.
 - *Atlas* (`atlas.ts`). Small nearest-filtered painted textures (signs, price tags, posters) of one material setup are packed in
-  one atlas (UVs remapped exactly, so no pixel changes); a picture the game repaints is painted into the atlas again, one that
-  repaints all the time is taken out. A room's textured props merge from one draw call per picture to one per setup.
+  one padded atlas. Slots align to all four mip levels, each tile is downsampled independently, and nearest magnification
+  preserves close-up pixels. A skyline packer and cropped height limit empty space. Repainting updates every mip; pictures
+  that repaint all the time are taken out. A room's textured props merge from one draw call per picture to one per setup.
 - *Freezing* (`freeze.ts`, `Freezer`). A person or pet who stands, sits or sleeps (`userData.actor`) is merged in that pose into
   a couple of meshes and its limbs stop being posed; moving gives the limbs back (`bake.ts` `freezeLayer`, `suspend`, `resume`).
   Models nobody animates (display pets) freeze after half a second. Past `crowd` people nearest the middle of the picture (8 / 16
@@ -923,14 +924,27 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
 - *Shadows*. Medium has none, a soft disc under each person and pet instead (`blob`, one instanced draw; the raid's minions have their own instanced discs in `minions.ts`). High and Ultra draw
   the room's static casters **once** into a big map (2K/4K) and again only when a room is re-batched, a caster stops or starts
   travelling, or the sun has moved (`last.staticBakes` counts it); people, pets and walls that lower go into a small second map
-  (1K) every frame or two. Two shadow-casting directional lights, the second at intensity 0, and a patched
+  (1K on High, 2K on Ultra) every frame or two. Both maps snap to their own texel grids as the camera moves;
+  zooming changes coverage without changing the sun's direction. Two shadow-casting directional lights, the second at intensity 0, and a patched
   `lights_fragment_begin` that multiplies both lookups for the first light. Static batches sit on layer 2 (`STATIC_LAYER`), everything
-  else on 0; `shadowcast.ts` moves props that never travel (>0.25 units) onto the baked layer and back.
-- *AO* (`pipeline.ts`). Depth-only, its own pass at half size (`aoScale`) into one 8-bit channel, upsampled in the composite by
-  a four-tap depth-aware blend; the composite is the only full-size post pass (AO, haze, grade, tilt-shift, dither in one).
+  else on 0; `shadowcast.ts` tracks full world transforms, moving resting props onto the baked layer and returning them to
+  live shadows on translation, rotation, scaling or visibility changes. Actors and deforming meshes always stay live.
+  Removing a cached caster also invalidates the baked map. Deterministic tent filters soften edges over nine static
+  texels or five live texels, pairing comparisons into 25 or 9 bilinear reads. The smaller live map's larger texels
+  give moving objects similar softness to static geometry without screen-space noise.
+- *AO* (`pipeline.ts`). Depth-only, its own pass at half size (`aoScale`), upsampled in the composite by
+  a four-tap depth-aware blend. A fixed spiral kernel avoids crawling screen-space jitter; a seven-tap bilateral blur
+  runs horizontally then vertically, and slope-aware upsampling keeps roofs smooth. Samples use view-space distance
+  and the surface normal within a 0.35-unit radius, keeping raised furniture from darkening distant floor pixels.
+  With AO enabled, the pipeline draws five passes: the scene, AO, two blurs and the composite.
+  The composite is the only full-size post pass (AO, haze, grade, tilt-shift, dither in one).
 - *Geometry and textures*: kit boxes with small bevels are 44-triangle chamfers, round things get segments by radius,
   `setGeometryDetail(0)` gives plain boxes for Medium; painted smooth textures are capped (`setTextureCap`, 1024 px on Medium,
-  2048 elsewhere); `applyGraphics` sets both before rooms are built.
+  2048 elsewhere); tiled planks, wallpaper and checkers use trilinear mipmaps and 4x anisotropy. Their material blends
+  across texel edges over one screen pixel, retaining sharp pixel interiors and the original UV derivatives for mip selection;
+  `applyGraphics` sets geometry detail and texture limits before rooms are built. Window bars, roof courses and fence rails
+  carry `detailSize`: batching sorts them after the main geometry, and `details.ts` trims draw ranges below one pixel with
+  hysteresis (hide below 0.8 px, restore above 1.2 px). This reduces triangles without adding draws or changing the sources.
 - *Pipeline*: lights are cached per scene, geometry swaps for the Voxel style only run when something was added (`sceneEpoch`),
   classic styles skip the normals pass without creases and the depth texture without outlines, canvas size is only touched when it
   changes, ticks registered while a room builds only run while that room is on screen (`kit.ts`), see-through double-sided materials
@@ -943,8 +957,8 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   demand). `preload(id)` / `preloadNeighbours(id)` build a door's room when the browser is idle. `loadSlices(rooms)` imports only
   the slices a set of rooms needs. The town's shop storefronts share a module with their interiors, so the shops ride with the town.
 - *Tiers* (`tiers.ts`, `applyGraphics(pipe, settings)`): Medium is the classic look at 0.75 scale with silhouette lines, blob shadows,
-  no AO, plain geometry, 1024 px textures; High has AO (10 taps, half size), haze, grade, a 2K baked shadow map; Ultra (opt-in, never chosen by Auto) adds
-  tilt-shift, 4x MSAA, a 4K map, 20 AO taps. Device pixel ratio times scale is capped at 2. Fps caps, idle and battery
+  no AO, plain geometry, 1024 px textures; High has AO (16 taps, half size), haze, grade, 2x MSAA and a 2K baked shadow map; Ultra (opt-in, never chosen by Auto) adds
+  tilt-shift, 4x MSAA, a 4K map, 24 AO taps. Device pixel ratio times scale is capped at 2. Fps caps, idle and battery
   throttling and the governor live in `game/stage.ts` / `settings/governor.ts`.
 
 **Measure**:

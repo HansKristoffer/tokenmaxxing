@@ -4,6 +4,7 @@ import { blockMoves, blockStandIn } from "../kit/blocky.ts";
 import { ticks } from "../kit/kit.ts";
 import { isPropsNight, type NightGlow, onPropsNight } from "../town/props.ts";
 import { type Atlas, atlasable, packAtlas, remapUv, syncAtlas, uvInside } from "./atlas.ts";
+import type { DetailRange } from "./details.ts";
 
 /**
  * Static batching. A room is hundreds to thousands of tiny meshes (a tree is a trunk and five balls), each its
@@ -47,7 +48,7 @@ export const staticShadowEpoch = (): number => shadowEpoch;
 export const bumpStaticShadow = (): void => void shadowEpoch++;
 
 let epoch = 0;
-/** Bumps whenever anything is added to any object: cheap way to know the scene graph may have changed. */
+/** Bumps whenever anything is added to or removed from an object: cheap way to know the scene graph may have changed. */
 export const sceneEpoch = (): number => epoch;
 let patched = false;
 export function trackAdditions(): void {
@@ -63,6 +64,11 @@ export function trackAdditions(): void {
   THREE.Object3D.prototype.add = function (this: THREE.Object3D, ...objs: THREE.Object3D[]) {
     epoch++;
     return add.apply(this, objs);
+  };
+  const remove = THREE.Object3D.prototype.remove;
+  THREE.Object3D.prototype.remove = function (this: THREE.Object3D, ...objs: THREE.Object3D[]) {
+    epoch++;
+    return remove.apply(this, objs);
   };
 }
 
@@ -437,7 +443,7 @@ export class BakedLayer {
     const groups = new Map<
       string,
       {
-        parts: THREE.BufferGeometry[];
+        parts: { geometry: THREE.BufferGeometry; detail: number }[];
         mat: THREE.Material;
         cast: boolean;
         recv: boolean;
@@ -483,16 +489,38 @@ export class BakedLayer {
       }
       const part = prepared(geo, tmp, s.color);
       if (atlased && atlas) remapUv(part, atlas.rects.get((s.material as Lit).map as THREE.Texture)!, atlas);
-      grp.parts.push(part);
+      const scale = new THREE.Vector3().setFromMatrixScale(tmp);
+      const detail = (m.userData.detailSize as number | undefined) ?? 0;
+      grp.parts.push({ geometry: part, detail: detail * Math.min(scale.x, scale.y, scale.z) });
     }
     for (const [key, grp] of groups) {
-      const indexed = grp.parts.every((p) => p.index);
-      const flat = indexed ? grp.parts : grp.parts.map((p) => (p.index ? p.toNonIndexed() : p));
+      grp.parts.sort((a, b) => {
+        if (a.detail === b.detail) return 0;
+        return (b.detail || Infinity) - (a.detail || Infinity);
+      });
+      const indexed = grp.parts.every((p) => p.geometry.index);
+      const flat = grp.parts.map(({ geometry }) =>
+        indexed || !geometry.index ? geometry : geometry.toNonIndexed(),
+      );
+      const ranges: DetailRange[] = [];
+      let end = 0;
+      for (let i = 0; i < flat.length; i++) {
+        const geometry = flat[i]!;
+        end += geometry.index?.count ?? geometry.getAttribute("position").count;
+        const size = grp.parts[i]!.detail;
+        const last = ranges.at(-1);
+        if (last && last.size === size) last.end = end;
+        else ranges.push({ size, end });
+      }
       const merged = mergeGeometries(flat, false);
-      for (const p of grp.parts) p.dispose();
+      for (let i = 0; i < flat.length; i++) {
+        flat[i]!.dispose();
+        if (flat[i] !== grp.parts[i]!.geometry) grp.parts[i]!.geometry.dispose();
+      }
       if (!merged) continue;
       merged.computeBoundingBox();
       const mesh = new THREE.Mesh(merged, grp.mat);
+      if (ranges.some((r) => r.size > 0)) mesh.userData.detailRanges = ranges;
       if (grp.mat.transparent) {
         // Blended things are drawn back to front by where their object sits: put the batch in the middle of what it holds.
         const c = merged.boundingBox!.getCenter(new THREE.Vector3());
