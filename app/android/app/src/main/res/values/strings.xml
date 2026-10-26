@@ -8,7 +8,7 @@
     <string name="sign_out">Sign out on this phone</string>
     <string name="about">About this companion</string>
     <string name="connecting">Connecting to your town…</string>
-    <string name="network_error">Could not reach the town. Check your connection, then choose Reload town in the menu.</string>
+    <string name="network_error">Could not reach the town. Check your connection, then tap here to try again.</string>
     <string name="paste_title">Connect your account</string>
     <string name="paste_message">On your computer: player card → Computers → Connect phone. Paste that sign-in code or QR link below.</string>
     <string name="code_hint">Sign-in code or QR link</string>

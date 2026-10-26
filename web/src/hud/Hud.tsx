@@ -65,6 +65,16 @@ export function Hud() {
       {narrow ? (
         <>
           <div className="tray">
+            {/* There is no Esc on a phone: this opens the same menu (graphics included). */}
+            <button
+              type="button"
+              className="icon menu-button"
+              aria-label="Menu"
+              title="Menu"
+              onClick={() => hud.set({ panel: { kind: "menu" }, dialog: null })}
+            >
+              ☰
+            </button>
             {TRAY.map(([id, icon, label]) => (
               <button
                 key={id}

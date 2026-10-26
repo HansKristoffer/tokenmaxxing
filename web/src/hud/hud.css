@@ -2572,6 +2572,38 @@ button.lb-item:hover {
     outline: 2px solid var(--accent);
   }
 
+  .tray .menu-button {
+    background: var(--accent);
+    color: #1b1f2a;
+    font-weight: 700;
+  }
+
+  /* The menu as a sheet from the bottom: two columns of thumb-sized buttons. */
+  .scrim:has(.menu) {
+    align-items: end;
+  }
+
+  .modal:has(.menu) {
+    width: 100vw;
+    max-height: 85vh;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .menu {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .menu > a,
+  .menu > button {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+  }
+
   .hints {
     top: 8px;
     left: 8px;
