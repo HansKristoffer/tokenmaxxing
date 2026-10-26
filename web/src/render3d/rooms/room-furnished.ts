@@ -35,10 +35,10 @@ for (const [ch, id] of Object.entries({
   c: "chair",
   k: "shelf",
   B: "bench",
-  d: "desk",
+  d: "office-desk",
   o: "coffee",
-  b: "bed",
-  s: "sofa",
+  b: "office-bed",
+  s: "office-sofa",
   t: "tv",
   // Earned at an outage picnic (`picnic.ts`), a patch of sod two tiles wide.
   g: "touched-grass",
@@ -48,6 +48,8 @@ for (const f of COMPANY_FURNITURE) bind(f.ch, f.art);
 for (const h of HOME_PIECES) bind(h.ch, h.art);
 for (const a of [...DUNGEON_ASSETS, ...PETS_ASSETS])
   if (/^tile:[UYVQ]$/u.test(a.id)) ASSET_OF.set(a.id.slice(5), a);
+// The rug is a flat tile of the floor (`furnish` draws it with `flat`); the ghost shows the same.
+ASSET_OF.set("=", flat("="));
 const stool = TAVERN_ASSETS.find((a) => a.id === "tile:v");
 if (stool) ASSET_OF.set("v", stool);
 

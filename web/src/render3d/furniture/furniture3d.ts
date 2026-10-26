@@ -17,7 +17,7 @@ import { canvasTexture, glass, glow, Model, painted, seeded, ticks, tint, type V
 import { panel } from "../kit/panel.ts";
 import { merchColours, merchPrintTexture, merchProp, merchShirtTexture } from "../people/merch3d.ts";
 import { DESK_TIERS, deskTier } from "./desks3d.ts";
-import { type Asset, light } from "./furniture.ts";
+import { type Asset, bed, desk, light, sofa } from "./furniture.ts";
 import { POSTER_ASSETS, POSTER_TEXT } from "./posters3d.ts";
 
 export type { MerchCompany, MerchKind } from "../people/merch3d.ts";
@@ -737,6 +737,10 @@ const asset = (
 
 /** Every piece `furniture.ts` lacks, ids and prices from the 2D catalogs. */
 export const FURNITURE_EXTRA_ASSETS: readonly Asset[] = [
+  // The map's own desk, sofa and bed are one tile each (`FURNITURE` has no width for them), as in 2D.
+  asset("office-desk", "Desk", 50, 1, 1, desk(1, 1)),
+  asset("office-sofa", "Sofa", 100, 1, 1, sofa(undefined, 1), { seat: { at: [0, 0.38, 0.05], turn: 0 } }),
+  asset("office-bed", "Bed", 80, 1, 1, bed(1), { bed: [0, 0.3, -0.05] }),
   asset("touched-grass", "Touched grass", 0, 2, 1, touchedGrass),
   asset("golden-hourglass", "Golden Hourglass", 0, 1, 1, goldenHourglass),
   asset("golden-rebase", "Golden Rebase", 0, 1, 1, goldenRebase),
