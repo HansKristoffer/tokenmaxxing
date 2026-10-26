@@ -509,7 +509,9 @@ export function buildHq(opts: HqOptions = {}): Hq {
           put("shelf", x, y);
           break;
         case "b":
+          // A bed is two tiles deep: the map writes `b` on both.
           beds.push(put("bed", x, y)!);
+          seen.add(`${x},${y + 1}`);
           break;
         case "p":
           put("plant", x, y);

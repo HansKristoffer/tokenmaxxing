@@ -5,7 +5,7 @@
  * `core/src/posters.ts` (POSTERS) and `core/src/desks.ts` (DESKS). Keep in step by hand.
  */
 
-import { townMap as coreTown, SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
+import { townMap as coreTown, MAPS, SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
 
 export const BLOCK_W = 10;
@@ -141,23 +141,8 @@ export const houseTier = (tokens30d: number, members: number): number =>
 
 // MARK: The company building (`hq`)
 
-/** The floor of a company building (`MAPS.hq`); row 1 is the wall face where posters hang. */
-export const HQ_ROWS = [
-  "WWWWWWWWWWWWWWWWWWWWWW",
-  "WWWWWWWWWWWWWWWWWWWWWW",
-  "Wkk_b_b_b_b_p__dddd_oW",
-  "W______________cccc__W",
-  "W____________________W",
-  "W___b_b_b_b__________W",
-  "W______________dddd__W",
-  "W______________cccc__W",
-  "W____________________W",
-  "W__==tt==____________W",
-  "W__======____________W",
-  "W__=ssss=____________W",
-  "Wp__________________pW",
-  "WWWWWWWWWWWxWWWWWWWWWW",
-];
+/** The floor of a company building: the game's own `MAPS.hq` rows (row 1 is the wall face where posters hang). */
+export const HQ_ROWS: readonly string[] = MAPS.hq.rows;
 export const WALL_ROW = 1;
 
 /** The company wallet's furniture (`COMPANY_FURNITURE`): map character, 2D art name, and width in tiles. */
