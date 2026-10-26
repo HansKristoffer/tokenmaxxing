@@ -24,10 +24,11 @@ export function setSettings(next: JukeSettings): void {
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
+let music: GainNode | null = null;
 let noise: AudioBuffer | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 
-function audio(): AudioContext | null {
+export function audio(): AudioContext | null {
   if (ctx) return ctx;
   const Ctor =
     window.AudioContext ??
@@ -38,6 +39,10 @@ function audio(): AudioContext | null {
   const s = hud.get().jukeSettings;
   master.gain.value = s.muted ? 0 : s.volume * LEVEL;
   master.connect(ctx.destination);
+  // The room's background music sits under the jukebox, on the same master (so one mute covers both).
+  music = ctx.createGain();
+  music.gain.value = 0.55;
+  music.connect(master);
   noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const data = noise.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -45,7 +50,7 @@ function audio(): AudioContext | null {
 }
 
 /** Browsers keep audio asleep until the page has had a click or key; the next one wakes it. */
-function wakeOnInput(c: AudioContext): void {
+export function wakeOnInput(c: AudioContext): void {
   if (c.state === "running") return;
   const go = () => {
     void c.resume();
@@ -56,13 +61,17 @@ function wakeOnInput(c: AudioContext): void {
   window.addEventListener("keydown", go);
 }
 
-function tone(
+/** Where the background music goes: quieter than the jukebox, on the same master. */
+export const musicOut = (): GainNode | null => music;
+
+export function tone(
   c: AudioContext,
   at: number,
   secs: number,
   hz: number,
   wave: OscillatorType,
   peak: number,
+  out: AudioNode = master!,
 ): void {
   const osc = c.createOscillator();
   const env = c.createGain();
@@ -71,14 +80,14 @@ function tone(
   env.gain.setValueAtTime(0.0001, at);
   env.gain.exponentialRampToValueAtTime(peak, at + 0.01);
   env.gain.exponentialRampToValueAtTime(0.0001, at + Math.max(0.05, secs * 0.95));
-  osc.connect(env).connect(master!);
+  osc.connect(env).connect(out);
   osc.start(at);
   osc.stop(at + secs + 0.05);
 }
 
-function drum(c: AudioContext, at: number, hit: "k" | "s" | "h"): void {
+export function drum(c: AudioContext, at: number, hit: "k" | "s" | "h", out: AudioNode = master!): void {
   const env = c.createGain();
-  env.connect(master!);
+  env.connect(out);
   if (hit === "k") {
     const osc = c.createOscillator();
     osc.frequency.setValueAtTime(150, at);

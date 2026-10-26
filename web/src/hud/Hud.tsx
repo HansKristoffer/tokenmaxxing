@@ -6,6 +6,7 @@ import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
 import type { Wallet } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { setSettings } from "../game/jukebox.ts";
 import { roomName, world } from "../game/world.ts";
 import { redeem } from "../net.ts";
 import { storage } from "../storage.ts";
@@ -337,6 +338,7 @@ function Panel() {
     menu: () => (
       <Modal title="Menu">
         <nav className="menu">
+          <MusicToggle />
           {inMyOffice && (
             <button type="button" onClick={() => hud.set({ panel: { kind: "decor" } })}>
               🏠 My room
@@ -354,6 +356,16 @@ function Panel() {
       </Modal>
     ),
   });
+}
+
+/** Mutes or unmutes all the music (the room's and the jukebox's), for this device. */
+function MusicToggle() {
+  const settings = useHud((s) => s.jukeSettings);
+  return (
+    <button type="button" onClick={() => setSettings({ ...settings, muted: !settings.muted })}>
+      {settings.muted ? "🔇 Music off" : "🔊 Music on"}
+    </button>
+  );
 }
 
 function SignedOut({ expired }: { expired: boolean }) {

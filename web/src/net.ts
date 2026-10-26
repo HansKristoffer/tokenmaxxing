@@ -24,6 +24,7 @@ import { createClient } from "rivetkit/client";
 import { errorCode } from "./errors.ts";
 import { playJukebox, stopJukebox } from "./game/jukebox.ts";
 import { noteLoot } from "./game/loot.ts";
+import { duckMusic, playRoomMusic, stopRoomMusic } from "./game/music.ts";
 import { setOutage } from "./game/picnic.ts";
 import { noteRaid, setRaiders } from "./game/raid.ts";
 import {
@@ -130,6 +131,7 @@ export function connect(token: string): void {
   conn.on("jukebox", (j: JukeboxNow | null) => {
     hud.set({ jukebox: j });
     playJukebox(j);
+    duckMusic(j !== null);
   });
   // The poker table is the Tavern's too: the table for the room, my own two cards for me alone.
   conn.on("poker", (p: PokerState) => hud.set({ poker: { ...p, at: Date.now() } }));
@@ -138,7 +140,9 @@ export function connect(token: string): void {
     if (s.room !== "inn") {
       hud.set({ jukebox: null, poker: null, pokerHole: [] });
       stopJukebox();
+      duckMusic(false);
     }
+    playRoomMusic(s.room);
     loadSnapshot(s);
     setRaiders(s.raiders);
   });
@@ -187,6 +191,7 @@ export function connect(token: string): void {
     // Music stops with the connection; the Tavern sends it again when we're back in.
     hud.set({ jukebox: null, poker: null, pokerHole: [] });
     stopJukebox();
+    stopRoomMusic();
     if (hud.get().status === "ready") hud.set({ status: "offline" });
     // ponytail: the client retries on its own, but can stall after a long outage (a deploy);
     // a reload after 20 s always gets back in. Replace with a proper backoff if it annoys anyone.
