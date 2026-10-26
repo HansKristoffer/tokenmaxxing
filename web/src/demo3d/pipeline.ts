@@ -37,8 +37,9 @@ export type RenderStyle = "classic" | "voxel";
     const original = chunk.slice(at, end);
     const lookup = (n: number) =>
       `getShadow( directionalShadowMap[ ${n} ], directionalLightShadows[ ${n} ].shadowMapSize, directionalLightShadows[ ${n} ].shadowIntensity, directionalLightShadows[ ${n} ].shadowBias, directionalLightShadows[ ${n} ].shadowRadius, vDirectionalShadowCoord[ ${n} ] )`;
-    // The small live map is soft enough with the hardware's own 4-tap compare: one fetch, not five.
-    const live = `dynShadow( directionalShadowMap[ 1 ], directionalLightShadows[ 1 ].shadowIntensity, directionalLightShadows[ 1 ].shadowBias, vDirectionalShadowCoord[ 1 ] )`;
+    // The small live map takes a 3-texel tent (see `pcfTent5` below): its texels are two to four times the baked
+    // map's, so that is about as soft as the baked map's 5-texel one.
+    const live = `dynShadow( directionalShadowMap[ 1 ], directionalLightShadows[ 1 ].shadowMapSize, directionalLightShadows[ 1 ].shadowIntensity, directionalLightShadows[ 1 ].shadowBias, vDirectionalShadowCoord[ 1 ] )`;
     const patched = `#if NUM_DIR_LIGHT_SHADOWS > 1
 		#if UNROLLED_LOOP_INDEX == 0
 		directLight.color *= ( directLight.visible && receiveShadow ) ? ${lookup(0)} * ${live} : 1.0; // shadowDyn
@@ -49,14 +50,64 @@ export type RenderStyle = "classic" | "voxel";
     THREE.ShaderChunk.lights_fragment_begin = chunk.slice(0, at) + patched + chunk.slice(end);
     THREE.ShaderChunk.shadowmap_pars_fragment += `
 #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 1 && defined( SHADOWMAP_TYPE_PCF )
-float dynShadow( sampler2DShadow shadowMap, float shadowIntensity, float shadowBias, vec4 shadowCoord ) {
+float dynShadow( sampler2DShadow shadowMap, vec2 shadowMapSize, float shadowIntensity, float shadowBias, vec4 shadowCoord ) {
 	shadowCoord.xyz /= shadowCoord.w;
 	shadowCoord.z += shadowBias;
 	bool inside = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0 && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0 && shadowCoord.z <= 1.0;
-	return mix( 1.0, inside ? texture( shadowMap, shadowCoord.xyz ) : 1.0, shadowIntensity );
+	return inside ? mix( 1.0, pcfTent3( shadowMap, shadowMapSize, shadowCoord.xyz ), shadowIntensity ) : 1.0;
 }
 #endif
 `;
+  }
+}
+
+/**
+ * Three's PCF filter spins five taps per pixel by screen-space noise and leaves the rest to a temporal blur this
+ * pipeline doesn't have, so every penumbra came out as a dotted weave. Castaño's tent PCF is smooth without one: a
+ * few hardware-compared (so bilinear) taps, placed and weighted to add up to an exact 3- or 5-texel tent. The baked
+ * map takes the 5-texel one (9 taps), about the softness of the radius 4 the voxel tiers set, which it ignores.
+ */
+{
+  const chunk = THREE.ShaderChunk.shadowmap_pars_fragment;
+  const head = chunk.indexOf("float getShadow( sampler2DShadow shadowMap, vec2 shadowMapSize");
+  const from = chunk.indexOf("float phi = interleavedGradientNoise( gl_FragCoord.xy ) * PI2;", head);
+  const to = from < 0 ? -1 : chunk.indexOf("* 0.2;", from);
+  if (head >= 0 && to > 0) {
+    const tents = /* glsl */ `float pcfTent3( sampler2DShadow map, vec2 size, vec3 c ) {
+			vec2 uv = c.xy * size;
+			vec2 b = floor( uv + 0.5 );
+			vec2 s = uv + 0.5 - b;
+			b = ( b - 0.5 ) / size;
+			vec2 w0 = 3.0 - 2.0 * s;
+			vec2 w1 = 1.0 + 2.0 * s;
+			vec2 o0 = ( ( 2.0 - s ) / w0 - 1.0 ) / size;
+			vec2 o1 = ( s / w1 + 1.0 ) / size;
+			return ( w0.x * w0.y * texture( map, vec3( b + o0, c.z ) ) + w1.x * w0.y * texture( map, vec3( b + vec2( o1.x, o0.y ), c.z ) )
+				+ w0.x * w1.y * texture( map, vec3( b + vec2( o0.x, o1.y ), c.z ) ) + w1.x * w1.y * texture( map, vec3( b + o1, c.z ) ) ) / 16.0;
+		}
+		float pcfTent5( sampler2DShadow map, vec2 size, vec3 c ) {
+			vec2 uv = c.xy * size;
+			vec2 b = floor( uv + 0.5 );
+			vec2 s = uv + 0.5 - b;
+			b = ( b - 0.5 ) / size;
+			vec3 wx = vec3( 4.0 - 3.0 * s.x, 7.0, 1.0 + 3.0 * s.x );
+			vec3 wy = vec3( 4.0 - 3.0 * s.y, 7.0, 1.0 + 3.0 * s.y );
+			vec3 ox = vec3( ( 3.0 - 2.0 * s.x ) / wx.x - 2.0, ( 3.0 + s.x ) / 7.0, s.x / wx.z + 2.0 ) / size.x;
+			vec3 oy = vec3( ( 3.0 - 2.0 * s.y ) / wy.x - 2.0, ( 3.0 + s.y ) / 7.0, s.y / wy.z + 2.0 ) / size.y;
+			// Corners and centre first: where they agree the pixel is fully lit or fully shaded (most are), done in five.
+			float c00 = texture( map, vec3( b + vec2( ox.x, oy.x ), c.z ) );
+			float c20 = texture( map, vec3( b + vec2( ox.z, oy.x ), c.z ) );
+			float c02 = texture( map, vec3( b + vec2( ox.x, oy.z ), c.z ) );
+			float c22 = texture( map, vec3( b + vec2( ox.z, oy.z ), c.z ) );
+			float c11 = texture( map, vec3( b + vec2( ox.y, oy.y ), c.z ) );
+			float sum = c00 + c20 + c02 + c22 + c11;
+			if ( sum < 0.001 || sum > 4.999 ) return sum * 0.2;
+			return ( wx.x * wy.x * c00 + wx.z * wy.x * c20 + wx.x * wy.z * c02 + wx.z * wy.z * c22 + 49.0 * c11
+				+ wx.y * wy.x * texture( map, vec3( b + vec2( ox.y, oy.x ), c.z ) ) + wx.x * wy.y * texture( map, vec3( b + vec2( ox.x, oy.y ), c.z ) )
+				+ wx.z * wy.y * texture( map, vec3( b + vec2( ox.z, oy.y ), c.z ) ) + wx.y * wy.z * texture( map, vec3( b + vec2( ox.y, oy.z ), c.z ) ) ) / 144.0;
+		}
+		`;
+    THREE.ShaderChunk.shadowmap_pars_fragment = `${chunk.slice(0, head)}${tents}${chunk.slice(head, from)}shadow = pcfTent5( shadowMap, shadowMapSize, shadowCoord.xyz );${chunk.slice(to + "* 0.2;".length)}`;
   }
 }
 
@@ -209,59 +260,102 @@ void main() {
     color *= mix(vec3(0.94, 0.98, 1.06), vec3(1.05, 1.0, 0.94), smoothstep(0.15, 0.75, l));
     vec2 q = vUv - 0.5;
     color *= 1.0 - dot(q, q) * 0.45;
-    color += (ign(gl_FragCoord.xy + 17.0) - 0.5) / 255.0;
   } else {
     color = clamp(color, 0.0, 1.0);
   }
   gl_FragColor = vec4(max(color, 0.0), 1.0);
   #include <colorspace_fragment>
+  // Half a display step of dither against banding, after the sRGB curve: before it, the curve's steep dark end
+  // stretched the same noise into a visible grain in every shadow.
+  if (grade > 0.5) gl_FragColor.rgb += (ign(gl_FragCoord.xy + 17.0) - 0.5) / 255.0;
 }
 `;
 
-/** Ambient occlusion from depth alone, drawn at a fraction of the frame's size into one 8-bit channel. */
-const AO_FRAGMENT = /* glsl */ `
+/** Depth reads shared by the AO pass and its blur, both drawn at a fraction of the frame's size. */
+const AO_COMMON = /* glsl */ `
 uniform sampler2D tDepth;
 uniform vec2 texel;
 uniform float span;
-uniform float pxPerUnit;
-uniform int aoSamples;
-uniform float aoRadius;
-uniform float aoStrength;
 varying vec2 vUv;
 
 float depthAt(vec2 uv) { return texture2D(tDepth, uv).x * span; }
-float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
 // The full-size pixel this (smaller) pixel stands for: its centre sits on a corner, where a depth read is a coin toss.
 vec2 snap(vec2 uv) { return (floor(uv / texel) + 0.5) * texel; }
-
-void main() {
-  vec2 uv = snap(vUv);
-  float d = depthAt(uv);
-  if (d > span * 0.999) { gl_FragColor = vec4(1.0); return; }
-  // A neighbour that sits in front of this pixel's tangent plane (slope read from the smaller one-sided
-  // depth step) darkens it, so crevices and wall feet go soft.
+// Depth change per full-size pixel along this pixel's surface, from the smaller one-sided step (so not across an edge).
+vec2 slope(vec2 uv, float d) {
   float dl = depthAt(uv - vec2(texel.x, 0.0));
   float dr = depthAt(uv + vec2(texel.x, 0.0));
   float du = depthAt(uv + vec2(0.0, texel.y));
   float dd = depthAt(uv - vec2(0.0, texel.y));
   float sx = abs(dr - d) < abs(d - dl) ? dr - d : d - dl;
   float sy = abs(du - d) < abs(d - dd) ? du - d : d - dd;
-  sx = clamp(sx, -2.0, 2.0);
-  sy = clamp(sy, -2.0, 2.0);
-  float R = aoRadius * pxPerUnit;
-  float rot = ign(gl_FragCoord.xy) * 6.2831853;
+  return clamp(vec2(sx, sy), -2.0, 2.0);
+}
+`;
+
+/** Ambient occlusion from depth alone into one 8-bit channel, sampled in a 4×4 interleave that `AO_BLUR` averages out. */
+const AO_FRAGMENT = /* glsl */ `
+${AO_COMMON}
+uniform float pxPerUnit;
+uniform int aoSamples;
+uniform float aoRadius;
+uniform float aoStrength;
+
+void main() {
+  vec2 uv = snap(vUv);
+  float d = depthAt(uv);
+  if (d > span * 0.999) { gl_FragColor = vec4(1.0); return; }
+  // A neighbour that sits in front of this pixel's tangent plane darkens it, so crevices and wall feet go soft.
+  vec2 s = slope(uv, d);
+  // Capped in pixels: zoomed in, a unit is over a hundred of them, and the few taps a pixel takes leave clouds.
+  float R = min(aoRadius * pxPerUnit, 48.0);
+  // Each pixel of a 4×4 block takes every sixteenth point of one spiral (in Bayer order, so neighbours differ most):
+  // a few taps per pixel, sixteen times as many once the blur has averaged the block.
+  vec2 c = mod(floor(gl_FragCoord.xy), 4.0);
+  vec2 h = mod(c, 2.0);
+  vec2 q = floor(c * 0.5);
+  float jit = (4.0 * (h.x * 2.0 + abs(h.x - h.y)) + q.x * 2.0 + abs(q.x - q.y) + 0.5) / 16.0;
   float occ = 0.0;
   for (int i = 0; i < 24; i++) {
     if (i >= aoSamples) break;
-    float f = (float(i) + 0.5) / float(aoSamples);
-    float a = rot + float(i) * 2.399963;
-    vec2 o = vec2(cos(a), sin(a)) * R * sqrt(f);
+    float f = (float(i) + jit) / float(aoSamples);
+    float a = (float(i) + jit) * 2.399963;
+    // Rounded to the pixel the depth read lands in: a steep plane's half-pixel error would read as occlusion.
+    vec2 o = floor(vec2(cos(a), sin(a)) * R * sqrt(f) + 0.5);
     float ds = depthAt(uv + o * texel);
-    float excess = d + sx * o.x + sy * o.y - ds;
+    float excess = d + dot(s, o) - ds;
     occ += smoothstep(0.05, 0.35, excess) * (1.0 - smoothstep(0.9, 2.2, excess)) * (1.0 - f * 0.5);
   }
   occ /= float(aoSamples);
   gl_FragColor = vec4(vec3(1.0 - clamp(occ * aoStrength, 0.0, 0.85)), 1.0);
+}
+`;
+
+/**
+ * Averages each 4×4 block of the AO pass back into one smooth value. A tap counts in full when it lies on this
+ * pixel's plane (so a wall seen edge-on still cancels the interleave) and hardly at all across an edge.
+ */
+const AO_BLUR = /* glsl */ `
+${AO_COMMON}
+uniform sampler2D tAo;
+uniform vec2 aoTexel;
+
+void main() {
+  vec2 uv = snap(vUv);
+  float d = depthAt(uv);
+  if (d > span * 0.999) { gl_FragColor = vec4(1.0); return; }
+  vec2 s = slope(uv, d);
+  float acc = 0.0;
+  float wsum = 0.0;
+  for (int j = 0; j < 16; j++) {
+    vec2 at = vUv + (vec2(float(j & 3), float(j >> 2)) - 2.0) * aoTexel;
+    vec2 su = snap(at);
+    float dz = depthAt(su) - d - dot(s, (su - uv) / texel);
+    float w = 1.0 / (0.02 + dz * dz * 40.0);
+    acc += texture2D(tAo, at).r * w;
+    wsum += w;
+  }
+  gl_FragColor = vec4(vec3(acc / wsum), 1.0);
 }
 `;
 
@@ -395,6 +489,8 @@ export class Pipeline {
   private readonly voxQuad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   private readonly aoQuad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   private ao?: THREE.WebGLRenderTarget;
+  private readonly aoBlurQuad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private aoRaw?: THREE.WebGLRenderTarget;
   private aoKey = "";
   private readonly fill = new THREE.DirectionalLight("#9ec4ff", 0);
   private readonly fillScenes = new Set<THREE.Scene>();
@@ -486,6 +582,22 @@ export class Pipeline {
           aoSamples: { value: 12 },
           aoRadius: { value: 1.0 },
           aoStrength: { value: 2.4 },
+        },
+      }),
+    );
+    this.aoBlurQuad = new THREE.Mesh(
+      plane,
+      new THREE.ShaderMaterial({
+        vertexShader: VERTEX,
+        fragmentShader: AO_BLUR,
+        depthTest: false,
+        depthWrite: false,
+        uniforms: {
+          tDepth: { value: null },
+          tAo: { value: null },
+          texel: { value: new THREE.Vector2() },
+          aoTexel: { value: new THREE.Vector2() },
+          span: { value: 1 },
         },
       }),
     );
@@ -807,15 +919,21 @@ export class Pipeline {
     if (aoKey !== this.aoKey) {
       this.aoKey = aoKey;
       this.ao?.dispose();
-      this.ao = undefined;
+      this.aoRaw?.dispose();
+      this.ao = this.aoRaw = undefined;
       if (aoKey) {
-        this.ao = new THREE.WebGLRenderTarget(aoW, aoH, {
-          type: THREE.UnsignedByteType,
-          depthBuffer: false,
-          minFilter: THREE.NearestFilter,
-          magFilter: THREE.NearestFilter,
-        });
+        const target = () =>
+          new THREE.WebGLRenderTarget(aoW, aoH, {
+            type: THREE.UnsignedByteType,
+            depthBuffer: false,
+            minFilter: THREE.NearestFilter,
+            magFilter: THREE.NearestFilter,
+          });
+        this.aoRaw = target();
+        this.ao = target();
         this.voxQuad.material.uniforms.aoSize!.value.set(aoW, aoH);
+        this.aoBlurQuad.material.uniforms.tAo!.value = this.aoRaw.texture;
+        this.aoBlurQuad.material.uniforms.aoTexel!.value.set(1 / aoW, 1 / aoH);
       }
       this.voxQuad.material.uniforms.tAo!.value = this.ao?.texture ?? null;
     }
@@ -871,8 +989,14 @@ export class Pipeline {
       a.pxPerUnit!.value = lw / ((camera.right - camera.left) / camera.zoom);
       a.aoSamples!.value = o.aoSamples;
       a.aoStrength!.value = this.night > 0.5 ? 1.6 : 2.4;
-      r.setRenderTarget(this.ao);
+      r.setRenderTarget(this.aoRaw!);
       r.render(this.aoQuad, this.quadCamera);
+      const b = this.aoBlurQuad.material.uniforms;
+      b.tDepth!.value = this.vox!.depthTexture;
+      b.texel!.value.set(1 / lw, 1 / lh);
+      b.span!.value = span;
+      r.setRenderTarget(this.ao);
+      r.render(this.aoBlurQuad, this.quadCamera);
     }
     const u = this.voxQuad.material.uniforms;
     u.span!.value = span;
@@ -885,7 +1009,7 @@ export class Pipeline {
     r.setRenderTarget(null);
     r.clear();
     r.render(this.voxQuad, this.quadCamera);
-    this.last.passes = this.ao ? 3 : 2;
+    this.last.passes = this.ao ? 4 : 2;
     this.watch();
   }
 
@@ -894,8 +1018,11 @@ export class Pipeline {
     this.color?.dispose();
     this.normal?.dispose();
     this.vox?.dispose();
-    this.color = this.normal = this.vox = undefined;
-    for (const quad of [this.quad, this.voxQuad]) {
+    this.ao?.dispose();
+    this.aoRaw?.dispose();
+    this.color = this.normal = this.vox = this.ao = this.aoRaw = undefined;
+    this.aoKey = "";
+    for (const quad of [this.quad, this.quadCreased, this.blit, this.voxQuad, this.aoQuad, this.aoBlurQuad]) {
       quad.geometry.dispose();
       quad.material.dispose();
     }
