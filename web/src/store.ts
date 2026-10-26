@@ -15,6 +15,9 @@ import { storage } from "./storage.ts";
 /** A tab of the Shop page: an item slot, or one of Møbelhuset's: wallpaper and floors, monitors, company supplies. */
 export type ShopPageTab = Item["slot"] | "decor" | "desk" | "company";
 
+/** Set on the first visit to town (see FirstVisit in hud/Hud.tsx). */
+export const FIRST_VISIT_KEY = "tokenmaxxing.pickedCompany";
+
 export type Panel =
   | { kind: "leaderboard" }
   | { kind: "card"; userId: number }
@@ -46,7 +49,8 @@ export type Panel =
   | { kind: "regulars" }
   | { kind: "jukebox" }
   | { kind: "graphics" }
-  | { kind: "menu" };
+  | { kind: "menu" }
+  | { kind: "changelog" };
 
 /** The jukebox's mute and volume, kept on this device. */
 export interface JukeSettings {

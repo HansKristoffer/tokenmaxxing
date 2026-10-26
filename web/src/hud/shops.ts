@@ -63,4 +63,5 @@ export const MENU = [
   [{ kind: "company" }, "🏢 Company"],
   [{ kind: "leaderboard" }, "🏆 Leaderboard"],
   [{ kind: "graphics" }, "🖼 Graphics"],
+  [{ kind: "changelog" }, "📜 Changelog"],
 ] as const;

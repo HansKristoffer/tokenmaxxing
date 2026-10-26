@@ -10,7 +10,7 @@ import { setSettings } from "../game/jukebox.ts";
 import { roomName, world } from "../game/world.ts";
 import { redeem } from "../net.ts";
 import { storage } from "../storage.ts";
-import { chatBeside, hud, useHud } from "../store.ts";
+import { chatBeside, FIRST_VISIT_KEY, hud, useHud } from "../store.ts";
 import { AppSignIn } from "./AppSignIn.tsx";
 import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
@@ -51,6 +51,7 @@ import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
 import { Modal, ToastButton, useFresh, useNarrow, useRun } from "./ui.tsx";
+import { ChangelogPanel, WhatsNewToast } from "./WhatsNew.tsx";
 
 export function Hud() {
   const status = useHud((s) => s.status);
@@ -121,6 +122,7 @@ export function Hud() {
         <LootToast />
         <GraphicsToast />
       </div>
+      <WhatsNewToast />
       <FpsMeter />
       <FirstVisit />
     </>
@@ -348,6 +350,7 @@ function Panel() {
     directory: () => <DirectoryPanel />,
     decor: () => <DecorPanel />,
     desk: () => <DeskPanel />,
+    changelog: () => <ChangelogPanel />,
     menu: () => (
       <Modal title="Menu">
         <nav className="menu">
@@ -428,8 +431,6 @@ function SignedOut({ expired }: { expired: boolean }) {
     </div>
   );
 }
-
-const FIRST_VISIT_KEY = "tokenmaxxing.pickedCompany";
 
 /** Right after signing up: the first time in town without a company, offer to start or join one. */
 function FirstVisit() {
