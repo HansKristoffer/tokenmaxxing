@@ -98,10 +98,10 @@ data is sent anywhere for this.
 - **Coins:** from the day you sign up, every day pays `√(tokens ÷ 1M)`: 100M tokens is 10 coins, 1B is 31. A heavy day earns more,
   but not wildly more. Finishing a day 1st, 2nd or 3rd adds 25, 15 or 10.
 - **Quests:** three a day, worth 1, 2 and 3 coins, picked for you and scaled to your own last 30 days (at most 6 a day), plus a weekly one for 15. Some are errands in town. Badges have bronze, silver and gold tiers, and some a diamond; the town hears of the golds and diamonds.
-- **The raid:** from the first Monday after launch, every Monday at 08:00 a ladder of bosses opens in the Raid Dungeon, down the gate in the square,
-  easiest first, each week's 10% tougher than the last. Every token you sync hits the one up now, no cap, and
+- **The raid:** from the first Monday after launch, every Monday at 08:00 a ladder of five bosses opens in the Raid Dungeon, down the gate in the square,
+  easiest first, five in all. Clear all five and the ladder rests until next Monday, when it comes back one level up (The Rate Limit II…) and 10% tougher; fall short and next Monday it starts again at the same level. Every token you sync hits the one up now, no cap, and
   every PR you open is a 25M special attack. When one falls the next, 1.5× tougher, appears at once; each kill pays everyone who'd hit for
-  10M or more that week by then 10, 15, 25, 35, 50… coins (never more than 50 a kill). Everyone with agents running sits at a desk in the
+  10M or more that week by then 10, 25, 50, 75 and 100 coins (and 10% more for each level the ladder is up). Everyone with agents running sits at a desk in the
   dungeon, wherever they are, firing magic missiles (and a robot minion per extra agent) as fast as they burn
   tokens: that's the show, the hits are the synced tokens. Until the first one the gate is boarded up with a
   ⚠️ and a countdown to that Monday 08:00.

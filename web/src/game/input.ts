@@ -34,6 +34,7 @@ import { chipHits, signHits } from "./labels.ts";
 import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
+import { seated, sit, standUp } from "./raidseat.ts";
 import { pickTile } from "./stage.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { openTrophies } from "./trophies.ts";
@@ -344,6 +345,8 @@ export function updateSelf(now: number): void {
   const pressed = held.at(-1) ?? tapped;
   const dir = pressed ? (viewHooks.key?.(pressed) ?? pressed) : path.shift();
   tapped = null;
+  // Moving stands you up from your war desk in the raid dungeon.
+  if (dir) standUp();
   if (!dir) {
     if (interactOnArrival) {
       interactOnArrival = false;
@@ -446,8 +449,12 @@ function interact(): void {
   const [dx, dy] = DIRS[me.facing];
   const x = me.x + dx;
   const y = me.y + dy;
+  // At your war desk in the raid dungeon, E stands you up again.
+  if (seated()) return void standUp();
   const other = avatarAt(x, y);
   if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
+  // E on your own clone (or its laptop) in the raid dungeon takes your seat; others' seats are not yours.
+  if (world.room === "dungeon" && sit(x, y)) return;
   if (streetInteract(me, x, y, send)) return;
   if (merchantAt(x, y)) return void openCart();
   const ch = world.map.at(x, y);

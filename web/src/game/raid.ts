@@ -182,7 +182,8 @@ export function noteRaid(before: Raid | null, after: Raid): void {
   const kill = after.kills.slice(before.kills.length).at(-1);
   if (kill) {
     fx.fell = { boss: kill.boss, at: now };
-    fx.next = { boss: after.boss, at: now + FALL_MS };
+    // The last one stays down: there's no next rung till Monday.
+    if (!after.cleared) fx.next = { boss: after.boss, at: now + FALL_MS };
     spark(TARGET.x, TARGET.y, now, "#ffd35c", 40, 1400);
   }
   // `damage` starts again on each rung: the week's total is what landed.
@@ -231,8 +232,8 @@ export function drawRaid(f: Frame): void {
     drawLair(f, r);
     return;
   }
-  // The week is over: last week's result, and nobody fires till the gate opens.
-  const down = r?.closed === true;
+  // The week is over, or its ladder is cleared: nobody fires till the next gate opens.
+  const down = r?.closed === true || r?.cleared === true;
 
   for (const [x, y] of TORCHES) {
     // A flickering glow over each flame.
@@ -448,7 +449,7 @@ function drawBoss(f: Frame, r: Raid): void {
   const fell = fx.fell && now - fx.fell.at < FALL_MS ? fx.fell : null;
   const next = fx.next && now - fx.next.at < BANNER_MS ? fx.next : null;
   const arriving = next && !fell ? clamp((now - next.at) / ARRIVE_MS, 0, 1) : 1;
-  const closed = r.closed;
+  const closed = r.closed || r.cleared;
   // A real hit (the poll) flashes it white; a missile only makes it glow for a moment.
   const hurt = !fell && !closed && now < fx.hurtUntil && Math.floor(now / 70) % 2 === 0;
   const zap = !fell && !closed && now < fx.zapUntil;
@@ -485,7 +486,7 @@ function drawBoss(f: Frame, r: Raid): void {
     const title = fell
       ? `🏆 ${fell.boss.name} fell!`
       : closed
-        ? `🏁 Week over · ${r.kills.length} fell · opens ${opensAt(r)} Mon`
+        ? `🏁 ${r.cleared ? "Ladder cleared" : "Week over"} · ${r.kills.length} fell · opens ${opensAt(r)} Mon`
         : `${r.boss.emoji} ${r.boss.name} · Rung ${r.boss.rung}`;
     const top = sy - 14 * dpr;
     const gold = !!fell || (closed && r.kills.length > 0);
@@ -607,7 +608,9 @@ function drawGate(f: Frame, r: Raid) {
   const [sx, sy] = toScreen((gx + 0.5) * TILE, gy * TILE - 12);
   const text = r.closed
     ? `⚔️ Raid Dungeon · shut · opens ${opensAt(r)}`
-    : `⚔️ Raid Dungeon · ${r.boss.emoji} ${r.boss.name} · rung ${r.boss.rung} · ${pct(r)}%`;
+    : r.cleared
+      ? `⚔️ Raid Dungeon · cleared · back Monday ${opensAt(r)}`
+      : `⚔️ Raid Dungeon · ${r.boss.emoji} ${r.boss.name} · rung ${r.boss.rung} · ${pct(r)}%`;
   labels.push(() => {
     const { w, h } = nearPill(g, sx, sy, text, dpr, "rgba(20, 24, 34, 0.9)", "#ffd35c");
     gameHits.push({ x: sx - w / 2, y: sy - h, w, h, open: openRaid });

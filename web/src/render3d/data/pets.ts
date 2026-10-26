@@ -17,6 +17,7 @@ export const PET_SPECIES = [
   "goldfish", // Context-window boss loot
   "forkedcat", // Merge-conflict boss loot
   "ghost", // Loot ghost
+  "piggy", // Invoice boss loot
 ] as const;
 export type Species = (typeof PET_SPECIES)[number];
 
@@ -32,6 +33,7 @@ export const PET_NAME: Record<Species, string> = {
   goldfish: "Goldfish",
   forkedcat: "Forked cat",
   ghost: "Ghost",
+  piggy: "Piggy bank",
 };
 
 /** `Look.petVariant` n is `PET_VARIANTS[species][n - 1]`; 0 is the pet as the shop sells it. */

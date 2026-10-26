@@ -296,7 +296,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   from the day's rollups and the days' frozen picks, so no coin is stored; see *Quests*. Days before `LEGACY_FROM` keep the
   old rule (5 agents at once: 5, 2 hours of agents running: 2).
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats, 5 pets and the 11 pieces of furniture
-  (`furn.<ch>`), 10 to 1,500 coins. The raid's 16 loot items are in it too, never sold (see *The raid*). Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
+  (`furn.<ch>`), 10 to 1,500 coins. The raid's 20 loot items are in it too, never sold (see *The raid*). Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
   Pets follow their owner in the client (`game/pets.ts`: `followPet`), except in the owner's own office,
   where they go to the bed and sleep (`art/pet-sleep.ts`: `sleepingFrame(petFrame(...), left, tick)` derives
   the curled pose from any pet's normal frame: legs and tail tucked, squashed, eyes shut, a breathing bob and
@@ -614,9 +614,12 @@ No server changes, actions or tables are needed.
 
 Every week a ladder of bosses waits in the Raid Dungeon, down the gate in the square, and the whole town
 climbs it together (`core/src/raid.ts`).
-- **The ladder:** The Rate Limit, The Context Window, Merge Conflict, The Hallucination, then round again as
-  "II", "III"… (`bossAt(rung)`: same sprite ids, plus `rung` and `level`). When a boss falls, the next appears
+- **The ladder:** The Rate Limit, The Context Window, Merge Conflict, The Hallucination, The Invoice, and that's the ladder (`BOSSES`).
+  Each week has its `level` (1, then one more after every week that cleared it), shown as "II", "III"… on the names
+  (`bossAt(rung, level)`: same sprite ids, plus `rung` and `level`). When a boss falls, the next appears
   at once and the overflow carries over. A day that does enough brings down several, all on that day, in order.
+  When the fifth falls the ladder is `cleared`: the Invoice stays down, later damage still counts for the week's
+  totals and raiders but hits nothing, and the dungeon rests until next Monday's 08:00.
 - **Launch:** the first raid opens at 08:00 on the Monday after the town first had the raid
   (`launchWeek`). `raidStart` stores that Monday once in `raid_meta` (key `start`) when `town` wakes, so
   restarts and deploys don't move it; `RAID_START_WEEK` (a Monday, checked at boot) overrides it for dev and
@@ -631,14 +634,15 @@ climbs it together (`core/src/raid.ts`).
   raid week changes, so 08:00 is on time. When `prelaunch` flips the boards burst off the gate, rung 1 drops
   onto its dais and a toast says "⚔️ The Raid Dungeon is open: The Rate Limit awaits."
 - **HP:** the first raid's rung 1 (`start`) is 10% of the week before's damage, at least 2B (`hpFor`);
-  every week after, rung 1 is ×1.1 the week before's (`WEEKLY_GROWTH`, `weekHp`), so week n is
-  `first × 1.1ⁿ` whatever the town did. Each rung is ×1.5. Clearing n rungs costs `2 × rung 1 × (1.5ⁿ − 1)`,
+  every week after is the same ladder again (same level, same rung 1) unless the week before cleared it
+  (`RaidWeek.cleared`, all `BOSSES.length` = 5 fell), when it's one level up and rung 1 is ×1.1 (`WEEKLY_GROWTH`,
+  `nextWeekHp`). Levels never go down: a town stuck on level 2 meets The Rate Limit II again, not level 1. Each rung is ×1.5. Clearing n rungs costs `2 × rung 1 × (1.5ⁿ − 1)`,
   so 4 rungs are 81% of the week that set the first ladder: a week like it clears four and stands at the fifth.
 - **Damage** is every token you sync that week, no cap, and 25M for every PR you open. (Ingest still counts
   at most 200M a minute, `USAGE_MINUTE_CAP`, to stop made-up numbers.)
   Only days from your sign-up day count, as with coins.
-- **Rewards per kill:** rung n pays each of its raiders 10 × 1.5ⁿ⁻¹ to the nearest 5, at most 50 (10, 15, 25, 35, 50, 50…), so four
-  kills are 85 (`RAID_COINS` and `RAID_COIN_CAP`). A kill's raiders are everyone with 10M+ that week up to and including its day, so
+- **Rewards per kill:** rung n pays each of its raiders 10, 25, 50, 75 or 100 (`RAID_REWARDS`), and 10% more for each level
+  the ladder is up (`REWARD_GROWTH`, to the nearest coin: rung 5 pays 100, 110, 121…), so a level 1 week that clears all five is 260. A kill's raiders are everyone with 10M+ that week up to and including its day, so
   joining on Sunday doesn't pay for Wednesday's kills.
 - **The week** is Monday to Sunday in world days, but the gate opens at 08:00 on Monday: until then
   `raidWeekAt` is still last week, as it ended, and the new ladder appears at 08:00 with Monday's early tokens
@@ -664,6 +668,10 @@ climbs it together (`core/src/raid.ts`).
     once a second when it changes. The client keeps each one's seat while they stay; a newcomer gets the
     seat their id hashes to, or the next free one (`seatFor`), among the front seats (in bands of 10 for
     the crowd), so the same person has the same desk after a reload.
+  - **Your own seat:** walk up to your clone (or its laptop) and press E (or click it): you sit at your own desk, your
+    real body typing there and the clone not drawn, and E or any step stands you up (`game/raidseat.ts`, rules in
+    `core/src/raidseat.ts`). It is only what you see, nothing is sent: others' seats and a seat you don't have are never
+    offered. Your pet fires little missiles of its own (peach, a quarter of your rate, `petRate`) only while you sit in your seat.
   - **Burn:** after each ingest `player.report` sends `world.activity` the live agents and the tokens a
     minute over the last 10 minutes of events (minute-capped like the games). `world` fades it linearly to 0
     as that last event gets 10 minutes old, so someone who stopped slows down before they leave their desk.
@@ -674,12 +682,13 @@ climbs it together (`core/src/raid.ts`).
   - **Kills:** the boss slumps by a trophy, then the next rung's drops in under a "Rung N" banner; this week's
     kills hang as plaques on the back wall. While `closed`, nobody fires and the one that got away dozes.
 - **Loot** (`core/src/loot.ts`): each boss has its own table of four items, one per rarity: common 10%, rare
-  2.5%, epic 0.5%, legendary 0.1%. Each lap of the ladder ("II", "III"…) multiplies the odds by 1.05, at most
-  ×10 (`lapBonus`: a 0.1% legendary is never above 1%, and ×10 takes 48 laps). The weekly +10% difficulty of the ladder is separate and never raises odds.
+  2.5%, epic 0.5%, legendary 0.1%. Each level of the ladder ("II", "III"…) multiplies the odds by 1.05, at most
+  ×10 (`lapBonus`: a 0.1% legendary is never above 1%, and ×10 takes 48 levels). The weekly +10% difficulty of the ladder is separate and never raises odds.
   - The Rate Limit: Hourglass hat, 429 shades, Sand golem (pet), Golden Hourglass (trophy).
   - The Context Window: Pane glasses, Compacting… scarf, Goldfish (pet), Infinite Context Crown.
   - Merge Conflict: Two-tone suit, `<<<<<<< HEAD` band, Forked cat (pet), Golden Rebase (trophy).
   - The Hallucination: Third eye, Shimmering cape, Ghost (pet), Citation Needed crown.
+  - The Invoice: Fine-print specs, Pinstripe suit, Piggy bank (pet), Paid in Full crown.
 
   They're shop items in the existing slots (`ITEMS`, with `loot: { boss, rarity }`), each slot's after
   everything sold in it (`LOOT_FIRST`: after the head pack and the wardrobe), so they're worn, placed,

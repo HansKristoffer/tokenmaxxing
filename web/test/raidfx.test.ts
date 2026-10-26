@@ -13,8 +13,10 @@ import {
   minionsOf,
   owedShots,
   peopleShown,
+  petRate,
   raidEvents,
   raiderRate,
+  resting,
   SPUTTER,
   weekOverText,
 } from "../src/render3d/dungeon/raidfx.ts";
@@ -52,6 +54,23 @@ test("a minion fires a third as fast as its raider, and sputters when its raider
   expect(minionRate(1e5, 1)).toBeCloseTo(1 / 3);
   expect(minionRate(0, SPUTTER)).toBeCloseTo(SPUTTER / 2);
   expect(minionRate(1e6, 0)).toBe(0);
+});
+
+test("a pet fires a quarter as fast as its raider, at least once every five seconds, and sputters when its raider does", () => {
+  expect(petRate(1e6, 4)).toBeCloseTo(1);
+  expect(petRate(1e5, 0.6)).toBe(0.2);
+  expect(petRate(0, SPUTTER)).toBeCloseTo(SPUTTER / 2);
+  expect(petRate(1e6, 0)).toBe(0);
+});
+
+test("nobody fires before the gate opens, after the week ends, or once the whole ladder has fallen", () => {
+  expect(resting(raid())).toBe(false);
+  expect(resting(raid({ closed: true }))).toBe(true);
+  expect(resting(raid({ prelaunch: true }))).toBe(true);
+  expect(resting(raid({ cleared: true }))).toBe(true);
+  expect(weekOverText(raid({ cleared: true, kills: [{}] as Raid["kills"] }))).toBe(
+    "🏁 Ladder cleared · 1 fell · opens 08:00 Mon",
+  );
 });
 
 test("slow rates still fire now and then: the owed fraction is carried", () => {

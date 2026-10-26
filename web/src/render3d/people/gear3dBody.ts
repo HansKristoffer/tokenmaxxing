@@ -689,6 +689,20 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
     v.b(-2.6, 7, 2, 5.2, 0.6, 0.4, "#5b3fbf");
     v.b(-0.6, 6.5, 2.3, 1.2, 1.2, 0.5, "#ffd35c");
   },
+  // Pinstripe suit: navy with pale stripes, a white collar and a red tie.
+  29: (c) => {
+    const stripes: Paint2D = (g, w, h) => {
+      for (let x = 3; x < w - 2; x += 9) px(g, "#56658f", x, 0, 2, h);
+    };
+    marks(c, stripes, stripes);
+    lapels(c, "#1f2740", "#f4f4f0");
+    const v = grid(c);
+    v.b(-0.5, 3.3, 2.3, 1, 4.4, 0.35, "#e0384f");
+    v.b(-0.5, 7, 2.3, 1, 0.8, 0.35, "#b82a3d");
+    v.b(-0.5, 2.8, 2.3, 1, 0.5, 0.35, "#b82a3d");
+    roll(c, "#f4f4f0", 0.7, 0.3);
+    tails(c, "#1f2740");
+  },
 };
 
 // MARK: Company merch

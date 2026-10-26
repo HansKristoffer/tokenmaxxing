@@ -2,11 +2,13 @@ import { compact, countdown } from "@tokenmaxxing/core/format.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { lootById, RARITIES, type Rarity } from "@tokenmaxxing/core/loot.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
+import { canSit } from "@tokenmaxxing/core/raidseat.ts";
 import type { Raiders } from "@tokenmaxxing/core/world.ts";
 import type { Raid } from "@tokenmaxxing/server/registry";
 import * as THREE from "three";
 import { onLoot } from "../../game/loot.ts";
 import { raidersNow, seatTile } from "../../game/raid.ts";
+import { mySeat, raidPet, seated, sit, standUp } from "../../game/raidseat.ts";
 import { world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
 import { DUNGEON_BOSSES } from "../data/dungeon.ts";
@@ -33,8 +35,11 @@ import {
   minionsOf,
   owedShots,
   peopleShown,
+  petRate,
+  RAID_SEAT_Y,
   raidEvents,
   raiderRate,
+  resting,
   weekOverText,
 } from "./raidfx.ts";
 
@@ -53,7 +58,10 @@ const FALL_S = 2.2;
 const BANNER_S = 3.5;
 const HIT_COLOUR = new THREE.Color("#e0b3ff");
 const MINION_COLOUR = new THREE.Color("#9dff8a");
-const SEAT_Y = 0.33;
+const SEAT_Y = RAID_SEAT_Y;
+const PET_COLOUR = new THREE.Color("#ffc46b");
+/** How close you must be to your seat for its "E" prompt to show, in tiles. */
+const PROMPT_RANGE = 2.5;
 const MINION_SCALE = 0.5;
 const MAX_NEW_PER_FRAME = 1;
 
@@ -65,7 +73,8 @@ interface Missile {
   to: THREE.Vector3;
   at: number;
   s: number;
-  minion: boolean;
+  /** Who fired it: a laptop, one of its robot minions, or your pet. */
+  by: "laptop" | "minion" | "pet";
 }
 
 interface Spark {
@@ -330,7 +339,7 @@ export class DungeonLive {
       taunts: r.boss.taunts,
       bar: !r.prelaunch,
     });
-    boss.setQuiet(r.closed || r.prelaunch);
+    boss.setQuiet(resting(r));
   }
 
   // MARK: Raiders
@@ -468,7 +477,7 @@ export class DungeonLive {
 
   // MARK: Shots
 
-  private fire(from: THREE.Vector3, minion: boolean): void {
+  private fire(from: THREE.Vector3, by: Missile["by"]): void {
     if (this.flying.length >= this.caps.missiles) return;
     const to = new THREE.Vector3(
       this.bossAt.x + (Math.random() - 0.5) * 0.9,
@@ -486,7 +495,7 @@ export class DungeonLive {
       to,
       at: this.t,
       s: 0.75 * (0.8 + Math.random() * 0.5),
-      minion,
+      by,
     });
   }
 
@@ -523,7 +532,7 @@ export class DungeonLive {
       s.owed = got.owed;
       if (got.shots > 0) {
         s.lit = this.t + 0.12;
-        for (let i = 0; i < got.shots; i++) this.fire(this.tmp.set(dx, 1.0, dz), false);
+        for (let i = 0; i < got.shots; i++) this.fire(this.tmp.set(dx, 1.0, dz), "laptop");
       }
       const lit = this.t < s.lit;
       if (lit !== (s.idx < LAPTOP_MAX && this.litNow.has(s.idx))) {
@@ -536,10 +545,35 @@ export class DungeonLive {
         const g = owedShots(b.owed, mr, dt * 1000);
         b.owed = g.owed;
         if (g.shots > 0) b.lit = this.t + 0.25;
-        for (let i = 0; i < g.shots; i++) this.fire(this.tmp.set(b.at.x, 0.55, b.at.z), true);
+        for (let i = 0; i < g.shots; i++) this.fire(this.tmp.set(b.at.x, 0.55, b.at.z), "minion");
       }
     }
+    this.shootPet(dt, closed);
   }
+
+  /**
+   * Your pet helps while you sit at your own desk (`seated`): it sends little missiles of its own from where it stands
+   * (`raidPet`, set by the 3D people), a quarter as fast as you. Stand up and it stops. Only the show, like the rest; the real hits are your synced tokens.
+   */
+  private shootPet(dt: number, closed: boolean): void {
+    const mine = this.seated.get(world.selfId);
+    const pet = world.avatars.get(world.selfId)?.info.look.pet ?? mine?.raider.look.pet ?? 0;
+    if (!mine || !pet || !seated()) {
+      this.petOwed = 0;
+      return;
+    }
+    const rate = petRate(mine.raider.burn, raiderRate(mine.raider.burn, closed));
+    const got = owedShots(this.petOwed, rate, dt * 1000);
+    this.petOwed = got.owed;
+    if (got.shots === 0) return;
+    // Beside the seat, if the pet isn't drawn (yet).
+    const [px, pz] = raidPet.at ?? [
+      mine.seat[0] - this.map.x0 + 0.5 + 0.7,
+      mine.seat[1] - this.map.y0 + 0.5 + 0.3,
+    ];
+    for (let i = 0; i < got.shots; i++) this.fire(this.tmp.set(px, 0.55, pz), "pet");
+  }
+  private petOwed = 0;
   private readonly litNow = new Set<number>();
 
   /** Moves the missiles along their arcs and the sparks along theirs, and draws them. */
@@ -550,11 +584,11 @@ export class DungeonLive {
       const m = this.flying[i]!;
       const k = (t - m.at) / (m.s || 0.75);
       if (k >= 1) {
-        this.burstAt(m.to.x, m.to.y, m.to.z, m.minion ? MINION_COLOUR : HIT_COLOUR, m.minion ? 2 : 4);
+        this.burstAt(m.to.x, m.to.y, m.to.z, colourOf(m.by), m.by === "laptop" ? 4 : 2);
         this.flying.splice(i, 1);
         continue;
       }
-      const colour = m.minion ? MINION_COLOUR : HIT_COLOUR;
+      const colour = colourOf(m.by);
       // A short trail behind the bolt.
       for (let j = 2; j >= 0; j--) {
         const kk = Math.max(0, k - j * 0.04);
@@ -562,7 +596,7 @@ export class DungeonLive {
           arc(m.from.x, m.control.x, m.to.x, kk),
           arc(m.from.y, m.control.y, m.to.y, kk),
           arc(m.from.z, m.control.z, m.to.z, kk),
-          j === 0 ? (m.minion ? 0.8 : 1.2) : 0.7 - j * 0.15,
+          j === 0 ? (m.by === "laptop" ? 1.2 : 0.8) : 0.7 - j * 0.15,
           j === 0 ? "#ffffff" : colour,
         );
       }
@@ -719,7 +753,7 @@ export class DungeonLive {
     this.plate();
     this.wall();
     const r = this.raid;
-    const closed = r?.closed === true || r?.prelaunch === true;
+    const closed = r ? resting(r) : false;
     for (let i = this.later.length - 1; i >= 0; i--)
       if (t >= this.later[i]!.at) {
         const l = this.later.splice(i, 1)[0]!;
@@ -727,7 +761,7 @@ export class DungeonLive {
       }
     this.build();
     // A week with kills ends in gold sparkles instead of missiles.
-    if (r?.closed && !r.prelaunch && r.kills.length > 0 && Math.random() < dt * 4)
+    if ((r?.closed || r?.cleared) && !r.prelaunch && r.kills.length > 0 && Math.random() < dt * 4)
       this.burstAt(
         this.bossAt.x + (Math.random() - 0.5) * 1.8,
         BOSS_Y + BOSS_MID + (Math.random() - 0.5) * 1.2,
@@ -740,13 +774,17 @@ export class DungeonLive {
     this.flyShots();
     this.flyLoot();
     // People and minions: the far half of a big crowd moves every other frame.
+    // Yours isn't drawn while you sit in it: your own body is at the desk then (`Entities`).
+    const sitting = seated();
     for (const s of this.seated.values()) {
-      if (this.caps.people < 30 && (this.frame + s.idx) % 2) continue;
+      const gone = sitting && s.raider.id === world.selfId;
+      if (s.avatar) s.avatar.root.visible = !gone;
+      if (gone || (this.caps.people < 30 && (this.frame + s.idx) % 2)) continue;
       s.avatar?.update(dt * (this.caps.people < 30 ? 2 : 1), t);
     }
     this.figures.begin();
     for (const s of this.seated.values())
-      if (!s.avatar)
+      if (!s.avatar && !(sitting && s.raider.id === world.selfId))
         this.figures.add(
           s.seat[0] - this.map.x0 + 0.5,
           SEAT_Y,
@@ -772,7 +810,8 @@ export class DungeonLive {
   /** The words fixed in the room: each raider's name, who is not at a desk, the boss's link, the loot that landed. */
   signs(): Sign[] {
     const landed = this.lootQueue.filter((f) => f.to && this.t - f.start > LOOT_POP_S + LOOT_FLY_S).length;
-    const key = `${this.crowd?.top.length ?? -1}:${this.crowd?.more ?? 0}:${this.lootQueue.length}:${landed}:${this.seated.size}:${this.raid?.prelaunch}`;
+    const prompt = this.prompt();
+    const key = `${this.crowd?.top.length ?? -1}:${this.crowd?.more ?? 0}:${this.lootQueue.length}:${landed}:${this.seated.size}:${this.raid?.prelaunch}:${prompt}`;
     if (key === this.signKey) return this.signList;
     this.signKey = key;
     const list: Sign[] = [];
@@ -788,6 +827,17 @@ export class DungeonLive {
         text: s.raider.name,
         own: s.raider.id === world.selfId,
       });
+      if (prompt && s.raider.id === world.selfId) {
+        const seat = s.seat;
+        list.push({
+          key: "sit",
+          at: [x, 2.15, z],
+          kind: "label",
+          text: prompt === "stand" ? "E · stand up" : "E · take your seat",
+          cls: "gold",
+          onClick: () => (prompt === "stand" ? standUp() : void sit(seat[0], seat[1])),
+        });
+      }
       const extra = s.raider.agents - 1 - s.bots.length;
       if (extra > 0)
         list.push({
@@ -846,6 +896,15 @@ export class DungeonLive {
     return list;
   }
 
+  /** What E does at your own desk right now: stand up while you sit, sit when you are close by, else nothing. */
+  private prompt(): "" | "sit" | "stand" {
+    if (seated()) return "stand";
+    const seat = mySeat();
+    const me = world.avatars.get(world.selfId);
+    if (!seat || !me || !canSit(world.room, seat, me.state)) return "";
+    return Math.hypot(me.x - seat[0], me.y - seat[1]) <= PROMPT_RANGE ? "sit" : "";
+  }
+
   dispose(): void {
     this.unsub();
     for (const s of this.seated.values()) this.removeSeated(s);
@@ -856,6 +915,9 @@ export class DungeonLive {
     disposeObject(this.group);
   }
 }
+
+const colourOf = (by: Missile["by"]): THREE.Color =>
+  by === "pet" ? PET_COLOUR : by === "minion" ? MINION_COLOUR : HIT_COLOUR;
 
 const rarityOf = (item: string): Rarity => lootById(item)?.rarity ?? "common";
 

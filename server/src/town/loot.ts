@@ -79,7 +79,7 @@ const baseOdds = (item: string): number => RARITIES[rarityOf(item)].odds;
 export function lootNotice(drops: readonly LootDrop[]): string {
   const sorted = sortBy(drops, "odds", (d) => baseOdds(d.item));
   const best = sorted[0]!;
-  const boss = bossAt(best.rung);
+  const boss = bossAt(best.rung, best.level);
   const name = lootById(best.item)?.name ?? best.item;
   const star =
     rarityOf(best.item) === "legendary" ? "🌟 LEGENDARY! " : rarityOf(best.item) === "epic" ? "💜 " : "";

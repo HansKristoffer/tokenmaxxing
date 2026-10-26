@@ -115,6 +115,10 @@ export const LOOT: readonly Loot[] = [
   loot("hallucination", "rare", "outfit", 2, "Shimmering cape", "Probably real."),
   loot("hallucination", "epic", "pet", 3, "Ghost", "It says it exists. Trust it."),
   loot("hallucination", "legendary", "hat", 3, "Citation Needed crown", "[citation needed]"),
+  loot("invoice", "common", "glasses", 3, "Fine-print specs", "Read the terms. Every one."),
+  loot("invoice", "rare", "outfit", 3, "Pinstripe suit", "Itemised, notarised, a little tight."),
+  loot("invoice", "epic", "pet", 4, "Piggy bank", "Every coin you owe, rattling."),
+  loot("invoice", "legendary", "hat", 4, "Paid in Full crown", "Balance: 0. Forever."),
 ];
 
 /** How many loot items each slot has (`LOOK_OPTIONS`). */
@@ -150,6 +154,8 @@ export function lootRoll(week: string, rung: number, userId: number, item: strin
 export interface LootDrop {
   week: string;
   rung: number;
+  /** The ladder's level that week (`RungBoss.level`), for the boss's name and its odds. */
+  level: number;
   /** The world day the boss fell. */
   day: string;
   userId: number;
@@ -169,20 +175,20 @@ const ROLLED_MAX = 10_000;
 /** What one kill dropped: every one of its raiders rolls every item in its boss's table. */
 export function killDrops(
   week: string,
-  kill: { rung: number; day: string; raiders: readonly number[] },
+  kill: { rung: number; level: number; day: string; raiders: readonly number[] },
   boost = 1,
 ): readonly LootDrop[] {
-  const key = `${week}|${kill.rung}|${kill.day}|${boost}|${kill.raiders.join()}`;
+  const key = `${week}|${kill.rung}|${kill.level}|${kill.day}|${boost}|${kill.raiders.join()}`;
   const hit = rolled.get(key);
   if (hit) return hit;
-  const boss = bossAt(kill.rung);
+  const boss = bossAt(kill.rung, kill.level);
   const table = lootOf(boss.id);
   const out: LootDrop[] = [];
   for (const userId of kill.raiders)
     for (const l of table) {
       const odds = lootOdds(l.rarity, boss.level, boost);
       if (lootRoll(week, kill.rung, userId, l.id) < odds)
-        out.push({ week, rung: kill.rung, day: kill.day, userId, item: l.id, odds });
+        out.push({ week, rung: kill.rung, level: kill.level, day: kill.day, userId, item: l.id, odds });
     }
   if (rolled.size >= ROLLED_MAX) rolled.clear();
   rolled.set(key, out);
@@ -191,7 +197,7 @@ export function killDrops(
 
 /** Everything every kill in `weeks` dropped, in order. */
 export const raidDrops = (weeks: readonly RaidWeek[], boost = 1): LootDrop[] =>
-  weeks.flatMap((w) => w.kills.flatMap((k) => killDrops(w.week, k, boost)));
+  weeks.flatMap((w) => w.kills.flatMap((k) => killDrops(w.week, { ...k, level: w.level }, boost)));
 
 /** "10%", "2.5%", "0.1%", "1%". */
 export const oddsText = (odds: number): string => `${Number((odds * 100).toPrecision(3))}%`;
