@@ -1,3 +1,4 @@
+import { wallRowOf } from "@tokenmaxxing/core/office.ts";
 import {
   DIRS,
   type Drop,
@@ -106,9 +107,13 @@ export function startPlace(item: string, company = false): boolean {
   return true;
 }
 
-export function aim(t: Tile): void {
+export function aim(tile: Tile): void {
   const m = ghost.mode;
   if (!m) return;
+  // A poster or a frame hangs on the wall row: pointing at the wall, or the floor in front of it (where a pointer
+  // in 3D lands), is pointing at the wall.
+  const wallRow = pieceOfDrop({ item: itemOf(m) })?.wall ? wallRowOf(world.map) : null;
+  const t = wallRow !== null && tile.y <= wallRow + 1 ? { x: tile.x, y: wallRow } : tile;
   ghost.aim = t;
   ghost.fits = fitsHere(m, t);
   show();

@@ -7,6 +7,7 @@ import { canvasTexture, Model, painted, seeded, tint, toon } from "../kit/kit.ts
 import { ExitMarkers } from "./exit-markers.ts";
 import { exitDoorway } from "./exits3d.ts";
 import { type RoomCtx, type RoomView, registerFallbackRoom } from "./rooms.ts";
+import { wallEase } from "./walls.ts";
 
 /**
  * Any core map, drawn from its legend: a floor painted tile by tile, walls that drop out of the way of the
@@ -238,8 +239,8 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
     toWorld,
     toTile,
     seatY: (_x, _y, kind) => ({ bench: 0.31, chair: 0.33, sofa: 0.36, bed: 0.3 })[kind] ?? 0.33,
-    tick(_t, dt, toward) {
-      const k = 1 - Math.exp(-dt * 14);
+    tick(_t, _dt, toward) {
+      const k = wallEase.k;
       for (const w of walls) {
         if (w.k === "none") continue;
         const front = w.normal.dot(toward) < -0.01;

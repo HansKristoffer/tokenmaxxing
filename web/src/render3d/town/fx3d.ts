@@ -573,6 +573,14 @@ export class Fx {
     }
   }
 
+  /**
+   * Patches what was built since the last pass (a room's batches, just made by `Pipeline.prepare`) now, before its
+   * shaders are compiled ahead: left to the next pass, every batch would compile again 1.5 s after being shown.
+   */
+  rescan(): void {
+    this.whiten(this.host.town.scene);
+  }
+
   /** Teach every toon material in `root` to go white on surfaces that face up, scaled by `snowAmt`. */
   private whiten(root: THREE.Object3D): void {
     const uSnow = this.snowAmt;

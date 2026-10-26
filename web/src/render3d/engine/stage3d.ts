@@ -4,6 +4,7 @@ import { skyNow, weatherNow } from "../../game/sky.ts";
 import type { GraphicsSettings } from "../../settings/graphics.ts";
 import { batchWithoutWarmup, SAMPLE_TIMES } from "../perf/bake.ts";
 import type { RoomView } from "../rooms/rooms.ts";
+import { easeWalls } from "../rooms/walls.ts";
 import { Fx } from "../town/fx3d.ts";
 import { isPropsNight } from "../town/props.ts";
 import { disposeObject } from "./dispose.ts";
@@ -101,10 +102,12 @@ export class RoomStage {
       hooks.clock(PROBE_MINUTES[(i * 2) % PROBE_MINUTES.length]!);
       view.night?.(i % 2 === 1);
       const a = Math.PI / 4 + (i * Math.PI) / 2;
+      easeWalls(0.7);
       view.tick(t, 0.7, toward.set(Math.sin(a), 0, Math.cos(a)));
       if (i === SAMPLE_TIMES.length - 1) {
         hooks.clock(null);
         view.night?.(nightBeforeProbe);
+        easeWalls(10);
         view.tick(0, 10, toward.set(Math.SQRT1_2, 0, Math.SQRT1_2));
       }
     };

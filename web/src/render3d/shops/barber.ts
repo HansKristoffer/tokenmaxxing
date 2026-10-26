@@ -214,7 +214,7 @@ function exterior(): Model {
     side.rotation.y = s * (Math.PI / 2);
   }
   // Roof slab, parapets and a cornice along the front.
-  m.box([w, 0.06, d], "#5d6470", [0, h - 0.06, -d / 2], 0.005);
+  m.box([w, 0.06, d], "#5d6470", [0, h - 0.066, -d / 2], 0.005);
   m.box([w + 0.14, 0.1, 0.16], TRIM, [0, h - 0.1, 0.0], 0.02);
   m.box([w + 0.04, 0.22, 0.12], BRICK, [0, h - 0.04, -0.04], 0.02);
   m.box([w + 0.04, 0.22, 0.12], BRICK, [0, h - 0.04, -d + 0.04], 0.02);
@@ -242,7 +242,7 @@ function exterior(): Model {
   ];
   for (const sx of [-1.52, 1.52]) {
     face.box([1.24, 0.8, 0.08], TRIM, [sx, 0.36, 0], 0.02);
-    const dark = face.box([1.1, 0.66, 0.06], "#3a2a2e", [sx, 0.43, 0.01], 0.01);
+    const dark = face.box([1.1, 0.66, 0.06], "#3a2a2e", [sx, 0.43, 0.016], 0.01);
     dark.castShadow = false;
     const pane = face.box([1.08, 0.64, 0.02], glass("#cfe8f4", 0.28), [sx, 0.44, 0.07], 0.004);
     pane.castShadow = false;
@@ -625,7 +625,7 @@ function skinChart(): Model {
   }
   // The four tones as chips on the cabinet doors.
   for (let i = 0; i < 4; i++)
-    wall.box([0.3, 0.2, 0.015], SKIN_COLOURS[i]!, [-0.66 + i * 0.44, 0.08, depth + 0.012], 0.006);
+    wall.box([0.3, 0.2, 0.015], SKIN_COLOURS[i]!, [-0.66 + i * 0.44, 0.08, depth + 0.02], 0.006);
   return m;
 }
 

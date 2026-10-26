@@ -13,6 +13,7 @@ import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
 import type { Regulars } from "@tokenmaxxing/core/regulars.ts";
+import type { RequestEntry } from "@tokenmaxxing/core/requests.ts";
 import {
   emptySide,
   isTradeable,
@@ -157,6 +158,7 @@ import { markPicnic } from "../town/picnic.ts";
 import { type PokerSettle, pokerRelease, pokerSettle, pokerSit } from "../town/poker.ts";
 import { freezeDays, questBoard, questEvent } from "../town/quests.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
+import * as requests from "../town/requests.ts";
 import { migrate } from "../town/schema.ts";
 import { paperFacts } from "../town/street.ts";
 import { brand, push, pushOffice, pushPlayers } from "../town/sync.ts";
@@ -803,6 +805,32 @@ export const town = actor({
       );
     },
 
+    // MARK: The Tavern's request pile
+
+    /** The pile: what people would like in the game, with my 👍 marked. */
+    requests: (c): Promise<RequestEntry[]> => {
+      const userId = requireUser(c.conn.state);
+      return requests.pile(c.db, userId);
+    },
+
+    /** Puts a request on the pile. */
+    requestAdd: (c, text: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      return c.vars.serial(() => requests.submit(c.db, userId, text, Date.now()));
+    },
+
+    /** Gives a request my 👍, or takes it back. */
+    requestVote: (c, id: unknown, on: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      return c.vars.serial(() => requests.vote(c.db, userId, id, on !== false));
+    },
+
+    /** Takes back my own open request. */
+    requestWithdraw: (c, id: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      return c.vars.serial(() => requests.withdraw(c.db, userId, id));
+    },
+
     /** From `world`: `userId` did `kind` in town (once per `key` in a row). True when it counted. */
     questEvent: (c, userId: number, kind: string, key: string): Promise<boolean> => {
       requireInternal(c.conn.state);
@@ -1377,6 +1405,25 @@ export const town = actor({
     adminLog: (c): Promise<AdminLogEntry[]> => {
       requireAdmin(c.conn.state);
       return adminLog(c.db);
+    },
+
+    adminRequests: (c): Promise<RequestEntry[]> => {
+      requireAdmin(c.conn.state);
+      return requests.everything(c.db);
+    },
+
+    /** Marks a request open, planned, done or not now. */
+    adminSetRequest: async (c, id: unknown, status: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const text = await requests.setStatus(c.db, id, status, Date.now());
+      await logAdmin(c.db, "mark request", `#${String(id)}`, `${String(status)}: ${text}`, Date.now());
+    },
+
+    /** Takes a request off the pile. */
+    adminRemoveRequest: async (c, id: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const text = await requests.remove(c.db, id);
+      await logAdmin(c.db, "remove request", `#${String(id)}`, text, Date.now());
     },
 
     /** Sets someone's balance; returns it. */

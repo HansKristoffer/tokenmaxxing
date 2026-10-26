@@ -134,7 +134,7 @@ function shelfWall(
   const m = new Model();
   const spots: { item: ShopItem; holder: THREE.Object3D; x: number }[] = [];
   const back = -0.5;
-  m.box([o.w, 2.5, 0.05], "#ead7c4", [0, 0, back], 0.01);
+  m.box([o.w, 2.5, 0.044], "#ead7c4", [0, 0, back], 0.01);
   m.box([o.w + 0.1, 0.1, 0.12], woodDark, [0, 0, back + 0.03], 0.01);
   m.box([o.w + 0.1, 0.08, 0.12], woodDark, [0, 2.5, back + 0.03], 0.01);
   // Pegboard dots.
@@ -152,7 +152,7 @@ function shelfWall(
   );
   dots.wrapS = dots.wrapT = THREE.RepeatWrapping;
   dots.repeat.set(o.w * 3, 8);
-  m.plane(o.w, 2.45, painted(dots), [0, 1.25, back + 0.03]);
+  m.plane(o.w, 2.45, painted(dots), [0, 1.25, back + 0.036]);
   const gap = o.w / o.per;
   const tagH = o.tagH ?? 0.22;
   o.tiers.forEach((y, ti) => {
@@ -351,9 +351,9 @@ function fittingRoom(): Model {
   // Floor, the west partition and the lintel; the north and east sides are the room's own walls.
   m.box([w, 0.04, d], "#6b3f6e", [0, 0, 0], 0.01);
   m.box([0.12, h, d], "#8a5a86", [-w / 2 + 0.06, 0, 0], 0.02);
-  m.box([w, 0.5, 0.12], "#8a5a86", [0, h - 0.5, d / 2 - 0.06], 0.02);
-  m.box([0.1, h, 0.12], woodDark, [w / 2 - 0.05, 0, d / 2 - 0.06], 0.01);
-  m.box([0.1, h, 0.12], woodDark, [-w / 2 + 0.12, 0, d / 2 - 0.06], 0.01);
+  m.box([w - 0.02, 0.5, 0.12], "#8a5a86", [0, h - 0.5, d / 2 - 0.06], 0.02);
+  m.box([0.1, h - 0.004, 0.108], woodDark, [w / 2 - 0.05, 0, d / 2 - 0.06], 0.01);
+  m.box([0.1, h - 0.004, 0.108], woodDark, [-w / 2 + 0.12, 0, d / 2 - 0.06], 0.01);
   // A bench, hooks with clothes, a little mirror, a bag on the floor.
   m.box([1.0, 0.1, 0.4], wood, [0.9, 0.4, -d / 2 + 0.4], 0.02);
   for (const x of [0.5, 1.3]) m.box([0.07, 0.4, 0.3], woodDark, [x, 0, -d / 2 + 0.4], 0.01);

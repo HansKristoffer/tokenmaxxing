@@ -241,8 +241,8 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     for (let j = 0; j < 3; j++)
       if ((i + j) % 2)
         checker
-          .box([1, 0.025, 1], "#3b3f50", [-4 + i + 0.0 - 0.0 + 0.0, 0, -1 + j + 0.0], 0.001)
-          .position.set(-4 + i, 0, -1 + j);
+          .box([0.99, 0.025, 0.99], "#3b3f50", [-4 + i + 0.0 - 0.0 + 0.0, 0, -1 + j + 0.0], 0.001)
+          .position.set(-4 + i, 0.002, -1 + j);
   checker.position.set(23.5, 0.005, 11.5);
   room.group.add(checker);
   put("coffee", 20, 10);

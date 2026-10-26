@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
-import { BUY_IN, type Card, type PokerState, SEATS } from "@tokenmaxxing/core/poker.ts";
+import {
+  BIG_BLIND,
+  BUY_IN,
+  type Card,
+  type PokerState,
+  SEATS,
+  SMALL_BLIND,
+} from "@tokenmaxxing/core/poker.ts";
 import { pokerChairs } from "@tokenmaxxing/core/pokertable.ts";
 import { DIRS, type Facing, route } from "@tokenmaxxing/core/world.ts";
 import { eventually, rich } from "./rivet.ts";
@@ -120,7 +127,7 @@ describe("the Tavern's poker table", () => {
   test("a hand between two: the one who folds loses their blind to the other, and nobody's cards leak", async () => {
     const { a, b, ca, cb, heardA, heardB } = await pair(0, 3);
     const start = heardA.table.at(-1)!;
-    expect(start.pot).toBe(15);
+    expect(start.pot).toBe(SMALL_BLIND + BIG_BLIND);
     // Each has two cards of their own, and only their own.
     await eventually(() => expect(heardA.hole.at(-1)).toHaveLength(2));
     await eventually(() => expect(heardB.hole.at(-1)).toHaveLength(2));
@@ -128,15 +135,18 @@ describe("the Tavern's poker table", () => {
     const holeB = heardB.hole.at(-1)!;
     expect(new Set([...holeA, ...holeB]).size).toBe(4);
 
-    // Whoever is on the clock folds: heads-up that is the small blind, five coins in.
+    // Whoever is on the clock folds: heads-up that is the small blind, one coin in.
     const mover = start.seats[start.toAct]!;
     const [folder, keeper] = mover.userId === a.userId ? [ca, cb] : [cb, ca];
     expect(await folder.conn.pokerAct("fold", 0)).toBeNull();
     const last = () => (folder === ca ? heardA : heardB).table.at(-1)!;
     await eventually(() => expect(last().street).toBeNull());
     const done = last();
-    // The pot (15) went to the one who didn't fold; nobody was shown anything.
-    expect(done.result).toMatchObject({ shown: [], won: { [keeper === ca ? a.userId : b.userId]: 15 } });
+    // The pot (the two blinds) went to the one who didn't fold; nobody was shown anything.
+    expect(done.result).toMatchObject({
+      shown: [],
+      won: { [keeper === ca ? a.userId : b.userId]: SMALL_BLIND + BIG_BLIND },
+    });
     const stackOf = (u: Rich) => done.seats.find((s) => s?.userId === u.userId)!.stack;
     const keeperUser = keeper === ca ? a : b;
     const folderUser = keeper === ca ? b : a;
@@ -175,7 +185,9 @@ describe("the Tavern's poker table", () => {
     const [mover, other] = start.seats[start.toAct]!.userId === a.userId ? [ca, cb] : [cb, ca];
     expect(await other.conn.pokerAct("check", 0)).toMatch(/not your turn/);
     expect(await mover.conn.pokerAct("check", 0)).toMatch(/can't check/);
-    expect(await mover.conn.pokerAct("raise", 12)).toMatch(/least you can raise to is 20/);
+    expect(await mover.conn.pokerAct("raise", BIG_BLIND + 1)).toMatch(
+      new RegExp(`least you can raise to is ${2 * BIG_BLIND}`),
+    );
     expect(await mover.conn.pokerAct("raise", 100000)).toMatch(/only have/);
     expect(await mover.conn.pokerAct("dance", 0)).toMatch(/not a move/);
     expect(await mover.conn.pokerAct("raise", 40)).toBeNull();

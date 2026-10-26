@@ -796,7 +796,7 @@ function terminal(): Terminal {
     paint(0);
   };
   m.box([0.78, 0.6, 0.3], C.metal, [0, 0.95, 0.15], 0.03);
-  m.box([0.78, 0.04, 0.3], C.metalLight, [0, 1.51, 0.15], 0.01);
+  m.box([0.78, 0.04, 0.3], C.metalLight, [0, 1.514, 0.15], 0.01);
   m.box([0.34, 0.22, 0.2], C.metal, [0, 0.75, 0.1], 0.02);
   m.box([0.64, 0.46, 0.04], "#0e1f17", [0, 1.02, 0.31], 0.01);
   m.plane(0.6, 0.375, glow("#fff", tex), [0, 1.22, 0.335]);
@@ -1073,8 +1073,8 @@ export function trophyShelf(earned: ReadonlySet<string>, solidGhost = false): Mo
   const H = rows * rowH + 0.18;
   const D = 0.46;
   const wood = C.woodDark;
-  m.box([W, H, 0.04], "#5e3d28", [0, 0, -D / 2 + 0.02], 0.01);
-  for (const sx of [-1, 1]) m.box([0.07, H, D], wood, [sx * (W / 2 - 0.035), 0, 0], 0.02);
+  m.box([W - 0.008, H - 0.008, 0.04], "#5e3d28", [0, 0, -D / 2 + 0.014], 0.01);
+  for (const sx of [-1, 1]) m.box([0.07, H - 0.008, D - 0.008], wood, [sx * (W / 2 - 0.039), 0.004, 0], 0.02);
   m.box([W, 0.09, D], C.wood, [0, 0, 0], 0.02);
   m.box([W, 0.09, D + 0.02], C.woodLight, [0, H - 0.09, 0], 0.02);
   for (let s = 1; s < rows; s++)

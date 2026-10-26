@@ -25,6 +25,8 @@ const COS_EL = Math.cos(ELEVATION);
 const DISTANCE = 60;
 const ZOOM_STEP = 0.8;
 const MIN_VIEW = 3.5;
+/** The player stands this far (of the free height) below its middle: what lies ahead, up the screen, is what you need to see. */
+const LOW_BIAS = 0.14;
 const ZOOM_KEY = "tokenmaxxing.zoom3d";
 
 const rightOf = (az: number): [number, number] => [Math.cos(az), -Math.sin(az)];
@@ -253,7 +255,7 @@ export class CameraRig {
     const half = this.viewShown / 2;
     // The HUD's free area is not the screen's middle: slide the window so the look-at point lands in its middle.
     const sx = -this.free.cx * half * this.aspect;
-    const sy = this.free.cy * half;
+    const sy = (this.free.cy + LOW_BIAS * this.free.fy) * half;
     c.left = -half * this.aspect + sx;
     c.right = half * this.aspect + sx;
     c.top = half + sy;

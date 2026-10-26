@@ -6,6 +6,7 @@ import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
 import type { Wallet } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { setSettings } from "../game/jukebox.ts";
 import { roomName, world } from "../game/world.ts";
 import { redeem } from "../net.ts";
 import { storage } from "../storage.ts";
@@ -40,6 +41,7 @@ import { Poker } from "./Poker.tsx";
 import { Quests } from "./Quests.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Regulars } from "./Regulars.tsx";
+import { Requests } from "./Requests.tsx";
 import { RoomsBox } from "./RoomsBox.tsx";
 import { Shop } from "./Shop.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
@@ -162,6 +164,8 @@ function Hints() {
         <dd>Interact</dd>
         <dt>G</dt>
         <dd>Take</dd>
+        <dt>1-9</dt>
+        <dd>Hotbar: place a piece (own office)</dd>
         <dt>Right-click</dt>
         <dd>Go and take</dd>
         <dt>Enter</dt>
@@ -264,6 +268,15 @@ function Stats() {
       >
         🏢{waiting > 0 && <span className="count">{waiting}</span>}
       </button>
+      <button
+        type="button"
+        className="icon"
+        title="Menu (Esc)"
+        aria-label="Menu"
+        onClick={() => hud.set({ panel: { kind: "menu" } })}
+      >
+        ☰
+      </button>
     </div>
   );
 }
@@ -322,6 +335,7 @@ function Panel() {
     trades: () => <TradesPanel />,
     quests: () => <Quests />,
     tournament: () => <Tournament />,
+    requests: () => <Requests />,
     hallOfFame: () => <HallOfFame />,
     collection: () => <Collection />,
     regulars: () => <Regulars />,
@@ -337,6 +351,7 @@ function Panel() {
     menu: () => (
       <Modal title="Menu">
         <nav className="menu">
+          <MusicToggle />
           {inMyOffice && (
             <button type="button" onClick={() => hud.set({ panel: { kind: "decor" } })}>
               🏠 My room
@@ -354,6 +369,16 @@ function Panel() {
       </Modal>
     ),
   });
+}
+
+/** Mutes or unmutes all the music (the room's and the jukebox's), for this device. */
+function MusicToggle() {
+  const settings = useHud((s) => s.jukeSettings);
+  return (
+    <button type="button" onClick={() => setSettings({ ...settings, muted: !settings.muted })}>
+      {settings.muted ? "🔇 Music off" : "🔊 Music on"}
+    </button>
+  );
 }
 
 function SignedOut({ expired }: { expired: boolean }) {

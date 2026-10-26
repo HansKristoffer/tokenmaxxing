@@ -35,6 +35,7 @@ import {
   type V3,
 } from "../kit/kit.ts";
 import { invalidateBaked } from "../perf/bake.ts";
+import { wallEase } from "./walls.ts";
 
 export type { MapId, SeatKind };
 
@@ -449,7 +450,7 @@ export class WorldRoom {
     for (const w of this.walls) {
       const front = w.normal.lengthSq() > 0 && w.normal.dot(view) < -0.01;
       const target = front ? 0.06 : 1;
-      w.model.scale.y += (target - w.model.scale.y) * 0.25;
+      w.model.scale.y += (target - w.model.scale.y) * wallEase.k;
       w.model.visible = w.model.scale.y > 0.02;
     }
   }

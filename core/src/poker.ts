@@ -8,9 +8,11 @@
 // MARK: Rules
 
 /** A seat's buy-in, in coins. The table has no other stake: sitting down always costs this. */
-export const BUY_IN = 200;
-export const SMALL_BLIND = 5;
-export const BIG_BLIND = 10;
+export const BUY_IN = 50;
+export const SMALL_BLIND = 1;
+export const BIG_BLIND = 2;
+/** How the table's sessions are kept among the games played (`match_players.game`): one a seat, sit down to stand up. */
+export const POKER_GAME = "poker";
 export const SEATS = 6;
 /** How long a player has to act. */
 export const TURN_MS = 25_000;
@@ -20,7 +22,7 @@ export const FIRST_HAND_MS = 3_000;
 /** Timeouts in a row that stand a player up. */
 export const MAX_TIMEOUTS = 2;
 /** The most a player can lose here in a UTC day, buy-ins counted. */
-export const DAILY_LOSS_CAP = 600;
+export const DAILY_LOSS_CAP = 150;
 
 // MARK: Cards
 

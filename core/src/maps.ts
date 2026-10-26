@@ -101,7 +101,7 @@ export const LEGEND: Record<string, TileKind> = {
     ? {
         "♠": {
           name: "poker table",
-          text: "A poker table. Texas Hold'em, 5 and 10 blinds. Sit in a chair to buy in.",
+          text: "A poker table. Texas Hold'em, blinds of 1 and 2. Sit in a chair to buy in.",
         },
         "♣": {
           name: "poker chair",
@@ -125,6 +125,10 @@ export const LEGEND: Record<string, TileKind> = {
   M: { name: "wall terminal", text: "A wall terminal." },
   // The tournament board (`tournament.ts`); E opens it. The basement is the Tavern's, so `TAVERN` gates it.
   ...(TAVERN ? { i: { name: "tournament board", text: "The tournament board." } } : {}),
+  // The request pile (`requests.ts`), on the Tavern's north wall; E opens it.
+  ...(TAVERN
+    ? { "?": { name: "request pile", text: "The request pile. What people would like in the game." } }
+    : {}),
   // The four shops on the town's streets: a 5×4 front (`Ħ`) with its door in the middle (`shoprooms.ts`).
   ƒ: { name: "furniture shop door", portal: true },
   Ç: { name: "clothes shop door", portal: true },
@@ -579,10 +583,10 @@ export const MAPS: Record<MapId, GameMap> = {
     "WWWWWWWWWWWWWWWWWWWWWW",
     "WWWWWWWWWWWWWWWWWWWWWW",
     "Wkk_b_b_b_b_p__dddd_oW",
-    "W______________cccc__W",
+    "W___b_b_b_b____cccc__W",
     "W____________________W",
     "W___b_b_b_b__________W",
-    "W______________dddd__W",
+    "W___b_b_b_b____dddd__W",
     "W______________cccc__W",
     "W____________________W",
     "W__==tt==____________W",
@@ -620,23 +624,23 @@ export const MAPS: Record<MapId, GameMap> = {
   inn: TAVERN
     ? new GameMap("inn", "The Tavern", [
         "WWWWWWWWWWWWWWWWWWWWWWWWWWWW",
-        "WWWWWWWWWWWWmmWAAAAWWWWWWWWW",
+        "WWWWWWWWWWWWmmWAAAA?WWWWWWWW",
         "Wkkkkkkk=hho__K______PffPkkW",
         "W=========h_________======pW",
         "Waaayaaa$aa_________s====s_W",
-        "J__v_v_v_v__________==nn==_W",
-        "J___________________==ss==_W",
-        "J__________________________W",
-        "J______cc_______cc___cc____W",
-        "Wz____cnnc_____cnnc_cnnc___W",
-        "Wee____cc_______cc___cc____W",
+        "J__v_v_v_v____cc____==nn==_W",
+        "J____________cnnc___==ss==_W",
+        "J_____________cc___________W",
+        "J______cc___cc_______cc____W",
+        "Wz____cnnc_cnnc_____cnnc___W",
+        "Wee____cc___cc_______cc____W",
         "Wee_____________♣♣_________W",
-        "Wee____________♠♠♠♠♣_cc____W",
-        "Wve___________♣♠♠♠♠_cnnc___W",
-        "Wee_____________♣♣___cc___hW",
-        "Wp__BB__BB______BB_________W",
-        "W___nn__nn______nn________SW",
-        "Wu__BB__BB_OO___BB_______p_W",
+        "Wee____________♠♠♠♠♣_______W",
+        "Wve___________♣♠♠♠♠________W",
+        "Wee_____________♣♣________hW",
+        "Wp__BB__BB____________BB___W",
+        "W___nn__nn____________nn__SW",
+        "Wu__BB__BB_OO_________BB_p_W",
         "WWWWWWWWWWWWWxWWWWWWWWWWWWWW",
       ])
     : new GameMap("inn", "The Inn", [

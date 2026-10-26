@@ -47,6 +47,7 @@ import "./rooms/room-loaders.ts";
 import "./town/room-town.ts";
 import { lightPipeline, RoomStage } from "./engine/stage3d.ts";
 import { signature as trophySignature, watchShelf } from "./furniture/trophies3d.ts";
+import { easeWalls } from "./rooms/walls.ts";
 import { warmNearShops } from "./rooms/warm.ts";
 import { Signs } from "./town/signs.ts";
 import { burstCap } from "./town/world-logic.ts";
@@ -64,6 +65,17 @@ export function create3D(): Renderer | null {
 function minutesNow(): number {
   const w = worldWall(skyNow());
   return w.hour * 60 + w.minute + w.second / 60;
+}
+
+/** Every texture a scene's materials use, once each, for uploading ahead of its first frame. */
+function texturesOf(scene: THREE.Scene): THREE.Texture[] {
+  const seen = new Set<THREE.Texture>();
+  scene.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+    for (const mat of Array.isArray(m) ? m : m ? [m] : [])
+      for (const v of Object.values(mat)) if (v instanceof THREE.Texture) seen.add(v);
+  });
+  return [...seen];
 }
 
 let mapIds = 0;
@@ -86,6 +98,12 @@ const TEXTURES_PER_FRAME = 6;
 const STILL_MS = 600;
 /** How far a press moves (CSS pixels) before it is a drag of the picture, not a click. */
 const DRAG_PX = 6;
+
+/**
+ * A room shown for the first time stays under the veil until its shaders are compiled (off the main thread), so the
+ * frame that links the rest isn't a freeze in view and the fade in starts after it. Never longer than this.
+ */
+const REVEAL_MAX_MS = 1500;
 
 /**
  * The game, in 3D: the room the server says we are in, everyone in it as voxel people with their pets, name
@@ -124,6 +142,10 @@ class Renderer3D implements Renderer {
   } | null = null;
   /** A room change waiting for the veil to close: it draws closed first, so the build happens behind it. */
   private veiled = false;
+  /** A room just put on the stage that has never been drawn: kept under the veil until its shaders are in (and the town built). */
+  private reveal: { since: number; pending: number; town: boolean } | null = null;
+  /** Stages drawn at least once (or drawn ahead): their first frame in view is only the draw. */
+  private readonly drawn = new WeakSet<RoomStage>();
   private w = 1;
   private h = 1;
   private detail: 0 | 1 | null = null;
@@ -377,6 +399,9 @@ class Renderer3D implements Renderer {
     this.framing = { view: view.view, bounds: view.bounds };
     this.rig.frame(this.framing);
     this.rig.setAspect(this.w / this.h);
+    // The walls as this camera wants them before the room is first seen: no lowering or rising on the way in.
+    easeWalls(10);
+    view.tick(now / 1000, 10, this.rig.towardCamera());
     this.selfAt = null;
     if (roomChanged) {
       this.shops?.panel.close();
@@ -384,8 +409,10 @@ class Renderer3D implements Renderer {
       this.placer.cancel();
     }
     if (roomChanged) {
-      this.overlay.snapFade(this.settings?.reduceMotion ? 0 : 1);
-      this.overlay.fadeTowards(0, this.settings?.reduceMotion ? 0 : FADE_IN_MS, now);
+      const calm = this.settings?.reduceMotion ?? false;
+      this.overlay.snapFade(calm ? 0 : 1);
+      if (calm || this.drawn.has(next)) this.overlay.fadeTowards(0, calm ? 0 : FADE_IN_MS, now);
+      else this.hold(next, now);
     }
     this.stats.builds++;
     this.stats.lastBuildMs = performance.now() - t0;
@@ -397,6 +424,51 @@ class Renderer3D implements Renderer {
       for (const n of near) preloadRoom(n);
     }
     return true;
+  }
+
+  /**
+   * Behind the veil, a room never drawn: its first frame's batching now and its shaders compiling off the main
+   * thread, the veil opening only once they are in (`frame`). If the town isn't built (the page opened indoors, or
+   * its houses changed), it is built here too, under the same veil: every way out ends there, and building it on the
+   * frame its door is taken is the longest freeze in the game.
+   */
+  private hold(stage: RoomStage, now: number): void {
+    this.reveal = { since: now, pending: 0, town: world.room !== "town" };
+    this.compiling(this.warmNow(stage));
+    void prepareRoom("town").catch(() => {});
+    this.townBehindVeil();
+  }
+
+  /** One more compile the veil waits for. */
+  private compiling(done: Promise<unknown>): void {
+    const reveal = this.reveal;
+    if (!reveal) return;
+    reveal.pending++;
+    void done.then(() => {
+      reveal.pending--;
+    });
+  }
+
+  /** While the veil is shut on a room that isn't the town: the town built (and compiling) too, if it isn't kept. */
+  private townBehindVeil(): void {
+    if (!this.reveal?.town || !this.settings || !roomReady("town")) return;
+    this.reveal.town = false;
+    const key = this.townIdentity();
+    if (this.town?.key === key) return;
+    const town = new RoomStage(buildRoom("town", { ...this.ctx(), map: mapOf("town") }), this.hooks);
+    town.applySettings(this.settings);
+    if (this.town && this.town.stage !== this.stage) this.town.stage.dispose();
+    this.town = { stage: town, key };
+    this.compiling(this.warmNow(town));
+    // Its textures and the one draw ahead are left to `warmAhead`'s last steps.
+    this.warming = { stage: town, textures: texturesOf(town.scene), compiled: true };
+  }
+
+  /** A stage's first-frame CPU work now, and its shaders compiling in parallel; resolves when they are linked. */
+  private warmNow(stage: RoomStage): Promise<unknown> {
+    this.pipe.prepare(stage.scene);
+    stage.fx?.rescan();
+    return this.pipe.renderer.compileAsync(stage.scene, this.rig.camera).catch(() => {});
   }
 
   /** Whether the room for `key` is already built (the kept town, or the one built ahead). */
@@ -417,7 +489,9 @@ class Renderer3D implements Renderer {
    */
   private warmAhead(now: number): void {
     if (this.warming) {
-      if (now - this.stillSince > STILL_MS && !this.warming.draw) this.finishAhead();
+      // Batching is the heavy step and waits for you to stand still; texture uploads are small enough to go on meanwhile.
+      const w = this.warming;
+      if (!w.draw && (now - this.stillSince > STILL_MS || (w.textures && w.compiled))) this.finishAhead();
       return;
     }
     if (!this.settings || !this.stage || this.warmed === this.room || world.portalPending) return;
@@ -457,23 +531,13 @@ class Renderer3D implements Renderer {
     }
     if (!w.textures) {
       this.pipe.prepare(w.stage.scene);
+      w.stage.fx?.rescan();
       w.textures = [];
       return;
     }
     if (!w.compiled) {
       w.compiled = true;
-      const seen = new Set<THREE.Texture>();
-      const list: THREE.Texture[] = [];
-      w.stage.scene.traverse((o) => {
-        const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
-        for (const mat of Array.isArray(m) ? m : m ? [m] : [])
-          for (const v of Object.values(mat))
-            if (v instanceof THREE.Texture && !seen.has(v)) {
-              seen.add(v);
-              list.push(v);
-            }
-      });
-      w.textures = list;
+      w.textures = texturesOf(w.stage.scene);
       this.pipe.renderer.compileAsync(w.stage.scene, this.rig.camera).catch(() => {});
       return;
     }
@@ -490,6 +554,7 @@ class Renderer3D implements Renderer {
     const w = this.warming;
     if (!w?.draw) return;
     this.warming = null;
+    this.drawn.add(w.stage);
     const b = w.stage.view.bounds;
     const r = Math.max(b.maxX - b.minX, b.maxZ - b.minZ) * 0.8;
     const cx = (b.minX + b.maxX) / 2;
@@ -514,6 +579,12 @@ class Renderer3D implements Renderer {
       this.waiting(now);
       return;
     }
+    // A new room's shaders still compiling (or the town still to build): the veil stays shut a moment longer.
+    if (this.reveal) this.townBehindVeil();
+    if (this.reveal && (this.reveal.pending || this.reveal.town) && now - this.reveal.since < REVEAL_MAX_MS) {
+      this.overlay.stepFade(now);
+      return;
+    }
     const stage = this.stage!;
     const view = stage.view;
     const t = now / 1000;
@@ -534,7 +605,16 @@ class Renderer3D implements Renderer {
       this.rig.easePan(dt);
     if (!this.rig.panned() || !this.selfAt) this.selfAt = me ? [me[0], me[1]] : null;
     const mine = world.avatars.get(world.selfId);
-    if (mine && world.room === "town" && !world.portalPending) warmNearShops(world.map, mine.x, mine.y);
+    // Shops' interiors are built ahead a slice a frame, but not while the town is still settling in, nor on a frame
+    // that was already slow: a slice on top of either is a stutter right outside the door.
+    if (
+      mine &&
+      world.room === "town" &&
+      !world.portalPending &&
+      now - this.since > WARM_AFTER_MS &&
+      this.stats.lastGap < 40
+    )
+      warmNearShops(world.map, mine.x, mine.y);
     if (this.insetSeen !== hudInset.version) {
       this.insetSeen = hudInset.version;
       this.applyInsets();
@@ -548,7 +628,9 @@ class Renderer3D implements Renderer {
     camera.updateMatrixWorld();
 
     // The fade over a door: close it when the server is moving us, open it in the new room (ensureStage).
-    if (world.portalPending && !calm) this.overlay.fadeTowards(1, FADE_OUT_MS, now);
+    // A new room's first frame is drawn under the veil (linking what the compile missed); it opens from the next.
+    if (this.reveal) this.overlay.snapFade(1);
+    else if (world.portalPending && !calm) this.overlay.fadeTowards(1, FADE_OUT_MS, now);
     else if (this.overlay.faded > 0 && !world.portalPending)
       this.overlay.fadeTowards(0, calm ? 0 : FADE_IN_MS, now);
     this.overlay.stepFade(now);
@@ -584,12 +666,23 @@ class Renderer3D implements Renderer {
       this.entities.dirty = this.drops.dirty = false;
 
     const dark = stage.update(dt / 1000, t, this.rig.focus, this.rig.viewShown, camera);
+    // Under the veil (a room's first frame, after its batching probe turned the walls every way): settle them.
+    easeWalls(this.reveal ? 10 : dt / 1000);
     view.tick(t, dt / 1000, this.rig.towardCamera());
     lightPipeline(this.pipe, stage, dark);
     this.seeSelf(me, camera, dt / 1000, calm);
-    if (this.warming?.draw && now - this.stillSince > STILL_MS) this.drawAhead();
+    // The town built behind this veil: its textures and one draw now too, while nothing shows, so the first frame
+    // outside links no shaders (the compile misses the shadow and blocky passes, and they are most of it).
+    const w = this.warming;
+    if (this.reveal && w && w.stage === this.town?.stage && w.stage !== stage) {
+      for (const tex of w.textures ?? []) this.pipe.renderer.initTexture(tex);
+      Object.assign(w, { textures: [], compiled: true, draw: true });
+    }
+    if (this.warming?.draw && (this.reveal || now - this.stillSince > STILL_MS)) this.drawAhead();
     lightPipeline(this.pipe, stage, dark);
     this.pipe.render(stage.scene, camera, this.w, this.h);
+    this.drawn.add(stage);
+    this.reveal = null;
     this.stats.frames++;
     this.stats.lastGap = dt;
     this.warmAhead(now);

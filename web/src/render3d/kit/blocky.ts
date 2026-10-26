@@ -13,6 +13,7 @@
  */
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { markMiddle } from "../engine/seethrough.ts";
 import { chamferBox } from "./kit.ts";
 
 const BEVEL = 0.014;
@@ -182,6 +183,8 @@ function standIn(mesh: THREE.Mesh): THREE.BufferGeometry | null {
   const key = `${textured ? "t" : "p"}${mesh.userData.voxelHair ? "h" : ""}${mesh.userData.blockScale ?? ""}`;
   if (!per.has(key)) {
     const made = convert(mesh, textured);
+    // Its own middle for the see-through cut, as the smooth geometry it stands in for has (`markMiddle`).
+    if (made) markMiddle(made);
     // A block made from a shared geometry is shared too: freeing one room's must not free the others'.
     if (made && mesh.geometry.userData.shared) made.userData.shared = true;
     per.set(key, made);

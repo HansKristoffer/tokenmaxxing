@@ -89,7 +89,7 @@ test("the town's hits add up against the first rung", async () => {
   expect(r.me).toEqual({ damage: 100e6 + 2 * PR_HIT, rank: 2, weekCoins: 0, coins: 0 });
   // cy did under the raider threshold.
   expect(r.raiders).toBe(2);
-  expect(r.rules.rewards.slice(0, 4)).toEqual([10, 15, 25, 35]);
+  expect(r.rules.rewards).toEqual([10, 25, 50, 75, 100]);
 });
 
 test("a fallen boss brings on the next and pays its raiders, in the wallet and on the admin page", async () => {
@@ -142,11 +142,11 @@ test("until 08:00 on Monday it shows last week as it ended; then the new ladder,
   expect(after.week).toBe(day(7));
   expect(after.closed).toBe(false);
   expect(after.opensAt).toBe(gate);
-  // Rung 1 is 10% up on last week's 2B, whatever it did; Monday's 3B already beat it, 0.8B into rung 2.
+  // Last week only cleared one boss, so rung 1 is the same 2B; Monday's 3B already beat it, 1B into rung 2.
   expect(after.boss.rung).toBe(2);
-  expect(after.hp).toBe(Math.round(MIN_HP * WEEKLY_GROWTH * 1.5));
+  expect(after.hp).toBe(MIN_HP * 1.5);
   expect(after.kills.map((k) => [k.rung, k.day])).toEqual([[1, day(7)]]);
-  expect(after.damage).toBe(0.8e9);
+  expect(after.damage).toBe(1e9);
   expect(after.last).toMatchObject({ cleared: 1, defeated: true, raiders: 3 });
   expect(after.last!.boss.name).toBe("The Rate Limit");
   expect(after.me).toMatchObject({ weekCoins: RAID_COINS, coins: 2 * RAID_COINS });

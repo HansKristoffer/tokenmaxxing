@@ -152,6 +152,7 @@ test("the notice names the rarest first; the boost is off unless set, and checke
   const d = (item: string, odds: number) => ({
     week: RAID_START,
     rung: 1,
+    level: 1,
     day: day(1),
     userId: 1,
     item,

@@ -137,11 +137,11 @@ export function exitDoorway(opts: DoorwayOpts = {}): Model {
   const dark = tint(wall, -0.45);
   // A little shallower than the frame (z 0.21 to 0.55), so their backs don't share a plane and flicker when the
   // wall is lowered and the doorway is seen from behind.
-  for (const s of [-1, 1]) m.box([0.06, 2.08, 0.26], dark, [s * 0.42, 0, 0.37], 0.004);
-  m.box([0.9, 0.06, 0.26], dark, [0, 2.02, 0.37], 0.004);
+  for (const s of [-1, 1]) m.box([0.06, 2.08, 0.254], dark, [s * 0.42, 0, 0.367], 0.004);
+  m.box([0.9, 0.06, 0.254], dark, [0, 2.02, 0.367], 0.004);
   const beyond = opts.outside ? "#bfe6ff" : "#fff1c9";
-  m.plane(0.84, 2.02, glow(beyond), [0, 1.03, 0.5]);
-  if (opts.outside) m.plane(0.84, 0.5, glow("#8fcff5"), [0, 1.74, 0.502]);
+  m.plane(0.84, 2.02, glow(beyond), [0, 1.03, 0.505]);
+  if (opts.outside) m.plane(0.84, 0.5, glow("#8fcff5"), [0, 1.74, 0.507]);
   // The frame through the wall: jambs, lintel, a step.
   for (const s of [-1, 1]) m.box([0.1, 2.12, 0.34], trim, [s * 0.47, 0, 0.38], 0.015);
   m.box([1.04, 0.12, 0.34], trim, [0, 2.12, 0.38], 0.015);
@@ -196,7 +196,9 @@ function sideFlight(m: Model, o: { wood: string; tread: string; wall: string; pl
   const xAt = (i: number) => -0.5 + run * (i + 0.5);
   for (let i = 0; i < n; i++) {
     const h = rise * (i + 1);
-    m.box([run, h, w], riser, [xAt(i), 0, zc], 0.004);
+    // The riser is a hair narrower than the stringers either side of it (and than the step itself): flush with them, its
+    // side faces and ends lay on exactly their planes and the two fought over every pixel (a hatched, shimmering side).
+    m.box([run - 0.012, h, w - 0.012], riser, [xAt(i), 0, zc], 0.004);
     m.box(
       [run + 0.01, 0.035, w + 0.01],
       i % 2 ? tint(tread, 0.22) : tint(tread, 0.04),
@@ -218,17 +220,21 @@ function sideFlight(m: Model, o: { wood: string; tread: string; wall: string; pl
   const rail = m.box([len, 0.06, 0.06], tint(wood, 0.12), [0, 0, 0], 0.01);
   rail.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]);
   rail.position.set((a[0] + b[0]) / 2 - 0.0, (a[1] + b[1]) / 2 - 0.03 + 0.03, zr);
-  // The landing: a lit doorway in the wall above the top step, framed, with the plate on its lintel both ways.
+  // The landing: a lit doorway in the wall above the top step, framed, with the plate on its lintel both ways. It is
+  // its own part (`userData.doorway`): a room whose wall it is in hangs it on that wall (`Room.attachToWall`), so it is
+  // lowered with the wall instead of standing on its own over the steps when the camera looks over that wall.
   const top = rise * n;
   const dx = 0.3;
-  m.box([0.5, 0.7, 0.02], glow("#3b2d3d"), [dx, top, -0.49], 0);
-  m.box([0.5, 0.6, 0.02], glow("#ffe3a8"), [dx, top + 0.7, -0.49], 0);
-  for (const s of [-1, 1]) m.box([0.07, 1.42, 0.1], wood, [dx + s * 0.285, top, -0.45], 0.008);
-  m.box([0.64, 0.24, 0.1], wood, [dx, top + 1.3, -0.45], 0.008);
-  exitPlate(m, o.plate, "up", [dx, top + 1.42, -0.395]);
-  const back = m.part([dx, top + 1.42, -0.5], Math.PI);
+  const door = m.part();
+  door.userData.doorway = true;
+  door.box([0.5, 0.7, 0.02], glow("#3b2d3d"), [dx, top, -0.49], 0);
+  door.box([0.5, 0.6, 0.02], glow("#ffe3a8"), [dx, top + 0.7, -0.49], 0);
+  for (const s of [-1, 1]) door.box([0.07, 1.42, 0.1], wood, [dx + s * 0.285, top, -0.45], 0.008);
+  door.box([0.64, 0.24, 0.1], wood, [dx, top + 1.3, -0.45], 0.008);
+  exitPlate(door, o.plate, "up", [dx, top + 1.42, -0.395]);
+  const back = door.part([dx, top + 1.42, -0.5], Math.PI);
   exitPlate(back, o.plate, "up", [0, 0, 0.105]);
-  lintelLamp(m, [dx, top + 1.56, -0.42], 0.3);
+  lintelLamp(door, [dx, top + 1.56, -0.42], 0.3);
   // A mat across the front of the flight.
   m.box([0.9, 0.025, 0.3], C.rugLight, [0, 0, 0.34], 0.006);
   m.box([0.8, 0.03, 0.22], C.rug, [0, 0, 0.34], 0.006);

@@ -41,7 +41,7 @@ function base(m: Model): void {
   m.box([0.05, TOP, d - 0.08], C.wood, [-w / 2 + 0.06, 0, 0]);
   m.box([0.4, TOP - 0.02, d - 0.08], C.wood, [w / 2 - 0.24, 0, 0]);
   for (let i = 0; i < 3; i++) {
-    m.box([0.36, 0.17, 0.02], C.woodLight, [w / 2 - 0.24, 0.04 + i * 0.19, d / 2 - 0.05]);
+    m.box([0.36, 0.17, 0.02], C.woodLight, [w / 2 - 0.24, 0.04 + i * 0.19, d / 2 - 0.045]);
     m.box([0.08, 0.015, 0.02], C.metal, [w / 2 - 0.24, 0.13 + i * 0.19, d / 2 - 0.035]);
   }
 }
@@ -139,10 +139,10 @@ function battlestation(m: Model): void {
   screen(m, [0.28, TOP + 0.05, -0.12], 0.4, 0.26, 63, -0.5, true);
   // The tower on the desk top at the right end, glass-sided, with its lit fans.
   m.box([0.2, 0.42, 0.34], "#1b1f2a", [0.64, TOP + 0.05, 0], 0.02);
-  m.box([0.01, 0.36, 0.28], "#2b3140", [0.745, TOP + 0.08, 0], 0.004);
+  m.box([0.01, 0.36, 0.28], "#2b3140", [0.747, TOP + 0.08, 0], 0.004);
   const fans = [0, 1, 2].map((i) => {
     const mat = glow("#5ff2ff");
-    m.cyl(0.05, 0.012, mat, [0.752, TOP + 0.13 + i * 0.11, 0.0], 0.05, 12).rotation.z = Math.PI / 2;
+    m.cyl(0.05, 0.012, mat, [0.759, TOP + 0.13 + i * 0.11, 0.0], 0.05, 12).rotation.z = Math.PI / 2;
     return mat;
   });
   keyboard(m, -0.2, "#b58cf0");

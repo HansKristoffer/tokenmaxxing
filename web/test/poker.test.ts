@@ -130,3 +130,9 @@ test("the Tavern room has the table and a seat at every chair of the map, at the
   const at = new Set(chairs.map((_, i) => inn.poker!.seatWorld(i, new THREE.Vector3()).toArray().join()));
   expect(at.size).toBe(SEATS);
 });
+
+test("the idle table names its blinds from the rules, not from a number typed into the label", async () => {
+  const { tableText } = await import("../src/render3d/rooms/poker-events.ts");
+  const { BIG_BLIND, SMALL_BLIND } = await import("@tokenmaxxing/core/poker.ts");
+  expect(tableText(state({ street: null, result: null }))).toBe(`🃏 Poker · ${SMALL_BLIND}/${BIG_BLIND}`);
+});

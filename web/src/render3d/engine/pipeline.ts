@@ -806,17 +806,32 @@ export class Pipeline {
     this.last.shadowUpdated = false;
     // Once a room is batched its shadow splits in two (and stays split, so the shaders don't change back and forth).
     let st = this.splits.get(scene);
-    if (!st && on && sun && !bakePending(scene) && this.frameNo > 30) {
+    // The split's light goes in as soon as the room is batched (`prepare`), dark and never drawn into until the
+    // split starts: shaders count lights, so the ones compiled ahead of the room's first frame stay the ones it uses.
+    if (!st && on && sun && scene.userData.splitReady && !scene.userData.splitLight) {
       const dyn = new THREE.DirectionalLight(0xffffff, 0);
       dyn.userData.shadowDyn = true;
       dyn.castShadow = true;
       dyn.shadow.autoUpdate = false;
       scene.add(dyn, dyn.target);
+      scene.userData.splitLight = dyn;
+    }
+    // Its map has to exist before anything samples it (an empty shadow sampler fails every draw): drawn once, empty.
+    const split = scene.userData.splitLight as THREE.DirectionalLight | undefined;
+    const unmapped = !st && !!split?.castShadow && !split.shadow.map;
+    if (unmapped) split.shadow.needsUpdate = true;
+    if (!st && on && sun && !bakePending(scene) && (this.frameNo > 30 || scene.userData.splitReady)) {
+      const dyn = split ?? new THREE.DirectionalLight(0xffffff, 0);
+      dyn.userData.shadowDyn = true;
+      dyn.castShadow = true;
+      dyn.shadow.autoUpdate = false;
+      if (dyn.parent !== scene) scene.add(dyn, dyn.target);
       st = { dyn, epoch: -1, key: "", size: 0, nextLive: 0, at: 0 };
       this.splits.set(scene, st);
     }
     if (!st || !sun) {
-      r.shadowMap.needsUpdate = on && (this.frameNo % Math.max(1, every) === 0 || !sun?.shadow.map);
+      r.shadowMap.needsUpdate =
+        on && (unmapped || this.frameNo % Math.max(1, every) === 0 || !sun?.shadow.map);
       this.last.shadowUpdated = r.shadowMap.needsUpdate;
       return;
     }
@@ -1170,12 +1185,17 @@ export class Pipeline {
    */
   prepare(scene: THREE.Scene): void {
     const voxel = this.style === "voxel";
+    // Before the first frame of all (a room built behind the loading veil) the mode is the style's.
+    this.mode ??= voxel ? "block" : "smooth";
     if (this.mode !== (voxel ? "block" : "smooth")) return;
     syncBaked(scene, this.mode);
     if (voxel) {
       blockify(scene);
       scene.userData.blockEpoch = sceneEpoch();
     }
+    // Batched now, so its shadow may split at once (`shadowsFor`): the frames that compile its shaders ahead see
+    // the lights it will keep, rather than every material compiling again thirty frames after it is shown.
+    scene.userData.splitReady = true;
   }
 
   private draw(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {

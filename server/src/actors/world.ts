@@ -652,7 +652,7 @@ export const world = actor({
       return null;
     },
 
-    /** E while facing a chair at the poker table: buys you in (🪙 200 from your wallet) and sits you down. */
+    /** E while facing a chair at the poker table: buys you in (the buy-in from your wallet) and sits you down. */
     pokerSit: async (c, facing: unknown): Promise<StepResult> => {
       const p = free(c);
       if (!TAVERN || p?.room !== "inn") return null;
@@ -664,6 +664,38 @@ export const world = actor({
       if (at < 0) return null;
       if (!c.vars.pokerActs.take(String(p.id), now)) return { notice: "🃏 Easy. One move at a time." };
       return pokerSitDown(c, p, at);
+    },
+
+    /**
+     * The Games box's "Join" on the poker table: into the Tavern from anywhere and straight into a free chair, the
+     * buy-in out of the wallet. If the buy-in fails they are in the Tavern all the same, with the reason as a notice.
+     */
+    pokerJoin: async (c): Promise<StepResult> => {
+      const p = free(c);
+      if (!TAVERN || !p) return null;
+      const now = Date.now();
+      touch(c, p, now);
+      if (!c.vars.pokerActs.take(String(p.id), now)) return { notice: "🃏 Easy. One move at a time." };
+      const t = c.vars.poker;
+      if (seatOf(t, p.id) >= 0) return { notice: "🃏 You're at the table already." };
+      const chairs = pokerChairs();
+      const at = chairs.findIndex(
+        (ch, i) =>
+          !t.seats[i] &&
+          !Object.values(c.state.players).some((o) => o.room === "inn" && o.x === ch.x && o.y === ch.y),
+      );
+      if (at < 0) return { notice: "🃏 The poker table is full." };
+      if (p.room !== "inn") {
+        Object.assign(p, roomEntry("inn"), { state: "idle" });
+        c.vars.dirty.add(p.id);
+        countVisit(c, p);
+      }
+      const sat = await pokerSitDown(c, p, at);
+      if (sat && "notice" in sat) {
+        c.conn.send("notice", { text: sat.notice } satisfies Notice);
+        return correction(p);
+      }
+      return sat;
     },
 
     /** The Tavern's poker table: take a bet or a fold (`type`, and `to` for a raise: the total bet on this street). */
@@ -1949,6 +1981,7 @@ function raiders(s: WorldState, now: number): Raiders {
         id: p.id,
         name: p.name,
         look: p.look,
+        desk: p.desk ?? 0,
         agents: Math.max(1, p.liveAgents),
         burn: Math.round((p.burn ?? 0) * Math.max(0, 1 - (now - p.lastAgentAt) / WORKING_MS)),
       })),
@@ -2339,7 +2372,7 @@ function pokerWhy(err: unknown): string {
 }
 
 /**
- * `p` sits at chair `at`: the seat is held while the town takes the buy-in (🪙 200), then dealt in from the
+ * `p` sits at chair `at`: the seat is held while the town takes the buy-in, then dealt in from the
  * next hand. If the town says no, or they left meanwhile, nothing moves.
  */
 async function pokerSitDown(c: PokerCtx, p: WorldPlayer, at: number): Promise<StepResult> {

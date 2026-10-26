@@ -1,4 +1,4 @@
-import type { PokerState } from "@tokenmaxxing/core/poker.ts";
+import { BIG_BLIND, type PokerState, SMALL_BLIND } from "@tokenmaxxing/core/poker.ts";
 import * as THREE from "three";
 import { hud } from "../../store.ts";
 import type { PokerModel, PokerScene } from "./poker3d.ts";
@@ -37,7 +37,7 @@ function seatText(state: PokerState, i: number, left: number): string {
 }
 
 /** What the table says about the hand: the pot, the street, or who won with what. */
-function tableText(state: PokerState): string {
+export function tableText(state: PokerState): string {
   const r = state.result;
   if (state.street === null && r) {
     const wins = Object.entries(r.won).map(([id, n]) => {
@@ -46,7 +46,9 @@ function tableText(state: PokerState): string {
     });
     return wins.join(" · ");
   }
-  return state.street === null ? "🃏 Poker · 5/10" : `Pot 🪙 ${state.pot} · ${state.street}`;
+  return state.street === null
+    ? `🃏 Poker · ${SMALL_BLIND}/${BIG_BLIND}`
+    : `Pot 🪙 ${state.pot} · ${state.street}`;
 }
 
 /**

@@ -376,3 +376,31 @@ export const pokerTable = cached(
       if (bottom && right) p.rect(12, 13, 2, 2, C.ink);
     }),
 );
+
+/** The request pile: a corkboard in a wooden frame with a few notes pinned to it, one with a gold star. */
+export const requestPile = once(() =>
+  bake(16, 16, (p) => {
+    p.rect(0, 1, 16, 14, C.ink);
+    p.rect(1, 2, 14, 12, C.woodDark);
+    p.rect(2, 3, 12, 10, "#b98a52");
+    p.rect(2, 3, 12, 1, "#d2a46a");
+    // Notes, each held by a red pin.
+    p.rect(3, 4, 4, 4, PAPER);
+    p.rect(8, 5, 4, 3, "#f5d14a");
+    p.rect(4, 9, 3, 3, "#9fd3ef");
+    p.rect(9, 9, 4, 3, "#f2a0b8");
+    for (const [x, y] of [
+      [4, 4],
+      [9, 5],
+      [5, 9],
+      [10, 9],
+    ] as const)
+      p.px(x, y, C.flowerRed);
+    // The scribbles.
+    p.rect(4, 6, 2, 1, C.ink);
+    p.rect(9, 7, 2, 1, C.ink);
+    p.rect(10, 11, 2, 1, C.ink);
+    p.px(7, 11, "#ffd75a");
+    p.rect(2, 14, 12, 1, C.shadow);
+  }),
+);

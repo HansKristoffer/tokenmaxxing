@@ -181,7 +181,7 @@ function water(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: numbe
 }
 
 /** An office floor by id (`decor.ts`): each paints a whole tile and repeats at 8 pixels, so tiles meet. */
-const FLOOR_ART: Record<string, (p: Pen, ox: number, oy: number, x: number, y: number) => void> = {
+export const FLOOR_ART: Record<string, (p: Pen, ox: number, oy: number, x: number, y: number) => void> = {
   linoleum: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#7fa88a");
     for (let j = 0; j < TILE; j++)
@@ -380,7 +380,7 @@ function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
 }
 
 /** An office's wallpaper by id (`decor.ts`), on the wall's face; the top lip and the skirting are drawn over it. */
-const WALL_ART: Record<string, (p: Pen, ox: number, oy: number, x: number, y: number) => void> = {
+export const WALL_ART: Record<string, (p: Pen, ox: number, oy: number, x: number, y: number) => void> = {
   hygge: (p, ox, oy, x, y) => {
     for (let j = 0; j < TILE; j++)
       p.rect(ox, oy + j, TILE, 1, j < 5 ? "#f0d8aa" : j < 10 ? "#f5e3bd" : "#f9ecd0");

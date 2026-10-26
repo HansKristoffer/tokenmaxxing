@@ -154,6 +154,16 @@ const CANOPY: Record<Exclude<TreeKind, "pine">, string[]> = {
   red: ["#e2443a", "#f06a5a", "#c22f2a"],
 };
 
+/**
+ * A few millimetres, different for every lobe of a canopy: the Voxel style draws each lobe as a block, and two lobes whose
+ * blocks share a face (equal sizes, or centres a block apart) fought over it as the camera moved: leaves flickering.
+ */
+const nudge = (i: number): [number, number, number] => [
+  ((i * 5) % 7) * 0.002 - 0.006,
+  ((i * 3) % 5) * 0.002,
+  ((i * 2 + 1) % 7) * 0.002 - 0.006,
+];
+
 /** A tree; `size` scales it. Canopies are clusters of balls, so they read as foliage, not a lollipop. */
 export function tree(kind: TreeKind, seed: number, size = 1): Model {
   const m = new Model();
@@ -172,40 +182,55 @@ export function tree(kind: TreeKind, seed: number, size = 1): Model {
   const h = (0.9 + rnd() * 0.4) * s;
   m.cyl(0.11 * s, h, C.trunk, [0, 0, 0], 0.08 * s, 9);
   if (kind === "oak")
-    for (const a of [0.5, 2.6, 4.4]) {
-      const branch = m.cyl(0.07 * s, 0.6 * s, C.trunk, [0, h * 0.7, 0], 0.04 * s, 7);
+    for (const [k, a] of [0.5, 2.6, 4.4].entries()) {
+      // Each a little different: three equal branches turned about the trunk made blocks sharing a face (flicker).
+      const branch = m.cyl(
+        (0.07 + k * 0.006) * s,
+        (0.6 + k * 0.04) * s,
+        C.trunk,
+        [0, h * 0.7, 0],
+        0.04 * s,
+        7,
+      );
       branch.rotation.set(Math.sin(a) * 0.7, 0, Math.cos(a) * 0.7);
     }
   const greens = CANOPY[kind];
   const n = kind === "oak" ? 11 : 7;
   const first = m.ball(0.55 * s, greens[0]!, [0, h + 0.4 * s, 0], [1.1, 0.85, 1.1], 14);
+  first.position.add(new THREE.Vector3(...nudge(n + 2)));
   first.userData.blockScale = 0.78;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + rnd();
     const r = (0.38 + rnd() * 0.2) * s;
-    m.ball(
+    const lobe = m.ball(
       (0.3 + rnd() * 0.15) * s,
       greens[i % greens.length]!,
       [Math.cos(a) * r, h + (0.3 + rnd() * 0.45) * s, Math.sin(a) * r],
       [1, 0.85, 1],
       8,
-    ).userData.blockScale = 0.72;
+    );
+    lobe.userData.blockScale = 0.72;
+    lobe.position.add(new THREE.Vector3(...nudge(i)));
   }
-  m.ball(0.3 * s, greens[1]!, [0.05 * s, h + 0.85 * s, 0.05 * s], [1, 0.85, 1], 8).userData.blockScale = 0.78;
+  const top = m.ball(0.3 * s, greens[1]!, [0.05 * s, h + 0.85 * s, 0.05 * s], [1, 0.85, 1], 8);
+  top.userData.blockScale = 0.78;
+  top.position.add(new THREE.Vector3(...nudge(n + 1)));
   return m;
 }
 
 export function bush(seed: number, color = LEAF[1]!): Model {
   const m = new Model();
   const rnd = seeded(seed);
-  for (let i = 0; i < 4; i++)
-    m.ball(
+  for (let i = 0; i < 4; i++) {
+    const lobe = m.ball(
       0.2 + rnd() * 0.1,
       i ? tint(color, (rnd() - 0.5) * 0.2) : color,
       [(rnd() - 0.5) * 0.35, 0.18 + rnd() * 0.1, (rnd() - 0.5) * 0.35],
       [1, 0.8, 1],
       10,
     );
+    lobe.position.add(new THREE.Vector3(...nudge(i)));
+  }
   if (rnd() < 0.5)
     for (let i = 0; i < 5; i++)
       m.ball(

@@ -126,6 +126,34 @@ const ART: Record<string, BossArt> = {
     ],
     pal: { o: C.ink, v: "#9b6fd6", l: "#d9c2f5", e: C.white, p: C.ink, m: "#4a2a73", w: C.white, "*": "#ffd35c" },
   },
+  // A bill that never stops growing.
+  invoice: {
+    rows: [
+      "..oooooooooooooooooo..",
+      "..orrrrrrrrrrrrrrrro..",
+      "..orwwrwwrwwrwwrwrro..",
+      "..oppppppppppppppppo..",
+      "..oppeeepppppeeepppo..",
+      "..oppeiepppppeiepppo..",
+      "..oppeeepppppeeepppo..",
+      "..oppppppppppppppppo..",
+      "..opppmmmmmmmmmmpppo..",
+      "..opppmwmwmwmwmmpppo..",
+      "..opppmmmmmmmmmmpppo..",
+      "..oppppppppppppppppo..",
+      "..oppttttttttttppppo..",
+      "..oppttttttppppppppo..",
+      "..oppttttttttttppppo..",
+      "..opptttttpprrrrrppo..",
+      "..oppttttpppprwwwrpo..",
+      "..opppppppppprrrrrpo..",
+      "..oppppppppppppppppo..",
+      "..oooooooooooooooooo..",
+      "..o.oo.oo.oo.oo.oo.o..",
+      "......................",
+    ],
+    pal: { o: C.ink, p: "#f3e7b8", r: "#c0392b", w: C.white, e: C.white, i: C.ink, m: "#5b1f1a", t: "#9a9486" },
+  },
 };
 
 export const BOSS_SIZE = 22;

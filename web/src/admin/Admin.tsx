@@ -1,4 +1,10 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
+import {
+  REQUEST_STATUSES,
+  type RequestEntry,
+  type RequestStatus,
+  STATUS_LABEL,
+} from "@tokenmaxxing/core/requests.ts";
 import { houseTierName } from "@tokenmaxxing/core/world.ts";
 import type { AdminCompany, AdminLogEntry, AdminOverview, AdminUser } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
@@ -6,13 +12,14 @@ import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useSta
 import { errorText } from "../errors.ts";
 import { type AdminConn, connectAdmin, forgetToken, isUnauthorized, savedToken, saveToken } from "./api.ts";
 
-type Tab = "overview" | "users" | "companies" | "log";
+type Tab = "overview" | "users" | "companies" | "requests" | "log";
 type Act = (fn: () => Promise<unknown>, done: string) => Promise<void>;
 
 interface Data {
   overview: AdminOverview;
   users: AdminUser[];
   companies: AdminCompany[];
+  requests: RequestEntry[];
   log: AdminLogEntry[];
 }
 
@@ -78,13 +85,14 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [overview, users, companies, log] = await Promise.all([
+      const [overview, users, companies, requests, log] = await Promise.all([
         conn.adminOverview(),
         conn.adminUsers(),
         conn.adminCompanies(),
+        conn.adminRequests(),
         conn.adminLog(),
       ]);
-      setData({ overview, users, companies, log });
+      setData({ overview, users, companies, requests, log });
     } catch (err) {
       if (isUnauthorized(err)) onSignOut("That token didn't work.");
       else setMessage({ text: errorText(err), bad: true });
@@ -108,6 +116,7 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
     ["overview", "Overview"],
     ["users", `Users${data ? ` (${data.users.length})` : ""}`],
     ["companies", `Companies${data ? ` (${data.companies.length})` : ""}`],
+    ["requests", `Requests${data ? ` (${data.requests.filter((r) => r.status === "open").length})` : ""}`],
     ["log", "Log"],
   ];
   return (
@@ -146,6 +155,7 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
             overview: () => <Overview o={data.overview} />,
             users: () => <Users users={data.users} conn={conn} act={act} />,
             companies: () => <Companies companies={data.companies} conn={conn} act={act} />,
+            requests: () => <Requests requests={data.requests} conn={conn} act={act} />,
             log: () => <Log log={data.log} />,
           })
         )}
@@ -571,6 +581,55 @@ function Companies({ companies, conn, act }: { companies: AdminCompany[]; conn: 
       <Table rows={rows} columns={columns} initial={7} />
     </>
   );
+}
+
+// MARK: Requests
+
+/** The Tavern's request pile: by 👍, with the status the builders give each (`Planned` is shown to everyone). */
+function Requests({ requests, conn, act }: { requests: RequestEntry[]; conn: AdminConn; act: Act }) {
+  const columns: Column<RequestEntry>[] = [
+    { label: "👍", num: true, sort: (r) => r.votes, cell: (r) => r.votes },
+    { label: "Request", cell: (r) => r.text },
+    { label: "By", sort: (r) => r.name, cell: (r) => r.name },
+    { label: "Posted", sort: (r) => r.createdAt, cell: (r) => date(r.createdAt) },
+    {
+      label: "Status",
+      sort: (r) => r.status,
+      cell: (r) => (
+        <select
+          aria-label={`Status of "${r.text}"`}
+          value={r.status}
+          onChange={(e) =>
+            void act(
+              () => conn.adminSetRequest(r.id, e.target.value as RequestStatus),
+              `Marked it ${STATUS_LABEL[e.target.value as RequestStatus]}.`,
+            )
+          }
+        >
+          {REQUEST_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABEL[s]}
+            </option>
+          ))}
+        </select>
+      ),
+    },
+    {
+      label: "",
+      cell: (r) => (
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm(`Take down "${r.text}"?`))
+              void act(() => conn.adminRemoveRequest(r.id), "Taken down.");
+          }}
+        >
+          Remove
+        </button>
+      ),
+    },
+  ];
+  return <Table rows={requests} columns={columns} initial={0} />;
 }
 
 // MARK: Log

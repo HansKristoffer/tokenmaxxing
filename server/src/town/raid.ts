@@ -9,14 +9,15 @@ import {
   opensAt,
   PR_HIT,
   RAID_COINS,
+  RAID_REWARDS,
   RAIDER_AT,
   type RaidDay,
   type RaidWeek,
+  REWARD_GROWTH,
   type RungBoss,
   raidCoins,
   raidWeekAt,
   raidWeeks,
-  rewardFor,
   WEEKLY_GROWTH,
 } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
@@ -64,7 +65,11 @@ export interface Raid {
   endsAt: number;
   /** The week is over (Monday before 08:00): this is how it ended, and the gate opens at `endsAt`. */
   closed: boolean;
-  /** The boss on the current rung, still standing. */
+  /** The ladder's level: 1, then one more after each week the town cleared it ("II", "III"…). */
+  level: number;
+  /** All five bosses fell: nothing more to hit until the next ladder opens on `endsAt`. */
+  cleared: boolean;
+  /** The boss on the current rung, still standing (once `cleared`, the last one, fallen). */
   boss: RungBoss;
   /** The current rung's HP, and how much of it the town has hit (overflow from the last kill included). */
   hp: number;
@@ -86,11 +91,13 @@ export interface Raid {
     raiderAt: number;
     /** What rung 1 pays each raider. */
     coins: number;
-    /** What rungs 1, 2, 3… pay each raider (the first 8; each ×1.5, to the nearest 5). */
+    /** What rungs 1 to 5 pay each raider on a level 1 ladder; each level after pays ×`rewardGrowth`. */
     rewards: number[];
+    rewardGrowth: number;
     /**
      * Rung 1's HP: the first raid's was `hpShare` of the week before's damage, at least `minHp`; every
-     * week after is ×`weeklyGrowth` the last. Each rung ×`hpGrowth`.
+     * week after is the same unless the town cleared every boss that week, when it's ×`weeklyGrowth`
+     * and a level up. Each rung ×`hpGrowth`.
      */
     hpShare: number;
     minHp: number;
@@ -109,7 +116,8 @@ const RULES: Raid["rules"] = {
   prHit: PR_HIT,
   raiderAt: RAIDER_AT,
   coins: RAID_COINS,
-  rewards: Array.from({ length: 8 }, (_, i) => rewardFor(i + 1)),
+  rewards: [...RAID_REWARDS],
+  rewardGrowth: REWARD_GROWTH,
   hpShare: HP_SHARE,
   minHp: MIN_HP,
   weeklyGrowth: WEEKLY_GROWTH,
@@ -208,6 +216,8 @@ export async function raid(sql: Sql, userId: number | null, weeks: RaidWeek[], n
     endsAt: opensAt(addDays(week, 7)),
     // Showing last week while the world is already in the next one: Monday before 08:00.
     closed: dayKey(now) >= addDays(week, 7),
+    level: w?.level ?? 1,
+    cleared: w?.cleared ?? false,
     boss: w?.current.boss ?? bossAt(1),
     hp: w?.current.hp ?? 0,
     damage: w?.current.damage ?? 0,
@@ -255,6 +265,8 @@ async function prelaunch(sql: Sql, userId: number | null, start: string): Promis
     opensAt: launchAt,
     endsAt: opensAt(addDays(start, 7)),
     closed: true,
+    level: 1,
+    cleared: false,
     boss: bossAt(1),
     hp,
     damage: 0,

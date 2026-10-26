@@ -12,7 +12,7 @@ import type { Asset } from "../furniture/furniture.ts";
 import { glow, liveModel, Model, toon } from "../kit/kit.ts";
 import { gaitSettled, newGait, stepGait, walkPose } from "../people/motion.ts";
 import { Freezer, TINY_PX, view } from "../perf/freeze.ts";
-import { dragon, duck, ghost, goldfish, golem, orb } from "./pets3d-misc.ts";
+import { dragon, duck, ghost, goldfish, golem, orb, piggy } from "./pets3d-misc.ts";
 import { quad } from "./pets3d-quad.ts";
 import type { Rig } from "./petvox.ts";
 
@@ -170,9 +170,11 @@ export class Pet3D {
               ? goldfish()
               : species === "ghost"
                 ? ghost()
-                : species === "cat" || species === "dog" || species === "panda" || species === "forkedcat"
-                  ? quad(species, variant, outfit)
-                  : orb();
+                : species === "piggy"
+                  ? piggy()
+                  : species === "cat" || species === "dog" || species === "panda" || species === "forkedcat"
+                    ? quad(species, variant, outfit)
+                    : orb();
     this.root.userData.actor = true;
     const { body: b, fore: f } = built;
     this.rig = built.rig;
@@ -313,7 +315,7 @@ export class Pet3D {
 
 /**
  * The 3D twin of a 2D pet. `species` is `Look.pet` (1 duck, 2 cat, 3 dog, 4 dragon, 5 panda, 6 Singularity
- * orb, 7 to 10 the boss-loot pets) or its name; `variant` is `Look.petVariant` (0 the original, n the
+ * orb, 7 to 11 the boss-loot pets) or its name; `variant` is `Look.petVariant` (0 the original, n the
  * n-th of `PET_VARIANTS`) or the variation's id; `name` is the pet's name, which dresses Penny and Nemo.
  */
 export function petFrom2D(species: number | string, variant: number | string = 0, name = ""): Pet3D {
@@ -349,7 +351,7 @@ function petBed(): Model {
     m.box([0.03, 0.12, 0.03], C.wood, [Math.cos(a) * 0.43, 0.04, Math.sin(a) * 0.43], 0.008).rotation.y = -a;
   }
   m.cyl(0.31, 0.1, C.fabric, [0, 0.03, 0], 0.31, 24);
-  m.cyl(0.31, 0.012, C.fabricDark, [0, 0.12, 0], 0.31, 24);
+  m.cyl(0.314, 0.012, C.fabricDark, [0, 0.12, 0], 0.314, 24);
   m.cyl(0.24, 0.012, C.fabric, [0, 0.128, 0], 0.24, 24);
   for (const [x, z] of [
     [-0.12, 0.08],

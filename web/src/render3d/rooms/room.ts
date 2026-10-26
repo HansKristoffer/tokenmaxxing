@@ -8,6 +8,7 @@ import { C } from "../../art/palette.ts";
 import type { Asset } from "../furniture/furniture.ts";
 import { canvasTexture, glow, Model, painted, planks, tint, toon, wallpaper } from "../kit/kit.ts";
 import { invalidateBaked } from "../perf/bake.ts";
+import { wallEase } from "./walls.ts";
 
 export type Turn = 0 | 1 | 2 | 3;
 export interface Placed {
@@ -228,9 +229,20 @@ export class Room {
     for (const w of this.walls) {
       const front = w.low || w.normal.dot(view) < -0.01;
       const target = front ? 0.06 : 1;
-      w.model.scale.y += (target - w.model.scale.y) * 0.25;
+      w.model.scale.y += (target - w.model.scale.y) * wallEase.k;
       w.model.visible = w.model.scale.y > 0.02;
     }
+  }
+
+  /**
+   * Hangs `o` on the wall with this normal (as `[x, z]`), where it already stands: it is lowered and raised with the
+   * wall (a doorway in it, say), instead of standing at full height when the wall goes down in front of the camera.
+   */
+  attachToWall(normal: [number, number], o: THREE.Object3D): void {
+    const w = this.walls.find((q) => q.normal.x === normal[0] && q.normal.z === normal[1]);
+    if (!w) return;
+    this.group.updateMatrixWorld(true);
+    w.model.attach(o);
   }
 
   /** Keeps the wall with this normal (as `[x, z]`) lowered whatever the camera does: a cutaway while someone is behind it. */

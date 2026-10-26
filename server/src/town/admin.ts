@@ -16,6 +16,7 @@ import {
   leave,
   withdraw,
 } from "./companies.ts";
+import { forget as forgetRequests } from "./requests.ts";
 import { TOKENS, userById } from "./users.ts";
 
 export interface AdminOverview {
@@ -267,6 +268,7 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
   for (const table of ["purchases", "rewards", "offices", "badge_awards", "showcase", "tavern_daily"])
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
   await sql.execute("DELETE FROM bio_reports WHERE target = ? OR reporter = ?", userId, userId);
+  await forgetRequests(sql, userId);
   await sql.execute(
     "DELETE FROM items WHERE owner_id = ? OR (owner_id IS NULL AND dropped_by = ? AND company_id IS NULL)",
     userId,

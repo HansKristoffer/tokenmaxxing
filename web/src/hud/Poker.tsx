@@ -8,6 +8,7 @@ import {
   type PokerState,
   SEATS,
   type SeatView,
+  SMALL_BLIND,
   TURN_MS,
 } from "@tokenmaxxing/core/poker.ts";
 import { useState } from "react";
@@ -238,7 +239,9 @@ export function Poker() {
   return (
     <section className="panel poker" aria-label="Poker table">
       <header>
-        <strong className="title">🃏 Hold'em · 5/10</strong>
+        <strong className="title">
+          🃏 Hold'em · {SMALL_BLIND}/{BIG_BLIND}
+        </strong>
         <span className={turn ? "pk-status mine" : "pk-status"} role="status">
           {status}
         </span>

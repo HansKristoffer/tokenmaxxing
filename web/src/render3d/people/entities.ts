@@ -9,6 +9,7 @@ import { BURST_MS } from "../../game/emoji.ts";
 import { LABEL_FAR } from "../../game/near.ts";
 import { followPet, prunePets } from "../../game/pets.ts";
 import { type Lap, racing } from "../../game/race.ts";
+import { raidPet, seatedAt } from "../../game/raidseat.ts";
 import { jitter, tremorPhase } from "../../game/tremor.ts";
 import {
   drawPos,
@@ -21,6 +22,7 @@ import {
 } from "../../game/world.ts";
 import { town } from "../../net.ts";
 import { hud } from "../../store.ts";
+import { RAID_SEAT_Y } from "../dungeon/raidfx.ts";
 import { declutterTags } from "../engine/declutter.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { Burst, type Overlay } from "../engine/overlay.ts";
@@ -255,6 +257,13 @@ export class Entities {
   private remove(r: Rig): void {
     r.root.removeFromParent();
     disposeObject(r.root);
+    // The pet's model hangs on the group beside the person, not on them: take it away too, or a rebuilt rig
+    // (a new look, a stale one swept) leaves the old pet standing in the world.
+    if (r.pet) {
+      r.pet.root.removeFromParent();
+      disposeObject(r.pet.root);
+      r.pet = null;
+    }
     r.stack.remove();
     r.petLabel?.remove();
     r.burst?.dispose();
@@ -358,7 +367,9 @@ export class Entities {
     // In a Sprint Race they run laps of the square instead of standing at their table.
     const lap = racing(info.id, now);
     r.lap = lap;
-    const p = lap ?? drawPos(a, now);
+    // At your own war desk in the raid dungeon (`game/raidseat.ts`) you are drawn on the seat, typing.
+    const sit = !lap && info.id === world.selfId ? seatedAt() : null;
+    const p = lap ?? (sit ? { x: sit[0], y: sit[1] } : drawPos(a, now));
     r.at = p;
     const [cx, cz] = view.toWorld(p.x, p.y);
     // Off the tile's middle when someone else stands on it too (not while running laps).
@@ -386,10 +397,10 @@ export class Entities {
       onSeat ? seatKind : undefined,
       now < r.walkUntil,
     );
-    const { lying } = placed;
+    const lying = placed.lying && !sit;
     // At a game table they sit on a stool, at an arena desk they type.
     const gamePose = a.state === "playing" ? seatPose(gamesOf(info.id)[0], lap !== null) : null;
-    const pose = gamePose ?? placed.pose;
+    const pose = gamePose ?? (sit && !moving ? "type" : placed.pose);
     const av = r.avatar;
     // On the Tavern's stage while the jukebox plays: dance.
     const dancing =
@@ -403,9 +414,10 @@ export class Entities {
     let y = 0;
     if (lying) y = seatKind === "bed" ? view.seatY(a.x, a.y, "bed") : 0.02;
     else if (gamePose) y = STOOL_Y;
+    else if (sit && pose === "type") y = RAID_SEAT_Y;
     else if (pose === "sit" || pose === "type") y = seatKind ? view.seatY(a.x, a.y, seatKind) : 0.04;
     y += hop;
-    let yawTarget = YAW[lap?.facing ?? a.facing];
+    let yawTarget = sit ? YAW.up : YAW[lap?.facing ?? a.facing];
     // A sitter faces where their seat is turned (the server only says "up" for a chair and "down" for the rest).
     if (pose === "sit" && !lying) yawTarget = view.seatYaw?.(a.x, a.y) ?? yawTarget;
     if (lying) yawTarget = 0;
@@ -454,7 +466,7 @@ export class Entities {
     r.root.scale.setScalar(pop);
 
     // A sleeping bag on the floor for anyone who dozes off away from a bed.
-    const bag = a.state === "away" && seatKind !== "bed";
+    const bag = a.state === "away" && seatKind !== "bed" && !sit;
     if (bag && !r.bedroll) {
       r.bedroll = new Model();
       r.bedroll.box([0.7, 0.05, 1.75], "#4a4452", [0, 0, 0.05], 0.02);
@@ -493,7 +505,9 @@ export class Entities {
     near: boolean,
   ): void {
     const look = this.lookOf(a.info);
+    const mine = a.info.id === world.selfId;
     if (!look.pet || a.warp) {
+      if (mine) raidPet.at = null;
       if (r.pet) {
         r.pet.root.removeFromParent();
         disposeObject(r.pet.root);
@@ -551,6 +565,8 @@ export class Entities {
     pet.model.pose = spot.asleep ? "sleep" : a.state !== "idle" && !pm ? "sit" : "stand";
     pet.root.position.set(pet.x, 0, pet.z);
     pet.root.rotation.y = pet.yaw;
+    // The raid's little missiles start where your pet stands (`DungeonLive`).
+    if (mine) raidPet.at = [pet.x, pet.z];
     pet.root.visible = near;
     if (near) pet.model.update(t, came);
     // Its name, for mine and for those close to me.
