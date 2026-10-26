@@ -74,13 +74,15 @@ export async function redeem(code: string): Promise<void> {
  * instead (AppSignIn).
  */
 export async function signIn(): Promise<string | null> {
+  const phonePairing = new URLSearchParams(location.search).has("pair");
   const code = new URLSearchParams(location.hash.slice(1)).get("code");
   if (code) {
     history.replaceState(null, "", location.pathname);
     try {
       await redeem(code);
     } catch {
-      if (!storage.getItem(TOKEN_KEY)) {
+      // A failed explicit phone pairing must not silently enter an older account.
+      if (phonePairing || !storage.getItem(TOKEN_KEY)) {
         hud.set({ status: "expired" });
         return null;
       }

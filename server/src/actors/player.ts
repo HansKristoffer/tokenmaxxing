@@ -131,6 +131,15 @@ const eventRow = (e: TokenEvent) => [
 
 const live = (list: Expiring[], now: number) => list.filter((e) => e.expiresAt > now);
 
+/** Shared by desktop sign-in and phone pairing: only hashes are persisted, never the code. */
+function loginCode(state: PlayerState): { code: string; expiresAt: number } {
+  const now = Date.now();
+  const { token, hash } = makeToken(state.userId);
+  const expiresAt = now + LOGIN_CODE_MS;
+  state.loginCodes = [...live(state.loginCodes, now), { hash, expiresAt }].slice(-MAX_LOGIN_CODES);
+  return { code: token, expiresAt };
+}
+
 /** Which kind of credential `secret` is for this player (and which device), if any. */
 function credential(s: PlayerState, secret: string, now: number): { via: Via; deviceId?: number } | null {
   const hash = sha256(secret);
@@ -210,6 +219,7 @@ export const player = actor({
   createVars: () => ({
     serial: serial(),
     ingests: new RateLimiter(INGESTS_PER_MIN, 60_000),
+    phoneCodes: new RateLimiter(5, 60_000),
     battleUpdate: coalesceBattleUpdates(),
     trophies: trophyCache(),
   }),
@@ -254,12 +264,16 @@ export const player = actor({
     /** The menu bar app's "Open world": a code the browser trades for a session. */
     mintLoginCode: (c): string => {
       requireDevice(c.conn.state);
-      const now = Date.now();
-      const { token, hash } = makeToken(c.state.userId);
-      c.state.loginCodes = [...live(c.state.loginCodes, now), { hash, expiresAt: now + LOGIN_CODE_MS }].slice(
-        -MAX_LOGIN_CODES,
-      );
-      return token;
+      return loginCode(c.state).code;
+    },
+
+    /** An explicitly requested phone sign-in, authorized by the app or an existing game session. */
+    mintPhoneLoginCode: (c): { code: string; expiresAt: number } => {
+      const caller = c.conn.state;
+      if (caller.kind !== "user" || caller.via === "linked") throw unauthorized();
+      if (!c.vars.phoneCodes.take("pair", Date.now()))
+        throw new UserError("Too many pairing codes. Try again in a minute.", { code: "rate_limited" });
+      return loginCode(c.state);
     },
 
     /** Single use. Returns a 30-day browser session token. */
