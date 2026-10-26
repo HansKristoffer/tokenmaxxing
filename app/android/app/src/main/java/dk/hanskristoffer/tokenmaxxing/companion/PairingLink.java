@@ -6,7 +6,9 @@ import java.util.regex.Pattern;
 
 /** Only a single-use code, or its canonical link on our configured HTTPS origin, can enter the WebView. */
 final class PairingLink {
-    private static final Pattern CODE = Pattern.compile("[0-9]{1,12}\\.[A-Za-z0-9_-]{16,128}");
+    // A desktop link's long code, or a phone's short one (`42-K7QF-M2XP`, Crockford base32).
+    private static final Pattern CODE = Pattern.compile(
+            "[0-9]{1,12}\\.[A-Za-z0-9_-]{16,128}|[0-9]{1,12}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}");
 
     static String gameUrl(String server) {
         return server.replaceAll("/+$", "") + "/play";

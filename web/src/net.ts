@@ -1,6 +1,7 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
 import type { Outage } from "@tokenmaxxing/core/picnic.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
@@ -45,6 +46,14 @@ import { hud } from "./store.ts";
 
 const TOKEN_KEY = "tokenmaxxing.session";
 
+// Rivetkit opens its sockets on the endpoint's http(s) URL. Chromium only takes those from 125, so an
+// older WebView (Huawei's ships 114) throws a SyntaxError: hand it ws(s) instead.
+globalThis.WebSocket = class extends WebSocket {
+  constructor(url: string | URL, protocols?: string | string[]) {
+    super(String(url).replace(/^http(s?):/, "ws$1:"), protocols);
+  }
+};
+
 // Actions go over connections, not stateless HTTP: the client streams request bodies, which
 // Chrome only allows over HTTP/2 (so it breaks on plain-http localhost).
 const client = createClient<typeof registry>({ endpoint: `${location.origin}/api/rivet`, devtools: false });
@@ -62,9 +71,10 @@ export let arcade: ArcadeConn;
 export let matchConn: MatchConn | null = null;
 let session = "";
 
-/** Trades a single-use login code (`<userId>.<code>`) for a session, kept for the next load. */
+/** Trades a single-use login code (`<userId>.<code>`, or a phone's `42-K7QF-M2XP`) for a session, kept for the next load. */
 export async function redeem(code: string): Promise<void> {
-  const player = client.player.get([code.split(".")[0]!]).connect();
+  const userId = parsePhoneCode(code)?.userId ?? code.split(".")[0]!;
+  const player = client.player.get([String(userId)]).connect();
   storage.setItem(TOKEN_KEY, await player.redeemLoginCode(code).finally(() => player.dispose()));
 }
 

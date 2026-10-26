@@ -1,6 +1,7 @@
 import { BURN_WINDOW_MS } from "@tokenmaxxing/core/cop.ts";
 import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Usage } from "@tokenmaxxing/core/games/types.ts";
+import { formatPhoneCode, parsePhoneCode, phoneSecret } from "@tokenmaxxing/core/pairing.ts";
 import type { TodayBySource } from "@tokenmaxxing/core/protocol.ts";
 import { dayKey, worldClock } from "@tokenmaxxing/core/range.ts";
 import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
@@ -131,10 +132,16 @@ const eventRow = (e: TokenEvent) => [
 
 const live = (list: Expiring[], now: number) => list.filter((e) => e.expiresAt > now);
 
-/** Shared by desktop sign-in and phone pairing: only hashes are persisted, never the code. */
-function loginCode(state: PlayerState): { code: string; expiresAt: number } {
+/**
+ * Shared by desktop sign-in and phone pairing: only hashes are persisted, never the code. A phone's code is
+ * short enough to type (`42-K7QF-M2XP`); the desktop's goes in a link, so it stays long.
+ */
+function loginCode(state: PlayerState, phone = false): { code: string; expiresAt: number } {
   const now = Date.now();
-  const { token, hash } = makeToken(state.userId);
+  const secret = phone ? phoneSecret() : null;
+  const { token, hash } = secret
+    ? { token: formatPhoneCode(state.userId, secret), hash: sha256(secret) }
+    : makeToken(state.userId);
   const expiresAt = now + LOGIN_CODE_MS;
   state.loginCodes = [...live(state.loginCodes, now), { hash, expiresAt }].slice(-MAX_LOGIN_CODES);
   return { code: token, expiresAt };
@@ -220,6 +227,8 @@ export const player = actor({
     serial: serial(),
     ingests: new RateLimiter(INGESTS_PER_MIN, 60_000),
     phoneCodes: new RateLimiter(5, 60_000),
+    /** Guesses at a short phone code: 10 a minute against 40 bits and at most 5 live codes. */
+    phoneRedeems: new RateLimiter(10, 60_000),
     battleUpdate: coalesceBattleUpdates(),
     trophies: trophyCache(),
   }),
@@ -273,13 +282,16 @@ export const player = actor({
       if (caller.kind !== "user" || caller.via === "linked") throw unauthorized();
       if (!c.vars.phoneCodes.take("pair", Date.now()))
         throw new UserError("Too many pairing codes. Try again in a minute.", { code: "rate_limited" });
-      return loginCode(c.state);
+      return loginCode(c.state, true);
     },
 
     /** Single use. Returns a 30-day browser session token. */
     redeemLoginCode: (c, code: string): string => {
       const now = Date.now();
-      const t = splitToken(code);
+      const phone = splitToken(code) ? null : parsePhoneCode(code);
+      if (phone && !c.vars.phoneRedeems.take("redeem", now))
+        throw new UserError("Too many tries. Wait a minute, then make a new code.", { code: "rate_limited" });
+      const t = splitToken(code) ?? phone;
       const hash = t && t.userId === c.state.userId ? sha256(t.secret) : null;
       const codes = live(c.state.loginCodes, now);
       if (!hash || !codes.some((x) => x.hash === hash))

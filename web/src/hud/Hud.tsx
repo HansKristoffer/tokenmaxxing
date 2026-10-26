@@ -2,6 +2,7 @@ import { isBot } from "@tokenmaxxing/core/bots.ts";
 import { compact, levelTitle, plural } from "@tokenmaxxing/core/format.ts";
 import { milestonesBetween } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
+import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
 import type { Wallet } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
@@ -379,8 +380,8 @@ function SignedOut({ expired }: { expired: boolean }) {
   const { busy, error, run } = useRun();
   const submit = run(async () => {
     const value = code.trim();
-    if (!/^\d{1,12}\.[A-Za-z0-9_-]{16,128}$/.test(value))
-      throw new Error("Paste the sign-in code from your computer.");
+    if (!parsePhoneCode(value) && !/^\d{1,12}\.[A-Za-z0-9_-]{16,128}$/.test(value))
+      throw new Error("Type the code from your computer, like 42-K7QF-M2XP.");
     await redeem(value);
     location.reload();
   });
@@ -395,7 +396,7 @@ function SignedOut({ expired }: { expired: boolean }) {
         </p>
         <p>
           On your computer, open your player card → Computers → Connect phone. Scan the QR in the Android app,
-          or paste its code here.
+          or type its code here.
         </p>
         <form className="phone-signin" onSubmit={submit}>
           <label>
@@ -403,8 +404,9 @@ function SignedOut({ expired }: { expired: boolean }) {
             <input
               value={code}
               onChange={(e) => setCode(e.target.value)}
+              placeholder="42-K7QF-M2XP"
               autoComplete="off"
-              autoCapitalize="none"
+              autoCapitalize="characters"
               spellCheck={false}
             />
           </label>

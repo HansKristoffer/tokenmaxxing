@@ -36,3 +36,21 @@ test("phone pairing is rate limited and codes remain bounded", async () => {
   await p.mintLoginCode();
   await expect(client.player.get([String(u.userId)]).redeemLoginCode(first.code)).rejects.toThrow();
 });
+
+test("a phone code is short enough to type, and reads however it was typed", async () => {
+  const u = await signUp("phoneshort");
+  const { code } = await as(u.token).player(u.userId).mintPhoneLoginCode();
+  expect(code).toMatch(new RegExp(`^${u.userId}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$`));
+  const typed = ` ${code.replaceAll("-", " ").toLowerCase()} `;
+  const phone = await client.player.get([String(u.userId)]).redeemLoginCode(typed);
+  expect((await as(phone).town.me()).name).toBe(u.name);
+});
+
+test("guessing phone codes is rate limited", async () => {
+  const u = await signUp("phoneguess");
+  const { code } = await as(u.token).player(u.userId).mintPhoneLoginCode();
+  const player = client.player.get([String(u.userId)]);
+  for (let i = 0; i < 10; i++)
+    await expect(player.redeemLoginCode(`${u.userId}-AAAA-AAAA`)).rejects.toThrow("expired");
+  await expect(player.redeemLoginCode(code)).rejects.toThrow("Too many tries");
+});
