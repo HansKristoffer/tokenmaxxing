@@ -2,9 +2,6 @@ import { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { worldWall } from "@tokenmaxxing/core/range.ts";
 import { houseTier, mapOf, ownerOfOffice } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
-import { setGeometryDetail } from "../demo3d/kit.ts";
-import { Pipeline } from "../demo3d/pipeline.ts";
-import { SHOP_INSET, type ShopDisplay, type ShopId } from "../demo3d/shops/index.ts";
 import { viewHooks } from "../game/camera.ts";
 import { ghost, startPlace } from "../game/furniture.ts";
 import { gameHits } from "../game/games.ts";
@@ -21,16 +18,19 @@ import { world } from "../game/world.ts";
 import { conn } from "../net.ts";
 import type { GraphicsSettings } from "../settings/graphics.ts";
 import { hud } from "../store.ts";
-import { tagCap } from "./declutter.ts";
-import { gpuNow } from "./dispose.ts";
-import { Drops } from "./drops.ts";
-import { Entities } from "./entities.ts";
-import { keyDirection } from "./motion.ts";
-import { Overlay } from "./overlay.ts";
+import { tagCap } from "./engine/declutter.ts";
+import { gpuNow } from "./engine/dispose.ts";
+import { Overlay } from "./engine/overlay.ts";
+import { castAt } from "./engine/pick.ts";
+import { Pipeline } from "./engine/pipeline.ts";
+import { CameraRig } from "./engine/rig.ts";
+import { SEE } from "./engine/seethrough.ts";
+import { Drops } from "./furniture/drops.ts";
+import { Placer } from "./furniture/placer.ts";
+import { setGeometryDetail } from "./kit/kit.ts";
+import { Entities } from "./people/entities.ts";
+import { keyDirection } from "./people/motion.ts";
 import { applyGraphics } from "./perf/tiers.ts";
-import { castAt } from "./pick.ts";
-import { Placer } from "./placer.ts";
-import { CameraRig } from "./rig.ts";
 import {
   buildRoom,
   preloadRoom,
@@ -39,17 +39,17 @@ import {
   type RoomView,
   roomReady,
   roomsNextTo,
-} from "./rooms.ts";
-import { SEE } from "./seethrough.ts";
+} from "./rooms/rooms.ts";
+import { SHOP_INSET, type ShopDisplay, type ShopId } from "./shops/catalog.ts";
 import { type InstalledShops, installShops, type ShopWorld } from "./shops/index.ts";
-import "./room-generic.ts";
-import "./room-loaders.ts";
-import "./room-town.ts";
-import { Signs } from "./signs.ts";
-import { lightPipeline, RoomStage } from "./stage3d.ts";
-import { signature as trophySignature, watchShelf } from "./trophies3d.ts";
-import { warmNearShops } from "./warm.ts";
-import { burstCap } from "./world-logic.ts";
+import "./rooms/room-generic.ts";
+import "./rooms/room-loaders.ts";
+import "./town/room-town.ts";
+import { lightPipeline, RoomStage } from "./engine/stage3d.ts";
+import { signature as trophySignature, watchShelf } from "./furniture/trophies3d.ts";
+import { warmNearShops } from "./rooms/warm.ts";
+import { Signs } from "./town/signs.ts";
+import { burstCap } from "./town/world-logic.ts";
 
 /**
  * The 3D renderer's entry, loaded on demand (`loadRenderer`) so Three.js is never downloaded on the Low
@@ -330,7 +330,7 @@ class Renderer3D implements Renderer {
       next = this.ahead.stage;
       this.ahead = null;
     } else {
-      next = new RoomStage(buildRoom(world.room, this.ctx()), this.overlay, this.hooks);
+      next = new RoomStage(buildRoom(world.room, this.ctx()), this.hooks);
       if (world.room === "town") {
         // A town for other plots replaces the one kept.
         if (this.town && this.town.stage !== old) this.town.stage.dispose();
@@ -403,18 +403,14 @@ class Renderer3D implements Renderer {
     if (id === "town") {
       const key = this.townIdentity();
       if (this.town?.key === key) return;
-      stage = new RoomStage(
-        buildRoom("town", { ...this.ctx(), map: mapOf("town") }),
-        this.overlay,
-        this.hooks,
-      );
+      stage = new RoomStage(buildRoom("town", { ...this.ctx(), map: mapOf("town") }), this.hooks);
       if (this.town && this.town.stage !== this.stage) this.town.stage.dispose();
       this.town = { stage, key };
     } else {
       const map = mapOf(id as never);
       if (this.ahead?.id === id && this.ahead.map === map) return;
       this.dropAhead();
-      stage = new RoomStage(buildRoom(id as never, { ...this.ctx(), map }), this.overlay, this.hooks);
+      stage = new RoomStage(buildRoom(id as never, { ...this.ctx(), map }), this.hooks);
       this.ahead = { id, map, stage };
     }
     stage.applySettings(this.settings);
@@ -848,7 +844,6 @@ class Renderer3D implements Renderer {
       for (const id of rooms) {
         const s = new RoomStage(
           buildRoom(id as never, { ...this.ctx(), map: mapOf(id as never) }),
-          this.overlay,
           this.hooks,
         );
         // Draw all of it once (nothing is uploaded until it is drawn), so freeing it is a real test.

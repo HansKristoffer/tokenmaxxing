@@ -24,7 +24,7 @@ for (const room of Object.keys(BUDGETS.high)) {
 }
 
 test("a chamfered box is 44 triangles with unit normals", async () => {
-  const { chamferBox } = await import("../src/demo3d/kit.ts");
+  const { chamferBox } = await import("../src/render3d/kit/kit.ts");
   const g = chamferBox(1, 2, 3, 0.03);
   expect(g.getAttribute("position").count / 3).toBe(44);
   const n = g.getAttribute("normal");

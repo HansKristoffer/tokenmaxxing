@@ -20,8 +20,8 @@ Object.assign(globalThis, {
   navigator: { userAgent: "bun" },
 });
 
-type Live = typeof import("../src/render3d/dungeon-live.ts");
-type Fx = typeof import("../src/render3d/raidfx.ts");
+type Live = typeof import("../src/render3d/dungeon/dungeon-live.ts");
+type Fx = typeof import("../src/render3d/dungeon/raidfx.ts");
 type Raid = typeof import("../src/game/raid.ts");
 type Store = typeof import("../src/store.ts");
 let live: Live;
@@ -31,11 +31,11 @@ let store: Store;
 let THREE: typeof import("three");
 beforeAll(async () => {
   THREE = await import("three");
-  live = await import("../src/render3d/dungeon-live.ts");
-  fx = await import("../src/render3d/raidfx.ts");
+  live = await import("../src/render3d/dungeon/dungeon-live.ts");
+  fx = await import("../src/render3d/dungeon/raidfx.ts");
   raidState = await import("../src/game/raid.ts");
   store = await import("../src/store.ts");
-  await (await import("../src/demo3d/registry.ts")).loadSlices();
+  await (await import("../src/render3d/kit/registry.ts")).loadSlices();
 });
 
 const raid = (o: Record<string, unknown> = {}) =>

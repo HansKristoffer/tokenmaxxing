@@ -3,10 +3,10 @@ import { LOOT } from "@tokenmaxxing/core/loot.ts";
 import { PET_VARIANTS } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { parseLook } from "@tokenmaxxing/core/world.ts";
-import { FACE_ROWS } from "../src/demo3d/shops/data/barber.ts";
-import { CLOTHES } from "../src/demo3d/shops/data/clothes.ts";
-import { FURNITURE_SHOP_ROWS } from "../src/demo3d/shops/data/furniture.ts";
-import { CATALOG_PETS, SHOP_PETWEAR, SHOP_VARIANTS } from "../src/demo3d/shops/data/pets.ts";
+import { FACE_ROWS } from "../src/render3d/shops/data/barber.ts";
+import { CLOTHES } from "../src/render3d/shops/data/clothes.ts";
+import { FURNITURE_SHOP_ROWS } from "../src/render3d/shops/data/furniture.ts";
+import { CATALOG_PETS, SHOP_PETWEAR, SHOP_VARIANTS } from "../src/render3d/shops/data/pets.ts";
 import {
   equipOf,
   failOf,
@@ -15,7 +15,7 @@ import {
   purchaseOf,
   realMerchId,
   wornIn,
-} from "../src/demo3d/shops/purchase.ts";
+} from "../src/render3d/shops/purchase.ts";
 
 const LOOK = {
   style: 0,
@@ -89,14 +89,12 @@ test("what is free, earned or looted is never bought", () => {
   expect(purchaseOf("nothing.1").kind).toBe("unknown");
 });
 
-test("merch of a demo company is the real company's, or nothing", () => {
-  const cos = [{ id: 7, name: "Acme Corp" }];
-  expect(realMerchId("merch.acmecorp.tee", cos)).toBe("merch.7.tee");
-  expect(realMerchId("merch.7.cap", cos)).toBe("merch.7.cap");
-  expect(realMerchId("merch.globex.tee", cos)).toBeNull();
-  expect(realMerchId("merch.7.sock", cos)).toBeNull();
-  expect(purchaseOf("merch.acmecorp.mug", cos)).toEqual({ kind: "merch", id: "merch.7.mug", companyId: 7 });
-  expect(purchaseOf("merch.globex.mug", cos).kind).toBe("unknown");
+test("merch is a real company's, or nothing", () => {
+  expect(realMerchId("merch.7.cap")).toBe("merch.7.cap");
+  expect(realMerchId("merch.acmecorp.tee")).toBeNull();
+  expect(realMerchId("merch.7.sock")).toBeNull();
+  expect(purchaseOf("merch.7.mug")).toEqual({ kind: "merch", id: "merch.7.mug", companyId: 7 });
+  expect(purchaseOf("merch.globex.mug").kind).toBe("unknown");
 });
 
 test("wearing maps onto a look the server accepts", () => {

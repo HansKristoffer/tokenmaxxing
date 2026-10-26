@@ -4,10 +4,10 @@
  * `dispose()` when it goes (a switch to 2D, where `openShopPage` opens the old Shop page instead).
  */
 
-import type { ShopBackend } from "../../demo3d/shops/backend.ts";
-import type { ShopId, ShopItem } from "../../demo3d/shops/index.ts";
-import { mountShopPanel, type ShopPanel } from "../../demo3d/shops/shopPanel.ts";
+import type { ShopBackend } from "./backend.ts";
+import type { ShopId, ShopItem } from "./catalog.ts";
 import { createGameBackend } from "./gameBackend.ts";
+import { mountShopPanel, type ShopPanel } from "./shopPanel.ts";
 import { realNet, realStore } from "./wiring.ts";
 import type { ShopWorld } from "./world.ts";
 

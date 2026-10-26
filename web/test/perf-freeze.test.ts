@@ -4,11 +4,11 @@ import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();
 
-let avatar: typeof import("../src/demo3d/avatar.ts");
+let avatar: typeof import("../src/render3d/people/avatar.ts");
 let bake: typeof import("../src/render3d/perf/bake.ts");
 let freeze: typeof import("../src/render3d/perf/freeze.ts");
 beforeAll(async () => {
-  avatar = await import("../src/demo3d/avatar.ts");
+  avatar = await import("../src/render3d/people/avatar.ts");
   bake = await import("../src/render3d/perf/bake.ts");
   freeze = await import("../src/render3d/perf/freeze.ts");
 });

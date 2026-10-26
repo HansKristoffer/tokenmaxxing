@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ticks } from "../src/demo3d/kit.ts";
+import { ticks } from "../src/render3d/kit/kit.ts";
 import {
   buildRoom,
   type RoomCtx,
@@ -7,7 +7,7 @@ import {
   registerFallbackRoom,
   registerRoom,
   withTicks,
-} from "../src/render3d/rooms.ts";
+} from "../src/render3d/rooms/rooms.ts";
 
 const stub = (id: string): RoomView => ({
   id,

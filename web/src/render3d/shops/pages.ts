@@ -4,9 +4,9 @@
  */
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
-import type { ShopId } from "../../demo3d/shops/index.ts";
-import { purchaseOf } from "../../demo3d/shops/purchase.ts";
 import { hud, type Panel } from "../../store.ts";
+import type { ShopId } from "./catalog.ts";
+import { purchaseOf } from "./purchase.ts";
 
 const TAB: Record<ShopId, Item["slot"]> = {
   clothes: "outfit",

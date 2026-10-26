@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import type * as THREE from "three";
-import { ExitMarkers, exitsOf, MARKER_REACH, thresholdOf } from "../src/render3d/exit-markers.ts";
+import { ExitMarkers, exitsOf, MARKER_REACH, thresholdOf } from "../src/render3d/rooms/exit-markers.ts";
 
 test("an exit's threshold is the walkable tile it is taken from", () => {
   // The Office's door is in the south wall: the threshold is the floor tile above it.

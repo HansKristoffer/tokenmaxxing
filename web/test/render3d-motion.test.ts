@@ -8,7 +8,7 @@ import {
   poseOf,
   turnToward,
   YAW,
-} from "../src/render3d/motion.ts";
+} from "../src/render3d/people/motion.ts";
 
 test("turning takes the short way round", () => {
   expect(angleDelta(0, Math.PI / 2)).toBeCloseTo(Math.PI / 2);

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { declutterTags, TAG_H, type TagSlot } from "../src/render3d/declutter.ts";
+import { declutterTags, TAG_H, type TagSlot } from "../src/render3d/engine/declutter.ts";
 
 const slot = (tx: number, ty: number, tdist: number): TagSlot => ({
   tx,

@@ -20,13 +20,14 @@ import { refreshMe, refreshWallet, town } from "../net.ts";
 import type { IconSpec } from "../render3d/icons.ts";
 import { hud, type ShopPageTab, useHud } from "../store.ts";
 import { CompanyOrder } from "./CompanyShop.tsx";
+import { coins } from "./format.ts";
 import { ItemIcon } from "./ItemIcon.tsx";
 import { ItemTag } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
 import { isWorn, withItem, withoutMerchTop } from "./lookOps.ts";
 import { DecorGoods, DeskGoods } from "./RoomGoods.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
-import { AvatarImage, Modal, Pills, Pixels, useRun, WalletLine } from "./ui.tsx";
+import { AvatarImage, Modal, Pills, Pixels, useRun } from "./ui.tsx";
 
 const TABS = [
   ["outfit", "Clothes"],
@@ -89,14 +90,24 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
 
   return (
     <Modal title={`🛍 ${SHOPS[shop].name}`} wide>
-      <p className="muted small">{hello}</p>
-      <WalletLine balance={wallet.balance}>
-        <span className="muted"> · </span>
-        <button type="button" className="link" onClick={() => hud.set({ panel: null })}>
-          Leave
-        </button>
-      </WalletLine>
-      {tabs.length > 1 && <Pills value={tab} options={tabs} onChange={setTab} />}
+      <div className="shop-top">
+        <p className="shop-hello">{hello}</p>
+        <div className="shop-bar">
+          {/* The wallet this tab pays from is the lit one. */}
+          <span className={tab === "company" ? "coin-chip" : "coin-chip on"}>
+            <strong>{coins(wallet.balance)}</strong> yours
+          </span>
+          {me.company && (
+            <span className={tab === "company" ? "coin-chip on" : "coin-chip"}>
+              <strong>{coins(me.company.wallet)}</strong> {me.company.name}
+            </span>
+          )}
+          <button type="button" className="shop-leave" onClick={() => hud.set({ panel: null })}>
+            Leave
+          </button>
+        </div>
+        {tabs.length > 1 && <Pills value={tab} options={tabs} onChange={setTab} />}
+      </div>
       {tab === "company" ? (
         <CompanyOrder />
       ) : tab === "decor" ? (
@@ -117,7 +128,7 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
                   title={lootLine(item) ?? undefined}
                 >
                   <ItemImage item={item} look={me.look} />
-                  <span>
+                  <span className="shop-item-name">
                     {item.name}
                     {n > 0 && <span className="muted"> ×{n}</span>}
                   </span>

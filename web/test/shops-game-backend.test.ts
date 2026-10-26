@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { Me, Wallet } from "@tokenmaxxing/server/registry";
-import type { ShopItem } from "../src/demo3d/shops/index.ts";
+import type { ShopItem } from "../src/render3d/shops/catalog.ts";
 import { createGameBackend, type GameNet } from "../src/render3d/shops/gameBackend.ts";
 
 const LOOK: Look = {
@@ -106,7 +106,6 @@ function setup(
       me: () => me,
       wallet: () => w,
       level: () => opts.level ?? 5,
-      companies: () => [{ id: 7, name: "Acme" }],
       decorInUse: () => ({}),
       setWallet: (x) => {
         w = x;

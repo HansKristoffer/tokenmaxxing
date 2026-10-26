@@ -9,10 +9,9 @@ import { DECORS } from "@tokenmaxxing/core/decor.ts";
 import { itemById, type MerchKind, merchPrice } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow, Me, MyCompany, Wallet } from "@tokenmaxxing/server/registry";
-import type { ShopBackend } from "../../demo3d/shops/backend.ts";
-import type { ShopId, ShopItem } from "../../demo3d/shops/index.ts";
+import type { ShopBackend } from "./backend.ts";
+import type { ShopId, ShopItem } from "./catalog.ts";
 import {
-  type Co,
   done,
   type Equip,
   equipOf,
@@ -23,7 +22,7 @@ import {
   type Purchase,
   purchaseOf,
   wornIn,
-} from "../../demo3d/shops/purchase.ts";
+} from "./purchase.ts";
 import type { ShopWorld } from "./world.ts";
 
 /** The server calls the shops use (the `town` connection's, by the same names). */
@@ -49,7 +48,6 @@ export interface GameStore {
   me(): Me | null;
   wallet(): Wallet | null;
   level(): number;
-  companies(): readonly Co[];
   /** The wallpaper and floor the Office has on now. */
   decorInUse(): { wall?: string; floor?: string };
   setWallet(w: Wallet): void;
@@ -78,8 +76,8 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
 
   const owned = (): readonly string[] => store.wallet()?.owned ?? [];
   const look = (): Look => store.me()?.look as Look;
-  const purchase = (id: string): Purchase => purchaseOf(id, store.companies());
-  const equip = (id: string): Equip => equipOf(id, store.companies());
+  const purchase = (id: string): Purchase => purchaseOf(id);
+  const equip = (id: string): Equip => equipOf(id);
 
   const owns = (id: string): boolean => {
     const p = purchase(id);
@@ -123,7 +121,7 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     }
     if (eq.kind === "desk") return desks.using === eq.id;
     const l = store.me()?.look;
-    return l ? wornIn(l, id, store.companies()) : false;
+    return l ? wornIn(l, id) : false;
   };
 
   /** Writes `next` as my look: on the avatar and in the HUD at once, to the server; the old look comes back if refused. */
@@ -316,7 +314,6 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
   }
 
   return {
-    kind: "game",
     coins: () => store.wallet()?.balance ?? 0,
     companyCoins: () => store.me()?.company?.wallet ?? null,
     level: () => store.level(),

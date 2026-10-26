@@ -216,16 +216,14 @@ bash app/helper/scripts/cli.sh dist/cli    # the release binaries, for every pla
 
 The world runs on a voxel 3D renderer (Three.js, loaded only when needed) on the Medium, High and Ultra graphics tiers, and
 on the classic 2D canvas on Low. **Auto** picks from the machine (High at most; Ultra is opt-in) and a frame-rate governor steps
-down if it can't keep up; the **Graphics** panel (Esc menu) changes it. The 3D asset demo runs on its own:
+down if it can't keep up; the **Graphics** panel (Esc menu) changes it.
 
 ```bash
-bun run demo:3d                        # http://localhost:4477: every room, shop and avatar, no server needed
 bun run qa:tour                        # headless tour of the real game's rooms (needs a local server and Playwright; see scripts/qa/lib.mjs)
-bun scripts/perf-harness.mjs --out perf-results/run.json   # frame budgets and counts (against the demo)
+bun scripts/perf/counts.ts medium      # per-room draw and triangle counts, checked against the budgets
 ```
 
 Architecture, the `Renderer` interface, the perf budgets and how to profile are in [ARCHITECTURE.md](ARCHITECTURE.md#3d-and-graphics-where-to-look).
-`web/concept.html` is a separate concept-art page (a vertical town; see [CONCEPT.md](CONCEPT.md)), not part of the game.
 
 ### Server config
 

@@ -8,7 +8,7 @@ import {
   scoreLines,
   seatPose,
   startLineSpan,
-} from "../src/render3d/gamefx.ts";
+} from "../src/render3d/town/gamefx.ts";
 
 const table = { x: 7, y: 5, w: 3, h: 3, kind: "table" } as const;
 const arena = { x: 7, y: 5, w: 4, h: 3, kind: "arena" } as const;

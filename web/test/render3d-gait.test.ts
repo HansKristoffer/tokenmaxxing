@@ -8,14 +8,14 @@ import {
   SWING,
   stepGait,
   walkPose,
-} from "../src/render3d/motion.ts";
+} from "../src/render3d/people/motion.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();
 
-let avatar: typeof import("../src/demo3d/avatar.ts");
+let avatar: typeof import("../src/render3d/people/avatar.ts");
 beforeAll(async () => {
-  avatar = await import("../src/demo3d/avatar.ts");
+  avatar = await import("../src/render3d/people/avatar.ts");
 });
 
 const DEG = Math.PI / 180;
@@ -97,7 +97,7 @@ test("the torso leans only while the pace changes", () => {
 });
 
 /** The voxel rig, walked through a cycle: where the hip, knee and foot of each leg end up. */
-function legsOf(a: InstanceType<typeof import("../src/demo3d/avatar.ts").Avatar>) {
+function legsOf(a: InstanceType<typeof import("../src/render3d/people/avatar.ts").Avatar>) {
   a.root.updateMatrixWorld(true);
   return a.legs.map((leg) => {
     const knee = leg.children.find((c) => (c as THREE.Group).isGroup) as THREE.Group;

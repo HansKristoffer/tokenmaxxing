@@ -5,7 +5,7 @@ import { installHeadlessGlobals } from "../../web/src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();
 const h = await import("../../web/src/render3d/perf/headless.ts");
-const { setGeometryDetail } = await import("../../web/src/demo3d/kit.ts");
+const { setGeometryDetail } = await import("../../web/src/render3d/kit/kit.ts");
 await h.loadAllSlices();
 const tier = (process.argv[2] ?? "high") as "medium" | "high";
 const check = process.argv.includes("--check");

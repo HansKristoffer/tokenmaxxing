@@ -11,6 +11,7 @@ import { startPlace } from "../game/furniture.ts";
 import { world } from "../game/world.ts";
 import { conn, refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { coins } from "./format.ts";
 import { ItemTag, rarityRing } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
 import { merchName } from "./Merch.tsx";
@@ -18,7 +19,7 @@ import { variantName } from "./PetLooks.tsx";
 import { ItemImage, isWorn, WearButton, wear } from "./Shop.tsx";
 import { TakeMeThere } from "./ShopDirectory.tsx";
 import { buyHint, SLOT_NOUN } from "./shops.ts";
-import { Modal, useRun, WalletLine } from "./ui.tsx";
+import { Modal, useRun } from "./ui.tsx";
 
 /**
  * What I hold, one square per kind with how many. Picking one shows its name, Wear, and Drop (onto
@@ -86,45 +87,34 @@ export function Bag() {
   return (
     <Modal title="🎒 Bag" wide>
       {wallet && <WalletInfo wallet={wallet} />}
-      {bag.length === 0 ? (
-        <p className="muted">Nothing yet. Things are bought in the shops.</p>
-      ) : (
+      {bag.length === 0 && <p className="muted">Nothing yet. Things are bought in the shops.</p>}
+      {item && (
         <div className="bag-pick">
-          {item ? (
-            <>
-              <strong>
-                {item.level !== undefined && "🏅 "}
-                {merchName(item)}
-                <Numbers copies={copies} item={item.id} />
-                {item.slot === "pet" && me.look.pet === item.index && me.look.petVariant > 0 && (
-                  <span className="muted"> · {variantName(item.index, me.look.petVariant)}</span>
-                )}
-                {item.loot && (
-                  <span className={`small rarity-text-${item.loot.rarity}`}> · {lootLine(item)}</span>
-                )}
-                <ItemTag item={item} />
-              </strong>
-              {item.earned && (
-                <span className="muted small">
-                  {item.earned}.{!inMyOffice && " Drop it in your own office."}
-                </span>
-              )}
-              <WearButton item={item} look={me.look} run={run} />
-              {(item.tradeable || (item.earned && inMyOffice)) && (
-                <button
-                  type="button"
-                  onClick={pieceOfDrop({ item: item.id }) && inMyOffice ? place(item.id) : drop(item.id)}
-                >
-                  {pieceOfDrop({ item: item.id }) && inMyOffice
-                    ? "Place…"
-                    : inMyOffice
-                      ? "Drop here"
-                      : "Drop"}
-                </button>
-              )}
-            </>
-          ) : (
-            <span className="muted">Pick something to wear it or drop it.</span>
+          <strong>
+            {item.level !== undefined && "🏅 "}
+            {merchName(item)}
+            <Numbers copies={copies} item={item.id} />
+            {item.slot === "pet" && me.look.pet === item.index && me.look.petVariant > 0 && (
+              <span className="muted"> · {variantName(item.index, me.look.petVariant)}</span>
+            )}
+            {item.loot && (
+              <span className={`small rarity-text-${item.loot.rarity}`}> · {lootLine(item)}</span>
+            )}
+            <ItemTag item={item} />
+          </strong>
+          {item.earned && (
+            <span className="muted small">
+              {item.earned}.{!inMyOffice && " Drop it in your own office."}
+            </span>
+          )}
+          <WearButton item={item} look={me.look} run={run} />
+          {(item.tradeable || (item.earned && inMyOffice)) && (
+            <button
+              type="button"
+              onClick={pieceOfDrop({ item: item.id }) && inMyOffice ? place(item.id) : drop(item.id)}
+            >
+              {pieceOfDrop({ item: item.id }) && inMyOffice ? "Place…" : inMyOffice ? "Drop here" : "Drop"}
+            </button>
           )}
         </div>
       )}
@@ -210,13 +200,7 @@ export function Bag() {
           );
         })}
       </ul>
-      <ul className="members shop-hints">
-        {HINT_SLOTS.filter((slot) => !bag.some((b) => itemById(b.item)?.slot === slot)).map((slot) => (
-          <li key={slot}>
-            <ShopHint slot={slot} />
-          </li>
-        ))}
-      </ul>
+      <ShopHints missing={HINT_SLOTS.filter((slot) => !bag.some((b) => itemById(b.item)?.slot === slot))} />
     </Modal>
   );
 }
@@ -224,39 +208,61 @@ export function Bag() {
 /** The slots the bag hints at, when it holds nothing of them. */
 const HINT_SLOTS = ["hat", "outfit", "pet", "furniture"] as const;
 
-/** "Buy hats at Thread & Token" with a way there, for a slot you have nothing in. */
-function ShopHint({ slot }: { slot: string }) {
-  const text = buyHint(slot, SLOT_NOUN[slot] ?? slot);
-  const shop = shopForSlot(slot);
-  if (!text || !shop) return null;
+const HINT_ICON: Record<(typeof HINT_SLOTS)[number], string> = {
+  hat: "🎩",
+  outfit: "👕",
+  pet: "🐾",
+  furniture: "🛋",
+};
+
+/** A way to the shop for each slot you have nothing in: "Find more: 🎩 Hats 👕 Outfits". */
+function ShopHints({ missing }: { missing: readonly (typeof HINT_SLOTS)[number][] }) {
+  if (missing.length === 0) return null;
   return (
-    <span className="shop-hint">
-      {text} <TakeMeThere shop={shop} />
-    </span>
+    <p className="bag-more muted small">
+      Find more:
+      {missing.map((slot) => {
+        const shop = shopForSlot(slot);
+        const noun = SLOT_NOUN[slot] ?? slot;
+        return (
+          shop && (
+            <TakeMeThere
+              key={slot}
+              shop={shop}
+              className=""
+              title={buyHint(slot, noun) ?? undefined}
+              label={`${HINT_ICON[slot]} ${noun[0]!.toUpperCase()}${noun.slice(1)}`}
+            />
+          )
+        );
+      })}
+    </p>
   );
 }
 
-/** The wallet at the top of the bag: coins, how they are earned, today's quests. */
+/** The wallet at the top of the bag: coins, today's take (how it's earned on hover), the quests still open today. */
 function WalletInfo({ wallet }: { wallet: Wallet }) {
   return (
     <>
-      <WalletLine balance={wallet.balance}>
-        <span className="muted"> · +{wallet.today} from today so far</span>
-      </WalletLine>
-      <p className="muted small">
-        Every day you earn √(tokens ÷ 1M) coins: 100M tokens is 10, 1B is 31. Finish a day 1st, 2nd or 3rd for{" "}
-        {PODIUM_COINS.join(", ")} more. Spend them in the shops.
+      <p className="wallet">
+        <strong>{coins(wallet.balance)}</strong>{" "}
+        <span
+          className="muted small"
+          title={`Every day you earn √(tokens ÷ 1M) coins: 100M tokens is 10, 1B is 31. Finish a day 1st, 2nd or 3rd for ${PODIUM_COINS.join(", ")} more.`}
+        >
+          +{wallet.today} today ⓘ
+        </span>
       </p>
-      {wallet.quests.length > 0 && (
+      {wallet.quests.some((q) => !q.done) && (
         <ul className="members">
-          {wallet.quests.map((q) => (
-            <li key={q.id} className={q.done ? undefined : "muted"}>
-              <span>
-                {q.done ? "✓" : "○"} {q.text}
-              </span>
-              <span>🪙 {q.coins}</span>
-            </li>
-          ))}
+          {wallet.quests
+            .filter((q) => !q.done)
+            .map((q) => (
+              <li key={q.id} className="muted">
+                <span>○ {q.text}</span>
+                <span>🪙 {q.coins}</span>
+              </li>
+            ))}
         </ul>
       )}
     </>

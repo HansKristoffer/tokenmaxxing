@@ -1,3 +1,4 @@
+import { isBot } from "@tokenmaxxing/core/bots.ts";
 import type { MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import { CHAT_MAX_LENGTH, mentionsIn } from "@tokenmaxxing/core/world.ts";
 import { memo, useEffect, useRef, useState } from "react";
@@ -9,10 +10,10 @@ import { MentionInput } from "./MentionInput.tsx";
 import { QuickReplies } from "./QuickReplies.tsx";
 import { AvatarImage, Pills } from "./ui.tsx";
 
-/** Who's online in this room, you first, then by name. */
+/** Who's online in this room (people, not the town's bots), you first, then by name. */
 const onlineHere = () =>
   [...world.avatars.values()]
-    .filter((a) => a.info.online)
+    .filter((a) => a.info.online && !isBot(a.info.id))
     .sort(
       (a, b) =>
         Number(b.info.id === world.selfId) - Number(a.info.id === world.selfId) ||

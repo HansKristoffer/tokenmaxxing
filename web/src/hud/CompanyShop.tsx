@@ -26,7 +26,7 @@ function Catalogue({
       {pieces.map((f) => (
         <li key={f.ch}>
           <PieceImage ch={f.ch} />
-          <span>{f.name}</span>
+          <span className="shop-item-name">{f.name}</span>
           <button
             type="button"
             className="primary"
@@ -66,29 +66,24 @@ export function CompanyOrder() {
   const owner = co.members.find((m) => m.isOwner)?.name;
   return (
     <>
-      <p className="wallet">
-        <strong>{coins(co.wallet)}</strong> in the company wallet
-      </p>
       <p className="muted small">
         Paid from the company wallet. What you order waits in the storeroom: put it out from your building.
       </p>
       {notice && <p className="muted">{notice}</p>}
       {error && <p className="error">{error}</p>}
-      <h3>📦 Storeroom</h3>
-      {co.stored.length > 0 ? (
+      <h3>📦 Storeroom{co.stored.length === 0 && <span className="h3-note"> · empty</span>}</h3>
+      {co.stored.length > 0 && (
         <ul className="shop">
           {co.stored.map((s) => (
             <li key={s.item}>
               <PieceImage ch={s.item.slice(5)} />
-              <span>
+              <span className="shop-item-name">
                 {itemById(s.item)?.name}
                 {s.count > 1 && <span className="muted"> ×{s.count}</span>}
               </span>
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="muted small">Nothing is stored right now.</p>
       )}
       {co.isOwner ? (
         <>

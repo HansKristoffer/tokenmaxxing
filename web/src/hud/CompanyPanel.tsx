@@ -10,7 +10,7 @@ import { refreshMe, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { coins } from "./format.ts";
 import { TakeMeThere } from "./ShopDirectory.tsx";
-import { Modal, useLoad, useRun } from "./ui.tsx";
+import { Modal, Pills, useLoad, useRun } from "./ui.tsx";
 
 export function CompanyPanel() {
   const me = useHud((s) => s.me);
@@ -24,6 +24,7 @@ export function CompanyPanel() {
   const co = me?.company;
   const branding = co?.branding;
   const [plot, setPlot] = useState<number | null>(null);
+  const [tab, setTab] = useState<"home" | "members" | "settings">("home");
   // Reading a website takes a little while; keep the panel current until it's done.
   useEffect(() => {
     if (branding !== "working") return;
@@ -63,128 +64,175 @@ export function CompanyPanel() {
     );
 
   const next = nextTierAt(co.tier);
+  const each = perMember(co.tokens30d, co.members.length);
+  const tabs = [
+    ["home", "Overview"],
+    ["members", co.applicants.length > 0 ? `Members · ${co.applicants.length} asking` : "Members"],
+    ["settings", "Settings"],
+  ] as const;
   return (
     <Modal title={`🏢 ${co.name}`}>
-      <p>
-        <strong>{houseTierName(co.tier)}</strong> · {compact(perMember(co.tokens30d, co.members.length))}{" "}
-        tokens per member in 30 days
-        {next !== null && <span className="muted"> · next house at {compact(next)} each</span>}
-      </p>
-      <p className="muted small">
-        Your house shows how hard your people push, not how many you are: tokens per member decide it.
-      </p>
-      <h3>Company wallet</h3>
-      <p className="wallet">
-        <strong>{coins(co.wallet)}</strong>
-        <span className="muted small"> · every coin you earn from tokens, the company gets one too</span>
-      </p>
-      <p className="company-actions">
-        <button type="button" className="primary" onClick={() => hud.set({ panel: { kind: "companyShop" } })}>
-          🛋 Storeroom{co.stored.length > 0 && ` (📦 ${sumBy(co.stored, "count")})`}
-        </button>
-        {co.isOwner && <TakeMeThere shop="furniture" label="🛋 Order at Møbelhuset" />}
-        <button type="button" onClick={() => hud.set({ panel: { kind: "merch", companyId: co.id } })}>
-          👕 Merch
-        </button>
-        <button type="button" onClick={() => hud.set({ panel: { kind: "desk" } })}>
-          🖥 My desk
-        </button>
-      </p>
-      {co.log.length > 0 && (
-        <ul className="members wallet-log">
-          {co.log.slice(0, 6).map((l) => (
-            <li key={`${l.kind}${l.at}${l.ref}${l.name}`}>
-              <span>
-                {walletLine(l)}
-                <small className="muted">
-                  {" "}
-                  · {l.kind === "match" ? l.ref.slice(5) : new Date(l.at).toLocaleDateString()}
-                </small>
-              </span>
-              <span className={l.amount < 0 ? "muted" : undefined}>
-                {l.amount > 0 ? "+" : "−"}🪙 {Math.abs(l.amount)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <h3>Website</h3>
-      <p className="muted small">
-        {co.website ? (
-          <>
-            <a href={`https://${co.website}`} target="_blank" rel="noreferrer noopener">
-              {co.website}
-            </a>{" "}
-            is on your sign.{" "}
-            {co.branding === "working"
-              ? "Painting your house in its colours…"
-              : co.branding === "failed"
-                ? "Couldn't read its colours and logo; the house keeps its own."
-                : ""}
-          </>
-        ) : (
-          "Add your website: it goes on your sign, and your house gets your brand's colours and logo."
-        )}
-      </p>
-      {co.isOwner && (
-        <CompanyForm
-          label={co.website ? "Change website" : "Set website"}
-          placeholder={co.website ?? "acme.com"}
-          maxLength={256}
-          onSubmit={(url) => run(() => town.setWebsite(url))()}
-        />
-      )}
-      {co.isOwner && co.applicants.length > 0 && (
+      <Pills value={tab} options={tabs} onChange={setTab} />
+      {tab === "home" && (
         <>
-          <h3>Asking to join ({co.applicants.length})</h3>
+          <div
+            className="co-tier"
+            title="Your house shows how hard your people push, not how many you are: tokens per member decide it."
+          >
+            <p>
+              <strong>{houseTierName(co.tier)}</strong>
+              <span className="muted small"> · {compact(each)} tokens each, 30 days</span>
+            </p>
+            {next !== null && (
+              <>
+                <span className="co-progress">
+                  <span style={{ width: `${Math.min(100, (each / next) * 100)}%` }} />
+                </span>
+                <span className="muted small">Next house at {compact(next)} each</span>
+              </>
+            )}
+          </div>
+          <p className="wallet" title="Every coin you earn from tokens, the company gets one too.">
+            <strong>{coins(co.wallet)}</strong> <span className="muted small">company wallet</span>
+          </p>
+          <p className="company-actions">
+            <button type="button" onClick={() => hud.set({ panel: { kind: "companyShop" } })}>
+              🛋 Storeroom{co.stored.length > 0 && ` · ${sumBy(co.stored, "count")}`}
+            </button>
+            {co.isOwner && <TakeMeThere shop="furniture" label="🛒 Order" />}
+            <button type="button" onClick={() => hud.set({ panel: { kind: "merch", companyId: co.id } })}>
+              👕 Merch
+            </button>
+            <button type="button" onClick={() => hud.set({ panel: { kind: "desk" } })}>
+              🖥 My desk
+            </button>
+          </p>
+          {co.log.length > 0 && (
+            <>
+              <h3>Recent</h3>
+              <ul className="members wallet-log">
+                {grouped(co.log)
+                  .slice(0, 4)
+                  .map(({ line: l, times, amount }) => (
+                    <li key={`${l.kind}${l.at}${l.ref}${l.name}`}>
+                      <span>
+                        {walletLine(l)}
+                        {times > 1 && <span className="muted"> ×{times}</span>}
+                      </span>
+                      <span className={amount < 0 ? "muted" : "good"}>
+                        {amount > 0 ? "+" : "−"}
+                        {Math.abs(amount).toLocaleString()}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </>
+          )}
+        </>
+      )}
+      {tab === "members" && (
+        <>
+          {co.isOwner && co.applicants.length > 0 && (
+            <>
+              <h3>Asking to join</h3>
+              <ul className="members">
+                {co.applicants.map((a) => (
+                  <li key={a.userId}>
+                    <span>
+                      {a.name} <small className="muted">Lv{a.level}</small>
+                    </span>
+                    <span className="answer">
+                      <button type="button" className="primary" onClick={run(() => town.approve(a.userId))}>
+                        Accept
+                      </button>
+                      <button type="button" onClick={run(() => town.decline(a.userId))}>
+                        Decline
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <h3>Members</h3>
+            </>
+          )}
           <ul className="members">
-            {co.applicants.map((a) => (
-              <li key={a.userId}>
+            {co.members.map((m) => (
+              <li key={m.userId}>
                 <span>
-                  {a.name} <small className="muted">Lv{a.level}</small>
+                  {m.name}
+                  {m.isOwner && <small className="muted"> owner</small>}
                 </span>
-                <span className="answer">
-                  <button type="button" className="primary" onClick={run(() => town.approve(a.userId))}>
-                    Accept
+                {co.isOwner && m.userId !== me.userId && (
+                  <button type="button" className="link" onClick={run(() => town.kick(m.userId))}>
+                    Remove
                   </button>
-                  <button type="button" onClick={run(() => town.decline(a.userId))}>
-                    Decline
-                  </button>
-                </span>
+                )}
               </li>
             ))}
           </ul>
         </>
       )}
-      <h3>Members ({co.members.length})</h3>
-      <ul className="members">
-        {co.members.map((m) => (
-          <li key={m.userId}>
-            <span>
-              {m.name}
-              {m.isOwner && <small className="muted"> owner</small>}
-            </span>
-            {co.isOwner && m.userId !== me.userId && (
-              <button type="button" className="link" onClick={run(() => town.kick(m.userId))}>
-                Remove
-              </button>
+      {tab === "settings" && (
+        <>
+          <p className="muted small">
+            {co.website ? (
+              <>
+                <a href={`https://${co.website}`} target="_blank" rel="noreferrer noopener">
+                  {co.website}
+                </a>{" "}
+                is on your sign.{" "}
+                {co.branding === "working"
+                  ? "Painting your house in its colours…"
+                  : co.branding === "failed"
+                    ? "Couldn't read its colours and logo; the house keeps its own."
+                    : ""}
+              </>
+            ) : (
+              "Add your website: it goes on your sign, and your house gets your brand's colours and logo."
             )}
-          </li>
-        ))}
-      </ul>
-      {co.isOwner && (
-        <CompanyForm
-          label="Rename"
-          placeholder={co.name}
-          onSubmit={(name) => run(() => town.renameCompany(name))()}
-        />
+          </p>
+          {co.isOwner && (
+            <>
+              <CompanyForm
+                label={co.website ? "Change website" : "Set website"}
+                placeholder={co.website ?? "acme.com"}
+                maxLength={256}
+                onSubmit={(url) => run(() => town.setWebsite(url))()}
+              />
+              <CompanyForm
+                label="Rename"
+                placeholder={co.name}
+                onSubmit={(name) => run(() => town.renameCompany(name))()}
+              />
+            </>
+          )}
+          <button type="button" className="danger" onClick={run(() => town.leaveCompany())}>
+            Leave {co.name}
+          </button>
+        </>
       )}
-      <button type="button" className="danger" onClick={run(() => town.leaveCompany())}>
-        Leave {co.name}
-      </button>
       {error && <p className="error">{error}</p>}
     </Modal>
   );
+}
+
+/** Runs of the same move by the same person (four chairs bought in a row) as one line. */
+function grouped(log: readonly WalletLine[]): { line: WalletLine; times: number; amount: number }[] {
+  const out: { line: WalletLine; times: number; amount: number }[] = [];
+  for (const l of log) {
+    const last = out.at(-1);
+    if (
+      last &&
+      l.kind !== "match" &&
+      last.line.kind === l.kind &&
+      last.line.ref === l.ref &&
+      last.line.name === l.name
+    ) {
+      last.times++;
+      last.amount += l.amount;
+    } else out.push({ line: l, times: 1, amount: l.amount });
+  }
+  return out;
 }
 
 /** One move of the wallet, in words: "ada's tokens", "bo bought a Beanbag". */

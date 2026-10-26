@@ -4,7 +4,7 @@ import { type PokerState, SEATS } from "@tokenmaxxing/core/poker.ts";
 import { pokerChairs, pokerTable } from "@tokenmaxxing/core/pokertable.ts";
 import * as THREE from "three";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
-import { sceneOf } from "../src/render3d/poker-events.ts";
+import { sceneOf } from "../src/render3d/rooms/poker-events.ts";
 
 installHeadlessGlobals();
 
@@ -89,7 +89,7 @@ test("after a showdown the shown hands lie face up, and nothing is shown for a f
 });
 
 test("the 3D table is as big as the map's, and lays cards and chips on its felt", async () => {
-  const { pokerTable3d } = await import("../src/demo3d/poker3d.ts");
+  const { pokerTable3d } = await import("../src/render3d/rooms/poker3d.ts");
   const spot = pokerTable(MAPS.inn)!;
   const model = pokerTable3d();
   const box = new THREE.Box3().setFromObject(model);
@@ -112,7 +112,7 @@ test("the 3D table is as big as the map's, and lays cards and chips on its felt"
 });
 
 test("the Tavern room has the table and a seat at every chair of the map, at the map's tiles", async () => {
-  const { buildTavernRoom } = await import("../src/demo3d/tavern3d.ts");
+  const { buildTavernRoom } = await import("../src/render3d/rooms/tavern3d.ts");
   const inn = buildTavernRoom();
   expect(inn.poker).not.toBeNull();
   const chairs = pokerChairs(MAPS.inn);

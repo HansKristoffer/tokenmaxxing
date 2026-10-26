@@ -4,13 +4,13 @@ import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 installHeadlessGlobals();
 Object.assign(globalThis, { requestAnimationFrame: (cb: () => void) => setTimeout(cb, 0) });
 
-let W: typeof import("../src/demo3d/world.ts");
-let kit: typeof import("../src/demo3d/kit.ts");
+let W: typeof import("../src/render3d/rooms/world.ts");
+let kit: typeof import("../src/render3d/kit/kit.ts");
 beforeAll(async () => {
-  W = await import("../src/demo3d/world.ts");
-  kit = await import("../src/demo3d/kit.ts");
-  await import("../src/demo3d/world-rooms.ts");
-  await (await import("../src/demo3d/registry.ts")).loadSlices(["office", "dungeon"]);
+  W = await import("../src/render3d/rooms/world.ts");
+  kit = await import("../src/render3d/kit/kit.ts");
+  await import("../src/render3d/rooms/world-rooms.ts");
+  await (await import("../src/render3d/kit/registry.ts")).loadSlices(["office", "dungeon"]);
 });
 
 test("a hand-built room needs its code first, then builds", async () => {

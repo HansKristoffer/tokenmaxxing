@@ -3,9 +3,9 @@ import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();
 
-let shops: typeof import("../src/demo3d/shops/index.ts");
+let shops: typeof import("../src/render3d/shops/catalog.ts");
 beforeAll(async () => {
-  shops = await import("../src/demo3d/shops/index.ts");
+  shops = await import("../src/render3d/shops/catalog.ts");
 });
 
 test("the pet shop builds ahead in slices, and walking in then takes what was built", () => {

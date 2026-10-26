@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { doorsFor, hqMap, PASSAGE_W, PASSAGE_X, withSlots } from "@tokenmaxxing/core/office.ts";
-import { hallwayTiles, houseOffset, housePassage, houseTile } from "../src/render3d/hq-layout.ts";
+import { hallwayTiles, houseOffset, housePassage, houseTile } from "../src/render3d/rooms/hq-layout.ts";
 
 const doors = (n: number) =>
   doorsFor(

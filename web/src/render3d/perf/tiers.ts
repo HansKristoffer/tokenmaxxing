@@ -1,6 +1,6 @@
-import { setGeometryDetail, setTextureCap } from "../../demo3d/kit.ts";
-import type { Pipeline, PipelineOptions } from "../../demo3d/pipeline.ts";
 import type { GraphicsSettings } from "../../settings/graphics.ts";
+import type { Pipeline, PipelineOptions } from "../engine/pipeline.ts";
+import { setGeometryDetail, setTextureCap } from "../kit/kit.ts";
 
 /** Past this many device pixels per CSS pixel nobody sees the difference, and the fill cost keeps growing. */
 export const MAX_PIXEL_RATIO = 2;

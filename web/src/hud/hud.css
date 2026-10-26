@@ -1021,6 +1021,89 @@ textarea:focus {
   align-self: center;
 }
 
+/* A two-line name, so cards in a row keep their prices level. */
+.shop .shop-item-name {
+  min-height: 2.8em;
+  display: grid;
+  place-items: center;
+  line-height: 1.4;
+}
+
+.shop li > button {
+  width: 100%;
+}
+
+.shop li:has(> button.primary:not(:disabled)):hover {
+  border-color: var(--accent);
+}
+
+.shop li:has(> button.primary:disabled) .avatar {
+  opacity: 0.55;
+}
+
+/* The Shop page's top: the keeper's line, the wallets, the tabs. */
+.shop-top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shop-hello {
+  position: relative;
+  align-self: flex-start;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  font-style: italic;
+  color: var(--muted);
+}
+
+.shop-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.coin-chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--muted);
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.coin-chip strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.coin-chip.on {
+  opacity: 1;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.coin-chip.on strong {
+  color: var(--accent);
+}
+
+.shop-leave {
+  margin-left: auto;
+}
+
+.shop-top .pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-self: stretch;
+}
+
+.h3-note {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
 .merch-pics {
   display: flex;
   justify-content: center;
@@ -2581,8 +2664,7 @@ html[data-tier]:not([data-tier="low"]) .panel {
   backdrop-filter: none;
   box-shadow:
     inset 2px 2px 0 var(--bevel-light),
-    inset -2px -2px 0 var(--bevel-dark),
-    6px 6px 0 rgba(0, 0, 0, 0.35);
+    inset -2px -2px 0 var(--bevel-dark);
 }
 
 html[data-tier]:not([data-tier="low"]) .modal-head {
@@ -2630,6 +2712,12 @@ html[data-tier]:not([data-tier="low"]) .merch-grid button {
   transform: none;
 }
 
+/* The modal backdrop is a full-screen button: the world shows through it, not a button's fill. */
+html[data-tier]:not([data-tier="low"]) button.backdrop,
+html[data-tier]:not([data-tier="low"]) button.backdrop:hover {
+  background: none;
+}
+
 html[data-tier]:not([data-tier="low"]) .pills {
   border-radius: 3px;
   box-shadow: var(--block);
@@ -2654,6 +2742,18 @@ html[data-tier]:not([data-tier="low"]) .shop {
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 }
 
+html[data-tier]:not([data-tier="low"]) .shop-hello,
+html[data-tier]:not([data-tier="low"]) .coin-chip {
+  border: 2px solid var(--edge);
+  border-radius: 3px;
+  background: #352c41;
+}
+
+html[data-tier]:not([data-tier="low"]) .coin-chip.on {
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
 html[data-tier]:not([data-tier="low"]) .bag {
   grid-template-columns: repeat(auto-fill, 84px);
 }
@@ -2673,18 +2773,14 @@ html[data-tier]:not([data-tier="low"]) .hall li {
   border: 2px solid var(--edge);
   border-radius: 3px;
   background: #352c41;
-  box-shadow:
-    inset 1px 1px 0 var(--bevel-light),
-    3px 3px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: inset 1px 1px 0 var(--bevel-light);
 }
 
 html[data-tier]:not([data-tier="low"]) .shop li.wearing,
 html[data-tier]:not([data-tier="low"]) .bag .cell.wearing,
 html[data-tier]:not([data-tier="low"]) .pet-looks .cell[aria-pressed="true"] {
   border-color: var(--accent);
-  box-shadow:
-    inset 1px 1px 0 var(--bevel-light),
-    3px 3px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: inset 1px 1px 0 var(--bevel-light);
 }
 
 html[data-tier]:not([data-tier="low"]) .bag .cell[aria-pressed="true"] {
@@ -2900,4 +2996,68 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   flex: 1;
   min-width: 60px;
   padding: 0;
+}
+
+/* The 3D shops' buy card (`render3d/shops/shopPanel.ts`): left of the corner panels and the minimap, not over them. */
+#shopcard {
+  right: 244px;
+}
+
+@media (max-width: 700px) {
+  #shopcard {
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+}
+
+/* The company page's house: its tier, and how far to the next one. */
+.co-tier {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.co-tier strong {
+  font-size: 15px;
+}
+
+.co-progress {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.co-progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.wallet-log .good {
+  color: var(--good);
+}
+
+/* The bag's way to the shops for what it holds none of: one row of small buttons. */
+.bag-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.bag-more button {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* The player card's head: who they are beside their picture. */
+.card-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }

@@ -18,12 +18,12 @@ Object.assign(globalThis, {
   navigator: { userAgent: "bun" },
 });
 
-type Games = typeof import("../src/render3d/games3d.ts");
+type Games = typeof import("../src/render3d/town/games3d.ts");
 type World = typeof import("../src/game/world.ts");
 let games: Games;
 let w: World;
 beforeAll(async () => {
-  games = await import("../src/render3d/games3d.ts");
+  games = await import("../src/render3d/town/games3d.ts");
   w = await import("../src/game/world.ts");
 });
 

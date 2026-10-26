@@ -12,10 +12,12 @@ import { homePieceOf } from "@tokenmaxxing/core/home.ts";
 import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { posterOf } from "@tokenmaxxing/core/posters.ts";
 import * as THREE from "three";
-import { blockify } from "../demo3d/blocky.ts";
-import { buildBoss } from "../demo3d/bossvox.ts";
-import { trophy } from "../demo3d/dungeon3d.ts";
-import { type Asset, assetById } from "../demo3d/furniture.ts";
+import { graphics } from "../settings/graphics.ts";
+import { storage } from "../storage.ts";
+import { buildBoss } from "./dungeon/bossvox.ts";
+import { trophy } from "./dungeon/dungeon3d.ts";
+import { disposeObject } from "./engine/dispose.ts";
+import { type Asset, assetById } from "./furniture/furniture.ts";
 import {
   CEILING_ASSET_IDS,
   deskTier,
@@ -24,16 +26,14 @@ import {
   type MerchKind,
   merchProp,
   WALL_ASSET_IDS,
-} from "../demo3d/furniture3d.ts";
-import { avatarFor, type Look2D } from "../demo3d/gear3d.ts";
-import { beginTickScope, dropTickScope, endTickScope, setSmoothBands } from "../demo3d/kit.ts";
-import { petFrom2D } from "../demo3d/pets3d.ts";
-import { graphics } from "../settings/graphics.ts";
-import { storage } from "../storage.ts";
-import { disposeObject } from "./dispose.ts";
+} from "./furniture/furniture3d.ts";
 import { IconQueue, LruCache } from "./icon-queue.ts";
+import { blockify } from "./kit/blocky.ts";
+import { beginTickScope, dropTickScope, endTickScope, setSmoothBands } from "./kit/kit.ts";
+import { avatarFor, type Look2D } from "./people/gear3d.ts";
 import { view } from "./perf/freeze.ts";
-import { assetOfChar, flat } from "./room-furnished.ts";
+import { petFrom2D } from "./pets/pets3d.ts";
+import { assetOfChar, flat } from "./rooms/room-furnished.ts";
 
 export type IconSpec =
   | { kind: "piece"; ch: string }

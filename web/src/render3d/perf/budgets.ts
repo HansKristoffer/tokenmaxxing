@@ -4,9 +4,6 @@
  * checks (Ultra draws what High does) and what `bun scripts/perf/counts.ts medium --check` checks for Medium's plainer
  * geometry. `triangles` is one pass over the room's smooth variant (the Voxel style's blocks are fewer); `textureMB` is the
  * room's canvas textures, uncompressed with mipmaps. Raise a number only with a reason in the commit.
- *
- * Whole frames (people, weather, shadows, post) are budgeted by tier in `FRAME_BUDGETS` and checked on a real browser by
- * `bun scripts/perf-harness.mjs --check`.
  */
 export interface RoomBudget {
   drawCalls: number;
@@ -60,28 +57,3 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
 };
 
 export const budgetFor = (roomId: string, tier: BudgetTier = "high"): RoomBudget => BUDGETS[tier][roomId]!;
-
-/**
- * A whole frame of the town with the default crowd, on the reference machine of `scripts/perf-harness.mjs`: draw calls and
- * triangles of one frame (shadow passes included), and the CPU time of the frame callback at p95.
- */
-export interface FrameBudget {
-  drawCalls: number;
-  triangles: number;
-  cpuP95Ms: number;
-}
-export const FRAME_BUDGETS: Record<"medium" | "high" | "ultra", FrameBudget> = {
-  medium: { drawCalls: 340, triangles: 185_000, cpuP95Ms: 3.5 },
-  high: { drawCalls: 480, triangles: 200_000, cpuP95Ms: 4.5 },
-  ultra: { drawCalls: 620, triangles: 230_000, cpuP95Ms: 5 },
-};
-
-/** The same, with `?crowd=40` (forty people and thirteen pets in the town): the worst case that must still hold. */
-export const CROWD_FRAME_BUDGETS: Record<"medium" | "high" | "ultra", FrameBudget> = {
-  medium: { drawCalls: 800, triangles: 270_000, cpuP95Ms: 4.5 },
-  high: { drawCalls: 1250, triangles: 320_000, cpuP95Ms: 6.5 },
-  ultra: { drawCalls: 1850, triangles: 410_000, cpuP95Ms: 8 },
-};
-
-/** Memory budgets for a whole session: live GL textures/buffers after 50 room switches may not grow past this share. */
-export const LEAK_TOLERANCE = 1.1;

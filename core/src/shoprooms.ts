@@ -1,6 +1,6 @@
 /**
  * The four physical shops as rooms: Møbelhuset (furniture), Thread & Token (clothes), Figaro's (barber) and
- * the pet shop. Their plans are the 3D shops' interiors tile for tile (web/src/demo3d/shops): each map is the
+ * the pet shop. Their plans are the 3D shops' interiors tile for tile (web/src/render3d/shops): each map is the
  * interior at the world-grid inset `SHOP_INSET` (two wall rows on top, one wall column on the left), so a 3D
  * builder can generate the room from this file alone: sizes, the door, the counter, the shopkeeper's spot,
  * the seats (`c` chairs, `b` beds) and the displays (`DISPLAYS`: a tile and what E on it opens).
