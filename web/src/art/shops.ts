@@ -195,57 +195,135 @@ export const shopDisplay = cached(
     return bake(TILE, 20, (p) => {
       p.rect(1, 18, 14, 2, C.shadow);
       const k = hash(x, y, 9);
+      const pick = <T>(list: readonly T[], salt: number): T =>
+        list[Math.floor(hash(x, y, salt) * list.length)]!;
       if (shop === "furniture") {
-        // A shelf with a lamp, a vase and a stack of books.
-        p.rect(1, 3, 14, 15, C.ink);
-        p.rect(2, 4, 12, 13, C.woodDark);
-        p.rect(2, 10, 12, 1, C.ink);
-        p.rect(2, 16, 12, 1, C.ink);
-        p.rect(3, 6, 3, 4, C.lamp);
-        p.rect(4, 8, 1, 2, C.metal);
-        p.rect(8, 6, 3, 4, [C.fabric, C.rug, C.leaf][Math.floor(k * 3)]!);
-        p.rect(3, 13, 6, 3, C.fabricDark);
-        p.rect(3, 12, 5, 1, C.flowerWhite);
-        p.rect(10, 12, 3, 4, C.flowerYellow);
+        // A three-shelf unit: a lamp and a framed picture on top, a plant and books in the middle, cushions below.
+        p.rect(1, 1, 14, 17, C.ink);
+        p.rect(2, 2, 12, 15, C.woodDark);
+        p.rect(2, 7, 12, 1, C.ink);
+        p.rect(2, 12, 12, 1, C.ink);
+        p.rect(2, 7, 12, 1, C.woodLight);
+        p.rect(2, 12, 12, 1, C.woodLight);
+        // Top: a lamp with a shade, and a picture in a gold frame.
+        p.rect(4, 5, 1, 2, C.metal);
+        p.rect(3, 3, 3, 2, C.lamp);
+        p.rect(8, 3, 5, 4, C.ink);
+        p.rect(9, 4, 3, 2, pick([C.leaf, C.fabric, C.flowerRed], 3));
+        p.px(10, 4, C.flowerYellow);
+        // Middle: a potted plant and a row of books.
+        p.rect(3, 10, 3, 2, C.rug);
+        p.rect(3, 8, 3, 2, C.leaf);
+        p.px(4, 8, C.flowerRed);
+        for (const [i, bx] of [7, 9, 11].entries()) {
+          p.rect(bx, 8 + (i === 1 ? 1 : 0), 2, 4 - (i === 1 ? 1 : 0), [C.fabric, C.flowerRed, C.flowerYellow][(i + Math.floor(k * 3)) % 3]!);
+        }
+        // Bottom: two cushions and a folded blanket.
+        p.rect(3, 14, 4, 3, pick([C.fabric, C.rug, C.flowerRed], 5));
+        p.rect(3, 14, 4, 1, C.flowerWhite);
+        p.rect(8, 14, 4, 3, pick([C.flowerYellow, C.leaf, C.fabricDark], 6));
+        p.rect(8, 14, 4, 1, C.flowerWhite);
       } else if (shop === "clothes") {
-        // A rail with three hangers.
+        // A rail with a hat on top and three different garments: a tee, a dress and a jacket.
+        p.rect(3, 0, 10, 2, C.ink);
+        p.rect(4, 0, 8, 1, pick(SHIRTS, 12));
         p.rect(1, 3, 14, 1, C.ink);
         p.rect(1, 4, 14, 1, C.metalLight);
         p.rect(1, 3, 1, 16, C.metal);
         p.rect(14, 3, 1, 16, C.metal);
-        for (const [i, hx] of [3, 7, 11].entries()) {
-          const color = SHIRTS[Math.floor(hash(x + i, y, 11) * SHIRTS.length)]!;
-          p.rect(hx, 5, 3, 1, C.ink);
-          p.rect(hx - 1, 6, 5, 7, C.ink);
-          p.rect(hx, 6, 3, 6, color);
-          p.rect(hx - 1, 6, 1, 3, color);
-          p.rect(hx + 3, 6, 1, 3, color);
-        }
-        p.rect(2, 17, 12, 2, C.woodDark);
-      } else if (shop === "barber") {
-        // A mirror in a wooden frame over a shelf of bottles.
-        p.rect(2, 0, 12, 14, C.ink);
-        p.rect(3, 1, 10, 12, C.woodLight);
-        p.rect(4, 2, 8, 10, "#b5dff0");
-        p.rect(4, 2, 8, 2, C.white);
-        p.rect(5, 5, 1, 4, C.white);
-        p.rect(1, 14, 14, 5, C.ink);
+        // Tee.
+        const tee = pick(SHIRTS, 11);
+        p.rect(2, 5, 5, 1, C.ink);
+        p.rect(2, 6, 5, 7, C.ink);
+        p.rect(3, 6, 3, 6, tee);
+        p.rect(2, 6, 1, 3, tee);
+        p.rect(6, 6, 1, 3, tee);
+        // Dress: narrow top, wide skirt.
+        const dress = pick(SHIRTS, 13);
+        p.rect(8, 5, 3, 1, C.ink);
+        p.rect(8, 6, 3, 3, dress);
+        p.rect(7, 9, 5, 5, C.ink);
+        p.rect(8, 9, 3, 4, dress);
+        p.rect(7, 13, 5, 1, dress);
+        p.rect(8, 8, 3, 1, C.flowerWhite);
+        // Jacket with a white collar.
+        const jacket = pick(SHIRTS, 14);
+        p.rect(12, 5, 2, 1, C.ink);
+        p.rect(12, 6, 2, 8, jacket);
+        p.px(12, 6, C.flowerWhite);
+        p.px(13, 6, C.flowerWhite);
         p.rect(2, 15, 12, 3, C.woodDark);
-        for (const [i, bx] of [3, 6, 9, 12].entries()) {
-          p.rect(bx, 13, 2, 3, [C.flowerRed, C.fabric, C.leaf, C.flowerYellow][i]!);
-          p.px(bx, 12, C.white);
+        p.rect(2, 15, 12, 1, C.woodLight);
+        // Shoes on the base shelf.
+        p.rect(3, 14, 3, 1, C.ink);
+        p.rect(9, 14, 3, 1, C.ink);
+      } else if (shop === "barber") {
+        // A mirror with a head reflected in it, a tray of scissors and a comb, and a row of bottles.
+        p.rect(2, 0, 12, 13, C.ink);
+        p.rect(3, 1, 10, 11, C.woodLight);
+        p.rect(4, 2, 8, 9, "#b5dff0");
+        p.rect(4, 2, 8, 2, C.white);
+        p.rect(5, 4, 1, 3, C.white);
+        p.disc(8, 7, 2, "#f0c8a0");
+        p.rect(6, 5, 5, 2, pick(["#3b2a22", "#c9853a", "#e8cf7a", "#b2463d"], 15));
+        p.rect(6, 10, 5, 1, C.fabric);
+        p.rect(1, 13, 14, 6, C.ink);
+        p.rect(2, 14, 12, 4, C.woodDark);
+        p.rect(2, 14, 12, 1, C.woodLight);
+        for (const [i, bx] of [3, 5, 7].entries()) {
+          p.rect(bx, 11, 2, 3, [C.flowerRed, C.leaf, C.flowerYellow][i]!);
+          p.px(bx, 10, C.white);
         }
+        // Scissors and a comb.
+        p.rect(10, 12, 1, 2, C.metalLight);
+        p.rect(12, 12, 1, 2, C.metalLight);
+        p.px(11, 14, C.metal);
+        p.rect(10, 15, 4, 1, C.flowerWhite);
+        p.rect(3, 16, 8, 1, C.ink);
       } else {
-        // A pen: a low fence round a pet on straw.
+        // A pen on straw: a cat, a dog or a rabbit, with a food bowl and a ball.
         p.rect(1, 10, 14, 9, C.ink);
         p.rect(2, 11, 12, 7, "#e6cc98");
-        const fur = ["#c9853a", "#f4efe4", "#6b4226", "#8d5a3c"][Math.floor(k * 4)]!;
-        p.rect(5, 7, 6, 6, C.ink);
-        p.rect(6, 8, 4, 4, fur);
-        p.px(5, 6, C.ink);
-        p.px(10, 6, C.ink);
-        p.px(7, 9, C.ink);
-        p.px(9, 9, C.ink);
+        const fur = pick(["#c9853a", "#f4efe4", "#6b4226", "#8d5a3c"], 16);
+        const kind = Math.floor(k * 3);
+        if (kind === 0) {
+          // Cat: pointed ears, whiskers.
+          p.rect(5, 7, 6, 6, C.ink);
+          p.rect(6, 8, 4, 4, fur);
+          p.rect(5, 5, 2, 2, C.ink);
+          p.rect(9, 5, 2, 2, C.ink);
+          p.px(5, 6, fur);
+          p.px(10, 6, fur);
+          p.px(7, 9, C.ink);
+          p.px(9, 9, C.ink);
+          p.px(8, 10, C.flowerRed);
+        } else if (kind === 1) {
+          // Dog: floppy ears, a nose.
+          p.rect(5, 6, 6, 7, C.ink);
+          p.rect(6, 7, 4, 5, fur);
+          p.rect(4, 7, 2, 4, C.ink);
+          p.rect(10, 7, 2, 4, C.ink);
+          p.rect(5, 8, 1, 2, C.woodDark);
+          p.rect(10, 8, 1, 2, C.woodDark);
+          p.px(7, 8, C.ink);
+          p.px(9, 8, C.ink);
+          p.rect(7, 10, 2, 1, C.ink);
+        } else {
+          // Rabbit: tall ears.
+          p.rect(5, 3, 2, 5, C.ink);
+          p.rect(9, 3, 2, 5, C.ink);
+          p.px(5, 4, C.flowerWhite);
+          p.px(10, 4, C.flowerWhite);
+          p.rect(5, 7, 6, 6, C.ink);
+          p.rect(6, 8, 4, 4, C.flowerWhite);
+          p.px(7, 9, C.ink);
+          p.px(9, 9, C.ink);
+          p.px(8, 10, C.flowerRed);
+        }
+        // A bowl and a ball in the corners of the pen.
+        p.rect(2, 15, 4, 2, C.ink);
+        p.rect(3, 15, 2, 1, C.flowerRed);
+        p.disc(12, 15, 1, pick([C.flowerYellow, C.fabric, C.leaf], 17));
         for (const fx of [2, 5, 8, 11, 13]) p.rect(fx, 13, 1, 5, C.woodLight);
         p.rect(1, 13, 14, 1, C.woodLight);
       }
