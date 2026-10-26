@@ -11,6 +11,7 @@ import { startPlace } from "../game/furniture.ts";
 import { world } from "../game/world.ts";
 import { conn, refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
+import { groupBag } from "./bagGroups.ts";
 import { coins } from "./format.ts";
 import { ItemTag, rarityRing } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
@@ -41,7 +42,9 @@ export function Bag() {
   const [naming, setNaming] = useState<number | null>(null);
   const [petName, setPetName] = useState("");
   const { error, run } = useRun();
-  const grid = useRef<HTMLUListElement>(null);
+  const grid = useRef<HTMLDivElement>(null);
+  // Headings folded shut; kept in memory only.
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
   // biome-ignore lint/correctness/useExhaustiveDependencies: a trade settling (a notice) or a changed wallet (a drop) can mean a new bag
   useEffect(() => {
     void town.bag().then(setBag, (e) => setFailed(errorText(e)));
@@ -148,58 +151,83 @@ export function Bag() {
       )}
       {dropped && <p className="muted">{dropped}</p>}
       {error && <p className="error">{error}</p>}
-      <ul className="bag" ref={grid}>
-        {bag.map((b) => {
-          const it = itemById(b.item);
-          if (!it) return null;
-          const wearing = isWorn(it, me.look);
+      <div className="bag-groups" ref={grid}>
+        {groupBag(bag, (it) => isWorn(it, me.look), merchName).map((g) => {
+          const open = !folded.has(g.id);
           return (
-            <li key={b.item}>
-              <button
-                type="button"
-                className={`${wearing ? "cell wearing" : "cell"}${rarityClass(it)}`}
-                aria-pressed={b.item === picked}
-                aria-label={`${merchName(it)} ×${b.count}${wearing ? ", wearing" : ""}${it.level === undefined ? "" : ", reward"}`}
-                title={it.loot ? `${merchName(it)}\n${lootLine(it)}` : merchName(it)}
-                style={rarityRing(it)}
-                onClick={() => setPicked(b.item)}
-              >
-                <ItemImage item={it} look={me.look} bare worn />
-                {it.level !== undefined && <span className="medal">🏅</span>}
-                {copies.some((c) => c.item === b.item) && (
-                  <span className="medal">#{copies.find((c) => c.item === b.item)!.n}</span>
-                )}
-                {b.count > 1 && <span className="n">×{b.count}</span>}
-              </button>
-              {it.slot === "pet" && petLooks(it.index) > 1 && (
+            <section key={g.id} className="bag-group">
+              <h3>
                 <button
                   type="button"
-                  className="eye"
-                  aria-label={`Choose a look for the ${it.name}`}
-                  title="Choose a look"
-                  onClick={() => hud.set({ panel: { kind: "petLooks", pet: it.index } })}
+                  className="bag-head"
+                  aria-expanded={open}
+                  onClick={() =>
+                    setFolded((f) => {
+                      const next = new Set(f);
+                      if (!next.delete(g.id)) next.add(g.id);
+                      return next;
+                    })
+                  }
                 >
-                  👁
+                  <span aria-hidden="true">{open ? "▾" : "▸"}</span> {g.title}
+                  <span className="muted small"> · {g.count}</span>
                 </button>
-              )}
-              {it.slot === "pet" && (
-                <button
-                  type="button"
-                  className="eye pen"
-                  aria-label={`Name the ${it.name}`}
-                  title="Name it"
-                  onClick={() => {
-                    setPetName(me.look.petName ?? "");
-                    setNaming(it.index);
-                  }}
-                >
-                  ✏️
-                </button>
-              )}
-            </li>
+              </h3>
+              <ul className="bag" hidden={!open} aria-label={g.title}>
+                {g.entries.map(({ row: b, item: it }) => {
+                  if (!it) return null;
+                  const wearing = isWorn(it, me.look);
+                  return (
+                    <li key={b.item}>
+                      <button
+                        type="button"
+                        className={`${wearing ? "cell wearing" : "cell"}${rarityClass(it)}`}
+                        aria-pressed={b.item === picked}
+                        aria-label={`${merchName(it)} ×${b.count}${wearing ? ", wearing" : ""}${it.level === undefined ? "" : ", reward"}`}
+                        title={it.loot ? `${merchName(it)}\n${lootLine(it)}` : merchName(it)}
+                        style={rarityRing(it)}
+                        onClick={() => setPicked(b.item)}
+                      >
+                        <ItemImage item={it} look={me.look} bare worn />
+                        {it.level !== undefined && <span className="medal">🏅</span>}
+                        {copies.some((c) => c.item === b.item) && (
+                          <span className="medal">#{copies.find((c) => c.item === b.item)!.n}</span>
+                        )}
+                        {b.count > 1 && <span className="n">×{b.count}</span>}
+                      </button>
+                      {it.slot === "pet" && petLooks(it.index) > 1 && (
+                        <button
+                          type="button"
+                          className="eye"
+                          aria-label={`Choose a look for the ${it.name}`}
+                          title="Choose a look"
+                          onClick={() => hud.set({ panel: { kind: "petLooks", pet: it.index } })}
+                        >
+                          👁
+                        </button>
+                      )}
+                      {it.slot === "pet" && (
+                        <button
+                          type="button"
+                          className="eye pen"
+                          aria-label={`Name the ${it.name}`}
+                          title="Name it"
+                          onClick={() => {
+                            setPetName(me.look.petName ?? "");
+                            setNaming(it.index);
+                          }}
+                        >
+                          ✏️
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           );
         })}
-      </ul>
+      </div>
       <ShopHints missing={HINT_SLOTS.filter((slot) => !bag.some((b) => itemById(b.item)?.slot === slot))} />
     </Modal>
   );

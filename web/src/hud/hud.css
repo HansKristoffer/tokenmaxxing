@@ -3293,3 +3293,43 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 .phone-signin button {
   align-self: flex-start;
 }
+
+/* The Bag's groups (bagGroups.ts): a heading per category with its count, folding its squares away. */
+.bag-groups {
+  display: grid;
+  gap: 10px;
+}
+
+.bag-group h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.bag-group .bag-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  width: 100%;
+  padding: 0 4px;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0;
+}
+
+.bag-group .bag[hidden] {
+  display: none;
+}
+
+.bag-group .bag {
+  margin-top: 6px;
+}
+
+@media (max-width: 700px) {
+  /* Narrow screens: the squares fill the row evenly, every one a 44px+ target. */
+  .bag-group .bag {
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  }
+}
