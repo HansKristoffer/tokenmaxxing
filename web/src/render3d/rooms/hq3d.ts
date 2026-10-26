@@ -34,14 +34,17 @@ function screen(
   s.plane(w - 0.03, h - 0.03, glow("#fff", codeScreen(seed)), [0, h * 0.3 + h / 2, 0.017]);
 }
 
-/** One tile of desk with the setup the company fleet has bought (`DESKS`, by index), facing +z. */
-export function fleetDesk(tier: number, seed = 1): Model {
+/** One tile of desk with the setup the company fleet (or a sitter) has (`DESKS`, by index), facing +z. */
+export function fleetDesk(tier: number, seed = 1, base = true): Model {
   const m = new Model();
   const t = Math.max(0, Math.min(tier, DESKS.length - 1));
   const [w, d, h] = [0.96, 0.66, 0.62];
-  m.box([w, 0.05, d], C.woodLight, [0, h, 0], 0.015);
-  for (const sx of [-1, 1]) m.box([0.05, h, d - 0.08], C.wood, [sx * (w / 2 - 0.05), 0, 0]);
-  m.box([w - 0.12, 0.3, 0.02], C.wood, [0, h - 0.3, -d / 2 + 0.04]);
+  // `base` false is the setup alone, to stand on a desk of another make (the raid's war desks).
+  if (base) {
+    m.box([w, 0.05, d], C.woodLight, [0, h, 0], 0.015);
+    for (const sx of [-1, 1]) m.box([0.05, h, d - 0.08], C.wood, [sx * (w / 2 - 0.05), 0, 0]);
+    m.box([w - 0.12, 0.3, 0.02], C.wood, [0, h - 0.3, -d / 2 + 0.04]);
+  }
   const top = h + 0.05;
   // Keyboard and a mouse, and a mug.
   m.box([0.32, 0.015, 0.1], "#3c4454", [0, top, 0.16], 0.006);
@@ -511,6 +514,7 @@ export function buildHq(opts: HqOptions = {}): Hq {
         case "b":
           // A bed is two tiles deep: the map writes `b` on both.
           beds.push(put("bed", x, y)!);
+          seen.add(`${x},${y + 1}`);
           break;
         case "p":
           put("plant", x, y);

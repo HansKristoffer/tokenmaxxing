@@ -18,6 +18,7 @@ import "./world-rooms.ts";
 import { world } from "../../game/world.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { placedIn } from "../furniture/placed.ts";
+import { DeskSetups } from "./desk-setups.ts";
 import { ExitMarkers } from "./exit-markers.ts";
 import { hallwayTiles, houseOffset, housePassage, PASSAGE_W } from "./hq-layout.ts";
 import { liveBasement, liveTavern } from "./live.ts";
@@ -276,10 +277,14 @@ function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {
     extra: hq,
   };
   const room = new WorldRoom("hq", ctx.map, skin);
+  const desks = new DeskSetups(ctx.map, hq.room.placed, [1, 2]);
   return viewOf(id, ctx.map, room, built.ticks, {
     extra: hq,
     keepers: new Set(),
-    frame: (f) => halls.player(f.me ? [f.me[0] - offset[0], f.me[1] - offset[1]] : null),
+    frame: (f) => {
+      halls.player(f.me ? [f.me[0] - offset[0], f.me[1] - offset[1]] : null);
+      desks.update(f.now);
+    },
   });
 }
 

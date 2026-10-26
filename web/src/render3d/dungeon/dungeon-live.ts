@@ -12,11 +12,13 @@ import { mySeat, raidPet, seated, sit, standUp } from "../../game/raidseat.ts";
 import { world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
 import { DUNGEON_BOSSES } from "../data/dungeon.ts";
+import { DESKS } from "../data/town.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { Figures, Swarm } from "../engine/swarm.ts";
 import type { Model } from "../kit/kit.ts";
 import { Avatar } from "../people/avatar.ts";
 import { lookFrom2D } from "../people/gear3d.ts";
+import { fleetDesk } from "../rooms/hq3d.ts";
 import type { Sign } from "../rooms/rooms.ts";
 import { withTicks } from "../rooms/rooms.ts";
 import { BossActor, DUNGEON_ASSETS, lootModel, plaque, type Terminal } from "./dungeon3d.ts";
@@ -97,6 +99,8 @@ interface Seated {
   shirt: string;
   skin: string;
   bots: { owed: number; at: THREE.Vector3; lit: number }[];
+  /** The monitors they chose, standing on their war desk in place of the laptop (none for the laptop). */
+  setup: { tier: number; model: Model } | null;
 }
 
 interface Flight {
@@ -149,6 +153,7 @@ export class DungeonLive {
   private signKey = "";
   private frame = 0;
   private readonly tmp = new THREE.Vector3();
+  private readonly tmp2 = new THREE.Vector3();
   private readonly mat = new THREE.Matrix4();
   private readonly quat = new THREE.Quaternion();
   private readonly unsub: () => void;
@@ -370,6 +375,7 @@ export class DungeonLive {
           shirt: look.outfit[0],
           skin: look.skin,
           bots: [],
+          setup: null,
         });
       }
     }
@@ -382,6 +388,11 @@ export class DungeonLive {
   }
 
   private removeSeated(s: Seated): void {
+    if (s.setup) {
+      s.setup.model.removeFromParent();
+      disposeObject(s.setup.model);
+      s.setup = null;
+    }
     if (s.avatar) {
       s.avatar.root.removeFromParent();
       disposeObject(s.avatar.root);
@@ -404,10 +415,25 @@ export class DungeonLive {
       // The desk is the tile north of the seat.
       const dx = sx - this.map.x0 + 0.5;
       const dz = sy - 1 - this.map.y0 + 0.5;
+      // Their chosen monitors stand on the desk where the laptop would (the laptop itself is shrunk away).
+      const tier = Math.max(0, Math.min(s.raider.desk ?? 0, DESKS.length - 1));
+      if (tier === 0 || s.setup?.tier !== tier) {
+        if (s.setup) {
+          s.setup.model.removeFromParent();
+          disposeObject(s.setup.model);
+          s.setup = null;
+        }
+        if (tier > 0) {
+          const model = fleetDesk(tier, 3 + s.raider.id, false);
+          this.group.add(model);
+          s.setup = { tier, model };
+        }
+      }
+      s.setup?.model.position.set(dx, 0.03, dz);
       this.mat.compose(
         this.tmp.set(dx, 0.72, dz - 0.07),
         this.quat.setFromEuler(new THREE.Euler(-0.35, 0, 0)),
-        new THREE.Vector3(1, 1, 1),
+        s.setup ? this.tmp2.set(0, 0, 0) : this.tmp2.set(1, 1, 1),
       );
       this.lids.setMatrixAt(i, this.mat);
       this.screens.setMatrixAt(i, this.mat);

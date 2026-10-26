@@ -325,6 +325,8 @@ interface Raider {
   agents: number;
   /** Tokens a minute over the 10 minutes before their last sync, fading out as that sync gets old. */
   burn: number;
+  /** The desk setup they chose (a tier in `DESKS`): their war desk wears it. Absent from older servers: the laptop. */
+  desk?: number;
 }
 
 /** The dungeon's raiders: the busiest `RAIDERS_SHOWN`, and how many more there are. */

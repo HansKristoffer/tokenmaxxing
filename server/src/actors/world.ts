@@ -1981,6 +1981,7 @@ function raiders(s: WorldState, now: number): Raiders {
         id: p.id,
         name: p.name,
         look: p.look,
+        desk: p.desk ?? 0,
         agents: Math.max(1, p.liveAgents),
         burn: Math.round((p.burn ?? 0) * Math.max(0, 1 - (now - p.lastAgentAt) / WORKING_MS)),
       })),
