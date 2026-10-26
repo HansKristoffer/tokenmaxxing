@@ -2,9 +2,13 @@ import {
   BIG_BLIND,
   type Card,
   cardFace,
+  describe,
+  evaluate,
   type Legal,
   type PokerState,
+  SEATS,
   type SeatView,
+  TURN_MS,
 } from "@tokenmaxxing/core/poker.ts";
 import { useState } from "react";
 import { world } from "../game/world.ts";
@@ -40,22 +44,79 @@ function resultLine(poker: PokerState): string | null {
 
 const STREETS = { preflop: "Pre-flop", flop: "Flop", turn: "Turn", river: "River" } as const;
 
-/** One seat in the list: name and stack, their bet, their last move, the dealer's button and whose turn it is. */
-function SeatRow({ seat, poker, at, me }: { seat: SeatView; poker: PokerState; at: number; me: boolean }) {
+/**
+ * One chair round the felt, at place `pos` (0 is the bottom, where you sit, then on round the way the deal
+ * goes): name, stack, last move or what they won, their cards, the bet in front of them, the dealer's button and
+ * the clock when it's their turn. An empty chair is a dashed outline.
+ */
+function SeatSpot({
+  seat,
+  poker,
+  at,
+  pos,
+  me,
+  clock,
+}: {
+  seat: SeatView | null;
+  poker: PokerState;
+  at: number;
+  pos: number;
+  me: boolean;
+  clock: number;
+}) {
+  if (!seat)
+    return (
+      <div className={`pk-seat pk-at-${pos} empty`}>
+        <div className="pk-plate">Open seat</div>
+      </div>
+    );
   const turn = poker.toAct === at;
+  const ended = poker.street === null ? poker.result : null;
+  const won = ended?.won[seat.userId] ?? 0;
+  const shown = ended?.shown.find((h) => h.userId === seat.userId);
+  const cls = [
+    "pk-seat",
+    `pk-at-${pos}`,
+    turn && "turn",
+    seat.folded && "folded",
+    me && "mine",
+    won > 0 && "won",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const line = won > 0 ? `+${won}${shown ? ` · ${shown.name}` : ""}` : seat.allIn ? "all in" : seat.last;
   return (
-    <li className={`${turn ? "turn" : ""}${seat.folded ? " folded" : ""}`}>
-      <span className="pk-name">
-        {poker.button === at && <span title="Dealer">🔘 </span>}
-        {turn ? "▶ " : ""}
-        {me ? "You" : (poker.names[seat.userId] ?? "?")}
-      </span>
-      <span>🪙 {seat.stack}</span>
-      <span className="muted small">
-        {seat.last ?? (seat.bet > 0 ? `in ${seat.bet}` : seat.ready ? "" : "buying in…")}
-        {seat.leaving ? " · leaving" : ""}
-      </span>
-    </li>
+    <div className={cls}>
+      <div className="pk-plate">
+        <span className="pk-name">{me ? "You" : (poker.names[seat.userId] ?? "?")}</span>
+        <span className="pk-stack">
+          🪙 {seat.stack}
+          {!me && (shown || (seat.cards && !seat.folded)) && (
+            <span className="pk-minis">
+              {shown ? (
+                shown.hole.map((c) => <PokerCard key={c} card={c} small />)
+              ) : (
+                <>
+                  <PokerCard small />
+                  <PokerCard small />
+                </>
+              )}
+            </span>
+          )}
+        </span>
+        <span className="pk-last">
+          {line ?? (seat.ready ? " " : "buying in…")}
+          {seat.leaving ? " · leaving" : ""}
+        </span>
+        {turn && <span className="pk-clock" style={{ width: `${clock * 100}%` }} />}
+        {poker.button === at && (poker.street !== null || ended) && (
+          <span className="pk-dealer" title="Dealer">
+            D
+          </span>
+        )}
+      </div>
+      {seat.bet > 0 && <span className="pk-bet">🪙 {seat.bet}</span>}
+    </div>
   );
 }
 
@@ -75,7 +136,7 @@ function Moves({
   const to = Math.max(legal.minTo, Math.min(raiseTo, legal.maxTo));
   return (
     <div className="pk-moves">
-      <button type="button" onClick={() => void act("fold")}>
+      <button type="button" className="pk-fold" onClick={() => void act("fold")}>
         Fold
       </button>
       {legal.canCheck ? (
@@ -112,6 +173,9 @@ function Moves({
           >
             +
           </button>
+          <button type="button" onClick={() => setRaiseTo(legal.minTo)}>
+            Min
+          </button>
           <button type="button" onClick={() => setRaiseTo(Math.min(legal.maxTo, Math.max(legal.minTo, pot)))}>
             Pot
           </button>
@@ -128,8 +192,9 @@ function Moves({
 }
 
 /**
- * The poker table, docked while you sit at it: your two cards, the board and the pot, the other seats, the clock,
- * and the moves. The server decides everything; the buttons only ask (`pokerAct`).
+ * The poker table, docked while you sit at it: the felt with the board and the pot, all six chairs round it
+ * (you at the bottom), your two cards and what they make, the clock and the moves. The server decides
+ * everything; the buttons only ask (`pokerAct`).
  */
 export function Poker() {
   const poker = useHud((s) => s.poker);
@@ -143,7 +208,8 @@ export function Poker() {
   if (!poker || !seat || seat.leaving) return null;
 
   const since = Date.now() - poker.at;
-  const turnS = Math.max(0, Math.ceil((poker.turnMs - since) / 1000));
+  const turnLeft = Math.max(0, poker.turnMs - since);
+  const turnS = Math.ceil(turnLeft / 1000);
   const nextS = Math.max(0, Math.ceil((poker.nextMs - since) / 1000));
   const act = async (type: string, to = 0) => setProblem(await conn.pokerAct(type, to));
   const pot = poker.pot;
@@ -152,20 +218,22 @@ export function Poker() {
     ? `Your move · ${turnS}s`
     : poker.street === null
       ? seated < 2
-        ? "Waiting for another player"
+        ? "Waiting for players"
         : poker.nextMs > 0
           ? `Next hand in ${nextS}s`
           : "Dealing…"
       : !seat.inHand
-        ? "Watching this hand: you're in on the next"
+        ? "Watching: you're in on the next hand"
         : seat.folded
           ? "You folded"
           : seat.allIn
             ? "You're all in"
             : poker.toAct >= 0
-              ? `${poker.names[poker.seats[poker.toAct]?.userId ?? 0] ?? "…"} to act · ${turnS}s`
+              ? `${poker.names[poker.seats[poker.toAct]?.userId ?? 0] ?? "…"} to act`
               : "…";
   const result = poker.street === null ? resultLine(poker) : null;
+  const made =
+    hole.length === 2 && poker.board.length >= 3 ? describe(evaluate([...hole, ...poker.board])) : null;
 
   return (
     <section className="panel poker" aria-label="Poker table">
@@ -178,38 +246,53 @@ export function Poker() {
           Leave table
         </button>
       </header>
-      <div className="pk-felt">
-        <div className="pk-cards">
-          {[0, 1, 2, 3, 4].map((i) =>
-            poker.board[i] === undefined ? (
-              <span key={i} className="pk-card empty" />
-            ) : (
-              <PokerCard key={i} card={poker.board[i]} />
-            ),
-          )}
-        </div>
-        <div className="pk-pot">
-          Pot 🪙 {pot}
-          {poker.street && <span className="muted small"> · {STREETS[poker.street]}</span>}
-        </div>
-        <div className="pk-hole">
-          {hole.length === 2 ? (
-            hole.map((c) => <PokerCard key={c} card={c} />)
+      <div className="pk-table">
+        <div className="pk-felt">
+          <div className="pk-cards">
+            {[0, 1, 2, 3, 4].map((i) =>
+              poker.board[i] === undefined ? (
+                <span key={i} className="pk-card empty" />
+              ) : (
+                <PokerCard key={i} card={poker.board[i]} />
+              ),
+            )}
+          </div>
+          {result ? (
+            <p className="pk-result">{result}</p>
           ) : (
-            <>
-              <span className="pk-card empty" />
-              <span className="pk-card empty" />
-            </>
+            <div className="pk-pot">
+              Pot 🪙 {pot}
+              {poker.street && <span className="muted small"> · {STREETS[poker.street]}</span>}
+            </div>
           )}
         </div>
+        {/* Seat `mine` at the bottom, the rest on round the way the deal goes. */}
+        {Array.from({ length: SEATS }, (_, pos) => {
+          const at = (mine + pos) % SEATS;
+          return (
+            <SeatSpot
+              key={at}
+              seat={poker.seats[at] ?? null}
+              poker={poker}
+              at={at}
+              pos={pos}
+              me={pos === 0}
+              clock={turnLeft / TURN_MS}
+            />
+          );
+        })}
       </div>
-      {result && <p className="pk-result">{result}</p>}
-      <ul className="pk-seats">
-        {poker.seats.map(
-          (s, i) => s && <SeatRow key={s.userId} seat={s} poker={poker} at={i} me={i === mine} />,
+      <div className="pk-foot">
+        {hole.length === 2 && (
+          <div className="pk-hand">
+            {hole.map((c) => (
+              <PokerCard key={c} card={c} />
+            ))}
+            {made && <span className="pk-made">{made}</span>}
+          </div>
         )}
-      </ul>
-      {legal && <Moves key={poker.v} legal={legal} bet={poker.bet} pot={pot} act={act} />}
+        {legal && <Moves key={poker.v} legal={legal} bet={poker.bet} pot={pot} act={act} />}
+      </div>
       {problem && (
         <p className="error small" role="alert">
           {problem}
