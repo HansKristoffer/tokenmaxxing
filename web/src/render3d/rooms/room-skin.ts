@@ -24,6 +24,7 @@ import { hallwayTiles, houseOffset, housePassage, PASSAGE_W } from "./hq-layout.
 import { liveBasement, liveTavern } from "./live.ts";
 import { type LiveFrame, type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
 import { TavernEvents } from "./tavern-events.ts";
+import { wallEase } from "./walls.ts";
 
 /**
  * The hand-built rooms (`world-rooms.ts`): the Tavern and the dorm, the basement, the four shops, the
@@ -253,6 +254,9 @@ function buildHouse(id: RoomId, ctx: RoomCtx): RoomView {
     m.position.set(rx + 0.5, 0, rz - 0.5);
     m.rotation.y = Math.PI;
     hq.room.group.add(m);
+    // Its doorway is in the south wall, which goes down when the camera looks over it: it goes down with it.
+    const door = m.children.find((c) => c.userData.doorway);
+    if (door) hq.room.attachToWall([0, -1], door);
   }
   // The office directory (`ς`) stands on its floor tile, facing south.
   for (const [bx, by] of ctx.map.find("ς")) {
@@ -427,7 +431,7 @@ function buildHallways(map: GameMap, hq: Hq) {
       for (const r of rows.values()) {
         const between = pz !== null && Math.abs(view.z) > 0.01 && (r.z + 0.5 - pz) * view.z > 0;
         const target = between ? 0.06 : 1;
-        r.model.scale.y += (target - r.model.scale.y) * 0.25;
+        r.model.scale.y += (target - r.model.scale.y) * wallEase.k;
         r.model.visible = r.model.scale.y > 0.02;
       }
     },
