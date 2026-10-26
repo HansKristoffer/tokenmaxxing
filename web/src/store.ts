@@ -1,23 +1,73 @@
+import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
-import type { ChatLine, CompanyInfo, RoomId } from "@tokenmaxxing/core/world.ts";
-import type { Me, Today, Wallet } from "@tokenmaxxing/server/registry";
+import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
+import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
+import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
+import type { Item } from "@tokenmaxxing/core/shop.ts";
+import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
+import type { TournamentBoard } from "@tokenmaxxing/core/tournament.ts";
+import type { ChatLine, CompanyInfo, Notice, RoomId } from "@tokenmaxxing/core/world.ts";
+import type { Me, Raid, Today, Wallet } from "@tokenmaxxing/server/registry";
 import { useSyncExternalStore } from "react";
+import { storage } from "./storage.ts";
+
+/** A tab of the Shop page: an item slot, or one of Møbelhuset's: wallpaper and floors, monitors, company supplies. */
+export type ShopPageTab = Item["slot"] | "decor" | "desk" | "company";
+
+/** Set on the first visit to town (see FirstVisit in hud/Hud.tsx). */
+export const FIRST_VISIT_KEY = "tokenmaxxing.pickedCompany";
 
 export type Panel =
   | { kind: "leaderboard" }
   | { kind: "card"; userId: number }
   | { kind: "companyCard"; companyId: number }
   | { kind: "company" }
-  | { kind: "look" }
-  | { kind: "shop" }
+  | { kind: "companyShop" }
+  | { kind: "merch"; companyId: number }
+  | { kind: "shop"; tab?: ShopPageTab }
+  | { kind: "shops" }
+  | { kind: "merchant" }
+  | { kind: "bag"; tab?: "you" | "pet" | "things" }
   | { kind: "arcade" }
-  | { kind: "newTable"; invite?: number }
+  | { kind: "newTable"; invite?: number; inviteName?: string; game?: GameId }
   | { kind: "match"; id: number }
+  | { kind: "trade"; userId: number }
+  | { kind: "trades" }
+  | { kind: "paper" }
+  | { kind: "trophies"; userId: number; name: string }
+  | { kind: "openOffices" }
+  | { kind: "directory" }
+  | { kind: "decor" }
+  | { kind: "desk" }
+  | { kind: "raid" }
+  | { kind: "quests" }
+  | { kind: "tournament" }
+  | { kind: "requests" }
+  | { kind: "hallOfFame" }
+  | { kind: "collection" }
+  | { kind: "regulars" }
+  | { kind: "jukebox" }
+  | { kind: "graphics" }
   | { kind: "menu" }
   | { kind: "changelog" };
 
-/** Set on the first visit to town (see FirstVisit in hud/Hud.tsx). */
-export const FIRST_VISIT_KEY = "tokenmaxxing.pickedCompany";
+/** The jukebox's mute and volume, kept on this device. */
+export interface JukeSettings {
+  muted: boolean;
+  volume: number;
+}
+export const JUKE_KEY = "tokenmaxxing.jukebox";
+
+function loadJukeSettings(): JukeSettings {
+  try {
+    const s = JSON.parse(storage.getItem(JUKE_KEY) ?? "{}") as Partial<JukeSettings>;
+    const volume = typeof s.volume === "number" ? Math.min(1, Math.max(0, s.volume)) : 0.6;
+    return { muted: s.muted === true, volume };
+  } catch {
+    return { muted: false, volume: 0.6 };
+  }
+}
 
 /** Game panels keep the chat usable beside them. */
 export const chatBeside = (panel: Panel | null): boolean =>
@@ -29,6 +79,12 @@ interface HudState {
   me: Me | null;
   stats: Today["me"] | null;
   wallet: Wallet | null;
+  /** Today's quests and the week's. */
+  questBoard: QuestBoard | null;
+  /** The basement's tournament: the live bracket, and the champion (who has a title in chat). */
+  tournament: TournamentBoard | null;
+  /** This week's boss and the town's fight with it. */
+  raid: Raid | null;
   /** Today's top players by tokens, with me appended when I'm outside them. */
   board: Today["top"];
   room: RoomId;
@@ -38,12 +94,14 @@ interface HudState {
   panel: Panel | null;
   /** A line of text at the bottom (inspecting things, locked doors). */
   dialog: string | null;
+  /** Facing one of my own pieces of furniture: what G and M do to it (null: none). */
+  pieceHint: string | null;
   /** The room name, shown briefly on entering. */
   banner: { text: string; at: number } | null;
   /** Bumped to ask the chat input to take focus. */
   chatFocus: number;
-  /** A line from the server for me: someone asked to join my company, or I got in. */
-  notice: { text: string; at: number } | null;
+  /** A line from the server for me: someone asked to join my company, or offered me a trade. */
+  notice: (Notice & { at: number }) | null;
   /** Tables, games and where I am in them, live from the arcade. */
   lobby: Lobby | null;
   /** The open match panel's latest frame. */
@@ -56,6 +114,17 @@ interface HudState {
   inviteTable: number | null;
   /** The last time someone @-mentioned me from another room. */
   mention: { line: ChatLine; at: number } | null;
+  /** The weather over Copenhagen, from the server. */
+  weather: Weather;
+  /** What the raid's last kills dropped, for everyone (`world` sends `loot`). */
+  lootNews: { news: LootNews[]; at: number } | null;
+  /** What the Tavern's jukebox is playing for the room, or null (`world` sends `jukebox`). */
+  jukebox: JukeboxNow | null;
+  jukeSettings: JukeSettings;
+  /** The Tavern's poker table as the room sees it, and when it arrived (its clocks are counted from then); null away from the Tavern. */
+  poker: (PokerState & { at: number }) | null;
+  /** My two cards at the poker table (`world` sends `pokerHole` to me alone). */
+  pokerHole: Card[];
 }
 
 let state: HudState = {
@@ -63,6 +132,9 @@ let state: HudState = {
   me: null,
   stats: null,
   wallet: null,
+  questBoard: null,
+  tournament: null,
+  raid: null,
   board: [],
   room: "town",
   occupancy: {},
@@ -70,15 +142,22 @@ let state: HudState = {
   chat: [],
   panel: null,
   dialog: null,
+  pieceHint: null,
   banner: null,
   chatFocus: 0,
   mention: null,
+  lootNews: null,
+  jukebox: null,
+  jukeSettings: loadJukeSettings(),
+  poker: null,
+  pokerHole: [],
   notice: null,
   lobby: null,
   frame: null,
   matchChat: [],
   clockSkew: 0,
   inviteTable: null,
+  weather: CALM,
 };
 const listeners = new Set<() => void>();
 

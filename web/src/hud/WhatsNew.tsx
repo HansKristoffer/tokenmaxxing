@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { type Release, releases, unseenReleases } from "../changelog.ts";
+import { storage } from "../storage.ts";
 import { FIRST_VISIT_KEY, hud, useHud } from "../store.ts";
 import { Modal } from "./ui.tsx";
 
@@ -14,12 +15,12 @@ export function WhatsNewToast() {
   const ready = useHud((s) => s.status === "ready");
   // On the first render, before FirstVisit marks this visit as having been in town.
   const [fresh] = useState(() =>
-    unseenReleases(releases, localStorage.getItem(SEEN_KEY), localStorage.getItem(FIRST_VISIT_KEY) !== null),
+    unseenReleases(releases, storage.getItem(SEEN_KEY), storage.getItem(FIRST_VISIT_KEY) !== null),
   );
   const [view, setView] = useState<"peek" | "open" | "closed">("peek");
   useEffect(() => {
     const latest = releases[0];
-    if (ready && latest) localStorage.setItem(SEEN_KEY, latest.version);
+    if (ready && latest) storage.setItem(SEEN_KEY, latest.version);
   }, [ready]);
   const [newest] = fresh;
   if (!ready || !newest || view === "closed") return null;

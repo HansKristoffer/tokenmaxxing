@@ -1,8 +1,12 @@
+import { BURN_WINDOW_MS } from "@tokenmaxxing/core/cop.ts";
 import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Usage } from "@tokenmaxxing/core/games/types.ts";
+import { formatPhoneCode, parsePhoneCode, phoneSecret } from "@tokenmaxxing/core/pairing.ts";
 import type { TodayBySource } from "@tokenmaxxing/core/protocol.ts";
-import { dayKey } from "@tokenmaxxing/core/range.ts";
+import { dayKey, worldClock } from "@tokenmaxxing/core/range.ts";
+import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
 import type { IngestResponse, Source, TokenEvent } from "@tokenmaxxing/core/types.ts";
+import { chunkArray, sumBy } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import { db } from "rivetkit/db";
@@ -10,6 +14,7 @@ import { sha256 } from "../crypto.ts";
 import { reconcileCursorUsage } from "../cursor-usage.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { AGENT_BUCKET_MS } from "../stats.ts";
+import { trophiesOf, trophyCache } from "../trophies.ts";
 import { coalesceBattleUpdates, drainUsageReports, reportUsageDays } from "../usage-reports.ts";
 import { MAX_EVENTS_PER_REQUEST, parseEvent } from "../validate.ts";
 import type { registry } from "./registry.ts";
@@ -127,6 +132,21 @@ const eventRow = (e: TokenEvent) => [
 
 const live = (list: Expiring[], now: number) => list.filter((e) => e.expiresAt > now);
 
+/**
+ * Shared by desktop sign-in and phone pairing: only hashes are persisted, never the code. A phone's code is
+ * short enough to type (`42-K7QF-M2XP`); the desktop's goes in a link, so it stays long.
+ */
+function loginCode(state: PlayerState, phone = false): { code: string; expiresAt: number } {
+  const now = Date.now();
+  const secret = phone ? phoneSecret() : null;
+  const { token, hash } = secret
+    ? { token: formatPhoneCode(state.userId, secret), hash: sha256(secret) }
+    : makeToken(state.userId);
+  const expiresAt = now + LOGIN_CODE_MS;
+  state.loginCodes = [...live(state.loginCodes, now), { hash, expiresAt }].slice(-MAX_LOGIN_CODES);
+  return { code: token, expiresAt };
+}
+
 /** Which kind of credential `secret` is for this player (and which device), if any. */
 function credential(s: PlayerState, secret: string, now: number): { via: Via; deviceId?: number } | null {
   const hash = sha256(secret);
@@ -206,7 +226,11 @@ export const player = actor({
   createVars: () => ({
     serial: serial(),
     ingests: new RateLimiter(INGESTS_PER_MIN, 60_000),
+    phoneCodes: new RateLimiter(5, 60_000),
+    /** Guesses at a short phone code: 10 a minute against 40 bits and at most 5 live codes. */
+    phoneRedeems: new RateLimiter(10, 60_000),
     battleUpdate: coalesceBattleUpdates(),
+    trophies: trophyCache(),
   }),
   db: db({ onMigrate: migrateEvents }),
   createConnState: (c, params: ConnParams): Caller => {
@@ -224,6 +248,7 @@ export const player = actor({
     while (!signal.aborted) {
       try {
         await c.keepAwake(cleanExcludedEvents(c.db, signal));
+        await c.keepAwake(requeueEveryDay(c.db, signal));
         await c.keepAwake(
           drainUsageReports(c.db, c.vars.serial, signal, (days) => {
             signal.throwIfAborted();
@@ -248,18 +273,25 @@ export const player = actor({
     /** The menu bar app's "Open world": a code the browser trades for a session. */
     mintLoginCode: (c): string => {
       requireDevice(c.conn.state);
-      const now = Date.now();
-      const { token, hash } = makeToken(c.state.userId);
-      c.state.loginCodes = [...live(c.state.loginCodes, now), { hash, expiresAt: now + LOGIN_CODE_MS }].slice(
-        -MAX_LOGIN_CODES,
-      );
-      return token;
+      return loginCode(c.state).code;
+    },
+
+    /** An explicitly requested phone sign-in, authorized by the app or an existing game session. */
+    mintPhoneLoginCode: (c): { code: string; expiresAt: number } => {
+      const caller = c.conn.state;
+      if (caller.kind !== "user" || caller.via === "linked") throw unauthorized();
+      if (!c.vars.phoneCodes.take("pair", Date.now()))
+        throw new UserError("Too many pairing codes. Try again in a minute.", { code: "rate_limited" });
+      return loginCode(c.state, true);
     },
 
     /** Single use. Returns a 30-day browser session token. */
     redeemLoginCode: (c, code: string): string => {
       const now = Date.now();
-      const t = splitToken(code);
+      const phone = splitToken(code) ? null : parsePhoneCode(code);
+      if (phone && !c.vars.phoneRedeems.take("redeem", now))
+        throw new UserError("Too many tries. Wait a minute, then make a new code.", { code: "rate_limited" });
+      const t = splitToken(code) ?? phone;
       const hash = t && t.userId === c.state.userId ? sha256(t.secret) : null;
       const codes = live(c.state.loginCodes, now);
       if (!hash || !codes.some((x) => x.hash === hash))
@@ -354,6 +386,7 @@ export const player = actor({
         const days = (await c.db.execute("SELECT DISTINCT day FROM events")) as { day: string }[];
         await c.db.execute("DELETE FROM events");
         await c.db.execute("DELETE FROM pending_usage_days");
+        c.vars.trophies = trophyCache();
         return days.map((d) => d.day);
       });
     },
@@ -371,8 +404,14 @@ export const player = actor({
       )) as { source: Source; tokens: number; prs: number }[];
       return {
         sources: rows.filter((r) => r.tokens > 0).map(({ source, tokens }) => ({ source, tokens })),
-        prs: rows.reduce((n, r) => n + r.prs, 0),
+        prs: sumBy(rows, "prs"),
       };
+    },
+
+    /** For `town`: the trophies on my office shelf. */
+    trophies: (c): Promise<Trophy[]> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => trophiesOf(c.db, c.vars.trophies, Date.now()));
     },
 
     /** A usage game's score (Tokenmaxxing). */
@@ -405,8 +444,7 @@ export const player = actor({
           async (tx) => {
             let inserted = 0;
             const reconciled = await reconcileCursorUsage(tx, valid);
-            for (let i = 0; i < reconciled.length; i += INSERT_CHUNK) {
-              const chunk = reconciled.slice(i, i + INSERT_CHUNK);
+            for (const chunk of chunkArray(reconciled, INSERT_CHUNK)) {
               const row = `(${COLUMNS.map(() => "?").join(",")})`;
               const rows = await tx.execute(
                 `INSERT OR IGNORE INTO events (${COLUMNS.join(",")}) VALUES ${chunk.map(() => row).join(",")} RETURNING id`,
@@ -528,8 +566,10 @@ export async function migrateEvents(d: Sql): Promise<void> {
     await d.execute("INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events");
     await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (1)");
   }
-  // Where the excluded-bots cleanup has got to (`cleanExcludedEvents`), by event id.
+  // Where the excluded-bots cleanup and card v2's re-queue have got to (`cleanExcludedEvents`,
+  // `requeueEveryDay`), by event id.
   await d.execute("CREATE TABLE IF NOT EXISTS excluded_cleanup (last_id INTEGER NOT NULL)");
+  await d.execute("CREATE TABLE IF NOT EXISTS requeue_cursor (last_id INTEGER NOT NULL)");
 }
 
 /** Events per batch of `cleanExcludedEvents`: each is a short scan, so the actor stays responsive. */
@@ -573,6 +613,34 @@ export async function cleanExcludedEvents(d: Sql, signal?: AbortSignal): Promise
     await d.execute("INSERT INTO excluded_cleanup VALUES (?)", to);
   }
   await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (4)");
+}
+
+/**
+ * Card v2's habit columns (sessions, subagents, hours, sources) are new on `activity_daily`: every
+ * stored day is re-reported once, through the same drain, so history fills them in. In the
+ * background, a range of ids at a time, picking up where it stopped: in `onMigrate`, reading a big
+ * history cold outlived the 30 s startup limit, rolled back, and every start tried it again.
+ */
+export async function requeueEveryDay(d: Sql, signal?: AbortSignal): Promise<void> {
+  if ((await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 5")).length) return;
+  const [{ last } = { last: 0 }] = (await d.execute("SELECT last_id AS last FROM requeue_cursor")) as {
+    last: number;
+  }[];
+  const [{ max } = { max: 0 }] = (await d.execute("SELECT COALESCE(MAX(id), 0) AS max FROM events")) as {
+    max: number;
+  }[];
+  for (let from = last; from < max; from += CLEANUP_BATCH) {
+    signal?.throwIfAborted();
+    const to = from + CLEANUP_BATCH;
+    await d.execute(
+      "INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events WHERE id > ? AND id <= ?",
+      from,
+      to,
+    );
+    await d.execute("DELETE FROM requeue_cursor");
+    await d.execute("INSERT INTO requeue_cursor VALUES (?)", to);
+  }
+  await d.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (5)");
 }
 
 const EVENT_TOKENS = "input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens";
@@ -648,28 +716,46 @@ export async function report(
   )) as { day: string; prompts: number; prs: number }[];
   // ponytail: 5-minute buckets. Two sessions inside one bucket count as 2, and a
   // silent tool call over 5 min drops out. Merge activity intervals if people compare decimals.
-  const buckets = (await sql.execute(
-    `WITH b AS (
-       SELECT day, timestamp / ? AS bucket,
-              COUNT(DISTINCT session_id || ':' || COALESCE(agent_id, '')) AS agents
-       FROM events WHERE ${inDays} AND message_type = 'assistant'
-       GROUP BY day, bucket)
-     SELECT day, SUM(agents) AS agentBuckets, COUNT(*) AS activeBuckets, MAX(agents) AS peakAgents
-     FROM b GROUP BY day`,
+  // One row per active bucket (at most 288 a day): the sums, the subagents and the hour of day are
+  // worked out below, the hour on the world's clock (DST-correct, which SQL isn't).
+  const bucketRows = (await sql.execute(
+    `SELECT day, timestamp / ? AS bucket,
+            COUNT(DISTINCT session_id || ':' || COALESCE(agent_id, '')) AS agents,
+            COUNT(DISTINCT CASE WHEN COALESCE(agent_id, '') != '' THEN session_id || ':' || agent_id END) AS subs
+     FROM events WHERE ${inDays} AND message_type = 'assistant'
+     GROUP BY day, bucket`,
     AGENT_BUCKET_MS,
     ...days,
-  )) as { day: string; agentBuckets: number; activeBuckets: number; peakAgents: number }[];
+  )) as { day: string; bucket: number; agents: number; subs: number }[];
+  const sessions = (await sql.execute(
+    `SELECT day, COUNT(DISTINCT session_id) AS n FROM events
+     WHERE ${inDays} AND message_type = 'assistant' GROUP BY day`,
+    ...days,
+  )) as { day: string; n: number }[];
+  const sourceTokens = (await sql.execute(
+    `SELECT day, source, SUM(${EVENT_TOKENS}) AS tokens FROM events
+     WHERE ${inDays} AND message_type = 'assistant' GROUP BY day, source`,
+    ...days,
+  )) as { day: string; source: string; tokens: number }[];
   const activity: ActivityDay[] = days.map((day) => {
     const n = counts.find((r) => r.day === day);
-    const b = buckets.find((r) => r.day === day);
+    const rows = bucketRows.filter((r) => r.day === day);
+    const hours = Array<number>(24).fill(0);
+    for (const r of rows) hours[worldClock(r.bucket * AGENT_BUCKET_MS).hour]!++;
+    const sources: Record<string, number> = {};
+    for (const r of sourceTokens) if (r.day === day && r.tokens > 0) sources[r.source] = r.tokens;
     return {
       day,
       prompts: n?.prompts ?? 0,
       prs: n?.prs ?? 0,
-      agentBuckets: b?.agentBuckets ?? 0,
-      activeBuckets: b?.activeBuckets ?? 0,
-      peakAgents: b?.peakAgents ?? 0,
+      agentBuckets: rows.reduce((t, r) => t + r.agents, 0),
+      activeBuckets: rows.length,
+      peakAgents: rows.reduce((m, r) => Math.max(m, r.agents), 0),
       capped: capped.find((r) => r.day === day)?.tokens ?? 0,
+      sessions: sessions.find((r) => r.day === day)?.n ?? 0,
+      subBuckets: rows.reduce((t, r) => t + r.subs, 0),
+      hours: hours.join(","),
+      sources: rows.length ? JSON.stringify(sources) : "",
     };
   });
   await main(client).town.report(userId, days, usage, activity);
@@ -682,5 +768,23 @@ export async function report(
      FROM events WHERE message_type = 'assistant' AND timestamp > ?`,
     now - LIVE_AGENTS_MS,
   )) as [{ agents: number }];
-  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents);
+  // How hard they're going (the dungeon fires their missiles at this rate), and the last hour's burn
+  // for the 429 Cop (`core/src/cop.ts`): `tokensBetween` for both windows, in one pass.
+  const [recent] = (await sql.execute(
+    `SELECT COALESCE(SUM(MIN(live, ?)), 0) AS live, COALESCE(SUM(MIN(hour, ?)), 0) AS hour FROM (
+       SELECT SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN ${EVENT_TOKENS} ELSE 0 END) AS live,
+              SUM(CASE WHEN timestamp >= ? AND timestamp < ? THEN ${EVENT_TOKENS} ELSE 0 END) AS hour
+       FROM events WHERE message_type = 'assistant' AND timestamp >= ? AND timestamp < ?
+       GROUP BY timestamp / 60000)`,
+    MINUTE_CAP,
+    MINUTE_CAP,
+    now - LIVE_AGENTS_MS,
+    now + 1,
+    now - BURN_WINDOW_MS,
+    now,
+    Math.min(now - LIVE_AGENTS_MS, now - BURN_WINDOW_MS),
+    now + 1,
+  )) as [{ live: number; hour: number }];
+  const burn = Math.round(recent.live / (LIVE_AGENTS_MS / 60_000));
+  if (lastAt !== null) await main(client).world.activity(userId, lastAt, agents, burn, recent.hour);
 }

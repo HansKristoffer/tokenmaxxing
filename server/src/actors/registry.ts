@@ -37,7 +37,8 @@ export const registry = setup({
   // there's never an old runner to drain. Bump this if actors ever run on more than one host.
   envoy: { version: 1 },
   // Railway waits a few seconds after SIGTERM; the default grace is the engine's 30 minutes.
-  shutdown: { gracePeriodMs: 5_000 },
+  // main.ts handles SIGINT/SIGTERM itself: after the drain it also stops the engine child.
+  shutdown: { gracePeriodMs: 5_000, disableSignalHandlers: true },
 });
 
 export type { DeviceInfo } from "./player.ts";
@@ -46,15 +47,21 @@ export type {
   AdminLogEntry,
   AdminOverview,
   AdminUser,
+  BagRow,
   BoardCompany,
   BoardPlayer,
+  Cart,
   CompanyProfile,
+  Copy,
   GamePlayer,
   Leaderboard,
   Listing,
   Me,
   MyCompany,
   Profile,
+  Raid,
   Today,
+  Trade,
   Wallet,
+  WalletLine,
 } from "./town.ts";

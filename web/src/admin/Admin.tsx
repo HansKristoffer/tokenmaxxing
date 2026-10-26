@@ -1,24 +1,25 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
+import {
+  REQUEST_STATUSES,
+  type RequestEntry,
+  type RequestStatus,
+  STATUS_LABEL,
+} from "@tokenmaxxing/core/requests.ts";
 import { houseTierName } from "@tokenmaxxing/core/world.ts";
 import type { AdminCompany, AdminLogEntry, AdminOverview, AdminUser } from "@tokenmaxxing/server/registry";
+import { typedSwitch } from "hanzio";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  type AdminConn,
-  connectAdmin,
-  errorText,
-  forgetToken,
-  isUnauthorized,
-  savedToken,
-  saveToken,
-} from "./api.ts";
+import { errorText } from "../errors.ts";
+import { type AdminConn, connectAdmin, forgetToken, isUnauthorized, savedToken, saveToken } from "./api.ts";
 
-type Tab = "overview" | "users" | "companies" | "log";
+type Tab = "overview" | "users" | "companies" | "requests" | "log";
 type Act = (fn: () => Promise<unknown>, done: string) => Promise<void>;
 
 interface Data {
   overview: AdminOverview;
   users: AdminUser[];
   companies: AdminCompany[];
+  requests: RequestEntry[];
   log: AdminLogEntry[];
 }
 
@@ -84,13 +85,14 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [overview, users, companies, log] = await Promise.all([
+      const [overview, users, companies, requests, log] = await Promise.all([
         conn.adminOverview(),
         conn.adminUsers(),
         conn.adminCompanies(),
+        conn.adminRequests(),
         conn.adminLog(),
       ]);
-      setData({ overview, users, companies, log });
+      setData({ overview, users, companies, requests, log });
     } catch (err) {
       if (isUnauthorized(err)) onSignOut("That token didn't work.");
       else setMessage({ text: errorText(err), bad: true });
@@ -114,6 +116,7 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
     ["overview", "Overview"],
     ["users", `Users${data ? ` (${data.users.length})` : ""}`],
     ["companies", `Companies${data ? ` (${data.companies.length})` : ""}`],
+    ["requests", `Requests${data ? ` (${data.requests.filter((r) => r.status === "open").length})` : ""}`],
     ["log", "Log"],
   ];
   return (
@@ -147,14 +150,14 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
       <main>
         {!data ? (
           <p className="muted">{loading ? "Loading…" : "Nothing yet."}</p>
-        ) : tab === "overview" ? (
-          <Overview o={data.overview} />
-        ) : tab === "users" ? (
-          <Users users={data.users} conn={conn} act={act} />
-        ) : tab === "companies" ? (
-          <Companies companies={data.companies} conn={conn} act={act} />
         ) : (
-          <Log log={data.log} />
+          typedSwitch(tab, {
+            overview: () => <Overview o={data.overview} />,
+            users: () => <Users users={data.users} conn={conn} act={act} />,
+            companies: () => <Companies companies={data.companies} conn={conn} act={act} />,
+            requests: () => <Requests requests={data.requests} conn={conn} act={act} />,
+            log: () => <Log log={data.log} />,
+          })
         )}
       </main>
     </>
@@ -208,15 +211,14 @@ function Table<T extends { id: number }>({
   initial: number;
 }) {
   const [by, setBy] = useState({ col: initial, desc: true });
-  const sorted = useMemo(() => {
-    const key = columns[by.col]?.sort;
-    if (!key) return rows;
-    return [...rows].sort((a, b) => {
-      const [x, y] = [key(a), key(b)];
-      const d = x < y ? -1 : x > y ? 1 : 0;
-      return by.desc ? -d : d;
-    });
-  }, [rows, columns, by]);
+  const key = columns[by.col]?.sort;
+  const sorted = !key
+    ? rows
+    : [...rows].sort((a, b) => {
+        const [x, y] = [key(a), key(b)];
+        const d = x < y ? -1 : x > y ? 1 : 0;
+        return by.desc ? -d : d;
+      });
   return (
     <div className="scroll">
       <table>
@@ -266,6 +268,12 @@ const date = (ms: number) => new Date(ms).toLocaleDateString(undefined, { dateSt
 const matches = (q: string, ...texts: (string | number | null | undefined)[]) =>
   !q || texts.some((t) => t != null && String(t).toLowerCase().includes(q.toLowerCase()));
 
+/** A new name for `name`, asked for; null when cancelled or the same. */
+function askName(name: string): string | null {
+  const next = window.prompt(`New name for ${name}:`, name)?.trim();
+  return next && next !== name ? next : null;
+}
+
 /** Asks for the name again before something that can't be undone. */
 const confirmName = (what: string, name: string) =>
   window.prompt(`${what}\n\nThis can't be undone. Type "${name}" to go ahead.`)?.trim() === name;
@@ -289,6 +297,23 @@ function Users({ users, conn, act }: { users: AdminUser[]; conn: AdminConn; act:
           </>
         ) : (
           <span className="muted">—</span>
+        ),
+    },
+    {
+      label: "Bio",
+      sort: (u) => u.bioReports,
+      cell: (u) =>
+        u.bio ? (
+          <>
+            {u.bio}
+            {u.bioReports > 0 && (
+              <span className="tag bad" title="People who reported this bio">
+                ⚑ {u.bioReports}
+              </span>
+            )}
+          </>
+        ) : (
+          ""
         ),
     },
     { label: "Lvl", num: true, sort: (u) => u.level, cell: (u) => u.level },
@@ -337,13 +362,23 @@ function Users({ users, conn, act }: { users: AdminUser[]; conn: AdminConn; act:
           <button
             type="button"
             onClick={() => {
-              const name = window.prompt(`New name for ${u.name}:`, u.name)?.trim();
-              if (name && name !== u.name)
-                void act(() => conn.adminRenameUser(u.id, name), `Renamed to ${name}.`);
+              const name = askName(u.name);
+              if (name) void act(() => conn.adminRenameUser(u.id, name), `Renamed to ${name}.`);
             }}
           >
             Rename
           </button>
+          {u.bio && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Clear ${u.name}'s bio?`))
+                  void act(() => conn.adminClearBio(u.id), `Cleared ${u.name}'s bio.`);
+              }}
+            >
+              Clear bio
+            </button>
+          )}
           {u.company && (
             <button
               type="button"
@@ -468,6 +503,23 @@ function Companies({ companies, conn, act }: { companies: AdminCompany[]; conn: 
     { label: "Today", num: true, sort: (c) => c.tokensToday, cell: (c) => compact(c.tokensToday) },
     { label: "30 days", num: true, sort: (c) => c.tokens30d, cell: (c) => compact(c.tokens30d) },
     {
+      label: "Wallet",
+      num: true,
+      sort: (c) => c.wallet,
+      cell: (c) => (
+        <Coins
+          key={c.wallet}
+          balance={c.wallet}
+          onSave={(n) =>
+            act(
+              () => conn.adminSetCompanyCoins(c.id, n),
+              `${c.name}'s wallet has 🪙 ${n.toLocaleString()} now.`,
+            )
+          }
+        />
+      ),
+    },
+    {
       label: "Website",
       sort: (c) => c.website ?? "",
       cell: (c) =>
@@ -493,9 +545,8 @@ function Companies({ companies, conn, act }: { companies: AdminCompany[]; conn: 
           <button
             type="button"
             onClick={() => {
-              const name = window.prompt(`New name for ${c.name}:`, c.name)?.trim();
-              if (name && name !== c.name)
-                void act(() => conn.adminRenameCompany(c.id, name), `Renamed to ${name}.`);
+              const name = askName(c.name);
+              if (name) void act(() => conn.adminRenameCompany(c.id, name), `Renamed to ${name}.`);
             }}
           >
             Rename
@@ -530,6 +581,55 @@ function Companies({ companies, conn, act }: { companies: AdminCompany[]; conn: 
       <Table rows={rows} columns={columns} initial={7} />
     </>
   );
+}
+
+// MARK: Requests
+
+/** The Tavern's request pile: by 👍, with the status the builders give each (`Planned` is shown to everyone). */
+function Requests({ requests, conn, act }: { requests: RequestEntry[]; conn: AdminConn; act: Act }) {
+  const columns: Column<RequestEntry>[] = [
+    { label: "👍", num: true, sort: (r) => r.votes, cell: (r) => r.votes },
+    { label: "Request", cell: (r) => r.text },
+    { label: "By", sort: (r) => r.name, cell: (r) => r.name },
+    { label: "Posted", sort: (r) => r.createdAt, cell: (r) => date(r.createdAt) },
+    {
+      label: "Status",
+      sort: (r) => r.status,
+      cell: (r) => (
+        <select
+          aria-label={`Status of "${r.text}"`}
+          value={r.status}
+          onChange={(e) =>
+            void act(
+              () => conn.adminSetRequest(r.id, e.target.value as RequestStatus),
+              `Marked it ${STATUS_LABEL[e.target.value as RequestStatus]}.`,
+            )
+          }
+        >
+          {REQUEST_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABEL[s]}
+            </option>
+          ))}
+        </select>
+      ),
+    },
+    {
+      label: "",
+      cell: (r) => (
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm(`Take down "${r.text}"?`))
+              void act(() => conn.adminRemoveRequest(r.id), "Taken down.");
+          }}
+        >
+          Remove
+        </button>
+      ),
+    },
+  ];
+  return <Table rows={requests} columns={columns} initial={0} />;
 }
 
 // MARK: Log

@@ -1,33 +1,59 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
+import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
+import type { Outage } from "@tokenmaxxing/core/picnic.ts";
+import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
+import type { Weather } from "@tokenmaxxing/core/sky.ts";
 import {
   CHAT_HISTORY,
   type ChatLine,
   type CompanyInfo,
+  type Drop,
   type Houses,
   type Moves,
+  type Notice,
   type PlayerInfo,
+  type Raiders,
   type RoomId,
   type Snapshot,
   type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
-import type { registry } from "@tokenmaxxing/server/registry";
+import type { Raid, registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
+import { errorCode } from "./errors.ts";
+import { playJukebox, stopJukebox } from "./game/jukebox.ts";
+import { noteLoot } from "./game/loot.ts";
+import { duckMusic, playRoomMusic, stopRoomMusic } from "./game/music.ts";
+import { setOutage } from "./game/picnic.ts";
+import { noteRaid, setRaiders } from "./game/raid.ts";
 import {
   applyBubble,
   applyCallout,
   applyChat,
+  applyDrop,
   applyGame,
   applyGameOver,
   applyInfo,
   applyJump,
   applyMoves,
+  applyPickup,
   loadSnapshot,
   setCompanies,
   world,
 } from "./game/world.ts";
+import { storage } from "./storage.ts";
 import { hud } from "./store.ts";
 
 const TOKEN_KEY = "tokenmaxxing.session";
+
+// Rivetkit opens its sockets on the endpoint's http(s) URL. Chromium only takes those from 125, so an
+// older WebView (Huawei's ships 114) throws a SyntaxError: hand it ws(s) instead.
+globalThis.WebSocket = class extends WebSocket {
+  constructor(url: string | URL, protocols?: string | string[]) {
+    super(String(url).replace(/^http(s?):/, "ws$1:"), protocols);
+  }
+};
 
 // Actions go over connections, not stateless HTTP: the client streams request bodies, which
 // Chrome only allows over HTTP/2 (so it breaks on plain-http localhost).
@@ -46,10 +72,11 @@ export let arcade: ArcadeConn;
 export let matchConn: MatchConn | null = null;
 let session = "";
 
-/** Trades a single-use login code (`<userId>.<code>`) for a session, kept for the next load. */
+/** Trades a single-use login code (`<userId>.<code>`, or a phone's `42-K7QF-M2XP`) for a session, kept for the next load. */
 export async function redeem(code: string): Promise<void> {
-  const player = client.player.get([code.split(".")[0]!]).connect();
-  localStorage.setItem(TOKEN_KEY, await player.redeemLoginCode(code).finally(() => player.dispose()));
+  const userId = parsePhoneCode(code)?.userId ?? code.split(".")[0]!;
+  const player = client.player.get([String(userId)]).connect();
+  storage.setItem(TOKEN_KEY, await player.redeemLoginCode(code).finally(() => player.dispose()));
 }
 
 /**
@@ -58,27 +85,29 @@ export async function redeem(code: string): Promise<void> {
  * instead (AppSignIn).
  */
 export async function signIn(): Promise<string | null> {
+  const phonePairing = new URLSearchParams(location.search).has("pair");
   const code = new URLSearchParams(location.hash.slice(1)).get("code");
   if (code) {
     history.replaceState(null, "", location.pathname);
     try {
       await redeem(code);
     } catch {
-      if (!localStorage.getItem(TOKEN_KEY)) {
+      // A failed explicit phone pairing must not silently enter an older account.
+      if (phonePairing || !storage.getItem(TOKEN_KEY)) {
         hud.set({ status: "expired" });
         return null;
       }
     }
   }
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = storage.getItem(TOKEN_KEY);
   if (!token) hud.set({ status: "signedOut" });
   return token;
 }
 
-const isUnauthorized = (err: unknown) => (err as { code?: string } | null)?.code === "unauthorized";
+const isUnauthorized = (err: unknown) => errorCode(err) === "unauthorized";
 
 function signedOut(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  storage.removeItem(TOKEN_KEY);
   conn?.dispose();
   town?.dispose();
   arcade?.dispose();
@@ -98,7 +127,26 @@ export function connect(token: string): void {
     });
   conn = client.world.getOrCreate(["main"], { params: { token } }).connect();
 
-  conn.on("snapshot", (s: Snapshot) => loadSnapshot(s));
+  // The jukebox plays for the Tavern only: a snapshot of any other room, or a dropped line, ends it.
+  conn.on("jukebox", (j: JukeboxNow | null) => {
+    hud.set({ jukebox: j });
+    playJukebox(j);
+    duckMusic(j !== null);
+  });
+  // The poker table is the Tavern's too: the table for the room, my own two cards for me alone.
+  conn.on("poker", (p: PokerState) => hud.set({ poker: { ...p, at: Date.now() } }));
+  conn.on("pokerHole", (h: Card[]) => hud.set({ pokerHole: h }));
+  conn.on("snapshot", (s: Snapshot) => {
+    if (s.room !== "inn") {
+      hud.set({ jukebox: null, poker: null, pokerHole: [] });
+      stopJukebox();
+      duckMusic(false);
+    }
+    playRoomMusic(s.room);
+    loadSnapshot(s);
+    setRaiders(s.raiders);
+  });
+  conn.on("raiders", (r: Raiders) => setRaiders(r));
   conn.on("moves", (m: Moves) => applyMoves(m));
   conn.on("info", (info: PlayerInfo) => {
     applyInfo(info);
@@ -108,22 +156,42 @@ export function connect(token: string): void {
   conn.on("houses", (h: Houses) => {
     world.houses = h;
   });
+  conn.on("weather", (weather: Weather) => hud.set({ weather }));
   conn.on("occupancy", (o: Partial<Record<RoomId, number>>) => hud.set({ occupancy: o }));
   conn.on("chat", (line: ChatLine) => applyChat(line));
   conn.on("bubble", (e: { userId: number; text: string }) => applyBubble(e));
   conn.on("jump", (id: number) => applyJump(id));
-  conn.on("notice", (text: string) => {
-    hud.set({ notice: { text, at: Date.now() } });
+  conn.on("notice", (n: Notice) => {
+    hud.set({ notice: { ...n, at: Date.now() } });
+    if (n.open === "tournament") void refreshTournament(true);
     void refreshMe();
+    // A trade I offered settled: my coins and 🎒 moved.
+    void refreshWallet();
   });
   conn.on("mention", (line: ChatLine) => hud.set({ mention: { line, at: Date.now() } }));
+  // A kill dropped loot: it flies out of the boss, so the kill should show now, not at the next poll.
+  conn.on("loot", (news: LootNews[]) => {
+    hud.set({ lootNews: { news, at: Date.now() } });
+    noteLoot(news);
+    void town.raid().then((raid) => {
+      noteRaid(hud.get().raid, raid);
+      hud.set({ raid });
+    });
+  });
   conn.on("game", (g: WorldGame) => applyGame(g));
   conn.on("gameOver", (e: { id: number; winners: number[] }) => applyGameOver(e.id, e.winners));
   conn.on("callout", (e: { id: number; userId: number | null; text: string }) => applyCallout(e));
+  conn.on("drop", (d: Drop) => applyDrop(d));
+  conn.on("pickup", (e: { id: number }) => applyPickup(e.id));
+  conn.on("outage", (o: Outage | null) => setOutage(o));
   conn.onError((err) => {
     if (isUnauthorized(err)) signedOut();
   });
   conn.onClose(() => {
+    // Music stops with the connection; the Tavern sends it again when we're back in.
+    hud.set({ jukebox: null, poker: null, pokerHole: [] });
+    stopJukebox();
+    stopRoomMusic();
     if (hud.get().status === "ready") hud.set({ status: "offline" });
     // ponytail: the client retries on its own, but can stall after a long outage (a deploy);
     // a reload after 20 s always gets back in. Replace with a proper backoff if it annoys anyone.
@@ -131,36 +199,83 @@ export function connect(token: string): void {
       if (hud.get().status === "offline") location.reload();
     }, 20_000);
   });
-  // Other people's syncs move the board too; nothing announces those, so poll.
+  // Other people's syncs move the board too; nothing announces those, so poll. Not in a hidden tab:
+  // it catches up when it shows again.
   setInterval(() => {
-    if (hud.get().status === "ready") void refreshStats();
+    if (hud.get().status === "ready" && !document.hidden) void refreshStats();
   }, 30_000);
+  document.addEventListener("visibilitychange", () => {
+    if (hud.get().status === "ready" && !document.hidden) void refreshStats();
+  });
   // Every (re)connect: join the world again and take a fresh snapshot.
   conn.onOpen(async () => {
     try {
       loadSnapshot(await conn.join());
       hud.set({ status: "ready" });
-      await Promise.all([refreshMe(), refreshStats()]);
+      await Promise.all([refreshMe(), refreshStats(), refreshTournament(true)]);
     } catch (err) {
       if (isUnauthorized(err)) signedOut();
     }
   });
 }
 
+/** `next`, or `prev` when it says the same: what shows it doesn't re-render (or refetch) for a poll. */
+const same = <T>(prev: T, next: T): T => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
+
 export async function refreshMe(): Promise<void> {
-  hud.set({ me: await town.me() });
+  const me = await town.me();
+  hud.set((s) => ({ me: same(s.me, me) }));
+}
+
+/** My coins and things, after something may have moved them. */
+export async function refreshWallet(): Promise<void> {
+  const wallet = await town.wallet();
+  hud.set((s) => ({ wallet: same(s.wallet, wallet) }));
+}
+
+/** Today's quests and the week's. Asking also deals today's the first time, so a day's quests always exist. */
+export async function refreshQuests(): Promise<void> {
+  const questBoard = await town.questBoard().catch(() => null);
+  if (questBoard) hud.set((s) => ({ questBoard: same(s.questBoard, questBoard) }));
+}
+
+let tournamentAt = 0;
+/** The tournament board: the bracket on the big screen and the champion's chat title. At most every 15 s unless forced. */
+export async function refreshTournament(force = false): Promise<void> {
+  if (!force && Date.now() - tournamentAt < 15_000) return;
+  tournamentAt = Date.now();
+  const tournament = await town.tournament().catch(() => null);
+  if (tournament) hud.set((s) => ({ tournament: same(s.tournament, tournament) }));
 }
 
 let statsTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** My tokens, rank, level and coins today, at most every few seconds. */
-async function refreshStats(): Promise<void> {
-  if (statsTimer) return;
+async function refreshStats(force = false): Promise<void> {
+  if (statsTimer && !force) return;
+  if (statsTimer) clearTimeout(statsTimer);
   statsTimer = setTimeout(() => {
     statsTimer = null;
   }, 5000);
-  const [m, wallet] = await Promise.all([town.today(), town.wallet()]);
-  hud.set({ stats: m.me, board: m.top, wallet });
+  const [m, wallet, raid] = await Promise.all([town.today(), town.wallet(), town.raid()]);
+  noteRaid(hud.get().raid, raid);
+  hud.set((s) => ({
+    stats: same(s.stats, m.me),
+    board: same(s.board, m.top),
+    wallet: same(s.wallet, wallet),
+    raid: same(s.raid, raid),
+  }));
+  gateTimer(raid);
+  void refreshQuests();
+}
+
+let gateAt = 0;
+/** A shut gate (the launch, or Monday 08:00) is asked about again the moment it opens, not up to 30 s later. */
+function gateTimer(raid: Raid): void {
+  const at = raid.prelaunch ? raid.launchAt : raid.closed ? raid.endsAt : 0;
+  if (!at || at === gateAt || at <= Date.now()) return;
+  gateAt = at;
+  setTimeout(() => void refreshStats(true), at - Date.now() + 1500);
 }
 
 // MARK: Games
@@ -178,10 +293,14 @@ function applyLobby(lobby: Lobby): void {
       !before?.tables.some((b) => b.id === t.id && b.invited.some((i) => i.userId === me)),
   );
   hud.set({ lobby, ...(invite ? { inviteTable: invite.id } : {}) });
-  // Stakes, bets and payouts move coins, and they all change the lobby.
-  const ended = (l: Lobby | null | undefined) => l?.matches.filter((m) => m.outcome).length ?? 0;
-  if (JSON.stringify(lobby.me) !== JSON.stringify(before?.me) || ended(lobby) > ended(before))
-    void town.wallet().then((wallet) => hud.set({ wallet }));
+  // Stakes, bets and payouts move coins: my place in the lobby changes, or a game I played or bet on ends.
+  const paid = lobby.matches.some(
+    (m) =>
+      m.outcome &&
+      !before?.matches.some((b) => b.id === m.id && b.outcome) &&
+      (m.players.some((p) => p.userId === me) || (before?.me.bets[m.id] ?? lobby.me.bets[m.id])),
+  );
+  if (paid || JSON.stringify(lobby.me) !== JSON.stringify(before?.me)) void refreshWallet();
   const playing = lobby.me.match;
   if (playing !== null && playing !== before?.me.match) {
     const m = lobby.matches.find((x) => x.id === playing);
@@ -196,18 +315,27 @@ export function openMatch(id: number): void {
     hud.set({ frame: null, matchChat: [] });
     const c = client.match.get([String(id)], { params: { token: session } }).connect();
     c.on("frame", (frame: Frame) => {
-      if (frame.info.id === id) hud.set({ frame, clockSkew: Date.now() - frame.now });
+      if (frame.info.id === id) hud.set({ frame, ...skewOf(frame) });
     });
     c.on("chat", (line: MatchChatLine) => {
       if (matchConn === c) hud.set((s) => ({ matchChat: [...s.matchChat, line].slice(-CHAT_HISTORY) }));
     });
     c.onOpen(async () => {
       const [frame, matchChat] = await Promise.all([c.frame(), c.chat()]);
-      hud.set({ frame, matchChat, clockSkew: Date.now() - frame.now });
+      hud.set({ frame, matchChat, ...skewOf(frame) });
     });
     matchConn = c;
   }
   hud.set({ panel: { kind: "match", id } });
+}
+
+/**
+ * My clock against the match's, from a frame. It wobbles by a few ms a frame: only a real change moves
+ * it, so the countdowns and timers keyed on it don't restart every frame.
+ */
+function skewOf(frame: Frame): { clockSkew?: number } {
+  const skew = Date.now() - frame.now;
+  return Math.abs(skew - hud.get().clockSkew) > 50 ? { clockSkew: skew } : {};
 }
 
 /** Closing the panel stops watching (a game you play keeps going, and reopens from the 🎮 button). */
@@ -217,16 +345,16 @@ export function closeMatch(): void {
   hud.set({ frame: null, matchChat: [] });
 }
 
-/** A call on my own `player` (my computers), over a connection that closes after it. */
+/** A connection to my own `player` (my computers), for whoever opens it to dispose. */
+export const connectPlayer = (): PlayerConn =>
+  client.player.get([String(world.selfId)], { params: { token: session } }).connect();
+
+/** A call on my own `player`, over a connection that closes after it. */
 export async function withPlayer<T>(fn: (player: PlayerConn) => Promise<T>): Promise<T> {
-  const player = client.player.get([String(world.selfId)], { params: { token: session } }).connect();
+  const player = connectPlayer();
   try {
     return await fn(player);
   } finally {
     player.dispose();
   }
 }
-
-/** A readable message from a failed call. */
-export const errorText = (err: unknown): string =>
-  (err as { message?: string } | null)?.message?.replace(/^.*?: /, "") ?? "Something went wrong.";

@@ -1,23 +1,38 @@
 import { type GameMap, setTown } from "@tokenmaxxing/core/maps.ts";
+import { type Door, setHq, setOffice } from "@tokenmaxxing/core/office.ts";
+import { SHOPS, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
+import { stepPace } from "@tokenmaxxing/core/street.ts";
+import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
   type ChatLine,
   type CompanyInfo,
+  commonOfRoom,
+  companyOfRoom,
+  type Drop,
   defaultLook,
+  dropCovers,
   type Facing,
   type Houses,
+  JUMP_MS,
   type Moves,
   mapOf,
+  ownerOfOffice,
   type PlayerInfo,
   type PlayerPos,
   type PlayerState,
   type PlayerView,
+  pieceOfDrop,
   type RoomId,
   RUN_STEP_MS,
   type Snapshot,
+  setDrops,
   WALK_STEP_MS,
   type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
-import { bakeGround } from "../art/tiles.ts";
+import { lerp } from "hanzio";
+import { setMerchCompanies } from "../art/merch.ts";
+import { bakeGround, repaintGround } from "../art/tiles.ts";
+import { storage } from "../storage.ts";
 import { hud } from "../store.ts";
 import { emojiOnly } from "./emoji.ts";
 
@@ -50,6 +65,8 @@ export const world = {
   avatars: new Map<number, Avatar>(),
   /** Avatars playing their warp-out before disappearing. */
   leaving: [] as Avatar[],
+  /** Offline players asleep in the room who aren't in `avatars`: the Inn sends them as a number. */
+  asleep: 0,
   companies: new Map<number, CompanyInfo>(),
   /** Town only: who is inside each company house, drawn through its walls. */
   houses: {} as Houses,
@@ -59,6 +76,12 @@ export const world = {
   games: new Map<number, WorldGame>(),
   /** A line said at a game's table itself ("🤝 Draw"), shown over the table briefly. */
   tableBubbles: new Map<number, { text: string; until: number }>(),
+  /** In an office: whose it is, and whether it's open. */
+  owner: null as Snapshot["owner"],
+  /** In a building: its office doors, with the names drawn over them. */
+  doors: [] as Door[],
+  /** What's on the floor: furniture (drawn from the map) and parcels. */
+  drops: [] as Drop[],
 };
 
 /** Someone's look: as seen in the world, or their default while they're not in it. */
@@ -90,12 +113,21 @@ const avatarOf = (v: PlayerView, now: number, warp: boolean): Avatar => ({
 
 export const self = (): Avatar | undefined => world.avatars.get(world.selfId);
 
+const OFFICE_HINT_KEY = "tokenmaxxing.officeHint";
+
 export function loadSnapshot(s: Snapshot): void {
   const now = performance.now();
   const changedRoom = s.room !== world.room || world.selfId === 0;
   world.room = s.room;
   world.selfId = s.selfId;
+  world.owner = s.owner;
   setCompanies(s.companies);
+  const company = companyOfRoom(s.room);
+  if (company !== null) setHq(company, s.doors);
+  if (s.owner) setOffice(s.owner.id, s.owner.tier, s.owner);
+  world.doors = s.doors;
+  setDrops(s.room, s.drops);
+  world.drops = s.drops;
   showMap(s.room);
   const bubbles = new Map([...world.avatars].map(([id, a]) => [id, a.bubble]));
   world.avatars = new Map(
@@ -106,14 +138,25 @@ export function loadSnapshot(s: Snapshot): void {
     }),
   );
   world.leaving = [];
+  world.asleep = s.asleep;
   world.portalPending = false;
   world.houses = s.houses;
   world.games = new Map(s.games.map((g) => [g.id, g]));
+  gamesChanged();
+  // The first time in your own office, how to furnish it.
+  const hint = changedRoom && s.room === `office:${s.selfId}` && !storage.getItem(OFFICE_HINT_KEY);
+  if (hint) storage.setItem(OFFICE_HINT_KEY, "1");
   hud.set({
     room: s.room,
     occupancy: s.occupancy,
+    weather: s.weather,
     chat: s.chat,
-    ...(changedRoom ? { banner: { text: roomName(s.room), at: Date.now() }, dialog: null } : {}),
+    ...(changedRoom
+      ? {
+          banner: { text: roomName(s.room), at: Date.now() },
+          dialog: hint ? "Drop furniture from your Bag to furnish your office." : null,
+        }
+      : {}),
   });
 }
 
@@ -122,6 +165,7 @@ let townPlots = "";
 /** The companies, and the town grown (or shrunk) to fit their plots. */
 export function setCompanies(list: CompanyInfo[]): void {
   world.companies = new Map(list.map((c) => [c.id, c]));
+  setMerchCompanies(list);
   const plots = list.map((c) => c.plot).sort((a, b) => a - b);
   if (plots.join() !== townPlots) {
     townPlots = plots.join();
@@ -133,7 +177,19 @@ export function setCompanies(list: CompanyInfo[]): void {
 
 export function roomName(room: RoomId): string {
   if (room === "town") return "Town square";
-  if (room === "inn") return "The Inn";
+  if (room === "inn") return TAVERN ? "The Tavern" : "The Inn";
+  if (room === "upstairs") return "Upstairs";
+  if (room === "basement") return "The Basement";
+  if (room === "dungeon") return "Raid Dungeon";
+  const shop = shopOfRoom(room);
+  if (shop) return SHOPS[shop].name;
+  const common = commonOfRoom(room);
+  if (common !== null) {
+    const name = world.companies.get(common)?.name;
+    return name ? `${name}'s common room` : "Common room";
+  }
+  if (ownerOfOffice(room) !== null)
+    return room === world.room && world.owner ? `${world.owner.name}'s office` : "An office";
   const company = world.companies.get(Number(room.slice(3)));
   return company ? `${company.name}'s house` : "Company house";
 }
@@ -141,6 +197,7 @@ export function roomName(room: RoomId): string {
 /** One tick of changes from the server. */
 export function applyMoves(m: Moves): void {
   if (m.room !== world.room) return;
+  if (m.asleep !== undefined) world.asleep = m.asleep;
   const now = performance.now();
   for (const id of m.leave) {
     const a = world.avatars.get(id);
@@ -202,7 +259,7 @@ export const stepping = (a: Avatar, now: number): boolean => a.from !== null && 
 export function drawPos(a: Avatar, now: number): { x: number; y: number } {
   if (!a.from || now >= a.from.at + a.from.ms) return { x: a.x, y: a.y };
   const t = (now - a.from.at) / a.from.ms;
-  return { x: a.from.x + (a.x - a.from.x) * t, y: a.from.y + (a.y - a.from.y) * t };
+  return { x: lerp(a.from.x, a.x, t), y: lerp(a.from.y, a.y, t) };
 }
 
 /** Someone else hopped (our own hops start locally). */
@@ -224,28 +281,82 @@ export function advanceRemotes(now: number): void {
     a.facing = facing;
     a.state = state;
     if (Math.abs(x - a.x) + Math.abs(y - a.y) === 1)
-      beginStep(a, x, y, a.queue.length > 1 ? RUN_STEP_MS : WALK_STEP_MS);
+      beginStep(
+        a,
+        x,
+        y,
+        (a.queue.length > 1 ? RUN_STEP_MS : WALK_STEP_MS) * stepPace(a.info.polseUntil, Date.now()),
+      );
     else Object.assign(a, { x, y, from: null });
   }
-  world.leaving = world.leaving.filter((a) => now - a.warp!.at < WARP_MS);
+  if (world.leaving.length) world.leaving = world.leaving.filter((a) => now - a.warp!.at < WARP_MS);
 }
 
 export const avatarAt = (x: number, y: number): Avatar | undefined =>
   [...world.avatars.values()].find((a) => a.x === x && a.y === y && a.info.id !== world.selfId);
 
+// MARK: Drops
+
+export const dropAt = (x: number, y: number): Drop | undefined =>
+  world.drops.find((d) => dropCovers(d, x, y));
+
+/** Dropped here, or taken: dropped furniture is in the map, so it's shown again. */
+export function applyDrop(d: Drop): void {
+  if (d.room === world.room) showDrops([...world.drops.filter((o) => o.id !== d.id), d]);
+}
+
+export function applyPickup(id: number): void {
+  if (world.drops.some((d) => d.id === id)) showDrops(world.drops.filter((d) => d.id !== id));
+}
+
+function showDrops(drops: Drop[]): void {
+  const was = { drops: world.drops, map: world.map, ground: world.ground };
+  world.drops = drops;
+  setDrops(world.room, drops);
+  if (!was.ground) {
+    showMap(world.room);
+    return;
+  }
+  // A parcel changes no ground, and the map stays the same (`mapOf`).
+  world.map = mapOf(world.room);
+  if (world.map === was.map) return;
+  // Furniture: only the tiles around each piece that came or went, as the ground looks at neighbours.
+  const tiles: [number, number][] = [];
+  for (const d of [...was.drops, ...drops]) {
+    const piece = pieceOfDrop(d);
+    if (!piece || (was.drops.includes(d) && drops.includes(d))) continue;
+    for (let y = d.y - 1; y <= d.y + 1; y++)
+      for (let x = d.x - 1; x <= d.x + (piece.w ?? 1); x++) tiles.push([x, y]);
+  }
+  repaintGround(was.ground, world.map, tiles);
+  // Patched in place: the old map's ground is gone (an empty office's map is every empty office's).
+  grounds.delete(was.map);
+  grounds.set(world.map, was.ground);
+}
+
 // MARK: Games
 
 export function applyGame(g: WorldGame): void {
   world.games.set(g.id, g);
+  gamesChanged();
 }
 
-/** A game ended: its table goes, and coins burst around the winners. */
+/** A game ended: its table goes, and coins burst around the winners (who hop, after a race). */
 export function applyGameOver(id: number, winners: number[]): void {
+  const race = world.games.get(id)?.game === "sprint";
   world.games.delete(id);
+  gamesChanged();
   world.tableBubbles.delete(id);
   for (const w of winners) {
     const a = world.avatars.get(w);
-    if (a) a.burst = { emojis: ["🪙"], at: performance.now() };
+    if (!a) continue;
+    a.burst = { emojis: ["🪙"], at: performance.now() };
+    if (race) {
+      a.jump = performance.now();
+      setTimeout(() => {
+        a.jump = performance.now();
+      }, JUMP_MS + 60);
+    }
   }
 }
 
@@ -257,12 +368,35 @@ export function applyCallout(e: { id: number; userId: number | null; text: strin
   else world.tableBubbles.set(e.id, { text: e.text, until });
 }
 
+/** Each player's games, in the world's order: worked out again only once the games change. */
+let byPlayer: Map<number, WorldGame[]> | null = null;
+const NO_GAMES: readonly WorldGame[] = [];
+
+function gamesChanged(): void {
+  byPlayer = null;
+}
+
+/** The games `userId` is in, in the order `world.games` has them. */
+export function gamesOf(userId: number): readonly WorldGame[] {
+  if (!byPlayer) {
+    byPlayer = new Map();
+    for (const g of world.games.values())
+      for (const p of g.players) {
+        const list = byPlayer.get(p);
+        if (!list) byPlayer.set(p, [g]);
+        else if (list.at(-1) !== g) list.push(g);
+      }
+  }
+  return byPlayer.get(userId) ?? NO_GAMES;
+}
+
 /** "🎮 ★★ ✓" over someone at a game table, "🏁 2nd · 412M" for someone in a battle. */
 export function gameTag(userId: number): string | null {
-  for (const g of world.games.values()) {
-    if (!g.players.includes(userId)) continue;
-    const status = g.status[userId];
-    return `${g.spot.kind === "arena" ? "🏁" : "🎮"}${status ? ` ${status}` : ""}`;
-  }
-  return null;
+  const g = gamesOf(userId)[0];
+  if (!g) return null;
+  const status = g.status[userId];
+  return `${g.spot.kind === "arena" ? "🏁" : "🎮"}${status ? ` ${status}` : ""}`;
 }
+
+/** Now on the server's clock. */
+export const serverNow = (): number => Date.now() - hud.get().clockSkew;

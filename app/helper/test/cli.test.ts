@@ -34,8 +34,8 @@ const env = () => ({
   CLAUDE_CONFIG_DIR: join(dir, "claude"),
   CODEX_HOME: join(dir, "codex"),
   CURSOR_DATA_DIR: join(dir, "cursor"),
-  CURSOR_PROJECTS_DIR: join(dir, "cursor-projects"),
-  TOKENMAXXING_CLAUDE_COWORK_DIR: join(dir, "cowork"),
+  CLAUDE_COWORK_DIR: join(dir, "cowork"),
+  POSTHOG_DESKTOP_DIR: join(dir, "posthog"),
 });
 
 /** Runs the CLI as its own process. */

@@ -7,12 +7,13 @@ no) and it gets a
 house in town, painted in your brand's colours with your logo on it. When you're not playing, your
 character is in that house: **at a desk** while your agents run, **asleep in bed** when they don't. Using
 AI earns **coins**, and so does finishing a day in the top 3; spend them on clothes, glasses, hats and
-pets that follow you around. Or play for them: challenge someone to a game in the town square, from
-rock-paper-scissors for founders and Liar's Dice to **Tokenmaxxing**, a battle over who burns the most real
-tokens in an hour.
+pets that follow you around (hold a pet and pick any of its colours and breeds with the eye in your bag; they curl up asleep in the pet bed of your office while you're in it). Or play for them: challenge someone to a game in the town square, from
+rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
+the most real tokens in an hour.
+The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches.
 
-Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, and your pull requests
-from GitHub.
+Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
+Codex sessions PostHog Desktop runs, and your pull requests from GitHub.
 
 ## Install
 
@@ -51,9 +52,9 @@ content never does. The app reads local logs and Cursor dashboard usage:
 
 | Source | Where |
 |---|---|
-| Claude Code | `~/.claude/projects/**/*.jsonl` (subagents included) |
+| Claude Code | `~/.claude/projects/**/*.jsonl` (subagents included), and PostHog Desktop's agent sessions in `~/Library/Application Support/@posthog/posthog-code/claude/projects/**/*.jsonl` |
 | Claude Cowork | `~/Library/Application Support/Claude/…/.claude/projects/**/*.jsonl` |
-| Codex | `~/.codex/sessions/**/*.jsonl` and `~/.codex/archived_sessions/**/*.jsonl`. A rollout named in `state_*.sqlite` (`threads.rollout_path`) is included when that file still exists under the Codex home. `threads.tokens_used` is one running total with no per-turn split, so it is not counted. Consumer ChatGPT chats that never write a Codex rollout have no local token ledger |
+| Codex | `~/.codex/sessions/**/*.jsonl` and `~/.codex/archived_sessions/**/*.jsonl`, and PostHog Desktop's gateway runs in `~/Library/Application Support/@posthog/posthog-code/codex-home/*/sessions/**/*.jsonl`. A rollout named in `state_*.sqlite` (`threads.rollout_path`) is included when that file still exists under the Codex home. `threads.tokens_used` is one running total with no per-turn split, so it is not counted. Consumer ChatGPT chats that never write a Codex rollout have no local token ledger |
 | Cursor | Dashboard usage API; signs in using `cursorAuth/accessToken` from the local `state.vscdb` |
 | Grok Bot | The same Cursor dashboard, for models `grok-bot` and `grok-bot-*`. The Grok Bot app's weekly plan percent is not a token count and is not read, so Grok Bot stays at 0 until those dashboard rows exist |
 | GitHub | PRs you opened, on every account the `gh` CLI is signed in to (github.com and Enterprise), or else with the github.com login git saved for HTTPS (at most every 15 minutes); only a hash of each PR's URL and when it was opened are sent. The menu says when neither is there |
@@ -71,7 +72,8 @@ Grok Bot models on that dashboard are stored as Grok Bot, not Cursor. An older c
 history once so rows that used to be skipped are included.
 
 Every source that's installed is read. **Everything is public in the world:** anyone can see your
-totals, cost, parallelism, models and daily activity, and the leaderboard ranks everyone.
+totals, cost, parallelism, models and daily activity, and the leaderboard ranks everyone. So are your bio and the badges you pin
+to your card (a bio is one line and can be reported), when you work, and your time in the Tavern.
 
 **Company websites.** When a company's owner sets its website, the server asks
 [Firecrawl](https://firecrawl.dev) to read that site's colours and logo, sends those to Claude to pick the
@@ -95,6 +97,17 @@ data is sent anywhere for this.
   (15B) and a mansion with a tower (40B). A big team of light users stays in the basement.
 - **Coins:** from the day you sign up, every day pays `√(tokens ÷ 1M)`: 100M tokens is 10 coins, 1B is 31. A heavy day earns more,
   but not wildly more. Finishing a day 1st, 2nd or 3rd adds 25, 15 or 10.
+- **Quests:** three a day, worth 1, 2 and 3 coins, picked for you and scaled to your own last 30 days (at most 6 a day), plus a weekly one for 15. Some are errands in town. Badges have bronze, silver and gold tiers, and some a diamond; the town hears of the golds and diamonds.
+- **The raid:** from the first Monday after launch, every Monday at 08:00 a ladder of five bosses opens in the Raid Dungeon, down the gate in the square,
+  easiest first, five in all. Clear all five and the ladder rests until next Monday, when it comes back one level up (The Rate Limit II…) and 10% tougher; fall short and next Monday it starts again at the same level. Every token you sync hits the one up now, no cap, and
+  every PR you open is a 25M special attack. When one falls the next, 1.5× tougher, appears at once; each kill pays everyone who'd hit for
+  10M or more that week by then 10, 25, 50, 75 and 100 coins (and 10% more for each level the ladder is up). Everyone with agents running sits at a desk in the
+  dungeon, wherever they are, firing magic missiles (and a robot minion per extra agent) as fast as they burn
+  tokens: that's the show, the hits are the synced tokens. Until the first one the gate is boarded up with a
+  ⚠️ and a countdown to that Monday 08:00.
+  Each boss also drops its own rare loot: every raider a kill pays rolls its four items, from a 10% hat to a
+  0.1% trophy (Golden Hourglass, Infinite Context Crown…). Rolls are fixed per week, rung and player, so nobody
+  can reroll. Loot is worn or placed like shop items, and can be traded.
 
 ## How it works
 
@@ -136,7 +149,10 @@ All art is drawn in code (palette-string sprites and rectangles), so the repo ca
 
 ## Development
 
-Requires Bun 1.4+, Rust (stable) and Xcode's command line tools (macOS 14+).
+Requires Bun 1.4.4+ (for `bun check` and `bun fmt`), Rust (stable), and the native
+[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS. macOS needs Xcode's command
+line tools (macOS 14+); Windows needs MSVC C++ build tools and WebView2; Linux needs WebKitGTK 4.1,
+GTK/AppIndicator and D-Bus development packages (see the desktop CI job for the Ubuntu package list).
 
 ```bash
 bun install --ignore-scripts
@@ -144,13 +160,44 @@ bun run dev                            # http://localhost:8787 (the site; the ga
 bun run site:dev                       # the marketing site alone, with hot reload
 bun run dev:seed                       # a few people, two companies, and a link that signs you in
 bun run desktop:dev                    # the desktop app against localhost:8787
-bun run check                          # typecheck + lint + tests (tests start their own server)
+bun run check                          # typecheck (bun check) + lint (Biome, bun fmt --check) + tests (tests start their own server)
+bun run format                         # Biome's fixes, then bun fmt
 (cd app/desktop/src-tauri && cargo test)   # the Rust side, including the protocol contract test
 ```
 
 Dev builds of the desktop app run the helper from source (so TypeScript changes only need an app restart),
-with their own Keychain entry and state dir, so they never touch the installed app's account. Point one at
+with their own credential-store entry and state dir, so they never touch the installed app's account. Point one at
 another server with `TOKENMAXXING_SERVER_URL=… bun run desktop:dev`.
+### Linux and Windows desktop preview
+
+The desktop app can be built natively on Linux and Windows with `bun run desktop:dev` or
+`bun run desktop:build`. Build on the target OS: Linux produces `.deb` and `.AppImage` packages;
+Windows x64 produces an NSIS `.exe` installer. The helper build hook uses Bun, so Git Bash is not
+required for local Windows builds. The existing signed macOS release pipeline is unchanged.
+
+CI checks Rust on all three platforms and uploads unsigned Linux/Windows preview installers as
+`desktop-Linux` and `desktop-Windows` artifacts. These use the repository's `TOKENMAXXING_SERVER_URL`
+variable, or `http://localhost:8787` when it is unavailable (such as on a fork). A local release build
+must set `TOKENMAXXING_SERVER_URL` explicitly; in PowerShell:
+
+```powershell
+$env:TOKENMAXXING_SERVER_URL = "http://localhost:8787"
+bun run desktop:build
+```
+
+Tokens stay in macOS Keychain, Windows Credential Manager, or the Linux desktop's Secret Service
+(e.g. GNOME Keyring, with an unlocked login keyring and session D-Bus). There is no plaintext token
+fallback. Sync state is in `~/Library/Application Support/Tokenmaxxing` on macOS,
+`%LOCALAPPDATA%/Tokenmaxxing` on Windows, and `$XDG_DATA_HOME/Tokenmaxxing` (default
+`~/.local/share/Tokenmaxxing`) on Linux. Dev state uses `Tokenmaxxing Dev` instead. Helper logs keep
+`~/Library/Logs/Tokenmaxxing` on macOS and use `Tokenmaxxing/logs` inside the data directory elsewhere.
+
+Native manual QA is still required: onboarding, restart with saved credentials, tray menu and
+clipboard, token sync, launch at login, and closing/reopening the world. Linux needs a tray host
+(GNOME may require an AppIndicator extension). Windows signing, Linux/Windows updater artifacts and
+release publishing remain follow-ups; previews disable update checks and do not generate signed updater artifacts.
+The linked-computer CLI installer and service manager still support macOS/Linux only.
+
 To sync without the UI:
 
 ```bash
@@ -164,6 +211,26 @@ keep it off your real config with `TOKENMAXXING_CLI_DIR`:
 TOKENMAXXING_CLI_DIR=.data/cli bun app/helper/src/cli.ts link <code> --server http://localhost:8787 --no-service
 bash app/helper/scripts/cli.sh dist/cli    # the release binaries, for every platform
 ```
+
+### Android companion preview
+
+See [app/android/README.md](app/android/README.md) for building the APK and connecting your existing
+account. In the game on your computer: player card → Computers → **Connect phone**; scan the two-minute,
+single-use QR in the Android app, or paste the code. The phone plays the same character while computers
+keep syncing usage. The companion pairing changes must be deployed on the server before this works.
+
+### 3D and graphics
+
+The world runs on a voxel 3D renderer (Three.js, loaded only when needed) on the Medium, High and Ultra graphics tiers, and
+on the classic 2D canvas on Low. **Auto** picks from the machine (High at most; Ultra is opt-in) and a frame-rate governor steps
+down if it can't keep up; the **Graphics** panel (Esc menu) changes it.
+
+```bash
+bun run qa:tour                        # headless tour of the real game's rooms (needs a local server and Playwright; see scripts/qa/lib.mjs)
+bun scripts/perf/counts.ts medium      # per-room draw and triangle counts, checked against the budgets
+```
+
+Architecture, the `Renderer` interface, the perf budgets and how to profile are in [ARCHITECTURE.md](ARCHITECTURE.md#3d-and-graphics-where-to-look).
 
 ### Server config
 
@@ -179,9 +246,24 @@ bash app/helper/scripts/cli.sh dist/cli    # the release binaries, for every pla
 | `CLIENT_IP_HEADER` | `x-real-ip` | Where the client's IP is, for per-IP limits. Railway's edge sets `x-real-ip` |
 | `GATEWAY_REQUESTS_PER_MIN` | `1200` | Requests to the actors per client IP a minute |
 | `GATEWAY_SOCKETS_PER_MIN` | `300` | New WebSockets per client IP a minute |
+| `HEALTH_FAILURES` | `5` | The server exits (so the host restarts it) after this many failed actor probes in a row... |
+| `HEALTH_WINDOW_MS` | `120000` | ...the first of them at least this long ago. One success starts over |
+| `HEALTH_INTERVAL_MS` | `30000` | Time between probes |
+| `HEALTH_TIMEOUT_MS` | `20000` | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine |
+| `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
+| `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
 
 `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` are read by RivetKit's native side, so they must be set in
 the environment before the process starts.
+
+To keep a local server up on its own (for a tailnet game, say), `scripts/supervise.sh` runs
+`bun server/src/main.ts` and restarts it when it exits (1 s, doubling to 30 s; a run of 60 s resets it).
+The environment is passed through; `SUPERVISE_LOG=path` appends everything to a file; SIGINT/SIGTERM stop
+the server, and its engine, cleanly.
+
+```sh
+PORT=8787 RIVETKIT_STORAGE_PATH=$HOME/tm-data SUPERVISE_LOG=$HOME/tm.log scripts/supervise.sh
+```
 
 ### Releases
 
