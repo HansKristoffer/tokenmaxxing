@@ -24,6 +24,7 @@
       "name": "@tokenmaxxing/core",
       "dependencies": {
         "hanzio": "^3.3.0",
+        "llm-usage-extraction": "^0.2.0",
       },
     },
     "server": {
@@ -1219,6 +1220,8 @@
     "lightningcss-win32-arm64-msvc": ["lightningcss-win32-arm64-msvc@1.33.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-1K+MPfLSFVpphzpdbfkhlWk6wBrTObBzS2T6db10PNOZgR9GoVsAWzwNyuhUYYbTp23j+4RrncfujZ4uAzXvwA=="],
 
     "lightningcss-win32-x64-msvc": ["lightningcss-win32-x64-msvc@1.33.0", "", { "os": "win32", "cpu": "x64" }, "sha512-OlEICDx/Xl0FqSp4bry8zFnCvGpig3Gl4gCquvYwHuqJKEC1+n9NgDniFvqHGmMv1ZkqDJrDqKKSykTDX+ehuA=="],
+
+    "llm-usage-extraction": ["llm-usage-extraction@0.2.0", "", {}, "sha512-MyLHZhvu4uRE5QBbjm6g4CYVSh5odx2Cmojpuh2apeHUvsiOEdQ5ZNTsUgHqfGRIv7NehuyL8QlLtgG9Ni4Mxg=="],
 
     "locate-path": ["locate-path@5.0.0", "", { "dependencies": { "p-locate": "^4.1.0" } }, "sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g=="],
 
