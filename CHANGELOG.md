@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.9.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.8.2...v1.9.0) (2026-10-26)
+
+
+### Features
+
+* **android:** add companion APK with QR account pairing ([#78](https://github.com/HansKristoffer/tokenmaxxing/issues/78)) ([7e0b586](https://github.com/HansKristoffer/tokenmaxxing/commit/7e0b586f3d182956118bb970926d3e37ec63c638))
+* **art:** stock the 2D shop displays with recognisable wares ([811933b](https://github.com/HansKristoffer/tokenmaxxing/commit/811933bfc98dee93401fa205bc8dc414733873f1))
+* **art:** stock the 2D shop displays with recognisable wares ([1aa3982](https://github.com/HansKristoffer/tokenmaxxing/commit/1aa39820d49fa56ee78cf1e49d024eedf5086309))
+* **desktop:** prepare Linux and Windows preview builds ([#77](https://github.com/HansKristoffer/tokenmaxxing/issues/77)) ([f79e687](https://github.com/HansKristoffer/tokenmaxxing/commit/f79e687c6eb9f8ec01f21e918b4174c4acefd758))
+* furniture editing, physical shops, new hallways and stairs, perf and server hardening ([#79](https://github.com/HansKristoffer/tokenmaxxing/issues/79)) ([54d92eb](https://github.com/HansKristoffer/tokenmaxxing/commit/54d92ebb6f8cd22a6c0a0441dd2338e555c75630))
+* **hosts:** refresh landing page for 3D town ([cc81b8c](https://github.com/HansKristoffer/tokenmaxxing/commit/cc81b8c300c3fd4bb5e923be601aa9b22aba65a5))
+* **hosts:** refresh landing page for 3D town ([2c4bd8c](https://github.com/HansKristoffer/tokenmaxxing/commit/2c4bd8c9c7934d50789f823f772f38c1bdebffcb))
+* **pairing:** short phone sign-in codes you can type ([c7d4a4d](https://github.com/HansKristoffer/tokenmaxxing/commit/c7d4a4d9d3e06ad54cdb635152bb868aec077462))
+* **render3d:** move renderer out of demo structure ([e4dcd68](https://github.com/HansKristoffer/tokenmaxxing/commit/e4dcd68bf4d323750abe67f4786b25a744739758))
+* **vite:** smooth shadows and ambient occlusion ([#82](https://github.com/HansKristoffer/tokenmaxxing/issues/82)) ([3f9cc4c](https://github.com/HansKristoffer/tokenmaxxing/commit/3f9cc4cbe553763f320863ce1cce5330b75e7d7e))
+
+
+### Bug Fixes
+
+* **android:** sign in on older WebViews, short phone codes, and leaner CI ([e123dd9](https://github.com/HansKristoffer/tokenmaxxing/commit/e123dd9dcf05efdffefe2953e63f9b9bb31b0776))
+* **ci:** use fileURLToPath for the fixture path, optional chain in tournament signup ([d9f72a5](https://github.com/HansKristoffer/tokenmaxxing/commit/d9f72a5e565b00eef59c8f10c339ebd5e93834ae))
+* format the pairing tests, and write the contract fixture on Windows ([26b7fc9](https://github.com/HansKristoffer/tokenmaxxing/commit/26b7fc969c06001cd2cbd4185595e9c69b66b60e))
+* **web:** open rivetkit sockets as ws(s) for WebViews before Chromium 125 ([0edc1d3](https://github.com/HansKristoffer/tokenmaxxing/commit/0edc1d36ad6441d4f53547de7641441d094f0f61))
+
 ## [1.8.2](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.8.1...v1.8.2) (2026-10-24)
 
 
