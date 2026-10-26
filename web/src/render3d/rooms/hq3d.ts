@@ -356,7 +356,8 @@ export function posterModel(art: string, w: number, name: string): Panel {
         title(g, cw, ch, name);
       }
     },
-    { frame: "#3c2a1e", px: 60, smooth: true },
+    // The scenes are laid out for a canvas about 110 high (the 2D prints' size): any less and their lower parts are cut off.
+    { frame: "#3c2a1e", px: 100, smooth: true },
   );
 }
 

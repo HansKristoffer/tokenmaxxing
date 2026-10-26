@@ -22,6 +22,7 @@ export class Placer {
   /** The piece's item id and its width in tiles. */
   itemId: string | null = null;
   width = 1;
+  private wall = false;
 
   get active(): boolean {
     return this.itemId !== null;
@@ -34,6 +35,7 @@ export class Placer {
     if (!ch) return false;
     this.asset = assetOfChar(ch);
     this.width = Math.max(1, pieceOf(ch)?.w ?? 1);
+    this.wall = pieceOf(ch)?.wall === true;
     this.itemId = itemId;
     this.ghost = new THREE.Group();
     this.ghost.visible = false;
@@ -58,8 +60,12 @@ export class Placer {
       });
       this.ghost.add(model);
     } else {
-      const box = new THREE.Mesh(new THREE.BoxGeometry(this.width * 0.9, 0.9, 0.9), this.material);
-      box.position.y = 0.45;
+      // A wall piece without art is a flat slab on the wall, anything else a block on the floor.
+      const box = new THREE.Mesh(
+        new THREE.BoxGeometry(this.width * 0.9, this.wall ? 0.7 : 0.9, this.wall ? 0.06 : 0.9),
+        this.material,
+      );
+      box.position.y = this.wall ? 0 : 0.45;
       this.ghost.add(box);
     }
     scene.add(this.ghost);
@@ -75,7 +81,9 @@ export class Placer {
     // The footprint is `width` tiles to the right of the aimed one, centred on the aimed tile's row.
     const w = this.asset?.w ?? this.width;
     const d = this.asset?.d ?? 1;
-    this.ghost.position.set(x - 0.5 + w / 2, 0, z - 0.5 + d / 2);
+    // A wall piece hangs on the wall row's inner face at the height the room hangs its own (`Room.hang`).
+    if (this.wall) this.ghost.position.set(x - 0.5 + w / 2, 0.95, z + 0.51);
+    else this.ghost.position.set(x - 0.5 + w / 2, 0, z - 0.5 + d / 2);
     this.ghost.rotation.y = (turnOfChar(this.itemId!.slice(5)) * Math.PI) / 2;
     this.material!.color.set(fits ? "#5be08a" : "#e8584f");
   }
