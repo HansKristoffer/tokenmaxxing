@@ -275,10 +275,23 @@ export function setGeometryDetail(level: 0 | 1): void {
 export const geometryDetail = (): 0 | 1 => detail;
 
 /** A group with shortcuts for the shapes assets are made of. Positions are bottom-centres unless noted. */
+/** Where in the code a piece was made (`userData.src`), for `web/scripts/zfight.ts` to say what to look at: off unless asked for. */
+function callSite(): string {
+  const lines = new Error().stack?.split("\n") ?? [];
+  for (const l of lines.slice(1))
+    if (!l.includes("/kit/kit.ts") && !l.includes("callSite"))
+      return l
+        .replace(/^\s*at\s+/, "")
+        .replace(/.*\/(src\/render3d\/)/, "$1")
+        .replace(/\)$/, "");
+  return "";
+}
+
 export class Model extends THREE.Group {
   protected put(mesh: THREE.Mesh, at: V3): THREE.Mesh {
     mesh.position.set(...at);
     mesh.castShadow = mesh.receiveShadow = true;
+    if ((globalThis as { __traceSrc?: boolean }).__traceSrc) mesh.userData.src = callSite();
     this.add(mesh);
     return mesh;
   }
