@@ -164,6 +164,8 @@ function Hints() {
         <dd>Interact</dd>
         <dt>G</dt>
         <dd>Take</dd>
+        <dt>1-9</dt>
+        <dd>Hotbar: place a piece (own office)</dd>
         <dt>Right-click</dt>
         <dd>Go and take</dd>
         <dt>Enter</dt>

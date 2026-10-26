@@ -6,9 +6,11 @@ import { asleep, connect, drop, house, walk } from "./world-client.ts";
 describe("drops", () => {
   test("a pet lies where it's dropped; a colleague on it takes it, once, and it's gone for everyone", async () => {
     const { owner, mate, room, o, m, ownerAt, mateAt } = await house("pet.1", "hat.1");
-    await walk(o.conn, ["down"]); // off the bed
+    // A bed is two tiles deep (head, then foot): step off it sideways, onto plain floor.
+    await walk(o.conn, ["left"]);
+    expect(mapOf(room).at(ownerAt.x - 1, ownerAt.y)).toBe("_");
     const duck = await drop(owner, "pet.1");
-    expect(duck).toMatchObject({ item: "pet.1", room, x: ownerAt.x, y: ownerAt.y + 1, by: owner.userId });
+    expect(duck).toMatchObject({ item: "pet.1", room, x: ownerAt.x - 1, y: ownerAt.y, by: owner.userId });
     // One drop per tile: the next lands beside it.
     const hat = await drop(owner, "hat.1");
     expect(Math.max(Math.abs(hat.x - duck.x), Math.abs(hat.y - duck.y))).toBe(1);
@@ -89,8 +91,12 @@ describe("drops", () => {
   }, 30_000);
 
   test("you wake where you were only if you still can: not on a sofa that's gone, not inside a desk", async () => {
-    const { owner, mate, room, o, m, mateAt } = await house("furn.s", "furn.d");
-    const sofa = await drop(owner, "furn.s"); // below the owner's bed
+    const { owner, mate, room, o, m, ownerAt, mateAt } = await house("furn.s", "furn.d");
+    // Beside the owner's bed and one below its foot, facing down at the floor under it (a bed is 2 tiles deep).
+    await walk(o.conn, ["left", "down"]);
+    expect(mapOf(room).at(ownerAt.x - 1, ownerAt.y + 2)).toBe("_");
+    const sofa = await drop(owner, "furn.s");
+    expect(sofa).toMatchObject({ x: ownerAt.x - 1, y: ownerAt.y + 2 });
     const path = route(mapOf(room), [mateAt.x, mateAt.y], [sofa.x, sofa.y])!;
     await walk(m.conn, path);
     expect(await m.conn.sit(path.at(-1))).toMatchObject({ x: sofa.x, y: sofa.y, state: "sit" });
@@ -99,13 +105,13 @@ describe("drops", () => {
     expect(await o.conn.sit("down")).toMatchObject({ x: sofa.x, y: sofa.y, state: "sit" });
     expect(await o.conn.take()).toMatchObject({ drop: sofa });
     setDrops(room, []);
-    await walk(o.conn, ["right"]);
+    await walk(o.conn, ["left"]);
     const up = await connect(mate.token);
     const there = up.snap.players.find((p) => p.id === mate.userId);
     expect(there).toMatchObject({ x: sofa.x, y: sofa.y, state: "idle" });
     // Asleep again, a desk goes where they stood: they wake in bed, not inside it.
     await asleep(up, o, mate.userId);
-    await walk(o.conn, ["right", "left"]);
+    await walk(o.conn, ["left", "right"]); // back, facing the sofa's tile
     expect(await drop(owner, "furn.d")).toMatchObject({ x: sofa.x, y: sofa.y });
     const again = await connect(mate.token);
     const me = again.snap.players.find((p) => p.id === mate.userId)!;

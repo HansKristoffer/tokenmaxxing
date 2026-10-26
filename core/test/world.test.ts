@@ -171,6 +171,20 @@ describe("rest spots", () => {
     expect(overflow.x % 2).toBe(1); // a tile between neighbours
   });
 
+  test("every bed gets one sleeper before any bed gets two (a bed is two tiles deep)", () => {
+    const taken = new Set<string>();
+    const beds = new Set<string>();
+    const bedOf = ([x, y]: [number, number]) =>
+      MAPS.hq.at(x, y - 1) === "b" ? `${x},${y - 1}` : `${x},${y}`;
+    const count = MAPS.hq.find("b").length / 2;
+    for (let i = 0; i < count; i++) {
+      const spot = restSpot("hq:1", "away", taken);
+      taken.add(`${spot.x},${spot.y}`);
+      beds.add(bedOf([spot.x, spot.y]));
+    }
+    expect(beds.size).toBe(count);
+  });
+
   test("working players get a chair, facing their table", () => {
     const spot = restSpot("inn", "working", new Set());
     expect(MAPS.inn.at(spot.x, spot.y)).toBe("c");

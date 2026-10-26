@@ -183,11 +183,22 @@ const bench = (): Model => {
   return m;
 };
 
-const desk =
-  (seed = 1) =>
+export const desk =
+  (seed = 1, tiles = 2) =>
   (): Model => {
     const m = new Model();
-    const [w, d, h] = [1.7, 0.7, 0.62];
+    const h = 0.62;
+    if (tiles === 1) {
+      // One tile, as the map and the 2D desk have it: a top on two side panels, the screen in the middle.
+      const [w, d] = [0.9, 0.7];
+      m.box([w, 0.05, d], C.woodLight, [0, h, 0], 0.015);
+      for (const x of [-1, 1]) m.box([0.05, h, d - 0.08], C.wood, [x * (w / 2 - 0.06), 0, 0]);
+      monitor(m, [0, h + 0.05, -0.15], seed);
+      m.box([0.36, 0.02, 0.12], "#3c4454", [0, h + 0.05, 0.14], 0.008);
+      m.cyl(0.045, 0.1, "#e25d5d", [0.3, h + 0.05, 0.05], 0.045, 10);
+      return m;
+    }
+    const [w, d] = [1.7, 0.7];
     m.box([w, 0.05, d], C.woodLight, [0, h, 0], 0.015);
     m.box([0.05, h, d - 0.08], C.wood, [-w / 2 + 0.06, 0, 0]);
     m.box([0.4, h - 0.02, d - 0.08], C.wood, [w / 2 - 0.24, 0, 0]);
@@ -218,27 +229,38 @@ const coffee = (): Model => {
   return m;
 };
 
-const bed = (): Model => {
-  const m = new Model();
-  const [w, d] = [0.95, 1.85];
-  m.box([w, 0.22, d], C.woodDark, [0, 0, 0], 0.03);
-  m.box([w, 0.75, 0.08], C.wood, [0, 0, -d / 2 + 0.04], 0.04);
-  m.box([w - 0.06, 0.16, d - 0.14], C.white, [0, 0.2, 0.03], 0.05);
-  m.box([0.62, 0.1, 0.32], C.pillow, [0, 0.35, -d / 2 + 0.3], 0.05);
-  // A thick duvet, so a sleeper is tucked in under it.
-  m.box([w - 0.02, 0.13, 1.15], C.fabric, [0, 0.35, 0.33], 0.05);
-  m.box([w - 0.02, 0.14, 0.16], tint(C.fabric, 0.25), [0, 0.35, -0.24], 0.05);
-  return m;
-};
-
-const sofa =
-  (color: string = C.fabric) =>
+/** `deep` tiles long: the shop's is two, the office's (one row on the map) is one. */
+export const bed =
+  (deep = 2) =>
   (): Model => {
     const m = new Model();
-    const w = 1.8;
+    const [w, d] = deep === 1 ? [0.85, 0.95] : [0.95, 1.85];
+    m.box([w, 0.22, d], C.woodDark, [0, 0, 0], 0.03);
+    m.box([w, 0.75, 0.08], C.wood, [0, 0, -d / 2 + 0.04], 0.04);
+    m.box([w - 0.06, 0.16, d - 0.14], C.white, [0, 0.2, 0.03], 0.05);
+    m.box([0.62, 0.1, 0.32], C.pillow, [0, 0.35, -d / 2 + 0.3], 0.05);
+    // A thick duvet, so a sleeper is tucked in under it.
+    const [len, z, fold] = deep === 1 ? [0.5, 0.12, -0.05] : [1.15, 0.33, -0.24];
+    m.box([w - 0.02, 0.13, len], C.fabric, [0, 0.35, z], 0.05);
+    m.box([w - 0.02, 0.14, 0.16], tint(C.fabric, 0.25), [0, 0.35, fold], 0.05);
+    return m;
+  };
+
+/** `tiles` wide, a seat cushion to each: the shop's is two, the map's own sofa is one run of tiles. */
+export const sofa =
+  (color: string = C.fabric, tiles = 2) =>
+  (): Model => {
+    const m = new Model();
+    const w = 0.9 * tiles;
+    const inner = w - 0.36;
     m.box([w, 0.24, 0.8], tint(color, -0.18), [0, 0.05, 0], 0.05);
-    for (const x of [-w / 4 + 0.07, w / 4 - 0.07])
-      m.box([w / 2 - 0.2, 0.12, 0.62], color, [x, 0.28, 0.07], 0.05);
+    for (let i = 0; i < tiles; i++)
+      m.box(
+        [inner / tiles - 0.02, 0.12, 0.62],
+        color,
+        [-inner / 2 + (i + 0.5) * (inner / tiles), 0.28, 0.07],
+        0.05,
+      );
     m.box([w - 0.2, 0.42, 0.2], color, [0, 0.29, -0.3], 0.07);
     for (const x of [-w / 2 + 0.09, w / 2 - 0.09])
       m.box([0.18, 0.46, 0.8], tint(color, -0.08), [x, 0.05, 0], 0.07);
@@ -278,9 +300,9 @@ const tv = (): Model => {
 
 const beanbag = (): Model => {
   const m = new Model();
-  m.ball(0.36, "#f0b53c", [0, 0.22, 0], [1, 0.62, 1], 18);
-  m.ball(0.3, "#f0b53c", [0, 0.36, -0.14], [1, 0.75, 0.6], 16);
-  m.ball(0.2, tint("#f0b53c", 0.15), [0, 0.32, 0.05], [1, 0.4, 1], 12);
+  m.ball(0.36, "#e25d5d", [0, 0.22, 0], [1, 0.62, 1], 18);
+  m.ball(0.3, "#e25d5d", [0, 0.36, -0.14], [1, 0.75, 0.6], 16);
+  m.ball(0.2, tint("#e25d5d", 0.15), [0, 0.32, 0.05], [1, 0.4, 1], 12);
   return m;
 };
 
@@ -456,7 +478,7 @@ const recordPlayer = (): Model => {
 
 const vending = (): Model => {
   const m = new Model();
-  m.box([0.8, 1.8, 0.65], "#e25d5d", [0, 0, 0], 0.04);
+  m.box([0.8, 1.8, 0.65], "#4f8fe0", [0, 0, 0], 0.04);
   m.box([0.5, 1.3, 0.02], glass("#a8dcf7", 0.35), [-0.1, 0.38, 0.33]);
   m.box([0.52, 1.32, 0.01], "#e4f5fd", [-0.1, 0.37, 0.27]);
   const snacks = ["#f0b53c", "#4f8fe0", "#58b36a", "#9b6fd6", "#f28bb2", "#ff7ab6"];
@@ -744,7 +766,7 @@ export const ASSETS: readonly Asset[] = [
   { id: "bench", name: "Bench", price: 40, w: 1, d: 1, build: bench, seat: { at: [0, 0.33, 0], turn: 0 } },
   { id: "desk", name: "Desk", price: 50, w: 2, d: 1, build: desk(1) },
   { id: "coffee", name: "Coffee machine", price: 60, w: 1, d: 1, build: coffee },
-  { id: "bed", name: "Bed", price: 80, w: 1, d: 2, build: bed, bed: [0, 0.3, -0.15] },
+  { id: "bed", name: "Bed", price: 80, w: 1, d: 2, build: bed(), bed: [0, 0.3, -0.15] },
   {
     id: "sofa",
     name: "Sofa",
@@ -788,10 +810,10 @@ export const ASSETS: readonly Asset[] = [
     id: "sofa-chesterfield",
     name: "Chesterfield sofa",
     price: 240,
-    w: 2,
+    w: 3,
     d: 1,
-    build: sofa("#7a2e2a"),
-    seat: { at: [0.4, 0.38, 0.05], turn: 0 },
+    build: sofa("#3f8c50", 3),
+    seat: { at: [0.78, 0.38, 0.05], turn: 0 },
   },
   { id: "vending-machine", name: "Vending machine", price: 240, w: 1, d: 1, build: vending },
   { id: "standing-desk", name: "Standing desk, two screens", price: 260, w: 2, d: 1, build: standingDesk },

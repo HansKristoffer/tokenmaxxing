@@ -680,8 +680,13 @@ export function homeRoom(companyId: number | null): RoomId {
 export function restSpot(room: RoomId, state: "away" | "working", taken: ReadonlySet<string>): Place {
   const map = mapOf(room);
   const floor = map.find("_").filter(([, y]) => y >= 3);
+  // A bed is two tiles deep: every bed gets one sleeper (the tile with no bed above it) before any gets two.
+  const bedFirst = (spots: readonly (readonly [number, number])[]) => [
+    ...spots.filter(([x, y]) => map.at(x, y - 1) !== "b"),
+    ...spots.filter(([x, y]) => map.at(x, y - 1) === "b"),
+  ];
   const spots = [
-    ...map.find(state === "away" ? "b" : "c"),
+    ...(state === "away" ? bedFirst(map.find("b")) : map.find("c")),
     ...floor.filter(([x]) => x % 2 === 1),
     ...floor.filter(([x]) => x % 2 === 0),
   ];
