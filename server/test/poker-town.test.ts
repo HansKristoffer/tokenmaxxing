@@ -42,18 +42,18 @@ describe("poker, from the wallet's side", () => {
     ]);
     expect(await refSum()).toBe(-2 * BUY_IN);
 
-    // Player 1 won 80 off player 2; 2 stands up.
+    // Player 1 won 20 off player 2; 2 stands up.
     await pokerSettle(
       sql,
-      { stacks: [{ userId: 1, stack: BUY_IN + 80 }], out: [{ userId: 2, stack: BUY_IN - 80 }] },
+      { stacks: [{ userId: 1, stack: BUY_IN + 20 }], out: [{ userId: 2, stack: BUY_IN - 20 }] },
       NOON,
     );
-    expect(await balance(2)).toBe(5000 - BUY_IN + (BUY_IN - 80));
-    expect(await rows()).toEqual([{ userId: 1, stack: BUY_IN + 80 }]);
-    await pokerSettle(sql, { stacks: [], out: [{ userId: 1, stack: BUY_IN + 80 }] }, NOON);
-    expect(await balance(1)).toBe(5000 + 80);
+    expect(await balance(2)).toBe(5000 - BUY_IN + (BUY_IN - 20));
+    expect(await rows()).toEqual([{ userId: 1, stack: BUY_IN + 20 }]);
+    await pokerSettle(sql, { stacks: [], out: [{ userId: 1, stack: BUY_IN + 20 }] }, NOON);
+    expect(await balance(1)).toBe(5000 + 20);
     expect(await rows()).toEqual([]);
-    // Every coin is where the table says: 1 is up 80, 2 down 80.
+    // Every coin is where the table says: 1 is up 20, 2 down 20.
     expect(await refSum()).toBe(0);
   });
 
@@ -94,8 +94,8 @@ describe("poker, from the wallet's side", () => {
     await pokerSit(sql, 1, tomorrow);
   });
 
-  test("winnings count against the cap: up is not down, and 400 down leaves exactly one more seat", async () => {
-    // 1 wins 200 off 2.
+  test("winnings count against the cap: up is not down, and 100 down leaves exactly one more seat", async () => {
+    // 1 wins 50 off 2.
     await pokerSit(sql, 1, NOON);
     await pokerSit(sql, 2, NOON);
     await pokerSettle(
@@ -111,7 +111,7 @@ describe("poker, from the wallet's side", () => {
     );
     expect(await pokerLoss(sql, 1, NOON)).toBe(0);
     expect(await pokerLoss(sql, 2, NOON)).toBe(BUY_IN);
-    // 2 loses twice more: 600 down, which is the limit.
+    // 2 loses twice more: 150 down, which is the limit.
     for (let n = 0; n < 2; n++) {
       await pokerSit(sql, 1, NOON);
       await pokerSit(sql, 2, NOON);
@@ -167,5 +167,32 @@ describe("poker, from the wallet's side", () => {
     expect(await balance(2)).toBe(5000);
     expect(await rows()).toEqual([]);
     expect(await pokerRelease(sql, NOON)).toBe(0);
+  });
+
+  test("a seat is a game played: standing up with a different stack is one row, a seat nothing happened at is none", async () => {
+    await pokerSit(sql, 1, NOON);
+    await pokerSit(sql, 2, NOON);
+    await pokerSettle(
+      sql,
+      {
+        stacks: [],
+        out: [
+          { userId: 1, stack: BUY_IN + 20 },
+          { userId: 2, stack: BUY_IN - 20 },
+        ],
+      },
+      NOON,
+    );
+    // Sat down and stood up again with the same chips: not a game.
+    await pokerSit(sql, 1, NOON + 1);
+    await pokerSettle(sql, { stacks: [], out: [{ userId: 1, stack: BUY_IN }] }, NOON + 1);
+    const played = (await sql.execute(
+      "SELECT match_id AS id, user_id AS userId, game, place, stake, won FROM match_players ORDER BY match_id DESC",
+    )) as { id: number; userId: number; game: string; place: number; stake: number; won: number }[];
+    // Counted down from -1, so never an arcade match's id.
+    expect(played).toEqual([
+      { id: -1, userId: 1, game: "poker", place: 1, stake: BUY_IN, won: BUY_IN + 20 },
+      { id: -2, userId: 2, game: "poker", place: 2, stake: BUY_IN, won: BUY_IN - 20 },
+    ]);
   });
 });

@@ -1,4 +1,5 @@
-import { BUY_IN, DAILY_LOSS_CAP } from "@tokenmaxxing/core/poker.ts";
+import { BUY_IN, DAILY_LOSS_CAP, POKER_GAME } from "@tokenmaxxing/core/poker.ts";
+import { dayKey } from "@tokenmaxxing/core/range.ts";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { type Kept, ledgerAdd, wallet } from "./coins.ts";
@@ -89,8 +90,29 @@ export async function pokerSettle(sql: TxSql, s: PokerSettle, now: number): Prom
     for (const e of out) {
       if (e.stack > 0) await ledgerAdd(tx, e.userId, e.stack, "poker", POKER_REF, now);
       await tx.execute("DELETE FROM poker_seats WHERE user_id = ?", e.userId);
+      // A seat is a game played: one where nothing changed hands (sat down, stood up) doesn't count.
+      if (e.stack !== BUY_IN) await recordSession(tx, e.userId, e.stack, now);
     }
   });
+}
+
+/** One seat as a game in `match_players`: the buy-in is the stake, the stack stood up with is what was won. */
+async function recordSession(tx: Sql, userId: number, stack: number, now: number): Promise<void> {
+  // Arcade matches count up from 1; a seat counts down from -1, so the two never share an id.
+  const id = Math.min(0, await scalar(tx, "SELECT MIN(match_id) AS n FROM match_players")) - 1;
+  await tx.execute(
+    `INSERT INTO match_players (match_id, user_id, game, place, stake, won, pot, day, at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    userId,
+    POKER_GAME,
+    stack > BUY_IN ? 1 : 2,
+    BUY_IN,
+    stack,
+    stack,
+    dayKey(now),
+    now,
+  );
 }
 
 /** The world forgot its table (it woke up fresh): everyone still down as seated gets their stack back. */

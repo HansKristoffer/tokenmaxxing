@@ -396,7 +396,7 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   snapshot or a closed connection stops it; mute and volume are kept in localStorage. Actions: `jukeboxPlay`,
   `jukeboxSkip` (each returns a reason or null).
 - **Poker** (a 4x2 table of `♠` and six `♣` chairs in the Tavern's middle; E on a chair buys you in). Texas Hold'em
-  at 5/10 blinds for 🪙 200 a seat, from the wallet. `core/src/poker.ts` is the whole game, pure: the deck (Fisher-Yates
+  at 1/2 blinds for 🪙 50 a seat, from the wallet. `core/src/poker.ts` is the whole game, pure: the deck (Fisher-Yates
   over `crypto.getRandomValues`, `randomInt`), `evaluate` (a hand as one number: category, then base 13 kickers, wheel
   included), the betting round (`act`, `legal`: min-raise, a short all-in doesn't reopen, all-in as a raise to the stack),
   side pots (`pots`), the clock (`tick`: 25 s a turn, a check if free else a fold, two timeouts in a row stand you up, 5 s
@@ -407,11 +407,13 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   `pokerSit` (facing a `♣` chair), `pokerAct` (`fold`/`check`/`call`/`raise` with the total to raise to; the rate
   limit is `POKER_PER_MIN`), `pokerLeave`; each returns a reason or null. Walking out of the Tavern, closing the last
   tab or leaving stands you up: a hand in play is folded first and the seat goes when it ends. Coins move only in the
-  town (`town/poker.ts`, under the town's `serial`, in a transaction): sitting down debits 200 to the `poker:inn`
+  town (`town/poker.ts`, under the town's `serial`, in a transaction): sitting down debits the buy-in (`BUY_IN`) to the `poker:inn`
   ledger ref and writes a `poker_seats` row; standing up pays the stack back; `pokerSettle` writes every stack after a
   hand and refuses stacks that don't add up to what the rows held, so the table can't make or lose a coin. A loss limit of
-  🪙 600 a UTC day (buy-ins counted, from the ledger) refuses a seat with a `UserError`. A `world` that wakes without
-  its table asks the town to give every row back (`pokerRelease`). The client: `hud.poker` / `hud.pokerHole`
+  🪙 150 a UTC day (buy-ins counted, from the ledger) refuses a seat with a `UserError`. A `world` that wakes without
+  its table asks the town to give every row back (`pokerRelease`). A seat counts as a game played: standing up with
+  a different stack than the buy-in writes one `match_players` row (`game` `poker`, a negative `match_id` so it never meets an
+  arcade match, stake the buy-in, won the stack), so it counts toward quests, the card, the Hall of Fame and Variety. The client: `hud.poker` / `hud.pokerHole`
   (`net.ts`), the docked `hud/Poker.tsx` (cards, pot, clock, fold/check/call, raise slider, leave), `game/input.ts`
   (E on a chair; no walking while seated), the 2D table (`art/tavern.ts pokerTable`, board, pot and stacks drawn by
   `game/poker.ts`) and the 3D one (`render3d/rooms/poker3d.ts`: felt, rail, chips and cards laid by `show`; `render3d/rooms/poker-events.ts`

@@ -2,6 +2,7 @@ import { BADGES, frameOf } from "@tokenmaxxing/core/badges.ts";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { GAMES } from "@tokenmaxxing/core/games/index.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
+import { POKER_GAME } from "@tokenmaxxing/core/poker.ts";
 import { badgeFrame, FRAME_SIZE } from "../art/trophies.ts";
 import { town } from "../net.ts";
 import { hud } from "../store.ts";
@@ -90,7 +91,7 @@ export function HallOfFame() {
               <li key={`${w.kind} ${w.game ?? ""}`}>
                 {w.kind === "raid"
                   ? "⚔️ Raid, most damage"
-                  : `🎮 ${GAMES[w.game as GameId]?.name ?? w.game}, most coins won`}
+                  : `🎮 ${w.game === POKER_GAME ? "Poker" : (GAMES[w.game as GameId]?.name ?? w.game)}, most coins won`}
                 : <Who userId={w.userId} name={w.name} />{" "}
                 <span className="muted small">{w.kind === "raid" ? compact(w.value) : `+🪙 ${w.value}`}</span>
               </li>

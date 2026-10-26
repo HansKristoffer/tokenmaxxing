@@ -245,7 +245,8 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Variety",
     group: "Games",
     how: "Play every kind of game",
-    tiers: ladder([2, 4, Object.keys(GAMES).length], (at) => `${at} kinds of game`),
+    // Poker at the Tavern is a kind of game too (`POKER_GAME`).
+    tiers: ladder([2, 4, Object.keys(GAMES).length + 1], (at) => `${at} kinds of game`),
     of: (f) => f.gameTypes ?? 0,
   },
   {

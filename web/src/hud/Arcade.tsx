@@ -3,10 +3,13 @@ import { GAMES, gameOf } from "@tokenmaxxing/core/games/index.ts";
 import { MAX_STAKE, SPLITS, type Split } from "@tokenmaxxing/core/games/payouts.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { Lobby, MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
+import { BIG_BLIND, BUY_IN, SEATS, SMALL_BLIND } from "@tokenmaxxing/core/poker.ts";
 import { namesIn } from "@tokenmaxxing/core/world.ts";
 import { typedSwitch, typedSwitchGroup } from "hanzio";
 import { useEffect, useState } from "react";
-import { arcade, openMatch } from "../net.ts";
+import { send } from "../game/input.ts";
+import { world } from "../game/world.ts";
+import { arcade, conn, openMatch } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { Chat } from "./Chat.tsx";
 import { MentionInput } from "./MentionInput.tsx";
@@ -73,6 +76,10 @@ export function ArcadePanel() {
           ▶ Back to your game
         </button>
       )}
+      <h3>The Tavern</h3>
+      <ul className="tables">
+        <PokerRow />
+      </ul>
       <h3>Open tables</h3>
       {open.length === 0 ? (
         <p className="muted small">Nobody's waiting for players right now. Open a table!</p>
@@ -107,6 +114,38 @@ export function ArcadePanel() {
   );
 }
 
+/**
+ * The Tavern's poker table, always on offer: Join takes you into the Tavern from anywhere and into a free chair
+ * (the buy-in comes out of your wallet). The seats are only known while you are in the Tavern.
+ */
+function PokerRow({ compact }: { compact?: boolean }) {
+  const seats = useHud((s) => s.poker?.seats);
+  const mine = seats?.some((s) => s?.userId === world.selfId) ?? false;
+  const seated = seats?.filter(Boolean).length;
+  return (
+    <li>
+      <span className="who">
+        🃏 Poker{!compact && ` · Hold'em ${SMALL_BLIND}/${BIG_BLIND}`}
+        <small className="muted"> {seated === undefined ? `${SEATS} seats` : `${seated}/${SEATS}`}</small>
+      </span>
+      {mine ? (
+        <small className="muted">You're seated</small>
+      ) : (
+        <button
+          type="button"
+          className="primary"
+          onClick={() => {
+            hud.set({ panel: null });
+            send(conn.pokerJoin());
+          }}
+        >
+          Join · 🪙 {BUY_IN}
+        </button>
+      )}
+    </li>
+  );
+}
+
 const BOX_SHOWN = 3;
 
 /** Under the leaderboard: open tables to join, how many games are on, and a way to start one. */
@@ -122,6 +161,9 @@ export function GamesBox() {
       <button type="button" className="miniboard-title" onClick={openArcade}>
         🎮 Games <span className="muted">· {playing.length} playing ›</span>
       </button>
+      <ul>
+        <PokerRow compact />
+      </ul>
       {open.length === 0 ? (
         <p className="muted small">No open tables right now.</p>
       ) : (

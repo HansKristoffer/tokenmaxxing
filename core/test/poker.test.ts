@@ -192,7 +192,7 @@ describe("blinds and the button", () => {
     const t = table({ 0: 200, 3: 200 });
     deal(t);
     expect(t.button).toBe(0);
-    expect(stacks(t)).toEqual([195, 0, 0, 190, 0, 0]);
+    expect(stacks(t)).toEqual([200 - SMALL_BLIND, 0, 0, 200 - BIG_BLIND, 0, 0]);
     expect(t.toAct).toBe(0);
     expect(t.seats[0]!.hole).toHaveLength(2);
     // After the flop the big blind (not the dealer) opens.
@@ -266,13 +266,15 @@ describe("a hand to the end", () => {
   test("all but one fold: the pot goes to the last player and no cards are shown", () => {
     const t = table({ 0: 200, 1: 200, 2: 200 });
     deal(t);
-    raise(t, 0, 30);
+    const open = 3 * BIG_BLIND;
+    const pot = open + SMALL_BLIND + BIG_BLIND;
+    raise(t, 0, open);
     play(t, 1, "fold");
     play(t, 2, "fold");
     expect(t.street).toBeNull();
-    expect(stacks(t).slice(0, 3)).toEqual([215, 195, 190]);
-    expect(t.result).toMatchObject({ shown: [], won: { 100: 45 } });
-    expect(t.result!.pots).toEqual([{ amount: 45, eligible: [100], winners: [100] }]);
+    expect(stacks(t).slice(0, 3)).toEqual([200 - open + pot, 200 - SMALL_BLIND, 200 - BIG_BLIND]);
+    expect(t.result).toMatchObject({ shown: [], won: { 100: pot } });
+    expect(t.result!.pots).toEqual([{ amount: pot, eligible: [100], winners: [100] }]);
     expect(t.nextAt).toBe(NEXT_HAND_MS);
     expect(t.dirty).toBe(true);
     expect(holeOf(t, 100)).toEqual([]);
@@ -288,7 +290,7 @@ describe("a hand to the end", () => {
       play(t, 1, "check");
       play(t, 0, "check");
     }
-    expect(stacks(t).slice(0, 2)).toEqual([210, 190]);
+    expect(stacks(t).slice(0, 2)).toEqual([200 + BIG_BLIND, 200 - BIG_BLIND]);
     expect(t.result!.shown.map((s) => s.userId)).toEqual([100, 101]);
     expect(t.result!.shown[0]).toMatchObject({ hole: hand("As Ah"), name: "Pair of Aces" });
     expect(t.result!.board).toEqual(hand("2c 7d 9d Jc 3h"));
@@ -297,7 +299,7 @@ describe("a hand to the end", () => {
   test("a split pot: ties share it, the odd chip goes to the winner nearest the dealer's left", () => {
     const t = table({ 0: 200, 1: 200, 2: 200 });
     deal(t);
-    // Seat 0 is the dealer; seat 1 (the small blind) folds after putting in 5, so the pot is 25.
+    // Seat 0 is the dealer; seat 1 (the small blind) folds after putting in the small blind, so the pot is 2 * BB + SB = 5: odd.
     rig(t, { 0: "2s 3s", 1: "4s 5s", 2: "6s 8s" }, "Ac Kd Qh Js Tc");
     play(t, 0, "call");
     play(t, 1, "fold");
@@ -306,10 +308,11 @@ describe("a hand to the end", () => {
       play(t, 2, "check");
       play(t, 0, "check");
     }
-    expect(t.result!.pots).toEqual([{ amount: 25, eligible: [100, 102], winners: [102, 100] }]);
-    expect(t.seats[2]!.stack).toBe(190 + 13);
-    expect(t.seats[0]!.stack).toBe(190 + 12);
-    expect(t.seats[1]!.stack).toBe(195);
+    expect(t.result!.pots).toEqual([{ amount: 5, eligible: [100, 102], winners: [102, 100] }]);
+    // 5 splits 3 and 2; the odd chip goes to seat 2, the first winner left of the dealer.
+    expect(t.seats[2]!.stack).toBe(200 - BIG_BLIND + 3);
+    expect(t.seats[0]!.stack).toBe(200 - BIG_BLIND + 2);
+    expect(t.seats[1]!.stack).toBe(200 - SMALL_BLIND);
   });
 
   test("everyone all-in before the flop: the board runs out at once", () => {
@@ -327,15 +330,17 @@ describe("a hand to the end", () => {
   });
 
   test("blinds that put a player all-in end the betting: the uncalled part comes back", () => {
-    const t = table({ 0: 200, 1: 3 });
-    // Seat 0 is the dealer and the small blind; seat 1 posts 3 of the 10. No one has a choice to make.
+    // With a 1 coin small blind, the big blind can no longer be the short stack (it would still leave the dealer a
+    // coin to call), so the dealer is: seat 0 is the dealer and small blind with only SB chips, and the big blind
+    // posts BB. The dealer is all-in, the big blind has nobody to bet against. No one has a choice to make.
+    const t = table({ 0: SMALL_BLIND, 1: 200 });
     deal(t);
     expect(t.street).toBeNull();
     expect(t.result!.board).toHaveLength(5);
-    expect(t.result!.pots.map((p) => p.amount)).toEqual([6, 2]);
-    // The 2 above the short stack's 3 can only be the dealer's.
-    expect(t.result!.pots[1]!.winners).toEqual([100]);
-    expect(total(t)).toBe(203);
+    expect(t.result!.pots.map((p) => p.amount)).toEqual([2 * SMALL_BLIND, BIG_BLIND - SMALL_BLIND]);
+    // The coin above the short stack's can only be the big blind's.
+    expect(t.result!.pots[1]!.winners).toEqual([101]);
+    expect(total(t)).toBe(SMALL_BLIND + 200);
   });
 });
 
@@ -405,21 +410,21 @@ describe("raising", () => {
   test("the least you can raise to is the bet plus the last raise, and a raise sets the next minimum", () => {
     const t = table({ 0: 500, 1: 500, 2: 500 });
     deal(t);
-    // The big blind is 10: the first raise goes to at least 20.
-    expect(legal(t, 0)).toMatchObject({ toCall: 10, minTo: 20, maxTo: 500, canCheck: false, canRaise: true });
-    expect(() => raise(t, 0, 15)).toThrow("least you can raise to is 20");
-    expect(() => raise(t, 0, 10)).toThrow(PokerError);
-    raise(t, 0, 40);
-    // That was a raise of 30: the next goes to at least 70.
-    expect(legal(t, 1)!.minTo).toBe(70);
-    expect(() => raise(t, 1, 60)).toThrow("least you can raise to is 70");
-    raise(t, 1, 70);
-    expect(legal(t, 2)!.minTo).toBe(100);
+    // The big blind is 2: the first raise goes to at least 4.
+    expect(legal(t, 0)).toMatchObject({ toCall: 2, minTo: 4, maxTo: 500, canCheck: false, canRaise: true });
+    expect(() => raise(t, 0, 3)).toThrow("least you can raise to is 4");
+    expect(() => raise(t, 0, 2)).toThrow(PokerError);
+    raise(t, 0, 8);
+    // That was a raise of 6: the next goes to at least 14.
+    expect(legal(t, 1)!.minTo).toBe(14);
+    expect(() => raise(t, 1, 13)).toThrow("least you can raise to is 14");
+    raise(t, 1, 14);
+    expect(legal(t, 2)!.minTo).toBe(20);
     expect(() => raise(t, 2, 501)).toThrow("only have");
     play(t, 2, "call");
     // The dealer is back to act against the 70.
     expect(t.toAct).toBe(0);
-    expect(legal(t, 0)).toMatchObject({ toCall: 30, canRaise: true });
+    expect(legal(t, 0)).toMatchObject({ toCall: 6, canRaise: true });
   });
 
   test("a bet on the flop is at least the big blind", () => {
@@ -428,44 +433,44 @@ describe("raising", () => {
     play(t, 0, "call");
     play(t, 1, "check");
     expect(legal(t, 1)).toMatchObject({ canCheck: true, minTo: BIG_BLIND });
-    expect(() => raise(t, 1, 5)).toThrow();
-    raise(t, 1, 10);
-    expect(t.seats[1]!.last).toBe("bet 10");
+    expect(() => raise(t, 1, BIG_BLIND - 1)).toThrow();
+    raise(t, 1, BIG_BLIND);
+    expect(t.seats[1]!.last).toBe(`bet ${BIG_BLIND}`);
     expect(t.seats[0]!.last).toBeNull();
   });
 
   test("a short all-in is not a full raise: the minimum raise stays, and everyone just calls", () => {
-    const t = table({ 0: 500, 1: 500, 2: 500, 3: 15 });
+    const t = table({ 0: 500, 1: 500, 2: 500, 3: BIG_BLIND + 1 });
     deal(t);
-    // Seat 0 dealer, 1 small blind, 2 big blind, 3 first to act with 15.
+    // Seat 0 dealer, 1 small blind, 2 big blind, 3 first to act with BB + 1 chips.
     expect(t.toAct).toBe(3);
-    raise(t, 3, 15);
-    // 5 on top of the 10 is less than a raise of 10: the bet is 15, the minimum raise is still 10.
-    expect(t.bet).toBe(15);
+    raise(t, 3, BIG_BLIND + 1);
+    // 1 on top of the 2 is less than a raise of 2: the bet is 3, the minimum raise is still 2.
+    expect(t.bet).toBe(BIG_BLIND + 1);
     expect(t.raise).toBe(BIG_BLIND);
-    expect(legal(t, 0)!.minTo).toBe(25);
+    expect(legal(t, 0)!.minTo).toBe(BIG_BLIND + 1 + BIG_BLIND);
     play(t, 0, "call");
     play(t, 1, "call");
     play(t, 2, "call");
     expect(t.street).toBe("flop");
-    expect(potOf(t)).toBe(60);
+    expect(potOf(t)).toBe(4 * (BIG_BLIND + 1));
   });
 
   test("a genuinely short all-in leaves earlier callers able to call or fold only", () => {
-    const t = table({ 0: 500, 1: 500, 2: 35 });
+    const t = table({ 0: 500, 1: 500, 2: 7 });
     deal(t);
-    // 0 raises to 30 (a raise of 20), 1 calls, 2 (big blind with 35 left after the 10 blind -> 25 behind) shoves.
-    raise(t, 0, 30);
+    // 0 raises to 6 (a raise of 4), 1 calls, 2 (big blind with 7 chips: 5 behind after the 2 blind) shoves.
+    raise(t, 0, 6);
     play(t, 1, "call");
-    expect(t.seats[2]!.stack).toBe(25);
-    // 2 can put in 25 more: to 35, which is +5 over the 30: short of a raise of 20.
-    raise(t, 2, 35);
-    expect(t.bet).toBe(35);
-    expect(t.raise).toBe(20);
-    expect(legal(t, 0)).toMatchObject({ toCall: 5, canRaise: false });
+    expect(t.seats[2]!.stack).toBe(7 - BIG_BLIND);
+    // 2 can put in 5 more: to 7, which is +1 over the 6: short of a raise of 4.
+    raise(t, 2, 7);
+    expect(t.bet).toBe(7);
+    expect(t.raise).toBe(4);
+    expect(legal(t, 0)).toMatchObject({ toCall: 1, canRaise: false });
     expect(() => raise(t, 0, 100)).toThrow("can't raise");
     play(t, 0, "call");
-    expect(legal(t, 1)).toMatchObject({ toCall: 5, canRaise: false });
+    expect(legal(t, 1)).toMatchObject({ toCall: 1, canRaise: false });
     play(t, 1, "call");
     expect(t.street).toBe("flop");
   });
@@ -500,12 +505,12 @@ describe("the clock", () => {
     expect(t.deadline).toBe(TURN_MS);
     tick(t, TURN_MS - 1);
     expect(t.toAct).toBe(0);
-    // The dealer owes 5 to call: folds.
+    // The dealer owes the difference between the blinds to call: folds.
     tick(t, TURN_MS);
     expect(t.street).toBeNull();
     expect(t.seats[0]!.timeouts).toBe(1);
     expect(t.seats[0]!.last).toBe("fold (time)");
-    expect(t.result!.won).toEqual({ 101: 15 });
+    expect(t.result!.won).toEqual({ 101: SMALL_BLIND + BIG_BLIND });
     // The next hand: seat 1 is the dealer and calls; the big blind has a free check, taken for them.
     tick(t, TURN_MS + NEXT_HAND_MS);
     expect(t.street).toBe("preflop");
@@ -566,17 +571,18 @@ describe("standing up", () => {
   test("mid-hand a leaver folds, their chips stay in the pot and they go when it ends", () => {
     const t = table({ 0: 200, 1: 200, 2: 200 });
     deal(t);
-    raise(t, 0, 40);
+    const open = 3 * BIG_BLIND;
+    raise(t, 0, open);
     play(t, 1, "call");
     leave(t, 1, 0);
-    expect(t.seats[1]).toMatchObject({ folded: true, leaving: true, stack: 160 });
+    expect(t.seats[1]).toMatchObject({ folded: true, leaving: true, stack: 200 - open });
     expect(view(t, 0).seats[1]).toMatchObject({ leaving: true, folded: true });
     play(t, 2, "fold");
-    // Seat 0 wins 40 + 40 + 10 = 90 uncontested (their own 40 back too).
+    // Seat 0 wins open + open + BB = 14 uncontested (their own 6 back too).
     expect(t.street).toBeNull();
     expect(t.seats[1]).toBeNull();
-    expect(t.owed).toEqual([{ userId: 101, stack: 160 }]);
-    expect(t.seats[0]!.stack).toBe(160 + 90);
+    expect(t.owed).toEqual([{ userId: 101, stack: 200 - open }]);
+    expect(t.seats[0]!.stack).toBe(200 - open + 2 * open + BIG_BLIND);
   });
 
   test("the player to act leaving passes the turn on; the last two leaving ends the hand", () => {
@@ -587,7 +593,7 @@ describe("standing up", () => {
     expect(t.toAct).toBe(1);
     leave(t, 1, 0);
     expect(t.street).toBeNull();
-    expect(t.result!.won).toEqual({ 102: 15 });
+    expect(t.result!.won).toEqual({ 102: SMALL_BLIND + BIG_BLIND });
   });
 
   test("a seat that was never paid for just goes", () => {
@@ -631,20 +637,26 @@ describe("what each side may see", () => {
     play(t, 0, "fold");
     const state = wire(t, 0, (id) => `p${id}`);
     expect(state.names).toEqual({ 100: "p100", 101: "p101" });
-    expect(state.result!.won).toEqual({ 101: 15 });
+    expect(state.result!.won).toEqual({ 101: SMALL_BLIND + BIG_BLIND });
   });
 
   test("the pot and the clock", () => {
     const t = table({ 0: 200, 1: 200 });
     deal(t);
-    expect(potOf(t)).toBe(15);
+    expect(potOf(t)).toBe(SMALL_BLIND + BIG_BLIND);
     expect(view(t, 1_000)).toMatchObject({
-      pot: 15,
+      pot: SMALL_BLIND + BIG_BLIND,
       toAct: 0,
       turnMs: TURN_MS - 1_000,
       nextMs: 0,
       street: "preflop",
-      legal: { toCall: 5, canCheck: false, canRaise: true, minTo: 20, maxTo: 200 },
+      legal: {
+        toCall: BIG_BLIND - SMALL_BLIND,
+        canCheck: false,
+        canRaise: true,
+        minTo: 2 * BIG_BLIND,
+        maxTo: 200,
+      },
     });
   });
 });
