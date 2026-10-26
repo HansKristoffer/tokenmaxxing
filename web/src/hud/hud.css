@@ -3293,3 +3293,95 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 .phone-signin button {
   align-self: flex-start;
 }
+
+/* === Hotbar (hud/Hotbar.tsx): furniture slots along the bottom while furnishing your office. === */
+.hotbar {
+  position: absolute;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  z-index: 5;
+}
+.hotbar-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink);
+  background: rgba(251, 247, 239, 0.95);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.hotbar-pick {
+  min-height: 28px;
+  padding: 0 8px;
+}
+.hotbar-slots {
+  display: flex;
+  gap: 4px;
+}
+.hotbar-empty {
+  font-size: 12px;
+  padding: 10px;
+  background: rgba(251, 247, 239, 0.95);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  color: var(--ink);
+}
+.hotbar-slot {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 2px solid var(--ink);
+  background: rgba(251, 247, 239, 0.9);
+}
+.hotbar-slot.on {
+  border-color: var(--accent);
+  background: rgba(255, 211, 92, 0.85);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.hotbar-icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  transform: scale(0.6);
+  pointer-events: none;
+}
+.hotbar-key,
+.hotbar-n {
+  position: absolute;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1;
+  color: var(--ink);
+  text-shadow: 0 0 2px #fff;
+  pointer-events: none;
+}
+.hotbar-key {
+  left: 3px;
+  top: 3px;
+}
+.hotbar-n {
+  right: 3px;
+  bottom: 3px;
+}
+/* The dialog and the piece hint sit above the bar on wide screens (narrow ones already lift them). */
+@media (min-width: 1151px) {
+  .hotbar-on .dialog,
+  .hotbar-on .piece-hint {
+    bottom: 110px;
+  }
+}
+/* === end Hotbar === */

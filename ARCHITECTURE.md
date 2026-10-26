@@ -887,6 +887,13 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
   `placer.ts`: a ghost follows the pointer, a click walks you up to the tile, faces it and drops it with the Bag's
   `town.drop`, and the wallpaper and floor rebuild the Office from its map). Graphics go through perf's
   `applyGraphics(pipe, settings)`; Medium builds with `setGeometryDetail(0)` (a tier change rebuilds the rooms).
+- **Hotbar** (`web/src/hud/Hotbar.tsx`, state in `game/hotbar-state.ts`, rules in `game/hotbar.ts`): in your own office (and
+  while a ghost is up) up to nine slots of bag furniture, ordered by last placed, then count, then name. 1-9 or a tap
+  calls `startPlace` (the same slot again cancels), `[` `]` or the wheel step through them while a piece is held, and
+  after a placement `furniture.ts`'s `placedListeners` keep the slot (next ghost of the same kind, else the next filled
+  slot). **F** takes the piece you face back into the bag (the same `conn.take` as G, so Ctrl/Cmd+Z still undoes it); Q and
+  R stay the 3D turn. Keys live in `game/input.ts`, guarded like the rest (not while typing or with a panel open). No
+  server change.
 - Every sprite is a palette-string grid baked into a canvas at runtime (`web/src/art/`), so there are no image
   assets.
 - Chat has quick replies above it: emoji and startup one-liners, sent with one click. A line made only of
