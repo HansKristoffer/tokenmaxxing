@@ -19,10 +19,11 @@ export const EXTRA_OUTFITS: Record<number, [string, string, string]> = {
   23: ["#3a4fb8", "#28388a", "#3a4fb8"],
   24: ["#f28a1e", "#c96a10", "#3d4a6b"],
   25: ["#ffd54a", "#d99a16", "#7a4fb8"],
-  // Raid loot: compacting scarf, two-tone suit, shimmering cape.
+  // Raid loot: compacting scarf, two-tone suit, shimmering cape, pinstripe suit.
   26: ["#e7e1d3", "#c9c0ad", "#3d4a6b"],
   27: ["#4f8fe0", "#3a6fb8", "#2f3444"],
   28: ["#2a2150", "#5b3fbf", "#22223a"],
+  29: ["#2f3a55", "#1f2740", "#1f2740"],
 };
 
 /** Companies without a brand get one of these by id: [main, accent]. */

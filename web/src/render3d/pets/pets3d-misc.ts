@@ -1,5 +1,5 @@
 /**
- * The ducks, the dragons and the loot pets (sand golem, goldfish, ghost, Singularity orb) as voxel
+ * The ducks, the dragons and the loot pets (sand golem, goldfish, ghost, piggy bank, Singularity orb) as voxel
  * sculptures, on the same `petvox` grid as the four-legged ones.
  */
 import type * as THREE from "three";
@@ -843,6 +843,103 @@ export function ghost(): { rig: Rig; body: Model; fore: Model } {
           m.position.y = U(3 + Math.sin(t * 4 + i) * 1.3);
         });
         body.rotation.z = Math.sin(t * 1.5) * 0.04;
+      },
+    },
+    body,
+    fore,
+  };
+}
+
+/** Piggy bank: a pink pig with a coin slot on its back and a gold coin bobbing above it, every one you owe. */
+export function piggy(): { rig: Rig; body: Model; fore: Model } {
+  const body = new Model();
+  const fore = new Model();
+  const P = "#f0a0b8";
+  const L = "#f7c0d0";
+  const D = "#c05070";
+  const SLOT = "#7a2a3f";
+  const skin = (c: Cell, k = 0.3) => (c.t < 0.3 ? mixed(L, P, c, 4, k) : mixed(P, "#e890aa", c, 5, k));
+  const bg = new Grid();
+  bg.ell(0, 9.5, 0, 6.6, 5.6, 8.2, "#fff", 2.3);
+  bg.paint((c) => skin(c));
+  // The coin slot, a dark groove along its back.
+  bg.box(-0.5, 0.5, 14, 15, -2.5, 2.5, SLOT);
+  bg.box(-0.5, 0.5, 13, 13, -2.5, 2.5, SLOT);
+  put(body, bg, [0, 0, 0], [0, 0, 0], 1);
+  const hinds: THREE.Mesh[] = [];
+  const fores: THREE.Mesh[] = [];
+  for (const sd of SIDES) {
+    for (const [parent, list, z0] of [
+      [body, hinds, -4.8],
+      [fore, fores, 4.2],
+    ] as const) {
+      const lg = new Grid();
+      lg.box(-1.5, 1.5, 0, 5, -1.5, 1.5, (c) => (c.y < 1 ? D : mixed(P, "#e890aa", c, 6, 0.3)));
+      list.push(put(parent, lg, [sd * 3.8, 0, z0], [0, 0, 0], 2));
+    }
+  }
+  const head = new Model();
+  const hg = new Grid();
+  hg.ell(0, 0, 0, 4.6, 4.2, 4.2, "#fff", 2.3);
+  hg.paint((c) => skin(c, 0.25));
+  // Snout: a flat disc, lighter, with two nostrils.
+  hg.box(-2, 2, -2, 1, 3, 5, L);
+  hg.set(-1, -0.5, 5, D);
+  hg.set(1, -0.5, 5, D);
+  // Floppy ears.
+  for (const sd of SIDES) {
+    hg.box(sd * 3, sd * 4, 3, 5, -1, 1, mix(D, P, 0.45));
+    hg.box(sd * 4, sd * 5, 2, 3, -1, 1, mix(D, P, 0.6));
+  }
+  put(head, hg, [0, 0, 0], [0, 0, 0], 3);
+  head.position.set(0, U(11), U(8));
+  body.add(head);
+  const eyes: THREE.Mesh[] = [];
+  for (const sd of SIDES) {
+    const e = eye([
+      [DARK, DARK],
+      [DARK, GLINT],
+    ]);
+    e.position.set(U(sd * 2.6), U(1.2), U(4.05));
+    head.add(e);
+    eyes.push(e);
+  }
+  // A curly tail.
+  const tail = new Model();
+  const tg = new Grid();
+  for (const [x, y, z] of [
+    [0, 0, 0],
+    [0, 1, -1],
+    [1, 2, -1],
+    [1, 3, 0],
+    [0, 3, 1],
+  ] as const)
+    tg.set(x, y, z, D);
+  put(tail, tg, [0, 0, 0], [0, 0, 0], 4);
+  tail.position.set(0, U(11), U(-8.2));
+  body.add(tail);
+  // The coin, edge on, above the slot.
+  const cg = new Grid();
+  cg.ell(0, 0, 0, 0.9, 2.8, 2.8, "#f5c842", 2.4);
+  cg.box(0, 0, -1, 1, -1, 1, "*#fff0a0");
+  const coin = bake(cg, { seed: 5 });
+  coin.position.set(0, U(18), 0);
+  body.add(coin);
+  return {
+    rig: {
+      head,
+      eyes,
+      fore: fores,
+      hind: hinds,
+      tails: [tail],
+      neck: [0, U(-3), 0],
+      neckR: U(4.8),
+      top: [0, U(5), 0],
+      tilt: false,
+      span: U(16),
+      fx: (t) => {
+        coin.position.y = U(18 + Math.sin(t * 2.4) * 1.4);
+        coin.rotation.y = t * 1.6;
       },
     },
     body,

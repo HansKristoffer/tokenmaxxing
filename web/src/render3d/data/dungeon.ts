@@ -122,6 +122,15 @@ export const LOOT_HATS: { rows: Record<View, string[]>; pal: Palette }[] = [
     },
     pal: { s: "#e8eef5", S: "#9aa7b8", b: "#3366cc" },
   },
+  // Paid in Full crown: gold, with a green band and a white tick on it.
+  {
+    rows: {
+      down: ["...y.y.yy.y.y...", "...yyyyyyyyyy...", "...yggwgggwgy...", "...yggggwgggy...", "...YYYYYYYYYY..."],
+      side: ["...y.y.yy.y.y...", "...yyyyyyyyyy...", "...yggwgggwgy...", "...yggggwgggy...", "...YYYYYYYYYY..."],
+      up: ["...y.y.yy.y.y...", "...yyyyyyyyyy...", "...yggggggggy...", "...yggggggggy...", "...YYYYYYYYYY..."],
+    },
+    pal: { y: "#f5c842", Y: "#c9971f", g: "#3fae5a", w: C.white },
+  },
 ];
 
 /** Glasses from `LOOT_FIRST.glasses` on (after the head pack), over rows 5–7 of the head. */
@@ -149,6 +158,14 @@ export const LOOT_GLASSES: { rows: Record<"down" | "side", string[]>; pal: Palet
       side: [".........pwkp...", "................", "................"],
     },
     pal: { p: "#b57cff", w: C.white, k: "#3a1f6b" },
+  },
+  // Fine-print specs: half-moon lenses, each with a line of tiny text.
+  {
+    rows: {
+      down: ["...gggggggggg...", "...gptpggptpg...", "....ggg..ggg...."],
+      side: ["........ggggg...", "......ggggptp...", "........ggggg..."],
+    },
+    pal: { g: "#3a3f4b", p: "#fff6c9", t: "#7a7466" },
   },
 ];
 
@@ -212,6 +229,17 @@ export const LOOT_OUTFITS: {
       ],
     },
     pal: { p: "#b57cff", q: "#5ff0d0", y: "#ffd35c" },
+  },
+  // Pinstripe suit: navy, a white collar and a red tie.
+  {
+    colors: ["#2f3a55", "#1f2740"],
+    pants: "#1f2740",
+    over: {
+      down: ["......wrrw......", ".......rr.......", ".......rr......."],
+      side: [".......wr.......", ".......rr.......", ".......r........"],
+      up: ["................", "................", "................"],
+    },
+    pal: { w: C.white, r: "#e0384f" },
   },
 ];
 
@@ -336,6 +364,14 @@ export const LOOT_PETS: { frames: [string[], string[]]; pal: Palette }[] = [
       ],
     ],
     pal: { o: "#7a7f9a", w: "#f4f6ff", k: C.ink },
+  },
+  // Piggy bank: a coin dropping in the slot, every one you owe.
+  {
+    frames: [
+      ["....yy......", "..oooooo.oo.", ".obbkkbboboo", ".obbbbbbbbbo", "obbbbbbbebss", "obbbbbbbbbsn", ".obbbbbbbbbo", ".obbbbbbbbo.", "..obo..obo..", "..ooo..ooo.."],
+      ["..oooooo.oo.", ".obbkkbboboo", ".obbbbbbbbbo", "obbbbbbbebss", "obbbbbbbbbsn", ".obbbbbbbbbo", ".obbbbbbbbo.", "..obo..obo..", "..ooo..ooo..", "............"],
+    ],
+    pal: { o: C.ink, b: "#f0a0b8", k: "#7a2a3f", y: "#ffd35c", e: C.ink, s: "#f7c0d0", n: "#c05070" },
   },
 ];
 const o = C.ink;
@@ -691,6 +727,12 @@ export const DUNGEON_BOSSES = [
       "Citation needed.",
     ],
   },
+  {
+    id: "invoice",
+    name: "The Invoice",
+    emoji: "🧾",
+    taunts: ["Net 30.", "Usage this month: ∞.", "Please remit payment.", "Overage charges apply."],
+  },
 ] as const;
 export const RARITY_INFO = {
   common: {
@@ -858,6 +900,42 @@ export const LOOT_TABLE = [
     boss: "hallucination",
     rarity: "legendary",
     blurb: "[citation needed]",
+  },
+  {
+    id: "glasses.24",
+    slot: "glasses",
+    index: 24,
+    name: "Fine-print specs",
+    boss: "invoice",
+    rarity: "common",
+    blurb: "Read the terms. Every one.",
+  },
+  {
+    id: "outfit.29",
+    slot: "outfit",
+    index: 29,
+    name: "Pinstripe suit",
+    boss: "invoice",
+    rarity: "rare",
+    blurb: "Itemised, notarised, a little tight.",
+  },
+  {
+    id: "pet.11",
+    slot: "pet",
+    index: 11,
+    name: "Piggy bank",
+    boss: "invoice",
+    rarity: "epic",
+    blurb: "Every coin you owe, rattling.",
+  },
+  {
+    id: "hat.32",
+    slot: "hat",
+    index: 32,
+    name: "Paid in Full crown",
+    boss: "invoice",
+    rarity: "legendary",
+    blurb: "Balance: 0. Forever.",
   },
 ] as const;
 export const EDITION_LIST = [

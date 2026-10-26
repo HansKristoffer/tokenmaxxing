@@ -859,6 +859,31 @@ export const HAT_BUILDERS: Record<string, Build> = {
     band(m, "#9aa7b8", 0.24, 0.012, 0.17);
     sign(m, 0.1, 0.06, (g, w, h) => letters(g, "[?]", w / 2, h / 2, h * 1.1, "#3366cc"), [0, 0.2, 0.245], 80);
   },
+  "Paid in Full crown": (m) => {
+    // The blocky head's hair stands higher than the round head these builders are drawn for: lift the crown clear of it.
+    const up = isVox(m) ? 0.1 : 0;
+    spikes(m, { base: "#f5c842", tip: "#f5c842", n: 5, h: 0.1, r: 0.24, y: 0.16 + up });
+    band(m, "#c9971f", 0.246, 0.014, 0.158 + up);
+    band(m, "#3fae5a", 0.262, 0.04, 0.178 + up);
+    sign(
+      m,
+      0.1,
+      0.06,
+      (g, w, h) => {
+        g.strokeStyle = "#ffffff";
+        g.lineWidth = h * 0.24;
+        g.lineCap = "square";
+        g.lineJoin = "miter";
+        g.beginPath();
+        g.moveTo(w * 0.22, h * 0.54);
+        g.lineTo(w * 0.42, h * 0.78);
+        g.lineTo(w * 0.78, h * 0.2);
+        g.stroke();
+      },
+      [0, 0.198 + up, 0.268],
+      80,
+    );
+  },
   // The traveling merchant's editions.
   "Prompt wizard hat": (m) =>
     wizard(m, { cone: "#6a4bc4", dark: "#3b2a78", star: "#f5d14a", band: "#4d3596" }),
@@ -1341,6 +1366,24 @@ export const FACE_BUILDERS: Record<string, Build> = {
     e.ball(0.006, "#ffffff", [0.008, 0.008, 0.026], [1, 1, 0.5], 6);
     c.tick((t) => (iris.position.x = Math.sin(t * 1.3) * 0.012));
   },
+  "Fine-print specs": (m) => {
+    const frame = "#3a3f4b";
+    for (const s of [-1, 1] as const) {
+      const e = eyeAt(m, s);
+      // Half-moon lenses: a flat top, stepping in towards a rounded bottom.
+      e.box([0.145, 0.014, 0.022], frame, [0, -0.007, 0.006], 0.004);
+      e.box([0.14, 0.03, 0.018], frame, [0, -0.031, 0.005], 0.006);
+      e.box([0.11, 0.024, 0.018], frame, [0, -0.058, 0.005], 0.006);
+      e.box([0.07, 0.014, 0.018], frame, [0, -0.077, 0.005], 0.004);
+      e.box([0.118, 0.026, 0.02], see("#fff6c9", 0.92), [0, -0.031, 0.012], 0.004);
+      e.box([0.09, 0.02, 0.02], see("#fff6c9", 0.92), [0, -0.057, 0.012], 0.004);
+      e.box([0.05, 0.01, 0.02], see("#fff6c9", 0.92), [0, -0.075, 0.012], 0.003);
+      // A line of tiny print.
+      e.box([0.056, 0.006, 0.01], "#7a7466", [0, -0.028, 0.024], 0.002);
+      e.box([0.036, 0.006, 0.01], "#7a7466", [-0.01, -0.04, 0.024], 0.002);
+    }
+    bridge(m, frame);
+  },
   // The traveling merchant's editions.
   "VR visor": (m) => {
     visor(m, { color: "#3a3546", w: 0.42, h: 0.13, y: EYE_Y, depth: 0.05 });
@@ -1420,4 +1463,5 @@ export const COVERS_HAIR = new Set([
   "Rubber-duck hat",
   "Lego brick hat",
   "Hourglass hat",
+  "Paid in Full crown",
 ]);

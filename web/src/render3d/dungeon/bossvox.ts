@@ -1,5 +1,5 @@
 /**
- * The raid's cast as true voxel sculptures: the four bosses, the robot minion and the boss trophy. Each is
+ * The raid's cast as true voxel sculptures: the five bosses, the robot minion and the boss trophy. Each is
  * modelled from every side (torso, head, limbs, tails, backs) out of the pets' voxel grids (`petvox.ts`),
  * baked into a few single meshes with per-corner AO, face shading and colour jitter, so they survive the
  * Voxel style's primitive swap. Cells whose colour starts with "*" glow (eyes, runes, sparks). Facing +z, the
@@ -722,6 +722,140 @@ function hallucination(c: (k: string) => string): Sculpt {
   };
 }
 
+// MARK: The Invoice
+
+const INVOICE = {
+  paper: "#f3e7b8",
+  paperDark: "#d9c98f",
+  red: "#c0392b",
+  white: C.white,
+  text: "#9a9486",
+  eye: "*#fffdf6",
+  pupil: C.ink,
+  mouth: "#5b1f1a",
+  teeth: C.white,
+  pen: "#f5c842",
+  ink: C.ink,
+};
+
+/** A bill that never stops growing: a tall receipt with a red header, a snarl, a "PAID?" stamp, a torn hem and paper fists. */
+function invoice(c: (k: string) => string): Sculpt {
+  const S = 1.9;
+  const root = new THREE.Group();
+  root.scale.setScalar(S);
+  const rig = new THREE.Group();
+  root.add(rig);
+
+  // The sheet: three deep, torn along the bottom edge.
+  const sheet = new Grid();
+  const paper: Paint = (p) => (p.y < 40 && hash(p.x, p.y, p.z, 6) < 0.12 ? c("paperDark") : c("paper"));
+  for (let x = -11; x <= 11; x++) {
+    const hem = 4 + (((x + 11) % 4) < 2 ? 0 : 3);
+    sheet.box(x, x, hem, 46, -1, 1, paper);
+  }
+  // Red header with a row of white letters.
+  sheet.box(-11, 11, 40, 46, -1, 1, c("red"));
+  for (let x = -9; x <= 9; x += 3) {
+    sheet.box(x, x + 1, 43, 44, 2, 2, c("white"));
+    sheet.box(x, x, 41, 42, 2, 2, c("white"));
+  }
+  // Grey lines of small print, a total line, and a stamp.
+  for (const [y, w] of [
+    [17, 9],
+    [14, 6],
+    [11, 8],
+  ] as const)
+    sheet.box(-9, -9 + w, y, y, 2, 2, c("text"));
+  sheet.box(-9, -3, 7, 8, 2, 2, c("red"));
+  for (let a = 0; a < 24; a++) {
+    const th = (a / 24) * Math.PI * 2;
+    sheet.box(
+      Math.round(6 + Math.cos(th) * 3.6),
+      Math.round(6 + Math.cos(th) * 3.6),
+      Math.round(13 + Math.sin(th) * 3.6),
+      Math.round(13 + Math.sin(th) * 3.6),
+      2,
+      3,
+      c("red"),
+    );
+  }
+  sheet.box(4, 8, 13, 13, 3, 3, c("red"));
+  // Snarl: angry brows, a wide mouth of teeth.
+  for (const sx of [-1, 1])
+    for (let i = 0; i < 6; i++) sheet.set(sx * (3 + i), 36 + Math.round(i * 0.7) * 1, 2, c("ink"));
+  for (let x = -6; x <= 6; x++)
+    for (let y = 23; y <= 27; y++) {
+      sheet.set(x, y, 2, c("mouth"));
+      if ((y === 27 && x % 2 === 0) || (y === 23 && x % 2 !== 0)) sheet.set(x, y, 3, c("teeth"));
+    }
+  const body = part(rig, sheet, [0, 4, 0]);
+  const eyes: THREE.Group[] = [];
+  for (const sx of [-1, 1]) {
+    const e = block(body, 5, 5, 2, c("eye"), [sx * 5.5, 32, 1.5]);
+    e.position.set(sx * 5.5 * VOX, (32 - 4) * VOX, 2 * VOX);
+    block(e, 3, 3, 1, c("pupil"), [-sx * 0.3, -0.2, 2]);
+    eyes.push(e);
+  }
+
+  // Paper arms with fists, one clutching a pen.
+  const arms: THREE.Group[] = [];
+  for (const sx of [-1, 1]) {
+    const a = new Grid();
+    a.tube(
+      [
+        [sx * 11, 30, 0],
+        [sx * 16, 26, 3],
+        [sx * 17.5, 21, 6],
+      ],
+      2,
+      1.8,
+      (p) => (p.u > 0.5 ? c("paperDark") : c("paper")),
+    );
+    a.ell(sx * 17.5, 19, 7, 3.2, 3.2, 3.2, c("paper"), 2.4);
+    if (sx === 1) {
+      a.box(18, 18, 12, 25, 8, 8, c("pen"));
+      a.box(18, 18, 10, 12, 8, 8, c("ink"));
+    }
+    arms.push(part(rig, a, [sx * 11, 30, 0]));
+  }
+  // A paper tail that curls out of the hem, the bill that never ends.
+  const tail = new Grid();
+  tail.tube(
+    [
+      [0, 6, -1],
+      [0, 3, -6],
+      [0, 5, -11],
+      [0, 10, -13],
+    ],
+    2.2,
+    1.2,
+    (p) => (p.u > 0.5 ? c("paperDark") : c("paper")),
+  );
+  const tailPart = part(rig, tail, [0, 6, -1]);
+
+  return {
+    root,
+    height: 47 * VOX * S,
+    update({ t, hurt, attack, fall }) {
+      const w = wind(attack);
+      rig.rotation.z = Math.sin(t * 1.2) * 0.04 + hurt * 0.07 * Math.sin(t * 55);
+      rig.rotation.x = -w * 0.35 - hurt * 0.1 - fall * 1.45;
+      rig.position.y = (1.5 + Math.sin(t * 1.7) * 1.2) * VOX * (1 - fall);
+      rig.position.z = -fall * 8 * VOX;
+      arms[0]!.rotation.x = -w * 2.1 - Math.sin(t * 1.9) * 0.08 + fall * 0.8;
+      arms[1]!.rotation.x = -w * 2.1 - Math.sin(t * 1.9 + 1.4) * 0.08 + fall * 0.8;
+      arms[0]!.rotation.z = -0.08 - w * 0.2;
+      arms[1]!.rotation.z = 0.08 + w * 0.2;
+      tailPart.rotation.y = Math.sin(t * 2.1) * 0.45;
+      tailPart.rotation.x = Math.sin(t * 1.5) * 0.12;
+      for (const [i, e] of eyes.entries()) {
+        const pulse = 1 + 0.05 * Math.sin(t * 4 + i) + hurt * 0.18;
+        e.scale.set(pulse, (1 - fall * 0.9) * (1 + w * 0.15) * pulse, 1);
+      }
+    },
+  };
+}
+
 // MARK: Public
 
 const BUILDERS: Record<string, [Build, Palette]> = {
@@ -729,6 +863,7 @@ const BUILDERS: Record<string, [Build, Palette]> = {
   "context-window": [contextWindow, WINDOW],
   "merge-conflict": [mergeConflict, MERGE],
   hallucination: [hallucination, HALLU],
+  invoice: [invoice, INVOICE],
 };
 
 /** A boss sculpture by id. A silhouette is all shadow with only the eyes lit (the teaser's "???"). */
