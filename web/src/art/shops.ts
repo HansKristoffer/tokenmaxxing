@@ -216,7 +216,13 @@ export const shopDisplay = cached(
         p.rect(3, 8, 3, 2, C.leaf);
         p.px(4, 8, C.flowerRed);
         for (const [i, bx] of [7, 9, 11].entries()) {
-          p.rect(bx, 8 + (i === 1 ? 1 : 0), 2, 4 - (i === 1 ? 1 : 0), [C.fabric, C.flowerRed, C.flowerYellow][(i + Math.floor(k * 3)) % 3]!);
+          p.rect(
+            bx,
+            8 + (i === 1 ? 1 : 0),
+            2,
+            4 - (i === 1 ? 1 : 0),
+            [C.fabric, C.flowerRed, C.flowerYellow][(i + Math.floor(k * 3)) % 3]!,
+          );
         }
         // Bottom: two cushions and a folded blanket.
         p.rect(3, 14, 4, 3, pick([C.fabric, C.rug, C.flowerRed], 5));
