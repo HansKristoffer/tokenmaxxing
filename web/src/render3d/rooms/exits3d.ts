@@ -137,11 +137,11 @@ export function exitDoorway(opts: DoorwayOpts = {}): Model {
   const dark = tint(wall, -0.45);
   // A little shallower than the frame (z 0.21 to 0.55), so their backs don't share a plane and flicker when the
   // wall is lowered and the doorway is seen from behind.
-  for (const s of [-1, 1]) m.box([0.06, 2.08, 0.26], dark, [s * 0.42, 0, 0.37], 0.004);
-  m.box([0.9, 0.06, 0.26], dark, [0, 2.02, 0.37], 0.004);
+  for (const s of [-1, 1]) m.box([0.06, 2.08, 0.254], dark, [s * 0.42, 0, 0.367], 0.004);
+  m.box([0.9, 0.06, 0.254], dark, [0, 2.02, 0.367], 0.004);
   const beyond = opts.outside ? "#bfe6ff" : "#fff1c9";
-  m.plane(0.84, 2.02, glow(beyond), [0, 1.03, 0.5]);
-  if (opts.outside) m.plane(0.84, 0.5, glow("#8fcff5"), [0, 1.74, 0.502]);
+  m.plane(0.84, 2.02, glow(beyond), [0, 1.03, 0.505]);
+  if (opts.outside) m.plane(0.84, 0.5, glow("#8fcff5"), [0, 1.74, 0.507]);
   // The frame through the wall: jambs, lintel, a step.
   for (const s of [-1, 1]) m.box([0.1, 2.12, 0.34], trim, [s * 0.47, 0, 0.38], 0.015);
   m.box([1.04, 0.12, 0.34], trim, [0, 2.12, 0.38], 0.015);

@@ -214,7 +214,7 @@ export function catCondo(entries: Entry[], reg: Reg): Model {
   const m = new Model();
   const W = 6;
   const H = 2.55;
-  m.box([W, H, 0.06], WOOD, [0, 0, -0.47], 0.01);
+  m.box([W - 0.02, H - 0.01, 0.06], WOOD, [0, 0.004, -0.466], 0.01);
   for (const s of [-1, 1]) m.box([0.1, H, 1], WOOD_D, [s * (W / 2 - 0.05), 0, 0], 0.02);
   m.box([W + 0.1, 0.12, 1.08], WOOD_D, [0, H - 0.02, 0.0], 0.02);
   const tiers = [0, 0.86, 1.72];
@@ -306,7 +306,7 @@ const THEMES: Record<string, Theme> = {
       for (let i = 0; i < 9; i++)
         t.cyl(
           0.07,
-          0.025,
+          0.03,
           "#f5c842",
           [-0.3 + (i % 3) * 0.1, i > 5 ? 0.05 : i > 2 ? 0.025 : 0, 0.25 - Math.floor(i / 3) * 0.02],
           0.07,
@@ -392,7 +392,7 @@ export function fishTank(): Model {
   const H = 1.05;
   m.box([W - 0.14, 0.1, D - 0.14], "#e8d2a0", [0, y0, 0], 0.02);
   // Water and glass.
-  const water = m.box([W - 0.14, H - 0.1, D - 0.14], glass("#58a9e2", 0.38), [0, y0 + 0.1, 0], 0.01);
+  const water = m.box([W - 0.14, H - 0.108, D - 0.14], glass("#58a9e2", 0.38), [0, y0 + 0.1, 0], 0.01);
   water.renderOrder = 2;
   m.box([W - 0.1, H, D - 0.1], glass("#d8f0fa", 0.14), [0, y0, 0], 0.01).renderOrder = 3;
   for (const sx of [-1, 1])
@@ -400,7 +400,7 @@ export function fishTank(): Model {
       m.box([0.05, H + 0.05, 0.05], "#2b2433", [sx * (W / 2 - 0.04), y0, sz * (D / 2 - 0.04)], 0.01);
   m.box([W + 0.02, 0.05, 0.1], "#2b2433", [0, y0 + H, -D / 2 + 0.05], 0.01);
   m.box([W - 0.3, 0.05, 0.08], glow("#cfe9ff"), [0, y0 + H - 0.04, 0.2], 0.01);
-  nightGlow(m.box([W - 0.4, 0.04, 0.1], "#e8f4ff", [0, y0 + H - 0.04, -0.2], 0.01), "#bfe6ff");
+  nightGlow(m.box([W - 0.4, 0.044, 0.1], "#e8f4ff", [0, y0 + H - 0.04, -0.2], 0.01), "#bfe6ff");
   // Plants, a castle and rocks.
   const weeds: THREE.Object3D[] = [];
   for (const [x, c, h] of [
@@ -473,7 +473,7 @@ export function fishTank(): Model {
 export function wearRack(entries: Entry[], reg: Reg): Model {
   const m = new Model();
   const W = 5;
-  m.box([W, 2.3, 0.06], WOOD, [0, 0, -0.47], 0.01);
+  m.box([W - 0.02, 2.29, 0.06], WOOD, [0, 0.004, -0.466], 0.01);
   m.box([W + 0.1, 0.1, 0.12], WOOD_D, [0, 2.2, -0.45], 0.02);
   // The steps: a high one at the back, a low one in front, both with a red felt top.
   m.box([W - 0.1, 0.6, 0.5], WOOD_D, [0, 0, -0.22], 0.02);

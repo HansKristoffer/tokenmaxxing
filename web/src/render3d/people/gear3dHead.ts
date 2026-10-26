@@ -269,7 +269,7 @@ const brim = (m: Model, p: Paint, r: number, y: number, t = 0.03) => m.cyl(r, t,
 function wizard(m: Model, c: { cone: string; dark: string; star: string; band: string }): void {
   brim(m, c.dark, 0.36, 0.12, 0.03);
   cone(m, c.cone, 0.21, 0.3, 0.14, [0, 0], 16, 0.1);
-  m.cyl(0.215, 0.05, c.band, [0, 0.15, 0], 0.21, 16);
+  m.cyl(0.215, 0.046, c.band, [0, 0.153, 0], 0.21, 16);
   if (isVox(m))
     path(
       m,
@@ -307,7 +307,7 @@ function wizard(m: Model, c: { cone: string; dark: string; star: string; band: s
 /** A toque: pleated puffs on a band. */
 function toque(m: Model, extra?: (m: Model) => void): void {
   m.cyl(0.19, 0.1, "#fbf7ef", [0, 0.11, 0], 0.2, 18);
-  m.cyl(0.2, 0.025, "#d9d3c6", [0, 0.12, 0], 0.2, 18);
+  m.cyl(0.204, 0.025, "#d9d3c6", [0, 0.123, 0], 0.204, 18);
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
     m.ball(0.1, "#fbf7ef", [Math.sin(a) * 0.11, 0.26, Math.cos(a) * 0.11], [1, 1.05, 1]);

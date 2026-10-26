@@ -305,7 +305,7 @@ export function bowl(kind: "kibble" | "water" | "fish", color = "#c8ced6"): Mode
   m.cyl(0.17, 0.03, tint(color, -0.25), [0, 0, 0], 0.17, 16);
   m.cyl(0.2, 0.1, color, [0, 0.02, 0], 0.24, 16);
   m.cyl(0.19, 0.012, tint(color, -0.2), [0, 0.105, 0], 0.19, 16);
-  if (kind === "water") m.cyl(0.19, 0.012, glass("#58a9e2", 0.85), [0, 0.1, 0], 0.19, 16);
+  if (kind === "water") m.cyl(0.194, 0.012, glass("#58a9e2", 0.85), [0, 0.106, 0], 0.194, 16);
   else {
     const c = kind === "fish" ? "#e07a4f" : "#8c5c36";
     for (let i = 0; i < 12; i++) {

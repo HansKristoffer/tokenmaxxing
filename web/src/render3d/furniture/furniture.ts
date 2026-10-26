@@ -61,7 +61,7 @@ function books(m: Model, x0: number, x1: number, y: number, z: number, maxH: num
 
 /** A pot with soil, its rim `h` high. */
 function pot(m: Model, r: number, h: number, color = "#c8734a"): number {
-  m.cyl(r * 0.78, h, color, [0, 0, 0], r, 16);
+  m.cyl(r * 0.78, h - 0.006, color, [0, 0, 0], r, 16);
   m.cyl(r + 0.015, 0.05, tint(color, -0.12), [0, h - 0.05, 0], r + 0.015, 16);
   m.cyl(r * 0.9, 0.01, "#5e3d28", [0, h - 0.02, 0], r * 0.9, 16);
   return h;
@@ -203,7 +203,7 @@ export const desk =
     m.box([0.05, h, d - 0.08], C.wood, [-w / 2 + 0.06, 0, 0]);
     m.box([0.4, h - 0.02, d - 0.08], C.wood, [w / 2 - 0.24, 0, 0]);
     for (let i = 0; i < 3; i++) {
-      m.box([0.36, 0.17, 0.02], C.woodLight, [w / 2 - 0.24, 0.04 + i * 0.19, d / 2 - 0.05]);
+      m.box([0.36, 0.17, 0.02], C.woodLight, [w / 2 - 0.24, 0.04 + i * 0.19, d / 2 - 0.045]);
       m.box([0.08, 0.015, 0.02], C.metal, [w / 2 - 0.24, 0.13 + i * 0.19, d / 2 - 0.035]);
     }
     // The screen is over the left tile, where the chair goes.
@@ -236,7 +236,7 @@ export const bed =
     const m = new Model();
     const [w, d] = deep === 1 ? [0.85, 0.95] : [0.95, 1.85];
     m.box([w, 0.22, d], C.woodDark, [0, 0, 0], 0.03);
-    m.box([w, 0.75, 0.08], C.wood, [0, 0, -d / 2 + 0.04], 0.04);
+    m.box([w - 0.01, 0.75, 0.076], C.wood, [0, 0, -d / 2 + 0.042], 0.04);
     m.box([w - 0.06, 0.16, d - 0.14], C.white, [0, 0.2, 0.03], 0.05);
     m.box([0.62, 0.1, 0.32], C.pillow, [0, 0.35, -d / 2 + 0.3], 0.05);
     // A thick duvet, so a sleeper is tucked in under it.
@@ -263,7 +263,7 @@ export const sofa =
       );
     m.box([w - 0.2, 0.42, 0.2], color, [0, 0.29, -0.3], 0.07);
     for (const x of [-w / 2 + 0.09, w / 2 - 0.09])
-      m.box([0.18, 0.46, 0.8], tint(color, -0.08), [x, 0.05, 0], 0.07);
+      m.box([0.17, 0.46, 0.78], tint(color, -0.08), [x + (x < 0 ? 0.005 : -0.005), 0.05, 0], 0.07);
     for (const x of [-w / 2 + 0.07, w / 2 - 0.07])
       for (const z of [-0.33, 0.33]) m.cyl(0.03, 0.05, C.woodDark, [x, 0, z], 0.03, 8);
     return m;
@@ -465,7 +465,7 @@ const loungeChair = (): Model => {
 const recordPlayer = (): Model => {
   const m = new Model();
   m.box([0.6, 0.48, 0.42], C.wood, [0, 0, 0], 0.02);
-  m.box([0.52, 0.32, 0.02], C.woodDark, [0, 0.06, 0.2]);
+  m.box([0.52, 0.32, 0.02], C.woodDark, [0, 0.06, 0.205]);
   for (let i = 0; i < 6; i++) m.box([0.03, 0.28, 0.24], BOOKS[i]!, [-0.2 + i * 0.04, 0.08, 0.04], 0.004);
   m.box([0.5, 0.08, 0.36], "#2b2433", [0, 0.48, 0], 0.02);
   const disc = m.cyl(0.15, 0.012, "#1b1f2a", [-0.06, 0.56, 0], 0.15, 20);
@@ -491,7 +491,7 @@ const vending = (): Model => {
   for (let i = 0; i < 3; i++) m.box([0.1, 0.05, 0.02], C.metalLight, [0.27, 1.25 - i * 0.08, 0.34]);
   m.plane(0.1, 0.05, glow("#3ddc84"), [0.27, 1.38, 0.345]);
   m.box([0.5, 0.16, 0.02], "#2b2433", [-0.1, 0.12, 0.33], 0.01);
-  m.box([0.8, 0.16, 0.66], tint("#e25d5d", 0.2), [0, 1.66, 0], 0.04);
+  m.box([0.81, 0.16, 0.66], tint("#e25d5d", 0.2), [0, 1.66, 0], 0.04);
   m.plane(0.6, 0.08, glow("#ffe28a"), [0, 1.74, 0.335]);
   light(m, [0, 1.0, 0.6], "#ffd2d2", 1.4, 3);
   return m;

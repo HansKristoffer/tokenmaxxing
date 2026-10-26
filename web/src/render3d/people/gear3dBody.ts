@@ -1001,7 +1001,7 @@ export const BACK_BUILDERS: Record<string, BackBuilder> = {
       sizes.forEach(([w, h], i) => {
         const x0 = s > 0 ? 0 : -w;
         at.box([w * U, h * U, 0.7 * U], i % 2 ? "#ffffff" : "#f4f8fd", [(x0 + w / 2) * U, 0, 0]);
-        at.box([w * U, 0.55 * U, 0.8 * U], "#cfe0f4", [(x0 + w / 2) * U, 0, 0]);
+        at.box([w * U - 0.008, 0.55 * U, 0.8 * U], "#cfe0f4", [(x0 + w / 2) * U, 0, 0]);
         at.box([w * 0.55 * U, 1.2 * U, 0.7 * U], "#eaf2fb", [(x0 + w / 2) * U, -1.2 * U, 0]);
         segs.push(at);
         at = vpart(at, [s * w * U, 1.2 * U, 0]);

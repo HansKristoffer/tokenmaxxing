@@ -201,7 +201,7 @@ export function shelfUnit(
   const dark = tint(wood, -0.25);
   const top = opts.top ?? tierY[tierY.length - 1]! + 0.62;
   const cab = opts.cabinet ?? 0.45;
-  m.box([w, top, 0.06], opts.back ?? tint(wood, 0.1), [0, 0, -depth / 2 + 0.03], 0.01);
+  m.box([w - 0.02, top, 0.06], opts.back ?? tint(wood, 0.1), [0, 0, -depth / 2 + 0.026], 0.01);
   for (const s of [-1, 1]) m.box([0.06, top, depth], dark, [s * (w / 2 - 0.03), 0, 0], 0.01);
   for (const y of tierY) m.box([w - 0.08, 0.05, depth - 0.02], wood, [0, y - 0.05, 0], 0.01);
   m.box([w, 0.04, depth + 0.02], dark, [0, top, 0], 0.01);
@@ -210,7 +210,7 @@ export function shelfUnit(
     const n = Math.max(1, Math.round(w / 1));
     for (let i = 0; i < n; i++) {
       const x = -w / 2 + (i + 0.5) * (w / n);
-      m.box([w / n - 0.1, cab - 0.12, 0.03], wood, [x, 0.06, depth / 2 + 0.005], 0.01);
+      m.box([w / n - 0.1, cab - 0.12, 0.03], wood, [x, 0.06, depth / 2 + 0.01], 0.01);
       m.box([0.12, 0.025, 0.03], CHROME, [x, cab * 0.6, depth / 2 + 0.03], 0.005);
     }
   }
@@ -531,7 +531,7 @@ function barberApron(a: Avatar, stripe: boolean): void {
   b.box([0.27, 0.34, 0.025], stripe ? "#fbf7ef" : "#2b2433", [0, 0.42, 0.1], 0.008);
   if (stripe)
     for (let i = -2; i <= 2; i++)
-      b.box([0.034, 0.34, 0.03], i % 2 ? RED : "#fbf7ef", [i * 0.052, 0.42, 0.1], 0.004);
+      b.box([0.034, 0.332, 0.03], i % 2 ? RED : "#fbf7ef", [i * 0.052, 0.424, 0.1], 0.004);
   b.box([0.04, 0.03, 0.02], "#2b2433", [0, 0.72, 0.1], 0.004);
   b.box([0.05, 0.036, 0.02], RED, [-0.045, 0.72, 0.105], 0.006);
   b.box([0.05, 0.036, 0.02], RED, [0.045, 0.72, 0.105], 0.006);

@@ -53,7 +53,7 @@ function books(m: Model, x0: number, x1: number, y: number, z: number, maxH: num
 /** A pot with soil, its rim `h` high. */
 function pot(m: Model, r: number, h: number, color = "#c2703d", at: V3 = [0, 0, 0]): number {
   const [x, y, z] = at;
-  m.cyl(r * 0.78, h, color, [x, y, z], r, 16);
+  m.cyl(r * 0.78, h - 0.006, color, [x, y, z], r, 16);
   m.cyl(r + 0.015, 0.05, tint(color, -0.12), [x, y + h - 0.05, z], r + 0.015, 16);
   m.cyl(r * 0.9, 0.01, "#5e3d28", [x, y + h - 0.02, z], r * 0.9, 16);
   return y + h;
@@ -94,7 +94,7 @@ const touchedGrass = (): Model => {
     const d = 0.16 + rnd() * 0.16;
     const x = (rnd() * 2 - 1) * (0.9 - w / 2);
     const z = (rnd() * 2 - 1) * (0.4 - d / 2);
-    m.box([w, 0.045, d], i % 2 ? C.leafLight : C.grass, [x, 0.215, z], 0.015);
+    m.box([w, 0.045, d], i % 2 ? C.leafLight : C.grass, [x, 0.215 + i * 0.003, z], 0.015);
   }
   // Tufts of blades, tallest in the middle of each, leaning a little.
   const shades = [C.leafDark, C.leaf, C.leafLight, C.grass, C.grassLight];
@@ -331,7 +331,7 @@ const bookshelfLibrary = (): Model => {
   const m = new Model();
   const [w, h, d] = [1.88, 1.7, 0.34];
   const wood = C.woodDark;
-  m.box([w, h, 0.03], tint(wood, -0.15), [0, 0, -d / 2 + 0.015]);
+  m.box([w - 0.01, h - 0.004, 0.026], tint(wood, -0.15), [0, 0, -d / 2 + 0.017]);
   for (const x of [-w / 2 + 0.03, w / 2 - 0.03]) m.box([0.06, h, d], wood, [x, 0, 0]);
   m.box([w, 0.05, d], wood, [0, h - 0.05, 0], 0.01);
   for (let i = 0; i < 4; i++) {
@@ -464,7 +464,7 @@ const hangingPlant = (): Model => {
     const cord = m.cyl(0.006, 0.4, CREAM, [x * 0.5, 0.68, 0.0], 0.006, 4);
     cord.rotation.z = -x * 0.8;
   }
-  m.cyl(0.11, 0.17, "#c2703d", [0, 0.52, 0], 0.15, 14);
+  m.cyl(0.11, 0.16, "#c2703d", [0, 0.52, 0], 0.15, 14);
   m.cyl(0.14, 0.03, "#9a5530", [0, 0.66, 0], 0.15, 14);
   const rnd = seeded(31);
   for (const [x0, len] of [
@@ -632,7 +632,7 @@ const bonsaiStand = (): Model => {
 const bookcase = (): Model => {
   const m = new Model();
   const [w, h, d] = [1.88, 1.55, 0.34];
-  m.box([w, h, 0.03], "#3a2a22", [0, 0, -d / 2 + 0.015]);
+  m.box([w - 0.01, h - 0.004, 0.026], "#3a2a22", [0, 0, -d / 2 + 0.017]);
   for (const x of [-w / 2 + 0.03, w / 2 - 0.03]) m.box([0.06, h, d], TEAK_DARK, [x, 0, 0]);
   m.box([w, 0.05, d], TEAK_DARK, [0, h - 0.05, 0], 0.01);
   m.box([w + 0.02, 0.015, d + 0.02], TEAK_LIGHT, [0, h, 0]);
@@ -647,7 +647,6 @@ const bookcase = (): Model => {
       m.ball(0.085, C.leaf, [0.43, rim + 0.06, 0], [1, 0.9, 1], 8);
     } else books(m, -w / 2 + 0.07, w / 2 - 0.07, y + 0.04, 0, 0.38, i * 3 + 61);
   }
-  m.box([w, 0.04, d], TEAK, [0, 1.52, 0]).position.y = h - 0.04;
   return m;
 };
 

@@ -253,13 +253,13 @@ export function shelfBank(w: number, slots: readonly BankSlot[]): { model: Model
   const levels = [0.14, 1.0, 1.86];
   const wood = C.wood;
   for (const s of [-1, 1]) m.box([0.08, H, 0.62], C.woodDark, [s * (w / 2 - 0.04), 0, 0], 0.012);
-  m.box([w, H - 0.1, 0.05], tint(C.woodLight, 0.15), [0, 0.05, -0.28], 0.008);
+  m.box([w - 0.02, H - 0.1, 0.05], tint(C.woodLight, 0.15), [0, 0.05, -0.28], 0.008);
   m.box([w + 0.1, 0.08, 0.7], C.woodDark, [0, H, 0], 0.012);
   for (const y of levels) {
     m.box([w - 0.1, 0.07, 0.6], wood, [0, y - 0.07, 0], 0.01);
     m.box([w - 0.1, 0.2, 0.03], C.woodDark, [0, y - 0.17, 0.3], 0.006);
   }
-  m.box([w - 0.1, 0.1, 0.6], C.woodDark, [0, 0, 0], 0.01);
+  m.box([w - 0.12, 0.1, 0.58], C.woodDark, [0, 0, 0], 0.01);
   // A header strip with the bank's name.
   const head = headerBoard("SMALL THINGS", "lamps · plants · globe · ducks", w - 0.1, 0.3);
   head.position.set(0, H + 0.1, 0.33);
@@ -618,19 +618,19 @@ export function furnitureStorefront(): Model {
   m.box([w, h - 0.22, d - niche], wall, [0, 0.22, -niche - (d - niche) / 2], 0.02);
   m.box([w - 0.1, h - 0.22, 0.05], "#e8d2a6", [0, 0.22, -niche], 0.01);
   // Side walls and a back wall of the niche run.
-  for (const s of [-1, 1]) m.box([0.12, h - 0.22, niche], wall, [s * (w / 2 - 0.06), 0.22, -niche / 2], 0.01);
+  for (const s of [-1, 1]) m.box([0.12, h - 0.23, niche], wall, [s * (w / 2 - 0.06), 0.22, -niche / 2], 0.01);
   // Front skin: sills, piers, the band over the windows.
   const winW = 1.45;
   const winX = 1.5;
   const winY = [0.5, 1.34] as const;
   for (const s of [-1, 1]) {
     m.box([winW + 0.2, winY[0] - 0.22, 0.12], wall, [s * winX, 0.22, -0.06], 0.01);
-    m.box([0.3, h - 0.22, 0.12], wall, [s * (w / 2 - 0.15), 0.22, -0.06], 0.01);
+    m.box([0.3, h - 0.23, 0.12], wall, [s * (w / 2 - 0.15), 0.22, -0.06], 0.01);
     m.box([0.34, 1.25, 0.12], wall, [s * 0.67, 0.22, -0.06], 0.01);
   }
-  m.box([w, h - 1.3, 0.12], wall, [0, 1.3, -0.06], 0.01);
+  m.box([w, h - 1.31, 0.12], wall, [0, 1.3, -0.06], 0.01);
   m.box([w + 0.06, 0.1, 0.18], trim, [0, h - 0.1, -0.04], 0.01);
-  m.box([w + 0.05, 0.08, 0.16], trim, [0, 0.22, -0.04], 0.01);
+  m.box([w + 0.05, 0.085, 0.15], trim, [0, 0.215, -0.035], 0.01);
   // Windows: frame, glass, a little room-set inside.
   const set = (s: number) => {
     const win = m.part([s * winX, 0, 0]);
@@ -642,7 +642,7 @@ export function furnitureStorefront(): Model {
     const glassPane = win.box(
       [winW - 0.02, winY[1] - winY[0] - 0.05, 0.02],
       glass("#bfe4f2", 0.28),
-      [0, winY[0] + 0.02, -0.01],
+      [0, winY[0] + 0.02, -0.014],
       0.002,
     );
     glassPane.castShadow = false;

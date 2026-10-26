@@ -148,13 +148,20 @@ function picket(m: Model, x0: number, x1: number, z: number, alongZ = false, sol
   }
   const n = Math.max(1, Math.round(len / 0.5));
   for (let i = 0; i <= n; i++) {
+    // The side runs' end posts are the front and back runs' corner posts: leave them out so they don't share faces.
+    if (alongZ && (i === 0 || i === n)) continue;
     const x = a + (i / n) * len;
     part.box([0.2, 0.42, 0.1], C.ink, [x, 0, 0], 0.01);
     part.box([0.1, 0.34, 0.12], C.woodLight, [x, 0.04, 0], 0.005);
   }
   if (!solid) {
-    part.box([len, 0.14, 0.08], C.ink, [(x0 + x1) / 2, 0.22, 0.01], 0.005).userData.detailSize = 0.14;
-    part.box([len, 0.06, 0.1], C.woodLight, [(x0 + x1) / 2, 0.26, 0.01], 0.003).userData.detailSize = 0.06;
+    part.box([len, 0.14, 0.076], C.ink, [(x0 + x1) / 2, 0.22, 0.01], 0.005).userData.detailSize = 0.14;
+    part.box(
+      [len - 0.008, 0.06, 0.096],
+      C.woodLight,
+      [(x0 + x1) / 2, 0.26, 0.008],
+      0.003,
+    ).userData.detailSize = 0.06;
   }
 }
 
@@ -263,7 +270,7 @@ export function companyHouse(tier: number, name: string, brand: Brand | null): M
     for (let x = -w / 2 + 0.25; x < w / 2; x += 0.25)
       m.box([0.015, h - PLINTH - 0.04, 0.02], tint(s.wall, -0.14), [x, PLINTH + 0.02, 0.01]);
   } else {
-    m.box([w, h - PLINTH, d], s.wall, [0, PLINTH, -d / 2], 0.02);
+    m.box([w - 0.008, h - PLINTH - 0.008, d - 0.016], s.wall, [0, PLINTH, -d / 2], 0.02);
     for (let y = PLINTH + 0.15; y < h - 0.1; y += 0.2)
       m.box([w + 0.005, 0.012, d + 0.005], tint(s.wall, -0.07), [0, y, -d / 2], 0.002);
   }
@@ -491,7 +498,7 @@ export function tavernBuilding(): Model {
     },
     true,
   );
-  m.box([1.9, 0.38, 0.06], "#3a2a1c", [0, h - 0.72, 0.03], 0.02);
+  m.box([1.9, 0.38, 0.066], "#3a2a1c", [0, h - 0.72, 0.033], 0.02);
   m.plane(1.84, 0.36, glow("#fff", sign), [0, h - 0.72 + 0.19, 0.07]);
   const hang = m.part([2.05, h - 0.35, 0.3]);
   hang.box([0.04, 0.04, 0.5], C.woodDark, [0, 0.1, -0.2]);

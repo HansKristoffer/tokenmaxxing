@@ -351,7 +351,7 @@ function petBed(): Model {
     m.box([0.03, 0.12, 0.03], C.wood, [Math.cos(a) * 0.43, 0.04, Math.sin(a) * 0.43], 0.008).rotation.y = -a;
   }
   m.cyl(0.31, 0.1, C.fabric, [0, 0.03, 0], 0.31, 24);
-  m.cyl(0.31, 0.012, C.fabricDark, [0, 0.12, 0], 0.31, 24);
+  m.cyl(0.314, 0.012, C.fabricDark, [0, 0.12, 0], 0.314, 24);
   m.cyl(0.24, 0.012, C.fabric, [0, 0.128, 0], 0.24, 24);
   for (const [x, z] of [
     [-0.12, 0.08],
