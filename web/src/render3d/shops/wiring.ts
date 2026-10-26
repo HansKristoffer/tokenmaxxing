@@ -26,7 +26,6 @@ export const realStore = (): GameStore => ({
   me: () => hud.get().me,
   wallet: () => hud.get().wallet,
   level: () => hud.get().stats?.level ?? 1,
-  companies: () => hud.get().companies,
   decorInUse: () => ({ wall: gameWorld.owner?.wall, floor: gameWorld.owner?.floor }),
   setWallet: (wallet) => hud.set({ wallet }),
   setMe: (me) => hud.set({ me }),

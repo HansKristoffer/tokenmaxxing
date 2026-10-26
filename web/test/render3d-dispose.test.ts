@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import * as THREE from "three";
-import { batchStatic } from "../src/render3d/batch.ts";
-import { disposeObject } from "../src/render3d/dispose.ts";
+import { batchStatic } from "../src/render3d/engine/batch.ts";
+import { disposeObject } from "../src/render3d/engine/dispose.ts";
 
 const counted = (target: { addEventListener: (t: "dispose", f: () => void) => void }) => {
   const n = { v: 0 };

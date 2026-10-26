@@ -1,6 +1,6 @@
 /**
  * How much of the screen the HUD's panels cover on each side, measured from the real elements, so the
- * 3D camera can centre the player and frame the room in the free area between them (`render3d/rig.ts`).
+ * 3D camera can centre the player and frame the room in the free area between them (`render3d/engine/rig.ts`).
  * A side counts in proportion to how much of its edge the panels fill: a lone corner chip does not move
  * the picture, a chat and a map along the bottom do.
  */

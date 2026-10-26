@@ -22,14 +22,14 @@ import {
   WALK_STEP_MS,
 } from "@tokenmaxxing/core/world.ts";
 import { conn } from "../net.ts";
-import { tossLanded } from "../render3d/world-logic.ts";
+import { tossLanded } from "../render3d/town/world-logic.ts";
 import { chatBeside, hud } from "../store.ts";
 import { basementInteract } from "./basement.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
-import { buildingAt, companyOnPlot, peekHits } from "./houses.ts";
+import { buildingAt, companyOnPlot, doorOf, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
@@ -204,10 +204,9 @@ export function bindInput(canvas: HTMLElement): void {
     const { x, y } = tile;
     const other = avatarAt(x, y);
     if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
-    // A company's house (not its door, which you walk through) opens its page.
-    const plot = world.map.kind(x, y).portal ? null : buildingAt(x, y)?.plot;
-    const company = plot ? companyOnPlot(plot) : null;
-    if (company) return void hud.set({ panel: { kind: "companyCard", companyId: company.id } });
+    // A building (its wall or roof, not something on it to use): walk to its door and in. Its sign opens its page.
+    const door = world.room === "town" ? doorOf(world.map, x, y) : null;
+    if (door) return void walkTo(...door);
     walkTo(x, y);
   });
   // Right-click a drop (or yourself, on one): take it, walking there first (onto it, into its seat, or

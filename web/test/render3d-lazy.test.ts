@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { prepareRoom, registerRoomPrep, roomReady, roomsNextTo } from "../src/render3d/rooms.ts";
+import { prepareRoom, registerRoomPrep, roomReady, roomsNextTo } from "../src/render3d/rooms/rooms.ts";
 
 test("a room with code to fetch is not ready until prepared, and shares one fetch", async () => {
   let runs = 0;

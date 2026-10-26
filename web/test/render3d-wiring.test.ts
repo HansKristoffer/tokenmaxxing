@@ -2,7 +2,7 @@ import { beforeAll, expect, test } from "bun:test";
 import { MAPS, SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
 import { SHOP_BODY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
-import { placedIn } from "../src/render3d/placed.ts";
+import { placedIn } from "../src/render3d/furniture/placed.ts";
 
 // A canvas that draws nothing: enough for the kit's painted textures to be "built" without a browser.
 const pixels = () => ({ data: new Uint8ClampedArray(1 << 22), width: 1024, height: 1024 });
@@ -22,10 +22,10 @@ Object.assign(globalThis, {
   navigator: { userAgent: "bun" },
 });
 
-type Town = typeof import("../src/demo3d/town3d.ts");
+type Town = typeof import("../src/render3d/town/town3d.ts");
 let town: Town;
 beforeAll(async () => {
-  town = await import("../src/demo3d/town3d.ts");
+  town = await import("../src/render3d/town/town3d.ts");
 });
 
 test("the 3D town is the core map: each shop's front and door stand where the game's town has them", () => {

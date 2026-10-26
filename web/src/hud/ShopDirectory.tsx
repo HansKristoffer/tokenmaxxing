@@ -6,13 +6,24 @@ import { SHOP_DIRECTORY } from "./shops.ts";
 import { Modal } from "./ui.tsx";
 
 /** "Take me there": starts the auto-walk to a shop's door, or says why it can't. */
-export function TakeMeThere({ shop, label = "Take me there" }: { shop: ShopId; label?: string }) {
+export function TakeMeThere({
+  shop,
+  label = "Take me there",
+  className = "primary",
+  title,
+}: {
+  shop: ShopId;
+  label?: string;
+  className?: string;
+  title?: string;
+}) {
   const [gone, setGone] = useState(false);
   return (
     <>
       <button
         type="button"
-        className="primary"
+        className={className || undefined}
+        title={title}
         onClick={() => {
           if (goToShopDoor(shop)) return;
           setGone(true);

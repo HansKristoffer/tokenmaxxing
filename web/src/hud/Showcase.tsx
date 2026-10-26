@@ -39,6 +39,13 @@ const earned = (pin: PinView) => (pin.at ? dayText(new Date(pin.at).toISOString(
 /** The card's shelf: three slots, what's pinned in each, and (on my own card) a button to change it. */
 export function Shelf({ pins, mine, onEdit }: { pins: PinView[]; mine: boolean; onEdit: () => void }) {
   if (pins.length === 0 && !mine) return null;
+  // An empty shelf of mine is just the way to fill it, not three empty boxes.
+  if (pins.length === 0)
+    return (
+      <button type="button" className="link small" onClick={onEdit}>
+        📌 Pin something to your shelf
+      </button>
+    );
   return (
     <section className="shelf" aria-label="Showcase">
       <ul>

@@ -3,15 +3,7 @@ import { progressOf } from "@tokenmaxxing/core/badges.ts";
 import { BARKEEP } from "@tokenmaxxing/core/barkeep.ts";
 import { BOTS } from "@tokenmaxxing/core/bots.ts";
 import { COP_ID } from "@tokenmaxxing/core/cop.ts";
-import {
-  compact,
-  hoursText,
-  levelAt,
-  levelTitle,
-  MAX_LEVEL,
-  plural,
-  usd,
-} from "@tokenmaxxing/core/format.ts";
+import { compact, hoursText, levelAt, MAX_LEVEL, plural, usd } from "@tokenmaxxing/core/format.ts";
 import {
   LEGENDARY_LEVEL,
   milestoneText,
@@ -37,6 +29,11 @@ import { Tickets } from "./Tickets.tsx";
 import { AvatarImage, Modal, Pills, useLoad, useRun } from "./ui.tsx";
 
 export const RANGES = ranges("All");
+
+const TABS = [
+  ["profile", "Profile"],
+  ["stats", "Stats"],
+] as const;
 
 function doing(userId: number): string | null {
   const a = world.avatars.get(userId);
@@ -78,6 +75,7 @@ export function PlayerCard({ userId }: { userId: number }) {
   // What I changed on my own card, until the next load.
   const [shelf, setShelf] = useState<Profile["showcase"]>();
   const [picking, setPicking] = useState(false);
+  const [tab, setTab] = useState<"profile" | "stats">("profile");
 
   if (error) return <Modal title="Player">{error}</Modal>;
   if (!p) return <Modal title="Player">Loading…</Modal>;
@@ -92,6 +90,9 @@ export function PlayerCard({ userId }: { userId: number }) {
     "level",
   )[0];
   const mine = userId === world.selfId;
+  // What the next levels bring, on hover of the "Lv7 in …" line.
+  const rewardText = reward ? `Reward at Lv${reward.level}: ${reward.name}` : "";
+  const milestoneLine = next ? `Lv${next.level} milestone: ${milestoneText(next)}` : "";
   const visit = () => {
     hud.set({ panel: null });
     world.portalPending = true;
@@ -106,45 +107,57 @@ export function PlayerCard({ userId }: { userId: number }) {
         </>
       }
     >
-      <div className="card-head">
-        <AvatarImage look={p.look} scale={5} aura={p.level >= LEGENDARY_LEVEL} />
-        <div>
-          {title && (
-            <p className={`milestone-title${p.level >= LEGENDARY_LEVEL ? " legendary" : ""}`}>🏅 {title}</p>
-          )}
-          <p>
-            <strong>Level {p.level}</strong> · {p.levelTitle}
-            {today > 0 && <span className="xp-today small"> · +{compact(today)} today</span>}
-          </p>
-          <XpBar level={p.level} tokens={p.lifetimeTokens} today={today} />
+      <Pills value={tab} options={TABS} onChange={setTab} />
+      {tab === "profile" ? (
+        <>
+          <div className="card-head">
+            <AvatarImage look={p.look} scale={5} aura={p.level >= LEGENDARY_LEVEL} />
+            <div className="card-who">
+              {title && (
+                <p className={`milestone-title${p.level >= LEGENDARY_LEVEL ? " legendary" : ""}`}>
+                  🏅 {title}
+                </p>
+              )}
+              <p>
+                <strong>Level {p.level}</strong> · {p.levelTitle}
+                {today > 0 && <span className="xp-today small"> · +{compact(today)} today</span>}
+              </p>
+              <XpBar level={p.level} tokens={p.lifetimeTokens} today={today} />
+              <p
+                className="muted small"
+                title={[rewardText, milestoneLine].filter(Boolean).join("\n") || undefined}
+              >
+                {p.level >= MAX_LEVEL
+                  ? "Max level"
+                  : `Lv${p.level + 1} in ${compact(levelAt(p.level + 1) - p.lifetimeTokens)} tokens`}
+                {(rewardText || milestoneLine) && " ⓘ"}
+              </p>
+              <p className="small">
+                {p.company ? (
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => hud.set({ panel: { kind: "companyCard", companyId: p.company!.id } })}
+                  >
+                    🏢 {p.company.name}
+                  </button>
+                ) : (
+                  <span className="muted">Freelancer</span>
+                )}
+                <span className="muted"> · {compact(p.lifetimeTokens)} tokens all time</span>
+              </p>
+              {(p.since || (!status && p.lastActive)) && (
+                <p className="muted small">
+                  {p.since && <>Regular since {dayText(p.since, { month: "short", year: "numeric" })}</>}
+                  {p.since && !status && p.lastActive && " · "}
+                  {!status && p.lastActive && (
+                    <>last active {daysAgoText(p.lastActive, dayKey(Date.now()))}</>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
           <Bio userId={userId} bio={p.bio ?? null} mine={mine} />
-          {(p.since || (!status && p.lastActive)) && (
-            <p className="muted small">
-              {p.since && <>Regular since {dayText(p.since, { month: "short", year: "numeric" })}</>}
-              {p.since && !status && p.lastActive && " · "}
-              {!status && p.lastActive && <>last active {daysAgoText(p.lastActive, dayKey(Date.now()))}</>}
-            </p>
-          )}
-          <p className="muted small">
-            {p.level >= MAX_LEVEL ? (
-              "Max level"
-            ) : (
-              <>
-                Next: Lv{p.level + 1} {levelTitle(p.level + 1)} in{" "}
-                {compact(levelAt(p.level + 1) - p.lifetimeTokens)} tokens
-              </>
-            )}
-          </p>
-          {reward && (
-            <p className="muted small">
-              Reward at Lv{reward.level}: {reward.name}
-            </p>
-          )}
-          {next && (
-            <p className="muted small">
-              Lv{next.level} milestone: {milestoneText(next)}
-            </p>
-          )}
           {p.badges.length > 0 && (
             <ul className="badges">
               {p.badges.map((b) => (
@@ -167,85 +180,70 @@ export function PlayerCard({ userId }: { userId: number }) {
               ))}
             </ul>
           )}
-          {mine && p.badges.length > 0 && (
-            <p>
-              <button
-                type="button"
-                className="link"
-                onClick={() => hud.set({ panel: { kind: "collection" } })}
-              >
+          <Tickets tickets={p.tickets} />
+          {picking ? (
+            <ShelfPicker
+              current={shelf ?? p.showcase ?? []}
+              onSaved={(pins) => {
+                setShelf(pins);
+                setPicking(false);
+              }}
+              onCancel={() => setPicking(false)}
+            />
+          ) : (
+            <Shelf pins={shelf ?? p.showcase ?? []} mine={mine} onEdit={() => setPicking(true)} />
+          )}
+          <p className="company-actions">
+            {p.office && (mine || p.office === "open") && (
+              <button type="button" onClick={visit}>
+                🚪 {mine ? "My office" : "Visit office"}
+              </button>
+            )}
+            {mine && p.badges.length > 0 && (
+              <button type="button" onClick={() => hud.set({ panel: { kind: "collection" } })}>
                 📖 Collection
               </button>
-            </p>
-          )}
-          <Tickets tickets={p.tickets} />
-          {p.company ? (
-            <p>
-              <button
-                type="button"
-                className="link"
-                onClick={() => hud.set({ panel: { kind: "companyCard", companyId: p.company!.id } })}
-              >
-                🏢 {p.company.name}
-              </button>
-            </p>
-          ) : (
-            <p className="muted">Freelancer</p>
-          )}
-          <p className="muted">{compact(p.lifetimeTokens)} tokens all time</p>
-          {!mine && (
-            <p>
-              <button
-                type="button"
-                onClick={() => hud.set({ panel: { kind: "newTable", invite: userId, inviteName: p.name } })}
-              >
-                🎮 Invite to a game
-              </button>{" "}
-              <button type="button" onClick={() => hud.set({ panel: { kind: "trade", userId } })}>
-                🔁 Trade
-              </button>
-            </p>
-          )}
-          {p.office && (mine || p.office === "open") && (
-            <button type="button" onClick={visit}>
-              🚪 {mine ? "My office" : "Visit office"}
-            </button>
-          )}
-          {p.office === "closed" && !mine && <p className="muted">🔒 Office closed</p>}
-        </div>
-      </div>
-      {picking ? (
-        <ShelfPicker
-          current={shelf ?? p.showcase ?? []}
-          onSaved={(pins) => {
-            setShelf(pins);
-            setPicking(false);
-          }}
-          onCancel={() => setPicking(false)}
-        />
+            )}
+            {!mine && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => hud.set({ panel: { kind: "newTable", invite: userId, inviteName: p.name } })}
+                >
+                  🎮 Invite to a game
+                </button>
+                <button type="button" onClick={() => hud.set({ panel: { kind: "trade", userId } })}>
+                  🔁 Trade
+                </button>
+              </>
+            )}
+            {p.office === "closed" && !mine && <span className="muted small">🔒 Office closed</span>}
+          </p>
+        </>
       ) : (
-        <Shelf pins={shelf ?? p.showcase ?? []} mine={mine} onEdit={() => setPicking(true)} />
+        <>
+          <Pills value={range} options={RANGES} onChange={setRange} />
+          <StatsGrid totals={t} />
+          {p.models.length > 0 && (
+            <p className="muted small">
+              Top models:{" "}
+              {p.models
+                .slice(0, 3)
+                .map((m) => m.model)
+                .join(", ")}
+            </p>
+          )}
+          {p.games && (
+            <p className="muted small">
+              🎮 {plural(p.games.played, "game")} · {Math.round((p.games.wins / p.games.played) * 100)}% won ·{" "}
+              {p.games.net >= 0 ? "+" : "−"}🪙 {Math.abs(p.games.net)}
+              {p.games.biggestPot > 0 && ` · biggest pot 🪙 ${p.games.biggestPot}`}
+            </p>
+          )}
+          <HowYouWork p={p} />
+          {mine && <Computers />}
+        </>
       )}
-      <HowYouWork p={p} />
-      <Pills value={range} options={RANGES} onChange={setRange} />
-      <StatsGrid totals={t} />
-      {p.models.length > 0 && (
-        <p className="muted small">
-          Top models:{" "}
-          {p.models
-            .slice(0, 3)
-            .map((m) => m.model)
-            .join(", ")}
-        </p>
-      )}
-      {p.games && (
-        <p className="muted small">
-          🎮 {plural(p.games.played, "game")} · {Math.round((p.games.wins / p.games.played) * 100)}% won ·{" "}
-          {p.games.net >= 0 ? "+" : "−"}🪙 {Math.abs(p.games.net)}
-          {p.games.biggestPot > 0 && ` · biggest pot 🪙 ${p.games.biggestPot}`}
-        </p>
-      )}
-      {userId === world.selfId && <Computers />}
     </Modal>
   );
 }

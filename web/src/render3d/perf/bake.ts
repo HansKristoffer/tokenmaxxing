@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { blockMoves, blockStandIn } from "../../demo3d/blocky.ts";
-import { ticks } from "../../demo3d/kit.ts";
-import { isPropsNight, type NightGlow, onPropsNight } from "../../demo3d/props.ts";
+import { blockMoves, blockStandIn } from "../kit/blocky.ts";
+import { ticks } from "../kit/kit.ts";
+import { isPropsNight, type NightGlow, onPropsNight } from "../town/props.ts";
 import { type Atlas, atlasable, packAtlas, remapUv, syncAtlas, uvInside } from "./atlas.ts";
 
 /**
@@ -705,12 +705,6 @@ export function bakePending(scene: THREE.Object3D): boolean {
     if (top === scene) return true;
   }
   return false;
-}
-
-/** Whether `scene` has at least one static batch on the baked shadow layer. */
-export function hasStaticBatch(scene: THREE.Scene): boolean {
-  const s = seen.get(scene);
-  return !!s?.layers.some((l) => !l.disposed && !dynamicRoot(l.root));
 }
 
 const seen = new WeakMap<THREE.Scene, { epoch: number; mode: BakeMode | null; layers: BakedLayer[] }>();

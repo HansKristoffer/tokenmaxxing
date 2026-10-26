@@ -4,7 +4,7 @@
  * placement mode for a bought piece, and putting a wallpaper or floor on the Office the renderer draws.
  * Everything that costs or saves goes to the server through the `GameBackend`, never through here.
  */
-import type { Look2D } from "../../demo3d/gear3d.ts";
+import type { Look2D } from "../people/gear3d.ts";
 
 export interface ShopWorld {
   /** Shows `look` on the local player for now; null puts the saved one back. Never saved. */

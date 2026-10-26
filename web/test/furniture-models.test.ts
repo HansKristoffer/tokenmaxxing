@@ -5,7 +5,7 @@ import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 installHeadlessGlobals();
 
 test("touched grass has a voxel model that fits its two-tile footprint", async () => {
-  const { extraAssetById } = await import("../src/demo3d/furniture3d.ts");
+  const { extraAssetById } = await import("../src/render3d/furniture/furniture3d.ts");
   const asset = extraAssetById.get("touched-grass")!;
   expect(asset.w).toBe(2);
   expect(asset.d).toBe(1);

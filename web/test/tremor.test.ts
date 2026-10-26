@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buzz, tremor, tremor2d, tremorPhase } from "../src/game/tremor.ts";
+import { buzz, jitter, tremor, tremor2d, tremorPhase } from "../src/game/tremor.ts";
 
 const samples = (cups: number, hz: number, seconds: number, phase = 0.7) =>
   Array.from({ length: Math.round(hz * seconds) }, (_, i) => tremor(cups, i / hz, phase));
@@ -67,5 +67,24 @@ describe("tremor", () => {
     let most = 0;
     for (let ms = 0; ms < 20_000; ms += 20) most = Math.max(most, Math.abs(tremor2d(4, ms, 0.3).dx));
     expect(most).toBe(2);
+  });
+});
+
+describe("jitter", () => {
+  test("none without coffee; about a degree a cup at most, in fits, the same at any frame rate", () => {
+    expect(jitter(0, 1.234, 2)).toEqual({ roll: 0, pitch: 0, lift: 0 });
+    const roll = (cups: number, from: number, to: number) => {
+      let peak = 0;
+      for (let t = from; t < to; t += 1 / 240) peak = Math.max(peak, Math.abs(jitter(cups, t, 0.7).roll));
+      return peak;
+    };
+    for (const cups of [0.5, 2, 4, 9]) {
+      expect(roll(cups, 0, 8)).toBeLessThanOrEqual(buzz(cups) * 0.018 + 1e-12);
+      for (let t = 0; t < 8; t += 1 / 60) expect(jitter(cups, t, 0.7).lift).toBeGreaterThanOrEqual(0);
+    }
+    expect(jitter(3, 0.5, 1.1)).toEqual(jitter(3, 0.5, 1.1));
+    // A fit and the lull between: the peak changes over the 1.6 s cycle.
+    const peaks = Array.from({ length: 8 }, (_, i) => roll(3, i * 0.2, i * 0.2 + 0.2));
+    expect(Math.max(...peaks)).toBeGreaterThan(Math.min(...peaks) * 1.5);
   });
 });

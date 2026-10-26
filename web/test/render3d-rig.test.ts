@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { angleDelta } from "../src/render3d/motion.ts";
-import { CameraRig, fitView } from "../src/render3d/rig.ts";
+import { CameraRig, fitView } from "../src/render3d/engine/rig.ts";
+import { angleDelta } from "../src/render3d/people/motion.ts";
 
 const room = { minX: 0, maxX: 24, minZ: 0, maxZ: 14, height: 2.6 };
 const rig = () => new CameraRig({ getItem: () => null });

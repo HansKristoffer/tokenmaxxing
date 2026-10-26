@@ -65,6 +65,44 @@ export function tremor(cups: number, tSec: number, phase = 0): Tremor {
   };
 }
 
+/** Peak tilt per cup, in radians (about a degree). */
+const TILT_PER_CUP = 0.018;
+/** Fast enough to read as a buzz, not a drift (Hz, none a multiple of another). */
+const ROLL_WAVES: readonly (readonly [number, number])[] = [
+  [17.9, 0.6],
+  [26.3, 0.4],
+];
+const PITCH_WAVES: readonly (readonly [number, number])[] = [
+  [15.7, 0.6],
+  [23.9, 0.4],
+];
+/** The buzz comes in fits, about one every 1.6 s, and never quite stops between them. */
+const FIT_HZ = 0.62;
+
+export interface Jitter {
+  /** Tilts about the feet, in radians: side to side and back and forth. */
+  roll: number;
+  pitch: number;
+  /** A small bounce, in tiles (never below zero). */
+  lift: number;
+}
+
+/**
+ * The 3D buzz: the feet stay where they are and the body vibrates over them, in fits. Sliding the whole
+ * figure about (`tremor`) reads as a laggy connection, not as too much coffee.
+ */
+export function jitter(cups: number, tSec: number, phase = 0): Jitter {
+  const b = buzz(cups);
+  if (b <= 0) return { roll: 0, pitch: 0, lift: 0 };
+  const fit = 0.3 + 0.7 * smooth(0.5 + 0.6 * Math.sin(Math.PI * 2 * FIT_HZ * tSec + phase));
+  const tilt = b * TILT_PER_CUP * fit;
+  return {
+    roll: tilt * wave(ROLL_WAVES, tSec, phase, 1),
+    pitch: tilt * 0.5 * wave(PITCH_WAVES, tSec, phase, 1.7),
+    lift: b * REACH_PER_CUP * 0.35 * fit * Math.abs(Math.sin(Math.PI * 2 * LIFT_HZ * tSec + phase * 2.3)),
+  };
+}
+
 /**
  * The 2D shake in whole pixels, held for 1/15 s so nothing flickers between pixels: one pixel across, two at
  * four cups.

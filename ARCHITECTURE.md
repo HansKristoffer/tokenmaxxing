@@ -25,27 +25,25 @@ The game also runs in any browser; the app's window is that same page, at `/play
 | `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `quests`, `awards` (badge awards and their sweep), `hall` (the Hall of Fame), `card` (bios, showcase, habits, the Tavern's minutes), `sync` (pushes to `world`) |
 | `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (one Open-Meteo fetch per 15 min, for the `world` actor), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
-| `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels), `render3d/` (the 3D renderer), `demo3d/` (the 3D demo and the builders the game reuses), `settings/` (graphics tiers, detection, governor) |
+| `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels), `render3d/` (the 3D renderer: `engine/`, `kit/`, `people/`, `pets/`, `furniture/`, `rooms/`, `town/`, `dungeon/`, `shops/`, `data/`), `settings/` (graphics tiers, detection, governor) |
 | `app/helper/` | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar |
 | `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, updates |
 | `site/` | The marketing site at `/` (Astro, static): `bun run site:dev` to work on it, `bun run site:build` before serving it |
 
 ## 3D and graphics: where to look
 
-The game draws through a `Renderer`; on Medium and up that is a Three.js voxel renderer built on the standalone 3D demo.
+The game draws through a `Renderer`; on Medium and up that is a Three.js voxel renderer (`web/src/render3d/`).
 
 | Topic | Where |
 |---|---|
 | Graphics tiers (Low / Medium / High / Ultra, Auto), overrides, saved settings | `web/src/settings/graphics.ts`; hardware detection `detect.ts` and its pure scoring `score.ts` (Auto never picks Ultra: it is opt-in, and a laptop saving power is biased to Medium); the FPS governor `governor.ts`; the Graphics panel `web/src/hud/Graphics.tsx`. See "The client" and "3D performance" below |
 | The `Renderer` interface | `web/src/game/renderer.ts` (`Renderer2D` wraps `render.ts`; `render3d/index.ts` `create3D()` is loaded on demand). `game/stage.ts` runs the loop and swaps them |
-| The 3D architecture | `web/src/render3d/` (rooms registry `rooms.ts`, entities, camera `rig.ts`, overlay labels, shops, live data), reusing the demo's builders in `web/src/demo3d/`. Described in "The client" |
+| The 3D architecture | `web/src/render3d/`, by area: `engine/` (pipeline, camera `rig.ts`, overlay labels, batching, picking), `kit/` (the modelling kit), `people/` (avatars, gear, `entities.ts`), `pets/`, `furniture/`, `rooms/` (the world graph, the rooms registry `rooms.ts`, the Tavern, basement and HQ), `town/`, `dungeon/`, `shops/`, `data/`. Described in "The client" |
 | The camera and the HUD | `rig.ts` centres the player and the room's framing in the area the HUD leaves free: `game/inset.ts` measures the HUD panels' real rects (resize, panel open and close) into `hudInset`, and `CameraRig.setInsets` eases the picture there. On a phone (`useNarrow`, under 700 px wide or 500 px high) chat, map and corner cards fold into a tray of icons |
-| Name tags in a crowd | `render3d/declutter.ts`: nearest keep their place, the next stack up, the rest hide, farther ones fade, capped by tier (`tagCap`); no per-frame allocation |
-| Perf budgets and how to profile | "3D performance" below: `web/src/render3d/perf/budgets.ts` (checked by `web/test/perf-budget.test.ts`), `scripts/perf-harness.mjs`, `scripts/perf/*`, `perf-results/REPORT.md` |
-| The shops and `ShopBackend` | "The physical shops (ShopBackend)" and "The shops" below. The pet shop builds in slices as you near its door (`warmShop` in `demo3d/shops/index.ts`, `render3d/warm.ts`) so entering it does not hitch a frame |
-| The common room | "The common room" below (`core/src/common.ts`, `render3d/room-furnished.ts`) |
-| The demo | `bun run demo:3d` serves `web/demo3d.html` on :4477: every room, shop, gear and the pipeline with its own panels, on a localStorage purse. The game reuses its builders, so a change there shows in the game |
-| Concept art | `web/concept.html` (`web/src/demo3d/concept/`, stills in `media/concept/`, note in `CONCEPT.md`): a "vertical town" concept rendered by the demo's engine. It is art direction, not shipped in the game |
+| Name tags in a crowd | `render3d/engine/declutter.ts`: nearest keep their place, the next stack up, the rest hide, farther ones fade, capped by tier (`tagCap`); no per-frame allocation |
+| Perf budgets and how to profile | "3D performance" below: `web/src/render3d/perf/budgets.ts` (checked by `web/test/perf-budget.test.ts`), `scripts/perf/*` |
+| The shops and `ShopBackend` | "The physical shops (ShopBackend)" and "The shops" below. The pet shop builds in slices as you near its door (`warmShop` in `render3d/shops/catalog.ts`, `render3d/rooms/warm.ts`) so entering it does not hitch a frame |
+| The common room | "The common room" below (`core/src/common.ts`, `render3d/rooms/room-furnished.ts`) |
 | Manual QA of the real game | `scripts/qa/*.mjs` drive it headless with Playwright against a local server (`bun run qa:tour`, `qa:sleep`, `qa:hitch`; others run with `bun scripts/qa/<name>.mjs [tier]`). Set `localStorage["tokenmaxxing.qa"] = "1"` for the `window.__tm` handle (`game/qa.ts`) |
 | Blocked storage | Everything in `web/src` reads and writes `localStorage` through `web/src/storage.ts`, which falls back to memory (private mode, blocked cookies) instead of throwing |
 
@@ -416,7 +414,7 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   its table asks the town to give every row back (`pokerRelease`). The client: `hud.poker` / `hud.pokerHole`
   (`net.ts`), the docked `hud/Poker.tsx` (cards, pot, clock, fold/check/call, raise slider, leave), `game/input.ts`
   (E on a chair; no walking while seated), the 2D table (`art/tavern.ts pokerTable`, board, pot and stacks drawn by
-  `game/poker.ts`) and the 3D one (`demo3d/poker3d.ts`: felt, rail, chips and cards laid by `show`; `render3d/poker-events.ts`
+  `game/poker.ts`) and the 3D one (`render3d/rooms/poker3d.ts`: felt, rail, chips and cards laid by `show`; `render3d/rooms/poker-events.ts`
   puts a name, stack and clock over each seat). Tests: `core/test/poker.test.ts` (rules, side pots, chip conservation),
   `server/test/poker.test.ts` and `poker-town.test.ts`, `web/test/poker.test.ts`.
 - **The basement** (`MAPS.basement`, 22x13, room `basement`): the net cafe under the Tavern, open to everyone. `S`
@@ -780,7 +778,7 @@ building's outside art, not its map).
 
 ## The physical shops (ShopBackend)
 
-The four 3D shops (furniture, clothes, barber, pets; `web/src/demo3d/shops/`) share one buy panel (`shopPanel.ts`) and one
+The four 3D shops (furniture, clothes, barber, pets; `web/src/render3d/shops/`) share one buy panel (`shopPanel.ts`) and one
 set of item actions (`shopActions.ts`). Everything that costs, saves or asks "do I have it" goes through a
 `ShopBackend` (`backend.ts`); there are two:
 
@@ -865,7 +863,7 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
   company house from the core map of the room you are in (`buildRoomSkin`, the demo's `world-rooms.ts` skins; the
   slices register at load with `loadSlices`), `room-furnished.ts` builds an Office or a company's common room as a
   `Room` with every dropped piece placed from its map character and the owner's wallpaper and floor, and `room-town.ts`
-  draws the town from the core `townMap` (`demo3d/data/town.ts` wraps it, so the storefronts `Ħ` and their door tiles
+  draws the town from the core `townMap` (`render3d/data/town.ts` wraps it, so the storefronts `Ħ` and their door tiles
   are where the game has them). A room's `keepers` are bots whose bodies it draws itself (Bent, the four shopkeepers:
   `entities.ts` leaves theirs out). `live.ts` puts the game's data on the boards: the bar tab, plaques, easel and jukebox
   (`game/regulars.ts askRegulars`), the basement's livestream screen, tournament board and terminals.
@@ -900,7 +898,7 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
 
 The 3D engine is measured, not guessed: a headless harness, hardware-independent counts, budgets that a test enforces.
 
-**What makes it cheap** (`web/src/render3d/perf/`, `web/src/demo3d/pipeline.ts`):
+**What makes it cheap** (`web/src/render3d/perf/`, `web/src/render3d/engine/pipeline.ts`):
 - *Static batching* (`bake.ts`). A room is thousands of tiny meshes. Roots flagged `userData.bake` (every `WorldRoom`, every
   `Avatar`) are watched for ~24 frames and the tick functions are sampled; whatever never moves is merged per cell
   (8 units) into meshes sharing one vertex-coloured toon material (textured ones per texture, small painted ones through an
@@ -949,26 +947,13 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   tilt-shift, 4x MSAA, a 4K map, 20 AO taps. Device pixel ratio times scale is capped at 2. Fps caps, idle and battery
   throttling and the governor live in `game/stage.ts` / `settings/governor.ts`.
 
-**Measure** (dev server on `bun web/demo3d.html --port=4652`):
-- `bun scripts/perf-harness.mjs --out perf-results/run.json` runs every room in HD/Pixel/Voxel 0-2 (and `medium`, `high`,
-  `ultra`: the demo's `?tier=`) headless, fixed seed and camera, and records frame and CPU/GPU time p50/p95/p99, draw calls,
-  triangles, programs, live GL objects, GPU bytes, JS heap. Counts do not depend on the machine; times are for comparing runs on
-  one machine (`--gl swiftshader --viewport 960x540` is software GL: a stand-in for a weak GPU, where the shadow map and the full-size
-  passes show; `EXTRA='&crowd=40'` adds a crowd; `--check` compares the town with `FRAME_BUDGETS`).
-  `bun scripts/perf-report.mjs run.json [baseline.json] [--p1 first-pass.json]` prints the markdown table with deltas.
-- `bun scripts/perf-shots.mjs --out dir` screenshots every room per tier and time of day; `bun scripts/perf-diff.mjs a b` diffs two
-  runs (use it before and after any visual change); `bun scripts/perf-audit.mjs` diffs batched against `?nobake` and checks that
-  no batched mesh moved. `bun scripts/perf-leak.mjs` switches rooms and styles 50 times and fails if live GL objects or heap grow.
-- `bun scripts/perf/passes.mjs <room>` draws and triangles per render pass (shadow, scene, AO, composite), `perf/ablate.mjs`
-  frame time under option sets, `perf/alloc.mjs` where the page allocates (CDP heap sampling), `perf/profile.mjs` a CPU profile,
-  `perf/inspect.mjs` what is still unbatched, `perf/counts.ts medium|high` the per-room counts the budgets check,
-  `perf/heap.mjs` what the JS heap holds (by constructor, and what retains the geometry buffers).
+**Measure**:
+- `bun scripts/perf/counts.ts medium|high` prints the per-room counts the budgets check, built headlessly.
 - `bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--throttle 4] [--profile|--alloc|--nodes|--heap]` measures
-  the real game rather than the demo: it starts its own production server (`bun run site:build` once), signs up `walkers` players
+  the real game: it starts its own production server (`bun run site:build` once), signs up `walkers` players
   who walk out into the town and wander it over the wire, and opens an observer per tier with no fps cap: the renderer's own CPU
   time per frame, frame gaps, long tasks, draws, heap, and on request a CPU profile, garbage per function, the nodes the scene
-  walks visit, or a heap snapshot. `--throttle` slows the CPU (a stand-in for a weak laptop). The demo builds every stage up front,
-  so its heap is not the game's.
+  walks visit, or a heap snapshot. `--throttle` slows the CPU (a stand-in for a weak laptop).
 - `web/test/perf-budget.test.ts` builds every room headlessly (the real skins, not tile stand-ins), batches it, freezes its
   people and fails above `render3d/perf/budgets.ts`; `perf-freeze.test.ts` and `world-lazy.test.ts` cover freezing and the room cache.
   The budgets count the static room alone; `web/test/dungeon-live.test.ts` budgets the dungeon's live layer on top and `games3d.test.ts` that a game's props come and go.
@@ -1017,4 +1002,4 @@ reads a room's size, doors, seats and displays for a 3D builder.
   `‡` fixtures. E on the counter or a display opens the Shop page on the matching tab (`shopInteract`; the barber opens
   the look picker). Dropping anything on a shop floor is refused. The shopkeepers are `still` bots (`SHOPKEEPERS`, ids -5
   to -8) with idle chatter only. Art: `web/src/art/shops.ts`.
-- **Core is the source of truth for every map**: `web/src/demo3d/data/maps.ts` just re-exports `core/src/maps.ts`.
+- **Core is the source of truth for every map**: `web/src/render3d/data/maps.ts` just re-exports `core/src/maps.ts`.

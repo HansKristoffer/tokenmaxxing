@@ -3,7 +3,7 @@ import type { PinView } from "@tokenmaxxing/core/collection.ts";
 import { SIREN, TICKET_MARK } from "@tokenmaxxing/core/cop.ts";
 import { lineup, weekOf } from "@tokenmaxxing/core/merchant.ts";
 import { BLANKETS } from "@tokenmaxxing/core/picnic.ts";
-import { earnedBy, signature, sigOf, watchShelf } from "../src/render3d/trophies3d.ts";
+import { earnedBy, signature, sigOf, watchShelf } from "../src/render3d/furniture/trophies3d.ts";
 import {
   burstCap,
   CART_SIGN_AWAY,
@@ -21,7 +21,7 @@ import {
   snailSign,
   tavernDim,
   tossLanded,
-} from "../src/render3d/world-logic.ts";
+} from "../src/render3d/town/world-logic.ts";
 
 test("the cop's siren starts with his pull-over line and goes out a minute later", () => {
   const w = new CopWatch();
@@ -176,7 +176,7 @@ test("a trophy shelf is asked for once a minute and its signature follows what i
 });
 
 test("bunting is two meshes whatever its length", async () => {
-  const { buntingMeshes } = await import("../src/render3d/bunting3d.ts");
+  const { buntingMeshes } = await import("../src/render3d/town/bunting3d.ts");
   const g = buntingMeshes([
     { a: [0, 2, 0], b: [10, 2, 0], sag: 0.5 },
     { a: [0, 2, 4], b: [10, 2, 4], sag: 0.5 },

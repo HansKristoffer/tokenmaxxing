@@ -17,7 +17,7 @@ import {
   raiderRate,
   SPUTTER,
   weekOverText,
-} from "../src/render3d/raidfx.ts";
+} from "../src/render3d/dungeon/raidfx.ts";
 
 const raid = (o: Partial<Raid> = {}): Raid =>
   ({

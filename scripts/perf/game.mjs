@@ -308,7 +308,7 @@ for (const tier of tiers) {
     await page.evaluate(() => window.gc?.());
     await heap.send("HeapProfiler.takeHeapSnapshot", { reportProgress: false });
     writeFileSync(file, chunks.join(""));
-    console.log(`  heap snapshot: ${file} (bun scripts/perf/heap.mjs ${file})`);
+    console.log(`  heap snapshot: ${file} (open it in Chrome DevTools' Memory tab)`);
   }
   if (page.errors.length) console.log("  errors:", page.errors.slice(0, 5));
   await page.context().close();

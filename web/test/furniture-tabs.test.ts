@@ -4,9 +4,9 @@ import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();
 
-let shops: typeof import("../src/demo3d/shops/index.ts");
+let shops: typeof import("../src/render3d/shops/catalog.ts");
 beforeAll(async () => {
-  shops = await import("../src/demo3d/shops/index.ts");
+  shops = await import("../src/render3d/shops/catalog.ts");
 });
 
 /** The tab each group of the 3D showroom's catalogue is sold under. */
