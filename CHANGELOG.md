@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.10.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.9.0...v1.10.0) (2026-10-26)
+
+
+### Features
+
+* **web:** add six-player poker table layout ([452ab8b](https://github.com/HansKristoffer/tokenmaxxing/commit/452ab8baa0e52c599cc335668431b3e82d95addc))
+* **web:** add six-player poker table layout ([d108999](https://github.com/HansKristoffer/tokenmaxxing/commit/d1089997e6204b59728e4cae1a209fa7de5d25a1))
+* **web:** steadier 3D town, a bigger square and one place to dress up ([#96](https://github.com/HansKristoffer/tokenmaxxing/issues/96)) ([fe20223](https://github.com/HansKristoffer/tokenmaxxing/commit/fe20223eafabf9f44eca57ab0ed5775900f83573))
+
 ## [1.9.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.8.2...v1.9.0) (2026-10-26)
 
 
