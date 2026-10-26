@@ -14,6 +14,11 @@ public class PairingLinkTest {
         assertEquals(expected, PairingLink.parse(SERVER, "https://TOKENMAXXING.dk:443/play#code=" + CODE));
     }
 
+    @Test public void acceptsShortPhoneCode() {
+        assertEquals(SERVER + "/play#code=42-K7QF-M2XP", PairingLink.parse(SERVER, " 42-K7QF-M2XP "));
+        assertEquals(SERVER + "/play#code=42-K7QF-M2XP", PairingLink.parse(SERVER, SERVER + "/play#code=42-K7QF-M2XP"));
+    }
+
     @Test public void refusesPhishingAndExecutableLinks() {
         for (String value : new String[] {
                 "https://evil.example/play#code=" + CODE,
@@ -26,7 +31,7 @@ public class PairingLinkTest {
                 SERVER + "/other#code=" + CODE,
                 SERVER + "/play?code=" + CODE,
                 SERVER + "/play#code=" + CODE + "&next=https://evil.example",
-                "42.short", "not a code", "", null
+                "42.short", "42-K7QF-M2X", "42-K7QF-M2XU", "not a code", "", null
         }) {
             assertThrows("Must reject " + value, IllegalArgumentException.class, () -> PairingLink.parse(SERVER, value));
         }

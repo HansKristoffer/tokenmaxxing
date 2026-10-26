@@ -29,7 +29,7 @@ export function PhonePairing() {
       <p className="muted small">Play and check your stats on Android. Your computers keep syncing usage.</p>
       {pair && seconds > 0 ? (
         <>
-          <p>In the Android app, choose Scan QR.</p>
+          <p>In the Android app, choose Scan QR, or type the code below.</p>
           <img src={pair.qr} width={256} height={256} alt="Single-use phone sign-in QR code" />
           <p className="small">Works once. Expires in {seconds}s. Anyone with this code can sign in.</p>
           <div className="command">

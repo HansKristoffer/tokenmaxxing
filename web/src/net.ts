@@ -1,6 +1,7 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
 import type { Outage } from "@tokenmaxxing/core/picnic.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
@@ -70,9 +71,10 @@ export let arcade: ArcadeConn;
 export let matchConn: MatchConn | null = null;
 let session = "";
 
-/** Trades a single-use login code (`<userId>.<code>`) for a session, kept for the next load. */
+/** Trades a single-use login code (`<userId>.<code>`, or a phone's `42-K7QF-M2XP`) for a session, kept for the next load. */
 export async function redeem(code: string): Promise<void> {
-  const player = client.player.get([code.split(".")[0]!]).connect();
+  const userId = parsePhoneCode(code)?.userId ?? code.split(".")[0]!;
+  const player = client.player.get([String(userId)]).connect();
   storage.setItem(TOKEN_KEY, await player.redeemLoginCode(code).finally(() => player.dispose()));
 }
 
