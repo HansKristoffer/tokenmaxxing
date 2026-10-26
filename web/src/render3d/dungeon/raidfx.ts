@@ -18,6 +18,17 @@ export const SPUTTER = 0.08;
 /** A raider's missiles a second: a closed week fires none; a quiet laptop only sputters. */
 export const raiderRate = (burn: number, closed: boolean): number => (closed ? 0 : fireRate(burn) || SPUTTER);
 
+/** Nobody fires: the gate isn't open yet, the week is over, or the whole ladder has fallen. */
+export const resting = (r: Pick<Raid, "prelaunch" | "closed"> & { cleared?: boolean }): boolean =>
+  r.prelaunch || r.closed || r.cleared === true;
+
+/** Where a raider's body sits: the height of the chair's seat, in the war desks' rows. */
+export const RAID_SEAT_Y = 0.33;
+
+/** Your pet fires a quarter as fast as you, at least one every five seconds, and sputters when you do. */
+export const petRate = (burn: number, rate: number): number =>
+  rate && (fireRate(burn) ? Math.max(0.2, rate / 4) : rate / 2);
+
 /** A minion fires a third as fast as its raider, and sputters when its raider does. */
 export const minionRate = (burn: number, rate: number): number =>
   rate && (fireRate(burn) ? Math.max(0.25, rate / 3) : rate / 2);
@@ -98,13 +109,16 @@ export function gateText(r: Raid | null, now = Date.now()): string | null {
   if (r.prelaunch)
     return now < r.launchAt ? `⚠️ Something is coming… ${countdown(r.launchAt)}` : "⚔️ The gate is opening…";
   if (r.closed) return `⚔️ Raid Dungeon · shut · opens ${opensAt(r)}`;
+  if (r.cleared) return `⚔️ Raid Dungeon · cleared · back Monday ${opensAt(r)}`;
   const pct = r.hp > 0 ? Math.ceil((hpLeft(r) / r.hp) * 100) : 0;
   return `⚔️ Raid Dungeon · ${r.boss.emoji} ${r.boss.name} · rung ${r.boss.rung} · ${pct}%`;
 }
 
 /** The boss plate's line when the week is over (the 2D game's), else null. */
-export function weekOverText(r: Pick<Raid, "closed" | "kills" | "rules">): string | null {
-  return r.closed ? `🏁 Week over · ${r.kills.length} fell · opens ${opensAt(r)} Mon` : null;
+export function weekOverText(r: Pick<Raid, "closed" | "kills" | "rules"> & { cleared?: boolean }): string | null {
+  return r.closed || r.cleared
+    ? `🏁 ${r.cleared ? "Ladder cleared" : "Week over"} · ${r.kills.length} fell · opens ${opensAt(r)} Mon`
+    : null;
 }
 
 /** Where an item flies from and to, as a share of the fall: the loot's beam is `POP` of the way, the flight after. */
