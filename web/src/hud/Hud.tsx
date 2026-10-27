@@ -282,6 +282,14 @@ function Stats() {
           🪙 <strong>{wallet.balance.toLocaleString()}</strong>
         </button>
       )}
+      {wallet && wallet.streak > 1 && (
+        <span
+          className="chip"
+          title={`Streak: today's token and quest coins pay ×${wallet.streak}. A day without tokens costs two steps.`}
+        >
+          🔥 <strong>×{wallet.streak}</strong>
+        </span>
+      )}
       {wallet && wallet.quests.length > 0 && <QuestTracker quests={wallet.quests} />}
       <button
         type="button"

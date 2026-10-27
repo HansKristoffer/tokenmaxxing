@@ -10,3 +10,11 @@ Local browser captures of the PR on October 27, 2026. Both renderers are shown w
 | Shared raid seating | ![Remote raider seated in 2D](raid-seated-2d.png) | ![Remote raider seated in 3D](raid-seated-3d.png) |
 
 Additional interaction captures: [town cat interaction](cat-interaction-2d.png), [company office with windows](company-office-2d.png).
+
+## More ways to earn coins
+
+| Scene | Screenshot |
+| --- | --- |
+| The 🔥 streak chip beside the coin counter (×2.5 after four days in a row), 3D | ![Streak chip in 3D](economy-wallet-3d.png) |
+| Daily quests, 3D | ![Quests](economy-quests-3d.png) |
+| Collection log: badge tiers and trophies now pay coins, 2D | ![Collection log](economy-collection-2d.png) |
