@@ -207,7 +207,9 @@ export function CaseShop() {
               key={CASES[k]?.id ?? "soon"}
               type="button"
               className="cshop-dot"
-              aria-label={CASES[k] ? `${CASES[k].name}, ${k + 1} of ${SLIDES}` : `Coming soon, ${k + 1} of ${SLIDES}`}
+              aria-label={
+                CASES[k] ? `${CASES[k].name}, ${k + 1} of ${SLIDES}` : `Coming soon, ${k + 1} of ${SLIDES}`
+              }
               aria-current={k === page.at ? "true" : undefined}
               onClick={() => go(k)}
             />

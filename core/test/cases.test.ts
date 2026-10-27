@@ -3,7 +3,15 @@ import { CASE_ITEMS } from "../src/case.ts";
 import { CASE_PIECES } from "../src/case-furniture.ts";
 import { NUSANTARA_ITEMS } from "../src/case-nusantara.ts";
 import { NUSANTARA_PIECES } from "../src/case-nusantara-furniture.ts";
-import { CASE_SHELVES, CASES, type CaseDef, caseById, caseOfItem, rollCase, VENDOR_COINS } from "../src/cases.ts";
+import {
+  CASE_SHELVES,
+  CASES,
+  type CaseDef,
+  caseById,
+  caseOfItem,
+  rollCase,
+  VENDOR_COINS,
+} from "../src/cases.ts";
 import { RARITIES, type Rarity } from "../src/rarity.ts";
 import type { Item } from "../src/shop.ts";
 
