@@ -297,6 +297,8 @@ export function parseLook(raw: unknown): Look | null {
   }
   if (!Number.isSafeInteger(r.merch) || (r.merch as number) < 0) return null;
   out.merch = r.merch as number;
+  // A hoodie goes over a tee, so wearing both is wearing the hoodie: one look, whichever way it was saved.
+  if (out.merchWorn & 2) out.merchWorn &= ~1;
   // Nothing worn is no merch, so two looks that draw the same are the same.
   if (out.merch === 0 || out.merchWorn === 0) Object.assign(out, { merch: 0, merchWorn: 0 });
   return out;

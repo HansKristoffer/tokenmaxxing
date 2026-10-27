@@ -1,6 +1,8 @@
 import { type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { merchKey } from "../art/merch.ts";
 import type { IconSize, IconSpec } from "../render3d/icons.ts";
 import { graphics } from "../settings/graphics.ts";
+import { useHud } from "../store.ts";
 
 type Icons = typeof import("../render3d/icons.ts");
 let icons: Promise<Icons> | null = null;
@@ -29,7 +31,11 @@ export function ItemIcon({
 }) {
   const tier = useSyncExternalStore(graphics.subscribe, graphics.tier);
   const three = tier !== "low";
-  const key = three ? `${tier === "medium" ? "c" : "v"}:${JSON.stringify(spec)}` : "";
+  // A character in merch is drawn from its company's colours and print: another picture when they change.
+  const merch = useHud(() =>
+    spec.kind === "avatar" && spec.look.merch && spec.look.merchWorn ? merchKey(spec.look.merch) : "",
+  );
+  const key = three ? `${tier === "medium" ? "c" : "v"}:${JSON.stringify(spec)}:${merch}` : "";
   const bucket: IconSize = size > 64 ? 128 : 64;
   const [icon, setIcon] = useState<{ key: string; canvas: HTMLCanvasElement } | null>(null);
   const [fallback, setFallback] = useState(false);

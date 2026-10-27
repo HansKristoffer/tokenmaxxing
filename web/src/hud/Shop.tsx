@@ -16,6 +16,7 @@ import type { BagRow } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
 import { itemFrame } from "../art/characters.ts";
 import { posterSprite } from "../art/furniture-posters.ts";
+import { goneCompany } from "../art/merch.ts";
 import { objectAt } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { petFrame } from "../art/pets.ts";
@@ -232,11 +233,7 @@ export function WearButton({
 /** The company a merch item belongs to, as its 3D prop wants it (a stand-in in its colours if it left town). */
 const merchCompany = (item: Item): IconSpec & { kind: "merch" } => ({
   kind: "merch",
-  company: hud.get().companies.find((c) => c.id === item.companyId) ?? {
-    id: item.companyId ?? 0,
-    name: "",
-    brand: null,
-  },
+  company: hud.get().companies.find((c) => c.id === item.companyId) ?? goneCompany(item.companyId ?? 0),
   merch: item.id.split(".")[2] as MerchKind,
 });
 
