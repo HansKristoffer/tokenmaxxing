@@ -43,6 +43,7 @@ import { db } from "rivetkit/db";
 import { canBrand } from "../brand.ts";
 import { placeAllNotice } from "../furniture-notices.ts";
 import { RateLimiter } from "../rate-limit.ts";
+import { pushNewRequest } from "../request-push.ts";
 import { type ActivityRow, isSortKey, type UsageRow } from "../stats.ts";
 import {
   type AdminCompany,
@@ -816,10 +817,11 @@ export const town = actor({
       return requests.pile(c.db, userId);
     },
 
-    /** Puts a request on the pile. */
-    requestAdd: (c, text: unknown): Promise<void> => {
+    /** Puts a request on the pile, and pushes it to the agent webhook. */
+    requestAdd: async (c, text: unknown): Promise<void> => {
       const userId = requireUser(c.conn.state);
-      return c.vars.serial(() => requests.submit(c.db, userId, text, Date.now()));
+      const added = await c.vars.serial(() => requests.submit(c.db, userId, text, Date.now()));
+      c.waitUntil(pushNewRequest(added));
     },
 
     /** Gives a request my 👍, or takes it back. */
