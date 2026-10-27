@@ -234,7 +234,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   to this process, about 3,000 messages a second; past that it all queues, `town` (and `/health`) too.
   A player walking costs about 15 a second (`moves` every tick, their step's answer, `occupancy`, chat), so
   that's about 170 players walking at once. `bun scripts/perf/load.ts` measures it.
-- Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
+- Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `turn` (face a
+  direction without the step, on your feet only; it spends the step budget and comes to the room as a move), `sit`,
   `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
   `tavern` (the Tavern's tap: the day's special, sent as `specialUntil`), `toss` (a coin in the fountain),
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game), `visit`
@@ -908,6 +909,11 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
 
 - Plain Canvas 2D with `imageSmoothingEnabled = false`, integer zoom, and grid movement: your own steps are
   predicted and corrected by the server; other players replay a short step queue.
+  **Turning** (`game/turn.ts`, pure and tested; Pokémon's rule): an arrow key for another way than you face turns you
+  first (`world.turn`, so the room sees it too) and walks only once it has stayed held `TURN_DELAY_MS` (120), so a
+  tap just turns; the way you already face walks at once. Click-to-walk, the minimap and "take me there" don't wait
+  (their steps are chosen), nor does getting up from a seat. The Android app's WebView takes the same keys; the phone
+  has no arrow keys of its own, only taps, so nothing changes there.
 - The game draws through a `Renderer` (`web/src/game/renderer.ts`): `Renderer2D` wraps `render.ts` (the Low tier),
   and the 3D renderer is `render3d/index.ts`'s `create3D()`, imported on demand so Three.js is never fetched on
   Low. `game/stage.ts` runs the loop, swaps renderers when the graphics settings change, caps fps (idle, battery),

@@ -50,6 +50,7 @@ import { statueText } from "./statue.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { interactAnimal, interactTownProp } from "./town-life.ts";
 import { openTrophies } from "./trophies.ts";
+import { type Turning, turnStep } from "./turn.ts";
 import { windmillInteract } from "./windmill.ts";
 import { avatarAt, beginStep, dropAt, self, showMyDance, stepping, world } from "./world.ts";
 
@@ -76,6 +77,8 @@ let interactOnArrival = false;
 let lastRoom = "";
 const carried = new Set<Facing>();
 let takeOnArrival = false;
+/** A held key's direction I've turned to and not yet walked (see `turnStep`). */
+let turning: Turning | null = null;
 /** Runs once the clicked path is walked (the 3D renderer's furniture placement drops a piece there). */
 let onArrival: (() => void) | null = null;
 /** "Take me there": the shop the auto-walk is heading for, replanned in each room it passes through. */
@@ -372,6 +375,7 @@ export function updateSelf(now: number): void {
     if (lastRoom) for (const d of held) carried.add(d);
     held.length = 0;
     tapped = null;
+    turning = null;
     // Walking out of a shop closes its page; walking in, the keeper says hello.
     if (shopOfRoom(lastRoom) && hud.get().panel?.kind === "shop") hud.set({ panel: null });
     const shop = shopOfRoom(world.room);
@@ -390,6 +394,7 @@ export function updateSelf(now: number): void {
   const pressed = held.at(-1) ?? tapped;
   const dir = pressed ? (viewHooks.key?.(pressed) ?? pressed) : path.shift();
   tapped = null;
+  if (!pressed) turning = null;
   // Moving stands you up from your war desk in the raid dungeon, and ends a dance (the server does too).
   if (dir) {
     standUp();
@@ -416,6 +421,17 @@ export function updateSelf(now: number): void {
     world.portalPending = true;
     send(conn.step(dir));
     return;
+  }
+  // A key for another way than I face turns me first, and walks only if it stays held. A clicked path doesn't
+  // wait: its steps are chosen, and turning at every corner would stutter. Nor does getting up from a seat.
+  if (pressed && me.state === "idle") {
+    const t = turnStep(turning, dir, me.facing, now);
+    turning = t.turning;
+    if (t.act === "turn") {
+      me.facing = dir;
+      send(conn.turn(dir));
+    }
+    if (t.act !== "walk") return;
   }
   const step = stepTarget(world.map, me.x, me.y, dir);
   const target =

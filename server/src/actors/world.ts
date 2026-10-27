@@ -680,6 +680,26 @@ export const world = actor({
       });
     },
 
+    /**
+     * A tapped arrow key: face that way without taking the step, so a tap only turns (see `turnStep`). Only on
+     * your feet, and everyone in the room sees it (`moves`). It spends the step budget like a step.
+     */
+    turn: (c, rawDir: unknown): StepResult => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || !isFacing(rawDir) || p.state !== "idle") return null;
+      const now = Date.now();
+      touch(c, p, now);
+      const s = c.vars.steps.get(userId) ?? { budget: STEP_BURST, at: 0 };
+      const budget = takeStep(s.budget, s.at, now, stepPace(p.polseUntil ?? 0, now));
+      if (budget === null) return correction(p);
+      c.vars.steps.set(userId, { budget, at: now });
+      p.facing = rawDir;
+      c.vars.dirty.add(p.id);
+      if (stopDance(p)) sendInfo(c, p, info(p, true));
+      return null;
+    },
+
     /** Space: a hop, shown to everyone in the room. Only on your feet, and one at a time. */
     jump: (c): void => {
       const userId = requireUser(c.conn.state);
