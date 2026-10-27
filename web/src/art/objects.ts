@@ -129,6 +129,31 @@ const board = once(() =>
   }),
 );
 
+/** The star counter (`★`): a navy board on a post with a big gold star; the count goes on a sign over it. */
+const STAR = ["....#....", "...###...", "#########", ".#######.", "..#####..", "..##.##..", ".##...##."];
+const starBoard = once(() =>
+  bake(16, 26, (p) => {
+    p.rect(3, 24, 10, 2, C.shadow);
+    p.rect(7, 14, 2, 11, C.woodDark);
+    p.rect(7, 14, 1, 11, C.wood);
+    p.rect(0, 1, 16, 15, C.ink);
+    p.rect(1, 2, 14, 13, "#2f3650");
+    p.rect(2, 3, 12, 11, "#1f2433");
+    STAR.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) if (row[x] === "#") p.px(4 + x, 5 + y, C.flowerYellow);
+    });
+    p.px(8, 6, C.white);
+    p.px(7, 7, C.white);
+    // A few small stars twinkling round it.
+    for (const [x, y] of [
+      [3, 4],
+      [12, 4],
+      [12, 12],
+    ] as const)
+      p.px(x, y, C.white);
+  }),
+);
+
 const bench = once(() =>
   bake(16, 16, (p) => {
     p.rect(1, 13, 14, 2, C.shadow);
@@ -573,6 +598,8 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(lamp());
     case "N":
       return at(board());
+    case "★":
+      return at(starBoard());
     case "B":
       return at(bench());
     case "F":

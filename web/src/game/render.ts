@@ -36,6 +36,7 @@ import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
 import { drawCop, isCop } from "./cop.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
+import { drawFireworks } from "./fireworks.ts";
 import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
@@ -73,6 +74,7 @@ import {
   weatherNow,
 } from "./sky.ts";
 import { snowAmount, snowLayers } from "./snow.ts";
+import { drawStars } from "./stars.ts";
 import { drawStreet } from "./street.ts";
 import { drawTavern, lightTavern } from "./tavern.ts";
 import { drawTownAnimals } from "./town-life.ts";
@@ -327,6 +329,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawGames(f);
   drawStreet(f);
   drawLaunch(f);
+  drawStars(f);
+  drawFireworks(f);
   drawPicnic(f);
   drawChalkboards(f);
   drawTavern(f);

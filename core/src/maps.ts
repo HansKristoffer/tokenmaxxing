@@ -61,6 +61,8 @@ export const LEGEND: Record<string, TileKind> = {
   L: { name: "lamp", text: "The lamp hums quietly. It's always on, like a good server." },
   F: { name: "fountain", tosses: true, text: "A fountain. People toss spare tokens in for luck." },
   N: { name: "board", text: "The leaderboard." },
+  // The star counter (`stars.ts`): the project's GitHub stars; E opens it, with a button to star it.
+  "★": { name: "star counter", text: "The star counter." },
   // The chalkboards (outside the Tavern, and inside it): the client writes today's special on them.
   K: { name: "chalkboard" },
   B: { name: "bench", seat: "bench", text: "A bench with a view of the square." },
@@ -340,13 +342,13 @@ export const PLOT_W = 7;
 export const PLOT_H = 5;
 
 /**
- * Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard, coffee and the raid dungeon's
- * gate filling the top two, then the picnic lawn, the pond and the Inn.
+ * Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard, star counter, coffee and the raid
+ * dungeon's gate filling the top two, then the picnic lawn, the pond and the Inn.
  */
 const CORE = [
   ",,,,,,,,,,,,,,,,,,,,",
   ",L:::::::::::::::::L",
-  ",:::G::::::::::N::::",
+  ",:::G::::::::★:N::::",
   ",::::::B:FF:B:::::o:",
   ",::::::B:FF:B:::::::",
   ",:::::::::::::::::::",
