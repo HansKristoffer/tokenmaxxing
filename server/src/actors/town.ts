@@ -26,6 +26,7 @@ import {
   TRADE_ITEMS_CAP,
 } from "@tokenmaxxing/core/shop.ts";
 import { goToShop, SHOP_ROOM, type ShopId, shopForSlot } from "@tokenmaxxing/core/shoprooms.ts";
+import type { StatueAdmin } from "@tokenmaxxing/core/statue.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import type { TournamentBoard } from "@tokenmaxxing/core/tournament.ts";
 import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
@@ -59,6 +60,7 @@ import {
   logAdmin,
   overview,
   setCompanyWallet,
+  statuePin,
   wipeUsage,
 } from "../town/admin.ts";
 import { type Award, awardStep, collectionOf } from "../town/awards.ts";
@@ -1525,6 +1527,27 @@ export const town = actor({
         now,
       );
       return set.coins;
+    },
+
+    /** The statue of the #1 model: what's on the plinth, the last leader read, the pin, and the next read. */
+    adminStatue: (c): Promise<StatueAdmin> => {
+      requireAdmin(c.conn.state);
+      return main(c.client<typeof registry>()).world.statue();
+    },
+
+    /** Pins a model on the statue's plinth, over the ranking's, until it's unpinned. */
+    adminPinStatue: async (c, model: unknown, org: unknown, ranking: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const leader = statuePin(model, org, ranking);
+      await main(c.client<typeof registry>()).world.pinStatue(leader);
+      await logAdmin(c.db, "pin statue", leader.model, `${leader.org} · ${leader.ranking}`, Date.now());
+    },
+
+    /** Gives the plinth back to the ranking. */
+    adminUnpinStatue: async (c): Promise<void> => {
+      requireAdmin(c.conn.state);
+      await main(c.client<typeof registry>()).world.pinStatue(null);
+      await logAdmin(c.db, "unpin statue", "statue", null, Date.now());
     },
 
     /** Test servers only sell anywhere; this holds one player to the shop rule anyway. */
