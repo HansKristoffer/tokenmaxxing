@@ -72,8 +72,11 @@ export class Placer {
     return true;
   }
 
-  /** Moves the ghost to the tile under the pointer (null: off the floor). `fits` says whether it can go there. */
-  aim(view: RoomView, tile: Aim | null, fits: boolean): void {
+  /**
+   * Moves the ghost to the tile under the pointer (null: off the floor). `fits` says whether it can go there,
+   * `flip` whether it is turned to face the other way (mirrored left to right).
+   */
+  aim(view: RoomView, tile: Aim | null, fits: boolean, flip = false): void {
     if (!this.ghost) return;
     this.ghost.visible = tile !== null;
     if (!tile) return;
@@ -85,6 +88,7 @@ export class Placer {
     if (this.wall) this.ghost.position.set(x - 0.5 + w / 2, 0.95, z + 0.51);
     else this.ghost.position.set(x - 0.5 + w / 2, 0, z - 0.5 + d / 2);
     this.ghost.rotation.y = (turnOfChar(this.itemId!.slice(5)) * Math.PI) / 2;
+    this.ghost.scale.x = flip ? -1 : 1;
     this.material!.color.set(fits ? "#5be08a" : "#e8584f");
   }
 

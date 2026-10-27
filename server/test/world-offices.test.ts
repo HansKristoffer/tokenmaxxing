@@ -213,9 +213,17 @@ describe("world", () => {
       notice: "Moved the Chair.",
       drop: { x: 3, y: 6 },
     });
-    // Still the owner's, and on the floor where it was put: a new visitor sees it there.
+    // F turns it where it stands; moving it on keeps it turned.
+    expect(await o.conn.move(chair.id, 3, 6, true)).toMatchObject({
+      notice: "Turned the Chair.",
+      drop: { x: 3, y: 6, flip: true },
+    });
+    expect(await o.conn.move(chair.id, 4, 6)).toMatchObject({ drop: { x: 4, y: 6, flip: true } });
+    // Still the owner's, and on the floor where it was put: a new visitor sees it there, turned.
     const late = await connect(owner.token);
-    expect(late.snap.drops.find((d) => d.id === chair.id)).toMatchObject({ x: 3, y: 6 });
+    expect(late.snap.drops.find((d) => d.id === chair.id)).toMatchObject({ x: 4, y: 6, flip: true });
+    const back = await o.conn.move(chair.id, 4, 6, false);
+    expect(back.drop?.flip).toBeUndefined();
     for (const c of [o, late]) await c.conn.dispose();
   });
   test("an owner puts the whole office away, places a piece on a chosen tile, and undoes it by id", async () => {

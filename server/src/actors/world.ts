@@ -47,6 +47,7 @@ import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import {
   assignSlots,
+  canFlip,
   canHang,
   clearOffice,
   type Door,
@@ -1024,14 +1025,23 @@ export const world = actor({
     /**
      * Moves a piece of furniture you may take (your office's, or your company's) to the tile (x, y), in one
      * step: it is on the floor the whole time, and if the spot is no good or `town` can't write it down, it
-     * stays where it was. `at` is the tile's left end, as for a drop.
+     * stays where it was. `at` is the tile's left end, as for a drop. `flip` turns it to face the other way
+     * (mirrored left to right, in place or as it moves); left out, it faces as it did.
      */
-    move: async (c, id: unknown, x: unknown, y: unknown): Promise<{ notice: string; drop?: Drop }> => {
+    move: async (
+      c,
+      id: unknown,
+      x: unknown,
+      y: unknown,
+      flip?: unknown,
+    ): Promise<{ notice: string; drop?: Drop }> => {
       const userId = requireUser(c.conn.state);
       const p = c.state.players[userId];
       if (!p || (p.state !== "idle" && p.state !== "sit")) return { notice: "Not now." };
       if (![id, x, y].every((n) => Number.isInteger(n)))
         throw new UserError("Pick a tile.", { code: "bad_request" });
+      if (flip !== undefined && typeof flip !== "boolean")
+        throw new UserError("Flip it or not.", { code: "bad_request" });
       touch(c, p, Date.now());
       const d = dropsIn(p.room).find((o) => o.id === id);
       const piece = d && pieceOfDrop(d);
@@ -1041,9 +1051,12 @@ export const world = actor({
       const people = Object.values(c.state.players).filter((o) => o.room === p.room);
       if (people.some((o) => o.state === "sit" && dropCovers(d, o.x, o.y)))
         return { notice: "Someone is on it." };
+      if (flip && !canFlip(piece.ch)) return { notice: "That one hangs as it is." };
       if (!furnitureFits(p.room, d, piece, x as number, y as number, people))
         return { notice: "It doesn't fit there." };
-      const moved: Drop = { ...d, x: x as number, y: y as number };
+      const { flip: was, ...rest } = d;
+      const turned = flip ?? was ?? false;
+      const moved: Drop = { ...rest, x: x as number, y: y as number, ...(turned && { flip: true }) };
       setDrops(p.room, [...dropsIn(p.room).filter((o) => o.id !== d.id), moved]);
       const wrote = await main(c.client())
         .town.moved(moved)
@@ -1057,7 +1070,11 @@ export const world = actor({
         return { notice: "That didn't work. Try again." };
       }
       sendToRoom(c, p.room, "drop", moved);
-      return { notice: `Moved the ${dropName(moved)}.`, drop: moved };
+      const still = moved.x === d.x && moved.y === d.y;
+      return {
+        notice: `${still && turned !== (was ?? false) ? "Turned" : "Moved"} the ${dropName(moved)}.`,
+        drop: moved,
+      };
     },
 
     say: async (c, rawText: unknown): Promise<void> => {

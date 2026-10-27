@@ -76,6 +76,9 @@ export async function migrate(sql: Sql): Promise<void> {
   const itemColumns = (await sql.execute("PRAGMA table_info(items)")) as { name: string }[];
   if (!itemColumns.some((c) => c.name === "company_id"))
     await sql.execute("ALTER TABLE items ADD COLUMN company_id INTEGER");
+  // A piece on a floor turned to face the other way (`Drop.flip`): 1, else NULL. Off the floor it's NULL again.
+  if (!itemColumns.some((c) => c.name === "flip"))
+    await sql.execute("ALTER TABLE items ADD COLUMN flip INTEGER");
   await sql.execute(
     "CREATE INDEX IF NOT EXISTS items_company ON items (company_id) WHERE company_id IS NOT NULL",
   );

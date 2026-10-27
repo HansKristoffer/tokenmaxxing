@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { MAPS } from "../src/maps.ts";
 import {
   assignSlots,
+  canFlip,
   directory,
   doorsFor,
   FURNITURE,
+  flippedAt,
   hqMap,
   OFFICE_LEVEL,
   OFFICE_MAPS,
@@ -110,6 +112,20 @@ describe("offices", () => {
     ];
     const map = withPieces(pieces, MAPS.office);
     expect([map.at(0, 0), map.at(5, 8), map.at(10, 1), map.at(11, 1)]).toEqual(["W", "x", "t", "W"]);
+  });
+
+  test("a piece turned the other way keeps its letters, and both its tiles know its footprint", () => {
+    const tv = { ch: "t", x: 3, y: 4 };
+    const plain = withPieces([tv], MAPS.office);
+    const turned = withPieces([{ ...tv, flip: true }], MAPS.office);
+    expect(turned.rows).toEqual(plain.rows);
+    const span = { x: 3, w: 2 };
+    expect([3, 4, 5].map((x) => flippedAt(turned, x, 4))).toEqual([span, span, null]);
+    expect(flippedAt(plain, 3, 4)).toBeNull();
+    // Furniture put down later over a turned room keeps the turned piece turned.
+    expect(flippedAt(withPieces([{ ch: "p", x: 8, y: 6 }], turned), 4, 4)).toEqual(span);
+    // A wall piece hangs as it is: its writing would read backwards.
+    expect([canFlip("t"), canFlip("Σ"), canFlip("ñ"), canFlip("?")]).toEqual([true, true, false, false]);
   });
 
   test("the pet bed: in every office, off the door, the desk and the paths, and reachable", () => {

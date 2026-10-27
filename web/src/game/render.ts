@@ -3,7 +3,7 @@ import { effectiveDesk } from "@tokenmaxxing/core/desks.ts";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
-import { withPieces } from "@tokenmaxxing/core/office.ts";
+import { flippedAt, withPieces } from "@tokenmaxxing/core/office.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
@@ -259,16 +259,19 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       if (o) {
         if (outdoors && ch === "L") lamps.push([x * TILE + TILE / 2, y * TILE - 11]);
         if (outdoors && ch === "T") trees.push([x * TILE + o.dx, y * TILE + o.dy]);
+        const flip = flippedAt(map, x, y);
         items.push({
           y: y * TILE + sortY(ch),
           draw: () => {
-            if (ch === "d") {
-              const { tier, mode } = deskAt(x, y);
-              if (tier > 0) return void g.drawImage(deskFrame(tier, mode), x * TILE, (y + 1) * TILE - 22);
-            }
+            // A piece turned the other way: each of its tiles mirrored about the piece's middle.
+            if (flip) mirror(g, flip.x, flip.w);
+            const desk = ch === "d" ? deskAt(x, y) : null;
+            if (desk && desk.tier > 0)
+              g.drawImage(deskFrame(desk.tier, desk.mode), x * TILE, (y + 1) * TILE - 22);
             // The company building's pieces are indoors, out of the snow.
-            if (o.fancy) g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
+            else if (o.fancy) g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
             else snowy(o.canvas, x * TILE + o.dx, y * TILE + o.dy, ch);
+            if (flip) g.restore();
           },
         });
       }
@@ -643,6 +646,13 @@ function drawDancing(
   g.restore();
 }
 
+/** Saves `g` and mirrors it left to right about the middle of the `w` tiles from tile column `x`; the caller restores. */
+function mirror(g: CanvasRenderingContext2D, x: number, w: number): void {
+  g.save();
+  g.translate((2 * x + w) * TILE, 0);
+  g.scale(-1, 1);
+}
+
 /** The ghost of a piece being moved or placed (`furniture.ts`): its art over the aimed tiles, tinted green where it fits, red where it does not. */
 function drawGhost(
   g: CanvasRenderingContext2D,
@@ -660,7 +670,9 @@ function drawGhost(
   const o = objectAt(withPieces([{ ch: piece.ch, x: t.x, y: t.y }], map), t.x, t.y);
   if (o) {
     g.globalAlpha = 0.6;
+    if (ghost.flip) mirror(g, t.x, w);
     g.drawImage(o.fancy ? fancy(o.fancy, now) : o.canvas, t.x * TILE + o.dx, t.y * TILE + o.dy);
+    if (ghost.flip) g.restore();
   }
   g.globalAlpha = 0.4;
   g.fillStyle = `rgb(${colour})`;

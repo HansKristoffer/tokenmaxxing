@@ -131,7 +131,7 @@ export function mapOf(room: RoomId): GameMap {
 export const piecesIn = (drops: readonly Drop[]) =>
   drops.flatMap((d) => {
     const piece = pieceOfDrop(d);
-    return piece ? [{ ch: piece.ch, x: d.x, y: d.y }] : [];
+    return piece ? [{ ch: piece.ch, x: d.x, y: d.y, ...(d.flip && { flip: true }) }] : [];
   });
 
 // MARK: Drops
@@ -147,6 +147,8 @@ export interface Drop {
   at: number;
   /** The company it belongs to: bought from its wallet, it stays in its building (`COMPANY_FURNITURE`). */
   co?: number;
+  /** A piece of furniture turned to face the other way: mirrored left to right (F, `canFlip`). */
+  flip?: boolean;
 }
 
 /** What's on each room's floor. ponytail: one process holds every room's, like the town. */
