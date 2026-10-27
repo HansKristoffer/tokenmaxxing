@@ -117,6 +117,8 @@ interface HudState {
   mention: { line: ChatLine; at: number } | null;
   /** The weather over Copenhagen, from the server. */
   weather: Weather;
+  /** The day of the year the server pins the town's season to (`SKY_SEASON`), or null for the date's own. */
+  seasonDay: number | null;
   /** What the raid's last kills dropped, for everyone (`world` sends `loot`). */
   lootNews: { news: LootNews[]; at: number } | null;
   /** What the Tavern's jukebox is playing for the room, or null (`world` sends `jukebox`). */
@@ -159,6 +161,7 @@ let state: HudState = {
   clockSkew: 0,
   inviteTable: null,
   weather: CALM,
+  seasonDay: null,
 };
 const listeners = new Set<() => void>();
 

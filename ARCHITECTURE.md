@@ -21,7 +21,7 @@ The game also runs in any browser; the app's window is that same page, at `/play
 
 | Path | What |
 |---|---|
-| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen) |
+| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen, and the light summer nights), `seasons.ts` (the town's season by date) |
 | `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `quests`, `awards` (badge awards and their sweep), `hall` (the Hall of Fame), `card` (bios, showcase, habits, the Tavern's minutes), `sync` (pushes to `world`) |
 | `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (one Open-Meteo fetch per 15 min, for the `world` actor), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
@@ -1001,6 +1001,29 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
 
 "Today" is `Europe/Copenhagen` for everyone (`core/src/range.ts`); the Tavern's special is picked by that day too
 (`copenhagenDay`, `core/src/tavern.ts`).
+
+## Seasons
+
+The town's plants follow the date in Aarhus, worked out by every client from the clock alone, like the street's
+schedules (`core/src/street.ts`), so there is no server state. `core/src/seasons.ts` keeps the year as keyframes of a
+`SeasonLook` (how much leaf the broadleaf trees have, how far it has turned, blossom, spring's fresh green, how many
+leaves are falling, leaves on the grass, winter rest) and blends between them with a smoothstep, so the town changes
+over weeks: blossom late in April, the most colour and the most falling at the end of October, bare by December. Pines
+and hedges keep their leaves. The light follows the sun as before (`sky.ts`); `nightDepth` adds the light nights, when
+the June sun only dips ten degrees under the horizon and the night stays twilight blue.
+
+- **What is baked** depends on `lookKey` (the look rounded to eighths), which changes every few days while the trees turn,
+  never every frame. In 2D, `web/src/game/seasons.ts` paints a twin of each tree (three variants, each turning its own
+  colour), bush and the ground from their palette pixels, and the snow's twins (`snow.ts`) are made from those. In 3D,
+  the key is part of the town's room key (`render3d/index.ts`), so the town is built again when it changes;
+  `seasonalTree` (`town/props.ts`) changes a tree a lobe at a time, from a few fixed palettes, so a half-turned town
+  draws with the same materials as a summer one. `web/test/perf-budget.test.ts` builds the town in every season.
+- **Falling leaves** are live, not baked: `game/leaves.ts` lets a few dozen pixels go from the trees in view, and
+  `town/leaves3d.ts` is one instanced mesh of at most 160 cards, from the crowns within reach of you, scaled by the
+  graphics tier's particle share.
+- **Pinning**, for dev and screenshots: `?season=autumn` in the page URL (spring, summer, autumn or fall, winter, or a
+  date like `11-12` for a stage in between), or `SKY_SEASON` on the server, which every snapshot then carries
+  (`Snapshot.seasonDay`). The weather and snow cover still follow the clock; `?sky=` moves both.
 
 ## Known limits
 

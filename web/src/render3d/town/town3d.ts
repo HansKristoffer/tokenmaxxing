@@ -6,11 +6,12 @@
  * World units are tiles: tile (tx, ty) covers x from `tx - x0 + MARGIN`, z from `ty - y0 + MARGIN`.
  */
 import { SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
+import { bakedLook, type SeasonLook } from "@tokenmaxxing/core/seasons.ts";
 import { CART, SNAIL } from "@tokenmaxxing/core/street.ts";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { C } from "../../art/palette.ts";
-import { seasonNow } from "../../game/seasons.ts";
+import { seasonGrass, seasonLitter, seasonLookNow } from "../../game/seasons.ts";
 import {
   BLOCK_H,
   BLOCK_W,
@@ -34,11 +35,13 @@ import {
   arcadeBuilding,
   bush,
   grandFountain,
+  LEAF,
   lanternPillar,
   nightGlow,
   parkBench,
+  type Species,
+  seasonalTree,
   streetLamp,
-  type TreeKind,
   tree,
 } from "./props.ts";
 import { companyHouse, tavernBuilding } from "./town3d-houses.ts";
@@ -99,6 +102,8 @@ export interface Town3d {
   houses: Map<number, Model>;
   /** Street life, worked out from the clock (minutes since midnight in Aarhus). */
   setClock: (minutes: () => number) => void;
+  /** The crowns of the broadleaf trees (world x, height, z): where autumn's leaves fall from. */
+  canopies: readonly (readonly [number, number, number])[];
 }
 
 // MARK: Ground
@@ -135,7 +140,10 @@ function groundAt(map: TownMap, x: number, y: number): Ground {
 
 /** The whole ground in one canvas: grass, paths, plaza paving, flower meadows and the pond's water. */
 function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
-  const season = seasonNow();
+  const { look } = seasonLookNow();
+  const l = bakedLook(look);
+  const grassColors = [seasonGrass(0, l, "#86c35e"), seasonGrass(0, l, "#80bd58")];
+  const blades = [seasonGrass(1, l), seasonGrass(2, l)];
   const W = map.width + MARGIN * 2;
   const D = map.height + MARGIN * 2;
   return canvasTexture(
@@ -143,6 +151,18 @@ function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
     D * px,
     (g) => {
       const rnd = seeded(5);
+      const leaves = (tx: number, ty: number, ox: number, oy: number, most: number) => {
+        const n = Math.round(l.litter * most * hash(tx, ty, 60) * 2);
+        for (let k = 0; k < n; k++) {
+          g.fillStyle = seasonLitter(hash(tx, ty, 61 + k));
+          g.fillRect(
+            ox + hash(tx, ty, 70 + k) * px * 0.9,
+            oy + hash(tx, ty, 80 + k) * px * 0.9,
+            Math.max(1, px / 10),
+            Math.max(1, px / 14),
+          );
+        }
+      };
       for (let cy = 0; cy < D; cy++)
         for (let cx = 0; cx < W; cx++) {
           const tx = cx - MARGIN + map.x0;
@@ -152,32 +172,18 @@ function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
           const ox = cx * px;
           const oy = cy * px;
           const grass = () => {
-            const grassColors =
-              season === "fall"
-                ? ["#b5ad60", "#aaa257"]
-                : season === "winter"
-                  ? ["#9cae88", "#92a77e"]
-                  : season === "spring"
-                    ? ["#9bcf76", "#91c66c"]
-                    : ["#86c35e", "#80bd58"];
             g.fillStyle = grassColors[(cx + cy) % 2]!;
             g.fillRect(ox, oy, px, px);
             for (let i = 0; i < px * 0.7; i++) {
-              const blades =
-                season === "fall"
-                  ? ["#928e4c", "#d0c477"]
-                  : season === "winter"
-                    ? ["#819570", "#b5c7a0"]
-                    : season === "spring"
-                      ? ["#79b85a", "#b9e895"]
-                      : [C.grassDark, C.grassLight];
               g.fillStyle = blades[rnd() < 0.5 ? 0 : 1]!;
               g.fillRect(ox + rnd() * px, oy + rnd() * px, Math.max(1, px / 14), Math.max(2, px / 8));
             }
+            // Fallen leaves, more on the lawns than on the swept paths (the 2D ground's litter).
+            leaves(tx, ty, ox, oy, 3);
           };
           if (kind === "grass" || kind === "flowers") {
             grass();
-            if (kind === "flowers") {
+            if (kind === "flowers" && hash(tx, ty, 9) >= l.dormant) {
               for (let k = 0; k < 4; k++) {
                 const fx = ox + (2 + Math.floor(hash(tx, ty, 10 + k) * 11)) * (px / 16);
                 const fy = oy + (2 + Math.floor(hash(tx, ty, 20 + k) * 11)) * (px / 16);
@@ -206,6 +212,7 @@ function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
             if (lawn(0, 1)) g.fillRect(ox, oy + px - e, px, e);
             if (lawn(-1, 0)) g.fillRect(ox, oy, e, px);
             if (lawn(1, 0)) g.fillRect(ox + px - e, oy, e, px);
+            leaves(tx, ty, ox, oy, 1);
           } else if (kind === "plaza") {
             g.fillStyle = C.plaza;
             g.fillRect(ox, oy, px, px);
@@ -237,20 +244,19 @@ function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
 
 // MARK: Building the town
 
-const KINDS: TreeKind[] = ["round", "round", "pine", "oak", "round", "pine"];
-const FALL_KINDS: TreeKind[] = ["orange", "yellow", "pine", "red", "orange", "pine"];
-const SPRING_KINDS: TreeKind[] = ["round", "pink", "pine", "oak", "white", "pine"];
-const WINTER_KINDS: TreeKind[] = ["white", "white", "pine", "white", "white", "pine"];
-const treeKinds = () => {
-  const season = seasonNow();
-  return season === "fall"
-    ? FALL_KINDS
-    : season === "winter"
-      ? WINTER_KINDS
-      : season === "spring"
-        ? SPRING_KINDS
-        : KINDS;
-};
+/**
+ * The bushes' green on the day: bronzing a little in autumn, dull in winter. Only a little: the Voxel style draws a
+ * bush as a cube, and a brown one reads as a cardboard box.
+ */
+function hedgeColour(l: SeasonLook): string {
+  const c = new THREE.Color(LEAF[1]!);
+  c.lerp(new THREE.Color("#8f8a35"), l.turn * 0.5);
+  c.lerp(new THREE.Color("#5b7f4c"), l.dormant * (1 - l.turn) * 0.7);
+  return `#${c.getHexString()}`;
+}
+
+/** The town's trees, picked by tile: two in six blossom in spring, two are evergreen. */
+const SPECIES: Species[] = ["round", "cherry", "pine", "oak", "apple", "pine"];
 
 /** Strips the point lights from a model: lamps dotted round the town only glow. */
 function dim(m: THREE.Object3D): void {
@@ -427,6 +433,15 @@ export function buildTown3d(
     g.add(m);
     return m;
   };
+  // The season's look, as baked (`core/src/seasons.ts`): the town is built again when it changes.
+  const season = bakedLook(seasonLookNow().look);
+  const hedge = hedgeColour(season);
+  const canopies: [number, number, number][] = [];
+  /** A tree for the season; a broadleaf's crown is where leaves fall from. */
+  const plant = (species: Species, seed: number, size: number, x: number, z: number) => {
+    add(seasonalTree(species, seed, size, season), x, z);
+    if (species !== "pine") canopies.push([x, 1.35 * size * (species === "oak" ? 1.6 : 1), z]);
+  };
   const doors: TownDoor[] = [];
   const seats: TownSpots["seats"] = [];
   const houses = new Map<number, Model>();
@@ -455,17 +470,17 @@ export function buildTown3d(
       switch (ch) {
         case "T": {
           if (clearOf(cx, cz)) break;
-          const kinds = treeKinds();
-          const kind = kinds[Math.floor(hash(tx, ty, 3) * kinds.length)]!;
-          add(
-            tree(kind, Math.floor(r * 1e6), (border ? 1.1 : 1) + hash(tx, ty, 4) * 0.3),
+          plant(
+            SPECIES[Math.floor(hash(tx, ty, 3) * SPECIES.length)]!,
+            Math.floor(r * 1e6),
+            (border ? 1.1 : 1) + hash(tx, ty, 4) * 0.3,
             cx + (r - 0.5) * 0.5,
             cz + (hash(tx, ty, 5) - 0.5) * 0.5,
           );
           break;
         }
         case "^":
-          add(bush(Math.floor(r * 1e6), seasonNow() === "fall" ? "#bd743a" : undefined), cx, cz, 0, 1.3);
+          add(bush(Math.floor(r * 1e6), hedge), cx, cz, 0, 1.3);
           break;
         case "L":
           add(lanternPillar(), cx, cz);
@@ -534,7 +549,9 @@ export function buildTown3d(
         const fx = x + (rnd() - 0.5) * 0.85;
         const fz = z + (rnd() - 0.5) * 0.85;
         const n = i * per + k;
+        // In winter the meadows rest: the blossoms go, a tile at a time, and the tufts stay.
         m4.makeTranslation(fx, 0.2, fz);
+        if (hash(i, 0, 9) < season.dormant) m4.scale(new THREE.Vector3(0, 0, 0));
         blossoms.setMatrixAt(n, m4);
         blossoms.setColorAt(n, new THREE.Color(colours[Math.floor(rnd() * colours.length)]!));
         m4.makeScale(1, 0.7, 1).setPosition(fx, 0.08, fz);
@@ -620,13 +637,12 @@ export function buildTown3d(
       const ring = Math.min(cx, cy, W - 1 - cx, D - 1 - cy);
       if (ring >= MARGIN) continue;
       if (rnd() < 0.5 + ring * 0.15) continue;
-      const kinds = treeKinds();
-      const kind = kinds[Math.floor(rnd() * kinds.length)]!;
+      const species = SPECIES[Math.floor(rnd() * SPECIES.length)]!;
       const seed = Math.floor(rnd() * 1e6);
       const size = 1 + rnd() * 0.4;
       const tx = cx + 0.5 + (rnd() - 0.5) * 0.6;
       const tz = cz0(cy) + (rnd() - 0.5) * 0.6;
-      if (!clearOf(tx, tz)) add(tree(kind, seed, size), tx, tz);
+      if (!clearOf(tx, tz)) plant(species, seed, size, tx, tz);
     }
   function cz0(cy: number): number {
     return cy + 0.5;
@@ -775,6 +791,7 @@ export function buildTown3d(
     setClock: (f) => {
       clock = f;
     },
+    canopies,
   };
 }
 

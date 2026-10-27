@@ -143,7 +143,7 @@ import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { counts, TavernClock } from "../tavern-clock.ts";
 import { parseChatText } from "../validate.ts";
-import { fetchWeather, initialWeather, pinnedWeather, WEATHER_EVERY_MS } from "../weather.ts";
+import { fetchWeather, initialWeather, pinnedSeason, pinnedWeather, WEATHER_EVERY_MS } from "../weather.ts";
 import {
   all,
   authenticate,
@@ -1920,6 +1920,9 @@ const counted = (p: WorldPlayer, online: Map<number, number>) =>
 const asleepAtInn = (s: WorldState, online: Map<number, number>) =>
   Object.values(s.players).filter((p) => counted(p, online)).length;
 
+/** `SKY_SEASON`, read once: the town's season pinned for every client. */
+const SEASON_PIN = pinnedSeason();
+
 async function snapshot(
   s: WorldState,
   online: Map<number, number>,
@@ -1956,6 +1959,7 @@ async function snapshot(
     doors: companyId === null ? [] : doorsOf(s, companyId),
     drops: dropsIn(room),
     weather,
+    ...(SEASON_PIN === null ? {} : { seasonDay: SEASON_PIN }),
     raiders: room === "dungeon" ? raiders(s, Date.now()) : null,
   };
 }
