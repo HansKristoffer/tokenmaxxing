@@ -57,6 +57,8 @@ import {
   paperBike,
   paperRoll,
   polseCart,
+  type StarCounter,
+  starCounter,
 } from "./town3d-props.ts";
 import { type Windmill, windmill } from "./windmill3d.ts";
 
@@ -97,7 +99,7 @@ export interface Town3d {
   toWorld: (tx: number, ty: number) => [number, number];
   toTile: (x: number, z: number) => [number, number];
   spots: TownSpots;
-  boards: { leaderboard: Board; chalkboard: Chalkboard };
+  boards: { leaderboard: Board; chalkboard: Chalkboard; stars: StarCounter };
   /** The houses by plot, so a caller can wave at a window or restyle one. */
   houses: Map<number, Model>;
   /** Street life, worked out from the clock (minutes since midnight in Aarhus). */
@@ -451,7 +453,7 @@ export function buildTown3d(
   // The middle of its 2x2 tiles.
   const fountainX = wx((Math.min(...fxs) + Math.max(...fxs) + 1) / 2);
   const fountainZ = wz((Math.min(...fys) + Math.max(...fys) + 1) / 2);
-  const boards = { leaderboard: leaderboard(), chalkboard: chalkboard() };
+  const boards = { leaderboard: leaderboard(), chalkboard: chalkboard(), stars: starCounter() };
   let lampIndex = 0;
   for (let ty = map.y0; ty < map.y0 + map.height; ty++)
     for (let tx = map.x0; tx < map.x0 + map.width; tx++) {
@@ -489,6 +491,9 @@ export function buildTown3d(
         }
         case "N":
           add(boards.leaderboard, cx, cz + 0.2);
+          break;
+        case "★":
+          add(boards.stars, cx, cz + 0.2);
           break;
         case "K":
           add(boards.chalkboard, cx, cz);
@@ -863,6 +868,7 @@ export const TOWN3D_ASSETS: readonly Asset[] = [
   ),
   tileAsset("tile:B", "Bench", parkBench, 1, 1, { seat: { at: [0, 0.38, 0.05], turn: 0 } }),
   tileAsset("tile:N", "Leaderboard", leaderboard),
+  tileAsset("tile:★", "Star counter", starCounter),
   tileAsset("tile:K", "Chalkboard", chalkboard),
   tileAsset("tile:w", "Open offices board", openOfficesBoard),
   tileAsset("tile:o", "Coffee stand", coffeeStand),

@@ -4,6 +4,7 @@ import { darknessNow, lightsNow, warmthNow } from "../../game/sky.ts";
 import { hud } from "../../store.ts";
 import { setPropsNight } from "../town/props.ts";
 import { jukeboxSign, tavernDim } from "../town/world-logic.ts";
+import { KeynoteScreen } from "./keynote3d.ts";
 import { PokerEvents } from "./poker-events.ts";
 import type { LiveFrame } from "./rooms.ts";
 import { setTavernNight, type TavernRoom } from "./tavern3d.ts";
@@ -13,7 +14,8 @@ const v = new THREE.Vector3();
 /**
  * The Tavern's live bits on top of its boards (`live.ts`): a sign over the jukebox with the track, who put
  * it on and the skip votes (a click opens the jukebox), and the tip jar's coin, thrown when the server says
- * a toss landed. The jar no longer tosses by itself: a coin in it is somebody's.
+ * a toss landed. The jar no longer tosses by itself: a coin in it is somebody's. And the keynote watch party's
+ * screen on the west wall (`keynote3d.ts`).
  */
 export class TavernEvents {
   private el: HTMLDivElement | null = null;
@@ -28,10 +30,12 @@ export class TavernEvents {
   private lampsOn = false;
 
   private readonly poker: PokerEvents;
+  private readonly keynote: KeynoteScreen;
 
   constructor(private readonly inn: TavernRoom) {
     if (inn.fountain) inn.fountain.auto = false;
     this.poker = new PokerEvents(inn.poker);
+    this.keynote = new KeynoteScreen(inn.room);
   }
 
   /** The stage's lights, kept so the room can dim with the sky as the 2D Tavern does. */
@@ -92,11 +96,13 @@ export class TavernEvents {
     }
     f.overlay.place(this.el, v.copy(this.at), f.camera, 0, 0, true);
     this.poker.update(f);
+    this.keynote.update(f);
   }
 
   dispose(): void {
     setTavernNight(null);
     this.poker.dispose();
+    this.keynote.dispose();
     this.el?.remove();
     this.el = null;
   }

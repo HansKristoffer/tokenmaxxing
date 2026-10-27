@@ -36,6 +36,7 @@ import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
 import { drawCop, isCop } from "./cop.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
+import { drawFireworks } from "./fireworks.ts";
 import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
@@ -43,6 +44,7 @@ import { drawGlow } from "./glow.ts";
 import { drawPumpkins, lightPumpkins } from "./halloween.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { drawTruck, lightTruck } from "./jdag.ts";
+import { drawKeynote, lightKeynote } from "./keynote.ts";
 import {
   avatarLabels,
   chipHits,
@@ -75,6 +77,7 @@ import {
   weatherNow,
 } from "./sky.ts";
 import { snowAmount, snowLayers } from "./snow.ts";
+import { drawStars } from "./stars.ts";
 import { drawStreet } from "./street.ts";
 import { drawTavern, lightTavern } from "./tavern.ts";
 import { drawTownAnimals } from "./town-life.ts";
@@ -331,11 +334,14 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawStreet(f);
   drawWindmills(f);
   drawLaunch(f);
+  drawStars(f);
+  drawFireworks(f);
   drawPicnic(f);
   drawPumpkins(f);
   drawTruck(f);
   drawChalkboards(f);
   drawTavern(f);
+  drawKeynote(f);
   drawTownAnimals(f);
   drawBasement(f);
   drawMerchant(f);
@@ -420,6 +426,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawGhost(g, map, now, fancyCanvas);
   // The Tavern's fire and candles (and the dark, after sunset): `inn` only.
   lightTavern(f);
+  lightKeynote(f);
   lightBasement(f);
 
   // The sky: the sun's tint over the town, lights shining through it, then the weather. Labels
