@@ -232,6 +232,15 @@ function reconcileSelf(a: Avatar, [, x, y, facing, state]: PlayerPos): void {
 export function applyInfo(info: PlayerInfo): void {
   const a = world.avatars.get(info.id);
   if (a) a.info = info;
+  if (info.id === world.selfId && hud.get().dancing !== (info.dance ?? 0))
+    hud.set({ dancing: info.dance ?? 0 });
+}
+
+/** Starts (or with 0 stops) my own dance on screen at once; the server's `info` confirms it, or puts it back. */
+export function showMyDance(index: number, since = Date.now()): void {
+  const me = world.avatars.get(world.selfId);
+  if (me && (me.info.dance ?? 0) !== index) me.info = { ...me.info, dance: index, danceSince: since };
+  if (hud.get().dancing !== index) hud.set({ dancing: index });
 }
 
 export function applyChat(line: ChatLine): void {

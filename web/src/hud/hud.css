@@ -456,14 +456,68 @@ textarea:focus {
   padding: 6px 8px;
 }
 
+/* The dance bar: one button a dance, wrapping onto a second row when there are many. The one on is lit. */
+.dance-bar {
+  padding: 4px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.dance-bar button {
+  flex: 0 0 auto;
+  min-width: 30px;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  font-size: 18px;
+  line-height: 1.2;
+  border-radius: 6px;
+}
+
+.dance-bar button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.dance-bar button.aura {
+  box-shadow: inset 0 -2px 0 var(--aura);
+}
+
+.dance-bar button[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 2px var(--aura, #ffd75e);
+  animation: dance-beat 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes dance-beat {
+  to {
+    transform: translateY(-2px) rotate(-6deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dance-bar button[aria-pressed="true"] {
+    animation: none;
+  }
+}
+
+.dance-bar .dance-more {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
 /* At rest the chat is a faint overlay, so it doesn't hide the room: it comes up on hover, focus or a new line. */
 .chat-dock .chat,
-.chat-dock .quick {
+.chat-dock .quick,
+.chat-dock .dance-bar {
   transition: opacity 0.2s;
 }
 
 .chat-dock:not(:hover):not(:focus-within):not(.fresh) .chat,
-.chat-dock:not(:hover):not(:focus-within):not(.fresh) .quick {
+.chat-dock:not(:hover):not(:focus-within):not(.fresh) .quick,
+.chat-dock:not(:hover):not(:focus-within):not(.fresh) .dance-bar:not(:has([aria-pressed="true"])) {
   opacity: 0.4;
 }
 
@@ -3787,4 +3841,14 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 
 .release a {
   color: inherit;
+}
+
+/* A dance in the shop: its emoji in the item's square. */
+.dance-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  font-size: 40px;
 }

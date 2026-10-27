@@ -12,7 +12,7 @@ import {
   route,
 } from "@tokenmaxxing/core/world.ts";
 import { admit, as, event, eventually, rich, signUp } from "./rivet.ts";
-import { connect, walk } from "./world-client.ts";
+import { connect, step, walk } from "./world-client.ts";
 
 describe("world", () => {
   test("a new player rests at the Inn and wakes up there", async () => {
@@ -124,6 +124,40 @@ describe("world", () => {
       expect(cupsLeft(until, Date.now())).toBeGreaterThan(1.5);
     });
     await conn.dispose();
+  });
+
+  test("dances: the free ones for all, bought ones once learned, on until you stop or walk off", async () => {
+    const a = await rich("dancer", 200);
+    const b = await signUp("watcher");
+    const { conn, events } = await connect(a.token);
+    const other = await connect(b.token);
+    const dancing = (v: { events: { infos: PlayerInfo[] } }) =>
+      v.events.infos.filter((i) => i.id === a.userId).at(-1)?.dance;
+
+    // A free one, seen by the room (both woke up at the Tavern).
+    await conn.dance(1);
+    await eventually(() => expect(dancing(other)).toBe(1));
+    expect(events.infos.filter((i) => i.id === a.userId).at(-1)?.danceSince).toBeGreaterThan(0);
+
+    // A sold one only once it's learned, and it's learned once.
+    await expect(conn.dance(3)).rejects.toMatchObject({ code: "not_owned" });
+    await a.town.buy("dance.3");
+    await expect(a.town.buy("dance.3")).rejects.toMatchObject({ code: "owned" });
+    expect((await a.town.wallet()).balance).toBe(80);
+    await conn.dance(3);
+    await eventually(() => expect(dancing(other)).toBe(3));
+    await expect(conn.dance(99)).rejects.toMatchObject({ code: "not_found" });
+    await expect(conn.dance("3")).rejects.toMatchObject({ code: "not_found" });
+
+    // Walking off ends it; so does stopping.
+    await step(conn, "left");
+    await eventually(() => expect(dancing(other)).toBe(0));
+    await conn.dance(2);
+    await eventually(() => expect(dancing(other)).toBe(2));
+    await conn.dance(0);
+    await eventually(() => expect(dancing(other)).toBe(0));
+    await conn.dispose();
+    await other.conn.dispose();
   });
 
   test("the tap serves the day's special: free, cosmetic, and not again while it lasts", async () => {

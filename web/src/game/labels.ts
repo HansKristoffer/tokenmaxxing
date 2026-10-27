@@ -213,6 +213,8 @@ export function avatarLabels(
   tile: string,
   now: number,
   dpr: number,
+  /** Dancing near another dancer (`battlers` in dance.ts). */
+  battle = false,
 ): void {
   if (a.warp?.out) return;
   const resting = a.state === "away" || a.state === "working";
@@ -234,6 +236,7 @@ export function avatarLabels(
       pill(g, cx, y, `💻 ×${Math.max(1, a.info.liveAgents)}`, dpr, "rgba(143, 227, 255, 0.95)", C.ink).h +
       2 * dpr;
   }
+  if (battle) y -= pill(g, cx, y, "⚔️ Aura battle", dpr, "rgba(179, 107, 255, 0.95)", C.white).h + 2 * dpr;
   const inGame = gameTag(a.info.id);
   if (inGame) y -= pill(g, cx, y, inGame, dpr, "rgba(233, 183, 61, 0.95)", C.ink).h + 2 * dpr;
   if (!resting) y = polseTag(g, a.info, cx, y, now);

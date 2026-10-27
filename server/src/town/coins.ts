@@ -79,6 +79,10 @@ export const bag = (sql: Sql, userId: number): Promise<BagRow[]> =>
 export const ownedItems = async (sql: Sql, userId: number): Promise<string[]> =>
   (await bag(sql, userId)).map((r) => r.item);
 
+/** Whether `userId` has at least one `item` in their bag. */
+export const holds = async (sql: Sql, userId: number, item: string): Promise<boolean> =>
+  (await one(sql, "SELECT 1 FROM items WHERE owner_id = ? AND item = ?", userId, item)) !== undefined;
+
 /** One `item` into `userId`'s bag. Returns its row's id. */
 export const giveItem = async (sql: Sql, userId: number, item: string, now: number): Promise<number> =>
   (await one<{ id: number }>(
@@ -383,6 +387,9 @@ export async function setBalance(
 export async function buy(sql: Sql, userId: number, item: Item, now: number, kept?: Kept): Promise<Wallet> {
   if (item.holiday && !onSale(item, now))
     throw new UserError(offSeason(item.holiday), { code: "not_for_sale" });
+  // A dance is learned once: a second copy would do nothing, and it can't be traded on.
+  if (item.slot === "dance" && (await holds(sql, userId, item.id)))
+    throw new UserError("You know that dance already.", { code: "owned" });
   if ((await wallet(sql, userId, now, kept)).balance < item.price)
     throw new UserError("Not enough coins yet.", { code: "too_poor" });
   // The item first: if the purchase write fails, it was free rather than paid for and lost.
@@ -407,7 +414,7 @@ export async function buyMerch(
   if (!company) throw new UserError("That company is gone.", { code: "not_found" });
   const employee = (await userById(sql, userId)).companyId === company.id;
   const price = merchPrice(item.id.split(".")[2] as MerchKind, employee);
-  if (price === 0 && (await one(sql, "SELECT 1 FROM items WHERE owner_id = ? AND item = ?", userId, item.id)))
+  if (price === 0 && (await holds(sql, userId, item.id)))
     throw new UserError("You have one already: the free one is one each.", { code: "owned" });
   if ((await wallet(sql, userId, now, kept)).balance < price)
     throw new UserError("Not enough coins yet.", { code: "too_poor" });

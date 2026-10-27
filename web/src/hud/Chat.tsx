@@ -7,6 +7,7 @@ import { roomName, world } from "../game/world.ts";
 import { conn, matchConn, town } from "../net.ts";
 import { storage } from "../storage.ts";
 import { hud, useHud } from "../store.ts";
+import { DanceBar } from "./DanceBar.tsx";
 import { MentionInput } from "./MentionInput.tsx";
 import { QuickReplies } from "./QuickReplies.tsx";
 import { AvatarImage, Pills } from "./ui.tsx";
@@ -218,6 +219,7 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
 
   return (
     <div className={`chat-dock${fresh ? " fresh" : ""}`}>
+      <DanceBar onError={setError} />
       <QuickReplies say={say} onError={setError} />
       <section className="panel chat" aria-label="Chat">
         <header>

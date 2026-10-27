@@ -1,4 +1,5 @@
 import { COP_ID } from "@tokenmaxxing/core/cop.ts";
+import { auraOf } from "@tokenmaxxing/core/dances.ts";
 import { LEGENDARY_LEVEL } from "@tokenmaxxing/core/milestones.ts";
 import { SNEEZE_MS } from "@tokenmaxxing/core/sky.ts";
 import { hasPolse } from "@tokenmaxxing/core/street.ts";
@@ -8,6 +9,7 @@ import * as THREE from "three";
 import { merchKey, merchVersion } from "../../art/merch.ts";
 import { PET_H, PET_W } from "../../art/pets.ts";
 import { type Chill, chillOf, SNEEZE_TEXT, sneezeJolt, sneezeOf, wearsScarf } from "../../game/cold.ts";
+import { battlers, danceOf } from "../../game/dance.ts";
 import { BURST_MS } from "../../game/emoji.ts";
 import { LABEL_FAR } from "../../game/near.ts";
 import { followPet, prunePets } from "../../game/pets.ts";
@@ -36,6 +38,7 @@ import type { RoomView } from "../rooms/rooms.ts";
 import { Breath, neckOf, scarf } from "../town/cold3d.ts";
 import { STOOL_Y, seatPose } from "../town/gamefx.ts";
 import { CopWatch, ShowcaseCache } from "../town/world-logic.ts";
+import { Aura } from "./aura3d.ts";
 import { Avatar as Avatar3D } from "./avatar.ts";
 import { CopGear } from "./cop3d.ts";
 import { type Look2D, lookFrom2D, nameTag, tagLift, wornBy } from "./gear3d.ts";
@@ -78,6 +81,8 @@ interface Rig {
   scarf: Model | null;
   /** How far into a sneeze they are this frame (0..1), or null. */
   sneeze: number | null;
+  /** An aura dance's aura, while they do one. */
+  aura: Aura | null;
   /** Officer 429 only: his light bar and notepad, and what his lines say he is doing. */
   cop: { gear: CopGear; watch: CopWatch } | null;
   /** Where a Sprint Race has them (laps of the square) this frame, when it has. */
@@ -113,7 +118,13 @@ interface Rig {
   tagShown: { hide: boolean; alpha: number };
   bubble: HTMLDivElement;
   bubbleText: string;
-  pills: { polse: HTMLDivElement; game: HTMLDivElement; work: HTMLDivElement; zzz: HTMLDivElement };
+  pills: {
+    polse: HTMLDivElement;
+    battle: HTMLDivElement;
+    game: HTMLDivElement;
+    work: HTMLDivElement;
+    zzz: HTMLDivElement;
+  };
   petLabel: HTMLDivElement | null;
   burst: Burst | null;
 }
@@ -147,6 +158,8 @@ export class Entities {
   /** Most name tags at once, from the tier. */
   maxTags = 12;
   private readonly tagged: Rig[] = [];
+  /** Who is in an aura battle this frame (`battlers`). */
+  private fights: ReadonlySet<number> = NONE;
   private bursts = 0;
   /** What the cold does to people this frame: outdoors only. */
   private chill: Chill | null = null;
@@ -221,12 +234,13 @@ export class Entities {
     };
     const pills = {
       polse: pill(""),
+      battle: pill("r3-battle"),
       game: pill("r3-game"),
       work: pill("r3-work"),
       zzz: pill("r3-zzz"),
     };
     pills.zzz.textContent = "z";
-    stack.append(bubble, pills.polse, pills.game, pills.work, pills.zzz);
+    stack.append(bubble, pills.polse, pills.battle, pills.game, pills.work, pills.zzz);
     const [x, z] = view.toWorld(a.x, a.y);
     return {
       id: a.info.id,
@@ -250,6 +264,7 @@ export class Entities {
       breath: null,
       scarf: null,
       sneeze: null,
+      aura: null,
       cop: a.info.id === COP_ID ? { gear: new CopGear(avatar, root), watch: new CopWatch() } : null,
       lap: null,
       pet: null,
@@ -312,6 +327,7 @@ export class Entities {
     const list: GameAvatar[] = [...world.avatars.values()];
     for (const l of world.leaving) if (!world.avatars.has(l.info.id)) list.push(l);
     prunePets();
+    this.fights = battlers(list);
     this.bursts = 0;
     for (const r of this.rigs.values()) if (r.burst) this.bursts++;
     // Who shares a tile (seats are one each, and the server keeps them so), in a fixed order: each gets a spot.
@@ -456,7 +472,10 @@ export class Entities {
       world.room === "inn" &&
       world.map.at(a.x, a.y) === "e" &&
       hud.get().jukebox !== null;
-    av.pose = dancing ? "dance" : pose;
+    // Their own dance from the dance bar, on their feet and standing still.
+    const dance = pose === "stand" && !lap ? danceOf(a) : undefined;
+    av.pose = dancing || dance ? "dance" : pose;
+    av.move = dance?.move ?? null;
     const hop = a.jump === null ? 0 : hopHeight((now - a.jump) / JUMP_MS);
     // Sitters and sleepers lie on their seat's height; everyone else on the floor.
     let y = 0;
@@ -507,6 +526,14 @@ export class Entities {
       r.halo.removeFromParent();
       disposeObject(r.halo);
       r.halo = null;
+    }
+    // An aura dance farms its aura: it grows over the first half-minute (`auraOf`).
+    if (dance?.aura) {
+      r.aura ??= new Aura(r.root);
+      r.aura.update(dance.aura, auraOf(info.danceSince ?? 0, unow), t, this.calm);
+    } else if (r.aura) {
+      r.aura.dispose();
+      r.aura = null;
     }
     // Appearing and disappearing: a pop.
     let pop = 1;
@@ -704,6 +731,7 @@ export class Entities {
       r.bubble.style.opacity = said.left < 400 ? String(Math.max(0, said.left / 400)) : "1";
     } else r.bubble.style.display = "none";
     show(r.pills.polse, hasPolse(info.polseUntil, Date.now()) ? "🌭" : null);
+    show(r.pills.battle, this.fights.has(info.id) ? "⚔️ Aura battle" : null);
     show(r.pills.game, gameTag(info.id));
     show(r.pills.work, a.state === "working" ? `💻 ×${Math.max(1, info.liveAgents)}` : null);
     show(r.pills.zzz, resting || info.dozing ? "z" : null);
