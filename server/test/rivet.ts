@@ -106,6 +106,8 @@ async function start(attempts = 5): Promise<string> {
         RIVET_LOG_LEVEL: "error",
         // Answers each actor call ~40 ms sooner (no wait on a delayed ACK); as in the Dockerfile.
         RIVET__GUARD__TCP_NODELAY: "true",
+        // No GitHub reads from tests: the star counter stays blank.
+        GITHUB_STARS: "off",
         // Company websites stay on the sign; no scraping or Claude calls from tests.
         FIRECRAWL_API_KEY: "",
         ANTHROPIC_API_KEY: "",

@@ -1,3 +1,4 @@
+import { offSeason, onSale } from "@tokenmaxxing/core/costumes.ts";
 import {
   badgeCoins,
   levelUpCoins,
@@ -370,9 +371,11 @@ export async function setBalance(
 
 /**
  * Pays for one more `item` from `userId`'s coins and puts it in their bag. Run it serialized, so two
- * buys can't both spend the same coins.
+ * buys can't both spend the same coins. A holiday costume is sold only round its holiday (`onSale`).
  */
 export async function buy(sql: Sql, userId: number, item: Item, now: number, kept?: Kept): Promise<Wallet> {
+  if (item.holiday && !onSale(item, now))
+    throw new UserError(offSeason(item.holiday), { code: "not_for_sale" });
   if ((await wallet(sql, userId, now, kept)).balance < item.price)
     throw new UserError("Not enough coins yet.", { code: "too_poor" });
   // The item first: if the purchase write fails, it was free rather than paid for and lost.

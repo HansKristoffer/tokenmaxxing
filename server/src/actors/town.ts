@@ -7,6 +7,7 @@ import {
 } from "@tokenmaxxing/core/collection.ts";
 import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
+import { clockAt, dateAt, type Keynote } from "@tokenmaxxing/core/keynote.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import { headlines, type Paper } from "@tokenmaxxing/core/paper.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
@@ -145,6 +146,7 @@ import { buyDesk, buyDeskFleet, type MyDesk, myDesk, setDesk } from "../town/des
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { recordGreen } from "../town/grid.ts";
 import { type HallOfFame, hallOfFame } from "../town/hall.ts";
+import { comingKeynotes, everyKeynote, markKeynote, removeKeynote, saveKeynote } from "../town/keynotes.ts";
 import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
 import {
@@ -860,6 +862,18 @@ export const town = actor({
       return markPicnic(c.db, userId, since);
     },
 
+    /** For `world`: the keynotes still to come or on, soonest first (it asks every few minutes). */
+    keynotes: (c): Promise<Keynote[]> => {
+      requireInternal(c.conn.state);
+      return comingKeynotes(c.db, Date.now());
+    },
+
+    /** From `world`: in the Tavern while keynote `keynoteId` is on its screen. True the first time. */
+    keynoteWatched: (c, userId: number, keynoteId: number): Promise<boolean> => {
+      requireInternal(c.conn.state);
+      return markKeynote(c.db, userId, keynoteId);
+    },
+
     /**
      * The alarm, every 10 minutes: drops nobody took in an hour go back to whoever dropped them, and
      * trade offers past their week go. And the raid is worked out, so a kill's loot is handed out even
@@ -1458,6 +1472,32 @@ export const town = actor({
       await logAdmin(c.db, "remove request", `#${String(id)}`, text, Date.now());
     },
 
+    /** Every keynote watch party scheduled, newest first. */
+    adminKeynotes: (c): Promise<Keynote[]> => {
+      requireAdmin(c.conn.state);
+      return everyKeynote(c.db);
+    },
+
+    /** Schedules a keynote watch party, or changes the one `id` names (null: a new one). The world hears at once. */
+    adminSaveKeynote: async (c, id: unknown, input: unknown): Promise<Keynote> => {
+      requireAdmin(c.conn.state);
+      const now = Date.now();
+      const k = await saveKeynote(c.db, id, input, now);
+      const action = id === null || id === undefined ? "schedule keynote" : "change keynote";
+      await logAdmin(c.db, action, `${k.title} (#${k.id})`, keynoteDetail(k), now);
+      await pushKeynotes(c.db, c.client<typeof registry>(), now);
+      return k;
+    },
+
+    /** Takes a keynote off the schedule (and off the Tavern's screen, if it's on). */
+    adminRemoveKeynote: async (c, id: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const now = Date.now();
+      const k = await removeKeynote(c.db, id);
+      await logAdmin(c.db, "remove keynote", `${k.title} (#${k.id})`, keynoteDetail(k), now);
+      await pushKeynotes(c.db, c.client<typeof registry>(), now);
+    },
+
     /** Sets someone's balance; returns it. */
     adminSetCoins: async (c, userId: unknown, balance: unknown): Promise<number> => {
       requireAdmin(c.conn.state);
@@ -1606,6 +1646,20 @@ export const town = actor({
 });
 
 type Client = Parameters<typeof push>[1];
+
+/** How the admin log describes a keynote: its host and when it runs. */
+const keynoteDetail = (k: Keynote) => `${k.host}, ${dateAt(k.startsAt)} to ${clockAt(k.endsAt)}`;
+
+/**
+ * Tells `world` the schedule now: the screen goes up or down at once. A failed call is only a delay,
+ * since `world` asks for the list every few minutes anyway.
+ */
+async function pushKeynotes(sql: Sql, client: Client, now: number): Promise<void> {
+  const list = await comingKeynotes(sql, now);
+  await main(client)
+    .world.setKeynotes(list)
+    .catch((err: unknown) => console.warn(`[keynotes] push: ${String(err)}`));
+}
 
 /** How the admin log names someone. */
 const who = (u: { id: number; name: string }) => `${u.name} (#${u.id})`;

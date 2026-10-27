@@ -20,6 +20,8 @@ export interface BadgeFacts {
   // Optional, so older callers and tests still pass (the `picnics?` pattern).
   /** Outage picnics sat in. */
   picnics?: number;
+  /** Keynote watch parties dropped in on. */
+  keynotes?: number;
   /** Days with at least one PR. */
   shipDays?: number;
   /** Models with at least `POLYGLOT_MIN` lifetime tokens. */
@@ -174,6 +176,19 @@ export const BADGES: readonly BadgeDef[] = [
       { at: 5, label: "5 outage picnics" },
     ],
     of: (f) => f.picnics ?? 0,
+    quiet: true,
+  },
+  {
+    id: "keynote",
+    emoji: "📽️",
+    name: "Watch party",
+    group: "Seasonal",
+    how: "Be in the Tavern while a keynote is on its screen",
+    tiers: [
+      { at: 1, label: "Watch party" },
+      { at: 5, label: "5 watch parties" },
+    ],
+    of: (f) => f.keynotes ?? 0,
     quiet: true,
   },
   {

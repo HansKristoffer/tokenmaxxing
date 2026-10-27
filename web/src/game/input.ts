@@ -7,6 +7,7 @@ import {
   type ShopId,
   shopOfRoom,
 } from "@tokenmaxxing/core/shoprooms.ts";
+import { STAR_COUNTER } from "@tokenmaxxing/core/stars.ts";
 import { stepPace } from "@tokenmaxxing/core/street.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
@@ -30,6 +31,7 @@ import { chalkboardText } from "./chalkboard.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, doorOf, peekHits } from "./houses.ts";
+import { keynoteInteract } from "./keynote.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { blocksLaunch, launchInteract } from "./launch.ts";
 import { merchantAt, openCart } from "./merchant.ts";
@@ -40,6 +42,7 @@ import { pickTile } from "./stage.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { interactAnimal, interactTownProp } from "./town-life.ts";
 import { openTrophies } from "./trophies.ts";
+import { windmillInteract } from "./windmill.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {
@@ -463,11 +466,14 @@ function interact(): void {
   // E on your own clone (or its laptop) in the raid dungeon takes your seat; others' seats are not yours.
   if (world.room === "dungeon" && sit(x, y)) return;
   if (streetInteract(me, x, y, send)) return;
+  if (windmillInteract(x, y)) return;
   if (launchInteract(me)) return;
+  if (keynoteInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
+  if (ch === STAR_COUNTER) return void hud.set({ panel: { kind: "stars" } });
   if (kind.poker) return void send(conn.pokerSit(me.facing));
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (kind.pours) return void send(conn.drink(me.facing));
