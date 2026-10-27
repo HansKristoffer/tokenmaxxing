@@ -1,3 +1,11 @@
+import {
+  HOST_MAX,
+  type KeynoteInput,
+  MAX_AHEAD_MS,
+  MAX_RUN_MS,
+  TITLE_MAX,
+  URL_MAX,
+} from "@tokenmaxxing/core/keynote.ts";
 import { REQUEST_MAX, REQUEST_MIN } from "@tokenmaxxing/core/requests.ts";
 import { type MessageType, SOURCES, type Source, type TokenEvent } from "@tokenmaxxing/core/types.ts";
 import { BIO_MAX_LENGTH, CHAT_MAX_LENGTH } from "@tokenmaxxing/core/world.ts";
@@ -33,6 +41,46 @@ export function parseRequest(raw: unknown): string | null {
   const text = raw.replace(INVISIBLE, "").replace(CONTROL, " ").replace(/\s+/g, " ").trim();
   const n = [...text].length;
   return n < REQUEST_MIN || n > REQUEST_MAX || LINKISH.test(text) ? null : text;
+}
+
+/** One line of plain text: no control, zero-width or bidi characters, single spaces. */
+const oneLine = (raw: unknown): string =>
+  typeof raw === "string" ? raw.replace(INVISIBLE, "").replace(CONTROL, " ").replace(/\s+/g, " ").trim() : "";
+
+/** An https link to somewhere with a dot in its name, or null. */
+function httpsUrl(raw: unknown): string | null {
+  const text = oneLine(raw);
+  if (!text || text.length > URL_MAX) return null;
+  try {
+    const u = new URL(text);
+    return u.protocol === "https:" && u.hostname.includes(".") ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A keynote as the admin page sent it (`core/src/keynote.ts`): a title of 3 to `TITLE_MAX` characters, a host
+ * of up to `HOST_MAX`, a start before the end and at most `MAX_RUN_MS` apart, an end that hasn't passed, a
+ * start within `MAX_AHEAD_MS`, and an https stream link. A string says what's wrong.
+ */
+export function parseKeynote(raw: unknown, now: number): KeynoteInput | string {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const title = oneLine(r.title);
+  const host = oneLine(r.host);
+  const startsAt = Number(r.startsAt);
+  const endsAt = Number(r.endsAt);
+  const url = httpsUrl(r.url);
+  if ([...title].length < 3 || [...title].length > TITLE_MAX)
+    return `Give it a title of 3 to ${TITLE_MAX} characters.`;
+  if (!host || [...host].length > HOST_MAX) return `Say who's hosting it, in up to ${HOST_MAX} characters.`;
+  if (!Number.isSafeInteger(startsAt) || !Number.isSafeInteger(endsAt)) return "Pick a start and an end.";
+  if (endsAt <= startsAt) return "It has to end after it starts.";
+  if (endsAt - startsAt > MAX_RUN_MS) return `A keynote runs ${MAX_RUN_MS / 3_600_000} hours at most.`;
+  if (endsAt <= now) return "That's over already.";
+  if (startsAt > now + MAX_AHEAD_MS) return "Schedule it at most a year ahead.";
+  if (!url) return "The stream needs an https link.";
+  return { title, host, startsAt, endsAt, url };
 }
 
 /** Lowercase handle, 2–32 chars. Shown to other users, so no free-form text. */
