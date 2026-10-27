@@ -25,12 +25,12 @@ test("level-up coins skip the milestone levels", () => {
 
 test("a badge pays each tier it reached once", () => {
   expect(badgeCoins(0)).toBe(0);
-  expect([1, 2, 3, 4].map(badgeCoins)).toEqual([10, 35, 85, 185]);
+  expect([1, 2, 3, 4].map(badgeCoins)).toEqual([40, 140, 340, 740]);
 });
 
 test("every trophy has a price and a trophy pays once", () => {
   for (const t of TROPHIES) expect(TROPHY_COINS[t.id]).toBeDefined();
-  expect(trophyCoins(["million", "million", "zeros", "piday"])).toBe(5 + 25);
+  expect(trophyCoins(["million", "million", "zeros", "piday"])).toBe(20 + 100);
 });
 
 test("the streak climbs half a step a day to x3", () => {

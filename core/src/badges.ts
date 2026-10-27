@@ -244,9 +244,9 @@ export const BADGES: readonly BadgeDef[] = [
     how: "Use different models (100k tokens each)",
     tiers: [
       ...ladder([3, 6, 10], (at) => `${at} models`),
-      { at: 15, label: "15 models" },
-      { at: 25, label: "25 models: a model collector" },
       { at: 50, label: "50 models: it is a zoo" },
+      { at: 250, label: "250 models: a model museum" },
+      { at: 1000, label: "1000 models: you know them all" },
     ],
     of: (f) => f.models ?? 0,
   },

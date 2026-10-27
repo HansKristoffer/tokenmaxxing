@@ -582,7 +582,7 @@ Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/to
   more run bronze, silver, gold, diamond, mythic, cosmic by tier (`FRAMES`; `grandFrame` is gold and up). The long
   ladders (Big day 3B to 100B in a day, Octopus 5 to 1000 agents at once, Token furnace 1B to 100T lifetime, and
   most others) are appended to, so a tier a player holds keeps its number; the first Big day tier moved from 1B to 3B.
-  `BADGE_TIER_COINS` prices tiers 1 to 6 (10, 25, 50, 100, 250, 500). Founder, the picnic and the watch party are `quiet`.
+  `BADGE_TIER_COINS` prices tiers 1 to 6 (40, 100, 200, 400, 1000, 2000; trophies pay 20 to 400, `TROPHY_COINS`). Founder, the picnic and the watch party are `quiet`.
 - **The collection log** (`core/src/collection.ts`): a static `CATALOG` of every badge, trophy and milestone title (68),
   in groups (Usage, Social, Town, Raid, Games, Seasonal) with how to earn it, so the client greys out what's missing and
   `town.collection` sends only a compact `CollectionState`. A minute at most per player, dropped when they sync or earn.
@@ -593,8 +593,11 @@ Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/to
   set is in memory.
 - **The backfill:** until the `badge_backfill` marker in `raid_meta` says done, each sweep records one chunk of 100
   players (`backfillStep`, by id) with `backfill = 1`: silent, with no date, and the dirty set waits. A player's first
-  rows ever are silent too, so a new account's years of history isn't announced. Tiers pay no coins: they're derived
-  retroactively, so paying would mint the whole history at once.
+  rows ever are silent too, so a new account's years of history isn't announced. Tiers and trophies do pay coins,
+  once each, from the recorded rows when the wallet is read, so changing `BADGE_TIER_COINS` or `TROPHY_COINS` pays
+  everyone who already holds one the new amount (a backfill with no cap). When tiers or trophies are added, a second
+  silent pass records them for everyone: the `badge_recheck_2` marker (kept apart so the Hall isn't empty while it
+  runs) and `trophy_backfill_2`; bump the keys to run them again.
 - **The town hears** of a gold tier or better (not a `quiet` badge's) and of reaching level 30 or more
   (`ANNOUNCE_LEVEL`), at most 3 per person per sweep: `told` calls `world.announceTown` with the open panel
   `collection`. Bronze and silver are silent.

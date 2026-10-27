@@ -26,23 +26,24 @@ export const levelUpCoins = (level: number): number => {
 
 /**
  * What reaching tier 1 to 6 of a badge pays (Bronze, Silver, Gold, Diamond, Mythic, Cosmic): each tier once.
- * Only the longer ladders reach the last two.
+ * Only the longer ladders reach the last two. Tiers are paid from the rows a sweep recorded, by these
+ * numbers when the wallet is read, so changing them pays everyone who holds a tier the new amount.
  */
-export const BADGE_TIER_COINS: readonly number[] = [10, 25, 50, 100, 250, 500];
+export const BADGE_TIER_COINS: readonly number[] = [40, 100, 200, 400, 1000, 2000];
 
 /** A badge standing at `tier` has paid every tier up to it. */
 export const badgeCoins = (tier: number): number => sumBy(BADGE_TIER_COINS.slice(0, tier), (n) => n);
 
 /** Trophies anyone gets in their first weeks. */
-const COMMON = 5;
+const COMMON = 20;
 /** Coincidences you can steer a little (a day's total, an hour of the night). */
-const ODD = 10;
+const ODD = 40;
 /** Only on its day of the year. */
-const CALENDAR = 25;
+const CALENDAR = 100;
 /** Takes a long haul or real luck. */
-const RARE = 50;
+const RARE = 200;
 /** Hardly anyone will ever see it. */
-const LEGEND = 100;
+const LEGEND = 400;
 
 /**
  * What each trophy pays, once. The PR-hash ones pay nothing: the cheapest to farm (open PRs until one

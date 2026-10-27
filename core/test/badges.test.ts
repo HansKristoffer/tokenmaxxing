@@ -108,7 +108,7 @@ test("every ladder climbs, has a frame for each tier and a coin price for each",
       if (i > 0) expect(t.at).toBeGreaterThan(b.tiers[i - 1]!.at);
     });
   }
-  expect(badgeCoins(6)).toBe(935);
+  expect(badgeCoins(6)).toBe(3740);
 });
 
 test("the crazy ladders", () => {
@@ -143,7 +143,9 @@ test("the new badges", () => {
   const tier = (id: string, f: Partial<BadgeFacts>) =>
     badgesFor({ ...none, ...f }).find((b) => b.id === id)?.tier ?? 0;
   expect([9, 10, 30, 100].map((shipDays) => tier("shipdays", { shipDays }))).toEqual([0, 1, 2, 3]);
-  expect([2, 3, 6, 10].map((models) => tier("polyglot", { models }))).toEqual([0, 1, 2, 3]);
+  expect([2, 3, 6, 10, 49, 50, 250, 999, 1000].map((models) => tier("polyglot", { models }))).toEqual([
+    0, 1, 2, 3, 3, 4, 5, 5, 6,
+  ]);
   expect([13, 14, 60, 200].map((longestRun) => tier("longrun", { longestRun }))).toEqual([0, 1, 2, 3]);
   expect([0, 1, 10, 50].map((raidKills) => tier("raider", { raidKills }))).toEqual([0, 1, 2, 3]);
   expect([9, 10, 50, 250].map((gamesPlayed) => tier("regular", { gamesPlayed }))).toEqual([0, 1, 2, 3]);
