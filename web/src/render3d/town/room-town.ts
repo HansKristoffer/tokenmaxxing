@@ -13,6 +13,7 @@ import { ExitMarkers } from "../rooms/exit-markers.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "../rooms/rooms.ts";
 import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
+import { Graveyard3D } from "./graveyard3d.ts";
 import { FallingLeaves } from "./leaves3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
@@ -64,8 +65,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const gate = town.doors.find((d) => d.kind === "dungeon");
   const gateLive = gate ? new GateLive([gate.at[0], gate.at[1] + 0.25]) : null;
   const games = new GamesLayer((tx, ty) => town.toWorld(tx, ty));
+  const graveyard = new Graveyard3D((tx, ty) => town.toWorld(tx, ty));
   if (gateLive) group.add(gateLive.group);
-  group.add(games.group);
+  group.add(games.group, graveyard.group);
   const leaves = new FallingLeaves(town.canopies);
   group.add(leaves.group);
   const wind = new THREE.Vector2();
@@ -139,6 +141,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       pumpkins.update(f.now);
       truck.update();
       events.update(f);
+      graveyard.update(f.now);
       statue.update(f);
       const [x, z] = f.me ?? [W / 2, D / 2];
       wind.set(windPush(weatherNow()) * 2.5, 0);
@@ -150,7 +153,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       statue.leave();
     },
     signs,
-    liveSigns: () => [...truck.signs(), ...(gateLive?.signs() ?? []), ...games.signs()],
+    liveSigns: () => [...truck.signs(), ...(gateLive?.signs() ?? []), ...games.signs(), ...graveyard.signs()],
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();
@@ -158,6 +161,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       fireworks.dispose();
       events.dispose();
       games.dispose();
+      graveyard.dispose();
       gateLive?.dispose();
       dropPropsNight(group);
       group.removeFromParent();

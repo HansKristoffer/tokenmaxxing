@@ -4,6 +4,7 @@ import { DROPS, type Drop, mapOf, route, setDrops } from "@tokenmaxxing/core/wor
 import { serial } from "../src/actors/shared.ts";
 import { town } from "../src/actors/town.ts";
 import { world } from "../src/actors/world.ts";
+import { migrateGraveyard } from "../src/graveyard.ts";
 import { bag, grantRewards, placed, takeOut } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
@@ -126,8 +127,13 @@ describe("drops", () => {
     const seed = await town.config.actions!.seed({ conn: { state: { kind: "internal" } }, db: sql } as never);
     // What it had before sleeping isn't kept: a ghost of a drop whose call failed goes.
     setDrops("inn", [{ id: id + 100, item: "pet.2", room: "inn", x: 1, y: 1, by: 7, at: 0 }]);
+    // The world's own database: the graveyard it keeps (`graveyard.ts`).
+    const own = memorySql().sql;
+    await migrateGraveyard(own);
     await world.config.onWake!({
       state: { seeded: true, players: {}, companies: {} },
+      vars: {},
+      db: own,
       conns: new Map(),
       client: () => {
         const actor = { getOrCreate: () => ({ seed: async () => seed, pokerRelease: async () => 0 }) };
