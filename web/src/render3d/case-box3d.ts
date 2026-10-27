@@ -1,6 +1,7 @@
 /**
  * The Night Market case and its key in 3D (voxel/low-poly, built with the furniture kit like `night3d.ts`).
  *
+ *   (each takes an optional case id last: "night-market" by default, or "ragnarok-eve" for the oak sea chest)
  *   buildCaseBox(false)  // Model: the case, lid down, bottom centre at the origin, front along +z (~0.9 x 0.8 x 0.6)
  *   buildCaseBox(true)   // the same case, lid up, warm light spilling out
  *   buildCaseKey()       // Model: the market token on its tassel, hanging with its lowest point at y = 0
@@ -16,10 +17,14 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
+import { buildNorseBox, buildNorseKey } from "./case-box3d-norse.ts";
 import type { IconSize } from "./icons.ts";
 import { glow, Model, ticks, tint } from "./kit/kit.ts";
 
 export type CaseIcon = "closed" | "open" | "key";
+
+/** The case whose art is drawn when none is asked for (`CaseDef.id` in core/src/cases.ts). */
+export const DEFAULT_CASE_ID = "night-market";
 
 const PLUM = "#3d1a52";
 const PLUM_DARK = "#2a1139";
@@ -74,7 +79,8 @@ function straps(m: Model, w: number, h: number, d: number, y0: number): void {
   }
 }
 
-export function buildCaseBox(open: boolean): Model {
+export function buildCaseBox(open: boolean, caseId: string = DEFAULT_CASE_ID): Model {
+  if (caseId === "ragnarok-eve") return buildNorseBox(open, register);
   const m = new Model();
   const lit = glow("#ffd36a");
   // A foot and the two-tone lacquer: plum below, crimson under the lid, a wine band between.
@@ -149,7 +155,8 @@ export function buildCaseBox(open: boolean): Model {
   return m;
 }
 
-export function buildCaseKey(): Model {
+export function buildCaseKey(caseId: string = DEFAULT_CASE_ID): Model {
+  if (caseId === "ragnarok-eve") return buildNorseKey(register);
   const m = new Model();
   const R = 0.3;
   const CENTRE = 0.69;
@@ -203,12 +210,13 @@ export function buildCaseKey(): Model {
 export function caseBoxIcon(
   what: CaseIcon,
   size: IconSize,
+  caseId: string = DEFAULT_CASE_ID,
 ): { promise: Promise<HTMLCanvasElement>; cancel: () => void } {
   let cancel = () => {};
   let dead = false;
   const promise = import("./icons.ts").then((m) => {
     if (dead) throw new Error("cancelled");
-    const r = m.requestIcon({ kind: "case", what }, size);
+    const r = m.requestIcon({ kind: "case", what, caseId }, size);
     cancel = r.cancel;
     return r.promise;
   });
