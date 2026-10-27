@@ -44,10 +44,10 @@ interface Placed {
 
 /** Company furniture and personal offices' furniture (`HOME_PIECES`) by map character, with its art. */
 const FANCY = new Map(
-  [...COMPANY_FURNITURE.filter((f) => !f.wall), ...HOME_PIECES, ...ALL_CASE_PIECES]
-    // A case piece whose art has not landed yet (the Nusantara's, until the 2D art is in) draws nothing, rather than throwing.
-    .filter((f) => fancyPiece(f.art))
-    .map((f) => [f.ch, { w: f.w ?? 1, art: fancyPiece(f.art)! }]),
+  [...COMPANY_FURNITURE.filter((f) => !f.wall), ...HOME_PIECES, ...ALL_CASE_PIECES].map((f) => [
+    f.ch,
+    { w: f.w ?? 1, art: fancyPiece(f.art)! },
+  ]),
 );
 
 const tree = once(() =>

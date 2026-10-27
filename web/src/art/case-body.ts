@@ -1,13 +1,16 @@
 import { CASE_BASE } from "@tokenmaxxing/core/case.ts";
+import { NUSANTARA_BASE } from "@tokenmaxxing/core/case-nusantara.ts";
 import type { Back, BackView, Held, Outfit } from "./wardrobe.ts";
 
 /**
- * The Night Market case's outfits, held things and back items in 2D (`core/src/case.ts`). Same shapes as the
- * shop's in `wardrobe.ts`, which merges these in under their look indices (`CASE_BASE + n`): the table is
- * sparse, so nothing the shop numbers can land on them.
+ * The Night Market case's and the Nusantara case's outfits, held things and back items in 2D
+ * (`core/src/case.ts`, `core/src/case-nusantara.ts`). Same shapes as the shop's in `wardrobe.ts`, which merges
+ * these in under their look indices (`CASE_BASE + n`, `NUSANTARA_BASE + n`): the tables are sparse, so nothing
+ * the shop numbers can land on them.
  */
 
 const at = (n: number) => CASE_BASE + n;
+const nus = (n: number) => NUSANTARA_BASE + n;
 
 // MARK: Outfits
 
@@ -87,6 +90,85 @@ export const CASE_OUTFITS: Record<number, Outfit> = {
     },
     pal: { w: "#fbf7ef", g: "#f2c230", y: "#ffe27a", l: "#ff6a3c", L: "#c4261f", k: "#2b2433", r: "#d6343a" },
   },
+  // Batik shirt: soga brown with cream diamonds, a slim tan placket down the front, short sleeves.
+  [nus(0)]: {
+    c: "#6b4226", C: "#4a2c18", p: "#2f3444",
+    marks: {
+      down: [".....w.aa.w.....", "....w.waaw.w....", ".....w.aa.w.....", "................"],
+      side: ["......w.wa......", ".....w.w.aw.....", "......w.wa......", "................"],
+      up: [".....w.w.w......", "....w.w.w.w.....", ".....w.w.w......", "................"],
+    },
+    pal: { w: "#f1e3c2", a: "#a8743a" },
+  },
+  // Deckhand stripes: navy and cream stripes, rolled cuffs and a rope belt.
+  [nus(1)]: {
+    c: "#2c3f78", C: "#1e2d5a", p: "#8a6a3a",
+    marks: {
+      down: ["................", "....wwwwwwww....", "................", ".....tTtTtT....."],
+      side: ["................", ".....wwwwww.....", "................", ".....tTtTt......"],
+      up: ["................", "....wwwwwwww....", "................", ".....tTtTtT....."],
+    },
+    pal: { w: "#f1e3c2", t: "#d9b36a", T: "#a07f46" },
+  },
+  // Kebaya: teal lace, a gold brooch at the collar and a cream hem over a batik wrap.
+  [nus(2)]: {
+    c: "#1f9aa0", C: "#14727a", p: "#6b4226",
+    marks: {
+      down: [".....l.gG.l.....", "....l.l..l.l....", "......l..l......", ".....wwwwww....."],
+      side: ["......l.g.......", ".....l.l..l.....", "......l..l......", ".....wwwwww....."],
+      up: [".....l.l.l......", "....l.l.l.l.l...", "......l.l.......", ".....wwwwww....."],
+    },
+    pal: { l: "#d8f3ee", g: "#f2b632", G: "#b8860b", w: "#f1e3c2" },
+  },
+  // Silat pangsi: loose black, a red sash across the belly knotted at the hip.
+  [nus(3)]: {
+    c: "#26262f", C: "#16161d", p: "#26262f",
+    marks: {
+      down: ["................", "................", ".....rrrrrr.....", ".....rR.........", ".....r.........."],
+      side: ["................", "................", ".....rrrrrr.....", ".....rR.........", ".....r.........."],
+      up: ["................", "................", ".....rrrrrr.....", "......rR........", "......r........."],
+    },
+    pal: { r: "#d6343a", R: "#9a2128" },
+  },
+  // Songket gala: crimson silk shot through with gold thread in a diagonal lattice, a bright gold hem.
+  [nus(4)]: {
+    c: "#a8202f", C: "#7a1420", p: "#8a1a28",
+    marks: {
+      down: [".....g.g.g......", "....g.g.g.g.....", "......g.g.g.....", ".....GGGGGG....."],
+      side: ["......g.g.......", ".....g.g.g......", "......g.g.g.....", ".....GGGGG......"],
+      up: [".....g.g.g......", "....g.g.g.g.....", ".....g.g.g......", ".....GGGGGG....."],
+    },
+    pal: { g: "#e9b73d", G: "#ffd36a" },
+  },
+  // Ondel-ondel: a big friendly red face with white eyes and a grin on the chest, a coconut-leaf ruff and skirt,
+  // a bright turquoise tunic.
+  [nus(5)]: {
+    c: "#1fb5b0", C: "#0f6e86", p: "#f2b632",
+    marks: {
+      down: [
+        ".....lLlLlL.....",
+        ".....RwRRwR.....",
+        ".....RkwwkR.....",
+        "....lLlLlLlL....",
+        ".....lL..lL.....",
+      ],
+      side: [
+        "......lLlL......",
+        "......RwwR......",
+        "......RkwR......",
+        ".....lLlLlL.....",
+        "......lL........",
+      ],
+      up: [
+        ".....lLlLlL.....",
+        "....y.y.y.y.....",
+        ".....y.y.y......",
+        "....lLlLlLlL....",
+        ".....lL..lL.....",
+      ],
+    },
+    pal: { l: "#c8d84a", L: "#7fa332", R: "#d6343a", w: "#fbf7ef", k: "#2b2433", y: "#f2b632" },
+  },
 };
 
 // MARK: In the hand
@@ -114,6 +196,26 @@ export const CASE_HELD: Record<number, Held> = {
   [at(3)]: {
     rows: ["y.y", "ddd", "dnd", "hnd", "dnd", "ddd", "y.y"],
     pal: { d: "#ff4fa3", n: "#3ff0ff", y: "#f2c94c" },
+  },
+  // Es teh: sweet iced tea in a knotted bag, ice cubes and a red-and-white straw.
+  [nus(0)]: {
+    rows: ["....rw.", "...rw..", "..nnn..", ".aAaAa.", ".aiAia.", ".aAhAa.", ".aiAiaa", "..aAAa.", "...AA.."],
+    pal: { a: "#e8a33c", A: "#b87420", i: "#fbf7ef", r: "#d6343a", w: "#fbf7ef", n: "#e8d9b0" },
+  },
+  // Angklung: a bamboo frame with three tubes of graduated length.
+  [nus(1)]: {
+    rows: ["BBBBBBBB", "BYyYyYyB", "BYyYyYyB", "BYyYyYyB", "BYyYnnnB", "BYy....B", "Bnn....B", "BBBhBBBB"],
+    pal: { B: "#8a5a2b", Y: "#e8c76a", y: "#c9a64a", n: "#6b4a1c" },
+  },
+  // Layang-layang: a red and yellow diamond kite on a cream cross-spar, a stepped tail, its string down to the hand.
+  [nus(2)]: {
+    rows: ["...l...", "..RlY..", ".RRlYY.", "lllllll", ".RRlYY.", "..RlY..", "...l...", "...lr..", "...l.y.", "...lr..", "...l...", "...h..."],
+    pal: { R: "#d6343a", Y: "#f2b632", l: "#f1e3c2", r: "#d6343a", y: "#f2b632" },
+  },
+  // Takraw ball: a woven rattan sphere, the hex weave in two tans.
+  [nus(3)]: {
+    rows: ["..ooo..", ".otdto.", "otdtdto", "odtdtdo", "otdtdto", ".otdto.", "..oho.."],
+    pal: { o: "#5a3a1c", t: "#d9b36a", d: "#a8793a" },
   },
 };
 
@@ -203,6 +305,111 @@ const rain = (shift: number): BackView => ({
 });
 const view = (front: string[]): BackView => ({ front });
 
+// A fan of peacock eye-feathers for the Dadak merak, drawn from the maths: `n` feathers over a half circle around
+// (`cx`, `cy`), `xs` squashing it sideways for the side view, each with a gold eye at its own radius, a red cloth
+// rosette at the hub and a dark blue tip. `sway` turns it a little (the walking frame).
+const fan = (cx: number, cy: number, R: number, xs: number, eyes: number[], sway: number): string[] => {
+  const n = eyes.length;
+  const step = Math.PI / n;
+  return Array.from({ length: 16 }, (_, y) => {
+    let row = "";
+    for (let x = 0; x < 16; x++) {
+      const dx = (x - cx) / xs;
+      const dy = cy - y;
+      const r = Math.hypot(dx, dy);
+      if (r > R || dy < -0.5) {
+        row += ".";
+        continue;
+      }
+      if (r < R * 0.3) {
+        row += r < R * 0.15 ? "g" : "r";
+        continue;
+      }
+      const ang = Math.min(Math.PI - 1e-6, Math.max(0, Math.atan2(dy, dx) + sway));
+      const k = Math.floor(ang / step);
+      const mid = (k + 0.5) * step - sway;
+      const ex = cx + Math.cos(mid) * eyes[k]! * xs;
+      const ey = cy - Math.sin(mid) * eyes[k]!;
+      const d = Math.hypot((x - ex) / xs, y - ey);
+      const edge = Math.abs(ang / step - k - 0.5) > 0.46;
+      row += d < 0.9 ? "g" : d < 1.9 ? "e" : r > R - 1 ? "B" : edge ? "B" : k % 2 ? "G" : "T";
+    }
+    return row;
+  });
+};
+const FAN_DOWN = (sway: number) => fan(7.5, 13, 12.5, 1, [7.5, 9.5, 11, 11, 9.5, 7.5], sway);
+const FAN_SIDE = (sway: number) => fan(3, 12, 11.5, 0.45, [8, 9.5, 9.5, 8], sway);
+const FAN_UP = (sway: number) => fan(7.5, 14, 14, 1, [8, 10, 12, 12, 10, 8], sway);
+
+// A rattan bakul seen from behind: fruit heaped over a woven rim, the cone tapering to the hips.
+// prettier-ignore
+const BAKUL_UP: string[] = [
+  "", "", "", "", "", "",
+  "......uU........",
+  "....mMmuUuUs....",
+  "...mMmsuuUuUmM..",
+  "..RrwrRrwrRrwR..",
+  "..RwRrRwRrRwRr..",
+  "...RrwRrwRrwR...",
+  "...RwRrRwRrRw...",
+  "....RrwRrwRr....",
+];
+// prettier-ignore
+const BAKUL_SIDE: string[] = [
+  "", "", "", "",
+  "...uU...........",
+  ".mmuUs..........",
+  "mMmsuuUl........",
+  "RrwrRrwR........",
+  "RwRrRwR.........",
+  ".RrwRr..........",
+  ".RwRrR..........",
+  "..RrwR..........",
+  "..RRR...........",
+];
+// prettier-ignore
+const BAKUL_DOWN: string[] = [
+  "", "", "", "", "", "", "",
+  "..mm........uU..",
+  ".mMms......uuUl.",
+  "RrwrRrwrRrwrRrwR",
+  ".RwRrRwRrRwRrRw.",
+  "..RrwRrwRrwRrw..",
+];
+// The sling: two straps over the chest.
+// prettier-ignore
+const BAKUL_STRAPS: string[] = ["", "", "", "", "", "", "", "", "", ".....s....s.....", "......s..s......", ".......ss......."];
+
+// A wayang bundle: a gunungan and a long-nosed clown puppet on sticks, packed in a bamboo case.
+// prettier-ignore
+const WAYANG_UP: string[] = [
+  "", "", "",
+  "..g.........k...",
+  ".gdg.......kd...",
+  ".dGd......dddd..",
+  "dgGgd.....dgdd..",
+  "dgdgd.....ddgd..",
+  "ddddd.....dddk..",
+  "..BbBbBbBbBbBb..",
+  "..bkbbbkbbbkbb..",
+  "..BbBbBbBbBbBb..",
+  "..bkbbbkbbbkbb..",
+  "..BbBbBbBbBbBb..",
+];
+// prettier-ignore
+const WAYANG_SIDE: string[] = [
+  "", "", "", "",
+  "..g.k...........",
+  ".gdg.d..........",
+  ".dGd.dd.........",
+  "dgGgddk.........",
+  "BbBbBbB.........",
+  "bkbbbkb.........",
+  "BbBbBbB.........",
+  "bkbbbkb.........",
+  "BbBbBbB.........",
+];
+
 // Pixel art reads as a grid.
 // prettier-ignore
 export const CASE_BACKS: Record<number, Back> = {
@@ -227,5 +434,50 @@ export const CASE_BACKS: Record<number, Back> = {
     views: { down: rain(0), side: rain(0), up: rain(0) },
     walk: { down: rain(1), side: rain(1), up: rain(1) },
     pal: { w: "#b9a8ff", v: "#7d6bc4", V: "#5a4b86", n: "#3ff0ff", N: "#1f8fa0", p: "#ff4fa3", P: "#a03a78" },
+  },
+  // Fruit bakul: a rattan basket of rambutan, mangosteen and salak, slung on two straps; it bobs when they walk.
+  [nus(0)]: {
+    views: {
+      down: { behind: BAKUL_DOWN, front: BAKUL_STRAPS },
+      side: { behind: BAKUL_SIDE },
+      up: view(BAKUL_UP),
+    },
+    walk: {
+      down: { behind: down(BAKUL_DOWN, -1), front: BAKUL_STRAPS },
+      side: { behind: down(BAKUL_SIDE, -1) },
+      up: view(down(BAKUL_UP, -1)),
+    },
+    pal: {
+      R: "#8a5a2b", r: "#c9944a", w: "#e2b86a", m: "#7a2d7e", M: "#4c1a52", u: "#d6343a", U: "#ff7a6a",
+      s: "#6b4226", l: "#2f7f3a",
+    },
+  },
+  // Wayang bundle: the tips of a gunungan and a clown puppet showing over the shoulders of a bamboo case.
+  [nus(1)]: {
+    views: {
+      down: { behind: WAYANG_UP },
+      side: { behind: WAYANG_SIDE },
+      up: view(WAYANG_UP),
+    },
+    walk: {
+      down: { behind: down(WAYANG_UP, -1) },
+      side: { behind: down(WAYANG_SIDE, -1) },
+      up: view(down(WAYANG_UP, -1)),
+    },
+    pal: { d: "#3a2416", g: "#f2b632", G: "#ffd36a", k: "#8a5a2b", b: "#d9b36a", B: "#a8793a" },
+  },
+  // Dadak merak: a fan of peacock eye-feathers (cloth and feather) with gold eyes and a red rosette, swaying as they walk.
+  [nus(2)]: {
+    views: {
+      down: { behind: FAN_DOWN(0) },
+      side: { behind: FAN_SIDE(0) },
+      up: view(FAN_UP(0)),
+    },
+    walk: {
+      down: { behind: FAN_DOWN(0.12) },
+      side: { behind: FAN_SIDE(0.12) },
+      up: view(FAN_UP(0.12)),
+    },
+    pal: { T: "#1fb5b0", G: "#2f7f3a", B: "#0f4a6e", e: "#243a73", g: "#f2b632", r: "#d6343a" },
   },
 };

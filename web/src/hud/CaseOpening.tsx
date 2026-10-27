@@ -109,8 +109,8 @@ const reducedMotion = (): boolean =>
 
 const slotLabel = (i: Item): string => (i.slot === "furniture" ? "furniture" : i.slot);
 
-/** The case, drawn from its pixel art: lid down, then lid up while it opens (`art/case-box.ts`). */
-export function CaseArt({ opening }: { opening: boolean }) {
+/** The case `caseId` (the Night Market's if left out), drawn from its pixel art: lid down, then lid up while it opens (`art/case-box.ts`). */
+export function CaseArt({ opening, caseId }: { opening: boolean; caseId?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const ctx = ref.current?.getContext("2d");
@@ -119,8 +119,8 @@ export function CaseArt({ opening }: { opening: boolean }) {
     const { w, h } = CASE_BOX_SIZE[kind];
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, ref.current!.width, ref.current!.height);
-    ctx.drawImage(caseBoxSprite(kind, 0), 0, 0, w * 3, h * 3);
-  }, [opening]);
+    ctx.drawImage(caseBoxSprite(kind, 0, caseId), 0, 0, w * 3, h * 3);
+  }, [opening, caseId]);
   return (
     <span aria-hidden="true" className="cs-box-wrap">
       <canvas ref={ref} width={72} height={84} className="cs-box-art" />
@@ -280,9 +280,9 @@ export function CaseOpening({
   const won = phase === "reveal" ? run?.winner : undefined;
 
   return (
-    <Modal title={`🏮 ${def?.name ?? CASE_NAME}`} wide="xl">
+    <Modal title={`${def?.id === "nusantara" ? "⛵" : "🏮"} ${def?.name ?? CASE_NAME}`} wide="xl">
       <div className="cs-top">
-        <CaseArt opening={busy} />
+        <CaseArt opening={busy} caseId={def?.id} />
         <div className="cs-info">
           <p>A key opens it. Everything inside is cosmetic, tradeable and found nowhere else.</p>
           {!preview && wallet && (
@@ -304,7 +304,11 @@ export function CaseOpening({
         </div>
       </div>
 
-      <div className={`cs-roulette${busy ? " live" : ""}`} ref={viewport}>
+      <div
+        className={`cs-roulette${busy ? " live" : ""}${phase === "reveal" ? " landed" : ""}`}
+        data-case={def?.id}
+        ref={viewport}
+      >
         <ul className="cs-strip" ref={strip} data-speed="slow" aria-hidden={busy}>
           {(shown ?? idle).map((it, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: the strip is positional; a winner repeats items

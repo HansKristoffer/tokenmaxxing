@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { ALL_CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import { DECORS } from "@tokenmaxxing/core/decor.ts";
 import { DESKS } from "@tokenmaxxing/core/desks.ts";
 import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
@@ -21,8 +22,8 @@ const { CEILING_ASSET_IDS, DESK_TIERS, WALL_ASSET_IDS, merchProp } =
 const { FLOORS, WALLPAPERS } = await import("../src/render3d/furniture/decor3d.ts");
 const { assetOfChar, turnOfChar } = await import("../src/render3d/rooms/room-furnished.ts");
 
-/** Every piece an office can hold, whoever sells it: the shop's, the raid's trophies, the company's, the home's. */
-const ALL: readonly Piece[] = [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES];
+/** Every piece an office can hold, whoever sells it: the shop's, the raid's trophies, the company's, the home's, the cases'. */
+const ALL: readonly Piece[] = [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...ALL_CASE_PIECES];
 
 /**
  * Intentional exceptions, by map character.
@@ -53,7 +54,7 @@ const meshesOf = (build: () => { traverse: (f: (o: unknown) => void) => void }):
 };
 
 test("every piece has a 2D sprite and a 3D asset (the placer never needs its box)", () => {
-  expect(ALL.length).toBeGreaterThanOrEqual(67);
+  expect(ALL.length).toBeGreaterThanOrEqual(67 + 12);
   for (const p of ALL) {
     if (!NO_SPRITE.has(p.ch)) {
       const map = new GameMap("office" as never, "t", [`.${p.ch.repeat(p.w ?? 1)}.`]);
