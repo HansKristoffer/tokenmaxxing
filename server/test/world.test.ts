@@ -111,8 +111,10 @@ describe("world", () => {
   test("a turn faces you another way without a step, and the room sees it", async () => {
     const a = await signUp("turn");
     const b = await signUp("seer");
-    const me = await connect(a.token);
+    // The watcher is there first, so the room's telling of the newcomer always comes to them as an event
+    // (the other way round it is in their snapshot, and the event only comes if they were quick).
     const seer = await connect(b.token);
+    const me = await connect(a.token);
     const before = me.snap.players.find((p) => p.id === a.userId)!;
     // Once the room has been told they're there, a turn comes as a plain move.
     await eventually(() =>
