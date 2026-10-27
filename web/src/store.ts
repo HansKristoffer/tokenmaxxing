@@ -37,6 +37,7 @@ export type Panel =
   | { kind: "trades" }
   | { kind: "paper" }
   | { kind: "pamphlet" }
+  | { kind: "keynote" }
   | { kind: "stars" }
   | { kind: "trophies"; userId: number; name: string }
   | { kind: "openOffices" }

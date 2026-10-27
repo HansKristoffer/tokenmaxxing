@@ -28,9 +28,11 @@ import { chatBeside, hud } from "../store.ts";
 import { basementInteract } from "./basement.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
+import { clocksText } from "./clocks.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, doorOf, peekHits } from "./houses.ts";
+import { keynoteInteract } from "./keynote.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { blocksLaunch, launchInteract } from "./launch.ts";
 import { merchantAt, openCart } from "./merchant.ts";
@@ -467,6 +469,7 @@ function interact(): void {
   if (streetInteract(me, x, y, send)) return;
   if (windmillInteract(x, y)) return;
   if (launchInteract(me)) return;
+  if (keynoteInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
@@ -490,6 +493,7 @@ function interact(): void {
     if (ch === "P" || ch === "J") return void hud.set({ panel: { kind: "regulars" } });
     if (ch === "z") return void hud.set({ panel: { kind: "jukebox" } });
     if (ch === "?") return void hud.set({ panel: { kind: "requests" } });
+    if (ch === "◷") return void hud.set({ dialog: clocksText() });
   }
   if (shopInteract(x, y)) return;
   if (basementInteract(x, y)) return;

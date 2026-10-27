@@ -21,7 +21,7 @@ The game also runs in any browser; the app's window is that same page, at `/play
 
 | Path | What |
 |---|---|
-| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen, and the light summer nights), `seasons.ts` (the town's season by date), `windmill.ts` (the windmill by the Tavern: how fast its sails turn for the weather's wind, and how its cap winds round to face it; each client eases its own, the server keeps nothing), `stars.ts` (the star counter on the square: the repo, its milestones, and what a read of the GitHub stars does to `world`'s state), `fireworks.ts` (a show's rockets worked out from its start, place and seed, so every client draws the same ones without the server sending more than the show) |
+| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `keynote.ts` (the keynote watch party: admin-scheduled launch events on the Tavern's projector screen, see *The Tavern*), `clocks.ts` (the Tavern's world clocks: SF, New York and Copenhagen off Intl, and SF's working hours as the launch window), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen, and the light summer nights), `seasons.ts` (the town's season by date), `windmill.ts` (the windmill by the Tavern: how fast its sails turn for the weather's wind, and how its cap winds round to face it; each client eases its own, the server keeps nothing), `stars.ts` (the star counter on the square: the repo, its milestones, and what a read of the GitHub stars does to `world`'s state), `fireworks.ts` (a show's rockets worked out from its start, place and seed, so every client draws the same ones without the server sending more than the show) |
 | `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `quests`, `awards` (badge awards and their sweep), `hall` (the Hall of Fame), `card` (bios, showcase, habits, the Tavern's minutes), `sync` (pushes to `world`) |
 | `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (one Open-Meteo fetch per 15 min, for the `world` actor), `github-stars.ts` (the repo's GitHub stars, one REST read per 15 min for `world`; `GITHUB_TOKEN` optional), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
@@ -175,7 +175,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
   handed out), `loot` (raid drops handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
   `offices`, `company_ledger` (company wallets), `match_players` (one row per player per finished game),
-  `quest_days`, `quest_counts`, `badge_awards`, `bio_reports`, `showcase`, `tavern_daily`,
+  `quest_days`, `quest_counts`, `badge_awards`, `bio_reports`, `showcase`, `tavern_daily`, `keynotes`,
   `deleted_users`, `lost_signups` (ids of sign-ups whose `player` failed to start), `admin_log`.
 - Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename` (10 an hour), `setLook` (refuses items you don't hold), `me`.
 - Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
@@ -212,7 +212,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Admin (`town/admin.ts`, for `/admin`): `adminOverview`, `adminUsers` and `adminCompanies`; rename people
   and companies; set a balance (the difference goes in the `ledger` as kind and ref `admin`); take someone
   out of their company; close a company; wipe someone's usage (their `player` drops its raw events too:
-  `wipe`); delete an account. Every change goes in `admin_log`, shown on the page's Log tab. Deleting drops their usage, activity,
+  `wipe`); delete an account; schedule, change and remove keynote watch parties (`adminKeynotes`,
+  `adminSaveKeynote`, `adminRemoveKeynote`, `town/keynotes.ts`). Every change goes in `admin_log`, shown on the page's Log tab. Deleting drops their usage, activity,
   purchases, items, rewards, application and trade offers, hands over or closes their company, takes them out of `world`
   (`removePlayer`) and destroys their `player` (`close`), so every token and session stops working. It's
   refused while they have coins in an unsettled game. Their `ledger` and `match_players` rows stay, and
@@ -371,7 +372,7 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   columns stay. The Hall of Fame, badges and the card aren't behind it.
 - **Tiles** (`LEGEND`; E acts on the one you face, `interact` in `web/src/game/input.ts`):
   - `m` quest board and the bar `a`: the quests panel. `J` the bar tab on the west wall and `P` a plaque: the regulars. `A` the wall: the Hall of Fame.
-    `K` chalkboard: a dialog with today's special. `$` the tip jar on the bar (`tosses`, like the fountain): a coin in. `O` coat stands by the door.
+    `K` chalkboard: a dialog with today's special. `◷` the world clocks: a dialog with the time in each city and the launch window. `$` the tip jar on the bar (`tosses`, like the fountain): a coin in. `O` coat stands by the door.
   - `y` the tap (`serves`): the `tavern` action. `o` the coffee machine, as everywhere.
   - `v` a stool: sits (a `chair`-kind seat). `b` the dorm's beds.
   - `n` table, `f` hearth, `h` barrel, `k` shelf: a line of text. `e` the stage (walkable).
@@ -386,6 +387,14 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   free and cosmetic, like coffee: no ledger row, no pace. The effect is `jitter` (the coffee
   shake) or `glow`, alternating by the day it was served (`buffOf`, `specialBuff(until)`), so `specialUntil` is the
   only field on the wire. The chalkboards in town and in the Tavern write the day's line.
+- **The world clocks** (`◷`, two wall tiles on the north wall between the request pile and the hearth's plaque, where the
+  3D Tavern had a window; `core/src/clocks.ts`): San Francisco, New York and Copenhagen, west to east. Pure and
+  clock-driven like the street's things: each city's time and daylight saving come from Intl (`cityTime`), never a fixed
+  offset, so in the weeks the US and the EU are out of step (mid March, late October) SF is 8 hours behind, not 9, and
+  the window lands at 17:00 here. The launch window (`inLaunchWindow`) is SF's working day, Monday to Friday 09:00 to
+  17:00 there, when US model launches tend to land: SF's lamp is on and its face glows, a sign over the clocks says so,
+  and E says it's time to watch the launch stand (`clocksLine`), or when the next window opens, in Copenhagen time
+  (`nextWindow`). `web/src/game/clocks.ts` works the hands out once a minute for both renderers; no server state.
 - **The barkeep** (`BARKEEP`, `core/src/barkeep.ts`; id -4, the cop is -3) is a bot in `BOTS` only with `TAVERN`.
   `home` puts him on the rug on every wake and `still` keeps `walkBots` off him. His lines (`lineFor`, shared with
   the other bots, said as bubbles and never in chat, only with someone in the room) come a third of the time from the
@@ -464,6 +473,25 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   `createdAt`) to `NEW_REQUEST_PUSH_URL` (`request-push.ts`, retried in the background), a T3 Code webhook that
   starts an agent thread on it; unset sends nothing.
 
+- **Keynote watch party** (`core/src/keynote.ts` rules, `server/src/town/keynotes.ts`, table `keynotes`). A big AI
+  launch event (OpenAI DevDay, Google I/O, an Anthropic event) can't be detected for free, so an admin schedules it on
+  the admin page's Keynotes tab: a title, a host, a start and an end (12 hours at most) and an https stream link
+  (`parseKeynote` in `validate.ts`; times are entered in the admin's browser time and stored as epoch ms). Saving or
+  removing one is logged and pushed to `world` (`world.setKeynotes`); `world` also asks `town.keynotes` every 5 minutes,
+  keeps the ones still to come or on (`upcoming`, at most 20) in memory and sends them as `keynotes` on join and on a
+  change. Live or not is the clock's (`liveKeynote`, `screenOf`), so nothing ticks for it. A week before
+  (`ANNOUNCE_MS`) a poster hangs on the west wall beside the stage (`SCREEN`, map tiles x 0, y 10 to 14: wall, off the
+  map, so 2D and 3D keep the same tiles) and the barkeep's `keynoteLines.soon` say what and when (`whenText`). While it's
+  on, a projector screen comes down there with the event, LIVE and its stream; the projector over the crowd throws a
+  beam at it. The town's wandering characters (`GOERS`: not the barkeep, the cop or the shopkeepers) walk to the Inn's
+  door, go in and stand in the crowd facing the screen (`CROWD`, `partyStep`), hop (`jump`) and cheer (`CHEERS`, more
+  often than they talk), and walk back out when it ends. Every 5 seconds whoever is online and awake in the Tavern gets
+  the 📽️ Watch party badge (`town.keynoteWatched`: a `rewards` row `keynote:<id>`, so once per keynote; the badge counts
+  them, `quiet`) and a notice. The client: `game/keynote.ts` (the 2D screen, poster, beam and sign; E from the stage
+  facing the wall opens the panel), `hud/Keynote.tsx` (a banner with the stream while one is on, and the panel listing
+  what's on and coming with links), `render3d/rooms/keynote3d.ts`. `?keynote=live`, `live:Google I/O`, `soon` or `off`
+  forces it in the page for screenshots (only there: the bots and the badge follow the server).
+
 ## Quests
 
 Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/town/quests.ts`).
@@ -500,12 +528,12 @@ Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/to
 
 ## Badges and the Hall of Fame
 
-- **Badges** (`core/src/badges.ts`, 19) are still worked out on read from a player's facts (`badgeFactsOf`), never
+- **Badges** (`core/src/badges.ts`, 20) are still worked out on read from a player's facts (`badgeFactsOf`), never
   claimed. Each has ascending tiers; `badgeStates` gives value, the next tier and where this one began
   (`progressOf`, the bar on the card). A frame comes from the tier and how many it has (`frameOf`): one tier is gold,
   more run bronze, silver, gold, diamond by tier. Streak, Podium, Shipper, Shark and Whale have the diamond tier.
-  Founder and the picnic are `quiet`.
-- **The collection log** (`core/src/collection.ts`): a static `CATALOG` of every badge, trophy and milestone title (47),
+  Founder, the picnic and the watch party are `quiet`.
+- **The collection log** (`core/src/collection.ts`): a static `CATALOG` of every badge, trophy and milestone title (48),
   in groups (Usage, Social, Town, Raid, Games, Seasonal) with how to earn it, so the client greys out what's missing and
   `town.collection` sends only a compact `CollectionState`. A minute at most per player, dropped when they sync or earn.
 - **Awards** (`server/src/town/awards.ts`): `badge_awards (user_id, badge, tier, at, backfill)` keeps when each tier
@@ -891,7 +919,7 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
   bursts by tier and keeps the jitter off with reduce motion, and adds other players' showcase pins (badge and trophy
   chips) to their name tags (`ShowcaseCache`: one `profile` request at a time, only for people near you, never bots).
   The Tavern's `TavernEvents` puts a sign over the jukebox (track, who put it on, skip votes; the sound is still
-  `game/jukebox.ts`), throws the tip jar's coin, and dims the room with the game's sky (lamps and candles by `lightsNow`,
+  `game/jukebox.ts`), hangs the keynote watch party's screen, projector and poster (`keynote3d.ts`), throws the tip jar's coin, and dims the room with the game's sky (lamps and candles by `lightsNow`,
   no real lights). An Office's trophy shelf is built from the owner's real trophies (`trophies3d.ts`); a new trophy
   builds the room again. The pure rules are in `world-logic.ts` (tests: `web/test/render3d-world.test.ts`). Events that
   are many small meshes are merged once when built (`merge3d.ts`, `bunting3d.ts`).

@@ -27,11 +27,6 @@ test("the town stays inside its budget all year round: in leaf, turning, in blos
   const { hud } = await import("../src/store.ts");
   const { pinnedDay } = await import("@tokenmaxxing/core/seasons.ts");
   const b = budgetFor("town");
-  // Before the street's hours (the snail and the cart stand still): measured at the live clock, the snail now and then
-  // reads as moving while its ticks are sampled, and its seven parts stay unbatched; that is not the season's cost.
-  const page = globalThis.location as { search: string };
-  const search = page.search;
-  page.search = "?clock=05:00";
   try {
     for (const pin of ["summer", "10-10", "autumn", "winter", "spring"]) {
       hud.set({ seasonDay: pinnedDay(pin) });
@@ -43,7 +38,6 @@ test("the town stays inside its budget all year round: in leaf, turning, in blos
       expect(s.materials).toBeLessThanOrEqual(b.materials);
     }
   } finally {
-    page.search = search;
     hud.set({ seasonDay: null });
     (globalThis as { __perfWorld?: unknown }).__perfWorld = undefined;
   }

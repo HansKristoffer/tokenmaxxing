@@ -3,12 +3,12 @@
  * `web/src/art/tavern.ts`, `art/tiles.ts` and `art/objects.ts` and the evening pass in `game/tavern.ts`:
  * the bar and its tap, back-bar shelves, stools, tables with candles, chairs, the hearth with its flames,
  * wall sconces, the stage with its drifting notes, barrels, the jukebox, the bar tab, quest board, Hall of
- * Fame, regulars' plaques, the open-offices board, the daily-special easel, the stairs and the exit, the
+ * Fame, regulars' plaques, the open-offices board, the daily-special easel, the world clocks, the stairs and the exit, the
  * tip jar on the bar, the kitchen door, coat and umbrella stands, sofas, booths, Bent the barkeep and the dorm's beds.
  *
  * Ids follow the 2D catalogue: `tile:<char>` for map tiles, `tavern:<name>` for what has no tile.
  * Hooks (all additive, none needed): a boards's `redraw` (bar tab, plaques, easel), `JukeboxModel.playing`,
- * `FountainModel.toss()` (the tip jar's coin toss), `setTavernNight()`.
+ * `ClocksModel.show()`, `FountainModel.toss()` (the tip jar's coin toss), `setTavernNight()`.
  */
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { pokerChairs, pokerTable } from "@tokenmaxxing/core/pokertable.ts";
@@ -1109,6 +1109,99 @@ export function setSpecial(model: Model, special: string): void {
   (model as Panel).redraw(specialDraw(special));
 }
 
+// ——— The world clocks ———
+
+/** The hands on the world clocks (SF, New York, Copenhagen) and whether the launch window is open. */
+export interface ClocksShown {
+  hands: readonly { hour: number; minute: number }[];
+  lit: boolean;
+}
+
+export interface ClocksModel extends Model {
+  /** Sets the hands, SF's warm face and its lamp. */
+  show: (s: ClocksShown) => void;
+}
+
+const CLOCK_CITIES = ["SF", "NEW YORK", "COPENHAGEN"];
+const LAMP_ON = "#ff6a4a";
+const LAMP_OFF = "#6b2a2a";
+
+/** Draws the clocks' board: three brass-rimmed dials in a row, each with its city under it. */
+export function clocksDraw({
+  hands,
+  lit,
+}: ClocksShown): (g: CanvasRenderingContext2D, w: number, h: number) => void {
+  return (g, w, h) => {
+    g.fillStyle = "#4b3326";
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = "#5b4030";
+    g.fillRect(0, 0, w, Math.max(2, h * 0.04));
+    const r = h * 0.36;
+    const cy = h * 0.42;
+    for (const [i, city] of CLOCK_CITIES.entries()) {
+      const cx = (w * (i * 2 + 1)) / 6;
+      g.fillStyle = BRASS;
+      g.beginPath();
+      g.arc(cx, cy, r, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = i === 0 && lit ? BRASS_LIGHT : PAPER;
+      g.beginPath();
+      g.arc(cx, cy, r * 0.84, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = C.stoneDark;
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
+        const s = k % 3 === 0 ? 2.4 : 1.4;
+        g.fillRect(cx + Math.sin(a) * r * 0.7 - s / 2, cy - Math.cos(a) * r * 0.7 - s / 2, s, s);
+      }
+      const { hour, minute } = hands[i] ?? { hour: 0, minute: 0 };
+      const hand = (turns: number, len: number, width: number, color: string) => {
+        const a = turns * Math.PI * 2;
+        g.strokeStyle = color;
+        g.lineWidth = width;
+        g.lineCap = "round";
+        g.beginPath();
+        g.moveTo(cx, cy);
+        g.lineTo(cx + Math.sin(a) * len, cy - Math.cos(a) * len);
+        g.stroke();
+      };
+      hand(((hour % 12) + minute / 60) / 12, r * 0.42, 3, C.rug);
+      hand(minute / 60, r * 0.64, 2, INK);
+      g.fillStyle = INK;
+      g.beginPath();
+      g.arc(cx, cy, 2, 0, Math.PI * 2);
+      g.fill();
+      text(g, city, cx, h * 0.84, h * 0.13, i === 0 && lit ? BRASS_LIGHT : PAPER, true, "center");
+    }
+  };
+}
+
+/** The world clocks (`tile:◷`, two tiles of the north wall by the hearth), and SF's lamp on a bracket over them. */
+const worldClocks = (): Model => {
+  const m = new Model() as ClocksModel;
+  const W = 1.86;
+  const p = panel(W, 0.56, clocksDraw({ hands: [], lit: false }), {
+    frame: WOOD_DARK,
+    lift: 1.8,
+    px: 100,
+    smooth: true,
+  });
+  p.position.z = -0.46;
+  m.add(p);
+  const x = -W / 3;
+  m.box([0.03, 0.06, 0.08], BRASS_DARK, [x, 2.48, -0.42], 0.006);
+  const lamp = glow(LAMP_OFF);
+  m.ball(0.04, lamp, [x, 2.52, -0.36], [1, 1, 1], 8);
+  const shine = halo(m, [x, 2.52, -0.3], 0.5, LAMP_ON, 4);
+  shine.visible = false;
+  m.show = (s) => {
+    p.redraw(clocksDraw(s));
+    lamp.color.set(s.lit ? LAMP_ON : LAMP_OFF);
+    shine.visible = s.lit;
+  };
+  return m;
+};
+
 // ——— Stairs and the exit ———
 
 /** The way out: a doorframe in the wall with a door ajar on warm daylight, and a red doormat on the floor. */
@@ -1455,6 +1548,7 @@ export const TAVERN_ASSETS: readonly Asset[] = [
   wide("tile:J", "Bar tab", 4, 1, barTab),
   wide("tile:m", "Quest board", 2, 1, questBoard),
   wide("tile:?", "Request pile", 1, 1, requestBoard),
+  wide("tile:◷", "World clocks", 2, 1, worldClocks),
   wide("tile:A", "Hall of Fame", 2, 1, hallOfFame),
   wide("tile:P", "Regulars' plaque", 1, 1, plaque(3)),
   wide("tavern:plaque-2", "Regulars' plaque (right)", 1, 1, plaque(2)),
@@ -1538,7 +1632,7 @@ export function buildTavernRoom(): TavernRoom {
     floor: "#9c6a40",
     wall: "#8a6a52",
     stripe: "#7a5a44",
-    north: [19],
+    north: [],
     door: null,
     west: [],
   });
@@ -1598,13 +1692,14 @@ export function buildTavernRoom(): TavernRoom {
   reg("tavern:tip-jar", jar);
   for (const x of [2, 4, 6, 8]) put("tile:v", x, 3, 2);
 
-  // ——— North wall: coffee, the quest board, the specials easel, the Hall of Fame, the hearth nook, books ———
+  // ——— North wall: coffee, the quest board, the specials easel, the Hall of Fame, the request pile, the world clocks, the hearth nook, books ———
   put("coffee", 10, 0);
   hang("tile:m", 11, 0);
   put("tile:K", 13, 0);
   hang("tile:A", 14, 0);
   hang("tile:A", 16, 0);
   hang("tile:?", 18, 0);
+  hang("tile:◷", 19, 0);
   put("tile:P", 20, 0);
   put("tile:f", 21, 0);
   put("tavern:plaque-2", 23, 0);
