@@ -46,6 +46,9 @@ export function audio(): AudioContext | null {
   noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const data = noise.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  // A backgrounded tab or app (the Android WebView included) must go quiet: audio keeps playing there.
+  const c = ctx;
+  document.addEventListener("visibilitychange", () => void (document.hidden ? c.suspend() : c.resume()));
   return ctx;
 }
 
@@ -159,6 +162,11 @@ export function playJukebox(now: JukeboxNow | null): void {
   let n = Math.ceil(now.elapsed / stepMs);
   const queue = () => {
     const elapsed = performance.now() - startedAt;
+    // Asleep (hidden, or no click yet): drop the steps that pass rather than playing them all at once on waking.
+    if (c.state !== "running") {
+      n = Math.max(n, Math.ceil(elapsed / stepMs));
+      return;
+    }
     while (n * stepMs < elapsed + AHEAD_MS) {
       if (n * stepMs >= now.ms) return stopJukebox();
       const at = c.currentTime + Math.max(0, (n * stepMs - elapsed) / 1000);
