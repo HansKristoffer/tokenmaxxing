@@ -1,6 +1,6 @@
 # 3D performance work
 
-The original audit reviewed `8d44e58`. This implementation started from `17f5ea3`, with fresh CPU measurements against that revision. The goal is to reduce steady rendering work and retained room data while preserving the models, palette and cutaways.
+The original audit reviewed `8d44e58`. This implementation started from `17f5ea3`, with fresh CPU measurements against that revision, then incorporated the windmill update from `7f269a4`. The goal is to reduce steady rendering work and retained room data while preserving the models, palette and cutaways.
 
 ## Implemented
 
@@ -30,7 +30,9 @@ The eight-scene browser retention experiment previously retained eight room root
 
 The original High pet-shop audit counted roughly 91 MiB of unique geometry buffers. The updated content tool counts about 60 MiB with the same 351,876 triangles and 279 drawables. Buffer sizes include hidden sources and generated copies; they exclude cache keys, materials, driver overhead and the rest of the JS heap. The six new lifecycle, buffer, stationary-probe and default-cap regressions failed against the original source and pass with the changes.
 
-Medium and High content budgets pass. The production game recorder completed both tiers without reported page errors. Chromium here uses **ANGLE SwiftShader**, and its short sample windows still include software shader/driver stalls despite warmup. Its FPS and GPU timings do not establish laptop, WebView or Android performance.
+Medium and High content budgets pass. The production game recorder completed both tiers without reported page errors. The first High tour capture caught the loading veil instead of the Tavern; the tour now waits for the stage and fade to finish before sampling pixels. Chromium here uses **ANGLE SwiftShader**, and its short sample windows still include software shader/driver stalls despite warmup. Its FPS and GPU timings do not establish laptop, WebView or Android performance.
+
+The full local run completed with 1,214 passes and 14 Rivet actor-response timeouts in unchanged server tests. Focused renderer and windmill verification passed all 39 tests. These local timeouts are reported separately from the renderer results; CI remains the gate for the complete suite.
 
 ## Reproduce
 

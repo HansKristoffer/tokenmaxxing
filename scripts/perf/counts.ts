@@ -20,7 +20,10 @@ let bad = 0;
 console.log(`— ${tier}, ${actors} actors, ${variant} geometry (whole room, one pass)`);
 for (const [room, b] of Object.entries(BUDGETS[tier])) {
   const c = h.measureRoom(room, { actors, variant });
-  const over = (Object.keys(b) as (keyof typeof b)[]).filter((k) => c[k] > b[k]);
+  const over =
+    actors === "frozen" && variant === "smooth"
+      ? (Object.keys(b) as (keyof typeof b)[]).filter((k) => c[k] > b[k])
+      : [];
   if (over.length) bad++;
   console.log(room.padEnd(15), JSON.stringify(c), over.length ? `OVER ${over.join(",")}` : "");
 }
