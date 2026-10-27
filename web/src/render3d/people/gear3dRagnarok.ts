@@ -21,7 +21,6 @@ import {
   lit,
   ring,
   see,
-  sign,
 } from "./gear3dHead.ts";
 import { isVox, place, squarePane } from "./voxgear.ts";
 
@@ -38,7 +37,6 @@ const OAK_DARK = "#3f2a1a";
 const GOLD = "#e9b73d";
 const EMBER = "#ff9a3c";
 const WOAD = "#3b6fb8";
-const WOAD_DARK = "#274c86";
 const FROST = "#cfe8f2";
 
 /** A point at angle `a` round a head: on a circle for smooth models, on the square band for blocky ones. */
@@ -236,32 +234,19 @@ function strap(m: Model, color: string, y = EYE_Y, w = 0.03): void {
 }
 
 Object.assign(FACE_BUILDERS, {
-  // Two woad-blue diagonal bars over the eye line, painted straight onto the face.
+  // Three woad-blue finger stripes dragged down each cheek, just under the eyes, so the eyes themselves stay clear.
   "Warpaint stripes": (m: Model) => {
-    const z = isVox(m) ? 0.25 : 0.272;
-    sign(
-      m,
-      0.37,
-      0.2,
-      (g, w, h) => {
-        const bar = (x0: number, y0: number, x1: number, y1: number, lw: number, col: string) => {
-          g.strokeStyle = col;
-          g.lineWidth = lw;
-          g.lineCap = "butt";
-          g.beginPath();
-          g.moveTo(x0 * w, y0 * h);
-          g.lineTo(x1 * w, y1 * h);
-          g.stroke();
-        };
-        // Two bold diagonals, one across each eye, as a stroke of paint from a thumb; a thin line under each.
-        bar(0.06, 0.95, 0.46, 0.05, h * 0.3, WOAD);
-        bar(0.54, 0.95, 0.94, 0.05, h * 0.3, WOAD);
-        bar(0.04, 1.2, 0.34, 0.55, h * 0.12, WOAD_DARK);
-        bar(0.66, 1.2, 0.96, 0.55, h * 0.12, WOAD_DARK);
-      },
-      [0, EYE_Y, z],
-      120,
-    );
+    for (const s of [-1, 1] as const) {
+      const e = eyeAt(m, s);
+      for (const [dx, len] of [
+        [-0.036, 0.075],
+        [0, 0.1],
+        [0.036, 0.075],
+      ] as const) {
+        // Paint, not a solid: it lies on the skin and casts no shadow of its own.
+        e.box([0.022, len, 0.008], WOAD, [dx, -0.05 - len / 2, 0.03], 0.002).castShadow = false;
+      }
+    }
   },
   // Round lenses rimed with ice, a few sparkles that blink, and an icicle hanging off each rim.
   "Frosted specs": (m: Model, c: { tick(fn: (t: number) => void): void }) => {
