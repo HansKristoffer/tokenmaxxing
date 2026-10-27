@@ -11,6 +11,7 @@
 import { RARITIES, RARITY_COLOR, type Rarity, rarityOf } from "@tokenmaxxing/core/rarity.ts";
 import { ITEMS, type Item } from "@tokenmaxxing/core/shop.ts";
 import * as THREE from "three";
+import { knownColours } from "../../art/merch.ts";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../../art/palette.ts";
 import { EXTRA_OUTFITS, LEGENDARY_LEVEL, MERCH_PAIRS } from "../data/gear.ts";
 import { Model, tint, toon } from "../kit/kit.ts";
@@ -58,7 +59,7 @@ export interface Look2D {
 export interface LookOptions {
   /** Their level: 50 lights the golden aura. */
   level?: number;
-  /** A company's merch colours (`merchColours` in `art/merch.ts`); without it the id picks a pair. */
+  /** A company's merch colours (`merchColours` in `art/merch.ts`); without it the world's companies, else a pair by id. */
   company?: MerchLook;
 }
 
@@ -96,8 +97,17 @@ export function outfitColours(i: number): { outfit: [string, string]; pants: str
   return { outfit: OUTFITS[i] ?? OUTFITS[0]!, pants: PANTS[i] ?? PANTS[0]! };
 }
 
-/** Company colours when the caller doesn't have the company's own. */
+/** Company merch as the world has it (the colours, initials and print 2D wears), else a pair picked by the id. */
 export function merchFor(companyId: number, initials = "TM"): MerchLook {
+  const known = knownColours(companyId);
+  if (known)
+    return {
+      main: known.main,
+      shade: known.shade,
+      accent: known.accent,
+      initials: known.initials,
+      design: known.design?.rows ?? null,
+    };
   const [main, accent] = MERCH_PAIRS[companyId % MERCH_PAIRS.length]!;
   return { main, shade: tint(main, -0.25), accent, initials };
 }

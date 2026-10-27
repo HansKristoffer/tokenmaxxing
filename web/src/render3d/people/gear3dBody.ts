@@ -764,6 +764,21 @@ export function merchCap(h: Model, m: MerchLook): void {
     0.1,
     0.07,
     (g, w, hh) => {
+      // The badge is the print's 8×6: what its people drew, a pixel to a cell, where there is a drawing.
+      if (m.design?.length) {
+        const pal: Record<string, string> = { a: m.accent, w: "#fbf7ef", k: "#2b2433" };
+        const [cw, ch] = [w / m.design[0]!.length, hh / m.design.length];
+        g.fillStyle = m.main;
+        g.fillRect(0, 0, w, hh);
+        m.design.forEach((row, y) => {
+          [...row].forEach((c, x) => {
+            if (!pal[c]) return;
+            g.fillStyle = pal[c]!;
+            g.fillRect(Math.round(x * cw), Math.round(y * ch), Math.ceil(cw), Math.ceil(ch));
+          });
+        });
+        return;
+      }
       g.fillStyle = m.accent;
       g.fillRect(2, 2, w - 4, hh - 4);
       g.fillStyle = m.shade;
