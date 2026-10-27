@@ -189,7 +189,12 @@ describe("world", () => {
     const room = `office:${owner.userId}` as const;
     const g = await connect(guest.token);
     expect(await g.conn.visit(owner.userId)).toMatchObject({ room });
-    const chair = await eventually(() => g.events.snapshots.at(-1)!.drops.find((d) => d.item === "furn.c")!);
+    // `!` never throws, so `eventually` would hand back `undefined` before the chair is in: wait for it.
+    const chair = await eventually(() => {
+      const c = g.events.snapshots.at(-1)?.drops.find((d) => d.item === "furn.c");
+      expect(c).toBeDefined();
+      return c!;
+    });
     expect(await g.conn.move(chair.id, 3, 6)).toEqual({ notice: "Only its owner moves that." });
     await g.conn.dispose();
     const o = await connect(owner.token);

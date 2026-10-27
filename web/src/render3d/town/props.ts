@@ -3,6 +3,7 @@
  * season, benches, lamps, the grand fountain, the arcade, a terrace lounge and the street's odds and
  * ends. Same kit as the furniture; flowers are instanced, since a bed holds hundreds.
  */
+import type { SeasonLook } from "@tokenmaxxing/core/seasons.ts";
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
 import { canvasTexture, glass, glow, Model, seeded, ticks, tint, toon, type V3 } from "../kit/kit.ts";
@@ -65,7 +66,7 @@ export function announceNight(on: boolean): void {
   for (const fn of nightListeners) fn(on);
 }
 
-const LEAF = ["#3f8f3a", "#4fa544", "#5fb84f", "#2f7a32"];
+export const LEAF = ["#3f8f3a", "#4fa544", "#5fb84f", "#2f7a32"];
 
 /** A low white planter, `w`×`d`, with a hedge clipped square on top. */
 export function hedge(w: number, d = 0.55, h = 0.55): Model {
@@ -170,22 +171,46 @@ const nudge = (i: number): [number, number, number] => [
 
 /** A tree; `size` scales it. Canopies are clusters of balls, so they read as foliage, not a lollipop. */
 export function tree(kind: TreeKind, seed: number, size = 1): Model {
+  if (kind === "pine") return pine(seed, size);
+  const greens = CANOPY[kind];
+  const n = lobeCount(kind === "oak");
+  return broadleaf(kind === "oak", seed, size, (i) => greens[shadeOf(i, n)]!, false);
+}
+
+const lobeCount = (oak: boolean) => (oak ? 11 : 7);
+/** Which of a palette's three shades lobe `i` of a canopy of `n` (and the middle and top) wears. */
+const shadeOf = (i: number, n: number) => (i === 0 ? 0 : i === n + 1 ? 1 : (i - 1) % 3);
+
+function pine(seed: number, size: number): Model {
   const m = new Model();
   const rnd = seeded(seed);
-  if (kind === "pine") {
-    const h = (1.8 + rnd() * 0.8) * size;
-    m.cyl(0.08 * size, h * 0.3, C.trunkDark, [0, 0, 0], 0.06 * size, 8);
-    for (let i = 0; i < 4; i++) {
-      const r = (0.62 - i * 0.12) * size;
-      m.cyl(r, h * 0.32, i % 2 ? "#2f6f3a" : "#3a7f42", [0, h * (0.18 + i * 0.19), 0], 0.02, 10);
-    }
-    return m;
+  const h = (1.8 + rnd() * 0.8) * size;
+  m.cyl(0.08 * size, h * 0.3, C.trunkDark, [0, 0, 0], 0.06 * size, 8);
+  for (let i = 0; i < 4; i++) {
+    const r = (0.62 - i * 0.12) * size;
+    m.cyl(r, h * 0.32, i % 2 ? "#2f6f3a" : "#3a7f42", [0, h * (0.18 + i * 0.19), 0], 0.02, 10);
   }
-  const big = kind === "oak" ? 1.6 : 1;
-  const s = size * big;
+  return m;
+}
+
+/**
+ * A broadleaf tree: a trunk (an oak's with three boughs) and a canopy of lobes. `lobe(i)` is lobe `i`'s colour, or
+ * null where its leaves are gone (the first lobe is the big one in the middle, the last the top); `bare` adds the
+ * branches that show once they are.
+ */
+function broadleaf(
+  oak: boolean,
+  seed: number,
+  size: number,
+  lobe: (i: number) => string | null,
+  bare: boolean,
+): Model {
+  const m = new Model();
+  const rnd = seeded(seed);
+  const s = size * (oak ? 1.6 : 1);
   const h = (0.9 + rnd() * 0.4) * s;
   m.cyl(0.11 * s, h, C.trunk, [0, 0, 0], 0.08 * s, 9);
-  if (kind === "oak")
+  if (oak)
     for (const [k, a] of [0.5, 2.6, 4.4].entries()) {
       // Each a little different: three equal branches turned about the trunk made blocks sharing a face (flicker).
       const branch = m.cyl(
@@ -198,28 +223,86 @@ export function tree(kind: TreeKind, seed: number, size = 1): Model {
       );
       branch.rotation.set(Math.sin(a) * 0.7, 0, Math.cos(a) * 0.7);
     }
-  const greens = CANOPY[kind];
-  const n = kind === "oak" ? 11 : 7;
-  const first = m.ball(0.55 * s, greens[0]!, [0, h + 0.4 * s, 0], [1.1, 0.85, 1.1], 14);
-  first.position.add(new THREE.Vector3(...nudge(n + 2)));
-  first.userData.blockScale = 0.78;
+  else if (bare)
+    for (const [k, a] of [0.3, 2.4, 4.3].entries()) {
+      const branch = m.cyl(
+        (0.05 + k * 0.005) * s,
+        (0.55 + k * 0.05) * s,
+        C.trunk,
+        [0, h * 0.85, 0],
+        0.02 * s,
+        6,
+      );
+      branch.rotation.set(Math.sin(a) * 0.6, 0, Math.cos(a) * 0.6);
+    }
+  if (bare)
+    // Twigs at the crown, where the canopy was.
+    for (const [k, a] of [1.4, 3.5, 5.6].entries()) {
+      const twig = m.cyl(0.025 * s, (0.4 + k * 0.04) * s, C.trunkDark, [0, h + 0.15 * s, 0], 0.008 * s, 5);
+      twig.rotation.set(Math.sin(a) * 0.45, 0, Math.cos(a) * 0.45);
+    }
+  const n = lobeCount(oak);
+  const firstColour = lobe(0);
+  const first = firstColour && m.ball(0.55 * s, firstColour, [0, h + 0.4 * s, 0], [1.1, 0.85, 1.1], 14);
+  if (first) {
+    first.position.add(new THREE.Vector3(...nudge(n + 2)));
+    first.userData.blockScale = 0.78;
+  }
   for (let i = 0; i < n; i++) {
+    // The randoms are drawn for every lobe, kept or not, so a tree's lobes stay where they are as it goes bare.
     const a = (i / n) * Math.PI * 2 + rnd();
     const r = (0.38 + rnd() * 0.2) * s;
-    const lobe = m.ball(
-      (0.3 + rnd() * 0.15) * s,
-      greens[i % greens.length]!,
-      [Math.cos(a) * r, h + (0.3 + rnd() * 0.45) * s, Math.sin(a) * r],
-      [1, 0.85, 1],
-      8,
-    );
-    lobe.userData.blockScale = 0.72;
-    lobe.position.add(new THREE.Vector3(...nudge(i)));
+    const radius = (0.3 + rnd() * 0.15) * s;
+    const y = h + (0.3 + rnd() * 0.45) * s;
+    const colour = lobe(i + 1);
+    if (!colour) continue;
+    const ball = m.ball(radius, colour, [Math.cos(a) * r, y, Math.sin(a) * r], [1, 0.85, 1], 8);
+    ball.userData.blockScale = 0.72;
+    ball.position.add(new THREE.Vector3(...nudge(i)));
   }
-  const top = m.ball(0.3 * s, greens[1]!, [0.05 * s, h + 0.85 * s, 0.05 * s], [1, 0.85, 1], 8);
-  top.userData.blockScale = 0.78;
-  top.position.add(new THREE.Vector3(...nudge(n + 1)));
+  const topColour = lobe(n + 1);
+  if (topColour) {
+    const top = m.ball(0.3 * s, topColour, [0.05 * s, h + 0.85 * s, 0.05 * s], [1, 0.85, 1], 8);
+    top.userData.blockScale = 0.78;
+    top.position.add(new THREE.Vector3(...nudge(n + 1)));
+  }
   return m;
+}
+
+/** The town's trees: broadleaves that turn and drop their leaves, two that blossom in spring, and evergreen pines. */
+export type Species = "round" | "oak" | "cherry" | "apple" | "pine";
+
+/** Spring's new leaves, lighter than summer's. */
+const FRESH = ["#7cc24a", "#8fd05a", "#69b03f"];
+const AUTUMN = [CANOPY.orange, CANOPY.yellow, CANOPY.red];
+const BLOOM: Partial<Record<Species, string[]>> = { cherry: CANOPY.pink, apple: CANOPY.white };
+
+/**
+ * A tree of `species` on a day of the year (`SeasonLook`, from `core/src/seasons.ts`). Its lobes change one at a
+ * time, each from a few fixed palettes (summer's greens, spring's fresh green, the autumn colours, blossom), so a
+ * town halfway through October draws with the same few materials as one in full colour: some lobes still green,
+ * some turned, some gone to show the branches. Each tree turns its own colour, a little earlier or later than its
+ * neighbours.
+ */
+export function seasonalTree(species: Species, seed: number, size: number, look: SeasonLook): Model {
+  if (species === "pine") return pine(seed, size);
+  const oak = species === "oak";
+  const rnd = seeded(seed ^ 0x5ea5);
+  const early = rnd();
+  // Oaks turn orange or yellow; the others any of the three.
+  const autumn = AUTUMN[Math.floor(rnd() * (oak ? 2 : 3))]!;
+  const green = oak ? CANOPY.oak : CANOPY.round;
+  const bloom = BLOOM[species];
+  const n = lobeCount(oak);
+  const picks = Array.from({ length: n + 2 }, (_, i) => {
+    const [gone, late, fresh, blossom] = [rnd(), rnd(), rnd(), rnd()];
+    if (gone * 0.94 + 0.03 >= look.leaf) return null;
+    const shade = shadeOf(i, n);
+    if (look.turn > late * 0.7 + early * 0.3) return autumn[shade]!;
+    if (bloom && blossom < look.blossom) return bloom[shade]!;
+    return fresh < look.fresh ? FRESH[shade]! : green[shade]!;
+  });
+  return broadleaf(oak, seed, size, (i) => picks[i] ?? null, look.leaf < 0.95);
 }
 
 export function bush(seed: number, color = LEAF[1]!): Model {

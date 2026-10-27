@@ -1,7 +1,8 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { nextMilestone } from "@tokenmaxxing/core/stars.ts";
 import * as THREE from "three";
-import { lightsNow, weatherNow } from "../../game/sky.ts";
+import { seasonLookNow } from "../../game/seasons.ts";
+import { lightsNow, weatherNow, windPush } from "../../game/sky.ts";
 import { starCount } from "../../game/stars.ts";
 import { world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
@@ -12,6 +13,7 @@ import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from 
 import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
 import { Graveyard3D } from "./graveyard3d.ts";
+import { FallingLeaves } from "./leaves3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
 import { TownEvents } from "./town-events.ts";
@@ -61,6 +63,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const graveyard = new Graveyard3D((tx, ty) => town.toWorld(tx, ty));
   if (gateLive) group.add(gateLive.group);
   group.add(games.group, graveyard.group);
+  const leaves = new FallingLeaves(town.canopies);
+  group.add(leaves.group);
+  const wind = new THREE.Vector2();
   // The leaderboard on the square shows today's top five, as the HUD's mini board has them.
   let board: ReturnType<typeof hud.get>["board"] | null = null;
   const showBoard = () => {
@@ -128,6 +133,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       pumpkins.update(f.now);
       events.update(f);
       graveyard.update(f.now);
+      const [x, z] = f.me ?? [W / 2, D / 2];
+      wind.set(windPush(weatherNow()) * 2.5, 0);
+      leaves.update(f.dt, f.t, seasonLookNow().look.falling, f.density, wind, x, z);
     },
     onToss: (tx, ty) => events.toss(tx, ty),
     leave: () => events.leave(),

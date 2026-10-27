@@ -60,6 +60,7 @@ import {
   signHits,
 } from "./labels.ts";
 import { drawLaunch } from "./launch.ts";
+import { drawLeaves } from "./leaves.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
@@ -68,7 +69,7 @@ import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
-import { seasonalCanvas, seasonNow } from "./seasons.ts";
+import { seasonalCanvas, seasonLookNow, treeVariant } from "./seasons.ts";
 import {
   drawLight,
   drawLights,
@@ -156,15 +157,20 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   const weather = outdoors ? weatherNow() : null;
   // Snow (town only): twins of the baked ground and sprites, cross-faded while it settles or melts.
   const snow = outdoors ? snowAmount(now) : 0;
-  const season = seasonNow();
+  // The season's look (`seasons.ts`): the town's trees, bushes and grass are drawn as its twins.
+  const season = outdoors ? seasonLookNow() : null;
   const paint = (c: HTMLCanvasElement, x: number, y: number, ch: string) => {
     if (weather && (ch === "T" || ch === "^")) drawSway(g, c, ch, x, y, now, weather);
     else g.drawImage(c, x, y);
   };
-  const snowy = (src: HTMLCanvasElement, x: number, y: number, ch = "", ground = false) => {
-    if (outdoors && (ground || ch === "T" || ch === "^")) src = seasonalCanvas(src, season);
+  const snowy = (plain: HTMLCanvasElement, x: number, y: number, ch = "", ground = false) => {
+    const plant = ground ? "ground" : ch === "T" ? "tree" : ch === "^" ? "bush" : null;
+    const src =
+      season && plant
+        ? seasonalCanvas(plain, plant, season, plant === "tree" ? treeVariant(x, y) : 0)
+        : plain;
     if (snow < 0.01) return paint(src, x, y, ch);
-    for (const [c, a] of snowLayers(src, snow, ground)) {
+    for (const [c, a] of snowLayers(src, snow, ground, plain)) {
       g.globalAlpha = a;
       paint(c, x, y, ch);
     }
@@ -194,6 +200,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   // Outdoors only: lamps and lit windows to shine over the night's tint (see `sky.ts`).
   const lamps: [number, number][] = [];
   const windows: LitWindow[] = [];
+  // The trees in view (their sprites' top left), for the leaves that fall from them.
+  const trees: [number, number][] = [];
   // At night the lit windows' faces are drawn again over the tint, opaque, so the first time is skipped.
   // Only at a whole-number zoom: in between, the panes' soft edges would show what was under them.
   const relit = outdoors && Number.isInteger(scale) && lightsNow(now) > 0.05;
@@ -222,6 +230,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       const ch = map.at(x, y);
       if (o) {
         if (outdoors && ch === "L") lamps.push([x * TILE + TILE / 2, y * TILE - 11]);
+        if (outdoors && ch === "T") trees.push([x * TILE + o.dx, y * TILE + o.dy]);
         items.push({
           y: y * TILE + sortY(ch),
           draw: () => {
@@ -428,6 +437,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
 
   items.sort((a, b) => a.y - b.y);
   for (const i of items) i.draw();
+  if (season && weather) drawLeaves(g, trees, season.look.falling, weather, now);
   drawGhost(g, map, now, fancyCanvas);
   // The Tavern's fire and candles (and the dark, after sunset): `inn` only.
   lightTavern(f);
