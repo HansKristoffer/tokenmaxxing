@@ -19,6 +19,8 @@ The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest b
 The town has Aarhus's real sky and weather, and the **windmill** beside the Tavern turns with the real wind: still in calm air, faster as it blows (up to a cap in a storm), its sails turned into it.
 The town keeps the Danish calendar: for the week up to **Halloween** a jack-o'-lantern sits on every doorstep and a
 few by the pond, lit after dark, and for two weeks round it the Clothes shop sells a Jack-o'-lantern hat (worn all year once bought).
+On **J-dag** (the first Friday of November) the Nissebryg truck drives in at 20:59 and parks under the square till 03:00,
+and all weekend the Tavern's tap pours Nissebryg, the julebryg, on the house.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.

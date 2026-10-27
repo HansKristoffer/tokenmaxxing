@@ -46,6 +46,7 @@ import { lampDim } from "./grid.ts";
 import { drawGrid } from "./grid-board.ts";
 import { drawPumpkins, lightPumpkins } from "./halloween.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
+import { drawTruck, lightTruck } from "./jdag.ts";
 import { drawKeynote, lightKeynote } from "./keynote.ts";
 import {
   avatarLabels,
@@ -352,6 +353,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawPicnic(f);
   drawGrid(f);
   drawPumpkins(f);
+  drawTruck(f);
   drawChalkboards(f);
   drawClocks(f);
   drawTavern(f);
@@ -453,6 +455,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
       drawLights(g, lamps, windows, glow, lampDim());
       lightPumpkins(g, glow, now);
+      lightTruck(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
     drawNightSky(g, w, h, dpr, now);
