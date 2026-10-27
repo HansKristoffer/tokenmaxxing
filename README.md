@@ -19,7 +19,10 @@ The town has Aarhus's real sky and weather, and the **windmill** beside the Tave
 The town keeps the Danish calendar: for the week up to **Halloween** a jack-o'-lantern sits on every doorstep and a
 few by the pond, lit after dark, and for two weeks round it the Clothes shop sells a Jack-o'-lantern hat (worn all year once bought).
 On **J-dag** (the first Friday of November) the Nissebryg truck drives in at 20:59 and parks under the square till 03:00,
-and all weekend the Tavern's tap pours Nissebryg, the julebryg, on the house.
+and all weekend the Tavern's tap pours Nissebryg, the julebryg, on the house. **December** snows on the whole town all
+month, whatever the real weather; the 🎄 **julekalender** opens a door a day from 1 to 24 December (coins, or a hat or
+moustache behind four of them), once per player; and on Friday and Saturday evenings until Christmas the Tavern holds
+**julefrokost**, its tables laid and the tap serving the evening's dish.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.

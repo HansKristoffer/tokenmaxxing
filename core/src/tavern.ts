@@ -1,3 +1,4 @@
+import { julefrokostDish, julefrokostOn } from "./december.ts";
 import { JULEBRYG, julebrygOn } from "./jdag.ts";
 import { worldWall } from "./range.ts";
 
@@ -78,9 +79,16 @@ export const copenhagenDay = (at: Date): number =>
 /** Where the day's special sits in `SPECIALS`. */
 export const specialIndex = (day: number): number => (day * STRIDE) % SPECIALS.length;
 
-/** What the tap pours at `at`: the special on Copenhagen's date, or on the J-dag weekend Nissebryg (`jdag.ts`). */
-export const specialOn = (at: Date): string =>
-  julebrygOn(at.getTime()) ? JULEBRYG.line : SPECIALS[specialIndex(copenhagenDay(at))]!;
+/**
+ * What the tap pours at `at`: the special on Copenhagen's date; on the J-dag weekend Nissebryg (`jdag.ts`), and
+ * at a julefrokost the evening's dish (`december.ts`).
+ */
+export function specialOn(at: Date): string {
+  const ms = at.getTime();
+  if (julebrygOn(ms)) return JULEBRYG.line;
+  if (julefrokostOn(ms)) return julefrokostDish(ms);
+  return SPECIALS[specialIndex(copenhagenDay(at))]!;
+}
 
 // MARK: The special, served
 
@@ -94,8 +102,9 @@ export const SPECIAL = { ms: 15 * 60_000 } as const;
 /** The day's effect: the days alternate, so both show up. */
 export const buffOf = (day: number): Buff => BUFFS[day % BUFFS.length]!;
 
-/** What the tap's pour does at `ms`: the day's effect, or Nissebryg's warm glow on the J-dag weekend. */
-export const buffAt = (ms: number): Buff => (julebrygOn(ms) ? "glow" : buffOf(copenhagenDay(new Date(ms))));
+/** What the tap's pour does at `ms`: the day's effect, or a warm glow from Nissebryg or a julefrokost. */
+export const buffAt = (ms: number): Buff =>
+  julebrygOn(ms) || julefrokostOn(ms) ? "glow" : buffOf(copenhagenDay(new Date(ms)));
 
 export const hasSpecial = (until: number, now: number): boolean => until > now;
 

@@ -6,7 +6,7 @@ import type { GraphicsSettings } from "../../settings/graphics.ts";
 import { batchWithoutWarmup, SAMPLE_TIMES } from "../perf/bake.ts";
 import type { RoomView } from "../rooms/rooms.ts";
 import { easeWalls } from "../rooms/walls.ts";
-import { Fx } from "../town/fx3d.ts";
+import { Fx, meltSnow } from "../town/fx3d.ts";
 import { isPropsNight } from "../town/props.ts";
 import { disposeObject } from "./dispose.ts";
 import type { Pipeline } from "./pipeline.ts";
@@ -168,7 +168,11 @@ export class RoomStage {
       this.fx.spread = Math.max(1, Math.min(2.4, viewHeight / 12));
       this.fx.update(dt, t, camera);
       this.darkness = this.fx.clockDark();
-    } else this.place();
+    } else {
+      this.place();
+      // Indoors nothing is snowed on, though the furniture shares the town's snowy materials.
+      meltSnow();
+    }
     return this.darkness;
   }
 

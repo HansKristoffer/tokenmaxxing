@@ -1,3 +1,4 @@
+import { decemberSnow } from "@tokenmaxxing/core/december.ts";
 import {
   copenhagenToMs,
   type Light,
@@ -32,7 +33,8 @@ export const skyNow = (): number => (skyAt === null ? Date.now() : skyAt + (Date
 let shown: { from: Weather; minute: number; weather: Weather } | null = null;
 
 /**
- * The weather on screen: the server's (or `?weather=`), with winter's snow rule applied (`winterSnow`).
+ * The weather on screen: the server's (or `?weather=`), with winter's snow rule applied (`winterSnow`), and
+ * December's on top: snow all month, whatever the real weather (`decemberSnow`).
  * Worked out again only when the server's changes, or the minute does (winter starts on a day).
  */
 export function weatherNow(): Weather {
@@ -40,7 +42,7 @@ export function weatherNow(): Weather {
   const at = skyNow();
   const minute = Math.floor(at / 60_000);
   if (shown?.from === from && shown.minute === minute) return shown.weather;
-  shown = { from, minute, weather: winterSnow(from, at) };
+  shown = { from, minute, weather: decemberSnow(winterSnow(from, at), at) };
   return shown.weather;
 }
 

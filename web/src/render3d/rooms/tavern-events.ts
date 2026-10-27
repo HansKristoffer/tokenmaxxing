@@ -5,6 +5,7 @@ import { darknessNow, lightsNow, warmthNow } from "../../game/sky.ts";
 import { hud } from "../../store.ts";
 import { setPropsNight } from "../town/props.ts";
 import { jukeboxSign, tavernDim } from "../town/world-logic.ts";
+import { JulefrokostSpread } from "./julefrokost3d.ts";
 import { KeynoteScreen } from "./keynote3d.ts";
 import { PokerEvents } from "./poker-events.ts";
 import type { LiveFrame } from "./rooms.ts";
@@ -16,7 +17,8 @@ const v = new THREE.Vector3();
  * The Tavern's live bits on top of its boards (`live.ts`): a sign over the jukebox with the track, who put
  * it on and the skip votes (a click opens the jukebox), a sign over the world clocks while the launch window is
  * open, and the tip jar's coin, thrown when the server says a toss landed. The jar no longer tosses by itself:
- * a coin in it is somebody's. And the keynote watch party's screen on the west wall (`keynote3d.ts`).
+ * a coin in it is somebody's. And the keynote watch party's screen on the west wall (`keynote3d.ts`), and the
+ * tables laid for julefrokost on December's Friday and Saturday evenings (`julefrokost3d.ts`).
  */
 export class TavernEvents {
   private el: HTMLDivElement | null = null;
@@ -33,11 +35,13 @@ export class TavernEvents {
 
   private readonly poker: PokerEvents;
   private readonly keynote: KeynoteScreen;
+  private readonly julefrokost: JulefrokostSpread;
 
   constructor(private readonly inn: TavernRoom) {
     if (inn.fountain) inn.fountain.auto = false;
     this.poker = new PokerEvents(inn.poker);
     this.keynote = new KeynoteScreen(inn.room);
+    this.julefrokost = new JulefrokostSpread(inn.room, inn.by.get("tavern:table-long") ?? []);
   }
 
   /** The stage's lights, kept so the room can dim with the sky as the 2D Tavern does. */
@@ -100,6 +104,7 @@ export class TavernEvents {
     this.clocksSign(f);
     this.poker.update(f);
     this.keynote.update(f);
+    this.julefrokost.update();
   }
 
   /** "🚀 Launch window · 09:12 in SF" over the clocks while SF's lamp is on; nothing while it's off. */
