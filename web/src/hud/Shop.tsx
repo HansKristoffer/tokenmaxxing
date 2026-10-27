@@ -1,4 +1,5 @@
 import { editionById } from "@tokenmaxxing/core/editions.ts";
+import { casePieceOf } from "@tokenmaxxing/core/case-furniture.ts";
 import { homePieceOf } from "@tokenmaxxing/core/home.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
@@ -292,7 +293,7 @@ function pieceSprite(ch: string): HTMLCanvasElement {
     return sprite;
   }
   // A personal office's frame or sign is hung on the office's top wall.
-  const row = homePieceOf(ch)?.wall ? 0 : 1;
+  const row = (homePieceOf(ch) ?? casePieceOf(ch))?.wall ? 0 : 1;
   sprite = objectAt(withPieces([{ ch, x: 1, y: row }], MAPS.office), 1, row)?.canvas;
   if (!sprite) {
     sprite = document.createElement("canvas");

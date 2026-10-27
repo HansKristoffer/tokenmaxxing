@@ -6,6 +6,7 @@
  */
 import { isRecord } from "hanzio";
 import { CASE_ITEMS } from "./case.ts";
+import { CASE_PIECES } from "./case-furniture.ts";
 import { EDITIONS } from "./editions.ts";
 import { HEADWEAR_ITEMS } from "./headwear.ts";
 import { HOME_PIECES } from "./home.ts";
@@ -129,6 +130,21 @@ export const ITEMS: readonly Item[] = [
   })),
   // The case's own: given by an opening, never sold, tradeable after a short lock (`case.ts`).
   ...CASE_ITEMS,
+  // The case's furniture (`case-furniture.ts`): given by an opening, tradeable, and put down only in your own office.
+  ...CASE_PIECES.map(
+    (f, index): Item => ({
+      id: `furn.${f.ch}`,
+      slot: "furniture",
+      index,
+      name: f.name,
+      price: 0,
+      tradeable: true,
+      home: true,
+      case: true,
+      rarity: f.rarity,
+      blurb: f.blurb,
+    }),
+  ),
   ...COMPANY_FURNITURE.map((f, index): Item => ({
     id: `furn.${f.ch}`,
     slot: "furniture",

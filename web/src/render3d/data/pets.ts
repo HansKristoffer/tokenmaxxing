@@ -18,7 +18,23 @@ export const PET_SPECIES = [
   "forkedcat", // Merge-conflict boss loot
   "ghost", // Loot ghost
   "piggy", // Invoice boss loot
+  // The Night Market case's pets are at 200 and up (`CASE_PET_BASE`), not in this list.
+  "koi",
+  "crane",
+  "tanuki",
+  "maneki",
+  "kitsune",
+  "tengu",
 ] as const;
+
+/** `Look.pet` of the first Night Market case pet (`CASE_BASE` in core/src/case.ts); the six follow in order. */
+export const CASE_PET_BASE = 200;
+/** The species that stand at `CASE_PET_BASE` and up. */
+export const CASE_PET_SPECIES = ["koi", "crane", "tanuki", "maneki", "kitsune", "tengu"] as const;
+
+/** The species of `Look.pet` `n`: the shop's and the loot's by position, the case's from `CASE_PET_BASE`. */
+export const speciesAt = (n: number): Species | undefined =>
+  n >= CASE_PET_BASE ? CASE_PET_SPECIES[n - CASE_PET_BASE] : n < CASE_PET_BASE ? PET_SPECIES[n] : undefined;
 export type Species = (typeof PET_SPECIES)[number];
 
 export const PET_NAME: Record<Species, string> = {
@@ -34,6 +50,12 @@ export const PET_NAME: Record<Species, string> = {
   forkedcat: "Forked cat",
   ghost: "Ghost",
   piggy: "Piggy bank",
+  koi: "Koi",
+  crane: "Paper crane",
+  tanuki: "Tanuki pup",
+  maneki: "Maneki cat",
+  kitsune: "Kitsune",
+  tengu: "Tengu",
 };
 
 /** `Look.petVariant` n is `PET_VARIANTS[species][n - 1]`; 0 is the pet as the shop sells it. */

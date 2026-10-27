@@ -21,6 +21,7 @@ import { Chat } from "./Chat.tsx";
 import { Collection } from "./Collection.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
+import { CaseOpening } from "./CaseOpening.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
 import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
@@ -402,6 +403,7 @@ function Panel() {
     decor: () => <DecorPanel />,
     desk: () => <DeskPanel />,
     changelog: () => <ChangelogPanel />,
+    caseOpening: () => <CaseOpening />,
     menu: () => (
       <Modal title="Menu">
         <nav className="menu">

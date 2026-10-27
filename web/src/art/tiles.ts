@@ -1,4 +1,5 @@
 import type { DecorKind } from "@tokenmaxxing/core/decor.ts";
+import { CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { isPoster, POSTERS } from "@tokenmaxxing/core/posters.ts";
@@ -30,7 +31,7 @@ const GROUND: Record<string, Ground> = {
   // Posters hang on the wall, so their tile is wall underneath.
   ...Object.fromEntries(POSTERS.map((p) => [p.ch, "wall" as const])),
   // So do a personal office's frames and signs.
-  ...Object.fromEntries(HOME_PIECES.filter((p) => p.wall).map((p) => [p.ch, "wall" as const])),
+  ...Object.fromEntries([...HOME_PIECES, ...CASE_PIECES].filter((p) => p.wall).map((p) => [p.ch, "wall" as const])),
   ",": "path",
   ":": "plaza",
   '"': "flowers",

@@ -4,6 +4,7 @@
  * One character per tile; `LEGEND` says what it is.
  */
 import { sortBy } from "hanzio";
+import { CASE_PIECES } from "./case-furniture.ts";
 import { HOME_PIECES } from "./home.ts";
 import { POSTERS } from "./posters.ts";
 
@@ -210,7 +211,7 @@ export const LEGEND: Record<string, TileKind> = {
   ),
   // Personal offices' own furniture (`HOME_PIECES`): a seat, a rug to walk over, or just something to look at.
   ...Object.fromEntries(
-    HOME_PIECES.map((p): [string, TileKind] => [
+    [...HOME_PIECES, ...CASE_PIECES].map((p): [string, TileKind] => [
       p.ch,
       {
         name: p.name.toLowerCase(),

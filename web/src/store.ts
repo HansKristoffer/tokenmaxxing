@@ -51,7 +51,9 @@ export type Panel =
   | { kind: "jukebox" }
   | { kind: "graphics" }
   | { kind: "menu" }
-  | { kind: "changelog" };
+  | { kind: "changelog" }
+  /** Dev: the case-opening screen on mock data (QA flag, then `__tm.hud.set({ panel: { kind: "caseOpening" } })`). */
+  | { kind: "caseOpening" };
 
 /** The jukebox's mute and volume, kept on this device. */
 export interface JukeSettings {
