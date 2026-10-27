@@ -1,6 +1,6 @@
 /**
  * The town's own props, one per tile character of the 2D map that isn't already in `props.ts`: the
- * leaderboard (N), the chalkboard (K), the open-offices board (w), the coffee stand (o), the raid
+ * leaderboard (N), the star counter (★), the chalkboard (K), the open-offices board (w), the coffee stand (o), the raid
  * dungeon's gate (G), plus the street life of `core/src/street.ts` (pølsevogn, build snail and goal flag,
  * paperboy on his bike, the morning paper).
  */
@@ -108,6 +108,69 @@ export function leaderboard(): Board {
   ticks.push((t) => (bolt.rotation.y = t * 0.7));
   m.face = face;
   m.show = (rows) => face.redraw(paint(rows));
+  return m;
+}
+
+export interface StarCounter extends Model {
+  /** Repaint the count, and the milestone it is heading for. */
+  show: (count: string, next: string) => void;
+  face: Panel;
+}
+
+/** A five-pointed star's outline, `r` from its middle to a point. */
+export function starShape(r: number): THREE.Shape {
+  const s = new THREE.Shape();
+  for (let i = 0; i < 10; i++) {
+    const a = Math.PI / 2 + (i * Math.PI) / 5;
+    const d = i % 2 ? r * 0.45 : r;
+    if (i === 0) s.moveTo(Math.cos(a) * d, Math.sin(a) * d);
+    else s.lineTo(Math.cos(a) * d, Math.sin(a) * d);
+  }
+  return s;
+}
+
+/** The star counter on the square (tile ★): the repo's GitHub stars on a navy board, a gold star turning on top. */
+export function starCounter(): StarCounter {
+  const m = new Model() as StarCounter;
+  const paint = (count: string, next: string) => (g: CanvasRenderingContext2D, w: number, h: number) => {
+    g.fillStyle = "#1f2433";
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = "#2f3650";
+    g.fillRect(0, 0, w, 30);
+    g.fillStyle = "#f2c23a";
+    g.font = "900 19px system-ui, sans-serif";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText("GITHUB STARS", w / 2, 16);
+    g.font = "900 40px system-ui, sans-serif";
+    g.fillStyle = "#ffd23f";
+    g.fillText(`★ ${count}`, w / 2, h / 2 + 8);
+    g.font = "700 13px system-ui, sans-serif";
+    g.fillStyle = "#8a93ad";
+    g.fillText(next, w / 2, h - 13);
+  };
+  for (const x of [-0.42, 0.42]) m.box([0.09, 1.4, 0.09], C.woodDark, [x, 0, -0.04], 0.02);
+  const face = panel(1.05, 0.85, paint("–", "Press E to star it"), {
+    frame: "#2f3650",
+    lift: 0.45,
+    px: 130,
+    smooth: true,
+    lit: true,
+  });
+  face.position.z = 0.02;
+  // Repainted with the count (`show`), so batching leaves it be.
+  face.userData.live = true;
+  m.add(face);
+  const star = m.part([0, 1.62, 0]);
+  const mesh = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(starShape(0.2), { depth: 0.06, bevelEnabled: false }),
+    toon("#f2c23a"),
+  );
+  mesh.position.set(0, 0.2, -0.03);
+  star.add(mesh);
+  ticks.push((t) => (star.rotation.y = t * 0.9));
+  m.face = face;
+  m.show = (count, next) => face.redraw(paint(count, next));
   return m;
 }
 

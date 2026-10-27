@@ -50,6 +50,7 @@ import { RoomsBox } from "./RoomsBox.tsx";
 import { Shop } from "./Shop.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
+import { StarButton, StarsPanel } from "./Stars.tsx";
 import { MENU } from "./shops.ts";
 import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
@@ -399,6 +400,7 @@ function Panel() {
     paper: () => <PaperPanel />,
     pamphlet: () => <PamphletPanel />,
     keynote: () => <KeynotePanel />,
+    stars: () => <StarsPanel />,
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
     raid: () => <RaidPanel />,
     openOffices: () => <OpenOfficesPanel />,
@@ -420,9 +422,7 @@ function Panel() {
               {label}
             </button>
           ))}
-          <a href="https://github.com/HansKristoffer/tokenmaxxing" target="_blank" rel="noreferrer">
-            ⌥ GitHub
-          </a>
+          <StarButton />
         </nav>
       </Modal>
     ),
