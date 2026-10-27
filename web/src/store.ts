@@ -1,3 +1,4 @@
+import type { Barrel } from "@tokenmaxxing/core/fastelavn.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
@@ -106,6 +107,8 @@ interface HudState {
   dialog: string | null;
   /** Facing one of my own pieces of furniture: what G and M do to it (null: none). */
   pieceHint: string | null;
+  /** The dance I'm doing (`DANCES`), 0 for none: lit on the dance bar. */
+  dancing: number;
   /** The room name, shown briefly on entering. */
   banner: { text: string; at: number } | null;
   /** Bumped to ask the chat input to take focus. */
@@ -130,6 +133,8 @@ interface HudState {
   seasonDay: number | null;
   /** The project's GitHub stars and the last milestone's fireworks (`world` sends `stars`). */
   stars: Stars;
+  /** The fastelavn barrel on Fastelavn Sunday: its whacks and its king; null the rest of the year (`barrel`). */
+  barrel: Barrel | null;
   /** What the raid's last kills dropped, for everyone (`world` sends `loot`). */
   lootNews: { news: LootNews[]; at: number } | null;
   /** What the Tavern's jukebox is playing for the room, or null (`world` sends `jukebox`). */
@@ -157,6 +162,7 @@ let state: HudState = {
   panel: null,
   dialog: null,
   pieceHint: null,
+  dancing: 0,
   banner: null,
   chatFocus: 0,
   mention: null,
@@ -174,6 +180,7 @@ let state: HudState = {
   weather: CALM,
   seasonDay: null,
   stars: { count: null, show: null },
+  barrel: null,
 };
 const listeners = new Set<() => void>();
 

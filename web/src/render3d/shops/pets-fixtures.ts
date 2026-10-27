@@ -5,6 +5,7 @@
  */
 import type * as THREE from "three";
 import { C } from "../../art/palette.ts";
+import { disposeObject } from "../engine/dispose.ts";
 import { light } from "../furniture/furniture.ts";
 import { glass, glow, Model, painted, tint } from "../kit/kit.ts";
 import { panel } from "../kit/panel.ts";
@@ -55,6 +56,12 @@ const WOOD_L = C.woodLight;
 /** Pets built ahead, a slice at a time (`prebuildPet`), for the fixture that stands them up next. */
 const pool = new Map<string, Pet3D[]>();
 const poolKey = (e: Entry) => `${e.species}:${e.variant}`;
+
+/** Release sculptures prepared for an unfinished fixture. */
+export function dropPrebuiltPets(): void {
+  for (const pets of pool.values()) for (const pet of pets) disposeObject(pet.root);
+  pool.clear();
+}
 
 /** Builds `e`'s pet now, so a fixture built later takes it instead of building it then (the shop's warm slices). */
 export function prebuildPet(e: Entry): void {

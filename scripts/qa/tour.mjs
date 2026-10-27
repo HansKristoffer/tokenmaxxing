@@ -10,6 +10,7 @@ const arg = (k, d) => {
   return i > 0 ? process.argv[i + 1] : d;
 };
 const tiers = arg("tiers", "low,medium,high").split(",");
+const doorTimeout = Number(arg("door-timeout", "8000"));
 const company = process.argv.includes("--company");
 const out = arg("out", "/tmp/v2-qa-shots");
 const [vw, vh] = arg("viewport", "1280x800").split("x").map(Number);
@@ -37,6 +38,20 @@ for (const tier of tiers) {
   const check = async (r) => {
     if (seen.has(r)) return;
     seen.add(r);
+    if (want === "3d")
+      await page.waitForFunction(
+        () => {
+          const renderer = window.__r3d;
+          const fade = document.getElementById("r3-fade");
+          return (
+            renderer?.stage?.view.id === window.__tm.world.room &&
+            !renderer.reveal &&
+            (!fade || Number(fade.style.opacity) < 0.01)
+          );
+        },
+        null,
+        { timeout: 60_000 },
+      );
     const ink = await canvasInk(page, `${out}/tour-${tier}-${r.replace(/[^\w]/g, "_")}.png`);
     const kind = await page.evaluate(() => window.__tm.perf.renderer);
     const errs = page.errors.splice(0);
@@ -76,7 +91,7 @@ for (const tier of tiers) {
     else key = hop(here);
     if (!key) break;
     const [x, y] = key.split(",").map(Number);
-    const dest = await through(page, x, y, 8000);
+    const dest = await through(page, x, y, doorTimeout);
     edges[here][key] = dest;
     if (!dest)
       shut[`${here}:${known[here].find((p) => `${p.x},${p.y}` === key)?.ch}`] =

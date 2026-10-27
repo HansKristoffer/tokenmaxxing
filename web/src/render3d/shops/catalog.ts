@@ -9,7 +9,8 @@
 import { SHOP_ROOM } from "@tokenmaxxing/core/shoprooms.ts";
 import * as THREE from "three";
 import { GameMap } from "../data/maps.ts";
-import type { Model } from "../kit/kit.ts";
+import { disposeObject } from "../engine/dispose.ts";
+import { beginTickScope, dropTickScope, endTickScope, type Model, type TickScope } from "../kit/kit.ts";
 import type { Avatar } from "../people/avatar.ts";
 import type { Room } from "../rooms/room.ts";
 import { SHOP_BARBER } from "./barber.ts";
@@ -65,23 +66,41 @@ const cache = new Map<ShopId, ShopRoom>();
 export const forgetShopRoom = (id: ShopId): void => void cache.delete(id);
 
 /** Interiors being built ahead, a slice at a time (`warmShop`), and those finished and waiting for the player to walk in. */
-const warming = new Map<ShopId, Generator<void, ReturnType<ShopSpec["buildInterior"]>, void>>();
+const warming = new Map<
+  ShopId,
+  {
+    slices: Generator<void, ReturnType<ShopSpec["buildInterior"]>, void>;
+    scopes: TickScope[];
+    dormant: THREE.Group;
+  }
+>();
 const warmed = new Map<ShopId, ReturnType<ShopSpec["buildInterior"]>>();
 
 /**
  * Builds a bit of the shop's interior ahead of the player walking in (one slice per call), when its spec can
  * be sliced. True when there is nothing more to do: it is ready, or can only be built whole.
  */
+export const shopNeedsWarm = (id: ShopId): boolean =>
+  !!SHOP_SPECS[id].slices && !warmed.has(id) && !cache.has(id);
+
 export function warmShop(id: ShopId): boolean {
   const spec = SHOP_SPECS[id];
-  if (!spec.slices || warmed.has(id)) return true;
+  if (!spec.slices || warmed.has(id) || cache.has(id)) return true;
   let g = warming.get(id);
   if (!g) {
-    g = spec.slices();
+    g = { slices: spec.slices(), scopes: [], dormant: new THREE.Group() };
     warming.set(id, g);
   }
-  const step = g.next();
+  const scope = beginTickScope();
+  g.scopes.push(scope);
+  let step: IteratorResult<void, ReturnType<ShopSpec["buildInterior"]>>;
+  try {
+    step = g.slices.next();
+  } finally {
+    endTickScope(scope, g.dormant);
+  }
   if (step.done) {
+    ownWarmScopes(step.value, g.scopes);
     warming.delete(id);
     warmed.set(id, step.value);
     return true;
@@ -89,13 +108,53 @@ export function warmShop(id: ShopId): boolean {
   return false;
 }
 
+function ownWarmScopes(built: ReturnType<ShopSpec["buildInterior"]>, scopes: TickScope[]): void {
+  const root = built.room.group;
+  for (const scope of scopes) scope.root = root;
+  const off = root.userData.onDispose as (() => void) | undefined;
+  root.userData.onDispose = () => {
+    off?.();
+    for (const scope of scopes) dropTickScope(scope);
+  };
+}
+
+/** A renderer leaving 3D must release unfinished and unused shop interiors too. */
+export function dropWarmedShops(): void {
+  const cancelled = new Error("Shop preparation cancelled");
+  for (const pending of warming.values()) {
+    try {
+      pending.slices.throw(cancelled);
+    } catch (error) {
+      if (error !== cancelled) throw error;
+    } finally {
+      for (const scope of pending.scopes) dropTickScope(scope);
+    }
+  }
+  warming.clear();
+  for (const built of warmed.values()) disposeObject(built.room.group);
+  warmed.clear();
+}
+
 export function shopRoom(id: ShopId): ShopRoom {
   let s = cache.get(id);
   if (s) return s;
   const spec = SHOP_SPECS[id];
-  const ahead = warmed.get(id);
+  let ahead = warmed.get(id);
   warmed.delete(id);
+  const pending = warming.get(id);
   warming.delete(id);
+  if (pending) {
+    const scope = beginTickScope();
+    pending.scopes.push(scope);
+    try {
+      let step = pending.slices.next();
+      while (!step.done) step = pending.slices.next();
+      ahead = step.value;
+      ownWarmScopes(ahead, pending.scopes);
+    } finally {
+      endTickScope(scope, ahead?.room.group ?? pending.dormant);
+    }
+  }
   const built = (ahead ?? spec.buildInterior()) as unknown as Omit<
     ReturnType<ShopSpec["buildInterior"]>,
     "displays"

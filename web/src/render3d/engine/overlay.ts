@@ -27,6 +27,7 @@ const CSS = `
 #labels3d .r3-pill { padding: 0 6px; border-radius: 4px; font-size: 11px; line-height: 15px; font-weight: 600; }
 #labels3d .r3-game { background: rgba(233, 183, 61, 0.95); color: #2b2433; }
 #labels3d .r3-work { background: rgba(143, 227, 255, 0.95); color: #2b2433; }
+#labels3d .r3-battle { background: rgba(179, 107, 255, 0.95); color: #fff; }
 #labels3d .r3-bubble { max-width: 190px; white-space: normal; text-align: center; padding: 3px 7px; border-radius: 6px; background: #fbf7ef;
   color: #2b2433; border: 2px solid #2b2433; font-size: 12px; font-weight: 500; line-height: 15px; margin-bottom: 4px; position: relative; }
 #labels3d .r3-bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -5px; border: 5px solid transparent;

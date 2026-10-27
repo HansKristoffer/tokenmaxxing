@@ -1,3 +1,4 @@
+import type { Barrel } from "@tokenmaxxing/core/fastelavn.ts";
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import type { Stone } from "@tokenmaxxing/core/graveyard.ts";
 import type { Grid } from "@tokenmaxxing/core/grid.ts";
@@ -205,6 +206,7 @@ export function connect(token: string): void {
   conn.on("grid", (g: Grid) => setGrid(g));
   conn.on("keynotes", (k: Keynote[]) => setKeynotes(k));
   conn.on("stars", (s: Stars) => setStars(s));
+  conn.on("barrel", (barrel: Barrel | null) => hud.set({ barrel }));
   conn.onError((err) => {
     if (isUnauthorized(err)) signedOut();
   });

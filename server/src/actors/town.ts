@@ -9,6 +9,7 @@ import {
 import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import type { Gift } from "@tokenmaxxing/core/december.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
+import type { Barrel } from "@tokenmaxxing/core/fastelavn.ts";
 import { clockAt, dateAt, type Keynote } from "@tokenmaxxing/core/keynote.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
@@ -106,6 +107,7 @@ import {
   type HoldKind,
   heldIn,
   hold,
+  holds,
   type Kept,
   type Office,
   offices,
@@ -150,6 +152,7 @@ import {
   withdraw,
 } from "../town/companies.ts";
 import { buyDesk, buyDeskFleet, type MyDesk, myDesk, setDesk } from "../town/desks.ts";
+import { barrel, type Whack, whack } from "../town/fastelavn.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { recordGreen } from "../town/grid.ts";
 import { type HallOfFame, hallOfFame } from "../town/hall.ts";
@@ -898,12 +901,30 @@ export const town = actor({
       return c.vars.serial(() => questEvent(c.db, userId, kind, key, now));
     },
 
+    /** From `world`: a whack at the fastelavn barrel, and, if it broke, everyone's loot. */
+    whack: async (c, userId: number): Promise<Whack> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => whack(c.db, userId, Date.now()));
+    },
+
+    /** From `world`: this year's barrel, for whoever comes to town on Fastelavn. */
+    barrel: (c): Promise<Barrel> => {
+      requireInternal(c.conn.state);
+      return barrel(c.db, Date.now());
+    },
+
     /** From `world`: a coin in the fountain (1 coin out, and the day's fountain quest). */
     toss: async (c, userId: number): Promise<void> => {
       requireInternal(c.conn.state);
       const now = Date.now();
       const k = await kept(c, now);
       await c.vars.serial(() => tossCoin(c.db, userId, now, k));
+    },
+
+    /** From `world.dance`: whether `userId` has learned the dance `item` (`dance.<index>`). */
+    knowsDance: (c, userId: number, item: string): Promise<boolean> => {
+      requireInternal(c.conn.state);
+      return holds(c.db, userId, item);
     },
 
     /** From `world.sit`: on a blanket at the outage picnic that started at `since`. True the first time. */

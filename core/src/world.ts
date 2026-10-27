@@ -328,6 +328,9 @@ export interface PlayerInfo {
   dozing: boolean;
   /** The desk setup they chose (a tier in `DESKS`, desks.ts). Absent from older servers: the laptop. */
   desk?: number;
+  /** The dance they're doing (`DANCES` in dances.ts), 0 for none, since `danceSince` (epoch ms). Absent from older servers: none. */
+  dance?: number;
+  danceSince?: number;
 }
 
 /**

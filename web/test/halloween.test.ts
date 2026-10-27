@@ -65,16 +65,19 @@ test("however many pumpkins, the 3D ones are a handful of meshes", () => {
   expect(meshes).toBeLessThanOrEqual(4);
 });
 
-test("every costume has 2D art, a 3D hat and a place in the 3D shop, on its shelf only in season", () => {
+test("every costume has 2D art, a 3D hat and, unless earned, a place in the 3D shop, in season", () => {
   for (const c of COSTUMES) {
     expect(itemFrame(c), c.name).not.toBeNull();
     expect(HAT_BUILDERS[c.name], c.name).toBeDefined();
     expect(COVERS_HAIR.has(c.name), c.name).toBe(true);
-    expect(CLOTHES.find((r) => r.id === c.id)).toMatchObject({
-      name: c.name,
-      price: c.price,
-      rarity: c.rarity,
-    });
+    // An earned one (the kattekonge's crown) is never on a shelf.
+    if (c.earned) expect(CLOTHES.some((r) => r.id === c.id)).toBe(false);
+    else
+      expect(CLOTHES.find((r) => r.id === c.id)).toMatchObject({
+        name: c.name,
+        price: c.price,
+        rarity: c.rarity,
+      });
   }
   const ids = () => buildClothesItems().hats.map((h) => h.id);
   setSystemTime(HALLOWEEN);

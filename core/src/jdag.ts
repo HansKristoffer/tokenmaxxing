@@ -6,8 +6,7 @@
  * up, like the posters' films.
  */
 import { lerp } from "hanzio";
-import { daysFrom } from "./holidays.ts";
-import { worldWall } from "./range.ts";
+import { minutesFrom } from "./holidays.ts";
 
 export const JULEBRYG = {
   name: "Nissebryg",
@@ -36,10 +35,7 @@ export const TRUCK = {
 const POURS_UNTIL = 3 * 24 * 60;
 
 /** Minutes from J-dag's midnight (Copenhagen) to `ms`: negative before it, past 1440 after. */
-function sinceJDag(ms: number): number {
-  const { hour, minute, second } = worldWall(ms);
-  return daysFrom("jDag", ms) * 24 * 60 + hour * 60 + minute + second / 60;
-}
+const sinceJDag = (ms: number): number => minutesFrom("jDag", ms);
 
 /** Where the truck is at `ms` (its back's tile, fractional while it drives), or null when it isn't in town. */
 export function truckAt(ms: number): { x: number; y: number; parked: boolean } | null {

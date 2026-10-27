@@ -3,7 +3,8 @@ import { loadSlices } from "../kit/registry.ts";
 import type { MapId } from "../rooms/world.ts";
 import { World } from "../rooms/world.ts";
 import { loadRoomSkins } from "../rooms/world-rooms.ts";
-import { bakeStatic, freezeLayer } from "./bake.ts";
+import { forgetShopRoom, shopOfRoom } from "../shops/catalog.ts";
+import { type BakeMode, bakeStatic, freezeLayer } from "./bake.ts";
 import { sceneStats } from "./stats.ts";
 
 /** Registers every slice's tiles, as the game does at start. */
@@ -20,39 +21,47 @@ export interface RoomCost {
   /** Canvas textures a room holds (after atlasing) and its largest edge in pixels. */
   textures: number;
   biggest: number;
+  geometryMB: number;
+  lights: number;
+  buildMs: number;
 }
 
 const world = () => ((globalThis as { __perfWorld?: World }).__perfWorld ??= new World());
 
-/**
- * Builds a room with no renderer and counts what one pass over it would draw once batched. The street's clock stands at
- * noon meanwhile (`?clock=`: the cart open, the snail halfway): at the live clock the snail now and then crept between
- * the tick samples, read as moving, and its parts were counted unbatched.
- */
-export function measureRoom(id: string): RoomCost {
+/** Counts a fresh room at noon so street animation cannot change which parts the samples consider static. */
+export function measureRoom(
+  id: string,
+  options: { actors?: "frozen" | "live"; variant?: BakeMode } = {},
+): RoomCost {
   const page = globalThis.location as { search: string };
   const search = page.search;
   page.search = "?clock=12:00";
   try {
-    return measure(id);
+    return measure(id, options);
   } finally {
     page.search = search;
   }
 }
 
-function measure(id: string): RoomCost {
-  const room = world().room(id as MapId);
+function measure(id: string, options: NonNullable<Parameters<typeof measureRoom>[1]>): RoomCost {
+  const content = world();
+  content.evict(id as MapId);
+  const shop = shopOfRoom(id);
+  if (shop) forgetShopRoom(shop);
+  const start = performance.now();
+  const room = content.room(id as MapId);
+  const buildMs = performance.now() - start;
   const scene = new THREE.Scene();
   scene.add(room.group);
-  const before = sceneStats(scene);
   const layer = bakeStatic(room.group);
-  if (layer) layer.show("smooth");
+  const variant = options.variant ?? "smooth";
+  if (layer) layer.show(variant);
   // People and pets that stand about are merged at run time (see `freeze.ts`): count them as the player sees them.
   const actors: THREE.Object3D[] = [];
   scene.traverse((o) => {
     if (o.userData.actor) actors.push(o);
   });
-  for (const a of actors) freezeLayer(a);
+  if (options.actors !== "live") for (const a of actors) freezeLayer(a, variant);
   const after = sceneStats(scene);
   let texBytes = 0;
   let biggest = 0;
@@ -72,7 +81,15 @@ function measure(id: string): RoomCost {
       } else texBytes += (img.width ?? 0) * (img.height ?? 0) * 4 * (t.generateMipmaps ? 1.34 : 1);
     }
   });
-  void before;
+  let geometryBytes = 0;
+  const geometries = new Set<THREE.BufferGeometry>();
+  scene.traverse((o) => {
+    const geometry = (o as THREE.Mesh).geometry;
+    if (!geometry || geometries.has(geometry)) return;
+    geometries.add(geometry);
+    geometryBytes += geometry.index?.array.byteLength ?? 0;
+    for (const a of Object.values(geometry.attributes)) geometryBytes += a.array.byteLength;
+  });
   return {
     drawCalls: after.drawables,
     triangles: Math.round(after.triangles),
@@ -80,5 +97,8 @@ function measure(id: string): RoomCost {
     textureMB: Math.round((texBytes / 1048576) * 10) / 10,
     textures: seen.size,
     biggest,
+    geometryMB: Math.round((geometryBytes / 1048576) * 10) / 10,
+    lights: after.lights,
+    buildMs: Math.round(buildMs * 10) / 10,
   };
 }

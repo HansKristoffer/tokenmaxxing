@@ -480,13 +480,14 @@ export class Pipeline {
   private aoRaw?: THREE.WebGLRenderTarget;
   private aoKey = "";
   private readonly fill = new THREE.DirectionalLight("#9ec4ff", 0);
-  private readonly fillScenes = new Set<THREE.Scene>();
+  private fillScene: THREE.Scene | null = null;
   private readonly lights = new WeakMap<THREE.Scene, SceneLights>();
   private slow = 0;
   private frames = 0;
   private mode: BakeMode | null = null;
   private lastAt = 0;
   private lastScene: THREE.Scene | null = null;
+  private readonly untrack: () => void;
   private frameNo = 0;
   private sized = "";
   private shadowsWere: boolean | null = null;
@@ -526,7 +527,7 @@ export class Pipeline {
       this.plan = null;
     };
     trackAdditions();
-    trackRenderer(this.renderer, () => this.lastScene);
+    this.untrack = trackRenderer(this.renderer, () => this.lastScene);
     const plane = new THREE.PlaneGeometry(2, 2);
     this.voxQuad = new THREE.Mesh(
       plane,
@@ -988,8 +989,21 @@ export class Pipeline {
       sh.radius = o.shadowSize >= 2048 ? 4 : 2;
       sh.bias = -0.0006;
       if (this.fill.parent !== scene) {
+        this.restoreFillScene();
         scene.add(this.fill, this.fill.target);
-        this.fillScenes.add(scene);
+        this.fillScene = scene;
+        const off = scene.userData.onDispose as (() => void) | undefined;
+        if (!scene.userData.fillCleanup) {
+          scene.userData.fillCleanup = true;
+          scene.userData.onDispose = () => {
+            off?.();
+            if (this.fillScene === scene) this.restoreFillScene();
+            if (this.lastScene === scene) {
+              this.lastScene = null;
+              setActiveScene(null);
+            }
+          };
+        }
       }
       const t = sun.target.position;
       this.fill.target.position.copy(t);
@@ -1048,6 +1062,10 @@ export class Pipeline {
 
   /** Frees the render targets, the composite passes and the renderer itself. */
   dispose(): void {
+    this.untrack();
+    this.lastScene = null;
+    setActiveScene(null);
+    this.restoreFillScene();
     this.color?.dispose();
     this.normal?.dispose();
     this.vox?.dispose();
@@ -1080,23 +1098,27 @@ export class Pipeline {
 
   /** Back to the classic styles: drop the fill light from every scene it joined. */
   private leaveVoxel(): void {
-    for (const s of this.fillScenes) {
-      s.remove(this.fill, this.fill.target);
-      s.traverse((o) => {
-        const l = o as THREE.DirectionalLight;
-        const c = l.userData.classic as { size: number; radius: number; bias: number } | undefined;
-        if (!l.isDirectionalLight || !c) return;
-        l.shadow.mapSize.set(c.size, c.size);
-        l.shadow.map?.dispose();
-        l.shadow.map = null;
-        l.shadow.radius = c.radius;
-        l.shadow.bias = c.bias;
-      });
-    }
-    this.fillScenes.clear();
+    this.restoreFillScene();
     this.voxKey = "";
     this.vox?.dispose();
     this.vox = undefined;
+  }
+
+  private restoreFillScene(): void {
+    const scene = this.fillScene;
+    if (!scene) return;
+    scene.remove(this.fill, this.fill.target);
+    scene.traverse((o) => {
+      const l = o as THREE.DirectionalLight;
+      const c = l.userData.classic as { size: number; radius: number; bias: number } | undefined;
+      if (!l.isDirectionalLight || !c) return;
+      l.shadow.mapSize.set(c.size, c.size);
+      l.shadow.map?.dispose();
+      l.shadow.map = null;
+      l.shadow.radius = c.radius;
+      l.shadow.bias = c.bias;
+    });
+    this.fillScene = null;
   }
 
   render(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number, h: number): void {
@@ -1227,7 +1249,7 @@ export class Pipeline {
       scene.userData.blocky = false;
       scene.userData.blockyDone = false;
     }
-    if (this.fillScenes.size) this.leaveVoxel();
+    if (this.fillScene) this.leaveVoxel();
     const dpr = this.pixelSize === 1 ? Math.min(window.devicePixelRatio || 1, this.opts.dprCap ?? 2) : 1;
     this.setSize(w, h, dpr);
     const lines = this.outline > 0 || this.crease > 0;

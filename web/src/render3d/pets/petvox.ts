@@ -282,6 +282,7 @@ function bodyMaterial(opacity: number): THREE.MeshToonMaterial {
     g.transparent = true;
     g.opacity = opacity;
     g.depthWrite = false;
+    g.userData.shared = true;
     glassToons.set(opacity, g);
   }
   return g;
@@ -300,13 +301,19 @@ export interface BakeOpts {
   flat?: boolean;
 }
 
+// Entries live only while meshes own them; identical legs, eyes and pets share immutable buffers.
+const surfaces = new Map<string, { solid: THREE.BufferGeometry; lit?: THREE.BufferGeometry; refs: number }>();
+
 /** Cells whose colour starts with "*" glow (unlit); everything else is shaded. */
 export function bake(g: Grid, o: BakeOpts = {}): THREE.Mesh {
   const [ox, oy, oz] = o.origin ?? [0, 0, 0];
   const seed = o.seed ?? 0;
   const jit = o.jitter ?? 0.045;
-  const solid = { p: [] as number[], c: [] as number[], n: [] as number[] };
-  const lit = { p: [] as number[], c: [] as number[], n: [] as number[] };
+  const key = JSON.stringify([[...g.cells], ox, oy, oz, seed, jit, o.flat ?? false]);
+  const cached = surfaces.get(key);
+  if (cached) return ownSurface(key, cached, o.opacity ?? 1);
+  const solid = { p: [] as number[], c: [] as number[], n: [] as number[], i: [] as number[] };
+  const lit = { p: [] as number[], c: [] as number[], n: [] as number[], i: [] as number[] };
   const tmp = new THREE.Color();
   g.each((x, y, z, raw) => {
     const glow = raw.startsWith("*");
@@ -348,7 +355,9 @@ export function bake(g: Grid, o: BakeOpts = {}): THREE.Mesh {
       ]);
       const flip = ao[0]! + ao[2]! < ao[1]! + ao[3]!;
       const order = flip ? [1, 2, 3, 1, 3, 0] : [0, 1, 2, 0, 2, 3];
-      for (const i of order) {
+      const first = out.p.length / 3;
+      for (const i of order) out.i.push(first + i);
+      for (let i = 0; i < 4; i++) {
         out.p.push(...vs[i]!);
         out.n.push(nx, ny, nz);
         tmp.copy(base).multiplyScalar(k * ao[i]!);
@@ -358,19 +367,40 @@ export function bake(g: Grid, o: BakeOpts = {}): THREE.Mesh {
   });
   const geo = (d: typeof solid) => {
     const bg = new THREE.BufferGeometry();
+    bg.setIndex(d.i);
     bg.setAttribute("position", new THREE.Float32BufferAttribute(d.p, 3));
     bg.setAttribute("normal", new THREE.Float32BufferAttribute(d.n, 3));
     bg.setAttribute("color", new THREE.Float32BufferAttribute(d.c, 3));
     return bg;
   };
-  const mesh = new THREE.Mesh(geo(solid), bodyMaterial(o.opacity ?? 1));
+  const surface = { solid: geo(solid), lit: lit.p.length ? geo(lit) : undefined, refs: 0 };
+  surface.solid.userData.shared = true;
+  if (surface.lit) surface.lit.userData.shared = true;
+  surfaces.set(key, surface);
+  return ownSurface(key, surface, o.opacity ?? 1);
+}
+
+function ownSurface(
+  key: string,
+  surface: { solid: THREE.BufferGeometry; lit?: THREE.BufferGeometry; refs: number },
+  opacity: number,
+): THREE.Mesh {
+  surface.refs++;
+  const mesh = new THREE.Mesh(surface.solid, bodyMaterial(opacity));
   mesh.castShadow = mesh.receiveShadow = true;
-  if (lit.p.length) {
+  if (surface.lit) {
     litBasic ??= new THREE.MeshBasicMaterial({ vertexColors: true });
-    const l = new THREE.Mesh(geo(lit), litBasic);
+    litBasic.userData.shared = true;
+    const l = new THREE.Mesh(surface.lit, litBasic);
     l.castShadow = false;
     mesh.add(l);
   }
+  mesh.userData.onDispose = () => {
+    if (--surface.refs > 0) return;
+    surfaces.delete(key);
+    surface.solid.dispose();
+    surface.lit?.dispose();
+  };
   return mesh;
 }
 

@@ -30,6 +30,7 @@ import { basementInteract } from "./basement.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
 import { clocksText } from "./clocks.ts";
+import { barrelInteract, blocksBarrel } from "./fastelavn.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { blocksGrave, graveInteract } from "./graveyard.ts";
@@ -42,13 +43,14 @@ import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
 import { seated, sit, standUp } from "./raidseat.ts";
+import { blocksBonfire, bonfireInteract } from "./sankthans.ts";
 import { pickTile } from "./stage.ts";
 import { statueText } from "./statue.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { interactAnimal, interactTownProp } from "./town-life.ts";
 import { openTrophies } from "./trophies.ts";
 import { windmillInteract } from "./windmill.ts";
-import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
+import { avatarAt, beginStep, dropAt, self, showMyDance, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {
   ArrowUp: "up",
@@ -356,8 +358,11 @@ export function updateSelf(now: number): void {
   const pressed = held.at(-1) ?? tapped;
   const dir = pressed ? (viewHooks.key?.(pressed) ?? pressed) : path.shift();
   tapped = null;
-  // Moving stands you up from your war desk in the raid dungeon.
-  if (dir) standUp();
+  // Moving stands you up from your war desk in the raid dungeon, and ends a dance (the server does too).
+  if (dir) {
+    standUp();
+    if (me.info.dance) showMyDance(0);
+  }
   if (!dir) {
     if (interactOnArrival) {
       interactOnArrival = false;
@@ -386,6 +391,8 @@ export function updateSelf(now: number): void {
     (blocksStep(step.x, step.y) ||
       blocksLaunch(step.x, step.y) ||
       blocksTruck(step.x, step.y) ||
+      blocksBarrel(step.x, step.y) ||
+      blocksBonfire(step.x, step.y) ||
       blocksGrave(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;
@@ -488,6 +495,8 @@ function interact(): void {
   if (streetInteract(me, x, y, send)) return;
   if (windmillInteract(x, y)) return;
   if (truckInteract(x, y)) return;
+  if (barrelInteract(me, x, y, send)) return;
+  if (bonfireInteract(x, y)) return;
   if (launchInteract(me)) return;
   if (graveInteract(me)) return;
   if (keynoteInteract(me)) return;

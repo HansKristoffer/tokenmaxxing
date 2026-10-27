@@ -1,4 +1,4 @@
-// bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--ms 6000] [--throttle 4] [--profile] [--alloc] [--nodes] [--heap] [--out file.json]
+// bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--ms 6000] [--throttle 4] [--profile] [--alloc] [--nodes] [--heap] [--gpu] [--warmup 8000] [--out file.json]
 // The real game (/play), not the demo: starts its own server (or uses QA_ORIGIN), signs up `walkers` players who connect to
 // `world` and wander the town over the wire, and opens one observer per tier in headless Chromium with no fps cap. Records
 // the 3D renderer's own CPU time per frame (`__r3d.frame`), rAF frame gaps, long tasks, draw calls, triangles, JS heap, and
@@ -16,6 +16,7 @@ const has = (k) => process.argv.includes(`--${k}`);
 const tiers = arg("tiers", "medium,high,ultra").split(",");
 const walkers = Number(arg("walkers", "40"));
 const ms = Number(arg("ms", "6000"));
+const warmup = Number(arg("warmup", "8000"));
 const out = arg("out", null);
 const port = Number(process.env.PERF_PORT ?? 4691);
 
@@ -156,16 +157,47 @@ for (const tier of tiers) {
   if (door) await through(page, door[0], door[1]);
   await page.waitForFunction(() => window.__r3d?.stats.frames > 30, null, { timeout: 60_000 });
   if (tiers.indexOf(tier) === 0) await page.waitForTimeout(8000); // the crowd walks out into the town
-  await page.waitForTimeout(2500);
-  await page.evaluate(() => {
+  await page.waitForFunction(
+    () => {
+      const r = window.__r3d;
+      return r && !r.warming && !r.reveal;
+    },
+    null,
+    { timeout: 60_000 },
+  );
+  await page.waitForTimeout(warmup);
+  await page.evaluate((gpuTimers) => {
     window.gc?.();
     const r = window.__r3d;
-    const rec = { cpu: [], gaps: [], draws: [], tris: [], long: 0, longMs: 0 };
+    const rec = { cpu: [], gaps: [], draws: [], tris: [], long: 0, longMs: 0, started: performance.now() };
     window.__rec = rec;
     const frame = r.frame.bind(r);
+    const gl = r.pipe.renderer.getContext();
+    const ext = gpuTimers ? gl.getExtension("EXT_disjoint_timer_query_webgl2") : null;
+    const queries = [];
+    rec.gpuMs = ext ? [] : null;
     r.frame = (now) => {
+      const disjoint = ext && gl.getParameter(ext.GPU_DISJOINT_EXT);
+      if (disjoint) {
+        for (const query of queries.splice(0)) gl.deleteQuery(query);
+      }
+      while (queries.length && gl.getQueryParameter(queries[0], gl.QUERY_RESULT_AVAILABLE)) {
+        const query = queries.shift();
+        if (!disjoint && !rec.done) rec.gpuMs.push(gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6);
+        gl.deleteQuery(query);
+      }
+      const query = ext && !rec.done && !disjoint && queries.length < 8 ? gl.createQuery() : null;
+      if (query) gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
       const t0 = performance.now();
       frame(now);
+      if (query) {
+        gl.endQuery(ext.TIME_ELAPSED_EXT);
+        queries.push(query);
+      }
+      if (rec.done) {
+        for (const pending of queries.splice(0)) gl.deleteQuery(pending);
+        return;
+      }
       rec.cpu.push(performance.now() - t0);
       const info = r.pipe.renderer.info.render;
       rec.draws.push(info.calls);
@@ -184,7 +216,7 @@ for (const tier of tiers) {
         rec.longMs += e.duration;
       }
     }).observe({ type: "longtask" });
-  });
+  }, has("gpu"));
   const cdp = await page.context().newCDPSession(page);
   // A slower CPU, as a stand-in for a weak laptop: the frame's JS cost is what scales.
   if (arg("throttle", null))
@@ -207,6 +239,18 @@ for (const tier of tiers) {
     window.__rec.done = true;
     return {
       ...window.__rec,
+      duration: performance.now() - window.__rec.started,
+      gpu: (() => {
+        const gl = window.__r3d.pipe.renderer.getContext();
+        const ext = gl.getExtension("WEBGL_debug_renderer_info");
+        return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+      })(),
+      targets: (() => {
+        const pipe = window.__r3d.pipe;
+        const target = pipe.vox ?? pipe.color;
+        return target ? { width: target.width, height: target.height } : null;
+      })(),
+      preparation: { ...window.__r3d.stats },
       heap: performance.memory.usedJSHeapSize,
       avatars: window.__tm.world.avatars.size,
       room: window.__tm.world.room,
@@ -219,7 +263,15 @@ for (const tier of tiers) {
     room: rec.room,
     avatars: rec.avatars,
     frames: rec.cpu.length,
-    fps: r1((rec.gaps.length * 1000) / ms),
+    fps: r1((rec.cpu.length * 1000) / rec.duration),
+    rafFps: r1((rec.gaps.length * 1000) / rec.duration),
+    warmupMs: warmup,
+    gpu: rec.gpu,
+    targets: rec.targets,
+    preparation: rec.preparation,
+    gpuMs: rec.gpuMs?.length
+      ? { samples: rec.gpuMs.length, p50: r1(pct(rec.gpuMs, 0.5)), p95: r1(pct(rec.gpuMs, 0.95)) }
+      : null,
     cpu: { p50: r1(pct(rec.cpu, 0.5)), p95: r1(pct(rec.cpu, 0.95)), p99: r1(pct(rec.cpu, 0.99)) },
     frame: { p50: r1(pct(rec.gaps, 0.5)), p95: r1(pct(rec.gaps, 0.95)), p99: r1(pct(rec.gaps, 0.99)) },
     long: rec.long,

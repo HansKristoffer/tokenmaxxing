@@ -931,6 +931,15 @@ export const HAT_BUILDERS: Record<string, Build> = {
     for (const x of [-0.1, 0.1]) m.box([0.07, 0.06, 0.03], lit("#ffd04a"), [x, 0.17, 0.3], 0.005);
     m.box([0.2, 0.045, 0.03], lit("#ffd04a"), [0, 0.07, 0.3], 0.005);
   },
+  // Fastelavn's prize (`core/src/costumes.ts`): a gold crown with a black cat's ears and a red jewel in front.
+  "Kattekonge crown": (m) => {
+    const up = isVox(m) ? 0.1 : 0;
+    spikes(m, { base: "#f5c842", tip: "#f5c842", n: 4, h: 0.1, r: 0.24, y: 0.16 + up });
+    band(m, "#c9971f", 0.246, 0.014, 0.158 + up);
+    band(m, "#f5c842", 0.252, 0.05, 0.172 + up);
+    for (const x of [-0.07, 0.07]) m.cyl(0.04, 0.08, "#2b2433", [x, 0.27 + up, 0.12], 0.004, 4);
+    m.ball(0.03, lit("#e8584f"), [0, 0.2 + up, 0.25]);
+  },
   "429 bucket hat": (m) => {
     m.cyl(0.215, 0.17, "#4fb3a9", [0, 0.07, 0], 0.2, 18);
     m.cyl(0.215, 0.05, "#3a8c84", [0, 0.07, 0], 0.34, 22).position.y = 0.08;
@@ -1711,4 +1720,5 @@ export const COVERS_HAIR = new Set([
   "Paid in Full crown",
   "Straw kasa",
   "Fox half-mask",
+  "Kattekonge crown",
 ]);

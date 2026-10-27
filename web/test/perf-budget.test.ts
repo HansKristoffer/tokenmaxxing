@@ -74,3 +74,12 @@ test("medium never budgets more than high", () => {
     expect(m.drawCalls).toBeLessThanOrEqual(hi.drawCalls);
   }
 });
+
+test("live room measurements stay independent of earlier frozen measurements", () => {
+  const live = h.measureRoom("shop-pets", { actors: "live" });
+  const frozen = h.measureRoom("shop-pets");
+  const again = h.measureRoom("shop-pets", { actors: "live" });
+  expect(frozen.drawCalls).toBeLessThan(live.drawCalls);
+  expect(again.drawCalls).toBe(live.drawCalls);
+  expect(again.triangles).toBe(live.triangles);
+});

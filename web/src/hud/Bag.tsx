@@ -93,9 +93,10 @@ export function Bag({ tab: wanted }: { tab?: BagTab }) {
     await refreshMe();
     undo();
   });
+  // Dances aren't things to wear or drop: they're on the dance bar.
   const held = bag.flatMap((b) => {
     const it = itemById(b.item);
-    return it ? [{ row: b, item: it }] : [];
+    return it && it.slot !== "dance" ? [{ row: b, item: it }] : [];
   });
   const owned = (slot: Item["slot"]) => held.filter((h) => h.item.slot === slot).map((h) => h.item);
 

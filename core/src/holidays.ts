@@ -89,6 +89,12 @@ export function daysFrom(id: HolidayId, ms: number): number {
     .reduce((a, b) => (Math.abs(b) < Math.abs(a) ? b : a));
 }
 
+/** Minutes from `id`'s midnight (Copenhagen) to `ms`, for its nearest occurrence: negative before it, past 1440 after. */
+export function minutesFrom(id: HolidayId, ms: number): number {
+  const { hour, minute, second } = worldWall(ms);
+  return daysFrom(id, ms) * 24 * 60 + hour * 60 + minute + second / 60;
+}
+
 /** `D. month` of `id`'s day `n` days from it, the one nearest `ms` (for "until 2 November"). */
 export function dateLabel(id: HolidayId, ms: number, n = 0): string {
   const today = worldDayNumber(ms);

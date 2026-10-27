@@ -11,6 +11,8 @@ import {
   ticketLine,
   writeTicket,
 } from "@tokenmaxxing/core/cop.ts";
+import { danceAt, danceId, isFree } from "@tokenmaxxing/core/dances.ts";
+import { type Barrel, barrelUp, HITS, isBarrel, WHACK_MS } from "@tokenmaxxing/core/fastelavn.ts";
 import {
   findSpot,
   propTiles,
@@ -78,7 +80,8 @@ import {
 } from "@tokenmaxxing/core/poker.ts";
 import { chairAt, pokerChairs } from "@tokenmaxxing/core/pokertable.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
-import { canDropIn } from "@tokenmaxxing/core/shop.ts";
+import { isBonfire } from "@tokenmaxxing/core/sankthans.ts";
+import { canDropIn, itemById } from "@tokenmaxxing/core/shop.ts";
 import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { milestoneLine, NO_STARS, readStars, type Stars, type StarsState } from "@tokenmaxxing/core/stars.ts";
@@ -170,6 +173,7 @@ import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { readLeader, STATUE_EVERY_MS, STATUE_RETRY_MS } from "../statue.ts";
 import { counts, TavernClock } from "../tavern-clock.ts";
+import type { Whack } from "../town/fastelavn.ts";
 import { parseChatText } from "../validate.ts";
 import {
   fetchPollen,
@@ -214,6 +218,9 @@ interface WorldPlayer extends PlayerCore, Place {
   specialUntil?: number;
   /** Online with no input for `IDLE_MS`; cleared by the next input. */
   dozing?: boolean;
+  /** The dance they're doing (`DANCES`), since when; none once they step, sit, rest or come back. */
+  dance?: number;
+  danceSince?: number;
 }
 
 interface WorldState {
@@ -257,6 +264,8 @@ const COFFEE_LINES = [
   "☕☕☕☕☕☕ The machine refuses to make it any stronger. You vibrate anyway.",
 ];
 const CHAT_PER_MIN = 20;
+/** Dances started or stopped a minute: each one goes to the whole room. */
+const DANCES_PER_MIN = 30;
 /** Poker actions a player may take a minute: a hand is a few dozen at most. */
 const POKER_PER_MIN = 120;
 const keynoteBadge = (title: string) =>
@@ -335,6 +344,9 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   specialUntil: p.specialUntil ?? 0,
   dozing: online && !!p.dozing,
   desk: p.desk ?? 0,
+  // Only on their feet: a seat, a bed or a game puts the dance down (`stopDance`).
+  dance: p.state === "idle" ? (p.dance ?? 0) : 0,
+  danceSince: p.state === "idle" ? (p.danceSince ?? 0) : 0,
   x: p.x,
   y: p.y,
   facing: p.facing,
@@ -368,7 +380,12 @@ export const world = actor({
     jumps: new Map<number, number>(),
     /** When each player last tossed a coin in the fountain, so a held key can't flood the ledger. */
     tosses: new Map<number, number>(),
+    /** When each player last whacked the fastelavn barrel, and the barrel as `town` last said (null off the day). */
+    whacks: new Map<number, number>(),
+    barrel: null as Barrel | null,
+    barrelAt: 0,
     chat: new RateLimiter(CHAT_PER_MIN, 60_000),
+    dances: new RateLimiter(DANCES_PER_MIN, 60_000),
     occupancy: "",
     /** The last `houses` sent to town, as JSON. */
     houses: "",
@@ -519,6 +536,10 @@ export const world = actor({
         c.vars.keynotesAt = now + KEYNOTES_EVERY_MS;
         void refreshKeynotes(c);
       }
+      if (now >= c.vars.barrelAt) {
+        c.vars.barrelAt = now + BARREL_EVERY_MS;
+        void refreshBarrel(c, now);
+      }
       if (TAVERN && n % WATCH_EVERY === 0) watchBeat(c, now);
       copBeat(c, now);
       if (TAVERN) tavernBeat(c, n, now);
@@ -562,6 +583,7 @@ export const world = actor({
       c.vars.online.set(userId, (c.vars.online.get(userId) ?? 0) + 1);
       p.lastInputAt = Date.now();
       p.dozing = false;
+      stopDance(p);
       const from = p.room;
       if (wake(c.state, p)) c.vars.dirty.add(p.id);
       sendInfo(c, p, info(p, true), from);
@@ -572,6 +594,7 @@ export const world = actor({
       c.conn.send("grid", c.vars.grid.grid);
       c.conn.send("keynotes", c.vars.keynotes);
       c.conn.send("stars", starsOf(c.state.stars ?? NO_STARS));
+      c.conn.send("barrel", c.vars.barrel);
       if (p.room === "inn") {
         sendJukebox(c, Date.now(), userId);
         sendPoker(c, Date.now(), userId);
@@ -604,6 +627,8 @@ export const world = actor({
       p.facing = rawDir;
       p.state = "idle";
       c.vars.dirty.add(p.id);
+      // Walking off ends a dance (turning on the spot too: an arrow key is how you walk away).
+      if (stopDance(p)) sendInfo(c, p, info(p, true));
       return typedSwitch(stepTarget(mapOf(p.room), p.x, p.y, rawDir), "kind", {
         move: (target) => {
           if (p.room === "town" && onProp(c.state, c.vars, target.x, target.y)) return correction(p);
@@ -634,6 +659,38 @@ export const world = actor({
       sendToRoom(c, p.room, "jump", userId);
     },
 
+    /**
+     * The dance bar: start a dance you know (a free one, or one in your bag), or stop with 0. It goes on until
+     * you stop it, step, sit down or leave; everyone in the room sees it (`info.dance`).
+     */
+    dance: async (c, index: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p) return;
+      const now = Date.now();
+      if (!c.vars.dances.take(String(userId), now))
+        throw new UserError("Slow down a little.", { code: "rate_limited" });
+      touch(c, p, now);
+      if (index === 0) {
+        if (stopDance(p)) sendInfo(c, p, info(p, true));
+        return;
+      }
+      const d = Number.isInteger(index) ? danceAt(index as number) : undefined;
+      if (!d) throw new UserError("That's not a dance.", { code: "not_found" });
+      const standing = () => {
+        if (p.state !== "idle")
+          throw new UserError("Get up first: you dance on your feet.", { code: "busy" });
+      };
+      standing();
+      if (!isFree(d) && !(await main(c.client()).town.knowsDance(userId, danceId(d.index))))
+        throw new UserError(`Learn ${d.name} at Thread & Token first.`, { code: "not_owned" });
+      // They may have sat down or started a game while `town` answered.
+      standing();
+      p.dance = d.index;
+      p.danceSince = now;
+      sendInfo(c, p, info(p, true));
+    },
+
     /** E while facing a free seat: sits you on it (beds lie you down). */
     sit: (c, facing: unknown): StepResult => {
       const p = free(c);
@@ -653,6 +710,7 @@ export const world = actor({
       if (!seat && !outage) return null;
       if (taken) return { notice: "Someone's already there." };
       Object.assign(p, { x, y, state: "sit", facing: seat === "chair" ? "up" : "down" });
+      if (stopDance(p)) sendInfo(c, p, info(p, true));
       c.vars.dirty.add(p.id);
       // A bench is the day's bench quest, once per bench.
       if (TAVERN && seat === "bench") questEvent(c, userId, "bench", `bench:${p.room}:${x},${y}`);
@@ -686,6 +744,47 @@ export const world = actor({
         return { notice: "That didn't work. Try again." };
       }
       return { notice: "⛲ Plink. You toss a coin in and wish for a green CI." };
+    },
+
+    /**
+     * E facing the fastelavn barrel on Fastelavn Sunday: a whack (`town.whack`). The one that breaks it makes its
+     * player kattekonge; the town hears, and everyone who whacked it is told what they found.
+     */
+    whack: async (c, facing: unknown): Promise<StepResult> => {
+      const p = free(c);
+      if (p?.room !== "town") return null;
+      const now = Date.now();
+      touch(c, p, now);
+      if (isFacing(facing)) p.facing = facing;
+      const [dx, dy] = DIRS[p.facing];
+      if (!isBarrel(p.x + dx, p.y + dy, now)) return null;
+      if (now - (c.vars.whacks.get(p.id) ?? 0) < WHACK_MS) return null;
+      c.vars.whacks.set(p.id, now);
+      let r: Whack;
+      try {
+        r = await main(c.client()).town.whack(p.id);
+      } catch (err) {
+        console.warn(`[whack] ${p.id}: ${String(err)}`);
+        return { notice: "That didn't work. Try again." };
+      }
+      keepBarrel(c, r.barrel);
+      const { king, hits } = r.barrel;
+      if (r.loot) {
+        await announce(
+          c,
+          "town",
+          `🐱 ${p.name} broke the fastelavn barrel and is kattekonge!`,
+          0,
+          "🪅",
+        ).catch((err) => console.warn(`[whack] announce: ${String(err)}`));
+        for (const l of r.loot)
+          if (l.userId !== p.id)
+            sendToUser(c, l.userId, "notice", { text: lootLine(l), open: "bag" } satisfies Notice);
+        const mine = r.loot.find((l) => l.userId === p.id);
+        return { notice: `🐱 You broke it: kattekonge! ${mine ? lootLine(mine) : ""}`.trim() };
+      }
+      if (king) return { notice: `🐱 Already broken. ${king.name} is kattekonge this year.` };
+      return { notice: `🪅 Whack! ${HITS - hits} to go.` };
     },
 
     /** E while facing a coffee machine: one more cup, and everyone sees you shake. */
@@ -1079,6 +1178,7 @@ export const world = actor({
           if (p.state === "idle" || p.state === "sit") p.back = spotOf(p, p.state);
           else p.back ??= restedSpot(p);
           Object.assign(p, { room: "town", x: seat.x, y: seat.y, facing: seat.facing, state: "playing" });
+          if (stopDance(p)) sendInfo(c, p, info(p, c.vars.online.has(p.id)));
         } else {
           p.arena = seat;
           if (p.state === "away" || p.state === "working") rest(c.state, p, "working");
@@ -1195,7 +1295,14 @@ export const world = actor({
       sendToRoom(c, p.room, "moves", { room: p.room, join: [], m: [], leave: [userId] } satisfies Moves);
       delete c.state.players[userId];
       c.vars.housesStale = true;
-      for (const vars of [c.vars.online, c.vars.announced, c.vars.steps, c.vars.jumps, c.vars.tosses])
+      for (const vars of [
+        c.vars.online,
+        c.vars.announced,
+        c.vars.steps,
+        c.vars.jumps,
+        c.vars.tosses,
+        c.vars.whacks,
+      ])
         vars.delete(userId);
       for (const set of [c.vars.dirty, c.vars.hidden]) set.delete(userId);
       for (const conn of c.conns.values()) {
@@ -1444,6 +1551,7 @@ type Vars = {
   graves: Stone[];
   keynotes: Keynote[];
   keynotesPushed: number;
+  barrel: Barrel | null;
   watched: Set<string>;
   weather: Weather;
   grid: GridState;
@@ -1603,6 +1711,7 @@ const restedSpot = (p: WorldPlayer): NonNullable<WorldPlayer["back"]> =>
 /** Sends `p` to their bed (`away`) or desk (`working`) at home, remembering where they were. */
 function rest(s: WorldState, p: WorldPlayer, state: "away" | "working"): void {
   if (p.state === "idle" || p.state === "sit") p.back = spotOf(p, p.state);
+  stopDance(p);
   // In a battle, they rest at their arena desk, typing away.
   if (p.arena) {
     Object.assign(p, { room: "town", x: p.arena.x, y: p.arena.y, facing: p.arena.facing, state: "working" });
@@ -1656,6 +1765,14 @@ function wake(s: WorldState, p: WorldPlayer): boolean {
   return true;
 }
 
+/** Ends `p`'s dance, if they're doing one; true if they were (their `info` changed). */
+function stopDance(p: WorldPlayer): boolean {
+  if (!p.dance) return false;
+  p.dance = 0;
+  p.danceSince = 0;
+  return true;
+}
+
 /** Input from `p`: wakes them if they were dozing. */
 function touch(c: Sender & { vars: Vars }, p: WorldPlayer, now: number): void {
   p.lastInputAt = now;
@@ -1673,7 +1790,8 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
   for (const p of Object.values(s.players)) {
     if (p.state === "playing" || isBot(p.id)) continue;
     if (v.online.has(p.id)) {
-      if (!p.dozing && now - p.lastInputAt > IDLE_MS) {
+      // A dance goes on until it's stopped: nobody nods off in the middle of one.
+      if (!p.dozing && !p.dance && now - p.lastInputAt > IDLE_MS) {
         p.dozing = true;
         dozed.push(p);
       }
@@ -1695,6 +1813,8 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
 const onProp = (s: WorldState, v: Pick<Vars, "launches" | "graves">, x: number, y: number) =>
   isCart(x, y) ||
   isTruck(x, y, Date.now()) ||
+  isBarrel(x, y, Date.now()) ||
+  isBonfire(x, y, Date.now()) ||
   (isStand(x, y) && activeLaunches(Date.now(), v.launches).length > 0) ||
   stoneAt(v.graves, x, y) !== undefined ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
@@ -1933,6 +2053,44 @@ async function refreshKeynotes(c: {
   } catch (err) {
     console.warn(`[keynotes] ${String(err)}`);
   }
+}
+
+// MARK: Fastelavn (core/src/fastelavn.ts)
+
+/** On Fastelavn the barrel is asked of `town` this often (whacks through this world keep it fresher). */
+const BARREL_EVERY_MS = 60_000;
+
+/** What a whacker found: "🪅 In the barrel: 🪙 12 and Cat ears." */
+const lootLine = (l: { coins: number; items: string[] }): string =>
+  `🪅 In the barrel: 🪙 ${l.coins}${l.items.map((i) => ` and ${itemById(i)?.name ?? i}`).join("")}.`;
+
+/** The barrel off the day is nothing; on it, `town`'s (a failed call keeps what we had). */
+async function refreshBarrel(
+  c: {
+    vars: Vars;
+    client: () => Parameters<typeof main>[0];
+    broadcast(name: string, ...args: unknown[]): void;
+  },
+  now: number,
+): Promise<void> {
+  if (!barrelUp(now)) return keepBarrel(c, null);
+  try {
+    keepBarrel(c, await main(c.client()).town.barrel());
+  } catch (err) {
+    console.warn(`[barrel] ${String(err)}`);
+  }
+}
+
+/** Keeps the barrel and tells everyone when it changed. */
+function keepBarrel(
+  c: { vars: Vars; broadcast(name: string, ...args: unknown[]): void },
+  b: Barrel | null,
+): void {
+  const was = c.vars.barrel;
+  if (was === b || (was && b && was.hits === b.hits && was.king?.id === b.king?.id && was.year === b.year))
+    return;
+  c.vars.barrel = b;
+  c.broadcast("barrel", b);
 }
 
 /** Keeps the schedule, and tells everyone when it changed: the screen goes up or down on its own clock. */
@@ -2813,6 +2971,7 @@ async function pokerSitDown(c: PokerCtx, p: WorldPlayer, at: number): Promise<St
     return null;
   }
   Object.assign(p, { x: chair.x, y: chair.y, state: "sit", facing: chair.facing });
+  if (stopDance(p)) sendInfo(c, p, info(p, true));
   c.vars.dirty.add(p.id);
   pokerSync(c, Date.now());
   return correction(p);

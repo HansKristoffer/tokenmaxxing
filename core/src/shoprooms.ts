@@ -24,6 +24,7 @@ export type ShopTab =
   | "back"
   | "pet"
   | "petwear"
+  | "dance"
   | "furniture"
   | "decor"
   | "desk"
@@ -446,7 +447,7 @@ export function displayTab(shop: ShopId, x: number, y: number): ShopTab | null {
 export const SHOP_SELLS: Record<ShopId, string> = {
   furniture:
     "Furniture, wallpaper and floors, monitors and desk setups, and company supplies (furniture, posters, house desks)",
-  clothes: "Outfits, hats, glasses, things to hold, back items and company merch",
+  clothes: "Outfits, hats, glasses, things to hold, back items, company merch and dances",
   barber: "Haircuts and colours (free), at the mirror",
   pets: "Pets and pet gear",
   natmarked: "Cases: a key opens one, and every case has its own hats, pets, outfits and furniture inside",
@@ -463,6 +464,7 @@ export function shopForSlot(slot: string): ShopId | null {
     case "held":
     case "back":
     case "merch":
+    case "dance":
       return "clothes";
     case "pet":
     case "petwear":
@@ -475,7 +477,7 @@ export function shopForSlot(slot: string): ShopId | null {
 /** The shop for a ShopTab (E on a display), so the Shop page can be filtered to it. */
 export const SHOP_TABS: Record<ShopId, readonly ShopTab[]> = {
   furniture: ["furniture", "decor", "desk", "company"],
-  clothes: ["outfit", "hat", "glasses", "held", "back"],
+  clothes: ["outfit", "hat", "glasses", "held", "back", "dance"],
   barber: ["look"],
   pets: ["pet", "petwear"],
   natmarked: ["case"],

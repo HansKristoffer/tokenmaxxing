@@ -1,3 +1,4 @@
+import { auraOf } from "@tokenmaxxing/core/dances.ts";
 import { effectiveDesk } from "@tokenmaxxing/core/desks.ts";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
@@ -48,7 +49,9 @@ import {
   wearsScarf,
 } from "./cold.ts";
 import { drawCop, isCop } from "./cop.ts";
+import { battlers, type Dance2D, dance2D, danceOf, rgbOf } from "./dance.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
+import { drawBarrel } from "./fastelavn.ts";
 import { drawFireworks } from "./fireworks.ts";
 import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
@@ -82,6 +85,7 @@ import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
+import { drawBonfire, lightBonfire } from "./sankthans.ts";
 import { seasonalCanvas, seasonLookNow, treeVariant } from "./seasons.ts";
 import {
   drawLight,
@@ -378,6 +382,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawGrid(f);
   drawPumpkins(f);
   drawTruck(f);
+  drawBarrel(f);
+  drawBonfire(f);
   drawChalkboards(f);
   drawClocks(f);
   drawTavern(f);
@@ -403,6 +409,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   const bedAt = owner === null ? undefined : map.find("Q")[0];
   // Off screen, someone (and their pet) still moves on, but nothing of them is drawn.
   const reach = 3 * TILE + (LABEL_REACH * dpr) / scale;
+  const fights = battlers(everyone);
   for (const [i, a] of everyone.entries()) {
     // A Sprint Race's racers run laps of the square instead of standing at the table.
     const lap = racing(a.info.id, now);
@@ -458,7 +465,17 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     if (pet && petSeen && petName && (!me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE))
       labels.push(() => petLabel(g, ...toScreen(pet.x + PET_W / 2, pet.y + PET_H + 1), petName, dpr));
     if (seen)
-      labels.push(() => avatarLabels(g, a, ...toScreen(px + TILE / 2, py - labelLift(a)), tile, now, dpr));
+      labels.push(() =>
+        avatarLabels(
+          g,
+          a,
+          ...toScreen(px + TILE / 2, py - labelLift(a)),
+          tile,
+          now,
+          dpr,
+          fights.has(a.info.id),
+        ),
+      );
   }
 
   items.sort((a, b) => a.y - b.y);
@@ -482,6 +499,10 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       lightTruck(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
+    // The Sankt Hans bonfire is lit in the June dusk, before the lamps come on.
+    g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
+    lightBonfire(g, glow, now);
+    g.setTransform(1, 0, 0, 1, 0, 0);
     drawNightSky(g, w, h, dpr, now);
     drawWeather(g, w, h, dpr, now);
   }
@@ -567,8 +588,22 @@ function drawAvatar(
     cold(px, py - 5, facing);
   } else {
     const walking = lap ? lap.running : stepping(a, now);
-    const facing = lap?.facing ?? a.facing;
-    const pose = poseFor(a.state, walking, now);
+    const dance = walking || lap ? undefined : danceOf(a);
+    // A dance's 2D take: the sprite turned, moved, flipped and stretched (`dance.ts`), its aura behind it.
+    const moves = dance ? dance2D(dance.move, now / 1000, a.facing) : null;
+    if (dance?.aura) {
+      const k = auraOf(a.info.danceSince ?? 0, Date.now());
+      drawGlow(
+        g,
+        px + 8,
+        py + 4,
+        12 + 10 * k,
+        rgbOf(dance.aura),
+        0.3 + 0.5 * k * (0.85 + 0.15 * Math.sin(now / 140)),
+      );
+    }
+    const facing = moves?.facing ?? lap?.facing ?? a.facing;
+    const pose = moves?.pose ?? poseFor(a.state, walking, now);
     // A hop: up and down on an arc, the shadow shrinking while they're in the air.
     const t = a.jump === null ? 1 : (now - a.jump) / JUMP_MS;
     const lift = t < 1 ? Math.round(Math.sin(t * Math.PI) * 7) : 0;
@@ -581,10 +616,31 @@ function drawAvatar(
     const top =
       py - 2 - lift - (pose === "walkA" ? 1 : 0) + (sneeze !== null && sneezeJolt(sneeze) > 0.5 ? 1 : 0);
     if (isCop(a)) drawCop(g, a, pose, px, top, py, now);
+    else if (moves) drawDancing(g, characterFrame(look, facing, pose), px, top, moves);
     else g.drawImage(characterFrame(look, facing, pose), px, top);
     cold(px, top, facing);
   }
   g.globalAlpha = 1;
+}
+
+/** A sprite drawn at (x, y) as a dance has it this frame: moved, mirrored, turned and stretched about its feet. */
+function drawDancing(
+  g: CanvasRenderingContext2D,
+  sprite: HTMLCanvasElement,
+  x: number,
+  y: number,
+  m: Dance2D,
+): void {
+  const w = sprite.width;
+  const h = sprite.height;
+  g.save();
+  // About the feet; upside down (a headspin), about the middle so it stays on its tile.
+  const pivotY = m.angle === Math.PI ? h / 2 : h;
+  g.translate(x + m.dx + w / 2, y + m.dy + pivotY);
+  g.rotate(m.angle);
+  g.scale(m.flip ? -1 / Math.sqrt(m.squash) : 1 / Math.sqrt(m.squash), m.squash);
+  g.drawImage(sprite, -w / 2, -pivotY);
+  g.restore();
 }
 
 /** The ghost of a piece being moved or placed (`furniture.ts`): its art over the aimed tiles, tinted green where it fits, red where it does not. */
