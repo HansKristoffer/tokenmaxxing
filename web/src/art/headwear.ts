@@ -296,13 +296,15 @@ export const FACE_ART: readonly Wear[] = [
     ".........bbb....",
     ".........bbb....",
   ]),
-  // Hygge moustache: a handlebar in your own hair colour.
+  // Hygge moustache: a handlebar in your own hair colour, wider than the face, its tips curled up.
   face({}, 6, [
-    "....H......H....",
-    "....HhhhhhhH....",
+    "..H..........H..",
+    "...hhhhHHhhhh...",
+    "....hh......hh..",
   ], [
-    "...........H....",
-    "........hhhH....",
+    ".............H..",
+    ".......hhhhhhH..",
+    "..........hh....",
   ]),
   // Eyepatch: black, its strap across the forehead.
   face({ k: "#1c1a24" }, 3, [

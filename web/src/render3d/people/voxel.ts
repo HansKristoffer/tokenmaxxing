@@ -301,12 +301,23 @@ function hat(h: Voxels, look: Look): void {
   }
 }
 
+/**
+ * A handlebar: a bar one cube proud of the face across the nose's row, its ends dropping a row and then
+ * curling up past the cheeks, a cube out at each side. Wider than the mouth, which is the row below.
+ */
+function moustache(h: Voxels, hair: string): void {
+  const tip = tint(hair, -0.18);
+  h.fill(-3, 2, 4, 3, 1, 1, hair).fill(1, 2, 4, 3, 1, 1, hair);
+  h.fill(-3, 1, 4, 1, 1, 1, hair).fill(3, 1, 4, 1, 1, 1, hair);
+  h.fill(-4, 2, 3, 1, 2, 1, tip).fill(4, 2, 3, 1, 2, 1, tip);
+}
+
 function humanHead(h: Voxels, look: Look, skin: string, hairColor: string): void {
   h.fill(0, 2, 4, 1, 1, 1, tint(skin, -0.1));
   h.fill(-4, 2, 0, 1, 2, 1, skin).fill(4, 2, 0, 1, 2, 1, skin);
   const hatted = look.hat !== "none" || !!look.job || !!look.covered;
   hair(h, look, hairColor, look.age === "senior" && look.style <= 1, hatted && look.hat !== "headphones");
-  if (look.beard >= 1) h.paint(-1, 2, 3, 1, 1, 1, hairColor).paint(1, 2, 3, 1, 1, 1, hairColor);
+  if (look.beard >= 1) moustache(h, hairColor);
   if (look.beard >= 2) {
     h.paint(-3, 0, 3, 7, 1, 1, hairColor);
     h.paint(-3, 1, 3, 2, 1, 1, hairColor).paint(2, 1, 3, 2, 1, 1, hairColor);
