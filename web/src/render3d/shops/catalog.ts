@@ -15,6 +15,7 @@ import type { Room } from "../rooms/room.ts";
 import { SHOP_BARBER } from "./barber.ts";
 import { SHOP_CLOTHES } from "./clothes.ts";
 import { INSET, SHOP_FURNITURE, type ShopItem, type ShopSpec } from "./furniture.ts";
+import { SHOP_NATMARKED } from "./natmarked.ts";
 import { SHOP_PETS } from "./pets.ts";
 
 export type { ShopItem, ShopSpec };
@@ -28,8 +29,9 @@ export const SHOP_SPECS: Record<ShopId, ShopSpec> = {
   clothes: SHOP_CLOTHES,
   barber: SHOP_BARBER,
   pets: SHOP_PETS,
+  natmarked: SHOP_NATMARKED,
 };
-export const SHOP_IDS: ShopId[] = ["furniture", "clothes", "barber", "pets"];
+export const SHOP_IDS: ShopId[] = ["furniture", "clothes", "barber", "pets", "natmarked"];
 /** The rooms and the storefronts' door tiles are the game's own (`core/src/shoprooms.ts`). */
 export { SHOP_DOOR_CHAR, SHOP_ROOM } from "@tokenmaxxing/core/shoprooms.ts";
 export const shopOfRoom = (room: string): ShopId | null =>

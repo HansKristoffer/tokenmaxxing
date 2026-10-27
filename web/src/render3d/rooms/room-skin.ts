@@ -225,12 +225,14 @@ export const SHOPKEEPER_BOT: Record<(typeof SHOP_IDS)[number], number> = {
   clothes: -6,
   barber: -7,
   pets: -8,
+  natmarked: -9,
 };
 const SHOP_VIEW: Partial<Record<(typeof SHOP_IDS)[number], number>> = {
   furniture: 11,
   clothes: 8.5,
   barber: 8,
   pets: 8.5,
+  natmarked: 9,
 };
 
 /** The company house, with its dropped furniture and posters and the company's desk fleet and colours. */

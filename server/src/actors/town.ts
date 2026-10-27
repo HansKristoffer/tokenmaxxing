@@ -1,3 +1,4 @@
+import { CASE_SHOP_ID, caseById } from "@tokenmaxxing/core/cases.ts";
 import {
   type CollectionState,
   ownedPins,
@@ -19,6 +20,7 @@ import type { Regulars } from "@tokenmaxxing/core/regulars.ts";
 import type { RequestEntry } from "@tokenmaxxing/core/requests.ts";
 import {
   emptySide,
+  type Item,
   isTradeable,
   itemById,
   itemsIn,
@@ -90,6 +92,7 @@ import {
   weeklyRegulars,
   writeActivity,
 } from "../town/card.ts";
+import { openCase, sellDuplicates, sellItem } from "../town/cases.ts";
 import {
   type BagRow,
   bag,
@@ -598,6 +601,7 @@ export const town = actor({
         throw new UserError("That one is earned, not bought.", { code: "not_for_sale" });
       if (editionById(item.id))
         throw new UserError("Only the traveling merchant sells that.", { code: "not_for_sale" });
+      if (item.case) throw new UserError("That one only comes out of a case.", { code: "not_for_sale" });
       if (item.loot) throw new UserError("That one drops in the raid.", { code: "not_for_sale" });
       if (item.company)
         throw new UserError("That one is for company buildings, from the company wallet.", {
@@ -607,6 +611,33 @@ export const town = actor({
       const k = await kept(c, Date.now());
       if (item.slot === "merch") return c.vars.serial(() => buyMerch(c.db, userId, item, Date.now(), k));
       return c.vars.serial(() => buy(c.db, userId, item, Date.now(), k));
+    },
+
+    // MARK: Cases
+
+    /** One opening of `caseId`, in the case shop: the key's coins out, a rolled item into the bag. */
+    openCase: async (c, caseId: unknown): Promise<{ item: Item; wallet: Wallet }> => {
+      const userId = requireUser(c.conn.state);
+      if (!caseById(caseId)) throw new UserError("There's no such case.", { code: "not_found" });
+      await inCaseShop(c, userId);
+      const k = await kept(c, Date.now());
+      return c.vars.serial(() => openCase(c.db, userId, caseId, Date.now(), k));
+    },
+
+    /** One case item to the vendor for coins by rarity. */
+    sellItem: async (c, itemId: unknown): Promise<Wallet> => {
+      const userId = requireUser(c.conn.state);
+      const k = await kept(c, Date.now());
+      const out = await c.vars.serial(() => sellItem(c.db, userId, itemId, Date.now(), k));
+      if (out.unworn) await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
+      return out.wallet;
+    },
+
+    /** Every copy past the first of each item of `caseId`, sold. */
+    sellDuplicates: async (c, caseId: unknown): Promise<{ wallet: Wallet; sold: number }> => {
+      const userId = requireUser(c.conn.state);
+      const k = await kept(c, Date.now());
+      return c.vars.serial(() => sellDuplicates(c.db, userId, caseId, Date.now(), k));
     },
 
     // MARK: Company furniture
@@ -1912,6 +1943,21 @@ async function inShop(
   if (shop === null) throw new UserError("That isn't sold in any shop.", { code: "not_for_sale" });
   const room = await main(c.client()).world.roomOfPlayer(userId);
   if (room !== SHOP_ROOM[shop]) throw new UserError(goToShop(shop), { code: "not_in_shop" });
+}
+
+/**
+ * The case shop's door rule, like `inShop`. `CASE_SHOP_ID` has to be a `ShopId` with a `SHOP_ROOM` entry
+ * (`shoprooms.ts`); until it is, only `SHOPS_ANYWHERE` lets anyone open a case.
+ */
+async function inCaseShop(
+  c: { client: () => Client; vars: { strictShops: Set<number> } },
+  userId: number,
+): Promise<void> {
+  if (process.env.SHOPS_ANYWHERE === "1" && !c.vars.strictShops.has(userId)) return;
+  const room = (SHOP_ROOM as Record<string, string | undefined>)[CASE_SHOP_ID];
+  if (!room) throw new UserError("The Night Market isn't open yet.", { code: "not_in_shop" });
+  if ((await main(c.client()).world.roomOfPlayer(userId)) !== room)
+    throw new UserError("Go to the Night Market to open a case.", { code: "not_in_shop" });
 }
 
 /**

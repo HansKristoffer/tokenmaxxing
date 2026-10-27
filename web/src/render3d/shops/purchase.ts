@@ -29,8 +29,8 @@ export type Purchase =
   | { kind: "variant"; pet: number; variant: number }
   /** Nothing to pay: free from the start (the creator's parts, the plain decor, the laptop). */
   | { kind: "free" }
-  /** Never sold: a level reward, raid loot, the traveling merchant's cart; or a holiday costume out of season. */
-  | { kind: "unsold"; why: "level" | "loot" | "edition" | "earned" | "season" }
+  /** Never sold: a level reward, raid loot, a case's item, the traveling merchant's cart; or a holiday costume out of season. */
+  | { kind: "unsold"; why: "level" | "loot" | "case" | "edition" | "earned" | "season" }
   | { kind: "unknown" };
 
 const MERCH_ID = /^merch\.[1-9]\d{0,9}\.([a-z]+)$/;
@@ -81,6 +81,7 @@ export function purchaseOf(id: string, now = Date.now()): Purchase {
   const item = itemById(id);
   if (!item) return { kind: "unknown" };
   if (item.company) return { kind: "piece", id };
+  if (item.case) return { kind: "unsold", why: "case" };
   if (item.loot) return { kind: "unsold", why: "loot" };
   if (item.level !== undefined) return { kind: "unsold", why: "level" };
   if (item.earned) return { kind: "unsold", why: "earned" };

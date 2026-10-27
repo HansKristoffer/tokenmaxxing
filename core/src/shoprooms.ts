@@ -1,6 +1,6 @@
 /**
- * The four physical shops as rooms: Møbelhuset (furniture), Thread & Token (clothes), Figaro's (barber) and
- * the pet shop. Their plans are the 3D shops' interiors tile for tile (web/src/render3d/shops): each map is the
+ * The physical shops as rooms: Møbelhuset (furniture), Thread & Token (clothes), Figaro's (barber), the pet shop
+ * and Natmarked (the night market hall where cases are sold). Their plans are the 3D shops' interiors tile for tile (web/src/render3d/shops): each map is the
  * interior at the world-grid inset `SHOP_INSET` (two wall rows on top, one wall column on the left), so a 3D
  * builder can generate the room from this file alone: sizes, the door, the counter, the shopkeeper's spot,
  * the seats (`c` chairs, `b` beds) and the displays (`DISPLAYS`: a tile and what E on it opens).
@@ -8,8 +8,8 @@
  * The tiles: `¢` the counter, `¤ § ¶ ¥` a shop's display (a shelf, rack, mirror or pen; on a wall, the sample
  * boards hung there), `‡` a fixture that is only to look at. Pure data: `maps.ts` builds the `GameMap`s.
  */
-export type ShopId = "furniture" | "clothes" | "barber" | "pets";
-export const SHOP_IDS: readonly ShopId[] = ["furniture", "clothes", "barber", "pets"];
+export type ShopId = "furniture" | "clothes" | "barber" | "pets" | "natmarked";
+export const SHOP_IDS: readonly ShopId[] = ["furniture", "clothes", "barber", "pets", "natmarked"];
 
 /**
  * What E on a display opens in the Shop page: an item slot's tab, or one of Møbelhuset's own: `furniture`,
@@ -28,7 +28,8 @@ export type ShopTab =
   | "decor"
   | "desk"
   | "company"
-  | "look";
+  | "look"
+  | "case";
 
 /** The room's own size (what the 3D room is built at), without the walls the map adds. */
 export interface ShopLayout {
@@ -61,6 +62,7 @@ export const SHOP_DOOR_CHAR: Record<ShopId, string> = {
   clothes: "Ç",
   barber: "Ð",
   pets: "ð",
+  natmarked: "Ñ",
 };
 /** The tile of each shop's displays inside. */
 export const SHOP_DISPLAY_CHAR: Record<ShopId, string> = {
@@ -68,16 +70,18 @@ export const SHOP_DISPLAY_CHAR: Record<ShopId, string> = {
   clothes: "§",
   barber: "¶",
   pets: "¥",
+  natmarked: "Ŧ",
 };
 /** The storefront's body in the town: 5 wide, 4 deep, the door in the middle of its bottom row. */
 export const SHOP_BODY_CHAR = "Ħ";
 
-export type ShopRoomId = "shop-furniture" | "shop-clothes" | "shop-barber" | "shop-pets";
+export type ShopRoomId = "shop-furniture" | "shop-clothes" | "shop-barber" | "shop-pets" | "shop-natmarked";
 export const SHOP_ROOM: Record<ShopId, ShopRoomId> = {
   furniture: "shop-furniture",
   clothes: "shop-clothes",
   barber: "shop-barber",
   pets: "shop-pets",
+  natmarked: "shop-natmarked",
 };
 
 export const shopOfRoom = (room: string): ShopId | null =>
@@ -401,6 +405,36 @@ export const SHOPS: Record<ShopId, ShopLayout> = {
       [17, 9, "pet"],
     ],
   },
+  natmarked: {
+    id: "natmarked",
+    map: SHOP_ROOM.natmarked,
+    name: "Natmarked",
+    sign: "NATMARKED",
+    w: 18,
+    d: 12,
+    door: [9, 13],
+    counter: [9, 10],
+    keeper: [9, 9],
+    keeperName: "Mei",
+    rows: [
+      "WWWWWWWWWWWWWWWWWWWW",
+      "WWWWWWWWWWWWWWWWWWWW",
+      "W‡ŦŦ‡ŦŦ‡ŦŦ‡ŦŦ‡ŦŦ‡ŦŦW",
+      "W__________________W",
+      "W‡‡‡c__________c‡‡‡W",
+      "W‡‡‡c__________c‡‡‡W",
+      "W__________________W",
+      "W____c‡c______c‡c__W",
+      "W__________________W",
+      "W‡________________‡W",
+      "W______¢¢¢¢¢¢______W",
+      "W__________________W",
+      "W‡________________‡W",
+      "W________x_________W",
+      "WWWWWWWWWWWWWWWWWWWW",
+    ],
+    displays: [2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18].map((x) => [x, 2, "case"] as const),
+  },
 };
 
 /** What E on tile (x, y) of a shop room opens, if it is one of the shop's displays. */
@@ -415,6 +449,7 @@ export const SHOP_SELLS: Record<ShopId, string> = {
   clothes: "Outfits, hats, glasses, things to hold, back items and company merch",
   barber: "Haircuts and colours (free), at the mirror",
   pets: "Pets and pet gear",
+  natmarked: "Cases: a key opens one, and every case has its own hats, pets, outfits and furniture inside",
 };
 
 /** The shop that sells an item of this slot: where `buy` must be called from. */
@@ -443,6 +478,7 @@ export const SHOP_TABS: Record<ShopId, readonly ShopTab[]> = {
   clothes: ["outfit", "hat", "glasses", "held", "back"],
   barber: ["look"],
   pets: ["pet", "petwear"],
+  natmarked: ["case"],
 };
 
 /** "Go to Møbelhuset to buy that." */

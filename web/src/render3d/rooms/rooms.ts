@@ -178,7 +178,7 @@ export function preloadRoom(id: string): void {
 
 /** The rooms a door of `id` leads to (kinds), for `preloadRoom`. */
 const NEXT: Record<string, readonly string[]> = {
-  town: ["inn", "hq", "dungeon", "shop-furniture", "shop-clothes", "shop-barber", "shop-pets"],
+  town: ["inn", "hq", "dungeon", "shop-furniture", "shop-clothes", "shop-barber", "shop-pets", "shop-natmarked"],
   inn: ["upstairs", "basement", "town"],
   upstairs: ["inn"],
   basement: ["inn", "dungeon"],

@@ -215,12 +215,14 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
           "level",
           p.why === "level"
             ? "That one is earned at a level, not bought."
-            : p.why === "loot"
-              ? "That one drops in the raid."
-              : p.why === "edition"
-                ? "Only the traveling merchant sells that."
-                : p.why === "season"
-                  ? offSeason(itemById(item.id)!.holiday!)
+            : p.why === "case"
+              ? "That one only comes out of a case."
+              : p.why === "loot"
+                ? "That one drops in the raid."
+                : p.why === "edition"
+                  ? "Only the traveling merchant sells that."
+                  : p.why === "season"
+                    ? offSeason(itemById(item.id)!.holiday!)
                   : "That one is earned, not bought.",
         );
       case "unknown":

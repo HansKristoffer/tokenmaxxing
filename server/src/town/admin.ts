@@ -254,7 +254,7 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
   const u = await userById(sql, userId);
   const playing = await one(
     sql,
-    `SELECT ref FROM ledger WHERE kind != 'admin' AND ref IN (SELECT ref FROM ledger WHERE user_id = ?)
+    `SELECT ref FROM ledger WHERE kind NOT IN ('admin', 'case', 'vendor') AND ref IN (SELECT ref FROM ledger WHERE user_id = ?)
      GROUP BY ref HAVING SUM(amount) < 0 LIMIT 1`,
     userId,
   );

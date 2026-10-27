@@ -1,3 +1,4 @@
+import { CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import type { DecorKind } from "@tokenmaxxing/core/decor.ts";
 import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
@@ -30,7 +31,7 @@ const GROUND: Record<string, Ground> = {
   // Posters hang on the wall, so their tile is wall underneath.
   ...Object.fromEntries(POSTERS.map((p) => [p.ch, "wall" as const])),
   // So do a personal office's frames and signs.
-  ...Object.fromEntries(HOME_PIECES.filter((p) => p.wall).map((p) => [p.ch, "wall" as const])),
+  ...Object.fromEntries([...HOME_PIECES, ...CASE_PIECES].filter((p) => p.wall).map((p) => [p.ch, "wall" as const])),
   ",": "path",
   ":": "plaza",
   '"': "flowers",
@@ -102,6 +103,7 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
         "shop-clothes",
         "shop-barber",
         "shop-pets",
+        "shop-natmarked",
       ],
       (): Ground => "floor",
     ),
@@ -184,6 +186,16 @@ function water(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: numbe
 
 /** An office floor by id (`decor.ts`): each paints a whole tile and repeats at 8 pixels, so tiles meet. */
 export const FLOOR_ART: Record<string, (p: Pen, ox: number, oy: number, x: number, y: number) => void> = {
+  // Natmarked's hall: dark, worn planks with a few paper scraps.
+  natmarked: (p, ox, oy, x, y) => {
+    p.rect(ox, oy, TILE, TILE, "#3a2a24");
+    for (let j = 0; j < TILE; j += 4) {
+      p.rect(ox, oy + j + 3, TILE, 1, "#26191a");
+      const joint = Math.floor(hash(x, y * 4 + j, 4) * TILE);
+      p.rect(ox + joint, oy + j, 1, 3, "#2e201b");
+    }
+    if (hash(x, y, 71) < 0.07) p.rect(ox + 4 + Math.floor(hash(y, x, 72) * 8), oy + 5, 3, 2, "#a42a22");
+  },
   linoleum: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#7fa88a");
     for (let j = 0; j < TILE; j++)
@@ -383,6 +395,13 @@ function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
 
 /** An office's wallpaper by id (`decor.ts`), on the wall's face; the top lip and the skirting are drawn over it. */
 export const WALL_ART: Record<string, (p: Pen, ox: number, oy: number, x: number, y: number) => void> = {
+  // Natmarked's hall: dark upright boards with a faint red paper-lantern glow along the top.
+  natmarked: (p, ox, oy, x, y) => {
+    p.rect(ox, oy, TILE, TILE, "#43302b");
+    for (let i = 0; i < TILE; i += 4) p.rect(ox + i, oy + 2, 1, TILE - 5, "#2f2019");
+    if (hash(x, y, 33) < 0.3) p.rect(ox + 5, oy + 7, 6, 1, "#5a3f36");
+    p.rect(ox, oy + 2, TILE, 1, "#5a2a26");
+  },
   hygge: (p, ox, oy, x, y) => {
     for (let j = 0; j < TILE; j++)
       p.rect(ox, oy + j, TILE, 1, j < 5 ? "#f0d8aa" : j < 10 ? "#f5e3bd" : "#f9ecd0");

@@ -258,6 +258,7 @@ const WORN = [
   ["glasses", "Glasses"],
   ["held", "In hand"],
   ["back", "On back"],
+  ["aura", "Aura"],
 ] as const;
 
 function You(props: {
@@ -301,9 +302,10 @@ function You(props: {
         <Items items={outfits} look={look} tryOn={tryOn} />
         {outfits.length === 0 && <More slot="outfit" />}
       </Row>
-      {WORN.map(([slot, label]) => (
+      {/* Nothing sells an aura: the row is there once the case has given you one. */}
+      {WORN.filter(([slot]) => slot !== "aura" || owned(slot).length > 0 || look.aura).map(([slot, label]) => (
         <Row key={slot} label={label}>
-          <Choice on={look[slot] === 0} label="None" onClick={() => tryOn({ ...look, [slot]: 0 })}>
+          <Choice on={(look[slot] ?? 0) === 0} label="None" onClick={() => tryOn({ ...look, [slot]: 0 })}>
             <span className="none">—</span>
           </Choice>
           <Items items={owned(slot)} look={look} tryOn={tryOn} />

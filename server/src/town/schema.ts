@@ -1,6 +1,7 @@
 import type { Sql } from "../actors/shared.ts";
 import { migrateAwards } from "./awards.ts";
 import { migrateCard } from "./card.ts";
+import { migrateCases } from "./cases.ts";
 import { migrateMerch } from "./companies.ts";
 import { migrateDesks } from "./desks.ts";
 import { migrateGrid } from "./grid.ts";
@@ -138,6 +139,7 @@ export async function migrate(sql: Sql): Promise<void> {
   await migrateQuests(sql);
   await migrateCard(sql);
   await migrateGrid(sql);
+  await migrateCases(sql);
   await migrateTournament(sql);
   await migratePoker(sql);
   await migrateRequests(sql);

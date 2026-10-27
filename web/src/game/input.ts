@@ -444,7 +444,7 @@ export function jump(): void {
 }
 
 /** What the shop pages open on at each shop's counter. */
-const COUNTER_TAB = { furniture: "furniture", clothes: "outfit", barber: "look", pets: "pet" } as const;
+const COUNTER_TAB = { furniture: "furniture", clothes: "outfit", barber: "look", pets: "pet", natmarked: "case" } as const;
 
 /** E in a shop room on its counter or a display: the Shop page on the matching tab (the barber opens the Bag on You). */
 function shopInteract(x: number, y: number): boolean {
@@ -452,6 +452,11 @@ function shopInteract(x: number, y: number): boolean {
   const kind = world.map.kind(x, y);
   if (!shop || !(kind.counter || kind.shop)) return false;
   const tab = kind.counter ? COUNTER_TAB[shop] : displayTab(shop, x, y);
+  // Natmarked sells cases, not items: its counter and its shelves open the case page.
+  if (tab === "case") {
+    hud.set({ panel: { kind: "caseShop" } });
+    return true;
+  }
   // The 3D renderer has its own buy card for a shelf of goods (the counter, the barber's mirror and
   // Møbelhuset's wallpaper, monitors and company supplies open the page's tab instead).
   const tabbed = tab === "decor" || tab === "desk" || tab === "company";

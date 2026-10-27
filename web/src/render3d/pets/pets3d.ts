@@ -7,12 +7,13 @@
  */
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
-import { PET_NAME, PET_NAMED, PET_SPECIES, PET_VARIANTS, PETWEAR, type Species } from "../data/pets.ts";
+import { PET_NAME, PET_NAMED, PET_VARIANTS, PETWEAR, type Species, speciesAt } from "../data/pets.ts";
 import type { Asset } from "../furniture/furniture.ts";
 import { glow, liveModel, Model, toon } from "../kit/kit.ts";
 import { gaitSettled, newGait, stepGait, walkPose } from "../people/motion.ts";
 import { Freezer, TINY_PX, view } from "../perf/freeze.ts";
 import { dragon, duck, ghost, goldfish, golem, orb, piggy } from "./pets3d-misc.ts";
+import { crane, kitsune, koi, maneki, tanuki, tengu } from "./pets3d-night.ts";
 import { quad } from "./pets3d-quad.ts";
 import type { Rig } from "./petvox.ts";
 
@@ -172,6 +173,18 @@ export class Pet3D {
                 ? ghost()
                 : species === "piggy"
                   ? piggy()
+                  : species === "koi"
+                    ? koi()
+                    : species === "crane"
+                      ? crane()
+                      : species === "tanuki"
+                        ? tanuki()
+                        : species === "maneki"
+                          ? maneki()
+                          : species === "kitsune"
+                            ? kitsune()
+                            : species === "tengu"
+                              ? tengu()
                   : species === "cat" || species === "dog" || species === "panda" || species === "forkedcat"
                     ? quad(species, variant, outfit)
                     : orb();
@@ -315,11 +328,11 @@ export class Pet3D {
 
 /**
  * The 3D twin of a 2D pet. `species` is `Look.pet` (1 duck, 2 cat, 3 dog, 4 dragon, 5 panda, 6 Singularity
- * orb, 7 to 11 the boss-loot pets) or its name; `variant` is `Look.petVariant` (0 the original, n the
+ * orb, 7 to 11 the boss-loot pets, 200 to 205 the Night Market case's) or its name; `variant` is `Look.petVariant` (0 the original, n the
  * n-th of `PET_VARIANTS`) or the variation's id; `name` is the pet's name, which dresses Penny and Nemo.
  */
 export function petFrom2D(species: number | string, variant: number | string = 0, name = ""): Pet3D {
-  const sp: Species = (typeof species === "number" ? PET_SPECIES[species] : (species as Species)) ?? "duck";
+  const sp: Species = (typeof species === "number" ? speciesAt(species) : (species as Species)) ?? "duck";
   const id =
     typeof variant === "number" ? (variant > 0 ? (PET_VARIANTS[sp]?.[variant - 1] ?? "") : "") : variant;
   const clean = name.trim().toLowerCase();

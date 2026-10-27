@@ -67,7 +67,7 @@ room(["inn", "upstairs"], async () => {
 });
 
 // The four shops: the shop's own room, mounted like the Tavern, with the map its blocked tiles make.
-room(["shop-furniture", "shop-clothes", "shop-barber", "shop-pets"], async () => {
+room(["shop-furniture", "shop-clothes", "shop-barber", "shop-pets", "shop-natmarked"], async () => {
   const { SHOP_IDS, SHOP_ROOM, shopRoom } = await import("../shops/catalog.ts");
   for (const id of SHOP_IDS)
     registerRoomSkin(SHOP_ROOM[id], () => {
@@ -128,6 +128,7 @@ const ALL: MapId[] = [
   "shop-clothes",
   "shop-barber",
   "shop-pets",
+  "shop-natmarked",
   "basement",
   "office",
   "dungeon",

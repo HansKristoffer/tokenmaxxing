@@ -18,6 +18,8 @@ import { AppSignIn } from "./AppSignIn.tsx";
 import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
 import { Bag } from "./Bag.tsx";
+import { CaseOpening } from "./CaseOpening.tsx";
+import { CaseShop } from "./CaseShop.tsx";
 import { Chat } from "./Chat.tsx";
 import { Collection } from "./Collection.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
@@ -436,6 +438,8 @@ function Panel() {
     decor: () => <DecorPanel />,
     desk: () => <DeskPanel />,
     changelog: () => <ChangelogPanel />,
+    caseOpening: () => <CaseOpening />,
+    caseShop: () => <CaseShop />,
     menu: () => (
       <Modal title="Menu">
         <nav className="menu">

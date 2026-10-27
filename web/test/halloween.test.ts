@@ -21,7 +21,7 @@ const { purchaseOf } = await import("../src/render3d/shops/purchase.ts");
 /** Halloween night, and a day in June. */
 const HALLOWEEN = new Date("2026-10-31T20:00:00Z");
 const JUNE = new Date("2027-06-10T12:00:00Z");
-const map = townMap([plotId(2, 0), plotId(0, 2)]);
+const map = townMap([plotId(-2, 0), plotId(0, 2)]);
 /** Tiles to the 3D town's world units, as `buildTown3d` lays them out. */
 const toWorld = (tx: number, ty: number): [number, number] => [tx - map.x0 + 1.5, ty - map.y0 + 1.5];
 

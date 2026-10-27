@@ -38,6 +38,7 @@ for (const [name, door] of [
   ["clothes", "Ç"],
   ["barber", "Ð"],
   ["pets", "ð"],
+  ["natmarked", "Ñ"],
 ]) {
   await worst();
   const r = await go(door);

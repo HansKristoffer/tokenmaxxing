@@ -479,6 +479,234 @@ function neonSign(p: Pen, f: number): void {
   for (const [x, y, late] of lit) p.px(x, y, on(late) ? shade(t, 0.55) : shade(t, -0.45));
 }
 
+// MARK: Night Market (the case's furniture, `core/src/case-furniture.ts`)
+
+const N = {
+  red: "#d8402f",
+  redDark: "#a42a22",
+  redLight: "#f06a4a",
+  lacquer: "#23202b",
+  paper: "#fff1c9",
+  gold: "#e9b73d",
+  glow: "#ffd36a",
+  pink: "#ff5fa2",
+  teal: "#2f7f9a",
+  tealDark: "#1f5470",
+  tealLight: "#5cb7c9",
+  navy: "#2b3358",
+} as const;
+
+/** A paper lantern: `cx` its centre column, `top` its cap row; 7 wide, 8 tall with the tassel. */
+function paperLantern(p: Pen, cx: number, top: number, color: string, lit: boolean): void {
+  p.rect(cx - 1, top, 3, 1, C.ink);
+  p.rect(cx - 3, top + 1, 7, 6, C.ink);
+  p.rect(cx - 2, top + 1, 5, 5, color);
+  p.rect(cx - 1, top + 2, 3, 3, lit ? N.glow : shade(color, 0.3));
+  p.rect(cx - 2, top + 1, 5, 1, N.gold);
+  p.rect(cx - 2, top + 5, 5, 1, N.gold);
+  p.px(cx - 1, top + 2, N.paper);
+  p.rect(cx, top + 7, 1, 2, N.gold);
+}
+
+function nightLanterns(p: Pen, frame: number): void {
+  const sag = (x: number) => Math.round(2 * Math.sin((x / 31) * Math.PI));
+  for (let x = 1; x <= 30; x++) p.px(x, 1 + sag(x), C.ink);
+  p.rect(0, 0, 2, 3, K.brass);
+  p.rect(30, 0, 2, 3, K.brass);
+  p.px(0, 0, C.ink);
+  p.px(31, 0, C.ink);
+  [
+    [5, N.red],
+    [11, K.orange],
+    [16, N.pink],
+    [21, K.orange],
+    [27, N.red],
+  ].forEach(([x, c], i) => {
+    const cx = x as number;
+    paperLantern(p, cx, 2 + sag(cx), c as string, (i + frame) % 2 === 0);
+  });
+}
+
+function nightKoiRug(p: Pen): void {
+  oval(p, 16, 15, 15, 8, N.lacquer);
+  oval(p, 16, 15, 14, 7, N.red);
+  oval(p, 16, 15, 13, 6, N.paper);
+  oval(p, 16, 15, 12, 5, N.tealDark);
+  oval(p, 16, 15, 10, 4, N.teal);
+  // Ripples and two lily pads.
+  dots(
+    p,
+    [
+      [9, 14],
+      [10, 15],
+      [23, 13],
+      [22, 12],
+      [16, 16],
+    ],
+    N.tealLight,
+  );
+  p.disc(8, 17, 1, K.green);
+  p.px(8, 16, K.pink);
+  p.disc(24, 18, 1, K.green);
+  // An orange koi swimming right, a white one with red patches swimming left.
+  const koi = (x: number, y: number, dir: 1 | -1, body: string, patch: string) => {
+    const fin = shade(body, -0.25);
+    p.rect(x, y, 7, 3, body);
+    p.rect(x + (dir === 1 ? 1 : 3), y, 3, 1, patch);
+    p.rect(x + (dir === 1 ? 4 : 1), y + 2, 2, 1, patch);
+    p.rect(x + (dir === 1 ? 0 : 6), y + 1, 1, 1, fin);
+    p.px(x + (dir === 1 ? 6 : 0), y + 1, C.ink);
+    const tx = dir === 1 ? x - 3 : x + 7;
+    p.rect(tx, y + 1, 3, 1, fin);
+    p.px(tx + (dir === 1 ? 0 : 2), y, fin);
+    p.px(tx + (dir === 1 ? 0 : 2), y + 2, fin);
+    p.px(x + 3, y + 3, fin);
+  };
+  koi(14, 11, 1, K.orange, N.red);
+  koi(15, 17, -1, "#f6f1e8", K.orange);
+  p.rect(28, 20, 1, 1, N.gold);
+  p.rect(3, 20, 1, 1, N.gold);
+}
+
+function nightTeaStool(p: Pen, frame: number): void {
+  shadow(p, 2, 16, 12);
+  // Three legs, a cross brace, a round red cushion on a wooden seat.
+  p.rect(3, 9, 2, 7, C.ink);
+  p.rect(11, 9, 2, 7, C.ink);
+  p.rect(7, 9, 2, 7, C.ink);
+  p.rect(3, 9, 1, 7, K.teakLight);
+  p.rect(11, 9, 1, 7, K.teakLight);
+  p.rect(7, 9, 1, 7, K.teakLight);
+  p.rect(4, 13, 8, 1, K.teakDark);
+  p.rect(2, 7, 12, 3, C.ink);
+  p.rect(3, 7, 10, 2, K.teak);
+  p.rect(3, 6, 10, 1, N.redDark);
+  p.rect(4, 6, 8, 1, N.red);
+  // A cup of tea with steam.
+  p.rect(5, 3, 6, 4, C.ink);
+  p.rect(6, 3, 4, 3, K.cream);
+  p.rect(6, 3, 4, 1, N.tealLight);
+  p.rect(11, 4, 2, 2, C.ink);
+  p.px(12, 4, K.cream);
+  const dx = frame;
+  p.px(7 + dx, 1, K.chrome);
+  p.px(8 - dx, 0, K.chrome);
+  p.px(9 + dx, 2, K.chrome);
+}
+
+function nightRamenCounter(p: Pen, frame: number): void {
+  shadow(p, 1, 26, 30);
+  // The awning with its bulbs, and the noren curtain hanging from it.
+  box(p, 0, 0, 32, 5, N.red);
+  p.rect(1, 1, 30, 1, N.redLight);
+  for (let x = 3; x < 30; x += 5) p.px(x, 3, frame ? N.glow : K.brass);
+  for (const x of [3, 12, 21]) {
+    p.rect(x, 5, 8, 8, C.ink);
+    p.rect(x + 1, 5, 6, 7, N.navy);
+    p.rect(x + 3, 6, 2, 5, K.cream);
+    p.rect(x + 2, 8, 4, 1, K.cream);
+  }
+  p.rect(11, 5, 1, 7, C.ink);
+  p.rect(20, 5, 1, 7, C.ink);
+  // The counter: a plank top, a dark front with a red stripe, a shelf of two bowls.
+  box(p, 0, 14, 32, 3, K.teakLight);
+  box(p, 1, 17, 30, 9, K.teakDark);
+  p.rect(2, 20, 28, 2, N.red);
+  p.rect(2, 21, 28, 1, N.redDark);
+  for (const x of [8, 15, 22]) p.rect(x, 18, 1, 8, C.ink);
+  const bowl = (x: number) => {
+    p.rect(x, 11, 7, 4, C.ink);
+    p.rect(x + 1, 11, 5, 3, K.cream);
+    p.rect(x + 1, 11, 5, 1, K.yellow);
+    p.px(x + 2, 11, N.red);
+    p.px(x + 4, 11, K.green);
+    p.rect(x + 2, 14, 3, 1, N.red);
+  };
+  bowl(5);
+  bowl(20);
+  p.px(8 + frame, 9, K.chrome);
+  p.px(9 - frame, 8, K.chrome);
+  p.px(23 + frame, 9, K.chrome);
+  p.px(24 - frame, 8, K.chrome);
+  p.rect(13, 12, 1, 3, K.brass);
+  p.rect(15, 12, 1, 3, K.brass);
+}
+
+function nightClawMachine(p: Pen, frame: number): void {
+  shadow(p, 1, 30, 14);
+  // The cabinet and its marquee, whose bulbs chase.
+  box(p, 1, 0, 14, 30, N.navy);
+  box(p, 1, 0, 14, 5, N.pink);
+  for (let x = 3; x < 14; x += 2) p.px(x, 2, (x / 2 + frame) % 2 ? N.glow : K.cream);
+  // The glass box: plush toys piled at the bottom, the claw hanging from its rail.
+  box(p, 2, 6, 12, 14, K.glass);
+  p.rect(3, 7, 10, 12, K.glassDark);
+  p.rect(3, 7, 2, 12, K.glass);
+  p.rect(5, 7, 8, 1, C.ink);
+  const cx = 8 + frame;
+  p.rect(cx, 8, 1, 3, K.chrome);
+  p.rect(cx - 1, 11, 3, 1, K.brass);
+  p.px(cx - 1, 12, K.brass);
+  p.px(cx + 1, 12, K.brass);
+  p.rect(3, 15, 10, 4, K.pink);
+  p.rect(3, 16, 4, 3, K.yellow);
+  p.rect(8, 14, 4, 5, K.green);
+  p.disc(5, 15, 1, K.cream);
+  p.disc(10, 14, 1, K.cream);
+  dots(p, [[5, 16], [10, 15], [9, 17]], C.ink);
+  // The control panel: a joystick, two buttons and a coin slot; the chute below.
+  p.rect(2, 21, 12, 4, N.lacquer);
+  p.rect(4, 21, 1, 2, K.chrome);
+  p.disc(4, 21, 1, N.red);
+  p.disc(8, 23, 1, K.yellow);
+  p.disc(11, 23, 1, K.blue);
+  p.rect(12, 21, 1, 1, K.brass);
+  box(p, 3, 26, 10, 4, C.ink);
+  p.rect(4, 27, 8, 2, N.lacquer);
+}
+
+function nightTorii(p: Pen, frame: number): void {
+  // A pool of lantern light on the ground between the pillars.
+  oval(p, 24, 41, 18, 3, "rgba(255, 211, 106, 0.25)");
+  shadow(p, 4, 42, 40);
+  // The two pillars, each on a black stone base with a gold ring, shaded left to right.
+  for (const x of [8, 35]) {
+    p.rect(x - 1, 14, 7, 28, C.ink);
+    p.rect(x, 14, 5, 27, N.red);
+    p.rect(x, 14, 1, 27, N.redLight);
+    p.rect(x + 4, 14, 1, 27, N.redDark);
+    p.rect(x - 2, 38, 9, 5, C.ink);
+    p.rect(x - 1, 39, 7, 3, N.lacquer);
+    p.rect(x - 1, 39, 7, 1, "#3a3646");
+    p.rect(x, 20, 5, 1, N.gold);
+  }
+  // The lower tie beam, the plaque between, and the upper beams: the kasagi curls up at both ends.
+  box(p, 4, 15, 40, 4, N.red);
+  p.rect(5, 16, 38, 1, N.redLight);
+  box(p, 20, 7, 8, 9, N.lacquer);
+  p.rect(21, 8, 6, 7, N.gold);
+  p.rect(22, 9, 4, 1, N.lacquer);
+  p.rect(23, 9, 2, 5, N.lacquer);
+  p.rect(22, 11, 4, 1, N.lacquer);
+  p.rect(22, 13, 1, 1, N.lacquer);
+  p.rect(25, 13, 1, 1, N.lacquer);
+  p.rect(5, 7, 38, 3, C.ink);
+  p.rect(6, 7, 36, 2, N.red);
+  p.rect(6, 7, 36, 1, N.redLight);
+  box(p, 0, 3, 48, 4, N.lacquer);
+  p.rect(2, 4, 44, 1, "#3a3646");
+  p.rect(0, 1, 4, 3, N.lacquer);
+  p.rect(44, 1, 4, 3, N.lacquer);
+  p.px(0, 0, N.lacquer);
+  p.px(47, 0, N.lacquer);
+  p.rect(1, 2, 1, 1, "#3a3646");
+  // Four lanterns hang from the tie beam; a lit pair flickers in turn.
+  paperLantern(p, 14, 19, N.red, frame === 0);
+  paperLantern(p, 33, 19, N.red, frame === 0);
+  paperLantern(p, 3, 4, N.pink, frame === 1);
+  paperLantern(p, 44, 4, N.pink, frame === 1);
+}
+
 // MARK: Catalog
 
 const piece = (
@@ -523,4 +751,14 @@ export const HOME_FURNITURE: readonly FancyPiece[] = [
     frames: 2,
     frameMs: 900,
   }),
+];
+
+/** The Night Market case's pieces (`CASE_PIECES` in core/src/case-furniture.ts). */
+export const CASE_FURNITURE: readonly FancyPiece[] = [
+  piece("night-lanterns", "Lantern string", 2, 16, 0, nightLanterns, { frames: 2, frameMs: 600, placement: "wall", rarity: "common" }),
+  piece("night-koi-rug", "Koi rug", 2, 24, 0, nightKoiRug, { placement: "flat", rarity: "common" }),
+  piece("night-tea-stool", "Tea stool", 1, 18, 0, nightTeaStool, { frames: 2, frameMs: 500, rarity: "common" }),
+  piece("night-ramen-counter", "Ramen counter", 2, 28, 0, nightRamenCounter, { frames: 2, frameMs: 500, rarity: "uncommon" }),
+  piece("night-claw-machine", "Arcade claw machine", 1, 32, 0, nightClawMachine, { frames: 2, frameMs: 500, rarity: "uncommon" }),
+  piece("night-torii", "Torii gate", 3, 44, 0, nightTorii, { frames: 2, frameMs: 650, rarity: "rare" }),
 ];

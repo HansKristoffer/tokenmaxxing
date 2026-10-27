@@ -66,6 +66,7 @@ const PANELS = [
   ["shop-furniture", { kind: "shop", tab: "furniture" }],
   ["shop-clothes", { kind: "shop", tab: "outfit" }],
   ["shop-pets", { kind: "shop", tab: "pet" }],
+  ["shop-natmarked", { kind: "caseShop" }],
   ["bag", { kind: "bag" }],
   ["collection", { kind: "collection" }],
   ["merchant", { kind: "merchant" }],

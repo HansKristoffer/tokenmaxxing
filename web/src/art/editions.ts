@@ -1,7 +1,9 @@
+import { caseAt } from "@tokenmaxxing/core/case.ts";
 import { costumeAt } from "@tokenmaxxing/core/costumes.ts";
 import { editionAt } from "@tokenmaxxing/core/editions.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
+import { CASE_GLASSES, CASE_HATS } from "./case.ts";
 import type { View } from "./characters.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
@@ -12,7 +14,7 @@ import { bake, type Palette, type Pen } from "./pixels.ts";
  * a missing side or back view is the front one. Keyed by item id, so the catalog order is free.
  */
 
-interface Art {
+export interface Art {
   down: string[];
   side?: string[];
   up?: string[];
@@ -154,8 +156,9 @@ const GLASSES: Record<string, Art> = {
 };
 
 const artOf = (slot: "hat" | "glasses", index: number): Art | undefined => {
-  const e = editionAt(slot, index) ?? costumeAt(slot, index);
-  return e && (slot === "hat" ? HATS : GLASSES)[e.id];
+  const e = editionAt(slot, index) ?? costumeAt(slot, index) ?? caseAt(slot, index);
+  // The Night Market case's hats and glasses are drawn in `case.ts`.
+  return e && ((slot === "hat" ? HATS : GLASSES)[e.id] ?? (slot === "hat" ? CASE_HATS : CASE_GLASSES)[e.id]);
 };
 
 /** Draws `look`'s editions and costume over a character frame (`characterFrame`, `sleeperFrame`). */
