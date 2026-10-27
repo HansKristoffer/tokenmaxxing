@@ -78,6 +78,7 @@ import { drawTavern, lightTavern } from "./tavern.ts";
 import { drawTownAnimals } from "./town-life.ts";
 import { tremor2d, tremorPhase } from "./tremor.ts";
 import { drawTrophies } from "./trophies.ts";
+import { drawWindmills } from "./windmill.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
@@ -326,6 +327,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
 
   drawGames(f);
   drawStreet(f);
+  drawWindmills(f);
   drawLaunch(f);
   drawPicnic(f);
   drawChalkboards(f);
