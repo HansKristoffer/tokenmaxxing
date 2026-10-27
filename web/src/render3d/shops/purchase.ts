@@ -28,7 +28,7 @@ export type Purchase =
   /** Nothing to pay: free from the start (the creator's parts, the plain decor, the laptop). */
   | { kind: "free" }
   /** Never sold: a level reward, raid loot, the traveling merchant's cart. */
-  | { kind: "unsold"; why: "level" | "loot" | "edition" | "earned" }
+  | { kind: "unsold"; why: "level" | "loot" | "case" | "edition" | "earned" }
   | { kind: "unknown" };
 
 const MERCH_ID = /^merch\.[1-9]\d{0,9}\.([a-z]+)$/;
@@ -79,6 +79,7 @@ export function purchaseOf(id: string): Purchase {
   const item = itemById(id);
   if (!item) return { kind: "unknown" };
   if (item.company) return { kind: "piece", id };
+  if (item.case) return { kind: "unsold", why: "case" };
   if (item.loot) return { kind: "unsold", why: "loot" };
   if (item.level !== undefined) return { kind: "unsold", why: "level" };
   if (item.earned) return { kind: "unsold", why: "earned" };

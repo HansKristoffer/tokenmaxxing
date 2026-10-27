@@ -5,6 +5,7 @@
  * furniture for your office (`office.ts`). Everything bought or earned is a row in the bag.
  */
 import { isRecord } from "hanzio";
+import { CASE_ITEMS } from "./case.ts";
 import { EDITIONS } from "./editions.ts";
 import { HEADWEAR_ITEMS } from "./headwear.ts";
 import { HOME_PIECES } from "./home.ts";
@@ -45,6 +46,8 @@ export interface Item {
   earned?: string;
   /** Raid loot: which boss drops it, and how rarely (`loot.ts`). Never sold. */
   loot?: { boss: string; rarity: LootRarity };
+  /** Case item: only a case opening gives it, never sold and never dropped. */
+  case?: true;
   /** Company furniture: bought from a company wallet, for its building. */
   company?: true;
   /** Personal-office furniture: it goes down only in your own office (`canDropIn`). */
@@ -124,6 +127,8 @@ export const ITEMS: readonly Item[] = [
     blurb: l.blurb,
     loot: { boss: l.boss, rarity: l.rarity },
   })),
+  // The case's own: given by an opening, never sold, tradeable after a short lock (`case.ts`).
+  ...CASE_ITEMS,
   ...COMPANY_FURNITURE.map((f, index): Item => ({
     id: `furn.${f.ch}`,
     slot: "furniture",
