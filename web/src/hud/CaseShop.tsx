@@ -165,7 +165,10 @@ function CaseCard({
   const rows = useMemo(() => itemChances(def), [def]);
   // Like a CS knife: the case says there is a legendary in it, never which ones.
   const legendary = rows.filter((r) => r.tier === "legendary");
-  const legendaryOwned = legendary.reduce((a, r) => a + (bag.find((b) => b.item === r.item.id)?.count ?? 0), 0);
+  const legendaryOwned = legendary.reduce(
+    (a, r) => a + (bag.find((b) => b.item === r.item.id)?.count ?? 0),
+    0,
+  );
   const spare = useMemo(() => spareCopies(def, bag), [def, bag]);
   const short = def.keyPrice - balance;
   const tiers = [...new Set(rows.map((r) => r.tier))];
