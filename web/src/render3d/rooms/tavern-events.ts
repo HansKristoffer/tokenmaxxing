@@ -1,5 +1,6 @@
 import { TUNES } from "@tokenmaxxing/core/tunes.ts";
 import * as THREE from "three";
+import { clockFaces, clocksSign } from "../../game/clocks.ts";
 import { darknessNow, lightsNow, warmthNow } from "../../game/sky.ts";
 import { hud } from "../../store.ts";
 import { setPropsNight } from "../town/props.ts";
@@ -13,15 +14,16 @@ const v = new THREE.Vector3();
 
 /**
  * The Tavern's live bits on top of its boards (`live.ts`): a sign over the jukebox with the track, who put
- * it on and the skip votes (a click opens the jukebox), and the tip jar's coin, thrown when the server says
- * a toss landed. The jar no longer tosses by itself: a coin in it is somebody's. And the keynote watch party's
- * screen on the west wall (`keynote3d.ts`).
+ * it on and the skip votes (a click opens the jukebox), a sign over the world clocks while the launch window is
+ * open, and the tip jar's coin, thrown when the server says a toss landed. The jar no longer tosses by itself:
+ * a coin in it is somebody's. And the keynote watch party's screen on the west wall (`keynote3d.ts`).
  */
 export class TavernEvents {
   private el: HTMLDivElement | null = null;
   private text = "";
   private readonly at = new THREE.Vector3();
   private placed = false;
+  private clocks: { el: HTMLDivElement; text: string; at: THREE.Vector3 } | null = null;
   private hemi: THREE.HemisphereLight | null = null;
   private sun: THREE.DirectionalLight | null = null;
   private base = { hemi: 1, sun: 1 };
@@ -95,12 +97,35 @@ export class TavernEvents {
       this.el.textContent = text;
     }
     f.overlay.place(this.el, v.copy(this.at), f.camera, 0, 0, true);
+    this.clocksSign(f);
     this.poker.update(f);
     this.keynote.update(f);
   }
 
+  /** "🚀 Launch window · 09:12 in SF" over the clocks while SF's lamp is on; nothing while it's off. */
+  private clocksSign(f: LiveFrame): void {
+    const model = this.inn.by.get("tile:◷")?.[0];
+    if (!model) return;
+    if (!this.clocks) {
+      model.updateWorldMatrix(true, false);
+      const at = model.getWorldPosition(new THREE.Vector3());
+      at.y += 2.75;
+      this.clocks = { el: f.overlay.make("r3-sign"), text: "", at };
+    }
+    const c = this.clocks;
+    const text = clocksSign(clockFaces()) ?? "";
+    if (text !== c.text) {
+      c.text = text;
+      c.el.textContent = text;
+    }
+    if (text) f.overlay.place(c.el, v.copy(c.at), f.camera, 0, 0, true);
+    else if (c.el.style.display !== "none") c.el.style.display = "none";
+  }
+
   dispose(): void {
     setTavernNight(null);
+    this.clocks?.el.remove();
+    this.clocks = null;
     this.poker.dispose();
     this.keynote.dispose();
     this.el?.remove();
