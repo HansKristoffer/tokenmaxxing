@@ -5,6 +5,7 @@ import { migrateMerch } from "./companies.ts";
 import { migrateDesks } from "./desks.ts";
 import { migrateGrid } from "./grid.ts";
 import { migrateKeynotes } from "./keynotes.ts";
+import { migrateLaunchBonus } from "./launch-bonus.ts";
 import { migrateMerchant } from "./merchant.ts";
 import { migrateOffices } from "./offices.ts";
 import { migratePoker } from "./poker.ts";
@@ -132,6 +133,7 @@ export async function migrate(sql: Sql): Promise<void> {
   await migrateMerchant(sql);
   await migrateAwards(sql);
   await migrateTrophyAwards(sql);
+  await migrateLaunchBonus(sql);
   await migrateQuests(sql);
   await migrateCard(sql);
   await migrateGrid(sql);

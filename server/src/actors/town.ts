@@ -8,6 +8,7 @@ import {
 import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { clockAt, dateAt, type Keynote } from "@tokenmaxxing/core/keynote.ts";
+import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import { headlines, type Paper } from "@tokenmaxxing/core/paper.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
@@ -149,6 +150,7 @@ import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/ga
 import { recordGreen } from "../town/grid.ts";
 import { type HallOfFame, hallOfFame } from "../town/hall.ts";
 import { comingKeynotes, everyKeynote, markKeynote, removeKeynote, saveKeynote } from "../town/keynotes.ts";
+import { recordLaunches } from "../town/launch-bonus.ts";
 import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
 import {
@@ -868,6 +870,12 @@ export const town = actor({
     keynotes: (c): Promise<Keynote[]> => {
       requireInternal(c.conn.state);
       return comingKeynotes(c.db, Date.now());
+    },
+
+    /** From `world`: the launches it has read from OpenRouter, so a model used on its launch day pays (once each). */
+    launched: (c, launches: Launch[]): Promise<void> => {
+      requireInternal(c.conn.state);
+      return recordLaunches(c.db, launches);
     },
 
     /** From `world`: in the Tavern while keynote `keynoteId` is on its screen. True the first time. */

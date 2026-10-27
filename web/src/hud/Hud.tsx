@@ -297,6 +297,15 @@ function Stats() {
           🔥 <strong>×{wallet.streak}</strong>
         </span>
       )}
+      {wallet?.launches.map((l) => (
+        <span
+          key={l.id}
+          className="chip"
+          title={`${l.model} launched ${l.day} and you used it that day: +${l.coins} coins, paid once.`}
+        >
+          🚀 <strong>+{l.coins}</strong>
+        </span>
+      ))}
       {wallet && wallet.quests.length > 0 && <QuestTracker quests={wallet.quests} />}
       <button
         type="button"

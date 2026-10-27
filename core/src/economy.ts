@@ -135,3 +135,25 @@ export function streakNow(days: readonly string[], today: string): number {
   const steps = Math.min((all.get(last)! - 1) / STREAK_STEP + 1, STREAK_STEPS);
   return 1 + STREAK_STEP * Math.max(0, steps - STREAK_DECAY * (between(last, today) - 1));
 }
+
+// MARK: The new-model launch bonus
+
+/** What using a model on the day it launches pays, once per launch. */
+export const LAUNCH_COINS = 25;
+
+/**
+ * How a model is told apart across sources: lower case, no provider ("anthropic/"), dots as dashes, and
+ * no variant ("...:free"). OpenRouter's "anthropic/claude-opus-5.5" and a client's "claude-opus-5-5" both
+ * come out as "claude-opus-5-5".
+ */
+export const modelKey = (model: string): string =>
+  model.toLowerCase().replace(/^.*\//, "").replace(/:.*$/, "").replace(/\./g, "-");
+
+/**
+ * Whether a model a client reported is `key` (see `modelKey`), or a dated build of it: "claude-opus-5-5"
+ * counts for "claude-opus-5-5-20261027", but "claude-opus-5" doesn't count for "claude-opus-5-5".
+ */
+export const isModel = (reported: string, key: string): boolean => {
+  const r = modelKey(reported);
+  return r === key || (r.startsWith(`${key}-`) && /^\d{6,}/.test(r.slice(key.length + 1)));
+};
