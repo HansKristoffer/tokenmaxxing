@@ -1,7 +1,7 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { nextMilestone } from "@tokenmaxxing/core/stars.ts";
 import * as THREE from "three";
-import { lightsNow } from "../../game/sky.ts";
+import { lightsNow, weatherNow } from "../../game/sky.ts";
 import { starCount } from "../../game/stars.ts";
 import { world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
@@ -21,12 +21,13 @@ const TOWN_VIEW = 12;
 /**
  * The town, from `buildTown3d` (so its tiles are the 2D game's): houses for the real companies,
  * the Tavern, the pond, the boards. The street's schedules (the pølsevogn, the snail, the paperboy) follow
- * the game's clock.
+ * the game's clock, and the windmill turns with its weather.
  */
 export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const built = withTicks(() => buildTown3d([...ctx.companies], { arcade: false }));
   const town: Town3d = built.value;
   town.setClock(ctx.minutes);
+  town.setWeather(weatherNow);
   const [W, D] = town.size;
   const events = new TownEvents((tx, ty) => town.toWorld(tx, ty));
   const group = new THREE.Group();

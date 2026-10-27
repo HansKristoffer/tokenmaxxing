@@ -13,6 +13,7 @@ the most real tokens in an hour.
 A **star counter** on the square shows the project's GitHub stars, live; press E at it (or open the menu) to
 star the repo, and every milestone (100, 250, 500, 1000…) sets off fireworks over the square for everyone online.
 The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches.
+The town has Aarhus's real sky and weather, and the **windmill** beside the Tavern turns with the real wind: still in calm air, faster as it blows (up to a cap in a storm), its sails turned into it.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.

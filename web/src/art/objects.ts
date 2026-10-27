@@ -3,6 +3,7 @@ import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { isPoster, posterOf } from "@tokenmaxxing/core/posters.ts";
 import { SHOP_DISPLAY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
+import { WINDMILL } from "@tokenmaxxing/core/windmill.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { bigScreen, SCREEN_H, SCREEN_TILES, tournamentBoard, wallTerminal } from "./basement.ts";
 import { counter, windowPane, winsTile } from "./common.ts";
@@ -26,6 +27,7 @@ import {
   stool,
   table,
 } from "./tavern.ts";
+import { MILL_H, millTower } from "./windmill.ts";
 
 /** A baked sprite and where it sits relative to its tile's top-left corner. */
 interface Placed {
@@ -604,6 +606,11 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(bench());
     case "F":
       return map.at(x - 1, y) !== "F" && map.at(x, y - 1) !== "F" ? at(fountain(), 0, 0) : null;
+    // The windmill's tower, standing on its 2×2 tiles; its sails turn in `game/windmill.ts`.
+    case WINDMILL:
+      return map.at(x - 1, y) !== ch && map.at(x, y - 1) !== ch
+        ? at(millTower(), 0, TILE * 2 - MILL_H)
+        : null;
     case "b":
       return at(bed());
     case "d":
@@ -717,5 +724,5 @@ export const sortY = (ch: string): number => {
   // A rug lies under everyone, a chandelier hangs over them; a personal office's wall pieces hang behind.
   if (placement === "flat" || (placement === "wall" && isHomePiece(ch))) return -TILE;
   if (placement === "ceiling") return TILE * 4;
-  return ch === "F" ? TILE * 2 - 2 : ch === "b" || ch === "s" || ch === "Q" ? 0 : TILE - 1;
+  return ch === "F" || ch === WINDMILL ? TILE * 2 - 2 : ch === "b" || ch === "s" || ch === "Q" ? 0 : TILE - 1;
 };
