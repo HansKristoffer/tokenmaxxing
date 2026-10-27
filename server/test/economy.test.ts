@@ -5,6 +5,7 @@ import { PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { TxSql } from "../src/actors/shared.ts";
 import { balances, wallet } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
+import { trophyStep } from "../src/town/trophy-awards.ts";
 import { memorySql } from "./memory-sql.ts";
 
 let sql: TxSql;
@@ -66,5 +67,25 @@ describe("the new ways to earn", () => {
     // Streak to Gold: 10 + 25 + 50. A first Shipper: 10.
     expect((await wallet(sql, 1, NOW)).balance).toBe(base + 95);
     expect((await balances(sql, NOW)).get(1)).toBe(base + 95);
+  });
+
+  test("trophies are paid once, from what a sweep recorded", async () => {
+    const base = (await wallet(sql, 1, NOW)).balance;
+    const trophies = [
+      { id: "million", day: "2026-12-01" },
+      { id: "piday", day: "2026-03-14" },
+      { id: "zeros", day: "2026-12-02" },
+    ];
+    // The backfill reads everyone, 10 a sweep, then the ones who synced.
+    const dirty = new Set<number>();
+    expect([...(await trophyStep(sql, dirty, NOW, async () => trophies)).values()]).toEqual([
+      ["million", "piday", "zeros"],
+    ]);
+    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 5 + 25);
+    expect((await balances(sql, NOW)).get(1)).toBe(base + 5 + 25);
+    // A later look finds nothing new, and pays nothing again.
+    dirty.add(1);
+    expect((await trophyStep(sql, dirty, NOW, async () => trophies)).size).toBe(0);
+    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 5 + 25);
   });
 });

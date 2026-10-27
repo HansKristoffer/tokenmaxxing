@@ -164,6 +164,7 @@ import { paperFacts } from "../town/street.ts";
 import { brand, push, pushOffice, pushPlayers } from "../town/sync.ts";
 import { giveTicket } from "../town/tickets.ts";
 import * as tourney from "../town/tournament.ts";
+import { trophyStep } from "../town/trophy-awards.ts";
 import { levelOf, lookOf, type PlayerCore, playerCores, userById } from "../town/users.ts";
 import { parseBio, parseCompanyName, parseUserName, parseWebsite } from "../validate.ts";
 import type { registry } from "./registry.ts";
@@ -314,6 +315,8 @@ export const town = actor({
     /** Who synced since their badges were last looked at (`awardStep`), and when each last was. */
     dirty: new Set<number>(),
     swept: new Map<number, number>(),
+    /** Who synced since their trophies were last read (`trophyStep`). */
+    trophyDirty: new Set<number>(),
     /** `collectionOf` per player for a minute: opened from cards and the log, which poll nothing. */
     collections: new Map<number, { at: number; state: Promise<CollectionState> }>(),
     /** The Hall of Fame, a minute at most, gone with a fresh award. */
@@ -885,6 +888,15 @@ export const town = actor({
       } catch (err) {
         console.warn(`[sweep] awards: ${String(err)}`);
       }
+      try {
+        const now = Date.now();
+        // Trophies are the player's own events, kept in their actor: the town records them to pay them.
+        await trophyStep(c.db, c.vars.trophyDirty, now, (id) =>
+          c.client<typeof registry>().player.get([String(id)], internal).trophies(),
+        );
+      } catch (err) {
+        console.warn(`[sweep] trophies: ${String(err)}`);
+      }
       const ids = await unclaimed(c.db, Date.now() - DROP_TTL);
       if (ids.length === 0) return;
       // Off the floor first: if `world` is down, nothing changed and the next sweep tries again.
@@ -1127,6 +1139,7 @@ export const town = actor({
       if (days.some((d) => d < dayKey(Date.now()))) c.vars.podiums = null;
       // Their badges are looked at in the next sweep, not here: a sync is busy enough.
       c.vars.dirty.add(userId);
+      c.vars.trophyDirty.add(userId);
       c.vars.collections.delete(userId);
       await placeStarter(c.client<typeof registry>(), drops);
       const u = await userById(c.db, userId);

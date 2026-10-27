@@ -32,6 +32,7 @@ import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { companyLedgerAdd } from "./companies.ts";
 import { bumpCount, dayPicks, loadQuestData, noQuestData, paidFrom, questPay } from "./quests.ts";
 import { raidHistory } from "./raid.ts";
+import { trophyAwardCoins, trophyAwardCoinsAll } from "./trophy-awards.ts";
 import { lookOf, signupDays, TOKENS, tokensIn, userById } from "./users.ts";
 
 export interface Wallet {
@@ -196,6 +197,7 @@ export async function wallet(
     milestoneCoins(level) +
     levelUpCoins(level) +
     (await badgeAwardCoins(sql, userId)) +
+    (await trophyAwardCoins(sql, userId)) +
     streak;
   const since = addDays(today, -29);
   const todays = data.facts.get(today) ?? EMPTY_DAY;
@@ -300,6 +302,7 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
     "SELECT user_id AS userId, tier FROM badge_awards WHERE badge != 'level'",
   ))
     add(r.userId, badgeCoins(r.tier) - badgeCoins(r.tier - 1));
+  for (const [userId, n] of await trophyAwardCoinsAll(sql)) add(userId, n);
   const raids = await raidHistory(sql, now);
   for (const userId of out.keys()) add(userId, raidCoins(raids, userId));
   for (const r of await all<{ userId: number; n: number }>(

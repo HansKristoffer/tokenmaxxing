@@ -9,6 +9,7 @@ import { migratePoker } from "./poker.ts";
 import { migrateQuests } from "./quests.ts";
 import { migrateRequests } from "./requests.ts";
 import { migrateTournament } from "./tournament.ts";
+import { migrateTrophyAwards } from "./trophy-awards.ts";
 
 /** Every table `town` keeps. Also run by tests against an in-memory database. */
 export async function migrate(sql: Sql): Promise<void> {
@@ -128,6 +129,7 @@ export async function migrate(sql: Sql): Promise<void> {
   await sql.execute("CREATE TABLE IF NOT EXISTS lost_signups (id INTEGER PRIMARY KEY, at INTEGER NOT NULL)");
   await migrateMerchant(sql);
   await migrateAwards(sql);
+  await migrateTrophyAwards(sql);
   await migrateQuests(sql);
   await migrateCard(sql);
   await migrateTournament(sql);
