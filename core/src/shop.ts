@@ -5,6 +5,8 @@
  * (`office.ts`) and dances (`dances.ts`). Everything bought or earned is a row in the bag.
  */
 import { isRecord } from "hanzio";
+import { CASE_ITEMS } from "./case.ts";
+import { CASE_PIECES } from "./case-furniture.ts";
 import { COSTUMES } from "./costumes.ts";
 import { DANCE_ITEMS } from "./dances.ts";
 import { EDITIONS } from "./editions.ts";
@@ -26,7 +28,7 @@ export const coinsForTokens = (tokens: number): number => Math.floor(Math.sqrt(M
 /** Extra coins for finishing a world day 1st, 2nd or 3rd on tokens. */
 export const PODIUM_COINS = [25, 15, 10] as const;
 
-type Slot = "outfit" | "glasses" | "hat" | "pet" | WardrobeSlot;
+type Slot = "outfit" | "glasses" | "hat" | "pet" | "aura" | WardrobeSlot;
 
 export interface Item {
   /** `<slot>.<index>`, e.g. `pet.2`, `furn.<ch>` for furniture, `dance.<index>`, or `merch.<companyId>.<kind>`. */
@@ -51,6 +53,8 @@ export interface Item {
   earned?: string;
   /** Raid loot: which boss drops it, and how rarely (`loot.ts`). Never sold. */
   loot?: { boss: string; rarity: LootRarity };
+  /** Case item: only a case opening gives it, never sold and never dropped. */
+  case?: true;
   /** Company furniture: bought from a company wallet, for its building. */
   company?: true;
   /** Personal-office furniture: it goes down only in your own office (`canDropIn`). */
@@ -134,6 +138,21 @@ export const ITEMS: readonly Item[] = [
     blurb: l.blurb,
     loot: { boss: l.boss, rarity: l.rarity },
   })),
+  // The case's own: given by an opening, never sold, tradeable after a short lock (`case.ts`).
+  ...CASE_ITEMS,
+  // The case's furniture (`case-furniture.ts`): given by an opening, tradeable, and put down only in your own office.
+  ...CASE_PIECES.map((f, index): Item => ({
+    id: `furn.${f.ch}`,
+    slot: "furniture",
+    index,
+    name: f.name,
+    price: 0,
+    tradeable: true,
+    home: true,
+    case: true,
+    rarity: f.rarity,
+    blurb: f.blurb,
+  })),
   ...COMPANY_FURNITURE.map((f, index): Item => ({
     id: `furn.${f.ch}`,
     slot: "furniture",
@@ -171,7 +190,7 @@ export const itemById = (id: unknown): Item | undefined => BY_ID.get(id as strin
 export function itemsIn(look: Look): (Item & { slot: Slot })[] {
   const worn: { item: Item & { slot: Slot }; at: number }[] = [];
   for (const [slot, values] of BY_SLOT) {
-    const w = values.get(look[slot]);
+    const w = values.get(look[slot] ?? 0);
     if (w) worn.push(w);
   }
   return worn.sort((a, b) => a.at - b.at).map((w) => w.item);

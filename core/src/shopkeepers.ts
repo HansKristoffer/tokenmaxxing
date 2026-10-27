@@ -84,6 +84,21 @@ export const SHOPKEEPERS: BotDef[] = [
     ],
     every: [40_000, 120_000],
   }),
+  keeper("natmarked", -9, "down", {
+    look: lookWith({ style: 1, skin: 2, hair: 3, outfit: 14, glasses: 0 }),
+    bio: "Runs Natmarked, the night market hall. Closes the stalls at dawn and never says what is in the next case.",
+    lines: [
+      "The lanterns are lit at dusk. They have never once been turned off.",
+      "Every case is sealed at the stall. I only hold the key.",
+      "Noodles from the corner stall, steam from the other. Mind your sleeves.",
+      "Those shelves in the back are for cases that are not here yet. Come back after dark.",
+      "A case is a small adventure. Whatever is inside, it is yours the moment it opens.",
+      "Doubles? Bring them to the counter. The vendors always want a spare.",
+      "Hats, pets, lanterns. The market never tells you in advance.",
+      "Take your time. The night is long, and the stalls are not going anywhere.",
+    ],
+    every: [40_000, 120_000],
+  }),
 ];
 
 /** What the keeper says when you step in or come up to the counter. */
@@ -99,6 +114,10 @@ export const GREETINGS: Record<ShopId, readonly string[]> = {
   barber: [
     "Take a seat. A little off the top?",
     "Welcome to Figaro's. The mirror is free, the small talk is too.",
+  ],
+  natmarked: [
+    "Welcome to Natmarked. Mind the lanterns, they are older than they look.",
+    "Hej! The stalls are open. Today's case is on the counter.",
   ],
   pets: [
     "Welcome! Mind the dragon, it only looks hungry.",

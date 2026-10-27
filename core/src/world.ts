@@ -4,6 +4,7 @@
  */
 
 import { isRecord, isTruthy, typedKeys } from "hanzio";
+import { caseAt } from "./case.ts";
 import { costumeAt } from "./costumes.ts";
 import { editionAt } from "./editions.ts";
 import type { Seat, Spot } from "./games/gather.ts";
@@ -61,6 +62,7 @@ export type RoomId =
   | "shop-clothes"
   | "shop-barber"
   | "shop-pets"
+  | "shop-natmarked"
   | `hq:${number}`
   | `common:${number}`
   | `office:${number}`;
@@ -75,6 +77,7 @@ const FIXED_ROOMS: readonly string[] = [
   "shop-clothes",
   "shop-barber",
   "shop-pets",
+  "shop-natmarked",
 ];
 
 /** A room id from the wire, or null: one of the fixed rooms, or a company's house or common room, or an office. */
@@ -202,6 +205,8 @@ export interface Look {
   /** Wardrobe extras (wardrobe.ts); 0 is none. */
   held: number;
   back: number;
+  /** A worn effect around them (the Night Market case's legendary auras, `case.ts`); absent or 0 is none. */
+  aura?: number;
   petwear: number;
   /** Which look of the worn pet: 0 is the original, n is `PET_VARIANTS[pet][n - 1]`. Always 0 without a pet. */
   petVariant: number;
@@ -211,7 +216,7 @@ export interface Look {
   merch: number;
   merchWorn: number;
 }
-export const LOOK_OPTIONS: Record<Exclude<keyof Look, "merch" | "petName">, number> = {
+export const LOOK_OPTIONS: Record<Exclude<keyof Look, "merch" | "petName" | "aura">, number> = {
   style: 4,
   skin: 4,
   hair: 6,
@@ -261,7 +266,12 @@ export function parseLook(raw: unknown): Look | null {
   for (const k of typedKeys(LOOK_OPTIONS)) {
     const v = r[k];
     if (!Number.isInteger(v) || (v as number) < 0) return null;
-    if ((v as number) >= LOOK_OPTIONS[k] && !editionAt(k, v as number) && !costumeAt(k, v as number))
+    if (
+      (v as number) >= LOOK_OPTIONS[k] &&
+      !editionAt(k, v as number) &&
+      !costumeAt(k, v as number) &&
+      !caseAt(k, v as number)
+    )
       return null;
     out[k] = v as number;
   }
@@ -271,6 +281,11 @@ export function parseLook(raw: unknown): Look | null {
     const name = cleanPetName(r.petName);
     if (!name) return null;
     out.petName = name;
+  }
+  // Old looks have no aura, and a look without one is saved without the field. Nothing sells one: only the case's indices count.
+  if (r.aura !== undefined && r.aura !== 0) {
+    if (!Number.isInteger(r.aura) || !caseAt("aura", r.aura as number)) return null;
+    out.aura = r.aura as number;
   }
   if (!Number.isSafeInteger(r.merch) || (r.merch as number) < 0) return null;
   out.merch = r.merch as number;

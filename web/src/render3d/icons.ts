@@ -8,12 +8,14 @@
  * Loaded on demand by `hud/ItemIcon.tsx`, so the 2D tier never pays for three.
  */
 
+import { casePieceOf } from "@tokenmaxxing/core/case-furniture.ts";
 import { homePieceOf } from "@tokenmaxxing/core/home.ts";
 import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { posterOf } from "@tokenmaxxing/core/posters.ts";
 import * as THREE from "three";
 import { graphics } from "../settings/graphics.ts";
 import { storage } from "../storage.ts";
+import { buildCaseBox, buildCaseKey } from "./case-box3d.ts";
 import { buildBoss } from "./dungeon/bossvox.ts";
 import { trophy } from "./dungeon/dungeon3d.ts";
 import { disposeObject } from "./engine/dispose.ts";
@@ -42,7 +44,8 @@ export type IconSpec =
   | { kind: "merch"; company: MerchCompany; merch: MerchKind }
   | { kind: "trophy"; id: string; earned?: boolean }
   | { kind: "desk"; tier: number }
-  | { kind: "boss"; id: string };
+  | { kind: "boss"; id: string }
+  | { kind: "case"; what: "closed" | "open" | "key" };
 
 export type IconSize = 64 | 128;
 
@@ -55,7 +58,17 @@ export function iconKey(s: IconSpec): string {
       return `pet:${s.pet}.${s.variant ?? 0}.${s.wear ?? 0}.${(s.name ?? "").trim().toLowerCase()}`;
     case "avatar": {
       const l = s.look;
-      const w = [l.style, l.skin, l.hair, l.outfit, l.glasses ?? 0, l.hat ?? 0, l.held ?? 0, l.back ?? 0];
+      const w = [
+        l.style,
+        l.skin,
+        l.hair,
+        l.outfit,
+        l.glasses ?? 0,
+        l.hat ?? 0,
+        l.held ?? 0,
+        l.back ?? 0,
+        l.aura ?? 0,
+      ];
       return `avatar:${w.join(".")}.${l.merch ?? 0}.${l.merch ? (l.merchWorn ?? 0) : 0}:${s.focus ?? "body"}:${s.facing ?? "front"}`;
     }
     case "merch": {
@@ -69,6 +82,8 @@ export function iconKey(s: IconSpec): string {
       return `desk:${s.tier}`;
     case "boss":
       return `boss:${s.id}`;
+    case "case":
+      return `case:${s.what}`;
   }
 }
 
@@ -83,7 +98,10 @@ interface Built {
 
 const pieceAsset = (ch: string): Asset | undefined => {
   if (ch === "=" || ch === "e") return flat(ch);
-  const art = posterOf(ch)?.art ?? homePieceOf(ch)?.art ?? COMPANY_FURNITURE.find((p) => p.ch === ch)?.art;
+  const art =
+    posterOf(ch)?.art ??
+    (homePieceOf(ch) ?? casePieceOf(ch))?.art ??
+    COMPANY_FURNITURE.find((p) => p.ch === ch)?.art;
   return assetOfChar(ch) ?? (art ? (assetById.get(art) ?? extraAssetById.get(art)) : undefined);
 };
 
@@ -133,6 +151,9 @@ function build(s: IconSpec): Built {
       break;
     case "desk":
       root.add(deskTier(s.tier));
+      break;
+    case "case":
+      root.add(s.what === "key" ? buildCaseKey() : buildCaseBox(s.what === "open"));
       break;
     case "boss": {
       const b = buildBoss(s.id, true);

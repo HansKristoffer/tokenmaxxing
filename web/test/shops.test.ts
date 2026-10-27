@@ -55,7 +55,9 @@ test("every tile of every shop, and of the Tavern, draws on whole pixels inside 
 test("the storefronts are five tiles wide and four deep, with a door tile in the middle", () => {
   const town = townMap([]);
   for (const id of SHOP_IDS) {
-    const [dx, dy] = town.find({ furniture: "ƒ", clothes: "Ç", barber: "Ð", pets: "ð" }[id])[0]!;
+    const [dx, dy] = town.find(
+      { furniture: "ƒ", clothes: "Ç", barber: "Ð", pets: "ð", natmarked: "Ñ" }[id],
+    )[0]!;
     const front = objectAt(town, dx - 2, dy - 3);
     expect(front?.canvas).toBeDefined();
     const rec = canvases.find((c) => c.w === 5 * TILE && c.h === 4 * TILE && c.painted > 40);

@@ -22,7 +22,7 @@ const state = () =>
     name: document.querySelector("#shopcard .shop-name .n")?.textContent,
   }));
 await go("x");
-for (const door of ["ƒ", "Ç", "Ð", "ð"]) {
+for (const door of ["ƒ", "Ç", "Ð", "ð", "Ñ"]) {
   const r = await go(door);
   console.log("== shop", r);
   const disp = await page.evaluate(() => {

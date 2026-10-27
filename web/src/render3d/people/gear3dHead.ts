@@ -963,6 +963,151 @@ export const HAT_BUILDERS: Record<string, Build> = {
     m.box([0.012, 0.07, 0.012], "#fbf7ef", [-0.012, 0.1, 0.29], 0.002);
     m.box([0.07, 0.012, 0.012], "#fbf7ef", [0, 0.1, 0.29], 0.002);
   },
+  // The Night Market case.
+  "Straw kasa": (m) => {
+    // A wide woven cone, ringed with darker straw, and a cord down each cheek.
+    cone(m, "#e8cd7e", 0.4, 0.22, 0.14, [0, 0], 24, 0.02);
+    m.cyl(0.4, 0.014, "#c29a46", [0, 0.14, 0], 0.4, 24);
+    for (const [r, y] of [
+      [0.31, 0.19],
+      [0.22, 0.25],
+      [0.12, 0.3],
+    ] as const)
+      m.cyl(r + 0.004, 0.012, "#c29a46", [0, y, 0], r, 24);
+    m.ball(0.026, "#c29a46", [0, 0.37, 0], [1, 1, 1], 6);
+    for (const s of [-1, 1]) m.box([0.012, 0.22, 0.012], "#8a5a2b", [s * 0.21, -0.02, 0.15], 0.004);
+  },
+  Hachimaki: (m) => {
+    // A white twisted headband with the red sun, knotted at the side with two tails.
+    band(m, "#fbf7ef", 0.262, 0.07, 0.03);
+    band(m, "#d9d3c6", 0.266, 0.014, 0.05);
+    m.ball(0.034, "#d9323a", [0, 0.066, 0.262], [1, 1, 0.25], 12);
+    m.ball(0.032, "#fbf7ef", [0.255, 0.065, -0.09], [1, 1, 1], 8);
+    for (const [z, lean] of [
+      [-0.13, 0.25],
+      [-0.17, -0.1],
+    ] as const)
+      tilt(m, m.box([0.014, 0.16, 0.034], "#fbf7ef", [0.27, -0.09, z], 0.004), lean, 0, 0.12);
+  },
+  "Paper fan visor": (m) => {
+    // A headband with a folding paper fan opened into a half-circle above it: red and white pleats, gold ribs and rim.
+    band(m, "#2f2a3a", 0.262, 0.05, 0.07);
+    band(m, "#f0c45a", 0.266, 0.012, 0.09);
+    flat(m, 0.46, 0.28, [0, 0.27, 0.252], 0.04, (g, w, h) => {
+      const R = w / 2;
+      g.save();
+      g.translate(w / 2, h);
+      g.scale(1, h / R);
+      const n = 8;
+      for (let i = 0; i < n; i++) {
+        g.fillStyle = i % 2 ? "#fbf7ef" : "#d9323a";
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.arc(0, 0, R, Math.PI + (i * Math.PI) / n, Math.PI + ((i + 1) * Math.PI) / n);
+        g.fill();
+      }
+      g.strokeStyle = "#f0c45a";
+      g.lineWidth = 3.4;
+      for (let i = 0; i <= n; i++) {
+        const a = Math.PI + (i * Math.PI) / n;
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.lineTo(Math.cos(a) * R, Math.sin(a) * R);
+        g.stroke();
+      }
+      g.beginPath();
+      g.arc(0, 0, R - 1.5, Math.PI, Math.PI * 2);
+      g.stroke();
+      g.fillStyle = "#f0c45a";
+      g.beginPath();
+      g.arc(0, 0, 8, Math.PI, Math.PI * 2);
+      g.fill();
+      g.restore();
+    });
+  },
+  "Fox half-mask": (m) => {
+    // A white kitsune mask over the brow: pointed ears with red insides, red cheek stripes, slanted eye slits, a black
+    // nose tip, a red forehead mark, tied on with a red cord.
+    flat(m, 0.46, 0.5, [0, 0.18, 0.246], 0.03, (g, w, h) => {
+      const X = (x: number) => (x / 111) * w;
+      const Y = (y: number) => (y / 120) * h;
+      const poly = (pts: [number, number][], fill: string, stroke?: string) => {
+        g.beginPath();
+        for (const [i, [x, y]] of pts.entries()) {
+          if (i) g.lineTo(X(x), Y(y));
+          else g.moveTo(X(x), Y(y));
+        }
+        g.closePath();
+        g.fillStyle = fill;
+        g.fill();
+        if (stroke) {
+          g.strokeStyle = stroke;
+          g.lineWidth = 3.2;
+          g.stroke();
+        }
+      };
+      const line = (x1: number, y1: number, x2: number, y2: number, col: string, lw: number) => {
+        g.strokeStyle = col;
+        g.lineWidth = lw;
+        g.beginPath();
+        g.moveTo(X(x1), Y(y1));
+        g.lineTo(X(x2), Y(y2));
+        g.stroke();
+      };
+      const ink = "#2b1a20";
+      for (const s of [-1, 1]) {
+        const x = (v: number) => (s < 0 ? v : 111 - v);
+        poly(
+          [
+            [x(6), 52],
+            [x(15), 1],
+            [x(48), 46],
+          ],
+          "#fbf7ef",
+          ink,
+        );
+        poly(
+          [
+            [x(17), 44],
+            [x(19), 12],
+            [x(37), 42],
+          ],
+          "#d9323a",
+        );
+      }
+      poly(
+        [
+          [6, 44],
+          [105, 44],
+          [104, 78],
+          [80, 100],
+          [55, 119],
+          [31, 100],
+          [7, 78],
+        ],
+        "#fbf7ef",
+        ink,
+      );
+      for (const s of [-1, 1]) {
+        const x = (v: number) => (s < 0 ? v : 111 - v);
+        line(x(21), 58, x(46), 69, "#14121a", 6);
+        line(x(10), 74, x(36), 80, "#d9323a", 5);
+        line(x(16), 87, x(40), 90, "#d9323a", 5);
+      }
+      line(55.5, 46, 55.5, 66, "#d9323a", 6);
+      g.fillStyle = "#14121a";
+      g.beginPath();
+      g.arc(X(55.5), Y(111), 7, 0, Math.PI * 2);
+      g.fill();
+    });
+    band(m, "#d9323a", 0.262, 0.026, 0.07);
+    m.ball(0.03, "#d9323a", [0.262, 0.08, -0.07], [1, 1, 1], 8);
+    for (const [z, lean] of [
+      [-0.1, 0.25],
+      [-0.14, -0.1],
+    ] as const)
+      tilt(m, m.box([0.014, 0.15, 0.03], "#d9323a", [0.27, -0.06, z], 0.004), lean, 0, 0.12);
+  },
 };
 
 // MARK: Face
@@ -986,6 +1131,27 @@ function bridge(m: Model, color: string, y = EYE_Y, width = 0.2): void {
   m.box([width * 0.35, 0.012, 0.012], color, [0, y, 0.246], 0.004);
   for (const s of [-1, 1])
     m.box([0.012, 0.012, 0.18], color, [s * 0.255, y + 0.005, 0.1], 0.004).rotation.y = s * -0.12;
+}
+/** A flat painted plate facing front, `depth` thick: raised cubes on a blocky model, a plane on a smooth one. */
+function flat(
+  m: Model,
+  w: number,
+  h: number,
+  at: [number, number, number],
+  depth: number,
+  draw: (g: CanvasRenderingContext2D, cw: number, ch: number) => void,
+): THREE.Mesh {
+  if (!isVox(m)) return sign(m, w, h, draw, at);
+  const cell = 0.0125;
+  return pixelPatch(m, {
+    cols: Math.round(w / cell),
+    rows: Math.round(h / cell),
+    cell,
+    depth,
+    draw,
+    at,
+    fill: 0.3,
+  });
 }
 /** A band round the head at eye height. */
 function strap(m: Model, color: string, y = EYE_Y, w = 0.03): void {
@@ -1451,6 +1617,72 @@ export const FACE_BUILDERS: Record<string, Build> = {
       }
     });
   },
+  // The Night Market case.
+  "LED mask": (m, c) => {
+    visor(m, { color: "#1b1826", w: 0.36, h: 0.11, y: EYE_Y, depth: 0.04 });
+    strap(m, "#1b1826", EYE_Y + 0.02, 0.06);
+    // A 24 by 6 dot screen, a grin and a wink taking turns.
+    const z = isVox(m) ? 0.256 : 0.277;
+    const dots = (eye: boolean) => (g: CanvasRenderingContext2D, w: number, h: number) => {
+      const cell = w / 24;
+      const dot = (x: number, y: number, col: string) => {
+        g.fillStyle = col;
+        g.fillRect(x * cell + cell * 0.1, y * cell + cell * 0.1, cell * 0.8, cell * 0.8);
+      };
+      for (const x of [5, 6, 17, 18])
+        for (const y of [1, 2]) if (eye || x < 10 || y === 1) dot(x, y, "#4ff3ff");
+      for (const x of [8, 9, 10, 11, 12, 13, 14, 15]) dot(x, 4, "#ff4fd8");
+      dot(7, 3, "#ff4fd8");
+      dot(16, 3, "#ff4fd8");
+      void h;
+    };
+    const frames = [true, false].map((e) => {
+      const s = sign(m, 0.3, 0.075, dots(e), [0, EYE_Y, z], 80, true);
+      s.visible = e;
+      return s;
+    });
+    c.tick((t) => {
+      const wink = Math.floor(t * 0.6) % 4 === 3;
+      frames[0]!.visible = !wink;
+      frames[1]!.visible = wink;
+    });
+  },
+  "Steam goggles": (m) => {
+    // Chunky brass rims round amber lenses, on a leather strap, with a little filter canister each.
+    strap(m, "#5a3b22", EYE_Y, 0.045);
+    for (const s of [-1, 1] as const) {
+      const e = eyeAt(m, s);
+      roundLens(e, "#c98a3a", "#ffc24a", 0.064, 0.7);
+      ring(e, "#a86e2a", 0.075, 0.016, [0, 0, 0.004], false);
+      e.cyl(0.02, 0.05, "#8a5a2b", [s * 0.045, 0.06, 0.0], 0.02, 8);
+      for (const a of [0.8, 2.4, 4.0, 5.5])
+        e.ball(0.007, "#f0c45a", [Math.sin(a) * 0.075, Math.cos(a) * 0.075, 0.014], [1, 1, 1], 4);
+    }
+    m.box([0.06, 0.02, 0.02], "#c98a3a", [0, EYE_Y, 0.246], 0.006);
+  },
+  "Holo shades": (m, c) => {
+    // Sharp wedge frames; the lenses shift from cyan to magenta across the glass, with a bright glint.
+    const strips = ["#58f0ff", "#9a9cff", "#c45cff"];
+    const lenses: THREE.Mesh[] = [];
+    for (const s of [-1, 1] as const) {
+      const e = eyeAt(m, s);
+      e.box([0.145, 0.016, 0.02], "#1b1826", [0, 0.002, 0.006], 0.006);
+      e.box([0.14, 0.012, 0.02], "#1b1826", [0, -0.09, 0.006], 0.004);
+      for (const x of [-1, 1]) e.box([0.012, 0.09, 0.02], "#1b1826", [x * 0.07, -0.043, 0.006], 0.004);
+      strips.forEach((col, i) => {
+        const k = (i - 1) * s * -1;
+        lenses.push(e.box([0.04, 0.076, 0.016], see(col, 0.88, true), [k * 0.046, -0.043, 0.012], 0.004));
+      });
+      tilt(e, e.box([0.012, 0.07, 0.01], "#ffffff", [-0.02 * s, -0.045, 0.024], 0.002), 0, 0, 0.5);
+    }
+    m.box([0.05, 0.014, 0.02], "#1b1826", [0, EYE_Y, 0.245], 0.006);
+    bridge(m, "#1b1826");
+    c.tick((t) => {
+      lenses.forEach((l, i) => {
+        (l.material as THREE.Material).opacity = 0.78 + Math.sin(t * 1.6 + i * 0.9) * 0.12;
+      });
+    });
+  },
 };
 
 /** Hats that cover the crown of the head: the hair's fringe, spikes and bun are tucked under them. */
@@ -1486,5 +1718,7 @@ export const COVERS_HAIR = new Set([
   "Lego brick hat",
   "Hourglass hat",
   "Paid in Full crown",
+  "Straw kasa",
+  "Fox half-mask",
   "Kattekonge crown",
 ]);

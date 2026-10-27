@@ -54,7 +54,7 @@ export interface ShopItem {
 }
 
 export interface ShopSpec {
-  id: "furniture" | "clothes" | "barber" | "pets";
+  id: "furniture" | "clothes" | "barber" | "pets" | "natmarked";
   name: string;
   sign: string;
   items: ShopItem[];

@@ -26,6 +26,7 @@ const ALL = [
   "shop-clothes",
   "shop-barber",
   "shop-pets",
+  "shop-natmarked",
 ];
 const wanted = args.length ? args : ALL;
 
@@ -39,6 +40,7 @@ const EDGES = {
     "shop-clothes": "Ç",
     "shop-barber": "Ð",
     "shop-pets": "ð",
+    "shop-natmarked": "Ñ",
     hq: "D",
   },
   inn: { town: "x", basement: "S", upstairs: "u" },
@@ -49,6 +51,7 @@ const EDGES = {
   "shop-clothes": { town: "*" },
   "shop-barber": { town: "*" },
   "shop-pets": { town: "*" },
+  "shop-natmarked": { town: "*" },
   hq: { town: "x", office: "R", common: "u" },
   office: { hq: "*" },
   common: { hq: "*" },

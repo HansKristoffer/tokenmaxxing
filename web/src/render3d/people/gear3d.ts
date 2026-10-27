@@ -25,6 +25,9 @@ import {
   merchTop,
   OUTFIT_BUILDERS,
 } from "./gear3dBody.ts";
+// The Night Market case adds its builders to the tables above when it loads.
+import "./gear3dCase.ts";
+import { AURA_BUILDERS } from "./gear3dAura.ts";
 import { COVERS_HAIR, type Ctx, FACE_BUILDERS, HAT_BUILDERS, lit, ring, see } from "./gear3dHead.ts";
 import type { Hat, Look as VLook } from "./styles.ts";
 import { U, vpart } from "./voxgear.ts";
@@ -51,6 +54,8 @@ export interface Look2D {
   hat?: number;
   held?: number;
   back?: number;
+  /** A worn effect (the Night Market case's auras); absent or 0 is none. */
+  aura?: number;
   /** Whose company merch they wear (a company id), and which pieces (`MERCH` bits: tee 1, hoodie 2, cap 4, mug 8). */
   merch?: number;
   merchWorn?: number;
@@ -65,7 +70,7 @@ export interface LookOptions {
 
 // MARK: Catalogue
 
-type Slot = "hat" | "glasses" | "outfit" | "held" | "back";
+type Slot = "hat" | "glasses" | "outfit" | "held" | "back" | "aura";
 const bySlot = new Map<string, Item>();
 for (const i of ITEMS)
   if (i.slot !== "furniture" && i.slot !== "merch") bySlot.set(`${i.slot}.${i.index}`, i);
@@ -119,6 +124,7 @@ export interface Worn {
   outfit: string;
   held?: Item;
   back?: Item;
+  aura?: Item;
   merch: { top: boolean; hoodie: boolean; cap: boolean; mug: boolean };
   /** The rarest thing they wear. */
   rarity: Rarity;
@@ -130,7 +136,7 @@ export function wornBy(look: Look2D): Worn {
     merch: { top: (bits & 3) > 0, hoodie: (bits & 2) > 0, cap: (bits & 4) > 0, mug: (bits & 8) > 0 },
     rarity: "common",
   };
-  const set = (slot: "hat" | "glasses" | "held" | "back", index = 0) => {
+  const set = (slot: "hat" | "glasses" | "held" | "back" | "aura", index = 0) => {
     const it = index ? itemAt(slot, index) : undefined;
     if (it) worn[slot] = it;
     return it;
@@ -139,8 +145,9 @@ export function wornBy(look: Look2D): Worn {
   set("glasses", look.glasses);
   set("held", look.held);
   set("back", look.back);
+  set("aura", look.aura);
   const outfit = itemAt("outfit", look.outfit);
-  const all = [worn.hat, worn.glasses, worn.held, worn.back, outfit].filter((x): x is Item => !!x);
+  const all = [worn.hat, worn.glasses, worn.held, worn.back, worn.aura, outfit].filter((x): x is Item => !!x);
   for (const it of all)
     if (RARITIES.indexOf(rarityOf(it)) > RARITIES.indexOf(worn.rarity)) worn.rarity = rarityOf(it);
   return worn;
@@ -232,6 +239,19 @@ class Dress implements Gear {
     };
     if (worn.held) HELD_BUILDERS[worn.held.name]?.(heldIn(), (fn) => tick((t) => fn(t)));
     else if (merch && worn.merch.mug) mug(heldIn(), merch);
+
+    // A case aura circles the middle of the body, scaled with the person.
+    const wornAura = worn.aura && AURA_BUILDERS[worn.aura.name];
+    if (wornAura) {
+      const k = a.height / 0.95;
+      const around = vox ? vpart(a.root, [0, a.height * 0.5, 0]) : a.root.part([0, a.height * 0.5, 0]);
+      around.scale.setScalar(k);
+      wornAura(around, (fn) => {
+        // Posed once now, so an icon (which never ticks) shows the effect spread round them.
+        fn(2, false);
+        tick((t, walking) => fn(t, walking));
+      });
+    }
 
     if ((this.opts.level ?? 0) >= LEGENDARY_LEVEL) this.aura(a, fit.top, tick);
   }

@@ -29,6 +29,8 @@ export type Panel =
   | { kind: "merch"; companyId: number }
   | { kind: "shop"; tab?: ShopPageTab }
   | { kind: "shops" }
+  /** Natmarked's counter and shelves: the cases on sale (`hud/CaseShop.tsx`). */
+  | { kind: "caseShop" }
   | { kind: "merchant" }
   | { kind: "julekalender" }
   | { kind: "bag"; tab?: "you" | "pet" | "things" }
@@ -57,7 +59,9 @@ export type Panel =
   | { kind: "jukebox" }
   | { kind: "graphics" }
   | { kind: "menu" }
-  | { kind: "changelog" };
+  | { kind: "changelog" }
+  /** Dev: the case-opening screen on mock data (QA flag, then `__tm.hud.set({ panel: { kind: "caseOpening" } })`). */
+  | { kind: "caseOpening" };
 
 /** The jukebox's mute and volume, kept on this device. */
 export interface JukeSettings {

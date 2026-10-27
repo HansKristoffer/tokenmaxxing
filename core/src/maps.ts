@@ -4,6 +4,7 @@
  * One character per tile; `LEGEND` says what it is.
  */
 import { sortBy } from "hanzio";
+import { CASE_PIECES } from "./case-furniture.ts";
 import { HOME_PIECES } from "./home.ts";
 import { POSTERS } from "./posters.ts";
 
@@ -23,7 +24,8 @@ export type MapId =
   | "shop-furniture"
   | "shop-clothes"
   | "shop-barber"
-  | "shop-pets";
+  | "shop-pets"
+  | "shop-natmarked";
 export type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 interface TileKind {
@@ -143,6 +145,7 @@ export const LEGEND: Record<string, TileKind> = {
   Ç: { name: "clothes shop door", portal: true },
   Ð: { name: "barber shop door", portal: true },
   ð: { name: "pet shop door", portal: true },
+  Ñ: { name: "night market door", portal: true },
   Ħ: { name: "shop front", text: "A shop front. The door is open: come on in." },
   // Inside them: the counter, each shop's displays and the fixtures that are only to look at.
   "¢": { name: "shop counter", counter: true, text: "The counter. Press E to browse the shop." },
@@ -158,6 +161,11 @@ export const LEGEND: Record<string, TileKind> = {
     text: "A styling station: mirror, combs and a rack of colours.",
   },
   "¥": { name: "pet pen", shop: "pets", text: "A pen. Somebody inside is already looking at you." },
+  Ŧ: {
+    name: "lantern shelf",
+    shop: "natmarked",
+    text: "A glowing shelf of lacquer and paper. Press E to see the cases.",
+  },
   "‡": { name: "fixture", text: "Part of the shop's fittings." },
   x: { name: "exit", portal: true },
   D: { name: "door", portal: true },
@@ -219,7 +227,7 @@ export const LEGEND: Record<string, TileKind> = {
   ),
   // Personal offices' own furniture (`HOME_PIECES`): a seat, a rug to walk over, or just something to look at.
   ...Object.fromEntries(
-    HOME_PIECES.map((p): [string, TileKind] => [
+    [...HOME_PIECES, ...CASE_PIECES].map((p): [string, TileKind] => [
       p.ch,
       {
         name: p.name.toLowerCase(),
@@ -398,7 +406,7 @@ const LOT = [
 const DOOR: [number, number] = [5, 6];
 
 /**
- * The four shops' blocks, in the corners round the core and the companies' ring: a company never builds
+ * The shops' blocks, in the corners round the core and the companies' ring: a company never builds
  * here (`frontier`). A block a company already holds (it started before the shops) stays the company's.
  */
 export const SHOP_BLOCKS: Record<ShopId, [number, number]> = {
@@ -406,6 +414,7 @@ export const SHOP_BLOCKS: Record<ShopId, [number, number]> = {
   clothes: [2, -1],
   barber: [-1, 2],
   pets: [2, 2],
+  natmarked: [2, 0],
 };
 
 /** A shop's block: a lawn, its 5×4 front with the door in the middle of the bottom row, and the path down to the road. */
@@ -708,6 +717,10 @@ export const MAPS: Record<MapId, GameMap> = {
   "shop-clothes": new GameMap("shop-clothes", SHOPS.clothes.name, SHOPS.clothes.rows),
   "shop-barber": new GameMap("shop-barber", SHOPS.barber.name, SHOPS.barber.rows),
   "shop-pets": new GameMap("shop-pets", SHOPS.pets.name, SHOPS.pets.rows),
+  "shop-natmarked": new GameMap("shop-natmarked", SHOPS.natmarked.name, SHOPS.natmarked.rows, 0, 0, {
+    wall: "natmarked",
+    floor: "natmarked",
+  }),
   // The raid: the boss on its dais, and arcs of war desks facing it. Whoever has agents running is drawn
   // at one (web/src/game/raid.ts); the desks and seats are props, so visitors walk the aisles.
   dungeon: new GameMap("dungeon", "Raid Dungeon", [

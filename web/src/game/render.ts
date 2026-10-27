@@ -164,6 +164,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
         "shop-clothes",
         "shop-barber",
         "shop-pets",
+        "shop-natmarked",
       ],
       () => "#1b1f2a",
     ),

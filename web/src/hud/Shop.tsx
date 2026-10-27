@@ -1,3 +1,4 @@
+import { casePieceOf } from "@tokenmaxxing/core/case-furniture.ts";
 import { ON_SALE, onSale } from "@tokenmaxxing/core/costumes.ts";
 import { danceAt } from "@tokenmaxxing/core/dances.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
@@ -121,7 +122,13 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
       ) : (
         <ul className="shop">
           {ITEMS.filter(
-            (i) => i.slot === tab && !editionById(i.id) && !i.earned && !i.company && onSale(i, Date.now()),
+            (i) =>
+              i.slot === tab &&
+              !editionById(i.id) &&
+              !i.earned &&
+              !i.company &&
+              !i.case &&
+              onSale(i, Date.now()),
           ).map((item) => {
             const owned = wallet.owned.includes(item.id);
             const wearing = isWorn(item, me.look);
@@ -322,7 +329,7 @@ function pieceSprite(ch: string): HTMLCanvasElement {
     return sprite;
   }
   // A personal office's frame or sign is hung on the office's top wall.
-  const row = homePieceOf(ch)?.wall ? 0 : 1;
+  const row = (homePieceOf(ch) ?? casePieceOf(ch))?.wall ? 0 : 1;
   sprite = objectAt(withPieces([{ ch, x: 1, y: row }], MAPS.office), 1, row)?.canvas;
   if (!sprite) {
     sprite = document.createElement("canvas");

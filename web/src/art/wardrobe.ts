@@ -1,6 +1,7 @@
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { typedSwitch } from "hanzio";
+import { CASE_BACKS, CASE_HELD, CASE_OUTFITS } from "./case-body.ts";
 import type { Pose, View } from "./characters.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
@@ -16,7 +17,7 @@ type Layer = "behind" | "body" | "front";
 
 // MARK: Outfits
 
-interface Outfit {
+export interface Outfit {
   /** Outfit, its shade, trousers. */
   c: string;
   C: string;
@@ -175,7 +176,7 @@ export function outfitMarks(p: Pen, outfit: number, view: View, oy: number, flip
 
 // MARK: In the hand
 
-interface Held {
+export interface Held {
   /** Facing right, `h` the hand holding it: it lands on the character's hand. */
   rows: string[];
   pal: Palette;
@@ -254,11 +255,11 @@ function drawHeld(p: Pen, i: number, view: View, skin: string, flip: boolean): v
 // MARK: On the back
 
 /** One view of a back item: drawn behind the body, and over it. */
-interface BackView {
+export interface BackView {
   behind?: string[];
   front?: string[];
 }
-interface Back {
+export interface Back {
   /** By view; `walk` is the second walking frame (a flutter, a flame), if it differs. */
   views: Record<View, BackView>;
   walk?: Partial<Record<View, BackView>>;
@@ -659,6 +660,11 @@ const BACKS: (Back | null)[] = [
     pal: { k: "#2a2a35", r: "#c23a3a", y: "#f5c842" },
   },
 ];
+
+// The Night Market case (indices from `CASE_BASE`) lives in `case-body.ts`; sparse slots, looked up by index like the rest.
+Object.assign(OUTFITS, CASE_OUTFITS);
+Object.assign(HELD, CASE_HELD);
+Object.assign(BACKS, CASE_BACKS);
 
 function drawBack(p: Pen, i: number, view: View, pose: Pose, layer: "behind" | "front", flip: boolean): void {
   const b = BACKS[i];

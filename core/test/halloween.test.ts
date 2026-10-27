@@ -20,7 +20,7 @@ test("the pumpkins are out for the week up to Halloween and the day after", () =
 });
 
 test("one on every doorstep and three in the patch, all on the grass", () => {
-  const plots = [plotId(2, 0), plotId(0, 2), plotId(1, -1)];
+  const plots = [plotId(-2, 0), plotId(0, 2), plotId(1, -1)];
   const map = townMap(plots);
   const spots = pumpkinSpots(map);
   // The Tavern, three companies, four shops, and the patch.

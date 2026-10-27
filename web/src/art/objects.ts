@@ -1,3 +1,4 @@
+import { CASE_PIECES, isCasePiece } from "@tokenmaxxing/core/case-furniture.ts";
 import { HOME_PIECES, isHomePiece } from "@tokenmaxxing/core/home.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
@@ -10,6 +11,7 @@ import { counter, windowPane, winsTile } from "./common.ts";
 import { type FancyPiece, fancyPiece, fancySprite } from "./furniture-fancy.ts";
 import { POSTER_H, posterSprite } from "./furniture-posters.ts";
 import { trophyAt } from "./loot.ts";
+import { natCounter, natFixture, natShelf } from "./natmarked.ts";
 import { C } from "./palette.ts";
 import { bake, cached, once, type Pen } from "./pixels.ts";
 import { coatStand, fixture, shopCounter, shopDisplay, storefront } from "./shops.ts";
@@ -40,7 +42,7 @@ interface Placed {
 
 /** Company furniture and personal offices' furniture (`HOME_PIECES`) by map character, with its art. */
 const FANCY = new Map(
-  [...COMPANY_FURNITURE.filter((f) => !f.wall), ...HOME_PIECES].map((f) => [
+  [...COMPANY_FURNITURE.filter((f) => !f.wall), ...HOME_PIECES, ...CASE_PIECES].map((f) => [
     f.ch,
     { w: f.w ?? 1, art: fancyPiece(f.art)! },
   ]),
@@ -576,18 +578,25 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
     case "¢": {
       let n = 0;
       while (map.at(x - n - 1, y) === ch) n++;
-      return at(shopCounter(n % 3 === 1));
+      return at(map.id === "shop-natmarked" ? natCounter(n === 3) : shopCounter(n % 3 === 1));
     }
     case "¤":
     case "§":
     case "¶":
+    case "Ŧ":
+      return at(natShelf(x));
     case "¥": {
       const shop = SHOP_IDS.find((id) => SHOP_DISPLAY_CHAR[id] === ch)!;
       const wall = x === map.x0 || y <= 1;
       return wall ? at(shopDisplay(shop, true, x, y), 0, 0) : at(shopDisplay(shop, false, x, y));
     }
-    case "‡":
-      return at(fixture());
+    case "‡": {
+      if (map.id !== "shop-natmarked") return at(fixture());
+      // Natmarked's fixtures: a stall's counter (a run of them), a tea table between two stools, else a lantern post.
+      const run = map.at(x - 1, y) === ch || map.at(x + 1, y) === ch;
+      const table = map.at(x - 1, y) === "c" && map.at(x + 1, y) === "c";
+      return at(natFixture(run ? "stall" : table ? "table" : "post", x > map.width / 2));
+    }
     case "O":
       return at(coatStand());
     case "$":
@@ -722,7 +731,7 @@ export const sortY = (ch: string): number => {
   if (isPoster(ch)) return -TILE;
   const placement = FANCY.get(ch)?.art.placement;
   // A rug lies under everyone, a chandelier hangs over them; a personal office's wall pieces hang behind.
-  if (placement === "flat" || (placement === "wall" && isHomePiece(ch))) return -TILE;
+  if (placement === "flat" || (placement === "wall" && (isHomePiece(ch) || isCasePiece(ch)))) return -TILE;
   if (placement === "ceiling") return TILE * 4;
   return ch === "F" || ch === WINDMILL ? TILE * 2 - 2 : ch === "b" || ch === "s" || ch === "Q" ? 0 : TILE - 1;
 };

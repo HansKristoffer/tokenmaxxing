@@ -1,6 +1,7 @@
 import { LOOT_FIRST } from "@tokenmaxxing/core/loot.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Facing, Look, PlayerState } from "@tokenmaxxing/core/world.ts";
+import { caseAuraIcon } from "./case-aura.ts";
 import { drawEditions, editionFrame } from "./editions.ts";
 import { FACE_ART, HAT_ART, type Wear } from "./headwear.ts";
 import { LOOT_GLASSES, LOOT_HATS, LOOT_OUTFITS } from "./loot.ts";
@@ -479,6 +480,8 @@ export const itemFrame = cached(
   (item: Item) => {
     const { slot, index: i } = item;
     if (slot === "merch") return merchFrame(item.companyId!, i);
+    const aura = slot === "aura" ? caseAuraIcon(i) : null;
+    if (aura) return aura;
     const wardrobe = wardrobeIcon(item);
     if (wardrobe) return wardrobe;
     const edition = editionFrame(item);
