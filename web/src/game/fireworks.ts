@@ -14,6 +14,7 @@ import {
   sparkAt,
   sparkFade,
 } from "@tokenmaxxing/core/fireworks.ts";
+import { newYearShow } from "@tokenmaxxing/core/newyear.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import type { Frame } from "./frame.ts";
 import { serverNow, world } from "./world.ts";
@@ -27,6 +28,9 @@ export function addFireworks(source: Source): () => void {
   sources.add(source);
   return () => sources.delete(source);
 }
+
+// New Year's at midnight (`core/src/newyear.ts`).
+addFireworks(newYearShow);
 
 if (typeof location !== "undefined" && new URLSearchParams(location.search).has("fireworks")) {
   const at = Date.now();

@@ -30,6 +30,7 @@ import { basementInteract } from "./basement.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
 import { clocksText } from "./clocks.ts";
+import { barrelInteract, blocksBarrel } from "./fastelavn.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { blocksGrave, graveInteract } from "./graveyard.ts";
@@ -42,6 +43,7 @@ import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
 import { seated, sit, standUp } from "./raidseat.ts";
+import { blocksBonfire, bonfireInteract } from "./sankthans.ts";
 import { pickTile } from "./stage.ts";
 import { statueText } from "./statue.ts";
 import { blocksStep, streetInteract } from "./street.ts";
@@ -386,6 +388,8 @@ export function updateSelf(now: number): void {
     (blocksStep(step.x, step.y) ||
       blocksLaunch(step.x, step.y) ||
       blocksTruck(step.x, step.y) ||
+      blocksBarrel(step.x, step.y) ||
+      blocksBonfire(step.x, step.y) ||
       blocksGrave(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;
@@ -477,6 +481,8 @@ function interact(): void {
   if (streetInteract(me, x, y, send)) return;
   if (windmillInteract(x, y)) return;
   if (truckInteract(x, y)) return;
+  if (barrelInteract(me, x, y, send)) return;
+  if (bonfireInteract(x, y)) return;
   if (launchInteract(me)) return;
   if (graveInteract(me)) return;
   if (keynoteInteract(me)) return;

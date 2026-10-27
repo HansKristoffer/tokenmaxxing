@@ -111,6 +111,12 @@ const HATS: Record<string, Art> = {
     up: [".......Gg.......", "....oooooooo....", "...opPppppPpo...", "...oPpPppPpPo...", "...opPppppPpo...", "....oooooooo...."],
     pal: { o, p: "#e8772a", P: "#c25a1c", Y: "#ffd04a", g: "#5a8a2a", G: "#3f6b1f" },
   },
+  // Kattekonge crown: gold points, a red jewel between two black cat's ears.
+  "hat.201": {
+    down: ["...Y...YY...Y...", "...YY.YYYY.YY...", "...oYYYYYYYYo...", "...oYrYkkYrYo...", "...oyyyyyyyyo..."],
+    side: ["....Y...Y...Y...", "....YY.YYY.YY...", "....oYYYYYYYYo..", "....oYYkkYYrYo..", "....oyyyyyyyyo.."],
+    pal: { o, Y: "#f5c842", y: "#c9971f", r: "#e8584f", k: o },
+  },
 };
 
 // Pixel art reads as a grid.
