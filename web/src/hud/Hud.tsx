@@ -445,7 +445,7 @@ function Panel() {
     desk: () => <DeskPanel />,
     changelog: () => <ChangelogPanel />,
     caseOpening: () => <CaseOpening />,
-    caseShop: () => <CaseShop />,
+    caseShop: (p) => <CaseShop shelf={p.shelf} />,
     market: (p) => <Market tab={p.tab} />,
     marketSlot: (p) => <MarketSlot slot={p.slot} />,
     roulette: (p) => <RoulettePanel watch={p.watch} />,

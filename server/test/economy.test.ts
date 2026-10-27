@@ -36,7 +36,7 @@ describe("the new ways to earn", () => {
   test("a streak pays more each day, and the wallet and the admin page agree", async () => {
     for (const day of ["2026-12-01", "2026-12-02", "2026-12-03", "2026-12-04", "2026-12-05"])
       await usage(1, day, 100e6);
-    // 39 coins a day, at ×1, ×1.5, ×2, ×2.5 and ×3: the part past the plain coins is the multiplier's. Every finished day wins the podium.
+    // 23 coins a day, at ×1, ×1.5, ×2, ×2.5 and ×3: the part past the plain coins is the multiplier's. Every finished day wins the podium.
     const c = coinsForTokens(100e6, "2026-12-01");
     const extra = [1, 1.5, 2, 2.5, 3].reduce((n, m) => n + streakExtra(c, m), 0);
     const expected = 5 * c + extra + 5 * PODIUM_COINS[0] + levelUpCoins(levelFor(500e6));
@@ -45,12 +45,12 @@ describe("the new ways to earn", () => {
     expect((await wallet(sql, 1, NOW)).streak).toBe(1);
   });
 
-  test("a day off costs two steps, not the streak", async () => {
+  test("a day off resets the streak", async () => {
     for (const day of ["2026-12-01", "2026-12-02", "2026-12-03", "2026-12-04", "2026-12-05", "2026-12-07"])
       await usage(1, day, 100e6);
-    // The day back after the gap is ×2.
+    // The day back after the gap is ×1.
     const c = coinsForTokens(100e6, "2026-12-01");
-    const extra = [1, 1.5, 2, 2.5, 3, 2].reduce((n, m) => n + streakExtra(c, m), 0);
+    const extra = [1, 1.5, 2, 2.5, 3, 1].reduce((n, m) => n + streakExtra(c, m), 0);
     const expected = 6 * c + extra + 6 * PODIUM_COINS[0] + levelUpCoins(levelFor(600e6));
     expect((await balances(sql, NOW)).get(1)).toBe(expected);
   });
