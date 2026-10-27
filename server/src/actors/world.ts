@@ -171,7 +171,15 @@ import { RateLimiter } from "../rate-limit.ts";
 import { readLeader, STATUE_EVERY_MS, STATUE_RETRY_MS } from "../statue.ts";
 import { counts, TavernClock } from "../tavern-clock.ts";
 import { parseChatText } from "../validate.ts";
-import { fetchWeather, initialWeather, pinnedSeason, pinnedWeather, WEATHER_EVERY_MS } from "../weather.ts";
+import {
+  fetchPollen,
+  fetchWeather,
+  initialWeather,
+  POLLEN_EVERY_MS,
+  pinnedSeason,
+  pinnedWeather,
+  WEATHER_EVERY_MS,
+} from "../weather.ts";
 import {
   all,
   authenticate,
@@ -390,6 +398,7 @@ export const world = actor({
     /** The sky: one fetch for everyone (`weather.ts`), kept when a fetch fails. */
     weather: initialWeather() as Weather,
     weatherAt: 0,
+    pollenAt: 0,
     /** The power grid: one read for everyone (`grid.ts`), kept when a read fails. */
     grid: initialGrid() as GridState,
     gridAt: 0,
@@ -516,6 +525,10 @@ export const world = actor({
       if (now >= c.vars.weatherAt) {
         c.vars.weatherAt = now + WEATHER_EVERY_MS;
         void refreshWeather(c);
+      }
+      if (now >= c.vars.pollenAt) {
+        c.vars.pollenAt = now + POLLEN_EVERY_MS;
+        void refreshPollen(c);
       }
       if (now >= c.vars.gridAt) {
         c.vars.gridAt = now + GRID_EVERY_MS;
@@ -2322,15 +2335,27 @@ function raiders(s: WorldState, now: number): Raiders {
   return { top: all.slice(0, RAIDERS_SHOWN), more: Math.max(0, all.length - RAIDERS_SHOWN) };
 }
 
-/** Asks for the weather and tells everyone if it changed; a failed fetch keeps the last one. */
-async function refreshWeather(c: {
-  vars: Vars;
-  broadcast(name: string, ...args: unknown[]): void;
-}): Promise<void> {
-  const next = pinnedWeather() ?? (await fetchWeather());
-  if (!next || sameWeather(next, c.vars.weather)) return;
+type WeatherHost = { vars: Vars; broadcast(name: string, ...args: unknown[]): void };
+
+/** Sets the weather and tells everyone, if it changed. */
+function setWeather(c: WeatherHost, next: Weather): void {
+  if (sameWeather(next, c.vars.weather)) return;
   c.vars.weather = next;
   c.broadcast("weather", next);
+}
+
+/** Asks for the weather (keeping the pollen it has); a failed fetch keeps the last one. */
+async function refreshWeather(c: WeatherHost): Promise<void> {
+  const pinned = pinnedWeather();
+  const next = pinned ?? (await fetchWeather());
+  if (next) setWeather(c, pinned ?? { ...next, pollen: c.vars.weather.pollen });
+}
+
+/** Asks for the pollen, its own fetch once an hour; a failed one keeps the last count. A pinned sky has its own. */
+async function refreshPollen(c: WeatherHost): Promise<void> {
+  if (pinnedWeather()) return;
+  const pollen = await fetchPollen();
+  if (pollen !== null) setWeather(c, { ...c.vars.weather, pollen });
 }
 
 /**

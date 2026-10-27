@@ -1,5 +1,6 @@
 import {
   copenhagenToMs,
+  fogOf,
   type Light,
   lightAt,
   moonPhase,
@@ -17,7 +18,8 @@ import { bakeGlow } from "./glow.ts";
  * one multiply fill for the light, a few baked glow sprites, and capped particles drawn in one path.
  *
  * Dev overrides in the page URL: `?sky=2026-10-21T22:30` (Copenhagen time, keeps ticking) and
- * `?weather=rain` (clear, cloudy, fog, drizzle, rain, storm, snow).
+ * `?weather=rain` (clear, cloudy, fog, drizzle, rain, storm, snow, and `frost` or `pollen` for a freezing or
+ * sneezy clear day).
  */
 
 const query = new URLSearchParams(location.search);
@@ -74,7 +76,7 @@ function tint(l: Light, w: Weather): string {
   // Twilight lingers: the night tint arrives late, so dusk is orange before it is blue.
   c = mix(c, NIGHT, l.darkness ** 1.6 * (1 - l.warmth * 0.2));
   const grey = (c[0] + c[1] + c[2]) / 3;
-  const murk = w.cloud * 0.35 + (w.kind === "storm" ? 0.2 : 0) + (w.kind === "fog" ? 0.1 * w.intensity : 0);
+  const murk = w.cloud * 0.35 + (w.kind === "storm" ? 0.2 : 0) + 0.1 * fogOf(w);
   c = mix(c, [grey, grey, grey], murk * 0.7 * (1 - l.warmth * 0.5));
   const dim = 1 - murk * 0.45;
   return `rgb(${Math.round(c[0] * dim)},${Math.round(c[1] * dim)},${Math.round(c[2] * dim)})`;
@@ -207,7 +209,7 @@ export function drawNightSky(
 ): void {
   const l = currentLight(now);
   const weather = weatherNow();
-  const clear = 1 - weather.cloud * 0.9 - (weather.kind === "fog" ? 0.3 : 0);
+  const clear = 1 - weather.cloud * 0.9 - fogOf(weather) * 0.4;
   const a = l.darkness * l.darkness * Math.max(0, clear);
   if (a < 0.03) return;
   g.save();
@@ -281,8 +283,10 @@ export function drawWeather(
   // Rain and snow stay easy to see at night (street lights, lit windows).
   const bright = 1 - dark * 0.3;
 
-  if (weather.kind === "fog" || (weather.kind === "cloudy" && weather.cloud > 0.85)) {
-    const k = weather.kind === "fog" ? weather.intensity : 0.15;
+  // Fog and mist (as thick as the visibility says), or a low grey overcast.
+  const fog = fogOf(weather);
+  if (fog > 0.05 || (weather.kind === "cloudy" && weather.cloud > 0.85)) {
+    const k = Math.max(fog, weather.kind === "cloudy" ? 0.15 : 0);
     fogShift += dt * (6 + weather.windMs * 4) * dpr * (push >= 0 ? 1 : -1);
     blob ??= bakeGlow(128, "225,230,235");
     g.save();

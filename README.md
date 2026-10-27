@@ -17,7 +17,9 @@ A **star counter** on the square shows the project's GitHub stars, live; press E
 star the repo, and every milestone (100, 250, 500, 1000…) sets off fireworks over the square for everyone online.
 The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, world clocks for San Francisco, New York and Copenhagen (SF's lamp lights up in US working hours, when model launches tend to land), and stairs down to a basement net cafe with arcade cabinets and a live screen of matches. When a big AI launch event is live (OpenAI DevDay, Google I/O, an Anthropic event), the Tavern throws a **keynote watch party**: a projector screen comes down by the stage with the livestream's link, the town's characters gather to cheer, and dropping in earns a badge. A poster and the barkeep announce it a week ahead; the events are scheduled on the admin page.
 The town follows the model news on [OpenRouter's public model list](https://openrouter.ai/api/v1/models): a stand goes up in the square with a pamphlet when a model ships, and a model that drops off the list gets a tombstone in the graveyard beside the Tavern, with its maker, the dates it was listed and its last price.
-The town has Aarhus's real sky and weather, and the **windmill** beside the Tavern turns with the real wind: still in calm air, faster as it blows (up to a cap in a storm), its sails turned into it.
+The town has Aarhus's real **sky and weather**: rain, snow and fog as thick as it really is; when it's cold
+people's breath shows, the town's regulars put on scarves and the pond freezes over, and on high-pollen days people sneeze.
+The **windmill** beside the Tavern turns with the real wind: still in calm air, faster as it blows (up to a cap in a storm), its sails turned into it.
 The town keeps the Danish calendar: for the week up to **Halloween** a jack-o'-lantern sits on every doorstep and a
 few by the pond, lit after dark, and for two weeks round it the Clothes shop sells a Jack-o'-lantern hat (worn all year once bought).
 On **J-dag** (the first Friday of November) the Nissebryg truck drives in at 20:59 and parks under the square till 03:00,
@@ -90,6 +92,10 @@ to your card (a bio is one line and can be reported), when you work, and your ti
 [Firecrawl](https://firecrawl.dev) to read that site's colours and logo, sends those to Claude to pick the
 house's colours, and keeps a copy of the logo. Only the company's public website is involved; nobody's usage
 data is sent anywhere for this.
+
+**Weather.** The server asks [Open-Meteo](https://open-meteo.com) for Aarhus's weather (temperature, visibility, wind,
+cloud, rain) every 15 minutes and for its pollen count ([air-quality API](https://open-meteo.com/en/docs/air-quality-api))
+every hour, once for the whole world. Only the town's coordinates are sent.
 
 **GitHub stars.** The server reads this repo's star count from GitHub's public API four times an hour, for the
 star counter on the square. Nothing about players is sent.
@@ -278,6 +284,7 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `HEALTH_WINDOW_MS` | `120000` | ...the first of them at least this long ago. One success starts over |
 | `HEALTH_INTERVAL_MS` | `30000` | Time between probes |
 | `HEALTH_TIMEOUT_MS` | `20000` | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine |
+| `SKY_WEATHER` | | Dev and screenshots: pins the weather and fetches none. `clear`, `cloudy`, `fog`, `drizzle`, `rain`, `storm`, `snow`, `frost` (freezing: ice, breath, scarves) or `pollen` (sneezes). `?weather=` in the page does the same for one browser |
 | `GRID_FEED` | | `off` stops reading the power grid: no green hours (so no bonus), no price board and lamps at full |
 | `GITHUB_TOKEN` | | Sent with the star counter's GitHub reads (a higher rate limit; no scopes needed). Without it, they go unauthenticated: 4 an hour, well inside GitHub's 60 |
 | `GITHUB_STARS` | | Dev and testing: `480` pins the star count instead of reading GitHub (pin it past a milestone and restart for the fireworks); `off` reads nothing |
