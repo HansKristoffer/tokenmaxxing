@@ -22,6 +22,7 @@ const LOOK: Look = {
 const wallet = (balance: number, owned: string[] = []): Wallet => ({
   balance,
   today: 0,
+  streak: 1,
   raids: 0,
   wins: [],
   owned,
