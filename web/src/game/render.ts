@@ -34,13 +34,19 @@ import { graphics } from "../settings/graphics.ts";
 import { drawBasement, lightBasement } from "./basement.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
+import { drawClocks } from "./clocks.ts";
 import { drawCop, isCop } from "./cop.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
+import { drawFireworks } from "./fireworks.ts";
 import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
+import { lampDim } from "./grid.ts";
+import { drawGrid } from "./grid-board.ts";
+import { drawPumpkins, lightPumpkins } from "./halloween.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
+import { drawKeynote, lightKeynote } from "./keynote.ts";
 import {
   avatarLabels,
   chipHits,
@@ -53,6 +59,7 @@ import {
   signHits,
 } from "./labels.ts";
 import { drawLaunch } from "./launch.ts";
+import { drawLeaves } from "./leaves.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
@@ -61,7 +68,7 @@ import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
-import { seasonalCanvas, seasonNow } from "./seasons.ts";
+import { seasonalCanvas, seasonLookNow, treeVariant } from "./seasons.ts";
 import {
   drawLight,
   drawLights,
@@ -73,12 +80,14 @@ import {
   weatherNow,
 } from "./sky.ts";
 import { snowAmount, snowLayers } from "./snow.ts";
+import { drawStars } from "./stars.ts";
 import { drawStatue } from "./statue.ts";
 import { drawStreet } from "./street.ts";
 import { drawTavern, lightTavern } from "./tavern.ts";
 import { drawTownAnimals } from "./town-life.ts";
 import { tremor2d, tremorPhase } from "./tremor.ts";
 import { drawTrophies } from "./trophies.ts";
+import { drawWindmills } from "./windmill.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
@@ -148,15 +157,20 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   const weather = outdoors ? weatherNow() : null;
   // Snow (town only): twins of the baked ground and sprites, cross-faded while it settles or melts.
   const snow = outdoors ? snowAmount(now) : 0;
-  const season = seasonNow();
+  // The season's look (`seasons.ts`): the town's trees, bushes and grass are drawn as its twins.
+  const season = outdoors ? seasonLookNow() : null;
   const paint = (c: HTMLCanvasElement, x: number, y: number, ch: string) => {
     if (weather && (ch === "T" || ch === "^")) drawSway(g, c, ch, x, y, now, weather);
     else g.drawImage(c, x, y);
   };
-  const snowy = (src: HTMLCanvasElement, x: number, y: number, ch = "", ground = false) => {
-    if (outdoors && (ground || ch === "T" || ch === "^")) src = seasonalCanvas(src, season);
+  const snowy = (plain: HTMLCanvasElement, x: number, y: number, ch = "", ground = false) => {
+    const plant = ground ? "ground" : ch === "T" ? "tree" : ch === "^" ? "bush" : null;
+    const src =
+      season && plant
+        ? seasonalCanvas(plain, plant, season, plant === "tree" ? treeVariant(x, y) : 0)
+        : plain;
     if (snow < 0.01) return paint(src, x, y, ch);
-    for (const [c, a] of snowLayers(src, snow, ground)) {
+    for (const [c, a] of snowLayers(src, snow, ground, plain)) {
       g.globalAlpha = a;
       paint(c, x, y, ch);
     }
@@ -186,6 +200,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   // Outdoors only: lamps and lit windows to shine over the night's tint (see `sky.ts`).
   const lamps: [number, number][] = [];
   const windows: LitWindow[] = [];
+  // The trees in view (their sprites' top left), for the leaves that fall from them.
+  const trees: [number, number][] = [];
   // At night the lit windows' faces are drawn again over the tint, opaque, so the first time is skipped.
   // Only at a whole-number zoom: in between, the panes' soft edges would show what was under them.
   const relit = outdoors && Number.isInteger(scale) && lightsNow(now) > 0.05;
@@ -214,6 +230,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       const ch = map.at(x, y);
       if (o) {
         if (outdoors && ch === "L") lamps.push([x * TILE + TILE / 2, y * TILE - 11]);
+        if (outdoors && ch === "T") trees.push([x * TILE + o.dx, y * TILE + o.dy]);
         items.push({
           y: y * TILE + sortY(ch),
           draw: () => {
@@ -327,11 +344,18 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
 
   drawGames(f);
   drawStreet(f);
+  drawWindmills(f);
   drawLaunch(f);
   drawStatue(f);
+  drawStars(f);
+  drawFireworks(f);
   drawPicnic(f);
+  drawGrid(f);
+  drawPumpkins(f);
   drawChalkboards(f);
+  drawClocks(f);
   drawTavern(f);
+  drawKeynote(f);
   drawTownAnimals(f);
   drawBasement(f);
   drawMerchant(f);
@@ -413,9 +437,11 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
 
   items.sort((a, b) => a.y - b.y);
   for (const i of items) i.draw();
+  if (season && weather) drawLeaves(g, trees, season.look.falling, weather, now);
   drawGhost(g, map, now, fancyCanvas);
   // The Tavern's fire and candles (and the dark, after sunset): `inn` only.
   lightTavern(f);
+  lightKeynote(f);
   lightBasement(f);
 
   // The sky: the sun's tint over the town, lights shining through it, then the weather. Labels
@@ -425,7 +451,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     const glow = drawLight(g, w, h, now);
     if (glow > 0.05) {
       g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
-      drawLights(g, lamps, windows, glow);
+      drawLights(g, lamps, windows, glow, lampDim());
+      lightPumpkins(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
     drawNightSky(g, w, h, dpr, now);

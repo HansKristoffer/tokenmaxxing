@@ -6,6 +6,7 @@ import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
+import type { Stars } from "@tokenmaxxing/core/stars.ts";
 import type { TournamentBoard } from "@tokenmaxxing/core/tournament.ts";
 import type { ChatLine, CompanyInfo, Notice, RoomId } from "@tokenmaxxing/core/world.ts";
 import type { Me, Raid, Today, Wallet } from "@tokenmaxxing/server/registry";
@@ -36,6 +37,8 @@ export type Panel =
   | { kind: "trades" }
   | { kind: "paper" }
   | { kind: "pamphlet" }
+  | { kind: "keynote" }
+  | { kind: "stars" }
   | { kind: "trophies"; userId: number; name: string }
   | { kind: "openOffices" }
   | { kind: "directory" }
@@ -117,6 +120,10 @@ interface HudState {
   mention: { line: ChatLine; at: number } | null;
   /** The weather over Copenhagen, from the server. */
   weather: Weather;
+  /** The day of the year the server pins the town's season to (`SKY_SEASON`), or null for the date's own. */
+  seasonDay: number | null;
+  /** The project's GitHub stars and the last milestone's fireworks (`world` sends `stars`). */
+  stars: Stars;
   /** What the raid's last kills dropped, for everyone (`world` sends `loot`). */
   lootNews: { news: LootNews[]; at: number } | null;
   /** What the Tavern's jukebox is playing for the room, or null (`world` sends `jukebox`). */
@@ -159,6 +166,8 @@ let state: HudState = {
   clockSkew: 0,
   inviteTable: null,
   weather: CALM,
+  seasonDay: null,
+  stars: { count: null, show: null },
 };
 const listeners = new Set<() => void>();
 

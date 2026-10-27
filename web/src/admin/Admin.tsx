@@ -1,4 +1,5 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
+import { dateAt, type Keynote, type KeynoteInput } from "@tokenmaxxing/core/keynote.ts";
 import { PROVIDERS } from "@tokenmaxxing/core/launch.ts";
 import {
   REQUEST_STATUSES,
@@ -14,7 +15,7 @@ import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useSta
 import { errorText } from "../errors.ts";
 import { type AdminConn, connectAdmin, forgetToken, isUnauthorized, savedToken, saveToken } from "./api.ts";
 
-type Tab = "overview" | "users" | "companies" | "requests" | "statue" | "log";
+type Tab = "overview" | "users" | "companies" | "requests" | "keynotes" | "statue" | "log";
 type Act = (fn: () => Promise<unknown>, done: string) => Promise<void>;
 
 interface Data {
@@ -22,6 +23,7 @@ interface Data {
   users: AdminUser[];
   companies: AdminCompany[];
   requests: RequestEntry[];
+  keynotes: Keynote[];
   statue: StatueAdmin;
   log: AdminLogEntry[];
 }
@@ -88,15 +90,16 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [overview, users, companies, requests, statue, log] = await Promise.all([
+      const [overview, users, companies, requests, keynotes, statue, log] = await Promise.all([
         conn.adminOverview(),
         conn.adminUsers(),
         conn.adminCompanies(),
         conn.adminRequests(),
+        conn.adminKeynotes(),
         conn.adminStatue(),
         conn.adminLog(),
       ]);
-      setData({ overview, users, companies, requests, statue, log });
+      setData({ overview, users, companies, requests, keynotes, statue, log });
     } catch (err) {
       if (isUnauthorized(err)) onSignOut("That token didn't work.");
       else setMessage({ text: errorText(err), bad: true });
@@ -121,6 +124,7 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
     ["users", `Users${data ? ` (${data.users.length})` : ""}`],
     ["companies", `Companies${data ? ` (${data.companies.length})` : ""}`],
     ["requests", `Requests${data ? ` (${data.requests.filter((r) => r.status === "open").length})` : ""}`],
+    ["keynotes", `Keynotes${data ? ` (${data.keynotes.filter((k) => k.endsAt > Date.now()).length})` : ""}`],
     ["statue", "Statue"],
     ["log", "Log"],
   ];
@@ -161,6 +165,7 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
             users: () => <Users users={data.users} conn={conn} act={act} />,
             companies: () => <Companies companies={data.companies} conn={conn} act={act} />,
             requests: () => <Requests requests={data.requests} conn={conn} act={act} />,
+            keynotes: () => <Keynotes keynotes={data.keynotes} conn={conn} act={act} />,
             statue: () => <Statue s={data.statue} conn={conn} act={act} />,
             log: () => <Log log={data.log} />,
           })
@@ -715,6 +720,133 @@ function Statue({ s, conn, act }: { s: StatueAdmin; conn: AdminConn; act: Act })
           )}
         </div>
       </form>
+    </>
+  );
+}
+
+// MARK: Keynotes
+
+/** `ms` as a `datetime-local` input's value, in this browser's time zone. */
+const localInput = (ms: number) => {
+  const d = new Date(ms);
+  return new Date(ms - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
+
+const NO_KEYNOTE = { title: "", host: "", start: "", end: "", url: "" };
+
+/**
+ * The keynote watch parties (`core/src/keynote.ts`): schedule one (title, host, start and end in this browser's
+ * time, the stream's link), change or remove one. The Tavern's screen goes down while it's on.
+ */
+function Keynotes({ keynotes, conn, act }: { keynotes: Keynote[]; conn: AdminConn; act: Act }) {
+  const [editing, setEditing] = useState<number | null>(null);
+  const [form, setForm] = useState(NO_KEYNOTE);
+  const set = (k: keyof typeof NO_KEYNOTE) => (e: { target: { value: string } }) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+  const edit = (k: Keynote) => {
+    setEditing(k.id);
+    setForm({
+      title: k.title,
+      host: k.host,
+      start: localInput(k.startsAt),
+      end: localInput(k.endsAt),
+      url: k.url,
+    });
+  };
+  const reset = () => {
+    setEditing(null);
+    setForm(NO_KEYNOTE);
+  };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const input: KeynoteInput = {
+      title: form.title,
+      host: form.host,
+      startsAt: new Date(form.start).getTime(),
+      endsAt: new Date(form.end).getTime(),
+      url: form.url,
+    };
+    void act(
+      async () => {
+        await conn.adminSaveKeynote(editing, input);
+        reset();
+      },
+      editing === null ? `Scheduled ${form.title}.` : `Changed ${form.title}.`,
+    );
+  };
+  const now = Date.now();
+  const columns: Column<Keynote>[] = [
+    {
+      label: "",
+      sort: (k) => k.startsAt,
+      cell: (k) =>
+        k.endsAt <= now ? <span className="muted">over</span> : k.startsAt <= now ? "🔴 live" : "soon",
+    },
+    { label: "Keynote", sort: (k) => k.title, cell: (k) => <strong>{k.title}</strong> },
+    { label: "Host", sort: (k) => k.host, cell: (k) => k.host },
+    { label: "Starts (Copenhagen)", sort: (k) => k.startsAt, cell: (k) => dateAt(k.startsAt) },
+    { label: "Ends", sort: (k) => k.endsAt, cell: (k) => dateAt(k.endsAt) },
+    {
+      label: "Stream",
+      cell: (k) => (
+        <a href={k.url} target="_blank" rel="noreferrer">
+          {new URL(k.url).hostname}
+        </a>
+      ),
+    },
+    {
+      label: "",
+      cell: (k) => (
+        <div className="actions">
+          <button type="button" onClick={() => edit(k)}>
+            Edit
+          </button>
+          <button
+            type="button"
+            className="danger"
+            onClick={() => {
+              if (confirm(`Take ${k.title} off the schedule?`))
+                void act(() => conn.adminRemoveKeynote(k.id), `Removed ${k.title}.`);
+            }}
+          >
+            Remove
+          </button>
+        </div>
+      ),
+    },
+  ];
+  return (
+    <>
+      <form className="keynote-form" onSubmit={submit}>
+        <input required placeholder="Title (OpenAI DevDay)" value={form.title} onChange={set("title")} />
+        <input required placeholder="Host (OpenAI)" value={form.host} onChange={set("host")} />
+        <label>
+          Starts <input required type="datetime-local" value={form.start} onChange={set("start")} />
+        </label>
+        <label>
+          Ends <input required type="datetime-local" value={form.end} onChange={set("end")} />
+        </label>
+        <input
+          required
+          type="url"
+          placeholder="https://… (the livestream)"
+          value={form.url}
+          onChange={set("url")}
+        />
+        <button type="submit" className="primary">
+          {editing === null ? "Schedule" : "Save"}
+        </button>
+        {editing !== null && (
+          <button type="button" onClick={reset}>
+            Cancel
+          </button>
+        )}
+      </form>
+      <p className="muted small">
+        Times are this browser's ({Intl.DateTimeFormat().resolvedOptions().timeZone}). The Tavern puts up a
+        poster a week before, and the screen goes down while it's on.
+      </p>
+      <Table rows={keynotes} columns={columns} initial={3} />
     </>
   );
 }

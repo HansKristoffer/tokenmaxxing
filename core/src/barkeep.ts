@@ -84,6 +84,20 @@ export const BARKEEP: BotDef = {
     busy: ["Busy tonight! Good, the barrels are full.", "Packed house. Mind the elbows."],
   },
   specialLines: ["Today's special: {special}", "On the board today: {special}"],
+  keynoteLines: {
+    soon: [
+      "{title}, on the big screen {when}. Popcorn's on the house.",
+      "Watch party here {when}: {title}. Bring a friend.",
+      "I've dusted off the projector for {title}. {when}, don't be late.",
+    ],
+    live: [
+      "Shh! {title} is on.",
+      "A round for whoever guesses the context window.",
+      "Every time they say 'agentic', the special's on me. Kidding.",
+      "The stream's link is on the screen, if you want it in HD.",
+      "Best seats are by the stage. Mind the lute.",
+    ],
+  },
 };
 
 /** He mentions at most one award this often; the rest are dropped. */

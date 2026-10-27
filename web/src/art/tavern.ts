@@ -404,3 +404,51 @@ export const requestPile = once(() =>
     p.rect(2, 14, 12, 1, C.shadow);
   }),
 );
+
+/**
+ * The world clocks' board: two tiles of wall, three dials in a row (SF, NY, Copenhagen). It hangs high, reaching
+ * into the wall's top like the Hall of Fame, so the regulars' plaque standing below its right half leaves the
+ * dials in sight: draw it `CLOCKS_DY` above the wall face's top.
+ */
+export const CLOCKS_W = 32;
+export const CLOCKS_DY = -7;
+/** Where each dial's middle is on the board; the SF lamp is on the board's top edge over the first. */
+export const DIALS = [6, 16, 26] as const;
+const DIAL_Y = 5;
+/** A circle 7 pixels across, as each row's half width from the middle column. */
+const DIAL_ROWS = [1, 2, 3, 3, 3, 2, 1];
+
+/**
+ * The board with the hands at each dial's hour and minute. `lit`: the launch window is open, so SF's face
+ * glows warm and the lamp over it is on.
+ */
+export function worldClocks(
+  hands: readonly { hour: number; minute: number }[],
+  lit: boolean,
+): HTMLCanvasElement {
+  return bake(CLOCKS_W, 12, (p) => {
+    p.rect(0, 1, CLOCKS_W, 10, C.ink);
+    p.rect(1, 2, CLOCKS_W - 2, 8, C.woodDark);
+    p.rect(1, 2, CLOCKS_W - 2, 1, C.wood);
+    p.rect(1, 11, CLOCKS_W - 2, 1, C.shadow);
+    // The lamp over SF.
+    p.rect(DIALS[0] - 1, 0, 3, 1, C.ink);
+    p.px(DIALS[0], 0, lit ? "#ff6a4a" : "#6b2a2a");
+    for (const [i, cx] of DIALS.entries()) {
+      for (const [j, half] of DIAL_ROWS.entries())
+        p.rect(cx - half, DIAL_Y - 3 + j, half * 2 + 1, 1, j === 0 || j === 6 ? BRASS_DARK : BRASS);
+      const face = i === 0 && lit ? BRASS_LIGHT : PAPER;
+      for (const [j, half] of DIAL_ROWS.slice(1, -1).entries())
+        p.rect(cx - half + 1, DIAL_Y - 2 + j, half * 2 - 1, 1, face);
+      const { hour, minute } = hands[i] ?? { hour: 0, minute: 0 };
+      const hand = (turns: number, len: number, color: string) => {
+        const a = turns * 2 * Math.PI;
+        for (let r = 1; r <= len; r++)
+          p.px(cx + Math.round(Math.sin(a) * r), DIAL_Y - Math.round(Math.cos(a) * r), color);
+      };
+      hand(minute / 60, 2, C.ink);
+      hand(((hour % 12) + minute / 60) / 12, 1, C.rug);
+      p.px(cx, DIAL_Y, C.ink);
+    }
+  });
+}

@@ -304,3 +304,27 @@ summary {
 .pin p {
   margin: 0;
 }
+
+/* Keynotes: the schedule form over the list. */
+.keynote-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.keynote-form input:not([type]) {
+  min-width: 200px;
+}
+
+.keynote-form input[type="url"] {
+  flex: 1;
+  min-width: 260px;
+}
+
+.keynote-form label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

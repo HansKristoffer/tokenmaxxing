@@ -9,6 +9,7 @@ import { POSTERS } from "./posters.ts";
 
 import { SHOP_BODY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS, SHOPS, type ShopId } from "./shoprooms.ts";
 import { TAVERN } from "./tavern.ts";
+import { WINDMILL } from "./windmill.ts";
 
 export type MapId =
   | "town"
@@ -60,7 +61,11 @@ export const LEGEND: Record<string, TileKind> = {
   "^": { name: "bush", text: "Just a bush. It rustles." },
   L: { name: "lamp", text: "The lamp hums quietly. It's always on, like a good server." },
   F: { name: "fountain", tosses: true, text: "A fountain. People toss spare tokens in for luck." },
+  // Its sails turn with the real wind (`windmill.ts`); E says how hard it blows.
+  [WINDMILL]: { name: "windmill", text: "A windmill. Its sails turn with the wind over Aarhus." },
   N: { name: "board", text: "The leaderboard." },
+  // The star counter (`stars.ts`): the project's GitHub stars; E opens it, with a button to star it.
+  "★": { name: "star counter", text: "The star counter." },
   // The statue of the #1 model (`statue.ts`): the client reads its plaque out.
   "♛": { name: "statue" },
   // The chalkboards (outside the Tavern, and inside it): the client writes today's special on them.
@@ -127,6 +132,8 @@ export const LEGEND: Record<string, TileKind> = {
   M: { name: "wall terminal", text: "A wall terminal." },
   // The tournament board (`tournament.ts`); E opens it. The basement is the Tavern's, so `TAVERN` gates it.
   ...(TAVERN ? { i: { name: "tournament board", text: "The tournament board." } } : {}),
+  // The world clocks (`clocks.ts`), on the Tavern's north wall by the hearth: the client sets their hands and says the time.
+  ...(TAVERN ? { "◷": { name: "world clocks" } } : {}),
   // The request pile (`requests.ts`), on the Tavern's north wall; E opens it.
   ...(TAVERN
     ? { "?": { name: "request pile", text: "The request pile. What people would like in the game." } }
@@ -342,13 +349,14 @@ export const PLOT_W = 7;
 export const PLOT_H = 5;
 
 /**
- * Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard, coffee, the #1 model's statue and
- * the raid dungeon's gate filling the top two, then the picnic lawn, the pond and the Inn.
+ * Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard, star counter, coffee, the #1 model's
+ * statue and the raid dungeon's gate filling the top two, then the picnic lawn, the pond, the Inn and the
+ * windmill (`Ŵ`) beside it.
  */
 const CORE = [
   ",,,,,,,,,,,,,,,,,,,,",
   ",L:::::::::::::::::L",
-  ",:::G::::::::::N::::",
+  ",:::G::::::::★:N::::",
   ",::::::B:FF:B:::::o:",
   ",::::::B:FF:B:::::::",
   ",::::♛::::::::::::::",
@@ -361,8 +369,8 @@ const CORE = [
   ",..~~~~,..HHHHHHH...",
   ",.~~~~~,..HHHHHHH...",
   ",.~~~~~,..HHHHHHH...",
-  ",..~~~.,..HHHIHHH...",
-  ',.."...,,,,,,,.K....',
+  ",..~~~.,..HHHIHHH.ŴŴ",
+  ',.."...,,,,,,,.K..ŴŴ',
   ',..T........".....^.',
 ];
 /** The square's paving in CORE, lamp to lamp: Sprint Race runs laps round its edge. */
@@ -622,11 +630,12 @@ export const MAPS: Record<MapId, GameMap> = {
   // them is free), the hearth in a nook of the north wall with its sofas, the stage and jukebox on the west wall,
   // four-sided dining tables and booths round a two-wide aisle from the door, a coat stand by it, and the stairs
   // in the corners (S down in the south-east, u up in the south-west). The tip jar stands on the bar; the
-  // chalkboard on the floor by the barrels. One exit, so `roomEntry` still finds it.
+  // chalkboard on the floor by the barrels; the world clocks (◷) hang on the north wall by the hearth. One exit,
+  // so `roomEntry` still finds it.
   inn: TAVERN
     ? new GameMap("inn", "The Tavern", [
         "WWWWWWWWWWWWWWWWWWWWWWWWWWWW",
-        "WWWWWWWWWWWWmmWAAAA?WWWWWWWW",
+        "WWWWWWWWWWWWmmWAAAA?◷◷WWWWWW",
         "Wkkkkkkk=hho__K______PffPkkW",
         "W=========h_________======pW",
         "Waaayaaa$aa_________s====s_W",

@@ -12,7 +12,7 @@ import { chipHits, signHits } from "../game/labels.ts";
 import { hover, hoverStrength } from "../game/near.ts";
 import { setRaiders } from "../game/raid.ts";
 import type { Renderer, Tile } from "../game/renderer.ts";
-import { seasonNow } from "../game/seasons.ts";
+import { seasonLookNow } from "../game/seasons.ts";
 import { skyNow } from "../game/sky.ts";
 import { loadTrophies } from "../game/trophies.ts";
 import { world } from "../game/world.ts";
@@ -328,7 +328,7 @@ class Renderer3D implements Renderer {
           .sort()
           .join()}`,
       };
-    return `${this.townKey.key}:${seasonNow()}`;
+    return `${this.townKey.key}:${seasonLookNow().key}`;
   }
 
   /** Makes the stage match `world.room`, building it (and clearing the people) when the room changes. */

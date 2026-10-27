@@ -1,3 +1,4 @@
+import { offSeason, onSale } from "@tokenmaxxing/core/costumes.ts";
 import {
   badgeCoins,
   levelUpCoins,
@@ -30,6 +31,7 @@ import { sumBy } from "hanzio";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { companyLedgerAdd } from "./companies.ts";
+import { greenPay } from "./grid.ts";
 import { bumpCount, dayPicks, loadQuestData, noQuestData, paidFrom, questPay } from "./quests.ts";
 import { raidHistory } from "./raid.ts";
 import { trophyAwardCoins, trophyAwardCoinsAll } from "./trophy-awards.ts";
@@ -43,6 +45,8 @@ export interface Wallet {
   streak: number;
   /** Coins from raids: every rung that fell with me a raider by its day. */
   raids: number;
+  /** Coins today's green hours have paid so far (part of `today`). */
+  green: number;
   /** Days finished in the top 3, newest first (the last 30 days). */
   wins: { day: string; place: number; coins: number }[];
   /** Item ids I hold, one of each kind: what I can wear or trade. */
@@ -188,10 +192,12 @@ export async function wallet(
   const spent = await scalar(sql, "SELECT SUM(price) AS n FROM purchases WHERE user_id = ?", userId);
   const wins = places.map((p) => ({ day: p.day, place: p.place, coins: PODIUM_COINS[p.place - 1]! }));
   const raided = raidCoins(raids ?? (await raidHistory(sql, now)), userId);
+  const green = (await greenPay(sql, { [userId]: from }, (_, day) => byDay.get(day) ?? 0)).get(userId);
   const earned =
     sumBy(days, (d) => coinsForTokens(d.tokens)) +
     sumBy(wins, "coins") +
     raided +
+    sumBy([...(green?.values() ?? [])], (n) => n) +
     pay.total +
     pay.weekly +
     milestoneCoins(level) +
@@ -203,14 +209,17 @@ export async function wallet(
   const todays = data.facts.get(today) ?? EMPTY_DAY;
   const counts = data.counts.get(today) ?? EMPTY_COUNTS;
   const todayBase = coinsForTokens(todays.tokens) + (pay.daily.get(today) ?? 0);
+  const greenToday = green?.get(today) ?? 0;
   const held = await bag(sql, userId);
   return {
     balance: earned - spent + (await ledgerSum(sql, userId)),
     today:
       todayBase +
+      greenToday +
       (today >= STREAK_FROM && todays.tokens > 0 ? streakExtra(todayBase, streakNow(active, today)) : 0),
     streak: streakNow(active, today),
     raids: raided,
+    green: greenToday,
     wins: wins.filter((w) => w.day >= since),
     owned: held.map((r) => r.item),
     items: sumBy(held, "count"),
@@ -289,6 +298,8 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
     add(userId, pay.total + pay.weekly);
     dailies.set(userId, pay.daily);
   }
+  for (const [userId, byDay] of await greenPay(sql, signups, (id, day) => tokenDays.get(id)?.get(day) ?? 0))
+    for (const n of byDay.values()) add(userId, n);
   for (const [userId, byDay] of tokenDays)
     add(
       userId,
@@ -360,9 +371,11 @@ export async function setBalance(
 
 /**
  * Pays for one more `item` from `userId`'s coins and puts it in their bag. Run it serialized, so two
- * buys can't both spend the same coins.
+ * buys can't both spend the same coins. A holiday costume is sold only round its holiday (`onSale`).
  */
 export async function buy(sql: Sql, userId: number, item: Item, now: number, kept?: Kept): Promise<Wallet> {
+  if (item.holiday && !onSale(item, now))
+    throw new UserError(offSeason(item.holiday), { code: "not_for_sale" });
   if ((await wallet(sql, userId, now, kept)).balance < item.price)
     throw new UserError("Not enough coins yet.", { code: "too_poor" });
   // The item first: if the purchase write fails, it was free rather than paid for and lost.

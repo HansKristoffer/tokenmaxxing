@@ -4,6 +4,7 @@
  */
 
 import { isRecord, isTruthy, typedKeys } from "hanzio";
+import { costumeAt } from "./costumes.ts";
 import { editionAt } from "./editions.ts";
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
@@ -260,7 +261,8 @@ export function parseLook(raw: unknown): Look | null {
   for (const k of typedKeys(LOOK_OPTIONS)) {
     const v = r[k];
     if (!Number.isInteger(v) || (v as number) < 0) return null;
-    if ((v as number) >= LOOK_OPTIONS[k] && !editionAt(k, v as number)) return null;
+    if ((v as number) >= LOOK_OPTIONS[k] && !editionAt(k, v as number) && !costumeAt(k, v as number))
+      return null;
     out[k] = v as number;
   }
   if (out.petVariant >= petLooks(out.pet)) return null;
@@ -474,6 +476,8 @@ export interface Snapshot {
   drops: Drop[];
   /** The weather over Copenhagen; later changes arrive as the `weather` event. */
   weather: Weather;
+  /** Only with `SKY_SEASON` set (dev and screenshots): the day of the year the town's season is pinned to. */
+  seasonDay?: number;
   /** Only in the dungeon: who has agents running, wherever they are. */
   raiders: Raiders | null;
 }

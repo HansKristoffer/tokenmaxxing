@@ -23,9 +23,11 @@ import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
 import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
+import { GreenBanner } from "./GreenHour.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
 import { Hotbar } from "./Hotbar.tsx";
 import { Jukebox } from "./Jukebox.tsx";
+import { KeynoteBanner, KeynotePanel } from "./Keynote.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LootToast } from "./Loot.tsx";
 import { MatchPanel } from "./Match.tsx";
@@ -49,6 +51,7 @@ import { RoomsBox } from "./RoomsBox.tsx";
 import { Shop } from "./Shop.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
+import { StarButton, StarsPanel } from "./Stars.tsx";
 import { MENU } from "./shops.ts";
 import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
@@ -90,12 +93,16 @@ export function Hud() {
           {tray === "map" && <Minimap />}
           <Banner />
           <PicnicBanner />
+          <KeynoteBanner />
+          <GreenBanner />
         </>
       ) : (
         <>
           <Corner />
           <Banner />
           <PicnicBanner />
+          <KeynoteBanner />
+          <GreenBanner />
           {!beside && <Chat />}
           <Minimap />
         </>
@@ -395,6 +402,8 @@ function Panel() {
     graphics: () => <GraphicsPanel />,
     paper: () => <PaperPanel />,
     pamphlet: () => <PamphletPanel />,
+    keynote: () => <KeynotePanel />,
+    stars: () => <StarsPanel />,
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
     raid: () => <RaidPanel />,
     openOffices: () => <OpenOfficesPanel />,
@@ -416,9 +425,7 @@ function Panel() {
               {label}
             </button>
           ))}
-          <a href="https://github.com/HansKristoffer/tokenmaxxing" target="_blank" rel="noreferrer">
-            ⌥ GitHub
-          </a>
+          <StarButton />
         </nav>
       </Modal>
     ),

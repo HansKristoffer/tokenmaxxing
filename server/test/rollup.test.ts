@@ -69,6 +69,12 @@ test("the rollup carries sessions, subagents, hours by world clock and tokens by
     // A day with nothing: zeros and no sources, not missing.
     expect(day("2026-03-03")).toMatchObject({ sessions: 0, subBuckets: 0, activeBuckets: 0, sources: "" });
     expect(day("2026-03-03").hours).toBe(Array(24).fill(0).join(","));
+    // Tokens by world hour, for green hours: all of July's 175 at 23:00, January's 10 at 23:00 too.
+    const tokensAt = (d: string) => day(d).hourTokens!.split(",").map(Number);
+    expect(tokensAt("2026-07-01")[23]).toBe(175);
+    expect(tokensAt("2026-07-01").reduce((a, b) => a + b, 0)).toBe(175);
+    expect(tokensAt("2026-01-15")[23]).toBe(10);
+    expect(day("2026-03-03").hourTokens).toBe("");
   } finally {
     db.close();
   }

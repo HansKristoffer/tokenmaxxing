@@ -53,10 +53,10 @@ export const NO_STATUE: StatueState = { read: null, pin: null, nextAt: 0 };
 /** What the admin page sees: all of it, and what the plinth shows for it. */
 export type StatueAdmin = StatueState & { shown: Statue };
 
-/** What the plinth shows for `s`: the admin's pin over the last leader read. */
+/** What the plinth shows for `s`: the admin's pin over the last leader read. A plain copy (`world`'s state hands out proxies). */
 export function shownStatue(s: StatueState | undefined): Statue {
   const on = s?.pin ?? s?.read ?? null;
-  return { leader: on?.leader ?? null, since: on?.since ?? 0, pinned: !!s?.pin };
+  return { leader: on ? { ...on.leader } : null, since: on?.since ?? 0, pinned: !!s?.pin };
 }
 
 export const sameLeader = (a: Leader | null, b: Leader | null): boolean =>

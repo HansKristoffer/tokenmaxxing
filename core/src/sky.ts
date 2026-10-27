@@ -106,9 +106,22 @@ export interface Light {
 const DAY_DEG = 6;
 const NIGHT_DEG = -10;
 
+/** How much lighter than full night the shortest night stays. */
+const LIGHT_NIGHT = 0.28;
+
+/**
+ * How dark the night can get on `ms`'s date, 0..1. Around midsummer the sun only dips ten degrees under Aarhus's
+ * horizon, so the nights stay twilight blue (the light nights): this fades in from mid-May and out by mid-August,
+ * with the depth of the sun's lowest point. From the sun's declination, so it is the same for every client.
+ */
+export function nightDepth(ms: number, lat = AARHUS.lat): number {
+  const lowest = solar(ms).decl / RAD - (90 - lat);
+  return 1 - LIGHT_NIGHT * (1 - smooth((NIGHT_DEG - lowest) / 8));
+}
+
 export function lightAt(ms: number): Light {
   const { elevation, morning } = sunElevation(ms);
-  const darkness = smooth((DAY_DEG - elevation) / (DAY_DEG - NIGHT_DEG));
+  const darkness = smooth((DAY_DEG - elevation) / (DAY_DEG - NIGHT_DEG)) * nightDepth(ms);
   const warmth = smooth(1 - Math.abs(elevation - 1) / 9);
   const phase: Phase = elevation > DAY_DEG ? "day" : elevation < -6 ? "night" : morning ? "dawn" : "dusk";
   return { phase, elevation, darkness, warmth };

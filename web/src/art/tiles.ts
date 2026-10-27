@@ -48,6 +48,8 @@ const GROUND: Record<string, Ground> = {
   // The common room's windows and wall of wins hang in the wall's face.
   Ψ: "wall",
   Θ: "wall",
+  // So do the Tavern's world clocks.
+  "◷": "wall",
 };
 
 /** The dungeon's stone: darker than the square's, and lit by its torches. */
