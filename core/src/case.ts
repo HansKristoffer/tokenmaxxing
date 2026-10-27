@@ -58,11 +58,17 @@ export const CASE_ITEMS: readonly CaseItem[] = [
   entry("outfit", 2, "Cargo bomber", "uncommon", "Pockets for everything you'll buy."),
   entry("outfit", 3, "Techwear coat", "uncommon", "Waterproof, zip-heavy, very black."),
   // Rare
+  entry("pet", 0, "Koi", "rare", "Swims through the air a step behind you."),
+  entry("pet", 1, "Paper crane", "rare", "Folded from a lucky receipt, flaps when you walk."),
+  entry("pet", 2, "Tanuki pup", "rare", "A leaf on its head, a snack in its paws."),
+  entry("pet", 3, "Maneki cat", "rare", "One paw up, waving in the customers."),
   entry("outfit", 4, "Dragon satin jacket", "rare", "A dragon coiled up the back, stitched in gold."),
   // Epic
   entry("back", 2, "Neon rain", "epic", "A cloud of neon drizzle follows you down the street."),
+  entry("pet", 4, "Kitsune", "epic", "Nine tails, each lit by its own paper lantern."),
   // Legendary
   entry("outfit", 5, "Festival parade", "legendary", "The whole parade, on one person, with the lanterns lit."),
+  entry("pet", 5, "Tengu", "legendary", "A mountain spirit that rides your shoulder and judges the noodles."),
 ];
 
 /** The case item a look index stands for in a slot, if it is one. */
