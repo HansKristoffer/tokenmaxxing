@@ -175,6 +175,51 @@
   bottom: 0;
   border-bottom-color: var(--accent);
 }
+/* The Nusantara case's pointer: a gunungan (the leaf-and-tree shape that opens a wayang show) in gold hung from
+   the top of a slim gold line, swaying once as the strip lands. The Night Market keeps its plain line and arrows. */
+.cs-roulette[data-case="nusantara"] .cs-marker {
+  width: 2px;
+  margin-left: -1px;
+  background: #f2b632;
+  box-shadow: 0 0 10px rgba(242, 182, 50, 0.6);
+}
+.cs-roulette[data-case="nusantara"] .cs-marker::before {
+  left: -13px;
+  width: 28px;
+  height: 40px;
+  border: 0;
+  transform-origin: 50% 0;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 28'><path d='M10 1C13 8 18 12 18 19C18 24 14 27 10 27C6 27 2 24 2 19C2 12 7 8 10 1Z' fill='%235a3a1c' stroke='%23f2b632' stroke-width='1.6' stroke-linejoin='round'/><path d='M10 24V10M10 21L6.5 17.5M10 21L13.5 17.5M10 16.5L7 13.5M10 16.5L13 13.5' fill='none' stroke='%23f2b632' stroke-width='1.1' stroke-linecap='round'/><circle cx='6.2' cy='17' r='1' fill='%23ffd36a'/><circle cx='13.8' cy='17' r='1' fill='%23ffd36a'/><circle cx='10' cy='8.6' r='1' fill='%23ffd36a'/></svg>")
+    center / contain no-repeat;
+}
+.cs-roulette[data-case="nusantara"] .cs-marker::after {
+  display: none;
+}
+.cs-roulette[data-case="nusantara"].landed .cs-marker::before {
+  animation: cs-gunungan-sway 0.9s ease-out 1;
+}
+@keyframes cs-gunungan-sway {
+  0% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-7deg);
+  }
+  55% {
+    transform: rotate(4deg);
+  }
+  80% {
+    transform: rotate(-1.5deg);
+  }
+  100% {
+    transform: rotate(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-roulette[data-case="nusantara"].landed .cs-marker::before {
+    animation: none;
+  }
+}
 .cs-fade {
   position: absolute;
   top: 0;
@@ -424,4 +469,51 @@
 .cs-box-wrap,
 .cshop-art-wrap {
   display: contents;
+}
+
+/* Ragnarok Eve: a frost-blue strip, and a raven perched on the marker that hops while it spins. */
+.cs-roulette[data-case="ragnarok-eve"] {
+  border-color: #8fc4e0;
+  background: linear-gradient(180deg, rgba(31, 53, 80, 0.85), rgba(18, 30, 48, 0.9));
+  --accent: #cfe8f2;
+}
+.cs-roulette[data-case="ragnarok-eve"] .cs-marker {
+  background: #cfe8f2;
+  box-shadow: 0 0 10px #8fc4e0;
+}
+.cs-roulette[data-case="ragnarok-eve"] .cs-marker::before {
+  border-top-color: #cfe8f2;
+}
+.cs-roulette[data-case="ragnarok-eve"] .cs-marker::after {
+  border-bottom-color: #ff9a3c;
+}
+.cs-raven-wrap {
+  display: contents;
+}
+.cs-raven {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin-left: -12px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  z-index: 2;
+}
+.cs-roulette.live .cs-raven {
+  animation: cs-raven-hop 0.34s steps(2, jump-none) infinite;
+}
+@keyframes cs-raven-hop {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-roulette.live .cs-raven {
+    animation: none;
+  }
 }

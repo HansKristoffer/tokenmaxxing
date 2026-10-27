@@ -2,6 +2,7 @@ import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { typedSwitch } from "hanzio";
 import { CASE_BACKS, CASE_HELD, CASE_OUTFITS } from "./case-body.ts";
+import { RAGNAROK_BACKS, RAGNAROK_HELD, RAGNAROK_OUTFITS } from "./case-ragnarok-body.ts";
 import type { Pose, View } from "./characters.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
@@ -661,10 +662,14 @@ const BACKS: (Back | null)[] = [
   },
 ];
 
-// The Night Market case (indices from `CASE_BASE`) lives in `case-body.ts`; sparse slots, looked up by index like the rest.
+// The cases (indices from `CASE_BASE` and `NUSANTARA_BASE`) live in `case-body.ts`; sparse slots, looked up by index like the rest.
 Object.assign(OUTFITS, CASE_OUTFITS);
 Object.assign(HELD, CASE_HELD);
 Object.assign(BACKS, CASE_BACKS);
+// Ragnarok Eve (`case-ragnarok-body.ts`, indices from `RAGNAROK_BASE`) is merged the same way.
+Object.assign(OUTFITS, RAGNAROK_OUTFITS);
+Object.assign(HELD, RAGNAROK_HELD);
+Object.assign(BACKS, RAGNAROK_BACKS);
 
 function drawBack(p: Pen, i: number, view: View, pose: Pose, layer: "behind" | "front", flip: boolean): void {
   const b = BACKS[i];

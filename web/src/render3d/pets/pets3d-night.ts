@@ -8,14 +8,14 @@ import { light } from "../furniture/furniture.ts";
 import { Model, type V3 } from "../kit/kit.ts";
 import { bake, type Cell, eye, Grid, hash, mix, noise, type Rig, VOX } from "./petvox.ts";
 
-const SIDES = [-1, 1] as const;
-const U = (n: number) => n * VOX;
-const DARK = "#14101c";
-const GLINT = "#f4f6ff";
-type Built = { rig: Rig; body: Model; fore: Model };
+export const SIDES = [-1, 1] as const;
+export const U = (n: number) => n * VOX;
+export const DARK = "#14101c";
+export const GLINT = "#f4f6ff";
+export type Built = { rig: Rig; body: Model; fore: Model };
 
 /** A mesh from a grid, placed at `at` (cells). Its origin is the grid's own (0, 0, 0). */
-function put(
+export function put(
   parent: THREE.Object3D,
   g: Grid,
   at: V3 = [0, 0, 0],
@@ -30,7 +30,7 @@ function put(
 }
 
 /** An empty group at `at` (cells), for a part that swings from its own joint. */
-function joint(parent: THREE.Object3D, at: V3, rotY = 0): Model {
+export function joint(parent: THREE.Object3D, at: V3, rotY = 0): Model {
   const m = new Model();
   m.position.set(U(at[0]), U(at[1]), U(at[2]));
   m.rotation.y = rotY;
@@ -38,7 +38,7 @@ function joint(parent: THREE.Object3D, at: V3, rotY = 0): Model {
   return m;
 }
 
-const speckle = (c: Cell, a: string, b: string, seed: number, k = 0.3) =>
+export const speckle = (c: Cell, a: string, b: string, seed: number, k = 0.3) =>
   hash(c.x, c.y, c.z, seed) < k * 0.8 ? mix(a, b, 0.55) : a;
 
 // MARK: Koi

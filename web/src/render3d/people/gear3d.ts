@@ -27,6 +27,10 @@ import {
 } from "./gear3dBody.ts";
 // The Night Market case adds its builders to the tables above when it loads.
 import "./gear3dCase.ts";
+// So does the Nusantara case.
+import "./gear3dNusantara.ts";
+// The Ragnarok Eve case (look indices 500 and up) does the same.
+import "./gear3dRagnarok.ts";
 import { AURA_BUILDERS } from "./gear3dAura.ts";
 import { COVERS_HAIR, type Ctx, FACE_BUILDERS, HAT_BUILDERS, lit, ring, see } from "./gear3dHead.ts";
 import type { Hat, Look as VLook } from "./styles.ts";

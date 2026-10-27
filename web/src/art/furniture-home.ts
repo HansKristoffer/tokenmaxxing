@@ -715,6 +715,334 @@ function nightTorii(p: Pen, frame: number): void {
   paperLantern(p, 44, 4, N.pink, frame === 1);
 }
 
+// MARK: Nusantara (the second case's furniture, `core/src/case-nusantara-furniture.ts`)
+
+const U = {
+  teak: "#8a5a2b",
+  teakDark: "#5a3a1c",
+  teakLight: "#b57c4b",
+  sea: "#1fb5b0",
+  seaDark: "#0f6e86",
+  saffron: "#f2b632",
+  saffronLight: "#ffd36a",
+  hibiscus: "#d6343a",
+  hibiscusDark: "#9a2128",
+  cream: "#f1e3c2",
+  creamDark: "#d9c9a3",
+  indigo: "#243a73",
+  indigoDark: "#1b2a5e",
+  soga: "#6b4226",
+  rice: "#6fbf4a",
+  leaf: "#2f7f3a",
+  bronze: "#b9803a",
+  bronzeDark: "#7a4f1f",
+  bamboo: "#d9b36a",
+  bambooDark: "#a8793a",
+} as const;
+
+/** A filled polygon with an ink outline (scanline fill, then the edges), for sails and hulls. */
+function poly(
+  p: Pen,
+  pts: readonly (readonly [number, number])[],
+  fill: string,
+  stroke: string | null = C.ink,
+): void {
+  const ys = pts.map((q) => q[1]);
+  for (let y = Math.min(...ys); y <= Math.max(...ys); y++) {
+    const xs: number[] = [];
+    pts.forEach(([x0, y0], i) => {
+      const [x1, y1] = pts[(i + 1) % pts.length]!;
+      if ((y0 <= y && y < y1) || (y1 <= y && y < y0)) xs.push(x0 + ((y - y0) * (x1 - x0)) / (y1 - y0));
+    });
+    xs.sort((a, b) => a - b);
+    for (let k = 0; k + 1 < xs.length; k += 2)
+      p.rect(Math.round(xs[k]!), y, Math.round(xs[k + 1]!) - Math.round(xs[k]!) + 1, 1, fill);
+  }
+  if (!stroke) return;
+  pts.forEach(([x0, y0], i) => {
+    const [x1, y1] = pts[(i + 1) % pts.length]!;
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let t = 0; t <= n; t++)
+      p.px(Math.round(x0 + ((x1 - x0) * t) / (n || 1)), Math.round(y0 + ((y1 - y0) * t) / (n || 1)), stroke);
+  });
+}
+
+function nusBatikHanging(p: Pen): void {
+  // The bamboo pole with a node at each end and one between, and a cord to hang it by.
+  p.rect(0, 0, 32, 3, C.ink);
+  p.rect(1, 0, 30, 2, U.bamboo);
+  p.rect(1, 1, 30, 1, U.bambooDark);
+  for (const x of [1, 15, 29]) p.rect(x, 0, 1, 2, U.teakDark);
+  // The cloth: a cream diamond lattice (kawung-like) over soga brown and indigo, a dark border, a fringe.
+  p.rect(2, 2, 28, 14, C.ink);
+  for (let y = 3; y < 15; y++)
+    for (let x = 3; x < 29; x++) {
+      const u = (x - 3) % 7;
+      const v = (y - 3) % 7;
+      const d = Math.abs(u - 3) + Math.abs(v - 3);
+      p.px(x, y, d === 0 ? U.cream : d < 3 ? U.soga : d === 3 ? U.cream : U.indigo);
+    }
+  p.rect(3, 3, 26, 1, U.indigoDark);
+  for (let x = 3; x < 29; x += 2) p.px(x, 15, U.cream);
+}
+
+function nusSawahRug(p: Pen): void {
+  // A woven rug: a teak border with cream stitches, and inside the rice terraces stepping down in green with a
+  // thread of water at each lip, and one buffalo.
+  p.rect(0, 5, 32, 19, C.ink);
+  p.rect(1, 6, 30, 17, U.teakDark);
+  p.rect(1, 6, 30, 1, U.teak);
+  for (let x = 3; x < 30; x += 3) {
+    p.px(x, 7, U.cream);
+    p.px(x, 21, U.cream);
+  }
+  p.rect(3, 8, 26, 13, C.ink);
+  for (let y = 9; y < 20; y++)
+    for (let x = 4; x < 28; x++) {
+      const v = y + 8 - Math.floor((x - 4) / 5) * 2;
+      const band = Math.floor(v / 4);
+      p.px(x, y, v % 4 === 0 ? "#58a9e2" : band % 2 ? U.rice : U.leaf);
+    }
+  // The buffalo, grey and low, horns swept back.
+  p.rect(16, 13, 6, 3, "#4a4a55");
+  p.rect(21, 12, 3, 3, "#4a4a55");
+  p.px(24, 13, "#4a4a55");
+  p.px(22, 11, U.cream);
+  p.px(24, 11, U.cream);
+  p.px(23, 12, "#4a4a55");
+  p.px(22, 13, U.cream);
+  p.px(17, 16, "#4a4a55");
+  p.px(20, 16, "#4a4a55");
+  p.px(16, 13, "#6a6a78");
+  p.px(15, 13, "#4a4a55");
+  // Tassels at both ends.
+  for (let y = 7; y < 23; y += 2) {
+    p.px(0, y, U.cream);
+    p.px(31, y, U.cream);
+  }
+}
+
+function nusWarungStool(p: Pen): void {
+  shadow(p, 2, 16, 12);
+  // A moulded red plastic stool: four flared legs, a deep seat with two slits.
+  for (const [x, y] of [
+    [3, 12],
+    [11, 12],
+  ] as const) {
+    p.rect(x, y, 3, 5, C.ink);
+    p.rect(x + 1, y, 1, 4, U.hibiscus);
+  }
+  p.rect(5, 12, 1, 4, C.ink);
+  p.rect(10, 12, 1, 4, C.ink);
+  p.rect(2, 8, 12, 6, C.ink);
+  p.rect(3, 8, 10, 5, U.hibiscus);
+  p.rect(3, 8, 10, 1, "#f06a4a");
+  p.rect(3, 12, 10, 1, U.hibiscusDark);
+  p.rect(5, 10, 2, 1, U.hibiscusDark);
+  p.rect(9, 10, 2, 1, U.hibiscusDark);
+  // A glass of tea on the seat, a spoon in it.
+  p.rect(6, 3, 5, 6, C.ink);
+  p.rect(7, 3, 3, 5, "#cfeff0");
+  p.rect(7, 5, 3, 3, "#c9741f");
+  p.px(7, 5, "#e8a33c");
+  p.px(10, 2, U.cream);
+  p.rect(5, 8, 7, 1, U.cream);
+}
+
+function nusAngkringanCart(p: Pen, frame: number): void {
+  shadow(p, 1, 26, 30);
+  // The red tarp over the top with a scalloped edge, a lamp under it.
+  p.rect(0, 0, 32, 5, C.ink);
+  p.rect(1, 1, 30, 3, U.hibiscus);
+  for (let x = 1; x < 31; x += 6) p.rect(x, 1, 3, 3, "#f06a4a");
+  for (let x = 1; x < 31; x += 3) p.px(x, 5, U.hibiscus);
+  p.rect(26, 5, 1, 2, C.ink);
+  p.rect(25, 7, 3, 3, C.ink);
+  p.rect(26, 7, 1, 2, frame ? U.saffronLight : U.saffron);
+  // The glass cabinet: two shelves of fried snacks in neat rows.
+  p.rect(1, 6, 20, 14, C.ink);
+  p.rect(2, 7, 18, 12, "#bfe6f2");
+  p.rect(2, 7, 2, 12, "#e4f5fd");
+  p.rect(2, 12, 18, 1, U.teak);
+  p.rect(2, 17, 18, 2, U.teak);
+  for (let x = 5; x < 19; x += 4) {
+    p.rect(x, 9, 3, 3, "#b8742f");
+    p.px(x, 9, "#e8a33c");
+    p.rect(x, 14, 3, 3, "#c9944a");
+    p.px(x + 1, 14, "#e8c76a");
+  }
+  // The kettle, steaming, on the counter at the right.
+  p.rect(22, 11, 8, 7, C.ink);
+  p.rect(23, 12, 6, 5, "#cfd6df");
+  p.rect(23, 12, 2, 5, "#ffffff");
+  p.rect(29, 12, 2, 1, C.ink);
+  p.rect(21, 13, 1, 1, C.ink);
+  p.rect(25, 10, 3, 1, C.ink);
+  p.px(26, 9, U.hibiscus);
+  const s = frame;
+  p.px(30 + 0, 10 - s, "#e4f5fd");
+  p.px(29 - s, 8, "#e4f5fd");
+  p.px(30, 6 + s, "#e4f5fd");
+  // The counter, a teak box with a plank seam, on two wheels.
+  box(p, 0, 19, 32, 6, U.teak);
+  p.rect(1, 22, 30, 1, U.teakDark);
+  p.rect(1, 20, 30, 1, U.teakLight);
+  for (const x of [6, 25]) {
+    p.disc(x, 24, 3, C.ink);
+    p.disc(x, 24, 2, U.bambooDark);
+    p.px(x, 24, C.ink);
+  }
+}
+
+function nusBonangRack(p: Pen): void {
+  shadow(p, 1, 22, 30);
+  // Carved red-and-gold ends with a round finial each.
+  for (const x of [0, 28]) {
+    p.rect(x, 7, 4, 16, C.ink);
+    p.rect(x + 1, 8, 2, 14, U.hibiscus);
+    p.rect(x + 1, 8, 1, 14, "#f06a4a");
+    p.rect(x + 1, 12, 2, 1, U.saffron);
+    p.rect(x + 1, 17, 2, 1, U.saffron);
+    p.disc(x + 2, 6, 1, U.saffron);
+  }
+  // The rope bed: a red rail along the front with a gold stripe, a rope between the rails.
+  p.rect(2, 17, 28, 4, C.ink);
+  p.rect(3, 18, 26, 2, U.hibiscus);
+  p.rect(3, 18, 26, 1, U.saffron);
+  p.rect(3, 9, 26, 1, U.teakDark);
+  // Two rows of six bronze pots, each with its boss.
+  const pot = (x: number, y: number) => {
+    p.rect(x, y, 4, 4, C.ink);
+    p.rect(x + 1, y, 2, 3, U.bronze);
+    p.px(x + 1, y, U.saffronLight);
+    p.px(x + 2, y + 1, U.saffron);
+    p.px(x + 2, y + 2, U.bronzeDark);
+  };
+  for (let i = 0; i < 6; i++) pot(3 + i * 4 + (i > 2 ? 1 : 0), 10);
+  for (let i = 0; i < 6; i++) pot(3 + i * 4 + (i > 2 ? 1 : 0), 14);
+  // Two mallets left lying across the middle, padded at the head.
+  p.rect(10, 18, 9, 1, C.ink);
+  p.rect(11, 18, 7, 1, U.teak);
+  p.rect(8, 17, 3, 3, C.ink);
+  p.rect(9, 18, 1, 1, U.cream);
+  p.rect(14, 20, 9, 1, C.ink);
+  p.rect(15, 20, 7, 1, U.teakLight);
+  p.rect(22, 19, 3, 3, C.ink);
+  p.rect(23, 20, 1, 1, U.cream);
+}
+
+function nusPinisi(p: Pen, frame: number): void {
+  const W = "#fbf7ef";
+  const sail = (pts: readonly (readonly [number, number])[], c = W) => poly(p, pts, c, "#a89868");
+  shadow(p, 3, 38, 42);
+  // The cradle: a teak bed with two blocks under the keel.
+  p.rect(5, 36, 38, 3, C.ink);
+  p.rect(6, 36, 36, 2, U.teakLight);
+  p.rect(6, 37, 36, 1, U.teak);
+  for (const x of [12, 33]) {
+    p.rect(x - 1, 31, 7, 6, C.ink);
+    p.rect(x, 32, 5, 4, U.teak);
+    p.rect(x, 32, 5, 1, U.teakLight);
+  }
+  // Masts and the bowsprit.
+  for (const [x, top] of [
+    [16, 3],
+    [31, 8],
+  ] as const) {
+    p.rect(x - 1, top, 3, 26 - top, C.ink);
+    p.rect(x, top, 1, 26 - top, U.teak);
+  }
+  for (const [x, y] of [
+    [43, 24],
+    [44, 23],
+    [45, 22],
+    [46, 21],
+  ] as const) {
+    p.rect(x - 1, y - 1, 3, 3, C.ink);
+  }
+  for (const [x, y] of [
+    [43, 24],
+    [44, 23],
+    [45, 22],
+    [46, 21],
+  ] as const)
+    p.px(x, y, U.teak);
+  // The sails: a topsail, a mainsail aft of the main mast, a staysail between the masts, a foremast sail, two jibs.
+  sail([
+    [16, 4],
+    [16, 10],
+    [23, 10],
+  ]);
+  sail(
+    [
+      [15, 9],
+      [15, 24],
+      [3, 24],
+    ],
+    U.cream,
+  );
+  sail([
+    [17, 11],
+    [17, 24],
+    [29, 24],
+  ]);
+  sail(
+    [
+      [30, 14],
+      [30, 24],
+      [19, 24],
+    ],
+    U.cream,
+  );
+  sail([
+    [32, 9],
+    [32, 24],
+    [41, 24],
+  ]);
+  sail(
+    [
+      [32, 13],
+      [32, 24],
+      [44, 24],
+    ],
+    U.cream,
+  );
+  // The hull: a teak boat with a turquoise stripe, a high stern and a rising bow.
+  const hull = (x: number, y: number, w: number, h: number, c: string) => {
+    p.rect(x, y, w, h, c);
+  };
+  p.rect(1, 22, 9, 4, C.ink);
+  p.rect(2, 21, 7, 1, C.ink);
+  p.rect(40, 23, 7, 3, C.ink);
+  p.rect(1, 25, 46, 4, C.ink);
+  p.rect(3, 28, 41, 4, C.ink);
+  p.rect(6, 31, 35, 2, C.ink);
+  hull(2, 22, 7, 3, U.teak);
+  hull(41, 24, 5, 1, U.teak);
+  hull(2, 25, 44, 1, U.teakLight);
+  hull(2, 26, 44, 2, U.sea);
+  hull(2, 28, 44, 1, U.cream);
+  hull(4, 29, 39, 3, U.teak);
+  hull(7, 32, 33, 1, U.teakDark);
+  for (let x = 6; x < 42; x += 5) p.px(x, 30, U.teakDark);
+  p.rect(3, 23, 1, 1, C.ink);
+  p.px(5, 23, U.saffron);
+  p.px(7, 23, U.saffron);
+  // The pennant at the main masthead, rippling.
+  p.rect(17, 3, 1, 1, C.ink);
+  if (frame === 0) {
+    p.rect(17, 2, 6, 1, U.sea);
+    p.rect(17, 3, 5, 1, U.saffron);
+    p.rect(17, 4, 3, 1, U.sea);
+  } else {
+    p.rect(17, 2, 5, 1, U.sea);
+    p.rect(17, 3, 6, 1, U.saffron);
+    p.rect(18, 4, 4, 1, U.sea);
+  }
+  p.px(32, 8, U.saffron);
+  p.px(33, frame ? 8 : 9, U.sea);
+}
+
 // MARK: Catalog
 
 const piece = (
@@ -786,4 +1114,25 @@ export const CASE_FURNITURE: readonly FancyPiece[] = [
     rarity: "uncommon",
   }),
   piece("night-torii", "Torii gate", 3, 44, 0, nightTorii, { frames: 2, frameMs: 650, rarity: "rare" }),
+];
+
+/** The Nusantara case's pieces (`NUSANTARA_PIECES` in core/src/case-nusantara-furniture.ts). */
+export const NUSANTARA_FURNITURE: readonly FancyPiece[] = [
+  piece("nus-batik-hanging", "Batik hanging", 2, 16, 0, nusBatikHanging, {
+    placement: "wall",
+    rarity: "common",
+  }),
+  piece("nus-sawah-rug", "Sawah rug", 2, 24, 0, nusSawahRug, { placement: "flat", rarity: "common" }),
+  piece("nus-warung-stool", "Warung stool", 1, 18, 0, nusWarungStool, { rarity: "common" }),
+  piece("nus-angkringan-cart", "Angkringan cart", 2, 28, 0, nusAngkringanCart, {
+    frames: 2,
+    frameMs: 600,
+    rarity: "uncommon",
+  }),
+  piece("nus-bonang-rack", "Bonang rack", 2, 24, 0, nusBonangRack, { rarity: "uncommon" }),
+  piece("nus-pinisi", "Pinisi on the stand", 3, 40, 0, nusPinisi, {
+    frames: 2,
+    frameMs: 700,
+    rarity: "rare",
+  }),
 ];

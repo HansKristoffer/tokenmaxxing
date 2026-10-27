@@ -32,6 +32,22 @@ export const EXTRA_OUTFITS: Record<number, [string, string, string]> = {
   303: ["#23252f", "#15161c", "#15161c"],
   304: ["#18353f", "#0f232b", "#222a35"],
   305: ["#d6343a", "#9a2128", "#f2eadb"],
+  // The Nusantara case (`core/src/case-nusantara.ts`, from NUSANTARA_BASE = 400): batik shirt, deckhand stripes,
+  // kebaya, silat pangsi, songket gala, ondel-ondel.
+  400: ["#6b4226", "#4d2f1a", "#2f3444"],
+  401: ["#243a73", "#1a2a58", "#c9b88c"],
+  402: ["#1f8a8a", "#16696b", "#6b4226"],
+  403: ["#1c1c22", "#101014", "#1c1c22"],
+  404: ["#a81f35", "#7a1426", "#8e1a2e"],
+  405: ["#d6343a", "#a6242a", "#6c8f2f"],
+  // The Ragnarok Eve case (`core/src/case-ragnarok.ts`, from RAGNAROK_BASE = 500): wool tunic, brewer's apron, yoke
+  // sweater, byrnie, berserker bearskin, valkyrie plate.
+  500: ["#7a6a58", "#5a4d3f", "#4a4038"],
+  501: ["#8a6a46", "#6b4e32", "#4a4038"],
+  502: ["#e8dfc8", "#c9bfa5", "#2b3a5a"],
+  503: ["#7e8794", "#5d6676", "#3f3a36"],
+  504: ["#6b4a2e", "#4a3320", "#3a2a1e"],
+  505: ["#aab4c2", "#7a8394", "#26324a"],
 };
 
 /** Companies without a brand get one of these by id: [main, accent]. */

@@ -1,4 +1,4 @@
-import { CASE_PIECES, isCasePiece } from "@tokenmaxxing/core/case-furniture.ts";
+import { ALL_CASE_PIECES, isCasePiece } from "@tokenmaxxing/core/case-furniture.ts";
 import { HOME_PIECES, isHomePiece } from "@tokenmaxxing/core/home.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE, sideways, turnAt } from "@tokenmaxxing/core/office.ts";
@@ -45,7 +45,7 @@ interface Placed {
 
 /** Company furniture and personal offices' furniture (`HOME_PIECES`) by map character, with its art. */
 const FANCY = new Map(
-  [...COMPANY_FURNITURE.filter((f) => !f.wall), ...HOME_PIECES, ...CASE_PIECES].map((f) => [
+  [...COMPANY_FURNITURE.filter((f) => !f.wall), ...HOME_PIECES, ...ALL_CASE_PIECES].map((f) => [
     f.ch,
     { w: f.w ?? 1, art: fancyPiece(f.art)! },
   ]),

@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { CASES, type CaseDef, caseById, rollCase, VENDOR_COINS } from "../src/cases.ts";
+import { CASE_ITEMS } from "../src/case.ts";
+import { CASE_PIECES } from "../src/case-furniture.ts";
+import { NUSANTARA_ITEMS } from "../src/case-nusantara.ts";
+import { NUSANTARA_PIECES } from "../src/case-nusantara-furniture.ts";
+import { CASES, type CaseDef, caseById, caseOfItem, rollCase, VENDOR_COINS } from "../src/cases.ts";
 import { RARITIES, type Rarity } from "../src/rarity.ts";
 import type { Item } from "../src/shop.ts";
 
@@ -91,5 +95,55 @@ describe("cases", () => {
     // Nothing below common: goes up.
     const up = mini([fake("r", "rare")]);
     expect(rollCase(up, () => 0, none, 0).tier).toBe("rare");
+  });
+});
+
+describe("the Nusantara case", () => {
+  const nus = caseById("nusantara")!;
+
+  test("is a second case with the Night Market's odds and guarantee, a 75 coin key, and only its own items", () => {
+    expect(CASES.map((c) => c.id)).toEqual(["night-market", "nusantara", "ragnarok-eve"]);
+    expect(nus).toMatchObject({ name: "Nusantara case", keyPrice: 75, rareWithin: 10, dupeRerolls: 1 });
+    expect(nus.odds).toEqual(night.odds);
+    expect(nus.blurb.length).toBeGreaterThan(20);
+    expect(nus.items).toHaveLength(NUSANTARA_ITEMS.length + NUSANTARA_PIECES.length);
+    expect(nus.items.map((i) => i.id).sort()).toEqual(
+      [...NUSANTARA_ITEMS.map((i) => i.id), ...NUSANTARA_PIECES.map((p) => `furn.${p.ch}`)].sort(),
+    );
+    expect(nus.items.every((i) => i.case)).toBe(true);
+  });
+
+  test("the Night Market's pool is exactly what it was: 30 cosmetics and 6 pieces, none of the Nusantara's", () => {
+    expect(night.items).toHaveLength(CASE_ITEMS.length + CASE_PIECES.length);
+    expect(night.items).toHaveLength(36);
+    const ids = new Set(night.items.map((i) => i.id));
+    for (const i of nus.items) expect(ids.has(i.id)).toBe(false);
+  });
+
+  test("an item belongs to one case; the two pools split the rarities alike", () => {
+    for (const i of nus.items) expect(caseOfItem(i.id)).toBe(nus);
+    for (const i of night.items) expect(caseOfItem(i.id)).toBe(night);
+    const tiers = (c: CaseDef) =>
+      RARITIES.map((r) => c.items.filter((i) => (i.rarity ?? "common") === r).length);
+    // 11 + 3 pieces, 6 + 2, 5 + 1, 4, 4.
+    expect(tiers(nus)).toEqual([14, 8, 6, 4, 4]);
+    expect(tiers(nus)).toEqual(tiers(night));
+  });
+
+  test("a roll only ever gives one of its items, and every item can be rolled", () => {
+    const rand = seeded(11);
+    const seen = new Set<string>();
+    for (let i = 0; i < 20_000; i++) {
+      const { item } = rollCase(nus, rand, none, i % 10);
+      expect(nus.items.includes(item)).toBe(true);
+      seen.add(item.id);
+    }
+    expect(seen.size).toBe(nus.items.length);
+  });
+
+  test("the tenth opening is rare or better, counted on its own", () => {
+    const low = () => 0;
+    expect(rollCase(nus, low, none, 8).tier).toBe("common");
+    expect(["rare", "epic", "legendary"]).toContain(rollCase(nus, low, none, 9).tier);
   });
 });

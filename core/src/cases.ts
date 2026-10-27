@@ -5,10 +5,14 @@
  */
 import { CASE_ITEMS } from "./case.ts";
 import { CASE_PIECES } from "./case-furniture.ts";
+import { NUSANTARA_ITEMS } from "./case-nusantara.ts";
+import { NUSANTARA_PIECES } from "./case-nusantara-furniture.ts";
+import { RAGNAROK_ITEMS } from "./case-ragnarok.ts";
+import { RAGNAROK_PIECES } from "./case-ragnarok-furniture.ts";
 import { RARITIES, type Rarity } from "./rarity.ts";
 import { type Item, itemById } from "./shop.ts";
 
-/** The building where cases are sold (registered in `shoprooms.ts`). */
+/** The building where cases are sold (registered in `shoprooms.ts`). Every case is sold here for now; the Nusantara's own harbour shop, Pelabuhan, comes later (docs/cases/nusantara.md). */
 export const CASE_SHOP_ID = "natmarked";
 
 export interface CaseDef {
@@ -38,16 +42,45 @@ export const VENDOR_COINS: Record<Rarity, number> = {
 const poolItems = (ids: readonly string[]): Item[] =>
   ids.map((id) => itemById(id)).filter((i): i is Item => i !== undefined);
 
+/** Both cases so far roll the same: the odds, the guarantee and the dupe rerolls. A later case can differ. */
+const STANDARD_ODDS: Record<Rarity, number> = {
+  common: 0.475,
+  uncommon: 0.25,
+  rare: 0.15,
+  epic: 0.1,
+  legendary: 0.025,
+};
+
 export const CASES: readonly CaseDef[] = [
   {
     id: "night-market",
     name: "Night Market case",
     blurb: "Hats, pets, outfits and lanterns from the stalls after dark.",
     keyPrice: 75,
-    odds: { common: 0.475, uncommon: 0.25, rare: 0.15, epic: 0.1, legendary: 0.025 },
+    odds: STANDARD_ODDS,
     rareWithin: 10,
     dupeRerolls: 1,
     items: poolItems([...CASE_ITEMS.map((i) => i.id), ...CASE_PIECES.map((p) => `furn.${p.ch}`)]),
+  },
+  {
+    id: "nusantara",
+    name: "Nusantara case",
+    blurb: "Hats, pets, outfits and instruments from the islands, loaded off the morning boat.",
+    keyPrice: 75,
+    odds: STANDARD_ODDS,
+    rareWithin: 10,
+    dupeRerolls: 1,
+    items: poolItems([...NUSANTARA_ITEMS.map((i) => i.id), ...NUSANTARA_PIECES.map((p) => `furn.${p.ch}`)]),
+  },
+  {
+    id: "ragnarok-eve",
+    name: "Ragnarok Eve case",
+    blurb: "Furs, horns, ravens and runes from the last feast before the end of the world.",
+    keyPrice: 75,
+    odds: STANDARD_ODDS,
+    rareWithin: 10,
+    dupeRerolls: 1,
+    items: poolItems([...RAGNAROK_ITEMS.map((i) => i.id), ...RAGNAROK_PIECES.map((p) => `furn.${p.ch}`)]),
   },
 ];
 

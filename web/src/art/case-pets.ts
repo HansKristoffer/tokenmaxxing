@@ -2,8 +2,9 @@ import { C } from "./palette.ts";
 import type { Pet } from "./pet-base.ts";
 
 /**
- * The Night Market case's pets (core/src/case.ts, pet.200 to pet.205), 12×10 facing right with two hop frames,
- * like the shop's. `pet-base.ts` files them at `CASE_BASE + n` in `PETS`.
+ * The cases' pets, 12×10 facing right with two hop frames, like the shop's. `pet-base.ts` files the Night
+ * Market's (core/src/case.ts) at `CASE_BASE + n` in `PETS` and the Nusantara's (core/src/case-nusantara.ts) at
+ * `NUSANTARA_BASE + n`.
  */
 
 // Pixel art reads as a grid.
@@ -56,5 +57,58 @@ export const CASE_PETS: Pet[] = [
       ["............", "....kk.hh...", "..kkkkhhhhRo", "...kkkoReRnn", "..kkkkoRRRRo", ".kkkkkkddo..", ".kkkkkddddk.", "..kkkkddddk.", "....kkyokyo.", "............"],
     ],
     pal: { o: C.ink, k: "#2a2b3d", h: "#1a1822", R: "#d8362f", e: C.white, n: "#a82a24", d: "#4a4a63", y: "#f5c842" },
+  },
+];
+
+// Pixel art reads as a grid.
+// prettier-ignore
+export const NUSANTARA_PETS: Pet[] = [
+  // Komodo: an olive-grey lizard, a stubby tail, a yellow forked tongue that flicks out on the second frame.
+  {
+    frames: [
+      ["............", "............", "........ooo.", "......ooggeo", "..oooogGggoo", "oogGgGgGgbo.", ".oogGgGgbbo.", "..obooooboo.", "..oo.oo.oo..", "............"],
+      ["............", "............", "........ooo.", "......ooggey", "..oooogGggyy", "oogGgGgGgboy", ".oogGgGgbbo.", "..obooooboo.", "...oo.oo.oo.", "............"],
+    ],
+    pal: { o: C.ink, g: "#8a9650", G: "#5e6a34", b: "#bcbc8a", e: C.ink, y: "#f2c230" },
+  },
+  // Tarsier: a tiny tan body, two huge round eyes, big ears and long spindly fingers.
+  {
+    frames: [
+      ["............", ".oo......oo.", "obbo.oo.obbo", "obbooooooob.", "..owwkwwkwo.", "..owwkwwkwo.", "...obbnbbo..", "..oobbbbbbo.", ".oo.obbbbo..", "ofo.oo.oo..."],
+      ["............", ".oo......oo.", "obbo.oo.obbo", "obbooooooob.", "..owwkwwkwo.", "..owwkwwkwo.", "...obbnbbo..", "..oobbbbbbo.", "..o.obbbbo..", ".fo.oo.oo.o."],
+    ],
+    pal: { o: C.ink, b: "#c9a572", w: "#fbf7ef", k: C.ink, n: "#a8794a", f: "#a8794a" },
+  },
+  // Enggang: a black hornbill with a sunset casque on a cream bill, a white tail with a black band.
+  {
+    frames: [
+      ["........RR..", ".......oRRro", "...ooo.ooyyo", "..okkkoyyyyy", "ookkkkkoyyyo", "owkkkkkkoooo", "owwkkkkko...", "obbkkkko....", "..oo.oo.....", "............"],
+      ["........RR..", ".......oRRro", "..oooooooyyo", ".okkkkkoyyyy", "ookkkkkoyyyo", "owkkkkkkoooo", "owwkkkkko...", "obbkkkko....", "..oo.oo.....", "............"],
+    ],
+    pal: { o: C.ink, k: "#26242c", w: "#fbf7ef", b: "#26242c", R: "#f06a2a", r: "#d6343a", y: "#f4e3b0" },
+  },
+  // Rafflesia: a red five-petal bloom with cream spots, a dark hungry mouth, on two tiny legs; the petals bob.
+  {
+    frames: [
+      ["..oo.oo.oo..", ".orroorrorro", "orRrrrrrrRro", "orrcrkkrcrro", ".orrkeekrro.", ".orRrkkrRro.", "..orrrrrro..", "...oooooo...", "...oo..oo...", "..ooo..ooo.."],
+      ["............", "..oo.oo.oo..", ".orroorrorro", "orRrrrrrrRro", "orrcrkkrcrro", ".orrkeekrro.", ".orRrkkrRro.", "...orrrro...", "...oo..oo...", "..ooo..ooo.."],
+    ],
+    pal: { o: C.ink, r: "#d6343a", R: "#f06a4a", c: "#f1e3c2", k: "#6a1a22", e: "#f2b632" },
+  },
+  // Cenderawasih: a small yellow-and-brown bird-of-paradise, an emerald throat, two long tail wires curling and bobbing.
+  {
+    frames: [
+      ["ooo.........", "o..o........", "o..o....ooo.", "o.ooo.ooyyo.", "oo.obbooyyeo", "...obbbogggn", "...obbbbogg.", "....obbbbo..", ".....oo.oo..", "............"],
+      ["............", "ooo.........", "o..o....ooo.", "o.ooo.ooyyo.", "oo.obbooyyeo", "...obbbogggn", "...obbbbogg.", "....obbbbo..", ".....oo.oo..", "............"],
+    ],
+    pal: { o: C.ink, b: "#8a5a2b", y: "#f2c230", g: "#2fbf7a", e: C.ink, n: "#d9b36a" },
+  },
+  // Orangutan: a round shaggy orange mass with a darker face disc and a long arm, one hand gripping the edge of your shoulder.
+  {
+    frames: [
+      ["....oooooo..", "..ooRrRRrRo.", ".oRrRRrRRroo", "oRRrRfffRRro", "ooRRRfeffRRo", "kooRrfffnfRo", "kooRRrfffRRo", "kkoRrRrRrRo.", "..ooRRrRRoo.", "...oo..oo..."],
+      ["....oooooo..", "..ooRrRRrRo.", ".oRrRRrRRroo", "oRRrRfffRRro", "kooRRfeffRRo", "kooRrfffnfRo", "kkoRRrfffRRo", ".koRrRrRrRo.", "..ooRRrRRoo.", "...oo..oo..."],
+    ],
+    pal: { o: C.ink, R: "#e0762a", r: "#b8571c", f: "#d9a46b", e: C.ink, n: "#a8794a", k: "#8a5a2b" },
   },
 ];

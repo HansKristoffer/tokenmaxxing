@@ -41,6 +41,7 @@ export function iconKey(s: IconSpec): string {
     case "boss":
       return `boss:${s.id}`;
     case "case":
-      return `case:${s.what}`;
+      // The Night Market's (the first case) keeps its old key.
+      return s.caseId && s.caseId !== "night-market" ? `case:${s.caseId}:${s.what}` : `case:${s.what}`;
   }
 }
