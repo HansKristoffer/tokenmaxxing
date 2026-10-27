@@ -1,5 +1,5 @@
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
-import { canFlip } from "@tokenmaxxing/core/office.ts";
+import { canTurn } from "@tokenmaxxing/core/office.ts";
 import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
 import {
   displayTab,
@@ -456,7 +456,7 @@ function updatePieceHint(me: ReturnType<typeof self>): void {
       : undefined;
   const text = !piece
     ? null
-    : `${dropName(piece)}: G ${piece.co === undefined ? "puts it in your bag" : "takes it back to the storeroom"} · M moves it${canFlip(piece.item.slice(5)) ? " · F flips it" : ""}`;
+    : `${dropName(piece)}: G ${piece.co === undefined ? "puts it in your bag" : "takes it back to the storeroom"} · M moves it${canTurn(piece.item.slice(5)) ? " · F turns it" : ""}`;
   if (hud.get().pieceHint !== text) hud.set({ pieceHint: text });
 }
 

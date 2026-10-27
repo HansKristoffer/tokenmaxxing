@@ -850,15 +850,15 @@ export const town = actor({
       return pickUp(c.db, dropId, userId, room);
     },
 
-    /** From `world.move`: where a piece of furniture now stands, and which way. False if its row is gone or in a bag. */
+    /** From `world.move`: where a piece of furniture now stands, and how far it is turned. False if its row is gone or in a bag. */
     moved: async (c, d: Drop): Promise<boolean> => {
       requireInternal(c.conn.state);
       const rows = await all(
         c.db,
-        "UPDATE items SET x = ?, y = ?, flip = ? WHERE id = ? AND room = ? AND owner_id IS NULL RETURNING id",
+        "UPDATE items SET x = ?, y = ?, rot = ? WHERE id = ? AND room = ? AND owner_id IS NULL RETURNING id",
         d.x,
         d.y,
-        d.flip ? 1 : null,
+        d.rot || null,
         d.id,
         d.room,
       );

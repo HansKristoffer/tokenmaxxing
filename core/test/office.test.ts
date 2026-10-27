@@ -2,11 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { MAPS } from "../src/maps.ts";
 import {
   assignSlots,
-  canFlip,
+  canTurn,
   directory,
   doorsFor,
   FURNITURE,
-  flippedAt,
   hqMap,
   OFFICE_LEVEL,
   OFFICE_MAPS,
@@ -16,9 +15,13 @@ import {
   officeSizeItem,
   officeSizeOfItem,
   officeTier,
+  rotOf,
   STARTER_OFFICE,
   setOffice,
   slotSpot,
+  tilesOf,
+  turnAt,
+  turnedAround,
   withPieces,
   withSlots,
 } from "../src/office.ts";
@@ -116,18 +119,80 @@ describe("offices", () => {
     expect([map.at(0, 0), map.at(5, 10), map.at(12, 1), map.at(13, 1)]).toEqual(["W", "x", "t", "W"]);
   });
 
-  test("a piece turned the other way keeps its letters, and both its tiles know its footprint", () => {
+  test("a turned piece keeps its letters; its footprint runs along its row, or down its column when sideways", () => {
     const tv = { ch: "t", x: 3, y: 4 };
     const plain = withPieces([tv], MAPS.office);
-    const turned = withPieces([{ ...tv, flip: true }], MAPS.office);
-    expect(turned.rows).toEqual(plain.rows);
-    const span = { x: 3, w: 2 };
-    expect([3, 4, 5].map((x) => flippedAt(turned, x, 4))).toEqual([span, span, null]);
-    expect(flippedAt(plain, 3, 4)).toBeNull();
+    // Upside down: the same two tiles along the row.
+    const half = withPieces([{ ...tv, rot: 2 }], MAPS.office);
+    expect(half.rows).toEqual(plain.rows);
+    const around = { x: 3, y: 4, w: 2, rot: 2 as const };
+    expect([3, 4, 5].map((x) => turnAt(half, x, 4))).toEqual([around, around, null]);
+    expect(turnAt(plain, 3, 4)).toBeNull();
+    // Sideways: the letters lie down the column, and each tile knows the whole footprint.
+    for (const rot of [1, 3] as const) {
+      const side = withPieces([{ ...tv, rot }], MAPS.office);
+      expect([side.at(3, 4), side.at(3, 5), side.at(4, 4), side.at(4, 5)]).toEqual(["t", "t", "_", "_"]);
+      const turn = { x: 3, y: 4, w: 2, rot };
+      expect(
+        [
+          [3, 4],
+          [3, 5],
+          [4, 4],
+          [3, 6],
+        ].map(([x, y]) => turnAt(side, x!, y!)),
+      ).toEqual([turn, turn, null, null]);
+    }
     // Furniture put down later over a turned room keeps the turned piece turned.
-    expect(flippedAt(withPieces([{ ch: "p", x: 8, y: 6 }], turned), 4, 4)).toEqual(span);
+    expect(turnAt(withPieces([{ ch: "p", x: 8, y: 6 }], half), 4, 4)).toEqual(around);
+    // A turn that is not a quarter turn is the nearest whole one.
+    expect([0, 1, 2, 3, 4, -1, 2.5, "x"].map(rotOf)).toEqual([0, 1, 2, 3, 0, 3, 0, 0]);
     // A wall piece hangs as it is: its writing would read backwards.
-    expect([canFlip("t"), canFlip("Σ"), canFlip("ñ"), canFlip("?")]).toEqual([true, true, false, false]);
+    expect([canTurn("t"), canTurn("Σ"), canTurn("ñ"), canTurn("?")]).toEqual([true, true, false, false]);
+    expect(withPieces([{ ch: "ñ", x: 2, y: 0, rot: 1 }], MAPS.office).rows).toEqual(
+      withPieces([{ ch: "ñ", x: 2, y: 0 }], MAPS.office).rows,
+    );
+  });
+
+  test("tiles of a turned piece, and turning it about its middle tile and back", () => {
+    expect([0, 2].map((r) => tilesOf(3, 4, 3, r))).toEqual([
+      [
+        [3, 4],
+        [4, 4],
+        [5, 4],
+      ],
+      [
+        [3, 4],
+        [4, 4],
+        [5, 4],
+      ],
+    ]);
+    expect(tilesOf(3, 4, 3, 1)).toEqual([
+      [3, 4],
+      [3, 5],
+      [3, 6],
+    ]);
+    // A three wide sofa turns about its middle tile; four turns bring it back.
+    expect(turnedAround(3, 4, 3, 0, 1)).toEqual({ x: 4, y: 3 });
+    let at = { x: 3, y: 4 };
+    for (const [from, to] of [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+    ] as const)
+      at = turnedAround(at.x, at.y, 3, from, to);
+    expect(at).toEqual({ x: 3, y: 4 });
+    // A two wide one: about its left tile (the lower middle), the same way round.
+    at = { x: 3, y: 4 };
+    for (const [from, to] of [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+    ] as const)
+      at = turnedAround(at.x, at.y, 2, from, to);
+    expect(at).toEqual({ x: 3, y: 4 });
+    expect(turnedAround(3, 4, 1, 0, 1)).toEqual({ x: 3, y: 4 });
   });
 
   test("the pet bed: in every office, off the door, the desk and the paths, and reachable", () => {

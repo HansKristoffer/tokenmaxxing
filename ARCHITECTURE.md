@@ -201,8 +201,9 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Drops: `drop` (30 a minute) takes one of a kind out of your bag (not a reward; at most 5 of yours on the
   floor at once, not counting your own office's) and asks `world.placeDrop` to put it where you are; a full
   room says so, and the row comes straight back. On the floor a row has `owner_id` NULL, with `dropped_by`
-  and `dropped_at`, and `room`, `x`, `y` once `world` has put it down (`placed`), and `flip` 1 when it's turned
-  the other way (`Drop.flip`; the map's letters stay the same, `flippedAt` tells both renderers to mirror it). `pickUp` (from
+  and `dropped_at`, and `room`, `x`, `y` once `world` has put it down (`placed`), and `rot` 1 to 3 when it's turned
+  (`Drop.rot`, quarter turns clockwise; the map's letters stay the same, lying down the column when turned sideways, and `turnAt`
+  tells both renderers how far each piece is turned). `pickUp` (from
   `world.take`) puts it in the taker's bag, if it's still on that room's floor. **The sweeper** is a cron alarm
   (`sweep`, every 10 minutes; it outlives restarts and wakes the town): drops nobody took in an hour come
   off the floor (`world.removeDrops`) and go back to their droppers, except what's in its dropper's own
@@ -238,8 +239,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `tavern` (the Tavern's tap: the day's special, sent as `specialUntil`), `toss` (a coin in the fountain),
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game), `visit`
   (someone's open office, from their card), `take` (G: the drop you're on, or a blocking piece you face; on
-  an office floor, only its owner), `move` (M: a piece of yours to another tile; with `flip`, F turns it to face
-  the other way, mirrored left to right, where it stands or as it moves; wall pieces hang as they are), `dance`
+  an office floor, only its owner), `move` (M: a piece of yours to another tile; with `rot`, F turns it a quarter clockwise
+  about its middle tile, where it stands or as it moves, and a quarter turn lies a wide piece down its column; wall pieces hang as they are), `dance`
   (see *Dances*).
 - Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
   `chat`, `mention`, `drop`, `pickup`, `stars`.
@@ -684,8 +685,7 @@ No server changes, actions or tables are needed.
 - The rest of the physical arcade. The basement's cabinets open the lobby, but matches still gather in the town
   square. Left: a daily high-score board, a trophy shelf of winners, and playing games in the basement itself.
 - Inviting a whole company at once; company tournaments built from tables.
-- Left out of the Tavern update on purpose: an office guestbook, a tip jar, turning furniture a quarter turn (only
-  flipping it left to right, F, is in), company quests, and item pins in the showcase (only badges and trophies can
+- Left out of the Tavern update on purpose: an office guestbook, a tip jar, company quests, and item pins in the showcase (only badges and trophies can
   be pinned).
 - Easing Tokenmaxxing's counters between updates, and "✓ syncing" next to seated players.
 - More games: Term Sheet (Split or Steal; needs a rule for when both steal), Runway (Farkle), Burn Rate

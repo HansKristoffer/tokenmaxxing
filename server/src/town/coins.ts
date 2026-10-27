@@ -9,7 +9,7 @@ import {
 } from "@tokenmaxxing/core/economy.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
-import { OFFICE_LEVEL, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
+import { OFFICE_LEVEL, rotOf, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
 import { EMPTY_COUNTS, EMPTY_DAY, type Progress, questProgress } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidCoins } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
@@ -727,7 +727,7 @@ export async function placed(sql: Sql, d: Drop): Promise<void> {
 }
 
 /** Off the floor, from the town's side. */
-const OFF_FLOOR = "dropped_by = NULL, dropped_at = NULL, room = NULL, x = NULL, y = NULL, flip = NULL";
+const OFF_FLOOR = "dropped_by = NULL, dropped_at = NULL, room = NULL, x = NULL, y = NULL, rot = NULL";
 
 /**
  * A drop on `room`'s floor into `userId`'s bag. False if it isn't there any more (the sweeper sent it
@@ -751,7 +751,7 @@ const store = async (sql: Sql, id: number, userId: number, room: string): Promis
   (
     await all(
       sql,
-      `UPDATE items SET room = NULL, x = NULL, y = NULL, flip = NULL WHERE id = ? AND room = ?
+      `UPDATE items SET room = NULL, x = NULL, y = NULL, rot = NULL WHERE id = ? AND room = ?
          AND company_id = (SELECT company_id FROM users WHERE id = ?) RETURNING id`,
       id,
       room,
@@ -765,7 +765,7 @@ export async function giveBack(sql: Sql, ids: number[]): Promise<void> {
   const list = JSON.stringify(ids);
   // Company furniture goes to its storeroom (a closed company's is gone already).
   await sql.execute(
-    "UPDATE items SET room = NULL, x = NULL, y = NULL, flip = NULL WHERE company_id IS NOT NULL AND id IN (SELECT value FROM json_each(?))",
+    "UPDATE items SET room = NULL, x = NULL, y = NULL, rot = NULL WHERE company_id IS NOT NULL AND id IN (SELECT value FROM json_each(?))",
     list,
   );
   const mine = "owner_id IS NULL AND company_id IS NULL AND id IN (SELECT value FROM json_each(?))";
@@ -787,9 +787,13 @@ export const unclaimed = async (sql: Sql, before: number): Promise<number[]> =>
 /** Everything on a floor, for `world` starting up (`seed`). */
 export const floors = async (sql: Sql): Promise<Drop[]> =>
   (
-    await all<Omit<Drop, "co" | "flip"> & { co: number | null; flip: number | null }>(
+    await all<Omit<Drop, "co" | "rot"> & { co: number | null; rot: number | null }>(
       sql,
-      `SELECT id, item, room, x, y, dropped_by AS "by", dropped_at AS at, company_id AS co, flip FROM items
+      `SELECT id, item, room, x, y, dropped_by AS "by", dropped_at AS at, company_id AS co, rot FROM items
        WHERE owner_id IS NULL AND room IS NOT NULL`,
     )
-  ).map(({ co, flip, ...d }) => ({ ...d, ...(co !== null && { co }), ...(flip && { flip: true }) }));
+  ).map(({ co, rot, ...d }) => ({
+    ...d,
+    ...(co !== null && { co }),
+    ...(rotOf(rot) && { rot: rotOf(rot) }),
+  }));

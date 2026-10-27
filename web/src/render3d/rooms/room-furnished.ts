@@ -1,7 +1,7 @@
 import { CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
 import { type GameMap, LEGEND } from "@tokenmaxxing/core/maps.ts";
-import { COMPANY_FURNITURE, FURNITURE, flippedAt } from "@tokenmaxxing/core/office.ts";
+import { COMPANY_FURNITURE, FURNITURE, sideways, turnAt } from "@tokenmaxxing/core/office.ts";
 import { ownerOfOffice, type RoomId } from "@tokenmaxxing/core/world.ts";
 import { C } from "../../art/palette.ts";
 import { DUNGEON_ASSETS, trophyShelf } from "../dungeon/dungeon3d.ts";
@@ -138,11 +138,14 @@ export function furnish(
       }
       // A piece several tiles wide writes its character on each.
       const w = Math.max(1, Math.round(WIDTH.get(ch) ?? asset.w));
-      for (let i = 1; i < w; i++) done.add(`${rx + i},${ry}`);
-      const p = room.place(asset, x, z, TURN[ch] ?? 0, models[ch]?.());
-      // Turned to face the other way (F): mirrored left to right, as the 2D game draws it.
-      if (flippedAt(map, rx + map.x0, ry + map.y0)) p.model.scale.x = -p.model.scale.x;
-      placed.push(p);
+      // Turned a quarter (F), it lies down its column instead, from this top tile.
+      const turned = turnAt(map, rx + map.x0, ry + map.y0);
+      for (let i = 1; i < w; i++) done.add(sideways(turned?.rot) ? `${rx},${ry + i}` : `${rx + i},${ry}`);
+      placed.push(
+        turned
+          ? room.placeTurned(asset, x, z, TURN[ch] ?? 0, turned.rot, w, models[ch]?.())
+          : room.place(asset, x, z, TURN[ch] ?? 0, models[ch]?.()),
+      );
     }
   });
   return placed;

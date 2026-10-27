@@ -3,7 +3,7 @@ import { effectiveDesk } from "@tokenmaxxing/core/desks.ts";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
-import { flippedAt, withPieces } from "@tokenmaxxing/core/office.ts";
+import { sideways, tilesOf, turnAt, withPieces } from "@tokenmaxxing/core/office.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
@@ -259,19 +259,21 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       if (o) {
         if (outdoors && ch === "L") lamps.push([x * TILE + TILE / 2, y * TILE - 11]);
         if (outdoors && ch === "T") trees.push([x * TILE + o.dx, y * TILE + o.dy]);
-        const flip = flippedAt(map, x, y);
+        // Upside down or turned the other way: each tile mirrored about the piece's middle (a piece lying down its
+        // column has no sideways art: it is drawn as it is at its top tile).
+        const turn = turnAt(map, x, y);
+        const mirrored = turn?.rot === 2 ? turn : turn?.rot === 3 ? { x: turn.x, w: 1 } : null;
         items.push({
           y: y * TILE + sortY(ch),
           draw: () => {
-            // A piece turned the other way: each of its tiles mirrored about the piece's middle.
-            if (flip) mirror(g, flip.x, flip.w);
+            if (mirrored) mirror(g, mirrored.x, mirrored.w);
             const desk = ch === "d" ? deskAt(x, y) : null;
             if (desk && desk.tier > 0)
               g.drawImage(deskFrame(desk.tier, desk.mode), x * TILE, (y + 1) * TILE - 22);
             // The company building's pieces are indoors, out of the snow.
             else if (o.fancy) g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
             else snowy(o.canvas, x * TILE + o.dx, y * TILE + o.dy, ch);
-            if (flip) g.restore();
+            if (mirrored) g.restore();
           },
         });
       }
@@ -667,19 +669,24 @@ function drawGhost(
   const w = piece.w ?? 1;
   const colour = ghost.fits ? "91, 224, 138" : "232, 88, 79";
   g.save();
-  const o = objectAt(withPieces([{ ch: piece.ch, x: t.x, y: t.y }], map), t.x, t.y);
+  const rot = mode.kind === "move" ? ghost.rot : 0;
+  const o = objectAt(withPieces([{ ch: piece.ch, x: t.x, y: t.y, rot }], map), t.x, t.y);
   if (o) {
     g.globalAlpha = 0.6;
-    if (ghost.flip) mirror(g, t.x, w);
+    const mirrored = rot === 2 || rot === 3;
+    if (mirrored) mirror(g, t.x, sideways(rot) ? 1 : w);
     g.drawImage(o.fancy ? fancy(o.fancy, now) : o.canvas, t.x * TILE + o.dx, t.y * TILE + o.dy);
-    if (ghost.flip) g.restore();
+    if (mirrored) g.restore();
   }
-  g.globalAlpha = 0.4;
-  g.fillStyle = `rgb(${colour})`;
-  g.fillRect(t.x * TILE, t.y * TILE, w * TILE, TILE);
-  g.globalAlpha = 0.9;
-  g.strokeStyle = `rgb(${colour})`;
-  g.lineWidth = 1;
-  g.strokeRect(t.x * TILE + 0.5, t.y * TILE + 0.5, w * TILE - 1, TILE - 1);
+  // Each tile it covers: along its row, or down its column when it is turned sideways.
+  for (const [tx, ty] of tilesOf(t.x, t.y, w, rot)) {
+    g.globalAlpha = 0.4;
+    g.fillStyle = `rgb(${colour})`;
+    g.fillRect(tx * TILE, ty * TILE, TILE, TILE);
+    g.globalAlpha = 0.9;
+    g.strokeStyle = `rgb(${colour})`;
+    g.lineWidth = 1;
+    g.strokeRect(tx * TILE + 0.5, ty * TILE + 0.5, TILE - 1, TILE - 1);
+  }
   g.restore();
 }
