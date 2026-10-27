@@ -7,7 +7,7 @@ describe("Torvehallen's floor", () => {
   const map = MAPS["shop-market"];
 
   test("every display tile is a slot, in order, and nothing else is", () => {
-    const tiles = map.find(SHOP_DISPLAY_CHAR.market);
+    const tiles = [...map.find(SHOP_DISPLAY_CHAR.market)];
     expect(MARKET_SLOTS).toBe(tiles.length);
     expect(MARKET_SLOTS).toBe(40);
     // Row by row, left to right: the back wall's sixteen, then the two rows of cases.

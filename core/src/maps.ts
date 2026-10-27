@@ -460,9 +460,41 @@ const shopLot = (id: ShopId): string[] => {
 export const SHOP_DOOR: [number, number] = [5, 6];
 
 /**
+ * How far block (bx, by) is from the middle of the core, the corner where its four blocks meet: what
+ * "nearest the square" means for a new company (`frontier`) and for a shop that has been moved.
+ */
+const fromSquare = (bx: number, by: number): number => Math.hypot(bx + 0.5 - 1, by + 0.5 - 1);
+
+/**
+ * Every block of the grid, nearest the square first (ties by plot number) and without end: the town grows
+ * as far as it has companies to fill it, so nothing that looks for a free block stops at a fixed range.
+ * Blocks go out in passes. A pass reaching `m` blocks out holds every block within `m`, and any block it
+ * left out is at least `m + 1` away, so a pass hands on only those nearer than that, in order.
+ * ponytail: plot numbers (`plotId`) stop 500 blocks out, which is some 250,000 companies.
+ */
+export function* blocksOutward(): Generator<[number, number]> {
+  const done = new Set<number>();
+  for (let m = 0.5; ; m++) {
+    const found: [number, number][] = [];
+    for (let by = Math.ceil(0.5 - m); by <= Math.floor(0.5 + m); by++)
+      for (let bx = Math.ceil(0.5 - m); bx <= Math.floor(0.5 + m); bx++)
+        if (!done.has(plotId(bx, by)) && fromSquare(bx, by) < m + 1) found.push([bx, by]);
+    for (const block of sortBy(
+      found,
+      ([bx, by]) => fromSquare(bx, by),
+      ([bx, by]) => plotId(bx, by),
+    )) {
+      done.add(plotId(...block));
+      yield block;
+    }
+  }
+}
+
+/**
  * Where each shop stands for these company plots: its `SHOP_BLOCKS` block, unless a company already holds
  * it (it started before the shop did). That shop moves to the free block nearest the square instead, so no
- * building is drawn over someone's house. Companies never build on a shop's block (`frontier`), so it stays put.
+ * building is drawn over someone's house; in a town full all the way out, that is a block past its edge,
+ * which the map grows to take in. Companies never build on a shop's block (`frontier`), so it stays put.
  */
 export function shopBlocks(plots: readonly number[]): Record<ShopId, [number, number]> {
   const taken = new Set(plots);
@@ -474,24 +506,11 @@ export function shopBlocks(plots: readonly number[]): Record<ShopId, [number, nu
     if (taken.has(plotId(...SHOP_BLOCKS[id]))) displaced.push(id);
     else out[id] = SHOP_BLOCKS[id];
   }
-  if (displaced.length === 0) return out;
-  const near = (id: number) => {
-    const [bx, by] = plotBlock(id);
-    return Math.hypot(bx + 0.5 - 1, by + 0.5 - 1);
-  };
-  // Round the square, and out as far as the houses reach plus one block: a town full to the edge of
-  // that range still has a free block just past its last house, which the map grows to take in.
-  const houses = [...taken].map(plotBlock);
-  const lo = (axis: 0 | 1) => Math.min(-4, ...houses.map((b) => b[axis] - 1));
-  const hi = (axis: 0 | 1) => Math.max(5, ...houses.map((b) => b[axis] + 1));
-  const free: number[] = [];
-  for (let by = lo(1); by <= hi(1); by++)
-    for (let bx = lo(0); bx <= hi(0); bx++) {
-      const id = plotId(bx, by);
-      if (!taken.has(id) && !reserved.has(id)) free.push(id);
-    }
-  const order = sortBy(free, near, (id) => id);
-  for (const id of displaced) out[id] = plotBlock(order.shift()!);
+  for (const block of blocksOutward()) {
+    if (displaced.length === 0) break;
+    const id = plotId(...block);
+    if (!taken.has(id) && !reserved.has(id)) out[displaced.shift()!] = block;
+  }
   return out;
 }
 
@@ -560,12 +579,11 @@ export function frontier(plots: readonly number[]): number[] {
       if (!used.has(next) && !shops.has(next)) out.add(next);
     }
   }
-  // From the middle of the core: the corner where its four blocks meet.
-  const distance = (id: number) => {
-    const [bx, by] = plotBlock(id);
-    return Math.hypot(bx + 0.5 - 1, by + 0.5 - 1);
-  };
-  return sortBy([...out], distance, (id) => id);
+  return sortBy(
+    [...out],
+    (id) => fromSquare(...plotBlock(id)),
+    (id) => id,
+  );
 }
 
 /** The town for these company plots. */

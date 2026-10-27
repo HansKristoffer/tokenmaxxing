@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { BARKEEP, BARKEEP_HOME } from "../src/barkeep.ts";
 import {
+  blocksOutward,
   doorOf,
   frontier,
   type GameMap,
@@ -231,6 +232,8 @@ describe("maps", () => {
 
 describe("the shops", () => {
   const none = new Map();
+  const corner = new Set([plotId(0, 0), plotId(1, 0), plotId(0, 1), plotId(1, 1)]);
+  const reservedShops = new Set(SHOP_IDS.map((id) => plotId(...SHOP_BLOCKS[id])));
   // A busy town, so the shops sit among companies on every side.
   const plots: number[] = [];
   for (let i = 0; i < 12; i++) plots.push(frontier(plots)[i % 3]!);
@@ -258,10 +261,88 @@ describe("the shops", () => {
     expect(reachable(town, ...TOWN_SPAWN).has(town.find(SHOP_DOOR_CHAR.natmarked)[0]!.join(","))).toBe(true);
   });
 
+  describe("growing the town", () => {
+    const fromSquare = ([bx, by]: [number, number]) => Math.hypot(bx + 0.5 - 1, by + 0.5 - 1);
+    const take = (n: number) => {
+      const out: [number, number][] = [];
+      for (const block of blocksOutward()) {
+        out.push(block);
+        if (out.length === n) break;
+      }
+      return out;
+    };
+
+    test("blocksOutward goes nearest the square first, ties by plot number, each block once", () => {
+      const first = take(600);
+      expect(new Set(first.map(([x, y]) => plotId(x, y))).size).toBe(600);
+      // The same order as sorting a window that is certainly wide enough.
+      const window: [number, number][] = [];
+      for (let by = -15; by <= 16; by++) for (let bx = -15; bx <= 16; bx++) window.push([bx, by]);
+      const sorted = window.sort((a, b) => fromSquare(a) - fromSquare(b) || plotId(...a) - plotId(...b));
+      expect(first).toEqual(sorted.slice(0, 600));
+      // The core is the nearest four.
+      expect(new Set(first.slice(0, 4).map(([x, y]) => plotId(x, y)))).toEqual(
+        new Set([plotId(0, 0), plotId(1, 0), plotId(0, 1), plotId(1, 1)]),
+      );
+    });
+
+    test("a shop that is moved takes the nearest free block, wherever that is", () => {
+      // A company on three shop blocks and on every block nearer the square than a few free ones.
+      const held = [SHOP_BLOCKS.natmarked, SHOP_BLOCKS.market, SHOP_BLOCKS.pets].map(([x, y]) =>
+        plotId(x, y),
+      );
+      const near = take(40)
+        .map(([x, y]) => plotId(x, y))
+        .filter((p) => !reservedShops.has(p));
+      const plots = [...new Set([...held, ...near])].filter((p) => !corner.has(p));
+      const placed = shopBlocks(plots);
+      const wanted = take(300)
+        .map(([x, y]) => plotId(x, y))
+        .filter((p) => !plots.includes(p) && !corner.has(p) && !reservedShops.has(p));
+      // Moved in the shops' own order: the pet shop, Natmarked, the hall.
+      expect([placed.pets, placed.natmarked, placed.market].map(([x, y]) => plotId(x, y))).toEqual(
+        wanted.slice(0, 3),
+      );
+      // The shops that kept their blocks did not move.
+      expect(placed.furniture).toEqual(SHOP_BLOCKS.furniture);
+    });
+
+    test("a town of a few hundred companies builds, quickly, and every door can be walked to", () => {
+      const plots: number[] = [];
+      while (plots.length < 300) plots.push(frontier(plots)[0]!);
+      const started = performance.now();
+      const town = townMap(plots);
+      expect(performance.now() - started).toBeLessThan(500);
+      expect(town.width * town.height).toBeLessThan(300_000);
+      const seen = reachable(town, ...TOWN_SPAWN);
+      for (const id of SHOP_IDS) {
+        const [door] = town.find(SHOP_DOOR_CHAR[id]);
+        expect(door, id).toBeDefined();
+        expect(seen.has(door!.join(","))).toBe(true);
+      }
+      expect(town.find("D")).toHaveLength(plots.length);
+    });
+
+    test("the shops still have blocks when the houses reach far past where the search used to stop", () => {
+      const far: number[] = [];
+      for (let by = -12; by <= 13; by++)
+        for (let bx = -12; bx <= 13; bx++) if (!corner.has(plotId(bx, by))) far.push(plotId(bx, by));
+      const placed = shopBlocks(far);
+      const ids = SHOP_IDS.map((id) => plotId(...placed[id]));
+      expect(new Set(ids).size).toBe(SHOP_IDS.length);
+      for (const [bx, by] of Object.values(placed)) {
+        expect(Number.isInteger(bx) && Number.isInteger(by)).toBe(true);
+        expect(far).not.toContain(plotId(bx, by));
+      }
+      const town = townMap(far);
+      const seen = reachable(town, ...TOWN_SPAWN);
+      for (const id of SHOP_IDS) expect(seen.has(town.find(SHOP_DOOR_CHAR[id])[0]!.join(","))).toBe(true);
+    });
+  });
+
   describe("a town with every block round the square taken", () => {
     // A house on every block a company could hold, the shops' own included: they started before the shops.
     const full: number[] = [];
-    const corner = new Set([plotId(0, 0), plotId(1, 0), plotId(0, 1), plotId(1, 1)]);
     for (let by = -4; by <= 5; by++)
       for (let bx = -4; bx <= 5; bx++) if (!corner.has(plotId(bx, by))) full.push(plotId(bx, by));
 
