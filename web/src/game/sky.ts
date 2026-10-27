@@ -252,7 +252,8 @@ let nextFlash = 0;
 let fogShift = 0;
 
 /** Where the wind pushes things sideways, -1..1: blowing towards east is positive. */
-const windPush = (w: Weather): number => -Math.sin((w.windDir * Math.PI) / 180) * Math.min(1, w.windMs / 10);
+export const windPush = (w: Weather): number =>
+  -Math.sin((w.windDir * Math.PI) / 180) * Math.min(1, w.windMs / 10);
 
 const seed = (n: number, w: number, h: number, rain: boolean): Drop[] =>
   Array.from({ length: n }, () => ({

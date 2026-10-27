@@ -24,8 +24,23 @@ export interface RoomCost {
 
 const world = () => ((globalThis as { __perfWorld?: World }).__perfWorld ??= new World());
 
-/** Builds a room with no renderer and counts what one pass over it would draw once batched. */
+/**
+ * Builds a room with no renderer and counts what one pass over it would draw once batched. The street's clock stands at
+ * noon meanwhile (`?clock=`: the cart open, the snail halfway): at the live clock the snail now and then crept between
+ * the tick samples, read as moving, and its parts were counted unbatched.
+ */
 export function measureRoom(id: string): RoomCost {
+  const page = globalThis.location as { search: string };
+  const search = page.search;
+  page.search = "?clock=12:00";
+  try {
+    return measure(id);
+  } finally {
+    page.search = search;
+  }
+}
+
+function measure(id: string): RoomCost {
   const room = world().room(id as MapId);
   const scene = new THREE.Scene();
   scene.add(room.group);

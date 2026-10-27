@@ -10,6 +10,8 @@ AI earns **coins**, and so does finishing a day in the top 3; spend them on clot
 pets that follow you around (hold a pet and pick any of its colours and breeds with the eye in your bag; they curl up asleep in the pet bed of your office while you're in it). Or play for them: challenge someone to a game in the town square, from
 rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
 the most real tokens in an hour.
+The town lives on Aarhus's clock: the real sun and moon, the weather, and the **seasons**. Blossom in spring, full green and light nights in summer,
+leaves turning and falling in autumn, bare branches in winter, changing a little every few days.
 A **star counter** on the square shows the project's GitHub stars, live; press E at it (or open the menu) to
 star the repo, and every milestone (100, 250, 500, 1000…) sets off fireworks over the square for everyone online.
 The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, world clocks for San Francisco, New York and Copenhagen (SF's lamp lights up in US working hours, when model launches tend to land), and stairs down to a basement net cafe with arcade cabinets and a live screen of matches. When a big AI launch event is live (OpenAI DevDay, Google I/O, an Anthropic event), the Tavern throws a **keynote watch party**: a projector screen comes down by the stage with the livestream's link, the town's characters gather to cheer, and dropping in earns a badge. A poster and the barkeep announce it a week ahead; the events are scheduled on the admin page.
@@ -268,6 +270,8 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `GITHUB_TOKEN` | | Sent with the star counter's GitHub reads (a higher rate limit; no scopes needed). Without it, they go unauthenticated: 4 an hour, well inside GitHub's 60 |
 | `GITHUB_STARS` | | Dev and testing: `480` pins the star count instead of reading GitHub (pin it past a milestone and restart for the fireworks); `off` reads nothing |
 | `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
+| `SKY_WEATHER` | | Dev and screenshots only: pins the weather for everyone (`clear`, `cloudy`, `fog`, `drizzle`, `rain`, `storm`, `snow`); nothing is fetched. `?weather=rain` does it for one page |
+| `SKY_SEASON` | | Dev and screenshots only: pins the town's season for everyone (`spring`, `summer`, `autumn`, `winter`, or a date like `11-12`). `?season=autumn` does it for one page |
 | `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
 
 `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` are read by RivetKit's native side, so they must be set in
