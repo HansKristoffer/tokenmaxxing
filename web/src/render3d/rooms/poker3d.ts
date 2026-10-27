@@ -1,5 +1,5 @@
 /**
- * The Tavern's poker table as a 3D prop: a stadium of green felt in a padded rail and a wooden rim, on two
+ * The net cafe's poker table as a 3D prop: a stadium of green felt in a padded rail and a wooden rim, on two
  * pedestals. Its size and the way round it are read off the map (`core/pokertable.ts`), so the chairs and
  * the chips always meet. `show()` lays what is going on onto the felt: the board as little face-up cards, each
  * seat's cards, bet and stack as chips, the pot and the dealer's button. Nothing here knows the game's rules.
@@ -164,8 +164,8 @@ function chips(
 /** The poker table, built from the map's table and chairs; `show` puts the game on it. */
 export function pokerTable3d(): PokerModel {
   const m = new Model() as PokerModel;
-  const spot = pokerTable(MAPS.inn) ?? { x: 0, y: 0, w: 4, h: 2 };
-  const chairs = pokerChairs(MAPS.inn);
+  const spot = pokerTable(MAPS.basement) ?? { x: 0, y: 0, w: 4, h: 2 };
+  const chairs = pokerChairs(MAPS.basement);
   const hw = spot.w / 2;
   const hd = spot.h / 2;
   // A stadium: a box between two discs.
@@ -236,5 +236,17 @@ export function pokerTable3d(): PokerModel {
     return into.copy(m.localToWorld(v));
   };
   m.centreWorld = (into) => into.copy(m.localToWorld(v.set(0, FELT_Y, 0)));
+  return m;
+}
+
+/** A chair at the poker table: a wooden chair facing +z, with a red cushion. */
+export function pokerChair(): Model {
+  const m = new Model();
+  for (const sx of [-1, 1])
+    for (const sz of [-1, 1]) m.cyl(0.025, 0.4, C.woodDark, [sx * 0.17, 0, sz * 0.17], 0.025, 8);
+  m.box([0.42, 0.06, 0.42], C.woodLight, [0, 0.4, 0], 0.02);
+  for (const sx of [-1, 1]) m.box([0.04, 0.5, 0.04], C.woodDark, [sx * 0.17, 0.44, -0.18], 0.012);
+  for (const y of [0.62, 0.76]) m.box([0.372, 0.07, 0.03], C.wood, [0, y, -0.18], 0.01);
+  m.box([0.38, 0.05, 0.38], C.rug, [0, 0.455, 0.01], 0.02);
   return m;
 }

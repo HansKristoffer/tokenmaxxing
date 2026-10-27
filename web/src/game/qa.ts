@@ -1,6 +1,6 @@
 import { DANCES } from "@tokenmaxxing/core/dances.ts";
 import { route } from "@tokenmaxxing/core/world.ts";
-import { town } from "../net.ts";
+import { conn, town } from "../net.ts";
 import { graphics } from "../settings/graphics.ts";
 import { storage } from "../storage.ts";
 import { hud } from "../store.ts";
@@ -33,6 +33,7 @@ export function exposeForQa(): void {
       undoStack,
       dances: DANCES,
       showMyDance,
+      conn: () => conn,
     },
   });
 }

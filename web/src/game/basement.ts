@@ -10,7 +10,9 @@ import type { Frame } from "./frame.ts";
 import { gameHits } from "./games.ts";
 import { drawGlow, flicker } from "./glow.ts";
 import { FONT } from "./labels.ts";
+import { drawPoker } from "./poker.ts";
 import { left } from "./raid.ts";
+import { drawRoulette } from "./roulette.ts";
 import { skyNow } from "./sky.ts";
 import { serverNow, world } from "./world.ts";
 
@@ -56,6 +58,8 @@ function cut(g: CanvasRenderingContext2D, text: string, maxW: number): string {
 /** The big screen's feed and the wall terminals' values, queued for this frame. Nothing elsewhere. */
 export function drawBasement(f: Frame): void {
   if (world.map.id !== "basement") return;
+  drawPoker(f);
+  drawRoulette(f);
   const { g, now } = f;
   const lan = isLanParty(skyNow());
   const ink = lan ? "#ff7be0" : "#7be0ff";

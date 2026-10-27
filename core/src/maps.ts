@@ -37,8 +37,10 @@ interface TileKind {
   portal?: true;
   /** Shown when you press E facing it. */
   text?: string;
-  /** E while facing the seat sits you down at the Tavern's poker table (`pokerSit`), not just on the chair. */
+  /** E while facing the seat sits you down at the poker table in the net cafe (`pokerSit`), not just on the chair. */
   poker?: true;
+  /** E while facing the spot opens the roulette panel (the net cafe's roulette table). */
+  roulette?: true;
   /** E while facing it pours you a coffee (`drink`). */
   pours?: true;
   /** E while facing it serves the day's special (`tavern`, the Tavern's tap). */
@@ -105,7 +107,8 @@ export const LEGEND: Record<string, TileKind> = {
   // The tip jar on the bar (the indoor stand-in for the fountain): E tosses a coin in.
   $: { name: "tip jar", tosses: true, text: "A tip jar on the bar. A spare coin clinks nicely." },
   z: { name: "jukebox", text: "A jukebox. It hums, waiting for a coin it never asks for." },
-  // The poker table (`poker.ts`): a 4×2 table of felt, and the six chairs round it; E on a chair buys you in.
+  // The poker table (`poker.ts`, in the basement net cafe): a 4×2 table of felt, and the six chairs round it; E on
+  // a chair buys you in. Beside it the roulette table: a 3×2 block and four spots in front where players stand.
   ...(TAVERN
     ? {
         "♠": {
@@ -117,6 +120,16 @@ export const LEGEND: Record<string, TileKind> = {
           seat: "chair",
           poker: true,
           text: "A card-room chair. E buys you in at the poker table.",
+        },
+        "♦": {
+          name: "roulette table",
+          text: "A roulette table. The wheel is honest. That is the problem.",
+        },
+        "♥": {
+          name: "roulette spot",
+          walk: true,
+          roulette: true,
+          text: "A spot at the roulette table. E to place your bets.",
         },
       }
     : {}),
@@ -684,10 +697,10 @@ export const MAPS: Record<MapId, GameMap> = {
         "J______cc___cc_______cc____W",
         "Wz____cnnc_cnnc_____cnnc___W",
         "Wee____cc___cc_______cc____W",
-        "Wee_____________♣♣_________W",
-        "Wee____________♠♠♠♠♣_______W",
-        "Wve___________♣♠♠♠♠________W",
-        "Wee_____________♣♣________hW",
+        "Wee________________________W",
+        "Wee________________________W",
+        "Wve________________________W",
+        "Wee_______________________hW",
         "Wp__BB__BB____________BB___W",
         "W___nn__nn____________nn__SW",
         "Wu__BB__BB_OO_________BB_p_W",
@@ -720,8 +733,8 @@ export const MAPS: Record<MapId, GameMap> = {
     "WWWWWWWWWWxWWWWWWWWW",
   ]),
   // The net cafe under the Tavern: racks, the livestream screen and two wall terminals on the back wall,
-  // five cabinets (one per game, in `CABINET_GAMES` order), PC pairs, a foosball table and a sofa. Its one
-  // exit is the stairs up.
+  // five cabinets (one per game, in `CABINET_GAMES` order), a row of PC pairs, a foosball table and a sofa, the
+  // poker table (`♠`, six `♣` chairs) and the roulette table (`♦`, four `♥` spots below it). Its one exit is the stairs up.
   basement: new GameMap("basement", "The Basement", [
     "WWWWWWWWWWWWWWWWWWWWWW",
     "WWWWWWWWWWWWWWWWWWWWWW",
@@ -731,10 +744,10 @@ export const MAPS: Record<MapId, GameMap> = {
     "W____________________W",
     "W_φφ____ζζ_ζζ_ζζ_ζζ__W",
     "W_______cc_cc_cc_cc__W",
-    "W____________________W",
-    "W____________________W",
-    "W_ζζ_ζζ_ζζ_ζζ_ζζ_ζζ__W",
-    "W_cc_cc_cc_cc_cc_cc__W",
+    "W___♣♣_______________W",
+    "W__♠♠♠♠♣____♦♦♦______W",
+    "W_♣♠♠♠♠_____♦♦♦______W",
+    "W___♣♣______♥♥♥♥_____W",
     "W_ssss_____________p_W",
     "WWWWWWWWWWxWWWWWWWWWWW",
   ]),

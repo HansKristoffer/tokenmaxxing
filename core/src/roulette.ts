@@ -136,3 +136,100 @@ export function settle(bets: readonly Bet[], pocket: number): Settled {
 
 /** A pocket from a uniform `rand` in [0, 1). */
 export const spinPocket = (rand: () => number): number => Math.min(36, Math.floor(rand() * 37));
+
+// MARK: The table in the net cafe (what everyone in the room sees)
+
+/** Who stands where at the table: `spot` is the index of the `♥` tile, left to right. */
+export interface RouletteSeat {
+  spot: number;
+  userId: number;
+  name: string;
+}
+
+/** One player's outcome of a round. */
+export interface RouletteOutcome {
+  userId: number;
+  name: string;
+  staked: number;
+  /** All that came back (stake included; 0 if everything lost). */
+  payout: number;
+}
+
+/** One landed spin, public: the shared pocket and what everyone staked and won. */
+export interface RouletteSpin {
+  /** Counts up per spin, so a client plays each one once. */
+  id: number;
+  /** The round it settled. */
+  round: number;
+  pocket: number;
+  color: Color;
+  /** Everyone who had bets down that round. */
+  results: RouletteOutcome[];
+  /** When the server rolled it, ms. The wheel takes `SPIN_MS` to land; everyone plays the same animation. */
+  at: number;
+}
+
+export type RoulettePhase = "idle" | "betting" | "spinning" | "result";
+
+/** A seated player's bets this round: public, everyone sees them. */
+export interface RoulettePlayer {
+  userId: number;
+  bets: Bet[];
+  ready: boolean;
+}
+
+/** What the world sends everyone in the net cafe (the `roulette` event). */
+export interface RouletteState {
+  seats: RouletteSeat[];
+  /** The last landed spin; during `spinning` it is the one landing now (hide its pocket until the wheel stops). */
+  last: RouletteSpin | null;
+  /** The last 12 pockets, newest first (the spinning one is added when the result starts). */
+  history: number[];
+  phase: RoulettePhase;
+  round: number;
+  /** When the phase ends, server ms (compare with `now`, not the local clock). */
+  phaseEndsAt: number;
+  /** Server ms when this was sent. */
+  now: number;
+  players: RoulettePlayer[];
+}
+
+/** How long bets are open, and how long the result stays up before the next round. */
+export const BETTING_MS = 20_000;
+export const RESULT_MS = 6000;
+
+/** What the table is doing, for `nextPhase`. */
+export interface RoundView {
+  phase: RoulettePhase;
+  now: number;
+  endsAt: number;
+  seated: number;
+  /** Seated players with at least one bet down. */
+  betting: number;
+  /** Every seated player pressed Ready. */
+  allReady: boolean;
+}
+
+/**
+ * The phase the table moves to now, or null to stay. Moving "betting" -> "betting" is a skipped round
+ * (nobody bet); "betting" -> "spinning" is the roll.
+ */
+export function nextPhase(v: RoundView): RoulettePhase | null {
+  switch (v.phase) {
+    case "idle":
+      return v.seated > 0 ? "betting" : null;
+    case "betting":
+      if (v.seated === 0) return "idle";
+      if (v.now >= v.endsAt || (v.allReady && v.betting > 0)) return v.betting > 0 ? "spinning" : "betting";
+      return null;
+    case "spinning":
+      return v.now >= v.endsAt ? "result" : null;
+    case "result":
+      return v.now >= v.endsAt ? (v.seated > 0 ? "betting" : "idle") : null;
+  }
+}
+
+/** How long the wheel and ball take to land after a spin, for the player and every watcher. */
+export const SPIN_MS = 4000;
+/** The spots at the table. */
+export const SPOTS = 4;

@@ -4,6 +4,9 @@
  * board, two wall terminals, PC desks, server racks, a neon sign, foosball, vending machine, sofa, stairs;
  * a LAN-party mode and the dim lighting. `buildBasement()` lays them out like the 2D map.
  */
+import { MAPS } from "@tokenmaxxing/core/maps.ts";
+import { pokerChairs, pokerTable } from "@tokenmaxxing/core/pokertable.ts";
+import { rouletteSpots } from "@tokenmaxxing/core/roulettetable.ts";
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
 import { type Asset, assetById, light } from "../furniture/furniture.ts";
@@ -20,10 +23,15 @@ import {
 } from "../kit/livescreen.ts";
 import { TABLE_ASSETS } from "../town/tables3d.ts";
 import { buildStairs } from "./exits3d.ts";
+import { type PokerModel, pokerChair, pokerTable3d } from "./poker3d.ts";
 import { Room, type Turn } from "./room.ts";
+import { type RouletteModel, rouletteMats, rouletteTable3d } from "./roulette3d.ts";
 
 export type { BoardRow, BracketView, MatchRow, ScreenFeed } from "../kit/livescreen.ts";
 export { isLanPartyAt, lanParty, setLanParty } from "../kit/livescreen.ts";
+
+/** The turn that faces a chair the way a sitter looks (a chair at turn 0 faces +z, towards the table below it). */
+const CHAIR_TURN: Record<"down" | "right" | "up" | "left", Turn> = { down: 0, right: 1, up: 2, left: 3 };
 
 const INK = C.ink;
 const NEON = "#ff46be";
@@ -529,6 +537,9 @@ export const BASEMENT_ASSETS: readonly Asset[] = [
   tile("φ", "Foosball table", 2, 1, reuse("foosball")),
   tile("Π", "Vending machine", 1, 1, reuse("vending-machine")),
   tile("s", "Sofa", 2, 1, reuse("sofa"), { seat: assetById.get("sofa")!.seat! }),
+  tile("♠", "Poker table", 4, 2, pokerTable3d),
+  tile("♣", "Card-room chair", 1, 1, pokerChair, { seat: { at: [0, 0.5, 0.03], turn: 0 } }),
+  tile("♦", "Roulette table", 3, 2, rouletteTable3d),
   tile("x", "Stairs up", 1, 1, stairs(false)),
   { id: "stairs:down", name: "Stairs down", price: 0, w: 1, d: 1, build: stairs(true) },
   ...TABLE_ASSETS,
@@ -556,6 +567,10 @@ export interface BasementScene {
   screen: BigScreen;
   board: TournamentBoard;
   terminals: [Terminal, Terminal];
+  /** The poker table, for the game on it (`show`); null if the map has none. */
+  poker: PokerModel | null;
+  /** The roulette table, for its wheel and seated players; null if the map has none. */
+  roulette: RouletteModel | null;
 }
 
 /** The basement laid out like the 2D map (`core/src/maps.ts`), 20×12 tiles, every prop placed. */
@@ -581,11 +596,6 @@ export function buildBasement(): BasementScene {
     at("tile:c", x, 5, 2);
     at("tile:c", x + 1, 5, 2);
   }
-  for (const x of [1, 4, 7, 10, 13, 16]) {
-    at("tile:ζ", x, 8);
-    at("tile:c", x, 9, 2);
-    at("tile:c", x + 1, 9, 2);
-  }
   // The two plants in the corners the map has (`p`).
   for (const [px, pz] of [
     [19, 0],
@@ -596,9 +606,29 @@ export function buildBasement(): BasementScene {
   at("tile:s", 3, 10, 2);
   at("tile:x", 9, 11, 2);
   at("stairs:down", 18, 11, 2);
+  // The poker table and its six chairs, then the roulette table and a mat under each of its spots, where the map says.
+  const map = MAPS.basement;
+  const [ix, iz] = [1, 2];
+  const felt = pokerTable(map);
+  let poker: PokerModel | null = null;
+  if (felt) {
+    poker = at("tile:♠", felt.x - ix, felt.y - iz).model as PokerModel;
+    for (const ch of pokerChairs(map)) at("tile:♣", ch.x - ix, ch.y - iz, CHAIR_TURN[ch.facing]);
+  }
+  const wheel = map.find("♦");
+  const spots = rouletteSpots(map).map(([px, py]) => [px - ix, py - iz] as const);
+  let roulette: RouletteModel | null = null;
+  if (wheel.length) {
+    const x = Math.min(...wheel.map(([px]) => px));
+    const z = Math.min(...wheel.map(([, py]) => py));
+    roulette = at("tile:♦", x - ix, z - iz).model as RouletteModel;
+    // The table's middle (3x2 tiles) is the origin of its own space.
+    roulette.setSpots(spots.map(([sx, sz]) => [sx + 0.5 - (x - ix + 1.5), sz + 0.5 - (z - iz + 1)] as const));
+  }
+  if (spots.length) room.group.add(rouletteMats(spots));
   const screen = screenP.model as BigScreen;
   const board = boardP.model as TournamentBoard;
   const terminals: [Terminal, Terminal] = [t1.model as Terminal, t2.model as Terminal];
   board.show({ rounds: null });
-  return { room, screen, board, terminals };
+  return { room, screen, board, terminals, poker, roulette };
 }

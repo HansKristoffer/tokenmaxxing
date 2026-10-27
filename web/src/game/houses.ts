@@ -46,7 +46,8 @@ const BUILDING_MAX_TILES = 120;
 export function doorOf(map: GameMap, x: number, y: number): [number, number] | null {
   if (!map.contains(x, y) || map.walkable(x, y)) return null;
   const k = map.kind(x, y);
-  if (k.portal || k.seat || k.pours || k.serves || k.tosses || k.shop || k.counter || k.poker) return null;
+  if (k.portal || k.seat || k.pours || k.serves || k.tosses || k.shop || k.counter || k.poker || k.roulette)
+    return null;
   const seen = new Set([`${x},${y}`]);
   const queue: [number, number][] = [[x, y]];
   let best: [number, number] | null = null;

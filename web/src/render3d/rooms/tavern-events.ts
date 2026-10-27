@@ -7,7 +7,6 @@ import { setPropsNight } from "../town/props.ts";
 import { jukeboxSign, tavernDim } from "../town/world-logic.ts";
 import { JulefrokostSpread } from "./julefrokost3d.ts";
 import { KeynoteScreen } from "./keynote3d.ts";
-import { PokerEvents } from "./poker-events.ts";
 import type { LiveFrame } from "./rooms.ts";
 import { setTavernNight, type TavernRoom } from "./tavern3d.ts";
 
@@ -33,13 +32,11 @@ export class TavernEvents {
   private readonly day = { hemi: new THREE.Color(), sun: new THREE.Color() };
   private lampsOn = false;
 
-  private readonly poker: PokerEvents;
   private readonly keynote: KeynoteScreen;
   private readonly julefrokost: JulefrokostSpread;
 
   constructor(private readonly inn: TavernRoom) {
     if (inn.fountain) inn.fountain.auto = false;
-    this.poker = new PokerEvents(inn.poker);
     this.keynote = new KeynoteScreen(inn.room);
     this.julefrokost = new JulefrokostSpread(inn.room, inn.by.get("tavern:table-long") ?? []);
   }
@@ -102,7 +99,6 @@ export class TavernEvents {
     }
     f.overlay.place(this.el, v.copy(this.at), f.camera, 0, 0, true);
     this.clocksSign(f);
-    this.poker.update(f);
     this.keynote.update(f);
     this.julefrokost.update();
   }
@@ -131,7 +127,6 @@ export class TavernEvents {
     setTavernNight(null);
     this.clocks?.el.remove();
     this.clocks = null;
-    this.poker.dispose();
     this.keynote.dispose();
     this.el?.remove();
     this.el = null;

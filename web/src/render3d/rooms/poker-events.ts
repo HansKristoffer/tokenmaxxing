@@ -52,7 +52,7 @@ export function tableText(state: PokerState): string {
 }
 
 /**
- * The Tavern's poker table, live: the cards and chips on the felt, a line over each seated player (name, stack,
+ * The net cafe's poker table, live: the cards and chips on the felt, a line over each seated player (name, stack,
  * last move, the clock) and one over the table (the pot, or who won). All from the server's `poker` events.
  */
 export class PokerEvents {

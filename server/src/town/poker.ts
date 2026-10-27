@@ -13,6 +13,7 @@ import { type Kept, ledgerAdd, wallet } from "./coins.ts";
  * The row holds the stack as of the last settled hand, so a world that goes down mid-hand gives everyone
  * back what they had when it dealt (`pokerRelease`); a seat is paid for once, never twice.
  */
+// The ref keeps its old name: the pooled ledger rows from when the table stood in the inn live under it.
 export const POKER_REF = "poker:inn";
 const DAY_MS = 86_400_000;
 

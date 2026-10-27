@@ -111,6 +111,43 @@ describe("maps", () => {
     });
   }
 
+  describe("the net cafe's tables", () => {
+    const map = MAPS.basement;
+    const entry = roomEntry("basement");
+    const seen = reachable(map, entry.x, entry.y);
+    const box = (ch: string) => {
+      const t = map.find(ch);
+      const xs = t.map(([x]) => x);
+      const ys = t.map(([, y]) => y);
+      return [Math.max(...xs) - Math.min(...xs) + 1, Math.max(...ys) - Math.min(...ys) + 1, t.length];
+    };
+
+    test("one 4x2 poker table with six chairs, one 3x2 roulette table with four spots", () => {
+      expect(box("♠")).toEqual([4, 2, 8]);
+      expect(map.find("♣")).toHaveLength(6);
+      expect(box("♦")).toEqual([3, 2, 6]);
+      expect(box("♥")).toEqual([4, 1, 4]);
+      expect(map.kind(...map.find("♥")[0]!).roulette).toBe(true);
+      expect(map.walkable(...map.find("♦")[0]!)).toBe(false);
+      expect(map.walkable(...map.find("♠")[0]!)).toBe(false);
+    });
+
+    test("the spots sit right below the table, and every walkable tile is reachable from the stairs", () => {
+      const table = map.find("♦");
+      const bottom = Math.max(...table.map(([, y]) => y));
+      for (const [, y] of map.find("♥")) expect(y).toBe(bottom + 1);
+      const spotXs = map.find("♥").map(([x]) => x);
+      for (const [x] of table) expect(spotXs).toContain(x);
+      for (let y = 0; y < map.height; y++)
+        for (let x = 0; x < map.width; x++)
+          if (map.walkable(x, y)) expect(seen.has(`${x},${y}`), `${x},${y}`).toBe(true);
+    });
+
+    test("the Tavern has neither table", () => {
+      for (const ch of ["♠", "♣", "♦", "♥"]) expect(MAPS.inn.find(ch)).toHaveLength(0);
+    });
+  });
+
   describe("the Tavern", () => {
     const map = MAPS.inn;
     const entry = roomEntry("inn");

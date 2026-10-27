@@ -9,14 +9,14 @@ import {
   SMALL_BLIND,
 } from "@tokenmaxxing/core/poker.ts";
 import { pokerChairs } from "@tokenmaxxing/core/pokertable.ts";
-import { DIRS, type Facing, route } from "@tokenmaxxing/core/world.ts";
+import { DIRS, type Facing, roomEntry, route } from "@tokenmaxxing/core/world.ts";
 import { eventually, rich } from "./rivet.ts";
 import { connect, walk } from "./world-client.ts";
 
 type Tab = Awaited<ReturnType<typeof connect>>;
 type Rich = Awaited<ReturnType<typeof rich>>;
 
-const map = MAPS.inn;
+const map = MAPS.basement;
 const chairs = pokerChairs();
 const COINS = 1000;
 
@@ -27,6 +27,24 @@ function listen(c: Tab) {
   c.conn.on("poker", (s: PokerState) => table.push(s));
   c.conn.on("pokerHole", (h: Card[]) => hole.push(h));
   return { table, hole };
+}
+
+/** Takes `c` from the Tavern down the stairs to the net cafe, where the poker table is. */
+async function descend(c: Tab): Promise<void> {
+  const inn = MAPS.inn;
+  const me = c.snap.players.find((p) => p.id === c.snap.selfId)!;
+  const way = route(inn, [me.x, me.y], inn.find("S")[0]!)!;
+  await walk(c.conn, way);
+  const down = roomEntry("basement");
+  me.x = down.x;
+  me.y = down.y;
+}
+
+/** A tab for `token`, taken down to the net cafe. */
+async function joinCafe(token: string): Promise<Tab> {
+  const c = await connect(token);
+  await descend(c);
+  return c;
 }
 
 /** Walks `c` to a tile beside chair `i` that faces it, and says which way to face. */
@@ -50,11 +68,10 @@ const balance = async (u: Rich) => (await u.town.wallet()).balance;
 async function pair(i: number, j: number) {
   const a = await rich("pka", COINS);
   const b = await rich("pkb", COINS);
-  const ca = await connect(a.token);
-  const cb = await connect(b.token);
+  const ca = await joinCafe(a.token);
+  const cb = await joinCafe(b.token);
   const heardA = listen(ca);
   const heardB = listen(cb);
-  expect(ca.snap.room).toBe("inn");
   expect(await ca.conn.pokerSit(await approach(ca, i))).toMatchObject({ state: "sit" });
   expect(await cb.conn.pokerSit(await approach(cb, j))).toMatchObject({ state: "sit" });
   // The second player makes two: a hand is dealt a few seconds on.
@@ -63,14 +80,14 @@ async function pair(i: number, j: number) {
   return { a, b, ca, cb, heardA, heardB };
 }
 
-describe("the Tavern's poker table", () => {
+describe("the net cafe's poker table", () => {
   test("sitting down takes the buy-in from the wallet, standing up gives the stack back", async () => {
     const a = await rich("pk", COINS);
-    const c = await connect(a.token);
+    const c = await joinCafe(a.token);
     const heard = listen(c);
     expect(await balance(a)).toBe(COINS);
 
-    expect(await c.conn.pokerSit(await approach(c, 1))).toMatchObject({ state: "sit", room: "inn" });
+    expect(await c.conn.pokerSit(await approach(c, 1))).toMatchObject({ state: "sit", room: "basement" });
     expect(await balance(a)).toBe(COINS - BUY_IN);
     await eventually(() =>
       expect(heard.table.at(-1)?.seats[1]).toMatchObject({ userId: a.userId, stack: BUY_IN }),
@@ -89,8 +106,8 @@ describe("the Tavern's poker table", () => {
   test("someone in a chair keeps others out of it, and a table has no more than its seats", async () => {
     const a = await rich("pk", COINS);
     const b = await rich("pk", COINS);
-    const ca = await connect(a.token);
-    const cb = await connect(b.token);
+    const ca = await joinCafe(a.token);
+    const cb = await joinCafe(b.token);
     expect(await ca.conn.pokerSit(await approach(ca, 2))).toMatchObject({ state: "sit" });
     expect(await cb.conn.pokerSit(await approach(cb, 2))).toMatchObject({
       notice: "Someone's already there.",
@@ -104,18 +121,18 @@ describe("the Tavern's poker table", () => {
 
   test("you need the buy-in to sit down", async () => {
     const poor = await rich("pk", BUY_IN - 1);
-    const c = await connect(poor.token);
+    const c = await joinCafe(poor.token);
     const r = await c.conn.pokerSit(await approach(c, 0));
     expect(r).toMatchObject({ notice: expect.stringContaining("costs") });
     expect(await balance(poor)).toBe(BUY_IN - 1);
     await c.conn.dispose();
   });
 
-  test("sitting down is for the Tavern: out in the town it does nothing", async () => {
+  test("sitting down is for the net cafe: out in the town it does nothing", async () => {
     const a = await rich("pk", COINS);
     const c = await connect(a.token);
     const me = c.snap.players.find((p) => p.id === a.userId)!;
-    const out = (await walk(c.conn, route(map, [me.x, me.y], map.find("x")[0]!)!)).at(-1);
+    const out = (await walk(c.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!)).at(-1);
     expect(out).toMatchObject({ room: "town" });
     expect(await c.conn.pokerSit("up")).toBeNull();
     expect(await c.conn.pokerAct("fold", 0)).toMatch(/Tavern/);
@@ -177,7 +194,7 @@ describe("the Tavern's poker table", () => {
     expect((await balance(a)) + (await balance(b))).toBe(2 * COINS);
     await ca.conn.dispose();
     await cb.conn.dispose();
-  });
+  }, 20_000);
 
   test("moves are checked: not your turn, a raise below the minimum, not at the table", async () => {
     const { a, b, ca, cb, heardA } = await pair(4, 5);
@@ -193,11 +210,11 @@ describe("the Tavern's poker table", () => {
     expect(await mover.conn.pokerAct("raise", 40)).toBeNull();
     await eventually(() => expect(heardA.table.at(-1)).toMatchObject({ bet: 40 }));
     const stranger = await rich("pk", COINS);
-    const cs = await connect(stranger.token);
+    const cs = await joinCafe(stranger.token);
     expect(await cs.conn.pokerAct("fold", 0)).toMatch(/not at the poker table/);
     for (const c of [ca, cb, cs]) await c.conn.dispose();
     void b;
-  });
+  }, 20_000);
 
   test("closing the tab folds the hand and stands you up: the stack goes back to the wallet", async () => {
     const { a, b, ca, cb, heardB } = await pair(1, 2);
@@ -219,5 +236,5 @@ describe("the Tavern's poker table", () => {
     await eventually(async () => expect(await balance(b)).toBe(COINS - BUY_IN + after.stack));
     expect(heardB.table.at(-1)!.street).toBeNull();
     await cb.conn.dispose();
-  });
+  }, 20_000);
 });

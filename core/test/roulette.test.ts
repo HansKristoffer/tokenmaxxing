@@ -1,5 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { checkBets, colorOf, MAX_SPIN, PAYS, settle, spinPocket, WHEEL, wins } from "../src/roulette.ts";
+import {
+  checkBets,
+  colorOf,
+  MAX_SPIN,
+  nextPhase,
+  PAYS,
+  settle,
+  spinPocket,
+  WHEEL,
+  wins,
+} from "../src/roulette.ts";
 
 describe("roulette", () => {
   test("the wheel has every pocket once; 18 red, 18 black, one zero", () => {
@@ -86,5 +96,28 @@ describe("roulette", () => {
   test("spinPocket stays in 0..36", () => {
     expect(spinPocket(() => 0)).toBe(0);
     expect(spinPocket(() => 0.999999999)).toBe(36);
+  });
+});
+
+describe("nextPhase", () => {
+  const v = { phase: "idle", now: 0, endsAt: 0, seated: 0, betting: 0, allReady: true } as const;
+  test("idle starts only with someone seated", () => {
+    expect(nextPhase(v)).toBeNull();
+    expect(nextPhase({ ...v, seated: 1 })).toBe("betting");
+  });
+  test("betting: spins at the end or when all are ready, but only with bets", () => {
+    const b = { ...v, phase: "betting", seated: 2, endsAt: 100, allReady: false } as const;
+    expect(nextPhase({ ...b, now: 50, betting: 1 })).toBeNull();
+    expect(nextPhase({ ...b, now: 100, betting: 1 })).toBe("spinning");
+    expect(nextPhase({ ...b, now: 100, betting: 0 })).toBe("betting");
+    expect(nextPhase({ ...b, now: 50, betting: 1, allReady: true })).toBe("spinning");
+    expect(nextPhase({ ...b, now: 50, betting: 0, allReady: true })).toBeNull();
+    expect(nextPhase({ ...b, seated: 0 })).toBe("idle");
+  });
+  test("spinning -> result -> betting or idle", () => {
+    expect(nextPhase({ ...v, phase: "spinning", endsAt: 10, now: 9, seated: 1 })).toBeNull();
+    expect(nextPhase({ ...v, phase: "spinning", endsAt: 10, now: 10, seated: 1 })).toBe("result");
+    expect(nextPhase({ ...v, phase: "result", endsAt: 10, now: 10, seated: 1 })).toBe("betting");
+    expect(nextPhase({ ...v, phase: "result", endsAt: 10, now: 10 })).toBe("idle");
   });
 });

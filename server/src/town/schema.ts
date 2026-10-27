@@ -14,6 +14,7 @@ import { migrateOffices } from "./offices.ts";
 import { migratePoker } from "./poker.ts";
 import { migrateQuests } from "./quests.ts";
 import { migrateRequests } from "./requests.ts";
+import { migrateRoulette } from "./roulette.ts";
 import { migrateTournament } from "./tournament.ts";
 import { migrateTrophyAwards } from "./trophy-awards.ts";
 
@@ -141,6 +142,7 @@ export async function migrate(sql: Sql): Promise<void> {
   await migrateCard(sql);
   await migrateGrid(sql);
   await migrateCases(sql);
+  await migrateRoulette(sql);
   await migrateTournament(sql);
   await migratePoker(sql);
   await migrateRequests(sql);

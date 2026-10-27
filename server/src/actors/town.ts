@@ -19,7 +19,7 @@ import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
 import type { Regulars } from "@tokenmaxxing/core/regulars.ts";
 import type { RequestEntry } from "@tokenmaxxing/core/requests.ts";
-import type { Settled } from "@tokenmaxxing/core/roulette.ts";
+import type { Bet, RouletteOutcome } from "@tokenmaxxing/core/roulette.ts";
 import {
   emptySide,
   type Item,
@@ -176,7 +176,7 @@ import { type PokerSettle, pokerRelease, pokerSettle, pokerSit } from "../town/p
 import { freezeDays, questBoard, questEvent } from "../town/quests.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import * as requests from "../town/requests.ts";
-import { spinRoulette } from "../town/roulette.ts";
+import { rouletteBet, rouletteRefund, rouletteResolve } from "../town/roulette.ts";
 import { migrate } from "../town/schema.ts";
 import { paperFacts } from "../town/street.ts";
 import { brand, push, pushOffice, pushPlayers } from "../town/sync.ts";
@@ -310,6 +310,8 @@ function companyName(raw: unknown): string {
 export const town = actor({
   createVars: () => ({
     serial: serial(),
+    /** The newest roulette round whose betting has closed: later bets for it are refused. */
+    rouletteClosed: 0,
     signups: new RateLimiter(SIGNUPS_PER_HOUR, HOUR),
     signupsPerIp: new RateLimiter(SIGNUPS_PER_IP_PER_HOUR, HOUR),
     brandings: new RateLimiter(BRANDINGS_PER_HOUR, HOUR),
@@ -629,11 +631,37 @@ export const town = actor({
       return c.vars.serial(() => openCase(c.db, userId, caseId, Date.now(), k));
     },
 
-    /** One spin of the solo roulette table: stakes out, winnings back. */
-    spinRoulette: async (c, bets: unknown): Promise<{ spin: Settled; wallet: Wallet }> => {
-      const userId = requireUser(c.conn.state);
+    /** From `world`: sets `userId`'s bets for `round` (stakes out of the wallet now). Refused once the round is closed. */
+    rouletteBet: async (
+      c,
+      userId: number,
+      round: number,
+      bets: unknown,
+    ): Promise<{ bets: Bet[]; total: number }> => {
+      requireInternal(c.conn.state);
       const k = await kept(c, Date.now());
-      return c.vars.serial(() => spinRoulette(c.db, userId, bets, Date.now(), k));
+      return c.vars.serial(() => {
+        if (round <= c.vars.rouletteClosed) throw new UserError("Bets are closed.", { code: "closed" });
+        return rouletteBet(c.db, userId, round, bets, Date.now(), k);
+      });
+    },
+
+    /** From `world`: betting is over. Rolls the round's pocket, pays everyone, and returns the shared outcome. */
+    rouletteResolve: async (c, round: number): Promise<{ pocket: number; results: RouletteOutcome[] }> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => {
+        c.vars.rouletteClosed = Math.max(c.vars.rouletteClosed, round);
+        return rouletteResolve(c.db, round, Date.now());
+      });
+    },
+
+    /** From `world`: a player left during betting, or the world woke fresh (no `userId`): stakes go back. */
+    rouletteRefund: async (c, userId?: number, round?: number): Promise<number> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => {
+        if (userId === undefined && round === undefined) c.vars.rouletteClosed = 0; // a fresh world counts rounds from 1
+        return rouletteRefund(c.db, Date.now(), userId, round);
+      });
     },
 
     /** One case item to the vendor for coins by rarity. */
