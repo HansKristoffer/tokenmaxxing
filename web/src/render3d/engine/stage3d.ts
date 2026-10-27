@@ -1,5 +1,6 @@
 import { lightAt } from "@tokenmaxxing/core/sky.ts";
 import * as THREE from "three";
+import { lampDim } from "../../game/grid.ts";
 import { skyNow, weatherNow } from "../../game/sky.ts";
 import type { GraphicsSettings } from "../../settings/graphics.ts";
 import { batchWithoutWarmup, SAMPLE_TIMES } from "../perf/bake.ts";
@@ -72,7 +73,7 @@ export class RoomStage {
           current: () => "Town",
           applyNight: (on) => view.night?.(on),
         },
-        { clock: skyNow, weather: weatherNow, light: lightAt },
+        { clock: skyNow, weather: weatherNow, light: lightAt, lampDim },
       );
     } else this.fx = null;
     const t0 = performance.now();

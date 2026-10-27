@@ -160,21 +160,23 @@ export interface LitWindow {
 
 /**
  * The lamp heads glowing and the windows lit: in world space, after `drawLight`. Light adds up, so it's
- * all drawn "lighter", but for the faces in the windows.
+ * all drawn "lighter", but for the faces in the windows. `lampDim` dims the street lamps alone (power
+ * is expensive: `game/grid.ts`).
  */
 export function drawLights(
   g: CanvasRenderingContext2D,
   lamps: readonly (readonly [number, number])[],
   windows: readonly LitWindow[],
   strength: number,
+  lampDim = 1,
 ): void {
   if (strength < 0.05) return;
   glow ??= bakeGlow(64, "255,214,120");
   g.globalCompositeOperation = "lighter";
   for (const [x, y] of lamps) {
-    g.globalAlpha = strength * 0.5;
+    g.globalAlpha = strength * 0.5 * lampDim;
     g.drawImage(glow, x - 30, y - 28, 60, 60);
-    g.globalAlpha = strength * 0.9;
+    g.globalAlpha = strength * 0.9 * lampDim;
     g.drawImage(glow, x - 9, y - 9, 18, 18);
   }
   for (const { x, y, w, h, face } of windows) {
@@ -250,7 +252,8 @@ let nextFlash = 0;
 let fogShift = 0;
 
 /** Where the wind pushes things sideways, -1..1: blowing towards east is positive. */
-const windPush = (w: Weather): number => -Math.sin((w.windDir * Math.PI) / 180) * Math.min(1, w.windMs / 10);
+export const windPush = (w: Weather): number =>
+  -Math.sin((w.windDir * Math.PI) / 180) * Math.min(1, w.windMs / 10);
 
 const seed = (n: number, w: number, h: number, rain: boolean): Drop[] =>
   Array.from({ length: n }, () => ({

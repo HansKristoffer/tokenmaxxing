@@ -21,10 +21,10 @@ The game also runs in any browser; the app's window is that same page, at `/play
 
 | Path | What |
 |---|---|
-| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `keynote.ts` (the keynote watch party: admin-scheduled launch events on the Tavern's projector screen, see *The Tavern*), `clocks.ts` (the Tavern's world clocks: SF, New York and Copenhagen off Intl, and SF's working hours as the launch window), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen), `windmill.ts` (the windmill by the Tavern: how fast its sails turn for the weather's wind, and how its cap winds round to face it; each client eases its own, the server keeps nothing), `stars.ts` (the star counter on the square: the repo, its milestones, and what a read of the GitHub stars does to `world`'s state), `fireworks.ts` (a show's rockets worked out from its start, place and seed, so every client draws the same ones without the server sending more than the show) |
+| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `keynote.ts` (the keynote watch party: admin-scheduled launch events on the Tavern's projector screen, see *The Tavern*), `clocks.ts` (the Tavern's world clocks: SF, New York and Copenhagen off Intl, and SF's working hours as the launch window), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen, and the light summer nights), `seasons.ts` (the town's season by date), `windmill.ts` (the windmill by the Tavern: how fast its sails turn for the weather's wind, and how its cap winds round to face it; each client eases its own, the server keeps nothing), `stars.ts` (the star counter on the square: the repo, its milestones, and what a read of the GitHub stars does to `world`'s state), `fireworks.ts` (a show's rockets worked out from its start, place and seed, so every client draws the same ones without the server sending more than the show), `grid.ts` (the power grid: green hours, expensive power, the green bonus) |
 | `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `quests`, `awards` (badge awards and their sweep), `hall` (the Hall of Fame), `card` (bios, showcase, habits, the Tavern's minutes), `sync` (pushes to `world`) |
-| `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (one Open-Meteo fetch per 15 min, for the `world` actor), `github-stars.ts` (the repo's GitHub stars, one REST read per 15 min for `world`; `GITHUB_TOKEN` optional), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
+| `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (one Open-Meteo fetch per 15 min, for the `world` actor), `github-stars.ts` (the repo's GitHub stars, one REST read per 15 min for `world`; `GITHUB_TOKEN` optional), `grid.ts` (Energi Data Service's CO₂ every 15 min and prices hourly, for `world`), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
 | `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels), `render3d/` (the 3D renderer: `engine/`, `kit/`, `people/`, `pets/`, `furniture/`, `rooms/`, `town/`, `dungeon/`, `shops/`, `data/`), `settings/` (graphics tiers, detection, governor) |
 | `app/helper/` | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar |
 | `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, updates |
@@ -175,7 +175,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
   handed out), `loot` (raid drops handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
   `offices`, `company_ledger` (company wallets), `match_players` (one row per player per finished game),
-  `quest_days`, `quest_counts`, `badge_awards`, `bio_reports`, `showcase`, `tavern_daily`, `keynotes`,
+  `quest_days`, `quest_counts`, `green_hours`, `badge_awards`, `bio_reports`, `showcase`, `tavern_daily`, `keynotes`,
   `deleted_users`, `lost_signups` (ids of sign-ups whose `player` failed to start), `admin_log`.
 - Accounts: `signUp` (20 an hour per IP, 1,000 an hour in all), `rename` (10 an hour), `setLook` (refuses items you don't hold), `me`.
 - Companies: create (on a plot the owner picks: any empty block next to the town, see `frontier` in
@@ -305,6 +305,22 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Three daily quests and a weekly one (`core/src/quests.ts`) pay up to 6 more a day and 15 a week. They're worked out
   from the day's rollups and the days' frozen picks, so no coin is stored; see *Quests*. Days before `LEGACY_FROM` keep the
   old rule (5 agents at once: 5, 2 hours of agents running: 2).
+- **Green hours** (`core/src/grid.ts`, `server/src/town/grid.ts`): `world` reads price area DK1 from Energi
+  Data Service every 15 minutes (`server/src/grid.ts`: `CO2Emis`, 5-minute g/kWh, the last 26 hours; and
+  `DayAheadPrices`, quarter-hourly DKK/MWh, today and tomorrow, at most hourly) and sends everyone a `Grid` (the
+  `grid` event, and on `join`). An hour is green when the hour before it averaged `GREEN_CO2` (75 g/kWh) or less over
+  at least 6 readings, so it's decided as it starts and the banner and the coins agree. `world` hands each green
+  hour to `town.greenHours`, which keeps it once (`green_hours`: world day and hour, from `GREEN_FROM`, never
+  taken back), and tries again on its next read if that fails. `player` reports each day's tokens by world hour
+  (`activity_daily.hour_tokens`, minute-capped like `usage_daily`), and a day pays `greenCoins` of the tokens
+  in its green hours: a quarter of `coinsForTokens`, not in the streak and not matched into the company wallet.
+  Nothing is paid out or stored as coins, so a late sync or an hour told late (the feed down, `world` restarted)
+  only adds; a failed read keeps the last grid; `GRID_FEED=off` turns it all off. `wallet.green` is today's.
+  On the client (`web/src/game/grid.ts`, `?grid=green|expensive|both|off`): the green banner
+  (`hud/GreenHour.tsx`), the price board over the square's north-east lamp (`PRICE_LAMP`; 2D `game/grid-board.ts`,
+  3D `TownEvents.gridFrame`), and the street lamps at `DIM_LAMPS` while power is expensive (`isExpensive`: the
+  day's 75th percentile and at least `EXPENSIVE_DKK`, 1 kr/kWh). 2D dims the lamps' glow (`drawLights`); 3D eases
+  the street lamps' point lights and their shared pool material (`setStreetLampDim`) in `Fx`.
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats, 5 pets and the 11 pieces of furniture
   (`furn.<ch>`), 10 to 1,500 coins. The raid's 20 loot items are in it too, never sold (see *The raid*). Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
   Pets follow their owner in the client (`game/pets.ts`: `followPet`), except in the owner's own office,
@@ -1040,6 +1056,29 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
 
 "Today" is `Europe/Copenhagen` for everyone (`core/src/range.ts`); the Tavern's special is picked by that day too
 (`copenhagenDay`, `core/src/tavern.ts`).
+
+## Seasons
+
+The town's plants follow the date in Aarhus, worked out by every client from the clock alone, like the street's
+schedules (`core/src/street.ts`), so there is no server state. `core/src/seasons.ts` keeps the year as keyframes of a
+`SeasonLook` (how much leaf the broadleaf trees have, how far it has turned, blossom, spring's fresh green, how many
+leaves are falling, leaves on the grass, winter rest) and blends between them with a smoothstep, so the town changes
+over weeks: blossom late in April, the most colour and the most falling at the end of October, bare by December. Pines
+and hedges keep their leaves. The light follows the sun as before (`sky.ts`); `nightDepth` adds the light nights, when
+the June sun only dips ten degrees under the horizon and the night stays twilight blue.
+
+- **What is baked** depends on `lookKey` (the look rounded to eighths), which changes every few days while the trees turn,
+  never every frame. In 2D, `web/src/game/seasons.ts` paints a twin of each tree (three variants, each turning its own
+  colour), bush and the ground from their palette pixels, and the snow's twins (`snow.ts`) are made from those. In 3D,
+  the key is part of the town's room key (`render3d/index.ts`), so the town is built again when it changes;
+  `seasonalTree` (`town/props.ts`) changes a tree a lobe at a time, from a few fixed palettes, so a half-turned town
+  draws with the same materials as a summer one. `web/test/perf-budget.test.ts` builds the town in every season.
+- **Falling leaves** are live, not baked: `game/leaves.ts` lets a few dozen pixels go from the trees in view, and
+  `town/leaves3d.ts` is one instanced mesh of at most 160 cards, from the crowns within reach of you, scaled by the
+  graphics tier's particle share.
+- **Pinning**, for dev and screenshots: `?season=autumn` in the page URL (spring, summer, autumn or fall, winter, or a
+  date like `11-12` for a stage in between), or `SKY_SEASON` on the server, which every snapshot then carries
+  (`Snapshot.seasonDay`). The weather and snow cover still follow the clock; `?sky=` moves both.
 
 ## Holidays
 

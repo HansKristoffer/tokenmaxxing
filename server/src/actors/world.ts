@@ -143,12 +143,13 @@ import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { putAwayNotice } from "../furniture-notices.ts";
 import { fetchStars, STARS_EVERY_MS } from "../github-stars.ts";
+import { checkGrid, GRID_EVERY_MS, type GridState, initialGrid } from "../grid.ts";
 import { checkLaunches, LAUNCHES_EVERY_MS } from "../launch.ts";
 import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { counts, TavernClock } from "../tavern-clock.ts";
 import { parseChatText } from "../validate.ts";
-import { fetchWeather, initialWeather, pinnedWeather, WEATHER_EVERY_MS } from "../weather.ts";
+import { fetchWeather, initialWeather, pinnedSeason, pinnedWeather, WEATHER_EVERY_MS } from "../weather.ts";
 import {
   all,
   authenticate,
@@ -358,6 +359,11 @@ export const world = actor({
     /** The sky: one fetch for everyone (`weather.ts`), kept when a fetch fails. */
     weather: initialWeather() as Weather,
     weatherAt: 0,
+    /** The power grid: one read for everyone (`grid.ts`), kept when a read fails. */
+    grid: initialGrid() as GridState,
+    gridAt: 0,
+    /** Green hours `town` has been told about, so each is sent until it lands, then not again. */
+    greenSent: new Set<number>(),
     /** When the GitHub stars are read next (`github-stars.ts`): one read for everyone. */
     starsAt: 0,
     /** Minutes in the Tavern since the last flush (`tavernBeat`). */
@@ -472,6 +478,10 @@ export const world = actor({
         c.vars.weatherAt = now + WEATHER_EVERY_MS;
         void refreshWeather(c);
       }
+      if (now >= c.vars.gridAt) {
+        c.vars.gridAt = now + GRID_EVERY_MS;
+        void refreshGrid(c, now);
+      }
       if (now >= c.vars.starsAt) {
         c.vars.starsAt = now + STARS_EVERY_MS;
         void refreshStars(c, now);
@@ -503,6 +513,7 @@ export const world = actor({
       sendInfo(c, p, info(p, true), from);
       c.conn.send("outage", c.vars.outage);
       c.conn.send("launches", c.vars.launches);
+      c.conn.send("grid", c.vars.grid.grid);
       c.conn.send("keynotes", c.vars.keynotes);
       c.conn.send("stars", starsOf(c.state.stars ?? NO_STARS));
       if (p.room === "inn") {
@@ -1362,6 +1373,9 @@ type Vars = {
   keynotes: Keynote[];
   watched: Set<string>;
   weather: Weather;
+  grid: GridState;
+  gridAt: number;
+  greenSent: Set<number>;
   raiders: string;
   raidersAt: number;
   tavern: TavernClock;
@@ -2074,6 +2088,9 @@ const counted = (p: WorldPlayer, online: Map<number, number>) =>
 const asleepAtInn = (s: WorldState, online: Map<number, number>) =>
   Object.values(s.players).filter((p) => counted(p, online)).length;
 
+/** `SKY_SEASON`, read once: the town's season pinned for every client. */
+const SEASON_PIN = pinnedSeason();
+
 async function snapshot(
   s: WorldState,
   online: Map<number, number>,
@@ -2110,6 +2127,7 @@ async function snapshot(
     doors: companyId === null ? [] : doorsOf(s, companyId),
     drops: dropsIn(room),
     weather,
+    ...(SEASON_PIN === null ? {} : { seasonDay: SEASON_PIN }),
     raiders: room === "dungeon" ? raiders(s, Date.now()) : null,
   };
 }
@@ -2203,6 +2221,33 @@ async function refreshWeather(c: {
   if (!next || sameWeather(next, c.vars.weather)) return;
   c.vars.weather = next;
   c.broadcast("weather", next);
+}
+
+/**
+ * Reads the grid, tells everyone if it changed, and hands `town` the green hours it hasn't had yet
+ * (they pay: `town/grid.ts`). A failed read keeps the last grid; a failed hand-over is tried again next read.
+ */
+async function refreshGrid(
+  c: {
+    vars: Vars;
+    client: () => Parameters<typeof main>[0];
+    broadcast(name: string, ...args: unknown[]): void;
+  },
+  now: number,
+): Promise<void> {
+  const next = await checkGrid(c.vars.grid, now);
+  const changed = JSON.stringify(next.grid) !== JSON.stringify(c.vars.grid.grid);
+  c.vars.grid = next;
+  if (changed) c.broadcast("grid", next.grid);
+  const unsent = next.grid.green.filter((h) => !c.vars.greenSent.has(h));
+  if (unsent.length === 0) return;
+  try {
+    await main(c.client()).town.greenHours(unsent);
+    for (const h of unsent) c.vars.greenSent.add(h);
+    for (const h of c.vars.greenSent) if (!next.grid.green.includes(h)) c.vars.greenSent.delete(h);
+  } catch (err) {
+    console.warn(`[grid] green hours: ${String(err)}`);
+  }
 }
 
 /** What's on a room's floor. `DROPS` is the world's only copy: `town` has them all for a restart (`seed`). */

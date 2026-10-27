@@ -23,6 +23,7 @@ import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
 import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
+import { GreenBanner } from "./GreenHour.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
 import { Hotbar } from "./Hotbar.tsx";
 import { Jukebox } from "./Jukebox.tsx";
@@ -93,6 +94,7 @@ export function Hud() {
           <Banner />
           <PicnicBanner />
           <KeynoteBanner />
+          <GreenBanner />
         </>
       ) : (
         <>
@@ -100,6 +102,7 @@ export function Hud() {
           <Banner />
           <PicnicBanner />
           <KeynoteBanner />
+          <GreenBanner />
           {!beside && <Chat />}
           <Minimap />
         </>

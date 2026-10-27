@@ -152,6 +152,7 @@ export function loadSnapshot(s: Snapshot): void {
     room: s.room,
     occupancy: s.occupancy,
     weather: s.weather,
+    seasonDay: s.seasonDay ?? null,
     chat: s.chat,
     ...(changedRoom
       ? {

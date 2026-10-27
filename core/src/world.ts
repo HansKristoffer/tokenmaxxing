@@ -476,6 +476,8 @@ export interface Snapshot {
   drops: Drop[];
   /** The weather over Copenhagen; later changes arrive as the `weather` event. */
   weather: Weather;
+  /** Only with `SKY_SEASON` set (dev and screenshots): the day of the year the town's season is pinned to. */
+  seasonDay?: number;
   /** Only in the dungeon: who has agents running, wherever they are. */
   raiders: Raiders | null;
 }
