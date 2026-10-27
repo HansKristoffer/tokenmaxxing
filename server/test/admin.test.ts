@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { levelUpCoins } from "@tokenmaxxing/core/economy.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
+import { coinsForTokens } from "@tokenmaxxing/core/shop.ts";
 import { RANKING, type Statue } from "@tokenmaxxing/core/statue.ts";
 import { route } from "@tokenmaxxing/core/world.ts";
 import { admin, admit, as, client, event, eventually, origin, questCoins, rich, signUp } from "./rivet.ts";
@@ -28,7 +29,7 @@ describe("the admin page", () => {
     await expect(admin().me()).rejects.toThrow();
   });
 
-  // One event: 100M input tokens and 50 output, worth √100 = 10 coins.
+  // One event: 100M input tokens and 50 output, worth 39 coins (`coinsForTokens`).
   test("lists users and companies, and adds them up", async () => {
     const owner = await signUp("adlist");
     await as(owner.token)
@@ -37,11 +38,11 @@ describe("the admin page", () => {
     const co = await owner.town.createCompany("Admin Listed");
     const users = await admin().adminUsers();
     const me = users.find((u) => u.id === owner.userId)!;
-    // The 10 coins usage pays, the level it reaches, and whatever the date's daily quests add to that (the usage may finish one).
+    // The coins usage pays, the level it reaches, and whatever the date's daily quests add to that (the usage may finish one).
     const wallet = await owner.town.wallet();
     expect(me).toMatchObject({
       name: owner.name,
-      balance: 10 + levelUpCoins(levelFor(100e6 + 50)) + questCoins(wallet),
+      balance: coinsForTokens(100e6 + 50) + levelUpCoins(levelFor(100e6 + 50)) + questCoins(wallet),
       tokensToday: 100e6 + 50,
     });
     expect(me.company).toEqual({ id: co.id, name: "Admin Listed", isOwner: true });

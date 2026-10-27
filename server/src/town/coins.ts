@@ -192,7 +192,7 @@ export async function wallet(
   const pay = questPay(data);
   const level = levelFor(sumBy(everyDay, "tokens"));
   const byDay = new Map(days.map((d) => [d.day, d.tokens]));
-  const dayCoins = (day: string) => coinsForTokens(byDay.get(day) ?? 0) + (pay.daily.get(day) ?? 0);
+  const dayCoins = (day: string) => coinsForTokens(byDay.get(day) ?? 0, day) + (pay.daily.get(day) ?? 0);
   const active = days.filter((d) => d.tokens > 0).map((d) => d.day);
   const streak = streakBonus(active, dayCoins);
   const launched = await launchBonus(sql, userId);
@@ -202,7 +202,7 @@ export async function wallet(
   const raided = raidCoins(raids ?? (await raidHistory(sql, now)), userId);
   const green = (await greenPay(sql, { [userId]: from }, (_, day) => byDay.get(day) ?? 0)).get(userId);
   const earned =
-    sumBy(days, (d) => coinsForTokens(d.tokens)) +
+    sumBy(days, (d) => coinsForTokens(d.tokens, d.day)) +
     sumBy(wins, "coins") +
     raided +
     sumBy([...(green?.values() ?? [])], (n) => n) +
@@ -217,7 +217,7 @@ export async function wallet(
   const since = addDays(today, -29);
   const todays = data.facts.get(today) ?? EMPTY_DAY;
   const counts = data.counts.get(today) ?? EMPTY_COUNTS;
-  const todayBase = coinsForTokens(todays.tokens) + (pay.daily.get(today) ?? 0);
+  const todayBase = coinsForTokens(todays.tokens, today) + (pay.daily.get(today) ?? 0);
   const greenToday = green?.get(today) ?? 0;
   const held = await bag(sql, userId);
   return {
@@ -299,7 +299,7 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
   );
   const tokenDays = new Map<number, Map<string, number>>();
   for (const d of days) {
-    add(d.userId, coinsForTokens(d.tokens));
+    add(d.userId, coinsForTokens(d.tokens, d.day));
     if (d.tokens > 0) tokenDays.set(d.userId, (tokenDays.get(d.userId) ?? new Map()).set(d.day, d.tokens));
   }
   const dailies = new Map<number, Map<string, number>>();
@@ -315,7 +315,7 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
       userId,
       streakBonus(
         [...byDay.keys()],
-        (day) => coinsForTokens(byDay.get(day) ?? 0) + (dailies.get(userId)?.get(day) ?? 0),
+        (day) => coinsForTokens(byDay.get(day) ?? 0, day) + (dailies.get(userId)?.get(day) ?? 0),
       ),
     );
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);

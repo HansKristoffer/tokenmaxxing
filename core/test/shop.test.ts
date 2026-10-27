@@ -1,7 +1,17 @@
 import { expect, test } from "bun:test";
 import { CROWN } from "../src/fastelavn.ts";
 import { TOUCHED_GRASS } from "../src/picnic.ts";
-import { canDropIn, ITEMS, isKeepsake, isTradeable, itemById, levelItems, parseSide } from "../src/shop.ts";
+import {
+  canDropIn,
+  coinsForTokens,
+  ITEMS,
+  isKeepsake,
+  isTradeable,
+  itemById,
+  levelItems,
+  parseSide,
+  TOKEN_COINS_FROM,
+} from "../src/shop.ts";
 import { LOOK_OPTIONS } from "../src/world.ts";
 
 test("level items: the shop's milestones at 10-50, the wardrobe's at 5, 15, 25, the head pack's at 7, 17, 27", () => {
@@ -64,4 +74,24 @@ test("Touched grass: earned at a picnic, never sold or traded, and only for your
   expect(canDropIn("furn.s", "town", 7)).toBe(true);
   expect(canDropIn("hat.4", "office:7", 7)).toBe(false);
   expect(canDropIn("nope", "office:7", 7)).toBe(false);
+});
+
+test("a day's tokens pay 2.5 × (millions)^0.6 from TOKEN_COINS_FROM, and the square root before it", () => {
+  const rows: [number, number][] = [
+    [0, 0],
+    [1e6, 2],
+    [10e6, 9],
+    [120e6, 44],
+    [600e6, 116],
+    [1.5e9, 201],
+  ];
+  for (const [tokens, coins] of rows) expect(coinsForTokens(tokens, TOKEN_COINS_FROM)).toBe(coins);
+  // No day is today's curve.
+  expect(coinsForTokens(1.5e9)).toBe(201);
+  // Earlier days are not paid again: they keep the square root.
+  const before = "2026-10-26";
+  expect(before < TOKEN_COINS_FROM).toBe(true);
+  expect([10e6, 120e6, 600e6, 1.5e9].map((t) => coinsForTokens(t, before))).toEqual([3, 10, 24, 38]);
+  expect(coinsForTokens(-5, before)).toBe(0);
+  expect(coinsForTokens(-5, TOKEN_COINS_FROM)).toBe(0);
 });

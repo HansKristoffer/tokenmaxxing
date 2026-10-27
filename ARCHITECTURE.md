@@ -300,7 +300,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 
 ## Coins and the shop
 
-- Each world day pays `√(tokens ÷ 1M)` coins (1.5B ≈ 38, 600M ≈ 24, 100M = 10). Finishing a day 1st, 2nd or 3rd
+- Each world day pays `2.5 × (tokens ÷ 1M)^0.6` coins (1.5B ≈ 201, 600M ≈ 116, 100M = 39), from `TOKEN_COINS_FROM`; earlier days keep `√(tokens ÷ 1M)` (`legacyTokenCoins`). Finishing a day 1st, 2nd or 3rd
   adds 25, 15 or 10.
 - Only days from the world day you signed up count, for pay and for podium places: a first sync backfills
   old logs, and those days would otherwise pay out (and win podiums nobody else was around for).
@@ -723,8 +723,8 @@ climbs it together (`core/src/raid.ts`).
 - **Damage** is every token you sync that week, no cap, and 25M for every PR you open. (Ingest still counts
   at most 200M a minute, `USAGE_MINUTE_CAP`, to stop made-up numbers.)
   Only days from your sign-up day count, as with coins.
-- **Rewards per kill:** rung n pays each of its raiders 10, 25, 50, 75 or 100 (`RAID_REWARDS`), and 10% more for each level
-  the ladder is up (`REWARD_GROWTH`, to the nearest coin: rung 5 pays 100, 110, 121…), so a level 1 week that clears all five is 260. A kill's raiders are everyone with 10M+ that week up to and including its day, so
+- **Rewards per kill:** rung n pays each of its raiders 40, 100, 200, 300 or 400 (`RAID_REWARDS`; weeks before `RAID_REWARDS_FROM` kept 10, 25, 50, 75 and 100), and 10% more for each level
+  the ladder is up (`REWARD_GROWTH`, to the nearest coin: rung 5 pays 400, 440, 484…), so a level 1 week that clears all five is 1040. A kill's raiders are everyone with 10M+ that week up to and including its day, so
   joining on Sunday doesn't pay for Wednesday's kills.
 - **The week** is Monday to Sunday in world days, but the gate opens at 08:00 on Monday: until then
   `raidWeekAt` is still last week, as it ended, and the new ladder appears at 08:00 with Monday's early tokens
