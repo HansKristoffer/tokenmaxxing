@@ -50,7 +50,8 @@ body {
   pointer-events: auto;
 }
 
-#hud > .picnic-banner {
+#hud > .picnic-banner,
+#hud > .green-banner {
   pointer-events: none;
 }
 
@@ -1826,6 +1827,37 @@ button.lb-item:hover {
 .picnic-banner strong {
   font-size: 15px;
   color: var(--accent);
+}
+
+/*
+ * A green hour: a green-edged banner while the grid runs clean. Up a third of the day, so under the top bar
+ * rather than over it like the picnic's, and under the picnic's if both are up.
+ */
+.green-banner {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 14px 6px;
+  background: var(--panel);
+  border-radius: 10px;
+  border-top: 4px solid #3f9b5a;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.picnic-banner ~ .green-banner {
+  top: 80px;
+}
+
+.green-banner strong {
+  font-size: 14px;
+  color: #3f9b5a;
 }
 
 /* The 429 Cop's tickets on a player card: a badge that opens into the slips themselves. */

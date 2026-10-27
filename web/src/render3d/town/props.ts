@@ -7,11 +7,15 @@ import * as THREE from "three";
 import { C } from "../../art/palette.ts";
 import { canvasTexture, glass, glow, Model, seeded, ticks, tint, toon, type V3 } from "../kit/kit.ts";
 
-/** Lights that come on at night: `userData.night` is their intensity then. */
-function light(m: Model, at: V3, color: string, intensity: number, distance = 5): void {
+/**
+ * Lights that come on at night: `userData.night` is their intensity then. A `street` lamp's also dims
+ * while power is expensive (`Fx`'s `lampDim`).
+ */
+function light(m: Model, at: V3, color: string, intensity: number, distance = 5, street = false): void {
   const l = new THREE.PointLight(color, 0, distance, 1.5);
   l.position.set(...at);
   l.userData.night = intensity;
+  if (street) l.userData.street = true;
   m.add(l);
 }
 
@@ -284,6 +288,16 @@ function lampPool(opacity: number): THREE.MeshBasicMaterial {
   });
 }
 
+/** Every street lamp's pool at night: one material, so the batch it's baked into dims with it. */
+let streetPool: THREE.MeshBasicMaterial | null = null;
+const STREET_POOL = 0.5;
+const streetPoolNight = () => (streetPool ??= lampPool(STREET_POOL));
+
+/** The street lamps' pools at `k` of their brightness (1 is full). */
+export function setStreetLampDim(k: number): void {
+  if (streetPool) streetPool.opacity = STREET_POOL * k;
+}
+
 /** A modern street lamp with a warm, feathered pool under its head. */
 export function streetLamp(): Model {
   const m = new Model();
@@ -296,8 +310,8 @@ export function streetLamp(): Model {
   const pool = m.plane(2.8, 2.5, lampPool(0.025), [0, 0.025, 0.42]);
   pool.rotation.x = -Math.PI / 2;
   pool.receiveShadow = false;
-  nightGlow(pool, lampPool(0.5));
-  light(m, [0, 2.0, 0.42], "#ffe6a8", 4, 6);
+  nightGlow(pool, streetPoolNight());
+  light(m, [0, 2.0, 0.42], "#ffe6a8", 4, 6, true);
   return m;
 }
 
@@ -312,7 +326,7 @@ export function lanternPillar(): Model {
   nightGlow(m.box([0.16, 0.22, 0.16], "#f5d98a", [0, 1.2, 0], 0.02), "#ffe28a");
   m.cyl(0.16, 0.14, "#2b2433", [0, 1.42, 0], 0.01, 4).rotation.y = Math.PI / 4;
   m.cyl(0.015, 0.2, "#c9a33a", [0, 1.55, 0], 0.01, 6);
-  light(m, [0, 1.3, 0], "#ffd27a", 2, 4);
+  light(m, [0, 1.3, 0], "#ffd27a", 2, 4, true);
   return m;
 }
 
