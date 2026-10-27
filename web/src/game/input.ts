@@ -8,6 +8,7 @@ import {
   shopOfRoom,
 } from "@tokenmaxxing/core/shoprooms.ts";
 import { STAR_COUNTER } from "@tokenmaxxing/core/stars.ts";
+import { STATUE_TILE } from "@tokenmaxxing/core/statue.ts";
 import { stepPace } from "@tokenmaxxing/core/street.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
@@ -28,9 +29,12 @@ import { chatBeside, hud } from "../store.ts";
 import { basementInteract } from "./basement.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
+import { clocksText } from "./clocks.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
+import { blocksGrave, graveInteract } from "./graveyard.ts";
 import { buildingAt, companyOnPlot, doorOf, peekHits } from "./houses.ts";
+import { blocksTruck, truckInteract } from "./jdag.ts";
 import { keynoteInteract } from "./keynote.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { blocksLaunch, launchInteract } from "./launch.ts";
@@ -39,6 +43,7 @@ import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
 import { seated, sit, standUp } from "./raidseat.ts";
 import { pickTile } from "./stage.ts";
+import { statueText } from "./statue.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { interactAnimal, interactTownProp } from "./town-life.ts";
 import { openTrophies } from "./trophies.ts";
@@ -377,7 +382,11 @@ export function updateSelf(now: number): void {
   }
   const step = stepTarget(world.map, me.x, me.y, dir);
   const target =
-    step.kind === "move" && (blocksStep(step.x, step.y) || blocksLaunch(step.x, step.y))
+    step.kind === "move" &&
+    (blocksStep(step.x, step.y) ||
+      blocksLaunch(step.x, step.y) ||
+      blocksTruck(step.x, step.y) ||
+      blocksGrave(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;
   if (target.kind === "blocked") {
@@ -467,7 +476,9 @@ function interact(): void {
   if (world.room === "dungeon" && sit(x, y)) return;
   if (streetInteract(me, x, y, send)) return;
   if (windmillInteract(x, y)) return;
+  if (truckInteract(x, y)) return;
   if (launchInteract(me)) return;
+  if (graveInteract(me)) return;
   if (keynoteInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();
   const ch = world.map.at(x, y);
@@ -492,10 +503,12 @@ function interact(): void {
     if (ch === "P" || ch === "J") return void hud.set({ panel: { kind: "regulars" } });
     if (ch === "z") return void hud.set({ panel: { kind: "jukebox" } });
     if (ch === "?") return void hud.set({ panel: { kind: "requests" } });
+    if (ch === "◷") return void hud.set({ dialog: clocksText() });
   }
   if (shopInteract(x, y)) return;
   if (basementInteract(x, y)) return;
   if (ch === "K") return void hud.set({ dialog: chalkboardText() });
+  if (ch === STATUE_TILE) return void hud.set({ dialog: statueText() });
   if (ch === "w") return void hud.set({ panel: { kind: "openOffices" } });
   if (ch === "ς") return void hud.set({ panel: { kind: "directory" } });
   if (ch === "U") return void openTrophies();

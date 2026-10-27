@@ -110,23 +110,26 @@ function priceOf(pricing: unknown): Price {
   return { input: per(p.prompt), output: per(p.completion), cache: per(p.input_cache_read) };
 }
 
+/** One of the pool's models in OpenRouter's list: who made it, its name and id, its price and pitch, when it was listed. */
+export interface PoolModel {
+  provider: ProviderId;
+  name: string;
+  id: string;
+  price: Price;
+  description: string;
+  at: number;
+}
+
 /**
- * The launches in an OpenRouter model list at `now`: the pool's providers' models listed in the last
- * day or so, newest last, one per provider per hour (the shortest name leads, the rest are `also`).
- * Variants (`:batch`, `:free`) and aliases (`~openai/...-latest`) aren't launches. Null when it isn't
- * a model list at all, so a feed that changed shape keeps what we had.
+ * Every model of the pool's providers in an OpenRouter model list, oldest listed first. Variants
+ * (`:batch`, `:free`) and aliases (`~openai/...-latest`) aren't models of their own. Null when it isn't
+ * a model list at all, so a feed that changed shape keeps what we had. The stand reads it for what's
+ * new (`launchesFrom`), the graveyard for what's gone (`graveyard.ts`).
  */
-export function launchesFrom(body: unknown, now: number): Launch[] | null {
+export function poolModels(body: unknown): PoolModel[] | null {
   const data = (body as { data?: unknown } | null)?.data;
   if (!Array.isArray(data)) return null;
-  const models: {
-    provider: ProviderId;
-    name: string;
-    id: string;
-    price: Price;
-    description: string;
-    at: number;
-  }[] = [];
+  const models: PoolModel[] = [];
   for (const m of data as {
     id?: unknown;
     name?: unknown;
@@ -138,8 +141,7 @@ export function launchesFrom(body: unknown, now: number): Launch[] | null {
     if (m.id.startsWith("~") || m.id.includes(":")) continue;
     const prefix = m.id.split("/")[0];
     const provider = PROVIDERS.find((p) => p.openrouter === prefix);
-    const at = m.created * 1000;
-    if (!provider || at > now || at < now - RECENT_MS) continue;
+    if (!provider) continue;
     // "OpenAI: GPT-6.1 Terra" is the model "GPT-6.1 Terra".
     const name = m.name.replace(/^[^:]*:\s*/, "").trim();
     if (!name) continue;
@@ -149,11 +151,19 @@ export function launchesFrom(body: unknown, now: number): Launch[] | null {
       id: m.id,
       price: priceOf(m.pricing),
       description: String(m.description ?? ""),
-      at,
+      at: m.created * 1000,
     });
   }
-  models.sort((a, b) => a.at - b.at);
-  const groups: (typeof models)[] = [];
+  return models.sort((a, b) => a.at - b.at);
+}
+
+/**
+ * The launches among the pool's models (`poolModels`) at `now`: the ones listed in the last day or so,
+ * newest last, one per provider per hour (the shortest name leads, the rest are `also`).
+ */
+export function launchesOf(pool: readonly PoolModel[], now: number): Launch[] {
+  const models = pool.filter((m) => m.at <= now && m.at >= now - RECENT_MS);
+  const groups: PoolModel[][] = [];
   for (const m of models) {
     const group = groups.findLast((g) => g[0]!.provider === m.provider);
     if (group && m.at - group[0]!.at <= SAME_LAUNCH_MS) group.push(m);
@@ -172,6 +182,12 @@ export function launchesFrom(body: unknown, now: number): Launch[] | null {
       ...(also.length ? { also } : {}),
     };
   });
+}
+
+/** The launches in an OpenRouter model list at `now` (`launchesOf`), or null when it isn't a model list. */
+export function launchesFrom(body: unknown, now: number): Launch[] | null {
+  const pool = poolModels(body);
+  return pool && launchesOf(pool, now);
 }
 
 /** Whether two lists of launches look the same to a player: nothing to tell anyone when they do. */
@@ -231,7 +247,7 @@ export function activeLaunches(now: number, list: readonly Launch[]): Launch[] {
 }
 
 /** The model with who made it, unless its name says so already ("Claude Haiku 5.5", "Codex GPT-6.1 Terra"). */
-export function nameOf(l: Launch): string {
+export function nameOf(l: { provider: ProviderId; model: string }): string {
   const by = providerOf(l.provider).name;
   return l.model.toLowerCase().startsWith(by.toLowerCase()) ? l.model : `${by} ${l.model}`;
 }

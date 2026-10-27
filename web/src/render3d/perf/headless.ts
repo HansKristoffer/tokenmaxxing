@@ -28,11 +28,22 @@ export interface RoomCost {
 
 const world = () => ((globalThis as { __perfWorld?: World }).__perfWorld ??= new World());
 
-/** Builds a room with no renderer and counts what one pass over it would draw once batched. */
+/** Counts a fresh room at noon so street animation cannot change which parts the samples consider static. */
 export function measureRoom(
   id: string,
   options: { actors?: "frozen" | "live"; variant?: BakeMode } = {},
 ): RoomCost {
+  const page = globalThis.location as { search: string };
+  const search = page.search;
+  page.search = "?clock=12:00";
+  try {
+    return measure(id, options);
+  } finally {
+    page.search = search;
+  }
+}
+
+function measure(id: string, options: NonNullable<Parameters<typeof measureRoom>[1]>): RoomCost {
   const content = world();
   content.evict(id as MapId);
   const shop = shopOfRoom(id);

@@ -1,3 +1,4 @@
+import { JULEBRYG, julebrygOn } from "./jdag.ts";
 import { worldWall } from "./range.ts";
 
 /** One switch for the whole Tavern update. Core is shared by client and server, so both always agree. */
@@ -77,8 +78,9 @@ export const copenhagenDay = (at: Date): number =>
 /** Where the day's special sits in `SPECIALS`. */
 export const specialIndex = (day: number): number => (day * STRIDE) % SPECIALS.length;
 
-/** The special on Copenhagen's date at `at`. */
-export const specialOn = (at: Date): string => SPECIALS[specialIndex(copenhagenDay(at))]!;
+/** What the tap pours at `at`: the special on Copenhagen's date, or on the J-dag weekend Nissebryg (`jdag.ts`). */
+export const specialOn = (at: Date): string =>
+  julebrygOn(at.getTime()) ? JULEBRYG.line : SPECIALS[specialIndex(copenhagenDay(at))]!;
 
 // MARK: The special, served
 
@@ -92,16 +94,19 @@ export const SPECIAL = { ms: 15 * 60_000 } as const;
 /** The day's effect: the days alternate, so both show up. */
 export const buffOf = (day: number): Buff => BUFFS[day % BUFFS.length]!;
 
+/** What the tap's pour does at `ms`: the day's effect, or Nissebryg's warm glow on the J-dag weekend. */
+export const buffAt = (ms: number): Buff => (julebrygOn(ms) ? "glow" : buffOf(copenhagenDay(new Date(ms))));
+
 export const hasSpecial = (until: number, now: number): boolean => until > now;
 
 /** When a special served at `now` wears off. */
 export const serveUntil = (now: number): number => now + SPECIAL.ms;
 
 /**
- * What the special does while it lasts. The day it was served on decides (`until - SPECIAL.ms`), so one
- * that crosses midnight keeps its effect to the end, and the wire needs no field beyond `specialUntil`.
+ * What the special does while it lasts. When it was served decides (`until - SPECIAL.ms`), so one that
+ * crosses midnight keeps its effect to the end, and the wire needs no field beyond `specialUntil`.
  */
-export const specialBuff = (until: number): Buff => buffOf(copenhagenDay(new Date(until - SPECIAL.ms)));
+export const specialBuff = (until: number): Buff => buffAt(until - SPECIAL.ms);
 
 /** The Tavern, the net cafe under it and the rooms above: all count as time at the Tavern (the regulars' plaques). */
 export const isTavernRoom = (room: string): boolean =>

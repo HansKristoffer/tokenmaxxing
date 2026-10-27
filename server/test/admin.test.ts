@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { levelUpCoins } from "@tokenmaxxing/core/economy.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
-import { admin, admit, as, client, event, origin, questCoins, rich, signUp } from "./rivet.ts";
+import { MAPS } from "@tokenmaxxing/core/maps.ts";
+import { RANKING, type Statue } from "@tokenmaxxing/core/statue.ts";
+import { route } from "@tokenmaxxing/core/world.ts";
+import { admin, admit, as, client, event, eventually, origin, questCoins, rich, signUp } from "./rivet.ts";
+import { connect, walk } from "./world-client.ts";
 
 describe("the admin page", () => {
   test("is served at /admin", async () => {
@@ -84,6 +88,51 @@ describe("the admin page", () => {
     expect((await owner.town.me()).company).toBeNull();
     expect((await mate.town.me()).company).toBeNull();
     expect((await admin().adminCompanies()).some((c) => c.id === co.id)).toBe(false);
+  });
+
+  test("pins a model on the statue, which everyone in the world hears, and unpins it", async () => {
+    const u = await signUp("adstatue");
+    const tab = await connect(u.token);
+    const heard: Statue[] = [];
+    tab.conn.on("statue", (s: Statue) => heard.push(s));
+    const bubbles: { userId: number; text: string }[] = [];
+    tab.conn.on("bubble", (b: { userId: number; text: string }) => bubbles.push(b));
+    // Out of the Tavern, onto the square.
+    const me = tab.snap.players.find((p) => p.id === u.userId)!;
+    await walk(tab.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
+    await eventually(() => expect(tab.events.snapshots.at(-1)?.room).toBe("town"));
+    // Nothing read (the tests' feed is off): the plinth is under its drape.
+    expect((await admin().adminStatue()).shown).toEqual({ leader: null, since: 0, pinned: false });
+    await expect(u.town.adminPinStatue("Grok 5", "Grok", "")).rejects.toThrow();
+    await expect(admin().adminPinStatue("", "Grok", "")).rejects.toThrow("model");
+    await expect(admin().adminPinStatue("x".repeat(49), "Grok", "")).rejects.toThrow("model");
+    await expect(admin().adminPinStatue("Grok 5", 7, "")).rejects.toThrow("maker");
+
+    await admin().adminPinStatue("  Grok 5 ", "Grok", "");
+    const pinned = { model: "Grok 5", org: "Grok", ranking: RANKING, score: null, asOf: null };
+    await eventually(() => expect(heard.at(-1)).toMatchObject({ leader: pinned, pinned: true }));
+    // A bot on the square says so.
+    await eventually(() =>
+      expect(bubbles.some((b) => b.userId < 0 && b.text.startsWith("🗿") && b.text.includes("Grok 5"))).toBe(
+        true,
+      ),
+    );
+    const status = await admin().adminStatue();
+    expect(status.pin?.leader).toEqual(pinned);
+    expect(status.shown.since).toBeGreaterThan(0);
+    expect((await admin().adminLog())[0]).toMatchObject({ action: "pin statue", target: "Grok 5" });
+    // Someone joining now is told what's up.
+    const later = await connect((await signUp("adstatue2")).token);
+    const told: Statue[] = [];
+    later.conn.on("statue", (s: Statue) => told.push(s));
+    await later.conn.join();
+    await eventually(() => expect(told.at(-1)?.leader).toEqual(pinned));
+
+    await admin().adminUnpinStatue();
+    await eventually(() => expect(heard.at(-1)).toEqual({ leader: null, since: 0, pinned: false }));
+    expect((await admin().adminStatue()).pin).toBeNull();
+    await tab.conn.dispose();
+    await later.conn.dispose();
   });
 
   test("deletes an account: signed out, out of the world, and the id isn't reused", async () => {

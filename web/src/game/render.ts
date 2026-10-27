@@ -5,11 +5,13 @@ import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
+import type { Weather } from "@tokenmaxxing/core/sky.ts";
 import { hasSpecial, specialBuff, TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
   type CompanyInfo,
   companyOfRoom,
   cupsLeft,
+  type Facing,
   houseTier,
   JUMP_MS,
   memberRoomOf,
@@ -34,6 +36,17 @@ import { graphics } from "../settings/graphics.ts";
 import { drawBasement, lightBasement } from "./basement.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
+import { drawClocks } from "./clocks.ts";
+import {
+  breathPuff,
+  type Chill,
+  chillOf,
+  drawBreath,
+  drawScarf,
+  sneezeJolt,
+  sneezeOf,
+  wearsScarf,
+} from "./cold.ts";
 import { drawCop, isCop } from "./cop.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { drawFireworks } from "./fireworks.ts";
@@ -41,8 +54,12 @@ import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
+import { drawGraveyard } from "./graveyard.ts";
+import { lampDim } from "./grid.ts";
+import { drawGrid } from "./grid-board.ts";
 import { drawPumpkins, lightPumpkins } from "./halloween.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
+import { drawTruck, lightTruck } from "./jdag.ts";
 import { drawKeynote, lightKeynote } from "./keynote.ts";
 import {
   avatarLabels,
@@ -56,6 +73,7 @@ import {
   signHits,
 } from "./labels.ts";
 import { drawLaunch } from "./launch.ts";
+import { drawLeaves } from "./leaves.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
@@ -64,7 +82,7 @@ import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
-import { seasonalCanvas, seasonNow } from "./seasons.ts";
+import { seasonalCanvas, seasonLookNow, treeVariant } from "./seasons.ts";
 import {
   drawLight,
   drawLights,
@@ -74,9 +92,11 @@ import {
   type LitWindow,
   lightsNow,
   weatherNow,
+  windPush,
 } from "./sky.ts";
-import { snowAmount, snowLayers } from "./snow.ts";
+import { iceAmount, iceLayer, snowAmount, snowLayers } from "./snow.ts";
 import { drawStars } from "./stars.ts";
+import { drawStatue } from "./statue.ts";
 import { drawStreet } from "./street.ts";
 import { drawTavern, lightTavern } from "./tavern.ts";
 import { drawTownAnimals } from "./town-life.ts";
@@ -152,22 +172,35 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   const weather = outdoors ? weatherNow() : null;
   // Snow (town only): twins of the baked ground and sprites, cross-faded while it settles or melts.
   const snow = outdoors ? snowAmount(now) : 0;
-  const season = seasonNow();
+  // Below freezing the pond ices over (`snow.ts`); in the cold, breath shows and the bots wear scarves (`cold.ts`).
+  const ice = outdoors ? iceAmount(now) : 0;
+  const chill = weather ? chillOf(weather) : null;
+  // The season's look (`seasons.ts`): the town's trees, bushes and grass are drawn as its twins.
+  const season = outdoors ? seasonLookNow() : null;
   const paint = (c: HTMLCanvasElement, x: number, y: number, ch: string) => {
     if (weather && (ch === "T" || ch === "^")) drawSway(g, c, ch, x, y, now, weather);
     else g.drawImage(c, x, y);
   };
-  const snowy = (src: HTMLCanvasElement, x: number, y: number, ch = "", ground = false) => {
-    if (outdoors && (ground || ch === "T" || ch === "^")) src = seasonalCanvas(src, season);
+  const snowy = (plain: HTMLCanvasElement, x: number, y: number, ch = "", ground = false) => {
+    const plant = ground ? "ground" : ch === "T" ? "tree" : ch === "^" ? "bush" : null;
+    const src =
+      season && plant
+        ? seasonalCanvas(plain, plant, season, plant === "tree" ? treeVariant(x, y) : 0)
+        : plain;
     if (snow < 0.01) return paint(src, x, y, ch);
-    for (const [c, a] of snowLayers(src, snow, ground)) {
+    for (const [c, a] of snowLayers(src, snow, ground, plain)) {
       g.globalAlpha = a;
       paint(c, x, y, ch);
     }
     g.globalAlpha = 1;
   };
   if (world.ground) snowy(world.ground, map.x0 * TILE, map.y0 * TILE, "", true);
-  if (snow < 0.7) drawWaterGlints(g, map, now);
+  if (world.ground && ice > 0.01) {
+    g.globalAlpha = ice;
+    g.drawImage(iceLayer(world.ground), map.x0 * TILE, map.y0 * TILE);
+    g.globalAlpha = 1;
+  }
+  if (snow < 0.7 && ice < 0.5) drawWaterGlints(g, map, now);
 
   const x0 = Math.max(map.x0, Math.floor(camX / TILE) - 1);
   const y0 = Math.max(map.y0, Math.floor(camY / TILE) - 1);
@@ -190,6 +223,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   // Outdoors only: lamps and lit windows to shine over the night's tint (see `sky.ts`).
   const lamps: [number, number][] = [];
   const windows: LitWindow[] = [];
+  // The trees in view (their sprites' top left), for the leaves that fall from them.
+  const trees: [number, number][] = [];
   // At night the lit windows' faces are drawn again over the tint, opaque, so the first time is skipped.
   // Only at a whole-number zoom: in between, the panes' soft edges would show what was under them.
   const relit = outdoors && Number.isInteger(scale) && lightsNow(now) > 0.05;
@@ -218,6 +253,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       const ch = map.at(x, y);
       if (o) {
         if (outdoors && ch === "L") lamps.push([x * TILE + TILE / 2, y * TILE - 11]);
+        if (outdoors && ch === "T") trees.push([x * TILE + o.dx, y * TILE + o.dy]);
         items.push({
           y: y * TILE + sortY(ch),
           draw: () => {
@@ -333,11 +369,16 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawStreet(f);
   drawWindmills(f);
   drawLaunch(f);
+  drawGraveyard(f);
+  drawStatue(f);
   drawStars(f);
   drawFireworks(f);
   drawPicnic(f);
+  drawGrid(f);
   drawPumpkins(f);
+  drawTruck(f);
   drawChalkboards(f);
+  drawClocks(f);
   drawTavern(f);
   drawKeynote(f);
   drawTownAnimals(f);
@@ -373,7 +414,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     if (seen) {
       items.push({
         y: py + (tile === "b" || tile === "s" ? 1 : TILE - 0.5),
-        draw: () => drawAvatar(g, a, px, py, tile, now, lap),
+        draw: () => drawAvatar(g, a, px, py, tile, now, lap, chill, weather),
       });
       // A legendary sparkles on whoever wears it.
       if (wearsLegendary(a.info.look))
@@ -421,6 +462,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
 
   items.sort((a, b) => a.y - b.y);
   for (const i of items) i.draw();
+  if (season && weather) drawLeaves(g, trees, season.look.falling, weather, now);
   drawGhost(g, map, now, fancyCanvas);
   // The Tavern's fire and candles (and the dark, after sunset): `inn` only.
   lightTavern(f);
@@ -434,8 +476,9 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     const glow = drawLight(g, w, h, now);
     if (glow > 0.05) {
       g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
-      drawLights(g, lamps, windows, glow);
+      drawLights(g, lamps, windows, glow, lampDim());
       lightPumpkins(g, glow, now);
+      lightTruck(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
     drawNightSky(g, w, h, dpr, now);
@@ -471,8 +514,16 @@ function drawAvatar(
   tile: string,
   now: number,
   lap: Lap | null,
+  chill: Chill | null,
+  weather: Weather | null,
 ): void {
   const look = a.info.look;
+  /** The cold on someone drawn at (`x`, `top`) facing `facing`: a scarf on the bots, then their breath. */
+  const cold = (x: number, top: number, facing: Facing) => {
+    if (wearsScarf(a, chill)) drawScarf(g, x, top, facing, a.info.id);
+    const puff = chill && !a.warp ? breathPuff(a.info.id, now) : null;
+    if (puff !== null) drawBreath(g, x, top, facing, puff, weather ? windPush(weather) : 0);
+  };
   // Coffee: a small tremor off the clock in whole pixels (`tremor.ts`), the same at any frame rate. The
   // Tavern's special (15 minutes) is a buzz like one and a half cups, or a warm glow behind you.
   const until = a.info.specialUntil ?? 0;
@@ -510,7 +561,9 @@ function drawAvatar(
     g.drawImage(chairBack(), px, py);
   } else if (a.state === "sit") {
     drawAura(g, a, px, py - 5, now);
-    g.drawImage(characterFrame(look, a.facing === "up" ? "up" : "down", "sit"), px, py - 5);
+    const facing = a.facing === "up" ? "up" : "down";
+    g.drawImage(characterFrame(look, facing, "sit"), px, py - 5);
+    cold(px, py - 5, facing);
   } else {
     const walking = lap ? lap.running : stepping(a, now);
     const facing = lap?.facing ?? a.facing;
@@ -522,9 +575,13 @@ function drawAvatar(
     g.fillStyle = C.shadow;
     g.fillRect(px + 4 + shrink, py + 14, 8 - 2 * shrink, 2);
     drawAura(g, a, px, py - 2 - lift, now);
-    const top = py - 2 - lift - (pose === "walkA" ? 1 : 0);
+    // A sneeze dips the whole figure a pixel.
+    const sneeze = sneezeOf(a);
+    const top =
+      py - 2 - lift - (pose === "walkA" ? 1 : 0) + (sneeze !== null && sneezeJolt(sneeze) > 0.5 ? 1 : 0);
     if (isCop(a)) drawCop(g, a, pose, px, top, py, now);
     else g.drawImage(characterFrame(look, facing, pose), px, top);
+    cold(px, top, facing);
   }
   g.globalAlpha = 1;
 }

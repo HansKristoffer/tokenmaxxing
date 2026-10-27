@@ -1,32 +1,41 @@
-import { snowCover } from "@tokenmaxxing/core/sky.ts";
+import { iceOver, snowCover } from "@tokenmaxxing/core/sky.ts";
 import { clamp } from "hanzio";
 import { C, rgbOf } from "../art/palette.ts";
 import { hash } from "../art/pixels.ts";
 import { skyNow, weatherNow } from "./sky.ts";
 
 /**
- * Snow on the ground, roofs and trees. Each baked canvas (the town's ground, a sprite) gets a snowy twin
- * made once, from its pixels; while the cover fades in or out the render loop draws both, and otherwise
- * just one. Nothing here runs per frame except a number moving towards 0 or 1.
+ * Snow on the ground, roofs and trees, and ice on the pond. Each baked canvas (the town's ground, a sprite) gets a
+ * snowy twin made once, from its pixels; while the cover fades in or out the render loop draws both, and otherwise
+ * just one. The ice is a see-through twin of the ground with only the pond in it, laid over whatever is under. Nothing
+ * here runs per frame except numbers moving towards 0 or 1.
  */
 
 /** Seconds for the snow to settle once it starts, and (slowly) to melt after it stops. */
 const SETTLE_S = 20;
 const MELT_S = 90;
 
-let amount = -1;
-let lastAt = 0;
+/** A cover easing towards 0 or 1 at its own pace in and out; a page that opens in it starts covered. */
+function easer(inS: number, outS: number): (target: boolean, now: number) => number {
+  let amount = -1;
+  let lastAt = 0;
+  return (target, now) => {
+    const to = target ? 1 : 0;
+    const dt = Math.min(0.1, (now - lastAt) / 1000);
+    lastAt = now;
+    amount = amount < 0 ? to : amount + clamp(to - amount, -dt / outS, dt / inS);
+    return amount;
+  };
+}
+
+const snowEase = easer(SETTLE_S, MELT_S);
+const iceEase = easer(30, 60);
 
 /** How snowy the town is, 0..1: eases in while snow falls (or in winter), melts away slowly after. */
-export function snowAmount(now: number): number {
-  const target = snowCover(weatherNow(), skyNow()) ? 1 : 0;
-  const dt = Math.min(0.1, (now - lastAt) / 1000);
-  lastAt = now;
-  if (amount < 0)
-    amount = target; // a page that opens in the snow is already white
-  else amount += clamp(target - amount, -dt / MELT_S, dt / SETTLE_S);
-  return amount;
-}
+export const snowAmount = (now: number): number => snowEase(snowCover(weatherNow(), skyNow()), now);
+
+/** How iced over the pond is, 0..1: freezes while it's below 0 °C, thaws after. */
+export const iceAmount = (now: number): number => iceEase(iceOver(weatherNow()), now);
 
 const key = (r: number, g: number, b: number) => (r << 16) | (g << 8) | b;
 
@@ -64,9 +73,52 @@ const dark = (r: number, g: number, b: number) => r * 0.3 + g * 0.59 + b * 0.11 
 const leafy = (r: number, g: number, b: number) => g > r + 12 && g > b + 12;
 
 const twins = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+const iced = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 
-/** The snowy twin of a baked canvas: `ground` for the town's opaque ground, else a sprite (caps and dust). */
-function bake(src: HTMLCanvasElement, ground: boolean): HTMLCanvasElement {
+/**
+ * The pond of the town's baked ground iced over, and nothing else (the rest is see-through): pale ice, a white rim,
+ * streaks of glare and a few cracks.
+ */
+export function iceLayer(ground: HTMLCanvasElement): HTMLCanvasElement {
+  const hit = iced.get(ground);
+  if (hit) return hit;
+  const w = ground.width;
+  const h = ground.height;
+  const was = ground.getContext("2d")!.getImageData(0, 0, w, h).data;
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const g = out.getContext("2d")!;
+  const img = g.createImageData(w, h);
+  const d = img.data;
+  const waterAt = (x: number, y: number) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return false;
+    const i = (y * w + x) * 4;
+    return WATER.has(key(was[i]!, was[i + 1]!, was[i + 2]!));
+  };
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (!waterAt(x, y)) continue;
+      const rim = !(waterAt(x - 1, y) && waterAt(x + 1, y) && waterAt(x, y - 1) && waterAt(x, y + 1));
+      const glare = (x + y) % 13 < 2 && hash(Math.floor((x - y) / 9), 0, 51) < 0.5;
+      const crack = hash(x, y, 52) < 0.025;
+      const c = rim ? [236, 246, 252] : glare ? [234, 245, 252] : crack ? [158, 194, 220] : [192, 224, 240];
+      const i = (y * w + x) * 4;
+      d[i] = c[0]!;
+      d[i + 1] = c[1]!;
+      d[i + 2] = c[2]!;
+      d[i + 3] = 255;
+    }
+  g.putImageData(img, 0, 0);
+  iced.set(ground, out);
+  return out;
+}
+
+/**
+ * The snowy twin of a baked canvas: `ground` for the town's opaque ground, else a sprite (caps and dust). `plain` is
+ * the canvas in the town's own palette, when `src` is its season's twin: what is grass, path or pond is read there.
+ */
+function bake(src: HTMLCanvasElement, ground: boolean, plain: HTMLCanvasElement): HTMLCanvasElement {
   const out = document.createElement("canvas");
   out.width = src.width;
   out.height = src.height;
@@ -77,6 +129,8 @@ function bake(src: HTMLCanvasElement, ground: boolean): HTMLCanvasElement {
   const w = src.width;
   const h = src.height;
   const was = Uint8ClampedArray.from(d);
+  const palette =
+    plain === src ? was : plain.getContext("2d")!.getImageData(0, 0, plain.width, plain.height).data;
   const solid = (x: number, y: number) => y >= 0 && was[(y * w + x) * 4 + 3]! >= 200;
   const put = (x: number, y: number, c: readonly [number, number, number]) => {
     const i = (y * w + x) * 4;
@@ -87,14 +141,14 @@ function bake(src: HTMLCanvasElement, ground: boolean): HTMLCanvasElement {
   const waterAt = (x: number, y: number) => {
     if (x < 0 || y < 0 || x >= w || y >= h) return true;
     const i = (y * w + x) * 4;
-    return WATER.has(key(was[i]!, was[i + 1]!, was[i + 2]!));
+    return WATER.has(key(palette[i]!, palette[i + 1]!, palette[i + 2]!));
   };
 
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
       if (was[i + 3]! < 200) continue;
-      const k = key(was[i]!, was[i + 1]!, was[i + 2]!);
+      const k = key(palette[i]!, palette[i + 1]!, palette[i + 2]!);
       const to = GROUND.get(k);
       if (to) {
         // The pond's rim is white; a few pixels of the ground are speckled.
@@ -137,17 +191,18 @@ function bake(src: HTMLCanvasElement, ground: boolean): HTMLCanvasElement {
 
 /**
  * What to draw for `src` at snow `amount`: the plain canvas, its snowy twin, or both with the twin's alpha
- * while the snow is settling or melting.
+ * while the snow is settling or melting. `plain` is `src` before the season painted it (`seasons.ts`).
  */
 export function snowLayers(
   src: HTMLCanvasElement,
   amount: number,
   ground = false,
+  plain = src,
 ): readonly (readonly [HTMLCanvasElement, number])[] {
   if (amount < 0.01) return [[src, 1]];
   let twin = twins.get(src);
   if (!twin) {
-    twin = bake(src, ground);
+    twin = bake(src, ground, plain);
     twins.set(src, twin);
   }
   return amount > 0.99

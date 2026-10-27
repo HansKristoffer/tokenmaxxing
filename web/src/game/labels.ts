@@ -1,7 +1,9 @@
+import { SNEEZE_MS } from "@tokenmaxxing/core/sky.ts";
 import { type Peek, TILE } from "@tokenmaxxing/core/world.ts";
 import { clamp, sumBy } from "hanzio";
 import { C } from "../art/palette.ts";
 import { camera } from "./camera.ts";
+import { SNEEZE_TEXT, sneezeOf } from "./cold.ts";
 import { BURST_MS } from "./emoji.ts";
 import { hover, hoverStrength, labelAlpha } from "./near.ts";
 import { polseTag } from "./street.ts";
@@ -235,8 +237,10 @@ export function avatarLabels(
   const inGame = gameTag(a.info.id);
   if (inGame) y -= pill(g, cx, y, inGame, dpr, "rgba(233, 183, 61, 0.95)", C.ink).h + 2 * dpr;
   if (!resting) y = polseTag(g, a.info, cx, y, now);
+  const sneeze = sneezeOf(a);
   if (a.bubble && now < a.bubble.until && !resting)
     bubble(g, cx, y, a.bubble.text, dpr, a.bubble.until - now);
+  else if (sneeze !== null) bubble(g, cx, y, SNEEZE_TEXT, dpr, (1 - sneeze) * SNEEZE_MS);
   if (a.burst && now - a.burst.at < BURST_MS) burst(g, cx, top, a.burst.emojis, now - a.burst.at, dpr);
 }
 

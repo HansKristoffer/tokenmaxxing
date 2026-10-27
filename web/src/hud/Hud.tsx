@@ -23,6 +23,7 @@ import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
 import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
+import { GreenBanner } from "./GreenHour.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
 import { Hotbar } from "./Hotbar.tsx";
 import { Jukebox } from "./Jukebox.tsx";
@@ -52,6 +53,7 @@ import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
 import { StarButton, StarsPanel } from "./Stars.tsx";
 import { MENU } from "./shops.ts";
+import { TombstonePanel } from "./Tombstone.tsx";
 import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
@@ -93,6 +95,7 @@ export function Hud() {
           <Banner />
           <PicnicBanner />
           <KeynoteBanner />
+          <GreenBanner />
         </>
       ) : (
         <>
@@ -100,6 +103,7 @@ export function Hud() {
           <Banner />
           <PicnicBanner />
           <KeynoteBanner />
+          <GreenBanner />
           {!beside && <Chat />}
           <Minimap />
         </>
@@ -294,6 +298,15 @@ function Stats() {
           🔥 <strong>×{wallet.streak}</strong>
         </span>
       )}
+      {wallet?.launches.map((l) => (
+        <span
+          key={l.id}
+          className="chip"
+          title={`${l.model} launched ${l.day} and you used it that day: +${l.coins} coins, paid once.`}
+        >
+          🚀 <strong>+{l.coins}</strong>
+        </span>
+      ))}
       {wallet && wallet.quests.length > 0 && <QuestTracker quests={wallet.quests} />}
       <button
         type="button"
@@ -399,6 +412,7 @@ function Panel() {
     graphics: () => <GraphicsPanel />,
     paper: () => <PaperPanel />,
     pamphlet: () => <PamphletPanel />,
+    tombstone: (p) => <TombstonePanel id={p.id} />,
     keynote: () => <KeynotePanel />,
     stars: () => <StarsPanel />,
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,

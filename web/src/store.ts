@@ -37,6 +37,7 @@ export type Panel =
   | { kind: "trades" }
   | { kind: "paper" }
   | { kind: "pamphlet" }
+  | { kind: "tombstone"; id: string }
   | { kind: "keynote" }
   | { kind: "stars" }
   | { kind: "trophies"; userId: number; name: string }
@@ -120,6 +121,8 @@ interface HudState {
   mention: { line: ChatLine; at: number } | null;
   /** The weather over Copenhagen, from the server. */
   weather: Weather;
+  /** The day of the year the server pins the town's season to (`SKY_SEASON`), or null for the date's own. */
+  seasonDay: number | null;
   /** The project's GitHub stars and the last milestone's fireworks (`world` sends `stars`). */
   stars: Stars;
   /** What the raid's last kills dropped, for everyone (`world` sends `loot`). */
@@ -164,6 +167,7 @@ let state: HudState = {
   clockSkew: 0,
   inviteTable: null,
   weather: CALM,
+  seasonDay: null,
   stars: { count: null, show: null },
 };
 const listeners = new Set<() => void>();

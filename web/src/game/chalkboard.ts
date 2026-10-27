@@ -1,4 +1,4 @@
-import { buffOf, copenhagenDay, SPECIAL, specialOn } from "@tokenmaxxing/core/tavern.ts";
+import { buffAt, copenhagenDay, SPECIAL, specialOn } from "@tokenmaxxing/core/tavern.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { C } from "../art/palette.ts";
 import { bake, cached, hash } from "../art/pixels.ts";
@@ -70,7 +70,7 @@ let nearSince: number | null = null;
 /** The special's line for the dialog (E facing the board): what it is, and what the tap does with it. */
 export function chalkboardText(): string {
   const at = new Date();
-  const how = buffOf(copenhagenDay(at)) === "glow" ? "a glow" : "a buzz";
+  const how = buffAt(at.getTime()) === "glow" ? "a glow" : "a buzz";
   return `The Tavern's chalkboard. Today's special: ${specialOn(at)} Free at the tap inside: ${how} for ${SPECIAL.ms / 60_000} minutes.`;
 }
 

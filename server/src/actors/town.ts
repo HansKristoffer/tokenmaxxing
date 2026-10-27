@@ -8,6 +8,7 @@ import {
 import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { clockAt, dateAt, type Keynote } from "@tokenmaxxing/core/keynote.ts";
+import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import { headlines, type Paper } from "@tokenmaxxing/core/paper.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
@@ -26,6 +27,7 @@ import {
   TRADE_ITEMS_CAP,
 } from "@tokenmaxxing/core/shop.ts";
 import { goToShop, SHOP_ROOM, type ShopId, shopForSlot } from "@tokenmaxxing/core/shoprooms.ts";
+import type { StatueAdmin } from "@tokenmaxxing/core/statue.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import type { TournamentBoard } from "@tokenmaxxing/core/tournament.ts";
 import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
@@ -59,6 +61,7 @@ import {
   logAdmin,
   overview,
   setCompanyWallet,
+  statuePin,
   wipeUsage,
 } from "../town/admin.ts";
 import { type Award, awardStep, collectionOf } from "../town/awards.ts";
@@ -144,8 +147,10 @@ import {
 } from "../town/companies.ts";
 import { buyDesk, buyDeskFleet, type MyDesk, myDesk, setDesk } from "../town/desks.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
+import { recordGreen } from "../town/grid.ts";
 import { type HallOfFame, hallOfFame } from "../town/hall.ts";
 import { comingKeynotes, everyKeynote, markKeynote, removeKeynote, saveKeynote } from "../town/keynotes.ts";
+import { recordLaunches } from "../town/launch-bonus.ts";
 import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
 import {
@@ -228,6 +233,8 @@ export interface ActivityDay extends ActivityRow {
   hours?: string;
   /** JSON `{source: tokens}`. */
   sources?: string;
+  /** Tokens by world hour: 24 numbers, comma-separated, for green hours. */
+  hourTokens?: string;
 }
 
 export interface Me {
@@ -865,6 +872,12 @@ export const town = actor({
       return comingKeynotes(c.db, Date.now());
     },
 
+    /** From `world`: the launches it has read from OpenRouter, so a model used on its launch day pays (once each). */
+    launched: (c, launches: Launch[]): Promise<void> => {
+      requireInternal(c.conn.state);
+      return recordLaunches(c.db, launches);
+    },
+
     /** From `world`: in the Tavern while keynote `keynoteId` is on its screen. True the first time. */
     keynoteWatched: (c, userId: number, keynoteId: number): Promise<boolean> => {
       requireInternal(c.conn.state);
@@ -1264,6 +1277,17 @@ export const town = actor({
      * From `world`, every few minutes: who spent how long in the Tavern since the last call (`[userId,
      * minutes, visits]`). Credit is capped per player per day; plaques give no coins.
      */
+    /**
+     * From `world` after each grid read: the hours (their starts) it found green. Each goes in once
+     * (`recordGreen`), so the same hours sent again change nothing.
+     */
+    greenHours: async (c, hours: unknown): Promise<number> => {
+      requireInternal(c.conn.state);
+      if (!Array.isArray(hours)) return 0;
+      const clean = hours.filter((h): h is number => typeof h === "number").slice(0, 48);
+      return c.vars.serial(() => recordGreen(c.db, clean, Date.now()));
+    },
+
     tavernMinutes: async (c, day: unknown, rows: unknown): Promise<void> => {
       requireInternal(c.conn.state);
       if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !Array.isArray(rows)) return;
@@ -1511,6 +1535,27 @@ export const town = actor({
         now,
       );
       return set.coins;
+    },
+
+    /** The statue of the #1 model: what's on the plinth, the last leader read, the pin, and the next read. */
+    adminStatue: (c): Promise<StatueAdmin> => {
+      requireAdmin(c.conn.state);
+      return main(c.client<typeof registry>()).world.statue();
+    },
+
+    /** Pins a model on the statue's plinth, over the ranking's, until it's unpinned. */
+    adminPinStatue: async (c, model: unknown, org: unknown, ranking: unknown): Promise<void> => {
+      requireAdmin(c.conn.state);
+      const leader = statuePin(model, org, ranking);
+      await main(c.client<typeof registry>()).world.pinStatue(leader);
+      await logAdmin(c.db, "pin statue", leader.model, `${leader.org} · ${leader.ranking}`, Date.now());
+    },
+
+    /** Gives the plinth back to the ranking. */
+    adminUnpinStatue: async (c): Promise<void> => {
+      requireAdmin(c.conn.state);
+      await main(c.client<typeof registry>()).world.pinStatue(null);
+      await logAdmin(c.db, "unpin statue", "statue", null, Date.now());
     },
 
     /** Test servers only sell anywhere; this holds one player to the shop rule anyway. */
