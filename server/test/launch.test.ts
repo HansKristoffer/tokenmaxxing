@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { type Launch, OPENROUTER_MODELS } from "@tokenmaxxing/core/launch.ts";
-import { checkLaunches } from "../src/launch.ts";
+import { checkModels } from "../src/launch.ts";
 
 const now = Date.UTC(2026, 9, 27, 6, 0);
 const list = {
@@ -32,8 +32,10 @@ const prev: Launch[] = [
   },
 ];
 
-test("reads OpenRouter's list into launches", async () => {
-  expect(await checkLaunches([], now, answer(list), {})).toEqual([
+test("reads OpenRouter's list into launches, and every pool model for the graveyard", async () => {
+  const read = await checkModels([], now, answer(list), {});
+  expect(read.pool?.map((m) => m.id)).toEqual(["openai/gpt-6.1-terra"]);
+  expect(read.launches).toEqual([
     {
       provider: "codex",
       model: "GPT-6.1 Terra",
@@ -45,12 +47,21 @@ test("reads OpenRouter's list into launches", async () => {
   ]);
 });
 
-test("a failed read keeps what we had", async () => {
-  expect(await checkLaunches(prev, now, answer(new Error("offline")), {})).toBe(prev);
-  expect(await checkLaunches(prev, now, answer(list, false), {})).toBe(prev);
-  expect(await checkLaunches(prev, now, answer({ error: "rate limited" }), {})).toBe(prev);
+test("a failed read keeps what we had, and tells the graveyard nothing", async () => {
+  for (const reply of [
+    answer(new Error("offline")),
+    answer(list, false),
+    answer({ error: "rate limited" }),
+  ]) {
+    const read = await checkModels(prev, now, reply, {});
+    expect(read.launches).toBe(prev);
+    expect(read.pool).toBeNull();
+  }
 });
 
-test("LAUNCH_FEED=off takes every stand down", async () => {
-  expect(await checkLaunches(prev, now, answer(list), { LAUNCH_FEED: "off" })).toEqual([]);
+test("LAUNCH_FEED=off takes every stand down and leaves the graveyard be", async () => {
+  expect(await checkModels(prev, now, answer(list), { LAUNCH_FEED: "off" })).toEqual({
+    launches: [],
+    pool: null,
+  });
 });

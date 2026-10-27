@@ -11,6 +11,7 @@ pets that follow you around (hold a pet and pick any of its colours and breeds w
 rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
 the most real tokens in an hour.
 The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches.
+The town follows the model news on [OpenRouter's public model list](https://openrouter.ai/api/v1/models): a stand goes up in the square with a pamphlet when a model ships, and a model that drops off the list gets a tombstone in the graveyard beside the Tavern, with its maker, the dates it was listed and its last price.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.
@@ -250,6 +251,7 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `HEALTH_WINDOW_MS` | `120000` | ...the first of them at least this long ago. One success starts over |
 | `HEALTH_INTERVAL_MS` | `30000` | Time between probes |
 | `HEALTH_TIMEOUT_MS` | `20000` | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine |
+| `LAUNCH_FEED` | | `off` stops reading OpenRouter's model list: the launch stand comes down and the model graveyard stays as it is |
 | `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
 | `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
 

@@ -1,7 +1,7 @@
 /**
  * Street-life models for the 3D town (2D: `art/cop.ts`, `art/cart.ts`, `art/picnic.ts`, `art/street.ts`): Officer
  * 429's light bar and notepad, the roaming merchant's cart and signpost, the picnic blanket and basket, touched grass,
- * the build snail and its goal flag, the paperboy's bike and paper. `town-events.ts` and `cop3d.ts` use them;
+ * the build snail and its goal flag, the paperboy's bike and paper, the graveyard's tombstones. `town-events.ts` and `cop3d.ts` use them;
  * `FX_ASSETS` lists them for the catalogue.
  */
 
@@ -539,6 +539,51 @@ export function pamphletModel(): Model {
   return m;
 }
 
+// MARK: The model graveyard
+
+/**
+ * A tombstone in the model graveyard (`game/graveyard.ts`; 2D: `art/graveyard.ts`): a stepped grey
+ * headstone with RIP carved in its face, on a mound of earth with flowers in its maker's colour. Its
+ * front faces +z.
+ */
+export function tombstoneModel(accent: string): Model {
+  const m = new Model();
+  const stone = "#aeaaa5";
+  m.box([0.84, 0.05, 0.62], "#6b4a33", [0, 0, 0.08], 0.02);
+  m.box([0.7, 0.08, 0.22], "#8a8682", [0, 0.04, -0.06], 0.01);
+  m.box([0.56, 0.5, 0.14], stone, [0, 0.1, -0.06], 0.02);
+  m.box([0.46, 0.08, 0.14], stone, [0, 0.6, -0.06], 0.02);
+  m.box([0.3, 0.06, 0.14], stone, [0, 0.68, -0.06], 0.02);
+  const face = canvasTexture(
+    32,
+    32,
+    (g) => {
+      g.fillStyle = stone;
+      g.fillRect(0, 0, 32, 32);
+      g.fillStyle = ink;
+      g.font = "900 11px system-ui, sans-serif";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText("RIP", 16, 11);
+      g.fillStyle = "#8a8682";
+      g.fillRect(7, 21, 18, 2);
+      g.fillRect(10, 26, 12, 2);
+    },
+    true,
+  );
+  m.plane(0.46, 0.42, painted(face), [0, 0.38, 0.011]);
+  // Flowers laid at its foot.
+  for (const [x, z] of [
+    [-0.26, 0.22],
+    [0.22, 0.26],
+    [0.02, 0.3],
+  ] as const) {
+    m.cyl(0.012, 0.12, "#3a7b2f", [x, 0.05, z], 0.012, 5);
+    m.ball(0.045, accent, [x, 0.18, z]);
+  }
+  return m;
+}
+
 // MARK: Catalogue
 
 const asset = (id: string, name: string, w: number, d: number, build: () => Model) => ({
@@ -564,4 +609,5 @@ export const FX_ASSETS = [
   asset("fx:paperboy-bike", "Paperboy's bike", 1, 1, () => bikeModel().model),
   asset("fx:paper", "Morning paper", 1, 1, paperModel),
   asset("fx:cop-car", "Patrol car", 2, 1, () => car("#2f4f9f")),
+  asset("fx:tombstone", "Tombstone", 1, 1, () => tombstoneModel("#d97757")),
 ] as const;

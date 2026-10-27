@@ -21,6 +21,15 @@ import {
 } from "@tokenmaxxing/core/games/gather.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import {
+  type Plot,
+  type Stone,
+  sameStones,
+  stoneAt,
+  stonesOf,
+  tend,
+  withChanges,
+} from "@tokenmaxxing/core/graveyard.ts";
+import {
   type Jukebox,
   settle as settleJukebox,
   skipNeeded,
@@ -138,7 +147,8 @@ import { compact, countBy, must, omit, sortBy, typedSwitch } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { putAwayNotice } from "../furniture-notices.ts";
-import { checkLaunches, LAUNCHES_EVERY_MS } from "../launch.ts";
+import { loadPlots, migrateGraveyard, savePlots } from "../graveyard.ts";
+import { checkModels, LAUNCHES_EVERY_MS } from "../launch.ts";
 import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { counts, TavernClock } from "../tavern-clock.ts";
@@ -154,6 +164,7 @@ import {
   requireMain,
   requireUser,
   type Sql,
+  type TxSql,
   waitForTick,
 } from "./shared.ts";
 import type { Office, PlayerCore } from "./town.ts";
@@ -328,6 +339,9 @@ export const world = actor({
     /** New models from OpenRouter's list (`launch.ts`): one read for everyone, kept when a read fails. */
     launches: [] as Launch[],
     launchesAt: 0,
+    /** Every pool model seen in that list (`graveyard.ts`, kept in SQLite), and the stones it shows. */
+    plots: [] as Plot[],
+    graves: [] as Stone[],
     cop: { burns: new Map(), ticketed: new Map(), chase: null, freeAt: 0 } as CopVars,
     /** Visits already sent to `town` today (`countVisit`), so a door in and out costs one write. */
     visited: { day: "", keys: new Set<string>() },
@@ -364,6 +378,7 @@ export const world = actor({
       await d.execute("CREATE INDEX IF NOT EXISTS chat_room ON chat (room, id)");
       // Bots used to talk in the chat; they only talk over their heads now.
       await d.execute("DELETE FROM chat WHERE user_id < 0");
+      await migrateGraveyard(d);
     },
   }),
   onCreate: (c) => requireMain(c),
@@ -378,6 +393,8 @@ export const world = actor({
       c.state.seeded = true;
     }
     c.state.offices = seed.offices;
+    c.vars.plots = await loadPlots(c.db);
+    c.vars.graves = stonesOf(c.vars.plots);
     for (const id of Object.keys(c.state.players)) buildOffice(c.state, Number(id));
     delete (c.state as { drops?: unknown }).drops; // kept here before `seed` carried them
     placeBots(c.state);
@@ -430,7 +447,7 @@ export const world = actor({
       }
       if (now >= c.vars.launchesAt) {
         c.vars.launchesAt = now + LAUNCHES_EVERY_MS;
-        void refreshLaunches(c, now);
+        void refreshLaunches(c, now).catch((err) => console.warn(`[launch] refresh: ${String(err)}`));
       }
       copBeat(c, now);
       if (TAVERN) tavernBeat(c, n, now);
@@ -467,6 +484,7 @@ export const world = actor({
       sendInfo(c, p, info(p, true), from);
       c.conn.send("outage", c.vars.outage);
       c.conn.send("launches", c.vars.launches);
+      c.conn.send("graveyard", c.vars.graves);
       if (p.room === "inn") {
         sendJukebox(c, Date.now(), userId);
         sendPoker(c, Date.now(), userId);
@@ -501,7 +519,7 @@ export const world = actor({
       c.vars.dirty.add(p.id);
       return typedSwitch(stepTarget(mapOf(p.room), p.x, p.y, rawDir), "kind", {
         move: (target) => {
-          if (p.room === "town" && onProp(c.state, c.vars.launches, target.x, target.y)) return correction(p);
+          if (p.room === "town" && onProp(c.state, c.vars, target.x, target.y)) return correction(p);
           p.x = target.x;
           p.y = target.y;
           return null;
@@ -1315,6 +1333,8 @@ type Vars = {
   housesStale: boolean;
   outage: Outage | null;
   launches: Launch[];
+  plots: Plot[];
+  graves: Stone[];
   weather: Weather;
   raiders: string;
   raidersAt: number;
@@ -1555,10 +1575,14 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
   return dozed;
 }
 
-/** A table or desk of a game in town, the pølsevogn, or a launch stand while it's up: nobody walks onto it. */
-const onProp = (s: WorldState, launches: readonly Launch[], x: number, y: number) =>
+/**
+ * A table or desk of a game in town, the pølsevogn, a launch stand while it's up, or a tombstone:
+ * nobody walks onto it.
+ */
+const onProp = (s: WorldState, v: Pick<Vars, "launches" | "graves">, x: number, y: number) =>
   isCart(x, y) ||
-  (isStand(x, y) && activeLaunches(Date.now(), launches).length > 0) ||
+  (isStand(x, y) && activeLaunches(Date.now(), v.launches).length > 0) ||
+  stoneAt(v.graves, x, y) !== undefined ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
 
 /** A line in a room's chat: someone's (`say`), or the town's own by default (a game's result). */
@@ -1714,7 +1738,7 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
     const target = stepTarget(map, p.x, p.y, dir);
     p.facing = dir;
     // The town changed under it, or a game table went up: give up on this walk.
-    if (target.kind === "move" && !onProp(s, v.launches, target.x, target.y))
+    if (target.kind === "move" && !onProp(s, v, target.x, target.y))
       Object.assign(p, { x: target.x, y: target.y });
     else Object.assign(run, { path: [], coffee: null });
     if (!leader && run.path.length === 0 && !run.coffee) run.restUntil = now + between(BOT_PAUSE_MS);
@@ -1826,8 +1850,7 @@ function copBeat(
   if (dir) {
     const to = stepTarget(map, cop.x, cop.y, dir);
     cop.facing = dir;
-    if (to.kind === "move" && !onProp(c.state, c.vars.launches, to.x, to.y))
-      Object.assign(cop, { x: to.x, y: to.y });
+    if (to.kind === "move" && !onProp(c.state, c.vars, to.x, to.y)) Object.assign(cop, { x: to.x, y: to.y });
     c.vars.dirty.add(cop.id);
     return;
   }
@@ -1960,15 +1983,30 @@ async function snapshot(
   };
 }
 
-/** Reads OpenRouter's model list, and tells everyone when the launches change (a stand going up or down). */
+/**
+ * Reads OpenRouter's model list, and tells everyone when the launches change (a stand going up or down)
+ * or the graveyard does (someone buried, or dug up again).
+ */
 async function refreshLaunches(
-  c: { vars: Vars; broadcast(name: string, ...args: unknown[]): void },
+  c: { vars: Vars; db: TxSql; broadcast(name: string, ...args: unknown[]): void },
   now: number,
 ): Promise<void> {
-  const next = await checkLaunches(c.vars.launches, now);
-  if (sameLaunches(next, c.vars.launches)) return;
-  c.vars.launches = next;
-  c.broadcast("launches", next);
+  const { launches, pool } = await checkModels(c.vars.launches, now);
+  if (!sameLaunches(launches, c.vars.launches)) {
+    c.vars.launches = launches;
+    c.broadcast("launches", launches);
+  }
+  if (!pool) return;
+  const changed = tend(c.vars.plots, pool, now);
+  if (changed.length === 0) return;
+  await savePlots(c.db, changed);
+  c.vars.plots = withChanges(c.vars.plots, changed);
+  const graves = stonesOf(c.vars.plots);
+  if (sameStones(graves, c.vars.graves)) return;
+  for (const g of graves)
+    if (!c.vars.graves.some((was) => was.id === g.id)) console.log(`[graveyard] ${g.id} is buried`);
+  c.vars.graves = graves;
+  c.broadcast("graveyard", graves);
 }
 
 /**

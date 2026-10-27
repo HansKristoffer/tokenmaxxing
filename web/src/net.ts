@@ -1,4 +1,5 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import type { Stone } from "@tokenmaxxing/core/graveyard.ts";
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
@@ -23,6 +24,7 @@ import {
 import type { Raid, registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
 import { errorCode } from "./errors.ts";
+import { setGraves } from "./game/graveyard.ts";
 import { playJukebox, stopJukebox } from "./game/jukebox.ts";
 import { setLaunches } from "./game/launch.ts";
 import { noteLoot } from "./game/loot.ts";
@@ -190,6 +192,7 @@ export function connect(token: string): void {
   conn.on("pickup", (e: { id: number }) => applyPickup(e.id));
   conn.on("outage", (o: Outage | null) => setOutage(o));
   conn.on("launches", (l: Launch[]) => setLaunches(l));
+  conn.on("graveyard", (s: Stone[]) => setGraves(s));
   conn.onError((err) => {
     if (isUnauthorized(err)) signedOut();
   });

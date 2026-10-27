@@ -40,6 +40,7 @@ import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
+import { drawGraveyard } from "./graveyard.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import {
   avatarLabels,
@@ -327,6 +328,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawGames(f);
   drawStreet(f);
   drawLaunch(f);
+  drawGraveyard(f);
   drawPicnic(f);
   drawChalkboards(f);
   drawTavern(f);

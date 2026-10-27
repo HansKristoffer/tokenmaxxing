@@ -8,6 +8,7 @@ import { disposeObject } from "../engine/dispose.ts";
 import { ExitMarkers } from "../rooms/exit-markers.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "../rooms/rooms.ts";
 import { GamesLayer } from "./games3d.ts";
+import { Graveyard3D } from "./graveyard3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { TownEvents } from "./town-events.ts";
 import { buildTown3d, type Town3d } from "./town3d.ts";
@@ -52,8 +53,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const gate = town.doors.find((d) => d.kind === "dungeon");
   const gateLive = gate ? new GateLive([gate.at[0], gate.at[1] + 0.25]) : null;
   const games = new GamesLayer((tx, ty) => town.toWorld(tx, ty));
+  const graveyard = new Graveyard3D((tx, ty) => town.toWorld(tx, ty));
   if (gateLive) group.add(gateLive.group);
-  group.add(games.group);
+  group.add(games.group, graveyard.group);
   // The leaderboard on the square shows today's top five, as the HUD's mini board has them.
   let board: ReturnType<typeof hud.get>["board"] | null = null;
   const showBoard = () => {
@@ -101,16 +103,18 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       showBoard();
       markers.update(f.me, f.t);
       events.update(f);
+      graveyard.update(f.now);
     },
     onToss: (tx, ty) => events.toss(tx, ty),
     leave: () => events.leave(),
     signs,
-    liveSigns: () => [...(gateLive?.signs() ?? []), ...games.signs()],
+    liveSigns: () => [...(gateLive?.signs() ?? []), ...games.signs(), ...graveyard.signs()],
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();
       events.dispose();
       games.dispose();
+      graveyard.dispose();
       gateLive?.dispose();
       dropPropsNight(group);
       group.removeFromParent();
