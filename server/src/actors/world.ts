@@ -1495,7 +1495,7 @@ export const world = actor({
           name: p.name,
           level: p.level,
           company: c.state.companies[p.companyId!]?.name ?? "",
-          tier: officeTier(p.level),
+          tier: officeTier(p.level, officeOf(c.state, p.id).size),
           inside: Object.values(c.state.players).filter(
             (o) => o.room === `office:${p.id}` && c.vars.online.has(o.id),
           ).length,
@@ -2492,7 +2492,7 @@ async function snapshot(
         : {
             id: owner,
             name: s.players[owner]?.name ?? "Someone",
-            tier: officeTier(s.players[owner]?.level ?? 0),
+            tier: officeTier(s.players[owner]?.level ?? 0, officeOf(s, owner).size),
             ...decorOf(s, owner),
           },
     doors: companyId === null ? [] : doorsOf(s, companyId),
@@ -2782,7 +2782,8 @@ const decorOf = (s: WorldState, userId: number) => {
 function buildOffice(s: WorldState, userId: number): boolean {
   const before = OFFICE_MAPS.get(userId);
   const p = s.players[userId];
-  if (p && p.level >= OFFICE_LEVEL) setOffice(userId, officeTier(p.level), decorOf(s, userId));
+  if (p && p.level >= OFFICE_LEVEL)
+    setOffice(userId, officeTier(p.level, officeOf(s, userId).size), decorOf(s, userId));
   else clearOffice(userId);
   return OFFICE_MAPS.get(userId) !== before;
 }

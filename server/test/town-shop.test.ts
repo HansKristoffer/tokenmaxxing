@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import { levelUpCoins } from "@tokenmaxxing/core/economy.ts";
 import { petLooks } from "@tokenmaxxing/core/pets.ts";
+import { coinsForTokens } from "@tokenmaxxing/core/shop.ts";
 import type { Notice } from "@tokenmaxxing/core/world.ts";
 import { unwear } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
@@ -9,33 +10,33 @@ import { memorySql } from "./memory-sql.ts";
 import { admin, as, event, eventually, MIN, questCoins, rich, signUp } from "./rivet.ts";
 
 describe("coins and the shop", () => {
-  test("usage earns coins, square-rooted per day", async () => {
+  test("usage earns coins on a curve per day, not per token", async () => {
     const a = await signUp("coin");
     // What usage alone has paid: the day's quests come on top, and which ones depend on the date.
     const earned = async () => {
       const w = await a.town.wallet();
       return w.balance - questCoins(w);
     };
-    // 100M today: √100 = 10. 400M more the same day makes it √500 = 22, not 30. (A minute counts
+    // 100M today pays 2.5 × 100^0.6 = 39. 400M more the same day makes it 500M's 104, not 39 + 4 × 39. (A minute counts
     // for at most 200M, so the 400M comes over the next two.)
     const now = Date.now();
     await as(a.token)
       .player(a.userId)
       .ingest([event({ inputTokens: 100e6, timestamp: now })]);
     // The level it reaches (5 at 100M tokens) pays too.
-    expect(await earned()).toBe(10 + levelUpCoins(5));
+    expect(await earned()).toBe(coinsForTokens(100e6) + levelUpCoins(5));
     await as(a.token)
       .player(a.userId)
       .ingest([
         event({ inputTokens: 200e6, timestamp: now + 60_000 }),
         event({ inputTokens: 200e6, timestamp: now + 120_000 }),
       ]);
-    expect(await earned()).toBe(22 + levelUpCoins(6));
+    expect(await earned()).toBe(coinsForTokens(500e6) + levelUpCoins(6));
     // Logs from before signing up (a first sync's backfill) pay nothing.
     await as(a.token)
       .player(a.userId)
       .ingest([event({ inputTokens: 150e6, timestamp: Date.UTC(2023, 5, 14, 12) })]);
-    expect(await earned()).toBe(22 + levelUpCoins(6));
+    expect(await earned()).toBe(coinsForTokens(500e6) + levelUpCoins(6));
   });
 
   test("buy, then wear; not before, not when short; a second one is another in the bag", async () => {

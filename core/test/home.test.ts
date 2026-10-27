@@ -91,7 +91,7 @@ describe("personal office furniture catalog", () => {
 describe("hanging on an office's wall", () => {
   const office = MAPS.office;
   // The trophy shelf takes x 5 to 8 of row 1, so there is nothing to stand on under row 0 there.
-  const free = [1, 2, 3, 4, 9, 10];
+  const free = [1, 2, 3, 4, 9, 10, 11, 12];
 
   test("on the top wall face, over bare wall, with floor to stand on in front", () => {
     expect(OFFICE_WALL_ROW).toBe(0);
@@ -100,10 +100,10 @@ describe("hanging on an office's wall", () => {
     // Not over the trophy shelf, the corners, the floor, the bottom wall or the door.
     for (const x of [5, 6, 7, 8]) expect(canHang(office, x, 0, 1, true)).toBe(false);
     expect(canHang(office, 0, 0, 1, true)).toBe(false);
-    expect(canHang(office, 11, 0, 1, true)).toBe(false);
-    expect(canHang(office, 10, 0, 2, true)).toBe(false);
+    expect(canHang(office, 13, 0, 1, true)).toBe(false);
+    expect(canHang(office, 12, 0, 2, true)).toBe(false);
     expect(canHang(office, 3, 1, 1, true)).toBe(false);
-    expect(canHang(office, 5, 8, 1, true)).toBe(false);
+    expect(canHang(office, 5, 10, 1, true)).toBe(false);
     // Posters stay in the building, and personal pieces out of it.
     expect(canHang(office, 3, 0, 1)).toBe(false);
     expect(canHang(hqMap(doorsFor([])), 3, 1, 1, true)).toBe(false);
@@ -152,6 +152,7 @@ describe("hanging on an office's wall", () => {
         { ch: "Å", x: 1, y: 0 },
         { ch: "Å", x: 3, y: 0 },
         { ch: "Å", x: 9, y: 0 },
+        { ch: "Å", x: 11, y: 0 },
       ],
       office,
     );
@@ -162,7 +163,7 @@ describe("hanging on an office's wall", () => {
   });
 
   test("bigger offices have more wall, and never the corner", () => {
-    for (const tier of [1, 2] as const) {
+    for (const tier of [1, 2, 3] as const) {
       const map = officeMap(tier);
       expect(canHang(map, map.width - 2, 0, 1, true)).toBe(true);
       expect(canHang(map, map.width - 1, 0, 1, true)).toBe(false);

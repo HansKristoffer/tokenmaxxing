@@ -50,7 +50,7 @@ describe("drops", () => {
       expect(snap.room).toBe(room);
       return snap;
     });
-    setOffice(inside.owner!.id, inside.owner!.tier, inside.owner!); // a veteran's office is the second size
+    setOffice(inside.owner!.id, inside.owner!.tier, inside.owner!); // a veteran's office is the first size
     setDrops(room, inside.drops); // the desk and chair, for `route` here
     const exit = mapOf(room).find("x")[0]!;
     // The guest in the top-left corner; the owner puts a plant to their right, then one below them.
@@ -78,7 +78,7 @@ describe("drops", () => {
     const cat = await drop(guest, "pet.2");
     expect(await g.conn.take()).toEqual({ notice: `That's ${owner.name}'s floor.` });
     // Nor the chair that came at level 10, sitting on it.
-    await walk(g.conn, ["up", "up", "up"]);
+    await walk(g.conn, ["up", "up", "up", "up"]);
     expect(await g.conn.sit("up")).toMatchObject({ x: 5, y: 4, state: "sit" });
     expect(await g.conn.take()).toEqual({ notice: `That's ${owner.name}'s floor.` });
     const o = await connect(owner.token);
@@ -97,8 +97,8 @@ describe("drops", () => {
     await Promise.all(Array.from({ length: 28 }, () => owner.town.buy("furn.=")));
     const o = await connect(owner.token);
     const room = `office:${owner.userId}` as const;
-    expect(await o.conn.visit(owner.userId)).toMatchObject({ room, x: 5, y: 8, facing: "up" });
-    expect(await drop(owner, "furn.d")).toMatchObject({ room, x: 5, y: 7 });
+    expect(await o.conn.visit(owner.userId)).toMatchObject({ room, x: 5, y: 9, facing: "up" });
+    expect(await drop(owner, "furn.d")).toMatchObject({ room, x: 5, y: 8 });
     // Your own office's floor isn't loot: no five at a time.
     for (let i = 0; i < 27; i++) await drop(owner, "furn.="); // 30
     for (let n = 0; n < 2; n++) {

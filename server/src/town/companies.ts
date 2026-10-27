@@ -212,7 +212,7 @@ export async function matchCoins(sql: Sql, userId: number, days: string[], now: 
      WHERE user_id = ? AND kind = 'match' AND ref IN (SELECT value FROM json_each(?)) GROUP BY ref`,
   );
   for (const day of counted) {
-    const due = matchDue(coinsForTokens(tokens.get(day) ?? 0), matched.get(day) ?? 0);
+    const due = matchDue(coinsForTokens(tokens.get(day) ?? 0, day), matched.get(day) ?? 0);
     if (due > 0) await companyLedgerAdd(sql, u.companyId, userId, due, "match", day, now);
   }
 }

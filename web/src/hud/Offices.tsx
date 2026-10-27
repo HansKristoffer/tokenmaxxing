@@ -13,14 +13,14 @@ import { Modal, useLoad, WalletLine } from "./ui.tsx";
 export function DecorPanel() {
   const wallet = useHud((s) => s.wallet);
   return (
-    <Modal title="🏠 My room: wallpaper & floors" wide>
+    <Modal title="🏠 My room: wallpaper, floors & space" wide>
       {wallet && <WalletLine balance={wallet.balance} />}
       <DecorGoods buy={false} />
     </Modal>
   );
 }
 
-const SIZE_NAMES = ["Small", "Medium", "Large"] as const;
+const SIZE_NAMES = ["Starter", "Roomy", "Spacious", "Grand"] as const;
 
 /** The board of open offices: who's welcome, and how busy they've been this week. */
 export function OpenOfficesPanel() {

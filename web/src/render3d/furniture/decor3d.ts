@@ -310,21 +310,6 @@ export const WALLPAPERS: readonly Look<Texture>[] = [
   wallLook("tivoli", "Tivoli", 0, "#1f2a54", 25),
 ];
 
-// ——— Sizes ———
-
-/** `core/src/office.ts` OFFICE_SIZES: opens at level 10, 25 and 40. Growth is right and down. */
-export const OFFICE_SIZES: readonly { w: number; h: number; level: number }[] = [
-  { w: 12, h: 9, level: 10 },
-  { w: 14, h: 10, level: 25 },
-  { w: 16, h: 12, level: 40 },
-];
-
-/** The office size for an owner's level (the smallest below level 10). */
-export function officeSize(level: number): { w: number; h: number; tier: 0 | 1 | 2 } {
-  const tier = level >= OFFICE_SIZES[2]!.level ? 2 : level >= OFFICE_SIZES[1]!.level ? 1 : 0;
-  return { w: OFFICE_SIZES[tier]!.w, h: OFFICE_SIZES[tier]!.h, tier };
-}
-
 // ——— Applying ———
 
 const cache = new Map<string, Texture>();
@@ -342,12 +327,8 @@ const cached = (kind: string, look: Look<Texture>) => {
 export const wallpaperOf = (id?: string | null) => WALLPAPERS.find((w) => w.id === id) ?? WALLPAPERS[0]!;
 export const floorOf = (id?: string | null) => FLOORS.find((f) => f.id === id) ?? FLOORS[0]!;
 
-/** Re-skins a room live, and (with `level`) resizes it to that level's office. Furniture stays. */
-export function applyDecor(room: Room, d: { wall?: string; floor?: string; level?: number }): void {
-  if (d.level !== undefined) {
-    const { w, h } = officeSize(d.level);
-    if (w !== room.W || h !== room.D) room.resize(w, h);
-  }
+/** Re-skins a room live. Furniture stays. */
+export function applyDecor(room: Room, d: { wall?: string; floor?: string }): void {
   const wall = d.wall === undefined ? undefined : wallpaperOf(d.wall);
   const floor = d.floor === undefined ? undefined : floorOf(d.floor);
   if (!wall && !floor) return;

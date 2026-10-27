@@ -20,10 +20,26 @@ import { WARDROBE, type WardrobeSlot } from "./wardrobe.ts";
 import type { Look } from "./world.ts";
 
 /**
- * Coins for one day's tokens. Real days from the leaderboard: 1.5B tokens
- * earns 38, 600M earns 24, 120M earns 10, 10M earns 3.
+ * Coins for one day's tokens, before `TOKEN_COINS_FROM`: the square root of the millions. Real days from
+ * the leaderboard: 1.5B tokens earned 38, 600M earned 24, 120M earned 10, 10M earned 3.
  */
-export const coinsForTokens = (tokens: number): number => Math.floor(Math.sqrt(Math.max(0, tokens) / 1e6));
+export const legacyTokenCoins = (tokens: number): number => Math.floor(Math.sqrt(Math.max(0, tokens) / 1e6));
+
+/**
+ * The first world day on today's curve. Days before it keep `legacyTokenCoins`, so nobody's balance
+ * moves at deploy: a wallet is worked out again from every day, and a raised rate would pay them all.
+ * ponytail: set to the deploy day when shipping, like `STREAK_FROM`.
+ */
+export const TOKEN_COINS_FROM = "2026-10-27";
+/** Today's curve: `TOKEN_COIN_MULT` × the millions to the power `TOKEN_COIN_EXP`. 1.5B tokens earn 201, 600M 116, 120M 44, 10M 9. */
+export const TOKEN_COIN_EXP = 0.6;
+export const TOKEN_COIN_MULT = 2.5;
+
+/** Coins for one day's tokens; `day` (`YYYY-MM-DD`) picks the curve it was earned on, none the current one. */
+export const coinsForTokens = (tokens: number, day?: string): number =>
+  day !== undefined && day < TOKEN_COINS_FROM
+    ? legacyTokenCoins(tokens)
+    : Math.floor(TOKEN_COIN_MULT * (Math.max(0, tokens) / 1e6) ** TOKEN_COIN_EXP);
 
 /** Extra coins for finishing a world day 1st, 2nd or 3rd on tokens. */
 export const PODIUM_COINS = [25, 15, 10] as const;

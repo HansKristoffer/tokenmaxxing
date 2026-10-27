@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hqMap, slotSpot } from "@tokenmaxxing/core/office.ts";
+import { hqMap, OFFICE_SIZES, slotSpot } from "@tokenmaxxing/core/office.ts";
 import { roomEntry, route } from "@tokenmaxxing/core/world.ts";
 import { admin, admit, eventually, rich, signUp, veteran } from "./rivet.ts";
 import { asleep, connect, step, walk } from "./world-client.ts";
@@ -108,7 +108,7 @@ describe("world", () => {
       { item: "furn.d", x: 5, y: 3, by: owner.userId },
       { item: "furn.c", x: 5, y: 4, by: owner.userId },
     ]);
-    expect(inside.owner).toEqual({ id: owner.userId, name: owner.name, tier: 1 }); // a veteran: level 25 to 39
+    expect(inside.owner).toEqual({ id: owner.userId, name: owner.name, tier: 0 }); // a veteran: the first size
     expect((await guest.town.profile(owner.userId, "7d")).office).toBe(true);
     expect(await g.conn.visit(owner.userId)).toMatchObject({ room });
     const o = await connect(owner.token);
@@ -144,7 +144,7 @@ describe("world", () => {
     expect(await g.conn.visit(owner.userId)).toMatchObject({ room: `office:${owner.userId}` });
     const inside = await eventually(() => {
       const snap = g.events.snapshots.at(-1)!;
-      expect(snap.owner).toMatchObject({ id: owner.userId, tier: 1, wall: "nyhavn" });
+      expect(snap.owner).toMatchObject({ id: owner.userId, tier: 0, wall: "nyhavn" });
       return snap;
     });
     expect(inside.owner!.floor).toBeUndefined();
@@ -158,12 +158,46 @@ describe("world", () => {
     expect(await o.conn.visit(owner.userId)).toMatchObject({ room: `office:${owner.userId}` });
     const row = await eventually(async () => {
       const mine = (await guest.town.openOffices()).find((r) => r.id === owner.userId);
-      expect(mine).toMatchObject({ company: "Walls", tier: 1, visitors: 1 });
+      expect(mine).toMatchObject({ company: "Walls", tier: 0, visitors: 1 });
       return mine!;
     }, 8_000);
     expect(row.inside).toBeGreaterThanOrEqual(1);
     for (const c of [g, o]) await c.conn.dispose();
   }, 30_000);
+
+  test("a bigger office is bought in order, and the room grows for whoever is inside", async () => {
+    const owner = await signUp("space");
+    await owner.town.createCompany("Space");
+    await admin().adminSetCoins(owner.userId, 100_000);
+    await expect(owner.town.buyOfficeSize()).rejects.toMatchObject({ code: "not_found" }); // no office before level 10
+    await veteran(owner);
+    await admin().adminSetCoins(owner.userId, 100_000);
+    const guest = await signUp("space");
+    expect(await owner.town.officeSize()).toBe(0);
+    const g = await connect(guest.token);
+    await g.conn.visit(owner.userId);
+
+    const before = (await owner.town.wallet()).balance;
+    await owner.town.buyOfficeSize();
+    expect(await owner.town.officeSize()).toBe(1);
+    expect((await owner.town.wallet()).balance).toBe(before - OFFICE_SIZES[1]!.price);
+    await eventually(() => expect(g.events.snapshots.at(-1)!.owner?.tier).toBe(1));
+
+    await owner.town.buyOfficeSize();
+    await owner.town.buyOfficeSize();
+    expect(await owner.town.officeSize()).toBe(OFFICE_SIZES.length - 1);
+    await expect(owner.town.buyOfficeSize()).rejects.toMatchObject({ code: "owned" });
+    await g.conn.dispose();
+  }, 30_000);
+
+  test("a bigger office is not for the poor", async () => {
+    const owner = await signUp("space");
+    await owner.town.createCompany("Poor");
+    await veteran(owner);
+    await admin().adminSetCoins(owner.userId, 0);
+    await expect(owner.town.buyOfficeSize()).rejects.toMatchObject({ code: "too_poor" });
+    expect(await owner.town.officeSize()).toBe(0);
+  });
 
   test("nor is the office of someone who left their company", async () => {
     const owner = await signUp("left");

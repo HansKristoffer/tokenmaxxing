@@ -43,7 +43,7 @@ const TABS = [
   ["petwear", "Pet gear"],
   ["dance", "Dances"],
   ["furniture", "Furniture"],
-  ["decor", "Wallpaper & floors"],
+  ["decor", "Wallpaper, floors & space"],
   ["desk", "Monitors"],
 ] as const;
 

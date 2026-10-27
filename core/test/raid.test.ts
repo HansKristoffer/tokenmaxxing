@@ -31,7 +31,7 @@ import { addDays, dayKey } from "../src/range.ts";
 const noon = (day: string) => dayStart(day) + 12 * 3_600_000;
 const hit = (userId: number, day: string, tokens: number, prs = 0): RaidDay => ({ userId, day, tokens, prs });
 /** The first raid's week in these tests. */
-const START = "2026-10-19";
+const START = "2026-10-26";
 const day = (n: number) => addDays(START, n);
 const raids = (days: readonly RaidDay[], now: number) => raidWeeks(days, now, START);
 
@@ -76,18 +76,22 @@ test('the ladder is five bosses, easiest first, and a level makes the same five 
   expect(bossAt(5, 3)).toMatchObject({ id: "invoice", name: "The Invoice III", level: 3 });
 });
 
-test("each rung has 1.5× the HP; a kill pays 10, 25, 50, 75, 100, and 10% more each level", () => {
+test("each rung has 1.5× the HP; a kill pays 40, 100, 200, 300, 400, and 10% more each level", () => {
   expect(rungHp(2e9, 1)).toBe(2e9);
   expect(rungHp(2e9, 2)).toBe(3e9);
   expect(rungHp(2e9, 3)).toBe(4.5e9);
   expect(HP_GROWTH).toBe(1.5);
-  expect([1, 2, 3, 4, 5].map((r) => rewardFor(r))).toEqual([10, 25, 50, 75, 100]);
+  expect([1, 2, 3, 4, 5].map((r) => rewardFor(r))).toEqual([40, 100, 200, 300, 400]);
   expect(rewardFor(1)).toBe(RAID_COINS);
   expect(REWARD_GROWTH).toBe(1.1);
   // A level up pays 10% more, level on level.
-  expect([1, 2, 3].map((l) => rewardFor(5, l))).toEqual([100, 110, 121]);
-  expect(rewardFor(1, 2)).toBe(11);
-  expect(rewardFor(2, 2)).toBe(28); // 27.5, rounded
+  expect([1, 2, 3].map((l) => rewardFor(5, l))).toEqual([400, 440, 484]);
+  expect(rewardFor(1, 2)).toBe(44);
+  expect(rewardFor(2, 2)).toBe(110);
+  expect(rewardFor(2, 2, "2026-10-26")).toBe(110);
+  // Weeks before RAID_REWARDS_FROM kept the old payout: nothing is paid again for them.
+  expect([1, 2, 3, 4, 5].map((r) => rewardFor(r, 1, "2026-10-19"))).toEqual([10, 25, 50, 75, 100]);
+  expect(rewardFor(2, 2, "2026-10-19")).toBe(28); // 27.5, rounded
 });
 
 test("a day hits for all its tokens, no cap, and a PR is a special attack", () => {
@@ -205,10 +209,10 @@ test("a steady town clears about four rungs in the first week", () => {
   for (let w = -1; w < 3; w++)
     for (let d = 0; d < 7; d++) for (let u = 1; u <= 20; u++) days.push(hit(u, day(7 * w + d), 300e6));
   const weeks = raids(days, noon(day(20)));
-  // Rung 1 is 4.2B, then 4.62B: four fall each week, 10 + 25 + 50 + 75 coins.
+  // Rung 1 is 4.2B, then 4.62B: four fall each week, 40 + 100 + 200 + 300 coins.
   for (const w of weeks.slice(0, 2)) {
     expect(w.current.boss.rung).toBe(5);
-    expect(raidCoins([w], 1)).toBe(160);
+    expect(raidCoins([w], 1)).toBe(640);
   }
   // A quieter week (60%) still gets past the first three; a busier one (1.7×) five.
   const busy = (share: number) => {

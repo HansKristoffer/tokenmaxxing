@@ -90,7 +90,7 @@ const AHEAD = 3;
 /** This week's ladder: the kills, the rung being fought, and the next few. */
 function Ladder({ raid }: { raid: Raid }) {
   const { rules } = raid;
-  const reward = (rung: number) => rewardFor(rung, raid.level);
+  const reward = (rung: number) => rewardFor(rung, raid.level, raid.week);
   return (
     <ol className="raid-ladder">
       {raid.kills.map((k) => (
