@@ -449,7 +449,11 @@ export async function offices(sql: Sql, userId: number | null = null): Promise<R
   return Object.fromEntries(
     rows.map((r) => [
       r.userId,
-      { ...(r.wall && { wall: r.wall }), ...(r.floor && { floor: r.floor }), ...(r.size && { size: r.size }) },
+      {
+        ...(r.wall && { wall: r.wall }),
+        ...(r.floor && { floor: r.floor }),
+        ...(r.size && { size: r.size }),
+      },
     ]),
   );
 }

@@ -187,7 +187,9 @@ describe("offices", () => {
   test("tiers: the biggest bought, and level 40 starts at the second", () => {
     expect([0, 9, 10, 25, 39].map((l) => officeTier(l))).toEqual([0, 0, 0, 0, 0]);
     expect([40, 99].map((l) => officeTier(l))).toEqual([1, 1]);
-    expect([officeTier(10, 1), officeTier(10, 3), officeTier(40, 0), officeTier(40, 2)]).toEqual([1, 3, 1, 2]);
+    expect([officeTier(10, 1), officeTier(10, 3), officeTier(40, 0), officeTier(40, 2)]).toEqual([
+      1, 3, 1, 2,
+    ]);
     expect(officeTier(99, 99)).toBe((OFFICE_SIZES.length - 1) as OfficeTier);
     expect(officeTier(10, Number.NaN)).toBe(0);
     expect(OFFICE_SIZES[0]!.price).toBe(0);

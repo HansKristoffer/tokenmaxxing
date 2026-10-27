@@ -65,7 +65,9 @@ function OfficeSpace({ buy }: { buy: boolean }) {
     <>
       <p className="muted small">
         Your office is {SIZE_NAMES[tier]}, {size.w}×{size.h}.{" "}
-        {next ? "A bigger one takes more furniture and keeps what is in yours." : "It is as big as they come."}
+        {next
+          ? "A bigger one takes more furniture and keeps what is in yours."
+          : "It is as big as they come."}
       </p>
       {next &&
         (buy ? (

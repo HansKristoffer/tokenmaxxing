@@ -2782,7 +2782,8 @@ const decorOf = (s: WorldState, userId: number) => {
 function buildOffice(s: WorldState, userId: number): boolean {
   const before = OFFICE_MAPS.get(userId);
   const p = s.players[userId];
-  if (p && p.level >= OFFICE_LEVEL) setOffice(userId, officeTier(p.level, officeOf(s, userId).size), decorOf(s, userId));
+  if (p && p.level >= OFFICE_LEVEL)
+    setOffice(userId, officeTier(p.level, officeOf(s, userId).size), decorOf(s, userId));
   else clearOffice(userId);
   return OFFICE_MAPS.get(userId) !== before;
 }
