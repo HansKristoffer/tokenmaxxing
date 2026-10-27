@@ -8,7 +8,7 @@ export const MAX_PIXEL_RATIO = 2;
 /**
  * What each graphics tier means for the 3D pipeline. Medium is the genuinely light one: the classic look at a
  * lower resolution with silhouette lines only (one scene pass, no normals, no depth float, no shadows).
- * High has AO, haze, grade and 2x MSAA with a 2K shadow map redrawn every other frame; Ultra adds tilt-shift, 4x MSAA
+ * High caps density at 1.5 by default, with 12-sample AO, haze, grade, 2x MSAA and split 2K shadows; Ultra adds tilt-shift, 4x MSAA
  * and a 4K shadow map drawn every frame.
  */
 export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
@@ -16,7 +16,7 @@ export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
   if (s.tier === "medium" || s.tier === "low") {
     return {
       style: "classic",
-      pixelSize: Math.max(1, Math.round(3 / s.renderScale)),
+      pixelSize: 3 / s.renderScale,
       outline: 1,
       crease: 0,
       shadowSize: 0,
@@ -36,7 +36,7 @@ export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
     shadowSize: s.shadows === "off" ? 0 : s.shadowMap,
     blob: s.shadows === "off",
     shadowEvery: ultra ? 1 : 2,
-    aoSamples: s.ao ? (ultra ? 24 : 16) : 0,
+    aoSamples: s.ao ? (ultra ? 24 : 12) : 0,
     aoScale: 0.5,
     crowd: ultra ? 32 : 16,
     msaa: ultra ? 4 : 2,

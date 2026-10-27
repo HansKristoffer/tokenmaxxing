@@ -5,6 +5,7 @@
  */
 import * as THREE from "three";
 import { C, HAIRS, SKINS } from "../../art/palette.ts";
+import { disposeObject } from "../engine/dispose.ts";
 import { light } from "../furniture/furniture.ts";
 import { glass, Model, ticks, tint, toon } from "../kit/kit.ts";
 import { panel } from "../kit/panel.ts";
@@ -19,6 +20,7 @@ import {
   counter,
   crownDome,
   dome,
+  dropPrebuiltPets,
   type Entry,
   fishTank,
   petPen,
@@ -443,6 +445,20 @@ type Interior = ReturnType<ShopSpec["buildInterior"]>;
 /** The shop is built in slices (a yield between the big pieces), so the renderer can build it a bit per frame as the player nears the door. */
 function* interiorSlices(): Generator<void, Interior, void> {
   const room = new Room(W, D, { floor: "#d6a873", wall: "#f7e5cd", stripe: "#eed3b6", bare: true });
+  let complete = false;
+  try {
+    const built = yield* fillInterior(room);
+    complete = true;
+    return built;
+  } finally {
+    if (!complete) {
+      dropPrebuiltPets();
+      disposeObject(room.group);
+    }
+  }
+}
+
+function* fillInterior(room: Room): Generator<void, Interior, void> {
   const displays: { item: ShopItem; at: [number, number]; world?: [number, number, number] }[] = [];
   const box = new THREE.Box3();
   /** Places `model` on its footprint and files its `reg`istered items under the tiles they stand on. */
@@ -475,11 +491,11 @@ function* interiorSlices(): Generator<void, Interior, void> {
     return p;
   };
 
-  /** A fixture's pets built ahead, two a slice: a pen of seven at once is a stutter outside the shop. */
+  /** A fixture's pets built ahead, one a slice: a pen of seven at once is a stutter outside the shop. */
   function* pets(list: readonly Entry[]): Generator<void, void, void> {
-    for (const [i, e] of list.entries()) {
+    for (const e of list) {
       prebuildPet(e);
-      if (i % 2) yield;
+      yield;
     }
     yield;
   }

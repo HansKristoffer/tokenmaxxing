@@ -2,7 +2,9 @@ import { startDetection } from "../settings/detect.ts";
 import { Governor, percentile, refreshInterval, type Step } from "../settings/governor.ts";
 import { graphics, TIER_NAMES } from "../settings/graphics.ts";
 import { hud } from "../store.ts";
+import { FrameCadence } from "./cadence.ts";
 import { loadRenderer, type Renderer, type RendererKind, type Tile } from "./renderer.ts";
+import { world } from "./world.ts";
 
 /** Live numbers for the FPS meter. */
 export const perf = { fps: 0, ms: 0, p95: 0, renderer: "", scale: 1 };
@@ -44,7 +46,7 @@ export const pickTile = (clientX: number, clientY: number): Tile | null =>
 
 /**
  * Runs the game's frame loop through whichever renderer the graphics settings call for, and swaps it when
- * they change. `tick` steps the game each animation frame and says whether there is a world to draw.
+ * they change. `tick` steps the game on each visible, scheduled frame and says whether there is a world to draw.
  */
 export function startStage(host: HTMLElement, tick: (now: number) => boolean): void {
   let renderer: Renderer | null = null;
@@ -52,7 +54,11 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
   /** Counts swaps: one that finds a newer one started while it loaded is out of date and drops its renderer. */
   let swaps = 0;
   let size = "";
-  let lastDraw = 0;
+  const cadence = new FrameCadence();
+  cadence.wake(performance.now());
+  const wake = () => cadence.wake(performance.now());
+  for (const event of ["pointerdown", "pointermove", "keydown", "wheel", "touchstart", "visibilitychange"])
+    window.addEventListener(event, wake, { passive: true });
   /** Gaps between the first animation frames, to measure the display's refresh rate. */
   const probe: number[] = [];
   let probeLast = 0;
@@ -136,16 +142,19 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
       refreshMs = refreshInterval(probe);
       probe.length = 0;
     }
-    const draw = tick(now);
-    if (!draw || !renderer || document.hidden) return;
-
+    if (!renderer) return;
     const settings = graphics.effective();
-    // Uncapped (0) draws on every animation frame, whatever the display's rate; a cap is only the player's choice.
-    const target = settings.fpsCap === 0 ? 0 : 1000 / settings.fpsCap;
-    // A little slack, or a 60 Hz screen drops to every third frame at a 30 fps cap.
-    if (target && now - lastDraw < target - 2) return;
-    const gap = now - lastDraw;
-    lastDraw = now;
+    const busy =
+      world.portalPending ||
+      world.leaving.length > 0 ||
+      world.games.size > 0 ||
+      world.room === "dungeon" ||
+      [...world.avatars.values()].some(
+        (a) => a.from || a.queue.length || a.jump !== null || a.warp || a.burst || a.bubble,
+      );
+    const step = cadence.step(now, settings.fpsCap, busy || photoRequested, document.hidden);
+    if (!step || !tick(now)) return;
+    const { gap, idle } = step;
 
     const dpr = window.devicePixelRatio || 1;
     const key = `${window.innerWidth}x${window.innerHeight}@${dpr}`;
@@ -191,7 +200,7 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
     perf.renderer = renderer.kind;
     perf.scale = settings.renderScale;
 
-    if (graphics.get().choice === "auto" && settings.tier !== "low" && gap < 500) {
+    if (graphics.get().choice === "auto" && settings.tier !== "low" && !idle && gap < 500) {
       // Judged against what the display can show (or the player's own cap), so a 120 Hz screen is held to 120.
       const step = governor.push(gap, settings.fpsCap === 0 ? refreshMs : 1000 / settings.fpsCap, now);
       if (step) apply(step);

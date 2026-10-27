@@ -569,7 +569,10 @@ export class Fx {
         });
         this.pointLights.set(s.name, list);
       }
-      for (const p of list) p.intensity = (p.userData.night as number) * glow;
+      for (const p of list) {
+        p.intensity = (p.userData.night as number) * glow;
+        p.visible = p.intensity > 0;
+      }
     }
   }
 

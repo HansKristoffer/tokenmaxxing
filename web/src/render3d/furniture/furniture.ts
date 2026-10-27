@@ -35,6 +35,7 @@ export function light(m: Model, at: V3, color: string, intensity: number, distan
   const l = new THREE.PointLight(color, 0, distance, 1.6);
   l.position.set(...at);
   l.userData.night = intensity;
+  l.visible = false;
   m.add(l);
 }
 

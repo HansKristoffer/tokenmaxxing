@@ -76,9 +76,10 @@ interface Tracked {
 const tracked: Tracked[] = [];
 
 /** Registers a renderer so the perf harness (and the console) can read `renderer.info` and the live scene. */
-export function trackRenderer(renderer: THREE.WebGLRenderer, scene: () => THREE.Scene | null): void {
-  tracked.push({ renderer, scene });
-  (globalThis as unknown as Record<string, unknown>).__perfRenderer ??= renderer;
+export function trackRenderer(renderer: THREE.WebGLRenderer, scene: () => THREE.Scene | null): () => void {
+  const entry = { renderer, scene };
+  tracked.push(entry);
+  (globalThis as unknown as Record<string, unknown>).__perfRenderer = renderer;
   (globalThis as unknown as Record<string, unknown>).__perfScene = () => tracked[0]?.scene() ?? null;
   (globalThis as unknown as Record<string, unknown>).__unbatched = () => {
     const sc = tracked[0]?.scene();
@@ -94,6 +95,12 @@ export function trackRenderer(renderer: THREE.WebGLRenderer, scene: () => THREE.
         scene: sc ? sceneStats(sc) : null,
       };
     });
+  return () => {
+    const i = tracked.indexOf(entry);
+    if (i >= 0) tracked.splice(i, 1);
+    const debug = globalThis as unknown as Record<string, unknown>;
+    if (debug.__perfRenderer === renderer) debug.__perfRenderer = tracked.at(-1)?.renderer;
+  };
 }
 
 /** Debug: what still draws on its own, grouped by what it is made of (`__unbatched()` in the console). */

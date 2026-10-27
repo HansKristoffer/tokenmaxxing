@@ -40,6 +40,11 @@ export class Freezer {
     private readonly after = 24,
   ) {
     freezers.add(this);
+    const off = root.userData.onDispose as (() => void) | undefined;
+    root.userData.onDispose = () => {
+      off?.();
+      this.dispose();
+    };
   }
 
   /** The owner posed (or deliberately skipped) this model this frame. */

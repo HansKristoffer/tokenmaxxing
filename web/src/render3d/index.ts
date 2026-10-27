@@ -41,7 +41,7 @@ import {
   roomReady,
   roomsNextTo,
 } from "./rooms/rooms.ts";
-import { SHOP_INSET, type ShopDisplay, type ShopId } from "./shops/catalog.ts";
+import { dropWarmedShops, SHOP_INSET, type ShopDisplay, type ShopId } from "./shops/catalog.ts";
 import { type InstalledShops, installShops, type ShopWorld } from "./shops/index.ts";
 import "./rooms/room-generic.ts";
 import "./rooms/room-loaders.ts";
@@ -542,7 +542,11 @@ class Renderer3D implements Renderer {
       this.pipe.renderer.compileAsync(w.stage.scene, this.rig.camera).catch(() => {});
       return;
     }
-    for (const t of w.textures.splice(0, TEXTURES_PER_FRAME)) this.pipe.renderer.initTexture(t);
+    const start = performance.now();
+    for (let i = 0; i < TEXTURES_PER_FRAME && w.textures.length; i++) {
+      this.pipe.renderer.initTexture(w.textures.shift()!);
+      if (performance.now() - start >= 3) break;
+    }
     if (!w.textures.length) w.draw = true;
   }
 
@@ -994,6 +998,7 @@ class Renderer3D implements Renderer {
   }
 
   dispose(): void {
+    dropWarmedShops();
     for (const f of this.off) f();
     // Only our own hooks: a renderer that replaced us may have mounted before we were disposed.
     if (this.hooks3d && viewHooks.zoom === this.hooks3d.zoom) {

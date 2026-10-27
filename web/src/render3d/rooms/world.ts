@@ -20,6 +20,7 @@ import {
   TOWN_SPAWN,
   townMap,
 } from "../data/maps.ts";
+import { disposeObject } from "../engine/dispose.ts";
 import type { Asset } from "../furniture/furniture.ts";
 import {
   beginTickScope,
@@ -646,14 +647,7 @@ const nextFrame = (): Promise<void> =>
 
 /** Frees what a room held on the GPU; the shared kit geometry and materials upload again if another room uses them. */
 function disposeRoom(root: THREE.Object3D): void {
-  root.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    m.geometry.dispose();
-    // Materials are shared and cheap to keep (their programs are shared too); the painted maps are what weighs.
-    for (const mat of Array.isArray(m.material) ? m.material : [m.material])
-      (mat as THREE.MeshToonMaterial | undefined)?.map?.dispose();
-  });
+  disposeObject(root);
 }
 
 export class World {

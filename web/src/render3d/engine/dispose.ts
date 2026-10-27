@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { dropBaked } from "../perf/bake.ts";
+import { dropPropsNight } from "../town/props.ts";
 
 /** Texture slots a material can hold. `gradientMap` is the toon bands, shared by every material. */
 const MAPS = [
@@ -34,6 +36,18 @@ export function disposeObject(
   root: THREE.Object3D,
   freed: Freed = { geometries: 0, materials: 0, textures: 0 },
 ): Freed {
+  dropBaked(root);
+  dropPropsNight(root);
+  // Disposal may remove generated children; collect callbacks before invoking any of them.
+  const callbacks: (() => void)[] = [];
+  root.traverse((o) => {
+    const off = o.userData.onDispose as (() => void) | undefined;
+    if (off) {
+      o.userData.onDispose = undefined;
+      callbacks.push(off);
+    }
+  });
+  for (const off of callbacks) off();
   const seen = new Set<unknown>();
   const free = (thing: { dispose(): void; userData: Record<string, unknown> }, kind: keyof Freed) => {
     if (seen.has(thing) || shared(thing)) return;
@@ -57,17 +71,16 @@ export function disposeObject(
     free(m, "materials");
   };
   root.traverse((o) => {
-    // A thing that listens to something outside the scene (a screen to the LAN party) lets go.
-    const off = o.userData.onDispose as (() => void) | undefined;
-    if (off) {
-      o.userData.onDispose = undefined;
-      off();
-    }
     const any = o as THREE.Mesh;
     if (any.geometry) {
       free(any.geometry, "geometries");
       const saved = o.userData.voxelSaved as { geometry?: THREE.BufferGeometry } | undefined;
       if (saved?.geometry) free(saved.geometry, "geometries");
+    }
+    const night = o.userData.nightGlow as { day: THREE.Material; night: THREE.Material } | undefined;
+    if (night) {
+      material(night.day);
+      material(night.night);
     }
     if (any.material)
       for (const m of Array.isArray(any.material) ? any.material : [any.material]) material(m);

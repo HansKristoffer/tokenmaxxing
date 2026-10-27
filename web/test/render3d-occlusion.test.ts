@@ -62,3 +62,51 @@ test("cutaways ignore glass and hidden scenery, and ease back after an obstructi
   wall.visible = true;
   expect(occlusion.update(player, camera, 0.1, true)).toBe(1);
 });
+
+test("unchanged scenery reuses the verdict, while movement, camera and new occluders invalidate it", () => {
+  const root = new Model();
+  const wall = root.box([3, 3, 0.2], "#776655", [0, 0, 2], 0);
+  seeThrough(root);
+  let rays = 0;
+  const stock = wall.raycast;
+  wall.raycast = function (caster, hits) {
+    rays++;
+    stock.call(this, caster, hits);
+  };
+  const probe = new PlayerOcclusion(root);
+  expect(probe.update(player, camera, 0.1, true)).toBe(1);
+  const first = rays;
+  for (let i = 0; i < 10; i++) expect(probe.update(player, camera, 0.1, true)).toBe(1);
+  expect(rays).toBe(first);
+  wall.position.x = 5;
+  expect(probe.update(player, camera, 0.1, true)).toBe(0);
+  expect(rays).toBeGreaterThan(first);
+  const newWall = root.box([3, 3, 0.2], "#776655", [0, 0, 2], 0);
+  seeThrough(root);
+  expect(probe.update(player, camera, 0.1, true)).toBe(1);
+  newWall.visible = false;
+  expect(probe.update(player, camera, 0.1, true)).toBe(0);
+  const movedCamera = camera.clone();
+  movedCamera.position.x += 20;
+  movedCamera.updateMatrixWorld();
+  probe.update(player, movedCamera, 0.1, true);
+  expect(rays).toBeGreaterThan(first + 9);
+});
+
+test("large indexed batches retain exact cutaway verdicts across triangle ranges", () => {
+  const root = new Model();
+  for (let i = 0; i < 100; i++) root.box([0.2, 3, 0.2], "#776655", [i * 0.2 - 10, 0, 2], 0);
+  seeThrough(root);
+  const points = [-12, -6, 0, 6, 12].map((x) => new THREE.Vector3(x, 0.9, 0));
+  const expected = points.map((at) => new PlayerOcclusion(root).update(at, camera, 0.1, true));
+  root.userData.rigid = true;
+  const layer = bakeStatic(root)!;
+  layer.show("smooth");
+  try {
+    expect(points.map((at) => new PlayerOcclusion(root).update(at, camera, 0.1, true))).toEqual(expected);
+    root.position.x = 20;
+    expect(new PlayerOcclusion(root).update(player, camera, 0.1, true)).toBe(0);
+  } finally {
+    layer.dispose();
+  }
+});
