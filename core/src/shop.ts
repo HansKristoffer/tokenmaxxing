@@ -5,8 +5,10 @@
  * furniture for your office (`office.ts`). Everything bought or earned is a row in the bag.
  */
 import { isRecord } from "hanzio";
+import { COSTUMES } from "./costumes.ts";
 import { EDITIONS } from "./editions.ts";
 import { HEADWEAR_ITEMS } from "./headwear.ts";
+import type { HolidayId } from "./holidays.ts";
 import { HOME_PIECES } from "./home.ts";
 import { LOOT, type Rarity as LootRarity } from "./loot.ts";
 import { COMPANY_FURNITURE, FURNITURE } from "./office.ts";
@@ -51,6 +53,8 @@ export interface Item {
   home?: true;
   /** Merch: whose. */
   companyId?: number;
+  /** A holiday costume: sold only round this holiday (`costumes.ts` `onSale`). */
+  holiday?: HolidayId;
 }
 
 /** Outfits below this are free; the ones after are sold. */
@@ -92,6 +96,8 @@ export const ITEMS: readonly Item[] = [
   ...HEADWEAR_ITEMS,
   // Sold only off the traveling merchant's cart (`merchant.ts`).
   ...EDITIONS,
+  // Sold only round their holiday (`costumes.ts`).
+  ...COSTUMES,
   ...WARDROBE,
   ...FURNITURE.map((f, index): Item => ({
     id: `furn.${f.ch}`,
