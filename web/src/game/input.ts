@@ -41,6 +41,7 @@ import { pickTile } from "./stage.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { interactAnimal, interactTownProp } from "./town-life.ts";
 import { openTrophies } from "./trophies.ts";
+import { windmillInteract } from "./windmill.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {
@@ -465,6 +466,7 @@ function interact(): void {
   // E on your own clone (or its laptop) in the raid dungeon takes your seat; others' seats are not yours.
   if (world.room === "dungeon" && sit(x, y)) return;
   if (streetInteract(me, x, y, send)) return;
+  if (windmillInteract(x, y)) return;
   if (launchInteract(me)) return;
   if (graveInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();

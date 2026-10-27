@@ -41,6 +41,7 @@ import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
 import { drawGraveyard } from "./graveyard.ts";
+import { drawPumpkins, lightPumpkins } from "./halloween.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import {
   avatarLabels,
@@ -79,6 +80,7 @@ import { drawTavern, lightTavern } from "./tavern.ts";
 import { drawTownAnimals } from "./town-life.ts";
 import { tremor2d, tremorPhase } from "./tremor.ts";
 import { drawTrophies } from "./trophies.ts";
+import { drawWindmills } from "./windmill.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
 
 let lastFrame = performance.now();
@@ -327,9 +329,11 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
 
   drawGames(f);
   drawStreet(f);
+  drawWindmills(f);
   drawLaunch(f);
   drawGraveyard(f);
   drawPicnic(f);
+  drawPumpkins(f);
   drawChalkboards(f);
   drawTavern(f);
   drawTownAnimals(f);
@@ -426,6 +430,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     if (glow > 0.05) {
       g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
       drawLights(g, lamps, windows, glow);
+      lightPumpkins(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
     drawNightSky(g, w, h, dpr, now);

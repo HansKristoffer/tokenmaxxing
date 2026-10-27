@@ -1,6 +1,6 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import * as THREE from "three";
-import { lightsNow } from "../../game/sky.ts";
+import { lightsNow, weatherNow } from "../../game/sky.ts";
 import { world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
 import { GateLive } from "../dungeon/gate3d.ts";
@@ -10,6 +10,7 @@ import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from 
 import { GamesLayer } from "./games3d.ts";
 import { Graveyard3D } from "./graveyard3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
+import { Pumpkins } from "./pumpkins3d.ts";
 import { TownEvents } from "./town-events.ts";
 import { buildTown3d, type Town3d } from "./town3d.ts";
 
@@ -19,12 +20,13 @@ const TOWN_VIEW = 12;
 /**
  * The town, from `buildTown3d` (so its tiles are the 2D game's): houses for the real companies,
  * the Tavern, the pond, the boards. The street's schedules (the pølsevogn, the snail, the paperboy) follow
- * the game's clock.
+ * the game's clock, and the windmill turns with its weather.
  */
 export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const built = withTicks(() => buildTown3d([...ctx.companies], { arcade: false }));
   const town: Town3d = built.value;
   town.setClock(ctx.minutes);
+  town.setWeather(weatherNow);
   const [W, D] = town.size;
   const events = new TownEvents((tx, ty) => town.toWorld(tx, ty));
   const group = new THREE.Group();
@@ -69,6 +71,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   };
   const markers = new ExitMarkers(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(markers.group);
+  // Halloween's jack-o'-lanterns, on the doorsteps: hidden the rest of the year.
+  const pumpkins = new Pumpkins(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  group.add(pumpkins.group);
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
@@ -102,6 +107,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       }
       showBoard();
       markers.update(f.me, f.t);
+      pumpkins.update(f.now);
       events.update(f);
       graveyard.update(f.now);
     },

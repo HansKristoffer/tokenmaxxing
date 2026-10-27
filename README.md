@@ -12,6 +12,9 @@ rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxin
 the most real tokens in an hour.
 The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches.
 The town follows the model news on [OpenRouter's public model list](https://openrouter.ai/api/v1/models): a stand goes up in the square with a pamphlet when a model ships, and a model that drops off the list gets a tombstone in the graveyard beside the Tavern, with its maker, the dates it was listed and its last price.
+The town has Aarhus's real sky and weather, and the **windmill** beside the Tavern turns with the real wind: still in calm air, faster as it blows (up to a cap in a storm), its sails turned into it.
+The town keeps the Danish calendar: for the week up to **Halloween** a jack-o'-lantern sits on every doorstep and a
+few by the pond, lit after dark, and for two weeks round it the Clothes shop sells a Jack-o'-lantern hat (worn all year once bought).
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.
