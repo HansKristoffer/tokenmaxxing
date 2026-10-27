@@ -4,6 +4,7 @@ import { isLanParty, specialOn } from "@tokenmaxxing/core/tavern.ts";
 import { roundName } from "@tokenmaxxing/core/tournament.ts";
 import { TUNES } from "@tokenmaxxing/core/tunes.ts";
 import type { WorldGame } from "@tokenmaxxing/core/world.ts";
+import { clockFaces } from "../../game/clocks.ts";
 import { left } from "../../game/raid.ts";
 import { askRegulars, regularsBoard } from "../../game/regulars.ts";
 import { skyNow } from "../../game/sky.ts";
@@ -12,7 +13,15 @@ import { refreshTournament, town } from "../../net.ts";
 import { hud } from "../../store.ts";
 import { setLanParty } from "../kit/livescreen.ts";
 import type { BasementScene, BoardPairing, MatchRow, ScreenFeed } from "./basement3d.ts";
-import { setBarTab, setOfficeBoard, setPlaque, setSpecial, type TavernRoom } from "./tavern3d.ts";
+import {
+  type ClocksModel,
+  type ClocksShown,
+  setBarTab,
+  setOfficeBoard,
+  setPlaque,
+  setSpecial,
+  type TavernRoom,
+} from "./tavern3d.ts";
 
 /**
  * The real game's data on the rooms' boards: the Tavern's bar tab, plaques, easel and jukebox, and the
@@ -49,7 +58,7 @@ function officesOpen(now: number): string[] | null {
   return openOffices;
 }
 
-/** The Tavern: this week's regulars on the bar tab and the plaques, the day's special on the easel, the jukebox on. */
+/** The Tavern: this week's regulars on the bar tab and the plaques, the day's special on the easel, the world clocks, the jukebox on. */
 export function liveTavern(inn: TavernRoom): (t: number) => void {
   const tab = inn.by.get("tile:J")?.[0];
   const plaques = [inn.by.get("tile:P")?.[0], inn.by.get("tavern:plaque-2")?.[0]];
@@ -80,12 +89,16 @@ export function liveTavern(inn: TavernRoom): (t: number) => void {
   const paintSpecial = watch<string>((s) => easel && setSpecial(easel, s));
   const officeBoard = inn.by.get("tile:w")?.[0];
   const paintOffices = watch<string[] | null>((names) => officeBoard && setOfficeBoard(officeBoard, names));
+  const clocks = inn.by.get("tile:◷")?.[0] as ClocksModel | undefined;
+  const paintClocks = watch<ClocksShown>((s) => clocks?.show(s));
   return () => {
     askRegulars();
     const { rows, last } = regularsBoard();
     paintBoard({ rows: [...rows], last, ids: rows.map((r) => r.userId) });
     paintSpecial(specialOn(new Date()));
     paintOffices(officesOpen(Date.now()));
+    const { hands, lit } = clockFaces();
+    paintClocks({ hands, lit });
     const playing = hud.get().jukebox;
     inn.jukebox.playing = playing !== null;
     if (playing) inn.jukebox.track = TUNES.find((t) => t.id === playing.track)?.name ?? playing.track;
