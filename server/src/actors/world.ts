@@ -73,6 +73,17 @@ import { canDropIn } from "@tokenmaxxing/core/shop.ts";
 import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { milestoneLine, NO_STARS, readStars, type Stars, type StarsState } from "@tokenmaxxing/core/stars.ts";
+import {
+  afterRead,
+  type Leader,
+  NO_STATUE,
+  type StatueAdmin,
+  type StatueState,
+  sameLeader,
+  shownStatue,
+  unveilLine,
+  withPin,
+} from "@tokenmaxxing/core/statue.ts";
 import { cartOpen, facesCart, hasPolse, isCart, POLSE, stepPace } from "@tokenmaxxing/core/street.ts";
 import {
   hasSpecial,
@@ -147,6 +158,7 @@ import { checkGrid, GRID_EVERY_MS, type GridState, initialGrid } from "../grid.t
 import { checkLaunches, LAUNCHES_EVERY_MS } from "../launch.ts";
 import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
+import { readLeader, STATUE_EVERY_MS, STATUE_RETRY_MS } from "../statue.ts";
 import { counts, TavernClock } from "../tavern-clock.ts";
 import { parseChatText } from "../validate.ts";
 import {
@@ -211,6 +223,11 @@ interface WorldState {
    * sets off the same fireworks again. Optional: a world from before the counter reads them afresh.
    */
   stars?: StarsState;
+  /**
+   * The statue of the #1 model (`core/statue.ts`): the last leader read and the admin's pin, kept here so a
+   * restart or a broken feed still has one on the plinth. Optional: worlds from before it have none.
+   */
+  statue?: StatueState;
 }
 
 type ConnState = Caller & { joined?: boolean };
@@ -474,6 +491,11 @@ export const world = actor({
         c.vars.launchesAt = now + LAUNCHES_EVERY_MS;
         void refreshLaunches(c, now);
       }
+      // When it's due (kept in state, so a restart doesn't read it again), and once at a time.
+      if (now >= (c.state.statue?.nextAt ?? 0)) {
+        c.state.statue = { ...(c.state.statue ?? NO_STATUE), nextAt: now + STATUE_RETRY_MS };
+        void refreshStatue(c, now);
+      }
       if (now >= c.vars.keynotesAt) {
         c.vars.keynotesAt = now + KEYNOTES_EVERY_MS;
         void refreshKeynotes(c);
@@ -526,6 +548,7 @@ export const world = actor({
       sendInfo(c, p, info(p, true), from);
       c.conn.send("outage", c.vars.outage);
       c.conn.send("launches", c.vars.launches);
+      c.conn.send("statue", shownStatue(c.state.statue));
       c.conn.send("grid", c.vars.grid.grid);
       c.conn.send("keynotes", c.vars.keynotes);
       c.conn.send("stars", starsOf(c.state.stars ?? NO_STARS));
@@ -1082,6 +1105,19 @@ export const world = actor({
       if (!g) return;
       Object.assign(g, update);
       sendToScreens(c, "game", g);
+    },
+
+    /** From `town`, for the admin page: what the plinth shows, what was read, the pin, and the next read. */
+    statue: (c): StatueAdmin => {
+      requireInternal(c.conn.state);
+      const s = c.state.statue ?? NO_STATUE;
+      return { ...s, shown: shownStatue(s) };
+    },
+
+    /** From `town`, for the admin page: puts `leader` on the plinth over the ranking's, or (null) takes it off. */
+    pinStatue: (c, leader: Leader | null): void => {
+      requireInternal(c.conn.state);
+      setStatue(c, withPin(c.state.statue ?? NO_STATUE, leader, Date.now()));
     },
 
     /** From `town`. Returns drops a building that lost or gained a door had no place for, to give back. */
@@ -2147,13 +2183,51 @@ async function snapshot(
 
 /** Reads OpenRouter's model list, and tells everyone when the launches change (a stand going up or down). */
 async function refreshLaunches(
-  c: { vars: Vars; broadcast(name: string, ...args: unknown[]): void },
+  c: {
+    vars: Vars;
+    client: () => Parameters<typeof main>[0];
+    broadcast(name: string, ...args: unknown[]): void;
+  },
   now: number,
 ): Promise<void> {
   const next = await checkLaunches(c.vars.launches, now);
   if (sameLaunches(next, c.vars.launches)) return;
+  // The town keeps which launches there were; a read it misses is sent again with the next change.
+  void main(c.client())
+    .town.launched(next)
+    .catch((err: unknown) => console.warn(`[launches] town: ${String(err)}`));
   c.vars.launches = next;
   c.broadcast("launches", next);
+}
+
+/** Reads the ranking, and tells everyone when the plinth's leader changes; a failed read keeps it and tries again sooner. */
+async function refreshStatue(c: Sender & { broadcast(name: string, ...args: unknown[]): void }, now: number) {
+  const leader = await readLeader();
+  const next = afterRead(
+    c.state.statue ?? NO_STATUE,
+    leader,
+    now,
+    now + (leader ? STATUE_EVERY_MS : STATUE_RETRY_MS),
+  );
+  setStatue(c, next);
+}
+
+/**
+ * Puts `next` in state, and when what the plinth shows changed, tells everyone; a new model on it has a bot
+ * on the square say so (the unveiling itself is the clients', from `since`).
+ */
+function setStatue(
+  c: Sender & { broadcast(name: string, ...args: unknown[]): void },
+  next: StatueState,
+): void {
+  const was = shownStatue(c.state.statue);
+  c.state.statue = next;
+  const shown = shownStatue(next);
+  if (sameLeader(was.leader, shown.leader) && was.pinned === shown.pinned) return;
+  c.broadcast("statue", shown);
+  if (!shown.leader || sameLeader(was.leader, shown.leader)) return;
+  const crier = BOTS.find((b) => !b.still && b.id !== COP.id && c.state.players[b.id]?.room === "town");
+  if (crier) sendToRoom(c, "town", "bubble", { userId: crier.id, text: unveilLine(shown.leader) });
 }
 
 /** A plain copy of the stars to send: `state` hands out proxies. */

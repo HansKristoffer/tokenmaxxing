@@ -9,6 +9,7 @@ import type { Outage } from "@tokenmaxxing/core/picnic.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
 import type { Stars } from "@tokenmaxxing/core/stars.ts";
+import type { Statue } from "@tokenmaxxing/core/statue.ts";
 import {
   CHAT_HISTORY,
   type ChatLine,
@@ -35,6 +36,7 @@ import { duckMusic, playRoomMusic, stopRoomMusic } from "./game/music.ts";
 import { setOutage } from "./game/picnic.ts";
 import { noteRaid, setRaiders } from "./game/raid.ts";
 import { setStars } from "./game/stars.ts";
+import { setStatue } from "./game/statue.ts";
 import {
   applyBubble,
   applyCallout,
@@ -196,6 +198,7 @@ export function connect(token: string): void {
   conn.on("pickup", (e: { id: number }) => applyPickup(e.id));
   conn.on("outage", (o: Outage | null) => setOutage(o));
   conn.on("launches", (l: Launch[]) => setLaunches(l));
+  conn.on("statue", (s: Statue) => setStatue(s));
   conn.on("grid", (g: Grid) => setGrid(g));
   conn.on("keynotes", (k: Keynote[]) => setKeynotes(k));
   conn.on("stars", (s: Stars) => setStars(s));

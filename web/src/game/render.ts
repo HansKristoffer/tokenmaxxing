@@ -95,6 +95,7 @@ import {
 } from "./sky.ts";
 import { iceAmount, iceLayer, snowAmount, snowLayers } from "./snow.ts";
 import { drawStars } from "./stars.ts";
+import { drawStatue } from "./statue.ts";
 import { drawStreet } from "./street.ts";
 import { drawTavern, lightTavern } from "./tavern.ts";
 import { drawTownAnimals } from "./town-life.ts";
@@ -367,6 +368,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawStreet(f);
   drawWindmills(f);
   drawLaunch(f);
+  drawStatue(f);
   drawStars(f);
   drawFireworks(f);
   drawPicnic(f);
