@@ -6,13 +6,15 @@
  */
 
 import { worldWall } from "./range.ts";
-import { itemById } from "./shop.ts";
 import type { Weather } from "./sky.ts";
 
 // MARK: The julekalender
 
-/** A door's gift: coins, or an item into the bag. */
-export type Gift = { coins: number } | { item: string };
+/**
+ * A door's gift: coins, or an item into the bag, with its name (`shop.ts` is not imported here: `tavern.ts`
+ * reads this file, and the shop's catalogue leads back to the maps, which read the Tavern).
+ */
+export type Gift = { coins: number } | { item: string; name: string };
 
 /**
  * Door 1 to 24, in order. Mostly coins, more as Christmas comes, with something to wear behind the 6th, 13th
@@ -22,13 +24,13 @@ export type Gift = { coins: number } | { item: string };
 // prettier-ignore
 export const DOORS: readonly Gift[] = [
   { coins: 5 }, { coins: 6 }, { coins: 7 }, { coins: 8 }, { coins: 9 },
-  { item: "glasses.6" }, // Hygge moustache
+  { item: "glasses.6", name: "Hygge moustache" },
   { coins: 8 }, { coins: 9 }, { coins: 10 }, { coins: 11 }, { coins: 12 }, { coins: 12 },
-  { item: "hat.7" }, // Danish flag cap, for Lucia
+  { item: "hat.7", name: "Danish flag cap" }, // for Lucia
   { coins: 12 }, { coins: 14 }, { coins: 15 }, { coins: 16 }, { coins: 18 }, { coins: 20 },
-  { item: "hat.8" }, // Cykelhjelm, for the ride home for Christmas
+  { item: "hat.8", name: "Cykelhjelm" }, // for the ride home for Christmas
   { coins: 20 }, { coins: 22 }, { coins: 25 },
-  { item: "hat.12" }, // Julehue, on Juleaften
+  { item: "hat.12", name: "Julehue" }, // on Juleaften
 ];
 
 /** Today's door at `ms` (1 to 24), or null outside 1 to 24 December. */
@@ -42,8 +44,7 @@ export const doorDay = (n: number, ms: number): string =>
   `${worldWall(ms).y}-12-${String(n).padStart(2, "0")}`;
 
 /** What a gift says, for the calendar and the notice: "🪙 12" or the item's name. */
-export const giftLabel = (g: Gift): string =>
-  "coins" in g ? `🪙 ${g.coins}` : (itemById(g.item)?.name ?? g.item);
+export const giftLabel = (g: Gift): string => ("coins" in g ? `🪙 ${g.coins}` : g.name);
 
 /** Whether the calendar is up: from 1 December to Christmas Eve. */
 export const calendarOn = (ms: number): boolean => doorOn(ms) !== null;

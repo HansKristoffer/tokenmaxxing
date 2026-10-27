@@ -31,7 +31,7 @@ test("today's door opens once, with its coins or its item, and never again", asy
   expect((await wallet(sql, 1, dec(7))).balance).toBe(before + 8);
 
   const item = DOORS[5]!;
-  expect(item).toEqual({ item: "glasses.6" });
+  expect(item).toEqual({ item: "glasses.6", name: "Hygge moustache" });
   expect((await openDoor(sql, 1, dec(6))).notice).toBe("🎄 Door 6: Hygge moustache, in your bag.");
   expect(await bag(sql, 1)).toEqual([{ item: "glasses.6", count: 1 }]);
   expect(await calendar(sql, 1, dec(8))).toEqual({ today: 8, opened: [6, 7] });

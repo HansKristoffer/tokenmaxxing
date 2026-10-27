@@ -18,7 +18,7 @@ test("24 doors, a gift behind each: coins, or something that exists to wear", ()
   expect(DOORS).toHaveLength(24);
   for (const g of DOORS) {
     if ("coins" in g) expect(g.coins).toBeGreaterThan(0);
-    else expect(itemById(g.item)?.slot).toMatch(/hat|glasses/);
+    else expect(itemById(g.item)).toMatchObject({ name: g.name, slot: expect.stringMatching(/hat|glasses/) });
   }
   expect(giftLabel(DOORS[23]!)).toBe("Julehue");
   expect(giftLabel({ coins: 12 })).toBe("🪙 12");
