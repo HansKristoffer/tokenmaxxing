@@ -3,7 +3,7 @@
  * `MAPS.office`, with the other rooms; what's in each office is what its owner dropped there.
  */
 import { sortBy } from "hanzio";
-import { CASE_PIECES } from "./case-furniture.ts";
+import { ALL_CASE_PIECES } from "./case-furniture.ts";
 import { HOME_PIECES } from "./home.ts";
 import { TROPHIES } from "./loot.ts";
 import { GameMap, MAPS, officeRows } from "./maps.ts";
@@ -87,7 +87,7 @@ export const OFFICE_LEVEL = 10;
 export const PIECES: readonly Piece[] = [...FURNITURE, ...TROPHIES];
 
 const BY_CH = new Map<string, Piece>();
-for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...CASE_PIECES])
+for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...ALL_CASE_PIECES])
   if (!BY_CH.has(f.ch)) BY_CH.set(f.ch, f);
 
 export const pieceOf = (ch: unknown): Piece | undefined => BY_CH.get(ch as string);

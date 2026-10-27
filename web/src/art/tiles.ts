@@ -1,4 +1,4 @@
-import { CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
+import { ALL_CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import type { DecorKind } from "@tokenmaxxing/core/decor.ts";
 import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
@@ -32,7 +32,7 @@ const GROUND: Record<string, Ground> = {
   ...Object.fromEntries(POSTERS.map((p) => [p.ch, "wall" as const])),
   // So do a personal office's frames and signs.
   ...Object.fromEntries(
-    [...HOME_PIECES, ...CASE_PIECES].filter((p) => p.wall).map((p) => [p.ch, "wall" as const]),
+    [...HOME_PIECES, ...ALL_CASE_PIECES].filter((p) => p.wall).map((p) => [p.ch, "wall" as const]),
   ),
   ",": "path",
   ":": "plaza",

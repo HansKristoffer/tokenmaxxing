@@ -661,7 +661,7 @@ const BACKS: (Back | null)[] = [
   },
 ];
 
-// The Night Market case (indices from `CASE_BASE`) lives in `case-body.ts`; sparse slots, looked up by index like the rest.
+// The cases (indices from `CASE_BASE` and `NUSANTARA_BASE`) live in `case-body.ts`; sparse slots, looked up by index like the rest.
 Object.assign(OUTFITS, CASE_OUTFITS);
 Object.assign(HELD, CASE_HELD);
 Object.assign(BACKS, CASE_BACKS);
