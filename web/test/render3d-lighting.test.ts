@@ -1,9 +1,10 @@
 import { beforeAll, expect, test } from "bun:test";
+import type * as THREE from "three";
 import { Model } from "../src/render3d/kit/kit.ts";
 import { bakeStatic } from "../src/render3d/perf/bake.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 import type { RoomView } from "../src/render3d/rooms/rooms.ts";
-import { dropPropsNight, setPropsNight, streetLamp } from "../src/render3d/town/props.ts";
+import { dropPropsNight, setPropsNight, setStreetLampDim, streetLamp } from "../src/render3d/town/props.ts";
 
 installHeadlessGlobals();
 
@@ -50,3 +51,29 @@ for (const night of [false, true]) {
     }
   });
 }
+
+test("expensive power dims the street lamps' pools, baked or not", () => {
+  const group = new Model();
+  group.add(streetLamp(), streetLamp());
+  setPropsNight(true);
+  const layer = bakeStatic(group)!;
+  try {
+    layer.show("smooth");
+    const pools = new Set<THREE.Material>();
+    layer.group.traverseVisible((mesh) => {
+      const m = (mesh as THREE.Mesh).material as THREE.Material | undefined;
+      if (mesh.userData.glow === "night" && m && (m as THREE.MeshBasicMaterial).map) pools.add(m);
+    });
+    // One material for every lamp's pool, so the batch dims with it.
+    expect(pools.size).toBe(1);
+    const [pool] = pools;
+    setStreetLampDim(0.45);
+    expect(pool!.opacity).toBeCloseTo(0.5 * 0.45);
+    setStreetLampDim(1);
+    expect(pool!.opacity).toBeCloseTo(0.5);
+  } finally {
+    layer.dispose();
+    setPropsNight(false);
+    dropPropsNight(group);
+  }
+});

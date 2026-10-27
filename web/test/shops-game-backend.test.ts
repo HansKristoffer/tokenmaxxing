@@ -24,6 +24,7 @@ const wallet = (balance: number, owned: string[] = []): Wallet => ({
   today: 0,
   streak: 1,
   raids: 0,
+  green: 0,
   wins: [],
   owned,
   items: owned.length,

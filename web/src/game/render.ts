@@ -42,6 +42,8 @@ import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
+import { lampDim } from "./grid.ts";
+import { drawGrid } from "./grid-board.ts";
 import { drawPumpkins, lightPumpkins } from "./halloween.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
 import { drawKeynote, lightKeynote } from "./keynote.ts";
@@ -337,6 +339,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawStars(f);
   drawFireworks(f);
   drawPicnic(f);
+  drawGrid(f);
   drawPumpkins(f);
   drawChalkboards(f);
   drawClocks(f);
@@ -436,7 +439,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     const glow = drawLight(g, w, h, now);
     if (glow > 0.05) {
       g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
-      drawLights(g, lamps, windows, glow);
+      drawLights(g, lamps, windows, glow, lampDim());
       lightPumpkins(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }

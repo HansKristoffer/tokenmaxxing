@@ -105,6 +105,12 @@ star counter on the square. Nothing about players is sent.
   (15B) and a mansion with a tower (40B). A big team of light users stays in the basement.
 - **Coins:** from the day you sign up, every day pays `√(tokens ÷ 1M)`: 100M tokens is 10 coins, 1B is 31. A heavy day earns more,
   but not wildly more. Finishing a day 1st, 2nd or 3rd adds 25, 15 or 10.
+- **Green hours:** the town reads west Denmark's power grid (price area DK1, from Energinet's free
+  [Energi Data Service](https://www.energidataservice.dk)). An hour is green when the hour before it ran at
+  75 g CO₂/kWh or less (about a third of hours); a banner says so, and tokens burned in it pay a quarter of
+  what they'd pay as a day of their own on top (`¼ √(tokens ÷ 1M)`: 100M green tokens is 2 coins). The price
+  board on the square's north-east lamp post shows the power price, and when it's in the day's dearest
+  quarter (and over 1 kr/kWh) the street lamps burn dimmer.
 - **Quests:** three a day, worth 1, 2 and 3 coins, picked for you and scaled to your own last 30 days (at most 6 a day), plus a weekly one for 15. Some are errands in town. Badges have bronze, silver and gold tiers, and some a diamond; the town hears of the golds and diamonds.
 - **The raid:** from the first Monday after launch, every Monday at 08:00 a ladder of five bosses opens in the Raid Dungeon, down the gate in the square,
   easiest first, five in all. Clear all five and the ladder rests until next Monday, when it comes back one level up (The Rate Limit II…) and 10% tougher; fall short and next Monday it starts again at the same level. Every token you sync hits the one up now, no cap, and
@@ -258,6 +264,7 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `HEALTH_WINDOW_MS` | `120000` | ...the first of them at least this long ago. One success starts over |
 | `HEALTH_INTERVAL_MS` | `30000` | Time between probes |
 | `HEALTH_TIMEOUT_MS` | `20000` | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine |
+| `GRID_FEED` | | `off` stops reading the power grid: no green hours (so no bonus), no price board and lamps at full |
 | `GITHUB_TOKEN` | | Sent with the star counter's GitHub reads (a higher rate limit; no scopes needed). Without it, they go unauthenticated: 4 an hour, well inside GitHub's 60 |
 | `GITHUB_STARS` | | Dev and testing: `480` pins the star count instead of reading GitHub (pin it past a milestone and restart for the fireworks); `off` reads nothing |
 | `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |

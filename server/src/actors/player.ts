@@ -1,6 +1,7 @@
 import { BURN_WINDOW_MS } from "@tokenmaxxing/core/cop.ts";
 import { MINUTE_CAP } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Usage } from "@tokenmaxxing/core/games/types.ts";
+import { HOUR_MS } from "@tokenmaxxing/core/grid.ts";
 import { formatPhoneCode, parsePhoneCode, phoneSecret } from "@tokenmaxxing/core/pairing.ts";
 import type { TodayBySource } from "@tokenmaxxing/core/protocol.ts";
 import { dayKey, worldClock } from "@tokenmaxxing/core/range.ts";
@@ -752,11 +753,23 @@ export async function report(
      WHERE ${inDays} AND message_type = 'assistant' GROUP BY day, source`,
     ...days,
   )) as { day: string; source: string; tokens: number }[];
+  // Tokens by UTC hour, each minute capped like `usage` (Danish offsets are whole hours, so a UTC hour
+  // is a world hour): green hours pay on these (`town/grid.ts`).
+  const hourRows = (await sql.execute(
+    `SELECT day, minute / 60 AS hour, SUM(MIN(t, ?)) AS tokens FROM (
+       SELECT day, timestamp / 60000 AS minute, SUM(${EVENT_TOKENS}) AS t FROM events
+       WHERE ${inDays} AND message_type = 'assistant' GROUP BY day, minute)
+     GROUP BY day, hour`,
+    USAGE_MINUTE_CAP,
+    ...days,
+  )) as { day: string; hour: number; tokens: number }[];
   const activity: ActivityDay[] = days.map((day) => {
     const n = counts.find((r) => r.day === day);
     const rows = bucketRows.filter((r) => r.day === day);
     const hours = Array<number>(24).fill(0);
     for (const r of rows) hours[worldClock(r.bucket * AGENT_BUCKET_MS).hour]!++;
+    const hourTokens = Array<number>(24).fill(0);
+    for (const r of hourRows) if (r.day === day) hourTokens[worldClock(r.hour * HOUR_MS).hour]! += r.tokens;
     const sources: Record<string, number> = {};
     for (const r of sourceTokens) if (r.day === day && r.tokens > 0) sources[r.source] = r.tokens;
     return {
@@ -771,6 +784,7 @@ export async function report(
       subBuckets: rows.reduce((t, r) => t + r.subs, 0),
       hours: hours.join(","),
       sources: rows.length ? JSON.stringify(sources) : "",
+      hourTokens: hourTokens.some((n) => n > 0) ? hourTokens.join(",") : "",
     };
   });
   await main(client).town.report(userId, days, usage, activity);
