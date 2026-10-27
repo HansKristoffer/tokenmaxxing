@@ -496,15 +496,19 @@ export interface TickScope {
   fns: Tick[];
 }
 let building: TickScope | null = null;
+const enclosingScopes = new WeakMap<TickScope, TickScope | null>();
 let onScreen: THREE.Object3D | null = null;
 
 export function beginTickScope(): TickScope {
-  building = { root: null, fns: [] };
-  return building;
+  const scope: TickScope = { root: null, fns: [] };
+  enclosingScopes.set(scope, building);
+  building = scope;
+  return scope;
 }
 export function endTickScope(scope: TickScope, root: THREE.Object3D): void {
   scope.root = root;
-  if (building === scope) building = null;
+  if (building === scope) building = enclosingScopes.get(scope) ?? null;
+  enclosingScopes.delete(scope);
 }
 /** A room that is no longer kept: its ticks stop running (and stop holding its models alive). */
 export function dropTickScope(scope: TickScope): void {

@@ -58,10 +58,12 @@ const TRIANGLES = 300_000;
 const BENCH_BUDGET_MS = 600;
 
 /** Draws a few hundred thousand triangles offscreen and returns the average ms per frame, or null. */
-export function benchmark(): number | null {
+export async function benchmark(): Promise<number | null> {
+  let context: WebGL2RenderingContext | null = null;
   try {
     const canvas = new OffscreenCanvas(256, 256);
     const gl = canvas.getContext("webgl2");
+    context = gl;
     if (!gl) return null;
     const shader = (type: number, src: string) => {
       const sh = gl.createShader(type)!;
@@ -106,15 +108,23 @@ export function benchmark(): number | null {
       gl.drawArrays(gl.TRIANGLES, 0, TRIANGLES * 3);
       gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
     };
-    draw(0);
-    const start = performance.now();
+    let total = 0;
     let frames = 0;
-    while (frames < 8 && performance.now() - start < BENCH_BUDGET_MS) draw(++frames);
-    const ms = (performance.now() - start) / Math.max(1, frames);
-    gl.getExtension("WEBGL_lose_context")?.loseContext();
-    return ms;
+    for (let i = 0; i < 9 && total < BENCH_BUDGET_MS; i++) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      if (document.hidden || graphics.get().choice !== "auto") return null;
+      const start = performance.now();
+      draw(i);
+      if (i > 0) {
+        total += performance.now() - start;
+        frames++;
+      }
+    }
+    return frames ? total / frames : null;
   } catch {
     return null;
+  } finally {
+    context?.getExtension("WEBGL_lose_context")?.loseContext();
   }
 }
 
@@ -122,17 +132,22 @@ export function benchmark(): number | null {
 export const quickTier = (): Tier => scoreTier(collectSignals()).tier;
 
 /** The full detection, benchmark included. */
-export function detectTier(): Detected {
-  const signals = collectSignals(hasWebGL2() ? benchmark() : null);
+export async function detectTier(): Promise<Detected> {
+  const signals = collectSignals(hasWebGL2() ? await benchmark() : null);
   const { tier, reasons } = scoreTier(signals);
   return { tier, gpu: signals.gpu, reasons, at: Date.now() };
 }
 
 /** At startup: a quick guess now, then the benchmark once the page is idle, unless a fresh result is cached. */
 export function startDetection(): void {
+  if (graphics.get().choice !== "auto") return;
   graphics.setRuntime({ quick: quickTier() });
   if (freshDetected(graphics.get().detected, gpuName())) return;
-  const run = () => graphics.setDetected(detectTier());
+  const run = async () => {
+    if (graphics.get().choice !== "auto") return;
+    const detected = await detectTier();
+    if (graphics.get().choice === "auto") graphics.setDetected(detected);
+  };
   if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 2000);
 }

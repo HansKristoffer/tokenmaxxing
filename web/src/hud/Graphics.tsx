@@ -74,7 +74,8 @@ export function GraphicsPanel() {
         )}
         <div className="graphics-adv">
           <label>
-            Resolution {Math.round(effective.renderScale * 100)}%
+            {effective.tier === "medium" ? "Pixel detail" : "Resolution"}{" "}
+            {Math.round(effective.renderScale * 100)}%
             <input
               type="range"
               min={0.5}

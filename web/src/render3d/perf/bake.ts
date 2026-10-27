@@ -334,6 +334,7 @@ export class BakedLayer {
     this.group.name = "baked";
     this.group.matrixAutoUpdate = false;
     this.group.userData.noBake = true;
+    this.group.userData.onDispose = () => this.dispose();
     root.add(this.group);
   }
 
@@ -599,11 +600,21 @@ export class BakedLayer {
   }
 
   dispose(): void {
+    if (this.disposed) return;
     this.disposed = true;
+    frozen.delete(this);
     this.bump();
+    const materials = new Set<THREE.Material>();
     for (const v of Object.values(this.variants)) {
-      for (const c of v!.children) (c as THREE.Mesh).geometry.dispose();
+      for (const c of v!.children) {
+        const mesh = c as THREE.Mesh;
+        mesh.geometry.dispose();
+        const mat = mesh.material as THREE.Material;
+        if (mat.userData.baked) materials.add(mat);
+      }
     }
+    for (const s of this.sources) if (s.material.userData.baked) materials.add(s.material);
+    for (const mat of materials) mat.dispose();
     this.group.removeFromParent();
     this.offNight?.();
     for (const a of this.atlases) a.texture.dispose();
@@ -672,14 +683,9 @@ function layerOf(
   });
   why.baked = new Set(sources.map((x) => x.mesh)).size;
   why.moving = meshes.length - why.baked;
-  const g = globalThis as unknown as { __bakes?: unknown[]; __layers?: BakedLayer[] };
-  g.__bakes ??= [];
-  g.__bakes.push({ root: root.name || root.type, ...why });
   if (why.baked < 2) return null;
   const layer = new BakedLayer(root, sources);
   layer.liveCount = why.moving;
-  g.__layers ??= [];
-  g.__layers.push(layer);
   return layer;
 }
 
@@ -740,6 +746,15 @@ export function bakePending(scene: THREE.Object3D): boolean {
     if (top === scene) return true;
   }
   return false;
+}
+
+/** Release pending probes before a room or actor is detached. */
+export function dropBaked(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    watching.delete(o);
+    layers.delete(o);
+  });
+  if ((root as THREE.Scene).isScene) seen.delete(root as THREE.Scene);
 }
 
 const seen = new WeakMap<THREE.Scene, { epoch: number; mode: BakeMode | null; layers: BakedLayer[] }>();

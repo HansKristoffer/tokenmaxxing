@@ -200,7 +200,15 @@ function buildShop(id: RoomId, ctx: RoomCtx): RoomView {
     ctx.map,
     built.value,
     built.ticks,
-    { extra: shopRoom(shop), shop: shopRoom(shop), keepers: new Set([botId]), free: built.free },
+    {
+      extra: shopRoom(shop),
+      shop: shopRoom(shop),
+      keepers: new Set([botId]),
+      free: () => {
+        built.free();
+        forgetShopRoom(shop);
+      },
+    },
     SHOP_VIEW[shop] ?? 8.5,
   );
 }

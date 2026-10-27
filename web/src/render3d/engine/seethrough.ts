@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { addPatch } from "../kit/patches.ts";
+import { occlusionRaycast } from "./occlusion-ray.ts";
 import { pickable } from "./pick.ts";
 
 /**
@@ -105,6 +106,20 @@ export class PlayerOcclusion {
   private hidden = false;
   private elapsed = Infinity;
   private amount = 0;
+  private readonly lastAt = new THREE.Vector3(Infinity, Infinity, Infinity);
+  private readonly lastView = new THREE.Matrix4();
+  private readonly lastProjection = new THREE.Matrix4();
+  private previous: {
+    mesh: THREE.Mesh;
+    geometry: THREE.BufferGeometry;
+    position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+    index: THREE.BufferAttribute | null;
+    matrix: THREE.Matrix4;
+    version: number;
+    indexVersion: number;
+    start: number;
+    count: number;
+  }[] = [];
 
   constructor(private readonly root: THREE.Object3D) {}
 
@@ -112,35 +127,92 @@ export class PlayerOcclusion {
     this.elapsed += dt;
     if (this.elapsed >= 0.08) {
       this.elapsed = 0;
-      this.root.updateMatrixWorld(true);
+      this.root.updateMatrixWorld();
       const meshes = pickable(this.root).filter((o): o is THREE.Mesh => {
         const mesh = o as THREE.Mesh;
-        return !Array.isArray(mesh.material) && mesh.material.userData.patches?.includes("see");
+        return (
+          !!mesh.geometry.getAttribute("position") &&
+          !Array.isArray(mesh.material) &&
+          mesh.material.userData.patches?.includes("see")
+        );
       });
-      this.right.setFromMatrixColumn(camera.matrixWorld, 0);
-      let blocked = 0;
-      for (let row = 0; row < 3; row++) {
-        for (let column = -1; column <= 1; column++) {
-          this.point.copy(at).addScaledVector(this.right, column * 0.14);
-          this.point.y += -0.35 + row * 0.22;
-          const depth = -this.projected.copy(this.point).applyMatrix4(camera.matrixWorldInverse).z;
-          this.projected.copy(this.point).project(camera);
-          this.ndc.set(this.projected.x, this.projected.y);
-          this.caster.setFromCamera(this.ndc, camera);
-          this.caster.far = depth - NEARER;
-          this.hits.length = 0;
-          for (const mesh of meshes) {
-            mesh.raycast(this.caster, this.hits);
-            if (this.hits.some((hit) => hit.point.y > FLOOR_TOP)) {
-              blocked++;
-              break;
-            }
+      let changed =
+        !at.equals(this.lastAt) ||
+        !camera.matrixWorld.equals(this.lastView) ||
+        !camera.projectionMatrix.equals(this.lastProjection) ||
+        meshes.length !== this.previous.length;
+      for (let i = 0; i < meshes.length; i++) {
+        const mesh = meshes[i]!;
+        const geometry = mesh.geometry;
+        const attribute = geometry.getAttribute("position");
+        const version =
+          (attribute as THREE.BufferAttribute).version ??
+          (attribute as THREE.InterleavedBufferAttribute).data.version;
+        const old = this.previous[i];
+        changed ||=
+          !old ||
+          old.mesh !== mesh ||
+          old.geometry !== geometry ||
+          old.position !== attribute ||
+          old.index !== geometry.index ||
+          !old.matrix.equals(mesh.matrixWorld) ||
+          old.version !== version ||
+          old.indexVersion !== (geometry.index?.version ?? 0) ||
+          old.start !== geometry.drawRange.start ||
+          old.count !== geometry.drawRange.count;
+        if (old) {
+          old.mesh = mesh;
+          old.geometry = geometry;
+          old.position = attribute;
+          old.index = geometry.index;
+          old.matrix.copy(mesh.matrixWorld);
+          old.version = version;
+          old.indexVersion = geometry.index?.version ?? 0;
+          old.start = geometry.drawRange.start;
+          old.count = geometry.drawRange.count;
+        } else
+          this.previous.push({
+            mesh,
+            geometry,
+            position: attribute,
+            index: geometry.index,
+            matrix: mesh.matrixWorld.clone(),
+            version,
+            indexVersion: geometry.index?.version ?? 0,
+            start: geometry.drawRange.start,
+            count: geometry.drawRange.count,
+          });
+      }
+      this.previous.length = meshes.length;
+      if (changed) {
+        this.lastAt.copy(at);
+        this.lastView.copy(camera.matrixWorld);
+        this.lastProjection.copy(camera.projectionMatrix);
+        this.right.setFromMatrixColumn(camera.matrixWorld, 0);
+        let blocked = 0;
+        for (let row = 0; row < 3; row++) {
+          for (let column = -1; column <= 1; column++) {
+            this.point.copy(at).addScaledVector(this.right, column * 0.14);
+            this.point.y += -0.35 + row * 0.22;
+            const depth = -this.projected.copy(this.point).applyMatrix4(camera.matrixWorldInverse).z;
+            this.projected.copy(this.point).project(camera);
+            this.ndc.set(this.projected.x, this.projected.y);
+            this.caster.setFromCamera(this.ndc, camera);
+            this.caster.far = depth - NEARER;
             this.hits.length = 0;
+            for (const mesh of meshes) {
+              occlusionRaycast(mesh, this.caster, this.hits);
+              if (this.hits.some((hit) => hit.point.y > FLOOR_TOP)) {
+                blocked++;
+                break;
+              }
+              this.hits.length = 0;
+            }
           }
         }
+        // Hysteresis keeps a roof edge from flickering between adjacent samples while walking.
+        this.hidden = blocked >= (this.hidden ? 4 : 5);
       }
-      // Hysteresis keeps a roof edge from flickering between adjacent samples while walking.
-      this.hidden = blocked >= (this.hidden ? 4 : 5);
     }
     const target = this.hidden ? 1 : 0;
     this.amount = calm ? target : THREE.MathUtils.damp(this.amount, target, this.hidden ? 18 : 12, dt);

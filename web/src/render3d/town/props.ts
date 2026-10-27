@@ -16,6 +16,7 @@ function light(m: Model, at: V3, color: string, intensity: number, distance = 5,
   const l = new THREE.PointLight(color, 0, distance, 1.5);
   l.position.set(...at);
   l.userData.night = intensity;
+  l.visible = false;
   if (street) l.userData.street = true;
   m.add(l);
 }
