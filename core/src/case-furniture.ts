@@ -1,7 +1,7 @@
 /**
  * The Night Market case's furniture: six pieces only a case opening gives, never sold in a shop and never
  * dropped by a raid. Like a personal office's own pieces (`home.ts`) they go down only in your own office,
- * but they are tradeable (`CASE_TRADE_LOCK_MS` in `case.ts` applies after an opening). Each is one map
+ * but they are tradeable. Each is one map
  * character from the Cyrillic block, which nothing else uses (checked in `case-furniture.test.ts`), the
  * item id is `furn.<ch>`, and `art` is its sprite in `web/src/art/furniture-home.ts` and its model in
  * `web/src/render3d/furniture/furniture3d.ts`.

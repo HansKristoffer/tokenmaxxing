@@ -2,16 +2,13 @@
  * The Night Market case: cosmetics only a case opening gives, never sold in a shop and never dropped
  * by a raid. They are worn through `Look` like the shop's, but their indices start at `CASE_BASE`, so
  * the shop and the loot can grow without the two ever meeting. The art is keyed by the same names.
- * Tradeable, with a short lock after opening (`CASE_TRADE_LOCK_MS`).
+ * Tradeable the moment they're opened: there is no trade lock.
  */
 import type { Rarity } from "./rarity.ts";
 import type { Item } from "./shop.ts";
 
 /** Look indices from here up, in a case slot, are case items. Above `EDITION_BASE`, which holds hats and glasses. */
 export const CASE_BASE = 200;
-
-/** A new item can't be traded for this long after it's opened. */
-export const CASE_TRADE_LOCK_MS = 24 * 3_600_000;
 
 export type CaseSlot = "outfit" | "glasses" | "hat" | "held" | "back" | "pet";
 

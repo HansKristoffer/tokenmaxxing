@@ -1,4 +1,4 @@
-import { CASE_ITEMS, CASE_TRADE_LOCK_MS } from "@tokenmaxxing/core/case.ts";
+import { CASE_ITEMS } from "@tokenmaxxing/core/case.ts";
 import { CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import { RARITIES, RARITY_COLOR, type Rarity } from "@tokenmaxxing/core/rarity.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
@@ -254,7 +254,6 @@ export function CaseOpening({
   const busy = phase === "waiting" || phase === "spinning";
   const shown = run && phase !== "idle" && phase !== "waiting" ? run.tiles : null;
   const won = phase === "reveal" ? run?.winner : undefined;
-  const hours = Math.round(CASE_TRADE_LOCK_MS / 3_600_000);
 
   return (
     <Modal title={`🏮 ${CASE_NAME}`} wide="xl">
@@ -288,7 +287,7 @@ export function CaseOpening({
         <span className="cs-fade r" />
       </div>
 
-      {won && <Reveal item={won} hours={hours} />}
+      {won && <Reveal item={won} />}
 
       <h3>Contains</h3>
       <div className="cs-contains">
@@ -321,7 +320,7 @@ function PlayerHint() {
   return me ? null : <p className="muted small">Preview: no coins are spent.</p>;
 }
 
-function Reveal({ item, hours }: { item: Item; hours: number }) {
+function Reveal({ item }: { item: Item }) {
   const rarity = rarityIn(item);
   return (
     <div className="cs-reveal" style={{ "--r": RARITY_COLOR[rarity] } as CSSProperties} role="status">
@@ -334,7 +333,7 @@ function Reveal({ item, hours }: { item: Item; hours: number }) {
         </span>
         <strong>{item.name}</strong>
         {item.blurb && <span className="muted">{item.blurb}</span>}
-        <span className="muted small">Tradeable after {hours}h</span>
+        <span className="muted small">Tradeable right away</span>
       </div>
     </div>
   );
