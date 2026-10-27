@@ -11,7 +11,7 @@ import {
   levelItems,
   parseSide,
   TOKEN_COINS_FROM,
-  TOKEN_COINS_PLAIN_FROM,
+  TOKEN_COIN_MULT_FROM,
 } from "../src/shop.ts";
 import { LOOK_OPTIONS } from "../src/world.ts";
 
@@ -77,18 +77,18 @@ test("Touched grass: earned at a picnic, never sold or traded, and only for your
   expect(canDropIn("nope", "office:7", 7)).toBe(false);
 });
 
-test("a day's tokens pay the square root before 27 Oct, 2.5 × (millions)^0.6 on 27 Oct, and (millions)^0.6 from 28 Oct", () => {
+test("a day's tokens pay the square root before 27 Oct, 2.5 × (millions)^0.6 on 27 Oct, and 1.5 × (millions)^0.6 from 28 Oct", () => {
   const tokens = [10e6, 120e6, 600e6, 1.5e9];
   // Earlier days are not paid again: they keep the square root.
   const before = "2026-10-26";
   expect(before < TOKEN_COINS_FROM).toBe(true);
   expect(tokens.map((t) => coinsForTokens(t, before))).toEqual([3, 10, 24, 38]);
   // 27 Oct keeps the 2.5 rate it was paid at.
-  expect(TOKEN_COINS_FROM < TOKEN_COINS_PLAIN_FROM).toBe(true);
+  expect(TOKEN_COINS_FROM < TOKEN_COIN_MULT_FROM).toBe(true);
   expect(tokens.map((t) => coinsForTokens(t, TOKEN_COINS_FROM))).toEqual([9, 44, 116, 201]);
-  // From 28 Oct, the plain curve, and today (no day) is the same.
-  expect(tokens.map((t) => coinsForTokens(t, TOKEN_COINS_PLAIN_FROM))).toEqual([3, 17, 46, 80]);
-  expect(coinsForTokens(1.5e9)).toBe(80);
+  // From 28 Oct, the 1.5 rate, and today (no day) is the same.
+  expect(tokens.map((t) => coinsForTokens(t, TOKEN_COIN_MULT_FROM))).toEqual([5, 26, 69, 120]);
+  expect(coinsForTokens(1.5e9)).toBe(120);
   expect(coinsForTokens(-5, before)).toBe(0);
-  expect(coinsForTokens(-5, TOKEN_COINS_PLAIN_FROM)).toBe(0);
+  expect(coinsForTokens(-5, TOKEN_COIN_MULT_FROM)).toBe(0);
 });
