@@ -4,10 +4,13 @@ import {
   LAP_BONUS,
   LAP_CAP,
   LOOT,
+  LOOT_ODDS_FROM,
   lapBonus,
+  lootById,
   lootOdds,
   lootOf,
   lootRoll,
+  OLD_ODDS,
   oddsText,
   RARITIES,
   raidDrops,
@@ -85,28 +88,48 @@ test("over many raiders, each rarity drops about as often as its odds", () => {
   }
 });
 
-test("odds: 10%, 2.5%, 0.5% and 0.1%, ×1.05 a lap round the ladder, at most ×10", () => {
+test("odds: 40%, 20%, 10% and 2%, ×1.05 a lap round the ladder, at most ×10", () => {
   expect(["common", "rare", "epic", "legendary"].map((r) => oddsText(lootOdds(r as "rare", 1)))).toEqual([
+    "40%",
+    "20%",
     "10%",
-    "2.5%",
-    "0.5%",
-    "0.1%",
+    "2%",
   ]);
   expect(LAP_BONUS).toBe(1.05);
   expect(LAP_CAP).toBe(10);
   expect([1, 2, 3].map(lapBonus)).toEqual([1, 1.05, 1.05 ** 2]);
   expect(lapBonus(4)).toBeCloseTo(1.157625, 6);
-  // 48 laps in, ×1.05 a lap passes ×10, and it stops there: a 0.1% legendary is never above 1%.
+  // 48 laps in, ×1.05 a lap passes ×10, and it stops there: a 2% legendary is never above 20%.
   expect(lapBonus(48)).toBeLessThan(LAP_CAP);
   expect(lapBonus(49)).toBe(LAP_CAP);
   expect(lapBonus(500)).toBe(LAP_CAP);
-  expect(lootOdds("legendary", 500)).toBeCloseTo(0.01, 8);
+  expect(lootOdds("legendary", 500)).toBeCloseTo(0.2, 8);
   // "II" is the level after the first.
-  expect(lootOdds("legendary", bossAt(1, 2).level)).toBeCloseTo(0.00105, 8);
-  expect(lootOdds("rare", 2)).toBeCloseTo(0.02625, 8);
+  expect(lootOdds("legendary", bossAt(1, 2).level)).toBeCloseTo(0.021, 8);
+  expect(lootOdds("rare", 2)).toBeCloseTo(0.21, 8);
   // The dev boost, and never past certain.
-  expect(lootOdds("epic", 1, 100)).toBeCloseTo(0.5, 8);
-  expect(lootOdds("common", 1, 100)).toBe(1);
+  expect(lootOdds("epic", 1, 100)).toBe(1);
+  expect(lootOdds("legendary", 1, 10)).toBeCloseTo(0.2, 8);
+  // A common is certain from lap 20: ×1.05 a lap takes 40% past 100%.
+  expect(lootOdds("common", 20)).toBe(1);
+});
+
+test("weeks before LOOT_ODDS_FROM keep the old odds, so raising them hands out nothing for old kills", () => {
+  const before = "2026-10-19";
+  expect(before < LOOT_ODDS_FROM).toBe(true);
+  expect(oddsText(lootOdds("common", 1, 1, before))).toBe("10%");
+  expect(oddsText(lootOdds("legendary", 1, 1, before))).toBe("0.1%");
+  expect(oddsText(lootOdds("common", 1, 1, LOOT_ODDS_FROM))).toBe("40%");
+  // The same kill rolled under both: nothing the old odds gave is lost, and old weeks give no more than before.
+  const kill = {
+    rung: 2,
+    level: 1,
+    day: "2026-10-21",
+    raiders: Array.from({ length: 300 }, (_, i) => i + 1),
+  };
+  const old = killDrops(before, kill, 1);
+  for (const d of old)
+    expect(lootRoll(before, 2, d.userId, d.item)).toBeLessThan(OLD_ODDS[lootById(d.item)!.rarity]);
 });
 
 test("a kill's drops: only its raiders roll, each item on its own, from that boss's table", () => {
@@ -124,8 +147,9 @@ test("a kill's drops: only its raiders roll, each item on its own, from that bos
     raiders.reduce(
       (n, u) =>
         n +
-        lootOf("context-window").filter((l) => lootRoll("2026-10-19", 2, u, l.id) < lootOdds(l.rarity, 1))
-          .length,
+        lootOf("context-window").filter(
+          (l) => lootRoll("2026-10-19", 2, u, l.id) < lootOdds(l.rarity, 1, 1, "2026-10-19"),
+        ).length,
       0,
     ),
   );

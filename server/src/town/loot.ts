@@ -168,7 +168,7 @@ export async function raidLoot(
     table: lootOf(boss.id).map((l) => ({
       item: l.id,
       rarity: l.rarity,
-      odds: lootOdds(l.rarity, boss.level, boost),
+      odds: lootOdds(l.rarity, boss.level, boost, week),
       owned: owned.has(l.id),
     })),
     // Rarest first within a rung, by rarity: a boosted week's odds can all be 100%.

@@ -1,5 +1,5 @@
 /**
- * The raid's loot: each boss has its own table of rare drops, from a 10% hat to a 0.1% trophy. Every
+ * The raid's loot: each boss has its own table of drops, from a 40% common to a 2% legendary. Every
  * raider a kill pays (`Kill.raiders`) rolls each item in that boss's table on its own, so one kill can
  * give one person several. A roll is a hash of the week, the rung, the raider and the item, so it's the
  * same every time it's worked out: nobody can reroll, a restart changes nothing, and anyone can check
@@ -16,15 +16,26 @@ export type Rarity = "common" | "rare" | "epic" | "legendary";
 
 /** Each rarity's odds on the first lap of the ladder, and how it's shown. */
 export const RARITIES: Record<Rarity, { odds: number; label: string; color: string }> = {
-  common: { odds: 0.1, label: "Common", color: "#7fcf6a" },
-  rare: { odds: 0.025, label: "Rare", color: "#5aa8ff" },
-  epic: { odds: 0.005, label: "Epic", color: "#b57cff" },
-  legendary: { odds: 0.001, label: "Legendary", color: "#ffc93c" },
+  common: { odds: 0.4, label: "Common", color: "#7fcf6a" },
+  rare: { odds: 0.2, label: "Rare", color: "#5aa8ff" },
+  epic: { odds: 0.1, label: "Epic", color: "#b57cff" },
+  legendary: { odds: 0.02, label: "Legendary", color: "#ffc93c" },
 };
+
+/** What the odds were before `LOOT_ODDS_FROM`: weeks before it keep them, so no past kill drops anything new. */
+export const OLD_ODDS: Record<Rarity, number> = { common: 0.1, rare: 0.025, epic: 0.005, legendary: 0.001 };
+
+/**
+ * The first raid week (its Monday) on `RARITIES`' odds. Drops are fixed rolls, worked out again from the
+ * kills every time, so raising the odds for every week would hand out an item for every old roll that now
+ * comes in under them.
+ * ponytail: set to the deploy week when shipping, like `STREAK_FROM`.
+ */
+export const LOOT_ODDS_FROM = "2026-10-26";
 
 /** Every lap round the ladder ("II", "III"…) multiplies the odds by this, up to `LAP_CAP`. */
 export const LAP_BONUS = 1.05;
-/** The most the odds ever grow: a 0.1% legendary is never above 1%. (At ×1.05 a lap, it takes 48 laps.) */
+/** The most the odds ever grow: a 2% legendary is never above 20%, and a 40% common is certain from lap 20 (which is also where `lootOdds` stops them). */
 export const LAP_CAP = 10;
 
 type LootSlot = "outfit" | "glasses" | "hat" | "pet" | "furniture";
@@ -137,9 +148,17 @@ export const lootOf = (boss: string): Loot[] => LOOT.filter((l) => l.boss === bo
 /** The odds multiplier on lap `level` of the ladder: ×1.05 a lap, at most ×10. */
 export const lapBonus = (level: number): number => Math.min(LAP_CAP, LAP_BONUS ** Math.max(0, level - 1));
 
-/** The chance of one roll for `rarity` on lap `level`; `boost` is the dev-only `RAID_LOOT_BOOST`. */
-export const lootOdds = (rarity: Rarity, level: number, boost = 1): number =>
-  Math.min(1, RARITIES[rarity].odds * lapBonus(level) * boost);
+/**
+ * The chance of one roll for `rarity` on lap `level`; `boost` is the dev-only `RAID_LOOT_BOOST`. `week` is
+ * the raid week it's rolled in: before `LOOT_ODDS_FROM` the old odds. Without one, today's.
+ */
+export const lootOdds = (rarity: Rarity, level: number, boost = 1, week?: string): number =>
+  Math.min(
+    1,
+    (week !== undefined && week < LOOT_ODDS_FROM ? OLD_ODDS[rarity] : RARITIES[rarity].odds) *
+      lapBonus(level) *
+      boost,
+  );
 
 /**
  * One roll, in [0, 1): the first 52 bits of sha256("loot:<week>:<rung>:<userId>:<item>"). It drops when
@@ -186,7 +205,7 @@ export function killDrops(
   const out: LootDrop[] = [];
   for (const userId of kill.raiders)
     for (const l of table) {
-      const odds = lootOdds(l.rarity, boss.level, boost);
+      const odds = lootOdds(l.rarity, boss.level, boost, week);
       if (lootRoll(week, kill.rung, userId, l.id) < odds)
         out.push({ week, rung: kill.rung, level: kill.level, day: kill.day, userId, item: l.id, odds });
     }
