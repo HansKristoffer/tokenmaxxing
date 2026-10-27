@@ -60,10 +60,12 @@ export interface ActivityIn {
   subBuckets?: number;
   hours?: string;
   sources?: string;
+  /** Tokens by world hour, for green hours (`town/grid.ts`). */
+  hourTokens?: string;
 }
 
 const ACTIVITY_COLS =
-  "user_id, day, prompts, prs, agent_buckets, active_buckets, peak_agents, sessions, sub_buckets, hours, sources";
+  "user_id, day, prompts, prs, agent_buckets, active_buckets, peak_agents, sessions, sub_buckets, hours, sources, hour_tokens";
 
 /**
  * Replaces `userId`'s rollups for these days. Named columns, never positional: `activity_daily` has more
@@ -74,7 +76,7 @@ export async function writeActivity(
   userId: number,
   activity: readonly ActivityIn[],
 ): Promise<void> {
-  const row = "(?,?,?,?,?,?,?,?,?,?,?)";
+  const row = "(?,?,?,?,?,?,?,?,?,?,?,?)";
   for (let i = 0; i < activity.length; i += 80) {
     const chunk = activity.slice(i, i + 80);
     await sql.execute(
@@ -91,6 +93,7 @@ export async function writeActivity(
         a.subBuckets ?? 0,
         a.hours ?? "",
         a.sources ?? "",
+        a.hourTokens ?? "",
       ]),
     );
   }

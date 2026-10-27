@@ -1,12 +1,15 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
+import { nextMilestone } from "@tokenmaxxing/core/stars.ts";
 import * as THREE from "three";
 import { lightsNow, weatherNow } from "../../game/sky.ts";
+import { starCount } from "../../game/stars.ts";
 import { world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
 import { GateLive } from "../dungeon/gate3d.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { ExitMarkers } from "../rooms/exit-markers.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "../rooms/rooms.ts";
+import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
 import { Graveyard3D } from "./graveyard3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
@@ -69,6 +72,19 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
         .map((r) => ({ name: r.name, value: compact(r.tokens) })),
     );
   };
+  // The star counter shows the repo's GitHub stars, and the milestone they're heading for.
+  let stars: number | null | undefined;
+  const showStars = () => {
+    const { count } = hud.get().stars;
+    if (count === stars) return;
+    stars = count;
+    town.boards.stars.show(
+      starCount(count),
+      count === null ? "Press E to star it" : `Next: ${nextMilestone(count).toLocaleString("en-US")}`,
+    );
+  };
+  const fireworks = new Fireworks3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(fireworks.group);
   const markers = new ExitMarkers(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(markers.group);
   // Halloween's jack-o'-lanterns, on the doorsteps: hidden the rest of the year.
@@ -106,6 +122,8 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
         (entry.window.material as THREE.MeshBasicMaterial).color.set(active ? "#ffd98a" : "#354656");
       }
       showBoard();
+      showStars();
+      fireworks.update();
       markers.update(f.me, f.t);
       pumpkins.update(f.now);
       events.update(f);
@@ -118,6 +136,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();
+      fireworks.dispose();
       events.dispose();
       games.dispose();
       graveyard.dispose();

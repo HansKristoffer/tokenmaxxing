@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { type Release, releases, unseenReleases } from "../changelog.ts";
 import { storage } from "../storage.ts";
 import { FIRST_VISIT_KEY, hud, useHud } from "../store.ts";
+import { StarButton } from "./Stars.tsx";
 import { Modal } from "./ui.tsx";
 
 const SEEN_KEY = "tokenmaxxing.seenVersion";
@@ -74,6 +75,9 @@ export function WhatsNewToast() {
 export function ChangelogPanel() {
   return (
     <Modal title="📜 Changelog" wide>
+      <p className="changelog-star">
+        Enjoying what's new? <StarButton />
+      </p>
       <div className="changelog">
         <ReleaseNotes releases={releases} />
       </div>
