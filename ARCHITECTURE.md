@@ -576,12 +576,14 @@ Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/to
 
 ## Badges and the Hall of Fame
 
-- **Badges** (`core/src/badges.ts`, 20) are still worked out on read from a player's facts (`badgeFactsOf`), never
+- **Badges** (`core/src/badges.ts`, 21) are still worked out on read from a player's facts (`badgeFactsOf`), never
   claimed. Each has ascending tiers; `badgeStates` gives value, the next tier and where this one began
   (`progressOf`, the bar on the card). A frame comes from the tier and how many it has (`frameOf`): one tier is gold,
-  more run bronze, silver, gold, diamond by tier. Streak, Podium, Shipper, Shark and Whale have the diamond tier.
-  Founder, the picnic and the watch party are `quiet`.
-- **The collection log** (`core/src/collection.ts`): a static `CATALOG` of every badge, trophy and milestone title (48),
+  more run bronze, silver, gold, diamond, mythic, cosmic by tier (`FRAMES`; `grandFrame` is gold and up). The long
+  ladders (Big day 3B to 100B in a day, Octopus 5 to 1000 agents at once, Token furnace 1B to 100T lifetime, and
+  most others) are appended to, so a tier a player holds keeps its number; the first Big day tier moved from 1B to 3B.
+  `BADGE_TIER_COINS` prices tiers 1 to 6 (10, 25, 50, 100, 250, 500). Founder, the picnic and the watch party are `quiet`.
+- **The collection log** (`core/src/collection.ts`): a static `CATALOG` of every badge, trophy and milestone title (68),
   in groups (Usage, Social, Town, Raid, Games, Seasonal) with how to earn it, so the client greys out what's missing and
   `town.collection` sends only a compact `CollectionState`. A minute at most per player, dropped when they sync or earn.
 - **Awards** (`server/src/town/awards.ts`): `badge_awards (user_id, badge, tier, at, backfill)` keeps when each tier
@@ -593,7 +595,7 @@ Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/to
   players (`backfillStep`, by id) with `backfill = 1`: silent, with no date, and the dirty set waits. A player's first
   rows ever are silent too, so a new account's years of history isn't announced. Tiers pay no coins: they're derived
   retroactively, so paying would mint the whole history at once.
-- **The town hears** of a gold or diamond tier (not a `quiet` badge's) and of reaching level 30 or more
+- **The town hears** of a gold tier or better (not a `quiet` badge's) and of reaching level 30 or more
   (`ANNOUNCE_LEVEL`), at most 3 per person per sweep: `told` calls `world.announceTown` with the open panel
   `collection`. Bronze and silver are silent.
 - **The Hall of Fame** (`server/src/town/hall.ts`, E on `A`): `rarest` (the five gold or diamond tiers with the fewest

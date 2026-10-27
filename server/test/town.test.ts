@@ -270,20 +270,21 @@ describe("leaderboard", () => {
     expect(p.level).toBeGreaterThan(0);
   });
 
-  test("badges: founder for a company owner, big day after 1B tokens in one day", async () => {
+  test("badges: founder for a company owner, big day after 3B tokens in one day", async () => {
     const a = await signUp("badge");
     await a.town.createCompany("Badge Co");
     const ids = async () => (await a.town.profile(a.userId, "today")).badges.map((b) => b.id);
     expect(await ids()).toEqual(["founder"]);
-    // A minute counts for at most 200M, so the 1B comes over five, on an old day so it can't straddle midnight.
+    // A minute counts for at most 200M, so the 3B comes over fifteen, on an old day so it can't straddle midnight.
     const day = Date.UTC(2023, 5, 14, 12);
     await as(a.token)
       .player(a.userId)
       .ingest(
-        Array.from({ length: 5 }, (_, i) =>
+        Array.from({ length: 15 }, (_, i) =>
           event({ inputTokens: 200e6, outputTokens: 0, timestamp: day + i * MIN }),
         ),
       );
-    expect(await ids()).toEqual(["bigday", "founder"]);
+    // The same 3B is also a billion tokens burnt over all days (the furnace).
+    expect(await ids()).toEqual(["bigday", "founder", "furnace"]);
   });
 });

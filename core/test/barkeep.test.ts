@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { BADGES } from "../src/badges.ts";
+import { BADGES, frameOf } from "../src/badges.ts";
 import { awardRemark, mayRemark, REMARK_GAP_MS } from "../src/barkeep.ts";
 
 describe("barkeep awards", () => {
   test("names the player, the tier and the badge", () => {
     const b = BADGES[0]!;
-    expect(awardRemark("Ada", b.id, b.tiers.length)).toBe(`Ada just hit diamond in ${b.name}`);
+    expect(awardRemark("Ada", b.id, b.tiers.length)).toBe(
+      `Ada just hit ${frameOf(b.tiers.length, b.tiers.length)} in ${b.name}`,
+    );
     expect(awardRemark("Ada", "level", 30)).toContain("Ada just hit level 30");
   });
 

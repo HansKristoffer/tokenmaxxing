@@ -8,7 +8,7 @@
  * colour, a company tag, and badge and trophy chips.
  */
 
-import { RARITIES, RARITY_COLOR, type Rarity, rarityOf } from "@tokenmaxxing/core/rarity.ts";
+import { RARITIES, RARITY_COLOR, type Rarity, rarityOf, TIER_COLOR } from "@tokenmaxxing/core/rarity.ts";
 import { ITEMS, type Item } from "@tokenmaxxing/core/shop.ts";
 import * as THREE from "three";
 import { knownColours } from "../../art/merch.ts";
@@ -32,17 +32,9 @@ import { COVERS_HAIR, type Ctx, FACE_BUILDERS, HAT_BUILDERS, lit, ring, see } fr
 import type { Hat, Look as VLook } from "./styles.ts";
 import { U, vpart } from "./voxgear.ts";
 
-/** Badge tier frames (`TIER_COLOR` in `core/src/rarity.ts` on the tavern branch). */
-export const TIER_COLOR = {
-  bronze: "#c98a4b",
-  silver: "#d5dbe4",
-  gold: "#ffd75e",
-  diamond: "#7fe8ff",
-} as const;
-
 export { BACK_BUILDERS, HELD_BUILDERS, OUTFIT_BUILDERS } from "./gear3dBody.ts";
 export { FACE_BUILDERS, HAT_BUILDERS } from "./gear3dHead.ts";
-export { LEGENDARY_LEVEL, RARITY_COLOR };
+export { LEGENDARY_LEVEL, RARITY_COLOR, TIER_COLOR };
 
 /** A saved 2D look: the fields of `core/src/world.ts` `Look` that dress a character. */
 export interface Look2D {

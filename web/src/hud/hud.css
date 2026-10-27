@@ -2552,6 +2552,47 @@ button.lb-item:hover {
   border-style: dashed;
   box-shadow: 0 0 8px rgba(127, 232, 255, 0.5);
 }
+/* Past diamond: mythic has two gems on top, cosmic adds a double ring and a glow that shimmers. */
+.badge.badge--mythic {
+  --tier: #ff62c4;
+  border-width: 2px;
+  box-shadow: 0 0 10px rgba(255, 98, 196, 0.6);
+}
+.badge.badge--cosmic {
+  --tier: #a98bff;
+  border-width: 2px;
+  margin-right: 3px;
+  background: linear-gradient(
+    135deg,
+    rgba(169, 139, 255, 0.28),
+    rgba(255, 98, 196, 0.22),
+    rgba(127, 232, 255, 0.28)
+  );
+  box-shadow:
+    0 0 0 2px rgba(27, 31, 42, 0.9),
+    0 0 0 3px var(--tier),
+    0 0 12px rgba(169, 139, 255, 0.7);
+}
+.badge--mythic::before,
+.badge--mythic::after,
+.badge--cosmic::before,
+.badge--cosmic::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  width: 6px;
+  height: 6px;
+  background: var(--tier);
+  transform: rotate(45deg);
+}
+.badge--mythic::before,
+.badge--cosmic::before {
+  left: 8px;
+}
+.badge--mythic::after,
+.badge--cosmic::after {
+  right: 8px;
+}
 .badge-bar {
   display: block;
   height: 3px;
@@ -2568,6 +2609,17 @@ button.lb-item:hover {
 @media (prefers-reduced-motion: no-preference) {
   .badge--diamond {
     animation: diamond-glint 2.4s ease-in-out infinite;
+  }
+  .badge--cosmic {
+    animation: cosmic-shimmer 2.8s ease-in-out infinite;
+  }
+}
+@keyframes cosmic-shimmer {
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(27, 31, 42, 0.9),
+      0 0 0 3px #7fe8ff,
+      0 0 14px rgba(127, 232, 255, 0.85);
   }
 }
 @keyframes diamond-glint {

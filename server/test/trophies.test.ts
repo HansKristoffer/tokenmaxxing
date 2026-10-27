@@ -39,6 +39,7 @@ test("trophies come from the events, and a look works out only the hours that ch
     "zeros",
     "deadbeef",
     "round",
+    "exactmillion",
   ]);
   expect(db.query("SELECT COUNT(*) AS n FROM trophy_hours").get()).toEqual({ n: 1 });
 });
