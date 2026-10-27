@@ -36,7 +36,13 @@ const INK = "#2b2433";
  * A paper lantern on a string, hanging from `at` (cubes) in `parent`: a glowing body with darker ribs, caps and a tassel.
  * The returned pivot is the string's top, so tilting it swings the lantern.
  */
-function lantern(parent: VoxModel, at: [number, number, number], w: number, body: string, rib: string): VoxModel {
+function lantern(
+  parent: VoxModel,
+  at: [number, number, number],
+  w: number,
+  body: string,
+  rib: string,
+): VoxModel {
   const pivot = vpart(parent, [at[0] * U, at[1] * U, at[2] * U]);
   const v = new Vx(pivot);
   const h = w * 1.15;
@@ -44,7 +50,8 @@ function lantern(parent: VoxModel, at: [number, number, number], w: number, body
   v.b(-0.1, top, -0.1, 0.2, -top, 0.2, INK);
   v.b(-w * 0.35, top - 0.1, -w * 0.35, w * 0.7, 0.4, w * 0.7, INK);
   v.b(-w / 2, top - 0.1 - h, -w / 2, w, h, w, lit(body));
-  for (const f of [0.28, 0.62]) v.b(-w / 2 - 0.08, top - 0.1 - h * f - 0.12, -w / 2 - 0.08, w + 0.16, 0.24, w + 0.16, rib);
+  for (const f of [0.28, 0.62])
+    v.b(-w / 2 - 0.08, top - 0.1 - h * f - 0.12, -w / 2 - 0.08, w + 0.16, 0.24, w + 0.16, rib);
   v.b(-w * 0.35, top - 0.5 - h, -w * 0.35, w * 0.7, 0.4, w * 0.7, INK);
   v.b(-0.1, top - 1.7 - h, -0.1, 0.2, 1.3, 0.2, GOLD);
   return pivot;
@@ -85,7 +92,14 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
         px(g, "#3a6fb8", 20, 20, 17, 6);
         px(g, "#3a6fb8", 23, 26, 11, 2);
         // Splashes.
-        for (const [x, y] of [[10, 5], [44, 9], [12, 28], [43, 31], [36, 3]] as const) px(g, "#e8793a", x, y, 3, 3);
+        for (const [x, y] of [
+          [10, 5],
+          [44, 9],
+          [12, 28],
+          [43, 31],
+          [36, 3],
+        ] as const)
+          px(g, "#e8793a", x, y, 3, 3);
       },
       (g, w) => {
         px(g, CREAM, 3, 22, w - 6, 3);
@@ -208,12 +222,33 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     marks(
       c,
       (g) => {
-        dragon(g, [[8, 8], [14, 12], [10, 18], [16, 24]], 2);
+        dragon(
+          g,
+          [
+            [8, 8],
+            [14, 12],
+            [10, 18],
+            [16, 24],
+          ],
+          2,
+        );
         px(g, RED, 6, 6, 3, 3);
         px(g, GOLD, 27, 0, 2, 42);
       },
       (g) => {
-        dragon(g, [[32, 9], [40, 12], [36, 19], [24, 22], [18, 28], [28, 33], [38, 36]], 3);
+        dragon(
+          g,
+          [
+            [32, 9],
+            [40, 12],
+            [36, 19],
+            [24, 22],
+            [18, 28],
+            [28, 33],
+            [38, 36],
+          ],
+          3,
+        );
         px(g, GOLD, 26, 0, 12, 7);
         px(g, "#b8860b", 26, 0, 3, 3);
         px(g, RED, 33, 2, 2, 2);
@@ -270,7 +305,10 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     // The pole across the shoulders, and a big lantern with a small one below it at each end.
     v.b(-8.7, 7.0, -0.55, 17.4, 0.6, 1.1, "#7a5a34");
     for (const x of [-8.7, 8.1]) v.b(x, 6.9, -0.65, 0.6, 0.8, 1.3, GOLD);
-    for (const [s, phase] of [[-1, 0], [1, 1.9]] as const) {
+    for (const [s, phase] of [
+      [-1, 0],
+      [1, 1.9],
+    ] as const) {
       const big = lantern(c.body, [s * 7.6, 7.0, 0], 2.8, "#ff5a3c", "#8a1f18");
       const small = lantern(big, [0, -8.2, 0], 1.7, "#ffb347", "#8a1f18");
       c.tick((t, walking) => {
@@ -291,7 +329,11 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     const drift = (t: number) =>
       bits.forEach((b) => {
         const k = (t * 0.22 + b.p) % 1;
-        b.m.position.set(Math.cos(b.a + t * 0.4) * b.r * U, (13 - k * 20) * U, Math.sin(b.a + t * 0.4) * b.r * U);
+        b.m.position.set(
+          Math.cos(b.a + t * 0.4) * b.r * U,
+          (13 - k * 20) * U,
+          Math.sin(b.a + t * 0.4) * b.r * U,
+        );
         b.m.rotation.y = t * 2 + b.a;
       });
     drift(0);
@@ -315,7 +357,12 @@ const HELD: Record<string, HeldBuilder> = {
     h.cyl(0.02, 0.008, CREAM, [0.032, 0.082, 0.095], 0.02, 10);
     h.cyl(0.009, 0.01, "#f28bb2", [0.032, 0.09, 0.095], 0.009, 8);
     h.box([0.045, 0.055, 0.004], "#1d3a2a", [0.04, 0.075, 0.045], 0.001);
-    for (const [x, z] of [[0.005, 0.055], [0.02, 0.105], [-0.012, 0.1]] as const) h.box([0.012, 0.01, 0.012], "#4caf50", [x, 0.085, z], 0.003);
+    for (const [x, z] of [
+      [0.005, 0.055],
+      [0.02, 0.105],
+      [-0.012, 0.1],
+    ] as const)
+      h.box([0.012, 0.01, 0.012], "#4caf50", [x, 0.085, z], 0.003);
     const sticks = h.part([0.03, 0.075, 0.07]);
     sticks.rotation.z = -0.65;
     for (const x of [-0.008, 0.008]) sticks.box([0.007, 0.2, 0.007], "#a8743a", [x, 0, 0], 0.002);
@@ -354,7 +401,14 @@ const HELD: Record<string, HeldBuilder> = {
         if (i < 6 && r <= R) {
           const f = (((Math.atan2(z, x) + Math.PI) / (2 * Math.PI)) * 8) % 1;
           const edge = r * Math.sin(Math.min(f, 1 - f) * (Math.PI / 4));
-          col = r < 1.2 ? GOLD : r > 1.8 && edge < 0.4 ? "#b98a4a" : Math.floor(((Math.atan2(z, x) + Math.PI) / (2 * Math.PI)) * 8) % 2 ? CREAM : RED;
+          col =
+            r < 1.2
+              ? GOLD
+              : r > 1.8 && edge < 0.4
+                ? "#b98a4a"
+                : Math.floor(((Math.atan2(z, x) + Math.PI) / (2 * Math.PI)) * 8) % 2
+                  ? CREAM
+                  : RED;
           y = Math.floor((R - r) * 0.42);
         }
         if (run > -8 && (col !== cur || y !== top)) {
@@ -385,7 +439,9 @@ const HELD: Record<string, HeldBuilder> = {
     }
     b.box([0.052, 0.03, 0.006], "#3a3546", [0, -0.106, 0.04], 0.002);
     b.box([0.04, 0.012, 0.007], lit(PINK), [0, -0.097, 0.041], 0.001);
-    const bars = [0, 1, 2, 3].map((i) => b.box([0.008, 0.02, 0.006], lit(i % 2 ? CYAN : PINK), [-0.015 + i * 0.01, -0.132, 0.041], 0.001));
+    const bars = [0, 1, 2, 3].map((i) =>
+      b.box([0.008, 0.02, 0.006], lit(i % 2 ? CYAN : PINK), [-0.015 + i * 0.01, -0.132, 0.041], 0.001),
+    );
     const ant = b.part([0.095, -0.04, -0.02]);
     ant.rotation.z = -0.35;
     ant.box([0.006, 0.17, 0.006], "#aab3bf", [0, 0, 0], 0.001);
@@ -428,10 +484,23 @@ const BACKS: Record<string, BackBuilder> = {
     const glowA = v.b(-2, -0.4, -2, 2, 0.4, 4, lit(PINK));
     const glowB = v.b(0, -0.4, -2, 2, 0.4, 4, lit(CYAN));
     const rotors: VoxModel[] = [];
-    for (const [x, z, col] of [[-5.2, -5.2, CYAN], [5.2, -5.2, PINK], [-5.2, 5.2, PINK], [5.2, 5.2, CYAN]] as const) {
+    for (const [x, z, col] of [
+      [-5.2, -5.2, CYAN],
+      [5.2, -5.2, PINK],
+      [-5.2, 5.2, PINK],
+      [5.2, 5.2, CYAN],
+    ] as const) {
       const sx = x > 0 ? 1 : -1;
       const sz = z > 0 ? 1 : -1;
-      v.b(Math.min(0, x) + (sx > 0 ? 2 : 0), 1.2, Math.min(0, z) + (sz > 0 ? 2 : 0), Math.abs(x) - 2.4, 0.8, Math.abs(z) - 2.4, "#454a5c");
+      v.b(
+        Math.min(0, x) + (sx > 0 ? 2 : 0),
+        1.2,
+        Math.min(0, z) + (sz > 0 ? 2 : 0),
+        Math.abs(x) - 2.4,
+        0.8,
+        Math.abs(z) - 2.4,
+        "#454a5c",
+      );
       v.b(x - 0.7, 0.4, z - 0.7, 1.4, 1.8, 1.4, "#2b2f3a");
       const ringY = 2.2;
       v.b(x - 2.8, ringY, z - 2.8, 5.6, 0.7, 0.7, lit(col));
@@ -448,7 +517,8 @@ const BACKS: Record<string, BackBuilder> = {
       rotors.forEach((r, i) => {
         r.rotation.y = t * 38 + i;
       });
-      drone.position.y = 4 * U + Math.sin(t * 2.4) * 0.014 + (walking ? Math.abs(Math.sin(t * 11)) * 0.014 : 0);
+      drone.position.y =
+        4 * U + Math.sin(t * 2.4) * 0.014 + (walking ? Math.abs(Math.sin(t * 11)) * 0.014 : 0);
       drone.rotation.y = Math.sin(t * 0.9) * 0.2;
       const flip = Math.sin(t * 6) > 0;
       glowA.visible = flip;

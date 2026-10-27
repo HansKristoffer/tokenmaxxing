@@ -142,7 +142,14 @@ const DRONE_SIDE = frame(DRONE_ART, 0, 3);
 const DRONE_B = frame(DRONE_ART_B, 11, 4);
 const DRONE_SIDE_B = frame(DRONE_ART_B, 0, 4);
 const LANTERN_BACK: string[] = [
-  "", "", "", "", "", "", "", "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
   ".......kk.......",
   "....kkkkkkkk....",
   "....oLllllLo....",
@@ -153,7 +160,14 @@ const LANTERN_BACK: string[] = [
   ".......yy.......",
 ];
 const LANTERN_SIDE: string[] = [
-  "", "", "", "", "", "", "", "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
   "..kk............",
   ".kkkkk..........",
   ".oLlLo..........",
@@ -169,7 +183,12 @@ const CLOUD = [".....wwwwww.....", "..vvvvvvvvvvvv..", ".VVpVVVVVVVVpVV."];
 const rainBehind = (shift: number): string[] => {
   const rows = Array.from({ length: 16 }, () => Array<string>(16).fill("."));
   for (const x of [1, 14]) for (const y of [2, 3]) rows[y]![x] = y === 2 ? "v" : "V";
-  const cols: [number, string, string][] = [[1, "n", "N"], [2, "p", "P"], [13, "n", "N"], [14, "p", "P"]];
+  const cols: [number, string, string][] = [
+    [1, "n", "N"],
+    [2, "p", "P"],
+    [13, "n", "N"],
+    [14, "p", "P"],
+  ];
   cols.forEach(([x, bright, dim], i) => {
     for (let y = 4; y <= 10; y++) {
       if ((y + shift + i * 2) % 3 === 2) continue;

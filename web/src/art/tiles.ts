@@ -31,7 +31,9 @@ const GROUND: Record<string, Ground> = {
   // Posters hang on the wall, so their tile is wall underneath.
   ...Object.fromEntries(POSTERS.map((p) => [p.ch, "wall" as const])),
   // So do a personal office's frames and signs.
-  ...Object.fromEntries([...HOME_PIECES, ...CASE_PIECES].filter((p) => p.wall).map((p) => [p.ch, "wall" as const])),
+  ...Object.fromEntries(
+    [...HOME_PIECES, ...CASE_PIECES].filter((p) => p.wall).map((p) => [p.ch, "wall" as const]),
+  ),
   ",": "path",
   ":": "plaza",
   '"': "flowers",

@@ -444,7 +444,13 @@ export function jump(): void {
 }
 
 /** What the shop pages open on at each shop's counter. */
-const COUNTER_TAB = { furniture: "furniture", clothes: "outfit", barber: "look", pets: "pet", natmarked: "case" } as const;
+const COUNTER_TAB = {
+  furniture: "furniture",
+  clothes: "outfit",
+  barber: "look",
+  pets: "pet",
+  natmarked: "case",
+} as const;
 
 /** E in a shop room on its counter or a display: the Shop page on the matching tab (the barber opens the Bag on You). */
 function shopInteract(x: number, y: number): boolean {

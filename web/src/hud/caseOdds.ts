@@ -51,7 +51,10 @@ export function percent(chance: number): string {
 }
 
 /** The spare copies of this case's items in a bag (every copy past the first of each) and what the vendor pays for them. */
-export function spareCopies(def: CaseDef, bag: readonly { item: string; count: number }[]): { copies: number; coins: number } {
+export function spareCopies(
+  def: CaseDef,
+  bag: readonly { item: string; count: number }[],
+): { copies: number; coins: number } {
   let copies = 0;
   let coins = 0;
   for (const it of def.items) {

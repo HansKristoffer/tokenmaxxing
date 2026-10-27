@@ -87,7 +87,8 @@ export const OFFICE_LEVEL = 10;
 export const PIECES: readonly Piece[] = [...FURNITURE, ...TROPHIES];
 
 const BY_CH = new Map<string, Piece>();
-for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...CASE_PIECES]) if (!BY_CH.has(f.ch)) BY_CH.set(f.ch, f);
+for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...CASE_PIECES])
+  if (!BY_CH.has(f.ch)) BY_CH.set(f.ch, f);
 
 export const pieceOf = (ch: unknown): Piece | undefined => BY_CH.get(ch as string);
 

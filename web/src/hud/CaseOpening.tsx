@@ -36,19 +36,17 @@ const CASE_NAME = "Night Market Case";
 /** Every item the case holds: wearables, pets and the six furniture pieces, as shop `Item`s. */
 export const CASE_POOL: readonly Item[] = [
   ...CASE_ITEMS,
-  ...CASE_PIECES.map(
-    (p): Item => ({
-      id: `furn.${p.ch}`,
-      slot: "furniture",
-      index: 0,
-      name: p.name,
-      price: 0,
-      tradeable: true,
-      rarity: p.rarity,
-      blurb: p.blurb,
-      case: true,
-    }),
-  ),
+  ...CASE_PIECES.map((p): Item => ({
+    id: `furn.${p.ch}`,
+    slot: "furniture",
+    index: 0,
+    name: p.name,
+    price: 0,
+    tradeable: true,
+    rarity: p.rarity,
+    blurb: p.blurb,
+    case: true,
+  })),
 ];
 
 const rarityIn = (i: Item): Rarity => i.rarity ?? "common";
@@ -68,19 +66,17 @@ export function mockRoll(): Item {
 }
 
 /** Filler for the strip: what the odds would show, so the strip looks like the case and not a uniform shuffle. */
-const fillerOf =
-  (pool: readonly Item[], odds: Record<Rarity, number>) =>
-  (): Item => {
-    let r = Math.random();
-    let tier: Rarity = "common";
-    for (const k of RARITIES) {
-      tier = k;
-      r -= odds[k] * 1.6 + 0.02;
-      if (r < 0) break;
-    }
-    const of = pool.filter((i) => rarityIn(i) === tier);
-    return pickFrom(of.length ? of : pool);
-  };
+const fillerOf = (pool: readonly Item[], odds: Record<Rarity, number>) => (): Item => {
+  let r = Math.random();
+  let tier: Rarity = "common";
+  for (const k of RARITIES) {
+    tier = k;
+    r -= odds[k] * 1.6 + 0.02;
+    if (r < 0) break;
+  }
+  const of = pool.filter((i) => rarityIn(i) === tier);
+  return pickFrom(of.length ? of : pool);
+};
 
 /* ----- the spin's numbers ----- */
 const TILE = 124;
@@ -205,8 +201,7 @@ export function CaseOpening({
 
   const idle = useMemo(() => Array.from({ length: 12 }, filler), [filler]);
   const byRarity = useMemo(
-    () =>
-      [...RARITIES].reverse().map((r) => ({ r, items: pool.filter((i) => rarityIn(i) === r) })),
+    () => [...RARITIES].reverse().map((r) => ({ r, items: pool.filter((i) => rarityIn(i) === r) })),
     [pool],
   );
 

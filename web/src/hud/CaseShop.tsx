@@ -22,18 +22,18 @@ function CaseSprite({ open, scale = 4 }: { open?: boolean; scale?: number }) {
   const { w, h } = CASE_BOX_SIZE[kind];
   return (
     <span aria-hidden="true" className="cshop-art-wrap">
-    <canvas
-      className="cshop-art"
-      width={w * scale}
-      height={h * scale}
-      ref={(c) => {
-        const g = c?.getContext("2d");
-        if (!g || !c) return;
-        g.imageSmoothingEnabled = false;
-        g.clearRect(0, 0, c.width, c.height);
-        g.drawImage(caseBoxSprite(kind, 0), 0, 0, w * scale, h * scale);
-      }}
-    />
+      <canvas
+        className="cshop-art"
+        width={w * scale}
+        height={h * scale}
+        ref={(c) => {
+          const g = c?.getContext("2d");
+          if (!g || !c) return;
+          g.imageSmoothingEnabled = false;
+          g.clearRect(0, 0, c.width, c.height);
+          g.drawImage(caseBoxSprite(kind, 0), 0, 0, w * scale, h * scale);
+        }}
+      />
     </span>
   );
 }
@@ -129,7 +129,11 @@ export function CaseShop() {
               const r = await town.sellDuplicates(def.id);
               hud.set({ wallet: r.wallet });
               setBag(await town.bag());
-              setSold(r.sold === 0 ? "No spare copies to sell." : `Sold ${r.sold} spare ${r.sold === 1 ? "copy" : "copies"}.`);
+              setSold(
+                r.sold === 0
+                  ? "No spare copies to sell."
+                  : `Sold ${r.sold} spare ${r.sold === 1 ? "copy" : "copies"}.`,
+              );
             })}
           />
         ))}
@@ -219,7 +223,8 @@ function CaseCard({
       </ul>
       <p className="muted small">
         Chances are per opening, split evenly inside each rarity. Every {def.rareWithin}th opening in a row
-        without a rare is a rare or better. A pick you already own is drawn again {def.dupeRerolls === 1 ? "once" : `${def.dupeRerolls} times`}.
+        without a rare is a rare or better. A pick you already own is drawn again{" "}
+        {def.dupeRerolls === 1 ? "once" : `${def.dupeRerolls} times`}.
       </p>
     </li>
   );

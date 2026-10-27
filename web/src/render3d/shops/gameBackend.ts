@@ -223,7 +223,7 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
                   ? "Only the traveling merchant sells that."
                   : p.why === "season"
                     ? offSeason(itemById(item.id)!.holiday!)
-                  : "That one is earned, not bought.",
+                    : "That one is earned, not bought.",
         );
       case "unknown":
         return fail("unavailable", "That one is not in this town's shop.");

@@ -1078,7 +1078,9 @@ export const FANCY_FURNITURE: readonly FancyPiece[] = [
 
 /** A piece by id: the company's, or a personal office's (`furniture-home.ts`). */
 export const fancyPiece = (id: string): FancyPiece | undefined =>
-  FANCY_FURNITURE.find((f) => f.id === id) ?? HOME_FURNITURE.find((f) => f.id === id) ?? CASE_FURNITURE.find((f) => f.id === id);
+  FANCY_FURNITURE.find((f) => f.id === id) ??
+  HOME_FURNITURE.find((f) => f.id === id) ??
+  CASE_FURNITURE.find((f) => f.id === id);
 
 /** Which frame a piece shows at time `now` (ms). */
 export const fancyFrame = (piece: FancyPiece, now: number): number =>

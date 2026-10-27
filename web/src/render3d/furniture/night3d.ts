@@ -35,7 +35,12 @@ function lantern(m: Model, x: number, top: number, color: string, size = 1, phas
   m.cyl(r * 0.55, 0.025 * size, GOLD, [x, top - 0.06 * size - r * 0.1, 0], r * 0.55, 10);
   m.cyl(r * 0.55, 0.025 * size, GOLD, [x, top - 0.06 * size - r * 2.2, 0], r * 0.55, 10);
   for (const dy of [-0.3, 0.3])
-    m.box([r * 2.05, 0.008, 0.008], tint(color, -0.35), [x, top - 0.06 * size - r * 1.1 + r * 1.2 * dy, r * 0.95], 0.002);
+    m.box(
+      [r * 2.05, 0.008, 0.008],
+      tint(color, -0.35),
+      [x, top - 0.06 * size - r * 1.1 + r * 1.2 * dy, r * 0.95],
+      0.002,
+    );
   m.cyl(0.006 * size, 0.1 * size, GOLD, [x, top - 0.06 * size - r * 2.2 - 0.1 * size, 0], 0.006 * size, 4);
   ticks.push((t) => body.scale.set(1, 1.2 + 0.03 * Math.sin(t * 5 + phase), 1));
 }
@@ -52,7 +57,12 @@ const lanternString = (): Model => {
     const x1 = -0.95 + (1.9 * (i + 1)) / n;
     const y0 = y + sag(x0);
     const y1 = y + sag(x1);
-    const seg = m.box([Math.hypot(x1 - x0, y1 - y0) + 0.01, 0.014, 0.014], C.ink, [(x0 + x1) / 2, (y0 + y1) / 2, 0.03], 0.003);
+    const seg = m.box(
+      [Math.hypot(x1 - x0, y1 - y0) + 0.01, 0.014, 0.014],
+      C.ink,
+      [(x0 + x1) / 2, (y0 + y1) / 2, 0.03],
+      0.003,
+    );
     seg.rotation.z = Math.atan2(y1 - y0, x1 - x0);
   }
   const colours = [RED, "#f08a3c", PINK, "#f5d14a", RED];
@@ -144,7 +154,9 @@ const ramenCounter = (): Model => {
   for (const x of [-0.95, 0.95]) m.box([0.07, 1.5, 0.07], TEAK_DARK, [x, 0, -0.12], 0.01);
   m.box([2.0, 0.2, 0.34], RED, [0, 1.5, -0.04], 0.02);
   m.box([2.0, 0.03, 0.34], tint(RED, 0.25), [0, 1.69, -0.04], 0.01);
-  const bulbs = [-0.8, -0.4, 0, 0.4, 0.8].map((x) => m.ball(0.025, glow("#ffd36a"), [x, 1.5, 0.14], [1, 1, 1], 6));
+  const bulbs = [-0.8, -0.4, 0, 0.4, 0.8].map((x) =>
+    m.ball(0.025, glow("#ffd36a"), [x, 1.5, 0.14], [1, 1, 1], 6),
+  );
   ticks.push((t) => {
     for (const [i, b] of bulbs.entries()) b.scale.setScalar(Math.floor(t * 2 + i) % 2 ? 1.2 : 0.8);
   });
@@ -212,7 +224,9 @@ const clawMachine = (): Model => {
   m.box([W - 0.06, 0.93, D - 0.06], glass("#a8dcf7", 0.28), [0, 0.76, 0], 0.01);
   m.box([W, 0.05, D], NAVY, [0, 0.72, 0], 0.01);
   m.box([W + 0.04, 0.26, D + 0.04], PINK, [0, 1.7, 0], 0.03);
-  const bulbs = Array.from({ length: 7 }, (_, i) => m.ball(0.022, glow("#ffd36a"), [-0.3 + i * 0.1, 1.82, D / 2 + 0.03], [1, 1, 0.6], 6));
+  const bulbs = Array.from({ length: 7 }, (_, i) =>
+    m.ball(0.022, glow("#ffd36a"), [-0.3 + i * 0.1, 1.82, D / 2 + 0.03], [1, 1, 0.6], 6),
+  );
   ticks.push((t) => {
     for (const [i, b] of bulbs.entries()) b.scale.setScalar((Math.floor(t * 3) + i) % 2 ? 1.25 : 0.7);
   });
@@ -298,11 +312,12 @@ const torii = (): Model => {
   return m;
 };
 
-export const NIGHT_ASSETS: readonly { id: string; name: string; w: number; d: number; build: () => Model }[] = [
-  { id: "night-lanterns", name: "Lantern string", w: 2, d: 1, build: lanternString },
-  { id: "night-koi-rug", name: "Koi rug", w: 2, d: 1, build: koiRug },
-  { id: "night-tea-stool", name: "Tea stool", w: 1, d: 1, build: teaStool },
-  { id: "night-ramen-counter", name: "Ramen counter", w: 2, d: 1, build: ramenCounter },
-  { id: "night-claw-machine", name: "Arcade claw machine", w: 1, d: 1, build: clawMachine },
-  { id: "night-torii", name: "Torii gate", w: 3, d: 1, build: torii },
-];
+export const NIGHT_ASSETS: readonly { id: string; name: string; w: number; d: number; build: () => Model }[] =
+  [
+    { id: "night-lanterns", name: "Lantern string", w: 2, d: 1, build: lanternString },
+    { id: "night-koi-rug", name: "Koi rug", w: 2, d: 1, build: koiRug },
+    { id: "night-tea-stool", name: "Tea stool", w: 1, d: 1, build: teaStool },
+    { id: "night-ramen-counter", name: "Ramen counter", w: 2, d: 1, build: ramenCounter },
+    { id: "night-claw-machine", name: "Arcade claw machine", w: 1, d: 1, build: clawMachine },
+    { id: "night-torii", name: "Torii gate", w: 3, d: 1, build: torii },
+  ];

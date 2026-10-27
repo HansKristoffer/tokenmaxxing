@@ -13,17 +13,36 @@ const now = Date.now();
 async function setup(coins: number) {
   const { sql } = memorySql();
   await migrate(sql);
-  const look = JSON.stringify({ style: 0, skin: 0, hair: 0, outfit: 0, glasses: 0, hat: 0, pet: 0, petVariant: 0 });
+  const look = JSON.stringify({
+    style: 0,
+    skin: 0,
+    hair: 0,
+    outfit: 0,
+    glasses: 0,
+    hat: 0,
+    pet: 0,
+    petVariant: 0,
+  });
   await sql.execute("INSERT INTO users (id, name, look, created_at) VALUES (7, 'u7', ?, ?)", look, now);
-  await sql.execute("INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (7, ?, 'admin', 'admin', 0)", coins);
+  await sql.execute(
+    "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (7, ?, 'admin', 'admin', 0)",
+    coins,
+  );
   return sql;
 }
 const balance = async (sql: Awaited<ReturnType<typeof setup>>) =>
   (await (await import("../src/town/coins.ts")).wallet(sql, 7, now)).balance;
 const give = (sql: Awaited<ReturnType<typeof setup>>, item: string, n = 1) =>
-  Promise.all(Array.from({ length: n }, () => sql.execute("INSERT INTO items (owner_id, item, at) VALUES (7, ?, 0)", item)));
+  Promise.all(
+    Array.from({ length: n }, () =>
+      sql.execute("INSERT INTO items (owner_id, item, at) VALUES (7, ?, 0)", item),
+    ),
+  );
 const rejects = async (p: Promise<unknown>, code: string) => {
-  const e = await p.then(() => null, (err) => err);
+  const e = await p.then(
+    () => null,
+    (err) => err,
+  );
   expect(e).toBeInstanceOf(UserError);
   expect((e as UserError).code).toBe(code);
 };
@@ -51,7 +70,8 @@ describe("openCase", () => {
   test("the dry counter makes the tenth opening a rare or better", async () => {
     const sql = await setup(5000);
     const rand = () => 0; // always the commonest roll
-    for (let i = 0; i < 9; i++) expect(rarityOf((await openCase(sql, 7, "night-market", now, undefined, rand)).item)).toBe("common");
+    for (let i = 0; i < 9; i++)
+      expect(rarityOf((await openCase(sql, 7, "night-market", now, undefined, rand)).item)).toBe("common");
     const tenth = await openCase(sql, 7, "night-market", now, undefined, rand);
     expect(["rare", "epic", "legendary"]).toContain(rarityOf(tenth.item));
     // And it starts over.
@@ -86,7 +106,19 @@ describe("selling", () => {
     const sql = await setup(0);
     const hat = night.items.find((i) => i.slot === "hat")!;
     await give(sql, hat.id);
-    await sql.execute("UPDATE users SET look = ? WHERE id = 7", JSON.stringify({ style: 0, skin: 0, hair: 0, outfit: 0, glasses: 0, hat: hat.index, pet: 0, petVariant: 0 }));
+    await sql.execute(
+      "UPDATE users SET look = ? WHERE id = 7",
+      JSON.stringify({
+        style: 0,
+        skin: 0,
+        hair: 0,
+        outfit: 0,
+        glasses: 0,
+        hat: hat.index,
+        pet: 0,
+        petVariant: 0,
+      }),
+    );
     expect((await sellItem(sql, 7, hat.id, now)).unworn).toBe(true);
     const [row] = await sql.execute("SELECT look FROM users WHERE id = 7");
     expect(JSON.parse((row as { look: string }).look).hat).toBe(0);

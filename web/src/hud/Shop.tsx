@@ -120,7 +120,13 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
       ) : (
         <ul className="shop">
           {ITEMS.filter(
-            (i) => i.slot === tab && !editionById(i.id) && !i.earned && !i.company && !i.case && onSale(i, Date.now()),
+            (i) =>
+              i.slot === tab &&
+              !editionById(i.id) &&
+              !i.earned &&
+              !i.company &&
+              !i.case &&
+              onSale(i, Date.now()),
           ).map((item) => {
             const owned = wallet.owned.includes(item.id);
             const wearing = isWorn(item, me.look);

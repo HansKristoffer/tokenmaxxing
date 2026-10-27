@@ -1048,10 +1048,37 @@ export const HAT_BUILDERS: Record<string, Build> = {
       const ink = "#2b1a20";
       for (const s of [-1, 1]) {
         const x = (v: number) => (s < 0 ? v : 111 - v);
-        poly([[x(6), 52], [x(15), 1], [x(48), 46]], "#fbf7ef", ink);
-        poly([[x(17), 44], [x(19), 12], [x(37), 42]], "#d9323a");
+        poly(
+          [
+            [x(6), 52],
+            [x(15), 1],
+            [x(48), 46],
+          ],
+          "#fbf7ef",
+          ink,
+        );
+        poly(
+          [
+            [x(17), 44],
+            [x(19), 12],
+            [x(37), 42],
+          ],
+          "#d9323a",
+        );
       }
-      poly([[6, 44], [105, 44], [104, 78], [80, 100], [55, 119], [31, 100], [7, 78]], "#fbf7ef", ink);
+      poly(
+        [
+          [6, 44],
+          [105, 44],
+          [104, 78],
+          [80, 100],
+          [55, 119],
+          [31, 100],
+          [7, 78],
+        ],
+        "#fbf7ef",
+        ink,
+      );
       for (const s of [-1, 1]) {
         const x = (v: number) => (s < 0 ? v : 111 - v);
         line(x(21), 58, x(46), 69, "#14121a", 6);
@@ -1066,7 +1093,10 @@ export const HAT_BUILDERS: Record<string, Build> = {
     });
     band(m, "#d9323a", 0.262, 0.026, 0.07);
     m.ball(0.03, "#d9323a", [0.262, 0.08, -0.07], [1, 1, 1], 8);
-    for (const [z, lean] of [[-0.1, 0.25], [-0.14, -0.1]] as const)
+    for (const [z, lean] of [
+      [-0.1, 0.25],
+      [-0.14, -0.1],
+    ] as const)
       tilt(m, m.box([0.014, 0.15, 0.03], "#d9323a", [0.27, -0.06, z], 0.004), lean, 0, 0.12);
   },
 };
@@ -1104,7 +1134,15 @@ function flat(
 ): THREE.Mesh {
   if (!isVox(m)) return sign(m, w, h, draw, at);
   const cell = 0.0125;
-  return pixelPatch(m, { cols: Math.round(w / cell), rows: Math.round(h / cell), cell, depth, draw, at, fill: 0.3 });
+  return pixelPatch(m, {
+    cols: Math.round(w / cell),
+    rows: Math.round(h / cell),
+    cell,
+    depth,
+    draw,
+    at,
+    fill: 0.3,
+  });
 }
 /** A band round the head at eye height. */
 function strap(m: Model, color: string, y = EYE_Y, w = 0.03): void {
@@ -1582,7 +1620,8 @@ export const FACE_BUILDERS: Record<string, Build> = {
         g.fillStyle = col;
         g.fillRect(x * cell + cell * 0.1, y * cell + cell * 0.1, cell * 0.8, cell * 0.8);
       };
-      for (const x of [5, 6, 17, 18]) for (const y of [1, 2]) if (eye || x < 10 || y === 1) dot(x, y, "#4ff3ff");
+      for (const x of [5, 6, 17, 18])
+        for (const y of [1, 2]) if (eye || x < 10 || y === 1) dot(x, y, "#4ff3ff");
       for (const x of [8, 9, 10, 11, 12, 13, 14, 15]) dot(x, 4, "#ff4fd8");
       dot(7, 3, "#ff4fd8");
       dot(16, 3, "#ff4fd8");

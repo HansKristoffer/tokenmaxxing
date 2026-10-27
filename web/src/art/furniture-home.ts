@@ -653,7 +653,15 @@ function nightClawMachine(p: Pen, frame: number): void {
   p.rect(8, 14, 4, 5, K.green);
   p.disc(5, 15, 1, K.cream);
   p.disc(10, 14, 1, K.cream);
-  dots(p, [[5, 16], [10, 15], [9, 17]], C.ink);
+  dots(
+    p,
+    [
+      [5, 16],
+      [10, 15],
+      [9, 17],
+    ],
+    C.ink,
+  );
   // The control panel: a joystick, two buttons and a coin slot; the chute below.
   p.rect(2, 21, 12, 4, N.lacquer);
   p.rect(4, 21, 1, 2, K.chrome);
@@ -755,10 +763,27 @@ export const HOME_FURNITURE: readonly FancyPiece[] = [
 
 /** The Night Market case's pieces (`CASE_PIECES` in core/src/case-furniture.ts). */
 export const CASE_FURNITURE: readonly FancyPiece[] = [
-  piece("night-lanterns", "Lantern string", 2, 16, 0, nightLanterns, { frames: 2, frameMs: 600, placement: "wall", rarity: "common" }),
+  piece("night-lanterns", "Lantern string", 2, 16, 0, nightLanterns, {
+    frames: 2,
+    frameMs: 600,
+    placement: "wall",
+    rarity: "common",
+  }),
   piece("night-koi-rug", "Koi rug", 2, 24, 0, nightKoiRug, { placement: "flat", rarity: "common" }),
-  piece("night-tea-stool", "Tea stool", 1, 18, 0, nightTeaStool, { frames: 2, frameMs: 500, rarity: "common" }),
-  piece("night-ramen-counter", "Ramen counter", 2, 28, 0, nightRamenCounter, { frames: 2, frameMs: 500, rarity: "uncommon" }),
-  piece("night-claw-machine", "Arcade claw machine", 1, 32, 0, nightClawMachine, { frames: 2, frameMs: 500, rarity: "uncommon" }),
+  piece("night-tea-stool", "Tea stool", 1, 18, 0, nightTeaStool, {
+    frames: 2,
+    frameMs: 500,
+    rarity: "common",
+  }),
+  piece("night-ramen-counter", "Ramen counter", 2, 28, 0, nightRamenCounter, {
+    frames: 2,
+    frameMs: 500,
+    rarity: "uncommon",
+  }),
+  piece("night-claw-machine", "Arcade claw machine", 1, 32, 0, nightClawMachine, {
+    frames: 2,
+    frameMs: 500,
+    rarity: "uncommon",
+  }),
   piece("night-torii", "Torii gate", 3, 44, 0, nightTorii, { frames: 2, frameMs: 650, rarity: "rare" }),
 ];

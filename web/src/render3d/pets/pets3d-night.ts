@@ -15,7 +15,14 @@ const GLINT = "#f4f6ff";
 type Built = { rig: Rig; body: Model; fore: Model };
 
 /** A mesh from a grid, placed at `at` (cells). Its origin is the grid's own (0, 0, 0). */
-function put(parent: THREE.Object3D, g: Grid, at: V3 = [0, 0, 0], seed = 0, opacity = 1, flat = false): THREE.Mesh {
+function put(
+  parent: THREE.Object3D,
+  g: Grid,
+  at: V3 = [0, 0, 0],
+  seed = 0,
+  opacity = 1,
+  flat = false,
+): THREE.Mesh {
   const m = bake(g, { seed, opacity, flat });
   m.position.set(U(at[0]), U(at[1]), U(at[2]));
   parent.add(m);
@@ -56,7 +63,9 @@ export function koi(): Built {
   // Dorsal fin, whiskers, mouth.
   for (let z = -5; z <= 3; z++) bg.box(0, 0, 5, 5 + Math.max(1, 3 - Math.abs(z + 1) * 0.5), z, z, "#ff9244");
   for (const s of SIDES) {
-    bg.set(s, -1, 9, "#ffb36b").set(s * 2, -2, 10, "#ffb36b").set(s * 3, -3, 11, "#ffb36b");
+    bg.set(s, -1, 9, "#ffb36b")
+      .set(s * 2, -2, 10, "#ffb36b")
+      .set(s * 3, -3, 11, "#ffb36b");
   }
   bg.box(-1, 1, -2, -2, 8, 8, "#d84a1c");
   put(body, bg, [0, 0, 0], 1);
@@ -64,7 +73,8 @@ export function koi(): Built {
   const fins = SIDES.map((s) => {
     const j = joint(body, [s * 4, -2, 3]);
     const g = new Grid();
-    for (let i = 1; i <= 4; i++) g.box(s * i, s * i, 0, 0, -i * 0.5, i * 0.5 + 1, i > 2 ? "#ffd1a8" : "#fff6ea");
+    for (let i = 1; i <= 4; i++)
+      g.box(s * i, s * i, 0, 0, -i * 0.5, i * 0.5 + 1, i > 2 ? "#ffd1a8" : "#fff6ea");
     put(j, g, [0, 0, 0], 2);
     return { j, s };
   });
@@ -85,7 +95,9 @@ export function koi(): Built {
   const tg = new Grid();
   for (let i = 0; i < 10; i++) {
     const h = 1 + Math.floor(i * 0.55);
-    tg.box(-1, 0, -h, h, -i, -i, (c) => (i < 3 ? "#fff6ea" : hash(c.x, c.y, c.z, 1) < 0.5 ? "#ff9244" : "#ffd1a8"));
+    tg.box(-1, 0, -h, h, -i, -i, (c) =>
+      i < 3 ? "#fff6ea" : hash(c.x, c.y, c.z, 1) < 0.5 ? "#ff9244" : "#ffd1a8",
+    );
     if (i > 6) tg.del(0, 0, -i).del(-1, 0, -i);
   }
   put(tail, tg, [0, 0, 0], 3);
@@ -259,7 +271,8 @@ export function tanuki(): Built {
   const lg = new Grid();
   for (let z = -5; z <= 5; z++) {
     const hw = Math.round(3.4 * Math.sin(((z + 5.5) / 11) * Math.PI));
-    for (let x = -hw; x <= hw; x++) lg.set(x, 0, z, x === 0 ? "#2f7d3a" : hash(x, 0, z, 9) < 0.15 ? "#74d482" : "#5cc16a");
+    for (let x = -hw; x <= hw; x++)
+      lg.set(x, 0, z, x === 0 ? "#2f7d3a" : hash(x, 0, z, 9) < 0.15 ? "#74d482" : "#5cc16a");
     if (hw >= 1 && z % 2 === 0) lg.set(hw > 2 ? 1 : 0, 0, z, "#3f9a4c");
   }
   lg.box(0, 0, 0, 0, -7, -6, "#2f7d3a");
@@ -311,7 +324,11 @@ export function maneki(): Built {
     bg.ell(s * 4, 3, 0, 2.4, 3, 3.6, W);
     bg.ell(s * 2.4, 1.2, 4, 1.8, 1.2, 2.2, W);
   }
-  bg.paint((c) => (noise(c.x * 0.4, c.y * 0.4, c.z * 0.4, 3) > 0.7 && c.t > 0.5 && c.x < 0 ? "#2a2630" : speckle(c, W, "#ece7de", 4, 0.2)));
+  bg.paint((c) =>
+    noise(c.x * 0.4, c.y * 0.4, c.z * 0.4, 3) > 0.7 && c.t > 0.5 && c.x < 0
+      ? "#2a2630"
+      : speckle(c, W, "#ece7de", 4, 0.2),
+  );
   // Collar, bell and the coin held at the belly (the left arm).
   for (let i = 0; i < 40; i++) {
     const a = (i / 40) * Math.PI * 2;
@@ -342,7 +359,8 @@ export function maneki(): Built {
     for (let j = 0; j < 4; j++) {
       const w = Math.round(2 - j * 0.5);
       hg.box(s * 4.5 - w, s * 4.5 + w, 4 + j, 4 + j, -1, 0, s < 0 && j < 3 ? "#f0a040" : W);
-      if (j < 3) hg.box(s * 4.5 - Math.max(0, w - 1), s * 4.5 + Math.max(0, w - 1), 4 + j, 4 + j, 1, 1, "#f2a0b0");
+      if (j < 3)
+        hg.box(s * 4.5 - Math.max(0, w - 1), s * 4.5 + Math.max(0, w - 1), 4 + j, 4 + j, 1, 1, "#f2a0b0");
     }
   hg.set(0, 0, 5, "#f2a0b0");
   hg.set(-1, -1, 5, DARK).set(1, -1, 5, DARK).set(0, -2, 5, DARK);
@@ -378,7 +396,10 @@ export function maneki(): Built {
     W,
   );
   ag.ell(2, 11, 1.2, 2.5, 2.7, 2.2, W);
-  ag.set(2, 10, 3.4, "#f2a0b0").set(1, 11, 3.4, "#f2a0b0").set(3, 11, 3.4, "#f2a0b0").set(2, 11, 3.4, "#f2a0b0");
+  ag.set(2, 10, 3.4, "#f2a0b0")
+    .set(1, 11, 3.4, "#f2a0b0")
+    .set(3, 11, 3.4, "#f2a0b0")
+    .set(2, 11, 3.4, "#f2a0b0");
   ag.set(1, 12, 3.4, "#e5dfd3").set(3, 12, 3.4, "#e5dfd3");
   put(arm, ag, [0, 0, 0], 3);
   const tail = joint(body, [0, 2, -5]);
@@ -487,7 +508,13 @@ export function kitsune(): Built {
     const mid: V3 = [sa * 6.5, ca * 5.5 + 1.5, -4.5];
     const pivot = joint(tailsAt, [sa * 1.2, 0, 0]);
     const tg = new Grid();
-    tg.tube([[0, 0, 0], mid, end], 1.7, 1.1, (c) => (c.u > 0.7 ? CREAM : speckle(c, ORANGE, "#ffb35c", 4 + i, 0.3)), 2.2);
+    tg.tube(
+      [[0, 0, 0], mid, end],
+      1.7,
+      1.1,
+      (c) => (c.u > 0.7 ? CREAM : speckle(c, ORANGE, "#ffb35c", 4 + i, 0.3)),
+      2.2,
+    );
     put(pivot, tg, [0, 0, 0], 6 + i);
     // The lantern: lit paper between a red cap and a red base, hung off the tip.
     const lg = new Grid();
@@ -584,7 +611,8 @@ export function tengu(): Built {
   for (const s of SIDES) {
     hg.ell(s * 4.8, 0, -0.5, 1, 1.7, 1.2, RED);
     // Bushy white brows slanting down towards the nose.
-    for (let k = 0; k < 4; k++) hg.box(s * (1 + k), s * (1 + k), 2 + (k > 1 ? 1 : 0), 3 + (k > 1 ? 1 : 0), 3, 4, "#f4f4f0");
+    for (let k = 0; k < 4; k++)
+      hg.box(s * (1 + k), s * (1 + k), 2 + (k > 1 ? 1 : 0), 3 + (k > 1 ? 1 : 0), 3, 4, "#f4f4f0");
   }
   // The tokin hat on its cord.
   hg.box(-2, 2, 4, 6, -1, 2, "#16141c");
@@ -612,7 +640,13 @@ export function tengu(): Built {
       const th = (-0.2 + k * 0.34) * 1;
       const len = 9 + (k === 2 ? 3 : k === 1 || k === 3 ? 1.5 : 0);
       const to: V3 = [s * Math.cos(th) * len, Math.sin(th) * len + 1, -Math.cos(th) * len * 0.3];
-      g.tube([[s * 1.5, 0.5, 0], to], 1.8, 0.7, (c) => (hash(c.x, c.y, c.z, k) < 0.2 ? "#3a4a6e" : c.u > 0.8 ? "#14151f" : "#1c1e2c"), 2);
+      g.tube(
+        [[s * 1.5, 0.5, 0], to],
+        1.8,
+        0.7,
+        (c) => (hash(c.x, c.y, c.z, k) < 0.2 ? "#3a4a6e" : c.u > 0.8 ? "#14151f" : "#1c1e2c"),
+        2,
+      );
     }
     put(j, g, [0, 0, 0], 4 + (s > 0 ? 1 : 0));
     return { j, s };
@@ -634,7 +668,16 @@ export function tengu(): Built {
   const fan = joint(hand, [0, 1, 0]);
   const fg = new Grid();
   fg.box(0, 0, 0, 3, 0, 0, "#8b5a2b");
-  fg.ell(0, 7, 0, 3.4, 4.6, 0.8, (c) => (c.x === 0 ? "#2f8f4c" : hash(c.x, c.y, c.z, 8) < 0.18 ? "#7ee09a" : "#4cb86a"), 2.4);
+  fg.ell(
+    0,
+    7,
+    0,
+    3.4,
+    4.6,
+    0.8,
+    (c) => (c.x === 0 ? "#2f8f4c" : hash(c.x, c.y, c.z, 8) < 0.18 ? "#7ee09a" : "#4cb86a"),
+    2.4,
+  );
   put(fan, fg, [0, 0, 0], 7);
   // Neon sparks circling it.
   const sparks = ["#7ae7ff", "#ff6ad5", "#fff06a"].map((c, i) => {
@@ -666,7 +709,11 @@ export function tengu(): Built {
         head.rotation.y = Math.sin(t * 0.7) * 0.18;
         sparks.forEach((m, i) => {
           const k = t * 1.8 + (i * Math.PI * 2) / 3;
-          m.position.set(U(Math.cos(k) * 11), U(2 + Math.sin(t * 2.4 + i) * 3 + i * 1.5), U(Math.sin(k) * 9 - 2));
+          m.position.set(
+            U(Math.cos(k) * 11),
+            U(2 + Math.sin(t * 2.4 + i) * 3 + i * 1.5),
+            U(Math.sin(k) * 9 - 2),
+          );
         });
       },
     },

@@ -14,7 +14,12 @@ export const AURA_BUILDERS: Record<string, AuraBuilder> = {};
 
 const CUBE = new THREE.BoxGeometry(1, 1, 1);
 /** A cube of `w`×`h`×`d` metres (it moves and scales, and stays out of the blocky swap). */
-function cube(parent: THREE.Object3D, size: [number, number, number], mat: THREE.Material, at?: [number, number, number]) {
+function cube(
+  parent: THREE.Object3D,
+  size: [number, number, number],
+  mat: THREE.Material,
+  at?: [number, number, number],
+) {
   const o = new THREE.Mesh(CUBE, mat);
   o.scale.set(...size);
   o.userData.noBlock = true;
@@ -49,7 +54,11 @@ AURA_BUILDERS["Lantern Sky"] = (m, tick) => {
     lanterns.forEach((g, i) => {
       const a = t * (walking ? 0.6 : 0.42) + (i / lanterns.length) * Math.PI * 2;
       const r = 0.43 + Math.sin(t * 0.7 + i * 2) * 0.03;
-      g.position.set(Math.cos(a) * r, 0.02 + (i % 3) * 0.2 - 0.2 + Math.sin(t * 1.1 + i * 1.7) * 0.07, Math.sin(a) * r);
+      g.position.set(
+        Math.cos(a) * r,
+        0.02 + (i % 3) * 0.2 - 0.2 + Math.sin(t * 1.1 + i * 1.7) * 0.07,
+        Math.sin(a) * r,
+      );
       g.rotation.y = -a;
       g.scale.setScalar(1 + Math.sin(t * 7 + i * 3) * 0.05);
     });
@@ -98,7 +107,11 @@ AURA_BUILDERS["Firefly Swarm"] = (m, tick) => {
   tick((t) => {
     for (const f of flies) {
       const u = t + f.p;
-      f.g.position.set(Math.sin(u * f.fx) * f.ax * 1.2, Math.sin(u * f.fy) * f.ay + 0.05, Math.cos(u * f.fz) * f.ax * 1.2);
+      f.g.position.set(
+        Math.sin(u * f.fx) * f.ax * 1.2,
+        Math.sin(u * f.fy) * f.ay + 0.05,
+        Math.cos(u * f.fz) * f.ax * 1.2,
+      );
       const b = Math.max(0, Math.sin(u * f.blink * 2.2));
       f.g.scale.setScalar(0.1 + b ** 0.5 * 1.1);
     }

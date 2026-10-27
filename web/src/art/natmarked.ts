@@ -77,7 +77,8 @@ export const natmarkedFront = once(() =>
     p.px(15, 8, "#ff2f8f");
     p.px(64, 8, "#ff2f8f");
     // The lantern string along the eave: a sagging wire with lanterns.
-    for (let x = 2; x < W - 2; x++) p.px(x, 18 + Math.round(Math.sin(((x - 2) / (W - 4)) * Math.PI * 4) * 0.8 + 0.8), C.ink);
+    for (let x = 2; x < W - 2; x++)
+      p.px(x, 18 + Math.round(Math.sin(((x - 2) / (W - 4)) * Math.PI * 4) * 0.8 + 0.8), C.ink);
     for (let i = 0; i < 9; i++) lantern(p, 5 + i * 8, 19 + (i % 2));
     // Two windows, warm paper behind slats; a dark silhouette of crates.
     for (const x of [6, W - 28]) {

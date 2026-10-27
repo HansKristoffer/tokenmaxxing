@@ -110,4 +110,5 @@ export const caseAuraFrame = (index: number, now: number): HTMLCanvasElement | n
   DRAWS[index] ? frame(index, Math.floor(now / CA_MS) % FRAMES) : null;
 
 /** One aura on its own, for the bag and the shelf when the 3D icon isn't there. */
-export const caseAuraIcon = (index: number): HTMLCanvasElement | null => (DRAWS[index] ? frame(index, 3) : null);
+export const caseAuraIcon = (index: number): HTMLCanvasElement | null =>
+  DRAWS[index] ? frame(index, 3) : null;

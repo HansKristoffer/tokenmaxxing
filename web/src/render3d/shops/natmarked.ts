@@ -50,7 +50,8 @@ function lantern(m: Model, at: [number, number, number], r = 0.1, color = RED): 
   nightGlow(body, "#ff9a52");
   m.cyl(r * 0.5, 0.025, GOLD, [x, y - 0.02, z], r * 0.5, 8);
   m.cyl(r * 0.5, 0.02, GOLD, [x, y - r * 2.5 - 0.005, z], r * 0.5, 8);
-  for (const dy of [-0.5, 0, 0.5]) m.cyl(r * 1.02, 0.012, RED_D, [x, y - r * 1.25 + dy * r * 1.2, z], r * 1.02, 10);
+  for (const dy of [-0.5, 0, 0.5])
+    m.cyl(r * 1.02, 0.012, RED_D, [x, y - r * 1.25 + dy * r * 1.2, z], r * 1.02, 10);
   m.cyl(0.006, 0.07, RED, [x, y - r * 2.5 - 0.08, z], 0.006, 4);
 }
 
@@ -60,7 +61,12 @@ function wire(m: Model, a: [number, number, number], b: [number, number, number]
   const dy = b[1] - a[1];
   const dz = b[2] - a[2];
   const len = Math.hypot(dx, dy, dz);
-  const s = m.box([0.014, 0.014, len], color, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], 0.002);
+  const s = m.box(
+    [0.014, 0.014, len],
+    color,
+    [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2],
+    0.002,
+  );
   s.rotation.order = "YXZ";
   s.rotation.y = Math.atan2(dx, dz);
   s.rotation.x = -Math.atan2(dy, Math.hypot(dx, dz));
@@ -151,14 +157,23 @@ function plaque(w: number, h: number, text: string, sub?: string, lit = false): 
 /** Puffs of steam rising from `at` (a ticking loop). */
 function steam(m: Model, at: [number, number, number], n = 4, rise = 0.7, size = 0.09): void {
   const puffs = Array.from({ length: n }, () => {
-    const mat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0, depthWrite: false });
+    const mat = new THREE.MeshBasicMaterial({
+      color: "#ffffff",
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
     return { mat, mesh: m.ball(size, mat, at, [1, 1, 1], 8) };
   });
   for (const p of puffs) p.mesh.castShadow = false;
   ticks.push((t) => {
     puffs.forEach((p, i) => {
       const u = (t * 0.42 + i / n) % 1;
-      p.mesh.position.set(at[0] + Math.sin(u * 5 + i * 2) * 0.05, at[1] + u * rise, at[2] + Math.cos(u * 4 + i) * 0.04);
+      p.mesh.position.set(
+        at[0] + Math.sin(u * 5 + i * 2) * 0.05,
+        at[1] + u * rise,
+        at[2] + Math.cos(u * 4 + i) * 0.04,
+      );
       p.mesh.scale.setScalar(0.6 + u * 1.3);
       p.mat.opacity = 0.5 * Math.sin(Math.PI * Math.min(1, u * 1.1)) ** 1.2;
     });
@@ -312,7 +327,8 @@ function exterior(): Model {
     [-w / 2, -Math.PI / 2],
   ] as const) {
     const side = m.part([sx, 0, -d / 2], rot);
-    for (let i = 0; i <= 9; i++) side.box([0.05, h - 0.2, 0.03], TIMBER_D, [-d / 2 + 0.2 + i * ((d - 0.4) / 9), 0.18, 0.0], 0.005);
+    for (let i = 0; i <= 9; i++)
+      side.box([0.05, h - 0.2, 0.03], TIMBER_D, [-d / 2 + 0.2 + i * ((d - 0.4) / 9), 0.18, 0.0], 0.005);
     // A paper-screen window on each side, glowing.
     const pane = side.box([1.1, 0.7, 0.04], "#f6e6bf", [0, 0.8, 0.01], 0.01);
     nightGlow(pane, "#ffcf86");
@@ -496,7 +512,8 @@ function counter(): Model {
   const w = 6;
   m.box([w, 0.9, 0.7], LACQUER, [0, 0, 0], 0.03);
   m.box([w - 0.2, 0.7, 0.03], RED_D, [0, 0.1, 0.36], 0.01);
-  for (let i = 0; i < 7; i++) m.box([0.03, 0.7, 0.035], GOLD, [-w / 2 + 0.1 + i * ((w - 0.2) / 6), 0.1, 0.375], 0.004);
+  for (let i = 0; i < 7; i++)
+    m.box([0.03, 0.7, 0.035], GOLD, [-w / 2 + 0.1 + i * ((w - 0.2) / 6), 0.1, 0.375], 0.004);
   m.box([w - 0.2, 0.04, 0.04], GOLD, [0, 0.1, 0.375], 0.004);
   m.box([w - 0.2, 0.04, 0.04], GOLD, [0, 0.76, 0.375], 0.004);
   m.box([w + 0.12, 0.07, 0.82], "#120e16", [0, 0.9, 0], 0.02);
@@ -519,7 +536,15 @@ function counter(): Model {
   ab.box([0.5, 0.05, 0.3], TIMBER_L, [0, 0, 0], 0.01);
   for (const z of [-0.12, 0.12]) ab.box([0.5, 0.05, 0.03], TIMBER_L, [0, 0.05, z], 0.005);
   for (let r = 0; r < 4; r++)
-    for (let c = 0; c < 6; c++) ab.cyl(0.025, 0.02, c % 2 ? RED : "#f3efe2", [-0.2 + c * 0.08 + (r % 2) * 0.01, 0.06 + r * 0.045 * 0, -0.1 + r * 0.07], 0.025, 6);
+    for (let c = 0; c < 6; c++)
+      ab.cyl(
+        0.025,
+        0.02,
+        c % 2 ? RED : "#f3efe2",
+        [-0.2 + c * 0.08 + (r % 2) * 0.01, 0.06 + r * 0.045 * 0, -0.1 + r * 0.07],
+        0.025,
+        6,
+      );
   m.cyl(0.07, 0.05, GOLD, [-1.2, 0.97, 0.1], 0.05, 10);
   m.ball(0.03, GOLD, [-1.2, 1.03, 0.1], [1, 1, 1], 6);
   for (let i = 0; i < 6; i++) m.cyl(0.05, 0.015, GOLD, [-0.7, 0.97 + i * 0.016, 0.12], 0.05, 10);
@@ -551,7 +576,8 @@ function stall(kind: "noodles" | "tea"): Model {
   m.box([1.7, 0.7, 0.5], TIMBER, [0, 0, -1.05], 0.02);
   m.box([1.8, 0.05, 0.6], LACQUER, [0, 0.7, -1.05], 0.01);
   m.box([1.7, 0.05, 0.3], TIMBER_L, [0, 1.15, -1.25], 0.01);
-  for (let i = 0; i < 5; i++) m.cyl(0.06, 0.12, i % 2 ? "#f3efe2" : "#8aa4c8", [-0.7 + i * 0.35, 1.2, -1.25], 0.05, 8);
+  for (let i = 0; i < 5; i++)
+    m.cyl(0.06, 0.12, i % 2 ? "#f3efe2" : "#8aa4c8", [-0.7 + i * 0.35, 1.2, -1.25], 0.05, 8);
   if (noodle) {
     m.cyl(0.26, 0.28, "#9aa3ad", [-0.4, 0.75, -1.0], 0.26, 14);
     m.cyl(0.27, 0.03, "#6e7681", [-0.4, 1.02, -1.0], 0.27, 14);
@@ -642,7 +668,11 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   // The back wall: six lit shelves with a post between each; the first holds the case on sale.
   for (let i = 0; i < 6; i++) {
     put(asset(`natmarked:post-${i}`, "Post", 1, 1, post), i * 3, 0);
-    put(asset(`natmarked:shelf-${i}`, "Lantern shelf", 2, 1, () => shelf(i)), i * 3 + 1, 0);
+    put(
+      asset(`natmarked:shelf-${i}`, "Lantern shelf", 2, 1, () => shelf(i)),
+      i * 3 + 1,
+      0,
+    );
   }
   const neonSign = neon(5.4, 0.5, [{ text: "NATMARKED", color: PINK, size: 0.6, y: 0.5 }], TIMBER_D);
   const sub = neon(2.6, 0.26, [{ text: "NIGHT MARKET · ÅBEN", color: CYAN, size: 0.42, y: 0.5 }], TIMBER_D);
@@ -653,10 +683,19 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   room.group.add(glowAt);
 
   // The noodle bar (west) and tea stall (east), each with a cook behind it and stools in front.
-  put(asset("natmarked:noodles", "Noodle bar", 2, 3, () => stall("noodles")), 0, 2, 1);
-  put(asset("natmarked:tea", "Tea stall", 2, 3, () => stall("tea")), 15, 2, 3);
-  const stoolAsset = (id: string) =>
-    asset(id, "Stool", 1, 1, stool, { seat: { at: [0, 0.4, 0], turn: 0 } });
+  put(
+    asset("natmarked:noodles", "Noodle bar", 2, 3, () => stall("noodles")),
+    0,
+    2,
+    1,
+  );
+  put(
+    asset("natmarked:tea", "Tea stall", 2, 3, () => stall("tea")),
+    15,
+    2,
+    3,
+  );
+  const stoolAsset = (id: string) => asset(id, "Stool", 1, 1, stool, { seat: { at: [0, 0.4, 0], turn: 0 } });
   for (const z of [2, 3]) {
     put(stoolAsset(`natmarked:stool-w${z}`), 3, z, 3);
     put(stoolAsset(`natmarked:stool-e${z}`), 14, z, 1);

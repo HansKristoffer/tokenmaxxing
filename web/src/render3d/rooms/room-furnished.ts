@@ -88,7 +88,10 @@ export function flat(ch: string): Asset {
 
 /** Furniture characters: what is placed from the map, with the footprint width of each. */
 const WIDTH = new Map<string, number>(
-  [...FURNITURE, ...COMPANY_FURNITURE, ...HOME_PIECES, ...CASE_PIECES].map((p): [string, number] => [p.ch, p.w ?? 1]),
+  [...FURNITURE, ...COMPANY_FURNITURE, ...HOME_PIECES, ...CASE_PIECES].map((p): [string, number] => [
+    p.ch,
+    p.w ?? 1,
+  ]),
 );
 const FLAT = new Set(["=", "e"]);
 

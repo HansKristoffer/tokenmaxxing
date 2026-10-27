@@ -12,7 +12,15 @@ const seeded = (seed: number) => () => {
 };
 
 const night = caseById("night-market")!;
-const fake = (id: string, rarity: Rarity): Item => ({ id, slot: "hat", index: 0, name: id, price: 0, tradeable: true, rarity });
+const fake = (id: string, rarity: Rarity): Item => ({
+  id,
+  slot: "hat",
+  index: 0,
+  name: id,
+  price: 0,
+  tradeable: true,
+  rarity,
+});
 const mini = (items: Item[]): CaseDef => ({ ...night, items });
 const none = new Set<string>();
 

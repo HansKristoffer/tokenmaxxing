@@ -155,7 +155,20 @@ function drawOpen(p: import("./pixels.ts").Pen, frame: number): void {
   // The beam rising out of the mouth and the motes in it.
   p.rect(5, 9, 14, 2, "rgba(255, 233, 160, 0.75)");
   p.rect(8, 8, 8, 1, "rgba(255, 233, 160, 0.6)");
-  const motes: [number, number][] = frame === 0 ? [[6, 5], [12, 4], [17, 6], [9, 9]] : [[7, 4], [11, 5], [16, 4], [14, 9]];
+  const motes: [number, number][] =
+    frame === 0
+      ? [
+          [6, 5],
+          [12, 4],
+          [17, 6],
+          [9, 9],
+        ]
+      : [
+          [7, 4],
+          [11, 5],
+          [16, 4],
+          [14, 9],
+        ];
   for (const [x, y] of motes) p.px(x, y, P.paper);
   p.px(frame === 0 ? 20 : 3, 8, P.glow);
 }
@@ -207,7 +220,9 @@ export function caseBoxSprite(kind: CaseBoxKind, frame = 0): HTMLCanvasElement {
   let c = cache.get(k);
   if (!c) {
     const { w, h } = CASE_BOX_SIZE[kind];
-    c = bake(w, h, (p) => (kind === "closed" ? drawClosed(p) : kind === "open" ? drawOpen(p, f) : drawKey(p)));
+    c = bake(w, h, (p) =>
+      kind === "closed" ? drawClosed(p) : kind === "open" ? drawOpen(p, f) : drawKey(p),
+    );
     cache.set(k, c);
   }
   return c;

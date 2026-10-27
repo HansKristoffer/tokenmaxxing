@@ -1,4 +1,11 @@
-import { type CaseDef, caseById, caseOfItem, nextDry, rollCase, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
+import {
+  type CaseDef,
+  caseById,
+  caseOfItem,
+  nextDry,
+  rollCase,
+  VENDOR_COINS,
+} from "@tokenmaxxing/core/cases.ts";
 import { rarityOf } from "@tokenmaxxing/core/rarity.ts";
 import { type Item, itemById } from "@tokenmaxxing/core/shop.ts";
 import { UserError } from "rivetkit";
@@ -40,9 +47,16 @@ export async function openCase(
       userId,
       def.id,
     );
-    const dry = (await one<{ dry: number }>(tx, "SELECT dry FROM case_dry WHERE user_id = ? AND case_id = ?", userId, def.id))!.dry;
+    const dry = (await one<{ dry: number }>(
+      tx,
+      "SELECT dry FROM case_dry WHERE user_id = ? AND case_id = ?",
+      userId,
+      def.id,
+    ))!.dry;
     const owned = new Set(
-      (await all<{ item: string }>(tx, "SELECT DISTINCT item FROM items WHERE owner_id = ?", userId)).map((r) => r.item),
+      (await all<{ item: string }>(tx, "SELECT DISTINCT item FROM items WHERE owner_id = ?", userId)).map(
+        (r) => r.item,
+      ),
     );
     const { item, tier } = rollCase(def, rand, owned, dry);
     await ledgerAdd(tx, userId, -def.keyPrice, "case", `case:${def.id}`, now);
@@ -107,7 +121,12 @@ export async function sellDuplicates(
   const sold = await sql.transaction(async (tx) => {
     let n = 0;
     for (const item of def.items) {
-      const have = (await one<{ n: number }>(tx, "SELECT COUNT(*) AS n FROM items WHERE owner_id = ? AND item = ?", userId, item.id))!.n;
+      const have = (await one<{ n: number }>(
+        tx,
+        "SELECT COUNT(*) AS n FROM items WHERE owner_id = ? AND item = ?",
+        userId,
+        item.id,
+      ))!.n;
       if (have < 2) continue;
       // Newest copies go; the first stays.
       await tx.execute(
@@ -116,7 +135,14 @@ export async function sellDuplicates(
         item.id,
         have - 1,
       );
-      await ledgerAdd(tx, userId, (have - 1) * VENDOR_COINS[rarityOf(item)], "vendor", `vendor:${item.id}`, now);
+      await ledgerAdd(
+        tx,
+        userId,
+        (have - 1) * VENDOR_COINS[rarityOf(item)],
+        "vendor",
+        `vendor:${item.id}`,
+        now,
+      );
       n += have - 1;
     }
     return n;

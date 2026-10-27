@@ -185,9 +185,12 @@ export class Pet3D {
                             ? kitsune()
                             : species === "tengu"
                               ? tengu()
-                  : species === "cat" || species === "dog" || species === "panda" || species === "forkedcat"
-                    ? quad(species, variant, outfit)
-                    : orb();
+                              : species === "cat" ||
+                                  species === "dog" ||
+                                  species === "panda" ||
+                                  species === "forkedcat"
+                                ? quad(species, variant, outfit)
+                                : orb();
     this.root.userData.actor = true;
     const { body: b, fore: f } = built;
     this.rig = built.rig;

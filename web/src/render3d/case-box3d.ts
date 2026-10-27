@@ -112,7 +112,12 @@ export function buildCaseBox(open: boolean): Model {
     hinge.rotation.x = -1.95;
     // The mouth full of light, a beam rising out of it and motes drifting up.
     m.box([W - 0.08, 0.02, D - 0.08], lit, [0, BODY_H - 0.005, 0], 0.004);
-    const beamMat = new THREE.MeshBasicMaterial({ color: "#ffe29a", transparent: true, opacity: 0.28, depthWrite: false });
+    const beamMat = new THREE.MeshBasicMaterial({
+      color: "#ffe29a",
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false,
+    });
     const beam = m.cyl(0.3, 0.7, beamMat, [0, BODY_H + 0.01, 0], 0.18, 4);
     beam.rotation.y = Math.PI / 4;
     beam.scale.set(1.35, 1, 0.95);
@@ -125,7 +130,11 @@ export function buildCaseBox(open: boolean): Model {
       motes.forEach((s, i) => {
         const u = (t * 0.28 + i / motes.length) % 1;
         const a = i * 2.4 + t * 0.6;
-        s.position.set(Math.sin(a) * 0.28 * (0.3 + u), BODY_H + 0.02 + u * 0.75, Math.cos(a) * 0.17 * (0.3 + u));
+        s.position.set(
+          Math.sin(a) * 0.28 * (0.3 + u),
+          BODY_H + 0.02 + u * 0.75,
+          Math.cos(a) * 0.17 * (0.3 + u),
+        );
         s.scale.setScalar(Math.max(0.01, 1 - u) * 1.2);
       });
     });
@@ -191,7 +200,10 @@ export function buildCaseKey(): Model {
 }
 
 /** A picture of the case (closed or open) or the key, through the shared icon renderer (3D tiers only). */
-export function caseBoxIcon(what: CaseIcon, size: IconSize): { promise: Promise<HTMLCanvasElement>; cancel: () => void } {
+export function caseBoxIcon(
+  what: CaseIcon,
+  size: IconSize,
+): { promise: Promise<HTMLCanvasElement>; cancel: () => void } {
   let cancel = () => {};
   let dead = false;
   const promise = import("./icons.ts").then((m) => {

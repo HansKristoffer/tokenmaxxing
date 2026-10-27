@@ -58,7 +58,17 @@ export function iconKey(s: IconSpec): string {
       return `pet:${s.pet}.${s.variant ?? 0}.${s.wear ?? 0}.${(s.name ?? "").trim().toLowerCase()}`;
     case "avatar": {
       const l = s.look;
-      const w = [l.style, l.skin, l.hair, l.outfit, l.glasses ?? 0, l.hat ?? 0, l.held ?? 0, l.back ?? 0, l.aura ?? 0];
+      const w = [
+        l.style,
+        l.skin,
+        l.hair,
+        l.outfit,
+        l.glasses ?? 0,
+        l.hat ?? 0,
+        l.held ?? 0,
+        l.back ?? 0,
+        l.aura ?? 0,
+      ];
       return `avatar:${w.join(".")}.${l.merch ?? 0}.${l.merch ? (l.merchWorn ?? 0) : 0}:${s.focus ?? "body"}:${s.facing ?? "front"}`;
     }
     case "merch": {
@@ -88,7 +98,10 @@ interface Built {
 
 const pieceAsset = (ch: string): Asset | undefined => {
   if (ch === "=" || ch === "e") return flat(ch);
-  const art = posterOf(ch)?.art ?? (homePieceOf(ch) ?? casePieceOf(ch))?.art ?? COMPANY_FURNITURE.find((p) => p.ch === ch)?.art;
+  const art =
+    posterOf(ch)?.art ??
+    (homePieceOf(ch) ?? casePieceOf(ch))?.art ??
+    COMPANY_FURNITURE.find((p) => p.ch === ch)?.art;
   return assetOfChar(ch) ?? (art ? (assetById.get(art) ?? extraAssetById.get(art)) : undefined);
 };
 

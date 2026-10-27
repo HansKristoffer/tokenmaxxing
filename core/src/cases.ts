@@ -27,7 +27,13 @@ export interface CaseDef {
 }
 
 /** What the vendor pays for one case item, by rarity. */
-export const VENDOR_COINS: Record<Rarity, number> = { common: 10, uncommon: 20, rare: 30, epic: 40, legendary: 50 };
+export const VENDOR_COINS: Record<Rarity, number> = {
+  common: 10,
+  uncommon: 20,
+  rare: 30,
+  epic: 40,
+  legendary: 50,
+};
 
 const poolItems = (ids: readonly string[]): Item[] =>
   ids.map((id) => itemById(id)).filter((i): i is Item => i !== undefined);
