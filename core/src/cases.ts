@@ -5,6 +5,8 @@
  */
 import { CASE_ITEMS } from "./case.ts";
 import { CASE_PIECES } from "./case-furniture.ts";
+import { RAGNAROK_ITEMS } from "./case-ragnarok.ts";
+import { RAGNAROK_PIECES } from "./case-ragnarok-furniture.ts";
 import { RARITIES, type Rarity } from "./rarity.ts";
 import { type Item, itemById } from "./shop.ts";
 
@@ -48,6 +50,16 @@ export const CASES: readonly CaseDef[] = [
     rareWithin: 10,
     dupeRerolls: 1,
     items: poolItems([...CASE_ITEMS.map((i) => i.id), ...CASE_PIECES.map((p) => `furn.${p.ch}`)]),
+  },
+  {
+    id: "ragnarok-eve",
+    name: "Ragnarok Eve case",
+    blurb: "Furs, horns, ravens and runes from the last feast before the end of the world.",
+    keyPrice: 75,
+    odds: { common: 0.475, uncommon: 0.25, rare: 0.15, epic: 0.1, legendary: 0.025 },
+    rareWithin: 10,
+    dupeRerolls: 1,
+    items: poolItems([...RAGNAROK_ITEMS.map((i) => i.id), ...RAGNAROK_PIECES.map((p) => `furn.${p.ch}`)]),
   },
 ];
 

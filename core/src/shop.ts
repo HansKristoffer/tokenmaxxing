@@ -5,8 +5,8 @@
  * (`office.ts`) and dances (`dances.ts`). Everything bought or earned is a row in the bag.
  */
 import { isRecord } from "hanzio";
-import { CASE_ITEMS } from "./case.ts";
-import { CASE_PIECES } from "./case-furniture.ts";
+import { ALL_CASE_ITEMS } from "./case.ts";
+import { ALL_CASE_PIECES } from "./case-furniture.ts";
 import { COSTUMES } from "./costumes.ts";
 import { DANCE_ITEMS } from "./dances.ts";
 import { EDITIONS } from "./editions.ts";
@@ -139,9 +139,9 @@ export const ITEMS: readonly Item[] = [
     loot: { boss: l.boss, rarity: l.rarity },
   })),
   // The case's own: given by an opening, never sold, tradeable after a short lock (`case.ts`).
-  ...CASE_ITEMS,
+  ...ALL_CASE_ITEMS,
   // The case's furniture (`case-furniture.ts`): given by an opening, tradeable, and put down only in your own office.
-  ...CASE_PIECES.map((f, index): Item => ({
+  ...ALL_CASE_PIECES.map((f, index): Item => ({
     id: `furn.${f.ch}`,
     slot: "furniture",
     index,

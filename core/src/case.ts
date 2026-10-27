@@ -4,6 +4,7 @@
  * the shop and the loot can grow without the two ever meeting. The art is keyed by the same names.
  * Tradeable the moment they're opened: there is no trade lock.
  */
+import { RAGNAROK_ITEMS } from "./case-ragnarok.ts";
 import type { Rarity } from "./rarity.ts";
 import type { Item } from "./shop.ts";
 
@@ -72,6 +73,9 @@ export const CASE_ITEMS: readonly CaseItem[] = [
   entry("aura", 3, "Koi Current", "legendary", "A ribbon of tiny koi circles you, tails flicking."),
 ];
 
-/** The case item a look index stands for in a slot, if it is one. */
+/** Every case's wearables: Night Market's, then Ragnarok Eve's (a later case adds its own here). */
+export const ALL_CASE_ITEMS: readonly CaseItem[] = [...CASE_ITEMS, ...RAGNAROK_ITEMS];
+
+/** The case item a look index stands for in a slot, if it is one (of any case). */
 export const caseAt = (slot: string, index: number): CaseItem | undefined =>
-  index >= CASE_BASE ? CASE_ITEMS.find((c) => c.slot === slot && c.index === index) : undefined;
+  index >= CASE_BASE ? ALL_CASE_ITEMS.find((c) => c.slot === slot && c.index === index) : undefined;

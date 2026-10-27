@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
+import { ALL_CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import { levelUpCoins } from "@tokenmaxxing/core/economy.ts";
 import { petLooks } from "@tokenmaxxing/core/pets.ts";
 import type { Notice } from "@tokenmaxxing/core/world.ts";
@@ -135,9 +135,9 @@ describe("coins and the shop", () => {
 });
 
 describe("case furniture", () => {
-  test("a Night Market piece is never for sale, even to someone with the coins", async () => {
+  test("a case piece (Night Market's or Ragnarok Eve's) is never for sale, even to someone with the coins", async () => {
     const a = await rich("nightfurn", 5000);
-    for (const p of CASE_PIECES)
+    for (const p of ALL_CASE_PIECES)
       await expect(a.town.buy(`furn.${p.ch}`)).rejects.toMatchObject({ code: "not_for_sale" });
     expect(await a.town.bag()).toEqual([]);
     expect((await a.town.wallet()).balance).toBe(5000);

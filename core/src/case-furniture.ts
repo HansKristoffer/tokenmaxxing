@@ -6,6 +6,7 @@
  * item id is `furn.<ch>`, and `art` is its sprite in `web/src/art/furniture-home.ts` and its model in
  * `web/src/render3d/furniture/furniture3d.ts`.
  */
+import { RAGNAROK_PIECES } from "./case-ragnarok-furniture.ts";
 import type { HomePiece } from "./home.ts";
 import type { Rarity } from "./rarity.ts";
 
@@ -35,7 +36,10 @@ export const CASE_PIECES: readonly CasePiece[] = [
   entry("Ц", "night-torii", "Torii gate", "rare", "A vermilion gate lit by lanterns: the way into the night market.", 3),
 ];
 
-const BY_CH = new Map(CASE_PIECES.map((p) => [p.ch, p]));
+/** Every case's furniture: Night Market's, then Ragnarok Eve's (a later case adds its own here). */
+export const ALL_CASE_PIECES: readonly CasePiece[] = [...CASE_PIECES, ...RAGNAROK_PIECES];
+
+const BY_CH = new Map(ALL_CASE_PIECES.map((p) => [p.ch, p]));
 
 export const isCasePiece = (ch: unknown): boolean => BY_CH.has(ch as string);
 export const casePieceOf = (ch: unknown): CasePiece | undefined => BY_CH.get(ch as string);
