@@ -213,6 +213,7 @@ export async function buy(
   price: unknown,
   now: number,
   kept?: Kept,
+  minAge = MARKET_BUYER_AGE,
 ): Promise<{ wallet: Wallet; sale: Sale; sellerId: number }> {
   await expire(sql, now);
   const sale = await sql.transaction(async (tx) => {
@@ -233,7 +234,7 @@ export async function buy(
       buyerId,
     );
     if (!me) throw new UserError("Unknown player.", { code: "not_found" });
-    if (now - me.createdAt < MARKET_BUYER_AGE)
+    if (now - me.createdAt < minAge)
       throw new UserError("New accounts can buy in the hall from their third day.", { code: "too_new" });
     if ((await spent(tx, buyerId, now - 24 * 3_600_000)) + l.price > MARKET_DAY_BUY)
       throw new UserError("That's a lot for one day in the hall. Come back tomorrow.", { code: "buy_cap" });

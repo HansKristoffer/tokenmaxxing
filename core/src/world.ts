@@ -365,7 +365,7 @@ export const RAIDERS_SHOWN = 40;
 /** A line from `town` for one player (`notice`), and the panel a click on it opens. */
 export interface Notice {
   text: string;
-  open?: "company" | "trades" | "bag" | "quests" | "hallOfFame" | "collection" | "tournament";
+  open?: "company" | "trades" | "bag" | "quests" | "hallOfFame" | "collection" | "tournament" | "market";
 }
 
 /** Where someone is: `[id, x, y, facing, state]`. */
