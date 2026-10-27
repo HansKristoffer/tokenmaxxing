@@ -10,7 +10,7 @@ AI earns **coins**, and so does finishing a day in the top 3; spend them on clot
 pets that follow you around (hold a pet and pick any of its colours and breeds with the eye in your bag; they curl up asleep in the pet bed of your office while you're in it). Or play for them: challenge someone to a game in the town square, from
 rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
 the most real tokens in an hour.
-The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches.
+The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches. When a big AI launch event is live (OpenAI DevDay, Google I/O, an Anthropic event), the Tavern throws a **keynote watch party**: a projector screen comes down by the stage with the livestream's link, the town's characters gather to cheer, and dropping in earns a badge. A poster and the barkeep announce it a week ahead; the events are scheduled on the admin page.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.

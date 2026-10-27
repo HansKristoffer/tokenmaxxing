@@ -3,6 +3,7 @@ import { migrateAwards } from "./awards.ts";
 import { migrateCard } from "./card.ts";
 import { migrateMerch } from "./companies.ts";
 import { migrateDesks } from "./desks.ts";
+import { migrateKeynotes } from "./keynotes.ts";
 import { migrateMerchant } from "./merchant.ts";
 import { migrateOffices } from "./offices.ts";
 import { migratePoker } from "./poker.ts";
@@ -135,6 +136,7 @@ export async function migrate(sql: Sql): Promise<void> {
   await migrateTournament(sql);
   await migratePoker(sql);
   await migrateRequests(sql);
+  await migrateKeynotes(sql);
   // The raid's settings, once. `start`: the first raid's Monday, the one after the town first had the
   // raid (`raidStart`). Kept rather than worked out, so a restart or deploy doesn't move the launch.
   await sql.execute("CREATE TABLE IF NOT EXISTS raid_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");

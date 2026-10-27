@@ -29,6 +29,7 @@ import {
   votesOf,
   wire,
 } from "@tokenmaxxing/core/jukebox.ts";
+import { CROWD, type Keynote, keynoteTalk, liveKeynote, sameKeynotes } from "@tokenmaxxing/core/keynote.ts";
 import { activeLaunches, isStand, type Launch, sameLaunches } from "@tokenmaxxing/core/launch.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
@@ -108,6 +109,7 @@ import {
   mentionsIn,
   type Notice,
   noFurniture,
+  outsideDoor,
   ownerOfOffice,
   type Place,
   type PlayerInfo,
@@ -212,6 +214,15 @@ const COFFEE_LINES = [
 const CHAT_PER_MIN = 20;
 /** Poker actions a player may take a minute: a hand is a few dozen at most. */
 const POKER_PER_MIN = 120;
+const keynoteBadge = (title: string) =>
+  `📽️ Watch party! You were at the Tavern for ${title}. It's on your card now.`;
+/** The keynote watch party: the schedule is asked of `town` this often (and pushed by it on a change). */
+const KEYNOTES_EVERY_MS = 5 * 60_000;
+/** Whoever is in the Tavern while a keynote is on gets its badge: looked at this often. */
+const WATCH_EVERY = 50; // ticks
+/** At the watch party, a bot in the crowd says something this often, and hops for joy about once in this many steps. */
+const CHEER_EVERY_MS: [number, number] = [10_000, 25_000];
+const HOP_ONE_IN = 25;
 const PICNIC_BADGE =
   "🧺 I was there. The outage picnic is on your card now, and 🌱 Touched grass is in your bag for your office.";
 /** At most this many drops on one room's floor (an office holds `OFFICE_PIECES`). */
@@ -328,6 +339,11 @@ export const world = actor({
     /** New models from OpenRouter's list (`launch.ts`): one read for everyone, kept when a read fails. */
     launches: [] as Launch[],
     launchesAt: 0,
+    /** The keynote watch parties (`keynote.ts`): `town`'s schedule, still to come or on, soonest first. */
+    keynotes: [] as Keynote[],
+    keynotesAt: 0,
+    /** Badges for a keynote asked of `town` already (`keynoteId:userId`), so being there costs one call. */
+    watched: new Set<string>(),
     cop: { burns: new Map(), ticketed: new Map(), chase: null, freeAt: 0 } as CopVars,
     /** Visits already sent to `town` today (`countVisit`), so a door in and out costs one write. */
     visited: { day: "", keys: new Set<string>() },
@@ -423,6 +439,7 @@ export const world = actor({
       if (n % BOT_STEP_EVERY === 0 && c.vars.online.size > 0) {
         for (const p of walkBots(c.state, c.vars, now)) sendInfo(c, p, info(p, true));
         talkBots(c, now);
+        if (TAVERN) cheerBots(c, now);
       }
       if (now >= c.vars.outageAt) {
         c.vars.outageAt = now + OUTAGE_EVERY_MS;
@@ -432,6 +449,11 @@ export const world = actor({
         c.vars.launchesAt = now + LAUNCHES_EVERY_MS;
         void refreshLaunches(c, now);
       }
+      if (now >= c.vars.keynotesAt) {
+        c.vars.keynotesAt = now + KEYNOTES_EVERY_MS;
+        void refreshKeynotes(c);
+      }
+      if (TAVERN && n % WATCH_EVERY === 0) watchBeat(c, now);
       copBeat(c, now);
       if (TAVERN) tavernBeat(c, n, now);
       jukeboxBeat(c, now);
@@ -467,6 +489,7 @@ export const world = actor({
       sendInfo(c, p, info(p, true), from);
       c.conn.send("outage", c.vars.outage);
       c.conn.send("launches", c.vars.launches);
+      c.conn.send("keynotes", c.vars.keynotes);
       if (p.room === "inn") {
         sendJukebox(c, Date.now(), userId);
         sendPoker(c, Date.now(), userId);
@@ -1142,6 +1165,12 @@ export const world = actor({
         }));
     },
 
+    /** From `town`: the keynote schedule, changed on the admin page. */
+    setKeynotes: (c, list: Keynote[]): void => {
+      requireInternal(c.conn.state);
+      keepKeynotes(c, list);
+    },
+
     /** From `town`: a line for one player's open tabs (a company application, a trade, an answer). */
     notify: (c, userId: number, notice: Notice): void => {
       requireInternal(c.conn.state);
@@ -1315,6 +1344,8 @@ type Vars = {
   housesStale: boolean;
   outage: Outage | null;
   launches: Launch[];
+  keynotes: Keynote[];
+  watched: Set<string>;
   weather: Weather;
   raiders: string;
   raidersAt: number;
@@ -1656,12 +1687,16 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
   const map = mapOf("town");
   const inTown = [...v.online.keys()].filter((id) => s.players[id]?.room === "town");
   const drank: WorldPlayer[] = [];
+  const live = TAVERN ? liveKeynote(v.keynotes, now) : null;
   for (const b of BOTS) {
     const p = s.players[b.id];
     const run = runOf(v, b.id, b.every, now);
+    if (p && GOERS.includes(b) && partyStep(s, v, p, run, live !== null)) continue;
     if (b.still || p?.room !== "town" || now < run.restUntil) continue;
     // An outage picnic: off to its seat on a blanket, and it sits there until it's over (`refreshOutage`).
-    const seat = v.outage ? PICNIC_SEATS[BOTS.indexOf(b) % PICNIC_SEATS.length]! : null;
+    // A keynote on the Tavern's screen comes first for those going to it: they're on their way to the door.
+    const seat =
+      v.outage && !(live && GOERS.includes(b)) ? PICNIC_SEATS[BOTS.indexOf(b) % PICNIC_SEATS.length]! : null;
     if (seat && p.x === seat[0] && p.y === seat[1]) {
       if (p.state !== "sit") {
         Object.assign(p, { state: "sit", facing: "down" });
@@ -1723,6 +1758,104 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
   return drank;
 }
 
+// MARK: The keynote watch party (core/src/keynote.ts)
+
+/** The town's characters who go to a watch party: the ones that wander (not the barkeep, the cop or shopkeepers). */
+const GOERS = BOTS.filter((b) => !b.still && !b.home && b.id !== COP.id);
+
+/**
+ * A keynote on the Tavern's screen: a bot going to it walks to the Inn's door and in, then stands in the
+ * crowd facing the screen until it's over, when it comes back out the door. True when that's all it does
+ * this step; false leaves it to the walk (`walkBots`), with its path to the door set.
+ */
+function partyStep(s: WorldState, v: Vars, p: WorldPlayer, run: BotRun, live: boolean): boolean {
+  const door = outsideDoor("inn");
+  if (p.room === "inn") {
+    if (live) return true;
+    Object.assign(p, door, { state: "idle" });
+    run.path = [];
+    v.dirty.add(p.id);
+    return true;
+  }
+  if (!live || p.room !== "town") return false;
+  Object.assign(run, { following: null, coffee: null });
+  if (p.state === "sit") {
+    p.state = "idle";
+    v.dirty.add(p.id);
+  }
+  const walk =
+    run.path.length || (p.x === door.x && p.y === door.y)
+      ? run.path
+      : route(mapOf("town"), [p.x, p.y], [door.x, door.y]);
+  if (walk?.length) {
+    run.path = walk;
+    return false;
+  }
+  // At the door (or with no way to it): in, to the first free spot in the crowd.
+  const taken = new Set(
+    Object.values(s.players)
+      .filter((o) => o.room === "inn")
+      .map((o) => `${o.x},${o.y}`),
+  );
+  const [x, y] = CROWD.find(([cx, cy]) => !taken.has(`${cx},${cy}`)) ?? CROWD[0]!;
+  Object.assign(p, { room: "inn", x, y, facing: "left", state: "idle" });
+  run.path = [];
+  v.dirty.add(p.id);
+  return true;
+}
+
+/** The crowd at a watch party hops for joy now and then, if anyone is in the Tavern to see it. */
+function cheerBots(c: Sender & { vars: Vars }, now: number): void {
+  if (!liveKeynote(c.vars.keynotes, now) || !someoneIn(c, "inn")) return;
+  for (const b of GOERS)
+    if (c.state.players[b.id]?.room === "inn" && Math.random() * HOP_ONE_IN < 1)
+      sendToRoom(c, "inn", "jump", b.id);
+}
+
+/** Asks `town` for the keynote schedule (a failed call keeps what we had: `town` pushes changes anyway). */
+async function refreshKeynotes(c: {
+  vars: Vars;
+  client: () => Parameters<typeof main>[0];
+  broadcast(name: string, ...args: unknown[]): void;
+}): Promise<void> {
+  try {
+    keepKeynotes(c, await main(c.client()).town.keynotes());
+  } catch (err) {
+    console.warn(`[keynotes] ${String(err)}`);
+  }
+}
+
+/** Keeps the schedule, and tells everyone when it changed: the screen goes up or down on its own clock. */
+function keepKeynotes(
+  c: { vars: Vars; broadcast(name: string, ...args: unknown[]): void },
+  list: Keynote[],
+): void {
+  if (sameKeynotes(list, c.vars.keynotes)) return;
+  c.vars.keynotes = list;
+  c.broadcast("keynotes", list);
+}
+
+/** While a keynote is on, whoever is awake in the Tavern gets its badge (once: `town` keeps the row). */
+function watchBeat(c: Sender & { vars: Vars; client: () => Parameters<typeof main>[0] }, now: number): void {
+  const live = liveKeynote(c.vars.keynotes, now);
+  if (!live) return void c.vars.watched.clear();
+  for (const id of c.vars.online.keys()) {
+    const p = c.state.players[id];
+    const key = `${live.id}:${id}`;
+    if (p?.room !== "inn" || p.dozing || c.vars.watched.has(key)) continue;
+    c.vars.watched.add(key);
+    main(c.client())
+      .town.keynoteWatched(id, live.id)
+      .then((fresh) => {
+        if (fresh) sendToUser(c, id, "notice", { text: keynoteBadge(live.title) } satisfies Notice);
+      })
+      .catch((err) => {
+        c.vars.watched.delete(key);
+        console.warn(`[keynotes] ${id}: ${String(err)}`);
+      });
+  }
+}
+
 /** The barkeep says of a fresh award, if anyone is in the Tavern to hear it and he hasn't just spoken. */
 function barkeepRemark(c: Sender & { vars: Vars }, text: string): void {
   const now = Date.now();
@@ -1739,10 +1872,12 @@ function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> } }, no
     const p = c.state.players[b.id];
     const run = runOf(c.vars, b.id, b.every, now);
     if (!p || now < run.sayAt) continue;
-    run.sayAt = now + between(b.every);
+    // In the Tavern, the watch party: the next keynote, or the one on (the crowd cheers more often).
+    const keynote = TAVERN && p.room === "inn" ? keynoteTalk(c.vars.keynotes, now) : undefined;
+    run.sayAt = now + between(keynote?.live && GOERS.includes(b) ? CHEER_EVERY_MS : b.every);
     const leader = run.following === null ? null : c.state.players[run.following];
     const crowd = [...c.vars.online.keys()].filter((id) => c.state.players[id]?.room === p.room).length;
-    const text = lineFor(b, now, { leader, cups: run.cups, crowd, weather: c.vars.weather.kind });
+    const text = lineFor(b, now, { leader, cups: run.cups, crowd, weather: c.vars.weather.kind, keynote });
     run.cups = 0;
     if (!heard.has(p.room)) continue;
     run.restUntil = Math.max(run.restUntil, now + BOT_TALK_PAUSE_MS);

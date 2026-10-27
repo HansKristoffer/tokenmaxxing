@@ -7,6 +7,7 @@ import { lerp } from "hanzio";
 import { BARKEEP } from "./barkeep.ts";
 import { COP } from "./cop.ts";
 import { BOT_LEVEL, compact, fill } from "./format.ts";
+import { CHEERS } from "./keynote.ts";
 import type { GameMap } from "./maps.ts";
 import { worldClock } from "./range.ts";
 import { SHOPKEEPERS } from "./shopkeepers.ts";
@@ -43,6 +44,11 @@ export interface BotDef {
   crowdLines?: { empty?: string[]; busy?: string[] };
   /** About the day's special: `{special}` is its line on the chalkboard. */
   specialLines?: string[];
+  /**
+   * About the keynote watch party (`keynote.ts`): `soon` before it (`{title}`, `{when}`), `live` while it's on
+   * the screen. Without `live`, a bot watching it shouts `CHEERS`.
+   */
+  keynoteLines?: { soon?: string[]; live?: string[] };
 }
 
 /** From this many people in the room, it's busy. */
@@ -292,6 +298,8 @@ interface Context {
   /** Real people in the bot's room, and the weather outside: for the barkeep's small talk. */
   crowd?: number;
   weather?: WeatherKind;
+  /** A keynote on the Tavern's screen (`live`), or the next one coming: for the watch party. */
+  keynote?: { title: string; when: string; live: boolean };
 }
 
 /**
@@ -305,8 +313,12 @@ export function lineFor(bot: BotDef, at: number, ctx: Context = {}, rand = Math.
       tokens: compact(ctx.leader?.todayTokens ?? 0),
       cups: ctx.cups ?? 0,
       special: specialOn(new Date(at)),
+      title: ctx.keynote?.title ?? "",
+      when: ctx.keynote?.when ?? "",
     });
   if (ctx.cups && bot.coffeeLines?.length) return say(pick(bot.coffeeLines, rand));
+  // Watching a keynote, most of what anyone says is at the screen.
+  if (ctx.keynote?.live && rand() < 0.7) return say(pick(bot.keynoteLines?.live ?? CHEERS, rand));
   // "0 tokens i dag? Gå hjem." doesn't land: skip token lines for someone with none.
   const toLeader = (bot.followLines ?? []).filter((l) => ctx.leader?.todayTokens || !l.includes("{tokens}"));
   if (ctx.leader && toLeader.length && rand() < 0.6) return say(pick(toLeader, rand));
@@ -316,6 +328,7 @@ export function lineFor(bot: BotDef, at: number, ctx: Context = {}, rand = Math.
     ...((ctx.crowd ?? 0) >= BUSY_CROWD ? (bot.crowdLines?.busy ?? []) : []),
     ...(ctx.weather ? (bot.weatherLines?.[ctx.weather] ?? []) : []),
     ...(bot.specialLines ?? []),
+    ...(ctx.keynote && !ctx.keynote.live ? (bot.keynoteLines?.soon ?? []) : []),
   ];
   if (room.length && rand() < 0.35) return say(pick(room, rand));
   const { day, hour } = worldClock(at);

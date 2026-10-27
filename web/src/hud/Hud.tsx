@@ -26,6 +26,7 @@ import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
 import { Hotbar } from "./Hotbar.tsx";
 import { Jukebox } from "./Jukebox.tsx";
+import { KeynoteBanner, KeynotePanel } from "./Keynote.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LootToast } from "./Loot.tsx";
 import { MatchPanel } from "./Match.tsx";
@@ -90,12 +91,14 @@ export function Hud() {
           {tray === "map" && <Minimap />}
           <Banner />
           <PicnicBanner />
+          <KeynoteBanner />
         </>
       ) : (
         <>
           <Corner />
           <Banner />
           <PicnicBanner />
+          <KeynoteBanner />
           {!beside && <Chat />}
           <Minimap />
         </>
@@ -395,6 +398,7 @@ function Panel() {
     graphics: () => <GraphicsPanel />,
     paper: () => <PaperPanel />,
     pamphlet: () => <PamphletPanel />,
+    keynote: () => <KeynotePanel />,
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
     raid: () => <RaidPanel />,
     openOffices: () => <OpenOfficesPanel />,

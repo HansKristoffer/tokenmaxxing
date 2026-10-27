@@ -41,6 +41,7 @@ import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
+import { drawKeynote, lightKeynote } from "./keynote.ts";
 import {
   avatarLabels,
   chipHits,
@@ -330,6 +331,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawPicnic(f);
   drawChalkboards(f);
   drawTavern(f);
+  drawKeynote(f);
   drawTownAnimals(f);
   drawBasement(f);
   drawMerchant(f);
@@ -414,6 +416,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawGhost(g, map, now, fancyCanvas);
   // The Tavern's fire and candles (and the dark, after sunset): `inn` only.
   lightTavern(f);
+  lightKeynote(f);
   lightBasement(f);
 
   // The sky: the sun's tint over the town, lights shining through it, then the weather. Labels
