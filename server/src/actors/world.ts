@@ -956,22 +956,35 @@ export const world = actor({
       }
       if (spot < 0) return null;
       if (r.seats.length >= SPOTS) return { notice: "The table is full. You can watch." };
+      if (rouletteTaken(c, p, spot)) return { notice: "Someone's already there." };
       const [x, y] = rouletteSpots()[spot]!;
-      const taken =
-        r.seats.some((s) => s.spot === spot) ||
-        Object.values(c.state.players).some(
-          (o) => o.id !== p.id && o.room === p.room && o.x === x && o.y === y,
-        );
-      if (taken) return { notice: "Someone's already there." };
       if (p.state === "sit" && (p.x !== x || p.y !== y)) return null;
-      Object.assign(p, { x, y, facing: "up" });
-      if (stopDance(p)) sendInfo(c, p, info(p, true));
-      c.vars.dirty.add(p.id);
-      r.seats.push({ spot, userId: p.id, name: p.name });
-      r.seats.sort((a, b) => a.spot - b.spot);
-      r.players.set(p.id, { userId: p.id, bets: [], ready: false });
-      sendRoulette(c);
-      return correction(p);
+      return rouletteSeat(c, p, spot);
+    },
+
+    /**
+     * Roulette from anywhere: the table is always the net cafe's, shared with whoever else is playing, so starting
+     * one takes you down there and onto the first free spot. If it is full you are in the net cafe all the same,
+     * with the reason as a notice, and can watch.
+     */
+    rouletteJoin: (c): StepResult => {
+      const p = free(c);
+      if (!p) return null;
+      touch(c, p, Date.now());
+      const r = c.vars.roulette;
+      if (r.seats.some((s) => s.userId === p.id)) return { notice: "You're at the table already." };
+      const spots = rouletteSpots();
+      const spot = spots.findIndex((_, i) => !rouletteTaken(c, p, i));
+      if (p.room !== "basement") {
+        Object.assign(p, roomEntry("basement"), { state: "idle" });
+        c.vars.dirty.add(p.id);
+        countVisit(c, p);
+      }
+      if (spot < 0 || r.seats.length >= SPOTS) {
+        c.conn.send("notice", { text: "The roulette table is full. You can watch." } satisfies Notice);
+        return correction(p);
+      }
+      return rouletteSeat(c, p, spot);
     },
 
     /** Gives up your spot at the roulette table (stakes still open this round go back to your wallet). */
@@ -3238,6 +3251,31 @@ function pokerWhy(err: unknown): string {
  * `p` sits at chair `at`: the seat is held while the town takes the buy-in, then dealt in from the
  * next hand. If the town says no, or they left meanwhile, nothing moves.
  */
+/** Whether roulette spot `spot` has a seat on it, or someone (other than `p`) standing on it. */
+function rouletteTaken(c: Sender & { vars: Vars }, p: WorldPlayer, spot: number): boolean {
+  const [x, y] = rouletteSpots()[spot]!;
+  return (
+    c.vars.roulette.seats.some((s) => s.spot === spot) ||
+    Object.values(c.state.players).some(
+      (o) => o.id !== p.id && o.room === "basement" && o.x === x && o.y === y,
+    )
+  );
+}
+
+/** Puts `p` on roulette spot `spot`, facing the table, and tells the room. */
+function rouletteSeat(c: Sender & { vars: Vars }, p: WorldPlayer, spot: number): StepResult {
+  const [x, y] = rouletteSpots()[spot]!;
+  const r = c.vars.roulette;
+  Object.assign(p, { x, y, facing: "up" });
+  if (stopDance(p)) sendInfo(c, p, info(p, true));
+  c.vars.dirty.add(p.id);
+  r.seats.push({ spot, userId: p.id, name: p.name });
+  r.seats.sort((a, b) => a.spot - b.spot);
+  r.players.set(p.id, { userId: p.id, bets: [], ready: false });
+  sendRoulette(c);
+  return correction(p);
+}
+
 async function pokerSitDown(c: PokerCtx, p: WorldPlayer, at: number): Promise<StepResult> {
   const t = c.vars.poker;
   const chair = pokerChairs()[at]!;

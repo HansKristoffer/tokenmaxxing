@@ -349,6 +349,17 @@ export async function sitRoulette(): Promise<boolean> {
   return hud.get().roulette?.seats.some((s) => s.userId === world.selfId) ?? false;
 }
 
+/**
+ * Roulette from anywhere (`rouletteJoin`): the table is always the net cafe's and shared, so this takes me down
+ * there and onto a free spot, and opens the betting view. A full table leaves me in the net cafe, watching.
+ */
+export async function joinRoulette(): Promise<void> {
+  hud.set({ panel: null });
+  const r = await conn.rouletteJoin();
+  if (r) send(Promise.resolve(r)); // where I ended up, or the reason I stayed put
+  if (r && !("notice" in r)) hud.set({ panel: { kind: "roulette" } });
+}
+
 /** Called every frame: start the next step if a key is held or a clicked path remains. */
 export function updateSelf(now: number): void {
   const me = self();

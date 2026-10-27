@@ -32,7 +32,7 @@ export type Panel =
   | { kind: "shops" }
   /** Natmarked's counter and shelves: the cases on sale (`hud/CaseShop.tsx`). */
   | { kind: "caseShop" }
-  /** The solo roulette table (`hud/Roulette.tsx`). */
+  /** The net cafe's roulette table (`hud/Roulette.tsx`); `watch` is the read-only view from the sidelines. */
   | { kind: "roulette"; watch?: boolean }
   /** A read-only view of the net cafe's poker table (`hud/PokerWatch.tsx`). */
   | { kind: "pokerWatch" }

@@ -73,6 +73,35 @@ describe("the net cafe's roulette table", () => {
     for (const t of tabs) await t.conn.dispose();
   }, 60_000);
 
+  test("Join takes you to the table from anywhere: into the net cafe and onto a free spot, or watching when it is full", async () => {
+    const users = await Promise.all([1, 2, 3, 4, 5].map((i) => rich(`rj${i}`, 100)));
+    const tabs: Tab[] = [];
+    // Nobody went to the net cafe: they are all in the town to begin with.
+    for (const u of users) tabs.push(await connect(u.token));
+    const heard = listen(tabs[0]!);
+    for (let i = 0; i < SPOTS; i++) {
+      expect(await tabs[i]!.conn.rouletteJoin()).toMatchObject({
+        room: "basement",
+        state: "idle",
+        x: spots[i]![0],
+        y: spots[i]![1],
+      });
+    }
+    await eventually(() => expect(heard.table.at(-1)?.seats.map((s) => s.spot)).toEqual([0, 1, 2, 3]));
+    // Already at the table: nothing moves.
+    expect(await tabs[0]!.conn.rouletteJoin()).toEqual({ notice: "You're at the table already." });
+    // A fifth is taken down to the net cafe all the same, to watch.
+    expect(await tabs[4]!.conn.rouletteJoin()).toMatchObject({ room: "basement" });
+    expect(heard.table.at(-1)?.seats).toHaveLength(SPOTS);
+    expect(await tabs[4]!.conn.rouletteBet(BET)).toMatchObject({ notice: "Take a spot at the table first." });
+    // A spot freed is the next one's, once its player has stepped off it.
+    await tabs[1]!.conn.rouletteLeave();
+    await eventually(() => expect(heard.table.at(-1)?.seats.map((s) => s.spot)).toEqual([0, 2, 3]));
+    await walk(tabs[1]!.conn, ["down"]);
+    expect(await tabs[4]!.conn.rouletteJoin()).toMatchObject({ x: spots[1]![0], y: spots[1]![1] });
+    for (const t of tabs) await t.conn.dispose();
+  }, 60_000);
+
   test("two players share a round: one pocket, both paid from the ledger; Ready spins early", async () => {
     const a = await rich("rtA", 100);
     const b = await rich("rtB", 100);
