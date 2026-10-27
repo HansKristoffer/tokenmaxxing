@@ -2362,14 +2362,86 @@ button.lb-item:hover {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
-.loot-drops li {
+.loot-drops > li {
+  border-radius: 4px;
+}
+
+.loot-drops > li.open {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.loot-drops .head {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
   display: grid;
-  grid-template-columns: 22px auto 1fr auto;
+  grid-template-columns: 14px 1fr auto auto;
   align-items: center;
   gap: 8px;
-  padding: 2px 6px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.loot-drops .head:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.loot-drops .head:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.loot-drops .count {
+  font-weight: 700;
+  min-width: 18px;
+  text-align: right;
+}
+
+.loot-drops .pips {
+  display: flex;
+  gap: 3px;
+}
+
+.loot-drops .pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.rarity-pip-common {
+  background: #7fcf6a;
+}
+.rarity-pip-rare {
+  background: #5aa8ff;
+}
+.rarity-pip-epic {
+  background: #b57cff;
+}
+.rarity-pip-legendary {
+  background: #ffc93c;
+}
+
+.loot-drop-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 4px 28px;
+}
+
+.loot-drop-list li {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0;
+}
+
+.loot-drop-list li:last-child {
+  display: block;
+  white-space: nowrap;
 }
 
 .loot-drops .rung {

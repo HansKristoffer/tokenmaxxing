@@ -1,7 +1,8 @@
-import { lapBonus, lootById, oddsText, RARITIES } from "@tokenmaxxing/core/loot.ts";
+import { lapBonus, lootById, oddsText, RARITIES, type Rarity } from "@tokenmaxxing/core/loot.ts";
 import { BOSSES, bossAt } from "@tokenmaxxing/core/raid.ts";
 import { type Item, itemById } from "@tokenmaxxing/core/shop.ts";
 import type { Raid } from "@tokenmaxxing/server/registry";
+import { useState } from "react";
 import { world } from "../game/world.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemImage } from "./Shop.tsx";
@@ -22,6 +23,73 @@ export function lootLine(item: Item | undefined): string | null {
   const { rarity, boss } = item.loot;
   const name = BOSSES.find((b) => b.id === boss)?.name ?? boss;
   return `${RARITIES[rarity].label} · from ${name} · ${oddsText(RARITIES[rarity].odds)}`;
+}
+
+type Drop = NonNullable<Raid["loot"]>["drops"][number];
+const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
+const rarityOf = (d: Drop): Rarity => itemById(d.item)?.loot?.rarity ?? "common";
+
+/** Who got what this week, one accordion row per player (most drops first, me on top); a row opens into their drops. */
+export function DropsByPlayer({ drops }: { drops: Drop[] }) {
+  const [open, setOpen] = useState<number | null>(null);
+  const byUser = new Map<number, Drop[]>();
+  for (const d of drops) byUser.set(d.userId, [...(byUser.get(d.userId) ?? []), d]);
+  const rows = [...byUser.values()].sort(
+    (a, b) =>
+      Number(b[0]!.userId === world.selfId) - Number(a[0]!.userId === world.selfId) ||
+      b.length - a.length ||
+      Math.max(...b.map((d) => RARITY_RANK[rarityOf(d)])) - Math.max(...a.map((d) => RARITY_RANK[rarityOf(d)])),
+  );
+  return (
+    <ul className="loot-drops">
+      {rows.map((mine) => {
+        const first = mine[0]!;
+        const isOpen = open === first.userId;
+        const best = [...mine].sort((a, b) => RARITY_RANK[rarityOf(b)] - RARITY_RANK[rarityOf(a)]);
+        return (
+          <li key={first.userId} className={isOpen ? "open" : ""}>
+            <button
+              type="button"
+              className="head"
+              aria-expanded={isOpen}
+              onClick={() => setOpen(isOpen ? null : first.userId)}
+            >
+              <span className="caret">{isOpen ? "▾" : "▸"}</span>
+              <span className="who">{first.userId === world.selfId ? "you" : first.name}</span>
+              <span className="pips">
+                {best.slice(0, 8).map((d) => (
+                  <i key={`${d.rung} ${d.item}`} className={`pip rarity-pip-${rarityOf(d)}`} />
+                ))}
+              </span>
+              <span className="count">{mine.length}</span>
+            </button>
+            {isOpen && (
+              <ul className="loot-drop-list">
+                {best.map((d) => (
+                  <li key={`${d.rung} ${d.item}`}>
+                    <span className="rung">{d.rung}</span>
+                    <span className={`drop rarity-text-${rarityOf(d)}`}>{itemById(d.item)?.name ?? d.item}</span>
+                    <span className="muted small">
+                      {bossAt(d.rung).emoji} {oddsText(d.odds)}
+                    </span>
+                  </li>
+                ))}
+                <li>
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => hud.set({ panel: { kind: "card", userId: first.userId } })}
+                  >
+                    View card
+                  </button>
+                </li>
+              </ul>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 /** The raid panel's Loot: the boss up now's table (ticked if I hold one), then who got what this week. */
@@ -61,28 +129,7 @@ export function LootSection({ raid }: { raid: Raid }) {
       {loot.drops.length > 0 && (
         <>
           <h3>Dropped this week</h3>
-          <ul className="loot-drops">
-            {loot.drops.map((d) => {
-              const item = itemById(d.item);
-              const rarity = item?.loot?.rarity ?? "common";
-              return (
-                <li key={`${d.rung} ${d.userId} ${d.item}`}>
-                  <span className="rung">{d.rung}</span>
-                  <button
-                    type="button"
-                    className="link"
-                    onClick={() => hud.set({ panel: { kind: "card", userId: d.userId } })}
-                  >
-                    {d.userId === world.selfId ? "you" : d.name}
-                  </button>
-                  <span className={`drop rarity-text-${rarity}`}>{item?.name ?? d.item}</span>
-                  <span className="muted small">
-                    {bossAt(d.rung).emoji} {oddsText(d.odds)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <DropsByPlayer drops={loot.drops} />
         </>
       )}
     </>
