@@ -10,6 +10,7 @@ import {
 } from "@tokenmaxxing/core/requests.ts";
 import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar } from "../actors/shared.ts";
+import type { PushedRequest } from "../request-push.ts";
 import { parseRequest } from "../validate.ts";
 
 /**
@@ -70,8 +71,8 @@ export async function pile(sql: Sql, userId: number): Promise<RequestEntry[]> {
   return [...live, ...done].map(entry).sort(byPile);
 }
 
-/** Puts a request on the pile as `userId`, with their 👍 on it already. */
-export async function submit(sql: Sql, userId: number, raw: unknown, now: number): Promise<void> {
+/** Puts a request on the pile as `userId`, with their 👍 on it already. Returns it, for the push. */
+export async function submit(sql: Sql, userId: number, raw: unknown, now: number): Promise<PushedRequest> {
   const text = parseRequest(raw);
   if (text === null)
     throw new UserError("Write what you'd like, in a line: 8 to 280 characters, no links.", {
@@ -109,6 +110,8 @@ export async function submit(sql: Sql, userId: number, raw: unknown, now: number
   );
   const id = await scalar(sql, "SELECT last_insert_rowid() AS n");
   await sql.execute("INSERT INTO request_votes (request_id, user_id) VALUES (?, ?)", id, userId);
+  const author = await one<{ name: string }>(sql, "SELECT name FROM users WHERE id = ?", userId);
+  return { id, userId, name: author?.name ?? "", text, createdAt: now };
 }
 
 const live = (sql: Sql, id: unknown) =>

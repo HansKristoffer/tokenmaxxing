@@ -4,12 +4,15 @@ import { CHAT_MAX_LENGTH, mentionsIn } from "@tokenmaxxing/core/world.ts";
 import { memo, useEffect, useRef, useState } from "react";
 import { errorText } from "../errors.ts";
 import { roomName, world } from "../game/world.ts";
-import { conn, matchConn } from "../net.ts";
+import { conn, matchConn, town } from "../net.ts";
 import { storage } from "../storage.ts";
 import { hud, useHud } from "../store.ts";
 import { MentionInput } from "./MentionInput.tsx";
 import { QuickReplies } from "./QuickReplies.tsx";
 import { AvatarImage, Pills } from "./ui.tsx";
+
+/** `@feedback <text>` pins the rest on the Tavern's request pile instead of saying it. */
+const FEEDBACK = /^@feedback(?:\s+|$)/i;
 
 /** Who's online in this room (people, not the town's bots), you first, then by name. */
 const onlineHere = () =>
@@ -246,10 +249,19 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
             if (!t) return input.current?.blur();
             setText("");
             setError(null);
+            const feedback = FEEDBACK.exec(t);
             try {
-              await say(t);
+              if (!feedback) await say(t);
+              else {
+                await town.requestAdd(t.slice(feedback[0].length));
+                hud.set({
+                  notice: { text: "📌 Pinned on the Tavern's request pile. Thanks!", at: Date.now() },
+                });
+              }
             } catch (err) {
               setError(errorText(err));
+              // A request takes a while to write: give it back to fix, rather than lose it.
+              if (feedback) setText(t);
             }
           }}
         >
