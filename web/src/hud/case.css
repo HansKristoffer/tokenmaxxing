@@ -356,6 +356,14 @@
 .cshop-items li > :first-child {
   grid-area: pic;
 }
+.cshop-items li.mystery {
+  background: radial-gradient(circle at 24px 50%, #6b4a12, #2b2210 70%);
+}
+.cshop-items li.mystery .cs-q {
+  grid-area: pic;
+  justify-self: center;
+  font-size: 20px;
+}
 .cshop-items .cs-name {
   grid-area: name;
 }

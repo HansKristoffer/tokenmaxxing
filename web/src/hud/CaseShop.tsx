@@ -163,6 +163,9 @@ function CaseCard({
   onSell: () => void;
 }) {
   const rows = useMemo(() => itemChances(def), [def]);
+  // Like a CS knife: the case says there is a legendary in it, never which ones.
+  const legendary = rows.filter((r) => r.tier === "legendary");
+  const legendaryOwned = legendary.reduce((a, r) => a + (bag.find((b) => b.item === r.item.id)?.count ?? 0), 0);
   const spare = useMemo(() => spareCopies(def, bag), [def, bag]);
   const short = def.keyPrice - balance;
   const tiers = [...new Set(rows.map((r) => r.tier))];
@@ -206,20 +209,37 @@ function CaseCard({
       </div>
       <h4 className="cshop-contains">Contains</h4>
       <ul className="cshop-items">
-        {rows.map(({ item, tier, chance }) => {
-          const n = bag.find((b) => b.item === item.id)?.count ?? 0;
-          return (
-            <li key={item.id} title={item.blurb} style={{ "--r": RARITY_COLOR[tier] } as CSSProperties}>
-              <ItemImage item={item} look={LOOK} bare />
-              <span className="cs-name">{item.name}</span>
-              <span className="cshop-odds">{percent(chance)}</span>
-              <span className="cs-slot" style={{ color: RARITY_COLOR[tier] }}>
-                {tier}
-                {n > 0 && ` · you have ${n}`}
-              </span>
-            </li>
-          );
-        })}
+        {legendary.length > 0 && (
+          <li
+            className="mystery"
+            title="Something rarer than the rest. You find out when you open it."
+            style={{ "--r": RARITY_COLOR.legendary } as CSSProperties}
+          >
+            <span className="cs-q">???</span>
+            <span className="cs-name">Legendary Item!</span>
+            <span className="cshop-odds">{percent(legendary.reduce((a, r) => a + r.chance, 0))}</span>
+            <span className="cs-slot" style={{ color: RARITY_COLOR.legendary }}>
+              legendary
+              {legendaryOwned > 0 && ` · you have ${legendaryOwned}`}
+            </span>
+          </li>
+        )}
+        {rows
+          .filter((r) => r.tier !== "legendary")
+          .map(({ item, tier, chance }) => {
+            const n = bag.find((b) => b.item === item.id)?.count ?? 0;
+            return (
+              <li key={item.id} title={item.blurb} style={{ "--r": RARITY_COLOR[tier] } as CSSProperties}>
+                <ItemImage item={item} look={LOOK} bare />
+                <span className="cs-name">{item.name}</span>
+                <span className="cshop-odds">{percent(chance)}</span>
+                <span className="cs-slot" style={{ color: RARITY_COLOR[tier] }}>
+                  {tier}
+                  {n > 0 && ` · you have ${n}`}
+                </span>
+              </li>
+            );
+          })}
       </ul>
       <p className="muted small">
         Chances are per opening, split evenly inside each rarity. Every {def.rareWithin}th opening in a row
