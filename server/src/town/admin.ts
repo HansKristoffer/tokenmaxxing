@@ -1,5 +1,6 @@
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
+import { type Leader, RANKING } from "@tokenmaxxing/core/statue.ts";
 import { houseTier } from "@tokenmaxxing/core/world.ts";
 import { sortBy } from "hanzio";
 import { UserError } from "rivetkit";
@@ -320,6 +321,28 @@ export async function setCompanyWallet(
 export async function wipeUsage(sql: Sql, userId: number): Promise<void> {
   for (const table of ["usage_daily", "activity_daily", "capped_daily"])
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
+}
+
+/** Text from the admin page, one line and trimmed, or `invalid_statue` when it's longer than `max` (or empty and required). */
+function line(raw: unknown, what: string, max: number, required: boolean): string {
+  const s = typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+  if ((required && !s) || s.length > max)
+    throw new UserError(`The ${what} needs 1 to ${max} characters.`, { code: "invalid_statue" });
+  return s;
+}
+
+/**
+ * The admin's pick for the statue's plinth (`core/statue.ts`), over the ranking's: a model, who made it (a
+ * provider's name gets its colour) and what it leads, LMArena's Text Arena when that's left empty.
+ */
+export function statuePin(model: unknown, org: unknown, ranking: unknown): Leader {
+  return {
+    model: line(model, "model", 48, true),
+    org: line(org, "maker", 32, true),
+    ranking: line(ranking, "ranking", 48, false) || RANKING,
+    score: null,
+    asOf: null,
+  };
 }
 
 /** Every change made from the admin page is written down, with what it was before where that matters. */

@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
 import {
   badgeCoins,
+  isModel,
   levelUpCoins,
+  modelKey,
   STREAK_FROM,
   streakBonus,
   streakExtra,
@@ -77,4 +79,14 @@ test("what today would be worth before it has tokens", () => {
   expect(streakNow(days, "2026-11-04")).toBe(2.5);
   expect(streakNow(days, "2026-11-05")).toBe(1.5);
   expect(streakNow([], "2026-11-05")).toBe(1);
+});
+
+test("a model is the same across OpenRouter's id and a client's", () => {
+  expect(modelKey("anthropic/claude-opus-5.5")).toBe("claude-opus-5-5");
+  expect(modelKey("openai/gpt-6:free")).toBe("gpt-6");
+  expect(isModel("claude-opus-5-5", "claude-opus-5-5")).toBe(true);
+  expect(isModel("Claude-Opus-5-5-20261027", "claude-opus-5-5")).toBe(true);
+  // Another model that shares the start of the name isn't it.
+  expect(isModel("claude-opus-5", "claude-opus-5-5")).toBe(false);
+  expect(isModel("claude-opus-5-5-mini", "claude-opus-5-5")).toBe(false);
 });

@@ -1,13 +1,15 @@
 /**
  * The town's sky and weather (ported from `web/src/game/sky.ts`): a sun that rises and sets, stars and a phased moon,
- * clouds, fog, drizzle, rain, storms with lightning, snow that settles on roofs. The light follows the game's clock
+ * clouds, fog (as thick as the visibility says), drizzle, rain, storms with lightning, snow that settles on roofs, and a
+ * pond that ices over below freezing (`cold3d.ts`). The light follows the game's clock
  * smoothly: lamps and windows switch on at dusk and dim in by degrees, and the sun swings round the sky.
  */
 
 import { worldWall } from "@tokenmaxxing/core/range.ts";
-import { type Light, moonPhase, type Weather } from "@tokenmaxxing/core/sky.ts";
+import { CALM, fogOf, iceOver, type Light, moonPhase, type Weather } from "@tokenmaxxing/core/sky.ts";
 import * as THREE from "three";
 import { addPatch } from "../kit/patches.ts";
+import { ICE } from "./cold3d.ts";
 import { setStreetLampDim } from "./props.ts";
 
 export { FX_ASSETS } from "./fx3d-town.ts";
@@ -302,8 +304,10 @@ export class Fx {
   private readonly snowAmt = SNOW;
   private snowScan = 0;
   private readonly fogBank: THREE.Mesh[] = [];
-  private weather: Weather = { kind: "clear", intensity: 0, windMs: 1.5, windDir: 270, cloud: 0.1 };
+  private weather: Weather = { ...CALM };
   private shown: Weather = { ...this.weather };
+  /** 0..1 how thick the fog is, eased (`fogOf`). */
+  private fog = 0;
   private light = { dark: 0, warm: 0, glow: 0, dim: 1 };
   /** The street lamps' dimmer, eased toward `lampDim` so they fade rather than blink. */
   private dim = 1;
@@ -402,6 +406,8 @@ export class Fx {
 
   /** Jumps the light and weather to where the clock and the weather say, without blending (a room just built). */
   settle(t: number, camera: THREE.OrthographicCamera): void {
+    ICE.value = iceOver(this.opts.weather()) ? 1 : 0;
+    this.fog = fogOf(this.opts.weather());
     for (let i = 0; i < 3; i++) {
       this.lastT = t - 0.5;
       this.update(0, t, camera);
@@ -433,10 +439,12 @@ export class Fx {
     s.windMs = lerp(s.windMs, w.windMs, k);
     s.windDir = w.windDir;
     if (s.kind === w.kind) s.intensity = lerp(s.intensity, w.intensity, k);
+    this.fog = lerp(this.fog, fogOf(w), k);
+    const fog = this.fog;
 
     // The light of the sky, with clouds dimming it.
     const storm = s.kind === "storm" ? 0.2 : 0;
-    const murk = s.cloud * 0.35 + storm + (s.kind === "fog" ? 0.1 * s.intensity : 0);
+    const murk = s.cloud * 0.35 + storm + 0.1 * fog;
     const glowTarget = Math.min(
       1,
       Math.max(l.darkness, l.warmth * 0.5, s.cloud * 0.25 * (s.kind === "storm" ? 2 : 1)),
@@ -483,7 +491,7 @@ export class Fx {
       let hor = mixCol(dayH, warmH, warm * 0.85);
       top = mixCol(top, nightT, dark ** 1.3);
       hor = mixCol(hor, nightH, dark ** 1.3);
-      const gk = clamp01(s.cloud * 0.6 + storm * 2 + (s.kind === "fog" ? 0.3 : 0)) * (1 - dark * 0.7);
+      const gk = clamp01(s.cloud * 0.6 + storm * 2 + Math.min(0.3, fog * 0.6)) * (1 - dark * 0.7);
       top = mixCol(top, grey.clone().multiplyScalar(1 - dark * 0.8 - storm), gk);
       hor = mixCol(hor, greyH.clone().multiplyScalar(1 - dark * 0.8 - storm), gk);
       u.top!.value.copy(top);
@@ -504,12 +512,12 @@ export class Fx {
       u.moonAge!.value = moonPhase(ms).age;
       u.murk!.value = murk * 0.5;
       // Fog fades the far end of the slab into the horizon.
-      if (s.kind === "fog") {
+      if (fog > 0.05) {
         if (!stage.scene.fog) stage.scene.fog = new THREE.Fog(hor.getHex(), 60, 90);
         const f = stage.scene.fog;
         (f as THREE.Fog).color.copy(hor);
-        (f as THREE.Fog).near = lerp(90, 46, s.intensity);
-        (f as THREE.Fog).far = lerp(120, 78, s.intensity);
+        (f as THREE.Fog).near = lerp(90, 46, fog);
+        (f as THREE.Fog).far = lerp(120, 78, fog);
       } else stage.scene.fog = null;
     } else if (this.sky.parent) this.sky.removeFromParent();
 
@@ -523,6 +531,8 @@ export class Fx {
     // Snow settles on up-facing surfaces and melts away; fog banks drift.
     const snowy = s.kind === "snow" && s.intensity > 0.05;
     this.snowAmt.value = lerp(this.snowAmt.value, snowy ? 1 : 0, Math.min(1, dt * 0.5));
+    // The pond freezes below 0 °C and thaws above it, over half a minute or so.
+    ICE.value = clamp01(ICE.value + (iceOver(w) ? 1 : -1) * dt * 0.04);
     this.snowScan -= dt;
     if (this.snowScan <= 0) {
       this.snowScan = 1.5;
@@ -530,7 +540,7 @@ export class Fx {
     }
     for (const m of this.fogBank) {
       const mat = m.material as THREE.MeshBasicMaterial;
-      const want = s.kind === "fog" ? 0.14 * s.intensity : 0;
+      const want = 0.14 * fog;
       mat.opacity = lerp(mat.opacity, want, Math.min(1, dt));
       m.visible = mat.opacity > 0.01 && inTown;
       m.position.x += (m.userData.speed as number) * dt * (winds.x >= 0 ? 1 : -1);

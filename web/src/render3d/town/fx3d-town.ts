@@ -1,7 +1,7 @@
 /**
  * Street-life models for the 3D town (2D: `art/cop.ts`, `art/cart.ts`, `art/picnic.ts`, `art/street.ts`): Officer
  * 429's light bar and notepad, the roaming merchant's cart and signpost, the picnic blanket and basket, touched grass,
- * the build snail and its goal flag, the paperboy's bike and paper. `town-events.ts` and `cop3d.ts` use them;
+ * the build snail and its goal flag, the paperboy's bike and paper, the graveyard's tombstones. `town-events.ts` and `cop3d.ts` use them;
  * `FX_ASSETS` lists them for the catalogue.
  */
 
@@ -539,6 +539,51 @@ export function pamphletModel(): Model {
   return m;
 }
 
+// MARK: The model graveyard
+
+/**
+ * A tombstone in the model graveyard (`game/graveyard.ts`; 2D: `art/graveyard.ts`): a stepped grey
+ * headstone with RIP carved in its face, on a mound of earth with flowers in its maker's colour. Its
+ * front faces +z.
+ */
+export function tombstoneModel(accent: string): Model {
+  const m = new Model();
+  const stone = "#aeaaa5";
+  m.box([0.84, 0.05, 0.62], "#6b4a33", [0, 0, 0.08], 0.02);
+  m.box([0.7, 0.08, 0.22], "#8a8682", [0, 0.04, -0.06], 0.01);
+  m.box([0.56, 0.5, 0.14], stone, [0, 0.1, -0.06], 0.02);
+  m.box([0.46, 0.08, 0.14], stone, [0, 0.6, -0.06], 0.02);
+  m.box([0.3, 0.06, 0.14], stone, [0, 0.68, -0.06], 0.02);
+  const face = canvasTexture(
+    32,
+    32,
+    (g) => {
+      g.fillStyle = stone;
+      g.fillRect(0, 0, 32, 32);
+      g.fillStyle = ink;
+      g.font = "900 11px system-ui, sans-serif";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText("RIP", 16, 11);
+      g.fillStyle = "#8a8682";
+      g.fillRect(7, 21, 18, 2);
+      g.fillRect(10, 26, 12, 2);
+    },
+    true,
+  );
+  m.plane(0.46, 0.42, painted(face), [0, 0.38, 0.011]);
+  // Flowers laid at its foot.
+  for (const [x, z] of [
+    [-0.26, 0.22],
+    [0.22, 0.26],
+    [0.02, 0.3],
+  ] as const) {
+    m.cyl(0.012, 0.12, "#3a7b2f", [x, 0.05, z], 0.012, 5);
+    m.ball(0.045, accent, [x, 0.18, z]);
+  }
+  return m;
+}
+
 // MARK: Catalogue
 
 const asset = (id: string, name: string, w: number, d: number, build: () => Model) => ({
@@ -550,11 +595,76 @@ const asset = (id: string, name: string, w: number, d: number, build: () => Mode
   build,
 });
 
+// MARK: The statue of the #1 model (`statue3d.ts`)
+
+const STONE = "#aeaaa5";
+const STONE_DARK = "#8a8682";
+const STONE_LIGHT = "#cfccc7";
+const MARBLE = "#ece7de";
+const GOLD = "#e3b341";
+const VELVET = "#8e1b2e";
+/** The plinth's top, where the figure (and the drape) stand. */
+export const STATUE_TOP = 0.92;
+
+/** The plinth, its plaque in `accent`, and (unless `bare`) the figure. Faces +z, the camera's side. */
+export function statueModel(accent: string, bare = false): Model {
+  const m = new Model();
+  m.box([0.96, 0.14, 0.96], STONE_DARK, [0, 0, 0], 0.02);
+  m.box([0.74, 0.7, 0.74], STONE, [0, 0.14, 0], 0.02);
+  // A band in the maker's colour under the cap.
+  m.box([0.78, 0.1, 0.78], accent, [0, 0.72, 0], 0.01);
+  m.box([0.86, 0.08, 0.86], STONE_LIGHT, [0, 0.84, 0], 0.02);
+  const plate = canvasTexture(
+    48,
+    24,
+    (g) => {
+      g.fillStyle = GOLD;
+      g.fillRect(0, 0, 48, 24);
+      g.fillStyle = accent;
+      g.fillRect(3, 3, 42, 18);
+      g.fillStyle = "#fbf7ef";
+      g.font = "900 14px system-ui, sans-serif";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText("#1", 24, 13);
+    },
+    true,
+  );
+  m.plane(0.48, 0.24, glow("#fff", plate), [0, 0.38, 0.371]);
+  if (bare) return m;
+  // The figure: a robe belted in the maker's colour, shoulders, the head with a laurel, an arm holding a cup up.
+  const fig = m.part([0, STATUE_TOP, 0]);
+  fig.cyl(0.27, 0.6, MARBLE, [0, 0, 0], 0.17, 14);
+  fig.cyl(0.22, 0.09, accent, [0, 0.25, 0], 0.205, 14);
+  fig.box([0.46, 0.12, 0.26], MARBLE, [0, 0.56, 0], 0.05);
+  fig.ball(0.16, MARBLE, [0, 0.82, 0]);
+  fig.cyl(0.165, 0.05, GOLD, [0, 0.86, 0], 0.165, 14);
+  fig.box([0.1, 0.4, 0.1], MARBLE, [0.25, 0.6, 0], 0.04);
+  fig.cyl(0.05, 0.08, GOLD, [0.25, 1.0, 0], 0.03, 8);
+  fig.cyl(0.07, 0.16, GOLD, [0.25, 1.08, 0], 0.12, 10);
+  return m;
+}
+
+/** The velvet drape, tied with a gold cord: wider and taller than the figure, the cup it holds up included. */
+export function drapeModel(): Model {
+  const m = new Model();
+  m.cyl(0.44, 1.3, VELVET, [0.04, 0, 0], 0.4, 14);
+  m.ball(0.4, VELVET, [0.04, 1.3, 0], [1, 0.45, 1]);
+  m.cyl(0.44, 0.05, GOLD, [0.04, 0.5, 0], 0.44, 14);
+  return m;
+}
+
 /** The street-life pieces as assets, for the catalogue. */
 export const FX_ASSETS = [
   asset("fx:merchant-cart", "Merchant cart", 2, 1, () => merchantCart().model),
   asset("fx:launch-stand", "Launch stand", 2, 2, () => launchStand("#d97757")),
   asset("fx:launch-stand-rainbow", "Launch stand (several providers)", 2, 2, () => launchStand(null)),
+  asset("fx:statue", "Statue of the #1 model", 1, 1, () => statueModel("#d97757")),
+  asset("fx:statue-draped", "Statue of the #1 model (draped)", 1, 1, () => {
+    const m = statueModel("#9a6a3a", true);
+    m.part([0, STATUE_TOP, 0]).add(drapeModel());
+    return m;
+  }),
   asset("fx:signpost", "Merchant signpost", 1, 1, signpost),
   asset("fx:picnic-blanket", "Picnic blanket", 3, 2, () => blanketModel(2.4, 1.5, 0)),
   asset("fx:picnic-basket", "Picnic basket", 1, 1, basketModel),
@@ -564,4 +674,5 @@ export const FX_ASSETS = [
   asset("fx:paperboy-bike", "Paperboy's bike", 1, 1, () => bikeModel().model),
   asset("fx:paper", "Morning paper", 1, 1, paperModel),
   asset("fx:cop-car", "Patrol car", 2, 1, () => car("#2f4f9f")),
+  asset("fx:tombstone", "Tombstone", 1, 1, () => tombstoneModel("#d97757")),
 ] as const;

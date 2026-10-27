@@ -119,3 +119,67 @@
   font: 600 10px / 1.3 var(--font);
   text-transform: uppercase;
 }
+
+/* A tombstone in the model graveyard (Tombstone.tsx): a grey headstone, its maker's colour at its foot. */
+.tombstone {
+  margin: 0 auto;
+  max-width: 320px;
+  padding: 22px 18px 16px;
+  border-radius: 140px 140px 6px 6px;
+  background: linear-gradient(180deg, #d4d0ca, #aeaaa5);
+  box-shadow:
+    inset 0 0 0 2px rgba(43, 36, 51, 0.25),
+    inset 0 -8px 0 var(--accent);
+  color: var(--ink);
+  text-align: center;
+}
+
+.modal .tombstone p {
+  margin: 0;
+}
+
+.modal .tombstone-provider {
+  font: 700 11px / 1.3 var(--font);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #4a4458;
+}
+
+.modal .tombstone h3 {
+  margin: 6px 0 2px;
+  color: var(--ink);
+  font:
+    700 24px / 1.15 Georgia,
+    "Times New Roman",
+    serif;
+  text-transform: none;
+}
+
+.modal .tombstone-id {
+  color: #5b4a44;
+  font: 600 11px / 1.3 var(--font);
+}
+
+.modal .tombstone-dates {
+  margin-top: 10px;
+  font:
+    600 14px / 1.4 Georgia,
+    "Times New Roman",
+    serif;
+}
+
+.modal .tombstone-price {
+  margin-top: 4px;
+  color: #3b3542;
+  font: 600 11px / 1.3 var(--font);
+}
+
+.modal .tombstone-epitaph {
+  margin-top: 12px;
+  padding: 8px 0 10px;
+  border-top: 1px dashed rgba(43, 36, 51, 0.35);
+  font:
+    italic 500 14px / 1.4 Georgia,
+    "Times New Roman",
+    serif;
+}

@@ -32,6 +32,7 @@ import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { companyLedgerAdd } from "./companies.ts";
 import { greenPay } from "./grid.ts";
+import { type LaunchPaid, launchBonus, launchBonusAll } from "./launch-bonus.ts";
 import { bumpCount, dayPicks, loadQuestData, noQuestData, paidFrom, questPay } from "./quests.ts";
 import { raidHistory } from "./raid.ts";
 import { trophyAwardCoins, trophyAwardCoinsAll } from "./trophy-awards.ts";
@@ -43,6 +44,8 @@ export interface Wallet {
   today: number;
   /** The streak multiplier today's coins are paid at, 1 to 3 (what today would be worth before it has tokens). */
   streak: number;
+  /** Launches from yesterday or today whose model I used on its launch day, each paid `LAUNCH_COINS` (the HUD's 🚀). */
+  launches: LaunchPaid[];
   /** Coins from raids: every rung that fell with me a raider by its day. */
   raids: number;
   /** Coins today's green hours have paid so far (part of `today`). */
@@ -188,6 +191,7 @@ export async function wallet(
   const dayCoins = (day: string) => coinsForTokens(byDay.get(day) ?? 0) + (pay.daily.get(day) ?? 0);
   const active = days.filter((d) => d.tokens > 0).map((d) => d.day);
   const streak = streakBonus(active, dayCoins);
+  const launched = await launchBonus(sql, userId);
   const places = (top ?? (await podiums(sql, now))).filter((p) => p.userId === userId);
   const spent = await scalar(sql, "SELECT SUM(price) AS n FROM purchases WHERE user_id = ?", userId);
   const wins = places.map((p) => ({ day: p.day, place: p.place, coins: PODIUM_COINS[p.place - 1]! }));
@@ -204,6 +208,7 @@ export async function wallet(
     levelUpCoins(level) +
     (await badgeAwardCoins(sql, userId)) +
     (await trophyAwardCoins(sql, userId)) +
+    sumBy(launched, "coins") +
     streak;
   const since = addDays(today, -29);
   const todays = data.facts.get(today) ?? EMPTY_DAY;
@@ -218,6 +223,7 @@ export async function wallet(
       greenToday +
       (today >= STREAK_FROM && todays.tokens > 0 ? streakExtra(todayBase, streakNow(active, today)) : 0),
     streak: streakNow(active, today),
+    launches: launched.filter((l) => l.day >= addDays(today, -1)),
     raids: raided,
     green: greenToday,
     wins: wins.filter((w) => w.day >= since),
@@ -319,6 +325,7 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
   ))
     add(r.userId, badgeCoins(r.tier) - badgeCoins(r.tier - 1));
   for (const [userId, n] of await trophyAwardCoinsAll(sql)) add(userId, n);
+  for (const [userId, n] of await launchBonusAll(sql)) add(userId, n);
   const raids = await raidHistory(sql, now);
   for (const userId of out.keys()) add(userId, raidCoins(raids, userId));
   for (const r of await all<{ userId: number; n: number }>(

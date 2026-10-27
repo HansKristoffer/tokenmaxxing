@@ -38,6 +38,7 @@ export type Panel =
   | { kind: "trades" }
   | { kind: "paper" }
   | { kind: "pamphlet" }
+  | { kind: "tombstone"; id: string }
   | { kind: "keynote" }
   | { kind: "stars" }
   | { kind: "trophies"; userId: number; name: string }

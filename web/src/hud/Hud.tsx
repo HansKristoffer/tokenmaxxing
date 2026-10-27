@@ -55,6 +55,7 @@ import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
 import { StarButton, StarsPanel } from "./Stars.tsx";
 import { MENU } from "./shops.ts";
+import { TombstonePanel } from "./Tombstone.tsx";
 import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
@@ -299,6 +300,15 @@ function Stats() {
           🔥 <strong>×{wallet.streak}</strong>
         </span>
       )}
+      {wallet?.launches.map((l) => (
+        <span
+          key={l.id}
+          className="chip"
+          title={`${l.model} launched ${l.day} and you used it that day: +${l.coins} coins, paid once.`}
+        >
+          🚀 <strong>+{l.coins}</strong>
+        </span>
+      ))}
       {wallet && wallet.quests.length > 0 && <QuestTracker quests={wallet.quests} />}
       <button
         type="button"
@@ -416,6 +426,7 @@ function Panel() {
     graphics: () => <GraphicsPanel />,
     paper: () => <PaperPanel />,
     pamphlet: () => <PamphletPanel />,
+    tombstone: (p) => <TombstonePanel id={p.id} />,
     keynote: () => <KeynotePanel />,
     stars: () => <StarsPanel />,
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,

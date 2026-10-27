@@ -33,6 +33,7 @@ import {
 import type { Asset } from "../furniture/furniture.ts";
 import { canvasTexture, glass, Model, painted, seeded, textureCap, ticks, tint, toon } from "../kit/kit.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_SPECS, type ShopId } from "../shops/catalog.ts";
+import { ICE } from "./cold3d.ts";
 import {
   arcadeBuilding,
   bush,
@@ -630,6 +631,50 @@ export function buildTown3d(
     glints.position.set(cx, 0, cz);
     glints.renderOrder = 1;
     g.add(glints);
+    // Ice, below freezing (`cold3d.ts`): a pale sheet over the water with glare and cracks, the sparkle gone under it.
+    const cracks = canvasTexture(96, 96, (c) => {
+      const rnd = seeded(12);
+      c.fillStyle = "#ffffff";
+      c.fillRect(0, 0, 96, 96);
+      c.fillStyle = "#f2f9fd";
+      for (let i = 0; i < 6; i++) c.fillRect(0, Math.floor(rnd() * 96), 96, 2);
+      c.strokeStyle = "#8fb8d6";
+      c.lineWidth = 1;
+      for (let i = 0; i < 7; i++) {
+        let [x, y] = [rnd() * 96, rnd() * 96];
+        c.beginPath();
+        c.moveTo(x, y);
+        for (let k = 0; k < 4; k++) {
+          x += (rnd() - 0.5) * 30;
+          y += (rnd() - 0.5) * 30;
+          c.lineTo(x, y);
+        }
+        c.stroke();
+      }
+    });
+    cracks.wrapS = cracks.wrapT = THREE.RepeatWrapping;
+    const iceMat = glass("#a9d4ee", 0);
+    iceMat.map = cracks;
+    const sheetOfIce = mergeGeometries(
+      water.map(([x, z]) =>
+        new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(x - cx, 0.04, z - cz),
+      ),
+    )!;
+    // Texture by where it is, not per tile, so the cracks run on across the pond.
+    const at = sheetOfIce.attributes.position!;
+    const uv = sheetOfIce.attributes.uv!;
+    for (let i = 0; i < at.count; i++) uv.setXY(i, (at.getX(i) + cx) / 3, (at.getZ(i) + cz) / 3);
+    const ice = new THREE.Mesh(sheetOfIce, iceMat);
+    ice.position.set(cx, 0, cz);
+    ice.renderOrder = 2;
+    ice.userData.nobatch = true;
+    ice.visible = false;
+    g.add(ice);
+    ticks.push(() => {
+      ice.visible = ICE.value > 0.01;
+      iceMat.opacity = 0.85 * ICE.value;
+      mat.opacity = 0.8 * (1 - ICE.value);
+    });
     const rock = new THREE.InstancedMesh(
       new THREE.SphereGeometry(0.17, 8, 6),
       toon(C.stoneLight),

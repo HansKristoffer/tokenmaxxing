@@ -20,6 +20,15 @@ import {
   spotSize,
 } from "@tokenmaxxing/core/games/gather.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
+import {
+  type Plot,
+  type Stone,
+  sameStones,
+  stoneAt,
+  stonesOf,
+  tend,
+  withChanges,
+} from "@tokenmaxxing/core/graveyard.ts";
 import { isTruck } from "@tokenmaxxing/core/jdag.ts";
 import {
   type Jukebox,
@@ -73,6 +82,17 @@ import { canDropIn } from "@tokenmaxxing/core/shop.ts";
 import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { milestoneLine, NO_STARS, readStars, type Stars, type StarsState } from "@tokenmaxxing/core/stars.ts";
+import {
+  afterRead,
+  type Leader,
+  NO_STATUE,
+  type StatueAdmin,
+  type StatueState,
+  sameLeader,
+  shownStatue,
+  unveilLine,
+  withPin,
+} from "@tokenmaxxing/core/statue.ts";
 import { cartOpen, facesCart, hasPolse, isCart, POLSE, stepPace } from "@tokenmaxxing/core/street.ts";
 import {
   hasSpecial,
@@ -143,13 +163,23 @@ import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { putAwayNotice } from "../furniture-notices.ts";
 import { fetchStars, STARS_EVERY_MS } from "../github-stars.ts";
+import { loadPlots, migrateGraveyard, savePlots } from "../graveyard.ts";
 import { checkGrid, GRID_EVERY_MS, type GridState, initialGrid } from "../grid.ts";
-import { checkLaunches, LAUNCHES_EVERY_MS } from "../launch.ts";
+import { checkModels, LAUNCHES_EVERY_MS } from "../launch.ts";
 import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
+import { readLeader, STATUE_EVERY_MS, STATUE_RETRY_MS } from "../statue.ts";
 import { counts, TavernClock } from "../tavern-clock.ts";
 import { parseChatText } from "../validate.ts";
-import { fetchWeather, initialWeather, pinnedSeason, pinnedWeather, WEATHER_EVERY_MS } from "../weather.ts";
+import {
+  fetchPollen,
+  fetchWeather,
+  initialWeather,
+  POLLEN_EVERY_MS,
+  pinnedSeason,
+  pinnedWeather,
+  WEATHER_EVERY_MS,
+} from "../weather.ts";
 import {
   all,
   authenticate,
@@ -160,6 +190,7 @@ import {
   requireMain,
   requireUser,
   type Sql,
+  type TxSql,
   waitForTick,
 } from "./shared.ts";
 import type { Office, PlayerCore } from "./town.ts";
@@ -203,6 +234,11 @@ interface WorldState {
    * sets off the same fireworks again. Optional: a world from before the counter reads them afresh.
    */
   stars?: StarsState;
+  /**
+   * The statue of the #1 model (`core/statue.ts`): the last leader read and the admin's pin, kept here so a
+   * restart or a broken feed still has one on the plinth. Optional: worlds from before it have none.
+   */
+  statue?: StatueState;
 }
 
 type ConnState = Caller & { joined?: boolean };
@@ -348,6 +384,9 @@ export const world = actor({
     /** New models from OpenRouter's list (`launch.ts`): one read for everyone, kept when a read fails. */
     launches: [] as Launch[],
     launchesAt: 0,
+    /** Every pool model seen in that list (`graveyard.ts`, kept in SQLite), and the stones it shows. */
+    plots: [] as Plot[],
+    graves: [] as Stone[],
     /** The keynote watch parties (`keynote.ts`): `town`'s schedule, still to come or on, soonest first. */
     keynotes: [] as Keynote[],
     keynotesAt: 0,
@@ -359,6 +398,7 @@ export const world = actor({
     /** The sky: one fetch for everyone (`weather.ts`), kept when a fetch fails. */
     weather: initialWeather() as Weather,
     weatherAt: 0,
+    pollenAt: 0,
     /** The power grid: one read for everyone (`grid.ts`), kept when a read fails. */
     grid: initialGrid() as GridState,
     gridAt: 0,
@@ -396,6 +436,7 @@ export const world = actor({
       await d.execute("CREATE INDEX IF NOT EXISTS chat_room ON chat (room, id)");
       // Bots used to talk in the chat; they only talk over their heads now.
       await d.execute("DELETE FROM chat WHERE user_id < 0");
+      await migrateGraveyard(d);
     },
   }),
   onCreate: (c) => requireMain(c),
@@ -410,6 +451,8 @@ export const world = actor({
       c.state.seeded = true;
     }
     c.state.offices = seed.offices;
+    c.vars.plots = await loadPlots(c.db);
+    c.vars.graves = stonesOf(c.vars.plots);
     for (const id of Object.keys(c.state.players)) buildOffice(c.state, Number(id));
     delete (c.state as { drops?: unknown }).drops; // kept here before `seed` carried them
     placeBots(c.state);
@@ -463,7 +506,12 @@ export const world = actor({
       }
       if (now >= c.vars.launchesAt) {
         c.vars.launchesAt = now + LAUNCHES_EVERY_MS;
-        void refreshLaunches(c, now);
+        void refreshLaunches(c, now).catch((err) => console.warn(`[launch] refresh: ${String(err)}`));
+      }
+      // When it's due (kept in state, so a restart doesn't read it again), and once at a time.
+      if (now >= (c.state.statue?.nextAt ?? 0)) {
+        c.state.statue = { ...(c.state.statue ?? NO_STATUE), nextAt: now + STATUE_RETRY_MS };
+        void refreshStatue(c, now);
       }
       if (now >= c.vars.keynotesAt) {
         c.vars.keynotesAt = now + KEYNOTES_EVERY_MS;
@@ -477,6 +525,10 @@ export const world = actor({
       if (now >= c.vars.weatherAt) {
         c.vars.weatherAt = now + WEATHER_EVERY_MS;
         void refreshWeather(c);
+      }
+      if (now >= c.vars.pollenAt) {
+        c.vars.pollenAt = now + POLLEN_EVERY_MS;
+        void refreshPollen(c);
       }
       if (now >= c.vars.gridAt) {
         c.vars.gridAt = now + GRID_EVERY_MS;
@@ -513,6 +565,8 @@ export const world = actor({
       sendInfo(c, p, info(p, true), from);
       c.conn.send("outage", c.vars.outage);
       c.conn.send("launches", c.vars.launches);
+      c.conn.send("graveyard", c.vars.graves);
+      c.conn.send("statue", shownStatue(c.state.statue));
       c.conn.send("grid", c.vars.grid.grid);
       c.conn.send("keynotes", c.vars.keynotes);
       c.conn.send("stars", starsOf(c.state.stars ?? NO_STARS));
@@ -550,7 +604,7 @@ export const world = actor({
       c.vars.dirty.add(p.id);
       return typedSwitch(stepTarget(mapOf(p.room), p.x, p.y, rawDir), "kind", {
         move: (target) => {
-          if (p.room === "town" && onProp(c.state, c.vars.launches, target.x, target.y)) return correction(p);
+          if (p.room === "town" && onProp(c.state, c.vars, target.x, target.y)) return correction(p);
           p.x = target.x;
           p.y = target.y;
           return null;
@@ -1071,6 +1125,19 @@ export const world = actor({
       sendToScreens(c, "game", g);
     },
 
+    /** From `town`, for the admin page: what the plinth shows, what was read, the pin, and the next read. */
+    statue: (c): StatueAdmin => {
+      requireInternal(c.conn.state);
+      const s = c.state.statue ?? NO_STATUE;
+      return { ...s, shown: shownStatue(s) };
+    },
+
+    /** From `town`, for the admin page: puts `leader` on the plinth over the ranking's, or (null) takes it off. */
+    pinStatue: (c, leader: Leader | null): void => {
+      requireInternal(c.conn.state);
+      setStatue(c, withPin(c.state.statue ?? NO_STATUE, leader, Date.now()));
+    },
+
     /** From `town`. Returns drops a building that lost or gained a door had no place for, to give back. */
     setPlayer: async (c, core: PlayerCore): Promise<number[]> => {
       requireInternal(c.conn.state);
@@ -1370,6 +1437,8 @@ type Vars = {
   housesStale: boolean;
   outage: Outage | null;
   launches: Launch[];
+  plots: Plot[];
+  graves: Stone[];
   keynotes: Keynote[];
   watched: Set<string>;
   weather: Weather;
@@ -1616,13 +1685,14 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
 }
 
 /**
- * A table or desk of a game in town, the pølsevogn, a launch stand while it's up, or the J-dag truck while it's
- * parked: nobody walks onto it.
+ * A table or desk of a game in town, the pølsevogn, a launch stand while it's up, the J-dag truck while it's
+ * parked, or a tombstone: nobody walks onto it.
  */
-const onProp = (s: WorldState, launches: readonly Launch[], x: number, y: number) =>
+const onProp = (s: WorldState, v: Pick<Vars, "launches" | "graves">, x: number, y: number) =>
   isCart(x, y) ||
   isTruck(x, y, Date.now()) ||
-  (isStand(x, y) && activeLaunches(Date.now(), launches).length > 0) ||
+  (isStand(x, y) && activeLaunches(Date.now(), v.launches).length > 0) ||
+  stoneAt(v.graves, x, y) !== undefined ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
 
 /** A line in a room's chat: someone's (`say`), or the town's own by default (a game's result). */
@@ -1782,7 +1852,7 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
     const target = stepTarget(map, p.x, p.y, dir);
     p.facing = dir;
     // The town changed under it, or a game table went up: give up on this walk.
-    if (target.kind === "move" && !onProp(s, v.launches, target.x, target.y))
+    if (target.kind === "move" && !onProp(s, v, target.x, target.y))
       Object.assign(p, { x: target.x, y: target.y });
     else Object.assign(run, { path: [], coffee: null });
     if (!leader && run.path.length === 0 && !run.coffee) run.restUntil = now + between(BOT_PAUSE_MS);
@@ -1994,8 +2064,7 @@ function copBeat(
   if (dir) {
     const to = stepTarget(map, cop.x, cop.y, dir);
     cop.facing = dir;
-    if (to.kind === "move" && !onProp(c.state, c.vars.launches, to.x, to.y))
-      Object.assign(cop, { x: to.x, y: to.y });
+    if (to.kind === "move" && !onProp(c.state, c.vars, to.x, to.y)) Object.assign(cop, { x: to.x, y: to.y });
     c.vars.dirty.add(cop.id);
     return;
   }
@@ -2132,15 +2201,69 @@ async function snapshot(
   };
 }
 
-/** Reads OpenRouter's model list, and tells everyone when the launches change (a stand going up or down). */
+/**
+ * Reads OpenRouter's model list, and tells everyone when the launches change (a stand going up or down)
+ * or the graveyard does (someone buried, or dug up again).
+ */
 async function refreshLaunches(
-  c: { vars: Vars; broadcast(name: string, ...args: unknown[]): void },
+  c: {
+    vars: Vars;
+    db: TxSql;
+    client: () => Parameters<typeof main>[0];
+    broadcast(name: string, ...args: unknown[]): void;
+  },
   now: number,
 ): Promise<void> {
-  const next = await checkLaunches(c.vars.launches, now);
-  if (sameLaunches(next, c.vars.launches)) return;
-  c.vars.launches = next;
-  c.broadcast("launches", next);
+  const { launches, pool } = await checkModels(c.vars.launches, now);
+  if (!sameLaunches(launches, c.vars.launches)) {
+    // The town keeps which launches there were; a read it misses is sent again with the next change.
+    void main(c.client())
+      .town.launched(launches)
+      .catch((err: unknown) => console.warn(`[launches] town: ${String(err)}`));
+    c.vars.launches = launches;
+    c.broadcast("launches", launches);
+  }
+  if (!pool) return;
+  const changed = tend(c.vars.plots, pool, now);
+  if (changed.length === 0) return;
+  await savePlots(c.db, changed);
+  c.vars.plots = withChanges(c.vars.plots, changed);
+  const graves = stonesOf(c.vars.plots);
+  if (sameStones(graves, c.vars.graves)) return;
+  for (const g of graves)
+    if (!c.vars.graves.some((was) => was.id === g.id)) console.log(`[graveyard] ${g.id} is buried`);
+  c.vars.graves = graves;
+  c.broadcast("graveyard", graves);
+}
+
+/** Reads the ranking, and tells everyone when the plinth's leader changes; a failed read keeps it and tries again sooner. */
+async function refreshStatue(c: Sender & { broadcast(name: string, ...args: unknown[]): void }, now: number) {
+  const leader = await readLeader();
+  const next = afterRead(
+    c.state.statue ?? NO_STATUE,
+    leader,
+    now,
+    now + (leader ? STATUE_EVERY_MS : STATUE_RETRY_MS),
+  );
+  setStatue(c, next);
+}
+
+/**
+ * Puts `next` in state, and when what the plinth shows changed, tells everyone; a new model on it has a bot
+ * on the square say so (the unveiling itself is the clients', from `since`).
+ */
+function setStatue(
+  c: Sender & { broadcast(name: string, ...args: unknown[]): void },
+  next: StatueState,
+): void {
+  const was = shownStatue(c.state.statue);
+  c.state.statue = next;
+  const shown = shownStatue(next);
+  if (sameLeader(was.leader, shown.leader) && was.pinned === shown.pinned) return;
+  c.broadcast("statue", shown);
+  if (!shown.leader || sameLeader(was.leader, shown.leader)) return;
+  const crier = BOTS.find((b) => !b.still && b.id !== COP.id && c.state.players[b.id]?.room === "town");
+  if (crier) sendToRoom(c, "town", "bubble", { userId: crier.id, text: unveilLine(shown.leader) });
 }
 
 /** A plain copy of the stars to send: `state` hands out proxies. */
@@ -2212,15 +2335,27 @@ function raiders(s: WorldState, now: number): Raiders {
   return { top: all.slice(0, RAIDERS_SHOWN), more: Math.max(0, all.length - RAIDERS_SHOWN) };
 }
 
-/** Asks for the weather and tells everyone if it changed; a failed fetch keeps the last one. */
-async function refreshWeather(c: {
-  vars: Vars;
-  broadcast(name: string, ...args: unknown[]): void;
-}): Promise<void> {
-  const next = pinnedWeather() ?? (await fetchWeather());
-  if (!next || sameWeather(next, c.vars.weather)) return;
+type WeatherHost = { vars: Vars; broadcast(name: string, ...args: unknown[]): void };
+
+/** Sets the weather and tells everyone, if it changed. */
+function setWeather(c: WeatherHost, next: Weather): void {
+  if (sameWeather(next, c.vars.weather)) return;
   c.vars.weather = next;
   c.broadcast("weather", next);
+}
+
+/** Asks for the weather (keeping the pollen it has); a failed fetch keeps the last one. */
+async function refreshWeather(c: WeatherHost): Promise<void> {
+  const pinned = pinnedWeather();
+  const next = pinned ?? (await fetchWeather());
+  if (next) setWeather(c, pinned ?? { ...next, pollen: c.vars.weather.pollen });
+}
+
+/** Asks for the pollen, its own fetch once an hour; a failed one keeps the last count. A pinned sky has its own. */
+async function refreshPollen(c: WeatherHost): Promise<void> {
+  if (pinnedWeather()) return;
+  const pollen = await fetchPollen();
+  if (pollen !== null) setWeather(c, { ...c.vars.weather, pollen });
 }
 
 /**
