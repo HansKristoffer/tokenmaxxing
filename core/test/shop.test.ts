@@ -10,8 +10,8 @@ import {
   itemById,
   levelItems,
   parseSide,
-  TOKEN_COINS_FROM,
   TOKEN_COIN_MULT_FROM,
+  TOKEN_COINS_FROM,
 } from "../src/shop.ts";
 import { LOOK_OPTIONS } from "../src/world.ts";
 
