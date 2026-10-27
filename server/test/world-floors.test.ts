@@ -136,7 +136,13 @@ describe("drops", () => {
       db: own,
       conns: new Map(),
       client: () => {
-        const actor = { getOrCreate: () => ({ seed: async () => seed, pokerRelease: async () => 0 }) };
+        const actor = {
+          getOrCreate: () => ({
+            seed: async () => seed,
+            pokerRelease: async () => 0,
+            rouletteRefund: async () => 0,
+          }),
+        };
         return { town: actor, world: actor, arcade: actor };
       },
     } as never);
