@@ -32,6 +32,14 @@ export const EXTRA_OUTFITS: Record<number, [string, string, string]> = {
   303: ["#23252f", "#15161c", "#15161c"],
   304: ["#18353f", "#0f232b", "#222a35"],
   305: ["#d6343a", "#9a2128", "#f2eadb"],
+  // The Nusantara case (`core/src/case-nusantara.ts`, from NUSANTARA_BASE = 400): batik shirt, deckhand stripes,
+  // kebaya, silat pangsi, songket gala, ondel-ondel.
+  400: ["#6b4226", "#4d2f1a", "#2f3444"],
+  401: ["#243a73", "#1a2a58", "#c9b88c"],
+  402: ["#1f8a8a", "#16696b", "#6b4226"],
+  403: ["#1c1c22", "#101014", "#1c1c22"],
+  404: ["#a81f35", "#7a1426", "#8e1a2e"],
+  405: ["#d6343a", "#a6242a", "#6c8f2f"],
 };
 
 /** Companies without a brand get one of these by id: [main, accent]. */

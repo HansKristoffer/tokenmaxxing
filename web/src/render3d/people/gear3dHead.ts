@@ -1108,6 +1108,91 @@ export const HAT_BUILDERS: Record<string, Build> = {
     ] as const)
       tilt(m, m.box([0.014, 0.15, 0.03], "#d9323a", [0.27, -0.06, z], 0.004), lean, 0, 0.12);
   },
+  // The Nusantara case (`core/src/case-nusantara.ts`). A blocky head is taller than the builders' ball, so these ride `up` higher.
+  Blangkon: (m) => {
+    // A folded batik headcloth: a brown dome with a lattice of cream and indigo diamonds, a tan band and the little
+    // knot (the mondolan) at the back.
+    const up = isVox(m) ? 0.08 : 0;
+    const BROWN = "#6b4226";
+    const INDIGO = "#243a73";
+    const CREAM = "#f1e3c2";
+    dome(m, BROWN, 0.272, 0.03 + up, 0.47);
+    band(m, "#c9a265", 0.268, 0.055, 0.0 + up);
+    band(m, "#8a5a2b", 0.272, 0.014, 0.055 + up);
+    // Diamonds: two rings of studs, cream set between indigo, on the cloth.
+    const stud = (a: number, y: number, c: string, r: number, k = 0.026) => {
+      const [x, z] = roundAt(m, a, isVox(m) ? r + 0.045 : r);
+      m.box([k, k, k * 0.6], c, [x, y, z], 0.004).rotation.y = a;
+    };
+    for (const [y, r, n, k] of [
+      [0.1, 0.262, 12, 0.036],
+      [0.19, 0.22, 8, 0.03],
+    ] as const)
+      for (let i = 0; i < n; i++) stud(((i + 0.5) / n) * Math.PI * 2, y + up, i % 2 ? CREAM : INDIGO, r, k);
+    m.ball(0.04, "#c9a265", [0, 0.29 + up, 0], [1, 0.6, 1], 8);
+    m.ball(0.1, BROWN, [0, 0.03 + up, -0.28], [1, 0.9, 0.8]);
+    m.ball(0.06, INDIGO, [0, 0.035 + up, -0.35], [1, 0.9, 0.7], 8);
+    m.box([0.13, 0.024, 0.024], "#c9a265", [0, 0.02 + up, -0.34], 0.004);
+  },
+  Peci: (m) => {
+    // Black velvet, flat-topped, worn straight and a touch forward: a short cylinder, a little wider at the top.
+    const up = isVox(m) ? 0.09 : 0;
+    const R = isVox(m) ? 0.285 : 0.222;
+    const o = m.cyl(R, 0.2, "#17151c", [0, 0.06 + up, 0.01], R + 0.016, 22);
+    if (!isVox(m)) o.rotation.x = 0.07;
+    m.cyl(R + 0.004, 0.034, "#2a2832", [0, 0.09 + up, 0.01], R + 0.01, 22);
+    m.cyl(R + 0.018, 0.012, "#25232c", [0, 0.248 + up, 0.012], R + 0.018, 22);
+    m.box([0.06, 0.012, 0.012], "#3a3744", [0.09, 0.19 + up, R * 0.95], 0.003);
+  },
+  "Ojek helmet": (m) => {
+    // An open-face half-shell in pale green, a smoked visor flipped up on the brow, stickers on the side.
+    const up = isVox(m) ? 0.07 : 0;
+    const SHELL = "#aee0a2";
+    dome(m, SHELL, 0.29, 0.02 + up, 0.5);
+    band(m, "#86c07c", 0.29, 0.045, 0.0 + up);
+    m.box([0.07, 0.014, 0.4], "#8fcb85", [0, 0.31 + up, -0.02], 0.004);
+    // The visor, up: a tinted pane on two little hinges.
+    const v = m.box([0.36, 0.13, 0.014], see("#2c4045", 0.72), [0, 0.2 + up, 0.27], 0.004);
+    if (!isVox(m)) v.rotation.x = -0.65;
+    for (const s of [-1, 1]) m.box([0.02, 0.03, 0.02], "#5d8f58", [s * 0.18, 0.19 + up, 0.275], 0.004);
+    // The peak's edge on the brow.
+    m.box([0.34, 0.02, 0.06], "#7ab870", [0, 0.08 + up, 0.275], 0.008);
+    // Stickers: a red and a yellow patch and a stripe.
+    for (const s of [-1, 1] as const) {
+      m.box([0.012, 0.07, 0.09], "#d6343a", [s * 0.287, 0.13 + up, 0.04], 0.003);
+      m.box([0.013, 0.05, 0.05], "#f2b632", [s * 0.289, 0.19 + up, -0.08], 0.003);
+      m.box([0.013, 0.014, 0.12], "#f1e3c2", [s * 0.289, 0.09 + up, -0.02], 0.003);
+    }
+    m.box([0.1, 0.12, 0.013], "#f2b632", [0.0, 0.15 + up, -0.288], 0.003);
+    m.box([0.06, 0.06, 0.014], "#d6343a", [0.0, 0.16 + up, -0.29], 0.003);
+  },
+  "Little Bromo": (m, c) => {
+    // A smoking volcano for a hat: a grey-brown cone, ridged, a red-hot rim round the crater and grey puffs that
+    // rise and thin out.
+    const up = isVox(m) ? 0.09 : 0;
+    m.cyl(0.29, 0.3, "#6e6458", [0, 0.1 + up, 0], 0.11, 22);
+    m.cyl(0.255, 0.05, "#5a5148", [0, 0.1 + up, 0], 0.286, 22);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + 0.4;
+      const [x, z] = roundAt(m, a, 0.2);
+      m.box([0.034, 0.18, 0.034], "#4a4239", [x, 0.14 + up, z], 0.01);
+    }
+    m.cyl(0.12, 0.03, "#e0422a", [0, 0.395 + up, 0], 0.11, 18);
+    m.cyl(0.085, 0.034, lit("#ff9a2e"), [0, 0.398 + up, 0], 0.085, 14);
+    const puffs = [0, 1, 2].map((i) =>
+      m.ball(0.05 + i * 0.01, see("#b9bcc4", 0.7), [0, 0.44 + up, 0], [1, 0.8, 1], 8),
+    );
+    c.tick((t) => {
+      puffs.forEach((p, i) => {
+        // Two frames of smoke, as in 2D: they step up in beats and thin out.
+        const k = (t * 0.45 + i / 3) % 1;
+        const step = Math.floor(k * 4) / 4;
+        p.position.set(Math.sin(i * 2.1 + step * 3) * 0.04, 0.44 + up + step * 0.3, Math.cos(i * 2.1) * 0.03);
+        p.scale.setScalar(0.5 + step * 1.1);
+        (p.material as THREE.Material).opacity = 0.75 * (1 - step * 0.9);
+      });
+    });
+  },
 };
 
 // MARK: Face
@@ -1683,6 +1768,82 @@ export const FACE_BUILDERS: Record<string, Build> = {
       });
     });
   },
+  // The Nusantara case.
+  "Kawung specs": (m) => {
+    // Round dark-brown frames with the kawung motif (four cream ovals round a centre) set into each rim.
+    for (const s of [-1, 1] as const) {
+      const e = eyeAt(m, s);
+      roundLens(e, "#4a2f1c", "#f6efd9", 0.066, 0.3);
+      ring(e, "#6b4226", 0.078, 0.013, [0, 0, 0.002], false);
+      // Four ovals, N E S W, each standing out from the centre along its own axis.
+      for (const [dx, dy, w, h] of [
+        [0, 0.08, 0.02, 0.04],
+        [0, -0.08, 0.02, 0.04],
+        [0.08, 0, 0.04, 0.02],
+        [-0.08, 0, 0.04, 0.02],
+      ] as const)
+        e.box([w, h, 0.014], "#f1e3c2", [dx - (w / 2) * 0, dy - h / 2, 0.008], 0.004);
+    }
+    m.box([0.05, 0.016, 0.02], "#4a2f1c", [0, EYE_Y, 0.246], 0.005);
+    bridge(m, "#4a2f1c");
+  },
+  "Coconut shades": (m) => {
+    // Half a coconut over each eye: hairy brown shells, a cream rim, and a dark slit to look out of.
+    for (const s of [-1, 1] as const) {
+      const e = eyeAt(m, s);
+      const d = e.part([0, 0, 0.004]);
+      d.rotation.x = Math.PI / 2;
+      dome(d, "#6a4423", 0.086, 0, 0.5, 12);
+      ring(e, "#f1e3c2", 0.082, 0.011, [0, 0, 0.006], false);
+      e.box([0.1, 0.015, 0.012], "#15110d", [0, -0.008, 0.09], 0.003);
+      // Fibres.
+      for (const [x, y] of [
+        [-0.04, 0.04],
+        [0.03, 0.055],
+        [0.05, -0.02],
+        [-0.045, -0.04],
+      ] as const)
+        e.box([0.012, 0.028, 0.012], "#8a5c32", [x, y, 0.07], 0.003);
+    }
+    m.box([0.06, 0.016, 0.02], "#5a3a1c", [0, EYE_Y, 0.246], 0.006);
+    bridge(m, "#5a3a1c");
+  },
+  "Wayang eyes": (m) => {
+    // Almond eyes cut from leather: slanted black almonds with a gold outline, the pupil always looking sideways.
+    for (const s of [-1, 1] as const) {
+      const e = eyeAt(m, s);
+      sign(
+        e,
+        0.21,
+        0.11,
+        (g, w, h) => {
+          const X = (x: number) => (s > 0 ? x : 1 - x) * w;
+          const almond = (inset: number) => {
+            g.beginPath();
+            g.moveTo(X(0.02 + inset), h * (0.66 - inset * 0.2));
+            g.quadraticCurveTo(X(0.42), h * (0.0 + inset), X(0.99 - inset), h * (0.28 + inset * 0.3));
+            g.quadraticCurveTo(X(0.55), h * (1.0 - inset), X(0.02 + inset), h * (0.66 - inset * 0.2));
+            g.closePath();
+          };
+          g.fillStyle = "#e8b23a";
+          almond(0);
+          g.fill();
+          g.fillStyle = "#0e0c10";
+          almond(0.16);
+          g.fill();
+          // The pupil: a gold dot at the outer end, looking sideways.
+          g.fillStyle = "#f2c24a";
+          g.beginPath();
+          g.arc(X(0.72), h * 0.45, h * 0.15, 0, Math.PI * 2);
+          g.fill();
+        },
+        [0, -0.012, 0.012],
+        120,
+      );
+    }
+    m.box([0.05, 0.014, 0.02], "#0e0c10", [0, EYE_Y, 0.246], 0.005);
+    bridge(m, "#0e0c10");
+  },
 };
 
 /** Hats that cover the crown of the head: the hair's fringe, spikes and bun are tucked under them. */
@@ -1720,5 +1881,9 @@ export const COVERS_HAIR = new Set([
   "Paid in Full crown",
   "Straw kasa",
   "Fox half-mask",
+  "Blangkon",
+  "Peci",
+  "Ojek helmet",
+  "Little Bromo",
   "Kattekonge crown",
 ]);

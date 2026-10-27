@@ -45,7 +45,7 @@ export type IconSpec =
   | { kind: "trophy"; id: string; earned?: boolean }
   | { kind: "desk"; tier: number }
   | { kind: "boss"; id: string }
-  | { kind: "case"; what: "closed" | "open" | "key" };
+  | { kind: "case"; what: "closed" | "open" | "key"; caseId?: string };
 
 export type IconSize = 64 | 128;
 
@@ -83,7 +83,8 @@ export function iconKey(s: IconSpec): string {
     case "boss":
       return `boss:${s.id}`;
     case "case":
-      return `case:${s.what}`;
+      // The Night Market's (the first case) keeps its old key.
+      return s.caseId && s.caseId !== "night-market" ? `case:${s.caseId}:${s.what}` : `case:${s.what}`;
   }
 }
 
@@ -153,7 +154,7 @@ function build(s: IconSpec): Built {
       root.add(deskTier(s.tier));
       break;
     case "case":
-      root.add(s.what === "key" ? buildCaseKey() : buildCaseBox(s.what === "open"));
+      root.add(s.what === "key" ? buildCaseKey(s.caseId) : buildCaseBox(s.what === "open", s.caseId));
       break;
     case "boss": {
       const b = buildBoss(s.id, true);

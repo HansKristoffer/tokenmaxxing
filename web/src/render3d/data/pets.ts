@@ -25,6 +25,13 @@ export const PET_SPECIES = [
   "maneki",
   "kitsune",
   "tengu",
+  // The Nusantara case's pets are at `NUSANTARA_PET_BASE` and up, not in this list either.
+  "komodo",
+  "tarsier",
+  "enggang",
+  "rafflesia",
+  "cenderawasih",
+  "orangutan",
 ] as const;
 
 /** `Look.pet` of the first Night Market case pet (`CASE_BASE` in core/src/case.ts); the six follow in order. */
@@ -32,9 +39,28 @@ export const CASE_PET_BASE = 300;
 /** The species that stand at `CASE_PET_BASE` and up. */
 export const CASE_PET_SPECIES = ["koi", "crane", "tanuki", "maneki", "kitsune", "tengu"] as const;
 
-/** The species of `Look.pet` `n`: the shop's and the loot's by position, the case's from `CASE_PET_BASE`. */
+/** `Look.pet` of the first Nusantara case pet (`NUSANTARA_BASE` in core/src/case-nusantara.ts); the six follow in order. */
+export const NUSANTARA_PET_BASE = 400;
+/** The species that stand at `NUSANTARA_PET_BASE` and up. */
+export const NUSANTARA_PET_SPECIES = [
+  "komodo",
+  "tarsier",
+  "enggang",
+  "rafflesia",
+  "cenderawasih",
+  "orangutan",
+] as const;
+
+/**
+ * The species of `Look.pet` `n`: the shop's and the loot's by position, the Night Market's from `CASE_PET_BASE` (300 to
+ * 399) and the Nusantara's from `NUSANTARA_PET_BASE` (400 to 499). Anything past a case's six is nothing.
+ */
 export const speciesAt = (n: number): Species | undefined =>
-  n >= CASE_PET_BASE ? CASE_PET_SPECIES[n - CASE_PET_BASE] : n < CASE_PET_BASE ? PET_SPECIES[n] : undefined;
+  n >= NUSANTARA_PET_BASE
+    ? NUSANTARA_PET_SPECIES[n - NUSANTARA_PET_BASE]
+    : n >= CASE_PET_BASE
+      ? CASE_PET_SPECIES[n - CASE_PET_BASE]
+      : PET_SPECIES[n];
 export type Species = (typeof PET_SPECIES)[number];
 
 export const PET_NAME: Record<Species, string> = {
@@ -56,6 +82,12 @@ export const PET_NAME: Record<Species, string> = {
   maneki: "Maneki cat",
   kitsune: "Kitsune",
   tengu: "Tengu",
+  komodo: "Komodo",
+  tarsier: "Tarsier",
+  enggang: "Enggang",
+  rafflesia: "Rafflesia",
+  cenderawasih: "Cenderawasih",
+  orangutan: "Orangutan",
 };
 
 /** `Look.petVariant` n is `PET_VARIANTS[species][n - 1]`; 0 is the pet as the shop sells it. */
