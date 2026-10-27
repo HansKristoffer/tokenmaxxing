@@ -128,16 +128,20 @@ export function CaseArt({ opening }: { opening: boolean }) {
   );
 }
 
-function Tile({ item, hidden, won }: { item: Item; hidden?: boolean; won?: boolean }) {
+function Tile({ item, won }: { item: Item; won?: boolean }) {
   const rarity = rarityIn(item);
-  const mystery = hidden && rarity === "legendary";
+  // A legendary is never named on the strip, even when it lands: the reveal panel below shows it.
+  const mystery = rarity === "legendary";
   return (
     <li
       className={`cs-tile${mystery ? " mystery" : ""}${won ? " won" : ""}`}
       style={{ "--r": RARITY_COLOR[mystery ? "legendary" : rarity] } as CSSProperties}
     >
       {mystery ? (
-        <span className="cs-q">???</span>
+        <>
+          <span className="cs-q">???</span>
+          <span className="cs-name">Legendary Item!</span>
+        </>
       ) : (
         <>
           <span className="cs-pic">
@@ -304,7 +308,7 @@ export function CaseOpening({
         <ul className="cs-strip" ref={strip} data-speed="slow" aria-hidden={busy}>
           {(shown ?? idle).map((it, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: the strip is positional; a winner repeats items
-            <Tile key={i} item={it} hidden={!won} won={!!won && i === WINNER_AT} />
+            <Tile key={i} item={it} won={!!won && i === WINNER_AT} />
           ))}
         </ul>
         <span className="cs-marker" aria-hidden="true" />
@@ -320,19 +324,35 @@ export function CaseOpening({
           <section key={r} className="cs-group" style={{ "--r": RARITY_COLOR[r] } as CSSProperties}>
             <h4>
               <span style={{ color: RARITY_COLOR[r] }}>{r}</span>
-              <span className="muted small"> · {items.length}</span>
+              {r !== "legendary" && <span className="muted small"> · {items.length}</span>}
             </h4>
             <ul>
-              {items.map((it) => (
-                <li key={it.id} title={it.blurb} className={won?.id === it.id ? "got" : undefined}>
-                  <ItemImage item={it} look={LOOK} bare />
-                  <span className="cs-name">{it.name}</span>
-                  <span className="cs-slot">
-                    {slotLabel(it)}
-                    {chances && ` · ${percent(chances.get(it.id) ?? 0)}`}
-                  </span>
+              {r === "legendary" ? (
+                // Like a CS knife: it says there is one in here, never which. You see it when you win it.
+                <li
+                  title="Something rarer than the rest. You find out when you open it."
+                  className={`mystery${won && rarityIn(won) === "legendary" ? " got" : ""}`}
+                >
+                  <span className="cs-q">???</span>
+                  <span className="cs-name">Legendary Item!</span>
+                  {chances && (
+                    <span className="cs-slot">
+                      {percent(items.reduce((a, it) => a + (chances.get(it.id) ?? 0), 0))}
+                    </span>
+                  )}
                 </li>
-              ))}
+              ) : (
+                items.map((it) => (
+                  <li key={it.id} title={it.blurb} className={won?.id === it.id ? "got" : undefined}>
+                    <ItemImage item={it} look={LOOK} bare />
+                    <span className="cs-name">{it.name}</span>
+                    <span className="cs-slot">
+                      {slotLabel(it)}
+                      {chances && ` · ${percent(chances.get(it.id) ?? 0)}`}
+                    </span>
+                  </li>
+                ))
+              )}
             </ul>
           </section>
         ))}
