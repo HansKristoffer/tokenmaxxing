@@ -2129,11 +2129,19 @@ async function snapshot(
 
 /** Reads OpenRouter's model list, and tells everyone when the launches change (a stand going up or down). */
 async function refreshLaunches(
-  c: { vars: Vars; broadcast(name: string, ...args: unknown[]): void },
+  c: {
+    vars: Vars;
+    client: () => Parameters<typeof main>[0];
+    broadcast(name: string, ...args: unknown[]): void;
+  },
   now: number,
 ): Promise<void> {
   const next = await checkLaunches(c.vars.launches, now);
   if (sameLaunches(next, c.vars.launches)) return;
+  // The town keeps which launches there were; a read it misses is sent again with the next change.
+  void main(c.client())
+    .town.launched(next)
+    .catch((err: unknown) => console.warn(`[launches] town: ${String(err)}`));
   c.vars.launches = next;
   c.broadcast("launches", next);
 }
