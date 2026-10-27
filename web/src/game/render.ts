@@ -34,6 +34,7 @@ import { graphics } from "../settings/graphics.ts";
 import { drawBasement, lightBasement } from "./basement.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
+import { drawClocks } from "./clocks.ts";
 import { drawCop, isCop } from "./cop.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { type Frame, inView } from "./frame.ts";
@@ -329,6 +330,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawLaunch(f);
   drawPicnic(f);
   drawChalkboards(f);
+  drawClocks(f);
   drawTavern(f);
   drawTownAnimals(f);
   drawBasement(f);

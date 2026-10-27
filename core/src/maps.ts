@@ -125,6 +125,8 @@ export const LEGEND: Record<string, TileKind> = {
   M: { name: "wall terminal", text: "A wall terminal." },
   // The tournament board (`tournament.ts`); E opens it. The basement is the Tavern's, so `TAVERN` gates it.
   ...(TAVERN ? { i: { name: "tournament board", text: "The tournament board." } } : {}),
+  // The world clocks (`clocks.ts`), on the Tavern's north wall by the hearth: the client sets their hands and says the time.
+  ...(TAVERN ? { "◷": { name: "world clocks" } } : {}),
   // The request pile (`requests.ts`), on the Tavern's north wall; E opens it.
   ...(TAVERN
     ? { "?": { name: "request pile", text: "The request pile. What people would like in the game." } }
@@ -620,11 +622,12 @@ export const MAPS: Record<MapId, GameMap> = {
   // them is free), the hearth in a nook of the north wall with its sofas, the stage and jukebox on the west wall,
   // four-sided dining tables and booths round a two-wide aisle from the door, a coat stand by it, and the stairs
   // in the corners (S down in the south-east, u up in the south-west). The tip jar stands on the bar; the
-  // chalkboard on the floor by the barrels. One exit, so `roomEntry` still finds it.
+  // chalkboard on the floor by the barrels; the world clocks (◷) hang on the north wall by the hearth. One exit,
+  // so `roomEntry` still finds it.
   inn: TAVERN
     ? new GameMap("inn", "The Tavern", [
         "WWWWWWWWWWWWWWWWWWWWWWWWWWWW",
-        "WWWWWWWWWWWWmmWAAAA?WWWWWWWW",
+        "WWWWWWWWWWWWmmWAAAA?◷◷WWWWWW",
         "Wkkkkkkk=hho__K______PffPkkW",
         "W=========h_________======pW",
         "Waaayaaa$aa_________s====s_W",

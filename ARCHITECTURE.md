@@ -21,7 +21,7 @@ The game also runs in any browser; the app's window is that same page, at `/play
 
 | Path | What |
 |---|---|
-| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen) |
+| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `clocks.ts` (the Tavern's world clocks: SF, New York and Copenhagen off Intl, and SF's working hours as the launch window), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen) |
 | `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `quests`, `awards` (badge awards and their sweep), `hall` (the Hall of Fame), `card` (bios, showcase, habits, the Tavern's minutes), `sync` (pushes to `world`) |
 | `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (one Open-Meteo fetch per 15 min, for the `world` actor), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
@@ -362,7 +362,7 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   columns stay. The Hall of Fame, badges and the card aren't behind it.
 - **Tiles** (`LEGEND`; E acts on the one you face, `interact` in `web/src/game/input.ts`):
   - `m` quest board and the bar `a`: the quests panel. `J` the bar tab on the west wall and `P` a plaque: the regulars. `A` the wall: the Hall of Fame.
-    `K` chalkboard: a dialog with today's special. `$` the tip jar on the bar (`tosses`, like the fountain): a coin in. `O` coat stands by the door.
+    `K` chalkboard: a dialog with today's special. `◷` the world clocks: a dialog with the time in each city and the launch window. `$` the tip jar on the bar (`tosses`, like the fountain): a coin in. `O` coat stands by the door.
   - `y` the tap (`serves`): the `tavern` action. `o` the coffee machine, as everywhere.
   - `v` a stool: sits (a `chair`-kind seat). `b` the dorm's beds.
   - `n` table, `f` hearth, `h` barrel, `k` shelf: a line of text. `e` the stage (walkable).
@@ -377,6 +377,14 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   free and cosmetic, like coffee: no ledger row, no pace. The effect is `jitter` (the coffee
   shake) or `glow`, alternating by the day it was served (`buffOf`, `specialBuff(until)`), so `specialUntil` is the
   only field on the wire. The chalkboards in town and in the Tavern write the day's line.
+- **The world clocks** (`◷`, two wall tiles on the north wall between the request pile and the hearth's plaque, where the
+  3D Tavern had a window; `core/src/clocks.ts`): San Francisco, New York and Copenhagen, west to east. Pure and
+  clock-driven like the street's things: each city's time and daylight saving come from Intl (`cityTime`), never a fixed
+  offset, so in the weeks the US and the EU are out of step (mid March, late October) SF is 8 hours behind, not 9, and
+  the window lands at 17:00 here. The launch window (`inLaunchWindow`) is SF's working day, Monday to Friday 09:00 to
+  17:00 there, when US model launches tend to land: SF's lamp is on and its face glows, a sign over the clocks says so,
+  and E says it's time to watch the launch stand (`clocksLine`), or when the next window opens, in Copenhagen time
+  (`nextWindow`). `web/src/game/clocks.ts` works the hands out once a minute for both renderers; no server state.
 - **The barkeep** (`BARKEEP`, `core/src/barkeep.ts`; id -4, the cop is -3) is a bot in `BOTS` only with `TAVERN`.
   `home` puts him on the rug on every wake and `still` keeps `walkBots` off him. His lines (`lineFor`, shared with
   the other bots, said as bubbles and never in chat, only with someone in the room) come a third of the time from the
