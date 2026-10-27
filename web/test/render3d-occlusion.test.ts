@@ -4,6 +4,16 @@ import { PlayerOcclusion, seeThrough } from "../src/render3d/engine/seethrough.t
 import { Model } from "../src/render3d/kit/kit.ts";
 import { bakeStatic } from "../src/render3d/perf/bake.ts";
 
+// The kit caches these assets; cutaway patches and geometry edits belong to each fixture.
+function prepareCutaways(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    o.geometry = o.geometry.clone();
+    o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone();
+  });
+  seeThrough(root);
+}
+
 const player = new THREE.Vector3(0, 0.9, 0);
 const camera = new THREE.OrthographicCamera(-4, 4, 3, -3, 1, 100);
 camera.position.set(0, 10, 20);
@@ -25,7 +35,7 @@ for (const batched of [false, true]) {
       const root = new Model();
       root.box(scenario.size, "#776655", scenario.at, 0);
       root.box([8, 0.1, 8], "#887766", [0, -0.1, 0], 0);
-      seeThrough(root);
+      prepareCutaways(root);
       const layer = batched ? bakeStatic(root) : null;
       layer?.show("block");
       try {
@@ -47,7 +57,7 @@ test("cutaways ignore glass and hidden scenery, and ease back after an obstructi
     [0, 0, 3],
     0,
   );
-  seeThrough(root);
+  prepareCutaways(root);
   const occlusion = new PlayerOcclusion(root);
   const opening = occlusion.update(player, camera, 0.05, false);
   expect(opening).toBeGreaterThan(0);
@@ -66,7 +76,7 @@ test("cutaways ignore glass and hidden scenery, and ease back after an obstructi
 test("unchanged scenery reuses the verdict, while movement, camera and new occluders invalidate it", () => {
   const root = new Model();
   const wall = root.box([3, 3, 0.2], "#776655", [0, 0, 2], 0);
-  seeThrough(root);
+  prepareCutaways(root);
   let rays = 0;
   const stock = wall.raycast;
   wall.raycast = function (caster, hits) {
@@ -78,11 +88,18 @@ test("unchanged scenery reuses the verdict, while movement, camera and new occlu
   const first = rays;
   for (let i = 0; i < 10; i++) expect(probe.update(player, camera, 0.1, true)).toBe(1);
   expect(rays).toBe(first);
+  const position = wall.geometry.getAttribute("position");
+  const shifted = position.clone();
+  for (let i = 0; i < shifted.count; i++) shifted.setX(i, shifted.getX(i) + 10);
+  wall.geometry.setAttribute("position", shifted);
+  expect(probe.update(player, camera, 0.1, true)).toBe(0);
+  wall.geometry.setAttribute("position", position);
+  expect(probe.update(player, camera, 0.1, true)).toBe(1);
   wall.position.x = 5;
   expect(probe.update(player, camera, 0.1, true)).toBe(0);
   expect(rays).toBeGreaterThan(first);
   const newWall = root.box([3, 3, 0.2], "#776655", [0, 0, 2], 0);
-  seeThrough(root);
+  prepareCutaways(root);
   expect(probe.update(player, camera, 0.1, true)).toBe(1);
   newWall.visible = false;
   expect(probe.update(player, camera, 0.1, true)).toBe(0);
@@ -96,7 +113,7 @@ test("unchanged scenery reuses the verdict, while movement, camera and new occlu
 test("large indexed batches retain exact cutaway verdicts across triangle ranges", () => {
   const root = new Model();
   for (let i = 0; i < 100; i++) root.box([0.2, 3, 0.2], "#776655", [i * 0.2 - 10, 0, 2], 0);
-  seeThrough(root);
+  prepareCutaways(root);
   const points = [-12, -6, 0, 6, 12].map((x) => new THREE.Vector3(x, 0.9, 0));
   const expected = points.map((at) => new PlayerOcclusion(root).update(at, camera, 0.1, true));
   root.userData.rigid = true;

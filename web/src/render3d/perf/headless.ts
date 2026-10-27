@@ -3,6 +3,7 @@ import { loadSlices } from "../kit/registry.ts";
 import type { MapId } from "../rooms/world.ts";
 import { World } from "../rooms/world.ts";
 import { loadRoomSkins } from "../rooms/world-rooms.ts";
+import { forgetShopRoom, shopOfRoom } from "../shops/catalog.ts";
 import { type BakeMode, bakeStatic, freezeLayer } from "./bake.ts";
 import { sceneStats } from "./stats.ts";
 
@@ -32,8 +33,12 @@ export function measureRoom(
   id: string,
   options: { actors?: "frozen" | "live"; variant?: BakeMode } = {},
 ): RoomCost {
+  const content = world();
+  content.evict(id as MapId);
+  const shop = shopOfRoom(id);
+  if (shop) forgetShopRoom(shop);
   const start = performance.now();
-  const room = world().room(id as MapId);
+  const room = content.room(id as MapId);
   const buildMs = performance.now() - start;
   const scene = new THREE.Scene();
   scene.add(room.group);

@@ -112,6 +112,8 @@ export class PlayerOcclusion {
   private previous: {
     mesh: THREE.Mesh;
     geometry: THREE.BufferGeometry;
+    position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+    index: THREE.BufferAttribute | null;
     matrix: THREE.Matrix4;
     version: number;
     indexVersion: number;
@@ -151,6 +153,8 @@ export class PlayerOcclusion {
           !old ||
           old.mesh !== mesh ||
           old.geometry !== geometry ||
+          old.position !== attribute ||
+          old.index !== geometry.index ||
           !old.matrix.equals(mesh.matrixWorld) ||
           old.version !== version ||
           old.indexVersion !== (geometry.index?.version ?? 0) ||
@@ -159,6 +163,8 @@ export class PlayerOcclusion {
         if (old) {
           old.mesh = mesh;
           old.geometry = geometry;
+          old.position = attribute;
+          old.index = geometry.index;
           old.matrix.copy(mesh.matrixWorld);
           old.version = version;
           old.indexVersion = geometry.index?.version ?? 0;
@@ -168,6 +174,8 @@ export class PlayerOcclusion {
           this.previous.push({
             mesh,
             geometry,
+            position: attribute,
+            index: geometry.index,
             matrix: mesh.matrixWorld.clone(),
             version,
             indexVersion: geometry.index?.version ?? 0,
