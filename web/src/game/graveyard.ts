@@ -80,8 +80,8 @@ export function graveInteract(me: { x: number; y: number; facing: Facing }): boo
   return true;
 }
 
-/** The graveyard's sign: over the middle of its path, a stone's height up. */
-export const SIGN_AT = { x: GRAVEYARD.x + 1.5, y: GRAVEYARD.y } as const;
+/** The graveyard's sign: over the middle of its top row, a stone's height up. */
+export const SIGN_AT = { x: GRAVEYARD.x + 0.5, y: GRAVEYARD.y } as const;
 
 export function drawGraveyard({ g, items, labels, toScreen, dpr }: Frame): void {
   readStones();

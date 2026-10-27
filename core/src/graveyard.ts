@@ -94,7 +94,7 @@ export function withChanges(plots: readonly Plot[], changed: readonly Plot[]): P
 // MARK: The graveyard
 
 /**
- * Where the graveyard is: the lawn east of the Tavern, above the windmill, two columns of stones with a
+ * Where the graveyard is: the lawn north-east of the Tavern, above the windmill, two rows of stones with a
  * path between them. Every plot and the tile in front of it is grass (core/test/graveyard.test.ts), so
  * moving it is moving this.
  */
@@ -102,15 +102,15 @@ export const GRAVEYARD = { x: 17, y: 10 } as const;
 
 /**
  * The plots, in town tiles: a tile apart each way, so every stone has a front to stand on and its name
- * room to show. The windmill stands where the sixth one's front would be.
+ * room to show. Three along the top, two under them: lower down, the windmill would hide them.
  */
 export const GRAVES: readonly (readonly [number, number])[] = (
   [
+    [-2, 0],
     [0, 0],
     [2, 0],
     [0, 2],
     [2, 2],
-    [0, 4],
   ] as const
 ).map(([dx, dy]) => [GRAVEYARD.x + dx, GRAVEYARD.y + dy] as const);
 
