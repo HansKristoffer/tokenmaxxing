@@ -54,6 +54,7 @@ import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
+import { drawGraveyard } from "./graveyard.ts";
 import { lampDim } from "./grid.ts";
 import { drawGrid } from "./grid-board.ts";
 import { drawPumpkins, lightPumpkins } from "./halloween.ts";
@@ -368,6 +369,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawStreet(f);
   drawWindmills(f);
   drawLaunch(f);
+  drawGraveyard(f);
   drawStatue(f);
   drawStars(f);
   drawFireworks(f);
