@@ -10,6 +10,7 @@ import { connect, walk } from "./world-client.ts";
 type Tab = Awaited<ReturnType<typeof connect>>;
 const map = MAPS.basement;
 const spots = rouletteSpots();
+const everySpot = Array.from({ length: SPOTS }, (_, i) => i);
 
 function listen(c: Tab) {
   const table: RouletteState[] = [];
@@ -48,12 +49,12 @@ async function approach(c: Tab, i: number): Promise<Facing> {
 const BET = [{ on: "red", stake: 1 }];
 
 describe("the net cafe's roulette table", () => {
-  test("spots are taken, freed, and a fifth player is refused", async () => {
+  test("spots are taken, freed, and a ninth player is refused", async () => {
     expect(spots).toHaveLength(SPOTS);
-    const users = await Promise.all([1, 2, 3, 4, 5].map((i) => rich(`rt${i}`, 100)));
+    const users = await Promise.all(Array.from({ length: SPOTS + 1 }, (_, i) => rich(`rt${i}`, 100)));
     const tabs: Tab[] = [];
     for (const u of users) tabs.push(await joinCafe(u.token));
-    const heard = listen(tabs[4]!);
+    const heard = listen(tabs[SPOTS]!);
     for (let i = 0; i < SPOTS; i++) {
       expect(await tabs[i]!.conn.rouletteSit(await approach(tabs[i]!, i))).toMatchObject({
         state: "idle",
@@ -61,20 +62,22 @@ describe("the net cafe's roulette table", () => {
         y: spots[i]![1],
       });
     }
-    await eventually(() => expect(heard.table.at(-1)?.seats.map((s) => s.spot)).toEqual([0, 1, 2, 3]));
-    expect(await tabs[4]!.conn.rouletteSit(await approach(tabs[4]!, 0))).toMatchObject({
+    await eventually(() => expect(heard.table.at(-1)?.seats.map((s) => s.spot)).toEqual(everySpot));
+    expect(await tabs[SPOTS]!.conn.rouletteSit(await approach(tabs[SPOTS]!, 0))).toMatchObject({
       notice: "The table is full. You can watch.",
     });
     // Someone not seated cannot bet.
-    expect(await tabs[4]!.conn.rouletteBet(BET)).toMatchObject({ notice: "Take a spot at the table first." });
+    expect(await tabs[SPOTS]!.conn.rouletteBet(BET)).toMatchObject({
+      notice: "Take a spot at the table first.",
+    });
     // Leaving frees the spot.
     await tabs[0]!.conn.rouletteLeave();
-    await eventually(() => expect(heard.table.at(-1)?.seats.map((s) => s.spot)).toEqual([1, 2, 3]));
+    await eventually(() => expect(heard.table.at(-1)?.seats.map((s) => s.spot)).toEqual(everySpot.slice(1)));
     for (const t of tabs) await t.conn.dispose();
   }, 60_000);
 
   test("Join takes you to the table from anywhere: into the net cafe and onto a free spot, or watching when it is full", async () => {
-    const users = await Promise.all([1, 2, 3, 4, 5].map((i) => rich(`rj${i}`, 100)));
+    const users = await Promise.all(Array.from({ length: SPOTS + 1 }, (_, i) => rich(`rj${i}`, 100)));
     const tabs: Tab[] = [];
     // Nobody went to the net cafe: they are all in the town to begin with.
     for (const u of users) tabs.push(await connect(u.token));
@@ -87,18 +90,22 @@ describe("the net cafe's roulette table", () => {
         y: spots[i]![1],
       });
     }
-    await eventually(() => expect(heard.table.at(-1)?.seats.map((s) => s.spot)).toEqual([0, 1, 2, 3]));
+    await eventually(() => expect(heard.table.at(-1)?.seats.map((s) => s.spot)).toEqual(everySpot));
     // Already at the table: nothing moves.
     expect(await tabs[0]!.conn.rouletteJoin()).toEqual({ notice: "You're at the table already." });
-    // A fifth is taken down to the net cafe all the same, to watch.
-    expect(await tabs[4]!.conn.rouletteJoin()).toMatchObject({ room: "basement" });
+    // A ninth is taken down to the net cafe all the same, to watch.
+    expect(await tabs[SPOTS]!.conn.rouletteJoin()).toMatchObject({ room: "basement" });
     expect(heard.table.at(-1)?.seats).toHaveLength(SPOTS);
-    expect(await tabs[4]!.conn.rouletteBet(BET)).toMatchObject({ notice: "Take a spot at the table first." });
+    expect(await tabs[SPOTS]!.conn.rouletteBet(BET)).toMatchObject({
+      notice: "Take a spot at the table first.",
+    });
     // A spot freed is the next one's, once its player has stepped off it.
     await tabs[1]!.conn.rouletteLeave();
-    await eventually(() => expect(heard.table.at(-1)?.seats.map((s) => s.spot)).toEqual([0, 2, 3]));
+    await eventually(() =>
+      expect(heard.table.at(-1)?.seats.map((s) => s.spot)).toEqual(everySpot.filter((i) => i !== 1)),
+    );
     await walk(tabs[1]!.conn, ["down"]);
-    expect(await tabs[4]!.conn.rouletteJoin()).toMatchObject({ x: spots[1]![0], y: spots[1]![1] });
+    expect(await tabs[SPOTS]!.conn.rouletteJoin()).toMatchObject({ x: spots[1]![0], y: spots[1]![1] });
     for (const t of tabs) await t.conn.dispose();
   }, 60_000);
 

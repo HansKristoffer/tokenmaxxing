@@ -122,11 +122,11 @@ describe("maps", () => {
       return [Math.max(...xs) - Math.min(...xs) + 1, Math.max(...ys) - Math.min(...ys) + 1, t.length];
     };
 
-    test("one 4x2 poker table with six chairs, one 3x2 roulette table with four spots", () => {
+    test("one 4x2 poker table with six chairs, one 3x2 roulette table with eight spots", () => {
       expect(box("♠")).toEqual([4, 2, 8]);
       expect(map.find("♣")).toHaveLength(6);
       expect(box("♦")).toEqual([3, 2, 6]);
-      expect(box("♥")).toEqual([4, 1, 4]);
+      expect(box("♥")).toEqual([8, 1, 8]);
       expect(map.kind(...map.find("♥")[0]!).roulette).toBe(true);
       expect(map.walkable(...map.find("♦")[0]!)).toBe(false);
       expect(map.walkable(...map.find("♠")[0]!)).toBe(false);
