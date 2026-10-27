@@ -1,4 +1,5 @@
 import { isBot } from "@tokenmaxxing/core/bots.ts";
+import { calendarOn } from "@tokenmaxxing/core/december.ts";
 import { compact, levelTitle, plural } from "@tokenmaxxing/core/format.ts";
 import { milestonesBetween } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
@@ -27,6 +28,7 @@ import { GreenBanner } from "./GreenHour.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
 import { Hotbar } from "./Hotbar.tsx";
 import { Jukebox } from "./Jukebox.tsx";
+import { Julekalender } from "./Julekalender.tsx";
 import { KeynoteBanner, KeynotePanel } from "./Keynote.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LootToast } from "./Loot.tsx";
@@ -317,6 +319,17 @@ function Stats() {
       >
         🎒{wallet && ` ${wallet.items}`}
       </button>
+      {calendarOn(Date.now()) && (
+        <button
+          type="button"
+          className="icon"
+          title="Julekalender: today's door"
+          aria-label="Julekalender"
+          onClick={() => hud.set({ panel: { kind: "julekalender" } })}
+        >
+          🎄
+        </button>
+      )}
       {wallet?.trading && (
         <button
           type="button"
@@ -396,6 +409,7 @@ function Panel() {
     shop: (p) => <Shop tab={p.tab} />,
     shops: () => <ShopDirectory />,
     merchant: () => <Merchant />,
+    julekalender: () => <Julekalender />,
     bag: (p) => <Bag tab={p.tab} />,
     arcade: () => <ArcadePanel />,
     newTable: (p) => <NewTable invite={p.invite} inviteName={p.inviteName} game={p.game} />,

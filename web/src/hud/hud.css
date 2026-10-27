@@ -3788,3 +3788,51 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 .release a {
   color: inherit;
 }
+
+.julekalender {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.julekalender li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 64px;
+  padding: 6px 4px;
+  border: 2px solid #8c1d24;
+  border-radius: 6px;
+  background: #b3262e;
+  color: #fbf7ef;
+  text-align: center;
+}
+
+.julekalender .door-n {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.julekalender li.today {
+  border-color: #f5d14a;
+  box-shadow: 0 0 0 2px #f5d14a55;
+}
+
+.julekalender li.opened {
+  background: #2f6b3a;
+  border-color: #1f4d29;
+}
+
+.julekalender li.missed {
+  opacity: 0.45;
+}
+
+.julekalender .muted {
+  color: inherit;
+  opacity: 0.8;
+}

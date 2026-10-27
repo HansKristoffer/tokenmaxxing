@@ -266,7 +266,15 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
   await withdraw(sql, userId);
   await sql.execute("DELETE FROM trades WHERE from_id = ? OR to_id = ?", userId, userId);
   await wipeUsage(sql, userId);
-  for (const table of ["purchases", "rewards", "offices", "badge_awards", "showcase", "tavern_daily"])
+  for (const table of [
+    "purchases",
+    "rewards",
+    "offices",
+    "badge_awards",
+    "showcase",
+    "tavern_daily",
+    "julekalender",
+  ])
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
   await sql.execute("DELETE FROM bio_reports WHERE target = ? OR reporter = ?", userId, userId);
   await forgetRequests(sql, userId);

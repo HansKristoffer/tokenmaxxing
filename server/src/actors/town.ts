@@ -6,6 +6,7 @@ import {
   resolvePins,
 } from "@tokenmaxxing/core/collection.ts";
 import type { Ticket } from "@tokenmaxxing/core/cop.ts";
+import type { Gift } from "@tokenmaxxing/core/december.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { clockAt, dateAt, type Keynote } from "@tokenmaxxing/core/keynote.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
@@ -149,6 +150,7 @@ import { buyDesk, buyDeskFleet, type MyDesk, myDesk, setDesk } from "../town/des
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { recordGreen } from "../town/grid.ts";
 import { type HallOfFame, hallOfFame } from "../town/hall.ts";
+import { type Calendar, calendar, openDoor } from "../town/julekalender.ts";
 import { comingKeynotes, everyKeynote, markKeynote, removeKeynote, saveKeynote } from "../town/keynotes.ts";
 import { recordLaunches } from "../town/launch-bonus.ts";
 import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
@@ -212,6 +214,7 @@ export type {
 export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany, WalletLine } from "../town/companies.ts";
 export type { GamePlayer } from "../town/games.ts";
+export type { Calendar } from "../town/julekalender.ts";
 export type { Cart, Copy } from "../town/merchant.ts";
 export type { Raid } from "../town/raid.ts";
 export type { PlayerCore } from "../town/users.ts";
@@ -716,6 +719,18 @@ export const town = actor({
 
     /** The numbered copies in my bag. */
     copies: (c): Promise<Copy[]> => copiesOf(c.db, requireUser(c.conn.state)),
+
+    // MARK: The julekalender
+
+    /** Today's door and the doors I've opened this December. */
+    julekalender: (c): Promise<Calendar> => calendar(c.db, requireUser(c.conn.state), Date.now()),
+
+    /** Opens today's door: its coins or its item, once. */
+    openDoor: async (c): Promise<{ door: number; gift: Gift; notice: string; wallet: Wallet }> => {
+      const userId = requireUser(c.conn.state);
+      const k = await kept(c, Date.now());
+      return c.vars.serial(() => openDoor(c.db, userId, Date.now(), k));
+    },
 
     // MARK: Drops
 

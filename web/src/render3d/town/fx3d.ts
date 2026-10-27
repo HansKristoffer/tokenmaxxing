@@ -282,6 +282,14 @@ class Particles {
 /** How deep the snow lies, shared by every patched material (materials outlive a town and its `Fx`). */
 const SNOW = { value: 0 };
 
+/**
+ * No snow on anything: for a room indoors. Its furniture shares the town's materials, so snow left lying from
+ * outside would whiten every table top; back outside it settles again.
+ */
+export const meltSnow = (): void => {
+  SNOW.value = 0;
+};
+
 // MARK: Fx
 
 /** Seconds the light takes to catch up with the clock. */

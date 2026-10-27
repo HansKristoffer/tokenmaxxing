@@ -55,6 +55,7 @@ export type {
   BagRow,
   BoardCompany,
   BoardPlayer,
+  Calendar,
   Cart,
   CompanyProfile,
   Copy,
