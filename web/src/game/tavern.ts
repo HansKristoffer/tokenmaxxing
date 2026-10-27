@@ -4,7 +4,6 @@ import { FLAME_AT, HEARTH_H, hearthFlame, sconce } from "../art/tavern.ts";
 import { drawJulefrokost } from "./december.ts";
 import type { Frame } from "./frame.ts";
 import { drawGlow, flicker } from "./glow.ts";
-import { drawPoker } from "./poker.ts";
 import { drawBarTab, drawRegulars } from "./regulars.ts";
 import { darknessNow, warmthNow } from "./sky.ts";
 import { world } from "./world.ts";
@@ -49,7 +48,6 @@ export function drawTavern(f: Frame): void {
   }
   drawRegulars(f);
   drawBarTab(f);
-  drawPoker(f);
   drawJulefrokost(f);
   for (const [x, y] of SCONCES) {
     const s = sconce(Math.floor(now / 140 + x) % 2);

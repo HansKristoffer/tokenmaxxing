@@ -5,6 +5,7 @@ import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
+import type { RouletteState } from "@tokenmaxxing/core/roulette.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
 import type { Stars } from "@tokenmaxxing/core/stars.ts";
@@ -31,6 +32,10 @@ export type Panel =
   | { kind: "shops" }
   /** Natmarked's counter and shelves: the cases on sale (`hud/CaseShop.tsx`). */
   | { kind: "caseShop" }
+  /** The solo roulette table (`hud/Roulette.tsx`). */
+  | { kind: "roulette"; watch?: boolean }
+  /** A read-only view of the net cafe's poker table (`hud/PokerWatch.tsx`). */
+  | { kind: "pokerWatch" }
   | { kind: "merchant" }
   | { kind: "julekalender" }
   | { kind: "bag"; tab?: "you" | "pet" | "things" }
@@ -144,6 +149,8 @@ interface HudState {
   poker: (PokerState & { at: number }) | null;
   /** My two cards at the poker table (`world` sends `pokerHole` to me alone). */
   pokerHole: Card[];
+  /** The net cafe's roulette table as the room sees it, and when it arrived; null away from the net cafe. */
+  roulette: (RouletteState & { at: number }) | null;
 }
 
 let state: HudState = {
@@ -171,6 +178,7 @@ let state: HudState = {
   jukeSettings: loadJukeSettings(),
   poker: null,
   pokerHole: [],
+  roulette: null,
   notice: null,
   lobby: null,
   frame: null,

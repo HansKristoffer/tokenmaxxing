@@ -26,6 +26,8 @@ import {
   pokerTable,
   questBoard,
   requestPile,
+  rouletteSpot,
+  rouletteTable,
   stool,
   table,
 } from "./tavern.ts";
@@ -679,6 +681,14 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       );
     case "♣":
       return at(chair());
+    // The roulette table: 3 wide, 2 tall; the spots below it are small floor mats.
+    case "♦": {
+      let col = 0;
+      while (map.at(x - col - 1, y) === ch) col++;
+      return at(rouletteTable(Math.min(col, 2), map.at(x, y - 1) === ch ? 1 : 0));
+    }
+    case "♥":
+      return at(rouletteSpot());
     case "A": {
       let n = 0;
       while (map.at(x - n - 1, y) === ch) n++;

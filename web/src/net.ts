@@ -9,6 +9,7 @@ import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
 import type { Outage } from "@tokenmaxxing/core/picnic.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
+import type { RouletteState } from "@tokenmaxxing/core/roulette.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
 import type { Stars } from "@tokenmaxxing/core/stars.ts";
 import type { Statue } from "@tokenmaxxing/core/statue.ts";
@@ -148,10 +149,12 @@ export function connect(token: string): void {
   });
   // The poker table is the Tavern's too: the table for the room, my own two cards for me alone.
   conn.on("poker", (p: PokerState) => hud.set({ poker: { ...p, at: Date.now() } }));
+  conn.on("roulette", (r: RouletteState) => hud.set({ roulette: { ...r, at: Date.now() } }));
   conn.on("pokerHole", (h: Card[]) => hud.set({ pokerHole: h }));
   conn.on("snapshot", (s: Snapshot) => {
+    if (s.room !== "basement") hud.set({ poker: null, pokerHole: [], roulette: null });
     if (s.room !== "inn") {
-      hud.set({ jukebox: null, poker: null, pokerHole: [] });
+      hud.set({ jukebox: null });
       stopJukebox();
       duckMusic(false);
     }
@@ -212,7 +215,7 @@ export function connect(token: string): void {
   });
   conn.onClose(() => {
     // Music stops with the connection; the Tavern sends it again when we're back in.
-    hud.set({ jukebox: null, poker: null, pokerHole: [] });
+    hud.set({ jukebox: null, poker: null, pokerHole: [], roulette: null });
     stopJukebox();
     stopRoomMusic();
     if (hud.get().status === "ready") hud.set({ status: "offline" });

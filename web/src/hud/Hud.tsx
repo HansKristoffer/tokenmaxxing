@@ -47,11 +47,13 @@ import { PaperPanel } from "./Paper.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Poker } from "./Poker.tsx";
+import { PokerWatch } from "./PokerWatch.tsx";
 import { Quests } from "./Quests.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Regulars } from "./Regulars.tsx";
 import { Requests } from "./Requests.tsx";
 import { RoomsBox } from "./RoomsBox.tsx";
+import { RoulettePanel } from "./Roulette.tsx";
 import { Shop } from "./Shop.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
@@ -440,6 +442,8 @@ function Panel() {
     changelog: () => <ChangelogPanel />,
     caseOpening: () => <CaseOpening />,
     caseShop: () => <CaseShop />,
+    roulette: (p) => <RoulettePanel watch={p.watch} />,
+    pokerWatch: () => <PokerWatch />,
     menu: () => (
       <Modal title="Menu">
         <nav className="menu">

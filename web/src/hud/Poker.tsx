@@ -31,7 +31,7 @@ export function PokerCard({ card, small }: { card?: Card; small?: boolean }) {
 }
 
 /** What the table says happened, in a line: "Ada wins 45 with Pair of Aces". */
-function resultLine(poker: PokerState): string | null {
+export function resultLine(poker: PokerState): string | null {
   const r = poker.result;
   if (!r) return null;
   const name = (id: number) => poker.names[id] ?? "Someone";
@@ -43,7 +43,7 @@ function resultLine(poker: PokerState): string | null {
     .join(" · ");
 }
 
-const STREETS = { preflop: "Pre-flop", flop: "Flop", turn: "Turn", river: "River" } as const;
+export const STREETS = { preflop: "Pre-flop", flop: "Flop", turn: "Turn", river: "River" } as const;
 
 /**
  * One chair round the felt, at place `pos` (0 is the bottom, where you sit, then on round the way the deal

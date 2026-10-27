@@ -90,7 +90,7 @@ test("after a showdown the shown hands lie face up, and nothing is shown for a f
 
 test("the 3D table is as big as the map's, and lays cards and chips on its felt", async () => {
   const { pokerTable3d } = await import("../src/render3d/rooms/poker3d.ts");
-  const spot = pokerTable(MAPS.inn)!;
+  const spot = pokerTable(MAPS.basement)!;
   const model = pokerTable3d();
   const box = new THREE.Box3().setFromObject(model);
   expect(box.max.x - box.min.x).toBeLessThanOrEqual(spot.w + 1e-3);
@@ -111,24 +111,26 @@ test("the 3D table is as big as the map's, and lays cards and chips on its felt"
   expect(live.children).toHaveLength(0);
 });
 
-test("the Tavern room has the table and a seat at every chair of the map, at the map's tiles", async () => {
+test("the net cafe has the table and a seat at every chair of the map, at the map's tiles, and the Tavern has none", async () => {
+  const { buildBasement } = await import("../src/render3d/rooms/basement3d.ts");
   const { buildTavernRoom } = await import("../src/render3d/rooms/tavern3d.ts");
-  const inn = buildTavernRoom();
-  expect(inn.poker).not.toBeNull();
-  const chairs = pokerChairs(MAPS.inn);
+  const cafe = buildBasement();
+  expect(cafe.poker).not.toBeNull();
+  const chairs = pokerChairs(MAPS.basement);
   expect(chairs).toHaveLength(SEATS);
-  const seats = inn.room.placed.filter((p) => p.asset.id === "tavern:poker-chair");
+  const seats = cafe.room.placed.filter((p) => p.asset.id === "tile:♣");
   expect(seats.map((p) => `${p.x},${p.z}`).sort()).toEqual(
     chairs.map((ch) => `${ch.x - INSET[0]},${ch.y - INSET[1]}`).sort(),
   );
-  for (const p of seats) expect(inn.room.seatOf(p)).not.toBeNull();
-  // The layout the demo writes back to the map has the same tiles.
-  const spot = pokerTable(MAPS.inn)!;
-  expect(inn.layout.get(`${spot.x - INSET[0]},${spot.y - INSET[1]}`)).toBe("♠");
-  for (const ch of chairs) expect(inn.layout.get(`${ch.x - INSET[0]},${ch.y - INSET[1]}`)).toBe("♣");
+  for (const p of seats) expect(cafe.room.seatOf(p)).not.toBeNull();
+  const spot = pokerTable(MAPS.basement)!;
+  const table = cafe.room.placed.find((p) => p.asset.id === "tile:♠")!;
+  expect([table.x, table.z]).toEqual([spot.x - INSET[0], spot.y - INSET[1]]);
   // Labels find each seat in the world, six different places round the table.
-  const at = new Set(chairs.map((_, i) => inn.poker!.seatWorld(i, new THREE.Vector3()).toArray().join()));
+  const at = new Set(chairs.map((_, i) => cafe.poker!.seatWorld(i, new THREE.Vector3()).toArray().join()));
   expect(at.size).toBe(SEATS);
+  const inn = buildTavernRoom();
+  expect(inn.room.placed.some((p) => p.asset.id.includes("poker"))).toBe(false);
 });
 
 test("the idle table names its blinds from the rules, not from a number typed into the label", async () => {

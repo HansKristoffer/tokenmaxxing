@@ -7,7 +7,7 @@ import { FONT } from "./labels.ts";
 import { world } from "./world.ts";
 
 /**
- * The Tavern's poker table in the 2D room (`inn` only): the board and the pot on the felt, a stack under each
+ * The Tavern's poker table in the 2D room (`basement` only): the board and the pot on the felt, a stack under each
  * seated player with their last move, and the dealer's button. The cards are in the labels' pass, in canvas
  * pixels, so the ranks stay crisp. Nothing without a table sent by the server (`hud.poker`).
  */
@@ -50,7 +50,7 @@ function pill(
 
 export function drawPoker(f: Frame): void {
   const state = hud.get().poker;
-  const table = world.map.id === "inn" && state ? pokerTable(world.map) : null;
+  const table = world.map.id === "basement" && state ? pokerTable(world.map) : null;
   if (!state || !table) return;
   const { g } = f;
   const chairs = pokerChairs(world.map);

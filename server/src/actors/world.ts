@@ -81,6 +81,21 @@ import {
 } from "@tokenmaxxing/core/poker.ts";
 import { chairAt, pokerChairs } from "@tokenmaxxing/core/pokertable.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
+import {
+  BETTING_MS,
+  type Bet,
+  colorOf,
+  nextPhase,
+  RESULT_MS,
+  type RouletteOutcome,
+  type RoulettePhase,
+  type RouletteSeat,
+  type RouletteSpin,
+  type RouletteState,
+  SPIN_MS,
+  SPOTS,
+} from "@tokenmaxxing/core/roulette.ts";
+import { rouletteSpots, spotAt } from "@tokenmaxxing/core/roulettetable.ts";
 import { isBonfire } from "@tokenmaxxing/core/sankthans.ts";
 import { canDropIn, itemById } from "@tokenmaxxing/core/shop.ts";
 import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
@@ -269,6 +284,7 @@ const CHAT_PER_MIN = 20;
 const DANCES_PER_MIN = 30;
 /** Poker actions a player may take a minute: a hand is a few dozen at most. */
 const POKER_PER_MIN = 120;
+const ROULETTE_PER_MIN = 120;
 const keynoteBadge = (title: string) =>
   `📽️ Watch party! You were at the Tavern for ${title}. It's on your card now.`;
 /** The keynote watch party: the schedule is asked of `town` this often (and pushed by it on a change). */
@@ -447,6 +463,9 @@ export const world = actor({
     pokerBusy: new Set<number>(),
     pokerFlushing: false,
     pokerActs: new RateLimiter(POKER_PER_MIN, 60_000),
+    /** The net cafe's roulette table: who holds a spot, the last spin, the recent pockets. In memory only. */
+    roulette: newRoulette(),
+    rouletteActs: new RateLimiter(ROULETTE_PER_MIN, 60_000),
   }),
   db: db({
     onMigrate: async (d) => {
@@ -487,6 +506,10 @@ export const world = actor({
       await main(c.client())
         .town.pokerRelease()
         .catch((err) => console.warn(`[poker] release: ${String(err)}`));
+    // Likewise the roulette table: stakes of a round nobody remembers go back to their wallets.
+    await main(c.client())
+      .town.rouletteRefund()
+      .catch((err) => console.warn(`[roulette] release: ${String(err)}`));
   },
   onDisconnect: (c, conn) => {
     // It's out of `c.conns` by now, so no send puts it back in.
@@ -499,6 +522,7 @@ export const world = actor({
     const p = c.state.players[s.userId];
     if (!p) return;
     pokerStandUp(c, p.id);
+    rouletteLeave(c, p.id);
     const from = p.room;
     // At a game table they stay put: the match decides what happens if they don't come back.
     if (p.state !== "playing") rest(c.state, p, restState(p, Date.now()));
@@ -546,6 +570,7 @@ export const world = actor({
       if (TAVERN) tavernBeat(c, n, now);
       jukeboxBeat(c, now);
       if (TAVERN) pokerBeat(c, now);
+      rouletteBeat(c, now);
       if (now >= c.vars.weatherAt) {
         c.vars.weatherAt = now + WEATHER_EVERY_MS;
         void refreshWeather(c);
@@ -598,7 +623,10 @@ export const world = actor({
       c.conn.send("barrel", c.vars.barrel);
       if (p.room === "inn") {
         sendJukebox(c, Date.now(), userId);
+      }
+      if (p.room === "basement") {
         sendPoker(c, Date.now(), userId);
+        sendRoulette(c, userId);
       }
       return snapshot(c.state, c.vars.online, c.vars.weather, p, chatOf(c.db, p.room));
     },
@@ -870,7 +898,7 @@ export const world = actor({
     /** E while facing a chair at the poker table: buys you in (the buy-in from your wallet) and sits you down. */
     pokerSit: async (c, facing: unknown): Promise<StepResult> => {
       const p = free(c);
-      if (!TAVERN || p?.room !== "inn") return null;
+      if (!TAVERN || p?.room !== "basement") return null;
       const now = Date.now();
       touch(c, p, now);
       if (isFacing(facing)) p.facing = facing;
@@ -882,8 +910,8 @@ export const world = actor({
     },
 
     /**
-     * The Games box's "Join" on the poker table: into the Tavern from anywhere and straight into a free chair, the
-     * buy-in out of the wallet. If the buy-in fails they are in the Tavern all the same, with the reason as a notice.
+     * The Games box's "Join" on the poker table: into the net cafe from anywhere and straight into a free chair, the
+     * buy-in out of the wallet. If the buy-in fails they are in the net cafe all the same, with the reason as a notice.
      */
     pokerJoin: async (c): Promise<StepResult> => {
       const p = free(c);
@@ -897,11 +925,11 @@ export const world = actor({
       const at = chairs.findIndex(
         (ch, i) =>
           !t.seats[i] &&
-          !Object.values(c.state.players).some((o) => o.room === "inn" && o.x === ch.x && o.y === ch.y),
+          !Object.values(c.state.players).some((o) => o.room === "basement" && o.x === ch.x && o.y === ch.y),
       );
       if (at < 0) return { notice: "🃏 The poker table is full." };
-      if (p.room !== "inn") {
-        Object.assign(p, roomEntry("inn"), { state: "idle" });
+      if (p.room !== "basement") {
+        Object.assign(p, roomEntry("basement"), { state: "idle" });
         c.vars.dirty.add(p.id);
         countVisit(c, p);
       }
@@ -913,10 +941,99 @@ export const world = actor({
       return sat;
     },
 
+    /** E on or facing a free spot at the roulette table: takes the spot (moving you onto it, facing the table). */
+    rouletteSit: (c, facing: unknown): StepResult => {
+      const p = free(c);
+      if (!p || p.room !== "basement") return null;
+      touch(c, p, Date.now());
+      if (isFacing(facing)) p.facing = facing;
+      const r = c.vars.roulette;
+      if (r.seats.some((s) => s.userId === p.id)) return null;
+      let spot = spotAt(p.x, p.y);
+      if (spot < 0) {
+        const [dx, dy] = DIRS[p.facing];
+        spot = spotAt(p.x + dx, p.y + dy);
+      }
+      if (spot < 0) return null;
+      if (r.seats.length >= SPOTS) return { notice: "The table is full. You can watch." };
+      const [x, y] = rouletteSpots()[spot]!;
+      const taken =
+        r.seats.some((s) => s.spot === spot) ||
+        Object.values(c.state.players).some(
+          (o) => o.id !== p.id && o.room === p.room && o.x === x && o.y === y,
+        );
+      if (taken) return { notice: "Someone's already there." };
+      if (p.state === "sit" && (p.x !== x || p.y !== y)) return null;
+      Object.assign(p, { x, y, facing: "up" });
+      if (stopDance(p)) sendInfo(c, p, info(p, true));
+      c.vars.dirty.add(p.id);
+      r.seats.push({ spot, userId: p.id, name: p.name });
+      r.seats.sort((a, b) => a.spot - b.spot);
+      r.players.set(p.id, { userId: p.id, bets: [], ready: false });
+      sendRoulette(c);
+      return correction(p);
+    },
+
+    /** Gives up your spot at the roulette table (stakes still open this round go back to your wallet). */
+    rouletteLeave: (c): null => {
+      rouletteLeave(c, requireUser(c.conn.state));
+      return null;
+    },
+
+    /** Sets your whole bet set for this round (an empty list clears it); only while bets are open. The stakes leave your wallet now. */
+    rouletteBet: async (c, raw: unknown): Promise<StepResult> => {
+      const p = free(c);
+      if (!p || p.room !== "basement") return null;
+      const r = c.vars.roulette;
+      const me = r.players.get(p.id);
+      if (!me) return { notice: "Take a spot at the table first." };
+      if (!c.vars.rouletteActs.take(String(p.id), Date.now())) return { notice: "Easy. One move at a time." };
+      if (r.phase !== "betting" || r.busy || Date.now() >= r.phaseEndsAt)
+        return { notice: "Bets are closed." };
+      if (r.betting.has(p.id)) return { notice: "One moment." };
+      const round = r.round;
+      r.betting.add(p.id);
+      try {
+        const out = await main(c.client()).town.rouletteBet(p.id, round, raw);
+        if (r.players.get(p.id) === me && r.round === round) {
+          me.bets = out.bets;
+          sendRoulette(c);
+        } else
+          await main(c.client())
+            .town.rouletteRefund(p.id, round)
+            .catch((err) => console.warn(`[roulette] refund: ${String(err)}`));
+        return null;
+      } catch (err) {
+        const code = (err as { code?: unknown }).code;
+        if (code === "bad_bet" || code === "too_poor" || code === "closed")
+          return { notice: (err as Error).message };
+        console.warn(`[roulette] bet: ${String(err)}`);
+        return { notice: "The table couldn't take that. Try again." };
+      } finally {
+        r.betting.delete(p.id);
+      }
+    },
+
+    /** Says you are done betting; when every seated player is, the wheel spins early. */
+    rouletteReady: (c, ready: unknown): StepResult => {
+      const p = free(c);
+      if (!p || p.room !== "basement") return null;
+      const r = c.vars.roulette;
+      const me = r.players.get(p.id);
+      if (!me) return { notice: "Take a spot at the table first." };
+      if (!c.vars.rouletteActs.take(String(p.id), Date.now())) return { notice: "Easy. One move at a time." };
+      if (r.phase !== "betting" || r.busy || Date.now() >= r.phaseEndsAt)
+        return { notice: "Bets are closed." };
+      me.ready = ready === true;
+      sendRoulette(c);
+      return null;
+    },
+
     /** The Tavern's poker table: take a bet or a fold (`type`, and `to` for a raise: the total bet on this street). */
     pokerAct: (c, type: unknown, to: unknown): string | null => {
       const p = free(c);
-      if (!TAVERN || p?.room !== "inn") return "The poker table is in the Tavern.";
+      if (!TAVERN || p?.room !== "basement")
+        return "The poker table is in the net cafe, downstairs at the Tavern.";
       const now = Date.now();
       touch(c, p, now);
       if (!c.vars.pokerActs.take(String(p.id), now)) return "Easy. One move at a time.";
@@ -938,7 +1055,8 @@ export const world = actor({
     /** Stands up from the poker table: a hand in play is folded, and your stack goes back to your wallet. */
     pokerLeave: (c): string | null => {
       const p = free(c);
-      if (!TAVERN || p?.room !== "inn") return "The poker table is in the Tavern.";
+      if (!TAVERN || p?.room !== "basement")
+        return "The poker table is in the net cafe, downstairs at the Tavern.";
       touch(c, p, Date.now());
       pokerStandUp(c, p.id);
       return null;
@@ -1586,6 +1704,8 @@ type Vars = {
   pokerBusy: Set<number>;
   pokerFlushing: boolean;
   pokerActs: RateLimiter;
+  roulette: RouletteMem;
+  rouletteActs: RateLimiter;
 };
 
 /** Ticks in a minute, and in the five between flushes: the regulars' plaques (`TavernClock`). */
@@ -2826,6 +2946,7 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
     for (const id of dirty) {
       const p = c.state.players[id];
       if (!p) continue;
+      rouletteCheckSeat(c, p);
       const was = announced.get(id);
       // Unannounced since the world woke: they may have just left a house.
       if (
@@ -2856,9 +2977,13 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
       if (online.has(id) && was !== p.room)
         sendSnapshot(c, p)
           .then(() => {
+            if (p.room === "basement") {
+              sendPoker(c, Date.now(), id);
+              sendRoulette(c, id);
+            }
+            if (was === "basement" && p.room !== "basement") sendToUser(c, id, "roulette", emptyRoulette());
             if (p.room !== "inn") return;
             sendJukebox(c, Date.now(), id);
-            sendPoker(c, Date.now(), id);
           })
           .catch((err) => console.warn(`[world] snapshot for ${id}: ${String(err)}`));
     }
@@ -2904,7 +3029,7 @@ const inTavern = (c: { state: WorldState; vars: Vars }): number[] =>
 const jukeKey = (j: Jukebox, present: readonly number[]): string =>
   j ? `${j.startedAt}:${votesOf(j, present)}:${skipNeeded(present.length)}` : "";
 
-/** The jukebox as the room hears it, to `userId` (just arrived) or everyone in the Tavern. */
+/** The jukebox as the room hears it, to `userId` (just arrived) or everyone in the net cafe. */
 function sendJukebox(c: Sender & { vars: Vars }, now: number, userId?: number): void {
   const j = c.vars.jukebox;
   const present = inTavern(c);
@@ -2923,6 +3048,159 @@ function jukeboxBeat(c: Sender & { vars: Vars }, now: number): void {
   const present = inTavern(c);
   c.vars.jukebox = settleJukebox(c.vars.jukebox, present, now);
   if (jukeKey(c.vars.jukebox, present) !== c.vars.jukeKey) sendJukebox(c, now);
+}
+
+// MARK: The net cafe's roulette table
+
+interface RouletteMem {
+  seats: RouletteSeat[];
+  last: RouletteSpin | null;
+  history: number[];
+  nextId: number;
+  phase: RoulettePhase;
+  round: number;
+  phaseEndsAt: number;
+  /** Seated players' bets and readiness (kept through the spin and result so everyone sees them). */
+  players: Map<number, { userId: number; bets: Bet[]; ready: boolean }>;
+  /** The roll is being fetched from the town: bets are closed. */
+  busy: boolean;
+  /** Not before: after a failed roll, when to try again. */
+  retryAt: number;
+  /** Players with a bet call in flight. */
+  betting: Set<number>;
+  /** The pocket that landed, added to the history when the result starts. */
+  pending: number | null;
+  /** Stakes to hand back (a player left during betting), sent to the town by the beat. */
+  refunds: { userId: number; round: number }[];
+}
+
+const newRoulette = (): RouletteMem => ({
+  seats: [],
+  last: null,
+  history: [],
+  nextId: 1,
+  phase: "idle",
+  round: 0,
+  phaseEndsAt: 0,
+  players: new Map(),
+  busy: false,
+  retryAt: 0,
+  betting: new Set(),
+  pending: null,
+  refunds: [],
+});
+
+/** What someone outside the net cafe is told: an idle, empty table. */
+const emptyRoulette = (): RouletteState => ({
+  seats: [],
+  last: null,
+  history: [],
+  phase: "idle",
+  round: 0,
+  phaseEndsAt: 0,
+  now: Date.now(),
+  players: [],
+});
+
+const rouletteWire = (r: RouletteMem): RouletteState => ({
+  seats: r.seats,
+  last: r.last,
+  history: r.history,
+  phase: r.phase,
+  round: r.round,
+  phaseEndsAt: r.phaseEndsAt,
+  now: Date.now(),
+  players: r.seats.flatMap((s) => {
+    const pl = r.players.get(s.userId);
+    return pl ? [pl] : [];
+  }),
+});
+
+/** The table as the room sees it, to `userId` (just arrived) or everyone in the net cafe. */
+function sendRoulette(c: Sender & { vars: Vars }, userId?: number): void {
+  const state = rouletteWire(c.vars.roulette);
+  if (userId !== undefined) sendToUser(c, userId, "roulette", state);
+  else sendToRoom(c, "basement", "roulette", state);
+}
+
+/** Frees `userId`'s spot, if they hold one. Stakes still open (betting, not yet rolled) go back. */
+function rouletteLeave(c: Sender & { vars: Vars }, userId: number): void {
+  const r = c.vars.roulette;
+  const at = r.seats.findIndex((s) => s.userId === userId);
+  if (at < 0) return;
+  r.seats.splice(at, 1);
+  r.players.delete(userId);
+  // The town decides: its refund finds nothing if the round already rolled (then they are simply paid).
+  if (r.phase === "betting") r.refunds.push({ userId, round: r.round });
+  sendRoulette(c);
+}
+
+/** Each tick: moves the table to its next phase (see `nextPhase`). */
+function rouletteBeat(c: PokerCtx, now: number): void {
+  const r = c.vars.roulette;
+  for (const f of r.refunds.splice(0))
+    main(c.client())
+      .town.rouletteRefund(f.userId, f.round)
+      .catch((err) => console.warn(`[roulette] refund: ${String(err)}`));
+  if (r.busy || now < r.retryAt) return;
+  const seated = [...r.players.values()];
+  const next = nextPhase({
+    phase: r.phase,
+    now,
+    endsAt: r.phaseEndsAt,
+    seated: seated.length,
+    betting: seated.filter((p) => p.bets.length > 0).length,
+    allReady: seated.every((p) => p.ready),
+  });
+  if (!next) return;
+  if (next === "spinning") {
+    r.busy = true;
+    const round = r.round;
+    main(c.client())
+      .town.rouletteResolve(round)
+      .then(({ pocket, results }) => {
+        r.last = {
+          id: r.nextId++,
+          round,
+          pocket,
+          color: colorOf(pocket),
+          results: results as RouletteOutcome[],
+          at: Date.now(),
+        };
+        r.pending = pocket;
+        r.phase = "spinning";
+        r.phaseEndsAt = Date.now() + SPIN_MS;
+        r.busy = false;
+        sendRoulette(c);
+      })
+      .catch((err) => {
+        console.warn(`[roulette] resolve: ${String(err)}`);
+        r.busy = false;
+        r.retryAt = Date.now() + 2000;
+      });
+    return;
+  }
+  if (next === "result" && r.pending !== null) {
+    r.history = [r.pending, ...r.history].slice(0, 12);
+    r.pending = null;
+  }
+  r.phase = next;
+  if (next === "betting") {
+    r.round++;
+    for (const p of r.players.values()) Object.assign(p, { bets: [], ready: false });
+  }
+  r.phaseEndsAt = next === "betting" ? now + BETTING_MS : next === "result" ? now + RESULT_MS : 0;
+  sendRoulette(c);
+}
+
+/** A seat is held only while its player stands on the spot, in the net cafe: leaving the room clears their table. */
+function rouletteCheckSeat(c: Sender & { vars: Vars }, p: WorldPlayer): void {
+  const seat = c.vars.roulette.seats.find((s) => s.userId === p.id);
+  if (!seat) return;
+  const on = p.room === "basement" && spotAt(p.x, p.y) === seat.spot;
+  if (on) return;
+  rouletteLeave(c, p.id);
+  if (p.room !== "basement") sendToUser(c, p.id, "roulette", emptyRoulette());
 }
 
 // MARK: The Tavern's poker table
@@ -2982,7 +3260,7 @@ async function pokerSitDown(c: PokerCtx, p: WorldPlayer, at: number): Promise<St
   }
   ready(t, at, Date.now());
   // They walked out (or closed the tab) while the town counted: the stack goes straight back.
-  if (p.room !== "inn" || !c.vars.online.has(p.id)) {
+  if (p.room !== "basement" || !c.vars.online.has(p.id)) {
     leave(t, at, Date.now());
     pokerSync(c, Date.now());
     return null;
@@ -3003,7 +3281,7 @@ function pokerStandUp(c: PokerCtx, userId: number): void {
   pokerSync(c, Date.now());
 }
 
-/** The table as the room sees it, to `userId` (just arrived) or everyone in the Tavern. */
+/** The table as the room sees it, to `userId` (just arrived) or everyone in the net cafe. */
 function sendPoker(c: Sender & { vars: Vars }, now: number, userId?: number): void {
   const state = pokerWire(c.vars.poker, now, (id) => pokerName(c, id));
   if (userId !== undefined) {
@@ -3011,7 +3289,7 @@ function sendPoker(c: Sender & { vars: Vars }, now: number, userId?: number): vo
     sendToUser(c, userId, "pokerHole", holeOf(c.vars.poker, userId));
     return;
   }
-  sendToRoom(c, "inn", "poker", state);
+  sendToRoom(c, "basement", "poker", state);
   c.vars.pokerSent = c.vars.poker.v;
 }
 
@@ -3060,13 +3338,14 @@ function pokerFlush(c: PokerCtx): void {
     });
 }
 
-/** Each tick: anyone who left the Tavern or went offline stands up, the clock runs, changes go out. */
+/** Each tick: anyone who left the net cafe or went offline stands up, the clock runs, changes go out. */
 function pokerBeat(c: PokerCtx, now: number): void {
   const t = c.vars.poker;
   if (t.seats.every((s) => s === null) && t.owed.length === 0 && t.v === c.vars.pokerSent) return;
   for (const [at, s] of t.seats.entries()) {
     const p = c.state.players[s?.userId ?? -1];
-    if (s && !s.leaving && s.ready && (!p || p.room !== "inn" || !c.vars.online.has(p.id))) leave(t, at, now);
+    if (s && !s.leaving && s.ready && (!p || p.room !== "basement" || !c.vars.online.has(p.id)))
+      leave(t, at, now);
   }
   tick(t, now);
   pokerSync(c, now);

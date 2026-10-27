@@ -22,7 +22,9 @@ import { DeskSetups } from "./desk-setups.ts";
 import { ExitMarkers } from "./exit-markers.ts";
 import { hallwayTiles, houseOffset, housePassage, PASSAGE_W } from "./hq-layout.ts";
 import { liveBasement, liveTavern } from "./live.ts";
+import { PokerEvents } from "./poker-events.ts";
 import { type LiveFrame, type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
+import { RouletteEvents } from "./roulette-events.ts";
 import { TavernEvents } from "./tavern-events.ts";
 import { wallEase } from "./walls.ts";
 
@@ -174,15 +176,32 @@ function buildSkinned(id: RoomId, ctx: RoomCtx): RoomView {
         ? liveBasement(extra as BasementScene)
         : undefined;
   const inn = mapId === "inn" ? new TavernEvents(extra as TavernRoom) : null;
+  const poker = mapId === "basement" ? new PokerEvents((extra as BasementScene).poker) : null;
+  const roulette = mapId === "basement" ? new RouletteEvents((extra as BasementScene).roulette) : null;
+  const basement = poker && roulette ? { poker, roulette } : null;
   return viewOf(id, ctx.map, built.value, built.ticks, {
     extra,
     keepers: mapId === "inn" ? new Set([BARKEEP_BOT]) : new Set(),
     live,
     dim: mapId === "basement",
-    frame: inn ? (f) => inn.update(f) : undefined,
+    frame: inn
+      ? (f) => inn.update(f)
+      : basement
+        ? (f) => {
+            basement.poker.update(f);
+            basement.roulette.update(f);
+          }
+        : undefined,
     lights: inn ? (_scene, hemi, sun) => inn.lights(hemi, sun) : undefined,
     onToss: inn ? () => inn.toss() : undefined,
-    end: inn ? () => inn.dispose() : undefined,
+    end: inn
+      ? () => inn.dispose()
+      : basement
+        ? () => {
+            basement.poker.dispose();
+            basement.roulette.dispose();
+          }
+        : undefined,
     free: built.free,
   });
 }

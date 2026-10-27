@@ -377,6 +377,72 @@ export const pokerTable = cached(
     }),
 );
 
+const ROULETTE_RED = "#c8382f";
+const ROULETTE_BLACK = "#231d2b";
+const ROULETTE_GOLD = "#f2c14e";
+
+/** The whole roulette table, 3×2 tiles: wooden rim and skirt, felt, the wheel on the left, the betting grid on the right. */
+const rouletteBody = once(() =>
+  bake(48, 32, (p) => {
+    p.rect(0, 30, 48, 2, C.shadow);
+    p.rect(0, 3, 48, 26, C.ink);
+    p.rect(1, 4, 46, 25, C.woodLight);
+    p.rect(3, 6, 42, 19, FELT);
+    p.rect(3, 6, 42, 1, FELT_LIGHT);
+    p.rect(3, 24, 42, 1, FELT_DARK);
+    p.rect(1, 4, 46, 1, C.white);
+    // The skirt.
+    p.rect(0, 25, 48, 4, C.ink);
+    p.rect(1, 25, 46, 3, C.woodDark);
+    p.rect(2, 27, 2, 3, C.ink);
+    p.rect(44, 27, 2, 3, C.ink);
+    // The wheel: a round brown rim, red and black pockets, a gold hub, the ball.
+    const cx = 14;
+    const cy = 15;
+    for (let y = -7; y <= 7; y++)
+      for (let x = -7; x <= 7; x++) {
+        const d = x * x + y * y;
+        if (d > 49) continue;
+        let c: string = C.woodDark;
+        if (d <= 36)
+          c = (Math.atan2(y, x) + Math.PI) % (Math.PI / 4) < Math.PI / 8 ? ROULETTE_RED : ROULETTE_BLACK;
+        if (d <= 16) c = C.wood;
+        if (d <= 5) c = ROULETTE_GOLD;
+        p.px(cx + x, cy + y, c);
+      }
+    p.px(cx + 3, cy - 3, C.white);
+    // The betting grid: 3 rows of 4 red and black cells, a green zero strip on its left.
+    const gx = 28;
+    const gy = 9;
+    p.rect(gx - 1, gy - 1, 16, 14, C.white);
+    p.rect(gx, gy, 3, 12, FELT_DARK);
+    for (let r = 0; r < 3; r++)
+      for (let c = 0; c < 3; c++)
+        p.rect(gx + 3 + c * 3, gy + r * 4, 3, 3, (r + c) % 2 ? ROULETTE_BLACK : ROULETTE_RED);
+  }),
+);
+
+/** One tile of the roulette table (`col` 0-2, `row` 0-1 of its 3×2 block). */
+export const rouletteTable = cached(
+  (col: number, row: number) => `${col}${row}`,
+  (col: number, row: number) =>
+    bake(16, 16, (p) => {
+      p.g.drawImage(rouletteBody(), -col * 16, -row * 16);
+    }),
+);
+
+/** A walkable player spot below the roulette table: a small round red mat with a gold ring. */
+export const rouletteSpot = once(() =>
+  bake(16, 16, (p) => {
+    for (let y = -4; y <= 4; y++)
+      for (let x = -5; x <= 5; x++) {
+        const d = (x * x) / 25 + (y * y) / 16;
+        if (d > 1) continue;
+        p.px(8 + x, 9 + y, d > 0.7 ? ROULETTE_GOLD : ROULETTE_RED);
+      }
+  }),
+);
+
 /** The request pile: a corkboard in a wooden frame with a few notes pinned to it, one with a gold star. */
 export const requestPile = once(() =>
   bake(16, 16, (p) => {

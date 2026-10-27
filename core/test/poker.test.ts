@@ -727,8 +727,8 @@ describe("types", () => {
   });
 });
 
-describe("the table in the Tavern", () => {
-  const map = MAPS.inn;
+describe("the poker table in the net cafe", () => {
+  const map = MAPS.basement;
   const table = pokerTable(map)!;
   const chairs = pokerChairs(map);
 
@@ -752,7 +752,7 @@ describe("the table in the Tavern", () => {
     }
   });
 
-  test("a player can walk up to every chair from the door, and the whole Tavern is still connected", () => {
+  test("a player can walk up to every chair from the stairs", () => {
     const [ex, ey] = map.find("x")[0]!;
     const from: [number, number] = [ex, ey - 1];
     for (const ch of chairs) {
@@ -762,7 +762,18 @@ describe("the table in the Tavern", () => {
       );
       expect(stand, `chair at ${ch.x},${ch.y}`).toBeDefined();
     }
-    for (const ch of ["S", "u"] as const) expect(route(map, from, map.find(ch)[0]!)).not.toBeNull();
+  });
+
+  test("the Tavern no longer has the table", () => {
+    expect(MAPS.inn.find("♠")).toHaveLength(0);
+    expect(MAPS.inn.find("♣")).toHaveLength(0);
+    expect(pokerTable(MAPS.inn)).toBeNull();
+  });
+
+  test("the table is one 4x2 run, with 2 chairs above, 2 below and 1 each side", () => {
+    expect(table).toMatchObject({ w: 4, h: 2 });
+    const at = (f: string) => chairs.filter((ch) => ch.facing === f).length;
+    expect([at("down"), at("up"), at("right"), at("left")]).toEqual([2, 2, 1, 1]);
   });
 
   test("the seats go clockwise from the top left", () => {
