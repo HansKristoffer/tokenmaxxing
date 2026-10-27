@@ -5,6 +5,7 @@
  * optimistic: coins and ownership move at once and are put back, with the server's own words, if it refuses.
  * Everything outside (the connection, the store, the renderer) comes in through `GameDeps`, so it runs in tests.
  */
+import { offSeason } from "@tokenmaxxing/core/costumes.ts";
 import { DECORS } from "@tokenmaxxing/core/decor.ts";
 import { itemById, type MerchKind, merchPrice } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
@@ -218,7 +219,9 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
               ? "That one drops in the raid."
               : p.why === "edition"
                 ? "Only the traveling merchant sells that."
-                : "That one is earned, not bought.",
+                : p.why === "season"
+                  ? offSeason(itemById(item.id)!.holiday!)
+                  : "That one is earned, not bought.",
         );
       case "unknown":
         return fail("unavailable", "That one is not in this town's shop.");

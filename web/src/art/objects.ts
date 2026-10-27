@@ -3,6 +3,7 @@ import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { isPoster, posterOf } from "@tokenmaxxing/core/posters.ts";
 import { SHOP_DISPLAY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
+import { WINDMILL } from "@tokenmaxxing/core/windmill.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { bigScreen, SCREEN_H, SCREEN_TILES, tournamentBoard, wallTerminal } from "./basement.ts";
 import { counter, windowPane, winsTile } from "./common.ts";
@@ -26,6 +27,7 @@ import {
   stool,
   table,
 } from "./tavern.ts";
+import { MILL_H, millTower } from "./windmill.ts";
 
 /** A baked sprite and where it sits relative to its tile's top-left corner. */
 interface Placed {
@@ -126,6 +128,31 @@ const board = once(() =>
     p.px(13, 5, C.flowerYellow);
     p.rect(11, 8, 1, 2, C.flowerYellow);
     p.rect(10, 10, 3, 1, C.woodDark);
+  }),
+);
+
+/** The star counter (`★`): a navy board on a post with a big gold star; the count goes on a sign over it. */
+const STAR = ["....#....", "...###...", "#########", ".#######.", "..#####..", "..##.##..", ".##...##."];
+const starBoard = once(() =>
+  bake(16, 26, (p) => {
+    p.rect(3, 24, 10, 2, C.shadow);
+    p.rect(7, 14, 2, 11, C.woodDark);
+    p.rect(7, 14, 1, 11, C.wood);
+    p.rect(0, 1, 16, 15, C.ink);
+    p.rect(1, 2, 14, 13, "#2f3650");
+    p.rect(2, 3, 12, 11, "#1f2433");
+    STAR.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) if (row[x] === "#") p.px(4 + x, 5 + y, C.flowerYellow);
+    });
+    p.px(8, 6, C.white);
+    p.px(7, 7, C.white);
+    // A few small stars twinkling round it.
+    for (const [x, y] of [
+      [3, 4],
+      [12, 4],
+      [12, 12],
+    ] as const)
+      p.px(x, y, C.white);
   }),
 );
 
@@ -573,10 +600,17 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return at(lamp());
     case "N":
       return at(board());
+    case "★":
+      return at(starBoard());
     case "B":
       return at(bench());
     case "F":
       return map.at(x - 1, y) !== "F" && map.at(x, y - 1) !== "F" ? at(fountain(), 0, 0) : null;
+    // The windmill's tower, standing on its 2×2 tiles; its sails turn in `game/windmill.ts`.
+    case WINDMILL:
+      return map.at(x - 1, y) !== ch && map.at(x, y - 1) !== ch
+        ? at(millTower(), 0, TILE * 2 - MILL_H)
+        : null;
     case "b":
       return at(bed());
     case "d":
@@ -690,5 +724,5 @@ export const sortY = (ch: string): number => {
   // A rug lies under everyone, a chandelier hangs over them; a personal office's wall pieces hang behind.
   if (placement === "flat" || (placement === "wall" && isHomePiece(ch))) return -TILE;
   if (placement === "ceiling") return TILE * 4;
-  return ch === "F" ? TILE * 2 - 2 : ch === "b" || ch === "s" || ch === "Q" ? 0 : TILE - 1;
+  return ch === "F" || ch === WINDMILL ? TILE * 2 - 2 : ch === "b" || ch === "s" || ch === "Q" ? 0 : TILE - 1;
 };

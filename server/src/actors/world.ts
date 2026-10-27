@@ -70,6 +70,7 @@ import { dayKey } from "@tokenmaxxing/core/range.ts";
 import { canDropIn } from "@tokenmaxxing/core/shop.ts";
 import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
+import { milestoneLine, NO_STARS, readStars, type Stars, type StarsState } from "@tokenmaxxing/core/stars.ts";
 import { cartOpen, facesCart, hasPolse, isCart, POLSE, stepPace } from "@tokenmaxxing/core/street.ts";
 import {
   hasSpecial,
@@ -138,6 +139,7 @@ import { compact, countBy, must, omit, sortBy, typedSwitch } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { putAwayNotice } from "../furniture-notices.ts";
+import { fetchStars, STARS_EVERY_MS } from "../github-stars.ts";
 import { checkLaunches, LAUNCHES_EVERY_MS } from "../launch.ts";
 import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
@@ -192,6 +194,11 @@ interface WorldState {
    * from before slots has none, and its first rebuild packs them by id, which is where every door stood.
    */
   doorSlots?: Record<string, { company: number; slot: number }>;
+  /**
+   * The repo's GitHub stars and the last milestone celebrated (`core/stars.ts`), kept so a restart never
+   * sets off the same fireworks again. Optional: a world from before the counter reads them afresh.
+   */
+  stars?: StarsState;
 }
 
 type ConnState = Caller & { joined?: boolean };
@@ -334,6 +341,8 @@ export const world = actor({
     /** The sky: one fetch for everyone (`weather.ts`), kept when a fetch fails. */
     weather: initialWeather() as Weather,
     weatherAt: 0,
+    /** When the GitHub stars are read next (`github-stars.ts`): one read for everyone. */
+    starsAt: 0,
     /** Minutes in the Tavern since the last flush (`tavernBeat`). */
     tavern: new TavernClock(),
     /** When the barkeep last mentioned an award. */
@@ -440,6 +449,10 @@ export const world = actor({
         c.vars.weatherAt = now + WEATHER_EVERY_MS;
         void refreshWeather(c);
       }
+      if (now >= c.vars.starsAt) {
+        c.vars.starsAt = now + STARS_EVERY_MS;
+        void refreshStars(c, now);
+      }
       flush(c);
       if (n % COUNTS_EVERY === 0) {
         const counts = occupancy(c.state, c.vars.online);
@@ -467,6 +480,7 @@ export const world = actor({
       sendInfo(c, p, info(p, true), from);
       c.conn.send("outage", c.vars.outage);
       c.conn.send("launches", c.vars.launches);
+      c.conn.send("stars", starsOf(c.state.stars ?? NO_STARS));
       if (p.room === "inn") {
         sendJukebox(c, Date.now(), userId);
         sendPoker(c, Date.now(), userId);
@@ -1969,6 +1983,30 @@ async function refreshLaunches(
   if (sameLaunches(next, c.vars.launches)) return;
   c.vars.launches = next;
   c.broadcast("launches", next);
+}
+
+/** A plain copy of the stars to send: `state` hands out proxies. */
+const starsOf = ({ count, show }: StarsState): Stars => ({ count, show: show && { ...show } });
+
+/**
+ * Reads the repo's GitHub stars and tells everyone when the count changes; passing a milestone sets off
+ * the fireworks (the `show` in what's sent) and the town says so. A failed read keeps the last count.
+ */
+async function refreshStars(
+  c: Sender & { db: Sql; broadcast(name: string, ...args: unknown[]): void },
+  now: number,
+): Promise<void> {
+  const count = await fetchStars();
+  const prev = c.state.stars ?? NO_STARS;
+  const next = readStars(prev, count, now);
+  if (next === prev) return;
+  c.state.stars = next;
+  const show = next.show?.at === prev.show?.at ? null : next.show;
+  if (next.count !== prev.count || show) c.broadcast("stars", starsOf(next));
+  if (show)
+    await announce(c, "town", milestoneLine(show.milestone), 0, "⭐").catch((err) =>
+      console.warn(`[stars] announce: ${String(err)}`),
+    );
 }
 
 /**
