@@ -44,7 +44,7 @@ export function Requests() {
     <Modal title="📌 Request pile" wide>
       <p className="muted small">
         Something you'd like in the game? Pin it here. People who build it read this board, and the ones with
-        the most 👍 get looked at first.
+        the most 👍 get looked at first. In a hurry? Type <code>@feedback</code> and your request in the chat.
       </p>
       <form className="request-new" onSubmit={add}>
         <textarea

@@ -450,7 +450,10 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   links (`parseRequest`), 5 open ones a player, a minute between posts, no repeat of one already open. The pile
   reads planned first, then open by 👍, then the last few done or turned down. Authors take back their own open
   request. The admin page's Requests tab marks each open, planned, done or not now, or removes it (logged);
-  deleting a player takes their requests and 👍 with them. Free: no coins.
+  deleting a player takes their requests and 👍 with them. Free: no coins. `@feedback <text>` in the chat pins one
+  too (`Chat.tsx`). In production each new request is POSTed as JSON (`id`, `userId`, `name`, `text`,
+  `createdAt`) to `NEW_REQUEST_PUSH_URL` (`request-push.ts`, retried in the background), a T3 Code webhook that
+  starts an agent thread on it; unset sends nothing.
 
 ## Quests
 
