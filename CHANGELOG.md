@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.14.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.13.0...v1.14.0) (2026-10-27)
+
+
+### Features
+
+* **achievements:** crazier badge ladders, two new frames, and 19 more trophies ([9cfc6b3](https://github.com/HansKristoffer/tokenmaxxing/commit/9cfc6b37c7eea3ed9c8dae0b988d971ef7a20c54))
+* **achievements:** pay badge tiers and trophies four times as much, backfilled, and Polyglot to 1000 ([0bfa650](https://github.com/HansKristoffer/tokenmaxxing/commit/0bfa6503f4a1e97db066911a9665f52f57485020))
+* bigger offices you can expand, more coins from tokens, raid kills pay 4x ([df56d1e](https://github.com/HansKristoffer/tokenmaxxing/commit/df56d1ee4c50298ac2a651ba5274d8eb82d55e80))
+* **economy:** tokens pay 2.5 x (M)^0.6 a day, raid kills pay 4x, both from now on ([78033e0](https://github.com/HansKristoffer/tokenmaxxing/commit/78033e0188e9f318fa021c4bd4789ad723c752be))
+* **furniture:** F turns a piece a quarter turn each press, not a mirror ([09295c8](https://github.com/HansKristoffer/tokenmaxxing/commit/09295c8072ab8db4e9c43f24d1d5c467573b7c98))
+* **input:** turn on the spot before walking, Pokémon style ([102dcdb](https://github.com/HansKristoffer/tokenmaxxing/commit/102dcdb946f4c98b3a8247fadabdc9bc3166e964))
+* **maps:** the town grows outward without a fixed range ([48618d1](https://github.com/HansKristoffer/tokenmaxxing/commit/48618d109f54f690b4dfd4f9026161b778c43458))
+* **market:** the engine behind Torvehallen, the market hall ([b1c8c66](https://github.com/HansKristoffer/tokenmaxxing/commit/b1c8c6626a172c23c6445a8189e4ce1fdebfbb2e))
+* **market:** the hall's actions on town: look, show, take back, buy ([94e2539](https://github.com/HansKristoffer/tokenmaxxing/commit/94e253968405d03783fc63c3f7f397280dea28f6))
+* **market:** Torvehallen, a market hall where players sell to each other ([34f6e91](https://github.com/HansKristoffer/tokenmaxxing/commit/34f6e91f1105301bee0cd09af6ab2392432cfbb7))
+* **market:** Torvehallen, the market hall, as a room with its own block in town ([50bb377](https://github.com/HansKristoffer/tokenmaxxing/commit/50bb377a784527011ed3085748267f1b14235266))
+* **market:** Torvehallen's shelves, price tags and panels, in 2D and 3D ([5eb470d](https://github.com/HansKristoffer/tokenmaxxing/commit/5eb470d2def93c1af2a60ef7c66daa63f34ed788))
+* **merchant:** a numbered copy carries its row id, so a seller can list that very number ([e8e3b86](https://github.com/HansKristoffer/tokenmaxxing/commit/e8e3b860b3e73aef6e66a2fd6b2bff26801e48f3))
+* **office:** offices start about 20% bigger, and more room can be bought ([47a1a99](https://github.com/HansKristoffer/tokenmaxxing/commit/47a1a99264fa3d97088c2163605d780e254f69f6))
+* **pets:** pet, treat and trick your pet, seen by the room ([cdfcc3c](https://github.com/HansKristoffer/tokenmaxxing/commit/cdfcc3cb521286e20700ae781d51381ebc9d124a))
+* roulette for eight, quarter-turn furniture, turn-before-walking, pet interactions, crazier achievements and trophies, the Android music fix, and merch and Hygge moustache fixes ([02280e7](https://github.com/HansKristoffer/tokenmaxxing/commit/02280e7ed6945dc1a0712afae1ca762924ca6a82))
+* **roulette:** eight players at the table ([ea3c8c1](https://github.com/HansKristoffer/tokenmaxxing/commit/ea3c8c1b7df54db4aaf7dfb8b21775cab8c72ba6))
+* **roulette:** four spots on each side of the table ([4b14c08](https://github.com/HansKristoffer/tokenmaxxing/commit/4b14c08b60f7619e62457324c27a496a2389d66d))
+* **roulette:** Join takes you to the net cafe's table from anywhere ([e413530](https://github.com/HansKristoffer/tokenmaxxing/commit/e4135300c75d1e5e44b56a94f4f9f4eaa2e6ae20))
+
+
+### Bug Fixes
+
+* **android:** the music stops when the app goes to the background ([144d226](https://github.com/HansKristoffer/tokenmaxxing/commit/144d226e5a63a1b32874b80591d6f58a2aa3ca22))
+* **art:** the Hygge moustache is a handlebar, not two pixels ([be775fa](https://github.com/HansKristoffer/tokenmaxxing/commit/be775fafa3052d4cb3a2280f6d9f0dd343daa141))
+* **maps:** a town full of houses no longer breaks the shops' blocks ([e974652](https://github.com/HansKristoffer/tokenmaxxing/commit/e97465240c0d48f5015cb731ac6bf6635b3841c4))
+* **test:** the turn test's watcher connects first, so the join always comes as an event ([e16812f](https://github.com/HansKristoffer/tokenmaxxing/commit/e16812f44fa5b2f284acab40fb55f1810c3c740e))
+* **town:** company merch looks the same everywhere, and goes stale nowhere ([8049ced](https://github.com/HansKristoffer/tokenmaxxing/commit/8049ced3f10dc84adf6b606c5d2340267fc6bf1a))
+* **trade:** a trade or a drop moves your newest copy of a kind, not whichever the database found ([929d9a4](https://github.com/HansKristoffer/tokenmaxxing/commit/929d9a4fee183804df919c715bc0d50029a564ab))
+
 ## [1.13.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.12.0...v1.13.0) (2026-10-27)
 
 
