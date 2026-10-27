@@ -894,7 +894,10 @@ export const town = actor({
         const now = Date.now();
         // Trophies are the player's own events, kept in their actor: the town records them to pay them.
         await trophyStep(c.db, c.vars.trophyDirty, now, (id) =>
-          c.client<typeof registry>().player.get([String(id)], internal).trophies(),
+          c
+            .client<typeof registry>()
+            .player.get([String(id)], internal)
+            .trophies(),
         );
       } catch (err) {
         console.warn(`[sweep] trophies: ${String(err)}`);

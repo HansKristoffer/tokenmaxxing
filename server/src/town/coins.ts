@@ -206,7 +206,9 @@ export async function wallet(
   const held = await bag(sql, userId);
   return {
     balance: earned - spent + (await ledgerSum(sql, userId)),
-    today: todayBase + (today >= STREAK_FROM && todays.tokens > 0 ? streakExtra(todayBase, streakNow(active, today)) : 0),
+    today:
+      todayBase +
+      (today >= STREAK_FROM && todays.tokens > 0 ? streakExtra(todayBase, streakNow(active, today)) : 0),
     streak: streakNow(active, today),
     raids: raided,
     wins: wins.filter((w) => w.day >= since),
@@ -290,7 +292,10 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
   for (const [userId, byDay] of tokenDays)
     add(
       userId,
-      streakBonus([...byDay.keys()], (day) => coinsForTokens(byDay.get(day) ?? 0) + (dailies.get(userId)?.get(day) ?? 0)),
+      streakBonus(
+        [...byDay.keys()],
+        (day) => coinsForTokens(byDay.get(day) ?? 0) + (dailies.get(userId)?.get(day) ?? 0),
+      ),
     );
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);
   for (const [userId, tokens] of await tokensIn(sql, "all")) {

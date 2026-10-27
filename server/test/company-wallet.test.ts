@@ -84,9 +84,7 @@ describe("the company wallet: token coins matched 1:1", () => {
     await matchCoins(sql, 2, ["2026-03-01"], NOW);
     await matchCoins(sql, 2, ["2026-03-01"], NOW); // the same sync again adds nothing
     expect(await companyWallet(sql, 1)).toBe(20);
-    expect((await wallet(sql, 2, NOW)).balance).toBe(
-      20 + 25 + levelUpCoins(levelFor(400e6)),
-    ); // not split: all theirs (and the day's podium, and the level it reached)
+    expect((await wallet(sql, 2, NOW)).balance).toBe(20 + 25 + levelUpCoins(levelFor(400e6))); // not split: all theirs (and the day's podium, and the level it reached)
   });
 
   test("days before joining, and freelancers, aren't matched", async () => {

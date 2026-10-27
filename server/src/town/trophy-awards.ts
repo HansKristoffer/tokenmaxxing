@@ -39,7 +39,11 @@ export async function recordTrophies(
 
 /** What `userId`'s recorded trophies pay. */
 export async function trophyAwardCoins(sql: Sql, userId: number): Promise<number> {
-  const rows = await all<{ trophy: string }>(sql, "SELECT trophy FROM trophy_awards WHERE user_id = ?", userId);
+  const rows = await all<{ trophy: string }>(
+    sql,
+    "SELECT trophy FROM trophy_awards WHERE user_id = ?",
+    userId,
+  );
   return trophyCoins(rows.map((r) => r.trophy));
 }
 

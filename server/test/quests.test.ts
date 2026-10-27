@@ -85,7 +85,8 @@ describe("the new rules", () => {
     expect(picks).toHaveLength(3);
     const before = await balance(AFTER);
     await doEverything(AFTER);
-    const grown = coinsForTokens(30e6 + 1) + milestoneCoins(levelFor(30e6 + 1)) + levelUpCoins(levelFor(30e6 + 1));
+    const grown =
+      coinsForTokens(30e6 + 1) + milestoneCoins(levelFor(30e6 + 1)) + levelUpCoins(levelFor(30e6 + 1));
     // Three quests, 1 + 2 + 3 coins.
     expect(await balance(AFTER)).toBe(before + grown + 6);
     expect((await sql.execute("SELECT COUNT(*) AS n FROM ledger")) as [{ n: number }]).toEqual([{ n: 0 }]);

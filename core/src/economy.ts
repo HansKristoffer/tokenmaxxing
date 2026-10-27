@@ -18,8 +18,7 @@ export const LEVEL_COINS_BASE = 2;
  */
 export const levelUpCoins = (level: number): number => {
   let coins = 0;
-  for (let l = 1; l <= level; l++)
-    if (!MILESTONES.some((m) => m.level === l)) coins += LEVEL_COINS_BASE + l;
+  for (let l = 1; l <= level; l++) if (!MILESTONES.some((m) => m.level === l)) coins += LEVEL_COINS_BASE + l;
   return coins;
 };
 
@@ -121,7 +120,8 @@ export const streakExtra = (coins: number, mult: number): number => Math.floor(c
  */
 export function streakBonus(days: readonly string[], coinsOf: (day: string) => number): number {
   let bonus = 0;
-  for (const [day, mult] of streakMultipliers(days)) if (day >= STREAK_FROM) bonus += streakExtra(coinsOf(day), mult);
+  for (const [day, mult] of streakMultipliers(days))
+    if (day >= STREAK_FROM) bonus += streakExtra(coinsOf(day), mult);
   return bonus;
 }
 

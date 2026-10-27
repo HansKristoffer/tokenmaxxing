@@ -37,12 +37,21 @@ test("the streak climbs half a step a day to x3", () => {
 });
 
 test("a missed day costs two steps, not the streak", () => {
-  const m = streakMultipliers(["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-07"]);
+  const m = streakMultipliers([
+    "2026-11-01",
+    "2026-11-02",
+    "2026-11-03",
+    "2026-11-04",
+    "2026-11-05",
+    "2026-11-07",
+  ]);
   expect(m.get("2026-11-05")).toBe(3);
   // x3 had 4 steps; one day off takes 2, and the day back is paid at x2.
   expect(m.get("2026-11-07")).toBe(2);
   // A long gap takes it back to x1.
-  expect(streakMultipliers(["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-20"]).get("2026-11-20")).toBe(1);
+  expect(streakMultipliers(["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-20"]).get("2026-11-20")).toBe(
+    1,
+  );
 });
 
 test("the extra is whole coins on top of the plain ones", () => {
