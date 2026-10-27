@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.13.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.12.0...v1.13.0) (2026-10-27)
+
+
+### Features
+
+* **arcade:** solo roulette table, player against the house ([0012bf1](https://github.com/HansKristoffer/tokenmaxxing/commit/0012bf1c00c2824c9882388c32c74c5295573cca))
+* **case:** hide the legendaries behind one "Legendary Item!" row ([70d155d](https://github.com/HansKristoffer/tokenmaxxing/commit/70d155dcd1c08a60b6621a3a7029c4755fd6bac0))
+* **case:** the case shop hides its legendaries behind one "Legendary Item!" row ([34684c2](https://github.com/HansKristoffer/tokenmaxxing/commit/34684c29630f80ae20b16a0a685363b806af6c4e))
+* **case:** the Night Market case, the Natmarked shop and 36 new items ([dd3ca2b](https://github.com/HansKristoffer/tokenmaxxing/commit/dd3ca2bc3a2ab683f7bffec29614f55bcfff47e1))
+* **furniture:** F flips a placed piece to face the other way ([f74809f](https://github.com/HansKristoffer/tokenmaxxing/commit/f74809f4287bfe33dc0296d6f3c82c897e91a605))
+* **furniture:** F flips a placed piece to face the other way ([17a40f4](https://github.com/HansKristoffer/tokenmaxxing/commit/17a40f487cbc3d74b64ec2c5ec2a42848422c6ae))
+* **netcafe:** a multiplayer roulette table, and poker moves down to the net cafe ([2e7bfb9](https://github.com/HansKristoffer/tokenmaxxing/commit/2e7bfb98969301fba3b4b4818db736d3a52a9997))
+* **netcafe:** poker and a multiplayer roulette table in the net cafe ([5e1cec5](https://github.com/HansKristoffer/tokenmaxxing/commit/5e1cec5b4f79a37e4941063b76bf269d64dff40e))
+* **sync:** count team-billed Cursor and Grok Bot usage ([a8c6749](https://github.com/HansKristoffer/tokenmaxxing/commit/a8c67497202f55d9ae4ff57eb53034e7aa524354))
+* **sync:** count team-billed Cursor and Grok Bot usage ([2d0f800](https://github.com/HansKristoffer/tokenmaxxing/commit/2d0f800db012b8c014a7c56a72dfacfa8a31acc1))
+
+
+### Bug Fixes
+
+* **case:** hide the legendaries on the opening screen too ([075d2ce](https://github.com/HansKristoffer/tokenmaxxing/commit/075d2ce678c19890a4ac831685dd10e410c4fadc))
+* **case:** the opening screen hides its legendaries too ([a3cc3e1](https://github.com/HansKristoffer/tokenmaxxing/commit/a3cc3e1a82be6fd00ed62146da447f4bd1c3e53b))
+* **case:** the winning legendary tile on the strip stays "Legendary Item!" ([33f755b](https://github.com/HansKristoffer/tokenmaxxing/commit/33f755b83ae219cf09a30421ef4cf6843a2833ed))
+* **town:** a shop never stands on a company's house ([d67213a](https://github.com/HansKristoffer/tokenmaxxing/commit/d67213a1b33b8944e03bac73e40fb29499974941))
+* **town:** a shop never stands on a company's house ([260e3f6](https://github.com/HansKristoffer/tokenmaxxing/commit/260e3f6d252981361514cda01c0a80e53836c283))
+* **world:** the startup roulette refund needs a stub in the floors test ([76cabe1](https://github.com/HansKristoffer/tokenmaxxing/commit/76cabe1dad05f73461a925942eabca295f173e17))
+
 ## [1.12.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.11.0...v1.12.0) (2026-10-27)
 
 
