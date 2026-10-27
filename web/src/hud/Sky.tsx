@@ -6,6 +6,7 @@ import {
   sunTimes,
   type WeatherKind,
 } from "@tokenmaxxing/core/sky.ts";
+import { seasonNow } from "../game/seasons.ts";
 import { skyNow, weatherNow } from "../game/sky.ts";
 import { useHud } from "../store.ts";
 import { useTicker } from "./ui.tsx";
@@ -41,6 +42,7 @@ export function Sky() {
           };
   const wind = Math.round(weather.windMs);
   const detail = [
+    `Season: ${seasonNow()}`,
     `Aarhus ${clockTime(now)}, ${light.phase}`,
     `Sunrise ${clockTime(sunrise)}, sunset ${clockTime(sunset)}`,
     `Moon: ${moon.name} (${Math.round(moon.lit * 100)}% lit)`,

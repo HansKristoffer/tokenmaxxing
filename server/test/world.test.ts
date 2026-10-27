@@ -282,6 +282,24 @@ describe("world", () => {
     await v.conn.dispose();
   });
 
+  test("town receives an aggregate office light when a company member starts working", async () => {
+    const worker = await signUp("light");
+    const company = await worker.town.createCompany("Lit office");
+    const viewer = await signUp("light");
+    const v = await connect(viewer.token);
+    const updates: number[][] = [];
+    v.conn.on("officeLights", (ids: number[]) => updates.push(ids));
+    const me = v.snap.players.find((p) => p.id === viewer.userId)!;
+    await walk(v.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
+    await eventually(() => expect(v.events.snapshots.at(-1)?.room).toBe("town"));
+    expect(v.events.snapshots.at(-1)?.officeLights ?? []).not.toContain(company.id);
+    await as(worker.token)
+      .player(worker.userId)
+      .ingest([event({ timestamp: Date.now() - 60_000 })]);
+    await eventually(() => expect(updates.at(-1)).toContain(company.id));
+    await v.conn.dispose();
+  });
+
   test("whoever has agents running is at a desk in the dungeon, wherever they are, busiest first", async () => {
     const busy = await signUp("raid");
     const calm = await signUp("raid");
@@ -315,5 +333,32 @@ describe("world", () => {
     });
     expect(v.events.snapshots.at(-1)!.raiders).not.toBeNull();
     await v.conn.dispose();
+  });
+
+  test("a dungeon seat is shared with everyone in the room", async () => {
+    const sitter = await signUp("seat");
+    const observer = await signUp("seat");
+    const a = await connect(sitter.token);
+    const b = await connect(observer.token);
+    await a.conn.enterDungeon();
+    await b.conn.enterDungeon();
+    await eventually(() => expect(b.events.snapshots.at(-1)?.room).toBe("dungeon"));
+    const entry = roomEntry("dungeon");
+    const seat = MAPS.dungeon
+      .find("r")
+      .find((spot) => route(MAPS.dungeon, [entry.x, entry.y], spot)?.length)!;
+    const path = route(MAPS.dungeon, [entry.x, entry.y], seat)!;
+    const facing = path.pop()!;
+    await walk(a.conn, path);
+    expect(await a.conn.sit(facing)).toMatchObject({ room: "dungeon", x: seat[0], y: seat[1], state: "sit" });
+    await eventually(() =>
+      expect(
+        b.events.moves.some((m) =>
+          m.m.some((p) => p[0] === sitter.userId && p[1] === seat[0] && p[2] === seat[1] && p[4] === "sit"),
+        ),
+      ).toBe(true),
+    );
+    await a.conn.dispose();
+    await b.conn.dispose();
   });
 });

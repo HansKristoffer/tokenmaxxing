@@ -1,5 +1,7 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import * as THREE from "three";
+import { lightsNow } from "../../game/sky.ts";
+import { world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
 import { GateLive } from "../dungeon/gate3d.ts";
 import { disposeObject } from "../engine/dispose.ts";
@@ -26,6 +28,26 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const events = new TownEvents((tx, ty) => town.toWorld(tx, ty));
   const group = new THREE.Group();
   group.add(town.group);
+  const officeWindows: { companyId: number; window: THREE.Mesh }[] = [];
+  for (const door of town.doors) {
+    if (door.kind !== "hq" || door.companyId === undefined || door.plot === undefined) continue;
+    const panes: THREE.Mesh[] = [];
+    town.houses.get(door.plot)?.traverse((node) => {
+      if (node instanceof THREE.Mesh && node.userData.officeWindow) panes.push(node);
+    });
+    // Light a single actual pane, preserving the house's architecture and ordinary day/night lighting.
+    const pane = panes[0];
+    if (!pane) continue;
+    const window = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.36, 0.42),
+      new THREE.MeshBasicMaterial({ color: "#ffd98a" }),
+    );
+    window.position.set(0, 0.22, 0.031);
+    window.userData.live = true;
+    window.visible = false;
+    pane.add(window);
+    officeWindows.push({ companyId: door.companyId, window });
+  }
   // What changes with the game: the raid gate's boards, and the tables of the games on the square.
   const gate = town.doors.find((d) => d.kind === "dungeon");
   const gateLive = gate ? new GateLive([gate.at[0], gate.at[1] + 0.25]) : null;
@@ -71,6 +93,11 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     },
     extras: events.group,
     frame(f) {
+      for (const entry of officeWindows) {
+        const active = world.officeLights.has(entry.companyId);
+        entry.window.visible = active || lightsNow(f.now) > 0.5;
+        (entry.window.material as THREE.MeshBasicMaterial).color.set(active ? "#ffd98a" : "#354656");
+      }
       showBoard();
       markers.update(f.me, f.t);
       events.update(f);

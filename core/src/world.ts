@@ -462,6 +462,8 @@ export interface Snapshot {
   chat: ChatLine[];
   /** Only in town: who is inside each house. */
   houses: Houses;
+  /** Company buildings with an active worker in a private office. */
+  officeLights?: number[];
   /** Games being played in town, with their tables or arenas. */
   games: WorldGame[];
   /** Only in an office: whose it is (for the banner). */

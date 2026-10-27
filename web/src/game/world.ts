@@ -70,6 +70,7 @@ export const world = {
   companies: new Map<number, CompanyInfo>(),
   /** Town only: who is inside each company house, drawn through its walls. */
   houses: {} as Houses,
+  officeLights: new Set<number>(),
   /** Waiting for the server to move us through a door. */
   portalPending: false,
   /** Games on show in town: their tables or arenas, players and status. */
@@ -141,6 +142,7 @@ export function loadSnapshot(s: Snapshot): void {
   world.asleep = s.asleep;
   world.portalPending = false;
   world.houses = s.houses;
+  world.officeLights = new Set(s.officeLights ?? []);
   world.games = new Map(s.games.map((g) => [g.id, g]));
   gamesChanged();
   // The first time in your own office, how to furnish it.

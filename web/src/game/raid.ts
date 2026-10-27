@@ -269,13 +269,17 @@ export function drawRaid(f: Frame): void {
       },
     });
     const typing = Math.floor(now / 180 + p.id) % 2 === 0 ? 1 : 0;
-    items.push({
-      y: py + TILE - 0.5,
-      draw: () => {
-        g.drawImage(characterFrame(p.look, "up", "sit"), px, py - 6 + typing);
-        g.drawImage(chairBack(), px, py);
-      },
-    });
+    const occupied = [...world.avatars.values()].some(
+      (a) => a.state === "sit" && (a.info.id === p.id || (a.x === seat[0] && a.y === seat[1])),
+    );
+    if (!occupied)
+      items.push({
+        y: py + TILE - 0.5,
+        draw: () => {
+          g.drawImage(characterFrame(p.look, "up", "sit"), px, py - 6 + typing);
+          g.drawImage(chairBack(), px, py);
+        },
+      });
 
     // Minions: up to two rows of four behind the chair.
     const minions = Math.min(MINIONS_SHOWN, p.agents - 1);

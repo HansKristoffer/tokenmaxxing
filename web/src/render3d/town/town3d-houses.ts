@@ -116,6 +116,7 @@ function gableRoof(m: Model, w: number, d: number, y: number, color: string, gab
 function windowOn(face: Model, x: number, y: number, trim: string, box = false): void {
   face.box([0.5, 0.56, 0.05], C.white, [x, y - 0.04, 0], 0.015);
   const pane = face.box([0.38, 0.44, 0.05], "#a8dcf7", [x, y + 0.02, 0.01], 0.005);
+  pane.userData.officeWindow = true;
   pane.castShadow = false;
   nightGlow(pane, "#ffd98a");
   face.box([0.03, 0.44, 0.06], C.white, [x, y + 0.02, 0.01]).userData.detailSize = 0.03;

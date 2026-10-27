@@ -25,12 +25,13 @@ import { openCart } from "../../game/merchant.ts";
 import { outageNow } from "../../game/picnic.ts";
 import { lane, live as raceLive } from "../../game/race.ts";
 import { lightsNow, skyNow } from "../../game/sky.ts";
+import { animalMotion, catPetted, townAnimals } from "../../game/town-life.ts";
 import { serverNow, world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { mergeStill } from "../engine/merge3d.ts";
 import { Burst, type Overlay } from "../engine/overlay.ts";
-import { canvasTexture } from "../kit/kit.ts";
+import { canvasTexture, Model } from "../kit/kit.ts";
 import { Avatar, personLook } from "../people/avatar.ts";
 import type { LiveFrame } from "../rooms/rooms.ts";
 import { buntingMeshes } from "./bunting3d.ts";
@@ -156,6 +157,8 @@ export class TownEvents {
   private rippleWhere: [number, number] = [0, 0];
   private lastMe: [number, number] | null = null;
   private clock = 0;
+  private readonly cat = new Model();
+  private readonly pigeons = [new Model(), new Model(), new Model()];
 
   // Labels and bursts
   private readonly pills = new Map<string, Pill>();
@@ -167,6 +170,20 @@ export class TownEvents {
     this.toWorld = toWorld;
     this.group.name = "town-events";
     this.group.userData.events = this;
+    this.cat.box([0.5, 0.22, 0.3], "#754c36", [0, 0, 0]);
+    this.cat.box([0.25, 0.25, 0.24], "#754c36", [0, 0.18, 0.12]);
+    this.cat.box([0.08, 0.12, 0.08], "#754c36", [-0.09, 0.4, 0.12]);
+    this.cat.box([0.08, 0.12, 0.08], "#754c36", [0.09, 0.4, 0.12]);
+    this.cat.box([0.22, 0.08, 0.08], "#754c36", [0.3, 0.08, -0.05]);
+    this.cat.userData.live = true;
+    this.group.add(this.cat);
+    for (const bird of this.pigeons) {
+      bird.userData.live = true;
+      bird.box([0.24, 0.16, 0.3], "#7e8a91", [0, 0, 0]);
+      bird.box([0.15, 0.14, 0.15], "#aeb8bd", [0, 0.13, 0.12]);
+      bird.box([0.08, 0.04, 0.08], "#e8b65b", [0, 0.16, 0.22]);
+      this.group.add(bird);
+    }
     const [cx, cz] = this.toWorld(CART_SPOT.x, CART_SPOT.y);
     // The middle of the three-by-two tiles the cart stands on.
     this.spot = [cx + (CART_W - 1) / 2, cz + (CART_H - 1) / 2];
@@ -412,6 +429,19 @@ export class TownEvents {
     this.maxBursts = Math.max(1, Math.round(burstCap(f.density) / 2));
     this.clock = f.now;
     this.lastMe = f.me;
+    const animals = townAnimals();
+    this.cat.visible = animals !== null;
+    if (animals) {
+      const [x, z] = this.toWorld(...animals.cat);
+      this.cat.position.set(x, catPetted(f.now) ? 0.08 : 0, z);
+      animals.birds.forEach(([bx, by], i) => {
+        const [px, pz] = this.toWorld(bx, by);
+        const flight = animalMotion(i, bx, by, f.now);
+        const bird = this.pigeons[i]!;
+        bird.visible = true;
+        bird.position.set(px + flight * (i % 2 ? 0.5 : -0.5), flight * 0.75, pz);
+      });
+    } else for (const bird of this.pigeons) bird.visible = false;
     this.coinsFrame(f);
     const near = this.nearCamera(f);
     const calm = f.calm;
