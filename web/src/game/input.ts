@@ -7,6 +7,7 @@ import {
   type ShopId,
   shopOfRoom,
 } from "@tokenmaxxing/core/shoprooms.ts";
+import { STATUE_TILE } from "@tokenmaxxing/core/statue.ts";
 import { stepPace } from "@tokenmaxxing/core/street.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import {
@@ -37,6 +38,7 @@ import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
 import { seated, sit, standUp } from "./raidseat.ts";
 import { pickTile } from "./stage.ts";
+import { statueText } from "./statue.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { interactAnimal, interactTownProp } from "./town-life.ts";
 import { openTrophies } from "./trophies.ts";
@@ -490,6 +492,7 @@ function interact(): void {
   if (shopInteract(x, y)) return;
   if (basementInteract(x, y)) return;
   if (ch === "K") return void hud.set({ dialog: chalkboardText() });
+  if (ch === STATUE_TILE) return void hud.set({ dialog: statueText() });
   if (ch === "w") return void hud.set({ panel: { kind: "openOffices" } });
   if (ch === "ς") return void hud.set({ panel: { kind: "directory" } });
   if (ch === "U") return void openTrophies();

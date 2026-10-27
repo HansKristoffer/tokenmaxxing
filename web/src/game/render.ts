@@ -73,6 +73,7 @@ import {
   weatherNow,
 } from "./sky.ts";
 import { snowAmount, snowLayers } from "./snow.ts";
+import { drawStatue } from "./statue.ts";
 import { drawStreet } from "./street.ts";
 import { drawTavern, lightTavern } from "./tavern.ts";
 import { drawTownAnimals } from "./town-life.ts";
@@ -327,6 +328,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawGames(f);
   drawStreet(f);
   drawLaunch(f);
+  drawStatue(f);
   drawPicnic(f);
   drawChalkboards(f);
   drawTavern(f);

@@ -1,4 +1,5 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
+import { STATUE_TILE } from "@tokenmaxxing/core/statue.ts";
 import * as THREE from "three";
 import { lightsNow } from "../../game/sky.ts";
 import { world } from "../../game/world.ts";
@@ -9,6 +10,7 @@ import { ExitMarkers } from "../rooms/exit-markers.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "../rooms/rooms.ts";
 import { GamesLayer } from "./games3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
+import { StatueLayer } from "./statue3d.ts";
 import { TownEvents } from "./town-events.ts";
 import { buildTown3d, type Town3d } from "./town3d.ts";
 
@@ -26,6 +28,8 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   town.setClock(ctx.minutes);
   const [W, D] = town.size;
   const events = new TownEvents((tx, ty) => town.toWorld(tx, ty));
+  const statue = new StatueLayer(town.map.find(STATUE_TILE)[0], (tx, ty) => town.toWorld(tx, ty));
+  events.group.add(statue.group);
   const group = new THREE.Group();
   group.add(town.group);
   const officeWindows: { companyId: number; window: THREE.Mesh }[] = [];
@@ -101,14 +105,19 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       showBoard();
       markers.update(f.me, f.t);
       events.update(f);
+      statue.update(f);
     },
     onToss: (tx, ty) => events.toss(tx, ty),
-    leave: () => events.leave(),
+    leave: () => {
+      events.leave();
+      statue.leave();
+    },
     signs,
     liveSigns: () => [...(gateLive?.signs() ?? []), ...games.signs()],
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();
+      statue.dispose();
       events.dispose();
       games.dispose();
       gateLive?.dispose();

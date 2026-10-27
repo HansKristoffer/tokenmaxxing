@@ -9,7 +9,8 @@ character is in that house: **at a desk** while your agents run, **asleep in bed
 AI earns **coins**, and so does finishing a day in the top 3; spend them on clothes, glasses, hats and
 pets that follow you around (hold a pet and pick any of its colours and breeds with the eye in your bag; they curl up asleep in the pet bed of your office while you're in it). Or play for them: challenge someone to a game in the town square, from
 rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
-the most real tokens in an hour.
+the most real tokens in an hour. On the square stands a **statue of the #1 model**: whichever model leads
+LMArena's Text Arena, with a plaque in its maker's colours, and an unveiling when a new one takes over.
 The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
@@ -79,6 +80,14 @@ to your card (a bio is one line and can be reported), when you work, and your ti
 [Firecrawl](https://firecrawl.dev) to read that site's colours and logo, sends those to Claude to pick the
 house's colours, and keeps a copy of the logo. Only the company's public website is involved; nobody's usage
 data is sent anywhere for this.
+
+**The statue of the #1 model.** Four times a day the server reads the top of
+[LMArena's published leaderboard](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset) (its
+Hugging Face dataset, CC BY 4.0, no key) and puts the Text Arena's #1 on the plinth. It's the one source of the
+lot that is official, public and machine-readable: lmarena.ai itself is behind Cloudflare, Artificial Analysis
+needs an API key, OpenRouter's rankings measure tokens spent rather than quality, and SWE-bench ranks agent
+systems. If a read fails the last leader stays up, and the admin page can pin another model over it. Nothing
+about you is sent.
 
 ## The stats
 
@@ -250,6 +259,7 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `HEALTH_WINDOW_MS` | `120000` | ...the first of them at least this long ago. One success starts over |
 | `HEALTH_INTERVAL_MS` | `30000` | Time between probes |
 | `HEALTH_TIMEOUT_MS` | `20000` | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine |
+| `STATUE_FEED` | | `off` stops reading LMArena's leaderboard for the square's statue; the last leader read stays up. Pin one from the admin page instead |
 | `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
 | `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
 

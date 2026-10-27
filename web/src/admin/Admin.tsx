@@ -1,10 +1,12 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
+import { PROVIDERS } from "@tokenmaxxing/core/launch.ts";
 import {
   REQUEST_STATUSES,
   type RequestEntry,
   type RequestStatus,
   STATUS_LABEL,
 } from "@tokenmaxxing/core/requests.ts";
+import { type Leader, makerOf, RANKING, type StatueAdmin } from "@tokenmaxxing/core/statue.ts";
 import { houseTierName } from "@tokenmaxxing/core/world.ts";
 import type { AdminCompany, AdminLogEntry, AdminOverview, AdminUser } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
@@ -12,7 +14,7 @@ import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useSta
 import { errorText } from "../errors.ts";
 import { type AdminConn, connectAdmin, forgetToken, isUnauthorized, savedToken, saveToken } from "./api.ts";
 
-type Tab = "overview" | "users" | "companies" | "requests" | "log";
+type Tab = "overview" | "users" | "companies" | "requests" | "statue" | "log";
 type Act = (fn: () => Promise<unknown>, done: string) => Promise<void>;
 
 interface Data {
@@ -20,6 +22,7 @@ interface Data {
   users: AdminUser[];
   companies: AdminCompany[];
   requests: RequestEntry[];
+  statue: StatueAdmin;
   log: AdminLogEntry[];
 }
 
@@ -85,14 +88,15 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [overview, users, companies, requests, log] = await Promise.all([
+      const [overview, users, companies, requests, statue, log] = await Promise.all([
         conn.adminOverview(),
         conn.adminUsers(),
         conn.adminCompanies(),
         conn.adminRequests(),
+        conn.adminStatue(),
         conn.adminLog(),
       ]);
-      setData({ overview, users, companies, requests, log });
+      setData({ overview, users, companies, requests, statue, log });
     } catch (err) {
       if (isUnauthorized(err)) onSignOut("That token didn't work.");
       else setMessage({ text: errorText(err), bad: true });
@@ -117,6 +121,7 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
     ["users", `Users${data ? ` (${data.users.length})` : ""}`],
     ["companies", `Companies${data ? ` (${data.companies.length})` : ""}`],
     ["requests", `Requests${data ? ` (${data.requests.filter((r) => r.status === "open").length})` : ""}`],
+    ["statue", "Statue"],
     ["log", "Log"],
   ];
   return (
@@ -156,6 +161,7 @@ function Console({ token, onSignOut }: { token: string; onSignOut: (reason: stri
             users: () => <Users users={data.users} conn={conn} act={act} />,
             companies: () => <Companies companies={data.companies} conn={conn} act={act} />,
             requests: () => <Requests requests={data.requests} conn={conn} act={act} />,
+            statue: () => <Statue s={data.statue} conn={conn} act={act} />,
             log: () => <Log log={data.log} />,
           })
         )}
@@ -630,6 +636,87 @@ function Requests({ requests, conn, act }: { requests: RequestEntry[]; conn: Adm
     },
   ];
   return <Table rows={requests} columns={columns} initial={0} />;
+}
+
+// MARK: Statue
+
+const leaderLine = (l: Leader) => `${l.model} · ${makerOf(l).name} · ${l.ranking}`;
+
+/** The statue of the #1 model on the square: what's on it, what the ranking last said, and a pin over it. */
+function Statue({ s, conn, act }: { s: StatueAdmin; conn: AdminConn; act: Act }) {
+  const [model, setModel] = useState("");
+  const [maker, setMaker] = useState("");
+  const [ranking, setRanking] = useState("");
+  const pin = (e: FormEvent) => {
+    e.preventDefault();
+    void act(() => conn.adminPinStatue(model, maker, ranking), `${model.trim()} is on the plinth.`);
+  };
+  const tiles: [string, string, string?][] = [
+    [
+      "On the plinth",
+      s.shown.leader ? s.shown.leader.model : "Nothing yet (draped)",
+      s.shown.leader
+        ? `${makerOf(s.shown.leader).name} · ${s.shown.pinned ? "pinned" : "from the ranking"}`
+        : "",
+    ],
+    [
+      "Ranking says",
+      s.read ? s.read.leader.model : "Not read yet",
+      s.read ? `${leaderLine(s.read.leader)}${s.read.leader.asOf ? `, ${s.read.leader.asOf}` : ""}` : "",
+    ],
+    ["Next read", s.nextAt ? new Date(s.nextAt).toLocaleString() : "Soon"],
+  ];
+  return (
+    <>
+      <div className="tiles">
+        {tiles.map(([label, value, sub]) => (
+          <div key={label} className="tile">
+            <div className="muted">{label}</div>
+            <div className="value">{value}</div>
+            {sub && <div className="muted small">{sub}</div>}
+          </div>
+        ))}
+      </div>
+      <form className="pin" onSubmit={pin}>
+        <h2>Pin a model</h2>
+        <p className="muted small">
+          It stays on the plinth over the ranking's until you unpin it. A provider's name gets its colour.
+        </p>
+        <input placeholder="Model" value={model} maxLength={48} onChange={(e) => setModel(e.target.value)} />
+        <input
+          placeholder="Made by"
+          list="statue-makers"
+          value={maker}
+          maxLength={32}
+          onChange={(e) => setMaker(e.target.value)}
+        />
+        <datalist id="statue-makers">
+          {PROVIDERS.map((p) => (
+            <option key={p.id} value={p.name} />
+          ))}
+        </datalist>
+        <input
+          placeholder={RANKING}
+          value={ranking}
+          maxLength={48}
+          onChange={(e) => setRanking(e.target.value)}
+        />
+        <div className="actions">
+          <button type="submit" className="primary" disabled={!model.trim() || !maker.trim()}>
+            Pin
+          </button>
+          {s.pin && (
+            <button
+              type="button"
+              onClick={() => void act(() => conn.adminUnpinStatue(), "The ranking has the plinth again.")}
+            >
+              Unpin {s.pin.leader.model}
+            </button>
+          )}
+        </div>
+      </form>
+    </>
+  );
 }
 
 // MARK: Log
