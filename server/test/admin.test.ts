@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { admin, admit, as, client, event, origin, rich, signUp } from "./rivet.ts";
+import { admin, admit, as, client, event, origin, questCoins, rich, signUp } from "./rivet.ts";
 
 describe("the admin page", () => {
   test("is served at /admin", async () => {
@@ -31,7 +31,13 @@ describe("the admin page", () => {
     const co = await owner.town.createCompany("Admin Listed");
     const users = await admin().adminUsers();
     const me = users.find((u) => u.id === owner.userId)!;
-    expect(me).toMatchObject({ name: owner.name, balance: 10, tokensToday: 100e6 + 50 });
+    // The 10 coins usage pays, and whatever the date's daily quests add to that (the usage may finish one).
+    const wallet = await owner.town.wallet();
+    expect(me).toMatchObject({
+      name: owner.name,
+      balance: 10 + questCoins(wallet),
+      tokensToday: 100e6 + 50,
+    });
     expect(me.company).toEqual({ id: co.id, name: "Admin Listed", isOwner: true });
     const listed = (await admin().adminCompanies()).find((c) => c.id === co.id)!;
     expect(listed).toMatchObject({ owner: { id: owner.userId, name: owner.name }, tokensToday: 100e6 + 50 });

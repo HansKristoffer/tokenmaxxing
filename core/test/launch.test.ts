@@ -38,9 +38,21 @@ const DAY = 24 * 3_600_000;
 
 test("an edition's stand packs up at 18:00: today's for news before 16:00, tomorrow's after", () => {
   // Before the soft cut: today's edition, hard cutoff 18:00 today.
-  for (const [h, m] of [[0, 0], [9, 0], [15, 59]] as const) expect(standCloses(cph(h, m))).toBe(cph(18));
+  for (const [h, m] of [
+    [0, 0],
+    [9, 0],
+    [15, 59],
+  ] as const)
+    expect(standCloses(cph(h, m))).toBe(cph(18));
   // From 16:00 on: tomorrow's edition, so it stays until 18:00 tomorrow, even at 17:00 with today's still up.
-  for (const [h, m] of [[16, 0], [17, 0], [17, 59], [18, 0], [19, 13], [23, 59]] as const)
+  for (const [h, m] of [
+    [16, 0],
+    [17, 0],
+    [17, 59],
+    [18, 0],
+    [19, 13],
+    [23, 59],
+  ] as const)
     expect(standCloses(cph(h, m))).toBe(cph(18) + DAY);
 });
 
@@ -163,7 +175,12 @@ test("one launch: its provider's stand, and a pamphlet about it", () => {
 });
 
 test("one provider, several models: its stand, and every model on the pamphlet", () => {
-  const sol = { ...launch(cph(9)), provider: "codex" as const, model: "GPT-6 Sol", also: [also("GPT-6 Sol Pro"), also("GPT-6 Luna")] };
+  const sol = {
+    ...launch(cph(9)),
+    provider: "codex" as const,
+    model: "GPT-6 Sol",
+    also: [also("GPT-6 Sol Pro"), also("GPT-6 Luna")],
+  };
   const nova = { ...launch(cph(11)), provider: "codex" as const, model: "GPT-6 Nova" };
   const up = activeLaunches(cph(12), [sol, nova]);
   expect(standOf(up)).toMatchObject({ accent: "#10a37f", sign: "🚀 NEW: Codex GPT-6 Nova +3" });
@@ -176,7 +193,12 @@ test("one provider, several models: its stand, and every model on the pamphlet",
 
 test("several providers: a rainbow stand, and the newsletter has all of them", () => {
   const opus = { ...launch(cph(9)), provider: "claude" as const, model: "Claude Opus 5.5" };
-  const sol = { ...launch(cph(11)), provider: "codex" as const, model: "GPT-6 Sol", also: [also("GPT-6 Luna")] };
+  const sol = {
+    ...launch(cph(11)),
+    provider: "codex" as const,
+    model: "GPT-6 Sol",
+    also: [also("GPT-6 Luna")],
+  };
   const up = activeLaunches(cph(12), [opus, sol]);
   const stand = standOf(up);
   expect(stand.accent).toBeNull();
@@ -260,23 +282,40 @@ test("a family put out together is one launch, the shortest name leading", () =>
   };
   const got = launchesFrom(list, cph(12))!;
   expect(got).toHaveLength(2);
-  expect(got[0]).toMatchObject({ model: "GPT-6 Sol", at: cph(9), also: [
+  expect(got[0]).toMatchObject({
+    model: "GPT-6 Sol",
+    at: cph(9),
+    also: [
       { model: "GPT-6 Sol Pro", id: "openai/gpt-6-sol-pro" },
       { model: "GPT-6 Luna", id: "openai/gpt-6-luna" },
     ],
   });
   expect(got[1]).toMatchObject({ model: "GPT-6 Nova", at: cph(11, 30) });
   expect(pamphletOf([got[0]!]).entries[0]!.models).toEqual([
-    { name: "GPT-6 Sol", price: "In $1 · Out $5 per 1M tokens", url: "https://openrouter.ai/openai/gpt-6-sol" },
-    { name: "GPT-6 Sol Pro", price: "In $1 · Out $5 per 1M tokens", url: "https://openrouter.ai/openai/gpt-6-sol-pro" },
-    { name: "GPT-6 Luna", price: "In $1 · Out $5 per 1M tokens", url: "https://openrouter.ai/openai/gpt-6-luna" },
+    {
+      name: "GPT-6 Sol",
+      price: "In $1 · Out $5 per 1M tokens",
+      url: "https://openrouter.ai/openai/gpt-6-sol",
+    },
+    {
+      name: "GPT-6 Sol Pro",
+      price: "In $1 · Out $5 per 1M tokens",
+      url: "https://openrouter.ai/openai/gpt-6-sol-pro",
+    },
+    {
+      name: "GPT-6 Luna",
+      price: "In $1 · Out $5 per 1M tokens",
+      url: "https://openrouter.ai/openai/gpt-6-luna",
+    },
   ]);
 });
 
 test("a long description is cut down for the pamphlet, and a missing one says something", () => {
   const long = `${"Very ".repeat(60)}long.`;
   const [a, b] = launchesFrom(
-    { data: [or("google/g1", "Google: G1", cph(9), long), or("meta-llama/l5", "Meta: Llama 5", cph(10), "")] },
+    {
+      data: [or("google/g1", "Google: G1", cph(9), long), or("meta-llama/l5", "Meta: Llama 5", cph(10), "")],
+    },
     cph(12),
   )!;
   expect(a!.tagline.length).toBeLessThanOrEqual(160);
@@ -295,7 +334,9 @@ test("a list that isn't one keeps what we had; an empty one is no launches", () 
 
 test("the name says who made it once", () => {
   expect(nameOf({ ...launch(0), provider: "claude", model: "Claude Haiku 5.5" })).toBe("Claude Haiku 5.5");
-  expect(nameOf({ ...launch(0), provider: "minimax", model: "MiniMax M3.1 Flash" })).toBe("MiniMax M3.1 Flash");
+  expect(nameOf({ ...launch(0), provider: "minimax", model: "MiniMax M3.1 Flash" })).toBe(
+    "MiniMax M3.1 Flash",
+  );
   expect(nameOf({ ...launch(0), provider: "codex", model: "GPT-6.1 Terra" })).toBe("Codex GPT-6.1 Terra");
 });
 
@@ -308,7 +349,11 @@ test("prices read as dollars per million tokens, as short as they go", () => {
   expect(priceLine(NO_PRICE)).toBeNull();
   // A free model is $0, not missing; junk is missing.
   const [free] = launchesFrom(
-    { data: [or("google/g1", "Google: G1", cph(9), "", { prompt: "0", completion: "0", input_cache_read: "abc" })] },
+    {
+      data: [
+        or("google/g1", "Google: G1", cph(9), "", { prompt: "0", completion: "0", input_cache_read: "abc" }),
+      ],
+    },
     cph(12),
   )!;
   expect(free!.price).toEqual({ input: 0, output: 0, cache: null });

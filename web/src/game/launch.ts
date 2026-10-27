@@ -125,7 +125,9 @@ export function drawLaunch({ g, items, labels, toScreen, now, dpr }: Frame): voi
   const bottom = (STAND.y + STAND.h) * TILE;
   items.push({ y: bottom - 1, draw: () => g.drawImage(sprite, left, bottom - STAND_H) });
   const [sx, sy] = toScreen(left + STAND_W / 2, bottom - STAND_H);
-  labels.push(() => pill(g, sx, sy - 2 * dpr, stand.sign, dpr, stand.accent ?? RAINBOW_SIGN, "#fbf7ef", 240 * dpr));
+  labels.push(() =>
+    pill(g, sx, sy - 2 * dpr, stand.sign, dpr, stand.accent ?? RAINBOW_SIGN, "#fbf7ef", 240 * dpr),
+  );
   if (flying) {
     const { t } = flying;
     const from = { x: left + STAND_W / 2, y: bottom - 12 };

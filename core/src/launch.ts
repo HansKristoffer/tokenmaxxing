@@ -92,7 +92,11 @@ const TAGLINE_MAX = 160;
 
 /** The first sentence of a description, cut down to fit a pamphlet. */
 function firstSentence(text: string): string {
-  const one = text.replace(/\s+/g, " ").trim().match(/^.+?[.!?](?=\s|$)/)?.[0] ?? text.trim();
+  const one =
+    text
+      .replace(/\s+/g, " ")
+      .trim()
+      .match(/^.+?[.!?](?=\s|$)/)?.[0] ?? text.trim();
   return one.length <= TAGLINE_MAX ? one : `${one.slice(0, TAGLINE_MAX - 1).trimEnd()}…`;
 }
 
@@ -213,7 +217,9 @@ function nextClock(at: number, minutes: number): number {
  */
 export function standCloses(at: number): number {
   const first = nextClock(at, STAND_CLOSES);
-  return clockMinutes(at) < SOFT_CUT || clockMinutes(at) >= STAND_CLOSES ? first : nextClock(first, STAND_CLOSES);
+  return clockMinutes(at) < SOFT_CUT || clockMinutes(at) >= STAND_CLOSES
+    ? first
+    : nextClock(first, STAND_CLOSES);
 }
 
 /**
@@ -243,7 +249,10 @@ const modelsIn = (ls: readonly Launch[]): number => ls.reduce((n, l) => n + 1 + 
  */
 export function standOf(ls: readonly Launch[]): { accent: string | null; sign: string; key: string } {
   const providers = providersIn(ls);
-  const key = ls.map((l) => `${l.provider}:${l.at}`).sort().join("|");
+  const key = ls
+    .map((l) => `${l.provider}:${l.at}`)
+    .sort()
+    .join("|");
   if (providers.length > 1)
     return { accent: null, sign: `🌈 NEW: ${providers.map((p) => providerOf(p).name).join(" · ")}`, key };
   const more = modelsIn(ls) - 1;

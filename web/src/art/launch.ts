@@ -76,7 +76,8 @@ export const standSprite = cached(
       // The front: wood with an accent band, and a white board on it.
       p.rect(1, 21, 30, 10, C.ink);
       p.rect(2, 21, 28, 9, C.wood);
-      for (let x = 2; x < 30; x++) p.rect(x, 21, 1, 2, accent ?? stripe(Math.floor(((x - 2) * RAINBOW.length) / 28)));
+      for (let x = 2; x < 30; x++)
+        p.rect(x, 21, 1, 2, accent ?? stripe(Math.floor(((x - 2) * RAINBOW.length) / 28)));
       p.rect(2, 28, 28, 2, C.woodDark);
       p.rect(7, 22, 18, 8, C.ink);
       p.rect(8, 23, 16, 6, C.white);

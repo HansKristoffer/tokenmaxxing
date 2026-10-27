@@ -682,7 +682,15 @@ export class TownEvents {
     v3.set(this.launchAt[0], 1, this.launchAt[1]).project(f.camera);
     if (Math.abs(v3.x) < 1.5 && Math.abs(v3.y) < 1.5) this.presenter.update(f.dt, f.t);
     v3.set(this.launchAt[0], 2.05, this.launchAt[1]);
-    this.pill("launch", "r3-sign", st.sign, v3, f.camera, () => hud.set({ panel: { kind: "pamphlet" } }), st.bg);
+    this.pill(
+      "launch",
+      "r3-sign",
+      st.sign,
+      v3,
+      f.camera,
+      () => hud.set({ panel: { kind: "pamphlet" } }),
+      st.bg,
+    );
     // The pamphlet in the air: off the counter in an arc to whoever walked by.
     this.flyer.visible = flying !== null;
     if (flying) {
@@ -690,7 +698,11 @@ export class TownEvents {
       const fx = this.launchAt[0];
       const fz = this.launchAt[1] + 0.3;
       const k = flying.t;
-      this.flyer.position.set(fx + (tx - fx) * k, 0.95 + Math.sin(k * Math.PI) * 0.9 - k * 0.15, fz + (tz - fz) * k);
+      this.flyer.position.set(
+        fx + (tx - fx) * k,
+        0.95 + Math.sin(k * Math.PI) * 0.9 - k * 0.15,
+        fz + (tz - fz) * k,
+      );
       this.flyer.rotation.set(0, k * 9, Math.sin(k * Math.PI) * 0.6);
     }
   }

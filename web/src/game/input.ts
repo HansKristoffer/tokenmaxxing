@@ -371,7 +371,10 @@ export function updateSelf(now: number): void {
     return;
   }
   const step = stepTarget(world.map, me.x, me.y, dir);
-  const target = step.kind === "move" && (blocksStep(step.x, step.y) || blocksLaunch(step.x, step.y)) ? { kind: "blocked" as const } : step;
+  const target =
+    step.kind === "move" && (blocksStep(step.x, step.y) || blocksLaunch(step.x, step.y))
+      ? { kind: "blocked" as const }
+      : step;
   if (target.kind === "blocked") {
     if (me.facing !== dir || me.state !== "idle") send(conn.step(dir));
     me.facing = dir;

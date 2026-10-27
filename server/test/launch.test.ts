@@ -22,7 +22,14 @@ const answer = (reply: unknown, ok = true) =>
     return { ok, json: async () => reply };
   }) as unknown as typeof fetch;
 const prev: Launch[] = [
-  { provider: "kimi", model: "K3", id: "", price: { input: null, output: null, cache: null }, tagline: "Hi.", at: 1 },
+  {
+    provider: "kimi",
+    model: "K3",
+    id: "",
+    price: { input: null, output: null, cache: null },
+    tagline: "Hi.",
+    at: 1,
+  },
 ];
 
 test("reads OpenRouter's list into launches", async () => {

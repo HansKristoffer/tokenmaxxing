@@ -1826,7 +1826,8 @@ function copBeat(
   if (dir) {
     const to = stepTarget(map, cop.x, cop.y, dir);
     cop.facing = dir;
-    if (to.kind === "move" && !onProp(c.state, c.vars.launches, to.x, to.y)) Object.assign(cop, { x: to.x, y: to.y });
+    if (to.kind === "move" && !onProp(c.state, c.vars.launches, to.x, to.y))
+      Object.assign(cop, { x: to.x, y: to.y });
     c.vars.dirty.add(cop.id);
     return;
   }

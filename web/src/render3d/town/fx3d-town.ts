@@ -526,7 +526,8 @@ export function launchStand(accent: string | null): Model {
   front.castShadow = true;
   m.add(front);
   // A stack of pamphlets on the counter.
-  for (let i = 0; i < 3; i++) m.box([0.22, 0.015, 0.16], i % 2 ? "#fbf7ef" : colour(i), [0.55, 0.875 + i * 0.016, D / 2 - 0.3], 0.004);
+  for (let i = 0; i < 3; i++)
+    m.box([0.22, 0.015, 0.16], i % 2 ? "#fbf7ef" : colour(i), [0.55, 0.875 + i * 0.016, D / 2 - 0.3], 0.004);
   return m;
 }
 
