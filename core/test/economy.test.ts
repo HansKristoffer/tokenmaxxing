@@ -38,7 +38,7 @@ test("the streak climbs half a step a day to x3", () => {
   expect([...streakMultipliers(days).values()]).toEqual([1, 1.5, 2, 2.5, 3, 3]);
 });
 
-test("a missed day costs two steps, not the streak", () => {
+test("a missed day resets the streak to x1", () => {
   const m = streakMultipliers([
     "2026-11-01",
     "2026-11-02",
@@ -46,10 +46,12 @@ test("a missed day costs two steps, not the streak", () => {
     "2026-11-04",
     "2026-11-05",
     "2026-11-07",
+    "2026-11-08",
   ]);
   expect(m.get("2026-11-05")).toBe(3);
-  // x3 had 4 steps; one day off takes 2, and the day back is paid at x2.
-  expect(m.get("2026-11-07")).toBe(2);
+  // x3 had 4 steps; one day off resets it, so the day back is paid at x1 and the run climbs again.
+  expect(m.get("2026-11-07")).toBe(1);
+  expect(m.get("2026-11-08")).toBe(1.5);
   // A long gap takes it back to x1.
   expect(streakMultipliers(["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-20"]).get("2026-11-20")).toBe(
     1,
@@ -77,7 +79,7 @@ test("what today would be worth before it has tokens", () => {
   const days = ["2026-11-01", "2026-11-02", "2026-11-03"];
   expect(streakNow(days, "2026-11-03")).toBe(2);
   expect(streakNow(days, "2026-11-04")).toBe(2.5);
-  expect(streakNow(days, "2026-11-05")).toBe(1.5);
+  expect(streakNow(days, "2026-11-05")).toBe(1);
   expect(streakNow([], "2026-11-05")).toBe(1);
 });
 

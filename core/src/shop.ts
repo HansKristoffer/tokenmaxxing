@@ -31,15 +31,26 @@ export const legacyTokenCoins = (tokens: number): number => Math.floor(Math.sqrt
  * ponytail: set to the deploy day when shipping, like `STREAK_FROM`.
  */
 export const TOKEN_COINS_FROM = "2026-10-27";
-/** Today's curve: `TOKEN_COIN_MULT` × the millions to the power `TOKEN_COIN_EXP`. 1.5B tokens earn 201, 600M 116, 120M 44, 10M 9. */
+/**
+ * The first world day on the plain curve. The days from `TOKEN_COINS_FROM` up to here (27 Oct) keep the
+ * 2.5 rate they were paid at, so no balance moves backwards.
+ */
+export const TOKEN_COINS_PLAIN_FROM = "2026-10-28";
+/** Today's curve: `TOKEN_COIN_MULT` × the millions to the power `TOKEN_COIN_EXP`. 1.5B tokens earn 80, 600M 46, 120M 17, 10M 3. */
 export const TOKEN_COIN_EXP = 0.6;
-export const TOKEN_COIN_MULT = 2.5;
+export const TOKEN_COIN_MULT = 1;
+/** The multiplier the days before `TOKEN_COINS_PLAIN_FROM` were paid at. */
+const FIRST_DAYS_MULT = 2.5;
+
+const curveCoins = (tokens: number, mult: number): number =>
+  Math.floor(mult * (Math.max(0, tokens) / 1e6) ** TOKEN_COIN_EXP);
 
 /** Coins for one day's tokens; `day` (`YYYY-MM-DD`) picks the curve it was earned on, none the current one. */
-export const coinsForTokens = (tokens: number, day?: string): number =>
-  day !== undefined && day < TOKEN_COINS_FROM
-    ? legacyTokenCoins(tokens)
-    : Math.floor(TOKEN_COIN_MULT * (Math.max(0, tokens) / 1e6) ** TOKEN_COIN_EXP);
+export const coinsForTokens = (tokens: number, day?: string): number => {
+  if (day !== undefined && day < TOKEN_COINS_FROM) return legacyTokenCoins(tokens);
+  const mult = day !== undefined && day < TOKEN_COINS_PLAIN_FROM ? FIRST_DAYS_MULT : TOKEN_COIN_MULT;
+  return curveCoins(tokens, mult);
+};
 
 /** Extra coins for finishing a world day 1st, 2nd or 3rd on tokens. */
 export const PODIUM_COINS = [25, 15, 10] as const;

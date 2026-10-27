@@ -304,7 +304,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 
 ## Coins and the shop
 
-- Each world day pays `2.5 × (tokens ÷ 1M)^0.6` coins (1.5B ≈ 201, 600M ≈ 116, 100M = 39), from `TOKEN_COINS_FROM`; earlier days keep `√(tokens ÷ 1M)` (`legacyTokenCoins`). Finishing a day 1st, 2nd or 3rd
+- Each world day pays `(tokens ÷ 1M)^0.6` coins (1.5B ≈ 80, 600M ≈ 46, 100M = 15) from `TOKEN_COINS_PLAIN_FROM` (28 Oct). 27 Oct (`TOKEN_COINS_FROM`) keeps `2.5 ×` that, and earlier days keep `√(tokens ÷ 1M)` (`legacyTokenCoins`). Finishing a day 1st, 2nd or 3rd
   adds 25, 15 or 10.
 - Only days from the world day you signed up count, for pay and for podium places: a first sync backfills
   old logs, and those days would otherwise pay out (and win podiums nobody else was around for).

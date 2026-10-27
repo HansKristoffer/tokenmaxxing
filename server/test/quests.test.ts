@@ -86,14 +86,14 @@ describe("the new rules", () => {
     const before = await balance(AFTER);
     await doEverything(AFTER);
     const grown =
-      coinsForTokens(30e6 + 1) + milestoneCoins(levelFor(30e6 + 1)) + levelUpCoins(levelFor(30e6 + 1));
+      coinsForTokens(30e6 + 1, AFTER) + milestoneCoins(levelFor(30e6 + 1)) + levelUpCoins(levelFor(30e6 + 1));
     // Three quests, 1 + 2 + 3 coins.
     expect(await balance(AFTER)).toBe(before + grown + 6);
     expect((await sql.execute("SELECT COUNT(*) AS n FROM ledger")) as [{ n: number }]).toEqual([{ n: 0 }]);
     expect((await balances(sql, noon(AFTER))).get(1)).toBe(before + grown + 6);
     const w = await wallet(sql, 1, noon(AFTER));
     expect(w.quests.map((q) => q.done)).toEqual([true, true, true]);
-    expect(w.today).toBe(coinsForTokens(30e6 + 1) + 6);
+    expect(w.today).toBe(coinsForTokens(30e6 + 1, AFTER) + 6);
     expect(await questsCleared(sql, 1)).toBe(3);
   });
 
