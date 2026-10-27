@@ -436,8 +436,36 @@ const shopLot = (id: ShopId): string[] => {
 /** Where the door is in a shop's block. */
 export const SHOP_DOOR: [number, number] = [5, 6];
 
-const shopAt = (bx: number, by: number): ShopId | undefined =>
-  SHOP_IDS.find((id) => SHOP_BLOCKS[id][0] === bx && SHOP_BLOCKS[id][1] === by);
+/**
+ * Where each shop stands for these company plots: its `SHOP_BLOCKS` block, unless a company already holds
+ * it (it started before the shop did). That shop moves to the free block nearest the square instead, so no
+ * building is drawn over someone's house. Companies never build on a shop's block (`frontier`), so it stays put.
+ */
+export function shopBlocks(plots: readonly number[]): Record<ShopId, [number, number]> {
+  const taken = new Set(plots);
+  const out = {} as Record<ShopId, [number, number]>;
+  const reserved = new Set<number>(CORE_BLOCKS.map(([x, y]) => plotId(x, y)));
+  for (const id of SHOP_IDS) reserved.add(plotId(...SHOP_BLOCKS[id]));
+  const displaced: ShopId[] = [];
+  for (const id of SHOP_IDS) {
+    if (taken.has(plotId(...SHOP_BLOCKS[id]))) displaced.push(id);
+    else out[id] = SHOP_BLOCKS[id];
+  }
+  if (displaced.length === 0) return out;
+  const near = (id: number) => {
+    const [bx, by] = plotBlock(id);
+    return Math.hypot(bx + 0.5 - 1, by + 0.5 - 1);
+  };
+  const free: number[] = [];
+  for (let by = -4; by <= 5; by++)
+    for (let bx = -4; bx <= 5; bx++) {
+      const id = plotId(bx, by);
+      if (!taken.has(id) && !reserved.has(id)) free.push(id);
+    }
+  const order = sortBy(free, near, (id) => id);
+  for (const id of displaced) out[id] = plotBlock(order.shift()!);
+  return out;
+}
 
 /** Empty blocks inside the town: small parks. */
 const PARKS = [
@@ -490,7 +518,7 @@ export function doorOf(plot: number): [number, number] {
  */
 export function frontier(plots: readonly number[]): number[] {
   const used = new Set([...plots, ...CORE_BLOCKS.map(([x, y]) => plotId(x, y))]);
-  const shops = new Set(SHOP_IDS.map((id) => plotId(...SHOP_BLOCKS[id])));
+  const shops = new Set(Object.values(shopBlocks(plots)).map(([x, y]) => plotId(x, y)));
   const out = new Set<number>();
   for (const id of used) {
     const [bx, by] = plotBlock(id);
@@ -514,7 +542,9 @@ export function frontier(plots: readonly number[]): number[] {
 
 /** The town for these company plots. */
 export function townMap(plots: readonly number[]): GameMap {
-  const blocks = [...CORE_BLOCKS, ...SHOP_IDS.map((id) => SHOP_BLOCKS[id]), ...plots.map(plotBlock)];
+  const shopPlaces = shopBlocks(plots);
+  const shopAt = new Map(SHOP_IDS.map((id) => [plotId(...shopPlaces[id]), id]));
+  const blocks = [...CORE_BLOCKS, ...Object.values(shopPlaces), ...plots.map(plotBlock)];
   const minBx = Math.min(...blocks.map(([x]) => x));
   const maxBx = Math.max(...blocks.map(([x]) => x));
   const minBy = Math.min(...blocks.map(([, y]) => y));
@@ -537,8 +567,8 @@ export function townMap(plots: readonly number[]): GameMap {
           )
         : taken.has(plotId(bx, by))
           ? LOT
-          : shopAt(bx, by)
-            ? shopLot(shopAt(bx, by)!)
+          : shopAt.has(plotId(bx, by))
+            ? shopLot(shopAt.get(plotId(bx, by))!)
             : PARKS[Math.abs(bx * 7 + by * 13) % PARKS.length]!;
       rows.forEach((row, dy) => {
         for (let dx = 0; dx < BLOCK_W; dx++) put(bx * BLOCK_W + dx, by * BLOCK_H + dy, row[dx]!);

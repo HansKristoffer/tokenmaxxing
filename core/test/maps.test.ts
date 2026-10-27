@@ -10,6 +10,7 @@ import {
   plotBlock,
   plotId,
   SHOP_BLOCKS,
+  shopBlocks,
   TOWN_SPAWN,
   townMap,
 } from "../src/maps.ts";
@@ -202,6 +203,22 @@ describe("the shops", () => {
     const blocks = SHOP_IDS.map((id) => plotId(...SHOP_BLOCKS[id]));
     expect(frontier([]).filter((p) => blocks.includes(p))).toEqual([]);
     for (const p of plots) expect(blocks).not.toContain(p);
+  });
+
+  test("a company that held a shop's block before the shop moves the shop, not the house", () => {
+    const held = plotId(...SHOP_BLOCKS.natmarked);
+    const old = [held, ...frontier([held]).slice(0, 4)];
+    const placed = shopBlocks(old);
+    expect(placed.natmarked).not.toEqual(SHOP_BLOCKS.natmarked);
+    expect(old).not.toContain(plotId(...placed.natmarked));
+    expect(new Set(Object.values(placed).map(([x, y]) => plotId(x, y))).size).toBe(SHOP_IDS.length);
+    expect(frontier(old)).not.toContain(plotId(...placed.natmarked));
+    expect(frontier(old)).not.toContain(held);
+    const town = townMap(old);
+    expect(town.find("Ħ")).toHaveLength(SHOP_IDS.length * 19);
+    for (const id of SHOP_IDS) expect(town.find(SHOP_DOOR_CHAR[id])).toHaveLength(1);
+    expect(town.find("D")).toHaveLength(old.length);
+    expect(reachable(town, ...TOWN_SPAWN).has(town.find(SHOP_DOOR_CHAR.natmarked)[0]!.join(","))).toBe(true);
   });
 
   for (const [i, town] of towns.entries()) {

@@ -5,7 +5,6 @@
  * `TownDoor`s so the portal system can walk you in (`inn`, `hq`, `arcade`, the raid's `dungeon` gate).
  * World units are tiles: tile (tx, ty) covers x from `tx - x0 + MARGIN`, z from `ty - y0 + MARGIN`.
  */
-import { SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
 import { bakedLook, type SeasonLook } from "@tokenmaxxing/core/seasons.ts";
 import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { CART, SNAIL } from "@tokenmaxxing/core/street.ts";
@@ -392,13 +391,12 @@ export function buildTown3d(
     set(bx * BLOCK_W + 5, by * BLOCK_H + 6, "A");
     for (const dy of [7, 8]) set(bx * BLOCK_W + 5, by * BLOCK_H + dy, ",");
   }
-  // The four shops stand where the game's town has them (`SHOP_BLOCKS`): the map already has each 5x4 front (`Ħ`)
-  // with its door tile and the path down to the road.
-  const shopSlots: { id: ShopId; bx: number; by: number }[] = SHOP_IDS.flatMap((id) =>
-    plain.contains(SHOP_BLOCKS[id][0] * BLOCK_W + 5, SHOP_BLOCKS[id][1] * BLOCK_H + 6)
-      ? [{ id, bx: SHOP_BLOCKS[id][0], by: SHOP_BLOCKS[id][1] }]
-      : [],
-  );
+  // The shops stand where the game's town has them (`shopBlocks`): the map already has each 5x4 front (`Ħ`)
+  // with its door tile (5, 6 in its block) and the path down to the road.
+  const shopSlots: { id: ShopId; bx: number; by: number }[] = SHOP_IDS.flatMap((id) => {
+    const door = plain.find(SHOP_DOOR_CHAR[id])[0];
+    return door ? [{ id, bx: Math.floor(door[0] / BLOCK_W), by: Math.floor(door[1] / BLOCK_H) }] : [];
+  });
   const map = new TownMap(
     rows.map((r) => r.join("")),
     plain.x0,

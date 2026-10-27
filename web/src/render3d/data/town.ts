@@ -5,8 +5,8 @@
  * `core/src/posters.ts` (POSTERS) and `core/src/desks.ts` (DESKS). Keep in step by hand.
  */
 
-import { townMap as coreTown, MAPS, SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
-import { SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
+import { townMap as coreTown, MAPS, shopBlocks } from "@tokenmaxxing/core/maps.ts";
+import { SHOP_DOOR_CHAR } from "@tokenmaxxing/core/shoprooms.ts";
 
 export { PLAZA, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 
@@ -87,7 +87,7 @@ const isCore = (bx: number, by: number) => CORE_BLOCKS.some(([cx, cy]) => cx ===
 export function townMap(plots: readonly number[]): TownMap {
   const m = coreTown(plots);
   const taken = new Set(plots);
-  const shops = new Set(SHOP_IDS.map((id) => plotId(...SHOP_BLOCKS[id])));
+  const shops = new Set(Object.values(shopBlocks(plots)).map(([x, y]) => plotId(x, y)));
   const parks: [number, number][] = [];
   for (let by = Math.floor(m.y0 / BLOCK_H); by * BLOCK_H < m.y0 + m.height; by++)
     for (let bx = Math.floor(m.x0 / BLOCK_W); bx * BLOCK_W < m.x0 + m.width; bx++) {
