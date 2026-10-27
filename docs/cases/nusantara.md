@@ -4,7 +4,7 @@ Status: stage 1 is in (data, tests, wiring). Not yet drawn: no 2D art, no 3D art
 
 - Theme: the Indonesian archipelago, loaded off a pinisi (the Sulawesi sailing ship) at a sunny harbour. Every item comes from a different island.
 - Mood: **daylight**, saturated and tropical. Night Market is dusk, neon, plum and lantern gold. Nusantara is teak, sea-turquoise, saffron, batik cream, rice green. Do not reuse lanterns, koi, kitsune, neon or ramen as a core motif.
-- Case id `nusantara`, name "Nusantara case", blurb "Hats, pets, outfits and instruments from the islands, loaded off the morning boat.", key 75 coins, the Night Market's odds (47.5 / 25 / 15 / 10 / 2.5), a rare or better within 10, one dupe reroll. Sold, for now, in Natmarked (`CASE_SHOP_ID` is unchanged).
+- Case id `nusantara`, name "Nusantara case", blurb "Hats, pets, outfits and instruments from the islands, loaded off the morning boat.", key 100 coins, the Night Market's odds (47.5 / 25 / 15 / 10 / 2.5), a rare or better within 10, one dupe reroll. Sold, for now, in Natmarked (`CASE_SHOP_ID` is unchanged).
 - Code: `core/src/case-nusantara.ts` (30 cosmetics, `NUSANTARA_BASE = 400`), `core/src/case-nusantara-furniture.ts` (6 pieces), the `CaseDef` in `core/src/cases.ts`. The pool is **30 cosmetics + 6 pieces = 36 items**, the same shape as the Night Market's.
 
 ## 1. Look indices

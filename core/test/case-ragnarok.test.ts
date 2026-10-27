@@ -157,11 +157,11 @@ describe("Ragnarok Eve furniture", () => {
 });
 
 describe("the Ragnarok Eve case", () => {
-  test("is the third case, priced and tuned like Night Market", () => {
+  test("is the third case, tuned like Night Market with a 100 coin key", () => {
     expect(CASES.map((c) => c.id)).toEqual(["night-market", "nusantara", "ragnarok-eve"]);
     expect(eve.name).toBe("Ragnarok Eve case");
     expect({ k: eve.keyPrice, o: eve.odds, r: eve.rareWithin, d: eve.dupeRerolls }).toEqual({
-      k: night.keyPrice,
+      k: 100,
       o: night.odds,
       r: night.rareWithin,
       d: night.dupeRerolls,
