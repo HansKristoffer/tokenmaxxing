@@ -1,7 +1,7 @@
 /**
  * Snapshot of the 2D clothing catalogue for the 3D Clothes shop, so the shop doesn't import the game's core.
- * Source: `core/src/shop.ts` `ITEMS` (the shop's own, `headwear.ts` HEADWEAR_ITEMS, `wardrobe.ts` WARDROBE, `editions.ts` EDITIONS
- * and raid `loot.ts`) for the outfit, hat, glasses, held and back slots, plus the free outfits 0-7
+ * Source: `core/src/shop.ts` `ITEMS` (the shop's own, `headwear.ts` HEADWEAR_ITEMS, `wardrobe.ts` WARDROBE, `editions.ts` EDITIONS,
+ * `costumes.ts` COSTUMES and raid `loot.ts`) for the outfit, hat, glasses, held and back slots, plus the free outfits 0-7
  * (`FREE_OUTFITS`) and the company merch (`MERCH`). Rarity is `rarityOf` already resolved.
  * Regenerate by re-reading those files; ids are `<slot>.<index>`.
  */
@@ -213,6 +213,7 @@ const SNAPSHOT: readonly ClothesRow[] = [
   { id: "hat.111", slot: "hat", index: 111, name: "429 bucket hat", price: 150, rarity: "rare" },
   { id: "hat.112", slot: "hat", index: 112, name: "Benchmark laurels", price: 500, rarity: "legendary" },
   { id: "hat.113", slot: "hat", index: 113, name: "Copenhagen ushanka", price: 280, rarity: "epic" },
+  { id: "hat.200", slot: "hat", index: 200, name: "Jack-o'-lantern", price: 350, rarity: "rare" },
   { id: "glasses.1", slot: "glasses", index: 1, name: "Nerd specs", price: 60, rarity: "common" },
   { id: "glasses.2", slot: "glasses", index: 2, name: "Shades", price: 100, rarity: "common" },
   { id: "glasses.3", slot: "glasses", index: 3, name: "Heart glasses", price: 150, rarity: "common" },
