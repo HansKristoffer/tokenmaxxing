@@ -14,11 +14,15 @@ import { gaitSettled, newGait, stepGait, walkPose } from "../people/motion.ts";
 import { Freezer, TINY_PX, view } from "../perf/freeze.ts";
 import { dragon, duck, ghost, goldfish, golem, orb, piggy } from "./pets3d-misc.ts";
 import { crane, kitsune, koi, maneki, tanuki, tengu } from "./pets3d-night.ts";
+import { fenrir, hildisvini, huginn, ratatoskr, sleipnir, tanngrisnir } from "./pets3d-norse.ts";
 import { NUSANTARA_PETS } from "./pets3d-nusantara.ts";
 import { quad } from "./pets3d-quad.ts";
 import type { Rig } from "./petvox.ts";
 
 export type { Species } from "../data/pets.ts";
+
+/** The Ragnarok Eve case's pets (`pets3d-norse.ts`), by species. */
+const NORSE = { huginn, ratatoskr, tanngrisnir, hildisvini, sleipnir, fenrir };
 export type PetPose = "stand" | "sit" | "sleep";
 
 type Mesh = THREE.Mesh;
@@ -188,12 +192,14 @@ export class Pet3D {
                             ? kitsune()
                             : species === "tengu"
                               ? tengu()
-                              : species === "cat" ||
-                                  species === "dog" ||
-                                  species === "panda" ||
-                                  species === "forkedcat"
-                                ? quad(species, variant, outfit)
-                                : orb();
+                              : species in NORSE
+                                ? NORSE[species as keyof typeof NORSE]()
+                                : species === "cat" ||
+                                    species === "dog" ||
+                                    species === "panda" ||
+                                    species === "forkedcat"
+                                  ? quad(species, variant, outfit)
+                                  : orb();
     this.root.userData.actor = true;
     const { body: b, fore: f } = built;
     this.rig = built.rig;
@@ -334,7 +340,8 @@ export class Pet3D {
 
 /**
  * The 3D twin of a 2D pet. `species` is `Look.pet` (1 duck, 2 cat, 3 dog, 4 dragon, 5 panda, 6 Singularity
- * orb, 7 to 11 the boss-loot pets, 300 to 305 the Night Market case's, 400 to 405 the Nusantara case's) or its name; `variant` is `Look.petVariant` (0 the original, n the
+ * orb, 7 to 11 the boss-loot pets, 300 to 305 the Night Market case's, 400 to 405 the Nusantara case's, 500 to 505
+ * Ragnarok Eve's) or its name; `variant` is `Look.petVariant` (0 the original, n the
  * n-th of `PET_VARIANTS`) or the variation's id; `name` is the pet's name, which dresses Penny and Nemo.
  */
 export function petFrom2D(species: number | string, variant: number | string = 0, name = ""): Pet3D {

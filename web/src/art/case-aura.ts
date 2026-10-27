@@ -1,5 +1,6 @@
 import { CASE_BASE } from "@tokenmaxxing/core/case.ts";
 import { NUSANTARA_BASE } from "@tokenmaxxing/core/case-nusantara.ts";
+import { RAGNAROK_AURAS } from "./case-ragnarok-aura.ts";
 import { bake, cached, type Pen } from "./pixels.ts";
 
 /**
@@ -220,6 +221,8 @@ const DRAWS: Record<number, Draw> = {
   [NUSANTARA_BASE + 1]: echo,
   [NUSANTARA_BASE + 2]: shadows,
   [NUSANTARA_BASE + 3]: padi,
+  // Ragnarok Eve's (`case-ragnarok-aura.ts`, 500 to 503).
+  ...RAGNAROK_AURAS,
 };
 
 const frame = cached(

@@ -2,6 +2,7 @@
  * The cases and their keys in 3D (voxel/low-poly, built with the furniture kit like `night3d.ts`): the Night Market's
  * lacquered crate and coin, and the Nusantara's teak sea chest and brass anchor key.
  *
+ *   (each takes an optional case id last: "night-market" by default, or "nusantara" / "ragnarok-eve" for those cases' own chest and key)
  *   buildCaseBox(false)  // Model: the case, lid down, bottom centre at the origin, front along +z (~0.9 x 0.8 x 0.6)
  *   buildCaseBox(true)   // the same case, lid up, warm light spilling out (the Nusantara's: daylight and jasmine petals)
  *   buildCaseKey()       // Model: the market token on its tassel, hanging with its lowest point at y = 0
@@ -18,12 +19,16 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
+import { buildNorseBox, buildNorseKey } from "./case-box3d-norse.ts";
 import type { IconSize } from "./icons.ts";
 import { canvasTexture, glow, Model, painted, ticks, tint, toon } from "./kit/kit.ts";
 
 export type CaseIcon = "closed" | "open" | "key";
 /** `CaseDef.id` of the cases that have their own 3D box and key; anything else draws the Night Market's. */
-export type CaseModelId = "night-market" | "nusantara";
+export type CaseModelId = "night-market" | "nusantara" | "ragnarok-eve";
+
+/** The case whose art is drawn when none is asked for (`CaseDef.id` in core/src/cases.ts). */
+export const DEFAULT_CASE_ID = "night-market";
 
 const PLUM = "#3d1a52";
 const PLUM_DARK = "#2a1139";
@@ -508,21 +513,29 @@ function nusantaraKey(): Model {
   return m;
 }
 
-/** The case's chest (closed or open), for the case `id` (`CaseDef.id`); the Night Market's unless it is "nusantara". */
-export function buildCaseBox(open: boolean, id: string = "night-market"): Model {
-  return id === "nusantara" ? nusantaraBox(open) : nightMarketBox(open);
+/** The case's chest (closed or open), for the case `id` (`CaseDef.id`); the Night Market's unless it is "nusantara" or "ragnarok-eve". */
+export function buildCaseBox(open: boolean, id: string = DEFAULT_CASE_ID): Model {
+  return id === "nusantara"
+    ? nusantaraBox(open)
+    : id === "ragnarok-eve"
+      ? buildNorseBox(open, register)
+      : nightMarketBox(open);
 }
 
-/** The case's key, for the case `id`: the Night Market's market token on its tassel, or the Nusantara's anchor key. */
-export function buildCaseKey(id: string = "night-market"): Model {
-  return id === "nusantara" ? nusantaraKey() : nightMarketKey();
+/** The case's key, for the case `id`: the Night Market's market token on its tassel, the Nusantara's anchor key, or the Ragnarok Eve's. */
+export function buildCaseKey(id: string = DEFAULT_CASE_ID): Model {
+  return id === "nusantara"
+    ? nusantaraKey()
+    : id === "ragnarok-eve"
+      ? buildNorseKey(register)
+      : nightMarketKey();
 }
 
 /** A picture of the case (closed or open) or the key, through the shared icon renderer (3D tiers only). */
 export function caseBoxIcon(
   what: CaseIcon,
   size: IconSize,
-  caseId: string = "night-market",
+  caseId: string = DEFAULT_CASE_ID,
 ): { promise: Promise<HTMLCanvasElement>; cancel: () => void } {
   let cancel = () => {};
   let dead = false;

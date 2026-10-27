@@ -102,7 +102,7 @@ describe("the Nusantara case", () => {
   const nus = caseById("nusantara")!;
 
   test("is a second case with the Night Market's odds and guarantee, a 75 coin key, and only its own items", () => {
-    expect(CASES.map((c) => c.id)).toEqual(["night-market", "nusantara"]);
+    expect(CASES.map((c) => c.id)).toEqual(["night-market", "nusantara", "ragnarok-eve"]);
     expect(nus).toMatchObject({ name: "Nusantara case", keyPrice: 75, rareWithin: 10, dupeRerolls: 1 });
     expect(nus.odds).toEqual(night.odds);
     expect(nus.blurb.length).toBeGreaterThan(20);

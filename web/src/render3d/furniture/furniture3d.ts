@@ -19,6 +19,7 @@ import { merchColours, merchPrintTexture, merchProp, merchShirtTexture } from ".
 import { DESK_TIERS, deskTier } from "./desks3d.ts";
 import { type Asset, bed, desk, light, sofa } from "./furniture.ts";
 import { NIGHT_ASSETS } from "./night3d.ts";
+import { NORSE_ASSETS } from "./norse3d.ts";
 import { NUSANTARA_ASSETS } from "./nusantara3d.ts";
 import { POSTER_ASSETS, POSTER_TEXT } from "./posters3d.ts";
 
@@ -766,6 +767,7 @@ export const FURNITURE_EXTRA_ASSETS: readonly Asset[] = [
   asset("keyboard-case", "Mechanical keyboard display", 260, 2, 1, keyboardCase),
   ...NIGHT_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
   ...NUSANTARA_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
+  ...NORSE_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
   ...POSTER_ASSETS,
 ];
 
@@ -778,6 +780,7 @@ export const WALL_ASSET_IDS: ReadonlySet<string> = new Set([
   "wall-neon",
   "night-lanterns",
   "nus-batik-hanging",
+  "norse-raven-banner",
   ...POSTER_ASSETS.map((a) => a.id),
 ]);
 

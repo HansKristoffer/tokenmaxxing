@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { ALL_CASE_PIECES, CASE_PIECES, casePieceOf, isCasePiece } from "../src/case-furniture.ts";
 import { NUSANTARA_PIECES } from "../src/case-nusantara-furniture.ts";
+import { RAGNAROK_PIECES } from "../src/case-ragnarok-furniture.ts";
 import { HOME_PIECES } from "../src/home.ts";
 import { TROPHIES } from "../src/loot.ts";
 import { LEGEND, MAPS } from "../src/maps.ts";
@@ -69,7 +70,7 @@ test("the Nusantara case's six pieces: characters, widths, wall and flat, and a 
     ["Й", "nus-pinisi", "Pinisi on the stand", "rare", 3, false, false],
   ]);
   expect(NUSANTARA_PIECES.map((p) => p.rarity)).toEqual(CASE_PIECES.map((p) => p.rarity));
-  // Neither case's pieces are in the other's list; the combined list is both, Night Market first.
-  expect(ALL_CASE_PIECES).toEqual([...CASE_PIECES, ...NUSANTARA_PIECES]);
+  // Neither case's pieces are in the other's list; the combined list is every case's, Night Market first.
+  expect(ALL_CASE_PIECES).toEqual([...CASE_PIECES, ...NUSANTARA_PIECES, ...RAGNAROK_PIECES]);
   for (const p of NUSANTARA_PIECES) expect(CASE_PIECES.includes(p)).toBe(false);
 });

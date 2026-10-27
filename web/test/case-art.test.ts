@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { ALL_CASE_ITEMS, CASE_BASE } from "@tokenmaxxing/core/case.ts";
+import { CASE_BASE, CASE_ITEMS } from "@tokenmaxxing/core/case.ts";
 import { NUSANTARA_BASE, NUSANTARA_ITEMS } from "@tokenmaxxing/core/case-nusantara.ts";
 import { CASE_GLASSES, CASE_HATS } from "../src/art/case.ts";
 import { CA_H, CA_MS, CA_W } from "../src/art/case-aura.ts";
@@ -32,7 +32,8 @@ afterAll(() => {
 /** A module of its own (the query makes it a new instance), so nothing another test baked is in its cache. */
 const fresh = <T>(path: string): Promise<T> => import(`${path}?fresh`);
 
-const items = (slot: string) => ALL_CASE_ITEMS.filter((i) => i.slot === slot);
+// The Night Market's and the Nusantara's only: Ragnarok Eve's art is checked in `case-ragnarok-art.test.ts`.
+const items = (slot: string) => [...CASE_ITEMS, ...NUSANTARA_ITEMS].filter((i) => i.slot === slot);
 /** Letters an item may leave to the wearer: outline and hair (and the hand, `h`, of something held). */
 const WEARER = new Set([".", "o", "h", "H"]);
 const letters = (rows: readonly string[], pal: Palette, extra: ReadonlySet<string> = WEARER) => {

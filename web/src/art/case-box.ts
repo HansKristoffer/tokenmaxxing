@@ -3,7 +3,7 @@
  * emblem, gold straps and a hanging tag, and a gold market coin with a square hole on a red tassel. The
  * Nusantara's: a teak sea chest with rattan corners, turquoise rope handles, a batik kawung band on the lid and a
  * white sail on the front, daylight and jasmine petals when it opens, and a brass anchor-bow key on a knotted
- * batik ribbon.
+ * batik ribbon. Ragnarok Eve's is drawn in `case-ragnarok-box.ts`.
  *
  *   caseBoxSprite("closed")    // 24x28 canvas: the case, lid down
  *   caseBoxSprite("open", f)   // 24x28 canvas: lid up, light spilling out; f = 0 | 1 (sparkles shift)
@@ -15,8 +15,9 @@
  * baseline, so swapping them in place makes the lid pop open. `CASE_BOX_FRAMES` is how many frames animate.
  */
 
+import { drawRagnarokBox } from "./case-ragnarok-box.ts";
 import { C } from "./palette.ts";
-import { bake } from "./pixels.ts";
+import { bake, type Pen } from "./pixels.ts";
 
 export type CaseBoxKind = "closed" | "open" | "key";
 
@@ -72,7 +73,7 @@ const STAMP = [
 ];
 
 /** The case body, lower part, lid not included. `y0` is the top of the body's ink outline. */
-function body(p: import("./pixels.ts").Pen, y0: number, lit: boolean): void {
+function body(p: Pen, y0: number, lit: boolean): void {
   // Outline and fill, plum at the foot to crimson under the lid.
   p.rect(1, y0, 22, 11, C.ink);
   p.rect(2, y0 + 1, 20, 9, P.plum);
@@ -102,7 +103,7 @@ function body(p: import("./pixels.ts").Pen, y0: number, lit: boolean): void {
   p.px(17, y0 + 7, P.red);
 }
 
-function drawClosed(p: import("./pixels.ts").Pen): void {
+function drawClosed(p: Pen): void {
   // Shadow on the floor.
   p.rect(2, 25, 20, 2, C.shadow);
   body(p, 14, false);
@@ -128,7 +129,7 @@ function drawClosed(p: import("./pixels.ts").Pen): void {
   p.px(0, 8, "rgba(0,0,0,0)");
 }
 
-function drawOpen(p: import("./pixels.ts").Pen, frame: number): void {
+function drawOpen(p: Pen, frame: number): void {
   // Warm light on the floor.
   p.rect(2, 25, 20, 2, C.shadow);
   p.rect(5, 26, 14, 1, "rgba(255, 211, 106, 0.45)");
@@ -177,7 +178,7 @@ function drawOpen(p: import("./pixels.ts").Pen, frame: number): void {
   p.px(frame === 0 ? 20 : 3, 8, P.glow);
 }
 
-function drawKey(p: import("./pixels.ts").Pen): void {
+function drawKey(p: Pen): void {
   // The cord loop through the hole, up top.
   p.rect(6, 0, 4, 1, C.ink);
   p.rect(5, 1, 1, 3, C.ink);
@@ -239,7 +240,7 @@ const T = {
 } as const;
 
 /** The kawung band: cream four-oval marks on indigo, `w` wide, three rows from (`x`, `y`). */
-function kawungBand(p: import("./pixels.ts").Pen, x: number, y: number, w: number): void {
+function kawungBand(p: Pen, x: number, y: number, w: number): void {
   p.rect(x, y, w, 3, T.indigo);
   p.rect(x, y, w, 1, T.indigoDark);
   for (let cx = x + 2; cx < x + w - 1; cx += 5) {
@@ -251,13 +252,13 @@ function kawungBand(p: import("./pixels.ts").Pen, x: number, y: number, w: numbe
 }
 
 /** A rattan-wrapped corner post: tan with dark diagonal binding. */
-function rattanPost(p: import("./pixels.ts").Pen, x: number, y: number, h: number): void {
+function rattanPost(p: Pen, x: number, y: number, h: number): void {
   p.rect(x, y, 2, h, T.rattan);
   for (let k = 0; k < h; k++) p.px(x + (k % 2), y + k, T.rattanDark);
 }
 
 /** The chest's body, `y0` the top of the outline. */
-function chestBody(p: import("./pixels.ts").Pen, y0: number, lit: boolean): void {
+function chestBody(p: Pen, y0: number, lit: boolean): void {
   p.rect(2, y0, 20, 11, C.ink);
   p.rect(3, y0 + 1, 18, 9, T.teak);
   p.rect(3, y0 + 1, 18, 1, T.teakDark);
@@ -293,7 +294,7 @@ function chestBody(p: import("./pixels.ts").Pen, y0: number, lit: boolean): void
   if (lit) p.px(16, y0 + 2, T.saffronLight);
 }
 
-function drawNusClosed(p: import("./pixels.ts").Pen): void {
+function drawNusClosed(p: Pen): void {
   p.rect(3, 25, 18, 2, C.shadow);
   chestBody(p, 14, false);
   // The lid: a domed teak top with a kawung band across it, rattan-wrapped corners and a brass clasp.
@@ -312,7 +313,7 @@ function drawNusClosed(p: import("./pixels.ts").Pen): void {
   p.px(12, 14, C.ink);
 }
 
-function drawNusOpen(p: import("./pixels.ts").Pen, frame: number): void {
+function drawNusOpen(p: Pen, frame: number): void {
   p.rect(3, 25, 18, 2, C.shadow);
   p.rect(5, 26, 14, 1, "rgba(255, 246, 216, 0.55)");
   // The lid standing open behind, its lining flooded with daylight: cream-white at the hinge, gold at the top.
@@ -357,7 +358,7 @@ function drawNusOpen(p: import("./pixels.ts").Pen, frame: number): void {
   p.px(frame === 0 ? 20 : 3, 8, T.petal);
 }
 
-function drawNusKey(p: import("./pixels.ts").Pen): void {
+function drawNusKey(p: Pen): void {
   const blue = "#3b5da8";
   // The batik ribbon: two tails falling either side of the anchor, tied above the ring in a cream and blue knot.
   for (const [x, d] of [
@@ -423,8 +424,12 @@ function drawNusKey(p: import("./pixels.ts").Pen): void {
 
 const cache = new Map<string, HTMLCanvasElement>();
 
-/** The case whose art is the Nusantara's; every other id draws the Night Market's. */
-const NUSANTARA_ID = "nusantara";
+/** The cases whose art is not the Night Market's, by case id (`core/src/cases.ts`); every other id draws the Night Market's. */
+const OTHER_CASES: Record<string, (p: Pen, kind: CaseBoxKind, frame: number) => void> = {
+  nusantara: (p, kind, frame) =>
+    kind === "closed" ? drawNusClosed(p) : kind === "open" ? drawNusOpen(p, frame) : drawNusKey(p),
+  "ragnarok-eve": drawRagnarokBox,
+};
 
 /**
  * The sprite for `kind` (frame 0 or 1; only the open case animates) of the case `caseId` (`CaseDef.id`, the Night
@@ -432,18 +437,14 @@ const NUSANTARA_ID = "nusantara";
  */
 export function caseBoxSprite(kind: CaseBoxKind, frame = 0, caseId = "night-market"): HTMLCanvasElement {
   const f = kind === "open" ? frame % 2 : 0;
-  const nus = caseId === NUSANTARA_ID;
-  const k = `${nus ? "n" : "m"}${kind}${f}`;
+  const draw = OTHER_CASES[caseId];
+  const k = `${draw ? caseId : ""}${kind}${f}`;
   let c = cache.get(k);
   if (!c) {
     const { w, h } = CASE_BOX_SIZE[kind];
     c = bake(w, h, (p) =>
-      nus
-        ? kind === "closed"
-          ? drawNusClosed(p)
-          : kind === "open"
-            ? drawNusOpen(p, f)
-            : drawNusKey(p)
+      draw
+        ? draw(p, kind, f)
         : kind === "closed"
           ? drawClosed(p)
           : kind === "open"

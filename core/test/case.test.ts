@@ -100,7 +100,7 @@ describe("the Nusantara case", () => {
     expect(caseAt("aura", 400)?.name).toBe("Mega Mendung");
     expect(caseAt("pet", 405)?.name).toBe("Orangutan");
     expect(caseAt("hat", 406)).toBeUndefined();
-    expect(caseAt("aura", 500)).toBeUndefined();
+    expect(caseAt("aura", 600)).toBeUndefined();
     // A slot's index in another slot is not an item.
     expect(caseAt("hat", 400 + 4)).toBeUndefined();
   });

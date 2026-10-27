@@ -136,7 +136,7 @@ describe("coins and the shop", () => {
 });
 
 describe("case furniture", () => {
-  test("a case piece (either case) is never for sale, even to someone with the coins", async () => {
+  test("a case piece (any case's) is never for sale, even to someone with the coins", async () => {
     const a = await rich("nightfurn", 5000);
     for (const p of ALL_CASE_PIECES)
       await expect(a.town.buy(`furn.${p.ch}`)).rejects.toMatchObject({ code: "not_for_sale" });

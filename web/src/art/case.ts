@@ -1,3 +1,4 @@
+import { RAGNAROK_GLASSES, RAGNAROK_HATS } from "./case-ragnarok.ts";
 import type { Art } from "./editions.ts";
 import { C } from "./palette.ts";
 
@@ -106,3 +107,7 @@ export const CASE_GLASSES: Record<string, Art> = {
     pal: { g: "#f2b632", k: "#1c1612", w: "#f1e3c2" },
   },
 };
+
+// Ragnarok Eve (`case-ragnarok.ts`) is filed beside the Night Market's; item ids never overlap.
+Object.assign(CASE_HATS, RAGNAROK_HATS);
+Object.assign(CASE_GLASSES, RAGNAROK_GLASSES);
