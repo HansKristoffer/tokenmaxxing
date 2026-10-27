@@ -90,6 +90,8 @@ export async function buyEdition(
 
 /** A numbered copy someone holds. */
 export interface Copy {
+  /** The copy's row in `items`: what `market.list` takes to put this very number on display. */
+  id: number;
   item: string;
   week: string;
   n: number;
@@ -98,9 +100,9 @@ export interface Copy {
 
 /** The numbered copies in `userId`'s bag, lowest number first. */
 export async function copiesOf(sql: Sql, userId: number): Promise<Copy[]> {
-  const rows = await all<{ item: string; week: string; n: number }>(
+  const rows = await all<{ id: number; item: string; week: string; n: number }>(
     sql,
-    `SELECT e.item, e.week, e.n FROM editions e JOIN items i ON i.id = e.copy
+    `SELECT e.copy AS id, e.item, e.week, e.n FROM editions e JOIN items i ON i.id = e.copy
      WHERE i.owner_id = ? ORDER BY e.n, e.week`,
     userId,
   );

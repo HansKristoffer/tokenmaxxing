@@ -3,6 +3,7 @@ import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import type { Listing, MyMarket, Sale } from "@tokenmaxxing/core/market.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
 import type { RouletteState } from "@tokenmaxxing/core/roulette.ts";
@@ -32,6 +33,10 @@ export type Panel =
   | { kind: "shops" }
   /** Natmarked's counter and shelves: the cases on sale (`hud/CaseShop.tsx`). */
   | { kind: "caseShop" }
+  /** Torvehallen's counter: what is on display (the default), or my own shelf and sales (`hud/Market.tsx`). */
+  | { kind: "market"; tab?: "display" | "shelf" }
+  /** E on a display slot in the hall: a listing's item, price and seller with Buy, or an empty slot to fill. */
+  | { kind: "marketSlot"; slot: number }
   /** The net cafe's roulette table (`hud/Roulette.tsx`); `watch` is the read-only view from the sidelines. */
   | { kind: "roulette"; watch?: boolean }
   /** A read-only view of the net cafe's poker table (`hud/PokerWatch.tsx`). */
@@ -153,6 +158,17 @@ interface HudState {
   pokerHole: Card[];
   /** The net cafe's roulette table as the room sees it, and when it arrived; null away from the net cafe. */
   roulette: (RouletteState & { at: number }) | null;
+  /**
+   * Torvehallen as I last read it (`net.ts` `refreshMarket`, every few seconds while I'm in the hall and
+   * when the panel opens): everything on display, by slot, and my own listings and sales. `at` is when.
+   */
+  market: { listings: Listing[]; mine: MyMarket | null; at: number } | null;
+  /**
+   * My sales in the hall that I have been told of, newest first and kept on this device (the server only keeps
+   * the ones I haven't heard of). `marketSold` is the batch I came back to, for one toast.
+   */
+  marketLog: Sale[];
+  marketSold: { sales: Sale[]; at: number } | null;
 }
 
 let state: HudState = {
@@ -182,6 +198,9 @@ let state: HudState = {
   poker: null,
   pokerHole: [],
   roulette: null,
+  market: null,
+  marketLog: [],
+  marketSold: null,
   notice: null,
   lobby: null,
   frame: null,

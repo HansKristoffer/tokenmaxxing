@@ -11,6 +11,7 @@ import { counter, windowPane, winsTile } from "./common.ts";
 import { type FancyPiece, fancyPiece, fancySprite } from "./furniture-fancy.ts";
 import { POSTER_H, posterSprite } from "./furniture-posters.ts";
 import { trophyAt } from "./loot.ts";
+import { casePart, marketCase, marketCounter, marketFixture, marketShelf } from "./market.ts";
 import { natCounter, natFixture, natShelf } from "./natmarked.ts";
 import { C } from "./palette.ts";
 import { bake, cached, once, type Pen } from "./pixels.ts";
@@ -592,8 +593,14 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
     case "¢": {
       let n = 0;
       while (map.at(x - n - 1, y) === ch) n++;
+      if (map.id === "shop-market") return at(marketCounter(n === 1 ? "till" : n === 4 ? "scale" : "plain"));
       return at(map.id === "shop-natmarked" ? natCounter(n === 3) : shopCounter(n % 3 === 1));
     }
+    // Torvehallen's slots, empty: a shelf against the back wall, else one piece of a glass case (`game/market.ts` fills them).
+    case "Ƙ":
+      return map.at(x, y - 1) === "W"
+        ? at(marketShelf(x))
+        : at(marketCase(casePart(map.at(x - 1, y) === ch, map.at(x + 1, y) === ch)));
     case "¤":
     case "§":
     case "¶":
@@ -605,6 +612,7 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return wall ? at(shopDisplay(shop, true, x, y), 0, 0) : at(shopDisplay(shop, false, x, y));
     }
     case "‡": {
+      if (map.id === "shop-market") return at(marketFixture(map.at(x, y - 1) === "W"));
       if (map.id !== "shop-natmarked") return at(fixture());
       // Natmarked's fixtures: a stall's counter (a run of them), a tea table between two stools, else a lantern post.
       const run = map.at(x - 1, y) === ch || map.at(x + 1, y) === ch;

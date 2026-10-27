@@ -28,6 +28,7 @@ for (const k of [
   "shop-barber",
   "shop-pets",
   "shop-natmarked",
+  "shop-market",
 ])
   prep(k, skinned);
 prep("dungeon", () => import("../dungeon/room-dungeon.ts"));

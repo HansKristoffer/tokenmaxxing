@@ -13,6 +13,7 @@ import type { Barrel } from "@tokenmaxxing/core/fastelavn.ts";
 import { clockAt, dateAt, type Keynote } from "@tokenmaxxing/core/keynote.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
+import type { Listing as MarketListing, MyMarket } from "@tokenmaxxing/core/market.ts";
 import { headlines, type Paper } from "@tokenmaxxing/core/paper.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
@@ -162,6 +163,15 @@ import { type Calendar, calendar, openDoor } from "../town/julekalender.ts";
 import { comingKeynotes, everyKeynote, markKeynote, removeKeynote, saveKeynote } from "../town/keynotes.ts";
 import { recordLaunches } from "../town/launch-bonus.ts";
 import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
+import {
+  browse as browseMarket,
+  buy as buyListing,
+  cancel as cancelListing,
+  expire as expireListings,
+  list as listItem,
+  mine as mineInMarket,
+  sawSales,
+} from "../town/market.ts";
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
 import {
   applyDecor,
@@ -273,6 +283,9 @@ const BRANDINGS_PER_HOUR = 5;
 const APPLICATIONS_PER_HOUR = 10;
 /** Each one pings the other person. */
 const TRADES_PER_HOUR = 10;
+/** Putting something on display and buying it are slow on purpose: a case is for looking at, not for scripts. */
+const LISTINGS_PER_HOUR = 20;
+const MARKET_BUYS_PER_HOUR = 40;
 /** Each one sends a room (an office, a building, the town) to everyone in it again. */
 const ROOM_CHANGES_PER_MIN = 30;
 /** A new name is a new door sign: the building is rebuilt. */
@@ -320,6 +333,8 @@ export const town = actor({
     brandings: new RateLimiter(BRANDINGS_PER_HOUR, HOUR),
     applications: new RateLimiter(APPLICATIONS_PER_HOUR, HOUR),
     trades: new RateLimiter(TRADES_PER_HOUR, HOUR),
+    listings: new RateLimiter(LISTINGS_PER_HOUR, HOUR),
+    marketBuys: new RateLimiter(MARKET_BUYS_PER_HOUR, HOUR),
     offices: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     desks: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
     drops: new RateLimiter(ROOM_CHANGES_PER_MIN, MIN),
@@ -794,6 +809,77 @@ export const town = actor({
     /** The numbered copies in my bag. */
     copies: (c): Promise<Copy[]> => copiesOf(c.db, requireUser(c.conn.state)),
 
+    // MARK: Torvehallen, the market hall
+
+    /** Everything on display, by slot. Anyone may look from anywhere; only the hall sells. */
+    marketListings: async (c): Promise<MarketListing[]> => {
+      requireUser(c.conn.state);
+      const now = Date.now();
+      await expireListings(c.db, now);
+      return browseMarket(c.db, now);
+    },
+
+    /** What I have on display, my room left, and the sales I haven't heard of. */
+    marketMine: async (c): Promise<MyMarket> => {
+      const userId = requireUser(c.conn.state);
+      const now = Date.now();
+      await expireListings(c.db, now);
+      return mineInMarket(c.db, userId, now);
+    },
+
+    /** Puts one of my items on a slot at my price: in the hall, and for good (a price is not changed, only taken back). */
+    marketList: async (c, want: unknown): Promise<MarketListing> => {
+      const userId = requireUser(c.conn.state);
+      const w = (typeof want === "object" && want !== null ? want : {}) as Record<string, unknown>;
+      await inMarket(c, userId);
+      if (!c.vars.listings.take(String(userId), Date.now()))
+        throw new UserError("That's a lot of listings. Try again in an hour.", { code: "rate_limited" });
+      const { listing, unworn } = await c.vars.serial(() =>
+        listItem(c.db, userId, { item: w.item, slot: w.slot, price: w.price, copy: w.copy }, Date.now()),
+      );
+      if (unworn) await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
+      return listing;
+    },
+
+    /** Takes one of my listings back, from anywhere. */
+    marketCancel: async (c, listingId: unknown): Promise<void> => {
+      const userId = requireUser(c.conn.state);
+      await c.vars.serial(() => cancelListing(c.db, userId, listingId));
+    },
+
+    /** Buys a listing at the price I saw, in the hall. The seller is told, or finds out on their next look. */
+    marketBuy: async (c, listingId: unknown, price: unknown): Promise<Wallet> => {
+      const userId = requireUser(c.conn.state);
+      await inMarket(c, userId);
+      const now = Date.now();
+      if (!c.vars.marketBuys.take(String(userId), now))
+        throw new UserError("That's a lot of buying. Try again in an hour.", { code: "rate_limited" });
+      const k = await kept(c, now);
+      const {
+        wallet: after,
+        sale,
+        sellerId,
+      } = await c.vars.serial(() =>
+        buyListing(
+          c.db,
+          userId,
+          listingId,
+          price,
+          now,
+          k,
+          process.env.MARKET_ANY_AGE === "1" ? 0 : undefined,
+        ),
+      );
+      await notify(c.client<typeof registry>(), sellerId, {
+        text: `${sale.buyer} bought your ${itemById(sale.item)?.name ?? "item"} for 🪙 ${sale.price}.`,
+        open: "market",
+      });
+      return after;
+    },
+
+    /** I have been told of my sales up to this one. */
+    marketSaw: async (c, upTo: unknown): Promise<void> => sawSales(c.db, requireUser(c.conn.state), upTo),
+
     // MARK: The julekalender
 
     /** Today's door and the doors I've opened this December. */
@@ -1018,6 +1104,11 @@ export const town = actor({
         await c.db.execute("DELETE FROM trades WHERE at < ?", Date.now() - TRADE_TTL);
       } catch (err) {
         console.warn(`[sweep] trades: ${String(err)}`);
+      }
+      try {
+        await expireListings(c.db, Date.now());
+      } catch (err) {
+        console.warn(`[sweep] market: ${String(err)}`);
       }
       try {
         const now = Date.now();
@@ -2027,6 +2118,16 @@ async function inShop(
   if (shop === null) throw new UserError("That isn't sold in any shop.", { code: "not_for_sale" });
   const room = await main(c.client()).world.roomOfPlayer(userId);
   if (room !== SHOP_ROOM[shop]) throw new UserError(goToShop(shop), { code: "not_in_shop" });
+}
+
+/** Torvehallen's door rule, like `inShop`: putting something on display and buying it happen in the hall. */
+async function inMarket(
+  c: { client: () => Client; vars: { strictShops: Set<number> } },
+  userId: number,
+): Promise<void> {
+  if (process.env.SHOPS_ANYWHERE === "1" && !c.vars.strictShops.has(userId)) return;
+  if ((await main(c.client()).world.roomOfPlayer(userId)) !== SHOP_ROOM.market)
+    throw new UserError("Go to Torvehallen to do that.", { code: "not_in_shop" });
 }
 
 /**

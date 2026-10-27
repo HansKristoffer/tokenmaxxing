@@ -99,6 +99,21 @@ export const SHOPKEEPERS: BotDef[] = [
     ],
     every: [40_000, 120_000],
   }),
+  keeper("market", -10, "down", {
+    look: lookWith({ style: 2, skin: 1, hair: 5, outfit: 9, glasses: 0 }),
+    bio: "Minds Torvehallen, the market hall. Never sells a thing himself; every case holds somebody else's.",
+    lines: [
+      "Everything under the glass is somebody's. The price is theirs too.",
+      "Put something of yours in a case. It sells while you sleep.",
+      "A week, then it comes down and goes home to its owner.",
+      "No haggling. The tag says what it says.",
+      "Numbered copies show their number. Low ones go quickly.",
+      "Mind the glass. It is cleaner than it looks.",
+      "Cases are first come, first served. A sold one is free again at once.",
+      "I only keep the keys. The hall belongs to whoever has something to show.",
+    ],
+    every: [40_000, 120_000],
+  }),
 ];
 
 /** What the keeper says when you step in or come up to the counter. */
@@ -114,6 +129,10 @@ export const GREETINGS: Record<ShopId, readonly string[]> = {
   barber: [
     "Take a seat. A little off the top?",
     "Welcome to Figaro's. The mirror is free, the small talk is too.",
+  ],
+  market: [
+    "Welcome to Torvehallen. Everything here belongs to someone else, and all of it is for sale.",
+    "Hej! Browse the cases, or put something of your own on one.",
   ],
   natmarked: [
     "Welcome to Natmarked. Mind the lanterns, they are older than they look.",

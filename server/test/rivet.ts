@@ -116,6 +116,8 @@ async function start(attempts = 5): Promise<string> {
         ADMIN_TOKEN,
         // Most tests buy from wherever they stand; the shop rule is tested with `strictShops`.
         SHOPS_ANYWHERE: "1",
+        // Test accounts are minutes old; the hall's own tests hold a buyer to the rule in SQL.
+        MARKET_ANY_AGE: "1",
         // The statue reads LMArena only where it's asked to: tests pin it from the admin page.
         STATUE_FEED: "off",
         // Every test comes from 127.0.0.1; `signUp` below poses as a new address each time instead.

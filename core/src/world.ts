@@ -66,6 +66,7 @@ export type RoomId =
   | "shop-barber"
   | "shop-pets"
   | "shop-natmarked"
+  | "shop-market"
   | `hq:${number}`
   | `common:${number}`
   | `office:${number}`;
@@ -81,6 +82,7 @@ const FIXED_ROOMS: readonly string[] = [
   "shop-barber",
   "shop-pets",
   "shop-natmarked",
+  "shop-market",
 ];
 
 /** A room id from the wire, or null: one of the fixed rooms, or a company's house or common room, or an office. */
@@ -371,7 +373,7 @@ export const RAIDERS_SHOWN = 40;
 /** A line from `town` for one player (`notice`), and the panel a click on it opens. */
 export interface Notice {
   text: string;
-  open?: "company" | "trades" | "bag" | "quests" | "hallOfFame" | "collection" | "tournament";
+  open?: "company" | "trades" | "bag" | "quests" | "hallOfFame" | "collection" | "tournament" | "market";
 }
 
 /** Where someone is: `[id, x, y, facing, state]`. */

@@ -34,6 +34,7 @@ import { Julekalender } from "./Julekalender.tsx";
 import { KeynoteBanner, KeynotePanel } from "./Keynote.tsx";
 import { Leaderboard } from "./Leaderboard.tsx";
 import { LootToast } from "./Loot.tsx";
+import { Market, MarketSlot } from "./Market.tsx";
 import { MatchPanel } from "./Match.tsx";
 import { MerchShop } from "./Merch.tsx";
 import { Merchant } from "./Merchant.tsx";
@@ -134,6 +135,7 @@ export function Hud() {
       <div className={room === "dungeon" ? "toasts low" : "toasts"}>
         <MentionToast />
         <NoticeToast />
+        <MarketToast />
         <QuestToast />
         <InviteToast />
         <LevelToast />
@@ -444,6 +446,8 @@ function Panel() {
     changelog: () => <ChangelogPanel />,
     caseOpening: () => <CaseOpening />,
     caseShop: () => <CaseShop />,
+    market: (p) => <Market tab={p.tab} />,
+    marketSlot: (p) => <MarketSlot slot={p.slot} />,
     roulette: (p) => <RoulettePanel watch={p.watch} />,
     pokerWatch: () => <PokerWatch />,
     menu: () => (
@@ -544,6 +548,7 @@ const NOTICE_ICONS = {
   hallOfFame: "🏆",
   tournament: "🏆",
   collection: "📖",
+  market: "🧺",
 } as const;
 
 /** A line for me from the server (a company application, a trade); a click opens what it's about. */
@@ -552,9 +557,25 @@ function NoticeToast() {
   if (!useFresh(notice?.at, MENTION_MS) || !notice) return null;
   const { open } = notice;
   return (
-    <ToastButton open={open && { kind: open }} dismiss={() => hud.set({ notice: null })}>
+    <ToastButton
+      open={open && (open === "market" ? { kind: "market", tab: "shelf" } : { kind: open })}
+      dismiss={() => hud.set({ notice: null })}
+    >
       {open && `${NOTICE_ICONS[open]} `}
       {notice.text}
+    </ToastButton>
+  );
+}
+
+/** Things of mine that sold in Torvehallen while I was away: one line, which opens my shelf. */
+function MarketToast() {
+  const sold = useHud((s) => s.marketSold);
+  if (!useFresh(sold?.at, MENTION_MS) || !sold) return null;
+  const total = sold.sales.reduce((sum, s) => sum + s.price, 0);
+  return (
+    <ToastButton open={{ kind: "market", tab: "shelf" }} dismiss={() => hud.set({ marketSold: null })}>
+      🧺 {sold.sales.length === 1 ? "Your item sold" : `${sold.sales.length} of your items sold`} for 🪙{" "}
+      {total.toLocaleString()}
     </ToastButton>
   );
 }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { lineup, weekOf } from "@tokenmaxxing/core/merchant.ts";
 import type { TxSql } from "../src/actors/shared.ts";
-import { bag, settleTrade, type Trade, wallet } from "../src/town/coins.ts";
+import { bag, settleTrade, type Trade, takeOut, wallet } from "../src/town/coins.ts";
 import { buyEdition, cart, copiesOf } from "../src/town/merchant.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
@@ -87,7 +87,31 @@ describe("the traveling merchant", () => {
     await settleTrade(sql, t, SAT);
     expect(await copiesOf(sql, 1)).toEqual([]);
     expect(await copiesOf(sql, 2)).toEqual([
-      { item: first.id, week: "2026-10-19", n: 1, supply: first.supply },
+      { id: expect.any(Number), item: first.id, week: "2026-10-19", n: 1, supply: first.supply },
     ]);
+  });
+
+  test("a trade, or a drop, moves the newest copy of a kind and the first one stays", async () => {
+    for (let i = 0; i < 3; i++) await buyEdition(sql, 1, first.id, SAT);
+    const t: Trade = {
+      fromId: 1,
+      from: "u1",
+      toId: 2,
+      to: "u2",
+      give: { coins: 0, items: [first.id] },
+      want: { coins: 0, items: [] },
+      at: SAT,
+    };
+    await sql.execute(
+      "INSERT INTO trades (from_id, to_id, give, want, at) VALUES (1, 2, ?, ?, ?)",
+      JSON.stringify(t.give),
+      JSON.stringify(t.want),
+      SAT,
+    );
+    await settleTrade(sql, t, SAT);
+    expect((await copiesOf(sql, 2)).map((c) => c.n)).toEqual([3]);
+    expect((await copiesOf(sql, 1)).map((c) => c.n)).toEqual([1, 2]);
+    await takeOut(sql, 1, first.id, SAT);
+    expect((await copiesOf(sql, 1)).map((c) => c.n)).toEqual([1]);
   });
 });

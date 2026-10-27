@@ -7,6 +7,7 @@ import { DUNGEON_ASSETS } from "../dungeon/dungeon3d.ts";
 import { beginTickScope, endTickScope, glow, Model, painted, planks } from "../kit/kit.ts";
 import { beginLanScope, endLanScope } from "../kit/livescreen.ts";
 import { forgetShopRoom, type ShopRoom, shopRoom } from "../shops/catalog.ts";
+import type { MarketSlots } from "../shops/market-slots.ts";
 import { setPropsNight } from "../town/props.ts";
 import { type BasementScene, dimBasement } from "./basement3d.ts";
 import { exitPlate, exitStairs } from "./exits3d.ts";
@@ -214,6 +215,8 @@ function buildShop(id: RoomId, ctx: RoomCtx): RoomView {
   const built = worldRoom(mapId, ctx.map, () => buildRoomSkin(mapId));
   dropSceneLabels(shopRoom(shop).shopkeeper.root);
   const botId = SHOPKEEPER_BOT[shop];
+  // Torvehallen's shelves and cases show what players have on display (`hud.market`), drawn by its live layer.
+  const market = shop === "market" ? (shopRoom(shop).extra as { slots: MarketSlots }).slots : null;
   return viewOf(
     id,
     ctx.map,
@@ -223,6 +226,8 @@ function buildShop(id: RoomId, ctx: RoomCtx): RoomView {
       extra: shopRoom(shop),
       shop: shopRoom(shop),
       keepers: new Set([botId]),
+      frame: market ? (f) => market.update(f) : undefined,
+      end: market ? () => market.dispose() : undefined,
       free: () => {
         built.free();
         forgetShopRoom(shop);
@@ -253,6 +258,7 @@ export const SHOPKEEPER_BOT: Record<(typeof SHOP_IDS)[number], number> = {
   barber: -7,
   pets: -8,
   natmarked: -9,
+  market: -10,
 };
 const SHOP_VIEW: Partial<Record<(typeof SHOP_IDS)[number], number>> = {
   furniture: 11,
@@ -260,6 +266,7 @@ const SHOP_VIEW: Partial<Record<(typeof SHOP_IDS)[number], number>> = {
   barber: 8,
   pets: 8.5,
   natmarked: 9,
+  market: 10.5,
 };
 
 /** The company house, with its dropped furniture and posters and the company's desk fleet and colours. */

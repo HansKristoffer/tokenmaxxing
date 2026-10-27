@@ -1,6 +1,6 @@
 /**
- * The physical shops as rooms: Møbelhuset (furniture), Thread & Token (clothes), Figaro's (barber), the pet shop
- * and Natmarked (the night market hall where cases are sold). Their plans are the 3D shops' interiors tile for tile (web/src/render3d/shops): each map is the
+ * The physical shops as rooms: Møbelhuset (furniture), Thread & Token (clothes), Figaro's (barber), the pet shop,
+ * Natmarked (the night market hall where cases are sold) and Torvehallen (the market hall where players sell to each other). Their plans are the 3D shops' interiors tile for tile (web/src/render3d/shops): each map is the
  * interior at the world-grid inset `SHOP_INSET` (two wall rows on top, one wall column on the left), so a 3D
  * builder can generate the room from this file alone: sizes, the door, the counter, the shopkeeper's spot,
  * the seats (`c` chairs, `b` beds) and the displays (`DISPLAYS`: a tile and what E on it opens).
@@ -8,8 +8,8 @@
  * The tiles: `¢` the counter, `¤ § ¶ ¥` a shop's display (a shelf, rack, mirror or pen; on a wall, the sample
  * boards hung there), `‡` a fixture that is only to look at. Pure data: `maps.ts` builds the `GameMap`s.
  */
-export type ShopId = "furniture" | "clothes" | "barber" | "pets" | "natmarked";
-export const SHOP_IDS: readonly ShopId[] = ["furniture", "clothes", "barber", "pets", "natmarked"];
+export type ShopId = "furniture" | "clothes" | "barber" | "pets" | "natmarked" | "market";
+export const SHOP_IDS: readonly ShopId[] = ["furniture", "clothes", "barber", "pets", "natmarked", "market"];
 
 /**
  * What E on a display opens in the Shop page: an item slot's tab, or one of Møbelhuset's own: `furniture`,
@@ -30,7 +30,8 @@ export type ShopTab =
   | "desk"
   | "company"
   | "look"
-  | "case";
+  | "case"
+  | "market";
 
 /** The room's own size (what the 3D room is built at), without the walls the map adds. */
 export interface ShopLayout {
@@ -64,6 +65,7 @@ export const SHOP_DOOR_CHAR: Record<ShopId, string> = {
   barber: "Ð",
   pets: "ð",
   natmarked: "Ñ",
+  market: "Ƭ",
 };
 /** The tile of each shop's displays inside. */
 export const SHOP_DISPLAY_CHAR: Record<ShopId, string> = {
@@ -72,17 +74,20 @@ export const SHOP_DISPLAY_CHAR: Record<ShopId, string> = {
   barber: "¶",
   pets: "¥",
   natmarked: "Ŧ",
+  market: "Ƙ",
 };
 /** The storefront's body in the town: 5 wide, 4 deep, the door in the middle of its bottom row. */
 export const SHOP_BODY_CHAR = "Ħ";
 
-export type ShopRoomId = "shop-furniture" | "shop-clothes" | "shop-barber" | "shop-pets" | "shop-natmarked";
+export type ShopRoomId =
+  "shop-furniture" | "shop-clothes" | "shop-barber" | "shop-pets" | "shop-natmarked" | "shop-market";
 export const SHOP_ROOM: Record<ShopId, ShopRoomId> = {
   furniture: "shop-furniture",
   clothes: "shop-clothes",
   barber: "shop-barber",
   pets: "shop-pets",
   natmarked: "shop-natmarked",
+  market: "shop-market",
 };
 
 export const shopOfRoom = (room: string): ShopId | null =>
@@ -90,6 +95,37 @@ export const shopOfRoom = (room: string): ShopId | null =>
 
 /** Møbelhuset's company-supplies catalogue desk: two tiles wide, its left tile (a desk with a ledger and poster tubes). */
 export const SUPPLIES_DESK: readonly [number, number] = [18, 17];
+
+/** The tiles of `rows` that are `ch`, row by row and left to right, as displays for `tab`. */
+const displaysOf = (rows: readonly string[], ch: string, tab: ShopTab): [number, number, ShopTab][] =>
+  rows.flatMap((row, y) =>
+    [...row].flatMap((c, x): [number, number, ShopTab][] => (c === ch ? [[x, y, tab]] : [])),
+  );
+
+/**
+ * Torvehallen's floor: sixteen slots along the back wall (`Ƙ` between its fixtures) and two rows of three
+ * glass cases of four, in the middle, with an aisle between and round them. Slot numbers follow the tiles
+ * row by row, so the back wall is 0 to 15 and the cases 16 to 39.
+ */
+const MARKET_ROWS: readonly string[] = [
+  "WWWWWWWWWWWWWWWWWWWWWWWW",
+  "WWWWWWWWWWWWWWWWWWWWWWWW",
+  "W‡ƘƘƘƘ‡ƘƘƘƘ‡‡ƘƘƘƘ‡ƘƘƘƘ‡W",
+  "W______________________W",
+  "W__ƘƘƘƘ___ƘƘƘƘ___ƘƘƘƘ__W",
+  "W______________________W",
+  "W__ƘƘƘƘ___ƘƘƘƘ___ƘƘƘƘ__W",
+  "W______________________W",
+  "W______________________W",
+  "W‡____________________‡W",
+  "W_______¢¢¢¢¢¢_________W",
+  "W______________________W",
+  "W______________________W",
+  "W‡____________________‡W",
+  "W______________________W",
+  "W__________x___________W",
+  "WWWWWWWWWWWWWWWWWWWWWWWW",
+];
 
 export const SHOPS: Record<ShopId, ShopLayout> = {
   furniture: {
@@ -436,6 +472,21 @@ export const SHOPS: Record<ShopId, ShopLayout> = {
     ],
     displays: [2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18].map((x) => [x, 2, "case"] as const),
   },
+  market: {
+    id: "market",
+    map: SHOP_ROOM.market,
+    name: "Torvehallen",
+    sign: "TORVEHALLEN",
+    w: 22,
+    d: 14,
+    door: [11, 15],
+    counter: [11, 10],
+    keeper: [11, 9],
+    keeperName: "Torvald",
+    rows: MARKET_ROWS,
+    // A display is a slot: its number is its place in this list, row by row (`marketSlots`).
+    displays: displaysOf(MARKET_ROWS, SHOP_DISPLAY_CHAR.market, "market"),
+  },
 };
 
 /** What E on tile (x, y) of a shop room opens, if it is one of the shop's displays. */
@@ -451,6 +502,7 @@ export const SHOP_SELLS: Record<ShopId, string> = {
   barber: "Haircuts and colours (free), at the mirror",
   pets: "Pets and pet gear",
   natmarked: "Cases: a key opens one, and every case has its own hats, pets, outfits and furniture inside",
+  market: "Whatever other players have put on display, at the price they set",
 };
 
 /** The shop that sells an item of this slot: where `buy` must be called from. */
@@ -481,6 +533,7 @@ export const SHOP_TABS: Record<ShopId, readonly ShopTab[]> = {
   barber: ["look"],
   pets: ["pet", "petwear"],
   natmarked: ["case"],
+  market: ["market"],
 };
 
 /** "Go to Møbelhuset to buy that." */
