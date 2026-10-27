@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.12.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.11.0...v1.12.0) (2026-10-27)
+
+
+### Features
+
+* bring seasonal life to town ([4800eea](https://github.com/HansKristoffer/tokenmaxxing/commit/4800eea238fd267b90c62df9639e1d5d3556ec3e))
+* **coins:** pay for trophies, once each, and back-pay the ones already earned ([a06e2e2](https://github.com/HansKristoffer/tokenmaxxing/commit/a06e2e27f81bf164507381f65f1c8afb127417ab))
+* **coins:** streak multiplier, and coins for levels and badge tiers ([0bb4551](https://github.com/HansKristoffer/tokenmaxxing/commit/0bb4551299a4d2d158057e1d0d6a3e99b110e469))
+* **economy:** a launch bonus for using a new model on its launch day ([4537f05](https://github.com/HansKristoffer/tokenmaxxing/commit/4537f0568a144154c5fb870abf5ebd9bb398d323))
+* **economy:** a launch bonus for using a new model on its launch day ([39c077a](https://github.com/HansKristoffer/tokenmaxxing/commit/39c077a9e10021e230f0c29c09ddfc59c253130d))
+* **raid:** raise loot odds to 40% common, 20% rare, 10% epic, 2% legendary ([96bf63c](https://github.com/HansKristoffer/tokenmaxxing/commit/96bf63c16b611058e45c8b6e2c86812e437c1161))
+* **tavern:** keynote watch party on a projector screen ([#111](https://github.com/HansKristoffer/tokenmaxxing/issues/111)) ([9d16e36](https://github.com/HansKristoffer/tokenmaxxing/commit/9d16e367038bcd0e12b6c51be51d5d9209b8f4a5))
+* **tavern:** world clocks for San Francisco, New York and Copenhagen ([#112](https://github.com/HansKristoffer/tokenmaxxing/issues/112)) ([b630550](https://github.com/HansKristoffer/tokenmaxxing/commit/b630550413583b7dae82b17ed375018caffb486e))
+* town seasons, shared raid seating, and more ways to earn coins ([17f5ea3](https://github.com/HansKristoffer/tokenmaxxing/commit/17f5ea39d0673e8f73818160759e387169415a43))
+* **town:** a GitHub star counter on the square, with fireworks at every milestone ([#107](https://github.com/HansKristoffer/tokenmaxxing/issues/107)) ([103fec0](https://github.com/HansKristoffer/tokenmaxxing/commit/103fec075ad6d0253b0ccae3339c4fc8ea428c42))
+* **town:** a graveyard for models that drop off OpenRouter's list ([#116](https://github.com/HansKristoffer/tokenmaxxing/issues/116)) ([c5346d9](https://github.com/HansKristoffer/tokenmaxxing/commit/c5346d90e134c9c794fa3ce6508527f2abe274f4))
+* **town:** a statue of the [#1](https://github.com/HansKristoffer/tokenmaxxing/issues/1) model on the square ([#117](https://github.com/HansKristoffer/tokenmaxxing/issues/117)) ([ba834a2](https://github.com/HansKristoffer/tokenmaxxing/commit/ba834a24f478bb31a4ee4adc5e807adb99ec33f0))
+* **town:** a windmill by the Tavern that turns with the real wind ([#108](https://github.com/HansKristoffer/tokenmaxxing/issues/108)) ([7f269a4](https://github.com/HansKristoffer/tokenmaxxing/commit/7f269a43607417f88cdc6387d1ab737555dd10af))
+* **town:** dances from a bar over the chat, with aura farming ([#121](https://github.com/HansKristoffer/tokenmaxxing/issues/121)) ([ffb6f9d](https://github.com/HansKristoffer/tokenmaxxing/commit/ffb6f9d877da5f23c83be80ab3bdd9245f5ceccd))
+* **town:** December brings a julekalender, julefrokost at the Tavern and snow all month ([#119](https://github.com/HansKristoffer/tokenmaxxing/issues/119)) ([f5b6ba2](https://github.com/HansKristoffer/tokenmaxxing/commit/f5b6ba2423303db93249a944f43ffdd2902cfd94))
+* **town:** Fastelavn's barrel, a Sankt Hans bonfire and New Year's fireworks ([#123](https://github.com/HansKristoffer/tokenmaxxing/issues/123)) ([7a1670e](https://github.com/HansKristoffer/tokenmaxxing/commit/7a1670ed29f3064e6a3331bbe776901d0f0afaf8))
+* **town:** green hours and the power price from the Danish grid ([#114](https://github.com/HansKristoffer/tokenmaxxing/issues/114)) ([06fbb44](https://github.com/HansKristoffer/tokenmaxxing/commit/06fbb4412c7e3c590e385e160d38869ac1485ea0))
+* **town:** Halloween, with a holiday calendar for the town ([#109](https://github.com/HansKristoffer/tokenmaxxing/issues/109)) ([94dac46](https://github.com/HansKristoffer/tokenmaxxing/commit/94dac46286d611141b37ef46cde221b539e7ac9f))
+* **town:** J-dag brings the julebryg truck and free julebryg at the Tavern ([#113](https://github.com/HansKristoffer/tokenmaxxing/issues/113)) ([a6b6b11](https://github.com/HansKristoffer/tokenmaxxing/commit/a6b6b1145765bb21a586c111e17d54db816efb7a))
+* **town:** new requests start an agent, and [@feedback](https://github.com/feedback) in chat pins one ([#101](https://github.com/HansKristoffer/tokenmaxxing/issues/101)) ([f95169b](https://github.com/HansKristoffer/tokenmaxxing/commit/f95169bc81f4395242972714aaa93fa7f6b71367))
+* **town:** seasons that follow the date in Aarhus ([#110](https://github.com/HansKristoffer/tokenmaxxing/issues/110)) ([4475a71](https://github.com/HansKristoffer/tokenmaxxing/commit/4475a7113aa4fcfa1da6a6c934d24847908ff0aa))
+* **weather:** temperature, fog, ice and pollen in the town ([#120](https://github.com/HansKristoffer/tokenmaxxing/issues/120)) ([62b0bdd](https://github.com/HansKristoffer/tokenmaxxing/commit/62b0bdde63ceafc5b08d6b319a28bf43ac3ec0e7))
+* **web:** show the streak multiplier, say that badges and trophies pay, add screenshots ([81f124f](https://github.com/HansKristoffer/tokenmaxxing/commit/81f124f39cfed8c2dfdb81b76b9246db5bca7d24))
+
+
+### Bug Fixes
+
+* **hud:** chat names and quick emojis stay flat on the 3D tiers ([#104](https://github.com/HansKristoffer/tokenmaxxing/issues/104)) ([5ac4315](https://github.com/HansKristoffer/tokenmaxxing/commit/5ac4315b5eb78d6a4e20573fa986a487a6e1447f))
+* **town:** company merch worn in 3D is the company's own ([#105](https://github.com/HansKristoffer/tokenmaxxing/issues/105)) ([ef2d698](https://github.com/HansKristoffer/tokenmaxxing/commit/ef2d6985bfd3b16fcac775a626bda34d1ce026d4))
+* **web:** the shop test's wallet has a streak now ([0e5824f](https://github.com/HansKristoffer/tokenmaxxing/commit/0e5824f9cb6d8340107fbc1b054659631be3ade1))
+
+
+### Performance Improvements
+
+* **server:** trophies no longer hold up a player's syncs, and slow actions are logged ([#106](https://github.com/HansKristoffer/tokenmaxxing/issues/106)) ([49305a5](https://github.com/HansKristoffer/tokenmaxxing/commit/49305a550b03bc6f7156ad965a01e42b54aa4d45))
+* **web:** reduce 3D rendering work and release old rooms ([#115](https://github.com/HansKristoffer/tokenmaxxing/issues/115)) ([15a0c2d](https://github.com/HansKristoffer/tokenmaxxing/commit/15a0c2db33dc8afd9879342a6f8777f50c0c2a80))
+
 ## [1.11.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.10.0...v1.11.0) (2026-10-27)
 
 
