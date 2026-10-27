@@ -625,7 +625,7 @@ export const OFFICE_DOOR_X = 5;
 
 /**
  * An office `w` × `h`: walls round the floor, the trophy shelf at the top from x = 5, the pet bed in the
- * bottom right corner and the door in the bottom wall at `OFFICE_DOOR_X`. (12, 9) is the first office.
+ * bottom right corner and the door in the bottom wall at `OFFICE_DOOR_X`. (14, 11) is the first office.
  */
 export function officeRows(w: number, h: number): string[] {
   const floor = `W${"_".repeat(w - 2)}W`;
@@ -751,10 +751,10 @@ export const MAPS: Record<MapId, GameMap> = {
     "W_ssss_____________p_W",
     "WWWWWWWWWWxWWWWWWWWWWW",
   ]),
-  // Everyone's office, before what they dropped in it (`mapOf`): the smallest size. Bigger ones come by
-  // level, per owner (`officeMap`, office.ts). A pet bed (`Q`, a prop: nothing can be dropped on it)
+  // Everyone's office, before what they dropped in it (`mapOf`): the first size (`OFFICE_SIZES`[0], office.ts:
+  // keep them in step). Bigger ones are bought, per owner (`officeMap`, office.ts). A pet bed (`Q`, a prop: nothing can be dropped on it)
   // sits in the bottom right corner.
-  office: new GameMap("office", "Office", officeRows(12, 9)),
+  office: new GameMap("office", "Office", officeRows(14, 11)),
   // The four shops (`shoprooms.ts`): the 3D shops' interiors, tile for tile.
   "shop-furniture": new GameMap("shop-furniture", SHOPS.furniture.name, SHOPS.furniture.rows),
   "shop-clothes": new GameMap("shop-clothes", SHOPS.clothes.name, SHOPS.clothes.rows),

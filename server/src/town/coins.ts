@@ -431,18 +431,26 @@ export interface Office {
   /** Wallpaper and floor (`decor.ts`); none is the plain one. */
   wall?: string;
   floor?: string;
+  /** The biggest size bought (`officeSizeItem`); none is the size that comes with the office. */
+  size?: number;
 }
 
 /** Every office (or only `userId`'s), by owner. */
 export async function offices(sql: Sql, userId: number | null = null): Promise<Record<number, Office>> {
-  const rows = await all<{ userId: number; wall: string | null; floor: string | null }>(
+  const rows = await all<{ userId: number; wall: string | null; floor: string | null; size: number | null }>(
     sql,
-    "SELECT user_id AS userId, wall, floor FROM offices WHERE ? IS NULL OR user_id = ?",
+    `SELECT user_id AS userId, wall, floor,
+       (SELECT MAX(CAST(SUBSTR(item, 13) AS INTEGER)) FROM purchases
+         WHERE purchases.user_id = offices.user_id AND item LIKE 'office.size.%') AS size
+     FROM offices WHERE ? IS NULL OR user_id = ?`,
     userId,
     userId,
   );
   return Object.fromEntries(
-    rows.map((r) => [r.userId, { ...(r.wall && { wall: r.wall }), ...(r.floor && { floor: r.floor }) }]),
+    rows.map((r) => [
+      r.userId,
+      { ...(r.wall && { wall: r.wall }), ...(r.floor && { floor: r.floor }), ...(r.size && { size: r.size }) },
+    ]),
   );
 }
 

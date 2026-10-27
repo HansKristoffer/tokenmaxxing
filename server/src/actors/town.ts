@@ -165,8 +165,10 @@ import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/mercha
 import {
   applyDecor,
   buyDecor,
+  buyOfficeSize,
   decorNow,
   type OpenOffice,
+  officeSizeNow,
   ownedDecor,
   recordVisit,
   visitorCounts,
@@ -1143,6 +1145,20 @@ export const town = actor({
       const now = Date.now();
       const k = await kept(c, now);
       return c.vars.serial(() => buyDecor(c.db, userId, kind, id, now, k));
+    },
+
+    /** My office's size now, 0 to 3 (`officeTier`). */
+    officeSize: async (c): Promise<number> => officeSizeNow(c.db, requireUser(c.conn.state)),
+
+    /** Buys the next size for my office. The room grows for whoever is inside. */
+    buyOfficeSize: async (c): Promise<Wallet> => {
+      const userId = requireUser(c.conn.state);
+      await inShop(c, userId, "furniture");
+      const now = Date.now();
+      const k = await kept(c, now);
+      const { wallet } = await c.vars.serial(() => buyOfficeSize(c.db, userId, now, k));
+      await pushOffice(c.db, c.client<typeof registry>(), userId);
+      return wallet;
     },
 
     /** Puts a wallpaper or floor I own on my office, for free (`null`: the plain one). */

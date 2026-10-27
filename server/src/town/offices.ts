@@ -7,7 +7,13 @@ import {
   isPlain,
   ownsDecor,
 } from "@tokenmaxxing/core/decor.ts";
-import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
+import {
+  OFFICE_LEVEL,
+  OFFICE_SIZES,
+  type OfficeTier,
+  officeSizeItem,
+  officeTier,
+} from "@tokenmaxxing/core/office.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
 import { UserError } from "rivetkit";
 import { all, type Sql } from "../actors/shared.ts";
@@ -34,7 +40,7 @@ export interface OpenOffice {
   name: string;
   level: number;
   company: string;
-  /** Its size, 0 to 2 (`officeTier`). */
+  /** Its size, 0 to 3 (`officeTier`). */
   tier: number;
   /** How many are in it now. */
   inside: number;
@@ -152,4 +158,38 @@ export async function applyDecor(
   // The column name is one of two literals (`isDecorKind`).
   await sql.execute(`UPDATE offices SET ${kind} = ? WHERE user_id = ?`, value, userId);
   return { drops, kind, id: value };
+}
+
+// MARK: Sizes
+
+/** `userId`'s office size now: the biggest they bought, or the one their level gives. */
+export async function officeSizeNow(sql: Sql, userId: number): Promise<OfficeTier> {
+  const [row] = await all<{ size: number | null }>(
+    sql,
+    "SELECT MAX(CAST(SUBSTR(item, 13) AS INTEGER)) AS size FROM purchases WHERE user_id = ? AND item LIKE 'office.size.%'",
+    userId,
+  );
+  return officeTier(await levelOf(sql, userId), row?.size ?? 0);
+}
+
+/**
+ * Buys the next size for your office with your coins. One at a time and in order, so it can't be done
+ * twice and nobody skips a step. Run it serialized, like `buyDecor`.
+ */
+export async function buyOfficeSize(
+  sql: Sql,
+  userId: number,
+  now: number,
+  kept?: Kept,
+): Promise<{ wallet: Wallet; tier: OfficeTier }> {
+  const level = await levelOf(sql, userId);
+  if (level < OFFICE_LEVEL)
+    throw new UserError(`You get an office at level ${OFFICE_LEVEL}.`, { code: "not_found" });
+  const next = (await officeSizeNow(sql, userId)) + 1;
+  const size = OFFICE_SIZES[next];
+  if (!size) throw new UserError("Your office is as big as they come.", { code: "owned" });
+  if ((await wallet(sql, userId, now, kept)).balance < size.price)
+    throw new UserError("Not enough coins yet.", { code: "too_poor" });
+  await addPurchase(sql, userId, officeSizeItem(next), size.price, now);
+  return { wallet: await wallet(sql, userId, now, kept), tier: next as OfficeTier };
 }

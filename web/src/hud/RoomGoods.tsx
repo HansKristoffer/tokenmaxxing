@@ -1,5 +1,6 @@
 import { DECORS, type DecorKind } from "@tokenmaxxing/core/decor.ts";
 import { DESKS, effectiveDesk, nextFleet } from "@tokenmaxxing/core/desks.ts";
+import { OFFICE_SIZES } from "@tokenmaxxing/core/office.ts";
 import { useEffect, useState } from "react";
 import { deskFrame } from "../art/desks.ts";
 import { decorSwatch } from "../art/tiles.ts";
@@ -41,6 +42,50 @@ export const DeskPreview = ({ tier, mode = "lit" }: { tier: number; mode?: "lit"
     <Pixels sprite={deskFrame(tier, mode)} width={64} height={88} scale={4} stand className="avatar" />
   </ItemIcon>
 );
+
+const SIZE_NAMES = ["Starter", "Roomy", "Spacious", "Grand"] as const;
+
+/** How big my office is, and the next size up: bought once each, in order, and the room grows at once. */
+function OfficeSpace({ buy }: { buy: boolean }) {
+  const wallet = useHud((s) => s.wallet);
+  const [tier, setTier] = useState<number | null>(null);
+  const { error, run } = useRun();
+  useEffect(() => {
+    void town.officeSize().then(setTier);
+  }, []);
+  if (!wallet || tier === null) return null;
+  const next = OFFICE_SIZES[tier + 1];
+  const size = OFFICE_SIZES[tier]!;
+  const purchase = () =>
+    run(async () => {
+      hud.set({ wallet: await town.buyOfficeSize() });
+      setTier(await town.officeSize());
+    });
+  return (
+    <>
+      <p className="muted small">
+        Your office is {SIZE_NAMES[tier]}, {size.w}×{size.h}.{" "}
+        {next ? "A bigger one takes more furniture and keeps what is in yours." : "It is as big as they come."}
+      </p>
+      {next &&
+        (buy ? (
+          <button
+            type="button"
+            className="primary"
+            disabled={wallet.balance < next.price}
+            onClick={purchase()}
+          >
+            Expand to {SIZE_NAMES[tier + 1]} {next.w}×{next.h} · 🪙 {next.price}
+          </button>
+        ) : (
+          <span className="muted small">
+            {SIZE_NAMES[tier + 1]} {next.w}×{next.h}: 🪙 {next.price} at Møbelhuset
+          </span>
+        ))}
+      {error && <p className="error">{error}</p>}
+    </>
+  );
+}
 
 /** Wallpaper and floors: buy one once (in the shop), then change between yours whenever you like. */
 export function DecorGoods({ buy }: { buy: boolean }) {
@@ -86,6 +131,7 @@ export function DecorGoods({ buy }: { buy: boolean }) {
           : "Change between the ones you own whenever you like. New ones are bought at Møbelhuset."}
       </p>
       {!buy && <BuyAtMobelhuset tab="decor" />}
+      <OfficeSpace buy={buy} />
       <Pills value={kind} options={KINDS} onChange={setKind} />
       <ul className="shop">
         {DECORS[kind].map((d) => {

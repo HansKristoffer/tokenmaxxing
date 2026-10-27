@@ -333,21 +333,38 @@ export const doorAt = (doors: readonly Door[], x: number, y: number): Door | und
 
 // MARK: Sizes
 
-export type OfficeTier = 0 | 1 | 2;
+export type OfficeTier = 0 | 1 | 2 | 3;
 
 /**
- * The three sizes, by the level they open at. Growth is only right and down, so every tile keeps its
- * coordinates; only the pet bed and the door row move. ponytail: by the owner's level, not a house tier:
- * if tiers ever come, `officeTier` is the one place to change.
+ * The sizes of a personal office, and what each costs. The first comes with the office (about 20% bigger
+ * than the old 12 × 9); the others are bought with coins, in order, at Møbelhuset (`office.size.<tier>`).
+ * Growth is only right and down, so every tile keeps its coordinates; only the pet bed and the door row move.
  */
-export const OFFICE_SIZES: readonly { w: number; h: number; level: number }[] = [
-  { w: 12, h: 9, level: OFFICE_LEVEL },
-  { w: 14, h: 10, level: 25 },
-  { w: 16, h: 12, level: 40 },
+export const OFFICE_SIZES: readonly { w: number; h: number; price: number }[] = [
+  { w: 14, h: 11, price: 0 },
+  { w: 16, h: 13, price: 600 },
+  { w: 18, h: 15, price: 1500 },
+  { w: 20, h: 17, price: 3500 },
 ];
 
-export const officeTier = (level: number): OfficeTier =>
-  level >= OFFICE_SIZES[2]!.level ? 2 : level >= OFFICE_SIZES[1]!.level ? 1 : 0;
+/** Owners of level 40 and up have the second size without buying it: it is the size that level used to open. */
+export const OFFICE_FREE_LEVEL = 40;
+
+/** What `tier` is sold as, in `purchases`. */
+export const officeSizeItem = (tier: number): string => `office.size.${tier}`;
+
+/** The tier an `office.size.<n>` item stands for, or null for any other item. */
+export const officeSizeOfItem = (item: string): OfficeTier | null => {
+  const m = /^office\.size\.([1-9])$/.exec(item);
+  const tier = m ? Number(m[1]) : 0;
+  return tier > 0 && tier < OFFICE_SIZES.length ? (tier as OfficeTier) : null;
+};
+
+/** The size of an owner's office: the biggest they bought, or the one their level gives. */
+export const officeTier = (level: number, bought = 0): OfficeTier => {
+  const tier = Math.max(level >= OFFICE_FREE_LEVEL ? 1 : 0, Math.trunc(bought) || 0);
+  return Math.min(tier, OFFICE_SIZES.length - 1) as OfficeTier;
+};
 
 /** An office's template for a size and its wallpaper and floor. Tier 0, plain, is `MAPS.office`. */
 export const officeMap = (tier: OfficeTier, decor?: { wall?: string; floor?: string }): GameMap => {
