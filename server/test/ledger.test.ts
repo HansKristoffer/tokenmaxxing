@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { levelUpCoins } from "@tokenmaxxing/core/economy.ts";
+import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import type { TxSql } from "../src/actors/shared.ts";
 import {
@@ -28,13 +30,28 @@ let sql: TxSql;
 const NOW = Date.UTC(2026, 8, 29, 12);
 const names = { 1: "ada", 2: "bo", 3: "cy" };
 
-/** Gives `userId` a balance: √(tokens ÷ 1M) coins for one old day, plus 25 for finishing it first. */
+/**
+ * Gives `userId` a balance: √(tokens ÷ 1M) coins for one old day, plus 25 for finishing it first. The
+ * level those tokens reach pays too (`levelUpCoins`), but these tests are about what's done with coins, so
+ * that's taken off again to keep their numbers plain.
+ */
 async function earn(userId: number, day: string, tokens: number) {
   await sql.execute(
     "INSERT INTO usage_daily (user_id, day, model, input, output, cache_creation, cache_read, turns) VALUES (?, ?, 'm', ?, 0, 0, 0, 1)",
     userId,
     day,
     tokens,
+  );
+  const [{ total }] = (await sql.execute(
+    "SELECT SUM(input) AS total FROM usage_daily WHERE user_id = ?",
+    userId,
+  )) as [{ total: number }];
+  await sql.execute("DELETE FROM ledger WHERE user_id = ? AND ref = 'levelfix'", userId);
+  await sql.execute(
+    "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, 'admin', 'levelfix', ?)",
+    userId,
+    -levelUpCoins(levelFor(total)),
+    NOW,
   );
 }
 /** An `activity_daily` row: `agents` at once on `day`, nothing else. */

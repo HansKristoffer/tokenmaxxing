@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { levelUpCoins } from "@tokenmaxxing/core/economy.ts";
+import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { EMPLOYEE_MERCH_DISCOUNT, itemById, merchId, merchPrice } from "@tokenmaxxing/core/shop.ts";
 import type { TxSql } from "../src/actors/shared.ts";
 import { buyMerch, giveBack, pickUp, placed, unclaimed, wallet } from "../src/town/coins.ts";
@@ -82,7 +84,9 @@ describe("the company wallet: token coins matched 1:1", () => {
     await matchCoins(sql, 2, ["2026-03-01"], NOW);
     await matchCoins(sql, 2, ["2026-03-01"], NOW); // the same sync again adds nothing
     expect(await companyWallet(sql, 1)).toBe(20);
-    expect((await wallet(sql, 2, NOW)).balance).toBe(20 + 25); // not split: all theirs (and the day's podium)
+    expect((await wallet(sql, 2, NOW)).balance).toBe(
+      20 + 25 + levelUpCoins(levelFor(400e6)),
+    ); // not split: all theirs (and the day's podium, and the level it reached)
   });
 
   test("days before joining, and freelancers, aren't matched", async () => {
@@ -190,7 +194,8 @@ describe("merch", () => {
   test("what an outsider pays goes into the company wallet", async () => {
     await usage(3, "2026-03-01", 3_025e6); // 55 coins, and 25 for the day's podium: 80
     await buyMerch(sql, 3, tee, NOW);
-    expect((await wallet(sql, 3, NOW)).balance).toBe(0);
+    // All 80 went on the tee; what's left is the level the day reached.
+    expect((await wallet(sql, 3, NOW)).balance).toBe(levelUpCoins(levelFor(3_025e6)));
     expect(await companyWallet(sql, 1)).toBe(80);
     await expect(buyMerch(sql, 3, tee, NOW)).rejects.toThrow("Not enough");
   });

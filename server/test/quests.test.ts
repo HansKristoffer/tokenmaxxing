@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { levelUpCoins } from "@tokenmaxxing/core/economy.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
 import { COUNT_CAP, LEGACY_FROM, WEEKLY_COINS, weeklyProgress } from "@tokenmaxxing/core/quests.ts";
@@ -84,7 +85,7 @@ describe("the new rules", () => {
     expect(picks).toHaveLength(3);
     const before = await balance(AFTER);
     await doEverything(AFTER);
-    const grown = coinsForTokens(30e6 + 1) + milestoneCoins(levelFor(30e6 + 1));
+    const grown = coinsForTokens(30e6 + 1) + milestoneCoins(levelFor(30e6 + 1)) + levelUpCoins(levelFor(30e6 + 1));
     // Three quests, 1 + 2 + 3 coins.
     expect(await balance(AFTER)).toBe(before + grown + 6);
     expect((await sql.execute("SELECT COUNT(*) AS n FROM ledger")) as [{ n: number }]).toEqual([{ n: 0 }]);
