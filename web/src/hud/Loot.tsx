@@ -38,7 +38,8 @@ export function DropsByPlayer({ drops }: { drops: Drop[] }) {
     (a, b) =>
       Number(b[0]!.userId === world.selfId) - Number(a[0]!.userId === world.selfId) ||
       b.length - a.length ||
-      Math.max(...b.map((d) => RARITY_RANK[rarityOf(d)])) - Math.max(...a.map((d) => RARITY_RANK[rarityOf(d)])),
+      Math.max(...b.map((d) => RARITY_RANK[rarityOf(d)])) -
+        Math.max(...a.map((d) => RARITY_RANK[rarityOf(d)])),
   );
   return (
     <ul className="loot-drops">
@@ -68,7 +69,9 @@ export function DropsByPlayer({ drops }: { drops: Drop[] }) {
                 {best.map((d) => (
                   <li key={`${d.rung} ${d.item}`}>
                     <span className="rung">{d.rung}</span>
-                    <span className={`drop rarity-text-${rarityOf(d)}`}>{itemById(d.item)?.name ?? d.item}</span>
+                    <span className={`drop rarity-text-${rarityOf(d)}`}>
+                      {itemById(d.item)?.name ?? d.item}
+                    </span>
                     <span className="muted small">
                       {bossAt(d.rung).emoji} {oddsText(d.odds)}
                     </span>
