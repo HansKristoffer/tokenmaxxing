@@ -34,7 +34,7 @@ export function drawRoulette(f: Frame): void {
   const spots = world.map
     .find("♥")
     .map(([x, y]) => ({ x, y }))
-    .sort((a, b) => a.x - b.x);
+    .sort((a, b) => a.x - b.x || a.y - b.y);
   const { g } = f;
   const now = Date.now();
   const last = state.last;

@@ -95,7 +95,7 @@ import {
   SPIN_MS,
   SPOTS,
 } from "@tokenmaxxing/core/roulette.ts";
-import { rouletteSpots, spotAt } from "@tokenmaxxing/core/roulettetable.ts";
+import { rouletteSpots, rouletteTable, spotAt } from "@tokenmaxxing/core/roulettetable.ts";
 import { isBonfire } from "@tokenmaxxing/core/sankthans.ts";
 import { canDropIn, itemById } from "@tokenmaxxing/core/shop.ts";
 import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
@@ -3266,7 +3266,9 @@ function rouletteTaken(c: Sender & { vars: Vars }, p: WorldPlayer, spot: number)
 function rouletteSeat(c: Sender & { vars: Vars }, p: WorldPlayer, spot: number): StepResult {
   const [x, y] = rouletteSpots()[spot]!;
   const r = c.vars.roulette;
-  Object.assign(p, { x, y, facing: "up" });
+  // Above the table they look down at it, below it up.
+  const table = rouletteTable();
+  Object.assign(p, { x, y, facing: table && y < table.y ? "down" : "up" });
   if (stopDance(p)) sendInfo(c, p, info(p, true));
   c.vars.dirty.add(p.id);
   r.seats.push({ spot, userId: p.id, name: p.name });

@@ -1,5 +1,5 @@
 /**
- * The net cafe's roulette table as a 3D prop (2D: `♦` is the 3x2 table, `♥` the eight spots below it where
+ * The net cafe's roulette table as a 3D prop (2D: `♦` is the 3x2 table, `♥` the eight spots, four above it and four below where
  * the players stand): green felt in a wooden rim, the wheel on the left half (a bowl, a ring of 37 pockets in
  * `WHEEL` order coloured by `colorOf`, a gold cone and a little white ball, turning slowly) and the betting
  * layout on the right half, painted on a small canvas (0 on the left, the numbers in three rows).

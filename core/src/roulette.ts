@@ -231,5 +231,5 @@ export function nextPhase(v: RoundView): RoulettePhase | null {
 
 /** How long the wheel and ball take to land after a spin, for the player and every watcher. */
 export const SPIN_MS = 4000;
-/** The spots at the table: eight players share it (the `♥` tiles below it, `maps.ts`). */
+/** The spots at the table: eight players share it (the `♥` tiles above and below it, `maps.ts`). */
 export const SPOTS = 8;

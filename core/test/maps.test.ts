@@ -122,20 +122,23 @@ describe("maps", () => {
       return [Math.max(...xs) - Math.min(...xs) + 1, Math.max(...ys) - Math.min(...ys) + 1, t.length];
     };
 
-    test("one 4x2 poker table with six chairs, one 3x2 roulette table with eight spots", () => {
+    test("one 4x2 poker table with six chairs, one 3x2 roulette table with four spots on each side", () => {
       expect(box("♠")).toEqual([4, 2, 8]);
       expect(map.find("♣")).toHaveLength(6);
       expect(box("♦")).toEqual([3, 2, 6]);
-      expect(box("♥")).toEqual([8, 1, 8]);
+      expect(box("♥")).toEqual([4, 4, 8]);
       expect(map.kind(...map.find("♥")[0]!).roulette).toBe(true);
       expect(map.walkable(...map.find("♦")[0]!)).toBe(false);
       expect(map.walkable(...map.find("♠")[0]!)).toBe(false);
     });
 
-    test("the spots sit right below the table, and every walkable tile is reachable from the stairs", () => {
+    test("the spots sit right above and below the table, and every walkable tile is reachable from the stairs", () => {
       const table = map.find("♦");
+      const top = Math.min(...table.map(([, y]) => y));
       const bottom = Math.max(...table.map(([, y]) => y));
-      for (const [, y] of map.find("♥")) expect(y).toBe(bottom + 1);
+      const rows = map.find("♥").map(([, y]) => y);
+      expect(rows.filter((y) => y === top - 1)).toHaveLength(4);
+      expect(rows.filter((y) => y === bottom + 1)).toHaveLength(4);
       const spotXs = map.find("♥").map(([x]) => x);
       for (const [x] of table) expect(spotXs).toContain(x);
       for (let y = 0; y < map.height; y++)
