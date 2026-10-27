@@ -3,7 +3,7 @@ import { CASE_ITEMS } from "../src/case.ts";
 import { CASE_PIECES } from "../src/case-furniture.ts";
 import { NUSANTARA_ITEMS } from "../src/case-nusantara.ts";
 import { NUSANTARA_PIECES } from "../src/case-nusantara-furniture.ts";
-import { CASES, type CaseDef, caseById, caseOfItem, rollCase, VENDOR_COINS } from "../src/cases.ts";
+import { CASE_SHELVES, CASES, type CaseDef, caseById, caseOfItem, rollCase, VENDOR_COINS } from "../src/cases.ts";
 import { RARITIES, type Rarity } from "../src/rarity.ts";
 import type { Item } from "../src/shop.ts";
 
@@ -29,6 +29,10 @@ const mini = (items: Item[]): CaseDef => ({ ...night, items });
 const none = new Set<string>();
 
 describe("cases", () => {
+  test("every case has a shelf on Natmarked's back wall", () => {
+    expect(CASES.length).toBeLessThanOrEqual(CASE_SHELVES);
+  });
+
   test("odds sum to 1, the night market exists, vendor pays by rarity", () => {
     for (const c of CASES) expect(Object.values(c.odds).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10);
     expect(night.keyPrice).toBe(75);

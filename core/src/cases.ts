@@ -51,6 +51,9 @@ const STANDARD_ODDS: Record<Rarity, number> = {
   legendary: 0.025,
 };
 
+/** The lit shelf units on Natmarked's back wall: how many cases the hall can show before it needs more shelves. */
+export const CASE_SHELVES = 6;
+
 export const CASES: readonly CaseDef[] = [
   {
     id: "night-market",
