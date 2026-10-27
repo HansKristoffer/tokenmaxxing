@@ -739,7 +739,8 @@ export const pickUp = async (sql: Sql, id: number, userId: number, room: string)
     await all(
       sql,
       `UPDATE items SET owner_id = ?, ${OFF_FLOOR} WHERE id = ? AND owner_id IS NULL AND (room IS NULL OR room = ?)
-         AND company_id IS NULL AND ? IN (SELECT id FROM users) RETURNING id`,
+         AND company_id IS NULL AND id NOT IN (SELECT item_row FROM market_listings)
+         AND ? IN (SELECT id FROM users) RETURNING id`,
       userId,
       id,
       room,
