@@ -855,11 +855,11 @@ class Renderer3D implements Renderer {
   }
 
   /** The furniture ghost (`game/furniture.ts` decides, this shows): the piece over its tile, green where it fits. */
-  private showGhost(g: { item: string; tile: Tile | null; fits: boolean } | null): void {
+  private showGhost(g: { item: string; tile: Tile | null; fits: boolean; flip: boolean } | null): void {
     const stage = this.stage;
     if (!g || !stage) return void this.placer.cancel();
     if (this.placer.itemId !== g.item && !this.placer.begin(g.item, stage.scene)) return;
-    this.placer.aim(stage.view, g.tile, g.fits);
+    this.placer.aim(stage.view, g.tile, g.fits, g.flip);
   }
 
   // MARK: Picking

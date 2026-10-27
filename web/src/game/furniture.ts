@@ -1,4 +1,4 @@
-import { wallRowOf } from "@tokenmaxxing/core/office.ts";
+import { canFlip, wallRowOf } from "@tokenmaxxing/core/office.ts";
 import {
   DIRS,
   type Drop,
@@ -20,6 +20,7 @@ import { roomName, self, world } from "./world.ts";
  * Putting furniture down: moving a piece you may take (M), or placing one from the bag or the storeroom. All
  * of it is one mode: a see-through copy of the piece follows the pointer, or the tile you face as you walk
  * (green where it can stand, red where it cannot); a click or E puts it down, Esc leaves things as they were.
+ * F turns a piece you are moving, or one you face, to face the other way (mirrored left to right).
  * Nothing is spent until the server says so. Both renderers draw it: 3D through `viewHooks.ghost`, 2D from `ghost`.
  */
 export type GhostMode = { kind: "move"; drop: Drop } | { kind: "place"; item: string; company: boolean };
@@ -30,10 +31,12 @@ export const ghost: {
   fits: boolean;
   /** The pose (tile and facing) last seen, so walking aims it at the tile you face. */
   pose: string;
+  /** Moving it turned to face the other way (F). */
+  flip: boolean;
   /** A piece to place once we are in our own office. */
   pending: string | null;
   room: RoomId | null;
-} = { mode: null, aim: null, fits: false, pose: "", pending: null, room: null };
+} = { mode: null, aim: null, fits: false, pose: "", flip: false, pending: null, room: null };
 
 /** The last furnishing steps of this session (Ctrl/Cmd+Z). */
 export const undoStack = new UndoStack();
@@ -49,13 +52,14 @@ export function fitsHere(mode: GhostMode, t: Tile): boolean {
 
 function show(): void {
   const m = ghost.mode;
-  viewHooks.ghost?.(m ? { item: itemOf(m), tile: ghost.aim, fits: ghost.fits } : null);
+  viewHooks.ghost?.(m ? { item: itemOf(m), tile: ghost.aim, fits: ghost.fits, flip: ghost.flip } : null);
 }
 
 function begin(mode: GhostMode, first: Tile, text: string): void {
   ghost.mode = mode;
   ghost.room = world.room;
   ghost.pose = "";
+  ghost.flip = mode.kind === "move" && mode.drop.flip === true;
   hud.set({ panel: null, dialog: text });
   aim(first);
 }
@@ -72,7 +76,34 @@ export function startMove(): void {
   begin(
     { kind: "move", drop },
     { x: drop.x, y: drop.y },
-    "Moving it: point or walk to a spot (green fits). Click or E puts it down, Esc keeps it here.",
+    `Moving it: point or walk to a spot (green fits).${canFlip(drop.item.slice(5)) ? " F flips it." : ""} Click or E puts it down, Esc keeps it here.`,
+  );
+}
+
+/**
+ * F: the piece you are moving turns to face the other way, or else the piece of yours you are on or facing
+ * does, where it stands. Wall pieces hang as they are.
+ */
+export function flip(): void {
+  const m = ghost.mode;
+  if (m) {
+    if (m.kind !== "move" || !canFlip(m.drop.item.slice(5))) return;
+    ghost.flip = !ghost.flip;
+    show();
+    return;
+  }
+  const me = self();
+  if (!me || me.state !== "idle") return;
+  const drop = ownPieceAt(world.room, me, world.drops, world.selfId, me.info.companyId);
+  if (!drop || !canFlip(drop.item.slice(5))) return;
+  const was = drop.flip === true;
+  void conn.move(drop.id, drop.x, drop.y, !was).then(
+    (r) => {
+      hud.set({ dialog: r.notice });
+      if (r.drop && (r.drop.flip === true) !== was)
+        undoStack.push({ kind: "move", room: drop.room, id: drop.id, x: drop.x, y: drop.y, flip: was });
+    },
+    (e: unknown) => hud.set({ dialog: e instanceof Error ? e.message : "That didn't work." }),
   );
 }
 
@@ -126,6 +157,7 @@ export function cancel(say = false): void {
   ghost.mode = null;
   ghost.aim = null;
   ghost.fits = false;
+  ghost.flip = false;
   show();
   hud.set({ dialog: say ? (was.kind === "move" ? "Left where it was." : "Kept it.") : null });
 }
@@ -139,14 +171,16 @@ export function confirm(): void {
     hud.set({ dialog: "It doesn't fit there. Pick a green spot." });
     return;
   }
+  const flipped = ghost.flip;
   cancel();
   const fail = (e: unknown) => hud.set({ dialog: e instanceof Error ? e.message : "That didn't work." });
   if (m.kind === "move") {
     const from = m.drop;
-    void conn.move(from.id, t.x, t.y).then((r) => {
+    const was = from.flip === true;
+    void conn.move(from.id, t.x, t.y, flipped).then((r) => {
       hud.set({ dialog: r.notice });
-      if (r.drop && (r.drop.x !== from.x || r.drop.y !== from.y))
-        undoStack.push({ kind: "move", room: from.room, id: from.id, x: from.x, y: from.y });
+      if (r.drop && (r.drop.x !== from.x || r.drop.y !== from.y || (r.drop.flip === true) !== was))
+        undoStack.push({ kind: "move", room: from.room, id: from.id, x: from.x, y: from.y, flip: was });
     }, fail);
     return;
   }
@@ -194,7 +228,7 @@ export async function undo(): Promise<void> {
   undoing = true;
   try {
     let r: { notice: string; drop?: Drop } | null;
-    if (step.kind === "move") r = await conn.move(step.id, step.x, step.y);
+    if (step.kind === "move") r = await conn.move(step.id, step.x, step.y, step.flip);
     else if (step.kind === "place") r = await conn.putBack(step.id);
     else {
       const at = { x: step.x, y: step.y };
@@ -246,15 +280,17 @@ export function bindGhost(canvas: HTMLElement): void {
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (ghost.mode) {
-        if (k === "escape" || k === "e" || k === "enter" || k === "m") {
+        if (k === "escape" || k === "e" || k === "enter" || k === "m" || k === "f") {
           e.stopImmediatePropagation();
           e.preventDefault();
           if (k === "escape" || k === "m") cancel(true);
+          else if (k === "f") flip();
           else confirm();
         }
         return;
       }
       if (k === "m") startMove();
+      if (k === "f") flip();
     },
     true,
   );

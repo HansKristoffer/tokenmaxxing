@@ -92,12 +92,29 @@ for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...CASE_PIECES
 
 export const pieceOf = (ch: unknown): Piece | undefined => BY_CH.get(ch as string);
 
-/** One placed piece: its top-left tile. */
+/** One placed piece: its top-left tile, and whether it is mirrored left to right (`flip`). */
 export interface Placed {
   ch: string;
   x: number;
   y: number;
+  flip?: boolean;
 }
+
+/** Each tile of a mirrored piece in a map `withPieces` made, to that piece's footprint. The letters are the same either way. */
+const FLIPPED = new WeakMap<GameMap, ReadonlyMap<string, Span>>();
+
+/** A piece's footprint along its row: its left end and how many tiles wide. */
+export interface Span {
+  x: number;
+  w: number;
+}
+
+/** The footprint of the mirrored piece on (x, y), if one is: both renderers draw it mirrored about its middle. */
+export const flippedAt = (map: GameMap, x: number, y: number): Span | null =>
+  FLIPPED.get(map)?.get(`${x},${y}`) ?? null;
+
+/** Wall pieces hang as they are (their writing would read backwards); everything on the floor flips. */
+export const canFlip = (ch: string): boolean => pieceOf(ch) !== undefined && !pieceOf(ch)?.wall;
 
 /** What a new office holds: a desk with a chair in front of it. */
 export const STARTER_OFFICE: readonly Placed[] = [
@@ -151,6 +168,7 @@ export function wallSpot(map: GameMap, x: number, w: number, home = false): { x:
  */
 export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
   const rows = base.rows.map((r) => [...r]);
+  const flipped = new Map(FLIPPED.get(base));
   for (const p of pieces) {
     const piece = pieceOf(p.ch);
     const w = piece?.w ?? 1;
@@ -158,8 +176,9 @@ export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
     if (piece?.home && base.id !== "office") continue;
     for (let i = 0; i < w; i++)
       if (piece?.wall || base.walkable(p.x + i, p.y)) rows[p.y - base.y0]![p.x + i - base.x0] = p.ch;
+    if (p.flip && canFlip(p.ch)) for (let i = 0; i < w; i++) flipped.set(`${p.x + i},${p.y}`, { x: p.x, w });
   }
-  return new GameMap(
+  const map = new GameMap(
     base.id,
     base.name,
     rows.map((r) => r.join("")),
@@ -167,6 +186,8 @@ export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
     base.y0,
     base.decor,
   );
+  if (flipped.size) FLIPPED.set(map, flipped);
+  return map;
 }
 
 // MARK: Doors

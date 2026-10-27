@@ -89,7 +89,8 @@ test("a poster hangs only where the wall has room for it", () => {
 test("the undo stack keeps the last ten steps, newest first out", () => {
   const s = new UndoStack();
   expect(s.pop()).toBeUndefined();
-  for (let i = 0; i < UNDO_DEPTH + 3; i++) s.push({ kind: "move", room: "hq:1", id: i, x: 0, y: 0 });
+  for (let i = 0; i < UNDO_DEPTH + 3; i++)
+    s.push({ kind: "move", room: "hq:1", id: i, x: 0, y: 0, flip: false });
   expect(s.size).toBe(UNDO_DEPTH);
   expect(s.peek()).toMatchObject({ id: UNDO_DEPTH + 2 });
   expect(s.pop()).toMatchObject({ id: UNDO_DEPTH + 2 });
@@ -101,13 +102,13 @@ test("the undo stack keeps the last ten steps, newest first out", () => {
 test("a piece put down again is a new row: the steps naming the old one follow it", () => {
   const s = new UndoStack();
   s.push({ kind: "place", room: "hq:1", id: 5, item: "furn.ρ" });
-  s.push({ kind: "move", room: "hq:1", id: 6, x: 1, y: 1 });
-  s.push({ kind: "move", room: "hq:1", id: 5, x: 2, y: 2 });
+  s.push({ kind: "move", room: "hq:1", id: 6, x: 1, y: 1, flip: false });
+  s.push({ kind: "move", room: "hq:1", id: 5, x: 2, y: 2, flip: false });
   s.remap(5, 9);
   expect(s.pop()).toMatchObject({ id: 9, x: 2 });
   expect(s.pop()).toMatchObject({ id: 6 });
   expect(s.pop()).toMatchObject({ id: 9, kind: "place" });
-  s.push({ kind: "move", room: "hq:1", id: 1, x: 0, y: 0 });
+  s.push({ kind: "move", room: "hq:1", id: 1, x: 0, y: 0, flip: false });
   s.clear();
   expect(s.peek()).toBeUndefined();
 });

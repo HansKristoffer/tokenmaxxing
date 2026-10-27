@@ -3,7 +3,7 @@ import { levelUpCoins } from "@tokenmaxxing/core/economy.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { EMPLOYEE_MERCH_DISCOUNT, itemById, merchId, merchPrice } from "@tokenmaxxing/core/shop.ts";
 import type { TxSql } from "../src/actors/shared.ts";
-import { buyMerch, giveBack, pickUp, placed, unclaimed, wallet } from "../src/town/coins.ts";
+import { buyMerch, floors, giveBack, pickUp, placed, unclaimed, wallet } from "../src/town/coins.ts";
 import {
   buyPiece,
   type CompanyRow,
@@ -150,6 +150,19 @@ describe("company furniture", () => {
     // A rebuilt building with no place for it: back to the storeroom, not to whoever placed it.
     await giveBack(sql, [id]);
     expect(await storedPieces(sql, 1)).toEqual([{ item: "furn.Σ", count: 1 }]);
+  });
+
+  test("a piece turned the other way comes back turned, and faces as bought again once stored", async () => {
+    await fund(1, 300);
+    const id = await buyPiece(sql, await row(1), 1, sofa, NOW);
+    await placed(sql, { id, item: sofa.id, room: "hq:1", x: 3, y: 4, by: 1, at: NOW, co: 1 });
+    expect((await floors(sql)).find((d) => d.id === id)?.flip).toBeUndefined();
+    await sql.execute("UPDATE items SET flip = 1 WHERE id = ?", id); // as `town.moved` writes it
+    expect((await floors(sql)).find((d) => d.id === id)).toMatchObject({ x: 3, y: 4, co: 1, flip: true });
+    expect(await pickUp(sql, id, 2, "hq:1")).toBe(true);
+    await unstore(sql, 1, sofa.id, 2, NOW);
+    await placed(sql, { id, item: sofa.id, room: "hq:1", x: 5, y: 4, by: 2, at: NOW, co: 1 });
+    expect((await floors(sql)).find((d) => d.id === id)?.flip).toBeUndefined();
   });
 
   test("a poster is bought from the wallet, kept in the storeroom, and hung on the wall like any piece", async () => {

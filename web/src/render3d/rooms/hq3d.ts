@@ -434,8 +434,8 @@ export function directoryBoard(): Model {
 export interface HqOptions {
   /** The wallet's desk tier (`CompanyInfo.deskFleet`), 0 the laptop. */
   fleet?: number;
-  /** The company's dropped pieces and posters, by map character and tile (`Placed`); none: the plain floor. */
-  placed?: { ch: string; x: number; y: number }[];
+  /** The company's dropped pieces and posters, by map character and tile (`Placed`, `flip`: mirrored); none: the plain floor. */
+  placed?: { ch: string; x: number; y: number; flip?: boolean }[];
   /** Walls and floor; the company's own colours by default. */
   floor?: string;
   wall?: string;
@@ -568,13 +568,17 @@ export function buildHq(opts: HqOptions = {}): Hq {
       const m = assetFor("chandelier")!.build();
       const [rx, rz] = tile(p.x, p.y);
       m.position.set(rx + piece.w / 2, 0, rz + 0.5);
+      if (p.flip) m.scale.x = -m.scale.x;
       room.group.add(m);
       continue;
     }
     const a = assetFor(piece.art);
     if (!a) continue;
     const [rx, rz] = tile(p.x, p.y);
-    if (room.fits(a, rx, rz, 0)) room.place(a, rx, rz, 0);
+    if (!room.fits(a, rx, rz, 0)) continue;
+    const placed = room.place(a, rx, rz, 0);
+    // Turned to face the other way (F): mirrored left to right, as the 2D game draws it.
+    if (p.flip) placed.model.scale.x = -placed.model.scale.x;
   }
 
   // The exit: the front door in the south wall's door tile, opening on daylight, with its lamp and mat.

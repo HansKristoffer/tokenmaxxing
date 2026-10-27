@@ -26,8 +26,8 @@ export function ghostFits(
 export type Undoable =
   /** Took a piece off the floor: undo puts it down on the same tile (`co`: from the storeroom). */
   | { kind: "take"; room: RoomId; id: number; item: string; x: number; y: number; co?: number }
-  /** Moved a piece from `(x, y)`: undo moves it back. */
-  | { kind: "move"; room: RoomId; id: number; x: number; y: number }
+  /** Moved or flipped a piece from `(x, y)`, facing as `flip` says: undo puts it back so. */
+  | { kind: "move"; room: RoomId; id: number; x: number; y: number; flip: boolean }
   /** Put a piece down (`id`): undo takes it back. */
   | { kind: "place"; room: RoomId; id: number; item: string; co?: number };
 
