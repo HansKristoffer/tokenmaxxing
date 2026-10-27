@@ -37,6 +37,7 @@ import {
   companyWallet,
 } from "./companies.ts";
 import { type GameStats, gameStats } from "./games.ts";
+import { keynotesOf } from "./keynotes.ts";
 import { picnicsOf } from "./picnic.ts";
 import { questsCleared } from "./quests.ts";
 import { ticketsOf } from "./tickets.ts";
@@ -286,6 +287,7 @@ export async function badgeFactsOf(
     // An owner is always a member (`leave` hands over), so owning a company says it.
     founder: (await scalar(sql, "SELECT COUNT(*) AS n FROM companies WHERE owner_id = ?", userId)) > 0,
     picnics: await picnicsOf(sql, userId),
+    keynotes: await keynotesOf(sql, userId),
     shipDays: best?.shipDays ?? 0,
     models: models.filter((m) => m.tokens >= POLYGLOT_MIN).length,
     cacheShare: fresh > 0 ? models.reduce((n, m) => n + m.cacheRead, 0) / fresh : 0,

@@ -31,6 +31,7 @@ import { chalkboardText } from "./chalkboard.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, doorOf, peekHits } from "./houses.ts";
+import { keynoteInteract } from "./keynote.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { blocksLaunch, launchInteract } from "./launch.ts";
 import { merchantAt, openCart } from "./merchant.ts";
@@ -467,6 +468,7 @@ function interact(): void {
   if (streetInteract(me, x, y, send)) return;
   if (windmillInteract(x, y)) return;
   if (launchInteract(me)) return;
+  if (keynoteInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
