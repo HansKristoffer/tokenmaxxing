@@ -28,6 +28,7 @@ import { chatBeside, hud } from "../store.ts";
 import { basementInteract } from "./basement.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
+import { clocksText } from "./clocks.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, doorOf, peekHits } from "./houses.ts";
@@ -495,6 +496,7 @@ function interact(): void {
     if (ch === "P" || ch === "J") return void hud.set({ panel: { kind: "regulars" } });
     if (ch === "z") return void hud.set({ panel: { kind: "jukebox" } });
     if (ch === "?") return void hud.set({ panel: { kind: "requests" } });
+    if (ch === "◷") return void hud.set({ dialog: clocksText() });
   }
   if (shopInteract(x, y)) return;
   if (basementInteract(x, y)) return;
