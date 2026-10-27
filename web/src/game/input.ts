@@ -32,6 +32,7 @@ import { clocksText } from "./clocks.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, doorOf, peekHits } from "./houses.ts";
+import { blocksTruck, truckInteract } from "./jdag.ts";
 import { keynoteInteract } from "./keynote.ts";
 import { chipHits, signHits } from "./labels.ts";
 import { blocksLaunch, launchInteract } from "./launch.ts";
@@ -378,7 +379,8 @@ export function updateSelf(now: number): void {
   }
   const step = stepTarget(world.map, me.x, me.y, dir);
   const target =
-    step.kind === "move" && (blocksStep(step.x, step.y) || blocksLaunch(step.x, step.y))
+    step.kind === "move" &&
+    (blocksStep(step.x, step.y) || blocksLaunch(step.x, step.y) || blocksTruck(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;
   if (target.kind === "blocked") {
@@ -468,6 +470,7 @@ function interact(): void {
   if (world.room === "dungeon" && sit(x, y)) return;
   if (streetInteract(me, x, y, send)) return;
   if (windmillInteract(x, y)) return;
+  if (truckInteract(x, y)) return;
   if (launchInteract(me)) return;
   if (keynoteInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();

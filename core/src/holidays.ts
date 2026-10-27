@@ -80,6 +80,15 @@ export function near(id: HolidayId, ms: number, before: number, after: number): 
   });
 }
 
+/** Days from `id` to the world day `ms` is in (0 on it, negative before it), for its nearest occurrence. */
+export function daysFrom(id: HolidayId, ms: number): number {
+  const today = worldDayNumber(ms);
+  const { y } = worldWall(ms);
+  return [y - 1, y, y + 1]
+    .map((year) => today - holidayDay(id, year))
+    .reduce((a, b) => (Math.abs(b) < Math.abs(a) ? b : a));
+}
+
 /** `D. month` of `id`'s day `n` days from it, the one nearest `ms` (for "until 2 November"). */
 export function dateLabel(id: HolidayId, ms: number, n = 0): string {
   const today = worldDayNumber(ms);
