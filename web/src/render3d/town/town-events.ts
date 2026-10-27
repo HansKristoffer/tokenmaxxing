@@ -1,3 +1,4 @@
+import { PRICE_LAMP, priceSign } from "@tokenmaxxing/core/grid.ts";
 import { STAND, standOf } from "@tokenmaxxing/core/launch.ts";
 import { PLAZA } from "@tokenmaxxing/core/maps.ts";
 import {
@@ -20,6 +21,7 @@ import {
   snailAt,
 } from "@tokenmaxxing/core/street.ts";
 import * as THREE from "three";
+import { currentGrid, PRICE_TONES } from "../../game/grid.ts";
 import { currentLaunches, handOut, RAINBOW_SIGN } from "../../game/launch.ts";
 import { openCart } from "../../game/merchant.ts";
 import { outageNow } from "../../game/picnic.ts";
@@ -449,6 +451,7 @@ export class TownEvents {
     this.picnicFrame(f);
     this.streetFrame(f);
     this.launchFrame(f);
+    this.gridFrame(f);
     this.raceFrame();
     for (let i = this.bursts.length - 1; i >= 0; i--) {
       const b = this.bursts[i]!;
@@ -674,6 +677,14 @@ export class TownEvents {
   }
 
   // MARK: The launch stand
+
+  /** The price board on the square's north-east lamp post (`core/src/grid.ts`), as in 2D. */
+  private gridFrame(f: LiveFrame): void {
+    const sign = priceSign(currentGrid());
+    const [x, z] = this.toWorld(PRICE_LAMP.x, PRICE_LAMP.y);
+    v3.set(x, 2.05, z);
+    this.pill("grid", "r3-sign", sign.text, v3, f.camera, undefined, PRICE_TONES[sign.tone]);
+  }
 
   private launchFrame(f: LiveFrame): void {
     const flying = handOut(f.now);

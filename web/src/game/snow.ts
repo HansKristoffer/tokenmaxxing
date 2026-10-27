@@ -114,8 +114,11 @@ export function iceLayer(ground: HTMLCanvasElement): HTMLCanvasElement {
   return out;
 }
 
-/** The snowy twin of a baked canvas: `ground` for the town's opaque ground, else a sprite (caps and dust). */
-function bake(src: HTMLCanvasElement, ground: boolean): HTMLCanvasElement {
+/**
+ * The snowy twin of a baked canvas: `ground` for the town's opaque ground, else a sprite (caps and dust). `plain` is
+ * the canvas in the town's own palette, when `src` is its season's twin: what is grass, path or pond is read there.
+ */
+function bake(src: HTMLCanvasElement, ground: boolean, plain: HTMLCanvasElement): HTMLCanvasElement {
   const out = document.createElement("canvas");
   out.width = src.width;
   out.height = src.height;
@@ -126,6 +129,8 @@ function bake(src: HTMLCanvasElement, ground: boolean): HTMLCanvasElement {
   const w = src.width;
   const h = src.height;
   const was = Uint8ClampedArray.from(d);
+  const palette =
+    plain === src ? was : plain.getContext("2d")!.getImageData(0, 0, plain.width, plain.height).data;
   const solid = (x: number, y: number) => y >= 0 && was[(y * w + x) * 4 + 3]! >= 200;
   const put = (x: number, y: number, c: readonly [number, number, number]) => {
     const i = (y * w + x) * 4;
@@ -136,14 +141,14 @@ function bake(src: HTMLCanvasElement, ground: boolean): HTMLCanvasElement {
   const waterAt = (x: number, y: number) => {
     if (x < 0 || y < 0 || x >= w || y >= h) return true;
     const i = (y * w + x) * 4;
-    return WATER.has(key(was[i]!, was[i + 1]!, was[i + 2]!));
+    return WATER.has(key(palette[i]!, palette[i + 1]!, palette[i + 2]!));
   };
 
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
       if (was[i + 3]! < 200) continue;
-      const k = key(was[i]!, was[i + 1]!, was[i + 2]!);
+      const k = key(palette[i]!, palette[i + 1]!, palette[i + 2]!);
       const to = GROUND.get(k);
       if (to) {
         // The pond's rim is white; a few pixels of the ground are speckled.
@@ -186,17 +191,18 @@ function bake(src: HTMLCanvasElement, ground: boolean): HTMLCanvasElement {
 
 /**
  * What to draw for `src` at snow `amount`: the plain canvas, its snowy twin, or both with the twin's alpha
- * while the snow is settling or melting.
+ * while the snow is settling or melting. `plain` is `src` before the season painted it (`seasons.ts`).
  */
 export function snowLayers(
   src: HTMLCanvasElement,
   amount: number,
   ground = false,
+  plain = src,
 ): readonly (readonly [HTMLCanvasElement, number])[] {
   if (amount < 0.01) return [[src, 1]];
   let twin = twins.get(src);
   if (!twin) {
-    twin = bake(src, ground);
+    twin = bake(src, ground, plain);
     twins.set(src, twin);
   }
   return amount > 0.99

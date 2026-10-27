@@ -1,11 +1,14 @@
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
+import type { Grid } from "@tokenmaxxing/core/grid.ts";
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
+import type { Keynote } from "@tokenmaxxing/core/keynote.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
 import type { Outage } from "@tokenmaxxing/core/picnic.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
+import type { Stars } from "@tokenmaxxing/core/stars.ts";
 import {
   CHAT_HISTORY,
   type ChatLine,
@@ -23,12 +26,15 @@ import {
 import type { Raid, registry } from "@tokenmaxxing/server/registry";
 import { createClient } from "rivetkit/client";
 import { errorCode } from "./errors.ts";
+import { setGrid } from "./game/grid.ts";
 import { playJukebox, stopJukebox } from "./game/jukebox.ts";
+import { setKeynotes } from "./game/keynote.ts";
 import { setLaunches } from "./game/launch.ts";
 import { noteLoot } from "./game/loot.ts";
 import { duckMusic, playRoomMusic, stopRoomMusic } from "./game/music.ts";
 import { setOutage } from "./game/picnic.ts";
 import { noteRaid, setRaiders } from "./game/raid.ts";
+import { setStars } from "./game/stars.ts";
 import {
   applyBubble,
   applyCallout,
@@ -190,6 +196,9 @@ export function connect(token: string): void {
   conn.on("pickup", (e: { id: number }) => applyPickup(e.id));
   conn.on("outage", (o: Outage | null) => setOutage(o));
   conn.on("launches", (l: Launch[]) => setLaunches(l));
+  conn.on("grid", (g: Grid) => setGrid(g));
+  conn.on("keynotes", (k: Keynote[]) => setKeynotes(k));
+  conn.on("stars", (s: Stars) => setStars(s));
   conn.onError((err) => {
     if (isUnauthorized(err)) signedOut();
   });

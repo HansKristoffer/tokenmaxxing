@@ -1,3 +1,4 @@
+import { pinnedDay } from "@tokenmaxxing/core/seasons.ts";
 import {
   AARHUS,
   CALM,
@@ -47,3 +48,10 @@ export const pinnedWeather = (env: Record<string, string | undefined> = process.
   env.SKY_WEATHER ? presetWeather(env.SKY_WEATHER) : null;
 
 export const initialWeather = (): Weather => pinnedWeather() ?? CALM;
+
+/**
+ * `SKY_SEASON=autumn` (or a date, `11-12`) pins the town's season for everyone (dev and screenshots), as the day of
+ * the year it shows. Null normally: the season is the date's, worked out by each client.
+ */
+export const pinnedSeason = (env: Record<string, string | undefined> = process.env): number | null =>
+  env.SKY_SEASON ? pinnedDay(env.SKY_SEASON) : null;

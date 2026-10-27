@@ -50,7 +50,8 @@ body {
   pointer-events: auto;
 }
 
-#hud > .picnic-banner {
+#hud > .picnic-banner,
+#hud > .green-banner {
   pointer-events: none;
 }
 
@@ -1826,6 +1827,42 @@ button.lb-item:hover {
 .picnic-banner strong {
   font-size: 15px;
   color: var(--accent);
+}
+
+/*
+ * A green hour: a green-edged banner while the grid runs clean. Up a third of the day, so under the top bar
+ * rather than over it like the picnic's and the keynote's, and under theirs when they're up.
+ */
+.green-banner {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 14px 6px;
+  background: var(--panel);
+  border-radius: 10px;
+  border-top: 4px solid #3f9b5a;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.picnic-banner ~ .green-banner,
+.keynote-banner ~ .green-banner {
+  top: 80px;
+}
+
+.keynote-banner.below ~ .green-banner {
+  top: 142px;
+}
+
+.green-banner strong {
+  font-size: 14px;
+  color: #3f9b5a;
 }
 
 /* The 429 Cop's tickets on a player card: a badge that opens into the slips themselves. */
@@ -3638,6 +3675,72 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
     opacity: 0;
     transform: translateY(-4px);
   }
+}
+
+/* The way to star the repo (Stars.tsx): in the menu, the changelog and the star counter's panel. */
+.star-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #6b4f0e;
+  background: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.star-button:hover {
+  background: #f2c653;
+}
+
+.menu > a.star-button {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: #6b4f0e;
+}
+
+.star-button-count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(43, 36, 51, 0.18);
+  font-size: 12px;
+}
+
+.stars {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.stars p {
+  margin: 0;
+}
+
+.stars-count {
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.stars-next {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: stretch;
+}
+
+.changelog-star {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  color: var(--muted);
 }
 
 .changelog {

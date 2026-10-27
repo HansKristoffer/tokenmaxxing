@@ -8,6 +8,7 @@ import {
   isWinter,
   lightAt,
   moonPhase,
+  nightDepth,
   PRESET_NAMES,
   pollenFrom,
   pollenLevel,
@@ -38,6 +39,20 @@ describe("sun", () => {
   test("the clock follows daylight saving", () => {
     expect(clockTime(Date.UTC(2026, 6, 1, 10, 0))).toBe("12:00");
     expect(clockTime(Date.UTC(2026, 0, 1, 10, 0))).toBe("11:00");
+  });
+
+  test("midsummer nights stay twilight blue, and winter's get fully dark", () => {
+    // Around 01:20 in Aarhus the sun is at its lowest: about ten degrees down in June, over fifty in December.
+    expect(lightAt(Date.UTC(2026, 5, 20, 23, 20)).darkness).toBeLessThan(0.8);
+    expect(lightAt(Date.UTC(2026, 11, 20, 23, 20)).darkness).toBe(1);
+    expect(nightDepth(Date.UTC(2026, 9, 27))).toBe(1);
+    // The light nights come and go over weeks.
+    let last = nightDepth(Date.UTC(2026, 3, 1));
+    for (let day = 1; day < 200; day++) {
+      const d = nightDepth(Date.UTC(2026, 3, 1 + day));
+      expect(Math.abs(d - last)).toBeLessThan(0.03);
+      last = d;
+    }
   });
 
   test("phases and a smooth darkness", () => {

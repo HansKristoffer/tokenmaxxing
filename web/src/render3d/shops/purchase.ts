@@ -4,6 +4,8 @@
  * says (`failOf`). The ids are the ones in core (`core/src/shop.ts` items, `decor.ts`, `desks.ts`); the shop
  * specs carry a few of their own (`pet.<n>.<variant>`) that map onto them here.
  */
+
+import { onSale } from "@tokenmaxxing/core/costumes.ts";
 import { type DecorKind, FLOORS, WALLPAPERS } from "@tokenmaxxing/core/decor.ts";
 import { DESKS } from "@tokenmaxxing/core/desks.ts";
 import { PET_VARIANTS, wearPet } from "@tokenmaxxing/core/pets.ts";
@@ -27,8 +29,8 @@ export type Purchase =
   | { kind: "variant"; pet: number; variant: number }
   /** Nothing to pay: free from the start (the creator's parts, the plain decor, the laptop). */
   | { kind: "free" }
-  /** Never sold: a level reward, raid loot, the traveling merchant's cart. */
-  | { kind: "unsold"; why: "level" | "loot" | "edition" | "earned" }
+  /** Never sold: a level reward, raid loot, the traveling merchant's cart; or a holiday costume out of season. */
+  | { kind: "unsold"; why: "level" | "loot" | "edition" | "earned" | "season" }
   | { kind: "unknown" };
 
 const MERCH_ID = /^merch\.[1-9]\d{0,9}\.([a-z]+)$/;
@@ -56,7 +58,7 @@ const decorOf = (id: string) => {
   return d ? { kind, d } : null;
 };
 
-export function purchaseOf(id: string): Purchase {
+export function purchaseOf(id: string, now = Date.now()): Purchase {
   if (/^(style|skin|hair)\.\d+$/.test(id)) return { kind: "free" };
   const variant = petVariantOf(id);
   if (variant) return { kind: "variant", ...variant };
@@ -82,6 +84,7 @@ export function purchaseOf(id: string): Purchase {
   if (item.loot) return { kind: "unsold", why: "loot" };
   if (item.level !== undefined) return { kind: "unsold", why: "level" };
   if (item.earned) return { kind: "unsold", why: "earned" };
+  if (!onSale(item, now)) return { kind: "unsold", why: "season" };
   if (item.price === 0) return { kind: "free" };
   return { kind: "item", id };
 }

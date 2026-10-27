@@ -1,16 +1,23 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
+import { nextMilestone } from "@tokenmaxxing/core/stars.ts";
 import * as THREE from "three";
-import { lightsNow } from "../../game/sky.ts";
+import { seasonLookNow } from "../../game/seasons.ts";
+import { lightsNow, weatherNow, windPush } from "../../game/sky.ts";
+import { starCount } from "../../game/stars.ts";
 import { world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
 import { GateLive } from "../dungeon/gate3d.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { ExitMarkers } from "../rooms/exit-markers.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "../rooms/rooms.ts";
+import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
+import { FallingLeaves } from "./leaves3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
+import { Pumpkins } from "./pumpkins3d.ts";
 import { TownEvents } from "./town-events.ts";
 import { buildTown3d, type Town3d } from "./town3d.ts";
+import { Truck3d } from "./truck3d.ts";
 
 /** The picture height the town starts at: the square and a few houses. */
 const TOWN_VIEW = 12;
@@ -18,12 +25,13 @@ const TOWN_VIEW = 12;
 /**
  * The town, from `buildTown3d` (so its tiles are the 2D game's): houses for the real companies,
  * the Tavern, the pond, the boards. The street's schedules (the pølsevogn, the snail, the paperboy) follow
- * the game's clock.
+ * the game's clock, and the windmill turns with its weather.
  */
 export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const built = withTicks(() => buildTown3d([...ctx.companies], { arcade: false }));
   const town: Town3d = built.value;
   town.setClock(ctx.minutes);
+  town.setWeather(weatherNow);
   const [W, D] = town.size;
   const events = new TownEvents((tx, ty) => town.toWorld(tx, ty));
   const group = new THREE.Group();
@@ -54,6 +62,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const games = new GamesLayer((tx, ty) => town.toWorld(tx, ty));
   if (gateLive) group.add(gateLive.group);
   group.add(games.group);
+  const leaves = new FallingLeaves(town.canopies);
+  group.add(leaves.group);
+  const wind = new THREE.Vector2();
   // The leaderboard on the square shows today's top five, as the HUD's mini board has them.
   let board: ReturnType<typeof hud.get>["board"] | null = null;
   const showBoard = () => {
@@ -65,8 +76,27 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
         .map((r) => ({ name: r.name, value: compact(r.tokens) })),
     );
   };
+  // The star counter shows the repo's GitHub stars, and the milestone they're heading for.
+  let stars: number | null | undefined;
+  const showStars = () => {
+    const { count } = hud.get().stars;
+    if (count === stars) return;
+    stars = count;
+    town.boards.stars.show(
+      starCount(count),
+      count === null ? "Press E to star it" : `Next: ${nextMilestone(count).toLocaleString("en-US")}`,
+    );
+  };
+  const fireworks = new Fireworks3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(fireworks.group);
   const markers = new ExitMarkers(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(markers.group);
+  // Halloween's jack-o'-lanterns, on the doorsteps: hidden the rest of the year.
+  const pumpkins = new Pumpkins(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  group.add(pumpkins.group);
+  // J-dag's truck, on the road under the square on the first Friday night of November.
+  const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(truck.group);
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
@@ -99,16 +129,24 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
         (entry.window.material as THREE.MeshBasicMaterial).color.set(active ? "#ffd98a" : "#354656");
       }
       showBoard();
+      showStars();
+      fireworks.update();
       markers.update(f.me, f.t);
+      pumpkins.update(f.now);
+      truck.update();
       events.update(f);
+      const [x, z] = f.me ?? [W / 2, D / 2];
+      wind.set(windPush(weatherNow()) * 2.5, 0);
+      leaves.update(f.dt, f.t, seasonLookNow().look.falling, f.density, wind, x, z);
     },
     onToss: (tx, ty) => events.toss(tx, ty),
     leave: () => events.leave(),
     signs,
-    liveSigns: () => [...(gateLive?.signs() ?? []), ...games.signs()],
+    liveSigns: () => [...truck.signs(), ...(gateLive?.signs() ?? []), ...games.signs()],
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();
+      fireworks.dispose();
       events.dispose();
       games.dispose();
       gateLive?.dispose();

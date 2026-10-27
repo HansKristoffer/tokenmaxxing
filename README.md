@@ -10,9 +10,18 @@ AI earns **coins**, and so does finishing a day in the top 3; spend them on clot
 pets that follow you around (hold a pet and pick any of its colours and breeds with the eye in your bag; they curl up asleep in the pet bed of your office while you're in it). Or play for them: challenge someone to a game in the town square, from
 rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
 the most real tokens in an hour.
-The town has Aarhus's real **sky and weather**: the sun, the moon, rain, snow and fog as thick as it really is; when it's
-cold people's breath shows, the town's regulars put on scarves and the pond freezes over, and on high-pollen days people sneeze.
-The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches.
+The town lives on Aarhus's clock: the real sun and moon, the weather, and the **seasons**. Blossom in spring, full green and light nights in summer,
+leaves turning and falling in autumn, bare branches in winter, changing a little every few days.
+A **star counter** on the square shows the project's GitHub stars, live; press E at it (or open the menu) to
+star the repo, and every milestone (100, 250, 500, 1000…) sets off fireworks over the square for everyone online.
+The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, world clocks for San Francisco, New York and Copenhagen (SF's lamp lights up in US working hours, when model launches tend to land), and stairs down to a basement net cafe with arcade cabinets and a live screen of matches. When a big AI launch event is live (OpenAI DevDay, Google I/O, an Anthropic event), the Tavern throws a **keynote watch party**: a projector screen comes down by the stage with the livestream's link, the town's characters gather to cheer, and dropping in earns a badge. A poster and the barkeep announce it a week ahead; the events are scheduled on the admin page.
+The town has Aarhus's real **sky and weather**: rain, snow and fog as thick as it really is; when it's cold
+people's breath shows, the town's regulars put on scarves and the pond freezes over, and on high-pollen days people sneeze.
+The **windmill** beside the Tavern turns with the real wind: still in calm air, faster as it blows (up to a cap in a storm), its sails turned into it.
+The town keeps the Danish calendar: for the week up to **Halloween** a jack-o'-lantern sits on every doorstep and a
+few by the pond, lit after dark, and for two weeks round it the Clothes shop sells a Jack-o'-lantern hat (worn all year once bought).
+On **J-dag** (the first Friday of November) the Nissebryg truck drives in at 20:59 and parks under the square till 03:00,
+and all weekend the Tavern's tap pours Nissebryg, the julebryg, on the house.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.
@@ -86,6 +95,9 @@ data is sent anywhere for this.
 cloud, rain) every 15 minutes and for its pollen count ([air-quality API](https://open-meteo.com/en/docs/air-quality-api))
 every hour, once for the whole world. Only the town's coordinates are sent.
 
+**GitHub stars.** The server reads this repo's star count from GitHub's public API four times an hour, for the
+star counter on the square. Nothing about players is sent.
+
 ## The stats
 
 - **Tokens:** input + output + cache writes + cache reads.
@@ -103,6 +115,12 @@ every hour, once for the whole world. Only the town's coordinates are sent.
   (15B) and a mansion with a tower (40B). A big team of light users stays in the basement.
 - **Coins:** from the day you sign up, every day pays `√(tokens ÷ 1M)`: 100M tokens is 10 coins, 1B is 31. A heavy day earns more,
   but not wildly more. Finishing a day 1st, 2nd or 3rd adds 25, 15 or 10.
+- **Green hours:** the town reads west Denmark's power grid (price area DK1, from Energinet's free
+  [Energi Data Service](https://www.energidataservice.dk)). An hour is green when the hour before it ran at
+  75 g CO₂/kWh or less (about a third of hours); a banner says so, and tokens burned in it pay a quarter of
+  what they'd pay as a day of their own on top (`¼ √(tokens ÷ 1M)`: 100M green tokens is 2 coins). The price
+  board on the square's north-east lamp post shows the power price, and when it's in the day's dearest
+  quarter (and over 1 kr/kWh) the street lamps burn dimmer.
 - **Quests:** three a day, worth 1, 2 and 3 coins, picked for you and scaled to your own last 30 days (at most 6 a day), plus a weekly one for 15. Some are errands in town. Badges have bronze, silver and gold tiers, and some a diamond; the town hears of the golds and diamonds.
 - **The raid:** from the first Monday after launch, every Monday at 08:00 a ladder of five bosses opens in the Raid Dungeon, down the gate in the square,
   easiest first, five in all. Clear all five and the ladder rests until next Monday, when it comes back one level up (The Rate Limit II…) and 10% tougher; fall short and next Monday it starts again at the same level. Every token you sync hits the one up now, no cap, and
@@ -257,7 +275,12 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `HEALTH_INTERVAL_MS` | `30000` | Time between probes |
 | `HEALTH_TIMEOUT_MS` | `20000` | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine |
 | `SKY_WEATHER` | | Dev and screenshots: pins the weather and fetches none. `clear`, `cloudy`, `fog`, `drizzle`, `rain`, `storm`, `snow`, `frost` (freezing: ice, breath, scarves) or `pollen` (sneezes). `?weather=` in the page does the same for one browser |
+| `GRID_FEED` | | `off` stops reading the power grid: no green hours (so no bonus), no price board and lamps at full |
+| `GITHUB_TOKEN` | | Sent with the star counter's GitHub reads (a higher rate limit; no scopes needed). Without it, they go unauthenticated: 4 an hour, well inside GitHub's 60 |
+| `GITHUB_STARS` | | Dev and testing: `480` pins the star count instead of reading GitHub (pin it past a milestone and restart for the fireworks); `off` reads nothing |
 | `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
+| `SKY_WEATHER` | | Dev and screenshots only: pins the weather for everyone (`clear`, `cloudy`, `fog`, `drizzle`, `rain`, `storm`, `snow`); nothing is fetched. `?weather=rain` does it for one page |
+| `SKY_SEASON` | | Dev and screenshots only: pins the town's season for everyone (`spring`, `summer`, `autumn`, `winter`, or a date like `11-12`). `?season=autumn` does it for one page |
 | `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
 
 `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` are read by RivetKit's native side, so they must be set in

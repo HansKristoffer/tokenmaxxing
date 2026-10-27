@@ -23,6 +23,26 @@ for (const room of Object.keys(BUDGETS.high)) {
   });
 }
 
+test("the town stays inside its budget all year round: in leaf, turning, in blossom and bare", async () => {
+  const { hud } = await import("../src/store.ts");
+  const { pinnedDay } = await import("@tokenmaxxing/core/seasons.ts");
+  const b = budgetFor("town");
+  try {
+    for (const pin of ["summer", "10-10", "autumn", "winter", "spring"]) {
+      hud.set({ seasonDay: pinnedDay(pin) });
+      // A fresh world, so the town is built for the pinned day.
+      (globalThis as { __perfWorld?: unknown }).__perfWorld = undefined;
+      const s = h.measureRoom("town");
+      expect(s.drawCalls).toBeLessThanOrEqual(b.drawCalls);
+      expect(s.triangles).toBeLessThanOrEqual(b.triangles);
+      expect(s.materials).toBeLessThanOrEqual(b.materials);
+    }
+  } finally {
+    hud.set({ seasonDay: null });
+    (globalThis as { __perfWorld?: unknown }).__perfWorld = undefined;
+  }
+}, 60_000);
+
 test("a chamfered box is 44 triangles with unit normals", async () => {
   const { chamferBox } = await import("../src/render3d/kit/kit.ts");
   const g = chamferBox(1, 2, 3, 0.03);

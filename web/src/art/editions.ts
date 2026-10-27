@@ -1,3 +1,4 @@
+import { costumeAt } from "@tokenmaxxing/core/costumes.ts";
 import { editionAt } from "@tokenmaxxing/core/editions.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
@@ -6,8 +7,8 @@ import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
 
 /**
- * Merchant editions (`core/src/editions.ts`), drawn like the shop's hats and glasses in
- * `characters.ts`: hats over the head from row 0, glasses over the eyes from row 5. A grid per view;
+ * Merchant editions (`core/src/editions.ts`) and holiday costumes (`core/src/costumes.ts`), drawn like the
+ * shop's hats and glasses in `characters.ts`: hats over the head from row 0, glasses over the eyes from row 5. A grid per view;
  * a missing side or back view is the front one. Keyed by item id, so the catalog order is free.
  */
 
@@ -102,6 +103,14 @@ const HATS: Record<string, Art> = {
     up: ["................", "....oooooooo....", "...offffffffo...", "..oFFFFFFFFFFo..", "..oFo......oFo..", "..oFo......oFo..", "...o........o..."],
     pal: { o, f: "#6b4a34", F: "#c9a27a", r: "#c8102e", w: "#fbf7ef" },
   },
+  // Holiday costumes (`core/src/costumes.ts`), drawn the same way.
+  // Jack-o'-lantern: a carved pumpkin over the hair, its eyes and grin lit, a green stem on top.
+  "hat.200": {
+    down: [".......gG.......", "....oooooooo....", "...opPppppPpo...", "...opYpPPpYpo...", "...oPpYYYYpPo...", "....oooooooo...."],
+    side: [".......gG.......", "....oooooooo....", "...opPpppPppo...", "...opPpppPYpo...", "...opPppPYYpo...", "....oooooooo...."],
+    up: [".......Gg.......", "....oooooooo....", "...opPppppPpo...", "...oPpPppPpPo...", "...opPppppPpo...", "....oooooooo...."],
+    pal: { o, p: "#e8772a", P: "#c25a1c", Y: "#ffd04a", g: "#5a8a2a", G: "#3f6b1f" },
+  },
 };
 
 // Pixel art reads as a grid.
@@ -145,11 +154,11 @@ const GLASSES: Record<string, Art> = {
 };
 
 const artOf = (slot: "hat" | "glasses", index: number): Art | undefined => {
-  const e = editionAt(slot, index);
+  const e = editionAt(slot, index) ?? costumeAt(slot, index);
   return e && (slot === "hat" ? HATS : GLASSES)[e.id];
 };
 
-/** Draws `look`'s editions over a character frame (`characterFrame`, `sleeperFrame`). */
+/** Draws `look`'s editions and costume over a character frame (`characterFrame`, `sleeperFrame`). */
 export function drawEditions(p: Pen, look: Look, view: View, flip = false, oy = 0): void {
   const glasses = artOf("glasses", look.glasses);
   if (glasses && view !== "up") p.grid(glasses[view] ?? glasses.down, glasses.pal, 0, 5 + oy, flip);

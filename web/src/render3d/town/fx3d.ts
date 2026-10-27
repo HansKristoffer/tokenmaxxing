@@ -10,6 +10,7 @@ import { CALM, fogOf, iceOver, type Light, moonPhase, type Weather } from "@toke
 import * as THREE from "three";
 import { addPatch } from "../kit/patches.ts";
 import { ICE } from "./cold3d.ts";
+import { setStreetLampDim } from "./props.ts";
 
 export { FX_ASSETS } from "./fx3d-town.ts";
 
@@ -39,6 +40,8 @@ export interface FxOptions {
   weather: () => Weather;
   /** The sun's light at a time (the game's, over Copenhagen). */
   light: (ms: number) => Light;
+  /** How bright the street lamps burn, 0..1 (dimmed while power is expensive: `game/grid.ts`). */
+  lampDim?: () => number;
 }
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -297,7 +300,9 @@ export class Fx {
   private shown: Weather = { ...this.weather };
   /** 0..1 how thick the fog is, eased (`fogOf`). */
   private fog = 0;
-  private light = { dark: 0, warm: 0, glow: 0 };
+  private light = { dark: 0, warm: 0, glow: 0, dim: 1 };
+  /** The street lamps' dimmer, eased toward `lampDim` so they fade rather than blink. */
+  private dim = 1;
   private lit = { dark: 0, warm: 0, glow: 0 };
   private nightOn = false;
   private lightsAt = -9;
@@ -452,6 +457,7 @@ export class Fx {
       this.nightOn = false;
       this.host.applyNight(false);
     }
+    this.dim = lerp(this.dim, this.opts.lampDim?.() ?? 1, Math.min(1, dt * 0.8));
     this.applyPointLights(glow, t);
 
     // The dome.
@@ -566,8 +572,16 @@ export class Fx {
 
   /** Lamps shine in proportion to how dim it is: smoothly, not on and off. */
   private applyPointLights(glow: number, t: number): void {
-    if (Math.abs(glow - this.light.glow) < 0.004 && t - this.lightsAt < 1.5) return;
+    const dim = this.dim;
+    if (
+      Math.abs(glow - this.light.glow) < 0.004 &&
+      Math.abs(dim - this.light.dim) < 0.004 &&
+      t - this.lightsAt < 1.5
+    )
+      return;
     this.light.glow = glow;
+    this.light.dim = dim;
+    setStreetLampDim(dim);
     const refresh = t - this.lightsAt > 1.5;
     if (refresh) this.lightsAt = t;
     for (const s of this.host.stages) {
@@ -579,7 +593,7 @@ export class Fx {
         });
         this.pointLights.set(s.name, list);
       }
-      for (const p of list) p.intensity = (p.userData.night as number) * glow;
+      for (const p of list) p.intensity = (p.userData.night as number) * glow * (p.userData.street ? dim : 1);
     }
   }
 

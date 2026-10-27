@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fetchPollen, fetchWeather, pinnedWeather } from "../src/weather.ts";
+import { fetchPollen, fetchWeather, pinnedSeason, pinnedWeather } from "../src/weather.ts";
 
 const reply = (body: unknown, ok = true) =>
   (async () => ({ ok, json: async () => body })) as unknown as typeof fetch;
@@ -59,5 +59,12 @@ describe("weather", () => {
     expect(pinnedWeather({ SKY_WEATHER: "pollen" })?.pollen).toBeGreaterThanOrEqual(1);
     expect(pinnedWeather({})).toBeNull();
     expect(pinnedWeather({ SKY_WEATHER: "nope" })).toBeNull();
+  });
+
+  test("SKY_SEASON pins the town's season, by name or date", () => {
+    expect(pinnedSeason({ SKY_SEASON: "autumn" })).toBe(pinnedSeason({ SKY_SEASON: "10-27" }));
+    expect(pinnedSeason({ SKY_SEASON: "01-01" })).toBe(0);
+    expect(pinnedSeason({})).toBeNull();
+    expect(pinnedSeason({ SKY_SEASON: "monsoon" })).toBeNull();
   });
 });
