@@ -28,8 +28,11 @@ const page = (rows: unknown[], total = rows.length) =>
     usageEventsDisplay: rows,
     totalUsageEventsCount: total,
   });
-const fetcher = (fn: (input: string | URL | Request, init?: RequestInit) => Promise<Response>) =>
-  fn as typeof fetch;
+type Handler = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+/** A personal account: it belongs to no team. */
+const fetcher = (fn: Handler) =>
+  (async (input, init) =>
+    String(input).endsWith("/teams") ? Response.json({ teams: [] }) : fn(input, init)) as typeof fetch;
 
 describe("Cursor sync checkpoint", () => {
   const enabled = new Set<Source>(["cursor_local"]);
