@@ -6,6 +6,7 @@ import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { defaultLook } from "@tokenmaxxing/core/world.ts";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CASE_BOX_SIZE, caseBoxSprite } from "../art/case-box.ts";
+import { ravenPointer } from "../art/case-ragnarok-box.ts";
 import { errorText } from "../errors.ts";
 import { audio, tone } from "../game/jukebox.ts";
 import { hud, useHud } from "../store.ts";
@@ -30,8 +31,15 @@ export const PLACEHOLDER_ODDS: Record<Rarity, number> = {
 export const PLACEHOLDER_KEY_PRICE = 250;
 /* ============================================================================ */
 
-/** The case's name. */
+/** The case's name, when none is given (the dev preview). */
 const CASE_NAME = "Night Market Case";
+
+/** What a case looks like on its opening screen: the emoji in its title, and the strip's own colours (case.css, `data-case`). */
+const THEME: Record<string, { emoji: string }> = {
+  "night-market": { emoji: "🏮" },
+  "ragnarok-eve": { emoji: "❄️" },
+};
+const themeOf = (def?: CaseDef) => THEME[def?.id ?? "night-market"] ?? THEME["night-market"]!;
 
 /** Every item the case holds: wearables, pets and the six furniture pieces, as shop `Item`s. */
 export const CASE_POOL: readonly Item[] = [
@@ -110,7 +118,7 @@ const reducedMotion = (): boolean =>
 const slotLabel = (i: Item): string => (i.slot === "furniture" ? "furniture" : i.slot);
 
 /** The case, drawn from its pixel art: lid down, then lid up while it opens (`art/case-box.ts`). */
-export function CaseArt({ opening }: { opening: boolean }) {
+export function CaseArt({ opening, caseId }: { opening: boolean; caseId?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const ctx = ref.current?.getContext("2d");
@@ -119,8 +127,8 @@ export function CaseArt({ opening }: { opening: boolean }) {
     const { w, h } = CASE_BOX_SIZE[kind];
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, ref.current!.width, ref.current!.height);
-    ctx.drawImage(caseBoxSprite(kind, 0), 0, 0, w * 3, h * 3);
-  }, [opening]);
+    ctx.drawImage(caseBoxSprite(kind, 0, caseId), 0, 0, w * 3, h * 3);
+  }, [opening, caseId]);
   return (
     <span aria-hidden="true" className="cs-box-wrap">
       <canvas ref={ref} width={72} height={84} className="cs-box-art" />
@@ -280,9 +288,9 @@ export function CaseOpening({
   const won = phase === "reveal" ? run?.winner : undefined;
 
   return (
-    <Modal title={`🏮 ${def?.name ?? CASE_NAME}`} wide="xl">
+    <Modal title={`${themeOf(def).emoji} ${def?.name ?? CASE_NAME}`} wide="xl">
       <div className="cs-top">
-        <CaseArt opening={busy} />
+        <CaseArt opening={busy} caseId={def?.id} />
         <div className="cs-info">
           <p>A key opens it. Everything inside is cosmetic, tradeable and found nowhere else.</p>
           {!preview && wallet && (
@@ -304,7 +312,7 @@ export function CaseOpening({
         </div>
       </div>
 
-      <div className={`cs-roulette${busy ? " live" : ""}`} ref={viewport}>
+      <div className={`cs-roulette${busy ? " live" : ""}`} data-case={def?.id} ref={viewport}>
         <ul className="cs-strip" ref={strip} data-speed="slow" aria-hidden={busy}>
           {(shown ?? idle).map((it, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: the strip is positional; a winner repeats items
@@ -312,6 +320,7 @@ export function CaseOpening({
           ))}
         </ul>
         <span className="cs-marker" aria-hidden="true" />
+        {def?.id === "ragnarok-eve" && <RavenPointer />}
         <span className="cs-fade l" />
         <span className="cs-fade r" />
       </div>
@@ -359,6 +368,25 @@ export function CaseOpening({
       </div>
       {preview && <PlayerHint />}
     </Modal>
+  );
+}
+
+/** Ragnarok Eve's pointer: a raven perched on the marker, hopping with the strip while it spins (case.css). */
+function RavenPointer() {
+  return (
+    <span aria-hidden="true" className="cs-raven-wrap">
+      <canvas
+        className="cs-raven"
+        width={6}
+        height={6}
+        ref={(c) => {
+          const g = c?.getContext("2d");
+          if (!g) return;
+          g.clearRect(0, 0, 6, 6);
+          g.drawImage(ravenPointer(), 0, 0);
+        }}
+      />
+    </span>
   );
 }
 

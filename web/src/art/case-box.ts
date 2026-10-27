@@ -2,7 +2,7 @@
  * The Night Market case and its key in 2D pixel art (a lacquered plum-to-crimson crate with a lantern emblem,
  * gold straps and a hanging tag; and a gold market coin with a square hole on a red tassel).
  *
- *   caseBoxSprite("closed")    // 24x28 canvas: the case, lid down
+ *   caseBoxSprite("closed")    // 24x28 canvas: the case, lid down (a third argument, the case id, picks another case's)
  *   caseBoxSprite("open", f)   // 24x28 canvas: lid up, warm light spilling out; f = 0 | 1 (sparkles shift)
  *   caseBoxSprite("key")       // 16x24 canvas: the market token
  *   CASE_BOX_SIZE[kind]        // { w, h } of each, in art pixels (draw scaled with imageSmoothingEnabled = false)
@@ -11,6 +11,7 @@
  * baseline, so swapping them in place makes the lid pop open. `CASE_BOX_FRAMES` is how many frames animate.
  */
 
+import { drawRagnarokBox } from "./case-ragnarok-box.ts";
 import { C } from "./palette.ts";
 import { bake } from "./pixels.ts";
 
@@ -213,15 +214,28 @@ function drawKey(p: import("./pixels.ts").Pen): void {
 
 const cache = new Map<string, HTMLCanvasElement>();
 
-/** The sprite for `kind` (frame 0 or 1; only the open case animates). Cached: do not draw into it. */
-export function caseBoxSprite(kind: CaseBoxKind, frame = 0): HTMLCanvasElement {
+/** A case's own box and key, by case id (`core/src/cases.ts`); a case without one draws as the Night Market's. */
+const OTHER_CASES: Record<string, (p: import("./pixels.ts").Pen, kind: CaseBoxKind, frame: number) => void> =
+  {
+    "ragnarok-eve": drawRagnarokBox,
+  };
+
+/** The sprite for `kind` (frame 0 or 1; only the open case animates) of case `caseId`. Cached: do not draw into it. */
+export function caseBoxSprite(kind: CaseBoxKind, frame = 0, caseId = "night-market"): HTMLCanvasElement {
   const f = kind === "open" ? frame % 2 : 0;
-  const k = `${kind}${f}`;
+  const draw = OTHER_CASES[caseId];
+  const k = `${draw ? caseId : ""}${kind}${f}`;
   let c = cache.get(k);
   if (!c) {
     const { w, h } = CASE_BOX_SIZE[kind];
     c = bake(w, h, (p) =>
-      kind === "closed" ? drawClosed(p) : kind === "open" ? drawOpen(p, f) : drawKey(p),
+      draw
+        ? draw(p, kind, f)
+        : kind === "closed"
+          ? drawClosed(p)
+          : kind === "open"
+            ? drawOpen(p, f)
+            : drawKey(p),
     );
     cache.set(k, c);
   }

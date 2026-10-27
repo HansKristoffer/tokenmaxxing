@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { ALL_CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import { DECORS } from "@tokenmaxxing/core/decor.ts";
 import { DESKS } from "@tokenmaxxing/core/desks.ts";
 import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
@@ -65,6 +66,17 @@ test("every piece has a 2D sprite and a 3D asset (the placer never needs its box
       meshesOf(() => asset!.build()),
       `3D model of ${p.name}`,
     ).toBeGreaterThan(0);
+  }
+});
+
+test("every case piece, of every case, has a 2D sprite (objectAt would throw without one)", () => {
+  expect(ALL_CASE_PIECES.length).toBeGreaterThanOrEqual(12);
+  for (const p of ALL_CASE_PIECES) {
+    const map = new GameMap("office" as never, "t", [`.${p.ch.repeat(p.w ?? 1)}.`]);
+    expect(objectAt(map, 1, 0), `2D sprite for ${p.name}`).not.toBeNull();
+    const f = fancyPiece(p.art);
+    expect(f, `art "${p.art}" for ${p.name}`).toBeDefined();
+    expect(f!.w, `${p.name}: 2D width`).toBe(p.w ?? 1);
   }
 });
 

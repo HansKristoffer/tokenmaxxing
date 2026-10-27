@@ -1,5 +1,7 @@
 import { CASE_BASE } from "@tokenmaxxing/core/case.ts";
+import { RAGNAROK_BASE } from "@tokenmaxxing/core/case-ragnarok.ts";
 import { CASE_PETS } from "./case-pets.ts";
+import { RAGNAROK_PETS } from "./case-ragnarok-pets.ts";
 import { LOOT_PETS } from "./loot.ts";
 import { C } from "./palette.ts";
 import type { Palette } from "./pixels.ts";
@@ -205,6 +207,10 @@ export const PETS: (Pet | null)[] = [
 // The Night Market case's pets live at `CASE_BASE` and up, far from the shop's and the loot's.
 CASE_PETS.forEach((pet, i) => {
   PETS[CASE_BASE + i] = pet;
+});
+// Every other case files its pets the same way, at its own base (Ragnarok Eve: 500 up).
+RAGNAROK_PETS.forEach((pet, i) => {
+  PETS[RAGNAROK_BASE + i] = pet;
 });
 
 export const PET_W = 12;

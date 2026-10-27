@@ -16,8 +16,8 @@ import { Modal, useRun } from "./ui.tsx";
 
 const LOOK = defaultLook(1);
 
-/** The case, drawn from its pixel art (`art/case-box.ts`), closed or open, scaled up. */
-function CaseSprite({ open, scale = 4 }: { open?: boolean; scale?: number }) {
+/** A case, drawn from its pixel art (`art/case-box.ts`, by case id), closed or open, scaled up. */
+function CaseSprite({ caseId, open, scale = 4 }: { caseId: string; open?: boolean; scale?: number }) {
   const kind = open ? "open" : "closed";
   const { w, h } = CASE_BOX_SIZE[kind];
   return (
@@ -31,7 +31,7 @@ function CaseSprite({ open, scale = 4 }: { open?: boolean; scale?: number }) {
           if (!g || !c) return;
           g.imageSmoothingEnabled = false;
           g.clearRect(0, 0, c.width, c.height);
-          g.drawImage(caseBoxSprite(kind, 0), 0, 0, w * scale, h * scale);
+          g.drawImage(caseBoxSprite(kind, 0, caseId), 0, 0, w * scale, h * scale);
         }}
       />
     </span>
@@ -175,7 +175,7 @@ function CaseCard({
   return (
     <li className="cshop-card">
       <div className="cshop-top">
-        <CaseSprite />
+        <CaseSprite caseId={def.id} />
         <div className="cshop-main">
           <h3>{def.name}</h3>
           <p className="muted">{def.blurb}</p>
