@@ -1652,6 +1652,8 @@ const RAID_TTL = 15_000;
 const HALL_TTL = 60_000;
 const COLLECTION_TTL = 60_000;
 const COLLECTION_MAX = 64;
+/** Collections made while the player's trophies couldn't be read: shown, but not kept or pruned by. */
+const withoutTrophies = new WeakSet<CollectionState>();
 
 /** `collectionOf` for a player, kept a minute (and until they sync or earn something). */
 function collectionFor(
@@ -1666,26 +1668,31 @@ function collectionFor(
   if (c.vars.collections.size >= COLLECTION_MAX) c.vars.collections.clear();
   const state = (async () => {
     const u = await userById(c.db, userId);
-    // Trophies are the player's own events, kept in their actor; a sleeping one just shows none yet.
+    // Trophies are the player's own events, kept in their actor; a sleeping or busy one just shows
+    // none yet.
     const trophies = await c
       .client()
       .player.get([String(u.id)], internal)
       .trophies()
-      .catch(() => []);
-    return collectionOf(c.db, userId, now, await kept(c, now), trophies);
+      .catch(() => null);
+    const state = await collectionOf(c.db, userId, now, await kept(c, now), trophies ?? []);
+    if (!trophies) withoutTrophies.add(state);
+    return state;
   })();
   const entry = { at: now, state };
   c.vars.collections.set(userId, entry);
-  // A failed one isn't kept.
-  state.catch(() => {
+  const forget = () => {
     if (c.vars.collections.get(userId) === entry) c.vars.collections.delete(userId);
-  });
+  };
+  // A failed one isn't kept, nor one without trophies: the next look asks again.
+  state.then((s) => withoutTrophies.has(s) && forget(), forget);
   return state;
 }
 
 /**
  * Someone's shelf as the card shows it. A pin that isn't theirs any more is left out, and its row goes;
- * if their collection can't be read the shelf is left alone and shown empty this once.
+ * if their collection can't be read the shelf is left alone and shown empty this once. Without their
+ * trophies, a pinned trophy is left out this once but its row stays.
  */
 async function shelfOf(
   c: Parameters<typeof collectionFor>[0] & { vars: { serial: ReturnType<typeof serial> } },
@@ -1696,7 +1703,7 @@ async function shelfOf(
   const state = await collectionFor(c, userId).catch(() => null);
   if (!state) return [];
   const views = resolvePins(state, pins);
-  if (views.length < pins.length)
+  if (views.length < pins.length && !withoutTrophies.has(state))
     await c.vars.serial(() =>
       c.db.transaction((tx) =>
         setPins(

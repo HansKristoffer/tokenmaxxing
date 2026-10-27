@@ -14,7 +14,13 @@ import { sha256 } from "../crypto.ts";
 import { reconcileCursorUsage } from "../cursor-usage.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { AGENT_BUCKET_MS } from "../stats.ts";
-import { trophiesOf, trophyCache } from "../trophies.ts";
+import {
+  backfillTrophies,
+  clearTrophies,
+  migrateTrophies,
+  trophiesOf,
+  trophyHoursChanged,
+} from "../trophies.ts";
 import { coalesceBattleUpdates, drainUsageReports, reportUsageDays } from "../usage-reports.ts";
 import { MAX_EVENTS_PER_REQUEST, parseEvent } from "../validate.ts";
 import type { registry } from "./registry.ts";
@@ -230,7 +236,8 @@ export const player = actor({
     /** Guesses at a short phone code: 10 a minute against 40 bits and at most 5 live codes. */
     phoneRedeems: new RateLimiter(10, 60_000),
     battleUpdate: coalesceBattleUpdates(),
-    trophies: trophyCache(),
+    /** Trophies keep to their own lock: working them out must never hold up a sync. */
+    trophyLock: serial(),
   }),
   db: db({ onMigrate: migrateEvents }),
   createConnState: (c, params: ConnParams): Caller => {
@@ -249,6 +256,7 @@ export const player = actor({
       try {
         await c.keepAwake(cleanExcludedEvents(c.db, signal));
         await c.keepAwake(requeueEveryDay(c.db, signal));
+        await c.keepAwake(backfillTrophies(c.db, c.vars.trophyLock, signal));
         await c.keepAwake(
           drainUsageReports(c.db, c.vars.serial, signal, (days) => {
             signal.throwIfAborted();
@@ -386,7 +394,7 @@ export const player = actor({
         const days = (await c.db.execute("SELECT DISTINCT day FROM events")) as { day: string }[];
         await c.db.execute("DELETE FROM events");
         await c.db.execute("DELETE FROM pending_usage_days");
-        c.vars.trophies = trophyCache();
+        await c.vars.trophyLock(() => clearTrophies(c.db));
         return days.map((d) => d.day);
       });
     },
@@ -411,7 +419,7 @@ export const player = actor({
     /** For `town`: the trophies on my office shelf. */
     trophies: (c): Promise<Trophy[]> => {
       requireInternal(c.conn.state);
-      return c.vars.serial(() => trophiesOf(c.db, c.vars.trophies, Date.now()));
+      return c.vars.trophyLock(() => trophiesOf(c.db, Date.now()));
     },
 
     /** A usage game's score (Tokenmaxxing). */
@@ -443,7 +451,7 @@ export const player = actor({
         const inserted = await c.db.transaction(
           async (tx) => {
             let inserted = 0;
-            const reconciled = await reconcileCursorUsage(tx, valid);
+            const { events: reconciled, deletedAt } = await reconcileCursorUsage(tx, valid);
             for (const chunk of chunkArray(reconciled, INSERT_CHUNK)) {
               const row = `(${COLUMNS.map(() => "?").join(",")})`;
               const rows = await tx.execute(
@@ -489,6 +497,7 @@ export const player = actor({
             // failed to report them. Keeping this with the inserts survives crashes and partial sends.
             for (const day of days)
               await tx.execute("INSERT OR IGNORE INTO pending_usage_days VALUES (?)", day);
+            await trophyHoursChanged(tx, [...valid.map((e) => e.timestamp), ...deletedAt]);
             return inserted;
           },
           { name: "ingest-events" },
@@ -570,6 +579,7 @@ export async function migrateEvents(d: Sql): Promise<void> {
   // `requeueEveryDay`), by event id.
   await d.execute("CREATE TABLE IF NOT EXISTS excluded_cleanup (last_id INTEGER NOT NULL)");
   await d.execute("CREATE TABLE IF NOT EXISTS requeue_cursor (last_id INTEGER NOT NULL)");
+  await migrateTrophies(d);
 }
 
 /** Events per batch of `cleanExcludedEvents`: each is a short scan, so the actor stays responsive. */
@@ -605,6 +615,11 @@ export async function cleanExcludedEvents(d: Sql, signal?: AbortSignal): Promise
     // Re-running a batch after a crash is harmless: the days are queued again and nothing is left to delete.
     await d.execute(
       `INSERT OR IGNORE INTO pending_usage_days SELECT DISTINCT day FROM events WHERE ${match}`,
+      from,
+      to,
+    );
+    await d.execute(
+      `INSERT OR IGNORE INTO trophy_dirty SELECT DISTINCT timestamp / 3600000 FROM events WHERE ${match}`,
       from,
       to,
     );
