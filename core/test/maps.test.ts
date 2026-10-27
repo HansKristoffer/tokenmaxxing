@@ -78,7 +78,7 @@ describe("maps", () => {
 
   test("town: you can build on any empty block next to it, nearest the square first", () => {
     const first = frontier([]);
-    expect(first).toHaveLength(7); // around the 2×2 core, less the block Natmarked stands on
+    expect(first).toHaveLength(6); // around the 2×2 core, less the blocks Natmarked and Torvehallen stand on
     expect(first).not.toContain(plotId(0, 0));
     const next = frontier([plotId(2, 0)]);
     expect(next).toContain(plotId(3, 0));

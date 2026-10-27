@@ -25,7 +25,8 @@ export type MapId =
   | "shop-clothes"
   | "shop-barber"
   | "shop-pets"
-  | "shop-natmarked";
+  | "shop-natmarked"
+  | "shop-market";
 export type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 interface TileKind {
@@ -159,6 +160,7 @@ export const LEGEND: Record<string, TileKind> = {
   Ð: { name: "barber shop door", portal: true },
   ð: { name: "pet shop door", portal: true },
   Ñ: { name: "night market door", portal: true },
+  Ƭ: { name: "market hall door", portal: true },
   Ħ: { name: "shop front", text: "A shop front. The door is open: come on in." },
   // Inside them: the counter, each shop's displays and the fixtures that are only to look at.
   "¢": { name: "shop counter", counter: true, text: "The counter. Press E to browse the shop." },
@@ -178,6 +180,11 @@ export const LEGEND: Record<string, TileKind> = {
     name: "lantern shelf",
     shop: "natmarked",
     text: "A glowing shelf of lacquer and paper. Press E to see the cases.",
+  },
+  Ƙ: {
+    name: "display",
+    shop: "market",
+    text: "A glass case. Press E to see what's on it, or to put something of yours there.",
   },
   "‡": { name: "fixture", text: "Part of the shop's fittings." },
   x: { name: "exit", portal: true },
@@ -428,6 +435,9 @@ export const SHOP_BLOCKS: Record<ShopId, [number, number]> = {
   barber: [-1, 2],
   pets: [2, 2],
   natmarked: [2, 0],
+  // East of the square beside Natmarked. A company can hold it from before the hall: it then takes the
+  // nearest free block (`shopBlocks`), at the edge of the town if the town is full.
+  market: [2, 1],
 };
 
 /** A shop's block: a lawn, its 5×4 front with the door in the middle of the bottom row, and the path down to the road. */
@@ -769,6 +779,7 @@ export const MAPS: Record<MapId, GameMap> = {
     wall: "natmarked",
     floor: "natmarked",
   }),
+  "shop-market": new GameMap("shop-market", SHOPS.market.name, SHOPS.market.rows),
   // The raid: the boss on its dais, and arcs of war desks facing it. Whoever has agents running is drawn
   // at one (web/src/game/raid.ts); the desks and seats are props, so visitors walk the aisles.
   dungeon: new GameMap("dungeon", "Raid Dungeon", [

@@ -5,13 +5,26 @@
  */
 import { type Rarity, rarityOf } from "./rarity.ts";
 import { isTradeable, itemById } from "./shop.ts";
+import { SHOPS } from "./shoprooms.ts";
+
+/** The hall's display tiles, in slot order: a slot is its tile's place in the plan, row by row (`shoprooms.ts`). */
+const SLOT_TILES: readonly (readonly [number, number])[] = SHOPS.market.displays.map(([x, y]) => [x, y]);
 
 /**
  * Display slots in the hall: one per case or shelf tile, first come first served. A slot is free again the
  * moment its item sells, is taken back or runs out (`MARKET_TTL`).
- * ponytail: the hall's plan (`maps.ts`) has to have this many; raise both together if the shelves fill.
+ * ponytail: more shelves are more tiles in `MARKET_ROWS`; nothing else changes.
  */
-export const MARKET_SLOTS = 40;
+export const MARKET_SLOTS = SLOT_TILES.length;
+
+/** The tile of a slot in the hall's map. */
+export const slotTile = (slot: number): readonly [number, number] | undefined => SLOT_TILES[slot];
+
+/** The slot at a tile of the hall's map, or null if the tile isn't a display. */
+export const slotAt = (x: number, y: number): number | null => {
+  const i = SLOT_TILES.findIndex(([sx, sy]) => sx === x && sy === y);
+  return i < 0 ? null : i;
+};
 
 /**
  * How many things you may have on display at once, by level. Levels come from lifetime tokens, so this is
