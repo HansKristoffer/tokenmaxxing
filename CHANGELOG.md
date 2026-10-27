@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.11.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.10.0...v1.11.0) (2026-10-27)
+
+
+### Features
+
+* **3d:** desks wear the monitors of whoever sits at them, and raiders' war desks wear theirs ([3816910](https://github.com/HansKristoffer/tokenmaxxing/commit/3816910abd53407fb7e656cc94ea4f412de4d650))
+* **hud:** the camera frames the player below the middle of the free area; the chat fades, folds and counts; a menu button ([e41e326](https://github.com/HansKristoffer/tokenmaxxing/commit/e41e32690f2753c4580fdb9cdad95a73b209a86d))
+* **music:** 8-bit themes for the town, houses, offices, Tavern and raid dungeon ([5be9b14](https://github.com/HansKristoffer/tokenmaxxing/commit/5be9b14d1f05b085bd9f206955cd9580b1c6b9d9))
+* **poker:** a game of its own: 50-coin buy-in, 1/2 blinds, clear chairs, and a Join from anywhere ([2ed5467](https://github.com/HansKristoffer/tokenmaxxing/commit/2ed5467957cf2177ce85db60c6dbd0dea70ab2b9))
+* **raid:** five bosses, levels and The Invoice, and your own seat in the dungeon ([3a535af](https://github.com/HansKristoffer/tokenmaxxing/commit/3a535afeecf1fbbbfa8c850ee00487c6b7b116ef))
+* Tavern request pile, poker, 2D/3D parity, room music, camera and chat, raid levels, and a smoother 3D (no freeze going outside, walls, ring, stairs, flicker) ([40dddf6](https://github.com/HansKristoffer/tokenmaxxing/commit/40dddf63590e8e176232ee99cb21a49fe04236c9))
+* **town:** a launch stand when a new model ships ([834ef73](https://github.com/HansKristoffer/tokenmaxxing/commit/834ef7353f78e5690bc5ac1d0b16c67d71b715a1))
+* **town:** a launch stand when a new model ships ([5e78a94](https://github.com/HansKristoffer/tokenmaxxing/commit/5e78a9464198eb7a2f3387e23d8df82dfd9d3fe6))
+* **town:** the Tavern's request pile ([39d9ba1](https://github.com/HansKristoffer/tokenmaxxing/commit/39d9ba1ca2bdc214d4832f0e2210e0ac99650576))
+* **web:** show what's new after an update, and the changelog in the menu ([#99](https://github.com/HansKristoffer/tokenmaxxing/issues/99)) ([a8d0c58](https://github.com/HansKristoffer/tokenmaxxing/commit/a8d0c586d1669b77217124a42d84c62943c705cd))
+
+
+### Bug Fixes
+
+* **3d:** going out to town no longer freezes, walls no longer slide on entry, and the see-through ring no longer glitters ([3ce5c1c](https://github.com/HansKristoffer/tokenmaxxing/commit/3ce5c1cd243f78497c9dfe874e22d11c4002d04c))
+* **3d:** posters can be hung, and are drawn whole ([239db88](https://github.com/HansKristoffer/tokenmaxxing/commit/239db881e482b60ba86ace2afbede69f2c7062ff))
+* **3d:** surfaces that shared a plane no longer fight, across the doorways, beds, furniture, shops, town and dungeon ([71e7dd8](https://github.com/HansKristoffer/tokenmaxxing/commit/71e7dd86dfe7ce16b55ed94f5421f2e32c7a7b3b))
+* **3d:** take a person's pet away with them, so no ghost pet is left standing ([f57a5a7](https://github.com/HansKristoffer/tokenmaxxing/commit/f57a5a74454df054056739e4a0831fc88f705391))
+* **3d:** the lot's fence is the 2D one, on the 2D lot's lines ([0ba5cea](https://github.com/HansKristoffer/tokenmaxxing/commit/0ba5cea51124fc17f63ebe9ccf0fefefa12cdc83))
+* **3d:** the lounge stairs' doorway goes down with its wall, and their sides no longer fight ([55382da](https://github.com/HansKristoffer/tokenmaxxing/commit/55382dad270eee1f48356a34848cfe4b59f13e7b))
+* **ci:** format the launch stand with bun fmt, and don't let the day's quests skew two coin tests ([f7a7d79](https://github.com/HansKristoffer/tokenmaxxing/commit/f7a7d79bdf8b32b34eb4d83ee7ec3817b5596f73))
+* **release:** make macOS release reruns reliable ([9e68c10](https://github.com/HansKristoffer/tokenmaxxing/commit/9e68c10de7f5021788d14339a111289f9a46300f))
+* **release:** make macOS release reruns reliable ([f31f7e1](https://github.com/HansKristoffer/tokenmaxxing/commit/f31f7e1d393c360debc7c41180aa62e8159f5bbe))
+
 ## [1.10.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.9.0...v1.10.0) (2026-10-26)
 
 
