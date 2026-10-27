@@ -31,6 +31,8 @@ export type Panel =
   | { kind: "shops" }
   /** Natmarked's counter and shelves: the cases on sale (`hud/CaseShop.tsx`). */
   | { kind: "caseShop" }
+  /** The solo roulette table (`hud/Roulette.tsx`). */
+  | { kind: "roulette" }
   | { kind: "merchant" }
   | { kind: "julekalender" }
   | { kind: "bag"; tab?: "you" | "pet" | "things" }

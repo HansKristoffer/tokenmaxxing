@@ -76,6 +76,9 @@ export function ArcadePanel() {
           ▶ Back to your game
         </button>
       )}
+      <button type="button" className="primary" onClick={() => hud.set({ panel: { kind: "roulette" } })}>
+        🎡 Roulette
+      </button>
       <h3>The Tavern</h3>
       <ul className="tables">
         <PokerRow />

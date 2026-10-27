@@ -19,6 +19,7 @@ import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
 import type { Regulars } from "@tokenmaxxing/core/regulars.ts";
 import type { RequestEntry } from "@tokenmaxxing/core/requests.ts";
+import type { Settled } from "@tokenmaxxing/core/roulette.ts";
 import {
   emptySide,
   type Item,
@@ -175,6 +176,7 @@ import { type PokerSettle, pokerRelease, pokerSettle, pokerSit } from "../town/p
 import { freezeDays, questBoard, questEvent } from "../town/quests.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import * as requests from "../town/requests.ts";
+import { spinRoulette } from "../town/roulette.ts";
 import { migrate } from "../town/schema.ts";
 import { paperFacts } from "../town/street.ts";
 import { brand, push, pushOffice, pushPlayers } from "../town/sync.ts";
@@ -625,6 +627,13 @@ export const town = actor({
       await inCaseShop(c, userId);
       const k = await kept(c, Date.now());
       return c.vars.serial(() => openCase(c.db, userId, caseId, Date.now(), k));
+    },
+
+    /** One spin of the solo roulette table: stakes out, winnings back. */
+    spinRoulette: async (c, bets: unknown): Promise<{ spin: Settled; wallet: Wallet }> => {
+      const userId = requireUser(c.conn.state);
+      const k = await kept(c, Date.now());
+      return c.vars.serial(() => spinRoulette(c.db, userId, bets, Date.now(), k));
     },
 
     /** One case item to the vendor for coins by rarity. */

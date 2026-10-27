@@ -52,6 +52,7 @@ import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Regulars } from "./Regulars.tsx";
 import { Requests } from "./Requests.tsx";
 import { RoomsBox } from "./RoomsBox.tsx";
+import { RoulettePanel } from "./Roulette.tsx";
 import { Shop } from "./Shop.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
@@ -440,6 +441,7 @@ function Panel() {
     changelog: () => <ChangelogPanel />,
     caseOpening: () => <CaseOpening />,
     caseShop: () => <CaseShop />,
+    roulette: () => <RoulettePanel />,
     menu: () => (
       <Modal title="Menu">
         <nav className="menu">
