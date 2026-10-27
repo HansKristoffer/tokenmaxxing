@@ -51,6 +51,7 @@ import {
 import { drawCop, isCop } from "./cop.ts";
 import { battlers, type Dance2D, dance2D, danceOf, rgbOf } from "./dance.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
+import { drawBarrel } from "./fastelavn.ts";
 import { drawFireworks } from "./fireworks.ts";
 import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
@@ -84,6 +85,7 @@ import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
+import { drawBonfire, lightBonfire } from "./sankthans.ts";
 import { seasonalCanvas, seasonLookNow, treeVariant } from "./seasons.ts";
 import {
   drawLight,
@@ -379,6 +381,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawGrid(f);
   drawPumpkins(f);
   drawTruck(f);
+  drawBarrel(f);
+  drawBonfire(f);
   drawChalkboards(f);
   drawClocks(f);
   drawTavern(f);
@@ -494,6 +498,10 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       lightTruck(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
+    // The Sankt Hans bonfire is lit in the June dusk, before the lamps come on.
+    g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
+    lightBonfire(g, glow, now);
+    g.setTransform(1, 0, 0, 1, 0, 0);
     drawNightSky(g, w, h, dpr, now);
     drawWeather(g, w, h, dpr, now);
   }

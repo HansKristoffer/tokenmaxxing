@@ -1,6 +1,7 @@
 /**
  * Holiday costumes: hats the Clothes shop sells only round their holiday (`holidays.ts`), from `ON_SALE.before`
- * days before it to `ON_SALE.after` days after, and that anyone who bought one wears (or trades) all year.
+ * days before it to `ON_SALE.after` days after, and that anyone who bought one wears (or trades) all year. One
+ * that is `earned` is never sold: the holiday hands it out (the kattekonge's crown, `fastelavn.ts`).
  * Their look indices start at `COSTUME_BASE`, past the merchant's editions, so the shop, the raid's loot and the
  * editions can all grow without meeting them. The 2D art is in `web/src/art/editions.ts`, keyed by id; the 3D
  * hat is `HAT_BUILDERS` by name (`gear3dHead.ts`).
@@ -37,6 +38,8 @@ const costume = (n: number, name: string, price: number, holiday: HolidayId, blu
 // prettier-ignore
 export const COSTUMES: readonly Costume[] = [
   costume(0, "Jack-o'-lantern", 350, "halloween", "Carved, lit and grinning. Smells faintly of candle."),
+  // Never sold: it goes to whoever breaks the fastelavn barrel (`fastelavn.ts`), and stays theirs.
+  { ...costume(1, "Kattekonge crown", 0, "fastelavn", "Broke the barrel, freed the cat. King for a year."), tradeable: false, rarity: "legendary", earned: "Break the fastelavn barrel" },
 ];
 
 /** The costume a look index stands for in a slot, if it is one. */

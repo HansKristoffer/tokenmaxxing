@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { CROWN } from "../src/fastelavn.ts";
 import { TOUCHED_GRASS } from "../src/picnic.ts";
 import { canDropIn, ITEMS, isKeepsake, isTradeable, itemById, levelItems, parseSide } from "../src/shop.ts";
 import { LOOK_OPTIONS } from "../src/world.ts";
@@ -49,8 +50,8 @@ test("Touched grass: earned at a picnic, never sold or traded, and only for your
     tradeable: false,
   });
   expect(itemById(TOUCHED_GRASS)?.earned).toBeTruthy();
-  // Nothing else is earned that way: the shop sells the rest.
-  expect(ITEMS.filter((i) => i.earned).map((i) => i.id)).toEqual([TOUCHED_GRASS]);
+  // Nothing else is earned but the kattekonge's crown (`fastelavn.ts`): the shop sells the rest.
+  expect(ITEMS.filter((i) => i.earned).map((i) => i.id)).toEqual([CROWN, TOUCHED_GRASS]);
   expect([isKeepsake(TOUCHED_GRASS), isKeepsake("furn.s"), isKeepsake("hat.4")]).toEqual([
     true,
     false,

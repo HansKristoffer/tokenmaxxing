@@ -11,6 +11,8 @@ import { GateLive } from "../dungeon/gate3d.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { ExitMarkers } from "../rooms/exit-markers.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "../rooms/rooms.ts";
+import { Barrel3d } from "./barrel3d.ts";
+import { Bonfire3d } from "./bonfire3d.ts";
 import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
 import { Graveyard3D } from "./graveyard3d.ts";
@@ -103,6 +105,12 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // J-dag's truck, on the road under the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
+  // Fastelavn's barrel, on the lawn under the square on Fastelavn Sunday.
+  const barrel = new Barrel3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(barrel.group);
+  // The Sankt Hans bonfire, in front of the Tavern on 23 June.
+  const bonfire = new Bonfire3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(bonfire.group);
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
@@ -140,6 +148,8 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       markers.update(f.me, f.t);
       pumpkins.update(f.now);
       truck.update();
+      barrel.update(f.t);
+      bonfire.update(f.t);
       events.update(f);
       graveyard.update(f.now);
       statue.update(f);
@@ -153,7 +163,13 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       statue.leave();
     },
     signs,
-    liveSigns: () => [...truck.signs(), ...(gateLive?.signs() ?? []), ...games.signs(), ...graveyard.signs()],
+    liveSigns: () => [
+      ...truck.signs(),
+      ...barrel.signs(),
+      ...(gateLive?.signs() ?? []),
+      ...games.signs(),
+      ...graveyard.signs(),
+    ],
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();

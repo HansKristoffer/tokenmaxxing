@@ -1120,8 +1120,9 @@ the June sun only dips ten degrees under the horizon and the night stays twiligh
 
 `core/src/holidays.ts` is the town's calendar, pure and on the one clock like the street and the merchant: each
 holiday's date in a year (`HOLIDAYS`: Fastelavn from Easter, Sankt Hans, Halloween, J-dag on the first Friday of
-November, Juleaften, Nytårsaften) and `near(id, ms, before, after)`, whether the Copenhagen day `ms` is in is within a
-window round it (both ends included, across New Year too). Each feature keeps its own window; none needs server state.
+November, Juleaften, Nytårsaften); `near(id, ms, before, after)`, whether the Copenhagen day `ms` is in is within a
+window round it (both ends included, across New Year too); and `daysFrom` and `minutesFrom`, how far `ms` is from its
+day. Each feature keeps its own window. Only the julekalender's doors and the fastelavn barrel keep server state.
 
 - **Halloween** (`core/src/halloween.ts`): from 7 days before to the day after (`PUMPKINS`), a pumpkin on the grass beside
   the path below every door in town (the Tavern's `I`, each company's `D`, each shop's; to the left, since the paper lands
@@ -1157,6 +1158,25 @@ window round it (both ends included, across New Year too). Each feature keeps it
     the server's weather, fog and clear days included; wind and cloud stay real. Both renderers read `weatherNow`.
     The 3D snow lies on up-facing surfaces through a uniform the materials share with indoor furniture, so an indoor
     stage keeps it at 0 (`meltSnow` in `Stage.update`) and it settles again outside.
+- **Fastelavn** (`core/src/fastelavn.ts`): all of Fastelavn Sunday a barrel hangs on the lawn at `BARREL` (9, 10), its
+  frame's posts on the tiles either side (scenery; only the barrel's tile blocks: `isBarrel` in `onProp`, `blocksBarrel`).
+  E facing it is `world.whack` (one a player every `WHACK_MS`), which asks `town.whack` (`town/fastelavn.ts`, under
+  `serial`): a row a player a year in `fastelavn_hits`, and the whack that brings the sum to `HITS` writes
+  `fastelavn_king` (primary key: the year) and pays everyone who whacked, all in the whack's one transaction:
+  `lootFor(year, userId)` (5 to 15 coins, a pair of cat ears one time in five, fixed by year and player), plus
+  `KING_COINS` and the crown (`CROWN`, an `earned` costume: never sold or traded) for the king. Coins are a `ledger`
+  line (kind `fastelavn`, ref the year). `world` keeps the barrel (`town.barrel` once a minute on the day, and every
+  whack's answer) and sends `barrel` to everyone; the town hears who's kattekonge, and each whacker gets a notice of
+  their loot. 2D `game/fastelavn.ts`, 3D `render3d/town/barrel3d.ts`, both from `hud.barrel` on the server's clock: it
+  cracks as the whacks add up, and once broken its staves lie under a sign naming the king.
+- **Sankt Hans** (`core/src/sankthans.ts`): on 23 June a bonfire with a straw witch on top stands on the lawn in front of
+  the Tavern at `BONFIRE` (9 and 10, 17), a pile from 08:00, lit from 21:00 to 01:00 (`bonfireAt`). It blocks its
+  tiles (`isBonfire`) and E says what's on. 2D `game/sankthans.ts` (its glow is drawn even before the lamps are on: it's
+  still light at 21:00 in June), 3D `render3d/town/bonfire3d.ts`; both on `skyNow()`.
+- **New Year's Eve** (`core/src/newyear.ts`): `newYearShow` is a ten-minute show from midnight in Copenhagen, added to
+  the fireworks' sources (`game/fireworks.ts`), so both renderers draw it as they do the star counter's.
+- 3D props drawn with cones should use `Model.cyl` with a small `top` rather than `THREE.ConeGeometry`: the blocky
+  look (`blockify`) reads a cone's size from `CylinderGeometry`'s parameters, and a `ConeGeometry` comes out huge.
 - **Costumes** (`core/src/costumes.ts`): hats sold only round their holiday (`ON_SALE`: 14 days before to 2 after), worn and
   traded all year. Their look indices start at `COSTUME_BASE` (200), past the editions, and `parseLook` takes them like
   editions; `Item.holiday` marks them. `buy` (`town/coins.ts`) refuses one out of season with `offSeason`; the Shop page

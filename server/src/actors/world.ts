@@ -12,6 +12,7 @@ import {
   writeTicket,
 } from "@tokenmaxxing/core/cop.ts";
 import { danceAt, danceId, isFree } from "@tokenmaxxing/core/dances.ts";
+import { type Barrel, barrelUp, HITS, isBarrel, WHACK_MS } from "@tokenmaxxing/core/fastelavn.ts";
 import {
   findSpot,
   propTiles,
@@ -79,7 +80,8 @@ import {
 } from "@tokenmaxxing/core/poker.ts";
 import { chairAt, pokerChairs } from "@tokenmaxxing/core/pokertable.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
-import { canDropIn } from "@tokenmaxxing/core/shop.ts";
+import { isBonfire } from "@tokenmaxxing/core/sankthans.ts";
+import { canDropIn, itemById } from "@tokenmaxxing/core/shop.ts";
 import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { milestoneLine, NO_STARS, readStars, type Stars, type StarsState } from "@tokenmaxxing/core/stars.ts";
@@ -171,6 +173,7 @@ import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { readLeader, STATUE_EVERY_MS, STATUE_RETRY_MS } from "../statue.ts";
 import { counts, TavernClock } from "../tavern-clock.ts";
+import type { Whack } from "../town/fastelavn.ts";
 import { parseChatText } from "../validate.ts";
 import {
   fetchPollen,
@@ -377,6 +380,10 @@ export const world = actor({
     jumps: new Map<number, number>(),
     /** When each player last tossed a coin in the fountain, so a held key can't flood the ledger. */
     tosses: new Map<number, number>(),
+    /** When each player last whacked the fastelavn barrel, and the barrel as `town` last said (null off the day). */
+    whacks: new Map<number, number>(),
+    barrel: null as Barrel | null,
+    barrelAt: 0,
     chat: new RateLimiter(CHAT_PER_MIN, 60_000),
     dances: new RateLimiter(DANCES_PER_MIN, 60_000),
     occupancy: "",
@@ -529,6 +536,10 @@ export const world = actor({
         c.vars.keynotesAt = now + KEYNOTES_EVERY_MS;
         void refreshKeynotes(c);
       }
+      if (now >= c.vars.barrelAt) {
+        c.vars.barrelAt = now + BARREL_EVERY_MS;
+        void refreshBarrel(c, now);
+      }
       if (TAVERN && n % WATCH_EVERY === 0) watchBeat(c, now);
       copBeat(c, now);
       if (TAVERN) tavernBeat(c, n, now);
@@ -583,6 +594,7 @@ export const world = actor({
       c.conn.send("grid", c.vars.grid.grid);
       c.conn.send("keynotes", c.vars.keynotes);
       c.conn.send("stars", starsOf(c.state.stars ?? NO_STARS));
+      c.conn.send("barrel", c.vars.barrel);
       if (p.room === "inn") {
         sendJukebox(c, Date.now(), userId);
         sendPoker(c, Date.now(), userId);
@@ -732,6 +744,47 @@ export const world = actor({
         return { notice: "That didn't work. Try again." };
       }
       return { notice: "⛲ Plink. You toss a coin in and wish for a green CI." };
+    },
+
+    /**
+     * E facing the fastelavn barrel on Fastelavn Sunday: a whack (`town.whack`). The one that breaks it makes its
+     * player kattekonge; the town hears, and everyone who whacked it is told what they found.
+     */
+    whack: async (c, facing: unknown): Promise<StepResult> => {
+      const p = free(c);
+      if (p?.room !== "town") return null;
+      const now = Date.now();
+      touch(c, p, now);
+      if (isFacing(facing)) p.facing = facing;
+      const [dx, dy] = DIRS[p.facing];
+      if (!isBarrel(p.x + dx, p.y + dy, now)) return null;
+      if (now - (c.vars.whacks.get(p.id) ?? 0) < WHACK_MS) return null;
+      c.vars.whacks.set(p.id, now);
+      let r: Whack;
+      try {
+        r = await main(c.client()).town.whack(p.id);
+      } catch (err) {
+        console.warn(`[whack] ${p.id}: ${String(err)}`);
+        return { notice: "That didn't work. Try again." };
+      }
+      keepBarrel(c, r.barrel);
+      const { king, hits } = r.barrel;
+      if (r.loot) {
+        await announce(
+          c,
+          "town",
+          `🐱 ${p.name} broke the fastelavn barrel and is kattekonge!`,
+          0,
+          "🪅",
+        ).catch((err) => console.warn(`[whack] announce: ${String(err)}`));
+        for (const l of r.loot)
+          if (l.userId !== p.id)
+            sendToUser(c, l.userId, "notice", { text: lootLine(l), open: "bag" } satisfies Notice);
+        const mine = r.loot.find((l) => l.userId === p.id);
+        return { notice: `🐱 You broke it: kattekonge! ${mine ? lootLine(mine) : ""}`.trim() };
+      }
+      if (king) return { notice: `🐱 Already broken. ${king.name} is kattekonge this year.` };
+      return { notice: `🪅 Whack! ${HITS - hits} to go.` };
     },
 
     /** E while facing a coffee machine: one more cup, and everyone sees you shake. */
@@ -1242,7 +1295,14 @@ export const world = actor({
       sendToRoom(c, p.room, "moves", { room: p.room, join: [], m: [], leave: [userId] } satisfies Moves);
       delete c.state.players[userId];
       c.vars.housesStale = true;
-      for (const vars of [c.vars.online, c.vars.announced, c.vars.steps, c.vars.jumps, c.vars.tosses])
+      for (const vars of [
+        c.vars.online,
+        c.vars.announced,
+        c.vars.steps,
+        c.vars.jumps,
+        c.vars.tosses,
+        c.vars.whacks,
+      ])
         vars.delete(userId);
       for (const set of [c.vars.dirty, c.vars.hidden]) set.delete(userId);
       for (const conn of c.conns.values()) {
@@ -1491,6 +1551,7 @@ type Vars = {
   graves: Stone[];
   keynotes: Keynote[];
   keynotesPushed: number;
+  barrel: Barrel | null;
   watched: Set<string>;
   weather: Weather;
   grid: GridState;
@@ -1752,6 +1813,8 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
 const onProp = (s: WorldState, v: Pick<Vars, "launches" | "graves">, x: number, y: number) =>
   isCart(x, y) ||
   isTruck(x, y, Date.now()) ||
+  isBarrel(x, y, Date.now()) ||
+  isBonfire(x, y, Date.now()) ||
   (isStand(x, y) && activeLaunches(Date.now(), v.launches).length > 0) ||
   stoneAt(v.graves, x, y) !== undefined ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
@@ -1990,6 +2053,44 @@ async function refreshKeynotes(c: {
   } catch (err) {
     console.warn(`[keynotes] ${String(err)}`);
   }
+}
+
+// MARK: Fastelavn (core/src/fastelavn.ts)
+
+/** On Fastelavn the barrel is asked of `town` this often (whacks through this world keep it fresher). */
+const BARREL_EVERY_MS = 60_000;
+
+/** What a whacker found: "🪅 In the barrel: 🪙 12 and Cat ears." */
+const lootLine = (l: { coins: number; items: string[] }): string =>
+  `🪅 In the barrel: 🪙 ${l.coins}${l.items.map((i) => ` and ${itemById(i)?.name ?? i}`).join("")}.`;
+
+/** The barrel off the day is nothing; on it, `town`'s (a failed call keeps what we had). */
+async function refreshBarrel(
+  c: {
+    vars: Vars;
+    client: () => Parameters<typeof main>[0];
+    broadcast(name: string, ...args: unknown[]): void;
+  },
+  now: number,
+): Promise<void> {
+  if (!barrelUp(now)) return keepBarrel(c, null);
+  try {
+    keepBarrel(c, await main(c.client()).town.barrel());
+  } catch (err) {
+    console.warn(`[barrel] ${String(err)}`);
+  }
+}
+
+/** Keeps the barrel and tells everyone when it changed. */
+function keepBarrel(
+  c: { vars: Vars; broadcast(name: string, ...args: unknown[]): void },
+  b: Barrel | null,
+): void {
+  const was = c.vars.barrel;
+  if (was === b || (was && b && was.hits === b.hits && was.king?.id === b.king?.id && was.year === b.year))
+    return;
+  c.vars.barrel = b;
+  c.broadcast("barrel", b);
 }
 
 /** Keeps the schedule, and tells everyone when it changed: the screen goes up or down on its own clock. */

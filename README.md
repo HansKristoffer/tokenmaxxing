@@ -26,7 +26,10 @@ On **J-dag** (the first Friday of November) the Nissebryg truck drives in at 20:
 and all weekend the Tavern's tap pours Nissebryg, the julebryg, on the house. **December** snows on the whole town all
 month, whatever the real weather; the 🎄 **julekalender** opens a door a day from 1 to 24 December (coins, or a hat or
 moustache behind four of them), once per player; and on Friday and Saturday evenings until Christmas the Tavern holds
-**julefrokost**, its tables laid and the tap serving the evening's dish.
+**julefrokost**, its tables laid and the tap serving the evening's dish. On **Fastelavn** a barrel hangs on the lawn
+under the square: whack it (E) with everyone else, and whoever breaks it is kattekonge, with a crown nobody can buy,
+while every whacker gets the loot inside. On **Sankt Hans** (23 June) a bonfire with a straw witch on top burns in front
+of the Tavern from 21:00, and at midnight on **New Year's Eve** fireworks go up over the square.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
 Codex sessions PostHog Desktop runs, and your pull requests from GitHub.
