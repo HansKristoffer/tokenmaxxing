@@ -37,13 +37,13 @@ export interface BodyCtx {
 }
 
 type Paint2D = (g: CanvasRenderingContext2D, w: number, h: number) => void;
-const px = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w = 1, h = 1) => {
+export const px = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w = 1, h = 1) => {
   g.fillStyle = c;
   g.fillRect(x, y, w, h);
 };
 
 /** Raised marks on the chest, and (when given) the back. `lightIt` makes them shine. */
-function marks(c: BodyCtx, front?: Paint2D, back?: Paint2D, lightIt = false): void {
+export function marks(c: BodyCtx, front?: Paint2D, back?: Paint2D, lightIt = false): void {
   const patch = (draw: Paint2D, z: number, turn: number, lit2: boolean) => {
     const o = pixelPatch(c.body, {
       cols: CHEST_COLS,
@@ -62,10 +62,10 @@ function marks(c: BodyCtx, front?: Paint2D, back?: Paint2D, lightIt = false): vo
 }
 
 /** A grid of blocks over the torso, by cube coordinates. */
-const grid = (c: BodyCtx) => new Vx(c.body);
+export const grid = (c: BodyCtx) => new Vx(c.body);
 
 /** A band of blocks round the top of the torso: a collar, a neck roll. */
-function roll(c: BodyCtx, color: string, h = 1, pad = 0.35, y = 8 - h): void {
+export function roll(c: BodyCtx, color: string, h = 1, pad = 0.35, y = 8 - h): void {
   const v = grid(c);
   const x = 3.5 + pad;
   const zf = 2 + pad;
@@ -76,7 +76,7 @@ function roll(c: BodyCtx, color: string, h = 1, pad = 0.35, y = 8 - h): void {
 }
 
 /** A hood hanging down the back of the neck, a stepped pouch with a darker lining, and the roll it hangs from. */
-function hood(c: BodyCtx, color: string, inner: string): void {
+export function hood(c: BodyCtx, color: string, inner: string): void {
   const v = grid(c);
   roll(c, color, 1.2, 0.5);
   v.b(-3, 4.8, -3.1, 6, 2.9, 1.1, color);
@@ -87,7 +87,7 @@ function hood(c: BodyCtx, color: string, inner: string): void {
 }
 
 /** Jacket tails: two flaps hanging from the back of the belt, swinging a little as they walk. */
-function tails(c: BodyCtx, color: string, len = 3.2, trim?: string): void {
+export function tails(c: BodyCtx, color: string, len = 3.2, trim?: string): void {
   const pivot = vpart(c.body, [0, 0.6 * U, -2 * U]);
   const v = new Vx(pivot);
   for (const s of [-1, 1]) {
@@ -129,7 +129,7 @@ function sleevesOver(c: BodyCtx, color: string, len = 6, only?: 0 | 1): void {
 }
 
 /** A stripe down the outside of each sleeve. */
-function sleeveStripes(c: BodyCtx, color: string): void {
+export function sleeveStripes(c: BodyCtx, color: string): void {
   c.arms.forEach((arm, i) => {
     const s = i ? 1 : -1;
     const v = new Vx(vpart(arm));
@@ -779,7 +779,7 @@ export function merchCap(h: Model, m: MerchLook): void {
 
 // MARK: Held
 
-type HeldBuilder = (h: Model, tick: (fn: (t: number) => void) => void) => void;
+export type HeldBuilder = (h: Model, tick: (fn: (t: number) => void) => void) => void;
 
 /** Sits in the hand, a little in front of it. Origin: the hand; +y up; +z away from the body. */
 // biome-ignore format: a catalogue reads best one to a line
@@ -914,7 +914,7 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
 
 // MARK: Back
 
-type BackBuilder = (b: VoxModel, tick: (fn: (t: number, walking: boolean) => void) => void) => void;
+export type BackBuilder = (b: VoxModel, tick: (fn: (t: number, walking: boolean) => void) => void) => void;
 
 /**
  * Origin: the top of the torso's back face (the nape), in a frame one metre = one metre, `y` up, `z` toward the

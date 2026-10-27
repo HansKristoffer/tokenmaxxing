@@ -24,6 +24,14 @@ export const EXTRA_OUTFITS: Record<number, [string, string, string]> = {
   27: ["#4f8fe0", "#3a6fb8", "#2f3444"],
   28: ["#2a2150", "#5b3fbf", "#22223a"],
   29: ["#2f3a55", "#1f2740", "#1f2740"],
+  // The Night Market case (`core/src/case.ts`, from CASE_BASE = 200): noodle apron, happi coat, cargo bomber,
+  // techwear coat, dragon satin jacket, festival parade.
+  200: ["#3a3f4b", "#2a2e38", "#2f3444"],
+  201: ["#2f4a8a", "#1f3366", "#2a2f45"],
+  202: ["#6b7a3f", "#4d5a2a", "#4a4a3a"],
+  203: ["#23252f", "#15161c", "#15161c"],
+  204: ["#18353f", "#0f232b", "#222a35"],
+  205: ["#d6343a", "#9a2128", "#f2eadb"],
 };
 
 /** Companies without a brand get one of these by id: [main, accent]. */

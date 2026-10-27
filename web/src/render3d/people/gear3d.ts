@@ -24,6 +24,8 @@ import {
   merchTop,
   OUTFIT_BUILDERS,
 } from "./gear3dBody.ts";
+// The Night Market case adds its builders to the tables above when it loads.
+import "./gear3dCase.ts";
 import { COVERS_HAIR, type Ctx, FACE_BUILDERS, HAT_BUILDERS, lit, ring, see } from "./gear3dHead.ts";
 import type { Hat, Look as VLook } from "./styles.ts";
 import { U, vpart } from "./voxgear.ts";
