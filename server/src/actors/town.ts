@@ -127,6 +127,7 @@ import {
   takeOut,
   tossCoin,
   tradesWhere,
+  treatPet,
   unclaimed,
   unwear,
   type Wallet,
@@ -959,6 +960,14 @@ export const town = actor({
       const now = Date.now();
       const k = await kept(c, now);
       await c.vars.serial(() => tossCoin(c.db, userId, now, k));
+    },
+
+    /** From `world`: a treat for `userId`'s pet (`TREAT_COST` coins, `TREATS_PER_DAY` a day); the treats left today. */
+    treat: async (c, userId: number): Promise<number> => {
+      requireInternal(c.conn.state);
+      const now = Date.now();
+      const k = await kept(c, now);
+      return c.vars.serial(() => treatPet(c.db, userId, now, k));
     },
 
     /** From `world.dance`: whether `userId` has learned the dance `item` (`dance.<index>`). */

@@ -114,6 +114,8 @@ interface HudState {
   pieceHint: string | null;
   /** The dance I'm doing (`DANCES`), 0 for none: lit on the dance bar. */
   dancing: number;
+  /** My pet's menu (stroke, treat, trick) is open over the world. */
+  petMenu: boolean;
   /** The room name, shown briefly on entering. */
   banner: { text: string; at: number } | null;
   /** Bumped to ask the chat input to take focus. */
@@ -170,6 +172,7 @@ let state: HudState = {
   dialog: null,
   pieceHint: null,
   dancing: 0,
+  petMenu: false,
   banner: null,
   chatFocus: 0,
   mention: null,

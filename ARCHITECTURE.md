@@ -242,9 +242,9 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   (someone's open office, from their card), `take` (G: the drop you're on, or a blocking piece you face; on
   an office floor, only its owner), `move` (M: a piece of yours to another tile; with `rot`, F turns it a quarter clockwise
   about its middle tile, where it stands or as it moves, and a quarter turn lies a wide piece down its column; wall pieces hang as they are), `dance`
-  (see *Dances*).
+  (see *Dances*), `petPlay` (see *Playing with your pet*).
 - Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
-  `chat`, `mention`, `drop`, `pickup`, `stars`.
+  `chat`, `mention`, `drop`, `pickup`, `stars`, `jump`, `petPlay`.
 - **The star counter** (`★` on the square, `core/stars.ts`): every 15 minutes `world` reads the repo's
   `stargazers_count` (`github-stars.ts`) and sends `stars` (the count and the last milestone's show) when it
   changes, and on `join`. Passing a milestone (100, 250, 500, 1000, 2500…) puts a show in it, which every client
@@ -361,6 +361,21 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `PET_NAMED` is a table of costumes (name, pet, look, art id) matched case-insensitively on the cleaned name by
   `petOutfit`; the art is in `web/src/art/pet-variants/named.ts` and `petFrame` takes it as its last argument, so it
   works in every frame, the sleeping pose and the picker. To add one: append a row, add its art.
+- **Playing with your pet** (`PET_ACTS` in `core/src/pets.ts`; `🐾` in the dance bar, `P`, or a click on your pet or yourself
+  opens `hud/PetMenu.tsx`, a small card over the world, not a panel, so you can still walk). Three acts, all cosmetic:
+  `pet` (a stroke) and `trick` (a hop and a spin) are free, `treat` costs `TREAT_COST` (2) coins and is capped at
+  `TREATS_PER_DAY` (5) a world day. `world.petPlay(act)` is the one action: it refuses without a worn pet, in your own
+  office (the pet is asleep in its bed), and inside `PET_COOLDOWN_MS` of the same act (a map in `vars`, like `jumps`), then
+  sends the room `petPlay` `{ userId, act }`, the same kind of event as `jump`, so everyone sees the reaction for the cost
+  of one small message per act. A treat first asks `town.treat` (`treatPet` in `town/coins.ts`, under `serial`): a ledger
+  line (kind `pet`, ref `treat:<day>:<n>`, never positive, like the fountain's coin) after counting the day's lines and
+  the wallet in SQL, so the cap and the price are the server's and nothing is stored beyond the ledger. Nothing comes
+  back: treats give coins out, never value in. The client (`game/pets.ts` `reactPet`, `reactionOf`) keeps one reaction per
+  owner; `game/petplay.ts` is the pure motion (`playPose`: lift and spin over time), drawn by `render.ts` (the sprite
+  lifted and flipped side to side, hearts as the usual emoji `burst` over the pet) and by `entities.ts` (the model lifted
+  and turned, a `Burst` from the pet; counted in the tier's burst cap). `game/petsound.ts` chirps through the music's
+  master, so "Music off" mutes it (quieter for others, and only within 8 tiles). Tests: `server/test/pet-play.test.ts`,
+  `web/test/petplay.test.ts`.
 - The wardrobe (`core/src/wardrobe.ts`, art in `web/src/art/wardrobe.ts`): 36 more, each with a rarity and a
   line of flavour: 12 outfits (`outfit` ≥ 13), and three slots of its own: `held` (in the hand), `back` and
   `petwear` (drawn on the pet). The rubber duck, cape and jetpack are level rewards at 5, 15 and 25.

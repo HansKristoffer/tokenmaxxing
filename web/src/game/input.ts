@@ -42,6 +42,7 @@ import { chipHits, signHits } from "./labels.ts";
 import { blocksLaunch, launchInteract } from "./launch.ts";
 import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
+import { myPetTile } from "./pets.ts";
 import { picnicSeat } from "./picnic.ts";
 import { seated, sit, standUp } from "./raidseat.ts";
 import { blocksBonfire, bonfireInteract } from "./sankthans.ts";
@@ -96,6 +97,7 @@ export function bindInput(canvas: HTMLElement): void {
     if (typing(e) || e.metaKey || e.ctrlKey) return;
     const s = hud.get();
     if (e.key === "Escape") {
+      if (s.petMenu) return void hud.set({ petMenu: false });
       hud.set({ panel: s.panel || s.dialog ? null : { kind: "menu" }, dialog: null });
       return;
     }
@@ -135,6 +137,9 @@ export function bindInput(canvas: HTMLElement): void {
         return;
       case "g":
         take();
+        return;
+      case "p":
+        if (s.me?.look.pet) hud.set({ petMenu: !s.petMenu });
         return;
       case "enter":
         e.preventDefault();
@@ -222,6 +227,9 @@ export function bindInput(canvas: HTMLElement): void {
     const other = avatarAt(x, y);
     if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
     if (interactAnimal(x, y) || interactTownProp(x, y)) return;
+    // My own pet, or me (it's always beside me): the pet menu.
+    if (hud.get().me?.look.pet && (isMyPetAt(x, y) || avatarIsMe(x, y)))
+      return void hud.set({ petMenu: true });
     // A building (its wall or roof, not something on it to use): walk to its door and in. Its sign opens its page.
     const door = world.room === "town" ? doorOf(world.map, x, y) : null;
     if (door) return void walkTo(...door);
@@ -327,6 +335,16 @@ export function send(result: Promise<StepResult>): void {
       world.portalPending = false;
     });
 }
+
+/** Whether tile (x, y) is where my pet stands, or where I stand (the pet menu opens on either). */
+const isMyPetAt = (x: number, y: number): boolean => {
+  const tile = myPetTile();
+  return tile !== null && tile[0] === x && tile[1] === y;
+};
+const avatarIsMe = (x: number, y: number): boolean => {
+  const me = self();
+  return me !== undefined && me.x === x && me.y === y;
+};
 
 /** Whether I hold a seat at the Tavern's poker table (a hand in play is mine to fold, so the arrow keys wait). */
 const atPoker = (): boolean =>

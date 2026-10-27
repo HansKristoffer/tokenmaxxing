@@ -7,6 +7,7 @@ import { hud } from "../store.ts";
 import { camera, viewHooks } from "./camera.ts";
 import { ghost, undoStack } from "./furniture.ts";
 import { walkTo } from "./input.ts";
+import { myPetTile } from "./pets.ts";
 import { perf, pickTile } from "./stage.ts";
 import { self, showMyDance, world } from "./world.ts";
 
@@ -27,6 +28,7 @@ export function exposeForQa(): void {
       viewHooks,
       perf,
       pickTile,
+      petTile: myPetTile,
       walkTo,
       route,
       ghost,

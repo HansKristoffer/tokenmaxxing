@@ -84,3 +84,25 @@ export function petOutfit(look: Pick<Look, "pet" | "petVariant" | "petName">): s
       ?.art ?? null
   );
 }
+
+/**
+ * What you can do with your pet. Cosmetic, shown to everyone in the room (`world.petPlay` → `petPlay`):
+ * `pet` is a free stroke, `treat` costs `TREAT_COST` coins (at most `TREATS_PER_DAY` a day), `trick` a spin.
+ */
+export const PET_ACTS = ["pet", "treat", "trick"] as const;
+export type PetAct = (typeof PET_ACTS)[number];
+export const isPetAct = (v: unknown): v is PetAct => PET_ACTS.includes(v as PetAct);
+
+/** Coins a treat costs, and how many a player can give in a world day. Both are checked in the town's SQL. */
+export const TREAT_COST = 2;
+export const TREATS_PER_DAY = 5;
+
+/** The least gap between two of the same act from one player, in ms: a stroke is quick, a trick takes its time. */
+export const PET_COOLDOWN_MS: Record<PetAct, number> = { pet: 2_500, treat: 3_000, trick: 5_000 };
+
+/** The emoji that float up from the pet for each act. */
+export const PET_ACT_EMOJI: Record<PetAct, string[]> = {
+  pet: ["💕", "❤️"],
+  treat: ["🍖", "💖"],
+  trick: ["⭐", "✨"],
+};

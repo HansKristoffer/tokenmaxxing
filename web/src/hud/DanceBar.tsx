@@ -15,6 +15,7 @@ export function DanceBar({ onError }: { onError: (message: string | null) => voi
   const owned = useHud((s) => s.wallet?.owned);
   const dancing = useHud((s) => s.dancing);
   const inShop = useHud((s) => shopOfRoom(s.room) === "clothes");
+  const hasPet = useHud((s) => !!s.me?.look.pet);
   useEffect(() => {
     if (!owned) void refreshWallet().catch(() => {});
   }, [owned]);
@@ -54,6 +55,19 @@ export function DanceBar({ onError }: { onError: (message: string | null) => voi
           {d.emoji}
         </button>
       ))}
+      {hasPet && (
+        <button
+          type="button"
+          title="Your pet: pet it, give it a treat, a trick (P)"
+          aria-label="Your pet"
+          onClick={(e) => {
+            e.currentTarget.blur();
+            hud.set((s) => ({ petMenu: !s.petMenu }));
+          }}
+        >
+          🐾
+        </button>
+      )}
       {more > 0 && (
         <button
           type="button"

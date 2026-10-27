@@ -66,6 +66,7 @@ import { drawTruck, lightTruck } from "./jdag.ts";
 import { drawKeynote, lightKeynote } from "./keynote.ts";
 import {
   avatarLabels,
+  burst,
   chipHits,
   chips,
   chipsWidth,
@@ -81,7 +82,8 @@ import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
 import { LABEL_FAR } from "./near.ts";
-import { followPet, prunePets } from "./pets.ts";
+import { PLAY_LIFT } from "./petplay.ts";
+import { followPet, prunePets, reactionOf } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
@@ -436,7 +438,12 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     const pet = a.warp ? null : followPet(a, px, py, dt, owner === a.info.id ? bedAt : undefined);
     const petSeen = pet !== null && inView(f, pet.x, pet.y, PET_W, PET_H, reach);
     if (pet && petSeen) {
-      const hop = pet.moving && Math.floor(now / 140) % 2 === 0;
+      // A reaction (`petPlay`) lifts it off the ground; a trick flips it side to side as it turns in the air.
+      const play = pet.asleep ? null : reactionOf(a.info.id, now);
+      const lift = Math.round((play?.pose.lift ?? 0) * PLAY_LIFT);
+      const spun = play?.act === "trick" && Math.floor(play.pose.spin * 8) % 2 === 1;
+      const left = spun ? !pet.left : pet.left;
+      const hop = (pet.moving && Math.floor(now / 140) % 2 === 0) || lift > PLAY_LIFT / 2;
       const worn = a.info.look;
       const outfit = outfitOf(worn);
       // In bed it curls up without its gear.
@@ -447,7 +454,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
             Math.floor(now / 600),
           )
         : null;
-      const frame = asleep ?? petFrame(worn.pet, pet.left, hop, worn.petVariant, outfit, worn.petwear);
+      const frame = asleep ?? petFrame(worn.pet, left, hop, worn.petVariant, outfit, worn.petwear);
       if (frame)
         items.push({
           y: pet.y + PET_H,
@@ -460,10 +467,13 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
               );
               return;
             }
-            g.drawImage(frame, Math.round(pet.x), Math.round(pet.y) + PET_H - frame.height);
-            drawPetCrown(g, a, Math.round(pet.x), Math.round(pet.y), pet.left, hop);
+            g.drawImage(frame, Math.round(pet.x), Math.round(pet.y) - lift + PET_H - frame.height);
+            drawPetCrown(g, a, Math.round(pet.x), Math.round(pet.y) - lift, left, hop);
           },
         });
+      // The hearts, treats or stars rise from it.
+      if (play)
+        labels.push(() => burst(g, ...toScreen(pet.x + PET_W / 2, pet.y - lift), play.emojis, play.age, dpr));
     }
     // A pet's name shows for mine and for those within a few tiles of me.
     const petName = a.info.look.petName;

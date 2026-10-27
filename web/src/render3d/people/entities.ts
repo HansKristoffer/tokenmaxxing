@@ -12,7 +12,7 @@ import { type Chill, chillOf, SNEEZE_TEXT, sneezeJolt, sneezeOf, wearsScarf } fr
 import { battlers, danceOf } from "../../game/dance.ts";
 import { BURST_MS } from "../../game/emoji.ts";
 import { LABEL_FAR } from "../../game/near.ts";
-import { followPet, prunePets } from "../../game/pets.ts";
+import { followPet, prunePets, reactionOf } from "../../game/pets.ts";
 import { type Lap, racing } from "../../game/race.ts";
 import { raidPet, seatedAt } from "../../game/raidseat.ts";
 import { weatherNow } from "../../game/sky.ts";
@@ -47,6 +47,8 @@ import { approach, crowdOffset, hopHeight, poseOf, turnToward, YAW } from "./mot
 const NONE: ReadonlySet<number> = new Set();
 /** Pets are drawn a little bigger than life so they read from the iso camera. */
 const PET_SCALE = 1.25;
+/** How high a full hop lifts a pet, in world units (a person's own hop is 0.44). */
+const PLAY_LIFT = 0.4;
 /** Tiles within which other players' pets show their names. */
 const NAME_RANGE = LABEL_FAR;
 /** A step that has stopped keeps the walk going this long, so a gap between two steps doesn't flicker. */
@@ -127,6 +129,8 @@ interface Rig {
   };
   petLabel: HTMLDivElement | null;
   burst: Burst | null;
+  /** The hearts (or treats, or stars) of my pet's reaction (`petPlay`), rising from the pet. */
+  petBurst: Burst | null;
 }
 
 /** Shows `text` in `el`, or hides it for null; writes the DOM only when that changes. */
@@ -286,6 +290,7 @@ export class Entities {
       pills,
       petLabel: null,
       burst: null,
+      petBurst: null,
     };
   }
 
@@ -302,6 +307,7 @@ export class Entities {
     r.stack.remove();
     r.petLabel?.remove();
     r.burst?.dispose();
+    r.petBurst?.dispose();
     this.rigs.delete(r.id);
   }
 
@@ -329,7 +335,7 @@ export class Entities {
     prunePets();
     this.fights = battlers(list);
     this.bursts = 0;
-    for (const r of this.rigs.values()) if (r.burst) this.bursts++;
+    for (const r of this.rigs.values()) this.bursts += (r.burst ? 1 : 0) + (r.petBurst ? 1 : 0);
     // Who shares a tile (seats are one each, and the server keeps them so), in a fixed order: each gets a spot.
     const crowds = new Map<string, number[]>();
     for (const a of list) {
@@ -568,7 +574,7 @@ export class Entities {
     if (r.cop)
       r.cop.gear.update(r.cop.watch.read(bubbleOn && a.bubble ? a.bubble.text : "", now), now, this.calm);
 
-    this.pet(r, a, me, view, camera, dt, t, near);
+    this.pet(r, a, me, view, camera, dt, t, now, near);
     const close = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;
     this.labels(r, a, camera, now, near, close, bubbleOn, pose, y, me);
   }
@@ -581,6 +587,7 @@ export class Entities {
     camera: THREE.OrthographicCamera,
     dt: number,
     t: number,
+    now: number,
     near: boolean,
   ): void {
     const look = this.lookOf(a.info);
@@ -642,8 +649,11 @@ export class Entities {
     if (pm && speed > 0.25) pet.yaw = turnToward(pet.yaw, Math.atan2(ddx, ddz), dt, 90);
     else if (!spot.asleep) pet.yaw = turnToward(pet.yaw, Math.atan2(r.x - pet.x, r.z - pet.z), dt, 220);
     pet.model.pose = spot.asleep ? "sleep" : a.state !== "idle" && !pm ? "sit" : "stand";
-    pet.root.position.set(pet.x, 0, pet.z);
-    pet.root.rotation.y = pet.yaw;
+    // A reaction (`petPlay`): it hops, a trick turns it right round, and the legs go while it's off the ground.
+    const play = spot.asleep || !near ? null : reactionOf(a.info.id, now);
+    if (play && play.pose.lift > 0.25) pet.model.moving = true;
+    pet.root.position.set(pet.x, (play?.pose.lift ?? 0) * PLAY_LIFT, pet.z);
+    pet.root.rotation.y = pet.yaw + (play?.pose.spin ?? 0) * Math.PI * 2;
     // The raid's little missiles start where your pet stands (`DungeonLive`).
     if (mine) raidPet.at = [pet.x, pet.z];
     pet.root.visible = near;
@@ -662,6 +672,27 @@ export class Entities {
     } else if (r.petLabel) {
       r.petLabel.remove();
       r.petLabel = null;
+    }
+    // The emoji of its reaction rise from it. Past the tier's cap on bursts a new one waits.
+    if (play) {
+      if (!r.petBurst?.matches(play.emojis, play.at)) {
+        r.petBurst?.dispose();
+        r.petBurst = null;
+        if (this.bursts < this.maxBursts) {
+          r.petBurst = new Burst(this.overlay, play.emojis, play.at);
+          this.bursts++;
+        }
+      }
+      if (r.petBurst) {
+        const [sx, sy] = this.overlay.project(this.v.set(pet.x, 0.6, pet.z), camera);
+        if (!r.petBurst.step(now, sx, sy)) {
+          r.petBurst.dispose();
+          r.petBurst = null;
+        }
+      }
+    } else if (r.petBurst) {
+      r.petBurst.dispose();
+      r.petBurst = null;
     }
   }
 

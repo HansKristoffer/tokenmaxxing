@@ -10,6 +10,7 @@ import {
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL, rotOf, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
+import { TREAT_COST, TREATS_PER_DAY } from "@tokenmaxxing/core/pets.ts";
 import { EMPTY_COUNTS, EMPTY_DAY, type Progress, questProgress } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidCoins } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
@@ -362,6 +363,27 @@ export async function tossCoin(sql: Sql, userId: number, now: number, kept?: Kep
   const ref = `fountain:${day}:${n + 1}`;
   await ledgerAdd(sql, userId, -1, "fountain", ref, now);
   await bumpCount(sql, userId, day, "fountain", ref);
+}
+
+/**
+ * A treat for `userId`'s pet: `TREAT_COST` coins out of the wallet (a ledger line, kind `pet`, ref
+ * `treat:<day>:<n>`, never positive), at most `TREATS_PER_DAY` a world day, counted from the ledger itself. Gives
+ * nothing back: the pet's reaction is cosmetic, so the coins are a sink. Returns the treats left today. Run it
+ * serialized with every other coin write, so two at once can't both pass the count or spend the same coins.
+ */
+export async function treatPet(sql: Sql, userId: number, now: number, kept?: Kept): Promise<number> {
+  const day = dayKey(now);
+  const given = await scalar(
+    sql,
+    "SELECT COUNT(*) AS n FROM ledger WHERE user_id = ? AND kind = 'pet' AND ref LIKE ?",
+    userId,
+    `treat:${day}:%`,
+  );
+  if (given >= TREATS_PER_DAY) throw new UserError("That's plenty of treats for today.", { code: "limit" });
+  if ((await wallet(sql, userId, now, kept)).balance < TREAT_COST)
+    throw new UserError(`A treat is 🪙 ${TREAT_COST}.`, { code: "too_poor" });
+  await ledgerAdd(sql, userId, -TREAT_COST, "pet", `treat:${day}:${given + 1}`, now);
+  return TREATS_PER_DAY - given - 1;
 }
 
 /**

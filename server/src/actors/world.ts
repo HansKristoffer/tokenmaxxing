@@ -64,6 +64,7 @@ import {
   wallSpot,
   withPieces,
 } from "@tokenmaxxing/core/office.ts";
+import { isPetAct, PET_COOLDOWN_MS, type PetAct } from "@tokenmaxxing/core/pets.ts";
 import { type Outage, onBlanket, PICNIC_SEATS, sameOutage } from "@tokenmaxxing/core/picnic.ts";
 import {
   type Action,
@@ -398,6 +399,8 @@ export const world = actor({
     steps: new Map<number, { budget: number; at: number }>(),
     /** When each player last jumped. */
     jumps: new Map<number, number>(),
+    /** When each player last did each thing with their pet (`petPlay`), so a held button can't flood the room. */
+    petPlays: new Map<number, Partial<Record<PetAct, number>>>(),
     /** When each player last tossed a coin in the fountain, so a held key can't flood the ledger. */
     tosses: new Map<number, number>(),
     /** When each player last whacked the fastelavn barrel, and the barrel as `town` last said (null off the day). */
@@ -709,6 +712,39 @@ export const world = actor({
       c.vars.jumps.set(userId, now);
       touch(c, p, now);
       sendToRoom(c, p.room, "jump", userId);
+    },
+
+    /**
+     * Something to do with your pet (`PET_ACTS`): the room sees the pet react (`petPlay`, with the owner's id).
+     * A stroke and a trick are free and only slowed (`PET_COOLDOWN_MS`); a treat costs coins out of the wallet and
+     * is capped per day by `town.treat`. Returns the reason it didn't happen, or null.
+     */
+    petPlay: async (c, what: unknown): Promise<string | null> => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || !isPetAct(what)) return null;
+      if (!p.look.pet) return "You don't have a pet with you.";
+      // In their own office the pet is curled up in its bed (drawn on the client): let it sleep.
+      if (ownerOfOffice(p.room) === userId) return "Your pet is asleep in its bed.";
+      const now = Date.now();
+      const last = c.vars.petPlays.get(userId) ?? {};
+      if (now - (last[what] ?? 0) < PET_COOLDOWN_MS[what]) return "Give your pet a moment.";
+      c.vars.petPlays.set(userId, { ...last, [what]: now });
+      touch(c, p, now);
+      if (what === "treat") {
+        try {
+          const left = await main(c.client()).town.treat(userId);
+          sendToRoom(c, p.room, "petPlay", { userId, act: what });
+          return left === 0 ? "That was the last treat for today." : null;
+        } catch (err) {
+          const code = (err as { code?: string }).code;
+          if (code === "limit" || code === "too_poor") return (err as Error).message;
+          console.warn(`[pet] treat ${userId}: ${String(err)}`);
+          return "That didn't work. Try again.";
+        }
+      }
+      sendToRoom(c, p.room, "petPlay", { userId, act: what });
+      return null;
     },
 
     /**
@@ -1472,6 +1508,7 @@ export const world = actor({
         c.vars.announced,
         c.vars.steps,
         c.vars.jumps,
+        c.vars.petPlays,
         c.vars.tosses,
         c.vars.whacks,
       ])
