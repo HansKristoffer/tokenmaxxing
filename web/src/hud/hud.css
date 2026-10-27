@@ -2899,6 +2899,25 @@ html[data-tier]:not([data-tier="low"]) .pills button[aria-pressed="true"] {
   border-radius: 2px;
 }
 
+/* Buttons that read as text or a list row (a chat author, a quick emoji, a name to pick) stay flat. */
+html[data-tier]:not([data-tier="low"])
+  :is(.chat .author, .quick-emojis button, .whos-here-list button, .suggestions li button) {
+  border: none;
+  background: none;
+  box-shadow: none;
+  transform: none;
+}
+
+html[data-tier]:not([data-tier="low"])
+  :is(.quick-emojis button, .whos-here-list button, .suggestions li button):hover,
+html[data-tier]:not([data-tier="low"]) .quick-emojis .quick-toggle[aria-expanded="true"] {
+  background: rgba(251, 247, 239, 0.12);
+}
+
+html[data-tier]:not([data-tier="low"]) .suggestions li button[aria-pressed="true"] {
+  background: rgba(233, 183, 61, 0.2);
+}
+
 html[data-tier]:not([data-tier="low"]) input,
 html[data-tier]:not([data-tier="low"]) textarea {
   border: 2px solid var(--edge);
