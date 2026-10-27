@@ -12,6 +12,8 @@ rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxin
 the most real tokens in an hour.
 The town lives on Aarhus's clock: the real sun and moon, the weather, and the **seasons**. Blossom in spring, full green and light nights in summer,
 leaves turning and falling in autumn, bare branches in winter, changing a little every few days.
+A **star counter** on the square shows the project's GitHub stars, live; press E at it (or open the menu) to
+star the repo, and every milestone (100, 250, 500, 1000…) sets off fireworks over the square for everyone online.
 The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches.
 The town has Aarhus's real sky and weather, and the **windmill** beside the Tavern turns with the real wind: still in calm air, faster as it blows (up to a cap in a storm), its sails turned into it.
 The town keeps the Danish calendar: for the week up to **Halloween** a jack-o'-lantern sits on every doorstep and a
@@ -84,6 +86,9 @@ to your card (a bio is one line and can be reported), when you work, and your ti
 [Firecrawl](https://firecrawl.dev) to read that site's colours and logo, sends those to Claude to pick the
 house's colours, and keeps a copy of the logo. Only the company's public website is involved; nobody's usage
 data is sent anywhere for this.
+
+**GitHub stars.** The server reads this repo's star count from GitHub's public API four times an hour, for the
+star counter on the square. Nothing about players is sent.
 
 ## The stats
 
@@ -255,6 +260,8 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `HEALTH_WINDOW_MS` | `120000` | ...the first of them at least this long ago. One success starts over |
 | `HEALTH_INTERVAL_MS` | `30000` | Time between probes |
 | `HEALTH_TIMEOUT_MS` | `20000` | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine |
+| `GITHUB_TOKEN` | | Sent with the star counter's GitHub reads (a higher rate limit; no scopes needed). Without it, they go unauthenticated: 4 an hour, well inside GitHub's 60 |
+| `GITHUB_STARS` | | Dev and testing: `480` pins the star count instead of reading GitHub (pin it past a milestone and restart for the fireworks); `off` reads nothing |
 | `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
 | `SKY_WEATHER` | | Dev and screenshots only: pins the weather for everyone (`clear`, `cloudy`, `fog`, `drizzle`, `rain`, `storm`, `snow`); nothing is fetched. `?weather=rain` does it for one page |
 | `SKY_SEASON` | | Dev and screenshots only: pins the town's season for everyone (`spring`, `summer`, `autumn`, `winter`, or a date like `11-12`). `?season=autumn` does it for one page |
