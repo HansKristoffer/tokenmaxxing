@@ -1,5 +1,6 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { nextMilestone } from "@tokenmaxxing/core/stars.ts";
+import { STATUE_TILE } from "@tokenmaxxing/core/statue.ts";
 import * as THREE from "three";
 import { seasonLookNow } from "../../game/seasons.ts";
 import { lightsNow, weatherNow, windPush } from "../../game/sky.ts";
@@ -16,6 +17,7 @@ import { Graveyard3D } from "./graveyard3d.ts";
 import { FallingLeaves } from "./leaves3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
+import { StatueLayer } from "./statue3d.ts";
 import { TownEvents } from "./town-events.ts";
 import { buildTown3d, type Town3d } from "./town3d.ts";
 import { Truck3d } from "./truck3d.ts";
@@ -35,6 +37,8 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   town.setWeather(weatherNow);
   const [W, D] = town.size;
   const events = new TownEvents((tx, ty) => town.toWorld(tx, ty));
+  const statue = new StatueLayer(town.map.find(STATUE_TILE)[0], (tx, ty) => town.toWorld(tx, ty));
+  events.group.add(statue.group);
   const group = new THREE.Group();
   group.add(town.group);
   const officeWindows: { companyId: number; window: THREE.Mesh }[] = [];
@@ -138,17 +142,22 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       truck.update();
       events.update(f);
       graveyard.update(f.now);
+      statue.update(f);
       const [x, z] = f.me ?? [W / 2, D / 2];
       wind.set(windPush(weatherNow()) * 2.5, 0);
       leaves.update(f.dt, f.t, seasonLookNow().look.falling, f.density, wind, x, z);
     },
     onToss: (tx, ty) => events.toss(tx, ty),
-    leave: () => events.leave(),
+    leave: () => {
+      events.leave();
+      statue.leave();
+    },
     signs,
     liveSigns: () => [...truck.signs(), ...(gateLive?.signs() ?? []), ...games.signs(), ...graveyard.signs()],
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();
+      statue.dispose();
       fireworks.dispose();
       events.dispose();
       games.dispose();

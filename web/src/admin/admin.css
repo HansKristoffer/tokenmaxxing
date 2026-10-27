@@ -292,6 +292,19 @@ summary {
   cursor: pointer;
 }
 
+.pin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 420px;
+  margin-top: 20px;
+}
+
+.pin h2,
+.pin p {
+  margin: 0;
+}
+
 /* Keynotes: the schedule form over the list. */
 .keynote-form {
   display: flex;

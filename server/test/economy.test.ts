@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { levelUpCoins } from "@tokenmaxxing/core/economy.ts";
+import { LAUNCH_COINS, levelUpCoins } from "@tokenmaxxing/core/economy.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
+import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { TxSql } from "../src/actors/shared.ts";
 import { balances, wallet } from "../src/town/coins.ts";
+import { recordLaunches } from "../src/town/launch-bonus.ts";
 import { migrate } from "../src/town/schema.ts";
 import { trophyStep } from "../src/town/trophy-awards.ts";
 import { memorySql } from "./memory-sql.ts";
@@ -87,5 +89,58 @@ describe("the new ways to earn", () => {
     dirty.add(1);
     expect((await trophyStep(sql, dirty, NOW, async () => trophies)).size).toBe(0);
     expect((await wallet(sql, 1, NOW)).balance).toBe(base + 5 + 25);
+  });
+
+  describe("the new-model launch bonus", () => {
+    const launch = (at: number): Launch => ({
+      provider: "claude",
+      model: "Claude Opus 5.5",
+      id: "anthropic/claude-opus-5.5",
+      price: { input: null, output: null, cache: null },
+      tagline: "",
+      at,
+    });
+    const used = (userId: number, day: string, model: string) =>
+      sql.execute(
+        "INSERT INTO usage_daily (user_id, day, model, input, output, cache_creation, cache_read, turns) VALUES (?, ?, ?, 1000, 0, 0, 0, 1)",
+        userId,
+        day,
+        model,
+      );
+    const bonus = async (userId = 1) => (await wallet(sql, userId, NOW)).launches;
+
+    test("using the model on its launch day pays once, and the wallet and the admin page agree", async () => {
+      await used(1, "2026-12-09", "claude-opus-5-5-20261209");
+      const before = (await wallet(sql, 1, NOW)).balance;
+      await recordLaunches(sql, [launch(at("2026-12-09"))]);
+      await recordLaunches(sql, [launch(at("2026-12-09"))]);
+      expect((await wallet(sql, 1, NOW)).balance).toBe(before + LAUNCH_COINS);
+      expect((await balances(sql, NOW)).get(1)).toBe(before + LAUNCH_COINS);
+      expect(await bonus()).toEqual([
+        { id: "anthropic/claude-opus-5.5", model: "claude-opus-5-5", day: "2026-12-09", coins: LAUNCH_COINS },
+      ]);
+    });
+
+    test("another day, another model, or a launch never recorded pays nothing", async () => {
+      await used(1, "2026-12-08", "claude-opus-5-5");
+      await used(1, "2026-12-09", "claude-opus-5");
+      const before = (await wallet(sql, 1, NOW)).balance;
+      await recordLaunches(sql, [launch(at("2026-12-09"))]);
+      expect((await wallet(sql, 1, NOW)).balance).toBe(before);
+      expect(await bonus()).toEqual([]);
+      await used(1, "2026-12-09", "claude-opus-5-5");
+      await sql.execute("DELETE FROM launch_bonus");
+      expect(await bonus()).toEqual([]);
+    });
+
+    test("a launch from before someone signed up doesn't pay them", async () => {
+      await sql.execute(
+        "INSERT INTO users (id, name, company_id, joined_at, look, created_at) VALUES (2, 'b', NULL, NULL, '{}', ?)",
+        at("2026-12-10"),
+      );
+      await used(2, "2026-12-09", "claude-opus-5-5");
+      await recordLaunches(sql, [launch(at("2026-12-09"))]);
+      expect(await bonus(2)).toEqual([]);
+    });
   });
 });

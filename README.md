@@ -9,7 +9,8 @@ character is in that house: **at a desk** while your agents run, **asleep in bed
 AI earns **coins**, and so does finishing a day in the top 3; spend them on clothes, glasses, hats and
 pets that follow you around (hold a pet and pick any of its colours and breeds with the eye in your bag; they curl up asleep in the pet bed of your office while you're in it). Or play for them: challenge someone to a game in the town square, from
 rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
-the most real tokens in an hour.
+the most real tokens in an hour. On the square stands a **statue of the #1 model**: whichever model leads
+LMArena's Text Arena, with a plaque in its maker's colours, and an unveiling when a new one takes over.
 The town lives on Aarhus's clock: the real sun and moon, the weather, and the **seasons**. Blossom in spring, full green and light nights in summer,
 leaves turning and falling in autumn, bare branches in winter, changing a little every few days.
 A **star counter** on the square shows the project's GitHub stars, live; press E at it (or open the menu) to
@@ -92,6 +93,14 @@ data is sent anywhere for this.
 
 **GitHub stars.** The server reads this repo's star count from GitHub's public API four times an hour, for the
 star counter on the square. Nothing about players is sent.
+
+**The statue of the #1 model.** Four times a day the server reads the top of
+[LMArena's published leaderboard](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset) (its
+Hugging Face dataset, CC BY 4.0, no key) and puts the Text Arena's #1 on the plinth. It's the one source of the
+lot that is official, public and machine-readable: lmarena.ai itself is behind Cloudflare, Artificial Analysis
+needs an API key, OpenRouter's rankings measure tokens spent rather than quality, and SWE-bench ranks agent
+systems. If a read fails the last leader stays up, and the admin page can pin another model over it. Nothing
+about you is sent.
 
 ## The stats
 
@@ -272,6 +281,7 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `GRID_FEED` | | `off` stops reading the power grid: no green hours (so no bonus), no price board and lamps at full |
 | `GITHUB_TOKEN` | | Sent with the star counter's GitHub reads (a higher rate limit; no scopes needed). Without it, they go unauthenticated: 4 an hour, well inside GitHub's 60 |
 | `GITHUB_STARS` | | Dev and testing: `480` pins the star count instead of reading GitHub (pin it past a milestone and restart for the fireworks); `off` reads nothing |
+| `STATUE_FEED` | | `off` stops reading LMArena's leaderboard for the square's statue; the last leader read stays up. Pin one from the admin page instead |
 | `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
 | `SKY_WEATHER` | | Dev and screenshots only: pins the weather for everyone (`clear`, `cloudy`, `fog`, `drizzle`, `rain`, `storm`, `snow`); nothing is fetched. `?weather=rain` does it for one page |
 | `SKY_SEASON` | | Dev and screenshots only: pins the town's season for everyone (`spring`, `summer`, `autumn`, `winter`, or a date like `11-12`). `?season=autumn` does it for one page |
