@@ -102,6 +102,8 @@ interface HudState {
   dialog: string | null;
   /** Facing one of my own pieces of furniture: what G and M do to it (null: none). */
   pieceHint: string | null;
+  /** The dance I'm doing (`DANCES`), 0 for none: lit on the dance bar. */
+  dancing: number;
   /** The room name, shown briefly on entering. */
   banner: { text: string; at: number } | null;
   /** Bumped to ask the chat input to take focus. */
@@ -153,6 +155,7 @@ let state: HudState = {
   panel: null,
   dialog: null,
   pieceHint: null,
+  dancing: 0,
   banner: null,
   chatFocus: 0,
   mention: null,

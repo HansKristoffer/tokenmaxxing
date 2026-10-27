@@ -3,10 +3,12 @@
  * posed the same way here, with painted faces (`faces.ts`). The colours are the game's own
  * (`web/src/art/palette.ts`), so every look a player has today has a 3D twin. Pets are built the same way.
  */
+import type { DanceMove } from "@tokenmaxxing/core/dances.ts";
 import * as THREE from "three";
 import { HAIRS, OUTFITS, PANTS, SKINS } from "../../art/palette.ts";
 import { liveModel, Model, tint, type V3 } from "../kit/kit.ts";
 import { Freezer, TINY_PX, view } from "../perf/freeze.ts";
+import { dancePose, newDancePose } from "./dances.ts";
 import { type Expression, type Face, faceTexture } from "./faces.ts";
 import { type Gait, gaitSettled, newGait, stepGait, walkPose } from "./motion.ts";
 import {
@@ -90,6 +92,9 @@ export class Avatar {
   readonly arms: [Model, Model];
   readonly legs: [Model, Model];
   pose: Pose = "stand";
+  /** Which dance the "dance" pose is (`dances.ts`); none is the dance floor's own groove. */
+  move: DanceMove | null = null;
+  private readonly moves = newDancePose();
   /** Where they are in their stride: driven by the ground covered (`update`'s `moved`), not by the clock. */
   readonly gait: Gait = newGait(Math.random());
   /** Walking speed assumed when `update` isn't told how far they moved. */
@@ -244,6 +249,21 @@ export class Avatar {
         this.head.rotation.z = Math.sin(t * 3) * 0.06;
         break;
       case "dance": {
+        if (this.move) {
+          // On the clock, not offset: two people doing the same dance are in step.
+          const d = dancePose(this.move, t, HIP, this.height, this.moves);
+          b.position.set(d.slide, d.lift, d.step);
+          b.rotation.set(d.lean, d.turn, d.tilt);
+          const put = (o: THREE.Object3D, v: V3) => o.rotation.set(v[0], v[1], v[2]);
+          put(this.head, d.head);
+          put(armL, d.armL);
+          put(armR, d.armR);
+          put(legL, d.legL);
+          put(legR, d.legR);
+          kneeL.rotation.x = d.kneeL;
+          kneeR.rotation.x = d.kneeR;
+          break;
+        }
         const beat = t * 7 + this.breath;
         b.position.y = Math.abs(Math.sin(beat)) * 0.07;
         b.rotation.y = Math.sin(beat * 0.5) * 0.4;
@@ -283,7 +303,8 @@ export class Avatar {
     // Blink every few seconds, and move the mouth while talking.
     const blink = t > this.blinkAt && t < this.blinkAt + 0.12;
     if (t > this.blinkAt + 0.12) this.blinkAt = t + 2 + Math.random() * 4;
-    let face: Face = this.pose === "sleep" ? "sleep" : this.expression;
+    const shut = this.pose === "sleep" || (this.pose === "dance" && this.moves.shut && this.move !== null);
+    let face: Face = shut ? "sleep" : this.expression;
     if (face === "neutral" && this.talking && Math.sin(t * 16) > 0) face = "talk";
     if (blink && (face === "neutral" || face === "focus" || face === "surprised")) face = "blink";
     for (const f of this.rig.faces) {
