@@ -4,6 +4,7 @@ import { hasPolse } from "@tokenmaxxing/core/street.ts";
 import { hasSpecial, specialBuff } from "@tokenmaxxing/core/tavern.ts";
 import { cupsLeft, JUMP_MS, ownerOfOffice, TILE } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
+import { merchKey, merchVersion } from "../../art/merch.ts";
 import { PET_H, PET_W } from "../../art/pets.ts";
 import { BURST_MS } from "../../game/emoji.ts";
 import { LABEL_FAR } from "../../game/near.ts";
@@ -50,7 +51,9 @@ interface Rig {
   sig: string;
   /** The try-on `sig` was worked out with: with `info`, what the look is made from. */
   fitting: Look2D | null;
-  /** `info` or the try-on changed this frame: the signatures below are worked out again, otherwise reused. */
+  /** The companies' merch (`merchVersion`) `sig` was worked out with: a new print redresses whoever wears it. */
+  merch: number;
+  /** `info`, the try-on or the companies changed this frame: the signatures below are worked out again, otherwise reused. */
   changed: boolean;
   avatar: Avatar3D;
   root: THREE.Group;
@@ -116,7 +119,7 @@ function show(el: HTMLElement, text: string | null): void {
 }
 
 const lookSig = (info: GameAvatar["info"], look: GameAvatar["info"]["look"] = info.look): string =>
-  `${JSON.stringify(look)}|${info.level >= LEGENDARY_LEVEL}|${info.id === COP_ID}`;
+  `${JSON.stringify(look)}|${info.level >= LEGENDARY_LEVEL}|${info.id === COP_ID}|${look.merch && look.merchWorn ? merchKey(look.merch) : ""}`;
 
 /** Everyone in the room: their voxel bodies, pets and the labels over them, keyed by player id. */
 export class Entities {
@@ -218,6 +221,7 @@ export class Entities {
       info: a.info,
       sig: lookSig(a.info, this.lookOf(a.info)),
       fitting: this.fitting,
+      merch: merchVersion(),
       changed: true,
       avatar,
       root,
@@ -305,8 +309,8 @@ export class Entities {
     }
     for (const a of list) {
       let r = this.rigs.get(a.info.id);
-      // The server replaces `info` when it changes, so the look is only compared then (or for a try-on).
-      const changed = !!r && (r.info !== a.info || r.fitting !== this.fitting);
+      // The server replaces `info` when it changes, so the look is only compared then (or for a try-on, or new merch).
+      const changed = !!r && (r.info !== a.info || r.fitting !== this.fitting || r.merch !== merchVersion());
       if (r && changed && r.sig !== lookSig(a.info, this.lookOf(a.info))) {
         this.remove(r);
         r = undefined;
@@ -317,6 +321,7 @@ export class Entities {
       r.changed = changed;
       r.info = a.info;
       r.fitting = this.fitting;
+      r.merch = merchVersion();
       const crowd = crowds.get(`${a.x},${a.y}`);
       const spread = crowd ? crowdOffset(crowd.indexOf(a.info.id), crowd.length) : ([0, 0] as const);
       this.step(r, a, me, view, camera, now, dt, dtS, t, spread);

@@ -87,6 +87,10 @@ export const merchVersion = (): number => version;
 
 export const coloursOf = (companyId: number): MerchColours => COMPANIES.get(companyId)?.colours ?? FALLBACK;
 
+/** A company's merch colours, if the world has that company (the 3D avatars dress from these too). */
+export const knownColours = (companyId: number): MerchColours | undefined =>
+  COMPANIES.get(companyId)?.colours;
+
 /** A key for caches: what the merch of `companyId` looks like right now. */
 export const merchKey = (companyId: number): string => COMPANIES.get(companyId)?.key ?? keyOf(FALLBACK);
 
