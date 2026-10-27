@@ -1024,7 +1024,10 @@ export const HAT_BUILDERS: Record<string, Build> = {
       const Y = (y: number) => (y / 120) * h;
       const poly = (pts: [number, number][], fill: string, stroke?: string) => {
         g.beginPath();
-        pts.forEach(([x, y], i) => (i ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y))));
+        for (const [i, [x, y]] of pts.entries()) {
+          if (i) g.lineTo(X(x), Y(y));
+          else g.moveTo(X(x), Y(y));
+        }
         g.closePath();
         g.fillStyle = fill;
         g.fill();

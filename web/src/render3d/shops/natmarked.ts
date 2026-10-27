@@ -181,7 +181,9 @@ function noren(width: number, drop: number, panels = 3): Model {
     hang.ball(pw * 0.2, INDIGO, [pw * 0.1, -drop * 0.55 + 0.02, 0.024], [1, 1, 0.12], 12);
     cloth.push(hang);
   }
-  ticks.push((t) => cloth.forEach((c, i) => (c.rotation.x = Math.sin(t * 1.3 + i * 0.9) * 0.04)));
+  ticks.push((t) => {
+    for (const [i, c] of cloth.entries()) c.rotation.x = Math.sin(t * 1.3 + i * 0.9) * 0.04;
+  });
   return m;
 }
 

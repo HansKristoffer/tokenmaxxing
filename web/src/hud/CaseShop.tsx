@@ -21,11 +21,11 @@ function CaseSprite({ open, scale = 4 }: { open?: boolean; scale?: number }) {
   const kind = open ? "open" : "closed";
   const { w, h } = CASE_BOX_SIZE[kind];
   return (
+    <span aria-hidden="true" className="cshop-art-wrap">
     <canvas
       className="cshop-art"
       width={w * scale}
       height={h * scale}
-      aria-hidden="true"
       ref={(c) => {
         const g = c?.getContext("2d");
         if (!g || !c) return;
@@ -34,6 +34,7 @@ function CaseSprite({ open, scale = 4 }: { open?: boolean; scale?: number }) {
         g.drawImage(caseBoxSprite(kind, 0), 0, 0, w * scale, h * scale);
       }}
     />
+    </span>
   );
 }
 
@@ -72,6 +73,7 @@ export function CaseShop() {
     setBag(await town.bag());
   };
   // The bag again whenever the opening screen is closed: the new item is in it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `reload` only calls stable setters; it should run when `opening` flips, not on every render.
   useEffect(() => {
     if (opening) return;
     void reload().catch((e) => setFailed(errorText(e)));

@@ -191,7 +191,7 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     v.b(0.2, -3.4, 1.6, 3.5, 3.4, 0.6, "#23252f");
     v.b(-3.75, -3.4, 2.1, 3.6, 0.3, 0.15, CYAN);
     v.b(0.15, -3.4, 2.1, 3.6, 0.3, 0.15, CYAN);
-    c.arms.forEach((arm) => new Vx(vpart(arm)).b(-1.2, -6.6, -1.2, 2.4, 1, 2.4, "#15161c"));
+    for (const arm of c.arms) new Vx(vpart(arm)).b(-1.2, -6.6, -1.2, 2.4, 1, 2.4, "#15161c");
   },
   // Dragon satin jacket: teal-black satin with gold rib, a zip, a dragon on the left chest and a big one coiled up the back.
   4: (c) => {
@@ -225,7 +225,7 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     roll(c, GOLD, 1, 0.35);
     roll(c, GOLD, 1, 0.35, 0);
     sleeveStripes(c, "#2a6a78");
-    c.arms.forEach((arm) => new Vx(vpart(arm)).b(-1.22, -6.4, -1.22, 2.44, 1, 2.44, GOLD));
+    for (const arm of c.arms) new Vx(vpart(arm)).b(-1.22, -6.4, -1.22, 2.44, 1, 2.44, GOLD);
   },
   // Festival parade: a red happi with a gold sash and a fan crest, and a carrying pole with lanterns that swing and glow.
   5: (c) => {
@@ -393,7 +393,7 @@ const HELD: Record<string, HeldBuilder> = {
     tick((t) => {
       const beat = Math.max(0, Math.sin(t * 9)) ** 3;
       for (const c of cones) c.scale.set(1 + beat * 0.14, 1 + beat * 0.14, 1 + beat * 0.5);
-      bars.forEach((m, i) => m.scale.set(1, 0.4 + Math.abs(Math.sin(t * 8 + i * 1.9)) * 1.6, 1));
+      for (const [i, m] of bars.entries()) m.scale.set(1, 0.4 + Math.abs(Math.sin(t * 8 + i * 1.9)) * 1.6, 1);
     });
   },
   // Skateboard: stood on its tail, pink deck to the front with a neon stripe, trucks and yellow wheels.
@@ -502,7 +502,7 @@ const BACKS: Record<string, BackBuilder> = {
     const fall = (t: number, walking: boolean) => {
       cloud.position.y = top * U + Math.sin(t * 1.6) * 0.01;
       const f = Math.sin(t * 3.1) > 0.86;
-      bolt.forEach((m) => (m.visible = f));
+      for (const m of bolt) m.visible = f;
       for (const d of drops) {
         const k = (t * d.v * (walking ? 0.9 : 0.7) + d.p) % 1;
         d.m.position.set(d.x * U, (top - 3 - k * 10) * U, d.z * U);

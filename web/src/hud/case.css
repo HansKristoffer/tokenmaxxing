@@ -404,3 +404,8 @@
   position: relative;
   font-size: 18px;
 }
+
+.cs-box-wrap,
+.cshop-art-wrap {
+  display: contents;
+}

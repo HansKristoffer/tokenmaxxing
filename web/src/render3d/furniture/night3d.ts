@@ -56,7 +56,7 @@ const lanternString = (): Model => {
     seg.rotation.z = Math.atan2(y1 - y0, x1 - x0);
   }
   const colours = [RED, "#f08a3c", PINK, "#f5d14a", RED];
-  [-0.8, -0.4, 0, 0.4, 0.8].forEach((x, i) => lantern(m, x, y + sag(x), colours[i]!, 1, i));
+  for (const [i, x] of [-0.8, -0.4, 0, 0.4, 0.8].entries()) lantern(m, x, y + sag(x), colours[i]!, 1, i);
   light(m, [0, y - 0.3, 0.4], "#ffb347", 1.2, 3);
   return m;
 };
@@ -145,7 +145,9 @@ const ramenCounter = (): Model => {
   m.box([2.0, 0.2, 0.34], RED, [0, 1.5, -0.04], 0.02);
   m.box([2.0, 0.03, 0.34], tint(RED, 0.25), [0, 1.69, -0.04], 0.01);
   const bulbs = [-0.8, -0.4, 0, 0.4, 0.8].map((x) => m.ball(0.025, glow("#ffd36a"), [x, 1.5, 0.14], [1, 1, 1], 6));
-  ticks.push((t) => bulbs.forEach((b, i) => b.scale.setScalar(Math.floor(t * 2 + i) % 2 ? 1.2 : 0.8)));
+  ticks.push((t) => {
+    for (const [i, b] of bulbs.entries()) b.scale.setScalar(Math.floor(t * 2 + i) % 2 ? 1.2 : 0.8);
+  });
   for (const x of [-0.55, 0, 0.55]) {
     const flap = m.box([0.46, 0.5, 0.012], NAVY, [x, 1.0, 0.12], 0.003);
     m.box([0.08, 0.22, 0.014], CREAM, [x, 1.14, 0.13], 0.003);
@@ -171,15 +173,15 @@ const ramenCounter = (): Model => {
     for (const i of [0, 1, 2]) s.ball(0.015, "#ffffff", [0, i * 0.05, 0], [1, 1, 1], 5);
     steams.push([s, x]);
   }
-  ticks.push((t) =>
-    steams.forEach(([s, x]) =>
-      s.children.forEach((c, i) => {
+  ticks.push((t) => {
+    for (const [s, x] of steams) {
+      for (const [i, c] of s.children.entries()) {
         const u = (t * 0.45 + i / 3 + x) % 1;
         c.position.set(Math.sin(u * 7 + i) * 0.02, u * 0.22, 0);
         c.scale.setScalar(1 - u * 0.6);
-      }),
-    ),
-  );
+      }
+    }
+  });
   lantern(m, 0.82, 1.3, "#f08a3c", 0.9, 1);
   light(m, [0, 1.0, 0.5], "#ffb347", 1.2, 3);
   return m;
@@ -211,7 +213,9 @@ const clawMachine = (): Model => {
   m.box([W, 0.05, D], NAVY, [0, 0.72, 0], 0.01);
   m.box([W + 0.04, 0.26, D + 0.04], PINK, [0, 1.7, 0], 0.03);
   const bulbs = Array.from({ length: 7 }, (_, i) => m.ball(0.022, glow("#ffd36a"), [-0.3 + i * 0.1, 1.82, D / 2 + 0.03], [1, 1, 0.6], 6));
-  ticks.push((t) => bulbs.forEach((b, i) => b.scale.setScalar((Math.floor(t * 3) + i) % 2 ? 1.25 : 0.7)));
+  ticks.push((t) => {
+    for (const [i, b] of bulbs.entries()) b.scale.setScalar((Math.floor(t * 3) + i) % 2 ? 1.25 : 0.7);
+  });
   m.box([0.5, 0.1, 0.01], LACQUER, [0, 1.74, D / 2 + 0.025], 0.003);
   for (const [x, c] of [
     [-0.18, "#f5d14a"],

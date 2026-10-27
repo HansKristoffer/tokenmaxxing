@@ -125,7 +125,11 @@ export function CaseArt({ opening }: { opening: boolean }) {
     ctx.clearRect(0, 0, ref.current!.width, ref.current!.height);
     ctx.drawImage(caseBoxSprite(kind, 0), 0, 0, w * 3, h * 3);
   }, [opening]);
-  return <canvas ref={ref} width={72} height={84} className="cs-box-art" aria-hidden="true" />;
+  return (
+    <span aria-hidden="true" className="cs-box-wrap">
+      <canvas ref={ref} width={72} height={84} className="cs-box-art" />
+    </span>
+  );
 }
 
 function Tile({ item, hidden, won }: { item: Item; hidden?: boolean; won?: boolean }) {
