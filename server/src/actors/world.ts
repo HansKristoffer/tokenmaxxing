@@ -20,6 +20,7 @@ import {
   spotSize,
 } from "@tokenmaxxing/core/games/gather.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
+import { isTruck } from "@tokenmaxxing/core/jdag.ts";
 import {
   type Jukebox,
   settle as settleJukebox,
@@ -1555,9 +1556,13 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
   return dozed;
 }
 
-/** A table or desk of a game in town, the pølsevogn, or a launch stand while it's up: nobody walks onto it. */
+/**
+ * A table or desk of a game in town, the pølsevogn, a launch stand while it's up, or the J-dag truck while it's
+ * parked: nobody walks onto it.
+ */
 const onProp = (s: WorldState, launches: readonly Launch[], x: number, y: number) =>
   isCart(x, y) ||
+  isTruck(x, y, Date.now()) ||
   (isStand(x, y) && activeLaunches(Date.now(), launches).length > 0) ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
 

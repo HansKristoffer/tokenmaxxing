@@ -68,6 +68,8 @@ export class Pumpkins {
       o.userData.nopick = true;
       o.userData.noBlock = true;
     });
+    // They come and go with the calendar: the room's batching leaves them as they are.
+    this.group.userData.nobatch = true;
     this.group.visible = false;
   }
 

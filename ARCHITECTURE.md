@@ -1017,7 +1017,17 @@ window round it (both ends included, across New Year too). Each feature keeps it
   `render3d/town/pumpkins3d.ts` (`Pumpkins`, in `room-town.ts`) builds them once per town, the bodies batched and every
   face one mesh whose colour turns candlelit. Both ask `pumpkinsOutNow()` and `candlesLit()` (the street lamps'
   `lightsNow`), on `skyNow()`, so `?sky=2026-10-31T21:00` shows them. `web/test/halloween.test.ts` checks that both
-  renderers put them on the same tiles.
+  renderers put them on the same tiles. The 3D group is `nobatch`: it comes and goes, so the room's batching must not
+  freeze it.
+- **J-dag** (`core/src/jdag.ts`): `truckAt(ms)` puts Nissebryg's truck (a made-up brewery, like the posters' films) on the
+  road under the square: it drives in from the west over the minute from 20:59, parks with its back on (2, 9) till 03:00
+  and drives off east, gone before the paperboy rides that road. Parked, its four tiles are a prop nobody walks onto
+  (`isTruck`: `onProp` in `world`, `blocksTruck` in `game/input.ts`); E on it says what it's for. From 20:59 until Sunday
+  is out (`julebrygOn`) the tap pours Nissebryg instead of the day's special: `specialOn` returns `JULEBRYG.line` and
+  `buffAt` a glow, so the `tavern` action, the chalkboards, the barkeep's `{special}` and the 3D easel all follow with
+  no new field. 2D: `game/jdag.ts` (`drawTruck`, and `lightTruck` for the headlight and fairy lights after the night
+  tint); 3D: `render3d/town/truck3d.ts` (`Truck3d`, merged once, `nobatch`, its sign a live one while parked). Both run on
+  `skyNow()`; `?sky=2026-11-06T22:00` shows it. `web/test/jdag.test.ts` checks both put it in the same place.
 - **Costumes** (`core/src/costumes.ts`): hats sold only round their holiday (`ON_SALE`: 14 days before to 2 after), worn and
   traded all year. Their look indices start at `COSTUME_BASE` (200), past the editions, and `parseLook` takes them like
   editions; `Item.holiday` marks them. `buy` (`town/coins.ts`) refuses one out of season with `offSeason`; the Shop page

@@ -42,6 +42,7 @@ import { drawGames } from "./games.ts";
 import { drawGlow } from "./glow.ts";
 import { drawPumpkins, lightPumpkins } from "./halloween.ts";
 import { buildings, companyOnPlot, drawFace, drawLogo, peekHits } from "./houses.ts";
+import { drawTruck, lightTruck } from "./jdag.ts";
 import {
   avatarLabels,
   chipHits,
@@ -332,6 +333,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawLaunch(f);
   drawPicnic(f);
   drawPumpkins(f);
+  drawTruck(f);
   drawChalkboards(f);
   drawTavern(f);
   drawTownAnimals(f);
@@ -429,6 +431,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
       drawLights(g, lamps, windows, glow);
       lightPumpkins(g, glow, now);
+      lightTruck(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
     drawNightSky(g, w, h, dpr, now);
