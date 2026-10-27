@@ -1141,6 +1141,22 @@ window round it (both ends included, across New Year too). Each feature keeps it
   no new field. 2D: `game/jdag.ts` (`drawTruck`, and `lightTruck` for the headlight and fairy lights after the night
   tint); 3D: `render3d/town/truck3d.ts` (`Truck3d`, merged once, `nobatch`, its sign a live one while parked). Both run on
   `skyNow()`; `?sky=2026-11-06T22:00` shows it. `web/test/jdag.test.ts` checks both put it in the same place.
+- **December** (`core/src/december.ts`):
+  - The **julekalender**: `DOORS`, 24 gifts, the same for everyone (coins, or a hat or face item behind doors 6, 13,
+    20 and 24); `doorOn(ms)` is today's door from 1 to 24 December. `town.openDoor` (`town/julekalender.ts`, under
+    `serial`) opens only today's, once: one transaction inserts `julekalender (user_id, day)` (primary key, so a
+    second tab, a double click or a restart can't open it twice) and pays it, coins as a `ledger` line (kind
+    `julekalender`, ref the date) or an item as a bag row. Next December the dates are new, so the doors open again.
+    A missed day stays shut. `town.julekalender` lists the doors I've opened. The HUD shows 🎄 from 1 to 24 December
+    (`hud/Julekalender.tsx`, the same in 2D and 3D).
+  - **Julefrokost** (`julefrokostOn`): Friday and Saturday evenings from 18:00 in December up to the 23rd. The tap
+    serves the evening's dish from `JULEFROKOST_MENU` (`specialOn`, after J-dag's beer) with a glow, and the Tavern's
+    long tables are laid with a red runner, plates and snaps: 2D `game/december.ts` (`drawJulefrokost`, from
+    `drawTavern`), 3D `render3d/rooms/julefrokost3d.ts` (`JulefrokostSpread`, in `TavernEvents`, merged once, `nobatch`).
+  - **Snow**: `decemberSnow` runs after `winterSnow` in `weatherNow`, so all December it snows (at least 0.4) whatever
+    the server's weather, fog and clear days included; wind and cloud stay real. Both renderers read `weatherNow`.
+    The 3D snow lies on up-facing surfaces through a uniform the materials share with indoor furniture, so an indoor
+    stage keeps it at 0 (`meltSnow` in `Stage.update`) and it settles again outside.
 - **Costumes** (`core/src/costumes.ts`): hats sold only round their holiday (`ON_SALE`: 14 days before to 2 after), worn and
   traded all year. Their look indices start at `COSTUME_BASE` (200), past the editions, and `parseLook` takes them like
   editions; `Item.holiday` marks them. `buy` (`town/coins.ts`) refuses one out of season with `offSeason`; the Shop page

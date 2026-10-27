@@ -1,6 +1,7 @@
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { hash } from "../art/pixels.ts";
 import { FLAME_AT, HEARTH_H, hearthFlame, sconce } from "../art/tavern.ts";
+import { drawJulefrokost } from "./december.ts";
 import type { Frame } from "./frame.ts";
 import { drawGlow, flicker } from "./glow.ts";
 import { drawPoker } from "./poker.ts";
@@ -49,6 +50,7 @@ export function drawTavern(f: Frame): void {
   drawRegulars(f);
   drawBarTab(f);
   drawPoker(f);
+  drawJulefrokost(f);
   for (const [x, y] of SCONCES) {
     const s = sconce(Math.floor(now / 140 + x) % 2);
     items.push({ y: y * TILE + 4, draw: () => g.drawImage(s, x * TILE + 5, y * TILE + 2) });

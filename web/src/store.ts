@@ -29,6 +29,7 @@ export type Panel =
   | { kind: "shop"; tab?: ShopPageTab }
   | { kind: "shops" }
   | { kind: "merchant" }
+  | { kind: "julekalender" }
   | { kind: "bag"; tab?: "you" | "pet" | "things" }
   | { kind: "arcade" }
   | { kind: "newTable"; invite?: number; inviteName?: string; game?: GameId }

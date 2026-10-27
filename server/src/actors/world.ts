@@ -400,6 +400,8 @@ export const world = actor({
     /** The keynote watch parties (`keynote.ts`): `town`'s schedule, still to come or on, soonest first. */
     keynotes: [] as Keynote[],
     keynotesAt: 0,
+    /** Counts `town`'s pushes, so a poll that was asked before the latest push can't put back the list it replaced. */
+    keynotesPushed: 0,
     /** Badges for a keynote asked of `town` already (`keynoteId:userId`), so being there costs one call. */
     watched: new Set<string>(),
     cop: { burns: new Map(), ticketed: new Map(), chase: null, freeAt: 0 } as CopVars,
@@ -1308,6 +1310,7 @@ export const world = actor({
     /** From `town`: the keynote schedule, changed on the admin page. */
     setKeynotes: (c, list: Keynote[]): void => {
       requireInternal(c.conn.state);
+      c.vars.keynotesPushed++;
       keepKeynotes(c, list);
     },
 
@@ -1487,6 +1490,7 @@ type Vars = {
   plots: Plot[];
   graves: Stone[];
   keynotes: Keynote[];
+  keynotesPushed: number;
   watched: Set<string>;
   weather: Weather;
   grid: GridState;
@@ -1979,7 +1983,10 @@ async function refreshKeynotes(c: {
   broadcast(name: string, ...args: unknown[]): void;
 }): Promise<void> {
   try {
-    keepKeynotes(c, await main(c.client()).town.keynotes());
+    const pushed = c.vars.keynotesPushed;
+    const list = await main(c.client()).town.keynotes();
+    // A push came while we asked: it's newer than this answer.
+    if (c.vars.keynotesPushed === pushed) keepKeynotes(c, list);
   } catch (err) {
     console.warn(`[keynotes] ${String(err)}`);
   }
