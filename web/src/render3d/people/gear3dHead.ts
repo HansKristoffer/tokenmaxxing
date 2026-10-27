@@ -919,6 +919,18 @@ export const HAT_BUILDERS: Record<string, Build> = {
       m.ball(r, "#fbf7ef", [x, y, z], [1, 0.5, 1], 8);
   },
   "Borrowed-token tricorn": (m) => tricorn(m, { main: "#2f2a3a", trim: "#f5c842", emblem: "coin" }),
+  // The Halloween costume (`core/src/costumes.ts`): a lumpy pumpkin on the crown, its face cut in the front
+  // and lit from inside, a green stem on top.
+  "Jack-o'-lantern": (m) => {
+    m.ball(0.3, "#e8772a", [0, 0.12, 0], [1.12, 0.7, 1.05], 18);
+    for (let i = 0; i < 4; i++) {
+      const a = Math.PI / 4 + (i * Math.PI) / 2;
+      m.ball(0.2, "#c25a1c", [Math.cos(a) * 0.14, 0.12, Math.sin(a) * 0.13], [1, 1.02, 1], 12);
+    }
+    m.cyl(0.035, 0.1, "#5a8a2a", [0, 0.3, 0], 0.025, 6).rotation.z = 0.25;
+    for (const x of [-0.1, 0.1]) m.box([0.07, 0.06, 0.03], lit("#ffd04a"), [x, 0.17, 0.3], 0.005);
+    m.box([0.2, 0.045, 0.03], lit("#ffd04a"), [0, 0.07, 0.3], 0.005);
+  },
   "429 bucket hat": (m) => {
     m.cyl(0.215, 0.17, "#4fb3a9", [0, 0.07, 0], 0.2, 18);
     m.cyl(0.215, 0.05, "#3a8c84", [0, 0.07, 0], 0.34, 22).position.y = 0.08;
@@ -1458,6 +1470,7 @@ export const COVERS_HAIR = new Set([
   "Force-push helm",
   "Cache-hit mushroom",
   "Borrowed-token tricorn",
+  "Jack-o'-lantern",
   "429 bucket hat",
   "Copenhagen ushanka",
   "Rubber-duck hat",

@@ -11,6 +11,7 @@ import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from 
 import { GamesLayer } from "./games3d.ts";
 import { FallingLeaves } from "./leaves3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
+import { Pumpkins } from "./pumpkins3d.ts";
 import { TownEvents } from "./town-events.ts";
 import { buildTown3d, type Town3d } from "./town3d.ts";
 
@@ -73,6 +74,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   };
   const markers = new ExitMarkers(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(markers.group);
+  // Halloween's jack-o'-lanterns, on the doorsteps: hidden the rest of the year.
+  const pumpkins = new Pumpkins(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  group.add(pumpkins.group);
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
@@ -106,6 +110,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       }
       showBoard();
       markers.update(f.me, f.t);
+      pumpkins.update(f.now);
       events.update(f);
       const [x, z] = f.me ?? [W / 2, D / 2];
       wind.set(windPush(weatherNow()) * 2.5, 0);
