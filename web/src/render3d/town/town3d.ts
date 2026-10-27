@@ -6,7 +6,9 @@
  * World units are tiles: tile (tx, ty) covers x from `tx - x0 + MARGIN`, z from `ty - y0 + MARGIN`.
  */
 import { SHOP_BLOCKS } from "@tokenmaxxing/core/maps.ts";
+import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { CART, SNAIL } from "@tokenmaxxing/core/street.ts";
+import { WINDMILL } from "@tokenmaxxing/core/windmill.ts";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { C } from "../../art/palette.ts";
@@ -56,6 +58,7 @@ import {
   paperRoll,
   polseCart,
 } from "./town3d-props.ts";
+import { type Windmill, windmill } from "./windmill3d.ts";
 
 /** Grass tiles round the map's tree ring. */
 export const MARGIN = 3;
@@ -99,6 +102,10 @@ export interface Town3d {
   houses: Map<number, Model>;
   /** Street life, worked out from the clock (minutes since midnight in Aarhus). */
   setClock: (minutes: () => number) => void;
+  /** The windmills' wind (the game's weather); calm until it is set. */
+  setWeather: (weather: () => Weather) => void;
+  /** The windmills, by their top-left tile ("x,y"). */
+  windmills: Map<string, Windmill>;
 }
 
 // MARK: Ground
@@ -437,6 +444,7 @@ export function buildTown3d(
   const flowers: [number, number, string][] = [];
   const stones: [number, number, number][] = [];
   const water: [number, number][] = [];
+  const mills: [number, number][] = [];
   const fountains = map.find("F");
   const fxs = fountains.map(([x]) => x);
   const fys = fountains.map(([, y]) => y);
@@ -488,6 +496,9 @@ export function buildTown3d(
         case "o":
           add(coffeeStand(), cx, cz + 0.1);
           break;
+        case WINDMILL:
+          if (map.at(tx - 1, ty) !== ch && map.at(tx, ty - 1) !== ch) mills.push([tx, ty]);
+          break;
         case "G":
           add(dungeonGate(), cx, cz + 0.25);
           doors.push({ id: "dungeon", kind: "dungeon", label: "Raid dungeon", tile: [tx, ty], at: [cx, cz] });
@@ -512,6 +523,20 @@ export function buildTown3d(
 
   // The fountain, over its 2x2 tiles.
   if (fountains.length) add(grandFountain(), fountainX, fountainZ, 0, 0.62);
+
+  // The windmills, each in the middle of its 2x2 tiles, turning with the weather's wind.
+  const windmills = new Map<string, Windmill>();
+  for (const [tx, ty] of mills)
+    windmills.set(`${tx},${ty}`, add(windmill(), wx(tx) + 1, wz(ty) + 1) as Windmill);
+  let weather: () => Weather = () => CALM;
+  let windAt: number | null = null;
+  if (windmills.size)
+    ticks.push((t) => {
+      const dt = windAt === null ? 0 : Math.min(0.5, Math.max(0, t - windAt));
+      windAt = t;
+      const w = weather();
+      for (const mill of windmills.values()) mill.update(dt, w);
+    });
 
   // Flower meadows: a few blossoms on every flower tile, one instanced mesh.
   if (flowers.length) {
@@ -775,6 +800,10 @@ export function buildTown3d(
     setClock: (f) => {
       clock = f;
     },
+    setWeather: (f) => {
+      weather = f;
+    },
+    windmills,
   };
 }
 
@@ -838,6 +867,7 @@ export const TOWN3D_ASSETS: readonly Asset[] = [
   tileAsset("tile:w", "Open offices board", openOfficesBoard),
   tileAsset("tile:o", "Coffee stand", coffeeStand),
   tileAsset("tile:G", "Dungeon gate", dungeonGate),
+  tileAsset(`tile:${WINDMILL}`, "Windmill", windmill, 2, 2),
   tileAsset("building:inn", "The Tavern", () => footprint(tavernBuilding(), 7, 4, 1.6), 7, 4),
   tileAsset("building:arcade", "Arcade", () => footprint(arcadeBuilding(), 7, 5, 0), 7, 5),
   ...HOUSE_TIER_NAMES.map((n, i) =>
