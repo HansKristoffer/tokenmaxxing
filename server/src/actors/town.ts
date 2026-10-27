@@ -144,6 +144,7 @@ import {
 } from "../town/companies.ts";
 import { buyDesk, buyDeskFleet, type MyDesk, myDesk, setDesk } from "../town/desks.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
+import { recordGreen } from "../town/grid.ts";
 import { type HallOfFame, hallOfFame } from "../town/hall.ts";
 import { comingKeynotes, everyKeynote, markKeynote, removeKeynote, saveKeynote } from "../town/keynotes.ts";
 import { announceLoot, grantLoot, lootBoost, raidLoot } from "../town/loot.ts";
@@ -228,6 +229,8 @@ export interface ActivityDay extends ActivityRow {
   hours?: string;
   /** JSON `{source: tokens}`. */
   sources?: string;
+  /** Tokens by world hour: 24 numbers, comma-separated, for green hours. */
+  hourTokens?: string;
 }
 
 export interface Me {
@@ -1264,6 +1267,17 @@ export const town = actor({
      * From `world`, every few minutes: who spent how long in the Tavern since the last call (`[userId,
      * minutes, visits]`). Credit is capped per player per day; plaques give no coins.
      */
+    /**
+     * From `world` after each grid read: the hours (their starts) it found green. Each goes in once
+     * (`recordGreen`), so the same hours sent again change nothing.
+     */
+    greenHours: async (c, hours: unknown): Promise<number> => {
+      requireInternal(c.conn.state);
+      if (!Array.isArray(hours)) return 0;
+      const clean = hours.filter((h): h is number => typeof h === "number").slice(0, 48);
+      return c.vars.serial(() => recordGreen(c.db, clean, Date.now()));
+    },
+
     tavernMinutes: async (c, day: unknown, rows: unknown): Promise<void> => {
       requireInternal(c.conn.state);
       if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !Array.isArray(rows)) return;
