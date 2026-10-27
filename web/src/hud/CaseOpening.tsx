@@ -128,9 +128,10 @@ export function CaseArt({ opening }: { opening: boolean }) {
   );
 }
 
-function Tile({ item, hidden, won }: { item: Item; hidden?: boolean; won?: boolean }) {
+function Tile({ item, won }: { item: Item; won?: boolean }) {
   const rarity = rarityIn(item);
-  const mystery = hidden && rarity === "legendary";
+  // A legendary is never named on the strip, even when it lands: the reveal panel below shows it.
+  const mystery = rarity === "legendary";
   return (
     <li
       className={`cs-tile${mystery ? " mystery" : ""}${won ? " won" : ""}`}
@@ -307,7 +308,7 @@ export function CaseOpening({
         <ul className="cs-strip" ref={strip} data-speed="slow" aria-hidden={busy}>
           {(shown ?? idle).map((it, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: the strip is positional; a winner repeats items
-            <Tile key={i} item={it} hidden={!(won && i === WINNER_AT)} won={!!won && i === WINNER_AT} />
+            <Tile key={i} item={it} won={!!won && i === WINNER_AT} />
           ))}
         </ul>
         <span className="cs-marker" aria-hidden="true" />
