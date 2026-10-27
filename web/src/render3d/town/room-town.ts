@@ -18,6 +18,7 @@ import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
 import { TownEvents } from "./town-events.ts";
 import { buildTown3d, type Town3d } from "./town3d.ts";
+import { Truck3d } from "./truck3d.ts";
 
 /** The picture height the town starts at: the square and a few houses. */
 const TOWN_VIEW = 12;
@@ -95,6 +96,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // Halloween's jack-o'-lanterns, on the doorsteps: hidden the rest of the year.
   const pumpkins = new Pumpkins(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(pumpkins.group);
+  // J-dag's truck, on the road under the square on the first Friday night of November.
+  const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(truck.group);
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
@@ -131,6 +135,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       fireworks.update();
       markers.update(f.me, f.t);
       pumpkins.update(f.now);
+      truck.update();
       events.update(f);
       graveyard.update(f.now);
       const [x, z] = f.me ?? [W / 2, D / 2];
@@ -140,7 +145,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     onToss: (tx, ty) => events.toss(tx, ty),
     leave: () => events.leave(),
     signs,
-    liveSigns: () => [...(gateLive?.signs() ?? []), ...games.signs(), ...graveyard.signs()],
+    liveSigns: () => [...truck.signs(), ...(gateLive?.signs() ?? []), ...games.signs(), ...graveyard.signs()],
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();

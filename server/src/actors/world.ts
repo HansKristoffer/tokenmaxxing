@@ -29,6 +29,7 @@ import {
   tend,
   withChanges,
 } from "@tokenmaxxing/core/graveyard.ts";
+import { isTruck } from "@tokenmaxxing/core/jdag.ts";
 import {
   type Jukebox,
   settle as settleJukebox,
@@ -1635,11 +1636,12 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
 }
 
 /**
- * A table or desk of a game in town, the pølsevogn, a launch stand while it's up, or a tombstone:
- * nobody walks onto it.
+ * A table or desk of a game in town, the pølsevogn, a launch stand while it's up, the J-dag truck while it's
+ * parked, or a tombstone: nobody walks onto it.
  */
 const onProp = (s: WorldState, v: Pick<Vars, "launches" | "graves">, x: number, y: number) =>
   isCart(x, y) ||
+  isTruck(x, y, Date.now()) ||
   (isStand(x, y) && activeLaunches(Date.now(), v.launches).length > 0) ||
   stoneAt(v.graves, x, y) !== undefined ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
