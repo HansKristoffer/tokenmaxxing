@@ -174,6 +174,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `capped_daily`,
   `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
   handed out), `loot` (raid drops handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
+  `market_listings` and `market_sales` (Torvehallen, see below),
   `offices`, `company_ledger` (company wallets), `match_players` (one row per player per finished game),
   `quest_days`, `quest_counts`, `green_hours`, `badge_awards`, `bio_reports`, `showcase`, `tavern_daily`, `keynotes`,
   `deleted_users`, `lost_signups` (ids of sign-ups whose `player` failed to start), `admin_log`.
@@ -191,6 +192,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Coins: `wallet`, `buy`, `bag`; for `arcade`: `hold`, `pay`, `refund`, `recordMatch`; for `world`: `knowsDance`. Games: `gameBoard`.
 - Trades: `offerTrade` (10 an hour; a new offer replaces your old one), `trades`, `acceptTrade`,
   `declineTrade`, `withdrawTrade`. See *Coins and the shop*.
+- The market hall's: `marketListings`, `marketMine`, `marketList`, `marketCancel`, `marketBuy`, `marketSaw`. See *Torvehallen*.
 - Office decor: `setDecor` and `buyDecor` (wallpapers and floors), `setDesk` and `buyDesk` (desk setups), `buyDeskFleet`
   (a company's), `openOffices` (who is open and who's in them); `setDecor` shares the next limit. See *Offices v2*.
 - Offices: `setOfficeOpen` (your own, from level 10; 30 a minute, since each one sends the office and its
@@ -1227,3 +1229,56 @@ reads a room's size, doors, seats and displays for a 3D builder.
   the look picker). Dropping anything on a shop floor is refused. The shopkeepers are `still` bots (`SHOPKEEPERS`, ids -5
   to -8) with idle chatter only. Art: `web/src/art/shops.ts`.
 - **Core is the source of truth for every map**: `web/src/render3d/data/maps.ts` just re-exports `core/src/maps.ts`.
+
+## Torvehallen, the market hall
+
+A sixth shop (`ShopId` `market`, room `shop-market`, keeper Torvald) where players put their own things on
+display and name a price, and anyone standing in the hall buys one at that price. It is a display shop: each
+slot is a tile of the floor, a listing is drawn on it with its price tag in both renderers, and E on it opens
+the confirmation. The counter opens the market panel (everything on display, with filters, and *my shelf*).
+Rules are `core/src/market.ts`, money and items are `server/src/town/market.ts`, the actions are on `town`.
+
+- **The floor** (`MARKET_ROWS` in `core/src/shoprooms.ts`): 22 wide, 14 deep. Sixteen slots along the back
+  wall and two rows of three glass cases of four, forty in all. A slot is a display tile (`Ƙ`) and its number
+  is its place in the plan, row by row (`slotTile`, `slotAt`), so the engine's `MARKET_SLOTS` is the plan's
+  count and can't drift from it. More shelves are more tiles, nothing else.
+- **Listing:** the seller picks a free slot, an item (a numbered edition by its copy) and a price from 1 to
+  the cap of its rarity (`MARKET_PRICE_CAP`). The price isn't changed afterwards: take it back and list again.
+  Level 10 to list; 3, 6 and 10 things on display at levels 10, 25 and 40 (`MARKET_ALLOWANCE`, its own
+  constants: offices are sized by coins now, not level). A slot frees when the item sells, is taken back or
+  comes down after 7 days (`MARKET_TTL`; the sweep and every list and buy take expired ones down, so an
+  unswept one never holds a slot).
+- **Escrow:** a listed item is its `items` row with `owner_id` NULL and nothing else set, so no query by
+  owner, floor, drop count or company sees it; `pickUp` refuses it by name, and `deleteUser` takes the
+  seller's display down first. It moves by its row id, so a numbered edition keeps its number. (A trade or a
+  drop moves a player's *newest* copy of a kind, like the vendor, so a run's first copy stays put.)
+- **Buying** is one transaction under `serial`: the price moves whole from buyer to seller (ledger kind
+  `market`, ref `market:<listing>`, which sums to zero: no tax), the listing is claimed by `DELETE ...
+  RETURNING` so it can be bought once, the item goes to the buyer and the sale goes in `market_sales`. The
+  client sends the listing id and the price it saw. Refused when gone, theirs, dearer than seen, a new account
+  (from the third day, `MARKET_BUYER_AGE`), over `MARKET_DAY_BUY` in 24 hours or `MARKET_PAIR_BUY` on one
+  seller in 7 days, or too poor. The caps bound what an account can be sent through the hall; trades, which
+  have no such cap, remain the wider pipe.
+- **In the hall:** `marketList` and `marketBuy` need the player in `shop-market` (`inMarket`, like `inShop`);
+  `marketListings`, `marketMine` and `marketCancel` work from anywhere. `SHOPS_ANYWHERE` and
+  `MARKET_ANY_AGE=1` skip the room and the buyer's age on test and dev servers; production never sets them.
+- **The seller away:** the sale is in the ledger and the log. A seller online gets a `notice` that opens the
+  market; `marketMine` returns the sales they haven't been told of, the client toasts them once and calls
+  `marketSaw`, and keeps the last 30 on the device.
+- **The client:** `hud.market` is read by `refreshMarket` (`net.ts`) on joining, on entering the hall, every
+  5 s while in it and on a market notice; both renderers draw from it (2D `game/market.ts`, 3D
+  `render3d/shops/market-slots.ts`, one camera-facing card per listing from the HUD icon).
+- **Where it stands:** `SHOP_BLOCKS.market` is block (2, 1), beside Natmarked. A company that held it
+  before the hall moves the hall to the free block nearest the square (`shopBlocks`).
+- **Left out on purpose:** auctions, price history, a persisted block for a moved shop (it returns to its own
+  block when the company holding it leaves), a hashed sign-up IP for linking alt accounts (needs a stable
+  secret and a decision about keeping it), and an admin page for sales.
+
+### The town grows outward
+
+`blocksOutward()` (`core/src/maps.ts`) is every block of the grid, nearest the square first, ties by plot
+number, without end. `shopBlocks` (a shop whose block is held) and `frontier` (where a new company may
+build) both use it, so there is no size at which the town runs out of places to put a building: in a town
+full all the way out, a moved shop gets a block past its edge and the map grows to take it in. Until this,
+a full `-4..5` range made `shopBlocks` return NaN and `townMap` throw.
+

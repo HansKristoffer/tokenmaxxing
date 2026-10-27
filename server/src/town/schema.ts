@@ -9,6 +9,7 @@ import { migrateGrid } from "./grid.ts";
 import { migrateJulekalender } from "./julekalender.ts";
 import { migrateKeynotes } from "./keynotes.ts";
 import { migrateLaunchBonus } from "./launch-bonus.ts";
+import { migrateMarket } from "./market.ts";
 import { migrateMerchant } from "./merchant.ts";
 import { migrateOffices } from "./offices.ts";
 import { migratePoker } from "./poker.ts";
@@ -138,6 +139,7 @@ export async function migrate(sql: Sql): Promise<void> {
   // anyway, so the next sign-up taking its id would fail on it. Ids come after these too.
   await sql.execute("CREATE TABLE IF NOT EXISTS lost_signups (id INTEGER PRIMARY KEY, at INTEGER NOT NULL)");
   await migrateMerchant(sql);
+  await migrateMarket(sql);
   await migrateAwards(sql);
   await migrateTrophyAwards(sql);
   await migrateLaunchBonus(sql);

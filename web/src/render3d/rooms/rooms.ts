@@ -187,6 +187,7 @@ const NEXT: Record<string, readonly string[]> = {
     "shop-barber",
     "shop-pets",
     "shop-natmarked",
+    "shop-market",
   ],
   inn: ["upstairs", "basement", "town"],
   upstairs: ["inn"],

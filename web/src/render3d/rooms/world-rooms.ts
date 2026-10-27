@@ -66,21 +66,24 @@ room(["inn", "upstairs"], async () => {
   });
 });
 
-// The four shops: the shop's own room, mounted like the Tavern, with the map its blocked tiles make.
-room(["shop-furniture", "shop-clothes", "shop-barber", "shop-pets", "shop-natmarked"], async () => {
-  const { SHOP_IDS, SHOP_ROOM, shopRoom } = await import("../shops/catalog.ts");
-  for (const id of SHOP_IDS)
-    registerRoomSkin(SHOP_ROOM[id], () => {
-      const shop = shopRoom(id);
-      return {
-        group: shop.room.group,
-        offset: INSET,
-        facing: (v) => shop.room.facing(v),
-        map: shop.map,
-        extra: shop,
-      };
-    });
-});
+// The six shops: the shop's own room, mounted like the Tavern, with the map its blocked tiles make.
+room(
+  ["shop-furniture", "shop-clothes", "shop-barber", "shop-pets", "shop-natmarked", "shop-market"],
+  async () => {
+    const { SHOP_IDS, SHOP_ROOM, shopRoom } = await import("../shops/catalog.ts");
+    for (const id of SHOP_IDS)
+      registerRoomSkin(SHOP_ROOM[id], () => {
+        const shop = shopRoom(id);
+        return {
+          group: shop.room.group,
+          offset: INSET,
+          facing: (v) => shop.room.facing(v),
+          map: shop.map,
+          extra: shop,
+        };
+      });
+  },
+);
 
 room(["basement"], async () => {
   const { buildBasement } = await import("./basement3d.ts");
@@ -129,6 +132,7 @@ const ALL: MapId[] = [
   "shop-barber",
   "shop-pets",
   "shop-natmarked",
+  "shop-market",
   "basement",
   "office",
   "dungeon",

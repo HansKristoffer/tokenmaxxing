@@ -106,6 +106,7 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
         "shop-barber",
         "shop-pets",
         "shop-natmarked",
+        "shop-market",
       ],
       (): Ground => "floor",
     ),

@@ -79,6 +79,7 @@ import { drawLaunch } from "./launch.ts";
 import { drawLeaves } from "./leaves.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
+import { drawMarket } from "./market.ts";
 import { drawMerchant } from "./merchant.ts";
 import { LABEL_FAR } from "./near.ts";
 import { followPet, prunePets } from "./pets.ts";
@@ -165,6 +166,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
         "shop-barber",
         "shop-pets",
         "shop-natmarked",
+        "shop-market",
       ],
       () => "#1b1f2a",
     ),
@@ -394,6 +396,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawTownAnimals(f);
   drawBasement(f);
   drawMerchant(f);
+  drawMarket(f);
   drawRaid(f);
   drawLoot(f);
 

@@ -632,7 +632,8 @@ export async function checkTrade(sql: Sql, t: Trade, now: number, kept?: Kept): 
 
 /**
  * Moves `give` from `from` to `to` and `want` the other way, all or nothing, and drops the offer:
- * coins in one ref, items as one row of each kind. Run it serialized. Throws `too_poor` /
+ * coins in one ref, items as one row of each kind: the newest, so a numbered edition's first copy stays
+ * (the vendor sells the newest too). Run it serialized. Throws `too_poor` /
  * `not_owned` when something changed since the offer, and `not_found` when it's gone.
  */
 export async function settleTrade(sql: TxSql, t: Trade, now: number, kept?: Kept): Promise<void> {
@@ -652,7 +653,7 @@ export async function settleTrade(sql: TxSql, t: Trade, now: number, kept?: Kept
       for (const id of d.side.items)
         await tx.execute(
           `UPDATE items SET owner_id = ? WHERE id =
-             (SELECT id FROM items WHERE owner_id = ? AND item = ? LIMIT 1)`,
+             (SELECT id FROM items WHERE owner_id = ? AND item = ? ORDER BY id DESC LIMIT 1)`,
           d.receiverId,
           d.giverId,
           id,
@@ -705,7 +706,7 @@ export async function takeOut(sql: Sql, userId: number, item: unknown, now: numb
   const [row] = await all<{ id: number }>(
     sql,
     `UPDATE items SET owner_id = NULL, dropped_by = ?, dropped_at = ? WHERE id =
-       (SELECT id FROM items WHERE owner_id = ? AND item = ? LIMIT 1) RETURNING id`,
+       (SELECT id FROM items WHERE owner_id = ? AND item = ? ORDER BY id DESC LIMIT 1) RETURNING id`,
     userId,
     now,
     userId,
@@ -738,7 +739,8 @@ export const pickUp = async (sql: Sql, id: number, userId: number, room: string)
     await all(
       sql,
       `UPDATE items SET owner_id = ?, ${OFF_FLOOR} WHERE id = ? AND owner_id IS NULL AND (room IS NULL OR room = ?)
-         AND company_id IS NULL AND ? IN (SELECT id FROM users) RETURNING id`,
+         AND company_id IS NULL AND id NOT IN (SELECT item_row FROM market_listings)
+         AND ? IN (SELECT id FROM users) RETURNING id`,
       userId,
       id,
       room,
