@@ -51,6 +51,9 @@ const STANDARD_ODDS: Record<Rarity, number> = {
   legendary: 0.025,
 };
 
+/** The lit shelf units on Natmarked's back wall: how many cases the hall can show before it needs more shelves. */
+export const CASE_SHELVES = 6;
+
 export const CASES: readonly CaseDef[] = [
   {
     id: "night-market",
@@ -66,7 +69,7 @@ export const CASES: readonly CaseDef[] = [
     id: "nusantara",
     name: "Nusantara case",
     blurb: "Hats, pets, outfits and instruments from the islands, loaded off the morning boat.",
-    keyPrice: 75,
+    keyPrice: 100,
     odds: STANDARD_ODDS,
     rareWithin: 10,
     dupeRerolls: 1,
@@ -76,7 +79,7 @@ export const CASES: readonly CaseDef[] = [
     id: "ragnarok-eve",
     name: "Ragnarok Eve case",
     blurb: "Furs, horns, ravens and runes from the last feast before the end of the world.",
-    keyPrice: 75,
+    keyPrice: 100,
     odds: STANDARD_ODDS,
     rareWithin: 10,
     dupeRerolls: 1,

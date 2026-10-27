@@ -3,7 +3,15 @@ import { CASE_ITEMS } from "../src/case.ts";
 import { CASE_PIECES } from "../src/case-furniture.ts";
 import { NUSANTARA_ITEMS } from "../src/case-nusantara.ts";
 import { NUSANTARA_PIECES } from "../src/case-nusantara-furniture.ts";
-import { CASES, type CaseDef, caseById, caseOfItem, rollCase, VENDOR_COINS } from "../src/cases.ts";
+import {
+  CASE_SHELVES,
+  CASES,
+  type CaseDef,
+  caseById,
+  caseOfItem,
+  rollCase,
+  VENDOR_COINS,
+} from "../src/cases.ts";
 import { RARITIES, type Rarity } from "../src/rarity.ts";
 import type { Item } from "../src/shop.ts";
 
@@ -29,6 +37,10 @@ const mini = (items: Item[]): CaseDef => ({ ...night, items });
 const none = new Set<string>();
 
 describe("cases", () => {
+  test("every case has a shelf on Natmarked's back wall", () => {
+    expect(CASES.length).toBeLessThanOrEqual(CASE_SHELVES);
+  });
+
   test("odds sum to 1, the night market exists, vendor pays by rarity", () => {
     for (const c of CASES) expect(Object.values(c.odds).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10);
     expect(night.keyPrice).toBe(75);
@@ -101,9 +113,9 @@ describe("cases", () => {
 describe("the Nusantara case", () => {
   const nus = caseById("nusantara")!;
 
-  test("is a second case with the Night Market's odds and guarantee, a 75 coin key, and only its own items", () => {
+  test("is a second case with the Night Market's odds and guarantee, a 100 coin key, and only its own items", () => {
     expect(CASES.map((c) => c.id)).toEqual(["night-market", "nusantara", "ragnarok-eve"]);
-    expect(nus).toMatchObject({ name: "Nusantara case", keyPrice: 75, rareWithin: 10, dupeRerolls: 1 });
+    expect(nus).toMatchObject({ name: "Nusantara case", keyPrice: 100, rareWithin: 10, dupeRerolls: 1 });
     expect(nus.odds).toEqual(night.odds);
     expect(nus.blurb.length).toBeGreaterThan(20);
     expect(nus.items).toHaveLength(NUSANTARA_ITEMS.length + NUSANTARA_PIECES.length);

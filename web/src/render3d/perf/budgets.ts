@@ -24,6 +24,8 @@ const room = (drawCalls: number, triangles: number, materials: number, textureMB
 // The office's shelf holds 42 trophies, up from 28 (the budget's shelf has most of them earned): the office now measures
 // 10,752 triangles on Medium and 13,962 on High. A shelf of mostly unearned trophies is flat dark boxes and costs less.
 // The dorm's stairs down are the shared exit kit's (`exits3d.ts`): the lit well and the lamp's pool add two batches.
+// Natmarked's three shelves now show the three cases on sale, not one (the Nusantara and Ragnarok Eve chests are
+// bigger models): 93 -> 121 draw calls, 53 -> 61 materials and 32.9k -> 42.5k triangles on High (25.9k on Medium).
 // The town carries the four shop fronts of the real game (+35 draw calls, +70k triangles, +2.8 MB of textures over the pass-2
 // measurement, which had bare houses there); the live layers (gate, tables, events) are budgeted apart. Natmarked's front
 // (its lanterns, windows and stall) is the fifth: +11 draw calls and +3 materials. Torvehallen's (its false front, awnings
@@ -43,7 +45,7 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
     "shop-clothes": room(470, 126_000, 300, 8),
     "shop-barber": room(290, 76_000, 150, 2),
     "shop-pets": room(315, 362_000, 145, 2),
-    "shop-natmarked": room(100, 30_000, 58, 1),
+    "shop-natmarked": room(125, 30_000, 64, 1),
     "shop-market": room(55, 11_000, 22, 1),
   },
   // Chamfered boxes: High, and Ultra, which only differs in post and shadows.
@@ -60,7 +62,7 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
     "shop-clothes": room(470, 142_000, 300, 8),
     "shop-barber": room(290, 90_000, 150, 2),
     "shop-pets": room(315, 387_000, 145, 2),
-    "shop-natmarked": room(100, 36_000, 58, 1),
+    "shop-natmarked": room(125, 45_000, 64, 1),
     "shop-market": room(55, 18_500, 22, 1),
   },
 };

@@ -8,6 +8,7 @@
  * The cases themselves are `core/src/cases.ts`; this is only the building. The shelves are the shop's displays
  * in the 2D plan (`SHOPS.natmarked`), and E on any of them opens the case page (`hud/CaseShop.tsx`).
  */
+import { CASE_SHELVES, CASES } from "@tokenmaxxing/core/cases.ts";
 import * as THREE from "three";
 import { HAIRS, SKINS } from "../../art/palette.ts";
 import { buildCaseBox } from "../case-box3d.ts";
@@ -35,7 +36,7 @@ const ROOF = "#3b3750";
 const PINK = "#ff5fa8";
 const CYAN = "#58e6ff";
 
-/** The accent of each of the six shelves: the first is the case on sale, the rest are to come. */
+/** The accent of each shelf, one per `CASE_SHELVES`. */
 const SHELF_GLOW = ["#ffb347", "#5fd7ff", "#ff6fb5", "#9b7bff", "#6bffb0", "#ffd36a"] as const;
 
 const W = 18;
@@ -466,11 +467,11 @@ function silhouette(m: Model, i: number, y: number): void {
   }
 }
 
-/** One lit shelf unit, 2x1, facing +z against the north wall. `i` 0 is the case on sale; the rest are locked. */
+/** One lit shelf unit, 2x1, facing +z against the north wall. Shelf `i` shows `CASES[i]`; a shelf with no case yet is locked. */
 function shelf(i: number): Model {
   const m = new Model();
   const glowColor = SHELF_GLOW[i % SHELF_GLOW.length]!;
-  const on = i === 0;
+  const def = CASES[i];
   // Cabinet below, the glowing niche above, a cornice and lit edge strips.
   m.box([1.96, 0.62, 0.9], TIMBER, [0, 0, -0.04], 0.02);
   for (const x of [-0.49, 0.49]) m.box([0.9, 0.5, 0.03], TIMBER_D, [x, 0.06, 0.42], 0.01);
@@ -485,12 +486,13 @@ function shelf(i: number): Model {
   nightGlow(strip, glowColor);
   const strip2 = m.box([1.8, 0.03, 0.06], glowColor, [0, 0.69, 0.4], 0.004);
   nightGlow(strip2, glowColor);
-  if (on) {
-    const c = buildCaseBox(false);
+  if (def) {
+    const c = buildCaseBox(false, def.id);
     c.scale.setScalar(0.82);
     c.position.set(0, 0.7, -0.05);
     m.add(c);
-    const tag = plaque(0.9, 0.2, "NIGHT MARKET", "on the counter", true);
+    const name = def.name.replace(/ case$/i, "").toUpperCase();
+    const tag = plaque(0.9, 0.2, name, def.id === "night-market" ? "on the counter" : "a case on sale", true);
     tag.position.set(0, 0.2, 0.46);
     tag.scale.setScalar(0.9);
     m.add(tag);
@@ -665,8 +667,8 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   const room = new Room(W, D, { floor: "#33261f", wall: "#43302b", stripe: "#35241f", bare: true });
   const put = (a: Asset, x: number, z: number, turn: Turn = 0) => room.place(a, x, z, turn);
 
-  // The back wall: six lit shelves with a post between each; the first holds the case on sale.
-  for (let i = 0; i < 6; i++) {
+  // The back wall: one lit shelf per case on sale, locked ones for the rest, with a post between each.
+  for (let i = 0; i < CASE_SHELVES; i++) {
     put(asset(`natmarked:post-${i}`, "Post", 1, 1, post), i * 3, 0);
     put(
       asset(`natmarked:shelf-${i}`, "Lantern shelf", 2, 1, () => shelf(i)),

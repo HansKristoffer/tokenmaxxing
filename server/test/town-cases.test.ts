@@ -63,12 +63,12 @@ describe("openCase", () => {
     const before = await balance(sql);
     const out = await openCase(sql, 7, "night-market", now);
     expect(night.items.some((i) => i.id === out.item.id)).toBe(true);
-    expect(before - out.wallet.balance).toBe(75);
+    expect(before - out.wallet.balance).toBe(night.keyPrice);
     expect(await bag(sql, 7)).toEqual([{ item: out.item.id, count: 1 }]);
   });
 
   test("too few coins or an unknown case: refused, nothing charged or granted", async () => {
-    const sql = await setup(74);
+    const sql = await setup(night.keyPrice - 1);
     const before = await balance(sql);
     await rejects(openCase(sql, 7, "night-market", now), "too_poor");
     await rejects(openCase(sql, 7, "nope", now), "not_found");
@@ -153,14 +153,14 @@ describe("selling", () => {
 
 describe("a second case", () => {
   test("opening the Nusantara case charges its key and grants one of its own items, never a Night Market one", async () => {
-    const sql = await setup(1000);
+    const sql = await setup(5000);
     const nightIds = new Set(night.items.map((i) => i.id));
     for (let i = 0; i < 12; i++) {
       const before = await balance(sql);
       const out = await openCase(sql, 7, "nusantara", now, undefined, seededRand(i + 1));
       expect(nus.items.some((it) => it.id === out.item.id)).toBe(true);
       expect(nightIds.has(out.item.id)).toBe(false);
-      expect(before - out.wallet.balance).toBe(75);
+      expect(before - out.wallet.balance).toBe(nus.keyPrice);
     }
     expect((await bag(sql, 7)).reduce((n, r) => n + r.count, 0)).toBe(12);
   });
@@ -189,9 +189,9 @@ describe("a second case", () => {
   });
 
   test("too few coins for the Nusantara key refuses it, nothing charged", async () => {
-    const sql = await setup(74);
+    const sql = await setup(nus.keyPrice - 1);
     await rejects(openCase(sql, 7, "nusantara", now), "too_poor");
-    expect(await balance(sql)).toBe(74);
+    expect(await balance(sql)).toBe(nus.keyPrice - 1);
     expect(await bag(sql, 7)).toEqual([]);
   });
 

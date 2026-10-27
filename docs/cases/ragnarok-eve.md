@@ -16,8 +16,8 @@ snowed-in longhouse, firelight, horns passed round, ravens gossiping, a wolf pup
 Night Market is hot, neon, lacquer and paper; this is cold, oak, iron, fur and frost, lit by ember.
 
 - Case name: **Ragnarok Eve case**. Id `ragnarok-eve`. Blurb: "Furs, horns, ravens and runes from the last feast before the end of the world."
-- Key price 75, odds 0.475 / 0.25 / 0.15 / 0.10 / 0.025, `rareWithin` 10, `dupeRerolls` 1: identical to Night Market, so
-  `VENDOR_COINS` keeps the same margin. Pool = 30 wearables + 6 pieces = 36 items (the "36" is wearables plus furniture).
+- Key price 100, odds 0.475 / 0.25 / 0.15 / 0.10 / 0.025, `rareWithin` 10, `dupeRerolls` 1: odds and guarantee identical to Night Market (the key costs 100, Night Market's stays 75; the vendor's
+  `VENDOR_COINS` are unchanged, so spares return a smaller share of the key). Pool = 30 wearables + 6 pieces = 36 items (the "36" is wearables plus furniture).
 - Sold at the existing Natmarked counter for now (`CASE_SHOP_ID` unchanged; `CaseShop.tsx` lists every case in `CASES`).
 
 ## Look-index ranges
