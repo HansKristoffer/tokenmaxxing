@@ -86,7 +86,7 @@ export function Collection({ userId }: { userId?: number }) {
   return (
     <Modal title={title} wide>
       <p className="muted">
-        {have} of {of}. No coins, just bragging rights.{" "}
+        {have} of {of}. Each badge tier and trophy pays coins, once.{" "}
         <button type="button" className="link" onClick={() => hud.set({ panel: { kind: "hallOfFame" } })}>
           🏆 Hall of Fame
         </button>

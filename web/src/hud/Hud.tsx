@@ -6,7 +6,9 @@ import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
 import type { Wallet } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { jump } from "../game/input.ts";
 import { setSettings } from "../game/jukebox.ts";
+import { takePhoto } from "../game/stage.ts";
 import { roomName, world } from "../game/world.ts";
 import { redeem } from "../net.ts";
 import { storage } from "../storage.ts";
@@ -215,10 +217,49 @@ function Stats() {
   const stats = useHud((s) => s.stats);
   const wallet = useHud((s) => s.wallet);
   const waiting = useHud((s) => s.me?.company?.applicants.length ?? 0);
+  const [photoOpen, setPhotoOpen] = useState(false);
   return (
     <div className="panel stats-chip">
       <AppUpdate />
       <Sky />
+      <button
+        type="button"
+        className="icon"
+        title="Take a photo of the town"
+        aria-label="Take a photo"
+        onClick={() => setPhotoOpen(!photoOpen)}
+      >
+        📷
+      </button>
+      {photoOpen && (
+        <fieldset className="panel photo-booth">
+          <legend>📷 Photo booth</legend>
+          <span>Gather everyone in view, then pick your pose.</span>
+          <div>
+            <button
+              type="button"
+              onClick={() => {
+                setPhotoOpen(false);
+                takePhoto();
+              }}
+            >
+              As I am
+            </button>{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setPhotoOpen(false);
+                takePhoto(jump);
+              }}
+            >
+              Jump
+            </button>{" "}
+            <button type="button" onClick={() => setPhotoOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </fieldset>
+      )}
       {stats && (
         <button
           type="button"
@@ -240,6 +281,14 @@ function Stats() {
         >
           🪙 <strong>{wallet.balance.toLocaleString()}</strong>
         </button>
+      )}
+      {wallet && wallet.streak > 1 && (
+        <span
+          className="chip"
+          title={`Streak: today's token and quest coins pay ×${wallet.streak}. A day without tokens costs two steps.`}
+        >
+          🔥 <strong>×{wallet.streak}</strong>
+        </span>
       )}
       {wallet && wallet.quests.length > 0 && <QuestTracker quests={wallet.quests} />}
       <button

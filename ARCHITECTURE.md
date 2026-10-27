@@ -694,9 +694,12 @@ climbs it together (`core/src/raid.ts`).
     every synced token, floated off the boss as the `totalDamage` each poll adds.
   - **Kills:** the boss slumps by a trophy, then the next rung's drops in under a "Rung N" banner; this week's
     kills hang as plaques on the back wall. While `closed`, nobody fires and the one that got away dozes.
-- **Loot** (`core/src/loot.ts`): each boss has its own table of four items, one per rarity: common 10%, rare
-  2.5%, epic 0.5%, legendary 0.1%. Each level of the ladder ("II", "III"…) multiplies the odds by 1.05, at most
-  ×10 (`lapBonus`: a 0.1% legendary is never above 1%, and ×10 takes 48 levels). The weekly +10% difficulty of the ladder is separate and never raises odds.
+- **Loot** (`core/src/loot.ts`): each boss has its own table of four items, one per rarity: common 40%, rare
+  20%, epic 10%, legendary 2%. Each level of the ladder ("II", "III"…) multiplies the odds by 1.05, at most
+  ×10 (`lapBonus`: a 2% legendary is never above 20%, and a common is certain from level 20). Weeks before
+  `LOOT_ODDS_FROM` keep the old 10%, 2.5%, 0.5% and 0.1% (`OLD_ODDS`): drops are fixed rolls worked out again
+  from the kills, so raising the odds for every week would hand out an item for every old roll that now comes
+  in under them. The weekly +10% difficulty of the ladder is separate and never raises odds.
   - The Rate Limit: Hourglass hat, 429 shades, Sand golem (pet), Golden Hourglass (trophy).
   - The Context Window: Pane glasses, Compacting… scarf, Goldfish (pet), Infinite Context Crown.
   - Merge Conflict: Two-tone suit, `<<<<<<< HEAD` band, Forked cat (pet), Golden Rebase (trophy).

@@ -28,7 +28,7 @@ import { chairBack, objectAt, petBedFront, sortY } from "../art/objects.ts";
 import { C } from "../art/palette.ts";
 import { SLEEP_H, SLEEP_W, sleepingFrame } from "../art/pet-sleep.ts";
 import { PET_H, PET_W, petFrame } from "../art/pets.ts";
-import { hash, initialsOf, perObject } from "../art/pixels.ts";
+import { initialsOf, perObject } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { graphics } from "../settings/graphics.ts";
 import { drawBasement, lightBasement } from "./basement.ts";
@@ -61,6 +61,7 @@ import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
+import { seasonalCanvas, seasonNow } from "./seasons.ts";
 import {
   drawLight,
   drawLights,
@@ -74,6 +75,7 @@ import {
 import { snowAmount, snowLayers } from "./snow.ts";
 import { drawStreet } from "./street.ts";
 import { drawTavern, lightTavern } from "./tavern.ts";
+import { drawTownAnimals } from "./town-life.ts";
 import { tremor2d, tremorPhase } from "./tremor.ts";
 import { drawTrophies } from "./trophies.ts";
 import { type Avatar, drawPos, stepping, WARP_MS, world } from "./world.ts";
@@ -145,11 +147,13 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   const weather = outdoors ? weatherNow() : null;
   // Snow (town only): twins of the baked ground and sprites, cross-faded while it settles or melts.
   const snow = outdoors ? snowAmount(now) : 0;
+  const season = seasonNow();
   const paint = (c: HTMLCanvasElement, x: number, y: number, ch: string) => {
     if (weather && (ch === "T" || ch === "^")) drawSway(g, c, ch, x, y, now, weather);
     else g.drawImage(c, x, y);
   };
   const snowy = (src: HTMLCanvasElement, x: number, y: number, ch = "", ground = false) => {
+    if (outdoors && (ground || ch === "T" || ch === "^")) src = seasonalCanvas(src, season);
     if (snow < 0.01) return paint(src, x, y, ch);
     for (const [c, a] of snowLayers(src, snow, ground)) {
       g.globalAlpha = a;
@@ -268,7 +272,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     if (outdoors)
       for (const [i, pane] of panes.entries()) {
         const p = faces[i];
-        if (p ? p.state === "away" : hash(b.x * 31 + i, b.y, 11) > 0.3) continue;
+        const activeOffice = company && world.officeLights.has(company.id) && i === 0;
+        if (!activeOffice && (!p || p.state === "away")) continue;
         const [x, y] = [left + pane.x, top + pane.y];
         windows.push({ x, y, w: pane.w, h: pane.h, face: p ? () => drawFace(g, p, x, y, pane, now) : null });
       }
@@ -277,6 +282,11 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       draw: () => {
         snowy(sprite, left, top);
         drawDoorSwing(g, sprite, left, top, swing);
+        if (company && world.officeLights.has(company.id) && panes[0]) {
+          const pane = panes[0];
+          g.fillStyle = "#ffd98a";
+          g.fillRect(left + pane.x, top + pane.y, pane.w, pane.h);
+        }
         if (logo && plaque) drawLogo(g, logo, left + plaque.x, top + plaque.y, plaque.w, plaque.h);
         for (const [i, p] of faces.entries())
           if (!(relit && p.state !== "away"))
@@ -320,6 +330,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawPicnic(f);
   drawChalkboards(f);
   drawTavern(f);
+  drawTownAnimals(f);
   drawBasement(f);
   drawMerchant(f);
   drawRaid(f);
@@ -480,7 +491,7 @@ function drawAvatar(
     g.fillRect(px + 3, py + 8, 10, 7);
     g.fillStyle = pal.C!;
     g.fillRect(px + 3, py + 8, 10, 1);
-  } else if (a.state === "working" || (a.state === "sit" && tile === "c")) {
+  } else if (a.state === "working" || (a.state === "sit" && (tile === "c" || tile === "r"))) {
     const typing = a.state === "working" && Math.floor(now / 180) % 2 === 0 ? 1 : 0;
     drawAura(g, a, px, py - 6 + typing, now);
     g.drawImage(characterFrame(look, "up", "sit"), px, py - 6 + typing);

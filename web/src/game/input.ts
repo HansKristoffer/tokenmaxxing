@@ -38,6 +38,7 @@ import { picnicSeat } from "./picnic.ts";
 import { seated, sit, standUp } from "./raidseat.ts";
 import { pickTile } from "./stage.ts";
 import { blocksStep, streetInteract } from "./street.ts";
+import { interactAnimal, interactTownProp } from "./town-life.ts";
 import { openTrophies } from "./trophies.ts";
 import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
 
@@ -206,6 +207,7 @@ export function bindInput(canvas: HTMLElement): void {
     const { x, y } = tile;
     const other = avatarAt(x, y);
     if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
+    if (interactAnimal(x, y) || interactTownProp(x, y)) return;
     // A building (its wall or roof, not something on it to use): walk to its door and in. Its sign opens its page.
     const door = world.room === "town" ? doorOf(world.map, x, y) : null;
     if (door) return void walkTo(...door);
@@ -421,7 +423,7 @@ function take(): void {
 }
 
 /** Space: a hop, standing or walking. Everyone in the room sees it. */
-function jump(): void {
+export function jump(): void {
   const me = self();
   const now = performance.now();
   if (me?.state !== "idle" || (me.jump !== null && now - me.jump < JUMP_MS)) return;
@@ -457,6 +459,7 @@ function interact(): void {
   if (seated()) return void standUp();
   const other = avatarAt(x, y);
   if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
+  if (interactAnimal(x, y) || interactTownProp(x, y)) return;
   // E on your own clone (or its laptop) in the raid dungeon takes your seat; others' seats are not yours.
   if (world.room === "dungeon" && sit(x, y)) return;
   if (streetInteract(me, x, y, send)) return;

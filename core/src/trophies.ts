@@ -1,8 +1,9 @@
 /**
  * Trophies on the shelf in your office: silly coincidences in your own usage (a PR at 3 AM, a day total
  * that's a palindrome, a PR whose hash spells "dead"). Like badges, worked out on read from facts and
- * never stored or claimed; unlike badges, each says the world day it was first earned. No coins: a
- * trophy is for showing off, so there's nothing to gain from faking one.
+ * never stored or claimed; unlike badges, each says the world day it was first earned. Each pays a few
+ * coins, once (`TROPHY_COINS` in `economy.ts`); the town records them as it sees them (`trophy_awards`) to
+ * pay them. The cheapest to fake, the PR-hash ones, pay nothing.
  */
 import { sortBy } from "hanzio";
 import { addDays, dayKey, worldClock } from "./range.ts";

@@ -1,3 +1,11 @@
+import {
+  badgeCoins,
+  levelUpCoins,
+  STREAK_FROM,
+  streakBonus,
+  streakExtra,
+  streakNow,
+} from "@tokenmaxxing/core/economy.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
 import { OFFICE_LEVEL, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
@@ -24,12 +32,15 @@ import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { companyLedgerAdd } from "./companies.ts";
 import { bumpCount, dayPicks, loadQuestData, noQuestData, paidFrom, questPay } from "./quests.ts";
 import { raidHistory } from "./raid.ts";
+import { trophyAwardCoins, trophyAwardCoinsAll } from "./trophy-awards.ts";
 import { lookOf, signupDays, TOKENS, tokensIn, userById } from "./users.ts";
 
 export interface Wallet {
   balance: number;
   /** Coins from today so far: tokens and quests. */
   today: number;
+  /** The streak multiplier today's coins are paid at, 1 to 3 (what today would be worth before it has tokens). */
+  streak: number;
   /** Coins from raids: every rung that fell with me a raider by its day. */
   raids: number;
   /** Days finished in the top 3, newest first (the last 30 days). */
@@ -121,6 +132,19 @@ export async function grantRewards(sql: Sql, userId: number, level: number, now:
 }
 
 /**
+ * What a badge tier is worth: every tier `userId` has reached (`badge_awards`, which a sweep keeps and a
+ * backfill filled in for everyone) pays once, by its number. Milestone levels are rows too, and pay elsewhere.
+ */
+export async function badgeAwardCoins(sql: Sql, userId: number): Promise<number> {
+  const rows = await all<{ tier: number }>(
+    sql,
+    "SELECT tier FROM badge_awards WHERE user_id = ? AND badge != 'level'",
+    userId,
+  );
+  return sumBy(rows, (r) => badgeCoins(r.tier) - badgeCoins(r.tier - 1));
+}
+
+/**
  * Coins are worked out from usage every time rather than stored, so a late sync
  * still pays. Podium places count once a day is over. Only days from the world day
  * someone signed up count, for pay and for places: a first sync backfills months of
@@ -155,6 +179,11 @@ export async function wallet(
   // Pay only counts frozen days (as `balances` does); today's unfrozen picks are shown, and paid once frozen.
   const live = today >= paidFrom() ? (data.picks.get(today) ?? (await dayPicks(sql, userId, today))) : null;
   const pay = questPay(data);
+  const level = levelFor(sumBy(everyDay, "tokens"));
+  const byDay = new Map(days.map((d) => [d.day, d.tokens]));
+  const dayCoins = (day: string) => coinsForTokens(byDay.get(day) ?? 0) + (pay.daily.get(day) ?? 0);
+  const active = days.filter((d) => d.tokens > 0).map((d) => d.day);
+  const streak = streakBonus(active, dayCoins);
   const places = (top ?? (await podiums(sql, now))).filter((p) => p.userId === userId);
   const spent = await scalar(sql, "SELECT SUM(price) AS n FROM purchases WHERE user_id = ?", userId);
   const wins = places.map((p) => ({ day: p.day, place: p.place, coins: PODIUM_COINS[p.place - 1]! }));
@@ -165,14 +194,22 @@ export async function wallet(
     raided +
     pay.total +
     pay.weekly +
-    milestoneCoins(levelFor(sumBy(everyDay, "tokens")));
+    milestoneCoins(level) +
+    levelUpCoins(level) +
+    (await badgeAwardCoins(sql, userId)) +
+    (await trophyAwardCoins(sql, userId)) +
+    streak;
   const since = addDays(today, -29);
   const todays = data.facts.get(today) ?? EMPTY_DAY;
   const counts = data.counts.get(today) ?? EMPTY_COUNTS;
+  const todayBase = coinsForTokens(todays.tokens) + (pay.daily.get(today) ?? 0);
   const held = await bag(sql, userId);
   return {
     balance: earned - spent + (await ledgerSum(sql, userId)),
-    today: coinsForTokens(todays.tokens) + (pay.daily.get(today) ?? 0),
+    today:
+      todayBase +
+      (today >= STREAK_FROM && todays.tokens > 0 ? streakExtra(todayBase, streakNow(active, today)) : 0),
+    streak: streakNow(active, today),
     raids: raided,
     wins: wins.filter((w) => w.day >= since),
     owned: held.map((r) => r.item),
@@ -241,13 +278,36 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
      GROUP BY user_id, day`,
     firstDay,
   );
-  for (const d of days) add(d.userId, coinsForTokens(d.tokens));
+  const tokenDays = new Map<number, Map<string, number>>();
+  for (const d of days) {
+    add(d.userId, coinsForTokens(d.tokens));
+    if (d.tokens > 0) tokenDays.set(d.userId, (tokenDays.get(d.userId) ?? new Map()).set(d.day, d.tokens));
+  }
+  const dailies = new Map<number, Map<string, number>>();
   for (const [userId, d] of await loadQuestData(sql, signups)) {
     const pay = questPay(d);
     add(userId, pay.total + pay.weekly);
+    dailies.set(userId, pay.daily);
   }
+  for (const [userId, byDay] of tokenDays)
+    add(
+      userId,
+      streakBonus(
+        [...byDay.keys()],
+        (day) => coinsForTokens(byDay.get(day) ?? 0) + (dailies.get(userId)?.get(day) ?? 0),
+      ),
+    );
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);
-  for (const [userId, tokens] of await tokensIn(sql, "all")) add(userId, milestoneCoins(levelFor(tokens)));
+  for (const [userId, tokens] of await tokensIn(sql, "all")) {
+    const level = levelFor(tokens);
+    add(userId, milestoneCoins(level) + levelUpCoins(level));
+  }
+  for (const r of await all<{ userId: number; tier: number }>(
+    sql,
+    "SELECT user_id AS userId, tier FROM badge_awards WHERE badge != 'level'",
+  ))
+    add(r.userId, badgeCoins(r.tier) - badgeCoins(r.tier - 1));
+  for (const [userId, n] of await trophyAwardCoinsAll(sql)) add(userId, n);
   const raids = await raidHistory(sql, now);
   for (const userId of out.keys()) add(userId, raidCoins(raids, userId));
   for (const r of await all<{ userId: number; n: number }>(

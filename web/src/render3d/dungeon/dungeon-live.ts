@@ -62,8 +62,6 @@ const HIT_COLOUR = new THREE.Color("#e0b3ff");
 const MINION_COLOUR = new THREE.Color("#9dff8a");
 const SEAT_Y = RAID_SEAT_Y;
 const PET_COLOUR = new THREE.Color("#ffc46b");
-/** How close you must be to your seat for its "E" prompt to show, in tiles. */
-const PROMPT_RANGE = 2.5;
 const MINION_SCALE = 0.5;
 const MAX_NEW_PER_FRAME = 1;
 
@@ -801,16 +799,19 @@ export class DungeonLive {
     this.flyLoot();
     // People and minions: the far half of a big crowd moves every other frame.
     // Yours isn't drawn while you sit in it: your own body is at the desk then (`Entities`).
-    const sitting = seated();
+    const occupied = (s: Seated) =>
+      [...world.avatars.values()].some(
+        (a) => a.state === "sit" && (a.info.id === s.raider.id || (a.x === s.seat[0] && a.y === s.seat[1])),
+      );
     for (const s of this.seated.values()) {
-      const gone = sitting && s.raider.id === world.selfId;
+      const gone = occupied(s);
       if (s.avatar) s.avatar.root.visible = !gone;
       if (gone || (this.caps.people < 30 && (this.frame + s.idx) % 2)) continue;
       s.avatar?.update(dt * (this.caps.people < 30 ? 2 : 1), t);
     }
     this.figures.begin();
     for (const s of this.seated.values())
-      if (!s.avatar && !(sitting && s.raider.id === world.selfId))
+      if (!s.avatar && !occupied(s))
         this.figures.add(
           s.seat[0] - this.map.x0 + 0.5,
           SEAT_Y,
@@ -928,7 +929,7 @@ export class DungeonLive {
     const seat = mySeat();
     const me = world.avatars.get(world.selfId);
     if (!seat || !me || !canSit(world.room, seat, me.state)) return "";
-    return Math.hypot(me.x - seat[0], me.y - seat[1]) <= PROMPT_RANGE ? "sit" : "";
+    return Math.abs(me.x - seat[0]) + Math.abs(me.y - seat[1]) === 1 ? "sit" : "";
   }
 
   dispose(): void {

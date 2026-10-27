@@ -16,7 +16,7 @@ export function Trophies({ userId, name }: { userId: number; name: string }) {
   return (
     <Modal title={title} wide>
       <p className="muted">
-        {earned.size} of {TROPHIES.length}. No coins, just bragging rights.
+        {earned.size} of {TROPHIES.length}. Each badge tier and trophy pays coins, once.
       </p>
       <ul className="trophies">
         {TROPHIES.map((t) => {

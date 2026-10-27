@@ -200,7 +200,7 @@ test("when the week is over nobody fires, and before the first raid the room is 
   raidState.setRaiders(null);
 });
 
-test("E on your own seat sits you there (the clone goes, the prompt flips), moving or E stands you up, and your pet fires only while you sit", async () => {
+test("server seating hides the clone, updates the prompt, and lets a pet fire while seated", async () => {
   const seatMod = await import("../src/game/raidseat.ts");
   const w = (await import("../src/game/world.ts")).world;
   store.hud.set({ raid: raid() });
@@ -211,8 +211,8 @@ test("E on your own seat sits you there (the clone goes, the prompt flips), movi
   w.selfId = me;
   const avatar = (pet: number, x: number, y: number) =>
     ({ info: { id: me, look: { ...look, pet } }, x, y, facing: "up", state: "idle" }) as never;
-  // Standing two tiles south of my seat, with a pet.
-  w.avatars.set(me, avatar(1, seat[0], seat[1] + 2));
+  // Standing adjacent to my seat, with a pet.
+  w.avatars.set(me, avatar(1, seat[0], seat[1] + 1));
   const l = new live.DungeonLive(MAPS.dungeon, fx.CAPS.full);
   run(l, 1);
   const prompt = () => l.signs().find((s) => s.key === "sit")?.text;
@@ -229,10 +229,11 @@ test("E on your own seat sits you there (the clone goes, the prompt flips), movi
   expect(seatMod.seated()).toBe(false);
   // Someone else's seat or desk is not mine to take.
   const other = raidState.seatTile(1)!;
-  expect(seatMod.sit(other[0], other[1])).toBe(false);
+  expect(seatMod.sitsAt(other[0], other[1])).toBe(false);
   expect(seatMod.seated()).toBe(false);
   // Mine is, from the seat tile or the laptop.
-  expect(seatMod.sit(seat[0], seat[1] - 1)).toBe(true);
+  expect(seatMod.sitsAt(seat[0], seat[1] - 1)).toBe(true);
+  Object.assign(w.avatars.get(me)!, { x: seat[0], y: seat[1], state: "sit" });
   expect(seatMod.seated()).toBe(true);
   run(l, 2);
   expect(prompt()).toBe("E · stand up");
@@ -249,7 +250,7 @@ test("E on your own seat sits you there (the clone goes, the prompt flips), movi
     fired = Math.max(fired, petShots());
   }
   expect(fired).toBeGreaterThan(0);
-  seatMod.standUp();
+  Object.assign(w.avatars.get(me)!, { state: "idle" });
   expect(seatMod.seated()).toBe(false);
   // Stood up again, it stops: nothing new comes out after the ones in the air have landed.
   (l as unknown as { flying: unknown[] }).flying.length = 0;
@@ -260,8 +261,8 @@ test("E on your own seat sits you there (the clone goes, the prompt flips), movi
   }
   expect(after).toBe(0);
   // Without a pet it fires nothing, even seated.
-  expect(seatMod.sit(seat[0], seat[1] - 1)).toBe(true);
-  w.avatars.set(me, avatar(0, seat[0], seat[1] + 2));
+  w.avatars.set(me, avatar(0, seat[0], seat[1]));
+  Object.assign(w.avatars.get(me)!, { state: "sit" });
   (l as unknown as { flying: unknown[] }).flying.length = 0;
   let none = 0;
   for (let t = 150; t < 190; t += 0.016) {
@@ -269,11 +270,11 @@ test("E on your own seat sits you there (the clone goes, the prompt flips), movi
     none = Math.max(none, petShots());
   }
   expect(none).toBe(0);
-  seatMod.standUp();
+  Object.assign(w.avatars.get(me)!, { state: "idle" });
   // Not a raider: no seat, nothing offered.
   raidState.setRaiders({ top: crowd(6).top.filter((r) => r.id !== me), more: 0 });
   run(l, 2);
-  expect(seatMod.sit(seat[0], seat[1])).toBe(false);
+  expect(seatMod.sitsAt(seat[0], seat[1])).toBe(false);
   expect(prompt()).toBeUndefined();
   l.dispose();
   raidState.setRaiders(null);

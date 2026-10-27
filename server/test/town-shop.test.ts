@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { levelUpCoins } from "@tokenmaxxing/core/economy.ts";
 import { petLooks } from "@tokenmaxxing/core/pets.ts";
 import type { Notice } from "@tokenmaxxing/core/world.ts";
 import { unwear } from "../src/town/coins.ts";
@@ -20,19 +21,20 @@ describe("coins and the shop", () => {
     await as(a.token)
       .player(a.userId)
       .ingest([event({ inputTokens: 100e6, timestamp: now })]);
-    expect(await earned()).toBe(10);
+    // The level it reaches (5 at 100M tokens) pays too.
+    expect(await earned()).toBe(10 + levelUpCoins(5));
     await as(a.token)
       .player(a.userId)
       .ingest([
         event({ inputTokens: 200e6, timestamp: now + 60_000 }),
         event({ inputTokens: 200e6, timestamp: now + 120_000 }),
       ]);
-    expect(await earned()).toBe(22);
+    expect(await earned()).toBe(22 + levelUpCoins(6));
     // Logs from before signing up (a first sync's backfill) pay nothing.
     await as(a.token)
       .player(a.userId)
       .ingest([event({ inputTokens: 150e6, timestamp: Date.UTC(2023, 5, 14, 12) })]);
-    expect(await earned()).toBe(22);
+    expect(await earned()).toBe(22 + levelUpCoins(6));
   });
 
   test("buy, then wear; not before, not when short; a second one is another in the bag", async () => {

@@ -1,49 +1,62 @@
 import { canSit, ownSeatAt } from "@tokenmaxxing/core/raidseat.ts";
+import type { Facing, StepResult } from "@tokenmaxxing/core/world.ts";
+import { conn } from "../net.ts";
+import { hud } from "../store.ts";
 import { seatTile } from "./raid.ts";
 import { self, world } from "./world.ts";
 
-/**
- * Sitting at your own war desk in the Raid Dungeon. It is only what you see: the server doesn't know (the
- * dungeon's seats are the client's, `setRaiders`), so you stay on your tile as far as everyone else is
- * concerned. While seated the 3D game draws your own body at the seat, and the clone that was there is hidden
- * (`DungeonLive`); your pet's shots start from wherever it stands (`petAt`, set by `Entities`).
- */
-const state = { sitting: false, room: null as string | null };
-
-/** Where your pet is drawn in the room (world x, z), while it is: the raid fires its little missiles from there. */
+/** The pet's location for its raid shots, in 3D world coordinates. */
 export const raidPet = { at: null as [number, number] | null };
 
-/** Your seat's tile, if you are in the dungeon and have one. */
 export function mySeat(): [number, number] | null {
   return world.room === "dungeon" ? seatTile(world.selfId) : null;
 }
 
-/** Whether you are sitting at your seat now (it stands you up when the room, the raid or your seat is gone). */
 export function seated(): boolean {
-  if (!state.sitting) return false;
-  if (state.room !== world.room || mySeat() === null) state.sitting = false;
-  return state.sitting;
+  return world.room === "dungeon" && self()?.state === "sit";
 }
 
-/** The seat tile you are drawn on, while you sit. */
 export function seatedAt(): [number, number] | null {
-  return seated() ? mySeat() : null;
+  const me = self();
+  return seated() && me ? [me.x, me.y] : null;
+}
+
+/** Apply the server's correction; the same state is broadcast to the rest of the room. */
+function apply(result: Promise<StepResult>): void {
+  void result
+    .then((r) => {
+      if (!r) return;
+      if ("notice" in r) return void hud.set({ dialog: r.notice });
+      const me = self();
+      if (me && r.room === world.room)
+        Object.assign(me, { x: r.x, y: r.y, facing: r.facing, state: r.state, from: null });
+    })
+    .catch(() => {});
 }
 
 export function standUp(): void {
-  state.sitting = false;
+  if (seated()) apply(conn.step("up"));
 }
 
-/** Whether E on the tile (`x`, `y`) takes your seat. */
 export function sitsAt(x: number, y: number): boolean {
   const me = self();
-  return !!me && canSit(world.room, mySeat(), me.state) && ownSeatAt(mySeat(), x, y);
+  const seat = mySeat();
+  return (
+    !!me &&
+    canSit(world.room, seat, me.state) &&
+    ownSeatAt(seat, x, y) &&
+    !!seat &&
+    Math.abs(me.x - seat[0]) + Math.abs(me.y - seat[1]) === 1
+  );
 }
 
-/** E on your own clone or its desk: sits you down. False when that isn't your seat (nothing happens). */
 export function sit(x: number, y: number): boolean {
   if (!sitsAt(x, y)) return false;
-  state.sitting = true;
-  state.room = world.room;
+  const me = self()!;
+  const seat = mySeat()!;
+  const dx = seat[0] - me.x;
+  const dy = seat[1] - me.y;
+  const dir: Facing = dx < 0 ? "left" : dx > 0 ? "right" : dy < 0 ? "up" : "down";
+  apply(conn.sit(dir));
   return true;
 }

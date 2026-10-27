@@ -1942,6 +1942,7 @@ async function snapshot(
     occupancy: occupancy(s, online),
     chat: await chat,
     houses: room === "town" ? houses(s) : {},
+    officeLights: room === "town" ? officeLights(s) : [],
     games: Object.values(s.games ?? {}),
     owner:
       owner === null
@@ -2149,6 +2150,17 @@ function houses(s: WorldState): Houses {
   return out;
 }
 
+/** Only an aggregate is shown outside: office occupants and their identities stay private. */
+function officeLights(s: WorldState): number[] {
+  return [
+    ...new Set(
+      Object.values(s.players)
+        .filter((p) => p.state === "working" && p.companyId !== null)
+        .map((p) => p.companyId!),
+    ),
+  ].sort((a, b) => a - b);
+}
+
 async function chatOf(sql: Sql, room: RoomId) {
   const rows = await all<ChatLine>(
     sql,
@@ -2276,7 +2288,13 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
       if (!p) continue;
       const was = announced.get(id);
       // Unannounced since the world woke: they may have just left a house.
-      if (was === undefined || companyOfRoom(p.room) !== null || companyOfRoom(was) !== null)
+      if (
+        was === undefined ||
+        companyOfRoom(p.room) !== null ||
+        companyOfRoom(was) !== null ||
+        ownerOfOffice(p.room) !== null ||
+        (was !== undefined && ownerOfOffice(was) !== null)
+      )
         c.vars.housesStale = true;
       // Counted asleep at the Inn, they're a number to the room: they leave it when they fall asleep
       // there and join it when they wake up or sit down to work.
@@ -2318,10 +2336,12 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
   if (c.vars.housesStale && someoneIn(c, "town")) {
     c.vars.housesStale = false;
     const inside = houses(c.state);
-    const json = JSON.stringify(inside);
+    const lights = officeLights(c.state);
+    const json = JSON.stringify([inside, lights]);
     if (json !== c.vars.houses) {
       c.vars.houses = json;
       sendToRoom(c, "town", "houses", inside);
+      sendToRoom(c, "town", "officeLights", lights);
     }
   }
   // The dungeon's raiders, once a second, when someone there would see a change.

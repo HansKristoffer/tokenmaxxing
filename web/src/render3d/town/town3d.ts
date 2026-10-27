@@ -10,6 +10,7 @@ import { CART, SNAIL } from "@tokenmaxxing/core/street.ts";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { C } from "../../art/palette.ts";
+import { seasonNow } from "../../game/seasons.ts";
 import {
   BLOCK_H,
   BLOCK_W,
@@ -134,6 +135,7 @@ function groundAt(map: TownMap, x: number, y: number): Ground {
 
 /** The whole ground in one canvas: grass, paths, plaza paving, flower meadows and the pond's water. */
 function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
+  const season = seasonNow();
   const W = map.width + MARGIN * 2;
   const D = map.height + MARGIN * 2;
   return canvasTexture(
@@ -150,10 +152,26 @@ function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
           const ox = cx * px;
           const oy = cy * px;
           const grass = () => {
-            g.fillStyle = (cx + cy) % 2 ? "#86c35e" : "#80bd58";
+            const grassColors =
+              season === "fall"
+                ? ["#b5ad60", "#aaa257"]
+                : season === "winter"
+                  ? ["#9cae88", "#92a77e"]
+                  : season === "spring"
+                    ? ["#9bcf76", "#91c66c"]
+                    : ["#86c35e", "#80bd58"];
+            g.fillStyle = grassColors[(cx + cy) % 2]!;
             g.fillRect(ox, oy, px, px);
             for (let i = 0; i < px * 0.7; i++) {
-              g.fillStyle = rnd() < 0.5 ? C.grassDark : C.grassLight;
+              const blades =
+                season === "fall"
+                  ? ["#928e4c", "#d0c477"]
+                  : season === "winter"
+                    ? ["#819570", "#b5c7a0"]
+                    : season === "spring"
+                      ? ["#79b85a", "#b9e895"]
+                      : [C.grassDark, C.grassLight];
+              g.fillStyle = blades[rnd() < 0.5 ? 0 : 1]!;
               g.fillRect(ox + rnd() * px, oy + rnd() * px, Math.max(1, px / 14), Math.max(2, px / 8));
             }
           };
@@ -220,6 +238,19 @@ function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
 // MARK: Building the town
 
 const KINDS: TreeKind[] = ["round", "round", "pine", "oak", "round", "pine"];
+const FALL_KINDS: TreeKind[] = ["orange", "yellow", "pine", "red", "orange", "pine"];
+const SPRING_KINDS: TreeKind[] = ["round", "pink", "pine", "oak", "white", "pine"];
+const WINTER_KINDS: TreeKind[] = ["white", "white", "pine", "white", "white", "pine"];
+const treeKinds = () => {
+  const season = seasonNow();
+  return season === "fall"
+    ? FALL_KINDS
+    : season === "winter"
+      ? WINTER_KINDS
+      : season === "spring"
+        ? SPRING_KINDS
+        : KINDS;
+};
 
 /** Strips the point lights from a model: lamps dotted round the town only glow. */
 function dim(m: THREE.Object3D): void {
@@ -424,7 +455,8 @@ export function buildTown3d(
       switch (ch) {
         case "T": {
           if (clearOf(cx, cz)) break;
-          const kind = KINDS[Math.floor(hash(tx, ty, 3) * KINDS.length)]!;
+          const kinds = treeKinds();
+          const kind = kinds[Math.floor(hash(tx, ty, 3) * kinds.length)]!;
           add(
             tree(kind, Math.floor(r * 1e6), (border ? 1.1 : 1) + hash(tx, ty, 4) * 0.3),
             cx + (r - 0.5) * 0.5,
@@ -433,7 +465,7 @@ export function buildTown3d(
           break;
         }
         case "^":
-          add(bush(Math.floor(r * 1e6)), cx, cz, 0, 1.3);
+          add(bush(Math.floor(r * 1e6), seasonNow() === "fall" ? "#bd743a" : undefined), cx, cz, 0, 1.3);
           break;
         case "L":
           add(lanternPillar(), cx, cz);
@@ -588,7 +620,8 @@ export function buildTown3d(
       const ring = Math.min(cx, cy, W - 1 - cx, D - 1 - cy);
       if (ring >= MARGIN) continue;
       if (rnd() < 0.5 + ring * 0.15) continue;
-      const kind = KINDS[Math.floor(rnd() * KINDS.length)]!;
+      const kinds = treeKinds();
+      const kind = kinds[Math.floor(rnd() * kinds.length)]!;
       const seed = Math.floor(rnd() * 1e6);
       const size = 1 + rnd() * 0.4;
       const tx = cx + 0.5 + (rnd() - 0.5) * 0.6;

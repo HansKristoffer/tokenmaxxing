@@ -1,6 +1,7 @@
 import { startDetection } from "../settings/detect.ts";
 import { Governor, percentile, refreshInterval, type Step } from "../settings/governor.ts";
 import { graphics, TIER_NAMES } from "../settings/graphics.ts";
+import { hud } from "../store.ts";
 import { loadRenderer, type Renderer, type RendererKind, type Tile } from "./renderer.ts";
 
 /** Live numbers for the FPS meter. */
@@ -11,6 +12,31 @@ const REFRESH_PROBE_MS = 1000;
 const UNDO_HOLD_MS = 5 * 60_000;
 
 let active: Renderer | null = null;
+let photoRequested = false;
+let photoTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Save the next freshly rendered frame, including the people gathered on screen. */
+export function takePhoto(pose?: () => void): void {
+  if (photoTimer !== null) return;
+  let count = 3;
+  const countdown = () => {
+    hud.set({ banner: { text: `📷 Photo in ${count}…`, at: Date.now() } });
+    if (--count > 0) photoTimer = setTimeout(countdown, 1000);
+    else
+      photoTimer = setTimeout(() => {
+        hud.set({ banner: { text: "📷 Smile!", at: Date.now() } });
+        pose?.();
+        photoTimer = setTimeout(
+          () => {
+            photoRequested = true;
+            photoTimer = null;
+          },
+          pose ? 150 : 0,
+        );
+      }, 1000);
+  };
+  countdown();
+}
 
 /** The tile under a point in the window, as the current renderer sees it. */
 export const pickTile = (clientX: number, clientY: number): Tile | null =>
@@ -132,6 +158,19 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
     } catch (e) {
       if (renderer.kind === "2d") throw e;
       return fail(e instanceof Error ? e.message : "render error");
+    }
+    if (photoRequested) {
+      photoRequested = false;
+      const canvas = host.querySelector<HTMLCanvasElement>("canvas#world");
+      canvas?.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `tokenmaxxing-photo-${Date.now()}.png`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }, "image/png");
     }
 
     if (gap < 500) {

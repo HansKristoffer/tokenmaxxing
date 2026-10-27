@@ -158,6 +158,9 @@ export function connect(token: string): void {
   conn.on("houses", (h: Houses) => {
     world.houses = h;
   });
+  conn.on("officeLights", (ids: number[]) => {
+    world.officeLights = new Set(ids);
+  });
   conn.on("weather", (weather: Weather) => hud.set({ weather }));
   conn.on("occupancy", (o: Partial<Record<RoomId, number>>) => hud.set({ occupancy: o }));
   conn.on("chat", (line: ChatLine) => applyChat(line));
