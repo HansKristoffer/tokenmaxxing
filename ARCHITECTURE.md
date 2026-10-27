@@ -21,10 +21,10 @@ The game also runs in any browser; the app's window is that same page, at `/play
 
 | Path | What |
 |---|---|
-| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen) |
+| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Aarhus, and the cold and pollen rules: breath, scarves, ice, sneezes) |
 | `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
 | `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `quests`, `awards` (badge awards and their sweep), `hall` (the Hall of Fame), `card` (bios, showcase, habits, the Tavern's minutes), `sync` (pushes to `world`) |
-| `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (one Open-Meteo fetch per 15 min, for the `world` actor), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
+| `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (Open-Meteo for the `world` actor: the forecast every 15 min, the air-quality API's pollen every hour), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
 | `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels), `render3d/` (the 3D renderer: `engine/`, `kit/`, `people/`, `pets/`, `furniture/`, `rooms/`, `town/`, `dungeon/`, `shops/`, `data/`), `settings/` (graphics tiers, detection, governor) |
 | `app/helper/` | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar |
 | `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, updates |
@@ -854,7 +854,7 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
   between the tiles the server gives, with `motion.ts` holding the pose and turning rules), follows the player with
   `rig.ts` (the demo's isometric orthographic camera: follow, per-room framing, zoom steps, quarter turns on
   Q and R or `[` and `]`, middle-drag pan), and draws through the demo's `Pipeline` with the graphics settings
-  (`renderScale`, `dprCap`, shadows, AO, haze, tilt-shift, grade). The town's sky, sun, moon, clouds, rain and snow are
+  (`renderScale`, `dprCap`, shadows, AO, haze, tilt-shift, grade). The town's sky, sun, moon, clouds, fog, rain, snow and pond ice are
   the demo's `Fx` driven by the game's clock (`game/sky.ts skyNow`) and the server's weather (`weatherNow`);
   indoors the light is fixed, as in 2D. Names, bubbles, signs and the `💤` marks are DOM in a `#labels3d` layer
   (`overlay.ts`, `signs.ts`), over the canvas and under the HUD. Clicks go through `pick`: a person is their own
@@ -996,6 +996,27 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
 - `web/test/perf-budget.test.ts` builds every room headlessly (the real skins, not tile stand-ins), batches it, freezes its
   people and fails above `render3d/perf/budgets.ts`; `perf-freeze.test.ts` and `world-lazy.test.ts` cover freezing and the room cache.
   The budgets count the static room alone; `web/test/dungeon-live.test.ts` budgets the dungeon's live layer on top and `games3d.test.ts` that a game's props come and go.
+
+## The weather
+
+- **One fetch for the world.** `world` asks Open-Meteo for Aarhus's weather every 15 minutes (weather code,
+  precipitation, cloud, wind, `temperature_2m`, `visibility`) and its air-quality API for pollen every hour
+  (`server/src/weather.ts`): five requests an hour, whoever is online. A failed fetch keeps the last weather, and a
+  failed pollen fetch keeps the last count. `core/src/sky.ts` turns the answers into a `Weather` (`weatherFrom`,
+  `pollenFrom`) that rides in every snapshot and a `weather` event when it changes.
+- **What the town shows** (outdoors only, 2D and 3D alike; pure rules in `sky.ts`, client timing in
+  `web/src/game/cold.ts`):
+  - Breath puffs from everyone at `BREATH_C` (7 °C) and below; scarves on the bots at `SCARF_C` (4 °C) and below.
+  - The pond ices over below 0 °C (`iceOver`): a see-through ice twin of the 2D ground (`snow.ts iceLayer`), an
+    ice sheet over the 3D pond (`town3d.ts`, faded by `ICE` in `render3d/town/cold3d.ts`).
+  - Fog as thick as the visibility says (`fogOf`: none from 5 km, all of it at 100 m): a clear or cloudy code under
+    a kilometre is fog, and mist thickens any weather.
+  - Sneezes when the pollen is high (`pollenFrom`: the worst pollen against Astma-Allergi Danmark's high mark):
+    `sneezeAt` rolls each person once per 20 s slot off the clock, so every client sees the same sneeze with no
+    server state. "Achoo! 🤧" shows as a bubble and the person jolts.
+- **Pinning it.** `SKY_WEATHER=<preset>` on the server or `?weather=<preset>` in the page: the kinds (clear, cloudy,
+  fog, drizzle, rain, storm, snow), `frost` (a clear −6 °C day: ice, breath, scarves) and `pollen` (a warm day with
+  high pollen). `?sky=2026-10-21T22:30` moves the clock.
 
 ## One clock
 

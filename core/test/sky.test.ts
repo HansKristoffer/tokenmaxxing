@@ -1,11 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import {
+  breathShows,
   clockTime,
   copenhagenToMs,
+  fogOf,
+  iceOver,
   isWinter,
   lightAt,
   moonPhase,
+  PRESET_NAMES,
+  pollenFrom,
+  pollenLevel,
   presetWeather,
+  SNEEZE_MS,
+  sameWeather,
+  scarvesOn,
+  sneezeAt,
   snowCover,
   sunTimes,
   WINTER_MONTHS,
@@ -106,6 +116,93 @@ describe("weather", () => {
   test("presets", () => {
     expect(presetWeather("storm")?.kind).toBe("storm");
     expect(presetWeather("lava")).toBeNull();
+    expect(PRESET_NAMES).toContain("frost");
+    expect(PRESET_NAMES).toContain("pollen");
+  });
+
+  test("temperature and visibility are read, with calm defaults when missing", () => {
+    const w = weatherFrom(cur(3, { temperature_2m: -3.04, visibility: 24_140 }))!;
+    expect(w.tempC).toBe(-3);
+    expect(w.visibilityM).toBe(24_140);
+    expect(w.pollen).toBe(0);
+    const bare = weatherFrom(cur(3))!;
+    expect(bare.tempC).toBeGreaterThan(7);
+    expect(bare.visibilityM).toBeGreaterThan(10_000);
+  });
+
+  test("a clear or cloudy code under a kilometre of visibility is fog; rain stays rain", () => {
+    const mist = weatherFrom(cur(2, { visibility: 300 }))!;
+    expect(mist.kind).toBe("fog");
+    expect(mist.intensity).toBeGreaterThan(0.6);
+    expect(weatherFrom(cur(2, { visibility: 2_000 }))?.kind).toBe("cloudy");
+    expect(weatherFrom(cur(63, { visibility: 300 }))?.kind).toBe("rain");
+  });
+
+  test("fog thickens as the visibility drops", () => {
+    const at = (visibilityM: number) => fogOf({ ...presetWeather("rain")!, visibilityM });
+    expect(at(20_000)).toBe(0);
+    expect(at(5_000)).toBe(0);
+    expect(at(2_000)).toBeGreaterThan(0);
+    expect(at(2_000)).toBeLessThan(at(500));
+    expect(at(100)).toBe(1);
+    // A fog code is fog however far the model says you can see.
+    expect(fogOf({ ...presetWeather("fog")!, visibilityM: 20_000 })).toBe(0.8);
+  });
+
+  test("cold: breath, then scarves, then ice", () => {
+    const at = (tempC: number) => ({ ...presetWeather("clear")!, tempC });
+    expect([breathShows(at(12)), scarvesOn(at(12)), iceOver(at(12))]).toEqual([false, false, false]);
+    expect([breathShows(at(6)), scarvesOn(at(6)), iceOver(at(6))]).toEqual([true, false, false]);
+    expect([breathShows(at(2)), scarvesOn(at(2)), iceOver(at(2))]).toEqual([true, true, false]);
+    expect([breathShows(at(-1)), scarvesOn(at(-1)), iceOver(at(-1))]).toEqual([true, true, true]);
+    expect(iceOver(presetWeather("frost")!)).toBe(true);
+  });
+
+  test("the new fields count as a change", () => {
+    const w = presetWeather("clear")!;
+    expect(sameWeather(w, { ...w })).toBe(true);
+    expect(sameWeather(w, { ...w, tempC: w.tempC - 1 })).toBe(false);
+    expect(sameWeather(w, { ...w, visibilityM: 200 })).toBe(false);
+    expect(sameWeather(w, { ...w, pollen: 1 })).toBe(false);
+  });
+});
+
+describe("pollen", () => {
+  test("the worst pollen against its own high mark", () => {
+    expect(pollenFrom({ birch_pollen: 50, grass_pollen: 10 })).toBe(0.5);
+    expect(pollenFrom({ birch_pollen: 50, grass_pollen: 100 })).toBe(2);
+    expect(pollenFrom({ alder_pollen: 0, birch_pollen: 0 })).toBe(0);
+    expect(pollenFrom({ grass_pollen: 1e6 })).toBe(5);
+  });
+
+  test("no counts at all is nothing to go on", () => {
+    expect(pollenFrom(null)).toBeNull();
+    expect(pollenFrom({})).toBeNull();
+    expect(pollenFrom({ birch_pollen: null, grass_pollen: "high" })).toBeNull();
+  });
+
+  test("levels", () => {
+    expect([0, 0.2, 0.6, 1, 3].map(pollenLevel)).toEqual(["none", "low", "moderate", "high", "high"]);
+  });
+
+  test("sneezes: only when it's high, the same for everyone, now and then", () => {
+    const day = Date.UTC(2026, 4, 10, 10);
+    const sneezing = (id: number, pollen: number) => {
+      let n = 0;
+      for (let ms = day; ms < day + 3_600_000; ms += 100) if (sneezeAt(id, ms, pollen) !== null) n++;
+      return (n * 100) / SNEEZE_MS;
+    };
+    expect(sneezing(7, 0.9)).toBe(0);
+    // About one sneeze in every 20 s slot that comes up: 180 slots an hour.
+    const high = sneezing(7, 1);
+    expect(high).toBeGreaterThan(3);
+    expect(high).toBeLessThan(40);
+    expect(sneezing(7, 3)).toBeGreaterThan(high);
+    expect(sneezeAt(7, day + 1234, 3)).toBe(sneezeAt(7, day + 1234, 3));
+    // People sneeze at their own times.
+    const at = (id: number) =>
+      Array.from({ length: 600 }, (_, i) => sneezeAt(id, day + i * 1_000, 3) !== null).join();
+    expect(at(1)).not.toBe(at(2));
   });
 });
 

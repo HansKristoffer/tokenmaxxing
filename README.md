@@ -10,6 +10,8 @@ AI earns **coins**, and so does finishing a day in the top 3; spend them on clot
 pets that follow you around (hold a pet and pick any of its colours and breeds with the eye in your bag; they curl up asleep in the pet bed of your office while you're in it). Or play for them: challenge someone to a game in the town square, from
 rock-paper-scissors for founders, Liar's Dice and a typing race to **Tokenmaxxing**, a battle over who burns
 the most real tokens in an hour.
+The town has Aarhus's real **sky and weather**: the sun, the moon, rain, snow and fog as thick as it really is; when it's
+cold people's breath shows, the town's regulars put on scarves and the pond freezes over, and on high-pollen days people sneeze.
 The Inn is **The Tavern**: a bar with a free daily special, a barkeep, a quest board (three daily quests scaled to how you work, and a weekly one), a Hall of Fame, plaques for the week's regulars, and stairs down to a basement net cafe with arcade cabinets and a live screen of matches.
 
 Reads usage from Claude Code (including subagents), Claude Cowork, Codex and Cursor, including the Claude Code and
@@ -79,6 +81,10 @@ to your card (a bio is one line and can be reported), when you work, and your ti
 [Firecrawl](https://firecrawl.dev) to read that site's colours and logo, sends those to Claude to pick the
 house's colours, and keeps a copy of the logo. Only the company's public website is involved; nobody's usage
 data is sent anywhere for this.
+
+**Weather.** The server asks [Open-Meteo](https://open-meteo.com) for Aarhus's weather (temperature, visibility, wind,
+cloud, rain) every 15 minutes and for its pollen count ([air-quality API](https://open-meteo.com/en/docs/air-quality-api))
+every hour, once for the whole world. Only the town's coordinates are sent.
 
 ## The stats
 
@@ -250,6 +256,7 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `HEALTH_WINDOW_MS` | `120000` | ...the first of them at least this long ago. One success starts over |
 | `HEALTH_INTERVAL_MS` | `30000` | Time between probes |
 | `HEALTH_TIMEOUT_MS` | `20000` | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine |
+| `SKY_WEATHER` | | Dev and screenshots: pins the weather and fetches none. `clear`, `cloudy`, `fog`, `drizzle`, `rain`, `storm`, `snow`, `frost` (freezing: ice, breath, scarves) or `pollen` (sneezes). `?weather=` in the page does the same for one browser |
 | `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
 | `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
 

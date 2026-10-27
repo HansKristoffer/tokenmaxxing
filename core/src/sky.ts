@@ -166,23 +166,89 @@ export interface Weather {
   windDir: number;
   /** Cloud cover 0..1. */
   cloud: number;
+  /** Air temperature 2 m up, °C. */
+  tempC: number;
+  /** How far you can see, in metres. */
+  visibilityM: number;
+  /** The pollen in the air against what counts as high (`pollenFrom`): 1 is high, 0 is none. */
+  pollen: number;
 }
 
-export const CALM: Weather = { kind: "clear", intensity: 0, windMs: 1.5, windDir: 270, cloud: 0.1 };
-
-const PRESETS: Record<WeatherKind, Weather> = {
-  clear: CALM,
-  cloudy: { kind: "cloudy", intensity: 0.7, windMs: 4, windDir: 250, cloud: 0.8 },
-  fog: { kind: "fog", intensity: 0.8, windMs: 1, windDir: 200, cloud: 0.9 },
-  drizzle: { kind: "drizzle", intensity: 0.35, windMs: 3, windDir: 240, cloud: 0.8 },
-  rain: { kind: "rain", intensity: 0.7, windMs: 7, windDir: 260, cloud: 0.9 },
-  storm: { kind: "storm", intensity: 1, windMs: 14, windDir: 250, cloud: 1 },
-  snow: { kind: "snow", intensity: 0.7, windMs: 4, windDir: 330, cloud: 0.9 },
+export const CALM: Weather = {
+  kind: "clear",
+  intensity: 0,
+  windMs: 1.5,
+  windDir: 270,
+  cloud: 0.1,
+  tempC: 12,
+  visibilityM: 30_000,
+  pollen: 0,
 };
 
+const PRESETS: Record<string, Weather> = {
+  clear: CALM,
+  cloudy: { ...CALM, kind: "cloudy", intensity: 0.7, windMs: 4, windDir: 250, cloud: 0.8, tempC: 10 },
+  fog: {
+    ...CALM,
+    kind: "fog",
+    intensity: 0.8,
+    windMs: 1,
+    windDir: 200,
+    cloud: 0.9,
+    tempC: 4,
+    visibilityM: 150,
+  },
+  drizzle: {
+    ...CALM,
+    kind: "drizzle",
+    intensity: 0.35,
+    windMs: 3,
+    windDir: 240,
+    cloud: 0.8,
+    tempC: 9,
+    visibilityM: 8_000,
+  },
+  rain: {
+    ...CALM,
+    kind: "rain",
+    intensity: 0.7,
+    windMs: 7,
+    windDir: 260,
+    cloud: 0.9,
+    tempC: 10,
+    visibilityM: 6_000,
+  },
+  storm: {
+    ...CALM,
+    kind: "storm",
+    intensity: 1,
+    windMs: 14,
+    windDir: 250,
+    cloud: 1,
+    tempC: 11,
+    visibilityM: 4_000,
+  },
+  snow: {
+    ...CALM,
+    kind: "snow",
+    intensity: 0.7,
+    windMs: 4,
+    windDir: 330,
+    cloud: 0.9,
+    tempC: -2,
+    visibilityM: 3_000,
+  },
+  // Not kinds of their own: a clear day's temperature or air.
+  frost: { ...CALM, windMs: 1, windDir: 60, cloud: 0.05, tempC: -6 },
+  pollen: { ...CALM, windMs: 3, windDir: 220, cloud: 0.2, tempC: 21, pollen: 2.5 },
+};
+
+/** Every name `presetWeather` knows: the kinds, and `frost` and `pollen` (clear days, freezing or sneezy). */
+export const PRESET_NAMES: readonly string[] = Object.keys(PRESETS);
+
 /** Presets for `SKY_WEATHER=rain` and `?weather=rain`. */
-export const presetWeather = (kind: string): Weather | null =>
-  Object.hasOwn(PRESETS, kind) ? { ...PRESETS[kind as WeatherKind] } : null;
+export const presetWeather = (name: string): Weather | null =>
+  Object.hasOwn(PRESETS, name) ? { ...PRESETS[name]! } : null;
 
 /** WMO weather interpretation codes → kind and how hard (https://open-meteo.com/en/docs). */
 const CODES: Record<number, [WeatherKind, number]> = {
@@ -216,13 +282,26 @@ const CODES: Record<number, [WeatherKind, number]> = {
   99: ["storm", 1],
 };
 
-/** Open-Meteo's `current` block reduced to a `Weather`; null if it isn't one. */
+/** Fog, by the book (WMO): you can see less than a kilometre. */
+const FOG_M = 1_000;
+
+/** 0..1 how thick fog at `visibilityM` is: none from 5 km out, all of it at 100 m or less. */
+const fogAt = (visibilityM: number): number =>
+  1 - clamp(Math.log(Math.max(1, visibilityM) / 100) / Math.log(50), 0, 1);
+
+/**
+ * Open-Meteo's `current` block reduced to a `Weather`; null if it isn't one. A clear or cloudy code with less
+ * than a kilometre to see is fog. Pollen comes from its own fetch (`pollenFrom`), so it is 0 here.
+ */
 export function weatherFrom(current: unknown): Weather | null {
   const c = current as Record<string, unknown> | null;
   const num = (k: string) => (typeof c?.[k] === "number" && Number.isFinite(c[k]) ? (c[k] as number) : null);
   const code = num("weather_code");
   if (code === null) return null;
-  const [kind, base] = CODES[code] ?? ["clear", 0];
+  const visibilityM = Math.round(clamp(num("visibility") ?? CALM.visibilityM, 0, 100_000));
+  const coded = CODES[code] ?? ["clear", 0];
+  const misty = (coded[0] === "clear" || coded[0] === "cloudy") && visibilityM < FOG_M;
+  const [kind, base]: [WeatherKind, number] = misty ? ["fog", Math.max(0.4, fogAt(visibilityM))] : coded;
   const precip = num("precipitation");
   const falls = kind === "rain" || kind === "drizzle" || kind === "snow";
   // Measured rain nudges the code's guess: a "light rain" code with 3 mm an hour is not light.
@@ -235,7 +314,82 @@ export function weatherFrom(current: unknown): Weather | null {
     windMs: Math.round(clamp(num("wind_speed_10m") ?? 0, 0, 40) * 10) / 10,
     windDir: ((Math.round(num("wind_direction_10m") ?? 0) % 360) + 360) % 360,
     cloud: kind === "rain" || kind === "snow" || kind === "storm" ? Math.max(cloud, 0.6) : cloud,
+    tempC: Math.round(clamp(num("temperature_2m") ?? CALM.tempC, -60, 60) * 10) / 10,
+    visibilityM,
+    pollen: 0,
   };
+}
+
+/** 0..1 how thick the fog or mist is: a fog code's own intensity, or what the visibility says, whichever is more. */
+export const fogOf = (w: Weather): number =>
+  Math.max(w.kind === "fog" ? w.intensity : 0, Math.round(fogAt(w.visibilityM) * 100) / 100);
+
+// MARK: Cold
+
+/** People's breath shows at this temperature and below. */
+export const BREATH_C = 7;
+/** The town's people (the bots) put scarves on at this temperature and below. */
+export const SCARF_C = 4;
+
+export const breathShows = (w: Weather): boolean => w.tempC <= BREATH_C;
+export const scarvesOn = (w: Weather): boolean => w.tempC <= SCARF_C;
+/** Below freezing the pond is iced over. */
+export const iceOver = (w: Weather): boolean => w.tempC < 0;
+
+// MARK: Pollen
+
+/**
+ * Counts (grains/m³) Astma-Allergi Danmark calls high, by Open-Meteo's name for the pollen
+ * (https://open-meteo.com/en/docs/air-quality-api). Olive hardly reaches Denmark, ragweed is potent.
+ */
+export const POLLEN_HIGH = {
+  alder_pollen: 50,
+  birch_pollen: 100,
+  grass_pollen: 50,
+  mugwort_pollen: 50,
+  olive_pollen: 200,
+  ragweed_pollen: 20,
+} as const;
+
+/** The worst pollen in Open-Meteo's air-quality `current` block against its high mark (0 none, 1 high, at most 5); null if it has none. */
+export function pollenFrom(current: unknown): number | null {
+  const c = current as Record<string, unknown> | null;
+  const ratios = Object.entries(POLLEN_HIGH).flatMap(([k, high]) => {
+    const v = c?.[k];
+    return typeof v === "number" && Number.isFinite(v) ? [Math.max(0, v) / high] : [];
+  });
+  return ratios.length ? Math.round(Math.min(5, Math.max(...ratios)) * 100) / 100 : null;
+}
+
+export type PollenLevel = "none" | "low" | "moderate" | "high";
+
+export const pollenLevel = (pollen: number): PollenLevel =>
+  pollen < 0.05 ? "none" : pollen < 0.4 ? "low" : pollen < 1 ? "moderate" : "high";
+
+/** How long a sneeze shows, and the stretch of time in which each person may sneeze once. */
+export const SNEEZE_MS = 1_400;
+const SNEEZE_SLOT_MS = 20_000;
+
+/** A whole number from a person and a slot of time, spread evenly (so everyone's sneezes fall differently). */
+function mix32(a: number, b: number): number {
+  let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35);
+  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
+  h = Math.imul(h ^ (h >>> 12), 0x297a2d39);
+  return (h ^ (h >>> 15)) >>> 0;
+}
+
+/**
+ * How far into a sneeze person `id` is at `ms` (0 to `SNEEZE_MS`), or null when they aren't sneezing. Only when
+ * the pollen is high, and more often the higher it is: off the clock, so every client sees the same sneeze.
+ */
+export function sneezeAt(id: number, ms: number, pollen: number): number | null {
+  if (pollenLevel(pollen) !== "high") return null;
+  const slot = Math.floor(ms / SNEEZE_SLOT_MS);
+  const roll = mix32(id, slot);
+  if ((roll % 1000) / 1000 >= Math.min(0.3, 0.08 * pollen)) return null;
+  const start = slot * SNEEZE_SLOT_MS + ((roll >>> 10) % (SNEEZE_SLOT_MS - SNEEZE_MS));
+  const into = ms - start;
+  return into >= 0 && into < SNEEZE_MS ? into : null;
 }
 
 // MARK: Winter
@@ -274,7 +428,10 @@ export const sameWeather = (a: Weather, b: Weather): boolean =>
   a.intensity === b.intensity &&
   a.windMs === b.windMs &&
   a.windDir === b.windDir &&
-  a.cloud === b.cloud;
+  a.cloud === b.cloud &&
+  a.tempC === b.tempC &&
+  a.visibilityM === b.visibilityM &&
+  a.pollen === b.pollen;
 
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 export const compass = (deg: number): string => COMPASS[Math.round(deg / 45) % 8]!;

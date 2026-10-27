@@ -1,16 +1,19 @@
 import { COP_ID } from "@tokenmaxxing/core/cop.ts";
 import { LEGENDARY_LEVEL } from "@tokenmaxxing/core/milestones.ts";
+import { SNEEZE_MS } from "@tokenmaxxing/core/sky.ts";
 import { hasPolse } from "@tokenmaxxing/core/street.ts";
 import { hasSpecial, specialBuff } from "@tokenmaxxing/core/tavern.ts";
 import { cupsLeft, JUMP_MS, ownerOfOffice, TILE } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { merchKey, merchVersion } from "../../art/merch.ts";
 import { PET_H, PET_W } from "../../art/pets.ts";
+import { type Chill, chillOf, SNEEZE_TEXT, sneezeJolt, sneezeOf, wearsScarf } from "../../game/cold.ts";
 import { BURST_MS } from "../../game/emoji.ts";
 import { LABEL_FAR } from "../../game/near.ts";
 import { followPet, prunePets } from "../../game/pets.ts";
 import { type Lap, racing } from "../../game/race.ts";
 import { raidPet, seatedAt } from "../../game/raidseat.ts";
+import { weatherNow } from "../../game/sky.ts";
 import { jitter, tremorPhase } from "../../game/tremor.ts";
 import {
   drawPos,
@@ -30,6 +33,7 @@ import { Burst, type Overlay } from "../engine/overlay.ts";
 import { Model } from "../kit/kit.ts";
 import { type Pet3D, petFrom2D } from "../pets/pets3d.ts";
 import type { RoomView } from "../rooms/rooms.ts";
+import { Breath, neckOf, scarf } from "../town/cold3d.ts";
 import { STOOL_Y, seatPose } from "../town/gamefx.ts";
 import { CopWatch, ShowcaseCache } from "../town/world-logic.ts";
 import { Avatar as Avatar3D } from "./avatar.ts";
@@ -68,6 +72,12 @@ interface Rig {
   seen: number;
   bedroll: Model | null;
   halo: THREE.Mesh | null;
+  /** The cold (`town/cold3d.ts`): where their neck is (-1 until measured), their breath and, on a bot, a scarf. */
+  neck: number;
+  breath: Breath | null;
+  scarf: Model | null;
+  /** How far into a sneeze they are this frame (0..1), or null. */
+  sneeze: number | null;
   /** Officer 429 only: his light bar and notepad, and what his lines say he is doing. */
   cop: { gear: CopGear; watch: CopWatch } | null;
   /** Where a Sprint Race has them (laps of the square) this frame, when it has. */
@@ -138,6 +148,8 @@ export class Entities {
   maxTags = 12;
   private readonly tagged: Rig[] = [];
   private bursts = 0;
+  /** What the cold does to people this frame: outdoors only. */
+  private chill: Chill | null = null;
   /** Bots whose bodies the room draws itself. */
   private keepers: ReadonlySet<number> = new Set();
   private readonly v = new THREE.Vector3();
@@ -234,6 +246,10 @@ export class Entities {
       seen: 0,
       bedroll: null,
       halo: null,
+      neck: -1,
+      breath: null,
+      scarf: null,
+      sneeze: null,
       cop: a.info.id === COP_ID ? { gear: new CopGear(avatar, root), watch: new CopWatch() } : null,
       lap: null,
       pet: null,
@@ -288,6 +304,7 @@ export class Entities {
   /** Brings the 3D people up to date with `world` for the frame at `now` (ms), `dt` ms after the last. */
   update(now: number, dt: number, view: RoomView, camera: THREE.OrthographicCamera): void {
     this.keepers = view.keepers ?? NONE;
+    this.chill = view.outdoors ? chillOf(weatherNow()) : null;
     const frame = ++this.frame;
     const dtS = dt / 1000;
     const t = now / 1000;
@@ -328,6 +345,32 @@ export class Entities {
     }
     for (const r of [...this.rigs.values()]) if (r.seen !== frame) this.remove(r);
     this.declutter();
+  }
+
+  /** Breath in the cold (not asleep or at a desk), and a scarf on a bot, at their neck as their pose has it now. */
+  private cold(r: Rig, a: GameAvatar, now: number, lying: boolean): void {
+    const chill = this.chill;
+    const up = !lying && a.state !== "away" && a.state !== "working";
+    const breathes = !!chill && up && !a.warp && r.root.visible;
+    const scarved = wearsScarf(a, chill) && up;
+    if ((breathes || scarved) && r.neck < 0) r.neck = neckOf(r.root, r.avatar.body, r.avatar.head);
+    const neck = r.neck + r.avatar.body.position.y;
+    if (breathes && !r.breath) {
+      r.breath = new Breath();
+      r.root.add(r.breath.group);
+    }
+    if (r.breath) {
+      if (breathes) r.breath.update(r.id, now, neck + 0.1);
+      else r.breath.group.visible = false;
+    }
+    if (scarved && !r.scarf) {
+      r.scarf = scarf(r.id);
+      r.root.add(r.scarf);
+    }
+    if (r.scarf) {
+      r.scarf.visible = scarved;
+      r.scarf.position.y = neck;
+    }
   }
 
   /** Tags that would cover each other stack up, the farthest fade, and a crowd shows only the nearest. */
@@ -437,8 +480,11 @@ export class Entities {
     const shake = cups > 0 ? jitter(cups, unow / 1000, tremorPhase(info.id)) : null;
     y += shake?.lift ?? 0;
     r.root.position.set(r.x, y, r.z);
+    // A sneeze (pollen, `game/cold.ts`) tips the whole figure forward: their limbs may be frozen still.
+    r.sneeze = sneezeOf(a);
+    const sneeze = r.sneeze === null || this.calm ? 0 : sneezeJolt(r.sneeze) * 0.22;
     // Turned first, then tilted, so the tilt is the figure's own side to side and back and forth.
-    r.root.rotation.set(shake?.pitch ?? 0, r.yaw, shake?.roll ?? 0, "YXZ");
+    r.root.rotation.set((shake?.pitch ?? 0) + sneeze, r.yaw, shake?.roll ?? 0, "YXZ");
     if (special === "glow") {
       if (!r.halo) {
         r.halo = new THREE.Mesh(
@@ -491,6 +537,7 @@ export class Entities {
     const bubbleOn = a.bubble !== null && now < a.bubble.until;
     av.talking = bubbleOn;
     if (near) av.update(dtS, t, moved);
+    this.cold(r, a, now, lying || pose === "sleep");
     if (r.cop)
       r.cop.gear.update(r.cop.watch.read(bubbleOn && a.bubble ? a.bubble.text : "", now), now, this.calm);
 
@@ -641,14 +688,20 @@ export class Entities {
       r.tag = null;
     }
     // Over their head, top to bottom: what they said, a sausage, the game they are in, the desk, the nap.
-    if (bubbleOn && a.bubble && !resting) {
-      if (r.bubbleText !== a.bubble.text) {
-        r.bubbleText = a.bubble.text;
-        r.bubble.textContent = a.bubble.text.length > 120 ? `${a.bubble.text.slice(0, 119)}…` : a.bubble.text;
+    // What they said, or else a sneeze.
+    const said =
+      bubbleOn && a.bubble && !resting
+        ? { text: a.bubble.text, left: a.bubble.until - now }
+        : r.sneeze !== null
+          ? { text: SNEEZE_TEXT, left: (1 - r.sneeze) * SNEEZE_MS }
+          : null;
+    if (said) {
+      if (r.bubbleText !== said.text) {
+        r.bubbleText = said.text;
+        r.bubble.textContent = said.text.length > 120 ? `${said.text.slice(0, 119)}…` : said.text;
       }
       r.bubble.style.display = "";
-      const left = a.bubble.until - now;
-      r.bubble.style.opacity = left < 400 ? String(Math.max(0, left / 400)) : "1";
+      r.bubble.style.opacity = said.left < 400 ? String(Math.max(0, said.left / 400)) : "1";
     } else r.bubble.style.display = "none";
     show(r.pills.polse, hasPolse(info.polseUntil, Date.now()) ? "🌭" : null);
     show(r.pills.game, gameTag(info.id));
