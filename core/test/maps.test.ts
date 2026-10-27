@@ -258,6 +258,40 @@ describe("the shops", () => {
     expect(reachable(town, ...TOWN_SPAWN).has(town.find(SHOP_DOOR_CHAR.natmarked)[0]!.join(","))).toBe(true);
   });
 
+  describe("a town with every block round the square taken", () => {
+    // A house on every block a company could hold, the shops' own included: they started before the shops.
+    const full: number[] = [];
+    const corner = new Set([plotId(0, 0), plotId(1, 0), plotId(0, 1), plotId(1, 1)]);
+    for (let by = -4; by <= 5; by++)
+      for (let bx = -4; bx <= 5; bx++) if (!corner.has(plotId(bx, by))) full.push(plotId(bx, by));
+
+    test("every shop still gets a block of its own, outside the houses", () => {
+      const placed = shopBlocks(full);
+      const ids = SHOP_IDS.map((id) => plotId(...placed[id]));
+      for (const [bx, by] of Object.values(placed)) {
+        expect(Number.isInteger(bx)).toBe(true);
+        expect(Number.isInteger(by)).toBe(true);
+      }
+      expect(new Set(ids).size).toBe(SHOP_IDS.length);
+      for (const id of ids) {
+        expect(full).not.toContain(id);
+        expect(corner.has(id)).toBe(false);
+      }
+    });
+
+    test("and each door is reachable from the spawn, with the street below it open", () => {
+      const town = townMap(full);
+      const seen = reachable(town, ...TOWN_SPAWN);
+      for (const id of SHOP_IDS) {
+        const doors = town.find(SHOP_DOOR_CHAR[id]);
+        expect(doors).toHaveLength(1);
+        const [dx, dy] = doors[0]!;
+        expect(seen.has(`${dx},${dy}`)).toBe(true);
+        expect(town.walkable(dx, dy + 1)).toBe(true);
+      }
+    });
+  });
+
   for (const [i, town] of towns.entries()) {
     test(`town ${i}: each storefront has one door, reachable from the spawn, and a 5x4 front`, () => {
       const seen = reachable(town, ...TOWN_SPAWN);

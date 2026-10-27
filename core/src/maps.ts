@@ -469,9 +469,14 @@ export function shopBlocks(plots: readonly number[]): Record<ShopId, [number, nu
     const [bx, by] = plotBlock(id);
     return Math.hypot(bx + 0.5 - 1, by + 0.5 - 1);
   };
+  // Round the square, and out as far as the houses reach plus one block: a town full to the edge of
+  // that range still has a free block just past its last house, which the map grows to take in.
+  const houses = [...taken].map(plotBlock);
+  const lo = (axis: 0 | 1) => Math.min(-4, ...houses.map((b) => b[axis] - 1));
+  const hi = (axis: 0 | 1) => Math.max(5, ...houses.map((b) => b[axis] + 1));
   const free: number[] = [];
-  for (let by = -4; by <= 5; by++)
-    for (let bx = -4; bx <= 5; bx++) {
+  for (let by = lo(1); by <= hi(1); by++)
+    for (let bx = lo(0); bx <= hi(0); bx++) {
       const id = plotId(bx, by);
       if (!taken.has(id) && !reserved.has(id)) free.push(id);
     }
