@@ -5,6 +5,8 @@
  * small medals in their tier colours. The 2D pixel grids are extruded (`voxels`), so each model is the
  * same art, given depth. Data snapshots live in `data/dungeon.ts`.
  */
+import { FRAMES as BADGE_FRAMES } from "@tokenmaxxing/core/badges.ts";
+import { SHELF_SLOTS } from "@tokenmaxxing/core/trophies.ts";
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
 import {
@@ -101,6 +103,41 @@ export function voxels(rows: readonly string[], pal: Palette, px: number, opts: 
   const width = Math.max(...rows.map((r) => r.length));
   const H = rows.length;
   const depthOf = (ch: string) => (typeof opts.depth === "function" ? opts.depth(ch) : (opts.depth ?? 0.2));
+  if (opts.ghost && opts.solidGhost) {
+    // One dark paint, so only the shape and depth matter: the biggest boxes that cover it, not one per colour.
+    const paint = toon(tint("#14101c", -0.2));
+    const grid = rows.map((row) =>
+      [...(opts.flip ? [...row].reverse().join("") : row)].map((ch) =>
+        pal[ch] === undefined || (ch === "." && !(ch in pal)) ? null : depthOf(ch),
+      ),
+    );
+    const used = grid.map((row) => row.map(() => false));
+    grid.forEach((row, r) => {
+      for (let x = 0; x < row.length; x++) {
+        const d = row[x];
+        if (d == null || used[r]![x]) continue;
+        let n = 1;
+        while (x + n < row.length && row[x + n] === d && !used[r]![x + n]) n++;
+        let h = 1;
+        while (
+          r + h < grid.length &&
+          Array.from({ length: n }, (_, i) => grid[r + h]![x + i] === d && !used[r + h]![x + i]).every(
+            Boolean,
+          )
+        )
+          h++;
+        for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < n; dx++) used[r + dy]![x + dx] = true;
+        const mesh = m.box(
+          [n * px, h * px, d],
+          paint,
+          [(x + n / 2 - width / 2) * px, (H - r - h / 2) * px + (opts.y ?? 0) - px / 2, 0],
+          0,
+        );
+        cells.push({ mesh, ch: ".", mat: mesh.material as THREE.Material });
+      }
+    });
+    return { model: m, cells, w: width * px, h: H * px };
+  }
   rows.forEach((row, r) => {
     const line = opts.flip ? [...row].reverse().join("") : row;
     let x = 0;
@@ -1064,12 +1101,12 @@ export function trophy(id: string, earned = true, px = 0.1, solidGhost = false):
 }
 const TROPHY_SIZE = 7;
 
-/** The shelf: four tiles wide, four glass-fronted shelves of seven. */
+/** The shelf: four tiles wide, six glass-fronted shelves of seven (`SHELF_SLOTS`). */
 export function trophyShelf(earned: ReadonlySet<string>, solidGhost = false): Model {
   const m = new Model();
   const W = 3.9;
-  const rowH = 0.52;
-  const rows = 4;
+  const rowH = 0.4;
+  const rows = SHELF_SLOTS / 7;
   const H = rows * rowH + 0.18;
   const D = 0.46;
   const wood = C.woodDark;
@@ -1114,9 +1151,9 @@ const FRAME_ROWS = [
   "..oooooooo..",
 ];
 type Frame = keyof typeof TIER_COLORS;
-const FRAMES: readonly Frame[] = ["bronze", "silver", "gold", "diamond"];
+const FRAMES = BADGE_FRAMES as readonly Frame[];
 
-/** The frame of tier `tier` (1-based) of `count` tiers: a lone one is gold, four end in diamond. */
+/** The frame of tier `tier` (1-based) of `count` tiers: a lone one is gold, four end in diamond, six in cosmic. */
 const frameOf = (tier: number, count: number): Frame =>
   count === 1 ? "gold" : FRAMES[Math.min(Math.max(tier, 1), count) - 1]!;
 
@@ -1149,7 +1186,7 @@ export function medal(emoji: string, frame: Frame): Model {
   const colour = TIER_COLORS[frame];
   const v = voxels(FRAME_ROWS, { o: C.ink, a: colour, w: C.white, b: "#1b1f2b" }, px, {
     depth: (ch) => (ch === "b" ? 0.04 : 0.09),
-    glows: frame === "diamond" ? "a" : "",
+    glows: frame === "diamond" || frame === "mythic" || frame === "cosmic" ? "a" : "",
   });
   v.model.position.set(0, 0.28, 0);
   m.add(v.model);
@@ -1276,7 +1313,7 @@ export const DUNGEON_ASSETS: readonly Asset[] = [
   ...badgeAssets,
   {
     id: "badge:tiers",
-    name: "Badge tiers: bronze, silver, gold, diamond",
+    name: "Badge tiers: bronze, silver, gold, diamond, mythic, cosmic",
     price: 0,
     w: 3,
     d: 1,

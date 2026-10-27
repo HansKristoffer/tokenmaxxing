@@ -109,7 +109,7 @@ export const LEGEND: Record<string, TileKind> = {
   $: { name: "tip jar", tosses: true, text: "A tip jar on the bar. A spare coin clinks nicely." },
   z: { name: "jukebox", text: "A jukebox. It hums, waiting for a coin it never asks for." },
   // The poker table (`poker.ts`, in the basement net cafe): a 4×2 table of felt, and the six chairs round it; E on
-  // a chair buys you in. Beside it the roulette table: a 3×2 block and four spots in front where players stand.
+  // a chair buys you in. Beside it the roulette table: a 3×2 block and eight spots, four on each long side, where players stand.
   ...(TAVERN
     ? {
         "♠": {
@@ -767,7 +767,7 @@ export const MAPS: Record<MapId, GameMap> = {
   ]),
   // The net cafe under the Tavern: racks, the livestream screen and two wall terminals on the back wall,
   // five cabinets (one per game, in `CABINET_GAMES` order), a row of PC pairs, a foosball table and a sofa, the
-  // poker table (`♠`, six `♣` chairs) and the roulette table (`♦`, four `♥` spots below it). Its one exit is the stairs up.
+  // poker table (`♠`, six `♣` chairs) and the roulette table (`♦`, four `♥` spots above it and four below). Its one exit is the stairs up.
   basement: new GameMap("basement", "The Basement", [
     "WWWWWWWWWWWWWWWWWWWWWW",
     "WWWWWWWWWWWWWWWWWWWWWW",
@@ -778,10 +778,10 @@ export const MAPS: Record<MapId, GameMap> = {
     "W_φφ____ζζ_ζζ_ζζ_ζζ__W",
     "W_______cc_cc_cc_cc__W",
     "W___♣♣_______________W",
-    "W__♠♠♠♠♣____♦♦♦______W",
+    "W__♠♠♠♠♣____♥♥♥♥_____W",
     "W_♣♠♠♠♠_____♦♦♦______W",
-    "W___♣♣______♥♥♥♥_____W",
-    "W_ssss_____________p_W",
+    "W___♣♣______♦♦♦______W",
+    "W_ssss______♥♥♥♥___p_W",
     "WWWWWWWWWWxWWWWWWWWWWW",
   ]),
   // Everyone's office, before what they dropped in it (`mapOf`): the first size (`OFFICE_SIZES`[0], office.ts:

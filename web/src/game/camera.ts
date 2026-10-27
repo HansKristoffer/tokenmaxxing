@@ -1,3 +1,4 @@
+import type { Rot } from "@tokenmaxxing/core/office.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { storage } from "../storage.ts";
 import { world } from "./world.ts";
@@ -20,9 +21,9 @@ export const viewHooks: {
   shop?: (shop: string, x: number, y: number) => boolean;
   /** A coin landed in the fountain or the Tavern's tip jar at this tile: the 3D renderer throws it. */
   toss?: (x: number, y: number) => void;
-  /** The furniture ghost (`furniture.ts`): the piece to show over a tile, whether it fits there and is flipped, or null to clear. */
+  /** The furniture ghost (`furniture.ts`): the piece to show over a tile, whether it fits there and how far it is turned, or null to clear. */
   ghost?: (
-    g: { item: string; tile: { x: number; y: number } | null; fits: boolean; flip: boolean } | null,
+    g: { item: string; tile: { x: number; y: number } | null; fits: boolean; rot: Rot } | null,
   ) => void;
 } = {};
 

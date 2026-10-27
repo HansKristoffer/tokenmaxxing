@@ -1,3 +1,4 @@
+import type { Frame } from "@tokenmaxxing/core/badges.ts";
 import type { PinView } from "@tokenmaxxing/core/collection.ts";
 import { SIREN, TICKET_MARK } from "@tokenmaxxing/core/cop.ts";
 import type { Edition } from "@tokenmaxxing/core/editions.ts";
@@ -91,7 +92,7 @@ export const tossLanded = (notice: string | undefined): boolean => !!notice && n
 // MARK: Name-tag chips
 
 export interface TagChips {
-  badges: { emoji: string; title: string; frame?: "bronze" | "silver" | "gold" | "diamond" }[];
+  badges: { emoji: string; title: string; frame?: Frame }[];
   trophies: { emoji?: string; title: string }[];
 }
 

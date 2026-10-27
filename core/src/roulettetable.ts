@@ -18,7 +18,7 @@ export function rouletteTable(
   return { x, y, w: Math.max(...xs) - x + 1, h: Math.max(...ys) - y + 1 };
 }
 
-/** The spots, left to right: spot `i` of a `RouletteSeat` is `[i]`. */
+/** The spots, left to right, the one above the table before the one below it in each column: spot `i` of a `RouletteSeat` is `[i]`. */
 export function rouletteSpots(map: GameMap = MAPS.basement): [number, number][] {
   return map
     .find(ROULETTE_SPOT_CHAR)

@@ -35,6 +35,10 @@ const TROPHY_GROUP: Record<string, Group> = {
   piday: "Seasonal",
   palindate: "Seasonal",
   storm: "Seasonal",
+  hurricane: "Seasonal",
+  leapday: "Seasonal",
+  friday13: "Seasonal",
+  halloween: "Seasonal",
 };
 
 export const CATALOG: readonly CatalogEntry[] = [

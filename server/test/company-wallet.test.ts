@@ -152,17 +152,17 @@ describe("company furniture", () => {
     expect(await storedPieces(sql, 1)).toEqual([{ item: "furn.Σ", count: 1 }]);
   });
 
-  test("a piece turned the other way comes back turned, and faces as bought again once stored", async () => {
+  test("a piece turned comes back turned, and faces as bought again once stored", async () => {
     await fund(1, 300);
     const id = await buyPiece(sql, await row(1), 1, sofa, NOW);
     await placed(sql, { id, item: sofa.id, room: "hq:1", x: 3, y: 4, by: 1, at: NOW, co: 1 });
-    expect((await floors(sql)).find((d) => d.id === id)?.flip).toBeUndefined();
-    await sql.execute("UPDATE items SET flip = 1 WHERE id = ?", id); // as `town.moved` writes it
-    expect((await floors(sql)).find((d) => d.id === id)).toMatchObject({ x: 3, y: 4, co: 1, flip: true });
+    expect((await floors(sql)).find((d) => d.id === id)?.rot).toBeUndefined();
+    await sql.execute("UPDATE items SET rot = 3 WHERE id = ?", id); // as `town.moved` writes it
+    expect((await floors(sql)).find((d) => d.id === id)).toMatchObject({ x: 3, y: 4, co: 1, rot: 3 });
     expect(await pickUp(sql, id, 2, "hq:1")).toBe(true);
     await unstore(sql, 1, sofa.id, 2, NOW);
     await placed(sql, { id, item: sofa.id, room: "hq:1", x: 5, y: 4, by: 2, at: NOW, co: 1 });
-    expect((await floors(sql)).find((d) => d.id === id)?.flip).toBeUndefined();
+    expect((await floors(sql)).find((d) => d.id === id)?.rot).toBeUndefined();
   });
 
   test("a poster is bought from the wallet, kept in the storeroom, and hung on the wall like any piece", async () => {

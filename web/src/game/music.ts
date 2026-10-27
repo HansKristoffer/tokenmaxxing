@@ -42,6 +42,11 @@ function sync(): void {
   let n = 0;
   const queue = () => {
     const elapsed = performance.now() - startedAt;
+    // Asleep (hidden, or no click yet): drop the steps that pass rather than playing them all at once on waking.
+    if (c.state !== "running") {
+      n = Math.max(n, Math.ceil(elapsed / stepMs));
+      return;
+    }
     while (n * stepMs < elapsed + AHEAD_MS) {
       const at = c.currentTime + Math.max(0, (n * stepMs - elapsed) / 1000);
       const i = n % THEME_STEPS;

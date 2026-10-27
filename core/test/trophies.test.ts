@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { palindromeDate, TROPHIES, type TrophyFacts, trophiesFor } from "../src/trophies.ts";
+import { palindromeDate, SHELF_SLOTS, TROPHIES, type TrophyFacts, trophiesFor } from "../src/trophies.ts";
 
 /** Copenhagen wall-clock time as ms (CEST, UTC+2, in summer; CET, UTC+1, in winter). */
 const cph = (iso: string) => {
@@ -14,6 +14,7 @@ const ids = (f: Partial<TrophyFacts>) => trophiesFor({ ...none, ...f }).map((t) 
 test("every trophy has its own id", () => {
   expect(new Set(TROPHIES.map((t) => t.id)).size).toBe(TROPHIES.length);
   expect(TROPHIES.length).toBeGreaterThanOrEqual(15);
+  expect(TROPHIES.length).toBeLessThanOrEqual(SHELF_SLOTS);
 });
 
 test("nothing earned from nothing", () => {
@@ -44,14 +45,15 @@ test("vanity hashes", () => {
 
 test("day totals count only once the day is over", () => {
   const today = { hours: [hour("2026-10-21T10:00:00", 12_344_321)] };
-  expect(ids(today)).toEqual(["million"]);
-  expect(ids({ ...today, today: "2026-10-22" })).toEqual(["million", "palintotal"]);
+  // An hour of 12M tokens with no prompt is also an agent left to run.
+  expect(ids(today)).toEqual(["million", "setforget"]);
+  expect(ids({ ...today, today: "2026-10-22" })).toEqual(["million", "palintotal", "setforget"]);
   // Two hours make the day's total.
   const day = (tokens: number) => ({
     today: "2026-10-22",
     hours: [hour("2026-10-20T10:00:00", 1_000), hour("2026-10-20T11:00:00", tokens - 1_000)],
   });
-  expect(ids(day(5_000_000))).toEqual(["million", "round"]);
+  expect(ids(day(5_000_000))).toEqual(["million", "round", "exactmillion"]);
   expect(ids(day(2_000_777))).toEqual(["million", "jackpot"]);
   expect(ids(day(213_370))).toEqual(["leet"]);
 });
@@ -63,7 +65,7 @@ test("hours of the day: early bird, midnight oil, round the clock", () => {
   const allDay = Array.from({ length: 24 }, (_, h) =>
     hour(`2026-10-20T${String(h).padStart(2, "0")}:00:00`, 5),
   );
-  expect(ids({ hours: allDay })).toEqual(["earlybird", "midnight", "allday"]);
+  expect(ids({ hours: allDay })).toEqual(["earlybird", "midnight", "allday", "insomniac"]);
 });
 
 test("a seven-day streak is earned on its seventh day", () => {
@@ -124,4 +126,88 @@ test("perfect week: tokens every day from a Monday to the Sunday, dated that Sun
   });
   // Seven in a row, but Tuesday to Monday.
   expect(ids({ hours: days(7, 13) })).not.toContain("perfectweek");
+});
+
+// MARK: The crazy ones
+
+/** One finished day of a total, in two hours. */
+const total = (tokens: number, day = "2026-10-20") => [
+  hour(`${day}T10:00:00`, 1),
+  hour(`${day}T11:00:00`, tokens - 1, 1),
+];
+const earnedOn = (f: Partial<TrophyFacts>, id: string) =>
+  trophiesFor({ ...none, today: "2027-12-31", ...f }).find((t) => t.id === id)?.day;
+
+test("day totals with a ring to them", () => {
+  const got = (tokens: number) => ids({ today: "2026-10-22", hours: total(tokens) });
+  expect(got(12_369)).toEqual(["nice"]);
+  expect(got(5_420)).toEqual(["blaze"]);
+  expect(got(36_660)).toContain("beast");
+  expect(got(77_777)).toContain("repdigit");
+  expect(got(54_321)).toContain("countdown");
+  expect(got(3_000_000)).toContain("exactmillion");
+  // Too small, or only today's, doesn't count.
+  expect(got(69)).toEqual([]);
+  expect(got(7_777_778)).not.toContain("repdigit");
+  expect(ids({ hours: total(77_777, "2026-10-21") })).toEqual([]);
+});
+
+test("streaks of 30, 100 and 365 days", () => {
+  const run = (n: number) =>
+    Array.from({ length: n }, (_, i) =>
+      hour(`${new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10)}T12:00:00`, 5),
+    );
+  expect(earnedOn({ hours: run(29) }, "streak30")).toBeUndefined();
+  expect(earnedOn({ hours: run(30) }, "streak30")).toBe("2026-01-30");
+  expect(earnedOn({ hours: run(100) }, "streak100")).toBe("2026-04-10");
+  expect(earnedOn({ hours: run(364) }, "streak365")).toBeUndefined();
+  expect(earnedOn({ hours: run(365) }, "streak365")).toBe("2026-12-31");
+});
+
+test("the big hours and days", () => {
+  expect(ids({ hours: [hour("2026-07-07T12:00:00", 99e6, 5)] })).not.toContain("firehose");
+  expect(ids({ hours: [hour("2026-07-07T12:00:00", 100e6, 5)] })).toContain("firehose");
+  expect(earnedOn({ hours: [hour("2026-07-07T12:00:00", 1e9, 5)] }, "tsunami")).toBe("2026-07-07");
+  expect(earnedOn({ hours: [hour("2026-07-07T12:00:00", 99e9, 5)] }, "hundredb")).toBeUndefined();
+  expect(earnedOn({ hours: [hour("2026-07-07T12:00:00", 100e9, 5)] }, "hundredb")).toBe("2026-07-07");
+});
+
+test("prompts: a hurricane, and an agent left on its own", () => {
+  expect(earnedOn({ hours: [hour("2026-07-07T12:00:00", 5, 199)] }, "hurricane")).toBeUndefined();
+  expect(earnedOn({ hours: [hour("2026-07-07T12:00:00", 5, 200)] }, "hurricane")).toBe("2026-07-07");
+  expect(earnedOn({ hours: [hour("2026-07-07T12:00:00", 10e6, 1)] }, "setforget")).toBe("2026-07-07");
+  expect(earnedOn({ hours: [hour("2026-07-07T12:00:00", 10e6, 2)] }, "setforget")).toBeUndefined();
+  expect(earnedOn({ hours: [hour("2026-07-07T12:00:00", 9e6, 0)] }, "setforget")).toBeUndefined();
+});
+
+test("insomniac: twenty different hours of one day, not spread over two", () => {
+  const hours = (n: number, day: string) =>
+    Array.from({ length: n }, (_, h) => hour(`${day}T${String(h).padStart(2, "0")}:00:00`, 5));
+  expect(earnedOn({ hours: hours(19, "2026-10-20") }, "insomniac")).toBeUndefined();
+  expect(earnedOn({ hours: hours(20, "2026-10-20") }, "insomniac")).toBe("2026-10-20");
+  expect(
+    earnedOn({ hours: [...hours(10, "2026-10-20"), ...hours(10, "2026-10-21")] }, "insomniac"),
+  ).toBeUndefined();
+});
+
+test("calendar: leap day, Friday the 13th, Halloween", () => {
+  const on = (day: string) => ({ hours: [hour(`${day}T12:00:00`, 1)] });
+  expect(earnedOn(on("2028-02-29"), "leapday")).toBe("2028-02-29");
+  expect(earnedOn(on("2028-02-28"), "leapday")).toBeUndefined();
+  // 13 March 2026 is a Friday, 13 April 2026 a Monday.
+  expect(earnedOn(on("2026-03-13"), "friday13")).toBe("2026-03-13");
+  expect(earnedOn(on("2026-04-13"), "friday13")).toBeUndefined();
+  expect(earnedOn(on("2026-10-31"), "halloween")).toBe("2026-10-31");
+});
+
+test("a PR spree: ten PRs in a day", () => {
+  const prs = (n: number, day: string) =>
+    Array.from({ length: n }, (_, i) => ({
+      at: cph(`${day}T${String(8 + i).padStart(2, "0")}:00:00`),
+      hash: "ab",
+    }));
+  expect(earnedOn({ prs: prs(9, "2026-07-07") }, "spree")).toBeUndefined();
+  expect(earnedOn({ prs: prs(10, "2026-07-07") }, "spree")).toBe("2026-07-07");
+  // Five on each of two days is not it.
+  expect(earnedOn({ prs: [...prs(5, "2026-07-07"), ...prs(5, "2026-07-08")] }, "spree")).toBeUndefined();
 });

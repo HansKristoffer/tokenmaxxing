@@ -1,6 +1,6 @@
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { slotAt } from "@tokenmaxxing/core/market.ts";
-import { canFlip } from "@tokenmaxxing/core/office.ts";
+import { canTurn } from "@tokenmaxxing/core/office.ts";
 import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
 import {
   displayTab,
@@ -43,6 +43,7 @@ import { chipHits, signHits } from "./labels.ts";
 import { blocksLaunch, launchInteract } from "./launch.ts";
 import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
+import { myPetTile } from "./pets.ts";
 import { picnicSeat } from "./picnic.ts";
 import { seated, sit, standUp } from "./raidseat.ts";
 import { blocksBonfire, bonfireInteract } from "./sankthans.ts";
@@ -51,6 +52,7 @@ import { statueText } from "./statue.ts";
 import { blocksStep, streetInteract } from "./street.ts";
 import { interactAnimal, interactTownProp } from "./town-life.ts";
 import { openTrophies } from "./trophies.ts";
+import { type Turning, turnStep } from "./turn.ts";
 import { windmillInteract } from "./windmill.ts";
 import { avatarAt, beginStep, dropAt, self, showMyDance, stepping, world } from "./world.ts";
 
@@ -77,6 +79,8 @@ let interactOnArrival = false;
 let lastRoom = "";
 const carried = new Set<Facing>();
 let takeOnArrival = false;
+/** A held key's direction I've turned to and not yet walked (see `turnStep`). */
+let turning: Turning | null = null;
 /** Runs once the clicked path is walked (the 3D renderer's furniture placement drops a piece there). */
 let onArrival: (() => void) | null = null;
 /** "Take me there": the shop the auto-walk is heading for, replanned in each room it passes through. */
@@ -94,6 +98,7 @@ export function bindInput(canvas: HTMLElement): void {
     if (typing(e) || e.metaKey || e.ctrlKey) return;
     const s = hud.get();
     if (e.key === "Escape") {
+      if (s.petMenu) return void hud.set({ petMenu: false });
       hud.set({ panel: s.panel || s.dialog ? null : { kind: "menu" }, dialog: null });
       return;
     }
@@ -133,6 +138,9 @@ export function bindInput(canvas: HTMLElement): void {
         return;
       case "g":
         take();
+        return;
+      case "p":
+        if (s.me?.look.pet) hud.set({ petMenu: !s.petMenu });
         return;
       case "enter":
         e.preventDefault();
@@ -220,6 +228,9 @@ export function bindInput(canvas: HTMLElement): void {
     const other = avatarAt(x, y);
     if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
     if (interactAnimal(x, y) || interactTownProp(x, y)) return;
+    // My own pet, or me (it's always beside me): the pet menu.
+    if (hud.get().me?.look.pet && (isMyPetAt(x, y) || avatarIsMe(x, y)))
+      return void hud.set({ petMenu: true });
     // A building (its wall or roof, not something on it to use): walk to its door and in. Its sign opens its page.
     const door = world.room === "town" ? doorOf(world.map, x, y) : null;
     if (door) return void walkTo(...door);
@@ -326,6 +337,16 @@ export function send(result: Promise<StepResult>): void {
     });
 }
 
+/** Whether tile (x, y) is where my pet stands, or where I stand (the pet menu opens on either). */
+const isMyPetAt = (x: number, y: number): boolean => {
+  const tile = myPetTile();
+  return tile !== null && tile[0] === x && tile[1] === y;
+};
+const avatarIsMe = (x: number, y: number): boolean => {
+  const me = self();
+  return me !== undefined && me.x === x && me.y === y;
+};
+
 /** Whether I hold a seat at the Tavern's poker table (a hand in play is mine to fold, so the arrow keys wait). */
 const atPoker = (): boolean =>
   hud.get().poker?.seats.some((s) => s?.userId === world.selfId && !s.leaving) ?? false;
@@ -350,6 +371,17 @@ export async function sitRoulette(): Promise<boolean> {
   return hud.get().roulette?.seats.some((s) => s.userId === world.selfId) ?? false;
 }
 
+/**
+ * Roulette from anywhere (`rouletteJoin`): the table is always the net cafe's and shared, so this takes me down
+ * there and onto a free spot, and opens the betting view. A full table leaves me in the net cafe, watching.
+ */
+export async function joinRoulette(): Promise<void> {
+  hud.set({ panel: null });
+  const r = await conn.rouletteJoin();
+  if (r) send(Promise.resolve(r)); // where I ended up, or the reason I stayed put
+  if (r && !("notice" in r)) hud.set({ panel: { kind: "roulette" } });
+}
+
 /** Called every frame: start the next step if a key is held or a clicked path remains. */
 export function updateSelf(now: number): void {
   const me = self();
@@ -362,6 +394,7 @@ export function updateSelf(now: number): void {
     if (lastRoom) for (const d of held) carried.add(d);
     held.length = 0;
     tapped = null;
+    turning = null;
     // Walking out of a shop closes its page; walking in, the keeper says hello.
     if (shopOfRoom(lastRoom) && hud.get().panel?.kind === "shop") hud.set({ panel: null });
     const shop = shopOfRoom(world.room);
@@ -380,6 +413,7 @@ export function updateSelf(now: number): void {
   const pressed = held.at(-1) ?? tapped;
   const dir = pressed ? (viewHooks.key?.(pressed) ?? pressed) : path.shift();
   tapped = null;
+  if (!pressed) turning = null;
   // Moving stands you up from your war desk in the raid dungeon, and ends a dance (the server does too).
   if (dir) {
     standUp();
@@ -406,6 +440,17 @@ export function updateSelf(now: number): void {
     world.portalPending = true;
     send(conn.step(dir));
     return;
+  }
+  // A key for another way than I face turns me first, and walks only if it stays held. A clicked path doesn't
+  // wait: its steps are chosen, and turning at every corner would stutter. Nor does getting up from a seat.
+  if (pressed && me.state === "idle") {
+    const t = turnStep(turning, dir, me.facing, now);
+    turning = t.turning;
+    if (t.act === "turn") {
+      me.facing = dir;
+      send(conn.turn(dir));
+    }
+    if (t.act !== "walk") return;
   }
   const step = stepTarget(world.map, me.x, me.y, dir);
   const target =
@@ -446,7 +491,7 @@ function updatePieceHint(me: ReturnType<typeof self>): void {
       : undefined;
   const text = !piece
     ? null
-    : `${dropName(piece)}: G ${piece.co === undefined ? "puts it in your bag" : "takes it back to the storeroom"} · M moves it${canFlip(piece.item.slice(5)) ? " · F flips it" : ""}`;
+    : `${dropName(piece)}: G ${piece.co === undefined ? "puts it in your bag" : "takes it back to the storeroom"} · M moves it${canTurn(piece.item.slice(5)) ? " · F turns it" : ""}`;
   if (hud.get().pieceHint !== text) hud.set({ pieceHint: text });
 }
 

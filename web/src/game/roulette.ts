@@ -13,7 +13,7 @@ import { world } from "./world.ts";
 
 const BADGE_MS = 8000;
 const FLOAT_MS = 2200;
-const PLAYER = ["#e9b73d", "#4aa3ff", "#c46bff", "#ff8a4a"];
+const PLAYER = ["#e9b73d", "#4aa3ff", "#c46bff", "#ff8a4a", "#4ade80", "#f472b6", "#22d3ee", "#a3e635"];
 const DISC = { red: "#c0392b", black: "#1d1b26", green: "#1f8f4e" } as const;
 
 /** The spin last seen and when its ball lands on this client (it arrived `SPIN_MS` before). */
@@ -34,7 +34,7 @@ export function drawRoulette(f: Frame): void {
   const spots = world.map
     .find("♥")
     .map(([x, y]) => ({ x, y }))
-    .sort((a, b) => a.x - b.x);
+    .sort((a, b) => a.x - b.x || a.y - b.y);
   const { g } = f;
   const now = Date.now();
   const last = state.last;

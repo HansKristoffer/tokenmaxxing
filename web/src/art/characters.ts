@@ -448,7 +448,8 @@ export const characterFrame = cached(
       if (merch.cap) p.grid(CAP[view], capPalette(colours), 0, 0, flip);
       else wearOn(p, hatArt(look.hat), view, pal, 0, flip);
       drawWardrobe(p, look, view, pose, "front", pal.s!, flip);
-      if (merch.mug) drawMug(p, colours, view, flip);
+      // One right hand: a held item keeps it, as in 3D.
+      if (merch.mug && !look.held) drawMug(p, colours, view, flip);
       drawEditions(p, look, view, flip);
     });
   },
@@ -506,7 +507,9 @@ export const sleeperFrame = cached(
     const pal = lookPalette(look);
     return bake(16, 16, (p) => {
       p.grid(HEADS.down[look.style] ?? HEADS.down[0]!, { ...pal, e: pal.s!, r: pal.s! }, 0, -1);
-      wearOn(p, hatArt(look.hat), "down", pal, -1);
+      // The company cap instead of a hat, as when awake.
+      if (worn(look).cap) p.grid(CAP.down, capPalette(coloursOf(look.merch)), 0, -1);
+      else wearOn(p, hatArt(look.hat), "down", pal, -1);
       drawEditions(p, { ...look, glasses: 0 }, "down", false, -1);
       p.rect(3, 6, 10, 1, C.ink);
       p.px(6, 5, C.ink);

@@ -108,6 +108,29 @@ describe("world", () => {
     await conn.dispose();
   });
 
+  test("a turn faces you another way without a step, and the room sees it", async () => {
+    const a = await signUp("turn");
+    const b = await signUp("seer");
+    // The watcher is there first, so the room's telling of the newcomer always comes to them as an event
+    // (the other way round it is in their snapshot, and the event only comes if they were quick).
+    const seer = await connect(b.token);
+    const me = await connect(a.token);
+    const before = me.snap.players.find((p) => p.id === a.userId)!;
+    // Once the room has been told they're there, a turn comes as a plain move.
+    await eventually(() =>
+      expect(seer.events.moves.some((m) => m.join.some((j) => j.id === a.userId))).toBe(true),
+    );
+    const to = before.facing === "left" ? "right" : "left";
+    expect(await me.conn.turn(to)).toBeNull();
+    expect(await me.conn.turn("sideways")).toBeNull();
+    await eventually(() => {
+      const seen = seer.events.moves.flatMap((m) => m.m).filter((m) => m[0] === a.userId);
+      expect(seen.at(-1)).toEqual([a.userId, before.x, before.y, to, "idle"]);
+    });
+    await me.conn.dispose();
+    await seer.conn.dispose();
+  });
+
   test("coffee makes you shake, and more cups make it last longer", async () => {
     const a = await signUp("coffee");
     const { conn, snap } = await connect(a.token);

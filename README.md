@@ -143,7 +143,7 @@ about you is sent.
   what they'd pay as a day of their own on top (`¼ √(tokens ÷ 1M)`: 100M green tokens is 2 coins). The price
   board on the square's north-east lamp post shows the power price, and when it's in the day's dearest
   quarter (and over 1 kr/kWh) the street lamps burn dimmer.
-- **Quests:** three a day, worth 1, 2 and 3 coins, picked for you and scaled to your own last 30 days (at most 6 a day), plus a weekly one for 15. Some are errands in town. Badges have bronze, silver and gold tiers, and some a diamond; the town hears of the golds and diamonds.
+- **Quests:** three a day, worth 1, 2 and 3 coins, picked for you and scaled to your own last 30 days (at most 6 a day), plus a weekly one for 15. Some are errands in town. Badges climb bronze, silver, gold and diamond, and the longest ladders go on to mythic and cosmic (a 100B-token day, 1000 agents at once); the town hears of gold and up. Trophies are the silly coincidences on your office shelf, 42 of them.
 - **The raid:** from the first Monday after launch, every Monday at 08:00 a ladder of five bosses opens in the Raid Dungeon, down the gate in the square,
   easiest first, five in all. Clear all five and the ladder rests until next Monday, when it comes back one level up (The Rate Limit II…) and 10% tougher; fall short and next Monday it starts again at the same level. Every token you sync hits the one up now, no cap, and
   every PR you open is a 25M special attack. When one falls the next, 1.5× tougher, appears at once; each kill pays everyone who'd hit for

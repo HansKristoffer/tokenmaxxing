@@ -8,6 +8,7 @@ import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import type { Listing, Sale } from "@tokenmaxxing/core/market.ts";
 import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
+import type { PetAct } from "@tokenmaxxing/core/pets.ts";
 import type { Outage } from "@tokenmaxxing/core/picnic.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
 import type { RouletteState } from "@tokenmaxxing/core/roulette.ts";
@@ -38,6 +39,7 @@ import { setKeynotes } from "./game/keynote.ts";
 import { setLaunches } from "./game/launch.ts";
 import { noteLoot } from "./game/loot.ts";
 import { duckMusic, playRoomMusic, stopRoomMusic } from "./game/music.ts";
+import { reactPet } from "./game/pets.ts";
 import { setOutage } from "./game/picnic.ts";
 import { noteRaid, setRaiders } from "./game/raid.ts";
 import { setStars } from "./game/stars.ts";
@@ -183,6 +185,7 @@ export function connect(token: string): void {
   conn.on("chat", (line: ChatLine) => applyChat(line));
   conn.on("bubble", (e: { userId: number; text: string }) => applyBubble(e));
   conn.on("jump", (id: number) => applyJump(id));
+  conn.on("petPlay", (e: { userId: number; act: PetAct }) => reactPet(e.userId, e.act));
   conn.on("notice", (n: Notice) => {
     hud.set({ notice: { ...n, at: Date.now() } });
     if (n.open === "tournament") void refreshTournament(true);

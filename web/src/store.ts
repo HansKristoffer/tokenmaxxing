@@ -37,7 +37,7 @@ export type Panel =
   | { kind: "market"; tab?: "display" | "shelf" }
   /** E on a display slot in the hall: a listing's item, price and seller with Buy, or an empty slot to fill. */
   | { kind: "marketSlot"; slot: number }
-  /** The solo roulette table (`hud/Roulette.tsx`). */
+  /** The net cafe's roulette table (`hud/Roulette.tsx`); `watch` is the read-only view from the sidelines. */
   | { kind: "roulette"; watch?: boolean }
   /** A read-only view of the net cafe's poker table (`hud/PokerWatch.tsx`). */
   | { kind: "pokerWatch" }
@@ -119,6 +119,8 @@ interface HudState {
   pieceHint: string | null;
   /** The dance I'm doing (`DANCES`), 0 for none: lit on the dance bar. */
   dancing: number;
+  /** My pet's menu (stroke, treat, trick) is open over the world. */
+  petMenu: boolean;
   /** The room name, shown briefly on entering. */
   banner: { text: string; at: number } | null;
   /** Bumped to ask the chat input to take focus. */
@@ -186,6 +188,7 @@ let state: HudState = {
   dialog: null,
   pieceHint: null,
   dancing: 0,
+  petMenu: false,
   banner: null,
   chatFocus: 0,
   mention: null,

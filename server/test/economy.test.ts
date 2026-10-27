@@ -70,9 +70,9 @@ describe("the new ways to earn", () => {
         tier,
         NOW,
       );
-    // Streak to Gold: 10 + 25 + 50. A first Shipper: 10.
-    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 95);
-    expect((await balances(sql, NOW)).get(1)).toBe(base + 95);
+    // Streak to Gold: 40 + 100 + 200. A first Shipper: 40.
+    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 380);
+    expect((await balances(sql, NOW)).get(1)).toBe(base + 380);
   });
 
   test("trophies are paid once, from what a sweep recorded", async () => {
@@ -87,12 +87,12 @@ describe("the new ways to earn", () => {
     expect([...(await trophyStep(sql, dirty, NOW, async () => trophies)).values()]).toEqual([
       ["million", "piday", "zeros"],
     ]);
-    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 5 + 25);
-    expect((await balances(sql, NOW)).get(1)).toBe(base + 5 + 25);
+    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 20 + 100);
+    expect((await balances(sql, NOW)).get(1)).toBe(base + 20 + 100);
     // A later look finds nothing new, and pays nothing again.
     dirty.add(1);
     expect((await trophyStep(sql, dirty, NOW, async () => trophies)).size).toBe(0);
-    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 5 + 25);
+    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 20 + 100);
   });
 
   describe("the new-model launch bonus", () => {

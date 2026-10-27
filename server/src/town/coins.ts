@@ -9,7 +9,8 @@ import {
 } from "@tokenmaxxing/core/economy.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
-import { OFFICE_LEVEL, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
+import { OFFICE_LEVEL, rotOf, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
+import { TREAT_COST, TREATS_PER_DAY } from "@tokenmaxxing/core/pets.ts";
 import { EMPTY_COUNTS, EMPTY_DAY, type Progress, questProgress } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidCoins } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
@@ -362,6 +363,27 @@ export async function tossCoin(sql: Sql, userId: number, now: number, kept?: Kep
   const ref = `fountain:${day}:${n + 1}`;
   await ledgerAdd(sql, userId, -1, "fountain", ref, now);
   await bumpCount(sql, userId, day, "fountain", ref);
+}
+
+/**
+ * A treat for `userId`'s pet: `TREAT_COST` coins out of the wallet (a ledger line, kind `pet`, ref
+ * `treat:<day>:<n>`, never positive), at most `TREATS_PER_DAY` a world day, counted from the ledger itself. Gives
+ * nothing back: the pet's reaction is cosmetic, so the coins are a sink. Returns the treats left today. Run it
+ * serialized with every other coin write, so two at once can't both pass the count or spend the same coins.
+ */
+export async function treatPet(sql: Sql, userId: number, now: number, kept?: Kept): Promise<number> {
+  const day = dayKey(now);
+  const given = await scalar(
+    sql,
+    "SELECT COUNT(*) AS n FROM ledger WHERE user_id = ? AND kind = 'pet' AND ref LIKE ?",
+    userId,
+    `treat:${day}:%`,
+  );
+  if (given >= TREATS_PER_DAY) throw new UserError("That's plenty of treats for today.", { code: "limit" });
+  if ((await wallet(sql, userId, now, kept)).balance < TREAT_COST)
+    throw new UserError(`A treat is 🪙 ${TREAT_COST}.`, { code: "too_poor" });
+  await ledgerAdd(sql, userId, -TREAT_COST, "pet", `treat:${day}:${given + 1}`, now);
+  return TREATS_PER_DAY - given - 1;
 }
 
 /**
@@ -728,7 +750,7 @@ export async function placed(sql: Sql, d: Drop): Promise<void> {
 }
 
 /** Off the floor, from the town's side. */
-const OFF_FLOOR = "dropped_by = NULL, dropped_at = NULL, room = NULL, x = NULL, y = NULL, flip = NULL";
+const OFF_FLOOR = "dropped_by = NULL, dropped_at = NULL, room = NULL, x = NULL, y = NULL, rot = NULL";
 
 /**
  * A drop on `room`'s floor into `userId`'s bag. False if it isn't there any more (the sweeper sent it
@@ -753,7 +775,7 @@ const store = async (sql: Sql, id: number, userId: number, room: string): Promis
   (
     await all(
       sql,
-      `UPDATE items SET room = NULL, x = NULL, y = NULL, flip = NULL WHERE id = ? AND room = ?
+      `UPDATE items SET room = NULL, x = NULL, y = NULL, rot = NULL WHERE id = ? AND room = ?
          AND company_id = (SELECT company_id FROM users WHERE id = ?) RETURNING id`,
       id,
       room,
@@ -767,7 +789,7 @@ export async function giveBack(sql: Sql, ids: number[]): Promise<void> {
   const list = JSON.stringify(ids);
   // Company furniture goes to its storeroom (a closed company's is gone already).
   await sql.execute(
-    "UPDATE items SET room = NULL, x = NULL, y = NULL, flip = NULL WHERE company_id IS NOT NULL AND id IN (SELECT value FROM json_each(?))",
+    "UPDATE items SET room = NULL, x = NULL, y = NULL, rot = NULL WHERE company_id IS NOT NULL AND id IN (SELECT value FROM json_each(?))",
     list,
   );
   const mine = "owner_id IS NULL AND company_id IS NULL AND id IN (SELECT value FROM json_each(?))";
@@ -789,9 +811,13 @@ export const unclaimed = async (sql: Sql, before: number): Promise<number[]> =>
 /** Everything on a floor, for `world` starting up (`seed`). */
 export const floors = async (sql: Sql): Promise<Drop[]> =>
   (
-    await all<Omit<Drop, "co" | "flip"> & { co: number | null; flip: number | null }>(
+    await all<Omit<Drop, "co" | "rot"> & { co: number | null; rot: number | null }>(
       sql,
-      `SELECT id, item, room, x, y, dropped_by AS "by", dropped_at AS at, company_id AS co, flip FROM items
+      `SELECT id, item, room, x, y, dropped_by AS "by", dropped_at AS at, company_id AS co, rot FROM items
        WHERE owner_id IS NULL AND room IS NOT NULL`,
     )
-  ).map(({ co, flip, ...d }) => ({ ...d, ...(co !== null && { co }), ...(flip && { flip: true }) }));
+  ).map(({ co, rot, ...d }) => ({
+    ...d,
+    ...(co !== null && { co }),
+    ...(rotOf(rot) && { rot: rotOf(rot) }),
+  }));

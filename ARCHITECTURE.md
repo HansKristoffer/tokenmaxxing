@@ -203,8 +203,9 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Drops: `drop` (30 a minute) takes one of a kind out of your bag (not a reward; at most 5 of yours on the
   floor at once, not counting your own office's) and asks `world.placeDrop` to put it where you are; a full
   room says so, and the row comes straight back. On the floor a row has `owner_id` NULL, with `dropped_by`
-  and `dropped_at`, and `room`, `x`, `y` once `world` has put it down (`placed`), and `flip` 1 when it's turned
-  the other way (`Drop.flip`; the map's letters stay the same, `flippedAt` tells both renderers to mirror it). `pickUp` (from
+  and `dropped_at`, and `room`, `x`, `y` once `world` has put it down (`placed`), and `rot` 1 to 3 when it's turned
+  (`Drop.rot`, quarter turns clockwise; the map's letters stay the same, lying down the column when turned sideways, and `turnAt`
+  tells both renderers how far each piece is turned). `pickUp` (from
   `world.take`) puts it in the taker's bag, if it's still on that room's floor. **The sweeper** is a cron alarm
   (`sweep`, every 10 minutes; it outlives restarts and wakes the town): drops nobody took in an hour come
   off the floor (`world.removeDrops`) and go back to their droppers, except what's in its dropper's own
@@ -235,16 +236,17 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   to this process, about 3,000 messages a second; past that it all queues, `town` (and `/health`) too.
   A player walking costs about 15 a second (`moves` every tick, their step's answer, `occupancy`, chat), so
   that's about 170 players walking at once. `bun scripts/perf/load.ts` measures it.
-- Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
+- Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `turn` (face a
+  direction without the step, on your feet only; it spends the step budget and comes to the room as a move), `sit`,
   `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
   `tavern` (the Tavern's tap: the day's special, sent as `specialUntil`), `toss` (a coin in the fountain),
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game), `visit`
   (someone's open office, from their card), `take` (G: the drop you're on, or a blocking piece you face; on
-  an office floor, only its owner), `move` (M: a piece of yours to another tile; with `flip`, F turns it to face
-  the other way, mirrored left to right, where it stands or as it moves; wall pieces hang as they are), `dance`
-  (see *Dances*).
+  an office floor, only its owner), `move` (M: a piece of yours to another tile; with `rot`, F turns it a quarter clockwise
+  about its middle tile, where it stands or as it moves, and a quarter turn lies a wide piece down its column; wall pieces hang as they are), `dance`
+  (see *Dances*), `petPlay` (see *Playing with your pet*).
 - Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
-  `chat`, `mention`, `drop`, `pickup`, `stars`.
+  `chat`, `mention`, `drop`, `pickup`, `stars`, `jump`, `petPlay`.
 - **The star counter** (`★` on the square, `core/stars.ts`): every 15 minutes `world` reads the repo's
   `stargazers_count` (`github-stars.ts`) and sends `stars` (the count and the last milestone's show) when it
   changes, and on `join`. Passing a milestone (100, 250, 500, 1000, 2500…) puts a show in it, which every client
@@ -361,6 +363,21 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `PET_NAMED` is a table of costumes (name, pet, look, art id) matched case-insensitively on the cleaned name by
   `petOutfit`; the art is in `web/src/art/pet-variants/named.ts` and `petFrame` takes it as its last argument, so it
   works in every frame, the sleeping pose and the picker. To add one: append a row, add its art.
+- **Playing with your pet** (`PET_ACTS` in `core/src/pets.ts`; `🐾` in the dance bar, `P`, or a click on your pet or yourself
+  opens `hud/PetMenu.tsx`, a small card over the world, not a panel, so you can still walk). Three acts, all cosmetic:
+  `pet` (a stroke) and `trick` (a hop and a spin) are free, `treat` costs `TREAT_COST` (2) coins and is capped at
+  `TREATS_PER_DAY` (5) a world day. `world.petPlay(act)` is the one action: it refuses without a worn pet, in your own
+  office (the pet is asleep in its bed), and inside `PET_COOLDOWN_MS` of the same act (a map in `vars`, like `jumps`), then
+  sends the room `petPlay` `{ userId, act }`, the same kind of event as `jump`, so everyone sees the reaction for the cost
+  of one small message per act. A treat first asks `town.treat` (`treatPet` in `town/coins.ts`, under `serial`): a ledger
+  line (kind `pet`, ref `treat:<day>:<n>`, never positive, like the fountain's coin) after counting the day's lines and
+  the wallet in SQL, so the cap and the price are the server's and nothing is stored beyond the ledger. Nothing comes
+  back: treats give coins out, never value in. The client (`game/pets.ts` `reactPet`, `reactionOf`) keeps one reaction per
+  owner; `game/petplay.ts` is the pure motion (`playPose`: lift and spin over time), drawn by `render.ts` (the sprite
+  lifted and flipped side to side, hearts as the usual emoji `burst` over the pet) and by `entities.ts` (the model lifted
+  and turned, a `Burst` from the pet; counted in the tier's burst cap). `game/petsound.ts` chirps through the music's
+  master, so "Music off" mutes it (quieter for others, and only within 8 tiles). Tests: `server/test/pet-play.test.ts`,
+  `web/test/petplay.test.ts`.
 - The wardrobe (`core/src/wardrobe.ts`, art in `web/src/art/wardrobe.ts`): 36 more, each with a rarity and a
   line of flavour: 12 outfits (`outfit` ≥ 13), and three slots of its own: `held` (in the hand), `back` and
   `petwear` (drawn on the pet). The rubber duck, cape and jetpack are level rewards at 5, 15 and 25.
@@ -561,12 +578,14 @@ Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/to
 
 ## Badges and the Hall of Fame
 
-- **Badges** (`core/src/badges.ts`, 20) are still worked out on read from a player's facts (`badgeFactsOf`), never
+- **Badges** (`core/src/badges.ts`, 21) are still worked out on read from a player's facts (`badgeFactsOf`), never
   claimed. Each has ascending tiers; `badgeStates` gives value, the next tier and where this one began
   (`progressOf`, the bar on the card). A frame comes from the tier and how many it has (`frameOf`): one tier is gold,
-  more run bronze, silver, gold, diamond by tier. Streak, Podium, Shipper, Shark and Whale have the diamond tier.
-  Founder, the picnic and the watch party are `quiet`.
-- **The collection log** (`core/src/collection.ts`): a static `CATALOG` of every badge, trophy and milestone title (48),
+  more run bronze, silver, gold, diamond, mythic, cosmic by tier (`FRAMES`; `grandFrame` is gold and up). The long
+  ladders (Big day 3B to 100B in a day, Octopus 5 to 1000 agents at once, Token furnace 1B to 100T lifetime, and
+  most others) are appended to, so a tier a player holds keeps its number; the first Big day tier moved from 1B to 3B.
+  `BADGE_TIER_COINS` prices tiers 1 to 6 (40, 100, 200, 400, 1000, 2000; trophies pay 20 to 400, `TROPHY_COINS`). Founder, the picnic and the watch party are `quiet`.
+- **The collection log** (`core/src/collection.ts`): a static `CATALOG` of every badge, trophy and milestone title (68),
   in groups (Usage, Social, Town, Raid, Games, Seasonal) with how to earn it, so the client greys out what's missing and
   `town.collection` sends only a compact `CollectionState`. A minute at most per player, dropped when they sync or earn.
 - **Awards** (`server/src/town/awards.ts`): `badge_awards (user_id, badge, tier, at, backfill)` keeps when each tier
@@ -576,9 +595,12 @@ Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/to
   set is in memory.
 - **The backfill:** until the `badge_backfill` marker in `raid_meta` says done, each sweep records one chunk of 100
   players (`backfillStep`, by id) with `backfill = 1`: silent, with no date, and the dirty set waits. A player's first
-  rows ever are silent too, so a new account's years of history isn't announced. Tiers pay no coins: they're derived
-  retroactively, so paying would mint the whole history at once.
-- **The town hears** of a gold or diamond tier (not a `quiet` badge's) and of reaching level 30 or more
+  rows ever are silent too, so a new account's years of history isn't announced. Tiers and trophies do pay coins,
+  once each, from the recorded rows when the wallet is read, so changing `BADGE_TIER_COINS` or `TROPHY_COINS` pays
+  everyone who already holds one the new amount (a backfill with no cap). When tiers or trophies are added, a second
+  silent pass records them for everyone: the `badge_recheck_2` marker (kept apart so the Hall isn't empty while it
+  runs) and `trophy_backfill_2`; bump the keys to run them again.
+- **The town hears** of a gold tier or better (not a `quiet` badge's) and of reaching level 30 or more
   (`ANNOUNCE_LEVEL`), at most 3 per person per sweep: `told` calls `world.announceTown` with the open panel
   `collection`. Bronze and silver are silent.
 - **The Hall of Fame** (`server/src/town/hall.ts`, E on `A`): `rarest` (the five gold or diamond tiers with the fewest
@@ -686,8 +708,7 @@ No server changes, actions or tables are needed.
 - The rest of the physical arcade. The basement's cabinets open the lobby, but matches still gather in the town
   square. Left: a daily high-score board, a trophy shelf of winners, and playing games in the basement itself.
 - Inviting a whole company at once; company tournaments built from tables.
-- Left out of the Tavern update on purpose: an office guestbook, a tip jar, turning furniture a quarter turn (only
-  flipping it left to right, F, is in), company quests, and item pins in the showcase (only badges and trophies can
+- Left out of the Tavern update on purpose: an office guestbook, a tip jar, company quests, and item pins in the showcase (only badges and trophies can
   be pinned).
 - Easing Tokenmaxxing's counters between updates, and "✓ syncing" next to seated players.
 - More games: Term Sheet (Split or Steal; needs a rule for when both steal), Runway (Farkle), Burn Rate
@@ -910,6 +931,11 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
 
 - Plain Canvas 2D with `imageSmoothingEnabled = false`, integer zoom, and grid movement: your own steps are
   predicted and corrected by the server; other players replay a short step queue.
+  **Turning** (`game/turn.ts`, pure and tested; Pokémon's rule): an arrow key for another way than you face turns you
+  first (`world.turn`, so the room sees it too) and walks only once it has stayed held `TURN_DELAY_MS` (120), so a
+  tap just turns; the way you already face walks at once. Click-to-walk, the minimap and "take me there" don't wait
+  (their steps are chosen), nor does getting up from a seat. The Android app's WebView takes the same keys; the phone
+  has no arrow keys of its own, only taps, so nothing changes there.
 - The game draws through a `Renderer` (`web/src/game/renderer.ts`): `Renderer2D` wraps `render.ts` (the Low tier),
   and the 3D renderer is `render3d/index.ts`'s `create3D()`, imported on demand so Three.js is never fetched on
   Low. `game/stage.ts` runs the loop, swaps renderers when the graphics settings change, caps fps (idle, battery),

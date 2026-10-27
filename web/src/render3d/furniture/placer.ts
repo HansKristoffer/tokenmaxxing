@@ -1,4 +1,4 @@
-import { pieceOf } from "@tokenmaxxing/core/office.ts";
+import { pieceOf, type Rot, sideways } from "@tokenmaxxing/core/office.ts";
 import * as THREE from "three";
 import { assetOfChar, turnOfChar } from "../rooms/room-furnished.ts";
 import type { RoomView } from "../rooms/rooms.ts";
@@ -74,9 +74,9 @@ export class Placer {
 
   /**
    * Moves the ghost to the tile under the pointer (null: off the floor). `fits` says whether it can go there,
-   * `flip` whether it is turned to face the other way (mirrored left to right).
+   * `rot` how far it is turned (quarter turns clockwise): a quarter turn lies it down its column from the aimed tile.
    */
-  aim(view: RoomView, tile: Aim | null, fits: boolean, flip = false): void {
+  aim(view: RoomView, tile: Aim | null, fits: boolean, rot: Rot = 0): void {
     if (!this.ghost) return;
     this.ghost.visible = tile !== null;
     if (!tile) return;
@@ -85,10 +85,11 @@ export class Placer {
     const w = this.asset?.w ?? this.width;
     const d = this.asset?.d ?? 1;
     // A wall piece hangs on the wall row's inner face at the height the room hangs its own (`Room.hang`).
+    const turned = this.wall ? 0 : rot;
     if (this.wall) this.ghost.position.set(x - 0.5 + w / 2, 0.95, z + 0.51);
+    else if (sideways(turned)) this.ghost.position.set(x, 0, z - 0.5 + this.width / 2);
     else this.ghost.position.set(x - 0.5 + w / 2, 0, z - 0.5 + d / 2);
-    this.ghost.rotation.y = (turnOfChar(this.itemId!.slice(5)) * Math.PI) / 2;
-    this.ghost.scale.x = flip ? -1 : 1;
+    this.ghost.rotation.y = ((turnOfChar(this.itemId!.slice(5)) - turned) * Math.PI) / 2;
     this.material!.color.set(fits ? "#5be08a" : "#e8584f");
   }
 

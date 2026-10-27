@@ -21,6 +21,8 @@ const room = (drawCalls: number, triangles: number, materials: number, textureMB
   textureMB,
 });
 
+// The office's shelf holds 42 trophies, up from 28 (the budget's shelf has most of them earned): the office now measures
+// 10,752 triangles on Medium and 13,962 on High. A shelf of mostly unearned trophies is flat dark boxes and costs less.
 // The dorm's stairs down are the shared exit kit's (`exits3d.ts`): the lit well and the lamp's pool add two batches.
 // The town carries the four shop fronts of the real game (+35 draw calls, +70k triangles, +2.8 MB of textures over the pass-2
 // measurement, which had bare houses there); the live layers (gate, tables, events) are budgeted apart. Natmarked's front
@@ -32,7 +34,7 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
   medium: {
     town: room(340, 370_000, 99, 17),
     hq: room(35, 10_000, 20, 1),
-    office: room(35, 7_500, 25, 1),
+    office: room(35, 10_800, 25, 1),
     inn: room(180, 35_000, 140, 2),
     upstairs: room(26, 3_500, 15, 1),
     basement: room(100, 24_000, 55, 1),
@@ -48,7 +50,7 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
   high: {
     town: room(340, 445_000, 99, 17),
     hq: room(35, 24_000, 20, 1),
-    office: room(35, 10_000, 25, 1),
+    office: room(35, 14_000, 25, 1),
     // +500 for the request pile's board on the north wall (cork, four notes, a plank).
     inn: room(180, 56_500, 140, 2),
     upstairs: room(26, 9_000, 15, 1),

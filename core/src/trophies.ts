@@ -116,6 +116,20 @@ function streakDay(days: readonly DayFacts[], n: number): string | null {
   return null;
 }
 
+/** The first day with at least `n` of the given rows (PRs): the day its count got there. */
+function busyDay(rows: readonly { day: string }[], n: number): string | null {
+  const count = new Map<string, number>();
+  for (const { day } of rows) {
+    const c = (count.get(day) ?? 0) + 1;
+    if (c >= n) return day;
+    count.set(day, c);
+  }
+  return null;
+}
+
+/** Whether a world day is a Friday (noon UTC is the same date everywhere, so its weekday is the day's). */
+const isFriday = (day: string): boolean => new Date(`${day}T12:00:00Z`).getUTCDay() === 5;
+
 /** The Sunday that ended the first Monday-to-Sunday week with tokens on all seven days. */
 function perfectWeek(days: readonly DayFacts[]): string | null {
   const have = new Set(days.map((d) => d.day));
@@ -267,7 +281,125 @@ export const TROPHIES: readonly TrophyDef[] = [
     how: "Tokens on all seven days, Monday to Sunday",
     earned: (f) => perfectWeek(f.days),
   },
+  // The crazy ones: the shelf holds 42 (`SHELF_SLOTS`), six to a shelf of seven.
+  {
+    id: "streak30",
+    name: "Habit Formed",
+    how: "Tokens 30 days in a row",
+    earned: (f) => streakDay(f.days, 30),
+  },
+  {
+    id: "streak100",
+    name: "Centurion",
+    how: "Tokens 100 days in a row",
+    earned: (f) => streakDay(f.days, 100),
+  },
+  {
+    id: "streak365",
+    name: "Touch Grass? Never",
+    how: "Tokens 365 days in a row",
+    earned: (f) => streakDay(f.days, 365),
+  },
+  {
+    id: "hundredb",
+    name: "Is This a Bug?",
+    how: "Burn 100B tokens in one day",
+    earned: (f) => first(f.days, (d) => d.tokens >= 100e9),
+  },
+  {
+    id: "tsunami",
+    name: "Token Tsunami",
+    how: "Burn 1B tokens in one hour",
+    earned: (f) => first(f.hours, (h) => h.tokens >= 1e9),
+  },
+  {
+    id: "firehose",
+    name: "Firehose",
+    how: "Burn 100M tokens in one hour",
+    earned: (f) => first(f.hours, (h) => h.tokens >= 100e6),
+  },
+  {
+    id: "hurricane",
+    name: "Prompt Hurricane",
+    how: "Send 200 prompts in one hour",
+    earned: (f) => first(f.hours, (h) => h.prompts >= 200),
+  },
+  {
+    id: "setforget",
+    name: "Set and Forget",
+    how: "Burn 10M tokens in an hour on one prompt or none",
+    earned: (f) => first(f.hours, (h) => h.tokens >= 10e6 && h.prompts <= 1),
+  },
+  {
+    id: "insomniac",
+    name: "Sleep Is Optional",
+    how: "Burn tokens in 20 different hours of one day",
+    earned: (f) => first(f.days, (d) => d.hours.size >= 20),
+  },
+  {
+    id: "nice",
+    name: "Nice",
+    how: "Finish a day on a total ending in 69",
+    earned: (f) => first(f.done, (d) => d.tokens >= 1000 && d.tokens % 100 === 69),
+  },
+  {
+    id: "blaze",
+    name: "Blaze It",
+    how: "Finish a day on a total ending in 420",
+    earned: (f) => first(f.done, (d) => d.tokens >= 1000 && d.tokens % 1000 === 420),
+  },
+  {
+    id: "beast",
+    name: "Number of the Beast",
+    how: "Finish a day on a total with 666 in it",
+    earned: (f) => first(f.done, (d) => String(d.tokens).includes("666")),
+  },
+  {
+    id: "repdigit",
+    name: "Stuck Key",
+    how: "Finish a day on one digit repeated (77,777 tokens)",
+    earned: (f) => first(f.done, (d) => d.tokens >= 1000 && /^(\d)\1+$/.test(String(d.tokens))),
+  },
+  {
+    id: "countdown",
+    name: "Liftoff",
+    how: "Finish a day on a total with 54321 in it",
+    earned: (f) => first(f.done, (d) => String(d.tokens).includes("54321")),
+  },
+  {
+    id: "exactmillion",
+    name: "Exactly Right",
+    how: "Finish a day on a whole number of millions, to the token",
+    earned: (f) => first(f.done, (d) => d.tokens >= 1e6 && d.tokens % 1e6 === 0),
+  },
+  {
+    id: "leapday",
+    name: "Leap Day",
+    how: "Burn tokens on 29 February",
+    earned: (f) => first(f.days, (d) => d.day.endsWith("-02-29")),
+  },
+  {
+    id: "friday13",
+    name: "Friday the 13th",
+    how: "Burn tokens on a Friday the 13th",
+    earned: (f) => first(f.days, (d) => d.day.endsWith("-13") && isFriday(d.day)),
+  },
+  {
+    id: "halloween",
+    name: "Spooky Season",
+    how: "Burn tokens on 31 October",
+    earned: (f) => first(f.days, (d) => d.day.endsWith("-10-31")),
+  },
+  {
+    id: "spree",
+    name: "PR Spree",
+    how: "Open 10 PRs in one day",
+    earned: (f) => busyDay(f.prs, 10),
+  },
 ];
+
+/** Trophies the shelf has room for: six shelves of seven. */
+export const SHELF_SLOTS = 42;
 
 /** Every trophy earned, in shelf order, with the day it was first earned. */
 export function trophiesFor(f: TrophyFacts): Trophy[] {

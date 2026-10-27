@@ -1329,11 +1329,20 @@ export const FACE_BUILDERS: Record<string, Build> = {
     bridge(m, "#fbf7ef");
   },
   "Hygge moustache": (m, c) => {
-    const n = mid(m, EYE_Y - 0.1, 0.236);
-    n.ball(0.045, c.hair, [0, 0, 0.012], [1.8, 0.8, 0.7], 10);
+    // A handlebar under the nose, over the top of the mouth: a bar wider than the mouth, its wings drooping
+    // to curled tips that climb the cheeks. A voxel head's front is flat; a round one's falls away to the sides.
+    const vox = isVox(m);
+    const bar = mid(m, -0.13, vox ? 0.25 : 0.236);
+    const dark = tint(c.hair, -0.18);
+    const back = (x: number) => (vox ? 0 : -2.4 * x * x);
+    bar.box([0.17, 0.036, 0.05], c.hair, [0, 0, 0], 0.006);
     for (const s of [-1, 1]) {
-      n.ball(0.036, c.hair, [s * 0.075, -0.004, 0.0], [1.4, 0.75, 0.7], 10).rotation.z = -s * 0.3;
-      n.ball(0.024, c.hair, [s * 0.12, 0.014, -0.02], [1, 1, 0.8], 8);
+      const wing = 0.1225;
+      const out = 0.1825;
+      const tip = 0.2;
+      bar.box([0.075, 0.034, 0.045], c.hair, [s * wing, -0.012, back(wing)], 0.006);
+      bar.box([0.045, 0.034, 0.04], dark, [s * out, -0.02, back(out) - 0.004], 0.006);
+      bar.box([0.032, 0.07, 0.036], dark, [s * tip, -0.012, back(tip) - 0.008], 0.006);
     }
   },
   Eyepatch: (m) => {

@@ -1,7 +1,7 @@
 import { CASE_PIECES, isCasePiece } from "@tokenmaxxing/core/case-furniture.ts";
 import { HOME_PIECES, isHomePiece } from "@tokenmaxxing/core/home.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
-import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
+import { COMPANY_FURNITURE, sideways, turnAt } from "@tokenmaxxing/core/office.ts";
 import { isPoster, posterOf } from "@tokenmaxxing/core/posters.ts";
 import { SHOP_DISPLAY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
 import { WINDMILL } from "@tokenmaxxing/core/windmill.ts";
@@ -555,7 +555,19 @@ export function objectAt(map: GameMap, x: number, y: number): Placed | null {
   return cells[i];
 }
 
+/** The tiles of the same letter to the left of (x, y): none for the top tile of a piece lying down its column. */
+function runLeft(map: GameMap, x: number, y: number, ch: string): number {
+  const turn = turnAt(map, x, y);
+  if (turn && sideways(turn.rot)) return 0;
+  let n = 0;
+  while (map.at(x - n - 1, y) === ch) n++;
+  return n;
+}
+
 function placeObject(map: GameMap, x: number, y: number): Placed | null {
+  // A piece lying down its column (turned a quarter) is one picture from its top tile; the tiles below it have none.
+  const turn = turnAt(map, x, y);
+  if (turn && sideways(turn.rot) && (turn.x !== x || turn.y !== y)) return null;
   const ch = map.at(x, y);
   switch (ch) {
     case "w":
@@ -641,8 +653,7 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
     case "t":
     case "g": {
       // Two tiles each: in a run of them (TVs side by side), every other tile starts one.
-      let n = 0;
-      while (map.at(x - n - 1, y) === ch) n++;
+      const n = runLeft(map, x, y, ch);
       return n % 2 === 0 ? at(ch === "t" ? tv() : touchedGrass()) : null;
     }
     case "k":
@@ -734,8 +745,7 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       // The raid's trophies (art/loot.ts).
       if (!fancy) return trophyAt(ch);
       // `w` tiles each, from the left of a run of them.
-      let n = 0;
-      while (map.at(x - n - 1, y) === ch) n++;
+      const n = runLeft(map, x, y, ch);
       if (n % fancy.w !== 0) return null;
       // Standing on its row; a deeper one reaches back over the row behind.
       return { canvas: fancySprite(fancy.art.id), dx: 0, dy: TILE - fancy.art.height, fancy: fancy.art };

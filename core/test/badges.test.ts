@@ -7,11 +7,13 @@ import {
   badgeStates,
   badgesFor,
   CACHE_FLOOR,
+  FRAMES,
   frameOf,
   longestRun,
   progressOf,
   streakOf,
 } from "../src/badges.ts";
+import { BADGE_TIER_COINS, badgeCoins } from "../src/economy.ts";
 
 const none: BadgeFacts = {
   streak: 0,
@@ -54,24 +56,23 @@ test("badges show the highest tier met, and nothing below the first", () => {
   expect(badgesFor({ ...none, founder: true })[0]).toMatchObject({ id: "founder", tier: 1, frame: "gold" });
 });
 
-test("existing thresholds are unchanged: diamond only adds a tier on top", () => {
+test("existing thresholds are unchanged: the long ladders only add tiers on top", () => {
   expect(thresholds("streak").slice(0, 3)).toEqual([7, 30, 100]);
-  expect(thresholds("bigday")).toEqual([1e9, 5e9, 10e9]);
+  // 3B replaces 1B as the first tier; the tiers a player already holds past it keep their number.
+  expect(thresholds("bigday")).toEqual([3e9, 5e9, 10e9, 20e9, 50e9, 100e9]);
   expect(thresholds("podium").slice(0, 3)).toEqual([1, 10, 50]);
-  expect(thresholds("octopus")).toEqual([5, 10, 20]);
+  expect(thresholds("octopus")).toEqual([5, 10, 20, 100, 300, 1000]);
   expect(thresholds("shipper").slice(0, 3)).toEqual([10, 50, 250]);
   expect(thresholds("shark").slice(0, 3)).toEqual([5, 25, 100]);
   expect(thresholds("whale").slice(0, 2)).toEqual([500, 2000]);
   expect(thresholds("founder")).toEqual([1]);
   expect(thresholds("picnic")).toEqual([1, 5]);
-  // The five with a diamond tier.
-  expect(thresholds("streak").at(-1)).toBe(365);
-  expect(thresholds("podium").at(-1)).toBe(200);
-  expect(thresholds("shipper").at(-1)).toBe(1000);
-  expect(thresholds("shark").at(-1)).toBe(500);
-  expect(thresholds("whale").at(-1)).toBe(10000);
-  for (const id of ["streak", "podium", "shipper", "shark", "whale"])
-    expect(BADGES.find((b) => b.id === id)!.tiers).toHaveLength(4);
+  // The five with a diamond tier keep it as their fourth.
+  expect(thresholds("streak")[3]).toBe(365);
+  expect(thresholds("podium")[3]).toBe(200);
+  expect(thresholds("shipper")[3]).toBe(1000);
+  expect(thresholds("shark")[3]).toBe(500);
+  expect(thresholds("whale")[3]).toBe(10000);
 });
 
 test("frames: bronze up to gold, diamond on top of four, a lone tier is gold", () => {
@@ -79,7 +80,52 @@ test("frames: bronze up to gold, diamond on top of four, a lone tier is gold", (
   expect([1, 2, 3].map((t) => frameOf(t, 3))).toEqual(["bronze", "silver", "gold"]);
   expect(frameOf(1, 1)).toBe("gold");
   const [s] = badgesFor({ ...none, prs: 1000 });
-  expect(s).toMatchObject({ id: "shipper", frame: "diamond", rarity: "legendary", next: null });
+  expect(s).toMatchObject({ id: "shipper", frame: "diamond", rarity: "legendary", next: { at: 2500 } });
+});
+
+test("past diamond: mythic and cosmic, the top of the longest ladders", () => {
+  expect([1, 2, 3, 4, 5, 6].map((t) => frameOf(t, 6))).toEqual([
+    "bronze",
+    "silver",
+    "gold",
+    "diamond",
+    "mythic",
+    "cosmic",
+  ]);
+  const [s] = badgesFor({ ...none, prs: 10000 });
+  expect(s).toMatchObject({ id: "shipper", tier: 6, frame: "cosmic", rarity: "legendary", next: null });
+  expect(announced("shipper", 5)).toBe(true);
+  expect(announced("shipper", 6)).toBe(true);
+  expect(awardLine("Ada", "octopus", 6)).toBe("🏅 Ada earned Octopus cosmic: 1000 agents: Skynet");
+});
+
+test("every ladder climbs, has a frame for each tier and a coin price for each", () => {
+  for (const b of BADGES) {
+    expect(b.tiers.length).toBeLessThanOrEqual(FRAMES.length);
+    expect(b.tiers.length).toBeLessThanOrEqual(BADGE_TIER_COINS.length);
+    b.tiers.forEach((t, i) => {
+      expect(t.label).not.toBe("");
+      if (i > 0) expect(t.at).toBeGreaterThan(b.tiers[i - 1]!.at);
+    });
+  }
+  expect(badgeCoins(6)).toBe(3740);
+});
+
+test("the crazy ladders", () => {
+  const tier = (id: string, f: Partial<BadgeFacts>) =>
+    badgesFor({ ...none, ...f }).find((b) => b.id === id)?.tier ?? 0;
+  // Big day: 3B, 5B, 10B, 20B, then 50B and 100B.
+  expect([2.9e9, 3e9, 5e9, 10e9, 20e9, 50e9, 100e9].map((bestDay) => tier("bigday", { bestDay }))).toEqual([
+    0, 1, 2, 3, 4, 5, 6,
+  ]);
+  // Agents at once, up to a thousand.
+  expect([4, 5, 10, 20, 100, 300, 1000].map((peakAgents) => tier("octopus", { peakAgents }))).toEqual([
+    0, 1, 2, 3, 4, 5, 6,
+  ]);
+  // The furnace counts lifetime tokens.
+  expect(
+    [1e9 - 1, 1e9, 10e9, 100e9, 1e12, 10e12, 100e12].map((lifetime) => tier("furnace", { lifetime })),
+  ).toEqual([0, 1, 2, 3, 4, 5, 6]);
 });
 
 test("progress: where they stand, the next tier and the bar", () => {
@@ -97,7 +143,9 @@ test("the new badges", () => {
   const tier = (id: string, f: Partial<BadgeFacts>) =>
     badgesFor({ ...none, ...f }).find((b) => b.id === id)?.tier ?? 0;
   expect([9, 10, 30, 100].map((shipDays) => tier("shipdays", { shipDays }))).toEqual([0, 1, 2, 3]);
-  expect([2, 3, 6, 10].map((models) => tier("polyglot", { models }))).toEqual([0, 1, 2, 3]);
+  expect([2, 3, 6, 10, 49, 50, 250, 999, 1000].map((models) => tier("polyglot", { models }))).toEqual([
+    0, 1, 2, 3, 3, 4, 5, 5, 6,
+  ]);
   expect([13, 14, 60, 200].map((longestRun) => tier("longrun", { longestRun }))).toEqual([0, 1, 2, 3]);
   expect([0, 1, 10, 50].map((raidKills) => tier("raider", { raidKills }))).toEqual([0, 1, 2, 3]);
   expect([9, 10, 50, 250].map((gamesPlayed) => tier("regular", { gamesPlayed }))).toEqual([0, 1, 2, 3]);

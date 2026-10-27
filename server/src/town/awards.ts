@@ -95,12 +95,18 @@ export async function awardSweep(
 // MARK: Backfill
 
 const MARKER = "badge_backfill";
+/**
+ * A second pass over everyone for tiers added since the first (longer ladders, new badges): the same silent
+ * recording, kept apart so the Hall of Fame (`backfillDone`) isn't empty while it runs. Records are only
+ * ever added, so running it again is safe; bump the key to run it for tiers added later.
+ */
+export const RECHECK = "badge_recheck_2";
 /** Players one sweep backfills. */
 export const BACKFILL_CHUNK = 100;
 
 /** Whether every player's earned tiers are recorded (the Hall of Fame shows nothing before). */
-export const backfillDone = async (sql: Sql): Promise<boolean> =>
-  (await one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = ?", MARKER))?.value === "done";
+export const backfillDone = async (sql: Sql, marker = MARKER): Promise<boolean> =>
+  (await one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = ?", marker))?.value === "done";
 
 /**
  * One chunk of the one-time silent backfill, in id order: the marker holds the last id done, then
@@ -112,9 +118,10 @@ export async function backfillStep(
   now: number,
   kept: Pick<Kept, "top" | "raids">,
   chunk = BACKFILL_CHUNK,
+  marker = MARKER,
 ): Promise<boolean> {
   const cursor = Number(
-    (await one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = ?", MARKER))?.value ?? 0,
+    (await one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = ?", marker))?.value ?? 0,
   );
   if (Number.isNaN(cursor)) return true;
   const ids = await all<{ id: number }>(
@@ -131,7 +138,7 @@ export async function backfillStep(
   const done = ids.length < chunk;
   await sql.execute(
     "INSERT INTO raid_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-    MARKER,
+    marker,
     done ? "done" : String(ids.at(-1)!.id),
   );
   return done;
@@ -158,6 +165,11 @@ export async function awardStep(
 ): Promise<{ awards: Award[]; backfilled: boolean }> {
   if (!(await backfillDone(sql))) {
     await backfillStep(sql, now, kept);
+    return { awards: [], backfilled: true };
+  }
+  // Then the second pass for tiers added since: silent too, and the dirty set waits for it the same way.
+  if (!(await backfillDone(sql, RECHECK))) {
+    await backfillStep(sql, now, kept, BACKFILL_CHUNK, RECHECK);
     return { awards: [], backfilled: true };
   }
   const awards: Award[] = [];

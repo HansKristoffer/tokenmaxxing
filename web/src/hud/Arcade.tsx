@@ -4,10 +4,11 @@ import { MAX_STAKE, SPLITS, type Split } from "@tokenmaxxing/core/games/payouts.
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { Lobby, MatchInfo, TableView } from "@tokenmaxxing/core/games/wire.ts";
 import { BIG_BLIND, BUY_IN, SEATS, SMALL_BLIND } from "@tokenmaxxing/core/poker.ts";
+import { SPOTS } from "@tokenmaxxing/core/roulette.ts";
 import { namesIn } from "@tokenmaxxing/core/world.ts";
 import { typedSwitch, typedSwitchGroup } from "hanzio";
 import { useEffect, useState } from "react";
-import { send } from "../game/input.ts";
+import { joinRoulette, send } from "../game/input.ts";
 import { world } from "../game/world.ts";
 import { arcade, conn, openMatch } from "../net.ts";
 import { hud, useHud } from "../store.ts";
@@ -76,12 +77,10 @@ export function ArcadePanel() {
           ▶ Back to your game
         </button>
       )}
-      <button type="button" className="primary" onClick={() => hud.set({ panel: { kind: "roulette" } })}>
-        🎡 Roulette
-      </button>
-      <h3>The Tavern</h3>
+      <h3>The Net cafe</h3>
       <ul className="tables">
         <PokerRow />
+        <RouletteRow />
       </ul>
       <h3>Open tables</h3>
       {open.length === 0 ? (
@@ -149,6 +148,33 @@ function PokerRow({ compact }: { compact?: boolean }) {
   );
 }
 
+/**
+ * The net cafe's roulette table, always on offer and always shared: Join takes you down there from anywhere and
+ * onto a free spot. The spots are only known while you are in the net cafe.
+ */
+function RouletteRow({ compact }: { compact?: boolean }) {
+  const seats = useHud((s) => s.roulette?.seats);
+  const mine = seats?.some((s) => s.userId === world.selfId) ?? false;
+  return (
+    <li>
+      <span className="who">
+        🎡 Roulette{!compact && " · with everyone"}
+        <small className="muted">
+          {" "}
+          {seats === undefined ? `${SPOTS} spots` : `${seats.length}/${SPOTS}`}
+        </small>
+      </span>
+      {mine ? (
+        <small className="muted">You're at the table</small>
+      ) : (
+        <button type="button" className="primary" onClick={() => void joinRoulette()}>
+          Join
+        </button>
+      )}
+    </li>
+  );
+}
+
 const BOX_SHOWN = 3;
 
 /** Under the leaderboard: open tables to join, how many games are on, and a way to start one. */
@@ -166,6 +192,7 @@ export function GamesBox() {
       </button>
       <ul>
         <PokerRow compact />
+        <RouletteRow compact />
       </ul>
       {open.length === 0 ? (
         <p className="muted small">No open tables right now.</p>

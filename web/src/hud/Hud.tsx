@@ -45,6 +45,7 @@ import { DeskPanel } from "./OfficeDesks.tsx";
 import { DecorPanel, DirectoryPanel, OpenOfficesPanel } from "./Offices.tsx";
 import { PamphletPanel } from "./Pamphlet.tsx";
 import { PaperPanel } from "./Paper.tsx";
+import { PetMenu } from "./PetMenu.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Poker } from "./Poker.tsx";
@@ -116,6 +117,7 @@ export function Hud() {
         </>
       )}
       <Hotbar />
+      <PetMenu />
       <Dialog />
       <PieceHint />
       <Poker />

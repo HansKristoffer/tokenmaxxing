@@ -29,6 +29,7 @@ import {
   merchProp,
   WALL_ASSET_IDS,
 } from "./furniture/furniture3d.ts";
+import { iconKey } from "./icon-key.ts";
 import { IconQueue, LruCache } from "./icon-queue.ts";
 import { blockify } from "./kit/blocky.ts";
 import { beginTickScope, dropTickScope, endTickScope, setSmoothBands } from "./kit/kit.ts";
@@ -48,44 +49,6 @@ export type IconSpec =
   | { kind: "case"; what: "closed" | "open" | "key" };
 
 export type IconSize = 64 | 128;
-
-/** What tells one icon from another: the same key is the same picture. */
-export function iconKey(s: IconSpec): string {
-  switch (s.kind) {
-    case "piece":
-      return `piece:${s.ch}`;
-    case "pet":
-      return `pet:${s.pet}.${s.variant ?? 0}.${s.wear ?? 0}.${(s.name ?? "").trim().toLowerCase()}`;
-    case "avatar": {
-      const l = s.look;
-      const w = [
-        l.style,
-        l.skin,
-        l.hair,
-        l.outfit,
-        l.glasses ?? 0,
-        l.hat ?? 0,
-        l.held ?? 0,
-        l.back ?? 0,
-        l.aura ?? 0,
-      ];
-      return `avatar:${w.join(".")}.${l.merch ?? 0}.${l.merch ? (l.merchWorn ?? 0) : 0}:${s.focus ?? "body"}:${s.facing ?? "front"}`;
-    }
-    case "merch": {
-      const c = s.company;
-      const d = c.merch ? `${c.merch.main}${c.merch.accent}${c.merch.rows.join("")}` : "";
-      return `merch:${c.id}.${s.merch}:${c.brand?.roof ?? ""}${c.brand?.plaque ?? ""}:${c.name}:${d}`;
-    }
-    case "trophy":
-      return `trophy:${s.id}.${s.earned === false ? 0 : 1}`;
-    case "desk":
-      return `desk:${s.tier}`;
-    case "boss":
-      return `boss:${s.id}`;
-    case "case":
-      return `case:${s.what}`;
-  }
-}
 
 // MARK: Models
 
