@@ -87,6 +87,16 @@ export const CASES: readonly CaseDef[] = [
   },
 ];
 
+/**
+ * The slide the case shop opens on for a shelf on Natmarked's back wall (`shelfAt`): that shelf's case, or the
+ * locked "Coming soon" one for a shelf with no case yet. The counter has no shelf and opens the first case.
+ */
+export function slideOfShelf(shelf: number | undefined): number {
+  if (shelf === undefined || shelf < 0) return 0;
+  if (shelf < CASES.length) return shelf;
+  return CASES.length < CASE_SHELVES ? CASES.length : 0;
+}
+
 export const caseById = (id: unknown): CaseDef | undefined => CASES.find((c) => c.id === id);
 
 /** The case a rarity-bearing item belongs to, if any. */

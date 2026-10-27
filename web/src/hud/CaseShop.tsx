@@ -1,4 +1,4 @@
-import { CASE_SHELVES, CASES, type CaseDef, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
+import { CASE_SHELVES, CASES, type CaseDef, slideOfShelf, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
 import { RARITY_COLOR } from "@tokenmaxxing/core/rarity.ts";
 import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
 import { defaultLook } from "@tokenmaxxing/core/world.ts";
@@ -79,7 +79,7 @@ function pagerKey(e: KeyboardEvent): 1 | -1 | 0 {
  * (the opening screen, wired to the server's `openCase`), the odds of everything inside and a button that sells
  * the spare copies back to the vendor. The server rolls and charges; this only asks and shows.
  */
-export function CaseShop() {
+export function CaseShop({ shelf }: { shelf?: number }) {
   const me = useHud((s) => s.me);
   const wallet = useHud((s) => s.wallet);
   const [hello] = useState(() => greeting("natmarked", Math.floor(Math.random() * 8)));
@@ -89,7 +89,7 @@ export function CaseShop() {
   const [sold, setSold] = useState<string | null>(null);
   const { error, busy, run } = useRun();
   // Which slide, and which way it came from (for the slide-in).
-  const [page, setPage] = useState({ at: 0, dir: 1 });
+  const [page, setPage] = useState({ at: slideOfShelf(shelf), dir: 1 });
   const go = (to: number, dir?: number) => {
     setSold(null);
     setPage((p) => {

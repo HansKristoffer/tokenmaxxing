@@ -494,6 +494,15 @@ export function displayTab(shop: ShopId, x: number, y: number): ShopTab | null {
   return SHOPS[shop].displays.find(([dx, dy]) => dx === x && dy === y)?.[2] ?? null;
 }
 
+/**
+ * Which of Natmarked's shelves, left to right from 0, the display tile (x, y) belongs to, or null if it isn't one.
+ * A shelf is two display tiles wide, and shelf `n` shows the case in slot `n` of `CASES`.
+ */
+export function shelfAt(x: number, y: number): number | null {
+  const i = SHOPS.natmarked.displays.findIndex(([dx, dy]) => dx === x && dy === y);
+  return i < 0 ? null : Math.floor(i / 2);
+}
+
 /** What each shop sells, for the directory and for hints ("Buy hats at Thread & Token"). */
 export const SHOP_SELLS: Record<ShopId, string> = {
   furniture:
