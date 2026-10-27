@@ -1,4 +1,5 @@
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
+import { slotAt } from "@tokenmaxxing/core/market.ts";
 import { canFlip } from "@tokenmaxxing/core/office.ts";
 import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
 import {
@@ -478,6 +479,7 @@ const COUNTER_TAB = {
   barber: "look",
   pets: "pet",
   natmarked: "case",
+  market: "market",
 } as const;
 
 /** E in a shop room on its counter or a display: the Shop page on the matching tab (the barber opens the Bag on You). */
@@ -489,6 +491,12 @@ function shopInteract(x: number, y: number): boolean {
   // Natmarked sells cases, not items: its counter and its shelves open the case page.
   if (tab === "case") {
     hud.set({ panel: { kind: "caseShop" } });
+    return true;
+  }
+  // Torvehallen sells what players put on display: its counter opens the market, a case or shelf is one slot.
+  if (tab === "market") {
+    const slot = kind.counter ? null : slotAt(x, y);
+    hud.set({ panel: slot === null ? { kind: "market" } : { kind: "marketSlot", slot } });
     return true;
   }
   // The 3D renderer has its own buy card for a shelf of goods (the counter, the barber's mirror and

@@ -52,11 +52,26 @@ test("every tile of every shop, and of the Tavern, draws on whole pixels inside 
   for (const c of canvases) expect(c.bad).toEqual([]);
 });
 
+test("Torvehallen: every display slot draws a case or a shelf, and the price tags draw inside their sprite", async () => {
+  const { MARKET_SLOTS, slotTile } = await import("@tokenmaxxing/core/market.ts");
+  const { priceTag, tagText } = await import("../src/art/market.ts");
+  const before = canvases.length;
+  const hall = MAPS["shop-market"];
+  for (let slot = 0; slot < MARKET_SLOTS; slot++) {
+    const [x, y] = slotTile(slot)!;
+    expect(objectAt(hall, x, y)).not.toBeNull();
+  }
+  for (const price of [1, 99, 150, 999, 1000, 1200, 6000]) priceTag(price, price % 2 === 0);
+  expect(canvases.length).toBeGreaterThan(before);
+  for (const c of canvases.slice(before)) expect(c.bad).toEqual([]);
+  expect([1, 999, 1000, 1200, 6000].map(tagText)).toEqual(["1", "999", "1K", "1.2K", "6K"]);
+});
+
 test("the storefronts are five tiles wide and four deep, with a door tile in the middle", () => {
   const town = townMap([]);
   for (const id of SHOP_IDS) {
     const [dx, dy] = town.find(
-      { furniture: "ƒ", clothes: "Ç", barber: "Ð", pets: "ð", natmarked: "Ñ" }[id],
+      { furniture: "ƒ", clothes: "Ç", barber: "Ð", pets: "ð", natmarked: "Ñ", market: "Ƭ" }[id],
     )[0]!;
     const front = objectAt(town, dx - 2, dy - 3);
     expect(front?.canvas).toBeDefined();

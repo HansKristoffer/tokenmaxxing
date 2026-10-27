@@ -1,5 +1,6 @@
 import type { ShopId } from "@tokenmaxxing/core/shoprooms.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
+import { marketFront } from "./market.ts";
 import { natmarkedFront } from "./natmarked.ts";
 import { C } from "./palette.ts";
 import { bake, cached, hash, once, type Pen } from "./pixels.ts";
@@ -51,6 +52,14 @@ const SKINS: Record<ShopId, Skin> = {
     sign: "#14101c",
     text: "NATMARKED",
     name: "natmarked",
+  },
+  market: {
+    wall: "#9c5a45",
+    wallDark: "#7e4636",
+    awning: ["#2f6b4f", "#f4efe4"],
+    sign: "#1f4a38",
+    text: "TORVEHALLEN",
+    name: "market",
   },
   pets: {
     wall: "#e3efd3",
@@ -105,6 +114,10 @@ export const storefront = cached(
     bake(W, H, (p) => {
       if (shop === "natmarked") {
         p.g.drawImage(natmarkedFront(), 0, 0);
+        return;
+      }
+      if (shop === "market") {
+        p.g.drawImage(marketFront(), 0, 0);
         return;
       }
       const s = SKINS[shop];
@@ -187,6 +200,7 @@ function sample(p: Pen, shop: ShopId, x: number, y: number): void {
     barber: ["#3b2a22", "#c9853a", "#e8cf7a", "#b2463d"],
     pets: ["#c9853a", "#f4efe4", "#6b4226", "#8d5a3c"],
     natmarked: ["#d8402f", "#e9b73d", "#243a73", "#f4efe4"],
+    market: ["#2f6b4f", "#e9b73d", "#9c5a45", "#f4efe4"],
   };
   const c = colors[shop];
   p.rect(3, 4, 5, 4, c[Math.floor(hash(x, y, 3) * 4)]!);

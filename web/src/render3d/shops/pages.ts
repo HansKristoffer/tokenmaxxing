@@ -8,7 +8,7 @@ import { hud, type Panel } from "../../store.ts";
 import type { ShopId } from "./catalog.ts";
 import { purchaseOf } from "./purchase.ts";
 
-const TAB: Record<Exclude<ShopId, "natmarked">, Item["slot"]> = {
+const TAB: Record<Exclude<ShopId, "natmarked" | "market">, Item["slot"]> = {
   clothes: "outfit",
   barber: "glasses",
   pets: "pet",
@@ -17,7 +17,11 @@ const TAB: Record<Exclude<ShopId, "natmarked">, Item["slot"]> = {
 
 /** The page a shop's counter opens in 2D: the Shop page on the tab that shop sells. */
 export const pageForShop = (shop: ShopId): Panel =>
-  shop === "natmarked" ? { kind: "caseShop" } : { kind: "shop", tab: TAB[shop] };
+  shop === "natmarked"
+    ? { kind: "caseShop" }
+    : shop === "market"
+      ? { kind: "market" }
+      : { kind: "shop", tab: TAB[shop] };
 
 /** The page that sells one item (a shelf in the 3D shop, in 2D): the same tab, or the page for what the Shop page does not carry. */
 export function pageForItem(id: string): Panel {
