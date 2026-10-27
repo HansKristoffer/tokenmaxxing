@@ -7,6 +7,7 @@ import {
   SHOP_DOOR_CHAR,
   SHOP_ROOM,
   type ShopId,
+  shelfAt,
   shopOfRoom,
 } from "@tokenmaxxing/core/shoprooms.ts";
 import { STAR_COUNTER } from "@tokenmaxxing/core/stars.ts";
@@ -533,9 +534,9 @@ function shopInteract(x: number, y: number): boolean {
   const kind = world.map.kind(x, y);
   if (!shop || !(kind.counter || kind.shop)) return false;
   const tab = kind.counter ? COUNTER_TAB[shop] : displayTab(shop, x, y);
-  // Natmarked sells cases, not items: its counter and its shelves open the case page.
+  // Natmarked sells cases, not items: its counter opens the case page, and a shelf opens it on that shelf's case.
   if (tab === "case") {
-    hud.set({ panel: { kind: "caseShop" } });
+    hud.set({ panel: { kind: "caseShop", shelf: kind.counter ? undefined : (shelfAt(x, y) ?? undefined) } });
     return true;
   }
   // Torvehallen sells what players put on display: its counter opens the market, a case or shelf is one slot.

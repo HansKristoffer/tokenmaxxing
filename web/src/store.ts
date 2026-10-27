@@ -31,8 +31,8 @@ export type Panel =
   | { kind: "merch"; companyId: number }
   | { kind: "shop"; tab?: ShopPageTab }
   | { kind: "shops" }
-  /** Natmarked's counter and shelves: the cases on sale (`hud/CaseShop.tsx`). */
-  | { kind: "caseShop" }
+  /** Natmarked's counter and shelves: the cases on sale (`hud/CaseShop.tsx`). `shelf`: the one E was pressed on, whose case it opens on. */
+  | { kind: "caseShop"; shelf?: number }
   /** Torvehallen's counter: what is on display (the default), or my own shelf and sales (`hud/Market.tsx`). */
   | { kind: "market"; tab?: "display" | "shelf" }
   /** E on a display slot in the hall: a listing's item, price and seller with Buy, or an empty slot to fill. */

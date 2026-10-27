@@ -10,10 +10,12 @@ import {
   caseById,
   caseOfItem,
   rollCase,
+  slideOfShelf,
   VENDOR_COINS,
 } from "../src/cases.ts";
 import { RARITIES, type Rarity } from "../src/rarity.ts";
 import type { Item } from "../src/shop.ts";
+import { SHOPS, shelfAt } from "../src/shoprooms.ts";
 
 /** A small seeded generator, so the distribution test is repeatable. */
 const seeded = (seed: number) => () => {
@@ -39,6 +41,18 @@ const none = new Set<string>();
 describe("cases", () => {
   test("every case has a shelf on Natmarked's back wall", () => {
     expect(CASES.length).toBeLessThanOrEqual(CASE_SHELVES);
+  });
+
+  test("E on a shelf opens the case on it: both tiles of a shelf, locked shelves on Coming soon", () => {
+    const tiles = SHOPS.natmarked.displays.map(([x, y]) => shelfAt(x, y));
+    expect(tiles).toEqual(Array.from({ length: CASE_SHELVES * 2 }, (_, i) => Math.floor(i / 2)));
+    expect(shelfAt(0, 0)).toBeNull();
+    // A case's shelf opens on that case; the counter (no shelf) on the first.
+    for (let i = 0; i < CASES.length; i++) expect(slideOfShelf(i)).toBe(i);
+    expect(slideOfShelf(undefined)).toBe(0);
+    // A shelf with no case yet opens the locked slide, one past the last case, while a shelf is empty.
+    if (CASES.length < CASE_SHELVES) expect(slideOfShelf(CASES.length)).toBe(CASES.length);
+    expect(slideOfShelf(CASE_SHELVES + 3)).toBe(CASES.length < CASE_SHELVES ? CASES.length : 0);
   });
 
   test("odds sum to 1, the night market exists, vendor pays by rarity", () => {
