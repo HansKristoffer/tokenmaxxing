@@ -1,3 +1,4 @@
+import { DANCES } from "@tokenmaxxing/core/dances.ts";
 import { route } from "@tokenmaxxing/core/world.ts";
 import { town } from "../net.ts";
 import { graphics } from "../settings/graphics.ts";
@@ -7,7 +8,7 @@ import { camera, viewHooks } from "./camera.ts";
 import { ghost, undoStack } from "./furniture.ts";
 import { walkTo } from "./input.ts";
 import { perf, pickTile } from "./stage.ts";
-import { self, world } from "./world.ts";
+import { self, showMyDance, world } from "./world.ts";
 
 /**
  * A handle for the QA scripts (`scripts/qa`) to drive the real game: `localStorage["tokenmaxxing.qa"] = "1"`
@@ -17,6 +18,21 @@ export function exposeForQa(): void {
   if (!storage.getItem("tokenmaxxing.qa")) return;
   Object.defineProperty(window, "__tmTown", { get: () => town });
   Object.assign(window, {
-    __tm: { world, self, hud, graphics, camera, viewHooks, perf, pickTile, walkTo, route, ghost, undoStack },
+    __tm: {
+      world,
+      self,
+      hud,
+      graphics,
+      camera,
+      viewHooks,
+      perf,
+      pickTile,
+      walkTo,
+      route,
+      ghost,
+      undoStack,
+      dances: DANCES,
+      showMyDance,
+    },
   });
 }

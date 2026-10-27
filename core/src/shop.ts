@@ -1,11 +1,12 @@
 /**
  * Coins and the shop. Coins come from using AI (per world day, square-rooted so
  * a heavy day earns more but not wildly more) and from finishing a day in the
- * top 3. They buy clothes, glasses, hats and pets, worn through `Look`, and
- * furniture for your office (`office.ts`). Everything bought or earned is a row in the bag.
+ * top 3. They buy clothes, glasses, hats and pets, worn through `Look`, furniture for your office
+ * (`office.ts`) and dances (`dances.ts`). Everything bought or earned is a row in the bag.
  */
 import { isRecord } from "hanzio";
 import { COSTUMES } from "./costumes.ts";
+import { DANCE_ITEMS } from "./dances.ts";
 import { EDITIONS } from "./editions.ts";
 import { HEADWEAR_ITEMS } from "./headwear.ts";
 import type { HolidayId } from "./holidays.ts";
@@ -28,10 +29,13 @@ export const PODIUM_COINS = [25, 15, 10] as const;
 type Slot = "outfit" | "glasses" | "hat" | "pet" | WardrobeSlot;
 
 export interface Item {
-  /** `<slot>.<index>`, e.g. `pet.2`, `furn.<ch>` for furniture, or `merch.<companyId>.<kind>`. */
+  /** `<slot>.<index>`, e.g. `pet.2`, `furn.<ch>` for furniture, `dance.<index>`, or `merch.<companyId>.<kind>`. */
   id: string;
-  slot: Slot | "furniture" | "merch";
-  /** The value of `look[slot]` when worn; furniture's place in `PIECES` (office.ts) or `COMPANY_FURNITURE`; merch's bit in `merchWorn`. */
+  slot: Slot | "furniture" | "merch" | "dance";
+  /**
+   * The value of `look[slot]` when worn; furniture's place in `PIECES` (office.ts) or `COMPANY_FURNITURE`;
+   * a dance's `index` (dances.ts); merch's bit in `merchWorn`.
+   */
   index: number;
   name: string;
   price: number;
@@ -139,6 +143,8 @@ export const ITEMS: readonly Item[] = [
     tradeable: false,
     company: true,
   })),
+  // Learned once, never traded: the dance bar's (`dances.ts`).
+  ...DANCE_ITEMS,
 ];
 
 /** The level items `level` has earned. */
@@ -153,7 +159,7 @@ const BY_ID = new Map<string, Item>();
 const BY_SLOT = new Map<Slot, Map<number, { item: Item & { slot: Slot }; at: number }>>();
 ITEMS.forEach((item, at) => {
   if (!BY_ID.has(item.id)) BY_ID.set(item.id, item);
-  if (item.slot === "furniture" || item.slot === "merch") return;
+  if (item.slot === "furniture" || item.slot === "merch" || item.slot === "dance") return;
   const values = BY_SLOT.get(item.slot) ?? new Map();
   BY_SLOT.set(item.slot, values);
   if (!values.has(item.index)) values.set(item.index, { item: item as Item & { slot: Slot }, at });

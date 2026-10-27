@@ -1,4 +1,5 @@
 import { ON_SALE, onSale } from "@tokenmaxxing/core/costumes.ts";
+import { danceAt } from "@tokenmaxxing/core/dances.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { dateLabel, HOLIDAYS } from "@tokenmaxxing/core/holidays.ts";
 import { homePieceOf } from "@tokenmaxxing/core/home.ts";
@@ -39,6 +40,7 @@ const TABS = [
   ["back", "On back"],
   ["pet", "Pets"],
   ["petwear", "Pet gear"],
+  ["dance", "Dances"],
   ["furniture", "Furniture"],
   ["decor", "Wallpaper & floors"],
   ["desk", "Monitors"],
@@ -146,7 +148,20 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
                   </span>
                 )}
                 {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
-                {item.loot ? (
+                {item.slot === "dance" ? (
+                  owned ? (
+                    <span className="muted small">✓ On your dance bar</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={wallet.balance < item.price}
+                      onClick={buy(item)}
+                    >
+                      🪙 {item.price}
+                    </button>
+                  )
+                ) : item.loot ? (
                   !owned && (
                     <button type="button" disabled>
                       ⚔️ Raid drop
@@ -186,9 +201,9 @@ export const wear = async (look: Look) => {
 export { isWorn, withItem, withoutMerchTop };
 
 const wearIt = (item: Item, look: Look, on: boolean) =>
-  item.slot === "furniture" ? Promise.resolve() : wear(withItem(item, look, on));
+  item.slot === "furniture" || item.slot === "dance" ? Promise.resolve() : wear(withItem(item, look, on));
 
-/** Wear it, or take it off; nothing for furniture. */
+/** Wear it, or take it off; nothing for furniture or a dance. */
 export function WearButton({
   item,
   look,
@@ -198,7 +213,7 @@ export function WearButton({
   look: Look;
   run: ReturnType<typeof useRun>["run"];
 }) {
-  if (item.slot === "furniture") return null;
+  if (item.slot === "furniture" || item.slot === "dance") return null;
   const on = isWorn(item, look);
   return (
     <button type="button" onClick={run(() => wearIt(item, look, !on))}>
@@ -249,6 +264,13 @@ export function ItemImage(props: {
   worn?: boolean;
 }) {
   const { item, look, bare, worn } = props;
+  // A dance is a move, not a thing: its emoji, big.
+  if (item.slot === "dance")
+    return (
+      <span className="avatar dance-icon" aria-hidden="true">
+        {danceAt(item.index)?.emoji}
+      </span>
+    );
   return (
     <ItemIcon spec={itemIcon(item, look, bare, worn)} size={64} className="avatar">
       <ItemSprite {...props} />

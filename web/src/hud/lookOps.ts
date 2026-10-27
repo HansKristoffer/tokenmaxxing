@@ -9,6 +9,7 @@ export function isWorn(item: Item, look: Look): boolean {
     item.slot,
     {
       furniture: () => false,
+      dance: () => false,
       merch: () => look.merch === item.companyId && (look.merchWorn & item.index) > 0,
     },
     (slot) => look[slot] === item.index,
@@ -35,6 +36,7 @@ export function withItem(item: Item, look: Look, on: boolean): Look {
     item.slot,
     {
       furniture: () => look,
+      dance: () => look,
       // A different pet starts in its original look.
       pet: () => (on ? wearPet(look, item.index) : { ...look, pet: 0, petVariant: 0 }),
       outfit: () => (on ? withoutMerchTop({ ...look, outfit: item.index }) : { ...look, outfit: 0 }),

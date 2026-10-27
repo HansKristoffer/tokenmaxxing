@@ -104,6 +104,7 @@ import {
   type HoldKind,
   heldIn,
   hold,
+  holds,
   type Kept,
   type Office,
   offices,
@@ -887,6 +888,12 @@ export const town = actor({
       const now = Date.now();
       const k = await kept(c, now);
       await c.vars.serial(() => tossCoin(c.db, userId, now, k));
+    },
+
+    /** From `world.dance`: whether `userId` has learned the dance `item` (`dance.<index>`). */
+    knowsDance: (c, userId: number, item: string): Promise<boolean> => {
+      requireInternal(c.conn.state);
+      return holds(c.db, userId, item);
     },
 
     /** From `world.sit`: on a blanket at the outage picnic that started at `since`. True the first time. */

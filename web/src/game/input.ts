@@ -50,7 +50,7 @@ import { blocksStep, streetInteract } from "./street.ts";
 import { interactAnimal, interactTownProp } from "./town-life.ts";
 import { openTrophies } from "./trophies.ts";
 import { windmillInteract } from "./windmill.ts";
-import { avatarAt, beginStep, dropAt, self, stepping, world } from "./world.ts";
+import { avatarAt, beginStep, dropAt, self, showMyDance, stepping, world } from "./world.ts";
 
 const KEYS: Record<string, Facing> = {
   ArrowUp: "up",
@@ -358,8 +358,11 @@ export function updateSelf(now: number): void {
   const pressed = held.at(-1) ?? tapped;
   const dir = pressed ? (viewHooks.key?.(pressed) ?? pressed) : path.shift();
   tapped = null;
-  // Moving stands you up from your war desk in the raid dungeon.
-  if (dir) standUp();
+  // Moving stands you up from your war desk in the raid dungeon, and ends a dance (the server does too).
+  if (dir) {
+    standUp();
+    if (me.info.dance) showMyDance(0);
+  }
   if (!dir) {
     if (interactOnArrival) {
       interactOnArrival = false;
