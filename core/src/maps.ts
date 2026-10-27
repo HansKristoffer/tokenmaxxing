@@ -64,6 +64,8 @@ export const LEGEND: Record<string, TileKind> = {
   // Its sails turn with the real wind (`windmill.ts`); E says how hard it blows.
   [WINDMILL]: { name: "windmill", text: "A windmill. Its sails turn with the wind over Aarhus." },
   N: { name: "board", text: "The leaderboard." },
+  // The star counter (`stars.ts`): the project's GitHub stars; E opens it, with a button to star it.
+  "★": { name: "star counter", text: "The star counter." },
   // The chalkboards (outside the Tavern, and inside it): the client writes today's special on them.
   K: { name: "chalkboard" },
   B: { name: "bench", seat: "bench", text: "A bench with a view of the square." },
@@ -343,13 +345,13 @@ export const PLOT_W = 7;
 export const PLOT_H = 5;
 
 /**
- * Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard, coffee and the raid dungeon's
- * gate filling the top two, then the picnic lawn, the pond, the Inn and the windmill (`Ŵ`) beside it.
+ * Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard, star counter, coffee and the raid
+ * dungeon's gate filling the top two, then the picnic lawn, the pond, the Inn and the windmill (`Ŵ`) beside it.
  */
 const CORE = [
   ",,,,,,,,,,,,,,,,,,,,",
   ",L:::::::::::::::::L",
-  ",:::G::::::::::N::::",
+  ",:::G::::::::★:N::::",
   ",::::::B:FF:B:::::o:",
   ",::::::B:FF:B:::::::",
   ",:::::::::::::::::::",

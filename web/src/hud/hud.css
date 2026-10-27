@@ -3640,6 +3640,72 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   }
 }
 
+/* The way to star the repo (Stars.tsx): in the menu, the changelog and the star counter's panel. */
+.star-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #6b4f0e;
+  background: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.star-button:hover {
+  background: #f2c653;
+}
+
+.menu > a.star-button {
+  background: var(--accent);
+  color: var(--ink);
+  border-color: #6b4f0e;
+}
+
+.star-button-count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(43, 36, 51, 0.18);
+  font-size: 12px;
+}
+
+.stars {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.stars p {
+  margin: 0;
+}
+
+.stars-count {
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.stars-next {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: stretch;
+}
+
+.changelog-star {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
 .changelog {
   display: flex;
   flex-direction: column;
