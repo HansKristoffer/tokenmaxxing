@@ -87,7 +87,7 @@ describe("the traveling merchant", () => {
     await settleTrade(sql, t, SAT);
     expect(await copiesOf(sql, 1)).toEqual([]);
     expect(await copiesOf(sql, 2)).toEqual([
-      { item: first.id, week: "2026-10-19", n: 1, supply: first.supply },
+      { id: expect.any(Number), item: first.id, week: "2026-10-19", n: 1, supply: first.supply },
     ]);
   });
 
