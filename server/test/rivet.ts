@@ -206,6 +206,14 @@ export async function rich(prefix = "rich", coins = 100) {
   return { ...u, ...as(u.token) };
 }
 
+/**
+ * What today's daily quests have paid a player: each tier's draw is seeded by the date, so on some days
+ * one of them (Warm up: use N tokens) is done by the usage a test ingests, and a wallet is a coin or
+ * more over what the usage alone earns. Tests of what usage pays take this off.
+ */
+export const questCoins = (w: { quests: readonly { done: boolean; coins: number }[] }): number =>
+  w.quests.reduce((n, q) => n + (q.done ? q.coins : 0), 0);
+
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
 let seq = 0;

@@ -29,6 +29,7 @@ import {
   votesOf,
   wire,
 } from "@tokenmaxxing/core/jukebox.ts";
+import { activeLaunches, isStand, type Launch, sameLaunches } from "@tokenmaxxing/core/launch.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import {
@@ -137,6 +138,7 @@ import { compact, countBy, must, omit, sortBy, typedSwitch } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { putAwayNotice } from "../furniture-notices.ts";
+import { checkLaunches, LAUNCHES_EVERY_MS } from "../launch.ts";
 import { checkOutage, forced, OUTAGE_EVERY_MS } from "../picnic.ts";
 import { RateLimiter } from "../rate-limit.ts";
 import { counts, TavernClock } from "../tavern-clock.ts";
@@ -323,6 +325,9 @@ export const world = actor({
     /** The outage picnic: one status check for everyone (`picnic.ts`), kept when a check fails. */
     outage: null as Outage | null,
     outageAt: 0,
+    /** New models from OpenRouter's list (`launch.ts`): one read for everyone, kept when a read fails. */
+    launches: [] as Launch[],
+    launchesAt: 0,
     cop: { burns: new Map(), ticketed: new Map(), chase: null, freeAt: 0 } as CopVars,
     /** Visits already sent to `town` today (`countVisit`), so a door in and out costs one write. */
     visited: { day: "", keys: new Set<string>() },
@@ -423,6 +428,10 @@ export const world = actor({
         c.vars.outageAt = now + OUTAGE_EVERY_MS;
         void refreshOutage(c, now);
       }
+      if (now >= c.vars.launchesAt) {
+        c.vars.launchesAt = now + LAUNCHES_EVERY_MS;
+        void refreshLaunches(c, now);
+      }
       copBeat(c, now);
       if (TAVERN) tavernBeat(c, n, now);
       jukeboxBeat(c, now);
@@ -457,6 +466,7 @@ export const world = actor({
       if (wake(c.state, p)) c.vars.dirty.add(p.id);
       sendInfo(c, p, info(p, true), from);
       c.conn.send("outage", c.vars.outage);
+      c.conn.send("launches", c.vars.launches);
       if (p.room === "inn") {
         sendJukebox(c, Date.now(), userId);
         sendPoker(c, Date.now(), userId);
@@ -491,7 +501,7 @@ export const world = actor({
       c.vars.dirty.add(p.id);
       return typedSwitch(stepTarget(mapOf(p.room), p.x, p.y, rawDir), "kind", {
         move: (target) => {
-          if (p.room === "town" && onProp(c.state, target.x, target.y)) return correction(p);
+          if (p.room === "town" && onProp(c.state, c.vars.launches, target.x, target.y)) return correction(p);
           p.x = target.x;
           p.y = target.y;
           return null;
@@ -1304,6 +1314,7 @@ type Vars = {
   houses: string;
   housesStale: boolean;
   outage: Outage | null;
+  launches: Launch[];
   weather: Weather;
   raiders: string;
   raidersAt: number;
@@ -1544,9 +1555,10 @@ function settle(s: WorldState, v: Vars, now: number): WorldPlayer[] {
   return dozed;
 }
 
-/** A table or desk of a game in town, or the pølsevogn: nobody walks onto it. */
-const onProp = (s: WorldState, x: number, y: number) =>
+/** A table or desk of a game in town, the pølsevogn, or a launch stand while it's up: nobody walks onto it. */
+const onProp = (s: WorldState, launches: readonly Launch[], x: number, y: number) =>
   isCart(x, y) ||
+  (isStand(x, y) && activeLaunches(Date.now(), launches).length > 0) ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
 
 /** A line in a room's chat: someone's (`say`), or the town's own by default (a game's result). */
@@ -1702,7 +1714,7 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
     const target = stepTarget(map, p.x, p.y, dir);
     p.facing = dir;
     // The town changed under it, or a game table went up: give up on this walk.
-    if (target.kind === "move" && !onProp(s, target.x, target.y))
+    if (target.kind === "move" && !onProp(s, v.launches, target.x, target.y))
       Object.assign(p, { x: target.x, y: target.y });
     else Object.assign(run, { path: [], coffee: null });
     if (!leader && run.path.length === 0 && !run.coffee) run.restUntil = now + between(BOT_PAUSE_MS);
@@ -1814,7 +1826,8 @@ function copBeat(
   if (dir) {
     const to = stepTarget(map, cop.x, cop.y, dir);
     cop.facing = dir;
-    if (to.kind === "move" && !onProp(c.state, to.x, to.y)) Object.assign(cop, { x: to.x, y: to.y });
+    if (to.kind === "move" && !onProp(c.state, c.vars.launches, to.x, to.y))
+      Object.assign(cop, { x: to.x, y: to.y });
     c.vars.dirty.add(cop.id);
     return;
   }
@@ -1944,6 +1957,17 @@ async function snapshot(
     weather,
     raiders: room === "dungeon" ? raiders(s, Date.now()) : null,
   };
+}
+
+/** Reads OpenRouter's model list, and tells everyone when the launches change (a stand going up or down). */
+async function refreshLaunches(
+  c: { vars: Vars; broadcast(name: string, ...args: unknown[]): void },
+  now: number,
+): Promise<void> {
+  const next = await checkLaunches(c.vars.launches, now);
+  if (sameLaunches(next, c.vars.launches)) return;
+  c.vars.launches = next;
+  c.broadcast("launches", next);
 }
 
 /**

@@ -31,6 +31,7 @@ import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { buildingAt, companyOnPlot, doorOf, peekHits } from "./houses.ts";
 import { chipHits, signHits } from "./labels.ts";
+import { blocksLaunch, launchInteract } from "./launch.ts";
 import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
@@ -370,7 +371,10 @@ export function updateSelf(now: number): void {
     return;
   }
   const step = stepTarget(world.map, me.x, me.y, dir);
-  const target = step.kind === "move" && blocksStep(step.x, step.y) ? { kind: "blocked" as const } : step;
+  const target =
+    step.kind === "move" && (blocksStep(step.x, step.y) || blocksLaunch(step.x, step.y))
+      ? { kind: "blocked" as const }
+      : step;
   if (target.kind === "blocked") {
     if (me.facing !== dir || me.state !== "idle") send(conn.step(dir));
     me.facing = dir;
@@ -456,6 +460,7 @@ function interact(): void {
   // E on your own clone (or its laptop) in the raid dungeon takes your seat; others' seats are not yours.
   if (world.room === "dungeon" && sit(x, y)) return;
   if (streetInteract(me, x, y, send)) return;
+  if (launchInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);

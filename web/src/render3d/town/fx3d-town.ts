@@ -431,6 +431,114 @@ export function paperModel(): Model {
   return m;
 }
 
+// MARK: The launch stand
+
+/** The rainbow awning's stripes, when more than one provider has something out (2D: `art/launch.ts`). */
+const RAINBOW = ["#e8434b", "#f28c28", "#f5d14a", "#58b36a", "#3f89c9", "#8e63d8"];
+
+/**
+ * The launch stand (`game/launch.ts`) on its two by two tiles: a counter with a NEW board, four posts and
+ * a striped awning in the provider's colour and white, or every colour of the rainbow (`accent` null) when
+ * several providers have something out. Its front faces +z.
+ */
+export function launchStand(accent: string | null): Model {
+  const m = new Model();
+  const W = 1.7;
+  const D = 1.1;
+  const colour = (i: number) => accent ?? RAINBOW[i % RAINBOW.length]!;
+  // The counter, at the front, with a band in the stand's colours.
+  m.box([W, 0.8, 0.6], "#a87648", [0, 0.4, D / 2 - 0.3], 0.03);
+  m.box([W + 0.08, 0.06, 0.7], "#c9a36a", [0, 0.83, D / 2 - 0.3], 0.02);
+  const band = canvasTexture(
+    24,
+    2,
+    (g) => {
+      for (let i = 0; i < 6; i++) {
+        g.fillStyle = colour(i);
+        g.fillRect(i * 4, 0, 4, 2);
+      }
+    },
+    false,
+  );
+  m.plane(W, 0.1, glow("#fff", band), [0, 0.72, D / 2 + 0.011]);
+  // The NEW board, with a star.
+  const board = canvasTexture(
+    64,
+    28,
+    (g) => {
+      g.fillStyle = ink;
+      g.fillRect(0, 0, 64, 28);
+      g.fillStyle = "#fbf7ef";
+      g.fillRect(2, 2, 60, 24);
+      g.fillStyle = "#f5c84a";
+      g.font = "900 13px system-ui, sans-serif";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText("★", 10, 15);
+      g.fillText("★", 54, 15);
+      g.fillStyle = ink;
+      g.font = "900 15px system-ui, sans-serif";
+      g.fillText("NEW", 32, 15);
+    },
+    true,
+  );
+  m.plane(0.72, 0.32, glow("#fff", board), [0, 0.4, D / 2 + 0.012]);
+  // Four posts.
+  for (const sx of [-1, 1])
+    for (const sz of [-1, 1])
+      m.cyl(0.035, 1.6, "#5e3d28", [sx * (W / 2 - 0.05), 0.8, sz * (D / 2 - 0.05)], 0.035, 8);
+  // The awning: stripes, and a scalloped valance along the front.
+  const stripes = canvasTexture(
+    48,
+    4,
+    (g) => {
+      for (let i = 0; i < 12; i++) {
+        g.fillStyle = accent ? (i % 2 ? "#fbf7ef" : accent) : colour(i);
+        g.fillRect(i * 4, 0, 4, 4);
+      }
+    },
+    false,
+  );
+  const awn = m.box([W + 0.3, 0.06, D + 0.3], painted(stripes), [0, 1.66, 0.05], 0.01);
+  awn.rotation.x = 0.1;
+  const val = canvasTexture(
+    48,
+    6,
+    (g) => {
+      for (let i = 0; i < 12; i++) {
+        g.fillStyle = accent ? (i % 2 ? "#fbf7ef" : accent) : colour(i);
+        g.fillRect(i * 4, 0, 4, 4);
+        g.fillRect(i * 4 + 1, 4, 2, 2);
+      }
+    },
+    false,
+  );
+  const front = new THREE.Mesh(
+    new THREE.PlaneGeometry(W + 0.3, 0.22),
+    new THREE.MeshToonMaterial({
+      map: val,
+      transparent: true,
+      alphaTest: 0.5,
+      gradientMap: toon("#fff").gradientMap,
+    }),
+  );
+  front.position.set(0, 1.52, D / 2 + 0.22);
+  front.castShadow = true;
+  m.add(front);
+  // A stack of pamphlets on the counter.
+  for (let i = 0; i < 3; i++)
+    m.box([0.22, 0.015, 0.16], i % 2 ? "#fbf7ef" : colour(i), [0.55, 0.875 + i * 0.016, D / 2 - 0.3], 0.004);
+  return m;
+}
+
+/** The pamphlet the presenter flicks you: a folded sheet. */
+export function pamphletModel(): Model {
+  const m = new Model();
+  m.box([0.22, 0.02, 0.16], "#fbf7ef", [0, 0, 0], 0.004);
+  m.box([0.22, 0.021, 0.04], "#e8434b", [0, 0.001, -0.05], 0.004);
+  return m;
+}
+
 // MARK: Catalogue
 
 const asset = (id: string, name: string, w: number, d: number, build: () => Model) => ({
@@ -445,6 +553,8 @@ const asset = (id: string, name: string, w: number, d: number, build: () => Mode
 /** The street-life pieces as assets, for the catalogue. */
 export const FX_ASSETS = [
   asset("fx:merchant-cart", "Merchant cart", 2, 1, () => merchantCart().model),
+  asset("fx:launch-stand", "Launch stand", 2, 2, () => launchStand("#d97757")),
+  asset("fx:launch-stand-rainbow", "Launch stand (several providers)", 2, 2, () => launchStand(null)),
   asset("fx:signpost", "Merchant signpost", 1, 1, signpost),
   asset("fx:picnic-blanket", "Picnic blanket", 3, 2, () => blanketModel(2.4, 1.5, 0)),
   asset("fx:picnic-basket", "Picnic basket", 1, 1, basketModel),

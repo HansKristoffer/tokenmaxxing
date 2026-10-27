@@ -1,3 +1,4 @@
+import { STAND, standOf } from "@tokenmaxxing/core/launch.ts";
 import { PLAZA } from "@tokenmaxxing/core/maps.ts";
 import {
   CART_H,
@@ -19,6 +20,7 @@ import {
   snailAt,
 } from "@tokenmaxxing/core/street.ts";
 import * as THREE from "three";
+import { currentLaunches, handOut, RAINBOW_SIGN } from "../../game/launch.ts";
 import { openCart } from "../../game/merchant.ts";
 import { outageNow } from "../../game/picnic.ts";
 import { lane, live as raceLive } from "../../game/race.ts";
@@ -32,7 +34,15 @@ import { canvasTexture } from "../kit/kit.ts";
 import { Avatar, personLook } from "../people/avatar.ts";
 import type { LiveFrame } from "../rooms/rooms.ts";
 import { buntingMeshes } from "./bunting3d.ts";
-import { basketModel, blanketModel, grassPatch, merchantCart, signpost } from "./fx3d-town.ts";
+import {
+  basketModel,
+  blanketModel,
+  grassPatch,
+  launchStand,
+  merchantCart,
+  pamphletModel,
+  signpost,
+} from "./fx3d-town.ts";
 import {
   burstCap,
   CART_SIGN_AWAY,
@@ -86,9 +96,9 @@ interface Pill {
 
 /**
  * The town's world events, drawn from the real game's state (the 2D game's `merchant.ts`, `picnic.ts`,
- * `street.ts`, `race.ts`): the traveling merchant's cart on the server's clock, the outage picnic with its
- * bunting and the "touched grass" moment, the pølsevogn's sign, the build snail's status and the
- * paperboy's tag, and the Sprint Race's start line. Officer 429 and the racers are people, drawn by `Entities`.
+ * `street.ts`, `race.ts`, `launch.ts`): the traveling merchant's cart on the server's clock, the outage picnic
+ * with its bunting and the "touched grass" moment, the pølsevogn's sign, the build snail's status and the
+ * paperboy's tag, the launch stand and its pamphlets, and the Sprint Race's start line. Officer 429 and the racers are people, drawn by `Entities`.
  *
  * Everything is built once per town and only shown and hidden, positions are set in place, labels are a few
  * DOM nodes: nothing allocates per frame.
@@ -125,6 +135,14 @@ export class TownEvents {
   private readonly polseAt: [number, number];
   private rides: ReturnType<typeof paperRides> | null = null;
   private ridesFor: object | null = null;
+
+  // The launch stand: built again only when its colours change (one provider's, or a rainbow).
+  private readonly launchRoot = new THREE.Group();
+  private launchLook: string | null = null;
+  private readonly presenter: Avatar;
+  private readonly flyer = pamphletModel();
+  private readonly launchAt: [number, number];
+  private launchSign = { at: -Infinity, sign: "", bg: "" };
 
   // The race
   private readonly line: THREE.Mesh;
@@ -181,6 +199,34 @@ export class TownEvents {
     this.merchant.root.rotation.y = 0;
     this.post.position.set(this.spot[0], 0, this.spot[1] + 0.9);
     this.group.add(this.cartRoot, this.post, this.merchant.root);
+
+    // The launch stand, on its two by two tiles, with someone behind the counter; hidden until something ships.
+    const [lx, lz] = this.toWorld(STAND.x, STAND.y);
+    this.launchAt = [lx + (STAND.w - 1) / 2, lz + (STAND.h - 1) / 2];
+    this.launchRoot.position.set(this.launchAt[0], 0, this.launchAt[1]);
+    this.launchRoot.visible = false;
+    this.presenter = new Avatar(
+      personLook({
+        skin: "#c98e62",
+        hair: "#2b2433",
+        style: 1,
+        outfit: ["#6a4fb3", "#4b3889"],
+        pants: "#3c4454",
+        hat: "none",
+      }),
+      "voxel",
+    );
+    // Beside the counter's front corner, square-side: behind it, the awning and the counter hide them from
+    // the camera. Like the merchant, a person of the events group's own (not part of the stand).
+    this.presenter.root.position.set(this.launchAt[0] + 1.1, 0, this.launchAt[1] + 0.35);
+    this.presenter.root.rotation.y = 0;
+    this.presenter.root.visible = false;
+    this.presenter.pose = "wave";
+    this.presenter.expression = "happy";
+    this.flyer.visible = false;
+    this.flyer.userData.live = true;
+    this.flyer.userData.nopick = true;
+    this.group.add(this.launchRoot, this.presenter.root, this.flyer);
 
     // The picnic: blankets and the basket on the grass, bunting over the square.
     for (const [i, b] of BLANKETS.entries()) {
@@ -372,6 +418,7 @@ export class TownEvents {
     this.merchantFrame(f, near, calm);
     this.picnicFrame(f);
     this.streetFrame(f);
+    this.launchFrame(f);
     this.raceFrame();
     for (let i = this.bursts.length - 1; i >= 0; i--) {
       const b = this.bursts[i]!;
@@ -594,6 +641,70 @@ export class TownEvents {
       v3.set(st.boy[0], 1.6, st.boy[1]);
       this.pill("paper", "r3-sign own", "📰 Paper!", v3, f.camera);
     } else this.hide("paper");
+  }
+
+  // MARK: The launch stand
+
+  private launchFrame(f: LiveFrame): void {
+    const flying = handOut(f.now);
+    // What's up, asked four times a second like the street's clock.
+    const st = this.launchSign;
+    if (f.now - st.at >= STREET_EVERY_MS) {
+      st.at = f.now;
+      const up = currentLaunches();
+      const stand = up.length ? standOf(up) : null;
+      const look = stand ? (stand.accent ?? "rainbow") : null;
+      if (look !== this.launchLook) {
+        this.launchLook = look;
+        const old = this.launchRoot.getObjectByName("launch-stand");
+        if (old) {
+          this.launchRoot.remove(old);
+          disposeObject(old);
+        }
+        if (stand) {
+          const model = launchStand(stand.accent);
+          model.name = "launch-stand";
+          mergeStill(model);
+          this.launchRoot.add(model);
+        }
+        this.launchRoot.visible = stand !== null;
+        this.presenter.root.visible = stand !== null;
+      }
+      st.sign = stand?.sign ?? "";
+      st.bg = stand?.accent ?? RAINBOW_SIGN;
+    }
+    if (!this.launchRoot.visible) {
+      this.hide("launch");
+      this.flyer.visible = false;
+      return;
+    }
+    // The presenter waves only while the stand is in the picture (the merchant's `near` is the other side of the square).
+    v3.set(this.launchAt[0], 1, this.launchAt[1]).project(f.camera);
+    if (Math.abs(v3.x) < 1.5 && Math.abs(v3.y) < 1.5) this.presenter.update(f.dt, f.t);
+    v3.set(this.launchAt[0], 2.05, this.launchAt[1]);
+    this.pill(
+      "launch",
+      "r3-sign",
+      st.sign,
+      v3,
+      f.camera,
+      () => hud.set({ panel: { kind: "pamphlet" } }),
+      st.bg,
+    );
+    // The pamphlet in the air: off the counter in an arc to whoever walked by.
+    this.flyer.visible = flying !== null;
+    if (flying) {
+      const [tx, tz] = this.toWorld(flying.x, flying.y);
+      const fx = this.launchAt[0];
+      const fz = this.launchAt[1] + 0.3;
+      const k = flying.t;
+      this.flyer.position.set(
+        fx + (tx - fx) * k,
+        0.95 + Math.sin(k * Math.PI) * 0.9 - k * 0.15,
+        fz + (tz - fz) * k,
+      );
+      this.flyer.rotation.set(0, k * 9, Math.sin(k * Math.PI) * 0.6);
+    }
   }
 
   // MARK: The race

@@ -52,6 +52,7 @@ import {
   sign,
   signHits,
 } from "./labels.ts";
+import { drawLaunch } from "./launch.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
@@ -315,6 +316,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
 
   drawGames(f);
   drawStreet(f);
+  drawLaunch(f);
   drawPicnic(f);
   drawChalkboards(f);
   drawTavern(f);

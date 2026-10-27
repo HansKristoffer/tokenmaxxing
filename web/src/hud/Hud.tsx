@@ -34,6 +34,7 @@ import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { DeskPanel } from "./OfficeDesks.tsx";
 import { DecorPanel, DirectoryPanel, OpenOfficesPanel } from "./Offices.tsx";
+import { PamphletPanel } from "./Pamphlet.tsx";
 import { PaperPanel } from "./Paper.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
@@ -344,6 +345,7 @@ function Panel() {
     jukebox: () => <Jukebox />,
     graphics: () => <GraphicsPanel />,
     paper: () => <PaperPanel />,
+    pamphlet: () => <PamphletPanel />,
     trophies: (p) => <Trophies userId={p.userId} name={p.name} />,
     raid: () => <RaidPanel />,
     openOffices: () => <OpenOfficesPanel />,
