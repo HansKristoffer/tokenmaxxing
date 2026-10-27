@@ -12,6 +12,7 @@ import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from 
 import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
+import { Pumpkins } from "./pumpkins3d.ts";
 import { TownEvents } from "./town-events.ts";
 import { buildTown3d, type Town3d } from "./town3d.ts";
 
@@ -84,6 +85,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   group.add(fireworks.group);
   const markers = new ExitMarkers(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(markers.group);
+  // Halloween's jack-o'-lanterns, on the doorsteps: hidden the rest of the year.
+  const pumpkins = new Pumpkins(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  group.add(pumpkins.group);
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
@@ -119,6 +123,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       showStars();
       fireworks.update();
       markers.update(f.me, f.t);
+      pumpkins.update(f.now);
       events.update(f);
     },
     onToss: (tx, ty) => events.toss(tx, ty),

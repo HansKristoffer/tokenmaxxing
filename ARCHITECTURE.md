@@ -1013,6 +1013,27 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
 "Today" is `Europe/Copenhagen` for everyone (`core/src/range.ts`); the Tavern's special is picked by that day too
 (`copenhagenDay`, `core/src/tavern.ts`).
 
+## Holidays
+
+`core/src/holidays.ts` is the town's calendar, pure and on the one clock like the street and the merchant: each
+holiday's date in a year (`HOLIDAYS`: Fastelavn from Easter, Sankt Hans, Halloween, J-dag on the first Friday of
+November, Juleaften, Nytårsaften) and `near(id, ms, before, after)`, whether the Copenhagen day `ms` is in is within a
+window round it (both ends included, across New Year too). Each feature keeps its own window; none needs server state.
+
+- **Halloween** (`core/src/halloween.ts`): from 7 days before to the day after (`PUMPKINS`), a pumpkin on the grass beside
+  the path below every door in town (the Tavern's `I`, each company's `D`, each shop's; to the left, since the paper lands
+  on the right) and three in a patch by the pond (`pumpkinSpots(map)`). They are scenery: nothing blocks on them. 2D:
+  `game/halloween.ts` draws them (`drawPumpkins`) and their candles' glow after the night tint (`lightPumpkins`); 3D:
+  `render3d/town/pumpkins3d.ts` (`Pumpkins`, in `room-town.ts`) builds them once per town, the bodies batched and every
+  face one mesh whose colour turns candlelit. Both ask `pumpkinsOutNow()` and `candlesLit()` (the street lamps'
+  `lightsNow`), on `skyNow()`, so `?sky=2026-10-31T21:00` shows them. `web/test/halloween.test.ts` checks that both
+  renderers put them on the same tiles.
+- **Costumes** (`core/src/costumes.ts`): hats sold only round their holiday (`ON_SALE`: 14 days before to 2 after), worn and
+  traded all year. Their look indices start at `COSTUME_BASE` (200), past the editions, and `parseLook` takes them like
+  editions; `Item.holiday` marks them. `buy` (`town/coins.ts`) refuses one out of season with `offSeason`; the Shop page
+  hides it then and tags it in season, and the 3D Clothes shop leaves it off the shelves (built once a page; `purchaseOf`
+  says `season` if a shelf outlived the window). 2D art is in `art/editions.ts` by id, the 3D hat in `HAT_BUILDERS` by name.
+
 ## Known limits
 
 These are deliberate, and marked `ponytail:` in the code:

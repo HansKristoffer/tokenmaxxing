@@ -1,4 +1,6 @@
+import { ON_SALE, onSale } from "@tokenmaxxing/core/costumes.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
+import { dateLabel, HOLIDAYS } from "@tokenmaxxing/core/holidays.ts";
 import { homePieceOf } from "@tokenmaxxing/core/home.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
@@ -116,53 +118,59 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
         <DeskGoods buy />
       ) : (
         <ul className="shop">
-          {ITEMS.filter((i) => i.slot === tab && !editionById(i.id) && !i.earned && !i.company).map(
-            (item) => {
-              const owned = wallet.owned.includes(item.id);
-              const wearing = isWorn(item, me.look);
-              const n = bag.find((b) => b.item === item.id)?.count ?? 0;
-              return (
-                <li
-                  key={item.id}
-                  className={`${wearing ? "wearing" : ""}${rarityClass(item)}`.trim() || undefined}
-                  title={lootLine(item) ?? undefined}
-                >
-                  <ItemImage item={item} look={me.look} />
-                  <span className="shop-item-name">
-                    {item.name}
-                    {n > 0 && <span className="muted"> ×{n}</span>}
+          {ITEMS.filter(
+            (i) => i.slot === tab && !editionById(i.id) && !i.earned && !i.company && onSale(i, Date.now()),
+          ).map((item) => {
+            const owned = wallet.owned.includes(item.id);
+            const wearing = isWorn(item, me.look);
+            const n = bag.find((b) => b.item === item.id)?.count ?? 0;
+            return (
+              <li
+                key={item.id}
+                className={`${wearing ? "wearing" : ""}${rarityClass(item)}`.trim() || undefined}
+                title={lootLine(item) ?? undefined}
+              >
+                <ItemImage item={item} look={me.look} />
+                <span className="shop-item-name">
+                  {item.name}
+                  {n > 0 && <span className="muted"> ×{n}</span>}
+                </span>
+                <ItemTag item={item} />
+                {item.loot && (
+                  <span className={`small rarity-text-${item.loot.rarity}`}>{lootLine(item)}</span>
+                )}
+                {item.holiday && (
+                  <span className="small">
+                    {HOLIDAYS[item.holiday].emoji} {HOLIDAYS[item.holiday].name} only, till{" "}
+                    {dateLabel(item.holiday, Date.now(), ON_SALE.after)}
                   </span>
-                  <ItemTag item={item} />
-                  {item.loot && (
-                    <span className={`small rarity-text-${item.loot.rarity}`}>{lootLine(item)}</span>
-                  )}
-                  {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
-                  {item.loot ? (
-                    !owned && (
-                      <button type="button" disabled>
-                        ⚔️ Raid drop
-                      </button>
-                    )
-                  ) : item.level !== undefined ? (
-                    !owned && (
-                      <button type="button" disabled>
-                        🔒 Lv {item.level}
-                      </button>
-                    )
-                  ) : (
-                    <button
-                      type="button"
-                      className="primary"
-                      disabled={wallet.balance < item.price}
-                      onClick={buy(item)}
-                    >
-                      🪙 {item.price}
+                )}
+                {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
+                {item.loot ? (
+                  !owned && (
+                    <button type="button" disabled>
+                      ⚔️ Raid drop
                     </button>
-                  )}
-                </li>
-              );
-            },
-          )}
+                  )
+                ) : item.level !== undefined ? (
+                  !owned && (
+                    <button type="button" disabled>
+                      🔒 Lv {item.level}
+                    </button>
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={wallet.balance < item.price}
+                    onClick={buy(item)}
+                  >
+                    🪙 {item.price}
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
       {error && <p className="error">{error}</p>}

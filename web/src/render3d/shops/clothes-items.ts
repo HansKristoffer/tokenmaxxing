@@ -4,6 +4,8 @@
  * (`gear3dHead.ts`, `gear3dBody.ts`, `merch3d.ts`). Plus the fitting-room hook `tryOn`.
  */
 
+import { onSale } from "@tokenmaxxing/core/costumes.ts";
+import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { type Model, ticks } from "../kit/kit.ts";
 import { Avatar, type Look } from "../people/avatar.ts";
 import { type Look2D, type LookOptions, lookFrom2D } from "../people/gear3d.ts";
@@ -217,7 +219,9 @@ function fromRow(r: ClothesRow): ShopItem {
 const bySale = (a: ClothesRow, b: ClothesRow) =>
   RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity) || a.price - b.price || a.index - b.index;
 
-const rows = (slot: ClothesRow["slot"]) => CLOTHES.filter((r) => r.slot === slot);
+/** A slot's rows, the holiday costumes only in their season (the shop is built once a page). */
+const rows = (slot: ClothesRow["slot"]) =>
+  CLOTHES.filter((r) => r.slot === slot && onSale(itemById(r.id) ?? {}, Date.now()));
 
 function freeOutfits(): ShopItem[] {
   return FREE_OUTFIT_NAMES.map((name, i) => {
