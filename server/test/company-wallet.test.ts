@@ -193,21 +193,21 @@ describe("merch", () => {
   const tee = itemById(merchId(1, "tee"))!;
 
   test("an item per company and kind; outsiders pay full price, employees the discount", () => {
-    expect(tee).toMatchObject({ slot: "merch", name: "Tee", price: 80, companyId: 1, tradeable: false });
+    expect(tee).toMatchObject({ slot: "merch", name: "Tee", price: 120, companyId: 1, tradeable: false });
     expect(itemById("merch.0.tee")).toBeUndefined();
     expect(itemById("merch.1.sock")).toBeUndefined();
-    expect(merchPrice("tee", false)).toBe(80);
-    expect(merchPrice("hoodie", true)).toBe(Math.round(160 * (1 - EMPLOYEE_MERCH_DISCOUNT)));
+    expect(merchPrice("tee", false)).toBe(120);
+    expect(merchPrice("hoodie", true)).toBe(Math.round(240 * (1 - EMPLOYEE_MERCH_DISCOUNT)));
     expect(EMPLOYEE_MERCH_DISCOUNT).toBe(1);
     expect(merchPrice("hoodie", true)).toBe(0);
   });
 
   test("what an outsider pays goes into the company wallet", async () => {
-    await usage(3, "2026-03-01", 3_025e6); // 55 coins, and 25 for the day's podium: 80
+    await usage(3, "2026-03-01", 9_025e6); // 95 coins, and 25 for the day's podium: 120
     await buyMerch(sql, 3, tee, NOW);
-    // All 80 went on the tee; what's left is the level the day reached.
-    expect((await wallet(sql, 3, NOW)).balance).toBe(levelUpCoins(levelFor(3_025e6)));
-    expect(await companyWallet(sql, 1)).toBe(80);
+    // All 120 went on the tee; what's left is the level the day reached.
+    expect((await wallet(sql, 3, NOW)).balance).toBe(levelUpCoins(levelFor(9_025e6)));
+    expect(await companyWallet(sql, 1)).toBe(120);
     await expect(buyMerch(sql, 3, tee, NOW)).rejects.toThrow("Not enough");
   });
 
