@@ -127,10 +127,17 @@ async function sh(cmd: string[]): Promise<{ ok: boolean; out: string }> {
 
 const gui = () => `gui/${process.getuid?.() ?? 0}`;
 
+/**
+ * `launchctl` and `systemctl --user` reach this user's real service whatever `HOME` is, so tests and
+ * runs from source set `TOKENMAXXING_NO_SERVICE=1` to keep their hands off it.
+ */
+const noService = () => process.env.TOKENMAXXING_NO_SERVICE === "1";
+
 type ServiceResult = { ok: true; note?: string } | { ok: false; why: string };
 
 /** Installs and starts the service. Where there's no service manager, says how to run it instead. */
 export async function installService(): Promise<ServiceResult> {
+  if (noService()) return { ok: false, why: "TOKENMAXXING_NO_SERVICE is set" };
   const program = runCommand();
   const env = serviceEnv();
   if (process.platform === "darwin") {
@@ -162,6 +169,7 @@ export async function installService(): Promise<ServiceResult> {
 
 /** Stops and removes the service. `running` false: called from the service itself, which exits next. */
 export async function uninstallService(running = true): Promise<void> {
+  if (noService()) return;
   if (process.platform === "darwin") {
     if (running) await sh(["launchctl", "bootout", `${gui()}/${LABEL}`]);
     await rm(launchAgentPath(), { force: true });
@@ -174,6 +182,7 @@ export async function uninstallService(running = true): Promise<void> {
 
 /** Whether the service is running, as the service manager sees it; null where there's none. */
 export async function serviceRunning(): Promise<boolean | null> {
+  if (noService()) return null;
   if (process.platform === "darwin") {
     const r = await sh(["launchctl", "print", `${gui()}/${LABEL}`]);
     return r.ok && /state = running/.test(r.out);

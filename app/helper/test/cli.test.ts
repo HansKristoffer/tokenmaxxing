@@ -13,6 +13,12 @@ beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), "tm-cli-"));
   await mkdir(join(dir, "claude", "projects", "p"), { recursive: true });
   await writeFile(join(dir, "claude", "projects", "p", "w1.jsonl"), line(`w1${Date.now()}`));
+  // Stand-ins that note any call, in case one slips past TOKENMAXXING_NO_SERVICE.
+  await mkdir(join(dir, "fakebin"));
+  for (const name of ["systemctl", "launchctl"])
+    await writeFile(join(dir, "fakebin", name), `#!/bin/sh\necho "$0 $*" >> "${dir}/service-calls"\n`, {
+      mode: 0o755,
+    });
 });
 
 /** One Claude Code assistant turn of 15 tokens, now. */
@@ -26,9 +32,11 @@ const line = (id: string) =>
 
 afterEach(() => rm(dir, { recursive: true, force: true }));
 
-/** This test's logs, config and home. */
+/** This test's logs, config and home, and never this computer's real service. */
 const env = () => ({
   ...process.env,
+  TOKENMAXXING_NO_SERVICE: "1",
+  PATH: `${join(dir, "fakebin")}:${process.env.PATH}`,
   HOME: join(dir, "home"),
   TOKENMAXXING_CLI_DIR: join(dir, "cli"),
   CLAUDE_CONFIG_DIR: join(dir, "claude"),
@@ -116,6 +124,8 @@ describe("tokenmaxxing CLI", () => {
     expect(r.code).toBe(0);
     expect(r.err).toContain("removed from the account; stopping");
     expect(existsSync(join(dir, "cli"))).toBe(false);
+    // The test's own run, not this computer's real service.
+    expect(existsSync(join(dir, "service-calls"))).toBe(false);
   });
 
   test("the server is required", async () => {
