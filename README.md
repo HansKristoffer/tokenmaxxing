@@ -55,7 +55,7 @@ today's tokens next to the ⚡. Choose **Open world** to step into town. The app
     <td>
       <img src="site/public/shots/tavern.webp" alt="The Tavern" /><br />
       <strong>🍺 The Tavern.</strong> A barkeep, a free daily special, daily quests, a Hall of Fame and a
-      basement net cafe full of arcade cabinets.
+      basement net cafe full of arcade cabinets. A lute-and-flute duo plays medieval chiptunes from 16:00.
     </td>
   </tr>
   <tr>
@@ -72,7 +72,8 @@ today's tokens next to the ⚡. Choose **Open world** to step into town. The app
   </tr>
 </table>
 
-**And more:** challenge anyone to a game in the square (rock-paper-scissors for founders, Liar's Dice,
+**And more:** fish the town pond for six catches, with a saved journal and personal bests. Challenge
+anyone to a game in the square (rock-paper-scissors for founders, Liar's Dice,
 a typing race, or **Tokenmaxxing**: who burns the most real tokens in an hour), fight the weekly raid
 bosses with your synced tokens, and visit a statue of whichever model leads LMArena. The town runs on
 Aarhus's real clock, sun, weather and seasons, and keeps the Danish holidays.

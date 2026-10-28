@@ -795,7 +795,7 @@ climbs it together (`core/src/raid.ts`).
   - The Rate Limit: Hourglass hat, 429 shades, Sand golem (pet), Golden Hourglass (trophy).
   - The Context Window: Pane glasses, Compacting… scarf, Goldfish (pet), Infinite Context Crown.
   - Merge Conflict: Two-tone suit, `<<<<<<< HEAD` band, Forked cat (pet), Golden Rebase (trophy).
-  - The Hallucination: Third eye, Shimmering cape, Ghost (pet), Citation Needed crown.
+  - The Hallucination: Third eye, Shimmering cape, Ghost (pet), Mirage Crown.
   - The Invoice: Fine-print specs, Pinstripe suit, Piggy bank (pet), Paid in Full crown.
 
   They're shop items in the existing slots (`ITEMS`, with `loot: { boss, rarity }`), each slot's after

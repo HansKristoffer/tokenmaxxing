@@ -185,7 +185,7 @@ const SNAPSHOT: readonly ClothesRow[] = [
     id: "hat.31",
     slot: "hat",
     index: 31,
-    name: "Citation Needed crown",
+    name: "Mirage Crown",
     price: 0,
     rarity: "legendary",
     boss: "hallucination",

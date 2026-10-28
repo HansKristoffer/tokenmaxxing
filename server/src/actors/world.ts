@@ -14,6 +14,16 @@ import {
 import { danceAt, danceId, isFree } from "@tokenmaxxing/core/dances.ts";
 import { type Barrel, barrelUp, HITS, isBarrel, WHACK_MS } from "@tokenmaxxing/core/fastelavn.ts";
 import {
+  CAST_COOLDOWN_MS,
+  type CastReply,
+  type FishingCast,
+  fishingPhase,
+  fishingWater,
+  newCast,
+  type ReelReply,
+  rollCatch,
+} from "@tokenmaxxing/core/fishing.ts";
+import {
   findSpot,
   propTiles,
   type Seat,
@@ -102,7 +112,7 @@ import { rouletteSpots, rouletteTable, spotAt } from "@tokenmaxxing/core/roulett
 import { isBonfire } from "@tokenmaxxing/core/sankthans.ts";
 import { canDropIn, itemById } from "@tokenmaxxing/core/shop.ts";
 import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
-import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
+import { iceOver, sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { milestoneLine, NO_STARS, readStars, type Stars, type StarsState } from "@tokenmaxxing/core/stars.ts";
 import {
   afterRead,
@@ -403,6 +413,8 @@ export const world = actor({
     petPlays: new Map<number, Partial<Record<PetAct, number>>>(),
     /** When each player last tossed a coin in the fountain, so a held key can't flood the ledger. */
     tosses: new Map<number, number>(),
+    fishing: new Map<number, FishingCast>(),
+    fishingStarts: new Map<number, number>(),
     /** When each player last whacked the fastelavn barrel, and the barrel as `town` last said (null off the day). */
     whacks: new Map<number, number>(),
     barrel: null as Barrel | null,
@@ -525,6 +537,7 @@ export const world = actor({
     const left = (c.vars.online.get(s.userId) ?? 1) - 1;
     if (left > 0) return void c.vars.online.set(s.userId, left);
     c.vars.online.delete(s.userId);
+    c.vars.fishing.delete(s.userId);
     const p = c.state.players[s.userId];
     if (!p) return;
     pokerStandUp(c, p.id);
@@ -658,6 +671,7 @@ export const world = actor({
       if (budget === null) return correction(p);
       c.vars.steps.set(userId, { budget, at: now });
 
+      c.vars.fishing.delete(userId);
       const wasSeated = p.state !== "idle";
       p.facing = rawDir;
       p.state = "idle";
@@ -922,6 +936,60 @@ export const world = actor({
       return {
         notice: `${specialOn(new Date(now))}. On the house. ${how} for ${SPECIAL.ms / 60_000} minutes.`,
       };
+    },
+
+    fishingCast: (c, facing: unknown): CastReply => {
+      const p = free(c);
+      if (p?.room !== "town" || p.state !== "idle" || !isFacing(facing))
+        return { ok: false, message: "Stand by the pond and face the water to fish." };
+      const water = fishingWater(mapOf(p.room), p.x, p.y, facing);
+      if (!water) return { ok: false, message: "Stand by the pond and face the water to fish." };
+      if (iceOver(c.vars.weather))
+        return { ok: false, message: "The pond is frozen. Come back when it thaws." };
+      const now = Date.now();
+      const pending = c.vars.fishing.get(p.id);
+      if (pending && now < pending.endsAt) return { ok: true, cast: pending, now };
+      if (now - (c.vars.fishingStarts.get(p.id) ?? 0) < CAST_COOLDOWN_MS)
+        return { ok: false, message: "Give the pond a moment before casting again." };
+      touch(c, p, now);
+      p.facing = facing;
+      c.vars.dirty.add(p.id);
+      const cast = newCast(p.x, p.y, water, now);
+      c.vars.fishing.set(p.id, cast);
+      c.vars.fishingStarts.set(p.id, now);
+      return { ok: true, cast, now };
+    },
+
+    fishingReel: async (c): Promise<ReelReply> => {
+      const p = free(c);
+      const cast = p && c.vars.fishing.get(p.id);
+      if (!p || !cast) return { ok: false, message: "Cast a line first." };
+      // Consume before awaiting the journal write: two tabs cannot claim the same fish.
+      c.vars.fishing.delete(p.id);
+      const now = Date.now();
+      if (
+        p.room !== "town" ||
+        p.state !== "idle" ||
+        p.x !== cast.x ||
+        p.y !== cast.y ||
+        iceOver(c.vars.weather)
+      )
+        return { ok: false, message: "Your line came loose. Cast again from the bank." };
+      touch(c, p, now);
+      const phase = fishingPhase(cast, now);
+      if (phase !== "bite")
+        return {
+          ok: false,
+          message:
+            phase === "waiting" ? "Too soon! Wait for the bobber to dip." : "It got away! Try another cast.",
+        };
+      const caught = rollCatch();
+      const journal = await main(c.client()).town.recordFish(p.id, caught);
+      return { ok: true, catch: caught, journal };
+    },
+
+    fishingCancel: (c): void => {
+      c.vars.fishing.delete(requireUser(c.conn.state));
     },
 
     /** The Tavern's jukebox: put a track on, if nothing plays and you've waited out your minute. */
@@ -1510,6 +1578,8 @@ export const world = actor({
         c.vars.jumps,
         c.vars.petPlays,
         c.vars.tosses,
+        c.vars.fishing,
+        c.vars.fishingStarts,
         c.vars.whacks,
       ])
         vars.delete(userId);

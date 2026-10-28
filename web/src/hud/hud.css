@@ -4065,3 +4065,75 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
     bottom: 240px;
   }
 }
+
+/* A borrowed rod and a small pond, usable by pointer, keyboard and touch. */
+.fishing-scene {
+  position: relative;
+  height: 112px;
+  margin: 16px 0;
+  overflow: hidden;
+  border: 2px solid #4b6972;
+  background: repeating-linear-gradient(0deg, #467e91 0 12px, #508b9c 12px 14px);
+}
+.fishing-reeds {
+  position: absolute;
+  left: 14px;
+  bottom: 0;
+  font-size: 44px;
+}
+.fishing-bobber {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 9px;
+  height: 15px;
+  background: linear-gradient(#db655f 45%, #fff0d1 45%);
+  border: 2px solid #2b3548;
+  opacity: 0;
+}
+.fishing-bobber.cast {
+  opacity: 1;
+  animation: fishing-bob 1.5s ease-in-out infinite;
+}
+.biting .fishing-bobber {
+  animation: fishing-bob 0.2s ease-in-out infinite;
+}
+.fishing-catch {
+  position: absolute;
+  right: 22px;
+  bottom: 14px;
+  font-size: 30px;
+}
+.fishing-timer {
+  display: block;
+  width: 100%;
+  height: 14px;
+  margin-bottom: 12px;
+  accent-color: #8db56b;
+}
+.fishing-journal {
+  list-style: none;
+  padding: 0;
+}
+.fishing-journal li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, #66566d);
+}
+@keyframes fishing-bob {
+  50% {
+    transform: translateY(5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fishing-bobber.cast,
+  .biting .fishing-bobber {
+    animation: none;
+  }
+  .biting .fishing-bobber {
+    outline: 3px solid #ffe9a8;
+  }
+}

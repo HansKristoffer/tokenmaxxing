@@ -67,6 +67,7 @@ export type Panel =
   | { kind: "collection" }
   | { kind: "regulars" }
   | { kind: "jukebox" }
+  | { kind: "fishing" }
   | { kind: "graphics" }
   | { kind: "menu" }
   | { kind: "changelog" }

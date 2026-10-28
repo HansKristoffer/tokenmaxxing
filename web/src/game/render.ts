@@ -53,6 +53,7 @@ import { battlers, type Dance2D, dance2D, danceOf, rgbOf } from "./dance.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { drawBarrel } from "./fastelavn.ts";
 import { drawFireworks } from "./fireworks.ts";
+import { drawFishing } from "./fishing.ts";
 import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
@@ -398,6 +399,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawTavern(f);
   drawKeynote(f);
   drawTownAnimals(f);
+  drawFishing(f);
   drawBasement(f);
   drawMerchant(f);
   drawMarket(f);

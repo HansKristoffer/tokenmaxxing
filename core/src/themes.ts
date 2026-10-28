@@ -1,3 +1,4 @@
+import { tavernSet } from "./tavern-band.ts";
 import type { Tune } from "./tunes.ts";
 import type { RoomId } from "./world.ts";
 
@@ -9,7 +10,7 @@ import type { RoomId } from "./world.ts";
 /** Steps in one loop of every theme: an A part and a B part. */
 export const THEME_STEPS = 64;
 
-export type ThemeId = "town" | "company" | "office" | "tavern" | "raid";
+export type ThemeId = "town" | "company" | "office" | "tavern" | "hearth-jig" | "lantern-reel" | "raid";
 
 export interface Theme extends Tune {
   id: ThemeId;
@@ -57,6 +58,26 @@ export const THEMES: readonly Theme[] = [
     drums: "k.h.s.h. | k.h.s.h. | k.h.s.h. | k.h.s.hs | k.h.s.h. | k.h.s.h. | k.h.s.h. | k.hks.hs",
   },
   {
+    id: "hearth-jig",
+    name: "Hearthside Jig",
+    emoji: "🪕",
+    bpm: 126,
+    wave: "square",
+    lead: "d5 e5 f5 a5 f5 e5 d5 _ | c5 d5 e5 g5 e5 d5 c5 _ | d5 f5 a5 d6 c6 a5 f5 e5 | d5 _ a4 _ d5 _ . . | f5 g5 a5 c6 a5 g5 f5 _ | e5 f5 g5 bb5 g5 f5 e5 _ | d5 f5 a5 d6 c6 a5 g5 e5 | f5 e5 d5 c5 d5 _ _ _",
+    bass: "d3 . a3 . d3 . a3 . | c3 . g3 . c3 . g3 . | bb2 . f3 . bb2 . f3 . | d3 . a2 . d3 . a2 . | f3 . c3 . f3 . c3 . | c3 . g2 . c3 . g2 . | bb2 . f3 . a2 . e3 . | d3 . a2 . d3 _ . .",
+    drums: "k..h..h. | k..h..h. | k..h..h. | k..h..h. | k..h..h. | k..h..h. | k..h..h. | k..h..h.",
+  },
+  {
+    id: "lantern-reel",
+    name: "Lantern & Lute",
+    emoji: "🕯️",
+    bpm: 108,
+    wave: "triangle",
+    lead: "e5 _ g5 a5 b5 _ a5 g5 | d5 _ f#5 g5 a5 _ g5 f#5 | e5 g5 b5 e6 d6 b5 a5 g5 | f#5 _ d5 _ e5 _ . . | b5 a5 g5 e5 g5 a5 b5 _ | a5 g5 f#5 d5 f#5 g5 a5 _ | g5 e5 g5 b5 a5 f#5 d5 f#5 | e5 _ b4 _ e5 _ _ _",
+    bass: "e3 _ b2 _ e3 _ b2 _ | d3 _ a2 _ d3 _ a2 _ | c3 _ g2 _ c3 _ g2 _ | d3 _ a2 _ e3 _ b2 _ | e3 _ b2 _ e3 _ b2 _ | d3 _ a2 _ d3 _ a2 _ | c3 _ g2 _ d3 _ a2 _ | e3 _ b2 _ e3 _ . .",
+    drums: "k....... | ....h... | k....... | ....h... | k....... | ....h... | k....... | ....h...",
+  },
+  {
     id: "raid",
     name: "Boss Fight.exe",
     emoji: "👹",
@@ -68,8 +89,10 @@ export const THEMES: readonly Theme[] = [
   },
 ];
 
-/** The theme for a room: houses are the company's, offices the desk, the Tavern's three floors one. */
-export function themeOf(room: RoomId): Theme {
+/** Room themes; the Tavern floor switches to the live folk set after 16:00. */
+export function themeOf(room: RoomId, at = Date.now()): Theme {
+  const set = room === "inn" ? tavernSet(at) : null;
+  if (set) return THEMES.find((t) => t.id === set)!;
   const id: ThemeId =
     room === "town"
       ? "town"

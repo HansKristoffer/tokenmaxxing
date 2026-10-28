@@ -51,6 +51,7 @@ import { blocksBonfire, bonfireInteract } from "./sankthans.ts";
 import { pickTile } from "./stage.ts";
 import { statueText } from "./statue.ts";
 import { blocksStep, streetInteract } from "./street.ts";
+import { bandInteract } from "./tavern-band.ts";
 import { interactAnimal, interactTownProp } from "./town-life.ts";
 import { openTrophies } from "./trophies.ts";
 import { type Turning, turnStep } from "./turn.ts";
@@ -228,7 +229,7 @@ export function bindInput(canvas: HTMLElement): void {
     const { x, y } = tile;
     const other = avatarAt(x, y);
     if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
-    if (interactAnimal(x, y) || interactTownProp(x, y)) return;
+    if (interactAnimal(x, y) || interactTownProp(x, y) || bandInteract(x, y)) return;
     // My own pet, or me (it's always beside me): the pet menu.
     if (hud.get().me?.look.pet && (isMyPetAt(x, y) || avatarIsMe(x, y)))
       return void hud.set({ petMenu: true });
@@ -564,7 +565,7 @@ function interact(): void {
   if (seated()) return void standUp();
   const other = avatarAt(x, y);
   if (other) return void hud.set({ panel: { kind: "card", userId: other.info.id } });
-  if (interactAnimal(x, y) || interactTownProp(x, y)) return;
+  if (interactAnimal(x, y) || interactTownProp(x, y) || bandInteract(x, y)) return;
   // E on your own clone (or its laptop) in the raid dungeon takes your seat; others' seats are not yours.
   if (world.room === "dungeon" && sit(x, y)) return;
   if (streetInteract(me, x, y, send)) return;
@@ -578,6 +579,7 @@ function interact(): void {
   if (merchantAt(x, y)) return void openCart();
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
+  if (world.room === "town" && ch === "~") return void hud.set({ panel: { kind: "fishing" } });
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
   if (ch === STAR_COUNTER) return void hud.set({ panel: { kind: "stars" } });
   if (kind.roulette || world.map.kind(me.x, me.y).roulette) {
