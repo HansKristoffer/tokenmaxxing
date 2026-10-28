@@ -309,7 +309,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 - Only days from the world day you signed up count, for pay and for podium places: a first sync backfills
   old logs, and those days would otherwise pay out (and win podiums nobody else was around for).
 - Balances aren't stored: they're worked out from `usage_daily` minus `purchases`, so a late sync still pays.
-- Three daily quests and a weekly one (`core/src/quests.ts`) pay up to 6 more a day and 15 a week. They're worked out
+- Three daily quests and a weekly one (`core/src/quests.ts`) pay up to 30 more a day and 75 a week (a fifth of that before 29 Oct, and the weekly before the week of 2 Nov). They're worked out
   from the day's rollups and the days' frozen picks, so no coin is stored; see *Quests*. Days before `LEGACY_FROM` keep the
   old rule (5 agents at once: 5, 2 hours of agents running: 2).
 - **Green hours** (`core/src/grid.ts`, `server/src/town/grid.ts`): `world` reads price area DK1 from Energi
@@ -545,13 +545,13 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
 ## Quests
 
 Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/town/quests.ts`).
-- **The pool** (`POOL`, 13). Tier 1 pays 1 coin: use tokens (`warm`), send prompts, keep agents running; and four
+- **The pool** (`POOL`, 13). Tier 1 pays 5 coins: use tokens (`warm`), send prompts, keep agents running; and four
   in-town ones: coffee at the Tavern (counted in the `inn` room only), sit on a bench, read the morning paper, toss a
-  coin in the fountain. Tier 2, 2 coins: agents at once, ship PRs (only if their baseline has PRs), two models (only
-  if they've used two on a day), finish an arcade game. Tier 3, 3 coins: a long run of agents, a swarm.
+  coin in the fountain. Tier 2, 10 coins: agents at once, ship PRs (only if their baseline has PRs), two models (only
+  if they've used two on a day), finish an arcade game. Tier 3, 15 coins: a long run of agents, a swarm.
 - **Dealing** (`dailyQuests`): seeded by the Copenhagen day (`quests:<day>`), so the same day and baseline give the
   same three. Tier 1 is an in-town quest 30% of the time (only tier 1 has any, so at most one a day), and none of
-  yesterday's ids repeat unless nothing else is left. A day pays at most 6.
+  yesterday's ids repeat unless nothing else is left. A day pays at most 30.
 - **Targets** scale to the player: `baselineOf` takes medians over their active days (tokens, a prompt, or an
   agent running) in the 30 days before today, and with fewer than 3 (`MIN_BASELINE_DAYS`) the targets are the floors.
   Each has a floor and a cap (`warm` 2M to 25M tokens, prompts 10 to 150, agents at once 2 to 6, a swarm 4 to 8, PRs
