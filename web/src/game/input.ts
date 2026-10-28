@@ -599,9 +599,10 @@ function interact(): void {
       }),
     );
   if (kind.serves) return void send(conn.tavern(me.facing));
-  // The Tavern's boards: the bar and the quest board give out quests, the wall is the Hall of Fame.
+  // The Tavern's boards: the barkeep takes orders at the bar, the quest board gives out quests, the wall is the Hall of Fame.
   if (world.room === "inn") {
-    if (ch === "a" || ch === "m") return void hud.set({ panel: { kind: "quests" } });
+    if (kind.orders) return void hud.set({ panel: { kind: "bar" } });
+    if (ch === "m") return void hud.set({ panel: { kind: "quests" } });
     if (ch === "A") return void hud.set({ panel: { kind: "hallOfFame" } });
     if (ch === "P" || ch === "J") return void hud.set({ panel: { kind: "regulars" } });
     if (ch === "z") return void hud.set({ panel: { kind: "jukebox" } });

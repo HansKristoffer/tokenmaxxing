@@ -46,6 +46,8 @@ interface TileKind {
   pours?: true;
   /** E while facing it serves the day's special (`tavern`, the Tavern's tap). */
   serves?: true;
+  /** The barkeep takes your order across it (the Tavern's bar): a coffee (`drink`) or the special (`tavern`). */
+  orders?: true;
   /** E while facing it tosses a coin in (`toss`): the square's fountain, the Tavern's tip jar. */
   tosses?: true;
   /** A shop's display: E while facing it opens the Shop page on the matching tab (`displayTab`). */
@@ -91,9 +93,9 @@ export const LEGEND: Record<string, TileKind> = {
     text: "🌱 Touched grass. A patch from an outage picnic: the agents stopped, and you went outside.",
   },
   o: { name: "coffee", pours: true },
-  // The Tavern (`inn`): E on the bar or quest board opens the quests, on the wall the Hall of Fame, on a
-  // plaque the regulars; the tap serves the day's special.
-  a: { name: "bar", text: "A long oak bar, polished by years of elbows." },
+  // The Tavern (`inn`): E on the bar orders from the barkeep, on the quest board opens the quests, on the wall
+  // the Hall of Fame, on a plaque the regulars; the tap serves the day's special.
+  a: { name: "bar", orders: true, text: "A long oak bar, polished by years of elbows." },
   y: { name: "beer tap", serves: true },
   v: { name: "stool", seat: "chair", text: "A bar stool. Round, red and a little wobbly." },
   n: { name: "table", text: 'A sturdy table. Someone carved "TODO" into it.' },

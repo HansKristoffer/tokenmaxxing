@@ -421,7 +421,8 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   quests keep their old rule (`paidFrom` becomes "never", `freezeDays` and `questEvent` do nothing). Tables and
   columns stay. The Hall of Fame, badges and the card aren't behind it.
 - **Tiles** (`LEGEND`; E acts on the one you face, `interact` in `web/src/game/input.ts`):
-  - `m` quest board and the bar `a`: the quests panel. `J` the bar tab on the west wall and `P` a plaque: the regulars. `A` the wall: the Hall of Fame.
+  - `m` quest board: the quests panel. The bar `a` (`orders`): the barkeep takes your order (`hud/Bar.tsx`), a coffee
+    (`drink`) or the day's special (`tavern`), both free as at the machine and the tap, or the quests panel. `J` the bar tab on the west wall and `P` a plaque: the regulars. `A` the wall: the Hall of Fame.
     `K` chalkboard: a dialog with today's special. `◷` the world clocks: a dialog with the time in each city and the launch window. `$` the tip jar on the bar (`tosses`, like the fountain): a coin in. `O` coat stands by the door.
   - `y` the tap (`serves`): the `tavern` action. `o` the coffee machine, as everywhere.
   - `v` a stool: sits (a `chair`-kind seat). `b` the dorm's beds.
@@ -573,7 +574,7 @@ Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/to
   It pays 15 coins (`WEEKLY_COINS`) and is worked out from the week's days like the dailies.
 - **The fountain toss** is the one sink: `tossCoin` needs 1 coin and writes a ledger row (kind `fountain`, ref
   `fountain:<day>:<n>`, -1), then counts. A toss costs a coin, and pays one back only on a day it's the quest.
-- **In the game:** the quests panel (E on the bar or board, `web/src/hud/Quests.tsx`), three pips by the coin counter
+- **In the game:** the quests panel (E on the board, or from the bar's order panel, `web/src/hud/Quests.tsx`), three pips by the coin counter
   (`wallet.quests`), and the toast for a finished quest opens the panel.
 
 ## Badges and the Hall of Fame
