@@ -458,7 +458,7 @@ export interface Hq {
   tile: (x: number, y: number) => [number, number];
 }
 
-const flatBig: Asset = { id: "rug", name: "Rug", price: 10, w: 6, d: 3, build: persianRug(6, 3) };
+const flatBig: Asset = { id: "rug", name: "Rug", price: 15, w: 6, d: 3, build: persianRug(6, 3) };
 
 /** The 2D `hq` floor as a `Room`. Room tile (x, z) is map tile (x + 1, y + 2): the walls are the room's own. */
 export function buildHq(opts: HqOptions = {}): Hq {

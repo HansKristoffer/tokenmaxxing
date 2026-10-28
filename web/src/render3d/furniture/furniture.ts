@@ -759,15 +759,15 @@ const neonSign = (): Model => {
 };
 
 export const ASSETS: readonly Asset[] = [
-  { id: "rug", name: "Rug", price: 10, w: 3, d: 2, build: rug },
-  { id: "plant", name: "Plant", price: 20, w: 1, d: 1, build: plant },
-  { id: "lamp", name: "Lamp", price: 25, w: 1, d: 1, build: lamp },
-  { id: "chair", name: "Chair", price: 30, w: 1, d: 1, build: chair, seat: { at: [0, 0.35, 0.02], turn: 0 } },
-  { id: "shelf", name: "Shelf", price: 40, w: 1, d: 1, build: shelf },
-  { id: "bench", name: "Bench", price: 40, w: 1, d: 1, build: bench, seat: { at: [0, 0.33, 0], turn: 0 } },
-  { id: "desk", name: "Desk", price: 50, w: 2, d: 1, build: desk(1) },
-  { id: "coffee", name: "Coffee machine", price: 60, w: 1, d: 1, build: coffee },
-  { id: "bed", name: "Bed", price: 80, w: 1, d: 2, build: bed(), bed: [0, 0.3, -0.15] },
+  { id: "rug", name: "Rug", price: 15, w: 3, d: 2, build: rug },
+  { id: "plant", name: "Plant", price: 30, w: 1, d: 1, build: plant },
+  { id: "lamp", name: "Lamp", price: 40, w: 1, d: 1, build: lamp },
+  { id: "chair", name: "Chair", price: 45, w: 1, d: 1, build: chair, seat: { at: [0, 0.35, 0.02], turn: 0 } },
+  { id: "shelf", name: "Shelf", price: 60, w: 1, d: 1, build: shelf },
+  { id: "bench", name: "Bench", price: 60, w: 1, d: 1, build: bench, seat: { at: [0, 0.33, 0], turn: 0 } },
+  { id: "desk", name: "Desk", price: 75, w: 2, d: 1, build: desk(1) },
+  { id: "coffee", name: "Coffee machine", price: 90, w: 1, d: 1, build: coffee },
+  { id: "bed", name: "Bed", price: 120, w: 1, d: 2, build: bed(), bed: [0, 0.3, -0.15] },
   {
     id: "sofa",
     name: "Sofa",
@@ -777,7 +777,7 @@ export const ASSETS: readonly Asset[] = [
     build: sofa(),
     seat: { at: [-0.4, 0.38, 0.05], turn: 0 },
   },
-  { id: "tv", name: "TV", price: 120, w: 2, d: 1, build: tv },
+  { id: "tv", name: "TV", price: 180, w: 2, d: 1, build: tv },
   {
     id: "beanbag",
     name: "Beanbag",

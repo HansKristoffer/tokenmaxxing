@@ -11,12 +11,12 @@ import { light } from "./furniture.ts";
 /** Snapshot of `DESKS` in core/src/desks.ts. `price` is the personal one, `fleet` the company wallet's step. */
 export const DESK_TIERS = [
   { id: "laptop", name: "Laptop", price: 0, fleet: 0, blurb: "One screen, covered in stickers." },
-  { id: "dual", name: "Dual monitors", price: 40, fleet: 300, blurb: "Code on one, docs on the other." },
-  { id: "triple", name: "Triple monitors", price: 120, fleet: 700, blurb: "Agents, logs and a dashboard." },
+  { id: "dual", name: "Dual monitors", price: 60, fleet: 300, blurb: "Code on one, docs on the other." },
+  { id: "triple", name: "Triple monitors", price: 180, fleet: 700, blurb: "Agents, logs and a dashboard." },
   {
     id: "ultrawide",
     name: "Ultrawide",
-    price: 300,
+    price: 450,
     fleet: 1400,
     level: 25,
     blurb: "One long curved screen, edge to edge.",
@@ -24,7 +24,7 @@ export const DESK_TIERS = [
   {
     id: "battlestation",
     name: "Battlestation",
-    price: 600,
+    price: 900,
     fleet: 2500,
     level: 40,
     blurb: "Three screens, a glowing tower and RGB everywhere.",
