@@ -1,5 +1,5 @@
 /**
- * Daily quests: three a day, one per tier (1, 2 and 3 coins), drawn from a pool and seeded by the world
+ * Daily quests: three a day, one per tier (5, 10 and 15 coins), drawn from a pool and seeded by the world
  * day, with targets scaled to the player's own 30-day median (floors and caps keep light players
  * on easy ones and whales from farming). Plus one weekly quest. Nothing but the picks and the in-town
  * counters is stored: a quest is done when the day's rollups pass its target, so a late sync still pays.
@@ -236,8 +236,16 @@ export const POOL: readonly QuestDef[] = [
 
 const byId = new Map(POOL.map((q) => [q.id, q]));
 
-/** Coins a quest pays: its tier. */
-export const coinsOf = (tier: Tier): number => tier;
+/** The first world day a daily quest pays `QUEST_MULT` times its tier; the days before keep paying the tier. */
+export const QUEST_MULT_FROM = "2026-10-29";
+/** The first week (its Monday) whose weekly quest pays `QUEST_MULT` times `WEEKLY_BASE_COINS`. */
+export const WEEKLY_MULT_FROM = "2026-11-02";
+/** Quests pay five times what they did, to keep up with the coins everything else now earns and costs. */
+export const QUEST_MULT = 5;
+
+/** Coins a quest pays: its tier, times `QUEST_MULT` from `QUEST_MULT_FROM`; no `day` is today's rate. */
+export const coinsOf = (tier: Tier, day?: string): number =>
+  day !== undefined && day < QUEST_MULT_FROM ? tier : tier * QUEST_MULT;
 
 /** A quest as it's stored for a day: which, and the target it was given. */
 export interface DayQuest {
@@ -289,14 +297,14 @@ export interface Progress {
 }
 
 /** How far a stored quest is, with its text and pay. An id the pool no longer has reads as undone. */
-export function questProgress(q: DayQuest, f: DayFacts, c: Counts): Progress {
+export function questProgress(q: DayQuest, f: DayFacts, c: Counts, day?: string): Progress {
   const def = byId.get(q.id);
   if (!def) return { id: q.id, text: q.id, coins: 0, value: 0, target: q.target, done: false, town: false };
   const value = def.value(f, c);
   return {
     id: q.id,
     text: def.text(q.target),
-    coins: coinsOf(def.tier),
+    coins: coinsOf(def.tier, day),
     value: Math.min(value, q.target),
     target: q.target,
     done: value >= q.target,
@@ -305,9 +313,9 @@ export function questProgress(q: DayQuest, f: DayFacts, c: Counts): Progress {
 }
 
 /** Coins a day paid: the sum over the quests that are done. */
-export const questCoins = (qs: readonly DayQuest[], f: DayFacts, c: Counts): number =>
+export const questCoins = (qs: readonly DayQuest[], f: DayFacts, c: Counts, day?: string): number =>
   sumBy(qs, (q) => {
-    const p = questProgress(q, f, c);
+    const p = questProgress(q, f, c, day);
     return p.done ? p.coins : 0;
   });
 
@@ -317,8 +325,13 @@ export const legacyQuestCoins = (f: Pick<DayFacts, "peakAgents" | "activeBuckets
 
 // MARK: Weekly
 
+/** What the weekly quest paid before `WEEKLY_MULT_FROM`. */
+const WEEKLY_BASE_COINS = 15;
 /** What the weekly quest pays: coins only. */
-export const WEEKLY_COINS = 15;
+export const WEEKLY_COINS = WEEKLY_BASE_COINS * QUEST_MULT;
+/** What the week starting `week` pays; no `week` is the current rate. */
+export const weeklyCoins = (week?: string): number =>
+  week !== undefined && week < WEEKLY_MULT_FROM ? WEEKLY_BASE_COINS : WEEKLY_COINS;
 
 /** One world day, as the weekly counts it. */
 export interface DayTally {
@@ -367,7 +380,7 @@ export function weeklyProgress(week: string, days: DayTally[]): WeeklyProgress {
     week,
     id: w.id,
     text: w.text(w.target),
-    coins: WEEKLY_COINS,
+    coins: weeklyCoins(week),
     value: Math.min(value, w.target),
     target: w.target,
     done: value >= w.target,

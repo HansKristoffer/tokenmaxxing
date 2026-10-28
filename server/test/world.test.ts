@@ -150,7 +150,7 @@ describe("world", () => {
   });
 
   test("dances: the free ones for all, bought ones once learned, on until you stop or walk off", async () => {
-    const a = await rich("dancer", 200);
+    const a = await rich("dancer", 260);
     const b = await signUp("watcher");
     const { conn, events } = await connect(a.token);
     const other = await connect(b.token);
