@@ -854,10 +854,54 @@ export const HAT_BUILDERS: Record<string, Build> = {
     for (const s of [-1, 1])
       knot.box([0.035, 0.16, 0.012], "#b8443f", [s * 0.03, -0.15, -0.02], 0.004).rotation.z = s * 0.2;
   },
-  "Citation Needed crown": (m) => {
-    spikes(m, { base: "#e8eef5", tip: "#9aa7b8", n: 5, h: 0.1, r: 0.235, y: 0.16 });
-    band(m, "#9aa7b8", 0.24, 0.012, 0.17);
-    sign(m, 0.1, 0.06, (g, w, h) => letters(g, "[?]", w / 2, h / 2, h * 1.1, "#3366cc"), [0, 0.2, 0.245], 80);
+  "Mirage Crown": (m, c) => {
+    // Clear the voxel character's taller hair, as with the other raid crowns.
+    const up = isVox(m) ? 0.1 : 0;
+    const violet = "#9b6fd6",
+      pale = "#d9c2f5",
+      dark = "#4a2a73",
+      gold = "#ffd35c";
+    band(m, dark, 0.245, 0.065, 0.16 + up);
+    band(m, gold, 0.25, 0.016, 0.16 + up);
+    band(m, gold, 0.25, 0.012, 0.22 + up);
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      const [x, z] = roundAt(m, a, 0.24);
+      const h = i === 0 ? 0.21 : 0.13 + (i % 2) * 0.045;
+      m.cyl(0.045, h, violet, [x, 0.215 + up, z], 0.006, 5);
+      m.ball(0.018, gold, [x, 0.215 + up + h, z], [1, 1, 1], 6);
+    }
+    // The boss's lavender swirl wraps the band; its two eyes watch from the front.
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      const [x, z] = roundAt(m, a, 0.253);
+      m.box([0.038, 0.018, 0.038], pale, [x, 0.178 + up + (i % 3) * 0.014, z], 0);
+    }
+    for (const x of [-0.085, 0.085]) {
+      m.box([0.07, 0.05, 0.025], "#fffdf6", [x, 0.18 + up, 0.255], 0);
+      m.box([0.025, 0.03, 0.012], dark, [x, 0.19 + up, 0.273], 0);
+    }
+    // The boss's golden sparkles orbit a luminous crest.
+    const starGlow = lit(gold);
+    const starlight = lit("#fffdf6");
+    const crest = m.part([0, 0.31 + up, 0.27]);
+    crest.name = "mirage-crest";
+    shaped(crest, "mirage-star", star(0.09, 4, 0.33), 0.025, starGlow, [0, 0, 0]);
+    shaped(crest, "mirage-core", star(0.038, 4, 0.35), 0.03, starlight, [0, 0, 0.02]);
+    const orbit = m.part([0, 0.4 + up, 0]);
+    orbit.name = "mirage-orbit";
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI) / 2;
+      const sparkle = orbit.part([Math.sin(angle) * 0.34, (i % 2) * 0.055, Math.cos(angle) * 0.34]);
+      sparkle.box([0.025, 0.07, 0.025], starGlow);
+      sparkle.box([0.07, 0.025, 0.025], i % 2 ? starGlow : starlight, [0, 0.022, 0]);
+      sparkle.userData.noBlock = true;
+    }
+    c.tick((t) => {
+      orbit.rotation.y = t * 0.65;
+      orbit.position.y = 0.4 + up + Math.sin(t * 1.8) * 0.018;
+      crest.scale.setScalar(1 + Math.sin(t * 2.5) * 0.08);
+    });
   },
   "Paid in Full crown": (m) => {
     // The blocky head's hair stands higher than the round head these builders are drawn for: lift the crown clear of it.

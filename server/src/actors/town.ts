@@ -10,6 +10,7 @@ import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import type { Gift } from "@tokenmaxxing/core/december.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
 import type { Barrel } from "@tokenmaxxing/core/fastelavn.ts";
+import type { FishCatch, FishingEntry } from "@tokenmaxxing/core/fishing.ts";
 import { clockAt, dateAt, type Keynote } from "@tokenmaxxing/core/keynote.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
@@ -156,6 +157,7 @@ import {
 } from "../town/companies.ts";
 import { buyDesk, buyDeskFleet, type MyDesk, myDesk, setDesk } from "../town/desks.ts";
 import { barrel, type Whack, whack } from "../town/fastelavn.ts";
+import { fishingJournal, recordFish } from "../town/fishing.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { recordGreen } from "../town/grid.ts";
 import { type HallOfFame, hallOfFame } from "../town/hall.ts";
@@ -1038,6 +1040,14 @@ export const town = actor({
     barrel: (c): Promise<Barrel> => {
       requireInternal(c.conn.state);
       return barrel(c.db, Date.now());
+    },
+
+    /** Your catch-and-release journal, shared across devices. */
+    fishingJournal: (c): Promise<FishingEntry[]> => fishingJournal(c.db, requireUser(c.conn.state)),
+
+    recordFish: (c, userId: number, caught: FishCatch): Promise<FishingEntry[]> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => recordFish(c.db, userId, caught));
     },
 
     /** From `world`: a coin in the fountain (1 coin out, and the day's fountain quest). */

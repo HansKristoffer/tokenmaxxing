@@ -2,6 +2,7 @@ import { THEME_STEPS, type Theme, themeOf } from "@tokenmaxxing/core/themes.ts";
 import { drumHits, type Note, notes } from "@tokenmaxxing/core/tunes.ts";
 import type { RoomId } from "@tokenmaxxing/core/world.ts";
 import { audio, drum, musicOut, tone, wakeOnInput } from "./jukebox.ts";
+import { tavernNow } from "./tavern-clock.ts";
 
 /**
  * The background music: each kind of room has a looping 8-bit theme (`core/src/themes.ts`), played with
@@ -13,6 +14,8 @@ const EVERY_MS = 100;
 
 const byStep = (list: Note[]) => new Map(list.map((n) => [n.step, n]));
 
+let watcher: ReturnType<typeof setInterval> | null = null;
+let voice: GainNode | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 let room: RoomId | null = null;
 let ducked = false;
@@ -22,16 +25,21 @@ function halt(): void {
   if (timer) clearInterval(timer);
   timer = null;
   current = null;
+  voice?.disconnect();
+  voice = null;
 }
 
 function sync(): void {
-  const theme = room && !ducked ? themeOf(room) : null;
+  const theme = room && !ducked ? themeOf(room, tavernNow()) : null;
   // Moving between two rooms with the same theme (a house to another house) keeps it playing.
-  if (theme?.id === current) return;
+  if ((theme?.id ?? null) === current) return;
   halt();
   const c = theme ? audio() : null;
-  const out = musicOut();
-  if (!theme || !c || !out) return;
+  const parent = musicOut();
+  if (!theme || !c || !parent) return;
+  const out = c.createGain();
+  out.connect(parent);
+  voice = out;
   current = theme.id;
   wakeOnInput(c);
   const lead = byStep(notes(theme.lead));
@@ -67,6 +75,7 @@ function sync(): void {
 /** Plays the theme for the room I'm in (it starts over only when the theme changes). */
 export function playRoomMusic(next: RoomId): void {
   room = next;
+  if (!watcher) watcher = setInterval(sync, 1000);
   sync();
 }
 
@@ -79,5 +88,7 @@ export function duckMusic(on: boolean): void {
 /** Stops the music (the connection dropped). */
 export function stopRoomMusic(): void {
   room = null;
+  if (watcher) clearInterval(watcher);
+  watcher = null;
   halt();
 }

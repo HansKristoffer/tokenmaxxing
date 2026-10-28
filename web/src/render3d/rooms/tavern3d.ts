@@ -10,8 +10,10 @@
  * Hooks (all additive, none needed): a boards's `redraw` (bar tab, plaques, easel), `JukeboxModel.playing`,
  * `ClocksModel.show()`, `FountainModel.toss()` (the tip jar's coin toss), `setTavernNight()`.
  */
+
 import * as THREE from "three";
 import { C, HAIRS, SKINS } from "../../art/palette.ts";
+import { bandPlaying } from "../../game/tavern-performance.ts";
 import { aarhusDay, SPECIALS, STRIDE, type TabRow } from "../data/tavern.ts";
 import { type Asset, assetById, light } from "../furniture/furniture.ts";
 import {
@@ -572,7 +574,7 @@ function stage(w: number, d: number): () => Model {
     }
     light(m, [0, 0.8, d / 2 - 0.2], "#ffd890", 1.4, 5);
     const notes = m.part([0, 0.14, 0]);
-    driftingNotes(notes, w, d);
+    driftingNotes(notes, w, d, 7, bandPlaying);
     return m;
   };
 }

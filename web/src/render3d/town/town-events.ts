@@ -1,3 +1,4 @@
+import { fishingWater } from "@tokenmaxxing/core/fishing.ts";
 import { PRICE_LAMP, priceSign } from "@tokenmaxxing/core/grid.ts";
 import { STAND, standOf } from "@tokenmaxxing/core/launch.ts";
 import { PLAZA } from "@tokenmaxxing/core/maps.ts";
@@ -28,15 +29,17 @@ import { outageNow } from "../../game/picnic.ts";
 import { lane, live as raceLive } from "../../game/race.ts";
 import { lightsNow, skyNow } from "../../game/sky.ts";
 import { animalMotion, catPetted, townAnimals } from "../../game/town-life.ts";
-import { serverNow, world } from "../../game/world.ts";
+import { self, serverNow, world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { mergeStill } from "../engine/merge3d.ts";
 import { Burst, type Overlay } from "../engine/overlay.ts";
-import { canvasTexture, Model } from "../kit/kit.ts";
+import { canvasTexture } from "../kit/kit.ts";
 import { Avatar, personLook } from "../people/avatar.ts";
 import type { LiveFrame } from "../rooms/rooms.ts";
+import { TownCat, TownPigeon } from "./animals3d.ts";
 import { buntingMeshes } from "./bunting3d.ts";
+import { FishingLine } from "./fishing3d.ts";
 import {
   basketModel,
   blanketModel,
@@ -159,8 +162,9 @@ export class TownEvents {
   private rippleWhere: [number, number] = [0, 0];
   private lastMe: [number, number] | null = null;
   private clock = 0;
-  private readonly cat = new Model();
-  private readonly pigeons = [new Model(), new Model(), new Model()];
+  private readonly fishingLine = new FishingLine();
+  private readonly cat = new TownCat();
+  private readonly pigeons = [new TownPigeon(), new TownPigeon(), new TownPigeon()];
 
   // Labels and bursts
   private readonly pills = new Map<string, Pill>();
@@ -172,20 +176,8 @@ export class TownEvents {
     this.toWorld = toWorld;
     this.group.name = "town-events";
     this.group.userData.events = this;
-    this.cat.box([0.5, 0.22, 0.3], "#754c36", [0, 0, 0]);
-    this.cat.box([0.25, 0.25, 0.24], "#754c36", [0, 0.18, 0.12]);
-    this.cat.box([0.08, 0.12, 0.08], "#754c36", [-0.09, 0.4, 0.12]);
-    this.cat.box([0.08, 0.12, 0.08], "#754c36", [0.09, 0.4, 0.12]);
-    this.cat.box([0.22, 0.08, 0.08], "#754c36", [0.3, 0.08, -0.05]);
-    this.cat.userData.live = true;
-    this.group.add(this.cat);
-    for (const bird of this.pigeons) {
-      bird.userData.live = true;
-      bird.box([0.24, 0.16, 0.3], "#7e8a91", [0, 0, 0]);
-      bird.box([0.15, 0.14, 0.15], "#aeb8bd", [0, 0.13, 0.12]);
-      bird.box([0.08, 0.04, 0.08], "#e8b65b", [0, 0.16, 0.22]);
-      this.group.add(bird);
-    }
+    this.group.add(this.cat.root, this.fishingLine.group);
+    for (const bird of this.pigeons) this.group.add(bird.root);
     const [cx, cz] = this.toWorld(CART_SPOT.x, CART_SPOT.y);
     // The middle of the three-by-two tiles the cart stands on.
     this.spot = [cx + (CART_W - 1) / 2, cz + (CART_H - 1) / 2];
@@ -431,19 +423,28 @@ export class TownEvents {
     this.maxBursts = Math.max(1, Math.round(burstCap(f.density) / 2));
     this.clock = f.now;
     this.lastMe = f.me;
+    this.fishingLine.update(f.now, this.toWorld, f.calm);
+    const [pondX, pondZ] = this.toWorld(4, 11);
+    this.pill("fishing", "r3-sign link", "🎣 Pond fishing", v3.set(pondX, 0.65, pondZ), f.camera, () => {
+      const me = self();
+      if (me && fishingWater(world.map, me.x, me.y, me.facing)) hud.set({ panel: { kind: "fishing" } });
+      else hud.set({ dialog: "🎣 Walk to the pond bank and press E facing the water to borrow a rod." });
+    });
     const animals = townAnimals();
-    this.cat.visible = animals !== null;
+    this.cat.root.visible = animals !== null;
     if (animals) {
       const [x, z] = this.toWorld(...animals.cat);
-      this.cat.position.set(x, catPetted(f.now) ? 0.08 : 0, z);
+      this.cat.root.position.set(x, 0, z);
+      this.cat.update(f.now, catPetted(f.now), f.calm);
       animals.birds.forEach(([bx, by], i) => {
         const [px, pz] = this.toWorld(bx, by);
-        const flight = animalMotion(i, bx, by, f.now);
+        const pose = animalMotion(i, bx, by, f.now);
         const bird = this.pigeons[i]!;
-        bird.visible = true;
-        bird.position.set(px + flight * (i % 2 ? 0.5 : -0.5), flight * 0.75, pz);
+        bird.root.visible = true;
+        bird.root.position.set(px + pose.offset * (i % 2 ? 0.7 : -0.7), pose.lift, pz + pose.offset * 0.2);
+        bird.update(pose, i, f.calm);
       });
-    } else for (const bird of this.pigeons) bird.visible = false;
+    } else for (const bird of this.pigeons) bird.root.visible = false;
     this.coinsFrame(f);
     const near = this.nearCamera(f);
     const calm = f.calm;

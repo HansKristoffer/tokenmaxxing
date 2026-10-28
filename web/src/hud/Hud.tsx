@@ -25,6 +25,7 @@ import { Collection } from "./Collection.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
+import { Fishing } from "./Fishing.tsx";
 import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
 import { GreenBanner } from "./GreenHour.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
@@ -431,6 +432,7 @@ function Panel() {
     collection: () => <Collection />,
     regulars: () => <Regulars />,
     jukebox: () => <Jukebox />,
+    fishing: () => <Fishing />,
     graphics: () => <GraphicsPanel />,
     paper: () => <PaperPanel />,
     pamphlet: () => <PamphletPanel />,

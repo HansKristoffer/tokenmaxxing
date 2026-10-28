@@ -6,12 +6,14 @@ import type { Frame } from "./frame.ts";
 import { drawGlow, flicker } from "./glow.ts";
 import { drawBarTab, drawRegulars } from "./regulars.ts";
 import { darknessNow, warmthNow } from "./sky.ts";
+import { drawTavernBand } from "./tavern-band.ts";
+import { bandPlaying } from "./tavern-performance.ts";
 import { world } from "./world.ts";
 
 /**
  * The Tavern's evening (`inn` only). Rooms get no sky, so it has its own pass: the fire burns in the
  * hearth, sconces glow along the wall, and once the sun is down the room dims, the fire and candles
- * light it, and the stage plays music. By day it's bright and the glow is faint.
+ * light it. The stage plays from 16:00 on the town clock. By day it's bright and the glow is faint.
  */
 
 /** Wall sconces: tiles on the wall face (row 1), either side of the boards. */
@@ -26,8 +28,7 @@ const CANDLE = "255,206,120";
 const NIGHT_DIM = 0.66;
 /** The low sun's warmth times this adds a dusk step before the dark comes. */
 const DUSK_DIM = 0.45;
-/** Notes drift up from the stage once it is this dark. */
-const MUSIC_AFTER = 0.5;
+/** Notes drift up while the evening band is playing. */
 const NOTES = 7;
 
 /** The left tile of each hearth in a run (hearths are two tiles wide). */
@@ -49,6 +50,7 @@ export function drawTavern(f: Frame): void {
   drawRegulars(f);
   drawBarTab(f);
   drawJulefrokost(f);
+  drawTavernBand(f);
   for (const [x, y] of SCONCES) {
     const s = sconce(Math.floor(now / 140 + x) % 2);
     items.push({ y: y * TILE + 4, draw: () => g.drawImage(s, x * TILE + 5, y * TILE + 2) });
@@ -87,11 +89,11 @@ export function lightTavern({ g, now }: Frame): void {
   // A candle on every table, and the tap's lamp on the bar.
   for (const [x, y] of [...map.find("n"), ...map.find("y")])
     drawGlow(g, x * TILE + 8, y * TILE + 7, 16, CANDLE, 0.3 * lit * flicker(now, x + y));
-  if (dark > MUSIC_AFTER) notes(g, now, dark);
+  if (bandPlaying()) notes(g, now);
 }
 
 /** `♪` and `♫` rising from the stage, each on its own slow loop. */
-function notes(g: CanvasRenderingContext2D, now: number, dark: number): void {
+function notes(g: CanvasRenderingContext2D, now: number): void {
   const stage = world.map.find("e");
   if (!stage.length) return;
   const xs = stage.map(([x]) => x);
@@ -105,7 +107,7 @@ function notes(g: CanvasRenderingContext2D, now: number, dark: number): void {
     const t = (now / 3200 + i / NOTES) % 1;
     const x = left + 8 + hash(i, 1, 33) * (right - left - 16) + Math.sin(t * 6 + i) * 3;
     const y = top + 8 - t * 34;
-    g.globalAlpha = Math.sin(t * Math.PI) * Math.min(1, (dark - MUSIC_AFTER) * 4) * 0.9;
+    g.globalAlpha = Math.sin(t * Math.PI) * 0.9;
     g.fillStyle = i % 2 ? "#ffe9a8" : "#fff6d6";
     g.fillText(i % 3 ? "♪" : "♫", x, y);
   }

@@ -278,6 +278,7 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
     "tavern_daily",
     "julekalender",
     "fastelavn_hits",
+    "fishing_journal",
   ])
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
   await sql.execute("DELETE FROM bio_reports WHERE target = ? OR reporter = ?", userId, userId);
