@@ -97,10 +97,12 @@ TOKENMAXXING_TOKEN=… TOKENMAXXING_SERVER_URL=http://localhost:8787 bun run hel
 ```
 
 The CLI for linked computers runs from source too. Get a code from the app (or `player.mintLinkCode()`), and
-keep it off your real config with `TOKENMAXXING_CLI_DIR`:
+keep it off your real config with `TOKENMAXXING_CLI_DIR`, and off your real service with
+`TOKENMAXXING_NO_SERVICE=1` (`run` and `unlink` would otherwise disable it):
 
 ```bash
-TOKENMAXXING_CLI_DIR=.data/cli bun app/helper/src/cli.ts link <code> --server http://localhost:8787 --no-service
+export TOKENMAXXING_CLI_DIR=.data/cli TOKENMAXXING_NO_SERVICE=1
+bun app/helper/src/cli.ts link <code> --server http://localhost:8787 --no-service
 bash app/helper/scripts/cli.sh dist/cli    # the release binaries, for every platform
 ```
 
