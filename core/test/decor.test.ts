@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { decorItem, decorOf, FLOORS, isPlain, ownsDecor, WALLPAPERS } from "../src/decor.ts";
 
 describe("decor", () => {
-  test("ten of each, unique ids, the plain one first, prices up to 300, two earned", () => {
+  test("ten of each, unique ids, the plain one first, prices up to 450, two earned", () => {
     for (const [kind, list] of [
       ["wall", WALLPAPERS],
       ["floor", FLOORS],
@@ -12,8 +12,8 @@ describe("decor", () => {
       expect(list[0]!.price).toBe(0);
       expect(isPlain(kind, list[0]!.id)).toBe(true);
       for (const d of list.slice(1)) {
-        if (d.level === undefined) expect(d.price).toBeGreaterThanOrEqual(40);
-        expect(d.price).toBeLessThanOrEqual(300);
+        if (d.level === undefined) expect(d.price).toBeGreaterThanOrEqual(60);
+        expect(d.price).toBeLessThanOrEqual(450);
       }
     }
     expect([...WALLPAPERS, ...FLOORS].filter((d) => d.level !== undefined)).toHaveLength(2);

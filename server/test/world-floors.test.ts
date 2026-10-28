@@ -102,7 +102,7 @@ describe("drops", () => {
     // Your own office's floor isn't loot: no five at a time.
     for (let i = 0; i < 27; i++) await drop(owner, "furn.="); // 30
     for (let n = 0; n < 2; n++) {
-      const guest = await rich("furnish", 50);
+      const guest = await rich("furnish", 80);
       await Promise.all(Array.from({ length: 5 }, () => guest.town.buy("furn.=")));
       const g = await connect(guest.token);
       await g.conn.visit(owner.userId);

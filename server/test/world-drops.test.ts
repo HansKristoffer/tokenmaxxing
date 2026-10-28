@@ -32,9 +32,9 @@ describe("drops", () => {
   });
 
   test("a room holds 30; the 31st stays in its dropper's bag", async () => {
-    const owner = await rich("full", 50);
+    const owner = await rich("full", 80);
     const co = await owner.town.createCompany("Full House");
-    const people = [owner, ...(await Promise.all(Array.from({ length: 6 }, () => rich("full", 50))))];
+    const people = [owner, ...(await Promise.all(Array.from({ length: 6 }, () => rich("full", 80))))];
     for (const u of people.slice(1)) await admit(owner, u, co.id);
     // Five each, the most anyone has on the floor at once: they lie in the house, asleep in bed.
     await Promise.all(people.map((u) => Promise.all(Array.from({ length: 5 }, () => u.town.buy("furn.=")))));

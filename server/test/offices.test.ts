@@ -51,13 +51,13 @@ describe("wallpapers and floors", () => {
   test("buy once, for coins; plain, earned and unknown ones aren't for sale", async () => {
     const before = (await wallet(sql, 1, NOW)).balance;
     const after = await buyDecor(sql, 1, "wall", "nyhavn", NOW);
-    expect(after.balance).toBe(before - 80);
+    expect(after.balance).toBe(before - 120);
     await expect(buyDecor(sql, 1, "wall", "nyhavn", NOW)).rejects.toMatchObject({ code: "owned" });
     await expect(buyDecor(sql, 1, "wall", "plain", NOW)).rejects.toMatchObject({ code: "not_for_sale" });
     await expect(buyDecor(sql, 1, "floor", "bornholm", NOW)).rejects.toMatchObject({ code: "not_for_sale" });
     await expect(buyDecor(sql, 1, "floor", "nyhavn", NOW)).rejects.toMatchObject({ code: "not_found" });
     await expect(buyDecor(sql, 1, "ceiling", "nyhavn", NOW)).rejects.toMatchObject({ code: "not_found" });
-    await expect(buyDecor(sql, 2, "wall", "hygge", NOW)).rejects.toMatchObject({ code: "too_poor" });
+    await expect(buyDecor(sql, 2, "wall", "kanban", NOW)).rejects.toMatchObject({ code: "too_poor" });
   });
 
   test("what you own: the plain ones, what you bought, and what your level earned", async () => {

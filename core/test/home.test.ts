@@ -19,14 +19,14 @@ import { canDropIn, ITEMS, isTradeable, itemById } from "../src/shop.ts";
 import { cutsOff, route } from "../src/world.ts";
 
 describe("personal office furniture catalog", () => {
-  test("12 to 14 pieces, cheapest first, 40 to 300 coins, unique chars, art and names", () => {
+  test("12 to 14 pieces, cheapest first, 60 to 450 coins, unique chars, art and names", () => {
     expect(HOME_PIECES.length).toBeGreaterThanOrEqual(12);
     expect(HOME_PIECES.length).toBeLessThanOrEqual(14);
     const prices = HOME_PIECES.map((p) => p.price);
     expect(prices).toEqual([...prices].sort((a, b) => a - b));
     for (const p of HOME_PIECES) {
-      expect(p.price).toBeGreaterThanOrEqual(40);
-      expect(p.price).toBeLessThanOrEqual(300);
+      expect(p.price).toBeGreaterThanOrEqual(60);
+      expect(p.price).toBeLessThanOrEqual(450);
       expect([1, 2]).toContain(p.w ?? 1);
       expect(p.home).toBe(true);
     }
