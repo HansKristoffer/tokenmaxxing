@@ -18,6 +18,7 @@ import { AppSignIn } from "./AppSignIn.tsx";
 import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
 import { Bag } from "./Bag.tsx";
+import { Bar } from "./Bar.tsx";
 import { CaseOpening } from "./CaseOpening.tsx";
 import { CaseShop } from "./CaseShop.tsx";
 import { Chat } from "./Chat.tsx";
@@ -426,6 +427,7 @@ function Panel() {
     trade: (p) => <TradePanel userId={p.userId} />,
     trades: () => <TradesPanel />,
     quests: () => <Quests />,
+    bar: () => <Bar />,
     tournament: () => <Tournament />,
     requests: () => <Requests />,
     hallOfFame: () => <HallOfFame />,

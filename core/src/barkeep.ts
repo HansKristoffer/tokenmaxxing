@@ -1,7 +1,7 @@
 /**
  * Bent, the Tavern's barkeep: a town character who never leaves his cell behind the bar. He talks about
- * the hour, the weather, the crowd and the day's special; the bar and the quest board are where you
- * ask him for work. The `world` actor places him on wake (`home`) and never walks him (`still`).
+ * the hour, the weather, the crowd and the day's special; at the bar he takes your order (a coffee, the
+ * special, or work off the quest board). The `world` actor places him on wake (`home`) and never walks him (`still`).
  */
 
 import { BADGES, frameOf } from "./badges.ts";

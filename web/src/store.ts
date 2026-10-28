@@ -61,6 +61,8 @@ export type Panel =
   | { kind: "desk" }
   | { kind: "raid" }
   | { kind: "quests" }
+  /** The Tavern's bar: order a coffee or the special from the barkeep (`hud/Bar.tsx`). */
+  | { kind: "bar" }
   | { kind: "tournament" }
   | { kind: "requests" }
   | { kind: "hallOfFame" }

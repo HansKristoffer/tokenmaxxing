@@ -210,20 +210,28 @@ describe("world", () => {
     await conn.dispose();
   });
 
-  test("only the tap serves: the bar, the coffee machine and other rooms refuse", async () => {
+  test("the barkeep takes orders across the bar; away from it nothing serves", async () => {
     const a = await signUp("tavern");
     const { conn, snap, events } = await connect(a.token);
     const me = snap.players.find((p) => p.id === a.userId)!;
-    // Facing the bar counter: it talks, it doesn't serve.
+    // Facing the bar counter: a coffee and the special, both on the house.
     const bar = route(MAPS.inn, [me.x, me.y], [2, 4])!;
     await walk(conn, bar.slice(0, -1));
-    expect(await conn.tavern(bar.at(-1))).toBeNull();
+    expect(await conn.drink(bar.at(-1))).toEqual({ notice: expect.stringContaining("fresh cup") });
+    expect(await conn.tavern(bar.at(-1))).toEqual({ notice: expect.stringContaining("On the house") });
+    await eventually(() =>
+      expect(events.infos.filter((i) => i.id === a.userId).at(-1)).toMatchObject({
+        coffeeUntil: expect.any(Number),
+        specialUntil: expect.any(Number),
+      }),
+    );
+    // Turned away from it: nothing.
+    expect(await conn.drink("down")).toBeNull();
     const to = route(MAPS.inn, [2, 5], MAPS.inn.find("x")[0]!)!;
     await walk(conn, to);
     await eventually(() => expect(events.snapshots.at(-1)!.room).toBe("town"));
     // The town has no tap.
     expect(await conn.tavern("down")).toBeNull();
-    expect(events.infos.some((i) => i.id === a.userId && i.specialUntil)).toBe(false);
     await conn.dispose();
   });
 

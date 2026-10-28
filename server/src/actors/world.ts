@@ -889,7 +889,7 @@ export const world = actor({
       return { notice: `🪅 Whack! ${HITS - hits} to go.` };
     },
 
-    /** E while facing a coffee machine: one more cup, and everyone sees you shake. */
+    /** E while facing a coffee machine, or ordered at the Tavern's bar: one more cup, and everyone sees you shake. */
     drink: (c, facing: unknown): StepResult => {
       const p = free(c);
       if (!p) return null;
@@ -897,7 +897,8 @@ export const world = actor({
       touch(c, p, now);
       if (isFacing(facing)) p.facing = facing;
       const [dx, dy] = DIRS[p.facing];
-      if (!mapOf(p.room).kind(p.x + dx, p.y + dy).pours) return null;
+      const at = mapOf(p.room).kind(p.x + dx, p.y + dy);
+      if (!at.pours && !at.orders) return null;
       p.coffeeUntil = drinkCoffee(p.coffeeUntil ?? 0, now);
       sendInfo(c, p, info(p, c.vars.online.has(p.id)));
       if (TAVERN && p.room === "inn") questEvent(c, p.id, "coffee", `coffee:${now}`);
@@ -920,7 +921,7 @@ export const world = actor({
       return { notice: `🌭 One rød pølse, med det hele. You walk quicker for ${POLSE.ms / 60_000} minutes.` };
     },
 
-    /** E on the Tavern's tap: the day's special, free, and a glow or a jitter for 15 minutes. */
+    /** E on the Tavern's tap, or ordered at its bar: the day's special, free, and a glow or a jitter for 15 minutes. */
     tavern: (c, facing: unknown): StepResult => {
       const p = free(c);
       if (!TAVERN || p?.room !== "inn") return null;
@@ -928,7 +929,8 @@ export const world = actor({
       touch(c, p, now);
       if (isFacing(facing)) p.facing = facing;
       const [dx, dy] = DIRS[p.facing];
-      if (!mapOf(p.room).kind(p.x + dx, p.y + dy).serves) return null;
+      const at = mapOf(p.room).kind(p.x + dx, p.y + dy);
+      if (!at.serves && !at.orders) return null;
       if (hasSpecial(p.specialUntil ?? 0, now)) return { notice: "🍽 You've still got the last one in you." };
       p.specialUntil = serveUntil(now);
       sendInfo(c, p, info(p, c.vars.online.has(p.id)));
