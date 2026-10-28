@@ -30,7 +30,12 @@ const line = (id: string) =>
     message: { id, model: "claude-haiku-4-5-20251001", usage: { input_tokens: 10, output_tokens: 5 } },
   })}\n`;
 
-afterEach(() => rm(dir, { recursive: true, force: true }));
+afterEach(async () => {
+  // Each test's own run, never this computer's real service.
+  const serviceCalls = existsSync(join(dir, "service-calls"));
+  await rm(dir, { recursive: true, force: true });
+  expect(serviceCalls).toBe(false);
+});
 
 /** This test's logs, config and home, and never this computer's real service. */
 const env = () => ({
@@ -124,8 +129,6 @@ describe("tokenmaxxing CLI", () => {
     expect(r.code).toBe(0);
     expect(r.err).toContain("removed from the account; stopping");
     expect(existsSync(join(dir, "cli"))).toBe(false);
-    // The test's own run, not this computer's real service.
-    expect(existsSync(join(dir, "service-calls"))).toBe(false);
   });
 
   test("the server is required", async () => {
