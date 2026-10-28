@@ -17,42 +17,42 @@ export interface Decor {
 
 export const WALLPAPERS: readonly Decor[] = [
   { id: "plain", name: "Cream panels", price: 0, blurb: "What every office starts with." },
-  { id: "hygge", name: "Hygge", price: 40, blurb: "Warm cream and a candle's glow." },
-  { id: "nyhavn", name: "Nyhavn", price: 80, blurb: "Stripes in the harbour's colours." },
-  { id: "rundetaarn", name: "Rundetårn", price: 120, blurb: "Red brick, like the Round Tower." },
-  { id: "jacobsen", name: "Arne Jacobsen", price: 160, blurb: "Flat sage green, nothing more." },
-  { id: "skagen", name: "Skagen yellow", price: 60, blurb: "The painters' light, as a warm yellow wash." },
+  { id: "hygge", name: "Hygge", price: 60, blurb: "Warm cream and a candle's glow." },
+  { id: "nyhavn", name: "Nyhavn", price: 120, blurb: "Stripes in the harbour's colours." },
+  { id: "rundetaarn", name: "Rundetårn", price: 180, blurb: "Red brick, like the Round Tower." },
+  { id: "jacobsen", name: "Arne Jacobsen", price: 240, blurb: "Flat sage green, nothing more." },
+  { id: "skagen", name: "Skagen yellow", price: 90, blurb: "The painters' light, as a warm yellow wash." },
   {
     id: "hammershoi",
     name: "Hammershøi",
-    price: 100,
+    price: 150,
     blurb: "Hushed grey-blue, with pale panels. Nobody is home.",
   },
   {
     id: "terminal",
     name: "Terminal",
-    price: 140,
+    price: 210,
     blurb: "Black, with green text that never stops scrolling.",
   },
-  { id: "kanban", name: "Kanban", price: 220, blurb: "A corkboard of sticky notes. Nothing is in Done." },
+  { id: "kanban", name: "Kanban", price: 330, blurb: "A corkboard of sticky notes. Nothing is in Done." },
   { id: "tivoli", name: "Tivoli", price: 0, blurb: "Dark blue with little gold lights.", level: 25 },
 ];
 
 export const FLOORS: readonly Decor[] = [
   { id: "boards", name: "Boards", price: 0, blurb: "What every office starts with." },
-  { id: "linoleum", name: "Linoleum", price: 40, blurb: "Danish mid-century green." },
-  { id: "parquet", name: "Parquet", price: 100, blurb: "Herringbone, dark and glossy." },
-  { id: "fiskebenet", name: "Fiskebenet", price: 180, blurb: "Pale oak herringbone." },
-  { id: "checker", name: "Checker", price: 300, blurb: "Black and white, like a cafe." },
-  { id: "terrazzo", name: "Terrazzo", price: 60, blurb: "Speckled stone chips, like a Vesterbro cafe." },
-  { id: "klinker", name: "Klinker", price: 90, blurb: "Red-brown clay tiles, like a Danish kitchen." },
+  { id: "linoleum", name: "Linoleum", price: 60, blurb: "Danish mid-century green." },
+  { id: "parquet", name: "Parquet", price: 150, blurb: "Herringbone, dark and glossy." },
+  { id: "fiskebenet", name: "Fiskebenet", price: 270, blurb: "Pale oak herringbone." },
+  { id: "checker", name: "Checker", price: 450, blurb: "Black and white, like a cafe." },
+  { id: "terrazzo", name: "Terrazzo", price: 90, blurb: "Speckled stone chips, like a Vesterbro cafe." },
+  { id: "klinker", name: "Klinker", price: 135, blurb: "Red-brown clay tiles, like a Danish kitchen." },
   {
     id: "datacentre",
     name: "Server room",
-    price: 140,
+    price: 210,
     blurb: "Perforated raised tiles. Mind the cold aisle.",
   },
-  { id: "douglas", name: "Douglas planks", price: 240, blurb: "Wide, pale planks. Dinesen would approve." },
+  { id: "douglas", name: "Douglas planks", price: 360, blurb: "Wide, pale planks. Dinesen would approve." },
   { id: "bornholm", name: "Bornholm cobble", price: 0, blurb: "Stones from the island.", level: 40 },
 ];
 

@@ -61,7 +61,7 @@ describe("a personal setup", () => {
   test("buy once with coins, then use it for free; the laptop is free and always yours", async () => {
     expect(await myDesk(sql, 2)).toEqual({ owned: ["laptop"], using: "laptop" });
     const before = (await wallet(sql, 1, NOW)).balance;
-    expect((await buyDesk(sql, 1, "dual", NOW)).balance).toBe(before - 40);
+    expect((await buyDesk(sql, 1, "dual", NOW)).balance).toBe(before - 60);
     expect((await myDesk(sql, 1)).owned).toContain("dual");
     expect((await myDesk(sql, 1)).using).toBe("laptop"); // buying doesn't switch
     expect(await setDesk(sql, 1, "dual")).toBe("dual");
@@ -69,7 +69,7 @@ describe("a personal setup", () => {
     // Switching back and forth costs nothing.
     await setDesk(sql, 1, "laptop");
     await setDesk(sql, 1, "dual");
-    expect((await wallet(sql, 1, NOW)).balance).toBe(before - 40);
+    expect((await wallet(sql, 1, NOW)).balance).toBe(before - 60);
     await expect(buyDesk(sql, 1, "dual", NOW)).rejects.toMatchObject({ code: "owned" });
   });
 

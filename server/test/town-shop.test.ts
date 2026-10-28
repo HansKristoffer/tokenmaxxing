@@ -147,7 +147,7 @@ describe("case furniture", () => {
 
 describe("drops", () => {
   test("a worn hat dropped comes off; only what you hold; five on the floor at a time", async () => {
-    const a = await rich("drop", 150);
+    const a = await rich("drop", 200);
     await a.town.createCompany("Butterfingers"); // its floor is cleared when the test ends
     await a.town.buy("hat.1");
     for (let i = 0; i < 5; i++) await a.town.buy("furn.=");

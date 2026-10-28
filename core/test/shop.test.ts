@@ -40,7 +40,7 @@ test("level items: the shop's milestones at 10-50, the wardrobe's at 5, 15, 25, 
 test("rewards never change hands; furniture is sold and does", () => {
   expect(levelItems(50).some((i) => isTradeable(i.id))).toBe(false);
   expect([isTradeable("hat.1"), isTradeable("furn.s"), isTradeable("nope")]).toEqual([true, true, false]);
-  expect(itemById("furn.t")).toMatchObject({ slot: "furniture", name: "TV", price: 120 });
+  expect(itemById("furn.t")).toMatchObject({ slot: "furniture", name: "TV", price: 180 });
   expect(parseSide({ coins: 0, items: ["hat.4"] })).toBeNull();
   expect(parseSide({ coins: 5, items: ["furn.s", "hat.1"] })).toEqual({
     coins: 5,

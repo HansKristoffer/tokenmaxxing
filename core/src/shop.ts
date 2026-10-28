@@ -231,10 +231,10 @@ export function itemsIn(look: Look): (Item & { slot: Slot })[] {
  * hoodie goes over a tee.
  */
 export const MERCH = [
-  { kind: "tee", name: "Tee", price: 80, bit: 1 },
-  { kind: "hoodie", name: "Hoodie", price: 160, bit: 2 },
-  { kind: "cap", name: "Cap", price: 60, bit: 4 },
-  { kind: "mug", name: "Mug", price: 40, bit: 8 },
+  { kind: "tee", name: "Tee", price: 120, bit: 1 },
+  { kind: "hoodie", name: "Hoodie", price: 240, bit: 2 },
+  { kind: "cap", name: "Cap", price: 90, bit: 4 },
+  { kind: "mug", name: "Mug", price: 60, bit: 8 },
 ] as const;
 export type MerchKind = (typeof MERCH)[number]["kind"];
 

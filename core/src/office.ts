@@ -25,17 +25,17 @@ export interface Piece {
 
 /** What an office can hold: furniture from the map legend, drawn as it is everywhere else. Sold as `furn.<ch>`. */
 export const FURNITURE: readonly Piece[] = [
-  { ch: "=", name: "Rug", price: 10 },
-  { ch: "p", name: "Plant", price: 20 },
-  { ch: "L", name: "Lamp", price: 25 },
-  { ch: "c", name: "Chair", price: 30 },
-  { ch: "k", name: "Shelf", price: 40 },
-  { ch: "B", name: "Bench", price: 40 },
-  { ch: "d", name: "Desk", price: 50 },
-  { ch: "o", name: "Coffee machine", price: 60 },
-  { ch: "b", name: "Bed", price: 80 },
-  { ch: "s", name: "Sofa", price: 100 },
-  { ch: "t", name: "TV", price: 120, w: 2 },
+  { ch: "=", name: "Rug", price: 15 },
+  { ch: "p", name: "Plant", price: 30 },
+  { ch: "L", name: "Lamp", price: 40 },
+  { ch: "c", name: "Chair", price: 45 },
+  { ch: "k", name: "Shelf", price: 60 },
+  { ch: "B", name: "Bench", price: 60 },
+  { ch: "d", name: "Desk", price: 75 },
+  { ch: "o", name: "Coffee machine", price: 90 },
+  { ch: "b", name: "Bed", price: 120 },
+  { ch: "s", name: "Sofa", price: 150 },
+  { ch: "t", name: "TV", price: 180, w: 2 },
   // From sitting out an outage at the picnic (`picnic.ts`).
   { ch: "g", name: "Touched grass", price: 0, w: 2, earned: "Sat on a blanket at an outage picnic" },
 ];
@@ -372,9 +372,9 @@ export type OfficeTier = 0 | 1 | 2 | 3;
  */
 export const OFFICE_SIZES: readonly { w: number; h: number; price: number }[] = [
   { w: 14, h: 11, price: 0 },
-  { w: 16, h: 13, price: 600 },
-  { w: 18, h: 15, price: 1500 },
-  { w: 20, h: 17, price: 3500 },
+  { w: 16, h: 13, price: 900 },
+  { w: 18, h: 15, price: 2250 },
+  { w: 20, h: 17, price: 5250 },
 ];
 
 /** Owners of level 40 and up have the second size without buying it: it is the size that level used to open. */

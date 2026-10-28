@@ -26,14 +26,14 @@ const FIRST_FACE = 4;
 // A catalog reads best one to a line.
 // prettier-ignore
 export const PACK_HATS: readonly Wearable[] = [
-  { name: "Tinfoil hat", rarity: "common", price: 60, blurb: "Blocks telemetry. Probably." },
-  { name: "Ship-it party hat", rarity: "common", price: 80, blurb: "Friday deploy? Celebrate first, roll back later." },
-  { name: "Danish flag cap", rarity: "common", price: 120, blurb: "Rød og hvid, all the way to prod." },
-  { name: "Cykelhjelm", rarity: "common", price: 140, blurb: "Copenhagen commute certified: 12 km of bike lane a day." },
-  { name: "Wi-Fi antennae", rarity: "uncommon", price: 160, blurb: "Full bars, zero latency, slightly alien." },
-  { name: "Cat ears", rarity: "uncommon", price: 180, blurb: "Purr-gramming mode on." },
-  { name: "Prod hard hat", rarity: "uncommon", price: 200, blurb: "Mandatory when touching production." },
-  { name: "Julehue", rarity: "uncommon", price: 200, blurb: "Nisse-issue. Leave risalamande out for it." },
+  { name: "Tinfoil hat", rarity: "common", price: 90, blurb: "Blocks telemetry. Probably." },
+  { name: "Ship-it party hat", rarity: "common", price: 120, blurb: "Friday deploy? Celebrate first, roll back later." },
+  { name: "Danish flag cap", rarity: "uncommon", price: 180, blurb: "Rød og hvid, all the way to prod." },
+  { name: "Cykelhjelm", rarity: "uncommon", price: 210, blurb: "Copenhagen commute certified: 12 km of bike lane a day." },
+  { name: "Wi-Fi antennae", rarity: "uncommon", price: 240, blurb: "Full bars, zero latency, slightly alien." },
+  { name: "Cat ears", rarity: "uncommon", price: 270, blurb: "Purr-gramming mode on." },
+  { name: "Prod hard hat", rarity: "uncommon", price: 300, blurb: "Mandatory when touching production." },
+  { name: "Julehue", rarity: "uncommon", price: 300, blurb: "Nisse-issue. Leave risalamande out for it." },
   { name: "Whirlybird beanie", rarity: "uncommon", price: 220, blurb: "Lift-off on pure token thrust." },
   { name: "Prompt chef toque", rarity: "uncommon", price: 250, blurb: "Seasoned with a pinch of system prompt." },
   { name: "Cowboy coder hat", rarity: "uncommon", price: 280, blurb: "Pushes straight to main. Yeehaw." },
@@ -54,13 +54,13 @@ export const PACK_HATS: readonly Wearable[] = [
 // A catalog reads best one to a line.
 // prettier-ignore
 export const PACK_FACES: readonly Wearable[] = [
-  { name: "Hallucination nose", rarity: "common", price: 70, blurb: "Confidently wrong, and red about it." },
-  { name: "3D glasses", rarity: "common", price: 90, blurb: "Red, blue, and rendered in depth." },
-  { name: "Hygge moustache", rarity: "common", price: 100, blurb: "Grown over one long, candlelit winter." },
-  { name: "Eyepatch", rarity: "common", price: 110, blurb: "Lost an eye to an IDE with no dark mode." },
-  { name: "Harbour swim goggles", rarity: "common", price: 130, blurb: "Islands Brygge ready. The water is 14 °C." },
-  { name: "Monocle", rarity: "uncommon", price: 180, blurb: "For reviewing pull requests with distinction." },
-  { name: "Rockstar glasses", rarity: "uncommon", price: 200, blurb: "10x engineer energy." },
+  { name: "Hallucination nose", rarity: "common", price: 105, blurb: "Confidently wrong, and red about it." },
+  { name: "3D glasses", rarity: "common", price: 135, blurb: "Red, blue, and rendered in depth." },
+  { name: "Hygge moustache", rarity: "common", price: 150, blurb: "Grown over one long, candlelit winter." },
+  { name: "Eyepatch", rarity: "uncommon", price: 165, blurb: "Lost an eye to an IDE with no dark mode." },
+  { name: "Harbour swim goggles", rarity: "uncommon", price: 195, blurb: "Islands Brygge ready. The water is 14 °C." },
+  { name: "Monocle", rarity: "uncommon", price: 270, blurb: "For reviewing pull requests with distinction." },
+  { name: "Rockstar glasses", rarity: "uncommon", price: 300, blurb: "10x engineer energy." },
   { name: "Prompt bandit bandana", rarity: "uncommon", price: 220, blurb: "Steals context from other tabs." },
   { name: "CopenHill ski goggles", rarity: "uncommon", price: 240, blurb: "Off-piste down the power plant's roof." },
   { name: "Rate-limit visor", rarity: "uncommon", price: 290, blurb: "429: too many requests. Try again in 60 s." },

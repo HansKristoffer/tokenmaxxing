@@ -234,7 +234,7 @@ export async function wallet(
     wins: wins.filter((w) => w.day >= since),
     owned: held.map((r) => r.item),
     items: sumBy(held, "count"),
-    quests: (live ?? []).map((q) => questProgress(q, todays, counts)),
+    quests: (live ?? []).map((q) => questProgress(q, todays, counts, today)),
     trading: !!(await one(
       sql,
       "SELECT 1 FROM trades WHERE (from_id = ? OR to_id = ?) AND at >= ? LIMIT 1",
