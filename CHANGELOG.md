@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.15.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.14.0...v1.15.0) (2026-10-28)
+
+
+### Features
+
+* **case:** Nusantara 2D art, box and parity tests ([b26936c](https://github.com/HansKristoffer/tokenmaxxing/commit/b26936cee5353a444f3797e290024203f371c6b7))
+* **case:** Nusantara 3D gear, pets, auras, furniture and box ([8639649](https://github.com/HansKristoffer/tokenmaxxing/commit/863964952933ed293894b8c43957dcb5e77c8450))
+* **case:** Nusantara and Ragnarok Eve keys cost 100 coins ([c69a2b9](https://github.com/HansKristoffer/tokenmaxxing/commit/c69a2b9c6e4980734708fc01ee63ffee22ed3167))
+* **case:** Ragnarok Eve 2D art, box and parity tests ([7b335e1](https://github.com/HansKristoffer/tokenmaxxing/commit/7b335e14f941a9d57f2dc38de0caa436ee5a8e55))
+* **case:** Ragnarok Eve 3D gear, pets, auras, furniture and box ([ab37ec4](https://github.com/HansKristoffer/tokenmaxxing/commit/ab37ec4d36c2d7ef0c211f43f2a508e1ae696df5))
+* **case:** the Nusantara and Ragnarok Eve cases, with 2D and 3D art ([e313f09](https://github.com/HansKristoffer/tokenmaxxing/commit/e313f09f9eb6cd97f9fd2e70430a3f43535bbf5a))
+* **case:** the Nusantara case, its 36 items and 6 pieces (data and brief) ([08a981b](https://github.com/HansKristoffer/tokenmaxxing/commit/08a981beb2696b7b863447dae4f3b0472f75099a))
+* **case:** the Ragnarok Eve case, its 36 items and 6 pieces (data and brief) ([6badcdc](https://github.com/HansKristoffer/tokenmaxxing/commit/6badcdc180a4cef4b252b384cd4f21538c423a2c))
+
+
+### Bug Fixes
+
+* **case:** Natmarked shows every case on its shelves and selects left/right; new keys cost 100 ([c5f58d2](https://github.com/HansKristoffer/tokenmaxxing/commit/c5f58d24aa0f1ef37b5efe646204840bbf056ab8))
+* **case:** Natmarked's shelves show every case on sale, and the shop selects with left/right ([a25f16a](https://github.com/HansKristoffer/tokenmaxxing/commit/a25f16ac46bd92ef6bbc81a36f03c538dd71aee4))
+* **case:** Warpaint stripes are three flat cheek stripes under each eye ([73ebe09](https://github.com/HansKristoffer/tokenmaxxing/commit/73ebe09da98287588d28e1b11200f4084b365d14))
+* **economy:** balance prices and quest pay for the new coin engine ([ff8bf9a](https://github.com/HansKristoffer/tokenmaxxing/commit/ff8bf9a210f6501ded02e867fec3aa4bc0deaef4))
+* **economy:** quests pay 5x, daily from 29 Oct and weekly from the week of 2 Nov ([37f3527](https://github.com/HansKristoffer/tokenmaxxing/commit/37f3527b349f831d4471c92835a5b7e889db36c2))
+* **economy:** raise merch and the cheaper dances, wardrobe and headwear by 1.5x ([20894b0](https://github.com/HansKristoffer/tokenmaxxing/commit/20894b034552ca040c3e6e08501639318295f5c2))
+* **economy:** raise personal furniture, decor, desk and office-size prices by 1.5x ([e4dc530](https://github.com/HansKristoffer/tokenmaxxing/commit/e4dc530f9ec31f15389a96d9a0dd430a916754c4))
+* **economy:** the web's snapshots of the prices follow core ([7c831ea](https://github.com/HansKristoffer/tokenmaxxing/commit/7c831eac5b8f695214e8ed8f6463fa6229ed4a13))
+* **economy:** tokens pay 1.5 x (millions)^0.6 from 28 Oct ([47a5266](https://github.com/HansKristoffer/tokenmaxxing/commit/47a5266692a6aaf5790873f379ccca689f4baa39))
+* **economy:** tokens pay the plain curve from 28 Oct, and a missed day resets the streak ([780c4ed](https://github.com/HansKristoffer/tokenmaxxing/commit/780c4ed0ef8f56a2f88051785196a1129e0a2d05))
+* **natmarked:** E on a case stall opens that case ([012d046](https://github.com/HansKristoffer/tokenmaxxing/commit/012d046e06702452e6454cb115f8af53b7398d44))
+* tokens pay 1.5 × (millions)^0.6 from 28 Oct, a missed day resets the streak, and E on a case stall opens that case ([3ba712a](https://github.com/HansKristoffer/tokenmaxxing/commit/3ba712ae2c900b923aaae3e8069e560913c234cd))
+
 ## [1.14.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.13.0...v1.14.0) (2026-10-27)
 
 
