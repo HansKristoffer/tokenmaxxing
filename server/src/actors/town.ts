@@ -16,7 +16,7 @@ import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import type { Listing as MarketListing, MyMarket } from "@tokenmaxxing/core/market.ts";
 import { paper as buildPaper, type Paper } from "@tokenmaxxing/core/paper.ts";
-import type { PrestigeView } from "@tokenmaxxing/core/prestige-run.ts";
+import type { PrestigeBadge, PrestigeView } from "@tokenmaxxing/core/prestige-run.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
@@ -189,7 +189,7 @@ import {
 } from "../town/offices.ts";
 import { markPicnic } from "../town/picnic.ts";
 import { type PokerSettle, pokerRelease, pokerSettle, pokerSit } from "../town/poker.ts";
-import { prestigeView, takeNextPrestige } from "../town/prestige.ts";
+import { myBadge, prestigeView, takeNextPrestige } from "../town/prestige.ts";
 import { freezeDays, questBoard, questEvent } from "../town/quests.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import * as requests from "../town/requests.ts";
@@ -272,6 +272,8 @@ export interface Me {
   company: MyCompany | null;
   /** The company I've asked to join and am waiting to hear from. */
   application: { companyId: number; name: string } | null;
+  /** My prestige (rank 0: none), for the run toasts and the callout. */
+  prestige: PrestigeBadge;
 }
 
 /**
@@ -442,6 +444,7 @@ export const town = actor({
         look: lookOf(u),
         company: u.companyId === null ? null : await myCompany(c.db, u.companyId, userId),
         application: await applicationOf(c.db, userId),
+        prestige: await myBadge(c.db, userId),
       };
     },
 

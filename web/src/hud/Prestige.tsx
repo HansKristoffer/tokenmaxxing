@@ -106,9 +106,10 @@ export function PrestigePanel() {
   if (done)
     return (
       <Modal title="Prestige">
-        <p className="prestige-done">
-          {track && <PrestigeTag rank={track.rank} />} Welcome. Your run begins at level 0.
-        </p>
+        <div className="prestige-done">
+          {track && <PrestigeTag rank={track.rank} />}
+          <p>Welcome. Your run begins at level 0.</p>
+        </div>
         <button type="button" onClick={() => hud.set({ panel: null })}>
           Close
         </button>

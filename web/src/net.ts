@@ -237,7 +237,7 @@ export function connect(token: string): void {
   // Other people's syncs move the board too; nothing announces those, so poll. Not in a hidden tab:
   // it catches up when it shows again.
   setInterval(() => {
-    if (hud.get().status === "ready" && !document.hidden) void refreshStats();
+    if (hud.get().status === "ready" && !document.hidden) void Promise.all([refreshStats(), refreshMe()]);
   }, 30_000);
   document.addEventListener("visibilitychange", () => {
     if (hud.get().status === "ready" && !document.hidden) void refreshStats();

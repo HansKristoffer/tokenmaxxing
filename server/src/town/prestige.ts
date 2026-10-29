@@ -66,6 +66,12 @@ export async function badgesOf(
 export const badgeOf = (badges: ReadonlyMap<number, PrestigeBadge>, id: number): PrestigeBadge =>
   badges.get(id) ?? NO_PRESTIGE;
 
+/** `userId`'s own badge, for `me`. */
+export async function myBadge(sql: Sql, userId: number): Promise<PrestigeBadge> {
+  const lifetime = await tokensIn(sql, [userId]);
+  return badgeOf(await badgesOf(sql, [userId], lifetime), userId);
+}
+
 /** Coins the prestiges are worth: every finished run in full, the current one as far as it has got. */
 export function prestigeCoins(taken: readonly PrestigeTaken[], lifetime: number): number {
   let sum = 0;
