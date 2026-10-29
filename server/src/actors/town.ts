@@ -15,7 +15,7 @@ import { clockAt, dateAt, type Keynote } from "@tokenmaxxing/core/keynote.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import type { Listing as MarketListing, MyMarket } from "@tokenmaxxing/core/market.ts";
-import { headlines, type Paper } from "@tokenmaxxing/core/paper.ts";
+import { paper as buildPaper, type Paper } from "@tokenmaxxing/core/paper.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
@@ -787,7 +787,7 @@ export const town = actor({
         .serial(() => questEvent(c.db, userId, "paper", `paper:${dayKey(now)}`, now))
         .catch((err) => console.warn(`[quests] ${userId}: ${String(err)}`));
       if (c.vars.paper?.day !== day)
-        c.vars.paper = { day, paper: paperFacts(c.db, day).then((f) => ({ day, headlines: headlines(f) })) };
+        c.vars.paper = { day, paper: paperFacts(c.db, day).then(buildPaper) };
       const paper = c.vars.paper.paper;
       // A failed build is tried again on the next read.
       paper.catch(() => {

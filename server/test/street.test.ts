@@ -68,3 +68,34 @@ test("a day nobody used shows up empty", async () => {
   const f = await paperFacts(sql, "2026-10-01");
   expect(f).toMatchObject({ tokens: 0, people: 0, burner: null, company: null, shipper: null, model: null });
 });
+
+test("the paper chains the day onto the days, weeks and months before", async () => {
+  await usage(1, "2026-10-19", "claude-opus-4-1", 1_000_000_000);
+  await usage(1, "2026-10-18", "claude-opus-4-1", 2_000_000_000);
+  await usage(1, "2026-10-01", "claude-opus-4-1", 500_000_000);
+  await usage(1, "2026-09-05", "claude-opus-4-1", 700_000_000);
+  const f = await paperFacts(sql, DAY);
+  // 10-19 was cy's 9B plus ada's 1B.
+  expect(f.trend.prev).toBe(10_000_000_000);
+  expect(f.trend.best).toBe(10_000_000_000);
+  expect(f.trend.week).toBe(5_300_000_000 + 10_000_000_000 + 2_000_000_000);
+  expect(f.trend.prevWeek).toBe(0);
+  expect(f.trend.month).toBe(f.trend.week + 500_000_000);
+  expect(f.trend.prevMonth).toBe(700_000_000);
+  // ada led 10-20 and 10-18 but cy led 10-19: no streak.
+  expect(f.trend.streak).toBeNull();
+  expect(f.models).toBe(2);
+  expect(f.agents).toBeNull();
+  expect(f.talker).toEqual({ name: "bo", prompts: 40 });
+});
+
+test("the paper notices a streak, a comeback and a newcomer", async () => {
+  for (const d of ["2026-10-19", "2026-10-18"]) await usage(1, d, "claude-opus-4-1", 20_000_000_000);
+  await usage(2, "2026-10-08", "claude-opus-4-1", 1); // bo was around two weeks ago, gone since
+  await sql.execute("UPDATE users SET created_at = ? WHERE id = 3", Date.parse("2026-10-20T10:00:00Z"));
+  const f = await paperFacts(sql, DAY);
+  expect(f.trend.streak).toEqual({ name: "ada", days: 3 });
+  expect(f.marathon).toEqual({ name: "ada", days: 3 });
+  expect(f.comeback).toBe("bo");
+  expect(f.newcomer).toBe("cy");
+});
