@@ -3,6 +3,7 @@
 import { caseAt } from "../../../core/src/case.ts";
 import { casePieceOf } from "../../../core/src/case-furniture.ts";
 import { caseById } from "../../../core/src/cases.ts";
+import { FISHING_ITEMS } from "../../../core/src/fishing-loot.ts";
 import { defaultLook, type Look } from "../../../core/src/world.ts";
 import { CA_H, CA_MS, CA_W, CA_X, CA_Y, caseAuraFrame } from "../../../web/src/art/case-aura.ts";
 import { CASE_BOX_FRAMES, CASE_BOX_SIZE, caseBoxSprite } from "../../../web/src/art/case-box.ts";
@@ -13,7 +14,8 @@ import { petFrame } from "../../../web/src/art/pets.ts";
 const q = new URLSearchParams(location.search);
 const caseId = q.get("case") ?? "ragnarok-eve";
 const S = Number(q.get("scale") ?? 4);
-const def = caseById(caseId)!;
+// `?case=pond`: the pond's treasures (`fishing-loot.ts`), which have no case and no box.
+const def = caseId === "pond" ? { name: "Pond treasures", items: FISHING_ITEMS } : caseById(caseId)!;
 
 type Sprite = HTMLCanvasElement;
 interface Cell {
@@ -136,7 +138,7 @@ for (const slot of ["hat", "glasses", "outfit", "held", "back"] as const) {
 }
 
 // The box: closed, open (two frames), key; also at the game's 3x for the opening screen.
-{
+if (caseId !== "pond") {
   const sp = (k: "closed" | "open" | "key", f: number) => caseBoxSprite(k, f, caseId);
   sheet(
     "box",
