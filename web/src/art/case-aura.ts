@@ -3,6 +3,7 @@ import { NUSANTARA_BASE } from "@tokenmaxxing/core/case-nusantara.ts";
 import { RAGNAROK_AURAS } from "./case-ragnarok-aura.ts";
 import { FISHING_AURAS } from "./fishing-loot-aura.ts";
 import { bake, cached, type Pen } from "./pixels.ts";
+import { PRESTIGE_AURAS } from "./prestige.ts";
 
 /**
  * The cases' legendary auras in 2D, four apiece (`core/src/case.ts` and `core/src/case-nusantara.ts`, slot "aura";
@@ -226,6 +227,8 @@ const DRAWS: Record<number, Draw> = {
   ...RAGNAROK_AURAS,
   // The pond treasures' (`fishing-loot-aura.ts`, 600).
   ...FISHING_AURAS,
+  // The prestige tracks' (`prestige.ts`, 700 up).
+  ...PRESTIGE_AURAS,
 };
 
 const frame = cached(
