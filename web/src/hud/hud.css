@@ -4069,6 +4069,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 /* A borrowed rod and a small pond, usable by pointer, keyboard and touch. */
 .fishing-scene {
   position: relative;
+  flex-shrink: 0;
   height: 112px;
   margin: 16px 0;
   overflow: hidden;
@@ -4101,8 +4102,44 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 .fishing-catch {
   position: absolute;
   right: 22px;
-  bottom: 14px;
-  font-size: 30px;
+  bottom: 10px;
+}
+.fishing-catch.leap {
+  animation: fishing-leap 0.7s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+.fish-pic {
+  display: block;
+  image-rendering: pixelated;
+}
+.fishing-status code {
+  font-size: 0.95em;
+}
+.fishing-record {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border: 2px solid #ffd75e;
+  background: rgba(255, 215, 94, 0.12);
+  font-weight: bold;
+}
+.fishing-treasure {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 2px solid var(--r);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--r) 45%, transparent);
+  animation: fishing-shine 1.6s ease-in-out infinite alternate;
+}
+.fishing-treasure > span,
+.fishing-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.fishing-luck {
+  margin: 4px 0 10px;
 }
 .fishing-timer {
   display: block;
@@ -4112,16 +4149,82 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   accent-color: #8db56b;
 }
 .fishing-journal {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  column-gap: 20px;
   list-style: none;
   padding: 0;
 }
 .fishing-journal li {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
-  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid var(--border, #66566d);
+}
+.fishing-journal li .fishing-entry {
+  flex: 1;
+}
+.fishing-journal li.unseen strong {
+  opacity: 0.6;
+}
+.fishing-journal li.mine {
+  background: rgba(255, 215, 94, 0.08);
+}
+.fishing-blurb {
+  opacity: 0.8;
+  font-style: italic;
+}
+.fishing-medals {
+  display: flex;
+  gap: 4px;
+  font-size: 20px;
+  white-space: nowrap;
+}
+.fishing-treasures {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+}
+.fishing-treasures li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  text-align: center;
+  border: 2px solid var(--r);
+}
+.fishing-treasures li.unseen {
+  border-style: dashed;
+  opacity: 0.55;
+}
+.fishing-treasure-pic {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  font-size: 32px;
+}
+@keyframes fishing-leap {
+  0% {
+    transform: translate(-80px, 60px) rotate(-30deg);
+    opacity: 0;
+  }
+  60% {
+    transform: translate(-10px, -18px) rotate(10deg);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes fishing-shine {
+  to {
+    box-shadow: 0 0 30px color-mix(in srgb, var(--r) 70%, transparent);
+  }
 }
 @keyframes fishing-bob {
   50% {
@@ -4130,7 +4233,9 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 }
 @media (prefers-reduced-motion: reduce) {
   .fishing-bobber.cast,
-  .biting .fishing-bobber {
+  .biting .fishing-bobber,
+  .fishing-catch.leap,
+  .fishing-treasure {
     animation: none;
   }
   .biting .fishing-bobber {
