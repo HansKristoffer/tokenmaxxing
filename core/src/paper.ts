@@ -145,7 +145,10 @@ const DAY_UP: Story = [
   ["Burn rate climbs {pct}% overnight", "Nobody can say why. Everybody says 'agents'."],
 ];
 const DAY_DOWN: Story = [
-  ["Town down {pct}% on the day before", "{tokens} against {prev}. Analysts suspect a long lunch, or a rate limit."],
+  [
+    "Town down {pct}% on the day before",
+    "{tokens} against {prev}. Analysts suspect a long lunch, or a rate limit.",
+  ],
   ["Burn rate slips {pct}%", "Sources blame 'touching grass'. Several have since recovered."],
 ];
 /** `{pct}`, `{tokens}`: the week so far against last week. */
@@ -155,7 +158,10 @@ const WEEK_UP: Story = [
 ];
 const WEEK_DOWN: Story = [
   ["Week running {pct}% cooler than last", "{tokens} in seven days. 'Strategic cooldown', says someone."],
-  ["Seven days, {tokens}: down {pct}% on last week", "Insiders call it 'a consolidation phase'. It is a Tuesday."],
+  [
+    "Seven days, {tokens}: down {pct}% on last week",
+    "Insiders call it 'a consolidation phase'. It is a Tuesday.",
+  ],
 ];
 /** `{pct}`, `{tokens}`: the month against the one before. */
 const MONTH_UP: Story = [
@@ -172,7 +178,10 @@ const RECORD: Story = [
 /** `{name}`, `{days}`. */
 const STREAK: Story = [
   ["{name} tops the board {days} days running", "Challengers describe the lead as 'unreasonable'."],
-  ["{days} days at the top: {name} shows no sign of stopping", "Has been asked to 'leave some tokens for the others'."],
+  [
+    "{days} days at the top: {name} shows no sign of stopping",
+    "Has been asked to 'leave some tokens for the others'.",
+  ],
 ];
 /** `{name}`, `{days}`. */
 const MARATHON: Story = [
@@ -181,7 +190,10 @@ const MARATHON: Story = [
 ];
 /** `{pct}`. */
 const CACHE: Story = [
-  ["{pct}% of the town's tokens were cache reads", "Experts: 'that's mostly just remembering things loudly'."],
+  [
+    "{pct}% of the town's tokens were cache reads",
+    "Experts: 'that's mostly just remembering things loudly'.",
+  ],
   ["Cache hit rate: {pct}%", "The other {rest}% was new, original and probably a typo."],
 ];
 /** `{name}`, `{peak}`. */
@@ -200,7 +212,10 @@ const NEWCOMER: Story = [
   ["New face: {name}", "Has already been asked to 'quickly look at something'."],
 ];
 const COMEBACK: Story = [
-  ["{name} returns after a week away", "Says it was 'a digital detox'. Their first prompt was 'what did I miss'."],
+  [
+    "{name} returns after a week away",
+    "Says it was 'a digital detox'. Their first prompt was 'what did I miss'.",
+  ],
   ["{name} is back", "The branch they left is, miraculously, still red."],
 ];
 /** `{name}`, `{tokens}`. */
@@ -215,22 +230,37 @@ const MODELS: Story = [
 
 /** Stories that need no facts at all: the paper's own made-up wire. Some of them run every day. */
 const WIRE: Story = [
-  ["Man replaces entire codebase with 'a cleaner approach'", "Original codebase 'was fine, actually'. Tests 'unavailable for comment'."],
+  [
+    "Man replaces entire codebase with 'a cleaner approach'",
+    "Original codebase 'was fine, actually'. Tests 'unavailable for comment'.",
+  ],
   ["Local dev asks AI to 'make it pop', gets confetti", "Production now celebrates every 404."],
   ["Standup runs 40 minutes, discusses standup", "Motion to make it shorter referred to a committee."],
   ["Rubber duck promoted to Staff Engineer", "'It listens better than most,' says the committee."],
-  ["Meeting could have been an email, confirms email", "Email could have been a prompt. Prompt could have been silence."],
+  [
+    "Meeting could have been an email, confirms email",
+    "Email could have been a prompt. Prompt could have been silence.",
+  ],
   ["Coffee machine achieves sentience, files bug against itself", "Closed as 'works on my machine'."],
   ["'It works on my machine' ships to production", "The machine has been recalled."],
   ["Intern finds off-by-one error, enters a fugue state", "Is expected to make a full recovery by Q3."],
-  ["Town's last tab-versus-spaces debate ends in a draw", "Both sides claim victory. A linter claims everything."],
+  [
+    "Town's last tab-versus-spaces debate ends in a draw",
+    "Both sides claim victory. A linter claims everything.",
+  ],
   ["Friday deploy goes 'surprisingly fine', nobody trusts it", "Someone has gone to check the logs. Slowly."],
   ["Sprint planning 'quick' for third week running", "Sources say the sprint 'has not yet been informed'."],
   ["Regex now 'basically understood' by two people", "Both have promised not to touch it. Both are lying."],
   ["Local branch named 'final-final-v3' declared stable", "Its sibling 'final-final-v3-REAL' disagrees."],
-  ["Dependency update 'just a patch', breaks 14 things", "The patch notes read: 'misc fixes'. They were not misc."],
+  [
+    "Dependency update 'just a patch', breaks 14 things",
+    "The patch notes read: 'misc fixes'. They were not misc.",
+  ],
   ["Clean git history spotted in the wild", "Experts urge calm. Do not approach."],
-  ["Missing semicolon sighted; entire afternoon vanishes", "Authorities recover the afternoon in a different timezone."],
+  [
+    "Missing semicolon sighted; entire afternoon vanishes",
+    "Authorities recover the afternoon in a different timezone.",
+  ],
 ];
 
 /** When there's nothing to report. */
@@ -289,19 +319,40 @@ const FORECAST_FLAT = [
 const SIGNS = ["Opus", "Sonnet", "Haiku", "Cache", "Agent", "Linter", "Prompt", "Branch", "Token", "Diff"];
 /** The corner boxes: each has a kicker, and a paper runs two different ones. */
 const CORNERS: Corner[] = [
-  { kicker: "Classifieds", text: "FOR SALE: one pair of context windows. Barely used. 200K each. Ask for 'Dave'." },
-  { kicker: "Classifieds", text: "WANTED: someone to review a 4,000-line PR. Pays in exposure and sausages." },
-  { kicker: "Classifieds", text: "FREE TO GOOD HOME: legacy codebase. Please take it. It knows where you live." },
+  {
+    kicker: "Classifieds",
+    text: "FOR SALE: one pair of context windows. Barely used. 200K each. Ask for 'Dave'.",
+  },
+  {
+    kicker: "Classifieds",
+    text: "WANTED: someone to review a 4,000-line PR. Pays in exposure and sausages.",
+  },
+  {
+    kicker: "Classifieds",
+    text: "FREE TO GOOD HOME: legacy codebase. Please take it. It knows where you live.",
+  },
   { kicker: "Classifieds", text: "LOST: variable named 'temp'. Answers to 'temp2'. Reward: a refactor." },
-  { kicker: "Letters", text: "'Dear Tidende, why is my agent so confident and so wrong? — Concerned, 3rd floor'" },
+  {
+    kicker: "Letters",
+    text: "'Dear Tidende, why is my agent so confident and so wrong? — Concerned, 3rd floor'",
+  },
   { kicker: "Letters", text: "'Dear Tidende, is it normal to talk to the AI like a colleague? — Polite'" },
   { kicker: "Letters", text: "'Dear Tidende, the fountain has no cache reads. Fix it. — Thirsty'" },
   { kicker: "Obituary", text: "Here lies feature/final-final-v2. Merged in a hurry. Survived by 14 TODOs." },
   { kicker: "Obituary", text: "Here lies the build that was green yesterday. We hardly knew why." },
   { kicker: "Sport", text: "Cache reads beat fresh input 4–1 in a match everyone watched at 3x speed." },
-  { kicker: "Sport", text: "The Linters hold off the Formatters in a long, pedantic final. Tabs lose again." },
-  { kicker: "Crossword", text: "7 across: 'A thing that works, until it doesn't' (4). Everyone writes 'DEMO'." },
-  { kicker: "Recipe", text: "Pølse med det hele: one sausage, all the toppings, no plan. Serves one standup." },
+  {
+    kicker: "Sport",
+    text: "The Linters hold off the Formatters in a long, pedantic final. Tabs lose again.",
+  },
+  {
+    kicker: "Crossword",
+    text: "7 across: 'A thing that works, until it doesn't' (4). Everyone writes 'DEMO'.",
+  },
+  {
+    kicker: "Recipe",
+    text: "Pølse med det hele: one sausage, all the toppings, no plan. Serves one standup.",
+  },
   { kicker: "Advice", text: "Tip of the day: read the error. No, the whole thing. Yes, the bit at the top." },
 ];
 
@@ -382,7 +433,10 @@ export function headlines(f: PaperFacts, rand = random(seedOf(f.day))): Headline
   // changes from day to day, and so does how much of it is true.
   const wire = shuffle(WIRE, rand).slice(0, 2);
   const quiet = shuffle(QUIET, rand);
-  const rest = [...shuffle([...others, ...wire.map(([title, deck]) => ({ title, deck }))], rand), ...quiet.map(([title, deck]) => ({ title, deck }))];
+  const rest = [
+    ...shuffle([...others, ...wire.map(([title, deck]) => ({ title, deck }))], rand),
+    ...quiet.map(([title, deck]) => ({ title, deck })),
+  ];
   const front = [...(lead ? [lead] : []), ...rest];
   // Never the same title twice, and WIRE tops up what quiet days leave short.
   const seen = new Set<string>();
@@ -414,9 +468,15 @@ export function paper(f: PaperFacts): Paper {
     f.prompts > 0 && `${f.prompts.toLocaleString("en")} prompts sent. 'Continue' was the most common.`,
     f.people > 0 && `${f.people} ${f.people === 1 ? "dev was" : "devs were"} at their desks, in spirit.`,
   ].filter((b): b is string => !!b);
-  const briefs = [WEEKDAYS[weekday]!, ...shuffle([...factual.slice(0, 2), ...BRIEF_RANDOM], rand)].slice(0, BRIEFS);
+  const briefs = [WEEKDAYS[weekday]!, ...shuffle([...factual.slice(0, 2), ...BRIEF_RANDOM], rand)].slice(
+    0,
+    BRIEFS,
+  );
   const dc = change(f.tokens, f.trend.prev);
-  const forecast = shuffle(dc === null || Math.abs(dc) < 0.05 ? FORECAST_FLAT : dc > 0 ? FORECAST_UP : FORECAST_DOWN, rand)[0]!;
+  const forecast = shuffle(
+    dc === null || Math.abs(dc) < 0.05 ? FORECAST_FLAT : dc > 0 ? FORECAST_UP : FORECAST_DOWN,
+    rand,
+  )[0]!;
   const sign = SIGNS[Math.floor(rand() * SIGNS.length)]!;
   const horoscope = {
     kicker: `Horoscope: ${sign}`,
@@ -434,5 +494,12 @@ export function paper(f: PaperFacts): Paper {
   const pool = shuffle([...CORNERS, horoscope], rand);
   const first = pool[0]!;
   const second = pool.find((c) => c.kicker !== first.kicker)!;
-  return { day: f.day, headlines: headlines(f), briefs, markets: markets(f), forecast, corners: [first, second] };
+  return {
+    day: f.day,
+    headlines: headlines(f),
+    briefs,
+    markets: markets(f),
+    forecast,
+    corners: [first, second],
+  };
 }

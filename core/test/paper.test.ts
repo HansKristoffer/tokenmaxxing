@@ -91,7 +91,10 @@ test("a pet sighting names its owner and the place", () => {
 
 test("the paper chains the day onto the weeks and months before it", () => {
   const days = Array.from({ length: 30 }, (_, i) => `2026-09-${String(i + 1).padStart(2, "0")}`);
-  const text = days.flatMap((day) => headlines({ ...BUSY, day })).map((h) => `${h.title} ${h.deck}`).join("\n");
+  const text = days
+    .flatMap((day) => headlines({ ...BUSY, day }))
+    .map((h) => `${h.title} ${h.deck}`)
+    .join("\n");
   expect(text).toMatch(/last week|day before|Month by month|days running|record/i);
   const { markets } = paper(BUSY);
   expect(markets.map((m) => m.label)).toEqual(["Day", "7 days", "30 days", "Cache"]);
@@ -104,9 +107,9 @@ test("the paper chains the day onto the weeks and months before it", () => {
 test("a record day is a story", () => {
   const record = { ...BUSY, tokens: 20e9 };
   const days = Array.from({ length: 30 }, (_, i) => `2026-09-${String(i + 1).padStart(2, "0")}`);
-  expect(days.some((day) => headlines({ ...record, day }).some((h) => /record|all-time/i.test(h.title)))).toBe(
-    true,
-  );
+  expect(
+    days.some((day) => headlines({ ...record, day }).some((h) => /record|all-time/i.test(h.title))),
+  ).toBe(true);
 });
 
 test("the page has briefs, a forecast and two different corners, and no holes", () => {

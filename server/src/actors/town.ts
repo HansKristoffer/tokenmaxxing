@@ -786,8 +786,7 @@ export const town = actor({
       void c.vars
         .serial(() => questEvent(c.db, userId, "paper", `paper:${dayKey(now)}`, now))
         .catch((err) => console.warn(`[quests] ${userId}: ${String(err)}`));
-      if (c.vars.paper?.day !== day)
-        c.vars.paper = { day, paper: paperFacts(c.db, day).then(buildPaper) };
+      if (c.vars.paper?.day !== day) c.vars.paper = { day, paper: paperFacts(c.db, day).then(buildPaper) };
       const paper = c.vars.paper.paper;
       // A failed build is tried again on the next read.
       paper.catch(() => {

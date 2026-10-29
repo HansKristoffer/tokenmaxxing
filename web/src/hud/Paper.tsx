@@ -50,7 +50,9 @@ export function PaperPanel() {
                     <th>{m.label}</th>
                     <td>{m.value}</td>
                     <td className={m.change === null ? "" : m.change >= 0 ? "up" : "down"}>
-                      {m.change === null ? "" : `${m.change >= 0 ? "▲" : "▼"} ${Math.round(Math.abs(m.change) * 100)}%`}
+                      {m.change === null
+                        ? ""
+                        : `${m.change >= 0 ? "▲" : "▼"} ${Math.round(Math.abs(m.change) * 100)}%`}
                     </td>
                   </tr>
                 ))}

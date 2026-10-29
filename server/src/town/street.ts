@@ -156,7 +156,8 @@ export async function paperFacts(sql: Sql, day: string): Promise<PaperFacts> {
       month: span(0, 30),
       prevMonth: span(30, 30),
       best: bestRow?.best ?? 0,
-      streak: leader && lead >= 2 && byId.has(leader.id) ? { name: byId.get(leader.id)!.name, days: lead } : null,
+      streak:
+        leader && lead >= 2 && byId.has(leader.id) ? { name: byId.get(leader.id)!.name, days: lead } : null,
     },
     cache: tokens > 0 ? (shape?.cache ?? 0) / tokens : 0,
     turns: shape?.turns ?? 0,
