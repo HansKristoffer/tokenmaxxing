@@ -14,12 +14,15 @@ import {
 import { danceAt, danceId, isFree } from "@tokenmaxxing/core/dances.ts";
 import { type Barrel, barrelUp, HITS, isBarrel, WHACK_MS } from "@tokenmaxxing/core/fastelavn.ts";
 import {
+  type Angling,
   CAST_COOLDOWN_MS,
   type CastReply,
   type FishingCast,
   fishingPhase,
   fishingWater,
+  type Landing,
   newCast,
+  pondTime,
   type ReelReply,
   rollCatch,
 } from "@tokenmaxxing/core/fishing.ts";
@@ -251,6 +254,9 @@ interface WorldPlayer extends PlayerCore, Place {
   /** The dance they're doing (`DANCES`), since when; none once they step, sit, rest or come back. */
   dance?: number;
   danceSince?: number;
+  /** Their line in the pond and their last catch, for everyone to see (`fishingCast`, `fishingReel`). */
+  angling?: Angling | null;
+  landing?: Landing | null;
 }
 
 interface WorldState {
@@ -378,6 +384,9 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   // Only on their feet: a seat, a bed or a game puts the dance down (`stopDance`).
   dance: p.state === "idle" ? (p.dance ?? 0) : 0,
   danceSince: p.state === "idle" ? (p.danceSince ?? 0) : 0,
+  // Fishing is on your feet at the bank, and only while you're there to hold the rod.
+  angling: p.state === "idle" && online ? (p.angling ?? null) : null,
+  landing: p.state === "idle" && online ? (p.landing ?? null) : null,
   x: p.x,
   y: p.y,
   facing: p.facing,
@@ -540,6 +549,7 @@ export const world = actor({
     c.vars.fishing.delete(s.userId);
     const p = c.state.players[s.userId];
     if (!p) return;
+    stopFishing(p);
     pokerStandUp(c, p.id);
     rouletteLeave(c, p.id);
     const from = p.room;
@@ -676,8 +686,9 @@ export const world = actor({
       p.facing = rawDir;
       p.state = "idle";
       c.vars.dirty.add(p.id);
-      // Walking off ends a dance (turning on the spot too: an arrow key is how you walk away).
-      if (stopDance(p)) sendInfo(c, p, info(p, true));
+      // Walking off ends a dance (turning on the spot too: an arrow key is how you walk away), and puts the rod away.
+      const danced = stopDance(p);
+      if (stopFishing(p) || danced) sendInfo(c, p, info(p, true));
       return typedSwitch(stepTarget(mapOf(p.room), p.x, p.y, rawDir), "kind", {
         move: (target) => {
           if (p.room === "town" && onProp(c.state, c.vars, target.x, target.y)) return correction(p);
@@ -959,6 +970,9 @@ export const world = actor({
       const cast = newCast(p.x, p.y, water, now);
       c.vars.fishing.set(p.id, cast);
       c.vars.fishingStarts.set(p.id, now);
+      p.angling = { waterX: cast.waterX, waterY: cast.waterY, biteAt: cast.biteAt, endsAt: cast.endsAt };
+      p.landing = null;
+      sendInfo(c, p, info(p, true));
       return { ok: true, cast, now };
     },
 
@@ -968,6 +982,7 @@ export const world = actor({
       if (!p || !cast) return { ok: false, message: "Cast a line first." };
       // Consume before awaiting the journal write: two tabs cannot claim the same fish.
       c.vars.fishing.delete(p.id);
+      if (stopFishing(p)) sendInfo(c, p, info(p, true));
       const now = Date.now();
       if (
         p.room !== "town" ||
@@ -985,13 +1000,25 @@ export const world = actor({
           message:
             phase === "waiting" ? "Too soon! Wait for the bobber to dip." : "It got away! Try another cast.",
         };
-      const caught = rollCatch();
-      const journal = await main(c.client()).town.recordFish(p.id, caught);
-      return { ok: true, catch: caught, journal };
+      const caught = rollCatch(pondTime(now, c.vars.weather.kind));
+      const landed = await main(c.client()).town.recordFish(p.id, caught);
+      // Held up for the room to see, if they're still on the bank.
+      if (p.x === cast.x && p.y === cast.y && p.state === "idle") {
+        p.landing = { fish: caught.fish, waterX: cast.waterX, waterY: cast.waterY, at: Date.now() };
+        sendInfo(c, p, info(p, true));
+      }
+      return { ok: true, catch: caught, ...landed };
     },
 
     fishingCancel: (c): void => {
-      c.vars.fishing.delete(requireUser(c.conn.state));
+      const userId = requireUser(c.conn.state);
+      c.vars.fishing.delete(userId);
+      const p = c.state.players[userId];
+      // The rod goes away with the panel; a catch still being held up stays up for its moment.
+      if (p?.angling) {
+        p.angling = null;
+        sendInfo(c, p, info(p, true));
+      }
     },
 
     /** The Tavern's jukebox: put a track on, if nothing plays and you've waited out your minute. */
@@ -2044,6 +2071,14 @@ function wake(s: WorldState, p: WorldPlayer): boolean {
   );
   const seat = mapOf(back.room).kind(back.x, back.y).seat;
   Object.assign(p, back, { state: back.state === "sit" && seat && !taken ? "sit" : "idle" });
+  return true;
+}
+
+/** Puts `p`'s rod away and their catch back: true if either was showing (their `info` changed). */
+function stopFishing(p: WorldPlayer): boolean {
+  if (!p.angling && !p.landing) return false;
+  p.angling = null;
+  p.landing = null;
   return true;
 }
 

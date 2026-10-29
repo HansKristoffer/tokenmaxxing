@@ -1,4 +1,7 @@
 /** Badges on the player card: worked out on read from a player's facts, never stored or claimed. */
+
+import { FISH } from "./fishing.ts";
+import { FISHING_ITEMS } from "./fishing-loot.ts";
 import { plural } from "./format.ts";
 import { GAMES } from "./games/index.ts";
 import { LOOT } from "./loot.ts";
@@ -44,9 +47,23 @@ export interface BadgeFacts {
   tavernDays?: number;
   /** Daily quests cleared (`questsCleared`). */
   helped?: number;
+  /** Fish caught at the pond, all told (`fishing_journal`). */
+  fishCaught?: number;
+  /** Species in the fishing journal. */
+  fishSpecies?: number;
+  /** Species whose best is at their longest (`isSpecimen`). */
+  fishSpecimens?: number;
+  /** Species caught 50 times (gold medals). */
+  fishGolds?: number;
+  /** Different pond treasures found. */
+  fishTreasures?: number;
+  /** Pond records held right now. */
+  fishRecords?: number;
+  /** 1 once they've caught a fish exactly 42 cm long. */
+  fishAnswer?: number;
 }
 
-export type Group = "Usage" | "Social" | "Town" | "Raid" | "Games" | "Seasonal";
+export type Group = "Usage" | "Social" | "Town" | "Raid" | "Games" | "Fishing" | "Seasonal";
 
 /** Bronze to diamond are the old four; mythic and cosmic are for ladders that go past them. */
 export type Frame = "bronze" | "silver" | "gold" | "diamond" | "mythic" | "cosmic";
@@ -367,6 +384,80 @@ export const BADGES: readonly BadgeDef[] = [
       { at: 100e12, label: "100T: heat death" },
     ],
     of: (f) => f.lifetime ?? 0,
+  },
+  {
+    id: "angler",
+    emoji: "🎣",
+    name: "Angler",
+    group: "Fishing",
+    how: "Catch fish at the town pond",
+    tiers: [
+      ...ladder([10, 100, 500, 2000], (at) => plural(at, "fish", "fish")),
+      { at: 10000, label: "10000 fish: the pond files a complaint" },
+      { at: 50000, label: "50000 fish: the pond is mostly you now" },
+    ],
+    of: (f) => f.fishCaught ?? 0,
+  },
+  {
+    id: "naturalist",
+    emoji: "📖",
+    name: "Naturalist",
+    group: "Fishing",
+    how: "Fill the fishing journal with different species",
+    tiers: [
+      ...ladder([5, 10, 15], (at) => `${at} species`),
+      { at: FISH.length, label: "Every species: the journal is full" },
+    ],
+    of: (f) => f.fishSpecies ?? 0,
+  },
+  {
+    id: "specimen",
+    emoji: "📏",
+    name: "Specimen hunter",
+    group: "Fishing",
+    how: "Land a species at its longest",
+    tiers: ladder([1, 5, 10], (at) => `${plural(at, "perfect specimen")}`),
+    of: (f) => f.fishSpecimens ?? 0,
+  },
+  {
+    id: "goldmedal",
+    emoji: "🥇",
+    name: "Gold medallist",
+    group: "Fishing",
+    how: "Catch one species 50 times",
+    tiers: ladder([1, 5, 10], (at) => `${plural(at, "gold medal")}`),
+    of: (f) => f.fishGolds ?? 0,
+  },
+  {
+    id: "recordholder",
+    emoji: "🏆",
+    name: "Pond record",
+    group: "Fishing",
+    how: "Hold the town's record for a species' longest catch",
+    tiers: ladder([1, 3, 5], (at) => `${plural(at, "pond record")} held`),
+    of: (f) => f.fishRecords ?? 0,
+  },
+  {
+    id: "treasure",
+    emoji: "💎",
+    name: "Treasure diver",
+    group: "Fishing",
+    how: "Find the pond's treasures (a 1% chance on the day's first catches)",
+    tiers: [
+      { at: 1, label: "Found a pond treasure" },
+      { at: 3, label: "3 pond treasures" },
+      { at: FISHING_ITEMS.length, label: "Every pond treasure" },
+    ],
+    of: (f) => f.fishTreasures ?? 0,
+  },
+  {
+    id: "answer",
+    emoji: "🌌",
+    name: "Don't panic",
+    group: "Fishing",
+    how: "Catch a fish exactly 42 cm long",
+    tiers: [{ at: 1, label: "The answer, in centimetres" }],
+    of: (f) => f.fishAnswer ?? 0,
   },
 ];
 

@@ -6,6 +6,7 @@
  */
 import { NUSANTARA_ITEMS } from "./case-nusantara.ts";
 import { RAGNAROK_ITEMS } from "./case-ragnarok.ts";
+import { FISHING_ITEMS } from "./fishing-loot.ts";
 import type { Rarity } from "./rarity.ts";
 import type { Item } from "./shop.ts";
 
@@ -74,8 +75,17 @@ export const CASE_ITEMS: readonly CaseItem[] = [
   entry("aura", 3, "Koi Current", "legendary", "A ribbon of tiny koi circles you, tails flicking."),
 ];
 
-/** Every case's cosmetics: the Night Market's (`CASE_ITEMS`, 300 to 399), the Nusantara's (400 to 499), then Ragnarok Eve's (500 to 599). */
-export const ALL_CASE_ITEMS: readonly CaseItem[] = [...CASE_ITEMS, ...NUSANTARA_ITEMS, ...RAGNAROK_ITEMS];
+/**
+ * Every case's cosmetics: the Night Market's (`CASE_ITEMS`, 300 to 399), the Nusantara's (400 to 499), Ragnarok
+ * Eve's (500 to 599), then the pond's treasures (`fishing-loot.ts`, 600 to 699), which no case sells but which
+ * are worn and drawn the same way.
+ */
+export const ALL_CASE_ITEMS: readonly CaseItem[] = [
+  ...CASE_ITEMS,
+  ...NUSANTARA_ITEMS,
+  ...RAGNAROK_ITEMS,
+  ...FISHING_ITEMS,
+];
 
 /** The case item a look index stands for in a slot, if it is one, from any case. */
 export const caseAt = (slot: string, index: number): CaseItem | undefined =>

@@ -10,7 +10,7 @@ import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import type { Gift } from "@tokenmaxxing/core/december.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
 import type { Barrel } from "@tokenmaxxing/core/fastelavn.ts";
-import type { FishCatch, FishingEntry } from "@tokenmaxxing/core/fishing.ts";
+import type { FishCatch, FishingEntry, FishingState } from "@tokenmaxxing/core/fishing.ts";
 import { clockAt, dateAt, type Keynote } from "@tokenmaxxing/core/keynote.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
@@ -157,7 +157,7 @@ import {
 } from "../town/companies.ts";
 import { buyDesk, buyDeskFleet, type MyDesk, myDesk, setDesk } from "../town/desks.ts";
 import { barrel, type Whack, whack } from "../town/fastelavn.ts";
-import { fishingJournal, recordFish } from "../town/fishing.ts";
+import { fishingJournal, fishingState, type Landed, recordFish } from "../town/fishing.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { recordGreen } from "../town/grid.ts";
 import { type HallOfFame, hallOfFame } from "../town/hall.ts";
@@ -1045,9 +1045,25 @@ export const town = actor({
     /** Your catch-and-release journal, shared across devices. */
     fishingJournal: (c): Promise<FishingEntry[]> => fishingJournal(c.db, requireUser(c.conn.state)),
 
-    recordFish: (c, userId: number, caught: FishCatch): Promise<FishingEntry[]> => {
+    /** The fishing panel: your journal, the day's lucky casts, the pond's records and your treasures. */
+    fishingState: (c): Promise<FishingState> => fishingState(c.db, requireUser(c.conn.state), Date.now()),
+
+    /**
+     * From `world`: an on-time reel. A treasure goes in the bag and is told to the town; a new record or a badge
+     * shows the next time anyone looks.
+     */
+    recordFish: async (c, userId: number, caught: FishCatch): Promise<Landed> => {
       requireInternal(c.conn.state);
-      return c.vars.serial(() => recordFish(c.db, userId, caught));
+      const now = Date.now();
+      const landed = await c.vars.serial(() => recordFish(c.db, userId, caught, now));
+      c.vars.dirty.add(userId);
+      c.vars.collections.delete(userId);
+      if (landed.treasure) {
+        const item = itemById(landed.treasure.item);
+        const who = (await one<{ name: string }>(c.db, "SELECT name FROM users WHERE id = ?", userId))?.name;
+        if (item && who) await announceTown(c.client(), `🎣 ${who} fished up a ${item.name} from the pond!`);
+      }
+      return landed;
     },
 
     /** From `world`: a coin in the fountain (1 coin out, and the day's fountain quest). */

@@ -6,6 +6,7 @@ import { RAGNAROK_BASE, RAGNAROK_ITEMS } from "../src/case-ragnarok.ts";
 import { RAGNAROK_PIECES } from "../src/case-ragnarok-furniture.ts";
 import { CASES, caseById, caseOfItem } from "../src/cases.ts";
 import { EDITIONS } from "../src/editions.ts";
+import { FISHING_ITEMS } from "../src/fishing-loot.ts";
 import { HEADWEAR_ITEMS } from "../src/headwear.ts";
 import { HOME_PIECES } from "../src/home.ts";
 import { LOOT, TROPHIES } from "../src/loot.ts";
@@ -62,7 +63,9 @@ describe("Ragnarok Eve wearables", () => {
       expect(at).toEqual(at.map((_, n) => RAGNAROK_BASE + n));
     }
     expect(RAGNAROK_BASE).toBeGreaterThan(CASE_BASE + 99);
-    expect(ALL_CASE_ITEMS).toHaveLength(CASE_ITEMS.length + NUSANTARA_ITEMS.length + RAGNAROK_ITEMS.length);
+    expect(ALL_CASE_ITEMS).toHaveLength(
+      CASE_ITEMS.length + NUSANTARA_ITEMS.length + RAGNAROK_ITEMS.length + FISHING_ITEMS.length,
+    );
     const keys = ALL_CASE_ITEMS.map((c) => `${c.slot}.${c.index}`);
     expect(new Set(keys).size).toBe(keys.length);
   });
