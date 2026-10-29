@@ -71,11 +71,85 @@
 
 .paper-cols {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px 0;
 }
 
-.paper-cols section + section {
+.paper-cols section {
   border-left: 1px solid rgba(43, 36, 51, 0.25);
-  padding-left: 12px;
+  padding: 0 12px;
+}
+
+.paper-cols section:nth-child(3n + 1) {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.paper-cols section:nth-child(n + 4) {
+  border-top: 1px solid rgba(43, 36, 51, 0.25);
+  padding-top: 10px;
+}
+
+/* Under the headlines: markets, brief, and the corner boxes. */
+.paper-sides {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 16px;
+  margin-top: 12px;
+  border-top: 3px double var(--ink);
+  padding-top: 10px;
+}
+
+.modal .paper-sides h6 {
+  margin: 0 0 3px;
+  border-bottom: 1px solid var(--ink);
+  color: var(--ink);
+  font: 700 10px / 1.4 var(--font);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.modal .paper-sides p,
+.paper-sides li {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.paper-sides ul {
+  margin: 0;
+  padding-left: 14px;
+  color: #4a3f47;
+  font-style: italic;
+}
+
+.paper-markets table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 600 11px / 1.5 var(--font);
+}
+
+.paper-markets th {
+  text-align: left;
+  font-weight: 600;
+}
+
+.paper-markets td:nth-child(2) {
+  text-align: right;
+}
+
+.paper-markets td:last-child {
+  width: 52px;
+  text-align: right;
+}
+
+.paper-markets .up {
+  color: #2d7a3f;
+}
+
+.paper-markets .down {
+  color: #b23a3a;
+}
+
+.paper-markets p {
+  margin-top: 4px;
 }
