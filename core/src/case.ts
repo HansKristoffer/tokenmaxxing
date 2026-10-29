@@ -7,6 +7,7 @@
 import { NUSANTARA_ITEMS } from "./case-nusantara.ts";
 import { RAGNAROK_ITEMS } from "./case-ragnarok.ts";
 import { FISHING_ITEMS } from "./fishing-loot.ts";
+import { PRESTIGE_ITEMS } from "./prestige.ts";
 import type { Rarity } from "./rarity.ts";
 import type { Item } from "./shop.ts";
 
@@ -85,6 +86,7 @@ export const ALL_CASE_ITEMS: readonly CaseItem[] = [
   ...NUSANTARA_ITEMS,
   ...RAGNAROK_ITEMS,
   ...FISHING_ITEMS,
+  ...PRESTIGE_ITEMS,
 ];
 
 /** The case item a look index stands for in a slot, if it is one, from any case. */

@@ -2,6 +2,7 @@ import { RAGNAROK_GLASSES, RAGNAROK_HATS } from "./case-ragnarok.ts";
 import type { Art } from "./editions.ts";
 import { FISHING_HATS } from "./fishing-loot.ts";
 import { C } from "./palette.ts";
+import { PRESTIGE_HATS } from "./prestige.ts";
 
 /**
  * The Night Market case's and the Nusantara case's hats and glasses (`core/src/case.ts`,
@@ -114,3 +115,5 @@ Object.assign(CASE_HATS, RAGNAROK_HATS);
 Object.assign(CASE_GLASSES, RAGNAROK_GLASSES);
 // The pond treasures (`fishing-loot.ts`, ids from `FISHING_BASE`) too.
 Object.assign(CASE_HATS, FISHING_HATS);
+// And the prestige tracks' (`prestige.ts`, ids from `PRESTIGE_BASE`).
+Object.assign(CASE_HATS, PRESTIGE_HATS);

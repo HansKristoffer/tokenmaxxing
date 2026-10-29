@@ -55,8 +55,8 @@ const LEVEL_TITLES = [
 
 /**
  * Lifetime tokens where each level starts; the index is the level. About ×3 a level to 10B, then
- * 1B a level to 30, then steps of 2B, 3B, 5B and 10B, five levels each, to 130B at 50. Levels
- * only ever add on the end, so nobody's level goes down when the table grows.
+ * 1B a level to 50 (30B at level 30, 50B at level 50). Prestige runs (`prestige-run.ts`) count from
+ * the lifetime total at the moment they start, so the first journey ends at 50B.
  */
 const LEVELS = [
   0,
@@ -69,8 +69,7 @@ const LEVELS = [
   1e9,
   3e9,
   6e9,
-  ...Array.from({ length: 21 }, (_, i) => (10 + i) * 1e9),
-  ...[32, 34, 36, 38, 40, 43, 46, 49, 52, 55, 60, 65, 70, 75, 80, 90, 100, 110, 120, 130].map((b) => b * 1e9),
+  ...Array.from({ length: 41 }, (_, i) => (10 + i) * 1e9),
 ];
 export const MAX_LEVEL = LEVELS.length - 1;
 /** The old top level: town characters (bots, the cop) stay there, below the legendary one, which players earn. */

@@ -33,6 +33,8 @@ import "./gear3dNusantara.ts";
 import "./gear3dRagnarok.ts";
 // The pond treasures (look indices 600 and up, only fishing turns them up) too.
 import "./gear3dFishing.ts";
+// And the prestige tracks' (look indices 700 and up, earned in a prestige run).
+import "./gear3dPrestige.ts";
 import { AURA_BUILDERS } from "./gear3dAura.ts";
 import { COVERS_HAIR, type Ctx, FACE_BUILDERS, HAT_BUILDERS, lit, ring, see } from "./gear3dHead.ts";
 import type { Hat, Look as VLook } from "./styles.ts";

@@ -7,6 +7,7 @@ import type { Pose, View } from "./characters.ts";
 import { FISHING_BACKS, FISHING_HELD } from "./fishing-loot.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
+import { PRESTIGE_BACKS, PRESTIGE_OUTFITS } from "./prestige.ts";
 
 /**
  * Art for the wardrobe (core/src/wardrobe.ts): outfits from 13 on, things held in the hand, things
@@ -674,6 +675,9 @@ Object.assign(BACKS, RAGNAROK_BACKS);
 // The pond treasures (`fishing-loot.ts`, indices from `FISHING_BASE`) too.
 Object.assign(HELD, FISHING_HELD);
 Object.assign(BACKS, FISHING_BACKS);
+// And the prestige tracks' (`prestige.ts`, indices from `PRESTIGE_BASE`).
+Object.assign(OUTFITS, PRESTIGE_OUTFITS);
+Object.assign(BACKS, PRESTIGE_BACKS);
 
 function drawBack(p: Pen, i: number, view: View, pose: Pose, layer: "behind" | "front", flip: boolean): void {
   const b = BACKS[i];

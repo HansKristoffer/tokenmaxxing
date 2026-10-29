@@ -1,0 +1,119 @@
+/* The prestige tag: crest, title and run level. Colours come from the track as --pt-main / --pt-accent / --pt-glow. */
+.prestige-tag {
+  --pt-main: #8b5cf6;
+  --pt-accent: #d6dbe6;
+  --pt-glow: #c4a8ff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  padding: 1px 10px 1px 4px;
+  border: 1px solid var(--pt-main);
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pt-main) 38%, #12141c), #12141c 85%);
+  color: #fff;
+  font-weight: bold;
+  box-shadow: 0 0 8px -1px var(--pt-glow);
+  position: relative;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.prestige-tag .pt-emblem {
+  display: block;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 3px var(--pt-glow));
+}
+
+.prestige-tag .pt-title {
+  color: var(--pt-glow);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.prestige-tag .pt-roman {
+  opacity: 0.8;
+  font-variant: small-caps;
+}
+
+.prestige-tag .pt-lv {
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+/* Cosmic: midnight blue with a cyan rim. */
+.prestige-tag.pt-cosmic {
+  background: linear-gradient(90deg, #14214d, #0a1030 85%);
+}
+
+/* Voidwalker: obsidian, a magenta rim. */
+.prestige-tag.pt-voidwalker {
+  background: linear-gradient(90deg, #2a0f3a, #0a0610 85%);
+}
+
+/* Architect: ivory and gold, a blueprint grid behind. */
+.prestige-tag.pt-architect {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 227, 138, 0.1) 0 1px, transparent 1px 6px),
+    linear-gradient(90deg, #4a3a10, #1a1408 85%);
+  border-color: #d4a017;
+}
+
+/* Prismatic: a pearl face and a rainbow rim, and the top track's shimmer. */
+.prestige-tag.pt-prismatic {
+  border-color: transparent;
+  background:
+    linear-gradient(90deg, #2a2540, #17141f 85%) padding-box,
+    linear-gradient(90deg, #ff7ad9, #ffe38a, #9fe8ff, #c9a8ff, #ff7ad9) border-box;
+  background-size:
+    auto,
+    200% 100%;
+  animation: pt-rim 6s linear infinite;
+}
+
+.prestige-tag.pt-prismatic .pt-title {
+  background: linear-gradient(90deg, #ff9ad9, #ffe38a, #9fe8ff, #c9a8ff, #ff9ad9);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  animation: pt-rim 6s linear infinite;
+}
+
+.prestige-tag.pt-prismatic::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.45) 50%, transparent 60%);
+  transform: translateX(-120%);
+  animation: pt-shimmer 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pt-rim {
+  to {
+    background-position:
+      200% 0,
+      200% 0;
+  }
+}
+
+@keyframes pt-shimmer {
+  0%,
+  60% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prestige-tag.pt-prismatic,
+  .prestige-tag.pt-prismatic .pt-title {
+    animation: none;
+  }
+  .prestige-tag.pt-prismatic::after {
+    display: none;
+  }
+}
