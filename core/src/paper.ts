@@ -84,8 +84,8 @@ export interface Paper {
   corners: Corner[];
 }
 
-/** The lead and five more. */
-export const HEADLINES = 6;
+/** The lead and six more: two full rows of three. */
+export const HEADLINES = 7;
 export const BRIEFS = 4;
 
 type Story = [string, string][];
