@@ -96,6 +96,7 @@ import {
   tick,
 } from "@tokenmaxxing/core/poker.ts";
 import { chairAt, pokerChairs } from "@tokenmaxxing/core/pokertable.ts";
+import { NO_PRESTIGE } from "@tokenmaxxing/core/prestige-run.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
 import {
   BETTING_MS,
@@ -374,6 +375,7 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   level: p.level,
   companyId: p.companyId,
   todayTokens: p.todayTokens,
+  ...(p.prestige && p.prestige.rank > 0 ? { prestige: p.prestige } : {}),
   liveAgents: p.liveAgents,
   online: online || isBot(p.id),
   coffeeUntil: p.coffeeUntil ?? 0,
@@ -2196,6 +2198,7 @@ function placeBots(s: WorldState): void {
       level: b.level,
       companyId: null,
       todayTokens: 0,
+      prestige: NO_PRESTIGE,
       ...(b.home ?? townSpawn()),
       state: "idle",
       lastInputAt: 0,

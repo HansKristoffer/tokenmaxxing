@@ -6,6 +6,7 @@ import { fancyPiece } from "../src/art/furniture-fancy.ts";
 import { CASE_FURNITURE, HOME_FURNITURE, NUSANTARA_FURNITURE } from "../src/art/furniture-home.ts";
 import { RAGNAROK_FURNITURE } from "../src/art/furniture-ragnarok.ts";
 import { Pen } from "../src/art/pixels.ts";
+import { PRESTIGE_TROPHIES } from "../src/art/prestige-trophy.ts";
 
 test("every personal-office piece has its art, and every art is a piece", () => {
   expect(HOME_FURNITURE.map((f) => f.id).sort()).toEqual(HOME_PIECES.map((p) => p.art).sort());
@@ -27,7 +28,7 @@ test("every personal-office piece has its art, and every art is a piece", () => 
 });
 
 test("every case piece (every case's) has its art, and every case art is a piece", () => {
-  const art = [...CASE_FURNITURE, ...NUSANTARA_FURNITURE, ...RAGNAROK_FURNITURE];
+  const art = [...CASE_FURNITURE, ...NUSANTARA_FURNITURE, ...RAGNAROK_FURNITURE, ...PRESTIGE_TROPHIES];
   expect(art.map((f) => f.id).sort()).toEqual(ALL_CASE_PIECES.map((p) => p.art).sort());
   expect(new Set(art.map((f) => f.id)).size).toBe(art.length);
   for (const p of ALL_CASE_PIECES) {

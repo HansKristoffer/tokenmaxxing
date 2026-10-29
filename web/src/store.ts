@@ -70,6 +70,8 @@ export type Panel =
   | { kind: "regulars" }
   | { kind: "jukebox" }
   | { kind: "fishing" }
+  /** The next prestige: what it gives, what is kept, and the confirm (`hud/Prestige.tsx`). */
+  | { kind: "prestige" }
   | { kind: "graphics" }
   | { kind: "menu" }
   | { kind: "changelog" }

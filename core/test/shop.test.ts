@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { CROWN } from "../src/fastelavn.ts";
 import { TOUCHED_GRASS } from "../src/picnic.ts";
+import { PRESTIGE_PIECES } from "../src/prestige-furniture.ts";
 import {
   canDropIn,
   coinsForTokens,
@@ -61,8 +62,12 @@ test("Touched grass: earned at a picnic, never sold or traded, and only for your
     tradeable: false,
   });
   expect(itemById(TOUCHED_GRASS)?.earned).toBeTruthy();
-  // Nothing else is earned but the kattekonge's crown (`fastelavn.ts`): the shop sells the rest.
-  expect(ITEMS.filter((i) => i.earned).map((i) => i.id)).toEqual([CROWN, TOUCHED_GRASS]);
+  // Nothing else is earned but the kattekonge's crown (`fastelavn.ts`) and the prestige trophies: the shop sells the rest.
+  expect(ITEMS.filter((i) => i.earned).map((i) => i.id)).toEqual([
+    CROWN,
+    TOUCHED_GRASS,
+    ...PRESTIGE_PIECES.map((p) => `furn.${p.ch}`),
+  ]);
   expect([isKeepsake(TOUCHED_GRASS), isKeepsake("furn.s"), isKeepsake("hat.4")]).toEqual([
     true,
     false,

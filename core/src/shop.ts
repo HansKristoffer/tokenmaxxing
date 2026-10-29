@@ -15,6 +15,7 @@ import type { HolidayId } from "./holidays.ts";
 import { HOME_PIECES } from "./home.ts";
 import { LOOT, type Rarity as LootRarity } from "./loot.ts";
 import { COMPANY_FURNITURE, FURNITURE } from "./office.ts";
+import { isPrestigePiece } from "./prestige-furniture.ts";
 import type { Rarity } from "./rarity.ts";
 import { WARDROBE, type WardrobeSlot } from "./wardrobe.ts";
 import type { Look } from "./world.ts";
@@ -174,9 +175,11 @@ export const ITEMS: readonly Item[] = [
     index,
     name: f.name,
     price: 0,
-    tradeable: true,
+    // A prestige trophy is earned by a run, not opened: never traded, never a case item.
+    ...(isPrestigePiece(f.ch)
+      ? { tradeable: false, earned: "Reach level 50 of a prestige run" }
+      : { tradeable: true, case: true }),
     home: true,
-    case: true,
     rarity: f.rarity,
     blurb: f.blurb,
   })),

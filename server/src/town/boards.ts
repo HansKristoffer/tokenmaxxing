@@ -11,6 +11,7 @@ import type { PinView } from "@tokenmaxxing/core/collection.ts";
 import type { Ticket } from "@tokenmaxxing/core/cop.ts";
 import { levelFor, levelTitle } from "@tokenmaxxing/core/format.ts";
 import { OFFICE_LEVEL } from "@tokenmaxxing/core/office.ts";
+import type { PrestigeBadge } from "@tokenmaxxing/core/prestige-run.ts";
 import { addDays, dayKey, type RangeKey, rangeDays } from "@tokenmaxxing/core/range.ts";
 import { type Brand, houseTier, type Look } from "@tokenmaxxing/core/world.ts";
 import { sortBy, sumBy } from "hanzio";
@@ -40,6 +41,7 @@ import { fishingFacts } from "./fishing.ts";
 import { type GameStats, gameStats } from "./games.ts";
 import { keynotesOf } from "./keynotes.ts";
 import { picnicsOf } from "./picnic.ts";
+import { badgesOf } from "./prestige.ts";
 import { questsCleared } from "./quests.ts";
 import { ticketsOf } from "./tickets.ts";
 import { levelOf, lookOf, TOKENS, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
@@ -50,6 +52,8 @@ export interface BoardPlayer extends Totals {
   name: string;
   look: Look;
   level: number;
+  /** Absent: none. */
+  prestige?: PrestigeBadge;
   companyId: number | null;
   company: string | null;
 }
@@ -101,6 +105,7 @@ export interface Profile {
   look: Look;
   level: number;
   levelTitle: string;
+  prestige?: PrestigeBadge;
   lifetimeTokens: number;
   company: { id: number; name: string } | null;
   range: RangeKey;
@@ -175,6 +180,7 @@ async function buildBoard(
   );
   const companies = await all<CompanyRow>(sql, `SELECT ${COMPANY_COLS} FROM companies`);
   const lifetime = await tokensIn(sql, "all");
+  const badges = await badgesOf(sql, "all", lifetime);
   const companyName = new Map(companies.map((co) => [co.id, co.name]));
 
   const usageByUser = Map.groupBy(usage, (r) => r.userId);
@@ -185,6 +191,7 @@ async function buildBoard(
     name: u.name,
     look: lookOf(u),
     level: levelFor(lifetime.get(u.id) ?? 0),
+    ...(badges.has(u.id) ? { prestige: badges.get(u.id) } : {}),
     companyId: u.companyId,
     company: u.companyId === null ? null : (companyName.get(u.companyId) ?? null),
   }));
@@ -341,6 +348,7 @@ export async function profile(
   const games = await gameStats(sql, userId);
   const { facts, lifetime, level } = await badgeFactsOf(sql, userId, now, kept, games);
   const badges = badgesFor(facts);
+  const prestige = (await badgesOf(sql, [userId], new Map([[userId, lifetime]]))).get(userId);
   const { habits, agentType } = await habitsOf(sql, userId, now, daily.filter((d) => d.tokens > 0).length);
   return {
     userId,
@@ -348,6 +356,7 @@ export async function profile(
     look: lookOf(u),
     level,
     levelTitle: levelTitle(level),
+    ...(prestige ? { prestige } : {}),
     lifetimeTokens: lifetime,
     company,
     range,

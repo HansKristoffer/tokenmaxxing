@@ -9,6 +9,7 @@
 import { NUSANTARA_PIECES } from "./case-nusantara-furniture.ts";
 import { RAGNAROK_PIECES } from "./case-ragnarok-furniture.ts";
 import type { HomePiece } from "./home.ts";
+import { PRESTIGE_PIECES } from "./prestige-furniture.ts";
 import type { Rarity } from "./rarity.ts";
 
 export interface CasePiece extends HomePiece {
@@ -37,11 +38,12 @@ export const CASE_PIECES: readonly CasePiece[] = [
   entry("Ц", "night-torii", "Torii gate", "rare", "A vermilion gate lit by lanterns: the way into the night market.", 3),
 ];
 
-/** Every case's furniture: the Night Market's (`CASE_PIECES`), then the Nusantara's, then Ragnarok Eve's (a later case adds its own here). */
+/** Every case's furniture: the Night Market's (`CASE_PIECES`), then the Nusantara's, then Ragnarok Eve's, then the prestige trophies (earned, not cases; a later case adds its own here). */
 export const ALL_CASE_PIECES: readonly CasePiece[] = [
   ...CASE_PIECES,
   ...NUSANTARA_PIECES,
   ...RAGNAROK_PIECES,
+  ...PRESTIGE_PIECES,
 ];
 
 const BY_CH = new Map(ALL_CASE_PIECES.map((p) => [p.ch, p]));

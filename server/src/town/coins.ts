@@ -34,6 +34,7 @@ import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { companyLedgerAdd } from "./companies.ts";
 import { greenPay } from "./grid.ts";
 import { type LaunchPaid, launchBonus, launchBonusAll } from "./launch-bonus.ts";
+import { grantPrestige, prestigeCoins, prestigeCoinsAll, prestigesOf } from "./prestige.ts";
 import { bumpCount, dayPicks, loadQuestData, noQuestData, paidFrom, questPay } from "./quests.ts";
 import { raidHistory } from "./raid.ts";
 import { trophyAwardCoins, trophyAwardCoinsAll } from "./trophy-awards.ts";
@@ -122,6 +123,7 @@ export const ledgerAdd = (sql: Sql, userId: number, amount: number, kind: string
  */
 export async function grantRewards(sql: Sql, userId: number, level: number, now: number): Promise<Drop[]> {
   const drops = level >= OFFICE_LEVEL ? await starterDrops(sql, userId, now) : [];
+  await grantPrestige(sql, userId, now);
   const due = levelItems(level);
   if (due.length === 0) return drops;
   // Every sync asks: one read, and a write only for what's new.
@@ -214,6 +216,7 @@ export async function wallet(
     (await badgeAwardCoins(sql, userId)) +
     (await trophyAwardCoins(sql, userId)) +
     sumBy(launched, "coins") +
+    prestigeCoins(await prestigesOf(sql, userId), sumBy(everyDay, "tokens")) +
     streak;
   const since = addDays(today, -29);
   const todays = data.facts.get(today) ?? EMPTY_DAY;
@@ -320,10 +323,12 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
       ),
     );
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);
-  for (const [userId, tokens] of await tokensIn(sql, "all")) {
+  const lifetime = await tokensIn(sql, "all");
+  for (const [userId, tokens] of lifetime) {
     const level = levelFor(tokens);
     add(userId, milestoneCoins(level) + levelUpCoins(level));
   }
+  for (const [userId, n] of await prestigeCoinsAll(sql, lifetime)) add(userId, n);
   for (const r of await all<{ userId: number; tier: number }>(
     sql,
     "SELECT user_id AS userId, tier FROM badge_awards WHERE badge != 'level'",

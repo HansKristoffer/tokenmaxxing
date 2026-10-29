@@ -1,6 +1,9 @@
+import { REWARD_LEVEL } from "@tokenmaxxing/core/prestige.ts";
+import type { PrestigeBadge } from "@tokenmaxxing/core/prestige-run.ts";
 import { PET_W } from "./pet-base.ts";
 import { petTop } from "./pets.ts";
 import { bake, cached, type Palette } from "./pixels.ts";
+import { petNeck } from "./wardrobe.ts";
 
 /**
  * The five prestige pet accessories (`petwear` in `core/src/prestige.ts`), worn like the Lv50 crown
@@ -111,8 +114,22 @@ const sprite = cached(
 );
 
 /**
- * Prestige `rank`'s pet accessory at time `now` and where it sits on the pet's frame, like `petCrown`; null
- * for no rank or a pet with no head to wear it. The floating ones bob a pixel.
+ * The rank whose pet accessory a player's pet wears: the current run's if it reached the reward level, else the
+ * last finished run's (0 for none). A missing badge is no prestige.
+ */
+export function petwearRank(badge: Partial<PrestigeBadge> | null | undefined): number {
+  const rank = badge?.rank ?? 0;
+  const r = rank >= 1 && (badge?.runLevel ?? 0) >= REWARD_LEVEL.petwear ? rank : rank - 1;
+  return PETWEAR[r - 1] ? r : 0;
+}
+
+/** Wears that sit at the neck rather than over the head (and so leave the Lv50 crown where it is). */
+export const wornAtNeck = (rank: number): boolean => (PETWEAR[rank - 1]?.dy ?? 0) > 0;
+
+/**
+ * Prestige `rank`'s pet accessory at time `now` and where it sits on the pet's frame (the frame without
+ * headroom, so a y above the pet is negative), like `petCrown`; null for no rank or a pet with no head to wear
+ * it. The floating ones bob a pixel. `lift` raises the over-the-head ones above a hat already on.
  */
 export function prestigePetwear(
   rank: number,
@@ -120,12 +137,16 @@ export function prestigePetwear(
   left: boolean,
   hop: boolean,
   now = 0,
+  lift = 0,
 ): [HTMLCanvasElement, number, number] | null {
   const w = PETWEAR[rank - 1];
   const top = w && petTop(pet, hop);
   if (!w || !top) return null;
   const art = sprite(rank, Math.floor(now / w.ms) % w.frames.length);
-  const x = Math.round(left ? PET_W - 1 - top.x : top.x) - Math.floor(art.width / 2);
+  // The collar goes on the neck row of the species' own anchor; a pet without one gets it a few rows below the top.
+  const neck = w.dy > 0 ? petNeck(pet, hop) : null;
+  const at = neck ?? top;
+  const x = Math.round(left ? PET_W - 1 - at.x : at.x) - Math.floor(art.width / 2);
   const bob = w.float ? Math.round((Math.sin(now / 420) + 1) / 2) : 0;
-  return [art, x, top.y + w.dy - bob];
+  return [art, x, neck ? neck.y : top.y + w.dy - bob - lift];
 }

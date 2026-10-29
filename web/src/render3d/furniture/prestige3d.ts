@@ -157,11 +157,12 @@ const blackHole = (): Model => {
   m.box([0.86, 0.04, 0.86], "#4a4660", [0, 0.3, 0], 0.01);
   for (let i = 0; i < 6; i++)
     m.box([0.07, 0.07, 0.01], glow(i % 2 ? "#d946ef" : "#7a1f8f"), [-0.3 + i * 0.12, 0.1, 0.425], 0.004);
-  // The void in the cell and the steel cap.
-  m.box([0.7, 1.15, 0.7], "#0a0610", [0, 0.34, 0], 0.01);
+  // The void in the cell is a dark floor and back wall only: a solid block (or side walls) would swallow the hole.
+  m.box([0.7, 0.02, 0.7], "#0a0610", [0, 0.34, 0], 0.005);
+  m.box([0.7, 1.15, 0.02], "#0a0610", [0, 0.34, -0.34], 0.005);
   const hole = m.part([0, 0.92, 0]);
-  hole.ball(0.1, "#000000", [0, 0, 0], [1, 1, 1], 14);
-  hole.ball(0.115, beam("#ff7cf5", 0.35), [0, 0, 0], [1, 1, 1], 12);
+  hole.ball(0.15, "#000000", [0, 0, 0], [1, 1, 1], 16);
+  hole.ball(0.17, beam("#ff7cf5", 0.14), [0, 0, 0], [1, 1, 1], 12);
   // The accretion disc: 28 bright and dim segments in a ring that spins.
   const disc = hole.part([0, 0, 0]);
   disc.rotation.x = 0.28;
@@ -171,15 +172,15 @@ const blackHole = (): Model => {
     const a = (i / 28) * Math.PI * 2;
     const k = i % 7;
     const c = k < 1 ? "#ffe0fb" : k < 3 ? "#ff7cf5" : k < 5 ? "#d946ef" : "#7a1f8f";
-    const s = spin.box([0.06, 0.012, 0.05], glow(c), [Math.cos(a) * 0.26, 0, Math.sin(a) * 0.26], 0.002);
+    const s = spin.box([0.06, 0.012, 0.05], glow(c), [Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3], 0.002);
     s.rotation.y = -a;
     if (k < 5) {
-      const inner = spin.box([0.04, 0.01, 0.04], glow(c), [Math.cos(a) * 0.19, 0, Math.sin(a) * 0.19], 0.002);
+      const inner = spin.box([0.04, 0.01, 0.04], glow(c), [Math.cos(a) * 0.23, 0, Math.sin(a) * 0.23], 0.002);
       inner.rotation.y = -a;
     }
   }
   // Lensed light bent over the top of the hole.
-  const lens = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.008, 6, 28), beam("#ff7cf5", 0.8));
+  const lens = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.012, 6, 36), beam("#ff7cf5", 0.8));
   hole.add(lens);
   // Motes falling in.
   const rnd = seeded(8);
@@ -199,7 +200,7 @@ const blackHole = (): Model => {
     lens.scale.set(1, 1, 1 + 0.08 * Math.sin(t * 2));
     for (const s of motes) {
       const u = (t * 0.35 + s.p) % 1;
-      const r = 0.34 * (1 - u);
+      const r = 0.32 * (1 - u);
       const a = s.a + u * 5;
       s.o.position.set(Math.cos(a) * r, Math.sin(a * 1.3) * 0.12 * (1 - u), Math.sin(a) * r);
       s.o.scale.setScalar(Math.sin(u * Math.PI));
