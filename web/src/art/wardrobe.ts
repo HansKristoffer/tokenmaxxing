@@ -4,6 +4,7 @@ import { typedSwitch } from "hanzio";
 import { CASE_BACKS, CASE_HELD, CASE_OUTFITS } from "./case-body.ts";
 import { RAGNAROK_BACKS, RAGNAROK_HELD, RAGNAROK_OUTFITS } from "./case-ragnarok-body.ts";
 import type { Pose, View } from "./characters.ts";
+import { FISHING_BACKS, FISHING_HELD } from "./fishing-loot.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
 
@@ -670,6 +671,9 @@ Object.assign(BACKS, CASE_BACKS);
 Object.assign(OUTFITS, RAGNAROK_OUTFITS);
 Object.assign(HELD, RAGNAROK_HELD);
 Object.assign(BACKS, RAGNAROK_BACKS);
+// The pond treasures (`fishing-loot.ts`, indices from `FISHING_BASE`) too.
+Object.assign(HELD, FISHING_HELD);
+Object.assign(BACKS, FISHING_BACKS);
 
 function drawBack(p: Pen, i: number, view: View, pose: Pose, layer: "behind" | "front", flip: boolean): void {
   const b = BACKS[i];

@@ -7,6 +7,7 @@ import { isRecord, isTruthy, typedKeys } from "hanzio";
 import { caseAt } from "./case.ts";
 import { costumeAt } from "./costumes.ts";
 import { editionAt } from "./editions.ts";
+import type { Angling, Landing } from "./fishing.ts";
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
 import { LOOT_COUNT, LOOT_FIRST } from "./loot.ts";
@@ -343,6 +344,10 @@ export interface PlayerInfo {
   /** The dance they're doing (`DANCES` in dances.ts), 0 for none, since `danceSince` (epoch ms). Absent from older servers: none. */
   dance?: number;
   danceSince?: number;
+  /** Their line in the pond, if they're fishing (`fishing.ts`). Absent from older servers: none. */
+  angling?: Angling | null;
+  /** Their last catch, held up for `LANDED_MS` from its `at`. Absent from older servers: none. */
+  landing?: Landing | null;
 }
 
 /**

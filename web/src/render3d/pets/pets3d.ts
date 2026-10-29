@@ -16,6 +16,7 @@ import { dragon, duck, ghost, goldfish, golem, orb, piggy } from "./pets3d-misc.
 import { crane, kitsune, koi, maneki, tanuki, tengu } from "./pets3d-night.ts";
 import { fenrir, hildisvini, huginn, ratatoskr, sleipnir, tanngrisnir } from "./pets3d-norse.ts";
 import { NUSANTARA_PETS } from "./pets3d-nusantara.ts";
+import { POND_PETS } from "./pets3d-pond.ts";
 import { quad } from "./pets3d-quad.ts";
 import type { Rig } from "./petvox.ts";
 
@@ -166,40 +167,43 @@ export class Pet3D {
     readonly outfit: string | null = null,
   ) {
     const nusantara = (NUSANTARA_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
+    const pond = (POND_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
     const built = nusantara
       ? nusantara()
-      : species === "duck"
-        ? duck(variant)
-        : species === "dragon"
-          ? dragon(variant)
-          : species === "golem"
-            ? golem()
-            : species === "goldfish"
-              ? goldfish()
-              : species === "ghost"
-                ? ghost()
-                : species === "piggy"
-                  ? piggy()
-                  : species === "koi"
-                    ? koi()
-                    : species === "crane"
-                      ? crane()
-                      : species === "tanuki"
-                        ? tanuki()
-                        : species === "maneki"
-                          ? maneki()
-                          : species === "kitsune"
-                            ? kitsune()
-                            : species === "tengu"
-                              ? tengu()
-                              : species in NORSE
-                                ? NORSE[species as keyof typeof NORSE]()
-                                : species === "cat" ||
-                                    species === "dog" ||
-                                    species === "panda" ||
-                                    species === "forkedcat"
-                                  ? quad(species, variant, outfit)
-                                  : orb();
+      : pond
+        ? pond()
+        : species === "duck"
+          ? duck(variant)
+          : species === "dragon"
+            ? dragon(variant)
+            : species === "golem"
+              ? golem()
+              : species === "goldfish"
+                ? goldfish()
+                : species === "ghost"
+                  ? ghost()
+                  : species === "piggy"
+                    ? piggy()
+                    : species === "koi"
+                      ? koi()
+                      : species === "crane"
+                        ? crane()
+                        : species === "tanuki"
+                          ? tanuki()
+                          : species === "maneki"
+                            ? maneki()
+                            : species === "kitsune"
+                              ? kitsune()
+                              : species === "tengu"
+                                ? tengu()
+                                : species in NORSE
+                                  ? NORSE[species as keyof typeof NORSE]()
+                                  : species === "cat" ||
+                                      species === "dog" ||
+                                      species === "panda" ||
+                                      species === "forkedcat"
+                                    ? quad(species, variant, outfit)
+                                    : orb();
     this.root.userData.actor = true;
     const { body: b, fore: f } = built;
     this.rig = built.rig;
@@ -341,7 +345,7 @@ export class Pet3D {
 /**
  * The 3D twin of a 2D pet. `species` is `Look.pet` (1 duck, 2 cat, 3 dog, 4 dragon, 5 panda, 6 Singularity
  * orb, 7 to 11 the boss-loot pets, 300 to 305 the Night Market case's, 400 to 405 the Nusantara case's, 500 to 505
- * Ragnarok Eve's) or its name; `variant` is `Look.petVariant` (0 the original, n the
+ * Ragnarok Eve's, 600 and 601 the pond's) or its name; `variant` is `Look.petVariant` (0 the original, n the
  * n-th of `PET_VARIANTS`) or the variation's id; `name` is the pet's name, which dresses Penny and Nemo.
  */
 export function petFrom2D(species: number | string, variant: number | string = 0, name = ""): Pet3D {

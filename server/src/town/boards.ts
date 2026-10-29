@@ -36,6 +36,7 @@ import {
   companyOrGone,
   companyWallet,
 } from "./companies.ts";
+import { fishingFacts } from "./fishing.ts";
 import { type GameStats, gameStats } from "./games.ts";
 import { keynotesOf } from "./keynotes.ts";
 import { picnicsOf } from "./picnic.ts";
@@ -304,6 +305,7 @@ export async function badgeFactsOf(
     // The Tavern's days and the quests cleared: counted here so the card, the log and the sweep agree.
     tavernDays: await tavernDaysOf(sql, userId),
     helped: await questsCleared(sql, userId),
+    ...(await fishingFacts(sql, userId)),
     ...extra,
   };
   return { facts, lifetime, level: levelFor(lifetime) };

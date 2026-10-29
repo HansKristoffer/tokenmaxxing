@@ -63,14 +63,20 @@ export const RAGNAROK_PET_SPECIES = [
   "fenrir",
 ] as const;
 
+/** `Look.pet` of the first pond treasure pet (`FISHING_BASE` in core/src/fishing-loot.ts); the second follows. */
+export const POND_PET_BASE = 600;
+/** The species that stand at `POND_PET_BASE` and up: only fishing turns them up. */
+export const POND_PET_SPECIES = ["axolotl", "kraken"] as const;
+
 /**
  * The case ranges, one entry per case: `Look.pet` from `base` up to `base + species.length` is `species[n - base]`.
- * A later case (Ragnarok Eve is 500 to 599) adds its own line here and its names to `Species` and `PET_NAME`.
+ * A later case (the pond's treasures are 600 to 699) adds its own line here and its names to `Species` and `PET_NAME`.
  */
 const CASE_PET_RANGES: readonly { base: number; species: readonly Species[] }[] = [
   { base: CASE_PET_BASE, species: CASE_PET_SPECIES },
   { base: NUSANTARA_PET_BASE, species: NUSANTARA_PET_SPECIES },
   { base: RAGNAROK_PET_BASE, species: RAGNAROK_PET_SPECIES },
+  { base: POND_PET_BASE, species: POND_PET_SPECIES },
 ];
 
 /** The species of `Look.pet` `n`: the shop's and the loot's by position below 300, each case's from its own base. */
@@ -81,7 +87,8 @@ export const speciesAt = (n: number): Species | undefined => {
   for (const r of CASE_PET_RANGES) if (n >= r.base) range = r;
   return range && n - range.base < 100 ? range.species[n - range.base] : undefined;
 };
-export type Species = (typeof PET_SPECIES)[number] | (typeof RAGNAROK_PET_SPECIES)[number];
+export type Species =
+  (typeof PET_SPECIES)[number] | (typeof RAGNAROK_PET_SPECIES)[number] | (typeof POND_PET_SPECIES)[number];
 
 export const PET_NAME: Record<Species, string> = {
   none: "No pet",
@@ -114,6 +121,8 @@ export const PET_NAME: Record<Species, string> = {
   hildisvini: "Hildisvíni",
   sleipnir: "Sleipnir foal",
   fenrir: "Fenrir pup",
+  axolotl: "Axolotl",
+  kraken: "Pocket kraken",
 };
 
 /** `Look.petVariant` n is `PET_VARIANTS[species][n - 1]`; 0 is the pet as the shop sells it. */

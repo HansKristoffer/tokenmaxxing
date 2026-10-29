@@ -1,6 +1,7 @@
 import { CASE_BASE } from "@tokenmaxxing/core/case.ts";
 import { NUSANTARA_BASE } from "@tokenmaxxing/core/case-nusantara.ts";
 import { RAGNAROK_AURAS } from "./case-ragnarok-aura.ts";
+import { FISHING_AURAS } from "./fishing-loot-aura.ts";
 import { bake, cached, type Pen } from "./pixels.ts";
 
 /**
@@ -223,6 +224,8 @@ const DRAWS: Record<number, Draw> = {
   [NUSANTARA_BASE + 3]: padi,
   // Ragnarok Eve's (`case-ragnarok-aura.ts`, 500 to 503).
   ...RAGNAROK_AURAS,
+  // The pond treasures' (`fishing-loot-aura.ts`, 600).
+  ...FISHING_AURAS,
 };
 
 const frame = cached(

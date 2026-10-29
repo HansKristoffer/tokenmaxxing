@@ -1,5 +1,6 @@
 import { RAGNAROK_GLASSES, RAGNAROK_HATS } from "./case-ragnarok.ts";
 import type { Art } from "./editions.ts";
+import { FISHING_HATS } from "./fishing-loot.ts";
 import { C } from "./palette.ts";
 
 /**
@@ -111,3 +112,5 @@ export const CASE_GLASSES: Record<string, Art> = {
 // Ragnarok Eve (`case-ragnarok.ts`) is filed beside the Night Market's; item ids never overlap.
 Object.assign(CASE_HATS, RAGNAROK_HATS);
 Object.assign(CASE_GLASSES, RAGNAROK_GLASSES);
+// The pond treasures (`fishing-loot.ts`, ids from `FISHING_BASE`) too.
+Object.assign(CASE_HATS, FISHING_HATS);

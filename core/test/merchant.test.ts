@@ -92,7 +92,7 @@ describe("merchant editions", () => {
     expect(parseLook({ ...base, hat: EDITION_BASE })).toEqual({ ...base, hat: EDITION_BASE });
     expect(parseLook({ ...base, glasses: EDITION_BASE + 1 })).not.toBeNull();
     expect(parseLook({ ...base, hat: EDITION_BASE - 1 })).toBeNull();
-    expect(parseLook({ ...base, hat: EDITION_BASE + 500 })).toBeNull();
+    expect(parseLook({ ...base, hat: EDITION_BASE + 600 })).toBeNull();
     expect(editionAt("pet", EDITION_BASE)).toBeUndefined();
   });
 

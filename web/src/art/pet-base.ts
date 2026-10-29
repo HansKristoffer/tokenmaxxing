@@ -1,8 +1,10 @@
 import { CASE_BASE } from "@tokenmaxxing/core/case.ts";
 import { NUSANTARA_BASE } from "@tokenmaxxing/core/case-nusantara.ts";
 import { RAGNAROK_BASE } from "@tokenmaxxing/core/case-ragnarok.ts";
+import { FISHING_BASE } from "@tokenmaxxing/core/fishing-loot.ts";
 import { CASE_PETS, NUSANTARA_PETS } from "./case-pets.ts";
 import { RAGNAROK_PETS } from "./case-ragnarok-pets.ts";
+import { FISHING_PETS } from "./fishing-loot-pets.ts";
 import { LOOT_PETS } from "./loot.ts";
 import { C } from "./palette.ts";
 import type { Palette } from "./pixels.ts";
@@ -215,6 +217,10 @@ NUSANTARA_PETS.forEach((pet, i) => {
 // Every other case files its pets the same way, at its own base (Ragnarok Eve: 500 up).
 RAGNAROK_PETS.forEach((pet, i) => {
   PETS[RAGNAROK_BASE + i] = pet;
+});
+// And the pond treasures' (`fishing-loot-pets.ts`, 600 up).
+FISHING_PETS.forEach((pet, i) => {
+  PETS[FISHING_BASE + i] = pet;
 });
 
 export const PET_W = 12;
