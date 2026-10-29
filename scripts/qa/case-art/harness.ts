@@ -271,16 +271,14 @@ function prestigeExtras(): void {
 
   const es = probe(emblem, "emblemSprite");
   if (es) {
-    const cells = PRESTIGE_TRACKS.map(
-      (t): Cell => ({
-        label: `${t.roman} ${t.emblem}`,
-        sprites: [
-          tryAll(`emblem ${t.key}`, () => asSprite(es(t.rank))),
-          tryAll(`emblem ${t.key}`, () => asSprite(es(t.emblem))),
-        ],
-        bg: mix(t.colors.main, 0.35),
-      }),
-    );
+    const cells = PRESTIGE_TRACKS.map((t): Cell => ({
+      label: `${t.roman} ${t.emblem}`,
+      sprites: [
+        tryAll(`emblem ${t.key}`, () => asSprite(es(t.rank))),
+        tryAll(`emblem ${t.key}`, () => asSprite(es(t.emblem))),
+      ],
+      bg: mix(t.colors.main, 0.35),
+    }));
     sheet("emblems", "Prestige: tag emblems (by rank, by name)", cells, 3, LAND);
   } else gaps.push("emblem: emblemSprite missing");
   console.log("GAPS " + gaps.join(" | "));

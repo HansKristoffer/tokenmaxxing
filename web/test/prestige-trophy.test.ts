@@ -54,9 +54,8 @@ test("every frame of every trophy paints inside its canvas, on whole pixels, and
 });
 
 test("every 3D trophy builds, fits its footprint, stays small and animates", async () => {
-  const { prestigeTrophy3d, PRESTIGE_TROPHY_ASSETS } = await import(
-    "../src/render3d/furniture/prestige3d.ts"
-  );
+  const { prestigeTrophy3d, PRESTIGE_TROPHY_ASSETS } =
+    await import("../src/render3d/furniture/prestige3d.ts");
   const { ticks } = await import("../src/render3d/kit/kit.ts");
   expect(PRESTIGE_TROPHY_ASSETS.length).toBe(PRESTIGE_TRACKS.length);
   for (const t of PRESTIGE_TRACKS) {

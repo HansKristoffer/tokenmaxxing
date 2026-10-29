@@ -230,14 +230,14 @@ let seq = 0;
 const anHourAgoToday = () => Math.max(Date.now() - HOUR, dayStart(dayKey(Date.now())));
 
 /**
- * Lifetime tokens past level 10 (`OFFICE_LEVEL`): ~50B over 250 minutes, each just under the
- * per-minute cap, on a day from before signing up so it pays no coins.
+ * Lifetime tokens past level 10 (`OFFICE_LEVEL`) and short of level 40 (the second office size): ~38B over
+ * 191 minutes, each just under the per-minute cap, on a day from before signing up so it pays no coins.
  */
 export async function veteran(u: { token: string; userId: number }) {
   const start = Date.UTC(2024, 0, 10, 12);
   await as(u.token)
     .player(u.userId)
-    .ingest(Array.from({ length: 250 }, (_, i) => event({ inputTokens: 199e6, timestamp: start + i * MIN })));
+    .ingest(Array.from({ length: 191 }, (_, i) => event({ inputTokens: 199e6, timestamp: start + i * MIN })));
 }
 
 export function event(overrides: Partial<TokenEvent> = {}): TokenEvent {
