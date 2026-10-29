@@ -18,7 +18,9 @@ mkdirSync(out, { recursive: true });
 // Optional modules (prestige petwear/trophies/emblems) become `null` until their files exist.
 const art = join(here, "../../../web/src/art");
 const optional = (name, file) =>
-  existsSync(join(art, file)) ? `import * as ${name} from ${JSON.stringify(join(art, file))}; export { ${name} };` : `export const ${name} = null;`;
+  existsSync(join(art, file))
+    ? `import * as ${name} from ${JSON.stringify(join(art, file))}; export { ${name} };`
+    : `export const ${name} = null;`;
 const virtual = {
   name: "prestige-optional",
   setup(b) {
@@ -59,7 +61,9 @@ const browser = await pw.chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-page.on("console", (m) => (m.type() === "error" ? errors.push(m.text()) : m.text().startsWith("GAPS") && console.log(m.text())));
+page.on("console", (m) =>
+  m.type() === "error" ? errors.push(m.text()) : m.text().startsWith("GAPS") && console.log(m.text()),
+);
 await page.goto(`file://${join(tmp, "index.html")}?case=${caseId}&scale=${scale}`);
 await page.waitForFunction(() => document.title === "ready", null, { timeout: 15000 }).catch(() => {});
 for (const id of await page.$$eval("canvas[id^=sheet-]", (cs) => cs.map((c) => c.id))) {

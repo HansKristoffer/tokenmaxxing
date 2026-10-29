@@ -24,7 +24,10 @@ sun.position.set(2, 4, 3);
 const fill = new THREE.DirectionalLight("#9ec4ff", 0.5);
 fill.position.set(-3, 2, -2);
 scene.add(sun, fill);
-const floor = new THREE.Mesh(new THREE.CircleGeometry(0.7, 32), new THREE.MeshBasicMaterial({ color: "#3b3747" }));
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(0.7, 32),
+  new THREE.MeshBasicMaterial({ color: "#3b3747" }),
+);
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
@@ -71,7 +74,7 @@ function sceneIdle(f: () => void) {
 for (const t of PRESTIGE_TRACKS) {
   const idx = 700 + t.rank - 1;
   const s = sheet(`track${t.rank}-${t.key}`, 6, 2);
-  (["grown", "voxel"] as const).forEach((style, row) =>
+  (["grown", "voxel"] as const).forEach((style, row) => {
     sceneIdle(() => {
       setSmoothBands(style === "voxel");
       const look = { style: 0, skin: 1, hair: 2, outfit: idx, hat: idx, back: idx, aura: idx };
@@ -86,19 +89,24 @@ for (const t of PRESTIGE_TRACKS) {
         step(time);
         [0, Math.PI].forEach((turn, a) => {
           av.root.rotation.y = turn;
-          s.draw(k * 2 + a, row, `${t.name} ${style === "voxel" ? "voxel" : "smooth"} ${a ? "back" : "front"} t=${time}`, cam);
+          s.draw(
+            k * 2 + a,
+            row,
+            `${t.name} ${style === "voxel" ? "voxel" : "smooth"} ${a ? "back" : "front"} t=${time}`,
+            cam,
+          );
         });
       });
       scene.remove(av.root);
       av.dispose();
-    }),
-  );
+    });
+  });
 }
 
 // Pets in each pet-wear.
 {
   const s = sheet("pets", 5, 2);
-  PRESTIGE_TRACKS.forEach((t, col) =>
+  PRESTIGE_TRACKS.forEach((t, col) => {
     sceneIdle(() => {
       setSmoothBands(false);
       [2, 3].forEach((species, row) => {
@@ -123,14 +131,14 @@ for (const t of PRESTIGE_TRACKS) {
         s.draw(col, row, `${t.petwear.name}${wear ? "" : " (stub)"}`, cam);
         scene.remove(pet.root);
       });
-    }),
-  );
+    });
+  });
 }
 
 // Home trophies.
 {
   const s = sheet("trophies", 5, 1);
-  PRESTIGE_TRACKS.forEach((t, col) =>
+  PRESTIGE_TRACKS.forEach((t, col) => {
     sceneIdle(() => {
       setSmoothBands(false);
       const m = optionalTrophy(t.rank);
@@ -145,7 +153,7 @@ for (const t of PRESTIGE_TRACKS) {
       for (let i = 0; i < 20; i++) (m as unknown as { tick?: (t: number) => void }).tick?.(i / 30);
       s.draw(col, 0, t.trophy.name, cam);
       scene.remove(m);
-    }),
-  );
+    });
+  });
 }
 document.title = "ready";

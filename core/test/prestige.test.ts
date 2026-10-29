@@ -4,9 +4,9 @@ import {
   PRESTIGE_BASE,
   PRESTIGE_ITEMS,
   PRESTIGE_TRACKS,
-  RUN_LEVELS,
-  RUN_LEVEL_COINS,
   prestigeTag,
+  RUN_LEVEL_COINS,
+  RUN_LEVELS,
   runLevelCoins,
   trackAt,
 } from "../src/prestige.ts";

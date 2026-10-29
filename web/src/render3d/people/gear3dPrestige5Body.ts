@@ -5,7 +5,7 @@
  * regalia paints its own pearl over the torso, so it does not depend on an entry in `data/gear.ts`.
  */
 import { PRESTIGE_BASE } from "@tokenmaxxing/core/prestige.ts";
-import * as THREE from "three";
+import type * as THREE from "three";
 import {
   BACK_BUILDERS,
   type BackBuilder,
@@ -58,7 +58,9 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
           const half = Math.floor((y - 5) * 0.42);
           px(g, PEARL, cx - 3 - half, y, 6 + half * 2, 1);
         }
-        SPECTRUM.forEach((col, i) => px(g, col, cx + 5, 10 + i * 3, w - cx - 10, 3));
+        SPECTRUM.forEach((col, i) => {
+          px(g, col, cx + 5, 10 + i * 3, w - cx - 10, 3);
+        });
         px(g, "#ffffff", cx - 1, 7, 2, h - 14);
       },
     );
@@ -175,7 +177,9 @@ const BACKS: Record<string, BackBuilder> = {
             side * (Math.sin(t * (walking ? 9 : 1.6) - i * 0.5) * (walking ? 0.05 : 0.02) + beat * 0.3);
         });
       });
-      glints.forEach((g, i) => shimmer(g, (i % 6) / 6, t * 1.5, 0.75));
+      glints.forEach((g, i) => {
+        shimmer(g, (i % 6) / 6, t * 1.5, 0.75);
+      });
       shimmer(jewel, 0.8, t * 1.5, 0.7);
     });
   },

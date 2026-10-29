@@ -1,7 +1,6 @@
 import { PRESTIGE_TRACKS } from "@tokenmaxxing/core/prestige.ts";
 import { useEffect, useRef } from "react";
 import { EMBLEM_SIZE, emblemFrames, emblemSprite } from "../art/prestige-emblem.ts";
-import "./prestige-tag.css";
 
 /** The crest on a canvas; the top track plays its glint frames (not under reduced motion). */
 function Emblem({ rank, px }: { rank: number; px: number }) {

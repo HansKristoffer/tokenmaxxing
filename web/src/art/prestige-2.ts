@@ -202,7 +202,11 @@ const sigil = (p: Pen, f: number): void => {
     const a0 = (d / 8) * TAU + turn;
     for (let s = 0; s < 4; s++) {
       const a = a0 + s * 0.17;
-      p.px(Math.round(CX + Math.cos(a) * 12.6), Math.round(CY + Math.sin(a) * 12.6), s === 1 || s === 2 ? GLOW : DIM);
+      p.px(
+        Math.round(CX + Math.cos(a) * 12.6),
+        Math.round(CY + Math.sin(a) * 12.6),
+        s === 1 || s === 2 ? GLOW : DIM,
+      );
     }
   }
   for (let d = 0; d < 4; d++) {
@@ -237,7 +241,9 @@ const sigil = (p: Pen, f: number): void => {
     [13, 1],
     [14, 26],
   ];
-  spots.forEach(([x, y], i) => twinkle(p, x, y, [0, 1, 2, 1, 0, 0, 0, 0][(f + i * 3) % FRAMES]!));
+  spots.forEach(([x, y], i) => {
+    twinkle(p, x, y, [0, 1, 2, 1, 0, 0, 0, 0][(f + i * 3) % FRAMES]!);
+  });
 };
 
 export const TRACK: TrackArt = {

@@ -1,19 +1,20 @@
 // Browser entry for the 2D case-art contact sheets (see sheets.mjs). Builds one <canvas id="sheet-..."> per group
 // from the real art modules, so what you see is what the game draws. ?case=ragnarok-eve | night-market, ?scale=4.
+
+// Optional prestige modules (petwear, trophies, emblems): sheets.mjs stubs them as null until the files exist.
+import { emblem, petwear, trophy } from "prestige-optional";
 import { caseAt } from "../../../core/src/case.ts";
 import { casePieceOf } from "../../../core/src/case-furniture.ts";
 import { caseById } from "../../../core/src/cases.ts";
 import { FISHING_ITEMS } from "../../../core/src/fishing-loot.ts";
 import { PRESTIGE_ITEMS, PRESTIGE_TRACKS } from "../../../core/src/prestige.ts";
-import { defaultLook, TILE, type Look } from "../../../core/src/world.ts";
+import { defaultLook, type Look, TILE } from "../../../core/src/world.ts";
 import { CA_H, CA_MS, CA_W, CA_X, CA_Y, caseAuraFrame } from "../../../web/src/art/case-aura.ts";
 import { CASE_BOX_FRAMES, CASE_BOX_SIZE, caseBoxSprite } from "../../../web/src/art/case-box.ts";
 import { characterFrame, itemFrame } from "../../../web/src/art/characters.ts";
-import { fancyPiece, fancySprite, type FancyPiece } from "../../../web/src/art/furniture-fancy.ts";
+import { type FancyPiece, fancyPiece, fancySprite } from "../../../web/src/art/furniture-fancy.ts";
 import { petFrame } from "../../../web/src/art/pets.ts";
 import { bake } from "../../../web/src/art/pixels.ts";
-// Optional prestige modules (petwear, trophies, emblems): sheets.mjs stubs them as null until the files exist.
-import { emblem, petwear, trophy } from "prestige-optional";
 
 const q = new URLSearchParams(location.search);
 const caseId = q.get("case") ?? "ragnarok-eve";
@@ -173,7 +174,9 @@ document.title = "ready";
 function prestigeExtras(): void {
   const mix = (hex: string, a: number) => {
     const n = parseInt(hex.slice(1), 16);
-    const ch = [n >> 16, (n >> 8) & 255, n & 255].map((v, i) => Math.round(v * a + [28, 34, 48][i]! * (1 - a)));
+    const ch = [n >> 16, (n >> 8) & 255, n & 255].map((v, i) =>
+      Math.round(v * a + [28, 34, 48][i]! * (1 - a)),
+    );
     return `rgb(${ch.join(",")})`;
   };
   const auraFrame = (l: Look, view: "down" | "right" | "up", f: number): Sprite => {
@@ -210,7 +213,7 @@ function prestigeExtras(): void {
     ns && typeof ns[name] === "function" ? (ns[name] as (...a: unknown[]) => unknown) : null;
   const asSprite = (v: unknown): Sprite | null => (v instanceof HTMLCanvasElement ? v : null);
   const gaps: string[] = [];
-  const tryAll = <T,>(label: string, fn: () => T): T | null => {
+  const tryAll = <T>(label: string, fn: () => T): T | null => {
     try {
       return fn();
     } catch (e) {
@@ -232,7 +235,10 @@ function prestigeExtras(): void {
           cv.height = base.height + 8;
           const g = cv.getContext("2d")!;
           g.drawImage(base, 0, 8);
-          const r = tryAll(`petwear ${t.key}`, () => pw(t.rank, pet, false, false, now) as [Sprite, number, number] | null);
+          const r = tryAll(
+            `petwear ${t.key}`,
+            () => pw(t.rank, pet, false, false, now) as [Sprite, number, number] | null,
+          );
           if (r) g.drawImage(r[0], r[1], r[2] + 8);
           sp.push(cv);
         }
@@ -249,21 +255,32 @@ function prestigeExtras(): void {
       const piece = tryAll(`trophy ${t.key}`, () => pt(t.rank) as FancyPiece | undefined);
       const frames = piece
         ? Array.from({ length: piece.frames }, (_, f) =>
-            tryAll(`trophy ${t.key}`, () => bake(piece.w * TILE, piece.height, (p) => piece.draw(p, f, "#888"))),
+            tryAll(`trophy ${t.key}`, () =>
+              bake(piece.w * TILE, piece.height, (p) => piece.draw(p, f, "#888")),
+            ),
           )
         : [];
-      return { label: `${t.roman} ${t.trophy.name} (${piece?.frames ?? 0}f)`, sprites: frames, bg: "#8a7a62" };
+      return {
+        label: `${t.roman} ${t.trophy.name} (${piece?.frames ?? 0}f)`,
+        sprites: frames,
+        bg: "#8a7a62",
+      };
     });
     sheet("trophies", "Prestige: home trophies, every frame", cells, 1, "#8a7a62");
   } else gaps.push("trophy: prestigeTrophy missing");
 
   const es = probe(emblem, "emblemSprite");
   if (es) {
-    const cells = PRESTIGE_TRACKS.map((t): Cell => ({
-      label: `${t.roman} ${t.emblem}`,
-      sprites: [tryAll(`emblem ${t.key}`, () => asSprite(es(t.rank))) , tryAll(`emblem ${t.key}`, () => asSprite(es(t.emblem)))],
-      bg: mix(t.colors.main, 0.35),
-    }));
+    const cells = PRESTIGE_TRACKS.map(
+      (t): Cell => ({
+        label: `${t.roman} ${t.emblem}`,
+        sprites: [
+          tryAll(`emblem ${t.key}`, () => asSprite(es(t.rank))),
+          tryAll(`emblem ${t.key}`, () => asSprite(es(t.emblem))),
+        ],
+        bg: mix(t.colors.main, 0.35),
+      }),
+    );
     sheet("emblems", "Prestige: tag emblems (by rank, by name)", cells, 3, LAND);
   } else gaps.push("emblem: emblemSprite missing");
   console.log("GAPS " + gaps.join(" | "));

@@ -1,8 +1,8 @@
 import { RAGNAROK_GLASSES, RAGNAROK_HATS } from "./case-ragnarok.ts";
 import type { Art } from "./editions.ts";
 import { FISHING_HATS } from "./fishing-loot.ts";
-import { PRESTIGE_HATS } from "./prestige.ts";
 import { C } from "./palette.ts";
+import { PRESTIGE_HATS } from "./prestige.ts";
 
 /**
  * The Night Market case's and the Nusantara case's hats and glasses (`core/src/case.ts`,

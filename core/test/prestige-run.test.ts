@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { MAX_LEVEL, levelFor } from "../src/format.ts";
+import { levelFor, MAX_LEVEL } from "../src/format.ts";
 import { PRESTIGE_TRACKS, RUN_LEVELS } from "../src/prestige.ts";
 import {
   canPrestige,
-  type PrestigeState,
   claimableBetween,
+  type PrestigeState,
   playerPrestigeView,
   rewardsUnlocked,
   runCoinsPaid,
@@ -53,7 +53,15 @@ describe("prestige runs", () => {
   test("rewards unlock at their levels and diff for toasts", () => {
     expect(rewardsUnlocked(1, 0).map((r) => r.kind)).toEqual(["tag"]);
     expect(rewardsUnlocked(1, 10).map((r) => r.kind)).toEqual(["tag", "hat"]);
-    expect(rewardsUnlocked(1, 50).map((r) => r.kind)).toEqual(["tag", "hat", "outfit", "petwear", "back", "aura", "trophy"]);
+    expect(rewardsUnlocked(1, 50).map((r) => r.kind)).toEqual([
+      "tag",
+      "hat",
+      "outfit",
+      "petwear",
+      "back",
+      "aura",
+      "trophy",
+    ]);
     expect(claimableBetween(1, 9, 20).rewards.map((r) => r.kind)).toEqual(["hat", "outfit"]);
     expect(claimableBetween(1, 9, 20).coins).toBe(runCoinsPaid(20) - runCoinsPaid(9));
     expect(runCoinsPaid(50)).toBe(2200);
@@ -64,7 +72,14 @@ describe("prestige runs", () => {
     const v = playerPrestigeView(100 * B + 25 * B, s.prestiges);
     expect(v.rank).toBe(2);
     expect(v.tag).toBe("Prestige II · Cosmic");
-    expect(v.ownedItemIds).toEqual(["hat.700", "outfit.700", "back.700", "aura.700", "hat.701", "outfit.701"]);
+    expect(v.ownedItemIds).toEqual([
+      "hat.700",
+      "outfit.700",
+      "back.700",
+      "aura.700",
+      "hat.701",
+      "outfit.701",
+    ]);
     expect(v.nextTrack?.rank).toBe(3);
   });
 });

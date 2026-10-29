@@ -73,7 +73,9 @@ const obelisk = (): Model => {
       b.o.position.z = 0.285 - u * 0.1 + 0.02;
       b.o.scale.setScalar(Math.sin(u * Math.PI));
     }
-    veins.forEach((v, i) => v.scale.set(1, 1, 0.8 + 0.4 * Math.sin(t * 2.4 + i)));
+    veins.forEach((v, i) => {
+      v.scale.set(1, 1, 0.8 + 0.4 * Math.sin(t * 2.4 + i));
+    });
     feather.position.y = 2.0 + ((t * 0.3) % 1) * 0.35;
     feather.scale.setScalar(1 - ((t * 0.3) % 1) * 0.6);
     feather.rotation.y = t * 0.8;
@@ -268,7 +270,9 @@ const holoTown = (): Model => {
       f.o.position.set(f.x0 + Math.sin(t * 0.6 + i) * 0.1 * f.dir, 0, f.z);
       f.o.visible = Math.floor(t * 2 + i * 0.5) % 4 !== 3;
     });
-    lit.forEach((w, i) => (w.visible = (Math.floor(t * 1.5) + i) % 3 !== 0));
+    lit.forEach((w, i) => {
+      w.visible = (Math.floor(t * 1.5) + i) % 3 !== 0;
+    });
     const k = (t * 0.4) % 1;
     scan.position.y = k * 0.9;
     scan.scale.set(1, 1, 1);
@@ -336,8 +340,12 @@ const monument = (): Model => {
   light(m, [0, 1.4, 0.7], "#ffd7f5", 1.6, 4.5);
   ticks.push((t) => {
     coin.rotation.y = Math.sin(t * 0.5) * 0.18;
-    groove.forEach((g, i) => (g.material = glow(RAINBOW[(Math.floor(i / 6) + Math.floor(t * 3)) % 6]!)));
-    fan.forEach((b, i) => (b.scale.x = 0.85 + 0.15 * Math.sin(t * 3 + i)));
+    groove.forEach((g, i) => {
+      g.material = glow(RAINBOW[(Math.floor(i / 6) + Math.floor(t * 3)) % 6]!);
+    });
+    fan.forEach((b, i) => {
+      b.scale.x = 0.85 + 0.15 * Math.sin(t * 3 + i);
+    });
     rays.forEach((r, i) => {
       const side = i % 2 ? 1 : -1;
       r.position.x = side * (0.92 + 0.04 * Math.sin(t * 2 + i));

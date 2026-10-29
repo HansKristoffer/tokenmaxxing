@@ -3,8 +3,8 @@ import { PRESTIGE_BASE, PRESTIGE_ITEMS, PRESTIGE_TRACKS } from "@tokenmaxxing/co
 import type * as THREE from "three";
 import { CASE_HATS } from "../src/art/case.ts";
 import { Pen } from "../src/art/pixels.ts";
-import { TRACK } from "../src/art/prestige-3.ts";
 import { PRESTIGE_AURAS, PRESTIGE_BACKS, PRESTIGE_HATS, PRESTIGE_OUTFITS } from "../src/art/prestige.ts";
+import { TRACK } from "../src/art/prestige-3.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();

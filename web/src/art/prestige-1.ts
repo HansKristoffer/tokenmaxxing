@@ -1,5 +1,5 @@
-import { C } from "./palette.ts";
 import type { Art } from "./editions.ts";
+import { C } from "./palette.ts";
 import type { Pen } from "./pixels.ts";
 import type { TrackArt } from "./prestige-types.ts";
 import type { Back, BackView, Outfit } from "./wardrobe.ts";

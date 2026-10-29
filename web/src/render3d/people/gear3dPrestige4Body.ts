@@ -83,7 +83,9 @@ function floorPlan(g: CanvasRenderingContext2D): void {
 
 /** A bar of gold, as a cuff or a pauldron, round each arm. */
 const arms = (c: BodyCtx, build: (v: Vx, side: 1 | -1) => void) =>
-  c.arms.forEach((arm, i) => build(new Vx(vpart(arm)), i ? 1 : -1));
+  c.arms.forEach((arm, i) => {
+    build(new Vx(vpart(arm)), i ? 1 : -1);
+  });
 
 // biome-ignore format: a catalogue reads best one to a line
 const OUTFITS: Record<number, (c: BodyCtx) => void> = {

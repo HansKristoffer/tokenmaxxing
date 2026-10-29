@@ -2,8 +2,8 @@ import { expect, test } from "bun:test";
 import { PRESTIGE_BASE, PRESTIGE_ITEMS } from "@tokenmaxxing/core/prestige.ts";
 import { CASE_HATS } from "../src/art/case.ts";
 import { Pen } from "../src/art/pixels.ts";
-import { TRACK } from "../src/art/prestige-2.ts";
 import { PRESTIGE_AURAS, PRESTIGE_BACKS, PRESTIGE_OUTFITS } from "../src/art/prestige.ts";
+import { TRACK } from "../src/art/prestige-2.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();

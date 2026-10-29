@@ -85,18 +85,21 @@ const WING_UP = frameAt(sym([
   "...yyyy.",
   "....yy..",
 ]), 3);
-const WING_UP_B = frameAt(sym([
-  "Yy......",
-  "yIyy....",
-  "yiIiyy..",
-  "y.iIiIyy",
-  "yIiIiIiy",
-  "y.IiIiIy",
-  ".yIiIiIy",
-  "..yIiIyy",
-  "...yyyy.",
-  "....yy..",
-]), 2);
+const WING_UP_B = frameAt(
+  sym([
+    "Yy......",
+    "yIyy....",
+    "yiIiyy..",
+    "y.iIiIyy",
+    "yIiIiIiy",
+    "y.IiIiIy",
+    ".yIiIiIy",
+    "..yIiIyy",
+    "...yyyy.",
+    "....yy..",
+  ]),
+  2,
+);
 // prettier-ignore
 const WING_DOWN = frameAt(sym([
   "Yy......",
@@ -159,15 +162,60 @@ const CUBE: Solid = {
     [1, 1, 1],
     [-1, 1, 1],
   ],
-  e: [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]],
+  e: [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 0],
+    [4, 5],
+    [5, 6],
+    [6, 7],
+    [7, 4],
+    [0, 4],
+    [1, 5],
+    [2, 6],
+    [3, 7],
+  ],
 };
 const OCTA: Solid = {
-  v: [[1.3, 0, 0], [-1.3, 0, 0], [0, 1.3, 0], [0, -1.3, 0], [0, 0, 1.3], [0, 0, -1.3]],
-  e: [[0, 2], [0, 3], [0, 4], [0, 5], [1, 2], [1, 3], [1, 4], [1, 5], [2, 4], [4, 3], [3, 5], [5, 2]],
+  v: [
+    [1.3, 0, 0],
+    [-1.3, 0, 0],
+    [0, 1.3, 0],
+    [0, -1.3, 0],
+    [0, 0, 1.3],
+    [0, 0, -1.3],
+  ],
+  e: [
+    [0, 2],
+    [0, 3],
+    [0, 4],
+    [0, 5],
+    [1, 2],
+    [1, 3],
+    [1, 4],
+    [1, 5],
+    [2, 4],
+    [4, 3],
+    [3, 5],
+    [5, 2],
+  ],
 };
 const TETRA: Solid = {
-  v: [[1.2, 1.2, 1.2], [1.2, -1.2, -1.2], [-1.2, 1.2, -1.2], [-1.2, -1.2, 1.2]],
-  e: [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3], [3, 1]],
+  v: [
+    [1.2, 1.2, 1.2],
+    [1.2, -1.2, -1.2],
+    [-1.2, 1.2, -1.2],
+    [-1.2, -1.2, 1.2],
+  ],
+  e: [
+    [0, 1],
+    [0, 2],
+    [0, 3],
+    [1, 2],
+    [2, 3],
+    [3, 1],
+  ],
 };
 
 /** A pixel on the 28×28 frame, if it is on it. */
@@ -179,11 +227,21 @@ const put = (p: Pen, x: number, y: number, color: string): void => {
 function line(p: Pen, x0: number, y0: number, x1: number, y1: number, color: string, part = 1): void {
   const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
   const upto = Math.round(n * part);
-  for (let i = 0; i <= upto; i++) put(p, Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), color);
+  for (let i = 0; i <= upto; i++)
+    put(p, Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), color);
 }
 
 /** One solid, turned by `yaw` and tipped by `pitch`, `size` pixels to the unit, centred on (`cx`, `cy`). One edge is being drawn. */
-function wire(p: Pen, s: Solid, cx: number, cy: number, size: number, yaw: number, pitch: number, drawing: number): void {
+function wire(
+  p: Pen,
+  s: Solid,
+  cx: number,
+  cy: number,
+  size: number,
+  yaw: number,
+  pitch: number,
+  drawing: number,
+): void {
   const pts = s.v.map(([x, y, z]) => {
     const x1 = x * Math.cos(yaw) + z * Math.sin(yaw);
     const z1 = -x * Math.sin(yaw) + z * Math.cos(yaw);
@@ -211,18 +269,39 @@ const wireframe = (p: Pen, f: number): void => {
   // The path they follow, in faint gold dashes with a tick every eighth of the way round.
   for (let i = 0; i < 48; i++) {
     const a = (i / 48) * TAU;
-    if (i % 2 === 0) p.px(Math.round(CX + Math.cos(a) * RX), Math.round(CY + 1 + Math.sin(a) * RY), "rgba(255, 227, 138, 0.35)");
+    if (i % 2 === 0)
+      p.px(
+        Math.round(CX + Math.cos(a) * RX),
+        Math.round(CY + 1 + Math.sin(a) * RY),
+        "rgba(255, 227, 138, 0.35)",
+      );
   }
   const solids = [CUBE, OCTA, TETRA];
   const sizes = [2.3, 2.7, 2.4];
-  const order = solids.map((_, i) => i).sort((a, b) => Math.sin(((f / FRAMES) + a / 3) * TAU) - Math.sin(((f / FRAMES) + b / 3) * TAU));
+  const order = solids
+    .map((_, i) => i)
+    .sort((a, b) => Math.sin((f / FRAMES + a / 3) * TAU) - Math.sin((f / FRAMES + b / 3) * TAU));
   for (const i of order) {
     const k = f / FRAMES + i / 3;
     const a = k * TAU;
-    wire(p, solids[i]!, Math.round(CX + Math.cos(a) * RX), Math.round(CY + 1 + Math.sin(a) * RY), sizes[i]!, k * TAU + i, 0.55, k % 1);
+    wire(
+      p,
+      solids[i]!,
+      Math.round(CX + Math.cos(a) * RX),
+      Math.round(CY + 1 + Math.sin(a) * RY),
+      sizes[i]!,
+      k * TAU + i,
+      0.55,
+      k % 1,
+    );
   }
   // Measuring ticks sparkle on the path.
-  for (const j of [0, 4]) p.px(Math.round(CX + Math.cos(((f + j) / FRAMES) * TAU) * RX), Math.round(CY + 1 + Math.sin(((f + j) / FRAMES) * TAU) * RY) - 1, IVORY);
+  for (const j of [0, 4])
+    p.px(
+      Math.round(CX + Math.cos(((f + j) / FRAMES) * TAU) * RX),
+      Math.round(CY + 1 + Math.sin(((f + j) / FRAMES) * TAU) * RY) - 1,
+      IVORY,
+    );
 };
 
 export const TRACK: TrackArt = { hat: HAT, outfit: OUTFIT, back: BACK, aura: wireframe };

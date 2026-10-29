@@ -19,7 +19,13 @@ export const TOKENS_PER_LEVEL = 1e9;
 
 /** Coins a run pays at its milestone levels; every other level pays `RUN_LEVEL_COINS`. 2,200 a completed run. */
 export const RUN_LEVEL_COINS = 10;
-export const RUN_MILESTONE_COINS: Readonly<Record<number, number>> = { 10: 100, 20: 200, 30: 300, 40: 400, 50: 750 };
+export const RUN_MILESTONE_COINS: Readonly<Record<number, number>> = {
+  10: 100,
+  20: 200,
+  30: 300,
+  40: 400,
+  50: 750,
+};
 
 /** The run level each reward unlocks at. Entering a prestige gives the tag (emblem and title) at once. */
 export const REWARD_LEVEL = { hat: 10, outfit: 20, petwear: 30, back: 40, aura: 50, trophy: 50 } as const;

@@ -1,5 +1,5 @@
 import { PRESTIGE_TRACKS } from "@tokenmaxxing/core/prestige.ts";
-import { type Palette, bake, cached } from "./pixels.ts";
+import { bake, cached, type Palette } from "./pixels.ts";
 
 /**
  * The prestige tags' crests (`core/src/prestige.ts`, `PrestigeTrack.emblem`): one 16x16 sprite a rank, each its own

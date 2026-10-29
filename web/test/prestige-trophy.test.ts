@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { PRESTIGE_TRACKS } from "@tokenmaxxing/core/prestige.ts";
 import * as THREE from "three";
-import { PRESTIGE_TROPHIES, prestigeTrophy } from "../src/art/prestige-trophy.ts";
 import { Pen } from "../src/art/pixels.ts";
+import { PRESTIGE_TROPHIES, prestigeTrophy } from "../src/art/prestige-trophy.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();

@@ -6,8 +6,8 @@ import { RAGNAROK_BACKS, RAGNAROK_HELD, RAGNAROK_OUTFITS } from "./case-ragnarok
 import type { Pose, View } from "./characters.ts";
 import { FISHING_BACKS, FISHING_HELD } from "./fishing-loot.ts";
 import { C } from "./palette.ts";
-import { PRESTIGE_BACKS, PRESTIGE_OUTFITS } from "./prestige.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
+import { PRESTIGE_BACKS, PRESTIGE_OUTFITS } from "./prestige.ts";
 
 /**
  * Art for the wardrobe (core/src/wardrobe.ts): outfits from 13 on, things held in the hand, things

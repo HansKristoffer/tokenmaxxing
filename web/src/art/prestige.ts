@@ -1,12 +1,12 @@
 import { PRESTIGE_BASE, PRESTIGE_TRACKS } from "@tokenmaxxing/core/prestige.ts";
 import type { Art } from "./editions.ts";
+import type { Pen } from "./pixels.ts";
 import { TRACK as T1 } from "./prestige-1.ts";
 import { TRACK as T2 } from "./prestige-2.ts";
 import { TRACK as T3 } from "./prestige-3.ts";
 import { TRACK as T4 } from "./prestige-4.ts";
 import { TRACK as T5 } from "./prestige-5.ts";
 import type { TrackArt } from "./prestige-types.ts";
-import type { Pen } from "./pixels.ts";
 import type { Back, Outfit } from "./wardrobe.ts";
 
 /**

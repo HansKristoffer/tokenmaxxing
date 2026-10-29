@@ -5,16 +5,16 @@
  * previous run). Tokens earned while sitting at the cap do not bank: a run counts from `startedAt`.
  */
 import type { CaseItem } from "./case.ts";
-import { MAX_LEVEL, levelFor } from "./format.ts";
+import { levelFor, MAX_LEVEL } from "./format.ts";
 import {
   PRESTIGE_ITEMS,
   PRESTIGE_TRACKS,
+  type PrestigeTrack,
+  prestigeTag,
   REWARD_LEVEL,
   RUN_LEVELS,
-  TOKENS_PER_LEVEL,
-  prestigeTag,
   runLevelCoins,
-  type PrestigeTrack,
+  TOKENS_PER_LEVEL,
 } from "./prestige.ts";
 
 export interface PrestigeTaken {
@@ -56,7 +56,9 @@ const currentRunLevel = (lifetime: number, prestiges: readonly PrestigeTaken[]):
 
 /** At the cap of the first journey or of the latest run (regardless of whether another track exists). */
 export const atCap = (lifetime: number, prestiges: readonly PrestigeTaken[]): boolean =>
-  prestiges.length === 0 ? levelFor(lifetime) >= MAX_LEVEL : currentRunLevel(lifetime, prestiges) >= RUN_LEVELS;
+  prestiges.length === 0
+    ? levelFor(lifetime) >= MAX_LEVEL
+    : currentRunLevel(lifetime, prestiges) >= RUN_LEVELS;
 
 /** True when the player can choose the next prestige now: at the cap and a track exists for it. */
 export const canPrestige = (lifetime: number, prestiges: readonly PrestigeTaken[]): boolean =>

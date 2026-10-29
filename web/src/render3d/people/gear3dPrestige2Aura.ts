@@ -154,7 +154,9 @@ AURA_BUILDERS["Orbiting token sigil"] = (m, tick) => {
       const size = 0.78 + near * 0.4;
       k.g.scale.setScalar(size);
       k.face.rotation.y = -a + Math.PI / 2 + Math.sin(t * 1.6 + k.p * 9) * 0.5;
-      k.trail.forEach((tr, j) => place(a - (j + 1) * 0.16, tr));
+      k.trail.forEach((tr, j) => {
+        place(a - (j + 1) * 0.16, tr);
+      });
     }
     for (const s of stars) {
       const tw = smooth(0.55, 1, Math.sin(t * s.s * 1.8 + s.w) * 0.5 + 0.5);
