@@ -106,6 +106,14 @@ export const runCoinsPaid = (runLevel: number): number => {
   return sum;
 };
 
+/** What other players see of someone's prestige: the tag, the aura, the pet accessory and the trophy come from this. 0 = none. */
+export interface PrestigeBadge {
+  rank: number;
+  runLevel: number;
+}
+
+export const NO_PRESTIGE: PrestigeBadge = { rank: 0, runLevel: 0 };
+
 export interface PrestigeView {
   /** Prestiges taken; 0 on the first journey. */
   rank: number;

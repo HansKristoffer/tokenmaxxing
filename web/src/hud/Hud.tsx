@@ -52,6 +52,7 @@ import { PicnicBanner } from "./Picnic.tsx";
 import { BotCard, PlayerCard } from "./PlayerCard.tsx";
 import { Poker } from "./Poker.tsx";
 import { PokerWatch } from "./PokerWatch.tsx";
+import { PrestigePanel, PrestigeToasts } from "./Prestige.tsx";
 import { Quests } from "./Quests.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Regulars } from "./Regulars.tsx";
@@ -141,6 +142,7 @@ export function Hud() {
         <QuestToast />
         <InviteToast />
         <LevelToast />
+        <PrestigeToasts />
         <RaidToast />
         <LootToast />
         <GraphicsToast />
@@ -435,6 +437,7 @@ function Panel() {
     regulars: () => <Regulars />,
     jukebox: () => <Jukebox />,
     fishing: () => <Fishing />,
+    prestige: () => <PrestigePanel />,
     graphics: () => <GraphicsPanel />,
     paper: () => <PaperPanel />,
     pamphlet: () => <PamphletPanel />,

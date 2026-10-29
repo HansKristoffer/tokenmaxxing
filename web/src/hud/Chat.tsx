@@ -9,6 +9,8 @@ import { storage } from "../storage.ts";
 import { hud, useHud } from "../store.ts";
 import { DanceBar } from "./DanceBar.tsx";
 import { MentionInput } from "./MentionInput.tsx";
+import { PrestigeMini } from "./PrestigeMini.tsx";
+import { prestigeOf } from "./prestige-badge.ts";
 import { QuickReplies } from "./QuickReplies.tsx";
 import { AvatarImage, Pills } from "./ui.tsx";
 
@@ -67,7 +69,9 @@ function WhosHere({ count }: { count: number }) {
                 </strong>
                 <small className="muted">{companyName(p.companyId)}</small>
               </span>
-              <span className="muted small">Lv{p.level}</span>
+              <span className="muted small">
+                <PrestigeMini rank={prestigeOf(p).rank} /> Lv{p.level}
+              </span>
             </button>
           </li>
         ))}

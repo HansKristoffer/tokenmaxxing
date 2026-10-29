@@ -19,6 +19,7 @@ import { NUSANTARA_PETS } from "./pets3d-nusantara.ts";
 import { POND_PETS } from "./pets3d-pond.ts";
 import { quad } from "./pets3d-quad.ts";
 import type { Rig } from "./petvox.ts";
+import { PETWEAR_AT, type Petwear3D, petwear3d } from "./prestige-petwear3d.ts";
 
 export type { Species } from "../data/pets.ts";
 
@@ -137,6 +138,8 @@ export class Pet3D {
   wear = 0;
   /** An owner at Lv50 and above has their pet crowned. */
   crown = false;
+  /** The owner's prestige pet accessory (`petwearRank`): 0 is none. It stands in for the crown unless worn at the neck. */
+  prestigeWear = 0;
   private readonly lift = this.root.part();
   private readonly body: THREE.Group;
   private readonly fore: THREE.Group;
@@ -151,6 +154,7 @@ export class Pet3D {
   private blinkAt = 2;
   private worn = 0;
   private wornGroup?: THREE.Object3D;
+  private prestiged: { rank: number; hat: boolean; crown: boolean; group: Petwear3D } | null = null;
   private spin?: THREE.Object3D;
   private crowned: {
     group: THREE.Object3D;
@@ -239,13 +243,15 @@ export class Pet3D {
       gaitSettled(this.gait) &&
       settled &&
       !this.crown &&
+      !this.prestigeWear &&
       !this.spin &&
       !this.rig.fx &&
       this.pose !== "sleep";
     // Far down the crowd, or a few pixels tall (a display in a shop window seen from the street): a stride, a breath or
     // a blink is invisible, so it is drawn frozen whatever it does. Height: about half a unit, times the scale it is drawn at.
     const tiny = Math.hypot(e[4]!, e[5]!, e[6]!) * 0.5 * view.pxPerUnit < TINY_PX;
-    const far = (this.root.userData.lod || tiny) && !this.crown && !this.spin && !this.rig.fx;
+    const far =
+      (this.root.userData.lod || tiny) && !this.crown && !this.prestigeWear && !this.spin && !this.rig.fx;
     const key = far ? "far" : calm ? `${this.pose}:${this.wear}` : null;
     if (this.freezer.holds(key)) {
       this.last = t;
@@ -296,6 +302,10 @@ export class Pet3D {
     const dressed = sl < 0.5;
     if (this.wornGroup) this.wornGroup.visible = dressed;
     if (this.spin) this.spin.rotation.y = t * (walk ? 30 : 12);
+    if (this.prestiged) {
+      this.prestiged.group.visible = dressed;
+      if (dressed) this.prestiged.group.userData.tick(t);
+    }
     if (this.crowned) {
       this.crowned.group.visible = dressed;
       this.crowned.stars.forEach((s, i) => {
@@ -329,10 +339,26 @@ export class Pet3D {
       }
       this.worn = this.wear;
     }
-    if (this.crown !== !!this.crowned || (this.crowned && this.crowned.lifted !== hat)) {
+    // The prestige accessory is raised over a hat, and over the crown if it is not replacing it.
+    const rank = this.prestigeWear;
+    const replaces = rank > 0 && PETWEAR_AT[rank - 1] === "top";
+    const crowned = this.crown && !replaces;
+    const p = this.prestiged;
+    if (p && (p.rank !== rank || p.hat !== hat || p.crown !== crowned)) {
+      p.group.removeFromParent();
+      this.prestiged = null;
+    }
+    if (rank && !this.prestiged) {
+      const group = petwear3d(rank, r.neckR);
+      const base = group.userData.at === "top" ? r.top : r.neck;
+      group.position.set(base[0], base[1] + (group.userData.at === "top" ? (hat ? 0.12 : 0) : 0), base[2]);
+      r.head.add(group);
+      this.prestiged = { rank, hat, crown: crowned, group };
+    }
+    if (crowned !== !!this.crowned || (this.crowned && this.crowned.lifted !== hat)) {
       this.crowned?.group.removeFromParent();
       this.crowned = null;
-      if (this.crown) {
+      if (crowned) {
         const c = makeCrown(r, hat ? 0.12 : 0);
         c.group.position.set(...r.top);
         r.head.add(c.group);

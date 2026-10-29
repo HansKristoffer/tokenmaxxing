@@ -1,6 +1,7 @@
 import { COP_ID } from "@tokenmaxxing/core/cop.ts";
 import { auraOf } from "@tokenmaxxing/core/dances.ts";
 import { LEGENDARY_LEVEL } from "@tokenmaxxing/core/milestones.ts";
+import type { PrestigeBadge } from "@tokenmaxxing/core/prestige-run.ts";
 import { SNEEZE_MS } from "@tokenmaxxing/core/sky.ts";
 import { hasPolse } from "@tokenmaxxing/core/street.ts";
 import { hasSpecial, specialBuff } from "@tokenmaxxing/core/tavern.ts";
@@ -8,6 +9,7 @@ import { cupsLeft, JUMP_MS, ownerOfOffice, TILE } from "@tokenmaxxing/core/world
 import * as THREE from "three";
 import { merchKey, merchVersion } from "../../art/merch.ts";
 import { PET_H, PET_W } from "../../art/pets.ts";
+import { petwearRank } from "../../art/prestige-petwear.ts";
 import { type Chill, chillOf, SNEEZE_TEXT, sneezeJolt, sneezeOf, wearsScarf } from "../../game/cold.ts";
 import { battlers, danceOf } from "../../game/dance.ts";
 import { BURST_MS } from "../../game/emoji.ts";
@@ -26,6 +28,7 @@ import {
   WARP_MS,
   world,
 } from "../../game/world.ts";
+import { prestigeOf } from "../../hud/prestige-badge.ts";
 import { town } from "../../net.ts";
 import { hud } from "../../store.ts";
 import { RAID_SEAT_Y } from "../dungeon/raidfx.ts";
@@ -601,10 +604,11 @@ export class Entities {
       }
       return;
     }
+    const prestigeWear = petwearRank((a.info as { prestige?: PrestigeBadge }).prestige);
     const sig =
       r.pet && !r.changed
         ? r.pet.sig
-        : `${look.pet}|${look.petVariant}|${look.petName ?? ""}|${look.petwear}|${a.info.level >= LEGENDARY_LEVEL}`;
+        : `${look.pet}|${look.petVariant}|${look.petName ?? ""}|${look.petwear}|${a.info.level >= LEGENDARY_LEVEL}|${prestigeWear}`;
     if (r.pet && r.pet.sig !== sig) {
       r.pet.root.removeFromParent();
       disposeObject(r.pet.root);
@@ -614,6 +618,7 @@ export class Entities {
       const model = petFrom2D(look.pet, look.petVariant, look.petName ?? "");
       model.wear = look.petwear;
       model.crown = a.info.level >= LEGENDARY_LEVEL;
+      model.prestigeWear = prestigeWear;
       const root = new THREE.Group();
       model.root.scale.setScalar(PET_SCALE);
       root.add(model.root);
@@ -725,13 +730,14 @@ export class Entities {
       from[0] = info;
       from[1] = company;
       from[2] = pins;
-      r.tagKey = `${info.name}|${info.level}|${info.online}|${company?.name ?? ""}|${company?.brand?.roof ?? ""}|${info.look.hat}|${info.look.outfit}|${pins?.key ?? ""}`;
+      r.tagKey = `${info.name}|${info.level}|${info.online}|${company?.name ?? ""}|${company?.brand?.roof ?? ""}|${info.look.hat}|${info.look.outfit}|${prestigeOf(info).rank}|${prestigeOf(info).runLevel}|${pins?.key ?? ""}`;
     }
     if (!isMe && (!r.tag || r.tagMade !== r.tagKey)) {
       r.tag?.remove();
       r.tag = nameTag({
         name: info.name,
         level: info.level,
+        prestige: prestigeOf(info),
         rarity: wornBy(info.look).rarity,
         online: info.online,
         company: company ? { name: company.name, color: company.brand?.roof ?? "#3f7a78" } : undefined,

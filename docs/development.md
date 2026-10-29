@@ -18,23 +18,23 @@ Tokenmaxxing.app (Tauri, Rust)                     server (Railway, one process)
 The backend is [Rivet Actors](https://rivet.dev/docs/actors). `rivetkit` starts the Rivet engine
 inside the container; `Bun.serve` exposes only its client gateway under `/api/rivet`.
 
-| Actor | Key | What |
-|---|---|---|
-| `player` | user id | Raw events (SQLite), device token and browser sessions, daily rollups on ingest |
-| `town` | `main` | Accounts, companies, daily rollups for everyone: leaderboards and player cards |
-| `world` | `main` | Who's where: steps, rooms, rest spots (bed/desk), room chat, a 10 Hz broadcast loop |
-| `arcade` | `main` | Mini games: tables, invites, side bets, and paying out the pot |
-| `match` | match id | One game being played: its rules, timers and each player's view |
+| Actor    | Key      | What                                                                                |
+| -------- | -------- | ----------------------------------------------------------------------------------- |
+| `player` | user id  | Raw events (SQLite), device token and browser sessions, daily rollups on ingest     |
+| `town`   | `main`   | Accounts, companies, daily rollups for everyone: leaderboards and player cards      |
+| `world`  | `main`   | Who's where: steps, rooms, rest spots (bed/desk), room chat, a 10 Hz broadcast loop |
+| `arcade` | `main`   | Mini games: tables, invites, side bets, and paying out the pot                      |
+| `match`  | match id | One game being played: its rules, timers and each player's view                     |
 
-| Path | What |
-|---|---|
-| `core/` | Log parsers, sync engine, shell↔helper protocol, `maps.ts` and `world.ts` (the world's rules, shared by client and server) |
-| `server/` | `main.ts`, the Rivet proxy, the actors (`src/actors/`) and what `town` does (`src/town/`), company branding, pricing |
-| `web/` | The game: canvas renderer in `src/game/`, pixel art drawn in code in `src/art/`, React HUD in `src/hud/` |
-| `app/helper/` | The TypeScript helper the app runs as a sidecar (`bun build --compile`) |
-| `app/desktop/` | The desktop app: Tauri v2 (`src-tauri/`), the "pick a name" page, icons and build scripts |
-| `packaging/tokenmaxxing.rb` | Homebrew cask template |
-| `ARCHITECTURE.md` | How it all fits together: serving, auth, the actors, houses, coins, games |
+| Path                        | What                                                                                                                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `core/`                     | Log parsers, sync engine, shell↔helper protocol, `maps.ts` and `world.ts` (the world's rules, shared by client and server) |
+| `server/`                   | `main.ts`, the Rivet proxy, the actors (`src/actors/`) and what `town` does (`src/town/`), company branding, pricing       |
+| `web/`                      | The game: canvas renderer in `src/game/`, pixel art drawn in code in `src/art/`, React HUD in `src/hud/`                   |
+| `app/helper/`               | The TypeScript helper the app runs as a sidecar (`bun build --compile`)                                                    |
+| `app/desktop/`              | The desktop app: Tauri v2 (`src-tauri/`), the "pick a name" page, icons and build scripts                                  |
+| `packaging/tokenmaxxing.rb` | Homebrew cask template                                                                                                     |
+| `ARCHITECTURE.md`           | How it all fits together: serving, auth, the actors, houses, coins, games                                                  |
 
 All art is drawn in code (palette-string sprites and rectangles), so the game carries no image assets.
 
@@ -128,30 +128,30 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 
 ## Server config
 
-| Var | Default | |
-|---|---|---|
-| `PORT` | `8787` | |
-| `RIVETKIT_STORAGE_PATH` | `~/.rivetkit` in dev | Where the engine keeps every actor. Required in production: `/data/rivet` on the Railway volume (set in the Dockerfile) |
-| `RIVET_LOG_LEVEL` | | `error` keeps the engine quiet |
-| `NODE_ENV` | | `production` minifies the game |
-| `FIRECRAWL_API_KEY` | | Reads company websites. Without it, a website only goes on the sign |
-| `ANTHROPIC_API_KEY` | | Turns a website's brand into house colours. Without it, the site's own colours are used |
-| `ADMIN_TOKEN` | | Turns on the admin page at `/admin#token=<it>` (32+ characters: `openssl rand -hex 32`). Without it, the page lets nobody in |
-| `CLIENT_IP_HEADER` | `x-real-ip` | Where the client's IP is, for per-IP limits. Railway's edge sets `x-real-ip` |
-| `GATEWAY_REQUESTS_PER_MIN` | `1200` | Requests to the actors per client IP a minute |
-| `GATEWAY_SOCKETS_PER_MIN` | `300` | New WebSockets per client IP a minute |
-| `HEALTH_FAILURES` | `5` | The server exits (so the host restarts it) after this many failed actor probes in a row... |
-| `HEALTH_WINDOW_MS` | `120000` | ...the first of them at least this long ago. One success starts over |
-| `HEALTH_INTERVAL_MS` | `30000` | Time between probes |
-| `HEALTH_TIMEOUT_MS` | `20000` | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine |
-| `SKY_WEATHER` | | Dev and screenshots: pins the weather and fetches none. `clear`, `cloudy`, `fog`, `drizzle`, `rain`, `storm`, `snow`, `frost` (freezing: ice, breath, scarves) or `pollen` (sneezes). `?weather=` in the page does the same for one browser |
-| `GRID_FEED` | | `off` stops reading the power grid: no green hours (so no bonus), no price board and lamps at full |
-| `GITHUB_TOKEN` | | Sent with the star counter's GitHub reads (a higher rate limit; no scopes needed). Without it, they go unauthenticated: 4 an hour, well inside GitHub's 60 |
-| `GITHUB_STARS` | | Dev and testing: `480` pins the star count instead of reading GitHub (pin it past a milestone and restart for the fireworks); `off` reads nothing |
-| `STATUE_FEED` | | `off` stops reading LMArena's leaderboard for the square's statue; the last leader read stays up. Pin one from the admin page instead |
-| `RAID_LOOT_BOOST` | `1` | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production |
-| `SKY_SEASON` | | Dev and screenshots only: pins the town's season for everyone (`spring`, `summer`, `autumn`, `winter`, or a date like `11-12`). `?season=autumn` does it for one page |
-| `RAID_START_WEEK` | | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once) |
+| Var                        | Default              |                                                                                                                                                                                                                                             |
+| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                     | `8787`               |                                                                                                                                                                                                                                             |
+| `RIVETKIT_STORAGE_PATH`    | `~/.rivetkit` in dev | Where the engine keeps every actor. Required in production: `/data/rivet` on the Railway volume (set in the Dockerfile)                                                                                                                     |
+| `RIVET_LOG_LEVEL`          |                      | `error` keeps the engine quiet                                                                                                                                                                                                              |
+| `NODE_ENV`                 |                      | `production` minifies the game                                                                                                                                                                                                              |
+| `FIRECRAWL_API_KEY`        |                      | Reads company websites. Without it, a website only goes on the sign                                                                                                                                                                         |
+| `ANTHROPIC_API_KEY`        |                      | Turns a website's brand into house colours. Without it, the site's own colours are used                                                                                                                                                     |
+| `ADMIN_TOKEN`              |                      | Turns on the admin page at `/admin#token=<it>` (32+ characters: `openssl rand -hex 32`). Without it, the page lets nobody in                                                                                                                |
+| `CLIENT_IP_HEADER`         | `x-real-ip`          | Where the client's IP is, for per-IP limits. Railway's edge sets `x-real-ip`                                                                                                                                                                |
+| `GATEWAY_REQUESTS_PER_MIN` | `1200`               | Requests to the actors per client IP a minute                                                                                                                                                                                               |
+| `GATEWAY_SOCKETS_PER_MIN`  | `300`                | New WebSockets per client IP a minute                                                                                                                                                                                                       |
+| `HEALTH_FAILURES`          | `5`                  | The server exits (so the host restarts it) after this many failed actor probes in a row...                                                                                                                                                  |
+| `HEALTH_WINDOW_MS`         | `120000`             | ...the first of them at least this long ago. One success starts over                                                                                                                                                                        |
+| `HEALTH_INTERVAL_MS`       | `30000`              | Time between probes                                                                                                                                                                                                                         |
+| `HEALTH_TIMEOUT_MS`        | `20000`              | One probe's patience. Each failure is logged with how long it took and the event loop's lag, so a busy machine can be told from a dead engine                                                                                               |
+| `SKY_WEATHER`              |                      | Dev and screenshots: pins the weather and fetches none. `clear`, `cloudy`, `fog`, `drizzle`, `rain`, `storm`, `snow`, `frost` (freezing: ice, breath, scarves) or `pollen` (sneezes). `?weather=` in the page does the same for one browser |
+| `GRID_FEED`                |                      | `off` stops reading the power grid: no green hours (so no bonus), no price board and lamps at full                                                                                                                                          |
+| `GITHUB_TOKEN`             |                      | Sent with the star counter's GitHub reads (a higher rate limit; no scopes needed). Without it, they go unauthenticated: 4 an hour, well inside GitHub's 60                                                                                  |
+| `GITHUB_STARS`             |                      | Dev and testing: `480` pins the star count instead of reading GitHub (pin it past a milestone and restart for the fireworks); `off` reads nothing                                                                                           |
+| `STATUE_FEED`              |                      | `off` stops reading LMArena's leaderboard for the square's statue; the last leader read stays up. Pin one from the admin page instead                                                                                                       |
+| `RAID_LOOT_BOOST`          | `1`                  | Dev and testing only: multiplies every raid drop's odds (1 to 1000), so `100` shows rare loot without waiting for luck. Leave unset in production                                                                                           |
+| `SKY_SEASON`               |                      | Dev and screenshots only: pins the town's season for everyone (`spring`, `summer`, `autumn`, `winter`, or a date like `11-12`). `?season=autumn` does it for one page                                                                       |
+| `RAID_START_WEEK`          |                      | The first raid's Monday (`YYYY-MM-DD`), for dev and testing: `2026-10-19` opens a raid now. Without it, the raid opens the Monday after the town first runs (stored once)                                                                   |
 
 `RIVETKIT_STORAGE_PATH` and `RIVET_LOG_LEVEL` are read by RivetKit's native side, so they must be set in
 the environment before the process starts.
@@ -185,4 +185,3 @@ Required repo settings: the variable `TOKENMAXXING_SERVER_URL`, and the secrets 
 `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` and `HOMEBREW_TAP_DEPLOY_KEY` (a write
 deploy key on the tap repo). `app/desktop/scripts/set-signing-secrets.sh` uploads all but the last. The
 updater key lives in `~/.tauri/tokenmaxxing.key`: losing it means installed apps can never update again.
-

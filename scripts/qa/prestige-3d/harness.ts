@@ -70,11 +70,11 @@ function sceneIdle(f: () => void) {
   }
 }
 
-// People: per track, rows = smooth / voxel, columns = front and back at three animation moments.
+// People: per track, rows = grown / chibi / bot / voxel, columns = front and back at three animation moments.
 for (const t of PRESTIGE_TRACKS) {
   const idx = 700 + t.rank - 1;
-  const s = sheet(`track${t.rank}-${t.key}`, 6, 2);
-  (["grown", "voxel"] as const).forEach((style, row) => {
+  const s = sheet(`track${t.rank}-${t.key}`, 6, 4);
+  (["grown", "chibi", "bot", "voxel"] as const).forEach((style, row) => {
     sceneIdle(() => {
       setSmoothBands(style === "voxel");
       const look = { style: 0, skin: 1, hair: 2, outfit: idx, hat: idx, back: idx, aura: idx };
@@ -89,12 +89,7 @@ for (const t of PRESTIGE_TRACKS) {
         step(time);
         [0, Math.PI].forEach((turn, a) => {
           av.root.rotation.y = turn;
-          s.draw(
-            k * 2 + a,
-            row,
-            `${t.name} ${style === "voxel" ? "voxel" : "smooth"} ${a ? "back" : "front"} t=${time}`,
-            cam,
-          );
+          s.draw(k * 2 + a, row, `${t.name} ${style} ${a ? "back" : "front"} t=${time}`, cam);
         });
       });
       scene.remove(av.root);

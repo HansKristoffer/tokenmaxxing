@@ -1,0 +1,101 @@
+/* The prestige screen, the button and row on the player card, and the callout at the cap. */
+.prestige-row {
+  margin: 6px 0;
+}
+
+.prestige-btn {
+  font-weight: bold;
+  border: 1px solid #c4a8ff;
+  background: linear-gradient(90deg, #5b3bb0, #8b5cf6);
+  color: #fff;
+  box-shadow: 0 0 10px -2px #c4a8ff;
+}
+
+.prestige-btn.danger {
+  border-color: #f87171;
+  background: linear-gradient(90deg, #8f2a2a, #c24141);
+}
+
+.prestige-run .xp-done {
+  background: #8b5cf6;
+}
+
+.prestige-panel h3 {
+  margin: 12px 0 4px;
+}
+
+.prestige-rewards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prestige-reward {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 1px solid color-mix(in srgb, var(--pt-main, #8b5cf6) 55%, transparent);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.prestige-art {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  flex: none;
+  font-size: 28px;
+}
+
+.prestige-keep {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.prestige-keep ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9em;
+}
+
+.prestige-confirm {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px solid #f87171;
+  border-radius: 6px;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.prestige-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 2px solid #c4a8ff;
+  background: linear-gradient(90deg, #2a1a52, #12141c);
+  box-shadow: 0 0 16px 0 #8b5cf6;
+}
+
+.prestige-callout button {
+  background: none;
+  border: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.prestige-callout-close {
+  font-size: 18px;
+  line-height: 1;
+}
+
+@media (max-width: 520px) {
+  .prestige-keep {
+    grid-template-columns: 1fr;
+  }
+}

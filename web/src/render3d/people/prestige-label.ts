@@ -2,8 +2,8 @@ import { PRESTIGE_TRACKS } from "@tokenmaxxing/core/prestige.ts";
 import { EMBLEM_SIZE, emblemPalette, emblemRows } from "../../art/prestige-emblem.ts";
 
 /**
- * The prestige tag for the 3D name label (`gear3d.ts` builds that label's HTML; this is a piece of it, not wired in
- * yet): the crest as an inline SVG data URL (no canvas, so it works in tests and as a plain `<img>`), the title in
+ * The prestige tag for the 3D name label (`gear3d.ts` builds that label's HTML; this is a piece of it, added
+ * by `nameTag`): the crest as an inline SVG data URL (no canvas, so it works in tests and as a plain `<img>`), the title in
  * the track's colour and the run level in the same `.lv` voice as the name's own level. All style is inline.
  */
 

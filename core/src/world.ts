@@ -29,6 +29,7 @@ import {
   withPieces,
 } from "./office.ts";
 import { cleanPetName, MAX_PET_LOOKS, petLooks } from "./pets.ts";
+import type { PrestigeBadge } from "./prestige-run.ts";
 import { itemById } from "./shop.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_ROOM, type ShopId, shopOfRoom } from "./shoprooms.ts";
 import type { Weather } from "./sky.ts";
@@ -326,6 +327,8 @@ export interface PlayerInfo {
   name: string;
   look: Look;
   level: number;
+  /** Their prestige (`prestige-run.ts`); absent is none. */
+  prestige?: PrestigeBadge;
   companyId: number | null;
   todayTokens: number;
   /** Agents that ran in the last 10 minutes. */

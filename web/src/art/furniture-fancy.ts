@@ -12,6 +12,7 @@ import { CASE_FURNITURE, HOME_FURNITURE, NUSANTARA_FURNITURE } from "./furniture
 import { RAGNAROK_FURNITURE } from "./furniture-ragnarok.ts";
 import { C, shade } from "./palette.ts";
 import { bake, cached, glyphPixels, type Pen } from "./pixels.ts";
+import { PRESTIGE_TROPHIES } from "./prestige-trophy.ts";
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 /** Where a piece goes: on the floor, against the top wall, hanging from the ceiling, or flat (walk over it). */
@@ -1083,7 +1084,8 @@ export const fancyPiece = (id: string): FancyPiece | undefined =>
   HOME_FURNITURE.find((f) => f.id === id) ??
   CASE_FURNITURE.find((f) => f.id === id) ??
   NUSANTARA_FURNITURE.find((f) => f.id === id) ??
-  RAGNAROK_FURNITURE.find((f) => f.id === id);
+  RAGNAROK_FURNITURE.find((f) => f.id === id) ??
+  PRESTIGE_TROPHIES.find((f) => f.id === id);
 
 /** Which frame a piece shows at time `now` (ms). */
 export const fancyFrame = (piece: FancyPiece, now: number): number =>

@@ -11,6 +11,7 @@ import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
 import type { PetAct } from "@tokenmaxxing/core/pets.ts";
 import type { Outage } from "@tokenmaxxing/core/picnic.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
+import type { PrestigeView } from "@tokenmaxxing/core/prestige-run.ts";
 import type { RouletteState } from "@tokenmaxxing/core/roulette.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
 import type { Stars } from "@tokenmaxxing/core/stars.ts";
@@ -272,6 +273,15 @@ export async function refreshMe(): Promise<void> {
 export async function refreshWallet(): Promise<void> {
   const wallet = await town.wallet();
   hud.set((s) => ({ wallet: same(s.wallet, wallet) }));
+}
+
+export const prestigeState = (): Promise<PrestigeView> => town.prestigeState();
+
+/** Starts the next run, then reloads me and my wallet (the tag, and the new run's first coins). */
+export async function takePrestige(): Promise<PrestigeView> {
+  const view = await town.takePrestige();
+  await Promise.all([refreshMe(), refreshWallet()]);
+  return view;
 }
 
 // MARK: Torvehallen

@@ -79,7 +79,7 @@ import {
 } from "./labels.ts";
 import { drawLaunch } from "./launch.ts";
 import { drawLeaves } from "./leaves.ts";
-import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
+import { drawAura, drawPetCrown, labelLift, petRise } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMarket } from "./market.ts";
 import { drawMerchant } from "./merchant.ts";
@@ -441,7 +441,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
         items.push({ y: py + TILE, draw: () => drawSparkle(g, px, py - 2, now, a.info.id) });
     }
     const pet = a.warp ? null : followPet(a, px, py, dt, owner === a.info.id ? bedAt : undefined);
-    const petSeen = pet !== null && inView(f, pet.x, pet.y, PET_W, PET_H, reach);
+    const rise = petRise(a);
+    const petSeen = pet !== null && inView(f, pet.x, pet.y - rise, PET_W, PET_H + rise, reach);
     if (pet && petSeen) {
       // A reaction (`petPlay`) lifts it off the ground; a trick flips it side to side as it turns in the air.
       const play = pet.asleep ? null : reactionOf(a.info.id, now);
@@ -473,7 +474,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
               return;
             }
             g.drawImage(frame, Math.round(pet.x), Math.round(pet.y) - lift + PET_H - frame.height);
-            drawPetCrown(g, a, Math.round(pet.x), Math.round(pet.y) - lift, left, hop);
+            drawPetCrown(g, a, Math.round(pet.x), Math.round(pet.y) - lift, left, hop, now);
           },
         });
       // The hearts, treats or stars rise from it.

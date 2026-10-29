@@ -7,6 +7,7 @@ import { TROPHIES } from "../src/loot.ts";
 import { LEGEND, MAPS } from "../src/maps.ts";
 import { COMPANY_FURNITURE, FURNITURE, pieceOf } from "../src/office.ts";
 import { POSTERS } from "../src/posters.ts";
+import { PRESTIGE_PIECES } from "../src/prestige-furniture.ts";
 import { canDropIn, ITEMS, isTradeable, itemById } from "../src/shop.ts";
 
 const others = [...FURNITURE, ...COMPANY_FURNITURE, ...POSTERS, ...TROPHIES, ...HOME_PIECES];
@@ -46,7 +47,7 @@ test("every case piece is a free, tradeable case item with a rarity, placeable i
     "Arcade claw machine",
     "Torii gate",
   ]);
-  for (const p of ALL_CASE_PIECES) {
+  for (const p of ALL_CASE_PIECES.filter((q) => !PRESTIGE_PIECES.includes(q))) {
     const item = itemById(`furn.${p.ch}`)!;
     expect(item).toMatchObject({ slot: "furniture", price: 0, tradeable: true, case: true, home: true });
     expect(item.rarity).toBe(p.rarity);
@@ -71,6 +72,11 @@ test("the Nusantara case's six pieces: characters, widths, wall and flat, and a 
   ]);
   expect(NUSANTARA_PIECES.map((p) => p.rarity)).toEqual(CASE_PIECES.map((p) => p.rarity));
   // Neither case's pieces are in the other's list; the combined list is every case's, Night Market first.
-  expect(ALL_CASE_PIECES).toEqual([...CASE_PIECES, ...NUSANTARA_PIECES, ...RAGNAROK_PIECES]);
+  expect(ALL_CASE_PIECES).toEqual([
+    ...CASE_PIECES,
+    ...NUSANTARA_PIECES,
+    ...RAGNAROK_PIECES,
+    ...PRESTIGE_PIECES,
+  ]);
   for (const p of NUSANTARA_PIECES) expect(CASE_PIECES.includes(p)).toBe(false);
 });

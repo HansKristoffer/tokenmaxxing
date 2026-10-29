@@ -752,6 +752,18 @@ const PET_ANCHORS: { neck: [number, number]; top: [number, number]; hop: number 
   { neck: [5, 7], top: [5, 1], hop: -1 }, // singularity orb
 ];
 
+/** The middle of the neck of pet `pet` (the row gear at the neck starts on), in an unwearing frame; null if it has none (the orb) or is unknown. */
+export function petNeck(pet: number, hop: boolean): { x: number; y: number } | null {
+  const a = PET_ANCHORS[pet];
+  return a && pet > 0 && pet !== 6 ? { x: a.neck[0], y: a.neck[1] + (hop ? a.hop : 0) } : null;
+}
+
+/** How many rows a pet's hat `wear` stands above its head (0 for none or gear at the neck). */
+export const petHatRows = (wear: number): number => {
+  const w = PETWEAR[wear];
+  return w?.at === "top" ? w.rows.length : 0;
+};
+
 /** Pet gear `wear` on pet `pet`, in a frame `PET_HEADROOM` taller than the pet (facing right). */
 export function drawPetwear(p: Pen, pet: number, wear: number, hop: boolean): void {
   const w = PETWEAR[wear];

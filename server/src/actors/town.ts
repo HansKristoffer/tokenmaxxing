@@ -16,6 +16,7 @@ import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
 import type { Listing as MarketListing, MyMarket } from "@tokenmaxxing/core/market.ts";
 import { paper as buildPaper, type Paper } from "@tokenmaxxing/core/paper.ts";
+import type { PrestigeView } from "@tokenmaxxing/core/prestige-run.ts";
 import type { QuestBoard } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey, isRangeKey } from "@tokenmaxxing/core/range.ts";
@@ -188,6 +189,7 @@ import {
 } from "../town/offices.ts";
 import { markPicnic } from "../town/picnic.ts";
 import { type PokerSettle, pokerRelease, pokerSettle, pokerSit } from "../town/poker.ts";
+import { prestigeView, takeNextPrestige } from "../town/prestige.ts";
 import { freezeDays, questBoard, questEvent } from "../town/quests.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import * as requests from "../town/requests.ts";
@@ -607,6 +609,18 @@ export const town = actor({
       const userId = requireUser(c.conn.state);
       const now = Date.now();
       return wallet(c.db, userId, now, await kept(c, now));
+    },
+
+    /** Where my prestige stands: the run, its level and rewards, and whether I can start the next. */
+    prestigeState: (c): Promise<PrestigeView> => prestigeView(c.db, requireUser(c.conn.state)),
+
+    /** Starts the next prestige (at the cap only: "not_ready" otherwise). Safe to click twice. */
+    takePrestige: async (c): Promise<PrestigeView> => {
+      const userId = requireUser(c.conn.state);
+      const view = await c.vars.serial(() => takeNextPrestige(c.db, userId, Date.now()));
+      c.vars.collections.delete(userId);
+      await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
+      return view;
     },
 
     /** This week's ladder (last week's until Monday 08:00): the boss up now, how hurt it is, and who's hitting it. */

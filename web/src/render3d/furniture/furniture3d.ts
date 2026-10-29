@@ -22,6 +22,7 @@ import { NIGHT_ASSETS } from "./night3d.ts";
 import { NORSE_ASSETS } from "./norse3d.ts";
 import { NUSANTARA_ASSETS } from "./nusantara3d.ts";
 import { POSTER_ASSETS, POSTER_TEXT } from "./posters3d.ts";
+import { PRESTIGE_TROPHY_ASSETS } from "./prestige3d.ts";
 
 export type { MerchCompany, MerchKind } from "../people/merch3d.ts";
 export { DESK_TIERS, deskTier, merchColours, merchPrintTexture, merchProp, merchShirtTexture, POSTER_TEXT };
@@ -768,6 +769,7 @@ export const FURNITURE_EXTRA_ASSETS: readonly Asset[] = [
   ...NIGHT_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
   ...NUSANTARA_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
   ...NORSE_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
+  ...PRESTIGE_TROPHY_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
   ...POSTER_ASSETS,
 ];
 

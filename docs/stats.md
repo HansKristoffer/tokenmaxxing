@@ -2,7 +2,6 @@
 
 How every number in the game is counted.
 
-
 - **Tokens:** input + output + cache writes + cache reads.
 - **Cost:** all sources use [LiteLLM's table](https://github.com/BerriAI/litellm), refreshed daily, including reasoning-effort matching. If no model price matches, Cursor uses the API's `chargedCents`, falling back to `tokenUsage.totalCents`, preserving zero and fractional cents. Reported values reflect usage-time costs and credit adjustments; there are no hardcoded Cursor rates. Models without either a price or a reported cost contribute $0. These totals combine current model-price estimates with historical reported usage values; they are not subscription invoices.
 - **Parallelism ×:** the average number of agents running at the same time, measured over the time you
@@ -35,4 +34,3 @@ How every number in the game is counted.
   Each boss also drops its own rare loot: every raider a kill pays rolls its four items, from a 10% hat to a
   0.1% trophy (Golden Hourglass, Infinite Context Crown…). Rolls are fixed per week, rung and player, so nobody
   can reroll. Loot is worn or placed like shop items, and can be traded.
-
