@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.16.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.15.0...v1.16.0) (2026-10-29)
+
+
+### Features
+
+* **fishing:** 19 species, pond records, medals, badges and 1% pond treasures ([71b2407](https://github.com/HansKristoffer/tokenmaxxing/commit/71b24075abf8e448f840a6f39999889d48f08a5f))
+* **fishing:** 19 species, pond treasures, records and badges, and anglers everyone can see ([6f71890](https://github.com/HansKristoffer/tokenmaxxing/commit/6f718907ae7f6e9c2347d009f9763ff128834818))
+* **fishing:** fish sprites and models, a fuller panel, and anglers everyone can see ([4ec791a](https://github.com/HansKristoffer/tokenmaxxing/commit/4ec791ab46c984387df03b242ee94d090a6af5bb))
+* **fishing:** the pond treasures in 2D and 3D ([fc7a114](https://github.com/HansKristoffer/tokenmaxxing/commit/fc7a11402e0070662938ce8239149b8fc32af220))
+* **paper:** a fuller, funnier Token Tidende that chains onto earlier days ([b737641](https://github.com/HansKristoffer/tokenmaxxing/commit/b737641d41a007959e1e061a3069911241c48ebd))
+* **paper:** a fuller, funnier Token Tidende that chains onto earlier days, weeks and months ([a3c4f02](https://github.com/HansKristoffer/tokenmaxxing/commit/a3c4f023f41b1e11c5553461a2a840bed739868d))
+* **prestige:** 20 wearables, 5 pet accessories, 5 trophies and 5 tags in 2D and 3D, with showcase renderers and the run logic ([e248183](https://github.com/HansKristoffer/tokenmaxxing/commit/e2481836bde3c80f8b93a90db88e1d2eab4733a6))
+* **prestige:** five prestige tracks, with all the art in 2D and 3D and the run logic ([ed08db7](https://github.com/HansKristoffer/tokenmaxxing/commit/ed08db7ad893eac556bfec48e514a125169363d8))
+* **prestige:** the catalogue for five prestige tracks, with art and gear registries ready to fill ([59653c9](https://github.com/HansKristoffer/tokenmaxxing/commit/59653c9848c3ba83c3f2f337d62496e1bffc0739))
+* **tavern:** order a coffee or the special from the barkeep at the bar ([b9bee53](https://github.com/HansKristoffer/tokenmaxxing/commit/b9bee53eb570a1016a105c552e5f02047c50b3f8))
+* **tavern:** order a coffee or the special from the barkeep at the bar ([59cf985](https://github.com/HansKristoffer/tokenmaxxing/commit/59cf9858f442dc7e34a2a2a13a4942d6f6925cee))
+* **town:** add fishing and evening music, refresh animals and crown ([0707cf4](https://github.com/HansKristoffer/tokenmaxxing/commit/0707cf4f4fca38fcf6fd165479f96052c319139f))
+* **town:** add fishing, tavern music and livelier animals ([76843d1](https://github.com/HansKristoffer/tokenmaxxing/commit/76843d1d571fefb420712f2bd84fa7e0c369509d))
+
+
+### Bug Fixes
+
+* **cli:** keep the tests off the computer's real service ([6df3bb0](https://github.com/HansKristoffer/tokenmaxxing/commit/6df3bb05946783547791b6c5115cf1139cc66c28))
+* **paper:** a lead and six stories, so the grid has no empty cell ([fb538be](https://github.com/HansKristoffer/tokenmaxxing/commit/fb538befd65a5dae846c5eb94d6940a36b27ab4e))
+* **prestige:** CI lint and typecheck: load the tag css from index.html, order imports, no value-returning forEach, format ([4ad6457](https://github.com/HansKristoffer/tokenmaxxing/commit/4ad6457206600c251113cb3edda471352d104f1e))
+* **prestige:** match bun fmt, and keep the test veteran at level 38 now that levels 31 to 50 cost 1B each ([3ed303f](https://github.com/HansKristoffer/tokenmaxxing/commit/3ed303f48e9294626ea52df590bf46a26953ea7a))
+* **town:** sharpen animal models ([8943fc1](https://github.com/HansKristoffer/tokenmaxxing/commit/8943fc1ca02505fc652512854fcd462d497009dc))
+
 ## [1.15.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.14.0...v1.15.0) (2026-10-28)
 
 
