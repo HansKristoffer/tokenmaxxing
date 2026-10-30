@@ -21,10 +21,9 @@ export type NpcModel = (npc: FestiveNpc) => THREE.Object3D;
 export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {
   halloween: gerdaModel,
   christmas: knudModel,
-};
-export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {};
-NPC_MODELS.sanktHans = baltalerModel;
-NPC_MODELS.paaske = gudrun3d;
+  sanktHans: baltalerModel,
+  nytar: nytarNpcModel,
+  paaske: gudrun3d,
   // Henning is built with the memorial (`befrielsen3d.ts`) and drawn there, so this stays empty.
   befrielsen: () => new THREE.Group(),
   agustusan: pakBudiModel,
@@ -71,7 +70,7 @@ export class FestiveNpc3d {
     const make = NPC_MODELS[id];
     if (!make) return;
     const root = make(npc);
-    
+
     const [x, z] = this.toWorld(npc.x, npc.y);
     root.position.set(x, 0, z);
     root.rotation.y = TURN[npc.facing];
@@ -95,5 +94,3 @@ export class FestiveNpc3d {
     this.clear();
   }
 }
-
-NPC_MODELS.nytar = nytarNpcModel;

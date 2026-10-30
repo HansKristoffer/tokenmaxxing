@@ -110,14 +110,9 @@ export const festiveTheme = (festive: FestiveId | null | undefined, base: BaseTh
 export const FESTIVE_THEMES: Partial<Record<FestiveId, Partial<Record<FestiveRoomTheme, Theme>>>> = {
   halloween: { town: HALLOWEEN_TOWN, tavern: HALLOWEEN_TAVERN },
   christmas: { town: CHRISTMAS_TOWN, tavern: CHRISTMAS_TAVERN },
-};
-export const FESTIVE_THEMES: Partial<Record<FestiveId, Partial<Record<FestiveRoomTheme, Theme>>>> = {};
-
-FESTIVE_THEMES.sanktHans = { town: MIDSOMMER_TOWN, tavern: MIDSOMMER_TAVERN };
-// Nytårsaften (`nytar-music.ts`).
-FESTIVE_THEMES.nytar = { town: NYTAR_TOWN, tavern: NYTAR_TAVERN };
-FESTIVE_THEMES.paaske = { town: PAASKE_TOWN, tavern: PAASKE_TAVERN };
+  sanktHans: { town: MIDSOMMER_TOWN, tavern: MIDSOMMER_TAVERN },
+  nytar: { town: NYTAR_TOWN, tavern: NYTAR_TAVERN },
+  paaske: { town: PAASKE_TOWN, tavern: PAASKE_TAVERN },
   befrielsen: { town: BEFRIELSEN_TOWN, tavern: BEFRIELSEN_TAVERN },
+  agustusan: { town: AGUSTUSAN_TOWN, tavern: AGUSTUSAN_TAVERN },
 };
-// Agustusan (10 to 17 August): a kroncong-gamelan march on the square, dangdut in the Tavern.
-FESTIVE_THEMES.agustusan = { town: AGUSTUSAN_TOWN, tavern: AGUSTUSAN_TAVERN };

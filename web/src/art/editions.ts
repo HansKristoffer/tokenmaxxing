@@ -7,7 +7,7 @@ import { CANDLE_HAT, FLAT_CAP } from "./befrielsen-hats.ts";
 import { CASE_GLASSES, CASE_HATS } from "./case.ts";
 import type { View } from "./characters.ts";
 import { HALLOWEEN_HATS } from "./halloween-hats.ts";
-import { MIDSOMMER_HAT_ART } from "./midsommer.ts";
+import { MIDSOMMER_HAT_ART } from "./midsommer-hats.ts";
 import { PAASKE_HATS } from "./paaske-hats.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";

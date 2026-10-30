@@ -843,7 +843,8 @@ export const HAT_BUILDERS: Record<string, Build> = {
     }
     c.tick((t) => inf.scale.setScalar(1 + Math.sin(t * 3) * 0.1));
   },
-  "    ring(m, "#e0584f", 0.262, 0.03, [0, 0.1, 0]).scale.set(1.03, 1.03, 1.0);
+  "<<<<<<< HEAD band": (m) => {
+    ring(m, "#e0584f", 0.262, 0.03, [0, 0.1, 0]).scale.set(1.03, 1.03, 1.0);
     sign(
       m,
       0.2,
@@ -1004,6 +1005,7 @@ export const HAT_BUILDERS: Record<string, Build> = {
       m.ball(0.03, "#3a1f2a", [x, y, z], [1, 0.5, 1], 6);
     m.box([0.06, 0.26, 0.03], see("#ffffff", 0.45), [-0.03, 0.52, 0.0], 0.006).rotation.z = 0.2;
     m.box([0.05, 0.22, 0.03], see("#ffffff", 0.35), [0.07, 0.6, 0.02], 0.006).rotation.z = -0.25;
+  },
   // New Year's (`core/src/costumes.ts`, `nytar.ts`): a midnight-blue party cone with gold bands and streamers.
   Nytårshat: (m) => {
     party(m, { a: "#26356b", b: "#f4c95d", pom: "#fbf7ef" });
@@ -1037,6 +1039,7 @@ export const HAT_BUILDERS: Record<string, Build> = {
     m.box([0.12, 0.08, 0.01], "#d8283a", [0.065, 0.6, 0], 0.003);
     m.box([0.12, 0.014, 0.012], "#fbf7ef", [0.065, 0.636, 0], 0.002);
     m.box([0.014, 0.08, 0.012], "#fbf7ef", [0.035, 0.6, 0], 0.002);
+  },
   // Befrielsen's flat cap (`core/src/costumes.ts`): a low grey tweed crown, a dark band, a short brim to the front.
   "Veteran's flat cap": (m) => {
     const up = isVox(m) ? 0.06 : 0;

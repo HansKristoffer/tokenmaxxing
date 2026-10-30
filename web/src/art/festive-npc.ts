@@ -18,13 +18,9 @@ export type NpcSprite = (facing: Facing, breath: 0 | 1) => HTMLCanvasElement;
 export const NPC_SPRITES: Partial<Record<FestiveId, NpcSprite>> = {
   halloween: gerdaSprite,
   christmas: knudSprite,
-};
-export const NPC_SPRITES: Partial<Record<FestiveId, NpcSprite>> = {};
-NPC_SPRITES.sanktHans = baltalerSprite;
-
-NPC_SPRITES.nytar = nytarNpcSprite;
-
-NPC_SPRITES.paaske = gudrunSprite;
+  sanktHans: baltalerSprite,
+  nytar: nytarNpcSprite,
+  paaske: gudrunSprite,
   befrielsen: henningFrame,
   agustusan: pakBudiSprite,
 };
