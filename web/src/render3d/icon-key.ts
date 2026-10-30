@@ -2,8 +2,27 @@
  * What tells one HUD icon from another (`icons.ts`): the same key is the same picture. Nothing of three or the
  * DOM in it, so it can be tested on its own.
  */
+import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { merchKey } from "../art/merch.ts";
-import type { IconSpec } from "./icons.ts";
+import type { AvatarFocus, IconSpec } from "./icons.ts";
+
+/** The part of the wearer an item's picture zooms in on: where it is worn (`MERCH` bits: cap 4, mug 8). */
+export function wornFocus(item: Item): AvatarFocus {
+  switch (item.slot) {
+    case "hat":
+    case "glasses":
+      return "head";
+    case "outfit":
+      return "torso";
+    case "held":
+    case "back":
+      return item.slot;
+    case "merch":
+      return item.index & 4 ? "head" : item.index & 8 ? "held" : "torso";
+    default:
+      return "body";
+  }
+}
 
 /** What tells one icon from another: the same key is the same picture. */
 export function iconKey(s: IconSpec): string {
@@ -11,7 +30,7 @@ export function iconKey(s: IconSpec): string {
     case "piece":
       return `piece:${s.ch}`;
     case "pet":
-      return `pet:${s.pet}.${s.variant ?? 0}.${s.wear ?? 0}.${(s.name ?? "").trim().toLowerCase()}`;
+      return `pet:${s.pet}.${s.variant ?? 0}.${s.wear ?? 0}.${(s.name ?? "").trim().toLowerCase()}${s.focus ? `:${s.focus}` : ""}`;
     case "avatar": {
       const l = s.look;
       const w = [

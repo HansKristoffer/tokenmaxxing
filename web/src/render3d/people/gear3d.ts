@@ -261,6 +261,7 @@ class Dress implements Gear {
       else OUTFIT_BUILDERS[l.outfit]?.(body);
       if (worn.back) {
         const back = vpart(chest, [0, 8 * U, -2 * U]);
+        back.name = "back";
         BACK_BUILDERS[worn.back.name]?.(back, tick);
       }
     }
@@ -269,6 +270,8 @@ class Dress implements Gear {
     const heldIn = (): Model => {
       const hand = frame(a.arms[1], [0, fit.hand, 0.01]);
       hand.scale.setScalar(vox ? 1.4 : 1.5 * (a.height / 0.95));
+      // A shop icon of the item draws this on its own (`icons.ts`).
+      hand.name = "held";
       return hand;
     };
     if (worn.held) HELD_BUILDERS[worn.held.name]?.(heldIn(), (fn) => tick((t) => fn(t)));
