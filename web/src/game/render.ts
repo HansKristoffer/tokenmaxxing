@@ -34,6 +34,7 @@ import { PET_H, PET_W, petFrame } from "../art/pets.ts";
 import { initialsOf, perObject } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { graphics } from "../settings/graphics.ts";
+import { drawAgustusan } from "./agustusan.ts";
 import { drawBasement, lightBasement } from "./basement.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
@@ -396,6 +397,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawBasement(f);
   drawMerchant(f);
   drawFestiveNpc(f);
+  drawAgustusan(f);
   drawRaid(f);
   drawLoot(f);
 

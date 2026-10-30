@@ -3,6 +3,7 @@ import type { Facing } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { festiveNow } from "../../game/festive.ts";
 import { disposeObject } from "../engine/dispose.ts";
+import { pakBudiModel } from "./agustusan-npc3d.ts";
 
 /**
  * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here: it
@@ -12,7 +13,9 @@ import { disposeObject } from "../engine/dispose.ts";
  */
 export type NpcModel = (npc: FestiveNpc) => THREE.Object3D;
 
-export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {};
+export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {
+  agustusan: pakBudiModel,
+};
 
 const TURN: Record<Facing, number> = { down: 0, right: Math.PI / 2, up: Math.PI, left: -Math.PI / 2 };
 
@@ -28,6 +31,8 @@ export class FestiveNpc3d {
   constructor(private readonly toWorld: (tx: number, ty: number) => [number, number]) {
     this.group.name = "festive-npc";
     this.group.userData.nobatch = true;
+    // Empty when the room is baked, it would be put to sleep (hidden, its matrices frozen) as a quiet group.
+    this.group.userData.noBake = true;
   }
 
   update(t: number): void {

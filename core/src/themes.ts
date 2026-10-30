@@ -1,3 +1,4 @@
+import { AGUSTUSAN_TAVERN, AGUSTUSAN_TOWN } from "./agustusan-music.ts";
 import type { FestiveId } from "./festive.ts";
 import type { Tune } from "./tunes.ts";
 import type { RoomId } from "./world.ts";
@@ -101,3 +102,6 @@ export const festiveTheme = (festive: FestiveId | null | undefined, base: BaseTh
  * or a room it doesn't list, plays the usual tune.
  */
 export const FESTIVE_THEMES: Partial<Record<FestiveId, Partial<Record<FestiveRoomTheme, Theme>>>> = {};
+
+// Agustusan (10 to 17 August): a kroncong-gamelan march on the square, dangdut in the Tavern.
+FESTIVE_THEMES.agustusan = { town: AGUSTUSAN_TOWN, tavern: AGUSTUSAN_TAVERN };

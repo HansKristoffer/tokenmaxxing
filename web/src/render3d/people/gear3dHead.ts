@@ -963,6 +963,28 @@ export const HAT_BUILDERS: Record<string, Build> = {
     m.box([0.012, 0.07, 0.012], "#fbf7ef", [-0.012, 0.1, 0.29], 0.002);
     m.box([0.07, 0.012, 0.012], "#fbf7ef", [0, 0.1, 0.29], 0.002);
   },
+  // Agustusan (`core/src/costumes.ts`): the black velvet peci, flat on top and a little higher at the front.
+  "Peci hitam": (m) => {
+    if (isVox(m)) {
+      // The blocky head is taller: a black box on the crown, a sheen on its flat top, a darker band round the base.
+      m.box([0.54, 0.2, 0.52], "#24222d", [0, 0.1, 0], 0.03);
+      m.box([0.48, 0.03, 0.46], "#2e2c3a", [0, 0.3, 0], 0.01);
+      band(m, "#15131c", 0.27, 0.05, 0.1);
+      return;
+    }
+    const body = m.cyl(0.285, 0.2, "#24222d", [0, -0.01, 0], 0.255, 22);
+    body.rotation.x = -0.05;
+    m.cyl(0.255, 0.02, "#2e2c3a", [0, 0.185, 0.005], 0.255, 22);
+    band(m, "#15131c", 0.287, 0.04, 0, 0.287);
+  },
+  // The ikat kepala: a red and a white band twisted round the forehead, knotted at the side, two tails hanging.
+  "Ikat kepala merah putih": (m) => {
+    band(m, "#d8283a", 0.285, 0.05, 0.02, 0.285);
+    band(m, "#fbf7ef", 0.285, 0.05, 0.07, 0.285);
+    m.ball(0.05, "#d8283a", [0.28, 0.07, -0.02]);
+    m.box([0.035, 0.17, 0.02], "#d8283a", [0.29, -0.1, -0.03], 0.005).rotation.z = 0.15;
+    m.box([0.035, 0.15, 0.02], "#fbf7ef", [0.3, -0.08, 0.01], 0.005).rotation.z = -0.1;
+  },
   // The Night Market case.
   "Straw kasa": (m) => {
     // A wide woven cone, ringed with darker straw, and a cord down each cheek.
@@ -1721,4 +1743,6 @@ export const COVERS_HAIR = new Set([
   "Straw kasa",
   "Fox half-mask",
   "Kattekonge crown",
+  "Peci hitam",
+  "Ikat kepala merah putih",
 ]);

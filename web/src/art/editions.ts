@@ -119,6 +119,20 @@ const HATS: Record<string, Art> = {
     side: ["....Y...Y...Y...", "....YY.YYY.YY...", "....oYYYYYYYYo..", "....oYYkkYYrYo..", "....oyyyyyyyyo.."],
     pal: { o, Y: "#f5c842", y: "#c9971f", r: "#e8584f", k: o },
   },
+  // Agustusan (`web/src/art/agustusan.ts` has its scenery). Peci: a black velvet songkok, flat on top, a lighter sheen.
+  "hat.270": {
+    down: ["................", "....oooooooo....", "...okkkkkkkko...", "...oklkkkkkko...", "...oKKKKKKKKo..."],
+    side: ["................", "....ooooooo.....", "...okkkkkkko....", "...okkklkkko....", "...oKKKKKKKKo..."],
+    up: ["................", "....oooooooo....", "...okkkkkkkko...", "...okkkkkkkko...", "...oKKKKKKKKo..."],
+    pal: { o, k: "#2e2c38", K: "#1c1a24", l: "#5a5870" },
+  },
+  // Ikat kepala merah putih: a twisted red and white headband, knotted at the side with two tails.
+  "hat.271": {
+    down: ["................", "................", "...orrwrrwrrwo..", "...owwrwwrwwro..", "....oooooooo...."],
+    side: ["................", "................", "...orrwrrwrrr...", "...owwrwwrwww.rr", "....ooooooo.rw.."],
+    up: ["................", "................", "...orrwrrwrrwo..", "...owwrwwrwwro..", "....oooooooo...."],
+    pal: { o, r: "#d8283a", w: "#fbf7ef" },
+  },
 };
 
 // Pixel art reads as a grid.

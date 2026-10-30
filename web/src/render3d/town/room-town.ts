@@ -11,6 +11,7 @@ import { GateLive } from "../dungeon/gate3d.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { ExitMarkers } from "../rooms/exit-markers.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "../rooms/rooms.ts";
+import { Agustusan3d } from "./agustusan3d.ts";
 import { Barrel3d } from "./barrel3d.ts";
 import { Bonfire3d } from "./bonfire3d.ts";
 import { FestiveNpc3d } from "./festive-npc3d.ts";
@@ -106,6 +107,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // The festive theme's named NPC, there while its theme is (`FESTIVE_NPC`).
   const festiveNpc = new FestiveNpc3d((tx, ty) => town.toWorld(tx, ty));
   group.add(festiveNpc.group);
+  // Agustusan: flags, the gapura gate and the lomba props, built when the theme is on.
+  const agustusan = new Agustusan3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(agustusan.group);
   // J-dag's truck, on the road under the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
@@ -152,6 +156,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       markers.update(f.me, f.t);
       pumpkins.update(f.now);
       festiveNpc.update(f.t);
+      agustusan.update(f.t);
       truck.update();
       barrel.update(f.t);
       bonfire.update(f.t);
@@ -170,6 +175,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     signs,
     liveSigns: () => [
       ...truck.signs(),
+      ...agustusan.signs(),
       ...barrel.signs(),
       ...(gateLive?.signs() ?? []),
       ...games.signs(),
@@ -179,6 +185,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     dispose() {
       markers.dispose();
       festiveNpc.dispose();
+      agustusan.dispose();
       statue.dispose();
       fireworks.dispose();
       events.dispose();

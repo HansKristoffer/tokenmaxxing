@@ -33,8 +33,8 @@ const GRADE: Record<FestiveId, Grade> = {
   paaske: { day: [255, 251, 222], dusk: [255, 214, 206], night: [176, 192, 232], base: 0.14, gain: 0.3 },
   // A quiet dusk blue with candle gold.
   befrielsen: { day: [244, 245, 250], dusk: [160, 176, 226], night: [120, 138, 206], base: 0.05, gain: 0.4 },
-  // Clear warm light.
-  agustusan: { day: [255, 247, 234], dusk: [255, 188, 138], night: [192, 172, 204], base: 0.08, gain: 0.25 },
+  // Clear warm light, a gold-and-rose dusk for the evening of the 17th.
+  agustusan: { day: [255, 247, 234], dusk: [255, 170, 120], night: [190, 166, 208], base: 0.08, gain: 0.4 },
 };
 
 const mix = (a: RGB, b: RGB, t: number): RGB => [
@@ -94,6 +94,8 @@ export function festiveGreeting(f: Festive): string {
     case "befrielsen":
       return f.days === 0 ? "🕯️ Lys i vinduerne i aften, 4. maj" : "🕊️ Glædelig befrielsesdag";
     case "agustusan":
-      return f.days === 0 ? "🇮🇩 Selamat Hari Kemerdekaan" : "🇮🇩 Selamat Hari Kemerdekaan";
+      return f.days === 0
+        ? "🇮🇩 Selamat Hari Kemerdekaan! Dirgahayu RI, merdeka!"
+        : `🇮🇩 ${f.days === -1 ? "Besok" : `${-f.days} hari lagi`}: 17 Agustus, Hari Kemerdekaan`;
   }
 }
