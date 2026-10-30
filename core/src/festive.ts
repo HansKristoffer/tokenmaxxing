@@ -6,6 +6,7 @@
  *
  * Not `themes.ts`: that is the music.
  */
+import { CHRISTMAS_NPC } from "./christmas.ts";
 import { daysFrom, HOLIDAYS, type HolidayId, minutesFrom, near } from "./holidays.ts";
 import { worldWall } from "./range.ts";
 import { copenhagenToMs } from "./sky.ts";
@@ -201,7 +202,7 @@ export interface FestiveNpc {
  */
 export const FESTIVE_NPC: Record<FestiveId, FestiveNpc | null> = {
   halloween: GERDA,
-  christmas: null,
+  christmas: CHRISTMAS_NPC,
   sanktHans: null,
   nytar: null,
   paaske: null,

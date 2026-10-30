@@ -338,3 +338,14 @@ Effort: S = a few hours, M = a day, L = several days.
 - Perf: lights on ~10 houses + tree is ~50 bulbs per house; use `InstancedMesh` or the merged-per-colour trick used by the truck. `mergeStill` + `userData.nobatch` as `Truck3d` does; the tree changes only on the hour so rebuild its visibility, not geometry.
 - Any `Math.random` for twinkle breaks sync: use `hash(i)` (see `art/pixels.ts`) and `now`.
 - Nisse vs Santa: Danish *julemand* = Santa; *nisse* = the grey/red house goblin. Keep the nisse grey in scenery; the red-capped "Julehue" is the player-worn version (existing).
+
+## 11. As built (the first slice)
+
+- Placement and the clock: `core/src/christmas.ts` (tree at (10,6), gifts at (9,6) and (11,6), Nisse Knud at (13,5), lights between the square's four lamps, wreaths and doorstep nisser on every door, three snowmen, `ORNAMENTS` in set order so the first `n` are "the days so far"). The build-up is the theme's own intensity (`progress`), so the tree fills in by the hour from the 18th to 18:00 on the 24th.
+- 2D: `web/src/art/christmas.ts` (sprites), `web/src/game/christmas.ts` (draw, glow, `blocksChristmas`, E on the tree and the gifts). 3D: `web/src/render3d/town/christmas3d.ts` (`Christmas3d`, built the first frame the theme is on and taken down after; `knudModel` for the NPC registry).
+- Interaction: E at the foot of the tree hangs one julehjerte a day (`localStorage`, `tokenmaxxing.christmas.hearts`); three days of hearts and Knud "knows" you and the star sparkles in your view. Only the player sees their own hearts. No server state.
+- Music: `core/src/christmas-music.ts` (square "Sleighbell Standup", Tavern "Julefrokost Polka"), registered in `FESTIVE_THEMES`.
+- Hats: Santa hat, Reindeer antlers, Gløgg mug hat (`hat.240`-`242`, the 40-49 range), sold 10 to 26 December by `ON_SALE`.
+- The tree and Knud block movement on the client only (the server does not know them, so a blocked step is not sent to it); click-to-walk routes round them (`routeMap`).
+- QA: `scripts/qa/festive-christmas.mjs` (both tiers, several angles, E on Knud and the tree, the hats).
+- Not done: icicles, per-window candles (candles sit on the sills beside each door instead), the 24th 18:00 flourish and the sleigh fly-over, a quieter Christmas-eve track, pet accessories.

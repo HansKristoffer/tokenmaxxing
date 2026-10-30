@@ -30,6 +30,7 @@ import { chatBeside, hud } from "../store.ts";
 import { basementInteract } from "./basement.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
+import { blocksChristmas, christmasInteract, routeMap } from "./christmas.ts";
 import { clocksText } from "./clocks.ts";
 import { barrelInteract, blocksBarrel } from "./fastelavn.ts";
 import { festiveNpcAt, talkToFestiveNpc } from "./festive-npc.ts";
@@ -279,7 +280,7 @@ export function walkTo(x: number, y: number): void {
   const me = self();
   takeOnArrival = false;
   if (!me || (x === me.x && y === me.y)) return;
-  path = route(world.map, [me.x, me.y], [x, y]) ?? [];
+  path = route(routeMap(world.map), [me.x, me.y], [x, y]) ?? [];
   interactOnArrival = path.length > 0 && !world.map.walkable(x, y) && !world.map.kind(x, y).portal;
 }
 
@@ -417,11 +418,14 @@ export function updateSelf(now: number): void {
       blocksBarrel(step.x, step.y) ||
       blocksBonfire(step.x, step.y) ||
       blocksGrave(step.x, step.y) ||
-      blocksSpooky(step.x, step.y))
+      blocksSpooky(step.x, step.y) ||
+      blocksChristmas(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;
   if (target.kind === "blocked") {
-    if (me.facing !== dir || me.state !== "idle") send(conn.step(dir));
+    // (Christmas's tree and Knud are only the client's: the server would walk us through, so it isn't told.)
+    const ours = step.kind === "move" && blocksChristmas(step.x, step.y);
+    if ((me.facing !== dir || me.state !== "idle") && !ours) send(conn.step(dir));
     me.facing = dir;
     if (!interactOnArrival) path = [];
     return;
@@ -528,6 +532,7 @@ function interact(): void {
   if (keynoteInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();
   if (festiveNpcAt(x, y)) return void talkToFestiveNpc();
+  if (christmasInteract(x, y)) return;
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });

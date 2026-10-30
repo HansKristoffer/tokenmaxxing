@@ -840,8 +840,7 @@ export const HAT_BUILDERS: Record<string, Build> = {
     }
     c.tick((t) => inf.scale.setScalar(1 + Math.sin(t * 3) * 0.1));
   },
-  "<<<<<<< HEAD band": (m) => {
-    ring(m, "#e0584f", 0.262, 0.03, [0, 0.1, 0]).scale.set(1.03, 1.03, 1.0);
+  "    ring(m, "#e0584f", 0.262, 0.03, [0, 0.1, 0]).scale.set(1.03, 1.03, 1.0);
     sign(
       m,
       0.2,
@@ -940,6 +939,68 @@ export const HAT_BUILDERS: Record<string, Build> = {
     band(m, "#f5c842", 0.252, 0.05, 0.172 + up);
     for (const x of [-0.07, 0.07]) m.cyl(0.04, 0.08, "#2b2433", [x, 0.27 + up, 0.12], 0.004, 4);
     m.ball(0.03, lit("#e8584f"), [0, 0.2 + up, 0.25]);
+  },
+  // Christmas (`core/src/costumes.ts`): a Santa hat, reindeer antlers, and a mug of gløgg worn upright.
+  "Santa hat": (m) => {
+    m.cyl(0.27, 0.3, "#d8283a", [0, 0.02, 0], 0.11, 18);
+    if (isVox(m)) {
+      path(
+        m,
+        "#d8283a",
+        [
+          [0.0, 0.4, 0.2],
+          [-0.06, 0.46, 0.17],
+          [-0.13, 0.47, 0.15],
+          [-0.2, 0.42, 0.14],
+          [-0.25, 0.34, 0.13],
+        ],
+        0,
+        1.2,
+      );
+      m.ball(0.085, "#fbf7ef", [-0.27, 0.2, 0]);
+    } else {
+      const tip = m.part([0, 0.3, -0.01]);
+      tip.rotation.x = -0.95;
+      tip.cyl(0.11, 0.22, "#d8283a", [0, 0, 0], 0.06, 12);
+      const end = tip.part([0, 0.21, 0]);
+      end.rotation.x = -0.9;
+      end.cyl(0.06, 0.15, "#d8283a", [0, 0, 0], 0.012, 10);
+      end.ball(0.065, "#fbf7ef", [0, 0.17, 0]);
+    }
+    m.cyl(0.29, 0.1, "#fbf7ef", [0, -0.015, 0], 0.29, 18);
+  },
+  "Reindeer antlers": (m) => {
+    band(m, "#5a3a1e", 0.265, 0.05, 0.03, 0.27);
+    for (const s of [-1, 1]) {
+      const horn = m.part([s * 0.17, 0.08, -0.02]);
+      horn.rotation.z = -s * 0.3;
+      horn.cyl(0.045, 0.5, "#8a5a32", [0, 0, 0], 0.035, 6);
+      for (const [y, len, lean] of [
+        [0.14, 0.26, 0.95],
+        [0.3, 0.22, 0.85],
+      ] as const) {
+        const prong = horn.part([0, y, 0]);
+        prong.rotation.z = -s * lean;
+        prong.cyl(0.035, len, "#b98a5a", [0, 0, 0], 0.022, 5);
+      }
+      horn.ball(0.05, "#b98a5a", [0, 0.5, 0]);
+      m.ball(0.035, lit("#f5c842"), [s * 0.25, 0.08, 0.12]);
+    }
+  },
+  "Gløgg mug hat": (m) => {
+    // A cream mug with a red band, steaming, stood on the crown; its handle to the side.
+    m.cyl(0.18, 0.3, "#fbf7ef", [0, 0.2, 0], 0.17, 16);
+    m.cyl(0.182, 0.07, "#b3262e", [0, 0.3, 0], 0.182, 16);
+    m.cyl(0.15, 0.01, "#6b1f2a", [0, 0.495, 0], 0.15, 16);
+    ring(m, "#fbf7ef", 0.09, 0.03, [0.2, 0.35, 0], false);
+    for (const [x, y, z] of [
+      [-0.05, 0.5, 0.03],
+      [0.06, 0.5, -0.04],
+      [0.0, 0.5, 0.08],
+    ] as const)
+      m.ball(0.03, "#3a1f2a", [x, y, z], [1, 0.5, 1], 6);
+    m.box([0.06, 0.26, 0.03], see("#ffffff", 0.45), [-0.03, 0.52, 0.0], 0.006).rotation.z = 0.2;
+    m.box([0.05, 0.22, 0.03], see("#ffffff", 0.35), [0.07, 0.6, 0.02], 0.006).rotation.z = -0.25;
   },
   "429 bucket hat": (m) => {
     m.cyl(0.215, 0.17, "#4fb3a9", [0, 0.07, 0], 0.2, 18);
@@ -1723,7 +1784,11 @@ export const COVERS_HAIR = new Set([
   "Straw kasa",
   "Fox half-mask",
   "Kattekonge crown",
+<<<<<<< HEAD
   "Witch hat",
   "Ghost sheet",
   "Bat ears",
+  "Santa hat",
+  "Reindeer antlers",
+  "Gløgg mug hat",
 ]);
