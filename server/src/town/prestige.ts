@@ -7,9 +7,11 @@ import {
   type PrestigeTaken,
   type PrestigeView,
   playerPrestigeView,
+  type RunProgress,
   rewardsUnlocked,
   runCoinsPaid,
   runProgress,
+  runStart,
 } from "@tokenmaxxing/core/prestige-run.ts";
 import { UserError } from "rivetkit";
 import { all, type Sql } from "../actors/shared.ts";
@@ -17,8 +19,9 @@ import { grantOnce } from "./rewards.ts";
 import { among, type Ids, tokensIn } from "./users.ts";
 
 /**
- * The prestiges taken: a row per rank, with the lifetime tokens at the moment it was chosen. A run's level,
- * its rewards and its coins are all derived from these (`core/prestige-run.ts`), never stored.
+ * The prestiges taken: a row per rank. Where a run starts is a function of its rank (`runStart`), so the stored
+ * `started_at` is only a record. Older rows, written with the lifetime at the moment of choosing, still count
+ * right. A run's level, its rewards and its coins are all derived from these (`core/prestige-run.ts`), never stored.
  */
 export async function migratePrestige(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS prestiges (
@@ -28,25 +31,30 @@ export async function migratePrestige(sql: Sql): Promise<void> {
 
 /** `userId`'s prestiges, first to latest. */
 export async function prestigesOf(sql: Sql, userId: number): Promise<PrestigeTaken[]> {
-  return all<PrestigeTaken>(
+  return all<{ rank: number }>(
     sql,
-    "SELECT started_at AS startedAt FROM prestiges WHERE user_id = ? ORDER BY rank",
+    "SELECT rank FROM prestiges WHERE user_id = ? ORDER BY rank",
     userId,
-  );
+  ).then((rows) => rows.map((r) => ({ startedAt: runStart(r.rank) })));
 }
 
 /** Everyone's prestiges (only those who took one), for the admin page's coins. */
 async function prestigesAmong(sql: Sql, userIds: Ids): Promise<Map<number, PrestigeTaken[]>> {
   const [where, ...args] = among("user_id", userIds);
-  const rows = await all<{ userId: number; startedAt: number }>(
+  const rows = await all<{ userId: number; rank: number }>(
     sql,
-    `SELECT user_id AS userId, started_at AS startedAt FROM prestiges WHERE ${where} ORDER BY user_id, rank`,
+    `SELECT user_id AS userId, rank FROM prestiges WHERE ${where} ORDER BY user_id, rank`,
     ...args,
   );
   const out = new Map<number, PrestigeTaken[]>();
-  for (const r of rows) out.set(r.userId, [...(out.get(r.userId) ?? []), { startedAt: r.startedAt }]);
+  for (const r of rows) out.set(r.userId, [...(out.get(r.userId) ?? []), { startedAt: runStart(r.rank) }]);
   return out;
 }
+
+const runBadge = (p: RunProgress): Pick<PrestigeBadge, "runLevel" | "runInto"> => ({
+  runLevel: p.level,
+  runInto: p.into,
+});
 
 /** What others see of each of `userIds`, given their lifetime tokens. Only those who took one are in it: read `?? NO_PRESTIGE`. */
 export async function badgesOf(
@@ -58,7 +66,7 @@ export async function badgesOf(
   for (const [id, taken] of await prestigesAmong(sql, userIds))
     out.set(id, {
       rank: taken.length,
-      runLevel: runProgress(lifetime.get(id) ?? 0, taken[taken.length - 1]!.startedAt).level,
+      ...runBadge(runProgress(lifetime.get(id) ?? 0, taken[taken.length - 1]!.startedAt)),
     });
   return out;
 }
@@ -107,7 +115,7 @@ export async function takeNextPrestige(sql: Sql, userId: number, now: number): P
     "INSERT INTO prestiges (user_id, rank, started_at, at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING RETURNING rank",
     userId,
     taken.length + 1,
-    lifetime,
+    runStart(taken.length + 1),
     now,
   );
   if (fresh.length === 0) throw new UserError("Not ready for that yet.", { code: "not_ready" });

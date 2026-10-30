@@ -15,15 +15,19 @@ import {
 const B = 1e9;
 
 describe("prestige runs", () => {
-  test("Hans: 142B, first journey done, prestige starts a fresh run", () => {
+  test("Hans: 142B, first journey done, the first prestige banks what he earned past the cap", () => {
     expect(levelFor(142 * B)).toBe(MAX_LEVEL);
     expect(MAX_LEVEL).toBe(50);
     expect(canPrestige(142 * B, [])).toBe(true);
     const s = takePrestige({ prestiges: [] }, 142 * B);
-    expect(runProgress(142 * B, s.prestiges[0]!.startedAt)).toEqual({ level: 0, into: 0, toNext: B });
-    expect(playerPrestigeView(142 * B, s.prestiges).runLevel).toBe(0);
-    expect(playerPrestigeView(143.5 * B, s.prestiges).progress).toMatchObject({ level: 1, into: 0.5 * B });
-    expect(canPrestige(142 * B, s.prestiges)).toBe(false);
+    expect(s.prestiges[0]!.startedAt).toBe(50 * B);
+    expect(playerPrestigeView(73.4 * B, s.prestiges).runLevel).toBe(23);
+    expect(playerPrestigeView(73.5 * B, s.prestiges).progress).toMatchObject({ level: 23, into: 0.5 * B });
+    // 92B into a 50-level run: done, so the second prestige is open, and it lands at run level 42.
+    expect(playerPrestigeView(142 * B, s.prestiges).runLevel).toBe(RUN_LEVELS);
+    expect(canPrestige(142 * B, s.prestiges)).toBe(true);
+    const s2 = takePrestige(s, 142 * B);
+    expect(playerPrestigeView(144 * B, s2.prestiges).runLevel).toBe(44);
   });
 
   test("not eligible below the cap or past the last track", () => {
@@ -46,8 +50,8 @@ describe("prestige runs", () => {
     expect(canPrestige(99 * B, s.prestiges)).toBe(false);
     expect(runProgress(500 * B, 50 * B)).toEqual({ level: 50, into: 0, toNext: 0 });
     expect(canPrestige(100 * B, s.prestiges)).toBe(true);
-    const s2 = takePrestige(s, 300 * B); // surplus does not bank
-    expect(runProgress(300 * B, s2.prestiges[1]!.startedAt).level).toBe(0);
+    const s2 = takePrestige(s, 120 * B); // surplus banks: run II began at 100B
+    expect(runProgress(120 * B, s2.prestiges[1]!.startedAt).level).toBe(20);
   });
 
   test("rewards unlock at their levels and diff for toasts", () => {

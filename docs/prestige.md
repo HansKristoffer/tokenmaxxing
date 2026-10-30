@@ -4,6 +4,11 @@ Past level 50 a player can choose to start another run: 50 levels of 1B tokens e
 rewards, and a voluntary reset at the end. Five tracks to launch; more will follow with the same shape.
 Catalogue: `core/src/prestige.ts`. Wearables sit at look indices 700+ (`PRESTIGE_BASE`), track n at `700 + n - 1`.
 
+Tokens earned past a cap carry over: Prestige I starts at 50B lifetime tokens, Prestige II at 100B, and each
+later run starts another 50B after that. Taking Prestige I at 73.4B puts the player at Level 23; taking
+Prestige II at 144.4B puts them at Level 44 with 400M toward Level 45. The player card uses the standard XP
+bar for progress through that level, colored to match the prestige tag.
+
 | Run level | Reward                                               |
 | --------- | ---------------------------------------------------- |
 | Enter     | Emblem and title (the tag)                           |

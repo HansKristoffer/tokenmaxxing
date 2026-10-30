@@ -49,19 +49,20 @@ describe("taking prestige", () => {
     expect((await prestigeView(sql, 1)).canPrestige).toBe(false);
   });
 
-  test("Hans: 142B lifetime is eligible, and the new run starts fresh at 0 of 50B", async () => {
+  test("Hans: 142B lifetime is eligible, and the first run banks what he earned past the cap", async () => {
     await setLifetime(1, 142 * B);
     expect((await prestigeView(sql, 1)).canPrestige).toBe(true);
     const v = await takeNextPrestige(sql, 1, NOW);
     expect(v.rank).toBe(1);
-    expect(v.runLevel).toBe(0);
-    expect(v.progress).toEqual({ level: 0, into: 0, toNext: B });
-    expect(v.canPrestige).toBe(false);
+    // Run I began at the 50B cap, so 92B in it is done and the second prestige is open.
+    expect(v.runLevel).toBe(RUN_LEVELS);
+    expect(v.canPrestige).toBe(true);
+    await setLifetime(1, 55 * B);
     const badges = await badgesOf(sql, "all", await tokensIn(sql, "all"));
-    expect(badges.get(1)).toEqual({ rank: 1, runLevel: 0 });
+    expect(badges.get(1)).toEqual({ rank: 1, runLevel: 5, runInto: 0 });
     expect(badges.get(2) ?? NO_PRESTIGE).toEqual(NO_PRESTIGE);
-    // Tokens past the start count toward the run.
-    await setLifetime(1, 142 * B + 12.5 * B);
+    // Tokens past the run's start count toward it.
+    await setLifetime(1, 62.5 * B);
     expect((await prestigeView(sql, 1)).runLevel).toBe(12);
   });
 
@@ -168,12 +169,30 @@ describe("prestige coins", () => {
 });
 
 describe("the badge others see", () => {
+  test("older prestige rows use the rank's start and retain partial level progress", async () => {
+    await setLifetime(1, 144.4 * B);
+    await sql.execute(
+      "INSERT INTO prestiges (user_id, rank, started_at, at) VALUES (1, 1, ?, ?), (1, 2, ?, ?)",
+      73.4 * B,
+      NOW,
+      144 * B,
+      NOW,
+    );
+    expect((await prestigeView(sql, 1)).progress).toEqual({
+      level: 44,
+      into: 0.4 * B,
+      toNext: 0.6 * B,
+    });
+    const badges = await badgesOf(sql, [1], await tokensIn(sql, [1]));
+    expect(badges.get(1)).toEqual({ rank: 2, runLevel: 44, runInto: 0.4 * B });
+  });
+
   test("playerCores carries it", async () => {
     await setLifetime(1, 55 * B);
     await takeNextPrestige(sql, 1, NOW);
     await setLifetime(1, 67 * B);
     const [p] = await playerCores(sql, [1]);
-    expect(p!.prestige).toEqual({ rank: 1, runLevel: 12 });
+    expect(p!.prestige).toEqual({ rank: 1, runLevel: 17, runInto: 0 });
     expect((await playerCores(sql, [2]))[0]!.prestige).toEqual(NO_PRESTIGE);
   });
 });

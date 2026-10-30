@@ -10,6 +10,7 @@ import {
   milestoneTitle,
   nextMilestone,
 } from "@tokenmaxxing/core/milestones.ts";
+import { PRESTIGE_TRACKS, RUN_LEVELS, TOKENS_PER_LEVEL } from "@tokenmaxxing/core/prestige.ts";
 import { dayKey, type RangeKey } from "@tokenmaxxing/core/range.ts";
 import { ITEMS } from "@tokenmaxxing/core/shop.ts";
 import { BIO_MAX_LENGTH } from "@tokenmaxxing/core/world.ts";
@@ -94,6 +95,13 @@ export function PlayerCard({ userId }: { userId: number }) {
     "level",
   )[0];
   const mine = userId === world.selfId;
+  // Once prestiged, the card's level is the run's: the first journey's 50 is long behind them.
+  const pres = prestigeOf(p);
+  const run = pres.rank > 0;
+  const shownLevel = run ? pres.runLevel : p.level;
+  const atMax = run ? pres.runLevel >= RUN_LEVELS : p.level >= MAX_LEVEL;
+  const barStart = run ? p.lifetimeTokens - (pres.runInto ?? 0) : levelAt(p.level);
+  const barSpan = run ? TOKENS_PER_LEVEL : levelAt(p.level + 1) - levelAt(p.level);
   // What the next levels bring, on hover of the "Lv7 in …" line.
   const rewardText = reward ? `Reward at Lv${reward.level}: ${reward.name}` : "";
   const milestoneLine = next ? `Lv${next.level} milestone: ${milestoneText(next)}` : "";
@@ -122,20 +130,27 @@ export function PlayerCard({ userId }: { userId: number }) {
                   🏅 {title}
                 </p>
               )}
-              <PrestigeTag rank={prestigeOf(p).rank} level={prestigeOf(p).runLevel} />
+              <PrestigeTag rank={pres.rank} level={pres.runLevel} />
               <p>
-                <strong>Level {p.level}</strong> · {p.levelTitle}
+                <strong>Level {shownLevel}</strong> · {p.levelTitle}
                 {today > 0 && <span className="xp-today small"> · +{compact(today)} today</span>}
               </p>
-              <XpBar level={p.level} tokens={p.lifetimeTokens} today={today} />
+              <XpBar
+                start={barStart}
+                span={barSpan}
+                max={atMax}
+                tokens={p.lifetimeTokens}
+                today={today}
+                color={PRESTIGE_TRACKS[pres.rank - 1]?.colors.main}
+              />
               {mine && <PrestigeCardRow level={p.level} badge={badgeOf(p)} />}
               <p
                 className="muted small"
                 title={[rewardText, milestoneLine].filter(Boolean).join("\n") || undefined}
               >
-                {p.level >= MAX_LEVEL
+                {atMax
                   ? "Max level"
-                  : `Lv${p.level + 1} in ${compact(levelAt(p.level + 1) - p.lifetimeTokens)} tokens`}
+                  : `Lv${shownLevel + 1} in ${compact(barStart + barSpan - p.lifetimeTokens)} tokens`}
                 {(rewardText || milestoneLine) && " ⓘ"}
               </p>
               <p className="small">
@@ -366,17 +381,31 @@ function HowYouWork({ p }: { p: Profile }) {
 }
 
 /** Progress through the current level: earlier tokens, then today's. Full at the top level. */
-function XpBar({ level, tokens, today }: { level: number; tokens: number; today: number }) {
-  const max = level >= MAX_LEVEL;
-  const start = levelAt(level);
-  const span = levelAt(level + 1) - start;
+function XpBar({
+  start,
+  span,
+  max,
+  tokens,
+  today,
+  color,
+}: {
+  start: number;
+  span: number;
+  max: boolean;
+  tokens: number;
+  today: number;
+  color?: string;
+}) {
   // Today's tokens that count toward this level: all of the progress if today crossed into it.
   const before = Math.max(0, tokens - today - start);
   const gained = tokens - start - before;
   return (
     <div className="xp" aria-hidden="true">
-      <span className="xp-done" style={{ width: max ? "100%" : `${(before / span) * 100}%` }} />
-      <span className="xp-gain" style={{ width: max ? 0 : `${(gained / span) * 100}%` }} />
+      <span
+        className="xp-done"
+        style={{ width: max ? "100%" : `${(before / span) * 100}%`, background: color }}
+      />
+      <span className="xp-gain" style={{ width: max ? 0 : `${(gained / span) * 100}%`, background: color }} />
     </div>
   );
 }

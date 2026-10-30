@@ -16,8 +16,6 @@ import {
   RESTART,
   type RunToast,
   rewardPlan,
-  runLine,
-  runShare,
   runToasts,
 } from "./prestige-view.ts";
 import { ItemImage } from "./Shop.tsx";
@@ -27,27 +25,17 @@ const LOOK = defaultLook(1);
 const TOAST_MS = 8000;
 const calloutKey = (rank: number) => `tokenmaxxing.prestigeCallout.${rank}`;
 
-/** Prestige on my own card: the button when I can take one, or the run's progress row while I am in one. */
+/** Prestige on my own card: the button when the current journey is complete. */
 export function PrestigeCardRow({ level, badge }: { level: number; badge: PrestigeBadge }) {
   const p = cardPrestige(level, badge);
   const open = () => hud.set({ panel: { kind: "prestige" } });
-  if (p.can)
-    return (
-      <p className="prestige-row">
-        <button type="button" className="prestige-btn" onClick={open}>
-          ✨ Prestige
-        </button>
-      </p>
-    );
-  if (!p.midRun) return null;
+  if (!p.can) return null;
   return (
-    <div className="prestige-row prestige-run">
-      <PrestigeTag rank={badge.rank} level={badge.runLevel} />
-      <div className="xp" role="img" aria-label={runLine(badge)}>
-        <span className="xp-done" style={{ width: `${runShare(badge.runLevel) * 100}%` }} />
-      </div>
-      <p className="muted small">{runLine(badge)}</p>
-    </div>
+    <p className="prestige-row">
+      <button type="button" className="prestige-btn" onClick={open}>
+        ✨ Prestige
+      </button>
+    </p>
   );
 }
 
@@ -80,7 +68,8 @@ function Confirm({ name, onGo, busy }: { name: string; onGo: () => void; busy: b
   return (
     <div className="prestige-confirm" role="alertdialog" aria-label="Confirm prestige">
       <p>
-        <strong>Start {name}?</strong> Your run goes back to level 0. This can't be undone.
+        <strong>Start {name}?</strong> Tokens earned past the previous cap count toward this run. This can't
+        be undone.
       </p>
       <button type="button" className="prestige-btn danger" disabled={busy} onClick={onGo}>
         Yes, start {name}
@@ -108,7 +97,7 @@ export function PrestigePanel() {
       <Modal title="Prestige">
         <div className="prestige-done">
           {track && <PrestigeTag rank={track.rank} />}
-          <p>Welcome. Your run begins at level 0.</p>
+          <p>Welcome. Your banked tokens count toward this run.</p>
         </div>
         <button type="button" onClick={() => hud.set({ panel: null })}>
           Close

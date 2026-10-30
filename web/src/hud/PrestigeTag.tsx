@@ -45,7 +45,7 @@ export function PrestigeTag({ rank, level, size = 20 }: { rank: number; level?: 
   return (
     <p
       className={`prestige-tag pt-${t.key}`}
-      title={`Prestige ${t.roman} · ${t.name}${level ? ` · run level ${level}` : ""}`}
+      title={`Prestige ${t.roman} · ${t.name}${level !== undefined ? ` · run level ${level}` : ""}`}
       style={
         {
           "--pt-main": t.colors.main,
@@ -58,7 +58,7 @@ export function PrestigeTag({ rank, level, size = 20 }: { rank: number; level?: 
       <Emblem rank={rank} px={size} />
       <span className="pt-title">{t.name}</span>
       <span className="pt-roman">{t.roman}</span>
-      {level ? <span className="pt-lv">· Lv{level}</span> : null}
+      {level !== undefined ? <span className="pt-lv">· Lv{level}</span> : null}
     </p>
   );
 }

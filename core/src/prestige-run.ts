@@ -1,11 +1,12 @@
 /**
- * Prestige runs as pure maths on facts: lifetime tokens and the list of prestiges taken, each with the lifetime
- * total at the moment it was chosen (`startedAt`). Nothing else is stored; a run's level is derived. Prestige is
- * voluntary and only offered at the cap (first-journey level `MAX_LEVEL`, or run level `RUN_LEVELS` of the
- * previous run). Tokens earned while sitting at the cap do not bank: a run counts from `startedAt`.
+ * Prestige runs as pure maths on facts: lifetime tokens and the list of prestiges taken. A run's level is derived.
+ * Prestige is voluntary and only offered at the cap (first-journey level `MAX_LEVEL`, or run level `RUN_LEVELS` of
+ * the previous run). Runs are laid end to end on the lifetime total (`runStart`), so tokens earned while sitting
+ * at a cap bank: someone at 144B who takes their first prestige is already well into it, and their second
+ * lands them at run level 44.
  */
 import type { CaseItem } from "./case.ts";
-import { levelFor, MAX_LEVEL } from "./format.ts";
+import { levelAt, levelFor, MAX_LEVEL } from "./format.ts";
 import {
   PRESTIGE_ITEMS,
   PRESTIGE_TRACKS,
@@ -18,9 +19,13 @@ import {
 } from "./prestige.ts";
 
 export interface PrestigeTaken {
-  /** Lifetime tokens the moment this prestige was chosen. */
+  /** Lifetime tokens where this run begins: `runStart` of its rank. */
   startedAt: number;
 }
+
+/** Where run `rank` (1-based) begins in lifetime tokens: the first journey's cap, then a full run each. */
+export const runStart = (rank: number): number =>
+  levelAt(MAX_LEVEL) + (rank - 1) * RUN_LEVELS * TOKENS_PER_LEVEL;
 
 export interface PrestigeState {
   prestiges: readonly PrestigeTaken[];
@@ -67,7 +72,7 @@ export const canPrestige = (lifetime: number, prestiges: readonly PrestigeTaken[
 /** The state after choosing the next prestige at `lifetime`. Throws if not eligible. */
 export const takePrestige = (state: PrestigeState, lifetime: number): PrestigeState => {
   if (!canPrestige(lifetime, state.prestiges)) throw new Error("prestige not available");
-  return { prestiges: [...state.prestiges, { startedAt: lifetime }] };
+  return { prestiges: [...state.prestiges, { startedAt: runStart(state.prestiges.length + 1) }] };
 };
 
 /** Everything track `rank` unlocks by run level `runLevel` (the tag at once on entering, level 0). */
@@ -110,6 +115,8 @@ export const runCoinsPaid = (runLevel: number): number => {
 export interface PrestigeBadge {
   rank: number;
   runLevel: number;
+  /** Tokens into the current run level, for the card's bar; absent where only the level matters. */
+  runInto?: number;
 }
 
 export const NO_PRESTIGE: PrestigeBadge = { rank: 0, runLevel: 0 };
