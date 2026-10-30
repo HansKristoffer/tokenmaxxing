@@ -26,7 +26,7 @@ const GRADE: Record<FestiveId, Grade> = {
   // Warm candle at dusk, cool blue-white at night.
   christmas: { day: [255, 245, 233], dusk: [255, 198, 122], night: [150, 186, 242], base: 0.08, gain: 0.42 },
   // Bonfire-orange dusk, a light day.
-  sanktHans: { day: [255, 249, 236], dusk: [255, 146, 58], night: [150, 112, 150], base: 0.05, gain: 0.5 },
+  sanktHans: { day: [255, 246, 214], dusk: [255, 146, 58], night: [150, 112, 150], base: 0.1, gain: 0.5 },
   // Deep blue night with gold at the edges.
   nytar: { day: [236, 240, 255], dusk: [255, 200, 110], night: [76, 96, 190], base: 0.1, gain: 0.5 },
   // Fresh pastel spring light, pink at dusk.

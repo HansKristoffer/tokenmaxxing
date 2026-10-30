@@ -415,6 +415,7 @@ export function updateSelf(now: number): void {
       blocksTruck(step.x, step.y) ||
       blocksBarrel(step.x, step.y) ||
       blocksBonfire(step.x, step.y) ||
+      festiveNpcAt(step.x, step.y) ||
       blocksGrave(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;

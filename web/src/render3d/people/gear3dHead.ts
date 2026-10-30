@@ -9,6 +9,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { glow, type Model, type Paint, tint, toon } from "../kit/kit.ts";
+import { MIDSOMMER_HATS_3D } from "./midsommerHats.ts";
 import {
   boxBand,
   boxRing,
@@ -953,6 +954,7 @@ export const HAT_BUILDERS: Record<string, Build> = {
       80,
     ).rotation.y = 0.9;
   },
+  ...MIDSOMMER_HATS_3D,
   "Benchmark laurels": (m) => wreath(m),
   "Copenhagen ushanka": (m) => {
     dome(m, "#6b4a34", 0.285, 0.0, 0.5);
@@ -1721,4 +1723,7 @@ export const COVERS_HAIR = new Set([
   "Straw kasa",
   "Fox half-mask",
   "Kattekonge crown",
+  "Midsommerkrans",
+  "Heksehat",
+  "Strå-hat",
 ]);

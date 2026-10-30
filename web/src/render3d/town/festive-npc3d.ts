@@ -3,6 +3,7 @@ import type { Facing } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { festiveNow } from "../../game/festive.ts";
 import { disposeObject } from "../engine/dispose.ts";
+import { baltalerModel } from "./midsommer3d.ts";
 
 /**
  * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here: it
@@ -13,6 +14,7 @@ import { disposeObject } from "../engine/dispose.ts";
 export type NpcModel = (npc: FestiveNpc) => THREE.Object3D;
 
 export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {};
+NPC_MODELS.sanktHans = baltalerModel;
 
 const TURN: Record<Facing, number> = { down: 0, right: Math.PI / 2, up: Math.PI, left: -Math.PI / 2 };
 
@@ -28,6 +30,8 @@ export class FestiveNpc3d {
   constructor(private readonly toWorld: (tx: number, ty: number) => [number, number]) {
     this.group.name = "festive-npc";
     this.group.userData.nobatch = true;
+    // Empty at first: the room's batching would hide and sleep an empty subtree for good, so it is marked live.
+    this.group.userData.live = true;
   }
 
   update(t: number): void {
