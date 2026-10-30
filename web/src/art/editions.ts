@@ -119,6 +119,25 @@ const HATS: Record<string, Art> = {
     side: ["....Y...Y...Y...", "....YY.YYY.YY...", "....oYYYYYYYYo..", "....oYYkkYYrYo..", "....oyyyyyyyyo.."],
     pal: { o, Y: "#f5c842", y: "#c9971f", r: "#e8584f", k: o },
   },
+  // Christmas costumes (`core/src/costumes.ts`, 240-249). Santa hat: a red cone bent over, a white band and a pompom.
+  "hat.240": {
+    down: ["........oooo.oo.", "......oorrrroowo", "....oorrrrrrrrwo", "...orrRrrrrrrro.", "..owwwwwwwwwwwwo", "...oooooooooooo."],
+    side: ["..........oooo..", "........oorrroo.", "......oorrrrrrwo", "....oorrRrrrrrro", "...owwwwwwwwwwo.", "....oooooooooo.."],
+    up: ["........oooo.oo.", "......oorrrroowo", "....oorrrrrrrrwo", "...orrRrrrrrrro.", "..owwwwwwwwwwwwo", "...oooooooooooo."],
+    pal: { o, r: "#d8283a", R: "#a81c2c", w: "#fbf7ef" },
+  },
+  // Reindeer antlers: two branching horns on a leather band, a bell on each.
+  "hat.241": {
+    down: [".A.A........A.A.", ".AaA........AaA.", "..AaA......AaA..", "..AAaA....AaAA..", "...AAkkkkkkAA...", "....okkkkkko...."],
+    side: ["........A.A.....", "........AaA.....", ".........Aa.A...", ".........AaAA...", "......kkkkkAA...", "......okkkkko..."],
+    pal: { o, A: "#8a5a32", a: "#b98a5a", k: "#5a3a1e" },
+  },
+  // Gløgg mug hat: a steaming red mug with a cream snowflake, worn upright, its handle on the side.
+  "hat.242": {
+    down: ["......s..s......", ".....s..s.......", "....oooooooo....", "...orrrrrrrro...", "...orrwrwrrro.oo", "...orrrwrrrro.o.", "...orrwrwrrroo..", "....oooooooo...."],
+    side: ["......s..s......", ".....s..s.......", "...oooooooo.....", "..orrrrrrrro....", "..orrwrwrrro.oo.", "..orrrwrrrro.o..", "..orrwrwrrrooo..", "...oooooooo....."],
+    pal: { o, r: "#b3262e", w: "#fbf7ef", s: "#d8dde6" },
+  },
 };
 
 // Pixel art reads as a grid.

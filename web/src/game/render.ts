@@ -37,6 +37,7 @@ import { graphics } from "../settings/graphics.ts";
 import { drawBasement, lightBasement } from "./basement.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
+import { drawChristmas, lightChristmas } from "./christmas.ts";
 import { drawClocks } from "./clocks.ts";
 import {
   breathPuff,
@@ -385,6 +386,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawPicnic(f);
   drawGrid(f);
   drawPumpkins(f);
+  drawChristmas(f);
   drawTruck(f);
   drawBarrel(f);
   drawBonfire(f);
@@ -501,6 +503,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
       drawLights(g, lamps, windows, glow, lampDim());
       lightPumpkins(g, glow, now);
+      lightChristmas(g, glow, now);
       lightTruck(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
