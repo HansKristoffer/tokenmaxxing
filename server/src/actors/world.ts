@@ -197,6 +197,7 @@ import {
   initialWeather,
   POLLEN_EVERY_MS,
   pinnedSeason,
+  pinnedTheme,
   pinnedWeather,
   WEATHER_EVERY_MS,
 } from "../weather.ts";
@@ -2461,6 +2462,8 @@ const asleepAtInn = (s: WorldState, online: Map<number, number>) =>
 
 /** `SKY_SEASON`, read once: the town's season pinned for every client. */
 const SEASON_PIN = pinnedSeason();
+/** `THEME_PIN`, read once: the festive theme pinned for every client. */
+const THEME_PIN = pinnedTheme();
 
 async function snapshot(
   s: WorldState,
@@ -2499,6 +2502,7 @@ async function snapshot(
     drops: dropsIn(room),
     weather,
     ...(SEASON_PIN === null ? {} : { seasonDay: SEASON_PIN }),
+    ...(THEME_PIN === null ? {} : { festivePin: THEME_PIN }),
     raiders: room === "dungeon" ? raiders(s, Date.now()) : null,
   };
 }

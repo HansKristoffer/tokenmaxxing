@@ -5,9 +5,11 @@
  * smoothly: lamps and windows switch on at dusk and dim in by degrees, and the sun swings round the sky.
  */
 
+import { type Festive, festiveFog } from "@tokenmaxxing/core/festive.ts";
 import { worldWall } from "@tokenmaxxing/core/range.ts";
 import { CALM, fogOf, iceOver, type Light, moonPhase, type Weather } from "@tokenmaxxing/core/sky.ts";
 import * as THREE from "three";
+import { festiveGrade, SKY } from "../../game/festive-palette.ts";
 import { addPatch } from "../kit/patches.ts";
 import { ICE } from "./cold3d.ts";
 import { setStreetLampDim } from "./props.ts";
@@ -42,6 +44,8 @@ export interface FxOptions {
   light: (ms: number) => Light;
   /** How bright the street lamps burn, 0..1 (dimmed while power is expensive: `game/grid.ts`). */
   lampDim?: () => number;
+  /** The festive theme in play (the game's `festiveNow`): tints the sky and light, brings Halloween's ground mist. */
+  festive?: () => Festive | null;
 }
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -58,6 +62,11 @@ const fixed = (hex: string): THREE.Color => {
   return c;
 };
 const mixCol = (a: THREE.Color, b: THREE.Color, k: number) => a.clone().lerp(b, clamp01(k));
+const scratch = new THREE.Color();
+/** A 0..255 sRGB triple as a colour, in a shared scratch (read it before the next call). */
+const srgb = (c: readonly [number, number, number]) =>
+  scratch.setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
+const MIST = "#b9a6d8";
 
 // MARK: Sky
 
@@ -313,6 +322,8 @@ export class Fx {
   private dim = 1;
   private lit = { dark: 0, warm: 0, glow: 0 };
   private nightOn = false;
+  /** The festive theme in play, as of the last frame. */
+  private festive: Festive | null = null;
   private lightsAt = -9;
   private pointLights = new Map<string, THREE.PointLight[]>();
   private flashBoost = 0;
@@ -441,6 +452,10 @@ export class Fx {
     if (s.kind === w.kind) s.intensity = lerp(s.intensity, w.intensity, k);
     this.fog = lerp(this.fog, fogOf(w), k);
     const fog = this.fog;
+    this.festive = this.opts.festive?.() ?? null;
+    // Halloween's mist rides on the night; the weather's fog (`fog`) still alone greys the sky.
+    const mist = festiveFog(this.festive) * (0.3 + 0.7 * this.lit.dark);
+    const haze = Math.max(fog, mist);
 
     // The light of the sky, with clouds dimming it.
     const storm = s.kind === "storm" ? 0.2 : 0;
@@ -491,6 +506,15 @@ export class Fx {
       let hor = mixCol(dayH, warmH, warm * 0.85);
       top = mixCol(top, nightT, dark ** 1.3);
       hor = mixCol(hor, nightH, dark ** 1.3);
+      const fest = this.festive;
+      if (fest) {
+        // Violet-orange or candle and snow-blue, mostly at dusk and in the dark.
+        const g = festiveGrade(fest, dark, warm);
+        const sk = SKY[fest.id];
+        const kk = Math.min(1, g.k * 1.1);
+        top = mixCol(top, mixCol(fixed(sk.duskTop), fixed(sk.nightTop), dark ** 0.8), kk);
+        hor = mixCol(hor, mixCol(fixed(sk.duskHor), fixed(sk.nightHor), dark ** 0.8), kk);
+      }
       const gk = clamp01(s.cloud * 0.6 + storm * 2 + Math.min(0.3, fog * 0.6)) * (1 - dark * 0.7);
       top = mixCol(top, grey.clone().multiplyScalar(1 - dark * 0.8 - storm), gk);
       hor = mixCol(hor, greyH.clone().multiplyScalar(1 - dark * 0.8 - storm), gk);
@@ -512,12 +536,12 @@ export class Fx {
       u.moonAge!.value = moonPhase(ms).age;
       u.murk!.value = murk * 0.5;
       // Fog fades the far end of the slab into the horizon.
-      if (fog > 0.05) {
+      if (haze > 0.05) {
         if (!stage.scene.fog) stage.scene.fog = new THREE.Fog(hor.getHex(), 60, 90);
         const f = stage.scene.fog;
         (f as THREE.Fog).color.copy(hor);
-        (f as THREE.Fog).near = lerp(90, 46, fog);
-        (f as THREE.Fog).far = lerp(120, 78, fog);
+        (f as THREE.Fog).near = lerp(90, 46, haze);
+        (f as THREE.Fog).far = lerp(120, 78, haze);
       } else stage.scene.fog = null;
     } else if (this.sky.parent) this.sky.removeFromParent();
 
@@ -540,7 +564,8 @@ export class Fx {
     }
     for (const m of this.fogBank) {
       const mat = m.material as THREE.MeshBasicMaterial;
-      const want = 0.14 * fog;
+      const want = 0.14 * fog + 0.2 * Math.max(0, mist - fog);
+      mat.color.copy(fixed(mist > fog ? MIST : "#e4e9ee"));
       mat.opacity = lerp(mat.opacity, want, Math.min(1, dt));
       m.visible = mat.opacity > 0.01 && inTown;
       m.position.x += (m.userData.speed as number) * dt * (winds.x >= 0 ? 1 : -1);
@@ -565,6 +590,12 @@ export class Fx {
       const h = mixCol(mixCol(dayHemi, warmHemi, warm * 0.8), nightHemi, dark ** 1.4);
       const sc = mixCol(mixCol(daySun, warmSun, warm * 0.8), nightSun, dark ** 1.4);
       const grey = (c: THREE.Color) => c.lerp(new THREE.Color(0.7, 0.72, 0.76), murk * 0.5);
+      const fest = this.festive;
+      if (fest) {
+        const g = festiveGrade(fest, dark, warm);
+        h.lerp(srgb(g.rgb as [number, number, number]), Math.min(1, g.k * 1.5));
+        sc.lerp(srgb(g.rgb as [number, number, number]), Math.min(1, g.k * 1.5));
+      }
       s.hemi.color.copy(grey(h));
       s.sun.color.copy(grey(sc));
       s.hemi.intensity = lerp(1.6, 0.55, dark) * (1 - murk * 0.25) * (1 - warm * 0.08) + flash * 2.4;

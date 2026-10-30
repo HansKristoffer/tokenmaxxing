@@ -3972,3 +3972,50 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   color: inherit;
   opacity: 0.8;
 }
+
+/* A festive theme (`game/festive.ts`) puts its id on the page root: the accent colour follows. Append a block per theme. */
+[data-festive="halloween"] {
+  --accent: #ff9a3c;
+  --line: rgba(190, 140, 255, 0.22);
+  --festive-toast: rgba(40, 20, 64, 0.92);
+}
+
+[data-festive="christmas"] {
+  --accent: #ff6b6b;
+  --line: rgba(190, 255, 210, 0.2);
+  --festive-toast: rgba(20, 52, 40, 0.92);
+}
+
+[data-festive="sanktHans"] {
+  --accent: #ff8a3a;
+  --festive-toast: rgba(64, 30, 16, 0.92);
+}
+
+[data-festive="nytar"] {
+  --accent: #f4c95d;
+  --line: rgba(244, 201, 93, 0.22);
+  --festive-toast: rgba(14, 22, 64, 0.92);
+}
+
+[data-festive="paaske"] {
+  --accent: #b6e37a;
+  --festive-toast: rgba(52, 60, 30, 0.92);
+}
+
+[data-festive="befrielsen"] {
+  --accent: #f0cf7a;
+  --line: rgba(160, 176, 226, 0.22);
+  --festive-toast: rgba(18, 26, 56, 0.92);
+}
+
+[data-festive="agustusan"] {
+  --accent: #ff4d4d;
+  --line: rgba(255, 255, 255, 0.2);
+  --festive-toast: rgba(70, 16, 20, 0.92);
+}
+
+.festive-toast {
+  font-weight: bold;
+  letter-spacing: 0.02em;
+  background: var(--festive-toast, var(--panel));
+}

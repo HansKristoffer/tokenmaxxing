@@ -52,6 +52,7 @@ import { drawCop, isCop } from "./cop.ts";
 import { battlers, type Dance2D, dance2D, danceOf, rgbOf } from "./dance.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { drawBarrel } from "./fastelavn.ts";
+import { drawFestiveNpc } from "./festive-npc.ts";
 import { drawFireworks } from "./fireworks.ts";
 import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
@@ -394,6 +395,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawTownAnimals(f);
   drawBasement(f);
   drawMerchant(f);
+  drawFestiveNpc(f);
   drawRaid(f);
   drawLoot(f);
 

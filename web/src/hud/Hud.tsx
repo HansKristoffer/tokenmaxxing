@@ -25,6 +25,7 @@ import { Collection } from "./Collection.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
+import { FestiveAccent, FestiveToast } from "./Festive.tsx";
 import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
 import { GreenBanner } from "./GreenHour.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
@@ -138,7 +139,9 @@ export function Hud() {
         <RaidToast />
         <LootToast />
         <GraphicsToast />
+        <FestiveToast />
       </div>
+      <FestiveAccent />
       <WhatsNewToast />
       <FpsMeter />
       <FirstVisit />

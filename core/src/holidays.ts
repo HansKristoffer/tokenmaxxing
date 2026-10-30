@@ -7,7 +7,16 @@
  */
 import { worldWall } from "./range.ts";
 
-export type HolidayId = "fastelavn" | "sanktHans" | "halloween" | "jDag" | "christmas" | "newYear";
+export type HolidayId =
+  | "fastelavn"
+  | "paaske"
+  | "befrielsen"
+  | "sanktHans"
+  | "agustusan"
+  | "halloween"
+  | "jDag"
+  | "christmas"
+  | "newYear";
 
 export interface Holiday {
   name: string;
@@ -50,7 +59,13 @@ export function firstWeekday(year: number, month: number, weekday: number): numb
 export const HOLIDAYS: Record<HolidayId, Holiday> = {
   /** Seven weeks before Easter Sunday. */
   fastelavn: { name: "Fastelavn", emoji: "🎭", date: (y) => shift(y, easter(y), -49) },
+  /** Easter Sunday. */
+  paaske: { name: "Påske", emoji: "🐣", date: (y) => easter(y) },
+  /** 4 May: candles in the windows the night the occupation ended; 5 May is Liberation Day. */
+  befrielsen: { name: "Befrielsen", emoji: "🕯️", date: () => [5, 4] },
   sanktHans: { name: "Sankt Hans", emoji: "🔥", date: () => [6, 23] },
+  /** 17 August, Indonesian Independence Day (Hari Kemerdekaan). */
+  agustusan: { name: "Agustusan", emoji: "🇮🇩", date: () => [8, 17] },
   halloween: { name: "Halloween", emoji: "🎃", date: () => [10, 31] },
   /** The first Friday of November, when the Christmas beer comes out at 20:59. */
   jDag: { name: "J-dag", emoji: "🍺", date: (y) => [11, firstWeekday(y, 11, 5)] },

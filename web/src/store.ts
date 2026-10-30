@@ -136,6 +136,8 @@ interface HudState {
   weather: Weather;
   /** The day of the year the server pins the town's season to (`SKY_SEASON`), or null for the date's own. */
   seasonDay: number | null;
+  /** The festive theme the server pins (`THEME_PIN`, pin text for `parseFestivePin`), or null for the clock's. */
+  festivePin: string | null;
   /** The project's GitHub stars and the last milestone's fireworks (`world` sends `stars`). */
   stars: Stars;
   /** The fastelavn barrel on Fastelavn Sunday: its whacks and its king; null the rest of the year (`barrel`). */
@@ -187,6 +189,7 @@ let state: HudState = {
   inviteTable: null,
   weather: CALM,
   seasonDay: null,
+  festivePin: null,
   stars: { count: null, show: null },
   barrel: null,
 };

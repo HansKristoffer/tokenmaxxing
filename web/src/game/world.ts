@@ -153,6 +153,7 @@ export function loadSnapshot(s: Snapshot): void {
     occupancy: s.occupancy,
     weather: s.weather,
     seasonDay: s.seasonDay ?? null,
+    festivePin: s.festivePin ?? null,
     chat: s.chat,
     ...(changedRoom
       ? {

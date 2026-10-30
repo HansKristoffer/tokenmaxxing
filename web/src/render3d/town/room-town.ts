@@ -13,6 +13,7 @@ import { ExitMarkers } from "../rooms/exit-markers.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "../rooms/rooms.ts";
 import { Barrel3d } from "./barrel3d.ts";
 import { Bonfire3d } from "./bonfire3d.ts";
+import { FestiveNpc3d } from "./festive-npc3d.ts";
 import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
 import { Graveyard3D } from "./graveyard3d.ts";
@@ -102,6 +103,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // Halloween's jack-o'-lanterns, on the doorsteps: hidden the rest of the year.
   const pumpkins = new Pumpkins(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(pumpkins.group);
+  // The festive theme's named NPC, there while its theme is (`FESTIVE_NPC`).
+  const festiveNpc = new FestiveNpc3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(festiveNpc.group);
   // J-dag's truck, on the road under the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
@@ -147,6 +151,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       fireworks.update();
       markers.update(f.me, f.t);
       pumpkins.update(f.now);
+      festiveNpc.update(f.t);
       truck.update();
       barrel.update(f.t);
       bonfire.update(f.t);
@@ -173,6 +178,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();
+      festiveNpc.dispose();
       statue.dispose();
       fireworks.dispose();
       events.dispose();

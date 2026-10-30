@@ -32,6 +32,7 @@ import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
 import { clocksText } from "./clocks.ts";
 import { barrelInteract, blocksBarrel } from "./fastelavn.ts";
+import { festiveNpcAt, talkToFestiveNpc } from "./festive-npc.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { blocksGrave, graveInteract } from "./graveyard.ts";
@@ -522,6 +523,7 @@ function interact(): void {
   if (graveInteract(me)) return;
   if (keynoteInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();
+  if (festiveNpcAt(x, y)) return void talkToFestiveNpc();
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });

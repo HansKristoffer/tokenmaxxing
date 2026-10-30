@@ -1,3 +1,4 @@
+import { parseFestivePin } from "@tokenmaxxing/core/festive.ts";
 import { pinnedDay } from "@tokenmaxxing/core/seasons.ts";
 import {
   AARHUS,
@@ -55,3 +56,10 @@ export const initialWeather = (): Weather => pinnedWeather() ?? CALM;
  */
 export const pinnedSeason = (env: Record<string, string | undefined> = process.env): number | null =>
   env.SKY_SEASON ? pinnedDay(env.SKY_SEASON) : null;
+
+/**
+ * `THEME_PIN=christmas@12-22` (or `halloween`, `off`) pins the festive theme for everyone (dev and screenshots;
+ * `parseFestivePin`). Visual only: the shops keep the real clock. Null normally, or if the text is not a pin.
+ */
+export const pinnedTheme = (env: Record<string, string | undefined> = process.env): string | null =>
+  env.THEME_PIN && parseFestivePin(env.THEME_PIN, Date.now()) !== null ? env.THEME_PIN : null;

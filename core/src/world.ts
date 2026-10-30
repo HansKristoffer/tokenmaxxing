@@ -498,6 +498,8 @@ export interface Snapshot {
   weather: Weather;
   /** Only with `SKY_SEASON` set (dev and screenshots): the day of the year the town's season is pinned to. */
   seasonDay?: number;
+  /** Only with `THEME_PIN` set (dev and screenshots): the festive theme pinned for everyone, as its pin text. */
+  festivePin?: string;
   /** Only in the dungeon: who has agents running, wherever they are. */
   raiders: Raiders | null;
 }
@@ -536,7 +538,9 @@ export interface Moves {
 
 /** What `step` answers when it didn't simply move you. */
 export type StepResult =
-  null | { notice: string } | { x: number; y: number; facing: Facing; state: PlayerState; room: RoomId };
+  | null
+  | { notice: string }
+  | { x: number; y: number; facing: Facing; state: PlayerState; room: RoomId };
 
 // MARK: Houses
 
