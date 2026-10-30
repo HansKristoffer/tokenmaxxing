@@ -183,7 +183,7 @@ export function routeAround(
       came.set(k, { from: key(cx, cy), d });
       if (goal) {
         const out: Facing[] = [];
-        for (let at = k; at !== key(from[0], from[1]); ) {
+        for (let at = k; at !== key(from[0], from[1]);) {
           const c = came.get(at)!;
           out.push(c.d);
           at = c.from;

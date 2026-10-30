@@ -14,9 +14,8 @@ const { world } = await import("../src/game/world.ts");
 const { Nytar3d, nytarNpcModel } = await import("../src/render3d/town/nytar3d.ts");
 const { NYTAR_NPC } = await import("@tokenmaxxing/core/nytar.ts");
 const { confetti, burstConfetti, nytarTick, nytarBlocks, nytarOn } = await import("../src/game/nytar.ts");
-const { clockSprite, tableSprite, chairSprite, balloonSprite, nytarNpcSprite } = await import(
-  "../src/art/nytar.ts"
-);
+const { clockSprite, tableSprite, chairSprite, balloonSprite, nytarNpcSprite } =
+  await import("../src/art/nytar.ts");
 
 // The theme, pinned the way the server pins it (and put back after, for the other files in this process).
 hud.set({ festivePin: "nytar@12-31T21:00" });

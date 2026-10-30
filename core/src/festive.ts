@@ -20,13 +20,7 @@ import { GERDA } from "./spooky.ts";
 import type { Facing } from "./world.ts";
 
 export type FestiveId =
-  | "halloween"
-  | "christmas"
-  | "sanktHans"
-  | "nytar"
-  | "paaske"
-  | "befrielsen"
-  | "agustusan";
+  "halloween" | "christmas" | "sanktHans" | "nytar" | "paaske" | "befrielsen" | "agustusan";
 
 export interface FestiveDef {
   id: FestiveId;
