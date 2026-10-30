@@ -1,12 +1,12 @@
 import type { FestiveId } from "@tokenmaxxing/core/festive.ts";
 import type { Facing } from "@tokenmaxxing/core/world.ts";
-import { gerdaSprite } from "./spooky.ts";
+import { pakBudiSprite } from "./agustusan-npc.ts";
+import { henningFrame } from "./befrielsen.ts";
 import { knudSprite } from "./christmas.ts";
 import { baltalerSprite } from "./midsommer.ts";
 import { nytarNpcSprite } from "./nytar.ts";
 import { gudrunSprite } from "./paaske.ts";
-import { henningFrame } from "./befrielsen.ts";
-import { pakBudiSprite } from "./agustusan-npc.ts";
+import { gerdaSprite } from "./spooky.ts";
 
 /**
  * The 2D sprites of the festive NPCs (`FESTIVE_NPC` in `core/src/festive.ts`). A theme's agent adds its entry here:

@@ -1,5 +1,5 @@
-import { C } from "./palette.ts";
 import type { Art } from "./editions.ts";
+import { C } from "./palette.ts";
 
 /** Sankt Hans's three hats in 2D. Kept apart from `midsommer.ts` so `editions.ts` can spread them in without a cycle. */
 export const DANNEBROG = "#c8102e";

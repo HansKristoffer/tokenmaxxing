@@ -6,9 +6,10 @@
  *
  * Not `themes.ts`: that is the music.
  */
-import { CHRISTMAS_NPC } from "./christmas.ts";
-import { HENNING } from "./befrielsen.ts";
+
 import { AGUSTUSAN_NPC } from "./agustusan.ts";
+import { HENNING } from "./befrielsen.ts";
+import { CHRISTMAS_NPC } from "./christmas.ts";
 import { daysFrom, HOLIDAYS, type HolidayId, minutesFrom, near } from "./holidays.ts";
 import { BALTALER } from "./midsommer.ts";
 import { NYTAR_NPC } from "./nytar.ts";

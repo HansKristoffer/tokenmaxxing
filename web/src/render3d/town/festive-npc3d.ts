@@ -3,12 +3,12 @@ import type { Facing } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { festiveNow } from "../../game/festive.ts";
 import { disposeObject } from "../engine/dispose.ts";
-import { gerdaModel } from "./halloween3d-models.ts";
+import { pakBudiModel } from "./agustusan-npc3d.ts";
 import { knudModel } from "./christmas3d.ts";
+import { gerdaModel } from "./halloween3d-models.ts";
 import { baltalerModel } from "./midsommer3d.ts";
 import { nytarNpcModel } from "./nytar3d.ts";
 import { gudrun3d } from "./paaske-npc3d.ts";
-import { pakBudiModel } from "./agustusan-npc3d.ts";
 
 /**
  * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here: it

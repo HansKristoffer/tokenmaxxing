@@ -1,10 +1,11 @@
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { characterFrame } from "./characters.ts";
 import type { NpcSprite } from "./festive-npc.ts";
-import { C } from "./palette.ts";
 import { DANNEBROG } from "./midsommer-hats.ts";
+import { C } from "./palette.ts";
 
 const o = C.ink;
+
 import { bake, cached, once } from "./pixels.ts";
 
 /**
