@@ -6,6 +6,7 @@ import { baltalerSprite } from "./midsommer.ts";
 import { nytarNpcSprite } from "./nytar.ts";
 import { gudrunSprite } from "./paaske.ts";
 import { henningFrame } from "./befrielsen.ts";
+import { pakBudiSprite } from "./agustusan-npc.ts";
 
 /**
  * The 2D sprites of the festive NPCs (`FESTIVE_NPC` in `core/src/festive.ts`). A theme's agent adds its entry here:
@@ -25,4 +26,5 @@ NPC_SPRITES.nytar = nytarNpcSprite;
 
 NPC_SPRITES.paaske = gudrunSprite;
   befrielsen: henningFrame,
+  agustusan: pakBudiSprite,
 };

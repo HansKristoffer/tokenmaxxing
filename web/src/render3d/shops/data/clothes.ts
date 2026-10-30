@@ -228,6 +228,8 @@ const SNAPSHOT: readonly ClothesRow[] = [
   { id: "hat.260", slot: "hat", index: 260, name: "Bunny ears", price: 300, rarity: "rare" },
   { id: "hat.261", slot: "hat", index: 261, name: "Chick hat", price: 280, rarity: "rare" },
   { id: "hat.262", slot: "hat", index: 262, name: "Påskelilje crown", price: 320, rarity: "rare" },
+  { id: "hat.270", slot: "hat", index: 270, name: "Peci hitam", price: 300, rarity: "rare" },
+  { id: "hat.271", slot: "hat", index: 271, name: "Ikat kepala merah putih", price: 220, rarity: "rare" },
   { id: "glasses.1", slot: "glasses", index: 1, name: "Nerd specs", price: 60, rarity: "common" },
   { id: "glasses.2", slot: "glasses", index: 2, name: "Shades", price: 100, rarity: "common" },
   { id: "glasses.3", slot: "glasses", index: 3, name: "Heart glasses", price: 150, rarity: "common" },

@@ -11,6 +11,7 @@ import { GateLive } from "../dungeon/gate3d.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { ExitMarkers } from "../rooms/exit-markers.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "../rooms/rooms.ts";
+import { Agustusan3d } from "./agustusan3d.ts";
 import { Barrel3d } from "./barrel3d.ts";
 import { Befrielsen3d } from "./befrielsen3d.ts";
 import { Bonfire3d } from "./bonfire3d.ts";
@@ -129,6 +130,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // Påske's flowers, bunting, props, eggs and lambs: built the first frame it is on.
   const paaske = new Paaske3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   events.group.add(paaske.group);
+  // Agustusan: flags, the gapura gate and the lomba props, built when the theme is on.
+  const agustusan = new Agustusan3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(agustusan.group);
   // J-dag's truck, on the road under the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
@@ -183,6 +187,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       christmas.update(f.t);
       nytar.update(f);
       paaske.update(f.t);
+      agustusan.update(f.t);
       truck.update();
       barrel.update(f.t);
       bonfire.update(f.t);
@@ -204,6 +209,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       ...truck.signs(),
       ...nytar.signs(),
       ...paaske.signs(),
+      ...agustusan.signs(),
       ...barrel.signs(),
       ...(gateLive?.signs() ?? []),
       ...games.signs(),
@@ -219,6 +225,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       nytar.dispose();
       paaske.dispose();
       befrielsen.dispose();
+      agustusan.dispose();
       statue.dispose();
       fireworks.dispose();
       events.dispose();

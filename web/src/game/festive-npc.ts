@@ -26,6 +26,9 @@ export const festiveNpcAt = (x: number, y: number): boolean => {
   return n !== null && n.x === x && n.y === y;
 };
 
+/** Whether the step onto (x, y) is onto the NPC: it stands there, so it is no step. */
+export const blocksFestiveNpc = festiveNpcAt;
+
 let turn = 0;
 /** Its next line, in the dialog. */
 export function talkToFestiveNpc(): void {

@@ -61,6 +61,9 @@ export const COSTUMES: readonly Costume[] = [
   costume(62, "Påskelilje crown", 320, "paaske", "A ring of yellow narcissi, picked fresh on Palm Sunday."),
   costume(65, "Veteran's flat cap", 250, "befrielsen", "A grey wool flat cap, worn soft. A closed mouth comes with it."),
   costume(66, "Window candle", 300, "befrielsen", "A candle on a saucer, lit on the 4th of May. Lys i vinduet."),
+  // Agustusan (10 to 17 August); this theme's indices are 70 to 79.
+  costume(70, "Peci hitam", 300, "agustusan", "A black velvet songkok, as worn at the Proclamation. Wear it straight."),
+  costume(71, "Ikat kepala merah putih", 220, "agustusan", "A red-and-white headband for the lomba. Merdeka!"),
 ];
 
 /** The costume a look index stands for in a slot, if it is one. */

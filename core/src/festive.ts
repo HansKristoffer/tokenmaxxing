@@ -8,6 +8,7 @@
  */
 import { CHRISTMAS_NPC } from "./christmas.ts";
 import { HENNING } from "./befrielsen.ts";
+import { AGUSTUSAN_NPC } from "./agustusan.ts";
 import { daysFrom, HOLIDAYS, type HolidayId, minutesFrom, near } from "./holidays.ts";
 import { BALTALER } from "./midsommer.ts";
 import { NYTAR_NPC } from "./nytar.ts";
@@ -211,7 +212,7 @@ export const FESTIVE_NPC: Record<FestiveId, FestiveNpc | null> = {
   nytar: NYTAR_NPC,
   paaske: PAASKE_FARMER,
   befrielsen: HENNING,
-  agustusan: null,
+  agustusan: AGUSTUSAN_NPC,
 };
 
 /** The NPC for the theme in play, or null. */

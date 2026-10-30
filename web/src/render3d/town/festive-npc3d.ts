@@ -8,6 +8,7 @@ import { knudModel } from "./christmas3d.ts";
 import { baltalerModel } from "./midsommer3d.ts";
 import { nytarNpcModel } from "./nytar3d.ts";
 import { gudrun3d } from "./paaske-npc3d.ts";
+import { pakBudiModel } from "./agustusan-npc3d.ts";
 
 /**
  * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here: it
@@ -26,6 +27,7 @@ NPC_MODELS.sanktHans = baltalerModel;
 NPC_MODELS.paaske = gudrun3d;
   // Henning is built with the memorial (`befrielsen3d.ts`) and drawn there, so this stays empty.
   befrielsen: () => new THREE.Group(),
+  agustusan: pakBudiModel,
 };
 
 const TURN: Record<Facing, number> = { down: 0, right: Math.PI / 2, up: Math.PI, left: -Math.PI / 2 };
@@ -49,6 +51,8 @@ export class FestiveNpc3d {
     // Empty at first: the room's batching would hide and sleep an empty subtree for good, so it is marked live.
     // Built after the town is baked, and rebuilt as themes come and go: the bake must not put it to sleep.
     this.group.userData.live = true;
+    // Empty when the room is baked, it would be put to sleep (hidden, its matrices frozen) as a quiet group.
+    this.group.userData.noBake = true;
   }
 
   update(t: number): void {
