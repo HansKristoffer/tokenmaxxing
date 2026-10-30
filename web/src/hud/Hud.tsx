@@ -44,6 +44,7 @@ import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { DeskPanel } from "./OfficeDesks.tsx";
 import { DecorPanel, DirectoryPanel, OpenOfficesPanel } from "./Offices.tsx";
+import { PaaskeEggs } from "./Paaske.tsx";
 import { PamphletPanel } from "./Pamphlet.tsx";
 import { PaperPanel } from "./Paper.tsx";
 import { PicnicBanner } from "./Picnic.tsx";
@@ -144,6 +145,7 @@ export function Hud() {
       </div>
       <FestiveAccent />
       <HalloweenCandy />
+      <PaaskeEggs />
       <WhatsNewToast />
       <FpsMeter />
       <FirstVisit />

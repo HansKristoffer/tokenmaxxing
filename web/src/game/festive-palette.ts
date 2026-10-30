@@ -92,7 +92,8 @@ export function festiveGreeting(f: Festive): string {
           ? "🎆 Godt nytår i aften"
           : "🎆 Godt nytår";
     case "paaske":
-      return "🐣 Glædelig påske";
+      if (f.days < 0) return `🐣 ${plural(-f.days, "sleep")} to Easter: painted eggs are hidden in town`;
+      return f.days === 0 ? "🐣 Glædelig påske, Easter Sunday" : "🐣 Glædelig påske, Easter Monday";
     case "befrielsen":
       return f.days === 0 ? "🕯️ Lys i vinduerne i aften, 4. maj" : "🕊️ Glædelig befrielsesdag";
     case "agustusan":

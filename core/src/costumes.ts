@@ -55,6 +55,10 @@ export const COSTUMES: readonly Costume[] = [
   costume(55, "Nytårshat", 250, "newYear", "A gold-and-midnight party cone with a streamer pom-pom. Pop."),
   costume(56, "Midnight top hat", 450, "newYear", "Tall, black, with a clock face on the band. It always says five to twelve."),
   costume(57, "Kransekage hat", 350, "newYear", "Seven almond rings, stacked, a Dannebrog on top. Lift the top ring."),
+  // Påske (`festive.ts` theme "paaske"): indices 60-62 of the costume range are reserved for it.
+  costume(60, "Bunny ears", 300, "paaske", "Floppy white ears on a headband. Hops not included."),
+  costume(61, "Chick hat", 280, "paaske", "A fluffy yellow chick sits on your head. It has opinions."),
+  costume(62, "Påskelilje crown", 320, "paaske", "A ring of yellow narcissi, picked fresh on Palm Sunday."),
 ];
 
 /** The costume a look index stands for in a slot, if it is one. */

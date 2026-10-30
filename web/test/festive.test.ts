@@ -26,7 +26,7 @@ test("every theme has a greeting, a grade and a sky", () => {
       expect(text.length).toBeGreaterThan(4);
       expect(festiveGrade({ id, intensity: 0.7, days }, 0.5, 0.5).k).toBeGreaterThan(0);
     }
-  expect(festiveGreeting({ id: "paaske", intensity: 1, days: 0 })).toBe("🐣 Glædelig påske");
+  expect(festiveGreeting({ id: "paaske", intensity: 1, days: 0 })).toBe("🐣 Glædelig påske, Easter Sunday");
   expect(festiveGreeting({ id: "agustusan", intensity: 1, days: 0 })).toContain("Selamat Hari Kemerdekaan");
 });
 

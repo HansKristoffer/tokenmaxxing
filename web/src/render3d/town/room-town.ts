@@ -22,6 +22,7 @@ import { HalloweenTown3d } from "./halloween3d.ts";
 import { FallingLeaves } from "./leaves3d.ts";
 import { Midsommer3d } from "./midsommer3d.ts";
 import { Nytar3d } from "./nytar3d.ts";
+import { Paaske3d } from "./paaske3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
 import { StatueLayer } from "./statue3d.ts";
@@ -119,6 +120,11 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // New Year's Eve: the clock, the buffet and the party lights (`nytar3d.ts`).
   const nytar = new Nytar3d((tx, ty) => town.toWorld(tx, ty));
   group.add(nytar.group);
+  // Added after the room is batched, like the statue: what is built later must not be swept into the room's batches.
+  events.group.add(festiveNpc.group);
+  // Påske's flowers, bunting, props, eggs and lambs: built the first frame it is on.
+  const paaske = new Paaske3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  events.group.add(paaske.group);
   // J-dag's truck, on the road under the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
@@ -171,6 +177,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       halloween.update(f.t, f.me);
       christmas.update(f.t);
       nytar.update(f);
+      paaske.update(f.t);
       truck.update();
       barrel.update(f.t);
       bonfire.update(f.t);
@@ -191,6 +198,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     liveSigns: () => [
       ...truck.signs(),
       ...nytar.signs(),
+      ...paaske.signs(),
       ...barrel.signs(),
       ...(gateLive?.signs() ?? []),
       ...games.signs(),
@@ -204,6 +212,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       halloween.dispose();
       christmas.dispose();
       nytar.dispose();
+      paaske.dispose();
       statue.dispose();
       fireworks.dispose();
       events.dispose();

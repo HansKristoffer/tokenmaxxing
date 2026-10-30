@@ -7,6 +7,7 @@ import { CASE_GLASSES, CASE_HATS } from "./case.ts";
 import type { View } from "./characters.ts";
 import { HALLOWEEN_HATS } from "./halloween-hats.ts";
 import { MIDSOMMER_HAT_ART } from "./midsommer.ts";
+import { PAASKE_HATS } from "./paaske-hats.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
 
@@ -28,6 +29,7 @@ const o = C.ink;
 // Pixel art reads as a grid.
 // prettier-ignore
 const HATS: Record<string, Art> = {
+  ...PAASKE_HATS,
   // Prompt wizard hat: a starry cone, bent at the tip, on a wide brim.
   "hat.100": {
     down: ["........oo......", ".......opPo.....", "......opypPo....", ".....oppppyPo...", "..oBBBBBBBBBBBo."],

@@ -7,6 +7,7 @@ import { gerdaModel } from "./halloween3d-models.ts";
 import { knudModel } from "./christmas3d.ts";
 import { baltalerModel } from "./midsommer3d.ts";
 import { nytarNpcModel } from "./nytar3d.ts";
+import { gudrun3d } from "./paaske-npc3d.ts";
 
 /**
  * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here: it
@@ -22,6 +23,7 @@ export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {
 };
 export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {};
 NPC_MODELS.sanktHans = baltalerModel;
+NPC_MODELS.paaske = gudrun3d;
 
 const TURN: Record<Facing, number> = { down: 0, right: Math.PI / 2, up: Math.PI, left: -Math.PI / 2 };
 

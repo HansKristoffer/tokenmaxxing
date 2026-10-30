@@ -10,6 +10,7 @@ import { CHRISTMAS_NPC } from "./christmas.ts";
 import { daysFrom, HOLIDAYS, type HolidayId, minutesFrom, near } from "./holidays.ts";
 import { BALTALER } from "./midsommer.ts";
 import { NYTAR_NPC } from "./nytar.ts";
+import { PAASKE_FARMER } from "./paaske.ts";
 import { worldWall } from "./range.ts";
 import { copenhagenToMs } from "./sky.ts";
 import { GERDA } from "./spooky.ts";
@@ -207,7 +208,7 @@ export const FESTIVE_NPC: Record<FestiveId, FestiveNpc | null> = {
   christmas: CHRISTMAS_NPC,
   sanktHans: BALTALER,
   nytar: NYTAR_NPC,
-  paaske: null,
+  paaske: PAASKE_FARMER,
   befrielsen: null,
   agustusan: null,
 };
