@@ -45,6 +45,7 @@ export type Panel =
   | { kind: "julekalender" }
   | { kind: "bag"; tab?: "you" | "pet" | "things" }
   | { kind: "arcade" }
+  | { kind: "retro"; cabinet: number }
   | { kind: "newTable"; invite?: number; inviteName?: string; game?: GameId }
   | { kind: "match"; id: number }
   | { kind: "trade"; userId: number }

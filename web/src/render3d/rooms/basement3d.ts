@@ -56,10 +56,10 @@ export const CABINET_GAMES = ["spr", "hype", "dice", "sprint", "tokenmaxxing"] a
 export type CabinetGame = (typeof CABINET_GAMES)[number];
 /** Each game's marquee name and glow (2D: `CABINET_NAME`, `CABINET_GLOW`). */
 export const CABINET: Record<CabinetGame, { label: string; hex: string; rgb: string }> = {
-  spr: { label: "SPR", hex: "#ff5a5a", rgb: "255,90,90" },
-  hype: { label: "HYPE", hex: "#5ac8ff", rgb: "90,200,255" },
-  dice: { label: "DICE", hex: "#ffd65a", rgb: "255,214,90" },
-  sprint: { label: "SPRINT", hex: "#5affa0", rgb: "90,255,160" },
+  spr: { label: "TRAIL", hex: "#ff5a5a", rgb: "255,90,90" },
+  hype: { label: "STACK", hex: "#5ac8ff", rgb: "90,200,255" },
+  dice: { label: "CACHE", hex: "#ffd65a", rgb: "255,214,90" },
+  sprint: { label: "FIREWALL", hex: "#5affa0", rgb: "90,255,160" },
   tokenmaxxing: { label: "TOKEN", hex: "#c878ff", rgb: "200,120,255" },
 };
 

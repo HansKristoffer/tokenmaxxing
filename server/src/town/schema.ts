@@ -145,6 +145,9 @@ export async function migrate(sql: Sql): Promise<void> {
   // Sign-ups whose `player` didn't come up in time: the account went, but its actor may have been made
   // anyway, so the next sign-up taking its id would fail on it. Ids come after these too.
   await sql.execute("CREATE TABLE IF NOT EXISTS lost_signups (id INTEGER PRIMARY KEY, at INTEGER NOT NULL)");
+  await sql.execute(`CREATE TABLE IF NOT EXISTS retro_scores (
+    user_id INTEGER NOT NULL, game INTEGER NOT NULL, score INTEGER NOT NULL, level INTEGER NOT NULL, at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, game)) WITHOUT ROWID`);
   await migrateMerchant(sql);
   await migrateMarket(sql);
   await migrateAwards(sql);

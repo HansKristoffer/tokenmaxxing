@@ -283,6 +283,7 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
     "fishing_records",
     "fishing_treasures",
     "fishing_feats",
+    "retro_scores",
     "prestiges",
   ])
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
