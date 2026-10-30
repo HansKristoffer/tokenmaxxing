@@ -12,11 +12,11 @@ import { worldWall } from "./range.ts";
 // MARK: Where things stand (town tiles, all on grass; core/test/spooky.test.ts checks)
 
 /**
- * Gerda's tile: on the west lawn, two tiles off the road beside the square, so both cameras see her (the graveyard
- * itself hides behind the Tavern and the windmill in 3D). Open grass on every side, so she's in nobody's way.
- * Face her and press E.
+ * Gerda's tile: on the lawn below the pond, at the foot of the path down from the square, so both cameras see her
+ * (the graveyard itself hides behind the Tavern and the windmill in 3D). In the core, where no company can build
+ * a house over her. Open ground on every side, so she's in nobody's way. Face her and press E.
  */
-export const GERDA_TILE = { x: -3, y: 5 } as const;
+export const GERDA_TILE = { x: 7, y: 17 } as const;
 
 /** The cauldron on the grass in front of the Tavern, below its path. */
 export const CAULDRON = { x: 11, y: 17 } as const;
@@ -25,10 +25,10 @@ export type StoneKind = "round" | "cross" | "slab";
 
 /** Gerda's own little plot of stones beside her, for the models nobody has retired yet: scenery (a click-route may cross them). */
 export const EXTRA_STONES: readonly { x: number; y: number; kind: StoneKind; text: string }[] = [
-  { x: -6, y: 6, kind: "cross", text: "BRB" },
-  { x: -4, y: 6, kind: "round", text: "404" },
-  { x: -5, y: 7, kind: "slab", text: "TODO" },
-  { x: -7, y: 7, kind: "round", text: "RIP npm" },
+  { x: 4, y: 16, kind: "cross", text: "BRB" },
+  { x: 6, y: 16, kind: "round", text: "404" },
+  { x: 4, y: 17, kind: "slab", text: "TODO" },
+  { x: 5, y: 17, kind: "round", text: "RIP npm" },
 ];
 
 /** Whether Gerda or the cauldron stands on this tile: they block a step (the stones and sweets are scenery). */
@@ -57,7 +57,7 @@ export const HAUNTS: readonly Haunt[] = [
   // Outside the Tavern.
   { x: 9, y: 17.6, rx: 1.6, ry: 0.8, period: 19, phase: 4, size: 0.85, hue: "white" },
   // By Gerda's stones.
-  { x: -5.5, y: 5, rx: 1.5, ry: 1, period: 21, phase: 1, size: 0.75, hue: "white" },
+  { x: 5, y: 16.6, rx: 1.3, ry: 0.6, period: 21, phase: 1, size: 0.75, hue: "white" },
 ];
 
 /** Where a haunt's ghost is at `t` seconds (tiles), and how high it floats (tiles). */
@@ -75,7 +75,7 @@ const ROOSTS: readonly (readonly [number, number])[] = [
   [13.5, 13.5],
   [18.9, 16],
   [17, 11],
-  [-3.5, 4.5],
+  [6, 16.5],
 ];
 
 /** How many bats flap about at this build-up: 4 on the first evening, 8 at the peak. */
