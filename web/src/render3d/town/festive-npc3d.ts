@@ -6,6 +6,7 @@ import { disposeObject } from "../engine/dispose.ts";
 import { gerdaModel } from "./halloween3d-models.ts";
 import { knudModel } from "./christmas3d.ts";
 import { baltalerModel } from "./midsommer3d.ts";
+import { nytarNpcModel } from "./nytar3d.ts";
 
 /**
  * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here: it
@@ -41,6 +42,7 @@ export class FestiveNpc3d {
     // Empty at first, so the room's bake would put it to sleep (hidden, its matrices frozen): it must stay awake for its NPC.
     this.group.userData.noBake = true;
     // Empty at first: the room's batching would hide and sleep an empty subtree for good, so it is marked live.
+    // Built after the town is baked, and rebuilt as themes come and go: the bake must not put it to sleep.
     this.group.userData.live = true;
   }
 
@@ -81,3 +83,5 @@ export class FestiveNpc3d {
     this.clear();
   }
 }
+
+NPC_MODELS.nytar = nytarNpcModel;

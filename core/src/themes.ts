@@ -2,6 +2,7 @@ import { CHRISTMAS_TAVERN, CHRISTMAS_TOWN } from "./christmas-music.ts";
 import type { FestiveId } from "./festive.ts";
 import { HALLOWEEN_TAVERN, HALLOWEEN_TOWN } from "./halloween-music.ts";
 import { MIDSOMMER_TAVERN, MIDSOMMER_TOWN } from "./midsommer-music.ts";
+import { NYTAR_TAVERN, NYTAR_TOWN } from "./nytar-music.ts";
 import type { Tune } from "./tunes.ts";
 import type { RoomId } from "./world.ts";
 
@@ -110,3 +111,5 @@ export const FESTIVE_THEMES: Partial<Record<FestiveId, Partial<Record<FestiveRoo
 export const FESTIVE_THEMES: Partial<Record<FestiveId, Partial<Record<FestiveRoomTheme, Theme>>>> = {};
 
 FESTIVE_THEMES.sanktHans = { town: MIDSOMMER_TOWN, tavern: MIDSOMMER_TAVERN };
+// Nytårsaften (`nytar-music.ts`).
+FESTIVE_THEMES.nytar = { town: NYTAR_TOWN, tavern: NYTAR_TAVERN };

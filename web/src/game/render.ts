@@ -84,6 +84,7 @@ import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
 import { drawMidsommer, lightMidsommer } from "./midsommer.ts";
 import { LABEL_FAR } from "./near.ts";
+import { drawNytar, lightNytar } from "./nytar.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
@@ -400,6 +401,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawBasement(f);
   drawMerchant(f);
   drawFestiveNpc(f);
+  drawNytar(f);
   drawRaid(f);
   drawLoot(f);
 
@@ -506,6 +508,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       drawLights(g, lamps, windows, glow, lampDim());
       lightPumpkins(g, glow, now);
       lightChristmas(g, glow, now);
+      lightNytar(g, glow, now);
       lightTruck(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }

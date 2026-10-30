@@ -21,6 +21,7 @@ import { Graveyard3D } from "./graveyard3d.ts";
 import { HalloweenTown3d } from "./halloween3d.ts";
 import { FallingLeaves } from "./leaves3d.ts";
 import { Midsommer3d } from "./midsommer3d.ts";
+import { Nytar3d } from "./nytar3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
 import { StatueLayer } from "./statue3d.ts";
@@ -115,6 +116,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // Halloween's spooky night: bats, ghosts, cobwebs, the cauldron, the lawn stones, mist (`core/src/spooky.ts`).
   const halloween = new HalloweenTown3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(halloween.group);
+  // New Year's Eve: the clock, the buffet and the party lights (`nytar3d.ts`).
+  const nytar = new Nytar3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(nytar.group);
   // J-dag's truck, on the road under the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
@@ -166,6 +170,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       festiveNpc.update(f.t);
       halloween.update(f.t, f.me);
       christmas.update(f.t);
+      nytar.update(f);
       truck.update();
       barrel.update(f.t);
       bonfire.update(f.t);
@@ -185,6 +190,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     signs,
     liveSigns: () => [
       ...truck.signs(),
+      ...nytar.signs(),
       ...barrel.signs(),
       ...(gateLive?.signs() ?? []),
       ...games.signs(),
@@ -197,6 +203,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       festiveNpc.dispose();
       halloween.dispose();
       christmas.dispose();
+      nytar.dispose();
       statue.dispose();
       fireworks.dispose();
       events.dispose();

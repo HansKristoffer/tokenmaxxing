@@ -51,6 +51,10 @@ export const COSTUMES: readonly Costume[] = [
   costume(50, "Midsommerkrans", 220, "sanktHans", "Birch leaves, cornflowers and a red ribbon. Smells of cut grass and woodsmoke."),
   costume(51, "Heksehat", 300, "sanktHans", "A black pointed hat with a straw band. For the one who flies to Bloksbjerg."),
   costume(52, "Strå-hat", 180, "sanktHans", "A straw hat with a little Dannebrog on the band. Made for the longest evening."),
+  // Nytårsaften (`nytar.ts`): indices 55 to 59 are New Year's.
+  costume(55, "Nytårshat", 250, "newYear", "A gold-and-midnight party cone with a streamer pom-pom. Pop."),
+  costume(56, "Midnight top hat", 450, "newYear", "Tall, black, with a clock face on the band. It always says five to twelve."),
+  costume(57, "Kransekage hat", 350, "newYear", "Seven almond rings, stacked, a Dannebrog on top. Lift the top ring."),
 ];
 
 /** The costume a look index stands for in a slot, if it is one. */

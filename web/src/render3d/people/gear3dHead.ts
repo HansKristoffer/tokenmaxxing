@@ -1002,6 +1002,39 @@ export const HAT_BUILDERS: Record<string, Build> = {
       m.ball(0.03, "#3a1f2a", [x, y, z], [1, 0.5, 1], 6);
     m.box([0.06, 0.26, 0.03], see("#ffffff", 0.45), [-0.03, 0.52, 0.0], 0.006).rotation.z = 0.2;
     m.box([0.05, 0.22, 0.03], see("#ffffff", 0.35), [0.07, 0.6, 0.02], 0.006).rotation.z = -0.25;
+  // New Year's (`core/src/costumes.ts`, `nytar.ts`): a midnight-blue party cone with gold bands and streamers.
+  Nytårshat: (m) => {
+    party(m, { a: "#26356b", b: "#f4c95d", pom: "#fbf7ef" });
+    for (const [i, c] of ["#ff5d73", "#5ee0ff", "#f4c95d"].entries()) {
+      const a = (i / 3) * Math.PI * 2 + 0.6;
+      const [x, z] = roundAt(m, a, 0.06);
+      const r = m.box([0.02, 0.2, 0.012], c, [x, 0.46, z], 0.004);
+      r.rotation.set(Math.cos(a) * 0.7, 0, -Math.sin(a) * 0.7);
+    }
+  },
+  // The Midnight top hat: tall and black, a clock face on the band that always says almost twelve, and a sparkler.
+  "Midnight top hat": (m, c) => {
+    brim(m, "#1c1a2a", 0.3, 0.14, 0.03);
+    m.cyl(0.17, 0.36, "#1c1a2a", [0, 0.16, 0], 0.165, 20);
+    m.cyl(0.173, 0.06, "#f4c95d", [0, 0.17, 0], 0.173, 20);
+    const face = m.cyl(0.055, 0.02, lit("#fff3cf"), [0, 0.2, 0.17], 0.055, 14);
+    face.rotation.x = Math.PI / 2;
+    m.box([0.008, 0.045, 0.01], "#1c1a2a", [0, 0.2, 0.182], 0.002);
+    m.box([0.008, 0.03, 0.01], "#1c1a2a", [0.013, 0.205, 0.182], 0.002).rotation.z = 0.9;
+    m.cyl(0.006, 0.12, "#c9971f", [0.06, 0.5, 0], 0.006, 5);
+    const spark = m.ball(0.025, lit("#ffe9a0"), [0.06, 0.64, 0]);
+    c.tick((t) => spark.scale.setScalar(0.8 + 0.5 * Math.abs(Math.sin(t * 9))));
+  },
+  // The Kransekage hat: a tower of almond rings, smallest on top, a Dannebrog at the peak.
+  "Kransekage hat": (m) => {
+    for (let i = 0; i < 7; i++) {
+      const r = 0.22 - i * 0.022;
+      m.cyl(r, 0.07, i % 2 ? "#e6d09c" : "#f3e2bd", [0, 0.04 + (6 - i) * 0.066, 0], r * 0.96, 14);
+    }
+    m.cyl(0.006, 0.18, "#8c5c36", [0, 0.5, 0], 0.006, 5);
+    m.box([0.12, 0.08, 0.01], "#d8283a", [0.065, 0.6, 0], 0.003);
+    m.box([0.12, 0.014, 0.012], "#fbf7ef", [0.065, 0.636, 0], 0.002);
+    m.box([0.014, 0.08, 0.012], "#fbf7ef", [0.035, 0.6, 0], 0.002);
   },
   "429 bucket hat": (m) => {
     m.cyl(0.215, 0.17, "#4fb3a9", [0, 0.07, 0], 0.2, 18);
@@ -1795,4 +1828,7 @@ export const COVERS_HAIR = new Set([
   "Midsommerkrans",
   "Heksehat",
   "Strå-hat",
+  "Nytårshat",
+  "Midnight top hat",
+  "Kransekage hat",
 ]);
