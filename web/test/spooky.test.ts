@@ -71,7 +71,8 @@ beforeEach(() => {
   Object.assign(world, { room: "town", map });
   graphics.override("seasonal", undefined);
   kept.clear();
-  hud.set({ dialog: null });
+  opened.clear();
+  hud.set({ dialog: null, panel: null });
 });
 afterEach(() => setSystemTime());
 
@@ -138,7 +139,7 @@ test("knocking: a door gives once a day, the candy counts, a new day opens it ag
   expect(await knockAt(door)).toBe(true);
   expect(hud.get().dialog).toContain("already");
   expect(bucket().candy).toBe(candy);
-  expect(storage.getItem(`halloween:2026-10-31:${doorKey(door.door)}`)).not.toBeNull();
+  expect(storage.getItem(`halloween:server:2026-10-31:${doorKey(door.door)}`)).not.toBeNull();
   // The next day (the 1st: not Halloween any more, but the doorstep key moves with the day).
   setSystemTime(new Date("2026-10-30T11:00:00Z"));
   expect(bucket().doors).toBe(0);
@@ -149,8 +150,13 @@ test("knocking: a door gives once a day, the candy counts, a new day opens it ag
 test("the Tavern's step knocks once, then lets E read its paper", async () => {
   setSystemTime(NIGHT);
   const inn = doorSteps(map).find((s) => map.at(s.door[0], s.door[1]) === "I")!;
+  // A knock saved before server tracking must not prevent the server from counting this door.
+  storage.setItem(`halloween:2026-10-31:${doorKey(inn.door)}`, "1");
   expect(await knockAt(inn)).toBe(true);
-  expect(await knockAt(inn)).toBe(false);
+  expect(hud.get().dialog).toContain("🎃");
+  expect(bucket().doors).toBe(1);
+  expect(await knockAt(inn)).toBe(true);
+  expect(hud.get().panel).toEqual({ kind: "paper" });
 });
 
 test("the cauldron answers with a new line each stir; a plain tile with none", () => {
