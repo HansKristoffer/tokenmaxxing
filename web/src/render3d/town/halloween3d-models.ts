@@ -108,7 +108,7 @@ export interface GhostRig {
   mats: THREE.Material[];
 }
 
-/** A ghost: a see-through sheet with a wavy hem, two dark eyes and an "oooh". `scale` makes a baby one. */
+/** A ghost, blocky like the rest: a see-through sheet with a stepped hem, two dark eyes and an "oooh". `scale` makes a baby one. */
 export function ghostModel(hue: "white" | "blue", scale: number): GhostRig {
   const root = new Model();
   root.userData.live = true;
@@ -120,16 +120,17 @@ export function ghostModel(hue: "white" | "blue", scale: number): GhostRig {
     depthWrite: false,
   });
   const dark = new THREE.MeshBasicMaterial({ color: "#1b1f2a", transparent: true, opacity: 0.85 });
-  root.ball(0.28, sheet, [0, 0.72, 0], [1, 1.25, 1], 14);
-  root.cyl(0.29, 0.4, sheet, [0, 0.3, 0], 0.3, 14);
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    root.ball(0.09, sheet, [Math.cos(a) * 0.24, 0.12, Math.sin(a) * 0.24], [1, 1.3, 1], 7);
-  }
-  for (const s of [-1, 1]) root.ball(0.07, sheet, [s * 0.32, 0.65, 0.08], [1, 0.6, 1], 7);
-  root.ball(0.2, inner, [0, 0.75, 0], [1, 1.25, 1], 10);
-  for (const s of [-1, 1]) root.ball(0.04, dark, [s * 0.1, 0.8, 0.25], [1, 1.5, 0.5], 6);
-  root.ball(0.055, dark, [0, 0.62, 0.26], [1, 1.4, 0.5], 6);
+  // Stacked blocks: a cap, the head and body, a wider skirt, and a checkerboard of teeth for the hem.
+  root.box([0.36, 0.08, 0.36], sheet, [0, 0.98, 0], 0.015);
+  root.box([0.52, 0.56, 0.5], sheet, [0, 0.42, 0], 0.015);
+  root.box([0.58, 0.2, 0.54], sheet, [0, 0.22, 0], 0.015);
+  for (const x of [-1, 0, 1])
+    for (const z of [-1, 0, 1])
+      if ((x + z) % 2 === 0) root.box([0.16, 0.14, 0.16], sheet, [x * 0.21, 0.08, z * 0.19], 0.01);
+  for (const s of [-1, 1]) root.box([0.12, 0.14, 0.14], sheet, [s * 0.33, 0.55, 0.08], 0.015);
+  root.box([0.38, 0.4, 0.36], inner, [0, 0.5, 0], 0.01);
+  for (const s of [-1, 1]) root.box([0.07, 0.11, 0.02], dark, [s * 0.1, 0.74, 0.25], 0.004);
+  root.box([0.09, 0.12, 0.02], dark, [0, 0.54, 0.25], 0.004);
   root.scale.setScalar(scale);
   return { root, mats: [sheet, inner, dark] };
 }
