@@ -1,9 +1,10 @@
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { characterFrame } from "./characters.ts";
-import type { Art } from "./editions.ts";
 import type { NpcSprite } from "./festive-npc.ts";
 import { C } from "./palette.ts";
 import { DANNEBROG } from "./midsommer-hats.ts";
+
+const o = C.ink;
 import { bake, cached, once } from "./pixels.ts";
 
 /**
@@ -11,10 +12,7 @@ import { bake, cached, once } from "./pixels.ts";
  * blanket, the door wreath, the straw heks on her broom, the three hats and the båltaler. All drawn in code.
  */
 
-
 // MARK: Hats
-
-
 
 // MARK: Scenery
 

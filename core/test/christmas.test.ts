@@ -159,7 +159,11 @@ test("three Christmas hats, in the season's own index range, sold from the 10th 
   // Nobody else's index is in the reserved range, and no two share one.
   const indexes = COSTUMES.map((c) => c.index);
   expect(new Set(indexes).size).toBe(indexes.length);
-  expect(COSTUMES.filter((c) => c.holiday !== "christmas" && c.index >= COSTUME_BASE + 40 && c.index < COSTUME_BASE + 50)).toHaveLength(0);
+  expect(
+    COSTUMES.filter(
+      (c) => c.holiday !== "christmas" && c.index >= COSTUME_BASE + 40 && c.index < COSTUME_BASE + 50,
+    ),
+  ).toHaveLength(0);
 });
 
 test("the theme pins say christmas", () => {

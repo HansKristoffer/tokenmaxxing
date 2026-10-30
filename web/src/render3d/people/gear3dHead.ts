@@ -1882,4 +1882,5 @@ export const COVERS_HAIR = new Set([
   "Veteran's flat cap",
   "Peci hitam",
   "Ikat kepala merah putih",
+  "Window candle",
 ]);
