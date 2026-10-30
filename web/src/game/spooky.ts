@@ -63,7 +63,8 @@ export interface Bucket {
   version: number;
 }
 
-const knockKey = (day: string, door: string): string => `halloween:${day}:${door}`;
+// Keep server-confirmed knocks separate from the old browser-only trick-or-treat progress.
+const knockKey = (day: string, door: string): string => `halloween:server:${day}:${door}`;
 
 /** The bucket now. */
 export function bucket(): Bucket {
@@ -105,15 +106,15 @@ export function spookyInteract(x: number, y: number, facing: Facing): boolean {
   const step = doorSteps(world.map).find((d) => d.x === x && d.y === y);
   if (!step) return false;
   const day = dayKey(skyNow());
-  // The Tavern's step is also where its paper lies: once knocked, E reads the paper.
-  if (storage.getItem(knockKey(day, doorKey(step.door))) && world.map.at(step.door[0], step.door[1]) === "I")
-    return false;
+  // The paper shares the Tavern step. Ask the server first: old local progress cannot prove this door counted.
+  const tavern = world.map.at(step.door[0], step.door[1]) === "I";
   void conn
     .knock(facing)
     .then((r) => {
       if (!r) return;
       if ("notice" in r) return void hud.set({ dialog: r.notice });
       knocked(r, day);
+      if (tavern && r.treat === null) hud.set({ dialog: null, panel: { kind: "paper" } });
     })
     .catch(() => hud.set({ dialog: "🎃 Nobody heard you. Try again." }));
   return true;
