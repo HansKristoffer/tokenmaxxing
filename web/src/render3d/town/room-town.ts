@@ -18,6 +18,7 @@ import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
 import { Graveyard3D } from "./graveyard3d.ts";
 import { FallingLeaves } from "./leaves3d.ts";
+import { Nytar3d } from "./nytar3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
 import { StatueLayer } from "./statue3d.ts";
@@ -106,6 +107,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // The festive theme's named NPC, there while its theme is (`FESTIVE_NPC`).
   const festiveNpc = new FestiveNpc3d((tx, ty) => town.toWorld(tx, ty));
   group.add(festiveNpc.group);
+  // New Year's Eve: the clock, the buffet and the party lights (`nytar3d.ts`).
+  const nytar = new Nytar3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(nytar.group);
   // J-dag's truck, on the road under the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
@@ -152,6 +156,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       markers.update(f.me, f.t);
       pumpkins.update(f.now);
       festiveNpc.update(f.t);
+      nytar.update(f);
       truck.update();
       barrel.update(f.t);
       bonfire.update(f.t);
@@ -170,6 +175,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     signs,
     liveSigns: () => [
       ...truck.signs(),
+      ...nytar.signs(),
       ...barrel.signs(),
       ...(gateLive?.signs() ?? []),
       ...games.signs(),
@@ -179,6 +185,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     dispose() {
       markers.dispose();
       festiveNpc.dispose();
+      nytar.dispose();
       statue.dispose();
       fireworks.dispose();
       events.dispose();

@@ -40,6 +40,10 @@ export const COSTUMES: readonly Costume[] = [
   costume(0, "Jack-o'-lantern", 350, "halloween", "Carved, lit and grinning. Smells faintly of candle."),
   // Never sold: it goes to whoever breaks the fastelavn barrel (`fastelavn.ts`), and stays theirs.
   { ...costume(1, "Kattekonge crown", 0, "fastelavn", "Broke the barrel, freed the cat. King for a year."), tradeable: false, rarity: "legendary", earned: "Break the fastelavn barrel" },
+  // Nytårsaften (`nytar.ts`): indices 55 to 59 are New Year's.
+  costume(55, "Nytårshat", 250, "newYear", "A gold-and-midnight party cone with a streamer pom-pom. Pop."),
+  costume(56, "Midnight top hat", 450, "newYear", "Tall, black, with a clock face on the band. It always says five to twelve."),
+  costume(57, "Kransekage hat", 350, "newYear", "Seven almond rings, stacked, a Dannebrog on top. Lift the top ring."),
 ];
 
 /** The costume a look index stands for in a slot, if it is one. */

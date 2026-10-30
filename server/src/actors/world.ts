@@ -45,6 +45,7 @@ import { CROWD, type Keynote, keynoteTalk, liveKeynote, sameKeynotes } from "@to
 import { activeLaunches, isStand, type Launch, sameLaunches } from "@tokenmaxxing/core/launch.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import { setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
+import { isNytarProp } from "@tokenmaxxing/core/nytar-props.ts";
 import {
   assignSlots,
   canFlip,
@@ -1953,6 +1954,7 @@ const onProp = (s: WorldState, v: Pick<Vars, "launches" | "graves">, x: number, 
   isTruck(x, y, Date.now()) ||
   isBarrel(x, y, Date.now()) ||
   isBonfire(x, y, Date.now()) ||
+  isNytarProp(x, y, Date.now()) ||
   (isStand(x, y) && activeLaunches(Date.now(), v.launches).length > 0) ||
   stoneAt(v.graves, x, y) !== undefined ||
   Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));

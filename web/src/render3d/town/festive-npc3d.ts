@@ -3,6 +3,7 @@ import type { Facing } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { festiveNow } from "../../game/festive.ts";
 import { disposeObject } from "../engine/dispose.ts";
+import { nytarNpcModel } from "./nytar3d.ts";
 
 /**
  * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here: it
@@ -28,6 +29,8 @@ export class FestiveNpc3d {
   constructor(private readonly toWorld: (tx: number, ty: number) => [number, number]) {
     this.group.name = "festive-npc";
     this.group.userData.nobatch = true;
+    // Built after the town is baked, and rebuilt as themes come and go: the bake must not put it to sleep.
+    this.group.userData.live = true;
   }
 
   update(t: number): void {
@@ -67,3 +70,5 @@ export class FestiveNpc3d {
     this.clear();
   }
 }
+
+NPC_MODELS.nytar = nytarNpcModel;

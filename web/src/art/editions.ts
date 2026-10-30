@@ -119,6 +119,21 @@ const HATS: Record<string, Art> = {
     side: ["....Y...Y...Y...", "....YY.YYY.YY...", "....oYYYYYYYYo..", "....oYYkkYYrYo..", "....oyyyyyyyyo.."],
     pal: { o, Y: "#f5c842", y: "#c9971f", r: "#e8584f", k: o },
   },
+  // New Year's (`core/src/nytar.ts`). Nytårshat: a midnight-blue party cone with gold bands and a white pom-pom.
+  "hat.255": {
+    down: [".......ww.......", "......onno......", ".....onGGno.....", "....onGGGGno....", "...oooooooooo..."],
+    pal: { o, n: "#26356b", G: "#f4c95d", w: "#fbf7ef" },
+  },
+  // Midnight top hat: tall and black, a gold band with a clock face, a spark above.
+  "hat.256": {
+    down: [".........y......", "....oooooooo....", "....okkkkkko....", "....oGGwwGGo....", "..oooooooooooo.."],
+    pal: { o, k: "#1c1a2a", G: "#f4c95d", w: "#fff3cf", y: "#ffe9a0" },
+  },
+  // Kransekage hat: almond rings stacked into a tower, a Dannebrog on top.
+  "hat.257": {
+    down: ["......rrw.......", "......occo......", ".....occlco.....", "....occlcclco...", "...oooooooooo..."],
+    pal: { o, c: "#f3e2bd", l: "#fff6dc", r: "#d8283a", w: "#fbf7ef" },
+  },
 };
 
 // Pixel art reads as a grid.

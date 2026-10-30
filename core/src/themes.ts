@@ -1,4 +1,5 @@
 import type { FestiveId } from "./festive.ts";
+import { NYTAR_TAVERN, NYTAR_TOWN } from "./nytar-music.ts";
 import type { Tune } from "./tunes.ts";
 import type { RoomId } from "./world.ts";
 
@@ -101,3 +102,6 @@ export const festiveTheme = (festive: FestiveId | null | undefined, base: BaseTh
  * or a room it doesn't list, plays the usual tune.
  */
 export const FESTIVE_THEMES: Partial<Record<FestiveId, Partial<Record<FestiveRoomTheme, Theme>>>> = {};
+
+// Nytårsaften (`nytar-music.ts`).
+FESTIVE_THEMES.nytar = { town: NYTAR_TOWN, tavern: NYTAR_TAVERN };

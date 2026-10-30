@@ -1,5 +1,6 @@
 import type { FestiveId } from "@tokenmaxxing/core/festive.ts";
 import type { Facing } from "@tokenmaxxing/core/world.ts";
+import { nytarNpcSprite } from "./nytar.ts";
 
 /**
  * The 2D sprites of the festive NPCs (`FESTIVE_NPC` in `core/src/festive.ts`). A theme's agent adds its entry here:
@@ -9,3 +10,5 @@ import type { Facing } from "@tokenmaxxing/core/world.ts";
 export type NpcSprite = (facing: Facing, breath: 0 | 1) => HTMLCanvasElement;
 
 export const NPC_SPRITES: Partial<Record<FestiveId, NpcSprite>> = {};
+
+NPC_SPRITES.nytar = nytarNpcSprite;

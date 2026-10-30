@@ -43,6 +43,7 @@ import { chipHits, signHits } from "./labels.ts";
 import { blocksLaunch, launchInteract } from "./launch.ts";
 import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
+import { nytarBlocks, nytarInteract } from "./nytar.ts";
 import { picnicSeat } from "./picnic.ts";
 import { seated, sit, standUp } from "./raidseat.ts";
 import { blocksBonfire, bonfireInteract } from "./sankthans.ts";
@@ -415,7 +416,8 @@ export function updateSelf(now: number): void {
       blocksTruck(step.x, step.y) ||
       blocksBarrel(step.x, step.y) ||
       blocksBonfire(step.x, step.y) ||
-      blocksGrave(step.x, step.y))
+      blocksGrave(step.x, step.y) ||
+      nytarBlocks(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;
   if (target.kind === "blocked") {
@@ -524,6 +526,7 @@ function interact(): void {
   if (keynoteInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();
   if (festiveNpcAt(x, y)) return void talkToFestiveNpc();
+  if (nytarInteract(x, y)) return;
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
