@@ -82,6 +82,7 @@ import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
 import { LABEL_FAR } from "./near.ts";
+import { drawPaaske } from "./paaske.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
@@ -396,6 +397,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawBasement(f);
   drawMerchant(f);
   drawFestiveNpc(f);
+  drawPaaske(f);
   drawRaid(f);
   drawLoot(f);
 

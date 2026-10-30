@@ -36,6 +36,7 @@ describe("room themes", () => {
 
   test("a festive track replaces its room's tune while the theme is on, and only then", () => {
     const track = { ...THEMES.find((t) => t.id === "town")!, id: "festive-paaske-town" as const };
+    const registered = FESTIVE_THEMES.paaske;
     FESTIVE_THEMES.paaske = { town: track };
     try {
       expect(themeOf("town", "paaske")).toBe(track);
@@ -45,7 +46,7 @@ describe("room themes", () => {
       expect(themeOf("inn", "paaske").id).toBe("tavern");
       expect(themeOf("dungeon", "paaske").id).toBe("raid");
     } finally {
-      delete FESTIVE_THEMES.paaske;
+      FESTIVE_THEMES.paaske = registered;
     }
   });
 });

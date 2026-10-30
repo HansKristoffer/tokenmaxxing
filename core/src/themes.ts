@@ -1,4 +1,5 @@
 import type { FestiveId } from "./festive.ts";
+import { PAASKE_TAVERN, PAASKE_TOWN } from "./paaske-music.ts";
 import type { Tune } from "./tunes.ts";
 import type { RoomId } from "./world.ts";
 
@@ -101,3 +102,5 @@ export const festiveTheme = (festive: FestiveId | null | undefined, base: BaseTh
  * or a room it doesn't list, plays the usual tune.
  */
 export const FESTIVE_THEMES: Partial<Record<FestiveId, Partial<Record<FestiveRoomTheme, Theme>>>> = {};
+
+FESTIVE_THEMES.paaske = { town: PAASKE_TOWN, tavern: PAASKE_TAVERN };

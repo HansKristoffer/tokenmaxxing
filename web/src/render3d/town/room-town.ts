@@ -18,6 +18,7 @@ import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
 import { Graveyard3D } from "./graveyard3d.ts";
 import { FallingLeaves } from "./leaves3d.ts";
+import { Paaske3d } from "./paaske3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
 import { StatueLayer } from "./statue3d.ts";
@@ -105,7 +106,11 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   group.add(pumpkins.group);
   // The festive theme's named NPC, there while its theme is (`FESTIVE_NPC`).
   const festiveNpc = new FestiveNpc3d((tx, ty) => town.toWorld(tx, ty));
-  group.add(festiveNpc.group);
+  // Added after the room is batched, like the statue: what is built later must not be swept into the room's batches.
+  events.group.add(festiveNpc.group);
+  // Påske's flowers, bunting, props, eggs and lambs: built the first frame it is on.
+  const paaske = new Paaske3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  events.group.add(paaske.group);
   // J-dag's truck, on the road under the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
@@ -152,6 +157,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       markers.update(f.me, f.t);
       pumpkins.update(f.now);
       festiveNpc.update(f.t);
+      paaske.update(f.t);
       truck.update();
       barrel.update(f.t);
       bonfire.update(f.t);
@@ -170,6 +176,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     signs,
     liveSigns: () => [
       ...truck.signs(),
+      ...paaske.signs(),
       ...barrel.signs(),
       ...(gateLive?.signs() ?? []),
       ...games.signs(),
@@ -179,6 +186,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     dispose() {
       markers.dispose();
       festiveNpc.dispose();
+      paaske.dispose();
       statue.dispose();
       fireworks.dispose();
       events.dispose();

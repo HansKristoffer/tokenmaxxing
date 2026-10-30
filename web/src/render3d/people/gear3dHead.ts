@@ -9,6 +9,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { glow, type Model, type Paint, tint, toon } from "../kit/kit.ts";
+import { PAASKE_HAT_BUILDERS } from "./paaske-hats3d.ts";
 import {
   boxBand,
   boxRing,
@@ -563,6 +564,7 @@ const letters = (
 
 // biome-ignore format: a catalogue reads best one to a line
 export const HAT_BUILDERS: Record<string, Build> = {
+  ...PAASKE_HAT_BUILDERS,
   Beanie: (m) => {
     m.ball(0.275, "#e25d5d", [0, 0.05, -0.01], [1, 0.75, 1]);
     m.cyl(0.275, 0.08, "#b8443f", [0, 0.02, -0.01], 0.275, 18);
@@ -1721,4 +1723,7 @@ export const COVERS_HAIR = new Set([
   "Straw kasa",
   "Fox half-mask",
   "Kattekonge crown",
+  "Chick hat",
+  "Bunny ears",
+  "Påskelilje crown",
 ]);

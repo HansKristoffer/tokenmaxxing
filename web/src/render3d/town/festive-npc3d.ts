@@ -3,6 +3,7 @@ import type { Facing } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { festiveNow } from "../../game/festive.ts";
 import { disposeObject } from "../engine/dispose.ts";
+import { gudrun3d } from "./paaske-npc3d.ts";
 
 /**
  * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here: it
@@ -13,6 +14,7 @@ import { disposeObject } from "../engine/dispose.ts";
 export type NpcModel = (npc: FestiveNpc) => THREE.Object3D;
 
 export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {};
+NPC_MODELS.paaske = gudrun3d;
 
 const TURN: Record<Facing, number> = { down: 0, right: Math.PI / 2, up: Math.PI, left: -Math.PI / 2 };
 
