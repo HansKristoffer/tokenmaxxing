@@ -6,6 +6,7 @@ import type { Look } from "@tokenmaxxing/core/world.ts";
 import { CASE_GLASSES, CASE_HATS } from "./case.ts";
 import type { View } from "./characters.ts";
 import { HALLOWEEN_HATS } from "./halloween-hats.ts";
+import { MIDSOMMER_HAT_ART } from "./midsommer.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
 
@@ -140,6 +141,7 @@ const HATS: Record<string, Art> = {
     side: ["......s..s......", ".....s..s.......", "...oooooooo.....", "..orrrrrrrro....", "..orrwrwrrro.oo.", "..orrrwrrrro.o..", "..orrwrwrrrooo..", "...oooooooo....."],
     pal: { o, r: "#b3262e", w: "#fbf7ef", s: "#d8dde6" },
   },
+  ...MIDSOMMER_HAT_ART,
 };
 
 // Pixel art reads as a grid.

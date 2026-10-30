@@ -9,6 +9,7 @@ import { FIRE_AT, fireSprite, PILE_PX, pileSprite } from "../art/sankthans.ts";
 import { hud } from "../store.ts";
 import { type Frame, inView } from "./frame.ts";
 import { drawGlow, flicker } from "./glow.ts";
+import { sendHeks } from "./midsommer.ts";
 import { skyNow } from "./sky.ts";
 import { world } from "./world.ts";
 
@@ -52,6 +53,6 @@ export const blocksBonfire = (x: number, y: number): boolean =>
 export function bonfireInteract(x: number, y: number): boolean {
   const state = bonfireNow();
   if (!state || !isBonfire(x, y, skyNow())) return false;
-  hud.set({ dialog: bonfireSays(state) });
+  hud.set({ dialog: sendHeks(state) ?? bonfireSays(state) });
   return true;
 }

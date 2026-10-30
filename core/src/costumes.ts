@@ -48,6 +48,9 @@ export const COSTUMES: readonly Costume[] = [
   costume(40, "Santa hat", 300, "christmas", "Red, a white pompom, and a flat refusal to ship on the 24th."),
   costume(41, "Reindeer antlers", 350, "christmas", "Rudolph-class latency, with a very red nose for the demo."),
   costume(42, "Gløgg mug hat", 380, "christmas", "Warm, spiced and almost never spilt. Raisins included."),
+  costume(50, "Midsommerkrans", 220, "sanktHans", "Birch leaves, cornflowers and a red ribbon. Smells of cut grass and woodsmoke."),
+  costume(51, "Heksehat", 300, "sanktHans", "A black pointed hat with a straw band. For the one who flies to Bloksbjerg."),
+  costume(52, "Strå-hat", 180, "sanktHans", "A straw hat with a little Dannebrog on the band. Made for the longest evening."),
 ];
 
 /** The costume a look index stands for in a slot, if it is one. */

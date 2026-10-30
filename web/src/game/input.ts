@@ -419,7 +419,8 @@ export function updateSelf(now: number): void {
       blocksBonfire(step.x, step.y) ||
       blocksGrave(step.x, step.y) ||
       blocksSpooky(step.x, step.y) ||
-      blocksChristmas(step.x, step.y))
+      blocksChristmas(step.x, step.y) ||
+      festiveNpcAt(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;
   if (target.kind === "blocked") {

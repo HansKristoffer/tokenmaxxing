@@ -20,6 +20,7 @@ import { GamesLayer } from "./games3d.ts";
 import { Graveyard3D } from "./graveyard3d.ts";
 import { HalloweenTown3d } from "./halloween3d.ts";
 import { FallingLeaves } from "./leaves3d.ts";
+import { Midsommer3d } from "./midsommer3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
 import { StatueLayer } from "./statue3d.ts";
@@ -123,6 +124,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // The Sankt Hans bonfire, in front of the Tavern on 23 June.
   const bonfire = new Bonfire3d((tx, ty) => town.toWorld(tx, ty));
   group.add(bonfire.group);
+  // The Sankt Hans theme's flags, blankets, wreaths and glow-worms, there while its theme is.
+  const midsommer = new Midsommer3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(midsommer.group);
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
@@ -165,6 +169,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       truck.update();
       barrel.update(f.t);
       bonfire.update(f.t);
+      midsommer.update(f.t, f.now);
       events.update(f);
       graveyard.update(f.now);
       statue.update(f);

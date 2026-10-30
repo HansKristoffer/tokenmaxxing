@@ -5,6 +5,7 @@ import { festiveNow } from "../../game/festive.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { gerdaModel } from "./halloween3d-models.ts";
 import { knudModel } from "./christmas3d.ts";
+import { baltalerModel } from "./midsommer3d.ts";
 
 /**
  * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here: it
@@ -18,6 +19,8 @@ export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {
   halloween: gerdaModel,
   christmas: knudModel,
 };
+export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {};
+NPC_MODELS.sanktHans = baltalerModel;
 
 const TURN: Record<Facing, number> = { down: 0, right: Math.PI / 2, up: Math.PI, left: -Math.PI / 2 };
 
@@ -37,6 +40,8 @@ export class FestiveNpc3d {
     this.group.userData.nobatch = true;
     // Empty at first, so the room's bake would put it to sleep (hidden, its matrices frozen): it must stay awake for its NPC.
     this.group.userData.noBake = true;
+    // Empty at first: the room's batching would hide and sleep an empty subtree for good, so it is marked live.
+    this.group.userData.live = true;
   }
 
   update(t: number): void {

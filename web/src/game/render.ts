@@ -82,6 +82,7 @@ import { drawLeaves } from "./leaves.ts";
 import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMerchant } from "./merchant.ts";
+import { drawMidsommer, lightMidsommer } from "./midsommer.ts";
 import { LABEL_FAR } from "./near.ts";
 import { followPet, prunePets } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
@@ -390,6 +391,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawTruck(f);
   drawBarrel(f);
   drawBonfire(f);
+  drawMidsommer(f);
   drawChalkboards(f);
   drawClocks(f);
   drawTavern(f);
@@ -510,6 +512,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     // The Sankt Hans bonfire is lit in the June dusk, before the lamps come on.
     g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
     lightBonfire(g, glow, now);
+    lightMidsommer(g, glow, now);
     g.setTransform(1, 0, 0, 1, 0, 0);
     drawNightSky(g, w, h, dpr, now);
     drawWeather(g, w, h, dpr, now);

@@ -8,6 +8,7 @@
  */
 import { CHRISTMAS_NPC } from "./christmas.ts";
 import { daysFrom, HOLIDAYS, type HolidayId, minutesFrom, near } from "./holidays.ts";
+import { BALTALER } from "./midsommer.ts";
 import { worldWall } from "./range.ts";
 import { copenhagenToMs } from "./sky.ts";
 import { GERDA } from "./spooky.ts";
@@ -203,7 +204,7 @@ export interface FestiveNpc {
 export const FESTIVE_NPC: Record<FestiveId, FestiveNpc | null> = {
   halloween: GERDA,
   christmas: CHRISTMAS_NPC,
-  sanktHans: null,
+  sanktHans: BALTALER,
   nytar: null,
   paaske: null,
   befrielsen: null,
