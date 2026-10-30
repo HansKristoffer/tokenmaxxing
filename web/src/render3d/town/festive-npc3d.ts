@@ -24,6 +24,9 @@ export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {
 export const NPC_MODELS: Partial<Record<FestiveId, NpcModel>> = {};
 NPC_MODELS.sanktHans = baltalerModel;
 NPC_MODELS.paaske = gudrun3d;
+  // Henning is built with the memorial (`befrielsen3d.ts`) and drawn there, so this stays empty.
+  befrielsen: () => new THREE.Group(),
+};
 
 const TURN: Record<Facing, number> = { down: 0, right: Math.PI / 2, up: Math.PI, left: -Math.PI / 2 };
 
@@ -54,6 +57,8 @@ export class FestiveNpc3d {
     const id = f?.id;
     if (this.shown && (this.shown.id !== id || this.shown.npc !== npc)) this.clear();
     if (!this.shown && id && npc) this.build(id, npc);
+    // The room hides what it did not build itself: a built NPC shows its own group.
+    this.group.visible = this.shown !== null;
     const root = this.shown?.root;
     (root?.userData.tick as ((t: number) => void) | undefined)?.(t);
   }
@@ -62,6 +67,7 @@ export class FestiveNpc3d {
     const make = NPC_MODELS[id];
     if (!make) return;
     const root = make(npc);
+    
     const [x, z] = this.toWorld(npc.x, npc.y);
     root.position.set(x, 0, z);
     root.rotation.y = TURN[npc.facing];

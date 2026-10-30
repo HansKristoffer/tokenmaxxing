@@ -59,6 +59,8 @@ export const COSTUMES: readonly Costume[] = [
   costume(60, "Bunny ears", 300, "paaske", "Floppy white ears on a headband. Hops not included."),
   costume(61, "Chick hat", 280, "paaske", "A fluffy yellow chick sits on your head. It has opinions."),
   costume(62, "Påskelilje crown", 320, "paaske", "A ring of yellow narcissi, picked fresh on Palm Sunday."),
+  costume(65, "Veteran's flat cap", 250, "befrielsen", "A grey wool flat cap, worn soft. A closed mouth comes with it."),
+  costume(66, "Window candle", 300, "befrielsen", "A candle on a saucer, lit on the 4th of May. Lys i vinduet."),
 ];
 
 /** The costume a look index stands for in a slot, if it is one. */

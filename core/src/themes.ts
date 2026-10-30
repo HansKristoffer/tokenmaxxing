@@ -1,4 +1,5 @@
 import { CHRISTMAS_TAVERN, CHRISTMAS_TOWN } from "./christmas-music.ts";
+import { BEFRIELSEN_TAVERN, BEFRIELSEN_TOWN } from "./befrielsen-music.ts";
 import type { FestiveId } from "./festive.ts";
 import { HALLOWEEN_TAVERN, HALLOWEEN_TOWN } from "./halloween-music.ts";
 import { MIDSOMMER_TAVERN, MIDSOMMER_TOWN } from "./midsommer-music.ts";
@@ -115,3 +116,5 @@ FESTIVE_THEMES.sanktHans = { town: MIDSOMMER_TOWN, tavern: MIDSOMMER_TAVERN };
 // Nytårsaften (`nytar-music.ts`).
 FESTIVE_THEMES.nytar = { town: NYTAR_TOWN, tavern: NYTAR_TAVERN };
 FESTIVE_THEMES.paaske = { town: PAASKE_TOWN, tavern: PAASKE_TAVERN };
+  befrielsen: { town: BEFRIELSEN_TOWN, tavern: BEFRIELSEN_TAVERN },
+};
