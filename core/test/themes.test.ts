@@ -43,7 +43,7 @@ describe("room themes", () => {
       expect(festiveTheme("paaske", "town")).toBe(track);
       expect(themeOf("town", null).id).toBe("town");
       expect(themeOf("town", "nonesuch" as never).id).toBe("town");
-      expect(themeOf("inn", "paaske").id).toBe("tavern");
+      expect(themeOf("inn", "paaske", Date.UTC(2026, 9, 28, 10)).id).toBe("tavern");
       expect(themeOf("dungeon", "paaske").id).toBe("raid");
     } finally {
       FESTIVE_THEMES.paaske = registered;
