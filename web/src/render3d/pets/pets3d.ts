@@ -333,6 +333,7 @@ export class Pet3D {
       const g = gear(this.wear, r);
       if (g) {
         g.group.position.set(...(PETWEAR[this.wear - 1]?.at === "top" ? r.top : r.neck));
+        g.group.name = "petwear";
         r.head.add(g.group);
         this.wornGroup = g.group;
         this.spin = g.spin;

@@ -22,6 +22,7 @@ import * as THREE from "three";
 import { withItem } from "../../hud/lookOps.ts";
 import { hud } from "../../store.ts";
 import { disposeObject } from "../engine/dispose.ts";
+import { wornFocus } from "../icon-key.ts";
 import type { IconSpec } from "../icons.ts";
 import type { LiveFrame } from "../rooms/rooms.ts";
 
@@ -100,14 +101,14 @@ export function iconOf(item: Item): IconSpec | null {
     case "pet":
       return { kind: "pet", pet: item.index, variant: 0 };
     case "petwear":
-      return { kind: "pet", pet: 1, wear: item.index };
+      return { kind: "pet", pet: 1, wear: item.index, focus: "head" };
     case "furniture":
       return { kind: "piece", ch: item.id.slice(5) };
     default:
       return {
         kind: "avatar",
         look: withItem(item, BARE_LOOK, true),
-        focus: item.slot === "hat" || item.slot === "glasses" ? "head" : "body",
+        focus: wornFocus(item),
         facing: item.slot === "back" ? "back" : "front",
       };
   }

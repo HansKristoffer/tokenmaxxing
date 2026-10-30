@@ -38,10 +38,17 @@ import { view } from "./perf/freeze.ts";
 import { petFrom2D } from "./pets/pets3d.ts";
 import { assetOfChar, flat } from "./rooms/room-furnished.ts";
 
+/**
+ * What of a dressed character the camera frames: the whole of them (`body`), or the part an item is worn on, so
+ * the item fills the picture: the head (a hat, glasses), the torso (a shirt) or the back; a held item on its own.
+ */
+export type AvatarFocus = "body" | "head" | "torso" | "held" | "back";
+
 export type IconSpec =
   | { kind: "piece"; ch: string }
-  | { kind: "pet"; pet: number; variant?: number; name?: string; wear?: number }
-  | { kind: "avatar"; look: Look2D; focus?: "head" | "body"; facing?: "front" | "back" }
+  /** `focus: "head"` frames the pet's head and the gear on it. */
+  | { kind: "pet"; pet: number; variant?: number; name?: string; wear?: number; focus?: "head" }
+  | { kind: "avatar"; look: Look2D; focus?: AvatarFocus; facing?: "front" | "back" }
   | { kind: "merch"; company: MerchCompany; merch: MerchKind }
   | { kind: "trophy"; id: string; earned?: boolean }
   | { kind: "desk"; tier: number }
@@ -54,8 +61,9 @@ export type IconSize = 64 | 128;
 
 interface Built {
   root: THREE.Object3D;
-  /** What the camera frames (the whole model by default). */
+  /** What the camera frames (the whole model by default), less what is under `skip`. */
   focus?: THREE.Object3D;
+  skip?: THREE.Object3D;
   dispose: () => void;
 }
 
@@ -74,6 +82,7 @@ const TO_CAMERA = Math.PI / 4;
 function build(s: IconSpec): Built {
   const root = new THREE.Group();
   let focus: THREE.Object3D | undefined;
+  let skip: THREE.Object3D | undefined;
   let dispose = () => {};
   switch (s.kind) {
     case "piece": {
@@ -95,6 +104,8 @@ function build(s: IconSpec): Built {
       view.sees = sees;
       p.root.rotation.y = TO_CAMERA * 0.5;
       root.add(p.root);
+      // The gear hangs on the head: the head with it.
+      if (s.focus === "head") focus = p.root.getObjectByName("petwear")?.parent ?? undefined;
       dispose = () => p.dispose();
       break;
     }
@@ -103,6 +114,19 @@ function build(s: IconSpec): Built {
       a.root.rotation.y = s.facing === "back" ? Math.PI + TO_CAMERA * 0.4 : 0;
       root.add(a.root);
       if (s.focus === "head") focus = a.head;
+      // The chest carries the arms and the head: the torso is the chest without the head.
+      else if (s.focus === "torso") [focus, skip] = [a.arms[0].parent ?? undefined, a.head];
+      else if (s.focus === "back") focus = a.root.getObjectByName("back");
+      else if (s.focus === "held") {
+        // A thing held is the picture on its own, as it sits in the hand (the wearer is hidden, not dropped,
+        // so it is disposed with the rest).
+        const held = a.root.getObjectByName("held");
+        if (held) {
+          root.updateMatrixWorld(true);
+          root.attach(held);
+          a.root.visible = false;
+        }
+      }
       dispose = () => a.dispose();
       break;
     }
@@ -131,7 +155,27 @@ function build(s: IconSpec): Built {
     if ((o as THREE.Light).isLight) lights.push(o);
   });
   for (const l of lights) l.removeFromParent();
-  return { root, focus, dispose };
+  return { root, focus, skip, dispose };
+}
+
+const part = new THREE.Box3();
+
+/**
+ * The box round what shows of `o`, leaving out everything under `skip`. What is hidden (a pet's sleeping z's, a
+ * glow that only lights up later) would leave the model small in a frame made for it.
+ */
+function shownBox(o: THREE.Object3D, skip: THREE.Object3D | undefined, into: THREE.Box3): THREE.Box3 {
+  if (o === skip || !o.visible) return into;
+  const m = o as THREE.InstancedMesh;
+  if (m.isInstancedMesh) {
+    if (!m.boundingBox) m.computeBoundingBox();
+    if (m.boundingBox) into.union(part.copy(m.boundingBox).applyMatrix4(o.matrixWorld));
+  } else if (m.geometry) {
+    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+    if (m.geometry.boundingBox) into.union(part.copy(m.geometry.boundingBox).applyMatrix4(o.matrixWorld));
+  }
+  for (const c of o.children) shownBox(c, skip, into);
+  return into;
 }
 
 // MARK: The renderer
@@ -139,6 +183,7 @@ function build(s: IconSpec): Built {
 const ELEVATION = Math.atan(0.5);
 const DISTANCE = 20;
 const PAD = 1.12;
+const PART_PAD = 1.3;
 const HEMI_SKY = new THREE.Color("#b9d6ff");
 const HEMI_GROUND = new THREE.Color("#b89a78");
 const SUN_WARM = new THREE.Color("#ffd9a8");
@@ -204,15 +249,24 @@ class IconRenderer {
     this.ground.visible = shadow;
   }
 
-  /** Frames `focus` (or the whole model): the camera on the game's iso angle, the frustum snug round it. */
-  aim(root: THREE.Object3D, focus: THREE.Object3D, pad = PAD): void {
-    this.aimAt(this.measure(root, focus), pad);
+  /**
+   * Frames `focus` (or the whole model): the camera on the game's iso angle, the frustum snug round it. A part of
+   * the model gets a little more room, and its shadow falls on the model's floor, out of the picture.
+   */
+  aim(root: THREE.Object3D, focus: THREE.Object3D, skip?: THREE.Object3D): void {
+    const floor = this.measure(root, root).min.y;
+    if (focus === root) {
+      this.aimAt(this.box, PAD);
+      return;
+    }
+    this.aimAt(this.measure(root, focus, this.box, skip), PART_PAD);
+    this.ground.position.y = floor;
   }
 
-  /** The box round `focus` (a unit cube for an empty model): what `aimAt` frames. */
-  measure(root: THREE.Object3D, focus: THREE.Object3D, into = this.box): THREE.Box3 {
+  /** The box round what shows of `focus`, less `skip` (a unit cube for an empty model): what `aimAt` frames. */
+  measure(root: THREE.Object3D, focus: THREE.Object3D, into = this.box, skip?: THREE.Object3D): THREE.Box3 {
     root.updateMatrixWorld(true);
-    const box = into.setFromObject(focus);
+    const box = shownBox(focus, skip, into.makeEmpty());
     if (box.isEmpty()) box.set(new THREE.Vector3(-0.5, 0, -0.5), new THREE.Vector3(0.5, 1, 0.5));
     return box;
   }
@@ -279,7 +333,7 @@ class IconRenderer {
       setSmoothBands(voxel);
       if (voxel) blockify(built.root);
       this.light(voxel, shadow);
-      this.aim(built.root, built.focus ?? built.root);
+      this.aim(built.root, built.focus ?? built.root, built.skip);
       renderer.setSize(px, px, false);
       renderer.render(scene, this.camera);
       const out = document.createElement("canvas");
