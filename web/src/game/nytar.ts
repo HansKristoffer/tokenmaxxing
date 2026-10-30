@@ -155,16 +155,19 @@ export function nytarTick(now: number): void {
   if (now === lastTick) return;
   lastTick = now;
   const c = confetti;
+  const remove = (i: number) => {
+    // Swap with the last alive one.
+    const j = --c.n;
+    if (i !== j) {
+      for (const k of [c.x, c.y, c.h, c.vx, c.vy, c.vh, c.age, c.life, c.phase]) k[i] = k[j]!;
+      c.colour[i] = c.colour[j]!;
+    }
+  };
   // Fall: a flutter, slowing to a drift; sideways with a little sway.
   for (let i = c.n - 1; i >= 0; i--) {
     c.age[i]! += dt;
     if (c.age[i]! >= c.life[i]! || c.h[i]! < 0) {
-      // Swap with the last alive one.
-      const j = --c.n;
-      if (i !== j) {
-        for (const k of [c.x, c.y, c.h, c.vx, c.vy, c.vh, c.age, c.life, c.phase]) k[i] = k[j]!;
-        c.colour[i] = c.colour[j]!;
-      }
+      remove(i);
       continue;
     }
     c.vh[i]! = Math.max(-0.9, c.vh[i]! - 9 * dt);
@@ -174,6 +177,7 @@ export function nytarTick(now: number): void {
     c.x[i]! += (c.vx[i]! + Math.sin(c.age[i]! * 3 + c.phase[i]!) * 0.25) * dt;
     c.y[i]! += c.vy[i]! * dt;
     c.h[i]! += c.vh[i]! * dt;
+    if (c.h[i]! < 0) remove(i);
   }
   if (!nytarOn()) {
     c.n = 0;

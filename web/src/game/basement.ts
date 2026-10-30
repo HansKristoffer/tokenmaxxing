@@ -211,10 +211,10 @@ function screenBracket(
 
 /** What each cabinet's label says, by game (the cabinets are in `CABINET_GAMES` order). */
 const CABINET_NAME: Record<(typeof CABINET_GAMES)[number], string> = {
-  spr: "SPR",
-  hype: "HYPE",
-  dice: "DICE",
-  sprint: "SPRINT",
+  spr: "TRAIL",
+  hype: "STACK",
+  dice: "CACHE",
+  sprint: "FIREWALL",
   tokenmaxxing: "TOKEN",
 };
 
@@ -345,6 +345,10 @@ export function basementInteract(x: number, y: number): boolean {
     const i = world.map.find("C").findIndex(([cx, cy]) => cx === x && cy === y);
     const game = CABINET_GAMES[i];
     if (!game) return false;
+    if (i < 4) {
+      hud.set({ panel: { kind: "retro", cabinet: i } });
+      return true;
+    }
     // Already at a table or in a match: the lobby, where yours is. Otherwise this game's table.
     const lobby = hud.get().lobby;
     const busy =

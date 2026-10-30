@@ -60,6 +60,7 @@ import { Quests } from "./Quests.tsx";
 import { RaidBox, RaidPanel, RaidToast } from "./Raid.tsx";
 import { Regulars } from "./Regulars.tsx";
 import { Requests } from "./Requests.tsx";
+import { Retro } from "./Retro.tsx";
 import { RoomsBox } from "./RoomsBox.tsx";
 import { RoulettePanel } from "./Roulette.tsx";
 import { Shop } from "./Shop.tsx";
@@ -431,6 +432,7 @@ function Panel() {
     julekalender: () => <Julekalender />,
     bag: (p) => <Bag tab={p.tab} />,
     arcade: () => <ArcadePanel />,
+    retro: (p) => <Retro cabinet={p.cabinet} />,
     newTable: (p) => <NewTable invite={p.invite} inviteName={p.inviteName} game={p.game} />,
     match: (p) => <MatchPanel id={p.id} />,
     trade: (p) => <TradePanel userId={p.userId} />,

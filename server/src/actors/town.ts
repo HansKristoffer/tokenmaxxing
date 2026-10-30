@@ -193,6 +193,7 @@ import { myBadge, prestigeView, takeNextPrestige } from "../town/prestige.ts";
 import { freezeDays, questBoard, questEvent } from "../town/quests.ts";
 import { type Raid, raid, raidHistory, raidStart } from "../town/raid.ts";
 import * as requests from "../town/requests.ts";
+import { type RetroScore, recordRetro, retroBoard } from "../town/retro.ts";
 import { rouletteBet, rouletteRefund, rouletteResolve } from "../town/roulette.ts";
 import { migrate } from "../town/schema.ts";
 import { paperFacts } from "../town/street.ts";
@@ -1680,6 +1681,16 @@ export const town = actor({
     ): Promise<void> => {
       requireInternal(c.conn.state);
       await recordMatch(c.db, matchId, game, stake, players, Date.now());
+    },
+
+    retroScore: async (c, game: unknown, score: unknown, level: unknown): Promise<RetroScore[]> => {
+      const userId = requireUser(c.conn.state);
+      await recordRetro(c.db, userId, game, score, level, Date.now());
+      return retroBoard(c.db, game);
+    },
+    retroBoard: (c, game: unknown): Promise<RetroScore[]> => {
+      requireUser(c.conn.state);
+      return retroBoard(c.db, game);
     },
 
     gameBoard: (c, rawRange: unknown): Promise<GamePlayer[]> => {
