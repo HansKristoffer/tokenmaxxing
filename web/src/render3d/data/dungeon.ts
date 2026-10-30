@@ -3,7 +3,11 @@
  * and core/src/{raid,loot,editions,trophies,badges,rarity}.ts. Pixel grids are kept as they are, so the 3D models can extrude them.
  */
 // biome-ignore-all format: pixel art reads as a grid
+
+import { TIER_COLOR } from "@tokenmaxxing/core/rarity.ts";
+import { TROPHIES } from "@tokenmaxxing/core/trophies.ts";
 import { C } from "../../art/palette.ts";
+import { TROPHY_ART } from "../../art/trophy-art.ts";
 export type Palette = Record<string, string>;
 export type View = "down" | "side" | "up";
 export interface Art {
@@ -95,32 +99,32 @@ export const LOOT_HATS: { rows: Record<View, string[]>; pal: Palette }[] = [
     },
     pal: { o: C.ink, b: "#e0584f", w: C.white },
   },
-  // Citation Needed crown: silver, with a blue [?] on its band.
+  // Mirage Crown: the Hallucination’s purple swirls, watchful eyes and golden stars.
   {
     rows: {
       down: [
-        "....s..ss..s....",
-        "....ss.ss.ss....",
-        "....ssssssss....",
-        "....sbsbbsbs....",
-        "....SSSSSSSS....",
+        "..g.v..gg..v.g..",
+        "....vv.pp.vv....",
+        "...vwwvppvwwv...",
+        "...vwkvppvwkv...",
+        "...ddddggdddd...",
       ],
       side: [
-        "....s..ss..s....",
-        "....ss.ss.ss....",
-        "....ssssssss....",
-        "....sbsbbsbs....",
-        "....SSSSSSSS....",
+        "..g.v..gg..v.g..",
+        "....vv.pp.vv....",
+        "...vvvppwwvvv...",
+        "...vvvwpkwvvv...",
+        "...ddddggdddd...",
       ],
       up: [
-        "....s..ss..s....",
-        "....ss.ss.ss....",
-        "....ssssssss....",
-        "....ssssssss....",
-        "....SSSSSSSS....",
+        "..g.v......v.g..",
+        "....vv.vv.vv....",
+        "...vvvvvvvvvv...",
+        "...vpvvpvvvpv...",
+        "...ddddggdddd...",
       ],
     },
-    pal: { s: "#e8eef5", S: "#9aa7b8", b: "#3366cc" },
+    pal: { v: "#9b6fd6", p: "#d9c2f5", d: "#4a2a73", g: "#ffd35c", w: "#fffdf6", k: C.ink },
   },
   // Paid in Full crown: gold, with a green band and a white tick on it.
   {
@@ -635,103 +639,7 @@ export const EDITION_GLASSES: Record<string, Art> = {
     pal: { m: "#5d6470", r: "#e0584f", R: "#ffb3a8" },
   },
 };
-const GOLD = { a: C.flowerYellow, b: "#c98e22", w: "#fff4b8" };
-const SILVER = { a: "#d5dbe4", b: C.metalLight, w: C.white };
-const PLINTH = { k: C.wallTop, K: C.wallTopLight };
-export const TROPHY_ART: Record<string, { rows: string[]; pal: Palette }> = {
-  million: {
-    rows: ["aaaaaaa", "a.waa.b", ".awaab.", "..aab..", "...b...", "..aab..", ".KKKKK.", ".kkkkk."],
-    pal: { ...SILVER, ...PLINTH },
-  },
-  billion: {
-    rows: ["a..a..a", "aa.a.aa", "awaaaab", "arabgab", "bbbbbbb", ".......", ".KKKKK.", ".kkkkk."],
-    pal: { ...GOLD, r: C.flowerRed, g: "#3ddc84", ...PLINTH },
-  },
-  streak: {
-    rows: ["...a...", "..aa...", "..aab..", ".aabba.", ".abccb.", ".abccb.", "..bbb..", ".kkkkk."],
-    pal: { a: C.flowerRed, b: "#f28a3c", c: C.flowerYellow, k: C.wallTop },
-  },
-  "3am": {
-    rows: ["..aaa..", ".aa..w.", "aa.....", "aa..w..", ".aa....", "..aaa..", ".KKKKK.", ".kkkkk."],
-    pal: { a: C.lamp, w: C.white, K: "#52609b", k: "#2f3a6b" },
-  },
-  friday: {
-    rows: ["....r..", "...wy..", "..ss...", ".sssss.", "ssswsss", "sswssss", ".sssss.", "..sss.."],
-    pal: { s: "#3c4454", w: C.metalLight, r: C.flowerRed, y: C.flowerYellow },
-  },
-  newyear: {
-    rows: ["a..w..c", ".a.w.c.", "..www..", "www.www", "..www..", ".c.w.a.", "c..w..a", "......."],
-    pal: { a: C.flowerYellow, c: "#f28bb2", w: C.white },
-  },
-  holiday: {
-    rows: ["...y...", "...g...", "..ggg..", "..grg..", ".gyggg.", "ggggrgg", "...t...", ".KKKKK."],
-    pal: { y: C.flowerYellow, g: C.leaf, r: C.flowerRed, t: C.trunk, K: C.rug },
-  },
-  zeros: {
-    rows: [".......", "aaa.aaa", "a.a.a.a", "a.a.a.a", "a.a.a.a", "aaa.aaa", ".KKKKK.", ".kkkkk."],
-    pal: { a: "#3ddc84", K: "#1f2a24", k: "#11181a" },
-  },
-  deadbeef: {
-    rows: ["a.....a", "aa...aa", ".bbbbb.", ".bkbkb.", ".bbbbb.", "..bkb..", ".KKKKK.", ".kkkkk."],
-    pal: { a: C.pathDark, b: C.pillow, ...PLINTH, k: C.ink },
-  },
-  c0ffee: {
-    rows: [".w.w...", "..w.w..", "aaaaa..", "abbbaaa", "abbba.a", "abbbaaa", ".aaa...", "kkkkkk."],
-    pal: { a: C.white, b: C.trunkDark, w: C.stoneLight, k: C.woodDark },
-  },
-  earlybird: {
-    rows: [".......", "..aa...", ".aaka..", ".aaaao.", "baaaa..", ".aaaa..", "..o.o..", ".kkkkk."],
-    pal: { a: C.flowerYellow, b: "#c98e22", k: C.leafDark, o: "#f28a3c" },
-  },
-  midnight: {
-    rows: ["...y...", "...o...", "..www..", "..wwv..", "..wwv..", "..wwv..", ".KKKKK.", ".kkkkk."],
-    pal: { y: C.lamp, o: "#f28a3c", w: C.pillow, v: C.wallDark, ...PLINTH },
-  },
-  allday: {
-    rows: [".aaaaa.", "awwkwwa", "awwkwwa", "awwkkwa", "awwwwwa", ".aaaaa.", "..KKK..", ".kkkkk."],
-    pal: { a: C.fabric, w: C.white, k: C.ink, K: C.fabricDark },
-  },
-  weekend: {
-    rows: ["..rrr..", ".rwrwr.", "rwrwrwr", "...t...", "...t...", "...t...", "sssssss", ".SSSSS."],
-    pal: { r: C.flowerRed, w: C.white, t: C.metal, s: C.path, S: C.pathDark },
-  },
-  palindate: {
-    rows: [".k...k.", "rrrrrrr", "wwwwwww", "wkw.wkw", "ww.k.ww", "wkw.wkw", "wwwwwww", ".kkkkk."],
-    pal: { r: C.rug, w: C.white, k: C.ink },
-  },
-  palintotal: {
-    rows: ["aaaaaaa", ".bsssb.", "..bsb..", "...s...", "..b.b..", ".bsssb.", "aaaaaaa", ".kkkkk."],
-    pal: { a: "#9b6fd6", b: C.stoneLight, s: C.path, k: "#5b3fbf" },
-  },
-  round: {
-    rows: [".......", ".aaaaa.", "awayaca", "ay...aa", "aacawya", ".bbbbb.", "..KKK..", ".kkkkk."],
-    pal: { a: "#f28bb2", b: C.woodLight, w: C.white, y: C.flowerYellow, c: C.water, ...PLINTH },
-  },
-  jackpot: {
-    rows: ["rrrrrr.", "....rr.", "...rr..", "...rr..", "..rr...", "..rr...", ".KKKKK.", ".kkkkk."],
-    pal: { r: C.flowerRed, ...GOLD, K: GOLD.a, k: GOLD.b },
-  },
-  leet: {
-    rows: ["kkkkkkk", "k.....k", "kg....k", "k.g...k", "kg.gg.k", "kkkkkkk", "..kkk..", ".kkkkk."],
-    pal: { k: "#2c3142", g: "#3ddc84", ".": "#1b1f2b" },
-  },
-  piday: {
-    rows: [".......", "...w...", ".aaaaa.", "abababa", "rrrrrrr", ".bbbbb.", "..KKK..", ".kkkkk."],
-    pal: { a: C.pathLight, b: C.woodLight, r: C.rug, w: C.white, ...PLINTH },
-  },
-  switch: {
-    rows: ["..a.a..", "..a.a..", ".bbbbb.", ".bbwbb.", "..bbb..", "...c...", ".KKKKK.", ".kkkkk."],
-    pal: { a: C.metalLight, b: "#4fa8ff", w: C.white, c: C.ink, ...PLINTH },
-  },
-  perfectweek: {
-    rows: ["r.....r", "rrrrrrr", "wgwgwgw", "wwwwwww", "wgwgwgw", "wwwwwww", ".KKKKK.", ".kkkkk."],
-    pal: { r: C.flowerRed, w: C.white, g: "#3ddc84", ...PLINTH },
-  },
-  storm: {
-    rows: [".www...", "wwwwww.", "vwwwwwv", ".vvvv..", "..yy...", ".yy....", "..yy...", "...y..."],
-    pal: { w: C.stoneLight, v: C.stone, y: C.flowerYellow },
-  },
-};
+export { TROPHY_ART };
 export const DUNGEON_BOSSES = [
   {
     id: "rate-limit",
@@ -936,10 +844,10 @@ export const LOOT_TABLE = [
     id: "hat.31",
     slot: "hat",
     index: 31,
-    name: "Citation Needed crown",
+    name: "Mirage Crown",
     boss: "hallucination",
     rarity: "legendary",
-    blurb: "[citation needed]",
+    blurb: "The Hallucination's impossible light, captured in a crown.",
   },
   {
     id: "glasses.24",
@@ -1180,123 +1088,7 @@ export const EDITION_LIST = [
     supply: 10,
   },
 ] as const;
-export const TROPHY_DEFS = [
-  {
-    id: "million",
-    name: "Millionaire",
-    how: "Burn 1M tokens in one day",
-  },
-  {
-    id: "billion",
-    name: "Billionaire",
-    how: "Burn 1B tokens in one day",
-  },
-  {
-    id: "streak",
-    name: "Seven-Day Streak",
-    how: "Tokens seven days in a row",
-  },
-  {
-    id: "3am",
-    name: "3 AM PR",
-    how: "Open a PR between 3 and 4 AM (Aarhus)",
-  },
-  {
-    id: "friday",
-    name: "Friday Deploy",
-    how: "Open a PR on a Friday after 5 PM",
-  },
-  {
-    id: "newyear",
-    name: "New Year, New PR",
-    how: "Open a PR on 1 January",
-  },
-  {
-    id: "holiday",
-    name: "Holiday Shipper",
-    how: "Open a PR on 24, 25 or 26 December",
-  },
-  {
-    id: "zeros",
-    name: "Leading Zeros",
-    how: "A PR whose hash starts with 00",
-  },
-  {
-    id: "deadbeef",
-    name: "Dead Beef",
-    how: "A PR whose hash has dead or beef in it",
-  },
-  {
-    id: "c0ffee",
-    name: "C0FFEE",
-    how: "A PR whose hash has c0ffee in it",
-  },
-  {
-    id: "earlybird",
-    name: "Early Bird",
-    how: "Burn tokens between 5 and 6 AM",
-  },
-  {
-    id: "midnight",
-    name: "Midnight Oil",
-    how: "Burn tokens in every hour from midnight to 5 AM",
-  },
-  {
-    id: "allday",
-    name: "Round the Clock",
-    how: "Burn tokens in all 24 hours of one day",
-  },
-  {
-    id: "weekend",
-    name: "Weekend Warrior",
-    how: "Burn tokens on a Saturday or Sunday",
-  },
-  {
-    id: "palindate",
-    name: "Palindrome Day",
-    how: "Burn tokens on a date that reads the same backwards (6/20/26)",
-  },
-  {
-    id: "palintotal",
-    name: "Palindrome Total",
-    how: "Finish a day on a palindrome total (12,344,321 tokens)",
-  },
-  {
-    id: "round",
-    name: "Round Number",
-    how: "Finish a day on a total ending in 000",
-  },
-  {
-    id: "jackpot",
-    name: "Jackpot",
-    how: "Finish a day on a total ending in 777",
-  },
-  {
-    id: "leet",
-    name: "1337",
-    how: "Finish a day on a total with 1337 in it",
-  },
-  {
-    id: "piday",
-    name: "Pi Day",
-    how: "Burn tokens on 14 March",
-  },
-  {
-    id: "storm",
-    name: "Prompt Storm",
-    how: "Send 60 prompts in one hour",
-  },
-  {
-    id: "switch",
-    name: "Switch-Hitter",
-    how: "Use three different tools in one day",
-  },
-  {
-    id: "perfectweek",
-    name: "Perfect Week",
-    how: "Tokens on all seven days, Monday to Sunday",
-  },
-] as const;
+export const TROPHY_DEFS = TROPHIES.map(({ id, name, how }) => ({ id, name, how }));
 export const BADGE_DEFS = [
   {
     id: "streak",
@@ -1706,9 +1498,4 @@ export const BADGE_DEFS = [
     ],
   },
 ] as const;
-export const TIER_COLORS = {
-  bronze: "#c98a4b",
-  silver: "#d5dbe4",
-  gold: "#ffd75e",
-  diamond: "#7fe8ff",
-} as const;
+export const TIER_COLORS = TIER_COLOR;

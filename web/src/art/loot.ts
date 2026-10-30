@@ -44,14 +44,14 @@ export const LOOT_HATS: { rows: Record<View, string[]>; pal: Palette }[] = [
     },
     pal: { o: C.ink, b: "#e0584f", w: C.white },
   },
-  // Citation Needed crown: silver, with a blue [?] on its band.
+  // Mirage Crown: the Hallucination’s purple swirls, watchful eyes and golden stars.
   {
     rows: {
-      down: ["....s..ss..s....", "....ss.ss.ss....", "....ssssssss....", "....sbsbbsbs....", "....SSSSSSSS...."],
-      side: ["....s..ss..s....", "....ss.ss.ss....", "....ssssssss....", "....sbsbbsbs....", "....SSSSSSSS...."],
-      up: ["....s..ss..s....", "....ss.ss.ss....", "....ssssssss....", "....ssssssss....", "....SSSSSSSS...."],
+      down: ["..g.v..gg..v.g..", "....vv.pp.vv....", "...vwwvppvwwv...", "...vwkvppvwkv...", "...ddddggdddd..."],
+      side: ["..g.v..gg..v.g..", "....vv.pp.vv....", "...vvvppwwvvv...", "...vvvwpkwvvv...", "...ddddggdddd..."],
+      up: ["..g.v......v.g..", "....vv.vv.vv....", "...vvvvvvvvvv...", "...vpvvpvvvpv...", "...ddddggdddd..."],
     },
-    pal: { s: "#e8eef5", S: "#9aa7b8", b: "#3366cc" },
+    pal: { v: "#9b6fd6", p: "#d9c2f5", d: "#4a2a73", g: "#ffd35c", w: "#fffdf6", k: C.ink },
   },
   // Paid in Full crown: gold, with a green band and a white tick on it.
   {

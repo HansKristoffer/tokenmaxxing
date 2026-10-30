@@ -6,9 +6,12 @@ import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
 import type { Keynote } from "@tokenmaxxing/core/keynote.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
+import type { Listing, Sale } from "@tokenmaxxing/core/market.ts";
 import { parsePhoneCode } from "@tokenmaxxing/core/pairing.ts";
+import type { PetAct } from "@tokenmaxxing/core/pets.ts";
 import type { Outage } from "@tokenmaxxing/core/picnic.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
+import type { PrestigeView } from "@tokenmaxxing/core/prestige-run.ts";
 import type { RouletteState } from "@tokenmaxxing/core/roulette.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
 import type { Stars } from "@tokenmaxxing/core/stars.ts";
@@ -37,6 +40,7 @@ import { setKeynotes } from "./game/keynote.ts";
 import { setLaunches } from "./game/launch.ts";
 import { noteLoot } from "./game/loot.ts";
 import { duckMusic, playRoomMusic, stopRoomMusic } from "./game/music.ts";
+import { reactPet } from "./game/pets.ts";
 import { setOutage } from "./game/picnic.ts";
 import { noteRaid, setRaiders } from "./game/raid.ts";
 import { setStars } from "./game/stars.ts";
@@ -159,6 +163,8 @@ export function connect(token: string): void {
       duckMusic(false);
     }
     playRoomMusic(s.room);
+    // The hall's shelves fill as you walk in, not at the next poll.
+    if (s.room === "shop-market") void refreshMarket().catch(() => {});
     loadSnapshot(s);
     setRaiders(s.raiders);
   });
@@ -180,9 +186,12 @@ export function connect(token: string): void {
   conn.on("chat", (line: ChatLine) => applyChat(line));
   conn.on("bubble", (e: { userId: number; text: string }) => applyBubble(e));
   conn.on("jump", (id: number) => applyJump(id));
+  conn.on("petPlay", (e: { userId: number; act: PetAct }) => reactPet(e.userId, e.act));
   conn.on("notice", (n: Notice) => {
     hud.set({ notice: { ...n, at: Date.now() } });
     if (n.open === "tournament") void refreshTournament(true);
+    // A sale of mine: the notice is the toast, so the sale is only recorded.
+    if (n.open === "market") void refreshMarket(false).catch(() => {});
     void refreshMe();
     // A trade I offered settled: my coins and 🎒 moved.
     void refreshWallet();
@@ -228,17 +237,24 @@ export function connect(token: string): void {
   // Other people's syncs move the board too; nothing announces those, so poll. Not in a hidden tab:
   // it catches up when it shows again.
   setInterval(() => {
-    if (hud.get().status === "ready" && !document.hidden) void refreshStats();
+    if (hud.get().status === "ready" && !document.hidden) void Promise.all([refreshStats(), refreshMe()]);
   }, 30_000);
   document.addEventListener("visibilitychange", () => {
     if (hud.get().status === "ready" && !document.hidden) void refreshStats();
   });
+  // Torvehallen's shelves change as people buy and list: read them again while I'm in the hall.
+  setInterval(() => {
+    if (hud.get().status === "ready" && !document.hidden && world.room === "shop-market")
+      void refreshMarket(false).catch(() => {});
+  }, MARKET_POLL_MS);
   // Every (re)connect: join the world again and take a fresh snapshot.
   conn.onOpen(async () => {
     try {
       loadSnapshot(await conn.join());
       hud.set({ status: "ready" });
       await Promise.all([refreshMe(), refreshStats(), refreshTournament(true)]);
+      // Sales while I was away.
+      void refreshMarket().catch(() => {});
     } catch (err) {
       if (isUnauthorized(err)) signedOut();
     }
@@ -257,6 +273,91 @@ export async function refreshMe(): Promise<void> {
 export async function refreshWallet(): Promise<void> {
   const wallet = await town.wallet();
   hud.set((s) => ({ wallet: same(s.wallet, wallet) }));
+}
+
+export const prestigeState = (): Promise<PrestigeView> => town.prestigeState();
+
+/** Starts the next run, then reloads me and my wallet (the tag, and the new run's first coins). */
+export async function takePrestige(): Promise<PrestigeView> {
+  const view = await town.takePrestige();
+  await Promise.all([refreshMe(), refreshWallet()]);
+  return view;
+}
+
+// MARK: Torvehallen
+
+const MARKET_POLL_MS = 5000;
+/** How many of my sales are kept on this device to look back at. */
+const SALES_KEPT = 30;
+const salesKey = () => `tokenmaxxing.market-sales.${world.selfId}`;
+let salesFor = -1;
+
+/** The sales this device remembers for this account (newest first), once per account. */
+function rememberedSales(): Sale[] {
+  if (salesFor === world.selfId) return hud.get().marketLog;
+  salesFor = world.selfId;
+  let log: Sale[] = [];
+  try {
+    const raw: unknown = JSON.parse(storage.getItem(salesKey()) ?? "[]");
+    log = Array.isArray(raw) ? raw.filter((s) => Number.isInteger(s?.id) && Number.isInteger(s?.price)) : [];
+  } catch {}
+  hud.set({ marketLog: log });
+  return log;
+}
+
+/**
+ * Sales the server hasn't told me of yet: they go in the log, the server is told it can forget them, and
+ * (`toast`) the HUD says so once. A sale already in the log is not announced again if the server's reply to
+ * `marketSaw` got lost.
+ */
+async function hearSales(sold: Sale[], toast: boolean): Promise<void> {
+  const log = rememberedSales();
+  const fresh = sold.filter((s) => !log.some((l) => l.id === s.id));
+  if (fresh.length > 0) {
+    const next = [...fresh].reverse().concat(log).slice(0, SALES_KEPT);
+    storage.setItem(salesKey(), JSON.stringify(next));
+    hud.set({ marketLog: next, ...(toast ? { marketSold: { sales: fresh, at: Date.now() } } : {}) });
+  }
+  await town.marketSaw(sold.at(-1)!.id);
+}
+
+/**
+ * Torvehallen as it is now: everything on display and my own listings, room and sales. Hears my sales too
+ * (`toast`: with a toast, which is for coming back to them, not for the notice that already says it).
+ */
+export async function refreshMarket(toast = true): Promise<void> {
+  const [listings, mine] = await Promise.all([town.marketListings(), town.marketMine()]);
+  hud.set((s) => ({
+    market: {
+      listings: same(s.market?.listings ?? [], listings),
+      mine: same(s.market?.mine ?? null, mine),
+      at: Date.now(),
+    },
+  }));
+  if (mine.sold.length > 0) await hearSales(mine.sold, toast);
+}
+
+/** Buys a listing at the price I saw; my coins and bag, and the shelves, are read again. */
+export async function marketBuy(listing: Listing): Promise<void> {
+  hud.set({ wallet: await town.marketBuy(listing.id, listing.price) });
+  await refreshMarket(false).catch(() => {});
+}
+
+/** Puts one of my things on a slot at a price (for good: a price isn't changed, only taken back). */
+export async function marketList(want: {
+  item: string;
+  slot: number;
+  price: number;
+  copy?: number;
+}): Promise<void> {
+  await town.marketList(want);
+  await Promise.all([refreshWallet(), refreshMarket(false)]).catch(() => {});
+}
+
+/** Takes one of my listings back into my bag. */
+export async function marketCancel(listing: Listing): Promise<void> {
+  await town.marketCancel(listing.id);
+  await Promise.all([refreshWallet(), refreshMarket(false)]).catch(() => {});
 }
 
 /** Today's quests and the week's. Asking also deals today's the first time, so a day's quests always exist. */

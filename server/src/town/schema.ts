@@ -5,13 +5,16 @@ import { migrateCases } from "./cases.ts";
 import { migrateMerch } from "./companies.ts";
 import { migrateDesks } from "./desks.ts";
 import { migrateFastelavn } from "./fastelavn.ts";
+import { migrateFishing } from "./fishing.ts";
 import { migrateGrid } from "./grid.ts";
 import { migrateJulekalender } from "./julekalender.ts";
 import { migrateKeynotes } from "./keynotes.ts";
 import { migrateLaunchBonus } from "./launch-bonus.ts";
+import { migrateMarket } from "./market.ts";
 import { migrateMerchant } from "./merchant.ts";
 import { migrateOffices } from "./offices.ts";
 import { migratePoker } from "./poker.ts";
+import { migratePrestige } from "./prestige.ts";
 import { migrateQuests } from "./quests.ts";
 import { migrateRequests } from "./requests.ts";
 import { migrateRoulette } from "./roulette.ts";
@@ -77,9 +80,14 @@ export async function migrate(sql: Sql): Promise<void> {
   const itemColumns = (await sql.execute("PRAGMA table_info(items)")) as { name: string }[];
   if (!itemColumns.some((c) => c.name === "company_id"))
     await sql.execute("ALTER TABLE items ADD COLUMN company_id INTEGER");
-  // A piece on a floor turned to face the other way (`Drop.flip`): 1, else NULL. Off the floor it's NULL again.
+  // A piece on a floor turned (`Drop.rot`): 1 to 3 quarter turns, else NULL. Off the floor it's NULL again.
+  // `flip` was the first take on it (mirrored left to right): a flipped piece is now one turned half way round.
   if (!itemColumns.some((c) => c.name === "flip"))
     await sql.execute("ALTER TABLE items ADD COLUMN flip INTEGER");
+  if (!itemColumns.some((c) => c.name === "rot")) {
+    await sql.execute("ALTER TABLE items ADD COLUMN rot INTEGER");
+    await sql.execute("UPDATE items SET rot = 2, flip = NULL WHERE flip = 1");
+  }
   await sql.execute(
     "CREATE INDEX IF NOT EXISTS items_company ON items (company_id) WHERE company_id IS NOT NULL",
   );
@@ -138,6 +146,7 @@ export async function migrate(sql: Sql): Promise<void> {
   // anyway, so the next sign-up taking its id would fail on it. Ids come after these too.
   await sql.execute("CREATE TABLE IF NOT EXISTS lost_signups (id INTEGER PRIMARY KEY, at INTEGER NOT NULL)");
   await migrateMerchant(sql);
+  await migrateMarket(sql);
   await migrateAwards(sql);
   await migrateTrophyAwards(sql);
   await migrateLaunchBonus(sql);
@@ -152,6 +161,8 @@ export async function migrate(sql: Sql): Promise<void> {
   await migrateKeynotes(sql);
   await migrateJulekalender(sql);
   await migrateFastelavn(sql);
+  await migrateFishing(sql);
+  await migratePrestige(sql);
   // The raid's settings, once. `start`: the first raid's Monday, the one after the town first had the
   // raid (`raidStart`). Kept rather than worked out, so a restart or deploy doesn't move the launch.
   await sql.execute("CREATE TABLE IF NOT EXISTS raid_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");

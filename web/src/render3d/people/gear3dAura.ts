@@ -154,3 +154,247 @@ AURA_BUILDERS["Koi Current"] = (m, tick) => {
     });
   });
 };
+
+// MARK: The Nusantara case (`core/src/case-nusantara.ts`, auras 400 to 403)
+
+/** A flat extruded outline, `depth` thick, standing in the x-y plane (a cut-out silhouette). */
+function plate(shape: THREE.Shape, depth: number): THREE.BufferGeometry {
+  return new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false }).translate(0, 0, -depth / 2);
+}
+
+// Mega Mendung: batik clouds in four bands of indigo to pale blue drift round the wearer, one of them drizzling.
+AURA_BUILDERS["Mega Mendung"] = (m, tick) => {
+  const bands = ["#243a73", "#3a5fa6", "#6c97d4", "#b7d3f3"];
+  const clouds = Array.from({ length: 4 }, () => {
+    const g = new THREE.Group();
+    m.add(g);
+    // Stacked scallops: each band a little narrower and lighter than the one below it, with a bump at each end.
+    bands.forEach((col, k) => {
+      const w = 0.2 - k * 0.04;
+      cube(g, [w, 0.03, 0.07], lit(col), [0, k * 0.032, 0]);
+      cube(g, [w * 0.45, 0.03, 0.075], lit(col), [-w * 0.42, k * 0.032 + 0.012, 0]);
+      cube(g, [w * 0.45, 0.03, 0.075], lit(col), [w * 0.42, k * 0.032 + 0.012, 0]);
+    });
+    return g;
+  });
+  const rnd = seeded(14);
+  const drops = Array.from({ length: 8 }, (_, i) => ({
+    o: cube(m, [0.014, 0.05, 0.014], lit("#8fb8ec")),
+    cloud: i % 4,
+    p: rnd(),
+    dx: (rnd() - 0.5) * 0.12,
+    v: 0.7 + rnd() * 0.5,
+  }));
+  tick((t, walking) => {
+    clouds.forEach((g, i) => {
+      const a = t * (walking ? 0.55 : 0.34) + (i / clouds.length) * Math.PI * 2;
+      const r = 0.45 + Math.sin(t * 0.6 + i * 1.7) * 0.03;
+      g.position.set(
+        Math.cos(a) * r,
+        0.22 + (i % 2) * 0.16 + Math.sin(t * 0.9 + i * 2.1) * 0.03,
+        Math.sin(a) * r,
+      );
+      g.rotation.y = -a + Math.PI / 2;
+      g.scale.setScalar(1.65 + Math.sin(t * 1.3 + i) * 0.06);
+    });
+    for (const d of drops) {
+      const c = clouds[d.cloud]!;
+      const k = (t * d.v * 0.8 + d.p) % 1;
+      d.o.position.set(c.position.x + d.dx, c.position.y - 0.05 - k * 0.55, c.position.z);
+      d.o.scale.set(0.014, 0.03 + k * 0.045, 0.014);
+      d.o.visible = k > 0.04 && k < 0.92;
+    }
+  });
+};
+
+// Gamelan Echo: gold ripples spread out from the wearer's feet, and four bronze gongs on a ring take turns being struck.
+AURA_BUILDERS["Gamelan Echo"] = (m, tick) => {
+  const ripples = Array.from({ length: 3 }, () => {
+    const mat = new THREE.MeshBasicMaterial({
+      color: "#f2c24a",
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+    });
+    const o = new THREE.Mesh(new THREE.TorusGeometry(1, 0.03, 6, 40), mat);
+    o.rotation.x = Math.PI / 2;
+    o.userData.noBlock = true;
+    m.add(o);
+    return { o, mat };
+  });
+  // Four gongs: a bronze disc with a darker rim and a bright boss, laid flat round the wearer.
+  const gongs = Array.from({ length: 4 }, () => {
+    const g = new THREE.Group();
+    m.add(g);
+    // They lie flat like the pots of a bonang, a bronze disc with a darker rim and a bright knob.
+    const disc = (r: number, h: number, col: THREE.Material, y = 0) => {
+      const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 16), col);
+      o.position.y = y;
+      o.userData.noBlock = true;
+      g.add(o);
+      return o;
+    };
+    disc(0.1, 0.03, lit("#8a5a24"));
+    disc(0.088, 0.036, lit("#c28a3c"), 0.003);
+    disc(0.042, 0.05, lit("#f2c870"), 0.008);
+    disc(0.017, 0.06, lit("#fff0b8"), 0.012);
+    return g;
+  });
+  tick((t, walking) => {
+    ripples.forEach(({ o, mat }, i) => {
+      // Each ring is born at the feet and spreads, fading.
+      const k = (t * (walking ? 0.5 : 0.36) + i / ripples.length) % 1;
+      o.position.y = BASE + 0.03;
+      o.scale.setScalar(0.18 + k * 0.75);
+      mat.opacity = 0.75 * (1 - k) ** 1.2;
+    });
+    gongs.forEach((g, i) => {
+      const a = (i / gongs.length) * Math.PI * 2 + t * 0.22;
+      g.position.set(
+        Math.cos(a) * 0.46,
+        0.0 + (i % 2) * 0.14 + Math.sin(t * 1.3 + i * 1.6) * 0.03,
+        Math.sin(a) * 0.46,
+      );
+      g.rotation.z = Math.sin(t * 1.1 + i) * 0.1;
+      // Struck in turn: a quick swell that rings out.
+      const strike = Math.max(0, Math.sin(t * 2.2 - i * (Math.PI / 2)));
+      g.scale.setScalar(1.25 + strike ** 6 * 0.4);
+    });
+  });
+};
+
+// Wayang Shadows: warm lamplight ringed round the wearer, and four cut-out silhouettes (a leaf, a bird, a tree and a
+// tall figure) with gold edges drifting round it.
+AURA_BUILDERS["Wayang Shadows"] = (m, tick) => {
+  // The lamp's warm ring, on the ground and again at the chest.
+  for (const [y, r] of [
+    [BASE + 0.04, 0.46],
+    [0.18, 0.5],
+  ] as const) {
+    const o = new THREE.Mesh(
+      new THREE.TorusGeometry(r, 0.03, 6, 40),
+      new THREE.MeshBasicMaterial({ color: "#ffb347", transparent: true, opacity: 0.28, depthWrite: false }),
+    );
+    o.rotation.x = Math.PI / 2;
+    o.position.y = y;
+    o.userData.noBlock = true;
+    m.add(o);
+  }
+  const leaf = new THREE.Shape();
+  leaf.moveTo(0, -0.1);
+  leaf.bezierCurveTo(0.09, -0.04, 0.08, 0.06, 0, 0.12);
+  leaf.bezierCurveTo(-0.08, 0.06, -0.09, -0.04, 0, -0.1);
+  const bird = new THREE.Shape();
+  bird.moveTo(0.1, 0.02);
+  bird.lineTo(0.05, 0.04);
+  bird.lineTo(0.03, 0.1);
+  bird.lineTo(-0.0, 0.05);
+  bird.lineTo(-0.06, 0.04);
+  bird.lineTo(-0.11, 0.07);
+  bird.lineTo(-0.08, 0.0);
+  bird.lineTo(-0.1, -0.06);
+  bird.lineTo(-0.02, -0.03);
+  bird.lineTo(0.05, -0.04);
+  bird.lineTo(0.08, 0.0);
+  bird.lineTo(0.12, -0.01);
+  const tree = new THREE.Shape();
+  tree.moveTo(-0.012, -0.12);
+  tree.lineTo(-0.012, -0.02);
+  tree.bezierCurveTo(-0.1, -0.02, -0.1, 0.08, -0.04, 0.09);
+  tree.bezierCurveTo(-0.05, 0.14, 0.05, 0.14, 0.04, 0.09);
+  tree.bezierCurveTo(0.1, 0.08, 0.1, -0.02, 0.012, -0.02);
+  tree.lineTo(0.012, -0.12);
+  const figure = new THREE.Shape();
+  figure.moveTo(-0.025, -0.18);
+  figure.lineTo(-0.03, -0.02);
+  figure.lineTo(-0.06, 0.02);
+  figure.lineTo(-0.045, 0.08);
+  figure.lineTo(-0.02, 0.08);
+  figure.lineTo(-0.025, 0.12);
+  figure.bezierCurveTo(-0.03, 0.18, 0.03, 0.18, 0.025, 0.12);
+  figure.lineTo(0.02, 0.08);
+  figure.lineTo(0.045, 0.08);
+  figure.lineTo(0.06, 0.02);
+  figure.lineTo(0.03, -0.02);
+  figure.lineTo(0.025, -0.18);
+  const pieces = [leaf, bird, tree, figure].map((shape, i) => {
+    const g = new THREE.Group();
+    m.add(g);
+    const gold = new THREE.Mesh(plate(shape, 0.012), lit("#e8b23a"));
+    gold.scale.set(1.14, 1.12, 1);
+    const ink = new THREE.Mesh(plate(shape, 0.02), new THREE.MeshBasicMaterial({ color: "#14100e" }));
+    for (const o of [gold, ink]) {
+      o.userData.noBlock = true;
+      g.add(o);
+    }
+    g.scale.setScalar(i === 3 ? 1.3 : 1.45);
+    return g;
+  });
+  tick((t, walking) => {
+    pieces.forEach((g, i) => {
+      const a = t * (walking ? 0.55 : 0.4) + (i / pieces.length) * Math.PI * 2;
+      const r = 0.47;
+      g.position.set(
+        Math.cos(a) * r,
+        0.1 + (i % 2) * 0.1 + Math.sin(t * 1.1 + i * 1.9) * 0.04,
+        Math.sin(a) * r,
+      );
+      // They face outward, edge to the wearer, like figures passing in front of a lamp.
+      g.rotation.y = -a + Math.PI / 2;
+      g.rotation.z = Math.sin(t * 1.5 + i) * 0.07;
+    });
+  });
+};
+
+// Padi Gold: a ring of rice stalks with heavy golden heads sways round the feet, and grains of gold lift off and fade.
+AURA_BUILDERS["Padi Gold"] = (m, tick) => {
+  const rnd = seeded(58);
+  const stalks = Array.from({ length: 12 }, (_, i) => {
+    const g = new THREE.Group();
+    const a = (i / 12) * Math.PI * 2 + rnd() * 0.15;
+    const r = 0.36 + (i % 2) * 0.07;
+    g.position.set(Math.cos(a) * r, BASE, Math.sin(a) * r);
+    g.rotation.y = -a;
+    m.add(g);
+    const hgt = 0.3 + rnd() * 0.12;
+    cube(g, [0.011, hgt, 0.011], lit(i % 3 ? "#6fbf4a" : "#2f7f3a"), [0, hgt / 2, 0]);
+    // A leaf blade, and the head: golden grains drooping off to one side.
+    cube(g, [0.007, 0.1, 0.03], lit("#4a9f3a"), [0, hgt * 0.35, 0.012]).rotation.x = 0.3;
+    const head = new THREE.Group();
+    head.position.set(0, hgt, 0);
+    g.add(head);
+    for (let k = 0; k < 3; k++)
+      cube(head, [0.02, 0.026, 0.02], lit(k % 2 ? "#f2b632" : "#ffd25a"), [
+        0.012 + k * 0.011,
+        -k * 0.012 + 0.016,
+        0,
+      ]);
+    return { g, head, p: rnd() * 6.28, hgt };
+  });
+  const grains = Array.from({ length: 12 }, () => ({
+    o: cube(m, [0.016, 0.016, 0.016], lit("#ffd25a")),
+    a: rnd() * Math.PI * 2,
+    r: 0.3 + rnd() * 0.2,
+    p: rnd(),
+    s: 0.7 + rnd() * 0.5,
+  }));
+  tick((t, walking) => {
+    for (const s of stalks) {
+      // Out of phase, so a wave runs round the ring.
+      const w = Math.sin(t * (walking ? 3.2 : 1.7) + s.p);
+      s.g.rotation.z = w * (walking ? 0.18 : 0.1);
+      s.head.rotation.z = -0.5 + w * 0.2;
+    }
+    for (const gr of grains) {
+      const k = (t * 0.2 * gr.s + gr.p) % 1;
+      gr.o.position.set(
+        Math.cos(gr.a + t * 0.3) * gr.r,
+        BASE + 0.1 + k * 1.1,
+        Math.sin(gr.a + t * 0.3) * gr.r,
+      );
+      const z = Math.sin(k * Math.PI);
+      gr.o.scale.set(0.016 * z, 0.016 * z, 0.016 * z);
+      gr.o.rotation.y = t * 2 + gr.a;
+    }
+  });
+};

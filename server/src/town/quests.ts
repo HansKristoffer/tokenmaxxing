@@ -14,7 +14,7 @@ import {
   type QuestBoard,
   questCoins,
   questProgress,
-  WEEKLY_COINS,
+  weeklyCoins,
   weeklyProgress,
   weekStart,
 } from "@tokenmaxxing/core/quests.ts";
@@ -165,12 +165,12 @@ export function questPay(d: QuestData): QuestPay {
     }
     const picks = d.picks.get(day);
     const c = d.counts.get(day) ?? EMPTY_COUNTS;
-    daily.set(day, picks ? questCoins(picks, f, c) : 0);
+    daily.set(day, picks ? questCoins(picks, f, c, day) : 0);
     const week = weekStart(day);
     tallies.set(week, [...(tallies.get(week) ?? []), tallyOf(f, picks, c)]);
   }
   let weekly = 0;
-  for (const [week, days] of tallies) if (weeklyProgress(week, days).done) weekly += WEEKLY_COINS;
+  for (const [week, days] of tallies) if (weeklyProgress(week, days).done) weekly += weeklyCoins(week);
   return { daily, total: [...daily.values()].reduce((n, x) => n + x, 0), weekly };
 }
 
@@ -271,9 +271,9 @@ export async function questBoard(sql: Sql, userId: number, now: number): Promise
   }
   return {
     day: today,
-    daily: picks.map((q) => questProgress(q, f, c)),
+    daily: picks.map((q) => questProgress(q, f, c, today)),
     weekly: weeklyProgress(week, days),
-    paid: questCoins(picks, f, c),
+    paid: questCoins(picks, f, c, today),
   };
 }
 

@@ -101,13 +101,21 @@ describe("the backfill and the sweep step", () => {
     expect(await awardStep(sql, dirty, swept, now, kept)).toEqual({ awards: [], backfilled: true });
     expect([...dirty]).toEqual([1]);
     expect(awards(1).map((r) => r.backfill)).toEqual([1]);
-    // Backfill done (two users, chunk 100): now the dirty set.
+    // Backfill done (two users, chunk 100): the second pass for tiers added since, silent too, and then the dirty set.
     prs(1, 300);
-    const step = await awardStep(sql, dirty, swept, now + 1, kept);
+    expect(await awardStep(sql, dirty, swept, now + 1, kept)).toEqual({ awards: [], backfilled: true });
+    expect([...dirty]).toEqual([1]);
+    expect(awards(1).map((r) => [r.tier, r.backfill])).toEqual([
+      [1, 1],
+      [2, 1],
+      [3, 1],
+    ]);
+    // Both passes done: a tier reached after them is a fresh award, and a diamond is told to the town.
+    prs(1, 1000);
+    const step = await awardStep(sql, dirty, swept, now + 2, kept);
     expect(step.backfilled).toBe(false);
     expect(step.awards.map((a) => [a.badge, a.tier, a.announce])).toEqual([
-      ["shipper", 2, null],
-      ["shipper", 3, "🏅 ada earned Shipper gold: 250 PRs"],
+      ["shipper", 4, "🏅 ada earned Shipper diamond: 1000 PRs"],
     ]);
     expect([...dirty]).toEqual([]);
     // Dirty again straight away: it waits for the throttle.

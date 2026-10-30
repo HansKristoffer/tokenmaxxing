@@ -1,5 +1,124 @@
 # Changelog
 
+## [1.16.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.15.0...v1.16.0) (2026-10-29)
+
+
+### Features
+
+* **fishing:** 19 species, pond records, medals, badges and 1% pond treasures ([71b2407](https://github.com/HansKristoffer/tokenmaxxing/commit/71b24075abf8e448f840a6f39999889d48f08a5f))
+* **fishing:** 19 species, pond treasures, records and badges, and anglers everyone can see ([6f71890](https://github.com/HansKristoffer/tokenmaxxing/commit/6f718907ae7f6e9c2347d009f9763ff128834818))
+* **fishing:** fish sprites and models, a fuller panel, and anglers everyone can see ([4ec791a](https://github.com/HansKristoffer/tokenmaxxing/commit/4ec791ab46c984387df03b242ee94d090a6af5bb))
+* **fishing:** the pond treasures in 2D and 3D ([fc7a114](https://github.com/HansKristoffer/tokenmaxxing/commit/fc7a11402e0070662938ce8239149b8fc32af220))
+* **paper:** a fuller, funnier Token Tidende that chains onto earlier days ([b737641](https://github.com/HansKristoffer/tokenmaxxing/commit/b737641d41a007959e1e061a3069911241c48ebd))
+* **paper:** a fuller, funnier Token Tidende that chains onto earlier days, weeks and months ([a3c4f02](https://github.com/HansKristoffer/tokenmaxxing/commit/a3c4f023f41b1e11c5553461a2a840bed739868d))
+* **prestige:** 20 wearables, 5 pet accessories, 5 trophies and 5 tags in 2D and 3D, with showcase renderers and the run logic ([e248183](https://github.com/HansKristoffer/tokenmaxxing/commit/e2481836bde3c80f8b93a90db88e1d2eab4733a6))
+* **prestige:** five prestige tracks, with all the art in 2D and 3D and the run logic ([ed08db7](https://github.com/HansKristoffer/tokenmaxxing/commit/ed08db7ad893eac556bfec48e514a125169363d8))
+* **prestige:** the catalogue for five prestige tracks, with art and gear registries ready to fill ([59653c9](https://github.com/HansKristoffer/tokenmaxxing/commit/59653c9848c3ba83c3f2f337d62496e1bffc0739))
+* **tavern:** order a coffee or the special from the barkeep at the bar ([b9bee53](https://github.com/HansKristoffer/tokenmaxxing/commit/b9bee53eb570a1016a105c552e5f02047c50b3f8))
+* **tavern:** order a coffee or the special from the barkeep at the bar ([59cf985](https://github.com/HansKristoffer/tokenmaxxing/commit/59cf9858f442dc7e34a2a2a13a4942d6f6925cee))
+* **town:** add fishing and evening music, refresh animals and crown ([0707cf4](https://github.com/HansKristoffer/tokenmaxxing/commit/0707cf4f4fca38fcf6fd165479f96052c319139f))
+* **town:** add fishing, tavern music and livelier animals ([76843d1](https://github.com/HansKristoffer/tokenmaxxing/commit/76843d1d571fefb420712f2bd84fa7e0c369509d))
+
+
+### Bug Fixes
+
+* **cli:** keep the tests off the computer's real service ([6df3bb0](https://github.com/HansKristoffer/tokenmaxxing/commit/6df3bb05946783547791b6c5115cf1139cc66c28))
+* **paper:** a lead and six stories, so the grid has no empty cell ([fb538be](https://github.com/HansKristoffer/tokenmaxxing/commit/fb538befd65a5dae846c5eb94d6940a36b27ab4e))
+* **prestige:** CI lint and typecheck: load the tag css from index.html, order imports, no value-returning forEach, format ([4ad6457](https://github.com/HansKristoffer/tokenmaxxing/commit/4ad6457206600c251113cb3edda471352d104f1e))
+* **prestige:** match bun fmt, and keep the test veteran at level 38 now that levels 31 to 50 cost 1B each ([3ed303f](https://github.com/HansKristoffer/tokenmaxxing/commit/3ed303f48e9294626ea52df590bf46a26953ea7a))
+* **town:** sharpen animal models ([8943fc1](https://github.com/HansKristoffer/tokenmaxxing/commit/8943fc1ca02505fc652512854fcd462d497009dc))
+
+## [1.15.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.14.0...v1.15.0) (2026-10-28)
+
+
+### Features
+
+* **case:** Nusantara 2D art, box and parity tests ([b26936c](https://github.com/HansKristoffer/tokenmaxxing/commit/b26936cee5353a444f3797e290024203f371c6b7))
+* **case:** Nusantara 3D gear, pets, auras, furniture and box ([8639649](https://github.com/HansKristoffer/tokenmaxxing/commit/863964952933ed293894b8c43957dcb5e77c8450))
+* **case:** Nusantara and Ragnarok Eve keys cost 100 coins ([c69a2b9](https://github.com/HansKristoffer/tokenmaxxing/commit/c69a2b9c6e4980734708fc01ee63ffee22ed3167))
+* **case:** Ragnarok Eve 2D art, box and parity tests ([7b335e1](https://github.com/HansKristoffer/tokenmaxxing/commit/7b335e14f941a9d57f2dc38de0caa436ee5a8e55))
+* **case:** Ragnarok Eve 3D gear, pets, auras, furniture and box ([ab37ec4](https://github.com/HansKristoffer/tokenmaxxing/commit/ab37ec4d36c2d7ef0c211f43f2a508e1ae696df5))
+* **case:** the Nusantara and Ragnarok Eve cases, with 2D and 3D art ([e313f09](https://github.com/HansKristoffer/tokenmaxxing/commit/e313f09f9eb6cd97f9fd2e70430a3f43535bbf5a))
+* **case:** the Nusantara case, its 36 items and 6 pieces (data and brief) ([08a981b](https://github.com/HansKristoffer/tokenmaxxing/commit/08a981beb2696b7b863447dae4f3b0472f75099a))
+* **case:** the Ragnarok Eve case, its 36 items and 6 pieces (data and brief) ([6badcdc](https://github.com/HansKristoffer/tokenmaxxing/commit/6badcdc180a4cef4b252b384cd4f21538c423a2c))
+
+
+### Bug Fixes
+
+* **case:** Natmarked shows every case on its shelves and selects left/right; new keys cost 100 ([c5f58d2](https://github.com/HansKristoffer/tokenmaxxing/commit/c5f58d24aa0f1ef37b5efe646204840bbf056ab8))
+* **case:** Natmarked's shelves show every case on sale, and the shop selects with left/right ([a25f16a](https://github.com/HansKristoffer/tokenmaxxing/commit/a25f16ac46bd92ef6bbc81a36f03c538dd71aee4))
+* **case:** Warpaint stripes are three flat cheek stripes under each eye ([73ebe09](https://github.com/HansKristoffer/tokenmaxxing/commit/73ebe09da98287588d28e1b11200f4084b365d14))
+* **economy:** balance prices and quest pay for the new coin engine ([ff8bf9a](https://github.com/HansKristoffer/tokenmaxxing/commit/ff8bf9a210f6501ded02e867fec3aa4bc0deaef4))
+* **economy:** quests pay 5x, daily from 29 Oct and weekly from the week of 2 Nov ([37f3527](https://github.com/HansKristoffer/tokenmaxxing/commit/37f3527b349f831d4471c92835a5b7e889db36c2))
+* **economy:** raise merch and the cheaper dances, wardrobe and headwear by 1.5x ([20894b0](https://github.com/HansKristoffer/tokenmaxxing/commit/20894b034552ca040c3e6e08501639318295f5c2))
+* **economy:** raise personal furniture, decor, desk and office-size prices by 1.5x ([e4dc530](https://github.com/HansKristoffer/tokenmaxxing/commit/e4dc530f9ec31f15389a96d9a0dd430a916754c4))
+* **economy:** the web's snapshots of the prices follow core ([7c831ea](https://github.com/HansKristoffer/tokenmaxxing/commit/7c831eac5b8f695214e8ed8f6463fa6229ed4a13))
+* **economy:** tokens pay 1.5 x (millions)^0.6 from 28 Oct ([47a5266](https://github.com/HansKristoffer/tokenmaxxing/commit/47a5266692a6aaf5790873f379ccca689f4baa39))
+* **economy:** tokens pay the plain curve from 28 Oct, and a missed day resets the streak ([780c4ed](https://github.com/HansKristoffer/tokenmaxxing/commit/780c4ed0ef8f56a2f88051785196a1129e0a2d05))
+* **natmarked:** E on a case stall opens that case ([012d046](https://github.com/HansKristoffer/tokenmaxxing/commit/012d046e06702452e6454cb115f8af53b7398d44))
+* tokens pay 1.5 × (millions)^0.6 from 28 Oct, a missed day resets the streak, and E on a case stall opens that case ([3ba712a](https://github.com/HansKristoffer/tokenmaxxing/commit/3ba712ae2c900b923aaae3e8069e560913c234cd))
+
+## [1.14.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.13.0...v1.14.0) (2026-10-27)
+
+
+### Features
+
+* **achievements:** crazier badge ladders, two new frames, and 19 more trophies ([9cfc6b3](https://github.com/HansKristoffer/tokenmaxxing/commit/9cfc6b37c7eea3ed9c8dae0b988d971ef7a20c54))
+* **achievements:** pay badge tiers and trophies four times as much, backfilled, and Polyglot to 1000 ([0bfa650](https://github.com/HansKristoffer/tokenmaxxing/commit/0bfa6503f4a1e97db066911a9665f52f57485020))
+* bigger offices you can expand, more coins from tokens, raid kills pay 4x ([df56d1e](https://github.com/HansKristoffer/tokenmaxxing/commit/df56d1ee4c50298ac2a651ba5274d8eb82d55e80))
+* **economy:** tokens pay 2.5 x (M)^0.6 a day, raid kills pay 4x, both from now on ([78033e0](https://github.com/HansKristoffer/tokenmaxxing/commit/78033e0188e9f318fa021c4bd4789ad723c752be))
+* **furniture:** F turns a piece a quarter turn each press, not a mirror ([09295c8](https://github.com/HansKristoffer/tokenmaxxing/commit/09295c8072ab8db4e9c43f24d1d5c467573b7c98))
+* **input:** turn on the spot before walking, Pokémon style ([102dcdb](https://github.com/HansKristoffer/tokenmaxxing/commit/102dcdb946f4c98b3a8247fadabdc9bc3166e964))
+* **maps:** the town grows outward without a fixed range ([48618d1](https://github.com/HansKristoffer/tokenmaxxing/commit/48618d109f54f690b4dfd4f9026161b778c43458))
+* **market:** the engine behind Torvehallen, the market hall ([b1c8c66](https://github.com/HansKristoffer/tokenmaxxing/commit/b1c8c6626a172c23c6445a8189e4ce1fdebfbb2e))
+* **market:** the hall's actions on town: look, show, take back, buy ([94e2539](https://github.com/HansKristoffer/tokenmaxxing/commit/94e253968405d03783fc63c3f7f397280dea28f6))
+* **market:** Torvehallen, a market hall where players sell to each other ([34f6e91](https://github.com/HansKristoffer/tokenmaxxing/commit/34f6e91f1105301bee0cd09af6ab2392432cfbb7))
+* **market:** Torvehallen, the market hall, as a room with its own block in town ([50bb377](https://github.com/HansKristoffer/tokenmaxxing/commit/50bb377a784527011ed3085748267f1b14235266))
+* **market:** Torvehallen's shelves, price tags and panels, in 2D and 3D ([5eb470d](https://github.com/HansKristoffer/tokenmaxxing/commit/5eb470d2def93c1af2a60ef7c66daa63f34ed788))
+* **merchant:** a numbered copy carries its row id, so a seller can list that very number ([e8e3b86](https://github.com/HansKristoffer/tokenmaxxing/commit/e8e3b860b3e73aef6e66a2fd6b2bff26801e48f3))
+* **office:** offices start about 20% bigger, and more room can be bought ([47a1a99](https://github.com/HansKristoffer/tokenmaxxing/commit/47a1a99264fa3d97088c2163605d780e254f69f6))
+* **pets:** pet, treat and trick your pet, seen by the room ([cdfcc3c](https://github.com/HansKristoffer/tokenmaxxing/commit/cdfcc3cb521286e20700ae781d51381ebc9d124a))
+* roulette for eight, quarter-turn furniture, turn-before-walking, pet interactions, crazier achievements and trophies, the Android music fix, and merch and Hygge moustache fixes ([02280e7](https://github.com/HansKristoffer/tokenmaxxing/commit/02280e7ed6945dc1a0712afae1ca762924ca6a82))
+* **roulette:** eight players at the table ([ea3c8c1](https://github.com/HansKristoffer/tokenmaxxing/commit/ea3c8c1b7df54db4aaf7dfb8b21775cab8c72ba6))
+* **roulette:** four spots on each side of the table ([4b14c08](https://github.com/HansKristoffer/tokenmaxxing/commit/4b14c08b60f7619e62457324c27a496a2389d66d))
+* **roulette:** Join takes you to the net cafe's table from anywhere ([e413530](https://github.com/HansKristoffer/tokenmaxxing/commit/e4135300c75d1e5e44b56a94f4f9f4eaa2e6ae20))
+
+
+### Bug Fixes
+
+* **android:** the music stops when the app goes to the background ([144d226](https://github.com/HansKristoffer/tokenmaxxing/commit/144d226e5a63a1b32874b80591d6f58a2aa3ca22))
+* **art:** the Hygge moustache is a handlebar, not two pixels ([be775fa](https://github.com/HansKristoffer/tokenmaxxing/commit/be775fafa3052d4cb3a2280f6d9f0dd343daa141))
+* **maps:** a town full of houses no longer breaks the shops' blocks ([e974652](https://github.com/HansKristoffer/tokenmaxxing/commit/e97465240c0d48f5015cb731ac6bf6635b3841c4))
+* **test:** the turn test's watcher connects first, so the join always comes as an event ([e16812f](https://github.com/HansKristoffer/tokenmaxxing/commit/e16812f44fa5b2f284acab40fb55f1810c3c740e))
+* **town:** company merch looks the same everywhere, and goes stale nowhere ([8049ced](https://github.com/HansKristoffer/tokenmaxxing/commit/8049ced3f10dc84adf6b606c5d2340267fc6bf1a))
+* **trade:** a trade or a drop moves your newest copy of a kind, not whichever the database found ([929d9a4](https://github.com/HansKristoffer/tokenmaxxing/commit/929d9a4fee183804df919c715bc0d50029a564ab))
+
+## [1.13.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.12.0...v1.13.0) (2026-10-27)
+
+
+### Features
+
+* **arcade:** solo roulette table, player against the house ([0012bf1](https://github.com/HansKristoffer/tokenmaxxing/commit/0012bf1c00c2824c9882388c32c74c5295573cca))
+* **case:** hide the legendaries behind one "Legendary Item!" row ([70d155d](https://github.com/HansKristoffer/tokenmaxxing/commit/70d155dcd1c08a60b6621a3a7029c4755fd6bac0))
+* **case:** the case shop hides its legendaries behind one "Legendary Item!" row ([34684c2](https://github.com/HansKristoffer/tokenmaxxing/commit/34684c29630f80ae20b16a0a685363b806af6c4e))
+* **case:** the Night Market case, the Natmarked shop and 36 new items ([dd3ca2b](https://github.com/HansKristoffer/tokenmaxxing/commit/dd3ca2bc3a2ab683f7bffec29614f55bcfff47e1))
+* **furniture:** F flips a placed piece to face the other way ([f74809f](https://github.com/HansKristoffer/tokenmaxxing/commit/f74809f4287bfe33dc0296d6f3c82c897e91a605))
+* **furniture:** F flips a placed piece to face the other way ([17a40f4](https://github.com/HansKristoffer/tokenmaxxing/commit/17a40f487cbc3d74b64ec2c5ec2a42848422c6ae))
+* **netcafe:** a multiplayer roulette table, and poker moves down to the net cafe ([2e7bfb9](https://github.com/HansKristoffer/tokenmaxxing/commit/2e7bfb98969301fba3b4b4818db736d3a52a9997))
+* **netcafe:** poker and a multiplayer roulette table in the net cafe ([5e1cec5](https://github.com/HansKristoffer/tokenmaxxing/commit/5e1cec5b4f79a37e4941063b76bf269d64dff40e))
+* **sync:** count team-billed Cursor and Grok Bot usage ([a8c6749](https://github.com/HansKristoffer/tokenmaxxing/commit/a8c67497202f55d9ae4ff57eb53034e7aa524354))
+* **sync:** count team-billed Cursor and Grok Bot usage ([2d0f800](https://github.com/HansKristoffer/tokenmaxxing/commit/2d0f800db012b8c014a7c56a72dfacfa8a31acc1))
+
+
+### Bug Fixes
+
+* **case:** hide the legendaries on the opening screen too ([075d2ce](https://github.com/HansKristoffer/tokenmaxxing/commit/075d2ce678c19890a4ac831685dd10e410c4fadc))
+* **case:** the opening screen hides its legendaries too ([a3cc3e1](https://github.com/HansKristoffer/tokenmaxxing/commit/a3cc3e1a82be6fd00ed62146da447f4bd1c3e53b))
+* **case:** the winning legendary tile on the strip stays "Legendary Item!" ([33f755b](https://github.com/HansKristoffer/tokenmaxxing/commit/33f755b83ae219cf09a30421ef4cf6843a2833ed))
+* **town:** a shop never stands on a company's house ([d67213a](https://github.com/HansKristoffer/tokenmaxxing/commit/d67213a1b33b8944e03bac73e40fb29499974941))
+* **town:** a shop never stands on a company's house ([260e3f6](https://github.com/HansKristoffer/tokenmaxxing/commit/260e3f6d252981361514cda01c0a80e53836c283))
+* **world:** the startup roulette refund needs a stub in the floors test ([76cabe1](https://github.com/HansKristoffer/tokenmaxxing/commit/76cabe1dad05f73461a925942eabca295f173e17))
+
 ## [1.12.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.11.0...v1.12.0) (2026-10-27)
 
 

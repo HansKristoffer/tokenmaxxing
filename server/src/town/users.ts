@@ -1,10 +1,12 @@
 import { deskIndex } from "@tokenmaxxing/core/desks.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
+import type { PrestigeBadge } from "@tokenmaxxing/core/prestige-run.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
 import { defaultLook, type Look, parseLook } from "@tokenmaxxing/core/world.ts";
 import { must } from "hanzio";
 import { UserError } from "rivetkit";
 import { all, one, type Sql } from "../actors/shared.ts";
+import { badgeOf, badgesOf } from "./prestige.ts";
 
 /** What `world` needs to draw someone; `town` owns all of it. */
 export interface PlayerCore {
@@ -16,6 +18,8 @@ export interface PlayerCore {
   todayTokens: number;
   /** Their chosen desk setup, a tier in `DESKS`; optional so older world state still fits. */
   desk?: number;
+  /** Their prestige (rank 0: none): the tag, the aura and the pet's accessory come from it. */
+  prestige: PrestigeBadge;
 }
 
 export interface UserRow {
@@ -89,6 +93,7 @@ export async function playerCores(sql: Sql, userIds: Ids): Promise<PlayerCore[]>
     all<{ id: number; desk: string | null }>(sql, `SELECT id, desk FROM users WHERE ${where}`, ...args),
   ]);
   const deskOf = new Map(desks.map((d) => [d.id, deskIndex(d.desk)]));
+  const badges = await badgesOf(sql, userIds, lifetime);
   return users.map((u) => ({
     id: u.id,
     name: u.name,
@@ -97,5 +102,6 @@ export async function playerCores(sql: Sql, userIds: Ids): Promise<PlayerCore[]>
     companyId: u.companyId,
     todayTokens: todays.get(u.id) ?? 0,
     desk: deskOf.get(u.id) ?? 0,
+    prestige: badgeOf(badges, u.id),
   }));
 }

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { LAUNCH_COINS, levelUpCoins } from "@tokenmaxxing/core/economy.ts";
+import { LAUNCH_COINS, levelUpCoins, streakExtra } from "@tokenmaxxing/core/economy.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
-import { PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
+import { coinsForTokens, PODIUM_COINS } from "@tokenmaxxing/core/shop.ts";
 import type { TxSql } from "../src/actors/shared.ts";
 import { balances, wallet } from "../src/town/coins.ts";
 import { recordLaunches } from "../src/town/launch-bonus.ts";
@@ -36,18 +36,22 @@ describe("the new ways to earn", () => {
   test("a streak pays more each day, and the wallet and the admin page agree", async () => {
     for (const day of ["2026-12-01", "2026-12-02", "2026-12-03", "2026-12-04", "2026-12-05"])
       await usage(1, day, 100e6);
-    // 10 coins a day, at ×1, ×1.5, ×2, ×2.5 and ×3: 0 + 5 + 10 + 15 + 20 more. Every finished day wins the podium.
-    const expected = 50 + 50 + 5 * PODIUM_COINS[0] + levelUpCoins(levelFor(500e6));
+    // 23 coins a day, at ×1, ×1.5, ×2, ×2.5 and ×3: the part past the plain coins is the multiplier's. Every finished day wins the podium.
+    const c = coinsForTokens(100e6, "2026-12-01");
+    const extra = [1, 1.5, 2, 2.5, 3].reduce((n, m) => n + streakExtra(c, m), 0);
+    const expected = 5 * c + extra + 5 * PODIUM_COINS[0] + levelUpCoins(levelFor(500e6));
     expect((await wallet(sql, 1, NOW)).balance).toBe(expected);
     expect((await balances(sql, NOW)).get(1)).toBe(expected);
     expect((await wallet(sql, 1, NOW)).streak).toBe(1);
   });
 
-  test("a day off costs two steps, not the streak", async () => {
+  test("a day off resets the streak", async () => {
     for (const day of ["2026-12-01", "2026-12-02", "2026-12-03", "2026-12-04", "2026-12-05", "2026-12-07"])
       await usage(1, day, 100e6);
-    // The day back after the gap is ×2: 10 more.
-    const expected = 60 + 50 + 10 + 6 * PODIUM_COINS[0] + levelUpCoins(levelFor(600e6));
+    // The day back after the gap is ×1.
+    const c = coinsForTokens(100e6, "2026-12-01");
+    const extra = [1, 1.5, 2, 2.5, 3, 1].reduce((n, m) => n + streakExtra(c, m), 0);
+    const expected = 6 * c + extra + 6 * PODIUM_COINS[0] + levelUpCoins(levelFor(600e6));
     expect((await balances(sql, NOW)).get(1)).toBe(expected);
   });
 
@@ -66,9 +70,9 @@ describe("the new ways to earn", () => {
         tier,
         NOW,
       );
-    // Streak to Gold: 10 + 25 + 50. A first Shipper: 10.
-    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 95);
-    expect((await balances(sql, NOW)).get(1)).toBe(base + 95);
+    // Streak to Gold: 40 + 100 + 200. A first Shipper: 40.
+    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 380);
+    expect((await balances(sql, NOW)).get(1)).toBe(base + 380);
   });
 
   test("trophies are paid once, from what a sweep recorded", async () => {
@@ -83,12 +87,12 @@ describe("the new ways to earn", () => {
     expect([...(await trophyStep(sql, dirty, NOW, async () => trophies)).values()]).toEqual([
       ["million", "piday", "zeros"],
     ]);
-    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 5 + 25);
-    expect((await balances(sql, NOW)).get(1)).toBe(base + 5 + 25);
+    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 20 + 100);
+    expect((await balances(sql, NOW)).get(1)).toBe(base + 20 + 100);
     // A later look finds nothing new, and pays nothing again.
     dirty.add(1);
     expect((await trophyStep(sql, dirty, NOW, async () => trophies)).size).toBe(0);
-    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 5 + 25);
+    expect((await wallet(sql, 1, NOW)).balance).toBe(base + 20 + 100);
   });
 
   describe("the new-model launch bonus", () => {

@@ -225,8 +225,12 @@ public class MainActivity extends ComponentActivity {
         catch (ActivityNotFoundException ignored) { /* A device without a browser keeps the game open. */ }
     }
 
-    @Override protected void onPause() { web.onPause(); super.onPause(); }
-    @Override protected void onResume() { super.onResume(); if (web != null) web.onResume(); }
+    // onPause() alone leaves the page's timers and Web Audio running, so the music would play on after Home.
+    @Override protected void onPause() { web.onPause(); web.pauseTimers(); super.onPause(); }
+    @Override protected void onResume() {
+        super.onResume();
+        if (web != null) { web.resumeTimers(); web.onResume(); }
+    }
     @Override protected void onDestroy() {
         if (web != null) { web.stopLoading(); web.destroy(); }
         super.onDestroy();

@@ -14,6 +14,19 @@ import {
 import { danceAt, danceId, isFree } from "@tokenmaxxing/core/dances.ts";
 import { type Barrel, barrelUp, HITS, isBarrel, WHACK_MS } from "@tokenmaxxing/core/fastelavn.ts";
 import {
+  type Angling,
+  CAST_COOLDOWN_MS,
+  type CastReply,
+  type FishingCast,
+  fishingPhase,
+  fishingWater,
+  type Landing,
+  newCast,
+  pondTime,
+  type ReelReply,
+  rollCatch,
+} from "@tokenmaxxing/core/fishing.ts";
+import {
   findSpot,
   propTiles,
   type Seat,
@@ -48,8 +61,8 @@ import { setTown, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
 import { isNytarProp } from "@tokenmaxxing/core/nytar-props.ts";
 import {
   assignSlots,
-  canFlip,
   canHang,
+  canTurn,
   clearOffice,
   type Door,
   doorsFor,
@@ -58,11 +71,14 @@ import {
   OFFICE_MAPS,
   OFFICE_PIECES,
   officeTier,
+  rotOf,
   setHq,
   setOffice,
+  sideways,
   wallSpot,
   withPieces,
 } from "@tokenmaxxing/core/office.ts";
+import { isPetAct, PET_COOLDOWN_MS, type PetAct } from "@tokenmaxxing/core/pets.ts";
 import { type Outage, onBlanket, PICNIC_SEATS, sameOutage } from "@tokenmaxxing/core/picnic.ts";
 import {
   type Action,
@@ -81,6 +97,7 @@ import {
   tick,
 } from "@tokenmaxxing/core/poker.ts";
 import { chairAt, pokerChairs } from "@tokenmaxxing/core/pokertable.ts";
+import { NO_PRESTIGE } from "@tokenmaxxing/core/prestige-run.ts";
 import { dayKey } from "@tokenmaxxing/core/range.ts";
 import {
   BETTING_MS,
@@ -96,11 +113,11 @@ import {
   SPIN_MS,
   SPOTS,
 } from "@tokenmaxxing/core/roulette.ts";
-import { rouletteSpots, spotAt } from "@tokenmaxxing/core/roulettetable.ts";
+import { rouletteSpots, rouletteTable, spotAt } from "@tokenmaxxing/core/roulettetable.ts";
 import { isBonfire } from "@tokenmaxxing/core/sankthans.ts";
 import { canDropIn, itemById } from "@tokenmaxxing/core/shop.ts";
 import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
-import { sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
+import { iceOver, sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { milestoneLine, NO_STARS, readStars, type Stars, type StarsState } from "@tokenmaxxing/core/stars.ts";
 import {
   afterRead,
@@ -137,6 +154,7 @@ import {
   drinkCoffee,
   dropCovers,
   dropName,
+  dropTiles,
   type Facing,
   furnitureFits,
   type GameStatus,
@@ -239,6 +257,9 @@ interface WorldPlayer extends PlayerCore, Place {
   /** The dance they're doing (`DANCES`), since when; none once they step, sit, rest or come back. */
   dance?: number;
   danceSince?: number;
+  /** Their line in the pond and their last catch, for everyone to see (`fishingCast`, `fishingReel`). */
+  angling?: Angling | null;
+  landing?: Landing | null;
 }
 
 interface WorldState {
@@ -356,6 +377,7 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   level: p.level,
   companyId: p.companyId,
   todayTokens: p.todayTokens,
+  ...(p.prestige && p.prestige.rank > 0 ? { prestige: p.prestige } : {}),
   liveAgents: p.liveAgents,
   online: online || isBot(p.id),
   coffeeUntil: p.coffeeUntil ?? 0,
@@ -366,6 +388,9 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   // Only on their feet: a seat, a bed or a game puts the dance down (`stopDance`).
   dance: p.state === "idle" ? (p.dance ?? 0) : 0,
   danceSince: p.state === "idle" ? (p.danceSince ?? 0) : 0,
+  // Fishing is on your feet at the bank, and only while you're there to hold the rod.
+  angling: p.state === "idle" && online ? (p.angling ?? null) : null,
+  landing: p.state === "idle" && online ? (p.landing ?? null) : null,
   x: p.x,
   y: p.y,
   facing: p.facing,
@@ -397,8 +422,12 @@ export const world = actor({
     steps: new Map<number, { budget: number; at: number }>(),
     /** When each player last jumped. */
     jumps: new Map<number, number>(),
+    /** When each player last did each thing with their pet (`petPlay`), so a held button can't flood the room. */
+    petPlays: new Map<number, Partial<Record<PetAct, number>>>(),
     /** When each player last tossed a coin in the fountain, so a held key can't flood the ledger. */
     tosses: new Map<number, number>(),
+    fishing: new Map<number, FishingCast>(),
+    fishingStarts: new Map<number, number>(),
     /** When each player last whacked the fastelavn barrel, and the barrel as `town` last said (null off the day). */
     whacks: new Map<number, number>(),
     barrel: null as Barrel | null,
@@ -521,8 +550,10 @@ export const world = actor({
     const left = (c.vars.online.get(s.userId) ?? 1) - 1;
     if (left > 0) return void c.vars.online.set(s.userId, left);
     c.vars.online.delete(s.userId);
+    c.vars.fishing.delete(s.userId);
     const p = c.state.players[s.userId];
     if (!p) return;
+    stopFishing(p);
     pokerStandUp(c, p.id);
     rouletteLeave(c, p.id);
     const from = p.room;
@@ -654,12 +685,14 @@ export const world = actor({
       if (budget === null) return correction(p);
       c.vars.steps.set(userId, { budget, at: now });
 
+      c.vars.fishing.delete(userId);
       const wasSeated = p.state !== "idle";
       p.facing = rawDir;
       p.state = "idle";
       c.vars.dirty.add(p.id);
-      // Walking off ends a dance (turning on the spot too: an arrow key is how you walk away).
-      if (stopDance(p)) sendInfo(c, p, info(p, true));
+      // Walking off ends a dance (turning on the spot too: an arrow key is how you walk away), and puts the rod away.
+      const danced = stopDance(p);
+      if (stopFishing(p) || danced) sendInfo(c, p, info(p, true));
       return typedSwitch(stepTarget(mapOf(p.room), p.x, p.y, rawDir), "kind", {
         move: (target) => {
           if (p.room === "town" && onProp(c.state, c.vars, target.x, target.y)) return correction(p);
@@ -679,6 +712,26 @@ export const world = actor({
       });
     },
 
+    /**
+     * A tapped arrow key: face that way without taking the step, so a tap only turns (see `turnStep`). Only on
+     * your feet, and everyone in the room sees it (`moves`). It spends the step budget like a step.
+     */
+    turn: (c, rawDir: unknown): StepResult => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || !isFacing(rawDir) || p.state !== "idle") return null;
+      const now = Date.now();
+      touch(c, p, now);
+      const s = c.vars.steps.get(userId) ?? { budget: STEP_BURST, at: 0 };
+      const budget = takeStep(s.budget, s.at, now, stepPace(p.polseUntil ?? 0, now));
+      if (budget === null) return correction(p);
+      c.vars.steps.set(userId, { budget, at: now });
+      p.facing = rawDir;
+      c.vars.dirty.add(p.id);
+      if (stopDance(p)) sendInfo(c, p, info(p, true));
+      return null;
+    },
+
     /** Space: a hop, shown to everyone in the room. Only on your feet, and one at a time. */
     jump: (c): void => {
       const userId = requireUser(c.conn.state);
@@ -688,6 +741,39 @@ export const world = actor({
       c.vars.jumps.set(userId, now);
       touch(c, p, now);
       sendToRoom(c, p.room, "jump", userId);
+    },
+
+    /**
+     * Something to do with your pet (`PET_ACTS`): the room sees the pet react (`petPlay`, with the owner's id).
+     * A stroke and a trick are free and only slowed (`PET_COOLDOWN_MS`); a treat costs coins out of the wallet and
+     * is capped per day by `town.treat`. Returns the reason it didn't happen, or null.
+     */
+    petPlay: async (c, what: unknown): Promise<string | null> => {
+      const userId = requireUser(c.conn.state);
+      const p = c.state.players[userId];
+      if (!p || !isPetAct(what)) return null;
+      if (!p.look.pet) return "You don't have a pet with you.";
+      // In their own office the pet is curled up in its bed (drawn on the client): let it sleep.
+      if (ownerOfOffice(p.room) === userId) return "Your pet is asleep in its bed.";
+      const now = Date.now();
+      const last = c.vars.petPlays.get(userId) ?? {};
+      if (now - (last[what] ?? 0) < PET_COOLDOWN_MS[what]) return "Give your pet a moment.";
+      c.vars.petPlays.set(userId, { ...last, [what]: now });
+      touch(c, p, now);
+      if (what === "treat") {
+        try {
+          const left = await main(c.client()).town.treat(userId);
+          sendToRoom(c, p.room, "petPlay", { userId, act: what });
+          return left === 0 ? "That was the last treat for today." : null;
+        } catch (err) {
+          const code = (err as { code?: string }).code;
+          if (code === "limit" || code === "too_poor") return (err as Error).message;
+          console.warn(`[pet] treat ${userId}: ${String(err)}`);
+          return "That didn't work. Try again.";
+        }
+      }
+      sendToRoom(c, p.room, "petPlay", { userId, act: what });
+      return null;
     },
 
     /**
@@ -818,7 +904,7 @@ export const world = actor({
       return { notice: `🪅 Whack! ${HITS - hits} to go.` };
     },
 
-    /** E while facing a coffee machine: one more cup, and everyone sees you shake. */
+    /** E while facing a coffee machine, or ordered at the Tavern's bar: one more cup, and everyone sees you shake. */
     drink: (c, facing: unknown): StepResult => {
       const p = free(c);
       if (!p) return null;
@@ -826,7 +912,8 @@ export const world = actor({
       touch(c, p, now);
       if (isFacing(facing)) p.facing = facing;
       const [dx, dy] = DIRS[p.facing];
-      if (!mapOf(p.room).kind(p.x + dx, p.y + dy).pours) return null;
+      const at = mapOf(p.room).kind(p.x + dx, p.y + dy);
+      if (!at.pours && !at.orders) return null;
       p.coffeeUntil = drinkCoffee(p.coffeeUntil ?? 0, now);
       sendInfo(c, p, info(p, c.vars.online.has(p.id)));
       if (TAVERN && p.room === "inn") questEvent(c, p.id, "coffee", `coffee:${now}`);
@@ -849,7 +936,7 @@ export const world = actor({
       return { notice: `🌭 One rød pølse, med det hele. You walk quicker for ${POLSE.ms / 60_000} minutes.` };
     },
 
-    /** E on the Tavern's tap: the day's special, free, and a glow or a jitter for 15 minutes. */
+    /** E on the Tavern's tap, or ordered at its bar: the day's special, free, and a glow or a jitter for 15 minutes. */
     tavern: (c, facing: unknown): StepResult => {
       const p = free(c);
       if (!TAVERN || p?.room !== "inn") return null;
@@ -857,7 +944,8 @@ export const world = actor({
       touch(c, p, now);
       if (isFacing(facing)) p.facing = facing;
       const [dx, dy] = DIRS[p.facing];
-      if (!mapOf(p.room).kind(p.x + dx, p.y + dy).serves) return null;
+      const at = mapOf(p.room).kind(p.x + dx, p.y + dy);
+      if (!at.serves && !at.orders) return null;
       if (hasSpecial(p.specialUntil ?? 0, now)) return { notice: "🍽 You've still got the last one in you." };
       p.specialUntil = serveUntil(now);
       sendInfo(c, p, info(p, c.vars.online.has(p.id)));
@@ -865,6 +953,76 @@ export const world = actor({
       return {
         notice: `${specialOn(new Date(now))}. On the house. ${how} for ${SPECIAL.ms / 60_000} minutes.`,
       };
+    },
+
+    fishingCast: (c, facing: unknown): CastReply => {
+      const p = free(c);
+      if (p?.room !== "town" || p.state !== "idle" || !isFacing(facing))
+        return { ok: false, message: "Stand by the pond and face the water to fish." };
+      const water = fishingWater(mapOf(p.room), p.x, p.y, facing);
+      if (!water) return { ok: false, message: "Stand by the pond and face the water to fish." };
+      if (iceOver(c.vars.weather))
+        return { ok: false, message: "The pond is frozen. Come back when it thaws." };
+      const now = Date.now();
+      const pending = c.vars.fishing.get(p.id);
+      if (pending && now < pending.endsAt) return { ok: true, cast: pending, now };
+      if (now - (c.vars.fishingStarts.get(p.id) ?? 0) < CAST_COOLDOWN_MS)
+        return { ok: false, message: "Give the pond a moment before casting again." };
+      touch(c, p, now);
+      p.facing = facing;
+      c.vars.dirty.add(p.id);
+      const cast = newCast(p.x, p.y, water, now);
+      c.vars.fishing.set(p.id, cast);
+      c.vars.fishingStarts.set(p.id, now);
+      p.angling = { waterX: cast.waterX, waterY: cast.waterY, biteAt: cast.biteAt, endsAt: cast.endsAt };
+      p.landing = null;
+      sendInfo(c, p, info(p, true));
+      return { ok: true, cast, now };
+    },
+
+    fishingReel: async (c): Promise<ReelReply> => {
+      const p = free(c);
+      const cast = p && c.vars.fishing.get(p.id);
+      if (!p || !cast) return { ok: false, message: "Cast a line first." };
+      // Consume before awaiting the journal write: two tabs cannot claim the same fish.
+      c.vars.fishing.delete(p.id);
+      if (stopFishing(p)) sendInfo(c, p, info(p, true));
+      const now = Date.now();
+      if (
+        p.room !== "town" ||
+        p.state !== "idle" ||
+        p.x !== cast.x ||
+        p.y !== cast.y ||
+        iceOver(c.vars.weather)
+      )
+        return { ok: false, message: "Your line came loose. Cast again from the bank." };
+      touch(c, p, now);
+      const phase = fishingPhase(cast, now);
+      if (phase !== "bite")
+        return {
+          ok: false,
+          message:
+            phase === "waiting" ? "Too soon! Wait for the bobber to dip." : "It got away! Try another cast.",
+        };
+      const caught = rollCatch(pondTime(now, c.vars.weather.kind));
+      const landed = await main(c.client()).town.recordFish(p.id, caught);
+      // Held up for the room to see, if they're still on the bank.
+      if (p.x === cast.x && p.y === cast.y && p.state === "idle") {
+        p.landing = { fish: caught.fish, waterX: cast.waterX, waterY: cast.waterY, at: Date.now() };
+        sendInfo(c, p, info(p, true));
+      }
+      return { ok: true, catch: caught, ...landed };
+    },
+
+    fishingCancel: (c): void => {
+      const userId = requireUser(c.conn.state);
+      c.vars.fishing.delete(userId);
+      const p = c.state.players[userId];
+      // The rod goes away with the panel; a catch still being held up stays up for its moment.
+      if (p?.angling) {
+        p.angling = null;
+        sendInfo(c, p, info(p, true));
+      }
     },
 
     /** The Tavern's jukebox: put a track on, if nothing plays and you've waited out your minute. */
@@ -958,22 +1116,35 @@ export const world = actor({
       }
       if (spot < 0) return null;
       if (r.seats.length >= SPOTS) return { notice: "The table is full. You can watch." };
+      if (rouletteTaken(c, p, spot)) return { notice: "Someone's already there." };
       const [x, y] = rouletteSpots()[spot]!;
-      const taken =
-        r.seats.some((s) => s.spot === spot) ||
-        Object.values(c.state.players).some(
-          (o) => o.id !== p.id && o.room === p.room && o.x === x && o.y === y,
-        );
-      if (taken) return { notice: "Someone's already there." };
       if (p.state === "sit" && (p.x !== x || p.y !== y)) return null;
-      Object.assign(p, { x, y, facing: "up" });
-      if (stopDance(p)) sendInfo(c, p, info(p, true));
-      c.vars.dirty.add(p.id);
-      r.seats.push({ spot, userId: p.id, name: p.name });
-      r.seats.sort((a, b) => a.spot - b.spot);
-      r.players.set(p.id, { userId: p.id, bets: [], ready: false });
-      sendRoulette(c);
-      return correction(p);
+      return rouletteSeat(c, p, spot);
+    },
+
+    /**
+     * Roulette from anywhere: the table is always the net cafe's, shared with whoever else is playing, so starting
+     * one takes you down there and onto the first free spot. If it is full you are in the net cafe all the same,
+     * with the reason as a notice, and can watch.
+     */
+    rouletteJoin: (c): StepResult => {
+      const p = free(c);
+      if (!p) return null;
+      touch(c, p, Date.now());
+      const r = c.vars.roulette;
+      if (r.seats.some((s) => s.userId === p.id)) return { notice: "You're at the table already." };
+      const spots = rouletteSpots();
+      const spot = spots.findIndex((_, i) => !rouletteTaken(c, p, i));
+      if (p.room !== "basement") {
+        Object.assign(p, roomEntry("basement"), { state: "idle" });
+        c.vars.dirty.add(p.id);
+        countVisit(c, p);
+      }
+      if (spot < 0 || r.seats.length >= SPOTS) {
+        c.conn.send("notice", { text: "The roulette table is full. You can watch." } satisfies Notice);
+        return correction(p);
+      }
+      return rouletteSeat(c, p, spot);
     },
 
     /** Gives up your spot at the roulette table (stakes still open this round go back to your wallet). */
@@ -1145,23 +1316,23 @@ export const world = actor({
     /**
      * Moves a piece of furniture you may take (your office's, or your company's) to the tile (x, y), in one
      * step: it is on the floor the whole time, and if the spot is no good or `town` can't write it down, it
-     * stays where it was. `at` is the tile's left end, as for a drop. `flip` turns it to face the other way
-     * (mirrored left to right, in place or as it moves); left out, it faces as it did.
+     * stays where it was. `x`, `y` is the piece's top-left tile. `rot` (0 to 3 quarter turns clockwise) turns it,
+     * in place or as it moves, and a piece turned sideways lies down its column; left out, it is as turned as it was.
      */
     move: async (
       c,
       id: unknown,
       x: unknown,
       y: unknown,
-      flip?: unknown,
+      rot?: unknown,
     ): Promise<{ notice: string; drop?: Drop }> => {
       const userId = requireUser(c.conn.state);
       const p = c.state.players[userId];
       if (!p || (p.state !== "idle" && p.state !== "sit")) return { notice: "Not now." };
       if (![id, x, y].every((n) => Number.isInteger(n)))
         throw new UserError("Pick a tile.", { code: "bad_request" });
-      if (flip !== undefined && typeof flip !== "boolean")
-        throw new UserError("Flip it or not.", { code: "bad_request" });
+      if (rot !== undefined && !(Number.isInteger(rot) && (rot as number) >= 0 && (rot as number) < 4))
+        throw new UserError("Turn it a quarter, half or three quarters.", { code: "bad_request" });
       touch(c, p, Date.now());
       const d = dropsIn(p.room).find((o) => o.id === id);
       const piece = d && pieceOfDrop(d);
@@ -1171,12 +1342,13 @@ export const world = actor({
       const people = Object.values(c.state.players).filter((o) => o.room === p.room);
       if (people.some((o) => o.state === "sit" && dropCovers(d, o.x, o.y)))
         return { notice: "Someone is on it." };
-      if (flip && !canFlip(piece.ch)) return { notice: "That one hangs as it is." };
-      if (!furnitureFits(p.room, d, piece, x as number, y as number, people))
+      if (rot && !canTurn(piece.ch)) return { notice: "That one hangs as it is." };
+      const was = rotOf(d.rot);
+      const turned = rotOf(rot ?? was);
+      if (!furnitureFits(p.room, d, piece, x as number, y as number, people, turned))
         return { notice: "It doesn't fit there." };
-      const { flip: was, ...rest } = d;
-      const turned = flip ?? was ?? false;
-      const moved: Drop = { ...rest, x: x as number, y: y as number, ...(turned && { flip: true }) };
+      const { rot: _, ...rest } = d;
+      const moved: Drop = { ...rest, x: x as number, y: y as number, ...(turned && { rot: turned }) };
       setDrops(p.room, [...dropsIn(p.room).filter((o) => o.id !== d.id), moved]);
       const wrote = await main(c.client())
         .town.moved(moved)
@@ -1192,7 +1364,7 @@ export const world = actor({
       sendToRoom(c, p.room, "drop", moved);
       const still = moved.x === d.x && moved.y === d.y;
       return {
-        notice: `${still && turned !== (was ?? false) ? "Turned" : "Moved"} the ${dropName(moved)}.`,
+        notice: `${turned !== was && (still || sideways(turned) !== sideways(was)) ? "Turned" : "Moved"} the ${dropName(moved)}.`,
         drop: moved,
       };
     },
@@ -1437,7 +1609,10 @@ export const world = actor({
         c.vars.announced,
         c.vars.steps,
         c.vars.jumps,
+        c.vars.petPlays,
         c.vars.tosses,
+        c.vars.fishing,
+        c.vars.fishingStarts,
         c.vars.whacks,
       ])
         vars.delete(userId);
@@ -1497,7 +1672,7 @@ export const world = actor({
           name: p.name,
           level: p.level,
           company: c.state.companies[p.companyId!]?.name ?? "",
-          tier: officeTier(p.level),
+          tier: officeTier(p.level, officeOf(c.state, p.id).size),
           inside: Object.values(c.state.players).filter(
             (o) => o.room === `office:${p.id}` && c.vars.online.has(o.id),
           ).length,
@@ -1563,12 +1738,11 @@ export const world = actor({
       const people = Object.values(c.state.players).filter((o) => o.room === p.room);
       // One drop per tile; furniture lands on nobody, and not in anyone's way.
       const taken = new Set<string>();
-      for (const d of here) for (let i = 0; i < (pieceOfDrop(d)?.w ?? 1); i++) taken.add(`${d.x + i},${d.y}`);
+      for (const d of here) for (const [tx, ty] of dropTiles(d)) taken.add(`${tx},${ty}`);
       // Nor in front of a poster, where it would hide it and keep anyone from taking it down.
       if (piece && !piece.wall)
         for (const d of here)
-          if (pieceOfDrop(d)?.wall)
-            for (let i = 0; i < (pieceOfDrop(d)?.w ?? 1); i++) taken.add(`${d.x + i},${d.y + 1}`);
+          if (pieceOfDrop(d)?.wall) for (const [tx, ty] of dropTiles(d)) taken.add(`${tx},${ty + 1}`);
       if (piece) {
         for (const o of people) taken.add(`${o.x},${o.y}`);
         for (const t of noFurniture(p.room, map)) taken.add(t);
@@ -1904,6 +2078,14 @@ function wake(s: WorldState, p: WorldPlayer): boolean {
   return true;
 }
 
+/** Puts `p`'s rod away and their catch back: true if either was showing (their `info` changed). */
+function stopFishing(p: WorldPlayer): boolean {
+  if (!p.angling && !p.landing) return false;
+  p.angling = null;
+  p.landing = null;
+  return true;
+}
+
 /** Ends `p`'s dance, if they're doing one; true if they were (their `info` changed). */
 function stopDance(p: WorldPlayer): boolean {
   if (!p.dance) return false;
@@ -2019,6 +2201,7 @@ function placeBots(s: WorldState): void {
       level: b.level,
       companyId: null,
       todayTokens: 0,
+      prestige: NO_PRESTIGE,
       ...(b.home ?? townSpawn()),
       state: "idle",
       lastInputAt: 0,
@@ -2497,7 +2680,7 @@ async function snapshot(
         : {
             id: owner,
             name: s.players[owner]?.name ?? "Someone",
-            tier: officeTier(s.players[owner]?.level ?? 0),
+            tier: officeTier(s.players[owner]?.level ?? 0, officeOf(s, owner).size),
             ...decorOf(s, owner),
           },
     doors: companyId === null ? [] : doorsOf(s, companyId),
@@ -2767,8 +2950,8 @@ function liftMisplaced(c: Sender & { vars: Vars }, room: RoomId): number[] {
   const out = dropsIn(room).filter((d) => {
     const piece = pieceOfDrop(d);
     if (piece?.wall) return !canHang(base, d.x, d.y, piece.w ?? 1, piece.home);
-    for (let i = 0; i < (piece?.w ?? 1); i++)
-      if (!base.walkable(d.x + i, d.y) || (piece && reserved.has(`${d.x + i},${d.y}`))) return true;
+    for (const [tx, ty] of dropTiles(d))
+      if (!base.walkable(tx, ty) || (piece && reserved.has(`${tx},${ty}`))) return true;
     return false;
   });
   for (const d of out) lift(c, d);
@@ -2788,7 +2971,8 @@ const decorOf = (s: WorldState, userId: number) => {
 function buildOffice(s: WorldState, userId: number): boolean {
   const before = OFFICE_MAPS.get(userId);
   const p = s.players[userId];
-  if (p && p.level >= OFFICE_LEVEL) setOffice(userId, officeTier(p.level), decorOf(s, userId));
+  if (p && p.level >= OFFICE_LEVEL)
+    setOffice(userId, officeTier(p.level, officeOf(s, userId).size), decorOf(s, userId));
   else clearOffice(userId);
   return OFFICE_MAPS.get(userId) !== before;
 }
@@ -3243,6 +3427,33 @@ function pokerWhy(err: unknown): string {
  * `p` sits at chair `at`: the seat is held while the town takes the buy-in, then dealt in from the
  * next hand. If the town says no, or they left meanwhile, nothing moves.
  */
+/** Whether roulette spot `spot` has a seat on it, or someone (other than `p`) standing on it. */
+function rouletteTaken(c: Sender & { vars: Vars }, p: WorldPlayer, spot: number): boolean {
+  const [x, y] = rouletteSpots()[spot]!;
+  return (
+    c.vars.roulette.seats.some((s) => s.spot === spot) ||
+    Object.values(c.state.players).some(
+      (o) => o.id !== p.id && o.room === "basement" && o.x === x && o.y === y,
+    )
+  );
+}
+
+/** Puts `p` on roulette spot `spot`, facing the table, and tells the room. */
+function rouletteSeat(c: Sender & { vars: Vars }, p: WorldPlayer, spot: number): StepResult {
+  const [x, y] = rouletteSpots()[spot]!;
+  const r = c.vars.roulette;
+  // Above the table they look down at it, below it up.
+  const table = rouletteTable();
+  Object.assign(p, { x, y, facing: table && y < table.y ? "down" : "up" });
+  if (stopDance(p)) sendInfo(c, p, info(p, true));
+  c.vars.dirty.add(p.id);
+  r.seats.push({ spot, userId: p.id, name: p.name });
+  r.seats.sort((a, b) => a.spot - b.spot);
+  r.players.set(p.id, { userId: p.id, bets: [], ready: false });
+  sendRoulette(c);
+  return correction(p);
+}
+
 async function pokerSitDown(c: PokerCtx, p: WorldPlayer, at: number): Promise<StepResult> {
   const t = c.vars.poker;
   const chair = pokerChairs()[at]!;

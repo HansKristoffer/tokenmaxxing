@@ -298,6 +298,35 @@ export class Room {
     return p;
   }
 
+  /**
+   * Places a piece that is turned `rot` quarter turns clockwise (F) on top of its own `turn`, over the `tiles` map tiles
+   * from (`x`, `z`): along its row, or down its column when it is turned sideways, so what is drawn and what blocks
+   * the way are the tiles the map says.
+   */
+  placeTurned(
+    asset: Asset,
+    x: number,
+    z: number,
+    turn: Turn,
+    rot: number,
+    tiles: number,
+    model = asset.build(),
+  ): Placed {
+    const quarter = (((turn - rot) % 4) + 4) % 4;
+    if (rot % 2 === 0) return this.place(asset, x, z, quarter as Turn, model);
+    // Lying down its column: centred on its `tiles` map tiles, whatever depth its art has.
+    model.position.set(x + 0.5, 0, z + tiles / 2);
+    model.rotation.y = (quarter * Math.PI) / 2;
+    this.group.add(model);
+    const p: Placed = { asset, x, z, turn: quarter as Turn, model };
+    this.placed.push(p);
+    for (let j = 0; j < tiles; j++) {
+      const cell = (z + j) * this.W + x;
+      if (asset.id !== "rug" || !this.grid[cell]) this.grid[cell] = p;
+    }
+    return p;
+  }
+
   /** Something hung on a wall: `x` along the north wall, `y` up it. */
   hang(model: Model, x: number, y: number): void {
     model.position.set(x, y, 0.01);

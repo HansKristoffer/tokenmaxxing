@@ -6,6 +6,7 @@ import { HALLOWEEN_TAVERN, HALLOWEEN_TOWN } from "./halloween-music.ts";
 import { MIDSOMMER_TAVERN, MIDSOMMER_TOWN } from "./midsommer-music.ts";
 import { NYTAR_TAVERN, NYTAR_TOWN } from "./nytar-music.ts";
 import { PAASKE_TAVERN, PAASKE_TOWN } from "./paaske-music.ts";
+import { tavernSet } from "./tavern-band.ts";
 import type { Tune } from "./tunes.ts";
 import type { RoomId } from "./world.ts";
 
@@ -17,7 +18,7 @@ import type { RoomId } from "./world.ts";
 /** Steps in one loop of every theme: an A part and a B part. */
 export const THEME_STEPS = 64;
 
-export type BaseThemeId = "town" | "company" | "office" | "tavern" | "raid";
+export type BaseThemeId = "town" | "company" | "office" | "tavern" | "hearth-jig" | "lantern-reel" | "raid";
 /** The rooms a festive theme may re-score: the town and the Tavern's three floors. */
 export type FestiveRoomTheme = "town" | "tavern";
 /** A festive track's id, `festive-nytar-town`: distinct from the usual one, so the player restarts on it (and back). */
@@ -70,6 +71,26 @@ export const THEMES: readonly Theme[] = [
     drums: "k.h.s.h. | k.h.s.h. | k.h.s.h. | k.h.s.hs | k.h.s.h. | k.h.s.h. | k.h.s.h. | k.hks.hs",
   },
   {
+    id: "hearth-jig",
+    name: "Hearthside Jig",
+    emoji: "🪕",
+    bpm: 126,
+    wave: "square",
+    lead: "d5 e5 f5 a5 f5 e5 d5 _ | c5 d5 e5 g5 e5 d5 c5 _ | d5 f5 a5 d6 c6 a5 f5 e5 | d5 _ a4 _ d5 _ . . | f5 g5 a5 c6 a5 g5 f5 _ | e5 f5 g5 bb5 g5 f5 e5 _ | d5 f5 a5 d6 c6 a5 g5 e5 | f5 e5 d5 c5 d5 _ _ _",
+    bass: "d3 . a3 . d3 . a3 . | c3 . g3 . c3 . g3 . | bb2 . f3 . bb2 . f3 . | d3 . a2 . d3 . a2 . | f3 . c3 . f3 . c3 . | c3 . g2 . c3 . g2 . | bb2 . f3 . a2 . e3 . | d3 . a2 . d3 _ . .",
+    drums: "k..h..h. | k..h..h. | k..h..h. | k..h..h. | k..h..h. | k..h..h. | k..h..h. | k..h..h.",
+  },
+  {
+    id: "lantern-reel",
+    name: "Lantern & Lute",
+    emoji: "🕯️",
+    bpm: 108,
+    wave: "triangle",
+    lead: "e5 _ g5 a5 b5 _ a5 g5 | d5 _ f#5 g5 a5 _ g5 f#5 | e5 g5 b5 e6 d6 b5 a5 g5 | f#5 _ d5 _ e5 _ . . | b5 a5 g5 e5 g5 a5 b5 _ | a5 g5 f#5 d5 f#5 g5 a5 _ | g5 e5 g5 b5 a5 f#5 d5 f#5 | e5 _ b4 _ e5 _ _ _",
+    bass: "e3 _ b2 _ e3 _ b2 _ | d3 _ a2 _ d3 _ a2 _ | c3 _ g2 _ c3 _ g2 _ | d3 _ a2 _ e3 _ b2 _ | e3 _ b2 _ e3 _ b2 _ | d3 _ a2 _ d3 _ a2 _ | c3 _ g2 _ d3 _ a2 _ | e3 _ b2 _ e3 _ . .",
+    drums: "k....... | ....h... | k....... | ....h... | k....... | ....h... | k....... | ....h...",
+  },
+  {
     id: "raid",
     name: "Boss Fight.exe",
     emoji: "👹",
@@ -81,8 +102,12 @@ export const THEMES: readonly Theme[] = [
   },
 ];
 
-/** The theme for a room: houses are the company's, offices the desk, the Tavern's three floors one. */
-export function themeOf(room: RoomId, festive?: FestiveId | null): Theme {
+/**
+ * The theme for a room: houses are the company's, offices the desk, the Tavern's three floors one. A festive theme's own
+ * track wins; otherwise the Tavern floor switches to the live folk set after 16:00.
+ */
+export function themeOf(room: RoomId, festive?: FestiveId | null, at = Date.now()): Theme {
+  const set = room === "inn" ? tavernSet(at) : null;
   const id: BaseThemeId =
     room === "town"
       ? "town"
@@ -93,7 +118,10 @@ export function themeOf(room: RoomId, festive?: FestiveId | null): Theme {
           : room.startsWith("hq:")
             ? "company"
             : "office";
-  return festiveTheme(festive, id) ?? THEMES.find((t) => t.id === id)!;
+  const own = festiveTheme(festive, id);
+  if (own) return own;
+  if (set) return THEMES.find((t) => t.id === set)!;
+  return THEMES.find((t) => t.id === id)!;
 }
 
 /** The festive theme's own music for a room's usual theme (only the town and the Tavern), or null: the usual one plays. */

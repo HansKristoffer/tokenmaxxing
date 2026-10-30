@@ -5,8 +5,8 @@
  * (`office.ts`) and dances (`dances.ts`). Everything bought or earned is a row in the bag.
  */
 import { isRecord } from "hanzio";
-import { CASE_ITEMS } from "./case.ts";
-import { CASE_PIECES } from "./case-furniture.ts";
+import { ALL_CASE_ITEMS } from "./case.ts";
+import { ALL_CASE_PIECES } from "./case-furniture.ts";
 import { COSTUMES } from "./costumes.ts";
 import { DANCE_ITEMS } from "./dances.ts";
 import { EDITIONS } from "./editions.ts";
@@ -15,15 +15,43 @@ import type { HolidayId } from "./holidays.ts";
 import { HOME_PIECES } from "./home.ts";
 import { LOOT, type Rarity as LootRarity } from "./loot.ts";
 import { COMPANY_FURNITURE, FURNITURE } from "./office.ts";
+import { isPrestigePiece } from "./prestige-furniture.ts";
 import type { Rarity } from "./rarity.ts";
 import { WARDROBE, type WardrobeSlot } from "./wardrobe.ts";
 import type { Look } from "./world.ts";
 
 /**
- * Coins for one day's tokens. Real days from the leaderboard: 1.5B tokens
- * earns 38, 600M earns 24, 120M earns 10, 10M earns 3.
+ * Coins for one day's tokens, before `TOKEN_COINS_FROM`: the square root of the millions. Real days from
+ * the leaderboard: 1.5B tokens earned 38, 600M earned 24, 120M earned 10, 10M earned 3.
  */
-export const coinsForTokens = (tokens: number): number => Math.floor(Math.sqrt(Math.max(0, tokens) / 1e6));
+export const legacyTokenCoins = (tokens: number): number => Math.floor(Math.sqrt(Math.max(0, tokens) / 1e6));
+
+/**
+ * The first world day on today's curve. Days before it keep `legacyTokenCoins`, so nobody's balance
+ * moves at deploy: a wallet is worked out again from every day, and a raised rate would pay them all.
+ * ponytail: set to the deploy day when shipping, like `STREAK_FROM`.
+ */
+export const TOKEN_COINS_FROM = "2026-10-27";
+/**
+ * The first world day on `TOKEN_COIN_MULT`. The days from `TOKEN_COINS_FROM` up to here (27 Oct) keep the
+ * 2.5 rate they were paid at, so no balance moves backwards.
+ */
+export const TOKEN_COIN_MULT_FROM = "2026-10-28";
+/** Today's curve: `TOKEN_COIN_MULT` × the millions to the power `TOKEN_COIN_EXP`. 1.5B tokens earn 120, 600M 69, 120M 26, 10M 5. */
+export const TOKEN_COIN_EXP = 0.6;
+export const TOKEN_COIN_MULT = 1.5;
+/** The multiplier the days before `TOKEN_COIN_MULT_FROM` were paid at. */
+const FIRST_DAYS_MULT = 2.5;
+
+const curveCoins = (tokens: number, mult: number): number =>
+  Math.floor(mult * (Math.max(0, tokens) / 1e6) ** TOKEN_COIN_EXP);
+
+/** Coins for one day's tokens; `day` (`YYYY-MM-DD`) picks the curve it was earned on, none the current one. */
+export const coinsForTokens = (tokens: number, day?: string): number => {
+  if (day !== undefined && day < TOKEN_COINS_FROM) return legacyTokenCoins(tokens);
+  const mult = day !== undefined && day < TOKEN_COIN_MULT_FROM ? FIRST_DAYS_MULT : TOKEN_COIN_MULT;
+  return curveCoins(tokens, mult);
+};
 
 /** Extra coins for finishing a world day 1st, 2nd or 3rd on tokens. */
 export const PODIUM_COINS = [25, 15, 10] as const;
@@ -139,17 +167,19 @@ export const ITEMS: readonly Item[] = [
     loot: { boss: l.boss, rarity: l.rarity },
   })),
   // The case's own: given by an opening, never sold, tradeable after a short lock (`case.ts`).
-  ...CASE_ITEMS,
+  ...ALL_CASE_ITEMS,
   // The case's furniture (`case-furniture.ts`): given by an opening, tradeable, and put down only in your own office.
-  ...CASE_PIECES.map((f, index): Item => ({
+  ...ALL_CASE_PIECES.map((f, index): Item => ({
     id: `furn.${f.ch}`,
     slot: "furniture",
     index,
     name: f.name,
     price: 0,
-    tradeable: true,
+    // A prestige trophy is earned by a run, not opened: never traded, never a case item.
+    ...(isPrestigePiece(f.ch)
+      ? { tradeable: false, earned: "Reach level 50 of a prestige run" }
+      : { tradeable: true, case: true }),
     home: true,
-    case: true,
     rarity: f.rarity,
     blurb: f.blurb,
   })),
@@ -204,10 +234,10 @@ export function itemsIn(look: Look): (Item & { slot: Slot })[] {
  * hoodie goes over a tee.
  */
 export const MERCH = [
-  { kind: "tee", name: "Tee", price: 80, bit: 1 },
-  { kind: "hoodie", name: "Hoodie", price: 160, bit: 2 },
-  { kind: "cap", name: "Cap", price: 60, bit: 4 },
-  { kind: "mug", name: "Mug", price: 40, bit: 8 },
+  { kind: "tee", name: "Tee", price: 120, bit: 1 },
+  { kind: "hoodie", name: "Hoodie", price: 240, bit: 2 },
+  { kind: "cap", name: "Cap", price: 90, bit: 4 },
+  { kind: "mug", name: "Mug", price: 60, bit: 8 },
 ] as const;
 export type MerchKind = (typeof MERCH)[number]["kind"];
 

@@ -1,4 +1,4 @@
-import { BADGES, frameOf } from "@tokenmaxxing/core/badges.ts";
+import { BADGES, frameOf, grandFrame } from "@tokenmaxxing/core/badges.ts";
 import { MILESTONES } from "@tokenmaxxing/core/milestones.ts";
 import { opensAt, type RaidWeek, raidWeekAt } from "@tokenmaxxing/core/raid.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
@@ -36,12 +36,11 @@ const RAREST = 5;
 const WHO = 3;
 const FIRSTS = 8;
 
-/** Whether `tier` of badge `id` has a gold or diamond frame. */
+/** Whether `tier` of badge `id` has a gold frame or better. */
 const topTier = (id: string, tier: number): boolean => {
   const def = BADGES.find((b) => b.id === id);
   if (!def) return false;
-  const f = frameOf(tier, def.tiers.length);
-  return f === "gold" || f === "diamond";
+  return grandFrame(frameOf(tier, def.tiers.length));
 };
 
 /** What `firsts` says of a (badge, tier) row. */

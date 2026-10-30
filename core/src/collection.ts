@@ -11,7 +11,7 @@ import { TROPHIES, type Trophy } from "./trophies.ts";
 export type { Group };
 
 /** The order the log's tabs come in. */
-export const GROUPS: readonly Group[] = ["Usage", "Social", "Town", "Raid", "Games", "Seasonal"];
+export const GROUPS: readonly Group[] = ["Usage", "Social", "Town", "Raid", "Games", "Fishing", "Seasonal"];
 
 /** How many things a player may pin to their card. */
 export const PIN_MAX = 3;
@@ -35,6 +35,10 @@ const TROPHY_GROUP: Record<string, Group> = {
   piday: "Seasonal",
   palindate: "Seasonal",
   storm: "Seasonal",
+  hurricane: "Seasonal",
+  leapday: "Seasonal",
+  friday13: "Seasonal",
+  halloween: "Seasonal",
 };
 
 export const CATALOG: readonly CatalogEntry[] = [

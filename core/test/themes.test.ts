@@ -17,7 +17,7 @@ describe("room themes", () => {
     expect(themeOf("town").id).toBe("town");
     expect(themeOf("hq:3").id).toBe("company");
     expect(themeOf("office:7").id).toBe("office");
-    expect(themeOf("inn").id).toBe("tavern");
+    expect(themeOf("inn", null, Date.UTC(2026, 9, 28, 10)).id).toBe("tavern");
     expect(themeOf("basement").id).toBe("tavern");
     expect(themeOf("dungeon").id).toBe("raid");
   });

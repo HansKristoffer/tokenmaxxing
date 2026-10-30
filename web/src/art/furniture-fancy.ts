@@ -8,9 +8,11 @@
  */
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { withAlpha } from "hanzio";
-import { CASE_FURNITURE, HOME_FURNITURE } from "./furniture-home.ts";
+import { CASE_FURNITURE, HOME_FURNITURE, NUSANTARA_FURNITURE } from "./furniture-home.ts";
+import { RAGNAROK_FURNITURE } from "./furniture-ragnarok.ts";
 import { C, shade } from "./palette.ts";
 import { bake, cached, glyphPixels, type Pen } from "./pixels.ts";
+import { PRESTIGE_TROPHIES } from "./prestige-trophy.ts";
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 /** Where a piece goes: on the floor, against the top wall, hanging from the ceiling, or flat (walk over it). */
@@ -1076,11 +1078,14 @@ export const FANCY_FURNITURE: readonly FancyPiece[] = [
   piece("rubber-duck-statue", "Rubber-duck statue", 1, 1, 26, 1000, "legendary", duckStatue),
 ];
 
-/** A piece by id: the company's, or a personal office's (`furniture-home.ts`). */
+/** A piece by id: the company's, or a personal office's or a case's (`furniture-home.ts`). */
 export const fancyPiece = (id: string): FancyPiece | undefined =>
   FANCY_FURNITURE.find((f) => f.id === id) ??
   HOME_FURNITURE.find((f) => f.id === id) ??
-  CASE_FURNITURE.find((f) => f.id === id);
+  CASE_FURNITURE.find((f) => f.id === id) ??
+  NUSANTARA_FURNITURE.find((f) => f.id === id) ??
+  RAGNAROK_FURNITURE.find((f) => f.id === id) ??
+  PRESTIGE_TROPHIES.find((f) => f.id === id);
 
 /** Which frame a piece shows at time `now` (ms). */
 export const fancyFrame = (piece: FancyPiece, now: number): number =>

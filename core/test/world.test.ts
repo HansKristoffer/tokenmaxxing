@@ -234,6 +234,25 @@ describe("looks and houses", () => {
     expect(LOOK_OPTIONS.petVariant).toBe(MAX_PET_LOOKS);
   });
 
+  test("merch: nothing worn is none, and a hoodie over a tee is just the hoodie", () => {
+    const base = { style: 1, skin: 2, hair: 3, outfit: 4 };
+    expect(parseLook({ ...base, merch: 7, merchWorn: 1 | 4 })).toMatchObject({ merch: 7, merchWorn: 5 });
+    expect(parseLook({ ...base, merch: 7, merchWorn: 0 })).toMatchObject({ merch: 0, merchWorn: 0 });
+    expect(parseLook({ ...base, merch: 0, merchWorn: 4 })).toMatchObject({ merch: 0, merchWorn: 0 });
+    // Both tops saved, one drawn: the hoodie, with whatever else goes with it.
+    expect(parseLook({ ...base, merch: 7, merchWorn: 1 | 2 | 8 })).toMatchObject({
+      merch: 7,
+      merchWorn: 2 | 8,
+    });
+    expect(parseLook({ ...base, merch: 7, merchWorn: 3 })).toEqual(
+      parseLook({ ...base, merch: 7, merchWorn: 2 }),
+    );
+    // Only the four pieces' bits are a look, and a company is a whole, non-negative number.
+    expect(parseLook({ ...base, merch: 7, merchWorn: 16 })).toBeNull();
+    expect(parseLook({ ...base, merch: -1, merchWorn: 1 })).toBeNull();
+    expect(parseLook({ ...base, merch: 1.5, merchWorn: 1 })).toBeNull();
+  });
+
   test("wearing another pet starts from its original look, so the server never sees an out-of-range one", () => {
     const base = {
       style: 1,

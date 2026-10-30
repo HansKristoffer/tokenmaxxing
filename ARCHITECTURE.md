@@ -19,37 +19,37 @@ Tokenmaxxing.app (Tauri v2, app/desktop)             server (one Railway service
 
 The game also runs in any browser; the app's window is that same page, at `/play`.
 
-| Path | What |
-|---|---|
-| `core/` | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `dances.ts` (the dance bar's dances, their aura and aura battles), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `keynote.ts` (the keynote watch party: admin-scheduled launch events on the Tavern's projector screen, see *The Tavern*), `clocks.ts` (the Tavern's world clocks: SF, New York and Copenhagen off Intl, and SF's working hours as the launch window), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `statue.ts` (the statue of the #1 model on the square's `♛` tile: `world` reads LMArena's Text Arena from its Hugging Face dataset four times a day, keeps the last leader in its state so a broken feed never empties the plinth, and the admin page can pin another one; a new leader is unveiled on the clock from `since`), `graveyard.ts` (the model graveyard: the same read keeps every pool model `world` has seen, in its SQLite (`server/src/graveyard.ts`), and one missing from every read for 3 days gets a tombstone on the lawn east of the Tavern; the five newest stand, each on its own plot), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen, the light summer nights, and the cold and pollen rules: breath, scarves, ice, sneezes), `seasons.ts` (the town's season by date), `windmill.ts` (the windmill by the Tavern: how fast its sails turn for the weather's wind, and how its cap winds round to face it; each client eases its own, the server keeps nothing), `stars.ts` (the star counter on the square: the repo, its milestones, and what a read of the GitHub stars does to `world`'s state), `fireworks.ts` (a show's rockets worked out from its start, place and seed, so every client draws the same ones without the server sending more than the show), `grid.ts` (the power grid: green hours, expensive power, the green bonus) |
-| `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers) |
-| `server/src/town/` | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `quests`, `awards` (badge awards and their sweep), `hall` (the Hall of Fame), `card` (bios, showcase, habits, the Tavern's minutes), `sync` (pushes to `world`) |
-| `server/src/` | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (Open-Meteo for the `world` actor: the forecast every 15 min, the air-quality API's pollen every hour), `launch.ts` (one read of OpenRouter's model list per 10 min, for the launch stand and the graveyard), `graveyard.ts` (the graveyard's plots, in `world`'s SQLite), `statue.ts` (LMArena's #1, read for the `world` actor every 6 hours, 30 minutes after a failed read), `github-stars.ts` (the repo's GitHub stars, one REST read per 15 min for `world`; `GITHUB_TOKEN` optional), `grid.ts` (Energi Data Service's CO₂ every 15 min and prices hourly, for `world`), `tavern-clock.ts` (the minutes `world` counts in the Tavern) |
-| `web/src/` | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels), `render3d/` (the 3D renderer: `engine/`, `kit/`, `people/`, `pets/`, `furniture/`, `rooms/`, `town/`, `dungeon/`, `shops/`, `data/`), `settings/` (graphics tiers, detection, governor) |
-| `app/helper/` | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar |
-| `app/desktop/` | The desktop app (Tauri v2): the menu bar, the game window, updates |
-| `site/` | The marketing site at `/` (Astro, static): `bun run site:dev` to work on it, `bun run site:build` before serving it |
+| Path                 | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/`              | Sync (log parsing is the `llm-usage-extraction` package; GitHub PRs are `sources/github.ts`), the shell↔helper protocol, `world.ts` (shared rules), `maps.ts` (the maps), `shop.ts` (coins and items), `dances.ts` (the dance bar's dances, their aura and aura battles), `office.ts` (offices and furniture), `tavern.ts` (the `TAVERN` flag, the daily special, the net cafe's clock), `keynote.ts` (the keynote watch party: admin-scheduled launch events on the Tavern's projector screen, see _The Tavern_), `clocks.ts` (the Tavern's world clocks: SF, New York and Copenhagen off Intl, and SF's working hours as the launch window), `launch.ts` (the new-model stand: `world` reads OpenRouter's public model list every 10 minutes, and a model from the pool of providers stands at the square's left edge from when it's listed until 18:00 that day, or 18:00 tomorrow when it's listed after 16:00), `statue.ts` (the statue of the #1 model on the square's `♛` tile: `world` reads LMArena's Text Arena from its Hugging Face dataset four times a day, keeps the last leader in its state so a broken feed never empties the plinth, and the admin page can pin another one; a new leader is unveiled on the clock from `since`), `graveyard.ts` (the model graveyard: the same read keeps every pool model `world` has seen, in its SQLite (`server/src/graveyard.ts`), and one missing from every read for 3 days gets a tombstone on the lawn east of the Tavern; the five newest stand, each on its own plot), `barkeep.ts`, `themes.ts` (the rooms' background music, same note format as the jukebox's `tunes.ts`), `quests.ts`, `badges.ts` and `collection.ts` (badges and the collection log), `agentType.ts`, `regulars.ts`, `games/` (every game's rules), `format.ts`, `range.ts`, `sky.ts` (sun, moon and weather maths for Copenhagen, the light summer nights, and the cold and pollen rules: breath, scarves, ice, sneezes), `seasons.ts` (the town's season by date), `windmill.ts` (the windmill by the Tavern: how fast its sails turn for the weather's wind, and how its cap winds round to face it; each client eases its own, the server keeps nothing), `stars.ts` (the star counter on the square: the repo, its milestones, and what a read of the GitHub stars does to `world`'s state), `fireworks.ts` (a show's rockets worked out from its start, place and seed, so every client draws the same ones without the server sending more than the show), `grid.ts` (the power grid: green hours, expensive power, the green bonus) |
+| `server/src/actors/` | The actors (`player`, `town`, `world`, `arcade`, `match`), `registry.ts`, `shared.ts` (auth and SQL helpers)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `server/src/town/`   | What `town` does, as plain functions: `users`, `companies`, `boards` (leaderboards, profiles, the HUD's corner), `games` (game stats), `coins`, `quests`, `awards` (badge awards and their sweep), `hall` (the Hall of Fame), `card` (bios, showcase, habits, the Tavern's minutes), `sync` (pushes to `world`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `server/src/`        | `main.ts`, `proxy.ts`, `headers.ts` (CSP and friends), `brand.ts` (websites → house colours and logos), `pricing.ts`, `stats.ts`, `validate.ts`, `weather.ts` (Open-Meteo for the `world` actor: the forecast every 15 min, the air-quality API's pollen every hour), `launch.ts` (one read of OpenRouter's model list per 10 min, for the launch stand and the graveyard), `graveyard.ts` (the graveyard's plots, in `world`'s SQLite), `statue.ts` (LMArena's #1, read for the `world` actor every 6 hours, 30 minutes after a failed read), `github-stars.ts` (the repo's GitHub stars, one REST read per 15 min for `world`; `GITHUB_TOKEN` optional), `grid.ts` (Energi Data Service's CO₂ every 15 min and prices hourly, for `world`), `tavern-clock.ts` (the minutes `world` counts in the Tavern)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `web/src/`           | `game/` (canvas loop, input, camera, houses, labels, pets), `art/` (every sprite, drawn in code), `hud/` (React panels), `render3d/` (the 3D renderer: `engine/`, `kit/`, `people/`, `pets/`, `furniture/`, `rooms/`, `town/`, `dungeon/`, `shops/`, `data/`), `settings/` (graphics tiers, detection, governor)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `app/helper/`        | The sync helper: log parsing and `player.ingest`, run by the app as a sidecar                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `app/desktop/`       | The desktop app (Tauri v2): the menu bar, the game window, updates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `site/`              | The marketing site at `/` (Astro, static): `bun run site:dev` to work on it, `bun run site:build` before serving it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ## 3D and graphics: where to look
 
 The game draws through a `Renderer`; on Medium and up that is a Three.js voxel renderer (`web/src/render3d/`).
 
-| Topic | Where |
-|---|---|
-| Graphics tiers (Low / Medium / High / Ultra, Auto), overrides, saved settings | `web/src/settings/graphics.ts`; hardware detection `detect.ts` and its pure scoring `score.ts` (Auto never picks Ultra: it is opt-in, and a laptop saving power is biased to Medium); the FPS governor `governor.ts`; the Graphics panel `web/src/hud/Graphics.tsx`. See "The client" and "3D performance" below |
-| The `Renderer` interface | `web/src/game/renderer.ts` (`Renderer2D` wraps `render.ts`; `render3d/index.ts` `create3D()` is loaded on demand). `game/stage.ts` runs the loop and swaps them |
-| The 3D architecture | `web/src/render3d/`, by area: `engine/` (pipeline, camera `rig.ts`, overlay labels, batching, picking), `kit/` (the modelling kit), `people/` (avatars, gear, `entities.ts`), `pets/`, `furniture/`, `rooms/` (the world graph, the rooms registry `rooms.ts`, the Tavern, basement and HQ), `town/`, `dungeon/`, `shops/`, `data/`. Described in "The client" |
-| The camera and the HUD | `rig.ts` centres the player and the room's framing in the area the HUD leaves free: `game/inset.ts` measures the HUD panels' real rects (resize, panel open and close) into `hudInset`, and `CameraRig.setInsets` eases the picture there. On a phone (`useNarrow`, under 700 px wide or 500 px high) chat, map and corner cards fold into a tray of icons |
-| Name tags in a crowd | `render3d/engine/declutter.ts`: nearest keep their place, the next stack up, the rest hide, farther ones fade, capped by tier (`tagCap`); no per-frame allocation |
-| Perf budgets and how to profile | "3D performance" below: `web/src/render3d/perf/budgets.ts` (checked by `web/test/perf-budget.test.ts`), `scripts/perf/*` |
-| The shops and `ShopBackend` | "The physical shops (ShopBackend)" and "The shops" below. The pet shop builds in slices as you near its door (`warmShop` in `render3d/shops/catalog.ts`, `render3d/rooms/warm.ts`) so entering it does not hitch a frame |
-| The common room | "The common room" below (`core/src/common.ts`, `render3d/rooms/room-furnished.ts`) |
-| Manual QA of the real game | `scripts/qa/*.mjs` drive it headless with Playwright against a local server (`bun run qa:tour`, `qa:sleep`, `qa:hitch`; others run with `bun scripts/qa/<name>.mjs [tier]`). Set `localStorage["tokenmaxxing.qa"] = "1"` for the `window.__tm` handle (`game/qa.ts`) |
-| Blocked storage | Everything in `web/src` reads and writes `localStorage` through `web/src/storage.ts`, which falls back to memory (private mode, blocked cookies) instead of throwing |
+| Topic                                                                         | Where                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Graphics tiers (Low / Medium / High / Ultra, Auto), overrides, saved settings | `web/src/settings/graphics.ts`; hardware detection `detect.ts` and its pure scoring `score.ts` (Auto never picks Ultra: it is opt-in, and a laptop saving power is biased to Medium); the FPS governor `governor.ts`; the Graphics panel `web/src/hud/Graphics.tsx`. See "The client" and "3D performance" below                                               |
+| The `Renderer` interface                                                      | `web/src/game/renderer.ts` (`Renderer2D` wraps `render.ts`; `render3d/index.ts` `create3D()` is loaded on demand). `game/stage.ts` runs the loop and swaps them                                                                                                                                                                                                |
+| The 3D architecture                                                           | `web/src/render3d/`, by area: `engine/` (pipeline, camera `rig.ts`, overlay labels, batching, picking), `kit/` (the modelling kit), `people/` (avatars, gear, `entities.ts`), `pets/`, `furniture/`, `rooms/` (the world graph, the rooms registry `rooms.ts`, the Tavern, basement and HQ), `town/`, `dungeon/`, `shops/`, `data/`. Described in "The client" |
+| The camera and the HUD                                                        | `rig.ts` centres the player and the room's framing in the area the HUD leaves free: `game/inset.ts` measures the HUD panels' real rects (resize, panel open and close) into `hudInset`, and `CameraRig.setInsets` eases the picture there. On a phone (`useNarrow`, under 700 px wide or 500 px high) chat, map and corner cards fold into a tray of icons     |
+| Name tags in a crowd                                                          | `render3d/engine/declutter.ts`: nearest keep their place, the next stack up, the rest hide, farther ones fade, capped by tier (`tagCap`); no per-frame allocation                                                                                                                                                                                              |
+| Perf budgets and how to profile                                               | "3D performance" below: `web/src/render3d/perf/budgets.ts` (checked by `web/test/perf-budget.test.ts`), `scripts/perf/*`                                                                                                                                                                                                                                       |
+| The shops and `ShopBackend`                                                   | "The physical shops (ShopBackend)" and "The shops" below. The pet shop builds in slices as you near its door (`warmShop` in `render3d/shops/catalog.ts`, `render3d/rooms/warm.ts`) so entering it does not hitch a frame                                                                                                                                       |
+| The common room                                                               | "The common room" below (`core/src/common.ts`, `render3d/rooms/room-furnished.ts`)                                                                                                                                                                                                                                                                             |
+| Manual QA of the real game                                                    | `scripts/qa/*.mjs` drive it headless with Playwright against a local server (`bun run qa:tour`, `qa:sleep`, `qa:hitch`; others run with `bun scripts/qa/<name>.mjs [tier]`). Set `localStorage["tokenmaxxing.qa"] = "1"` for the `window.__tm` handle (`game/qa.ts`)                                                                                           |
+| Blocked storage                                                               | Everything in `web/src` reads and writes `localStorage` through `web/src/storage.ts`, which falls back to memory (private mode, blocked cookies) instead of throwing                                                                                                                                                                                           |
 
 ## Serving
 
-- `main.ts` bundles the game with `Bun.build`, *then* starts the registry. Once RivetKit's native runtime is
+- `main.ts` bundles the game with `Bun.build`, _then_ starts the registry. Once RivetKit's native runtime is
   up, Bun's HTML bundler fails in the same process, so there's no hot reload: restart `bun run dev`.
 - `registry.start()` runs the Rivet engine on `127.0.0.1`. `proxy.ts` forwards only the client gateway
   (`/api/rivet/gateway/*` and `/metadata`, HTTP and WebSocket); the engine's admin API is never exposed.
@@ -115,6 +115,7 @@ The game draws through a `Renderer`; on Medium and up that is a Three.js voxel r
   - Quit.
 
   It's rebuilt from the helper's state after every sync: every 2 minutes, or every 10 seconds during a battle.
+
 - **`world.rs`**: the game window, the app's only window.
   - It loads the live page (`/play`) once the helper knows whether there's an account, and opens by itself
     when there isn't one. It stays on the server's origin; other links open in the browser.
@@ -161,6 +162,7 @@ login codes and link codes. Events from every device land in the same table, so 
 counts everywhere with nothing else to add up. `ingest` stores a
 batch, recomputes the touched world days (per-model sums, prompts, PRs, 5-minute agent buckets) and sends them
 to `town.report`, then tells `world` how many agents are live, and `arcade.usage` in case they're in a battle.
+
 - **The numbers come from the user's own machine,** so they're bounded rather than trusted: an event over 1B
   tokens in any field, or stamped over an hour ahead, is dropped (`validate.ts`); model names that aren't
   model-shaped count as `unknown` (they're shown on profiles). Each minute counts for at most 200M tokens
@@ -171,9 +173,11 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   picks up where it stopped on its next run, so a big first sync is delayed, never lost.
 
 **`town["main"]`**: everything cold, joined in SQL.
+
 - Tables: `users`, `companies` (ids never reused), `usage_daily`, `activity_daily`, `capped_daily`,
   `purchases` (coins spent, per kind), `items` (one row per copy anyone holds), `rewards` (level rewards
   handed out), `loot` (raid drops handed out), `ledger` (coins held and paid by games, and traded), `trades` (one open offer per sender),
+  `market_listings` and `market_sales` (Torvehallen, see below),
   `offices`, `company_ledger` (company wallets), `match_players` (one row per player per finished game),
   `quest_days`, `quest_counts`, `green_hours`, `badge_awards`, `bio_reports`, `showcase`, `tavern_daily`, `keynotes`,
   `deleted_users`, `lost_signups` (ids of sign-ups whose `player` failed to start), `admin_log`.
@@ -190,19 +194,21 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   when read.
 - Coins: `wallet`, `buy`, `bag`; for `arcade`: `hold`, `pay`, `refund`, `recordMatch`; for `world`: `knowsDance`. Games: `gameBoard`.
 - Trades: `offerTrade` (10 an hour; a new offer replaces your old one), `trades`, `acceptTrade`,
-  `declineTrade`, `withdrawTrade`. See *Coins and the shop*.
+  `declineTrade`, `withdrawTrade`. See _Coins and the shop_.
+- The market hall's: `marketListings`, `marketMine`, `marketList`, `marketCancel`, `marketBuy`, `marketSaw`. See _Torvehallen_.
 - Office decor: `setDecor` and `buyDecor` (wallpapers and floors), `setDesk` and `buyDesk` (desk setups), `buyDeskFleet`
-  (a company's), `openOffices` (who is open and who's in them); `setDecor` shares the next limit. See *Offices v2*.
+  (a company's), `openOffices` (who is open and who's in them); `setDecor` shares the next limit. See _Offices v2_.
 - Offices: `setOfficeOpen` (your own, from level 10; 30 a minute, since each one sends the office and its
   building to everyone inside). What's in an office is what its owner dropped there.
 - The Tavern's: `questBoard`, `hallOfFame`, `collection`, `regulars`, and for the card `setBio`
-  and `reportBio` (5 an hour each), `setShowcase`. See *The Tavern*, *Quests*, *Badges and the Hall of Fame*
-  and *The player card*.
+  and `reportBio` (5 an hour each), `setShowcase`. See _The Tavern_, _Quests_, _Badges and the Hall of Fame_
+  and _The player card_.
 - Drops: `drop` (30 a minute) takes one of a kind out of your bag (not a reward; at most 5 of yours on the
   floor at once, not counting your own office's) and asks `world.placeDrop` to put it where you are; a full
   room says so, and the row comes straight back. On the floor a row has `owner_id` NULL, with `dropped_by`
-  and `dropped_at`, and `room`, `x`, `y` once `world` has put it down (`placed`), and `flip` 1 when it's turned
-  the other way (`Drop.flip`; the map's letters stay the same, `flippedAt` tells both renderers to mirror it). `pickUp` (from
+  and `dropped_at`, and `room`, `x`, `y` once `world` has put it down (`placed`), and `rot` 1 to 3 when it's turned
+  (`Drop.rot`, quarter turns clockwise; the map's letters stay the same, lying down the column when turned sideways, and `turnAt`
+  tells both renderers how far each piece is turned). `pickUp` (from
   `world.take`) puts it in the taker's bag, if it's still on that room's floor. **The sweeper** is a cron alarm
   (`sweep`, every 10 minutes; it outlives restarts and wakes the town): drops nobody took in an hour come
   off the floor (`world.removeDrops`) and go back to their droppers, except what's in its dropper's own
@@ -224,6 +230,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   everyone too when it starts from nothing.
 
 **`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room) and the model graveyard's plots (`graveyard.ts`).
+
 - A 10 Hz tick sends each room its `moves`, and who's inside each house (`houses`, for town) when it changes.
   Head counts (`occupancy`) go to every connection, so at most once a second: sent every tick, a burst of joins
   stalled the world at 300 connections. Someone's `info` (look, tokens today, agents, coffee, online) goes only
@@ -233,16 +240,17 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   to this process, about 3,000 messages a second; past that it all queues, `town` (and `/health`) too.
   A player walking costs about 15 a second (`moves` every tick, their step's answer, `occupancy`, chat), so
   that's about 170 players walking at once. `bun scripts/perf/load.ts` measures it.
-- Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `sit`,
+- Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `turn` (face a
+  direction without the step, on your feet only; it spends the step budget and comes to the room as a move), `sit`,
   `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
   `tavern` (the Tavern's tap: the day's special, sent as `specialUntil`), `toss` (a coin in the fountain),
   `say` (20 a minute; `@name` sends `mention` to someone in another room), `back` (after a game), `visit`
   (someone's open office, from their card), `take` (G: the drop you're on, or a blocking piece you face; on
-  an office floor, only its owner), `move` (M: a piece of yours to another tile; with `flip`, F turns it to face
-  the other way, mirrored left to right, where it stands or as it moves; wall pieces hang as they are), `dance`
-  (see *Dances*).
+  an office floor, only its owner), `move` (M: a piece of yours to another tile; with `rot`, F turns it a quarter clockwise
+  about its middle tile, where it stands or as it moves, and a quarter turn lies a wide piece down its column; wall pieces hang as they are), `dance`
+  (see _Dances_), `petPlay` (see _Playing with your pet_).
 - Events: `snapshot` (on joining or changing room), `moves`, `info`, `companies`, `occupancy`, `houses`, `notice`,
-  `chat`, `mention`, `drop`, `pickup`, `stars`.
+  `chat`, `mention`, `drop`, `pickup`, `stars`, `jump`, `petPlay`.
 - **The star counter** (`★` on the square, `core/stars.ts`): every 15 minutes `world` reads the repo's
   `stargazers_count` (`github-stars.ts`) and sends `stars` (the count and the last milestone's show) when it
   changes, and on `join`. Passing a milestone (100, 250, 500, 1000, 2500…) puts a show in it, which every client
@@ -272,7 +280,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   the room when they wake up or sit down to work, and leave it when they fall asleep there. Company houses (50 at
   most) still show everyone.
 
-**`arcade["main"]`** and **`match[id]`**: the mini games; see *Games*.
+**`arcade["main"]`** and **`match[id]`**: the mini games; see _Games_.
 
 ## Companies and houses
 
@@ -300,13 +308,13 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 
 ## Coins and the shop
 
-- Each world day pays `√(tokens ÷ 1M)` coins (1.5B ≈ 38, 600M ≈ 24, 100M = 10). Finishing a day 1st, 2nd or 3rd
+- Each world day pays `1.5 × (tokens ÷ 1M)^0.6` coins (1.5B ≈ 120, 600M ≈ 69, 100M = 23) from `TOKEN_COIN_MULT_FROM` (28 Oct). 27 Oct (`TOKEN_COINS_FROM`) keeps `2.5 ×` the millions to that power, and earlier days keep `√(tokens ÷ 1M)` (`legacyTokenCoins`). Finishing a day 1st, 2nd or 3rd
   adds 25, 15 or 10.
 - Only days from the world day you signed up count, for pay and for podium places: a first sync backfills
   old logs, and those days would otherwise pay out (and win podiums nobody else was around for).
 - Balances aren't stored: they're worked out from `usage_daily` minus `purchases`, so a late sync still pays.
-- Three daily quests and a weekly one (`core/src/quests.ts`) pay up to 6 more a day and 15 a week. They're worked out
-  from the day's rollups and the days' frozen picks, so no coin is stored; see *Quests*. Days before `LEGACY_FROM` keep the
+- Three daily quests and a weekly one (`core/src/quests.ts`) pay up to 30 more a day and 75 a week (a fifth of that before 29 Oct, and the weekly before the week of 2 Nov). They're worked out
+  from the day's rollups and the days' frozen picks, so no coin is stored; see _Quests_. Days before `LEGACY_FROM` keep the
   old rule (5 agents at once: 5, 2 hours of agents running: 2).
 - **Green hours** (`core/src/grid.ts`, `server/src/town/grid.ts`): `world` reads price area DK1 from Energi
   Data Service every 15 minutes (`server/src/grid.ts`: `CO2Emis`, 5-minute g/kWh, the last 26 hours; and
@@ -337,7 +345,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   the clock so the same dance is in step), `render3d/people/aura3d.ts`, and `game/dance.ts` (who dances, the
   battles, the 2D sprite's take). `bun scripts/qa/dances.mjs [tier]` buys and dances every one, close up.
 - The catalogue (`core/src/shop.ts`): 4 outfits, 3 glasses, 3 hats, 5 pets and the 11 pieces of furniture
-  (`furn.<ch>`), 10 to 1,500 coins. The raid's 20 loot items are in it too, never sold (see *The raid*). Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
+  (`furn.<ch>`), 10 to 1,500 coins. The raid's 20 loot items are in it too, never sold (see _The raid_). Items are worn through `Look` (`outfit` ≥ 8, `glasses`, `hat`, `pet`).
   Pets follow their owner in the client (`game/pets.ts`: `followPet`), except in the owner's own office,
   where they go to the bed and sleep (`art/pet-sleep.ts`: `sleepingFrame(petFrame(...), left, tick)` derives
   the curled pose from any pet's normal frame: legs and tail tucked, squashed, eyes shut, a breathing bob and
@@ -359,6 +367,21 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `PET_NAMED` is a table of costumes (name, pet, look, art id) matched case-insensitively on the cleaned name by
   `petOutfit`; the art is in `web/src/art/pet-variants/named.ts` and `petFrame` takes it as its last argument, so it
   works in every frame, the sleeping pose and the picker. To add one: append a row, add its art.
+- **Playing with your pet** (`PET_ACTS` in `core/src/pets.ts`; `🐾` in the dance bar, `P`, or a click on your pet or yourself
+  opens `hud/PetMenu.tsx`, a small card over the world, not a panel, so you can still walk). Three acts, all cosmetic:
+  `pet` (a stroke) and `trick` (a hop and a spin) are free, `treat` costs `TREAT_COST` (2) coins and is capped at
+  `TREATS_PER_DAY` (5) a world day. `world.petPlay(act)` is the one action: it refuses without a worn pet, in your own
+  office (the pet is asleep in its bed), and inside `PET_COOLDOWN_MS` of the same act (a map in `vars`, like `jumps`), then
+  sends the room `petPlay` `{ userId, act }`, the same kind of event as `jump`, so everyone sees the reaction for the cost
+  of one small message per act. A treat first asks `town.treat` (`treatPet` in `town/coins.ts`, under `serial`): a ledger
+  line (kind `pet`, ref `treat:<day>:<n>`, never positive, like the fountain's coin) after counting the day's lines and
+  the wallet in SQL, so the cap and the price are the server's and nothing is stored beyond the ledger. Nothing comes
+  back: treats give coins out, never value in. The client (`game/pets.ts` `reactPet`, `reactionOf`) keeps one reaction per
+  owner; `game/petplay.ts` is the pure motion (`playPose`: lift and spin over time), drawn by `render.ts` (the sprite
+  lifted and flipped side to side, hearts as the usual emoji `burst` over the pet) and by `entities.ts` (the model lifted
+  and turned, a `Burst` from the pet; counted in the tier's burst cap). `game/petsound.ts` chirps through the music's
+  master, so "Music off" mutes it (quieter for others, and only within 8 tiles). Tests: `server/test/pet-play.test.ts`,
+  `web/test/petplay.test.ts`.
 - The wardrobe (`core/src/wardrobe.ts`, art in `web/src/art/wardrobe.ts`): 36 more, each with a rarity and a
   line of flavour: 12 outfits (`outfit` ≥ 13), and three slots of its own: `held` (in the hand), `back` and
   `petwear` (drawn on the pet). The rubber duck, cape and jetpack are level rewards at 5, 15 and 25.
@@ -389,7 +412,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   tile `Q`, a prop like a plant (not walkable, so nothing can be dropped on it and it can't block a path).
   While its owner is in their own office their pet walks to it and sleeps there, for everyone in the room to
   see; it's all drawn on the client (`game/pets.ts`), the server knows nothing of it. Sizes, wallpapers and the
-  list of open offices are in *Offices v2*.
+  list of open offices are in _Offices v2_.
 
 ## The Tavern
 
@@ -402,7 +425,8 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
   quests keep their old rule (`paidFrom` becomes "never", `freezeDays` and `questEvent` do nothing). Tables and
   columns stay. The Hall of Fame, badges and the card aren't behind it.
 - **Tiles** (`LEGEND`; E acts on the one you face, `interact` in `web/src/game/input.ts`):
-  - `m` quest board and the bar `a`: the quests panel. `J` the bar tab on the west wall and `P` a plaque: the regulars. `A` the wall: the Hall of Fame.
+  - `m` quest board: the quests panel. The bar `a` (`orders`): the barkeep takes your order (`hud/Bar.tsx`), a coffee
+    (`drink`) or the day's special (`tavern`), both free as at the machine and the tap, or the quests panel. `J` the bar tab on the west wall and `P` a plaque: the regulars. `A` the wall: the Hall of Fame.
     `K` chalkboard: a dialog with today's special. `◷` the world clocks: a dialog with the time in each city and the launch window. `$` the tip jar on the bar (`tosses`, like the fountain): a coin in. `O` coat stands by the door.
   - `y` the tap (`serves`): the `tavern` action. `o` the coffee machine, as everywhere.
   - `v` a stool: sits (a `chair`-kind seat). `b` the dorm's beds.
@@ -526,13 +550,14 @@ all key on it). Its one exit `x` is still in the bottom wall, so `roomEntry` and
 ## Quests
 
 Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/town/quests.ts`).
-- **The pool** (`POOL`, 13). Tier 1 pays 1 coin: use tokens (`warm`), send prompts, keep agents running; and four
+
+- **The pool** (`POOL`, 13). Tier 1 pays 5 coins: use tokens (`warm`), send prompts, keep agents running; and four
   in-town ones: coffee at the Tavern (counted in the `inn` room only), sit on a bench, read the morning paper, toss a
-  coin in the fountain. Tier 2, 2 coins: agents at once, ship PRs (only if their baseline has PRs), two models (only
-  if they've used two on a day), finish an arcade game. Tier 3, 3 coins: a long run of agents, a swarm.
+  coin in the fountain. Tier 2, 10 coins: agents at once, ship PRs (only if their baseline has PRs), two models (only
+  if they've used two on a day), finish an arcade game. Tier 3, 15 coins: a long run of agents, a swarm.
 - **Dealing** (`dailyQuests`): seeded by the Copenhagen day (`quests:<day>`), so the same day and baseline give the
   same three. Tier 1 is an in-town quest 30% of the time (only tier 1 has any, so at most one a day), and none of
-  yesterday's ids repeat unless nothing else is left. A day pays at most 6.
+  yesterday's ids repeat unless nothing else is left. A day pays at most 30.
 - **Targets** scale to the player: `baselineOf` takes medians over their active days (tokens, a prompt, or an
   agent running) in the 30 days before today, and with fewer than 3 (`MIN_BASELINE_DAYS`) the targets are the floors.
   Each has a floor and a cap (`warm` 2M to 25M tokens, prompts 10 to 150, agents at once 2 to 6, a swarm 4 to 8, PRs
@@ -554,17 +579,19 @@ Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/to
   It pays 15 coins (`WEEKLY_COINS`) and is worked out from the week's days like the dailies.
 - **The fountain toss** is the one sink: `tossCoin` needs 1 coin and writes a ledger row (kind `fountain`, ref
   `fountain:<day>:<n>`, -1), then counts. A toss costs a coin, and pays one back only on a day it's the quest.
-- **In the game:** the quests panel (E on the bar or board, `web/src/hud/Quests.tsx`), three pips by the coin counter
+- **In the game:** the quests panel (E on the board, or from the bar's order panel, `web/src/hud/Quests.tsx`), three pips by the coin counter
   (`wallet.quests`), and the toast for a finished quest opens the panel.
 
 ## Badges and the Hall of Fame
 
-- **Badges** (`core/src/badges.ts`, 20) are still worked out on read from a player's facts (`badgeFactsOf`), never
+- **Badges** (`core/src/badges.ts`, 21) are still worked out on read from a player's facts (`badgeFactsOf`), never
   claimed. Each has ascending tiers; `badgeStates` gives value, the next tier and where this one began
   (`progressOf`, the bar on the card). A frame comes from the tier and how many it has (`frameOf`): one tier is gold,
-  more run bronze, silver, gold, diamond by tier. Streak, Podium, Shipper, Shark and Whale have the diamond tier.
-  Founder, the picnic and the watch party are `quiet`.
-- **The collection log** (`core/src/collection.ts`): a static `CATALOG` of every badge, trophy and milestone title (48),
+  more run bronze, silver, gold, diamond, mythic, cosmic by tier (`FRAMES`; `grandFrame` is gold and up). The long
+  ladders (Big day 3B to 100B in a day, Octopus 5 to 1000 agents at once, Token furnace 1B to 100T lifetime, and
+  most others) are appended to, so a tier a player holds keeps its number; the first Big day tier moved from 1B to 3B.
+  `BADGE_TIER_COINS` prices tiers 1 to 6 (40, 100, 200, 400, 1000, 2000; trophies pay 20 to 400, `TROPHY_COINS`). Founder, the picnic and the watch party are `quiet`.
+- **The collection log** (`core/src/collection.ts`): a static `CATALOG` of every badge, trophy and milestone title (68),
   in groups (Usage, Social, Town, Raid, Games, Seasonal) with how to earn it, so the client greys out what's missing and
   `town.collection` sends only a compact `CollectionState`. A minute at most per player, dropped when they sync or earn.
 - **Awards** (`server/src/town/awards.ts`): `badge_awards (user_id, badge, tier, at, backfill)` keeps when each tier
@@ -574,9 +601,12 @@ Three a day, one per tier, plus one a week (`core/src/quests.ts`, `server/src/to
   set is in memory.
 - **The backfill:** until the `badge_backfill` marker in `raid_meta` says done, each sweep records one chunk of 100
   players (`backfillStep`, by id) with `backfill = 1`: silent, with no date, and the dirty set waits. A player's first
-  rows ever are silent too, so a new account's years of history isn't announced. Tiers pay no coins: they're derived
-  retroactively, so paying would mint the whole history at once.
-- **The town hears** of a gold or diamond tier (not a `quiet` badge's) and of reaching level 30 or more
+  rows ever are silent too, so a new account's years of history isn't announced. Tiers and trophies do pay coins,
+  once each, from the recorded rows when the wallet is read, so changing `BADGE_TIER_COINS` or `TROPHY_COINS` pays
+  everyone who already holds one the new amount (a backfill with no cap). When tiers or trophies are added, a second
+  silent pass records them for everyone: the `badge_recheck_2` marker (kept apart so the Hall isn't empty while it
+  runs) and `trophy_backfill_2`; bump the keys to run them again.
+- **The town hears** of a gold tier or better (not a `quiet` badge's) and of reaching level 30 or more
   (`ANNOUNCE_LEVEL`), at most 3 per person per sweep: `told` calls `world.announceTown` with the open panel
   `collection`. Bronze and silver are silent.
 - **The Hall of Fame** (`server/src/town/hall.ts`, E on `A`): `rarest` (the five gold or diamond tiers with the fewest
@@ -626,6 +656,7 @@ cut). A stake is at most 500 and half your balance, a side bet at most 200, one 
 gathers in the town square so anyone can watch, and you play in a panel over the world.
 
 **The games:**
+
 - **Ship, Pivot, Raise** (1v1): rock-paper-scissors for founders, best of 5, 15 seconds a pick.
 - **Hype Cycle** (2–8): the valuation climbs as e^(t/12) until it crashes; cash out in time. Three rounds.
   Each round's crash point comes from a seed whose SHA-256 is shown before it and the seed after.
@@ -684,8 +715,7 @@ No server changes, actions or tables are needed.
 - The rest of the physical arcade. The basement's cabinets open the lobby, but matches still gather in the town
   square. Left: a daily high-score board, a trophy shelf of winners, and playing games in the basement itself.
 - Inviting a whole company at once; company tournaments built from tables.
-- Left out of the Tavern update on purpose: an office guestbook, a tip jar, turning furniture a quarter turn (only
-  flipping it left to right, F, is in), company quests, and item pins in the showcase (only badges and trophies can
+- Left out of the Tavern update on purpose: an office guestbook, a tip jar, company quests, and item pins in the showcase (only badges and trophies can
   be pinned).
 - Easing Tokenmaxxing's counters between updates, and "✓ syncing" next to seated players.
 - More games: Term Sheet (Split or Steal; needs a rule for when both steal), Runway (Farkle), Burn Rate
@@ -696,6 +726,7 @@ No server changes, actions or tables are needed.
 
 Every week a ladder of bosses waits in the Raid Dungeon, down the gate in the square, and the whole town
 climbs it together (`core/src/raid.ts`).
+
 - **The ladder:** The Rate Limit, The Context Window, Merge Conflict, The Hallucination, The Invoice, and that's the ladder (`BOSSES`).
   Each week has its `level` (1, then one more after every week that cleared it), shown as "II", "III"… on the names
   (`bossAt(rung, level)`: same sprite ids, plus `rung` and `level`). When a boss falls, the next appears
@@ -723,8 +754,8 @@ climbs it together (`core/src/raid.ts`).
 - **Damage** is every token you sync that week, no cap, and 25M for every PR you open. (Ingest still counts
   at most 200M a minute, `USAGE_MINUTE_CAP`, to stop made-up numbers.)
   Only days from your sign-up day count, as with coins.
-- **Rewards per kill:** rung n pays each of its raiders 10, 25, 50, 75 or 100 (`RAID_REWARDS`), and 10% more for each level
-  the ladder is up (`REWARD_GROWTH`, to the nearest coin: rung 5 pays 100, 110, 121…), so a level 1 week that clears all five is 260. A kill's raiders are everyone with 10M+ that week up to and including its day, so
+- **Rewards per kill:** rung n pays each of its raiders 40, 100, 200, 300 or 400 (`RAID_REWARDS`; weeks before `RAID_REWARDS_FROM` kept 10, 25, 50, 75 and 100), and 10% more for each level
+  the ladder is up (`REWARD_GROWTH`, to the nearest coin: rung 5 pays 400, 440, 484…), so a level 1 week that clears all five is 1040. A kill's raiders are everyone with 10M+ that week up to and including its day, so
   joining on Sunday doesn't pay for Wednesday's kills.
 - **The week** is Monday to Sunday in world days, but the gate opens at 08:00 on Monday: until then
   `raidWeekAt` is still last week, as it ended, and the new ladder appears at 08:00 with Monday's early tokens
@@ -772,7 +803,7 @@ climbs it together (`core/src/raid.ts`).
   - The Rate Limit: Hourglass hat, 429 shades, Sand golem (pet), Golden Hourglass (trophy).
   - The Context Window: Pane glasses, Compacting… scarf, Goldfish (pet), Infinite Context Crown.
   - Merge Conflict: Two-tone suit, `<<<<<<< HEAD` band, Forked cat (pet), Golden Rebase (trophy).
-  - The Hallucination: Third eye, Shimmering cape, Ghost (pet), Citation Needed crown.
+  - The Hallucination: Third eye, Shimmering cape, Ghost (pet), Mirage Crown.
   - The Invoice: Fine-print specs, Pinstripe suit, Piggy bank (pet), Paid in Full crown.
 
   They're shop items in the existing slots (`ITEMS`, with `loot: { boss, rarity }`), each slot's after
@@ -908,6 +939,11 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
 
 - Plain Canvas 2D with `imageSmoothingEnabled = false`, integer zoom, and grid movement: your own steps are
   predicted and corrected by the server; other players replay a short step queue.
+  **Turning** (`game/turn.ts`, pure and tested; Pokémon's rule): an arrow key for another way than you face turns you
+  first (`world.turn`, so the room sees it too) and walks only once it has stayed held `TURN_DELAY_MS` (120), so a
+  tap just turns; the way you already face walks at once. Click-to-walk, the minimap and "take me there" don't wait
+  (their steps are chosen), nor does getting up from a seat. The Android app's WebView takes the same keys; the phone
+  has no arrow keys of its own, only taps, so nothing changes there.
 - The game draws through a `Renderer` (`web/src/game/renderer.ts`): `Renderer2D` wraps `render.ts` (the Low tier),
   and the 3D renderer is `render3d/index.ts`'s `create3D()`, imported on demand so Three.js is never fetched on
   Low. `game/stage.ts` runs the loop, swaps renderers when the graphics settings change, caps fps (idle, battery),
@@ -989,7 +1025,7 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
   assets.
 - Chat has quick replies above it: emoji and startup one-liners, sent with one click. A line made only of
   emoji (up to 8) bursts around its author instead of showing a bubble (`game/emoji.ts`). Over those is the dance
-  bar (`hud/DanceBar.tsx`, see *Dances*).
+  bar (`hud/DanceBar.tsx`, see _Dances_).
 - React draws only the HUD and reads a small `useSyncExternalStore` store (`store.ts`). Game state never passes
   through React.
 
@@ -998,7 +1034,8 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
 The 3D engine is measured, not guessed: a headless harness, hardware-independent counts, budgets that a test enforces.
 
 **What makes it cheap** (`web/src/render3d/perf/`, `web/src/render3d/engine/pipeline.ts`):
-- *Static batching* (`bake.ts`). A room is thousands of tiny meshes. Roots flagged `userData.bake` (every `WorldRoom`, every
+
+- _Static batching_ (`bake.ts`). A room is thousands of tiny meshes. Roots flagged `userData.bake` (every `WorldRoom`, every
   `Avatar`) are watched for ~24 frames and the tick functions are sampled; whatever never moves is merged per cell
   (8 units) into meshes sharing one vertex-coloured toon material (textured ones per texture, small painted ones through an
   atlas, see below; see-through ones too, one batch per opacity), and the originals are hidden and put to sleep (no matrix
@@ -1010,17 +1047,17 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   that really move in place are drawn as few meshes as they can be: the fountain's drops are one `InstancedMesh`, the pond's
   drifting sparkle one merged mesh. Code that changes a room's shape after it was batched calls `invalidateBaked(obj)`
   (`Room.build` does). `?nobake` turns it off to compare pictures.
-- *Atlas* (`atlas.ts`). Small nearest-filtered painted textures (signs, price tags, posters) of one material setup are packed in
+- _Atlas_ (`atlas.ts`). Small nearest-filtered painted textures (signs, price tags, posters) of one material setup are packed in
   one padded atlas. Slots align to all four mip levels, each tile is downsampled independently, and nearest magnification
   preserves close-up pixels. A skyline packer and cropped height limit empty space. Repainting updates every mip; pictures
   that repaint all the time are taken out. A room's textured props merge from one draw call per picture to one per setup.
-- *Freezing* (`freeze.ts`, `Freezer`). A person or pet who stands, sits or sleeps (`userData.actor`) is merged in that pose into
+- _Freezing_ (`freeze.ts`, `Freezer`). A person or pet who stands, sits or sleeps (`userData.actor`) is merged in that pose into
   a couple of meshes and its limbs stop being posed; moving gives the limbs back (`bake.ts` `freezeLayer`, `suspend`, `resume`).
   Models nobody animates (display pets) freeze after half a second. Past `crowd` people nearest the middle of the picture (8 / 16
   / 32 on Medium / High / Ultra) the rest are drawn frozen even while they walk, as are people and pets under 20 px tall (the
   pet shop's window pets, seen from the street, even asleep). Animation of
   anyone outside the camera's frustum is skipped (`view.sees`).
-- *Shadows*. Medium has none, a soft disc under each person and pet instead (`blob`, one instanced draw; the raid's minions have their own instanced discs in `minions.ts`). High and Ultra draw
+- _Shadows_. Medium has none, a soft disc under each person and pet instead (`blob`, one instanced draw; the raid's minions have their own instanced discs in `minions.ts`). High and Ultra draw
   the room's static casters **once** into a big map (2K/4K) and again only when a room is re-batched, a caster stops or starts
   travelling, or the sun has moved (`last.staticBakes` counts it); people, pets and walls that lower go into a small second map
   (1K on High, 2K on Ultra) every frame or two. Both maps snap to their own texel grids as the camera moves;
@@ -1031,36 +1068,37 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   Removing a cached caster also invalidates the baked map. Deterministic tent filters soften edges over nine static
   texels or five live texels, pairing comparisons into 25 or 9 bilinear reads. The smaller live map's larger texels
   give moving objects similar softness to static geometry without screen-space noise.
-- *AO* (`pipeline.ts`). Depth-only, its own pass at half size (`aoScale`), upsampled in the composite by
+- _AO_ (`pipeline.ts`). Depth-only, its own pass at half size (`aoScale`), upsampled in the composite by
   a four-tap depth-aware blend. A fixed spiral kernel avoids crawling screen-space jitter; a seven-tap bilateral blur
   runs horizontally then vertically, and slope-aware upsampling keeps roofs smooth. Samples use view-space distance
   and the surface normal within a 0.35-unit radius, keeping raised furniture from darkening distant floor pixels.
   With AO enabled, the pipeline draws five passes: the scene, AO, two blurs and the composite.
   The composite is the only full-size post pass (AO, haze, grade, tilt-shift, dither in one).
-- *Geometry and textures*: kit boxes with small bevels are 44-triangle chamfers, round things get segments by radius,
+- _Geometry and textures_: kit boxes with small bevels are 44-triangle chamfers, round things get segments by radius,
   `setGeometryDetail(0)` gives plain boxes for Medium; painted smooth textures are capped (`setTextureCap`, 1024 px on Medium,
   2048 elsewhere); tiled planks, wallpaper and checkers use trilinear mipmaps and 4x anisotropy. Their material blends
   across texel edges over one screen pixel, retaining sharp pixel interiors and the original UV derivatives for mip selection;
   `applyGraphics` sets geometry detail and texture limits before rooms are built. Window bars, roof courses and fence rails
   carry `detailSize`: batching sorts them after the main geometry, and `details.ts` trims draw ranges below one pixel with
   hysteresis (hide below 0.8 px, restore above 1.2 px). This reduces triangles without adding draws or changing the sources.
-- *Pipeline*: lights are cached per scene, geometry swaps for the Voxel style only run when something was added (`sceneEpoch`),
+- _Pipeline_: lights are cached per scene, geometry swaps for the Voxel style only run when something was added (`sceneEpoch`),
   classic styles skip the normals pass without creases and the depth texture without outlines, canvas size is only touched when it
   changes, ticks registered while a room builds only run while that room is on screen (`kit.ts`), see-through double-sided materials
   render in one pass (three flips `needsUpdate` twice a frame for them), `#rrggbb` colour strings are looked up, not parsed.
-- *Rooms* (`world.ts`, `world-rooms.ts`, `registry.ts`). Each hand-built room's code is its own dynamic import
+- _Rooms_ (`world.ts`, `world-rooms.ts`, `registry.ts`). Each hand-built room's code is its own dynamic import
   (`await world.load(id)`; `world.room(id)` is the synchronous accessor and throws for a room whose code is not in, rather than
   drawing a blank one; the demo and the tests `await loadRoomSkins()`). Tile-drawn rooms build a few ms at a time, a frame
   boundary between the pieces, so a loading veil paints. Built rooms are kept in an LRU (`maxBuilt`, `pinned`): `evict` drops the
   least recently used one, stops its ticks, frees its batches and painted textures (shared geometry and materials upload again on
   demand). `preload(id)` / `preloadNeighbours(id)` build a door's room when the browser is idle. `loadSlices(rooms)` imports only
   the slices a set of rooms needs. The town's shop storefronts share a module with their interiors, so the shops ride with the town.
-- *Tiers* (`tiers.ts`, `applyGraphics(pipe, settings)`): Medium is the classic look at 0.75 scale with silhouette lines, blob shadows,
+- _Tiers_ (`tiers.ts`, `applyGraphics(pipe, settings)`): Medium is the classic look at 0.75 scale with silhouette lines, blob shadows,
   no AO, plain geometry, 1024 px textures; High has AO (16 taps, half size), haze, grade, 2x MSAA and a 2K baked shadow map; Ultra (opt-in, never chosen by Auto) adds
   tilt-shift, 4x MSAA, a 4K map, 24 AO taps. Device pixel ratio times scale is capped at 2. Fps caps, idle and battery
   throttling and the governor live in `game/stage.ts` / `settings/governor.ts`.
 
 **Measure**:
+
 - `bun scripts/perf/counts.ts medium|high` prints the per-room counts the budgets check, built headlessly.
 - `bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--throttle 4] [--profile|--alloc|--nodes|--heap]` measures
   the real game: it starts its own production server (`bun run site:build` once), signs up `walkers` players
@@ -1190,6 +1228,7 @@ day. Each feature keeps its own window. Only the julekalender's doors and the fa
 ## Known limits
 
 These are deliberate, and marked `ponytail:` in the code:
+
 - one `world` actor for everyone (split it per room when hundreds are online at once; the protocol is already
   per room, but in one process the rooms would share the message limit above);
 - rate limits are in memory, so a deploy resets them;
@@ -1227,3 +1266,55 @@ reads a room's size, doors, seats and displays for a 3D builder.
   the look picker). Dropping anything on a shop floor is refused. The shopkeepers are `still` bots (`SHOPKEEPERS`, ids -5
   to -8) with idle chatter only. Art: `web/src/art/shops.ts`.
 - **Core is the source of truth for every map**: `web/src/render3d/data/maps.ts` just re-exports `core/src/maps.ts`.
+
+## Torvehallen, the market hall
+
+A sixth shop (`ShopId` `market`, room `shop-market`, keeper Torvald) where players put their own things on
+display and name a price, and anyone standing in the hall buys one at that price. It is a display shop: each
+slot is a tile of the floor, a listing is drawn on it with its price tag in both renderers, and E on it opens
+the confirmation. The counter opens the market panel (everything on display, with filters, and _my shelf_).
+Rules are `core/src/market.ts`, money and items are `server/src/town/market.ts`, the actions are on `town`.
+
+- **The floor** (`MARKET_ROWS` in `core/src/shoprooms.ts`): 22 wide, 14 deep. Sixteen slots along the back
+  wall and two rows of three glass cases of four, forty in all. A slot is a display tile (`Ƙ`) and its number
+  is its place in the plan, row by row (`slotTile`, `slotAt`), so the engine's `MARKET_SLOTS` is the plan's
+  count and can't drift from it. More shelves are more tiles, nothing else.
+- **Listing:** the seller picks a free slot, an item (a numbered edition by its copy) and a price from 1 to
+  the cap of its rarity (`MARKET_PRICE_CAP`). The price isn't changed afterwards: take it back and list again.
+  Level 10 to list; 3, 6 and 10 things on display at levels 10, 25 and 40 (`MARKET_ALLOWANCE`, its own
+  constants: offices are sized by coins now, not level). A slot frees when the item sells, is taken back or
+  comes down after 7 days (`MARKET_TTL`; the sweep and every list and buy take expired ones down, so an
+  unswept one never holds a slot).
+- **Escrow:** a listed item is its `items` row with `owner_id` NULL and nothing else set, so no query by
+  owner, floor, drop count or company sees it; `pickUp` refuses it by name, and `deleteUser` takes the
+  seller's display down first. It moves by its row id, so a numbered edition keeps its number. (A trade or a
+  drop moves a player's _newest_ copy of a kind, like the vendor, so a run's first copy stays put.)
+- **Buying** is one transaction under `serial`: the price moves whole from buyer to seller (ledger kind
+  `market`, ref `market:<listing>`, which sums to zero: no tax), the listing is claimed by `DELETE ...
+RETURNING` so it can be bought once, the item goes to the buyer and the sale goes in `market_sales`. The
+  client sends the listing id and the price it saw. Refused when gone, theirs, dearer than seen, a new account
+  (from the third day, `MARKET_BUYER_AGE`), over `MARKET_DAY_BUY` in 24 hours or `MARKET_PAIR_BUY` on one
+  seller in 7 days, or too poor. The caps bound what an account can be sent through the hall; trades, which
+  have no such cap, remain the wider pipe.
+- **In the hall:** `marketList` and `marketBuy` need the player in `shop-market` (`inMarket`, like `inShop`);
+  `marketListings`, `marketMine` and `marketCancel` work from anywhere. `SHOPS_ANYWHERE` and
+  `MARKET_ANY_AGE=1` skip the room and the buyer's age on test and dev servers; production never sets them.
+- **The seller away:** the sale is in the ledger and the log. A seller online gets a `notice` that opens the
+  market; `marketMine` returns the sales they haven't been told of, the client toasts them once and calls
+  `marketSaw`, and keeps the last 30 on the device.
+- **The client:** `hud.market` is read by `refreshMarket` (`net.ts`) on joining, on entering the hall, every
+  5 s while in it and on a market notice; both renderers draw from it (2D `game/market.ts`, 3D
+  `render3d/shops/market-slots.ts`, one camera-facing card per listing from the HUD icon).
+- **Where it stands:** `SHOP_BLOCKS.market` is block (2, 1), beside Natmarked. A company that held it
+  before the hall moves the hall to the free block nearest the square (`shopBlocks`).
+- **Left out on purpose:** auctions, price history, a persisted block for a moved shop (it returns to its own
+  block when the company holding it leaves), a hashed sign-up IP for linking alt accounts (needs a stable
+  secret and a decision about keeping it), and an admin page for sales.
+
+### The town grows outward
+
+`blocksOutward()` (`core/src/maps.ts`) is every block of the grid, nearest the square first, ties by plot
+number, without end. `shopBlocks` (a shop whose block is held) and `frontier` (where a new company may
+build) both use it, so there is no size at which the town runs out of places to put a building: in a town
+full all the way out, a moved shop gets a block past its edge and the map grows to take it in. Until this,
+a full `-4..5` range made `shopBlocks` return NaN and `townMap` throw.

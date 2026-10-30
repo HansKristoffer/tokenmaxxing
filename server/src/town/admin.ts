@@ -17,6 +17,7 @@ import {
   leave,
   withdraw,
 } from "./companies.ts";
+import { forget as forgetMarket } from "./market.ts";
 import { forget as forgetRequests } from "./requests.ts";
 import { TOKENS, userById } from "./users.ts";
 
@@ -265,6 +266,8 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
   const changed = await leave(sql, userId);
   await withdraw(sql, userId);
   await sql.execute("DELETE FROM trades WHERE from_id = ? OR to_id = ?", userId, userId);
+  // Their display in the hall comes down first: the items go back to their bag and go with it below.
+  await forgetMarket(sql, userId);
   await wipeUsage(sql, userId);
   for (const table of [
     "purchases",
@@ -275,6 +278,12 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
     "tavern_daily",
     "julekalender",
     "fastelavn_hits",
+    "fishing_journal",
+    "fishing_days",
+    "fishing_records",
+    "fishing_treasures",
+    "fishing_feats",
+    "prestiges",
   ])
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
   await sql.execute("DELETE FROM bio_reports WHERE target = ? OR reporter = ?", userId, userId);

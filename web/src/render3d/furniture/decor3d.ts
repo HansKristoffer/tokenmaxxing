@@ -257,14 +257,14 @@ const floorLook = (
 
 export const FLOORS: readonly Look<Texture>[] = [
   { id: "boards", name: "Boards", price: 0, color: C.floor, span: 4, texture: () => planks(C.floor, 4) },
-  floorLook("linoleum", "Linoleum", 40, "#7fa88a"),
-  floorLook("parquet", "Parquet", 100, "#8a5733"),
-  floorLook("fiskebenet", "Fiskebenet", 180, "#dcc08e"),
-  floorLook("checker", "Checker", 300, "#8d8d90"),
-  floorLook("terrazzo", "Terrazzo", 60, "#e9e2d6"),
-  floorLook("klinker", "Klinker", 90, "#b4634a"),
-  floorLook("datacentre", "Server room", 140, "#9aa3ae"),
-  floorLook("douglas", "Douglas planks", 240, "#e3cba3"),
+  floorLook("linoleum", "Linoleum", 60, "#7fa88a"),
+  floorLook("parquet", "Parquet", 150, "#8a5733"),
+  floorLook("fiskebenet", "Fiskebenet", 270, "#dcc08e"),
+  floorLook("checker", "Checker", 450, "#8d8d90"),
+  floorLook("terrazzo", "Terrazzo", 90, "#e9e2d6"),
+  floorLook("klinker", "Klinker", 135, "#b4634a"),
+  floorLook("datacentre", "Server room", 210, "#9aa3ae"),
+  floorLook("douglas", "Douglas planks", 360, "#e3cba3"),
   floorLook("bornholm", "Bornholm cobble", 0, "#6a6f78", 40),
 ];
 
@@ -299,31 +299,16 @@ export const WALLPAPERS: readonly Look<Texture>[] = [
     span: 1,
     texture: () => wallpaper(C.wall, C.wallDark),
   },
-  wallLook("hygge", "Hygge", 40, "#f5e3bd"),
-  wallLook("nyhavn", "Nyhavn", 80, "#c8503c"),
-  wallLook("rundetaarn", "Rundetårn", 120, "#a14d3b"),
-  wallLook("jacobsen", "Arne Jacobsen", 160, "#9fb59a"),
-  wallLook("skagen", "Skagen yellow", 60, "#f3d983"),
-  wallLook("hammershoi", "Hammershøi", 100, "#a9b3bd"),
-  wallLook("terminal", "Terminal", 140, "#10151a"),
-  wallLook("kanban", "Kanban", 220, "#b88a58"),
+  wallLook("hygge", "Hygge", 60, "#f5e3bd"),
+  wallLook("nyhavn", "Nyhavn", 120, "#c8503c"),
+  wallLook("rundetaarn", "Rundetårn", 180, "#a14d3b"),
+  wallLook("jacobsen", "Arne Jacobsen", 240, "#9fb59a"),
+  wallLook("skagen", "Skagen yellow", 90, "#f3d983"),
+  wallLook("hammershoi", "Hammershøi", 150, "#a9b3bd"),
+  wallLook("terminal", "Terminal", 210, "#10151a"),
+  wallLook("kanban", "Kanban", 330, "#b88a58"),
   wallLook("tivoli", "Tivoli", 0, "#1f2a54", 25),
 ];
-
-// ——— Sizes ———
-
-/** `core/src/office.ts` OFFICE_SIZES: opens at level 10, 25 and 40. Growth is right and down. */
-export const OFFICE_SIZES: readonly { w: number; h: number; level: number }[] = [
-  { w: 12, h: 9, level: 10 },
-  { w: 14, h: 10, level: 25 },
-  { w: 16, h: 12, level: 40 },
-];
-
-/** The office size for an owner's level (the smallest below level 10). */
-export function officeSize(level: number): { w: number; h: number; tier: 0 | 1 | 2 } {
-  const tier = level >= OFFICE_SIZES[2]!.level ? 2 : level >= OFFICE_SIZES[1]!.level ? 1 : 0;
-  return { w: OFFICE_SIZES[tier]!.w, h: OFFICE_SIZES[tier]!.h, tier };
-}
 
 // ——— Applying ———
 
@@ -342,12 +327,8 @@ const cached = (kind: string, look: Look<Texture>) => {
 export const wallpaperOf = (id?: string | null) => WALLPAPERS.find((w) => w.id === id) ?? WALLPAPERS[0]!;
 export const floorOf = (id?: string | null) => FLOORS.find((f) => f.id === id) ?? FLOORS[0]!;
 
-/** Re-skins a room live, and (with `level`) resizes it to that level's office. Furniture stays. */
-export function applyDecor(room: Room, d: { wall?: string; floor?: string; level?: number }): void {
-  if (d.level !== undefined) {
-    const { w, h } = officeSize(d.level);
-    if (w !== room.W || h !== room.D) room.resize(w, h);
-  }
+/** Re-skins a room live. Furniture stays. */
+export function applyDecor(room: Room, d: { wall?: string; floor?: string }): void {
   const wall = d.wall === undefined ? undefined : wallpaperOf(d.wall);
   const floor = d.floor === undefined ? undefined : floorOf(d.floor);
   if (!wall && !floor) return;

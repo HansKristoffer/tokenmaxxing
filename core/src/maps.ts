@@ -4,7 +4,7 @@
  * One character per tile; `LEGEND` says what it is.
  */
 import { sortBy } from "hanzio";
-import { CASE_PIECES } from "./case-furniture.ts";
+import { ALL_CASE_PIECES } from "./case-furniture.ts";
 import { HOME_PIECES } from "./home.ts";
 import { POSTERS } from "./posters.ts";
 
@@ -25,7 +25,8 @@ export type MapId =
   | "shop-clothes"
   | "shop-barber"
   | "shop-pets"
-  | "shop-natmarked";
+  | "shop-natmarked"
+  | "shop-market";
 export type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 interface TileKind {
@@ -45,6 +46,8 @@ interface TileKind {
   pours?: true;
   /** E while facing it serves the day's special (`tavern`, the Tavern's tap). */
   serves?: true;
+  /** The barkeep takes your order across it (the Tavern's bar): a coffee (`drink`) or the special (`tavern`). */
+  orders?: true;
   /** E while facing it tosses a coin in (`toss`): the square's fountain, the Tavern's tip jar. */
   tosses?: true;
   /** A shop's display: E while facing it opens the Shop page on the matching tab (`displayTab`). */
@@ -90,9 +93,9 @@ export const LEGEND: Record<string, TileKind> = {
     text: "🌱 Touched grass. A patch from an outage picnic: the agents stopped, and you went outside.",
   },
   o: { name: "coffee", pours: true },
-  // The Tavern (`inn`): E on the bar or quest board opens the quests, on the wall the Hall of Fame, on a
-  // plaque the regulars; the tap serves the day's special.
-  a: { name: "bar", text: "A long oak bar, polished by years of elbows." },
+  // The Tavern (`inn`): E on the bar orders from the barkeep, on the quest board opens the quests, on the wall
+  // the Hall of Fame, on a plaque the regulars; the tap serves the day's special.
+  a: { name: "bar", orders: true, text: "A long oak bar, polished by years of elbows." },
   y: { name: "beer tap", serves: true },
   v: { name: "stool", seat: "chair", text: "A bar stool. Round, red and a little wobbly." },
   n: { name: "table", text: 'A sturdy table. Someone carved "TODO" into it.' },
@@ -108,7 +111,7 @@ export const LEGEND: Record<string, TileKind> = {
   $: { name: "tip jar", tosses: true, text: "A tip jar on the bar. A spare coin clinks nicely." },
   z: { name: "jukebox", text: "A jukebox. It hums, waiting for a coin it never asks for." },
   // The poker table (`poker.ts`, in the basement net cafe): a 4×2 table of felt, and the six chairs round it; E on
-  // a chair buys you in. Beside it the roulette table: a 3×2 block and four spots in front where players stand.
+  // a chair buys you in. Beside it the roulette table: a 3×2 block and eight spots, four on each long side, where players stand.
   ...(TAVERN
     ? {
         "♠": {
@@ -159,6 +162,7 @@ export const LEGEND: Record<string, TileKind> = {
   Ð: { name: "barber shop door", portal: true },
   ð: { name: "pet shop door", portal: true },
   Ñ: { name: "night market door", portal: true },
+  Ƭ: { name: "market hall door", portal: true },
   Ħ: { name: "shop front", text: "A shop front. The door is open: come on in." },
   // Inside them: the counter, each shop's displays and the fixtures that are only to look at.
   "¢": { name: "shop counter", counter: true, text: "The counter. Press E to browse the shop." },
@@ -178,6 +182,11 @@ export const LEGEND: Record<string, TileKind> = {
     name: "lantern shelf",
     shop: "natmarked",
     text: "A glowing shelf of lacquer and paper. Press E to see the cases.",
+  },
+  Ƙ: {
+    name: "display",
+    shop: "market",
+    text: "A glass case. Press E to see what's on it, or to put something of yours there.",
   },
   "‡": { name: "fixture", text: "Part of the shop's fittings." },
   x: { name: "exit", portal: true },
@@ -240,7 +249,7 @@ export const LEGEND: Record<string, TileKind> = {
   ),
   // Personal offices' own furniture (`HOME_PIECES`): a seat, a rug to walk over, or just something to look at.
   ...Object.fromEntries(
-    [...HOME_PIECES, ...CASE_PIECES].map((p): [string, TileKind] => [
+    [...HOME_PIECES, ...ALL_CASE_PIECES].map((p): [string, TileKind] => [
       p.ch,
       {
         name: p.name.toLowerCase(),
@@ -428,6 +437,9 @@ export const SHOP_BLOCKS: Record<ShopId, [number, number]> = {
   barber: [-1, 2],
   pets: [2, 2],
   natmarked: [2, 0],
+  // East of the square beside Natmarked. A company can hold it from before the hall: it then takes the
+  // nearest free block (`shopBlocks`), at the edge of the town if the town is full.
+  market: [2, 1],
 };
 
 /** A shop's block: a lawn, its 5×4 front with the door in the middle of the bottom row, and the path down to the road. */
@@ -450,9 +462,41 @@ const shopLot = (id: ShopId): string[] => {
 export const SHOP_DOOR: [number, number] = [5, 6];
 
 /**
+ * How far block (bx, by) is from the middle of the core, the corner where its four blocks meet: what
+ * "nearest the square" means for a new company (`frontier`) and for a shop that has been moved.
+ */
+const fromSquare = (bx: number, by: number): number => Math.hypot(bx + 0.5 - 1, by + 0.5 - 1);
+
+/**
+ * Every block of the grid, nearest the square first (ties by plot number) and without end: the town grows
+ * as far as it has companies to fill it, so nothing that looks for a free block stops at a fixed range.
+ * Blocks go out in passes. A pass reaching `m` blocks out holds every block within `m`, and any block it
+ * left out is at least `m + 1` away, so a pass hands on only those nearer than that, in order.
+ * ponytail: plot numbers (`plotId`) stop 500 blocks out, which is some 250,000 companies.
+ */
+export function* blocksOutward(): Generator<[number, number]> {
+  const done = new Set<number>();
+  for (let m = 0.5; ; m++) {
+    const found: [number, number][] = [];
+    for (let by = Math.ceil(0.5 - m); by <= Math.floor(0.5 + m); by++)
+      for (let bx = Math.ceil(0.5 - m); bx <= Math.floor(0.5 + m); bx++)
+        if (!done.has(plotId(bx, by)) && fromSquare(bx, by) < m + 1) found.push([bx, by]);
+    for (const block of sortBy(
+      found,
+      ([bx, by]) => fromSquare(bx, by),
+      ([bx, by]) => plotId(bx, by),
+    )) {
+      done.add(plotId(...block));
+      yield block;
+    }
+  }
+}
+
+/**
  * Where each shop stands for these company plots: its `SHOP_BLOCKS` block, unless a company already holds
  * it (it started before the shop did). That shop moves to the free block nearest the square instead, so no
- * building is drawn over someone's house. Companies never build on a shop's block (`frontier`), so it stays put.
+ * building is drawn over someone's house; in a town full all the way out, that is a block past its edge,
+ * which the map grows to take in. Companies never build on a shop's block (`frontier`), so it stays put.
  */
 export function shopBlocks(plots: readonly number[]): Record<ShopId, [number, number]> {
   const taken = new Set(plots);
@@ -464,19 +508,11 @@ export function shopBlocks(plots: readonly number[]): Record<ShopId, [number, nu
     if (taken.has(plotId(...SHOP_BLOCKS[id]))) displaced.push(id);
     else out[id] = SHOP_BLOCKS[id];
   }
-  if (displaced.length === 0) return out;
-  const near = (id: number) => {
-    const [bx, by] = plotBlock(id);
-    return Math.hypot(bx + 0.5 - 1, by + 0.5 - 1);
-  };
-  const free: number[] = [];
-  for (let by = -4; by <= 5; by++)
-    for (let bx = -4; bx <= 5; bx++) {
-      const id = plotId(bx, by);
-      if (!taken.has(id) && !reserved.has(id)) free.push(id);
-    }
-  const order = sortBy(free, near, (id) => id);
-  for (const id of displaced) out[id] = plotBlock(order.shift()!);
+  for (const block of blocksOutward()) {
+    if (displaced.length === 0) break;
+    const id = plotId(...block);
+    if (!taken.has(id) && !reserved.has(id)) out[displaced.shift()!] = block;
+  }
   return out;
 }
 
@@ -545,12 +581,11 @@ export function frontier(plots: readonly number[]): number[] {
       if (!used.has(next) && !shops.has(next)) out.add(next);
     }
   }
-  // From the middle of the core: the corner where its four blocks meet.
-  const distance = (id: number) => {
-    const [bx, by] = plotBlock(id);
-    return Math.hypot(bx + 0.5 - 1, by + 0.5 - 1);
-  };
-  return sortBy([...out], distance, (id) => id);
+  return sortBy(
+    [...out],
+    (id) => fromSquare(...plotBlock(id)),
+    (id) => id,
+  );
 }
 
 /** The town for these company plots. */
@@ -625,7 +660,7 @@ export const OFFICE_DOOR_X = 5;
 
 /**
  * An office `w` × `h`: walls round the floor, the trophy shelf at the top from x = 5, the pet bed in the
- * bottom right corner and the door in the bottom wall at `OFFICE_DOOR_X`. (12, 9) is the first office.
+ * bottom right corner and the door in the bottom wall at `OFFICE_DOOR_X`. (14, 11) is the first office.
  */
 export function officeRows(w: number, h: number): string[] {
   const floor = `W${"_".repeat(w - 2)}W`;
@@ -734,7 +769,7 @@ export const MAPS: Record<MapId, GameMap> = {
   ]),
   // The net cafe under the Tavern: racks, the livestream screen and two wall terminals on the back wall,
   // five cabinets (one per game, in `CABINET_GAMES` order), a row of PC pairs, a foosball table and a sofa, the
-  // poker table (`♠`, six `♣` chairs) and the roulette table (`♦`, four `♥` spots below it). Its one exit is the stairs up.
+  // poker table (`♠`, six `♣` chairs) and the roulette table (`♦`, four `♥` spots above it and four below). Its one exit is the stairs up.
   basement: new GameMap("basement", "The Basement", [
     "WWWWWWWWWWWWWWWWWWWWWW",
     "WWWWWWWWWWWWWWWWWWWWWW",
@@ -745,16 +780,16 @@ export const MAPS: Record<MapId, GameMap> = {
     "W_φφ____ζζ_ζζ_ζζ_ζζ__W",
     "W_______cc_cc_cc_cc__W",
     "W___♣♣_______________W",
-    "W__♠♠♠♠♣____♦♦♦______W",
+    "W__♠♠♠♠♣____♥♥♥♥_____W",
     "W_♣♠♠♠♠_____♦♦♦______W",
-    "W___♣♣______♥♥♥♥_____W",
-    "W_ssss_____________p_W",
+    "W___♣♣______♦♦♦______W",
+    "W_ssss______♥♥♥♥___p_W",
     "WWWWWWWWWWxWWWWWWWWWWW",
   ]),
-  // Everyone's office, before what they dropped in it (`mapOf`): the smallest size. Bigger ones come by
-  // level, per owner (`officeMap`, office.ts). A pet bed (`Q`, a prop: nothing can be dropped on it)
+  // Everyone's office, before what they dropped in it (`mapOf`): the first size (`OFFICE_SIZES`[0], office.ts:
+  // keep them in step). Bigger ones are bought, per owner (`officeMap`, office.ts). A pet bed (`Q`, a prop: nothing can be dropped on it)
   // sits in the bottom right corner.
-  office: new GameMap("office", "Office", officeRows(12, 9)),
+  office: new GameMap("office", "Office", officeRows(14, 11)),
   // The four shops (`shoprooms.ts`): the 3D shops' interiors, tile for tile.
   "shop-furniture": new GameMap("shop-furniture", SHOPS.furniture.name, SHOPS.furniture.rows),
   "shop-clothes": new GameMap("shop-clothes", SHOPS.clothes.name, SHOPS.clothes.rows),
@@ -764,6 +799,7 @@ export const MAPS: Record<MapId, GameMap> = {
     wall: "natmarked",
     floor: "natmarked",
   }),
+  "shop-market": new GameMap("shop-market", SHOPS.market.name, SHOPS.market.rows),
   // The raid: the boss on its dais, and arcs of war desks facing it. Whoever has agents running is drawn
   // at one (web/src/game/raid.ts); the desks and seats are props, so visitors walk the aisles.
   dungeon: new GameMap("dungeon", "Raid Dungeon", [

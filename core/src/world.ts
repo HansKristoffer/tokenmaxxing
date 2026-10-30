@@ -7,6 +7,7 @@ import { isRecord, isTruthy, typedKeys } from "hanzio";
 import { caseAt } from "./case.ts";
 import { costumeAt } from "./costumes.ts";
 import { editionAt } from "./editions.ts";
+import type { Angling, Landing } from "./fishing.ts";
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
 import { LOOT_COUNT, LOOT_FIRST } from "./loot.ts";
@@ -22,9 +23,13 @@ import {
   PASSAGE_X,
   type Piece,
   pieceOf,
+  type Rot,
+  rotOf,
+  tilesOf,
   withPieces,
 } from "./office.ts";
 import { cleanPetName, MAX_PET_LOOKS, petLooks } from "./pets.ts";
+import type { PrestigeBadge } from "./prestige-run.ts";
 import { itemById } from "./shop.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_ROOM, type ShopId, shopOfRoom } from "./shoprooms.ts";
 import type { Weather } from "./sky.ts";
@@ -63,6 +68,7 @@ export type RoomId =
   | "shop-barber"
   | "shop-pets"
   | "shop-natmarked"
+  | "shop-market"
   | `hq:${number}`
   | `common:${number}`
   | `office:${number}`;
@@ -78,6 +84,7 @@ const FIXED_ROOMS: readonly string[] = [
   "shop-barber",
   "shop-pets",
   "shop-natmarked",
+  "shop-market",
 ];
 
 /** A room id from the wire, or null: one of the fixed rooms, or a company's house or common room, or an office. */
@@ -131,7 +138,7 @@ export function mapOf(room: RoomId): GameMap {
 export const piecesIn = (drops: readonly Drop[]) =>
   drops.flatMap((d) => {
     const piece = pieceOfDrop(d);
-    return piece ? [{ ch: piece.ch, x: d.x, y: d.y, ...(d.flip && { flip: true }) }] : [];
+    return piece ? [{ ch: piece.ch, x: d.x, y: d.y, ...(d.rot && { rot: d.rot }) }] : [];
   });
 
 // MARK: Drops
@@ -147,8 +154,8 @@ export interface Drop {
   at: number;
   /** The company it belongs to: bought from its wallet, it stays in its building (`COMPANY_FURNITURE`). */
   co?: number;
-  /** A piece of furniture turned to face the other way: mirrored left to right (F, `canFlip`). */
-  flip?: boolean;
+  /** How far a piece of furniture is turned, in quarter turns (F, `canTurn`); left out for 0. */
+  rot?: Rot;
 }
 
 /** What's on each room's floor. ponytail: one process holds every room's, like the town. */
@@ -167,7 +174,6 @@ export const pieceOfDrop = (d: Pick<Drop, "item">): Piece | undefined =>
 /** What it is: "Sofa", "Duck". */
 export const dropName = (d: Pick<Drop, "item">): string => itemById(d.item)?.name ?? "Something";
 
-/** Whether a drop lies on (x, y): a TV is two tiles. */
 /**
  * The piece of furniture G takes and M moves for someone: one of theirs (their office's, their company's),
  * the one they are on, else the one they face, whether it blocks, seats or is a rug.
@@ -189,8 +195,12 @@ export function ownPieceAt(
   );
 }
 
+/** The tiles a drop covers: a TV is two, along its row, or down its column when turned sideways. */
+export const dropTiles = (d: Drop): [number, number][] => tilesOf(d.x, d.y, pieceOfDrop(d)?.w ?? 1, d.rot);
+
+/** Whether a drop lies on (x, y). */
 export const dropCovers = (d: Drop, x: number, y: number): boolean =>
-  d.y === y && x >= d.x && x < d.x + (pieceOfDrop(d)?.w ?? 1);
+  dropTiles(d).some(([tx, ty]) => tx === x && ty === y);
 
 // MARK: Looks
 
@@ -291,6 +301,8 @@ export function parseLook(raw: unknown): Look | null {
   }
   if (!Number.isSafeInteger(r.merch) || (r.merch as number) < 0) return null;
   out.merch = r.merch as number;
+  // A hoodie goes over a tee, so wearing both is wearing the hoodie: one look, whichever way it was saved.
+  if (out.merchWorn & 2) out.merchWorn &= ~1;
   // Nothing worn is no merch, so two looks that draw the same are the same.
   if (out.merch === 0 || out.merchWorn === 0) Object.assign(out, { merch: 0, merchWorn: 0 });
   return out;
@@ -315,6 +327,8 @@ export interface PlayerInfo {
   name: string;
   look: Look;
   level: number;
+  /** Their prestige (`prestige-run.ts`); absent is none. */
+  prestige?: PrestigeBadge;
   companyId: number | null;
   todayTokens: number;
   /** Agents that ran in the last 10 minutes. */
@@ -333,6 +347,10 @@ export interface PlayerInfo {
   /** The dance they're doing (`DANCES` in dances.ts), 0 for none, since `danceSince` (epoch ms). Absent from older servers: none. */
   dance?: number;
   danceSince?: number;
+  /** Their line in the pond, if they're fishing (`fishing.ts`). Absent from older servers: none. */
+  angling?: Angling | null;
+  /** Their last catch, held up for `LANDED_MS` from its `at`. Absent from older servers: none. */
+  landing?: Landing | null;
 }
 
 /**
@@ -363,7 +381,7 @@ export const RAIDERS_SHOWN = 40;
 /** A line from `town` for one player (`notice`), and the panel a click on it opens. */
 export interface Notice {
   text: string;
-  open?: "company" | "trades" | "bag" | "quests" | "hallOfFame" | "collection" | "tournament";
+  open?: "company" | "trades" | "bag" | "quests" | "hallOfFame" | "collection" | "tournament" | "market";
 }
 
 /** Where someone is: `[id, x, y, facing, state]`. */
@@ -784,7 +802,7 @@ export function route(
  * pet bed, a shelf or the piece itself that could be reached from the exit before. `map` has what is
  * already down. So the door, the desk and every seat stay reachable (`route` ends one step short).
  */
-export function cutsOff(map: GameMap, piece: { ch: string; x: number; y: number }): boolean {
+export function cutsOff(map: GameMap, piece: { ch: string; x: number; y: number; rot?: Rot }): boolean {
   const door = map.find("x")[0];
   if (!door) return false;
   const next = withPieces([piece], map);
@@ -795,8 +813,8 @@ export function cutsOff(map: GameMap, piece: { ch: string; x: number; y: number 
       if (route(next, door, [x, y]) === null && route(map, door, [x, y]) !== null) return true;
     }
   // The new piece must be reachable too, or nobody could read it or pick it up.
-  for (let i = 0; i < (pieceOf(piece.ch)?.w ?? 1); i++)
-    if (route(next, door, [piece.x + i, piece.y]) === null) return true;
+  for (const tile of tilesOf(piece.x, piece.y, pieceOf(piece.ch)?.w ?? 1, piece.rot))
+    if (route(next, door, tile) === null) return true;
   return false;
 }
 
@@ -820,8 +838,8 @@ export function noFurniture(room: RoomId, map: GameMap): Set<string> {
 }
 
 /**
- * Whether drop `d` (a `piece`) could stand with its left end on (x, y) in `room` with the rest of the floor as
- * it is: bare floor or, for a wall piece, bare wall; one piece to a tile; nobody under it, nobody walled in,
+ * Whether drop `d` (a `piece`) could stand with its top-left tile on (x, y), turned `rot`, in `room` with the rest of the
+ * floor as it is: bare floor or, for a wall piece, bare wall; one piece to a tile; nobody under it, nobody walled in,
  * and in an office every door, desk and seat still reachable. The same rules as `placeDrop`.
  */
 export function furnitureFits(
@@ -831,27 +849,31 @@ export function furnitureFits(
   x: number,
   y: number,
   people: readonly { x: number; y: number }[],
+  rot: Rot = 0,
 ): boolean {
   const base = baseMap(room);
   const w = piece.w ?? 1;
   const others = (DROPS.get(room) ?? []).filter((o) => o.id !== d.id);
   const taken = new Set<string>();
-  for (const o of others) for (let i = 0; i < (pieceOfDrop(o)?.w ?? 1); i++) taken.add(`${o.x + i},${o.y}`);
-  for (let i = 0; i < w; i++) if (taken.has(`${x + i},${y}`)) return false;
+  for (const o of others) for (const [tx, ty] of dropTiles(o)) taken.add(`${tx},${ty}`);
+  // A wall piece hangs along its wall whatever it is told.
+  const turn = piece.wall ? 0 : rotOf(rot);
+  const tiles = tilesOf(x, y, w, turn);
+  for (const [tx, ty] of tiles) if (taken.has(`${tx},${ty}`)) return false;
   if (piece.wall) {
     if (!canHang(base, x, y, w, piece.home)) return false;
-    for (let i = 0; i < w; i++) if (taken.has(`${x + i},${y + 1}`)) return false;
+    for (const [tx, ty] of tiles) if (taken.has(`${tx},${ty + 1}`)) return false;
     return true;
   }
   const map = withPieces(piecesIn(others), base);
   const reserved = noFurniture(room, base);
-  for (let i = 0; i < w; i++) {
-    if (!map.walkable(x + i, y) || map.kind(x + i, y).portal || reserved.has(`${x + i},${y}`)) return false;
-    if (people.some((o) => o.x === x + i && o.y === y)) return false;
-    for (const o of others) if (pieceOfDrop(o)?.wall && dropCovers(o, x + i, y - 1)) return false;
+  for (const [tx, ty] of tiles) {
+    if (!map.walkable(tx, ty) || map.kind(tx, ty).portal || reserved.has(`${tx},${ty}`)) return false;
+    if (people.some((o) => o.x === tx && o.y === ty)) return false;
+    for (const o of others) if (pieceOfDrop(o)?.wall && dropCovers(o, tx, ty - 1)) return false;
   }
-  const next = withPieces([{ ch: piece.ch, x, y }], map);
+  const next = withPieces([{ ch: piece.ch, x, y, rot: turn }], map);
   const exit = map.find("x")[0];
   if (exit && people.some((o) => !route(next, [o.x, o.y], exit))) return false;
-  return !(ownerOfOffice(room) !== null && cutsOff(map, { ch: piece.ch, x, y }));
+  return !(ownerOfOffice(room) !== null && cutsOff(map, { ch: piece.ch, x, y, rot: turn }));
 }

@@ -9,7 +9,8 @@ import {
 } from "@tokenmaxxing/core/economy.ts";
 import { levelFor } from "@tokenmaxxing/core/format.ts";
 import { milestoneCoins } from "@tokenmaxxing/core/milestones.ts";
-import { OFFICE_LEVEL, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
+import { OFFICE_LEVEL, rotOf, STARTER_OFFICE } from "@tokenmaxxing/core/office.ts";
+import { TREAT_COST, TREATS_PER_DAY } from "@tokenmaxxing/core/pets.ts";
 import { EMPTY_COUNTS, EMPTY_DAY, type Progress, questProgress } from "@tokenmaxxing/core/quests.ts";
 import { type RaidWeek, raidCoins } from "@tokenmaxxing/core/raid.ts";
 import { addDays, dayKey } from "@tokenmaxxing/core/range.ts";
@@ -33,6 +34,7 @@ import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { companyLedgerAdd } from "./companies.ts";
 import { greenPay } from "./grid.ts";
 import { type LaunchPaid, launchBonus, launchBonusAll } from "./launch-bonus.ts";
+import { grantPrestige, prestigeCoins, prestigeCoinsAll, prestigesOf } from "./prestige.ts";
 import { bumpCount, dayPicks, loadQuestData, noQuestData, paidFrom, questPay } from "./quests.ts";
 import { raidHistory } from "./raid.ts";
 import { trophyAwardCoins, trophyAwardCoinsAll } from "./trophy-awards.ts";
@@ -121,6 +123,7 @@ export const ledgerAdd = (sql: Sql, userId: number, amount: number, kind: string
  */
 export async function grantRewards(sql: Sql, userId: number, level: number, now: number): Promise<Drop[]> {
   const drops = level >= OFFICE_LEVEL ? await starterDrops(sql, userId, now) : [];
+  await grantPrestige(sql, userId, now);
   const due = levelItems(level);
   if (due.length === 0) return drops;
   // Every sync asks: one read, and a write only for what's new.
@@ -192,7 +195,7 @@ export async function wallet(
   const pay = questPay(data);
   const level = levelFor(sumBy(everyDay, "tokens"));
   const byDay = new Map(days.map((d) => [d.day, d.tokens]));
-  const dayCoins = (day: string) => coinsForTokens(byDay.get(day) ?? 0) + (pay.daily.get(day) ?? 0);
+  const dayCoins = (day: string) => coinsForTokens(byDay.get(day) ?? 0, day) + (pay.daily.get(day) ?? 0);
   const active = days.filter((d) => d.tokens > 0).map((d) => d.day);
   const streak = streakBonus(active, dayCoins);
   const launched = await launchBonus(sql, userId);
@@ -202,7 +205,7 @@ export async function wallet(
   const raided = raidCoins(raids ?? (await raidHistory(sql, now)), userId);
   const green = (await greenPay(sql, { [userId]: from }, (_, day) => byDay.get(day) ?? 0)).get(userId);
   const earned =
-    sumBy(days, (d) => coinsForTokens(d.tokens)) +
+    sumBy(days, (d) => coinsForTokens(d.tokens, d.day)) +
     sumBy(wins, "coins") +
     raided +
     sumBy([...(green?.values() ?? [])], (n) => n) +
@@ -213,11 +216,12 @@ export async function wallet(
     (await badgeAwardCoins(sql, userId)) +
     (await trophyAwardCoins(sql, userId)) +
     sumBy(launched, "coins") +
+    prestigeCoins(await prestigesOf(sql, userId), sumBy(everyDay, "tokens")) +
     streak;
   const since = addDays(today, -29);
   const todays = data.facts.get(today) ?? EMPTY_DAY;
   const counts = data.counts.get(today) ?? EMPTY_COUNTS;
-  const todayBase = coinsForTokens(todays.tokens) + (pay.daily.get(today) ?? 0);
+  const todayBase = coinsForTokens(todays.tokens, today) + (pay.daily.get(today) ?? 0);
   const greenToday = green?.get(today) ?? 0;
   const held = await bag(sql, userId);
   return {
@@ -233,7 +237,7 @@ export async function wallet(
     wins: wins.filter((w) => w.day >= since),
     owned: held.map((r) => r.item),
     items: sumBy(held, "count"),
-    quests: (live ?? []).map((q) => questProgress(q, todays, counts)),
+    quests: (live ?? []).map((q) => questProgress(q, todays, counts, today)),
     trading: !!(await one(
       sql,
       "SELECT 1 FROM trades WHERE (from_id = ? OR to_id = ?) AND at >= ? LIMIT 1",
@@ -299,7 +303,7 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
   );
   const tokenDays = new Map<number, Map<string, number>>();
   for (const d of days) {
-    add(d.userId, coinsForTokens(d.tokens));
+    add(d.userId, coinsForTokens(d.tokens, d.day));
     if (d.tokens > 0) tokenDays.set(d.userId, (tokenDays.get(d.userId) ?? new Map()).set(d.day, d.tokens));
   }
   const dailies = new Map<number, Map<string, number>>();
@@ -315,14 +319,16 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
       userId,
       streakBonus(
         [...byDay.keys()],
-        (day) => coinsForTokens(byDay.get(day) ?? 0) + (dailies.get(userId)?.get(day) ?? 0),
+        (day) => coinsForTokens(byDay.get(day) ?? 0, day) + (dailies.get(userId)?.get(day) ?? 0),
       ),
     );
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);
-  for (const [userId, tokens] of await tokensIn(sql, "all")) {
+  const lifetime = await tokensIn(sql, "all");
+  for (const [userId, tokens] of lifetime) {
     const level = levelFor(tokens);
     add(userId, milestoneCoins(level) + levelUpCoins(level));
   }
+  for (const [userId, n] of await prestigeCoinsAll(sql, lifetime)) add(userId, n);
   for (const r of await all<{ userId: number; tier: number }>(
     sql,
     "SELECT user_id AS userId, tier FROM badge_awards WHERE badge != 'level'",
@@ -362,6 +368,27 @@ export async function tossCoin(sql: Sql, userId: number, now: number, kept?: Kep
   const ref = `fountain:${day}:${n + 1}`;
   await ledgerAdd(sql, userId, -1, "fountain", ref, now);
   await bumpCount(sql, userId, day, "fountain", ref);
+}
+
+/**
+ * A treat for `userId`'s pet: `TREAT_COST` coins out of the wallet (a ledger line, kind `pet`, ref
+ * `treat:<day>:<n>`, never positive), at most `TREATS_PER_DAY` a world day, counted from the ledger itself. Gives
+ * nothing back: the pet's reaction is cosmetic, so the coins are a sink. Returns the treats left today. Run it
+ * serialized with every other coin write, so two at once can't both pass the count or spend the same coins.
+ */
+export async function treatPet(sql: Sql, userId: number, now: number, kept?: Kept): Promise<number> {
+  const day = dayKey(now);
+  const given = await scalar(
+    sql,
+    "SELECT COUNT(*) AS n FROM ledger WHERE user_id = ? AND kind = 'pet' AND ref LIKE ?",
+    userId,
+    `treat:${day}:%`,
+  );
+  if (given >= TREATS_PER_DAY) throw new UserError("That's plenty of treats for today.", { code: "limit" });
+  if ((await wallet(sql, userId, now, kept)).balance < TREAT_COST)
+    throw new UserError(`A treat is 🪙 ${TREAT_COST}.`, { code: "too_poor" });
+  await ledgerAdd(sql, userId, -TREAT_COST, "pet", `treat:${day}:${given + 1}`, now);
+  return TREATS_PER_DAY - given - 1;
 }
 
 /**
@@ -431,18 +458,30 @@ export interface Office {
   /** Wallpaper and floor (`decor.ts`); none is the plain one. */
   wall?: string;
   floor?: string;
+  /** The biggest size bought (`officeSizeItem`); none is the size that comes with the office. */
+  size?: number;
 }
 
 /** Every office (or only `userId`'s), by owner. */
 export async function offices(sql: Sql, userId: number | null = null): Promise<Record<number, Office>> {
-  const rows = await all<{ userId: number; wall: string | null; floor: string | null }>(
+  const rows = await all<{ userId: number; wall: string | null; floor: string | null; size: number | null }>(
     sql,
-    "SELECT user_id AS userId, wall, floor FROM offices WHERE ? IS NULL OR user_id = ?",
+    `SELECT user_id AS userId, wall, floor,
+       (SELECT MAX(CAST(SUBSTR(item, 13) AS INTEGER)) FROM purchases
+         WHERE purchases.user_id = offices.user_id AND item LIKE 'office.size.%') AS size
+     FROM offices WHERE ? IS NULL OR user_id = ?`,
     userId,
     userId,
   );
   return Object.fromEntries(
-    rows.map((r) => [r.userId, { ...(r.wall && { wall: r.wall }), ...(r.floor && { floor: r.floor }) }]),
+    rows.map((r) => [
+      r.userId,
+      {
+        ...(r.wall && { wall: r.wall }),
+        ...(r.floor && { floor: r.floor }),
+        ...(r.size && { size: r.size }),
+      },
+    ]),
   );
 }
 
@@ -620,7 +659,8 @@ export async function checkTrade(sql: Sql, t: Trade, now: number, kept?: Kept): 
 
 /**
  * Moves `give` from `from` to `to` and `want` the other way, all or nothing, and drops the offer:
- * coins in one ref, items as one row of each kind. Run it serialized. Throws `too_poor` /
+ * coins in one ref, items as one row of each kind: the newest, so a numbered edition's first copy stays
+ * (the vendor sells the newest too). Run it serialized. Throws `too_poor` /
  * `not_owned` when something changed since the offer, and `not_found` when it's gone.
  */
 export async function settleTrade(sql: TxSql, t: Trade, now: number, kept?: Kept): Promise<void> {
@@ -640,7 +680,7 @@ export async function settleTrade(sql: TxSql, t: Trade, now: number, kept?: Kept
       for (const id of d.side.items)
         await tx.execute(
           `UPDATE items SET owner_id = ? WHERE id =
-             (SELECT id FROM items WHERE owner_id = ? AND item = ? LIMIT 1)`,
+             (SELECT id FROM items WHERE owner_id = ? AND item = ? ORDER BY id DESC LIMIT 1)`,
           d.receiverId,
           d.giverId,
           id,
@@ -693,7 +733,7 @@ export async function takeOut(sql: Sql, userId: number, item: unknown, now: numb
   const [row] = await all<{ id: number }>(
     sql,
     `UPDATE items SET owner_id = NULL, dropped_by = ?, dropped_at = ? WHERE id =
-       (SELECT id FROM items WHERE owner_id = ? AND item = ? LIMIT 1) RETURNING id`,
+       (SELECT id FROM items WHERE owner_id = ? AND item = ? ORDER BY id DESC LIMIT 1) RETURNING id`,
     userId,
     now,
     userId,
@@ -715,7 +755,7 @@ export async function placed(sql: Sql, d: Drop): Promise<void> {
 }
 
 /** Off the floor, from the town's side. */
-const OFF_FLOOR = "dropped_by = NULL, dropped_at = NULL, room = NULL, x = NULL, y = NULL, flip = NULL";
+const OFF_FLOOR = "dropped_by = NULL, dropped_at = NULL, room = NULL, x = NULL, y = NULL, rot = NULL";
 
 /**
  * A drop on `room`'s floor into `userId`'s bag. False if it isn't there any more (the sweeper sent it
@@ -726,7 +766,8 @@ export const pickUp = async (sql: Sql, id: number, userId: number, room: string)
     await all(
       sql,
       `UPDATE items SET owner_id = ?, ${OFF_FLOOR} WHERE id = ? AND owner_id IS NULL AND (room IS NULL OR room = ?)
-         AND company_id IS NULL AND ? IN (SELECT id FROM users) RETURNING id`,
+         AND company_id IS NULL AND id NOT IN (SELECT item_row FROM market_listings)
+         AND ? IN (SELECT id FROM users) RETURNING id`,
       userId,
       id,
       room,
@@ -739,7 +780,7 @@ const store = async (sql: Sql, id: number, userId: number, room: string): Promis
   (
     await all(
       sql,
-      `UPDATE items SET room = NULL, x = NULL, y = NULL, flip = NULL WHERE id = ? AND room = ?
+      `UPDATE items SET room = NULL, x = NULL, y = NULL, rot = NULL WHERE id = ? AND room = ?
          AND company_id = (SELECT company_id FROM users WHERE id = ?) RETURNING id`,
       id,
       room,
@@ -753,7 +794,7 @@ export async function giveBack(sql: Sql, ids: number[]): Promise<void> {
   const list = JSON.stringify(ids);
   // Company furniture goes to its storeroom (a closed company's is gone already).
   await sql.execute(
-    "UPDATE items SET room = NULL, x = NULL, y = NULL, flip = NULL WHERE company_id IS NOT NULL AND id IN (SELECT value FROM json_each(?))",
+    "UPDATE items SET room = NULL, x = NULL, y = NULL, rot = NULL WHERE company_id IS NOT NULL AND id IN (SELECT value FROM json_each(?))",
     list,
   );
   const mine = "owner_id IS NULL AND company_id IS NULL AND id IN (SELECT value FROM json_each(?))";
@@ -775,9 +816,13 @@ export const unclaimed = async (sql: Sql, before: number): Promise<number[]> =>
 /** Everything on a floor, for `world` starting up (`seed`). */
 export const floors = async (sql: Sql): Promise<Drop[]> =>
   (
-    await all<Omit<Drop, "co" | "flip"> & { co: number | null; flip: number | null }>(
+    await all<Omit<Drop, "co" | "rot"> & { co: number | null; rot: number | null }>(
       sql,
-      `SELECT id, item, room, x, y, dropped_by AS "by", dropped_at AS at, company_id AS co, flip FROM items
+      `SELECT id, item, room, x, y, dropped_by AS "by", dropped_at AS at, company_id AS co, rot FROM items
        WHERE owner_id IS NULL AND room IS NOT NULL`,
     )
-  ).map(({ co, flip, ...d }) => ({ ...d, ...(co !== null && { co }), ...(flip && { flip: true }) }));
+  ).map(({ co, rot, ...d }) => ({
+    ...d,
+    ...(co !== null && { co }),
+    ...(rotOf(rot) && { rot: rotOf(rot) }),
+  }));

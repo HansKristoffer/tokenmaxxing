@@ -24,18 +24,26 @@ export const levelUpCoins = (level: number): number => {
 
 // MARK: Badges and trophies
 
-/** What reaching tier 1, 2, 3 and 4 of a badge pays (Bronze, Silver, Gold, Diamond): each tier once. */
-export const BADGE_TIER_COINS: readonly number[] = [10, 25, 50, 100];
+/**
+ * What reaching tier 1 to 6 of a badge pays (Bronze, Silver, Gold, Diamond, Mythic, Cosmic): each tier once.
+ * Only the longer ladders reach the last two. Tiers are paid from the rows a sweep recorded, by these
+ * numbers when the wallet is read, so changing them pays everyone who holds a tier the new amount.
+ */
+export const BADGE_TIER_COINS: readonly number[] = [40, 100, 200, 400, 1000, 2000];
 
 /** A badge standing at `tier` has paid every tier up to it. */
 export const badgeCoins = (tier: number): number => sumBy(BADGE_TIER_COINS.slice(0, tier), (n) => n);
 
 /** Trophies anyone gets in their first weeks. */
-const COMMON = 5;
+const COMMON = 20;
 /** Coincidences you can steer a little (a day's total, an hour of the night). */
-const ODD = 10;
+const ODD = 40;
 /** Only on its day of the year. */
-const CALENDAR = 25;
+const CALENDAR = 100;
+/** Takes a long haul or real luck. */
+const RARE = 200;
+/** Hardly anyone will ever see it. */
+const LEGEND = 400;
 
 /**
  * What each trophy pays, once. The PR-hash ones pay nothing: the cheapest to farm (open PRs until one
@@ -62,6 +70,25 @@ export const TROPHY_COINS: Readonly<Record<string, number>> = {
   holiday: CALENDAR,
   piday: CALENDAR,
   palindate: CALENDAR,
+  streak30: ODD,
+  streak100: RARE,
+  streak365: LEGEND,
+  hundredb: LEGEND,
+  tsunami: RARE,
+  firehose: ODD,
+  hurricane: RARE,
+  setforget: ODD,
+  insomniac: ODD,
+  nice: ODD,
+  blaze: ODD,
+  beast: ODD,
+  repdigit: RARE,
+  countdown: RARE,
+  exactmillion: RARE,
+  leapday: CALENDAR,
+  friday13: CALENDAR,
+  halloween: CALENDAR,
+  spree: ODD,
   zeros: 0,
   deadbeef: 0,
   c0ffee: 0,
@@ -79,8 +106,6 @@ export const STREAK_STEP = 0.5;
 export const STREAK_MAX = 3;
 /** The steps a streak can hold: the first active day is ×1, the fifth ×3. */
 export const STREAK_STEPS = (STREAK_MAX - 1) / STREAK_STEP;
-/** A day without tokens costs this many steps, not the whole streak. */
-export const STREAK_DECAY = 2;
 
 /**
  * The first world day the multiplier pays. Days before it keep their plain coins, so no balance moves at
@@ -95,7 +120,7 @@ const between = (a: string, b: string): number =>
 
 /**
  * Each day with tokens, with its multiplier: ×1 on the first day of a run, +0.5 for every day after it,
- * to ×3. A missed day takes `STREAK_DECAY` steps off (a day off drops ×3 to ×2, it doesn't reset).
+ * to ×3. A missed day resets the run to ×1.
  * `days` are the days with tokens, in any order.
  */
 export function streakMultipliers(days: readonly string[]): Map<string, number> {
@@ -103,7 +128,7 @@ export function streakMultipliers(days: readonly string[]): Map<string, number> 
   let steps = 0;
   let prev: string | null = null;
   for (const day of [...new Set(days)].sort()) {
-    if (prev) steps = Math.max(0, steps - STREAK_DECAY * (between(prev, day) - 1));
+    if (prev && between(prev, day) > 1) steps = 0;
     out.set(day, 1 + STREAK_STEP * steps);
     steps = Math.min(steps + 1, STREAK_STEPS);
     prev = day;
@@ -133,7 +158,7 @@ export function streakNow(days: readonly string[], today: string): number {
   if (!last) return 1;
   // Today isn't active yet: what today would be worth.
   const steps = Math.min((all.get(last)! - 1) / STREAK_STEP + 1, STREAK_STEPS);
-  return 1 + STREAK_STEP * Math.max(0, steps - STREAK_DECAY * (between(last, today) - 1));
+  return 1 + STREAK_STEP * (between(last, today) > 1 ? 0 : steps);
 }
 
 // MARK: The new-model launch bonus

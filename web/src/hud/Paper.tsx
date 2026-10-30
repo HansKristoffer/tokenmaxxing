@@ -40,6 +40,43 @@ export function PaperPanel() {
             </section>
           ))}
         </div>
+        <div className="paper-sides">
+          <section className="paper-markets">
+            <h6>Markets</h6>
+            <table>
+              <tbody>
+                {paper.markets.map((m) => (
+                  <tr key={m.label}>
+                    <th>{m.label}</th>
+                    <td>{m.value}</td>
+                    <td className={m.change === null ? "" : m.change >= 0 ? "up" : "down"}>
+                      {m.change === null
+                        ? ""
+                        : `${m.change >= 0 ? "▲" : "▼"} ${Math.round(Math.abs(m.change) * 100)}%`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p>
+              <b>Forecast:</b> {paper.forecast}
+            </p>
+          </section>
+          <section>
+            <h6>In brief</h6>
+            <ul>
+              {paper.briefs.map((b) => (
+                <li key={b}>{b}</li>
+              ))}
+            </ul>
+          </section>
+          {paper.corners.map((c) => (
+            <section key={c.kicker}>
+              <h6>{c.kicker}</h6>
+              <p>{c.text}</p>
+            </section>
+          ))}
+        </div>
       </article>
     </Modal>
   );

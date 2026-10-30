@@ -1,9 +1,10 @@
+import type { Rot } from "@tokenmaxxing/core/office.ts";
 import { type Drop, furnitureFits, pieceOfDrop, type RoomId } from "@tokenmaxxing/core/world.ts";
 
 // MARK: Where a piece can stand
 
 /**
- * Whether a piece (`item`, `furn.<ch>`) could stand with its left end on `t` in `room` (whose floor is
+ * Whether a piece (`item`, `furn.<ch>`) turned `rot` could stand with its top-left tile on `t` in `room` (whose floor is
  * `setDrops`'s): the very rules the server checks (`furnitureFits`), so the green and the red are what it will
  * say. `moving` is the drop being moved (its own tile is free for it); `people` are everyone in the room.
  */
@@ -13,11 +14,12 @@ export function ghostFits(
   moving: Drop | null,
   t: { x: number; y: number },
   people: readonly { x: number; y: number }[],
+  rot: Rot = 0,
 ): boolean {
   const piece = pieceOfDrop({ item });
   if (!piece) return false;
   const d: Drop = moving ?? { id: -1, item, room, x: t.x, y: t.y, by: 0, at: 0 };
-  return furnitureFits(room, d, piece, t.x, t.y, people);
+  return furnitureFits(room, d, piece, t.x, t.y, people, rot);
 }
 
 // MARK: Undo
@@ -26,8 +28,8 @@ export function ghostFits(
 export type Undoable =
   /** Took a piece off the floor: undo puts it down on the same tile (`co`: from the storeroom). */
   | { kind: "take"; room: RoomId; id: number; item: string; x: number; y: number; co?: number }
-  /** Moved or flipped a piece from `(x, y)`, facing as `flip` says: undo puts it back so. */
-  | { kind: "move"; room: RoomId; id: number; x: number; y: number; flip: boolean }
+  /** Moved or turned a piece from `(x, y)`, turned as `rot` says: undo puts it back so. */
+  | { kind: "move"; room: RoomId; id: number; x: number; y: number; rot: Rot }
   /** Put a piece down (`id`): undo takes it back. */
   | { kind: "place"; room: RoomId; id: number; item: string; co?: number };
 

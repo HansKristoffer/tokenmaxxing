@@ -2,21 +2,26 @@ import { describe, expect, test } from "bun:test";
 import { MAPS } from "../src/maps.ts";
 import {
   assignSlots,
-  canFlip,
+  canTurn,
   directory,
   doorsFor,
   FURNITURE,
-  flippedAt,
   hqMap,
   OFFICE_LEVEL,
   OFFICE_MAPS,
   OFFICE_SIZES,
   type OfficeTier,
   officeMap,
+  officeSizeItem,
+  officeSizeOfItem,
   officeTier,
+  rotOf,
   STARTER_OFFICE,
   setOffice,
   slotSpot,
+  tilesOf,
+  turnAt,
+  turnedAround,
   withPieces,
   withSlots,
 } from "../src/office.ts";
@@ -107,25 +112,87 @@ describe("offices", () => {
   test("furniture is written over floor only: never over a wall or a door", () => {
     const pieces = [
       { ch: "d", x: 0, y: 0 },
-      { ch: "d", x: 5, y: 8 },
-      { ch: "t", x: 10, y: 1 },
+      { ch: "d", x: 5, y: 10 },
+      { ch: "t", x: 12, y: 1 },
     ];
     const map = withPieces(pieces, MAPS.office);
-    expect([map.at(0, 0), map.at(5, 8), map.at(10, 1), map.at(11, 1)]).toEqual(["W", "x", "t", "W"]);
+    expect([map.at(0, 0), map.at(5, 10), map.at(12, 1), map.at(13, 1)]).toEqual(["W", "x", "t", "W"]);
   });
 
-  test("a piece turned the other way keeps its letters, and both its tiles know its footprint", () => {
+  test("a turned piece keeps its letters; its footprint runs along its row, or down its column when sideways", () => {
     const tv = { ch: "t", x: 3, y: 4 };
     const plain = withPieces([tv], MAPS.office);
-    const turned = withPieces([{ ...tv, flip: true }], MAPS.office);
-    expect(turned.rows).toEqual(plain.rows);
-    const span = { x: 3, w: 2 };
-    expect([3, 4, 5].map((x) => flippedAt(turned, x, 4))).toEqual([span, span, null]);
-    expect(flippedAt(plain, 3, 4)).toBeNull();
+    // Upside down: the same two tiles along the row.
+    const half = withPieces([{ ...tv, rot: 2 }], MAPS.office);
+    expect(half.rows).toEqual(plain.rows);
+    const around = { x: 3, y: 4, w: 2, rot: 2 as const };
+    expect([3, 4, 5].map((x) => turnAt(half, x, 4))).toEqual([around, around, null]);
+    expect(turnAt(plain, 3, 4)).toBeNull();
+    // Sideways: the letters lie down the column, and each tile knows the whole footprint.
+    for (const rot of [1, 3] as const) {
+      const side = withPieces([{ ...tv, rot }], MAPS.office);
+      expect([side.at(3, 4), side.at(3, 5), side.at(4, 4), side.at(4, 5)]).toEqual(["t", "t", "_", "_"]);
+      const turn = { x: 3, y: 4, w: 2, rot };
+      expect(
+        [
+          [3, 4],
+          [3, 5],
+          [4, 4],
+          [3, 6],
+        ].map(([x, y]) => turnAt(side, x!, y!)),
+      ).toEqual([turn, turn, null, null]);
+    }
     // Furniture put down later over a turned room keeps the turned piece turned.
-    expect(flippedAt(withPieces([{ ch: "p", x: 8, y: 6 }], turned), 4, 4)).toEqual(span);
+    expect(turnAt(withPieces([{ ch: "p", x: 8, y: 6 }], half), 4, 4)).toEqual(around);
+    // A turn that is not a quarter turn is the nearest whole one.
+    expect([0, 1, 2, 3, 4, -1, 2.5, "x"].map(rotOf)).toEqual([0, 1, 2, 3, 0, 3, 0, 0]);
     // A wall piece hangs as it is: its writing would read backwards.
-    expect([canFlip("t"), canFlip("Σ"), canFlip("ñ"), canFlip("?")]).toEqual([true, true, false, false]);
+    expect([canTurn("t"), canTurn("Σ"), canTurn("ñ"), canTurn("?")]).toEqual([true, true, false, false]);
+    expect(withPieces([{ ch: "ñ", x: 2, y: 0, rot: 1 }], MAPS.office).rows).toEqual(
+      withPieces([{ ch: "ñ", x: 2, y: 0 }], MAPS.office).rows,
+    );
+  });
+
+  test("tiles of a turned piece, and turning it about its middle tile and back", () => {
+    expect([0, 2].map((r) => tilesOf(3, 4, 3, r))).toEqual([
+      [
+        [3, 4],
+        [4, 4],
+        [5, 4],
+      ],
+      [
+        [3, 4],
+        [4, 4],
+        [5, 4],
+      ],
+    ]);
+    expect(tilesOf(3, 4, 3, 1)).toEqual([
+      [3, 4],
+      [3, 5],
+      [3, 6],
+    ]);
+    // A three wide sofa turns about its middle tile; four turns bring it back.
+    expect(turnedAround(3, 4, 3, 0, 1)).toEqual({ x: 4, y: 3 });
+    let at = { x: 3, y: 4 };
+    for (const [from, to] of [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+    ] as const)
+      at = turnedAround(at.x, at.y, 3, from, to);
+    expect(at).toEqual({ x: 3, y: 4 });
+    // A two wide one: about its left tile (the lower middle), the same way round.
+    at = { x: 3, y: 4 };
+    for (const [from, to] of [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+    ] as const)
+      at = turnedAround(at.x, at.y, 2, from, to);
+    expect(at).toEqual({ x: 3, y: 4 });
+    expect(turnedAround(3, 4, 1, 0, 1)).toEqual({ x: 3, y: 4 });
   });
 
   test("the pet bed: in every office, off the door, the desk and the paths, and reachable", () => {
@@ -164,29 +231,45 @@ describe("offices", () => {
     }
   });
 
-  test("tier 0 is the template every office had", () => {
+  test("tier 0 is the template every office starts with, about 20% bigger than the old 12 x 9", () => {
     expect(officeMap(0).rows).toEqual([
-      "WWWWWWWWWWWW",
-      "W____UUUU__W",
-      "W__________W",
-      "W__________W",
-      "W__________W",
-      "W__________W",
-      "W__________W",
-      "W_________QW",
-      "WWWWWxWWWWWW",
+      "WWWWWWWWWWWWWW",
+      "W____UUUU____W",
+      "W____________W",
+      "W____________W",
+      "W____________W",
+      "W____________W",
+      "W____________W",
+      "W____________W",
+      "W____________W",
+      "W___________QW",
+      "WWWWWxWWWWWWWW",
     ]);
     expect(MAPS.office.rows).toEqual(officeMap(0).rows);
+    expect(OFFICE_SIZES[0]!.w * OFFICE_SIZES[0]!.h).toBeGreaterThanOrEqual(12 * 9 * 1.2);
   });
 
-  test("tiers by level: 10, 25, 40", () => {
-    expect([0, 9, 10, 24].map(officeTier)).toEqual([0, 0, 0, 0]);
-    expect([25, 39].map(officeTier)).toEqual([1, 1]);
-    expect([40, 99].map(officeTier)).toEqual([2, 2]);
-    expect(OFFICE_SIZES[0]!.level).toBe(OFFICE_LEVEL);
+  test("tiers: the biggest bought, and level 40 starts at the second", () => {
+    expect([0, 9, 10, 25, 39].map((l) => officeTier(l))).toEqual([0, 0, 0, 0, 0]);
+    expect([40, 99].map((l) => officeTier(l))).toEqual([1, 1]);
+    expect([officeTier(10, 1), officeTier(10, 3), officeTier(40, 0), officeTier(40, 2)]).toEqual([
+      1, 3, 1, 2,
+    ]);
+    expect(officeTier(99, 99)).toBe((OFFICE_SIZES.length - 1) as OfficeTier);
+    expect(officeTier(10, Number.NaN)).toBe(0);
+    expect(OFFICE_SIZES[0]!.price).toBe(0);
+    expect(OFFICE_SIZES.every((s, i) => i === 0 || s.price > OFFICE_SIZES[i - 1]!.price)).toBe(true);
+    expect(OFFICE_LEVEL).toBe(10);
   });
 
-  for (const tier of [0, 1, 2] as OfficeTier[])
+  test("office.size.<tier> items", () => {
+    expect([1, 2, 3].map(officeSizeItem)).toEqual(["office.size.1", "office.size.2", "office.size.3"]);
+    expect(["office.size.1", "office.size.3"].map(officeSizeOfItem)).toEqual([1, 3]);
+    for (const x of ["office.size.0", "office.size.4", "office.size.", "decor.wall.x", "furn.p"])
+      expect(officeSizeOfItem(x)).toBeNull();
+  });
+
+  for (const tier of [0, 1, 2, 3] as OfficeTier[])
     describe(`size ${tier}`, () => {
       const { w, h } = OFFICE_SIZES[tier]!;
       const map = officeMap(tier);
@@ -212,7 +295,7 @@ describe("offices", () => {
 
   test("growing keeps the floor and the shelf where they were", () => {
     const small = officeMap(0);
-    for (const tier of [1, 2] as OfficeTier[]) {
+    for (const tier of [1, 2, 3] as OfficeTier[]) {
       const big = officeMap(tier);
       for (let y = 0; y < small.height; y++)
         for (let x = 0; x < small.width; x++) {
@@ -224,7 +307,7 @@ describe("offices", () => {
 
   test("setOffice: a map per owner, kept while nothing changes, with decor on it", () => {
     const a = setOffice(901, 1);
-    expect(a.width).toBe(14);
+    expect(a.width).toBe(16);
     expect(setOffice(901, 1)).toBe(a);
     const b = setOffice(901, 1, { wall: "nyhavn" });
     expect(b).not.toBe(a);

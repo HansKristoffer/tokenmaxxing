@@ -220,7 +220,7 @@ const GLASSES: Record<string, Art> = {
 
 const artOf = (slot: "hat" | "glasses", index: number): Art | undefined => {
   const e = editionAt(slot, index) ?? costumeAt(slot, index) ?? caseAt(slot, index);
-  // The Night Market case's hats and glasses are drawn in `case.ts`.
+  // The cases' hats and glasses (the Night Market's and the Nusantara's) are drawn in `case.ts`.
   return e && ((slot === "hat" ? HATS : GLASSES)[e.id] ?? (slot === "hat" ? CASE_HATS : CASE_GLASSES)[e.id]);
 };
 

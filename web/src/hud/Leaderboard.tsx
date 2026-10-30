@@ -12,6 +12,8 @@ import { type ReactNode, useEffect, useState } from "react";
 import { town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ranges } from "./format.ts";
+import { PrestigeMini } from "./PrestigeMini.tsx";
+import { prestigeOf } from "./prestige-badge.ts";
 import { AvatarImage, House, Modal, Pills, useLoad } from "./ui.tsx";
 
 type Sort = Board["sort"];
@@ -129,7 +131,10 @@ export function Leaderboard() {
                     ) : (
                       <House companyId={r.companyId} tier={r.tier} scale={i === 0 ? 1 : 0.75} />
                     )}
-                    <strong className="lb-name">{r.name}</strong>
+                    <strong className="lb-name">
+                      {r.name}
+                      {"userId" in r && <PrestigeMini rank={prestigeOf(r).rank} />}
+                    </strong>
                     <span className="lb-sub">
                       {"userId" in r ? (r.company ?? `Lv${r.level}`) : members(r.members)}
                     </span>
@@ -150,7 +155,12 @@ export function Leaderboard() {
                           <House companyId={r.companyId} tier={r.tier} scale={0.3} />
                         )
                       }
-                      name={r.name}
+                      name={
+                        <>
+                          {r.name}
+                          {"userId" in r && <PrestigeMini rank={prestigeOf(r).rank} />}
+                        </>
+                      }
                       sub={
                         "userId" in r
                           ? `Lv${r.level}${r.company ? ` · ${r.company}` : ""}`

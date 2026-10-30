@@ -217,9 +217,9 @@ export interface Critter {
 /** Who is out on which lawn, in the order they appear as the week goes on. Each wanders in a patch of open grass (tested). */
 export const CRITTERS: readonly Critter[] = [
   { kind: "lamb", x: -6, y: 6, r: 1.3, phase: 0.3 },
-  { kind: "bunny", x: 22, y: 13, r: 1.4, phase: 1.1 },
+  { kind: "bunny", x: 18, y: 22, r: 1.4, phase: 1.1 },
   { kind: "chick", x: -8, y: 4, r: 1.0, phase: 2.7 },
-  { kind: "lamb", x: 28, y: 13, r: 1.3, phase: 2.1 },
+  { kind: "lamb", x: 28, y: 11, r: 0.8, phase: 2.1 },
   { kind: "chick", x: 18, y: 13, r: 1.0, phase: 0.8 },
   { kind: "bunny", x: -5, y: 14, r: 1.4, phase: 4.0 },
   { kind: "chick", x: 12, y: 22, r: 1.0, phase: 3.3 },

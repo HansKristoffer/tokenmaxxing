@@ -3,7 +3,7 @@
  * `MAPS.office`, with the other rooms; what's in each office is what its owner dropped there.
  */
 import { sortBy } from "hanzio";
-import { CASE_PIECES } from "./case-furniture.ts";
+import { ALL_CASE_PIECES } from "./case-furniture.ts";
 import { HOME_PIECES } from "./home.ts";
 import { TROPHIES } from "./loot.ts";
 import { GameMap, MAPS, officeRows } from "./maps.ts";
@@ -25,17 +25,17 @@ export interface Piece {
 
 /** What an office can hold: furniture from the map legend, drawn as it is everywhere else. Sold as `furn.<ch>`. */
 export const FURNITURE: readonly Piece[] = [
-  { ch: "=", name: "Rug", price: 10 },
-  { ch: "p", name: "Plant", price: 20 },
-  { ch: "L", name: "Lamp", price: 25 },
-  { ch: "c", name: "Chair", price: 30 },
-  { ch: "k", name: "Shelf", price: 40 },
-  { ch: "B", name: "Bench", price: 40 },
-  { ch: "d", name: "Desk", price: 50 },
-  { ch: "o", name: "Coffee machine", price: 60 },
-  { ch: "b", name: "Bed", price: 80 },
-  { ch: "s", name: "Sofa", price: 100 },
-  { ch: "t", name: "TV", price: 120, w: 2 },
+  { ch: "=", name: "Rug", price: 15 },
+  { ch: "p", name: "Plant", price: 30 },
+  { ch: "L", name: "Lamp", price: 40 },
+  { ch: "c", name: "Chair", price: 45 },
+  { ch: "k", name: "Shelf", price: 60 },
+  { ch: "B", name: "Bench", price: 60 },
+  { ch: "d", name: "Desk", price: 75 },
+  { ch: "o", name: "Coffee machine", price: 90 },
+  { ch: "b", name: "Bed", price: 120 },
+  { ch: "s", name: "Sofa", price: 150 },
+  { ch: "t", name: "TV", price: 180, w: 2 },
   // From sitting out an outage at the picnic (`picnic.ts`).
   { ch: "g", name: "Touched grass", price: 0, w: 2, earned: "Sat on a blanket at an outage picnic" },
 ];
@@ -87,34 +87,60 @@ export const OFFICE_LEVEL = 10;
 export const PIECES: readonly Piece[] = [...FURNITURE, ...TROPHIES];
 
 const BY_CH = new Map<string, Piece>();
-for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...CASE_PIECES])
+for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...ALL_CASE_PIECES])
   if (!BY_CH.has(f.ch)) BY_CH.set(f.ch, f);
 
 export const pieceOf = (ch: unknown): Piece | undefined => BY_CH.get(ch as string);
 
-/** One placed piece: its top-left tile, and whether it is mirrored left to right (`flip`). */
+/** How far a piece is turned, in quarter turns clockwise seen from above: 0 as it comes, 1 faces left, 2 away, 3 right. */
+export type Rot = 0 | 1 | 2 | 3;
+
+/** `n` as a `Rot` (whole quarter turns, any number, so 4 is 0 and -1 is 3); anything else is 0. */
+export const rotOf = (n: unknown): Rot =>
+  typeof n === "number" && Number.isInteger(n) ? ((((n % 4) + 4) % 4) as Rot) : 0;
+
+/** Whether a piece turned `rot` lies down a column, not along a row. */
+export const sideways = (rot?: number): boolean => rot === 1 || rot === 3;
+
+/** The tiles a `w`-tile piece anchored (top-left) at (x, y) covers when turned `rot`: along its row, or down its column. */
+export const tilesOf = (x: number, y: number, w: number, rot?: number): [number, number][] =>
+  Array.from({ length: w }, (_, i): [number, number] => (sideways(rot) ? [x, y + i] : [x + i, y]));
+
+/** One placed piece: its top-left tile, and how far it is turned (`rot`, left out for 0). */
 export interface Placed {
   ch: string;
   x: number;
   y: number;
-  flip?: boolean;
+  rot?: Rot;
 }
 
-/** Each tile of a mirrored piece in a map `withPieces` made, to that piece's footprint. The letters are the same either way. */
-const FLIPPED = new WeakMap<GameMap, ReadonlyMap<string, Span>>();
-
-/** A piece's footprint along its row: its left end and how many tiles wide. */
-export interface Span {
+/** A turned piece's footprint: its top-left tile, how many tiles it covers and how far it is turned. */
+export interface Turn {
   x: number;
+  y: number;
   w: number;
+  rot: Rot;
 }
 
-/** The footprint of the mirrored piece on (x, y), if one is: both renderers draw it mirrored about its middle. */
-export const flippedAt = (map: GameMap, x: number, y: number): Span | null =>
-  FLIPPED.get(map)?.get(`${x},${y}`) ?? null;
+/** Each tile of a turned piece in a map `withPieces` made, to that piece's `Turn`. The letters are the same either way. */
+const TURNED = new WeakMap<GameMap, ReadonlyMap<string, Turn>>();
 
-/** Wall pieces hang as they are (their writing would read backwards); everything on the floor flips. */
-export const canFlip = (ch: string): boolean => pieceOf(ch) !== undefined && !pieceOf(ch)?.wall;
+/** The turned piece on (x, y), if there is one: the renderers draw it turned about the middle of its footprint. */
+export const turnAt = (map: GameMap, x: number, y: number): Turn | null =>
+  TURNED.get(map)?.get(`${x},${y}`) ?? null;
+
+/** Wall pieces hang as they are (their writing would read backwards); everything on the floor turns. */
+export const canTurn = (ch: string): boolean => pieceOf(ch) !== undefined && !pieceOf(ch)?.wall;
+
+/**
+ * Where a piece's top-left tile goes when it is turned in place from `from` to `to` on its middle tile, so four
+ * turns bring it back to where it stood: a sofa three wide turns about its middle tile, not its end.
+ */
+export function turnedAround(x: number, y: number, w: number, from: Rot, to: Rot): { x: number; y: number } {
+  const half = Math.floor((w - 1) / 2);
+  const [cx, cy] = sideways(from) ? [x, y + half] : [x + half, y];
+  return sideways(to) ? { x: cx, y: cy - half } : { x: cx - half, y: cy };
+}
 
 /** What a new office holds: a desk with a chair in front of it. */
 export const STARTER_OFFICE: readonly Placed[] = [
@@ -168,15 +194,19 @@ export function wallSpot(map: GameMap, x: number, w: number, home = false): { x:
  */
 export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
   const rows = base.rows.map((r) => [...r]);
-  const flipped = new Map(FLIPPED.get(base));
+  const turned = new Map(TURNED.get(base));
   for (const p of pieces) {
     const piece = pieceOf(p.ch);
     const w = piece?.w ?? 1;
     if (piece?.wall && !canHang(base, p.x, p.y, w, piece.home)) continue;
     if (piece?.home && base.id !== "office") continue;
-    for (let i = 0; i < w; i++)
-      if (piece?.wall || base.walkable(p.x + i, p.y)) rows[p.y - base.y0]![p.x + i - base.x0] = p.ch;
-    if (p.flip && canFlip(p.ch)) for (let i = 0; i < w; i++) flipped.set(`${p.x + i},${p.y}`, { x: p.x, w });
+    // A wall piece hangs along the wall whatever it says; the rest lie down their column when turned sideways.
+    const rot = piece?.wall ? 0 : rotOf(p.rot);
+    const tiles = tilesOf(p.x, p.y, w, rot);
+    for (const [tx, ty] of tiles)
+      if (piece?.wall || base.walkable(tx, ty)) rows[ty - base.y0]![tx - base.x0] = p.ch;
+    if (rot && canTurn(p.ch))
+      for (const [tx, ty] of tiles) turned.set(`${tx},${ty}`, { x: p.x, y: p.y, w, rot });
   }
   const map = new GameMap(
     base.id,
@@ -186,7 +216,7 @@ export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
     base.y0,
     base.decor,
   );
-  if (flipped.size) FLIPPED.set(map, flipped);
+  if (turned.size) TURNED.set(map, turned);
   return map;
 }
 
@@ -333,21 +363,38 @@ export const doorAt = (doors: readonly Door[], x: number, y: number): Door | und
 
 // MARK: Sizes
 
-export type OfficeTier = 0 | 1 | 2;
+export type OfficeTier = 0 | 1 | 2 | 3;
 
 /**
- * The three sizes, by the level they open at. Growth is only right and down, so every tile keeps its
- * coordinates; only the pet bed and the door row move. ponytail: by the owner's level, not a house tier:
- * if tiers ever come, `officeTier` is the one place to change.
+ * The sizes of a personal office, and what each costs. The first comes with the office (about 20% bigger
+ * than the old 12 × 9); the others are bought with coins, in order, at Møbelhuset (`office.size.<tier>`).
+ * Growth is only right and down, so every tile keeps its coordinates; only the pet bed and the door row move.
  */
-export const OFFICE_SIZES: readonly { w: number; h: number; level: number }[] = [
-  { w: 12, h: 9, level: OFFICE_LEVEL },
-  { w: 14, h: 10, level: 25 },
-  { w: 16, h: 12, level: 40 },
+export const OFFICE_SIZES: readonly { w: number; h: number; price: number }[] = [
+  { w: 14, h: 11, price: 0 },
+  { w: 16, h: 13, price: 900 },
+  { w: 18, h: 15, price: 2250 },
+  { w: 20, h: 17, price: 5250 },
 ];
 
-export const officeTier = (level: number): OfficeTier =>
-  level >= OFFICE_SIZES[2]!.level ? 2 : level >= OFFICE_SIZES[1]!.level ? 1 : 0;
+/** Owners of level 40 and up have the second size without buying it: it is the size that level used to open. */
+export const OFFICE_FREE_LEVEL = 40;
+
+/** What `tier` is sold as, in `purchases`. */
+export const officeSizeItem = (tier: number): string => `office.size.${tier}`;
+
+/** The tier an `office.size.<n>` item stands for, or null for any other item. */
+export const officeSizeOfItem = (item: string): OfficeTier | null => {
+  const m = /^office\.size\.([1-9])$/.exec(item);
+  const tier = m ? Number(m[1]) : 0;
+  return tier > 0 && tier < OFFICE_SIZES.length ? (tier as OfficeTier) : null;
+};
+
+/** The size of an owner's office: the biggest they bought, or the one their level gives. */
+export const officeTier = (level: number, bought = 0): OfficeTier => {
+  const tier = Math.max(level >= OFFICE_FREE_LEVEL ? 1 : 0, Math.trunc(bought) || 0);
+  return Math.min(tier, OFFICE_SIZES.length - 1) as OfficeTier;
+};
 
 /** An office's template for a size and its wallpaper and floor. Tier 0, plain, is `MAPS.office`. */
 export const officeMap = (tier: OfficeTier, decor?: { wall?: string; floor?: string }): GameMap => {

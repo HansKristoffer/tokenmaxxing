@@ -58,7 +58,8 @@ export async function trophyAwardCoinsAll(sql: Sql): Promise<Map<number, number>
   return new Map([...byUser].map(([id, ids]) => [id, trophyCoins(ids)]));
 }
 
-const MARKER = "trophy_backfill";
+/** Ends in a number so the backfill runs over everyone again when trophies are added (recording is idempotent). */
+const MARKER = "trophy_backfill_2";
 /** Players one sweep reads trophies for in the one-time backfill (each wakes a player's actor). */
 export const TROPHY_CHUNK = 10;
 /** Players one sweep looks at after it, from those who synced. */

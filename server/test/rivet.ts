@@ -116,6 +116,8 @@ async function start(attempts = 5): Promise<string> {
         ADMIN_TOKEN,
         // Most tests buy from wherever they stand; the shop rule is tested with `strictShops`.
         SHOPS_ANYWHERE: "1",
+        // Test accounts are minutes old; the hall's own tests hold a buyer to the rule in SQL.
+        MARKET_ANY_AGE: "1",
         // The statue reads LMArena only where it's asked to: tests pin it from the admin page.
         STATUE_FEED: "off",
         // Every test comes from 127.0.0.1; `signUp` below poses as a new address each time instead.
@@ -228,14 +230,14 @@ let seq = 0;
 const anHourAgoToday = () => Math.max(Date.now() - HOUR, dayStart(dayKey(Date.now())));
 
 /**
- * Lifetime tokens past level 10 (`OFFICE_LEVEL`): ~50B over 250 minutes, each just under the
- * per-minute cap, on a day from before signing up so it pays no coins.
+ * Lifetime tokens past level 10 (`OFFICE_LEVEL`) and short of level 40 (the second office size): ~38B over
+ * 191 minutes, each just under the per-minute cap, on a day from before signing up so it pays no coins.
  */
 export async function veteran(u: { token: string; userId: number }) {
   const start = Date.UTC(2024, 0, 10, 12);
   await as(u.token)
     .player(u.userId)
-    .ingest(Array.from({ length: 250 }, (_, i) => event({ inputTokens: 199e6, timestamp: start + i * MIN })));
+    .ingest(Array.from({ length: 191 }, (_, i) => event({ inputTokens: 199e6, timestamp: start + i * MIN })));
 }
 
 export function event(overrides: Partial<TokenEvent> = {}): TokenEvent {

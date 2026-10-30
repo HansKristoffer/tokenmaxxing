@@ -11,6 +11,7 @@ import {
   type Drop,
   defaultLook,
   dropCovers,
+  dropTiles,
   type Facing,
   type Houses,
   JUMP_MS,
@@ -338,8 +339,8 @@ function showDrops(drops: Drop[]): void {
   for (const d of [...was.drops, ...drops]) {
     const piece = pieceOfDrop(d);
     if (!piece || (was.drops.includes(d) && drops.includes(d))) continue;
-    for (let y = d.y - 1; y <= d.y + 1; y++)
-      for (let x = d.x - 1; x <= d.x + (piece.w ?? 1); x++) tiles.push([x, y]);
+    for (const [tx, ty] of dropTiles(d))
+      for (let y = ty - 1; y <= ty + 1; y++) for (let x = tx - 1; x <= tx + 1; x++) tiles.push([x, y]);
   }
   repaintGround(was.ground, world.map, tiles);
   // Patched in place: the old map's ground is gone (an empty office's map is every empty office's).

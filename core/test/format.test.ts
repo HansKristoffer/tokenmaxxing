@@ -34,10 +34,10 @@ test("levelAt is where levelFor ticks over, up to The Tokenmaxxer at 50", () => 
   expect(levelAt(7)).toBe(1e9);
   expect(levelAt(10)).toBe(10e9);
   expect(levelAt(30)).toBe(30e9);
-  expect(levelAt(40)).toBe(55e9);
-  expect(levelAt(50)).toBe(130e9);
+  expect(levelAt(40)).toBe(40e9);
+  expect(levelAt(50)).toBe(50e9);
   expect(levelAt(51)).toBe(Infinity);
-  expect(levelFor(31e9)).toBe(30);
+  expect(levelFor(31e9 - 1)).toBe(30);
   expect(levelFor(1e15)).toBe(50);
   expect(levelTitle(13)).toBe("Examaxxer");
   expect(levelTitle(30)).toBe("Singularity");
@@ -56,14 +56,9 @@ test("levels 1 to 30 are where they were, so nobody's level moves down", () => {
   for (let level = 0; level <= 30; level++) expect(levelAt(level)).toBe(old[level] ?? level * 1e9);
 });
 
-test("past 30 each level costs at least as much as the one before, and 50 is a long way off", () => {
-  const steps = Array.from({ length: 20 }, (_, i) => levelAt(31 + i) - levelAt(30 + i));
-  for (let i = 1; i < steps.length; i++) expect(steps[i]!).toBeGreaterThanOrEqual(steps[i - 1]!);
-  expect(steps[0]).toBe(2e9);
-  expect(steps.at(-1)).toBe(10e9);
-  // A heavy day is ~600M: about 6 weeks past 30 to reach 40, then 4 months more to 50.
-  expect((levelAt(40) - levelAt(30)) / 600e6).toBeCloseTo(41.7, 0);
-  expect((levelAt(50) - levelAt(40)) / 600e6).toBeCloseTo(125, 0);
+test("past 30 each level costs 1B, so the first journey ends at 50B", () => {
+  for (let level = 31; level <= 50; level++) expect(levelAt(level) - levelAt(level - 1)).toBe(1e9);
+  expect(levelAt(50)).toBe(50e9);
 });
 
 test("the raid's countdown ticks to the second, days apart", () => {

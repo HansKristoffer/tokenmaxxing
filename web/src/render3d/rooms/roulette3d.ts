@@ -1,5 +1,5 @@
 /**
- * The net cafe's roulette table as a 3D prop (2D: `♦` is the 3x2 table, `♥` the four spots below it where
+ * The net cafe's roulette table as a 3D prop (2D: `♦` is the 3x2 table, `♥` the eight spots, four above it and four below where
  * the players stand): green felt in a wooden rim, the wheel on the left half (a bowl, a ring of 37 pockets in
  * `WHEEL` order coloured by `colorOf`, a gold cone and a little white ball, turning slowly) and the betting
  * layout on the right half, painted on a small canvas (0 on the left, the numbers in three rows).
@@ -72,7 +72,16 @@ export interface RouletteModel extends Model {
 }
 
 /** One colour per seat: the same as the HUD's. */
-const SEAT_COLORS = ["#3b82f6", "#a855f7", "#22c55e", "#f97316"] as const;
+const SEAT_COLORS = [
+  "#3b82f6",
+  "#a855f7",
+  "#22c55e",
+  "#f97316",
+  "#facc15",
+  "#ec4899",
+  "#14b8a6",
+  "#ef4444",
+] as const;
 const SHEET_W = 1.3;
 const SHEET_AT = 0.75;
 
@@ -252,7 +261,7 @@ export function rouletteTable3d(): RouletteModel {
         if (!at) continue;
         const h = Math.min(5, Math.max(1, Math.ceil(b.stake / 25)));
         for (let c = 0; c < h && k < MAX_CHIPS; c++) {
-          tmp.position.set(at[0] + (seat - 1.5) * 0.03, felt + 0.008 + c * 0.013, at[1] + (seat % 2) * 0.012);
+          tmp.position.set(at[0] + (seat - 3.5) * 0.03, felt + 0.008 + c * 0.013, at[1] + (seat % 2) * 0.012);
           tmp.updateMatrix();
           chipMesh.setMatrixAt(k, tmp.matrix);
           chipMesh.setColorAt(k, col);

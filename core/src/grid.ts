@@ -11,7 +11,7 @@
  */
 import { sumBy } from "hanzio";
 import { dayKey, worldClock } from "./range.ts";
-import { coinsForTokens } from "./shop.ts";
+import { legacyTokenCoins } from "./shop.ts";
 
 export const GRID_AREA = "DK1";
 export const ENERGI_DATA = "https://api.energidataservice.dk/dataset";
@@ -213,7 +213,7 @@ export function presetGrid(name: string, at: number): Grid | null {
  * (`coinsForTokens`), so 100M green tokens pay 2, 600M pay 6, 1.5B pay 9. Not part of the streak, nor
  * matched into the company wallet (like quests).
  */
-export const greenCoins = (tokens: number): number => Math.floor(coinsForTokens(tokens) / 4);
+export const greenCoins = (tokens: number): number => Math.floor(legacyTokenCoins(tokens) / 4);
 
 /** World hours (0–23) `hours` (hour starts) are, by world day. */
 export function greenByDay(hours: readonly number[]): Map<string, number[]> {

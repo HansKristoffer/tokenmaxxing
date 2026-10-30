@@ -108,6 +108,29 @@ describe("world", () => {
     await conn.dispose();
   });
 
+  test("a turn faces you another way without a step, and the room sees it", async () => {
+    const a = await signUp("turn");
+    const b = await signUp("seer");
+    // The watcher is there first, so the room's telling of the newcomer always comes to them as an event
+    // (the other way round it is in their snapshot, and the event only comes if they were quick).
+    const seer = await connect(b.token);
+    const me = await connect(a.token);
+    const before = me.snap.players.find((p) => p.id === a.userId)!;
+    // Once the room has been told they're there, a turn comes as a plain move.
+    await eventually(() =>
+      expect(seer.events.moves.some((m) => m.join.some((j) => j.id === a.userId))).toBe(true),
+    );
+    const to = before.facing === "left" ? "right" : "left";
+    expect(await me.conn.turn(to)).toBeNull();
+    expect(await me.conn.turn("sideways")).toBeNull();
+    await eventually(() => {
+      const seen = seer.events.moves.flatMap((m) => m.m).filter((m) => m[0] === a.userId);
+      expect(seen.at(-1)).toEqual([a.userId, before.x, before.y, to, "idle"]);
+    });
+    await me.conn.dispose();
+    await seer.conn.dispose();
+  });
+
   test("coffee makes you shake, and more cups make it last longer", async () => {
     const a = await signUp("coffee");
     const { conn, snap } = await connect(a.token);
@@ -127,7 +150,7 @@ describe("world", () => {
   });
 
   test("dances: the free ones for all, bought ones once learned, on until you stop or walk off", async () => {
-    const a = await rich("dancer", 200);
+    const a = await rich("dancer", 260);
     const b = await signUp("watcher");
     const { conn, events } = await connect(a.token);
     const other = await connect(b.token);
@@ -187,20 +210,28 @@ describe("world", () => {
     await conn.dispose();
   });
 
-  test("only the tap serves: the bar, the coffee machine and other rooms refuse", async () => {
+  test("the barkeep takes orders across the bar; away from it nothing serves", async () => {
     const a = await signUp("tavern");
     const { conn, snap, events } = await connect(a.token);
     const me = snap.players.find((p) => p.id === a.userId)!;
-    // Facing the bar counter: it talks, it doesn't serve.
+    // Facing the bar counter: a coffee and the special, both on the house.
     const bar = route(MAPS.inn, [me.x, me.y], [2, 4])!;
     await walk(conn, bar.slice(0, -1));
-    expect(await conn.tavern(bar.at(-1))).toBeNull();
+    expect(await conn.drink(bar.at(-1))).toEqual({ notice: expect.stringContaining("fresh cup") });
+    expect(await conn.tavern(bar.at(-1))).toEqual({ notice: expect.stringContaining("On the house") });
+    await eventually(() =>
+      expect(events.infos.filter((i) => i.id === a.userId).at(-1)).toMatchObject({
+        coffeeUntil: expect.any(Number),
+        specialUntil: expect.any(Number),
+      }),
+    );
+    // Turned away from it: nothing.
+    expect(await conn.drink("down")).toBeNull();
     const to = route(MAPS.inn, [2, 5], MAPS.inn.find("x")[0]!)!;
     await walk(conn, to);
     await eventually(() => expect(events.snapshots.at(-1)!.room).toBe("town"));
     // The town has no tap.
     expect(await conn.tavern("down")).toBeNull();
-    expect(events.infos.some((i) => i.id === a.userId && i.specialUntil)).toBe(false);
     await conn.dispose();
   });
 

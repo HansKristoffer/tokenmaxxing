@@ -1,4 +1,7 @@
 /** Badges on the player card: worked out on read from a player's facts, never stored or claimed. */
+
+import { FISH } from "./fishing.ts";
+import { FISHING_ITEMS } from "./fishing-loot.ts";
 import { plural } from "./format.ts";
 import { GAMES } from "./games/index.ts";
 import { LOOT } from "./loot.ts";
@@ -44,12 +47,27 @@ export interface BadgeFacts {
   tavernDays?: number;
   /** Daily quests cleared (`questsCleared`). */
   helped?: number;
+  /** Fish caught at the pond, all told (`fishing_journal`). */
+  fishCaught?: number;
+  /** Species in the fishing journal. */
+  fishSpecies?: number;
+  /** Species whose best is at their longest (`isSpecimen`). */
+  fishSpecimens?: number;
+  /** Species caught 50 times (gold medals). */
+  fishGolds?: number;
+  /** Different pond treasures found. */
+  fishTreasures?: number;
+  /** Pond records held right now. */
+  fishRecords?: number;
+  /** 1 once they've caught a fish exactly 42 cm long. */
+  fishAnswer?: number;
 }
 
-export type Group = "Usage" | "Social" | "Town" | "Raid" | "Games" | "Seasonal";
+export type Group = "Usage" | "Social" | "Town" | "Raid" | "Games" | "Fishing" | "Seasonal";
 
-export type Frame = "bronze" | "silver" | "gold" | "diamond";
-export const FRAMES: readonly Frame[] = ["bronze", "silver", "gold", "diamond"];
+/** Bronze to diamond are the old four; mythic and cosmic are for ladders that go past them. */
+export type Frame = "bronze" | "silver" | "gold" | "diamond" | "mythic" | "cosmic";
+export const FRAMES: readonly Frame[] = ["bronze", "silver", "gold", "diamond", "mythic", "cosmic"];
 
 /** A model counts for Polyglot from this many lifetime tokens. */
 export const POLYGLOT_MIN = 100_000;
@@ -97,7 +115,11 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Streak",
     group: "Usage",
     how: "Tokens on days in a row",
-    tiers: ladder([7, 30, 100, 365], (at) => `${at}-day streak`),
+    tiers: [
+      ...ladder([7, 30, 100, 365], (at) => `${at}-day streak`),
+      { at: 730, label: "2-year streak" },
+      { at: 1000, label: "1000 days, no days off" },
+    ],
     of: (f) => f.streak,
   },
   {
@@ -106,7 +128,12 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Big day",
     group: "Usage",
     how: "Tokens in a single day",
-    tiers: [1, 5, 10].map((b) => ({ at: b * 1e9, label: `${b}B-token day` })),
+    // The first tier is 3B (it was 1B): whoever has the old first tier keeps it, and its coins.
+    tiers: [
+      ...[3, 5, 10, 20].map((b) => ({ at: b * 1e9, label: `${b}B-token day` })),
+      { at: 50e9, label: "50B-token day: no brakes" },
+      { at: 100e9, label: "100B-token day: call the bank" },
+    ],
     of: (f) => f.bestDay,
   },
   {
@@ -115,7 +142,11 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Podium",
     group: "Social",
     how: "Finish a day in the top 3 of the town",
-    tiers: ladder([1, 10, 50, 200], (at) => plural(at, "podium")),
+    tiers: [
+      ...ladder([1, 10, 50, 200], (at) => plural(at, "podium")),
+      { at: 500, label: "500 podiums: a trophy wall" },
+      { at: 1000, label: "1000 podiums: own the leaderboard" },
+    ],
     of: (f) => f.podiums,
   },
   {
@@ -124,7 +155,12 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Octopus",
     group: "Usage",
     how: "Agents running at once",
-    tiers: ladder([5, 10, 20], (at) => `${at} agents at once`),
+    tiers: [
+      ...ladder([5, 10, 20], (at) => `${at} agents at once`),
+      { at: 100, label: "100 agents: a swarm" },
+      { at: 300, label: "300 agents: a small army" },
+      { at: 1000, label: "1000 agents: Skynet" },
+    ],
     of: (f) => f.peakAgents,
   },
   {
@@ -133,7 +169,11 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Shipper",
     group: "Usage",
     how: "Open pull requests",
-    tiers: ladder([10, 50, 250, 1000], (at) => plural(at, "PR")),
+    tiers: [
+      ...ladder([10, 50, 250, 1000], (at) => plural(at, "PR")),
+      { at: 2500, label: "2500 PRs: who reviews these?" },
+      { at: 10000, label: "10000 PRs: the PR factory" },
+    ],
     of: (f) => f.prs,
   },
   {
@@ -142,7 +182,11 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Shark",
     group: "Games",
     how: "Win games",
-    tiers: ladder([5, 25, 100, 500], (at) => plural(at, "win")),
+    tiers: [
+      ...ladder([5, 25, 100, 500], (at) => plural(at, "win")),
+      { at: 2000, label: "2000 wins: the house fears you" },
+      { at: 10000, label: "10000 wins: you are the house" },
+    ],
     of: (f) => f.wins,
   },
   {
@@ -152,7 +196,11 @@ export const BADGES: readonly BadgeDef[] = [
     group: "Games",
     how: "Win a big pot",
     // 5000 sits between the old top and the new diamond, so nobody drops a tier.
-    tiers: ladder([500, 2000, 5000, 10000], (at) => `${at}-coin pot`),
+    tiers: [
+      ...ladder([500, 2000, 5000, 10000], (at) => `${at}-coin pot`),
+      { at: 50000, label: "50000-coin pot: whale alert" },
+      { at: 500000, label: "500000-coin pot: bought the casino" },
+    ],
     of: (f) => f.biggestPot,
   },
   {
@@ -197,7 +245,12 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Ship days",
     group: "Usage",
     how: "Open a PR on different days",
-    tiers: ladder([10, 30, 100], (at) => `PRs on ${at} days`),
+    tiers: [
+      ...ladder([10, 30, 100], (at) => `PRs on ${at} days`),
+      { at: 250, label: "PRs on 250 days" },
+      { at: 500, label: "PRs on 500 days" },
+      { at: 1000, label: "PRs on 1000 days: a lifetime of ship" },
+    ],
     of: (f) => f.shipDays ?? 0,
   },
   {
@@ -206,7 +259,12 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Polyglot",
     group: "Usage",
     how: "Use different models (100k tokens each)",
-    tiers: ladder([3, 6, 10], (at) => `${at} models`),
+    tiers: [
+      ...ladder([3, 6, 10], (at) => `${at} models`),
+      { at: 50, label: "50 models: it is a zoo" },
+      { at: 250, label: "250 models: a model museum" },
+      { at: 1000, label: "1000 models: you know them all" },
+    ],
     of: (f) => f.models ?? 0,
   },
   {
@@ -215,7 +273,11 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Cache wizard",
     group: "Usage",
     how: "Share of your tokens read from cache, after 50M tokens (your tool matters too)",
-    tiers: ladder([80, 90, 95], (at) => `${at}% cache hits`),
+    tiers: [
+      ...ladder([80, 90, 95], (at) => `${at}% cache hits`),
+      { at: 98, label: "98% cache hits" },
+      { at: 99, label: "99% cache hits: the cache is you" },
+    ],
     of: (f) => ((f.lifetime ?? 0) >= CACHE_FLOOR ? Math.floor((f.cacheShare ?? 0) * 100) : 0),
   },
   {
@@ -224,7 +286,12 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Longest run",
     group: "Usage",
     how: "Your best run of days in a row with tokens",
-    tiers: ladder([14, 60, 200], (at) => `${at}-day run`),
+    tiers: [
+      ...ladder([14, 60, 200], (at) => `${at}-day run`),
+      { at: 365, label: "a year without a day off" },
+      { at: 500, label: "500-day run" },
+      { at: 1000, label: "1000-day run: legend" },
+    ],
     of: (f) => f.longestRun ?? 0,
   },
   {
@@ -233,7 +300,12 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Raider",
     group: "Raid",
     how: "Join in felling raid bosses",
-    tiers: ladder([1, 10, 50], (at) => `${plural(at, "boss", "bosses")} felled`),
+    tiers: [
+      ...ladder([1, 10, 50], (at) => `${plural(at, "boss", "bosses")} felled`),
+      { at: 100, label: "100 bosses felled" },
+      { at: 250, label: "250 bosses felled: the bosses file a complaint" },
+      { at: 1000, label: "1000 bosses felled: nothing left to fight" },
+    ],
     of: (f) => f.raidKills ?? 0,
   },
   {
@@ -251,7 +323,12 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Regular",
     group: "Games",
     how: "Finish games",
-    tiers: ladder([10, 50, 250], (at) => plural(at, "game")),
+    tiers: [
+      ...ladder([10, 50, 250], (at) => plural(at, "game")),
+      { at: 1000, label: "1000 games" },
+      { at: 5000, label: "5000 games: touch grass" },
+      { at: 25000, label: "25000 games: the games play you" },
+    ],
     of: (f) => f.gamesPlayed ?? 0,
   },
   {
@@ -270,7 +347,12 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Tavern regular",
     group: "Town",
     how: "Spend time in the Tavern on different days",
-    tiers: ladder([7, 30, 100], (at) => `${at} days at the Tavern`),
+    tiers: [
+      ...ladder([7, 30, 100], (at) => `${at} days at the Tavern`),
+      { at: 365, label: "a year of Tavern nights" },
+      { at: 500, label: "500 days: your own stool" },
+      { at: 1000, label: "1000 days: the barkeep is your landlord" },
+    ],
     of: (f) => f.tavernDays ?? 0,
   },
   {
@@ -279,12 +361,107 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Helper",
     group: "Social",
     how: "Clear the town's daily quests",
-    tiers: ladder([1, 10, 50], (at) => `${plural(at, "quest")} cleared`),
+    tiers: [
+      ...ladder([1, 10, 50], (at) => `${plural(at, "quest")} cleared`),
+      { at: 250, label: "250 quests cleared" },
+      { at: 500, label: "500 quests cleared: town hero" },
+      { at: 1000, label: "1000 quests cleared: the town's own legend" },
+    ],
     of: (f) => f.helped ?? 0,
+  },
+  {
+    id: "furnace",
+    emoji: "🌋",
+    name: "Token furnace",
+    group: "Usage",
+    how: "Tokens burnt over all your days",
+    tiers: [
+      { at: 1e9, label: "1B tokens burnt" },
+      { at: 10e9, label: "10B: a campfire" },
+      { at: 100e9, label: "100B: a blast furnace" },
+      { at: 1e12, label: "1T: a small sun" },
+      { at: 10e12, label: "10T: a red giant" },
+      { at: 100e12, label: "100T: heat death" },
+    ],
+    of: (f) => f.lifetime ?? 0,
+  },
+  {
+    id: "angler",
+    emoji: "🎣",
+    name: "Angler",
+    group: "Fishing",
+    how: "Catch fish at the town pond",
+    tiers: [
+      ...ladder([10, 100, 500, 2000], (at) => plural(at, "fish", "fish")),
+      { at: 10000, label: "10000 fish: the pond files a complaint" },
+      { at: 50000, label: "50000 fish: the pond is mostly you now" },
+    ],
+    of: (f) => f.fishCaught ?? 0,
+  },
+  {
+    id: "naturalist",
+    emoji: "📖",
+    name: "Naturalist",
+    group: "Fishing",
+    how: "Fill the fishing journal with different species",
+    tiers: [
+      ...ladder([5, 10, 15], (at) => `${at} species`),
+      { at: FISH.length, label: "Every species: the journal is full" },
+    ],
+    of: (f) => f.fishSpecies ?? 0,
+  },
+  {
+    id: "specimen",
+    emoji: "📏",
+    name: "Specimen hunter",
+    group: "Fishing",
+    how: "Land a species at its longest",
+    tiers: ladder([1, 5, 10], (at) => `${plural(at, "perfect specimen")}`),
+    of: (f) => f.fishSpecimens ?? 0,
+  },
+  {
+    id: "goldmedal",
+    emoji: "🥇",
+    name: "Gold medallist",
+    group: "Fishing",
+    how: "Catch one species 50 times",
+    tiers: ladder([1, 5, 10], (at) => `${plural(at, "gold medal")}`),
+    of: (f) => f.fishGolds ?? 0,
+  },
+  {
+    id: "recordholder",
+    emoji: "🏆",
+    name: "Pond record",
+    group: "Fishing",
+    how: "Hold the town's record for a species' longest catch",
+    tiers: ladder([1, 3, 5], (at) => `${plural(at, "pond record")} held`),
+    of: (f) => f.fishRecords ?? 0,
+  },
+  {
+    id: "treasure",
+    emoji: "💎",
+    name: "Treasure diver",
+    group: "Fishing",
+    how: "Find the pond's treasures (a 1% chance on the day's first catches)",
+    tiers: [
+      { at: 1, label: "Found a pond treasure" },
+      { at: 3, label: "3 pond treasures" },
+      { at: FISHING_ITEMS.length, label: "Every pond treasure" },
+    ],
+    of: (f) => f.fishTreasures ?? 0,
+  },
+  {
+    id: "answer",
+    emoji: "🌌",
+    name: "Don't panic",
+    group: "Fishing",
+    how: "Catch a fish exactly 42 cm long",
+    tiers: [{ at: 1, label: "The answer, in centimetres" }],
+    of: (f) => f.fishAnswer ?? 0,
   },
 ];
 
-/** The frame of tier `tier` (1-based) of a badge with `count` tiers: a lone one is gold, four end in diamond. */
+/** The frame of tier `tier` (1-based) of a badge with `count` tiers: a lone one is gold, four end in diamond, six in cosmic. */
 export const frameOf = (tier: number, count: number): Frame =>
   count === 1 ? "gold" : FRAMES[Math.min(Math.max(tier, 1), count) - 1]!;
 
@@ -294,7 +471,12 @@ export const FRAME_RARITY: Record<Frame, Rarity> = {
   silver: "rare",
   gold: "epic",
   diamond: "legendary",
+  mythic: "legendary",
+  cosmic: "legendary",
 };
+
+/** Whether a frame is worth telling the town of: gold and up. */
+export const grandFrame = (frame: Frame): boolean => frame !== "bronze" && frame !== "silver";
 
 const stateOf = (b: BadgeDef, f: BadgeFacts): Badge => {
   const value = b.of(f);
@@ -324,12 +506,11 @@ export const badgesFor = (f: BadgeFacts): Badge[] => badgeStates(f).filter((b) =
 export const progressOf = (b: Pick<Badge, "value" | "next" | "prev">): number =>
   b.next ? Math.min(1, Math.max(0, (b.value - b.prev) / (b.next.at - b.prev))) : 1;
 
-/** Whether reaching this tier is told to the whole town: gold and diamond, unless the badge is quiet. */
+/** Whether reaching this tier is told to the whole town: gold and up, unless the badge is quiet. */
 export const announced = (id: string, tier: number): boolean => {
   const def = BADGES.find((b) => b.id === id);
   if (!def || def.quiet) return false;
-  const frame = frameOf(tier, def.tiers.length);
-  return frame === "gold" || frame === "diamond";
+  return grandFrame(frameOf(tier, def.tiers.length));
 };
 
 /** "Ada earned Shipper gold: 250 PRs", for the toast and the chat line. */

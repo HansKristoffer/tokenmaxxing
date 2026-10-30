@@ -3,7 +3,7 @@ import { effectiveDesk } from "@tokenmaxxing/core/desks.ts";
 import { compact } from "@tokenmaxxing/core/format.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { BLOCK_W } from "@tokenmaxxing/core/maps.ts";
-import { flippedAt, withPieces } from "@tokenmaxxing/core/office.ts";
+import { sideways, tilesOf, turnAt, withPieces } from "@tokenmaxxing/core/office.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import type { Weather } from "@tokenmaxxing/core/sky.ts";
@@ -57,6 +57,7 @@ import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { drawBarrel } from "./fastelavn.ts";
 import { drawFestiveNpc } from "./festive-npc.ts";
 import { drawFireworks } from "./fireworks.ts";
+import { drawFishing } from "./fishing.ts";
 import { type Frame, inView } from "./frame.ts";
 import { ghost } from "./furniture.ts";
 import { drawGames } from "./games.ts";
@@ -70,6 +71,7 @@ import { drawTruck, lightTruck } from "./jdag.ts";
 import { drawKeynote, lightKeynote } from "./keynote.ts";
 import {
   avatarLabels,
+  burst,
   chipHits,
   chips,
   chipsWidth,
@@ -81,14 +83,16 @@ import {
 } from "./labels.ts";
 import { drawLaunch } from "./launch.ts";
 import { drawLeaves } from "./leaves.ts";
-import { drawAura, drawPetCrown, labelLift } from "./legendary.ts";
+import { drawAura, drawPetCrown, labelLift, petRise } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
+import { drawMarket } from "./market.ts";
 import { drawMerchant } from "./merchant.ts";
 import { drawMidsommer, lightMidsommer } from "./midsommer.ts";
 import { LABEL_FAR } from "./near.ts";
 import { drawNytar, lightNytar } from "./nytar.ts";
 import { drawPaaske } from "./paaske.ts";
-import { followPet, prunePets } from "./pets.ts";
+import { PLAY_LIFT } from "./petplay.ts";
+import { followPet, prunePets, reactionOf } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
@@ -172,6 +176,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
         "shop-barber",
         "shop-pets",
         "shop-natmarked",
+        "shop-market",
       ],
       () => "#1b1f2a",
     ),
@@ -266,19 +271,21 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       if (o) {
         if (outdoors && ch === "L") lamps.push([x * TILE + TILE / 2, y * TILE - 11]);
         if (outdoors && ch === "T") trees.push([x * TILE + o.dx, y * TILE + o.dy]);
-        const flip = flippedAt(map, x, y);
+        // Upside down or turned the other way: each tile mirrored about the piece's middle (a piece lying down its
+        // column has no sideways art: it is drawn as it is at its top tile).
+        const turn = turnAt(map, x, y);
+        const mirrored = turn?.rot === 2 ? turn : turn?.rot === 3 ? { x: turn.x, w: 1 } : null;
         items.push({
           y: y * TILE + sortY(ch),
           draw: () => {
-            // A piece turned the other way: each of its tiles mirrored about the piece's middle.
-            if (flip) mirror(g, flip.x, flip.w);
+            if (mirrored) mirror(g, mirrored.x, mirrored.w);
             const desk = ch === "d" ? deskAt(x, y) : null;
             if (desk && desk.tier > 0)
               g.drawImage(deskFrame(desk.tier, desk.mode), x * TILE, (y + 1) * TILE - 22);
             // The company building's pieces are indoors, out of the snow.
             else if (o.fancy) g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
             else snowy(o.canvas, x * TILE + o.dx, y * TILE + o.dy, ch);
-            if (flip) g.restore();
+            if (mirrored) g.restore();
           },
         });
       }
@@ -403,12 +410,14 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawTavern(f);
   drawKeynote(f);
   drawTownAnimals(f);
+  drawFishing(f);
   drawBasement(f);
   drawMerchant(f);
   drawFestiveNpc(f);
   drawNytar(f);
   drawPaaske(f);
   drawAgustusan(f);
+  drawMarket(f);
   drawRaid(f);
   drawLoot(f);
 
@@ -447,9 +456,15 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
         items.push({ y: py + TILE, draw: () => drawSparkle(g, px, py - 2, now, a.info.id) });
     }
     const pet = a.warp ? null : followPet(a, px, py, dt, owner === a.info.id ? bedAt : undefined);
-    const petSeen = pet !== null && inView(f, pet.x, pet.y, PET_W, PET_H, reach);
+    const rise = petRise(a);
+    const petSeen = pet !== null && inView(f, pet.x, pet.y - rise, PET_W, PET_H + rise, reach);
     if (pet && petSeen) {
-      const hop = pet.moving && Math.floor(now / 140) % 2 === 0;
+      // A reaction (`petPlay`) lifts it off the ground; a trick flips it side to side as it turns in the air.
+      const play = pet.asleep ? null : reactionOf(a.info.id, now);
+      const lift = Math.round((play?.pose.lift ?? 0) * PLAY_LIFT);
+      const spun = play?.act === "trick" && Math.floor(play.pose.spin * 8) % 2 === 1;
+      const left = spun ? !pet.left : pet.left;
+      const hop = (pet.moving && Math.floor(now / 140) % 2 === 0) || lift > PLAY_LIFT / 2;
       const worn = a.info.look;
       const outfit = outfitOf(worn);
       // In bed it curls up without its gear.
@@ -460,7 +475,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
             Math.floor(now / 600),
           )
         : null;
-      const frame = asleep ?? petFrame(worn.pet, pet.left, hop, worn.petVariant, outfit, worn.petwear);
+      const frame = asleep ?? petFrame(worn.pet, left, hop, worn.petVariant, outfit, worn.petwear);
       if (frame)
         items.push({
           y: pet.y + PET_H,
@@ -473,10 +488,13 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
               );
               return;
             }
-            g.drawImage(frame, Math.round(pet.x), Math.round(pet.y) + PET_H - frame.height);
-            drawPetCrown(g, a, Math.round(pet.x), Math.round(pet.y), pet.left, hop);
+            g.drawImage(frame, Math.round(pet.x), Math.round(pet.y) - lift + PET_H - frame.height);
+            drawPetCrown(g, a, Math.round(pet.x), Math.round(pet.y) - lift, left, hop, now);
           },
         });
+      // The hearts, treats or stars rise from it.
+      if (play)
+        labels.push(() => burst(g, ...toScreen(pet.x + PET_W / 2, pet.y - lift), play.emojis, play.age, dpr));
     }
     // A pet's name shows for mine and for those within a few tiles of me.
     const petName = a.info.look.petName;
@@ -686,19 +704,24 @@ function drawGhost(
   const w = piece.w ?? 1;
   const colour = ghost.fits ? "91, 224, 138" : "232, 88, 79";
   g.save();
-  const o = objectAt(withPieces([{ ch: piece.ch, x: t.x, y: t.y }], map), t.x, t.y);
+  const rot = mode.kind === "move" ? ghost.rot : 0;
+  const o = objectAt(withPieces([{ ch: piece.ch, x: t.x, y: t.y, rot }], map), t.x, t.y);
   if (o) {
     g.globalAlpha = 0.6;
-    if (ghost.flip) mirror(g, t.x, w);
+    const mirrored = rot === 2 || rot === 3;
+    if (mirrored) mirror(g, t.x, sideways(rot) ? 1 : w);
     g.drawImage(o.fancy ? fancy(o.fancy, now) : o.canvas, t.x * TILE + o.dx, t.y * TILE + o.dy);
-    if (ghost.flip) g.restore();
+    if (mirrored) g.restore();
   }
-  g.globalAlpha = 0.4;
-  g.fillStyle = `rgb(${colour})`;
-  g.fillRect(t.x * TILE, t.y * TILE, w * TILE, TILE);
-  g.globalAlpha = 0.9;
-  g.strokeStyle = `rgb(${colour})`;
-  g.lineWidth = 1;
-  g.strokeRect(t.x * TILE + 0.5, t.y * TILE + 0.5, w * TILE - 1, TILE - 1);
+  // Each tile it covers: along its row, or down its column when it is turned sideways.
+  for (const [tx, ty] of tilesOf(t.x, t.y, w, rot)) {
+    g.globalAlpha = 0.4;
+    g.fillStyle = `rgb(${colour})`;
+    g.fillRect(tx * TILE, ty * TILE, TILE, TILE);
+    g.globalAlpha = 0.9;
+    g.strokeStyle = `rgb(${colour})`;
+    g.lineWidth = 1;
+    g.strokeRect(tx * TILE + 0.5, ty * TILE + 0.5, TILE - 1, TILE - 1);
+  }
   g.restore();
 }

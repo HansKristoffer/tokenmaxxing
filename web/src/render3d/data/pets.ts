@@ -25,6 +25,13 @@ export const PET_SPECIES = [
   "maneki",
   "kitsune",
   "tengu",
+  // The Nusantara case's pets are at `NUSANTARA_PET_BASE` and up, not in this list either.
+  "komodo",
+  "tarsier",
+  "enggang",
+  "rafflesia",
+  "cenderawasih",
+  "orangutan",
 ] as const;
 
 /** `Look.pet` of the first Night Market case pet (`CASE_BASE` in core/src/case.ts); the six follow in order. */
@@ -32,10 +39,56 @@ export const CASE_PET_BASE = 300;
 /** The species that stand at `CASE_PET_BASE` and up. */
 export const CASE_PET_SPECIES = ["koi", "crane", "tanuki", "maneki", "kitsune", "tengu"] as const;
 
-/** The species of `Look.pet` `n`: the shop's and the loot's by position, the case's from `CASE_PET_BASE`. */
-export const speciesAt = (n: number): Species | undefined =>
-  n >= CASE_PET_BASE ? CASE_PET_SPECIES[n - CASE_PET_BASE] : n < CASE_PET_BASE ? PET_SPECIES[n] : undefined;
-export type Species = (typeof PET_SPECIES)[number];
+/** `Look.pet` of the first Nusantara case pet (`NUSANTARA_BASE` in core/src/case-nusantara.ts); the six follow in order. */
+export const NUSANTARA_PET_BASE = 400;
+/** The species that stand at `NUSANTARA_PET_BASE` and up. */
+export const NUSANTARA_PET_SPECIES = [
+  "komodo",
+  "tarsier",
+  "enggang",
+  "rafflesia",
+  "cenderawasih",
+  "orangutan",
+] as const;
+
+/** `Look.pet` of the first Ragnarok Eve pet (`RAGNAROK_BASE` in core/src/case-ragnarok.ts); the six follow in order. */
+export const RAGNAROK_PET_BASE = 500;
+/** The species that stand at `RAGNAROK_PET_BASE` and up (the first draws the pair of ravens). */
+export const RAGNAROK_PET_SPECIES = [
+  "huginn",
+  "ratatoskr",
+  "tanngrisnir",
+  "hildisvini",
+  "sleipnir",
+  "fenrir",
+] as const;
+
+/** `Look.pet` of the first pond treasure pet (`FISHING_BASE` in core/src/fishing-loot.ts); the second follows. */
+export const POND_PET_BASE = 600;
+/** The species that stand at `POND_PET_BASE` and up: only fishing turns them up. */
+export const POND_PET_SPECIES = ["axolotl", "kraken"] as const;
+
+/**
+ * The case ranges, one entry per case: `Look.pet` from `base` up to `base + species.length` is `species[n - base]`.
+ * A later case (the pond's treasures are 600 to 699) adds its own line here and its names to `Species` and `PET_NAME`.
+ */
+const CASE_PET_RANGES: readonly { base: number; species: readonly Species[] }[] = [
+  { base: CASE_PET_BASE, species: CASE_PET_SPECIES },
+  { base: NUSANTARA_PET_BASE, species: NUSANTARA_PET_SPECIES },
+  { base: RAGNAROK_PET_BASE, species: RAGNAROK_PET_SPECIES },
+  { base: POND_PET_BASE, species: POND_PET_SPECIES },
+];
+
+/** The species of `Look.pet` `n`: the shop's and the loot's by position below 300, each case's from its own base. */
+export const speciesAt = (n: number): Species | undefined => {
+  if (n < CASE_PET_BASE) return PET_SPECIES[n];
+  // The last range whose base is at or below `n` owns it (a case's indices run to the next hundred).
+  let range: (typeof CASE_PET_RANGES)[number] | undefined;
+  for (const r of CASE_PET_RANGES) if (n >= r.base) range = r;
+  return range && n - range.base < 100 ? range.species[n - range.base] : undefined;
+};
+export type Species =
+  (typeof PET_SPECIES)[number] | (typeof RAGNAROK_PET_SPECIES)[number] | (typeof POND_PET_SPECIES)[number];
 
 export const PET_NAME: Record<Species, string> = {
   none: "No pet",
@@ -56,6 +109,20 @@ export const PET_NAME: Record<Species, string> = {
   maneki: "Maneki cat",
   kitsune: "Kitsune",
   tengu: "Tengu",
+  komodo: "Komodo",
+  tarsier: "Tarsier",
+  enggang: "Enggang",
+  rafflesia: "Rafflesia",
+  cenderawasih: "Cenderawasih",
+  orangutan: "Orangutan",
+  huginn: "Huginn and Muninn",
+  ratatoskr: "Ratatoskr",
+  tanngrisnir: "Tanngrisnir",
+  hildisvini: "Hildisvíni",
+  sleipnir: "Sleipnir foal",
+  fenrir: "Fenrir pup",
+  axolotl: "Axolotl",
+  kraken: "Pocket kraken",
 };
 
 /** `Look.petVariant` n is `PET_VARIANTS[species][n - 1]`; 0 is the pet as the shop sells it. */

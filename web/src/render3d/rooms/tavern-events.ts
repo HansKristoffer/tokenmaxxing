@@ -2,12 +2,14 @@ import { TUNES } from "@tokenmaxxing/core/tunes.ts";
 import * as THREE from "three";
 import { clockFaces, clocksSign } from "../../game/clocks.ts";
 import { darknessNow, lightsNow, warmthNow } from "../../game/sky.ts";
+import { bandCaption, bandText } from "../../game/tavern-performance.ts";
 import { hud } from "../../store.ts";
 import { setPropsNight } from "../town/props.ts";
 import { jukeboxSign, tavernDim } from "../town/world-logic.ts";
 import { JulefrokostSpread } from "./julefrokost3d.ts";
 import { KeynoteScreen } from "./keynote3d.ts";
 import type { LiveFrame } from "./rooms.ts";
+import { TavernBand } from "./tavern-band3d.ts";
 import { setTavernNight, type TavernRoom } from "./tavern3d.ts";
 
 const v = new THREE.Vector3();
@@ -20,6 +22,8 @@ const v = new THREE.Vector3();
  * tables laid for julefrokost on December's Friday and Saturday evenings (`julefrokost3d.ts`).
  */
 export class TavernEvents {
+  private readonly band = new TavernBand();
+  private bandSign: HTMLDivElement | null = null;
   private el: HTMLDivElement | null = null;
   private text = "";
   private readonly at = new THREE.Vector3();
@@ -36,6 +40,7 @@ export class TavernEvents {
   private readonly julefrokost: JulefrokostSpread;
 
   constructor(private readonly inn: TavernRoom) {
+    inn.room.group.add(this.band.group);
     if (inn.fountain) inn.fountain.auto = false;
     this.keynote = new KeynoteScreen(inn.room);
     this.julefrokost = new JulefrokostSpread(inn.room, inn.by.get("tavern:table-long") ?? []);
@@ -79,6 +84,15 @@ export class TavernEvents {
 
   update(f: LiveFrame): void {
     this.sky(f.now);
+    this.band.update(f);
+    if (!this.bandSign) {
+      this.bandSign = f.overlay.make("r3-sign link");
+      this.bandSign.addEventListener("click", () => hud.set({ dialog: bandText() }));
+    }
+    const bandLabel = bandCaption();
+    if (this.bandSign.textContent !== bandLabel) this.bandSign.textContent = bandLabel;
+    this.band.group.localToWorld(v.set(0.5, 2.3, 9.5));
+    f.overlay.place(this.bandSign, v, f.camera, 0, 0, true);
     const { jukebox } = this.inn;
     if (!this.placed) {
       jukebox.updateWorldMatrix(true, false);
@@ -125,6 +139,9 @@ export class TavernEvents {
 
   dispose(): void {
     setTavernNight(null);
+    this.band.dispose();
+    this.bandSign?.remove();
+    this.bandSign = null;
     this.clocks?.el.remove();
     this.clocks = null;
     this.keynote.dispose();

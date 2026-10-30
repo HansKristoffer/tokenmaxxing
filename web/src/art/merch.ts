@@ -58,14 +58,21 @@ export function merchColours(c: MerchCompany): MerchColours {
 
 export type MerchCompany = { id: number; name: string; brand: Brand | null; merch?: MerchDesign | null };
 
-const FALLBACK: MerchColours = {
-  main: C.metal,
-  shade: C.ink,
-  accent: C.white,
-  glow: C.white,
-  initials: "?",
-  design: null,
-};
+/**
+ * A company the world doesn't have (it closed, or its list hasn't come yet): the pair its id picks, with
+ * "TM". Both renderers and the shop dress its merch the same way (`merchFor` in `gear3d.ts` takes the
+ * same pair), so a closed company's merch doesn't change colour with the view.
+ */
+export const goneCompany = (id: number): MerchCompany => ({ id, name: "TM", brand: null });
+const GONE = new Map<number, MerchColours>();
+function goneColours(id: number): MerchColours {
+  const known = GONE.get(id);
+  if (known) return known;
+  const m = merchColours(goneCompany(id));
+  GONE.set(id, m);
+  return m;
+}
+
 /** A key for caches: what merch in `m` looks like. */
 const keyOf = (m: MerchColours) => `${m.main}${m.accent}${m.initials}${m.design?.rows.join() ?? ""}`;
 
@@ -85,14 +92,16 @@ export function setMerchCompanies(list: readonly MerchCompany[]): void {
 /** Goes up whenever the companies change: for caches of anything wearing merch. */
 export const merchVersion = (): number => version;
 
-export const coloursOf = (companyId: number): MerchColours => COMPANIES.get(companyId)?.colours ?? FALLBACK;
+export const coloursOf = (companyId: number): MerchColours =>
+  COMPANIES.get(companyId)?.colours ?? goneColours(companyId);
 
 /** A company's merch colours, if the world has that company (the 3D avatars dress from these too). */
 export const knownColours = (companyId: number): MerchColours | undefined =>
   COMPANIES.get(companyId)?.colours;
 
 /** A key for caches: what the merch of `companyId` looks like right now. */
-export const merchKey = (companyId: number): string => COMPANIES.get(companyId)?.key ?? keyOf(FALLBACK);
+export const merchKey = (companyId: number): string =>
+  COMPANIES.get(companyId)?.key ?? keyOf(goneColours(companyId));
 
 /** The cap over the head, from row 0: `c` crown, `C` brim, `L` the badge. */
 // Pixel art reads as a grid.

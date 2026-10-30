@@ -10,9 +10,11 @@ import {
   LEGACY_FROM,
   legacyQuestCoins,
   POOL,
+  QUEST_MULT_FROM,
   questCoins,
   questProgress,
   WEEKLY_COINS,
+  weeklyCoins,
   weeklyProgress,
   weekStart,
 } from "../src/quests.ts";
@@ -150,16 +152,19 @@ test("a day pays the tiers of what's done", () => {
     { id: "haul", target: 12 },
   ];
   const full = { ...EMPTY_DAY, prompts: 10, peakAgents: 2, activeBuckets: 12 };
-  expect(questCoins(qs, full, EMPTY_COUNTS)).toBe(6);
-  expect(questCoins(qs, { ...EMPTY_DAY, prompts: 10 }, EMPTY_COUNTS)).toBe(1);
+  expect(questCoins(qs, full, EMPTY_COUNTS)).toBe(30);
+  expect(questCoins(qs, { ...EMPTY_DAY, prompts: 10 }, EMPTY_COUNTS)).toBe(5);
+  // The days before the x5 keep what they paid.
+  expect(questCoins(qs, full, EMPTY_COUNTS, "2026-10-28")).toBe(6);
+  expect(questCoins(qs, full, EMPTY_COUNTS, QUEST_MULT_FROM)).toBe(30);
   expect(questCoins(qs, EMPTY_DAY, EMPTY_COUNTS)).toBe(0);
   // Progress shows the value up to the target.
   const p = questProgress(qs[0]!, { ...EMPTY_DAY, prompts: 99 }, EMPTY_COUNTS);
-  expect(p).toMatchObject({ value: 10, target: 10, coins: 1 });
+  expect(p).toMatchObject({ value: 10, target: 10, coins: 5 });
   expect(COUNT_CAP).toBe(3);
 });
 
-test("the weekly quest: seeded by the week, 15 coins at its target", () => {
+test("the weekly quest: seeded by the week, 75 coins at its target, 15 for the weeks before 2 Nov", () => {
   expect(weekStart("2026-10-26")).toBe("2026-10-26");
   expect(weekStart("2026-11-01")).toBe("2026-10-26");
   expect(weekStart("2026-11-02")).toBe("2026-11-02");
@@ -173,9 +178,10 @@ test("the weekly quest: seeded by the week, 15 coins at its target", () => {
   const a = week("active");
   const days = (n: number) => Array.from({ length: n }, () => ({ active: true, cleared: 0 }));
   expect(weeklyProgress(a, days(4)).done).toBe(false);
-  expect(weeklyProgress(a, days(5))).toMatchObject({ done: true, coins: WEEKLY_COINS, target: 5 });
+  expect(weeklyProgress(a, days(5))).toMatchObject({ done: true, coins: weeklyCoins(a), target: 5 });
   const c = week("cleared");
   expect(weeklyProgress(c, [{ active: true, cleared: 7 }]).done).toBe(false);
   expect(weeklyProgress(c, [{ active: true, cleared: 8 }]).done).toBe(true);
-  expect(WEEKLY_COINS).toBe(15);
+  expect(WEEKLY_COINS).toBe(75);
+  expect([weeklyCoins("2026-10-26"), weeklyCoins("2026-11-02"), weeklyCoins()]).toEqual([15, 75, 75]);
 });

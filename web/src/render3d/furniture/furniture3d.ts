@@ -19,7 +19,10 @@ import { merchColours, merchPrintTexture, merchProp, merchShirtTexture } from ".
 import { DESK_TIERS, deskTier } from "./desks3d.ts";
 import { type Asset, bed, desk, light, sofa } from "./furniture.ts";
 import { NIGHT_ASSETS } from "./night3d.ts";
+import { NORSE_ASSETS } from "./norse3d.ts";
+import { NUSANTARA_ASSETS } from "./nusantara3d.ts";
 import { POSTER_ASSETS, POSTER_TEXT } from "./posters3d.ts";
+import { PRESTIGE_TROPHY_ASSETS } from "./prestige3d.ts";
 
 export type { MerchCompany, MerchKind } from "../people/merch3d.ts";
 export { DESK_TIERS, deskTier, merchColours, merchPrintTexture, merchProp, merchShirtTexture, POSTER_TEXT };
@@ -738,9 +741,9 @@ const asset = (
 /** Every piece `furniture.ts` lacks, ids and prices from the 2D catalogs. */
 export const FURNITURE_EXTRA_ASSETS: readonly Asset[] = [
   // The map's own desk, sofa and bed are one tile each (`FURNITURE` has no width for them), as in 2D.
-  asset("office-desk", "Desk", 50, 1, 1, desk(1, 1)),
-  asset("office-sofa", "Sofa", 100, 1, 1, sofa(undefined, 1), { seat: { at: [0, 0.38, 0.05], turn: 0 } }),
-  asset("office-bed", "Bed", 80, 1, 1, bed(1), { bed: [0, 0.3, -0.05] }),
+  asset("office-desk", "Desk", 75, 1, 1, desk(1, 1)),
+  asset("office-sofa", "Sofa", 150, 1, 1, sofa(undefined, 1), { seat: { at: [0, 0.38, 0.05], turn: 0 } }),
+  asset("office-bed", "Bed", 120, 1, 1, bed(1), { bed: [0, 0.3, -0.05] }),
   asset("touched-grass", "Touched grass", 0, 2, 1, touchedGrass),
   asset("golden-hourglass", "Golden Hourglass", 0, 1, 1, goldenHourglass),
   asset("golden-rebase", "Golden Rebase", 0, 1, 1, goldenRebase),
@@ -749,21 +752,24 @@ export const FURNITURE_EXTRA_ASSETS: readonly Asset[] = [
   asset("bookshelf-library", "Library bookshelf", 140, 2, 1, bookshelfLibrary),
   asset("plant-wall", "Plant wall", 300, 2, 1, plantWall),
   asset("chandelier", "Crystal chandelier", 900, 2, 1, chandelier),
-  asset("cactus", "Cactus", 40, 1, 1, cactus),
-  asset("certificate", "Framed certificate", 45, 1, 1, certificate),
-  asset("bean-bag", "Bean bag", 60, 1, 1, beanBag, { seat: { at: [0, 0.32, 0.05], turn: 0 } }),
-  asset("hanging-plant", "Hanging plant", 70, 1, 1, hangingPlant),
-  asset("wool-rug", "Wool rug", 70, 2, 1, woolRug),
-  asset("floor-lamp", "Floor lamp", 80, 1, 1, floorLamp),
-  asset("fiddle-fig", "Fiddle-leaf fig", 90, 1, 1, fiddleFig),
-  asset("duck-shelf", "Rubber-duck shelf", 100, 1, 1, duckShelf),
-  asset("wall-whiteboard", "Office whiteboard", 110, 2, 1, wallWhiteboard),
-  asset("home-fridge", "Mini fridge", 120, 1, 1, homeFridge),
-  asset("bonsai-stand", "Bonsai on a stand", 130, 1, 1, bonsaiStand),
-  asset("bookcase", "Bookcase", 150, 2, 1, bookcase),
-  asset("wall-neon", "Pink neon sign", 200, 2, 1, wallNeon),
-  asset("keyboard-case", "Mechanical keyboard display", 260, 2, 1, keyboardCase),
+  asset("cactus", "Cactus", 60, 1, 1, cactus),
+  asset("certificate", "Framed certificate", 70, 1, 1, certificate),
+  asset("bean-bag", "Bean bag", 90, 1, 1, beanBag, { seat: { at: [0, 0.32, 0.05], turn: 0 } }),
+  asset("hanging-plant", "Hanging plant", 105, 1, 1, hangingPlant),
+  asset("wool-rug", "Wool rug", 105, 2, 1, woolRug),
+  asset("floor-lamp", "Floor lamp", 120, 1, 1, floorLamp),
+  asset("fiddle-fig", "Fiddle-leaf fig", 135, 1, 1, fiddleFig),
+  asset("duck-shelf", "Rubber-duck shelf", 150, 1, 1, duckShelf),
+  asset("wall-whiteboard", "Office whiteboard", 165, 2, 1, wallWhiteboard),
+  asset("home-fridge", "Mini fridge", 180, 1, 1, homeFridge),
+  asset("bonsai-stand", "Bonsai on a stand", 195, 1, 1, bonsaiStand),
+  asset("bookcase", "Bookcase", 225, 2, 1, bookcase),
+  asset("wall-neon", "Pink neon sign", 300, 2, 1, wallNeon),
+  asset("keyboard-case", "Mechanical keyboard display", 390, 2, 1, keyboardCase),
   ...NIGHT_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
+  ...NUSANTARA_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
+  ...NORSE_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
+  ...PRESTIGE_TROPHY_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
   ...POSTER_ASSETS,
 ];
 
@@ -775,6 +781,8 @@ export const WALL_ASSET_IDS: ReadonlySet<string> = new Set([
   "wall-whiteboard",
   "wall-neon",
   "night-lanterns",
+  "nus-batik-hanging",
+  "norse-raven-banner",
   ...POSTER_ASSETS.map((a) => a.id),
 ]);
 

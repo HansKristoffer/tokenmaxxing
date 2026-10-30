@@ -1,7 +1,9 @@
+import { PRESTIGE_TRACKS } from "@tokenmaxxing/core/prestige.ts";
 import { SNEEZE_MS } from "@tokenmaxxing/core/sky.ts";
 import { type Peek, TILE } from "@tokenmaxxing/core/world.ts";
 import { clamp, sumBy } from "hanzio";
 import { C } from "../art/palette.ts";
+import { prestigeOf } from "../hud/prestige-badge.ts";
 import { camera } from "./camera.ts";
 import { SNEEZE_TEXT, sneezeOf } from "./cold.ts";
 import { BURST_MS } from "./emoji.ts";
@@ -224,6 +226,11 @@ export function avatarLabels(
     const tag = `${a.info.name} · Lv${a.info.level}`;
     const bg = a.info.online ? "rgba(27, 31, 42, 0.78)" : "rgba(27, 31, 42, 0.45)";
     y -= pill(g, cx, y, tag, dpr, bg, C.white).h + 2 * dpr;
+    const track = PRESTIGE_TRACKS[prestigeOf(a.info).rank - 1];
+    if (track)
+      y -=
+        pill(g, cx, y, `✦ ${track.name} ${track.roman}`, dpr, "rgba(18, 20, 28, 0.9)", track.colors.glow).h +
+        2 * dpr;
   }
   if (a.state === "away" || a.info.dozing) {
     const t = (now / 900) % 1;

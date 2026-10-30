@@ -17,8 +17,8 @@ describe("desk setups", () => {
     expect(DESKS[LAPTOP]).toMatchObject({ id: "laptop", price: 0, fleet: 0 });
     for (const [i, d] of DESKS.entries()) {
       if (i === 0) continue;
-      expect(d.price).toBeGreaterThanOrEqual(40);
-      expect(d.price).toBeLessThanOrEqual(600);
+      expect(d.price).toBeGreaterThanOrEqual(60);
+      expect(d.price).toBeLessThanOrEqual(900);
       expect(d.price).toBeGreaterThan(DESKS[i - 1]!.price);
       expect(d.fleet).toBeGreaterThan(DESKS[i - 1]!.fleet);
       // The company pays more than a person for the same tier: it's the whole house.

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { GREEN_FROM, HOUR_MS } from "@tokenmaxxing/core/grid.ts";
 import { addDays } from "@tokenmaxxing/core/range.ts";
+import { coinsForTokens } from "@tokenmaxxing/core/shop.ts";
 import type { TxSql } from "../src/actors/shared.ts";
 import { checkGrid, initialGrid } from "../src/grid.ts";
 import { writeActivity } from "../src/town/card.ts";
@@ -121,7 +122,7 @@ describe("green hours pay", () => {
     expect((await balance()) - before).toBe(3);
     const w = await wallet(sql, 1, NOW + HOUR_MS);
     expect(w.green).toBe(3);
-    expect(w.today).toBe(22 + 3); // √500 for the day's tokens, and the green bonus
+    expect(w.today).toBe(coinsForTokens(500e6, day) + 3); // the day's tokens on the current curve, and the green bonus (a quarter of the old square root)
   });
 
   test("told twice, or by a restarted world, an hour pays once; one not begun yet isn't taken", async () => {

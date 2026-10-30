@@ -1,4 +1,4 @@
-import { CASES, type CaseDef, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
+import { CASE_SHELVES, CASES, type CaseDef, slideOfShelf, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
 import { RARITY_COLOR } from "@tokenmaxxing/core/rarity.ts";
 import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
 import { defaultLook } from "@tokenmaxxing/core/world.ts";
@@ -16,8 +16,8 @@ import { Modal, useRun } from "./ui.tsx";
 
 const LOOK = defaultLook(1);
 
-/** The case, drawn from its pixel art (`art/case-box.ts`), closed or open, scaled up. */
-function CaseSprite({ open, scale = 4 }: { open?: boolean; scale?: number }) {
+/** The case `caseId`, drawn from its pixel art (`art/case-box.ts`), closed or open, scaled up. */
+function CaseSprite({ caseId, open, scale = 4 }: { caseId: string; open?: boolean; scale?: number }) {
   const kind = open ? "open" : "closed";
   const { w, h } = CASE_BOX_SIZE[kind];
   return (
@@ -31,7 +31,7 @@ function CaseSprite({ open, scale = 4 }: { open?: boolean; scale?: number }) {
           if (!g || !c) return;
           g.imageSmoothingEnabled = false;
           g.clearRect(0, 0, c.width, c.height);
-          g.drawImage(caseBoxSprite(kind, 0), 0, 0, w * scale, h * scale);
+          g.drawImage(caseBoxSprite(kind, 0, caseId), 0, 0, w * scale, h * scale);
         }}
       />
     </span>
@@ -53,12 +53,33 @@ function ComingSoon({ n }: { n: number }) {
   );
 }
 
+/** Whether the last slide is the "Coming soon" one: only while some shelf at the back of the hall is still empty. */
+const SOON = CASES.length < CASE_SHELVES;
+/** The cases, then the one locked slide. The order is the shelves' order, left to right. */
+const SLIDES = CASES.length + (SOON ? 1 : 0);
+
+/** Left/right on the keyboard, unless a key is meant for a field or a dialog is on top. */
+function pagerKey(e: KeyboardEvent): 1 | -1 | 0 {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return 0;
+  if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || hud.get().dialog) return 0;
+  const t = e.target;
+  if (
+    t instanceof HTMLInputElement ||
+    t instanceof HTMLTextAreaElement ||
+    t instanceof HTMLSelectElement ||
+    (t instanceof HTMLElement && t.isContentEditable)
+  )
+    return 0;
+  return e.key === "ArrowRight" ? 1 : -1;
+}
+
 /**
- * Natmarked's counter and shelves: the cases on sale. Each card has the case's art, what it costs, "Open case"
+ * Natmarked's counter and shelves: the cases on sale, one at a time (left and right, the arrow keys or the dots),
+ * then a locked "Coming soon" while a shelf is still empty. Each card has the case's art, what it costs, "Open case"
  * (the opening screen, wired to the server's `openCase`), the odds of everything inside and a button that sells
  * the spare copies back to the vendor. The server rolls and charges; this only asks and shows.
  */
-export function CaseShop() {
+export function CaseShop({ shelf }: { shelf?: number }) {
   const me = useHud((s) => s.me);
   const wallet = useHud((s) => s.wallet);
   const [hello] = useState(() => greeting("natmarked", Math.floor(Math.random() * 8)));
@@ -67,6 +88,15 @@ export function CaseShop() {
   const [opening, setOpening] = useState<CaseDef | null>(null);
   const [sold, setSold] = useState<string | null>(null);
   const { error, busy, run } = useRun();
+  // Which slide, and which way it came from (for the slide-in).
+  const [page, setPage] = useState({ at: slideOfShelf(shelf), dir: 1 });
+  const go = (to: number, dir?: number) => {
+    setSold(null);
+    setPage((p) => {
+      const at = ((to % SLIDES) + SLIDES) % SLIDES;
+      return { at, dir: dir ?? (at >= p.at ? 1 : -1) };
+    });
+  };
 
   const reload = async () => {
     await refreshWallet();
@@ -77,6 +107,20 @@ export function CaseShop() {
   useEffect(() => {
     if (opening) return;
     void reload().catch((e) => setFailed(errorText(e)));
+  }, [opening]);
+
+  // Arrow keys turn the page while the shop is open. The game itself ignores them with a panel up.
+  useEffect(() => {
+    if (opening) return;
+    const onKey = (e: KeyboardEvent) => {
+      const d = pagerKey(e);
+      if (d === 0) return;
+      e.preventDefault();
+      setSold(null);
+      setPage((p) => ({ at: (p.at + d + SLIDES) % SLIDES, dir: d }));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [opening]);
 
   if (opening)
@@ -113,34 +157,68 @@ export function CaseShop() {
           {sold}
         </p>
       )}
-      <ul className="cshop-list">
-        {CASES.map((def) => (
-          <CaseCard
-            key={def.id}
-            def={def}
-            balance={wallet.balance}
-            bag={bag}
-            busy={busy}
-            onOpen={() => {
-              setSold(null);
-              setOpening(def);
-            }}
-            onSell={run(async () => {
-              const r = await town.sellDuplicates(def.id);
-              hud.set({ wallet: r.wallet });
-              setBag(await town.bag());
-              setSold(
-                r.sold === 0
-                  ? "No spare copies to sell."
-                  : `Sold ${r.sold} spare ${r.sold === 1 ? "copy" : "copies"}.`,
-              );
-            })}
-          />
-        ))}
-        {[0, 1, 2].map((n) => (
-          <ComingSoon key={n} n={n} />
-        ))}
-      </ul>
+      <div className="cshop-pager">
+        <button
+          type="button"
+          className="cshop-arrow prev"
+          aria-label="Previous case"
+          onClick={() => go(page.at - 1, -1)}
+        >
+          ‹
+        </button>
+        <ul className="cshop-list" style={{ "--dir": page.dir } as CSSProperties}>
+          {page.at < CASES.length ? (
+            <CaseCard
+              key={CASES[page.at]!.id}
+              def={CASES[page.at]!}
+              balance={wallet.balance}
+              bag={bag}
+              busy={busy}
+              onOpen={() => {
+                setSold(null);
+                setOpening(CASES[page.at]!);
+              }}
+              onSell={run(async () => {
+                const r = await town.sellDuplicates(CASES[page.at]!.id);
+                hud.set({ wallet: r.wallet });
+                setBag(await town.bag());
+                setSold(
+                  r.sold === 0
+                    ? "No spare copies to sell."
+                    : `Sold ${r.sold} spare ${r.sold === 1 ? "copy" : "copies"}.`,
+                );
+              })}
+            />
+          ) : (
+            <ComingSoon key="soon" n={CASES.length} />
+          )}
+        </ul>
+        <button
+          type="button"
+          className="cshop-arrow next"
+          aria-label="Next case"
+          onClick={() => go(page.at + 1, 1)}
+        >
+          ›
+        </button>
+        <nav className="cshop-dots" aria-label="Cases">
+          {Array.from({ length: SLIDES }, (_, k) => k).map((k) => (
+            <button
+              key={CASES[k]?.id ?? "soon"}
+              type="button"
+              className="cshop-dot"
+              aria-label={
+                CASES[k] ? `${CASES[k].name}, ${k + 1} of ${SLIDES}` : `Coming soon, ${k + 1} of ${SLIDES}`
+              }
+              aria-current={k === page.at ? "true" : undefined}
+              onClick={() => go(k)}
+            />
+          ))}
+          <span className="cshop-count muted small" aria-hidden="true">
+            {page.at + 1} / {SLIDES}
+          </span>
+        </nav>
+      </div>
       {error && <p className="error">{error}</p>}
       {failed && <p className="error">{failed}</p>}
     </Modal>
@@ -175,7 +253,7 @@ function CaseCard({
   return (
     <li className="cshop-card">
       <div className="cshop-top">
-        <CaseSprite />
+        <CaseSprite caseId={def.id} />
         <div className="cshop-main">
           <h3>{def.name}</h3>
           <p className="muted">{def.blurb}</p>

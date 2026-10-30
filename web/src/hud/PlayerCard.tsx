@@ -24,6 +24,10 @@ import { hud } from "../store.ts";
 import { Computers } from "./Computers.tsx";
 import { dayText, ranges } from "./format.ts";
 import { daysAgoText, sourceName } from "./heat.ts";
+import { PrestigeCardRow } from "./Prestige.tsx";
+import { PrestigeTag } from "./PrestigeTag.tsx";
+import { prestigeOf } from "./prestige-badge.ts";
+import { badgeOf } from "./prestige-view.ts";
 import { Shelf, ShelfPicker } from "./Showcase.tsx";
 import { Tickets } from "./Tickets.tsx";
 import { AvatarImage, Modal, Pills, useLoad, useRun } from "./ui.tsx";
@@ -118,11 +122,13 @@ export function PlayerCard({ userId }: { userId: number }) {
                   🏅 {title}
                 </p>
               )}
+              <PrestigeTag rank={prestigeOf(p).rank} level={prestigeOf(p).runLevel} />
               <p>
                 <strong>Level {p.level}</strong> · {p.levelTitle}
                 {today > 0 && <span className="xp-today small"> · +{compact(today)} today</span>}
               </p>
               <XpBar level={p.level} tokens={p.lifetimeTokens} today={today} />
+              {mine && <PrestigeCardRow level={p.level} badge={badgeOf(p)} />}
               <p
                 className="muted small"
                 title={[rewardText, milestoneLine].filter(Boolean).join("\n") || undefined}

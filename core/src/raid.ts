@@ -81,7 +81,17 @@ export const PR_HIT = 25e6;
 /** Damage that week, up to the day of a kill, to count as one of its raiders and be paid for it. */
 export const RAIDER_AT = 10e6;
 /** What each raider gets when the boss on rungs 1 to 5 falls, on a level 1 ladder. */
-export const RAID_REWARDS: readonly number[] = [10, 25, 50, 75, 100];
+export const RAID_REWARDS: readonly number[] = [40, 100, 200, 300, 400];
+/**
+ * What the same kills paid in weeks before `RAID_REWARDS_FROM`: those weeks keep it, as a wallet is worked
+ * out again from every kill and a raised payout would otherwise pay them all again.
+ */
+export const OLD_RAID_REWARDS: readonly number[] = [10, 25, 50, 75, 100];
+/**
+ * The first raid week (its Monday) on `RAID_REWARDS`, this week's included.
+ * ponytail: set to the deploy week when shipping, like `LOOT_ODDS_FROM`.
+ */
+export const RAID_REWARDS_FROM = "2026-10-26";
 /** What rung 1 pays. */
 export const RAID_COINS = RAID_REWARDS[0]!;
 /** Every level of the ladder pays this many times what the one before did. */
@@ -137,9 +147,18 @@ export const nextWeekHp = (hp: number, kills: number): number =>
 /** The HP of `rung`, from rung 1's. */
 export const rungHp = (base: number, rung: number): number => Math.round(base * HP_GROWTH ** (rung - 1));
 
-/** What each raider gets when the boss on `rung` falls on a level `level` ladder: 10, 25, 50, 75, 100, and 10% more each level. */
-export const rewardFor = (rung: number, level = 1): number =>
-  Math.round(RAID_REWARDS[Math.min(rung, RAID_REWARDS.length) - 1]! * REWARD_GROWTH ** (level - 1));
+/**
+ * What each raider gets when the boss on `rung` falls on a level `level` ladder: 40, 100, 200, 300, 400,
+ * and 10% more each level. `week` is the raid week it falls in: before `RAID_REWARDS_FROM` the old payout.
+ * Without one, today's.
+ */
+export const rewardFor = (rung: number, level = 1, week?: string): number =>
+  Math.round(
+    (week !== undefined && week < RAID_REWARDS_FROM ? OLD_RAID_REWARDS : RAID_REWARDS)[
+      Math.min(rung, RAID_REWARDS.length) - 1
+    ]! *
+      REWARD_GROWTH ** (level - 1),
+  );
 
 /** One player's world day, as the raid sees it. */
 export interface RaidDay {
@@ -258,7 +277,7 @@ function ladder(week: string, level: number, hp: number, days: readonly RaidDay[
         rung,
         boss: bossAt(rung, level),
         day,
-        coins: rewardFor(rung, level),
+        coins: rewardFor(rung, level, week),
         raiders: [...perUser]
           .filter(([, n]) => n >= RAIDER_AT)
           .map(([userId]) => userId)

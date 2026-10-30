@@ -8,7 +8,7 @@
  * colour, a company tag, and badge and trophy chips.
  */
 
-import { RARITIES, RARITY_COLOR, type Rarity, rarityOf } from "@tokenmaxxing/core/rarity.ts";
+import { RARITIES, RARITY_COLOR, type Rarity, rarityOf, TIER_COLOR } from "@tokenmaxxing/core/rarity.ts";
 import { ITEMS, type Item } from "@tokenmaxxing/core/shop.ts";
 import * as THREE from "three";
 import { knownColours } from "../../art/merch.ts";
@@ -25,24 +25,27 @@ import {
   merchTop,
   OUTFIT_BUILDERS,
 } from "./gear3dBody.ts";
+import { isPrestigeBack, isPrestigeOutfit, smoothFit } from "./gear3dSmoothBody.ts";
+import { AGING } from "./styles.ts";
 // The Night Market case adds its builders to the tables above when it loads.
 import "./gear3dCase.ts";
+// So does the Nusantara case.
+import "./gear3dNusantara.ts";
+// The Ragnarok Eve case (look indices 500 and up) does the same.
+import "./gear3dRagnarok.ts";
+// The pond treasures (look indices 600 and up, only fishing turns them up) too.
+import "./gear3dFishing.ts";
+// And the prestige tracks' (look indices 700 and up, earned in a prestige run).
+import "./gear3dPrestige.ts";
 import { AURA_BUILDERS } from "./gear3dAura.ts";
 import { COVERS_HAIR, type Ctx, FACE_BUILDERS, HAT_BUILDERS, lit, ring, see } from "./gear3dHead.ts";
+import { prestigeLabelHtml } from "./prestige-label.ts";
 import type { Hat, Look as VLook } from "./styles.ts";
 import { U, vpart } from "./voxgear.ts";
 
-/** Badge tier frames (`TIER_COLOR` in `core/src/rarity.ts` on the tavern branch). */
-export const TIER_COLOR = {
-  bronze: "#c98a4b",
-  silver: "#d5dbe4",
-  gold: "#ffd75e",
-  diamond: "#7fe8ff",
-} as const;
-
 export { BACK_BUILDERS, HELD_BUILDERS, OUTFIT_BUILDERS } from "./gear3dBody.ts";
 export { FACE_BUILDERS, HAT_BUILDERS } from "./gear3dHead.ts";
-export { LEGENDARY_LEVEL, RARITY_COLOR };
+export { LEGENDARY_LEVEL, RARITY_COLOR, TIER_COLOR };
 
 /** A saved 2D look: the fields of `core/src/world.ts` `Look` that dress a character. */
 export interface Look2D {
@@ -212,6 +215,37 @@ class Dress implements Gear {
           (sleeve as unknown as { material: unknown }).material = toon(color);
       }
     };
+    // Smooth bodies wear the prestige outfit and back (`gear3dSmoothBody.ts`), drawn in cubes scaled to fit them.
+    const sm = vox ? null : smoothFit(a.style, a.look.species === "human", AGING[a.look.age].width);
+    const smoothHost = sm ? (sm.parent === "arms" ? chest : a.body) : null;
+    if (sm && smoothHost) {
+      const torso = vpart(smoothHost, sm.at);
+      torso.scale.set(...sm.torso);
+      const armFrames = a.arms.map((arm) => {
+        const f = vpart(arm);
+        f.scale.set(...sm.arm);
+        return f;
+      }) as unknown as [Model, Model];
+      const body: BodyCtx = {
+        body: torso,
+        arms: armFrames,
+        main: this.outfit[0],
+        dark: this.outfit[1],
+        pants: this.pants,
+        tick,
+        sleeves,
+      };
+      if (isPrestigeOutfit(l.outfit)) OUTFIT_BUILDERS[l.outfit]?.(body);
+      if (worn.back && isPrestigeBack(worn.back.name)) {
+        const back = vpart(smoothHost, [
+          sm.at[0],
+          sm.at[1] + 8 * U * sm.torso[1],
+          sm.at[2] - 2 * U * sm.torso[2],
+        ]);
+        back.scale.setScalar(sm.back);
+        BACK_BUILDERS[worn.back.name]?.(back, tick);
+      }
+    }
     if (vox && chest) {
       const torso = vpart(chest, [0, 0, 0]);
       const body: BodyCtx = {
@@ -227,6 +261,7 @@ class Dress implements Gear {
       else OUTFIT_BUILDERS[l.outfit]?.(body);
       if (worn.back) {
         const back = vpart(chest, [0, 8 * U, -2 * U]);
+        back.name = "back";
         BACK_BUILDERS[worn.back.name]?.(back, tick);
       }
     }
@@ -235,6 +270,8 @@ class Dress implements Gear {
     const heldIn = (): Model => {
       const hand = frame(a.arms[1], [0, fit.hand, 0.01]);
       hand.scale.setScalar(vox ? 1.4 : 1.5 * (a.height / 0.95));
+      // A shop icon of the item draws this on its own (`icons.ts`).
+      hand.name = "held";
       return hand;
     };
     if (worn.held) HELD_BUILDERS[worn.held.name]?.(heldIn(), (fn) => tick((t) => fn(t)));
@@ -454,6 +491,8 @@ export interface BadgeChip {
 export interface TagOptions {
   name: string;
   level: number;
+  /** Their prestige badge (`prestige-run.ts`); a chip over the name when rank is 1 or more. */
+  prestige?: { rank: number; runLevel: number };
   /** Colours the tag: the rarest thing they wear (`wornBy(look).rarity`). */
   rarity?: Rarity;
   online?: boolean;
@@ -496,6 +535,12 @@ export function nameTag(o: TagOptions): HTMLDivElement {
   const gem = o.rarity && o.rarity !== "common" ? '<span class="gem"></span>' : "";
   name.innerHTML = `${gem}${escapeHtml(o.name)} <span class="lv">· Lv${o.level}${o.level >= LEGENDARY_LEVEL ? " ✦" : ""}</span>`;
   el.append(name);
+  if (o.prestige && o.prestige.rank > 0) {
+    const pr = document.createElement("div");
+    pr.className = "chips";
+    pr.innerHTML = prestigeLabelHtml(o.prestige.rank, o.prestige.runLevel);
+    el.prepend(pr);
+  }
   if (o.company) {
     const c = document.createElement("div");
     c.className = "chips";

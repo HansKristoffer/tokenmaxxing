@@ -14,10 +14,17 @@ import { gaitSettled, newGait, stepGait, walkPose } from "../people/motion.ts";
 import { Freezer, TINY_PX, view } from "../perf/freeze.ts";
 import { dragon, duck, ghost, goldfish, golem, orb, piggy } from "./pets3d-misc.ts";
 import { crane, kitsune, koi, maneki, tanuki, tengu } from "./pets3d-night.ts";
+import { fenrir, hildisvini, huginn, ratatoskr, sleipnir, tanngrisnir } from "./pets3d-norse.ts";
+import { NUSANTARA_PETS } from "./pets3d-nusantara.ts";
+import { POND_PETS } from "./pets3d-pond.ts";
 import { quad } from "./pets3d-quad.ts";
 import type { Rig } from "./petvox.ts";
+import { PETWEAR_AT, type Petwear3D, petwear3d } from "./prestige-petwear3d.ts";
 
 export type { Species } from "../data/pets.ts";
+
+/** The Ragnarok Eve case's pets (`pets3d-norse.ts`), by species. */
+const NORSE = { huginn, ratatoskr, tanngrisnir, hildisvini, sleipnir, fenrir };
 export type PetPose = "stand" | "sit" | "sleep";
 
 type Mesh = THREE.Mesh;
@@ -131,6 +138,8 @@ export class Pet3D {
   wear = 0;
   /** An owner at Lv50 and above has their pet crowned. */
   crown = false;
+  /** The owner's prestige pet accessory (`petwearRank`): 0 is none. It stands in for the crown unless worn at the neck. */
+  prestigeWear = 0;
   private readonly lift = this.root.part();
   private readonly body: THREE.Group;
   private readonly fore: THREE.Group;
@@ -145,6 +154,7 @@ export class Pet3D {
   private blinkAt = 2;
   private worn = 0;
   private wornGroup?: THREE.Object3D;
+  private prestiged: { rank: number; hat: boolean; crown: boolean; group: Petwear3D } | null = null;
   private spin?: THREE.Object3D;
   private crowned: {
     group: THREE.Object3D;
@@ -160,37 +170,44 @@ export class Pet3D {
     /** The costume id when named like a 2D Easter egg. */
     readonly outfit: string | null = null,
   ) {
-    const built =
-      species === "duck"
-        ? duck(variant)
-        : species === "dragon"
-          ? dragon(variant)
-          : species === "golem"
-            ? golem()
-            : species === "goldfish"
-              ? goldfish()
-              : species === "ghost"
-                ? ghost()
-                : species === "piggy"
-                  ? piggy()
-                  : species === "koi"
-                    ? koi()
-                    : species === "crane"
-                      ? crane()
-                      : species === "tanuki"
-                        ? tanuki()
-                        : species === "maneki"
-                          ? maneki()
-                          : species === "kitsune"
-                            ? kitsune()
-                            : species === "tengu"
-                              ? tengu()
-                              : species === "cat" ||
-                                  species === "dog" ||
-                                  species === "panda" ||
-                                  species === "forkedcat"
-                                ? quad(species, variant, outfit)
-                                : orb();
+    const nusantara = (NUSANTARA_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
+    const pond = (POND_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
+    const built = nusantara
+      ? nusantara()
+      : pond
+        ? pond()
+        : species === "duck"
+          ? duck(variant)
+          : species === "dragon"
+            ? dragon(variant)
+            : species === "golem"
+              ? golem()
+              : species === "goldfish"
+                ? goldfish()
+                : species === "ghost"
+                  ? ghost()
+                  : species === "piggy"
+                    ? piggy()
+                    : species === "koi"
+                      ? koi()
+                      : species === "crane"
+                        ? crane()
+                        : species === "tanuki"
+                          ? tanuki()
+                          : species === "maneki"
+                            ? maneki()
+                            : species === "kitsune"
+                              ? kitsune()
+                              : species === "tengu"
+                                ? tengu()
+                                : species in NORSE
+                                  ? NORSE[species as keyof typeof NORSE]()
+                                  : species === "cat" ||
+                                      species === "dog" ||
+                                      species === "panda" ||
+                                      species === "forkedcat"
+                                    ? quad(species, variant, outfit)
+                                    : orb();
     this.root.userData.actor = true;
     const { body: b, fore: f } = built;
     this.rig = built.rig;
@@ -226,13 +243,15 @@ export class Pet3D {
       gaitSettled(this.gait) &&
       settled &&
       !this.crown &&
+      !this.prestigeWear &&
       !this.spin &&
       !this.rig.fx &&
       this.pose !== "sleep";
     // Far down the crowd, or a few pixels tall (a display in a shop window seen from the street): a stride, a breath or
     // a blink is invisible, so it is drawn frozen whatever it does. Height: about half a unit, times the scale it is drawn at.
     const tiny = Math.hypot(e[4]!, e[5]!, e[6]!) * 0.5 * view.pxPerUnit < TINY_PX;
-    const far = (this.root.userData.lod || tiny) && !this.crown && !this.spin && !this.rig.fx;
+    const far =
+      (this.root.userData.lod || tiny) && !this.crown && !this.prestigeWear && !this.spin && !this.rig.fx;
     const key = far ? "far" : calm ? `${this.pose}:${this.wear}` : null;
     if (this.freezer.holds(key)) {
       this.last = t;
@@ -283,6 +302,10 @@ export class Pet3D {
     const dressed = sl < 0.5;
     if (this.wornGroup) this.wornGroup.visible = dressed;
     if (this.spin) this.spin.rotation.y = t * (walk ? 30 : 12);
+    if (this.prestiged) {
+      this.prestiged.group.visible = dressed;
+      if (dressed) this.prestiged.group.userData.tick(t);
+    }
     if (this.crowned) {
       this.crowned.group.visible = dressed;
       this.crowned.stars.forEach((s, i) => {
@@ -310,16 +333,33 @@ export class Pet3D {
       const g = gear(this.wear, r);
       if (g) {
         g.group.position.set(...(PETWEAR[this.wear - 1]?.at === "top" ? r.top : r.neck));
+        g.group.name = "petwear";
         r.head.add(g.group);
         this.wornGroup = g.group;
         this.spin = g.spin;
       }
       this.worn = this.wear;
     }
-    if (this.crown !== !!this.crowned || (this.crowned && this.crowned.lifted !== hat)) {
+    // The prestige accessory is raised over a hat, and over the crown if it is not replacing it.
+    const rank = this.prestigeWear;
+    const replaces = rank > 0 && PETWEAR_AT[rank - 1] === "top";
+    const crowned = this.crown && !replaces;
+    const p = this.prestiged;
+    if (p && (p.rank !== rank || p.hat !== hat || p.crown !== crowned)) {
+      p.group.removeFromParent();
+      this.prestiged = null;
+    }
+    if (rank && !this.prestiged) {
+      const group = petwear3d(rank, r.neckR);
+      const base = group.userData.at === "top" ? r.top : r.neck;
+      group.position.set(base[0], base[1] + (group.userData.at === "top" ? (hat ? 0.12 : 0) : 0), base[2]);
+      r.head.add(group);
+      this.prestiged = { rank, hat, crown: crowned, group };
+    }
+    if (crowned !== !!this.crowned || (this.crowned && this.crowned.lifted !== hat)) {
       this.crowned?.group.removeFromParent();
       this.crowned = null;
-      if (this.crown) {
+      if (crowned) {
         const c = makeCrown(r, hat ? 0.12 : 0);
         c.group.position.set(...r.top);
         r.head.add(c.group);
@@ -331,7 +371,8 @@ export class Pet3D {
 
 /**
  * The 3D twin of a 2D pet. `species` is `Look.pet` (1 duck, 2 cat, 3 dog, 4 dragon, 5 panda, 6 Singularity
- * orb, 7 to 11 the boss-loot pets, 200 to 205 the Night Market case's) or its name; `variant` is `Look.petVariant` (0 the original, n the
+ * orb, 7 to 11 the boss-loot pets, 300 to 305 the Night Market case's, 400 to 405 the Nusantara case's, 500 to 505
+ * Ragnarok Eve's, 600 and 601 the pond's) or its name; `variant` is `Look.petVariant` (0 the original, n the
  * n-th of `PET_VARIANTS`) or the variation's id; `name` is the pet's name, which dresses Penny and Nemo.
  */
 export function petFrom2D(species: number | string, variant: number | string = 0, name = ""): Pet3D {

@@ -5,6 +5,7 @@
  * rest come from `furniture.ts`; what it doesn't have yet (globe, plant wall, chandelier, Persian rug) is
  * built here and used only when `furniture.ts` has no piece by that name.
  */
+import type { Rot } from "@tokenmaxxing/core/office.ts";
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
 import { Pen } from "../../art/pixels.ts";
@@ -434,8 +435,8 @@ export function directoryBoard(): Model {
 export interface HqOptions {
   /** The wallet's desk tier (`CompanyInfo.deskFleet`), 0 the laptop. */
   fleet?: number;
-  /** The company's dropped pieces and posters, by map character and tile (`Placed`, `flip`: mirrored); none: the plain floor. */
-  placed?: { ch: string; x: number; y: number; flip?: boolean }[];
+  /** The company's dropped pieces and posters, by map character and tile (`Placed`, `rot`: turned); none: the plain floor. */
+  placed?: { ch: string; x: number; y: number; rot?: Rot }[];
   /** Walls and floor; the company's own colours by default. */
   floor?: string;
   wall?: string;
@@ -457,7 +458,7 @@ export interface Hq {
   tile: (x: number, y: number) => [number, number];
 }
 
-const flatBig: Asset = { id: "rug", name: "Rug", price: 10, w: 6, d: 3, build: persianRug(6, 3) };
+const flatBig: Asset = { id: "rug", name: "Rug", price: 15, w: 6, d: 3, build: persianRug(6, 3) };
 
 /** The 2D `hq` floor as a `Room`. Room tile (x, z) is map tile (x + 1, y + 2): the walls are the room's own. */
 export function buildHq(opts: HqOptions = {}): Hq {
@@ -568,17 +569,19 @@ export function buildHq(opts: HqOptions = {}): Hq {
       const m = assetFor("chandelier")!.build();
       const [rx, rz] = tile(p.x, p.y);
       m.position.set(rx + piece.w / 2, 0, rz + 0.5);
-      if (p.flip) m.scale.x = -m.scale.x;
+      m.rotation.y = -((p.rot ?? 0) * Math.PI) / 2;
       room.group.add(m);
       continue;
     }
     const a = assetFor(piece.art);
     if (!a) continue;
     const [rx, rz] = tile(p.x, p.y);
-    if (!room.fits(a, rx, rz, 0)) continue;
-    const placed = room.place(a, rx, rz, 0);
-    // Turned to face the other way (F): mirrored left to right, as the 2D game draws it.
-    if (p.flip) placed.model.scale.x = -placed.model.scale.x;
+    // Turned (F): a quarter turn lies it down its column, half or three quarters round it stays along its row.
+    const rot = p.rot ?? 0;
+    const tiles = piece.w ?? 1;
+    const [fw, fd] = rot % 2 ? [1, tiles] : Room.footprint(a, 0);
+    if (!room.fits({ ...a, w: fw, d: fd }, rx, rz, 0)) continue;
+    room.placeTurned(a, rx, rz, 0, rot, tiles);
   }
 
   // The exit: the front door in the south wall's door tile, opening on daylight, with its lamp and mat.

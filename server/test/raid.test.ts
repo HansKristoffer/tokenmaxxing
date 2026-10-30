@@ -4,7 +4,7 @@ import {
   MIN_HP,
   opensAt,
   PR_HIT,
-  RAID_COINS,
+  RAID_REWARDS,
   rewardFor,
   WEEKLY_GROWTH,
 } from "@tokenmaxxing/core/raid.ts";
@@ -19,6 +19,9 @@ let sql: TxSql;
 /** The first raid's week in these tests. */
 const RAID_START = "2026-10-19";
 const day = (n: number) => addDays(RAID_START, n);
+// Kills in the first week pay what weeks before `RAID_REWARDS_FROM` did; the week after pays today's.
+const OLD = (rung: number) => rewardFor(rung, 1, RAID_START);
+const NEW = (rung: number) => rewardFor(rung, 1, day(7));
 const launch = (week: string) =>
   sql.execute(
     "INSERT INTO raid_meta (key, value) VALUES ('start', ?) ON CONFLICT DO UPDATE SET value = ?",
@@ -89,7 +92,7 @@ test("the town's hits add up against the first rung", async () => {
   expect(r.me).toEqual({ damage: 100e6 + 2 * PR_HIT, rank: 2, weekCoins: 0, coins: 0 });
   // cy did under the raider threshold.
   expect(r.raiders).toBe(2);
-  expect(r.rules.rewards).toEqual([10, 25, 50, 75, 100]);
+  expect(r.rules.rewards).toEqual([...RAID_REWARDS]);
 });
 
 test("a fallen boss brings on the next and pays its raiders, in the wallet and on the admin page", async () => {
@@ -103,17 +106,17 @@ test("a fallen boss brings on the next and pays its raiders, in the wallet and o
   const r = await raid(sql, 3, await raidHistory(sql, NOW), NOW);
   // 2B falls on day 2, with cy's 1M over; 3B more (rung 2) on day 3.
   expect(r.kills.map((k) => [k.rung, k.boss.name, k.day, k.coins, k.raiders, k.paid])).toEqual([
-    [1, "The Rate Limit", day(2), rewardFor(1), 2, false],
-    [2, "The Context Window", day(3), rewardFor(2), 3, true],
+    [1, "The Rate Limit", day(2), OLD(1), 2, false],
+    [2, "The Context Window", day(3), OLD(2), 3, true],
   ]);
   expect(r.boss).toMatchObject({ name: "Merge Conflict", rung: 3 });
   expect(r.hp).toBe(MIN_HP * 1.5 * 1.5);
   expect(r.damage).toBe(1e6); // cy's overflow
   expect(r.totalDamage).toBe(5e9 + 1e6);
-  expect(r.me).toMatchObject({ weekCoins: rewardFor(2), coins: rewardFor(2) });
-  expect((await wallet(sql, 1, NOW)).raids).toBe(RAID_COINS + rewardFor(2));
-  expect((await wallet(sql, 2, NOW)).raids).toBe(RAID_COINS + rewardFor(2));
-  expect((await wallet(sql, 3, NOW)).raids).toBe(rewardFor(2));
+  expect(r.me).toMatchObject({ weekCoins: OLD(2), coins: OLD(2) });
+  expect((await wallet(sql, 1, NOW)).raids).toBe(OLD(1) + OLD(2));
+  expect((await wallet(sql, 2, NOW)).raids).toBe(OLD(1) + OLD(2));
+  expect((await wallet(sql, 3, NOW)).raids).toBe(OLD(2));
   const all = await balances(sql, NOW);
   for (const id of [1, 2, 3]) expect(all.get(id)).toBe((await wallet(sql, id, NOW)).balance);
 });
@@ -135,7 +138,7 @@ test("until 08:00 on Monday it shows last week as it ended; then the new ladder,
   expect(before.kills.map((k) => k.rung)).toEqual([1]);
   expect(before.boss.rung).toBe(2);
   expect(before.damage).toBe(1e9);
-  expect((await wallet(sql, 1, early)).raids).toBe(RAID_COINS);
+  expect((await wallet(sql, 1, early)).raids).toBe(OLD(1));
   expect((await balances(sql, early)).get(1)).toBe((await wallet(sql, 1, early)).balance);
 
   const after = await raid(sql, 1, await raidHistory(sql, gate), gate);
@@ -149,8 +152,8 @@ test("until 08:00 on Monday it shows last week as it ended; then the new ladder,
   expect(after.damage).toBe(1e9);
   expect(after.last).toMatchObject({ cleared: 1, defeated: true, raiders: 3 });
   expect(after.last!.boss.name).toBe("The Rate Limit");
-  expect(after.me).toMatchObject({ weekCoins: RAID_COINS, coins: 2 * RAID_COINS });
-  expect((await wallet(sql, 1, gate)).raids).toBe(2 * RAID_COINS);
+  expect(after.me).toMatchObject({ weekCoins: NEW(1), coins: OLD(1) + NEW(1) });
+  expect((await wallet(sql, 1, gate)).raids).toBe(OLD(1) + NEW(1));
   expect((await balances(sql, gate)).get(3)).toBe((await wallet(sql, 3, gate)).balance);
 });
 
@@ -206,6 +209,6 @@ for (const [season, start] of [
     // 8B against 3B and 4.5B: two down, 0.5B into rung 3.
     expect(after.kills.map((k) => k.rung)).toEqual([1, 2]);
     expect(after.damage).toBe(0.5e9);
-    expect((await wallet(sql, 1, gate)).raids).toBe(rewardFor(1) + rewardFor(2));
+    expect((await wallet(sql, 1, gate)).raids).toBe(rewardFor(1, 1, start) + rewardFor(2, 1, start));
     expect((await balances(sql, gate)).get(1)).toBe((await wallet(sql, 1, gate)).balance);
   });

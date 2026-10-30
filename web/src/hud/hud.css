@@ -2552,6 +2552,47 @@ button.lb-item:hover {
   border-style: dashed;
   box-shadow: 0 0 8px rgba(127, 232, 255, 0.5);
 }
+/* Past diamond: mythic has two gems on top, cosmic adds a double ring and a glow that shimmers. */
+.badge.badge--mythic {
+  --tier: #ff62c4;
+  border-width: 2px;
+  box-shadow: 0 0 10px rgba(255, 98, 196, 0.6);
+}
+.badge.badge--cosmic {
+  --tier: #a98bff;
+  border-width: 2px;
+  margin-right: 3px;
+  background: linear-gradient(
+    135deg,
+    rgba(169, 139, 255, 0.28),
+    rgba(255, 98, 196, 0.22),
+    rgba(127, 232, 255, 0.28)
+  );
+  box-shadow:
+    0 0 0 2px rgba(27, 31, 42, 0.9),
+    0 0 0 3px var(--tier),
+    0 0 12px rgba(169, 139, 255, 0.7);
+}
+.badge--mythic::before,
+.badge--mythic::after,
+.badge--cosmic::before,
+.badge--cosmic::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  width: 6px;
+  height: 6px;
+  background: var(--tier);
+  transform: rotate(45deg);
+}
+.badge--mythic::before,
+.badge--cosmic::before {
+  left: 8px;
+}
+.badge--mythic::after,
+.badge--cosmic::after {
+  right: 8px;
+}
 .badge-bar {
   display: block;
   height: 3px;
@@ -2568,6 +2609,17 @@ button.lb-item:hover {
 @media (prefers-reduced-motion: no-preference) {
   .badge--diamond {
     animation: diamond-glint 2.4s ease-in-out infinite;
+  }
+  .badge--cosmic {
+    animation: cosmic-shimmer 2.8s ease-in-out infinite;
+  }
+}
+@keyframes cosmic-shimmer {
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(27, 31, 42, 0.9),
+      0 0 0 3px #7fe8ff,
+      0 0 14px rgba(127, 232, 255, 0.85);
   }
 }
 @keyframes diamond-glint {
@@ -4038,6 +4090,8 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 .candy-chip .candy-doors {
   font-weight: normal;
   opacity: 0.85;
+}
+
 /* Påske's egg hunt chip (`hud/Paaske.tsx`). */
 .paaske-eggs {
   position: absolute;
@@ -4050,4 +4104,222 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   border: 1px solid var(--accent);
   border-radius: 999px;
   pointer-events: auto;
+}
+
+/* Your pet: stroke, treat, trick. Over the world, above the hotbar's place, so the pet stays in sight. */
+.pet-menu {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+}
+
+.pet-menu header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.pet-menu .close {
+  border: none;
+  background: none;
+  opacity: 0.7;
+}
+
+.pet-menu .acts {
+  display: flex;
+  gap: 4px;
+}
+
+.pet-menu p {
+  margin: 0;
+}
+
+@media (max-width: 1150px) {
+  .pet-menu {
+    bottom: 240px;
+  }
+}
+
+/* A borrowed rod and a small pond, usable by pointer, keyboard and touch. */
+.fishing-scene {
+  position: relative;
+  flex-shrink: 0;
+  height: 112px;
+  margin: 16px 0;
+  overflow: hidden;
+  border: 2px solid #4b6972;
+  background: repeating-linear-gradient(0deg, #467e91 0 12px, #508b9c 12px 14px);
+}
+.fishing-reeds {
+  position: absolute;
+  left: 14px;
+  bottom: 0;
+  font-size: 44px;
+}
+.fishing-bobber {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 9px;
+  height: 15px;
+  background: linear-gradient(#db655f 45%, #fff0d1 45%);
+  border: 2px solid #2b3548;
+  opacity: 0;
+}
+.fishing-bobber.cast {
+  opacity: 1;
+  animation: fishing-bob 1.5s ease-in-out infinite;
+}
+.biting .fishing-bobber {
+  animation: fishing-bob 0.2s ease-in-out infinite;
+}
+.fishing-catch {
+  position: absolute;
+  right: 22px;
+  bottom: 10px;
+}
+.fishing-catch.leap {
+  animation: fishing-leap 0.7s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+.fish-pic {
+  display: block;
+  image-rendering: pixelated;
+}
+.fishing-status code {
+  font-size: 0.95em;
+}
+.fishing-record {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border: 2px solid #ffd75e;
+  background: rgba(255, 215, 94, 0.12);
+  font-weight: bold;
+}
+.fishing-treasure {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 2px solid var(--r);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--r) 45%, transparent);
+  animation: fishing-shine 1.6s ease-in-out infinite alternate;
+}
+.fishing-treasure > span,
+.fishing-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.fishing-luck {
+  margin: 4px 0 10px;
+}
+.fishing-timer {
+  display: block;
+  width: 100%;
+  height: 14px;
+  margin-bottom: 12px;
+  accent-color: #8db56b;
+}
+.fishing-journal {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  column-gap: 20px;
+  list-style: none;
+  padding: 0;
+}
+.fishing-journal li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, #66566d);
+}
+.fishing-journal li .fishing-entry {
+  flex: 1;
+}
+.fishing-journal li.unseen strong {
+  opacity: 0.6;
+}
+.fishing-journal li.mine {
+  background: rgba(255, 215, 94, 0.08);
+}
+.fishing-blurb {
+  opacity: 0.8;
+  font-style: italic;
+}
+.fishing-medals {
+  display: flex;
+  gap: 4px;
+  font-size: 20px;
+  white-space: nowrap;
+}
+.fishing-treasures {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+}
+.fishing-treasures li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  text-align: center;
+  border: 2px solid var(--r);
+}
+.fishing-treasures li.unseen {
+  border-style: dashed;
+  opacity: 0.55;
+}
+.fishing-treasure-pic {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  font-size: 32px;
+}
+@keyframes fishing-leap {
+  0% {
+    transform: translate(-80px, 60px) rotate(-30deg);
+    opacity: 0;
+  }
+  60% {
+    transform: translate(-10px, -18px) rotate(10deg);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes fishing-shine {
+  to {
+    box-shadow: 0 0 30px color-mix(in srgb, var(--r) 70%, transparent);
+  }
+}
+@keyframes fishing-bob {
+  50% {
+    transform: translateY(5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fishing-bobber.cast,
+  .biting .fishing-bobber,
+  .fishing-catch.leap,
+  .fishing-treasure {
+    animation: none;
+  }
+  .biting .fishing-bobber {
+    outline: 3px solid #ffe9a8;
+  }
 }

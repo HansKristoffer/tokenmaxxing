@@ -40,17 +40,17 @@ const row = (
 
 /** `FURNITURE` in office.ts: the shop's basics, sold as `furn.<ch>`. */
 export const FURNITURE_ROWS: readonly FurnRow[] = [
-  row("Furniture", "furn.=", "Rug", 10, "rug", 3),
-  row("Furniture", "furn.p", "Plant", 20, "plant"),
-  row("Furniture", "furn.L", "Lamp", 25, "lamp"),
-  row("Furniture", "furn.c", "Chair", 30, "chair"),
-  row("Furniture", "furn.k", "Shelf", 40, "shelf"),
-  row("Furniture", "furn.B", "Bench", 40, "bench"),
-  row("Furniture", "furn.d", "Desk", 50, "desk", 2),
-  row("Furniture", "furn.o", "Coffee machine", 60, "coffee"),
-  row("Furniture", "furn.b", "Bed", 80, "bed"),
-  row("Furniture", "furn.s", "Sofa", 100, "sofa", 2),
-  row("Furniture", "furn.t", "TV", 120, "tv", 2),
+  row("Furniture", "furn.=", "Rug", 15, "rug", 3),
+  row("Furniture", "furn.p", "Plant", 30, "plant"),
+  row("Furniture", "furn.L", "Lamp", 40, "lamp"),
+  row("Furniture", "furn.c", "Chair", 45, "chair"),
+  row("Furniture", "furn.k", "Shelf", 60, "shelf"),
+  row("Furniture", "furn.B", "Bench", 60, "bench"),
+  row("Furniture", "furn.d", "Desk", 75, "desk", 2),
+  row("Furniture", "furn.o", "Coffee machine", 90, "coffee"),
+  row("Furniture", "furn.b", "Bed", 120, "bed"),
+  row("Furniture", "furn.s", "Sofa", 150, "sofa", 2),
+  row("Furniture", "furn.t", "TV", 180, "tv", 2),
   row("Furniture", "furn.g", "Touched grass", 0, "touched-grass", 2, {
     earned: "Sat on a blanket at an outage picnic",
   }),
@@ -91,30 +91,30 @@ export const COMPANY_ROWS: readonly FurnRow[] = [
 
 /** `HOME_PIECES` in home.ts: personal-office furniture. */
 export const HOME_ROWS: readonly FurnRow[] = [
-  row("Home", "furn.ø", "Cactus", 40, "cactus", 1, { blurb: "It has survived every sprint review so far." }),
-  row("Home", "furn.ê", "Framed certificate", 45, "certificate", 1, {
+  row("Home", "furn.ø", "Cactus", 60, "cactus", 1, { blurb: "It has survived every sprint review so far." }),
+  row("Home", "furn.ê", "Framed certificate", 70, "certificate", 1, {
     blurb: "Certified Prompt Engineer, with honours.",
   }),
-  row("Home", "furn.é", "Bean bag", 60, "bean-bag", 1, { blurb: "Getting up is a two-step process." }),
-  row("Home", "furn.Æ", "Hanging plant", 70, "hanging-plant", 1, { blurb: "A pothos on a macrame hanger." }),
-  row("Home", "furn.ç", "Wool rug", 70, "wool-rug", 2),
-  row("Home", "furn.ß", "Floor lamp", 80, "floor-lamp", 1, { blurb: "A warm bulb. Hygge, on a dimmer." }),
-  row("Home", "furn.æ", "Fiddle-leaf fig", 90, "fiddle-fig", 1, { blurb: "Dramatic about draughts." }),
-  row("Home", "furn.ö", "Rubber-duck shelf", 100, "duck-shelf", 1, {
+  row("Home", "furn.é", "Bean bag", 90, "bean-bag", 1, { blurb: "Getting up is a two-step process." }),
+  row("Home", "furn.Æ", "Hanging plant", 105, "hanging-plant", 1, { blurb: "A pothos on a macrame hanger." }),
+  row("Home", "furn.ç", "Wool rug", 105, "wool-rug", 2),
+  row("Home", "furn.ß", "Floor lamp", 120, "floor-lamp", 1, { blurb: "A warm bulb. Hygge, on a dimmer." }),
+  row("Home", "furn.æ", "Fiddle-leaf fig", 135, "fiddle-fig", 1, { blurb: "Dramatic about draughts." }),
+  row("Home", "furn.ö", "Rubber-duck shelf", 150, "duck-shelf", 1, {
     blurb: "Three ducks, ready to hear the bug.",
   }),
-  row("Home", "furn.Å", "Office whiteboard", 110, "wall-whiteboard", 2, {
+  row("Home", "furn.Å", "Office whiteboard", 165, "wall-whiteboard", 2, {
     blurb: "Seven boxes, eleven arrows, a cloud.",
   }),
-  row("Home", "furn.ä", "Mini fridge", 120, "home-fridge", 1, {
+  row("Home", "furn.ä", "Mini fridge", 180, "home-fridge", 1, {
     blurb: "Oat milk and a birthday cake slice.",
   }),
-  row("Home", "furn.å", "Bonsai on a stand", 130, "bonsai-stand", 1, {
+  row("Home", "furn.å", "Bonsai on a stand", 195, "bonsai-stand", 1, {
     blurb: "Trimmed one commit at a time.",
   }),
-  row("Home", "furn.ü", "Bookcase", 150, "bookcase", 2, { blurb: "Type systems, and one about sourdough." }),
-  row("Home", "furn.ñ", "Pink neon sign", 200, "wall-neon", 2, { blurb: "SHIP IT, in pink." }),
-  row("Home", "furn.Ø", "Mechanical keyboard display", 260, "keyboard-case", 2, {
+  row("Home", "furn.ü", "Bookcase", 225, "bookcase", 2, { blurb: "Type systems, and one about sourdough." }),
+  row("Home", "furn.ñ", "Pink neon sign", 300, "wall-neon", 2, { blurb: "SHIP IT, in pink." }),
+  row("Home", "furn.Ø", "Mechanical keyboard display", 390, "keyboard-case", 2, {
     blurb: "Look, don't touch.",
   }),
 ];
@@ -136,13 +136,13 @@ export const POSTER_ROWS: readonly FurnRow[] = [
 /** `DESKS` in desks.ts: sold as `desk.<id>`; `asset` is the tier index. */
 export const DESK_ROWS: readonly FurnRow[] = [
   row("Desks", "desk.laptop", "Laptop", 0, "0", 2, { blurb: "One screen, covered in stickers." }),
-  row("Desks", "desk.dual", "Dual monitors", 40, "1", 2, { blurb: "Code on one, docs on the other." }),
-  row("Desks", "desk.triple", "Triple monitors", 120, "2", 2, { blurb: "Agents, logs and a dashboard." }),
-  row("Desks", "desk.ultrawide", "Ultrawide", 300, "3", 2, {
+  row("Desks", "desk.dual", "Dual monitors", 60, "1", 2, { blurb: "Code on one, docs on the other." }),
+  row("Desks", "desk.triple", "Triple monitors", 180, "2", 2, { blurb: "Agents, logs and a dashboard." }),
+  row("Desks", "desk.ultrawide", "Ultrawide", 450, "3", 2, {
     level: 25,
     blurb: "One long curved screen, edge to edge.",
   }),
-  row("Desks", "desk.battlestation", "Battlestation", 600, "4", 2, {
+  row("Desks", "desk.battlestation", "Battlestation", 900, "4", 2, {
     level: 40,
     blurb: "Three screens, a glowing tower and RGB everywhere.",
   }),
@@ -153,24 +153,24 @@ export const WALLPAPER_ROWS: readonly FurnRow[] = [
   row("Wallpaper", "decor.wall.plain", "Cream panels", 0, "plain", 1, {
     blurb: "What every office starts with.",
   }),
-  row("Wallpaper", "decor.wall.hygge", "Hygge", 40, "hygge", 1, { blurb: "Warm cream and a candle's glow." }),
-  row("Wallpaper", "decor.wall.skagen", "Skagen yellow", 60, "skagen", 1, { blurb: "The painters' light." }),
-  row("Wallpaper", "decor.wall.nyhavn", "Nyhavn", 80, "nyhavn", 1, {
+  row("Wallpaper", "decor.wall.hygge", "Hygge", 60, "hygge", 1, { blurb: "Warm cream and a candle's glow." }),
+  row("Wallpaper", "decor.wall.skagen", "Skagen yellow", 90, "skagen", 1, { blurb: "The painters' light." }),
+  row("Wallpaper", "decor.wall.nyhavn", "Nyhavn", 120, "nyhavn", 1, {
     blurb: "Stripes in the harbour's colours.",
   }),
-  row("Wallpaper", "decor.wall.hammershoi", "Hammershøi", 100, "hammershoi", 1, {
+  row("Wallpaper", "decor.wall.hammershoi", "Hammershøi", 150, "hammershoi", 1, {
     blurb: "Hushed grey-blue.",
   }),
-  row("Wallpaper", "decor.wall.rundetaarn", "Rundetårn", 120, "rundetaarn", 1, {
+  row("Wallpaper", "decor.wall.rundetaarn", "Rundetårn", 180, "rundetaarn", 1, {
     blurb: "Red brick, like the Round Tower.",
   }),
-  row("Wallpaper", "decor.wall.terminal", "Terminal", 140, "terminal", 1, {
+  row("Wallpaper", "decor.wall.terminal", "Terminal", 210, "terminal", 1, {
     blurb: "Green text that never stops scrolling.",
   }),
-  row("Wallpaper", "decor.wall.jacobsen", "Arne Jacobsen", 160, "jacobsen", 1, {
+  row("Wallpaper", "decor.wall.jacobsen", "Arne Jacobsen", 240, "jacobsen", 1, {
     blurb: "Flat sage green, nothing more.",
   }),
-  row("Wallpaper", "decor.wall.kanban", "Kanban", 220, "kanban", 1, { blurb: "Nothing is in Done." }),
+  row("Wallpaper", "decor.wall.kanban", "Kanban", 330, "kanban", 1, { blurb: "Nothing is in Done." }),
   row("Wallpaper", "decor.wall.tivoli", "Tivoli", 0, "tivoli", 1, {
     level: 25,
     blurb: "Dark blue with little gold lights.",
@@ -180,22 +180,22 @@ export const WALLPAPER_ROWS: readonly FurnRow[] = [
 /** `FLOORS` in decor.ts. */
 export const FLOOR_ROWS: readonly FurnRow[] = [
   row("Floors", "decor.floor.boards", "Boards", 0, "boards", 1, { blurb: "What every office starts with." }),
-  row("Floors", "decor.floor.linoleum", "Linoleum", 40, "linoleum", 1, {
+  row("Floors", "decor.floor.linoleum", "Linoleum", 60, "linoleum", 1, {
     blurb: "Danish mid-century green.",
   }),
-  row("Floors", "decor.floor.terrazzo", "Terrazzo", 60, "terrazzo", 1, { blurb: "Speckled stone chips." }),
-  row("Floors", "decor.floor.klinker", "Klinker", 90, "klinker", 1, { blurb: "Red-brown clay tiles." }),
-  row("Floors", "decor.floor.parquet", "Parquet", 100, "parquet", 1, {
+  row("Floors", "decor.floor.terrazzo", "Terrazzo", 90, "terrazzo", 1, { blurb: "Speckled stone chips." }),
+  row("Floors", "decor.floor.klinker", "Klinker", 135, "klinker", 1, { blurb: "Red-brown clay tiles." }),
+  row("Floors", "decor.floor.parquet", "Parquet", 150, "parquet", 1, {
     blurb: "Herringbone, dark and glossy.",
   }),
-  row("Floors", "decor.floor.datacentre", "Server room", 140, "datacentre", 1, {
+  row("Floors", "decor.floor.datacentre", "Server room", 210, "datacentre", 1, {
     blurb: "Mind the cold aisle.",
   }),
-  row("Floors", "decor.floor.fiskebenet", "Fiskebenet", 180, "fiskebenet", 1, {
+  row("Floors", "decor.floor.fiskebenet", "Fiskebenet", 270, "fiskebenet", 1, {
     blurb: "Pale oak herringbone.",
   }),
-  row("Floors", "decor.floor.douglas", "Douglas planks", 240, "douglas", 1, { blurb: "Wide, pale planks." }),
-  row("Floors", "decor.floor.checker", "Checker", 300, "checker", 1, {
+  row("Floors", "decor.floor.douglas", "Douglas planks", 360, "douglas", 1, { blurb: "Wide, pale planks." }),
+  row("Floors", "decor.floor.checker", "Checker", 450, "checker", 1, {
     blurb: "Black and white, like a cafe.",
   }),
   row("Floors", "decor.floor.bornholm", "Bornholm cobble", 0, "bornholm", 1, {

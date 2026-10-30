@@ -1,4 +1,5 @@
 import { GameMap } from "@tokenmaxxing/core/maps.ts";
+import type { Rot } from "@tokenmaxxing/core/office.ts";
 import { worldWall } from "@tokenmaxxing/core/range.ts";
 import { houseTier, mapOf, ownerOfOffice } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
@@ -855,11 +856,11 @@ class Renderer3D implements Renderer {
   }
 
   /** The furniture ghost (`game/furniture.ts` decides, this shows): the piece over its tile, green where it fits. */
-  private showGhost(g: { item: string; tile: Tile | null; fits: boolean; flip: boolean } | null): void {
+  private showGhost(g: { item: string; tile: Tile | null; fits: boolean; rot: Rot } | null): void {
     const stage = this.stage;
     if (!g || !stage) return void this.placer.cancel();
     if (this.placer.itemId !== g.item && !this.placer.begin(g.item, stage.scene)) return;
-    this.placer.aim(stage.view, g.tile, g.fits, g.flip);
+    this.placer.aim(stage.view, g.tile, g.fits, g.rot);
   }
 
   // MARK: Picking

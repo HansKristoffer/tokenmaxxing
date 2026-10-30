@@ -32,7 +32,16 @@ const OUTSIDE: { on: BetOn; label: string }[] = [
   { on: "high", label: "19-36" },
 ];
 
-const PLAYER_COLORS = ["#e9b73d", "#4aa3ff", "#c46bff", "#ff8a4a"];
+const PLAYER_COLORS = [
+  "#e9b73d",
+  "#4aa3ff",
+  "#c46bff",
+  "#ff8a4a",
+  "#4ade80",
+  "#f472b6",
+  "#22d3ee",
+  "#a3e635",
+];
 const sum = (bets: readonly Bet[]) => bets.reduce((a, b) => a + b.stake, 0);
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;

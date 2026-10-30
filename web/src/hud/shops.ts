@@ -30,8 +30,11 @@ export const SHOP_DIRECTORY: readonly ShopEntry[] = SHOP_IDS.map((id) => ({
 export const shopSlots = (shop: ShopId): readonly ShopTab[] =>
   SHOP_TABS[shop].filter((t) => !(NOT_SLOTS as readonly string[]).includes(t));
 
-/** Tabs that are not item slots: the barber's looks and Møbelhuset's wallpaper, monitors and company supplies. */
-const NOT_SLOTS = ["look", "decor", "desk", "company"] as const;
+/**
+ * Tabs that are not item slots: the barber's looks, Møbelhuset's wallpaper, monitors and company supplies,
+ * Natmarked's cases and Torvehallen's display slots.
+ */
+const NOT_SLOTS = ["look", "decor", "desk", "company", "case", "market"] as const;
 
 /** "Buy hats at Thread & Token": where an item slot is sold, or null if it isn't sold in a shop. */
 export function buyHint(slot: string, noun: string): string | null {
