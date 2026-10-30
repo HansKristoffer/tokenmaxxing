@@ -4,7 +4,7 @@ import { FESTIVE_NPC, festiveAt } from "../src/festive.ts";
 import { GRAVES } from "../src/graveyard.ts";
 import { doorSteps, pumpkinSpots } from "../src/halloween.ts";
 import { HALLOWEEN_TAVERN, HALLOWEEN_TOWN } from "../src/halloween-music.ts";
-import { MAPS, plotId, townMap } from "../src/maps.ts";
+import { blockOf, MAPS, plotId, townMap } from "../src/maps.ts";
 import { copenhagenToMs } from "../src/sky.ts";
 import {
   batAt,
@@ -35,6 +35,20 @@ describe("where the Halloween things stand", () => {
     expect(town.at(CAULDRON.x, CAULDRON.y)).toBe(".");
     for (const s of EXTRA_STONES) expect(town.at(s.x, s.y)).toBe(".");
     for (const c of CANDY_SPOTS) expect(town.at(Math.floor(c.x), Math.floor(c.y))).toBe(".");
+  });
+
+  test("all of it is in the core, so a company's house never covers it (Gerda was inside one at -3,5)", () => {
+    const ring = [-1, 0, 1, 2].flatMap((bx) => [-1, 0, 1, 2].map((by) => plotId(bx, by)));
+    const full = townMap(ring);
+    for (const [x, y] of [
+      [GERDA_TILE.x, GERDA_TILE.y],
+      [CAULDRON.x, CAULDRON.y],
+      ...EXTRA_STONES.map((s) => [s.x, s.y]),
+    ]) {
+      const [bx, by] = blockOf(x!, y!);
+      expect(bx >= 0 && bx <= 1 && by >= 0 && by <= 1).toBe(true);
+      expect(full.at(x!, y!)).toBe(".");
+    }
   });
 
   test("nothing of it sits on a pumpkin, a graveyard plot or the tile in front of one, or on top of each other", () => {
