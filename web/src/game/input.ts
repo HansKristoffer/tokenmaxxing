@@ -28,6 +28,7 @@ import { conn } from "../net.ts";
 import { tossLanded } from "../render3d/town/world-logic.ts";
 import { chatBeside, hud } from "../store.ts";
 import { basementInteract } from "./basement.ts";
+import { befrielsenInteract, blocksBefrielsen, routeAround } from "./befrielsen.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
 import { clocksText } from "./clocks.ts";
@@ -278,7 +279,7 @@ export function walkTo(x: number, y: number): void {
   const me = self();
   takeOnArrival = false;
   if (!me || (x === me.x && y === me.y)) return;
-  path = route(world.map, [me.x, me.y], [x, y]) ?? [];
+  path = routeAround(route(world.map, [me.x, me.y], [x, y]) ?? [], [me.x, me.y], [x, y]);
   interactOnArrival = path.length > 0 && !world.map.walkable(x, y) && !world.map.kind(x, y).portal;
 }
 
@@ -415,6 +416,7 @@ export function updateSelf(now: number): void {
       blocksTruck(step.x, step.y) ||
       blocksBarrel(step.x, step.y) ||
       blocksBonfire(step.x, step.y) ||
+      blocksBefrielsen(step.x, step.y) ||
       blocksGrave(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;
@@ -523,6 +525,7 @@ function interact(): void {
   if (graveInteract(me)) return;
   if (keynoteInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();
+  if (befrielsenInteract(x, y)) return;
   if (festiveNpcAt(x, y)) return void talkToFestiveNpc();
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);

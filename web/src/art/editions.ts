@@ -3,6 +3,7 @@ import { costumeAt } from "@tokenmaxxing/core/costumes.ts";
 import { editionAt } from "@tokenmaxxing/core/editions.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
+import { CANDLE_HAT, FLAT_CAP } from "./befrielsen-hats.ts";
 import { CASE_GLASSES, CASE_HATS } from "./case.ts";
 import type { View } from "./characters.ts";
 import { C } from "./palette.ts";
@@ -119,6 +120,8 @@ const HATS: Record<string, Art> = {
     side: ["....Y...Y...Y...", "....YY.YYY.YY...", "....oYYYYYYYYo..", "....oYYkkYYrYo..", "....oyyyyyyyyo.."],
     pal: { o, Y: "#f5c842", y: "#c9971f", r: "#e8584f", k: o },
   },
+  "hat.265": FLAT_CAP,
+  "hat.266": CANDLE_HAT,
 };
 
 // Pixel art reads as a grid.

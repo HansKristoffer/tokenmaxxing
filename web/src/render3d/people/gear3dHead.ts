@@ -940,6 +940,25 @@ export const HAT_BUILDERS: Record<string, Build> = {
     for (const x of [-0.07, 0.07]) m.cyl(0.04, 0.08, "#2b2433", [x, 0.27 + up, 0.12], 0.004, 4);
     m.ball(0.03, lit("#e8584f"), [0, 0.2 + up, 0.25]);
   },
+  // Befrielsen's flat cap (`core/src/costumes.ts`): a low grey tweed crown, a dark band, a short brim to the front.
+  "Veteran's flat cap": (m) => {
+    const up = isVox(m) ? 0.06 : 0;
+    dome(m, "#7b7f88", 0.29, 0.02 + up, 0.36);
+    band(m, "#3f4249", 0.285, 0.05, 0.02 + up);
+    m.box([0.3, 0.025, 0.17], "#3f4249", [0, 0.05 + up, 0.26], 0.01).rotation.x = -0.1;
+    m.ball(0.02, "#5d616a", [0, 0.2 + up, 0]);
+  },
+  // Befrielsen's window candle: a candle on a china saucer on the crown, a small flame that flickers.
+  "Window candle": (m, c) => {
+    const up = isVox(m) ? 0.08 : 0;
+    m.cyl(0.18, 0.03, "#cfd9ee", [0, 0.27 + up, 0], 0.13, 16);
+    m.cyl(0.05, 0.2, "#f4efe4", [0, 0.3 + up, 0], 0.05, 10);
+    const flame = m.ball(0.045, lit("#ffd45a"), [0, 0.56 + up, 0], [0.8, 1.5, 0.8], 8);
+    m.ball(0.022, lit("#fff3b0"), [0, 0.55 + up, 0], [0.8, 1.4, 0.8], 6);
+    c.tick((t) => {
+      flame.scale.y = 1.4 + Math.sin(t * 9) * 0.25;
+    });
+  },
   "429 bucket hat": (m) => {
     m.cyl(0.215, 0.17, "#4fb3a9", [0, 0.07, 0], 0.2, 18);
     m.cyl(0.215, 0.05, "#3a8c84", [0, 0.07, 0], 0.34, 22).position.y = 0.08;
@@ -1721,4 +1740,5 @@ export const COVERS_HAIR = new Set([
   "Straw kasa",
   "Fox half-mask",
   "Kattekonge crown",
+  "Veteran's flat cap",
 ]);

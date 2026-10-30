@@ -1,3 +1,4 @@
+import { BEFRIELSEN_TAVERN, BEFRIELSEN_TOWN } from "./befrielsen-music.ts";
 import type { FestiveId } from "./festive.ts";
 import type { Tune } from "./tunes.ts";
 import type { RoomId } from "./world.ts";
@@ -100,4 +101,6 @@ export const festiveTheme = (festive: FestiveId | null | undefined, base: BaseTh
  * plays it for the room; when the window ends it is the usual tune again, with no cleanup. A theme with no entry,
  * or a room it doesn't list, plays the usual tune.
  */
-export const FESTIVE_THEMES: Partial<Record<FestiveId, Partial<Record<FestiveRoomTheme, Theme>>>> = {};
+export const FESTIVE_THEMES: Partial<Record<FestiveId, Partial<Record<FestiveRoomTheme, Theme>>>> = {
+  befrielsen: { town: BEFRIELSEN_TOWN, tavern: BEFRIELSEN_TAVERN },
+};

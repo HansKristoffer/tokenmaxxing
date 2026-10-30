@@ -35,6 +35,7 @@ import { initialsOf, perObject } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { graphics } from "../settings/graphics.ts";
 import { drawBasement, lightBasement } from "./basement.ts";
+import { candleWindows, drawBefrielsen, lightBefrielsen } from "./befrielsen.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
 import { drawClocks } from "./clocks.ts";
@@ -318,6 +319,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       const pane = panes[i]!;
       peekHits.push({ x: left + pane.x, y: top + pane.y, w: pane.w, h: pane.h, id: p.id });
     }
+    if (outdoors) candleWindows(f, panes, { left, top, bottom });
     // At night each window shines: the people at home in it, or (for some empty rooms) just a lamp.
     if (outdoors)
       for (const [i, pane] of panes.entries()) {
@@ -385,6 +387,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawPicnic(f);
   drawGrid(f);
   drawPumpkins(f);
+  drawBefrielsen(f);
   drawTruck(f);
   drawBarrel(f);
   drawBonfire(f);
@@ -501,6 +504,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
       drawLights(g, lamps, windows, glow, lampDim());
       lightPumpkins(g, glow, now);
+      lightBefrielsen(g, glow, now);
       lightTruck(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
