@@ -4,8 +4,9 @@
  * `drawPumpkins` and lit from `lightPumpkins` (`halloween.ts`), so `render.ts` needs nothing. The 3D town is
  * `render3d/town/halloween3d.ts`. Both ask `spookyOn()`, which is the festive theme being Halloween.
  *
- * Trick-or-treat is client-only: what a door gives is a hash of the door and the day (`treatAt`), and a door
- * that has opened today is remembered in this browser. Candy is for show.
+ * Trick-or-treat: what a door gives is a hash of the door and the day (`treatAt`). The server keeps every knock
+ * (`world.knock`), so knocking on every door in one night is the Sugar king badge and the Candy bucket hat; this
+ * browser keeps a copy of today's doors and the candy for the bucket on screen.
  */
 import { doorSteps } from "@tokenmaxxing/core/halloween.ts";
 import {
@@ -19,13 +20,13 @@ import {
   GERDA_TILE,
   ghostAt,
   HAUNTS,
+  type Knock,
   STIR_LINES,
   spookyBlocks,
   TREAT_CANDY,
-  treatAt,
   treatSays,
 } from "@tokenmaxxing/core/spooky.ts";
-import { TILE } from "@tokenmaxxing/core/world.ts";
+import { type Facing, TILE } from "@tokenmaxxing/core/world.ts";
 import {
   batSprite,
   candySprite,
@@ -35,6 +36,7 @@ import {
   GERDA_LANTERN,
   ghostSprite,
 } from "../art/spooky.ts";
+import { conn } from "../net.ts";
 import { storage } from "../storage.ts";
 import { hud } from "../store.ts";
 import { festiveNow } from "./festive.ts";
@@ -53,7 +55,7 @@ const listeners = new Set<() => void>();
 let version = 0;
 
 export interface Bucket {
-  /** Sweets collected (kept across years: it's only for show). */
+  /** Sweets collected, all told (the server's count, as of the last knock). */
   candy: number;
   /** Doors that have opened today, and how many there are. */
   doors: number;
@@ -88,8 +90,8 @@ const changed = (): void => {
 
 let stirs = 0;
 
-/** E on (x, y): knocks a doorstep, stirs the cauldron, reads a lawn stone. False when it's none of those (or the theme's off). */
-export function spookyInteract(x: number, y: number): boolean {
+/** E on (x, y), facing `facing`: knocks a doorstep (the server opens it), stirs the cauldron, reads a lawn stone. False when it's none of those (or the theme's off). */
+export function spookyInteract(x: number, y: number, facing: Facing): boolean {
   if (!spookyOn()) return false;
   if (x === CAULDRON.x && y === CAULDRON.y) {
     hud.set({ dialog: STIR_LINES[stirs++ % STIR_LINES.length]! });
@@ -103,24 +105,37 @@ export function spookyInteract(x: number, y: number): boolean {
   const step = doorSteps(world.map).find((d) => d.x === x && d.y === y);
   if (!step) return false;
   const day = dayKey(skyNow());
-  const door = doorKey(step.door);
-  const key = knockKey(day, door);
-  if (storage.getItem(key)) {
-    // The Tavern's step is also where its paper lies: once knocked, E reads the paper.
-    if (world.map.at(step.door[0], step.door[1]) === "I") return false;
-    hud.set({ dialog: "🎃 You've knocked here already today. Try another door, or come back tomorrow." });
-    return true;
-  }
-  const treat = treatAt(door, day);
-  storage.setItem(key, treat);
-  const got = TREAT_CANDY[treat];
-  if (got) storage.setItem(CANDY_KEY, String((Number(storage.getItem(CANDY_KEY)) || 0) + got));
-  const { doors, of } = bucket();
-  const tail = got ? ` +${got} 🍬` : "";
-  const all = doors >= of && of > 0 ? " That was every door tonight: sugar king!" : "";
-  hud.set({ dialog: `🎃 ${treatSays(treat, door, day)}${tail}${all}` });
-  changed();
+  // The Tavern's step is also where its paper lies: once knocked, E reads the paper.
+  if (storage.getItem(knockKey(day, doorKey(step.door))) && world.map.at(step.door[0], step.door[1]) === "I")
+    return false;
+  void conn
+    .knock(facing)
+    .then((r) => {
+      if (!r) return;
+      if ("notice" in r) return void hud.set({ dialog: r.notice });
+      knocked(r, day);
+    })
+    .catch(() => hud.set({ dialog: "🎃 Nobody heard you. Try again." }));
   return true;
+}
+
+/** What the door said: the bucket takes the server's count (it keeps the knocks, for the badge), and the line. */
+function knocked(r: Knock, day: string): void {
+  for (const door of r.knocked) storage.setItem(knockKey(day, door), "1");
+  storage.setItem(CANDY_KEY, String(r.candy));
+  changed();
+  if (r.treat === null)
+    return void hud.set({
+      dialog: "🎃 You've knocked here already today. Try another door, or come back tomorrow.",
+    });
+  const got = TREAT_CANDY[r.treat];
+  const tail = got ? ` +${got} 🍬` : "";
+  const all = r.king
+    ? " That was every door tonight: sugar king! 🍬 The Candy bucket hat is in your bag."
+    : r.knocked.length >= r.of && r.of > 0
+      ? " That was every door tonight: sugar king!"
+      : ` ${r.knocked.length}/${r.of} doors.`;
+  hud.set({ dialog: `🎃 ${treatSays(r.treat, r.door, day)}${tail}${all}` });
 }
 
 /** The lawn stones, Gerda and the cauldron take a step off you. */

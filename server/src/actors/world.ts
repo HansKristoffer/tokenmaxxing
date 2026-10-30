@@ -44,6 +44,7 @@ import {
   tend,
   withChanges,
 } from "@tokenmaxxing/core/graveyard.ts";
+import { doorSteps } from "@tokenmaxxing/core/halloween.ts";
 import { isTruck } from "@tokenmaxxing/core/jdag.ts";
 import {
   type Jukebox,
@@ -118,6 +119,7 @@ import { isBonfire } from "@tokenmaxxing/core/sankthans.ts";
 import { canDropIn, itemById } from "@tokenmaxxing/core/shop.ts";
 import { shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { iceOver, sameWeather, type Weather } from "@tokenmaxxing/core/sky.ts";
+import { doorKey as doorstepKey, type Knock } from "@tokenmaxxing/core/spooky.ts";
 import { milestoneLine, NO_STARS, readStars, type Stars, type StarsState } from "@tokenmaxxing/core/stars.ts";
 import {
   afterRead,
@@ -209,6 +211,7 @@ import { RateLimiter } from "../rate-limit.ts";
 import { readLeader, STATUE_EVERY_MS, STATUE_RETRY_MS } from "../statue.ts";
 import { counts, TavernClock } from "../tavern-clock.ts";
 import type { Whack } from "../town/fastelavn.ts";
+import { trickOrTreatOn } from "../town/halloween.ts";
 import { parseChatText } from "../validate.ts";
 import {
   fetchPollen,
@@ -430,6 +433,8 @@ export const world = actor({
     fishingStarts: new Map<number, number>(),
     /** When each player last whacked the fastelavn barrel, and the barrel as `town` last said (null off the day). */
     whacks: new Map<number, number>(),
+    /** When each player last knocked on a Halloween door, so a held key can't flood `town`. */
+    knocks: new Map<number, number>(),
     barrel: null as Barrel | null,
     barrelAt: 0,
     chat: new RateLimiter(CHAT_PER_MIN, 60_000),
@@ -902,6 +907,46 @@ export const world = actor({
       }
       if (king) return { notice: `🐱 Already broken. ${king.name} is kattekonge this year.` };
       return { notice: `🪅 Whack! ${HITS - hits} to go.` };
+    },
+
+    /**
+     * E facing a Halloween doorstep on the 30th or 31st: a knock (`town.knock`), kept so it counts. The knock on
+     * the night's last door makes its player sugar king: the bucket hat, and the town hears.
+     */
+    knock: async (c, facing: unknown): Promise<Knock | { notice: string } | null> => {
+      const p = free(c);
+      if (p?.room !== "town") return null;
+      const now = Date.now();
+      touch(c, p, now);
+      if (isFacing(facing)) p.facing = facing;
+      const [dx, dy] = DIRS[p.facing];
+      const steps = doorSteps(mapOf("town"));
+      const step = steps.find((s) => s.x === p.x + dx && s.y === p.y + dy);
+      if (!step) return null;
+      if (!trickOrTreatOn(now))
+        return { notice: "🎃 Nobody answers. Trick-or-treat is on the 30th and 31st of October." };
+      if (now - (c.vars.knocks.get(p.id) ?? 0) < KNOCK_MS) return null;
+      c.vars.knocks.set(p.id, now);
+      let r: Knock;
+      try {
+        r = await main(c.client()).town.knock(
+          p.id,
+          doorstepKey(step.door),
+          steps.map((s) => doorstepKey(s.door)),
+        );
+      } catch (err) {
+        console.warn(`[knock] ${p.id}: ${String(err)}`);
+        return { notice: "That didn't work. Try again." };
+      }
+      if (r.king)
+        await announce(
+          c,
+          "town",
+          `🍬 ${p.name} knocked on every door tonight and is sugar king!`,
+          0,
+          "🎃",
+        ).catch((err) => console.warn(`[knock] announce: ${String(err)}`));
+      return r;
     },
 
     /** E while facing a coffee machine, or ordered at the Tavern's bar: one more cup, and everyone sees you shake. */
@@ -1614,6 +1659,7 @@ export const world = actor({
         c.vars.fishing,
         c.vars.fishingStarts,
         c.vars.whacks,
+        c.vars.knocks,
       ])
         vars.delete(userId);
       for (const set of [c.vars.dirty, c.vars.hidden]) set.delete(userId);
@@ -2379,6 +2425,9 @@ async function refreshKeynotes(c: {
 }
 
 // MARK: Fastelavn (core/src/fastelavn.ts)
+
+/** A knock on a Halloween door at most this often per player. */
+const KNOCK_MS = 400;
 
 /** On Fastelavn the barrel is asked of `town` this often (whacks through this world keep it fresher). */
 const BARREL_EVERY_MS = 60_000;

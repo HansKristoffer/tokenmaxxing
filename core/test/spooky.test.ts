@@ -9,6 +9,7 @@ import { copenhagenToMs } from "../src/sky.ts";
 import {
   batAt,
   batCount,
+  CANDY_BUCKET,
   CANDY_SPOTS,
   CAULDRON,
   dayKey,
@@ -171,9 +172,13 @@ describe("the music", () => {
 });
 
 describe("the costumes", () => {
-  test("three new hats in Halloween's reserved range, none colliding, sold round Halloween", () => {
-    const mine = COSTUMES.filter((c) => c.index >= COSTUME_BASE + 30 && c.index <= COSTUME_BASE + 39);
-    expect(mine.map((c) => c.name)).toEqual(["Witch hat", "Ghost sheet", "Bat ears"]);
+  test("three hats sold round Halloween in its reserved range, and the sugar king's earned one, none colliding", () => {
+    const range = COSTUMES.filter((c) => c.index >= COSTUME_BASE + 30 && c.index <= COSTUME_BASE + 39);
+    expect(range.map((c) => c.name)).toEqual(["Witch hat", "Ghost sheet", "Bat ears", "Candy bucket"]);
+    const bucket = range.find((c) => c.id === CANDY_BUCKET);
+    expect(bucket).toMatchObject({ price: 0, tradeable: false, holiday: "halloween" });
+    expect(bucket?.earned).toBeTruthy();
+    const mine = range.filter((c) => !c.earned);
     expect(new Set(COSTUMES.map((c) => c.index)).size).toBe(COSTUMES.length);
     expect(new Set(COSTUMES.map((c) => c.id)).size).toBe(COSTUMES.length);
     for (const c of mine) {

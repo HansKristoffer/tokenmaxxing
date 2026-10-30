@@ -2,7 +2,7 @@ import type { Art } from "./editions.ts";
 import { C } from "./palette.ts";
 
 /**
- * Halloween's hats in 2D (`core/src/costumes.ts`, hat.230 to hat.232), keyed by item id and spread into the costume table
+ * Halloween's hats in 2D (`core/src/costumes.ts`, hat.230 to hat.233), keyed by item id and spread into the costume table
  * in `editions.ts`. Same grids as the rest: 16 wide, drawn over the head from row 0. The 3D ones are
  * `render3d/people/halloween-hats.ts`.
  */
@@ -25,5 +25,10 @@ export const HALLOWEEN_HATS: Record<string, Art> = {
   "hat.232": {
     down: ["...oo......oo...", "...oBo....oBo...", "...oBBo..oBBo...", "...oBBooooBBo..."],
     pal: { o: "#14091f", B: "#7a4aa8" },
+  },
+  // Candy bucket (the sugar king's, never sold): an orange pumpkin pail with a grin and a handle, heaped with sweets.
+  "hat.233": {
+    down: ["......oooo......", ".....o....o.....", "...oRYBGRYBGo...", "...oppppppppo...", "...opkppppkpo...", "...oppppppppo...", "...opkkkkkkpo...", "...oPPPPPPPPo..."],
+    pal: { o, p: "#e8772a", P: "#c25a1c", k: "#14091f", R: "#ff4fa3", Y: "#ffe14a", B: "#4fd1ff", G: "#8a3b12" },
   },
 };

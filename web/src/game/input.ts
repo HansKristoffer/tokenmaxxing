@@ -591,7 +591,7 @@ function interact(): void {
   // E on your own clone (or its laptop) in the raid dungeon takes your seat; others' seats are not yours.
   if (world.room === "dungeon" && sit(x, y)) return;
   // Halloween's doorsteps knock before the paper on the Tavern's step is read.
-  if (spookyInteract(x, y)) return;
+  if (spookyInteract(x, y, me.facing)) return;
   if (streetInteract(me, x, y, send)) return;
   if (windmillInteract(x, y)) return;
   if (truckInteract(x, y)) return;
