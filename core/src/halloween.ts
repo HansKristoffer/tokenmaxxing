@@ -18,7 +18,7 @@ export const pumpkinsOut = (ms: number): boolean => near("halloween", ms, PUMPKI
 const DOORS = ["I", "D", ...Object.values(SHOP_DOOR_CHAR)];
 
 /** The patch on the lawn above the pond, in town tiles. */
-const PATCH: readonly [number, number][] = [
+export const PATCH: readonly [number, number][] = [
   [3, 10],
   [5, 10],
   [4, 11],
@@ -31,12 +31,19 @@ export interface Pumpkin {
   big: boolean;
 }
 
+/** A door with a jack-o'-lantern on its step: the door's tile and the grass tile the pumpkin sits on. */
+export interface Doorstep {
+  door: readonly [number, number];
+  x: number;
+  y: number;
+}
+
 /**
- * Where the pumpkins sit in `map` (the town): on the grass beside the path below each door (to its left,
- * else its right: the morning paper lands on the right), then the patch. Only on grass, so never in a path.
+ * The doorsteps in `map` (the town): on the grass beside the path below each door (to its left, else its right:
+ * the morning paper lands on the right). Only on grass, so never in a path.
  */
-export function pumpkinSpots(map: GameMap): Pumpkin[] {
-  const spots: [number, number][] = [];
+export function doorSteps(map: GameMap): Doorstep[] {
+  const out: Doorstep[] = [];
   for (const ch of DOORS)
     for (const [x, y] of map.find(ch)) {
       const spot = (
@@ -45,8 +52,14 @@ export function pumpkinSpots(map: GameMap): Pumpkin[] {
           [x + 1, y + 1],
         ] as const
       ).find(([sx, sy]) => map.at(sx, sy) === ".");
-      if (spot) spots.push([spot[0], spot[1]]);
+      if (spot) out.push({ door: [x, y], x: spot[0], y: spot[1] });
     }
+  return out;
+}
+
+/** Where the pumpkins sit in `map` (the town): each doorstep, then the patch. */
+export function pumpkinSpots(map: GameMap): Pumpkin[] {
+  const spots: [number, number][] = doorSteps(map).map((d) => [d.x, d.y]);
   for (const [x, y] of PATCH) if (map.at(x, y) === ".") spots.push([x, y]);
   return spots.map(([x, y]) => ({ x, y, big: (x * 7 + y * 3) % 3 !== 0 }));
 }

@@ -10,6 +10,7 @@ import { pumpkinSprite } from "../art/halloween.ts";
 import type { Frame } from "./frame.ts";
 import { drawGlow, flicker } from "./glow.ts";
 import { lightsNow, skyNow } from "./sky.ts";
+import { drawSpooky, lightSpooky } from "./spooky.ts";
 import { world } from "./world.ts";
 
 /** How bright the lamps must be for the candles to be lit. */
@@ -35,7 +36,10 @@ export function pumpkinsNow(): Pumpkin[] {
   return spots.pumpkins;
 }
 
-export function drawPumpkins({ g, items, now }: Frame): void {
+export function drawPumpkins(f: Frame): void {
+  const { g, items, now } = f;
+  // The 30th and 31st's extras (bats, ghosts, cobwebs, the cauldron, trick-or-treat): `spooky.ts`.
+  drawSpooky(f);
   const lit = candlesLit(now);
   for (const { x, y, big } of pumpkinsNow()) {
     const s = pumpkinSprite(big, lit);
@@ -48,6 +52,7 @@ export function drawPumpkins({ g, items, now }: Frame): void {
 
 /** The candles' glow, over the night's tint (`drawLight`), at `strength` (the lamps'). In world space. */
 export function lightPumpkins(g: CanvasRenderingContext2D, strength: number, now: number): void {
+  lightSpooky(g, strength, now);
   if (!candlesLit(now)) return;
   for (const [i, { x, y, big }] of pumpkinsNow().entries())
     drawGlow(

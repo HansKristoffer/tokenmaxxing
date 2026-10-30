@@ -10,6 +10,7 @@ installHeadlessGlobals();
 Object.assign(globalThis.location, { origin: "http://localhost" });
 
 const { drawPumpkins } = await import("../src/game/halloween.ts");
+const { graphics } = await import("../src/settings/graphics.ts");
 const { world } = await import("../src/game/world.ts");
 const { Pumpkins } = await import("../src/render3d/town/pumpkins3d.ts");
 const { itemFrame } = await import("../src/art/characters.ts");
@@ -26,6 +27,8 @@ const map = townMap([plotId(-2, 0), plotId(0, 2)]);
 const toWorld = (tx: number, ty: number): [number, number] => [tx - map.x0 + 1.5, ty - map.y0 + 1.5];
 
 afterEach(() => setSystemTime());
+// The pumpkins alone: the 30th and 31st's spooky extras (`spooky.test.ts`) are a seasonal effect, so off.
+graphics.override("seasonal", false);
 
 /** The tiles the 2D town draws pumpkins on, read back from where each sprite goes. */
 function drawn2D(): [number, number][] {
