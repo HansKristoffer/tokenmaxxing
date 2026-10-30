@@ -46,6 +46,7 @@ import { setHover } from "./near.ts";
 import { picnicSeat } from "./picnic.ts";
 import { seated, sit, standUp } from "./raidseat.ts";
 import { blocksBonfire, bonfireInteract } from "./sankthans.ts";
+import { blocksSpooky, spookyInteract } from "./spooky.ts";
 import { pickTile } from "./stage.ts";
 import { statueText } from "./statue.ts";
 import { blocksStep, streetInteract } from "./street.ts";
@@ -415,7 +416,8 @@ export function updateSelf(now: number): void {
       blocksTruck(step.x, step.y) ||
       blocksBarrel(step.x, step.y) ||
       blocksBonfire(step.x, step.y) ||
-      blocksGrave(step.x, step.y))
+      blocksGrave(step.x, step.y) ||
+      blocksSpooky(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;
   if (target.kind === "blocked") {
@@ -514,6 +516,8 @@ function interact(): void {
   if (interactAnimal(x, y) || interactTownProp(x, y)) return;
   // E on your own clone (or its laptop) in the raid dungeon takes your seat; others' seats are not yours.
   if (world.room === "dungeon" && sit(x, y)) return;
+  // Halloween's doorsteps knock before the paper on the Tavern's step is read.
+  if (spookyInteract(x, y)) return;
   if (streetInteract(me, x, y, send)) return;
   if (windmillInteract(x, y)) return;
   if (truckInteract(x, y)) return;

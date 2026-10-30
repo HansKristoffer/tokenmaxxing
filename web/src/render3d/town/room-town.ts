@@ -17,6 +17,7 @@ import { FestiveNpc3d } from "./festive-npc3d.ts";
 import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
 import { Graveyard3D } from "./graveyard3d.ts";
+import { HalloweenTown3d } from "./halloween3d.ts";
 import { FallingLeaves } from "./leaves3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
@@ -106,6 +107,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // The festive theme's named NPC, there while its theme is (`FESTIVE_NPC`).
   const festiveNpc = new FestiveNpc3d((tx, ty) => town.toWorld(tx, ty));
   group.add(festiveNpc.group);
+  // Halloween's spooky night: bats, ghosts, cobwebs, the cauldron, the lawn stones, mist (`core/src/spooky.ts`).
+  const halloween = new HalloweenTown3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  group.add(halloween.group);
   // J-dag's truck, on the road under the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
@@ -152,6 +156,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       markers.update(f.me, f.t);
       pumpkins.update(f.now);
       festiveNpc.update(f.t);
+      halloween.update(f.t, f.me);
       truck.update();
       barrel.update(f.t);
       bonfire.update(f.t);
@@ -174,11 +179,13 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       ...(gateLive?.signs() ?? []),
       ...games.signs(),
       ...graveyard.signs(),
+      ...halloween.signs(),
     ],
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();
       festiveNpc.dispose();
+      halloween.dispose();
       statue.dispose();
       fireworks.dispose();
       events.dispose();

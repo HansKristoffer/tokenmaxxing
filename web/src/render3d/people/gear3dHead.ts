@@ -9,6 +9,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { glow, type Model, type Paint, tint, toon } from "../kit/kit.ts";
+import { HALLOWEEN_HAT_BUILDERS } from "./halloween-hats.ts";
 import {
   boxBand,
   boxRing,
@@ -1108,6 +1109,7 @@ export const HAT_BUILDERS: Record<string, Build> = {
     ] as const)
       tilt(m, m.box([0.014, 0.15, 0.03], "#d9323a", [0.27, -0.06, z], 0.004), lean, 0, 0.12);
   },
+  ...HALLOWEEN_HAT_BUILDERS,
 };
 
 // MARK: Face
@@ -1721,4 +1723,7 @@ export const COVERS_HAIR = new Set([
   "Straw kasa",
   "Fox half-mask",
   "Kattekonge crown",
+  "Witch hat",
+  "Ghost sheet",
+  "Bat ears",
 ]);

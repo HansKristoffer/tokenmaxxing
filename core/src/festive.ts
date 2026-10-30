@@ -9,6 +9,7 @@
 import { daysFrom, HOLIDAYS, type HolidayId, minutesFrom, near } from "./holidays.ts";
 import { worldWall } from "./range.ts";
 import { copenhagenToMs } from "./sky.ts";
+import { GERDA } from "./spooky.ts";
 import type { Facing } from "./world.ts";
 
 export type FestiveId =
@@ -199,7 +200,7 @@ export interface FestiveNpc {
  * Null is no NPC. The spawning, the label, the dialogue on E and the despawn at the window's end are generic.
  */
 export const FESTIVE_NPC: Record<FestiveId, FestiveNpc | null> = {
-  halloween: null,
+  halloween: GERDA,
   christmas: null,
   sanktHans: null,
   nytar: null,

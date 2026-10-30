@@ -4019,3 +4019,23 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   letter-spacing: 0.02em;
   background: var(--festive-toast, var(--panel));
 }
+
+/* Halloween's candy bucket (`HalloweenCandy.tsx`): a chip under the top bar while the theme is on. */
+.candy-chip {
+  position: absolute;
+  top: 64px;
+  left: 16px;
+  padding: 5px 12px;
+  font-weight: bold;
+  color: #ffe9c2;
+  background: rgba(40, 20, 64, 0.88);
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.candy-chip .candy-doors {
+  font-weight: normal;
+  opacity: 0.85;
+}

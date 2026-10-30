@@ -40,6 +40,10 @@ export const COSTUMES: readonly Costume[] = [
   costume(0, "Jack-o'-lantern", 350, "halloween", "Carved, lit and grinning. Smells faintly of candle."),
   // Never sold: it goes to whoever breaks the fastelavn barrel (`fastelavn.ts`), and stays theirs.
   { ...costume(1, "Kattekonge crown", 0, "fastelavn", "Broke the barrel, freed the cat. King for a year."), tradeable: false, rarity: "legendary", earned: "Break the fastelavn barrel" },
+  // Halloween's (30 to 39 are reserved for it): hat.230 to hat.232.
+  costume(30, "Witch hat", 300, "halloween", "Pointy, purple, slightly haunted."),
+  costume(31, "Ghost sheet", 300, "halloween", "Two holes. Zero regrets."),
+  costume(32, "Bat ears", 250, "halloween", "Tiny wings on the sides of your head."),
 ];
 
 /** The costume a look index stands for in a slot, if it is one. */

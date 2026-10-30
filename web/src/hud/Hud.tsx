@@ -29,6 +29,7 @@ import { FestiveAccent, FestiveToast } from "./Festive.tsx";
 import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
 import { GreenBanner } from "./GreenHour.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
+import { HalloweenCandy } from "./HalloweenCandy.tsx";
 import { Hotbar } from "./Hotbar.tsx";
 import { Jukebox } from "./Jukebox.tsx";
 import { Julekalender } from "./Julekalender.tsx";
@@ -142,6 +143,7 @@ export function Hud() {
         <FestiveToast />
       </div>
       <FestiveAccent />
+      <HalloweenCandy />
       <WhatsNewToast />
       <FpsMeter />
       <FirstVisit />

@@ -77,7 +77,9 @@ export const skyWeight = (f: Festive, darkness: number, warmth: number): number 
 export function festiveGreeting(f: Festive): string {
   switch (f.id) {
     case "halloween":
-      return "🎃 Happy Halloween";
+      return f.days < 0
+        ? "🎃 Halloween tomorrow: knock on the doorsteps, Gerda has the details"
+        : "🎃 Happy Halloween";
     case "christmas":
       if (f.days < 0) return `🎄 ${plural(-f.days, "sleep")} to Christmas`;
       return f.days === 0 ? "🎄 Merry Christmas Eve" : "🎄 Merry Christmas";
