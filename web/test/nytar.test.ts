@@ -110,8 +110,13 @@ test("confetti is a pool: bursts add, time takes away, and reduced motion holds 
   expect(confetti.n).toBeGreaterThan(0);
   burstConfetti(10, 5, 500);
   expect(confetti.n).toBeLessThanOrEqual(240);
+  // A piece crossing the ground is removed in the same frame.
+  confetti.h[0] = 0.01;
+  confetti.vh[0] = -0.9;
+  nytarTick(1200);
+  expect(confetti.h.slice(0, confetti.n).every((h) => h >= 0)).toBe(true);
   // They all come down inside their life.
-  for (let t = 1200; t < 12_000; t += 100) nytarTick(t);
+  for (let t = 1300; t < 12_000; t += 100) nytarTick(t);
   expect(confetti.h.slice(0, confetti.n).every((h) => h >= 0)).toBe(true);
 });
 
