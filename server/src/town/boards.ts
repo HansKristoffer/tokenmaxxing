@@ -39,6 +39,7 @@ import {
 } from "./companies.ts";
 import { fishingFacts } from "./fishing.ts";
 import { type GameStats, gameStats } from "./games.ts";
+import { sugarKingsOf } from "./halloween.ts";
 import { keynotesOf } from "./keynotes.ts";
 import { picnicsOf } from "./picnic.ts";
 import { badgesOf } from "./prestige.ts";
@@ -313,6 +314,7 @@ export async function badgeFactsOf(
     tavernDays: await tavernDaysOf(sql, userId),
     helped: await questsCleared(sql, userId),
     ...(await fishingFacts(sql, userId)),
+    sugarKing: await sugarKingsOf(sql, userId),
     ...extra,
   };
   return { facts, lifetime, level: levelFor(lifetime) };

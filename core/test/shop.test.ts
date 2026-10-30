@@ -14,6 +14,7 @@ import {
   TOKEN_COIN_MULT_FROM,
   TOKEN_COINS_FROM,
 } from "../src/shop.ts";
+import { CANDY_BUCKET } from "../src/spooky.ts";
 import { LOOK_OPTIONS } from "../src/world.ts";
 
 test("level items: the shop's milestones at 10-50, the wardrobe's at 5, 15, 25, the head pack's at 7, 17, 27", () => {
@@ -62,9 +63,11 @@ test("Touched grass: earned at a picnic, never sold or traded, and only for your
     tradeable: false,
   });
   expect(itemById(TOUCHED_GRASS)?.earned).toBeTruthy();
-  // Nothing else is earned but the kattekonge's crown (`fastelavn.ts`) and the prestige trophies: the shop sells the rest.
+  // Nothing else is earned but the kattekonge's crown (`fastelavn.ts`), the sugar king's bucket (`spooky.ts`) and the
+  // prestige trophies: the shop sells the rest.
   expect(ITEMS.filter((i) => i.earned).map((i) => i.id)).toEqual([
     CROWN,
+    CANDY_BUCKET,
     TOUCHED_GRASS,
     ...PRESTIGE_PIECES.map((p) => `furn.${p.ch}`),
   ]);

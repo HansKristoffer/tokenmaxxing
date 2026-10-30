@@ -35,6 +35,7 @@ import {
   TRADE_ITEMS_CAP,
 } from "@tokenmaxxing/core/shop.ts";
 import { goToShop, SHOP_ROOM, type ShopId, shopForSlot } from "@tokenmaxxing/core/shoprooms.ts";
+import type { Knock } from "@tokenmaxxing/core/spooky.ts";
 import type { StatueAdmin } from "@tokenmaxxing/core/statue.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import type { TournamentBoard } from "@tokenmaxxing/core/tournament.ts";
@@ -162,6 +163,7 @@ import { fishingJournal, fishingState, type Landed, recordFish } from "../town/f
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
 import { recordGreen } from "../town/grid.ts";
 import { type HallOfFame, hallOfFame } from "../town/hall.ts";
+import { knock } from "../town/halloween.ts";
 import { type Calendar, calendar, openDoor } from "../town/julekalender.ts";
 import { comingKeynotes, everyKeynote, markKeynote, removeKeynote, saveKeynote } from "../town/keynotes.ts";
 import { recordLaunches } from "../town/launch-bonus.ts";
@@ -1051,6 +1053,12 @@ export const town = actor({
     whack: async (c, userId: number): Promise<Whack> => {
       requireInternal(c.conn.state);
       return c.vars.serial(() => whack(c.db, userId, Date.now()));
+    },
+
+    /** From `world`: a knock on a Halloween door, and, if it was the night's last, the sugar king's hat. */
+    knock: async (c, userId: number, door: string, doors: string[]): Promise<Knock> => {
+      requireInternal(c.conn.state);
+      return c.vars.serial(() => knock(c.db, userId, door, doors, Date.now()));
     },
 
     /** From `world`: this year's barrel, for whoever comes to town on Fastelavn. */

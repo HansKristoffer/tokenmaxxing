@@ -61,6 +61,8 @@ export interface BadgeFacts {
   fishRecords?: number;
   /** 1 once they've caught a fish exactly 42 cm long. */
   fishAnswer?: number;
+  /** Halloweens they knocked on every door in town in one night (`sugar_kings`). */
+  sugarKing?: number;
 }
 
 export type Group = "Usage" | "Social" | "Town" | "Raid" | "Games" | "Fishing" | "Seasonal";
@@ -224,6 +226,19 @@ export const BADGES: readonly BadgeDef[] = [
       { at: 5, label: "5 outage picnics" },
     ],
     of: (f) => f.picnics ?? 0,
+    quiet: true,
+  },
+  {
+    id: "sugarking",
+    emoji: "🍬",
+    name: "Sugar king",
+    group: "Seasonal",
+    how: "Knock on every door in town in one Halloween night",
+    tiers: [
+      { at: 1, label: "Sugar king" },
+      { at: 3, label: "3 Halloweens of sugar" },
+    ],
+    of: (f) => f.sugarKing ?? 0,
     quiet: true,
   },
   {

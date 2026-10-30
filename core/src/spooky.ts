@@ -5,6 +5,8 @@
  * (`web/src/game/spooky.ts`), the 3D town builds it (`web/src/render3d/town/halloween3d.ts`), and both ask
  * `festiveNow()?.id === "halloween"` whether it's on.
  */
+
+import { COSTUME_BASE } from "./costumes.ts";
 import type { FestiveNpc } from "./festive.ts";
 import { PATCH } from "./halloween.ts";
 import { worldWall } from "./range.ts";
@@ -159,6 +161,24 @@ const SAYS: Record<Treat, readonly string[]> = {
   ],
 };
 
+/** The sugar king's (or queen's) hat: whoever knocks on every door in town in one Halloween night. Never sold. */
+export const CANDY_BUCKET = `hat.${COSTUME_BASE + 33}`;
+
+/**
+ * What a knock answers (`server/src/town/halloween.ts`, the knocks are kept there so they count for the badge).
+ * `treat` is null when this door had already opened today. `knocked`: today's doors so far, `of` the town's.
+ */
+export interface Knock {
+  door: string;
+  treat: Treat | null;
+  /** All the sweets ever collected. */
+  candy: number;
+  knocked: string[];
+  of: number;
+  /** Only on the knock that made them sugar king this year: the bucket hat is in their bag. */
+  king?: true;
+}
+
 /** The line for a knock: stable per door and day. */
 export const treatSays = (t: Treat, door: string, day: string): string => {
   const lines = SAYS[t];
@@ -189,7 +209,7 @@ export const GERDA: FestiveNpc = {
     "The turnips became pumpkins when the Irish took the custom to America, and now Aarhus has them too. See the jack-o'-lanterns on the doorsteps? They light up with the street lamps.",
     "Denmark's own dress-up-and-sweets day is fastelavn, in February, with the barrel and the buns. Halloween is the newcomer, but this town adopts anything involving candy.",
     "Trick-or-treat! Stand next to a doorstep with a jack-o'-lantern, face it and press E to knock. Each door opens once a day: some give a sweet, some a handful, some a trick, and some nobody's home.",
-    "Your candy goes in the bucket at the top of your screen, and it counts the doors you've knocked on today. Knock on every door and you're the sugar king, or queen. It's only for bragging.",
+    "Your candy goes in the bucket at the top of your screen, and it counts the doors you've knocked on today. Knock on every door in one night and you're the sugar king, or queen: a badge on your card and a Candy bucket hat nobody can buy.",
     "That green bubbling cauldron on the grass by the Tavern? Face it and press E to give it a stir. I wouldn't drink it. Jens did, and now he's very green. Not really. We checked.",
     "The graveyard is for retired AI models: deprecated, never forgotten. I carve the epitaphs myself. The stones in my corner of the lawn here are for the ones nobody has retired yet.",
     "The ghosts drift near the graveyard, the pond and the Tavern. The bats come at dusk, and they get thicker the closer it gets to the 31st. All friendly. The bats, anyway.",

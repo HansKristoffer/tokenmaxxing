@@ -2044,6 +2044,7 @@ export const FACE_BUILDERS: Record<string, Build> = {
 
 /** Hats that cover the crown of the head: the hair's fringe, spikes and bun are tucked under them. */
 export const COVERS_HAIR = new Set([
+  "Candy bucket",
   "Beanie",
   "Top hat",
   "Tinfoil hat",

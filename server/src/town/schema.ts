@@ -7,6 +7,7 @@ import { migrateDesks } from "./desks.ts";
 import { migrateFastelavn } from "./fastelavn.ts";
 import { migrateFishing } from "./fishing.ts";
 import { migrateGrid } from "./grid.ts";
+import { migrateHalloween } from "./halloween.ts";
 import { migrateJulekalender } from "./julekalender.ts";
 import { migrateKeynotes } from "./keynotes.ts";
 import { migrateLaunchBonus } from "./launch-bonus.ts";
@@ -164,6 +165,7 @@ export async function migrate(sql: Sql): Promise<void> {
   await migrateKeynotes(sql);
   await migrateJulekalender(sql);
   await migrateFastelavn(sql);
+  await migrateHalloween(sql);
   await migrateFishing(sql);
   await migratePrestige(sql);
   // The raid's settings, once. `start`: the first raid's Monday, the one after the town first had the

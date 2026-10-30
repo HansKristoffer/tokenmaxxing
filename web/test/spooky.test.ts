@@ -1,7 +1,15 @@
-import { afterEach, beforeEach, expect, setSystemTime, test } from "bun:test";
+import { afterEach, beforeEach, expect, mock, setSystemTime, test } from "bun:test";
 import { doorSteps } from "@tokenmaxxing/core/halloween.ts";
 import { plotId, townMap } from "@tokenmaxxing/core/maps.ts";
-import { CAULDRON, doorKey, GERDA_TILE, STIR_LINES } from "@tokenmaxxing/core/spooky.ts";
+import {
+  CAULDRON,
+  dayKey,
+  doorKey,
+  GERDA_TILE,
+  type Knock,
+  STIR_LINES,
+  treatAt,
+} from "@tokenmaxxing/core/spooky.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();
@@ -16,6 +24,37 @@ Object.assign(globalThis, {
   },
 });
 
+// The server's side of a knock (`town/halloween.ts`, tested in the server's tests): a door opens once a day.
+// The test says which door it faces (`facing`), as the server works it out from where you stand.
+const opened = new Map<string, Set<string>>();
+let facing = "";
+const real = await import("../src/net.ts");
+mock.module("../src/net.ts", () => ({
+  ...real,
+  conn: {
+    knock: async (): Promise<Knock> => {
+      const day = dayKey(Date.now());
+      const today = opened.get(day) ?? new Set<string>();
+      opened.set(day, today);
+      const fresh = !today.has(facing);
+      today.add(facing);
+      return {
+        door: facing,
+        treat: fresh ? treatAt(facing, day) : null,
+        candy: today.size,
+        knocked: [...today],
+        of: 9,
+      };
+    },
+  },
+}));
+/** E on a doorstep, and the server's answer. */
+const knockAt = async (step: { x: number; y: number; door: readonly [number, number] }): Promise<boolean> => {
+  facing = doorKey(step.door);
+  const r = spookyInteract(step.x, step.y, "up");
+  await Bun.sleep(0);
+  return r;
+};
 const { bucket, blocksSpooky, drawSpooky, spookyInteract, spookyOn } = await import("../src/game/spooky.ts");
 const { festiveNpcAt, festiveNpcNow } = await import("../src/game/festive-npc.ts");
 const { graphics } = await import("../src/settings/graphics.ts");
@@ -86,43 +125,43 @@ test("it draws the stones, the cauldron, candy, cobwebs, ghosts and bats, and no
   expect(off.items).toHaveLength(0);
 });
 
-test("knocking: a door gives once a day, the candy counts, a new day opens it again", () => {
+test("knocking: a door gives once a day, the candy counts, a new day opens it again", async () => {
   setSystemTime(NIGHT);
   const steps = doorSteps(map).filter((s) => map.at(s.door[0], s.door[1]) !== "I");
   const door = steps[0]!;
   expect(bucket().doors).toBe(0);
-  expect(spookyInteract(door.x, door.y)).toBe(true);
+  expect(await knockAt(door)).toBe(true);
   expect(hud.get().dialog).toContain("🎃");
   expect(bucket().doors).toBe(1);
   const candy = bucket().candy;
   hud.set({ dialog: null });
-  expect(spookyInteract(door.x, door.y)).toBe(true);
+  expect(await knockAt(door)).toBe(true);
   expect(hud.get().dialog).toContain("already");
   expect(bucket().candy).toBe(candy);
   expect(storage.getItem(`halloween:2026-10-31:${doorKey(door.door)}`)).not.toBeNull();
   // The next day (the 1st: not Halloween any more, but the doorstep key moves with the day).
   setSystemTime(new Date("2026-10-30T11:00:00Z"));
   expect(bucket().doors).toBe(0);
-  expect(spookyInteract(door.x, door.y)).toBe(true);
+  expect(await knockAt(door)).toBe(true);
   expect(hud.get().dialog).not.toContain("already");
 });
 
-test("the Tavern's step knocks once, then lets E read its paper", () => {
+test("the Tavern's step knocks once, then lets E read its paper", async () => {
   setSystemTime(NIGHT);
   const inn = doorSteps(map).find((s) => map.at(s.door[0], s.door[1]) === "I")!;
-  expect(spookyInteract(inn.x, inn.y)).toBe(true);
-  expect(spookyInteract(inn.x, inn.y)).toBe(false);
+  expect(await knockAt(inn)).toBe(true);
+  expect(await knockAt(inn)).toBe(false);
 });
 
 test("the cauldron answers with a new line each stir; a plain tile with none", () => {
   setSystemTime(NIGHT);
   const seen = new Set<string>();
   for (let i = 0; i < STIR_LINES.length; i++) {
-    expect(spookyInteract(CAULDRON.x, CAULDRON.y)).toBe(true);
+    expect(spookyInteract(CAULDRON.x, CAULDRON.y, "up")).toBe(true);
     seen.add(hud.get().dialog!);
   }
   expect(seen.size).toBe(STIR_LINES.length);
-  expect(spookyInteract(0, 0)).toBe(false);
+  expect(spookyInteract(0, 0, "up")).toBe(false);
   setSystemTime(JUNE);
-  expect(spookyInteract(CAULDRON.x, CAULDRON.y)).toBe(false);
+  expect(spookyInteract(CAULDRON.x, CAULDRON.y, "up")).toBe(false);
 });
