@@ -34,6 +34,8 @@ export interface GraphicsSettings {
   dprCap: number;
   reduceMotion: boolean;
   labels: Labels;
+  /** The festive themes' tint, mist, accent, toast and music (Halloween, Christmas). Not the shops. */
+  seasonal: boolean;
 }
 
 export type Overrides = Partial<Omit<GraphicsSettings, "tier" | "renderer" | "shadowMap" | "post">> & {
@@ -58,7 +60,7 @@ export const TIER_BLURBS: Record<TierChoice, string> = {
 const ALL_POST: Post = { haze: true, tiltShift: true, grade: true };
 const NO_POST: Post = { haze: false, tiltShift: false, grade: false };
 
-type TierBase = Omit<GraphicsSettings, "tier" | "shadowMap" | "reduceMotion" | "labels">;
+type TierBase = Omit<GraphicsSettings, "tier" | "shadowMap" | "reduceMotion" | "labels" | "seasonal">;
 
 const BASE: Record<Tier, TierBase> = {
   low: {
@@ -130,6 +132,7 @@ export function resolveSettings(
     dprCap: clamp(overrides.dprCap ?? base.dprCap, 1, 4),
     reduceMotion: overrides.reduceMotion ?? prefersReducedMotion,
     labels: overrides.labels ?? "near",
+    seasonal: overrides.seasonal ?? true,
   };
 }
 
@@ -175,6 +178,8 @@ export function sanitizeOverrides(raw: unknown): Overrides {
   if (isNum(o.dprCap)) out.dprCap = clamp(o.dprCap, 1, 4);
   const reduce = bool(o.reduceMotion);
   if (reduce !== undefined) out.reduceMotion = reduce;
+  const seasonal = bool(o.seasonal);
+  if (seasonal !== undefined) out.seasonal = seasonal;
   if (o.labels === "near" || o.labels === "all") out.labels = o.labels;
   if (typeof o.post === "object" && o.post) {
     const p = o.post as Record<string, unknown>;

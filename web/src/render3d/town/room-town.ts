@@ -11,12 +11,20 @@ import { GateLive } from "../dungeon/gate3d.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { ExitMarkers } from "../rooms/exit-markers.ts";
 import { type RoomCtx, type RoomView, registerRoom, type Sign, withTicks } from "../rooms/rooms.ts";
+import { Agustusan3d } from "./agustusan3d.ts";
 import { Barrel3d } from "./barrel3d.ts";
+import { Befrielsen3d } from "./befrielsen3d.ts";
 import { Bonfire3d } from "./bonfire3d.ts";
+import { Christmas3d } from "./christmas3d.ts";
+import { FestiveNpc3d } from "./festive-npc3d.ts";
 import { Fireworks3d } from "./fireworks3d.ts";
 import { GamesLayer } from "./games3d.ts";
 import { Graveyard3D } from "./graveyard3d.ts";
+import { HalloweenTown3d } from "./halloween3d.ts";
 import { FallingLeaves } from "./leaves3d.ts";
+import { Midsommer3d } from "./midsommer3d.ts";
+import { Nytar3d } from "./nytar3d.ts";
+import { Paaske3d } from "./paaske3d.ts";
 import { dropPropsNight, setPropsNight } from "./props.ts";
 import { Pumpkins } from "./pumpkins3d.ts";
 import { StatueLayer } from "./statue3d.ts";
@@ -102,6 +110,29 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // Halloween's jack-o'-lanterns, on the doorsteps: hidden the rest of the year.
   const pumpkins = new Pumpkins(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(pumpkins.group);
+  // Christmas's tree, wreaths, lights and snowmen, built the first frame its theme is on.
+  const christmas = new Christmas3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  group.add(christmas.group);
+  // Befrielsen's memorial, flags and window candles, built the first frame its theme is on.
+  const befrielsen = new Befrielsen3d(town.group, (tx, ty) => town.toWorld(tx, ty));
+  group.add(befrielsen.group);
+  // The festive theme's named NPC, there while its theme is (`FESTIVE_NPC`).
+  const festiveNpc = new FestiveNpc3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(festiveNpc.group);
+  // Halloween's spooky night: bats, ghosts, cobwebs, the cauldron, the lawn stones, mist (`core/src/spooky.ts`).
+  const halloween = new HalloweenTown3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  group.add(halloween.group);
+  // New Year's Eve: the clock, the buffet and the party lights (`nytar3d.ts`).
+  const nytar = new Nytar3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(nytar.group);
+  // Added after the room is batched, like the statue: what is built later must not be swept into the room's batches.
+  events.group.add(festiveNpc.group);
+  // Påske's flowers, bunting, props, eggs and lambs: built the first frame it is on.
+  const paaske = new Paaske3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
+  events.group.add(paaske.group);
+  // Agustusan: flags, the gapura gate and the lomba props, built when the theme is on.
+  const agustusan = new Agustusan3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(agustusan.group);
   // J-dag's truck, on the road under the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
@@ -111,6 +142,9 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // The Sankt Hans bonfire, in front of the Tavern on 23 June.
   const bonfire = new Bonfire3d((tx, ty) => town.toWorld(tx, ty));
   group.add(bonfire.group);
+  // The Sankt Hans theme's flags, blankets, wreaths and glow-worms, there while its theme is.
+  const midsommer = new Midsommer3d((tx, ty) => town.toWorld(tx, ty));
+  group.add(midsommer.group);
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
@@ -147,9 +181,17 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       fireworks.update();
       markers.update(f.me, f.t);
       pumpkins.update(f.now);
+      befrielsen.update(f.t, f.now);
+      festiveNpc.update(f.t);
+      halloween.update(f.t, f.me);
+      christmas.update(f.t);
+      nytar.update(f);
+      paaske.update(f.t);
+      agustusan.update(f.t);
       truck.update();
       barrel.update(f.t);
       bonfire.update(f.t);
+      midsommer.update(f.t, f.now);
       events.update(f);
       graveyard.update(f.now);
       statue.update(f);
@@ -165,14 +207,25 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     signs,
     liveSigns: () => [
       ...truck.signs(),
+      ...nytar.signs(),
+      ...paaske.signs(),
+      ...agustusan.signs(),
       ...barrel.signs(),
       ...(gateLive?.signs() ?? []),
       ...games.signs(),
       ...graveyard.signs(),
+      ...halloween.signs(),
     ],
     night: (on) => setPropsNight(on),
     dispose() {
       markers.dispose();
+      festiveNpc.dispose();
+      halloween.dispose();
+      christmas.dispose();
+      nytar.dispose();
+      paaske.dispose();
+      befrielsen.dispose();
+      agustusan.dispose();
       statue.dispose();
       fireworks.dispose();
       events.dispose();

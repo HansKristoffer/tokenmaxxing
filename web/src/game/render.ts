@@ -34,9 +34,12 @@ import { PET_H, PET_W, petFrame } from "../art/pets.ts";
 import { initialsOf, perObject } from "../art/pixels.ts";
 import { drawWaterGlints } from "../art/tiles.ts";
 import { graphics } from "../settings/graphics.ts";
+import { drawAgustusan } from "./agustusan.ts";
 import { drawBasement, lightBasement } from "./basement.ts";
+import { candleWindows, drawBefrielsen, lightBefrielsen } from "./befrielsen.ts";
 import { camera, zoomScale } from "./camera.ts";
 import { drawChalkboards } from "./chalkboard.ts";
+import { drawChristmas, lightChristmas } from "./christmas.ts";
 import { drawClocks } from "./clocks.ts";
 import {
   breathPuff,
@@ -52,6 +55,7 @@ import { drawCop, isCop } from "./cop.ts";
 import { battlers, type Dance2D, dance2D, danceOf, rgbOf } from "./dance.ts";
 import { doorSwing, drawDoorSwing } from "./doors.ts";
 import { drawBarrel } from "./fastelavn.ts";
+import { drawFestiveNpc } from "./festive-npc.ts";
 import { drawFireworks } from "./fireworks.ts";
 import { drawFishing } from "./fishing.ts";
 import { type Frame, inView } from "./frame.ts";
@@ -83,7 +87,10 @@ import { drawAura, drawPetCrown, labelLift, petRise } from "./legendary.ts";
 import { drawLoot } from "./loot.ts";
 import { drawMarket } from "./market.ts";
 import { drawMerchant } from "./merchant.ts";
+import { drawMidsommer, lightMidsommer } from "./midsommer.ts";
 import { LABEL_FAR } from "./near.ts";
+import { drawNytar, lightNytar } from "./nytar.ts";
+import { drawPaaske } from "./paaske.ts";
 import { PLAY_LIFT } from "./petplay.ts";
 import { followPet, prunePets, reactionOf } from "./pets.ts";
 import { drawPicnic } from "./picnic.ts";
@@ -324,6 +331,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       const pane = panes[i]!;
       peekHits.push({ x: left + pane.x, y: top + pane.y, w: pane.w, h: pane.h, id: p.id });
     }
+    if (outdoors) candleWindows(f, panes, { left, top, bottom });
     // At night each window shines: the people at home in it, or (for some empty rooms) just a lamp.
     if (outdoors)
       for (const [i, pane] of panes.entries()) {
@@ -391,9 +399,12 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawPicnic(f);
   drawGrid(f);
   drawPumpkins(f);
+  drawChristmas(f);
+  drawBefrielsen(f);
   drawTruck(f);
   drawBarrel(f);
   drawBonfire(f);
+  drawMidsommer(f);
   drawChalkboards(f);
   drawClocks(f);
   drawTavern(f);
@@ -402,6 +413,10 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   drawFishing(f);
   drawBasement(f);
   drawMerchant(f);
+  drawFestiveNpc(f);
+  drawNytar(f);
+  drawPaaske(f);
+  drawAgustusan(f);
   drawMarket(f);
   drawRaid(f);
   drawLoot(f);
@@ -517,12 +532,16 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
       g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
       drawLights(g, lamps, windows, glow, lampDim());
       lightPumpkins(g, glow, now);
+      lightChristmas(g, glow, now);
+      lightNytar(g, glow, now);
+      lightBefrielsen(g, glow, now);
       lightTruck(g, glow, now);
       g.setTransform(1, 0, 0, 1, 0, 0);
     }
     // The Sankt Hans bonfire is lit in the June dusk, before the lamps come on.
     g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
     lightBonfire(g, glow, now);
+    lightMidsommer(g, glow, now);
     g.setTransform(1, 0, 0, 1, 0, 0);
     drawNightSky(g, w, h, dpr, now);
     drawWeather(g, w, h, dpr, now);

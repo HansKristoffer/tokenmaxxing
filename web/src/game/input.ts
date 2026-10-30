@@ -29,11 +29,15 @@ import {
 import { conn } from "../net.ts";
 import { tossLanded } from "../render3d/town/world-logic.ts";
 import { chatBeside, hud } from "../store.ts";
+import { agustusanInteract, blocksAgustusan } from "./agustusan.ts";
 import { basementInteract } from "./basement.ts";
+import { befrielsenInteract, blocksBefrielsen, routeAround } from "./befrielsen.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
+import { blocksChristmas, christmasInteract, routeMap } from "./christmas.ts";
 import { clocksText } from "./clocks.ts";
 import { barrelInteract, blocksBarrel } from "./fastelavn.ts";
+import { blocksFestiveNpc, festiveNpcAt, talkToFestiveNpc } from "./festive-npc.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { blocksGrave, graveInteract } from "./graveyard.ts";
@@ -44,10 +48,13 @@ import { chipHits, signHits } from "./labels.ts";
 import { blocksLaunch, launchInteract } from "./launch.ts";
 import { merchantAt, openCart } from "./merchant.ts";
 import { setHover } from "./near.ts";
+import { nytarBlocks, nytarInteract } from "./nytar.ts";
+import { blocksPaaske, paaskeInteract } from "./paaske.ts";
 import { myPetTile } from "./pets.ts";
 import { picnicSeat } from "./picnic.ts";
 import { seated, sit, standUp } from "./raidseat.ts";
 import { blocksBonfire, bonfireInteract } from "./sankthans.ts";
+import { blocksSpooky, spookyInteract } from "./spooky.ts";
 import { pickTile } from "./stage.ts";
 import { statueText } from "./statue.ts";
 import { blocksStep, streetInteract } from "./street.ts";
@@ -267,6 +274,9 @@ export function goToShopDoor(shop: ShopId): boolean {
   return true;
 }
 
+/** Where a walk goes round: the festive props and the festive NPC (the way a step onto them is no step). */
+const avoidProps = (x: number, y: number): boolean => blocksAgustusan(x, y) || blocksFestiveNpc(x, y);
+
 /** The next leg of the trip to `heading`: the shop's door in town, otherwise this room's way out. */
 function planTrip(me: { x: number; y: number }): void {
   const shop = heading!;
@@ -275,7 +285,7 @@ function planTrip(me: { x: number; y: number }): void {
     return;
   }
   const to = world.room === "town" ? MAPS.town.find(SHOP_DOOR_CHAR[shop])[0] : world.map.find("x")[0];
-  const steps = to ? route(world.map, [me.x, me.y], to) : null;
+  const steps = to ? route(world.map, [me.x, me.y], to, avoidProps) : null;
   if (!steps?.length) {
     heading = null;
     return;
@@ -291,7 +301,9 @@ export function walkTo(x: number, y: number): void {
   const me = self();
   takeOnArrival = false;
   if (!me || (x === me.x && y === me.y)) return;
-  path = route(world.map, [me.x, me.y], [x, y]) ?? [];
+  path = route(routeMap(world.map), [me.x, me.y], [x, y]) ?? [];
+  path = routeAround(route(world.map, [me.x, me.y], [x, y]) ?? [], [me.x, me.y], [x, y]);
+  path = route(world.map, [me.x, me.y], [x, y], avoidProps) ?? [];
   interactOnArrival = path.length > 0 && !world.map.walkable(x, y) && !world.map.kind(x, y).portal;
 }
 
@@ -304,8 +316,8 @@ export function walkThen(x: number, y: number, dir: Facing, then: () => void): b
   if (!me) return false;
   const [dx, dy] = DIRS[dir];
   const behind: [number, number] = [x - dx, y - dy];
-  const there = world.map.walkable(...behind) ? route(world.map, [me.x, me.y], behind) : null;
-  const steps = there ? [...there, dir] : route(world.map, [me.x, me.y], [x, y]);
+  const there = world.map.walkable(...behind) ? route(world.map, [me.x, me.y], behind, avoidProps) : null;
+  const steps = there ? [...there, dir] : route(world.map, [me.x, me.y], [x, y], avoidProps);
   if (!steps) return false;
   path = steps;
   interactOnArrival = false;
@@ -462,11 +474,21 @@ export function updateSelf(now: number): void {
       blocksTruck(step.x, step.y) ||
       blocksBarrel(step.x, step.y) ||
       blocksBonfire(step.x, step.y) ||
-      blocksGrave(step.x, step.y))
+      blocksGrave(step.x, step.y) ||
+      blocksSpooky(step.x, step.y) ||
+      blocksChristmas(step.x, step.y) ||
+      festiveNpcAt(step.x, step.y) ||
+      nytarBlocks(step.x, step.y) ||
+      blocksPaaske(step.x, step.y) ||
+      blocksBefrielsen(step.x, step.y) ||
+      blocksAgustusan(step.x, step.y) ||
+      blocksFestiveNpc(step.x, step.y))
       ? { kind: "blocked" as const }
       : step;
   if (target.kind === "blocked") {
-    if (me.facing !== dir || me.state !== "idle") send(conn.step(dir));
+    // (Christmas's tree and Knud are only the client's: the server would walk us through, so it isn't told.)
+    const ours = step.kind === "move" && blocksChristmas(step.x, step.y);
+    if ((me.facing !== dir || me.state !== "idle") && !ours) send(conn.step(dir));
     me.facing = dir;
     if (!interactOnArrival) path = [];
     return;
@@ -568,6 +590,8 @@ function interact(): void {
   if (interactAnimal(x, y) || interactTownProp(x, y) || bandInteract(x, y)) return;
   // E on your own clone (or its laptop) in the raid dungeon takes your seat; others' seats are not yours.
   if (world.room === "dungeon" && sit(x, y)) return;
+  // Halloween's doorsteps knock before the paper on the Tavern's step is read.
+  if (spookyInteract(x, y)) return;
   if (streetInteract(me, x, y, send)) return;
   if (windmillInteract(x, y)) return;
   if (truckInteract(x, y)) return;
@@ -577,6 +601,12 @@ function interact(): void {
   if (graveInteract(me)) return;
   if (keynoteInteract(me)) return;
   if (merchantAt(x, y)) return void openCart();
+  if (befrielsenInteract(x, y)) return;
+  if (festiveNpcAt(x, y)) return void talkToFestiveNpc();
+  if (christmasInteract(x, y)) return;
+  if (nytarInteract(x, y)) return;
+  if (paaskeInteract(x, y)) return;
+  if (agustusanInteract(x, y)) return;
   const ch = world.map.at(x, y);
   const kind = world.map.kind(x, y);
   if (world.room === "town" && ch === "~") return void hud.set({ panel: { kind: "fishing" } });

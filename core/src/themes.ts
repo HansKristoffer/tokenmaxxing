@@ -1,3 +1,11 @@
+import { AGUSTUSAN_TAVERN, AGUSTUSAN_TOWN } from "./agustusan-music.ts";
+import { BEFRIELSEN_TAVERN, BEFRIELSEN_TOWN } from "./befrielsen-music.ts";
+import { CHRISTMAS_TAVERN, CHRISTMAS_TOWN } from "./christmas-music.ts";
+import type { FestiveId } from "./festive.ts";
+import { HALLOWEEN_TAVERN, HALLOWEEN_TOWN } from "./halloween-music.ts";
+import { MIDSOMMER_TAVERN, MIDSOMMER_TOWN } from "./midsommer-music.ts";
+import { NYTAR_TAVERN, NYTAR_TOWN } from "./nytar-music.ts";
+import { PAASKE_TAVERN, PAASKE_TOWN } from "./paaske-music.ts";
 import { tavernSet } from "./tavern-band.ts";
 import type { Tune } from "./tunes.ts";
 import type { RoomId } from "./world.ts";
@@ -10,7 +18,12 @@ import type { RoomId } from "./world.ts";
 /** Steps in one loop of every theme: an A part and a B part. */
 export const THEME_STEPS = 64;
 
-export type ThemeId = "town" | "company" | "office" | "tavern" | "hearth-jig" | "lantern-reel" | "raid";
+export type BaseThemeId = "town" | "company" | "office" | "tavern" | "hearth-jig" | "lantern-reel" | "raid";
+/** The rooms a festive theme may re-score: the town and the Tavern's three floors. */
+export type FestiveRoomTheme = "town" | "tavern";
+/** A festive track's id, `festive-nytar-town`: distinct from the usual one, so the player restarts on it (and back). */
+export type FestiveThemeId = `festive-${FestiveId}-${FestiveRoomTheme}`;
+export type ThemeId = BaseThemeId | FestiveThemeId;
 
 export interface Theme extends Tune {
   id: ThemeId;
@@ -89,11 +102,13 @@ export const THEMES: readonly Theme[] = [
   },
 ];
 
-/** Room themes; the Tavern floor switches to the live folk set after 16:00. */
-export function themeOf(room: RoomId, at = Date.now()): Theme {
+/**
+ * The theme for a room: houses are the company's, offices the desk, the Tavern's three floors one. A festive theme's own
+ * track wins; otherwise the Tavern floor switches to the live folk set after 16:00.
+ */
+export function themeOf(room: RoomId, festive?: FestiveId | null, at = Date.now()): Theme {
   const set = room === "inn" ? tavernSet(at) : null;
-  if (set) return THEMES.find((t) => t.id === set)!;
-  const id: ThemeId =
+  const id: BaseThemeId =
     room === "town"
       ? "town"
       : room === "dungeon"
@@ -103,5 +118,29 @@ export function themeOf(room: RoomId, at = Date.now()): Theme {
           : room.startsWith("hq:")
             ? "company"
             : "office";
+  const own = festiveTheme(festive, id);
+  if (own) return own;
+  if (set) return THEMES.find((t) => t.id === set)!;
   return THEMES.find((t) => t.id === id)!;
 }
+
+/** The festive theme's own music for a room's usual theme (only the town and the Tavern), or null: the usual one plays. */
+export const festiveTheme = (festive: FestiveId | null | undefined, base: BaseThemeId): Theme | null =>
+  festive && (base === "town" || base === "tavern") ? (FESTIVE_THEMES[festive]?.[base] ?? null) : null;
+
+/**
+ * A festive theme's own tracks, by the room theme they replace: a feature agent appends its entry here, e.g.
+ * `nytar: { town: NYTAR_TOWN }` with `{ id: "festive-nytar-town", ...64-step lead/bass/drums }` (same note format as
+ * `THEMES`; `themes.test.ts` checks every one is `THEME_STEPS` long and parses). While the theme is on, `music.ts`
+ * plays it for the room; when the window ends it is the usual tune again, with no cleanup. A theme with no entry,
+ * or a room it doesn't list, plays the usual tune.
+ */
+export const FESTIVE_THEMES: Partial<Record<FestiveId, Partial<Record<FestiveRoomTheme, Theme>>>> = {
+  halloween: { town: HALLOWEEN_TOWN, tavern: HALLOWEEN_TAVERN },
+  christmas: { town: CHRISTMAS_TOWN, tavern: CHRISTMAS_TAVERN },
+  sanktHans: { town: MIDSOMMER_TOWN, tavern: MIDSOMMER_TAVERN },
+  nytar: { town: NYTAR_TOWN, tavern: NYTAR_TAVERN },
+  paaske: { town: PAASKE_TOWN, tavern: PAASKE_TAVERN },
+  befrielsen: { town: BEFRIELSEN_TOWN, tavern: BEFRIELSEN_TAVERN },
+  agustusan: { town: AGUSTUSAN_TOWN, tavern: AGUSTUSAN_TAVERN },
+};

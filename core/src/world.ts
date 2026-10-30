@@ -516,6 +516,8 @@ export interface Snapshot {
   weather: Weather;
   /** Only with `SKY_SEASON` set (dev and screenshots): the day of the year the town's season is pinned to. */
   seasonDay?: number;
+  /** Only with `THEME_PIN` set (dev and screenshots): the festive theme pinned for everyone, as its pin text. */
+  festivePin?: string;
   /** Only in the dungeon: who has agents running, wherever they are. */
   raiders: Raiders | null;
 }
@@ -749,7 +751,13 @@ const STEPS = FACINGS.map((f) => DIRS[f]);
  * target itself may be a door or seat: the last step walks into it. Null when
  * there's no way.
  */
-export function route(map: GameMap, from: [number, number], to: [number, number]): Facing[] | null {
+export function route(
+  map: GameMap,
+  from: [number, number],
+  to: [number, number],
+  /** Tiles the walk must go round (a prop or a person standing on them); the target itself is always allowed. */
+  avoid?: (x: number, y: number) => boolean,
+): Facing[] | null {
   const goal = map.index(...to);
   const start = map.index(...from);
   if (start === goal) return [];
@@ -772,7 +780,7 @@ export function route(map: GameMap, from: [number, number], to: [number, number]
       if (!map.contains(nx, ny)) continue;
       const nk = map.index(nx, ny);
       if (step[nk] !== -1) continue;
-      if (nk !== goal && !map.walkable(nx, ny)) continue;
+      if (nk !== goal && (!map.walkable(nx, ny) || avoid?.(nx, ny))) continue;
       step[nk] = d;
       prev[nk] = k;
       if (nk === goal) {

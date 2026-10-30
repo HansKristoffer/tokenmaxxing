@@ -12,7 +12,7 @@ import { rocketsNow } from "../../game/fireworks.ts";
 const MAX = 1024;
 /** A climbing rocket is its head and a short tail of fading sparks under it. */
 const TRAIL = 4;
-const SIZE = 0.16;
+const SIZE = 0.2;
 
 export class Fireworks3d {
   readonly group = new THREE.Group();
@@ -21,7 +21,7 @@ export class Fireworks3d {
     new THREE.MeshBasicMaterial({
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      // Plain, not additive: on December's snow an additive glow adds up to white and vanishes.
       toneMapped: false,
     }),
     MAX,
@@ -60,10 +60,10 @@ export class Fireworks3d {
     let n = 0;
     const put = (x: number, y: number, z: number, c: THREE.Color, k: number) => {
       if (n >= MAX) return;
-      // Fading sparks shrink as they dim.
-      const size = 0.4 + 0.6 * k;
+      // Fading sparks shrink as they dim (they keep their colour).
+      const size = 0.3 + 0.9 * k;
       s.setMatrixAt(n, this.m4.makeScale(size, size, size).setPosition(x, y, z));
-      s.setColorAt(n, this.tint.copy(c).multiplyScalar(k));
+      s.setColorAt(n, this.tint.copy(c));
       n++;
     };
     for (const r of rockets) {

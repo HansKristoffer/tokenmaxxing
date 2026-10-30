@@ -4025,6 +4025,87 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   opacity: 0.8;
 }
 
+/* A festive theme (`game/festive.ts`) puts its id on the page root: the accent colour follows. Append a block per theme. */
+[data-festive="halloween"] {
+  --accent: #ff9a3c;
+  --line: rgba(190, 140, 255, 0.22);
+  --festive-toast: rgba(40, 20, 64, 0.92);
+}
+
+[data-festive="christmas"] {
+  --accent: #ff6b6b;
+  --line: rgba(190, 255, 210, 0.2);
+  --festive-toast: rgba(20, 52, 40, 0.92);
+}
+
+[data-festive="sanktHans"] {
+  --accent: #ff8a3a;
+  --festive-toast: rgba(64, 30, 16, 0.92);
+}
+
+[data-festive="nytar"] {
+  --accent: #f4c95d;
+  --line: rgba(244, 201, 93, 0.22);
+  --festive-toast: rgba(14, 22, 64, 0.92);
+}
+
+[data-festive="paaske"] {
+  --accent: #b6e37a;
+  --festive-toast: rgba(52, 60, 30, 0.92);
+}
+
+[data-festive="befrielsen"] {
+  --accent: #f0cf7a;
+  --line: rgba(160, 176, 226, 0.22);
+  --festive-toast: rgba(18, 26, 56, 0.92);
+}
+
+[data-festive="agustusan"] {
+  --accent: #ff4d4d;
+  --line: rgba(255, 255, 255, 0.2);
+  --festive-toast: rgba(70, 16, 20, 0.92);
+}
+
+.festive-toast {
+  font-weight: bold;
+  letter-spacing: 0.02em;
+  background: var(--festive-toast, var(--panel));
+}
+
+/* Halloween's candy bucket (`HalloweenCandy.tsx`): a chip under the top bar while the theme is on. */
+.candy-chip {
+  position: absolute;
+  top: 64px;
+  left: 16px;
+  padding: 5px 12px;
+  font-weight: bold;
+  color: #ffe9c2;
+  background: rgba(40, 20, 64, 0.88);
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.candy-chip .candy-doors {
+  font-weight: normal;
+  opacity: 0.85;
+}
+
+/* Påske's egg hunt chip (`hud/Paaske.tsx`). */
+.paaske-eggs {
+  position: absolute;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 12px;
+  font-weight: bold;
+  background: var(--festive-toast, var(--panel));
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  pointer-events: auto;
+}
+
 /* Your pet: stroke, treat, trick. Over the world, above the hotbar's place, so the pet stays in sight. */
 .pet-menu {
   position: absolute;

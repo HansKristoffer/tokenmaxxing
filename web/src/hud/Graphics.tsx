@@ -140,6 +140,14 @@ export function GraphicsPanel() {
             />{" "}
             Reduce motion
           </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={effective.seasonal}
+              onChange={(e) => set("seasonal", e.target.checked)}
+            />{" "}
+            Seasonal effects (Halloween, Christmas)
+          </label>
           <button type="button" onClick={() => graphics.setOverrides({})}>
             Reset to tier defaults
           </button>

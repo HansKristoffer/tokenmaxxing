@@ -40,6 +40,30 @@ export const COSTUMES: readonly Costume[] = [
   costume(0, "Jack-o'-lantern", 350, "halloween", "Carved, lit and grinning. Smells faintly of candle."),
   // Never sold: it goes to whoever breaks the fastelavn barrel (`fastelavn.ts`), and stays theirs.
   { ...costume(1, "Kattekonge crown", 0, "fastelavn", "Broke the barrel, freed the cat. King for a year."), tradeable: false, rarity: "legendary", earned: "Break the fastelavn barrel" },
+  // Halloween's (30 to 39 are reserved for it): hat.230 to hat.232.
+  costume(30, "Witch hat", 300, "halloween", "Pointy, purple, slightly haunted."),
+  costume(31, "Ghost sheet", 300, "halloween", "Two holes. Zero regrets."),
+  costume(32, "Bat ears", 250, "halloween", "Tiny wings on the sides of your head."),
+  // Christmas (`christmas.ts`): the 40-49 range is the season's (look indices 240-249).
+  costume(40, "Santa hat", 300, "christmas", "Red, a white pompom, and a flat refusal to ship on the 24th."),
+  costume(41, "Reindeer antlers", 350, "christmas", "Rudolph-class latency, with a very red nose for the demo."),
+  costume(42, "Gløgg mug hat", 380, "christmas", "Warm, spiced and almost never spilt. Raisins included."),
+  costume(50, "Midsommerkrans", 220, "sanktHans", "Birch leaves, cornflowers and a red ribbon. Smells of cut grass and woodsmoke."),
+  costume(51, "Heksehat", 300, "sanktHans", "A black pointed hat with a straw band. For the one who flies to Bloksbjerg."),
+  costume(52, "Strå-hat", 180, "sanktHans", "A straw hat with a little Dannebrog on the band. Made for the longest evening."),
+  // Nytårsaften (`nytar.ts`): indices 55 to 59 are New Year's.
+  costume(55, "Nytårshat", 250, "newYear", "A gold-and-midnight party cone with a streamer pom-pom. Pop."),
+  costume(56, "Midnight top hat", 450, "newYear", "Tall, black, with a clock face on the band. It always says five to twelve."),
+  costume(57, "Kransekage hat", 350, "newYear", "Seven almond rings, stacked, a Dannebrog on top. Lift the top ring."),
+  // Påske (`festive.ts` theme "paaske"): indices 60-62 of the costume range are reserved for it.
+  costume(60, "Bunny ears", 300, "paaske", "Floppy white ears on a headband. Hops not included."),
+  costume(61, "Chick hat", 280, "paaske", "A fluffy yellow chick sits on your head. It has opinions."),
+  costume(62, "Påskelilje crown", 320, "paaske", "A ring of yellow narcissi, picked fresh on Palm Sunday."),
+  costume(65, "Veteran's flat cap", 250, "befrielsen", "A grey wool flat cap, worn soft. A closed mouth comes with it."),
+  costume(66, "Window candle", 300, "befrielsen", "A candle on a saucer, lit on the 4th of May. Lys i vinduet."),
+  // Agustusan (10 to 17 August); this theme's indices are 70 to 79.
+  costume(70, "Peci hitam", 300, "agustusan", "A black velvet songkok, as worn at the Proclamation. Wear it straight."),
+  costume(71, "Ikat kepala merah putih", 220, "agustusan", "A red-and-white headband for the lomba. Merdeka!"),
 ];
 
 /** The costume a look index stands for in a slot, if it is one. */

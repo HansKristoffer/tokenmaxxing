@@ -9,6 +9,9 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { glow, type Model, type Paint, tint, toon } from "../kit/kit.ts";
+import { HALLOWEEN_HAT_BUILDERS } from "./halloween-hats.ts";
+import { MIDSOMMER_HATS_3D } from "./midsommerHats.ts";
+import { PAASKE_HAT_BUILDERS } from "./paaske-hats3d.ts";
 import {
   boxBand,
   boxRing,
@@ -563,6 +566,7 @@ const letters = (
 
 // biome-ignore format: a catalogue reads best one to a line
 export const HAT_BUILDERS: Record<string, Build> = {
+  ...PAASKE_HAT_BUILDERS,
   Beanie: (m) => {
     m.ball(0.275, "#e25d5d", [0, 0.05, -0.01], [1, 0.75, 1]);
     m.cyl(0.275, 0.08, "#b8443f", [0, 0.02, -0.01], 0.275, 18);
@@ -984,6 +988,121 @@ export const HAT_BUILDERS: Record<string, Build> = {
     for (const x of [-0.07, 0.07]) m.cyl(0.04, 0.08, "#2b2433", [x, 0.27 + up, 0.12], 0.004, 4);
     m.ball(0.03, lit("#e8584f"), [0, 0.2 + up, 0.25]);
   },
+  // Christmas (`core/src/costumes.ts`): a Santa hat, reindeer antlers, and a mug of gløgg worn upright.
+  "Santa hat": (m) => {
+    m.cyl(0.27, 0.3, "#d8283a", [0, 0.02, 0], 0.11, 18);
+    if (isVox(m)) {
+      path(
+        m,
+        "#d8283a",
+        [
+          [0.0, 0.4, 0.2],
+          [-0.06, 0.46, 0.17],
+          [-0.13, 0.47, 0.15],
+          [-0.2, 0.42, 0.14],
+          [-0.25, 0.34, 0.13],
+        ],
+        0,
+        1.2,
+      );
+      m.ball(0.085, "#fbf7ef", [-0.27, 0.2, 0]);
+    } else {
+      const tip = m.part([0, 0.3, -0.01]);
+      tip.rotation.x = -0.95;
+      tip.cyl(0.11, 0.22, "#d8283a", [0, 0, 0], 0.06, 12);
+      const end = tip.part([0, 0.21, 0]);
+      end.rotation.x = -0.9;
+      end.cyl(0.06, 0.15, "#d8283a", [0, 0, 0], 0.012, 10);
+      end.ball(0.065, "#fbf7ef", [0, 0.17, 0]);
+    }
+    m.cyl(0.29, 0.1, "#fbf7ef", [0, -0.015, 0], 0.29, 18);
+  },
+  "Reindeer antlers": (m) => {
+    band(m, "#5a3a1e", 0.265, 0.05, 0.03, 0.27);
+    for (const s of [-1, 1]) {
+      const horn = m.part([s * 0.17, 0.08, -0.02]);
+      horn.rotation.z = -s * 0.3;
+      horn.cyl(0.045, 0.5, "#8a5a32", [0, 0, 0], 0.035, 6);
+      for (const [y, len, lean] of [
+        [0.14, 0.26, 0.95],
+        [0.3, 0.22, 0.85],
+      ] as const) {
+        const prong = horn.part([0, y, 0]);
+        prong.rotation.z = -s * lean;
+        prong.cyl(0.035, len, "#b98a5a", [0, 0, 0], 0.022, 5);
+      }
+      horn.ball(0.05, "#b98a5a", [0, 0.5, 0]);
+      m.ball(0.035, lit("#f5c842"), [s * 0.25, 0.08, 0.12]);
+    }
+  },
+  "Gløgg mug hat": (m) => {
+    // A cream mug with a red band, steaming, stood on the crown; its handle to the side.
+    m.cyl(0.18, 0.3, "#fbf7ef", [0, 0.2, 0], 0.17, 16);
+    m.cyl(0.182, 0.07, "#b3262e", [0, 0.3, 0], 0.182, 16);
+    m.cyl(0.15, 0.01, "#6b1f2a", [0, 0.495, 0], 0.15, 16);
+    ring(m, "#fbf7ef", 0.09, 0.03, [0.2, 0.35, 0], false);
+    for (const [x, y, z] of [
+      [-0.05, 0.5, 0.03],
+      [0.06, 0.5, -0.04],
+      [0.0, 0.5, 0.08],
+    ] as const)
+      m.ball(0.03, "#3a1f2a", [x, y, z], [1, 0.5, 1], 6);
+    m.box([0.06, 0.26, 0.03], see("#ffffff", 0.45), [-0.03, 0.52, 0.0], 0.006).rotation.z = 0.2;
+    m.box([0.05, 0.22, 0.03], see("#ffffff", 0.35), [0.07, 0.6, 0.02], 0.006).rotation.z = -0.25;
+  },
+  // New Year's (`core/src/costumes.ts`, `nytar.ts`): a midnight-blue party cone with gold bands and streamers.
+  Nytårshat: (m) => {
+    party(m, { a: "#26356b", b: "#f4c95d", pom: "#fbf7ef" });
+    for (const [i, c] of ["#ff5d73", "#5ee0ff", "#f4c95d"].entries()) {
+      const a = (i / 3) * Math.PI * 2 + 0.6;
+      const [x, z] = roundAt(m, a, 0.06);
+      const r = m.box([0.02, 0.2, 0.012], c, [x, 0.46, z], 0.004);
+      r.rotation.set(Math.cos(a) * 0.7, 0, -Math.sin(a) * 0.7);
+    }
+  },
+  // The Midnight top hat: tall and black, a clock face on the band that always says almost twelve, and a sparkler.
+  "Midnight top hat": (m, c) => {
+    brim(m, "#1c1a2a", 0.3, 0.14, 0.03);
+    m.cyl(0.17, 0.36, "#1c1a2a", [0, 0.16, 0], 0.165, 20);
+    m.cyl(0.173, 0.06, "#f4c95d", [0, 0.17, 0], 0.173, 20);
+    const face = m.cyl(0.055, 0.02, lit("#fff3cf"), [0, 0.2, 0.17], 0.055, 14);
+    face.rotation.x = Math.PI / 2;
+    m.box([0.008, 0.045, 0.01], "#1c1a2a", [0, 0.2, 0.182], 0.002);
+    m.box([0.008, 0.03, 0.01], "#1c1a2a", [0.013, 0.205, 0.182], 0.002).rotation.z = 0.9;
+    m.cyl(0.006, 0.12, "#c9971f", [0.06, 0.5, 0], 0.006, 5);
+    const spark = m.ball(0.025, lit("#ffe9a0"), [0.06, 0.64, 0]);
+    c.tick((t) => spark.scale.setScalar(0.8 + 0.5 * Math.abs(Math.sin(t * 9))));
+  },
+  // The Kransekage hat: a tower of almond rings, smallest on top, a Dannebrog at the peak.
+  "Kransekage hat": (m) => {
+    for (let i = 0; i < 7; i++) {
+      const r = 0.22 - i * 0.022;
+      m.cyl(r, 0.07, i % 2 ? "#e6d09c" : "#f3e2bd", [0, 0.04 + (6 - i) * 0.066, 0], r * 0.96, 14);
+    }
+    m.cyl(0.006, 0.18, "#8c5c36", [0, 0.5, 0], 0.006, 5);
+    m.box([0.12, 0.08, 0.01], "#d8283a", [0.065, 0.6, 0], 0.003);
+    m.box([0.12, 0.014, 0.012], "#fbf7ef", [0.065, 0.636, 0], 0.002);
+    m.box([0.014, 0.08, 0.012], "#fbf7ef", [0.035, 0.6, 0], 0.002);
+  },
+  // Befrielsen's flat cap (`core/src/costumes.ts`): a low grey tweed crown, a dark band, a short brim to the front.
+  "Veteran's flat cap": (m) => {
+    const up = isVox(m) ? 0.06 : 0;
+    dome(m, "#7b7f88", 0.29, 0.02 + up, 0.36);
+    band(m, "#3f4249", 0.285, 0.05, 0.02 + up);
+    m.box([0.3, 0.025, 0.17], "#3f4249", [0, 0.05 + up, 0.26], 0.01).rotation.x = -0.1;
+    m.ball(0.02, "#5d616a", [0, 0.2 + up, 0]);
+  },
+  // Befrielsen's window candle: a candle on a china saucer on the crown, a small flame that flickers.
+  "Window candle": (m, c) => {
+    const up = isVox(m) ? 0.08 : 0;
+    m.cyl(0.18, 0.03, "#cfd9ee", [0, 0.27 + up, 0], 0.13, 16);
+    m.cyl(0.05, 0.2, "#f4efe4", [0, 0.3 + up, 0], 0.05, 10);
+    const flame = m.ball(0.045, lit("#ffd45a"), [0, 0.56 + up, 0], [0.8, 1.5, 0.8], 8);
+    m.ball(0.022, lit("#fff3b0"), [0, 0.55 + up, 0], [0.8, 1.4, 0.8], 6);
+    c.tick((t) => {
+      flame.scale.y = 1.4 + Math.sin(t * 9) * 0.25;
+    });
+  },
   "429 bucket hat": (m) => {
     m.cyl(0.215, 0.17, "#4fb3a9", [0, 0.07, 0], 0.2, 18);
     m.cyl(0.215, 0.05, "#3a8c84", [0, 0.07, 0], 0.34, 22).position.y = 0.08;
@@ -997,6 +1116,7 @@ export const HAT_BUILDERS: Record<string, Build> = {
       80,
     ).rotation.y = 0.9;
   },
+  ...MIDSOMMER_HATS_3D,
   "Benchmark laurels": (m) => wreath(m),
   "Copenhagen ushanka": (m) => {
     dome(m, "#6b4a34", 0.285, 0.0, 0.5);
@@ -1006,6 +1126,28 @@ export const HAT_BUILDERS: Record<string, Build> = {
     m.box([0.07, 0.05, 0.012], "#c8102e", [0, 0.1, 0.287], 0.004);
     m.box([0.012, 0.07, 0.012], "#fbf7ef", [-0.012, 0.1, 0.29], 0.002);
     m.box([0.07, 0.012, 0.012], "#fbf7ef", [0, 0.1, 0.29], 0.002);
+  },
+  // Agustusan (`core/src/costumes.ts`): the black velvet peci, flat on top and a little higher at the front.
+  "Peci hitam": (m) => {
+    if (isVox(m)) {
+      // The blocky head is taller: a black box on the crown, a sheen on its flat top, a darker band round the base.
+      m.box([0.54, 0.2, 0.52], "#24222d", [0, 0.1, 0], 0.03);
+      m.box([0.48, 0.03, 0.46], "#2e2c3a", [0, 0.3, 0], 0.01);
+      band(m, "#15131c", 0.27, 0.05, 0.1);
+      return;
+    }
+    const body = m.cyl(0.285, 0.2, "#24222d", [0, -0.01, 0], 0.255, 22);
+    body.rotation.x = -0.05;
+    m.cyl(0.255, 0.02, "#2e2c3a", [0, 0.185, 0.005], 0.255, 22);
+    band(m, "#15131c", 0.287, 0.04, 0, 0.287);
+  },
+  // The ikat kepala: a red and a white band twisted round the forehead, knotted at the side, two tails hanging.
+  "Ikat kepala merah putih": (m) => {
+    band(m, "#d8283a", 0.285, 0.05, 0.02, 0.285);
+    band(m, "#fbf7ef", 0.285, 0.05, 0.07, 0.285);
+    m.ball(0.05, "#d8283a", [0.28, 0.07, -0.02]);
+    m.box([0.035, 0.17, 0.02], "#d8283a", [0.29, -0.1, -0.03], 0.005).rotation.z = 0.15;
+    m.box([0.035, 0.15, 0.02], "#fbf7ef", [0.3, -0.08, 0.01], 0.005).rotation.z = -0.1;
   },
   // The Night Market case.
   "Straw kasa": (m) => {
@@ -1152,6 +1294,7 @@ export const HAT_BUILDERS: Record<string, Build> = {
     ] as const)
       tilt(m, m.box([0.014, 0.15, 0.03], "#d9323a", [0.27, -0.06, z], 0.004), lean, 0, 0.12);
   },
+  ...HALLOWEEN_HAT_BUILDERS,
   // The Nusantara case (`core/src/case-nusantara.ts`). A blocky head is taller than the builders' ball, so these ride `up` higher.
   Blangkon: (m) => {
     // A folded batik headcloth: a brown dome with a lattice of cream and indigo diamonds, a tan band and the little
@@ -1939,4 +2082,23 @@ export const COVERS_HAIR = new Set([
   "Ojek helmet",
   "Little Bromo",
   "Kattekonge crown",
+  "Witch hat",
+  "Ghost sheet",
+  "Bat ears",
+  "Santa hat",
+  "Reindeer antlers",
+  "Gløgg mug hat",
+  "Midsommerkrans",
+  "Heksehat",
+  "Strå-hat",
+  "Nytårshat",
+  "Midnight top hat",
+  "Kransekage hat",
+  "Chick hat",
+  "Bunny ears",
+  "Påskelilje crown",
+  "Veteran's flat cap",
+  "Peci hitam",
+  "Ikat kepala merah putih",
+  "Window candle",
 ]);

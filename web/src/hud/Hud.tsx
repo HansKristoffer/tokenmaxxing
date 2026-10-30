@@ -26,10 +26,12 @@ import { Collection } from "./Collection.tsx";
 import { CompanyCard } from "./CompanyCard.tsx";
 import { CompanyPanel } from "./CompanyPanel.tsx";
 import { CompanyShop } from "./CompanyShop.tsx";
+import { FestiveAccent, FestiveToast } from "./Festive.tsx";
 import { Fishing } from "./Fishing.tsx";
 import { FpsMeter, GraphicsPanel, GraphicsToast } from "./Graphics.tsx";
 import { GreenBanner } from "./GreenHour.tsx";
 import { HallOfFame } from "./HallOfFame.tsx";
+import { HalloweenCandy } from "./HalloweenCandy.tsx";
 import { Hotbar } from "./Hotbar.tsx";
 import { Jukebox } from "./Jukebox.tsx";
 import { Julekalender } from "./Julekalender.tsx";
@@ -45,6 +47,7 @@ import { MiniBoard } from "./MiniBoard.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { DeskPanel } from "./OfficeDesks.tsx";
 import { DecorPanel, DirectoryPanel, OpenOfficesPanel } from "./Offices.tsx";
+import { PaaskeEggs } from "./Paaske.tsx";
 import { PamphletPanel } from "./Pamphlet.tsx";
 import { PaperPanel } from "./Paper.tsx";
 import { PetMenu } from "./PetMenu.tsx";
@@ -146,7 +149,11 @@ export function Hud() {
         <RaidToast />
         <LootToast />
         <GraphicsToast />
+        <FestiveToast />
       </div>
+      <FestiveAccent />
+      <HalloweenCandy />
+      <PaaskeEggs />
       <WhatsNewToast />
       <FpsMeter />
       <FirstVisit />

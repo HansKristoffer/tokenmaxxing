@@ -5,6 +5,7 @@ import { graphics } from "../settings/graphics.ts";
 import { storage } from "../storage.ts";
 import { hud } from "../store.ts";
 import { camera, viewHooks } from "./camera.ts";
+import { festiveNow } from "./festive.ts";
 import { ghost, undoStack } from "./furniture.ts";
 import { walkTo } from "./input.ts";
 import { myPetTile } from "./pets.ts";
@@ -38,4 +39,6 @@ export function exposeForQa(): void {
       conn: () => conn,
     },
   });
+  // Live (Object.assign would copy the value): the festive theme now, `{ id, intensity, days }` or null.
+  Object.defineProperty((window as unknown as { __tm: object }).__tm, "festive", { get: festiveNow });
 }

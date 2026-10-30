@@ -1,4 +1,5 @@
 import { decemberSnow } from "@tokenmaxxing/core/december.ts";
+import { festiveFog } from "@tokenmaxxing/core/festive.ts";
 import {
   copenhagenToMs,
   fogOf,
@@ -11,6 +12,8 @@ import {
 } from "@tokenmaxxing/core/sky.ts";
 import { hash } from "../art/pixels.ts";
 import { hud } from "../store.ts";
+import { festiveNow } from "./festive.ts";
+import { festiveGrade } from "./festive-palette.ts";
 import { bakeGlow } from "./glow.ts";
 
 /**
@@ -77,6 +80,12 @@ function tint(l: Light, w: Weather): string {
   let c = mix(WHITE, WARM, l.warmth * 0.7);
   // Twilight lingers: the night tint arrives late, so dusk is orange before it is blue.
   c = mix(c, NIGHT, l.darkness ** 1.6 * (1 - l.warmth * 0.2));
+  // A festive theme grades the light last (Halloween violet and orange, Christmas candle and snow blue).
+  const f = festiveNow();
+  if (f) {
+    const grade = festiveGrade(f, l.darkness, l.warmth);
+    c = mix(c, grade.rgb as RGB, grade.k);
+  }
   const grey = (c[0] + c[1] + c[2]) / 3;
   const murk = w.cloud * 0.35 + (w.kind === "storm" ? 0.2 : 0) + 0.1 * fogOf(w);
   c = mix(c, [grey, grey, grey], murk * 0.7 * (1 - l.warmth * 0.5));
@@ -92,6 +101,7 @@ function glowOf(l: Light, w: Weather): number {
 // MARK: Baked bits
 
 let glow: HTMLCanvasElement | undefined;
+let mistBlob: HTMLCanvasElement | undefined;
 let blob: HTMLCanvasElement | undefined;
 const moons = new Map<number, HTMLCanvasElement>();
 
@@ -301,6 +311,21 @@ export function drawWeather(
         ((((hash(i, 1, 5) * (w + bw) + fogShift * (0.6 + hash(i, 2, 5))) % (w + bw)) + (w + bw)) % (w + bw)) -
         bw;
       g.drawImage(blob, x, hash(i, 3, 5) * h - bw * 0.2, bw, bw * 0.5);
+    }
+    g.restore();
+  }
+
+  // Halloween's ground mist: violet banks low on the screen, thickest at night. Still (the classic tier is the
+  // light one), and on top of whatever the weather does.
+  const mist = festiveFog(festiveNow()) * (0.3 + 0.7 * dark);
+  if (mist > 0.02) {
+    mistBlob ??= bakeGlow(128, "176,150,214");
+    g.save();
+    g.globalAlpha = Math.min(1, mist * 1.6);
+    for (let i = 0; i < 9; i++) {
+      const bw = (460 + hash(i, 0, 6) * 300) * dpr;
+      const x = hash(i, 1, 6) * (w + bw) - bw * 0.5;
+      g.drawImage(mistBlob, x, h * (0.62 + hash(i, 3, 6) * 0.4) - bw * 0.2, bw, bw * 0.4);
     }
     g.restore();
   }

@@ -16,9 +16,9 @@ test("the band starts at 16:00 and finishes at midnight, in Copenhagen in summer
 });
 test("only the Tavern floor changes music for the performance", () => {
   const evening = at("2026-10-28T18:00");
-  expect(themeOf("inn", evening).id).toBe("hearth-jig");
-  expect(themeOf("inn", at("2026-10-28T15:59")).id).toBe("tavern");
-  expect(themeOf("basement", evening).id).toBe("tavern");
-  expect(themeOf("upstairs", evening).id).toBe("tavern");
-  expect(themeOf("town", evening).id).toBe("town");
+  expect(themeOf("inn", null, evening).id).toBe("hearth-jig");
+  expect(themeOf("inn", null, at("2026-10-28T15:59")).id).toBe("tavern");
+  expect(themeOf("basement", null, evening).id).toBe("tavern");
+  expect(themeOf("upstairs", null, evening).id).toBe("tavern");
+  expect(themeOf("town", null, evening).id).toBe("town");
 });

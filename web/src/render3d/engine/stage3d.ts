@@ -1,5 +1,6 @@
 import { lightAt } from "@tokenmaxxing/core/sky.ts";
 import * as THREE from "three";
+import { festiveNow } from "../../game/festive.ts";
 import { lampDim } from "../../game/grid.ts";
 import { skyNow, weatherNow } from "../../game/sky.ts";
 import type { GraphicsSettings } from "../../settings/graphics.ts";
@@ -73,7 +74,7 @@ export class RoomStage {
           current: () => "Town",
           applyNight: (on) => view.night?.(on),
         },
-        { clock: skyNow, weather: weatherNow, light: lightAt, lampDim },
+        { clock: skyNow, weather: weatherNow, light: lightAt, lampDim, festive: festiveNow },
       );
     } else this.fx = null;
     const t0 = performance.now();

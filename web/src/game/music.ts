@@ -1,6 +1,7 @@
 import { THEME_STEPS, type Theme, themeOf } from "@tokenmaxxing/core/themes.ts";
 import { drumHits, type Note, notes } from "@tokenmaxxing/core/tunes.ts";
 import type { RoomId } from "@tokenmaxxing/core/world.ts";
+import { festiveNow } from "./festive.ts";
 import { audio, drum, musicOut, tone, wakeOnInput } from "./jukebox.ts";
 import { tavernNow } from "./tavern-clock.ts";
 
@@ -30,7 +31,7 @@ function halt(): void {
 }
 
 function sync(): void {
-  const theme = room && !ducked ? themeOf(room, tavernNow()) : null;
+  const theme = room && !ducked ? themeOf(room, festiveNow()?.id, tavernNow()) : null;
   // Moving between two rooms with the same theme (a house to another house) keeps it playing.
   if ((theme?.id ?? null) === current) return;
   halt();

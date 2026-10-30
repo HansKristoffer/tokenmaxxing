@@ -3,8 +3,12 @@ import { costumeAt } from "@tokenmaxxing/core/costumes.ts";
 import { editionAt } from "@tokenmaxxing/core/editions.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
+import { CANDLE_HAT, FLAT_CAP } from "./befrielsen-hats.ts";
 import { CASE_GLASSES, CASE_HATS } from "./case.ts";
 import type { View } from "./characters.ts";
+import { HALLOWEEN_HATS } from "./halloween-hats.ts";
+import { MIDSOMMER_HAT_ART } from "./midsommer-hats.ts";
+import { PAASKE_HATS } from "./paaske-hats.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
 
@@ -26,6 +30,7 @@ const o = C.ink;
 // Pixel art reads as a grid.
 // prettier-ignore
 const HATS: Record<string, Art> = {
+  ...PAASKE_HATS,
   // Prompt wizard hat: a starry cone, bent at the tip, on a wide brim.
   "hat.100": {
     down: ["........oo......", ".......opPo.....", "......opypPo....", ".....oppppyPo...", "..oBBBBBBBBBBBo."],
@@ -118,6 +123,58 @@ const HATS: Record<string, Art> = {
     down: ["...Y...YY...Y...", "...YY.YYYY.YY...", "...oYYYYYYYYo...", "...oYrYkkYrYo...", "...oyyyyyyyyo..."],
     side: ["....Y...Y...Y...", "....YY.YYY.YY...", "....oYYYYYYYYo..", "....oYYkkYYrYo..", "....oyyyyyyyyo.."],
     pal: { o, Y: "#f5c842", y: "#c9971f", r: "#e8584f", k: o },
+  },
+  ...HALLOWEEN_HATS,
+  // Christmas costumes (`core/src/costumes.ts`, 240-249). Santa hat: a red cone bent over, a white band and a pompom.
+  "hat.240": {
+    down: ["........oooo.oo.", "......oorrrroowo", "....oorrrrrrrrwo", "...orrRrrrrrrro.", "..owwwwwwwwwwwwo", "...oooooooooooo."],
+    side: ["..........oooo..", "........oorrroo.", "......oorrrrrrwo", "....oorrRrrrrrro", "...owwwwwwwwwwo.", "....oooooooooo.."],
+    up: ["........oooo.oo.", "......oorrrroowo", "....oorrrrrrrrwo", "...orrRrrrrrrro.", "..owwwwwwwwwwwwo", "...oooooooooooo."],
+    pal: { o, r: "#d8283a", R: "#a81c2c", w: "#fbf7ef" },
+  },
+  // Reindeer antlers: two branching horns on a leather band, a bell on each.
+  "hat.241": {
+    down: [".A.A........A.A.", ".AaA........AaA.", "..AaA......AaA..", "..AAaA....AaAA..", "...AAkkkkkkAA...", "....okkkkkko...."],
+    side: ["........A.A.....", "........AaA.....", ".........Aa.A...", ".........AaAA...", "......kkkkkAA...", "......okkkkko..."],
+    pal: { o, A: "#8a5a32", a: "#b98a5a", k: "#5a3a1e" },
+  },
+  // Gløgg mug hat: a steaming red mug with a cream snowflake, worn upright, its handle on the side.
+  "hat.242": {
+    down: ["......s..s......", ".....s..s.......", "....oooooooo....", "...orrrrrrrro...", "...orrwrwrrro.oo", "...orrrwrrrro.o.", "...orrwrwrrroo..", "....oooooooo...."],
+    side: ["......s..s......", ".....s..s.......", "...oooooooo.....", "..orrrrrrrro....", "..orrwrwrrro.oo.", "..orrrwrrrro.o..", "..orrwrwrrrooo..", "...oooooooo....."],
+    pal: { o, r: "#b3262e", w: "#fbf7ef", s: "#d8dde6" },
+  },
+  ...MIDSOMMER_HAT_ART,
+  // New Year's (`core/src/nytar.ts`). Nytårshat: a midnight-blue party cone with gold bands and a white pom-pom.
+  "hat.255": {
+    down: [".......ww.......", "......onno......", ".....onGGno.....", "....onGGGGno....", "...oooooooooo..."],
+    pal: { o, n: "#26356b", G: "#f4c95d", w: "#fbf7ef" },
+  },
+  // Midnight top hat: tall and black, a gold band with a clock face, a spark above.
+  "hat.256": {
+    down: [".........y......", "....oooooooo....", "....okkkkkko....", "....oGGwwGGo....", "..oooooooooooo.."],
+    pal: { o, k: "#1c1a2a", G: "#f4c95d", w: "#fff3cf", y: "#ffe9a0" },
+  },
+  // Kransekage hat: almond rings stacked into a tower, a Dannebrog on top.
+  "hat.257": {
+    down: ["......rrw.......", "......occo......", ".....occlco.....", "....occlcclco...", "...oooooooooo..."],
+    pal: { o, c: "#f3e2bd", l: "#fff6dc", r: "#d8283a", w: "#fbf7ef" },
+  },
+  "hat.265": FLAT_CAP,
+  "hat.266": CANDLE_HAT,
+  // Agustusan (`web/src/art/agustusan.ts` has its scenery). Peci: a black velvet songkok, flat on top, a lighter sheen.
+  "hat.270": {
+    down: ["................", "....oooooooo....", "...okkkkkkkko...", "...oklkkkkkko...", "...oKKKKKKKKo..."],
+    side: ["................", "....ooooooo.....", "...okkkkkkko....", "...okkklkkko....", "...oKKKKKKKKo..."],
+    up: ["................", "....oooooooo....", "...okkkkkkkko...", "...okkkkkkkko...", "...oKKKKKKKKo..."],
+    pal: { o, k: "#2e2c38", K: "#1c1a24", l: "#5a5870" },
+  },
+  // Ikat kepala merah putih: a twisted red and white headband, knotted at the side with two tails.
+  "hat.271": {
+    down: ["................", "................", "...orrwrrwrrwo..", "...owwrwwrwwro..", "....oooooooo...."],
+    side: ["................", "................", "...orrwrrwrrr...", "...owwrwwrwww.rr", "....ooooooo.rw.."],
+    up: ["................", "................", "...orrwrrwrrwo..", "...owwrwwrwwro..", "....oooooooo...."],
+    pal: { o, r: "#d8283a", w: "#fbf7ef" },
   },
 };
 
