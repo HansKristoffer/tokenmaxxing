@@ -90,7 +90,9 @@ export const KEEP = [
   "Your coins and badges",
   "Your past prestige tags",
 ] as const;
-export const RESTART = ["Only the run: it goes back to level 0 of 50 (50 billion tokens)"] as const;
+export const RESTART = [
+  "A new run of 50 levels (50 billion tokens), with tokens past the previous cap carried over",
+] as const;
 
 export interface RunToast {
   key: string;

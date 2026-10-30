@@ -9,5 +9,5 @@ test("a missing or malformed prestige is none", () => {
 });
 
 test("a badge passes through", () => {
-  expect(prestigeOf({ prestige: { rank: 2, runLevel: 14 } })).toEqual({ rank: 2, runLevel: 14 });
+  expect(prestigeOf({ prestige: { rank: 2, runLevel: 14 } })).toEqual({ rank: 2, runLevel: 14, runInto: 0 });
 });
