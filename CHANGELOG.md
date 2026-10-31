@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.17.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.16.0...v1.17.0) (2026-10-30)
+
+
+### Features
+
+* **arcade:** add solo basement cabinets ([d8f0a7d](https://github.com/HansKristoffer/tokenmaxxing/commit/d8f0a7d2751a7d7a1aab43db7f5d1e8ecdc84267))
+* **arcade:** add solo games to the basement cabinets ([6103524](https://github.com/HansKristoffer/tokenmaxxing/commit/61035240e1a9057a18f3d121757bdca6df52aeda))
+* **festive:** agustusan (17 August, Hari Kemerdekaan) scenery, Pak Budi, music, hats and lomba ([0beff0d](https://github.com/HansKristoffer/tokenmaxxing/commit/0beff0dc2b80f04633f9951eaa13f1a861264506))
+* **festive:** befrielsen, a candle in every window, a memorial and Henning ([141e6f2](https://github.com/HansKristoffer/tokenmaxxing/commit/141e6f2abf1504d7e3c5fd8c0071ba07c4f9b9aa))
+* **festive:** christmas tree, Nisse Knud, lights, hats and a julehjerte for the 18-25 Dec theme ([28c0da8](https://github.com/HansKristoffer/tokenmaxxing/commit/28c0da80ff62c4c059aac32ca714cc5ae08d7aab))
+* **festive:** halloween bats, ghosts, cobwebs, cauldron, Gerda, trick-or-treat, music and hats ([4ff6483](https://github.com/HansKristoffer/tokenmaxxing/commit/4ff6483a494f26af10e9ceabf816ff95ba5a6f39))
+* **festive:** nytar - New Year's Eve in town: clock, buffet, fireworks, watchman, hats ([b7157ed](https://github.com/HansKristoffer/tokenmaxxing/commit/b7157ed463d2035bcae33a67a91148fa08d2189d))
+* **festive:** paaske - Easter in the town, 2D and 3D ([14be91f](https://github.com/HansKristoffer/tokenmaxxing/commit/14be91f975635a6bad869b9bddb70e917e53cac1))
+* **festive:** sanktHans scenery, the båltaler, midsommer waltz, hats and the heks to Bloksbjerg ([0229956](https://github.com/HansKristoffer/tokenmaxxing/commit/0229956830d33ff347d5ace9c22c03950fc05e8c))
+* **festive:** seven seasonal themes (Halloween, Christmas, Sankt Hans, Nytår, Påske, 4 May, 17 Agustus) ([5506b96](https://github.com/HansKristoffer/tokenmaxxing/commit/5506b96447d6878d2b586b97c5bc796ef1b9adc8))
+* **festive:** shared seasonal-theme framework for seven themes ([97d3205](https://github.com/HansKristoffer/tokenmaxxing/commit/97d32057b4e61cb4434be9d23a0c7abb6f2ffa21))
+* **halloween:** Sugar king badge and Candy bucket hat ([43c75c9](https://github.com/HansKristoffer/tokenmaxxing/commit/43c75c9b3cc7630b754fc4d6eed37c4949f0fe7f))
+* **halloween:** Sugar king badge and Candy bucket hat for knocking on every door ([7ee98ff](https://github.com/HansKristoffer/tokenmaxxing/commit/7ee98ffe823335adb326c687e31d9c81ecaa26db))
+* **prestige:** prestige screen, run state, and the tag, pet accessory and trophy in the game ([4dbaaf3](https://github.com/HansKristoffer/tokenmaxxing/commit/4dbaaf304a104dba39c65101f0ba0865b6dfd990))
+* **prestige:** run state, the prestige screen, and tags, pet accessories and trophies in the game ([4ce2193](https://github.com/HansKristoffer/tokenmaxxing/commit/4ce219367f5335340a3005ca0df31fabb593993a))
+* **shop:** previews zoom in on what you buy ([93d2af8](https://github.com/HansKristoffer/tokenmaxxing/commit/93d2af888dc3baa5890fc991b3480e67b64dddbe))
+* **shop:** previews zoom in on what you buy ([4dee813](https://github.com/HansKristoffer/tokenmaxxing/commit/4dee813857e39d2a950beded27618e31e5bdd29c))
+
+
+### Bug Fixes
+
+* **festive:** hair cover, format ([de95455](https://github.com/HansKristoffer/tokenmaxxing/commit/de9545522d8535f9a6f82528209ff282af16ab4a))
+* **festive:** merge fixes (hat cycle, registries, shop rows, brace losses) ([ffb8b1a](https://github.com/HansKristoffer/tokenmaxxing/commit/ffb8b1a2c5786cbc3446077546fecb918bef8cc6))
+* **halloween:** blocky ghosts ([e523dab](https://github.com/HansKristoffer/tokenmaxxing/commit/e523dab1680a5233fc983129be90ca2da7fce5b3))
+* **halloween:** blocky ghosts, built from boxes instead of balls and cylinders ([23543b0](https://github.com/HansKristoffer/tokenmaxxing/commit/23543b03328b32fa1a04ed931bb62a7a4e6edc05))
+* **halloween:** count tavern knock before opening paper ([6fb5a0a](https://github.com/HansKristoffer/tokenmaxxing/commit/6fb5a0a19fae5e658d03fba04c29f15ddb13b83b))
+* **halloween:** count tavern knock before opening paper ([e9e0d9d](https://github.com/HansKristoffer/tokenmaxxing/commit/e9e0d9db7899cf6d1106762848847a570383c7ba))
+* **halloween:** Gerda out from under a company's house ([3594748](https://github.com/HansKristoffer/tokenmaxxing/commit/359474888249f94e87853f360236ab3d060bf72e))
+* **halloween:** move Gerda into the core, out from under a company's house ([bd66b71](https://github.com/HansKristoffer/tokenmaxxing/commit/bd66b717f09d35abdd66c4b7a2588f3c7c674d17))
+* **prestige:** carry surplus tokens into runs and reuse level XP bar ([fa5e268](https://github.com/HansKristoffer/tokenmaxxing/commit/fa5e2685ab6abee866b5517a08ed50468a4b94ef))
+* **prestige:** carry surplus tokens into runs and reuse level XP bar ([5c12dc0](https://github.com/HansKristoffer/tokenmaxxing/commit/5c12dc0c8a4f2a7b85b9ea7d252db0f4ed715c7c))
+* **prestige:** me() carries the prestige badge and refreshes with the poll, so run toasts and the callout work ([ac14b8b](https://github.com/HansKristoffer/tokenmaxxing/commit/ac14b8b778c6880f5808dac78db3bd241c210574))
+* remove confetti when it reaches the ground ([ef1896d](https://github.com/HansKristoffer/tokenmaxxing/commit/ef1896dedc064b09e7c5b2d4c1610f86a3ae0607))
+
 ## [1.16.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.15.0...v1.16.0) (2026-10-29)
 
 
