@@ -5,7 +5,7 @@
   "dependencies": {
     "@tokenmaxxing/core": "workspace:*",
     "@tokenmaxxing/server": "workspace:*",
-    "hanzio": "^3.3.0",
+    "hanzio": "^3.4.0",
     "rivetkit": "2.3.21"
   }
 }

@@ -418,8 +418,8 @@ function PieceHint() {
 function Panel() {
   const panel = useHud((s) => s.panel);
   const inMyOffice = useHud((s) => s.room === `office:${world.selfId}`);
-  if (!panel) return null;
   return typedSwitch(panel, "kind", {
+    null: () => null,
     leaderboard: () => <Leaderboard />,
     card: (p) => (isBot(p.userId) ? <BotCard id={p.userId} /> : <PlayerCard userId={p.userId} />),
     companyCard: (p) => <CompanyCard companyId={p.companyId} />,

@@ -16,14 +16,14 @@
       "dependencies": {
         "@tokenmaxxing/core": "workspace:*",
         "@tokenmaxxing/server": "workspace:*",
-        "hanzio": "^3.3.0",
+        "hanzio": "^3.4.0",
         "rivetkit": "2.3.21",
       },
     },
     "core": {
       "name": "@tokenmaxxing/core",
       "dependencies": {
-        "hanzio": "^3.3.0",
+        "hanzio": "^3.4.0",
         "llm-usage-extraction": "^0.3.0",
       },
     },
@@ -32,7 +32,7 @@
       "dependencies": {
         "@anthropic-ai/sdk": "^0.129.0",
         "@tokenmaxxing/core": "workspace:*",
-        "hanzio": "^3.3.0",
+        "hanzio": "^3.4.0",
         "rivetkit": "2.3.21",
       },
     },
@@ -47,7 +47,7 @@
       "dependencies": {
         "@tokenmaxxing/core": "workspace:*",
         "@tokenmaxxing/server": "workspace:*",
-        "hanzio": "^3.3.0",
+        "hanzio": "^3.4.0",
         "qrcode": "1.5.4",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
@@ -1081,7 +1081,7 @@
 
     "h3": ["h3@1.15.11", "", { "dependencies": { "cookie-es": "^1.2.3", "crossws": "^0.3.5", "defu": "^6.1.6", "destr": "^2.0.5", "iron-webcrypto": "^1.2.1", "node-mock-http": "^1.0.4", "radix3": "^1.1.2", "ufo": "^1.6.3", "uncrypto": "^0.1.3" } }, "sha512-L3THSe2MPeBwgIZVSH5zLdBBU90TOxarvhK9d04IDY2AmVS8j2Jz2LIWtwsGOU3lu2I5jCN7FNvVfY2+XyF+mg=="],
 
-    "hanzio": ["hanzio@3.3.0", "", { "peerDependencies": { "@intlify/message-compiler": ">=10.0.0", "i18next": ">=23.0.0", "libphonenumber-js": "^1.10.0", "vite": ">=6.0.0", "vue-i18n": ">=10.0.0", "zod": "^4.3.6" }, "optionalPeers": ["@intlify/message-compiler", "i18next", "libphonenumber-js", "vite", "vue-i18n", "zod"], "bin": { "hanzio-i18n": "dist/src/i18n/cli.js" } }, "sha512-dyIcdqw5GrY4RrHrzFKb9p9FIKJAKVtM9DDXmCE3fEDTF23Tv0gBWO7HbROf36Dqr1FH0shPGbsGKPAsqv90Cw=="],
+    "hanzio": ["hanzio@3.4.0", "", { "peerDependencies": { "@intlify/message-compiler": ">=10.0.0", "i18next": ">=23.0.0", "libphonenumber-js": "^1.10.0", "vite": ">=6.0.0", "vue-i18n": ">=10.0.0", "zod": "^4.3.6" }, "optionalPeers": ["@intlify/message-compiler", "i18next", "libphonenumber-js", "vite", "vue-i18n", "zod"], "bin": { "hanzio-i18n": "dist/src/i18n/cli.js" } }, "sha512-UOehlrz0v0BWoGiJqnHz9Fg9F1Hat3BmFQi3Dyv24mbeehP8i1HGb1/8CTS6NKBcHDNxiOPeSLK4k3fVIsxfDA=="],
 
     "has-flag": ["has-flag@4.0.0", "", {}, "sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ=="],
 
