@@ -23,6 +23,8 @@ COPY web web
 COPY site site
 # The game shows the changelog after an update (web/src/changelog.ts).
 COPY CHANGELOG.md ./
+# The site's header video; site:build copies it in (site/astro.config.mjs).
+COPY tokenmaxxing-hero-loop.mp4 ./
 RUN bun run site:build
 
 # Mount the Railway volume at /data: the engine keeps every actor's state and SQLite there,

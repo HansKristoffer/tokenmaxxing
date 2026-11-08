@@ -101,28 +101,39 @@ const sources = ["Claude Code", "Claude Cowork", "Codex", "Cursor", "Grok Bot", 
     </header>
 
     <main>
-      <section class="hero wrap">
-        <img class="app-icon" src="/icon.svg" width="112" height="112" alt="The Tokenmaxxing app icon" />
-        <p class="kicker">A multiplayer 3D game for macOS</p>
-        <h1>A tiny town for people who run AI coding agents</h1>
-        <p class="lead">
-          Your tokens become a character, a house and a place on the leaderboard. See who is shipping, start a company,
-          and challenge your friends to burn the most tokens in an hour.
-        </p>
-        {/* The server writes the count in (server/src/main.ts); with no count the line hides. */}
-        <p class="players"><strong set:html="<!--players-->" /> people have moved into town</p>
-        <div class="actions">
-          <a class="button primary" href={DOWNLOAD}>Download for macOS</a>
-          <a class="button" href={GITHUB}>View on GitHub</a>
+      <section class="hero">
+        {/* The town, recorded in the real game; the loop lives in the repository root (astro.config.mjs). */}
+        <video
+          class="hero-video"
+          autoplay
+          muted
+          loop
+          playsinline
+          disablepictureinpicture
+          preload="auto"
+          poster="/hero-loop-poster.webp"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+          <source src="/tokenmaxxing-hero-loop.mp4" type="video/mp4" />
+        </video>
+        <div class="hero-shade" aria-hidden="true"></div>
+        <div class="hero-content wrap">
+          <img class="app-icon" src="/icon.svg" width="112" height="112" alt="The Tokenmaxxing app icon" />
+          <p class="kicker">A multiplayer 3D game for macOS</p>
+          <h1>A tiny town for people who run AI coding agents</h1>
+          <p class="lead">
+            Your tokens become a character, a house and a place on the leaderboard. See who is shipping, start a company,
+            and challenge your friends to burn the most tokens in an hour.
+          </p>
+          {/* The server writes the count in (server/src/main.ts); with no count the line hides. */}
+          <p class="players"><strong set:html="<!--players-->" /> people have moved into town</p>
+          <div class="actions">
+            <a class="button primary" href={DOWNLOAD}>Download for macOS</a>
+            <a class="button" href={GITHUB}>View on GitHub</a>
+          </div>
+          <p class="brew">or <code>brew install --cask hanskristoffer/tap/tokenmaxxing</code></p>
         </div>
-        <p class="brew">or <code>brew install --cask hanskristoffer/tap/tokenmaxxing</code></p>
-        <img
-          class="hero-shot"
-          src="/shots/hero.webp"
-          width="1440"
-          height="900"
-          alt="The town square: players chatting round the fountain, with company houses and the Tavern around it"
-        />
       </section>
 
       <section class="sources wrap" aria-label="Works with">
@@ -234,6 +245,9 @@ const sources = ["Claude Code", "Claude Cowork", "Codex", "Cursor", "Grok Bot", 
     margin-inline: auto;
   }
   .nav {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 2;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -264,8 +278,44 @@ const sources = ["Claude Code", "Claude Cowork", "Codex", "Cursor", "Grok Bot", 
     color: var(--text);
   }
   .hero {
-    padding: 48px 0 32px;
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: min(100svh, 920px);
+    padding: 104px 0 72px;
+    overflow: hidden;
     text-align: center;
+    background: var(--bg) url("/hero-loop-poster.webp") center / cover;
+  }
+  .hero-video,
+  .hero-shade {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .hero-video {
+    object-fit: cover;
+  }
+  /* Dark enough for the text over the bright town, and fading into the page below. */
+  .hero-shade {
+    background:
+      radial-gradient(ellipse 70% 60% at 50% 48%, rgba(27, 31, 42, 0.5), rgba(27, 31, 42, 0.2)),
+      linear-gradient(180deg, rgba(27, 31, 42, 0.7) 0%, rgba(27, 31, 42, 0.35) 30%, rgba(27, 31, 42, 0.45) 70%, var(--bg) 100%);
+  }
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 2px 16px rgba(10, 12, 20, 0.7);
+  }
+  .hero .lead,
+  .hero .brew {
+    color: #d6d9e0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-video {
+      display: none;
+    }
   }
   .kicker {
     color: var(--accent);
@@ -321,7 +371,7 @@ const sources = ["Claude Code", "Claude Cowork", "Codex", "Cursor", "Grok Bot", 
   .brew {
     color: var(--muted);
     font-size: 14px;
-    margin: 16px 0 40px;
+    margin: 16px 0 0;
   }
   code {
     background: var(--panel);
@@ -330,16 +380,13 @@ const sources = ["Claude Code", "Claude Cowork", "Codex", "Cursor", "Grok Bot", 
     padding: 2px 8px;
     color: var(--text);
   }
-  .hero-shot {
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-  }
   .sources {
     display: flex;
     flex-wrap: wrap;
     gap: 10px 20px;
     justify-content: center;
     align-items: center;
-    padding: 24px 0 56px;
+    padding: 8px 0 56px;
     color: var(--muted);
   }
   .features {
