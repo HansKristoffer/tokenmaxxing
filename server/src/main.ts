@@ -200,7 +200,12 @@ const server = Bun.serve({
     if (page)
       return new Response(page, {
         headers: headersFor("site", req, {
-          "cache-control": path.startsWith("/_astro/") ? "public, max-age=31536000, immutable" : "no-cache",
+          "cache-control": path.startsWith("/_astro/")
+            ? "public, max-age=31536000, immutable"
+            : // The header video is 10 MB: a day in the cache rather than a fresh copy on every visit.
+              path.endsWith(".mp4")
+              ? "public, max-age=86400"
+              : "no-cache",
         }),
       });
     return proxy.fetch(req, server);
