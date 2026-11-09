@@ -119,6 +119,9 @@ const VOXEL_HAT_LIFT: Record<string, number> = {
   "Strå-hat": 0.11,
 };
 
+/** Extra head-local height used by a named hat on a voxel avatar. */
+export const voxelHatLift = (name: string): number => VOXEL_HAT_LIFT[name] ?? 0;
+
 /** The names the 2D game gives outfits that are only colours (0-7 are free; the rest are named in the catalogue). */
 const FREE_OUTFIT_NAMES = [
   "Red tee",
@@ -226,7 +229,7 @@ class Dress implements Gear {
     // Voxel folk wear cubes: their frames draw blocks (`voxgear.ts`) however the builder asks for a ball or a cone.
     const frame = (parent: Model, at: [number, number, number]): Model =>
       vox ? vpart(parent, at) : parent.part(at);
-    const hatLift = vox && !(merch && worn.merch.cap) && worn.hat ? (VOXEL_HAT_LIFT[worn.hat.name] ?? 0) : 0;
+    const hatLift = vox && !(merch && worn.merch.cap) && worn.hat ? voxelHatLift(worn.hat.name) : 0;
     const hat = frame(a.head, [0, fit.y + fit.lift + hatLift, 0]);
     hat.name = "hat-gear";
     hat.scale.setScalar(fit.scale);

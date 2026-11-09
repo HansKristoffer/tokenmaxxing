@@ -8,7 +8,7 @@ import { onSale } from "@tokenmaxxing/core/costumes.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { type Model, ticks } from "../kit/kit.ts";
 import { Avatar, type Look } from "../people/avatar.ts";
-import { type Look2D, type LookOptions, lookFrom2D } from "../people/gear3d.ts";
+import { type Look2D, type LookOptions, lookFrom2D, voxelHatLift } from "../people/gear3d.ts";
 import { BACK_BUILDERS, HELD_BUILDERS } from "../people/gear3dBody.ts";
 import { band, FACE_BUILDERS, HAT_BUILDERS } from "../people/gear3dHead.ts";
 import { merchProp } from "../people/merch3d.ts";
@@ -127,10 +127,16 @@ const OWN_HATS: Record<string, (h: Model) => void> = {
   },
 };
 
-function hatPreview(name: string): Model {
+export function hatPreview(name: string): Model {
   const m = new VoxModel();
   const head = bust(m);
-  const hat = head.part();
+  // Match the worn voxel hat's position relative to the top of the head. The mannequin head is
+  // larger than an avatar head and the builder frame here is unscaled (see headFit in gear3d.ts).
+  const lift = voxelHatLift(name);
+  // Santa's low band needs a little more room on the solid display head.
+  const previewLift = lift ? Math.max(0, 0.239 + (0.1825 + lift - 0.36) / 0.63) + (name === "Santa hat" ? 0.025 : 0) : 0;
+  const hat = head.part([0, previewLift, 0]);
+  hat.name = "hat-preview-gear";
   (OWN_HATS[name] ?? HAT_BUILDERS[name])?.(hat, CTX(m));
   return m;
 }
