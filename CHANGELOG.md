@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.18.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.17.0...v1.18.0) (2026-11-09)
+
+
+### Features
+
+* **leaderboard:** a chart of everyone's tokens per day over the last 30 days ([#166](https://github.com/HansKristoffer/tokenmaxxing/issues/166)) ([6989406](https://github.com/HansKristoffer/tokenmaxxing/commit/69894062dd03a0c345da17aede0bd7ae332faf07))
+* **site:** launch film, and a loop of the town behind the landing page header ([#164](https://github.com/HansKristoffer/tokenmaxxing/issues/164)) ([0b9a451](https://github.com/HansKristoffer/tokenmaxxing/commit/0b9a4519b26da146e40156b9cb7c728695293c3c))
+
+
+### Bug Fixes
+
+* fit hats on shop preview heads ([f7d16a9](https://github.com/HansKristoffer/tokenmaxxing/commit/f7d16a90ebc9c103047156c16db07b38250f8a0c))
+* fit hats on shop preview heads ([23e632f](https://github.com/HansKristoffer/tokenmaxxing/commit/23e632f3ac97c290eb7aead3703347879f522749))
+* fit hats over voxel hair ([4a75f9b](https://github.com/HansKristoffer/tokenmaxxing/commit/4a75f9b06dcf1d91064a92449f2eee5d1d36d3cb))
+* fit hats over voxel hair ([7440ff4](https://github.com/HansKristoffer/tokenmaxxing/commit/7440ff4d12ffc2721108861c5e3fc89d0a7e0ab5))
+* fit more hats over voxel hair ([79de5d7](https://github.com/HansKristoffer/tokenmaxxing/commit/79de5d7ce9fa636615cb5ebf1ab2be37dd3521b0))
+* fit more hats over voxel hair ([d4ba2c5](https://github.com/HansKristoffer/tokenmaxxing/commit/d4ba2c5c5468ade8f520f96bef0dbcb30b428005))
+* format hat preview placement ([7b69933](https://github.com/HansKristoffer/tokenmaxxing/commit/7b69933df0d547b321a38125ca94a884ecbf9126))
+
 ## [1.17.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.16.0...v1.17.0) (2026-10-30)
 
 
