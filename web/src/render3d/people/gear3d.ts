@@ -84,6 +84,31 @@ export const itemAt = (slot: Slot, index: number): Item | undefined => bySlot.ge
 /** Hats the avatar already draws itself. */
 const BASE_HATS: Record<number, Hat> = { 1: "beanie", 2: "headphones", 3: "crown" };
 
+// These builders put a narrow crown or a flat brim partway down the round head. On a voxel head the
+// hair is a full-width cube, so it otherwise protrudes through the brim and hides the crown's base.
+// Helmets, headbands and crowns wrap the head instead and must keep their original fit.
+const VOXEL_HAT_LIFT: Record<string, number> = {
+  "Top hat": 0.09,
+  "Tinfoil hat": 0.11,
+  "Ship-it party hat": 0.11,
+  Julehue: 0.17,
+  "Prompt chef toque": 0.11,
+  "Cowboy coder hat": 0.09,
+  "PhD mortarboard": 0.06,
+  "Archmage hat": 0.1,
+  "Prompt wizard hat": 0.1,
+  "Release party hat": 0.11,
+  "Spaghetti chef's toque": 0.11,
+  "Friday deploy stetson": 0.09,
+  "Santa hat": 0.17,
+  "Midnight top hat": 0.09,
+  "Kransekage hat": 0.15,
+  "429 bucket hat": 0.13,
+  "Witch hat": 0.08,
+  Heksehat: 0.11,
+  "Strå-hat": 0.11,
+};
+
 /** The names the 2D game gives outfits that are only colours (0-7 are free; the rest are named in the catalogue). */
 const FREE_OUTFIT_NAMES = [
   "Red tee",
@@ -191,7 +216,9 @@ class Dress implements Gear {
     // Voxel folk wear cubes: their frames draw blocks (`voxgear.ts`) however the builder asks for a ball or a cone.
     const frame = (parent: Model, at: [number, number, number]): Model =>
       vox ? vpart(parent, at) : parent.part(at);
-    const hat = frame(a.head, [0, fit.y + fit.lift, 0]);
+    const hatLift = vox && !(merch && worn.merch.cap) && worn.hat ? (VOXEL_HAT_LIFT[worn.hat.name] ?? 0) : 0;
+    const hat = frame(a.head, [0, fit.y + fit.lift + hatLift, 0]);
+    hat.name = "hat-gear";
     hat.scale.setScalar(fit.scale);
     const face = frame(a.head, [0, fit.y + fit.eyes, fit.front]);
     face.scale.set(fit.scale * fit.wide, fit.scale, fit.scale);
