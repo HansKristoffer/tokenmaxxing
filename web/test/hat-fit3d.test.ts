@@ -29,6 +29,13 @@ test("voxel brims and narrow crowns sit above the hair", () => {
     ["Cowboy coder hat", 0.13],
     ["Heksehat", 0.1],
     ["Strå-hat", 0.1],
+    ["Nytårshat", 0.1],
+    ["Lucky lure hat", -0.012],
+    ["Hourglass hat", 0.1],
+    ["Smørrebrød hat", 0.2],
+    ["Lego brick hat", 0.2],
+    ["Gløgg mug hat", 0.2],
+    ["Straw kasa", 0.14],
   ] as const) {
     expect(frameY(name) + base * 0.63, name).toBeGreaterThan(0.34);
   }
@@ -37,4 +44,17 @@ test("voxel brims and narrow crowns sit above the hair", () => {
 test("head-wrapping hats and smooth avatars keep their original fit", () => {
   expect(frameY("Viking helmet")).toBeCloseTo(0.1825);
   expect(frameY("Prompt wizard hat", "grown")).toBeCloseTo(frameY("Viking helmet", "grown"));
+});
+
+test("reported hats clear the full height of voxel hair", () => {
+  for (const [name, base] of [
+    ["Danish flag cap", 0.11],
+    ["Cowboy coder hat", 0.13],
+    ["Friday deploy stetson", 0.13],
+    ["Borrowed-token tricorn", 0.1],
+    ["Pirate tricorn", 0.1],
+    ["Julehue", -0.015],
+  ] as const) {
+    expect(frameY(name) + base * 0.63, name).toBeGreaterThan(0.36);
+  }
 });
