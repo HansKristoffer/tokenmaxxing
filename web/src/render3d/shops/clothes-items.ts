@@ -134,7 +134,9 @@ export function hatPreview(name: string): Model {
   // larger than an avatar head and the builder frame here is unscaled (see headFit in gear3d.ts).
   const lift = voxelHatLift(name);
   // Santa's low band needs a little more room on the solid display head.
-  const previewLift = lift ? Math.max(0, 0.239 + (0.1825 + lift - 0.36) / 0.63) + (name === "Santa hat" ? 0.025 : 0) : 0;
+  const previewLift = lift
+    ? Math.max(0, 0.239 + (0.1825 + lift - 0.36) / 0.63) + (name === "Santa hat" ? 0.025 : 0)
+    : 0;
   const hat = head.part([0, previewLift, 0]);
   hat.name = "hat-preview-gear";
   (OWN_HATS[name] ?? HAT_BUILDERS[name])?.(hat, CTX(m));
