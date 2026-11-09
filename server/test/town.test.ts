@@ -250,6 +250,38 @@ describe("leaderboard", () => {
     await expect(b.town.company(999_999, "today")).rejects.toThrow("gone");
   });
 
+  test("the chart: 30 days of tokens for everyone with any, and their companies", async () => {
+    const a = await signUp("trend");
+    const b = await signUp("trend");
+    const co = await a.town.createCompany("Trend Co");
+    await admit(a, b, co.id);
+    // A minute counts for at most 200M: a billion over five, enough to top this file's board.
+    await as(a.token)
+      .player(a.userId)
+      .ingest(
+        Array.from({ length: 5 }, (_, i) => event({ inputTokens: 200e6, timestamp: Date.now() - i * MIN })),
+      );
+    await as(b.token)
+      .player(b.userId)
+      .ingest([event({ inputTokens: 2_000_000 })]);
+
+    const t = await b.town.trend();
+    expect(t.days).toHaveLength(30);
+    const sum = (line: number[]) => line.reduce((n, x) => n + x, 0);
+    // A line has a number for each day, adding up to its total.
+    const top = t.players.find((p) => p.userId === a.userId)!;
+    expect(top.daily).toHaveLength(30);
+    expect(sum(top.daily)).toBe(top.tokens);
+    // Everyone with tokens is on it, busiest first.
+    const mine = t.players.find((p) => p.userId === b.userId)!;
+    expect(sum(mine.daily)).toBe(mine.tokens);
+    expect(top.rank).toBeLessThan(mine.rank);
+    expect(t.players.every((p, i) => i === 0 || p.rank > t.players[i - 1]!.rank)).toBe(true);
+    // A company's line is its people's, summed.
+    const company = t.companies.find((c) => c.companyId === co.id)!;
+    expect(company.daily).toEqual(top.daily.map((n, i) => n + mine.daily[i]!));
+  });
+
   test("today's corner has the top 5 and me, even at zero", async () => {
     const quiet = await signUp("quiet");
     const today = await quiet.town.today();

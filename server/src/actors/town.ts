@@ -83,7 +83,9 @@ import {
   type Profile,
   profile,
   type Today,
+  type Trend,
   today,
+  trend,
 } from "../town/boards.ts";
 import {
   addTavernMinutes,
@@ -238,6 +240,9 @@ export type {
   Leaderboard,
   Profile,
   Today,
+  Trend,
+  TrendCompany,
+  TrendPlayer,
 } from "../town/boards.ts";
 export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany, WalletLine } from "../town/companies.ts";
@@ -1461,6 +1466,9 @@ export const town = actor({
         isSortKey(rawSort) ? rawSort : "tokens",
         Date.now(),
       ),
+
+    /** The leaderboard as lines: tokens per day over the last 30 days, for the top players and companies. */
+    trend: (c): Promise<Trend> => trend(c.db, requireUser(c.conn.state), Date.now()),
 
     /** A company's card: its numbers, website, logo and people. */
     company: (c, companyId: unknown, rawRange: unknown): Promise<CompanyProfile> => {

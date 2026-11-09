@@ -135,6 +135,37 @@ export interface Profile {
   agentType?: AgentType;
 }
 
+/** One line on the leaderboard's chart: someone's tokens on each of `Trend.days`. */
+export interface TrendLine {
+  /** Their rank by tokens over the 30 days. */
+  rank: number;
+  name: string;
+  /** Tokens over the 30 days. */
+  tokens: number;
+  daily: number[];
+}
+
+export interface TrendPlayer extends TrendLine {
+  userId: number;
+  look: Look;
+  company: string | null;
+}
+
+export interface TrendCompany extends TrendLine {
+  companyId: number;
+  tier: number;
+}
+
+/** The leaderboard as lines: the top players and companies by tokens, day by day, over the last 30 days. */
+export interface Trend {
+  /** The last 30 world days, oldest first. */
+  days: string[];
+  /** The top `BOARD_TOP` with any tokens, busiest first, then me when I'm not among them. */
+  players: TrendPlayer[];
+  /** The top `BOARD_TOP` with any tokens, busiest first. */
+  companies: TrendCompany[];
+}
+
 /** The HUD's corner: my numbers today, and today's top 5 (with me pinned below when I'm not in it). */
 export interface Today {
   me: { rank: number | null; tokensToday: number; level: number };
@@ -221,9 +252,13 @@ async function buildBoard(
  */
 const byRange = new Map<string, ReturnType<typeof buildBoard>>();
 
+/** Every player's tokens per day over the last 30 days, kept like `byRange`. */
+const dailyByDays = new Map<string, Promise<Map<number, number[]>>>();
+
 /** Something on the boards changed: a sync, a sign-up, a new name or look, someone joining or leaving. */
 export function boardsChanged(): void {
   byRange.clear();
+  dailyByDays.clear();
 }
 
 function boardOf(sql: Sql, range: RangeKey, now: number): ReturnType<typeof buildBoard> {
@@ -463,6 +498,85 @@ export async function leaderboard(
     sort,
     players: players.filter((p, i) => i < BOARD_TOP || p.userId === userId),
     companies: board.companies.slice(0, BOARD_TOP),
+  };
+}
+
+/** Each player's tokens on each of `days` (only those with any). */
+async function dailyTokens(sql: Sql, days: string[]): Promise<Map<number, number[]>> {
+  const rows = await all<{ userId: number; day: string; tokens: number }>(
+    sql,
+    `SELECT user_id AS userId, day, SUM(${TOKENS}) AS tokens FROM usage_daily
+     WHERE day >= ? AND day <= ? GROUP BY user_id, day`,
+    days[0],
+    days.at(-1),
+  );
+  const index = new Map(days.map((d, i) => [d, i]));
+  const byUser = new Map<number, number[]>();
+  for (const r of rows) {
+    const line = byUser.get(r.userId) ?? days.map(() => 0);
+    line[index.get(r.day)!] = r.tokens;
+    byUser.set(r.userId, line);
+  }
+  return byUser;
+}
+
+function dailyOf(sql: Sql, days: string[]): Promise<Map<number, number[]>> {
+  const key = `${days[0]} ${days.at(-1)}`;
+  const hit = dailyByDays.get(key);
+  if (hit) return hit;
+  if (dailyByDays.size > 4) dailyByDays.clear();
+  const daily = dailyTokens(sql, days);
+  dailyByDays.set(key, daily);
+  daily.catch(() => {
+    if (dailyByDays.get(key) === daily) dailyByDays.delete(key);
+  });
+  return daily;
+}
+
+/** The leaderboard's chart: everyone with tokens in the last 30 days (and me), a line each, busiest first. */
+export async function trend(sql: Sql, userId: number, now: number): Promise<Trend> {
+  const first = addDays(dayKey(now), -29);
+  const days = Array.from({ length: 30 }, (_, i) => addDays(first, i));
+  const board = await boardOf(sql, "30d", now);
+  const daily = await dailyOf(sql, days);
+  const none = days.map(() => 0);
+  const players = rank(board.players, "tokens");
+  const top = players.slice(0, BOARD_TOP).filter((p) => p.tokens > 0);
+  const me = players.find((p) => p.userId === userId);
+  const shown = me && !top.includes(me) ? [...top, me] : top;
+  // A company's line: its people's, summed.
+  const byCompany = new Map<number, number[]>();
+  for (const p of players) {
+    const line = daily.get(p.userId);
+    if (p.companyId === null || !line) continue;
+    const sum = byCompany.get(p.companyId) ?? days.map(() => 0);
+    byCompany.set(
+      p.companyId,
+      sum.map((n, i) => n + line[i]!),
+    );
+  }
+  return {
+    days,
+    players: shown.map((p) => ({
+      rank: p.rank,
+      userId: p.userId,
+      name: p.name,
+      look: p.look,
+      company: p.company,
+      tokens: p.tokens,
+      daily: daily.get(p.userId) ?? none,
+    })),
+    companies: rank(board.companies, "tokens")
+      .filter((c) => c.tokens > 0)
+      .slice(0, BOARD_TOP)
+      .map((c) => ({
+        rank: c.rank,
+        companyId: c.companyId,
+        name: c.name,
+        tier: c.tier,
+        tokens: c.tokens,
+        daily: byCompany.get(c.companyId) ?? none,
+      })),
   };
 }
 

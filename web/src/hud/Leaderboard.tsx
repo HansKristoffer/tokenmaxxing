@@ -6,6 +6,7 @@ import type {
   BoardCompany,
   BoardPlayer,
   GamePlayer,
+  Trend,
 } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
 import { type ReactNode, useEffect, useState } from "react";
@@ -14,6 +15,7 @@ import { hud, useHud } from "../store.ts";
 import { ranges } from "./format.ts";
 import { PrestigeMini } from "./PrestigeMini.tsx";
 import { prestigeOf } from "./prestige-badge.ts";
+import { TrendChart, type TrendMode, type TrendSeries } from "./TrendChart.tsx";
 import { AvatarImage, House, Modal, Pills, useLoad } from "./ui.tsx";
 
 type Sort = Board["sort"];
@@ -26,6 +28,14 @@ const SORTS = [
   ["hours", "Agent hours"],
   ["parallelism", "Parallel"],
   ["prs", "PRs"],
+] as const;
+const VIEWS = [
+  ["board", "🏆 Board"],
+  ["chart", "📈 Chart"],
+] as const;
+const MODES = [
+  ["daily", "Per day"],
+  ["total", "Running total"],
 ] as const;
 const EMPTY: Record<RangeKey, string> = {
   today: "today",
@@ -64,12 +74,14 @@ export function Leaderboard() {
   const [range, setRange] = useState<RangeKey>("today");
   const [sort, setSort] = useState<Sort>("tokens");
   const [tab, setTab] = useState<"players" | "companies" | "games">("players");
+  const [view, setView] = useState<"board" | "chart">("board");
   const [board, setBoard] = useState<Board | null>(null);
   const games = tab === "games";
+  const chart = !games && view === "chart";
 
-  // The games tab has a board of its own.
+  // The games tab has a board of its own, and the chart its own numbers.
   useEffect(() => {
-    if (games) return;
+    if (games || chart) return;
     let live = true;
     const load = () => town.leaderboard(range, sort).then((b) => live && setBoard(b));
     void load();
@@ -78,7 +90,7 @@ export function Leaderboard() {
       live = false;
       clearInterval(id);
     };
-  }, [range, sort, games]);
+  }, [range, sort, games, chart]);
 
   const players = board?.players ?? [];
   const by = BY[sort];
@@ -98,15 +110,22 @@ export function Leaderboard() {
           ]}
           onChange={setTab}
         />
-        <Pills value={range} options={RANGES} onChange={setRange} />
+        {chart ? (
+          <span className="muted small">Tokens, last 30 days</span>
+        ) : (
+          <Pills value={range} options={RANGES} onChange={setRange} />
+        )}
       </div>
       {games ? (
         <GamesBoard range={range} me={me} />
+      ) : chart ? (
+        <TrendView companies={tab === "companies"} me={me} onBoard={() => setView("board")} />
       ) : (
         <>
           <div className="lb-sort">
             <span className="muted small">Ranked by</span>
             <Pills value={sort} options={SORTS} onChange={setSort} />
+            <ViewPills value={view} onChange={setView} />
           </div>
           {!board ? (
             <p className="muted">Loading…</p>
@@ -180,6 +199,87 @@ export function Leaderboard() {
         </>
       )}
     </Modal>
+  );
+}
+
+function ViewPills({
+  value,
+  onChange,
+}: {
+  value: "board" | "chart";
+  onChange: (v: "board" | "chart") => void;
+}) {
+  return (
+    <span className="lb-view">
+      <Pills value={value} options={VIEWS} onChange={onChange} />
+    </span>
+  );
+}
+
+/** The leaderboard as lines: everyone by tokens, day by day over the last 30 days, the top 8 drawn. */
+function TrendView({
+  companies,
+  me,
+  onBoard,
+}: {
+  companies: boolean;
+  me: number | undefined;
+  onBoard: () => void;
+}) {
+  const [mode, setMode] = useState<TrendMode>("daily");
+  const [trend, setTrend] = useState<Trend | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    const load = () => town.trend().then((t) => live && setTrend(t));
+    void load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  const series: TrendSeries[] = !trend
+    ? []
+    : companies
+      ? trend.companies.map((c) => ({
+          key: `c${c.companyId}`,
+          rank: c.rank,
+          name: c.name,
+          picture: <House companyId={c.companyId} tier={c.tier} scale={0.22} />,
+          daily: c.daily,
+        }))
+      : trend.players.map((p) => ({
+          key: `p${p.userId}`,
+          rank: p.rank,
+          name: p.name,
+          picture: <AvatarImage look={p.look} scale={1.5} />,
+          daily: p.daily,
+          mine: p.userId === me,
+        }));
+  const empty = series.every((s) => s.daily.every((d) => d === 0));
+
+  return (
+    <>
+      <div className="lb-sort">
+        <span className="muted small">Shown as</span>
+        <Pills value={mode} options={MODES} onChange={setMode} />
+        <ViewPills value="chart" onChange={(v) => v === "board" && onBoard()} />
+      </div>
+      {!trend ? (
+        <p className="muted">Loading…</p>
+      ) : empty ? (
+        <p className="lb-empty">
+          {companies ? "No company has used any tokens" : "Nobody has run an agent"} this month.
+          <br />
+          <span className="muted small">Start an agent and draw the first line 🚀</span>
+        </p>
+      ) : (
+        // Players and companies each start from their own top 8.
+        <TrendChart key={companies ? "companies" : "players"} days={trend.days} series={series} mode={mode} />
+      )}
+    </>
   );
 }
 

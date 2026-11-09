@@ -68,6 +68,9 @@ export type {
   Raid,
   Today,
   Trade,
+  Trend,
+  TrendCompany,
+  TrendPlayer,
   Wallet,
   WalletLine,
 } from "./town.ts";
