@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { LEGEND, MAPS, townMap } from "@tokenmaxxing/core/maps.ts";
-import { SHOP_IDS, SHOP_ROOM, SHOPS } from "@tokenmaxxing/core/shoprooms.ts";
+import { CASE_BOARD_AT, CASE_BOARD_TILE, SHOP_IDS, SHOP_ROOM, SHOPS } from "@tokenmaxxing/core/shoprooms.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 
 /** Every canvas the art bakes, with its size and the rects painted on it. */
@@ -97,4 +97,19 @@ test("the bar tab on the west wall fits its four tiles and crowns last week's wi
   expect(tab.width).toBe(TILE);
   expect(tab.height).toBe(4 * TILE);
   expect(MAPS.inn.find("J")).toHaveLength(4);
+});
+
+test("Natmarked's entrance board is drawn, reachable and separate from the case shelves", async () => {
+  const { shelfAt } = await import("@tokenmaxxing/core/shoprooms.ts");
+  const { route } = await import("@tokenmaxxing/core/world.ts");
+  const map = MAPS[SHOP_ROOM.natmarked];
+  const [x, y] = CASE_BOARD_AT;
+  expect(map.at(x, y)).toBe(CASE_BOARD_TILE);
+  expect(map.at(x + 1, y)).toBe(CASE_BOARD_TILE);
+  expect(map.walkable(x, y)).toBe(false);
+  expect(route(map, [9, 12], [x, y + 1])).not.toBeNull();
+  expect(objectAt(map, x, y)?.canvas.width).toBe(2 * TILE);
+  expect(objectAt(map, x + 1, y)).toBeNull();
+  expect(shelfAt(x, y)).toBeNull();
+  expect(shelfAt(2, 2)).toBe(0);
 });

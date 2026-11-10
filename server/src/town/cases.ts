@@ -17,6 +17,34 @@ export async function migrateCases(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS case_dry (
     user_id INTEGER NOT NULL, case_id TEXT NOT NULL, dry INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, case_id)) WITHOUT ROWID`);
+  await sql.execute(`CREATE INDEX IF NOT EXISTS ledger_cases ON ledger (user_id, ref)
+    WHERE kind = 'case' AND amount < 0`);
+}
+
+export interface CaseLeader {
+  userId: number;
+  name: string;
+  spent: number;
+  opened: number;
+  cases: Record<string, number>;
+}
+
+/** All-time top 100 by coins actually charged, independent of items later sold or traded. */
+export async function caseLeaderboard(sql: Sql): Promise<CaseLeader[]> {
+  const rows = await all<Omit<CaseLeader, "cases"> & { cases: string }>(
+    sql,
+    `WITH openings AS (
+      SELECT user_id, SUBSTR(ref, 6) AS case_id, COUNT(*) AS opened, -SUM(amount) AS spent
+      FROM ledger WHERE kind = 'case' AND amount < 0 AND ref LIKE 'case:%'
+      GROUP BY user_id, ref
+    )
+    SELECT u.id AS userId, u.name, SUM(o.spent) AS spent, SUM(o.opened) AS opened,
+      json_group_object(o.case_id, o.opened) AS cases
+    FROM openings o JOIN users u ON u.id = o.user_id
+    GROUP BY u.id
+    ORDER BY spent DESC, opened DESC, u.id ASC LIMIT 100`,
+  );
+  return rows.map((row) => ({ ...row, cases: JSON.parse(row.cases) as Record<string, number> }));
 }
 
 /** A uniform number in [0, 1) with 53 random bits, from the system's secure source. */

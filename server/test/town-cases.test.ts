@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { caseById, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
 import { rarityOf } from "@tokenmaxxing/core/rarity.ts";
 import { UserError } from "rivetkit";
-import { openCase, sellDuplicates, sellItem } from "../src/town/cases.ts";
+import { caseLeaderboard, openCase, sellDuplicates, sellItem } from "../src/town/cases.ts";
 import { bag } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
@@ -331,5 +331,81 @@ describe("a second case", () => {
     expect((await sellItem(sql, 7, pet.id, now)).unworn).toBe(true);
     const [row] = await sql.execute("SELECT look FROM users WHERE id = 7");
     expect(JSON.parse((row as { look: string }).look).pet).toBe(0);
+  });
+});
+
+describe("case leaderboard", () => {
+  test("counts historical openings per case and actual spending, even after rewards are sold", async () => {
+    const sql = await setup(5000);
+    expect(await caseLeaderboard(sql)).toEqual([]);
+    const won = await openCase(sql, 7, night.id, now);
+    await openCase(sql, 7, night.id, now);
+    await openCase(sql, 7, nus.id, now);
+    await openCase(sql, 7, eve.id, now);
+    await sellItem(sql, 7, won.item.id, now);
+    await rejects(openCase(sql, 7, "nope", now), "not_found");
+    expect(await caseLeaderboard(sql)).toEqual([
+      {
+        userId: 7,
+        name: "u7",
+        spent: 2 * night.keyPrice + nus.keyPrice + eve.keyPrice,
+        opened: 4,
+        cases: { [night.id]: 2, [nus.id]: 1, [eve.id]: 1 },
+      },
+    ]);
+    await sql.execute("DELETE FROM users WHERE id = 7");
+    // Deleted accounts' financial history stays, but their identity is not on the board.
+    expect(await caseLeaderboard(sql)).toEqual([]);
+  });
+
+  test("ranks by recorded spending, then openings and id; ignores unrelated ledger entries", async () => {
+    const sql = await setup(0);
+    for (const id of [8, 9, 10])
+      await sql.execute(
+        "INSERT INTO users (id, name, look, created_at) VALUES (?, ?, '{}', 0)",
+        id,
+        `u${id}`,
+      );
+    for (const [id, amount, kind, ref] of [
+      [7, -100, "case", "case:night-market"],
+      [8, -50, "case", "case:nusantara"],
+      [8, -50, "case", "case:nusantara"],
+      [9, -200, "case", "case:ragnarok-eve"],
+      [10, -100, "case", "case:night-market"],
+      [7, 500, "vendor", "vendor:hat"],
+      [7, -900, "trade", "trade:1"],
+      [7, 100, "case", "case:night-market"],
+    ] as const)
+      await sql.execute(
+        "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, ?, ?, 0)",
+        id,
+        amount,
+        kind,
+        ref,
+      );
+    const board = await caseLeaderboard(sql);
+    expect(board.map((r) => r.userId)).toEqual([9, 8, 7, 10]);
+    expect(board.map((r) => r.spent)).toEqual([200, 100, 100, 100]);
+    expect(board[1]!.cases).toEqual({ nusantara: 2 });
+  });
+
+  test("bounds the public board to the top 100", async () => {
+    const sql = await setup(0);
+    for (let id = 100; id <= 200; id++) {
+      await sql.execute(
+        "INSERT INTO users (id, name, look, created_at) VALUES (?, ?, '{}', 0)",
+        id,
+        `u${id}`,
+      );
+      await sql.execute(
+        "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (?, ?, 'case', 'case:night-market', 0)",
+        id,
+        -id,
+      );
+    }
+    const board = await caseLeaderboard(sql);
+    expect(board).toHaveLength(100);
+    expect(board[0]!.userId).toBe(200);
+    expect(board[99]!.userId).toBe(101);
   });
 });

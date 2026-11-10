@@ -3,7 +3,12 @@ import { HOME_PIECES, isHomePiece } from "@tokenmaxxing/core/home.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE, sideways, turnAt } from "@tokenmaxxing/core/office.ts";
 import { isPoster, posterOf } from "@tokenmaxxing/core/posters.ts";
-import { SHOP_DISPLAY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS } from "@tokenmaxxing/core/shoprooms.ts";
+import {
+  CASE_BOARD_TILE,
+  SHOP_DISPLAY_CHAR,
+  SHOP_DOOR_CHAR,
+  SHOP_IDS,
+} from "@tokenmaxxing/core/shoprooms.ts";
 import { WINDMILL } from "@tokenmaxxing/core/windmill.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { bigScreen, SCREEN_H, SCREEN_TILES, tournamentBoard, wallTerminal } from "./basement.ts";
@@ -12,7 +17,7 @@ import { type FancyPiece, fancyPiece, fancySprite } from "./furniture-fancy.ts";
 import { POSTER_H, posterSprite } from "./furniture-posters.ts";
 import { trophyAt } from "./loot.ts";
 import { casePart, marketCase, marketCounter, marketFixture, marketShelf } from "./market.ts";
-import { natCounter, natFixture, natShelf } from "./natmarked.ts";
+import { natCaseBoard, natCounter, natFixture, natShelf } from "./natmarked.ts";
 import { C } from "./palette.ts";
 import { bake, cached, once, type Pen } from "./pixels.ts";
 import { coatStand, fixture, shopCounter, shopDisplay, storefront } from "./shops.ts";
@@ -590,6 +595,8 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       const shop = SHOP_IDS.find((id) => SHOP_DOOR_CHAR[id] === map.at(x + 2, y + 3));
       return shop ? at(storefront(shop), 0, 0) : null;
     }
+    case CASE_BOARD_TILE:
+      return map.at(x - 1, y) === ch ? null : at(natCaseBoard());
     case "¢": {
       let n = 0;
       while (map.at(x - n - 1, y) === ch) n++;
