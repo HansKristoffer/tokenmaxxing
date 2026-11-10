@@ -252,3 +252,20 @@ export const natFixture = cached(
   },
 );
 export type { Fixture };
+
+/** Two-tile timber leaderboard: gold lettering and ranked rows on a lacquer board. */
+export const natCaseBoard = once(() =>
+  bake(2 * TILE, TILE + 12, (p) => {
+    p.rect(5, 14, 3, 14, TIMBER_D);
+    p.rect(24, 14, 3, 14, TIMBER_D);
+    p.rect(1, 0, 30, 23, TIMBER);
+    p.rect(3, 2, 26, 19, LACQUER);
+    p.text("CASES", 6, 3, GOLD);
+    for (let row = 0; row < 3; row++) {
+      const y = 10 + row * 4;
+      p.rect(5, y, 2, 2, row === 0 ? GOLD : PAPER);
+      p.rect(10, y, 9 - row * 2, 1, PAPER);
+      p.rect(23, y, 3, 1, GOLD);
+    }
+  }),
+);

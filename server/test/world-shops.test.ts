@@ -9,7 +9,7 @@ import { connect, walk } from "./world-client.ts";
 
 describe("the shops", () => {
   /** From the Tavern's landing out through its door, then along the streets to `shop`'s door. */
-  async function toShop(shop: "pets" | "clothes", user?: { token: string; userId: number }) {
+  async function toShop(shop: "pets" | "clothes" | "natmarked", user?: { token: string; userId: number }) {
     const a = user ?? (await signUp("shop"));
     const c = await connect(a.token);
     const me = c.snap.players.find((p) => p.id === a.userId)!;
@@ -25,6 +25,25 @@ describe("the shops", () => {
     expect(steps.at(-1)).toMatchObject({ room: SHOP_ROOM[shop] });
     return { a, c, door, steps };
   }
+
+  test("the case leaderboard is readable only inside Natmarked, including with shop test shortcuts enabled", async () => {
+    const u = await rich("caseboard", 1000);
+    await expect(u.town.caseLeaderboard()).rejects.toMatchObject({ code: "not_in_shop" });
+    const { c } = await toShop("natmarked", u);
+    await eventually(() => expect(c.events.snapshots.at(-1)!.room).toBe(SHOP_ROOM.natmarked));
+    await u.town.openCase("night-market");
+    expect(await u.town.caseLeaderboard()).toContainEqual({
+      userId: u.userId,
+      name: u.name,
+      spent: 75,
+      opened: 1,
+      cases: { "night-market": 1 },
+    });
+    const last = c.events.snapshots.at(-1)!.players.find((p) => p.id === u.userId)!;
+    await walk(c.conn, route(MAPS[SHOP_ROOM.natmarked], [last.x, last.y], SHOPS.natmarked.door)!);
+    await expect(u.town.caseLeaderboard()).rejects.toMatchObject({ code: "not_in_shop" });
+    await c.conn.dispose();
+  });
 
   test("a storefront's door leads into the shop, where the shopkeeper minds the counter", async () => {
     const { c, steps } = await toShop("pets");

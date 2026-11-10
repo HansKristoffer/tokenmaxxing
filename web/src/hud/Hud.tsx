@@ -19,6 +19,7 @@ import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
 import { Bag } from "./Bag.tsx";
 import { Bar } from "./Bar.tsx";
+import { CaseLeaderboard } from "./CaseLeaderboard.tsx";
 import { CaseOpening } from "./CaseOpening.tsx";
 import { CaseShop } from "./CaseShop.tsx";
 import { Chat } from "./Chat.tsx";
@@ -462,6 +463,7 @@ function Panel() {
     changelog: () => <ChangelogPanel />,
     caseOpening: () => <CaseOpening />,
     caseShop: (p) => <CaseShop shelf={p.shelf} />,
+    caseLeaderboard: () => <CaseLeaderboard />,
     market: (p) => <Market tab={p.tab} />,
     marketSlot: (p) => <MarketSlot slot={p.slot} />,
     roulette: (p) => <RoulettePanel watch={p.watch} />,

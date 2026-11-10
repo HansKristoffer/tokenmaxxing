@@ -8,6 +8,10 @@
  * The tiles: `¢` the counter, `¤ § ¶ ¥` a shop's display (a shelf, rack, mirror or pen; on a wall, the sample
  * boards hung there), `‡` a fixture that is only to look at. Pure data: `maps.ts` builds the `GameMap`s.
  */
+/** Natmarked’s freestanding case leaderboard, beside the entrance. */
+export const CASE_BOARD_TILE = "Ŀ";
+export const CASE_BOARD_AT: readonly [number, number] = [14, 12];
+
 export type ShopId = "furniture" | "clothes" | "barber" | "pets" | "natmarked" | "market";
 export const SHOP_IDS: readonly ShopId[] = ["furniture", "clothes", "barber", "pets", "natmarked", "market"];
 
@@ -466,7 +470,7 @@ export const SHOPS: Record<ShopId, ShopLayout> = {
       "W‡________________‡W",
       "W______¢¢¢¢¢¢______W",
       "W__________________W",
-      "W‡________________‡W",
+      `W‡____________${CASE_BOARD_TILE}${CASE_BOARD_TILE}__‡W`,
       "W________x_________W",
       "WWWWWWWWWWWWWWWWWWWW",
     ],

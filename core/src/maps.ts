@@ -8,7 +8,14 @@ import { ALL_CASE_PIECES } from "./case-furniture.ts";
 import { HOME_PIECES } from "./home.ts";
 import { POSTERS } from "./posters.ts";
 
-import { SHOP_BODY_CHAR, SHOP_DOOR_CHAR, SHOP_IDS, SHOPS, type ShopId } from "./shoprooms.ts";
+import {
+  CASE_BOARD_TILE,
+  SHOP_BODY_CHAR,
+  SHOP_DOOR_CHAR,
+  SHOP_IDS,
+  SHOPS,
+  type ShopId,
+} from "./shoprooms.ts";
 import { TAVERN } from "./tavern.ts";
 import { WINDMILL } from "./windmill.ts";
 
@@ -178,6 +185,10 @@ export const LEGEND: Record<string, TileKind> = {
     text: "A styling station: mirror, combs and a rack of colours.",
   },
   "¥": { name: "pet pen", shop: "pets", text: "A pen. Somebody inside is already looking at you." },
+  [CASE_BOARD_TILE]: {
+    name: "case leaderboard",
+    text: "Coins spent and cases opened. Press E to read the board.",
+  },
   Ŧ: {
     name: "lantern shelf",
     shop: "natmarked",

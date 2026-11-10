@@ -9,6 +9,7 @@
  * in the 2D plan (`SHOPS.natmarked`), and E on any of them opens the case page (`hud/CaseShop.tsx`).
  */
 import { CASE_SHELVES, CASES } from "@tokenmaxxing/core/cases.ts";
+import { CASE_BOARD_AT, SHOP_INSET } from "@tokenmaxxing/core/shoprooms.ts";
 import * as THREE from "three";
 import { HAIRS, SKINS } from "../../art/palette.ts";
 import { buildCaseBox } from "../case-box3d.ts";
@@ -427,6 +428,19 @@ const asset = (
   extra: Partial<Asset> = {},
 ): Asset => ({ id, name, price: 0, w, d, build, ...extra });
 
+/** A timber noticeboard at the entrance, matching the hall’s paper plaques. */
+function caseBoard(): Model {
+  const m = new Model();
+  for (const x of [-0.7, 0.7]) {
+    m.box([0.09, 1.6, 0.09], TIMBER_D, [x, 0, 0], 0.01);
+    m.box([0.4, 0.06, 0.5], TIMBER, [x, 0, 0], 0.01);
+  }
+  const face = plaque(1.8, 0.82, "CASE LEADERBOARD", "COINS SPENT · CASES OPENED");
+  face.position.set(0, 1.12, 0.08);
+  m.add(face);
+  return m;
+}
+
 /** A small padlock, gold, hanging on a plaque. */
 function padlock(m: Model, at: [number, number, number]): void {
   m.box([0.09, 0.08, 0.04], GOLD, at, 0.01);
@@ -716,6 +730,11 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     [17, 10],
   ] as const)
     put(asset(`natmarked:post-${x}-${z}`, "Lantern post", 1, 1, post), x, z);
+  put(
+    asset("natmarked:case-board", "Case leaderboard", 2, 1, caseBoard),
+    CASE_BOARD_AT[0] - SHOP_INSET[0],
+    CASE_BOARD_AT[1] - SHOP_INSET[1],
+  );
   put(asset("rug", "Runner", 1, 3, runner), 8, 9);
 
   // The counter, with the case on its stand; Mei behind it.

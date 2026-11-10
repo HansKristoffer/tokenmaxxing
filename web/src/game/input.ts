@@ -3,6 +3,7 @@ import { slotAt } from "@tokenmaxxing/core/market.ts";
 import { canTurn } from "@tokenmaxxing/core/office.ts";
 import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
 import {
+  CASE_BOARD_TILE,
   displayTab,
   SHOP_DOOR_CHAR,
   SHOP_ROOM,
@@ -410,7 +411,8 @@ export function updateSelf(now: number): void {
     tapped = null;
     turning = null;
     // Walking out of a shop closes its page; walking in, the keeper says hello.
-    if (shopOfRoom(lastRoom) && hud.get().panel?.kind === "shop") hud.set({ panel: null });
+    if (shopOfRoom(lastRoom) && ["shop", "caseLeaderboard"].includes(hud.get().panel?.kind ?? ""))
+      hud.set({ panel: null });
     const shop = shopOfRoom(world.room);
     if (shop && lastRoom) hud.set({ dialog: greeting(shop, greetings++) });
     lastRoom = world.room;
@@ -641,6 +643,8 @@ function interact(): void {
     if (ch === "?") return void hud.set({ panel: { kind: "requests" } });
     if (ch === "◷") return void hud.set({ dialog: clocksText() });
   }
+  if (world.room === SHOP_ROOM.natmarked && ch === CASE_BOARD_TILE)
+    return void hud.set({ panel: { kind: "caseLeaderboard" } });
   if (shopInteract(x, y)) return;
   if (basementInteract(x, y)) return;
   if (ch === "K") return void hud.set({ dialog: chalkboardText() });

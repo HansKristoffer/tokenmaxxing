@@ -100,7 +100,7 @@ import {
   weeklyRegulars,
   writeActivity,
 } from "../town/card.ts";
-import { openCase, sellDuplicates, sellItem } from "../town/cases.ts";
+import { caseLeaderboard, openCase, sellDuplicates, sellItem } from "../town/cases.ts";
 import {
   type BagRow,
   bag,
@@ -666,6 +666,14 @@ export const town = actor({
     },
 
     // MARK: Cases
+
+    /** Natmarked's all-time case spending and opening counts. */
+    caseLeaderboard: async (c) => {
+      const userId = requireUser(c.conn.state);
+      if ((await main(c.client()).world.roomOfPlayer(userId)) !== SHOP_ROOM.natmarked)
+        throw new UserError("Visit the case leaderboard inside Natmarked.", { code: "not_in_shop" });
+      return caseLeaderboard(c.db);
+    },
 
     /** One opening of `caseId`, in the case shop: the key's coins out, a rolled item into the bag. */
     openCase: async (c, caseId: unknown): Promise<{ item: Item; wallet: Wallet }> => {

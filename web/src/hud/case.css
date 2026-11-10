@@ -618,3 +618,60 @@
     animation: none;
   }
 }
+
+/* The shop's all-time ledger, with a locally scrolling table on narrow screens. */
+.cshop-board-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.cshop-board-heading h3 {
+  margin: 0 0 6px;
+}
+.cshop-board-heading p {
+  margin: 0;
+}
+.cshop-board-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.cshop-board-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.cshop-board-table caption {
+  caption-side: bottom;
+  text-align: left;
+  padding-top: 12px;
+}
+.cshop-board-table th,
+.cshop-board-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  white-space: nowrap;
+}
+.cshop-board-table thead th {
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+.cshop-board-table thead th span {
+  display: block;
+  font-weight: normal;
+}
+.cshop-board-table th:nth-child(2) {
+  text-align: left;
+}
+.cshop-board-name {
+  display: inline-block;
+  max-width: 160px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  vertical-align: middle;
+}
+.cshop-board-table .is-me {
+  background: rgba(255, 179, 71, 0.1);
+}
