@@ -2233,7 +2233,7 @@ async function furnish(
   userId: number,
   action: "buy" | "place",
   take: (company: NonNullable<Awaited<ReturnType<typeof companyById>>>, now: number) => Promise<number>,
-  onto?: { x: number; y: number },
+  onto?: { x: number; y: number; rot?: number },
 ): Promise<{ notice: string; company: MyCompany; drop?: Drop }> {
   const u = await userById(c.db, userId);
   const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
@@ -2260,12 +2260,14 @@ async function furnish(
 }
 
 /** A tile the client picked, or none; anything else is a bad request. */
-function tileArg(raw: unknown): { x: number; y: number } | undefined {
+function tileArg(raw: unknown): { x: number; y: number; rot?: number } | undefined {
   if (raw === undefined || raw === null) return undefined;
-  const t = raw as { x?: unknown; y?: unknown };
+  const t = raw as { x?: unknown; y?: unknown; rot?: unknown };
   if (!Number.isInteger(t.x) || !Number.isInteger(t.y))
     throw new UserError("Pick a tile.", { code: "bad_request" });
-  return { x: t.x as number, y: t.y as number };
+  if (t.rot !== undefined && !(Number.isInteger(t.rot) && (t.rot as number) >= 0 && (t.rot as number) < 4))
+    throw new UserError("Pick a facing.", { code: "bad_request" });
+  return { x: t.x as number, y: t.y as number, ...(t.rot !== undefined && { rot: t.rot as number }) };
 }
 
 const OPEN_OFFICES_TTL = 5_000;

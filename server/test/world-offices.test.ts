@@ -293,14 +293,25 @@ describe("world", () => {
     expect(await o.conn.putAway()).toEqual({ notice: "Nothing to put away here.", count: 0 });
     expect(await owner.town.bag()).toContainEqual({ item: "furn.c", count: 1 });
     // The desk goes where it stood (a chosen tile), the chair on top of it does not fit, and stays in the bag.
-    const placedDesk = await owner.town.drop("furn.d", { x: desk.x, y: desk.y });
-    expect(placedDesk.drop).toMatchObject({ item: "furn.d", x: desk.x, y: desk.y });
+    const placedDesk = await owner.town.drop("furn.d", { x: desk.x, y: desk.y, rot: 1 });
+    expect(placedDesk.drop).toMatchObject({ item: "furn.d", x: desk.x, y: desk.y, rot: 1 });
     expect(await owner.town.drop("furn.c", { x: desk.x, y: desk.y })).toEqual({
       notice: "It doesn't fit there.",
     });
     expect(await owner.town.bag()).toContainEqual({ item: "furn.c", count: 1 });
     // Not a tile: a bad request, and nothing consumed.
     await expect(owner.town.drop("furn.c", { x: 1.5, y: 2 })).rejects.toThrow();
+    await expect(owner.town.drop("furn.c", { x: 2, y: 2, rot: 4 })).rejects.toMatchObject({
+      code: "bad_request",
+    });
+    await owner.town.buy("furn.t");
+    const tv = await owner.town.drop("furn.t", { x: 2, y: 6, rot: 1 });
+    expect(tv.drop).toMatchObject({ x: 2, y: 6, rot: 1 });
+    // The second tile of a sideways TV is down its column, and remains occupied.
+    expect(await owner.town.drop("furn.c", { x: 2, y: 7 })).toEqual({ notice: "It doesn't fit there." });
+    const late = await connect(owner.token);
+    expect(late.snap.drops.find((d) => d.id === tv.drop!.id)).toMatchObject({ rot: 1 });
+    await late.conn.dispose();
     const back = await o.conn.putBack(placedDesk.drop!.id);
     expect(back).toMatchObject({ drop: { id: placedDesk.drop!.id } });
     expect(await o.conn.putBack(placedDesk.drop!.id)).toEqual({ notice: "That's gone." });
@@ -309,7 +320,7 @@ describe("world", () => {
     const guest = await signUp("tidy");
     const g = await connect(guest.token);
     expect(await g.conn.visit(owner.userId)).toMatchObject({ room });
-    const again = await owner.town.drop("furn.d", { x: desk.x, y: desk.y });
+    const again = await owner.town.drop("furn.d", { x: desk.x, y: desk.y, rot: 1 });
     expect(await g.conn.putBack(again.drop!.id)).toEqual({ notice: `That's ${owner.name}'s floor.` });
     expect(await g.conn.putAway()).toEqual({
       notice: "Put things away in your own office or your company's building.",

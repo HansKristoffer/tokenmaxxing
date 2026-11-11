@@ -11,6 +11,7 @@ import { C } from "../../art/palette.ts";
 import { Pen } from "../../art/pixels.ts";
 import { COMPANY_FURNITURE, DESKS, HQ_ROWS, POSTERS } from "../data/town.ts";
 import { type Asset, assetById, light } from "../furniture/furniture.ts";
+import { extraAssetById } from "../furniture/furniture3d.ts";
 import { canvasTexture, codeScreen, glow, Model, painted, seeded, ticks, tint } from "../kit/kit.ts";
 import { type Panel, panel } from "../kit/panel.ts";
 import { exitDoorway } from "./exits3d.ts";
@@ -180,27 +181,6 @@ const plantWall = (): Model => {
   for (let i = 0; i < 6; i++)
     m.ball(0.04, "#ff7ab6", [(rnd() - 0.5) * 1.7, 0.7 + rnd() * 1.0, -0.04], [1, 1, 1], 6);
   m.box([1.9, 0.32, 0.4], "#eeeae2", [0, 0, -0.1], 0.03);
-  return m;
-};
-
-const chandelier = (): Model => {
-  const m = new Model();
-  m.cyl(0.015, 0.7, C.metal, [0, 1.9, 0], 0.015, 6);
-  m.cyl(0.06, 0.05, "#d4a93a", [0, 1.85, 0], 0.06, 10);
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.4, 0.02, 6, 24),
-    new THREE.MeshToonMaterial({ color: "#d4a93a" }),
-  );
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = 1.85;
-  m.add(ring);
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    m.cyl(0.012, 0.12, "#fbf7ef", [Math.cos(a) * 0.4, 1.86, Math.sin(a) * 0.4], 0.012, 6);
-    m.ball(0.035, glow("#ffe28a"), [Math.cos(a) * 0.4, 2.0, Math.sin(a) * 0.4]);
-    m.ball(0.03, glow("#e4f5fd"), [Math.cos(a) * 0.4, 1.78 - (i % 2) * 0.06, Math.sin(a) * 0.4]);
-  }
-  light(m, [0, 1.6, 0], "#ffe6a8", 1.5, 6);
   return m;
 };
 
@@ -386,7 +366,7 @@ export const HQ_ASSETS: readonly Asset[] = [
   ...POSTERS.map(wallAsset),
   { id: "globe", name: "Desk globe", price: 90, w: 1, d: 1, build: globe },
   { id: "plant-wall", name: "Plant wall", price: 300, w: 2, d: 1, build: plantWall },
-  { id: "chandelier", name: "Crystal chandelier", price: 900, w: 2, d: 1, build: chandelier },
+  extraAssetById.get("chandelier")!,
   { id: "rug-persian", name: "Persian rug", price: 60, w: 3, d: 2, build: persianRug(3, 2) },
 ];
 
@@ -565,14 +545,6 @@ export function buildHq(opts: HqOptions = {}): Hq {
     }
     const piece = COMPANY_FURNITURE.find((q) => q.ch === p.ch);
     if (!piece) continue;
-    if (piece.art === "chandelier") {
-      const m = assetFor("chandelier")!.build();
-      const [rx, rz] = tile(p.x, p.y);
-      m.position.set(rx + piece.w / 2, 0, rz + 0.5);
-      m.rotation.y = -((p.rot ?? 0) * Math.PI) / 2;
-      room.group.add(m);
-      continue;
-    }
     const a = assetFor(piece.art);
     if (!a) continue;
     const [rx, rz] = tile(p.x, p.y);

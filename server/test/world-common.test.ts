@@ -132,8 +132,8 @@ describe("the common room", () => {
       ]),
     );
     // One goes down on the exact tile it stood on; one onto a tile that is taken does not fit and stays stored.
-    const one = await a.town.placePiece("furn.ρ", { x: plant.x, y: plant.y });
-    expect(one.drop).toMatchObject({ item: "furn.ρ", x: plant.x, y: plant.y, co: co.id });
+    const one = await a.town.placePiece("furn.ρ", { x: plant.x, y: plant.y, rot: 1 });
+    expect(one.drop).toMatchObject({ item: "furn.ρ", x: plant.x, y: plant.y, co: co.id, rot: 1 });
     expect(await a.town.placePiece("furn.ε", { x: plant.x, y: plant.y })).toMatchObject({
       notice: "It doesn't fit there.",
     });

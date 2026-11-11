@@ -18,3 +18,11 @@ Additional interaction captures: [town cat interaction](cat-interaction-2d.png),
 | The 🔥 streak chip beside the coin counter (×2.5 after four days in a row), 3D | ![Streak chip in 3D](economy-wallet-3d.png)  |
 | Daily quests, 3D                                                               | ![Quests](economy-quests-3d.png)             |
 | Collection log: badge tiers and trophies now pay coins, 2D                     | ![Collection log](economy-collection-2d.png) |
+
+## Furniture rotation and hangings
+
+Local render captures from November 11, 2026. The chandelier is inserted into an office render fixture to compare the same scene in both renderers; company placement and rotation are covered by the server tests. A local dependency mismatch hid the HUD when these captures were taken; reinstalling the frozen dependencies resolves it.
+
+![Wall certificate and chandelier in 3D](furniture-hangings-3d.png)
+
+![Wall certificate and chandelier in classic 2D](furniture-hangings-2d.png)
