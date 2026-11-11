@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { admin, admit, eventually, rich, signUp } from "./rivet.ts";
+import { admin, admit, eventually, rich, signUp, veteran } from "./rivet.ts";
 import { connect } from "./world-client.ts";
 
 describe("world: desk setups", () => {
@@ -23,6 +23,30 @@ describe("world: desk setups", () => {
       expect(watcher.events.infos.filter((i) => i.id === a.userId).at(-1)?.desk).toBe(0),
     );
     await Promise.all([watcher.conn.dispose(), seen.conn.dispose(), late.conn.dispose()]);
+  });
+
+  test("an empty personal room keeps its owner's setup, including live changes from elsewhere", async () => {
+    const owner = await rich("roomdesk", 1000);
+    await owner.town.createCompany("Room screens");
+    await veteran(owner);
+    await owner.town.buyDesk("dual");
+    await owner.town.setDesk("dual");
+    const guest = await signUp("roomdesk");
+    const watcher = await connect(guest.token);
+    try {
+      await watcher.conn.visit(owner.userId);
+      await eventually(() => {
+        expect(watcher.events.snapshots.at(-1)?.owner).toMatchObject({ id: owner.userId, desk: 1 });
+      });
+      await owner.town.setDesk("laptop");
+      await eventually(() => {
+        expect(watcher.events.infos.filter((i) => i.id === owner.userId).at(-1)?.desk).toBe(0);
+      });
+      const snap = await watcher.conn.join();
+      expect(snap.owner).toMatchObject({ id: owner.userId, desk: 0 });
+    } finally {
+      await watcher.conn.dispose();
+    }
   });
 
   test("the company's fleet tier is on the wire for everyone; only the owner can buy it", async () => {

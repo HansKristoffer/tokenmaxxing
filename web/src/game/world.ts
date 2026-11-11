@@ -232,6 +232,7 @@ function reconcileSelf(a: Avatar, [, x, y, facing, state]: PlayerPos): void {
 }
 
 export function applyInfo(info: PlayerInfo): void {
+  if (world.owner?.id === info.id) world.owner.desk = info.desk;
   const a = world.avatars.get(info.id);
   if (a) a.info = info;
   if (info.id === world.selfId && hud.get().dancing !== (info.dance ?? 0))

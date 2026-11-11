@@ -74,3 +74,47 @@ test("every company house, yard and fence included, stays on its block's lawn", 
     expect(box.max.z).toBeLessThanOrEqual(9 - 6.25);
   }
 });
+
+test("personal room desks keep the owner's setup while empty and update when it changes", async () => {
+  const { world, applyInfo } = await import("../src/game/world.ts");
+  const { DeskSetups } = await import("../src/render3d/rooms/desk-setups.ts");
+  const { fleetDesk } = await import("../src/render3d/rooms/hq3d.ts");
+  const { Model } = await import("../src/render3d/kit/kit.ts");
+  const { disposeObject } = await import("../src/render3d/engine/dispose.ts");
+  const saved = { owner: world.owner, avatars: world.avatars, room: world.room };
+  const model = new Model();
+  try {
+    world.room = "office:123";
+    world.owner = { id: 123, name: "Owner", tier: 0, desk: 3 };
+    world.avatars = new Map();
+    const desks = new DeskSetups(
+      MAPS.office,
+      [{ asset: { id: "office-desk" } as never, x: 4, z: 2, turn: 0, model }],
+      [1, 1],
+    );
+    desks.update(0);
+    const expected = fleetDesk(3, 3);
+    // Compare geometry counts: the ultrawide has three curved screen segments instead of a laptop lid.
+    const count = (m: typeof model) => {
+      let n = 0;
+      m.traverse(() => n++);
+      return n;
+    };
+    expect(count(model)).toBe(count(expected));
+    expect(model.userData.live).toBe(true);
+    applyInfo({ id: 123, desk: 0 } as never);
+    desks.update(250);
+    const laptop = fleetDesk(0, 3);
+    expect(count(model)).toBe(count(laptop));
+    expect(count(model)).not.toBe(count(expected));
+    // Shared rooms still use the sitter or fleet, rather than the personal room owner.
+    world.owner = null;
+    desks.update(500);
+    expect(count(model)).toBe(count(laptop));
+    disposeObject(expected);
+    disposeObject(laptop);
+  } finally {
+    disposeObject(model);
+    Object.assign(world, saved);
+  }
+});

@@ -2752,6 +2752,7 @@ async function snapshot(
         : {
             id: owner,
             name: s.players[owner]?.name ?? "Someone",
+            desk: s.players[owner]?.desk ?? 0,
             tier: officeTier(s.players[owner]?.level ?? 0, officeOf(s, owner).size),
             ...decorOf(s, owner),
           },
@@ -3138,6 +3139,7 @@ function sendToScreens(c: Sender, event: "game" | "gameOver", payload: unknown):
  * (`from`), or the one last told they're there (`announced`; `flush` moves them over next). The game
  * reads it only for someone it shows (`applyInfo`) and for itself. Sent to every connection, each sync
  * of each player (tokens today, agents) went to every tab, and a burst of joins cost joins × tabs.
+ * Visitors to their office also need the info so empty desks keep up with the owner's setup.
  */
 function sendInfo(
   c: Sender & { vars: { announced: Map<number, RoomId> } },
@@ -3150,7 +3152,14 @@ function sendInfo(
     const userId = joinedUser(c, conn);
     if (userId === null) continue;
     const room = c.state.players[userId]?.room;
-    if (userId === p.id || room === p.room || room === from || room === was) conn.send("info", payload);
+    if (
+      userId === p.id ||
+      room === p.room ||
+      room === from ||
+      room === was ||
+      (room !== undefined && ownerOfOffice(room) === p.id)
+    )
+      conn.send("info", payload);
   }
 }
 
