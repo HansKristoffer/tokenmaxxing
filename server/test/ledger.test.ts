@@ -7,6 +7,7 @@ import {
   bag,
   balances,
   buy,
+  floors,
   giveBack,
   grantRewards,
   heldIn,
@@ -268,6 +269,16 @@ describe("drops", () => {
     await placed(sql, { id, item, room, x: 1, y: 1, by: userId, at });
     return id;
   }
+
+  test("a personal room's placement rotations survive loading from storage", async () => {
+    const id = await dropIn(1, "furn.s", "office:1");
+    for (const rot of [1, 2, 3, 0] as const) {
+      await placed(sql, { id, item: "furn.s", room: "office:1", x: 3, y: 4, by: 1, at: NOW, rot });
+      const loaded = (await floors(sql)).find((d) => d.id === id)!;
+      expect(loaded).toMatchObject({ x: 3, y: 4 });
+      expect(loaded.rot ?? 0).toBe(rot);
+    }
+  });
 
   test("furniture in your own office isn't loot: no cap, never swept; a visitor's gift there goes home", async () => {
     for (let i = 0; i < 6; i++) await dropIn(1, "furn.=", "office:1", NOW - 2 * HOUR);

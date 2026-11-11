@@ -746,10 +746,11 @@ export async function takeOut(sql: Sql, userId: number, item: unknown, now: numb
 /** Where `world` put a drop down, so a restarted `world` finds it there (`seed`). Not if it's gone already. */
 export async function placed(sql: Sql, d: Drop): Promise<void> {
   await sql.execute(
-    "UPDATE items SET room = ?, x = ?, y = ? WHERE id = ? AND owner_id IS NULL",
+    "UPDATE items SET room = ?, x = ?, y = ?, rot = ? WHERE id = ? AND owner_id IS NULL",
     d.room,
     d.x,
     d.y,
+    rotOf(d.rot) || null,
     d.id,
   );
 }
