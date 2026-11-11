@@ -24,6 +24,7 @@ export interface CollectOptions extends Omit<ExtractOptions, "enabled"> {
 /**
  * What llm-usage-extraction reads for our sources. Our `cursor_local` is Cursor's dashboard (its
  * `cursor_api`, with Grok Bot), never its local Cursor parsers, which would count the same usage twice.
+ * GitHub is read here; every other source keeps its name.
  */
 const extracted = (enabled: ReadonlySet<Source>): Set<Extracted> =>
   new Set(
@@ -33,9 +34,9 @@ const extracted = (enabled: ReadonlySet<Source>): Set<Extracted> =>
   );
 
 /**
- * Every enabled source's new events in batches, from the offsets in `state`: the logs and Cursor's
- * dashboard through llm-usage-extraction, then GitHub PRs. A caller that stops early (send failed)
- * just re-reads the same events next time.
+ * Every enabled source's new events in batches, from the offsets in `state`: the logs, OpenCode's
+ * databases and Cursor's dashboard through llm-usage-extraction, then GitHub PRs. A caller that
+ * stops early (send failed) just re-reads the same events next time.
  */
 export async function* collect(state: SyncState, opts: CollectOptions): AsyncGenerator<Batch> {
   const { enabled, githubAccounts, githubFetch, ...rest } = opts;

@@ -19,8 +19,8 @@
 
 ![The town square: players chatting round the fountain, with company houses and the Tavern around it](site/public/shots/hero.webp)
 
-Reads your usage from **Claude Code**, **Claude Cowork**, **Codex**, **Cursor**, **Grok Bot** and your
-pull requests on **GitHub**.
+Reads your usage from **Claude Code**, **Claude Cowork**, **Codex**, **Cursor**, **Grok Bot**,
+**OpenCode** and your pull requests on **GitHub**.
 
 ## Install
 

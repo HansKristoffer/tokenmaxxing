@@ -15,6 +15,7 @@ const SOURCE_NAMES: Record<string, string> = {
   codex: "Codex",
   cursor_local: "Cursor",
   grok_bot: "Grok Bot",
+  opencode: "OpenCode",
   github: "GitHub",
 };
 
