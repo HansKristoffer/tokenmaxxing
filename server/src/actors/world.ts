@@ -1760,7 +1760,13 @@ export const world = actor({
      */
     placeDrop: (
       c,
-      { id, item, by, co, onto }: {
+      {
+        id,
+        item,
+        by,
+        co,
+        onto,
+      }: {
         id: number;
         item: string;
         by: number;

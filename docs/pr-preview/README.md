@@ -21,7 +21,7 @@ Additional interaction captures: [town cat interaction](cat-interaction-2d.png),
 
 ## Furniture rotation and hangings
 
-Local render captures from November 11, 2026. The chandelier is inserted into an office render fixture to compare the same scene in both renderers; company placement and rotation are covered by the server tests. The existing HUD panel crash in this checkout hides the HUD in these captures.
+Local render captures from November 11, 2026. The chandelier is inserted into an office render fixture to compare the same scene in both renderers; company placement and rotation are covered by the server tests. A local dependency mismatch hid the HUD when these captures were taken; reinstalling the frozen dependencies resolves it.
 
 ![Wall certificate and chandelier in 3D](furniture-hangings-3d.png)
 

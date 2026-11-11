@@ -301,7 +301,9 @@ describe("world", () => {
     expect(await owner.town.bag()).toContainEqual({ item: "furn.c", count: 1 });
     // Not a tile: a bad request, and nothing consumed.
     await expect(owner.town.drop("furn.c", { x: 1.5, y: 2 })).rejects.toThrow();
-    await expect(owner.town.drop("furn.c", { x: 2, y: 2, rot: 4 })).rejects.toMatchObject({ code: "bad_request" });
+    await expect(owner.town.drop("furn.c", { x: 2, y: 2, rot: 4 })).rejects.toMatchObject({
+      code: "bad_request",
+    });
     await owner.town.buy("furn.t");
     const tv = await owner.town.drop("furn.t", { x: 2, y: 6, rot: 1 });
     expect(tv.drop).toMatchObject({ x: 2, y: 6, rot: 1 });
