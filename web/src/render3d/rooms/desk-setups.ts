@@ -11,7 +11,8 @@ const EVERY = 250;
 
 /**
  * The screens on a room's desks, as the 2D game has them: whoever sits at a desk (on the chair below it) brings the
- * setup they chose, never less than the house's fleet tier; an empty desk shows the fleet's. The desks are kept out
+ * setup they chose, never less than the house's fleet tier; an empty desk shows the fleet's.
+ * In a personal room, every desk keeps the owner's chosen setup, even while they are away. The desks are kept out
  * of the room's static batches (`live`) so their models can change.
  */
 export class DeskSetups {
@@ -41,7 +42,7 @@ export class DeskSetups {
       if (a.state === "working" || a.state === "sit") seated.set(this.map.index(a.x, a.y), a.info.desk);
     for (const d of this.desks) {
       const chair = this.map.at(d.x, d.y + 1) === "c" ? this.map.index(d.x, d.y + 1) : -1;
-      const tier = effectiveDesk(chair < 0 ? undefined : seated.get(chair), fleet);
+      const tier = effectiveDesk(world.owner?.desk ?? (chair < 0 ? undefined : seated.get(chair)), fleet);
       if (tier === d.tier) continue;
       d.tier = tier;
       const next = fleetDesk(tier, d.seed);

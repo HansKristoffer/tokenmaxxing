@@ -507,7 +507,7 @@ export interface Snapshot {
   /** Games being played in town, with their tables or arenas. */
   games: WorldGame[];
   /** Only in an office: whose it is (for the banner). */
-  owner: { id: number; name: string; tier: OfficeTier; wall?: string; floor?: string } | null;
+  owner: { id: number; name: string; tier: OfficeTier; desk?: number; wall?: string; floor?: string } | null;
   /** Only in a building: its office doors, to build the map and draw the names. */
   doors: Door[];
   /** What's on the floor: furniture (in the map too), wearables and pets. */

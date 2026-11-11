@@ -247,7 +247,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   const relit = outdoors && Number.isInteger(scale) && lightsNow(now) > 0.05;
 
   // Desk setups: who sits at a desk (on the chair below it) decides its screens; a house's fleet tier is
-  // every desk's floor, empty ones too. `world.avatars` has everyone in the room.
+  // every desk's floor, empty ones too. Personal rooms keep their owner's setup even while empty.
+  // `world.avatars` has everyone in the room.
   const fleet = world.companies.get(companyOfRoom(world.room) ?? -1)?.deskFleet;
   let seated: Map<number, Avatar> | undefined;
   const deskAt = (x: number, y: number): { tier: number; mode: ScreenMode } => {
@@ -257,7 +258,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
         if (a.state === "working" || a.state === "sit") seated.set(map.index(a.x, a.y), a);
     }
     const a = map.at(x, y + 1) === "c" ? seated.get(map.index(x, y + 1)) : undefined;
-    const tier = effectiveDesk(a?.info.desk, fleet);
+    const tier = effectiveDesk(world.owner?.desk ?? a?.info.desk, fleet);
     return {
       tier,
       mode: !a ? "off" : a.state === "working" ? (Math.floor(now / 180) % 2 ? "typingA" : "typingB") : "lit",

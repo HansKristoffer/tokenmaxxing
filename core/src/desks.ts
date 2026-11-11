@@ -4,7 +4,8 @@
  *  - personal: bought once with your coins (`purchases`, item `desk.<id>`), the better ones also yours
  *    from a level, and you pick which one you own to use (`users.desk`);
  *  - the company's fleet: a house-wide tier bought from the company wallet, one step at a time.
- * What shows at a desk in a company house is the better of the two (`effectiveDesk`). The art is in
+ * A personal room keeps its owner's setup; a company house shows the better of the sitter's setup and
+ * the fleet (`effectiveDesk`). The art is in
  * `web/src/art/desks.ts`, by index into `DESKS`; an index nobody knows is the laptop.
  */
 export interface DeskSetup {
