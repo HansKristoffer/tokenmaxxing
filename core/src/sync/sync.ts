@@ -14,6 +14,7 @@ interface SyncOptions extends Partial<
     | "cursorDbPath"
     | "cursorFetch"
     | "cursorCredentials"
+    | "opencodeDir"
   >
 > {
   statePath: string;
@@ -47,6 +48,7 @@ export async function sync(state: SyncState, opts: SyncOptions): Promise<SyncRes
     cursorDbPath,
     cursorFetch,
     cursorCredentials,
+    opencodeDir,
   } = opts;
   for await (const batch of collect(state, {
     enabled,
@@ -56,6 +58,7 @@ export async function sync(state: SyncState, opts: SyncOptions): Promise<SyncRes
     cursorFetch,
     cursorCredentials,
     githubFetch,
+    opencodeDir,
     ...(githubAccounts !== undefined ? { githubAccounts } : {}),
   })) {
     for (const events of chunkArray(batch.events, MAX_EVENTS_PER_REQUEST)) {

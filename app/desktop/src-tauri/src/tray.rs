@@ -248,6 +248,7 @@ fn source_lines(state: &State) -> Vec<String> {
                 "cursor_local" => "Cursor",
                 // Cursor dashboard rows for grok-bot* cloud agents.
                 "grok_bot" => "Grok Bot",
+                "opencode" => "OpenCode",
                 other => other,
             };
             format!("   {name} · {}", compact(s.tokens))

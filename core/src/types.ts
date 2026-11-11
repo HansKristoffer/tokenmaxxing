@@ -6,13 +6,17 @@ import type {
 
 export { CURSOR_API_MESSAGE_PREFIX, type ExtractState, type FileState } from "llm-usage-extraction";
 
-/** `cursor_local` is Cursor's dashboard usage (`cursor_api` in llm-usage-extraction), kept for the stored rows. */
+/**
+ * `cursor_local` is Cursor's dashboard usage (`cursor_api` in llm-usage-extraction), kept for the
+ * stored rows. `opencode` and `github` are read here, not by llm-usage-extraction.
+ */
 export const SOURCES = [
   "claude_code",
   "claude_cowork",
   "codex",
   "cursor_local",
   "grok_bot",
+  "opencode",
   "github",
 ] as const;
 export type Source = (typeof SOURCES)[number];
@@ -54,6 +58,8 @@ export interface SyncState extends ExtractState {
    * when no PRs could be counted, why (shown in the menu).
    */
   github?: { cursors?: Record<string, string>; checkedAt?: number; problem?: GithubProblem };
+  /** Per OpenCode database and message table (`<path>#<table>`), the last row read. */
+  opencode?: Record<string, { updatedAt: number; id: string }>;
 }
 
 /** An event with only what's given: no tokens, no agent, request or model unless set. */
