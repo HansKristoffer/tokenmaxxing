@@ -108,7 +108,7 @@ describe("world", () => {
       { item: "furn.d", x: 5, y: 3, by: owner.userId },
       { item: "furn.c", x: 5, y: 4, by: owner.userId },
     ]);
-    expect(inside.owner).toEqual({ id: owner.userId, name: owner.name, tier: 0 }); // a veteran: the first size
+    expect(inside.owner).toEqual({ id: owner.userId, name: owner.name, tier: 0, desk: 0 }); // a veteran: the first size
     expect((await guest.town.profile(owner.userId, "7d")).office).toBe(true);
     expect(await g.conn.visit(owner.userId)).toMatchObject({ room });
     const o = await connect(owner.token);
