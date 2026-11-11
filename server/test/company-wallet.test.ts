@@ -157,7 +157,7 @@ describe("company furniture", () => {
     const id = await buyPiece(sql, await row(1), 1, sofa, NOW);
     await placed(sql, { id, item: sofa.id, room: "hq:1", x: 3, y: 4, by: 1, at: NOW, co: 1 });
     expect((await floors(sql)).find((d) => d.id === id)?.rot).toBeUndefined();
-    await sql.execute("UPDATE items SET rot = 3 WHERE id = ?", id); // as `town.moved` writes it
+    await placed(sql, { id, item: sofa.id, room: "hq:1", x: 3, y: 4, by: 1, at: NOW, co: 1, rot: 3 });
     expect((await floors(sql)).find((d) => d.id === id)).toMatchObject({ x: 3, y: 4, co: 1, rot: 3 });
     expect(await pickUp(sql, id, 2, "hq:1")).toBe(true);
     await unstore(sql, 1, sofa.id, 2, NOW);
