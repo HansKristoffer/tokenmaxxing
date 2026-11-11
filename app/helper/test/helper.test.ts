@@ -18,6 +18,8 @@ beforeEach(async () => {
   process.env.CURSOR_DATA_DIR = join(dir, "cursor");
   process.env.CLAUDE_COWORK_DIR = join(dir, "cowork");
   process.env.POSTHOG_DESKTOP_DIR = join(dir, "posthog");
+  // OpenCode's database is under $XDG_DATA_HOME/opencode.
+  process.env.XDG_DATA_HOME = join(dir, "data");
   await mkdir(join(dir, "claude", "projects", "p"), { recursive: true });
   await writeFile(
     join(dir, "claude", "projects", "p", "s1.jsonl"),
@@ -41,6 +43,7 @@ afterEach(async () => {
     "CURSOR_DATA_DIR",
     "CLAUDE_COWORK_DIR",
     "POSTHOG_DESKTOP_DIR",
+    "XDG_DATA_HOME",
   ]) {
     delete process.env[k];
   }

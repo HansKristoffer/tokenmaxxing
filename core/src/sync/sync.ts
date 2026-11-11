@@ -3,7 +3,10 @@ import { type IngestResponse, SOURCES, type SyncState, type TokenEvent } from ".
 import { type CollectOptions, collect } from "./collect.ts";
 import { saveState } from "./state.ts";
 
-/** Every source is read unless `enabled` narrows it (tests); `githubAccounts: null` skips GitHub. */
+/**
+ * Every source is read unless `enabled` narrows it (tests); `githubAccounts: null` skips GitHub.
+ * `dirs` replaces a source's default folders (tests).
+ */
 interface SyncOptions extends Partial<
   Pick<
     CollectOptions,
@@ -14,6 +17,7 @@ interface SyncOptions extends Partial<
     | "cursorDbPath"
     | "cursorFetch"
     | "cursorCredentials"
+    | "dirs"
   >
 > {
   statePath: string;
@@ -47,6 +51,7 @@ export async function sync(state: SyncState, opts: SyncOptions): Promise<SyncRes
     cursorDbPath,
     cursorFetch,
     cursorCredentials,
+    dirs,
   } = opts;
   for await (const batch of collect(state, {
     enabled,
@@ -55,6 +60,7 @@ export async function sync(state: SyncState, opts: SyncOptions): Promise<SyncRes
     cursorDbPath,
     cursorFetch,
     cursorCredentials,
+    dirs,
     githubFetch,
     ...(githubAccounts !== undefined ? { githubAccounts } : {}),
   })) {
