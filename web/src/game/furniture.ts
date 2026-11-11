@@ -51,7 +51,7 @@ export function fitsHere(mode: GhostMode, t: Tile): boolean {
     mode.kind === "move" ? mode.drop : null,
     t,
     [...world.avatars.values()],
-    mode.kind === "move" ? ghost.rot : 0,
+    ghost.rot,
   );
 }
 
@@ -92,7 +92,7 @@ export function startMove(): void {
 export function rotate(): void {
   const m = ghost.mode;
   if (m) {
-    if (m.kind !== "move" || !canTurn(m.drop.item.slice(5))) return;
+    if (!canTurn(itemOf(m).slice(5))) return;
     ghost.rot = rotOf(ghost.rot + 1);
     // Green or red for the new shape, at once.
     if (ghost.aim) ghost.fits = fitsHere(m, ghost.aim);
@@ -142,7 +142,7 @@ export function startPlace(item: string, company = false): boolean {
   begin(
     { kind: "place", item, company },
     { x: me.x + dx, y: me.y + dy },
-    "Placing it: point or walk to a spot (green fits). Click or E puts it down, Esc keeps it.",
+    `Placing it: point or walk to a spot (green fits).${canTurn(item.slice(5)) ? " F turns it." : ""} Click or E puts it down, Esc keeps it.`,
   );
   return true;
 }
@@ -193,7 +193,8 @@ export function confirm(): void {
     }, fail);
     return;
   }
-  const put = m.company ? town.placePiece(m.item, t) : town.drop(m.item, t);
+  const at = { ...t, rot: turned };
+  const put = m.company ? town.placePiece(m.item, at) : town.drop(m.item, at);
   put.then(async (r) => {
     hud.set({ dialog: r.notice });
     if (!r.drop) return;

@@ -1760,7 +1760,13 @@ export const world = actor({
      */
     placeDrop: (
       c,
-      { id, item, by, co, onto }: { id: number; item: string; by: number; co?: number; onto?: TileAt },
+      { id, item, by, co, onto }: {
+        id: number;
+        item: string;
+        by: number;
+        co?: number;
+        onto?: TileAt & { rot?: number };
+      },
     ): Drop | { notice: string } => {
       requireInternal(c.conn.state);
       const p = c.state.players[by];
@@ -1781,6 +1787,8 @@ export const world = actor({
       const map = mapOf(p.room);
       const piece = pieceOfDrop({ item });
       const w = piece?.w ?? 1;
+      const rot = rotOf(onto?.rot);
+      if (rot && (!piece || !canTurn(piece.ch))) return { notice: "That one hangs as it is." };
       const people = Object.values(c.state.players).filter((o) => o.room === p.room);
       // One drop per tile; furniture lands on nobody, and not in anyone's way.
       const taken = new Set<string>();
@@ -1810,7 +1818,15 @@ export const world = actor({
       if (
         onto &&
         piece &&
-        !furnitureFits(p.room, { id, item, room: p.room, ...onto, by, at: 0 }, piece, onto.x, onto.y, people)
+        !furnitureFits(
+          p.room,
+          { id, item, room: p.room, x: onto.x, y: onto.y, by, at: 0 },
+          piece,
+          onto.x,
+          onto.y,
+          people,
+          rot,
+        )
       )
         return { notice: "It doesn't fit there." };
       let spot =
@@ -1838,6 +1854,7 @@ export const world = actor({
         by,
         at: Date.now(),
         ...(co !== undefined && { co }),
+        ...(rot && { rot }),
       };
       lay(c, drop);
       return drop;

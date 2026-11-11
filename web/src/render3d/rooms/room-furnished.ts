@@ -1,7 +1,7 @@
 import { ALL_CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
 import { type GameMap, LEGEND } from "@tokenmaxxing/core/maps.ts";
-import { COMPANY_FURNITURE, FURNITURE, sideways, turnAt } from "@tokenmaxxing/core/office.ts";
+import { COMPANY_FURNITURE, FURNITURE, pieceOf, sideways, turnAt } from "@tokenmaxxing/core/office.ts";
 import { ownerOfOffice, type RoomId } from "@tokenmaxxing/core/world.ts";
 import { C } from "../../art/palette.ts";
 import { DUNGEON_ASSETS, trophyShelf } from "../dungeon/dungeon3d.ts";
@@ -111,6 +111,19 @@ export function furnish(
       if (done.has(key)) continue;
       const x = rx + map.x0 - inset[0];
       const z = ry + map.y0 - inset[1];
+      // Wall tiles sit outside the floor inset; hang them before the floor bounds check.
+      const piece = pieceOf(ch);
+      if (piece?.wall) {
+        const asset = ASSET_OF.get(ch);
+        const w = piece.w ?? 1;
+        for (let i = 1; i < w; i++) done.add(`${rx + i},${ry}`);
+        if (asset && x >= 0 && x + w <= room.W) {
+          const model = models[ch]?.() ?? asset.build();
+          room.hang(model, x + w / 2, 0.95);
+          placed.push({ asset, x, z, turn: 0, model });
+        }
+        continue;
+      }
       if (x < 0 || z < 0 || x >= room.W || z >= room.D) continue;
       if (FLAT.has(ch)) {
         placed.push(room.place(flat(ch), x, z));

@@ -200,6 +200,12 @@ function Hints() {
         <dd>Interact</dd>
         <dt>G</dt>
         <dd>Take</dd>
+        <dt>M</dt>
+        <dd>Move furniture you face</dd>
+        <dt>F</dt>
+        <dd>Rotate furniture (also while placing)</dd>
+        <dt>Ctrl/Cmd Z</dt>
+        <dd>Undo furnishing</dd>
         <dt>1-9</dt>
         <dd>Hotbar: place a piece (own office)</dd>
         <dt>Right-click</dt>
