@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.19.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.18.0...v1.19.0) (2026-11-12)
+
+
+### Features
+
+* add case leaderboard inside Natmarked ([b005042](https://github.com/HansKristoffer/tokenmaxxing/commit/b005042fccfc1b95088f9916c7f3d3bfb461a2ef))
+* add case leaderboard inside Natmarked ([4370867](https://github.com/HansKristoffer/tokenmaxxing/commit/4370867646314e46d8c05b5950f58366cef53e17))
+* **sync:** count OpenCode usage ([1ed9bc3](https://github.com/HansKristoffer/tokenmaxxing/commit/1ed9bc378fcab0858b0c1d75c92fcb6aa9d609aa))
+* **sync:** count OpenCode usage ([448a782](https://github.com/HansKristoffer/tokenmaxxing/commit/448a7828e5ba27dfa487d9e01dc4a749459b21b6))
+
+
+### Bug Fixes
+
+* format furniture changes for CI ([d4d19fb](https://github.com/HansKristoffer/tokenmaxxing/commit/d4d19fbdff4f2ff5451a45938ff9caa2c93857e1))
+* keep selected desk setup in personal rooms ([d7e79b2](https://github.com/HansKristoffer/tokenmaxxing/commit/d7e79b2b8292b9b19b9256efb8b14ab8f87190f4))
+* keep selected desk setup in personal rooms ([58c6963](https://github.com/HansKristoffer/tokenmaxxing/commit/58c6963dfcae9ea6d154c0d2e713c937ed8cb793))
+* persist furniture rotation on placement ([57bd40c](https://github.com/HansKristoffer/tokenmaxxing/commit/57bd40cf0f519010d7c096229930808e057e2d3b))
+* persist furniture rotation on placement ([f3182e2](https://github.com/HansKristoffer/tokenmaxxing/commit/f3182e262b59d45f2fc1f091386a43e792e3f6a9))
+* restore furniture placement rotation and render wall hangings ([c8c49c9](https://github.com/HansKristoffer/tokenmaxxing/commit/c8c49c9cbfb0d6a563ca92bfb8aaa14259c7b291))
+* restore furniture placement rotation and wall decorations ([4166f75](https://github.com/HansKristoffer/tokenmaxxing/commit/4166f752c4def5028e383c34798251c28127b408))
+
+
+### Performance Improvements
+
+* **world:** a full town's tick in 1.7 ms instead of 4.5, and 40% less garbage in the frame loop ([#177](https://github.com/HansKristoffer/tokenmaxxing/issues/177)) ([13e7d5a](https://github.com/HansKristoffer/tokenmaxxing/commit/13e7d5a4051e135052380d8bcd2677f5d24dabe1))
+
 ## [1.18.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.17.0...v1.18.0) (2026-11-09)
 
 
