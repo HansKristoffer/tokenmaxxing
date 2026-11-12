@@ -13,20 +13,25 @@ import {
   houseTier,
   LOOK_OPTIONS,
   MAX_CUPS,
+  type Moves,
   mapOf,
   mentionsIn,
   namesIn,
   outsideDoor,
   ownPieceAt,
+  type PlayerPos,
+  type PlayerView,
   parseLook,
   parseRoom,
   portal,
   RUN_STEP_MS,
+  readMoves,
   restSpot,
   roomEntry,
   setDrops,
   stepTarget,
   takeStep,
+  writeMoves,
 } from "../src/world.ts";
 
 describe("steps", () => {
@@ -358,4 +363,36 @@ test("a room id from the wire is one of ours, or nothing", () => {
   expect(parseRoom("common:3")).toBe("common:3");
   for (const bad of ["", "office:", "office:0", "office:-1", "hq:1x", "attic", 7, null])
     expect(parseRoom(bad)).toBeNull();
+});
+
+test("moves as text read back as they were written, whatever the room, the pose or the count", () => {
+  const view = { id: 9, name: 'a "b", c;d\ne', look: { hair: "x" }, x: 3, y: -2 } as unknown as PlayerView;
+  const cases: Moves[] = [
+    { room: "town", join: [], m: [], leave: [] },
+    { room: "office:12", join: [view], m: [[9, 3, -2, "left", "sit"]], leave: [4, 5] },
+    { room: "upstairs", join: [], m: [], leave: [], asleep: 0 },
+    {
+      room: "hq:3",
+      join: [],
+      leave: [],
+      asleep: 41,
+      // Every facing and every state, bots (negative ids) and tiles left of the map's origin.
+      m: (["up", "down", "left", "right"] as const).flatMap((facing, i) =>
+        (["idle", "sit", "away", "working", "playing"] as const).map((state, j): PlayerPos => [
+          i % 2 ? -(i * 5 + j) : i * 5 + j + 1000,
+          j - 2,
+          i * 40,
+          facing,
+          state,
+        ]),
+      ),
+    },
+  ];
+  for (const moves of cases) {
+    const text = writeMoves(moves);
+    expect(typeof text).toBe("string");
+    expect(readMoves(text)).toEqual(moves);
+    // An old tab gets the object, which reads as itself.
+    expect(readMoves(moves)).toBe(moves);
+  }
 });

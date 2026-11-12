@@ -554,6 +554,63 @@ export interface Moves {
   asleep?: number;
 }
 
+/**
+ * `join(MOVES_TEXT)`: this client takes `moves` as text (`writeMoves`). The world writes that once per room
+ * and tick, where a `Moves` object is encoded again for every connection it goes to, and it is smaller. A
+ * client that joins without it (a tab from before this, still open after a deploy) gets the object.
+ */
+export const MOVES_TEXT = 1;
+
+/** `moves` as it arrives: text for a client that asked for it, else the object. */
+export type MovesWire = Moves | string;
+
+const FACING_CODE: Record<Facing, string> = { up: "u", down: "d", left: "l", right: "r" };
+const STATE_CODE: Record<PlayerState, string> = {
+  idle: "i",
+  sit: "s",
+  away: "a",
+  working: "w",
+  playing: "p",
+};
+const decoder = <T extends string>(codes: Record<T, string>): Record<string, T> =>
+  Object.fromEntries(Object.entries(codes).map(([value, code]) => [code, value])) as Record<string, T>;
+const FACING_OF = decoder(FACING_CODE);
+const STATE_OF = decoder(STATE_CODE);
+
+/**
+ * `m` as text: `[room, join, leave, asleep?]` as JSON on the first line (joins and leaves are rare), then
+ * every position as `id,x,y,` and a letter each for facing and state, `;` between them. Positions are
+ * nearly all of what a busy room sends.
+ */
+export function writeMoves(m: Moves): string {
+  const head: unknown[] = [m.room, m.join, m.leave];
+  if (m.asleep !== undefined) head.push(m.asleep);
+  let text = `${JSON.stringify(head)}\n`;
+  for (let i = 0; i < m.m.length; i++) {
+    const [id, x, y, facing, state] = m.m[i]!;
+    text += `${i ? ";" : ""}${id},${x},${y},${FACING_CODE[facing]}${STATE_CODE[state]}`;
+  }
+  return text;
+}
+
+export function readMoves(wire: MovesWire): Moves {
+  if (typeof wire !== "string") return wire;
+  const cut = wire.indexOf("\n");
+  const [room, join, leave, asleep] = JSON.parse(wire.slice(0, cut)) as [
+    RoomId,
+    PlayerView[],
+    number[],
+    number?,
+  ];
+  const m: PlayerPos[] = [];
+  if (cut + 1 < wire.length)
+    for (const part of wire.slice(cut + 1).split(";")) {
+      const [id, x, y, codes] = part.split(",") as [string, string, string, string];
+      m.push([Number(id), Number(x), Number(y), FACING_OF[codes[0]!]!, STATE_OF[codes[1]!]!]);
+    }
+  return asleep === undefined ? { room, join, m, leave } : { room, join, m, leave, asleep };
+}
+
 /** What `step` answers when it didn't simply move you. */
 export type StepResult =
   null | { notice: string } | { x: number; y: number; facing: Facing; state: PlayerState; room: RoomId };

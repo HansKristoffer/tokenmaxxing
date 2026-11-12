@@ -22,11 +22,13 @@ import {
   type CompanyInfo,
   type Drop,
   type Houses,
-  type Moves,
+  MOVES_TEXT,
+  type MovesWire,
   type Notice,
   type PlayerInfo,
   type Raiders,
   type RoomId,
+  readMoves,
   type Snapshot,
   type WorldGame,
 } from "@tokenmaxxing/core/world.ts";
@@ -169,7 +171,7 @@ export function connect(token: string): void {
     setRaiders(s.raiders);
   });
   conn.on("raiders", (r: Raiders) => setRaiders(r));
-  conn.on("moves", (m: Moves) => applyMoves(m));
+  conn.on("moves", (m: MovesWire) => applyMoves(readMoves(m)));
   conn.on("info", (info: PlayerInfo) => {
     applyInfo(info);
     if (info.id === world.selfId) void refreshStats();
@@ -250,7 +252,7 @@ export function connect(token: string): void {
   // Every (re)connect: join the world again and take a fresh snapshot.
   conn.onOpen(async () => {
     try {
-      loadSnapshot(await conn.join());
+      loadSnapshot(await conn.join(MOVES_TEXT));
       hud.set({ status: "ready" });
       await Promise.all([refreshMe(), refreshStats(), refreshTournament(true)]);
       // Sales while I was away.

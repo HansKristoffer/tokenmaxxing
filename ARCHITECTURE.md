@@ -229,13 +229,24 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   taken drop in the bag (`pickUp`), and for every floor and office lock (`seed`) when it starts, and for
   everyone too when it starts from nothing.
 
-**`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room) and the model graveyard's plots (`graveyard.ts`).
+**`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room; the 50 a snapshot carries are kept in memory once one has asked, `chatOf`) and the model graveyard's plots (`graveyard.ts`).
 
 - A 10 Hz tick sends each room its `moves`, and who's inside each house (`houses`, for town) when it changes.
   Head counts (`occupancy`) go to every connection, so at most once a second: sent every tick, a burst of joins
   stalled the world at 300 connections. Someone's `info` (look, tokens today, agents, coffee, online) goes only
   to their own tabs and whoever is in their room: the game reads it for nobody else, and sent to everyone,
   each player's sync and each join went to every tab.
+- **What a tick costs.** RivetKit hands out `c.state` behind a write-through proxy, and `c.state`, `c.vars`,
+  `c.conns` and `conn.id` are each a call into its native side. So the world reads its state plain (`peek`, from
+  `rawState` in `actors/shared.ts`; writes still go through `c.state`), looks the connections up once for
+  everything a tick sends (`listeners`: who each is, their room), and reads a caller with `callerOf` rather than
+  the proxy `conn.state` builds on every read. When a player last did anything is kept in memory (`lastInput`),
+  not written to state on every step.
+- **`moves` are written once per room.** A client that joins with `join(MOVES_TEXT)` gets each tick's moves as
+  text (`writeMoves` / `readMoves` in `core/world.ts`: joins and leaves as JSON on the first line, then every
+  position as `id,x,y,` and a letter each for facing and state). An event object is encoded again for every
+  connection it goes to, and in a busy room that was most of the tick. A tab from before this, still open
+  after a deploy, joins without the argument and gets the object as before.
 - **Messages, not CPU, are the limit.** Everything every actor sends goes through the engine's one connection
   to this process, about 3,000 messages a second; past that it all queues, `town` (and `/health`) too.
   A player walking costs about 15 a second (`moves` every tick, their step's answer, `occupancy`, chat), so
@@ -274,7 +285,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   you back there, unless it's a house you've left, an office that's closed or gone, or a tile that's a wall or
   furniture now (`back` after a game too); a seat that's gone, you wake standing where it was.
   Online with 3 minutes without input, you just doze where you are (`dozing`, drawn as a "z") until
-  your next input, so a town left open on a second screen keeps showing what's going on.
+  your next input, so a town left open on a second screen keeps showing what's going on. The game draws
+  that screen at 30 fps from then on, however busy the town is (`game/cadence.ts`), until the next input.
 - **The Inn's sleepers are a number.** Everyone without a company sleeps at the Inn, so its offline sleepers come
   as `asleep` in the snapshot (and in `moves` when it changes), drawn as "💤 N asleep", not one by one. They join
   the room when they wake up or sit down to work, and leave it when they fall asleep there. Company houses (50 at
@@ -1100,11 +1112,16 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
 **Measure**:
 
 - `bun scripts/perf/counts.ts medium|high` prints the per-room counts the budgets check, built headlessly.
-- `bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--throttle 4] [--profile|--alloc|--nodes|--heap]` measures
+- `bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--throttle 4] [--profile|--alloc|--nodes|--meshes|--heap]` measures
   the real game: it starts its own production server (`bun run site:build` once), signs up `walkers` players
   who walk out into the town and wander it over the wire, and opens an observer per tier with no fps cap: the renderer's own CPU
   time per frame, frame gaps, long tasks, draws, heap, and on request a CPU profile, garbage per function, the nodes the scene
-  walks visit, or a heap snapshot. `--throttle` slows the CPU (a stand-in for a weak laptop).
+  walks visit, what the people are drawn as (`--meshes`), or a heap snapshot. `--throttle` slows the CPU (a stand-in for a weak laptop).
+- `bun scripts/perf/occlusion.ts` times the cutaway probe on a journey through four rooms and prints what it decided at
+  each stop, so two builds' answers can be compared as well as their times.
+- `bun scripts/perf/load.ts [--n 10,50,100,200] [--json file]` is the world under load (see _Actors_): tick times, CPU of
+  the server and the engine, messages and bytes per client. `server/test/world-tick.test.ts` holds the tick to a fixed
+  number of reads of the context however full the room is, and a room's chat to one read of SQLite.
 - `web/test/perf-budget.test.ts` builds every room headlessly (the real skins, not tile stand-ins), batches it, freezes its
   people and fails above `render3d/perf/budgets.ts`; `perf-freeze.test.ts` and `world-lazy.test.ts` cover freezing and the room cache.
   The budgets count the static room alone; `web/test/dungeon-live.test.ts` budgets the dungeon's live layer on top and `games3d.test.ts` that a game's props come and go.

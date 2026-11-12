@@ -136,7 +136,6 @@ test("a database error while the tick sends a snapshot is logged, not fatal", as
     y: 5,
     facing: "down",
     state: "idle",
-    lastInputAt: Date.now(),
   };
   // Online and just changed room: the next tick sends a snapshot, which reads the chat.
   const ctx = {

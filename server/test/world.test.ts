@@ -5,9 +5,12 @@ import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { SPECIAL } from "@tokenmaxxing/core/tavern.ts";
 import {
   cupsLeft,
+  MOVES_TEXT,
+  type Moves,
   outsideDoor,
   type PlayerInfo,
   type Raiders,
+  readMoves,
   roomEntry,
   route,
 } from "@tokenmaxxing/core/world.ts";
@@ -129,6 +132,43 @@ describe("world", () => {
     });
     await me.conn.dispose();
     await seer.conn.dispose();
+  });
+
+  test("moves reach a tab from before they were text as the object, and the game as the same thing in text", async () => {
+    const a = await signUp("mover");
+    const b = await signUp("oldtab");
+    const c = await signUp("newtab");
+    // What each hears, as it arrives: the old tab joins saying nothing of how it reads moves.
+    const old = as(b.token).world.connect();
+    const objects: unknown[] = [];
+    old.on("moves", (m: unknown) => objects.push(m));
+    await old.join();
+    const now = as(c.token).world.connect();
+    const texts: unknown[] = [];
+    now.on("moves", (m: unknown) => texts.push(m));
+    await now.join(MOVES_TEXT);
+    const me = await connect(a.token);
+    const before = me.snap.players.find((p) => p.id === a.userId)!;
+    const to = before.facing === "left" ? "right" : "left";
+    const turned = (m: Moves) => m.m.some((pos) => pos[0] === a.userId && pos[3] === to);
+    await eventually(() => {
+      expect(
+        objects.some((m) => typeof m === "object" && (m as Moves).join.some((j) => j.id === a.userId)),
+      ).toBe(true);
+      expect(
+        texts.some((m) => typeof m === "string" && readMoves(m).join.some((j) => j.id === a.userId)),
+      ).toBe(true);
+    });
+    expect(await me.conn.turn(to)).toBeNull();
+    await eventually(() => {
+      expect(objects.every((m) => typeof m === "object")).toBe(true);
+      expect(texts.every((m) => typeof m === "string")).toBe(true);
+      const told = (objects as Moves[]).find(turned);
+      expect(told).toBeDefined();
+      // One tick, one room: both were told the same.
+      expect((texts as string[]).map(readMoves)).toContainEqual(told!);
+    });
+    for (const conn of [old, now, me.conn]) await conn.dispose();
   });
 
   test("coffee makes you shake, and more cups make it last longer", async () => {

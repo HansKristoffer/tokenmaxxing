@@ -1,4 +1,4 @@
-// bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--ms 6000] [--throttle 4] [--profile] [--alloc] [--nodes] [--heap] [--gpu] [--warmup 8000] [--out file.json]
+// bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--ms 6000] [--throttle 4] [--profile] [--alloc] [--nodes] [--meshes] [--heap] [--gpu] [--warmup 8000] [--out file.json]
 // The real game (/play), not the demo: starts its own server (or uses QA_ORIGIN), signs up `walkers` players who connect to
 // `world` and wander the town over the wire, and opens one observer per tier in headless Chromium with no fps cap. Records
 // the 3D renderer's own CPU time per frame (`__r3d.frame`), rAF frame gaps, long tasks, draw calls, triangles, JS heap, and
@@ -351,6 +351,39 @@ for (const tier of tiers) {
       console.log(
         `  ${String(e.visible).padStart(6)} ${String(e.matrix).padStart(6)} ${String(e.meshes).padStart(6)}  ${k}`,
       );
+  }
+  if (has("meshes")) {
+    // What the people and pets are drawn as: every visible mesh under `entities`, by the kind of material it has.
+    const kinds = await page.evaluate(() => {
+      const root = window.__r3d.stage.scene.getObjectByName("entities");
+      const out = {};
+      let people = 0;
+      const walk = (o, frozen = false) => {
+        if (!o.visible) return;
+        // A frozen pose's merged meshes hang under a group of this name (`perf/bake.ts`).
+        frozen ||= o.name === "baked";
+        if (o.userData.actor) people++;
+        if (o.isMesh) {
+          const m = Array.isArray(o.material) ? o.material[0] : o.material;
+          const k = [
+            m.type.replace("Mesh", "").replace("Material", ""),
+            m.map ? "textured" : m.vertexColors ? "vertex colours" : "plain",
+            m.transparent ? "see-through" : "",
+            o.isInstancedMesh ? "instanced" : "",
+            frozen ? "frozen copy" : "",
+          ]
+            .filter(Boolean)
+            .join(", ");
+          out[k] = (out[k] ?? 0) + 1;
+        }
+        for (const c of o.children) walk(c, frozen);
+      };
+      if (root) walk(root);
+      return { people, out };
+    });
+    console.log(`  meshes under entities, ${kinds.people} people and pets in view:`);
+    for (const [k, n] of Object.entries(kinds.out).sort((a, b) => b[1] - a[1]))
+      console.log(`  ${String(n).padStart(6)}  ${k}`);
   }
   if (has("heap")) {
     const file = join(tmpdir(), `tm-${tier}.heapsnapshot`);
