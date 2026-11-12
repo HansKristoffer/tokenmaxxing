@@ -8,7 +8,7 @@ import { conn, refreshWallet } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 
 /**
- * The dance bar, over the quick replies: a button for every dance I know. One starts it, anywhere, and it goes on
+ * The dance bar, the chat's last row: a button for every dance I know. One starts it, anywhere, and it goes on
  * until I press it again, pick another, walk or sit down. The last button is the way to the rest of them.
  */
 export function DanceBar({ onError }: { onError: (message: string | null) => void }) {
@@ -40,7 +40,7 @@ export function DanceBar({ onError }: { onError: (message: string | null) => voi
   };
 
   return (
-    <section className="panel dance-bar" aria-label="Dances">
+    <section className="dance-bar" aria-label="Dances">
       {known.map((d) => (
         <button
           key={d.index}

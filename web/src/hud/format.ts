@@ -19,3 +19,25 @@ export const ranges = (all: string) =>
     ["30d", "30 days"],
     ["all", all],
   ] as const;
+
+/**
+ * Chat lines with the same thing said again straight away by the same person folded into one, with how many
+ * times (a 🔥 pressed seven times is one line, ×7).
+ */
+export function chatRuns<T extends { userId: number; name: string; text: string }>(
+  lines: readonly T[],
+): { line: T; n: number }[] {
+  const out: { line: T; n: number }[] = [];
+  for (const line of lines) {
+    const last = out[out.length - 1];
+    if (
+      last &&
+      last.line.userId === line.userId &&
+      last.line.name === line.name &&
+      last.line.text === line.text
+    )
+      last.n++;
+    else out.push({ line, n: 1 });
+  }
+  return out;
+}

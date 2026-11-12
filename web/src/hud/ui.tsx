@@ -1,5 +1,13 @@
 import type { Facing, Look } from "@tokenmaxxing/core/world.ts";
-import { type DependencyList, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type DependencyList,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { AURA_H, AURA_W, AURA_X, AURA_Y, auraFrame } from "../art/aura.ts";
 import { house } from "../art/buildings.ts";
 import { characterFrame } from "../art/characters.ts";
@@ -285,6 +293,8 @@ interface Ranked {
   who: ReactNode;
   value: string;
   mine?: boolean;
+  /** 0 to 1 of the list's top value: drawn as a bar behind the row. */
+  share?: number;
   /** What a click on the row opens. */
   open: Panel;
 }
@@ -294,9 +304,15 @@ export function RankList({ rows }: { rows: Ranked[] }) {
   return (
     <ol>
       {rows.map((r) => (
-        <li key={r.id} className={r.mine ? "mine" : undefined}>
+        <li
+          key={r.id}
+          className={r.mine ? "mine" : undefined}
+          style={r.share === undefined ? undefined : ({ "--share": `${r.share * 100}%` } as CSSProperties)}
+        >
           <button type="button" onClick={() => hud.set({ panel: r.open })}>
-            <span className="rank">{r.rank}</span>
+            <span className="rank" data-rank={r.rank}>
+              {r.rank}
+            </span>
             <span className="who">{r.who}</span>
             <span className="value">{r.value}</span>
           </button>

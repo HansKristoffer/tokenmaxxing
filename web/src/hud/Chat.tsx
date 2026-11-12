@@ -1,13 +1,14 @@
 import { isBot } from "@tokenmaxxing/core/bots.ts";
 import type { MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import { CHAT_MAX_LENGTH, mentionsIn } from "@tokenmaxxing/core/world.ts";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { errorText } from "../errors.ts";
 import { roomName, world } from "../game/world.ts";
 import { conn, matchConn, town } from "../net.ts";
 import { storage } from "../storage.ts";
 import { hud, useHud } from "../store.ts";
 import { DanceBar } from "./DanceBar.tsx";
+import { chatRuns } from "./format.ts";
 import { MentionInput } from "./MentionInput.tsx";
 import { PrestigeMini } from "./PrestigeMini.tsx";
 import { prestigeOf } from "./prestige-badge.ts";
@@ -113,16 +114,25 @@ const ChatLines = memo(function ChatLines({
   const list = useRef<HTMLOListElement>(null);
   // The tournament champion's title: a crown by their name until the next tournament has a winner.
   const champ = useHud((s) => s.tournament?.champion?.userId);
-  // Keep the newest line in view as lines arrive.
+  const runs = useMemo(() => chatRuns(chat), [chat]);
+  // The newest line stays in view as lines arrive, unless I've scrolled up to read; my own line always shows.
+  const stuck = useRef(true);
   useEffect(() => {
-    if (chat.length) list.current?.scrollTo(0, list.current.scrollHeight);
-  }, [chat]);
+    if (stuck.current || chat[chat.length - 1]?.userId === myId)
+      list.current?.scrollTo(0, list.current.scrollHeight);
+  }, [chat, myId]);
   return (
-    <ol ref={list}>
+    <ol
+      ref={list}
+      onScroll={(e) => {
+        const el = e.currentTarget;
+        stuck.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+      }}
+    >
       {chat.length === 0 && (
         <li className="muted">{inGame ? "Players and watchers talk here." : "No messages yet. Say hi!"}</li>
       )}
-      {chat.map((l) => (
+      {runs.map(({ line: l, n }) => (
         <li key={l.id} className={myName && mentionsIn(l.text).includes(myName) ? "mentions-me" : ""}>
           {l.userId === 0 ? (
             <span className="author">{l.name}</span>
@@ -137,6 +147,7 @@ const ChatLines = memo(function ChatLines({
             </button>
           )}
           <Text text={l.text} me={myName} />
+          {n > 1 && <span className="muted small"> ×{n}</span>}
         </li>
       ))}
     </ol>
@@ -144,8 +155,6 @@ const ChatLines = memo(function ChatLines({
 });
 
 const OPEN_KEY = "tokenmaxxing.chatOpen";
-/** How long the chat stays fully opaque after a line arrives. */
-const FRESH_MS = 6000;
 
 /**
  * The room's chat. Beside a match (`match`) there's the match's own chat too, for its players and
@@ -169,7 +178,6 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
   // Folded away to a small tab (kept between visits); lines that come in meanwhile are counted on it.
   const [open, setOpen] = useState(() => storage.getItem(OPEN_KEY) !== "0");
   const [unread, setUnread] = useState(0);
-  const [fresh, setFresh] = useState(false);
   const seen = useRef<{ id: number | string | undefined; room: string }>({ id: undefined, room: "" });
   const setShown = (v: boolean) => {
     setOpen(v);
@@ -184,9 +192,6 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
     // First look, or a new room's backlog: nothing "just said".
     if (!last || prev.room !== room || prev.id === last.id) return;
     if (!open && last.userId !== myId) setUnread((n) => n + 1);
-    setFresh(true);
-    const t = setTimeout(() => setFresh(false), FRESH_MS);
-    return () => clearTimeout(t);
   }, [last?.id, room]);
   const say = (t: string) => (inGame ? matchConn!.say(t) : conn.say(t));
 
@@ -222,11 +227,9 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
     );
 
   return (
-    <div className={`chat-dock${fresh ? " fresh" : ""}`}>
-      <DanceBar onError={setError} />
-      <QuickReplies say={say} onError={setError} />
+    <div className="chat-dock">
       <section className="panel chat" aria-label="Chat">
-        <header>
+        <header className="box-head">
           {match ? (
             <Pills
               value={tab}
@@ -240,14 +243,14 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
               }}
             />
           ) : (
-            <span>📍 {roomName(room)}</span>
+            <span className="plaque">{roomName(room)}</span>
           )}
           {!inGame && <WhosHere count={here} />}
           <button type="button" className="chat-fold" aria-label="Hide chat" onClick={() => setShown(false)}>
             –
           </button>
         </header>
-        <ChatLines chat={chat} inGame={inGame} myId={myId} myName={myName} />
+        <ChatLines key={inGame ? "game" : room} chat={chat} inGame={inGame} myId={myId} myName={myName} />
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -282,6 +285,8 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
           />
         </form>
         {error && <p className="error small">{error}</p>}
+        <QuickReplies say={say} onError={setError} />
+        <DanceBar onError={setError} />
       </section>
     </div>
   );

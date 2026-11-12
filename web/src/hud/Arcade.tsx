@@ -128,7 +128,10 @@ function PokerRow({ compact }: { compact?: boolean }) {
     <li>
       <span className="who">
         🃏 Poker{!compact && ` · Hold'em ${SMALL_BLIND}/${BIG_BLIND}`}
-        <small className="muted"> {seated === undefined ? `${SEATS} seats` : `${seated}/${SEATS}`}</small>
+        <small className="muted">
+          {" "}
+          {seated === undefined ? !compact && `${SEATS} seats` : `${seated}/${SEATS}`}
+        </small>
       </span>
       {mine ? (
         <small className="muted">You're seated</small>
@@ -161,7 +164,7 @@ function RouletteRow({ compact }: { compact?: boolean }) {
         🎡 Roulette{!compact && " · with everyone"}
         <small className="muted">
           {" "}
-          {seats === undefined ? `${SPOTS} spots` : `${seats.length}/${SPOTS}`}
+          {seats === undefined ? !compact && `${SPOTS} spots` : `${seats.length}/${SPOTS}`}
         </small>
       </span>
       {mine ? (
@@ -187,52 +190,46 @@ export function GamesBox() {
   const openArcade = () => hud.set({ panel: { kind: "arcade" } });
   return (
     <section className="panel games-box" aria-label="Games">
-      <button type="button" className="miniboard-title" onClick={openArcade}>
-        🎮 Games <span className="muted">· {playing.length} playing ›</span>
+      <button type="button" className="plaque" onClick={openArcade}>
+        Games ›{playing.length > 0 && <small>{playing.length} playing</small>}
       </button>
       <ul>
         <PokerRow compact />
         <RouletteRow compact />
-      </ul>
-      {open.length === 0 ? (
-        <p className="muted small">No open tables right now.</p>
-      ) : (
-        <ul>
-          {open.slice(0, BOX_SHOWN).map((t) => (
-            <li key={t.id}>
-              <span className="who">
-                {gameOf(t.game)?.emoji} {gameName(t.game)}
-              </span>
-              <small className="muted">
-                {t.seated.length}/{t.seats}
-                {t.stake > 0 && ` · 🪙 ${t.stake}`}
-              </small>
-              {!inGame && lobby.me.table === null && (
-                <button type="button" className="primary" onClick={run(() => arcade.join(t.id))}>
-                  Join
-                </button>
-              )}
-            </li>
-          ))}
-          {open.length > BOX_SHOWN && (
-            <li>
-              <button type="button" className="link muted small" onClick={openArcade}>
-                +{open.length - BOX_SHOWN} more
+        {open.slice(0, BOX_SHOWN).map((t) => (
+          <li key={t.id}>
+            <span className="who">
+              {gameOf(t.game)?.emoji} {gameName(t.game)}
+            </span>
+            <small className="muted">
+              {t.seated.length}/{t.seats}
+              {t.stake > 0 && ` · 🪙 ${t.stake}`}
+            </small>
+            {!inGame && lobby.me.table === null && (
+              <button type="button" className="primary" onClick={run(() => arcade.join(t.id))}>
+                Join
               </button>
-            </li>
-          )}
-        </ul>
-      )}
+            )}
+          </li>
+        ))}
+        {open.length > BOX_SHOWN && (
+          <li>
+            <button type="button" className="link muted small" onClick={openArcade}>
+              +{open.length - BOX_SHOWN} more
+            </button>
+          </li>
+        )}
+      </ul>
       {inGame ? (
         <button type="button" className="primary wide" onClick={() => openMatch(lobby.me.match!)}>
           ▶ Back to your game
         </button>
       ) : lobby.me.table !== null ? (
-        <button type="button" className="wide" onClick={openArcade}>
+        <button type="button" className="row" onClick={openArcade}>
           Your table is waiting…
         </button>
       ) : (
-        <button type="button" className="wide" onClick={() => hud.set({ panel: { kind: "newTable" } })}>
+        <button type="button" className="row" onClick={() => hud.set({ panel: { kind: "newTable" } })}>
           ＋ New game
         </button>
       )}

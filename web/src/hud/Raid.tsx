@@ -42,29 +42,20 @@ export function RaidBox() {
   if (raid.prelaunch)
     return (
       <section className="panel raid-box raid-teaser-box" aria-label="Raid">
-        <button
-          type="button"
-          className="miniboard-title"
-          onClick={() => hud.set({ panel: { kind: "raid" } })}
-        >
-          ⚠️ Something is coming <span className="muted">›</span>
+        <button type="button" className="plaque" onClick={() => hud.set({ panel: { kind: "raid" } })}>
+          Something is coming ›
         </button>
-        <div className="raid-line">
-          <span className="who">??? · {timeLeft(raid.launchAt - Date.now())}</span>
-          <small className="muted">Mon {opensAt(raid)}</small>
-        </div>
         <div className="raid-clock" role="timer">
           {countdown(raid.launchAt)}
         </div>
+        <p className="raid-when muted small">Mon {opensAt(raid)}</p>
       </section>
     );
   return (
     <section className="panel raid-box" aria-label="Raid">
-      <button type="button" className="miniboard-title" onClick={() => hud.set({ panel: { kind: "raid" } })}>
-        ⚔️ Raid{" "}
-        <span className="muted">
-          · {raid.closed ? `opens ${opensAt(raid)} ›` : `${timeLeft(raid.endsAt - Date.now())} left ›`}
-        </span>
+      <button type="button" className="plaque" onClick={() => hud.set({ panel: { kind: "raid" } })}>
+        Raid ›
+        <small>{raid.closed ? `opens ${opensAt(raid)}` : `${timeLeft(raid.endsAt - Date.now())} left`}</small>
       </button>
       <div className="raid-line">
         <span className="who">

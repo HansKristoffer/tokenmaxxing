@@ -8,6 +8,8 @@
   --accent: #ffd35c;
   --good: #8fe3ff;
   --bad: #ff8a80;
+  /* The world's labels: a name tag over a head, a sign, what someone says. */
+  --paper: #fbf7ef;
   --font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: dark;
 }
@@ -121,6 +123,32 @@ textarea:focus {
   padding: 4px 8px;
 }
 
+/* What reads as a toolbar icon, a chip or a list row has no button chrome until hovered. */
+:is(
+  .bar > button:not(.hero),
+  .modal-head .icon,
+  .menu > button,
+  .games-box .row,
+  .chat-fold,
+  .whos-here-chip,
+  .zoom button
+) {
+  border-color: transparent;
+  background: none;
+}
+
+:is(
+  .bar > button:not(.hero),
+  .modal-head .icon,
+  .menu > button,
+  .games-box .row,
+  .chat-fold,
+  .whos-here-chip,
+  .zoom button
+):hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .avatar {
   image-rendering: pixelated;
   flex-shrink: 0;
@@ -176,14 +204,67 @@ textarea:focus {
   color: var(--muted);
 }
 
+/* Top right: two strips, the world's (the sky, the camera) and mine, a cell a thing with a short rule between. */
 .stats-chip {
   position: absolute;
   top: 12px;
   right: 12px;
   display: flex;
-  gap: 6px;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.bar {
+  display: flex;
+  flex-shrink: 0;
   align-items: center;
-  padding: 6px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.bar > :is(button, span) {
+  position: relative;
+  padding: 5px 10px;
+  border-radius: 0;
+  white-space: nowrap;
+}
+
+.bar > button {
+  align-self: stretch;
+}
+
+.bar > * + *::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 14px;
+  margin-top: -7px;
+  background: var(--line);
+}
+
+/* The headline, a name tag lying in the strip: what I've burned today, my rank and level. */
+.bar > .hero,
+html[data-tier]:not([data-tier="low"]) .bar > .hero {
+  align-self: center;
+  margin: 2px 4px 2px 2px;
+  padding: 1px 8px;
+  border: 2px solid var(--edge, #16121f);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 18px;
+  box-shadow: none;
+}
+
+.bar > .hero:hover,
+html[data-tier]:not([data-tier="low"]) .bar > .hero:hover {
+  background: #fff;
+}
+
+.bar > .hero + *::before {
+  display: none;
 }
 
 .photo-booth {
@@ -213,6 +294,11 @@ textarea:focus {
   color: var(--accent);
 }
 
+.hero strong {
+  color: inherit;
+  font-size: 14px;
+}
+
 /* The desktop app has a new version waiting: hard to miss, but just a button. */
 .chip.update {
   background: var(--accent);
@@ -236,6 +322,11 @@ textarea:focus {
 .badge.lv {
   background: rgba(143, 227, 255, 0.15);
   color: var(--good);
+}
+
+.hero .badge,
+.hero .badge.lv {
+  background: var(--ink);
 }
 
 /* The player card's badges: a wrapping row of `.badge` chips (the -6px undoes the first one's margin). */
@@ -410,15 +501,76 @@ textarea:focus {
   }
 }
 
-/* The chat dock: the chat and the quick replies above it, stacked from the bottom-left corner. */
+/*
+ * A HUD box wears a name tag, as the people in town do: a paper plaque that stands on its top edge. A note in it
+ * (how many are online, how long is left) is its dark end.
+ */
+.plaque,
+html[data-tier]:not([data-tier="low"]) button.plaque {
+  position: absolute;
+  top: -14px;
+  left: 8px;
+  max-width: calc(100% - 16px);
+  padding: 1px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 2px solid var(--edge, #16121f);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+button.plaque:hover,
+html[data-tier]:not([data-tier="low"]) button.plaque:hover {
+  background: var(--accent);
+}
+
+.plaque small {
+  display: inline-block;
+  margin: -1px -8px -1px 8px;
+  padding: 1px 8px;
+  vertical-align: top;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* Under the tag, inside: the box's own buttons (who's here, the map's zoom), at its right. */
+.box-head {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+}
+
+/* Beside a game the tag gives way to the Game / room pills (a div), which keep to the left. */
+.box-head > div {
+  margin-right: auto;
+}
+
+.corner > section,
+.chat {
+  position: relative;
+}
+
+.chat,
+.minimap {
+  padding-top: 6px;
+}
+
+/* The chat dock, in the bottom-left corner: one panel with the lines, the input, then the quick replies and dances. */
 .chat-dock {
   position: absolute;
   left: 12px;
   bottom: 12px;
   width: min(400px, calc(100vw - 24px));
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .chat {
@@ -435,15 +587,9 @@ textarea:focus {
 
 .chat-tab {
   position: relative;
-  align-self: flex-start;
   padding: 6px 10px;
   font-size: 16px;
   line-height: 1;
-  opacity: 0.6;
-}
-
-.chat-tab:hover {
-  opacity: 1;
 }
 
 .chat-tab .count {
@@ -452,16 +598,13 @@ textarea:focus {
   right: -8px;
 }
 
-.quick {
-  padding: 6px 8px;
-}
-
 /* The dance bar: one button a dance, wrapping onto a second row when there are many. The one on is lit. */
 .dance-bar {
-  padding: 4px 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
 }
 
 .dance-bar button {
@@ -508,19 +651,6 @@ textarea:focus {
   opacity: 0.75;
 }
 
-/* At rest the chat is a faint overlay, so it doesn't hide the room: it comes up on hover, focus or a new line. */
-.chat-dock .chat,
-.chat-dock .quick,
-.chat-dock .dance-bar {
-  transition: opacity 0.2s;
-}
-
-.chat-dock:not(:hover):not(:focus-within):not(.fresh) .chat,
-.chat-dock:not(:hover):not(:focus-within):not(.fresh) .quick,
-.chat-dock:not(:hover):not(:focus-within):not(.fresh) .dance-bar:not(:has([aria-pressed="true"])) {
-  opacity: 0.4;
-}
-
 /* One line, however wide the platform draws its emoji (WebKit's are wider): the buttons share the row. */
 .quick-emojis {
   display: flex;
@@ -560,14 +690,6 @@ textarea:focus {
   border-radius: 999px;
 }
 
-.chat header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-}
-
 /* Who's online here: a chip, and on hover or focus the list above it. */
 .whos-here {
   position: relative;
@@ -577,8 +699,7 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px 2px 6px;
-  border-radius: 999px;
+  padding: 2px 6px;
   font-size: 11px;
   color: var(--muted);
 }
@@ -735,7 +856,11 @@ textarea:focus {
   width: min(980px, calc(100vw - 24px));
 }
 
-/* Stays at the top while a tall panel scrolls under it. */
+/*
+ * Stays at the top while a tall panel scrolls under it, over the modal's own top padding (the -14px: sticky
+ * counts from inside that padding). As much above the title as below. It covers the panel's inner edge where it
+ * lies, so it carries the same one on, round the same corners.
+ */
 .modal-head {
   position: sticky;
   top: -14px;
@@ -743,14 +868,26 @@ textarea:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   margin: -14px -16px 0;
-  padding: 14px 16px 6px;
+  padding: 10px 16px;
+  border-radius: 8px 8px 0 0;
   background: var(--panel-solid);
+  box-shadow:
+    inset 1px 1px 0 var(--line),
+    inset -1px 0 0 var(--line);
 }
 
+/* A modal's title is its name tag too (`.plaque`), here inside its head. */
 .modal h2 {
   margin: 0;
-  font-size: 16px;
+  padding: 2px 10px;
+  border: 2px solid var(--edge, #16121f);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
 }
 
 .modal h3 {
@@ -817,7 +954,7 @@ textarea:focus {
 
 .modal h2 .status {
   font-weight: 400;
-  color: var(--muted);
+  opacity: 0.7;
 }
 
 .xp {
@@ -919,39 +1056,37 @@ textarea:focus {
 .menu {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 
 .menu > a,
 .menu > button {
   text-align: left;
-  padding: 8px 12px;
+  padding: 7px 10px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
   color: inherit;
   text-decoration: none;
-  border: 1px solid var(--line);
 }
 
-/* Top right, under the stats: the mini leaderboard and the games box. */
+/* Top right, under the stats: today's board, the games, the rooms and the raid, a box each with its tag. */
 .corner {
   position: absolute;
-  top: 60px;
+  top: 68px;
   right: 12px;
   width: 220px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 22px;
 }
 
-.miniboard,
-.games-box {
-  padding: 6px 8px;
+.corner > section {
+  padding: 10px 8px 8px;
 }
 
+/* A row of a corner box is 24px, whatever is in it: a name and a number, a table and its Join. */
 .games-box ul {
   list-style: none;
-  margin: 0 0 6px;
+  margin: 0;
   padding: 0;
 }
 
@@ -959,7 +1094,8 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 4px;
+  min-height: 24px;
+  padding: 0 4px;
   font-size: 12px;
 }
 
@@ -975,8 +1111,22 @@ textarea:focus {
   font-size: 11px;
 }
 
+.games-box .row {
+  width: 100%;
+  min-height: 24px;
+  padding: 0 4px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.games-box .row:hover {
+  color: var(--text);
+}
+
 .games-box .wide {
   width: 100%;
+  margin-top: 4px;
 }
 
 /* The rooms list: a room's name is the button that takes you there. */
@@ -986,12 +1136,16 @@ textarea:focus {
   background: none;
   text-align: left;
   font-size: 12px;
+  text-decoration: none;
+}
+
+.rooms-box .who:hover:not(:disabled) {
+  text-decoration: underline;
 }
 
 .rooms-box .who:disabled {
   cursor: default;
   opacity: 0.6;
-  text-decoration: none;
 }
 
 .rooms-box .here:disabled {
@@ -1002,14 +1156,8 @@ textarea:focus {
   color: var(--accent);
 }
 
-.miniboard-title {
-  width: 100%;
-  margin: 0;
-  text-align: left;
-  border: none;
-  background: none;
-  padding: 2px 4px 4px;
-  font-weight: 700;
+.rooms-box .here::before {
+  content: "▸ ";
 }
 
 .miniboard ol {
@@ -1018,21 +1166,59 @@ textarea:focus {
   padding: 0;
 }
 
+/* Behind a row, how its number stands to the top one (`--share`); mine has a gold edge. */
+.miniboard li {
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(233, 183, 61, 0.16) var(--share, 0%), transparent 0);
+}
+
+.miniboard li.mine {
+  box-shadow: inset 2px 0 0 var(--accent);
+  font-weight: 700;
+}
+
 .miniboard li button {
   width: 100%;
   display: flex;
   gap: 8px;
-  align-items: baseline;
+  align-items: center;
+  min-height: 24px;
   border: none;
   background: none;
-  padding: 2px 4px;
-  border-radius: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
   font-size: 12px;
 }
 
 .miniboard .rank {
-  width: 26px;
+  width: 24px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
   color: var(--muted);
+}
+
+/* The podium: the first three stand on a block of gold, silver and bronze. */
+.rank:is([data-rank="#1"], [data-rank="#2"], [data-rank="#3"]) {
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.45),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.rank[data-rank="#1"] {
+  background: #e9b73d;
+}
+
+.rank[data-rank="#2"] {
+  background: #c5c9d6;
+}
+
+.rank[data-rank="#3"] {
+  background: #c98d5e;
 }
 
 .miniboard .who {
@@ -1052,30 +1238,13 @@ textarea:focus {
   position: absolute;
   right: 12px;
   bottom: 12px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.minimap header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-/* A long room name (a company's common room) gives way to the buttons instead of widening the map. */
-.minimap {
   width: min-content;
+  padding-inline: 8px;
+  padding-bottom: 8px;
 }
 
-.minimap header > span:first-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.minimap .box-head {
+  margin-bottom: 4px;
 }
 
 .minimap .zoom {
@@ -1774,10 +1943,6 @@ button.lb-item:hover {
   align-items: flex-end;
 }
 
-.miniboard li.mine > button {
-  background: rgba(255, 211, 92, 0.14);
-}
-
 .modal:focus {
   outline: none;
 }
@@ -2124,10 +2289,6 @@ button.lb-item:hover {
 }
 
 /* The raid: the boss's HP in the corner box and the panel. */
-.raid-box {
-  padding: 6px 8px;
-}
-
 .raid-line {
   display: flex;
   gap: 6px;
@@ -2246,8 +2407,15 @@ button.lb-item:hover {
   color: #f5d14a;
 }
 
-.raid-teaser-box .miniboard-title {
-  color: #f5d14a;
+/* A warning sign's yellow. */
+.raid-teaser-box .plaque,
+html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
+  background: #f5d14a;
+}
+
+.raid-when {
+  margin: 0;
+  text-align: center;
 }
 
 .raid-teaser {
@@ -2993,6 +3161,19 @@ button.lb-item:hover {
     font-size: 12px;
   }
 
+  /* No room for the weather: the strip is mine alone, its cells closer. */
+  .bar.world {
+    display: none;
+  }
+
+  .bar > :is(button, span) {
+    padding-inline: 6px;
+  }
+
+  .hero-word {
+    display: none;
+  }
+
   .fps-meter {
     top: 54px;
     left: 8px;
@@ -3008,10 +3189,12 @@ button.lb-item:hover {
     bottom: 60px;
   }
 
+  /* It scrolls, which would cut the first box's tag off: room for it inside. */
   .corner {
     width: min(260px, calc(100vw - 16px));
     max-height: calc(100vh - 130px);
     overflow-y: auto;
+    padding-top: 16px;
   }
 
   .chat-dock {
@@ -3019,7 +3202,7 @@ button.lb-item:hover {
   }
 
   .chat-dock .chat {
-    max-height: 38vh;
+    max-height: 50vh;
   }
 
   .dialog {
@@ -3069,7 +3252,11 @@ html[data-tier]:not([data-tier="low"]) .panel {
 }
 
 html[data-tier]:not([data-tier="low"]) .modal-head {
-  box-shadow: 0 2px 0 var(--edge);
+  border-radius: 2px 2px 0 0;
+  box-shadow:
+    0 2px 0 var(--edge),
+    inset 2px 2px 0 var(--bevel-light),
+    inset -2px 0 0 var(--bevel-dark);
 }
 
 html[data-tier]:not([data-tier="low"]) button {
@@ -3130,9 +3317,28 @@ html[data-tier]:not([data-tier="low"]) .pills button[aria-pressed="true"] {
   border-radius: 2px;
 }
 
-/* Buttons that read as text or a list row (a chat author, a quick emoji, a name to pick) stay flat. */
+/*
+ * The bevel is for a button that does something (Join, Buy, New game). What reads as text, a list row or a
+ * toolbar icon (a chat author, a box's title, a menu row, the top bar's chips, a close ✕) stays flat until hovered.
+ */
 html[data-tier]:not([data-tier="low"])
-  :is(.chat .author, .quick-emojis button, .whos-here-list button, .suggestions li button) {
+  :is(
+    .chat .author,
+    .chat-fold,
+    .whos-here-chip,
+    .quick-emojis button,
+    .dance-bar button,
+    .whos-here-list button,
+    .suggestions li button,
+    .hints .title,
+    .bar > button:not(.hero),
+    .games-box .row,
+    .miniboard li button,
+    .rooms-box .who,
+    .minimap .zoom button,
+    .modal-head .icon,
+    .menu > button
+  ) {
   border: none;
   background: none;
   box-shadow: none;
@@ -3140,9 +3346,31 @@ html[data-tier]:not([data-tier="low"])
 }
 
 html[data-tier]:not([data-tier="low"])
-  :is(.quick-emojis button, .whos-here-list button, .suggestions li button):hover,
+  :is(
+    .chat-fold,
+    .whos-here-chip,
+    .quick-emojis button,
+    .dance-bar button,
+    .whos-here-list button,
+    .suggestions li button,
+    .bar > button:not(.hero),
+    .miniboard li button,
+    .minimap .zoom button,
+    .modal-head .icon,
+    .menu > button
+  ):hover,
 html[data-tier]:not([data-tier="low"]) .quick-emojis .quick-toggle[aria-expanded="true"] {
   background: rgba(251, 247, 239, 0.12);
+}
+
+/* Lit, as the base rules have them: the flat rule above would put these out. */
+html[data-tier]:not([data-tier="low"]) .dance-bar button.aura {
+  box-shadow: inset 0 -2px 0 var(--aura);
+}
+
+html[data-tier]:not([data-tier="low"]) .dance-bar button[aria-pressed="true"] {
+  background: rgba(251, 247, 239, 0.22);
+  box-shadow: 0 0 0 2px var(--aura, #ffd75e);
 }
 
 html[data-tier]:not([data-tier="low"]) .suggestions li button[aria-pressed="true"] {
@@ -3874,6 +4102,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 }
 
 .menu > a.star-button {
+  margin-top: 6px;
   background: var(--accent);
   color: var(--ink);
   border-color: #6b4f0e;
