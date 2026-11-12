@@ -950,7 +950,10 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
 ## The client
 
 - Plain Canvas 2D with `imageSmoothingEnabled = false`, integer zoom, and grid movement: your own steps are
-  predicted and corrected by the server; other players replay a short step queue.
+  predicted and corrected by the server; other players replay a short step queue. The server also tells you
+  your own position in `moves`, a round trip and up to a tick late; the tiles you walked off in the last two
+  seconds (`game/trail.ts`) are your own steps coming back, not the server moving you. Without them a runner
+  200 ms from the server was pulled back a tile on nearly every step.
   **Turning** (`game/turn.ts`, pure and tested; Pokémon's rule): an arrow key for another way than you face turns you
   first (`world.turn`, so the room sees it too) and walks only once it has stayed held `TURN_DELAY_MS` (120), so a
   tap just turns; the way you already face walks at once. Click-to-walk, the minimap and "take me there" don't wait
