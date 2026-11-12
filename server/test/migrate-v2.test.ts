@@ -59,6 +59,7 @@ async function serve(storage: string, engine: number) {
       GITHUB_STARS: "off",
       GRID_FEED: "off",
       STATUE_FEED: "off",
+      PICNIC_OUTAGE: "off",
       FIRECRAWL_API_KEY: "",
       ANTHROPIC_API_KEY: "",
       GATEWAY_REQUESTS_PER_MIN: "1000000",
