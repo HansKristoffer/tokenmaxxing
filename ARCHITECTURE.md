@@ -65,10 +65,25 @@ The game draws through a `Renderer`; on Medium and up that is a Three.js voxel r
 - `/play` and `/admin` send a CSP (`headers.ts`): our own scripts only, connections only back to us (and the
   desktop app's IPC for the game), no framing. The page files aren't served at their own paths.
 - `RIVET__GUARD__TCP_NODELAY=true` turns off Nagle on the engine's sockets. Actors and the engine talk over
-  loopback, and without it each actor call waits ~40 ms on a delayed ACK. The runner's end of that connection
-  has no such switch yet (rivetkit 2.3.21), so a call still pays some of it.
+  loopback, and without it each actor call waits ~40 ms on a delayed ACK.
 - `RIVETKIT_STORAGE_PATH`, `RIVET_LOG_LEVEL` and `RIVET__GUARD__TCP_NODELAY` must be real environment
   variables: RivetKit's native side ignores `process.env` changes made at runtime. The Dockerfile and `bun run dev` set them.
+- **A volume from RivetKit 2 is moved on the first start** (`server/src/migrate/`). RivetKit 3's engine keeps
+  its data in a store of its own (`engine/depot` under `RIVETKIT_STORAGE_PATH`) and does not read RivetKit 2's
+  (`engine/db`): started on a volume that only has the old one, it comes up as an empty town. So `main.ts`,
+  before it starts the registry, copies every actor across when it finds the old store and no
+  `engine/migrated-from-v2.json`. `export.ts` runs on RivetKit 2 (the `rivetkit-v2` dependency) with its
+  engine on the old store, `import.ts` on RivetKit 3 with its engine on the new one, and frames go from one to
+  the other through a FIFO. Both register a courier (`courier.ts`) under each actor's name: an actor with no
+  code of ours, so nothing wakes, ticks or migrates while it is read. What moves is each actor's state and
+  every table its code made, rows as SQL literals from SQLite's own `quote`; RivetKit's tables (`_rivet_*`)
+  stay behind, and `town` sets its sweep timer again when it wakes. Every table is read back and its digest
+  compared with the one sent, and the state too. `/health` answers `{ migrating: true }` meanwhile, so
+  Railway doesn't fail a deploy that takes longer than its five minutes; everything else is a 503. Our
+  tables in the old store are never written, and it stays where it is: the previous release still starts on
+  it. A move that fails leaves no new store and the next start begins again; a new store that no move made
+  (both stores, no marker) is never deleted, and the start refuses instead. Delete `server/src/migrate/`,
+  `rivetkit-v2` and the old store once production has moved.
 - Company logos live next to the Rivet data (`/data/logos` in Docker, `.data/logos` in dev).
 - A sync batch is about 300 KB, so `maxIncomingMessageSize` is 1 MB. Shutdown grace is 5 s.
 
@@ -237,20 +252,22 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   to their own tabs and whoever is in their room: the game reads it for nobody else, and sent to everyone,
   each player's sync and each join went to every tab.
 - **What a tick costs.** RivetKit hands out `c.state` behind a write-through proxy, and `c.state`, `c.vars`,
-  `c.conns` and `conn.id` are each a call into its native side. So the world reads its state plain (`peek`, from
-  `rawState` in `actors/shared.ts`; writes still go through `c.state`), looks the connections up once for
-  everything a tick sends (`listeners`: who each is, their room), and reads a caller with `callerOf` rather than
-  the proxy `conn.state` builds on every read. When a player last did anything is kept in memory (`lastInput`),
-  not written to state on every step.
+  `c.conns` and `conn.id` are each a call into its native side (`c.conns` builds a handle for every
+  connection). So the world reads its state plain (`peek`, from `rawState` in `actors/shared.ts`; writes still
+  go through `c.state`), keeps the joined connections itself (`vars.tabs`, filled by `join` and emptied by
+  `onDisconnect`; `listeners` adds each one's room) instead of asking RivetKit for them on every send, and
+  reads a caller with `callerOf` rather than the proxy `conn.state` builds on every read. When a player last
+  did anything is kept in memory (`lastInput`), not written to state on every step.
 - **`moves` are written once per room.** A client that joins with `join(MOVES_TEXT)` gets each tick's moves as
   text (`writeMoves` / `readMoves` in `core/world.ts`: joins and leaves as JSON on the first line, then every
   position as `id,x,y,` and a letter each for facing and state). An event object is encoded again for every
   connection it goes to, and in a busy room that was most of the tick. A tab from before this, still open
   after a deploy, joins without the argument and gets the object as before.
-- **Messages, not CPU, are the limit.** Everything every actor sends goes through the engine's one connection
-  to this process, about 3,000 messages a second; past that it all queues, `town` (and `/health`) too.
-  A player walking costs about 15 a second (`moves` every tick, their step's answer, `occupancy`, chat), so
-  that's about 170 players walking at once. `bun scripts/perf/load.ts` measures it.
+- **This process's one core is the limit.** On RivetKit 2 it was the engine: every message cost it so much
+  that 200 walking players took 13 of its cores and 300 dropped connections. On RivetKit 3 the engine uses
+  half a core for 300, and what runs out first is the world's own thread: 90% of a core at 300 walking players
+  (15 messages a second each: `moves` every tick, their step's answer, `occupancy`, chat), most of it sending,
+  a quarter of that in `proxy.ts` passing every message on. `bun scripts/perf/load.ts` measures it.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `turn` (face a
   direction without the step, on your feet only; it spends the step budget and comes to the room as a move), `sit`,
   `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),

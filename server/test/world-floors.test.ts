@@ -132,7 +132,7 @@ describe("drops", () => {
     await migrateGraveyard(own);
     await world.config.onWake!({
       state: { seeded: true, players: {}, companies: {} },
-      vars: {},
+      vars: { tabs: new Map() },
       db: own,
       conns: new Map(),
       client: () => {
@@ -176,8 +176,7 @@ describe("drops", () => {
     const inWorld = {
       conn: { state: { kind: "internal" } },
       state: { players: {} },
-      conns: new Map(),
-      vars: { dirty: new Set() },
+      vars: { dirty: new Set(), tabs: new Map() },
     };
     const actor = {
       getOrCreate: () => ({

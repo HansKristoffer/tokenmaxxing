@@ -41,32 +41,35 @@ export async function rouletteBet(
     bets = checked.bets;
   }
   const total = sum(bets);
-  await sql.transaction(async (tx) => {
-    const had =
-      (
-        await one<{ total: number }>(
-          tx,
-          "SELECT total FROM roulette_bets WHERE round = ? AND user_id = ?",
+  await sql.transaction(
+    async (tx) => {
+      const had =
+        (
+          await one<{ total: number }>(
+            tx,
+            "SELECT total FROM roulette_bets WHERE round = ? AND user_id = ?",
+            round,
+            userId,
+          )
+        )?.total ?? 0;
+      const more = total - had;
+      if (more > 0 && (await wallet(tx, userId, now, kept)).balance < more)
+        throw new UserError("Not enough coins for that bet.", { code: "too_poor" });
+      if (more !== 0) await ledgerAdd(tx, userId, -more, "roulette", "roulette:bet", now);
+      if (total === 0)
+        await tx.execute("DELETE FROM roulette_bets WHERE round = ? AND user_id = ?", round, userId);
+      else
+        await tx.execute(
+          `INSERT INTO roulette_bets (round, user_id, bets, total) VALUES (?, ?, ?, ?)
+         ON CONFLICT (round, user_id) DO UPDATE SET bets = excluded.bets, total = excluded.total`,
           round,
           userId,
-        )
-      )?.total ?? 0;
-    const more = total - had;
-    if (more > 0 && (await wallet(tx, userId, now, kept)).balance < more)
-      throw new UserError("Not enough coins for that bet.", { code: "too_poor" });
-    if (more !== 0) await ledgerAdd(tx, userId, -more, "roulette", "roulette:bet", now);
-    if (total === 0)
-      await tx.execute("DELETE FROM roulette_bets WHERE round = ? AND user_id = ?", round, userId);
-    else
-      await tx.execute(
-        `INSERT INTO roulette_bets (round, user_id, bets, total) VALUES (?, ?, ?, ?)
-         ON CONFLICT (round, user_id) DO UPDATE SET bets = excluded.bets, total = excluded.total`,
-        round,
-        userId,
-        JSON.stringify(bets),
-        total,
-      );
-  });
+          JSON.stringify(bets),
+          total,
+        );
+    },
+    { name: "roulette-bet" },
+  );
   return { bets, total };
 }
 
@@ -86,23 +89,26 @@ export async function rouletteResolve(
   now: number,
   rand: () => number = secureRandom,
 ): Promise<{ pocket: number; results: RouletteOutcome[] }> {
-  return sql.transaction(async (tx) => {
-    const rows = await all<Row>(
-      tx,
-      "SELECT user_id AS userId, bets, total FROM roulette_bets WHERE round = ? ORDER BY user_id",
-      round,
-    );
-    const pocket = spinPocket(rand);
-    const results: RouletteOutcome[] = [];
-    for (const r of rows) {
-      const s = settle(JSON.parse(r.bets) as Bet[], pocket);
-      if (s.payout > 0) await ledgerAdd(tx, r.userId, s.payout, "roulette", "roulette:win", now);
-      const name = (await one<{ name: string }>(tx, "SELECT name FROM users WHERE id = ?", r.userId))?.name;
-      results.push({ userId: r.userId, name: name ?? "Someone", staked: s.staked, payout: s.payout });
-    }
-    await tx.execute("DELETE FROM roulette_bets WHERE round = ?", round);
-    return { pocket, results };
-  });
+  return sql.transaction(
+    async (tx) => {
+      const rows = await all<Row>(
+        tx,
+        "SELECT user_id AS userId, bets, total FROM roulette_bets WHERE round = ? ORDER BY user_id",
+        round,
+      );
+      const pocket = spinPocket(rand);
+      const results: RouletteOutcome[] = [];
+      for (const r of rows) {
+        const s = settle(JSON.parse(r.bets) as Bet[], pocket);
+        if (s.payout > 0) await ledgerAdd(tx, r.userId, s.payout, "roulette", "roulette:win", now);
+        const name = (await one<{ name: string }>(tx, "SELECT name FROM users WHERE id = ?", r.userId))?.name;
+        results.push({ userId: r.userId, name: name ?? "Someone", staked: s.staked, payout: s.payout });
+      }
+      await tx.execute("DELETE FROM roulette_bets WHERE round = ?", round);
+      return { pocket, results };
+    },
+    { name: "roulette-resolve" },
+  );
 }
 
 /** Gives `userId` their stakes for `round` back (the whole table's, if `userId` is omitted: any round). Returns the coins. */
@@ -112,20 +118,23 @@ export async function rouletteRefund(
   userId?: number,
   round?: number,
 ): Promise<number> {
-  return sql.transaction(async (tx) => {
-    const rows = await all<{ round: number; userId: number; total: number }>(
-      tx,
-      `SELECT round, user_id AS userId, total FROM roulette_bets
+  return sql.transaction(
+    async (tx) => {
+      const rows = await all<{ round: number; userId: number; total: number }>(
+        tx,
+        `SELECT round, user_id AS userId, total FROM roulette_bets
        WHERE (? IS NULL OR user_id = ?) AND (? IS NULL OR round = ?)`,
-      userId ?? null,
-      userId ?? null,
-      round ?? null,
-      round ?? null,
-    );
-    for (const r of rows) {
-      await ledgerAdd(tx, r.userId, r.total, "roulette", "roulette:refund", now);
-      await tx.execute("DELETE FROM roulette_bets WHERE round = ? AND user_id = ?", r.round, r.userId);
-    }
-    return rows.reduce((a, r) => a + r.total, 0);
-  });
+        userId ?? null,
+        userId ?? null,
+        round ?? null,
+        round ?? null,
+      );
+      for (const r of rows) {
+        await ledgerAdd(tx, r.userId, r.total, "roulette", "roulette:refund", now);
+        await tx.execute("DELETE FROM roulette_bets WHERE round = ? AND user_id = ?", r.round, r.userId);
+      }
+      return rows.reduce((a, r) => a + r.total, 0);
+    },
+    { name: "roulette-refund" },
+  );
 }

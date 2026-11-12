@@ -82,12 +82,3 @@ export function diagnose(result: ProbeResult, loopLagMs: number, lagThresholdMs 
       : `error after ${result.ms} ms: ${result.error}`;
   return `actor probe failed: ${what}; ${where}`;
 }
-
-/** Pids of `children` whose command line mentions `needle`; `ps` rows are `pid command...`. */
-export function matchingPids(ps: string, needle: string): number[] {
-  return ps
-    .split("\n")
-    .map((line) => line.trim().match(/^(\d+)\s+(.*)$/))
-    .filter((m): m is RegExpMatchArray => !!m && m[2]!.includes(needle))
-    .map((m) => Number(m[1]));
-}

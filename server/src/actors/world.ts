@@ -297,8 +297,9 @@ interface WorldState {
 /** `text`: the connection joined with `MOVES_TEXT`. */
 type ConnState = Caller & { joined?: boolean; text?: boolean };
 
-/** A joined connection's player, and whether it takes `moves` as text. */
-interface Joined {
+/** A joined connection, its player, and whether it takes `moves` as text. */
+interface Tab {
+  conn: Conn;
   userId: number;
   text: boolean;
 }
@@ -426,7 +427,7 @@ export const world = actor({
      * Who each connection is once it has joined (null until then, or not a player's), by connection id:
      * `conn.state` builds a proxy on every read, and sending reads it for every connection.
      */
-    users: new Map<string, Joined | null>(),
+    tabs: new Map<string, Tab>(),
     /** Players that moved or changed room since the last tick. */
     dirty: new Set<number>(),
     /** The room each player was last announced in. */
@@ -536,6 +537,11 @@ export const world = actor({
   onWake: async (c) => {
     if (rawState(c) === c.state)
       console.warn("[world] no raw state from RivetKit: reads go through its proxy");
+    // Whoever is still connected from before the world slept.
+    for (const conn of c.conns.values()) {
+      const s = callerOf<ConnState>(conn);
+      if (s.kind === "user" && s.joined) c.vars.tabs.set(conn.id, { conn, userId: s.userId, text: !!s.text });
+    }
     // Every floor, and every office's lock, are `town`'s: the world only keeps them in memory.
     // ponytail: `seed` sends everyone every time, for the floors; split it if that gets big.
     const seed = await main(c.client()).town.seed();
@@ -568,8 +574,7 @@ export const world = actor({
       .catch((err) => console.warn(`[roulette] release: ${String(err)}`));
   },
   onDisconnect: (c, conn) => {
-    // It's out of `c.conns` by now, so no send puts it back in.
-    c.vars.users.delete(conn.id);
+    c.vars.tabs.delete(conn.id);
     const s = conn.state as ConnState;
     if (s.kind !== "user" || !s.joined) return;
     const left = (c.vars.online.get(s.userId) ?? 1) - 1;
@@ -667,7 +672,7 @@ export const world = actor({
       const p = must(c.state.players[userId], () => new UserError("Unknown player.", { code: "not_found" }));
       const text = wire === MOVES_TEXT;
       Object.assign(c.conn.state as ConnState, { joined: true, text });
-      c.vars.users.set(c.conn.id, { userId, text });
+      c.vars.tabs.set(c.conn.id, { conn: c.conn, userId, text });
       c.vars.online.set(userId, (c.vars.online.get(userId) ?? 0) + 1);
       c.vars.lastInput.set(userId, Date.now());
       p.dozing = false;
@@ -1943,7 +1948,7 @@ type Vars = {
   online: Map<number, number>;
   lastInput: Map<number, number>;
   chatLines: Map<RoomId, Promise<ChatLine[]>>;
-  users: Map<string, Joined | null>;
+  tabs: Map<string, Tab>;
   visited: { day: string; keys: Set<string> };
   dirty: Set<number>;
   announced: Map<number, RoomId>;
@@ -3161,9 +3166,8 @@ const withLine = (lines: ChatLine[], line: ChatLine): ChatLine[] =>
 type Conn = { id: string; state: unknown; send(name: string, ...args: unknown[]): void };
 
 interface Sender {
-  conns: Map<string, Conn>;
   state: WorldState;
-  vars: { users: Map<string, Joined | null> };
+  vars: { tabs: Map<string, Tab> };
 }
 
 /** The world as `peek` hands it out: its players can be read, not written. */
@@ -3186,24 +3190,15 @@ interface Listener {
 }
 
 /**
- * Every joined connection in one pass. `c.conns`, `conn.id`, `c.vars` and the state are each a call into
- * RivetKit's native side: asked here once, not again for every connection of every send. Several sends
- * in a row share one list (`to`).
+ * Every joined connection, from `vars.tabs`: kept as tabs join and leave, not asked of RivetKit. `c.conns`
+ * is a call into its native side that builds a handle for each connection, and `conn.id` another call
+ * each: with 300 players that was a seventh of the server's time, most of it to find one player's tabs.
  */
 function listeners(c: Sender): Listener[] {
-  const users = c.vars.users;
   const players = peek(c).players;
   const out: Listener[] = [];
-  for (const conn of c.conns.values()) {
-    const id = conn.id;
-    let who = users.get(id);
-    if (who === undefined) {
-      const s = callerOf<ConnState>(conn);
-      who = s.kind === "user" && s.joined ? { userId: s.userId, text: !!s.text } : null;
-      users.set(id, who);
-    }
-    if (who) out.push({ conn, userId: who.userId, room: players[who.userId]?.room, text: who.text });
-  }
+  for (const t of c.vars.tabs.values())
+    out.push({ conn: t.conn, userId: t.userId, room: players[t.userId]?.room, text: t.text });
   return out;
 }
 
@@ -3249,7 +3244,7 @@ function sendInfo(
 
 /** To every tab `userId` has open. */
 function sendToUser(c: Sender, userId: number, event: string, payload: unknown): void {
-  for (const l of listeners(c)) if (l.userId === userId) l.conn.send(event, payload);
+  for (const t of c.vars.tabs.values()) if (t.userId === userId) t.conn.send(event, payload);
 }
 
 /** A player who changed room (a door, or sent to bed) gets the new room whole. */

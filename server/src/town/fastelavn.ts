@@ -51,39 +51,42 @@ export async function whack(sql: TxSql, userId: number, now: number): Promise<Wh
   if (!barrelUp(now)) throw new UserError("The barrel hangs on Fastelavn Sunday.", { code: "closed" });
   const year = fastelavnYear(now);
   if ((await barrel(sql, now)).king) return { barrel: await barrel(sql, now) };
-  const loot = await sql.transaction(async (tx) => {
-    await tx.execute(
-      `INSERT INTO fastelavn_hits (year, user_id, hits) VALUES (?, ?, 1)
+  const loot = await sql.transaction(
+    async (tx) => {
+      await tx.execute(
+        `INSERT INTO fastelavn_hits (year, user_id, hits) VALUES (?, ?, 1)
        ON CONFLICT (year, user_id) DO UPDATE SET hits = hits + 1`,
-      year,
-      userId,
-    );
-    const hits = await scalar(tx, "SELECT SUM(hits) AS n FROM fastelavn_hits WHERE year = ?", year);
-    if (hits < HITS) return undefined;
-    const [fresh] = await all(
-      tx,
-      "INSERT INTO fastelavn_king (year, user_id, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING RETURNING year",
-      year,
-      userId,
-      now,
-    );
-    if (!fresh) return undefined;
-    const whackers = await all<{ userId: number }>(
-      tx,
-      "SELECT user_id AS userId FROM fastelavn_hits WHERE year = ? ORDER BY user_id",
-      year,
-    );
-    const out: NonNullable<Whack["loot"]> = [];
-    for (const w of whackers) {
-      const found = lootFor(year, w.userId);
-      const king = w.userId === userId;
-      const coins = found.coins + (king ? KING_COINS : 0);
-      const items = [...(found.item ? [found.item] : []), ...(king ? [CROWN] : [])];
-      await ledgerAdd(tx, w.userId, coins, "fastelavn", String(year), now);
-      for (const item of items) await giveItem(tx, w.userId, item, now);
-      out.push({ userId: w.userId, coins, items });
-    }
-    return out;
-  });
+        year,
+        userId,
+      );
+      const hits = await scalar(tx, "SELECT SUM(hits) AS n FROM fastelavn_hits WHERE year = ?", year);
+      if (hits < HITS) return undefined;
+      const [fresh] = await all(
+        tx,
+        "INSERT INTO fastelavn_king (year, user_id, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING RETURNING year",
+        year,
+        userId,
+        now,
+      );
+      if (!fresh) return undefined;
+      const whackers = await all<{ userId: number }>(
+        tx,
+        "SELECT user_id AS userId FROM fastelavn_hits WHERE year = ? ORDER BY user_id",
+        year,
+      );
+      const out: NonNullable<Whack["loot"]> = [];
+      for (const w of whackers) {
+        const found = lootFor(year, w.userId);
+        const king = w.userId === userId;
+        const coins = found.coins + (king ? KING_COINS : 0);
+        const items = [...(found.item ? [found.item] : []), ...(king ? [CROWN] : [])];
+        await ledgerAdd(tx, w.userId, coins, "fastelavn", String(year), now);
+        for (const item of items) await giveItem(tx, w.userId, item, now);
+        out.push({ userId: w.userId, coins, items });
+      }
+      return out;
+    },
+    { name: "fastelavn-whack" },
+  );
   return { barrel: await barrel(sql, now), ...(loot && { loot }) };
 }

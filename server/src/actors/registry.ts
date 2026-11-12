@@ -40,7 +40,7 @@ export const registry = setup({
   logging: { level: "error" },
   // ponytail: one process holds the engine and every actor, so a deploy restarts both and
   // there's never an old runner to drain. Bump this if actors ever run on more than one host.
-  envoy: { version: 1 },
+  node: { version: 1 },
   // Railway waits a few seconds after SIGTERM; the default grace is the engine's 30 minutes.
   // main.ts handles SIGINT/SIGTERM itself: after the drain it also stops the engine child.
   shutdown: { gracePeriodMs: 5_000, disableSignalHandlers: true },

@@ -47,29 +47,32 @@ export async function grantLoot(
   const given = new Set(had.map(keyOf));
   const fresh = drops.filter((d) => !given.has(keyOf(d)));
   if (fresh.length === 0) return [];
-  return sql.transaction(async (tx) => {
-    const out: LootDrop[] = [];
-    for (const d of fresh) {
-      // Deleted meanwhile: nothing for them.
-      const [row] = await all(
-        tx,
-        `INSERT INTO loot (week, rung, user_id, item, odds, at)
+  return sql.transaction(
+    async (tx) => {
+      const out: LootDrop[] = [];
+      for (const d of fresh) {
+        // Deleted meanwhile: nothing for them.
+        const [row] = await all(
+          tx,
+          `INSERT INTO loot (week, rung, user_id, item, odds, at)
          SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM users WHERE id = ?)
          ON CONFLICT DO NOTHING RETURNING user_id`,
-        d.week,
-        d.rung,
-        d.userId,
-        d.item,
-        d.odds,
-        now,
-        d.userId,
-      );
-      if (!row) continue;
-      await giveItem(tx, d.userId, d.item, now);
-      out.push(d);
-    }
-    return out;
-  });
+          d.week,
+          d.rung,
+          d.userId,
+          d.item,
+          d.odds,
+          now,
+          d.userId,
+        );
+        if (!row) continue;
+        await giveItem(tx, d.userId, d.item, now);
+        out.push(d);
+      }
+      return out;
+    },
+    { name: "loot-grant" },
+  );
 }
 
 const rarityOf = (item: string): Rarity => lootById(item)?.rarity ?? "common";

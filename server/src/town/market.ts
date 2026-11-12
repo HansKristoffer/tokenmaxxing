@@ -95,9 +95,12 @@ async function takeDown(sql: Sql, l: Pick<Row, "id" | "sellerId" | "itemRow">): 
 export async function expire(sql: TxSql, now: number): Promise<number[]> {
   const old = await all<Row>(sql, `SELECT ${ROW} FROM market_listings WHERE expires_at <= ?`, now);
   if (old.length === 0) return [];
-  await sql.transaction(async (tx) => {
-    for (const l of old) await takeDown(tx, l);
-  });
+  await sql.transaction(
+    async (tx) => {
+      for (const l of old) await takeDown(tx, l);
+    },
+    { name: "market-expire" },
+  );
   return [...new Set(old.map((l) => l.sellerId))];
 }
 
@@ -123,69 +126,75 @@ export async function list(
   if (want.copy !== undefined && !Number.isInteger(want.copy))
     throw new UserError("Pick a copy.", { code: "bad_request" });
   await expire(sql, now);
-  return sql.transaction(async (tx) => {
-    const level = await levelOf(tx, userId);
-    if (level < MARKET_LEVEL)
-      throw new UserError(`You can put things on display from level ${MARKET_LEVEL}.`, { code: "level" });
-    const up = await scalar(tx, "SELECT COUNT(*) AS n FROM market_listings WHERE seller_id = ?", userId);
-    if (up >= listingAllowance(level))
-      throw new UserError(`You have ${up} things on display, as many as your level allows.`, {
-        code: "too_many",
-      });
-    if (await one(tx, "SELECT 1 FROM market_listings WHERE slot = ?", slot))
-      throw new UserError("Someone just took that spot.", { code: "slot_taken" });
-    const row =
-      want.copy === undefined
-        ? await one<{ id: number }>(
-            tx,
-            "SELECT id FROM items WHERE owner_id = ? AND item = ? ORDER BY id DESC LIMIT 1",
-            userId,
-            item.id,
-          )
-        : await one<{ id: number }>(
-            tx,
-            "SELECT id FROM items WHERE id = ? AND owner_id = ? AND item = ?",
-            want.copy,
-            userId,
-            item.id,
-          );
-    if (!row) throw new UserError("You don't have that in your bag.", { code: "not_owned" });
-    const out = await all(
-      tx,
-      "UPDATE items SET owner_id = NULL WHERE id = ? AND owner_id = ? RETURNING id",
-      row.id,
-      userId,
-    );
-    if (out.length === 0) throw new UserError("You don't have that in your bag.", { code: "not_owned" });
-    const made = await one<{ id: number }>(
-      tx,
-      `INSERT INTO market_listings (slot, seller_id, item_row, item, price, at, expires_at)
+  return sql.transaction(
+    async (tx) => {
+      const level = await levelOf(tx, userId);
+      if (level < MARKET_LEVEL)
+        throw new UserError(`You can put things on display from level ${MARKET_LEVEL}.`, { code: "level" });
+      const up = await scalar(tx, "SELECT COUNT(*) AS n FROM market_listings WHERE seller_id = ?", userId);
+      if (up >= listingAllowance(level))
+        throw new UserError(`You have ${up} things on display, as many as your level allows.`, {
+          code: "too_many",
+        });
+      if (await one(tx, "SELECT 1 FROM market_listings WHERE slot = ?", slot))
+        throw new UserError("Someone just took that spot.", { code: "slot_taken" });
+      const row =
+        want.copy === undefined
+          ? await one<{ id: number }>(
+              tx,
+              "SELECT id FROM items WHERE owner_id = ? AND item = ? ORDER BY id DESC LIMIT 1",
+              userId,
+              item.id,
+            )
+          : await one<{ id: number }>(
+              tx,
+              "SELECT id FROM items WHERE id = ? AND owner_id = ? AND item = ?",
+              want.copy,
+              userId,
+              item.id,
+            );
+      if (!row) throw new UserError("You don't have that in your bag.", { code: "not_owned" });
+      const out = await all(
+        tx,
+        "UPDATE items SET owner_id = NULL WHERE id = ? AND owner_id = ? RETURNING id",
+        row.id,
+        userId,
+      );
+      if (out.length === 0) throw new UserError("You don't have that in your bag.", { code: "not_owned" });
+      const made = await one<{ id: number }>(
+        tx,
+        `INSERT INTO market_listings (slot, seller_id, item_row, item, price, at, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      slot,
-      userId,
-      row.id,
-      item.id,
-      price,
-      now,
-      now + MARKET_TTL,
-    );
-    const listing = shown((await one<ListingRow>(tx, `${LISTING} WHERE l.id = ?`, made!.id))!);
-    return { listing, unworn: await unwear(tx, userId, [item.id]) };
-  });
+        slot,
+        userId,
+        row.id,
+        item.id,
+        price,
+        now,
+        now + MARKET_TTL,
+      );
+      const listing = shown((await one<ListingRow>(tx, `${LISTING} WHERE l.id = ?`, made!.id))!);
+      return { listing, unworn: await unwear(tx, userId, [item.id]) };
+    },
+    { name: "market-list" },
+  );
 }
 
 /** Takes `userId`'s own listing down: the item is back in their bag. */
 export async function cancel(sql: TxSql, userId: number, listingId: unknown): Promise<void> {
-  await sql.transaction(async (tx) => {
-    const l = await one<Row>(
-      tx,
-      `SELECT ${ROW} FROM market_listings WHERE id = ? AND seller_id = ?`,
-      listingId,
-      userId,
-    );
-    if (!l) throw new UserError("That isn't on display any more.", { code: "not_found" });
-    await takeDown(tx, l);
-  });
+  await sql.transaction(
+    async (tx) => {
+      const l = await one<Row>(
+        tx,
+        `SELECT ${ROW} FROM market_listings WHERE id = ? AND seller_id = ?`,
+        listingId,
+        userId,
+      );
+      if (!l) throw new UserError("That isn't on display any more.", { code: "not_found" });
+      await takeDown(tx, l);
+    },
+    { name: "market-cancel" },
+  );
 }
 
 /** What a buyer has spent in the hall since `since`: on `sellerId` alone, or on anyone. */
@@ -216,61 +225,64 @@ export async function buy(
   minAge = MARKET_BUYER_AGE,
 ): Promise<{ wallet: Wallet; sale: Sale; sellerId: number }> {
   await expire(sql, now);
-  const sale = await sql.transaction(async (tx) => {
-    const l = await one<Row & { item: string }>(
-      tx,
-      `SELECT ${ROW}, item FROM market_listings WHERE id = ? AND expires_at > ?`,
-      listingId,
-      now,
-    );
-    if (!l) throw new UserError("Someone bought that, or it came down.", { code: "gone" });
-    if (l.price !== price)
-      throw new UserError("The price changed. Have another look.", { code: "price_changed" });
-    if (l.sellerId === buyerId)
-      throw new UserError("That's yours. Take it back instead.", { code: "own_listing" });
-    const me = await one<{ name: string; createdAt: number }>(
-      tx,
-      "SELECT name, created_at AS createdAt FROM users WHERE id = ?",
-      buyerId,
-    );
-    if (!me) throw new UserError("Unknown player.", { code: "not_found" });
-    if (now - me.createdAt < minAge)
-      throw new UserError("New accounts can buy in the hall from their third day.", { code: "too_new" });
-    if ((await spent(tx, buyerId, now - 24 * 3_600_000)) + l.price > MARKET_DAY_BUY)
-      throw new UserError("That's a lot for one day in the hall. Come back tomorrow.", { code: "buy_cap" });
-    if ((await spent(tx, buyerId, now - 7 * 24 * 3_600_000, l.sellerId)) + l.price > MARKET_PAIR_BUY)
-      throw new UserError("You've bought a lot from them this week. Give it a few days.", {
-        code: "pair_cap",
-      });
-    if ((await wallet(tx, buyerId, now, kept)).balance < l.price)
-      throw new UserError("Not enough coins yet.", { code: "too_poor" });
-    // The claim: whoever deletes the row is the buyer, so a second buy, or a take-down, finds it gone.
-    if ((await all(tx, "DELETE FROM market_listings WHERE id = ? RETURNING id", l.id)).length === 0)
-      throw new UserError("Someone bought that, or it came down.", { code: "gone" });
-    const ref = `market:${l.id}`;
-    await ledgerAdd(tx, buyerId, -l.price, "market", ref, now);
-    await ledgerAdd(tx, l.sellerId, l.price, "market", ref, now);
-    const moved = await all(
-      tx,
-      "UPDATE items SET owner_id = ? WHERE id = ? AND owner_id IS NULL RETURNING id",
-      buyerId,
-      l.itemRow,
-    );
-    if (moved.length === 0) throw new UserError("Someone bought that, or it came down.", { code: "gone" });
-    const made = await one<{ id: number }>(
-      tx,
-      `INSERT INTO market_sales (listing_id, seller_id, buyer_id, item, item_row, price, at)
+  const sale = await sql.transaction(
+    async (tx) => {
+      const l = await one<Row & { item: string }>(
+        tx,
+        `SELECT ${ROW}, item FROM market_listings WHERE id = ? AND expires_at > ?`,
+        listingId,
+        now,
+      );
+      if (!l) throw new UserError("Someone bought that, or it came down.", { code: "gone" });
+      if (l.price !== price)
+        throw new UserError("The price changed. Have another look.", { code: "price_changed" });
+      if (l.sellerId === buyerId)
+        throw new UserError("That's yours. Take it back instead.", { code: "own_listing" });
+      const me = await one<{ name: string; createdAt: number }>(
+        tx,
+        "SELECT name, created_at AS createdAt FROM users WHERE id = ?",
+        buyerId,
+      );
+      if (!me) throw new UserError("Unknown player.", { code: "not_found" });
+      if (now - me.createdAt < minAge)
+        throw new UserError("New accounts can buy in the hall from their third day.", { code: "too_new" });
+      if ((await spent(tx, buyerId, now - 24 * 3_600_000)) + l.price > MARKET_DAY_BUY)
+        throw new UserError("That's a lot for one day in the hall. Come back tomorrow.", { code: "buy_cap" });
+      if ((await spent(tx, buyerId, now - 7 * 24 * 3_600_000, l.sellerId)) + l.price > MARKET_PAIR_BUY)
+        throw new UserError("You've bought a lot from them this week. Give it a few days.", {
+          code: "pair_cap",
+        });
+      if ((await wallet(tx, buyerId, now, kept)).balance < l.price)
+        throw new UserError("Not enough coins yet.", { code: "too_poor" });
+      // The claim: whoever deletes the row is the buyer, so a second buy, or a take-down, finds it gone.
+      if ((await all(tx, "DELETE FROM market_listings WHERE id = ? RETURNING id", l.id)).length === 0)
+        throw new UserError("Someone bought that, or it came down.", { code: "gone" });
+      const ref = `market:${l.id}`;
+      await ledgerAdd(tx, buyerId, -l.price, "market", ref, now);
+      await ledgerAdd(tx, l.sellerId, l.price, "market", ref, now);
+      const moved = await all(
+        tx,
+        "UPDATE items SET owner_id = ? WHERE id = ? AND owner_id IS NULL RETURNING id",
+        buyerId,
+        l.itemRow,
+      );
+      if (moved.length === 0) throw new UserError("Someone bought that, or it came down.", { code: "gone" });
+      const made = await one<{ id: number }>(
+        tx,
+        `INSERT INTO market_sales (listing_id, seller_id, buyer_id, item, item_row, price, at)
        VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      l.id,
-      l.sellerId,
-      buyerId,
-      l.item,
-      l.itemRow,
-      l.price,
-      now,
-    );
-    return { id: made!.id, item: l.item, price: l.price, buyer: me.name, at: now, sellerId: l.sellerId };
-  });
+        l.id,
+        l.sellerId,
+        buyerId,
+        l.item,
+        l.itemRow,
+        l.price,
+        now,
+      );
+      return { id: made!.id, item: l.item, price: l.price, buyer: me.name, at: now, sellerId: l.sellerId };
+    },
+    { name: "market-buy" },
+  );
   const { sellerId, ...log } = sale;
   return { wallet: await wallet(sql, buyerId, now, kept), sale: log, sellerId };
 }

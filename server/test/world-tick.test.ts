@@ -5,9 +5,10 @@ import { eventually } from "./eventually.ts";
 
 /**
  * What a tick costs must not grow with the room faster than the room does. `c.state`, `c.vars`, `c.conns`
- * and `conn.id` are each a call into RivetKit's native side, and an event is encoded for each connection it
- * is sent to: asked per connection and sent as an object, a full town is most of a tick. This runs the
- * world's own loop over a full room, in this process, and counts what a tick asks for.
+ * and `conn.id` are each a call into RivetKit's native side (`c.conns` builds a handle for every
+ * connection), and an event is encoded for each connection it is sent to: asked per connection and sent as
+ * an object, a full town is most of a tick. This runs the world's own loop over a full room, in this
+ * process, and counts what a tick asks for.
  */
 test("a tick asks RivetKit a fixed number of things, and writes a room's moves once for everyone who reads text", async () => {
   const PEOPLE = 80;
@@ -51,6 +52,10 @@ test("a tick asks RivetKit a fixed number of things, and writes a room's moves o
   const vars = {
     ...(world.config as unknown as { createVars: () => Record<string, unknown> }).createVars(),
     online: new Map(ids.map((id) => [id, 1])),
+    // As `join` leaves them.
+    tabs: new Map(
+      conns.map((conn, i) => [`conn-${ids[i]}`, { conn, userId: ids[i], text: ids[i] !== PEOPLE }]),
+    ),
     // Already told they are in town, so a step is a plain move; nothing is read from outside meanwhile.
     announced: new Map(ids.map((id) => [id, "town"])),
     outageAt: never,
@@ -99,9 +104,9 @@ test("a tick asks RivetKit a fixed number of things, and writes a room's moves o
     await running;
   }
 
-  // Three ticks: the connections once each, an id per connection, and who each is from memory.
-  expect(asked.conns).toBe(3);
-  expect(asked.ids).toBe(3 * PEOPLE);
+  // Three ticks: who is connected, and who each is, from memory. RivetKit isn't asked.
+  expect(asked.conns).toBe(0);
+  expect(asked.ids).toBe(0);
   expect(asked.connStates).toBe(0);
   // The rest of a tick's reads are its own (a couple of dozen): not one per person in the room.
   expect(asked.vars / 3).toBeLessThan(PEOPLE);

@@ -1536,7 +1536,9 @@ export const town = actor({
       const owned = ownedPins(await collectionFor(c, userId));
       const views = (ids as string[]).map((id) => owned.find((o) => o.id === id));
       if (views.some((v) => !v)) throw new UserError("You haven't earned that yet.", { code: "not_owned" });
-      await c.vars.serial(() => c.db.transaction((tx) => setPins(tx, userId, ids as string[])));
+      await c.vars.serial(() =>
+        c.db.transaction((tx) => setPins(tx, userId, ids as string[]), { name: "card-pins" }),
+      );
       return views as PinView[];
     },
 
@@ -2118,12 +2120,14 @@ async function shelfOf(
   const views = resolvePins(state, pins);
   if (views.length < pins.length && !withoutTrophies.has(state))
     await c.vars.serial(() =>
-      c.db.transaction((tx) =>
-        setPins(
-          tx,
-          userId,
-          views.map((v) => v.id),
-        ),
+      c.db.transaction(
+        (tx) =>
+          setPins(
+            tx,
+            userId,
+            views.map((v) => v.id),
+          ),
+        { name: "shelf" },
       ),
     );
   return views;

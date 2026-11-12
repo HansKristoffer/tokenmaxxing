@@ -123,7 +123,7 @@ The frame loop makes about 40% less garbage in every reading (on High, at about 
 | Idea | What happened |
 | ---- | ------------- |
 | `moves` as JSON text | Tick 2.7 → 1.7 ms, but bytes per client went from 3.7 to 5.3 KB/s (+43%) and server CPU did not move. The compact text replaced it. |
-| Keeping the connection handles between ticks | `c.conns` builds a handle per connection on every read (8% of the server's JavaScript time after this change). Holding them across calls depends on how long RivetKit keeps a handle valid, which its API does not say. |
+| Keeping the connection handles between ticks | `c.conns` builds a handle per connection on every read (8% of the server's JavaScript time after this change). Holding them across calls depends on how long RivetKit keeps a handle valid, which its API does not say. (Kept in the third pass: on RivetKit 3.1.1 it could be tested.) |
 | Writing a step straight to the raw state and asking for one save | Reading and writing the player through the proxy in `step` is about 6% of the server's JavaScript time. It would put two ways of writing state side by side in the hottest action. |
 
 ### Remaining recommendations
@@ -133,3 +133,60 @@ The frame loop makes about 40% less garbage in every reading (on High, at about 
 | Send `moves` at 5 Hz when the world is crowded | Messages, not CPU, are the limit, and the engine pays for each. Measured with `TICK_MS` at 200 (two pairs, 100 walking players): engine CPU 254% → 177%, server CPU 44.4% → 39.1%, messages per client 14.6 → 9.3 a second. But others' steps arrive up to 100 ms later, and your own steps come back up to 200 ms late: `reconcileSelf` would snap a runner back unless it learns which steps it already made. Needs a playtest on real hardware. | About a third fewer messages, so about half again as many players before the engine queues. |
 | The engine's cost per message | The engine process uses 2.4 cores for 100 walking players and 13 or more at 200: five times this server's own CPU. It is RivetKit's, not ours. | Worth raising with RivetKit, with `load.ts` as the reproduction. |
 | Fewer draws per person | `game.mjs --meshes` on Medium with 35 people in view: they are 154 of about 700 visible meshes. The eight who are animated are 64 limb batches; everyone else is one merged body; and every one of the 35 has a face drawn on its own, see-through, with its own texture. three.js allocates for every draw's uniforms: about a third of the frame loop's garbage before this pass, half of it after (2.5 of 5.1 MB/s). Faces in one atlas, drawn as one instanced mesh, is the first pass's "instanced billboards" recommendation with a number on it. | 34 fewer draws of about 540 with this crowd, and their share of the garbage. |
+
+## Third pass: RivetKit 3, and the three recommendations above
+
+From `10698f3` (release 1.19.0). The second pass ended on three recommendations; this one looked into each,
+and moved the server from RivetKit 2.3.21 to 3.1.1. Server numbers are from `scripts/perf/load.ts` with
+players walking, runs alternated between two checkouts (A B B A); client numbers from `scripts/perf/game.mjs`
+on Medium with 40 walkers, on the same GPU-less machine as before.
+
+### What happened to each recommendation
+
+| Recommendation | Verdict | Evidence |
+| -------------- | ------- | -------- |
+| The engine's cost per message | **Gone with RivetKit 3.** | 100 players, two pairs: engine CPU 236% → 21%, an action's round trip 5.3 → 0.7 ms (p95 17 → 4), server CPU 43.9% → 37.6%, memory 541 → 380 MB, no errors. One run each further up: 200 players took 1,333% of engine CPU and a median round trip of 68 ms on RivetKit 2, 39% and 0.8 ms on 3. At 300 RivetKit 2 dropped connections; RivetKit 3 used 56% of a core, with no errors. |
+| `moves` at 5 Hz when crowded | **Not built.** Its reason was the engine, and that is gone. | On RivetKit 3 at 300 players (two pairs, `TICK_MS` 200): server CPU 90.3% → 80.5%, messages per client 15.7 → 10.4 a second, round trips unchanged. That is about 40 more players before this process's core is full, and nothing at all below 300, for others' steps arriving up to 100 ms later. Building it also needs every tile of a run sent (a runner makes two steps in 200 ms, and the game draws a jump of two tiles as a teleport). Worth another look when 250 are online at once. |
+| Faces in one atlas, one instanced draw | **Not built.** There is nothing there to win. | With every face hidden outright, the most any batching could save: the renderer's CPU per frame 7.1–8.6 ms with faces, 7.1–7.9 without; garbage 4.7–5.4 MB/s with, 4.8–5.2 without (two pairs, two observers each). About 25 fewer draws of 550. |
+
+### Implemented
+
+- **RivetKit 3.1.1.** One option was renamed (`envoy` → `node`); every transaction of ours has a name, which
+  RivetKit 3 asks for. The engine's process helpers read `/proc`: the server image has neither `ps` nor
+  `lsof`, so `stopEngine` had been doing nothing there.
+- **The move from RivetKit 2's store** (`server/src/migrate/`). RivetKit 3 does not read it: on the volume as
+  it is, the town would have come up empty. The first start copies every actor across and checks every table
+  and every actor's state against what was sent. [ARCHITECTURE.md](ARCHITECTURE.md#serving) has how;
+  [docs/development.md](docs/development.md#the-first-deploy-on-rivetkit-3) what to do before deploying.
+- **The world keeps its joined connections itself** (`vars.tabs`). A send to one player's tabs asked RivetKit
+  for every connection, a native call that builds a handle for each: a room change did it for each snapshot.
+  The second pass left this alone because nothing said a kept handle stays valid. On 3.1.1 it does: a handle
+  kept past its action still delivers, and one whose connection has gone takes a send and does nothing.
+
+A bug turned up on the way and went in on its own (#178): the game took its own steps coming back from the
+server as the server moving it, and with 300 ms to the server a runner was pulled back on 27 steps of 30.
+Sending `moves` less often would have made it everyone's.
+
+### Evidence
+
+Two pairs each, median and range.
+
+| 300 walking players, RivetKit 3 | Asking RivetKit for the connections | Kept in `vars.tabs` |
+| ------------------------------- | ----------------------------------: | ------------------: |
+| Tick p50 / p99, ms              |                         3.95 / 10.3 |           3.3 / 7.7 |
+| Round trip p95, ms              |                    22 [21.7..22.3]  |    17 [16.9..17.0]  |
+| Server CPU                      |                 93.9% [93.2..94.5]  | 90.5% [89.9..91.1]  |
+
+The move, timed on this machine: a town of three players (6 actors, 217 rows) in 3 s; a store of 302 actors
+and 996,000 rows (124 MB) in 97 s, into a new store of 295 MB. `server/test/migrate-v2.test.ts` moves a town
+written by release 1.19.0 itself and asks it the same questions before and after, moves every awkward value
+(integers past a double, reals, blobs, counters of deleted rows, tables without a rowid, state that JSON
+can't carry), and breaks a move halfway.
+
+### Remaining recommendations
+
+| Work | Why it remains separate | What it would buy |
+| ---- | ----------------------- | ----------------- |
+| Leave what RivetKit 3 deprecates | 3.0 deprecates `c.state`, connection state and `run` as a plain function, all of which the actors use (`world`, `player`, `arcade` and `match` keep their state there; four have a `run` loop). They work in 3.1 and log one warning at start. Their replacements are SQLite for what must last, `c.vars` for the rest, and `onWake` with `c.keepAwake`. | Nothing now. It is the next major's price, and `world`'s state is the big one. |
+| One send per room | The profile at 300 players is 40% sending: a native call for each connection for each event, and `proxy.ts` passing each message on. RivetKit sends a broadcast to the connections subscribed to an event's name, so a room's `moves` could be one call under a name of its own. The game would subscribe per room, and tabs from before would need the old way kept. | Perhaps a tenth of the server's CPU at 300; unmeasured. |
+| Delete the migration | `server/src/migrate/`, the `rivetkit-v2` dependency (about 200 MB of the image) and the old store on the volume, once production has run on RivetKit 3 for a while. | A smaller image, and 20 s off the test suite. |

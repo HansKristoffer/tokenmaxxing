@@ -7,6 +7,7 @@ import { stopEngine } from "./engine.ts";
 import { type Page, pageHeaders } from "./headers.ts";
 import { healthCheck } from "./health.ts";
 import { installScript } from "./install.ts";
+import { migrateFromV2, pending } from "./migrate/from-v2.ts";
 import { rivetProxy } from "./proxy.ts";
 import { diagnose, failureWindow, type ProbeResult, watchdogConfig } from "./watchdog.ts";
 
@@ -59,6 +60,30 @@ const refreshPricing = async () => {
 };
 void refreshPricing();
 setInterval(refreshPricing, 86_400_000);
+
+// A volume last written by RivetKit 2: every actor is copied to RivetKit 3's store first, or the town
+// would come up empty (`migrate/from-v2.ts`). Railway gives a deploy five minutes to answer its
+// healthcheck and a big town may take longer to move, so the healthcheck is answered meanwhile.
+if (storage && pending(storage)) {
+  console.log("[tokenmaxxing] moving the town from RivetKit 2's store to RivetKit 3's");
+  const waiting = Bun.serve({
+    port: config.port,
+    hostname: config.host,
+    fetch: (req) =>
+      new URL(req.url).pathname === "/health"
+        ? Response.json({ ok: true, version: config.version, migrating: true })
+        : new Response("Tokenmaxxing is being upgraded. Back in a few minutes.", {
+            status: 503,
+            headers: { "retry-after": "30" },
+          }),
+  });
+  try {
+    const moved = await migrateFromV2(storage, ENGINE_PORT);
+    console.log(`[tokenmaxxing] moved ${moved?.actors} actors (${moved?.rows} rows) in ${moved?.ms} ms`);
+  } finally {
+    await waiting.stop(true);
+  }
+}
 
 // Serve only once actors can run, so the healthcheck means the whole thing is up.
 registry.start();
