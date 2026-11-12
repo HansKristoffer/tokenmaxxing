@@ -97,17 +97,68 @@ test("unchanged scenery reuses the verdict, while movement, camera and new occlu
   expect(probe.update(player, camera, 0.1, true)).toBe(1);
   wall.position.x = 5;
   expect(probe.update(player, camera, 0.1, true)).toBe(0);
-  expect(rays).toBeGreaterThan(first);
   const newWall = root.box([3, 3, 0.2], "#776655", [0, 0, 2], 0);
   prepareCutaways(root);
   expect(probe.update(player, camera, 0.1, true)).toBe(1);
   newWall.visible = false;
   expect(probe.update(player, camera, 0.1, true)).toBe(0);
-  const movedCamera = camera.clone();
-  movedCamera.position.x += 20;
-  movedCamera.updateMatrixWorld();
-  probe.update(player, movedCamera, 0.1, true);
-  expect(rays).toBeGreaterThan(first + 9);
+  newWall.visible = true;
+  expect(probe.update(player, camera, 0.1, true)).toBe(1);
+  // Seen from the other side, the wall is behind the player.
+  const behind = camera.clone();
+  behind.position.set(0, 10, -20);
+  behind.lookAt(0, 0, 0);
+  behind.updateMatrixWorld();
+  expect(probe.update(player, behind, 0.1, true)).toBe(0);
+});
+
+test("the probe's verdict is the one from casting every sample at every mesh", () => {
+  // A seeded scatter of slabs, posts and roofs round the middle: some hide the player, most are nowhere near.
+  let seed = 7;
+  const random = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const root = new Model();
+  root.box([40, 0.1, 40], "#887766", [0, -0.1, 0], 0);
+  for (let i = 0; i < 160; i++) {
+    const size: [number, number, number] = [0.2 + random() * 3, 0.2 + random() * 3, 0.2 + random() * 3];
+    const piece = root.box(size, "#776655", [random() * 24 - 12, random() * 2, random() * 24 - 12], 0);
+    piece.rotation.y = random() * Math.PI;
+  }
+  prepareCutaways(root);
+  root.updateMatrixWorld(true);
+  const meshes: THREE.Mesh[] = [];
+  root.traverse((o) => {
+    if (o instanceof THREE.Mesh) meshes.push(o);
+  });
+  const caster = new THREE.Raycaster();
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+  const everyMesh = (at: THREE.Vector3): number => {
+    let blocked = 0;
+    for (let row = 0; row < 3; row++)
+      for (let column = -1; column <= 1; column++) {
+        const point = at.clone().addScaledVector(right, column * 0.14);
+        point.y += -0.35 + row * 0.22;
+        const depth = -point.clone().applyMatrix4(camera.matrixWorldInverse).z;
+        const seen = point.clone().project(camera);
+        caster.setFromCamera(new THREE.Vector2(seen.x, seen.y), camera);
+        caster.far = depth - 0.9;
+        if (caster.intersectObjects(meshes, false).some((hit) => hit.point.y > 0.14)) blocked++;
+      }
+    return blocked >= 5 ? 1 : 0;
+  };
+  const verdicts = { hidden: 0, clear: 0 };
+  for (let x = -10; x <= 10; x += 1.25)
+    for (let z = -10; z <= 10; z += 1.25) {
+      const at = new THREE.Vector3(x, 0.9, z);
+      const expected = everyMesh(at);
+      expect(new PlayerOcclusion(root).update(at, camera, 0.1, true)).toBe(expected);
+      verdicts[expected ? "hidden" : "clear"]++;
+    }
+  // The scatter has to exercise both answers for the comparison to mean anything.
+  expect(verdicts.hidden).toBeGreaterThan(20);
+  expect(verdicts.clear).toBeGreaterThan(20);
 });
 
 test("large indexed batches retain exact cutaway verdicts across triangle ranges", () => {

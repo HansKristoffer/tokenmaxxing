@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { addPatch } from "../kit/patches.ts";
-import { occlusionRaycast } from "./occlusion-ray.ts";
+import { occluderSphere, occlusionRaycast } from "./occlusion-ray.ts";
 import { pickable } from "./pick.ts";
 
 /**
@@ -19,6 +19,12 @@ export const SEE = { value: new THREE.Vector4(0, 0, 0, 0) };
 
 /** How much nearer than the player (world units) a thing must be to hide them (`PlayerOcclusion`'s probe). */
 const NEARER = 0.9;
+/** The probe's samples: three columns this far apart, three rows from `PROBE_LOW` up in steps of `PROBE_RISE`. */
+const PROBE_SIDE = 0.14;
+const PROBE_LOW = -0.35;
+const PROBE_RISE = 0.22;
+/** No sample is farther than this from the probe's middle, so no sample's ray is farther from the middle's. */
+const PROBE_REACH = Math.hypot(PROBE_SIDE, Math.max(-PROBE_LOW, PROBE_LOW + 2 * PROBE_RISE)) + 0.01;
 /** How much nearer than the player a piece's middle must be to be cut: its surface is about half a piece nearer. */
 const PIECE_NEARER = 0.5;
 /** Below this height (the floor, a lawn, a path) nothing is cut. */
@@ -103,6 +109,12 @@ export class PlayerOcclusion {
   private readonly projected = new THREE.Vector3();
   private readonly ndc = new THREE.Vector2();
   private readonly hits: THREE.Intersection[] = [];
+  private readonly seen: THREE.Object3D[] = [];
+  private readonly meshes: THREE.Mesh[] = [];
+  /** The meshes a sample's ray could touch this probe: those near the line from the camera to the player. */
+  private readonly near: THREE.Mesh[] = [];
+  private readonly forward = new THREE.Vector3();
+  private readonly ball = new THREE.Sphere();
   private hidden = false;
   private elapsed = Infinity;
   private amount = 0;
@@ -128,14 +140,19 @@ export class PlayerOcclusion {
     if (this.elapsed >= 0.08) {
       this.elapsed = 0;
       this.root.updateMatrixWorld();
-      const meshes = pickable(this.root).filter((o): o is THREE.Mesh => {
+      const meshes = this.meshes;
+      meshes.length = 0;
+      this.seen.length = 0;
+      for (const o of pickable(this.root, this.seen)) {
         const mesh = o as THREE.Mesh;
-        return (
-          !!mesh.geometry.getAttribute("position") &&
+        if (
+          mesh.geometry.getAttribute("position") &&
           !Array.isArray(mesh.material) &&
           mesh.material.userData.patches?.includes("see")
-        );
-      });
+        )
+          meshes.push(mesh);
+      }
+      this.seen.length = 0;
       let changed =
         !at.equals(this.lastAt) ||
         !camera.matrixWorld.equals(this.lastView) ||
@@ -189,20 +206,21 @@ export class PlayerOcclusion {
         this.lastView.copy(camera.matrixWorld);
         this.lastProjection.copy(camera.projectionMatrix);
         this.right.setFromMatrixColumn(camera.matrixWorld, 0);
+        this.nearby(at, camera);
         let blocked = 0;
         for (let row = 0; row < 3; row++) {
           for (let column = -1; column <= 1; column++) {
-            this.point.copy(at).addScaledVector(this.right, column * 0.14);
-            this.point.y += -0.35 + row * 0.22;
+            this.point.copy(at).addScaledVector(this.right, column * PROBE_SIDE);
+            this.point.y += PROBE_LOW + row * PROBE_RISE;
             const depth = -this.projected.copy(this.point).applyMatrix4(camera.matrixWorldInverse).z;
             this.projected.copy(this.point).project(camera);
             this.ndc.set(this.projected.x, this.projected.y);
             this.caster.setFromCamera(this.ndc, camera);
             this.caster.far = depth - NEARER;
             this.hits.length = 0;
-            for (const mesh of meshes) {
+            for (const mesh of this.near) {
               occlusionRaycast(mesh, this.caster, this.hits);
-              if (this.hits.some((hit) => hit.point.y > FLOOR_TOP)) {
+              if (this.hits.some(aboveFloor)) {
                 blocked++;
                 break;
               }
@@ -210,6 +228,7 @@ export class PlayerOcclusion {
             }
           }
         }
+        this.near.length = 0;
         // Hysteresis keeps a roof edge from flickering between adjacent samples while walking.
         this.hidden = blocked >= (this.hidden ? 4 : 5);
       }
@@ -219,4 +238,32 @@ export class PlayerOcclusion {
     if (Math.abs(this.amount - target) < 0.005) this.amount = target;
     return this.amount;
   }
+
+  /**
+   * Fills `near` with the meshes a sample could be hidden by. Every sample's ray runs along the camera's
+   * direction within `PROBE_REACH` of the line through `at`, and stops `NEARER` short of its sample: a mesh
+   * whose bounding sphere is farther from that line, or wholly behind where the rays stop, cannot be hit.
+   * A room is hundreds of meshes and a handful pass, so the nine rays test those and not the room.
+   */
+  private nearby(at: THREE.Vector3, camera: THREE.OrthographicCamera): void {
+    const near = this.near;
+    near.length = 0;
+    const forward = camera.getWorldDirection(this.forward);
+    const ball = this.ball;
+    for (const mesh of this.meshes) {
+      if (!occluderSphere(mesh, ball)) {
+        near.push(mesh);
+        continue;
+      }
+      const x = ball.center.x - at.x;
+      const y = ball.center.y - at.y;
+      const z = ball.center.z - at.z;
+      const along = x * forward.x + y * forward.y + z * forward.z;
+      if (along - ball.radius > PROBE_REACH - NEARER) continue;
+      const reach = ball.radius + PROBE_REACH;
+      if (x * x + y * y + z * z - along * along <= reach * reach) near.push(mesh);
+    }
+  }
 }
+
+const aboveFloor = (hit: THREE.Intersection): boolean => hit.point.y > FLOOR_TOP;

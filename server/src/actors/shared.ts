@@ -196,6 +196,33 @@ export async function authenticate(
   return caller;
 }
 
+/** RivetKit's `RAW_STATE_SYMBOL`, by its description: 2.3.21's types export the symbol, its runtime does not. */
+const RAW_STATE = "rivetkit.raw_state";
+const rawKeys = new WeakMap<object, symbol | null>();
+
+/**
+ * `holder.state` (an actor's, a connection's) without RivetKit's write-through proxy, for reading only.
+ * Through the proxy every property read is a trap that wraps what it returns, a pass over a collection
+ * wraps each entry, and a connection builds a new proxy on each read of `conn.state`. A write to what
+ * this returns is never saved: writes go through `holder.state`. Without the accessor (a hand-built
+ * context in a test, a RivetKit that moved it) this is `holder.state`, slower and as correct.
+ */
+export function rawState<T>(holder: { state: T }): T {
+  const proto: object | null = Object.getPrototypeOf(holder);
+  if (proto === null) return holder.state;
+  let key = rawKeys.get(proto);
+  if (key === undefined) {
+    key = null;
+    for (let o: object | null = proto; o && key === null; o = Object.getPrototypeOf(o))
+      key = Object.getOwnPropertySymbols(o).find((k) => k.description === RAW_STATE) ?? null;
+    rawKeys.set(proto, key);
+  }
+  return key === null ? holder.state : (holder as unknown as Record<symbol, () => T>)[key]!();
+}
+
+/** Who a connection is. */
+export const callerOf = <T extends Caller = Caller>(conn: { state: unknown }): T => rawState(conn) as T;
+
 /** A player in the app or a browser; a linked computer only syncs, so it's refused. */
 export function requireUser(caller: Caller): number {
   if (caller.kind !== "user" || caller.via === "linked") throw unauthorized();

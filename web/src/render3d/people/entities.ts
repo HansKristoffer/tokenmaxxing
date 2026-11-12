@@ -146,6 +146,12 @@ function show(el: HTMLElement, text: string | null): void {
   if (el.textContent !== text) el.textContent = text;
 }
 
+/** One number per tile, for looking up who shares it. */
+const tileKey = (x: number, y: number): number => (x + 4096) * 8192 + (y + 4096);
+const ascending = (a: number, b: number): number => a - b;
+/** Where someone alone on their tile stands: its middle. */
+const ALONE: readonly [number, number] = [0, 0];
+
 const lookSig = (info: GameAvatar["info"], look: GameAvatar["info"]["look"] = info.look): string =>
   `${JSON.stringify(look)}|${info.level >= LEGENDARY_LEVEL}|${info.id === COP_ID}|${look.merch && look.merchWorn ? merchKey(look.merch) : ""}`;
 
@@ -165,6 +171,11 @@ export class Entities {
   /** Most name tags at once, from the tier. */
   maxTags = 12;
   private readonly tagged: Rig[] = [];
+  /** Everyone drawn this frame: the room's people, and those popping out of it. */
+  private readonly list: GameAvatar[] = [];
+  /** Who stands on each tile (`tileKey`), lowest id first; `crowded` is the tiles in use this frame. */
+  private readonly crowds = new Map<number, number[]>();
+  private readonly crowded: number[][] = [];
   /** Who is in an aura battle this frame (`battlers`). */
   private fights: ReadonlySet<number> = NONE;
   private bursts = 0;
@@ -333,22 +344,31 @@ export class Entities {
     const dtS = dt / 1000;
     const t = now / 1000;
     const me = world.avatars.get(world.selfId);
-    const list: GameAvatar[] = [...world.avatars.values()];
+    // This runs every frame for everyone: the lists below are kept and refilled, not built anew.
+    const list = this.list;
+    list.length = 0;
+    for (const a of world.avatars.values()) list.push(a);
     for (const l of world.leaving) if (!world.avatars.has(l.info.id)) list.push(l);
     prunePets();
     this.fights = battlers(list);
     this.bursts = 0;
     for (const r of this.rigs.values()) this.bursts += (r.burst ? 1 : 0) + (r.petBurst ? 1 : 0);
     // Who shares a tile (seats are one each, and the server keeps them so), in a fixed order: each gets a spot.
-    const crowds = new Map<string, number[]>();
+    const { crowds, crowded } = this;
+    for (const ids of crowded) ids.length = 0;
+    crowded.length = 0;
     for (const a of list) {
       if (world.map.kind(a.x, a.y).seat) continue;
-      const key = `${a.x},${a.y}`;
-      crowds.set(
-        key,
-        [...(crowds.get(key) ?? []), a.info.id].sort((p, q) => p - q),
-      );
+      const key = tileKey(a.x, a.y);
+      let ids = crowds.get(key);
+      if (!ids) {
+        ids = [];
+        crowds.set(key, ids);
+      }
+      if (ids.length === 0) crowded.push(ids);
+      ids.push(a.info.id);
     }
+    for (const ids of crowded) if (ids.length > 1) ids.sort(ascending);
     for (const a of list) {
       let r = this.rigs.get(a.info.id);
       // The server replaces `info` when it changes, so the look is only compared then (or for a try-on, or new merch).
@@ -364,11 +384,13 @@ export class Entities {
       r.info = a.info;
       r.fitting = this.fitting;
       r.merch = merchVersion();
-      const crowd = crowds.get(`${a.x},${a.y}`);
-      const spread = crowd ? crowdOffset(crowd.indexOf(a.info.id), crowd.length) : ([0, 0] as const);
+      const crowd = crowds.get(tileKey(a.x, a.y));
+      const spread = crowd && crowd.length > 1 ? crowdOffset(crowd.indexOf(a.info.id), crowd.length) : ALONE;
       this.step(r, a, me, view, camera, now, dt, dtS, t, spread);
     }
-    for (const r of [...this.rigs.values()]) if (r.seen !== frame) this.remove(r);
+    list.length = 0;
+    // Deleting the entry a Map's iteration is on is safe: nobody left is the usual case, and needs no copy.
+    for (const r of this.rigs.values()) if (r.seen !== frame) this.remove(r);
     this.declutter();
   }
 
