@@ -11,7 +11,62 @@
   /* The world's labels: a name tag over a head, a sign, what someone says. */
   --paper: #fbf7ef;
   --font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Motion: things arrive fast and settle (`--ease-out`); a reward lands a little past its place (`--ease-pop`). */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-pop: cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  /* How far a thing travels as it arrives, and how small it starts. */
+  --rise: 6px;
+  --shrink: 0.96;
   color-scheme: dark;
+}
+
+/* Less motion asked for: things fade in where they stand. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --rise: 0px;
+    --shrink: 1;
+  }
+}
+
+/* A bar that fills, as a number the browser can count to rather than jump to. */
+@property --fill {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+@property --share {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+/* Arriving: from below (a panel, the dialog), from above (a toast), or out of the button that opened it. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    translate: 0 var(--rise);
+  }
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    translate: 0 calc(-1 * var(--rise));
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: var(--shrink);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 * {
@@ -277,6 +332,8 @@ html[data-tier]:not([data-tier="low"]) .bar > .hero:hover {
   gap: 8px;
   max-width: min(300px, calc(100vw - 24px));
   padding: 12px;
+  transform-origin: top right;
+  animation: pop-in 140ms var(--ease-out);
 }
 
 .chip.sky {
@@ -357,13 +414,20 @@ html[data-tier]:not([data-tier="low"]) .bar > .hero:hover {
   background: var(--panel);
   border-radius: 10px;
   pointer-events: none;
-  animation: fade 2.5s ease-out forwards;
+  animation: banner 2.5s linear forwards;
 }
 
-@keyframes fade {
-  0%,
+/* The room's name: drops in, stays, fades. As long as `BANNER_MS` (Hud.tsx). */
+@keyframes banner {
+  0% {
+    opacity: 0;
+    translate: 0 calc(-1 * var(--rise));
+    animation-timing-function: var(--ease-out);
+  }
+  10%,
   70% {
     opacity: 1;
+    translate: 0 0;
   }
   100% {
     opacity: 0;
@@ -378,6 +442,7 @@ html[data-tier]:not([data-tier="low"]) .bar > .hero:hover {
   padding: 6px 14px;
   background: var(--panel);
   border-radius: 8px;
+  animation: drop-in 220ms var(--ease-out);
 }
 
 /* Toasts that can show at once go in one column, so none covers another. */
@@ -411,6 +476,7 @@ html[data-tier]:not([data-tier="low"]) .bar > .hero:hover {
   background: rgba(251, 247, 239, 0.97);
   color: var(--ink);
   border: 3px solid var(--ink);
+  animation: rise-in 140ms var(--ease-out);
 }
 
 /* Above the dialog's place: what G and M do to the piece you face. */
@@ -425,6 +491,8 @@ html[data-tier]:not([data-tier="low"]) .bar > .hero:hover {
   border: 3px solid var(--ink);
   white-space: nowrap;
   pointer-events: none;
+  /* It comes and goes as you walk past your furniture: a fade, no travel. */
+  animation: fade-in 120ms ease-out;
 }
 
 @media (max-width: 1150px) {
@@ -808,7 +876,24 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   inset: 0;
   display: grid;
   place-items: center;
+}
+
+/*
+ * The world dims behind a panel. Its own element, there the whole time (Hud.tsx), so it fades both ways and
+ * holds still when one panel opens another.
+ */
+#hud > .dim {
+  position: absolute;
+  inset: 0;
   background: rgba(10, 12, 18, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease-out;
+}
+
+#hud > .dim.on {
+  opacity: 1;
+  transition-duration: 180ms;
 }
 
 /* A game with the chat beside it, or under it when the window is too narrow for both. */
@@ -851,6 +936,16 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   flex-direction: column;
   gap: 10px;
   padding: 14px 16px 16px;
+  /* Once, as the panel opens: its tabs and its loading turn over in place. It closes at once. */
+  animation: modal-in 180ms var(--ease-out);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    scale: var(--shrink);
+    translate: 0 var(--rise);
+  }
 }
 
 .modal.wide {
@@ -1234,6 +1329,7 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
 .miniboard li {
   border-radius: 3px;
   background: linear-gradient(90deg, rgba(233, 183, 61, 0.16) var(--share, 0%), transparent 0);
+  transition: --share 600ms var(--ease-out);
 }
 
 .miniboard li.mine {
@@ -1804,6 +1900,25 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   font-weight: 700;
 }
 
+/* Something new is waiting (an unread line, someone asking to join): the badge lands with a small bounce. */
+:is(.bar, .chat-tab) .count {
+  display: inline-block;
+  animation: count-pop 260ms var(--ease-pop);
+}
+
+@keyframes count-pop {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.bar, .chat-tab) .count {
+    animation-name: fade-in;
+  }
+}
+
 .listings {
   list-style: none;
   margin: 0;
@@ -2366,9 +2481,33 @@ button.lb-item:hover {
   box-shadow: 0 0 18px rgba(255, 211, 92, 0.35);
 }
 
-.milestone-toast.legendary {
+/* Every tenth level, so it may land harder than a toast does. */
+.toasts > .milestone-toast {
+  animation: milestone-in 420ms var(--ease-pop);
+}
+
+.toasts > .milestone-toast.legendary {
   background: linear-gradient(135deg, rgba(60, 44, 12, 0.95), rgba(27, 31, 42, 0.95) 60%);
-  animation: milestone-glow 1.6s ease-in-out infinite alternate;
+  animation:
+    milestone-in 420ms var(--ease-pop),
+    milestone-glow 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes milestone-in {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toasts > .milestone-toast {
+    animation-name: fade-in;
+  }
+
+  .toasts > .milestone-toast.legendary {
+    animation-name: fade-in, milestone-glow;
+  }
 }
 
 @keyframes milestone-glow {
@@ -2987,6 +3126,7 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
   border-radius: 50%;
   border: 1px solid var(--muted);
   background: linear-gradient(to top, var(--accent) var(--fill, 0%), transparent var(--fill, 0%));
+  transition: --fill 500ms var(--ease-out);
 }
 .quest-pip.done {
   background: var(--good);
@@ -3174,6 +3314,11 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
 
   .tray .icon.on {
     outline: 2px solid var(--accent);
+  }
+
+  /* What a tray icon opens rises out of the tray. */
+  #hud > :is(.corner, .minimap, .chat-dock) {
+    animation: rise-in 160ms var(--ease-out);
   }
 
   .hints {
@@ -4073,7 +4218,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   gap: 8px;
   padding: 8px 8px 8px 12px;
   overflow: hidden;
-  animation: whats-new-in 0.2s ease-out;
+  animation: drop-in 220ms var(--ease-out);
 }
 
 .whats-new header {
@@ -4131,13 +4276,6 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 @keyframes drain {
   to {
     transform: scaleX(0);
-  }
-}
-
-@keyframes whats-new-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
   }
 }
 
@@ -4404,6 +4542,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   flex-direction: column;
   gap: 4px;
   align-items: stretch;
+  animation: rise-in 160ms var(--ease-out);
 }
 
 .pet-menu header {

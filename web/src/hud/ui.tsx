@@ -65,6 +65,41 @@ export function useTicker(ms: number, on = true): void {
   }, [ms, on]);
 }
 
+const lessMotion = () =>
+  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * `value`, counted to from the last one over `ms` when it changes, not jumped to: coins landing or being spent.
+ * A change mid-count carries on from the number showing.
+ */
+export function useCounted(value: number, ms = 450): number {
+  const [shown, setShown] = useState(value);
+  const at = useRef(value);
+  useEffect(() => {
+    const from = at.current;
+    if (from === value) return;
+    if (lessMotion()) {
+      at.current = value;
+      setShown(value);
+      return;
+    }
+    const start = performance.now();
+    let frame = requestAnimationFrame(function step(now) {
+      const t = Math.min(1, (now - start) / ms);
+      at.current = Math.round(from + (value - from) * (1 - (1 - t) ** 3));
+      setShown(at.current);
+      if (t < 1) frame = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [value, ms]);
+  return shown;
+}
+
+/** A number of coins that counts to its new value (`useCounted`). On its own, so only it redraws as it counts. */
+export function Counted({ value }: { value: number }) {
+  return useCounted(value).toLocaleString();
+}
+
 /**
  * What a panel shows, fetched when it opens and again when `deps` change: `data` once it's here (the
  * last one stays up while the next loads), or `error` if it couldn't be.
@@ -338,7 +373,7 @@ export function RankList({ rows }: { rows: Ranked[] }) {
 
 /** "🪙 1,234" beside the title of a panel that sells (`Modal`'s `aside`): the coins I have to spend there. */
 export function Balance({ balance }: { balance: number }) {
-  return <strong title="Your coins">{coins(balance)}</strong>;
+  return <strong title="Your coins">{coins(useCounted(balance))}</strong>;
 }
 
 const NARROW = "(max-width: 700px), (max-height: 500px)";
