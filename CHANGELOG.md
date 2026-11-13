@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.20.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.19.0...v1.20.0) (2026-11-13)
+
+
+### Features
+
+* **server:** RivetKit's metrics at /metrics for the admin, with RivetKit 3's SQLite timings ([8649e3e](https://github.com/HansKristoffer/tokenmaxxing/commit/8649e3efca23dc62cf28405491e892b2d5b47b71))
+* **vite:** simplify the game HUD and chat ([e4e5131](https://github.com/HansKristoffer/tokenmaxxing/commit/e4e51319a8e622e09c9ae74a685d4f66c2dd23df))
+* **vite:** simplify the game HUD and chat ([acd2928](https://github.com/HansKristoffer/tokenmaxxing/commit/acd2928ca4bb17b37fdad12e4b760efea2ee0188))
+
+
+### Bug Fixes
+
+* **game:** a running player far from the server is no longer pulled back ([#178](https://github.com/HansKristoffer/tokenmaxxing/issues/178)) ([d2dd558](https://github.com/HansKristoffer/tokenmaxxing/commit/d2dd5585bd1c58b92c1a9b7ff2025416e6adeba1))
+
+
+### Performance Improvements
+
+* **server:** RivetKit 3, with the town moved from RivetKit 2's store on the first start ([43b9c56](https://github.com/HansKristoffer/tokenmaxxing/commit/43b9c56752c4c47af68e8ff2529b68ae81cc72df))
+* **server:** RivetKit 3, with the town moved from RivetKit 2's store on the first start ([cc837ab](https://github.com/HansKristoffer/tokenmaxxing/commit/cc837abe76ea30bab53df3cb34213305816c2d53))
+
 ## [1.19.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.18.0...v1.19.0) (2026-11-12)
 
 
