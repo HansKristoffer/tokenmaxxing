@@ -7,6 +7,7 @@ import { stopEngine } from "./engine.ts";
 import { type Page, pageHeaders } from "./headers.ts";
 import { healthCheck } from "./health.ts";
 import { installScript } from "./install.ts";
+import { migrateFromV2, pending } from "./migrate/from-v2.ts";
 import { rivetProxy } from "./proxy.ts";
 import { diagnose, failureWindow, type ProbeResult, watchdogConfig } from "./watchdog.ts";
 
@@ -48,7 +49,7 @@ if (existsSync(SITE))
 
 const { ENGINE_PORT, ENGINE_TOKEN, registry } = await import("./actors/registry.ts");
 const { createClient } = await import("rivetkit/client");
-const { pricing, main } = await import("./actors/shared.ts");
+const { isAdminToken, pricing, main } = await import("./actors/shared.ts");
 const { boardsChanged } = await import("./town/boards.ts");
 
 const refreshPricing = async () => {
@@ -59,6 +60,30 @@ const refreshPricing = async () => {
 };
 void refreshPricing();
 setInterval(refreshPricing, 86_400_000);
+
+// A volume last written by RivetKit 2: every actor is copied to RivetKit 3's store first, or the town
+// would come up empty (`migrate/from-v2.ts`). Railway gives a deploy five minutes to answer its
+// healthcheck and a big town may take longer to move, so the healthcheck is answered meanwhile.
+if (storage && pending(storage)) {
+  console.log("[tokenmaxxing] moving the town from RivetKit 2's store to RivetKit 3's");
+  const waiting = Bun.serve({
+    port: config.port,
+    hostname: config.host,
+    fetch: (req) =>
+      new URL(req.url).pathname === "/health"
+        ? Response.json({ ok: true, version: config.version, migrating: true })
+        : new Response("Tokenmaxxing is being upgraded. Back in a few minutes.", {
+            status: 503,
+            headers: { "retry-after": "30" },
+          }),
+  });
+  try {
+    const moved = await migrateFromV2(storage, ENGINE_PORT);
+    console.log(`[tokenmaxxing] moved ${moved?.actors} actors (${moved?.rows} rows) in ${moved?.ms} ms`);
+  } finally {
+    await waiting.stop(true);
+  }
+}
 
 // Serve only once actors can run, so the healthcheck means the whole thing is up.
 registry.start();
@@ -73,6 +98,17 @@ const localClient = createClient<typeof registry>({
   disableMetadataLookup: true,
 });
 const health = healthCheck(() => main(localClient).town.health(), config.version);
+
+/**
+ * RivetKit's own numbers in Prometheus' format, for whoever holds `ADMIN_TOKEN`
+ * (`curl -H "authorization: Bearer $ADMIN_TOKEN" …/metrics`): actors awake, connections, and what
+ * RivetKit 3 times of every SQLite statement and transaction, by actor (ours go by the `name` they are
+ * given). Nothing in it is a player's.
+ */
+const metrics = (req: Request) =>
+  isAdminToken(req.headers.get("authorization")?.replace(/^Bearer /i, ""))
+    ? registry.routes.prometheusMetrics(req)
+    : new Response("Not found", { status: 404 });
 
 // The landing page says how many have signed up: counted once a minute, and written into the page's
 // `<!--players-->` as it goes out. Until there's a count (or without a server, in `astro dev`) the
@@ -164,6 +200,7 @@ const server = Bun.serve({
     // Useless without ADMIN_TOKEN: every action it calls checks it (`town`'s admin actions).
     "/admin": html(assets.get("/admin.html"), "admin"),
     "/health": health,
+    "/metrics": metrics,
     "/install.sh": installScript,
     // Company logos, copied from their websites. Sandboxed: an SVG is someone else's markup.
     "/logos/:file": async (req) => {

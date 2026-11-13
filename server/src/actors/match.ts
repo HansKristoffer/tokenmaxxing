@@ -9,13 +9,18 @@ import type { Frame, MatchChatLine, MatchInfo, Seat } from "@tokenmaxxing/core/g
 import type { Battle } from "@tokenmaxxing/core/protocol.ts";
 import { CHAT_HISTORY } from "@tokenmaxxing/core/world.ts";
 import { actor, UserError } from "rivetkit";
+import { db } from "rivetkit/db";
 import { RateLimiter } from "../rate-limit.ts";
 import { parseChatText } from "../validate.ts";
+import { KEPT_TABLE, Kept, saveAfterActions } from "./kept.ts";
 import type { registry } from "./registry.ts";
 import {
   authenticate,
+  background,
   type Caller,
+  type Callers,
   type ConnParams,
+  callerOf,
   fromInside,
   internal,
   main,
@@ -61,7 +66,8 @@ const CHAT_PER_MIN = 20;
 const defOf = (s: { game: GameId }) => gameOf(s.game)!;
 
 export const match = actor({
-  createState: (_c, raw: MatchInput & { internal: string }): MatchState => {
+  db: db({ onMigrate: (d) => d.execute(KEPT_TABLE).then(() => {}) }),
+  onCreate: async (c, raw: MatchInput & { internal: string }) => {
     const input = fromInside<MatchInput>(raw);
     const now = Date.now();
     const def = defOf(input);
@@ -71,7 +77,7 @@ export const match = actor({
       input.options,
       now,
     );
-    return {
+    const first: MatchState = {
       ...input,
       startedAt: now,
       betsCloseAt: def.betsCloseAt(state),
@@ -81,70 +87,55 @@ export const match = actor({
       bets: {},
       forfeited: [],
     };
+    await Kept.create(c.db, first);
   },
-  createVars: () => ({ chat: new RateLimiter(CHAT_PER_MIN, 60_000) }),
-  createConnState: (c, params: ConnParams): Promise<Caller> => authenticate(params, c.client()),
+  createVars: async (c) => {
+    const kept = await Kept.load<MatchState>(c.db);
+    return {
+      /** The game and how it stands: saved after every action and every turn of the loop. */
+      state: kept.value,
+      kept,
+      callers: new Map() as Callers,
+      loop: null as Promise<void> | null,
+      chat: new RateLimiter(CHAT_PER_MIN, 60_000),
+    };
+  },
   // Only a person watching changes what the frames show (the watcher count). Other actors' calls,
   // like each app's battle poll, connect too.
-  onConnect: (c, conn): void => {
-    if ((conn.state as Caller).kind === "user") pushFrames(c);
+  onConnect: async (c, conn) => {
+    const caller = await authenticate(conn.params as ConnParams | undefined, c.client());
+    c.vars.callers.set(conn.id, caller);
+    if (caller.kind === "user") pushFrames(c);
   },
-  onDisconnect: (c, conn): void => {
-    if ((conn.state as Caller).kind === "user") pushFrames(c);
+  onDisconnect: (c, conn) => {
+    const caller = c.vars.callers.get(conn.id);
+    c.vars.callers.delete(conn.id);
+    if (caller?.kind === "user") pushFrames(c);
   },
-  run: async (c): Promise<void> => {
+  onWake: (c) => {
     const signal = c.abortSignal;
-    const def = defOf(c.state);
-    while (!signal.aborted && !c.state.reported) {
-      // Look every turn, not only after a change: a restart between saving the final state and
-      // finishing left a game over but never paid out, as nothing changed after it.
-      const ended = c.state.outcome ? null : def.outcome(plainState(c.state));
-      if (ended) {
-        await c.keepAwake(finish(c, ended));
-        continue;
+    c.vars.loop = background(`match ${c.vars.state.id}`, async () => {
+      while (!signal.aborted && !c.vars.state.reported) {
+        const on = await turn(c, signal);
+        await c.vars.kept.save();
+        if (!on) return;
       }
-      if (c.state.outcome) {
-        await c.keepAwake(report(c));
-        if (signal.aborted) return;
-        if (!c.state.reported && !(await waitForTick(signal, REPORT_RETRY_MS))) return;
-        continue;
-      }
-      if (!(await waitForTick(signal, def.tickMs ?? 1000))) return;
-      const now = Date.now();
-      const current = plain(c.state);
-      let next = current.state;
-      if (def.tick) next = def.tick(next, now);
-      if (def.holdPlayers !== false) {
-        const here = connectedPlayers(c);
-        for (const p of current.players) {
-          if (here.has(p.userId)) c.state.seen[p.userId] = now;
-          else if (
-            now - (c.state.seen[p.userId] ?? now) > AWAY_MS &&
-            !c.state.forfeited.includes(p.userId) &&
-            !def.outcome(next)
-          ) {
-            c.state.forfeited = [...c.state.forfeited, p.userId];
-            next = def.forfeit(next, p.userId, now);
-          }
-        }
-        if (now - c.state.startedAt > HELD_LIMIT_MS && !def.outcome(next)) {
-          await c.keepAwake(finish(c, { void: "The game ran too long and was called off." }));
-          continue;
-        }
-      }
-      if (next !== current.state) await c.keepAwake(apply(c, next, current.state));
-    }
+    });
+  },
+  onSleep: async (c) => {
+    await c.vars.loop;
+    await c.vars.kept.save();
   },
   actions: {
     /** Your frame, when opening the game. */
     frame: (c): Frame => {
-      const s = plain(c.state);
-      return frameFor(s, viewerOf(s, c.conn.state), watchersOf(c, s));
+      const s = plain(c.vars.state);
+      return frameFor(s, viewerOf(s, callerOf(c)), watchersOf(c, s));
     },
 
     move: async (c, move: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
-      const s = plain(c.state);
+      const userId = requireUser(callerOf(c));
+      const s = plain(c.vars.state);
       const player = requirePlayer(s, userId);
       if (s.outcome) throw new UserError("This game is over.", { code: "over" });
       const next = defOf(s).move(s.state, player, move, Date.now());
@@ -154,52 +145,51 @@ export const match = actor({
 
     /** Give up: you're placed last, and your stake stays in the pot. */
     forfeit: async (c): Promise<void> => {
-      const userId = requireUser(c.conn.state);
-      const s = plain(c.state);
+      const userId = requireUser(callerOf(c));
+      const s = plain(c.vars.state);
       requirePlayer(s, userId);
       if (s.outcome || s.forfeited.includes(userId)) return;
-      c.state.forfeited = [...s.forfeited, userId];
+      c.vars.state.forfeited = [...s.forfeited, userId];
       await apply(c, defOf(s).forfeit(s.state, userId, Date.now()), s.state);
     },
 
     /** The match's chat so far, when opening the game. */
     chat: (c): MatchChatLine[] => {
-      requireUser(c.conn.state);
-      return c.state.chat ?? [];
+      requireUser(callerOf(c));
+      return c.vars.state.chat ?? [];
     },
 
     /** A line in the match's chat: its players and everyone watching see it. */
     say: async (c, rawText: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const text = parseChatText(rawText);
       if (!text) return;
       if (!c.vars.chat.take(String(userId), Date.now()))
         throw new UserError("Slow down a little.", { code: "rate_limited" });
       const name =
-        c.state.players.find((p) => p.userId === userId)?.name ??
+        c.vars.state.players.find((p) => p.userId === userId)?.name ??
         (await main(c.client()).town.names([userId]))[userId] ??
         "?";
-      // From a plain copy: spreading the live array would wrap the old lines in one more proxy each time.
-      const chat: MatchChatLine[] = JSON.parse(JSON.stringify(c.state.chat ?? []));
+      const chat = c.vars.state.chat ?? [];
       const line: MatchChatLine = { id: (chat.at(-1)?.id ?? 0) + 1, userId, name, text, at: Date.now() };
-      c.state.chat = [...chat, line].slice(-CHAT_HISTORY);
-      for (const conn of c.conns.values())
-        if ((conn.state as Caller).kind === "user") conn.send("chat", line);
+      c.vars.state.chat = [...chat, line].slice(-CHAT_HISTORY);
+      for (const [id, caller] of c.vars.callers)
+        if (caller.kind === "user") c.conns.get(id)?.send("chat", line);
     },
 
     // MARK: From `arcade`
 
     /** Side bets so far, for the frame. */
     bets: (c, bets: Record<number, number>): void => {
-      requireInternal(c.conn.state);
-      c.state.bets = bets;
+      requireInternal(callerOf(c));
+      c.vars.state.bets = bets;
       pushFrames(c);
     },
 
     /** After a player syncs (usage games): pull their tokens in the window. Returns until when to keep syncing fast. */
     usage: async (c, userId: number): Promise<Battle | null> => {
-      requireInternal(c.conn.state);
-      const s = plain(c.state);
+      requireInternal(callerOf(c));
+      const s = plain(c.vars.state);
       const def = defOf(s);
       const window = def.usageWindow?.(s.state);
       if (!window || !def.usage || !standing(s, userId)) return null;
@@ -208,11 +198,11 @@ export const match = actor({
         .player.get([String(userId)], internal)
         .tokensBetween(window.from, window.to);
       // Another sync or tick may have updated the match while the player query was running.
-      const current = plain(c.state);
+      const current = plain(c.vars.state);
       if (!standing(current, userId)) return null;
       const next = def.usage(current.state, userId, used, Date.now());
       if (next !== current.state) await apply(c, next, current.state);
-      return standing(plain(c.state), userId);
+      return standing(plain(c.vars.state), userId);
     },
 
     /**
@@ -220,28 +210,76 @@ export const match = actor({
      * so this reads nothing, and a slow player database can't pile polls up here.
      */
     standing: (c, userId: number): Battle | null => {
-      requireInternal(c.conn.state);
-      return standing(plain(c.state), userId);
+      requireInternal(callerOf(c));
+      return standing(plain(c.vars.state), userId);
     },
 
     /** The arcade is done with it: the match and its state go. */
     close: (c): void => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       c.destroy();
     },
 
     info: (c): MatchInfo => {
-      requireInternal(c.conn.state);
-      return infoOf(plain(c.state));
+      requireInternal(callerOf(c));
+      return infoOf(plain(c.vars.state));
     },
   },
 });
 
+saveAfterActions(match);
+
 type MatchCtx = {
-  state: MatchState;
-  conns: Map<string, { state: unknown; send(name: string, ...args: unknown[]): void }>;
+  vars: { state: MatchState; callers: Callers };
+  conns: Map<string, { send(name: string, ...args: unknown[]): void }>;
   client(): import("rivetkit/client").Client<typeof registry>;
+  keepAwake<T>(promise: Promise<T>): Promise<T>;
 };
+
+/**
+ * One turn of the match's loop: the rules' own clock, who has been gone too long, and telling `arcade`
+ * how it ended until it has heard. False when the actor is going to sleep.
+ */
+async function turn(c: MatchCtx, signal: AbortSignal): Promise<boolean> {
+  const def = defOf(c.vars.state);
+  // Look every turn, not only after a change: a restart between saving the final state and
+  // finishing left a game over but never paid out, as nothing changed after it.
+  const ended = c.vars.state.outcome ? null : def.outcome(plainState(c.vars.state));
+  if (ended) {
+    await c.keepAwake(finish(c, ended));
+    return true;
+  }
+  if (c.vars.state.outcome) {
+    await c.keepAwake(report(c));
+    if (signal.aborted) return false;
+    return c.vars.state.reported || (await waitForTick(signal, REPORT_RETRY_MS));
+  }
+  if (!(await waitForTick(signal, def.tickMs ?? 1000))) return false;
+  const now = Date.now();
+  const current = plain(c.vars.state);
+  let next = current.state;
+  if (def.tick) next = def.tick(next, now);
+  if (def.holdPlayers !== false) {
+    const here = connectedPlayers(c);
+    for (const p of current.players) {
+      if (here.has(p.userId)) c.vars.state.seen[p.userId] = now;
+      else if (
+        now - (c.vars.state.seen[p.userId] ?? now) > AWAY_MS &&
+        !c.vars.state.forfeited.includes(p.userId) &&
+        !def.outcome(next)
+      ) {
+        c.vars.state.forfeited = [...c.vars.state.forfeited, p.userId];
+        next = def.forfeit(next, p.userId, now);
+      }
+    }
+    if (now - c.vars.state.startedAt > HELD_LIMIT_MS && !def.outcome(next)) {
+      await c.keepAwake(finish(c, { void: "The game ran too long and was called off." }));
+      return true;
+    }
+  }
+  if (next !== current.state) await c.keepAwake(apply(c, next, current.state));
+  return true;
+}
 
 function standing(s: MatchState, userId: number): Battle | null {
   const def = defOf(s);
@@ -259,10 +297,8 @@ function standing(s: MatchState, userId: number): Battle | null {
   };
 }
 
-const viewerOf = (s: MatchState, caller: unknown): number | null => {
-  const c = caller as Caller;
-  return c.kind === "user" && s.players.some((p) => p.userId === c.userId) ? c.userId : null;
-};
+const viewerOf = (s: MatchState, c: Caller): number | null =>
+  c.kind === "user" && s.players.some((p) => p.userId === c.userId) ? c.userId : null;
 
 function requirePlayer(s: MatchState, userId: number): number {
   if (!s.players.some((p) => p.userId === userId))
@@ -272,20 +308,15 @@ function requirePlayer(s: MatchState, userId: number): number {
 
 function connectedPlayers(c: MatchCtx): Set<number> {
   const out = new Set<number>();
-  for (const conn of c.conns.values()) {
-    const s = conn.state as Caller;
-    if (s.kind === "user") out.add(s.userId);
-  }
+  for (const caller of c.vars.callers.values()) if (caller.kind === "user") out.add(caller.userId);
   return out;
 }
 
 function watchersOf(c: MatchCtx, s: MatchState): number {
   const players = new Set(s.players.map((p) => p.userId));
   let n = 0;
-  for (const conn of c.conns.values()) {
-    const s = conn.state as Caller;
-    if (s.kind === "user" && !players.has(s.userId)) n++;
-  }
+  for (const caller of c.vars.callers.values())
+    if (caller.kind === "user" && !players.has(caller.userId)) n++;
   return n;
 }
 
@@ -312,18 +343,18 @@ const frameFor = (s: MatchState, you: number | null, watchers: number): Frame =>
 });
 
 /** Everyone connected gets their own view: players see their secrets, watchers don't. */
-function pushFrames(c: MatchCtx, kept?: MatchState): void {
-  const viewers = [...c.conns.values()].filter((conn) => (conn.state as Caller).kind === "user");
+function pushFrames(c: MatchCtx, copy?: MatchState): void {
+  const viewers = [...c.vars.callers].filter(([, caller]) => caller.kind === "user");
   if (!viewers.length) return;
-  const s = kept ?? plain(c.state);
+  const s = copy ?? plain(c.vars.state);
   const watchers = watchersOf(c, s);
-  for (const conn of viewers) conn.send("frame", frameFor(s, viewerOf(s, conn.state), watchers));
+  for (const [id, caller] of viewers)
+    c.conns.get(id)?.send("frame", frameFor(s, viewerOf(s, caller), watchers));
 }
 
 /**
- * Game rules and views read plain JSON. RivetKit's change-tracking proxy also tracks array methods:
- * ranking, mapping and spreading live state can retain proxies in new state and multiply the work
- * on later updates. Only writes go through the live state; a no-op compares against its own snapshot.
+ * Game rules and views read a copy, so nothing they do to it (a sort in place, say) reaches what the
+ * match keeps: only `apply` and the loop write that. A no-op compares against its own copy.
  */
 const plain = (s: MatchState): MatchState => {
   // Nothing that reads it needs the chat, which is most of it.
@@ -331,22 +362,22 @@ const plain = (s: MatchState): MatchState => {
   return JSON.parse(JSON.stringify(rest));
 };
 
-/** Just the game's state, plain, as `plain` makes it. */
+/** Just the game's state, copied as `plain` copies it. */
 const plainState = (s: MatchState): unknown => JSON.parse(JSON.stringify(s.state));
 
-/** `before`: the plain state `next` came from. */
+/** `before`: the copy `next` came from. */
 async function apply(c: MatchCtx, next: unknown, before: unknown): Promise<void> {
-  const def = defOf(c.state);
-  c.state.state = next;
+  const def = defOf(c.vars.state);
+  c.vars.state.state = next;
   const callouts = def.callouts?.(before, next) ?? [];
   const { world, arcade } = main(c.client());
-  for (const line of callouts) await world.callout(c.state.id, line.player, line.text).catch(() => {});
+  for (const line of callouts) await world.callout(c.vars.state.id, line.player, line.text).catch(() => {});
   // One copy for the frames and the world.
-  const s = plain(c.state);
+  const s = plain(c.vars.state);
   pushFrames(c, s);
   await reportStatus(c, s);
   // `arcade` calls off a held game that stops moving on.
-  if (def.holdPlayers !== false) await arcade.moved(c.state.id).catch(() => {});
+  if (def.holdPlayers !== false) await arcade.moved(c.vars.state.id).catch(() => {});
   const out = def.outcome(next);
   if (out) await finish(c, out);
 }
@@ -367,20 +398,20 @@ async function reportStatus(c: MatchCtx, s: MatchState): Promise<void> {
 }
 
 async function finish(c: MatchCtx, outcome: Outcome): Promise<void> {
-  if (c.state.outcome) return;
-  c.state.outcome = outcome;
+  if (c.vars.state.outcome) return;
+  c.vars.state.outcome = outcome;
   pushFrames(c);
   await report(c);
 }
 
 /** Tells `arcade` how it ended, so it pays out. The run loop retries until it has. */
 async function report(c: MatchCtx): Promise<void> {
-  if (!c.state.outcome || c.state.reported) return;
+  if (!c.vars.state.outcome || c.vars.state.reported) return;
   try {
-    const s = plain(c.state);
+    const s = plain(c.vars.state);
     await main(c.client()).arcade.finished(s.id, s.outcome!);
-    c.state.reported = true;
+    c.vars.state.reported = true;
   } catch (err) {
-    console.warn(`[match ${c.state.id}] reporting the outcome: ${String(err)}`);
+    console.warn(`[match ${c.vars.state.id}] reporting the outcome: ${String(err)}`);
   }
 }

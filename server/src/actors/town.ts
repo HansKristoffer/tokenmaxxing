@@ -213,7 +213,9 @@ import {
   announceTown,
   authenticate,
   type Caller,
+  type Callers,
   type ConnParams,
+  callerOf,
   clientIpOf,
   INTERNAL_KEY,
   internal,
@@ -339,6 +341,7 @@ function companyName(raw: unknown): string {
 
 export const town = actor({
   createVars: () => ({
+    callers: new Map() as Callers<TownConn>,
     serial: serial(),
     /** The newest roulette round whose betting has closed: later bets for it are refused. */
     rouletteClosed: 0,
@@ -379,10 +382,15 @@ export const town = actor({
   }),
   db: db({ onMigrate: migrate }),
   onCreate: (c) => requireMain(c),
-  createConnState: async (c, params: ConnParams): Promise<TownConn> => ({
-    ...(await authenticate(params, c.client())),
-    ip: clientIpOf(c.request),
-  }),
+  onConnect: async (c, conn) => {
+    c.vars.callers.set(conn.id, {
+      ...(await authenticate(conn.params as ConnParams | undefined, c.client())),
+      ip: clientIpOf(c.request),
+    });
+  },
+  onDisconnect: (c, conn) => {
+    c.vars.callers.delete(conn.id);
+  },
   // The sweeper's alarm. Set once: it outlives restarts, and wakes the town when it's asleep.
   // And the raid's launch, the first time: next Monday 08:00 (`raidStart`).
   onWake: async (c) => {
@@ -392,18 +400,18 @@ export const town = actor({
   },
   actions: {
     health: async (c): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       await c.db.execute("SELECT 1");
     },
     /** Everyone who has signed up, for the landing page. */
     playerCount: (c): Promise<number> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return scalar(c.db, "SELECT COUNT(*) AS n FROM users");
     },
     signUp: async (c, rawName: unknown): Promise<{ userId: number; name: string; token: string }> => {
       const name = userName(rawName);
       const now = Date.now();
-      if (!c.vars.signupsPerIp.take(c.conn.state.ip ?? "inside", now) || !c.vars.signups.take("all", now))
+      if (!c.vars.signupsPerIp.take(callerOf(c).ip ?? "inside", now) || !c.vars.signups.take("all", now))
         throw new UserError("Too many sign-ups right now. Try again in a bit.", { code: "rate_limited" });
       const client = c.client<typeof registry>();
       const userId = await c.vars.serial(async () => {
@@ -444,7 +452,7 @@ export const town = actor({
     },
 
     me: async (c): Promise<Me> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const u = await userById(c.db, userId);
       return {
         userId,
@@ -457,14 +465,14 @@ export const town = actor({
     },
 
     rename: async (c, rawName: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       if (!c.vars.renames.take(String(userId), Date.now()))
         throw new UserError("That's a lot of new names. Try again in an hour.", { code: "rate_limited" });
       await renameUser(c.db, c.vars.serial, c.client<typeof registry>(), userId, rawName);
     },
 
     setLook: async (c, rawLook: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const look = must(parseLook(rawLook), () => new UserError("Unknown look.", { code: "invalid_look" }));
       // Serialized, so a drop or a trade can't take it off between the check and the write.
       await c.vars.serial(async () => {
@@ -478,7 +486,7 @@ export const town = actor({
 
     /** `rawPlot`: the block to build on, one of `frontier()`; the one nearest the square without. */
     createCompany: async (c, rawName: unknown, rawPlot?: unknown): Promise<MyCompany> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const name = companyName(rawName);
       const changed = await c.vars.serial(async () => {
         const taken = await all<{ plot: number }>(c.db, "SELECT plot FROM companies");
@@ -511,13 +519,13 @@ export const town = actor({
 
     /** Every company, for choosing one to apply to. */
     listings: (c): Promise<Listing[]> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       return listings(c.db);
     },
 
     /** Asks to join a company; its owner accepts or declines. */
     apply: async (c, companyId: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       if (typeof companyId !== "number") throw new UserError("That company is gone.", { code: "not_found" });
       if (!c.vars.applications.take(String(userId), Date.now()))
         throw new UserError("That's a lot of applications. Try again in an hour.", { code: "rate_limited" });
@@ -530,11 +538,11 @@ export const town = actor({
     },
 
     withdraw: async (c): Promise<void> => {
-      await withdraw(c.db, requireUser(c.conn.state));
+      await withdraw(c.db, requireUser(callerOf(c)));
     },
 
     approve: async (c, applicantId: unknown): Promise<MyCompany> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const client = c.client<typeof registry>();
       const { company, changed } = await c.vars.serial(async () => {
         const company = await ownedCompany(c.db, userId);
@@ -549,7 +557,7 @@ export const town = actor({
     },
 
     decline: async (c, applicantId: unknown): Promise<MyCompany> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const company = await ownedCompany(c.db, userId);
       const declined = await c.vars.serial(() => decline(c.db, company, applicantId));
       await notify(c.client<typeof registry>(), declined, {
@@ -560,13 +568,13 @@ export const town = actor({
     },
 
     leaveCompany: async (c): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const changed = await c.vars.serial(() => leave(c.db, userId));
       await push(c.db, c.client<typeof registry>(), changed);
     },
 
     kick: async (c, memberId: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const changed = await c.vars.serial(async () => {
         const company = await ownedCompany(c.db, userId);
         const member = typeof memberId === "number" ? await userById(c.db, memberId).catch(() => null) : null;
@@ -578,7 +586,7 @@ export const town = actor({
     },
 
     renameCompany: async (c, rawName: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const company = await ownedCompany(c.db, userId);
       await renameCompany(c.db, c.client<typeof registry>(), company.id, rawName);
     },
@@ -588,7 +596,7 @@ export const town = actor({
      * once; the house is repainted in the brand's colours when reading the site is done.
      */
     setWebsite: async (c, raw: unknown): Promise<MyCompany> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const company = await ownedCompany(c.db, userId);
       const website = raw === "" ? null : parseWebsite(raw);
       if (website === null && raw !== "")
@@ -611,23 +619,23 @@ export const town = actor({
 
     /** Any member sets the company's merch design (null: back to the brand's colours). */
     setMerch: async (c, raw: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const companyId = await setMerchDesign(c.db, userId, raw);
       await push(c.db, c.client<typeof registry>(), { companies: [companyId], users: [] });
     },
 
     wallet: async (c): Promise<Wallet> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const now = Date.now();
       return wallet(c.db, userId, now, await kept(c, now));
     },
 
     /** Where my prestige stands: the run, its level and rewards, and whether I can start the next. */
-    prestigeState: (c): Promise<PrestigeView> => prestigeView(c.db, requireUser(c.conn.state)),
+    prestigeState: (c): Promise<PrestigeView> => prestigeView(c.db, requireUser(callerOf(c))),
 
     /** Starts the next prestige (at the cap only: "not_ready" otherwise). Safe to click twice. */
     takePrestige: async (c): Promise<PrestigeView> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const view = await c.vars.serial(() => takeNextPrestige(c.db, userId, Date.now()));
       c.vars.collections.delete(userId);
       await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
@@ -636,17 +644,17 @@ export const town = actor({
 
     /** This week's ladder (last week's until Monday 08:00): the boss up now, how hurt it is, and who's hitting it. */
     raid: async (c): Promise<Raid> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const now = Date.now();
       const r = await raid(c.db, userId, await raidsOf(c, now), now);
       return { ...r, loot: await raidLoot(c.db, userId, r.week, r.boss, lootBoost()) };
     },
 
     /** What I hold, per kind, for the bag panel. */
-    bag: (c): Promise<BagRow[]> => bag(c.db, requireUser(c.conn.state)),
+    bag: (c): Promise<BagRow[]> => bag(c.db, requireUser(callerOf(c))),
 
     buy: async (c, itemId: unknown): Promise<Wallet> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const item = itemById(itemId);
       if (!item) throw new UserError("That's not in the shop.", { code: "not_found" });
       if (item.level !== undefined || item.earned)
@@ -669,7 +677,7 @@ export const town = actor({
 
     /** Natmarked's all-time case spending and opening counts. */
     caseLeaderboard: async (c) => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       if ((await main(c.client()).world.roomOfPlayer(userId)) !== SHOP_ROOM.natmarked)
         throw new UserError("Visit the case leaderboard inside Natmarked.", { code: "not_in_shop" });
       return caseLeaderboard(c.db);
@@ -677,7 +685,7 @@ export const town = actor({
 
     /** One opening of `caseId`, in the case shop: the key's coins out, a rolled item into the bag. */
     openCase: async (c, caseId: unknown): Promise<{ item: Item; wallet: Wallet }> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       if (!caseById(caseId)) throw new UserError("There's no such case.", { code: "not_found" });
       await inCaseShop(c, userId);
       const k = await kept(c, Date.now());
@@ -691,7 +699,7 @@ export const town = actor({
       round: number,
       bets: unknown,
     ): Promise<{ bets: Bet[]; total: number }> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       const k = await kept(c, Date.now());
       return c.vars.serial(() => {
         if (round <= c.vars.rouletteClosed) throw new UserError("Bets are closed.", { code: "closed" });
@@ -701,7 +709,7 @@ export const town = actor({
 
     /** From `world`: betting is over. Rolls the round's pocket, pays everyone, and returns the shared outcome. */
     rouletteResolve: async (c, round: number): Promise<{ pocket: number; results: RouletteOutcome[] }> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return c.vars.serial(() => {
         c.vars.rouletteClosed = Math.max(c.vars.rouletteClosed, round);
         return rouletteResolve(c.db, round, Date.now());
@@ -710,7 +718,7 @@ export const town = actor({
 
     /** From `world`: a player left during betting, or the world woke fresh (no `userId`): stakes go back. */
     rouletteRefund: async (c, userId?: number, round?: number): Promise<number> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return c.vars.serial(() => {
         if (userId === undefined && round === undefined) c.vars.rouletteClosed = 0; // a fresh world counts rounds from 1
         return rouletteRefund(c.db, Date.now(), userId, round);
@@ -719,7 +727,7 @@ export const town = actor({
 
     /** One case item to the vendor for coins by rarity. */
     sellItem: async (c, itemId: unknown): Promise<Wallet> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const k = await kept(c, Date.now());
       const out = await c.vars.serial(() => sellItem(c.db, userId, itemId, Date.now(), k));
       if (out.unworn) await pushPlayers(c.db, c.client<typeof registry>(), [userId]);
@@ -728,7 +736,7 @@ export const town = actor({
 
     /** Every copy past the first of each item of `caseId`, sold. */
     sellDuplicates: async (c, caseId: unknown): Promise<{ wallet: Wallet; sold: number }> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const k = await kept(c, Date.now());
       return c.vars.serial(() => sellDuplicates(c.db, userId, caseId, Date.now(), k));
     },
@@ -740,7 +748,7 @@ export const town = actor({
      * them if they're in the building; otherwise (or with no room on the floor) into the storeroom.
      */
     buyPiece: async (c, itemId: unknown): Promise<{ notice: string; company: MyCompany }> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const item = itemById(itemId);
       if (!item?.company) throw new UserError("That's not for company buildings.", { code: "not_found" });
       await inShop(c, userId, "furniture");
@@ -753,7 +761,7 @@ export const town = actor({
       itemId: unknown,
       onto?: unknown,
     ): Promise<{ notice: string; company: MyCompany; drop?: Drop }> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const at = tileArg(onto);
       return furnish(
         c,
@@ -769,7 +777,7 @@ export const town = actor({
      * piece at a time (a full room stops the rest in the storeroom), with one summary line.
      */
     placeAll: async (c): Promise<{ notice: string; company: MyCompany }> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const u = await userById(c.db, userId);
       const company = u.companyId === null ? undefined : await companyById(c.db, u.companyId);
       if (!company) throw new UserError("Join a company first.", { code: "not_member" });
@@ -812,7 +820,7 @@ export const town = actor({
 
     /** The morning paper: yesterday in town, the same front page all day. */
     paper: (c): Promise<Paper> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const now = Date.now();
       const day = addDays(dayKey(now), -1);
       // Opening it is the day's paper quest. ponytail: not checked against where they stand.
@@ -835,19 +843,19 @@ export const town = actor({
 
     /** The next numbered copy of one off the cart. */
     buyEdition: async (c, itemId: unknown): Promise<{ wallet: Wallet; n: number }> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const k = await kept(c, Date.now());
       return c.vars.serial(() => buyEdition(c.db, userId, itemId, Date.now(), k));
     },
 
     /** The numbered copies in my bag. */
-    copies: (c): Promise<Copy[]> => copiesOf(c.db, requireUser(c.conn.state)),
+    copies: (c): Promise<Copy[]> => copiesOf(c.db, requireUser(callerOf(c))),
 
     // MARK: Torvehallen, the market hall
 
     /** Everything on display, by slot. Anyone may look from anywhere; only the hall sells. */
     marketListings: async (c): Promise<MarketListing[]> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       const now = Date.now();
       await expireListings(c.db, now);
       return browseMarket(c.db, now);
@@ -855,7 +863,7 @@ export const town = actor({
 
     /** What I have on display, my room left, and the sales I haven't heard of. */
     marketMine: async (c): Promise<MyMarket> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const now = Date.now();
       await expireListings(c.db, now);
       return mineInMarket(c.db, userId, now);
@@ -863,7 +871,7 @@ export const town = actor({
 
     /** Puts one of my items on a slot at my price: in the hall, and for good (a price is not changed, only taken back). */
     marketList: async (c, want: unknown): Promise<MarketListing> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const w = (typeof want === "object" && want !== null ? want : {}) as Record<string, unknown>;
       await inMarket(c, userId);
       if (!c.vars.listings.take(String(userId), Date.now()))
@@ -877,13 +885,13 @@ export const town = actor({
 
     /** Takes one of my listings back, from anywhere. */
     marketCancel: async (c, listingId: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       await c.vars.serial(() => cancelListing(c.db, userId, listingId));
     },
 
     /** Buys a listing at the price I saw, in the hall. The seller is told, or finds out on their next look. */
     marketBuy: async (c, listingId: unknown, price: unknown): Promise<Wallet> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       await inMarket(c, userId);
       const now = Date.now();
       if (!c.vars.marketBuys.take(String(userId), now))
@@ -912,16 +920,16 @@ export const town = actor({
     },
 
     /** I have been told of my sales up to this one. */
-    marketSaw: async (c, upTo: unknown): Promise<void> => sawSales(c.db, requireUser(c.conn.state), upTo),
+    marketSaw: async (c, upTo: unknown): Promise<void> => sawSales(c.db, requireUser(callerOf(c)), upTo),
 
     // MARK: The julekalender
 
     /** Today's door and the doors I've opened this December. */
-    julekalender: (c): Promise<Calendar> => calendar(c.db, requireUser(c.conn.state), Date.now()),
+    julekalender: (c): Promise<Calendar> => calendar(c.db, requireUser(callerOf(c)), Date.now()),
 
     /** Opens today's door: its coins or its item, once. */
     openDoor: async (c): Promise<{ door: number; gift: Gift; notice: string; wallet: Wallet }> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const k = await kept(c, Date.now());
       return c.vars.serial(() => openDoor(c.db, userId, Date.now(), k));
     },
@@ -933,7 +941,7 @@ export const town = actor({
      * the Bag), and the item stays mine.
      */
     drop: async (c, itemId: unknown, onto?: unknown): Promise<{ notice: string; drop?: Drop }> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const at = tileArg(onto);
       if (!c.vars.drops.take(String(userId), Date.now()))
         throw new UserError("That's a lot of drops. Try again in a minute.", { code: "rate_limited" });
@@ -967,13 +975,13 @@ export const town = actor({
 
     /** From `world.take`: a drop on `room`'s floor into the taker's bag. False if it isn't there any more. */
     pickUp: async (c, dropId: number, userId: number, room: string): Promise<boolean> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return pickUp(c.db, dropId, userId, room);
     },
 
     /** From `world.move`: where a piece of furniture now stands, and how far it is turned. False if its row is gone or in a bag. */
     moved: async (c, d: Drop): Promise<boolean> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       const rows = await all(
         c.db,
         "UPDATE items SET x = ?, y = ?, rot = ? WHERE id = ? AND room = ? AND owner_id IS NULL RETURNING id",
@@ -988,7 +996,7 @@ export const town = actor({
 
     /** Today's quests and the week's, with how far each is. Deals today's the first time. */
     questBoard: (c): Promise<QuestBoard> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       return c.vars.serial(() => questBoard(c.db, userId, Date.now()));
     },
 
@@ -996,7 +1004,7 @@ export const town = actor({
 
     /** The live bracket and the latest champion. Starts a due bracket first. */
     tournament: (c): Promise<TournamentBoard> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       return c.vars.serial(async () => {
         const { lines, ...board } = await tourney.board(c.db, Date.now());
         await tellTown(c, lines);
@@ -1006,7 +1014,7 @@ export const town = actor({
 
     /** Opens a bracket (a game, 4 or 8 players) with me signed up. */
     tournamentOpen: (c, game: unknown, size: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       return c.vars.serial(async () =>
         tellTown(c, (await tourney.open(c.db, userId, game, size, Date.now())).lines),
       );
@@ -1014,7 +1022,7 @@ export const town = actor({
 
     /** Signs me up for the open bracket, or out of it. */
     tournamentJoin: (c, join: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       return c.vars.serial(async () =>
         tellTown(c, (await tourney.signup(c.db, userId, join !== false, Date.now())).lines),
       );
@@ -1022,7 +1030,7 @@ export const town = actor({
 
     /** From `arcade`: a match ended. Counts if it was a waiting match of the running bracket. */
     tournamentResult: (c, game: string, players: number[], winners: number[]): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return c.vars.serial(async () =>
         tellTown(c, (await tourney.matchResult(c.db, game, players, winners, Date.now())).lines),
       );
@@ -1032,66 +1040,66 @@ export const town = actor({
 
     /** The pile: what people would like in the game, with my 👍 marked. */
     requests: (c): Promise<RequestEntry[]> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       return requests.pile(c.db, userId);
     },
 
     /** Puts a request on the pile, and pushes it to the agent webhook. */
     requestAdd: async (c, text: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const added = await c.vars.serial(() => requests.submit(c.db, userId, text, Date.now()));
       c.waitUntil(pushNewRequest(added));
     },
 
     /** Gives a request my 👍, or takes it back. */
     requestVote: (c, id: unknown, on: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       return c.vars.serial(() => requests.vote(c.db, userId, id, on !== false));
     },
 
     /** Takes back my own open request. */
     requestWithdraw: (c, id: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       return c.vars.serial(() => requests.withdraw(c.db, userId, id));
     },
 
     /** From `world`: `userId` did `kind` in town (once per `key` in a row). True when it counted. */
     questEvent: (c, userId: number, kind: string, key: string): Promise<boolean> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       const now = Date.now();
       return c.vars.serial(() => questEvent(c.db, userId, kind, key, now));
     },
 
     /** From `world`: a whack at the fastelavn barrel, and, if it broke, everyone's loot. */
     whack: async (c, userId: number): Promise<Whack> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return c.vars.serial(() => whack(c.db, userId, Date.now()));
     },
 
     /** From `world`: a knock on a Halloween door, and, if it was the night's last, the sugar king's hat. */
     knock: async (c, userId: number, door: string, doors: string[]): Promise<Knock> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return c.vars.serial(() => knock(c.db, userId, door, doors, Date.now()));
     },
 
     /** From `world`: this year's barrel, for whoever comes to town on Fastelavn. */
     barrel: (c): Promise<Barrel> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return barrel(c.db, Date.now());
     },
 
     /** Your catch-and-release journal, shared across devices. */
-    fishingJournal: (c): Promise<FishingEntry[]> => fishingJournal(c.db, requireUser(c.conn.state)),
+    fishingJournal: (c): Promise<FishingEntry[]> => fishingJournal(c.db, requireUser(callerOf(c))),
 
     /** The fishing panel: your journal, the day's lucky casts, the pond's records and your treasures. */
-    fishingState: (c): Promise<FishingState> => fishingState(c.db, requireUser(c.conn.state), Date.now()),
+    fishingState: (c): Promise<FishingState> => fishingState(c.db, requireUser(callerOf(c)), Date.now()),
 
     /**
      * From `world`: an on-time reel. A treasure goes in the bag and is told to the town; a new record or a badge
      * shows the next time anyone looks.
      */
     recordFish: async (c, userId: number, caught: FishCatch): Promise<Landed> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       const now = Date.now();
       const landed = await c.vars.serial(() => recordFish(c.db, userId, caught, now));
       c.vars.dirty.add(userId);
@@ -1106,7 +1114,7 @@ export const town = actor({
 
     /** From `world`: a coin in the fountain (1 coin out, and the day's fountain quest). */
     toss: async (c, userId: number): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       const now = Date.now();
       const k = await kept(c, now);
       await c.vars.serial(() => tossCoin(c.db, userId, now, k));
@@ -1114,7 +1122,7 @@ export const town = actor({
 
     /** From `world`: a treat for `userId`'s pet (`TREAT_COST` coins, `TREATS_PER_DAY` a day); the treats left today. */
     treat: async (c, userId: number): Promise<number> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       const now = Date.now();
       const k = await kept(c, now);
       return c.vars.serial(() => treatPet(c.db, userId, now, k));
@@ -1122,31 +1130,31 @@ export const town = actor({
 
     /** From `world.dance`: whether `userId` has learned the dance `item` (`dance.<index>`). */
     knowsDance: (c, userId: number, item: string): Promise<boolean> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return holds(c.db, userId, item);
     },
 
     /** From `world.sit`: on a blanket at the outage picnic that started at `since`. True the first time. */
     picnicked: (c, userId: number, since: number): Promise<boolean> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return markPicnic(c.db, userId, since);
     },
 
     /** For `world`: the keynotes still to come or on, soonest first (it asks every few minutes). */
     keynotes: (c): Promise<Keynote[]> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return comingKeynotes(c.db, Date.now());
     },
 
     /** From `world`: the launches it has read from OpenRouter, so a model used on its launch day pays (once each). */
     launched: (c, launches: Launch[]): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return recordLaunches(c.db, launches);
     },
 
     /** From `world`: in the Tavern while keynote `keynoteId` is on its screen. True the first time. */
     keynoteWatched: (c, userId: number, keynoteId: number): Promise<boolean> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return markKeynote(c.db, userId, keynoteId);
     },
 
@@ -1157,7 +1165,7 @@ export const town = actor({
      */
     sweep: async (c): Promise<void> => {
       // The alarm calls with no connection; anyone else has one, and has to be inside.
-      if (c.conn) requireInternal(c.conn.state);
+      if (c.conn) requireInternal(callerOf(c));
       // Never in the way of the drops below.
       try {
         await raidsOf(c, Date.now());
@@ -1211,7 +1219,7 @@ export const town = actor({
 
     /** Offers `toId` my `give` for their `want`. It replaces my open offer, if I had one. */
     offerTrade: async (c, rawTo: unknown, rawGive: unknown, rawWant: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const toId = playerId(rawTo);
       if (toId === userId) throw new UserError("Trade with someone else.", { code: "invalid_trade" });
       const me = await userById(c.db, userId);
@@ -1250,7 +1258,7 @@ export const town = actor({
 
     /** Offers to me and my own, newest first. */
     trades: async (c): Promise<{ incoming: Trade[]; outgoing: Trade | null }> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       // Older ones are past it: the sweeper deletes them.
       const since = Date.now() - TRADE_TTL;
       return {
@@ -1261,7 +1269,7 @@ export const town = actor({
 
     /** `at`: the offer as I saw it, so one swapped meanwhile isn't accepted unseen. */
     acceptTrade: async (c, fromId: unknown, at: unknown): Promise<Wallet> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const now = Date.now();
       const k = await kept(c, now);
       const trade = await c.vars.serial(async () => {
@@ -1279,32 +1287,32 @@ export const town = actor({
     },
 
     declineTrade: async (c, fromId: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const trade = await offerTo(c.db, userId, fromId, Date.now());
       await c.db.execute("DELETE FROM trades WHERE from_id = ? AND at = ?", trade.fromId, trade.at);
       await notify(c.client<typeof registry>(), trade.fromId, { text: `${trade.to} passed on your trade.` });
     },
 
     withdrawTrade: async (c): Promise<void> => {
-      await c.db.execute("DELETE FROM trades WHERE from_id = ?", requireUser(c.conn.state));
+      await c.db.execute("DELETE FROM trades WHERE from_id = ?", requireUser(callerOf(c)));
     },
 
     /** What `userId` could trade away, for the trade panel. */
     tradeables: async (c, targetId: unknown): Promise<{ name: string; owned: string[] }> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       const u = await userOf(c.db, targetId);
       return { name: u.name, owned: (await ownedItems(c.db, u.id)).filter(isTradeable) };
     },
 
     /** What wallpapers and floors I may use now, as `<kind>.<id>`. */
-    decorOwned: async (c): Promise<string[]> => ownedDecor(c.db, requireUser(c.conn.state)),
+    decorOwned: async (c): Promise<string[]> => ownedDecor(c.db, requireUser(callerOf(c))),
 
     /** What my office wears now, so the panel can say "In use" wherever I stand. */
-    decorNow: async (c) => decorNow(c.db, requireUser(c.conn.state)),
+    decorNow: async (c) => decorNow(c.db, requireUser(callerOf(c))),
 
     /** Buys a wallpaper or floor (`kind` wall or floor); `setDecor` puts it on. */
     buyDecor: async (c, kind: unknown, id: unknown): Promise<Wallet> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       await inShop(c, userId, "furniture");
       const now = Date.now();
       const k = await kept(c, now);
@@ -1312,11 +1320,11 @@ export const town = actor({
     },
 
     /** My office's size now, 0 to 3 (`officeTier`). */
-    officeSize: async (c): Promise<number> => officeSizeNow(c.db, requireUser(c.conn.state)),
+    officeSize: async (c): Promise<number> => officeSizeNow(c.db, requireUser(callerOf(c))),
 
     /** Buys the next size for my office. The room grows for whoever is inside. */
     buyOfficeSize: async (c): Promise<Wallet> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       await inShop(c, userId, "furniture");
       const now = Date.now();
       const k = await kept(c, now);
@@ -1327,7 +1335,7 @@ export const town = actor({
 
     /** Puts a wallpaper or floor I own on my office, for free (`null`: the plain one). */
     setDecor: async (c, kind: unknown, id: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       if (!c.vars.offices.take(String(userId), Date.now()))
         throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
       if (id !== null && typeof id !== "string") throw new UserError("Which one?", { code: "invalid_decor" });
@@ -1340,11 +1348,11 @@ export const town = actor({
     // MARK: Desk setups
 
     /** Which desk setups I may use, and which I use. */
-    deskOwned: async (c): Promise<MyDesk> => myDesk(c.db, requireUser(c.conn.state)),
+    deskOwned: async (c): Promise<MyDesk> => myDesk(c.db, requireUser(callerOf(c))),
 
     /** Buys a desk setup (a `DESKS` id) for my coins; `setDesk` puts it on. */
     buyDesk: async (c, id: unknown): Promise<Wallet> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       if (!c.vars.desks.take(String(userId), Date.now()))
         throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
       await inShop(c, userId, "furniture");
@@ -1355,7 +1363,7 @@ export const town = actor({
 
     /** Switches to a desk setup I own, free. Everyone sees it at once. */
     setDesk: async (c, id: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       if (!c.vars.desks.take(String(userId), Date.now()))
         throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
       await c.vars.serial(() => setDesk(c.db, userId, id));
@@ -1364,7 +1372,7 @@ export const town = actor({
 
     /** The owner has the company buy its house the next desk tier from the wallet. */
     buyDeskFleet: async (c): Promise<MyCompany> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       if (!c.vars.desks.take(String(userId), Date.now()))
         throw new UserError("That's a lot of changes. Try again in a minute.", { code: "rate_limited" });
       const u = await userById(c.db, userId);
@@ -1378,7 +1386,7 @@ export const town = actor({
 
     /** The open offices, busiest first. Everyone reads the same list for 5 seconds. */
     openOffices: (c): Promise<OpenOfficeRow[]> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       const now = Date.now();
       const kept = c.vars.openOffices;
       if (kept && now - kept.at < OPEN_OFFICES_TTL) return kept.rows;
@@ -1401,7 +1409,7 @@ export const town = actor({
 
     /** From `world`: `visitorId` stepped into `ownerId`'s office today. */
     officeVisit: async (c, ownerId: number, visitorId: number): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       await recordVisit(c.db, ownerId, visitorId, Date.now());
     },
 
@@ -1413,7 +1421,7 @@ export const town = actor({
       usage: UsageDay[],
       activity: ActivityDay[],
     ): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       const drops = await c.vars.serial(() =>
         c.db.transaction(
           async (tx) => {
@@ -1469,24 +1477,24 @@ export const town = actor({
     leaderboard: (c, rawRange: unknown, rawSort: unknown): Promise<Leaderboard> =>
       leaderboard(
         c.db,
-        requireUser(c.conn.state),
+        requireUser(callerOf(c)),
         isRangeKey(rawRange) ? rawRange : "today",
         isSortKey(rawSort) ? rawSort : "tokens",
         Date.now(),
       ),
 
     /** The leaderboard as lines: tokens per day over the last 30 days, for the top players and companies. */
-    trend: (c): Promise<Trend> => trend(c.db, requireUser(c.conn.state), Date.now()),
+    trend: (c): Promise<Trend> => trend(c.db, requireUser(callerOf(c)), Date.now()),
 
     /** A company's card: its numbers, website, logo and people. */
     company: (c, companyId: unknown, rawRange: unknown): Promise<CompanyProfile> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       if (typeof companyId !== "number") throw new UserError("That company is gone.", { code: "not_found" });
       return companyProfile(c.db, companyId, isRangeKey(rawRange) ? rawRange : "30d", Date.now());
     },
 
     profile: async (c, targetId: unknown, rawRange: unknown): Promise<Profile> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       const range = isRangeKey(rawRange) ? rawRange : "30d";
       const id = playerId(targetId);
       const p = await profile(c.db, id, range, Date.now(), await kept(c, Date.now()));
@@ -1495,7 +1503,7 @@ export const town = actor({
 
     /** My one line under my name; empty clears it. */
     setBio: async (c, raw: unknown): Promise<string | null> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const bio = parseBio(raw);
       if (bio === null)
         throw new UserError(`One line, up to ${BIO_MAX_LENGTH} characters, and no links.`, {
@@ -1510,7 +1518,7 @@ export const town = actor({
 
     /** Flags someone's bio for the admin page: once per reporter, a few an hour. */
     reportBio: async (c, targetId: unknown): Promise<void> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const target = playerId(targetId);
       if (!c.vars.bioReports.take(String(userId), Date.now()))
         throw new UserError("That's a lot of reports. Try again in an hour.", { code: "rate_limited" });
@@ -1522,7 +1530,7 @@ export const town = actor({
      * the card shows them.
      */
     setShowcase: async (c, raw: unknown): Promise<PinView[]> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const ids = Array.isArray(raw)
         ? raw.map((p) => (typeof p === "string" ? p : (p as { id?: unknown } | null)?.id))
         : null;
@@ -1536,13 +1544,15 @@ export const town = actor({
       const owned = ownedPins(await collectionFor(c, userId));
       const views = (ids as string[]).map((id) => owned.find((o) => o.id === id));
       if (views.some((v) => !v)) throw new UserError("You haven't earned that yet.", { code: "not_owned" });
-      await c.vars.serial(() => c.db.transaction((tx) => setPins(tx, userId, ids as string[])));
+      await c.vars.serial(() =>
+        c.db.transaction((tx) => setPins(tx, userId, ids as string[]), { name: "card-pins" }),
+      );
       return views as PinView[];
     },
 
     /** This week's top five in the Tavern, and my own minutes. A minute at most for the board. */
     regulars: async (c): Promise<Regulars> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       const now = Date.now();
       const day = dayKey(now);
       let hit = c.vars.regulars;
@@ -1570,14 +1580,14 @@ export const town = actor({
      * (`recordGreen`), so the same hours sent again change nothing.
      */
     greenHours: async (c, hours: unknown): Promise<number> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       if (!Array.isArray(hours)) return 0;
       const clean = hours.filter((h): h is number => typeof h === "number").slice(0, 48);
       return c.vars.serial(() => recordGreen(c.db, clean, Date.now()));
     },
 
     tavernMinutes: async (c, day: unknown, rows: unknown): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !Array.isArray(rows)) return;
       const clean = rows.filter(
         (r): r is TavernRow => Array.isArray(r) && r.length === 3 && r.every((n) => typeof n === "number"),
@@ -1594,17 +1604,17 @@ export const town = actor({
      * look, like cards and shelves. A minute at most per player.
      */
     collection: (c, targetId: unknown): Promise<CollectionState> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       return collectionFor(c, playerId(targetId));
     },
 
     /** What I could pin to my card: everything I own that's pinnable, as the card shows it. */
     showcaseOptions: async (c): Promise<PinView[]> =>
-      ownedPins(await collectionFor(c, requireUser(c.conn.state))),
+      ownedPins(await collectionFor(c, requireUser(callerOf(c)))),
 
     /** The Hall of Fame wall: the rarest honours, this week's firsts and winners. A minute at most. */
     hallOfFame: (c): Promise<HallOfFame> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       const now = Date.now();
       if (c.vars.hall && now - c.vars.hall.at < HALL_TTL) return c.vars.hall.hall;
       const hall = raidsOf(c, now).then((weeks) => hallOfFame(c.db, now, weeks));
@@ -1619,7 +1629,7 @@ export const town = actor({
 
     /** The trophies on someone's office shelf: anyone may look, like their badges. */
     trophies: async (c, targetId: unknown): Promise<Trophy[]> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       const u = await userOf(c.db, targetId);
       return c
         .client<typeof registry>()
@@ -1629,7 +1639,7 @@ export const town = actor({
 
     /** Names starting with `prefix`, for @-mention suggestions. */
     searchNames: async (c, prefix: unknown): Promise<string[]> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       if (typeof prefix !== "string" || !/^[a-z0-9._-]{1,32}$/i.test(prefix)) return [];
       const from = prefix.toLowerCase();
       const rows = await all<{ name: string }>(
@@ -1642,13 +1652,13 @@ export const town = actor({
     },
 
     /** The HUD's corner: my numbers today and today's top 5. */
-    today: (c): Promise<Today> => today(c.db, requireSyncer(c.conn.state), Date.now()),
+    today: (c): Promise<Today> => today(c.db, requireSyncer(callerOf(c)), Date.now()),
 
     // MARK: Coins for games (from `arcade` only)
 
     /** Takes a stake or a side bet from each entry, or from nobody. */
     hold: async (c, ref: string, kind: HoldKind, entries: Entry[]): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       const names = await namesOf(
         c.db,
         entries.map((e) => e.userId),
@@ -1658,18 +1668,18 @@ export const town = actor({
     },
 
     pay: async (c, ref: string, kind: PayKind, entries: Entry[]): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       await c.vars.serial(() => pay(c.db, ref, kind, entries, Date.now()));
     },
 
     /** What a ref still holds, so settling a game can be retried without paying twice. */
     held: async (c, ref: string): Promise<number> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return [...(await heldIn(c.db, ref)).values()].reduce((a, b) => a + b, 0);
     },
 
     refund: async (c, ref: string, userIds?: number[]): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       await c.vars.serial(() => refund(c.db, ref, Date.now(), userIds));
     },
 
@@ -1677,7 +1687,7 @@ export const town = actor({
 
     /** Takes the buy-in from `userId`'s wallet for a seat: a `UserError` says why not (the day's limit, too poor). */
     pokerSit: async (c, userId: number): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       const now = Date.now();
       const k = await kept(c, now);
       await c.vars.serial(() => pokerSit(c.db, userId, now, k));
@@ -1685,13 +1695,13 @@ export const town = actor({
 
     /** The table's stacks after a hand, and the seats that stood up (their stacks go back to their wallets). */
     pokerSettle: async (c, s: PokerSettle): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       await c.vars.serial(() => pokerSettle(c.db, s, Date.now()));
     },
 
     /** The world woke without its table: everyone still seated gets their stack back. */
     pokerRelease: async (c): Promise<number> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return c.vars.serial(() => pokerRelease(c.db, Date.now()));
     },
 
@@ -1703,28 +1713,28 @@ export const town = actor({
       stake: number,
       players: Placed[],
     ): Promise<void> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       await recordMatch(c.db, matchId, game, stake, players, Date.now());
     },
 
     retroScore: async (c, game: unknown, score: unknown, level: unknown): Promise<RetroScore[]> => {
-      const userId = requireUser(c.conn.state);
+      const userId = requireUser(callerOf(c));
       await recordRetro(c.db, userId, game, score, level, Date.now());
       return retroBoard(c.db, game);
     },
     retroBoard: (c, game: unknown): Promise<RetroScore[]> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       return retroBoard(c.db, game);
     },
 
     gameBoard: (c, rawRange: unknown): Promise<GamePlayer[]> => {
-      requireUser(c.conn.state);
+      requireUser(callerOf(c));
       return gameBoard(c.db, isRangeKey(rawRange) ? rawRange : "today", Date.now());
     },
 
     /** User ids for names (inviting people to a game by name). */
     ids: async (c, names: string[]): Promise<Record<string, number>> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       const rows = await all<{ id: number; name: string }>(
         c.db,
         "SELECT id, name FROM users WHERE name IN (SELECT value FROM json_each(?))",
@@ -1735,60 +1745,60 @@ export const town = actor({
 
     /** Names for user ids (tables and matches show who's playing). */
     names: async (c, userIds: number[]): Promise<Record<number, string>> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return namesOf(c.db, userIds);
     },
 
     // MARK: The admin page (`ADMIN_TOKEN`)
 
     adminOverview: (c): Promise<AdminOverview> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       return overview(c.db, Date.now());
     },
 
     adminUsers: (c): Promise<AdminUser[]> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       return adminUsers(c.db, Date.now());
     },
 
     adminCompanies: (c): Promise<AdminCompany[]> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       return adminCompanies(c.db);
     },
 
     adminLog: (c): Promise<AdminLogEntry[]> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       return adminLog(c.db);
     },
 
     adminRequests: (c): Promise<RequestEntry[]> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       return requests.everything(c.db);
     },
 
     /** Marks a request open, planned, done or not now. */
     adminSetRequest: async (c, id: unknown, status: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const text = await requests.setStatus(c.db, id, status, Date.now());
       await logAdmin(c.db, "mark request", `#${String(id)}`, `${String(status)}: ${text}`, Date.now());
     },
 
     /** Takes a request off the pile. */
     adminRemoveRequest: async (c, id: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const text = await requests.remove(c.db, id);
       await logAdmin(c.db, "remove request", `#${String(id)}`, text, Date.now());
     },
 
     /** Every keynote watch party scheduled, newest first. */
     adminKeynotes: (c): Promise<Keynote[]> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       return everyKeynote(c.db);
     },
 
     /** Schedules a keynote watch party, or changes the one `id` names (null: a new one). The world hears at once. */
     adminSaveKeynote: async (c, id: unknown, input: unknown): Promise<Keynote> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const now = Date.now();
       const k = await saveKeynote(c.db, id, input, now);
       const action = id === null || id === undefined ? "schedule keynote" : "change keynote";
@@ -1799,7 +1809,7 @@ export const town = actor({
 
     /** Takes a keynote off the schedule (and off the Tavern's screen, if it's on). */
     adminRemoveKeynote: async (c, id: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const now = Date.now();
       const k = await removeKeynote(c.db, id);
       await logAdmin(c.db, "remove keynote", `${k.title} (#${k.id})`, keynoteDetail(k), now);
@@ -1808,7 +1818,7 @@ export const town = actor({
 
     /** Sets someone's balance; returns it. */
     adminSetCoins: async (c, userId: unknown, balance: unknown): Promise<number> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const coins = coinAmount(balance);
       const user = await userOf(c.db, userId);
       const now = Date.now();
@@ -1820,7 +1830,7 @@ export const town = actor({
 
     /** A company wallet's coins, set; the ledger line is the owner's (`user_id`), kind `admin`. */
     adminSetCompanyCoins: async (c, companyId: unknown, rawCoins: unknown): Promise<number> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const coins = coinAmount(rawCoins);
       const company = await companyOrGone(c.db, companyId);
       const now = Date.now();
@@ -1837,13 +1847,13 @@ export const town = actor({
 
     /** The statue of the #1 model: what's on the plinth, the last leader read, the pin, and the next read. */
     adminStatue: (c): Promise<StatueAdmin> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       return main(c.client<typeof registry>()).world.statue();
     },
 
     /** Pins a model on the statue's plinth, over the ranking's, until it's unpinned. */
     adminPinStatue: async (c, model: unknown, org: unknown, ranking: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const leader = statuePin(model, org, ranking);
       await main(c.client<typeof registry>()).world.pinStatue(leader);
       await logAdmin(c.db, "pin statue", leader.model, `${leader.org} · ${leader.ranking}`, Date.now());
@@ -1851,20 +1861,20 @@ export const town = actor({
 
     /** Gives the plinth back to the ranking. */
     adminUnpinStatue: async (c): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       await main(c.client<typeof registry>()).world.pinStatue(null);
       await logAdmin(c.db, "unpin statue", "statue", null, Date.now());
     },
 
     /** Test servers only sell anywhere; this holds one player to the shop rule anyway. */
     adminStrictShops: (c, userId: unknown): void => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       c.vars.strictShops.add(Number(userId));
     },
 
     /** Takes someone's bio down (and its reports with it). */
     adminClearBio: async (c, userId: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const user = await userOf(c.db, userId);
       const was = await bioOf(c.db, user.id);
       await setBio(c.db, user.id, null);
@@ -1872,7 +1882,7 @@ export const town = actor({
     },
 
     adminRenameUser: async (c, userId: unknown, rawName: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const user = await userOf(c.db, userId);
       await renameUser(c.db, c.vars.serial, c.client<typeof registry>(), user.id, rawName);
       await logAdmin(c.db, "rename user", who(user), `→ ${userName(rawName)}`, Date.now());
@@ -1880,7 +1890,7 @@ export const town = actor({
 
     /** Takes someone out of their company (the owner hands over, the last one out closes it). */
     adminRemoveFromCompany: async (c, userId: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const user = await userOf(c.db, userId);
       const changed = await c.vars.serial(() => leave(c.db, user.id));
       await push(c.db, c.client<typeof registry>(), changed);
@@ -1889,7 +1899,7 @@ export const town = actor({
 
     /** Forgets someone's usage, raw events and all: for numbers that were made up. */
     adminWipeUsage: async (c, userId: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const user = await userOf(c.db, userId);
       const client = c.client<typeof registry>();
       const days = await client.player.get([String(user.id)], internal).wipe();
@@ -1904,7 +1914,7 @@ export const town = actor({
 
     /** Deletes an account for good: their device token and sessions stop working, and they leave the world. */
     adminDeleteUser: async (c, userId: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const user = await userOf(c.db, userId);
       const now = Date.now();
       const changed = await c.vars.serial(() => deleteUser(c.db, user.id, now));
@@ -1920,7 +1930,7 @@ export const town = actor({
     },
 
     adminRenameCompany: async (c, companyId: unknown, rawName: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const company = await companyOrGone(c.db, companyId);
       await renameCompany(c.db, c.client<typeof registry>(), company.id, rawName);
       await logAdmin(
@@ -1933,7 +1943,7 @@ export const town = actor({
     },
 
     adminCloseCompany: async (c, companyId: unknown): Promise<void> => {
-      requireAdmin(c.conn.state);
+      requireAdmin(callerOf(c));
       const client = c.client<typeof registry>();
       const { company, changed } = await c.vars.serial(() => closeCompany(c.db, companyId));
       await logAdmin(
@@ -1950,7 +1960,7 @@ export const town = actor({
 
     /** From `world`: the 429 Cop wrote `userId` a ticket: how many they hold now, or null if they had one today already. */
     ticket: async (c, userId: number, t: Ticket): Promise<number | null> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return c.vars.serial(() => giveTicket(c.db, userId, t));
     },
 
@@ -1963,7 +1973,7 @@ export const town = actor({
       offices: Record<number, Office>;
       drops: Drop[];
     }> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return {
         players: await playerCores(c.db, "all"),
         companies: await companyInfos(c.db, "all"),
@@ -2118,12 +2128,14 @@ async function shelfOf(
   const views = resolvePins(state, pins);
   if (views.length < pins.length && !withoutTrophies.has(state))
     await c.vars.serial(() =>
-      c.db.transaction((tx) =>
-        setPins(
-          tx,
-          userId,
-          views.map((v) => v.id),
-        ),
+      c.db.transaction(
+        (tx) =>
+          setPins(
+            tx,
+            userId,
+            views.map((v) => v.id),
+          ),
+        { name: "shelf" },
       ),
     );
   return views;

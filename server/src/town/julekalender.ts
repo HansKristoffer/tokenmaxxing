@@ -47,19 +47,22 @@ export async function openDoor(
     throw new UserError("The julekalender opens a door a day from 1 to 24 December.", { code: "closed" });
   const day = doorDay(door, now);
   const gift = DOORS[door - 1]!;
-  const fresh = await sql.transaction(async (tx) => {
-    const [row] = await all(
-      tx,
-      "INSERT INTO julekalender (user_id, day, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING RETURNING day",
-      userId,
-      day,
-      now,
-    );
-    if (!row) return false;
-    if ("coins" in gift) await ledgerAdd(tx, userId, gift.coins, "julekalender", day, now);
-    else await giveItem(tx, userId, gift.item, now);
-    return true;
-  });
+  const fresh = await sql.transaction(
+    async (tx) => {
+      const [row] = await all(
+        tx,
+        "INSERT INTO julekalender (user_id, day, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING RETURNING day",
+        userId,
+        day,
+        now,
+      );
+      if (!row) return false;
+      if ("coins" in gift) await ledgerAdd(tx, userId, gift.coins, "julekalender", day, now);
+      else await giveItem(tx, userId, gift.item, now);
+      return true;
+    },
+    { name: "julekalender-open" },
+  );
   if (!fresh)
     throw new UserError("Today's door is open already. The next one opens tomorrow.", { code: "opened" });
   return {

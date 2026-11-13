@@ -9,6 +9,7 @@
     "@anthropic-ai/sdk": "^0.129.0",
     "@tokenmaxxing/core": "workspace:*",
     "hanzio": "^3.4.0",
-    "rivetkit": "2.3.21"
+    "rivetkit": "3.1.1",
+    "rivetkit-v2": "npm:rivetkit@2.3.21"
   }
 }

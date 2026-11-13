@@ -34,41 +34,48 @@ export async function knock(
   now: number,
 ): Promise<Knock> {
   const day = dayKey(now);
-  return sql.transaction(async (tx) => {
-    const treat = treatAt(door, day);
-    const [fresh] = await all(
-      tx,
-      `INSERT INTO halloween_knocks (user_id, day, door, candy) VALUES (?, ?, ?, ?)
+  return sql.transaction(
+    async (tx) => {
+      const treat = treatAt(door, day);
+      const [fresh] = await all(
+        tx,
+        `INSERT INTO halloween_knocks (user_id, day, door, candy) VALUES (?, ?, ?, ?)
        ON CONFLICT DO NOTHING RETURNING door`,
-      userId,
-      day,
-      door,
-      TREAT_CANDY[treat],
-    );
-    const today = await all<{ door: string }>(
-      tx,
-      "SELECT door FROM halloween_knocks WHERE user_id = ? AND day = ?",
-      userId,
-      day,
-    );
-    const knocked = today.map((r) => r.door);
-    const candy = await scalar(tx, "SELECT SUM(candy) AS n FROM halloween_knocks WHERE user_id = ?", userId);
-    const out: Knock = { door, treat: fresh ? treat : null, candy, knocked, of: doors.length };
-    const done = new Set(knocked);
-    if (!fresh || doors.length === 0 || !doors.every((d) => done.has(d))) return out;
-    const [king] = await all(
-      tx,
-      `INSERT INTO sugar_kings (year, user_id, day, at) VALUES (?, ?, ?, ?)
+        userId,
+        day,
+        door,
+        TREAT_CANDY[treat],
+      );
+      const today = await all<{ door: string }>(
+        tx,
+        "SELECT door FROM halloween_knocks WHERE user_id = ? AND day = ?",
+        userId,
+        day,
+      );
+      const knocked = today.map((r) => r.door);
+      const candy = await scalar(
+        tx,
+        "SELECT SUM(candy) AS n FROM halloween_knocks WHERE user_id = ?",
+        userId,
+      );
+      const out: Knock = { door, treat: fresh ? treat : null, candy, knocked, of: doors.length };
+      const done = new Set(knocked);
+      if (!fresh || doors.length === 0 || !doors.every((d) => done.has(d))) return out;
+      const [king] = await all(
+        tx,
+        `INSERT INTO sugar_kings (year, user_id, day, at) VALUES (?, ?, ?, ?)
        ON CONFLICT DO NOTHING RETURNING year`,
-      worldWall(now).y,
-      userId,
-      day,
-      now,
-    );
-    if (!king) return out;
-    await giveItem(tx, userId, CANDY_BUCKET, now);
-    return { ...out, king: true };
-  });
+        worldWall(now).y,
+        userId,
+        day,
+        now,
+      );
+      if (!king) return out;
+      await giveItem(tx, userId, CANDY_BUCKET, now);
+      return { ...out, king: true };
+    },
+    { name: "halloween-knock" },
+  );
 }
 
 /** Halloweens `userId` was sugar king: the badge's fact. */

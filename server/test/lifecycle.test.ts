@@ -2,8 +2,9 @@ import { expect, jest, spyOn, test } from "bun:test";
 import { RivetError } from "rivetkit";
 import type { Client } from "rivetkit/client";
 import type { registry } from "../src/actors/registry.ts";
-import { authenticate, serial, waitForTick } from "../src/actors/shared.ts";
+import { authenticate, serial, type TxSql, waitForTick } from "../src/actors/shared.ts";
 import { eventually } from "./eventually.ts";
+import { connOf, unsaved } from "./fake-actor.ts";
 
 test("shutdown cancels a pending tick before it can touch actor state", async () => {
   const controller = new AbortController();
@@ -113,13 +114,14 @@ test("a match saved as over but never finished still pays out when it wakes", as
     forfeited: [],
   };
   const ctx = {
-    state,
+    vars: { state, kept: unsaved, callers: new Map(), loop: null as Promise<void> | null },
     conns: new Map(),
     abortSignal: new AbortController().signal,
     client: () => client,
     keepAwake: <T>(p: Promise<T>) => p,
   };
-  await (match.config.run as unknown as (c: typeof ctx) => Promise<void>)(ctx);
+  await match.config.onWake!(ctx as never);
+  await ctx.vars.loop;
   expect(finished).toEqual([{ places: [[1], [2]] }]);
   expect(state.reported).toBe(true);
 });
@@ -137,31 +139,46 @@ test("a database error while the tick sends a snapshot is logged, not fatal", as
     facing: "down",
     state: "idle",
   };
+  // The database closes once the world is awake.
+  let closed = false;
+  const db: TxSql = {
+    execute: async () => {
+      if (closed) throw new Error("SQLite database is closed");
+      return [];
+    },
+    transaction: (fn) => fn(db),
+  };
+  const town = { seed: async () => ({ companies: [], players: [], offices: {}, drops: [] }) };
+  const actor = {
+    getOrCreate: () => ({ ...town, pokerRelease: async () => 0, rouletteRefund: async () => 0 }),
+  };
+  const vars = await (world.config as unknown as { createVars: (c: object) => Promise<object> }).createVars({
+    db,
+  });
   // Online and just changed room: the next tick sends a snapshot, which reads the chat.
   const ctx = {
-    state: { seeded: true, players: { 1: p }, companies: {} },
     vars: {
-      ...(world.config as unknown as { createVars: () => object }).createVars(),
+      ...vars,
+      state: { seeded: true, players: { 1: p }, companies: {} },
       online: new Map([[1, 1]]),
       dirty: new Set([1]),
+      loop: null as Promise<void> | null,
     },
-    db: {
-      execute: async () => {
-        throw new Error("SQLite database is closed");
-      },
-    },
+    db,
     conns: new Map(),
+    client: () => ({ town: actor, world: actor, arcade: actor }),
     broadcast: () => {},
     abortSignal: controller.signal,
   };
-  const running = (world.config.run as unknown as (c: typeof ctx) => Promise<void>)(ctx);
+  await world.config.onWake!(ctx as never);
+  closed = true;
   try {
     await eventually(() =>
       expect(warn).toHaveBeenCalledWith("[world] snapshot for 1: Error: SQLite database is closed"),
     );
   } finally {
     controller.abort();
-    await running;
+    await ctx.vars.loop;
     warn.mockRestore();
   }
 });
@@ -186,30 +203,35 @@ test("a refund failing in the arcade's sweep doesn't stop the next sweep", async
   const table = { id: 1, game: "spr", host: 1, stake: 10, seats: 2, split: "all", open: true, options: {} };
   const sweeps = sweeper();
   const ctx = {
-    state: {
-      nextId: 2,
-      tables: { 1: { ...table, seated: [1], invited: [], createdAt: Date.now() - 11 * 60_000 } },
-      matches: {},
-      names: {},
+    vars: {
+      state: {
+        nextId: 2,
+        tables: { 1: { ...table, seated: [1], invited: [], createdAt: Date.now() - 11 * 60_000 } },
+        matches: {},
+        names: {},
+      },
+      kept: unsaved,
+      callers: new Map(),
+      loop: null as Promise<void> | null,
+      serial: serial(),
     },
-    vars: { serial: serial() },
     conns: new Map(),
     abortSignal: controller.signal,
     client: () => client,
     keepAwake: sweeps.keepAwake,
   };
   jest.useFakeTimers();
-  const running = (arcade.config.run as unknown as (c: typeof ctx) => Promise<void>)(ctx);
+  arcade.config.onWake!(ctx as never);
   try {
     await sweeps.next(); // a sweep a second
     await sweeps.next();
     expect(refunds).toBe(2);
-    expect(ctx.state.tables).toBeEmptyObject();
+    expect(ctx.vars.state.tables).toBeEmptyObject();
     expect(warn).toHaveBeenCalledWith("[arcade] sweep: Error: town is down");
   } finally {
     controller.abort();
     jest.useRealTimers();
-    await running;
+    await ctx.vars.loop;
     warn.mockRestore();
   }
 });
@@ -253,10 +275,16 @@ async function arcadeWith(matches: Record<string, object>) {
   } as unknown as Client<typeof registry>;
   const controller = new AbortController();
   const sweeps = sweeper();
+  const inside = connOf({ kind: "internal" });
   const ctx = {
-    state: { nextId: 10, tables: {}, matches, names: {} },
-    vars: { serial: serial() },
-    conn: { state: { kind: "internal" } },
+    vars: {
+      state: { nextId: 10, tables: {}, matches, names: {} },
+      kept: unsaved,
+      callers: inside.callers,
+      loop: null as Promise<void> | null,
+      serial: serial(),
+    },
+    conn: inside.conn,
     conns: new Map(),
     abortSignal: controller.signal,
     client: () => client,
@@ -272,13 +300,13 @@ async function arcadeWith(matches: Record<string, object>) {
     /** One sweep. */
     sweep: async () => {
       jest.useFakeTimers();
-      const running = (arcade.config.run as unknown as (c: typeof ctx) => Promise<void>)(ctx);
+      arcade.config.onWake!(ctx as never);
       try {
         await sweeps.next();
       } finally {
         controller.abort();
         jest.useRealTimers();
-        await running;
+        await ctx.vars.loop;
       }
       return calls;
     },

@@ -44,6 +44,9 @@ describe("what the gateway lets through", () => {
     expect(allowed(q("get", "nope", "1"))).toBe(false);
     expect(allowed("/actors")).toBe(false);
     expect(allowed("/gateway/abc123actorid/connect?rvt-key=x")).toBe(false);
+    // RivetKit 3 copies an actor with its data (a fork): the engine's own API, not the gateway's.
+    expect(allowed("/actors/abc123actorid/fork")).toBe(false);
+    expect(allowed(q("fork", "town", "main"))).toBe(false);
   });
 });
 

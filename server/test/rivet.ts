@@ -113,6 +113,9 @@ async function start(attempts = 5): Promise<string> {
         ANTHROPIC_API_KEY: "",
         // Green hours pay coins: the live grid would move balances the tests count.
         GRID_FEED: "off",
+        // While Claude's or OpenAI's status page reports an incident the bots sit at a picnic: a test of
+        // what bots do would pass or fail with the real world.
+        PICNIC_OUTAGE: "off",
         ADMIN_TOKEN,
         // Most tests buy from wherever they stand; the shop rule is tested with `strictShops`.
         SHOPS_ANYWHERE: "1",

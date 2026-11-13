@@ -20,12 +20,16 @@ import type { Battle } from "@tokenmaxxing/core/protocol.ts";
 import { isRecord, isString, must, sortBy } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import type { Client } from "rivetkit/client";
+import { db } from "rivetkit/db";
 import { RateLimiter } from "../rate-limit.ts";
+import { KEPT_TABLE, Kept, saveAfterActions } from "./kept.ts";
 import type { registry } from "./registry.ts";
 import {
   authenticate,
-  type Caller,
+  background,
+  type Callers,
   type ConnParams,
+  callerOf,
   INTERNAL_KEY,
   main,
   matchOf,
@@ -119,29 +123,59 @@ const betsRef = (id: number) => `bets:${id}`;
 
 export const arcade = actor({
   onCreate: (c) => requireMain(c),
-  state: { nextId: 1, tables: {}, matches: {}, names: {} } as ArcadeState,
-  createVars: () => ({
-    serial: serial(),
-    invites: new RateLimiter(INVITES_PER_MIN, 60_000),
-  }),
-  createConnState: (c, params: ConnParams): Promise<Caller> => authenticate(params, c.client()),
-  run: async (c): Promise<void> => {
+  db: db({ onMigrate: (d) => d.execute(KEPT_TABLE).then(() => {}) }),
+  createVars: async (c) => {
+    const kept = await Kept.load<ArcadeState>(c.db, [], () => ({
+      nextId: 1,
+      tables: {},
+      matches: {},
+      names: {},
+    }));
+    return {
+      /** Every table and match: saved after every action and every sweep. */
+      state: kept.value,
+      kept,
+      callers: new Map() as Callers,
+      loop: null as Promise<void> | null,
+      serial: serial(),
+      invites: new RateLimiter(INVITES_PER_MIN, 60_000),
+    };
+  },
+  onConnect: async (c, conn) => {
+    c.vars.callers.set(conn.id, await authenticate(conn.params as ConnParams | undefined, c.client()));
+  },
+  onDisconnect: (c, conn) => {
+    c.vars.callers.delete(conn.id);
+  },
+  onWake: (c) => {
     const signal = c.abortSignal;
     const run = c.vars.serial;
-    while (await waitForTick(signal, SWEEP_MS)) {
-      // A failed sweep (a refund while `town` is down) is retried next time, not the end of the loop.
-      await c
-        .keepAwake(run(() => (signal.aborted ? Promise.resolve() : sweep(c, Date.now()))))
-        .catch((err) => console.warn(`[arcade] sweep: ${String(err)}`));
-    }
+    c.vars.loop = background("arcade", async () => {
+      while (await waitForTick(signal, SWEEP_MS)) {
+        // A failed sweep (a refund while `town` is down) is retried next time, not the end of the loop.
+        await c
+          .keepAwake(
+            run(async () => {
+              if (signal.aborted) return;
+              await sweep(c, Date.now());
+              await c.vars.kept.save();
+            }),
+          )
+          .catch((err) => console.warn(`[arcade] sweep: ${String(err)}`));
+      }
+    });
+  },
+  onSleep: async (c) => {
+    await c.vars.loop;
+    await c.vars.kept.save();
   },
   actions: {
-    lobby: (c): Lobby => lobbyFor(c.state, requireUser(c.conn.state)),
+    lobby: (c): Lobby => lobbyFor(c.vars.state, requireUser(callerOf(c))),
 
     /** Opens a table: you take the first seat, and your invites go out. */
     open: (c, rawGame: unknown, raw: unknown): Promise<Lobby> =>
       c.vars.serial(async () => {
-        const userId = requireUser(c.conn.state);
+        const userId = requireUser(callerOf(c));
         const game = gameOf(rawGame);
         if (!game) throw new UserError("That game doesn't exist.", { code: "not_found" });
         const o: Record<string, unknown> = isRecord(raw) ? raw : {};
@@ -156,8 +190,8 @@ export const arcade = actor({
             code: "invalid_seats",
           });
         const split = typeof o.split === "string" && o.split in SPLITS ? (o.split as Split) : "all";
-        busy(c.state, userId);
-        const id = c.state.nextId++;
+        busy(c.vars.state, userId);
+        const id = c.vars.state.nextId++;
         const table: Table = {
           id,
           game: game.id,
@@ -172,16 +206,16 @@ export const arcade = actor({
           createdAt: Date.now(),
         };
         await seat(c, table, userId, table.stake);
-        c.state.tables[id] = table;
+        c.vars.state.tables[id] = table;
         await addInvites(c, table, await resolve(c, o.invite));
         push(c);
-        return lobbyFor(c.state, userId);
+        return lobbyFor(c.vars.state, userId);
       }),
 
     invite: (c, tableId: unknown, userIds: unknown): Promise<void> =>
       c.vars.serial(async () => {
-        const userId = requireUser(c.conn.state);
-        const table = hostedTable(c.state, userId, tableId);
+        const userId = requireUser(callerOf(c));
+        const table = hostedTable(c.vars.state, userId, tableId);
         await addInvites(c, table, await resolve(c, userIds));
         push(c);
       }),
@@ -189,8 +223,8 @@ export const arcade = actor({
     /** Yes, no, or "yes, but for this stake". */
     answer: (c, tableId: unknown, reply: unknown): Promise<void> =>
       c.vars.serial(async () => {
-        const userId = requireUser(c.conn.state);
-        const table = tableOf(c.state, tableId);
+        const userId = requireUser(callerOf(c));
+        const table = tableOf(c.vars.state, tableId);
         const invite = table.invited.find((i) => i.userId === userId);
         if (!invite) throw new UserError("That invite is gone.", { code: "not_found" });
         const counter = (reply as { counter?: unknown } | null)?.counter;
@@ -200,16 +234,16 @@ export const arcade = actor({
           throw new UserError("Give it a minute.", { code: "rate_limited" });
         if (reply === false) {
           table.invited = table.invited.filter((i) => i !== invite);
-          await tell(client, table.host, `${nameOf(c.state, userId)} said no to ${gameName(table)}.`);
+          await tell(client, table.host, `${nameOf(c.vars.state, userId)} said no to ${gameName(table)}.`);
         } else if (counter !== undefined) {
           invite.counter = parseStake(counter);
           await tell(
             client,
             table.host,
-            `${nameOf(c.state, userId)} would play ${gameName(table)} for 🪙 ${counter} instead.`,
+            `${nameOf(c.vars.state, userId)} would play ${gameName(table)} for 🪙 ${counter} instead.`,
           );
         } else {
-          busy(c.state, userId);
+          busy(c.vars.state, userId);
           if (table.seated.length >= table.seats)
             throw new UserError("That table just filled.", { code: "full" });
           await seat(c, table, userId, table.stake);
@@ -222,14 +256,14 @@ export const arcade = actor({
     /** The host takes a counter offer: the table is re-priced and they sit down. */
     takeCounter: (c, tableId: unknown, invitee: unknown): Promise<void> =>
       c.vars.serial(async () => {
-        const userId = requireUser(c.conn.state);
-        const table = hostedTable(c.state, userId, tableId);
+        const userId = requireUser(callerOf(c));
+        const table = hostedTable(c.vars.state, userId, tableId);
         const invite = table.invited.find((i) => i.userId === invitee);
         if (!invite || invite.counter === null)
           throw new UserError("There's no counter offer.", { code: "not_found" });
         if (table.seated.length !== 1)
           throw new UserError("Someone else already sat down at the old stake.", { code: "taken" });
-        busy(c.state, invite.userId);
+        busy(c.vars.state, invite.userId);
         const town = main(c.client()).town;
         const ref = tableRef(table.id);
         const old = table.stake;
@@ -253,12 +287,12 @@ export const arcade = actor({
     /** Takes a free seat at an open table. */
     join: (c, tableId: unknown): Promise<void> =>
       c.vars.serial(async () => {
-        const userId = requireUser(c.conn.state);
-        const table = tableOf(c.state, tableId);
+        const userId = requireUser(callerOf(c));
+        const table = tableOf(c.vars.state, tableId);
         const invited = table.invited.some((i) => i.userId === userId);
         if (!table.open && !invited) throw new UserError("That table is invite only.", { code: "private" });
         if (table.seated.includes(userId)) return;
-        busy(c.state, userId);
+        busy(c.vars.state, userId);
         if (table.seated.length >= table.seats)
           throw new UserError("That table just filled.", { code: "full" });
         await seat(c, table, userId, table.stake);
@@ -270,10 +304,11 @@ export const arcade = actor({
     /** Gets up and takes your stake back. The host leaving closes the table. */
     leave: (c, tableId: unknown): Promise<void> =>
       c.vars.serial(async () => {
-        const userId = requireUser(c.conn.state);
-        const table = tableOf(c.state, tableId);
+        const userId = requireUser(callerOf(c));
+        const table = tableOf(c.vars.state, tableId);
         if (!table.seated.includes(userId)) return;
-        if (userId === table.host) await closeTable(c, table, `${nameOf(c.state, userId)} closed the table.`);
+        if (userId === table.host)
+          await closeTable(c, table, `${nameOf(c.vars.state, userId)} closed the table.`);
         else {
           await main(c.client()).town.refund(tableRef(table.id), [userId]);
           table.seated = table.seated.filter((id) => id !== userId);
@@ -283,8 +318,8 @@ export const arcade = actor({
 
     start: (c, tableId: unknown): Promise<void> =>
       c.vars.serial(async () => {
-        const userId = requireUser(c.conn.state);
-        const table = hostedTable(c.state, userId, tableId);
+        const userId = requireUser(callerOf(c));
+        const table = hostedTable(c.vars.state, userId, tableId);
         const min = GAMES[table.game]!.players.min;
         if (table.seated.length < min)
           throw new UserError(`${gameName(table)} needs at least ${min} players.`, { code: "too_few" });
@@ -295,8 +330,8 @@ export const arcade = actor({
     /** One side bet on one player of a match you're not in, while bets are open. */
     bet: (c, matchId: unknown, on: unknown, amount: unknown): Promise<void> =>
       c.vars.serial(async () => {
-        const userId = requireUser(c.conn.state);
-        const live = c.state.matches[String(matchId)];
+        const userId = requireUser(callerOf(c));
+        const live = c.vars.state.matches[String(matchId)];
         if (!live || live.outcome) throw new UserError("That game is over.", { code: "over" });
         if (Date.now() >= live.betsCloseAt) throw new UserError("Bets are closed.", { code: "closed" });
         if (live.players.includes(userId))
@@ -318,8 +353,8 @@ export const arcade = actor({
     /** Double or nothing after a 1v1: when both ask, the new game starts at once. */
     rematch: (c, matchId: unknown): Promise<void> =>
       c.vars.serial(async () => {
-        const userId = requireUser(c.conn.state);
-        const live = c.state.matches[String(matchId)];
+        const userId = requireUser(callerOf(c));
+        const live = c.vars.state.matches[String(matchId)];
         if (!live?.outcome || !live.endedAt || live.players.length !== 2 || !live.players.includes(userId))
           throw new UserError("There's no rematch to ask for.", { code: "not_found" });
         if (Date.now() > live.endedAt + REMATCH_MS)
@@ -328,13 +363,13 @@ export const arcade = actor({
         const other = live.players.find((p) => p !== userId)!;
         const client = c.client();
         if (live.rematch.length < 2) {
-          await tell(client, other, `${nameOf(c.state, userId)} wants double or nothing.`);
+          await tell(client, other, `${nameOf(c.vars.state, userId)} wants double or nothing.`);
           push(c);
           return;
         }
         live.rematch = [];
-        for (const p of live.players) busy(c.state, p);
-        const id = c.state.nextId++;
+        for (const p of live.players) busy(c.vars.state, p);
+        const id = c.vars.state.nextId++;
         const table: Table = {
           id,
           game: live.game,
@@ -367,8 +402,8 @@ export const arcade = actor({
 
     /** For the app after each sync: the battle (Tokenmaxxing) I'm in and where I stand, or null. */
     battle: (c): Promise<Battle | null> => {
-      const userId = requireSyncer(c.conn.state);
-      const live = usageMatch(c.state, userId);
+      const userId = requireSyncer(callerOf(c));
+      const live = usageMatch(c.vars.state, userId);
       return live ? matchOf(c.client(), live.id).standing(userId) : Promise.resolve(null);
     },
 
@@ -376,22 +411,22 @@ export const arcade = actor({
 
     /** A player synced: the usage game they're in pulls their new score. */
     usage: (c, userId: number): Promise<Battle | null> => {
-      requireInternal(c.conn.state);
-      const live = usageMatch(c.state, userId);
+      requireInternal(callerOf(c));
+      const live = usageMatch(c.vars.state, userId);
       return live ? matchOf(c.client(), live.id).usage(userId) : Promise.resolve(null);
     },
 
     /** A held game's match moved on: it hasn't stopped. */
     moved: (c, matchId: number): void => {
-      requireInternal(c.conn.state);
-      const live = c.state.matches[String(matchId)];
+      requireInternal(callerOf(c));
+      const live = c.vars.state.matches[String(matchId)];
       if (live && !live.outcome) live.movedAt = Date.now();
     },
 
     finished: (c, matchId: number, outcome: Outcome): Promise<void> =>
       c.vars.serial(async () => {
-        requireInternal(c.conn.state);
-        const live = c.state.matches[String(matchId)];
+        requireInternal(callerOf(c));
+        const live = c.vars.state.matches[String(matchId)];
         if (!live) return forgotten(c, matchId);
         if (live.outcome) return;
         // A payout that keeps failing (the match retries) isn't a stopped game to refund.
@@ -402,12 +437,13 @@ export const arcade = actor({
   },
 });
 
-// MARK: Helpers (plain functions over state, like `world`)
+saveAfterActions(arcade);
+
+// MARK: Helpers (plain functions over what the arcade keeps, like `world`)
 
 type ArcadeCtx = {
-  state: ArcadeState;
-  vars: { invites: RateLimiter };
-  conns: Map<string, { state: unknown; send(name: string, ...args: unknown[]): void }>;
+  vars: { state: ArcadeState; invites: RateLimiter; callers: Callers };
+  conns: Map<string, { send(name: string, ...args: unknown[]): void }>;
   client(): Client<typeof registry>;
 };
 
@@ -446,7 +482,7 @@ function busy(s: ArcadeState, userId: number): void {
 async function learnNames(c: ArcadeCtx, userIds: number[]): Promise<void> {
   if (userIds.length === 0) return;
   const names = await main(c.client()).town.names(userIds);
-  for (const [id, name] of Object.entries(names)) c.state.names[id] = name;
+  for (const [id, name] of Object.entries(names)) c.vars.state.names[id] = name;
 }
 
 /** People to invite, given as user ids or names. */
@@ -472,7 +508,7 @@ async function addInvites(c: ArcadeCtx, table: Table, userIds: number[]): Promis
   const now = Date.now();
   const client = c.client();
   for (const userId of userIds) {
-    if (!(userId in c.state.names) || table.seated.includes(userId)) continue;
+    if (!(userId in c.vars.state.names) || table.seated.includes(userId)) continue;
     if (table.invited.length + table.seated.length >= table.seats) break;
     if (!c.vars.invites.take(String(table.host), now)) {
       await tell(client, table.host, "That's a lot of invites: the rest didn't go out. Give it a minute.");
@@ -485,7 +521,7 @@ async function addInvites(c: ArcadeCtx, table: Table, userIds: number[]): Promis
     await tell(
       client,
       userId,
-      `${nameOf(c.state, table.host)} invites you to ${gameName(table)} · 🪙 ${table.stake}.`,
+      `${nameOf(c.vars.state, table.host)} invites you to ${gameName(table)} · 🪙 ${table.stake}.`,
     );
   }
 }
@@ -497,7 +533,7 @@ async function startIfFull(c: ArcadeCtx, table: Table): Promise<void> {
 async function startMatch(c: ArcadeCtx, table: Table): Promise<void> {
   const client = c.client();
   const game = GAMES[table.game]!;
-  const players = table.seated.map((userId) => ({ userId, name: nameOf(c.state, userId) }));
+  const players = table.seated.map((userId) => ({ userId, name: nameOf(c.vars.state, userId) }));
   const split = effectiveSplit(table.split, players.length);
   await client.match.create([String(table.id)], {
     input: {
@@ -512,8 +548,8 @@ async function startMatch(c: ArcadeCtx, table: Table): Promise<void> {
     },
   });
   const info = await matchOf(client, table.id).info();
-  delete c.state.tables[String(table.id)];
-  c.state.matches[String(table.id)] = {
+  delete c.vars.state.tables[String(table.id)];
+  c.vars.state.matches[String(table.id)] = {
     id: table.id,
     game: table.game,
     players: table.seated,
@@ -570,11 +606,11 @@ async function settle(c: ArcadeCtx, live: Live, outcome: Outcome): Promise<void>
         group.map((userId) => ({ userId, place: i + 1, won: shares.get(userId) ?? 0 })),
       ),
     );
-    const names = winners.map((id) => nameOf(c.state, id)).join(" & ");
+    const names = winners.map((id) => nameOf(c.vars.state, id)).join(" & ");
     line = pot > 0 ? `${names} won 🪙 ${pot} at ${gameName(live)}!` : `${names} won ${gameName(live)}!`;
     if (pot >= BIG_POT) line = `💰 Big pot! ${line}`;
     for (const [userId, amount] of side.refund ? [] : side.shares)
-      line += ` ${nameOf(c.state, userId)} won 🪙 ${amount} backing ${names}.`;
+      line += ` ${nameOf(c.vars.state, userId)} won 🪙 ${amount} backing ${names}.`;
   }
   live.outcome = outcome;
   live.endedAt = Date.now();
@@ -613,7 +649,7 @@ async function forgotten(c: ArcadeCtx, id: number): Promise<void> {
 async function closeTable(c: ArcadeCtx, table: Table, why: string): Promise<void> {
   const client = c.client();
   await main(client).town.refund(tableRef(table.id));
-  delete c.state.tables[String(table.id)];
+  delete c.vars.state.tables[String(table.id)];
   for (const userId of [...table.seated, ...table.invited.map((i) => i.userId)])
     if (userId !== table.host) await tell(client, userId, why);
 }
@@ -621,7 +657,7 @@ async function closeTable(c: ArcadeCtx, table: Table, why: string): Promise<void
 /** Once a second: invites and tables that ran out, and finished matches that can go. */
 async function sweep(c: ArcadeCtx, now: number): Promise<void> {
   let changed = false;
-  for (const table of Object.values(c.state.tables)) {
+  for (const table of Object.values(c.vars.state.tables)) {
     const before = table.invited.length;
     table.invited = table.invited.filter((i) => i.expiresAt > now);
     if (table.invited.length !== before) changed = true;
@@ -631,7 +667,7 @@ async function sweep(c: ArcadeCtx, now: number): Promise<void> {
       changed = true;
     }
   }
-  for (const live of Object.values(c.state.matches)) {
+  for (const live of Object.values(c.vars.state.matches)) {
     if (!live.outcome && (now - live.startedAt > stuckAfter(live.game) || stopped(live, now))) {
       await settle(c, live, { void: `${gameName(live)} got stuck and was called off.` }).catch((err) =>
         console.warn(`[arcade] voiding match ${live.id}: ${String(err)}`),
@@ -640,7 +676,7 @@ async function sweep(c: ArcadeCtx, now: number): Promise<void> {
     }
     if (live.outcome && !live.released) await release(c, live);
     if (live.endedAt && now - live.endedAt > KEEP_MS && live.released) {
-      delete c.state.matches[String(live.id)];
+      delete c.vars.state.matches[String(live.id)];
       await matchOf(c.client(), live.id)
         .close()
         .catch(() => {}); // already gone
@@ -650,10 +686,11 @@ async function sweep(c: ArcadeCtx, now: number): Promise<void> {
   if (changed) {
     // Only names still in use are kept.
     const inUse = new Set([
-      ...Object.values(c.state.tables).flatMap((t) => [...t.seated, ...t.invited.map((i) => i.userId)]),
-      ...Object.values(c.state.matches).flatMap((m) => [...m.players, ...m.bets.map((b) => b.userId)]),
+      ...Object.values(c.vars.state.tables).flatMap((t) => [...t.seated, ...t.invited.map((i) => i.userId)]),
+      ...Object.values(c.vars.state.matches).flatMap((m) => [...m.players, ...m.bets.map((b) => b.userId)]),
     ]);
-    for (const id of Object.keys(c.state.names)) if (!inUse.has(Number(id))) delete c.state.names[id];
+    for (const id of Object.keys(c.vars.state.names))
+      if (!inUse.has(Number(id))) delete c.vars.state.names[id];
     push(c);
   }
 }
@@ -724,14 +761,13 @@ function lobbyFor(s: ArcadeState, userId: number, views = shared(s)): Lobby {
  * the same for everyone is built once, and each player's once however many tabs they have.
  */
 function push(c: ArcadeCtx): void {
-  const views = shared(c.state);
+  const views = shared(c.vars.state);
   const lobbies = new Map<number, Lobby>();
-  for (const conn of c.conns.values()) {
-    const caller = conn.state as Caller;
+  for (const [id, caller] of c.vars.callers) {
     if (caller.kind !== "user") continue;
-    const lobby = lobbies.get(caller.userId) ?? lobbyFor(c.state, caller.userId, views);
+    const lobby = lobbies.get(caller.userId) ?? lobbyFor(c.vars.state, caller.userId, views);
     lobbies.set(caller.userId, lobby);
-    conn.send("lobby", lobby);
+    c.conns.get(id)?.send("lobby", lobby);
   }
 }
 

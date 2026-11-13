@@ -664,30 +664,35 @@ export async function checkTrade(sql: Sql, t: Trade, now: number, kept?: Kept): 
  * `not_owned` when something changed since the offer, and `not_found` when it's gone.
  */
 export async function settleTrade(sql: TxSql, t: Trade, now: number, kept?: Kept): Promise<void> {
-  await sql.transaction(async (tx) => {
-    await checkTrade(tx, t, now, kept);
-    // The offer goes with it, so it can't be settled twice; withdrawn or replaced meanwhile, it's gone.
-    if (!(await one(tx, "DELETE FROM trades WHERE from_id = ? AND at = ? RETURNING from_id", t.fromId, t.at)))
-      throw new UserError("That offer is gone.", { code: "not_found" });
-    const ref = `trade:${t.fromId}:${t.at}`;
-    const entry = (userId: number, amount: number) => ledgerAdd(tx, userId, amount, "trade", ref, now);
-    for (const d of directions(t)) {
-      if (d.side.coins > 0) {
-        await entry(d.giverId, -d.side.coins);
-        await entry(d.receiverId, d.side.coins);
-      }
-      if (d.side.items.length === 0) continue;
-      for (const id of d.side.items)
-        await tx.execute(
-          `UPDATE items SET owner_id = ? WHERE id =
+  await sql.transaction(
+    async (tx) => {
+      await checkTrade(tx, t, now, kept);
+      // The offer goes with it, so it can't be settled twice; withdrawn or replaced meanwhile, it's gone.
+      if (
+        !(await one(tx, "DELETE FROM trades WHERE from_id = ? AND at = ? RETURNING from_id", t.fromId, t.at))
+      )
+        throw new UserError("That offer is gone.", { code: "not_found" });
+      const ref = `trade:${t.fromId}:${t.at}`;
+      const entry = (userId: number, amount: number) => ledgerAdd(tx, userId, amount, "trade", ref, now);
+      for (const d of directions(t)) {
+        if (d.side.coins > 0) {
+          await entry(d.giverId, -d.side.coins);
+          await entry(d.receiverId, d.side.coins);
+        }
+        if (d.side.items.length === 0) continue;
+        for (const id of d.side.items)
+          await tx.execute(
+            `UPDATE items SET owner_id = ? WHERE id =
              (SELECT id FROM items WHERE owner_id = ? AND item = ? ORDER BY id DESC LIMIT 1)`,
-          d.receiverId,
-          d.giverId,
-          id,
-        );
-      await unwear(tx, d.giverId, d.side.items);
-    }
-  });
+            d.receiverId,
+            d.giverId,
+            id,
+          );
+        await unwear(tx, d.giverId, d.side.items);
+      }
+    },
+    { name: "trade-settle" },
+  );
 }
 
 /**

@@ -46,21 +46,24 @@ export async function pokerLoss(sql: Sql, userId: number, now: number): Promise<
  * hit the day's loss limit or can't cover it. Run it serialized with every other coin write.
  */
 export async function pokerSit(sql: TxSql, userId: number, now: number, kept?: Kept): Promise<void> {
-  await sql.transaction(async (tx) => {
-    if (await one(tx, "SELECT 1 FROM poker_seats WHERE user_id = ?", userId))
-      throw new UserError("You're at the poker table already.", { code: "seated" });
-    const loss = await pokerLoss(tx, userId, now);
-    if (loss + BUY_IN > DAILY_LOSS_CAP)
-      throw new UserError(
-        `The Tavern calls it a night: you're down 🪙 ${loss} at poker today, and 🪙 ${DAILY_LOSS_CAP} is the limit. Back tomorrow.`,
-        { code: "loss_limit" },
-      );
-    const { balance } = await wallet(tx, userId, now, kept);
-    if (balance < BUY_IN)
-      throw new UserError(`A seat costs 🪙 ${BUY_IN}, and you have 🪙 ${balance}.`, { code: "too_poor" });
-    await ledgerAdd(tx, userId, -BUY_IN, "poker", POKER_REF, now);
-    await tx.execute("INSERT INTO poker_seats (user_id, stack, at) VALUES (?, ?, ?)", userId, BUY_IN, now);
-  });
+  await sql.transaction(
+    async (tx) => {
+      if (await one(tx, "SELECT 1 FROM poker_seats WHERE user_id = ?", userId))
+        throw new UserError("You're at the poker table already.", { code: "seated" });
+      const loss = await pokerLoss(tx, userId, now);
+      if (loss + BUY_IN > DAILY_LOSS_CAP)
+        throw new UserError(
+          `The Tavern calls it a night: you're down 🪙 ${loss} at poker today, and 🪙 ${DAILY_LOSS_CAP} is the limit. Back tomorrow.`,
+          { code: "loss_limit" },
+        );
+      const { balance } = await wallet(tx, userId, now, kept);
+      if (balance < BUY_IN)
+        throw new UserError(`A seat costs 🪙 ${BUY_IN}, and you have 🪙 ${balance}.`, { code: "too_poor" });
+      await ledgerAdd(tx, userId, -BUY_IN, "poker", POKER_REF, now);
+      await tx.execute("INSERT INTO poker_seats (user_id, stack, at) VALUES (?, ?, ?)", userId, BUY_IN, now);
+    },
+    { name: "poker-sit" },
+  );
 }
 
 const sumOf = (rows: { stack: number }[]): number => rows.reduce((n, r) => n + r.stack, 0);
@@ -71,30 +74,33 @@ const sumOf = (rows: { stack: number }[]): number => rows.reduce((n, r) => n + r
  * the table made or lost are a bug, not something to write down.
  */
 export async function pokerSettle(sql: TxSql, s: PokerSettle, now: number): Promise<void> {
-  await sql.transaction(async (tx) => {
-    const ids = [...s.stacks, ...s.out].map((e) => e.userId);
-    const rows = await all<{ userId: number; stack: number }>(
-      tx,
-      "SELECT user_id AS userId, stack FROM poker_seats WHERE user_id IN (SELECT value FROM json_each(?))",
-      JSON.stringify(ids),
-    );
-    const has = new Set(rows.map((r) => r.userId));
-    const out = s.out.filter((e) => has.has(e.userId));
-    for (const e of s.stacks)
-      if (!has.has(e.userId)) throw new Error(`poker: ${e.userId} is not seated, but has a stack`);
-    if (sumOf(rows) !== sumOf(s.stacks) + sumOf(out))
-      throw new Error(
-        `poker: stacks add up to ${sumOf(s.stacks) + sumOf(out)}, the rows held ${sumOf(rows)}`,
+  await sql.transaction(
+    async (tx) => {
+      const ids = [...s.stacks, ...s.out].map((e) => e.userId);
+      const rows = await all<{ userId: number; stack: number }>(
+        tx,
+        "SELECT user_id AS userId, stack FROM poker_seats WHERE user_id IN (SELECT value FROM json_each(?))",
+        JSON.stringify(ids),
       );
-    for (const e of s.stacks)
-      await tx.execute("UPDATE poker_seats SET stack = ? WHERE user_id = ?", e.stack, e.userId);
-    for (const e of out) {
-      if (e.stack > 0) await ledgerAdd(tx, e.userId, e.stack, "poker", POKER_REF, now);
-      await tx.execute("DELETE FROM poker_seats WHERE user_id = ?", e.userId);
-      // A seat is a game played: one where nothing changed hands (sat down, stood up) doesn't count.
-      if (e.stack !== BUY_IN) await recordSession(tx, e.userId, e.stack, now);
-    }
-  });
+      const has = new Set(rows.map((r) => r.userId));
+      const out = s.out.filter((e) => has.has(e.userId));
+      for (const e of s.stacks)
+        if (!has.has(e.userId)) throw new Error(`poker: ${e.userId} is not seated, but has a stack`);
+      if (sumOf(rows) !== sumOf(s.stacks) + sumOf(out))
+        throw new Error(
+          `poker: stacks add up to ${sumOf(s.stacks) + sumOf(out)}, the rows held ${sumOf(rows)}`,
+        );
+      for (const e of s.stacks)
+        await tx.execute("UPDATE poker_seats SET stack = ? WHERE user_id = ?", e.stack, e.userId);
+      for (const e of out) {
+        if (e.stack > 0) await ledgerAdd(tx, e.userId, e.stack, "poker", POKER_REF, now);
+        await tx.execute("DELETE FROM poker_seats WHERE user_id = ?", e.userId);
+        // A seat is a game played: one where nothing changed hands (sat down, stood up) doesn't count.
+        if (e.stack !== BUY_IN) await recordSession(tx, e.userId, e.stack, now);
+      }
+    },
+    { name: "poker-settle" },
+  );
 }
 
 /** One seat as a game in `match_players`: the buy-in is the stake, the stack stood up with is what was won. */
