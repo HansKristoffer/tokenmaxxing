@@ -8,9 +8,7 @@
  * row's JSON with what it last wrote. That costs a `JSON.stringify` of the object for every save, and
  * nothing that changes the object has to say so.
  *
- * So the object holds only what JSON does: no `Infinity`, `Map`, `Date` or bigint (`unkeepable`).
- *
- * No RivetKit in here: `migrate/export.ts` runs on RivetKit 2 and writes these rows too.
+ * So the object holds only what JSON does: no `Infinity`, `Map`, `Date` or bigint.
  */
 import type { Sql, TxSql } from "./shared.ts";
 
@@ -18,14 +16,11 @@ import type { Sql, TxSql } from "./shared.ts";
 export const KEPT_TABLE =
   "CREATE TABLE IF NOT EXISTS kept (name TEXT PRIMARY KEY, json TEXT NOT NULL) WITHOUT ROWID";
 
-/** The keys each actor keeps a row per entry for, by actor name. */
-export const KEPT_BY_ENTRY: Record<string, readonly string[]> = { world: ["players"] };
-
 /** Rows in one statement: two parameters each, far under SQLite's limit. */
 const BATCH = 200;
 
 /** `value` as rows, by name. A key or an entry that is `undefined` has no row, as JSON has no `undefined`. */
-export function keptRows(value: object, byEntry: readonly string[] = []): Map<string, string> {
+function keptRows(value: object, byEntry: readonly string[] = []): Map<string, string> {
   const rows = new Map<string, string>();
   for (const [key, v] of Object.entries(value)) {
     if (v === undefined) continue;
@@ -37,32 +32,6 @@ export function keptRows(value: object, byEntry: readonly string[] = []): Map<st
         if (e !== undefined) rows.set(`${key}/${entry}`, JSON.stringify(e));
   }
   return rows;
-}
-
-/**
- * Where `value` holds something JSON would change or drop (`players.4.x`), or null. An `undefined` in an
- * object is fine: read back, the key is missing, which every reader of an optional key already takes. So
- * is `-0`, which comes back as `0`.
- */
-export function unkeepable(value: unknown, path = ""): string | null {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return null;
-  if (typeof value === "number") return Number.isFinite(value) ? null : path;
-  if (typeof value !== "object") return path;
-  if (Array.isArray(value)) {
-    for (const [i, v] of value.entries()) {
-      const bad = v === undefined ? `${path}.${i}` : unkeepable(v, `${path}.${i}`);
-      if (bad !== null) return bad;
-    }
-    return null;
-  }
-  // A `Date`, a `Map`, a typed array: JSON makes something else of each.
-  const proto: unknown = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null) return path;
-  for (const [k, v] of Object.entries(value)) {
-    const bad = v === undefined ? null : unkeepable(v, path ? `${path}.${k}` : k);
-    if (bad !== null) return bad;
-  }
-  return null;
 }
 
 export class Kept<T extends object> {

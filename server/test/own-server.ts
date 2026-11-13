@@ -25,18 +25,18 @@ const canListen = (port: number) => {
     return false;
   }
 };
-/** A free engine port: each engine takes +1 and +10 too, and RivetKit 2's sits 20 above ours while it is read. */
+/** A free engine port: the engine takes +1 and +10 too. */
 export function enginePort(): number {
   for (;;) {
     const port = 10_000 + Math.floor(Math.random() * 20_000);
-    if ([0, 1, 10, 20, 21, 30].every((o) => canListen(port + o))) {
-      ports.push(port, port + 20);
+    if ([0, 1, 10].every((o) => canListen(port + o))) {
+      ports.push(port);
       return port;
     }
   }
 }
 export function scratch(): string {
-  const dir = mkdtempSync(join(tmpdir(), "tokenmaxxing-migrate-"));
+  const dir = mkdtempSync(join(tmpdir(), "tokenmaxxing-restart-"));
   dirs.push(dir);
   return join(dir, "rivet");
 }
@@ -67,19 +67,16 @@ export async function serve(storage: string, engine: number) {
     stderr: "ignore",
   });
   const origin = `http://127.0.0.1:${port}`;
-  let migrating = false;
   for (const end = Date.now() + 120_000; ; await Bun.sleep(100)) {
-    const health = await fetch(`${origin}/health`).then(
-      (r) => (r.ok ? (r.json() as Promise<{ migrating?: boolean }>) : null),
-      () => null,
+    const up = await fetch(`${origin}/health`).then(
+      (r) => r.ok,
+      () => false,
     );
-    migrating ||= health?.migrating === true;
-    if (health && !health.migrating) break;
+    if (up) break;
     if (Date.now() > end || server.exitCode !== null) throw new Error("the server didn't start");
   }
   return {
     client: createClient<typeof Registry>({ endpoint: `${origin}/api/rivet` }),
-    migrating,
     async stop() {
       server.kill("SIGTERM");
       await server.exited;

@@ -72,25 +72,12 @@ The game draws through a `Renderer`; on Medium and up that is a Three.js voxel r
   loopback, and without it each actor call waits ~40 ms on a delayed ACK.
 - `RIVETKIT_STORAGE_PATH`, `RIVET_LOG_LEVEL` and `RIVET__GUARD__TCP_NODELAY` must be real environment
   variables: RivetKit's native side ignores `process.env` changes made at runtime. The Dockerfile and `bun run dev` set them.
-- **A volume from RivetKit 2 is moved on the first start** (`server/src/migrate/`). RivetKit 3's engine keeps
-  its data in a store of its own (`engine/depot` under `RIVETKIT_STORAGE_PATH`) and does not read RivetKit 2's
-  (`engine/db`): started on a volume that only has the old one, it comes up as an empty town. So `main.ts`,
-  before it starts the registry, copies every actor across when it finds the old store and no
-  `engine/migrated-from-v2.json`. `export.ts` runs on RivetKit 2 (the `rivetkit-v2` dependency) with its
-  engine on the old store, `import.ts` on RivetKit 3 with its engine on the new one, and frames go from one to
-  the other through a FIFO. Both register a courier (`courier.ts`) under each actor's name: an actor with no
-  code of ours, so nothing wakes, ticks or migrates while it is read. What moves is every table an actor's
-  code made, rows as SQL literals from SQLite's own `quote`, and its RivetKit 2 state, which arrives as the
-  rows of the `kept` table the actors read now (see _Actors_). A state JSON would change (an `Infinity`, a
-  `Map`) stops the move there, with the old town untouched, rather than waking an actor to something else
-  than it kept. RivetKit's tables (`_rivet_*`) stay behind, and `town` sets its sweep timer again when it
-  wakes. Every table is read back and its digest compared with the one sent. `/health` answers
-  `{ migrating: true }` meanwhile, so
-  Railway doesn't fail a deploy that takes longer than its five minutes; everything else is a 503. Our
-  tables in the old store are never written, and it stays where it is: the previous release still starts on
-  it. A move that fails leaves no new store and the next start begins again; a new store that no move made
-  (both stores, no marker) is never deleted, and the start refuses instead. Delete `server/src/migrate/`,
-  `rivetkit-v2` and the old store once production has moved.
+- **RivetKit 3 does not read RivetKit 2's store.** Its engine keeps its data in `engine/depot` under
+  `RIVETKIT_STORAGE_PATH`, beside RivetKit 2's `engine/db`: started on a volume that only has the old one,
+  it comes up as an empty town. Release 1.20.0 moved the town across on its first start and left
+  `engine/migrated-from-v2.json` beside the old store (#179 has how). The code that moved it is gone, so
+  `main.ts` refuses to start on an old store without that marker. The old store is not read any more, and
+  can be deleted from the volume.
 - Company logos live next to the Rivet data (`/data/logos` in Docker, `.data/logos` in dev).
 - A sync batch is about 300 KB, so `maxIncomingMessageSize` is 1 MB. Shutdown grace is 5 s.
 

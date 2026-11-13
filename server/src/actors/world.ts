@@ -226,7 +226,7 @@ import {
   pinnedWeather,
   WEATHER_EVERY_MS,
 } from "../weather.ts";
-import { KEPT_BY_ENTRY, KEPT_TABLE, Kept } from "./kept.ts";
+import { KEPT_TABLE, Kept } from "./kept.ts";
 import {
   all,
   authenticate,
@@ -419,7 +419,7 @@ const pos = (p: WorldPlayer): PlayerPos => [p.id, p.x, p.y, p.facing, p.state];
 
 export const world = actor({
   createVars: async (c) => {
-    const kept = await Kept.load<WorldState>(c.db, KEPT_BY_ENTRY.world, () => ({
+    const kept = await Kept.load<WorldState>(c.db, ["players"], () => ({
       seeded: false,
       players: {},
       companies: {},

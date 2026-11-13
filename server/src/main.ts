@@ -7,7 +7,6 @@ import { stopEngine } from "./engine.ts";
 import { type Page, pageHeaders } from "./headers.ts";
 import { healthCheck } from "./health.ts";
 import { installScript } from "./install.ts";
-import { migrateFromV2, pending } from "./migrate/from-v2.ts";
 import { rivetProxy } from "./proxy.ts";
 import { diagnose, failureWindow, type ProbeResult, watchdogConfig } from "./watchdog.ts";
 
@@ -25,6 +24,18 @@ const config = loadConfig(process.env, pkg.version);
 // the process starts (Dockerfile, `bun run dev`); assigning process.env here is too late.
 const storage = process.env.RIVETKIT_STORAGE_PATH;
 if (!storage && !config.development) throw new Error("set RIVETKIT_STORAGE_PATH to the data volume");
+// RivetKit 3 keeps its data beside RivetKit 2's (`engine/db`) and does not read it: started on a volume
+// whose town was never moved, it would come up as an empty one. Release 1.20.0 moved it on its first start
+// and left the marker; this one no longer can, so it refuses instead.
+const engineDir = join(storage ?? "", ".rivetkit/var/engine");
+if (
+  storage &&
+  existsSync(join(engineDir, "db/CURRENT")) &&
+  !existsSync(join(engineDir, "migrated-from-v2.json"))
+)
+  throw new Error(
+    `${engineDir}/db is a town from RivetKit 2 that was never moved to RivetKit 3. Start release 1.20.0 on it first, which moves it; or, for a dev store nobody needs, delete it.`,
+  );
 
 // The game and the admin page are bundled here, before the registry starts: once RivetKit's native
 // runtime is up, Bun's HTML bundler fails in this process (and its dev server resolves rivetkit's Node build).
@@ -60,30 +71,6 @@ const refreshPricing = async () => {
 };
 void refreshPricing();
 setInterval(refreshPricing, 86_400_000);
-
-// A volume last written by RivetKit 2: every actor is copied to RivetKit 3's store first, or the town
-// would come up empty (`migrate/from-v2.ts`). Railway gives a deploy five minutes to answer its
-// healthcheck and a big town may take longer to move, so the healthcheck is answered meanwhile.
-if (storage && pending(storage)) {
-  console.log("[tokenmaxxing] moving the town from RivetKit 2's store to RivetKit 3's");
-  const waiting = Bun.serve({
-    port: config.port,
-    hostname: config.host,
-    fetch: (req) =>
-      new URL(req.url).pathname === "/health"
-        ? Response.json({ ok: true, version: config.version, migrating: true })
-        : new Response("Tokenmaxxing is being upgraded. Back in a few minutes.", {
-            status: 503,
-            headers: { "retry-after": "30" },
-          }),
-  });
-  try {
-    const moved = await migrateFromV2(storage, ENGINE_PORT);
-    console.log(`[tokenmaxxing] moved ${moved?.actors} actors (${moved?.rows} rows) in ${moved?.ms} ms`);
-  } finally {
-    await waiting.stop(true);
-  }
-}
 
 // Serve only once actors can run, so the healthcheck means the whole thing is up.
 registry.start();

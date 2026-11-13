@@ -15,8 +15,6 @@ COPY site/package.json site/
 COPY app/helper/package.json app/helper/
 # --ignore-scripts: the engine and runtime ship prebuilt per platform; the one script is a native
 # better-sqlite3 build pulled in by an optional RivetKit feature we don't use.
-# Two RivetKits for now: `rivetkit-v2` (and its engine) only reads a volume from before RivetKit 3, on the
-# first start (server/src/migrate/).
 RUN bun install --frozen-lockfile --production --ignore-scripts
 
 COPY core core

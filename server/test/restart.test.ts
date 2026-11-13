@@ -3,6 +3,8 @@
  * they run, so what is on disk shows only after a stop nobody saw coming.
  */
 import { expect, test } from "bun:test";
+import { existsSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { MOVES_TEXT } from "@tokenmaxxing/core/world.ts";
 import { enginePort, scratch, serve } from "./own-server.ts";
 
@@ -65,3 +67,32 @@ test("a crash loses nothing an action answered for, and at most a second of wher
     await second.stop();
   }
 }, 240_000);
+
+test("a volume whose town is still RivetKit 2's is refused, not started beside as an empty town", async () => {
+  // The release that moved such a town (1.20.0) left a marker beside the old store. Without it, starting
+  // would make a new, empty town next to the real one.
+  const storage = scratch();
+  const engineDir = join(storage, ".rivetkit/var/engine");
+  mkdirSync(join(engineDir, "db"), { recursive: true });
+  await Bun.write(join(engineDir, "db/CURRENT"), "MANIFEST-000005\n");
+  const refused = Bun.spawn(["bun", join(import.meta.dir, "../src/main.ts")], {
+    // It never gets as far as listening.
+    env: { ...process.env, PORT: "65000", RIVETKIT_STORAGE_PATH: storage },
+    stdout: "ignore",
+    stderr: "pipe",
+  });
+  expect(await new Response(refused.stderr).text()).toContain("never moved to RivetKit 3");
+  expect(await refused.exited).not.toBe(0);
+  expect(existsSync(join(engineDir, "depot"))).toBe(false);
+
+  // Moved: the old store may stay for as long as someone wants it.
+  await Bun.write(join(engineDir, "migrated-from-v2.json"), "{}");
+  const moved = await serve(storage, enginePort());
+  try {
+    expect((await moved.client.town.getOrCreate(["main"]).signUp("after_the_move")).userId).toBeGreaterThan(
+      0,
+    );
+  } finally {
+    await moved.stop();
+  }
+}, 120_000);

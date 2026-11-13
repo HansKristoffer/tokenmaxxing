@@ -165,37 +165,21 @@ the server, and its engine, cleanly.
 PORT=8787 RIVETKIT_STORAGE_PATH=$HOME/tm-data SUPERVISE_LOG=$HOME/tm.log scripts/supervise.sh
 ```
 
-## The first deploy on RivetKit 3
+## The volume after the move to RivetKit 3
 
-RivetKit 3 does not read what RivetKit 2 wrote. The first start of this release on a volume from before
-copies every actor to RivetKit 3's store before it serves anything
-([how](../ARCHITECTURE.md#serving)). Nothing needs doing by hand, but it is a one-way door for
-what happens afterwards, so:
+RivetKit 3 does not read what RivetKit 2 wrote. Release 1.20.0 copied every actor to RivetKit 3's store
+(`engine/depot` under `/data/rivet/.rivetkit/var`) on its first start, and left
+`engine/migrated-from-v2.json` there, which says what it moved. That release was the last that could: the
+code is gone from this one, and so is the RivetKit 2 it needed.
 
-1. **Back up the volume first** (Railway: the volume's Backups tab). The move never writes our tables in the
-   old store, and a backup costs a minute.
-2. **Check the free space.** The new store is written next to the old one, which stays. Measured: a 124 MB
-   old store became 295 MB new. Leave three times the old store's size free (`engine/db` under
-   `/data/rivet/.rivetkit/var`).
-3. **Deploy.** The log says `moving the town from RivetKit 2's store to RivetKit 3's`, how far it is every
-   half minute, then `moved N actors (M rows) in T ms`. Meanwhile `/health` answers `{"migrating":true}` and the
-   game answers 503. Measured here: 302 actors and a million rows in 97 s; a town of three players in 3 s.
-4. **If it fails**, the process exits and Railway starts it again (ten tries), each from the beginning:
-   a failed move leaves no new store. The error names the table or actor. The town is not served half-moved.
-   A move that says nothing for 15 minutes is stopped the same way. One failure is not worth retrying:
-   `player 7 keeps never.1 that JSON can't hold` means an actor's RivetKit 2 state has a value (an
-   `Infinity`, a `Map`) the new tables can't store as it is. Nothing was changed: go back (5), and decide
-   in code what that value becomes.
-5. **To go back**, redeploy the previous release: it starts on the old store, as the town was when it
-   moved. What happened on RivetKit 3 since is not in it.
-
-Installed desktop apps and tabs left open keep their RivetKit 2 client until they update or reload. It
-works against this server: `server/test/old-client.test.ts` signs up, syncs and plays with one.
-
-`engine/migrated-from-v2.json` on the volume says the move is done, and what it moved. Once production has
-run on RivetKit 3 for a while, delete `server/src/migrate/` and its tests (`migrate-v2`, `old-client`), the
-`rivetkit-v2` dependency (it brings RivetKit 2's engine and runtime into the image, about 200 MB) and, on
-the volume, `engine/db` and `.rivetkit-v2`.
+- **A volume that was never moved is refused.** With RivetKit 2's store (`engine/db`) and no marker, the
+  server exits at once and says so, rather than start an empty town beside the real one. Deploy 1.20.0 on
+  that volume first. A dev store in that state (`.data/rivet`) can simply be deleted.
+- **Going back to RivetKit 2** means redeploying 1.19.0, which starts on the old store as the town was when
+  it moved. That stops being possible when the old store is deleted.
+- **To free the space**, delete `engine/db` and `.rivetkit-v2` (next to `.rivetkit`) from the volume. Nothing
+  reads them. Keep `engine/migrated-from-v2.json`, or delete it together with `engine/db`: the marker
+  without the old store means nothing, the old store without the marker stops the server.
 
 ## Releases
 
