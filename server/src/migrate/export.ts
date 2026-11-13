@@ -4,12 +4,13 @@
  * importer reads), a line of JSON each. `page` is how many actors the engine is asked for at a time.
  */
 
-import { serialize } from "bun:jsc";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { createWriteStream } from "node:fs";
 import { actor, setup } from "rivetkit-v2";
 import { createClient } from "rivetkit-v2/client";
 import { db } from "rivetkit-v2/db";
+import { KEPT_BY_ENTRY, KEPT_TABLE, keptRows, unkeepable } from "../actors/kept.ts";
 import { ACTORS, again, type Courier, courier, type Frame, framesOf, take, walk } from "./courier.ts";
 
 const [port, frames, page = "100"] = process.argv.slice(2);
@@ -23,7 +24,7 @@ const write = async (f: Frame) => {
 };
 
 const registry = setup({
-  use: Object.fromEntries(ACTORS.map((name) => [name, courier({ actor, db } as never)])) as never,
+  use: Object.fromEntries(ACTORS.map((name) => [name, courier({ actor, db } as never, true)])) as never,
   startEngine: true,
   token: TOKEN,
   engineHost: "127.0.0.1",
@@ -40,13 +41,36 @@ const client = createClient({ endpoint, token: TOKEN, disableMetadataLookup: tru
   { getForId(id: string): Courier }
 >;
 
+const text = (s: string) => `'${s.replaceAll("'", "''")}'`;
+
+/**
+ * An actor's state as the table `Kept` reads on RivetKit 3, row for row what its first save there would
+ * write; how many rows. A state JSON would change stops the move here, with the old town untouched:
+ * better than an actor that wakes on RivetKit 3 to something else than it kept.
+ */
+async function keep(name: string, key: string, state: unknown): Promise<number> {
+  if (state === undefined || state === null) return 0;
+  const bad = unkeepable(state);
+  if (bad !== null) throw new Error(`${name} ${key} keeps ${bad || "a state"} that JSON can't hold`);
+  // In the table's own order (by name, as bytes): the importer's digest reads them back in it.
+  const rows = [...keptRows(state as object, KEPT_BY_ENTRY[name])]
+    .sort(([a], [b]) => Buffer.compare(Buffer.from(a), Buffer.from(b)))
+    .map(([row, json]) => `(${text(row)},${text(json)})`);
+  if (rows.length === 0) return 0;
+  await write({ t: "ddl", sql: [KEPT_TABLE] });
+  const sha = createHash("sha256");
+  for (const r of rows) sha.update(r).update("\n");
+  for (const frame of framesOf("kept", ["name", "json"], rows)) await write(frame);
+  await write({ t: "table", table: "kept", count: rows.length, sha: sha.digest("hex") });
+  return rows.length;
+}
+
 /** Everything one actor keeps, as frames; how many rows that was. */
-async function dump(actor: Courier): Promise<number> {
+async function dump(name: string, key: string, actor: Courier): Promise<number> {
   await again(() => actor.state());
-  await write({ t: "state", v: Buffer.from(serialize(take())).toString("base64") });
+  let rows = await keep(name, key, take());
   const tables = await again(() => actor.tables());
   await write({ t: "ddl", sql: tables.map((t) => t.sql) });
-  let rows = 0;
   for (const t of tables) {
     const sent = await walk(actor, t, async (page) => {
       for (const frame of framesOf(t.name, t.columns, page)) await write(frame);
@@ -79,7 +103,7 @@ for (const name of ACTORS) {
       // Ours are one part each ("main", a user's id, a match's): more parts would need RivetKit's own escaping.
       if (!a.key || /[/\\]/.test(a.key)) throw new Error(`${name} ${a.actor_id} has the key ${a.key}`);
       await write({ t: "actor", name, key: a.key });
-      const rows = await dump(client[name]!.getForId(a.actor_id));
+      const rows = await dump(name, a.key, client[name]!.getForId(a.actor_id));
       await write({ t: "done", name, key: a.key, rows });
       actors++;
     }

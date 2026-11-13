@@ -14,6 +14,7 @@ import type { ActivityDay, UsageDay } from "../src/actors/town.ts";
 import { RateLimiter } from "../src/rate-limit.ts";
 import { migrate as migrateTown } from "../src/town/schema.ts";
 import { coalesceBattleUpdates, drainUsageReports, flushUsageReports } from "../src/usage-reports.ts";
+import { connOf, unsaved } from "./fake-actor.ts";
 import { memorySql } from "./memory-sql.ts";
 
 test("a stuck battle cannot delay ingest acknowledgements or the next batch", async () => {
@@ -34,10 +35,17 @@ test("a stuck battle cannot delay ingest acknowledgements or the next batch", as
       }),
     },
   };
+  const device = connOf({ kind: "user", userId: 42, via: "device" });
   const ctx = {
-    state: { userId: 42 },
-    conn: { state: { kind: "user", userId: 42, via: "device" } },
-    vars: { serial: serial(), ingests: new RateLimiter(60, 60_000), battleUpdate: coalesceBattleUpdates() },
+    conn: device.conn,
+    vars: {
+      state: { userId: 42 },
+      kept: unsaved,
+      callers: device.callers,
+      serial: serial(),
+      ingests: new RateLimiter(60, 60_000),
+      battleUpdate: coalesceBattleUpdates(),
+    },
     abortSignal: new AbortController().signal,
     client: () => client,
     waitUntil: (p: Promise<unknown>) => {

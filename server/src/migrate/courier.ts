@@ -1,6 +1,7 @@
 /**
  * What one actor keeps, read out of RivetKit 2's store and written into RivetKit 3's (`from-v2.ts` says
- * why). An actor's data is its state and its SQLite tables; RivetKit's own tables (`_rivet_*`: schedules,
+ * why). On RivetKit 2 that was its state and its SQLite tables; on RivetKit 3 it is tables only, and the
+ * state arrives as the rows `Kept` reads (`actors/kept.ts`). RivetKit's own tables (`_rivet_*`: schedules,
  * connections, what it was created with) stay behind, and the real actor makes what it needs when it wakes.
  *
  * A courier is an actor with no code of ours: registered under each real actor's name, it reads or writes
@@ -17,8 +18,6 @@ export const ACTORS = ["town", "world", "player", "arcade", "match"] as const;
 /** What the exporter writes and the importer reads, a line of JSON each. */
 export type Frame =
   | { t: "actor"; name: string; key: string }
-  /** `serialize`d (so `Infinity` and `undefined` survive), in base64. */
-  | { t: "state"; v: string }
   /** Statements to run as they are: tables before their rows, indexes and triggers after. */
   | { t: "ddl"; sql: string[] }
   /** Rows as SQL literals, `(1,'a',NULL)`, written by SQLite's own `quote`. */
@@ -83,7 +82,7 @@ export function take<T>(): T {
 // MARK: The actor
 
 const actions = {
-  /** Leaves the state in `mail`. */
+  /** Leaves the state in `mail`. On RivetKit 2 only: the courier has none on RivetKit 3. */
   state: (c: Ctx): void => {
     mail.carried = plain(c.state);
   },
@@ -147,10 +146,6 @@ const actions = {
     return { ddl: rest.map((r) => r.sql), sequences, userVersion: version?.user_version ?? 0 };
   },
 
-  /** Takes the state from `mail`. */
-  setState: (c: Ctx): void => {
-    c.state = take();
-  },
   run: async (c: Ctx, sql: string[]): Promise<void> => {
     for (const statement of sql) await c.db.execute(statement);
   },
@@ -186,7 +181,9 @@ interface Kit {
   actor(definition: object): unknown;
   db(): unknown;
 }
-export const courier = ({ actor, db }: Kit) => actor({ state: {}, db: db(), actions });
+/** `withState`: on RivetKit 2, where there is state to read. */
+export const courier = ({ actor, db }: Kit, withState = false) =>
+  actor({ ...(withState ? { state: {} } : {}), db: db(), actions });
 
 // MARK: The scripts' side
 

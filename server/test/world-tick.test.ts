@@ -1,14 +1,32 @@
 import { expect, test } from "bun:test";
 import { type Moves, readMoves } from "@tokenmaxxing/core/world.ts";
+import type { TxSql } from "../src/actors/shared.ts";
 import { world } from "../src/actors/world.ts";
 import { eventually } from "./eventually.ts";
 
+/** A database with nothing in it, and `town` with nobody: what a fake world wakes on. */
+const db: TxSql = {
+  execute: async () => [],
+  transaction: (fn) => fn(db),
+};
+const main = {
+  getOrCreate: () => ({
+    seed: async () => ({ companies: [], players: [], offices: {}, drops: [] }),
+    pokerRelease: async () => 0,
+    rouletteRefund: async () => 0,
+  }),
+};
+const client = () => ({ town: main, world: main, arcade: main });
+const createVars = (
+  world.config as unknown as { createVars: (c: object) => Promise<Record<string, unknown>> }
+).createVars;
+
 /**
- * What a tick costs must not grow with the room faster than the room does. `c.state`, `c.vars`, `c.conns`
- * and `conn.id` are each a call into RivetKit's native side (`c.conns` builds a handle for every
- * connection), and an event is encoded for each connection it is sent to: asked per connection and sent as
- * an object, a full town is most of a tick. This runs the world's own loop over a full room, in this
- * process, and counts what a tick asks for.
+ * What a tick costs must not grow with the room faster than the room does. `c.vars`, `c.conns` and
+ * `conn.id` are each a call into RivetKit's native side (`c.conns` builds a handle for every connection),
+ * and an event is encoded for each connection it is sent to: asked per connection and sent as an object,
+ * a full town is most of a tick. This wakes the world over a full room, in this process, and counts what
+ * its loop asks for in a tick.
  */
 test("a tick asks RivetKit a fixed number of things, and writes a room's moves once for everyone who reads text", async () => {
   const PEOPLE = 80;
@@ -39,18 +57,15 @@ test("a tick asks RivetKit a fixed number of things, and writes a room's moves o
       asked.ids++;
       return `conn-${id}`;
     },
-    get state() {
-      asked.connStates++;
-      return { kind: "user", userId: id, via: "app", joined: true, text: id !== PEOPLE };
-    },
     send: (event: string, payload: unknown) => {
       if (event === "moves") heard.get(id)!.push(payload);
     },
   }));
-  const asked = { conns: 0, ids: 0, connStates: 0, vars: 0, state: 0 };
+  const asked = { conns: 0, ids: 0, vars: 0 };
   const never = Number.POSITIVE_INFINITY;
   const vars = {
-    ...(world.config as unknown as { createVars: () => Record<string, unknown> }).createVars(),
+    ...(await createVars({ db })),
+    state,
     online: new Map(ids.map((id) => [id, 1])),
     // As `join` leaves them.
     tabs: new Map(
@@ -66,28 +81,29 @@ test("a tick asks RivetKit a fixed number of things, and writes a room's moves o
     pollenAt: never,
     gridAt: never,
     starsAt: never,
-  } as unknown as { dirty: Set<number> };
+  } as unknown as { dirty: Set<number>; loop: Promise<void> | null };
   const controller = new AbortController();
   const ctx = {
-    get state() {
-      asked.state++;
-      return state;
-    },
     get vars() {
       asked.vars++;
       return vars;
     },
-    db: { execute: async () => [] },
+    db,
     conns: {
       values: () => {
         asked.conns++;
         return conns.values();
       },
     },
+    client,
     broadcast: () => {},
     abortSignal: controller.signal,
   };
-  const running = (world.config.run as unknown as (c: typeof ctx) => Promise<void>)(ctx);
+  await world.config.onWake!(ctx as never);
+  // Waking put the bots in town, and whoever stood in a wall beside it. Without the bots and back in
+  // their row, a tick's moves are the ones made here.
+  for (const id of Object.keys(players)) if (Number(id) < 0) delete players[Number(id)];
+  for (const id of ids) Object.assign(players[id]!, { x: 10 + id, y: 20 });
   try {
     // Four ticks, everyone a step to the right in each. The first is the world's first too (the poker table
     // is told to the Tavern once), so the count starts after it.
@@ -101,16 +117,14 @@ test("a tick asks RivetKit a fixed number of things, and writes a room's moves o
     }
   } finally {
     controller.abort();
-    await running;
+    await vars.loop;
   }
 
   // Three ticks: who is connected, and who each is, from memory. RivetKit isn't asked.
   expect(asked.conns).toBe(0);
   expect(asked.ids).toBe(0);
-  expect(asked.connStates).toBe(0);
-  // The rest of a tick's reads are its own (a couple of dozen): not one per person in the room.
+  // The rest of a tick's reads are its own (a few dozen): not one per person in the room.
   expect(asked.vars / 3).toBeLessThan(PEOPLE);
-  expect(asked.state / 3).toBeLessThan(PEOPLE);
   for (let tick = 0; tick < 4; tick++) {
     const text = heard.get(1)![tick];
     expect(typeof text).toBe("string");
@@ -152,7 +166,7 @@ test("many joins at once read the room's chat from SQLite once, and a line said 
   const said = [{ id: 7, room: "town", userId: 1, name: "p1", text: "before", at: 1 }];
   let reads = 0;
   let nextId = 8;
-  const db = {
+  const chat = {
     execute: async (sql: string) => {
       if (sql.startsWith("SELECT")) {
         reads++;
@@ -162,13 +176,16 @@ test("many joins at once read the room's chat from SQLite once, and a line said 
       return sql.startsWith("INSERT") ? [{ id: nextId++ }] : [];
     },
   };
-  const vars = (world.config as unknown as { createVars: () => object }).createVars();
-  const ctx = (id: number) => ({
+  const vars = {
+    ...(await createVars({ db })),
     state: { seeded: true, players, companies: {} },
+    callers: new Map(ids.map((id) => [`conn-${id}`, { kind: "user", userId: id, via: "app" }])),
+  };
+  const ctx = (id: number) => ({
     vars,
-    db,
+    db: chat,
     conns: new Map(),
-    conn: { id: `conn-${id}`, state: { kind: "user", userId: id, via: "app" }, send: () => {} },
+    conn: { id: `conn-${id}`, send: () => {} },
     client: () => ({ town: { getOrCreate: () => ({ questEvent: async () => {} }) } }),
   });
   const actions = world.config.actions as unknown as {

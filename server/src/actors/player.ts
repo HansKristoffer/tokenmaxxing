@@ -24,10 +24,14 @@ import {
 } from "../trophies.ts";
 import { coalesceBattleUpdates, drainUsageReports, reportUsageDays } from "../usage-reports.ts";
 import { MAX_EVENTS_PER_REQUEST, parseEvent } from "../validate.ts";
+import { KEPT_TABLE, Kept, saveAfterActions } from "./kept.ts";
 import type { registry } from "./registry.ts";
 import {
+  background,
   type Caller,
+  type Callers,
   type ConnParams,
+  callerOf,
   fromInside,
   INTERNAL_KEY,
   main,
@@ -185,15 +189,46 @@ function deviceName(raw: unknown): string {
 const platformOf = (raw: unknown): string =>
   typeof raw === "string" && /^[a-z0-9]{1,16}$/.test(raw) ? raw : "unknown";
 
+/** Before linked computers, a player kept only the app's token hashes. */
+function upgraded(state: PlayerState): PlayerState {
+  const old = state as PlayerState & { tokens?: string[] };
+  if (old.tokens) {
+    state.devices = old.tokens.map((hash, i) => ({
+      id: i + 1,
+      hash,
+      kind: "app",
+      name: "Desktop app",
+      platform: "darwin",
+      createdAt: 0,
+      lastSeenAt: 0,
+    }));
+    state.nextDeviceId = old.tokens.length + 1;
+    delete old.tokens;
+  }
+  state.linkCodes ??= [];
+  return state;
+}
+
+/** Who a connection to this player is: another actor, the player by one of their tokens, or nobody yet. */
+function callerFor(state: PlayerState, params: ConnParams | undefined): Caller {
+  if (params?.internal === INTERNAL_KEY) return { kind: "internal" };
+  if (params?.token === undefined) return { kind: "anonymous" };
+  const t = splitToken(params.token);
+  const cred = t && t.userId === state.userId ? credential(state, t.secret, Date.now()) : null;
+  if (!cred) throw unauthorized();
+  seen(state, cred.deviceId, Date.now());
+  return { kind: "user", userId: state.userId, ...cred };
+}
+
 export const player = actor({
   // Building the new partial index can take longer for players with a large backfill.
   // The app syncs every 2 minutes. Asleep in between (the default is 30s), every sync woke the
   // player cold and read its database back from storage a page at a time.
   options: { onMigrateTimeout: 120_000, sleepTimeout: 5 * 60_000 },
-  createState: (_c, raw: { userId: number; tokenHash: string; internal: string }): PlayerState => {
+  onCreate: async (c, raw: { userId: number; tokenHash: string; internal: string }) => {
     const input = fromInside<{ userId: number; tokenHash: string }>(raw);
     const now = Date.now();
-    return {
+    const first: PlayerState = {
       userId: input.userId,
       devices: [
         {
@@ -211,87 +246,86 @@ export const player = actor({
       loginCodes: [],
       linkCodes: [],
     };
+    await Kept.create(c.db, first);
   },
-  onWake: (c: { state: PlayerState }) => {
-    // Before linked computers, a player kept only the app's token hashes.
-    const old = c.state as PlayerState & { tokens?: string[] };
-    if (old.tokens) {
-      c.state.devices = old.tokens.map((hash, i) => ({
-        id: i + 1,
-        hash,
-        kind: "app",
-        name: "Desktop app",
-        platform: "darwin",
-        createdAt: 0,
-        lastSeenAt: 0,
-      }));
-      c.state.nextDeviceId = old.tokens.length + 1;
-      delete old.tokens;
-    }
-    c.state.linkCodes ??= [];
+  createVars: async (c) => {
+    const kept = await Kept.load<PlayerState>(c.db);
+    return {
+      /** Who the player is and how they sign in: saved after every action (`saveAfterActions`). */
+      state: upgraded(kept.value),
+      kept,
+      callers: new Map() as Callers,
+      loop: null as Promise<void> | null,
+      serial: serial(),
+      ingests: new RateLimiter(INGESTS_PER_MIN, 60_000),
+      phoneCodes: new RateLimiter(5, 60_000),
+      /** Guesses at a short phone code: 10 a minute against 40 bits and at most 5 live codes. */
+      phoneRedeems: new RateLimiter(10, 60_000),
+      battleUpdate: coalesceBattleUpdates(),
+      /** Trophies keep to their own lock: working them out must never hold up a sync. */
+      trophyLock: serial(),
+    };
   },
-  createVars: () => ({
-    serial: serial(),
-    ingests: new RateLimiter(INGESTS_PER_MIN, 60_000),
-    phoneCodes: new RateLimiter(5, 60_000),
-    /** Guesses at a short phone code: 10 a minute against 40 bits and at most 5 live codes. */
-    phoneRedeems: new RateLimiter(10, 60_000),
-    battleUpdate: coalesceBattleUpdates(),
-    /** Trophies keep to their own lock: working them out must never hold up a sync. */
-    trophyLock: serial(),
+  db: db({
+    onMigrate: async (d) => {
+      await d.execute(KEPT_TABLE);
+      await migrateEvents(d);
+    },
   }),
-  db: db({ onMigrate: migrateEvents }),
-  createConnState: (c, params: ConnParams): Caller => {
-    if (params?.internal === INTERNAL_KEY) return { kind: "internal" };
-    if (params?.token === undefined) return { kind: "anonymous" };
-    const t = splitToken(params.token);
-    const cred = t && t.userId === c.state.userId ? credential(c.state, t.secret, Date.now()) : null;
-    if (!cred) throw unauthorized();
-    seen(c.state, cred.deviceId, Date.now());
-    return { kind: "user", userId: c.state.userId, ...cred };
+  onConnect: (c, conn) => {
+    c.vars.callers.set(conn.id, callerFor(c.vars.state, conn.params as ConnParams | undefined));
+  },
+  onDisconnect: (c, conn) => {
+    c.vars.callers.delete(conn.id);
   },
   // A wake also repairs totals from requests interrupted before the client could retry.
-  run: async (c): Promise<void> => {
+  onWake: (c) => {
     const signal = c.abortSignal;
-    while (!signal.aborted) {
-      try {
-        await c.keepAwake(cleanExcludedEvents(c.db, signal));
-        await c.keepAwake(requeueEveryDay(c.db, signal));
-        await c.keepAwake(backfillTrophies(c.db, c.vars.trophyLock, signal));
-        await c.keepAwake(
-          drainUsageReports(c.db, c.vars.serial, signal, (days) => {
-            signal.throwIfAborted();
-            return report(c.db, c.client<typeof registry>(), c.state.userId, days, Date.now());
-          }),
-        );
-        return;
-      } catch (err) {
-        if (signal.aborted) return;
-        console.warn(`[usage] report retry failed: ${String(err)}`);
-        if (!(await waitForTick(signal, 5_000))) return;
+    c.vars.loop = background("player", async () => {
+      while (!signal.aborted) {
+        try {
+          await c.keepAwake(cleanExcludedEvents(c.db, signal));
+          await c.keepAwake(requeueEveryDay(c.db, signal));
+          await c.keepAwake(backfillTrophies(c.db, c.vars.trophyLock, signal));
+          await c.keepAwake(
+            drainUsageReports(c.db, c.vars.serial, signal, (days) => {
+              signal.throwIfAborted();
+              return report(c.db, c.client<typeof registry>(), c.vars.state.userId, days, Date.now());
+            }),
+          );
+          return;
+        } catch (err) {
+          if (signal.aborted) return;
+          console.warn(`[usage] report retry failed: ${String(err)}`);
+          if (!(await waitForTick(signal, 5_000))) return;
+        }
       }
-    }
+    });
+  },
+  onSleep: async (c) => {
+    await c.vars.loop;
+    await c.vars.kept.save();
   },
   actions: {
     /** For other actors checking a token: which credential it is, or null. */
     verify: (c, secret: string): Via | null => {
-      requireInternal(c.conn.state);
-      return credential(c.state, secret, Date.now())?.via ?? null;
+      requireInternal(callerOf(c));
+      return credential(c.vars.state, secret, Date.now())?.via ?? null;
     },
 
     /** The menu bar app's "Open world": a code the browser trades for a session. */
     mintLoginCode: (c): string => {
-      requireDevice(c.conn.state);
-      return loginCode(c.state).code;
+      requireDevice(callerOf(c));
+      return loginCode(c.vars.state).code;
     },
 
     /** An explicitly requested phone sign-in, authorized by the app or an existing game session. */
     mintPhoneLoginCode: (c): { code: string; expiresAt: number } => {
-      const caller = c.conn.state;
+      const caller = callerOf(c);
       if (caller.kind !== "user" || caller.via === "linked") throw unauthorized();
       if (!c.vars.phoneCodes.take("pair", Date.now()))
         throw new UserError("Too many pairing codes. Try again in a minute.", { code: "rate_limited" });
-      return loginCode(c.state, true);
+      return loginCode(c.vars.state, true);
     },
 
     /** Single use. Returns a 30-day browser session token. */
@@ -301,16 +335,16 @@ export const player = actor({
       if (phone && !c.vars.phoneRedeems.take("redeem", now))
         throw new UserError("Too many tries. Wait a minute, then make a new code.", { code: "rate_limited" });
       const t = splitToken(code) ?? phone;
-      const hash = t && t.userId === c.state.userId ? sha256(t.secret) : null;
-      const codes = live(c.state.loginCodes, now);
+      const hash = t && t.userId === c.vars.state.userId ? sha256(t.secret) : null;
+      const codes = live(c.vars.state.loginCodes, now);
       if (!hash || !codes.some((x) => x.hash === hash))
         throw new UserError("That link has expired. Open the world from the menu bar again.", {
           code: "expired",
         });
-      c.state.loginCodes = codes.filter((x) => x.hash !== hash);
-      const session = makeToken(c.state.userId);
-      c.state.sessions = [
-        ...live(c.state.sessions, now),
+      c.vars.state.loginCodes = codes.filter((x) => x.hash !== hash);
+      const session = makeToken(c.vars.state.userId);
+      c.vars.state.sessions = [
+        ...live(c.vars.state.sessions, now),
         { hash: session.hash, expiresAt: now + SESSION_MS },
       ].slice(-MAX_SESSIONS);
       return session.token;
@@ -318,12 +352,13 @@ export const player = actor({
 
     /** The app's "Link a computer": a code the other computer trades for its own token. */
     mintLinkCode: (c): string => {
-      requireDevice(c.conn.state);
+      requireDevice(callerOf(c));
       const now = Date.now();
-      const { token, hash } = makeToken(c.state.userId);
-      c.state.linkCodes = [...live(c.state.linkCodes, now), { hash, expiresAt: now + LINK_CODE_MS }].slice(
-        -MAX_LOGIN_CODES,
-      );
+      const { token, hash } = makeToken(c.vars.state.userId);
+      c.vars.state.linkCodes = [
+        ...live(c.vars.state.linkCodes, now),
+        { hash, expiresAt: now + LINK_CODE_MS },
+      ].slice(-MAX_LOGIN_CODES);
       return token;
     },
 
@@ -337,20 +372,20 @@ export const player = actor({
       const name = deviceName(rawName);
       const now = Date.now();
       const t = splitToken(code);
-      const hash = t && t.userId === c.state.userId ? sha256(t.secret) : null;
-      const codes = live(c.state.linkCodes, now);
+      const hash = t && t.userId === c.vars.state.userId ? sha256(t.secret) : null;
+      const codes = live(c.vars.state.linkCodes, now);
       if (!hash || !codes.some((x) => x.hash === hash))
         throw new UserError("That code has expired. Make a new one in the app: Link a computer.", {
           code: "expired",
         });
-      if (c.state.devices.length >= MAX_DEVICES)
+      if (c.vars.state.devices.length >= MAX_DEVICES)
         throw new UserError(`At most ${MAX_DEVICES} computers. Remove one in the game first.`, {
           code: "too_many_devices",
         });
-      c.state.linkCodes = codes.filter((x) => x.hash !== hash);
-      const device = makeToken(c.state.userId);
-      const id = c.state.nextDeviceId++;
-      c.state.devices.push({
+      c.vars.state.linkCodes = codes.filter((x) => x.hash !== hash);
+      const device = makeToken(c.vars.state.userId);
+      const id = c.vars.state.nextDeviceId++;
+      c.vars.state.devices.push({
         id,
         hash: device.hash,
         kind: "linked",
@@ -364,9 +399,9 @@ export const player = actor({
 
     /** My app and linked computers. */
     devices: (c): DeviceInfo[] => {
-      const s = c.conn.state;
+      const s = callerOf(c);
       if (s.kind !== "user" || s.via === "linked") throw unauthorized();
-      return c.state.devices.map(({ hash: _, ...d }) => ({ ...d, current: d.id === s.deviceId }));
+      return c.vars.state.devices.map(({ hash: _, ...d }) => ({ ...d, current: d.id === s.deviceId }));
     },
 
     /**
@@ -374,23 +409,23 @@ export const player = actor({
      * own device stays, as losing it would lose the account.
      */
     revokeDevice: (c, id: number): void => {
-      const s = c.conn.state;
+      const s = callerOf(c);
       if (s.kind !== "user" || (s.via === "linked" && s.deviceId !== id)) throw unauthorized();
-      const device = c.state.devices.find((d) => d.id === id);
+      const device = c.vars.state.devices.find((d) => d.id === id);
       if (!device) throw new UserError("That computer isn't linked.", { code: "not_found" });
       if (device.kind === "app") throw new UserError("The app can't be removed.", { code: "forbidden" });
-      c.state.devices = c.state.devices.filter((d) => d.id !== id);
+      c.vars.state.devices = c.vars.state.devices.filter((d) => d.id !== id);
     },
 
     /** From `town`, when an admin deletes the account: every token and session stops working. */
     close: (c): void => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       c.destroy();
     },
 
     /** From `town`, when an admin wipes someone's usage: every raw event goes, and the days they were on. */
     wipe: (c): Promise<string[]> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return c.vars.serial(async () => {
         const days = (await c.db.execute("SELECT DISTINCT day FROM events")) as { day: string }[];
         await c.db.execute("DELETE FROM events");
@@ -405,7 +440,7 @@ export const player = actor({
      * which apps' usage arrived. Raw sums, so a minute over the cap reads higher here than in the total.
      */
     todayBySource: async (c): Promise<TodayBySource> => {
-      requireSyncingDevice(c.conn.state);
+      requireSyncingDevice(callerOf(c));
       const rows = (await c.db.execute(
         `SELECT source, SUM(${EVENT_TOKENS}) AS tokens, SUM(message_type = 'pr') AS prs FROM events
          WHERE day = ? AND message_type IN ('assistant', 'pr') GROUP BY source ORDER BY tokens DESC`,
@@ -419,18 +454,18 @@ export const player = actor({
 
     /** For `town`: the trophies on my office shelf. */
     trophies: (c): Promise<Trophy[]> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return c.vars.trophyLock(() => trophiesOf(c.db, Date.now()));
     },
 
     /** A usage game's score (Tokenmaxxing). */
     tokensBetween: (c, from: number, to: number): Promise<Usage> => {
-      requireInternal(c.conn.state);
+      requireInternal(callerOf(c));
       return tokensBetween(c.db, from, to);
     },
 
     ingest: (c, events: unknown): Promise<IngestResponse & { skipped: number }> => {
-      requireSyncingDevice(c.conn.state);
+      requireSyncingDevice(callerOf(c));
       if (!Array.isArray(events) || events.length > MAX_EVENTS_PER_REQUEST)
         throw new UserError("Too many events.", { code: "invalid_body" });
       const now = Date.now();
@@ -443,7 +478,7 @@ export const player = actor({
       }
       const ingested = c.vars.serial(async () => {
         const today = dayKey(now);
-        const stored = c.state.stored?.day === today ? c.state.stored.events : 0;
+        const stored = c.vars.state.stored?.day === today ? c.vars.state.stored.events : 0;
         if (stored >= EVENTS_PER_DAY)
           throw new UserError("That's a lot of events for one day. The rest syncs tomorrow.", {
             code: "rate_limited",
@@ -503,11 +538,11 @@ export const player = actor({
           },
           { name: "ingest-events" },
         );
-        c.state.stored = { day: today, events: stored + inserted };
+        c.vars.state.stored = { day: today, events: stored + inserted };
         // Only this request's days. Older pending ones drain after it, a batch per turn of the lock.
         if (days.length)
           await reportUsageDays(c.db, days, (d) =>
-            report(c.db, c.client<typeof registry>(), c.state.userId, d, now),
+            report(c.db, c.client<typeof registry>(), c.vars.state.userId, d, now),
           );
         return { inserted, duplicates: valid.length - inserted, skipped: events.length - valid.length };
       });
@@ -516,11 +551,11 @@ export const player = actor({
           const signal = c.abortSignal;
           c.waitUntil(
             drainUsageReports(c.db, c.vars.serial, signal, (days) =>
-              report(c.db, c.client<typeof registry>(), c.state.userId, days, Date.now()),
+              report(c.db, c.client<typeof registry>(), c.vars.state.userId, days, Date.now()),
             ).catch(() => {}),
           );
           const arcade = main(c.client()).arcade;
-          const userId = c.state.userId;
+          const userId = c.vars.state.userId;
           // The raw events and totals are already acknowledged. A slow match must not keep the
           // ingest lock or delay this response, and backfills must not queue a call for every batch.
           c.waitUntil(
@@ -536,6 +571,8 @@ export const player = actor({
     },
   },
 });
+
+saveAfterActions(player);
 
 /** Upgrade existing player databases without re-enqueuing history on each wake. */
 export async function migrateEvents(d: Sql): Promise<void> {

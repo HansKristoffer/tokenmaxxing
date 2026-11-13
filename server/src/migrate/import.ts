@@ -4,11 +4,10 @@
  * its old name and key, as a courier (`courier.ts`), and given what the exporter read. Exits 0 only if
  * every actor the exporter counted arrived and read back the same.
  */
-import { deserialize } from "bun:jsc";
 import { actor, setup } from "rivetkit";
 import { createClient } from "rivetkit/client";
 import { db } from "rivetkit/db";
-import { ACTORS, again, type Courier, courier, type Frame, mail, take, walk } from "./courier.ts";
+import { ACTORS, again, type Courier, courier, type Frame, mail, walk } from "./courier.ts";
 
 const [port, frames] = process.argv.slice(2);
 if (!port || !frames) throw new Error("usage: import.ts <engine port> <frames>");
@@ -45,17 +44,11 @@ async function* lines(stream: ReadableStream<Uint8Array>): AsyncGenerator<string
 }
 
 /**
- * Gives a new, empty actor one frame. A `table` frame is checked against what was just written, and the
- * state against what reads back: a difference throws, and the migration stops.
+ * Gives a new, empty actor one frame. A `table` frame is checked against what was just written: a
+ * difference throws, and the migration stops.
  */
 async function load(to: Courier, f: Frame): Promise<void> {
-  if (f.t === "state") {
-    const state = deserialize(Buffer.from(f.v, "base64"));
-    mail.carried = state;
-    await to.setState();
-    await again(() => to.state());
-    if (!Bun.deepEquals(take(), state, true)) throw new Error("state reads back different");
-  } else if (f.t === "ddl") await to.run(f.sql);
+  if (f.t === "ddl") await to.run(f.sql);
   else if (f.t === "rows") {
     mail.carried = f.rows;
     await to.insert(f.table, f.columns);

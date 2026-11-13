@@ -1,26 +1,41 @@
 /**
- * For `migrate-v2.test.ts`: `bun migrate-store.ts <v2|v3> <engine port> [write]`, with RIVETKIT_STORAGE_PATH
- * on a store. `write` first fills it with the awkward cases (on RivetKit 2, before the move); either way it
- * prints what the store holds, read with queries that share nothing with the courier's own.
+ * For `migrate-v2.test.ts`: `bun migrate-store.ts <v2|v3> <engine port> [write|write-bad|mend]`, with
+ * RIVETKIT_STORAGE_PATH on a store. `write` first fills it with the awkward cases (on RivetKit 2, before
+ * the move); `write-bad` too, with a state JSON can't hold for the last player, which `mend` puts right.
+ * Then it prints what the store holds, read with queries that share nothing with the courier's own: state
+ * from RivetKit 2's `c.state`, and on RivetKit 3 from the rows it was moved into.
  */
-import { deserialize, serialize } from "bun:jsc";
 import { stopEngine } from "../src/engine.ts";
+import { again } from "../src/migrate/courier.ts";
 
-const [kit, port, write] = process.argv.slice(2);
+const [kit, port, mode] = process.argv.slice(2);
+const v2 = kit === "v2";
 const from = kit === "v2" ? "rivetkit-v2" : "rivetkit";
 const { actor, setup } = (await import(from)) as typeof import("rivetkit");
 const { createClient } = (await import(`${from}/client`)) as typeof import("rivetkit/client");
 const { db } = (await import(`${from}/db`)) as typeof import("rivetkit/db");
 
 const PLAYERS = 7;
-/** What JSON can't carry, which RivetKit's state can. (Not -0: RivetKit 3 keeps it as 0, whoever writes it.) */
+/** What JSON carries, at its edges. `missing` and `-0` it doesn't: a missing key and `0` after the move. */
 const stateOf = (i: number) => ({
   userId: i,
-  never: Number.POSITIVE_INFINITY,
   missing: undefined,
   nothing: null,
-  deep: { list: [1, "two", { three: [3.5, 1e21] }], text: `it's "quoted" æøå 🐟\nnext line` },
+  zero: -0,
+  deep: {
+    list: [1, "two", { three: [3.5, 1e21, Number.MAX_SAFE_INTEGER, -2.5e-7] }, []],
+    text: `it's "quoted" æøå 🐟\nnext line\u0000 and a NUL`,
+    "a/key with 'both'": {},
+  },
+  // One row past a frame (256 KB).
+  big: `${i}:${"x".repeat(300_000)}`,
 });
+/** A state with a row for each entry under `players` (`KEPT_BY_ENTRY`). */
+const WORLD = {
+  seeded: true,
+  players: { 1: { name: "ada", x: 3 }, 22: { name: "it's bob", x: -4.5 } },
+  companies: { 5: { name: "Æble & Søn" } },
+};
 
 const TOWN_SQL = [
   `CREATE TABLE typed (id INTEGER PRIMARY KEY AUTOINCREMENT, v, label TEXT NOT NULL DEFAULT '')`,
@@ -78,25 +93,57 @@ const plain = (v: unknown): unknown =>
     : v !== null && typeof v === "object"
       ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, plain(x)]))
       : v;
+/** What a state says once it has been JSON, keys in order: the same string for the same state. */
+const said = (v: unknown): string =>
+  JSON.stringify(v, (_, x: unknown) =>
+    x !== null && typeof x === "object" && !Array.isArray(x)
+      ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1)))
+      : x,
+  );
+/** Its state as a string, and the names of the rows it is kept in (none on RivetKit 2). */
+async function kept(c: Ctx): Promise<{ state: string; rows: string[] }> {
+  if (v2) return { state: said(plain(c.state)), rows: [] };
+  const has = await c.db.execute("SELECT 1 FROM sqlite_master WHERE name = 'kept'");
+  if (!has.length) return { state: said({}), rows: [] };
+  const rows = (await c.db.execute("SELECT name, json FROM kept ORDER BY name")) as {
+    name: string;
+    json: string;
+  }[];
+  const state: Record<string, unknown> = {};
+  for (const { name, json } of rows) {
+    const [key, entry] = name.split(/\/(.*)/s) as [string, string | undefined];
+    if (entry === undefined) state[key] = JSON.parse(json);
+    else state[key] = { ...(state[key] as object), [entry]: JSON.parse(json) };
+  }
+  return { state: said(state), rows: rows.map((r) => r.name) };
+}
+/** What `read` found kept: actors run in this process, and a state here is past what a message may be. */
+let found: Awaited<ReturnType<typeof kept>> = { state: "", rows: [] };
+const STATES = {
+  player: stateOf,
+  bad: (i: number) => ({ userId: i, never: [1, Number.POSITIVE_INFINITY] }),
+  world: () => WORLD,
+};
+const actions = {
+  fill: async (c: Ctx, sql: string[]) => {
+    for (const s of sql) await c.db.execute(s);
+  },
+  become: (c: Ctx, what: keyof typeof STATES, i: number) => {
+    c.state = STATES[what](i);
+  },
+  read: async (c: Ctx, queries: Record<string, string>) => {
+    found = await kept(c);
+    return Object.fromEntries(
+      await Promise.all(Object.entries(queries).map(async ([k, q]) => [k, await c.db.execute(q)])),
+    ) as Record<string, unknown[]>;
+  },
+  sweep: () => {},
+};
+// State is RivetKit 2's: on RivetKit 3 the scribe has none, as the real actors have none.
 const scribe = () =>
-  actor({
-    state: {} as Record<string, unknown>,
-    db: db(),
-    actions: {
-      fill: async (c: Ctx, sql: string[]) => {
-        for (const s of sql) await c.db.execute(s);
-      },
-      become: (c: Ctx, i: number) => {
-        c.state = stateOf(i);
-      },
-      read: async (c: Ctx, queries: Record<string, string>) => ({
-        state: Buffer.from(serialize(plain(c.state))).toString("base64"),
-        rows: Object.fromEntries(
-          await Promise.all(Object.entries(queries).map(async ([k, q]) => [k, await c.db.execute(q)])),
-        ),
-      }),
-      sweep: () => {},
-    },
+  actor({ ...(v2 ? { state: {} } : {}), db: db(), actions } as {
+    db: ReturnType<typeof db>;
+    actions: typeof actions;
   });
 
 const registry = setup({
@@ -119,30 +166,44 @@ const client = createClient<typeof registry>({
 });
 
 const ids = Array.from({ length: PLAYERS }, (_, i) => i + 1);
-if (write) {
+if (mode === "write" || mode === "write-bad") {
   const town = await client.town.create(["main"]);
   await town.fill(TOWN_SQL);
-  for (const i of ids) await (await client.player.create([String(i)])).become(i);
+  await (await client.world.create(["main"])).become("world", 0);
+  for (const i of ids)
+    await (
+      await client.player.create([String(i)])
+    ).become(mode === "write-bad" && i === PLAYERS ? "bad" : "player", i);
   await (
     await client.match.create(["12"])
   ).fill(["CREATE TABLE moves (n INTEGER)", "INSERT INTO moves VALUES (1)"]);
 }
-const town = await client.town.get(["main"]).read(TOWN_READS);
+// After a move that failed, the old engine was stopped without warning: its actors take a while to come back.
+if (mode === "mend") await again(() => client.player.get([String(PLAYERS)]).become("player", PLAYERS));
+const town = await again(() => client.town.get(["main"]).read(TOWN_READS));
+const townRows = found.rows;
 const players = [];
 for (const i of ids) {
-  const p = await client.player.get([String(i)]).read({});
-  players.push(Bun.inspect(deserialize(Buffer.from(p.state, "base64")), { depth: 9, sorted: true }));
+  await client.player.get([String(i)]).read({});
+  players.push(found);
 }
+await client.world.get(["main"]).read({});
+const world = found;
 const match = await client.match.get(["12"]).read({ moves: "SELECT n FROM moves" });
-// The world and the arcade were never created: they must not exist afterwards either.
-const world = await client.world
+// The arcade was never created: it must not exist afterwards either.
+const arcade = await client.arcade
   .get(["main"])
   .read({})
   .then(
     () => "exists",
     () => "missing",
   );
-console.log(JSON.stringify({ store: { town: town.rows, players, match: match.rows, world } }));
+console.log(
+  JSON.stringify({
+    store: { town, players: players.map((p) => p.state), world: world.state, match, arcade },
+    rows: { players: players.map((p) => p.rows), world: world.rows, town: townRows },
+  }),
+);
 await registry.shutdown().catch(() => {});
 await stopEngine();
 process.exit(0);

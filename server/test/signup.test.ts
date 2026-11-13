@@ -3,6 +3,7 @@ import { serial } from "../src/actors/shared.ts";
 import { town } from "../src/actors/town.ts";
 import { RateLimiter } from "../src/rate-limit.ts";
 import { migrate } from "../src/town/schema.ts";
+import { connOf } from "./fake-actor.ts";
 import { memorySql } from "./memory-sql.ts";
 
 test("a sign-up whose player timed out never hands its id on: that actor may exist", async () => {
@@ -24,16 +25,15 @@ test("a sign-up whose player timed out never hands its id on: that actor may exi
     world: { getOrCreate: () => world },
     arcade: { getOrCreate: () => ({}) },
   };
+  const anyone = connOf({ kind: "anonymous", ip: null });
   const vars = {
+    callers: anyone.callers,
     serial: serial(),
     signups: new RateLimiter(100, 60_000),
     signupsPerIp: new RateLimiter(100, 60_000),
   };
   const signUp = (name: string) =>
-    town.config.actions!.signUp(
-      { conn: { state: { kind: "anonymous", ip: null } }, db: sql, vars, client: () => client } as never,
-      name,
-    );
+    town.config.actions!.signUp({ conn: anyone.conn, db: sql, vars, client: () => client } as never, name);
 
   await expect(signUp("ada")).rejects.toThrow("callback_timed_out");
   timeout = false;

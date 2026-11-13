@@ -2,93 +2,12 @@
  * The move from RivetKit 2's store to RivetKit 3's (`src/migrate/from-v2.ts`), on real stores with both
  * engines. RivetKit 3 does not read the old store, so a start that skipped this would be an empty town.
  */
-import { afterAll, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { expect, test } from "bun:test";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createClient } from "rivetkit/client";
-import type { registry as Registry } from "../src/actors/registry.ts";
-import { stopEngine } from "../src/engine.ts";
 import { MARKER, migrateFromV2, pending } from "../src/migrate/from-v2.ts";
 import expected from "./fixtures/town-1.19.0-expected.json" with { type: "json" };
-
-const dirs: string[] = [];
-const ports: number[] = [];
-afterAll(async () => {
-  for (const port of ports) await stopEngine(port);
-  for (const dir of dirs) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
-});
-
-const canListen = (port: number) => {
-  try {
-    Bun.listen({ hostname: "127.0.0.1", port, socket: { data() {} } }).stop(true);
-    return true;
-  } catch {
-    return false;
-  }
-};
-/** A free engine port: each engine takes +1 and +10 too, and RivetKit 2's sits 20 above ours while it is read. */
-function enginePort(): number {
-  for (;;) {
-    const port = 10_000 + Math.floor(Math.random() * 20_000);
-    if ([0, 1, 10, 20, 21, 30].every((o) => canListen(port + o))) {
-      ports.push(port, port + 20);
-      return port;
-    }
-  }
-}
-function scratch(): string {
-  const dir = mkdtempSync(join(tmpdir(), "tokenmaxxing-migrate-"));
-  dirs.push(dir);
-  return join(dir, "rivet");
-}
-
-/** The real server on `storage`; `stop` ends it as a deploy would. */
-async function serve(storage: string, engine: number) {
-  let port = 0;
-  do port = 10_000 + Math.floor(Math.random() * 20_000);
-  while (!canListen(port));
-  const server = Bun.spawn(["bun", join(import.meta.dir, "../src/main.ts")], {
-    env: {
-      ...process.env,
-      PORT: String(port),
-      TOKENMAXXING_HOST: "127.0.0.1",
-      RIVET_RUN_ENGINE_PORT: String(engine),
-      RIVETKIT_STORAGE_PATH: storage,
-      RIVET_LOG_LEVEL: "error",
-      GITHUB_STARS: "off",
-      GRID_FEED: "off",
-      STATUE_FEED: "off",
-      PICNIC_OUTAGE: "off",
-      FIRECRAWL_API_KEY: "",
-      ANTHROPIC_API_KEY: "",
-      GATEWAY_REQUESTS_PER_MIN: "1000000",
-      GATEWAY_SOCKETS_PER_MIN: "1000000",
-    },
-    stdout: "ignore",
-    stderr: "ignore",
-  });
-  const origin = `http://127.0.0.1:${port}`;
-  let migrating = false;
-  for (const end = Date.now() + 120_000; ; await Bun.sleep(100)) {
-    const health = await fetch(`${origin}/health`).then(
-      (r) => (r.ok ? (r.json() as Promise<{ migrating?: boolean }>) : null),
-      () => null,
-    );
-    migrating ||= health?.migrating === true;
-    if (health && !health.migrating) break;
-    if (Date.now() > end || server.exitCode !== null) throw new Error("the server didn't start");
-  }
-  return {
-    client: createClient<typeof Registry>({ endpoint: `${origin}/api/rivet` }),
-    migrating,
-    async stop() {
-      server.kill("SIGTERM");
-      await server.exited;
-      await stopEngine(engine);
-    },
-  };
-}
+import { enginePort, scratch, serve } from "./own-server.ts";
 
 /** What a player sees of their own, as the fixture's server was asked before it stopped. */
 async function answers(client: Awaited<ReturnType<typeof serve>>["client"], token: string, userId: number) {
@@ -154,26 +73,44 @@ interface Store {
     schema: { type: string; name: string }[];
     version: [{ user_version: number }];
   };
+  /** Each one's state, and the world's, as JSON with its keys in order. */
   players: string[];
-  match: { moves: { n: number }[] };
   world: string;
+  match: { moves: { n: number }[] };
+  arcade: string;
+}
+/** The names of the rows each state is kept in, on RivetKit 3. */
+interface Rows {
+  players: string[][];
+  world: string[];
+  town: string[];
 }
 
 /** `migrate-store.ts` on `storage`: what it holds, read by queries of its own. */
-async function store(kit: "v2" | "v3", storage: string, port: number, write = false): Promise<Store> {
+async function store(
+  kit: "v2" | "v3",
+  storage: string,
+  port: number,
+  mode?: "write" | "write-bad" | "mend",
+): Promise<{ store: Store; rows: Rows }> {
   const script = Bun.spawn(
-    ["bun", join(import.meta.dir, "migrate-store.ts"), kit, String(port), ...(write ? ["write"] : [])],
+    ["bun", join(import.meta.dir, "migrate-store.ts"), kit, String(port), ...(mode ? [mode] : [])],
     { env: { ...process.env, RIVETKIT_STORAGE_PATH: storage, RIVET_LOG_LEVEL: "error" }, stderr: "ignore" },
   );
   const out = await new Response(script.stdout).text();
   expect(await script.exited).toBe(0);
-  return (JSON.parse(out.split("\n").find((l) => l.startsWith('{"store"'))!) as { store: Store }).store;
+  return JSON.parse(out.split("\n").find((l) => l.startsWith('{"store"'))!) as { store: Store; rows: Rows };
 }
 
-test("every value an actor can keep arrives as it was", async () => {
+/** The rows the cases are: `town`'s tables and the match's one move, and each state's rows. */
+const TABLE_ROWS = 15 + 1000 + 3000 + 1 + 1;
+const PLAYER_ROWS = ["big", "deep", "nothing", "userId", "zero"];
+const WORLD_ROWS = ["companies", "players/1", "players/22", "seeded"];
+
+test("every value an actor can keep arrives as it was, its state in the rows the actors read", async () => {
   const storage = scratch();
   const engine = enginePort();
-  const before = await store("v2", storage, engine, true);
+  const { store: before } = await store("v2", storage, engine, "write");
   // The cases are there to begin with, so "the same after" says something.
   expect(before.town.typed.map((r) => r.v)).toContain("integer:9223372036854775807");
   expect(before.town.typed.map((r) => r.v)).toContain("integer:9007199254740993");
@@ -189,29 +126,34 @@ test("every value an actor can keep arrives as it was", async () => {
   ]);
   expect(before.town.version).toEqual([{ user_version: 42 }]);
   expect(before.players).toHaveLength(7);
-  expect(before.players[0]).toContain("never: Infinity");
-  expect(before.players[0]).toContain("missing: undefined");
+  expect(before.players[0]).toContain('"text":"it\'s \\"quoted\\" æøå 🐟\\nnext line\\u0000 and a NUL"');
+  expect(before.players[0]!.length).toBeGreaterThan(300_000);
+  expect(JSON.parse(before.world)).toMatchObject({ players: { 22: { name: "it's bob", x: -4.5 } } });
 
   // Three actors at a time: the old engine's list is read over several pages.
   const moved = await migrateFromV2(storage, engine, 3);
-  expect(moved).toMatchObject({ actors: 9, rows: 15 + 1000 + 3000 + 1 + 1 });
-  expect(await store("v3", storage, engine)).toEqual(before);
+  expect(moved).toMatchObject({ actors: 10, rows: TABLE_ROWS + 7 * PLAYER_ROWS.length + WORLD_ROWS.length });
+  const after = await store("v3", storage, engine);
+  expect(after.store).toEqual(before);
+  // A row for each key, and for each of the world's players; an actor with no state has no table for it.
+  expect(after.rows).toEqual({ players: before.players.map(() => PLAYER_ROWS), world: WORLD_ROWS, town: [] });
   // Nothing is moved twice.
   expect(await migrateFromV2(storage, engine)).toBeNull();
 }, 180_000);
 
-test("a move that fails leaves no half-made town, and the next start begins again", async () => {
+test("a state JSON can't hold stops the move with no half-made town, and once it is put right the next start moves it", async () => {
   const storage = scratch();
   const engine = enginePort();
-  await store("v2", storage, engine, true);
-  // The export can't start: its engine's port is taken.
-  const squatter = Bun.listen({ hostname: "127.0.0.1", port: engine + 20, socket: { data() {} } });
+  await store("v2", storage, engine, "write-bad");
+  // The last player keeps an `Infinity`. By then `town`, the world and six players are in the new store.
   await expect(migrateFromV2(storage, engine)).rejects.toThrow();
-  squatter.stop(true);
   expect(existsSync(join(storage, ".rivetkit/var/engine/depot"))).toBe(false);
   expect(pending(storage)).toBe(true);
-  expect(await migrateFromV2(storage, engine)).toMatchObject({ actors: 9 });
-}, 180_000);
+  // The old town is as it was: RivetKit 2 still serves it.
+  const { store: mended } = await store("v2", storage, engine, "mend");
+  expect(await migrateFromV2(storage, engine)).toMatchObject({ actors: 10 });
+  expect((await store("v3", storage, engine)).store).toEqual(mended);
+}, 240_000);
 
 test("a RivetKit 3 store that no move made is never deleted", async () => {
   // Both stores and no marker: a volume restored by halves, or a marker someone removed. Moving the old

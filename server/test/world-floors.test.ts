@@ -7,6 +7,7 @@ import { world } from "../src/actors/world.ts";
 import { migrateGraveyard } from "../src/graveyard.ts";
 import { bag, grantRewards, placed, takeOut } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
+import { connOf } from "./fake-actor.ts";
 import { memorySql } from "./memory-sql.ts";
 import { admit, eventually, HOUR, rich, signUp, veteran } from "./rivet.ts";
 import { connect, drop, walk } from "./world-client.ts";
@@ -124,17 +125,23 @@ describe("drops", () => {
     await grantRewards(sql, 7, 10, 0);
     const id = await takeOut(sql, 7, "pet.1", 0);
     await placed(sql, { id, item: "pet.1", room: "inn", x: 3, y: 3, by: 7, at: 0 });
-    const seed = await town.config.actions!.seed({ conn: { state: { kind: "internal" } }, db: sql } as never);
+    const inside = connOf({ kind: "internal" });
+    const seed = await town.config.actions!.seed({
+      conn: inside.conn,
+      vars: { callers: inside.callers },
+      db: sql,
+    } as never);
     // What it had before sleeping isn't kept: a ghost of a drop whose call failed goes.
     setDrops("inn", [{ id: id + 100, item: "pet.2", room: "inn", x: 1, y: 1, by: 7, at: 0 }]);
     // The world's own database: the graveyard it keeps (`graveyard.ts`).
     const own = memorySql().sql;
     await migrateGraveyard(own);
     await world.config.onWake!({
-      state: { seeded: true, players: {}, companies: {} },
-      vars: { tabs: new Map() },
+      vars: { state: { seeded: true, players: {}, companies: {} }, tabs: new Map() },
       db: own,
       conns: new Map(),
+      // Asleep again at once: its loop is another test's.
+      abortSignal: AbortSignal.abort(),
       client: () => {
         const actor = {
           getOrCreate: () => ({
@@ -173,10 +180,10 @@ describe("drops", () => {
       drops.push(d);
     }
     setDrops("inn", drops);
+    const inside = connOf({ kind: "internal" });
     const inWorld = {
-      conn: { state: { kind: "internal" } },
-      state: { players: {} },
-      vars: { dirty: new Set(), tabs: new Map() },
+      conn: inside.conn,
+      vars: { state: { players: {} }, callers: inside.callers, dirty: new Set(), tabs: new Map() },
     };
     const actor = {
       getOrCreate: () => ({

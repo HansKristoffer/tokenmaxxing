@@ -1,51 +1,53 @@
 import { expect, jest, test } from "bun:test";
-import { createRequire } from "node:module";
 import { type TokenmaxxingState, tokenmaxxing } from "@tokenmaxxing/core/games/tokenmaxxing.ts";
 import type { Frame } from "@tokenmaxxing/core/games/wire.ts";
+import { KEPT_TABLE, Kept } from "../src/actors/kept.ts";
 import { match } from "../src/actors/match.ts";
+import { connOf } from "./fake-actor.ts";
+import { memorySql } from "./memory-sql.ts";
 
-// Use the same proxy version as RivetKit without making it a runtime dependency of our server.
-const require = createRequire(import.meta.resolve("rivetkit"));
-const { default: onChange } = require("@rivetkit/on-change") as {
-  default: {
-    <T extends object>(value: T, changed: () => void): T;
-    target<T>(value: T): T;
-  };
-};
 const actions = match.config.actions!;
 type Context = Parameters<typeof actions.usage>[0];
 
-function battle() {
+/** A battle under way, kept in a database as the actor keeps it; `writes()` counts the times it wrote there. */
+async function battle() {
   const now = Date.now();
   const players = Array.from({ length: 12 }, (_, i) => i + 1);
   const game = tokenmaxxing.setup(players, 0, { minutes: 15 }, now - 120_000);
   game.phase = "live";
   for (const id of players) game.history[id] = Array.from({ length: 120 }, (_, i) => [game.startsAt + i, i]);
-  let writes = 0;
   let tokens = 0;
   let statusUpdates = 0;
   let used = async () => ({ tokens, flagged: false });
   const frames: Frame[] = [];
-  const state = onChange(
-    {
-      id: 8,
-      game: "tokenmaxxing" as const,
-      players: players.map((userId) => ({ userId, name: `p${userId}` })),
-      stake: 10,
-      split: "all" as const,
-      options: { minutes: 15 },
-      seed: 0,
-      startedAt: now - 120_000,
-      betsCloseAt: game.startsAt,
-      state: game,
-      outcome: null,
-      seen: {},
-      bets: {},
-      forfeited: [] as number[],
-      reported: false,
+  const state = {
+    id: 8,
+    game: "tokenmaxxing" as const,
+    players: players.map((userId) => ({ userId, name: `p${userId}` })),
+    stake: 10,
+    split: "all" as const,
+    options: { minutes: 15 },
+    seed: 0,
+    startedAt: now - 120_000,
+    betsCloseAt: game.startsAt,
+    state: game,
+    outcome: null,
+    seen: {},
+    bets: {},
+    forfeited: [] as number[],
+    reported: false,
+  };
+  const { sql } = memorySql();
+  await sql.execute(KEPT_TABLE);
+  await Kept.create(sql, state);
+  let writes = 0;
+  const kept = await Kept.load<typeof state>({
+    execute: sql.execute,
+    transaction: (fn) => {
+      writes++;
+      return sql.transaction(fn);
     },
-    () => writes++,
-  );
+  });
   const client = {
     player: { get: () => ({ tokensBetween: () => used() }) },
     world: {
@@ -56,26 +58,32 @@ function battle() {
         },
       }),
     },
-    arcade: { getOrCreate: () => ({ finished: async () => {} }) },
+    arcade: { getOrCreate: () => ({ finished: async () => {}, moved: async () => {} }) },
     town: { getOrCreate: () => ({}) },
   };
   const controller = new AbortController();
+  const inside = connOf({ kind: "internal" });
+  const vars = {
+    state: kept.value,
+    kept,
+    callers: new Map<string, object>([...inside.callers, ["player", { kind: "user", userId: 1 }]]),
+    loop: null as Promise<void> | null,
+    chat: { take: () => true },
+  };
   const ctx = {
-    state,
-    conn: { state: { kind: "internal" } },
-    conns: new Map([
-      [
-        "player",
-        { state: { kind: "user", userId: 1 }, send: (_event: string, frame: Frame) => frames.push(frame) },
-      ],
-    ]),
+    vars,
+    conn: inside.conn,
+    conns: new Map([["player", { send: (_event: string, frame: Frame) => frames.push(frame) }]]),
     abortSignal: controller.signal,
     keepAwake: <T>(p: Promise<T>) => p,
     client: () => client,
   } as unknown as Context;
   return {
     ctx,
-    state,
+    vars,
+    state: kept.value,
+    /** The context as player 1 calls with it. */
+    asPlayer: { ...ctx, conn: { id: "player" } } as unknown as Context,
     controller,
     frames,
     writes: () => writes,
@@ -89,69 +97,63 @@ function battle() {
   };
 }
 
-test("repeated battle score updates keep stored state proxy-free and preserve frames and standings", async () => {
-  const b = battle();
+test("repeated battle score updates keep the frames and standings right, and each is saved once", async () => {
+  const b = await battle();
   for (let i = 1; i <= 150; i++) {
     b.score(i * 1_000);
     expect(await actions.usage(b.ctx, 1)).toMatchObject({ tokens: i * 1_000, place: 1, players: 12 });
-    // Spread updates must not store proxy children: that made each later update more expensive.
-    const stored = structuredClone(onChange.target(b.state).state);
-    expect(stored.tokens[1]).toBe(i * 1_000);
-    expect(stored.history[1]!.length).toBeLessThanOrEqual(120);
-    expect(actions.standing(b.ctx, 1)).toMatchObject({ tokens: i * 1_000, place: 1 });
+    expect(b.state.state.tokens[1]).toBe(i * 1_000);
+    expect(b.state.state.history[1]!.length).toBeLessThanOrEqual(120);
+    expect(await actions.standing(b.ctx, 1)).toMatchObject({ tokens: i * 1_000, place: 1 });
   }
   expect(b.statusUpdates()).toBe(150);
   expect(b.frames).toHaveLength(150);
   expect((b.frames.at(-1)!.view as TokenmaxxingState).tokens[1]).toBe(150_000);
   expect(b.state.state.tokens[2]).toBe(0);
+  // One write for each score; reading the standing wrote nothing.
+  expect(b.writes()).toBe(150);
 });
 
 test("unchanged usage and ticks do not rewrite or broadcast a match", async () => {
-  const b = battle();
+  const b = await battle();
   expect(await actions.usage(b.ctx, 1)).toMatchObject({ tokens: 0 });
   expect(b.writes()).toBe(0);
   expect(b.statusUpdates()).toBe(0);
   expect(b.frames).toEqual([]);
-  const run = match.config.run as (c: Context) => Promise<void>;
   // A tick on fake timers, instead of waiting out its second: it's over once the loop waits for the next.
   jest.useFakeTimers();
-  const running = run(b.ctx);
+  match.config.onWake!(b.ctx as never);
   try {
     jest.advanceTimersToNextTimer();
     for (let i = 0; jest.getTimerCount() === 0 && i < 1_000; i++) await Promise.resolve();
     if (jest.getTimerCount() === 0) throw new Error("the tick didn't finish");
     expect(b.writes()).toBe(0);
     expect(b.statusUpdates()).toBe(0);
+    expect(b.frames).toEqual([]);
   } finally {
     b.controller.abort();
     jest.useRealTimers();
-    await running;
+    await b.vars.loop;
   }
 });
 
 test("a usage query finishing after a forfeit does not restore that player's score", async () => {
-  const b = battle();
+  const b = await battle();
   const pending = Promise.withResolvers<{ tokens: number; flagged: boolean }>();
   b.query(() => pending.promise);
   const usage = actions.usage(b.ctx, 1);
-  const user = { ...b.ctx, conn: { state: { kind: "user", userId: 1 } } } as Context;
-  await actions.forfeit(user);
+  await actions.forfeit(b.asPlayer);
   pending.resolve({ tokens: 99_000, flagged: false });
   expect(await usage).toMatchObject({ tokens: 0, place: null });
   expect(b.state.state.forfeited).toContain(1);
   expect(b.state.state.tokens[1]).toBe(0);
 });
 
-test("match chat stores plain lines, so each new line doesn't make the state slower to read", async () => {
-  const b = battle();
-  const user = {
-    ...b.ctx,
-    conn: { state: { kind: "user", userId: 1 } },
-    vars: { chat: { take: () => true } },
-  } as unknown as Context;
-  for (let i = 1; i <= 50; i++) await actions.say(user, `line ${i}`);
-  // Spreading the live array stored the old lines as proxies, one layer deeper with every line.
-  const stored = structuredClone((onChange.target(b.state) as { chat?: unknown[] }).chat!);
-  expect(stored).toHaveLength(50);
-  expect(stored.at(-1)).toMatchObject({ id: 50, userId: 1, name: "p1", text: "line 50" });
+test("the match's chat keeps each line with the next id, and is saved with the match", async () => {
+  const b = await battle();
+  for (let i = 1; i <= 50; i++) await actions.say(b.asPlayer, `line ${i}`);
+  const chat = (b.state as { chat?: unknown[] }).chat!;
+  expect(chat).toHaveLength(50);
+  expect(chat.at(-1)).toMatchObject({ id: 50, userId: 1, name: "p1", text: "line 50" });
+  expect(b.writes()).toBe(50);
 });
