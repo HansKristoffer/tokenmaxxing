@@ -4,9 +4,12 @@ import {
   type ChatLine,
   DROPS,
   type Drop,
+  MOVES_TEXT,
   type Moves,
+  type MovesWire,
   type PlayerInfo,
   RUN_STEP_MS,
+  readMoves,
   type Snapshot,
   STEP_BURST,
   setDrops,
@@ -51,7 +54,7 @@ export async function connect(token: string) {
   conn.on("mention", (l: ChatLine) => events.mentions.push(l));
   conn.on("drop", (d: Drop) => events.drops.push(d));
   conn.on("pickup", (p: { id: number }) => events.pickups.push(p));
-  conn.on("moves", (m: Moves) => events.moves.push(m));
+  conn.on("moves", (m: MovesWire) => events.moves.push(readMoves(m)));
   conn.on("chat", (l: ChatLine) => events.chat.push(l));
   conn.on("snapshot", (s: Snapshot) => events.snapshots.push(s));
   // A reconnect is a new connection the world doesn't know has joined: join again, as the game does
@@ -60,11 +63,11 @@ export async function connect(token: string) {
   conn.onOpen(() => {
     if (opened) {
       console.warn("[test] world connection reopened: joining again");
-      void conn.join();
+      void conn.join(MOVES_TEXT);
     }
     opened = true;
   });
-  const snap = await conn.join();
+  const snap = await conn.join(MOVES_TEXT);
   return { conn, snap, events };
 }
 

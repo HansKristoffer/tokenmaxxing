@@ -11,7 +11,7 @@ import { hud, useHud } from "../store.ts";
 import { dayText } from "./format.ts";
 import { ItemIcon } from "./ItemIcon.tsx";
 import { LootSection } from "./Loot.tsx";
-import { Modal, Pixels, RankList, ToastButton, useFresh, useTicker } from "./ui.tsx";
+import { HowItWorks, Modal, Pills, Pixels, RankList, ToastButton, useFresh, useTicker } from "./ui.tsx";
 
 /** "3d 4h", "5h 12m", "40m", "12s". */
 function timeLeft(ms: number): string {
@@ -42,29 +42,20 @@ export function RaidBox() {
   if (raid.prelaunch)
     return (
       <section className="panel raid-box raid-teaser-box" aria-label="Raid">
-        <button
-          type="button"
-          className="miniboard-title"
-          onClick={() => hud.set({ panel: { kind: "raid" } })}
-        >
-          ⚠️ Something is coming <span className="muted">›</span>
+        <button type="button" className="plaque" onClick={() => hud.set({ panel: { kind: "raid" } })}>
+          Something is coming ›
         </button>
-        <div className="raid-line">
-          <span className="who">??? · {timeLeft(raid.launchAt - Date.now())}</span>
-          <small className="muted">Mon {opensAt(raid)}</small>
-        </div>
         <div className="raid-clock" role="timer">
           {countdown(raid.launchAt)}
         </div>
+        <p className="raid-when muted small">Mon {opensAt(raid)}</p>
       </section>
     );
   return (
     <section className="panel raid-box" aria-label="Raid">
-      <button type="button" className="miniboard-title" onClick={() => hud.set({ panel: { kind: "raid" } })}>
-        ⚔️ Raid{" "}
-        <span className="muted">
-          · {raid.closed ? `opens ${opensAt(raid)} ›` : `${timeLeft(raid.endsAt - Date.now())} left ›`}
-        </span>
+      <button type="button" className="plaque" onClick={() => hud.set({ panel: { kind: "raid" } })}>
+        Raid ›
+        <small>{raid.closed ? `opens ${opensAt(raid)}` : `${timeLeft(raid.endsAt - Date.now())} left`}</small>
       </button>
       <div className="raid-line">
         <span className="who">
@@ -175,37 +166,57 @@ function Teaser({ raid }: { raid: Raid }) {
         </p>
 
         <h3>How it works</h3>
-        <ul className="raid-rules muted small">
-          <li>
-            Every Monday at {opensAt(raid)} a ladder of bosses opens. Kill one and the next, ×{rules.hpGrowth}{" "}
-            tougher, steps up at once, with the overflow carried over. Clear all five and the ladder is done
-            till next Monday, when it comes back one level up, {Math.round((rules.weeklyGrowth - 1) * 100)}%
-            tougher; fall short and it starts again at the same level.
-          </li>
-          <li>
-            Every token you sync hits the boss, no cap, wherever you are. Every PR you open is a{" "}
-            {compact(rules.prHit)} special attack.
-          </li>
-          <li>
-            Everyone with agents running gets a desk in the dungeon, firing magic missiles as fast as they
-            burn.
-          </li>
-          <li>
-            Every kill pays everyone with {compact(rules.raiderAt)}+ that week so far: 🪙{" "}
-            {rules.rewards.join(", ")} a rung, {Math.round((rules.rewardGrowth - 1) * 100)}% more each level.
-          </li>
-        </ul>
+        <div className="muted small">
+          <Rules raid={raid} />
+        </div>
       </div>
     </Modal>
   );
 }
 
+/** The raid's rules, as short as they go. */
+function Rules({ raid }: { raid: Raid }) {
+  const { rules } = raid;
+  const pct = (growth: number) => `${Math.round((growth - 1) * 100)}%`;
+  return (
+    <ul>
+      <li>
+        Every token you sync hits the boss, wherever you are, with no cap. A PR you open is a{" "}
+        {compact(rules.prHit)} special attack.
+      </li>
+      <li>
+        Five bosses a week, from Monday {opensAt(raid)}. Kill one and the next, ×{rules.hpGrowth} tougher,
+        steps up at once; damage past a kill carries over.
+      </li>
+      <li>
+        Clear all five and next week's ladder is a level up: {pct(rules.weeklyGrowth)} tougher and{" "}
+        {pct(rules.rewardGrowth)} better paid. Fall short and it stays as it is.
+      </li>
+      <li>
+        Each kill pays everyone who has hit for {compact(rules.raiderAt)}+ that week: 🪙{" "}
+        {rules.rewards.join(", ")} by rung.
+      </li>
+      <li>
+        The desks, laptops and robots in the dungeon are the show. The hits are your synced tokens, and land
+        with the next sync.
+      </li>
+    </ul>
+  );
+}
+
+type Tab = "ladder" | "loot" | "ranks";
+
 export function RaidPanel() {
   const raid = useHud((s) => s.raid);
+  const signedIn = useHud((s) => s.me !== null);
+  const [tab, setTab] = useState<Tab>("ladder");
   useTicker(raid?.prelaunch ? 1000 : 60_000, !!raid);
   if (!raid) return null;
   if (raid.prelaunch) return <Teaser raid={raid} />;
   const { rules, me } = raid;
+  const tabs: (readonly [Tab, string])[] = [["ladder", "Ladder"]];
+  if (raid.loot && signedIn) tabs.push(["loot", "Loot"]);
+  if (raid.top.length > 0) tabs.push(["ranks", "Ranks"]);
   return (
     <Modal title={`${raid.boss.emoji} ${raid.boss.name} · Rung ${raid.boss.rung}`}>
       <div className="raid">
@@ -224,20 +235,6 @@ export function RaidPanel() {
           )}
         </p>
         <HpBar raid={raid} />
-        {world.room !== "dungeon" && (
-          <button
-            type="button"
-            className="primary raid-go"
-            onClick={() => {
-              hud.set({ panel: null });
-              world.portalPending = true;
-              send(conn.enterDungeon());
-            }}
-          >
-            ⚔️ Go to the dungeon
-          </button>
-        )}
-
         {me && (
           <p className="raid-me">
             {me.damage > 0 ? (
@@ -257,14 +254,39 @@ export function RaidPanel() {
             {me.weekCoins > 0 && <span className="muted"> · 🪙 {me.weekCoins} from kills</span>}
           </p>
         )}
+        {world.room !== "dungeon" && (
+          <button
+            type="button"
+            className="primary raid-go"
+            onClick={() => {
+              hud.set({ panel: null });
+              world.portalPending = true;
+              send(conn.enterDungeon());
+            }}
+          >
+            ⚔️ Go to the dungeon
+          </button>
+        )}
 
-        <h3>The ladder</h3>
-        <Ladder raid={raid} />
-        <LootSection raid={raid} />
-
-        {raid.top.length > 0 && (
+        {tabs.length > 1 && <Pills value={tab} options={tabs} onChange={setTab} />}
+        {tab === "ladder" && (
           <>
-            <h3>Top raiders</h3>
+            <Ladder raid={raid} />
+            {(raid.last || (me && me.coins > 0)) && (
+              <p className="muted small">
+                {raid.last &&
+                  (raid.last.defeated
+                    ? `Last week: ${plural(raid.last.cleared, "rung")}, up to ${raid.last.boss.emoji} ${raid.last.boss.name}, with ${raid.last.raiders} raiders. `
+                    : `Last week: ${raid.last.boss.emoji} ${raid.last.boss.name} got away. `)}
+                {me && me.coins > 0 && <>Raids have paid you 🪙 {me.coins}.</>}
+              </p>
+            )}
+          </>
+        )}
+        {tab === "loot" && <LootSection raid={raid} />}
+        {tab === "ranks" && (
+          <>
+            <h3>Raiders</h3>
             <div className="miniboard">
               <RankList
                 rows={raid.top.map((r, i) => ({
@@ -276,61 +298,27 @@ export function RaidPanel() {
                 }))}
               />
             </div>
+            {raid.companies.length > 0 && (
+              <>
+                <h3>Companies</h3>
+                <div className="miniboard">
+                  <RankList
+                    rows={raid.companies.map((c, i) => ({
+                      id: c.companyId,
+                      rank: `#${i + 1}`,
+                      who: `🏢 ${c.name}`,
+                      value: compact(c.damage),
+                      open: { kind: "companyCard", companyId: c.companyId },
+                    }))}
+                  />
+                </div>
+              </>
+            )}
           </>
         )}
-
-        {raid.companies.length > 0 && (
-          <>
-            <h3>Companies</h3>
-            <div className="miniboard">
-              <RankList
-                rows={raid.companies.map((c, i) => ({
-                  id: c.companyId,
-                  rank: `#${i + 1}`,
-                  who: `🏢 ${c.name}`,
-                  value: compact(c.damage),
-                  open: { kind: "companyCard", companyId: c.companyId },
-                }))}
-              />
-            </div>
-          </>
-        )}
-
-        <h3>How it works</h3>
-        <ul className="raid-rules muted small">
-          <li>
-            A new ladder opens every Monday at {opensAt(raid)}. The first ladder was set from the town's week
-            before the raid opened. Clear all five bosses in a week and the next ladder is one level up ("II",
-            "III"…) and {Math.round((rules.weeklyGrowth - 1) * 100)}% tougher; otherwise it starts the same as
-            this one. Each rung has ×{rules.hpGrowth} the HP of the one before.
-          </li>
-          <li>
-            Kill a boss and the next one steps up at once: Rate Limit, Context Window, Merge Conflict,
-            Hallucination, the Invoice. Damage past a kill carries over, but once the Invoice falls the ladder
-            is done and the bosses rest until Monday.
-          </li>
-          <li>Every token you sync hits it, no cap.</li>
-          <li>Every PR you open is a special attack for {compact(rules.prHit)}.</li>
-          <li>
-            In the dungeon, everyone with agents running sits at a desk, wherever they are. Their laptops and
-            robot minions fire as fast as they burn tokens; that's just the show. The real hits are every
-            token synced, in the dungeon or not, and land with the next sync.
-          </li>
-          <li>
-            Every kill pays everyone with {compact(rules.raiderAt)}+ that week so far: 🪙{" "}
-            {rules.rewards.join(", ")} a rung, {Math.round((rules.rewardGrowth - 1) * 100)}% more each level
-            up.
-          </li>
-        </ul>
-        {raid.last && (
-          <p className="muted small">
-            Last week:{" "}
-            {raid.last.defeated
-              ? `${plural(raid.last.cleared, "rung")}, up to ${raid.last.boss.emoji} ${raid.last.boss.name}, with ${raid.last.raiders} raiders.`
-              : `${raid.last.boss.emoji} ${raid.last.boss.name} got away.`}
-          </p>
-        )}
-        {me && me.coins > 0 && <p className="muted small">You've earned 🪙 {me.coins} from raids.</p>}
+        <HowItWorks>
+          <Rules raid={raid} />
+        </HowItWorks>
       </div>
     </Modal>
   );

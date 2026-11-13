@@ -8,8 +8,65 @@
   --accent: #ffd35c;
   --good: #8fe3ff;
   --bad: #ff8a80;
+  /* The world's labels: a name tag over a head, a sign, what someone says. */
+  --paper: #fbf7ef;
   --font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Motion: things arrive fast and settle (`--ease-out`); a reward lands a little past its place (`--ease-pop`). */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-pop: cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  /* How far a thing travels as it arrives, and how small it starts. */
+  --rise: 6px;
+  --shrink: 0.96;
   color-scheme: dark;
+}
+
+/* Less motion asked for: things fade in where they stand. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --rise: 0px;
+    --shrink: 1;
+  }
+}
+
+/* A bar that fills, as a number the browser can count to rather than jump to. */
+@property --fill {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+@property --share {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+/* Arriving: from below (a panel, the dialog), from above (a toast), or out of the button that opened it. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    translate: 0 var(--rise);
+  }
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    translate: 0 calc(-1 * var(--rise));
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: var(--shrink);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 * {
@@ -121,6 +178,32 @@ textarea:focus {
   padding: 4px 8px;
 }
 
+/* What reads as a toolbar icon, a chip or a list row has no button chrome until hovered. */
+:is(
+  .bar > button:not(.hero),
+  .modal-head .icon,
+  .menu > button,
+  .games-box .row,
+  .chat-fold,
+  .whos-here-chip,
+  .zoom button
+) {
+  border-color: transparent;
+  background: none;
+}
+
+:is(
+  .bar > button:not(.hero),
+  .modal-head .icon,
+  .menu > button,
+  .games-box .row,
+  .chat-fold,
+  .whos-here-chip,
+  .zoom button
+):hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .avatar {
   image-rendering: pixelated;
   flex-shrink: 0;
@@ -176,14 +259,67 @@ textarea:focus {
   color: var(--muted);
 }
 
+/* Top right: two strips, the world's (the sky, the camera) and mine, a cell a thing with a short rule between. */
 .stats-chip {
   position: absolute;
   top: 12px;
   right: 12px;
   display: flex;
-  gap: 6px;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.bar {
+  display: flex;
+  flex-shrink: 0;
   align-items: center;
-  padding: 6px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.bar > :is(button, span) {
+  position: relative;
+  padding: 5px 10px;
+  border-radius: 0;
+  white-space: nowrap;
+}
+
+.bar > button {
+  align-self: stretch;
+}
+
+.bar > * + *::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 14px;
+  margin-top: -7px;
+  background: var(--line);
+}
+
+/* The headline, a name tag lying in the strip: what I've burned today, my rank and level. */
+.bar > .hero,
+html[data-tier]:not([data-tier="low"]) .bar > .hero {
+  align-self: center;
+  margin: 2px 4px 2px 2px;
+  padding: 1px 8px;
+  border: 2px solid var(--edge, #16121f);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 18px;
+  box-shadow: none;
+}
+
+.bar > .hero:hover,
+html[data-tier]:not([data-tier="low"]) .bar > .hero:hover {
+  background: #fff;
+}
+
+.bar > .hero + *::before {
+  display: none;
 }
 
 .photo-booth {
@@ -196,6 +332,8 @@ textarea:focus {
   gap: 8px;
   max-width: min(300px, calc(100vw - 24px));
   padding: 12px;
+  transform-origin: top right;
+  animation: pop-in 140ms var(--ease-out);
 }
 
 .chip.sky {
@@ -211,6 +349,11 @@ textarea:focus {
 
 .chip strong {
   color: var(--accent);
+}
+
+.hero strong {
+  color: inherit;
+  font-size: 14px;
 }
 
 /* The desktop app has a new version waiting: hard to miss, but just a button. */
@@ -238,15 +381,25 @@ textarea:focus {
   color: var(--good);
 }
 
-/* The player card's badges: a wrapping row of `.badge` chips (the -6px undoes the first one's margin). */
+.hero .badge,
+.hero .badge.lv {
+  background: var(--ink);
+}
+
+/* The player card's badges: a wrapping row of `.badge` chips, best first. */
 .badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 0;
-  margin: 4px 0 4px -6px;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
   padding: 0;
   list-style: none;
   font-size: 12px;
+}
+
+.badges .badge {
+  margin: 0;
 }
 
 .banner {
@@ -261,13 +414,20 @@ textarea:focus {
   background: var(--panel);
   border-radius: 10px;
   pointer-events: none;
-  animation: fade 2.5s ease-out forwards;
+  animation: banner 2.5s linear forwards;
 }
 
-@keyframes fade {
-  0%,
+/* The room's name: drops in, stays, fades. As long as `BANNER_MS` (Hud.tsx). */
+@keyframes banner {
+  0% {
+    opacity: 0;
+    translate: 0 calc(-1 * var(--rise));
+    animation-timing-function: var(--ease-out);
+  }
+  10%,
   70% {
     opacity: 1;
+    translate: 0 0;
   }
   100% {
     opacity: 0;
@@ -282,6 +442,7 @@ textarea:focus {
   padding: 6px 14px;
   background: var(--panel);
   border-radius: 8px;
+  animation: drop-in 220ms var(--ease-out);
 }
 
 /* Toasts that can show at once go in one column, so none covers another. */
@@ -315,6 +476,7 @@ textarea:focus {
   background: rgba(251, 247, 239, 0.97);
   color: var(--ink);
   border: 3px solid var(--ink);
+  animation: rise-in 140ms var(--ease-out);
 }
 
 /* Above the dialog's place: what G and M do to the piece you face. */
@@ -329,6 +491,8 @@ textarea:focus {
   border: 3px solid var(--ink);
   white-space: nowrap;
   pointer-events: none;
+  /* It comes and goes as you walk past your furniture: a fade, no travel. */
+  animation: fade-in 120ms ease-out;
 }
 
 @media (max-width: 1150px) {
@@ -410,15 +574,76 @@ textarea:focus {
   }
 }
 
-/* The chat dock: the chat and the quick replies above it, stacked from the bottom-left corner. */
+/*
+ * A HUD box wears a name tag, as the people in town do: a paper plaque that stands on its top edge. A note in it
+ * (how many are online, how long is left) is its dark end.
+ */
+.plaque,
+html[data-tier]:not([data-tier="low"]) button.plaque {
+  position: absolute;
+  top: -14px;
+  left: 8px;
+  max-width: calc(100% - 16px);
+  padding: 1px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 2px solid var(--edge, #16121f);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+button.plaque:hover,
+html[data-tier]:not([data-tier="low"]) button.plaque:hover {
+  background: var(--accent);
+}
+
+.plaque small {
+  display: inline-block;
+  margin: -1px -8px -1px 8px;
+  padding: 1px 8px;
+  vertical-align: top;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* Under the tag, inside: the box's own buttons (who's here, the map's zoom), at its right. */
+.box-head {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+}
+
+/* Beside a game the tag gives way to the Game / room pills (a div), which keep to the left. */
+.box-head > div {
+  margin-right: auto;
+}
+
+.corner > section,
+.chat {
+  position: relative;
+}
+
+.chat,
+.minimap {
+  padding-top: 6px;
+}
+
+/* The chat dock, in the bottom-left corner: one panel with the lines, the input, then the quick replies and dances. */
 .chat-dock {
   position: absolute;
   left: 12px;
   bottom: 12px;
   width: min(400px, calc(100vw - 24px));
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .chat {
@@ -435,15 +660,9 @@ textarea:focus {
 
 .chat-tab {
   position: relative;
-  align-self: flex-start;
   padding: 6px 10px;
   font-size: 16px;
   line-height: 1;
-  opacity: 0.6;
-}
-
-.chat-tab:hover {
-  opacity: 1;
 }
 
 .chat-tab .count {
@@ -452,16 +671,13 @@ textarea:focus {
   right: -8px;
 }
 
-.quick {
-  padding: 6px 8px;
-}
-
 /* The dance bar: one button a dance, wrapping onto a second row when there are many. The one on is lit. */
 .dance-bar {
-  padding: 4px 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
 }
 
 .dance-bar button {
@@ -508,19 +724,6 @@ textarea:focus {
   opacity: 0.75;
 }
 
-/* At rest the chat is a faint overlay, so it doesn't hide the room: it comes up on hover, focus or a new line. */
-.chat-dock .chat,
-.chat-dock .quick,
-.chat-dock .dance-bar {
-  transition: opacity 0.2s;
-}
-
-.chat-dock:not(:hover):not(:focus-within):not(.fresh) .chat,
-.chat-dock:not(:hover):not(:focus-within):not(.fresh) .quick,
-.chat-dock:not(:hover):not(:focus-within):not(.fresh) .dance-bar:not(:has([aria-pressed="true"])) {
-  opacity: 0.4;
-}
-
 /* One line, however wide the platform draws its emoji (WebKit's are wider): the buttons share the row. */
 .quick-emojis {
   display: flex;
@@ -560,14 +763,6 @@ textarea:focus {
   border-radius: 999px;
 }
 
-.chat header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-}
-
 /* Who's online here: a chip, and on hover or focus the list above it. */
 .whos-here {
   position: relative;
@@ -577,8 +772,7 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px 2px 6px;
-  border-radius: 999px;
+  padding: 2px 6px;
   font-size: 11px;
   color: var(--muted);
 }
@@ -647,6 +841,44 @@ textarea:focus {
   white-space: nowrap;
 }
 
+/*
+ * The chat's own controls (who's here, hide) stand on its top edge too, at the right: a dark tag facing the room's
+ * plaque, so no row inside goes to them. With no Game / room pills the head is only the two tags.
+ */
+.chat .box-head.bare {
+  display: contents;
+}
+
+.chat:has(> .box-head.bare) {
+  padding-top: 10px;
+}
+
+.box-tags {
+  position: absolute;
+  top: -14px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 20px;
+  padding: 0 2px;
+  border: 2px solid var(--edge, #16121f);
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.box-tags .whos-here-chip,
+.box-tags .chat-fold {
+  height: 16px;
+  padding: 0 6px;
+  color: var(--paper);
+  font-size: 11px;
+  line-height: 16px;
+  border-radius: 2px;
+}
+
 .chat ol {
   list-style: none;
   margin: 0;
@@ -682,7 +914,24 @@ textarea:focus {
   inset: 0;
   display: grid;
   place-items: center;
+}
+
+/*
+ * The world dims behind a panel. Its own element, there the whole time (Hud.tsx), so it fades both ways and
+ * holds still when one panel opens another.
+ */
+#hud > .dim {
+  position: absolute;
+  inset: 0;
   background: rgba(10, 12, 18, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease-out;
+}
+
+#hud > .dim.on {
+  opacity: 1;
+  transition-duration: 180ms;
 }
 
 /* A game with the chat beside it, or under it when the window is too narrow for both. */
@@ -725,6 +974,16 @@ textarea:focus {
   flex-direction: column;
   gap: 10px;
   padding: 14px 16px 16px;
+  /* Once, as the panel opens: its tabs and its loading turn over in place. It closes at once. */
+  animation: modal-in 180ms var(--ease-out);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    scale: var(--shrink);
+    translate: 0 var(--rise);
+  }
 }
 
 .modal.wide {
@@ -735,7 +994,11 @@ textarea:focus {
   width: min(980px, calc(100vw - 24px));
 }
 
-/* Stays at the top while a tall panel scrolls under it. */
+/*
+ * Stays at the top while a tall panel scrolls under it, over the modal's own top padding (the -14px: sticky
+ * counts from inside that padding). As much above the title as below. It covers the panel's inner edge where it
+ * lies, so it carries the same one on, round the same corners.
+ */
 .modal-head {
   position: sticky;
   top: -14px;
@@ -743,26 +1006,86 @@ textarea:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   margin: -14px -16px 0;
-  padding: 14px 16px 6px;
+  padding: 10px 16px;
+  border-radius: 8px 8px 0 0;
   background: var(--panel-solid);
+  box-shadow:
+    inset 1px 1px 0 var(--line),
+    inset -1px 0 0 var(--line);
 }
 
+/* A modal's title is its name tag too (`.plaque`), here inside its head. */
 .modal h2 {
   margin: 0;
-  font-size: 16px;
+  padding: 2px 10px;
+  border: 2px solid var(--edge, #16121f);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* Beside the title, pushed to the close button: the coins a panel spends. */
+.modal-aside {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-aside strong {
+  color: var(--accent);
 }
 
 .modal h3 {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: 13px;
+}
+
+/* A panel's rules, one line until opened. */
+.how-it-works {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.how-it-works summary {
+  cursor: pointer;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+}
+
+.how-it-works summary:hover {
+  color: var(--text);
+}
+
+.how-it-works > div {
+  margin-top: 6px;
+}
+
+.how-it-works ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
 }
 
 .modal p {
   margin: 0;
+}
+
+/* A link in a sentence sits in it like a word; one on its own line starts at the left edge. */
+.modal p > .link,
+.modal > .link {
+  padding: 0;
+}
+
+.modal > .link {
+  align-self: flex-start;
 }
 
 .pills {
@@ -817,7 +1140,7 @@ textarea:focus {
 
 .modal h2 .status {
   font-weight: 400;
-  color: var(--muted);
+  opacity: 0.7;
 }
 
 .xp {
@@ -862,7 +1185,18 @@ textarea:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
   padding: 3px 0;
+}
+
+/* A row's own button keeps its words on one line; the row's text wraps instead. */
+.members li > button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.members.shops li {
+  padding: 6px 0;
 }
 
 .link {
@@ -919,39 +1253,37 @@ textarea:focus {
 .menu {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 
 .menu > a,
 .menu > button {
   text-align: left;
-  padding: 8px 12px;
+  padding: 7px 10px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
   color: inherit;
   text-decoration: none;
-  border: 1px solid var(--line);
 }
 
-/* Top right, under the stats: the mini leaderboard and the games box. */
+/* Top right, under the stats: today's board, the games, the rooms and the raid, a box each with its tag. */
 .corner {
   position: absolute;
-  top: 60px;
+  top: 68px;
   right: 12px;
   width: 220px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 22px;
 }
 
-.miniboard,
-.games-box {
-  padding: 6px 8px;
+.corner > section {
+  padding: 10px 8px 8px;
 }
 
+/* A row of a corner box is 24px, whatever is in it: a name and a number, a table and its Join. */
 .games-box ul {
   list-style: none;
-  margin: 0 0 6px;
+  margin: 0;
   padding: 0;
 }
 
@@ -959,7 +1291,8 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 4px;
+  min-height: 24px;
+  padding: 0 4px;
   font-size: 12px;
 }
 
@@ -975,8 +1308,22 @@ textarea:focus {
   font-size: 11px;
 }
 
+.games-box .row {
+  width: 100%;
+  min-height: 24px;
+  padding: 0 4px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.games-box .row:hover {
+  color: var(--text);
+}
+
 .games-box .wide {
   width: 100%;
+  margin-top: 4px;
 }
 
 /* The rooms list: a room's name is the button that takes you there. */
@@ -986,12 +1333,16 @@ textarea:focus {
   background: none;
   text-align: left;
   font-size: 12px;
+  text-decoration: none;
+}
+
+.rooms-box .who:hover:not(:disabled) {
+  text-decoration: underline;
 }
 
 .rooms-box .who:disabled {
   cursor: default;
   opacity: 0.6;
-  text-decoration: none;
 }
 
 .rooms-box .here:disabled {
@@ -1002,14 +1353,8 @@ textarea:focus {
   color: var(--accent);
 }
 
-.miniboard-title {
-  width: 100%;
-  margin: 0;
-  text-align: left;
-  border: none;
-  background: none;
-  padding: 2px 4px 4px;
-  font-weight: 700;
+.rooms-box .here::before {
+  content: "▸ ";
 }
 
 .miniboard ol {
@@ -1018,21 +1363,60 @@ textarea:focus {
   padding: 0;
 }
 
+/* Behind a row, how its number stands to the top one (`--share`); mine has a gold edge. */
+.miniboard li {
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(233, 183, 61, 0.16) var(--share, 0%), transparent 0);
+  transition: --share 600ms var(--ease-out);
+}
+
+.miniboard li.mine {
+  box-shadow: inset 2px 0 0 var(--accent);
+  font-weight: 700;
+}
+
 .miniboard li button {
   width: 100%;
   display: flex;
   gap: 8px;
-  align-items: baseline;
+  align-items: center;
+  min-height: 24px;
   border: none;
   background: none;
-  padding: 2px 4px;
-  border-radius: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
   font-size: 12px;
 }
 
 .miniboard .rank {
-  width: 26px;
+  width: 24px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
   color: var(--muted);
+}
+
+/* The podium: the first three stand on a block of gold, silver and bronze. */
+.rank:is([data-rank="#1"], [data-rank="#2"], [data-rank="#3"]) {
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.45),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.rank[data-rank="#1"] {
+  background: #e9b73d;
+}
+
+.rank[data-rank="#2"] {
+  background: #c5c9d6;
+}
+
+.rank[data-rank="#3"] {
+  background: #c98d5e;
 }
 
 .miniboard .who {
@@ -1052,30 +1436,13 @@ textarea:focus {
   position: absolute;
   right: 12px;
   bottom: 12px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.minimap header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-/* A long room name (a company's common room) gives way to the buttons instead of widening the map. */
-.minimap {
   width: min-content;
+  padding-inline: 8px;
+  padding-bottom: 8px;
 }
 
-.minimap header > span:first-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.minimap .box-head {
+  margin-bottom: 4px;
 }
 
 .minimap .zoom {
@@ -1250,13 +1617,6 @@ textarea:focus {
   color: var(--muted);
 }
 
-.shop-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
 .coin-chip {
   padding: 3px 10px;
   border-radius: 999px;
@@ -1287,7 +1647,7 @@ textarea:focus {
 .shop-top .pills {
   display: flex;
   flex-wrap: wrap;
-  align-self: stretch;
+  align-self: flex-start;
 }
 
 .h3-note {
@@ -1332,16 +1692,22 @@ textarea:focus {
   gap: 8px;
 }
 
-/* The bag and wardrobe: you and your pet on the left, the tabs beside; changes wait in a save bar. */
+/* The bag and wardrobe: you, your pet and your name on the left, the tabs beside; changes wait in a save bar. */
 .wardrobe {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   align-items: flex-start;
 }
 
-.wardrobe-preview {
+/* Stays in view while the choices scroll, just under the modal's head. */
+.wardrobe-me {
   position: sticky;
-  top: 0;
+  top: 44px;
+  display: grid;
+  gap: 10px;
+}
+
+.wardrobe-preview {
   display: grid;
   justify-items: center;
   align-content: start;
@@ -1375,27 +1741,57 @@ textarea:focus {
   flex: 1;
   min-width: 0;
   display: grid;
+  gap: 14px;
+  align-content: start;
+  justify-items: start;
+}
+
+.wardrobe-side > * {
+  width: 100%;
+}
+
+.wardrobe-side > .pills {
+  width: auto;
+}
+
+/* Style, skin and hair in one line: the style's name needs the room. */
+.wardrobe-cycles {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
   gap: 10px;
+}
+
+.wardrobe-cycle,
+.wardrobe-row {
+  display: grid;
+  gap: 5px;
   align-content: start;
 }
 
-.wardrobe-cycles {
-  display: grid;
-  gap: 6px;
+.wardrobe-cycle .cycle {
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
 }
 
-.wardrobe-row {
-  display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 8px;
-  align-items: start;
+.wardrobe-cycle .cycle button {
+  border-color: transparent;
+  background: none;
+  padding: 3px 8px;
 }
 
-/* Level with the first row of squares, however many rows they wrap to. */
+.wardrobe-cycle .cycle button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.wardrobe-cycle .cycle span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wardrobe-label {
-  padding-top: 26px;
   font-size: 12px;
-  opacity: 0.75;
 }
 
 .wardrobe-choices {
@@ -1452,8 +1848,16 @@ textarea:focus {
     align-items: stretch;
   }
 
-  .wardrobe-preview {
+  .wardrobe-me {
     position: static;
+  }
+
+  .wardrobe-cycles {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .wardrobe-cycle:first-child {
+    grid-column: 1 / -1;
   }
 }
 
@@ -1534,6 +1938,25 @@ textarea:focus {
   font-weight: 700;
 }
 
+/* Something new is waiting (an unread line, someone asking to join): the badge lands with a small bounce. */
+:is(.bar, .chat-tab) .count {
+  display: inline-block;
+  animation: count-pop 260ms var(--ease-pop);
+}
+
+@keyframes count-pop {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.bar, .chat-tab) .count {
+    animation-name: fade-in;
+  }
+}
+
 .listings {
   list-style: none;
   margin: 0;
@@ -1559,8 +1982,12 @@ textarea:focus {
   gap: 12px;
 }
 
+/* A full bag scrolls inside its side, so the Offer button stays in reach. */
 .trade-sides .pills {
   flex-wrap: wrap;
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .listings li {
@@ -1772,10 +2199,6 @@ button.lb-item:hover {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-}
-
-.miniboard li.mine > button {
-  background: rgba(255, 211, 92, 0.14);
 }
 
 .modal:focus {
@@ -2096,9 +2519,33 @@ button.lb-item:hover {
   box-shadow: 0 0 18px rgba(255, 211, 92, 0.35);
 }
 
-.milestone-toast.legendary {
+/* Every tenth level, so it may land harder than a toast does. */
+.toasts > .milestone-toast {
+  animation: milestone-in 420ms var(--ease-pop);
+}
+
+.toasts > .milestone-toast.legendary {
   background: linear-gradient(135deg, rgba(60, 44, 12, 0.95), rgba(27, 31, 42, 0.95) 60%);
-  animation: milestone-glow 1.6s ease-in-out infinite alternate;
+  animation:
+    milestone-in 420ms var(--ease-pop),
+    milestone-glow 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes milestone-in {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toasts > .milestone-toast {
+    animation-name: fade-in;
+  }
+
+  .toasts > .milestone-toast.legendary {
+    animation-name: fade-in, milestone-glow;
+  }
 }
 
 @keyframes milestone-glow {
@@ -2124,10 +2571,6 @@ button.lb-item:hover {
 }
 
 /* The raid: the boss's HP in the corner box and the panel. */
-.raid-box {
-  padding: 6px 8px;
-}
-
 .raid-line {
   display: flex;
   gap: 6px;
@@ -2170,38 +2613,37 @@ button.lb-item:hover {
   background: #e06c5f;
 }
 
+/* The raid panel: where the fight stands on top, then one tab at a time. */
+.raid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .raid .hp {
   height: 14px;
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 .raid .miniboard {
   padding: 0;
 }
 
+.raid .pills {
+  align-self: flex-start;
+}
+
 .raid h3 {
-  margin: 12px 0 4px;
-  font-size: 13px;
-}
-
-.raid-status,
-.raid-me {
-  margin: 4px 0 8px;
-}
-
-.raid-rules {
-  margin: 0 0 8px;
-  padding-left: 18px;
+  margin: 0;
 }
 
 .raid-go {
   width: 100%;
-  margin: 0 0 10px;
 }
 
 .raid-ladder {
   list-style: none;
-  margin: 0 0 10px;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -2246,15 +2688,26 @@ button.lb-item:hover {
   color: #f5d14a;
 }
 
-.raid-teaser-box .miniboard-title {
-  color: #f5d14a;
+/* A warning sign's yellow. */
+.raid-teaser-box .plaque,
+html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
+  background: #f5d14a;
+}
+
+.raid-when {
+  margin: 0;
+  text-align: center;
 }
 
 .raid-teaser {
   text-align: center;
 }
 
-.raid-teaser .raid-rules {
+.raid-teaser ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
   text-align: left;
 }
 
@@ -2370,7 +2823,7 @@ button.lb-item:hover {
 
 .loot-table {
   list-style: none;
-  margin: 0 0 6px;
+  margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -2411,7 +2864,7 @@ button.lb-item:hover {
 
 .loot-drops {
   list-style: none;
-  margin: 0 0 10px;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -2514,84 +2967,32 @@ button.lb-item:hover {
  * border, silver a double one, gold adds a gem on top, diamond a dashed, glowing edge.
  */
 .badge[class*="badge--"] {
-  position: relative;
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 1px 6px 2px;
+  padding: 2px 8px;
   border: 1px solid var(--tier);
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
 }
+/* One frame for every tier: its colour is the border, and from diamond up it tints the chip too. */
 .badge--bronze {
   --tier: #c98a4b;
 }
 .badge--silver {
   --tier: #d5dbe4;
-  box-shadow:
-    0 0 0 2px rgba(27, 31, 42, 0.9),
-    0 0 0 3px var(--tier);
-  margin-right: 3px;
 }
 .badge--gold {
   --tier: #ffd75e;
-  box-shadow: 0 0 6px rgba(255, 215, 94, 0.35);
-}
-.badge--gold::before {
-  content: "";
-  position: absolute;
-  top: -4px;
-  left: calc(50% - 3px);
-  width: 6px;
-  height: 6px;
-  background: var(--tier);
-  transform: rotate(45deg);
 }
 .badge--diamond {
   --tier: #7fe8ff;
-  border-style: dashed;
-  box-shadow: 0 0 8px rgba(127, 232, 255, 0.5);
+  background: rgba(127, 232, 255, 0.12);
 }
-/* Past diamond: mythic has two gems on top, cosmic adds a double ring and a glow that shimmers. */
-.badge.badge--mythic {
+.badge--mythic {
   --tier: #ff62c4;
-  border-width: 2px;
-  box-shadow: 0 0 10px rgba(255, 98, 196, 0.6);
+  background: rgba(255, 98, 196, 0.14);
 }
-.badge.badge--cosmic {
+.badge--cosmic {
   --tier: #a98bff;
-  border-width: 2px;
-  margin-right: 3px;
-  background: linear-gradient(
-    135deg,
-    rgba(169, 139, 255, 0.28),
-    rgba(255, 98, 196, 0.22),
-    rgba(127, 232, 255, 0.28)
-  );
-  box-shadow:
-    0 0 0 2px rgba(27, 31, 42, 0.9),
-    0 0 0 3px var(--tier),
-    0 0 12px rgba(169, 139, 255, 0.7);
-}
-.badge--mythic::before,
-.badge--mythic::after,
-.badge--cosmic::before,
-.badge--cosmic::after {
-  content: "";
-  position: absolute;
-  top: -4px;
-  width: 6px;
-  height: 6px;
-  background: var(--tier);
-  transform: rotate(45deg);
-}
-.badge--mythic::before,
-.badge--cosmic::before {
-  left: 8px;
-}
-.badge--mythic::after,
-.badge--cosmic::after {
-  right: 8px;
+  background: rgba(169, 139, 255, 0.2);
 }
 .badge-bar {
   display: block;
@@ -2605,27 +3006,6 @@ button.lb-item:hover {
   display: block;
   height: 100%;
   background: var(--tier, var(--accent));
-}
-@media (prefers-reduced-motion: no-preference) {
-  .badge--diamond {
-    animation: diamond-glint 2.4s ease-in-out infinite;
-  }
-  .badge--cosmic {
-    animation: cosmic-shimmer 2.8s ease-in-out infinite;
-  }
-}
-@keyframes cosmic-shimmer {
-  50% {
-    box-shadow:
-      0 0 0 2px rgba(27, 31, 42, 0.9),
-      0 0 0 3px #7fe8ff,
-      0 0 14px rgba(127, 232, 255, 0.85);
-  }
-}
-@keyframes diamond-glint {
-  50% {
-    box-shadow: 0 0 12px rgba(127, 232, 255, 0.85);
-  }
 }
 
 /* The collection log and the Hall of Fame: a grid of icon + words, unearned ones greyed. */
@@ -2784,6 +3164,7 @@ button.lb-item:hover {
   border-radius: 50%;
   border: 1px solid var(--muted);
   background: linear-gradient(to top, var(--accent) var(--fill, 0%), transparent var(--fill, 0%));
+  transition: --fill 500ms var(--ease-out);
 }
 .quest-pip.done {
   background: var(--good);
@@ -2973,6 +3354,11 @@ button.lb-item:hover {
     outline: 2px solid var(--accent);
   }
 
+  /* What a tray icon opens rises out of the tray. */
+  #hud > :is(.corner, .minimap, .chat-dock) {
+    animation: rise-in 160ms var(--ease-out);
+  }
+
   .hints {
     top: 8px;
     left: 8px;
@@ -2993,6 +3379,19 @@ button.lb-item:hover {
     font-size: 12px;
   }
 
+  /* No room for the weather: the strip is mine alone, its cells closer. */
+  .bar.world {
+    display: none;
+  }
+
+  .bar > :is(button, span) {
+    padding-inline: 6px;
+  }
+
+  .hero-word {
+    display: none;
+  }
+
   .fps-meter {
     top: 54px;
     left: 8px;
@@ -3008,10 +3407,12 @@ button.lb-item:hover {
     bottom: 60px;
   }
 
+  /* It scrolls, which would cut the first box's tag off: room for it inside. */
   .corner {
     width: min(260px, calc(100vw - 16px));
     max-height: calc(100vh - 130px);
     overflow-y: auto;
+    padding-top: 16px;
   }
 
   .chat-dock {
@@ -3019,7 +3420,7 @@ button.lb-item:hover {
   }
 
   .chat-dock .chat {
-    max-height: 38vh;
+    max-height: 50vh;
   }
 
   .dialog {
@@ -3069,7 +3470,11 @@ html[data-tier]:not([data-tier="low"]) .panel {
 }
 
 html[data-tier]:not([data-tier="low"]) .modal-head {
-  box-shadow: 0 2px 0 var(--edge);
+  border-radius: 2px 2px 0 0;
+  box-shadow:
+    0 2px 0 var(--edge),
+    inset 2px 2px 0 var(--bevel-light),
+    inset -2px 0 0 var(--bevel-dark);
 }
 
 html[data-tier]:not([data-tier="low"]) button {
@@ -3130,9 +3535,28 @@ html[data-tier]:not([data-tier="low"]) .pills button[aria-pressed="true"] {
   border-radius: 2px;
 }
 
-/* Buttons that read as text or a list row (a chat author, a quick emoji, a name to pick) stay flat. */
+/*
+ * The bevel is for a button that does something (Join, Buy, New game). What reads as text, a list row or a
+ * toolbar icon (a chat author, a box's title, a menu row, the top bar's chips, a close ✕) stays flat until hovered.
+ */
 html[data-tier]:not([data-tier="low"])
-  :is(.chat .author, .quick-emojis button, .whos-here-list button, .suggestions li button) {
+  :is(
+    .chat .author,
+    .chat-fold,
+    .whos-here-chip,
+    .quick-emojis button,
+    .dance-bar button,
+    .whos-here-list button,
+    .suggestions li button,
+    .hints .title,
+    .bar > button:not(.hero),
+    .games-box .row,
+    .miniboard li button,
+    .rooms-box .who,
+    .minimap .zoom button,
+    .modal-head .icon,
+    .menu > button
+  ) {
   border: none;
   background: none;
   box-shadow: none;
@@ -3140,9 +3564,31 @@ html[data-tier]:not([data-tier="low"])
 }
 
 html[data-tier]:not([data-tier="low"])
-  :is(.quick-emojis button, .whos-here-list button, .suggestions li button):hover,
+  :is(
+    .chat-fold,
+    .whos-here-chip,
+    .quick-emojis button,
+    .dance-bar button,
+    .whos-here-list button,
+    .suggestions li button,
+    .bar > button:not(.hero),
+    .miniboard li button,
+    .minimap .zoom button,
+    .modal-head .icon,
+    .menu > button
+  ):hover,
 html[data-tier]:not([data-tier="low"]) .quick-emojis .quick-toggle[aria-expanded="true"] {
   background: rgba(251, 247, 239, 0.12);
+}
+
+/* Lit, as the base rules have them: the flat rule above would put these out. */
+html[data-tier]:not([data-tier="low"]) .dance-bar button.aura {
+  box-shadow: inset 0 -2px 0 var(--aura);
+}
+
+html[data-tier]:not([data-tier="low"]) .dance-bar button[aria-pressed="true"] {
+  background: rgba(251, 247, 239, 0.22);
+  box-shadow: 0 0 0 2px var(--aura, #ffd75e);
 }
 
 html[data-tier]:not([data-tier="low"]) .suggestions li button[aria-pressed="true"] {
@@ -3682,6 +4128,29 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   gap: 3px;
 }
 
+/* Their titles (the milestone's, the prestige track's) side by side, each as wide as its words. */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.card-tags > p {
+  margin: 0;
+}
+
+/* Under the bar: what the next level takes on the left, today's tokens on the right. */
+.card-xp {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-who .link {
+  padding: 0;
+}
+
 .phone-pairing {
   margin-top: 20px;
   border-top: 1px solid var(--line, #454b57);
@@ -3787,7 +4256,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   gap: 8px;
   padding: 8px 8px 8px 12px;
   overflow: hidden;
-  animation: whats-new-in 0.2s ease-out;
+  animation: drop-in 220ms var(--ease-out);
 }
 
 .whats-new header {
@@ -3848,13 +4317,6 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   }
 }
 
-@keyframes whats-new-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-}
-
 /* The way to star the repo (Stars.tsx): in the menu, the changelog and the star counter's panel. */
 .star-button {
   display: inline-flex;
@@ -3874,6 +4336,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 }
 
 .menu > a.star-button {
+  margin-top: 6px;
   background: var(--accent);
   color: var(--ink);
   border-color: #6b4f0e;
@@ -4117,6 +4580,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   flex-direction: column;
   gap: 4px;
   align-items: stretch;
+  animation: rise-in 160ms var(--ease-out);
 }
 
 .pet-menu header {

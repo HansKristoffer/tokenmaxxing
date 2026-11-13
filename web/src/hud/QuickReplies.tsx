@@ -43,7 +43,7 @@ export function QuickReplies({
   };
 
   return (
-    <section className="panel quick" aria-label="Quick replies">
+    <section className="quick" aria-label="Quick replies">
       {open && (
         <ul className="quick-lines">
           {LINES.map((line) => (

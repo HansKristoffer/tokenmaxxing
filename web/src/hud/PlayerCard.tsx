@@ -1,5 +1,5 @@
 import { workHours } from "@tokenmaxxing/core/agentType.ts";
-import { progressOf } from "@tokenmaxxing/core/badges.ts";
+import { FRAMES } from "@tokenmaxxing/core/badges.ts";
 import { BARKEEP } from "@tokenmaxxing/core/barkeep.ts";
 import { BOTS } from "@tokenmaxxing/core/bots.ts";
 import { COP_ID } from "@tokenmaxxing/core/cop.ts";
@@ -25,7 +25,7 @@ import { hud } from "../store.ts";
 import { Computers } from "./Computers.tsx";
 import { dayText, ranges } from "./format.ts";
 import { daysAgoText, sourceName } from "./heat.ts";
-import { PrestigeCardRow } from "./Prestige.tsx";
+import { PrestigeButton } from "./Prestige.tsx";
 import { PrestigeTag } from "./PrestigeTag.tsx";
 import { prestigeOf } from "./prestige-badge.ts";
 import { badgeOf } from "./prestige-view.ts";
@@ -125,15 +125,18 @@ export function PlayerCard({ userId }: { userId: number }) {
           <div className="card-head">
             <AvatarImage look={p.look} scale={5} aura={p.level >= LEGENDARY_LEVEL} />
             <div className="card-who">
-              {title && (
-                <p className={`milestone-title${p.level >= LEGENDARY_LEVEL ? " legendary" : ""}`}>
-                  🏅 {title}
-                </p>
+              {(title || pres.rank > 0) && (
+                <div className="card-tags">
+                  {title && (
+                    <p className={`milestone-title${p.level >= LEGENDARY_LEVEL ? " legendary" : ""}`}>
+                      🏅 {title}
+                    </p>
+                  )}
+                  <PrestigeTag rank={pres.rank} level={pres.runLevel} />
+                </div>
               )}
-              <PrestigeTag rank={pres.rank} level={pres.runLevel} />
               <p>
                 <strong>Level {shownLevel}</strong> · {p.levelTitle}
-                {today > 0 && <span className="xp-today small"> · +{compact(today)} today</span>}
               </p>
               <XpBar
                 start={barStart}
@@ -143,64 +146,38 @@ export function PlayerCard({ userId }: { userId: number }) {
                 today={today}
                 color={PRESTIGE_TRACKS[pres.rank - 1]?.colors.main}
               />
-              {mine && <PrestigeCardRow level={p.level} badge={badgeOf(p)} />}
-              <p
-                className="muted small"
-                title={[rewardText, milestoneLine].filter(Boolean).join("\n") || undefined}
-              >
-                {atMax
-                  ? "Max level"
-                  : `Lv${shownLevel + 1} in ${compact(barStart + barSpan - p.lifetimeTokens)} tokens`}
-                {(rewardText || milestoneLine) && " ⓘ"}
+              <p className="card-xp muted small">
+                <span title={[rewardText, milestoneLine].filter(Boolean).join("\n") || undefined}>
+                  {atMax
+                    ? "Max level"
+                    : `Lv${shownLevel + 1} in ${compact(barStart + barSpan - p.lifetimeTokens)} tokens`}
+                  {(rewardText || milestoneLine) && " ⓘ"}
+                </span>
+                {today > 0 && <span className="xp-today">+{compact(today)} today</span>}
               </p>
-              <p className="small">
+              <p className="muted small">
                 {p.company ? (
                   <button
                     type="button"
                     className="link"
                     onClick={() => hud.set({ panel: { kind: "companyCard", companyId: p.company!.id } })}
                   >
-                    🏢 {p.company.name}
+                    {p.company.name}
                   </button>
                 ) : (
-                  <span className="muted">Freelancer</span>
+                  "Freelancer"
                 )}
-                <span className="muted"> · {compact(p.lifetimeTokens)} tokens all time</span>
+                {" · "}
+                {compact(p.lifetimeTokens)} tokens all time
+                {p.since && <> · since {dayText(p.since, { month: "short", year: "numeric" })}</>}
+                {!status && p.lastActive && (
+                  <> · last active {daysAgoText(p.lastActive, dayKey(Date.now()))}</>
+                )}
               </p>
-              {(p.since || (!status && p.lastActive)) && (
-                <p className="muted small">
-                  {p.since && <>Regular since {dayText(p.since, { month: "short", year: "numeric" })}</>}
-                  {p.since && !status && p.lastActive && " · "}
-                  {!status && p.lastActive && (
-                    <>last active {daysAgoText(p.lastActive, dayKey(Date.now()))}</>
-                  )}
-                </p>
-              )}
             </div>
           </div>
           <Bio userId={userId} bio={p.bio ?? null} mine={mine} />
-          {p.badges.length > 0 && (
-            <ul className="badges">
-              {p.badges.map((b) => (
-                <li
-                  key={b.id}
-                  className={`badge badge--${b.frame}`}
-                  title={
-                    b.next
-                      ? `${b.next.label} next (${compact(b.value)} of ${compact(b.next.at)})`
-                      : "Top tier"
-                  }
-                >
-                  {b.emoji} {b.label}
-                  {b.next && (
-                    <span className="badge-bar" aria-hidden="true">
-                      <i style={{ width: `${progressOf(b) * 100}%` }} />
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+          <Badges badges={p.badges} />
           <Tickets tickets={p.tickets} />
           {picking ? (
             <ShelfPicker
@@ -215,6 +192,7 @@ export function PlayerCard({ userId }: { userId: number }) {
             <Shelf pins={shelf ?? p.showcase ?? []} mine={mine} onEdit={() => setPicking(true)} />
           )}
           <p className="company-actions">
+            {mine && <PrestigeButton level={p.level} badge={badgeOf(p)} />}
             {p.office && (
               <button type="button" onClick={visit}>
                 🚪 {mine ? "My office" : "Visit office"}
@@ -265,6 +243,38 @@ export function PlayerCard({ userId }: { userId: number }) {
         </>
       )}
     </Modal>
+  );
+}
+
+/** Badges shown before "all" is asked for: about two rows of the card. */
+const BADGES_SHOWN = 6;
+
+/** Their badges as chips in each tier's colour, the highest tiers first; the rest fold away. */
+function Badges({ badges }: { badges: Profile["badges"] }) {
+  const [all, setAll] = useState(false);
+  if (badges.length === 0) return null;
+  const best = sortBy(badges, (b) => -FRAMES.indexOf(b.frame));
+  // One more than fits is shown rather than hidden behind a button that says "1 more".
+  const fold = !all && best.length > BADGES_SHOWN + 1;
+  return (
+    <ul className="badges">
+      {(fold ? best.slice(0, BADGES_SHOWN) : best).map((b) => (
+        <li
+          key={b.id}
+          className={`badge badge--${b.frame}`}
+          title={b.next ? `${b.next.label} next (${compact(b.value)} of ${compact(b.next.at)})` : "Top tier"}
+        >
+          {b.emoji} {b.label}
+        </li>
+      ))}
+      {fold && (
+        <li>
+          <button type="button" className="link small" onClick={() => setAll(true)}>
+            +{best.length - BADGES_SHOWN} more
+          </button>
+        </li>
+      )}
+    </ul>
   );
 }
 

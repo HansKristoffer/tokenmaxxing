@@ -26,16 +26,12 @@ const TOAST_MS = 8000;
 const calloutKey = (rank: number) => `tokenmaxxing.prestigeCallout.${rank}`;
 
 /** Prestige on my own card: the button when the current journey is complete. */
-export function PrestigeCardRow({ level, badge }: { level: number; badge: PrestigeBadge }) {
-  const p = cardPrestige(level, badge);
-  const open = () => hud.set({ panel: { kind: "prestige" } });
-  if (!p.can) return null;
+export function PrestigeButton({ level, badge }: { level: number; badge: PrestigeBadge }) {
+  if (!cardPrestige(level, badge).can) return null;
   return (
-    <p className="prestige-row">
-      <button type="button" className="prestige-btn" onClick={open}>
-        ✨ Prestige
-      </button>
-    </p>
+    <button type="button" className="prestige-btn" onClick={() => hud.set({ panel: { kind: "prestige" } })}>
+      ✨ Prestige
+    </button>
   );
 }
 

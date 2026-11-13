@@ -16,7 +16,7 @@ import { hud, useHud } from "../store.ts";
 import { ItemIcon } from "./ItemIcon.tsx";
 import { ItemImage, isWorn, WearButton, withItem } from "./Shop.tsx";
 import { TakeMeThere } from "./ShopDirectory.tsx";
-import { Modal, Pixels, useRun, WalletLine } from "./ui.tsx";
+import { Balance, Modal, Pixels, useRun } from "./ui.tsx";
 
 /** "Acme tee": merch says whose it is; everything else is its own name. */
 export function merchName(item: Item): string {
@@ -53,7 +53,7 @@ export function MerchShop({ companyId }: { companyId: number }) {
     });
 
   return (
-    <Modal title={`👕 ${company.name} merch`} wide>
+    <Modal title={`👕 ${company.name} merch`} wide aside={<Balance balance={wallet.balance} />}>
       <p className="muted small">
         {employee
           ? off === 100
@@ -66,7 +66,6 @@ export function MerchShop({ companyId }: { companyId: number }) {
           Merch is sold at Thread &amp; Token. <TakeMeThere shop="clothes" />
         </p>
       )}
-      <WalletLine balance={wallet.balance} />
       {employee && (
         <button type="button" onClick={() => setEditing(true)}>
           🎨 Design the merch

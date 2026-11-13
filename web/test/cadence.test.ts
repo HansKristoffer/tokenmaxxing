@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { IDLE_MS } from "@tokenmaxxing/core/world.ts";
 import { FrameCadence } from "../src/game/cadence.ts";
 
 test("a 60 fps cap holds on both 60 Hz and 144 Hz displays", () => {
@@ -25,6 +26,24 @@ test("quiet scenes throttle, input and action wake immediately, hidden tabs do n
   expect(cadence.step(22_001, 60, true, false)?.idle).toBe(false);
   expect(cadence.step(22_100, 60, true, true)).toBeNull();
   expect(cadence.step(32_100, 60, true, false)?.gap).toBe(0);
+});
+
+test("a busy picture nobody has touched since they dozed off runs at the quiet rate, until they are back", () => {
+  const cadence = new FrameCadence();
+  cadence.wake(0);
+  /** Frames drawn in a second of a 60 Hz display, the picture busy throughout. */
+  const framesFrom = (from: number) => {
+    let frames = 0;
+    for (let i = 0; i < 60; i++) if (cadence.step(from + (i * 1000) / 60, 60, true, false)) frames++;
+    return frames;
+  };
+  // Others walk about: full rate for as long as the player is counted as there.
+  expect(framesFrom(IDLE_MS - 2000)).toBe(60);
+  expect(cadence.step(IDLE_MS + 1, 60, true, false)?.idle).toBe(true);
+  expect(framesFrom(IDLE_MS + 1000)).toBe(30);
+  cadence.wake(IDLE_MS + 3000);
+  expect(cadence.step(IDLE_MS + 3000, 60, true, false)?.idle).toBe(false);
+  expect(framesFrom(IDLE_MS + 4000)).toBe(60);
 });
 
 test("uncapped play follows display refresh, while a slow frame does not cause a catch-up burst", () => {

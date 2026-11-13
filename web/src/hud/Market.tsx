@@ -23,7 +23,7 @@ import { hud, useHud } from "../store.ts";
 import { coins } from "./format.ts";
 import { isWorn } from "./lookOps.ts";
 import { ItemImage } from "./Shop.tsx";
-import { Modal, Pills, useRun, useTicker } from "./ui.tsx";
+import { Balance, Modal, Pills, useRun, useTicker } from "./ui.tsx";
 
 /** How often an open market panel reads the hall again: others are buying and listing too. */
 const POLL_MS = 5_000;
@@ -341,8 +341,8 @@ export function MarketSlot({ slot }: { slot: number }) {
 
 type Tab = "display" | "shelf";
 const TABS = [
-  ["display", "🧺 On display"],
-  ["shelf", "📦 My shelf"],
+  ["display", "On display"],
+  ["shelf", "My shelf"],
 ] as const;
 
 const KINDS = [
@@ -371,18 +371,10 @@ export function Market({ tab: wanted }: { tab?: Tab }) {
   }, [wanted]);
   if (!market || !wallet) return <Modal title="🧺 Torvehallen">{failed ?? "Loading…"}</Modal>;
   return (
-    <Modal title="🧺 Torvehallen" wide="xl">
+    <Modal title="🧺 Torvehallen" wide="xl" aside={<Balance balance={wallet.balance} />}>
       <div className="shop-top">
         <p className="shop-hello">{hello}</p>
-        <div className="shop-bar">
-          <span className="coin-chip on">
-            <strong>{coins(wallet.balance)}</strong> yours
-          </span>
-          <Pills value={tab} options={TABS} onChange={setTab} />
-          <button type="button" className="shop-leave" onClick={() => hud.set({ panel: null })}>
-            Leave
-          </button>
-        </div>
+        <Pills value={tab} options={TABS} onChange={setTab} />
       </div>
       {tab === "display" ? <OnDisplay listings={market.listings} /> : <MyShelf mine={market.mine} />}
       {failed && <p className="error">{failed}</p>}

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createClient } from "rivetkit/client";
 import type { registry as Registry } from "../src/actors/registry.ts";
 import { sha256 } from "../src/crypto.ts";
-import { admin, as, client, event, from, origin, signUp } from "./rivet.ts";
+import { ADMIN_TOKEN, admin, as, client, event, from, origin, signUp } from "./rivet.ts";
 
 // The gateway's and /install.sh's tests are here too, so `bun test --parallel` (a server for each
 // file) doesn't start one for a few requests.
@@ -30,11 +30,32 @@ describe("nobody outside makes actors", () => {
     ).rejects.toMatchObject({ code: "unauthorized" });
   });
 
+  test("nor a copy of one that exists (RivetKit 3's fork): no actor's id is given out, and none is forked", async () => {
+    await expect(client.town.getOrCreate(["main"]).resolve()).rejects.toThrow("Not Found");
+    await expect(client.town.fork("anactorsid", { key: ["mine"] })).rejects.toThrow("Not Found");
+    await expect(client.town.get(["mine"]).health()).rejects.toThrow();
+  });
+
   test("only the singletons, only as main", async () => {
     await expect(client.town.getOrCreate(["evil"]).signUp("evilname")).rejects.toThrow();
     await expect(client.world.getOrCreate(["other"]).join()).rejects.toThrow();
     await expect(client.match.getOrCreate(["999999"]).info()).rejects.toThrow();
   });
+});
+
+test("RivetKit's metrics are the admin's: each SQLite statement's time, and nothing without the token", async () => {
+  expect((await fetch(`${origin}/metrics`)).status).toBe(404);
+  const wrong = await fetch(`${origin}/metrics`, { headers: { authorization: "Bearer not-the-token" } });
+  expect(wrong.status).toBe(404);
+  await signUp("measured");
+  const res = await fetch(`${origin}/metrics`, { headers: { authorization: `Bearer ${ADMIN_TOKEN}` } });
+  expect(res.status).toBe(200);
+  const text = await res.text();
+  // A transaction of ours, under the actor it ran in (the name itself is hashed into its fingerprint).
+  expect(text).toMatch(
+    /rivet_rivetkit_sqlite_duration_seconds_count\{actor_name="town",[^}]*type="transaction"/,
+  );
+  expect(text).toContain("rivet_rivetkit_actor_active_count");
 });
 
 describe("sign-ups", () => {

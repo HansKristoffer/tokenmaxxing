@@ -11,7 +11,7 @@ Tokenmaxxing.app (Tauri v2, app/desktop)             server (one Railway service
 │    parses logs, player.ingest()                     ├─ /play           the game (web/, bundled at boot)
 │                                                     ├─ /admin          the admin page (web/admin.html)
 │                                                     ├─ /logos/:file    company logos (sandboxed)
-├─ game window: Canvas 2D world + React HUD           ├─ /health
+├─ game window: Canvas 2D world + React HUD           ├─ /health, /metrics (ADMIN_TOKEN)
 │    (the live page, over WebSocket) ◄─────────────►  └─ /api/rivet/*    proxy to the Rivet engine (gateway only)
 └─ Keychain, login item, updater                      Rivet engine on 127.0.0.1, actors in this process,
                                                       storage on the /data volume
@@ -52,7 +52,11 @@ The game draws through a `Renderer`; on Medium and up that is a Three.js voxel r
 - `main.ts` bundles the game with `Bun.build`, _then_ starts the registry. Once RivetKit's native runtime is
   up, Bun's HTML bundler fails in the same process, so there's no hot reload: restart `bun run dev`.
 - `registry.start()` runs the Rivet engine on `127.0.0.1`. `proxy.ts` forwards only the client gateway
-  (`/api/rivet/gateway/*` and `/metadata`, HTTP and WebSocket); the engine's admin API is never exposed.
+  (`/api/rivet/gateway/*` and `/metadata`, HTTP and WebSocket); the engine's admin API is never exposed,
+  so nobody outside lists actors, learns an id or copies one (RivetKit 3's fork).
+- `/metrics` is RivetKit's own numbers as Prometheus text, for a request with `ADMIN_TOKEN` as its bearer
+  token and a 404 for any other: actors awake, connections, and the time of each SQLite statement and
+  transaction by actor. A transaction of ours is listed under a hash of the `name` it is given.
 - The gateway would let a browser create any actor, with any key and input. `gatewayAllowed` lets through
   only existing actors (by id, or `get` by key) and `getOrCreate(["main"])` of `town`, `world` and `arcade`,
   with no input. The actors check too: `player` and `match` refuse to be created without `INTERNAL_KEY` in
@@ -65,10 +69,15 @@ The game draws through a `Renderer`; on Medium and up that is a Three.js voxel r
 - `/play` and `/admin` send a CSP (`headers.ts`): our own scripts only, connections only back to us (and the
   desktop app's IPC for the game), no framing. The page files aren't served at their own paths.
 - `RIVET__GUARD__TCP_NODELAY=true` turns off Nagle on the engine's sockets. Actors and the engine talk over
-  loopback, and without it each actor call waits ~40 ms on a delayed ACK. The runner's end of that connection
-  has no such switch yet (rivetkit 2.3.21), so a call still pays some of it.
+  loopback, and without it each actor call waits ~40 ms on a delayed ACK.
 - `RIVETKIT_STORAGE_PATH`, `RIVET_LOG_LEVEL` and `RIVET__GUARD__TCP_NODELAY` must be real environment
   variables: RivetKit's native side ignores `process.env` changes made at runtime. The Dockerfile and `bun run dev` set them.
+- **RivetKit 3 does not read RivetKit 2's store.** Its engine keeps its data in `engine/depot` under
+  `RIVETKIT_STORAGE_PATH`, beside RivetKit 2's `engine/db`: started on a volume that only has the old one,
+  it comes up as an empty town. Release 1.20.0 moved the town across on its first start and left
+  `engine/migrated-from-v2.json` beside the old store (#179 has how). The code that moved it is gone, so
+  `main.ts` refuses to start on an old store without that marker. The old store is not read any more, and
+  can be deleted from the volume.
 - Company logos live next to the Rivet data (`/data/logos` in Docker, `.data/logos` in dev).
 - A sync batch is about 300 KB, so `maxIncomingMessageSize` is 1 MB. Shutdown grace is 5 s.
 
@@ -157,6 +166,23 @@ A second computer running agents syncs into the same player.
 
 ## Actors
 
+Three things RivetKit used to do for an actor, and deprecates in 3, the actors do themselves
+(`server/src/actors/kept.ts` and `shared.ts`):
+
+- **What an actor keeps** between wakes is one plain object in `c.vars.state`, written to the actor's own
+  SQLite as JSON (`Kept`): a row for each top-level key, and for `world` a row for each player, so a save
+  writes the rows that changed. Which those are it finds by comparing each row's JSON with what it last
+  wrote, so nothing that changes the object has to say so. `player`, `arcade` and `match` save before each
+  action answers (`saveAfterActions`) and after each turn of their loop: what a caller was told is on disk.
+  `world` saves once a second from its tick, and when it goes to sleep. It holds only what JSON does.
+- **Who a connection is** (`Caller`) is in `c.vars.callers`, by connection id: `onConnect` authenticates
+  and puts it there, `onDisconnect` takes it out, and an action reads it with `callerOf(c)`. A call that
+  isn't over a socket is a connection for as long as it runs, and goes through both. A refused token throws
+  in `onConnect`, which reaches the client as the same `unauthorized`.
+- **A loop** (the world's tick, the arcade's sweep, a match's clock, a player's repairs after a wake) is
+  started in `onWake` and kept in `c.vars.loop` (`background`); it ends when `c.abortSignal` fires, and
+  `onSleep` waits for it and saves.
+
 **`player[userId]`**: raw events (SQLite, deduplicated), devices (the app and linked computers), sessions,
 login codes and link codes. Events from every device land in the same table, so a linked computer's usage
 counts everywhere with nothing else to add up. `ingest` stores a
@@ -229,17 +255,29 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   taken drop in the bag (`pickUp`), and for every floor and office lock (`seed`) when it starts, and for
   everyone too when it starts from nothing.
 
-**`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room) and the model graveyard's plots (`graveyard.ts`).
+**`world["main"]`**: everything live, in memory and saved once a second (above), with chat in SQLite (last 200 lines per room; the 50 a snapshot carries are kept in memory once one has asked, `chatOf`) and the model graveyard's plots (`graveyard.ts`).
 
 - A 10 Hz tick sends each room its `moves`, and who's inside each house (`houses`, for town) when it changes.
   Head counts (`occupancy`) go to every connection, so at most once a second: sent every tick, a burst of joins
   stalled the world at 300 connections. Someone's `info` (look, tokens today, agents, coffee, online) goes only
   to their own tabs and whoever is in their room: the game reads it for nobody else, and sent to everyone,
   each player's sync and each join went to every tab.
-- **Messages, not CPU, are the limit.** Everything every actor sends goes through the engine's one connection
-  to this process, about 3,000 messages a second; past that it all queues, `town` (and `/health`) too.
-  A player walking costs about 15 a second (`moves` every tick, their step's answer, `occupancy`, chat), so
-  that's about 170 players walking at once. `bun scripts/perf/load.ts` measures it.
+- **What a tick costs.** `c.vars`, `c.conns` and `conn.id` are each a call into RivetKit's native side
+  (`c.conns` builds a handle for every connection). So the world keeps the joined connections itself
+  (`vars.tabs`, filled by `join` and emptied by `onDisconnect`; `listeners` adds each one's room) instead of
+  asking RivetKit for them on every send. What it keeps is a plain object: RivetKit's state was a
+  write-through proxy, which made every read and write in a tick a trap. When a player last did anything
+  is in memory only (`lastInput`), not kept, where it would be a row written on every step.
+- **`moves` are written once per room.** A client that joins with `join(MOVES_TEXT)` gets each tick's moves as
+  text (`writeMoves` / `readMoves` in `core/world.ts`: joins and leaves as JSON on the first line, then every
+  position as `id,x,y,` and a letter each for facing and state). An event object is encoded again for every
+  connection it goes to, and in a busy room that was most of the tick. A tab from before this, still open
+  after a deploy, joins without the argument and gets the object as before.
+- **This process's one core is the limit.** On RivetKit 2 it was the engine: every message cost it so much
+  that 200 walking players took 13 of its cores and 300 dropped connections. On RivetKit 3 the engine uses
+  half a core for 300, and what runs out first is the world's own thread: 80% of a core at 300 walking players
+  (15 messages a second each: `moves` every tick, their step's answer, `occupancy`, chat), most of it sending,
+  a quarter of that in `proxy.ts` passing every message on. `bun scripts/perf/load.ts` measures it.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `turn` (face a
   direction without the step, on your feet only; it spends the step budget and comes to the room as a move), `sit`,
   `drink` (a coffee machine: each cup adds 90 s of shaking, up to 6 stacked, sent as `coffeeUntil` in `info`),
@@ -255,7 +293,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `stargazers_count` (`github-stars.ts`) and sends `stars` (the count and the last milestone's show) when it
   changes, and on `join`. Passing a milestone (100, 250, 500, 1000, 2500…) puts a show in it, which every client
   turns into the same fireworks over the square (`core/fireworks.ts`), and the town says so in its chat. The
-  count and the last milestone celebrated are in state, so a restart, or a count that dips under a milestone
+  count and the last milestone celebrated are kept, so a restart, or a count that dips under a milestone
   and comes back, never sets one off twice; the first read ever only notes the milestone already passed.
   Fireworks on the clock alone (a holiday) need no server: add a source in `web/src/game/fireworks.ts`, and
   both renderers draw it (`drawFireworks` on the 2D canvas, `Fireworks3d` in the 3D town's sky). `?fireworks`
@@ -274,7 +312,8 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   you back there, unless it's a house you've left, an office that's closed or gone, or a tile that's a wall or
   furniture now (`back` after a game too); a seat that's gone, you wake standing where it was.
   Online with 3 minutes without input, you just doze where you are (`dozing`, drawn as a "z") until
-  your next input, so a town left open on a second screen keeps showing what's going on.
+  your next input, so a town left open on a second screen keeps showing what's going on. The game draws
+  that screen at 30 fps from then on, however busy the town is (`game/cadence.ts`), until the next input.
 - **The Inn's sleepers are a number.** Everyone without a company sleeps at the Inn, so its offline sleepers come
   as `asleep` in the snapshot (and in `moves` when it changes), drawn as "💤 N asleep", not one by one. They join
   the room when they wake up or sit down to work, and leave it when they fall asleep there. Company houses (50 at
@@ -938,7 +977,10 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
 ## The client
 
 - Plain Canvas 2D with `imageSmoothingEnabled = false`, integer zoom, and grid movement: your own steps are
-  predicted and corrected by the server; other players replay a short step queue.
+  predicted and corrected by the server; other players replay a short step queue. The server also tells you
+  your own position in `moves`, a round trip and up to a tick late; the tiles you walked off in the last two
+  seconds (`game/trail.ts`) are your own steps coming back, not the server moving you. Without them a runner
+  200 ms from the server was pulled back a tile on nearly every step.
   **Turning** (`game/turn.ts`, pure and tested; Pokémon's rule): an arrow key for another way than you face turns you
   first (`world.turn`, so the room sees it too) and walks only once it has stayed held `TURN_DELAY_MS` (120), so a
   tap just turns; the way you already face walks at once. Click-to-walk, the minimap and "take me there" don't wait
@@ -1100,11 +1142,16 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
 **Measure**:
 
 - `bun scripts/perf/counts.ts medium|high` prints the per-room counts the budgets check, built headlessly.
-- `bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--throttle 4] [--profile|--alloc|--nodes|--heap]` measures
+- `bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--throttle 4] [--profile|--alloc|--nodes|--meshes|--heap]` measures
   the real game: it starts its own production server (`bun run site:build` once), signs up `walkers` players
   who walk out into the town and wander it over the wire, and opens an observer per tier with no fps cap: the renderer's own CPU
   time per frame, frame gaps, long tasks, draws, heap, and on request a CPU profile, garbage per function, the nodes the scene
-  walks visit, or a heap snapshot. `--throttle` slows the CPU (a stand-in for a weak laptop).
+  walks visit, what the people are drawn as (`--meshes`), or a heap snapshot. `--throttle` slows the CPU (a stand-in for a weak laptop).
+- `bun scripts/perf/occlusion.ts` times the cutaway probe on a journey through four rooms and prints what it decided at
+  each stop, so two builds' answers can be compared as well as their times.
+- `bun scripts/perf/load.ts [--n 10,50,100,200] [--json file]` is the world under load (see _Actors_): tick times, CPU of
+  the server and the engine, messages and bytes per client. `server/test/world-tick.test.ts` holds the tick to a fixed
+  number of reads of the context however full the room is, and a room's chat to one read of SQLite.
 - `web/test/perf-budget.test.ts` builds every room headlessly (the real skins, not tile stand-ins), batches it, freezes its
   people and fails above `render3d/perf/budgets.ts`; `perf-freeze.test.ts` and `world-lazy.test.ts` cover freezing and the room cache.
   The budgets count the static room alone; `web/test/dungeon-live.test.ts` budgets the dungeon's live layer on top and `games3d.test.ts` that a game's props come and go.

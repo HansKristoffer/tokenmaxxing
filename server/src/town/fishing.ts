@@ -117,63 +117,66 @@ export async function recordFish(
   if (!fish || !Number.isInteger(caught.cm) || caught.cm < fish.min || caught.cm > fish.max)
     throw new UserError("Invalid catch.", { code: "invalid_catch" });
   const day = dayKey(now);
-  const landed = await sql.transaction(async (tx) => {
-    await tx.execute(
-      `INSERT INTO fishing_journal (user_id, fish, count, cm) VALUES (?, ?, 1, ?)
+  const landed = await sql.transaction(
+    async (tx) => {
+      await tx.execute(
+        `INSERT INTO fishing_journal (user_id, fish, count, cm) VALUES (?, ?, 1, ?)
       ON CONFLICT (user_id, fish) DO UPDATE SET count = count + 1, cm = MAX(cm, excluded.cm)`,
-      userId,
-      fish.id,
-      caught.cm,
-    );
-    const { catches } = (await one<{ catches: number }>(
-      tx,
-      `INSERT INTO fishing_days (user_id, day, catches) VALUES (?, ?, 1)
+        userId,
+        fish.id,
+        caught.cm,
+      );
+      const { catches } = (await one<{ catches: number }>(
+        tx,
+        `INSERT INTO fishing_days (user_id, day, catches) VALUES (?, ?, 1)
       ON CONFLICT (user_id, day) DO UPDATE SET catches = catches + 1 RETURNING catches`,
-      userId,
-      day,
-    ))!;
-    let record = false;
-    if (hasRecord(fish.id)) {
-      const held = await one<{ cm: number }>(tx, "SELECT cm FROM fishing_records WHERE fish = ?", fish.id);
-      if (!held || caught.cm > held.cm) {
-        await tx.execute(
-          `INSERT INTO fishing_records (fish, user_id, cm, at) VALUES (?, ?, ?, ?)
+        userId,
+        day,
+      ))!;
+      let record = false;
+      if (hasRecord(fish.id)) {
+        const held = await one<{ cm: number }>(tx, "SELECT cm FROM fishing_records WHERE fish = ?", fish.id);
+        if (!held || caught.cm > held.cm) {
+          await tx.execute(
+            `INSERT INTO fishing_records (fish, user_id, cm, at) VALUES (?, ?, ?, ?)
           ON CONFLICT (fish) DO UPDATE SET user_id = excluded.user_id, cm = excluded.cm, at = excluded.at`,
-          fish.id,
+            fish.id,
+            userId,
+            caught.cm,
+            now,
+          );
+          record = true;
+        }
+      }
+      if (caught.cm === ANSWER_CM)
+        await tx.execute(
+          "INSERT INTO fishing_feats (user_id, feat, at) VALUES (?, 'answer', ?) ON CONFLICT DO NOTHING",
           userId,
-          caught.cm,
           now,
         );
-        record = true;
+      const owned = new Set(
+        (await all<{ item: string }>(tx, "SELECT item FROM fishing_treasures WHERE user_id = ?", userId)).map(
+          (r) => r.item,
+        ),
+      );
+      const found = rollTreasure(catches <= LUCKY_CASTS, rand, owned);
+      if (found) {
+        await tx.execute(
+          "INSERT INTO fishing_treasures (user_id, item, at) VALUES (?, ?, ?)",
+          userId,
+          found.id,
+          now,
+        );
+        await giveItem(tx, userId, found.id, now);
       }
-    }
-    if (caught.cm === ANSWER_CM)
-      await tx.execute(
-        "INSERT INTO fishing_feats (user_id, feat, at) VALUES (?, 'answer', ?) ON CONFLICT DO NOTHING",
-        userId,
-        now,
-      );
-    const owned = new Set(
-      (await all<{ item: string }>(tx, "SELECT item FROM fishing_treasures WHERE user_id = ?", userId)).map(
-        (r) => r.item,
-      ),
-    );
-    const found = rollTreasure(catches <= LUCKY_CASTS, rand, owned);
-    if (found) {
-      await tx.execute(
-        "INSERT INTO fishing_treasures (user_id, item, at) VALUES (?, ?, ?)",
-        userId,
-        found.id,
-        now,
-      );
-      await giveItem(tx, userId, found.id, now);
-    }
-    return {
-      record,
-      treasure: found && { item: found.id },
-      luck: { left: Math.max(0, LUCKY_CASTS - catches), of: LUCKY_CASTS },
-    };
-  });
+      return {
+        record,
+        treasure: found && { item: found.id },
+        luck: { left: Math.max(0, LUCKY_CASTS - catches), of: LUCKY_CASTS },
+      };
+    },
+    { name: "fishing-land" },
+  );
   return { journal: await fishingJournal(sql, userId), ...landed };
 }
 

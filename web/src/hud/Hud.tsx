@@ -13,7 +13,7 @@ import { takePhoto } from "../game/stage.ts";
 import { roomName, world } from "../game/world.ts";
 import { redeem } from "../net.ts";
 import { storage } from "../storage.ts";
-import { chatBeside, FIRST_VISIT_KEY, hud, useHud } from "../store.ts";
+import { chatBeside, FIRST_VISIT_KEY, hud, type Panel as PanelState, useHud } from "../store.ts";
 import { AppSignIn } from "./AppSignIn.tsx";
 import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
@@ -63,7 +63,7 @@ import { Regulars } from "./Regulars.tsx";
 import { Requests } from "./Requests.tsx";
 import { Retro } from "./Retro.tsx";
 import { RoomsBox } from "./RoomsBox.tsx";
-import { RoulettePanel } from "./Roulette.tsx";
+import { Roulette, RouletteWatch } from "./Roulette.tsx";
 import { Shop } from "./Shop.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
@@ -73,7 +73,7 @@ import { TombstonePanel } from "./Tombstone.tsx";
 import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
-import { Modal, ToastButton, useFresh, useNarrow, useRun } from "./ui.tsx";
+import { Counted, Modal, ToastButton, useFresh, useNarrow, useRun } from "./ui.tsx";
 import { ChangelogPanel, WhatsNewToast } from "./WhatsNew.tsx";
 
 export function Hud() {
@@ -129,6 +129,7 @@ export function Hud() {
       <Dialog />
       <PieceHint />
       <Poker />
+      <Roulette />
       <Panel />
       {status === "connecting" && (
         <div className="toast" role="status">
@@ -256,18 +257,20 @@ function Stats() {
   const waiting = useHud((s) => s.me?.company?.applicants.length ?? 0);
   const [photoOpen, setPhotoOpen] = useState(false);
   return (
-    <div className="panel stats-chip">
+    <div className="stats-chip">
       <AppUpdate />
-      <Sky />
-      <button
-        type="button"
-        className="icon"
-        title="Take a photo of the town"
-        aria-label="Take a photo"
-        onClick={() => setPhotoOpen(!photoOpen)}
-      >
-        📷
-      </button>
+      <div className="panel bar world">
+        <Sky />
+        <button
+          type="button"
+          className="icon"
+          title="Take a photo of the town"
+          aria-label="Take a photo"
+          onClick={() => setPhotoOpen(!photoOpen)}
+        >
+          📷
+        </button>
+      </div>
       {photoOpen && (
         <fieldset className="panel photo-booth">
           <legend>📷 Photo booth</legend>
@@ -297,95 +300,101 @@ function Stats() {
           </div>
         </fieldset>
       )}
-      {stats && (
+      <div className="panel bar">
+        {stats && (
+          <button
+            type="button"
+            className="chip hero"
+            onClick={() => hud.set({ panel: { kind: "card", userId: world.selfId } })}
+          >
+            <strong>{compact(stats.tokensToday)}</strong>
+            <span className="hero-word"> today</span>
+            {stats.rank !== null && <span className="badge">#{stats.rank}</span>}
+            <span className="badge lv">Lv{stats.level}</span>
+          </button>
+        )}
+        {wallet && (
+          <button
+            type="button"
+            className="chip"
+            title="Wallet"
+            aria-label={`Wallet: ${wallet.balance} coins`}
+            onClick={() => hud.set({ panel: { kind: "bag" } })}
+          >
+            🪙{" "}
+            <strong>
+              <Counted value={wallet.balance} />
+            </strong>
+          </button>
+        )}
+        {wallet && wallet.streak > 1 && (
+          <span
+            className="chip"
+            title={`Streak: today's token and quest coins pay ×${wallet.streak}. A day without tokens costs two steps.`}
+          >
+            🔥 <strong>×{wallet.streak}</strong>
+          </span>
+        )}
+        {wallet?.launches.map((l) => (
+          <span
+            key={l.id}
+            className="chip"
+            title={`${l.model} launched ${l.day} and you used it that day: +${l.coins} coins, paid once.`}
+          >
+            🚀 <strong>+{l.coins}</strong>
+          </span>
+        ))}
+        {wallet && wallet.quests.length > 0 && <QuestTracker quests={wallet.quests} />}
         <button
           type="button"
-          className="chip"
-          onClick={() => hud.set({ panel: { kind: "card", userId: world.selfId } })}
-        >
-          <strong>{compact(stats.tokensToday)}</strong> today
-          {stats.rank !== null && <span className="badge">#{stats.rank}</span>}
-          <span className="badge lv">Lv{stats.level}</span>
-        </button>
-      )}
-      {wallet && (
-        <button
-          type="button"
-          className="chip"
-          title="Wallet"
-          aria-label={`Wallet: ${wallet.balance} coins`}
+          className="icon"
+          title="Bag"
+          aria-label={wallet ? `Bag: ${plural(wallet.items, "thing")}` : "Bag"}
           onClick={() => hud.set({ panel: { kind: "bag" } })}
         >
-          🪙 <strong>{wallet.balance.toLocaleString()}</strong>
+          🎒{wallet && ` ${wallet.items}`}
         </button>
-      )}
-      {wallet && wallet.streak > 1 && (
-        <span
-          className="chip"
-          title={`Streak: today's token and quest coins pay ×${wallet.streak}. A day without tokens costs two steps.`}
-        >
-          🔥 <strong>×{wallet.streak}</strong>
-        </span>
-      )}
-      {wallet?.launches.map((l) => (
-        <span
-          key={l.id}
-          className="chip"
-          title={`${l.model} launched ${l.day} and you used it that day: +${l.coins} coins, paid once.`}
-        >
-          🚀 <strong>+{l.coins}</strong>
-        </span>
-      ))}
-      {wallet && wallet.quests.length > 0 && <QuestTracker quests={wallet.quests} />}
-      <button
-        type="button"
-        className="icon"
-        title="Bag"
-        aria-label={wallet ? `Bag: ${plural(wallet.items, "thing")}` : "Bag"}
-        onClick={() => hud.set({ panel: { kind: "bag" } })}
-      >
-        🎒{wallet && ` ${wallet.items}`}
-      </button>
-      {calendarOn(Date.now()) && (
+        {calendarOn(Date.now()) && (
+          <button
+            type="button"
+            className="icon"
+            title="Julekalender: today's door"
+            aria-label="Julekalender"
+            onClick={() => hud.set({ panel: { kind: "julekalender" } })}
+          >
+            🎄
+          </button>
+        )}
+        {wallet?.trading && (
+          <button
+            type="button"
+            className="icon"
+            title="Trades"
+            aria-label="Trades: an offer is open"
+            onClick={() => hud.set({ panel: { kind: "trades" } })}
+          >
+            🔁
+          </button>
+        )}
         <button
           type="button"
           className="icon"
-          title="Julekalender: today's door"
-          aria-label="Julekalender"
-          onClick={() => hud.set({ panel: { kind: "julekalender" } })}
+          title={waiting ? `Company: ${waiting} asking to join` : "Company"}
+          aria-label={waiting ? `Company: ${waiting} asking to join` : "Company"}
+          onClick={() => hud.set({ panel: { kind: "company" } })}
         >
-          🎄
+          🏢{waiting > 0 && <span className="count">{waiting}</span>}
         </button>
-      )}
-      {wallet?.trading && (
         <button
           type="button"
           className="icon"
-          title="Trades"
-          aria-label="Trades: an offer is open"
-          onClick={() => hud.set({ panel: { kind: "trades" } })}
+          title="Menu (Esc)"
+          aria-label="Menu"
+          onClick={() => hud.set({ panel: { kind: "menu" } })}
         >
-          🔁
+          ☰
         </button>
-      )}
-      <button
-        type="button"
-        className="icon"
-        title={waiting ? `Company: ${waiting} asking to join` : "Company"}
-        aria-label={waiting ? `Company: ${waiting} asking to join` : "Company"}
-        onClick={() => hud.set({ panel: { kind: "company" } })}
-      >
-        🏢{waiting > 0 && <span className="count">{waiting}</span>}
-      </button>
-      <button
-        type="button"
-        className="icon"
-        title="Menu (Esc)"
-        aria-label="Menu"
-        onClick={() => hud.set({ panel: { kind: "menu" } })}
-      >
-        ☰
-      </button>
+      </div>
     </div>
   );
 }
@@ -396,7 +405,12 @@ const MENTION_MS = 8000;
 function Banner() {
   const banner = useHud((s) => s.banner);
   if (!useFresh(banner?.at, BANNER_MS) || !banner) return null;
-  return <div className="banner">{banner.text}</div>;
+  // A new room while the last one's name is still up starts over, not mid-fade.
+  return (
+    <div key={banner.at} className="banner">
+      {banner.text}
+    </div>
+  );
 }
 
 function Dialog() {
@@ -425,6 +439,16 @@ function PieceHint() {
 function Panel() {
   const panel = useHud((s) => s.panel);
   const inMyOffice = useHud((s) => s.room === `office:${world.selfId}`);
+  return (
+    <>
+      {/* The world dims behind a panel: one element for them all, so it fades in and out (hud.css `.dim`). */}
+      <div className={panel ? "dim on" : "dim"} aria-hidden="true" />
+      {panelOf(panel, inMyOffice)}
+    </>
+  );
+}
+
+function panelOf(panel: PanelState | null, inMyOffice: boolean) {
   return typedSwitch(panel, "kind", {
     null: () => null,
     leaderboard: () => <Leaderboard />,
@@ -472,7 +496,7 @@ function Panel() {
     caseLeaderboard: () => <CaseLeaderboard />,
     market: (p) => <Market tab={p.tab} />,
     marketSlot: (p) => <MarketSlot slot={p.slot} />,
-    roulette: (p) => <RoulettePanel watch={p.watch} />,
+    rouletteWatch: () => <RouletteWatch />,
     pokerWatch: () => <PokerWatch />,
     menu: () => (
       <Modal title="Menu">

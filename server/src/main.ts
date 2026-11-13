@@ -24,6 +24,18 @@ const config = loadConfig(process.env, pkg.version);
 // the process starts (Dockerfile, `bun run dev`); assigning process.env here is too late.
 const storage = process.env.RIVETKIT_STORAGE_PATH;
 if (!storage && !config.development) throw new Error("set RIVETKIT_STORAGE_PATH to the data volume");
+// RivetKit 3 keeps its data beside RivetKit 2's (`engine/db`) and does not read it: started on a volume
+// whose town was never moved, it would come up as an empty one. Release 1.20.0 moved it on its first start
+// and left the marker; this one no longer can, so it refuses instead.
+const engineDir = join(storage ?? "", ".rivetkit/var/engine");
+if (
+  storage &&
+  existsSync(join(engineDir, "db/CURRENT")) &&
+  !existsSync(join(engineDir, "migrated-from-v2.json"))
+)
+  throw new Error(
+    `${engineDir}/db is a town from RivetKit 2 that was never moved to RivetKit 3. Start release 1.20.0 on it first, which moves it; or, for a dev store nobody needs, delete it.`,
+  );
 
 // The game and the admin page are bundled here, before the registry starts: once RivetKit's native
 // runtime is up, Bun's HTML bundler fails in this process (and its dev server resolves rivetkit's Node build).
@@ -48,7 +60,7 @@ if (existsSync(SITE))
 
 const { ENGINE_PORT, ENGINE_TOKEN, registry } = await import("./actors/registry.ts");
 const { createClient } = await import("rivetkit/client");
-const { pricing, main } = await import("./actors/shared.ts");
+const { isAdminToken, pricing, main } = await import("./actors/shared.ts");
 const { boardsChanged } = await import("./town/boards.ts");
 
 const refreshPricing = async () => {
@@ -73,6 +85,17 @@ const localClient = createClient<typeof registry>({
   disableMetadataLookup: true,
 });
 const health = healthCheck(() => main(localClient).town.health(), config.version);
+
+/**
+ * RivetKit's own numbers in Prometheus' format, for whoever holds `ADMIN_TOKEN`
+ * (`curl -H "authorization: Bearer $ADMIN_TOKEN" …/metrics`): actors awake, connections, and what
+ * RivetKit 3 times of every SQLite statement and transaction, by actor (ours go by the `name` they are
+ * given). Nothing in it is a player's.
+ */
+const metrics = (req: Request) =>
+  isAdminToken(req.headers.get("authorization")?.replace(/^Bearer /i, ""))
+    ? registry.routes.prometheusMetrics(req)
+    : new Response("Not found", { status: 404 });
 
 // The landing page says how many have signed up: counted once a minute, and written into the page's
 // `<!--players-->` as it goes out. Until there's a count (or without a server, in `astro dev`) the
@@ -164,6 +187,7 @@ const server = Bun.serve({
     // Useless without ADMIN_TOKEN: every action it calls checks it (`town`'s admin actions).
     "/admin": html(assets.get("/admin.html"), "admin"),
     "/health": health,
+    "/metrics": metrics,
     "/install.sh": installScript,
     // Company logos, copied from their websites. Sandboxed: an SVG is someone else's markup.
     "/logos/:file": async (req) => {

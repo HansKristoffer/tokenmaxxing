@@ -67,36 +67,39 @@ export async function openCase(
 ): Promise<{ item: Item; wallet: Wallet }> {
   const def = caseById(caseId);
   if (!def) throw new UserError("There's no such case.", { code: "not_found" });
-  const won = await sql.transaction(async (tx) => {
-    if ((await wallet(tx, userId, now, kept)).balance < def.keyPrice)
-      throw new UserError(`A key is ${def.keyPrice} coins. Not enough coins yet.`, { code: "too_poor" });
-    await tx.execute(
-      "INSERT INTO case_dry (user_id, case_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-      userId,
-      def.id,
-    );
-    const dry = (await one<{ dry: number }>(
-      tx,
-      "SELECT dry FROM case_dry WHERE user_id = ? AND case_id = ?",
-      userId,
-      def.id,
-    ))!.dry;
-    const owned = new Set(
-      (await all<{ item: string }>(tx, "SELECT DISTINCT item FROM items WHERE owner_id = ?", userId)).map(
-        (r) => r.item,
-      ),
-    );
-    const { item, tier } = rollCase(def, rand, owned, dry);
-    await ledgerAdd(tx, userId, -def.keyPrice, "case", `case:${def.id}`, now);
-    await giveItem(tx, userId, item.id, now);
-    await tx.execute(
-      "UPDATE case_dry SET dry = ? WHERE user_id = ? AND case_id = ?",
-      nextDry(dry, tier),
-      userId,
-      def.id,
-    );
-    return item;
-  });
+  const won = await sql.transaction(
+    async (tx) => {
+      if ((await wallet(tx, userId, now, kept)).balance < def.keyPrice)
+        throw new UserError(`A key is ${def.keyPrice} coins. Not enough coins yet.`, { code: "too_poor" });
+      await tx.execute(
+        "INSERT INTO case_dry (user_id, case_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+        userId,
+        def.id,
+      );
+      const dry = (await one<{ dry: number }>(
+        tx,
+        "SELECT dry FROM case_dry WHERE user_id = ? AND case_id = ?",
+        userId,
+        def.id,
+      ))!.dry;
+      const owned = new Set(
+        (await all<{ item: string }>(tx, "SELECT DISTINCT item FROM items WHERE owner_id = ?", userId)).map(
+          (r) => r.item,
+        ),
+      );
+      const { item, tier } = rollCase(def, rand, owned, dry);
+      await ledgerAdd(tx, userId, -def.keyPrice, "case", `case:${def.id}`, now);
+      await giveItem(tx, userId, item.id, now);
+      await tx.execute(
+        "UPDATE case_dry SET dry = ? WHERE user_id = ? AND case_id = ?",
+        nextDry(dry, tier),
+        userId,
+        def.id,
+      );
+      return item;
+    },
+    { name: "case-open" },
+  );
   return { item: won, wallet: await wallet(sql, userId, now, kept) };
 }
 
@@ -127,12 +130,15 @@ export async function sellItem(
   if (!item?.case || !caseOfItem(item.id))
     throw new UserError("The vendor only buys case items.", { code: "not_sellable" });
   const coins = VENDOR_COINS[rarityOf(item)];
-  const unworn = await sql.transaction(async (tx) => {
-    if (!(await takeOne(tx, userId, item.id)))
-      throw new UserError("You don't have one in your bag.", { code: "not_owned" });
-    await ledgerAdd(tx, userId, coins, "vendor", `vendor:${item.id}`, now);
-    return unwear(tx, userId, [item.id]);
-  });
+  const unworn = await sql.transaction(
+    async (tx) => {
+      if (!(await takeOne(tx, userId, item.id)))
+        throw new UserError("You don't have one in your bag.", { code: "not_owned" });
+      await ledgerAdd(tx, userId, coins, "vendor", `vendor:${item.id}`, now);
+      return unwear(tx, userId, [item.id]);
+    },
+    { name: "case-sell" },
+  );
   return { wallet: await wallet(sql, userId, now, kept), unworn };
 }
 
@@ -146,34 +152,37 @@ export async function sellDuplicates(
 ): Promise<{ wallet: Wallet; sold: number }> {
   const def: CaseDef | undefined = caseById(caseId);
   if (!def) throw new UserError("There's no such case.", { code: "not_found" });
-  const sold = await sql.transaction(async (tx) => {
-    let n = 0;
-    for (const item of def.items) {
-      const have = (await one<{ n: number }>(
-        tx,
-        "SELECT COUNT(*) AS n FROM items WHERE owner_id = ? AND item = ?",
-        userId,
-        item.id,
-      ))!.n;
-      if (have < 2) continue;
-      // Newest copies go; the first stays.
-      await tx.execute(
-        "DELETE FROM items WHERE id IN (SELECT id FROM items WHERE owner_id = ? AND item = ? ORDER BY id DESC LIMIT ?)",
-        userId,
-        item.id,
-        have - 1,
-      );
-      await ledgerAdd(
-        tx,
-        userId,
-        (have - 1) * VENDOR_COINS[rarityOf(item)],
-        "vendor",
-        `vendor:${item.id}`,
-        now,
-      );
-      n += have - 1;
-    }
-    return n;
-  });
+  const sold = await sql.transaction(
+    async (tx) => {
+      let n = 0;
+      for (const item of def.items) {
+        const have = (await one<{ n: number }>(
+          tx,
+          "SELECT COUNT(*) AS n FROM items WHERE owner_id = ? AND item = ?",
+          userId,
+          item.id,
+        ))!.n;
+        if (have < 2) continue;
+        // Newest copies go; the first stays.
+        await tx.execute(
+          "DELETE FROM items WHERE id IN (SELECT id FROM items WHERE owner_id = ? AND item = ? ORDER BY id DESC LIMIT ?)",
+          userId,
+          item.id,
+          have - 1,
+        );
+        await ledgerAdd(
+          tx,
+          userId,
+          (have - 1) * VENDOR_COINS[rarityOf(item)],
+          "vendor",
+          `vendor:${item.id}`,
+          now,
+        );
+        n += have - 1;
+      }
+      return n;
+    },
+    { name: "case-sell-duplicates" },
+  );
   return { wallet: await wallet(sql, userId, now, kept), sold };
 }

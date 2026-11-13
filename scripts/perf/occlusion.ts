@@ -53,12 +53,19 @@ for (const id of ["town", "shop-clothes", "shop-pets", "inn"] as const) {
     probe.update(at, camera, 0.081, false);
     stationary.push(performance.now() - start);
   }
+  // What the probe decided at each stop of the journey (1: cut away), to compare two builds' answers.
+  let verdicts = "";
+  for (let i = 0; i < 40; i++) {
+    at.set(center.x + ((i % 5) - 2) * 2, 0.9, center.z + ((Math.floor(i / 5) % 5) - 2) * 2);
+    verdicts += new PlayerOcclusion(root).update(at, camera, 0.081, true);
+  }
   console.log(
     JSON.stringify({
       room: id,
       coldMs: Math.round(coldMs * 100) / 100,
       moving: { p50: percentile(moving, 0.5), p95: percentile(moving, 0.95) },
       stationary: { p50: percentile(stationary, 0.5), p95: percentile(stationary, 0.95) },
+      verdicts,
     }),
   );
   disposeObject(scene);

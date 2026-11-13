@@ -65,25 +65,17 @@ function OfficeSpace({ buy }: { buy: boolean }) {
     <>
       <p className="muted small">
         Your office is {SIZE_NAMES[tier]}, {size.w}×{size.h}.{" "}
-        {next
-          ? "A bigger one takes more furniture and keeps what is in yours."
-          : "It is as big as they come."}
+        {!next
+          ? "It is as big as they come."
+          : buy
+            ? "A bigger one takes more furniture and keeps what is in yours."
+            : `The next size, ${SIZE_NAMES[tier + 1]} ${next.w}×${next.h}, is 🪙 ${next.price}.`}
       </p>
-      {next &&
-        (buy ? (
-          <button
-            type="button"
-            className="primary"
-            disabled={wallet.balance < next.price}
-            onClick={purchase()}
-          >
-            Expand to {SIZE_NAMES[tier + 1]} {next.w}×{next.h} · 🪙 {next.price}
-          </button>
-        ) : (
-          <span className="muted small">
-            {SIZE_NAMES[tier + 1]} {next.w}×{next.h}: 🪙 {next.price} at Møbelhuset
-          </span>
-        ))}
+      {next && buy && (
+        <button type="button" className="primary" disabled={wallet.balance < next.price} onClick={purchase()}>
+          Expand to {SIZE_NAMES[tier + 1]} {next.w}×{next.h} · 🪙 {next.price}
+        </button>
+      )}
       {error && <p className="error">{error}</p>}
     </>
   );
@@ -127,13 +119,14 @@ export function DecorGoods({ buy }: { buy: boolean }) {
 
   return (
     <>
-      <p className="muted small">
-        {buy
-          ? "Buy one once, then change between yours whenever you like. Apply puts it on your own office."
-          : "Change between the ones you own whenever you like. New ones are bought at Møbelhuset."}
-      </p>
-      {!buy && <BuyAtMobelhuset tab="decor" />}
-      <OfficeSpace buy={buy} />
+      {buy && (
+        <>
+          <p className="muted small">
+            Buy one once, then change between yours whenever you like. Apply puts it on your own office.
+          </p>
+          <OfficeSpace buy />
+        </>
+      )}
       <Pills value={kind} options={KINDS} onChange={setKind} />
       <ul className="shop">
         {DECORS[kind].map((d) => {
@@ -163,13 +156,19 @@ export function DecorGoods({ buy }: { buy: boolean }) {
                   🪙 {d.price}
                 </button>
               ) : (
-                <span className="muted small">🪙 {d.price} at Møbelhuset</span>
+                <span className="muted small">🪙 {d.price}</span>
               )}
             </li>
           );
         })}
       </ul>
       {error && <p className="error">{error}</p>}
+      {!buy && (
+        <>
+          <OfficeSpace buy={false} />
+          <BuyAtMobelhuset tab="decor" />
+        </>
+      )}
     </>
   );
 }
@@ -201,12 +200,9 @@ export function DeskGoods({ buy }: { buy: boolean }) {
   return (
     <>
       <p className="muted small">
-        Just for looks: everyone sees your setup when you sit at a desk.{" "}
-        {buy
-          ? "Buy one once, then switch between yours for free."
-          : "Switch between yours for free; new ones are bought at Møbelhuset."}
+        Just for looks: everyone sees your setup when you sit at a desk.
+        {buy && " Buy one once, then switch between yours for free."}
       </p>
-      {!buy && <BuyAtMobelhuset tab="desk" />}
       <ul className="shop">
         {DESKS.map((d, i) => {
           const has = mine.owned.includes(d.id);
@@ -233,13 +229,14 @@ export function DeskGoods({ buy }: { buy: boolean }) {
                   🪙 {d.price}
                 </button>
               ) : (
-                <span className="muted small">🪙 {d.price} at Møbelhuset</span>
+                <span className="muted small">🪙 {d.price}</span>
               )}
             </li>
           );
         })}
       </ul>
       {error && <p className="error">{error}</p>}
+      {!buy && <BuyAtMobelhuset tab="desk" />}
     </>
   );
 }
@@ -262,15 +259,10 @@ export function DeskFleet({ buy }: { buy: boolean }) {
 
   return (
     <>
-      <h3>🏢 {co.name}: house desks</h3>
-      {!buy && (
-        <p className="wallet">
-          <strong>{coins(co.wallet)}</strong> in the company wallet
-        </p>
-      )}
+      <h3>{co.name}'s house desks</h3>
       <p className="muted small">
-        Every desk in the house gets this setup, whoever sits there. The wallet pays and the owner buys the
-        next one. In the house you see the better of yours and this.
+        Every desk in the house gets this setup, whoever sits there. The company wallet
+        {!buy && ` (${coins(co.wallet)})`} pays, and the owner buys the next one.
       </p>
       <ul className="shop">
         <li className="wearing">
@@ -296,7 +288,8 @@ export function DeskFleet({ buy }: { buy: boolean }) {
               </button>
             ) : (
               <span className="muted small">
-                🪙 {next.setup.fleet} {buy ? "· the owner buys it" : "at Møbelhuset"}
+                🪙 {next.setup.fleet}
+                {buy && " · the owner buys it"}
               </span>
             )}
           </li>

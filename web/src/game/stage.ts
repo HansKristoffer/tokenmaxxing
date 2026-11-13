@@ -40,6 +40,13 @@ export function takePhoto(pose?: () => void): void {
   countdown();
 }
 
+/** Someone is walking, hopping, popping in or out, or talking: the scene is not quiet. Asked on every animation frame. */
+function someoneActive(): boolean {
+  for (const a of world.avatars.values())
+    if (a.from || a.queue.length || a.jump !== null || a.warp || a.burst || a.bubble) return true;
+  return false;
+}
+
 /** The tile under a point in the window, as the current renderer sees it. */
 export const pickTile = (clientX: number, clientY: number): Tile | null =>
   active?.pick(clientX, clientY) ?? null;
@@ -53,7 +60,10 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
   let loading: RendererKind | null = null;
   /** Counts swaps: one that finds a newer one started while it loaded is out of date and drops its renderer. */
   let swaps = 0;
-  let size = "";
+  /** The window size and pixel ratio the renderer was last sized for (-1: not yet, or a new renderer). */
+  let sizedW = -1;
+  let sizedH = 0;
+  let sizedDpr = 0;
   const cadence = new FrameCadence();
   cadence.wake(performance.now());
   const wake = () => cadence.wake(performance.now());
@@ -87,7 +97,7 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
     next.onFail?.(fail);
     renderer?.dispose();
     renderer = active = next;
-    size = "";
+    sizedW = -1;
     next.setQuality(graphics.effective());
     if (fellBack) {
       graphics.setRuntime({ failed3d: reason ?? "not available" });
@@ -149,18 +159,19 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
       world.leaving.length > 0 ||
       world.games.size > 0 ||
       world.room === "dungeon" ||
-      [...world.avatars.values()].some(
-        (a) => a.from || a.queue.length || a.jump !== null || a.warp || a.burst || a.bubble,
-      );
+      someoneActive();
     const step = cadence.step(now, settings.fpsCap, busy || photoRequested, document.hidden);
     if (!step || !tick(now)) return;
     const { gap, idle } = step;
 
     const dpr = window.devicePixelRatio || 1;
-    const key = `${window.innerWidth}x${window.innerHeight}@${dpr}`;
-    if (key !== size) {
-      size = key;
-      renderer.resize(window.innerWidth, window.innerHeight, dpr);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    if (w !== sizedW || h !== sizedH || dpr !== sizedDpr) {
+      sizedW = w;
+      sizedH = h;
+      sizedDpr = dpr;
+      renderer.resize(w, h, dpr);
     }
     try {
       renderer.frame(now);
@@ -186,14 +197,15 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
       gaps.push(gap);
       if (gaps.length > 60) gaps.shift();
       perf.ms = gap;
+    }
+    fpsFrames++;
+    // The meter's numbers, twice a second: it is read no more often, and the p95 is a sort of the last 60 gaps.
+    if (now - fpsSince >= 500) {
+      perf.fps = Math.round((fpsFrames * 1000) / (now - fpsSince));
       perf.p95 = percentile(
         [...gaps].sort((a, b) => a - b),
         0.95,
       );
-    }
-    fpsFrames++;
-    if (now - fpsSince >= 500) {
-      perf.fps = Math.round((fpsFrames * 1000) / (now - fpsSince));
       fpsFrames = 0;
       fpsSince = now;
     }

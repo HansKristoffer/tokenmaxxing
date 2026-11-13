@@ -1,3 +1,4 @@
+import { compact } from "@tokenmaxxing/core/format.ts";
 import type { Progress } from "@tokenmaxxing/core/quests.ts";
 import { useEffect, useState } from "react";
 import { refreshQuests } from "../net.ts";
@@ -13,8 +14,10 @@ function Bar({ value, target, done }: { value: number; target: number; done: boo
   );
 }
 
+/** "9/14", "25.0M/25.0M": how far a quest is, with big numbers short. */
 const count = (q: Progress): string =>
-  q.target === 1 ? (q.done ? "1/1" : "0/1") : `${q.value.toLocaleString()}/${q.target.toLocaleString()}`;
+  q.target === 1 ? (q.done ? "1/1" : "0/1") : `${short(q.value)}/${short(q.target)}`;
+const short = (n: number): string => (n >= 10_000 ? compact(n) : n.toLocaleString());
 
 const TABS = [
   ["today", "Today"],

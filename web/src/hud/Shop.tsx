@@ -35,7 +35,7 @@ import { lootLine, rarityClass } from "./Loot.tsx";
 import { isWorn, withItem, withoutMerchTop } from "./lookOps.ts";
 import { DecorGoods, DeskGoods } from "./RoomGoods.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
-import { AvatarImage, Modal, Pills, Pixels, useRun } from "./ui.tsx";
+import { AvatarImage, Balance, Modal, Pills, Pixels, useRun } from "./ui.tsx";
 
 const TABS = [
   ["outfit", "Clothes"],
@@ -104,23 +104,27 @@ function ShopPage({ shop, stall, tab: first }: { shop: ShopId | null; stall?: Sh
     });
 
   return (
-    <Modal title={`🛍 ${name}`} wide>
-      <div className="shop-top">
-        <p className="shop-hello">{hello}</p>
-        <div className="shop-bar">
-          {/* The wallet this tab pays from is the lit one. */}
-          <span className={tab === "company" ? "coin-chip" : "coin-chip on"}>
-            <strong>{coins(wallet.balance)}</strong> yours
-          </span>
-          {me.company && (
+    <Modal
+      title={`🛍 ${name}`}
+      wide
+      aside={
+        // Where a company's wallet pays too (Møbelhuset's Company tab), both show: the lit one is this tab's.
+        tabs.some(([t]) => t === "company") && me.company ? (
+          <>
+            <span className={tab === "company" ? "coin-chip" : "coin-chip on"}>
+              <strong>{coins(wallet.balance)}</strong> yours
+            </span>
             <span className={tab === "company" ? "coin-chip on" : "coin-chip"}>
               <strong>{coins(me.company.wallet)}</strong> {me.company.name}
             </span>
-          )}
-          <button type="button" className="shop-leave" onClick={() => hud.set({ panel: null })}>
-            Leave
-          </button>
-        </div>
+          </>
+        ) : (
+          <Balance balance={wallet.balance} />
+        )
+      }
+    >
+      <div className="shop-top">
+        <p className="shop-hello">{hello}</p>
         {tabs.length > 1 && <Pills value={tab} options={tabs} onChange={setTab} />}
       </div>
       {tab === "company" ? (

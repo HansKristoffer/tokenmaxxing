@@ -1,8 +1,4 @@
 /* The prestige screen, the button and row on the player card, and the callout at the cap. */
-.prestige-row {
-  margin: 6px 0;
-}
-
 .prestige-btn {
   font-weight: bold;
   border: 1px solid #c4a8ff;
@@ -18,6 +14,11 @@
 
 .prestige-panel h3 {
   margin: 12px 0 4px;
+}
+
+/* The button that starts a run stands clear of what it costs and keeps. */
+.prestige-panel > .prestige-btn {
+  margin-top: 12px;
 }
 
 .prestige-rewards {

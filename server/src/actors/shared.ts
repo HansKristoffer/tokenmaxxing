@@ -93,7 +93,7 @@ export const clientIpOf = (req: Request | undefined): string | null =>
   req?.headers.get(CLIENT_IP_HEADER) ?? null;
 
 /** `ADMIN_TOKEN`, compared in constant time. Unset turns the admin page off. */
-function isAdminToken(token: unknown): boolean {
+export function isAdminToken(token: unknown): boolean {
   const want = process.env.ADMIN_TOKEN;
   if (!want || typeof token !== "string") return false;
   return timingSafeEqual(Buffer.from(sha256(token)), Buffer.from(sha256(want)));
@@ -196,6 +196,24 @@ export async function authenticate(
   return caller;
 }
 
+/**
+ * Who each open connection is, by its id: an actor's `vars.callers`. RivetKit 3 deprecates keeping it on
+ * the connection, so `onConnect` puts it here (`authenticate`) and `onDisconnect` takes it out. A call
+ * that isn't over a socket is a connection for as long as it runs, and goes through both.
+ */
+export type Callers<T extends Caller = Caller> = Map<string, T>;
+
+/** Who is calling this action. */
+export function callerOf<T extends Caller = Caller>(c: {
+  conn: { id: string };
+  vars: { callers: Callers<T> };
+}): T {
+  const caller = c.vars.callers.get(c.conn.id);
+  // `onConnect` runs before a connection's first action, and a refused one never gets here.
+  if (!caller) throw unauthorized();
+  return caller;
+}
+
 /** A player in the app or a browser; a linked computer only syncs, so it's refused. */
 export function requireUser(caller: Caller): number {
   if (caller.kind !== "user" || caller.via === "linked") throw unauthorized();
@@ -225,6 +243,18 @@ export function serial() {
     return run;
   };
 }
+
+/**
+ * An actor's loop, started in its `onWake` and kept in `vars.loop` for `onSleep` to wait for (RivetKit 3
+ * deprecates `run`, which did both). It ends when `c.abortSignal` fires. One that throws is logged and
+ * stays stopped until the actor next wakes, as under `run`.
+ */
+export const background = (name: string, loop: () => Promise<void>): Promise<void> =>
+  loop().catch((err) =>
+    console.error(
+      `[${name}] its loop stopped: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+    ),
+  );
 
 /** A timer that ends immediately on shutdown, before the next tick touches actor state. */
 export async function waitForTick(signal: AbortSignal, ms: number): Promise<boolean> {

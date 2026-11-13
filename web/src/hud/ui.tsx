@@ -1,5 +1,13 @@
 import type { Facing, Look } from "@tokenmaxxing/core/world.ts";
-import { type DependencyList, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type DependencyList,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { AURA_H, AURA_W, AURA_X, AURA_Y, auraFrame } from "../art/aura.ts";
 import { house } from "../art/buildings.ts";
 import { characterFrame } from "../art/characters.ts";
@@ -55,6 +63,41 @@ export function useTicker(ms: number, on = true): void {
     const id = setInterval(() => tick((n) => n + 1), ms);
     return () => clearInterval(id);
   }, [ms, on]);
+}
+
+const lessMotion = () =>
+  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * `value`, counted to from the last one over `ms` when it changes, not jumped to: coins landing or being spent.
+ * A change mid-count carries on from the number showing.
+ */
+export function useCounted(value: number, ms = 450): number {
+  const [shown, setShown] = useState(value);
+  const at = useRef(value);
+  useEffect(() => {
+    const from = at.current;
+    if (from === value) return;
+    if (lessMotion()) {
+      at.current = value;
+      setShown(value);
+      return;
+    }
+    const start = performance.now();
+    let frame = requestAnimationFrame(function step(now) {
+      const t = Math.min(1, (now - start) / ms);
+      at.current = Math.round(from + (value - from) * (1 - (1 - t) ** 3));
+      setShown(at.current);
+      if (t < 1) frame = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [value, ms]);
+  return shown;
+}
+
+/** A number of coins that counts to its new value (`useCounted`). On its own, so only it redraws as it counts. */
+export function Counted({ value }: { value: number }) {
+  return useCounted(value).toLocaleString();
 }
 
 /**
@@ -192,9 +235,12 @@ export function Modal({
   children,
   wide,
   beside,
+  aside,
 }: {
   title: ReactNode;
   children: ReactNode;
+  /** Beside the title: the one number the panel turns on (the coins you have). */
+  aside?: ReactNode;
   /** Wider than the usual panel; "xl" for a whole workspace (the Bag's dressing room). */
   wide?: boolean | "xl";
   /** Shown next to the dialog, still usable (the chat, beside a game). */
@@ -223,6 +269,7 @@ export function Modal({
       >
         <header className="modal-head">
           <h2 id={titleId}>{title}</h2>
+          {aside && <span className="modal-aside">{aside}</span>}
           <button type="button" className="icon" aria-label="Close" onClick={() => hud.set({ panel: null })}>
             ✕
           </button>
@@ -250,6 +297,16 @@ export function Pills<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+/** The rules of a panel, folded away under one line until asked for. */
+export function HowItWorks({ title = "How it works", children }: { title?: string; children: ReactNode }) {
+  return (
+    <details className="how-it-works">
+      <summary>{title}</summary>
+      <div className="muted small">{children}</div>
+    </details>
   );
 }
 
@@ -285,6 +342,8 @@ interface Ranked {
   who: ReactNode;
   value: string;
   mine?: boolean;
+  /** 0 to 1 of the list's top value: drawn as a bar behind the row. */
+  share?: number;
   /** What a click on the row opens. */
   open: Panel;
 }
@@ -294,9 +353,15 @@ export function RankList({ rows }: { rows: Ranked[] }) {
   return (
     <ol>
       {rows.map((r) => (
-        <li key={r.id} className={r.mine ? "mine" : undefined}>
+        <li
+          key={r.id}
+          className={r.mine ? "mine" : undefined}
+          style={r.share === undefined ? undefined : ({ "--share": `${r.share * 100}%` } as CSSProperties)}
+        >
           <button type="button" onClick={() => hud.set({ panel: r.open })}>
-            <span className="rank">{r.rank}</span>
+            <span className="rank" data-rank={r.rank}>
+              {r.rank}
+            </span>
             <span className="who">{r.who}</span>
             <span className="value">{r.value}</span>
           </button>
@@ -306,14 +371,9 @@ export function RankList({ rows }: { rows: Ranked[] }) {
   );
 }
 
-/** "🪙 1,234 coins" at the top of a shop, and whatever else goes on its line. */
-export function WalletLine({ balance, children }: { balance: number; children?: ReactNode }) {
-  return (
-    <p className="wallet">
-      <strong>{coins(balance)}</strong> coins
-      {children}
-    </p>
-  );
+/** "🪙 1,234" beside the title of a panel that sells (`Modal`'s `aside`): the coins I have to spend there. */
+export function Balance({ balance }: { balance: number }) {
+  return <strong title="Your coins">{coins(useCounted(balance))}</strong>;
 }
 
 const NARROW = "(max-width: 700px), (max-height: 500px)";

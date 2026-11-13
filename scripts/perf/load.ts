@@ -6,15 +6,16 @@
  * online (the sleeping town every real world carries in state); `--syncers` of those sync usage every 2
  * minutes like the app. Clients run in worker processes, so their decoding isn't what's measured.
  * `--secs` measured after `--warm`; `--direct` skips `proxy.ts`; `--profile` leaves a CPU profile of each
- * server in `--out`. Prints one row per N.
+ * server in `--out`. Prints one row per N; `--json file` writes the rows there too.
  */
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { createClient as CreateClient } from "rivetkit/client";
 import { type GameMap, MAPS } from "../../core/src/maps.ts";
 import {
   type Facing,
+  MOVES_TEXT,
   mapOf,
   type RoomId,
   route,
@@ -90,6 +91,7 @@ async function coordinator() {
   }
   console.log("\nworld load, per N (server = main.ts process, engine = rivet-engine process)");
   console.table(rows);
+  if (arg("json", "")) await Bun.write(arg("json", ""), JSON.stringify(rows));
 }
 
 interface Stats {
@@ -249,8 +251,25 @@ async function start(profileDir: string | null) {
   return handle;
 }
 
-/** CPU time of a process in seconds, and its RSS in KB (`ps`: `[[h:]m:]s.cc`). */
+/** Clock ticks a second and KB a page on Linux, where `/proc` has a process's CPU time to the tick; 0 elsewhere. */
+const getconf = (name: string) => Number(Bun.spawnSync(["getconf", name]).stdout.toString()) || 0;
+const TICKS = process.platform === "linux" ? getconf("CLK_TCK") : 0;
+const PAGE_KB = TICKS ? getconf("PAGESIZE") / 1024 : 0;
+
+/**
+ * CPU time of a process in seconds, and its RSS in KB. From `/proc/<pid>/stat` on Linux; elsewhere from
+ * `ps` (`[[h:]m:]s.cc`), which on Linux only counts whole seconds: over 30 samples that is steps of 3 points.
+ */
 function usage(pid: number): { cpu: number; rss: number } {
+  if (TICKS)
+    try {
+      // After the command (which may hold spaces): state is the first field, utime and stime the 12th and 13th, rss the 22nd.
+      const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+      const f = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+      return { cpu: (Number(f[11]) + Number(f[12])) / TICKS, rss: Number(f[21]) * PAGE_KB };
+    } catch {
+      return { cpu: 0, rss: 0 }; // gone
+    }
   const [time = "0", rss = "0"] = Bun.spawnSync(["ps", "-o", "time=,rss=", "-p", String(pid)])
     .stdout.toString()
     .trim()
@@ -463,11 +482,11 @@ async function worker() {
       conn.onOpen(() => {
         if (opened) {
           stats.reopens++;
-          conn.join().then(place, () => {});
+          conn.join(MOVES_TEXT).then(place, () => {});
         }
         opened = true;
       });
-      place(await conn.join());
+      place(await conn.join(MOVES_TEXT));
       return { conn, me };
     }),
   );

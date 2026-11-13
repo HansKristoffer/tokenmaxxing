@@ -4,6 +4,7 @@ import { lastWeekOf } from "@tokenmaxxing/core/regulars.ts";
 import { serial } from "../src/actors/shared.ts";
 import { town } from "../src/actors/town.ts";
 import { migrate } from "../src/town/schema.ts";
+import { connOf } from "./fake-actor.ts";
 import { memorySql } from "./memory-sql.ts";
 import { eventually } from "./rivet.ts";
 
@@ -20,10 +21,11 @@ test("the regulars board carries last week's winner next to this week's top", as
   const today = dayKey(Date.now());
   const lastWeek = lastWeekOf(today).from;
   const actions = town.config.actions!;
+  const inside = connOf({ kind: "internal" });
   const internal = {
-    conn: { state: { kind: "internal" } },
+    conn: inside.conn,
     db: sql,
-    vars: { serial: serial(), dirty: new Set() },
+    vars: { callers: inside.callers, serial: serial(), dirty: new Set() },
   };
   // Last week bob beat ada; this week ada has the time and bob the crown.
   await actions.tavernMinutes!(internal as never, addDays(lastWeek, 1), [
@@ -35,10 +37,11 @@ test("the regulars board carries last week's winner next to this week's top", as
     [1, 60, 1],
     [2, 35, 1],
   ]);
+  const ada = connOf({ kind: "user", userId: 1, via: "token" });
   const asAda = {
-    conn: { state: { kind: "user", userId: 1, via: "token" } },
+    conn: ada.conn,
     db: sql,
-    vars: { regulars: null },
+    vars: { callers: ada.callers, regulars: null },
   };
   const board = await eventually(async () => {
     const b = await actions.regulars!(asAda as never);

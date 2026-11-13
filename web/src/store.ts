@@ -41,8 +41,8 @@ export type Panel =
   | { kind: "market"; tab?: "display" | "shelf" }
   /** E on a display slot in the hall: a listing's item, price and seller with Buy, or an empty slot to fill. */
   | { kind: "marketSlot"; slot: number }
-  /** The net cafe's roulette table (`hud/Roulette.tsx`); `watch` is the read-only view from the sidelines. */
-  | { kind: "roulette"; watch?: boolean }
+  /** The net cafe's roulette table from the sidelines (`hud/Roulette.tsx`); a spot at it docks the table instead. */
+  | { kind: "rouletteWatch" }
   /** A read-only view of the net cafe's poker table (`hud/PokerWatch.tsx`). */
   | { kind: "pokerWatch" }
   | { kind: "merchant" }

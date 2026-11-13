@@ -30,9 +30,9 @@ export function RoomsBox() {
   const shown = all ? rooms : rooms.slice(0, SHOWN);
   return (
     <section className="panel games-box rooms-box" aria-label="Where people are">
-      <p className="miniboard-title">
-        📍 Rooms <span className="muted">· {rooms.reduce((n, [, m]) => n + m, 0)} online</span>
-      </p>
+      <span className="plaque">
+        Rooms<small>{rooms.reduce((n, [, m]) => n + m, 0)} online</small>
+      </span>
       <ul>
         {shown.map(([room, n]) => {
           const house = memberRoomOf(room);
@@ -52,7 +52,7 @@ export function RoomsBox() {
               >
                 {label}
               </button>
-              <small className="muted">👤 {n}</small>
+              <small className="muted">{n}</small>
             </li>
           );
         })}

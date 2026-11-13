@@ -136,7 +136,7 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `NODE_ENV`                 |                      | `production` minifies the game                                                                                                                                                                                                              |
 | `FIRECRAWL_API_KEY`        |                      | Reads company websites. Without it, a website only goes on the sign                                                                                                                                                                         |
 | `ANTHROPIC_API_KEY`        |                      | Turns a website's brand into house colours. Without it, the site's own colours are used                                                                                                                                                     |
-| `ADMIN_TOKEN`              |                      | Turns on the admin page at `/admin#token=<it>` (32+ characters: `openssl rand -hex 32`). Without it, the page lets nobody in                                                                                                                |
+| `ADMIN_TOKEN`              |                      | Turns on the admin page at `/admin#token=<it>` (32+ characters: `openssl rand -hex 32`), and `/metrics` for a request with it as bearer token. Without it, neither lets anybody in                                                          |
 | `CLIENT_IP_HEADER`         | `x-real-ip`          | Where the client's IP is, for per-IP limits. Railway's edge sets `x-real-ip`                                                                                                                                                                |
 | `GATEWAY_REQUESTS_PER_MIN` | `1200`               | Requests to the actors per client IP a minute                                                                                                                                                                                               |
 | `GATEWAY_SOCKETS_PER_MIN`  | `300`                | New WebSockets per client IP a minute                                                                                                                                                                                                       |
@@ -164,6 +164,22 @@ the server, and its engine, cleanly.
 ```sh
 PORT=8787 RIVETKIT_STORAGE_PATH=$HOME/tm-data SUPERVISE_LOG=$HOME/tm.log scripts/supervise.sh
 ```
+
+## The volume after the move to RivetKit 3
+
+RivetKit 3 does not read what RivetKit 2 wrote. Release 1.20.0 copied every actor to RivetKit 3's store
+(`engine/depot` under `/data/rivet/.rivetkit/var`) on its first start, and left
+`engine/migrated-from-v2.json` there, which says what it moved. That release was the last that could: the
+code is gone from this one, and so is the RivetKit 2 it needed.
+
+- **A volume that was never moved is refused.** With RivetKit 2's store (`engine/db`) and no marker, the
+  server exits at once and says so, rather than start an empty town beside the real one. Deploy 1.20.0 on
+  that volume first. A dev store in that state (`.data/rivet`) can simply be deleted.
+- **Going back to RivetKit 2** means redeploying 1.19.0, which starts on the old store as the town was when
+  it moved. That stops being possible when the old store is deleted.
+- **To free the space**, delete `engine/db` and `.rivetkit-v2` (next to `.rivetkit`) from the volume. Nothing
+  reads them. Keep `engine/migrated-from-v2.json`, or delete it together with `engine/db`: the marker
+  without the old store means nothing, the old store without the marker stops the server.
 
 ## Releases
 

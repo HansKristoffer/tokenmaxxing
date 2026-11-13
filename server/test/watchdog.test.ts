@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { healthCheck } from "../src/health.ts";
-import { diagnose, failureWindow, matchingPids, type ProbeResult, watchdogConfig } from "../src/watchdog.ts";
+import { diagnose, failureWindow, type ProbeResult, watchdogConfig } from "../src/watchdog.ts";
 
 test("config: production defaults, env overrides, and bad values are refused", () => {
   expect(watchdogConfig({})).toEqual({
@@ -44,11 +44,6 @@ test("diagnose says a lagging event loop apart from an unreachable actor", () =>
   expect(diagnose({ ok: false, ms: 3, reason: "error", error: "engine closed" }, 0)).toContain(
     "engine closed",
   );
-});
-
-test("matchingPids picks the engine out of ps rows", () => {
-  const ps = "12 /usr/bin/bun main.ts\n 34 /x/rivet-engine start\n56 grep";
-  expect(matchingPids(ps, "rivet-engine")).toEqual([34]);
 });
 
 test("a probe reports how it went and how long it took", async () => {
