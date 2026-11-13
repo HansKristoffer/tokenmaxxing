@@ -1,6 +1,6 @@
 # Julemarked: screenshots
 
-Local browser captures (2D is the low graphics tier, 3D the high tier, in the voxel style). Everything is drawn in code, so these are renders of the real art modules and the real game.
+Local browser captures (2D is the low graphics tier, 3D the high tier, in the voxel style). Everything is drawn in code, so these are renders of the real art modules and the real game. The case items are deliberately flashier than the coin-stall items: animation, glow and bigger silhouettes, scaled by rarity.
 
 ### The town and the market
 
@@ -80,6 +80,26 @@ Local browser captures (2D is the low graphics tier, 3D the high tier, in the vo
 
 ![Case: chest and key, 2D](2d/case-box.png)
 
+**Case hats, standing then walking (animation frame)**
+
+![Case hats, standing then walking (animation frame), 2D](2d/case-walk-hat.png)
+
+**Case glasses, standing then walking**
+
+![Case glasses, standing then walking, 2D](2d/case-walk-glasses.png)
+
+**Case outfits, standing then walking**
+
+![Case outfits, standing then walking, 2D](2d/case-walk-outfit.png)
+
+**Case held items, standing then walking**
+
+![Case held items, standing then walking, 2D](2d/case-walk-held.png)
+
+**Case back items, standing then walking**
+
+![Case back items, standing then walking, 2D](2d/case-walk-back.png)
+
 **Stalls: held (Julegodter and Den varme bod)**
 
 ![Stalls: held (Julegodter and Den varme bod), 2D](2d/stall-held.png)
@@ -135,17 +155,25 @@ Local browser captures (2D is the low graphics tier, 3D the high tier, in the vo
 
 ![Case: pets, 3D](3d/case-pets.png)
 
-**Case: auras**
+**Case: pets, close-up**
 
-![Case: auras, 3D](3d/case-auras.png)
+![Case: pets, close-up, 3D](3d/case-pets-close.png)
+
+**Case: auras, at three moments**
+
+![Case: auras, at three moments, 3D](3d/case-auras.png)
 
 **Case: furniture**
 
 ![Case: furniture, 3D](3d/case-furniture.png)
 
-**Case: chest and key**
+**Case: furniture animating over time**
 
-![Case: chest and key, 3D](3d/case-chest.png)
+![Case: furniture animating over time, 3D](3d/case-furniture-animated.png)
+
+**Case: chest, open chest and key**
+
+![Case: chest, open chest and key, 3D](3d/case-chest.png)
 
 **Stalls: held**
 
