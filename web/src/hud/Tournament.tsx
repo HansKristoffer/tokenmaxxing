@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { world } from "../game/world.ts";
 import { refreshTournament, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { Modal, Pills, useRun } from "./ui.tsx";
+import { HowItWorks, Modal, Pills, useRun } from "./ui.tsx";
 
 const gameLabel = (g: GameId) => `${GAMES[g]?.emoji ?? ""} ${GAMES[g]?.name ?? g}`;
 
@@ -29,7 +29,7 @@ export function Tournament() {
   if (!board) return <Modal title={title}>Reading the board…</Modal>;
   const t = board.current;
   return (
-    <Modal title={title} wide={t?.status === "running"}>
+    <Modal title={title} wide>
       {board.champion && (
         <p className="tourney-champ">
           👑 <b>{board.champion.name}</b> won the {gameLabel(board.champion.game)} tournament. Their name
@@ -37,10 +37,10 @@ export function Tournament() {
         </p>
       )}
       {t ? <Live t={t} /> : <Open />}
-      <p className="muted small">
+      <HowItWorks>
         Head-to-head matches, played at a table in the town square like any other. No coins ride on it: the
         prize is the name on this board and a champion's title in chat.
-      </p>
+      </HowItWorks>
     </Modal>
   );
 }

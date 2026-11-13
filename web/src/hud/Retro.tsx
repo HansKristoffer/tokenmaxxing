@@ -475,7 +475,7 @@ export function Retro({ cabinet }: { cabinet: number }) {
         </button>
       </div>
       <h3>🏆 Cabinet leaderboard</h3>
-      <p className="muted small">All-time best scores · client-reported and unverified</p>
+      <p className="muted small">All-time best scores</p>
       {boardError ? (
         <p>Leaderboard unavailable. Your local best is still saved.</p>
       ) : boardScores.length ? (

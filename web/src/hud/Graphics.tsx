@@ -44,9 +44,6 @@ export function GraphicsPanel() {
   const set = graphics.override;
   return (
     <Modal title="🖼 Graphics">
-      <p className="muted small">
-        Detected: {gpu ?? "unknown GPU"} → recommended {recommended}
-      </p>
       {failed3d && (
         <p className="muted small" role="status">
           3D stopped ({failed3d}), so the game is on Low. Pick a tier to try again.
@@ -69,6 +66,9 @@ export function GraphicsPanel() {
       </span>
       <details>
         <summary>Advanced</summary>
+        <p className="muted small">
+          Detected {gpu ?? "an unknown GPU"}. Auto recommends {recommended} for it.
+        </p>
         {effective.renderer === "2d" && (
           <p className="muted small">These apply to the 3D tiers; Low only uses the pixel density cap.</p>
         )}

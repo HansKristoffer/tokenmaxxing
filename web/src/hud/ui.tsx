@@ -200,9 +200,12 @@ export function Modal({
   children,
   wide,
   beside,
+  aside,
 }: {
   title: ReactNode;
   children: ReactNode;
+  /** Beside the title: the one number the panel turns on (the coins you have). */
+  aside?: ReactNode;
   /** Wider than the usual panel; "xl" for a whole workspace (the Bag's dressing room). */
   wide?: boolean | "xl";
   /** Shown next to the dialog, still usable (the chat, beside a game). */
@@ -231,6 +234,7 @@ export function Modal({
       >
         <header className="modal-head">
           <h2 id={titleId}>{title}</h2>
+          {aside && <span className="modal-aside">{aside}</span>}
           <button type="button" className="icon" aria-label="Close" onClick={() => hud.set({ panel: null })}>
             ✕
           </button>
@@ -258,6 +262,16 @@ export function Pills<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+/** The rules of a panel, folded away under one line until asked for. */
+export function HowItWorks({ title = "How it works", children }: { title?: string; children: ReactNode }) {
+  return (
+    <details className="how-it-works">
+      <summary>{title}</summary>
+      <div className="muted small">{children}</div>
+    </details>
   );
 }
 
@@ -322,14 +336,9 @@ export function RankList({ rows }: { rows: Ranked[] }) {
   );
 }
 
-/** "🪙 1,234 coins" at the top of a shop, and whatever else goes on its line. */
-export function WalletLine({ balance, children }: { balance: number; children?: ReactNode }) {
-  return (
-    <p className="wallet">
-      <strong>{coins(balance)}</strong> coins
-      {children}
-    </p>
-  );
+/** "🪙 1,234" beside the title of a panel that sells (`Modal`'s `aside`): the coins I have to spend there. */
+export function Balance({ balance }: { balance: number }) {
+  return <strong title="Your coins">{coins(balance)}</strong>;
 }
 
 const NARROW = "(max-width: 700px), (max-height: 500px)";

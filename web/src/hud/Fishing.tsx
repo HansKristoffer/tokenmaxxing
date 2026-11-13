@@ -31,9 +31,9 @@ import { Modal, Pills, useLoad, useRun, useTicker } from "./ui.tsx";
 
 type Tab = "journal" | "records" | "treasures";
 const TABS: readonly (readonly [Tab, string])[] = [
-  ["journal", "📖 Journal"],
-  ["records", "🏆 Pond records"],
-  ["treasures", "💎 Treasures"],
+  ["journal", "Journal"],
+  ["records", "Pond records"],
+  ["treasures", "Treasures"],
 ];
 const MEDAL_EMOJI = { bronze: "🥉", silver: "🥈", gold: "🥇" } as const;
 const LOOK = defaultLook(1);

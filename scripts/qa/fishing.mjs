@@ -90,7 +90,7 @@ await page.screenshot({ path: `${out}/${tier}-journal.png`, fullPage: true });
 await page.getByRole("button", { name: "💎 Treasures" }).click();
 await page.waitForTimeout(800);
 await page.screenshot({ path: `${out}/${tier}-treasures.png` });
-await page.getByRole("button", { name: "🏆 Pond records" }).click();
+await page.getByRole("button", { name: "Pond records" }).click();
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${out}/${tier}-records.png` });
 console.log(JSON.stringify({ tier, caught, errors: page.errors, watcherErrors: watcher?.errors }, null, 1));

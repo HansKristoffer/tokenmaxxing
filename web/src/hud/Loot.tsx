@@ -105,7 +105,7 @@ export function LootSection({ raid }: { raid: Raid }) {
   return (
     <>
       <h3>
-        Loot · {raid.boss.emoji} {raid.boss.name}
+        {raid.boss.emoji} {raid.boss.name} drops
         {lap && <span className="muted small">{lap}</span>}
       </h3>
       {loot.boost !== 1 && <p className="muted small">🧪 Dev boost: odds ×{loot.boost}.</p>}
@@ -126,8 +126,7 @@ export function LootSection({ raid }: { raid: Raid }) {
         })}
       </ul>
       <p className="muted small">
-        Everyone a kill pays rolls for each item once, so one kill can drop you several. Rolls are fixed per
-        week, rung, player and item, so nobody can reroll. Loot is tradeable.
+        A kill rolls each item once for everyone it pays, so one kill can drop several. Loot is tradeable.
       </p>
       {loot.drops.length > 0 && (
         <>

@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { errorText } from "../errors.ts";
 import { refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { coins } from "./format.ts";
-import { Modal, useRun } from "./ui.tsx";
+import { Balance, Modal, useRun } from "./ui.tsx";
 
 /** "🪙 50 + Shades", or "nothing". */
 const sideText = (s: Side): string =>
@@ -50,9 +49,9 @@ export function TradePanel({ userId }: { userId: number }) {
     await refreshWallet();
   });
   return (
-    <Modal title={`🔁 Trade with ${them.name}`}>
+    <Modal title={`🔁 Trade with ${them.name}`} wide aside={<Balance balance={wallet.balance} />}>
       <p className="muted small">
-        You have {coins(wallet.balance)}. They accept or decline, and both sides move at once.
+        Pick what each side gives. They accept or decline, and it all moves at once.
       </p>
       <form className="table-form" onSubmit={offer}>
         <div className="trade-sides">
@@ -123,7 +122,7 @@ function SideFields({
           {items.map((id) => (
             <button key={id} type="button" aria-pressed={side.items.includes(id)} onClick={() => toggle(id)}>
               {itemById(id)?.name ?? id}
-              {counts && ` ×${counts[id]}`}
+              {counts && counts[id]! > 1 && ` ×${counts[id]}`}
             </button>
           ))}
         </div>

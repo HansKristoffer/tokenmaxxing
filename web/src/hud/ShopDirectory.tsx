@@ -37,19 +37,20 @@ export function TakeMeThere({
 }
 
 /**
- * "Buy at Møbelhuset" for the panels that no longer sell (My room): the way to the shop's door, or, standing
- * in the shop already, the tab that sells it.
+ * Under the panels that no longer sell (My room, My desk): where new ones are sold, with the way to the shop's
+ * door or, standing in the shop already, the tab that sells them.
  */
-export function BuyAtMobelhuset({ tab }: { tab: "decor" | "desk" | "company" }) {
+export function BuyAtMobelhuset({ tab }: { tab: "decor" | "desk" }) {
   const here = useHud((s) => shopOfRoom(s.room) === "furniture");
   return (
-    <p className="buy-at">
+    <p className="buy-at muted small">
+      New ones are sold at Møbelhuset.{" "}
       {here ? (
         <button type="button" className="primary" onClick={() => hud.set({ panel: { kind: "shop", tab } })}>
           Buy in this shop
         </button>
       ) : (
-        <TakeMeThere shop="furniture" label="Buy at Møbelhuset" />
+        <TakeMeThere shop="furniture" label="Go there" />
       )}
     </p>
   );
@@ -59,29 +60,25 @@ export function BuyAtMobelhuset({ tab }: { tab: "decor" | "desk" | "company" }) 
 export function ShopDirectory() {
   return (
     <Modal title="🧭 Shops">
-      <p className="muted small">
-        Everything is bought in person. Pick a shop and walk in; the shopkeeper has the goods. Your Bag shows
-        what you own and lets you wear it.
-      </p>
-      <ul className="members">
+      <p className="muted small">Everything is bought in person: pick a shop and walk in.</p>
+      <ul className="members shops">
         {SHOP_DIRECTORY.map((s) => (
           <li key={s.id}>
             <span>
-              <strong>{s.name}</strong>{" "}
-              <span className="muted small">
-                · {s.sign} · {s.keeper}
-              </span>
+              <strong>{s.name}</strong>
               <br />
               <span className="muted small">{s.sells}</span>
             </span>
-            <TakeMeThere shop={s.id} />
+            <TakeMeThere shop={s.id} label="Go there" />
           </li>
         ))}
       </ul>
       <p className="muted small">
+        What you own is in your{" "}
         <button type="button" className="link" onClick={() => hud.set({ panel: { kind: "bag" } })}>
-          🎒 Bag
+          Bag
         </button>
+        .
       </p>
     </Modal>
   );
