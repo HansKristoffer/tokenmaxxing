@@ -126,8 +126,8 @@ export function Minimap() {
 
   return (
     <section className="panel minimap" aria-label="Map">
-      <header>
-        <span>🗺 {roomName(room)}</span>
+      <header className="box-head">
+        <span className="plaque">{roomName(room)}</span>
         <span className="zoom">
           {turnable && (
             <>
