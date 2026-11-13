@@ -6,6 +6,7 @@
  */
 import { withAlpha } from "hanzio";
 import type { FancyPiece } from "./furniture-fancy.ts";
+import { JULEPYNT_FURNITURE } from "./julemarked-stall-furniture.ts";
 import { C, shade } from "./palette.ts";
 import { glyphPixels, type Pen } from "./pixels.ts";
 
@@ -1087,6 +1088,8 @@ export const HOME_FURNITURE: readonly FancyPiece[] = [
     frames: 2,
     frameMs: 900,
   }),
+  // The Julemarked's Julepynt stall (`JULEPYNT_PIECES`).
+  ...JULEPYNT_FURNITURE,
 ];
 
 /** The Night Market case's pieces (`CASE_PIECES` in core/src/case-furniture.ts). */

@@ -1,10 +1,14 @@
 import { CASE_BASE } from "@tokenmaxxing/core/case.ts";
+import { JULEMARKED_BASE } from "@tokenmaxxing/core/case-julemarked.ts";
 import { NUSANTARA_BASE } from "@tokenmaxxing/core/case-nusantara.ts";
 import { RAGNAROK_BASE } from "@tokenmaxxing/core/case-ragnarok.ts";
 import { FISHING_BASE } from "@tokenmaxxing/core/fishing-loot.ts";
+import { STALL_BASE } from "@tokenmaxxing/core/julemarked-shop.ts";
+import { JULEMARKED_PETS } from "./case-julemarked-pets.ts";
 import { CASE_PETS, NUSANTARA_PETS } from "./case-pets.ts";
 import { RAGNAROK_PETS } from "./case-ragnarok-pets.ts";
 import { FISHING_PETS } from "./fishing-loot-pets.ts";
+import { STALL_PETS } from "./julemarked-stall-pets.ts";
 import { LOOT_PETS } from "./loot.ts";
 import { C } from "./palette.ts";
 import type { Palette } from "./pixels.ts";
@@ -221,6 +225,14 @@ RAGNAROK_PETS.forEach((pet, i) => {
 // And the pond treasures' (`fishing-loot-pets.ts`, 600 up).
 FISHING_PETS.forEach((pet, i) => {
   PETS[FISHING_BASE + i] = pet;
+});
+
+JULEMARKED_PETS.forEach((pet, i) => {
+  PETS[JULEMARKED_BASE + i] = pet;
+});
+// The Julemarked coin stalls' two (900 up).
+STALL_PETS.forEach((pet, i) => {
+  PETS[STALL_BASE + i] = pet;
 });
 
 export const PET_W = 12;

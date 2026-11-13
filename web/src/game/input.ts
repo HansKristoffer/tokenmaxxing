@@ -1,3 +1,5 @@
+import { STALL_CHAR } from "@tokenmaxxing/core/julemarked.ts";
+import { SHOP_STALL_IDS, STALL_TABS } from "@tokenmaxxing/core/julemarked-shop.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { slotAt } from "@tokenmaxxing/core/market.ts";
 import { canTurn } from "@tokenmaxxing/core/office.ts";
@@ -29,7 +31,7 @@ import {
 } from "@tokenmaxxing/core/world.ts";
 import { conn } from "../net.ts";
 import { tossLanded } from "../render3d/town/world-logic.ts";
-import { chatBeside, hud } from "../store.ts";
+import { chatBeside, hud, type ShopPageTab } from "../store.ts";
 import { agustusanInteract, blocksAgustusan } from "./agustusan.ts";
 import { basementInteract } from "./basement.ts";
 import { befrielsenInteract, blocksBefrielsen, routeAround } from "./befrielsen.ts";
@@ -403,7 +405,10 @@ export function updateSelf(now: number): void {
     tapped = null;
     turning = null;
     // Walking out of a shop closes its page; walking in, the keeper says hello.
-    if (shopOfRoom(lastRoom) && ["shop", "caseLeaderboard"].includes(hud.get().panel?.kind ?? ""))
+    if (
+      (shopOfRoom(lastRoom) || lastRoom === "julemarked") &&
+      ["shop", "caseLeaderboard"].includes(hud.get().panel?.kind ?? "")
+    )
       hud.set({ panel: null });
     const shop = shopOfRoom(world.room);
     if (shop && lastRoom) hud.set({ dialog: greeting(shop, greetings++) });
@@ -635,6 +640,15 @@ function interact(): void {
   }
   if (world.room === SHOP_ROOM.natmarked && ch === CASE_BOARD_TILE)
     return void hud.set({ panel: { kind: "caseLeaderboard" } });
+  // The Julemarked's Nissens bod sells its own case, through the same case panel as Natmarked's shelves.
+  if (world.room === "julemarked" && ch === STALL_CHAR.nissen)
+    return void hud.set({ panel: { kind: "caseShop", shop: "julemarked" } });
+  // The other three stalls sell for coins: the Shop page on that stall's goods and only those.
+  if (world.room === "julemarked") {
+    const stall = SHOP_STALL_IDS.find((id) => STALL_CHAR[id] === ch);
+    if (stall)
+      return void hud.set({ panel: { kind: "shop", stall, tab: STALL_TABS[stall][0] as ShopPageTab } });
+  }
   if (shopInteract(x, y)) return;
   if (basementInteract(x, y)) return;
   if (ch === "K") return void hud.set({ dialog: chalkboardText() });

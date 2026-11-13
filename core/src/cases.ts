@@ -5,6 +5,8 @@
  */
 import { CASE_ITEMS } from "./case.ts";
 import { CASE_PIECES } from "./case-furniture.ts";
+import { JULEMARKED_ITEMS } from "./case-julemarked.ts";
+import { JULEMARKED_PIECES } from "./case-julemarked-furniture.ts";
 import { NUSANTARA_ITEMS } from "./case-nusantara.ts";
 import { NUSANTARA_PIECES } from "./case-nusantara-furniture.ts";
 import { RAGNAROK_ITEMS } from "./case-ragnarok.ts";
@@ -15,8 +17,13 @@ import { type Item, itemById } from "./shop.ts";
 /** The building where cases are sold (registered in `shoprooms.ts`). Every case is sold here for now; the Nusantara's own harbour shop, Pelabuhan, comes later (docs/cases/nusantara.md). */
 export const CASE_SHOP_ID = "natmarked";
 
+/** Where a case is sold: Natmarked's shelves, or the seasonal Julemarked's Nissens bod. */
+export type CaseShopId = "natmarked" | "julemarked";
+
 export interface CaseDef {
   id: string;
+  /** The shop that sells it (and the only place it can be opened). Natmarked unless said otherwise. */
+  shop: CaseShopId;
   name: string;
   blurb: string;
   /** Coins for one opening. */
@@ -42,7 +49,7 @@ export const VENDOR_COINS: Record<Rarity, number> = {
 const poolItems = (ids: readonly string[]): Item[] =>
   ids.map((id) => itemById(id)).filter((i): i is Item => i !== undefined);
 
-/** Both cases so far roll the same: the odds, the guarantee and the dupe rerolls. A later case can differ. */
+/** Every case so far rolls the same: the odds, the guarantee and the dupe rerolls. A later case can differ. */
 const STANDARD_ODDS: Record<Rarity, number> = {
   common: 0.475,
   uncommon: 0.25,
@@ -57,6 +64,7 @@ export const CASE_SHELVES = 6;
 export const CASES: readonly CaseDef[] = [
   {
     id: "night-market",
+    shop: "natmarked",
     name: "Night Market case",
     blurb: "Hats, pets, outfits and lanterns from the stalls after dark.",
     keyPrice: 75,
@@ -67,6 +75,7 @@ export const CASES: readonly CaseDef[] = [
   },
   {
     id: "nusantara",
+    shop: "natmarked",
     name: "Nusantara case",
     blurb: "Hats, pets, outfits and instruments from the islands, loaded off the morning boat.",
     keyPrice: 100,
@@ -77,6 +86,7 @@ export const CASES: readonly CaseDef[] = [
   },
   {
     id: "ragnarok-eve",
+    shop: "natmarked",
     name: "Ragnarok Eve case",
     blurb: "Furs, horns, ravens and runes from the last feast before the end of the world.",
     keyPrice: 100,
@@ -85,16 +95,35 @@ export const CASES: readonly CaseDef[] = [
     dupeRerolls: 1,
     items: poolItems([...RAGNAROK_ITEMS.map((i) => i.id), ...RAGNAROK_PIECES.map((p) => `furn.${p.ch}`)]),
   },
+  {
+    id: "julemarked",
+    shop: "julemarked",
+    name: "Julemarked case",
+    blurb: "Nisser, gløgg, paper hearts and candles from a Danish Christmas market.",
+    keyPrice: 100,
+    odds: STANDARD_ODDS,
+    rareWithin: 10,
+    dupeRerolls: 1,
+    items: poolItems([...JULEMARKED_ITEMS.map((i) => i.id), ...JULEMARKED_PIECES.map((p) => `furn.${p.ch}`)]),
+  },
 ];
+
+/** The cases one shop sells, in `CASES` order. */
+export const casesOfShop = (shop: CaseShopId): readonly CaseDef[] => CASES.filter((c) => c.shop === shop);
+/** What Natmarked's shelves show (the Julemarked case is not here). */
+export const NATMARKED_CASES: readonly CaseDef[] = casesOfShop("natmarked");
+/** What the Julemarked's Nissens bod shows. */
+export const JULEMARKED_CASES: readonly CaseDef[] = casesOfShop("julemarked");
 
 /**
  * The slide the case shop opens on for a shelf on Natmarked's back wall (`shelfAt`): that shelf's case, or the
  * locked "Coming soon" one for a shelf with no case yet. The counter has no shelf and opens the first case.
+ * Slides are `NATMARKED_CASES` (shelf `n` is slot `n`).
  */
 export function slideOfShelf(shelf: number | undefined): number {
   if (shelf === undefined || shelf < 0) return 0;
-  if (shelf < CASES.length) return shelf;
-  return CASES.length < CASE_SHELVES ? CASES.length : 0;
+  if (shelf < NATMARKED_CASES.length) return shelf;
+  return NATMARKED_CASES.length < CASE_SHELVES ? NATMARKED_CASES.length : 0;
 }
 
 export const caseById = (id: unknown): CaseDef | undefined => CASES.find((c) => c.id === id);

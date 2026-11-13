@@ -1,4 +1,11 @@
-import { CASE_SHELVES, CASES, type CaseDef, slideOfShelf, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
+import {
+  CASE_SHELVES,
+  type CaseDef,
+  type CaseShopId,
+  casesOfShop,
+  slideOfShelf,
+  VENDOR_COINS,
+} from "@tokenmaxxing/core/cases.ts";
 import { RARITY_COLOR } from "@tokenmaxxing/core/rarity.ts";
 import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
 import { defaultLook } from "@tokenmaxxing/core/world.ts";
@@ -53,10 +60,13 @@ function ComingSoon({ n }: { n: number }) {
   );
 }
 
-/** Whether the last slide is the "Coming soon" one: only while some shelf at the back of the hall is still empty. */
-const SOON = CASES.length < CASE_SHELVES;
-/** The cases, then the one locked slide. The order is the shelves' order, left to right. */
-const SLIDES = CASES.length + (SOON ? 1 : 0);
+/** What the nisse behind Nissens bod says when you walk up to the counter. */
+const JULE_GREETINGS = [
+  "Glædelig jul! Today's case is on the counter, and the gløgg is on the house. Not really.",
+  "Hej! Pull up a key. Everything in the chest was wrapped by hand, by me, badly.",
+  "God jul! Mind the hearts, they're paper. The nisser inside are not.",
+  "Velkommen til Nissens bod. Don't touch the candle. Do touch the chest.",
+];
 
 /** Left/right on the keyboard, unless a key is meant for a field or a dialog is on top. */
 function pagerKey(e: KeyboardEvent): 1 | -1 | 0 {
@@ -79,17 +89,26 @@ function pagerKey(e: KeyboardEvent): 1 | -1 | 0 {
  * (the opening screen, wired to the server's `openCase`), the odds of everything inside and a button that sells
  * the spare copies back to the vendor. The server rolls and charges; this only asks and shows.
  */
-export function CaseShop({ shelf }: { shelf?: number }) {
+export function CaseShop({ shelf, shop = "natmarked" }: { shelf?: number; shop?: CaseShopId }) {
+  // The cases this shop sells, then (at Natmarked only) the locked slide while a shelf is still empty.
+  const CASES = casesOfShop(shop);
+  const SOON = shop === "natmarked" && CASES.length < CASE_SHELVES;
+  const SLIDES = CASES.length + (SOON ? 1 : 0);
   const me = useHud((s) => s.me);
   const wallet = useHud((s) => s.wallet);
-  const [hello] = useState(() => greeting("natmarked", Math.floor(Math.random() * 8)));
+  const [hello] = useState(() =>
+    shop === "julemarked"
+      ? JULE_GREETINGS[Math.floor(Math.random() * JULE_GREETINGS.length)]!
+      : greeting("natmarked", Math.floor(Math.random() * 8)),
+  );
+  const title = shop === "julemarked" ? "🎄 Nissens bod" : "🏮 Natmarked";
   const [bag, setBag] = useState<BagRow[]>([]);
   const [failed, setFailed] = useState<string | null>(null);
   const [opening, setOpening] = useState<CaseDef | null>(null);
   const [sold, setSold] = useState<string | null>(null);
   const { error, busy, run } = useRun();
   // Which slide, and which way it came from (for the slide-in).
-  const [page, setPage] = useState({ at: slideOfShelf(shelf), dir: 1 });
+  const [page, setPage] = useState({ at: shop === "natmarked" ? slideOfShelf(shelf) : 0, dir: 1 });
   const go = (to: number, dir?: number) => {
     setSold(null);
     setPage((p) => {
@@ -121,7 +140,7 @@ export function CaseShop({ shelf }: { shelf?: number }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [opening]);
+  }, [opening, SLIDES]);
 
   if (opening)
     return (
@@ -137,10 +156,10 @@ export function CaseShop({ shelf }: { shelf?: number }) {
       />
     );
 
-  if (!me || !wallet) return <Modal title="🏮 Natmarked">{failed ?? "Loading…"}</Modal>;
+  if (!me || !wallet) return <Modal title={title}>{failed ?? "Loading…"}</Modal>;
 
   return (
-    <Modal title="🏮 Natmarked" wide="xl" aside={<Balance balance={wallet.balance} />}>
+    <Modal title={title} wide="xl" aside={<Balance balance={wallet.balance} />}>
       <p className="shop-hello">{hello}</p>
       {sold && (
         <p className="muted" role="status">

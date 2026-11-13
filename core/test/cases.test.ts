@@ -9,6 +9,7 @@ import {
   type CaseDef,
   caseById,
   caseOfItem,
+  NATMARKED_CASES,
   rollCase,
   slideOfShelf,
   VENDOR_COINS,
@@ -40,7 +41,9 @@ const none = new Set<string>();
 
 describe("cases", () => {
   test("every case has a shelf on Natmarked's back wall", () => {
-    expect(CASES.length).toBeLessThanOrEqual(CASE_SHELVES);
+    // The Julemarked case is sold at its own stall, so only the Natmarked cases take a shelf.
+    expect(NATMARKED_CASES.length).toBeLessThanOrEqual(CASE_SHELVES);
+    expect(NATMARKED_CASES.map((c) => c.id)).not.toContain("julemarked");
   });
 
   test("E on a shelf opens the case on it: both tiles of a shelf, locked shelves on Coming soon", () => {
@@ -48,11 +51,14 @@ describe("cases", () => {
     expect(tiles).toEqual(Array.from({ length: CASE_SHELVES * 2 }, (_, i) => Math.floor(i / 2)));
     expect(shelfAt(0, 0)).toBeNull();
     // A case's shelf opens on that case; the counter (no shelf) on the first.
-    for (let i = 0; i < CASES.length; i++) expect(slideOfShelf(i)).toBe(i);
+    for (let i = 0; i < NATMARKED_CASES.length; i++) expect(slideOfShelf(i)).toBe(i);
     expect(slideOfShelf(undefined)).toBe(0);
     // A shelf with no case yet opens the locked slide, one past the last case, while a shelf is empty.
-    if (CASES.length < CASE_SHELVES) expect(slideOfShelf(CASES.length)).toBe(CASES.length);
-    expect(slideOfShelf(CASE_SHELVES + 3)).toBe(CASES.length < CASE_SHELVES ? CASES.length : 0);
+    if (NATMARKED_CASES.length < CASE_SHELVES)
+      expect(slideOfShelf(NATMARKED_CASES.length)).toBe(NATMARKED_CASES.length);
+    expect(slideOfShelf(CASE_SHELVES + 3)).toBe(
+      NATMARKED_CASES.length < CASE_SHELVES ? NATMARKED_CASES.length : 0,
+    );
   });
 
   test("odds sum to 1, the night market exists, vendor pays by rarity", () => {
@@ -128,7 +134,7 @@ describe("the Nusantara case", () => {
   const nus = caseById("nusantara")!;
 
   test("is a second case with the Night Market's odds and guarantee, a 100 coin key, and only its own items", () => {
-    expect(CASES.map((c) => c.id)).toEqual(["night-market", "nusantara", "ragnarok-eve"]);
+    expect(CASES.map((c) => c.id)).toEqual(["night-market", "nusantara", "ragnarok-eve", "julemarked"]);
     expect(nus).toMatchObject({ name: "Nusantara case", keyPrice: 100, rareWithin: 10, dupeRerolls: 1 });
     expect(nus.odds).toEqual(night.odds);
     expect(nus.blurb.length).toBeGreaterThan(20);

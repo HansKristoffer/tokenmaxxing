@@ -5,6 +5,7 @@
  * doors opened are the server's (`server/src/town/julekalender.ts`); everything else here needs no state.
  */
 
+import { daysFrom, near } from "./holidays.ts";
 import { worldWall } from "./range.ts";
 import type { Weather } from "./sky.ts";
 
@@ -85,3 +86,13 @@ export function decemberSnow(weather: Weather, ms: number): Weather {
   const intensity = weather.kind === "snow" ? Math.max(0.4, weather.intensity) : 0.4;
   return { ...weather, kind: "snow", intensity };
 }
+
+// MARK: Julemarked
+
+/**
+ * Whether the Julemarked's gate is open: from J-dag (the first Friday of November) through 26 December,
+ * Copenhagen time. `near` counts days after J-dag (55 reaches 26 December from the earliest J-dag, 1 November);
+ * `daysFrom` then cuts it at the 26th, two days after Juleaften.
+ */
+export const julemarkedOn = (ms: number): boolean =>
+  near("jDag", ms, 0, 55) && daysFrom("christmas", ms) <= 2;

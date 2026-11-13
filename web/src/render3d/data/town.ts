@@ -5,7 +5,8 @@
  * `core/src/posters.ts` (POSTERS) and `core/src/desks.ts` (DESKS). Keep in step by hand.
  */
 
-import { townMap as coreTown, MAPS, shopBlocks } from "@tokenmaxxing/core/maps.ts";
+import { JULE_GATE_DOOR } from "@tokenmaxxing/core/julemarked.ts";
+import { townMap as coreTown, julemarkedBlock, MAPS, shopBlocks } from "@tokenmaxxing/core/maps.ts";
 import { SHOP_DOOR_CHAR } from "@tokenmaxxing/core/shoprooms.ts";
 
 export { PLAZA, TOWN_SPAWN } from "@tokenmaxxing/core/maps.ts";
@@ -42,7 +43,18 @@ export function doorOf(plot: number): [number, number] {
 
 /** Tile kinds the 3D town cares about: walkable ground, and portals (stepping in changes room). */
 const WALK = new Set([".", ",", ":", '"']);
-const PORTAL = new Set(["I", "D", "G", "S", "u", "x", "R", "A", ...Object.values(SHOP_DOOR_CHAR)]);
+const PORTAL = new Set([
+  "I",
+  "D",
+  "G",
+  "S",
+  "u",
+  "x",
+  "R",
+  "A",
+  JULE_GATE_DOOR,
+  ...Object.values(SHOP_DOOR_CHAR),
+]);
 
 /** The town's tiles. `rows[0][0]` is tile (x0, y0): they can be negative. */
 export class TownMap {
@@ -88,6 +100,7 @@ export function townMap(plots: readonly number[]): TownMap {
   const m = coreTown(plots);
   const taken = new Set(plots);
   const shops = new Set(Object.values(shopBlocks(plots)).map(([x, y]) => plotId(x, y)));
+  shops.add(plotId(...julemarkedBlock(plots)));
   const parks: [number, number][] = [];
   for (let by = Math.floor(m.y0 / BLOCK_H); by * BLOCK_H < m.y0 + m.height; by++)
     for (let bx = Math.floor(m.x0 / BLOCK_W); bx * BLOCK_W < m.x0 + m.width; bx++) {

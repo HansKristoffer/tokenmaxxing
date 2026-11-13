@@ -10,6 +10,8 @@
  * `CEILING_ASSET_IDS` hang from the ceiling (built to reach a 2.6 high wall). Also exported here:
  * `deskTier` (desk setups, `desks3d.ts`) and the merch helpers (`merch3d.ts`).
  */
+
+import { JULEPYNT_PIECES } from "@tokenmaxxing/core/julemarked-shop.ts";
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
 import { glyphPixels, Pen } from "../../art/pixels.ts";
@@ -18,6 +20,8 @@ import { panel } from "../kit/panel.ts";
 import { merchColours, merchPrintTexture, merchProp, merchShirtTexture } from "../people/merch3d.ts";
 import { DESK_TIERS, deskTier } from "./desks3d.ts";
 import { type Asset, bed, desk, light, sofa } from "./furniture.ts";
+import { JST_ASSETS } from "./jst3d.ts";
+import { JUL_ASSETS } from "./jul3d.ts";
 import { NIGHT_ASSETS } from "./night3d.ts";
 import { NORSE_ASSETS } from "./norse3d.ts";
 import { NUSANTARA_ASSETS } from "./nusantara3d.ts";
@@ -769,6 +773,11 @@ export const FURNITURE_EXTRA_ASSETS: readonly Asset[] = [
   ...NIGHT_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
   ...NUSANTARA_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
   ...NORSE_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
+  ...JUL_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
+  // Julepynt's pieces cost coins (the catalog's price), unlike the case's.
+  ...JST_ASSETS.map((a) =>
+    asset(a.id, a.name, JULEPYNT_PIECES.find((p) => p.art === a.id)?.price ?? 0, a.w, a.d, a.build),
+  ),
   ...PRESTIGE_TROPHY_ASSETS.map((a) => asset(a.id, a.name, 0, a.w, a.d, a.build)),
   ...POSTER_ASSETS,
 ];
@@ -783,6 +792,8 @@ export const WALL_ASSET_IDS: ReadonlySet<string> = new Set([
   "night-lanterns",
   "nus-batik-hanging",
   "norse-raven-banner",
+  "jul-heart-garland",
+  ...JST_ASSETS.filter((a) => a.wall).map((a) => a.id),
   ...POSTER_ASSETS.map((a) => a.id),
 ]);
 

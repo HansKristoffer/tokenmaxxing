@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { julemarkedOn } from "@tokenmaxxing/core/december.ts";
+import { JULE_GATE_DOOR } from "@tokenmaxxing/core/julemarked.ts";
 import { GameMap, MAPS } from "@tokenmaxxing/core/maps.ts";
 import { SHOPKEEPERS } from "@tokenmaxxing/core/shopkeepers.ts";
 import { SHOP_DOOR_CHAR, SHOP_ROOM, SHOPS } from "@tokenmaxxing/core/shoprooms.ts";
@@ -42,6 +44,58 @@ describe("the shops", () => {
     const last = c.events.snapshots.at(-1)!.players.find((p) => p.id === u.userId)!;
     await walk(c.conn, route(MAPS[SHOP_ROOM.natmarked], [last.x, last.y], SHOPS.natmarked.door)!);
     await expect(u.town.caseLeaderboard()).rejects.toMatchObject({ code: "not_in_shop" });
+    await c.conn.dispose();
+  });
+
+  test("Nissens bod sells the Julemarked case inside the market, and nowhere else outside Natmarked", async () => {
+    const u = await rich("jule", 1000);
+    await admin().adminStrictShops(u.userId);
+    await expect(u.town.openCase("julemarked")).rejects.toMatchObject({ code: "not_in_shop" });
+    // The gate takes you in only while the market is open (J-dag to 26 December).
+    if (!julemarkedOn(Date.now())) return;
+    const c = await connect(u.token);
+    const me = c.snap.players.find((p) => p.id === u.userId)!;
+    await walk(c.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
+    const out = outsideDoor("inn");
+    const rows = MAPS.town.rows.map((r, y) =>
+      [...r].map((ch, x) => (isCart(x + MAPS.town.x0, y + MAPS.town.y0) ? "T" : ch)).join(""),
+    );
+    const streets = new GameMap("town", "Town", rows, MAPS.town.x0, MAPS.town.y0);
+    const gate = MAPS.town.find(JULE_GATE_DOOR)[1]!;
+    const steps = await walk(c.conn, route(streets, [out.x, out.y], gate)!);
+    expect(steps.at(-1)).toMatchObject({ room: "julemarked" });
+    await eventually(() => expect(c.events.snapshots.at(-1)!.room).toBe("julemarked"));
+    const opened = await u.town.openCase("julemarked");
+    expect(opened.wallet.balance).toBe(900);
+    // The market sells only its own case: the Night Market's is opened at Natmarked.
+    await expect(u.town.openCase("night-market")).rejects.toMatchObject({ code: "not_in_shop" });
+    await c.conn.dispose();
+  });
+
+  test("the market's three coin stalls sell their goods inside the market only", async () => {
+    const u = await rich("stall", 1000);
+    await admin().adminStrictShops(u.userId);
+    // Outside the market (the Night Market, the clothes shop and Møbelhuset all refuse these).
+    for (const id of ["held.900", "hat.900", "pet.901", "furn.Ѫ"])
+      await expect(u.town.buy(id)).rejects.toMatchObject({ code: "not_in_shop" });
+    // The gate takes you in only while the market is open (J-dag to 26 December).
+    if (!julemarkedOn(Date.now())) return;
+    const c = await connect(u.token);
+    const me = c.snap.players.find((p) => p.id === u.userId)!;
+    await walk(c.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
+    const out = outsideDoor("inn");
+    const rows = MAPS.town.rows.map((r, y) =>
+      [...r].map((ch, x) => (isCart(x + MAPS.town.x0, y + MAPS.town.y0) ? "T" : ch)).join(""),
+    );
+    const streets = new GameMap("town", "Town", rows, MAPS.town.x0, MAPS.town.y0);
+    await walk(c.conn, route(streets, [out.x, out.y], MAPS.town.find(JULE_GATE_DOOR)[1]!)!);
+    await eventually(() => expect(c.events.snapshots.at(-1)!.room).toBe("julemarked"));
+    expect((await u.town.buy("held.900")).balance).toBe(970);
+    expect((await u.town.buy("furn.Ѫ")).balance).toBe(850);
+    expect((await u.town.buy("pet.901")).balance).toBe(610);
+    // Nothing the case gives, and nothing the other shops sell, is on a stall.
+    await expect(u.town.buy("hat.800")).rejects.toMatchObject({ code: "not_for_sale" });
+    await expect(u.town.buy("hat.1")).rejects.toMatchObject({ code: "not_in_shop" });
     await c.conn.dispose();
   });
 

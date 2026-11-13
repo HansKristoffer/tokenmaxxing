@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { ALL_CASE_PIECES, CASE_PIECES, casePieceOf, isCasePiece } from "../src/case-furniture.ts";
+import { JULEMARKED_PIECES } from "../src/case-julemarked-furniture.ts";
 import { NUSANTARA_PIECES } from "../src/case-nusantara-furniture.ts";
 import { RAGNAROK_PIECES } from "../src/case-ragnarok-furniture.ts";
 import { HOME_PIECES } from "../src/home.ts";
@@ -76,6 +77,7 @@ test("the Nusantara case's six pieces: characters, widths, wall and flat, and a 
     ...CASE_PIECES,
     ...NUSANTARA_PIECES,
     ...RAGNAROK_PIECES,
+    ...JULEMARKED_PIECES,
     ...PRESTIGE_PIECES,
   ]);
   for (const p of NUSANTARA_PIECES) expect(CASE_PIECES.includes(p)).toBe(false);

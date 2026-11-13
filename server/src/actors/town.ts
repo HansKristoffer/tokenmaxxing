@@ -1,4 +1,4 @@
-import { CASE_SHOP_ID, caseById } from "@tokenmaxxing/core/cases.ts";
+import { CASE_SHOP_ID, type CaseDef, caseById } from "@tokenmaxxing/core/cases.ts";
 import {
   type CollectionState,
   ownedPins,
@@ -11,6 +11,7 @@ import type { Gift } from "@tokenmaxxing/core/december.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
 import type { Barrel } from "@tokenmaxxing/core/fastelavn.ts";
 import type { FishCatch, FishingEntry, FishingState } from "@tokenmaxxing/core/fishing.ts";
+import { stallOfItem } from "@tokenmaxxing/core/julemarked-shop.ts";
 import { clockAt, dateAt, type Keynote } from "@tokenmaxxing/core/keynote.ts";
 import type { Launch } from "@tokenmaxxing/core/launch.ts";
 import { frontier } from "@tokenmaxxing/core/maps.ts";
@@ -667,7 +668,8 @@ export const town = actor({
         throw new UserError("That one is for company buildings, from the company wallet.", {
           code: "not_for_sale",
         });
-      await inShop(c, userId, shopForSlot(item.slot));
+      // The Julemarked stalls' goods are sold only in the market room; everything else in its own shop.
+      await inShop(c, userId, stallOfItem(item.id) ? "julemarked" : shopForSlot(item.slot));
       const k = await kept(c, Date.now());
       if (item.slot === "merch") return c.vars.serial(() => buyMerch(c.db, userId, item, Date.now(), k));
       return c.vars.serial(() => buy(c.db, userId, item, Date.now(), k));
@@ -686,8 +688,9 @@ export const town = actor({
     /** One opening of `caseId`, in the case shop: the key's coins out, a rolled item into the bag. */
     openCase: async (c, caseId: unknown): Promise<{ item: Item; wallet: Wallet }> => {
       const userId = requireUser(callerOf(c));
-      if (!caseById(caseId)) throw new UserError("There's no such case.", { code: "not_found" });
-      await inCaseShop(c, userId);
+      const def = caseById(caseId);
+      if (!def) throw new UserError("There's no such case.", { code: "not_found" });
+      await inCaseShop(c, userId, def);
       const k = await kept(c, Date.now());
       return c.vars.serial(() => openCase(c.db, userId, caseId, Date.now(), k));
     },
@@ -2201,12 +2204,16 @@ async function placeStarter(client: Client, drops: Drop[]): Promise<void> {
 async function inShop(
   c: { client: () => Client; vars: { strictShops: Set<number> } },
   userId: number,
-  shop: ShopId | null,
+  shop: ShopId | "julemarked" | null,
 ): Promise<void> {
   if (process.env.SHOPS_ANYWHERE === "1" && !c.vars.strictShops.has(userId)) return;
   if (shop === null) throw new UserError("That isn't sold in any shop.", { code: "not_for_sale" });
   const room = await main(c.client()).world.roomOfPlayer(userId);
-  if (room !== SHOP_ROOM[shop]) throw new UserError(goToShop(shop), { code: "not_in_shop" });
+  // "julemarked": a stall of the Christmas market (`julemarked-shop.ts`), bought from inside the courtyard.
+  if (room !== (shop === "julemarked" ? "julemarked" : SHOP_ROOM[shop]))
+    throw new UserError(shop === "julemarked" ? "Go to the Julemarked to buy that." : goToShop(shop), {
+      code: "not_in_shop",
+    });
 }
 
 /** Torvehallen's door rule, like `inShop`: putting something on display and buying it happen in the hall. */
@@ -2226,12 +2233,20 @@ async function inMarket(
 async function inCaseShop(
   c: { client: () => Client; vars: { strictShops: Set<number> } },
   userId: number,
+  def: CaseDef,
 ): Promise<void> {
   if (process.env.SHOPS_ANYWHERE === "1" && !c.vars.strictShops.has(userId)) return;
-  const room = (SHOP_ROOM as Record<string, string | undefined>)[CASE_SHOP_ID];
+  // A case opens only where it is sold: the Julemarked case at the market's Nissens bod, the rest at Natmarked.
+  const julemarked = def.shop === "julemarked";
+  const room = julemarked ? "julemarked" : (SHOP_ROOM as Record<string, string | undefined>)[CASE_SHOP_ID];
   if (!room) throw new UserError("The Night Market isn't open yet.", { code: "not_in_shop" });
   if ((await main(c.client()).world.roomOfPlayer(userId)) !== room)
-    throw new UserError("Go to the Night Market to open a case.", { code: "not_in_shop" });
+    throw new UserError(
+      julemarked ? "Go to the Julemarked to open this case." : "Go to the Night Market to open a case.",
+      {
+        code: "not_in_shop",
+      },
+    );
 }
 
 /**

@@ -6,10 +6,13 @@
 import { isRecord, isTruthy, typedKeys } from "hanzio";
 import { caseAt } from "./case.ts";
 import { costumeAt } from "./costumes.ts";
+import { julemarkedOn } from "./december.ts";
 import { editionAt } from "./editions.ts";
 import type { Angling, Landing } from "./fishing.ts";
 import type { Seat, Spot } from "./games/gather.ts";
 import type { BoardRow, GameId } from "./games/types.ts";
+import { JULE_GATE_DOOR } from "./julemarked.ts";
+import { stallAt } from "./julemarked-shop.ts";
 import { LOOT_COUNT, LOOT_FIRST } from "./loot.ts";
 import { blockOf, doorOf, type GameMap, LEGEND, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
 import {
@@ -69,6 +72,7 @@ export type RoomId =
   | "shop-pets"
   | "shop-natmarked"
   | "shop-market"
+  | "julemarked"
   | `hq:${number}`
   | `common:${number}`
   | `office:${number}`;
@@ -85,6 +89,7 @@ const FIXED_ROOMS: readonly string[] = [
   "shop-pets",
   "shop-natmarked",
   "shop-market",
+  "julemarked",
 ];
 
 /** A room id from the wire, or null: one of the fixed rooms, or a company's house or common room, or an office. */
@@ -282,7 +287,8 @@ export function parseLook(raw: unknown): Look | null {
       (v as number) >= LOOK_OPTIONS[k] &&
       !editionAt(k, v as number) &&
       !costumeAt(k, v as number) &&
-      !caseAt(k, v as number)
+      !caseAt(k, v as number) &&
+      !stallAt(k, v as number)
     )
       return null;
     out[k] = v as number;
@@ -701,15 +707,18 @@ export function roomEntry(room: RoomId, ch = "x"): Place {
 }
 
 /** Just outside a town door (a company's plot, the Inn, or the dungeon's gate), facing away from it. */
-export function outsideDoor(plot: number | "inn" | "dungeon" | ShopId): Place {
+export function outsideDoor(plot: number | "inn" | "dungeon" | "julemarked" | ShopId): Place {
   const door =
     plot === "inn"
       ? MAPS.town.find("I")[0]!
       : plot === "dungeon"
         ? MAPS.town.find("G")[0]!
-        : typeof plot === "string"
-          ? MAPS.town.find(SHOP_DOOR_CHAR[plot])[0]
-          : doorOf(plot);
+        : plot === "julemarked"
+          ? // The gate's opening is three tiles wide: out through the middle one.
+            (MAPS.town.find(JULE_GATE_DOOR)[1] ?? MAPS.town.find(JULE_GATE_DOOR)[0])
+          : typeof plot === "string"
+            ? MAPS.town.find(SHOP_DOOR_CHAR[plot])[0]
+            : doorOf(plot);
   // A shop whose block a company holds has no door: back to the square.
   if (!door) return townSpawn();
   return { room: "town", x: door[0], y: door[1] + 1, facing: "down" };
@@ -727,6 +736,7 @@ export function portal(
   companyId: number | null,
   plots: ReadonlyMap<number, { id: number; name: string }>,
   doors: readonly Door[] = [],
+  now = Date.now(),
 ): Place | { notice: string } {
   if (door.ch === "R") {
     // `doors` are your own building's: in anyone else's, none of them is here.
@@ -742,6 +752,10 @@ export function portal(
   if (room === "town") {
     if (door.ch === "I") return roomEntry("inn");
     if (door.ch === "G") return roomEntry("dungeon");
+    if (door.ch === JULE_GATE_DOOR)
+      return julemarkedOn(now)
+        ? roomEntry("julemarked")
+        : { notice: "🎄 The Julemarked gate is shut. The market is open from J-dag to 26 December." };
     const shop = SHOP_IDS.find((id) => SHOP_DOOR_CHAR[id] === door.ch);
     if (shop) return roomEntry(SHOP_ROOM[shop]);
     const holder = plots.get(plotId(...blockOf(door.x, door.y)));
@@ -758,6 +772,7 @@ export function portal(
   if (room === "basement") return roomEntry("inn", "S");
   if (room === "upstairs") return roomEntry("inn", "u");
   if (room === "dungeon") return outsideDoor("dungeon");
+  if (room === "julemarked") return outsideDoor("julemarked");
   const leaving = shopOfRoom(room);
   if (leaving) return outsideDoor(leaving);
   // The common room is up the stairs `u` from the house, for its members only: the stairs down lead back.

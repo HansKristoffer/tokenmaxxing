@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { ALL_CASE_ITEMS } from "@tokenmaxxing/core/case.ts";
 import { ALL_CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import { DECORS } from "@tokenmaxxing/core/decor.ts";
 import { DESKS } from "@tokenmaxxing/core/desks.ts";
@@ -14,6 +15,9 @@ installHeadlessGlobals();
 Object.assign(globalThis.location, { origin: "http://localhost" });
 
 const { objectAt } = await import("../src/art/objects.ts");
+const { CASE_GLASSES, CASE_HATS } = await import("../src/art/case.ts");
+const { JULEMARKED_BACKS, JULEMARKED_HELD, JULEMARKED_OUTFITS } =
+  await import("../src/art/case-julemarked-body.ts");
 const { fancyPiece } = await import("../src/art/furniture-fancy.ts");
 const { posterArt } = await import("../src/art/furniture-posters.ts");
 const { FLOOR_ART, WALL_ART } = await import("../src/art/tiles.ts");
@@ -77,6 +81,16 @@ test("every case piece, of every case, has a 2D sprite (objectAt would throw wit
     const f = fancyPiece(p.art);
     expect(f, `art "${p.art}" for ${p.name}`).toBeDefined();
     expect(f!.w, `${p.name}: 2D width`).toBe(p.w ?? 1);
+  }
+});
+
+test("every Julemarked hat, pair of glasses, outfit, held thing and back item has 2D art", () => {
+  for (const it of ALL_CASE_ITEMS.filter((i) => i.index >= 800 && i.index < 900)) {
+    if (it.slot === "hat") expect(CASE_HATS[it.id], it.name).toBeDefined();
+    if (it.slot === "glasses") expect(CASE_GLASSES[it.id], it.name).toBeDefined();
+    if (it.slot === "outfit") expect(JULEMARKED_OUTFITS[it.index], it.name).toBeDefined();
+    if (it.slot === "held") expect(JULEMARKED_HELD[it.index], it.name).toBeDefined();
+    if (it.slot === "back") expect(JULEMARKED_BACKS[it.index], it.name).toBeDefined();
   }
 });
 

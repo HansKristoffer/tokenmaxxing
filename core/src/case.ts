@@ -4,6 +4,8 @@
  * the shop and the loot can grow without the two ever meeting. The art is keyed by the same names.
  * Tradeable the moment they're opened: there is no trade lock.
  */
+
+import { JULEMARKED_ITEMS } from "./case-julemarked.ts";
 import { NUSANTARA_ITEMS } from "./case-nusantara.ts";
 import { RAGNAROK_ITEMS } from "./case-ragnarok.ts";
 import { FISHING_ITEMS } from "./fishing-loot.ts";
@@ -78,13 +80,14 @@ export const CASE_ITEMS: readonly CaseItem[] = [
 
 /**
  * Every case's cosmetics: the Night Market's (`CASE_ITEMS`, 300 to 399), the Nusantara's (400 to 499), Ragnarok
- * Eve's (500 to 599), then the pond's treasures (`fishing-loot.ts`, 600 to 699), which no case sells but which
- * are worn and drawn the same way.
+ * Eve's (500 to 599), the Julemarked's (800 to 899), then the pond's treasures (`fishing-loot.ts`, 600 to 699)
+ * and the prestige rewards (700 to 799), which no case sells but which are worn and drawn the same way.
  */
 export const ALL_CASE_ITEMS: readonly CaseItem[] = [
   ...CASE_ITEMS,
   ...NUSANTARA_ITEMS,
   ...RAGNAROK_ITEMS,
+  ...JULEMARKED_ITEMS,
   ...FISHING_ITEMS,
   ...PRESTIGE_ITEMS,
 ];

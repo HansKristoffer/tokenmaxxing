@@ -6,6 +6,7 @@ import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { defaultLook } from "@tokenmaxxing/core/world.ts";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CASE_BOX_SIZE, caseBoxSprite } from "../art/case-box.ts";
+import { nissePointer } from "../art/case-julemarked-box.ts";
 import { ravenPointer } from "../art/case-ragnarok-box.ts";
 import { errorText } from "../errors.ts";
 import { audio, tone } from "../game/jukebox.ts";
@@ -39,6 +40,7 @@ const THEME: Record<string, { emoji: string }> = {
   "night-market": { emoji: "🏮" },
   nusantara: { emoji: "⛵" },
   "ragnarok-eve": { emoji: "❄️" },
+  julemarked: { emoji: "🎄" },
 };
 const themeOf = (def?: CaseDef) => THEME[def?.id ?? "night-market"] ?? THEME["night-market"]!;
 
@@ -288,6 +290,21 @@ export function CaseOpening({
   const shown = run && phase !== "idle" && phase !== "waiting" ? run.tiles : null;
   const won = phase === "reveal" ? run?.winner : undefined;
 
+  // Julemarked: a soft bell triad when a rare or better item lands (a higher bell for each tier above rare).
+  const bellFor = won && def?.id === "julemarked" ? rarityIn(won) : undefined;
+  useEffect(() => {
+    if (!bellFor || bellFor === "common" || bellFor === "uncommon") return;
+    if (hud.get().jukeSettings.muted) return;
+    const c = audio();
+    if (!c || c.state !== "running") return;
+    const up = bellFor === "rare" ? 0 : bellFor === "epic" ? 1 : 2;
+    [659.25, 783.99, 987.77].forEach((hz, i) => {
+      const f = hz * 2 ** ((up / 12) * 2);
+      tone(c, c.currentTime + i * 0.13, 1.1, f, "sine", 0.22);
+      tone(c, c.currentTime + i * 0.13, 0.6, f * 2.76, "sine", 0.05);
+    });
+  }, [bellFor]);
+
   return (
     <Modal title={`${themeOf(def).emoji} ${def?.name ?? CASE_NAME}`} wide="xl">
       <div className="cs-top">
@@ -316,6 +333,7 @@ export function CaseOpening({
       <div
         className={`cs-roulette${busy ? " live" : ""}${phase === "reveal" ? " landed" : ""}`}
         data-case={def?.id}
+        data-win={won ? rarityIn(won) : undefined}
         ref={viewport}
       >
         <ul className="cs-strip" ref={strip} data-speed="slow" aria-hidden={busy}>
@@ -326,6 +344,10 @@ export function CaseOpening({
         </ul>
         <span className="cs-marker" aria-hidden="true" />
         {def?.id === "ragnarok-eve" && <RavenPointer />}
+        {def?.id === "julemarked" && <NissePointer />}
+        {def?.id === "julemarked" && won && rarityIn(won) === "legendary" && (
+          <span aria-hidden="true" className="cs-snowfall" />
+        )}
         <span className="cs-fade l" />
         <span className="cs-fade r" />
       </div>
@@ -389,6 +411,25 @@ function RavenPointer() {
           if (!g) return;
           g.clearRect(0, 0, 6, 6);
           g.drawImage(ravenPointer(), 0, 0);
+        }}
+      />
+    </span>
+  );
+}
+
+/** Julemarked's pointer: a tiny nisse perched on the marker, tipping his cap on each tick while it spins (case.css). */
+function NissePointer() {
+  return (
+    <span aria-hidden="true" className="cs-raven-wrap">
+      <canvas
+        className="cs-raven cs-nisse"
+        width={6}
+        height={6}
+        ref={(c) => {
+          const g = c?.getContext("2d");
+          if (!g) return;
+          g.clearRect(0, 0, 6, 6);
+          g.drawImage(nissePointer(), 0, 0);
         }}
       />
     </span>

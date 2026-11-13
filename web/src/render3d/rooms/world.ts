@@ -7,6 +7,7 @@
  * tile moves you to the next room (`World.travel`).
  */
 
+import { JULE_GATE_DOOR } from "@tokenmaxxing/core/julemarked.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_ROOM } from "@tokenmaxxing/core/shoprooms.ts";
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
@@ -177,6 +178,8 @@ const LINKS: Record<string, [MapId, string]> = {
   "basement:x": ["inn", "S"],
   "upstairs:x": ["inn", "u"],
   "dungeon:x": ["town", "G"],
+  [`town:${JULE_GATE_DOOR}`]: ["julemarked", "x"],
+  "julemarked:x": ["town", JULE_GATE_DOOR],
   ...Object.fromEntries(
     SHOP_IDS.flatMap((id) => [
       [`town:${SHOP_DOOR_CHAR[id]}`, [SHOP_ROOM[id], "x"]],

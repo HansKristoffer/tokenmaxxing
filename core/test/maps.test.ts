@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { BARKEEP, BARKEEP_HOME } from "../src/barkeep.ts";
+import { ALL_CASE_PIECES } from "../src/case-furniture.ts";
+import { julemarkedOn } from "../src/december.ts";
+import { HOME_PIECES } from "../src/home.ts";
+import { JULE_GATE_DOOR, JULEMARKED_BLOCK, STALLS } from "../src/julemarked.ts";
 import {
   blocksOutward,
   doorOf,
   frontier,
   type GameMap,
+  julemarkedBlock,
   LEGEND,
   layoutOf,
   MAPS,
@@ -15,6 +20,8 @@ import {
   TOWN_SPAWN,
   townMap,
 } from "../src/maps.ts";
+import { COMPANY_FURNITURE } from "../src/office.ts";
+import { POSTERS } from "../src/posters.ts";
 import {
   displayTab,
   SHOP_DOOR_CHAR,
@@ -79,7 +86,7 @@ describe("maps", () => {
 
   test("town: you can build on any empty block next to it, nearest the square first", () => {
     const first = frontier([]);
-    expect(first).toHaveLength(6); // around the 2×2 core, less the blocks Natmarked and Torvehallen stand on
+    expect(first).toHaveLength(5); // around the 2×2 core, less the blocks Natmarked, Torvehallen and the Julemarked gate stand on
     expect(first).not.toContain(plotId(0, 0));
     const next = frontier([plotId(2, 0)]);
     expect(next).toContain(plotId(3, 0));
@@ -236,7 +243,10 @@ describe("maps", () => {
 describe("the shops", () => {
   const none = new Map();
   const corner = new Set([plotId(0, 0), plotId(1, 0), plotId(0, 1), plotId(1, 1)]);
-  const reservedShops = new Set(SHOP_IDS.map((id) => plotId(...SHOP_BLOCKS[id])));
+  const reservedShops = new Set([
+    ...SHOP_IDS.map((id) => plotId(...SHOP_BLOCKS[id])),
+    plotId(...JULEMARKED_BLOCK),
+  ]);
   // A busy town, so the shops sit among companies on every side.
   const plots: number[] = [];
   for (let i = 0; i < 12; i++) plots.push(frontier(plots)[i % 3]!);
@@ -494,5 +504,89 @@ describe("Møbelhuset sells everything a room needs, at displays you walk up to"
     const [sx, sy] = SUPPLIES_DESK;
     expect(map.kind(sx, sy).shop).toBe("furniture");
     expect(stand(sx, sy) && stand(sx + 1, sy)).toBe(true);
+  });
+});
+
+describe("the Julemarked", () => {
+  const none = new Map();
+  const at = (iso: string) => Date.parse(iso);
+  const town = townMap([]);
+
+  test("its gate stands on a reserved block next to the square, and companies never build there", () => {
+    expect(frontier([])).not.toContain(plotId(...JULEMARKED_BLOCK));
+    expect(town.find(JULE_GATE_DOOR)).toHaveLength(3);
+    const seen = reachable(town, ...TOWN_SPAWN);
+    for (const door of town.find(JULE_GATE_DOOR)) expect(seen.has(door.join(","))).toBe(true);
+  });
+
+  test("its tile characters are its own: no legend entry of anything else, and every one answers E with a legend entry", () => {
+    const chars = [JULE_GATE_DOOR, "Ǻ", "Ȝ", ...STALLS.map((s) => s.ch)];
+    expect(new Set(chars).size).toBe(chars.length);
+    const others = new Set(
+      [...HOME_PIECES, ...ALL_CASE_PIECES, ...POSTERS, ...COMPANY_FURNITURE].map((p) => p.ch),
+    );
+    for (const ch of chars) {
+      expect(others.has(ch)).toBe(false);
+      expect(LEGEND[ch]).toBeDefined();
+      expect(Object.values(SHOP_DOOR_CHAR)).not.toContain(ch);
+    }
+    expect(LEGEND[JULE_GATE_DOOR]?.portal).toBe(true);
+    for (const s of STALLS) expect(LEGEND[s.ch]?.text).toBeTruthy();
+  });
+
+  test("a company that held the gate's block keeps it, and the gate moves", () => {
+    const held = plotId(...JULEMARKED_BLOCK);
+    const moved = julemarkedBlock([held]);
+    expect(plotId(...moved)).not.toBe(held);
+    expect(frontier([held])).not.toContain(plotId(...moved));
+    const shops = Object.values(shopBlocks([held])).map(([x, y]) => plotId(x, y));
+    expect(shops).not.toContain(plotId(...moved));
+    expect(townMap([held]).find(JULE_GATE_DOOR)).toHaveLength(3);
+  });
+
+  test("the market is a walled courtyard with one exit, its stalls and tree reachable and in front of free floor", () => {
+    const map = MAPS.julemarked;
+    expect(map.find("x")).toHaveLength(1);
+    const entry = roomEntry("julemarked");
+    expect(map.walkable(entry.x, entry.y)).toBe(true);
+    const seen = reachable(map, entry.x, entry.y);
+    for (const s of STALLS) {
+      expect(map.find(s.ch)).toHaveLength(15);
+      // Its counter row is faced from the floor below.
+      for (let dx = 0; dx < 5; dx++) expect(seen.has(`${s.x + dx},${s.y + 2}`)).toBe(true);
+    }
+    expect(map.find("Ȝ")).toHaveLength(4);
+  });
+
+  test("the gate leads in only while the market is open, and the market leads back out through it", () => {
+    const [door] = town.find(JULE_GATE_DOOR);
+    const gate = { ch: JULE_GATE_DOOR, x: door![0], y: door![1] };
+    const open = at("2026-11-13T12:00:00Z");
+    expect(portal("town", gate, null, none, [], open)).toEqual(roomEntry("julemarked"));
+    const shut = portal("town", gate, null, none, [], at("2026-07-01T12:00:00Z"));
+    expect(shut).toHaveProperty("notice");
+    const out = portal("julemarked", { ch: "x", x: 11, y: 15 }, null, none, [], open);
+    expect(out).toMatchObject({ room: "town", facing: "down" });
+    expect(town.walkable((out as { x: number }).x, (out as { y: number }).y)).toBe(true);
+  });
+
+  test("julemarkedOn: J-dag through 26 December, Copenhagen time", () => {
+    // J-dag 2026 is Friday 6 November.
+    expect(julemarkedOn(at("2026-11-05T12:00:00Z"))).toBe(false);
+    expect(julemarkedOn(at("2026-11-05T22:30:00Z"))).toBe(false); // 23:30 on 5 November in Copenhagen
+    expect(julemarkedOn(at("2026-11-05T23:30:00Z"))).toBe(true); // 00:30 on J-dag
+    expect(julemarkedOn(at("2026-11-13T12:00:00Z"))).toBe(true);
+    expect(julemarkedOn(at("2026-12-24T12:00:00Z"))).toBe(true);
+    expect(julemarkedOn(at("2026-12-26T22:30:00Z"))).toBe(true); // 23:30 on the 26th
+    expect(julemarkedOn(at("2026-12-26T23:30:00Z"))).toBe(false); // 00:30 on the 27th
+    expect(julemarkedOn(at("2027-01-10T12:00:00Z"))).toBe(false);
+    expect(julemarkedOn(at("2026-10-31T12:00:00Z"))).toBe(false);
+    // The earliest J-dag (1 November 2024) and the day before the next one (7 November 2025).
+    expect(julemarkedOn(at("2024-10-31T12:00:00Z"))).toBe(false);
+    expect(julemarkedOn(at("2024-11-01T12:00:00Z"))).toBe(true);
+    expect(julemarkedOn(at("2024-12-26T12:00:00Z"))).toBe(true);
+    expect(julemarkedOn(at("2024-12-27T12:00:00Z"))).toBe(false);
+    expect(julemarkedOn(at("2025-11-06T12:00:00Z"))).toBe(false); // J-dag 2025 is the 7th
+    expect(julemarkedOn(at("2025-11-07T12:00:00Z"))).toBe(true);
   });
 });

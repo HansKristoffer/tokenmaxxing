@@ -33,6 +33,10 @@ import "./gear3dCase.ts";
 import "./gear3dNusantara.ts";
 // The Ragnarok Eve case (look indices 500 and up) does the same.
 import "./gear3dRagnarok.ts";
+// The Julemarked case (look indices 800 and up) does the same.
+import "./gear3dJulemarked.ts";
+// And the Julemarked's coin stalls (look indices 900 and up).
+import "./gear3dJulemarkedStall.ts";
 // The pond treasures (look indices 600 and up, only fishing turns them up) too.
 import "./gear3dFishing.ts";
 // And the prestige tracks' (look indices 700 and up, earned in a prestige run).

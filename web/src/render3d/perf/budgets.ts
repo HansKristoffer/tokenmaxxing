@@ -30,11 +30,13 @@ const room = (drawCalls: number, triangles: number, materials: number, textureMB
 // measurement, which had bare houses there); the live layers (gate, tables, events) are budgeted apart. Natmarked's front
 // (its lanterns, windows and stall) is the fifth: +11 draw calls and +3 materials. Torvehallen's (its false front, awnings
 // and window displays) is the sixth: +1 material. The lamps and lit
+// The Julemarked gate (two brick huts, beam, sign, wreath, bunting and fairy lights) is the town's seventh front: about +10 draw calls
+// and +4 materials on High. The courtyard behind it is a room of its own (`julemarked`).
 // windows batch as day and night copies since the sampling of the hours stopped counting their swap as moving (353 -> 312).
 export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
   // Plain boxes and round things with fewer segments.
   medium: {
-    town: room(340, 370_000, 99, 17),
+    town: room(360, 370_000, 105, 17.5),
     hq: room(35, 10_000, 20, 1),
     office: room(35, 10_800, 25, 1),
     inn: room(180, 35_000, 140, 2),
@@ -47,10 +49,11 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
     "shop-pets": room(315, 362_000, 145, 2),
     "shop-natmarked": room(125, 30_000, 64, 1),
     "shop-market": room(55, 11_000, 22, 1),
+    julemarked: room(50, 20_000, 16, 1),
   },
   // Chamfered boxes: High, and Ultra, which only differs in post and shadows.
   high: {
-    town: room(340, 445_000, 99, 17),
+    town: room(360, 445_000, 105, 17.5),
     hq: room(35, 24_000, 20, 1),
     office: room(35, 14_000, 25, 1),
     // +500 for the request pile's board on the north wall (cork, four notes, a plank).
@@ -64,6 +67,7 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
     "shop-pets": room(315, 387_000, 145, 2),
     "shop-natmarked": room(125, 45_000, 64, 1),
     "shop-market": room(55, 18_500, 22, 1),
+    julemarked: room(50, 34_000, 16, 1),
   },
 };
 

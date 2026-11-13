@@ -190,6 +190,7 @@ export function roomName(room: RoomId): string {
   if (room === "upstairs") return "Upstairs";
   if (room === "basement") return "The Basement";
   if (room === "dungeon") return "Raid Dungeon";
+  if (room === "julemarked") return "Julemarked";
   const shop = shopOfRoom(room);
   if (shop) return SHOPS[shop].name;
   const common = commonOfRoom(room);

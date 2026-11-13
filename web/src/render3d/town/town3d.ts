@@ -5,6 +5,8 @@
  * `TownDoor`s so the portal system can walk you in (`inn`, `hq`, `arcade`, the raid's `dungeon` gate).
  * World units are tiles: tile (tx, ty) covers x from `tx - x0 + MARGIN`, z from `ty - y0 + MARGIN`.
  */
+
+import { JULE_GATE_DOOR } from "@tokenmaxxing/core/julemarked.ts";
 import { bakedLook, type SeasonLook } from "@tokenmaxxing/core/seasons.ts";
 import { CALM, type Weather } from "@tokenmaxxing/core/sky.ts";
 import { CART, SNAIL } from "@tokenmaxxing/core/street.ts";
@@ -33,6 +35,7 @@ import type { Asset } from "../furniture/furniture.ts";
 import { canvasTexture, glass, Model, painted, seeded, textureCap, ticks, tint, toon } from "../kit/kit.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_SPECS, type ShopId } from "../shops/catalog.ts";
 import { ICE } from "./cold3d.ts";
+import { julemarkedGate3d } from "./julemarked-parts.ts";
 import {
   arcadeBuilding,
   bush,
@@ -71,7 +74,7 @@ export const MARGIN = 3;
 export interface TownDoor {
   /** `inn`, `arcade`, `dungeon`, or `hq:<plot>`. */
   id: string;
-  kind: "inn" | "hq" | "arcade" | "dungeon" | "shop";
+  kind: "inn" | "hq" | "arcade" | "dungeon" | "shop" | "julemarked";
   label: string;
   plot?: number;
   shop?: ShopId;
@@ -131,7 +134,12 @@ const GROUND: Record<string, Ground> = {
 function groundAt(map: TownMap, x: number, y: number): Ground {
   const own = GROUND[map.at(x, y)];
   if (own) return own;
-  if ("IDA".includes(map.at(x, y)) || Object.values(SHOP_DOOR_CHAR).includes(map.at(x, y))) return "path";
+  if (
+    "IDA".includes(map.at(x, y)) ||
+    map.at(x, y) === JULE_GATE_DOOR ||
+    Object.values(SHOP_DOOR_CHAR).includes(map.at(x, y))
+  )
+    return "path";
   const counts = new Map<Ground, number>();
   for (const [dx, dy] of [
     [0, 1],
@@ -777,6 +785,22 @@ export function buildTown3d(
       shop: slot.id,
       tile: [dx, dy],
       at: toWorld(dx, dy),
+    });
+  }
+
+  // —— The Julemarked's gate (tiles Ǻ Ȣ): its middle opening tile is the door, the gate stands behind it ——
+  const gateDoors = map.find(JULE_GATE_DOOR);
+  const gateDoor = gateDoors[1] ?? gateDoors[0];
+  if (gateDoor) {
+    const [gx, gy] = gateDoor;
+    const [cx] = toWorld(gx, gy);
+    add(julemarkedGate3d(), cx, wz(gy) + 1);
+    doors.push({
+      id: "julemarked",
+      kind: "julemarked",
+      label: "Julemarked",
+      tile: [gx, gy],
+      at: toWorld(gx, gy),
     });
   }
 

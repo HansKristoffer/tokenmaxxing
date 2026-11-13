@@ -1,5 +1,13 @@
 import { ALL_CASE_PIECES, isCasePiece } from "@tokenmaxxing/core/case-furniture.ts";
 import { HOME_PIECES, isHomePiece } from "@tokenmaxxing/core/home.ts";
+import {
+  JULE_GATE_BODY,
+  JULE_GATE_DOOR,
+  JULE_TREE,
+  STALL_CHAR,
+  STALL_IDS,
+  STALLS,
+} from "@tokenmaxxing/core/julemarked.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE, sideways, turnAt } from "@tokenmaxxing/core/office.ts";
 import { isPoster, posterOf } from "@tokenmaxxing/core/posters.ts";
@@ -15,6 +23,7 @@ import { bigScreen, SCREEN_H, SCREEN_TILES, tournamentBoard, wallTerminal } from
 import { counter, windowPane, winsTile } from "./common.ts";
 import { type FancyPiece, fancyPiece, fancySprite } from "./furniture-fancy.ts";
 import { POSTER_H, posterSprite } from "./furniture-posters.ts";
+import { julemarkedGate, julemarkedStall, julemarkedTree } from "./julemarked.ts";
 import { trophyAt } from "./loot.ts";
 import { casePart, marketCase, marketCounter, marketFixture, marketShelf } from "./market.ts";
 import { natCaseBoard, natCounter, natFixture, natShelf } from "./natmarked.ts";
@@ -595,6 +604,16 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       const shop = SHOP_IDS.find((id) => SHOP_DOOR_CHAR[id] === map.at(x + 2, y + 3));
       return shop ? at(storefront(shop), 0, 0) : null;
     }
+    // The Julemarked: the gate in town (one picture from its top-left tile), the courtyard's stalls and tree.
+    case JULE_GATE_BODY:
+    case JULE_GATE_DOOR: {
+      const isGate = (c: string) => c === JULE_GATE_BODY || c === JULE_GATE_DOOR;
+      return isGate(map.at(x - 1, y)) || isGate(map.at(x, y - 1)) ? null : at(julemarkedGate(), 0, 0);
+    }
+    case JULE_TREE:
+      return map.at(x - 1, y) === ch || map.at(x, y - 1) === ch
+        ? null
+        : at(julemarkedTree(), 0, TILE * 2 - julemarkedTree().height);
     case CASE_BOARD_TILE:
       return map.at(x - 1, y) === ch ? null : at(natCaseBoard());
     case "¢": {
@@ -625,6 +644,14 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       const run = map.at(x - 1, y) === ch || map.at(x + 1, y) === ch;
       const table = map.at(x - 1, y) === "c" && map.at(x + 1, y) === "c";
       return at(natFixture(run ? "stall" : table ? "table" : "post", x > map.width / 2));
+    }
+    case STALL_CHAR.nissen:
+    case STALL_CHAR.godter:
+    case STALL_CHAR.pynt:
+    case STALL_CHAR.varme: {
+      if (map.at(x - 1, y) === ch || map.at(x, y - 1) === ch) return null;
+      const stall = STALLS.find((s) => s.ch === ch)!;
+      return at(julemarkedStall(stall.id, stall.name), 0, 0);
     }
     case "O":
       return at(coatStand());
@@ -768,5 +795,8 @@ export const sortY = (ch: string): number => {
   // A rug lies under everyone, a chandelier hangs over them; a personal office's wall pieces hang behind.
   if (placement === "flat" || (placement === "wall" && (isHomePiece(ch) || isCasePiece(ch)))) return -TILE;
   if (placement === "ceiling") return TILE * 4;
+  if (ch === JULE_GATE_BODY || ch === JULE_GATE_DOOR || STALL_IDS.some((id) => STALL_CHAR[id] === ch))
+    return TILE * 3 - 2;
+  if (ch === JULE_TREE) return TILE * 2 - 2;
   return ch === "F" || ch === WINDMILL ? TILE * 2 - 2 : ch === "b" || ch === "s" || ch === "Q" ? 0 : TILE - 1;
 };

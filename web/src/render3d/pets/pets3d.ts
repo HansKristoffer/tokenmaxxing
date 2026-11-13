@@ -12,6 +12,8 @@ import type { Asset } from "../furniture/furniture.ts";
 import { glow, liveModel, Model, toon } from "../kit/kit.ts";
 import { gaitSettled, newGait, stepGait, walkPose } from "../people/motion.ts";
 import { Freezer, TINY_PX, view } from "../perf/freeze.ts";
+import { JULEMARKED_PETS } from "./pets3d-julemarked.ts";
+import { JULEMARKED_STALL_PETS } from "./pets3d-julemarked-stall.ts";
 import { dragon, duck, ghost, goldfish, golem, orb, piggy } from "./pets3d-misc.ts";
 import { crane, kitsune, koi, maneki, tanuki, tengu } from "./pets3d-night.ts";
 import { fenrir, hildisvini, huginn, ratatoskr, sleipnir, tanngrisnir } from "./pets3d-norse.ts";
@@ -172,42 +174,47 @@ export class Pet3D {
   ) {
     const nusantara = (NUSANTARA_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
     const pond = (POND_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
+    const julemarked =
+      (JULEMARKED_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species] ??
+      (JULEMARKED_STALL_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
     const built = nusantara
       ? nusantara()
       : pond
         ? pond()
-        : species === "duck"
-          ? duck(variant)
-          : species === "dragon"
-            ? dragon(variant)
-            : species === "golem"
-              ? golem()
-              : species === "goldfish"
-                ? goldfish()
-                : species === "ghost"
-                  ? ghost()
-                  : species === "piggy"
-                    ? piggy()
-                    : species === "koi"
-                      ? koi()
-                      : species === "crane"
-                        ? crane()
-                        : species === "tanuki"
-                          ? tanuki()
-                          : species === "maneki"
-                            ? maneki()
-                            : species === "kitsune"
-                              ? kitsune()
-                              : species === "tengu"
-                                ? tengu()
-                                : species in NORSE
-                                  ? NORSE[species as keyof typeof NORSE]()
-                                  : species === "cat" ||
-                                      species === "dog" ||
-                                      species === "panda" ||
-                                      species === "forkedcat"
-                                    ? quad(species, variant, outfit)
-                                    : orb();
+        : julemarked
+          ? julemarked()
+          : species === "duck"
+            ? duck(variant)
+            : species === "dragon"
+              ? dragon(variant)
+              : species === "golem"
+                ? golem()
+                : species === "goldfish"
+                  ? goldfish()
+                  : species === "ghost"
+                    ? ghost()
+                    : species === "piggy"
+                      ? piggy()
+                      : species === "koi"
+                        ? koi()
+                        : species === "crane"
+                          ? crane()
+                          : species === "tanuki"
+                            ? tanuki()
+                            : species === "maneki"
+                              ? maneki()
+                              : species === "kitsune"
+                                ? kitsune()
+                                : species === "tengu"
+                                  ? tengu()
+                                  : species in NORSE
+                                    ? NORSE[species as keyof typeof NORSE]()
+                                    : species === "cat" ||
+                                        species === "dog" ||
+                                        species === "panda" ||
+                                        species === "forkedcat"
+                                      ? quad(species, variant, outfit)
+                                      : orb();
     this.root.userData.actor = true;
     const { body: b, fore: f } = built;
     this.rig = built.rig;
