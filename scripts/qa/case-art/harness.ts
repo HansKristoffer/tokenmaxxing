@@ -7,6 +7,7 @@ import { caseAt } from "../../../core/src/case.ts";
 import { casePieceOf } from "../../../core/src/case-furniture.ts";
 import { caseById } from "../../../core/src/cases.ts";
 import { FISHING_ITEMS } from "../../../core/src/fishing-loot.ts";
+import { JULEPYNT_PIECES, STALL_WEARABLES } from "../../../core/src/julemarked-shop.ts";
 import { PRESTIGE_ITEMS, PRESTIGE_TRACKS } from "../../../core/src/prestige.ts";
 import { defaultLook, type Look, TILE } from "../../../core/src/world.ts";
 import { CA_H, CA_MS, CA_W, CA_X, CA_Y, caseAuraFrame } from "../../../web/src/art/case-aura.ts";
@@ -21,8 +22,11 @@ const caseId = q.get("case") ?? "ragnarok-eve";
 const S = Number(q.get("scale") ?? 4);
 // `?case=pond`: the pond's treasures (`fishing-loot.ts`), which have no case and no box.
 // `?case=prestige`: the twenty prestige wearables (`core/src/prestige.ts`), plus the per-track extras below.
+// `?case=stall`: the Julemarked coin stalls' hat, outfits and held treats (2D only; pets and furniture are skipped).
 const def =
-  caseId === "pond"
+  caseId === "stall"
+    ? { name: "Julemarked stalls", items: STALL_WEARABLES.filter((i) => ["hat", "glasses", "outfit", "back", "held", "pet"].includes(i.slot)) }
+    : caseId === "pond"
     ? { name: "Pond treasures", items: FISHING_ITEMS }
     : caseId === "prestige"
       ? { name: "Prestige", items: PRESTIGE_ITEMS }
@@ -148,8 +152,18 @@ for (const slot of ["hat", "glasses", "outfit", "held", "back"] as const) {
   if (cells.length) sheet("furniture", `${def.name}: furniture`, cells, 2, "#8a7a62");
 }
 
+// `?case=stall`: the five Julepynt pieces (not case pieces), every frame, on a wall-cream and a floor-tan ground.
+if (caseId === "stall") {
+  const cells = JULEPYNT_PIECES.map((p): Cell => {
+    const a = fancyPiece(p.art)!;
+    const sp = Array.from({ length: a.frames }, (_, f) => fancySprite(p.art, f));
+    return { label: `${p.art} ${p.name} (${a.frames}f)`, sprites: sp, bg: p.wall ? "#f1e6d2" : "#d2a06b" };
+  });
+  sheet("julepynt", `${def.name}: Julepynt`, cells, 3, "#d2a06b");
+}
+
 // The box: closed, open (two frames), key; also at the game's 3x for the opening screen.
-if (caseId !== "pond" && caseId !== "prestige") {
+if (caseId !== "pond" && caseId !== "prestige" && caseId !== "stall") {
   const sp = (k: "closed" | "open" | "key", f: number) => caseBoxSprite(k, f, caseId);
   sheet(
     "box",

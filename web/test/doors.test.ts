@@ -8,7 +8,9 @@ describe("doorOf", () => {
   for (let y = town.y0; y < town.y0 + town.height; y++)
     for (let x = town.x0; x < town.x0 + town.width; x++) {
       const name = town.kind(x, y).name;
-      if (town.kind(x, y).portal && name !== "dungeon gate") doors.push([x, y]);
+      // The Julemarked gate's opening is three door tiles side by side: they are tested apart (below).
+      if (town.kind(x, y).portal && name !== "dungeon gate" && name !== "julemarked gate door")
+        doors.push([x, y]);
     }
 
   test("every tile of a house, a shop and the Inn leads to its own door", () => {
@@ -17,6 +19,14 @@ describe("doorOf", () => {
       for (let y = dy - 3; y < dy; y++)
         for (let x = dx - 2; x <= dx + 2; x++)
           if (!town.walkable(x, y)) expect(doorOf(town, x, y)).toEqual([dx, dy]);
+  });
+
+  test("a click on the Julemarked gate leads to one of its three door tiles", () => {
+    const gate = town.find("Ȣ");
+    expect(gate).toHaveLength(3);
+    const [body] = town.find("Ǻ");
+    const door = doorOf(town, body![0], body![1]);
+    expect(gate.some(([gx, gy]) => gx === door?.[0] && gy === door?.[1])).toBe(true);
   });
 
   test("not from the door itself or open ground", () => {

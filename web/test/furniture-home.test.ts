@@ -4,6 +4,7 @@ import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { fancyPiece } from "../src/art/furniture-fancy.ts";
 import { CASE_FURNITURE, HOME_FURNITURE, NUSANTARA_FURNITURE } from "../src/art/furniture-home.ts";
+import { JULEMARKED_FURNITURE } from "../src/art/furniture-julemarked.ts";
 import { RAGNAROK_FURNITURE } from "../src/art/furniture-ragnarok.ts";
 import { Pen } from "../src/art/pixels.ts";
 import { PRESTIGE_TROPHIES } from "../src/art/prestige-trophy.ts";
@@ -28,7 +29,7 @@ test("every personal-office piece has its art, and every art is a piece", () => 
 });
 
 test("every case piece (every case's) has its art, and every case art is a piece", () => {
-  const art = [...CASE_FURNITURE, ...NUSANTARA_FURNITURE, ...RAGNAROK_FURNITURE, ...PRESTIGE_TROPHIES];
+  const art = [...CASE_FURNITURE, ...NUSANTARA_FURNITURE, ...RAGNAROK_FURNITURE, ...JULEMARKED_FURNITURE, ...PRESTIGE_TROPHIES];
   expect(art.map((f) => f.id).sort()).toEqual(ALL_CASE_PIECES.map((p) => p.art).sort());
   expect(new Set(art.map((f) => f.id)).size).toBe(art.length);
   for (const p of ALL_CASE_PIECES) {
@@ -48,7 +49,7 @@ test("every case piece (every case's) has its art, and every case art is a piece
 // The Night Market's torii glow spills one row past its sprite (clipped, so unseen), so only the personal office's
 // pieces and the Nusantara's and Ragnarok Eve's are held to the bounds.
 test("every frame draws something, on whole pixels inside its sprite", () => {
-  for (const f of [...HOME_FURNITURE, ...NUSANTARA_FURNITURE, ...RAGNAROK_FURNITURE])
+  for (const f of [...HOME_FURNITURE, ...NUSANTARA_FURNITURE, ...RAGNAROK_FURNITURE, ...JULEMARKED_FURNITURE])
     for (let frame = 0; frame < f.frames; frame++) {
       const out: string[] = [];
       let painted = 0;
