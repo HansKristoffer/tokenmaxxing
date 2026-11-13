@@ -366,15 +366,8 @@ const avatarIsMe = (x: number, y: number): boolean => {
 const atPoker = (): boolean =>
   hud.get().poker?.seats.some((s) => s?.userId === world.selfId && !s.leaving) ?? false;
 
-/** Whether I stand at a roulette spot with its panel open (the arrow keys wait, like at the poker table). */
-const atRoulette = (): boolean => {
-  const panel = hud.get().panel;
-  return (
-    panel?.kind === "roulette" &&
-    !panel.watch &&
-    (hud.get().roulette?.seats.some((s) => s.userId === world.selfId) ?? false)
-  );
-};
+/** Whether I hold a spot at the roulette table (the arrow keys wait, like at the poker table, until I leave it). */
+const atRoulette = (): boolean => hud.get().roulette?.seats.some((s) => s.userId === world.selfId) ?? false;
 
 /** Takes a spot at the roulette table (`rouletteSit`); false, with the reason as a notice, if the server refuses. */
 export async function sitRoulette(): Promise<boolean> {
@@ -388,13 +381,12 @@ export async function sitRoulette(): Promise<boolean> {
 
 /**
  * Roulette from anywhere (`rouletteJoin`): the table is always the net cafe's and shared, so this takes me down
- * there and onto a free spot, and opens the betting view. A full table leaves me in the net cafe, watching.
+ * there and onto a free spot, where the table docks. A full table leaves me in the net cafe, watching.
  */
 export async function joinRoulette(): Promise<void> {
   hud.set({ panel: null });
   const r = await conn.rouletteJoin();
   if (r) send(Promise.resolve(r)); // where I ended up, or the reason I stayed put
-  if (r && !("notice" in r)) hud.set({ panel: { kind: "roulette" } });
 }
 
 /** Called every frame: start the next step if a key is held or a clicked path remains. */
@@ -615,12 +607,10 @@ function interact(): void {
   if (ch === "N") return void hud.set({ panel: { kind: "leaderboard" } });
   if (ch === STAR_COUNTER) return void hud.set({ panel: { kind: "stars" } });
   if (kind.roulette || world.map.kind(me.x, me.y).roulette) {
-    if (atRoulette()) return;
-    return void sitRoulette().then((ok) => {
-      if (ok) hud.set({ panel: { kind: "roulette" } });
-    });
+    if (!atRoulette()) void sitRoulette();
+    return;
   }
-  if (ch === "♦") return void hud.set({ panel: { kind: "roulette", watch: true } });
+  if (ch === "♦") return void hud.set({ panel: { kind: "rouletteWatch" } });
   if (ch === "♠") return void hud.set({ panel: { kind: "pokerWatch" } });
   if (kind.poker) return void send(conn.pokerSit(me.facing));
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));

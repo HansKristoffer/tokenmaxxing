@@ -229,7 +229,7 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
   return (
     <div className="chat-dock">
       <section className="panel chat" aria-label="Chat">
-        <header className="box-head">
+        <header className={match ? "box-head" : "box-head bare"}>
           {match ? (
             <Pills
               value={tab}
@@ -245,10 +245,17 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
           ) : (
             <span className="plaque">{roomName(room)}</span>
           )}
-          {!inGame && <WhosHere count={here} />}
-          <button type="button" className="chat-fold" aria-label="Hide chat" onClick={() => setShown(false)}>
-            –
-          </button>
+          <span className="box-tags">
+            {!inGame && <WhosHere count={here} />}
+            <button
+              type="button"
+              className="chat-fold"
+              aria-label="Hide chat"
+              onClick={() => setShown(false)}
+            >
+              –
+            </button>
+          </span>
         </header>
         <ChatLines key={inGame ? "game" : room} chat={chat} inGame={inGame} myId={myId} myName={myName} />
         <form

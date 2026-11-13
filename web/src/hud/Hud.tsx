@@ -63,7 +63,7 @@ import { Regulars } from "./Regulars.tsx";
 import { Requests } from "./Requests.tsx";
 import { Retro } from "./Retro.tsx";
 import { RoomsBox } from "./RoomsBox.tsx";
-import { RoulettePanel } from "./Roulette.tsx";
+import { Roulette, RouletteWatch } from "./Roulette.tsx";
 import { Shop } from "./Shop.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
 import { Sky } from "./Sky.tsx";
@@ -129,6 +129,7 @@ export function Hud() {
       <Dialog />
       <PieceHint />
       <Poker />
+      <Roulette />
       <Panel />
       {status === "connecting" && (
         <div className="toast" role="status">
@@ -477,7 +478,7 @@ function Panel() {
     caseLeaderboard: () => <CaseLeaderboard />,
     market: (p) => <Market tab={p.tab} />,
     marketSlot: (p) => <MarketSlot slot={p.slot} />,
-    roulette: (p) => <RoulettePanel watch={p.watch} />,
+    rouletteWatch: () => <RouletteWatch />,
     pokerWatch: () => <PokerWatch />,
     menu: () => (
       <Modal title="Menu">

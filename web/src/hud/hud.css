@@ -773,6 +773,44 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   white-space: nowrap;
 }
 
+/*
+ * The chat's own controls (who's here, hide) stand on its top edge too, at the right: a dark tag facing the room's
+ * plaque, so no row inside goes to them. With no Game / room pills the head is only the two tags.
+ */
+.chat .box-head.bare {
+  display: contents;
+}
+
+.chat:has(> .box-head.bare) {
+  padding-top: 10px;
+}
+
+.box-tags {
+  position: absolute;
+  top: -14px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 20px;
+  padding: 0 2px;
+  border: 2px solid var(--edge, #16121f);
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.box-tags .whos-here-chip,
+.box-tags .chat-fold {
+  height: 16px;
+  padding: 0 6px;
+  color: var(--paper);
+  font-size: 11px;
+  line-height: 16px;
+  border-radius: 2px;
+}
+
 .chat ol {
   list-style: none;
   margin: 0;
