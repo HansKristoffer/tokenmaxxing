@@ -30,8 +30,8 @@ const SORTS = [
   ["prs", "PRs"],
 ] as const;
 const VIEWS = [
-  ["board", "🏆 Board"],
-  ["chart", "📈 Chart"],
+  ["board", "Board"],
+  ["chart", "Chart"],
 ] as const;
 const MODES = [
   ["daily", "Per day"],
@@ -106,7 +106,7 @@ export function Leaderboard() {
           options={[
             ["players", "Players"],
             ["companies", "Companies"],
-            ["games", "🎮 Games"],
+            ["games", "Games"],
           ]}
           onChange={setTab}
         />

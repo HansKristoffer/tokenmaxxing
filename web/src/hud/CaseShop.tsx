@@ -12,7 +12,7 @@ import { CaseOpening } from "./CaseOpening.tsx";
 import { itemChances, percent, spareCopies } from "./caseOdds.ts";
 import { coins } from "./format.ts";
 import { ItemImage } from "./Shop.tsx";
-import { Modal, useRun } from "./ui.tsx";
+import { Balance, Modal, useRun } from "./ui.tsx";
 
 const LOOK = defaultLook(1);
 
@@ -140,18 +140,8 @@ export function CaseShop({ shelf }: { shelf?: number }) {
   if (!me || !wallet) return <Modal title="🏮 Natmarked">{failed ?? "Loading…"}</Modal>;
 
   return (
-    <Modal title="🏮 Natmarked" wide="xl">
-      <div className="shop-top">
-        <p className="shop-hello">{hello}</p>
-        <div className="shop-bar">
-          <span className="coin-chip on">
-            <strong>{coins(wallet.balance)}</strong> yours
-          </span>
-          <button type="button" className="shop-leave" onClick={() => hud.set({ panel: null })}>
-            Leave
-          </button>
-        </div>
-      </div>
+    <Modal title="🏮 Natmarked" wide="xl" aside={<Balance balance={wallet.balance} />}>
+      <p className="shop-hello">{hello}</p>
       {sold && (
         <p className="muted" role="status">
           {sold}

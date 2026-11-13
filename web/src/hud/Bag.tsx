@@ -29,16 +29,16 @@ import { AvatarImage, Modal, Pills, Pixels, useRun } from "./ui.tsx";
 export type BagTab = "you" | "pet" | "things";
 
 const TABS = [
-  ["you", "🧍 You"],
-  ["pet", "🐾 Pet"],
-  ["things", "📦 Everything"],
+  ["you", "You"],
+  ["pet", "Pet"],
+  ["things", "All items"],
 ] as const;
 
 /**
- * The bag, and the character and pet you dress from it, in one place. A live picture of you and your pet
- * beside three tabs: You (the free style, skin, hair and outfits, and what you hold to wear), Pet (which one,
- * its look, its gear, its name) and Everything (all you hold, to drop or put down). Changes are a draft until
- * Save, so trying things on costs nothing.
+ * The bag, and the character and pet you dress from it, in one place. A live picture of you and your pet, with
+ * your name under it, beside three tabs: You (the free style, skin, hair and outfits, and what you hold to
+ * wear), Pet (which one, its look, its gear, its name) and All items (all you hold, to drop or put down).
+ * Changes are a draft until Save, so trying things on costs nothing.
  */
 export function Bag({ tab: wanted }: { tab?: BagTab }) {
   const me = useHud((s) => s.me);
@@ -101,15 +101,18 @@ export function Bag({ tab: wanted }: { tab?: BagTab }) {
   const owned = (slot: Item["slot"]) => held.filter((h) => h.item.slot === slot).map((h) => h.item);
 
   return (
-    <Modal title="🎒 Bag" wide="xl">
-      {wallet && <WalletInfo wallet={wallet} />}
+    <Modal title="🎒 Bag" wide="xl" aside={wallet && <Earned wallet={wallet} />}>
       <div className="wardrobe">
-        <Preview look={next} />
+        <div className="wardrobe-me">
+          <Preview look={next} />
+          <label className="field">
+            Name
+            <input value={name ?? me.name} onChange={(e) => setName(e.target.value)} maxLength={32} />
+          </label>
+        </div>
         <div className="wardrobe-side">
           <Pills value={tab} options={TABS} onChange={setTab} />
-          {tab === "you" && (
-            <You look={look} owned={owned} tryOn={tryOn} name={name ?? me.name} setName={setName} />
-          )}
+          {tab === "you" && <You look={look} owned={owned} tryOn={tryOn} />}
           {tab === "pet" && (
             <Pet
               look={look}
@@ -251,7 +254,7 @@ type Owned = (slot: Item["slot"]) => Item[];
 
 /** The free outfits' numbers. */
 const FREE = Array.from({ length: FREE_OUTFITS }, (_, i) => i);
-/** The free parts that cycle: style, skin and hair. */
+/** The free parts that step through their options: style, skin and hair. */
 const CYCLES = { style: "Style", skin: "Skin", hair: "Hair" } as const;
 /** What you wear from the bag, a row each. */
 const WORN = [
@@ -262,13 +265,7 @@ const WORN = [
   ["aura", "Aura"],
 ] as const;
 
-function You(props: {
-  look: Look;
-  owned: Owned;
-  tryOn: (l: Look) => void;
-  name: string;
-  setName: (n: string) => void;
-}) {
+function You(props: { look: Look; owned: Owned; tryOn: (l: Look) => void }) {
   const { look, owned, tryOn } = props;
   const cycle = (k: keyof typeof CYCLES, d: number) =>
     tryOn({ ...look, [k]: (look[k] + d + LOOK_OPTIONS[k]) % LOOK_OPTIONS[k] });
@@ -278,18 +275,21 @@ function You(props: {
     <>
       <div className="wardrobe-cycles">
         {(Object.keys(CYCLES) as (keyof typeof CYCLES)[]).map((k) => (
-          <div key={k} className="cycle">
-            <button type="button" aria-label={`Previous ${CYCLES[k]}`} onClick={() => cycle(k, -1)}>
-              ◀
-            </button>
-            <span>{k === "style" ? STYLE_NAMES[look.style] : `${CYCLES[k]} ${look[k] + 1}`}</span>
-            <button type="button" aria-label={`Next ${CYCLES[k]}`} onClick={() => cycle(k, 1)}>
-              ▶
-            </button>
+          <div key={k} className="wardrobe-cycle">
+            <span className="wardrobe-label">{CYCLES[k]}</span>
+            <div className="cycle">
+              <button type="button" aria-label={`Previous ${CYCLES[k]}`} onClick={() => cycle(k, -1)}>
+                ◀
+              </button>
+              <span>{k === "style" ? STYLE_NAMES[look.style] : look[k] + 1}</span>
+              <button type="button" aria-label={`Next ${CYCLES[k]}`} onClick={() => cycle(k, 1)}>
+                ▶
+              </button>
+            </div>
           </div>
         ))}
       </div>
-      <Row label="Outfit">
+      <Row label="Outfit" wearing={worn(outfits, look) ?? `Outfit ${look.outfit + 1}`}>
         {FREE.map((i) => {
           const free = withoutMerchTop({ ...look, outfit: i });
           return (
@@ -306,7 +306,7 @@ function You(props: {
       {/* Nothing sells an aura: the row is there once the case has given you one. */}
       {WORN.filter(([slot]) => slot !== "aura" || owned(slot).length > 0 || look.aura).map(
         ([slot, label]) => (
-          <Row key={slot} label={label}>
+          <Row key={slot} label={label} wearing={worn(owned(slot), look)}>
             <Choice on={(look[slot] ?? 0) === 0} label="None" onClick={() => tryOn({ ...look, [slot]: 0 })}>
               <span className="none">—</span>
             </Choice>
@@ -316,14 +316,10 @@ function You(props: {
         ),
       )}
       {merch.length > 0 && (
-        <Row label="Merch">
+        <Row label="Merch" wearing={worn(merch, look)}>
           <Items items={merch} look={look} tryOn={tryOn} toggle />
         </Row>
       )}
-      <label className="field">
-        Name
-        <input value={props.name} onChange={(e) => props.setName(e.target.value)} maxLength={32} />
-      </label>
     </>
   );
 }
@@ -347,7 +343,7 @@ function Pet(props: {
   const pet = itemById(`pet.${look.pet}`);
   return (
     <>
-      <Row label="Pet">
+      <Row label="Pet" wearing={worn(pets, look)}>
         <Choice on={look.pet === 0} label="No pet" onClick={() => tryOn(withItem(pets[0]!, look, false))}>
           <span className="none">—</span>
         </Choice>
@@ -356,7 +352,7 @@ function Pet(props: {
       {pet && look.pet > 0 && (
         <>
           {petLooks(look.pet) > 1 && (
-            <Row label="Look">
+            <Row label="Look" wearing={variantName(look.pet, look.petVariant)}>
               {Array.from({ length: petLooks(look.pet) }, (_, v) => {
                 const soon = v > 0 && variantArt(look.pet, v) === null;
                 const label = `${variantName(look.pet, v)}${soon ? " (coming soon)" : ""}`;
@@ -380,7 +376,7 @@ function Pet(props: {
               })}
             </Row>
           )}
-          <Row label="Gear">
+          <Row label="Gear" wearing={worn(owned("petwear"), look)}>
             <Choice on={look.petwear === 0} label="None" onClick={() => tryOn({ ...look, petwear: 0 })}>
               <span className="none">—</span>
             </Choice>
@@ -514,11 +510,20 @@ function Things(props: {
   );
 }
 
-/** A labelled row of choices. */
-function Row({ label, children }: { label: string; children: ReactNode }) {
+/** The name of the one of `items` the look wears, for its row's label. */
+const worn = (items: Item[], look: Look): string | undefined => {
+  const it = items.find((i) => isWorn(i, look));
+  return it && merchName(it);
+};
+
+/** A row of choices under its label, which also names the one worn. */
+function Row({ label, wearing, children }: { label: string; wearing?: string; children: ReactNode }) {
   return (
     <div className="wardrobe-row">
-      <span className="wardrobe-label">{label}</span>
+      <span className="wardrobe-label">
+        {label}
+        {wearing && <span className="muted"> · {wearing}</span>}
+      </span>
       <div className="wardrobe-choices">{children}</div>
     </div>
   );
@@ -614,32 +619,14 @@ function ShopHints({ missing }: { missing: readonly (typeof HINT_SLOTS)[number][
   );
 }
 
-/** The wallet at the top of the bag: coins, today's take (how it's earned on hover), the quests still open today. */
-function WalletInfo({ wallet }: { wallet: Wallet }) {
+/** In the bag's head: the coins I have and today's take (how it's earned on hover). */
+function Earned({ wallet }: { wallet: Wallet }) {
   return (
-    <>
-      <p className="wallet">
-        <strong>{coins(wallet.balance)}</strong>{" "}
-        <span
-          className="muted small"
-          title={`Every day you earn √(tokens ÷ 1M) coins: 100M tokens is 10, 1B is 31. Finish a day 1st, 2nd or 3rd for ${PODIUM_COINS.join(", ")} more.`}
-        >
-          +{wallet.today} today ⓘ
-        </span>
-      </p>
-      {wallet.quests.some((q) => !q.done) && (
-        <ul className="members">
-          {wallet.quests
-            .filter((q) => !q.done)
-            .map((q) => (
-              <li key={q.id} className="muted">
-                <span>○ {q.text}</span>
-                <span>🪙 {q.coins}</span>
-              </li>
-            ))}
-        </ul>
-      )}
-    </>
+    <span
+      title={`Every day you earn √(tokens ÷ 1M) coins: 100M tokens is 10, 1B is 31. Finish a day 1st, 2nd or 3rd for ${PODIUM_COINS.join(", ")} more.`}
+    >
+      <strong>{coins(wallet.balance)}</strong> <span className="muted small">+{wallet.today} today</span>
+    </span>
   );
 }
 

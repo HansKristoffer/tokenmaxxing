@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { errorText } from "../errors.ts";
 import { town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { Modal, useRun, WalletLine } from "./ui.tsx";
+import { Balance, Modal, useRun } from "./ui.tsx";
 
 /**
  * The julekalender (`core/src/december.ts`): 24 doors, one a day from 1 to 24 December, each the same gift for
@@ -29,13 +29,12 @@ export function Julekalender() {
   });
 
   return (
-    <Modal title="🎄 Julekalender" wide>
+    <Modal title="🎄 Julekalender" wide aside={<Balance balance={wallet.balance} />}>
       <p>
         {cal.today
           ? `A door a day until Christmas Eve, the same gift behind it for everyone. Today is door ${cal.today}.`
           : "The doors open from 1 to 24 December, one a day."}
       </p>
-      <WalletLine balance={wallet.balance} />
       {got && <p className="merchant-got">{got}</p>}
       <ol className="julekalender">
         {DOORS.map((gift, i) => {

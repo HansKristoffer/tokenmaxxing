@@ -9,7 +9,7 @@ import { hud, useHud } from "../store.ts";
 import { dayText } from "./format.ts";
 import { ItemTag } from "./ItemTag.tsx";
 import { ItemImage } from "./Shop.tsx";
-import { Modal, Pixels, useRun, WalletLine } from "./ui.tsx";
+import { Balance, Modal, Pixels, useRun } from "./ui.tsx";
 
 /** How often the stock is fetched again while the cart is open: others are buying too. */
 const POLL_MS = 5_000;
@@ -53,7 +53,7 @@ export function Merchant() {
     });
 
   return (
-    <Modal title="🛒 The traveling merchant" wide>
+    <Modal title="🛒 The traveling merchant" wide aside={<Balance balance={wallet.balance} />}>
       <div className="merchant-hello">
         {/* The merchant himself, at 4×. */}
         <Pixels sprite={merchantFrame("down")} width={64} height={64} className="avatar" />
@@ -68,7 +68,6 @@ export function Merchant() {
           )}
         </p>
       </div>
-      <WalletLine balance={wallet.balance} />
       {got && <p className="merchant-got">✨ {got}</p>}
       <ul className="shop merchant">
         {cart.stock.map((s) => {

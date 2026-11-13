@@ -329,15 +329,20 @@ html[data-tier]:not([data-tier="low"]) .bar > .hero:hover {
   background: var(--ink);
 }
 
-/* The player card's badges: a wrapping row of `.badge` chips (the -6px undoes the first one's margin). */
+/* The player card's badges: a wrapping row of `.badge` chips, best first. */
 .badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 0;
-  margin: 4px 0 4px -6px;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
   padding: 0;
   list-style: none;
   font-size: 12px;
+}
+
+.badges .badge {
+  margin: 0;
 }
 
 .banner {
@@ -890,16 +895,64 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
 }
 
+/* Beside the title, pushed to the close button: the coins a panel spends. */
+.modal-aside {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-aside strong {
+  color: var(--accent);
+}
+
 .modal h3 {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: 13px;
+}
+
+/* A panel's rules, one line until opened. */
+.how-it-works {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.how-it-works summary {
+  cursor: pointer;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+}
+
+.how-it-works summary:hover {
+  color: var(--text);
+}
+
+.how-it-works > div {
+  margin-top: 6px;
+}
+
+.how-it-works ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
 }
 
 .modal p {
   margin: 0;
+}
+
+/* A link in a sentence sits in it like a word; one on its own line starts at the left edge. */
+.modal p > .link,
+.modal > .link {
+  padding: 0;
+}
+
+.modal > .link {
+  align-self: flex-start;
 }
 
 .pills {
@@ -999,7 +1052,18 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
   padding: 3px 0;
+}
+
+/* A row's own button keeps its words on one line; the row's text wraps instead. */
+.members li > button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.members.shops li {
+  padding: 6px 0;
 }
 
 .link {
@@ -1419,13 +1483,6 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   color: var(--muted);
 }
 
-.shop-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
 .coin-chip {
   padding: 3px 10px;
   border-radius: 999px;
@@ -1456,7 +1513,7 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
 .shop-top .pills {
   display: flex;
   flex-wrap: wrap;
-  align-self: stretch;
+  align-self: flex-start;
 }
 
 .h3-note {
@@ -1501,16 +1558,22 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   gap: 8px;
 }
 
-/* The bag and wardrobe: you and your pet on the left, the tabs beside; changes wait in a save bar. */
+/* The bag and wardrobe: you, your pet and your name on the left, the tabs beside; changes wait in a save bar. */
 .wardrobe {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   align-items: flex-start;
 }
 
-.wardrobe-preview {
+/* Stays in view while the choices scroll, just under the modal's head. */
+.wardrobe-me {
   position: sticky;
-  top: 0;
+  top: 44px;
+  display: grid;
+  gap: 10px;
+}
+
+.wardrobe-preview {
   display: grid;
   justify-items: center;
   align-content: start;
@@ -1544,27 +1607,57 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   flex: 1;
   min-width: 0;
   display: grid;
+  gap: 14px;
+  align-content: start;
+  justify-items: start;
+}
+
+.wardrobe-side > * {
+  width: 100%;
+}
+
+.wardrobe-side > .pills {
+  width: auto;
+}
+
+/* Style, skin and hair in one line: the style's name needs the room. */
+.wardrobe-cycles {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
   gap: 10px;
+}
+
+.wardrobe-cycle,
+.wardrobe-row {
+  display: grid;
+  gap: 5px;
   align-content: start;
 }
 
-.wardrobe-cycles {
-  display: grid;
-  gap: 6px;
+.wardrobe-cycle .cycle {
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
 }
 
-.wardrobe-row {
-  display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 8px;
-  align-items: start;
+.wardrobe-cycle .cycle button {
+  border-color: transparent;
+  background: none;
+  padding: 3px 8px;
 }
 
-/* Level with the first row of squares, however many rows they wrap to. */
+.wardrobe-cycle .cycle button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.wardrobe-cycle .cycle span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wardrobe-label {
-  padding-top: 26px;
   font-size: 12px;
-  opacity: 0.75;
 }
 
 .wardrobe-choices {
@@ -1621,8 +1714,16 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
     align-items: stretch;
   }
 
-  .wardrobe-preview {
+  .wardrobe-me {
     position: static;
+  }
+
+  .wardrobe-cycles {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .wardrobe-cycle:first-child {
+    grid-column: 1 / -1;
   }
 }
 
@@ -1728,8 +1829,12 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   gap: 12px;
 }
 
+/* A full bag scrolls inside its side, so the Offer button stays in reach. */
 .trade-sides .pills {
   flex-wrap: wrap;
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .listings li {
@@ -2331,38 +2436,37 @@ button.lb-item:hover {
   background: #e06c5f;
 }
 
+/* The raid panel: where the fight stands on top, then one tab at a time. */
+.raid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .raid .hp {
   height: 14px;
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 .raid .miniboard {
   padding: 0;
 }
 
+.raid .pills {
+  align-self: flex-start;
+}
+
 .raid h3 {
-  margin: 12px 0 4px;
-  font-size: 13px;
-}
-
-.raid-status,
-.raid-me {
-  margin: 4px 0 8px;
-}
-
-.raid-rules {
-  margin: 0 0 8px;
-  padding-left: 18px;
+  margin: 0;
 }
 
 .raid-go {
   width: 100%;
-  margin: 0 0 10px;
 }
 
 .raid-ladder {
   list-style: none;
-  margin: 0 0 10px;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -2422,7 +2526,11 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
   text-align: center;
 }
 
-.raid-teaser .raid-rules {
+.raid-teaser ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
   text-align: left;
 }
 
@@ -2538,7 +2646,7 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
 
 .loot-table {
   list-style: none;
-  margin: 0 0 6px;
+  margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -2579,7 +2687,7 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
 
 .loot-drops {
   list-style: none;
-  margin: 0 0 10px;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -2682,84 +2790,32 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
  * border, silver a double one, gold adds a gem on top, diamond a dashed, glowing edge.
  */
 .badge[class*="badge--"] {
-  position: relative;
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 1px 6px 2px;
+  padding: 2px 8px;
   border: 1px solid var(--tier);
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
 }
+/* One frame for every tier: its colour is the border, and from diamond up it tints the chip too. */
 .badge--bronze {
   --tier: #c98a4b;
 }
 .badge--silver {
   --tier: #d5dbe4;
-  box-shadow:
-    0 0 0 2px rgba(27, 31, 42, 0.9),
-    0 0 0 3px var(--tier);
-  margin-right: 3px;
 }
 .badge--gold {
   --tier: #ffd75e;
-  box-shadow: 0 0 6px rgba(255, 215, 94, 0.35);
-}
-.badge--gold::before {
-  content: "";
-  position: absolute;
-  top: -4px;
-  left: calc(50% - 3px);
-  width: 6px;
-  height: 6px;
-  background: var(--tier);
-  transform: rotate(45deg);
 }
 .badge--diamond {
   --tier: #7fe8ff;
-  border-style: dashed;
-  box-shadow: 0 0 8px rgba(127, 232, 255, 0.5);
+  background: rgba(127, 232, 255, 0.12);
 }
-/* Past diamond: mythic has two gems on top, cosmic adds a double ring and a glow that shimmers. */
-.badge.badge--mythic {
+.badge--mythic {
   --tier: #ff62c4;
-  border-width: 2px;
-  box-shadow: 0 0 10px rgba(255, 98, 196, 0.6);
+  background: rgba(255, 98, 196, 0.14);
 }
-.badge.badge--cosmic {
+.badge--cosmic {
   --tier: #a98bff;
-  border-width: 2px;
-  margin-right: 3px;
-  background: linear-gradient(
-    135deg,
-    rgba(169, 139, 255, 0.28),
-    rgba(255, 98, 196, 0.22),
-    rgba(127, 232, 255, 0.28)
-  );
-  box-shadow:
-    0 0 0 2px rgba(27, 31, 42, 0.9),
-    0 0 0 3px var(--tier),
-    0 0 12px rgba(169, 139, 255, 0.7);
-}
-.badge--mythic::before,
-.badge--mythic::after,
-.badge--cosmic::before,
-.badge--cosmic::after {
-  content: "";
-  position: absolute;
-  top: -4px;
-  width: 6px;
-  height: 6px;
-  background: var(--tier);
-  transform: rotate(45deg);
-}
-.badge--mythic::before,
-.badge--cosmic::before {
-  left: 8px;
-}
-.badge--mythic::after,
-.badge--cosmic::after {
-  right: 8px;
+  background: rgba(169, 139, 255, 0.2);
 }
 .badge-bar {
   display: block;
@@ -2773,27 +2829,6 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
   display: block;
   height: 100%;
   background: var(--tier, var(--accent));
-}
-@media (prefers-reduced-motion: no-preference) {
-  .badge--diamond {
-    animation: diamond-glint 2.4s ease-in-out infinite;
-  }
-  .badge--cosmic {
-    animation: cosmic-shimmer 2.8s ease-in-out infinite;
-  }
-}
-@keyframes cosmic-shimmer {
-  50% {
-    box-shadow:
-      0 0 0 2px rgba(27, 31, 42, 0.9),
-      0 0 0 3px #7fe8ff,
-      0 0 14px rgba(127, 232, 255, 0.85);
-  }
-}
-@keyframes diamond-glint {
-  50% {
-    box-shadow: 0 0 12px rgba(127, 232, 255, 0.85);
-  }
 }
 
 /* The collection log and the Hall of Fame: a grid of icon + words, unearned ones greyed. */
@@ -3908,6 +3943,29 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   display: flex;
   flex-direction: column;
   gap: 3px;
+}
+
+/* Their titles (the milestone's, the prestige track's) side by side, each as wide as its words. */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.card-tags > p {
+  margin: 0;
+}
+
+/* Under the bar: what the next level takes on the left, today's tokens on the right. */
+.card-xp {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-who .link {
+  padding: 0;
 }
 
 .phone-pairing {

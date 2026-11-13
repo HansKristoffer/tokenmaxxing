@@ -2,19 +2,17 @@ import { directory, OFFICE_LEVEL, OFFICE_SIZES } from "@tokenmaxxing/core/office
 import { send, walkTo } from "../game/input.ts";
 import { world } from "../game/world.ts";
 import { conn, town } from "../net.ts";
-import { hud, useHud } from "../store.ts";
+import { hud } from "../store.ts";
 import { DecorGoods } from "./RoomGoods.tsx";
-import { Modal, useLoad, WalletLine } from "./ui.tsx";
+import { Modal, useLoad } from "./ui.tsx";
 
 /**
  * My room's wallpaper and floor: choose between the ones I own. Nothing is sold here; the shop is Møbelhuset
  * ("Wallpaper & floors").
  */
 export function DecorPanel() {
-  const wallet = useHud((s) => s.wallet);
   return (
-    <Modal title="🏠 My room: wallpaper, floors & space" wide>
-      {wallet && <WalletLine balance={wallet.balance} />}
+    <Modal title="🏠 My room" wide>
       <DecorGoods buy={false} />
     </Modal>
   );
