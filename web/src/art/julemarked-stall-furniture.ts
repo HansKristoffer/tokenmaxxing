@@ -228,9 +228,9 @@ const piece = (
 
 /** The five Julepynt pieces (ids and footprints as in `JULEPYNT_PIECES`). */
 export const JULEPYNT_FURNITURE: readonly FancyPiece[] = [
-  piece("jst-star", "Adventsstjerne", 16, 60, star, { frames: 2, frameMs: 650, placement: "wall" }),
-  piece("jst-kalender", "Julekalender", 16, 90, kalender, { placement: "wall" }),
-  piece("jst-nissedoer", "Nissedør", 16, 70, nissedoer, { placement: "wall" }),
-  piece("jst-bordtree", "Bordjuletræ", 24, 120, bordtree, { frames: 2, frameMs: 600 }),
-  piece("jst-gaver", "Gavestabel", 16, 80, gaver),
+  piece("jst-star", "Adventsstjerne", 16, 120, star, { frames: 2, frameMs: 650, placement: "wall" }),
+  piece("jst-kalender", "Julekalender", 16, 180, kalender, { placement: "wall" }),
+  piece("jst-nissedoer", "Nissedør", 16, 140, nissedoer, { placement: "wall" }),
+  piece("jst-bordtree", "Bordjuletræ", 24, 240, bordtree, { frames: 2, frameMs: 600 }),
+  piece("jst-gaver", "Gavestabel", 16, 160, gaver),
 ];

@@ -21,7 +21,7 @@ Americanised Santa-and-reindeer one. Night Market is neon and lacquer, Nusantara
 this is wool, candlelight and red-and-white paper.
 
 - Case name: **Julemarked case**. Id `julemarked`. Blurb: "Nisser, gløgg, paper hearts and candles from a Danish Christmas market."
-- Key price 75 (a Christmas price; the others cost 100), odds 0.475 / 0.25 / 0.15 / 0.10 / 0.025, `rareWithin` 10, `dupeRerolls` 1 (`STANDARD_ODDS`, as every case).
+- Key price 150 (the others cost 100), odds 0.475 / 0.25 / 0.15 / 0.10 / 0.025, `rareWithin` 10, `dupeRerolls` 1 (`STANDARD_ODDS`, as every case).
   Pool = 30 wearables + 6 pieces = 36 items.
 
 ## Look-index ranges
@@ -133,7 +133,7 @@ bunting) and `web/src/render3d/rooms/julemarked3d.ts` (the courtyard). QA: `bun 
     opened here is charged and rolled exactly as in the hall. Gift crates and a nisse on the counter.
   - **Julegodter** (`Ǫ`, top right): warm things to hold, for coins (tab "In hand").
   - **Julepynt** (`Ȃ`, bottom left): furniture for your own office, for coins (tab "Furniture").
-  - **Den varme bod** (`Ʃ`, bottom right): a hat, two outfits and two pets, for coins (tabs Hats, Clothes, Pets).
+  - **Den varme bod** (`Ʃ`, bottom right): 18 warm clothes, things to carry and small animals, for coins (tabs Hats, Face, Clothes, On back, In hand, Pets).
 - **The three other stalls sell for coins** (see "The coin stalls" below): E on one opens the existing Shop page on that stall's
   goods only. No `ShopId`: `Item.stall` marks a stall's goods, `stallOfItem` (`core/src/julemarked-shop.ts`) says which, and
   the server's `buy` accepts them only while the buyer is in the room `julemarked` (`inShop(..., "julemarked")`; elsewhere
@@ -154,71 +154,52 @@ the Shop page lists a stall's goods only on its own page and never in Møbelhuse
 
 ### Julegodter (`Ǫ`): things to hold
 
-| Slot | Id       | Idx | Name               | Price | Blurb                                                                                   |
-| ---- | -------- | --- | ------------------ | ----- | --------------------------------------------------------------------------------------- |
-| held | held.900 | 900 | Varm kakao         | 15    | Hot, thick and topped with cream. Your hands will not give it back.                     |
-| held | held.901 | 901 | Klejner            | 20    | Twisted fried dough, dusted with sugar. Technically a knot, spiritually a hug.          |
-| held | held.902 | 902 | Risengrød med smør | 25    | Rice porridge with a pat of butter. The almond is in someone else's bowl, probably.     |
-| held | held.903 | 903 | Marcipanbrød       | 30    | A loaf of marzipan under dark chocolate. Slice it thin; you will not.                   |
-| held | held.904 | 904 | Sukkerstang        | 15    | Red and white and sticky to the elbow. Lasts until the next stall.                      |
+| Slot | Id | Idx | Name | Price | Blurb |
+| --- | --- | --- | --- | --- | --- |
+| held | held.900 | 900 | Varm kakao | 30 | Hot, thick and topped with cream. Your hands will not give it back. |
+| held | held.901 | 901 | Klejner | 40 | Twisted fried dough, dusted with sugar. Technically a knot, spiritually a hug. |
+| held | held.902 | 902 | Risengrød med smør | 50 | Rice porridge with a pat of butter. The almond is in someone else's bowl, probably. |
+| held | held.903 | 903 | Marcipanbrød | 60 | A loaf of marzipan under dark chocolate. Slice it thin; you will not. |
+| held | held.904 | 904 | Sukkerstang | 30 | Red and white and sticky to the elbow. Lasts until the next stall. |
 
 ### Julepynt (`Ȃ`): furniture for your own office
 
-| Char | Item id | Art id        | Name           | Price | Placement | w | Text (E)                                                                                       |
-| ---- | ------- | ------------- | -------------- | ----- | --------- | - | ---------------------------------------------------------------------------------------------- |
-| Ѫ    | furn.Ѫ  | jst-star      | Adventsstjerne | 60    | wall      | 1 | A paper star in the window, lit from inside. It is always on, and nobody remembers switching it on. |
-| Ѧ    | furn.Ѧ  | jst-kalender  | Julekalender   | 90    | wall      | 1 | Twenty-four little doors. Someone has already opened tomorrow's. It was you.                   |
-| Ѱ    | furn.Ѱ  | jst-nissedoer | Nissedør       | 70    | wall      | 1 | A very small door at the foot of the wall. Leave porridge, and do not ask what for.            |
-| Ѯ    | furn.Ѯ  | jst-bordtree  | Bordjuletræ    | 120   | floor     | 1 | A tabletop tree with a string of lights and four paper hearts. Hygge, at desk height.          |
-| Ѭ    | furn.Ѭ  | jst-gaver     | Gavestabel     | 80    | floor     | 1 | A neat stack of wrapped gifts. All of them are for you, and one is socks.                      |
+| Char | Item id | Art id | Name | Price | Placement | w | Text (E) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Ѫ | furn.Ѫ | jst-star | Adventsstjerne | 120 | wall | 1 | A paper star in the window, lit from inside. It is always on, and nobody remembers switching it on. |
+| Ѧ | furn.Ѧ | jst-kalender | Julekalender | 180 | wall | 1 | Twenty-four little doors. Someone has already opened tomorrow's. It was you. |
+| Ѱ | furn.Ѱ | jst-nissedoer | Nissedør | 140 | wall | 1 | A very small door at the foot of the wall. Leave porridge, and do not ask what for. |
+| Ѯ | furn.Ѯ | jst-bordtree | Bordjuletræ | 240 | floor | 1 | A tabletop tree with a string of lights and four paper hearts. Hygge, at desk height. |
+| Ѭ | furn.Ѭ | jst-gaver | Gavestabel | 160 | floor | 1 | A neat stack of wrapped gifts. All of them are for you, and one is socks. |
 
-`Ѫ Ѧ Ѱ Ѯ Ѭ` (archaic Cyrillic, U+046A, U+0466, U+0470, U+046E, U+046C) are unused anywhere else, with no decomposed form and no
-Latin lookalike. The Nissedør is a wall piece drawn as a tiny door at the wall's foot (it must read at one tile wide, 16 px tall
-like the other wall pieces).
+`Ѫ Ѧ Ѱ Ѯ Ѭ` (archaic Cyrillic) are unused anywhere else, with no Latin lookalike or decomposed form. The Nissedør is a wall piece drawn as a tiny door at the wall's foot.
 
-### Den varme bod (`Ʃ`): hat, outfits, pets
+### Den varme bod (`Ʃ`): warm clothes, things to carry, small animals
 
-| Slot   | Id         | Idx | Name          | Price | Blurb                                                                                 |
-| ------ | ---------- | --- | ------------- | ----- | ------------------------------------------------------------------------------------- |
-| hat    | hat.900    | 900 | Øreværmere    | 40    | Wool earmuffs that make every compliment sound far away.                              |
-| outfit | outfit.900 | 900 | Strikket sæt  | 70    | A knitted jumper with matching mittens, made by someone with too much time and love.  |
-| outfit | outfit.901 | 901 | Uldfrakke     | 100   | A long wool coat. It has outlived two winters and a bad haircut.                      |
-| pet    | pet.900    | 900 | Gråspurv      | 90    | A fluffed-up sparrow that has decided your shoulder is the warm one.                  |
-| pet    | pet.901    | 901 | Snehare       | 120   | A white hare in a white drift. You find it by the nose, not the eyes.                 |
+Tabs Hats, Face, Clothes, On back, In hand, Pets.
 
-Art stage for the stalls: hygge and wool, the same palette and rules as the case. Rarity is not set (the shop falls back to
-the price: all are common).
+| Slot | Id | Idx | Name | Price | Blurb |
+| --- | --- | --- | --- | --- | --- |
+| hat | hat.900 | 900 | Øreværmere | 80 | Wool earmuffs that make every compliment sound far away. |
+| outfit | outfit.900 | 900 | Strikket sæt | 140 | A knitted jumper with matching mittens, made by someone with too much time and love. |
+| outfit | outfit.901 | 901 | Uldfrakke | 200 | A long wool coat. It has outlived two winters and a bad haircut. |
+| pet | pet.900 | 900 | Gråspurv | 180 | A fluffed-up sparrow that has decided your shoulder is the warm one. |
+| pet | pet.901 | 901 | Snehare | 240 | A white hare in a white drift. You find it by the nose, not the eyes. |
+| hat | hat.901 | 901 | Pelshue | 120 | A fur trapper hat with the flaps down. Warm ears, and a shaky respect from every bear. |
+| hat | hat.902 | 902 | Sixpence | 90 | A flat wool cap. The brim is for tipping, and for nothing else. |
+| glasses | glasses.900 | 900 | Skibriller | 110 | Mirrored ski goggles. You are not skiing, and that is fine. |
+| glasses | glasses.901 | 901 | Hyggebriller | 80 | Round tortoiseshell specs that fog up whenever anyone says cocoa. |
+| outfit | outfit.902 | 902 | Gul regnjakke | 170 | The yellow raincoat every Dane owns. It rains eight months a year, and the other four are a rumour. |
+| outfit | outfit.903 | 903 | Flonelsskjorte | 120 | A red-and-black flannel shirt. Smells of woodsmoke and a decent plan. |
+| back | back.900 | 900 | Hyggetæppe | 150 | A plaid blanket worn as a cape. The whole sofa is in there somewhere. |
+| back | back.901 | 901 | Ski | 140 | A pair of skis across your back. The hill is sold separately. |
+| held | held.905 | 905 | Termokande | 70 | A steel thermos with a dent. Still hot, since last Thursday. |
+| held | held.906 | 906 | Fyrfadslys | 60 | A tea light in a little glass. Small, steady and entirely enough. |
+| pet | pet.902 | 902 | Pindsvin | 200 | A hedgehog in a nest of leaves. Do not hug it. Do not ask it. |
+| pet | pet.903 | 903 | Rødt egern | 220 | A red squirrel with a nut it has no plans to share. |
+| pet | pet.904 | 904 | Sælunge | 280 | A grey seal pup with big, wet and entirely undeserved eyes. |
 
-### Art checklist for the coin stalls (nothing drawn yet)
-
-Until these exist the five `web/test` checks that enumerate home pieces fail (`furniture-home.test.ts` "every personal-office
-piece has its art", `item-parity.test.ts` "every piece has a 2D sprite and a 3D asset", "a piece's footprint, name and price...",
-"facing and placement agree", "a sofa-like personal piece seats in 3D as it does in 2D"), and the wearables and pets draw
-nothing (pets as a duck in 3D). Already wired for you: `web/src/art/editions.ts` `artOf` resolves hat and glasses ids through
-`stallAt`; the Shop page (`web/src/hud/Shop.tsx`, `store.ts` panel `{ kind: "shop", stall, tab }`, `game/input.ts` E on a stall
-tile). Do NOT add the Julepynt pieces to Møbelhuset's 3D shop rows (`render3d/shops/data/furniture.ts` `HOME_ROWS`).
-
-2D (`web/src/art`)
-
-| File | Add |
-| ---- | --- |
-| `case.ts` or a new `julemarked-stall-wear.ts`, merged where `editions.ts` reads `HATS` | hat `"hat.900"` Øreværmere (`HATS` is keyed by item id; 16 wide `down`/`side`/`pal` like the pack's hats) |
-| `wardrobe.ts` (`OUTFITS`, `HELD`; merge as the case tables are, ~line 667) | outfit indices `900` Strikket sæt and `901` Uldfrakke (six `marks` views each, like `OUTFITS`); held indices `900` to `904` (Varm kakao, Klejner, Risengrød med smør, Marcipanbrød, Sukkerstang) |
-| `pet-base.ts` (`PETS[900]`, `PETS[901]`) | Gråspurv and Snehare, 12x10 facing right, two hop frames (`julemarked-stall-pets.ts`, then `PETS[STALL_BASE + n] = pet`) |
-| `furniture-home.ts` (`HOME_FURNITURE`, exported to `furniture-fancy.ts` `fancyPiece`) | ids `jst-star` (wall, w1, 16 px tall), `jst-kalender` (wall, w1, 16 px), `jst-nissedoer` (wall, w1, a tiny door at the wall's foot, 16 px), `jst-bordtree` (floor, w1), `jst-gaver` (floor, w1) |
-| `objects.ts` | nothing: `FANCY` and the wall offset are built from `HOME_PIECES`, which now includes the five |
-| `tiles.ts` | nothing: wall pieces are picked from `HOME_PIECES` by `p.wall` |
-
-3D (`web/src/render3d`)
-
-| File | Add |
-| ---- | --- |
-| `people/gear3d.ts` + `people/gear3dHead.ts` | hat `"Øreværmere"` (keyed by item NAME); held builders keyed by NAME: `"Varm kakao"`, `"Klejner"`, `"Risengrød med smør"`, `"Marcipanbrød"`, `"Sukkerstang"` (`gear3d.ts` builds from `ITEMS`, so `itemAt` already finds all of them) |
-| `data/gear.ts` (`EXTRA_OUTFITS`) | outfit palette `[main, shade, trousers]` for indices `900` and `901`; outfit builders by index if the Julemarked body file uses them (`OUTFIT_BUILDERS[900]`, `[901]`) |
-| `data/pets.ts` | a range entry `{ base: 900, species: ["graaspurv", "snehare"] }` in `CASE_PET_RANGES`, the `Species` and `PET_NAME` entries (`Gråspurv`, `Snehare`) and pet builders in `pets/pets3d.ts` (unknown species are a duck) |
-| `furniture/` (a new `jst3d.ts`, spread into `furniture3d.ts`'s assets) | `jst-star`, `jst-kalender`, `jst-nissedoer`, `jst-bordtree`, `jst-gaver`, each w1; add `jst-star`, `jst-kalender`, `jst-nissedoer` to `WALL_ASSET_IDS` (they build on y = 0 facing +z and hang) |
-| `icons.ts`, `rooms/room-furnished.ts` | nothing: both bind from `HOME_PIECES` |
-| `rooms/julemarked3d.ts` (stall props) | optional: goods on the stall counters match the wares |
+Everything on the three stalls costs 3700 coins in all. Rarity is not set (the shop falls back to price: all are common). Every item has 2D and 3D art, plainer on purpose than the case items.
 
 ## Rules for the art agents
 

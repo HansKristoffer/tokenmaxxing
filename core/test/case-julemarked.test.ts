@@ -174,13 +174,13 @@ describe("Julemarked furniture", () => {
 });
 
 describe("the Julemarked case", () => {
-  test("is the fourth case, tuned like Night Market with a 75 coin key, sold only at the Julemarked", () => {
+  test("is the fourth case, tuned like Night Market with a 150 coin key, sold only at the Julemarked", () => {
     expect(CASES.map((c) => c.id)).toEqual(["night-market", "nusantara", "ragnarok-eve", "julemarked"]);
     expect(jul.shop).toBe("julemarked");
     expect(jul.name).toBe("Julemarked case");
     expect(jul.blurb).toBe("Nisser, gløgg, paper hearts and candles from a Danish Christmas market.");
     expect({ k: jul.keyPrice, o: jul.odds, r: jul.rareWithin, d: jul.dupeRerolls }).toEqual({
-      k: 75,
+      k: 150,
       o: night.odds,
       r: night.rareWithin,
       d: night.dupeRerolls,

@@ -66,7 +66,7 @@ describe("the shops", () => {
     expect(steps.at(-1)).toMatchObject({ room: "julemarked" });
     await eventually(() => expect(c.events.snapshots.at(-1)!.room).toBe("julemarked"));
     const opened = await u.town.openCase("julemarked");
-    expect(opened.wallet.balance).toBe(925);
+    expect(opened.wallet.balance).toBe(850);
     // The market sells only its own case: the Night Market's is opened at Natmarked.
     await expect(u.town.openCase("night-market")).rejects.toMatchObject({ code: "not_in_shop" });
     await c.conn.dispose();
@@ -90,9 +90,9 @@ describe("the shops", () => {
     const streets = new GameMap("town", "Town", rows, MAPS.town.x0, MAPS.town.y0);
     await walk(c.conn, route(streets, [out.x, out.y], MAPS.town.find(JULE_GATE_DOOR)[1]!)!);
     await eventually(() => expect(c.events.snapshots.at(-1)!.room).toBe("julemarked"));
-    expect((await u.town.buy("held.900")).balance).toBe(985);
-    expect((await u.town.buy("furn.Ѫ")).balance).toBe(925);
-    expect((await u.town.buy("pet.901")).balance).toBe(805);
+    expect((await u.town.buy("held.900")).balance).toBe(970);
+    expect((await u.town.buy("furn.Ѫ")).balance).toBe(850);
+    expect((await u.town.buy("pet.901")).balance).toBe(610);
     // Nothing the case gives, and nothing the other shops sell, is on a stall.
     await expect(u.town.buy("hat.800")).rejects.toMatchObject({ code: "not_for_sale" });
     await expect(u.town.buy("hat.1")).rejects.toMatchObject({ code: "not_in_shop" });
