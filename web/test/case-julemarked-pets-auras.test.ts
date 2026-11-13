@@ -72,3 +72,17 @@ test("the Julemarked box and key stay on their canvases, and the open box animat
   shot("key", 0);
   expect(shot("open", 0)).not.toBe(shot("open", 1));
 });
+
+test("the legendary Julemarked auras are rich: many layered pixels on every frame, and they move", () => {
+  for (const it of of("aura")) {
+    const draw = JULEMARKED_AURAS[it.index]!;
+    const counts: number[] = [];
+    for (let f = 0; f < 8; f++) {
+      const r = recorder(28, 28);
+      draw(r.pen, f);
+      expect(r.painted(), `${it.name} frame ${f}`).toBeGreaterThan(150);
+      counts.push(r.painted());
+    }
+    expect(new Set(counts).size, it.name).toBeGreaterThan(1);
+  }
+});

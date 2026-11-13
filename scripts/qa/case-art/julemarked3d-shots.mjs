@@ -46,7 +46,8 @@ writeFileSync(
 const pw = await import(
   process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs"
 );
-const browser = await pw.chromium.launch({ executablePath: process.env.CHROME ?? undefined,
+const browser = await pw.chromium.launch({
+  executablePath: process.env.CHROME ?? undefined,
   args: [
     "--use-gl=angle",
     "--use-angle=swiftshader",

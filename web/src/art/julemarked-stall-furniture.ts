@@ -110,12 +110,7 @@ const DOOR = [
 ];
 
 function nissedoer(p: Pen): void {
-  p.grid(
-    DOOR,
-    { k: C.ink, d: J.wood, r: J.red, w: J.cream, h: J.gold, s: J.stone },
-    0,
-    0,
-  );
+  p.grid(DOOR, { k: C.ink, d: J.wood, r: J.red, w: J.cream, h: J.gold, s: J.stone }, 0, 0);
   // Planks, a lit pane glow under the curtain, and a shaded step.
   for (let y = 9; y <= 12; y++) p.px(7, y, J.woodDark);
   p.px(5, 9, J.woodLight);
@@ -166,7 +161,15 @@ function bordtree(p: Pen, frame: number): void {
   heart(p, 6, 9, J.red);
   heart(p, 9, 8, J.cream);
   // A string of lights, twinkling.
-  const lights: [number, number][] = [[3, 17], [6, 12], [11, 17], [8, 11], [8, 5], [10, 7], [6, 5]];
+  const lights: [number, number][] = [
+    [3, 17],
+    [6, 12],
+    [11, 17],
+    [8, 11],
+    [8, 5],
+    [10, 7],
+    [6, 5],
+  ];
   for (const [i, [x, y]] of lights.entries()) p.px(x, y, (i + frame) % 2 === 0 ? J.glow : J.gold);
 }
 

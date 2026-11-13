@@ -80,7 +80,14 @@ function ground(W: number, D: number): THREE.Mesh {
       g.fillRect(2 * px + rnd() * (W - 4) * px, 3 * px + rnd() * (D - 5) * px, 6 + rnd() * 8, 3 + rnd() * 3);
   });
   const side = toon("#8f8a80");
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [side, side, painted(tex), side, side, side]);
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [
+    side,
+    side,
+    painted(tex),
+    side,
+    side,
+    side,
+  ]);
   slab.position.set(W / 2, -0.175, D / 2);
   slab.receiveShadow = true;
   return slab;
@@ -92,7 +99,8 @@ function ground(W: number, D: number): THREE.Mesh {
 function wallRun(m: Model, x: number, z: number, w: number, d: number, h: number): void {
   m.box([w, h, d], BRICK, [x + w / 2, 0, z + d / 2], 0.02);
   const courses = Math.floor(h / 0.3);
-  for (let i = 1; i < courses; i++) m.box([w + 0.01, 0.035, d + 0.01], BRICK_D, [x + w / 2, i * 0.3, z + d / 2], 0.004);
+  for (let i = 1; i < courses; i++)
+    m.box([w + 0.01, 0.035, d + 0.01], BRICK_D, [x + w / 2, i * 0.3, z + d / 2], 0.004);
   m.box([w + 0.12, 0.14, d + 0.12], SNOW, [x + w / 2, h, z + d / 2], 0.05);
   m.box([w + 0.14, 0.05, d + 0.14], SNOW_SHADE, [x + w / 2, h - 0.03, z + d / 2], 0.01);
 }
@@ -197,7 +205,11 @@ const WARES: Record<StallId, (m: Model, top: number, z: number) => void> = {
       m.box([0.012, 0.5, 0.012], WIRE, [x, top + 1.5, z - 0.4], 0.001);
       const star = m.box([0.22, 0.04, 0.22], GOLD, [x, top + 1.45, z - 0.4], 0.005);
       star.rotation.x = Math.PI / 2;
-      m.box([0.22, 0.04, 0.22], GOLD, [x, top + 1.45, z - 0.4], 0.005).rotation.set(Math.PI / 2, 0, Math.PI / 4);
+      m.box([0.22, 0.04, 0.22], GOLD, [x, top + 1.45, z - 0.4], 0.005).rotation.set(
+        Math.PI / 2,
+        0,
+        Math.PI / 4,
+      );
     }
     wreath3(m, [-1.55, top + 0.4, z - 0.05], 0.28);
     for (const x of [-0.6, 0.1, 0.8, 1.5]) {
@@ -235,14 +247,20 @@ function stallModel(id: StallId, name: string): Model {
   const front = STALL_H / 2 - 0.4;
   // The back wall and a shelf.
   m.box([w, 2.1, 0.1], WOOD_D, [0, 0, back], 0.02);
-  for (let i = 0; i < 8; i++) m.box([0.02, 2.0, 0.11], "#5a3a20", [-w / 2 + 0.3 + i * (w / 8), 0.05, back], 0.002);
+  for (let i = 0; i < 8; i++)
+    m.box([0.02, 2.0, 0.11], "#5a3a20", [-w / 2 + 0.3 + i * (w / 8), 0.05, back], 0.002);
   // The counter: wood with a red-and-white cloth across its front.
   const cz = front - 0.4;
   m.box([w, 0.95, 0.8], WOOD, [0, 0, cz], 0.03);
   m.box([w + 0.1, 0.06, 0.9], WOOD_L, [0, 0.95, cz], 0.02);
   const cloth = Math.round(w / 0.4);
   for (let i = 0; i < cloth; i++)
-    m.box([w / cloth, 0.55, 0.03], i % 2 ? SNOW : DANNEBROG, [-w / 2 + (i + 0.5) * (w / cloth), 0.3, cz + 0.41], 0.003);
+    m.box(
+      [w / cloth, 0.55, 0.03],
+      i % 2 ? SNOW : DANNEBROG,
+      [-w / 2 + (i + 0.5) * (w / cloth), 0.3, cz + 0.41],
+      0.003,
+    );
   WARES[id](m, 1.01, cz);
   // Posts at the four corners.
   for (const sx of [-1, 1])
@@ -298,7 +316,12 @@ function christmasTree(): Model {
   nightGlow(star, "#fff2b0");
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
-    const ray = m.box([0.06, 0.2, 0.06], GOLD, [Math.sin(a) * 0.19, 4.25 + Math.cos(a) * 0.19 - 0.1, 0], 0.005);
+    const ray = m.box(
+      [0.06, 0.2, 0.06],
+      GOLD,
+      [Math.sin(a) * 0.19, 4.25 + Math.cos(a) * 0.19 - 0.1, 0],
+      0.005,
+    );
     ray.rotation.z = -a;
   }
   // A spiral of lights, and baubles around the tiers.
@@ -316,7 +339,13 @@ function christmasTree(): Model {
     const a = i * 2.4;
     const u = (i + 0.5) / 12;
     const r = 0.95 * (1 - u) + 0.1;
-    m.ball(0.07, i % 3 === 0 ? GOLD : i % 3 === 1 ? RED : DANNEBROG, [Math.cos(a) * r, 1.15 + u * 2.6, Math.sin(a) * r], [1, 1, 1], 7);
+    m.ball(
+      0.07,
+      i % 3 === 0 ? GOLD : i % 3 === 1 ? RED : DANNEBROG,
+      [Math.cos(a) * r, 1.15 + u * 2.6, Math.sin(a) * r],
+      [1, 1, 1],
+      7,
+    );
   }
   // Gifts at its foot.
   for (const [x, z, c, s] of [
@@ -428,4 +457,3 @@ export function buildJulemarkedRoom(): RoomSkin {
     extra: null,
   };
 }
-

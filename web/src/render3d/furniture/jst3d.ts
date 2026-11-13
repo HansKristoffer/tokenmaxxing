@@ -20,7 +20,17 @@ const BEV = 0.004;
 const HUNG = 0.95;
 
 /** A flat bar `len` long and `w` thick, turned `a` about z, centred on (x, y) at depth z. */
-function bar(m: Model, x: number, y: number, z: number, len: number, w: number, d: number, a: number, col: string): void {
+function bar(
+  m: Model,
+  x: number,
+  y: number,
+  z: number,
+  len: number,
+  w: number,
+  d: number,
+  a: number,
+  col: string,
+): void {
   const p = m.part([x, y, z]);
   p.rotation.z = a;
   p.box([len, w, d], col, [0, -w / 2, 0], BEV);
@@ -30,7 +40,8 @@ function bar(m: Model, x: number, y: number, z: number, len: number, w: number, 
 function star8(m: Model, x: number, y: number, z: number, s: number, col: string, core: Paint): void {
   const w = s * 0.2;
   const d = s * 0.14;
-  for (let i = 0; i < 4; i++) bar(m, x, y, z - (i % 2) * 0.004, s * (i % 2 ? 0.78 : 1), w, d, (i * Math.PI) / 4, col);
+  for (let i = 0; i < 4; i++)
+    bar(m, x, y, z - (i % 2) * 0.004, s * (i % 2 ? 0.78 : 1), w, d, (i * Math.PI) / 4, col);
   m.box([s * 0.26, s * 0.26, d * 1.3], core, [x - s * 0.13, y - s * 0.13, z], BEV);
 }
 
@@ -111,7 +122,12 @@ const nisseDoor = (): Model => {
     for (const s of [-1, 1])
       for (let c = 0; c < 2; c++) {
         const on = (r + c) % 2 === 0;
-        m.box([0.055, 0.06, 0.02], on ? JUL_RED : "#ffffff", [s * (0.1 - c * 0.055), wy + 0.03 + r * 0.06, 0.14], 0.001);
+        m.box(
+          [0.055, 0.06, 0.02],
+          on ? JUL_RED : "#ffffff",
+          [s * (0.1 - c * 0.055), wy + 0.03 + r * 0.06, 0.14],
+          0.001,
+        );
       }
   m.box([0.34, 0.025, 0.04], WOOD_D, [0, wy - 0.025, 0.13], 0.002);
   m.box([0.34, 0.03, 0.03], WOOD_D, [0, wy + 0.3, 0.12], 0.002);
@@ -135,7 +151,8 @@ function blockHeart(m: Model, x: number, y: number, z: number, u: number, a: str
     [[0], a],
   ];
   rows.forEach(([xs, col], i) => {
-    for (const cx of xs) m.box([u, u, 0.02], i === 1 && cx === 0 ? a : col, [x + cx * u, y + (2 - i) * u - u / 2, z], 0.001);
+    for (const cx of xs)
+      m.box([u, u, 0.02], i === 1 && cx === 0 ? a : col, [x + cx * u, y + (2 - i) * u - u / 2, z], 0.001);
   });
 }
 
@@ -220,7 +237,14 @@ const presentStack = (): Model => {
   return m;
 };
 
-export const JST_ASSETS: readonly { id: string; name: string; w: number; d: number; wall: boolean; build: () => Model }[] = [
+export const JST_ASSETS: readonly {
+  id: string;
+  name: string;
+  w: number;
+  d: number;
+  wall: boolean;
+  build: () => Model;
+}[] = [
   { id: "jst-star", name: "Adventsstjerne", w: 1, d: 1, wall: true, build: adventStar },
   { id: "jst-kalender", name: "Julekalender", w: 1, d: 1, wall: true, build: adventCalendar },
   { id: "jst-nissedoer", name: "Nissedør", w: 1, d: 1, wall: true, build: nisseDoor },

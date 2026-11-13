@@ -717,8 +717,8 @@ export function outsideDoor(plot: number | "inn" | "dungeon" | "julemarked" | Sh
           ? // The gate's opening is three tiles wide: out through the middle one.
             (MAPS.town.find(JULE_GATE_DOOR)[1] ?? MAPS.town.find(JULE_GATE_DOOR)[0])
           : typeof plot === "string"
-          ? MAPS.town.find(SHOP_DOOR_CHAR[plot])[0]
-          : doorOf(plot);
+            ? MAPS.town.find(SHOP_DOOR_CHAR[plot])[0]
+            : doorOf(plot);
   // A shop whose block a company holds has no door: back to the square.
   if (!door) return townSpawn();
   return { room: "town", x: door[0], y: door[1] + 1, facing: "down" };

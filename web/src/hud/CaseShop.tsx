@@ -1,4 +1,11 @@
-import { CASE_SHELVES, type CaseDef, type CaseShopId, casesOfShop, slideOfShelf, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
+import {
+  CASE_SHELVES,
+  type CaseDef,
+  type CaseShopId,
+  casesOfShop,
+  slideOfShelf,
+  VENDOR_COINS,
+} from "@tokenmaxxing/core/cases.ts";
 import { RARITY_COLOR } from "@tokenmaxxing/core/rarity.ts";
 import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
 import { defaultLook } from "@tokenmaxxing/core/world.ts";
@@ -52,7 +59,6 @@ function ComingSoon({ n }: { n: number }) {
     </li>
   );
 }
-
 
 /** What the nisse behind Nissens bod says when you walk up to the counter. */
 const JULE_GREETINGS = [

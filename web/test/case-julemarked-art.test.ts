@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { JULEMARKED_BASE, JULEMARKED_ITEMS } from "@tokenmaxxing/core/case-julemarked.ts";
 import { CASE_GLASSES, CASE_HATS } from "../src/art/case.ts";
-import { JULEMARKED_GLASSES, JULEMARKED_HATS } from "../src/art/case-julemarked.ts";
+import { JULEMARKED_GLASSES, JULEMARKED_HATS, JULEMARKED_WEAR_WALK } from "../src/art/case-julemarked.ts";
 import { JULEMARKED_BACKS, JULEMARKED_HELD, JULEMARKED_OUTFITS } from "../src/art/case-julemarked-body.ts";
 
 /** Every row is a line of `pal`'s characters (or `.`), no wider than 16 (the character's frame). */
@@ -72,11 +72,45 @@ test("the ranges stay apart: no Julemarked table reaches below its base", () => 
 
 test("every Julemarked wearable's art is exactly its catalog: nothing missing, nothing extra", () => {
   const keys = (t: Record<string, unknown>) => Object.keys(t).sort();
-  const ids = (slot: string) => of(slot).map((i) => i.id).sort();
-  const idx = (slot: string) => of(slot).map((i) => String(i.index)).sort();
+  const ids = (slot: string) =>
+    of(slot)
+      .map((i) => i.id)
+      .sort();
+  const idx = (slot: string) =>
+    of(slot)
+      .map((i) => String(i.index))
+      .sort();
   expect(keys(JULEMARKED_HATS)).toEqual(ids("hat"));
   expect(keys(JULEMARKED_GLASSES)).toEqual(ids("glasses"));
   expect(keys(JULEMARKED_OUTFITS)).toEqual(idx("outfit"));
   expect(keys(JULEMARKED_HELD)).toEqual(idx("held"));
   expect(keys(JULEMARKED_BACKS)).toEqual(idx("back"));
+});
+
+test("the second walking frames (hats, glasses, outfits, held things) fit their art and palettes", () => {
+  const ids = new Set(julemarked.map((i) => i.id));
+  for (const [id, w] of Object.entries(JULEMARKED_WEAR_WALK)) {
+    expect(ids.has(id), `${id} is in the catalog`).toBe(true);
+    for (const view of ["down", "side", "up"] as const)
+      if (w[view]) checkRows(`${id} walk ${view}`, w[view]!, w.pal);
+  }
+  for (const it of of("outfit")) {
+    const o = JULEMARKED_OUTFITS[it.index]!;
+    for (const view of ["down", "side", "up"] as const) {
+      if (o.walk?.[view]) checkRows(`${it.name} walk ${view}`, o.walk[view]!, o.pal);
+      if (o.beard) checkRows(`${it.name} beard ${view}`, o.beard[view], o.pal);
+      if (o.brows) checkRows(`${it.name} brows ${view}`, o.brows[view], o.pal);
+    }
+  }
+  for (const it of of("held")) {
+    const h = JULEMARKED_HELD[it.index]!;
+    if (h.walk) {
+      expect(h.walk.length, `${it.name} walk has as many rows`).toBe(h.rows.length);
+      expect(
+        h.walk.findIndex((r) => r.includes("h")),
+        `${it.name} walk keeps the hand`,
+      ).toBe(h.rows.findIndex((r) => r.includes("h")));
+      checkRows(`${it.name} walk`, h.walk, { ...h.pal, h: "x" }, 9);
+    }
+  }
 });

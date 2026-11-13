@@ -661,9 +661,13 @@
   pointer-events: none;
   z-index: 3;
   background-image:
-    radial-gradient(circle, #fff 1px, transparent 1.5px), radial-gradient(circle, #bcd8e8 1.5px, transparent 2px),
+    radial-gradient(circle, #fff 1px, transparent 1.5px),
+    radial-gradient(circle, #bcd8e8 1.5px, transparent 2px),
     radial-gradient(circle, #fff 1px, transparent 1.5px);
-  background-size: 47px 61px, 83px 97px, 31px 43px;
+  background-size:
+    47px 61px,
+    83px 97px,
+    31px 43px;
   animation: cs-snow-fall 7s linear infinite;
 }
 @keyframes cs-snow-fall {

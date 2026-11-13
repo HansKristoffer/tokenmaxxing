@@ -17,7 +17,12 @@ const pw = await playwright();
 const browser = await pw.chromium.launch({
   executablePath: process.env.CHROME || undefined,
   headless: true,
-  args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-gl=angle",
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+  ],
 });
 let failed = 0;
 const fail = (what) => {

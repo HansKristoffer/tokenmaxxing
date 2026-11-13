@@ -16,7 +16,8 @@ Object.assign(globalThis.location, { origin: "http://localhost" });
 
 const { objectAt } = await import("../src/art/objects.ts");
 const { CASE_GLASSES, CASE_HATS } = await import("../src/art/case.ts");
-const { JULEMARKED_BACKS, JULEMARKED_HELD, JULEMARKED_OUTFITS } = await import("../src/art/case-julemarked-body.ts");
+const { JULEMARKED_BACKS, JULEMARKED_HELD, JULEMARKED_OUTFITS } =
+  await import("../src/art/case-julemarked-body.ts");
 const { fancyPiece } = await import("../src/art/furniture-fancy.ts");
 const { posterArt } = await import("../src/art/furniture-posters.ts");
 const { FLOOR_ART, WALL_ART } = await import("../src/art/tiles.ts");

@@ -113,7 +113,8 @@ function hut(p: Pen, x: number): void {
     p.rect(x + 1, y + 2, 28, 1, BRICK_D);
     for (let i = y % 6 === 0 ? 0 : 3; i < 28; i += 6) p.rect(x + 1 + i, y, 1, 2, BRICK_D);
   }
-  for (let k = 0; k < 14; k++) p.px(x + 2 + Math.floor(hash(x, k, 8) * 26), 19 + Math.floor(hash(k, x, 9) * 27), BRICK_L);
+  for (let k = 0; k < 14; k++)
+    p.px(x + 2 + Math.floor(hash(x, k, 8) * 26), 19 + Math.floor(hash(k, x, 9) * 27), BRICK_L);
   // A stone plinth.
   p.rect(x, 43, 30, 5, C.ink);
   p.rect(x + 1, 44, 28, 3, C.stoneDark);
@@ -154,7 +155,13 @@ export const julemarkedGate = once(() =>
     const x1 = right;
     for (let y = 18; y < H - 3; y++) {
       const u = (y - 18) / (H - 21);
-      p.rect(x0, y, x1 - x0, 1, u < 0.5 ? (u < 0.25 ? "#2b2a4a" : "#3d3556") : u < 0.8 ? "#5a4560" : "#8a5a58");
+      p.rect(
+        x0,
+        y,
+        x1 - x0,
+        1,
+        u < 0.5 ? (u < 0.25 ? "#2b2a4a" : "#3d3556") : u < 0.8 ? "#5a4560" : "#8a5a58",
+      );
     }
     for (let i = 0; i < 26; i++) {
       const bx = x0 + 3 + Math.floor(hash(i, 4, 21) * (x1 - x0 - 6));
@@ -453,7 +460,8 @@ export function julemarkedWall(p: Pen, ox: number, oy: number, x: number, y: num
     // The top of the wall, seen from above: snow over the coping.
     p.rect(ox, oy, TILE, TILE, SNOW);
     p.rect(ox, oy + TILE - 3, TILE, 3, SNOW_SHADE);
-    for (let k = 0; k < 4; k++) p.px(ox + Math.floor(hash(x, y, 40 + k) * TILE), oy + Math.floor(hash(y, x, 44 + k) * 12), FROST);
+    for (let k = 0; k < 4; k++)
+      p.px(ox + Math.floor(hash(x, y, 40 + k) * TILE), oy + Math.floor(hash(y, x, 44 + k) * 12), FROST);
     return;
   }
   p.rect(ox, oy, TILE, TILE, BRICK);
@@ -462,7 +470,11 @@ export function julemarkedWall(p: Pen, ox: number, oy: number, x: number, y: num
     for (let i = (j / 4) % 2 ? 4 : 0; i < TILE; i += 8) p.rect(ox + i, oy + j, 1, 3, MORTAR);
   }
   for (let k = 0; k < 6; k++)
-    p.px(ox + Math.floor(hash(x, y, 50 + k) * TILE), oy + Math.floor(hash(y, x, 56 + k) * TILE), k % 2 ? BRICK_L : BRICK_D);
+    p.px(
+      ox + Math.floor(hash(x, y, 50 + k) * TILE),
+      oy + Math.floor(hash(y, x, 56 + k) * TILE),
+      k % 2 ? BRICK_L : BRICK_D,
+    );
   // The snow cap's lip and fairy-light bulbs along the wall.
   p.rect(ox, oy, TILE, 3, SNOW);
   p.rect(ox, oy + 3, TILE, 1, SNOW_SHADE);

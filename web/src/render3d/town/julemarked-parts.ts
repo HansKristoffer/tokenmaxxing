@@ -96,10 +96,20 @@ export function wreath3(m: Model, at: V3, r = 0.3): void {
   frame(GREEN_L, 1.02, r * 0.06);
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    m.box([r * 0.16, r * 0.16, r * 0.1], GOLD, [at[0] + Math.sign(Math.cos(a)) * r, at[1] + Math.sign(Math.sin(a)) * r - r * 0.08, at[2] + r * 0.28], 0.004);
+    m.box(
+      [r * 0.16, r * 0.16, r * 0.1],
+      GOLD,
+      [at[0] + Math.sign(Math.cos(a)) * r, at[1] + Math.sign(Math.sin(a)) * r - r * 0.08, at[2] + r * 0.28],
+      0.004,
+    );
   }
   for (const s of [-1, 1]) {
-    const loop = m.box([r * 0.5, r * 0.28, r * 0.12], DANNEBROG, [at[0] + s * r * 0.3, at[1] - r - r * 0.05, at[2] + r * 0.3], 0.01);
+    const loop = m.box(
+      [r * 0.5, r * 0.28, r * 0.12],
+      DANNEBROG,
+      [at[0] + s * r * 0.3, at[1] - r - r * 0.05, at[2] + r * 0.3],
+      0.01,
+    );
     loop.rotation.z = s * 0.35;
   }
   m.box([r * 0.2, r * 0.22, r * 0.14], RED_D, [at[0], at[1] - r - r * 0.05, at[2] + r * 0.32], 0.01);
@@ -211,7 +221,8 @@ function hut(m: Model, x: number): void {
   const d = 1.9;
   m.box([w + 0.1, 0.22, d + 0.1], "#8a8682", [x, 0, 0], 0.02);
   m.box([w, 2.2, d], BRICK, [x, 0.2, 0], 0.03);
-  for (const y of [0.55, 0.95, 1.35, 1.75, 2.15]) m.box([w + 0.02, 0.04, d + 0.02], BRICK_D, [x, y, 0], 0.005);
+  for (const y of [0.55, 0.95, 1.35, 1.75, 2.15])
+    m.box([w + 0.02, 0.04, d + 0.02], BRICK_D, [x, y, 0], 0.005);
   // The lit window with a cream frame, facing the street.
   m.box([0.78, 0.86, 0.06], CREAM, [x, 0.95, d / 2 + 0.02], 0.01);
   const pane = m.box([0.62, 0.7, 0.05], "#ffd98a", [x, 1.03, d / 2 + 0.05], 0.005);
@@ -256,6 +267,7 @@ export function julemarkedGate3d(): Model {
   fairyString(g, [-1.75, 2.0, 0.62], [-0.1, 2.0, 0.62], 0.16);
   fairyString(g, [0.1, 2.0, 0.62], [1.75, 2.0, 0.62], 0.16);
   for (const s of [-1, 1]) fairyString(g, [s * 1.55, 2.08, 0.77], [s * 1.55, 0.2, 0.77], 0.03);
-  for (const s of [-1, 1]) fairyString(g, [s * hx - s * 0.9, 2.42, 1.27], [s * hx + s * 0.9, 2.42, 1.27], 0.1);
+  for (const s of [-1, 1])
+    fairyString(g, [s * hx - s * 0.9, 2.42, 1.27], [s * hx + s * 0.9, 2.42, 1.27], 0.1);
   return m;
 }

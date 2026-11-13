@@ -1,7 +1,13 @@
 import { expect, test } from "bun:test";
 import { STALL_WEARABLES } from "@tokenmaxxing/core/julemarked-shop.ts";
 import { CASE_GLASSES, CASE_HATS } from "../src/art/case.ts";
-import { STALL_BACKS, STALL_GLASSES, STALL_HATS, STALL_HELD, STALL_OUTFITS } from "../src/art/julemarked-stall-wear.ts";
+import {
+  STALL_BACKS,
+  STALL_GLASSES,
+  STALL_HATS,
+  STALL_HELD,
+  STALL_OUTFITS,
+} from "../src/art/julemarked-stall-wear.ts";
 
 const of = (slot: string) => STALL_WEARABLES.filter((i) => i.slot === slot);
 
@@ -33,16 +39,31 @@ test("the stall outfits have six marks views and the held treats a hand", () => 
   for (const it of of("held")) {
     const h = STALL_HELD[it.index];
     expect(h, it.name).toBeDefined();
-    expect(h!.rows.some((r) => r.includes("h")), `${it.name} has a hand`).toBe(true);
+    expect(
+      h!.rows.some((r) => r.includes("h")),
+      `${it.name} has a hand`,
+    ).toBe(true);
     checkRows(it.name, h!.rows, { ...h!.pal, h: "x" }, 9);
   }
 });
 
 test("the art is exactly the catalog, and stays at or above STALL_BASE", () => {
   const keys = (t: Record<string, unknown>) => Object.keys(t).sort();
-  expect(keys(STALL_HATS)).toEqual(of("hat").map((i) => i.id).sort());
-  expect(keys(STALL_OUTFITS)).toEqual(of("outfit").map((i) => String(i.index)).sort());
-  expect(keys(STALL_HELD)).toEqual(of("held").map((i) => String(i.index)).sort());
+  expect(keys(STALL_HATS)).toEqual(
+    of("hat")
+      .map((i) => i.id)
+      .sort(),
+  );
+  expect(keys(STALL_OUTFITS)).toEqual(
+    of("outfit")
+      .map((i) => String(i.index))
+      .sort(),
+  );
+  expect(keys(STALL_HELD)).toEqual(
+    of("held")
+      .map((i) => String(i.index))
+      .sort(),
+  );
 });
 
 test("the stall glasses and back items have art, merged in, on 16 columns", () => {
@@ -59,6 +80,14 @@ test("the stall glasses and back items have art, merged in, on 16 columns", () =
       for (const rows of [b!.views[v].behind, b!.views[v].front])
         if (rows) checkRows(`${it.name} ${v}`, rows, b!.pal, 16);
   }
-  expect(Object.keys(STALL_GLASSES).sort()).toEqual(of("glasses").map((i) => i.id).sort());
-  expect(Object.keys(STALL_BACKS).sort()).toEqual(of("back").map((i) => String(i.index)).sort());
+  expect(Object.keys(STALL_GLASSES).sort()).toEqual(
+    of("glasses")
+      .map((i) => i.id)
+      .sort(),
+  );
+  expect(Object.keys(STALL_BACKS).sort()).toEqual(
+    of("back")
+      .map((i) => String(i.index))
+      .sort(),
+  );
 });

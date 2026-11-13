@@ -25,12 +25,17 @@ const S = Number(q.get("scale") ?? 4);
 // `?case=stall`: the Julemarked coin stalls' hat, outfits and held treats (2D only; pets and furniture are skipped).
 const def =
   caseId === "stall"
-    ? { name: "Julemarked stalls", items: STALL_WEARABLES.filter((i) => ["hat", "glasses", "outfit", "back", "held", "pet"].includes(i.slot)) }
+    ? {
+        name: "Julemarked stalls",
+        items: STALL_WEARABLES.filter((i) =>
+          ["hat", "glasses", "outfit", "back", "held", "pet"].includes(i.slot),
+        ),
+      }
     : caseId === "pond"
-    ? { name: "Pond treasures", items: FISHING_ITEMS }
-    : caseId === "prestige"
-      ? { name: "Prestige", items: PRESTIGE_ITEMS }
-      : caseById(caseId)!;
+      ? { name: "Pond treasures", items: FISHING_ITEMS }
+      : caseId === "prestige"
+        ? { name: "Prestige", items: PRESTIGE_ITEMS }
+        : caseById(caseId)!;
 
 type Sprite = HTMLCanvasElement;
 interface Cell {

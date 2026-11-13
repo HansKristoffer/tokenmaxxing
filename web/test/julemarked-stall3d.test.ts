@@ -16,16 +16,16 @@ const meshes = (o: THREE.Object3D) => {
 const worn = STALL_WEARABLES.filter((i) => i.slot !== "pet");
 
 test("every Julemarked stall hat, outfit and held item has its 3D builder and colours", async () => {
-  const { HAT_BUILDERS, HELD_BUILDERS, OUTFIT_BUILDERS, BACK_BUILDERS, FACE_BUILDERS, outfitColours } = await import(
-    "../src/render3d/people/gear3d.ts"
-  );
+  const { HAT_BUILDERS, HELD_BUILDERS, OUTFIT_BUILDERS, BACK_BUILDERS, FACE_BUILDERS, outfitColours } =
+    await import("../src/render3d/people/gear3d.ts");
   const { COVERS_HAIR } = await import("../src/render3d/people/gear3dHead.ts");
   for (const item of worn) {
     const where = `${item.slot}: ${item.name}`;
     if (item.slot === "hat") expect(HAT_BUILDERS[item.name], where).toBeTypeOf("function");
     if (item.slot === "glasses") expect(FACE_BUILDERS[item.name], where).toBeTypeOf("function");
     if (item.slot === "back") expect(BACK_BUILDERS[item.name], where).toBeTypeOf("function");
-    if (item.name === "Pelshue" || item.name === "Sixpence") expect(COVERS_HAIR.has(item.name), where).toBe(true);
+    if (item.name === "Pelshue" || item.name === "Sixpence")
+      expect(COVERS_HAIR.has(item.name), where).toBe(true);
     if (item.slot === "held") expect(HELD_BUILDERS[item.name], where).toBeTypeOf("function");
     if (item.slot === "outfit") {
       expect(OUTFIT_BUILDERS[item.index], where).toBeTypeOf("function");

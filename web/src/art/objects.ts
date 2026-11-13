@@ -1,6 +1,13 @@
 import { ALL_CASE_PIECES, isCasePiece } from "@tokenmaxxing/core/case-furniture.ts";
 import { HOME_PIECES, isHomePiece } from "@tokenmaxxing/core/home.ts";
-import { JULE_GATE_BODY, JULE_GATE_DOOR, JULE_TREE, STALL_CHAR, STALL_IDS, STALLS } from "@tokenmaxxing/core/julemarked.ts";
+import {
+  JULE_GATE_BODY,
+  JULE_GATE_DOOR,
+  JULE_TREE,
+  STALL_CHAR,
+  STALL_IDS,
+  STALLS,
+} from "@tokenmaxxing/core/julemarked.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { COMPANY_FURNITURE, sideways, turnAt } from "@tokenmaxxing/core/office.ts";
 import { isPoster, posterOf } from "@tokenmaxxing/core/posters.ts";

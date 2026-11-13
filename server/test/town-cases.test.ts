@@ -473,7 +473,16 @@ describe("a fourth case", () => {
     await give(sql, pet.id);
     await sql.execute(
       "UPDATE users SET look = ? WHERE id = 7",
-      JSON.stringify({ style: 0, skin: 0, hair: 0, outfit: 0, glasses: 0, hat: 0, pet: pet.index, petVariant: 0 }),
+      JSON.stringify({
+        style: 0,
+        skin: 0,
+        hair: 0,
+        outfit: 0,
+        glasses: 0,
+        hat: 0,
+        pet: pet.index,
+        petVariant: 0,
+      }),
     );
     expect((await sellItem(sql, 7, pet.id, now)).unworn).toBe(true);
     const [row] = await sql.execute("SELECT look FROM users WHERE id = 7");

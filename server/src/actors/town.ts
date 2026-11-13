@@ -2241,9 +2241,12 @@ async function inCaseShop(
   const room = julemarked ? "julemarked" : (SHOP_ROOM as Record<string, string | undefined>)[CASE_SHOP_ID];
   if (!room) throw new UserError("The Night Market isn't open yet.", { code: "not_in_shop" });
   if ((await main(c.client()).world.roomOfPlayer(userId)) !== room)
-    throw new UserError(julemarked ? "Go to the Julemarked to open this case." : "Go to the Night Market to open a case.", {
-      code: "not_in_shop",
-    });
+    throw new UserError(
+      julemarked ? "Go to the Julemarked to open this case." : "Go to the Night Market to open a case.",
+      {
+        code: "not_in_shop",
+      },
+    );
 }
 
 /**

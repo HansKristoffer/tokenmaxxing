@@ -54,7 +54,8 @@ describe("cases", () => {
     for (let i = 0; i < NATMARKED_CASES.length; i++) expect(slideOfShelf(i)).toBe(i);
     expect(slideOfShelf(undefined)).toBe(0);
     // A shelf with no case yet opens the locked slide, one past the last case, while a shelf is empty.
-    if (NATMARKED_CASES.length < CASE_SHELVES) expect(slideOfShelf(NATMARKED_CASES.length)).toBe(NATMARKED_CASES.length);
+    if (NATMARKED_CASES.length < CASE_SHELVES)
+      expect(slideOfShelf(NATMARKED_CASES.length)).toBe(NATMARKED_CASES.length);
     expect(slideOfShelf(CASE_SHELVES + 3)).toBe(
       NATMARKED_CASES.length < CASE_SHELVES ? NATMARKED_CASES.length : 0,
     );

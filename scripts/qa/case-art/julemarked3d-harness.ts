@@ -28,7 +28,15 @@ function sheet(id: string, w: number, h: number) {
   ctx.fillRect(0, 0, w, h);
   return ctx;
 }
-const shoot = (ctx: CanvasRenderingContext2D, cw: number, ch: number, x: number, y: number, cam: THREE.Camera, label: string) => {
+const shoot = (
+  ctx: CanvasRenderingContext2D,
+  cw: number,
+  ch: number,
+  x: number,
+  y: number,
+  cam: THREE.Camera,
+  label: string,
+) => {
   renderer.setSize(cw, ch, false);
   if (VOXEL) blockify(scene);
   renderer.render(scene, cam);
@@ -53,6 +61,26 @@ const shoot = (ctx: CanvasRenderingContext2D, cw: number, ch: number, x: number,
       cam.position.set(0, 0.35, 1.5);
       cam.lookAt(0, 0.17, 0);
       shoot(ctx, S, S, col * S, row * S, cam, `pet ${sp} ${["34", "side", "back", "walk"][col]}`);
+      scene.remove(pet.root);
+    });
+  });
+}
+
+// Close-ups: each pet alone, big, three-quarter and from the side (for judging the detail of the case pets).
+{
+  const S = 520;
+  const ctx = sheet("close", S * 4, S * 3);
+  [800, 801, 802, 803, 804, 805].forEach((sp, i) => {
+    [0.6, Math.PI / 2 + 0.3].forEach((rot, col) => {
+      const pet = petFrom2D(sp);
+      scene.add(pet.root);
+      pet.root.rotation.y = rot;
+      for (let k = 0; k < 40; k++) pet.update(1 / 30, 1 + k / 30);
+      const big = sp === 804;
+      const cam = new THREE.PerspectiveCamera(26, 1, 0.05, 50);
+      cam.position.set(0, big ? 0.5 : 0.3, big ? 2.2 : 1.05);
+      cam.lookAt(0, big ? 0.3 : 0.15, 0);
+      shoot(ctx, S, S, ((i % 2) * 2 + col) * S, Math.floor(i / 2) * S, cam, `close ${sp}`);
       scene.remove(pet.root);
     });
   });
@@ -85,7 +113,11 @@ const shoot = (ctx: CanvasRenderingContext2D, cw: number, ch: number, x: number,
   const CH = 400;
   const ctx = sheet("auras", CW * 6, CH * 4);
   [800, 801, 802, 803].forEach((idx, row) => {
-    const av = avatarFor({ style: 0, skin: 1, hair: 2, aura: idx } as never, undefined, VOXEL ? "voxel" : "grown");
+    const av = avatarFor(
+      { style: 0, skin: 1, hair: 2, aura: idx } as never,
+      undefined,
+      VOXEL ? "voxel" : "grown",
+    );
     scene.add(av.root);
     const h = av.height + 0.2;
     const cam = new THREE.PerspectiveCamera(30, CW / CH, 0.05, 50);

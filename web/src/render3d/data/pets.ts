@@ -82,7 +82,13 @@ export const JULEMARKED_PET_SPECIES = [
 
 /** `Look.pet` of the first Julemarked stall pet (`STALL_BASE` in core/src/julemarked-shop.ts). */
 export const JULEMARKED_STALL_PET_BASE = 900;
-export const JULEMARKED_STALL_PET_SPECIES = ["graaspurv", "snehare", "pindsvin", "egern", "saelunge"] as const;
+export const JULEMARKED_STALL_PET_SPECIES = [
+  "graaspurv",
+  "snehare",
+  "pindsvin",
+  "egern",
+  "saelunge",
+] as const;
 
 /**
  * The case ranges, one entry per case: `Look.pet` from `base` up to `base + species.length` is `species[n - base]`.

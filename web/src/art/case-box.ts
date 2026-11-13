@@ -438,7 +438,8 @@ const OTHER_CASES: Record<string, (p: Pen, kind: CaseBoxKind, frame: number) => 
  * Market's if left out). Cached: do not draw into it.
  */
 export function caseBoxSprite(kind: CaseBoxKind, frame = 0, caseId = "night-market"): HTMLCanvasElement {
-  const f = kind === "open" ? frame % 2 : 0;
+  // The Julemarked box has four open frames; every other case has two.
+  const f = kind === "open" ? frame % (caseId === "julemarked" ? 4 : 2) : 0;
   const draw = OTHER_CASES[caseId];
   const k = `${draw ? caseId : ""}${kind}${f}`;
   let c = cache.get(k);

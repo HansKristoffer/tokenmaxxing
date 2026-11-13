@@ -2,6 +2,7 @@ import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { typedSwitch } from "hanzio";
 import { CASE_BACKS, CASE_HELD, CASE_OUTFITS } from "./case-body.ts";
+import { JULEMARKED_WEAR_WALK } from "./case-julemarked.ts";
 import { JULEMARKED_BACKS, JULEMARKED_HELD, JULEMARKED_OUTFITS } from "./case-julemarked-body.ts";
 import { RAGNAROK_BACKS, RAGNAROK_HELD, RAGNAROK_OUTFITS } from "./case-ragnarok-body.ts";
 import type { Pose, View } from "./characters.ts";
@@ -29,6 +30,12 @@ export interface Outfit {
   p: string;
   /** Details over the top of the body (rows 9–11), like the server-rack armour. */
   marks: Record<View, string[]>;
+  /** The second walking frame (`walkB`): pixels laid over the marks (a sparkle moving, flour puffing, a hem swaying). */
+  walk?: Partial<Record<View, string[]>>;
+  /** Face hair over the head, from row 7 (a beard); always drawn. */
+  beard?: Record<View, string[]>;
+  /** Brows over the forehead, from row 5; drawn only on a bare face (no hat, no glasses). */
+  brows?: Record<View, string[]>;
   pal: Palette;
 }
 
@@ -174,9 +181,12 @@ export const wardrobePalette = (outfit: number): Palette => {
 };
 
 /** An outfit's details, at row `oy` (9 on a character, 0 in the bag). */
-export function outfitMarks(p: Pen, outfit: number, view: View, oy: number, flip = false): void {
+export function outfitMarks(p: Pen, outfit: number, view: View, oy: number, flip = false, pose?: Pose): void {
   const o = OUTFITS[outfit];
-  if (o) p.grid(o.marks[view], o.pal, 0, oy, flip);
+  if (!o) return;
+  p.grid(o.marks[view], o.pal, 0, oy, flip);
+  const w = pose === "walkB" ? o.walk?.[view] : undefined;
+  if (w) p.grid(w, o.pal, 0, oy, flip);
 }
 
 // MARK: In the hand
@@ -184,6 +194,8 @@ export function outfitMarks(p: Pen, outfit: number, view: View, oy: number, flip
 export interface Held {
   /** Facing right, `h` the hand holding it: it lands on the character's hand. */
   rows: string[];
+  /** The second walking frame (`walkB`), same shape as `rows` (steam rising, a sparkle moving). */
+  walk?: string[];
   pal: Palette;
 }
 
@@ -246,14 +258,15 @@ const HELD: (Held | null)[] = [
 /** Where the hand is in each view (none from behind: the item is drawn behind the body there). */
 const HAND: Record<View, [number, number]> = { down: [11, 11], side: [8, 11], up: [11, 11] };
 
-function drawHeld(p: Pen, i: number, view: View, skin: string, flip: boolean): void {
+function drawHeld(p: Pen, i: number, view: View, skin: string, flip: boolean, pose?: Pose): void {
   const h = HELD[i];
   if (!h) return;
+  const src = (pose === "walkB" && h.walk) || h.rows;
   const hy = h.rows.findIndex((r) => r.includes("h"));
   const hx = h.rows[hy]!.indexOf("h");
   const [x, y] = HAND[view];
   // Padded to 16 wide so the side view mirrors like the rest of the character.
-  const rows = h.rows.map((r) => ".".repeat(x - hx) + r + ".".repeat(Math.max(0, 16 - (x - hx) - r.length)));
+  const rows = src.map((r) => ".".repeat(x - hx) + r + ".".repeat(Math.max(0, 16 - (x - hx) - r.length)));
   p.grid(rows, { ...h.pal, h: skin }, 0, y - hy, flip);
 }
 
@@ -710,17 +723,36 @@ export function drawWardrobe(
   flip: boolean,
 ): void {
   typedSwitch(layer, {
-    body: () => outfitMarks(p, look.outfit, view, 9, flip),
+    body: () => outfitMarks(p, look.outfit, view, 9, flip, pose),
     // From behind, a held thing peeks out behind the body; otherwise it's in front, over the back item's straps.
     behind: () => {
-      if (view === "up") drawHeld(p, look.held, view, skin, flip);
+      if (view === "up") drawHeld(p, look.held, view, skin, flip, pose);
       drawBack(p, look.back, view, pose, "behind", flip);
     },
     front: () => {
+      // The Julemarked hats' and glasses' second walking frame, laid over the first.
+      if (pose === "walkB") {
+        for (const [id, y] of [
+          [`hat.${look.hat}`, 0],
+          [`glasses.${look.glasses}`, 5],
+        ] as const) {
+          const w = JULEMARKED_WEAR_WALK[id]?.[view];
+          if (w) p.grid(w, JULEMARKED_WEAR_WALK[id]!.pal, 0, y, flip);
+        }
+      }
+      outfitFace(p, look, view, flip);
       drawBack(p, look.back, view, pose, "front", flip);
-      if (view !== "up") drawHeld(p, look.held, view, skin, flip);
+      if (view !== "up") drawHeld(p, look.held, view, skin, flip, pose);
     },
   });
+}
+
+/** An outfit's beard, and its brows on a bare face (the Julemandsdragt's), over the head. */
+function outfitFace(p: Pen, look: Look, view: View, flip: boolean): void {
+  const o = OUTFITS[look.outfit];
+  if (!o) return;
+  if (o.brows && look.hat === 0 && look.glasses === 0) p.grid(o.brows[view], o.pal, 0, 5, flip);
+  if (o.beard) p.grid(o.beard[view], o.pal, 0, 7, flip);
 }
 
 // MARK: On a pet

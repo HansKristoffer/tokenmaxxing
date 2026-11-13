@@ -405,7 +405,10 @@ export function updateSelf(now: number): void {
     tapped = null;
     turning = null;
     // Walking out of a shop closes its page; walking in, the keeper says hello.
-    if ((shopOfRoom(lastRoom) || lastRoom === "julemarked") && ["shop", "caseLeaderboard"].includes(hud.get().panel?.kind ?? ""))
+    if (
+      (shopOfRoom(lastRoom) || lastRoom === "julemarked") &&
+      ["shop", "caseLeaderboard"].includes(hud.get().panel?.kind ?? "")
+    )
       hud.set({ panel: null });
     const shop = shopOfRoom(world.room);
     if (shop && lastRoom) hud.set({ dialog: greeting(shop, greetings++) });
@@ -643,7 +646,8 @@ function interact(): void {
   // The other three stalls sell for coins: the Shop page on that stall's goods and only those.
   if (world.room === "julemarked") {
     const stall = SHOP_STALL_IDS.find((id) => STALL_CHAR[id] === ch);
-    if (stall) return void hud.set({ panel: { kind: "shop", stall, tab: STALL_TABS[stall][0] as ShopPageTab } });
+    if (stall)
+      return void hud.set({ panel: { kind: "shop", stall, tab: STALL_TABS[stall][0] as ShopPageTab } });
   }
   if (shopInteract(x, y)) return;
   if (basementInteract(x, y)) return;

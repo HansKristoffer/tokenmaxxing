@@ -29,7 +29,13 @@ test("every personal-office piece has its art, and every art is a piece", () => 
 });
 
 test("every case piece (every case's) has its art, and every case art is a piece", () => {
-  const art = [...CASE_FURNITURE, ...NUSANTARA_FURNITURE, ...RAGNAROK_FURNITURE, ...JULEMARKED_FURNITURE, ...PRESTIGE_TROPHIES];
+  const art = [
+    ...CASE_FURNITURE,
+    ...NUSANTARA_FURNITURE,
+    ...RAGNAROK_FURNITURE,
+    ...JULEMARKED_FURNITURE,
+    ...PRESTIGE_TROPHIES,
+  ];
   expect(art.map((f) => f.id).sort()).toEqual(ALL_CASE_PIECES.map((p) => p.art).sort());
   expect(new Set(art.map((f) => f.id)).size).toBe(art.length);
   for (const p of ALL_CASE_PIECES) {

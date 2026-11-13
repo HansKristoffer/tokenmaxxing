@@ -95,11 +95,28 @@ describe("the Julemarked's coin stalls", () => {
     expect(new Set(by("pynt"))).toEqual(new Set(["furniture"]));
     expect(by("varme").sort()).toEqual(
       [
-        "back", "back", "glasses", "glasses", "hat", "hat", "hat", "held", "held",
-        "outfit", "outfit", "outfit", "outfit", "pet", "pet", "pet", "pet", "pet",
+        "back",
+        "back",
+        "glasses",
+        "glasses",
+        "hat",
+        "hat",
+        "hat",
+        "held",
+        "held",
+        "outfit",
+        "outfit",
+        "outfit",
+        "outfit",
+        "pet",
+        "pet",
+        "pet",
+        "pet",
+        "pet",
       ].sort() as never,
     );
-    for (const id of SHOP_STALL_IDS) for (const slot of by(id)) expect(STALL_TABS[id]).toContain(slot as never);
+    for (const id of SHOP_STALL_IDS)
+      for (const slot of by(id)) expect(STALL_TABS[id]).toContain(slot as never);
   });
 
   test("a stall item is worn through parseLook; an unknown index in a stall range is not", () => {
@@ -125,7 +142,8 @@ describe("the Julemarked's coin stalls", () => {
     expect(JULEPYNT_PIECES.map((p) => !!p.wall)).toEqual([true, true, true, false, false]);
     expect(HOME_PIECES).toEqual([...SHOP_HOME_PIECES, ...JULEPYNT_PIECES]);
     const taken = new Set<string>();
-    for (const p of [...FURNITURE, ...COMPANY_FURNITURE, ...SHOP_HOME_PIECES, ...ALL_CASE_PIECES]) taken.add(p.ch);
+    for (const p of [...FURNITURE, ...COMPANY_FURNITURE, ...SHOP_HOME_PIECES, ...ALL_CASE_PIECES])
+      taken.add(p.ch);
     for (const m of Object.values(MAPS)) for (const row of m.rows) for (const c of row) taken.add(c);
     for (const ch of Object.keys(LEGEND)) if (!JULEPYNT_PIECES.some((p) => p.ch === ch)) taken.add(ch);
     for (const p of JULEPYNT_PIECES) {

@@ -85,7 +85,8 @@ export function julemarkedRows(): string[] {
     ),
   );
   for (const s of STALLS)
-    for (let dy = 0; dy < STALL_H; dy++) for (let dx = 0; dx < STALL_W; dx++) grid[s.y + dy]![s.x + dx] = s.ch;
+    for (let dy = 0; dy < STALL_H; dy++)
+      for (let dx = 0; dx < STALL_W; dx++) grid[s.y + dy]![s.x + dx] = s.ch;
   for (let dy = 0; dy < 2; dy++)
     for (let dx = 0; dx < 2; dx++) grid[JULE_TREE_AT[1] + dy]![JULE_TREE_AT[0] + dx] = JULE_TREE;
   // Lamps down the sides of the square in front of the stalls.

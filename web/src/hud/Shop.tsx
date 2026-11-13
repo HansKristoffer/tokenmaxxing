@@ -63,14 +63,24 @@ export function Shop(props: { tab?: ShopPageTab; stall?: ShopStallId }) {
   return shop ? <ShopPage shop={shop} {...props} /> : <ShopDirectory />;
 }
 
-function ShopPage({ shop, stall, tab: first }: { shop: ShopId | null; stall?: ShopStallId; tab?: ShopPageTab }) {
+function ShopPage({
+  shop,
+  stall,
+  tab: first,
+}: {
+  shop: ShopId | null;
+  stall?: ShopStallId;
+  tab?: ShopPageTab;
+}) {
   const me = useHud((s) => s.me);
   const name = stall ? STALLS.find((s) => s.id === stall)!.name : SHOPS[shop!].name;
   const [hello] = useState(() =>
     stall ? STALL_HELLO[stall] : greeting(shop!, Math.floor(Math.random() * 8)),
   );
   const tabs = [
-    ...TABS.filter(([t]) => ((stall ? STALL_TABS[stall] : SHOP_TABS[shop!]) as readonly string[]).includes(t)),
+    ...TABS.filter(([t]) =>
+      ((stall ? STALL_TABS[stall] : SHOP_TABS[shop!]) as readonly string[]).includes(t),
+    ),
     // Company supplies are for company members: the owner orders, the rest see what is stored.
     ...(!stall && shop === "furniture" && me?.company ? ([["company", "🏢 Company"]] as const) : []),
   ];

@@ -174,8 +174,9 @@ export class Pet3D {
   ) {
     const nusantara = (NUSANTARA_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
     const pond = (POND_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
-    const julemarked = ((JULEMARKED_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species] ??
-      (JULEMARKED_STALL_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species]);
+    const julemarked =
+      (JULEMARKED_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species] ??
+      (JULEMARKED_STALL_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
     const built = nusantara
       ? nusantara()
       : pond
@@ -183,37 +184,37 @@ export class Pet3D {
         : julemarked
           ? julemarked()
           : species === "duck"
-          ? duck(variant)
-          : species === "dragon"
-            ? dragon(variant)
-            : species === "golem"
-              ? golem()
-              : species === "goldfish"
-                ? goldfish()
-                : species === "ghost"
-                  ? ghost()
-                  : species === "piggy"
-                    ? piggy()
-                    : species === "koi"
-                      ? koi()
-                      : species === "crane"
-                        ? crane()
-                        : species === "tanuki"
-                          ? tanuki()
-                          : species === "maneki"
-                            ? maneki()
-                            : species === "kitsune"
-                              ? kitsune()
-                              : species === "tengu"
-                                ? tengu()
-                                : species in NORSE
-                                  ? NORSE[species as keyof typeof NORSE]()
-                                  : species === "cat" ||
-                                      species === "dog" ||
-                                      species === "panda" ||
-                                      species === "forkedcat"
-                                    ? quad(species, variant, outfit)
-                                    : orb();
+            ? duck(variant)
+            : species === "dragon"
+              ? dragon(variant)
+              : species === "golem"
+                ? golem()
+                : species === "goldfish"
+                  ? goldfish()
+                  : species === "ghost"
+                    ? ghost()
+                    : species === "piggy"
+                      ? piggy()
+                      : species === "koi"
+                        ? koi()
+                        : species === "crane"
+                          ? crane()
+                          : species === "tanuki"
+                            ? tanuki()
+                            : species === "maneki"
+                              ? maneki()
+                              : species === "kitsune"
+                                ? kitsune()
+                                : species === "tengu"
+                                  ? tengu()
+                                  : species in NORSE
+                                    ? NORSE[species as keyof typeof NORSE]()
+                                    : species === "cat" ||
+                                        species === "dog" ||
+                                        species === "panda" ||
+                                        species === "forkedcat"
+                                      ? quad(species, variant, outfit)
+                                      : orb();
     this.root.userData.actor = true;
     const { body: b, fore: f } = built;
     this.rig = built.rig;

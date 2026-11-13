@@ -122,23 +122,59 @@ function drawClosed(p: Pen): void {
   p.px(1, 9, J.snow);
   p.px(22, 9, J.snow);
   bow(p, 7);
+  glow(p, 20, 3, 5, 5, 0.4);
   candle(p, 20, 7, false);
+  p.px(3, 9, J.snow);
+  p.px(2, 5, J.goldLight);
+}
+
+const rgba = (rgb: string, a: number) => `rgba(${rgb}, ${Math.round(a * 100) / 100})`;
+
+/** A soft round glow, clipped to the 24x28 canvas. */
+function glow(
+  p: Pen,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  alpha: number,
+  rgb = "255, 214, 120",
+): void {
+  for (let y = Math.max(0, Math.floor(cy - ry)); y <= Math.min(27, Math.ceil(cy + ry)); y++)
+    for (let x = Math.max(0, Math.floor(cx - rx)); x <= Math.min(23, Math.ceil(cx + rx)); x++) {
+      const d = Math.hypot((x - cx) / rx, (y - cy) / ry);
+      const a = alpha * (1 - d) ** 1.4;
+      if (d <= 1 && a >= 0.04) p.px(x, y, rgba(rgb, a));
+    }
+}
+
+/** A tiny paper heart, 3x2 (red with a cream edge so it reads on the lid), fading as it climbs. */
+function miniHeart(p: Pen, x: number, y: number, fade: number, red: boolean): void {
+  const c = red ? J.red : J.cream;
+  const rim = red ? J.cream : J.red;
+  const al = (col: string) => (fade >= 1 ? col : rgba(col === J.red ? "184, 48, 44" : "244, 236, 216", fade));
+  p.px(x, y, al(c));
+  p.px(x + 2, y, al(c));
+  p.rect(x, y + 1, 3, 1, al(c));
+  p.px(x + 1, y + 1, al(rim));
+  p.px(x + 1, y + 2, al(c));
 }
 
 function drawOpen(p: Pen, frame: number): void {
+  const t = frame % 4;
   p.rect(2, 25, 20, 2, C.shadow);
-  p.rect(3, 26, 18, 1, "rgba(242, 193, 78, 0.45)");
-  // The lid, stood up behind: the awning stripes seen from below, the ribbon down its middle.
-  p.rect(1, 0, 22, 12, C.ink);
+  p.rect(3, 26, 18, 1, `rgba(242, 193, 78, ${[0.45, 0.6, 0.5, 0.65][t]})`);
+  // The lid, stood up behind and foreshortened: the awning stripes seen from below, the ribbon down its middle.
+  p.rect(1, 7, 22, 6, C.ink);
   for (let x = 2; x < 22; x++) {
     const red = Math.floor((x - 2) / 3) % 2 === 0;
-    p.rect(x, 1, 1, 10, red ? J.redDark : J.creamDark);
-    p.rect(x, 1, 1, 3, red ? J.red : J.cream);
+    p.rect(x, 8, 1, 4, red ? J.redDark : J.creamDark);
+    p.rect(x, 8, 1, 2, red ? J.red : J.cream);
   }
-  p.rect(10, 1, 4, 10, J.green);
-  p.rect(10, 1, 1, 10, J.greenLight);
-  p.rect(13, 1, 1, 10, J.greenDark);
-  for (const x of [2, 3, 6, 7, 16, 17, 20, 21]) p.px(x, 1, J.snow);
+  p.rect(10, 8, 4, 4, J.green);
+  p.rect(10, 8, 1, 4, J.greenLight);
+  p.rect(13, 8, 1, 4, J.greenDark);
+  for (const x of [2, 3, 6, 7, 16, 17, 20, 21]) p.px(x, 8, J.snow);
   // The body, its mouth full of candlelight.
   body(p, 14);
   p.rect(0, 11, 24, 3, C.ink);
@@ -147,36 +183,67 @@ function drawOpen(p: Pen, frame: number): void {
   p.rect(1, 11, 22, 1, J.wood);
   p.px(1, 12, J.goldDark);
   p.px(22, 12, J.goldDark);
-  // The warm beam rising out.
-  p.rect(5, 9, 14, 2, "rgba(255, 220, 130, 0.65)");
-  p.rect(8, 8, 8, 1, "rgba(255, 240, 190, 0.5)");
-  p.rect(10, 9, 4, 2, "rgba(255, 250, 225, 0.85)");
-  if (frame === 0) {
-    // A puff of flour-fine snow.
-    p.rect(9, 5, 6, 2, "rgba(255, 255, 255, 0.85)");
-    p.rect(7, 6, 10, 1, "rgba(255, 255, 255, 0.7)");
-    p.rect(10, 3, 4, 1, "rgba(255, 255, 255, 0.6)");
-    p.px(5, 4, J.frost);
-    p.px(18, 3, J.frost);
-    p.px(20, 8, J.frost);
-  } else {
-    // A few paper stars drifting up.
-    const stars: [number, number, string][] = [
-      [12, 3, J.gold],
-      [7, 5, J.red],
-      [17, 6, J.cream],
-      [14, 7, J.red],
-      [9, 7, J.gold],
-    ];
-    for (const [x, y, c] of stars) {
-      p.px(x, y, c);
-      p.px(x - 1, y, c);
-      p.px(x + 1, y, c);
-      p.px(x, y - 1, c);
-      p.px(x, y + 1, c);
+  // The burst: a wide glow, then a fan of rays that breathe in length, then the white-hot heart of it.
+  glow(p, 12, 10, 11, 10, [0.4, 0.5, 0.45, 0.55][t]!);
+  const rays: [number, number][] = [
+    [-9, -9],
+    [-6, -10],
+    [-3, -11],
+    [0, -12],
+    [3, -11],
+    [6, -10],
+    [9, -9],
+  ];
+  rays.forEach(([dx, dy], i) => {
+    const len = 0.55 + 0.25 * ((i + t) % 2) + 0.1 * (t % 3);
+    const steps = Math.floor(Math.hypot(dx, dy) * len);
+    for (let s = 3; s <= steps; s++) {
+      const x = Math.round(12 + (dx * s) / Math.hypot(dx, dy));
+      const y = Math.round(11 + (dy * s) / Math.hypot(dx, dy));
+      if (x >= 0 && x < 24 && y >= 0 && y < 11) p.px(x, y, rgba("255, 240, 190", 0.55 - s * 0.025));
     }
-    p.px(12, 3, J.goldLight);
-  }
+  });
+  p.rect(5, 9, 14, 2, "rgba(255, 220, 130, 0.65)");
+  p.rect(8, 8, 8, 1, "rgba(255, 240, 190, 0.55)");
+  p.rect(10, 8, 4, 3, "rgba(255, 250, 225, 0.85)");
+  // Paper hearts floating up out of the light, and snow drifting down past them.
+  [
+    [5, 0],
+    [11, 3],
+    [17, 6],
+    [8, 8],
+  ].forEach(([bx, ph], k) => {
+    const rise = (t * 2 + ph!) % 9;
+    const y = 8 - rise;
+    miniHeart(p, bx! + (t % 2 === k % 2 ? 1 : 0), y, rise > 6 ? 0.45 : 1, k % 2 === 0);
+  });
+  [
+    [2, 0],
+    [20, 2],
+    [14, 5],
+    [8, 1],
+    [22, 4],
+  ].forEach(([bx, ph], k) => {
+    const y = (t * 2 + ph! + k) % 8;
+    p.px(bx! + (t % 2), y, k % 2 ? J.frost : J.snow);
+  });
+  // Gold sparks that twinkle at the mouth.
+  const sp: [number, number][] = [
+    [4, 6],
+    [19, 5],
+    [12, 1],
+    [7, 3],
+    [16, 2],
+  ];
+  sp.forEach(([x, y], k) => {
+    if ((t + k) % 4 < 2) {
+      p.px(x, y, J.goldLight);
+      p.px(x - 1, y, "rgba(255, 243, 192, 0.6)");
+      p.px(x + 1, y, "rgba(255, 243, 192, 0.6)");
+      p.px(x, y - 1, "rgba(255, 243, 192, 0.6)");
+      p.px(x, y + 1, "rgba(255, 243, 192, 0.6)");
+    }
+  });
 }
 
 function drawKey(p: Pen): void {
@@ -191,7 +258,13 @@ function drawKey(p: Pen): void {
   p.disc(8, 9, 5, J.goldDark);
   p.disc(8, 9, 4, J.gold);
   p.px(4, 6, J.goldLight);
-  p.px(5, 5, J.goldLight);
+  p.px(5, 5, J.snow);
+  p.px(2, 3, J.goldLight);
+  p.px(1, 3, "rgba(255, 243, 192, 0.6)");
+  p.px(3, 3, "rgba(255, 243, 192, 0.6)");
+  p.px(2, 2, "rgba(255, 243, 192, 0.6)");
+  p.px(2, 4, "rgba(255, 243, 192, 0.6)");
+  p.px(14, 13, J.goldLight);
   p.px(6, 4, J.goldLight);
   p.px(3, 8, J.goldLight);
   p.px(12, 13, J.goldDark);

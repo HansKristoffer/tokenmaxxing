@@ -36,13 +36,28 @@ const js = await built.outputs[0].text();
 const tmp = join(out, ".harness");
 rmSync(tmp, { recursive: true, force: true });
 mkdirSync(tmp, { recursive: true });
-writeFileSync(join(tmp, "index.html"), `<!doctype html><meta charset=utf-8><body style="margin:0;background:#111"><script>${js.replaceAll("</script", "<\\/script")}</script>`);
-const pw = await import(process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs");
-const browser = await pw.chromium.launch({ executablePath: process.env.CHROME || undefined, args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
+writeFileSync(
+  join(tmp, "index.html"),
+  `<!doctype html><meta charset=utf-8><body style="margin:0;background:#111"><script>${js.replaceAll("</script", "<\\/script")}</script>`,
+);
+const pw = await import(
+  process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs"
+);
+const browser = await pw.chromium.launch({
+  executablePath: process.env.CHROME || undefined,
+  args: [
+    "--use-gl=angle",
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+  ],
+});
 const page = await browser.newPage({ viewport: { width: 1800, height: 900 } });
 page.on("pageerror", (e) => console.error("pageerror", e.message));
 page.on("console", (m) => m.type() === "error" && console.error(m.text()));
-await page.goto(`file://${join(tmp, "index.html")}${[process.env.VOXEL && "voxel", process.env.STALL && "stall"].filter(Boolean).join(",") ? `#${[process.env.VOXEL && "voxel", process.env.STALL && "stall"].filter(Boolean).join(",")}` : ""}`);
+await page.goto(
+  `file://${join(tmp, "index.html")}${[process.env.VOXEL && "voxel", process.env.STALL && "stall"].filter(Boolean).join(",") ? `#${[process.env.VOXEL && "voxel", process.env.STALL && "stall"].filter(Boolean).join(",")}` : ""}`,
+);
 await page.waitForFunction(() => document.title === "ready", null, { timeout: 120000 }).catch(() => {});
 for (const id of await page.$$eval("canvas[id^=sheet-]", (cs) => cs.map((c) => c.id))) {
   const file = join(out, `${id.replace("sheet-", "")}.png`);

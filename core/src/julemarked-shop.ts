@@ -102,11 +102,44 @@ const piece = (
  * character each from the Cyrillic block (none has a Latin lookalike or a decomposed form).
  */
 export const JULEPYNT_PIECES: readonly HomePiece[] = [
-  piece("Ѫ", "jst-star", "Adventsstjerne", 60, "A paper star in the window, lit from inside. It is always on, and nobody remembers switching it on.", true),
-  piece("Ѧ", "jst-kalender", "Julekalender", 90, "Twenty-four little doors. Someone has already opened tomorrow's. It was you.", true),
-  piece("Ѱ", "jst-nissedoer", "Nissedør", 70, "A very small door at the foot of the wall. Leave porridge, and do not ask what for.", true),
-  piece("Ѯ", "jst-bordtree", "Bordjuletræ", 120, "A tabletop tree with a string of lights and four paper hearts. Hygge, at desk height."),
-  piece("Ѭ", "jst-gaver", "Gavestabel", 80, "A neat stack of wrapped gifts. All of them are for you, and one is socks."),
+  piece(
+    "Ѫ",
+    "jst-star",
+    "Adventsstjerne",
+    60,
+    "A paper star in the window, lit from inside. It is always on, and nobody remembers switching it on.",
+    true,
+  ),
+  piece(
+    "Ѧ",
+    "jst-kalender",
+    "Julekalender",
+    90,
+    "Twenty-four little doors. Someone has already opened tomorrow's. It was you.",
+    true,
+  ),
+  piece(
+    "Ѱ",
+    "jst-nissedoer",
+    "Nissedør",
+    70,
+    "A very small door at the foot of the wall. Leave porridge, and do not ask what for.",
+    true,
+  ),
+  piece(
+    "Ѯ",
+    "jst-bordtree",
+    "Bordjuletræ",
+    120,
+    "A tabletop tree with a string of lights and four paper hearts. Hygge, at desk height.",
+  ),
+  piece(
+    "Ѭ",
+    "jst-gaver",
+    "Gavestabel",
+    80,
+    "A neat stack of wrapped gifts. All of them are for you, and one is socks.",
+  ),
 ];
 
 const BY_ID = new Map<string, Item>(STALL_WEARABLES.map((i) => [i.id, i]));

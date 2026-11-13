@@ -299,7 +299,7 @@ export function CaseOpening({
     if (!c || c.state !== "running") return;
     const up = bellFor === "rare" ? 0 : bellFor === "epic" ? 1 : 2;
     [659.25, 783.99, 987.77].forEach((hz, i) => {
-      const f = hz * 2 ** (up / 12 * 2);
+      const f = hz * 2 ** ((up / 12) * 2);
       tone(c, c.currentTime + i * 0.13, 1.1, f, "sine", 0.22);
       tone(c, c.currentTime + i * 0.13, 0.6, f * 2.76, "sine", 0.05);
     });

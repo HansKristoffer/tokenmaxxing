@@ -190,7 +190,10 @@ describe("the Julemarked case", () => {
   test("holds exactly its 30 wearables and 6 pieces, none of another case's", () => {
     expect(jul.items).toHaveLength(36);
     expect(jul.items.every((i) => i.case)).toBe(true);
-    const want = new Set([...JULEMARKED_ITEMS.map((i) => i.id), ...JULEMARKED_PIECES.map((p) => `furn.${p.ch}`)]);
+    const want = new Set([
+      ...JULEMARKED_ITEMS.map((i) => i.id),
+      ...JULEMARKED_PIECES.map((p) => `furn.${p.ch}`),
+    ]);
     expect(new Set(jul.items.map((i) => i.id))).toEqual(want);
     for (const other of CASES.filter((c) => c !== jul)) {
       const ids = new Set(other.items.map((i) => i.id));

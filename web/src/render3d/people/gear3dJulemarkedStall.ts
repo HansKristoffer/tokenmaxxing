@@ -19,15 +19,7 @@ import {
   px,
   roll,
 } from "./gear3dBody.ts";
-import {
-  COVERS_HAIR,
-  EYE_Y,
-  eyeAt,
-  FACE_BUILDERS,
-  HAT_BUILDERS,
-  lit,
-  see,
-} from "./gear3dHead.ts";
+import { COVERS_HAIR, EYE_Y, eyeAt, FACE_BUILDERS, HAT_BUILDERS, lit, see } from "./gear3dHead.ts";
 import { isVox, U, Vx, vpart } from "./voxgear.ts";
 
 const RED = "#b8302c";
@@ -90,7 +82,14 @@ function pelshue(m: Model): void {
   const by = top - 0.115;
   m.box([w, 0.075, d], FUR_DARK, [0, by, 0], T);
   m.box([w + 0.01, 0.03, d + 0.01], FUR, [0, by + 0.03, 0], T);
-  for (const [x, z] of [[-0.2, 1], [-0.07, 1], [0.08, 1], [0.21, 1], [-0.15, -1], [0.1, -1]] as const)
+  for (const [x, z] of [
+    [-0.2, 1],
+    [-0.07, 1],
+    [0.08, 1],
+    [0.21, 1],
+    [-0.15, -1],
+    [0.1, -1],
+  ] as const)
     m.box([0.07, 0.03, 0.04], FUR_LIGHT, [x, by + 0.055, z * (d / 2)], 0.002);
   // The flaps over the ears: a thick slab hanging down each side from the band, a darker lining inside, tufty tips.
   for (const s of [-1, 1]) {
@@ -122,8 +121,14 @@ function sixpence(m: Model): void {
   m.box([0.045, 0.03, 0.045], TWEED_DARK, [0, top + 0.08, 0.04], 0.002);
   // The tweed: scattered flecks on the crown.
   for (const [x, z, c] of [
-    [-0.2, 0.0, TWEED_LIGHT], [-0.08, 0.14, TWEED_DARK], [0.1, 0.08, TWEED_LIGHT], [0.2, -0.04, TWEED_DARK],
-    [-0.14, -0.12, TWEED_DARK], [0.06, -0.14, TWEED_LIGHT], [0.16, 0.18, TWEED_LIGHT], [-0.22, 0.17, TWEED_LIGHT],
+    [-0.2, 0.0, TWEED_LIGHT],
+    [-0.08, 0.14, TWEED_DARK],
+    [0.1, 0.08, TWEED_LIGHT],
+    [0.2, -0.04, TWEED_DARK],
+    [-0.14, -0.12, TWEED_DARK],
+    [0.06, -0.14, TWEED_LIGHT],
+    [0.16, 0.18, TWEED_LIGHT],
+    [-0.22, 0.17, TWEED_LIGHT],
   ] as const)
     m.box([0.04, 0.008, 0.04], c, [x, top + 0.02 + (Math.abs(x) < 0.12 ? 0.015 : 0), z + 0.04], 0.001);
   // The peak: a short stiff slab, dipped a little, over the brow.
@@ -162,7 +167,7 @@ function strap(m: Model, h: number, color: string): void {
     m.box([0.026 / wide, h, -zb - 0.1 - 0.02], color, [s * x, EYE_Y, (zb - 0.1) / 2 - 0.02], 0.004);
     if (vox) m.box([0.026 / wide, h, 0.026], color, [s * x, EYE_Y, zb], 0.004);
     else {
-      const d = m.box([0.15, h, 0.026], color, [s * 0.19 / wide, EYE_Y, zb + 0.02], 0.004);
+      const d = m.box([0.15, h, 0.026], color, [(s * 0.19) / wide, EYE_Y, zb + 0.02], 0.004);
       d.rotation.y = s * 0.7;
     }
   }
@@ -198,7 +203,12 @@ function shellRim(e: Model): void {
   e.box([0.09, t, 0.016], SHELL, [0, -r, 0], 0.003);
   e.box([t, 0.09, 0.016], SHELL, [-r, 0, 0], 0.003);
   e.box([t, 0.09, 0.016], SHELL, [r, 0, 0], 0.003);
-  for (const [sx, sy] of [[-1, 1], [1, 1], [-1, -1], [1, -1]] as const)
+  for (const [sx, sy] of [
+    [-1, 1],
+    [1, 1],
+    [-1, -1],
+    [1, -1],
+  ] as const)
     e.box([0.036, 0.036, 0.016], SHELL_DARK, [sx * 0.052, sy * 0.052, 0], 0.003);
   // One amber fleck on the top of the rim.
   e.box([0.03, 0.012, 0.018], SHELL_AMBER, [0.0, r, 0.001], 0.002);
@@ -216,7 +226,10 @@ function hyggebriller(m: Model): void {
   }
 }
 
-Object.assign(FACE_BUILDERS, { Skibriller: (m: Model) => skibriller(m), Hyggebriller: (m: Model) => hyggebriller(m) });
+Object.assign(FACE_BUILDERS, {
+  Skibriller: (m: Model) => skibriller(m),
+  Hyggebriller: (m: Model) => hyggebriller(m),
+});
 
 // MARK: Held
 
@@ -231,7 +244,12 @@ const HELD: Record<string, HeldBuilder> = {
     h.box([0.06, 0.02, 0.06], WHITE, [0, 0.058, z], T);
     h.box([0.04, 0.02, 0.04], WHITE, [0, 0.076, z], T);
     h.box([0.02, 0.016, 0.02], WHITE, [0, 0.092, z], T);
-    for (const [x, zz] of [[-0.016, 0.014], [0.02, -0.01], [0.0, -0.022]] as const) h.box([0.008, 0.004, 0.008], PEBER, [x, 0.069, z + zz], 0.001);
+    for (const [x, zz] of [
+      [-0.016, 0.014],
+      [0.02, -0.01],
+      [0.0, -0.022],
+    ] as const)
+      h.box([0.008, 0.004, 0.008], PEBER, [x, 0.069, z + zz], 0.001);
     // The handle, a square C on the right.
     h.box([0.024, 0.014, 0.02], CREAM, [0.054, 0.025, z], T);
     h.box([0.024, 0.014, 0.02], CREAM, [0.054, -0.022, z], T);
@@ -256,9 +274,18 @@ const HELD: Record<string, HeldBuilder> = {
       // Rows of a diamond ring: [x, rowIndex, width in u].
       const rows: [number, number][][] = [
         [[0, 1]],
-        [[-1, 1], [1, 1]],
-        [[-2, 1], [2, 1]],
-        [[-1, 1], [1, 1]],
+        [
+          [-1, 1],
+          [1, 1],
+        ],
+        [
+          [-2, 1],
+          [2, 1],
+        ],
+        [
+          [-1, 1],
+          [1, 1],
+        ],
         [[0, 1]],
       ];
       rows.forEach((row, r) => {
@@ -281,7 +308,14 @@ const HELD: Record<string, HeldBuilder> = {
     h.box([0.072, 0.014, 0.072], "#fbf6ea", [0, 0.056, z], T);
     h.box([0.04, 0.012, 0.04], WHITE, [0, 0.067, z], T);
     h.box([0.03, 0.014, 0.024], GOLD, [0.004, 0.077, z + 0.002], T);
-    for (const [x, zz] of [[-0.03, 0.02], [0.02, -0.03], [-0.012, -0.024], [0.03, 0.026], [-0.036, -0.012]] as const) h.box([0.007, 0.004, 0.007], "#8a4a26", [x, 0.064, z + zz], 0.001);
+    for (const [x, zz] of [
+      [-0.03, 0.02],
+      [0.02, -0.03],
+      [-0.012, -0.024],
+      [0.03, 0.026],
+      [-0.036, -0.012],
+    ] as const)
+      h.box([0.007, 0.004, 0.007], "#8a4a26", [x, 0.064, z + zz], 0.001);
     const sp = h.part([0.03, 0.06, z + 0.012]);
     sp.rotation.z = -0.5;
     sp.box([0.012, 0.1, 0.012], WOOD, [0, 0.03, 0], T);
@@ -426,7 +460,12 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
       const a = new Vx(vpart(arm));
       a.b(i ? 1.45 : -2.85, -7.7, 0.0, 1.4, 1.5, 1.3, RED);
       a.b(i ? 1.7 : -3.1, -6.6, 0.1, 1.4, 0.5, 1.1, RED_DARK);
-      for (const [x, y] of [[-0.3, -6.9], [0.5, -7.5], [-0.3, -8.1]] as const) a.b(x, y, 1.45, 0.45, 0.45, 0.25, CREAM);
+      for (const [x, y] of [
+        [-0.3, -6.9],
+        [0.5, -7.5],
+        [-0.3, -8.1],
+      ] as const)
+        a.b(x, y, 1.45, 0.45, 0.45, 0.25, CREAM);
     });
   },
   // Uldfrakke: a long camel wool coat: wide collar and lapels, dark buttons, a hem that swings, cuffs of dark wool.
@@ -440,7 +479,13 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
       v.b(0.8, y, 2.35, 0.7, 0.7, 0.25, PEBER);
     }
     // A cream shirt V down the chest, narrowing in steps, framed by two broad stepped lapels that fold out from it.
-    for (const [y, hw] of [[7.0, 2.6], [6.2, 2.0], [5.4, 1.5], [4.6, 1.0], [3.8, 0.5]] as const) {
+    for (const [y, hw] of [
+      [7.0, 2.6],
+      [6.2, 2.0],
+      [5.4, 1.5],
+      [4.6, 1.0],
+      [3.8, 0.5],
+    ] as const) {
       v.b(-hw, y, 2.32, hw * 2, 0.8, 0.12, "#e9ddc4");
       v.b(-hw - 1.5, y, 2.3, 1.5, 0.8, 0.5, CAMEL_DARK);
       v.b(hw, y, 2.3, 1.5, 0.8, 0.5, CAMEL_DARK);
@@ -535,7 +580,6 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
 };
 for (const [n, build] of Object.entries(OUTFITS)) OUTFIT_BUILDERS[STALL_BASE + Number(n)] = build;
 
-
 // MARK: Back
 
 const BLANKET = "#b8302c";
@@ -557,9 +601,20 @@ const BACKS: Record<string, BackBuilder> = {
       for (const [k, col] of cols.entries()) {
         const stripe = i % 3 === 1 ? CREAM : i % 3 === 2 ? BLANKET_DARK : col;
         at.box([cw * U, 1.5 * U, 0.8 * U], stripe, [(-w / 2 + cw * (k + 0.5)) * U, -1.5 * U, -0.4 * U]);
-        if (i % 3 === 0) at.box([cw * 0.3 * U, 1.5 * U, 0.85 * U], CREAM, [(-w / 2 + cw * (k + 0.5)) * U, -1.5 * U, -0.4 * U]);
+        if (i % 3 === 0)
+          at.box([cw * 0.3 * U, 1.5 * U, 0.85 * U], CREAM, [
+            (-w / 2 + cw * (k + 0.5)) * U,
+            -1.5 * U,
+            -0.4 * U,
+          ]);
       }
-      if (i === 6) for (let k = 0; k < 16; k++) at.box([0.2 * U, 1.0 * U, 0.3 * U], CREAM, [(-w / 2 + (k + 0.5) * (w / 16)) * U, -2.2 * U, -0.4 * U]);
+      if (i === 6)
+        for (let k = 0; k < 16; k++)
+          at.box([0.2 * U, 1.0 * U, 0.3 * U], CREAM, [
+            (-w / 2 + (k + 0.5) * (w / 16)) * U,
+            -2.2 * U,
+            -0.4 * U,
+          ]);
       steps.push(at);
       at = vpart(at, [0, -1.5 * U, 0]);
     }

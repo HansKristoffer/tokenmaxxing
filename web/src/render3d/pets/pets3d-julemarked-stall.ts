@@ -174,7 +174,6 @@ export function snehare(): Built {
   };
 }
 
-
 // MARK: Pindsvin
 
 /** A hedgehog: a stepped-box back of brown spines, a pale face and snout, tiny dark feet. */
@@ -281,7 +280,9 @@ export function egern(): Built {
   }
   const head = joint(body, [0, 9, 3]);
   const hg = new Grid();
-  hg.box(-3, 3, -3, 3, -2, 3, (c: Cell) => (c.y <= -1 && c.z >= 1 ? BELLY : speckle(c, RUST, RUST_L, 2, 0.2)));
+  hg.box(-3, 3, -3, 3, -2, 3, (c: Cell) =>
+    c.y <= -1 && c.z >= 1 ? BELLY : speckle(c, RUST, RUST_L, 2, 0.2),
+  );
   hg.box(-1, 1, -2, -1, 4, 4, BELLY);
   hg.box(0, 0, 0, 0, 4, 5, "#2a1a14");
   // Ears with long dark tufts.
@@ -382,7 +383,8 @@ export function saelunge(): Built {
         const w = moving ? Math.sin(t * 7) : 0;
         body.position.y = U(Math.abs(w) * 1.2);
         body.rotation.x = w * 0.08;
-        for (const f of flips) f.j.rotation.x = moving ? Math.sin(t * 7 + f.phase) * 0.6 : Math.sin(t * 1.5 + f.phase) * 0.06;
+        for (const f of flips)
+          f.j.rotation.x = moving ? Math.sin(t * 7 + f.phase) * 0.6 : Math.sin(t * 1.5 + f.phase) * 0.06;
         for (const r of rear) r.rotation.y = Math.sin(t * (moving ? 7 : 1.6)) * 0.2;
         head.rotation.y = Math.sin(t * 0.6) * 0.3;
         head.rotation.x = -0.1 + Math.sin(t * 1.1) * 0.06;
