@@ -19,13 +19,14 @@
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
+import { buildJulemarkedBox, buildJulemarkedKey } from "./case-box3d-julemarked.ts";
 import { buildNorseBox, buildNorseKey } from "./case-box3d-norse.ts";
 import type { IconSize } from "./icons.ts";
 import { canvasTexture, glow, Model, painted, ticks, tint, toon } from "./kit/kit.ts";
 
 export type CaseIcon = "closed" | "open" | "key";
 /** `CaseDef.id` of the cases that have their own 3D box and key; anything else draws the Night Market's. */
-export type CaseModelId = "night-market" | "nusantara" | "ragnarok-eve";
+export type CaseModelId = "night-market" | "nusantara" | "ragnarok-eve" | "julemarked";
 
 /** The case whose art is drawn when none is asked for (`CaseDef.id` in core/src/cases.ts). */
 export const DEFAULT_CASE_ID = "night-market";
@@ -513,13 +514,15 @@ function nusantaraKey(): Model {
   return m;
 }
 
-/** The case's chest (closed or open), for the case `id` (`CaseDef.id`); the Night Market's unless it is "nusantara" or "ragnarok-eve". */
+/** The case's chest (closed or open), for the case `id` (`CaseDef.id`); the Night Market's unless it is "nusantara", "ragnarok-eve" or "julemarked". */
 export function buildCaseBox(open: boolean, id: string = DEFAULT_CASE_ID): Model {
   return id === "nusantara"
     ? nusantaraBox(open)
     : id === "ragnarok-eve"
       ? buildNorseBox(open, register)
-      : nightMarketBox(open);
+      : id === "julemarked"
+        ? buildJulemarkedBox(open, register)
+        : nightMarketBox(open);
 }
 
 /** The case's key, for the case `id`: the Night Market's market token on its tassel, the Nusantara's anchor key, or the Ragnarok Eve's. */
@@ -528,7 +531,9 @@ export function buildCaseKey(id: string = DEFAULT_CASE_ID): Model {
     ? nusantaraKey()
     : id === "ragnarok-eve"
       ? buildNorseKey(register)
-      : nightMarketKey();
+      : id === "julemarked"
+        ? buildJulemarkedKey(register)
+        : nightMarketKey();
 }
 
 /** A picture of the case (closed or open) or the key, through the shared icon renderer (3D tiers only). */

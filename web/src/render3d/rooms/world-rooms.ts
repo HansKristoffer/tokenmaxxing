@@ -85,6 +85,12 @@ room(
   },
 );
 
+// The Julemarked's courtyard: an outdoor room of its own (`julemarked3d.ts`), at the map's own origin.
+room(["julemarked"], async () => {
+  const { buildJulemarkedRoom } = await import("./julemarked3d.ts");
+  registerRoomSkin("julemarked", buildJulemarkedRoom);
+});
+
 room(["basement"], async () => {
   const { buildBasement } = await import("./basement3d.ts");
   registerRoomSkin("basement", () => {
@@ -133,6 +139,7 @@ const ALL: MapId[] = [
   "shop-pets",
   "shop-natmarked",
   "shop-market",
+  "julemarked",
   "basement",
   "office",
   "dungeon",

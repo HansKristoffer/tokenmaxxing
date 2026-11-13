@@ -8,7 +8,7 @@
  * The cases themselves are `core/src/cases.ts`; this is only the building. The shelves are the shop's displays
  * in the 2D plan (`SHOPS.natmarked`), and E on any of them opens the case page (`hud/CaseShop.tsx`).
  */
-import { CASE_SHELVES, CASES } from "@tokenmaxxing/core/cases.ts";
+import { CASE_SHELVES, NATMARKED_CASES as CASES } from "@tokenmaxxing/core/cases.ts";
 import { CASE_BOARD_AT, SHOP_INSET } from "@tokenmaxxing/core/shoprooms.ts";
 import * as THREE from "three";
 import { HAIRS, SKINS } from "../../art/palette.ts";

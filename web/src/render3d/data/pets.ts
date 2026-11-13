@@ -68,6 +68,22 @@ export const POND_PET_BASE = 600;
 /** The species that stand at `POND_PET_BASE` and up: only fishing turns them up. */
 export const POND_PET_SPECIES = ["axolotl", "kraken"] as const;
 
+/** `Look.pet` of the first Julemarked pet (`JULEMARKED_BASE` in core/src/case-julemarked.ts); the six follow in order. */
+export const JULEMARKED_PET_BASE = 800;
+/** The species that stand at `JULEMARKED_PET_BASE` and up. */
+export const JULEMARKED_PET_SPECIES = [
+  "roedkaelk",
+  "marcipangris",
+  "nissekat",
+  "julesvaneand",
+  "julebuk",
+  "lygtenisse",
+] as const;
+
+/** `Look.pet` of the first Julemarked stall pet (`STALL_BASE` in core/src/julemarked-shop.ts). */
+export const JULEMARKED_STALL_PET_BASE = 900;
+export const JULEMARKED_STALL_PET_SPECIES = ["graaspurv", "snehare", "pindsvin", "egern", "saelunge"] as const;
+
 /**
  * The case ranges, one entry per case: `Look.pet` from `base` up to `base + species.length` is `species[n - base]`.
  * A later case (the pond's treasures are 600 to 699) adds its own line here and its names to `Species` and `PET_NAME`.
@@ -77,6 +93,8 @@ const CASE_PET_RANGES: readonly { base: number; species: readonly Species[] }[] 
   { base: NUSANTARA_PET_BASE, species: NUSANTARA_PET_SPECIES },
   { base: RAGNAROK_PET_BASE, species: RAGNAROK_PET_SPECIES },
   { base: POND_PET_BASE, species: POND_PET_SPECIES },
+  { base: JULEMARKED_PET_BASE, species: JULEMARKED_PET_SPECIES },
+  { base: JULEMARKED_STALL_PET_BASE, species: JULEMARKED_STALL_PET_SPECIES },
 ];
 
 /** The species of `Look.pet` `n`: the shop's and the loot's by position below 300, each case's from its own base. */
@@ -88,7 +106,11 @@ export const speciesAt = (n: number): Species | undefined => {
   return range && n - range.base < 100 ? range.species[n - range.base] : undefined;
 };
 export type Species =
-  (typeof PET_SPECIES)[number] | (typeof RAGNAROK_PET_SPECIES)[number] | (typeof POND_PET_SPECIES)[number];
+  | (typeof PET_SPECIES)[number]
+  | (typeof RAGNAROK_PET_SPECIES)[number]
+  | (typeof POND_PET_SPECIES)[number]
+  | (typeof JULEMARKED_PET_SPECIES)[number]
+  | (typeof JULEMARKED_STALL_PET_SPECIES)[number];
 
 export const PET_NAME: Record<Species, string> = {
   none: "No pet",
@@ -123,6 +145,17 @@ export const PET_NAME: Record<Species, string> = {
   fenrir: "Fenrir pup",
   axolotl: "Axolotl",
   kraken: "Pocket kraken",
+  roedkaelk: "Rødkælk",
+  marcipangris: "Marcipangris",
+  nissekat: "Nissekat",
+  julesvaneand: "Julesvaneand",
+  julebuk: "Julebuk",
+  lygtenisse: "Lygtenisse",
+  graaspurv: "Gråspurv",
+  snehare: "Snehare",
+  pindsvin: "Pindsvin",
+  egern: "Rødt egern",
+  saelunge: "Sælunge",
 };
 
 /** `Look.petVariant` n is `PET_VARIANTS[species][n - 1]`; 0 is the pet as the shop sells it. */

@@ -7,6 +7,7 @@
 import * as THREE from "three";
 import { seeded } from "../kit/kit.ts";
 import { lit, see } from "./gear3dHead.ts";
+import { registerJulemarkedAuras } from "./gear3dJulemarkedAura.ts";
 
 type Tick = (t: number, walking: boolean) => void;
 export type AuraBuilder = (m: THREE.Object3D, tick: (fn: Tick) => void) => void;
@@ -398,3 +399,7 @@ AURA_BUILDERS["Padi Gold"] = (m, tick) => {
     }
   });
 };
+
+// The Julemarked case's auras (look indices 800 and up) are registered here, not by an import of their own: that file
+// does not import this one back, so there is no cycle.
+registerJulemarkedAuras(AURA_BUILDERS);

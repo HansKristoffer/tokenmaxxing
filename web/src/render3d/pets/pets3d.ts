@@ -12,6 +12,8 @@ import type { Asset } from "../furniture/furniture.ts";
 import { glow, liveModel, Model, toon } from "../kit/kit.ts";
 import { gaitSettled, newGait, stepGait, walkPose } from "../people/motion.ts";
 import { Freezer, TINY_PX, view } from "../perf/freeze.ts";
+import { JULEMARKED_PETS } from "./pets3d-julemarked.ts";
+import { JULEMARKED_STALL_PETS } from "./pets3d-julemarked-stall.ts";
 import { dragon, duck, ghost, goldfish, golem, orb, piggy } from "./pets3d-misc.ts";
 import { crane, kitsune, koi, maneki, tanuki, tengu } from "./pets3d-night.ts";
 import { fenrir, hildisvini, huginn, ratatoskr, sleipnir, tanngrisnir } from "./pets3d-norse.ts";
@@ -172,11 +174,15 @@ export class Pet3D {
   ) {
     const nusantara = (NUSANTARA_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
     const pond = (POND_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
+    const julemarked = ((JULEMARKED_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species] ??
+      (JULEMARKED_STALL_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species]);
     const built = nusantara
       ? nusantara()
       : pond
         ? pond()
-        : species === "duck"
+        : julemarked
+          ? julemarked()
+          : species === "duck"
           ? duck(variant)
           : species === "dragon"
             ? dragon(variant)

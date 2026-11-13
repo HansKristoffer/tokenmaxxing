@@ -48,6 +48,19 @@ export const EXTRA_OUTFITS: Record<number, [string, string, string]> = {
   503: ["#7e8794", "#5d6676", "#3f3a36"],
   504: ["#6b4a2e", "#4a3320", "#3a2a1e"],
   505: ["#aab4c2", "#7a8394", "#26324a"],
+  // The Julemarked case (`core/src/case-julemarked.ts`, from JULEMARKED_BASE = 800): Islandsk sweater, baker's apron,
+  // nisse suit, Dannebrog sweater, julemand suit, Lucia gown.
+  800: ["#f1e6cc", "#d9cdb0", "#3a3f4a"],
+  801: ["#b8302c", "#8f2421", "#4a4038"],
+  802: ["#8a8f98", "#6e737c", "#6e737c"],
+  803: ["#c8102e", "#a50c25", "#3a4252"],
+  804: ["#b8302c", "#8f2421", "#2a2226"],
+  805: ["#f4f0e6", "#e4ddcc", "#e8e2d4"],
+  // The Julemarked's coin stalls (`core/src/julemarked-shop.ts`, from STALL_BASE = 900): Strikket sæt, Uldfrakke, Gul regnjakke, Flonelsskjorte.
+  900: ["#5f7f95", "#486577", "#3a3f4a"],
+  901: ["#a8794a", "#86603a", "#3a3a42"],
+  902: ["#f3c623", "#d19f12", "#2b3a52"],
+  903: ["#c93a34", "#1d1a1c", "#3a4a66"],
   // The prestige tracks (`core/src/prestige.ts`, from PRESTIGE_BASE = 700): Ascendant robes, Nebula suit, Voidwalker
   // armour, Worldbuilder regalia, Prismatic regalia.
   700: ["#6d3fd0", "#4c2a9c", "#3b2478"],

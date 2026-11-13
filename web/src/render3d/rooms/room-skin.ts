@@ -53,6 +53,8 @@ export interface SkinParts {
   shop?: ShopRoom;
   /** The basement's dim light. */
   dim?: boolean;
+  /** An open-air room (the Julemarked's courtyard): the sky, weather and the sun's day apply. */
+  outdoors?: boolean;
   /** The skin's own handles into the room (the Tavern's boards, the basement's screens...), by room. */
   extra: unknown;
   /** Bots whose bodies the room draws itself (the barkeep, the shopkeepers): ids. */
@@ -112,7 +114,7 @@ export function viewOf(
     keepers: parts.keepers,
     shop: parts.shop,
     lights: parts.lights ?? (parts.dim ? (scene, hemi, sun) => dimBasement(scene, hemi, sun) : undefined),
-    outdoors: false,
+    outdoors: parts.outdoors ?? false,
     bounds: { minX: 0, maxX: W, minZ: 0, maxZ: D, height: WALL_H },
     view,
     toWorld: (tx, ty) => [tx - map.x0 + 0.5, ty - map.y0 + 0.5],
@@ -203,6 +205,17 @@ function buildSkinned(id: RoomId, ctx: RoomCtx): RoomView {
             basement.roulette.dispose();
           }
         : undefined,
+    free: built.free,
+  });
+}
+
+/** The Julemarked's courtyard: a skinned room under the open sky (weather, snow, the sun's day). */
+function buildJulemarked(id: RoomId, ctx: RoomCtx): RoomView {
+  const built = worldRoom("julemarked", ctx.map, () => buildRoomSkin("julemarked"));
+  return viewOf(id, ctx.map, built.value, built.ticks, {
+    extra: built.value.skin?.extra ?? null,
+    keepers: new Set(),
+    outdoors: true,
     free: built.free,
   });
 }
@@ -478,5 +491,6 @@ registerRoom("inn", buildSkinned);
 registerRoom("upstairs", buildSkinned);
 registerRoom("basement", buildSkinned);
 registerRoom("dungeon", buildSkinned);
+registerRoom("julemarked", buildJulemarked);
 registerRoom("hq", buildHouse);
 for (const shop of SHOP_IDS) registerRoom(SHOP_ROOM[shop], buildShop);
