@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { KEPT_TABLE, Kept, keptRows, saveAfterActions, unkeepable } from "../src/actors/kept.ts";
+import { KEPT_TABLE, Kept, saveAfterActions } from "../src/actors/kept.ts";
 import type { TxSql } from "../src/actors/shared.ts";
 import { memorySql } from "./memory-sql.ts";
 
@@ -123,16 +123,11 @@ test("a new actor's first value is there when it wakes, and an actor that kept n
   expect((await Kept.load<object>(sql)).value).toEqual({ userId: 7, devices: [{ id: 1 }] });
 });
 
-test("what JSON would change is found by where it is; a missing key and -0 are let through", () => {
-  expect(unkeepable({ a: 1, b: "x", c: null, d: [true, { e: -0 }], f: undefined, g: {} })).toBeNull();
-  expect(unkeepable({ players: { 4: { x: Number.POSITIVE_INFINITY } } })).toBe("players.4.x");
-  expect(unkeepable({ at: Number.NaN })).toBe("at");
-  expect(unkeepable({ list: [1, undefined] })).toBe("list.1");
-  expect(unkeepable({ seen: new Map() })).toBe("seen");
-  expect(unkeepable({ when: new Date(0) })).toBe("when");
-  expect(unkeepable({ id: 12n })).toBe("id");
-  expect(unkeepable({ bytes: new Uint8Array(2) })).toBe("bytes");
-  expect(() => keptRows({ "a/b": 1 })).toThrow("slash");
+test("a key with a slash is refused: read back, it would be an entry under another key", async () => {
+  const { sql, rows } = await database();
+  const kept = await Kept.load<Record<string, unknown>>(sql, [], () => ({ "a/b": 1 }));
+  await expect(kept.save()).rejects.toThrow("slash");
+  expect(rows()).toEqual({});
 });
 
 test("an action's changes are on disk before it answers, also when it throws halfway", async () => {

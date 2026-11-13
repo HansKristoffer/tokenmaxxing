@@ -187,7 +187,6 @@ and breaks a move halfway.
 
 | Work | Why it remains separate | What it would buy |
 | ---- | ----------------------- | ----------------- |
-| Delete the migration | `server/src/migrate/`, the `rivetkit-v2` dependency (about 200 MB of the image) and the old store on the volume, once production has run on RivetKit 3 for a while. | A smaller image, and 20 s off the test suite. |
 
 ## Fourth pass: what RivetKit 3 deprecates, and what it adds
 
@@ -242,6 +241,6 @@ itself, and the move's tests the rows it writes.
 
 | Work | Why it remains separate | What it would buy |
 | ---- | ----------------- | ------- |
-| Delete the migration | As in the third pass: once production has run on RivetKit 3 for a while. | A smaller image, and a minute and a half off the test suite's slowest file. |
+| Delete RivetKit 2's store from the volume | The migration is gone from the code (it was `server/src/migrate/`, in #179); the old store it read is still on the volume, and is the way back to 1.19.0 for as long as it is there. | The disk it takes. |
 | A restore point before each deploy | Forking the namespace copies every actor at one moment, copy-on-write. It needs an engine that has it, and somewhere to say which copy is live. | A way back from a bad migration of ours that doesn't cost a volume restore. |
 | `moves` at 5 Hz when crowded | Unchanged from the third pass: about a tenth of the server's CPU at 300, for others' steps up to 100 ms later. | About 40 more players on this process's core. |
