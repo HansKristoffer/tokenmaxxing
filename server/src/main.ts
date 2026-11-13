@@ -49,7 +49,7 @@ if (existsSync(SITE))
 
 const { ENGINE_PORT, ENGINE_TOKEN, registry } = await import("./actors/registry.ts");
 const { createClient } = await import("rivetkit/client");
-const { pricing, main } = await import("./actors/shared.ts");
+const { isAdminToken, pricing, main } = await import("./actors/shared.ts");
 const { boardsChanged } = await import("./town/boards.ts");
 
 const refreshPricing = async () => {
@@ -98,6 +98,17 @@ const localClient = createClient<typeof registry>({
   disableMetadataLookup: true,
 });
 const health = healthCheck(() => main(localClient).town.health(), config.version);
+
+/**
+ * RivetKit's own numbers in Prometheus' format, for whoever holds `ADMIN_TOKEN`
+ * (`curl -H "authorization: Bearer $ADMIN_TOKEN" …/metrics`): actors awake, connections, and what
+ * RivetKit 3 times of every SQLite statement and transaction, by actor (ours go by the `name` they are
+ * given). Nothing in it is a player's.
+ */
+const metrics = (req: Request) =>
+  isAdminToken(req.headers.get("authorization")?.replace(/^Bearer /i, ""))
+    ? registry.routes.prometheusMetrics(req)
+    : new Response("Not found", { status: 404 });
 
 // The landing page says how many have signed up: counted once a minute, and written into the page's
 // `<!--players-->` as it goes out. Until there's a count (or without a server, in `astro dev`) the
@@ -189,6 +200,7 @@ const server = Bun.serve({
     // Useless without ADMIN_TOKEN: every action it calls checks it (`town`'s admin actions).
     "/admin": html(assets.get("/admin.html"), "admin"),
     "/health": health,
+    "/metrics": metrics,
     "/install.sh": installScript,
     // Company logos, copied from their websites. Sandboxed: an SVG is someone else's markup.
     "/logos/:file": async (req) => {

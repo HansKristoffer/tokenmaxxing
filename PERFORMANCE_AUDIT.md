@@ -156,7 +156,7 @@ on Medium with 40 walkers, on the same GPU-less machine as before.
   `lsof`, so `stopEngine` had been doing nothing there.
 - **The move from RivetKit 2's store** (`server/src/migrate/`). RivetKit 3 does not read it: on the volume as
   it is, the town would have come up empty. The first start copies every actor across and checks every table
-  and every actor's state against what was sent. [ARCHITECTURE.md](ARCHITECTURE.md#serving) has how;
+  against what was sent. [ARCHITECTURE.md](ARCHITECTURE.md#serving) has how;
   [docs/development.md](docs/development.md#the-first-deploy-on-rivetkit-3) what to do before deploying.
 - **The world keeps its joined connections itself** (`vars.tabs`). A send to one player's tabs asked RivetKit
   for every connection, a native call that builds a handle for each: a room change did it for each snapshot.
@@ -180,13 +180,68 @@ Two pairs each, median and range.
 The move, timed on this machine: a town of three players (6 actors, 217 rows) in 3 s; a store of 302 actors
 and 996,000 rows (124 MB) in 97 s, into a new store of 295 MB. `server/test/migrate-v2.test.ts` moves a town
 written by release 1.19.0 itself and asks it the same questions before and after, moves every awkward value
-(integers past a double, reals, blobs, counters of deleted rows, tables without a rowid, state that JSON
-can't carry), and breaks a move halfway.
+(integers past a double, reals, blobs, counters of deleted rows, tables without a rowid, a state of 300 KB),
+and breaks a move halfway.
 
 ### Remaining recommendations
 
 | Work | Why it remains separate | What it would buy |
 | ---- | ----------------------- | ----------------- |
-| Leave what RivetKit 3 deprecates | 3.0 deprecates `c.state`, connection state and `run` as a plain function, all of which the actors use (`world`, `player`, `arcade` and `match` keep their state there; four have a `run` loop). They work in 3.1 and log one warning at start. Their replacements are SQLite for what must last, `c.vars` for the rest, and `onWake` with `c.keepAwake`. | Nothing now. It is the next major's price, and `world`'s state is the big one. |
-| One send per room | The profile at 300 players is 40% sending: a native call for each connection for each event, and `proxy.ts` passing each message on. RivetKit sends a broadcast to the connections subscribed to an event's name, so a room's `moves` could be one call under a name of its own. The game would subscribe per room, and tabs from before would need the old way kept. | Perhaps a tenth of the server's CPU at 300; unmeasured. |
 | Delete the migration | `server/src/migrate/`, the `rivetkit-v2` dependency (about 200 MB of the image) and the old store on the volume, once production has run on RivetKit 3 for a while. | A smaller image, and 20 s off the test suite. |
+
+## Fourth pass: what RivetKit 3 deprecates, and what it adds
+
+From `28e76c2`, in the same pull request as the third pass. Two rows of its table are settled here: the
+actors no longer use anything RivetKit 3 deprecates, and "one send per room" was measured and not built.
+Server numbers as before: `scripts/perf/load.ts`, 300 players walking, runs alternated between two checkouts.
+
+### Implemented
+
+- **The actors keep their own data** (`server/src/actors/kept.ts`). RivetKit 3 deprecates `c.state`,
+  connection state and `run` as a plain function; `world`, `player`, `arcade` and `match` kept everything
+  there, and four had a `run` loop. What an actor keeps is now a plain object in `c.vars`, written to its own
+  SQLite as JSON rows, a row for each key and for each of the world's players, so a save writes what changed.
+  Who a connection is sits in a map filled by `onConnect`; each loop starts in `onWake`.
+  [ARCHITECTURE.md](ARCHITECTURE.md#actors) has how.
+- **What an action changed is on disk before it answers**, in `player`, `arcade` and `match`: a browser
+  session, a table, a move. RivetKit's state was written about a second later. The world still saves once a
+  second, and when it stops.
+- **The move from RivetKit 2 writes those rows itself**, so no actor wakes on RivetKit 3 to state it has
+  to convert, and a value JSON can't hold stops the move while the old town is untouched.
+- **`/metrics`**, for whoever holds `ADMIN_TOKEN`: RivetKit's Prometheus text, which on RivetKit 3 times
+  every SQLite statement and transaction by actor.
+
+### Evidence
+
+Two pairs; every run of one side is below every run of the other.
+
+| 300 walking players | RivetKit's state, behind its proxy | Kept in `c.vars`, saved as rows |
+| ------------------- | ---------------------------------: | ------------------------------: |
+| Server CPU          |                 85.6% [85.2..86.0] |              79.6% [79.3..79.8] |
+| Tick p50 / p99, ms  |                          3.1 / 7.0 |                      2.75 / 5.8 |
+| Round trip p95, ms  |                               15.8 |                            15.0 |
+| Engine CPU          |                              51.8% |                           52.4% |
+
+The world's save is in those numbers: once a second, a transaction of about 9 ms on RivetKit's SQLite
+thread for 100 walkers (from `/metrics`), not on the world's own.
+
+`server/test/restart.test.ts` kills the real server and its engine without warning and starts them again:
+a session made the moment before, an open table and where someone stood a second and a half earlier are all
+there, and so is a step taken the moment before a stop that was asked for. `kept.test.ts` covers the store
+itself, and the move's tests the rows it writes.
+
+### Tried and not kept
+
+| Idea | What was measured | Why not |
+| ---- | ----------------- | ------- |
+| One broadcast per room: a room's `moves` under an event name of its own (`moves/town`), which RivetKit sends to whoever subscribed, in one call instead of one for each connection | Two pairs at 300: tick p50 2.8 → 2.2 ms, server CPU 81.7% → 80.9% [80.4..81.3 against 81.1..82.3] | The tick is shorter and the process no cheaper: the work is in sending to 300 sockets, wherever the loop over them runs. It would also let any connection subscribe to any room's name. |
+| Forking an actor (new in RivetKit 3) as a restore point for `town` | On this server: 373 ms for a town of 150 players, 2.7 MB more on disk (it is copy-on-write), and the copy and the original stay apart | The copy is a second live `town`: it has the original's timers, anyone can reach it by its key, and what it does reaches the one `world`. A restore point wants the whole store, and forking a namespace is not in 3.1.1's engine yet (the request is refused). `proxy.ts` never forwarded forks; a test now says so. |
+| RivetKit 3's SQLite profiling, to find a slow query | One load run, 100 walkers and 200 others: 9.5 s of SQLite in 14,800 operations, 73% of it in `player` | Nothing to fix. A player's first wake is the cost: its migrations run in a 9 ms transaction, and it is paid once per player per deploy. `town`'s statements are 1 to 2 ms each. It stays reachable at `/metrics`. |
+
+### Remaining recommendations
+
+| Work | Why it remains separate | What it would buy |
+| ---- | ----------------- | ------- |
+| Delete the migration | As in the third pass: once production has run on RivetKit 3 for a while. | A smaller image, and a minute and a half off the test suite's slowest file. |
+| A restore point before each deploy | Forking the namespace copies every actor at one moment, copy-on-write. It needs an engine that has it, and somewhere to say which copy is live. | A way back from a bad migration of ours that doesn't cost a volume restore. |
+| `moves` at 5 Hz when crowded | Unchanged from the third pass: about a tenth of the server's CPU at 300, for others' steps up to 100 ms later. | About 40 more players on this process's core. |

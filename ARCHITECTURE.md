@@ -11,7 +11,7 @@ Tokenmaxxing.app (Tauri v2, app/desktop)             server (one Railway service
 │    parses logs, player.ingest()                     ├─ /play           the game (web/, bundled at boot)
 │                                                     ├─ /admin          the admin page (web/admin.html)
 │                                                     ├─ /logos/:file    company logos (sandboxed)
-├─ game window: Canvas 2D world + React HUD           ├─ /health
+├─ game window: Canvas 2D world + React HUD           ├─ /health, /metrics (ADMIN_TOKEN)
 │    (the live page, over WebSocket) ◄─────────────►  └─ /api/rivet/*    proxy to the Rivet engine (gateway only)
 └─ Keychain, login item, updater                      Rivet engine on 127.0.0.1, actors in this process,
                                                       storage on the /data volume
@@ -52,7 +52,11 @@ The game draws through a `Renderer`; on Medium and up that is a Three.js voxel r
 - `main.ts` bundles the game with `Bun.build`, _then_ starts the registry. Once RivetKit's native runtime is
   up, Bun's HTML bundler fails in the same process, so there's no hot reload: restart `bun run dev`.
 - `registry.start()` runs the Rivet engine on `127.0.0.1`. `proxy.ts` forwards only the client gateway
-  (`/api/rivet/gateway/*` and `/metadata`, HTTP and WebSocket); the engine's admin API is never exposed.
+  (`/api/rivet/gateway/*` and `/metadata`, HTTP and WebSocket); the engine's admin API is never exposed,
+  so nobody outside lists actors, learns an id or copies one (RivetKit 3's fork).
+- `/metrics` is RivetKit's own numbers as Prometheus text, for a request with `ADMIN_TOKEN` as its bearer
+  token and a 404 for any other: actors awake, connections, and the time of each SQLite statement and
+  transaction by actor. A transaction of ours is listed under a hash of the `name` it is given.
 - The gateway would let a browser create any actor, with any key and input. `gatewayAllowed` lets through
   only existing actors (by id, or `get` by key) and `getOrCreate(["main"])` of `town`, `world` and `arcade`,
   with no input. The actors check too: `player` and `match` refuse to be created without `INTERNAL_KEY` in
@@ -75,10 +79,13 @@ The game draws through a `Renderer`; on Medium and up that is a Three.js voxel r
   `engine/migrated-from-v2.json`. `export.ts` runs on RivetKit 2 (the `rivetkit-v2` dependency) with its
   engine on the old store, `import.ts` on RivetKit 3 with its engine on the new one, and frames go from one to
   the other through a FIFO. Both register a courier (`courier.ts`) under each actor's name: an actor with no
-  code of ours, so nothing wakes, ticks or migrates while it is read. What moves is each actor's state and
-  every table its code made, rows as SQL literals from SQLite's own `quote`; RivetKit's tables (`_rivet_*`)
-  stay behind, and `town` sets its sweep timer again when it wakes. Every table is read back and its digest
-  compared with the one sent, and the state too. `/health` answers `{ migrating: true }` meanwhile, so
+  code of ours, so nothing wakes, ticks or migrates while it is read. What moves is every table an actor's
+  code made, rows as SQL literals from SQLite's own `quote`, and its RivetKit 2 state, which arrives as the
+  rows of the `kept` table the actors read now (see _Actors_). A state JSON would change (an `Infinity`, a
+  `Map`) stops the move there, with the old town untouched, rather than waking an actor to something else
+  than it kept. RivetKit's tables (`_rivet_*`) stay behind, and `town` sets its sweep timer again when it
+  wakes. Every table is read back and its digest compared with the one sent. `/health` answers
+  `{ migrating: true }` meanwhile, so
   Railway doesn't fail a deploy that takes longer than its five minutes; everything else is a 503. Our
   tables in the old store are never written, and it stays where it is: the previous release still starts on
   it. A move that fails leaves no new store and the next start begins again; a new store that no move made
@@ -172,6 +179,23 @@ A second computer running agents syncs into the same player.
 
 ## Actors
 
+Three things RivetKit used to do for an actor, and deprecates in 3, the actors do themselves
+(`server/src/actors/kept.ts` and `shared.ts`):
+
+- **What an actor keeps** between wakes is one plain object in `c.vars.state`, written to the actor's own
+  SQLite as JSON (`Kept`): a row for each top-level key, and for `world` a row for each player, so a save
+  writes the rows that changed. Which those are it finds by comparing each row's JSON with what it last
+  wrote, so nothing that changes the object has to say so. `player`, `arcade` and `match` save before each
+  action answers (`saveAfterActions`) and after each turn of their loop: what a caller was told is on disk.
+  `world` saves once a second from its tick, and when it goes to sleep. It holds only what JSON does.
+- **Who a connection is** (`Caller`) is in `c.vars.callers`, by connection id: `onConnect` authenticates
+  and puts it there, `onDisconnect` takes it out, and an action reads it with `callerOf(c)`. A call that
+  isn't over a socket is a connection for as long as it runs, and goes through both. A refused token throws
+  in `onConnect`, which reaches the client as the same `unauthorized`.
+- **A loop** (the world's tick, the arcade's sweep, a match's clock, a player's repairs after a wake) is
+  started in `onWake` and kept in `c.vars.loop` (`background`); it ends when `c.abortSignal` fires, and
+  `onSleep` waits for it and saves.
+
 **`player[userId]`**: raw events (SQLite, deduplicated), devices (the app and linked computers), sessions,
 login codes and link codes. Events from every device land in the same table, so a linked computer's usage
 counts everywhere with nothing else to add up. `ingest` stores a
@@ -244,20 +268,19 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   taken drop in the bag (`pickUp`), and for every floor and office lock (`seed`) when it starts, and for
   everyone too when it starts from nothing.
 
-**`world["main"]`**: everything live, in actor state, with chat in SQLite (last 200 lines per room; the 50 a snapshot carries are kept in memory once one has asked, `chatOf`) and the model graveyard's plots (`graveyard.ts`).
+**`world["main"]`**: everything live, in memory and saved once a second (above), with chat in SQLite (last 200 lines per room; the 50 a snapshot carries are kept in memory once one has asked, `chatOf`) and the model graveyard's plots (`graveyard.ts`).
 
 - A 10 Hz tick sends each room its `moves`, and who's inside each house (`houses`, for town) when it changes.
   Head counts (`occupancy`) go to every connection, so at most once a second: sent every tick, a burst of joins
   stalled the world at 300 connections. Someone's `info` (look, tokens today, agents, coffee, online) goes only
   to their own tabs and whoever is in their room: the game reads it for nobody else, and sent to everyone,
   each player's sync and each join went to every tab.
-- **What a tick costs.** RivetKit hands out `c.state` behind a write-through proxy, and `c.state`, `c.vars`,
-  `c.conns` and `conn.id` are each a call into its native side (`c.conns` builds a handle for every
-  connection). So the world reads its state plain (`peek`, from `rawState` in `actors/shared.ts`; writes still
-  go through `c.state`), keeps the joined connections itself (`vars.tabs`, filled by `join` and emptied by
-  `onDisconnect`; `listeners` adds each one's room) instead of asking RivetKit for them on every send, and
-  reads a caller with `callerOf` rather than the proxy `conn.state` builds on every read. When a player last
-  did anything is kept in memory (`lastInput`), not written to state on every step.
+- **What a tick costs.** `c.vars`, `c.conns` and `conn.id` are each a call into RivetKit's native side
+  (`c.conns` builds a handle for every connection). So the world keeps the joined connections itself
+  (`vars.tabs`, filled by `join` and emptied by `onDisconnect`; `listeners` adds each one's room) instead of
+  asking RivetKit for them on every send. What it keeps is a plain object: RivetKit's state was a
+  write-through proxy, which made every read and write in a tick a trap. When a player last did anything
+  is in memory only (`lastInput`), not kept, where it would be a row written on every step.
 - **`moves` are written once per room.** A client that joins with `join(MOVES_TEXT)` gets each tick's moves as
   text (`writeMoves` / `readMoves` in `core/world.ts`: joins and leaves as JSON on the first line, then every
   position as `id,x,y,` and a letter each for facing and state). An event object is encoded again for every
@@ -265,7 +288,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   after a deploy, joins without the argument and gets the object as before.
 - **This process's one core is the limit.** On RivetKit 2 it was the engine: every message cost it so much
   that 200 walking players took 13 of its cores and 300 dropped connections. On RivetKit 3 the engine uses
-  half a core for 300, and what runs out first is the world's own thread: 90% of a core at 300 walking players
+  half a core for 300, and what runs out first is the world's own thread: 80% of a core at 300 walking players
   (15 messages a second each: `moves` every tick, their step's answer, `occupancy`, chat), most of it sending,
   a quarter of that in `proxy.ts` passing every message on. `bun scripts/perf/load.ts` measures it.
 - Actions: `join`, `step` (one adjacent walkable tile, no faster than running; doors change room), `turn` (face a
@@ -283,7 +306,7 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
   `stargazers_count` (`github-stars.ts`) and sends `stars` (the count and the last milestone's show) when it
   changes, and on `join`. Passing a milestone (100, 250, 500, 1000, 2500…) puts a show in it, which every client
   turns into the same fireworks over the square (`core/fireworks.ts`), and the town says so in its chat. The
-  count and the last milestone celebrated are in state, so a restart, or a count that dips under a milestone
+  count and the last milestone celebrated are kept, so a restart, or a count that dips under a milestone
   and comes back, never sets one off twice; the first read ever only notes the milestone already passed.
   Fireworks on the clock alone (a holiday) need no server: add a source in `web/src/game/fireworks.ts`, and
   both renderers draw it (`drawFireworks` on the 2D canvas, `Fireworks3d` in the 3D town's sky). `?fireworks`

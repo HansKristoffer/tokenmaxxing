@@ -136,7 +136,7 @@ Architecture, the `Renderer` interface, the perf budgets and how to profile are 
 | `NODE_ENV`                 |                      | `production` minifies the game                                                                                                                                                                                                              |
 | `FIRECRAWL_API_KEY`        |                      | Reads company websites. Without it, a website only goes on the sign                                                                                                                                                                         |
 | `ANTHROPIC_API_KEY`        |                      | Turns a website's brand into house colours. Without it, the site's own colours are used                                                                                                                                                     |
-| `ADMIN_TOKEN`              |                      | Turns on the admin page at `/admin#token=<it>` (32+ characters: `openssl rand -hex 32`). Without it, the page lets nobody in                                                                                                                |
+| `ADMIN_TOKEN`              |                      | Turns on the admin page at `/admin#token=<it>` (32+ characters: `openssl rand -hex 32`), and `/metrics` for a request with it as bearer token. Without it, neither lets anybody in                                                          |
 | `CLIENT_IP_HEADER`         | `x-real-ip`          | Where the client's IP is, for per-IP limits. Railway's edge sets `x-real-ip`                                                                                                                                                                |
 | `GATEWAY_REQUESTS_PER_MIN` | `1200`               | Requests to the actors per client IP a minute                                                                                                                                                                                               |
 | `GATEWAY_SOCKETS_PER_MIN`  | `300`                | New WebSockets per client IP a minute                                                                                                                                                                                                       |
@@ -182,7 +182,10 @@ what happens afterwards, so:
    game answers 503. Measured here: 302 actors and a million rows in 97 s; a town of three players in 3 s.
 4. **If it fails**, the process exits and Railway starts it again (ten tries), each from the beginning:
    a failed move leaves no new store. The error names the table or actor. The town is not served half-moved.
-   A move that says nothing for 15 minutes is stopped the same way.
+   A move that says nothing for 15 minutes is stopped the same way. One failure is not worth retrying:
+   `player 7 keeps never.1 that JSON can't hold` means an actor's RivetKit 2 state has a value (an
+   `Infinity`, a `Map`) the new tables can't store as it is. Nothing was changed: go back (5), and decide
+   in code what that value becomes.
 5. **To go back**, redeploy the previous release: it starts on the old store, as the town was when it
    moved. What happened on RivetKit 3 since is not in it.
 
