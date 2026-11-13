@@ -66,7 +66,7 @@ describe("the shops", () => {
     expect(steps.at(-1)).toMatchObject({ room: "julemarked" });
     await eventually(() => expect(c.events.snapshots.at(-1)!.room).toBe("julemarked"));
     const opened = await u.town.openCase("julemarked");
-    expect(opened.wallet.balance).toBe(850);
+    expect(opened.wallet.balance).toBe(900);
     // The market sells only its own case: the Night Market's is opened at Natmarked.
     await expect(u.town.openCase("night-market")).rejects.toMatchObject({ code: "not_in_shop" });
     await c.conn.dispose();

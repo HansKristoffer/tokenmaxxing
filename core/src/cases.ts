@@ -100,7 +100,7 @@ export const CASES: readonly CaseDef[] = [
     shop: "julemarked",
     name: "Julemarked case",
     blurb: "Nisser, gløgg, paper hearts and candles from a Danish Christmas market.",
-    keyPrice: 150,
+    keyPrice: 100,
     odds: STANDARD_ODDS,
     rareWithin: 10,
     dupeRerolls: 1,

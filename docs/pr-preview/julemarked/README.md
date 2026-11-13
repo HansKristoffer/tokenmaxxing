@@ -21,7 +21,7 @@ Local browser captures (2D is the low graphics tier, 3D the high tier, in the vo
 
 | Shop | 2D | 3D |
 | --- | --- | --- |
-| Nissens bod (the case, 75 coins) | ![Nissens bod (the case, 75 coins) in 2D](shops/2d-nissen.png) | ![Nissens bod (the case, 75 coins) in 3D](shops/3d-nissen.png) |
+| Nissens bod (the case, 100 coins) | ![Nissens bod (the case, 75 coins) in 2D](shops/2d-nissen.png) | ![Nissens bod (the case, 75 coins) in 3D](shops/3d-nissen.png) |
 | Julegodter | ![Julegodter in 2D](shops/2d-godter.png) | ![Julegodter in 3D](shops/3d-godter.png) |
 | Julepynt | ![Julepynt in 2D](shops/2d-pynt.png) | ![Julepynt in 3D](shops/3d-pynt.png) |
 

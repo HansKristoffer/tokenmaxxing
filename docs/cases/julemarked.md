@@ -21,7 +21,7 @@ Americanised Santa-and-reindeer one. Night Market is neon and lacquer, Nusantara
 this is wool, candlelight and red-and-white paper.
 
 - Case name: **Julemarked case**. Id `julemarked`. Blurb: "Nisser, gløgg, paper hearts and candles from a Danish Christmas market."
-- Key price 150 (the others cost 100), odds 0.475 / 0.25 / 0.15 / 0.10 / 0.025, `rareWithin` 10, `dupeRerolls` 1 (`STANDARD_ODDS`, as every case).
+- Key price 100 (as Nusantara and Ragnarok Eve; the Night Market is 75), odds 0.475 / 0.25 / 0.15 / 0.10 / 0.025, `rareWithin` 10, `dupeRerolls` 1 (`STANDARD_ODDS`, as every case).
   Pool = 30 wearables + 6 pieces = 36 items.
 
 ## Look-index ranges
