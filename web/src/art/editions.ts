@@ -1,6 +1,7 @@
 import { caseAt } from "@tokenmaxxing/core/case.ts";
 import { costumeAt } from "@tokenmaxxing/core/costumes.ts";
 import { editionAt } from "@tokenmaxxing/core/editions.ts";
+import { stallAt } from "@tokenmaxxing/core/julemarked-shop.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { CANDLE_HAT, FLAT_CAP } from "./befrielsen-hats.ts";
@@ -219,7 +220,7 @@ const GLASSES: Record<string, Art> = {
 };
 
 const artOf = (slot: "hat" | "glasses", index: number): Art | undefined => {
-  const e = editionAt(slot, index) ?? costumeAt(slot, index) ?? caseAt(slot, index);
+  const e = editionAt(slot, index) ?? costumeAt(slot, index) ?? caseAt(slot, index) ?? stallAt(slot, index);
   // The cases' hats and glasses (the Night Market's and the Nusantara's) are drawn in `case.ts`.
   return e && ((slot === "hat" ? HATS : GLASSES)[e.id] ?? (slot === "hat" ? CASE_HATS : CASE_GLASSES)[e.id]);
 };

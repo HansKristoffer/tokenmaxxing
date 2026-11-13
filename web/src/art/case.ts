@@ -1,6 +1,8 @@
+import { JULEMARKED_GLASSES, JULEMARKED_HATS } from "./case-julemarked.ts";
 import { RAGNAROK_GLASSES, RAGNAROK_HATS } from "./case-ragnarok.ts";
 import type { Art } from "./editions.ts";
 import { FISHING_HATS } from "./fishing-loot.ts";
+import { STALL_GLASSES, STALL_HATS } from "./julemarked-stall-wear.ts";
 import { C } from "./palette.ts";
 import { PRESTIGE_HATS } from "./prestige.ts";
 
@@ -117,3 +119,10 @@ Object.assign(CASE_GLASSES, RAGNAROK_GLASSES);
 Object.assign(CASE_HATS, FISHING_HATS);
 // And the prestige tracks' (`prestige.ts`, ids from `PRESTIGE_BASE`).
 Object.assign(CASE_HATS, PRESTIGE_HATS);
+
+// So are the Julemarked's (`case-julemarked.ts`).
+Object.assign(CASE_HATS, JULEMARKED_HATS);
+Object.assign(CASE_GLASSES, JULEMARKED_GLASSES);
+// And the Julemarked coin stalls' (`julemarked-stall-wear.ts`, indices from `STALL_BASE`).
+Object.assign(CASE_HATS, STALL_HATS);
+Object.assign(CASE_GLASSES, STALL_GLASSES);

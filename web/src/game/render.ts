@@ -161,6 +161,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.fillStyle = typedSwitch(map.id, {
     town: () => C.leafInk,
+    julemarked: () => C.leafInk,
     basement: () => "#100e1e",
     dungeon: () => "#110f16",
     ...typedSwitchGroup(
@@ -184,7 +185,8 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   g.fillRect(0, 0, w, h);
   g.imageSmoothingEnabled = false;
   g.setTransform(scale, 0, 0, scale, -camX * scale, -camY * scale);
-  const outdoors = map.id === "town";
+  // The Julemarked's courtyard is outdoors too: sky, weather and snow.
+  const outdoors = map.id === "town" || map.id === "julemarked";
   // The weather once a frame, for the trees leaning in the wind.
   const weather = outdoors ? weatherNow() : null;
   // Snow (town only): twins of the baked ground and sprites, cross-faded while it settles or melts.

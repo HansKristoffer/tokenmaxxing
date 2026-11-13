@@ -4,6 +4,8 @@ import { danceAt } from "@tokenmaxxing/core/dances.ts";
 import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { dateLabel, HOLIDAYS } from "@tokenmaxxing/core/holidays.ts";
 import { homePieceOf } from "@tokenmaxxing/core/home.ts";
+import { STALLS } from "@tokenmaxxing/core/julemarked.ts";
+import { type ShopStallId, STALL_HELLO, STALL_TABS } from "@tokenmaxxing/core/julemarked-shop.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { withPieces } from "@tokenmaxxing/core/office.ts";
 import { petOutfit } from "@tokenmaxxing/core/pets.ts";
@@ -53,18 +55,24 @@ const TABS = [
  * The Shop page: only ever the goods of the shop you stand in (its tabs, its keeper, "Leave"). Out in the
  * street there is no shop to open: the directory shows the way instead.
  */
-export function Shop(props: { tab?: ShopPageTab }) {
+export function Shop(props: { tab?: ShopPageTab; stall?: ShopStallId }) {
   const shop = useHud((s) => shopOfRoom(s.room));
+  const inMarket = useHud((s) => s.room === "julemarked");
+  // A Julemarked stall (E on its tile): its own goods, bought inside the market.
+  if (inMarket && props.stall) return <ShopPage shop={null} {...props} />;
   return shop ? <ShopPage shop={shop} {...props} /> : <ShopDirectory />;
 }
 
-function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
+function ShopPage({ shop, stall, tab: first }: { shop: ShopId | null; stall?: ShopStallId; tab?: ShopPageTab }) {
   const me = useHud((s) => s.me);
-  const [hello] = useState(() => greeting(shop, Math.floor(Math.random() * 8)));
+  const name = stall ? STALLS.find((s) => s.id === stall)!.name : SHOPS[shop!].name;
+  const [hello] = useState(() =>
+    stall ? STALL_HELLO[stall] : greeting(shop!, Math.floor(Math.random() * 8)),
+  );
   const tabs = [
-    ...TABS.filter(([t]) => (SHOP_TABS[shop] as readonly string[]).includes(t)),
+    ...TABS.filter(([t]) => ((stall ? STALL_TABS[stall] : SHOP_TABS[shop!]) as readonly string[]).includes(t)),
     // Company supplies are for company members: the owner orders, the rest see what is stored.
-    ...(shop === "furniture" && me?.company ? ([["company", "🏢 Company"]] as const) : []),
+    ...(!stall && shop === "furniture" && me?.company ? ([["company", "🏢 Company"]] as const) : []),
   ];
   const wallet = useHud((s) => s.wallet);
   const opened = useHud((s) => (s.panel?.kind === "shop" ? s.panel.tab : undefined));
@@ -85,7 +93,7 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
     void refreshWallet().catch(fail);
     void town.bag().then(setBag, fail);
   }, []);
-  if (!me || !wallet) return <Modal title={`🛍 ${SHOPS[shop].name}`}>{failed ?? "Loading…"}</Modal>;
+  if (!me || !wallet) return <Modal title={`🛍 ${name}`}>{failed ?? "Loading…"}</Modal>;
 
   // The first one bought goes on; another is for trading.
   const buy = (item: Item) =>
@@ -96,7 +104,7 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
     });
 
   return (
-    <Modal title={`🛍 ${SHOPS[shop].name}`} wide>
+    <Modal title={`🛍 ${name}`} wide>
       <div className="shop-top">
         <p className="shop-hello">{hello}</p>
         <div className="shop-bar">
@@ -126,6 +134,8 @@ function ShopPage({ shop, tab: first }: { shop: ShopId; tab?: ShopPageTab }) {
           {ITEMS.filter(
             (i) =>
               i.slot === tab &&
+              // A stall page lists that stall's goods; the shops never list a stall's.
+              (stall ? i.stall === stall : !i.stall) &&
               !editionById(i.id) &&
               !i.earned &&
               !i.company &&

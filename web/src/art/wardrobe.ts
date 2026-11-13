@@ -2,9 +2,11 @@ import type { Item } from "@tokenmaxxing/core/shop.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { typedSwitch } from "hanzio";
 import { CASE_BACKS, CASE_HELD, CASE_OUTFITS } from "./case-body.ts";
+import { JULEMARKED_BACKS, JULEMARKED_HELD, JULEMARKED_OUTFITS } from "./case-julemarked-body.ts";
 import { RAGNAROK_BACKS, RAGNAROK_HELD, RAGNAROK_OUTFITS } from "./case-ragnarok-body.ts";
 import type { Pose, View } from "./characters.ts";
 import { FISHING_BACKS, FISHING_HELD } from "./fishing-loot.ts";
+import { STALL_BACKS, STALL_HELD, STALL_OUTFITS } from "./julemarked-stall-wear.ts";
 import { C } from "./palette.ts";
 import { bake, type Palette, type Pen } from "./pixels.ts";
 import { PRESTIGE_BACKS, PRESTIGE_OUTFITS } from "./prestige.ts";
@@ -672,6 +674,14 @@ Object.assign(BACKS, CASE_BACKS);
 Object.assign(OUTFITS, RAGNAROK_OUTFITS);
 Object.assign(HELD, RAGNAROK_HELD);
 Object.assign(BACKS, RAGNAROK_BACKS);
+// And the Julemarked (`case-julemarked-body.ts`, indices from `JULEMARKED_BASE`).
+Object.assign(OUTFITS, JULEMARKED_OUTFITS);
+Object.assign(HELD, JULEMARKED_HELD);
+Object.assign(BACKS, JULEMARKED_BACKS);
+// The Julemarked coin stalls' (`julemarked-stall-wear.ts`, indices from `STALL_BASE`).
+Object.assign(OUTFITS, STALL_OUTFITS);
+Object.assign(HELD, STALL_HELD);
+Object.assign(BACKS, STALL_BACKS);
 // The pond treasures (`fishing-loot.ts`, indices from `FISHING_BASE`) too.
 Object.assign(HELD, FISHING_HELD);
 Object.assign(BACKS, FISHING_BACKS);

@@ -15,6 +15,7 @@
  * baseline, so swapping them in place makes the lid pop open. `CASE_BOX_FRAMES` is how many frames animate.
  */
 
+import { drawJulemarkedBox } from "./case-julemarked-box.ts";
 import { drawRagnarokBox } from "./case-ragnarok-box.ts";
 import { C } from "./palette.ts";
 import { bake, type Pen } from "./pixels.ts";
@@ -429,6 +430,7 @@ const OTHER_CASES: Record<string, (p: Pen, kind: CaseBoxKind, frame: number) => 
   nusantara: (p, kind, frame) =>
     kind === "closed" ? drawNusClosed(p) : kind === "open" ? drawNusOpen(p, frame) : drawNusKey(p),
   "ragnarok-eve": drawRagnarokBox,
+  julemarked: drawJulemarkedBox,
 };
 
 /**

@@ -1,11 +1,13 @@
 import { ALL_CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
 import type { DecorKind } from "@tokenmaxxing/core/decor.ts";
 import { HOME_PIECES } from "@tokenmaxxing/core/home.ts";
+import { JULE_GATE_DOOR } from "@tokenmaxxing/core/julemarked.ts";
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { isPoster, POSTERS } from "@tokenmaxxing/core/posters.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { typedSwitch, typedSwitchGroup } from "hanzio";
 import { stairs } from "./basement.ts";
+import { julemarkedWall } from "./julemarked.ts";
 import { C } from "./palette.ts";
 import { bake, cached, hash, Pen } from "./pixels.ts";
 
@@ -35,6 +37,8 @@ const GROUND: Record<string, Ground> = {
     [...HOME_PIECES, ...ALL_CASE_PIECES].filter((p) => p.wall).map((p) => [p.ch, "wall" as const]),
   ),
   ",": "path",
+  // The Julemarked gate's opening stands on the path.
+  [JULE_GATE_DOOR]: "path",
   ":": "plaza",
   '"': "flowers",
   "~": "water",
@@ -91,6 +95,7 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
   if (best) return best;
   return typedSwitch(map.id, {
     town: () => "grass",
+    julemarked: () => "plaza",
     dungeon: () => "stone",
     ...typedSwitchGroup(
       map.id,
@@ -365,6 +370,11 @@ function stage(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: numbe
 }
 
 function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
+  // The Julemarked's courtyard wall is brick, snow-capped; its face is the row with ground below it.
+  if (map.id === "julemarked") {
+    julemarkedWall(p, ox, oy, x, y, map.at(x, y + 1) !== "W" && map.contains(x, y + 1));
+    return;
+  }
   const dark = map.id === "dungeon";
   const top = dark ? DUNGEON.wallTop : C.wallTop;
   const topLight = dark ? DUNGEON.wallTopLight : C.wallTopLight;
@@ -489,7 +499,8 @@ function exit(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
     stairTile(p, ox, oy, x, y, map.id !== "basement");
     return;
   }
-  if (map.id === "dungeon") stone(p, ox, oy, x, y);
+  if (map.id === "julemarked") plaza(p, ox, oy, x, y);
+  else if (map.id === "dungeon") stone(p, ox, oy, x, y);
   else floor(p, ox, oy, x, y, map.decor?.floor);
   p.rect(ox, oy, 2, TILE, C.woodDark);
   p.rect(ox + TILE - 2, oy, 2, TILE, C.woodDark);

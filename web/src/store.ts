@@ -1,7 +1,9 @@
+import type { CaseShopId } from "@tokenmaxxing/core/cases.ts";
 import type { Barrel } from "@tokenmaxxing/core/fastelavn.ts";
 import type { GameId } from "@tokenmaxxing/core/games/types.ts";
 import type { Frame, Lobby, MatchChatLine } from "@tokenmaxxing/core/games/wire.ts";
 import type { JukeboxNow } from "@tokenmaxxing/core/jukebox.ts";
+import type { ShopStallId } from "@tokenmaxxing/core/julemarked-shop.ts";
 import type { LootNews } from "@tokenmaxxing/core/loot.ts";
 import type { Listing, MyMarket, Sale } from "@tokenmaxxing/core/market.ts";
 import type { Card, PokerState } from "@tokenmaxxing/core/poker.ts";
@@ -29,10 +31,10 @@ export type Panel =
   | { kind: "company" }
   | { kind: "companyShop" }
   | { kind: "merch"; companyId: number }
-  | { kind: "shop"; tab?: ShopPageTab }
+  | { kind: "shop"; tab?: ShopPageTab; stall?: ShopStallId }
   | { kind: "shops" }
   /** Natmarked's counter and shelves: the cases on sale (`hud/CaseShop.tsx`). `shelf`: the one E was pressed on, whose case it opens on. */
-  | { kind: "caseShop"; shelf?: number }
+  | { kind: "caseShop"; shelf?: number; shop?: CaseShopId }
   /** Natmarked’s entrance board: available only while inside the hall. */
   | { kind: "caseLeaderboard" }
   /** Torvehallen's counter: what is on display (the default), or my own shelf and sales (`hud/Market.tsx`). */
