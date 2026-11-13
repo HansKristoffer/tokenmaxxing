@@ -13,7 +13,7 @@ import { takePhoto } from "../game/stage.ts";
 import { roomName, world } from "../game/world.ts";
 import { redeem } from "../net.ts";
 import { storage } from "../storage.ts";
-import { chatBeside, FIRST_VISIT_KEY, hud, useHud } from "../store.ts";
+import { chatBeside, FIRST_VISIT_KEY, hud, type Panel as PanelState, useHud } from "../store.ts";
 import { AppSignIn } from "./AppSignIn.tsx";
 import { AppUpdate, tauri } from "./AppUpdate.tsx";
 import { ArcadePanel, GamesBox, InviteToast, NewTable } from "./Arcade.tsx";
@@ -73,7 +73,7 @@ import { TombstonePanel } from "./Tombstone.tsx";
 import { Tournament } from "./Tournament.tsx";
 import { TradePanel, TradesPanel } from "./Trades.tsx";
 import { Trophies } from "./Trophies.tsx";
-import { Modal, ToastButton, useFresh, useNarrow, useRun } from "./ui.tsx";
+import { Counted, Modal, ToastButton, useFresh, useNarrow, useRun } from "./ui.tsx";
 import { ChangelogPanel, WhatsNewToast } from "./WhatsNew.tsx";
 
 export function Hud() {
@@ -320,7 +320,10 @@ function Stats() {
             aria-label={`Wallet: ${wallet.balance} coins`}
             onClick={() => hud.set({ panel: { kind: "bag" } })}
           >
-            🪙 <strong>{wallet.balance.toLocaleString()}</strong>
+            🪙{" "}
+            <strong>
+              <Counted value={wallet.balance} />
+            </strong>
           </button>
         )}
         {wallet && wallet.streak > 1 && (
@@ -401,7 +404,12 @@ const MENTION_MS = 8000;
 function Banner() {
   const banner = useHud((s) => s.banner);
   if (!useFresh(banner?.at, BANNER_MS) || !banner) return null;
-  return <div className="banner">{banner.text}</div>;
+  // A new room while the last one's name is still up starts over, not mid-fade.
+  return (
+    <div key={banner.at} className="banner">
+      {banner.text}
+    </div>
+  );
 }
 
 function Dialog() {
@@ -430,6 +438,16 @@ function PieceHint() {
 function Panel() {
   const panel = useHud((s) => s.panel);
   const inMyOffice = useHud((s) => s.room === `office:${world.selfId}`);
+  return (
+    <>
+      {/* The world dims behind a panel: one element for them all, so it fades in and out (hud.css `.dim`). */}
+      <div className={panel ? "dim on" : "dim"} aria-hidden="true" />
+      {panelOf(panel, inMyOffice)}
+    </>
+  );
+}
+
+function panelOf(panel: PanelState | null, inMyOffice: boolean) {
   return typedSwitch(panel, "kind", {
     null: () => null,
     leaderboard: () => <Leaderboard />,
