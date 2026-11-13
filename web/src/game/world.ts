@@ -36,6 +36,7 @@ import { bakeGround, repaintGround } from "../art/tiles.ts";
 import { storage } from "../storage.ts";
 import { hud } from "../store.ts";
 import { emojiOnly } from "./emoji.ts";
+import { type Left, leave, ownStep } from "./trail.ts";
 
 /** Someone in the room, as drawn: a logical tile plus an in-flight step. */
 export interface Avatar {
@@ -84,6 +85,8 @@ export const world = {
   doors: [] as Door[],
   /** What's on the floor: furniture (drawn from the map) and parcels. */
   drops: [] as Drop[],
+  /** The tiles we just walked off, in this room (`trail.ts`). */
+  trail: [] as Left[],
 };
 
 /** Someone's look: as seen in the world, or their default while they're not in it. */
@@ -122,6 +125,7 @@ export function loadSnapshot(s: Snapshot): void {
   const changedRoom = s.room !== world.room || world.selfId === 0;
   world.room = s.room;
   world.selfId = s.selfId;
+  if (changedRoom) world.trail.length = 0;
   world.owner = s.owner;
   setCompanies(s.companies);
   const company = companyOfRoom(s.room);
@@ -227,7 +231,8 @@ export function applyMoves(m: Moves): void {
 
 /** The server moved us (to bed, off a seat): take its word unless it's a step we already made. */
 function reconcileSelf(a: Avatar, [, x, y, facing, state]: PlayerPos): void {
-  if (state === a.state && Math.abs(x - a.x) + Math.abs(y - a.y) <= 1) return;
+  if (state === a.state && ownStep(world.trail, a, x, y, performance.now())) return;
+  world.trail.length = 0;
   Object.assign(a, { x, y, facing, state, from: null });
 }
 
@@ -263,7 +268,9 @@ export function applyBubble(e: { userId: number; text: string }): void {
 
 /** Starts a one-tile step animation. */
 export function beginStep(a: Avatar, x: number, y: number, ms: number): void {
-  a.from = { x: a.x, y: a.y, at: performance.now(), ms };
+  const now = performance.now();
+  if (a.info.id === world.selfId) leave(world.trail, a.x, a.y, now);
+  a.from = { x: a.x, y: a.y, at: now, ms };
   a.x = x;
   a.y = y;
 }
