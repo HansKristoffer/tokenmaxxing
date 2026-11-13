@@ -6,6 +6,15 @@
 import { sortBy } from "hanzio";
 import { ALL_CASE_PIECES } from "./case-furniture.ts";
 import { HOME_PIECES } from "./home.ts";
+import {
+  JULE_GATE_BODY,
+  JULE_GATE_DOOR,
+  JULE_TREE,
+  JULEMARKED_BLOCK,
+  julemarkedRows,
+  julemarktLot,
+  STALLS,
+} from "./julemarked.ts";
 import { POSTERS } from "./posters.ts";
 
 import {
@@ -33,7 +42,8 @@ export type MapId =
   | "shop-barber"
   | "shop-pets"
   | "shop-natmarked"
-  | "shop-market";
+  | "shop-market"
+  | "julemarked";
 export type SeatKind = "bench" | "sofa" | "bed" | "chair";
 
 interface TileKind {
@@ -171,6 +181,19 @@ export const LEGEND: Record<string, TileKind> = {
   Ñ: { name: "night market door", portal: true },
   Ƭ: { name: "market hall door", portal: true },
   Ħ: { name: "shop front", text: "A shop front. The door is open: come on in." },
+  // The Julemarked (`julemarked.ts`): the gate on its own block in town, and inside, four stalls and the tree.
+  [JULE_GATE_BODY]: {
+    name: "julemarked gate",
+    text: "The Julemarked gate: a wreath, fairy lights and red-and-white bunting. The market is open from J-dag to 26 December.",
+  },
+  [JULE_GATE_DOOR]: { name: "julemarked gate door", portal: true },
+  ...Object.fromEntries(
+    STALLS.map((s) => [s.ch, { name: s.name.toLowerCase(), text: s.text }] as [string, TileKind]),
+  ),
+  [JULE_TREE]: {
+    name: "christmas tree",
+    text: "The market's Christmas tree, strung with straw stars and paper hearts. It smells like a forest that has been to a party.",
+  },
   // Inside them: the counter, each shop's displays and the fixtures that are only to look at.
   "¢": { name: "shop counter", counter: true, text: "The counter. Press E to browse the shop." },
   "¤": { name: "furniture display", shop: "furniture", text: "A showroom piece with a price tag." },
@@ -453,6 +476,23 @@ export const SHOP_BLOCKS: Record<ShopId, [number, number]> = {
   market: [2, 1],
 };
 
+/**
+ * The Julemarked gate's block (`julemarked.ts`): permanent, next to the square, and never a company's. A company
+ * that holds it already (it started before the market) keeps it, and the gate takes the free block nearest
+ * the square instead.
+ */
+export function julemarkedBlock(plots: readonly number[]): [number, number] {
+  const taken = new Set(plots);
+  if (!taken.has(plotId(...JULEMARKED_BLOCK))) return JULEMARKED_BLOCK;
+  const reserved = new Set<number>(CORE_BLOCKS.map(([x, y]) => plotId(x, y)));
+  for (const id of SHOP_IDS) reserved.add(plotId(...SHOP_BLOCKS[id]));
+  for (const block of blocksOutward()) {
+    const id = plotId(...block);
+    if (!taken.has(id) && !reserved.has(id)) return block;
+  }
+  return JULEMARKED_BLOCK;
+}
+
 /** A shop's block: a lawn, its 5×4 front with the door in the middle of the bottom row, and the path down to the road. */
 const shopLot = (id: ShopId): string[] => {
   const body = SHOP_BODY_CHAR.repeat(5);
@@ -514,6 +554,7 @@ export function shopBlocks(plots: readonly number[]): Record<ShopId, [number, nu
   const out = {} as Record<ShopId, [number, number]>;
   const reserved = new Set<number>(CORE_BLOCKS.map(([x, y]) => plotId(x, y)));
   for (const id of SHOP_IDS) reserved.add(plotId(...SHOP_BLOCKS[id]));
+  reserved.add(plotId(...julemarkedBlock(plots)));
   const displaced: ShopId[] = [];
   for (const id of SHOP_IDS) {
     if (taken.has(plotId(...SHOP_BLOCKS[id]))) displaced.push(id);
@@ -579,6 +620,7 @@ export function doorOf(plot: number): [number, number] {
 export function frontier(plots: readonly number[]): number[] {
   const used = new Set([...plots, ...CORE_BLOCKS.map(([x, y]) => plotId(x, y))]);
   const shops = new Set(Object.values(shopBlocks(plots)).map(([x, y]) => plotId(x, y)));
+  shops.add(plotId(...julemarkedBlock(plots)));
   const out = new Set<number>();
   for (const id of used) {
     const [bx, by] = plotBlock(id);
@@ -603,7 +645,8 @@ export function frontier(plots: readonly number[]): number[] {
 export function townMap(plots: readonly number[]): GameMap {
   const shopPlaces = shopBlocks(plots);
   const shopAt = new Map(SHOP_IDS.map((id) => [plotId(...shopPlaces[id]), id]));
-  const blocks = [...CORE_BLOCKS, ...Object.values(shopPlaces), ...plots.map(plotBlock)];
+  const gate = julemarkedBlock(plots);
+  const blocks = [...CORE_BLOCKS, ...Object.values(shopPlaces), gate, ...plots.map(plotBlock)];
   const minBx = Math.min(...blocks.map(([x]) => x));
   const maxBx = Math.max(...blocks.map(([x]) => x));
   const minBy = Math.min(...blocks.map(([, y]) => y));
@@ -628,7 +671,9 @@ export function townMap(plots: readonly number[]): GameMap {
           ? LOT
           : shopAt.has(plotId(bx, by))
             ? shopLot(shopAt.get(plotId(bx, by))!)
-            : PARKS[Math.abs(bx * 7 + by * 13) % PARKS.length]!;
+            : plotId(bx, by) === plotId(...gate)
+              ? julemarktLot()
+              : PARKS[Math.abs(bx * 7 + by * 13) % PARKS.length]!;
       rows.forEach((row, dy) => {
         for (let dx = 0; dx < BLOCK_W; dx++) put(bx * BLOCK_W + dx, by * BLOCK_H + dy, row[dx]!);
       });
@@ -811,6 +856,9 @@ export const MAPS: Record<MapId, GameMap> = {
     floor: "natmarked",
   }),
   "shop-market": new GameMap("shop-market", SHOPS.market.name, SHOPS.market.rows),
+  // The Julemarked's courtyard, through the gate: a walled outdoor market (`julemarked.ts`), paved with the
+  // square's paving and drawn outdoors (sky, snow, weather).
+  julemarked: new GameMap("julemarked", "Julemarked", julemarkedRows()),
   // The raid: the boss on its dais, and arcs of war desks facing it. Whoever has agents running is drawn
   // at one (web/src/game/raid.ts); the desks and seats are props, so visitors walk the aisles.
   dungeon: new GameMap("dungeon", "Raid Dungeon", [

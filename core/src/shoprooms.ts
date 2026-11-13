@@ -500,7 +500,7 @@ export function displayTab(shop: ShopId, x: number, y: number): ShopTab | null {
 
 /**
  * Which of Natmarked's shelves, left to right from 0, the display tile (x, y) belongs to, or null if it isn't one.
- * A shelf is two display tiles wide, and shelf `n` shows the case in slot `n` of `CASES`.
+ * A shelf is two display tiles wide, and shelf `n` shows the case in slot `n` of `NATMARKED_CASES`.
  */
 export function shelfAt(x: number, y: number): number | null {
   const i = SHOPS.natmarked.displays.findIndex(([dx, dy]) => dx === x && dy === y);

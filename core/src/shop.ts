@@ -13,6 +13,7 @@ import { EDITIONS } from "./editions.ts";
 import { HEADWEAR_ITEMS } from "./headwear.ts";
 import type { HolidayId } from "./holidays.ts";
 import { HOME_PIECES } from "./home.ts";
+import { type ShopStallId, STALL_WEARABLES } from "./julemarked-shop.ts";
 import { LOOT, type Rarity as LootRarity } from "./loot.ts";
 import { COMPANY_FURNITURE, FURNITURE } from "./office.ts";
 import { isPrestigePiece } from "./prestige-furniture.ts";
@@ -87,6 +88,8 @@ export interface Item {
   company?: true;
   /** Personal-office furniture: it goes down only in your own office (`canDropIn`). */
   home?: true;
+  /** Sold only at this Julemarked stall, inside the market (`julemarked-shop.ts`). */
+  stall?: ShopStallId;
   /** Merch: whose. */
   companyId?: number;
   /** A holiday costume: sold only round this holiday (`costumes.ts` `onSale`). */
@@ -153,7 +156,10 @@ export const ITEMS: readonly Item[] = [
     price: f.price,
     tradeable: true,
     home: true,
+    ...(f.stall && { stall: f.stall }),
   })),
+  // The Julemarked's three coin stalls: wearables here, Julepynt's furniture above (`julemarked-shop.ts`).
+  ...STALL_WEARABLES,
   // Raid loot: dropped by the bosses, never sold, and tradeable.
   ...LOOT.map((l): Item => ({
     id: l.id,

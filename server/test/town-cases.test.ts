@@ -10,6 +10,7 @@ import { memorySql } from "./memory-sql.ts";
 const night = caseById("night-market")!;
 const nus = caseById("nusantara")!;
 const eve = caseById("ragnarok-eve")!;
+const jul = caseById("julemarked")!;
 const now = Date.now();
 
 /** A small seeded generator, so a run of openings is repeatable. */
@@ -407,5 +408,75 @@ describe("case leaderboard", () => {
     expect(board).toHaveLength(100);
     expect(board[0]!.userId).toBe(200);
     expect(board[99]!.userId).toBe(101);
+  });
+});
+
+describe("a fourth case", () => {
+  test("Julemarked charges its key and grants only its own items", async () => {
+    const sql = await setup(1000);
+    const others = new Set([...night.items, ...eve.items].map((i) => i.id));
+    for (let i = 0; i < 6; i++) {
+      const before = await balance(sql);
+      const out = await openCase(sql, 7, "julemarked", now);
+      expect(jul.items.some((it) => it.id === out.item.id)).toBe(true);
+      expect(others.has(out.item.id)).toBe(false);
+      expect(before - out.wallet.balance).toBe(jul.keyPrice);
+    }
+  });
+
+  test("Julemarked keeps its own dry counter", async () => {
+    const sql = await setup(5000);
+    const rand = () => 0;
+    for (let i = 0; i < 9; i++) await openCase(sql, 7, "ragnarok-eve", now, undefined, rand);
+    expect(rarityOf((await openCase(sql, 7, "julemarked", now, undefined, rand)).item)).toBe("common");
+    const rows = await sql.execute("SELECT case_id, dry FROM case_dry WHERE user_id = 7 ORDER BY case_id");
+    expect(rows).toEqual([
+      { case_id: "julemarked", dry: 1 },
+      { case_id: "ragnarok-eve", dry: 9 },
+    ]);
+    for (let i = 0; i < 8; i++)
+      expect(rarityOf((await openCase(sql, 7, "julemarked", now, undefined, rand)).item)).toBe("common");
+    const tenth = await openCase(sql, 7, "julemarked", now, undefined, rand);
+    expect(["rare", "epic", "legendary"]).toContain(rarityOf(tenth.item));
+  });
+
+  test("the vendor buys Julemarked items by rarity, wearable or furniture", async () => {
+    const sql = await setup(0);
+    for (const item of [
+      jul.items.find((i) => rarityOf(i) === "common" && i.slot === "hat")!,
+      jul.items.find((i) => rarityOf(i) === "legendary")!,
+      jul.items.find((i) => i.slot === "furniture")!,
+    ]) {
+      await give(sql, item.id, 2);
+      const before = await balance(sql);
+      const { wallet } = await sellItem(sql, 7, item.id, now);
+      expect(wallet.balance - before).toBe(VENDOR_COINS[rarityOf(item)]);
+    }
+  });
+
+  test("sellDuplicates sells one case's spares only", async () => {
+    const sql = await setup(0);
+    const [a, b] = jul.items;
+    await give(sql, a!.id, 3);
+    await give(sql, b!.id, 2);
+    await give(sql, eve.items[0]!.id, 4);
+    const out = await sellDuplicates(sql, 7, "julemarked", now);
+    expect(out.sold).toBe(3);
+    expect(out.wallet.balance).toBe(2 * VENDOR_COINS[rarityOf(a!)] + VENDOR_COINS[rarityOf(b!)]);
+    const held = Object.fromEntries((await bag(sql, 7)).map((r) => [r.item, r.count]));
+    expect(held).toEqual({ [a!.id]: 1, [b!.id]: 1, [eve.items[0]!.id]: 4 });
+  });
+
+  test("selling the last worn Julemarked copy takes it off the look", async () => {
+    const sql = await setup(0);
+    const pet = jul.items.find((i) => i.slot === "pet")!;
+    await give(sql, pet.id);
+    await sql.execute(
+      "UPDATE users SET look = ? WHERE id = 7",
+      JSON.stringify({ style: 0, skin: 0, hair: 0, outfit: 0, glasses: 0, hat: 0, pet: pet.index, petVariant: 0 }),
+    );
+    expect((await sellItem(sql, 7, pet.id, now)).unworn).toBe(true);
+    const [row] = await sql.execute("SELECT look FROM users WHERE id = 7");
+    expect(JSON.parse((row as { look: string }).look).pet).toBe(0);
   });
 });

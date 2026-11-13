@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ALL_CASE_ITEMS, CASE_BASE, CASE_ITEMS, caseAt } from "../src/case.ts";
 import { ALL_CASE_PIECES, CASE_PIECES, casePieceOf } from "../src/case-furniture.ts";
+import { JULEMARKED_ITEMS } from "../src/case-julemarked.ts";
 import { NUSANTARA_ITEMS } from "../src/case-nusantara.ts";
 import { RAGNAROK_BASE, RAGNAROK_ITEMS } from "../src/case-ragnarok.ts";
 import { RAGNAROK_PIECES } from "../src/case-ragnarok-furniture.ts";
@@ -68,6 +69,7 @@ describe("Ragnarok Eve wearables", () => {
       CASE_ITEMS.length +
         NUSANTARA_ITEMS.length +
         RAGNAROK_ITEMS.length +
+        JULEMARKED_ITEMS.length +
         FISHING_ITEMS.length +
         PRESTIGE_ITEMS.length,
     );
@@ -166,7 +168,7 @@ describe("Ragnarok Eve furniture", () => {
 
 describe("the Ragnarok Eve case", () => {
   test("is the third case, tuned like Night Market with a 100 coin key", () => {
-    expect(CASES.map((c) => c.id)).toEqual(["night-market", "nusantara", "ragnarok-eve"]);
+    expect(CASES.map((c) => c.id)).toEqual(["night-market", "nusantara", "ragnarok-eve", "julemarked"]);
     expect(eve.name).toBe("Ragnarok Eve case");
     expect({ k: eve.keyPrice, o: eve.odds, r: eve.rareWithin, d: eve.dupeRerolls }).toEqual({
       k: 100,

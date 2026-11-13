@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { HOME_PIECES, homePieceOf, isHomePiece } from "../src/home.ts";
+import { HOME_PIECES, homePieceOf, isHomePiece, SHOP_HOME_PIECES } from "../src/home.ts";
 import { TROPHIES } from "../src/loot.ts";
 import { LEGEND, MAPS } from "../src/maps.ts";
 import {
@@ -19,19 +19,19 @@ import { canDropIn, ITEMS, isTradeable, itemById } from "../src/shop.ts";
 import { cutsOff, route } from "../src/world.ts";
 
 describe("personal office furniture catalog", () => {
-  test("12 to 14 pieces, cheapest first, 60 to 450 coins, unique chars, art and names", () => {
-    expect(HOME_PIECES.length).toBeGreaterThanOrEqual(12);
-    expect(HOME_PIECES.length).toBeLessThanOrEqual(14);
-    const prices = HOME_PIECES.map((p) => p.price);
+  test("Møbelhuset's 12 to 14 pieces (Julepynt's five come after), cheapest first, 60 to 450 coins, unique chars, art and names", () => {
+    expect(SHOP_HOME_PIECES.length).toBeGreaterThanOrEqual(12);
+    expect(SHOP_HOME_PIECES.length).toBeLessThanOrEqual(14);
+    const prices = SHOP_HOME_PIECES.map((p) => p.price);
     expect(prices).toEqual([...prices].sort((a, b) => a - b));
-    for (const p of HOME_PIECES) {
+    for (const p of SHOP_HOME_PIECES) {
       expect(p.price).toBeGreaterThanOrEqual(60);
       expect(p.price).toBeLessThanOrEqual(450);
       expect([1, 2]).toContain(p.w ?? 1);
       expect(p.home).toBe(true);
     }
     for (const key of ["ch", "art", "name"] as const)
-      expect(new Set(HOME_PIECES.map((p) => p[key])).size).toBe(HOME_PIECES.length);
+      expect(new Set(SHOP_HOME_PIECES.map((p) => p[key])).size).toBe(SHOP_HOME_PIECES.length);
   });
 
   test("the requested ones are there", () => {

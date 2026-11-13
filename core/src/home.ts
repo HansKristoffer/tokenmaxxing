@@ -6,6 +6,7 @@
  * sprite in `web/src/art/furniture-home.ts`, `text` the line E shows. The ones flagged `wall` hang on
  * the office's top wall (`canHang`), like posters do in the building.
  */
+import { JULEPYNT_PIECES } from "./julemarked-shop.ts";
 import type { Piece } from "./office.ts";
 
 export type HomePiece = Piece & {
@@ -16,6 +17,8 @@ export type HomePiece = Piece & {
   seat?: "sofa";
   /** Lies flat on the floor: people walk over it. */
   flat?: true;
+  /** Sold only at this Julemarked stall (`julemarked-shop.ts`), not in Møbelhuset. */
+  stall?: "pynt";
 };
 
 const home = (
@@ -28,8 +31,8 @@ const home = (
   extra: Partial<Pick<HomePiece, "wall" | "seat" | "flat">> = {},
 ): HomePiece => ({ ch, art, name, price, w, text, home: true, ...extra });
 
-/** Cheapest first. */
-export const HOME_PIECES: readonly HomePiece[] = [
+/** Møbelhuset's, cheapest first. */
+export const SHOP_HOME_PIECES: readonly HomePiece[] = [
   home("ø", "cactus", "Cactus", 60, 1, "A cactus. It has survived every sprint review so far."),
   home(
     "ê",
@@ -110,6 +113,9 @@ export const HOME_PIECES: readonly HomePiece[] = [
     "A glass case for a keyboard that clacks like rain. Not for typing. Look, don't touch.",
   ),
 ];
+
+/** Møbelhuset's pieces, then Julepynt's (the Julemarked stall, `julemarked-shop.ts`). */
+export const HOME_PIECES: readonly HomePiece[] = [...SHOP_HOME_PIECES, ...JULEPYNT_PIECES];
 
 const BY_CH = new Map(HOME_PIECES.map((p) => [p.ch, p]));
 
