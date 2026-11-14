@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.21.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.20.0...v1.21.0) (2026-11-14)
+
+
+### Features
+
+* Julemarked, a Danish Christmas market with its own case and coin stalls ([de74263](https://github.com/HansKristoffer/tokenmaxxing/commit/de742637247cb7d775afb62df1077788e1139668))
+* **julemarked:** 2D art, shop panels and market rendering ([ed78800](https://github.com/HansKristoffer/tokenmaxxing/commit/ed78800b09a330a7bfe66faba60b8d391435fb36))
+* **julemarked:** 3D models, the market room and the gate (voxel style) ([e48641f](https://github.com/HansKristoffer/tokenmaxxing/commit/e48641f1ec29c3a9a5a1157976acbf6b0f3406e3))
+* **julemarked:** double every price ([b089eaf](https://github.com/HansKristoffer/tokenmaxxing/commit/b089eaf24cbeb7cad72c894f352dcf40fd83dcea))
+* **julemarked:** make the case items cooler than the stall items ([fc113e6](https://github.com/HansKristoffer/tokenmaxxing/commit/fc113e60fabc78f4ad7fc178efeaedb881af25c6))
+* **julemarked:** the case key is 100 coins ([cf86454](https://github.com/HansKristoffer/tokenmaxxing/commit/cf8645435f84b508e9f84eaac43acca9e2bcacff))
+* **julemarked:** the Julemarked case, the market room and its coin stalls (data and rules) ([c74e31f](https://github.com/HansKristoffer/tokenmaxxing/commit/c74e31ffe9cff1b1fff48d675f52ca0da7a17343))
+* **town:** redesign the town square and surrounding blocks ([b33f698](https://github.com/HansKristoffer/tokenmaxxing/commit/b33f6983a6537d3de1c94712c61590ad04a376fe))
+* **town:** redesign the town square and surrounding blocks ([9a800dc](https://github.com/HansKristoffer/tokenmaxxing/commit/9a800dc003cd58454d38cc9306c912a271c53728))
+* **vite:** animate HUD panels and count coin changes ([3e1b657](https://github.com/HansKristoffer/tokenmaxxing/commit/3e1b65743d3ce47f1132eeda64ff4a644719455e))
+* **vite:** animate HUD panels and count coin changes ([be11b88](https://github.com/HansKristoffer/tokenmaxxing/commit/be11b883a7ddfc8f5ff4748a98be49f017e059f3))
+* **vite:** dock roulette betting at the table ([e4f9de7](https://github.com/HansKristoffer/tokenmaxxing/commit/e4f9de7d22ce9e1da86ce0eee7c2a6e29e33d2d3))
+* **vite:** dock roulette betting at the table ([b7458c1](https://github.com/HansKristoffer/tokenmaxxing/commit/b7458c160a4f3f8f4f989c3bf2e4637cf04f20c7))
+* **vite:** simplify game panels and modal layouts ([b69a541](https://github.com/HansKristoffer/tokenmaxxing/commit/b69a541254a3882b9617bc06a45446b2743b71f3))
+* **vite:** simplify the game HUD and chat ([6e48d18](https://github.com/HansKristoffer/tokenmaxxing/commit/6e48d18111e7e319059c47ea2a8068fad9d94ec9))
+
 ## [1.20.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.19.0...v1.20.0) (2026-11-13)
 
 
