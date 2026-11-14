@@ -1,6 +1,6 @@
 /**
  * J-dag, the first Friday of November (`holidays.ts`): at 20:59 the Christmas beer comes out. The town's own
- * brewery truck, Nissebryg's, drives in along the road under the square, parks there till 03:00 and drives
+ * brewery truck, Nissebryg's, drives in along the road that runs into the square, parks on the paving there till 03:00 and drives
  * off; from 20:59 until Sunday is out, the Tavern's tap pours Nissebryg instead of the day's special, free
  * like it (`tavern.ts`). All from the clock, so the server keeps nothing. Nissebryg and its brewery are made
  * up, like the posters' films.
@@ -16,12 +16,12 @@ export const JULEBRYG = {
 } as const;
 
 /**
- * The truck: its row (the road under the square), the tile its back stands on when parked, how wide it is,
+ * The truck: its row (the road that meets the square's south row, where it parks), the tile its back stands on when parked, how wide it is,
  * where it drives in from and out to, and when, in minutes from J-dag's midnight (it leaves the next night).
  */
 export const TRUCK = {
   y: 9,
-  park: 2,
+  park: 3,
   w: 4,
   from: -14,
   to: 22,

@@ -20,26 +20,26 @@ export interface Spot {
 }
 
 /**
- * Where it all stands: one row on the square's south side (y = 6, inside the paving and off its edge where the race
+ * Where it all stands: one row on the square's south side (y = 12, inside the paving and off its edge where the race
  * runs; the spawn and the star counter above it, the build snail's row below, and the pølsevogn and the merchant's
  * cart further east): the jumping chair, the watchman, the buffet and the Nytårsur, west to east (so the 3D
  * camera sees him past the low table, not behind the tower). Each of these
- * tiles blocks walking; row 5 above them stays open.
+ * tiles blocks walking; row 11 above them stays open.
  */
-export const NYTAR_NPC_TILE: Spot & { facing: Facing } = { x: 11, y: 6, facing: "down" };
-export const NYTAR_CLOCK: Spot = { x: 14, y: 6 };
+export const NYTAR_NPC_TILE: Spot & { facing: Facing } = { x: 11, y: 12, facing: "down" };
+export const NYTAR_CLOCK: Spot = { x: 14, y: 12 };
 /** The buffet: two tiles side by side, the left one first. */
 export const NYTAR_TABLE: readonly Spot[] = [
-  { x: 12, y: 6 },
-  { x: 13, y: 6 },
+  { x: 12, y: 12 },
+  { x: 13, y: 12 },
 ];
-export const NYTAR_CHAIR: Spot = { x: 10, y: 6 };
+export const NYTAR_CHAIR: Spot = { x: 10, y: 12 };
 
 /** Tiles that block movement while the theme is on (the watchman, the clock, the table and the chair). */
 export const NYTAR_BLOCKS: readonly Spot[] = [NYTAR_NPC_TILE, NYTAR_CLOCK, ...NYTAR_TABLE, NYTAR_CHAIR];
 
 /** The lamps the party lights are strung between (the square's four corner lamps), as tiles. */
-export const NYTAR_LAMPS = { left: 1, right: 19, top: 1, bottom: 8 } as const;
+export const NYTAR_LAMPS = { left: 1, right: 19, top: 7, bottom: 15 } as const;
 
 /** A hop lands in the new year if it starts within this many ms of the stroke of midnight. */
 export const HOP_WINDOW_MS = 3_000;

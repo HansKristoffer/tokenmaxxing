@@ -112,7 +112,7 @@ test("lambs, bunnies and chicks start and wander on grass", () => {
       expect(p.hop).toBeGreaterThanOrEqual(0);
       expect(p.hop).toBeLessThanOrEqual(1);
       // Still on grass where it stands (the lawns are wide).
-      expect(maps[0]!.at(Math.round(p.x), Math.round(p.y))).toBe(".");
+      for (const map of maps) expect(map.at(Math.round(p.x), Math.round(p.y))).toBe(".");
     }
   }
 });

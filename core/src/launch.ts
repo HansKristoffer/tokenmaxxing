@@ -202,7 +202,7 @@ export const SOFT_CUT = 16 * 60;
 export const STAND_CLOSES = 18 * 60;
 
 /** The stand's tiles: two by two at the plaza's left edge, mirroring the pølsevogn on the right. */
-export const STAND = { x: 1, y: 3, w: 2, h: 2 } as const;
+export const STAND = { x: 1, y: 9, w: 2, h: 2 } as const;
 
 export const isStand = (x: number, y: number): boolean =>
   x >= STAND.x && x < STAND.x + STAND.w && y >= STAND.y && y < STAND.y + STAND.h;

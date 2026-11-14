@@ -170,7 +170,7 @@ export function gridNow(grid: Grid, at: number): GridNow {
 }
 
 /** Where the price board hangs: the square's north-east lamp post (`L`, `PLAZA.right`, `PLAZA.top`). */
-export const PRICE_LAMP = { x: 19, y: 1 } as const;
+export const PRICE_LAMP = { x: 19, y: 7 } as const;
 
 /** The price board's text, and whether it reads green, expensive or plain. */
 export function priceSign(now: GridNow): { text: string; tone: "green" | "dear" | "plain" } {

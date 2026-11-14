@@ -75,10 +75,10 @@ test("the windmill stands on 2×2 tiles beside the Tavern, in every town, and no
   for (const town of [MAPS.town, townMap([]), townMap([plotId(2, 1), plotId(-1, 0)])]) {
     const tiles = town.find(WINDMILL);
     expect(tiles).toEqual([
-      [18, 15],
-      [19, 15],
-      [18, 16],
-      [19, 16],
+      [18, 4],
+      [19, 4],
+      [18, 5],
+      [19, 5],
     ]);
     for (const [x, y] of tiles) expect(town.walkable(x, y)).toBe(false);
     // The Tavern's door and the path in front of it stay clear.

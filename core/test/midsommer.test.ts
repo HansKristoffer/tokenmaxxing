@@ -55,8 +55,8 @@ describe("Sankt Hans scenery", () => {
         const [x, y, blink] = wormAt(i, t);
         expect(x).toBeGreaterThan(-1);
         expect(x).toBeLessThan(16);
-        expect(y).toBeGreaterThan(8);
-        expect(y).toBeLessThan(20);
+        expect(y).toBeGreaterThan(-1);
+        expect(y).toBeLessThan(9);
         expect(blink).toBeGreaterThanOrEqual(0);
         expect(blink).toBeLessThanOrEqual(1);
       }

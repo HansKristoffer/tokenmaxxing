@@ -15,70 +15,76 @@ export interface Spot {
 }
 
 /** Pak RT's tile: the east side of the square, clear of the paths, the fountain and the merchant's and pølse carts (x 16 and up), facing west. */
-export const NPC_TILE: Spot = { x: 12, y: 5 };
+export const NPC_TILE: Spot = { x: 12, y: 11 };
 
 /** The gapura's two posts, on the square's south edge; the gate spans the four tiles between and including them. */
-export const GAPURA = { left: { x: 8, y: 8 }, right: { x: 11, y: 8 } } as const;
+export const GAPURA = { left: { x: 8, y: 15 }, right: { x: 11, y: 15 } } as const;
 
 /** The greased pole, the kerupuk string, the tumpeng table: one tile each, and nobody walks through them. */
-export const PANJAT: Spot = { x: 13, y: 7 };
-export const KERUPUK: Spot = { x: 4, y: 7 };
-export const TUMPENG: Spot = { x: 15, y: 4 };
+export const PANJAT: Spot = { x: 13, y: 13 };
+export const KERUPUK: Spot = { x: 4, y: 13 };
+export const TUMPENG: Spot = { x: 15, y: 10 };
 
 /** The sack race: the start flag, the lane along this row, and the finish flag (reach the tile before it to win). */
-export const SACK = { start: { x: 2, y: 6 }, finish: { x: 10, y: 6 }, laneX0: 3, laneX1: 9, y: 6 } as const;
+export const SACK = {
+  start: { x: 2, y: 12 },
+  finish: { x: 10, y: 12 },
+  laneX0: 3,
+  laneX1: 9,
+  y: 12,
+} as const;
 
 /** The flag poles on the square's top and bottom edges, in the order they go up. */
 export const SQUARE_FLAGS: readonly Spot[] = [
-  { x: 3, y: 1 },
-  { x: 5, y: 8 },
-  { x: 9, y: 1 },
-  { x: 15, y: 8 },
-  { x: 15, y: 1 },
-  { x: 2, y: 8 },
-  { x: 6, y: 1 },
-  { x: 12, y: 1 },
-  { x: 17, y: 1 },
-  { x: 18, y: 8 },
+  { x: 3, y: 7 },
+  { x: 5, y: 15 },
+  { x: 9, y: 7 },
+  { x: 15, y: 15 },
+  { x: 15, y: 7 },
+  { x: 2, y: 15 },
+  { x: 6, y: 7 },
+  { x: 12, y: 7 },
+  { x: 17, y: 7 },
+  { x: 18, y: 15 },
 ];
 
 /** Strings of bunting between those poles and the gapura's posts (ends are tiles on the square). */
 export const BUNTING_ROWS: readonly (readonly [Spot, Spot])[] = [
   [
-    { x: 3, y: 1 },
-    { x: 6, y: 1 },
+    { x: 3, y: 7 },
+    { x: 6, y: 7 },
   ],
   [
-    { x: 6, y: 1 },
-    { x: 9, y: 1 },
+    { x: 6, y: 7 },
+    { x: 9, y: 7 },
   ],
   [
-    { x: 9, y: 1 },
-    { x: 12, y: 1 },
+    { x: 9, y: 7 },
+    { x: 12, y: 7 },
   ],
   [
-    { x: 12, y: 1 },
-    { x: 15, y: 1 },
+    { x: 12, y: 7 },
+    { x: 15, y: 7 },
   ],
   [
-    { x: 15, y: 1 },
-    { x: 17, y: 1 },
+    { x: 15, y: 7 },
+    { x: 17, y: 7 },
   ],
   [
-    { x: 2, y: 8 },
-    { x: 5, y: 8 },
+    { x: 2, y: 15 },
+    { x: 5, y: 15 },
   ],
   [
-    { x: 5, y: 8 },
-    { x: 8, y: 8 },
+    { x: 5, y: 15 },
+    { x: 8, y: 15 },
   ],
   [
-    { x: 11, y: 8 },
-    { x: 15, y: 8 },
+    { x: 11, y: 15 },
+    { x: 15, y: 15 },
   ],
   [
-    { x: 15, y: 8 },
-    { x: 18, y: 8 },
+    { x: 15, y: 15 },
+    { x: 18, y: 15 },
   ],
 ];
 
@@ -121,7 +127,7 @@ export const isBlocked = (x: number, y: number, days: number): boolean =>
 /** The nth Independence Day, in the world's year (1945 was the first year: 2026 is the 81st). */
 export const anniversary = (ms: number): number => worldWall(ms).y - 1945;
 
-/** Roads' grass verge, one row off an E-W road, where the street flags stand (not the one under the square: a pole there stands in front of the camera). */
+/** Roads' grass verge, one row off an E-W road, where the street flags stand (not the one that runs into the square). */
 const VERGE_ROWS = [-1, 17, 19, 26] as const;
 
 /**

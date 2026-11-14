@@ -13,7 +13,7 @@ test("pond casts require the bank; early reels, movement and duplicate claims do
     const me = v.snap.players.find((p) => p.id === a.userId)!;
     await walk(v.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
     const door = outsideDoor("inn");
-    await walk(v.conn, route(MAPS.town, [door.x, door.y], [2, 12])!);
+    await walk(v.conn, route(MAPS.town, [door.x, door.y], [2, 1])!);
     expect((await v.conn.fishingCast("left")).ok).toBe(false);
     expect((await v.conn.fishingCast("nope")).ok).toBe(false);
     const first = await v.conn.fishingCast("right");
@@ -58,7 +58,7 @@ test("everyone in town sees an angler's line, their catch held up, and the rod p
       const me = p.snap.players.find((q) => q.id === (p === v ? a.userId : b.userId))!;
       await walk(p.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
       const door = outsideDoor("inn");
-      await walk(p.conn, route(MAPS.town, [door.x, door.y], [x, 12])!);
+      await walk(p.conn, route(MAPS.town, [door.x, door.y], [x, 1])!);
     }
     const about = () => w.events.infos.filter((i) => i.id === a.userId).at(-1);
     const cast = await v.conn.fishingCast("right");
@@ -66,7 +66,7 @@ test("everyone in town sees an angler's line, their catch held up, and the rod p
     await eventually(() =>
       expect(about()?.angling).toEqual({
         waterX: 3,
-        waterY: 12,
+        waterY: 1,
         biteAt: cast.cast.biteAt,
         endsAt: cast.cast.endsAt,
       }),
@@ -76,7 +76,7 @@ test("everyone in town sees an angler's line, their catch held up, and the rod p
     if (!reel.ok) throw Error(reel.message);
     await eventually(() => {
       expect(about()?.angling ?? null).toBeNull();
-      expect(about()?.landing).toMatchObject({ fish: reel.catch.fish, waterX: 3, waterY: 12 });
+      expect(about()?.landing).toMatchObject({ fish: reel.catch.fish, waterX: 3, waterY: 1 });
     });
     // A new cast takes the old catch down; closing the panel puts the rod away; walking off clears the lot.
     const again = await v.conn.fishingCast("right");

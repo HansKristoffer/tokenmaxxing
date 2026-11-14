@@ -9,8 +9,8 @@ import { COSTUME_BASE } from "./costumes.ts";
 import { near } from "./holidays.ts";
 import { worldWall } from "./range.ts";
 
-/** The barrel's tile: on the lawn under the square, left of the picnic. Nobody walks into it while it hangs. */
-export const BARREL = { x: 9, y: 10 } as const;
+/** The barrel's tile: on the picnic lawn at the square's south-west end. Nobody walks into it while it hangs. */
+export const BARREL = { x: 4, y: 16 } as const;
 
 /** Whacks it takes, everyone's together. */
 export const HITS = 60;

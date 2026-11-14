@@ -22,9 +22,9 @@ export const FARMER_TILE = { x: -2, y: 4 } as const;
 /** Her stall of paint pots and eggs, the tile to her left. */
 export const STALL = { x: -3, y: 4 } as const;
 /** The påskeris: bare birch twigs hung with feathers and painted eggs, on the cobbles in the square. */
-export const EASTER_TREE = { x: 3, y: 6 } as const;
-/** The påskefrokost table, two tiles wide, on the lawn by the Tavern's door, clear of the spot where you step out of it (13, 17). */
-export const FROKOST = { x: 15, y: 17, w: 2 } as const;
+export const EASTER_TREE = { x: 3, y: 12 } as const;
+/** The påskefrokost table, two tiles wide, on the lawn by the Tavern's door, clear of the path from its door to the square (13, 6). */
+export const FROKOST = { x: 15, y: 6, w: 2 } as const;
 
 /** Tiles the scenery sits on, so no flower or egg is drawn under it. */
 const RESERVED: readonly (readonly [number, number])[] = [
@@ -220,7 +220,7 @@ export const CRITTERS: readonly Critter[] = [
   { kind: "bunny", x: 18, y: 22, r: 1.4, phase: 1.1 },
   { kind: "chick", x: -8, y: 4, r: 1.0, phase: 2.7 },
   { kind: "lamb", x: 28, y: 11, r: 0.8, phase: 2.1 },
-  { kind: "chick", x: 18, y: 13, r: 1.0, phase: 0.8 },
+  { kind: "chick", x: 18, y: 2, r: 1.0, phase: 0.8 },
   { kind: "bunny", x: -5, y: 14, r: 1.4, phase: 4.0 },
   { kind: "chick", x: 12, y: 22, r: 1.0, phase: 3.3 },
   { kind: "bunny", x: 14, y: 24, r: 1.4, phase: 5.2 },

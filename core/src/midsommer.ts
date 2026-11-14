@@ -13,10 +13,10 @@ import type { GameMap } from "./maps.ts";
 import { SHOP_DOOR_CHAR } from "./shoprooms.ts";
 
 /**
- * The båltaler's tile: the lawn south of the pond, four tiles west of the bonfire (9, 17), off every path and
- * clear of the road below it. Facing the fire.
+ * The båltaler's tile: the lawn south of the pond, four tiles west of the bonfire (9, 6), off every path and
+ * clear of the square below it. Facing the fire.
  */
-export const BALTALER_TILE = { x: 5, y: 17 } as const;
+export const BALTALER_TILE = { x: 5, y: 6 } as const;
 
 export const BALTALER: FestiveNpc = {
   id: "baltaler",
@@ -39,19 +39,19 @@ export const BALTALER: FestiveNpc = {
 
 /** The Dannebrog poles, on grass: either side of the bonfire and round the pond. The first two stand all window. */
 const FLAGS: readonly [number, number][] = [
-  [8, 17],
-  [11, 17],
-  [8, 12],
-  [1, 13],
-  [1, 16],
-  [14, 17],
+  [8, 6],
+  [11, 6],
+  [8, 1],
+  [1, 2],
+  [1, 5],
+  [14, 6],
 ];
 
 /** The picnic blankets (their left tile; each is two wide), on the lawns round the bonfire. */
 const BLANKETS: readonly [number, number][] = [
-  [11, 17],
-  [1, 17],
-  [4, 16],
+  [11, 6],
+  [1, 6],
+  [4, 5],
 ];
 
 /** How many of a list show at this intensity (`festive.ts`): more as the 23rd comes on. */
@@ -80,7 +80,7 @@ export const wreathDoors = (map: GameMap): [number, number][] =>
   DOORS.flatMap((ch) => map.find(ch).map(([x, y]): [number, number] => [x, y]));
 
 /** The corners of the lawn where the glow-worms drift: the grass by the pond and the bonfire, in tiles. */
-export const WORM_LAWN = { x0: 1, y0: 10, x1: 13, y1: 18 } as const;
+export const WORM_LAWN = { x0: 1, y0: 1, x1: 13, y1: 7 } as const;
 
 /** Where one glow-worm is at `t` seconds: a slow drift round its own centre. In tiles. */
 export function wormAt(i: number, t: number): [number, number, number] {

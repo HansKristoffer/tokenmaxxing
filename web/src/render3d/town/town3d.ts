@@ -14,7 +14,7 @@ import { WINDMILL } from "@tokenmaxxing/core/windmill.ts";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { C } from "../../art/palette.ts";
-import { seasonGrass, seasonLitter, seasonLookNow } from "../../game/seasons.ts";
+import { seasonLookNow } from "../../game/seasons.ts";
 import {
   BLOCK_H,
   BLOCK_W,
@@ -35,11 +35,22 @@ import type { Asset } from "../furniture/furniture.ts";
 import { canvasTexture, glass, Model, painted, seeded, textureCap, ticks, tint, toon } from "../kit/kit.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_SPECS, type ShopId } from "../shops/catalog.ts";
 import { ICE } from "./cold3d.ts";
+import {
+  groundTexture,
+  hash,
+  jettyRunsNorth,
+  MARGIN,
+  type Surface,
+  soilTexture,
+  surfaceAt,
+} from "./ground3d.ts";
 import { julemarkedGate3d } from "./julemarked-parts.ts";
 import {
   arcadeBuilding,
   bush,
+  flowerBed,
   grandFountain,
+  hedge,
   LEAF,
   lanternPillar,
   nightGlow,
@@ -47,7 +58,9 @@ import {
   type Species,
   seasonalTree,
   streetLamp,
+  TREE_PLANTER_H,
   tree,
+  treePlanter,
 } from "./props.ts";
 import { companyHouse, tavernBuilding } from "./town3d-houses.ts";
 import {
@@ -68,8 +81,10 @@ import {
 } from "./town3d-props.ts";
 import { type Windmill, windmill } from "./windmill3d.ts";
 
-/** Grass tiles round the map's tree ring. */
-export const MARGIN = 3;
+export { MARGIN };
+
+/** How thick the island's slab of soil is. */
+const SLAB_DEPTH = 1.5;
 
 export interface TownDoor {
   /** `inn`, `arcade`, `dungeon`, or `hq:<plot>`. */
@@ -116,147 +131,6 @@ export interface Town3d {
   setWeather: (weather: () => Weather) => void;
   /** The windmills, by their top-left tile ("x,y"). */
   windmills: Map<string, Windmill>;
-}
-
-// MARK: Ground
-
-const hash = (x: number, y: number, k: number): number => seeded(x * 7919 + y * 104729 + k * 31)();
-
-type Ground = "grass" | "path" | "plaza" | "flowers" | "water";
-const GROUND: Record<string, Ground> = {
-  ".": "grass",
-  ",": "path",
-  ":": "plaza",
-  '"': "flowers",
-  "~": "water",
-};
-
-function groundAt(map: TownMap, x: number, y: number): Ground {
-  const own = GROUND[map.at(x, y)];
-  if (own) return own;
-  if (
-    "IDA".includes(map.at(x, y)) ||
-    map.at(x, y) === JULE_GATE_DOOR ||
-    Object.values(SHOP_DOOR_CHAR).includes(map.at(x, y))
-  )
-    return "path";
-  const counts = new Map<Ground, number>();
-  for (const [dx, dy] of [
-    [0, 1],
-    [0, -1],
-    [1, 0],
-    [-1, 0],
-    [1, 1],
-    [-1, 1],
-  ] as const) {
-    const g = GROUND[map.at(x + dx, y + dy)];
-    if (g && g !== "water") counts.set(g, (counts.get(g) ?? 0) + 1);
-  }
-  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "grass";
-}
-
-/** The whole ground in one canvas: grass, paths, plaza paving, flower meadows and the pond's water. */
-function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
-  const { look } = seasonLookNow();
-  const l = bakedLook(look);
-  const grassColors = [seasonGrass(0, l, "#86c35e"), seasonGrass(0, l, "#80bd58")];
-  const blades = [seasonGrass(1, l), seasonGrass(2, l)];
-  const W = map.width + MARGIN * 2;
-  const D = map.height + MARGIN * 2;
-  return canvasTexture(
-    W * px,
-    D * px,
-    (g) => {
-      const rnd = seeded(5);
-      const leaves = (tx: number, ty: number, ox: number, oy: number, most: number) => {
-        const n = Math.round(l.litter * most * hash(tx, ty, 60) * 2);
-        for (let k = 0; k < n; k++) {
-          g.fillStyle = seasonLitter(hash(tx, ty, 61 + k));
-          g.fillRect(
-            ox + hash(tx, ty, 70 + k) * px * 0.9,
-            oy + hash(tx, ty, 80 + k) * px * 0.9,
-            Math.max(1, px / 10),
-            Math.max(1, px / 14),
-          );
-        }
-      };
-      for (let cy = 0; cy < D; cy++)
-        for (let cx = 0; cx < W; cx++) {
-          const tx = cx - MARGIN + map.x0;
-          const ty = cy - MARGIN + map.y0;
-          const inside = map.contains(tx, ty);
-          const kind = inside ? groundAt(map, tx, ty) : "grass";
-          const ox = cx * px;
-          const oy = cy * px;
-          const grass = () => {
-            g.fillStyle = grassColors[(cx + cy) % 2]!;
-            g.fillRect(ox, oy, px, px);
-            for (let i = 0; i < px * 0.7; i++) {
-              g.fillStyle = blades[rnd() < 0.5 ? 0 : 1]!;
-              g.fillRect(ox + rnd() * px, oy + rnd() * px, Math.max(1, px / 14), Math.max(2, px / 8));
-            }
-            // Fallen leaves, more on the lawns than on the swept paths (the 2D ground's litter).
-            leaves(tx, ty, ox, oy, 3);
-          };
-          if (kind === "grass" || kind === "flowers") {
-            grass();
-            if (kind === "flowers" && hash(tx, ty, 9) >= l.dormant) {
-              for (let k = 0; k < 4; k++) {
-                const fx = ox + (2 + Math.floor(hash(tx, ty, 10 + k) * 11)) * (px / 16);
-                const fy = oy + (2 + Math.floor(hash(tx, ty, 20 + k) * 11)) * (px / 16);
-                g.fillStyle = [C.flowerRed, C.flowerYellow, C.flowerWhite][
-                  Math.floor(hash(tx, ty, 30 + k) * 3)
-                ]!;
-                g.fillRect(fx - px / 16, fy, (px * 3) / 16, px / 16);
-                g.fillRect(fx, fy - px / 16, px / 16, (px * 3) / 16);
-              }
-            }
-          } else if (kind === "path") {
-            g.fillStyle = C.path;
-            g.fillRect(ox, oy, px, px);
-            for (let i = 0; i < px * 0.8; i++) {
-              g.fillStyle = rnd() < 0.5 ? C.pathDark : C.pathLight;
-              g.fillRect(ox + rnd() * px, oy + rnd() * px, Math.max(1, px / 14), Math.max(1, px / 14));
-            }
-            // A darker lip where it meets the lawn.
-            const lawn = (dx: number, dy: number) => {
-              const k = groundAt(map, tx + dx, ty + dy);
-              return k === "grass" || k === "flowers";
-            };
-            g.fillStyle = C.pathDark;
-            const e = Math.max(1, px / 12);
-            if (lawn(0, -1)) g.fillRect(ox, oy, px, e);
-            if (lawn(0, 1)) g.fillRect(ox, oy + px - e, px, e);
-            if (lawn(-1, 0)) g.fillRect(ox, oy, e, px);
-            if (lawn(1, 0)) g.fillRect(ox + px - e, oy, e, px);
-            leaves(tx, ty, ox, oy, 1);
-          } else if (kind === "plaza") {
-            g.fillStyle = C.plaza;
-            g.fillRect(ox, oy, px, px);
-            const b = px / 2;
-            g.fillStyle = C.plazaDark;
-            for (let r = 0; r < 2; r++) {
-              g.fillRect(ox, oy + r * b, px, Math.max(1, px / 16));
-              const off = r % 2 ? b / 2 : 0;
-              g.fillRect(ox + off, oy + r * b, Math.max(1, px / 16), b);
-              g.fillRect(ox + off + b, oy + r * b, Math.max(1, px / 16), b);
-            }
-            g.fillStyle = C.plazaLight;
-            g.fillRect(ox, oy + 1, px, Math.max(1, px / 20));
-          } else {
-            g.fillStyle = "#3f89c9";
-            g.fillRect(ox, oy, px, px);
-            g.fillStyle = C.water;
-            g.fillRect(ox + 1, oy + 1, px - 2, px - 2);
-            for (let i = 0; i < 4; i++) {
-              g.fillStyle = C.waterDark;
-              g.fillRect(ox + rnd() * px, oy + rnd() * px, px / 5, px / 16);
-            }
-          }
-        }
-    },
-    true,
-  );
 }
 
 // MARK: Building the town
@@ -429,16 +303,23 @@ export function buildTown3d(
     });
   const g = new THREE.Group();
   const px = Math.max(8, Math.min(32, Math.floor(textureCap() / Math.max(W, D))));
-  const dirt = toon("#7a5638");
-  const ground = new THREE.Mesh(new THREE.BoxGeometry(W, 0.6, D), [
-    dirt,
-    dirt,
+  // The island: the painted ground on a slab of soil, its layers showing on the edge.
+  const soil = soilTexture();
+  const edge = (along: number) => {
+    const t = soil.clone();
+    t.repeat.set(along / (SLAB_DEPTH * 2), 1);
+    return painted(t);
+  };
+  const [alongX, alongZ] = [edge(D), edge(W)];
+  const ground = new THREE.Mesh(new THREE.BoxGeometry(W, SLAB_DEPTH, D), [
+    alongX,
+    alongX,
     painted(groundTexture(map, px)),
-    dirt,
-    dirt,
-    dirt,
+    toon("#4f3727"),
+    alongZ,
+    alongZ,
   ]);
-  ground.position.set(W / 2, -0.3, D / 2);
+  ground.position.set(W / 2, -SLAB_DEPTH / 2, D / 2);
   ground.receiveShadow = true;
   g.add(ground);
 
@@ -451,12 +332,12 @@ export function buildTown3d(
   };
   // The season's look, as baked (`core/src/seasons.ts`): the town is built again when it changes.
   const season = bakedLook(seasonLookNow().look);
-  const hedge = hedgeColour(season);
+  const hedgeGreen = hedgeColour(season);
   const canopies: [number, number, number][] = [];
   /** A tree for the season; a broadleaf's crown is where leaves fall from. */
-  const plant = (species: Species, seed: number, size: number, x: number, z: number) => {
-    add(seasonalTree(species, seed, size, season), x, z);
-    if (species !== "pine") canopies.push([x, 1.35 * size * (species === "oak" ? 1.6 : 1), z]);
+  const plant = (species: Species, seed: number, size: number, x: number, z: number, y = 0) => {
+    add(seasonalTree(species, seed, size, season), x, z).position.y = y;
+    if (species !== "pine") canopies.push([x, y + 1.35 * size * (species === "oak" ? 1.6 : 1), z]);
   };
   const doors: TownDoor[] = [];
   const seats: TownSpots["seats"] = [];
@@ -466,6 +347,7 @@ export function buildTown3d(
 
   // —— Tile props ——
   const flowers: [number, number, string][] = [];
+  const beds: [number, number, number][] = [];
   const stones: [number, number, number][] = [];
   const water: [number, number][] = [];
   const mills: [number, number][] = [];
@@ -476,6 +358,7 @@ export function buildTown3d(
   const fountainX = wx((Math.min(...fxs) + Math.max(...fxs) + 1) / 2);
   const fountainZ = wz((Math.min(...fys) + Math.max(...fys) + 1) / 2);
   const boards = { leaderboard: leaderboard(), chalkboard: chalkboard(), stars: starCounter() };
+  const jetties: [number, number, boolean][] = [];
   let lampIndex = 0;
   for (let ty = map.y0; ty < map.y0 + map.height; ty++)
     for (let tx = map.x0; tx < map.x0 + map.width; tx++) {
@@ -484,9 +367,17 @@ export function buildTown3d(
       const r = hash(tx, ty, 77);
       const border =
         tx === map.x0 || ty === map.y0 || tx === map.x0 + map.width - 1 || ty === map.y0 + map.height - 1;
+      // What it stands on: a tree, a bush or a flower tile on the square's paving is a planter.
+      const surface: Surface = surfaceAt(map, tx, ty);
       switch (ch) {
         case "T": {
           if (clearOf(cx, cz)) break;
+          if (surface === "plaza") {
+            // One kind all along the square, so the row reads as planted: cherries, in blossom every spring.
+            add(treePlanter(), cx, cz);
+            plant("cherry", Math.floor(r * 1e6), 1, cx, cz, TREE_PLANTER_H);
+            break;
+          }
           plant(
             SPECIES[Math.floor(hash(tx, ty, 3) * SPECIES.length)]!,
             Math.floor(r * 1e6),
@@ -497,7 +388,11 @@ export function buildTown3d(
           break;
         }
         case "^":
-          add(bush(Math.floor(r * 1e6), hedge), cx, cz, 0, 1.3);
+          if (surface === "plaza") add(hedge(0.96, 0.62, 0.5, hedgeGreen), cx, cz);
+          else add(bush(Math.floor(r * 1e6), hedgeGreen), cx, cz, 0, 1.3);
+          break;
+        case ",":
+          if (surface === "jetty") jetties.push([cx, cz, jettyRunsNorth(map, tx, ty)]);
           break;
         case "L":
           add(lanternPillar(), cx, cz);
@@ -531,7 +426,9 @@ export function buildTown3d(
           doors.push({ id: "dungeon", kind: "dungeon", label: "Raid dungeon", tile: [tx, ty], at: [cx, cz] });
           break;
         case '"':
-          flowers.push([cx, cz, `${tx},${ty}`]);
+          // A bed in the paving is planted thick, in rows.
+          if (surface === "bed") beds.push([cx, cz, tx * 31 + ty * 17]);
+          else flowers.push([cx, cz, `${tx},${ty}`]);
           break;
         case "~":
           water.push([cx, cz]);
@@ -541,7 +438,8 @@ export function buildTown3d(
             [-1, 0, 2],
             [1, 0, 3],
           ] as const)
-            if (map.at(tx + dx, ty + dy) !== "~") stones.push([cx + dx * 0.5, cz + dy * 0.5, a]);
+            if (map.at(tx + dx, ty + dy) !== "~" && surfaceAt(map, tx + dx, ty + dy) !== "jetty")
+              stones.push([cx + dx * 0.5, cz + dy * 0.5, a]);
           break;
         default:
       }
@@ -549,7 +447,19 @@ export function buildTown3d(
   void lampIndex;
 
   // The fountain, over its 2x2 tiles.
-  if (fountains.length) add(grandFountain(), fountainX, fountainZ, 0, 0.62);
+  if (fountains.length) add(grandFountain(), fountainX, fountainZ, 0, 0.66);
+
+  // The beds in the square's paving, in bloom from spring to autumn.
+  for (const [x, z, seed] of beds) add(flowerBed(seed, season.dormant), x, z);
+
+  // The jetty: a post at each corner of its boards, standing in the water.
+  for (const [x, z, north] of jetties) {
+    const posts = new Model();
+    for (const side of [-0.47, 0.47])
+      for (const along of [-0.42, 0.42])
+        posts.cyl(0.055, 0.42, C.woodDark, north ? [side, -0.14, along] : [along, -0.14, side], 0.05, 7);
+    add(posts, x, z);
+  }
 
   // The windmills, each in the middle of its 2x2 tiles, turning with the weather's wind.
   const windmills = new Map<string, Windmill>();

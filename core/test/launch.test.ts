@@ -120,7 +120,7 @@ test("everything that's up is on the stand, newest first; yesterday's editions a
 
 test("the stand takes its tiles, and E faces it from the square", () => {
   const tiles: [number, number][] = [];
-  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (isStand(x, y)) tiles.push([x, y]);
+  for (let y = 0; y < 18; y++) for (let x = 0; x < 8; x++) if (isStand(x, y)) tiles.push([x, y]);
   expect(tiles).toHaveLength(STAND.w * STAND.h);
   expect(facesStand(STAND.x + STAND.w, STAND.y, "left")).toBe(true);
   expect(facesStand(STAND.x + STAND.w, STAND.y, "right")).toBe(false);
@@ -150,7 +150,7 @@ test("every provider in the pool can be found, however it's written", () => {
 
 test("walking onto the row in front of the stand is where you're handed the pamphlet", () => {
   const front: [number, number][] = [];
-  for (let y = 0; y < 8; y++) for (let x = -3; x < 8; x++) if (isStandFront(x, y)) front.push([x, y]);
+  for (let y = 0; y < 18; y++) for (let x = -3; x < 8; x++) if (isStandFront(x, y)) front.push([x, y]);
   expect(front).toHaveLength(STAND.w + 2);
   expect(front.every(([, y]) => y === STAND.y + STAND.h)).toBe(true);
   // Not on the stand itself, and not the row behind it.

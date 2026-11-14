@@ -13,6 +13,7 @@ import {
   LEGEND,
   layoutOf,
   MAPS,
+  PLAZA,
   plotBlock,
   plotId,
   SHOP_BLOCKS,
@@ -82,6 +83,20 @@ describe("maps", () => {
     for (const ch of ["I", "B", "N", "o", "G"])
       for (const t of town.find(ch)) expect(seen.has(t.join(","))).toBe(true);
     expect(town.x0).toBeLessThan(0);
+  });
+
+  test("town: what is tall stands north of the square, and south of it there is only lawn and paving", () => {
+    // The camera looks from the south-east: a building south of the square would hide it behind its roof.
+    const town = townMap([]);
+    for (const ch of ["H", "I", "Ŵ", "~"])
+      for (const [, y] of town.find(ch)) expect(y).toBeLessThan(PLAZA.top);
+    for (let y = PLAZA.bottom + 1; y < 18; y++)
+      for (let x = 1; x < 20; x++) expect('.:"').toContain(town.at(x, y));
+    // The Inn's door leads straight down into the square, and the square out to the road south of it.
+    const [ix, iy] = town.find("I")[0]!;
+    for (let y = iy + 1; y <= PLAZA.top; y++) expect(town.walkable(ix, y)).toBe(true);
+    for (let y = PLAZA.bottom; y <= 18; y++) expect(town.walkable(TOWN_SPAWN[0], y)).toBe(true);
+    expect(town.at(...TOWN_SPAWN)).toBe(":");
   });
 
   test("town: you can build on any empty block next to it, nearest the square first", () => {

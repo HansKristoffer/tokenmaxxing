@@ -1,6 +1,6 @@
 /**
- * Fastelavn in 2D (`core/src/fastelavn.ts`): on Fastelavn Sunday the barrel hangs from its frame on the lawn
- * under the square, cracking as the town whacks it (the hits are `world`'s `barrel`), and E on it is a whack.
+ * Fastelavn in 2D (`core/src/fastelavn.ts`): on Fastelavn Sunday the barrel hangs from its frame on the picnic lawn
+ * at the square's south end, cracking as the town whacks it (the hits are `world`'s `barrel`), and E on it is a whack.
  * Once it breaks its staves lie on the grass under a sign naming the kattekonge. On the server's clock, since
  * the server decides. The 3D barrel is `render3d/town/barrel3d.ts`, from the same state.
  */
