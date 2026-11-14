@@ -1,10 +1,11 @@
-// QA_ADMIN=<the server's ADMIN_TOKEN> bun scripts/qa/dances.mjs [tier] [--out /tmp/dance-shots] [--only boat,floss]
+// bun scripts/qa/dances.mjs [tier] [--out /tmp/dance-shots] [--only boat,floss]
 // The dances end to end: a fresh player is given the coins (from the admin page's side), buys every dance, and
 // starts each one from the dance bar over the chat, on the given tier ("high" by default; "low" is the 2D take). A
 // few close-up frames of each, and a sheet of them all (`<tier>-sheet.png`) to look over. Exits 1 on a console
 // error or a dance the bar didn't start. Needs a local server and Playwright (see lib.mjs).
 import { mkdirSync, readFileSync } from "node:fs";
 import { ORIGIN, openGame, playwright, ready, signUp, walkTile } from "./lib.mjs";
+import { qaAdminToken } from "./server.mjs";
 
 const { createClient } = await import(
   Bun.resolveSync("rivetkit/client", new URL("../../server/", import.meta.url).pathname)
@@ -22,7 +23,7 @@ mkdirSync(out, { recursive: true });
 
 const user = await signUp("dance");
 const admin = createClient({ endpoint: `${ORIGIN}/api/rivet` }).town.getOrCreate(["main"], {
-  params: { admin: process.env.QA_ADMIN },
+  params: { admin: process.env.QA_ADMIN ?? qaAdminToken() },
 });
 await admin.adminSetCoins(user.userId, 50_000);
 

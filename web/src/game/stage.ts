@@ -14,6 +14,16 @@ const REFRESH_PROBE_MS = 1000;
 const UNDO_HOLD_MS = 5 * 60_000;
 
 let active: Renderer | null = null;
+let still = false;
+
+/**
+ * QA only (`__tm.still`, see `qa.ts`): stops stepping and drawing the world, which keeps the frame it has.
+ * Software WebGL draws the High look about once a second, and each frame blocks the page: held still, the
+ * HUD over it answers at once.
+ */
+export const holdStill = (on: boolean): void => {
+  still = on;
+};
 let photoRequested = false;
 let photoTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -152,7 +162,7 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
       refreshMs = refreshInterval(probe);
       probe.length = 0;
     }
-    if (!renderer) return;
+    if (!renderer || still) return;
     const settings = graphics.effective();
     const busy =
       world.portalPending ||

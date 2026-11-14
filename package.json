@@ -44,6 +44,9 @@
     "vendor:pricing": "bun server/scripts/vendor-pricing.ts",
     "site:dev": "bun run --cwd site dev",
     "site:build": "bun run --cwd site build",
+    "qa:serve": "bun scripts/qa/serve.mjs",
+    "qa:stop": "bun scripts/qa/stop.mjs",
+    "qa:modals": "bun scripts/qa/modals.mjs",
     "qa:tour": "bun scripts/qa/tour.mjs",
     "qa:sleep": "bun scripts/qa/sleep.mjs",
     "qa:hitch": "bun scripts/qa/hitch.mjs"
@@ -52,6 +55,7 @@
     "@biomejs/biome": "^2.4.16",
     "@tauri-apps/cli": "^2",
     "@types/bun": "latest",
+    "playwright": "^1.65.1",
     "typescript": "^5.9.0"
   }
 }

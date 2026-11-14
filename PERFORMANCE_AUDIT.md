@@ -45,7 +45,7 @@ bun scripts/perf/counts.ts medium --check
 bun scripts/perf/counts.ts high --check
 bun scripts/perf/counts.ts high --live --block
 bun scripts/perf/occlusion.ts
-PLAYWRIGHT=/path/to/playwright/index.mjs bun scripts/perf/game.mjs --tiers medium,high --walkers 0 --warmup 8000 --ms 6000 --gpu --out /tmp/game-perf.json
+bun scripts/perf/game.mjs --tiers medium,high --walkers 0 --warmup 8000 --ms 6000 --gpu --out /tmp/game-perf.json
 ```
 
 The existing budgets count a whole room's smooth geometry with frozen actors, one pass, without camera culling or stage lighting. `--live` leaves actor geometry unmerged; it does not simulate a network crowd or a running raid. `--block` measures the voxel variant. Neither alternate mode is compared against the frozen/smooth budget. Each room measurement rebuilds the room so live/frozen modes remain independent. Build timings still benefit from process-wide kit and module caches. The runtime recorder's CPU throttle affects CPU execution, not GPU speed.

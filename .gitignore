@@ -13,6 +13,7 @@ build/
 *.tsbuildinfo
 .claude/
 .data/
+.plans/
 app/desktop/src-tauri/target/
 app/desktop/src-tauri/gen/
 site/.astro/

@@ -1,6 +1,6 @@
 // Renders the 2D case-art contact sheets to PNGs (4x, labelled) with the real art modules in headless Chromium.
 //   bunx bun@1.4.4 scripts/qa/case-art/sheets.mjs [--case ragnarok-eve] [--scale 4] [--out /tmp/case-shots/ragnarok/2d]
-// Needs Playwright (PLAYWRIGHT=/path/to/playwright/index.mjs, as scripts/qa/lib.mjs).
+// Needs Playwright (a devDependency; `bunx playwright install chromium` once per machine).
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,9 +54,7 @@ writeFileSync(
   `<!doctype html><meta charset=utf-8><body style="margin:0;background:#111"><script>${js.replaceAll("</script", "<\\/script")}</script>`,
 );
 
-const pw = await import(
-  process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs"
-);
+const pw = await import("playwright");
 const browser = await pw.chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 const errors = [];
