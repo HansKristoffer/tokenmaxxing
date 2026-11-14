@@ -40,9 +40,7 @@ writeFileSync(
   join(tmp, "index.html"),
   `<!doctype html><meta charset=utf-8><body style="margin:0;background:#111"><script>${js.replaceAll("</script", "<\\/script")}</script>`,
 );
-const pw = await import(
-  process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs"
-);
+const pw = await import("playwright");
 const browser = await pw.chromium.launch({
   executablePath: process.env.CHROME || undefined,
   args: [

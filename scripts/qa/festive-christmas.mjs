@@ -7,7 +7,7 @@
 // A time is `MM-DDTHH:MM` (Copenhagen, the pinned day), default: the 18th at noon (bare tree), the 21st at noon, and the
 // 24th at 19:00 (everything on, after dark).
 //   bun scripts/qa/festive-christmas.mjs high 12-24T19:00
-//   QA_ORIGIN=http://localhost:8822 PLAYWRIGHT=... OUT=/tmp/seasonal-shots/christmas bun scripts/qa/festive-christmas.mjs
+//   QA_ORIGIN=http://localhost:8822 OUT=/tmp/seasonal-shots/christmas bun scripts/qa/festive-christmas.mjs
 import { mkdirSync } from "node:fs";
 import { openGame, playwright, portals, ready, room, signUp, through, walkTile } from "./lib.mjs";
 

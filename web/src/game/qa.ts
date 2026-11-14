@@ -9,7 +9,7 @@ import { festiveNow } from "./festive.ts";
 import { ghost, undoStack } from "./furniture.ts";
 import { walkTo } from "./input.ts";
 import { myPetTile } from "./pets.ts";
-import { perf, pickTile } from "./stage.ts";
+import { holdStill, perf, pickTile } from "./stage.ts";
 import { self, showMyDance, world } from "./world.ts";
 
 /**
@@ -28,6 +28,7 @@ export function exposeForQa(): void {
       camera,
       viewHooks,
       perf,
+      still: holdStill,
       pickTile,
       petTile: myPetTile,
       walkTo,

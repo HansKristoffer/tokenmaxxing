@@ -1,11 +1,14 @@
-// Shared bits for the QA scripts: sign a throwaway player up on a running local server and open the real game
-// as them in headless Chromium. Needs Playwright (PLAYWRIGHT=/path/to/playwright/index.mjs) and a server
-// (`bun run dev`, or GATEWAY_REQUESTS_PER_MIN=1000000 GATEWAY_SOCKETS_PER_MIN=1000000 PORT=4663 RIVET_RUN_ENGINE_PORT=14663 RIVETKIT_STORAGE_PATH=/tmp/x bun server/src/main.ts).
+// Shared bits for the QA scripts: sign a throwaway player up on this checkout's QA server and open the real game
+// as them in headless Chromium. Start the server with `bun run qa:serve` (again after every change to `web/` or
+// `server/`); Playwright is a devDependency (`bunx playwright install chromium` once per machine).
+import { qaOrigin } from "./server.mjs";
+
 const { createClient } = await import(
   Bun.resolveSync("rivetkit/client", new URL("../../server/", import.meta.url).pathname)
 );
 
-export const ORIGIN = process.env.QA_ORIGIN ?? "http://localhost:4663";
+/** This checkout's QA server (`bun run qa:serve`), or `QA_ORIGIN`. */
+export const ORIGIN = qaOrigin();
 let n = 0;
 /** Sign-ups are limited per IP (x-real-ip, as the edge sets it): each one poses as a new address. */
 const from = (ip) => createClient({ endpoint: `${ORIGIN}/api/rivet`, headers: { "x-real-ip": ip } });
@@ -45,11 +48,8 @@ export async function signUp(prefix = "qa", perTurn = 40_000, company = false, a
   return u;
 }
 
-export async function playwright() {
-  return import(
-    process.env.PLAYWRIGHT ?? "/Users/nicholaserlin/Desktop/YeetBudget/node_modules/playwright/index.mjs"
-  );
-}
+/** Playwright, from this repo's devDependencies. */
+export const playwright = () => import("playwright");
 
 export const graphicsKey = (choice, overrides = {}) =>
   JSON.stringify({ v: 1, choice, overrides, meter: true, detected: null });
@@ -98,6 +98,21 @@ export async function ready(page) {
     .catch(() => {});
   await page.evaluate(() => window.__tm.hud.set({ panel: null, dialog: null }));
   await page.waitForTimeout(800);
+}
+
+/**
+ * Stops the world being stepped and drawn (`on = false` starts it again); the HUD and its own 3D (the Bag's
+ * preview) carry on. Headless Chromium draws WebGL on the CPU: Low runs at 60 fps and Medium at about 15, but
+ * High and Ultra at 1 to 2, and each frame blocks the page, so a click takes 5 to 10 s. Held still the page
+ * runs at 60 fps on every tier, with the last frame behind the HUD. For HUD and modal work; a check that
+ * needs the world moving uses Medium. Waits `settleMs` first, for the room to be built and drawn.
+ */
+export async function holdStill(page, on = true, settleMs = 4000) {
+  if (on) {
+    await page.waitForFunction(() => window.__tm.perf.renderer !== "", null, { timeout: 60_000 });
+    await page.waitForTimeout(settleMs);
+  }
+  await page.evaluate((on) => window.__tm.still(on), on);
 }
 
 export const room = (page) => page.evaluate(() => window.__tm.world.room);

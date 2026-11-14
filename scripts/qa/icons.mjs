@@ -2,11 +2,11 @@
 // Opens the Shop (furniture, clothes, pets), Bag, Collection and Merchant as a player with a bag of items, and for
 // each: the time from opening the panel to its first paint, the frames while the 3D icons stream in (rAF deltas)
 // and what the icon queue says it spent (`window.__tmIcons`, absent before this branch). Screenshots each panel.
-// Needs a local server (QA_ORIGIN, default http://localhost:8840) started with ADMIN_TOKEN, and Playwright (lib.mjs).
+// Needs a local server (`bun run qa:serve`; with QA_ORIGIN, that server's ADMIN_TOKEN too) and Playwright (lib.mjs).
 import { mkdirSync, writeFileSync } from "node:fs";
+import { ORIGIN, openGame, playwright, ready, signUp } from "./lib.mjs";
+import { qaAdminToken } from "./server.mjs";
 
-process.env.QA_ORIGIN ??= "http://localhost:8840";
-const { ORIGIN, openGame, playwright, ready, signUp } = await import("./lib.mjs");
 const { createClient } = await import(
   Bun.resolveSync("rivetkit/client", new URL("../../server/", import.meta.url).pathname)
 );
@@ -19,7 +19,7 @@ const tier = arg("tier", "high");
 const tag = arg("tag", "after");
 const out = arg("out", "/tmp/v2-icons/shots");
 const [vw, vh] = arg("viewport", "1280x900").split("x").map(Number);
-const admin = process.env.ADMIN_TOKEN ?? "0123456789abcdef0123456789abcdef";
+const admin = qaAdminToken();
 mkdirSync(out, { recursive: true });
 
 // A player in a company (merch, an office), rich, with one of most things in the bag.
