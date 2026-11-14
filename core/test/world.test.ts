@@ -38,9 +38,9 @@ describe("steps", () => {
   const town = townMap([plotId(2, 0)]);
 
   test("walks onto open ground, not into trees, water or furniture", () => {
-    expect(stepTarget(town, 9, 5, "down")).toEqual({ kind: "move", x: 9, y: 6 });
+    expect(stepTarget(town, 9, 11, "down")).toEqual({ kind: "move", x: 9, y: 12 });
     expect(stepTarget(town, town.x0 + 1, 2, "left").kind).toBe("blocked"); // border tree
-    expect(stepTarget(town, 8, 4, "right").kind).toBe("blocked"); // fountain
+    expect(stepTarget(town, 8, 10, "right").kind).toBe("blocked"); // fountain
   });
 
   test("a door is a portal", () => {

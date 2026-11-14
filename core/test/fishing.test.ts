@@ -30,9 +30,9 @@ import { parseLook } from "../src/world.ts";
 const NOON: PondTime = { minute: 12 * 60, weekday: 2, weather: "clear" };
 
 test("only a walkable bank facing town water can cast", () => {
-  expect(fishingWater(MAPS.town, 2, 12, "right")).toEqual([3, 12]);
-  expect(fishingWater(MAPS.town, 2, 12, "left")).toBeNull();
-  expect(fishingWater(MAPS.town, 3, 12, "right")).toBeNull();
+  expect(fishingWater(MAPS.town, 2, 1, "right")).toEqual([3, 1]);
+  expect(fishingWater(MAPS.town, 2, 1, "left")).toBeNull();
+  expect(fishingWater(MAPS.town, 3, 1, "right")).toBeNull();
   expect(fishingWater(MAPS.inn, 2, 13, "right")).toBeNull();
 });
 

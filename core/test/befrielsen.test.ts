@@ -12,7 +12,7 @@ import {
 import { BEFRIELSEN_TAVERN, BEFRIELSEN_TOWN } from "../src/befrielsen-music.ts";
 import { COSTUME_BASE, COSTUMES, costumeAt, onSale } from "../src/costumes.ts";
 import { FESTIVE_NPC, festiveAt } from "../src/festive.ts";
-import { MAPS } from "../src/maps.ts";
+import { MAPS, PLAZA } from "../src/maps.ts";
 import { copenhagenToMs } from "../src/sky.ts";
 import { FESTIVE_THEMES, THEME_STEPS } from "../src/themes.ts";
 import { drumSteps, notes, voiceSteps } from "../src/tunes.ts";
@@ -57,7 +57,7 @@ describe("befrielsen", () => {
       expect(town.walkable(x, y)).toBe(true);
       expect(town.at(x, y)).toBe(":");
       // The sprint race runs round the paving's edge (`PLAZA` in maps.ts).
-      expect(x > 1 && x < 19 && y > 1 && y < 8).toBe(true);
+      expect(x > PLAZA.left && x < PLAZA.right && y > PLAZA.top && y < PLAZA.bottom).toBe(true);
     }
     expect(new Set(tiles.map(([x, y]) => `${x},${y}`)).size).toBe(tiles.length);
   });

@@ -17,11 +17,11 @@ export const pumpkinsOut = (ms: number): boolean => near("halloween", ms, PUMPKI
 /** The doors that get one: the Tavern's (`I`), each company's (`D`) and each shop's. */
 const DOORS = ["I", "D", ...Object.values(SHOP_DOOR_CHAR)];
 
-/** The patch on the lawn above the pond, in town tiles. */
+/** The patch among the graveyard's stones, in town tiles. */
 export const PATCH: readonly [number, number][] = [
-  [3, 10],
-  [5, 10],
-  [4, 11],
+  [12, 16],
+  [16, 16],
+  [14, 17],
 ];
 
 export interface Pumpkin {

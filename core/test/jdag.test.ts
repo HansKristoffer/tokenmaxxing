@@ -30,13 +30,16 @@ test("the truck drives in at 20:59, parks till 03:00, and drives off", () => {
   expect(truckAt(cph("2027-11-05T22:00"))?.parked).toBe(true);
 });
 
-test("parked, it stands on the road under the square, gone before the paperboy rides it", () => {
+test("parked, it stands on the square's south row, in line with the road, gone before the paperboy rides it", () => {
   const night = cph("2026-11-06T22:00");
   const map = townMap([]);
   for (let x = TRUCK.park; x < TRUCK.park + TRUCK.w; x++) {
     expect(isTruck(x, TRUCK.y, night)).toBe(true);
-    expect(map.at(x, TRUCK.y)).toBe(",");
+    expect(map.at(x, TRUCK.y)).toBe(":");
   }
+  // Either side of the square that row is the road it drives in and out on.
+  expect(map.at(0, TRUCK.y)).toBe(",");
+  expect(map.at(20, TRUCK.y)).toBe(",");
   expect(isTruck(TRUCK.park - 1, TRUCK.y, night)).toBe(false);
   expect(isTruck(TRUCK.park + TRUCK.w, TRUCK.y, night)).toBe(false);
   expect(isTruck(TRUCK.park, TRUCK.y, cph("2026-11-06T20:59"))).toBe(false);

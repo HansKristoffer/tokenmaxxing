@@ -413,32 +413,45 @@ export const PLOT_W = 7;
 export const PLOT_H = 5;
 
 /**
- * Blocks (0, 0) to (1, 1): the square with the fountain, leaderboard, star counter, coffee, the #1 model's
- * statue and the raid dungeon's gate filling the top two, then the picnic lawn, the pond, the Inn and the
- * windmill (`Ŵ`) beside it.
+ * Blocks (0, 0) to (1, 1): the green in the north, the square south of it.
+ *
+ * The game looks at the town from the south-east, so what is tall stands at the back: the Inn with its front to
+ * the square and the windmill (`Ŵ`) beside it, the pond with its jetty in the north-west corner. A path runs
+ * from the north road between the pond and the Inn to the Inn's door, and on down across the Inn's lawn into
+ * the square.
+ *
+ * The square fills the rest. Along its north edge a row of trees, hedges and flower beds in planters holds the
+ * raid dungeon's gate and the coffee stand west of the middle, the star counter and the leaderboard east of
+ * it (the middle is open). The fountain stands in its north half with a bench either side, the #1 model's
+ * statue west of it. South of the fountain the paving is open: the holidays build there and the snail crosses
+ * it. At the south end two lawns flank the way in from the south road: the picnic lawn in the west, the
+ * graveyard in the east, low, so nothing stands between them and the camera.
  */
 const CORE = [
   ",,,,,,,,,,,,,,,,,,,,",
+  ",T.~~~~,..HHHHHHH...",
+  ',.~~~~~,""HHHHHHH...',
+  ',.~~~,,,."HHHHHHH...',
+  ",T.~~~^,..HHHIHHH.ŴŴ",
+  ',.""...,,,,,,,.K."ŴŴ',
+  ',...........",......',
   ",L:::::::::::::::::L",
-  ",:::G::::::::★:N::::",
-  ",::::::B:FF:B:::::o:",
+  ',:T^G^oT"::★"N"T::::',
+  ",::::::B:FF:B:::::::",
   ",::::::B:FF:B:::::::",
   ",::::♛::::::::::::::",
   ",:::::::::::::::::::",
   ",:::::::::::::::::::",
+  ",:::::::::::::::::::",
   ",L:::::::::::::::::L",
-  ",,,,,,,,,,,,,,,,,,,,",
-  ",......,............",
-  ",^.....,..........^.",
-  ",..~~~~,..HHHHHHH...",
-  ",.~~~~~,..HHHHHHH...",
-  ",.~~~~~,..HHHHHHH...",
-  ",..~~~.,..HHHIHHH.ŴŴ",
-  ',.."...,,,,,,,.K..ŴŴ',
-  ',..T........".....^.',
+  ',......."::.......".',
+  ',........::.".......',
 ];
-/** The square's paving in CORE, lamp to lamp: Sprint Race runs laps round its edge. */
-export const PLAZA = { left: 1, top: 1, right: 19, bottom: 8 };
+/**
+ * The square's paving in CORE, lamp to lamp: Sprint Race runs laps round its edge. South of it the paving goes
+ * on between the two lawns (rows 16 and 17) to the road.
+ */
+export const PLAZA = { left: 1, top: 7, right: 19, bottom: 15 };
 export const CORE_BLOCKS: [number, number][] = [
   [0, 0],
   [1, 0],
@@ -446,18 +459,29 @@ export const CORE_BLOCKS: [number, number][] = [
   [1, 1],
 ];
 
-/** A company's block: its house, and a path from the door down to the next road. */
-const LOT = [
+/**
+ * A company's block: its house, and a path from the door down to the next road. The house's own yard is fenced
+ * (the client draws it); these are what grows outside the fence, a little different on every block. The grass
+ * either side of the path below the door stays clear: the morning paper and the pumpkins land there.
+ */
+const LOTS = [
+  [",.........", ',T...,."".'],
+  [",.........", ',."..,...^'],
+  [",........T", ',""..,....'],
+  [",.........", ",....,...."],
+].map(([back, front]) => [
   ",,,,,,,,,,",
-  ",.........",
+  back!,
   ",.HHHHHHH.",
   ",.HHHHHHH.",
   ",.HHHHHHH.",
   ",.HHHHHHH.",
   ",.HHHDHHH.",
   ",....,....",
-  ",....,....",
-];
+  front!,
+]);
+/** Which of `LOTS` block (bx, by) gets: the same one every time the town is built. */
+const lotOf = (bx: number, by: number): string[] => LOTS[Math.abs(bx * 5 + by * 3) % LOTS.length]!;
 /** Where the door is in a LOT. */
 const DOOR: [number, number] = [5, 6];
 
@@ -493,20 +517,20 @@ export function julemarkedBlock(plots: readonly number[]): [number, number] {
   return JULEMARKED_BLOCK;
 }
 
-/** A shop's block: a lawn, its 5×4 front with the door in the middle of the bottom row, and the path down to the road. */
+/** A shop's block: a lawn with a tree in the back corner, its 5×4 front with the door in the middle of the bottom row, and the path down to the road. */
 const shopLot = (id: ShopId): string[] => {
   const body = SHOP_BODY_CHAR.repeat(5);
   const front = `${SHOP_BODY_CHAR.repeat(2)}${SHOP_DOOR_CHAR[id]}${SHOP_BODY_CHAR.repeat(2)}`;
   return [
     ",,,,,,,,,,",
-    ",.........",
+    ",T........",
     ",.........",
     `,..${body}..`,
     `,..${body}..`,
     `,..${body}..`,
     `,..${front}..`,
     ",....,....",
-    ",....,....",
+    ',."..,..".',
   ];
 };
 /** Where the door is in a shop's block. */
@@ -568,29 +592,55 @@ export function shopBlocks(plots: readonly number[]): Record<ShopId, [number, nu
   return out;
 }
 
-/** Empty blocks inside the town: small parks. */
+/**
+ * Empty blocks inside the town: small parks. A grove, a flower garden with benches and a lamp, an orchard and a
+ * meadow. Each keeps a lawn open across its middle: Easter's lambs, bunnies and chicks (`paaske.ts` `CRITTERS`)
+ * and its farmer keep to the same tiles of whichever park they are in (core/test/paaske.test.ts).
+ */
 const PARKS = [
   [
     ",,,,,,,,,,",
-    ",.........",
-    ',..T....".',
+    ',.T.."..T.',
     ",....^....",
-    ',.".....T.',
     ",.........",
-    ',..T..."..',
     ",.........",
-    ",.....^...",
+    ",.........",
+    ',."......T',
+    ",......^..",
+    ',...."....',
   ],
   [
     ",,,,,,,,,,",
+    ',T""B,B""T',
+    ",.^..L....",
+    ",.........",
+    ",.........",
+    ",.........",
+    ',""....."^',
+    ',""...."""',
+    ",T.......T",
+  ],
+  [
+    ",,,,,,,,,,",
+    ",.T...T...",
     ',...."....',
+    ",....T....",
+    ",.........",
+    ",.........",
     ",.T.....T.",
+    ',......".^',
+    ",...T...T.",
+  ],
+  [
+    ",,,,,,,,,,",
+    ',.""""..T.',
+    ',.""".B...',
+    ",....L....",
     ",.........",
-    ',...".^...',
     ",.........",
-    ",.T.....T.",
-    ',......"..',
-    ",.........",
+    ',.^...."".',
+    ',T....."""',
+    ',...."""..',
   ],
 ];
 
@@ -668,7 +718,7 @@ export function townMap(plots: readonly number[]): GameMap {
             r.slice(bx * BLOCK_W, (bx + 1) * BLOCK_W),
           )
         : taken.has(plotId(bx, by))
-          ? LOT
+          ? lotOf(bx, by)
           : shopAt.has(plotId(bx, by))
             ? shopLot(shopAt.get(plotId(bx, by))!)
             : plotId(bx, by) === plotId(...gate)
@@ -709,7 +759,7 @@ export function setTown(plots: readonly number[]): GameMap {
 }
 
 /** Where you arrive in town: the middle of the square. */
-export const TOWN_SPAWN: [number, number] = [9, 5];
+export const TOWN_SPAWN: [number, number] = [9, 11];
 
 /** The door's column, in every office size: the room only grows right and down. */
 export const OFFICE_DOOR_X = 5;

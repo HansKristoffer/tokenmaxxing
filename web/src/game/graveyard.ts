@@ -1,6 +1,6 @@
 /**
  * The model graveyard in town (`core/src/graveyard.ts`): a tombstone for each model that dropped off
- * OpenRouter's list, on the lawn east of the Tavern. `world` keeps them and sends them (the `graveyard`
+ * OpenRouter's list, on the lawn at the square's south-east end. `world` keeps them and sends them (the `graveyard`
  * event). Walk onto the tile in front of a stone and its epitaph opens (once a stone, remembered in this
  * browser); E facing it opens it again. `?graveyard=on` (or a number) fills the plots for screenshots,
  * `?graveyard=off` empties them.

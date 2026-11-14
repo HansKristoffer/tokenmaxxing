@@ -61,7 +61,7 @@ function truckModel(): Model {
 
 /**
  * J-dag's truck in the 3D town (`core/src/jdag.ts`; the 2D one is `game/jdag.ts`): built once per town, merged into
- * a few meshes, and moved along the road under the square as `truckAt` says, on `skyNow()` like the 2D one. Hidden the rest of
+ * a few meshes, and moved along the road that runs into the square as `truckAt` says, on `skyNow()` like the 2D one. Hidden the rest of
  * the year. Its sign is a live one while it's parked.
  */
 export class Truck3d {

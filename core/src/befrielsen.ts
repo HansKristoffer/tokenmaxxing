@@ -13,17 +13,17 @@ import type { FestiveNpc } from "./festive.ts";
  * Inside the square, never on a company's block (`maps.ts` `frontier`), off the paving's edge where the sprint
  * race runs, and clear of the launch stand, the cart, the statue and the fountain.
  */
-export const MEMORIAL = { x: 2, y: 6, w: 3, h: 2 } as const;
+export const MEMORIAL = { x: 2, y: 12, w: 3, h: 2 } as const;
 
 /** Where the storyteller stands: the paving at the memorial's east end, looking along it. */
-export const NPC_TILE = { x: 5, y: 7 } as const;
+export const NPC_TILE = { x: 5, y: 13 } as const;
 
 /** Dannebrog flagpoles: two behind the memorial, two on the east side of the square. Each blocks its tile. */
 export const FLAGPOLES: readonly { x: number; y: number }[] = [
-  { x: 2, y: 5 },
-  { x: 4, y: 5 },
-  { x: 18, y: 2 },
-  { x: 18, y: 7 },
+  { x: 2, y: 11 },
+  { x: 4, y: 11 },
+  { x: 18, y: 8 },
+  { x: 18, y: 13 },
 ];
 
 /** Candles on the memorial tray: the town's, filling from the left, and the player's own, from the right. */

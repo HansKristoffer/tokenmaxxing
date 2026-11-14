@@ -12,28 +12,28 @@ import type { GameMap } from "./maps.ts";
 import { SHOP_DOOR_CHAR } from "./shoprooms.ts";
 
 /** The tree, on the square's paving south of the fountain: it blocks its own tile. */
-export const TREE = { x: 10, y: 6 } as const;
+export const TREE = { x: 10, y: 12 } as const;
 
 /**
  * Nisse Knud's tile: on the square east of the tree, in the open paving (the square is 19 wide, so he is no
  * chokepoint: both ways round him are clear). He blocks his tile, and E on it talks (`FESTIVE_NPC.christmas`).
  */
-export const NISSE_TILE = { x: 13, y: 5 } as const;
+export const NISSE_TILE = { x: 13, y: 11 } as const;
 
 /** Where the gifts lie: beside the trunk, two stacks, up to four boxes each. */
 export const GIFT_TILES: readonly { x: number; y: number }[] = [
-  { x: 9, y: 6 },
-  { x: 11, y: 6 },
+  { x: 9, y: 12 },
+  { x: 11, y: 12 },
 ];
 /** The most boxes under the tree (on the 24th evening). */
 export const GIFTS_MAX = 8;
 
 /** The square's four lamps (CORE's `L`), top-left to bottom-right: the lights are strung between them. */
 export const SQUARE_LAMPS: readonly [number, number][] = [
-  [1, 1],
-  [19, 1],
-  [1, 8],
-  [19, 8],
+  [1, 7],
+  [19, 7],
+  [1, 15],
+  [19, 15],
 ];
 /** The garlands: a string of lights between each pair of lamps along the square's top and bottom edges. */
 export const GARLANDS: readonly { from: number; to: number }[] = [
@@ -43,9 +43,9 @@ export const GARLANDS: readonly { from: number; to: number }[] = [
 
 /** Three snowmen, on the lawns: the first is out from the start, a second and a third as the snow piles up. */
 export const SNOWMEN: readonly { x: number; y: number }[] = [
-  { x: 18, y: 7 },
-  { x: 2, y: 7 },
-  { x: 4, y: 10 },
+  { x: 18, y: 13 },
+  { x: 2, y: 13 },
+  { x: 8, y: 17 },
 ];
 
 /** The doors that get a wreath and a nisse: the Tavern's (`I`), each company's (`D`) and each shop's. */

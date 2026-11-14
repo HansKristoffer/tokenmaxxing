@@ -16,10 +16,10 @@ const WEEK_HOUR = OPENS_AT_HOUR;
 const ARRIVES = 4;
 
 /**
- * Where the cart stands in town: its left wheel's tile, in the square's south-east corner, below
- * the pølsevogn (`street.ts` `CART`, at (16, 4) and (17, 4)), so the two never stand on each other.
+ * Where the cart stands in town: its left wheel's tile, on the square's east side, two clear rows below
+ * the pølsevogn (`street.ts` `CART`, at (16, 10) and (17, 10)), so there is room to walk between the two.
  */
-export const CART_SPOT = { x: 16, y: 6 } as const;
+export const CART_SPOT = { x: 16, y: 13 } as const;
 /** The tiles it covers: three wide, two deep. The merchant stands just west of it. */
 export const CART_W = 3;
 export const CART_H = 2;

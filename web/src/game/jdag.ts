@@ -1,5 +1,5 @@
 /**
- * J-dag in 2D (`core/src/jdag.ts`): Nissebryg's truck driving in along the road under the square at 20:59,
+ * J-dag in 2D (`core/src/jdag.ts`): Nissebryg's truck driving in along the road that runs into the square at 20:59,
  * parked with its lights on till 03:00, and off again. E on it says what's on at the Tavern. On `skyNow()`, so
  * `?sky=2026-11-06T20:58` shows it arrive. The 3D truck is `render3d/town/truck3d.ts`, on the same `truckAt`.
  */

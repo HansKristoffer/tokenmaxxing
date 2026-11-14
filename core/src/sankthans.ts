@@ -6,7 +6,7 @@
 import { minutesFrom } from "./holidays.ts";
 
 /** Its tiles: the lawn in front of the Tavern, two wide, under its path. */
-export const BONFIRE = { x: 9, y: 17, w: 2 } as const;
+export const BONFIRE = { x: 9, y: 6, w: 2 } as const;
 
 /** In minutes from 23 June's midnight: the pile goes up, it's lit, it's out (01:00 the next night). */
 export const SANKT_HANS = { built: 8 * 60, lit: 21 * 60, out: 25 * 60 } as const;

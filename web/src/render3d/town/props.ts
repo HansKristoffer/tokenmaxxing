@@ -69,11 +69,12 @@ export function announceNight(on: boolean): void {
 
 export const LEAF = ["#3f8f3a", "#4fa544", "#5fb84f", "#2f7a32"];
 
-/** A low white planter, `w`×`d`, with a hedge clipped square on top. */
-export function hedge(w: number, d = 0.55, h = 0.55): Model {
+/** A low white planter, `w`×`d`, with a hedge clipped square on top; `color` is its green on the day. */
+export function hedge(w: number, d = 0.55, h = 0.55, color = LEAF[1]!): Model {
   const m = new Model();
+  const greens = color === LEAF[1] ? LEAF : [tint(color, -0.1), color, tint(color, 0.1), tint(color, -0.18)];
   m.box([w, 0.22, d], "#eeeae2", [0, 0, 0], 0.03);
-  m.box([w - 0.06, h, d - 0.08], LEAF[1]!, [0, 0.2, 0], 0.12);
+  m.box([w - 0.06, h, d - 0.08], color, [0, 0.2, 0], 0.12);
   const rnd = seeded(Math.round(w * 97 + d * 13));
   const along = w > d;
   const n = Math.round((along ? w : d) * 3.5);
@@ -82,8 +83,62 @@ export function hedge(w: number, d = 0.55, h = 0.55): Model {
     const at: V3 = along
       ? [f * (w - 0.2), 0.2 + h - 0.05, (rnd() - 0.5) * 0.15]
       : [(rnd() - 0.5) * 0.15, 0.2 + h - 0.05, f * (d - 0.2)];
-    m.ball(0.14 + rnd() * 0.05, LEAF[i % 4]!, at, [1, 0.7, 1], 8);
+    m.ball(0.14 + rnd() * 0.05, greens[i % 4]!, at, [1, 0.7, 1], 8);
   }
+  return m;
+}
+
+/** How high the soil is in a `treePlanter`: where its tree stands. */
+export const TREE_PLANTER_H = 0.34;
+
+/** A square stone planter for a tree on paving, a tile wide, with greens round where the trunk goes. */
+export function treePlanter(): Model {
+  const m = new Model();
+  m.box([0.9, 0.3, 0.9], "#e8e0cc", [0, 0, 0], 0.03);
+  m.box([0.98, 0.07, 0.98], "#f4efe4", [0, 0.28, 0], 0.02);
+  m.box([0.78, 0.02, 0.78], "#5e3d28", [0, TREE_PLANTER_H, 0], 0.005);
+  for (const [x, z, k] of [
+    [-0.24, -0.22, 0],
+    [0.25, -0.2, 1],
+    [-0.22, 0.24, 2],
+    [0.23, 0.25, 3],
+  ] as const)
+    m.box([0.24, 0.12, 0.24], LEAF[k]!, [x, TREE_PLANTER_H, z], 0);
+  // Uplights in the corners, glowing at night (no light of their own: a lamp that lights the scene costs every
+  // surface in it).
+  for (const x of [-0.36, 0.36])
+    for (const z of [-0.36, 0.36])
+      nightGlow(m.box([0.07, 0.03, 0.07], "#cfd8e8", [x, TREE_PLANTER_H + 0.01, z], 0.005), "#ffe9a8");
+  return m;
+}
+
+/** A bed's two colours, by its seed: the square's beds are each planted in one pairing. */
+const BED_BLOOMS = [
+  ["#e8584f", "#fbf7ef"],
+  ["#f5c842", "#ff8a5c"],
+  ["#ff7ab6", "#fbf7ef"],
+  ["#b47cff", "#f5d14a"],
+] as const;
+
+/**
+ * A flower bed set in paving: rows of blossoms over leaves, low enough to wade through (its tile is walked on,
+ * like a meadow's). `dormant` is the season's (0 to 1): the blossoms go as winter comes, and the leaves stay.
+ */
+export function flowerBed(seed: number, dormant = 0): Model {
+  const m = new Model();
+  const rnd = seeded(seed);
+  const blooms = BED_BLOOMS[Math.abs(seed) % BED_BLOOMS.length]!;
+  const n = 4;
+  // Little blocks, not balls: a bed is a hundred of them, and a ball is five times the triangles.
+  for (let j = 0; j < n; j++)
+    for (let i = 0; i < n; i++) {
+      const x = ((i + 0.5) / n - 0.5) * 0.74 + (rnd() - 0.5) * 0.05;
+      const z = ((j + 0.5) / n - 0.5) * 0.74 + (rnd() - 0.5) * 0.05;
+      const tall = 0.1 + rnd() * 0.06;
+      m.box([0.17, 0.08, 0.17], LEAF[(i + j) % 4]!, [x, 0, z], 0).castShadow = false;
+      if (rnd() < dormant) continue;
+      m.box([0.11, 0.12, 0.11], blooms[(i + j) % 2]!, [x, tall, z], 0).castShadow = false;
+    }
   return m;
 }
 

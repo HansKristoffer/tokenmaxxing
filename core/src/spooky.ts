@@ -18,19 +18,19 @@ import { worldWall } from "./range.ts";
  * (the graveyard itself hides behind the Tavern and the windmill in 3D). In the core, where no company can build
  * a house over her. Open ground on every side, so she's in nobody's way. Face her and press E.
  */
-export const GERDA_TILE = { x: 7, y: 17 } as const;
+export const GERDA_TILE = { x: 7, y: 6 } as const;
 
 /** The cauldron on the grass in front of the Tavern, below its path. */
-export const CAULDRON = { x: 11, y: 17 } as const;
+export const CAULDRON = { x: 11, y: 6 } as const;
 
 export type StoneKind = "round" | "cross" | "slab";
 
 /** Gerda's own little plot of stones beside her, for the models nobody has retired yet: scenery (a click-route may cross them). */
 export const EXTRA_STONES: readonly { x: number; y: number; kind: StoneKind; text: string }[] = [
-  { x: 4, y: 16, kind: "cross", text: "BRB" },
-  { x: 6, y: 16, kind: "round", text: "404" },
-  { x: 4, y: 17, kind: "slab", text: "TODO" },
-  { x: 5, y: 17, kind: "round", text: "RIP npm" },
+  { x: 4, y: 5, kind: "cross", text: "BRB" },
+  { x: 6, y: 5, kind: "round", text: "404" },
+  { x: 4, y: 6, kind: "slab", text: "TODO" },
+  { x: 5, y: 6, kind: "round", text: "RIP npm" },
 ];
 
 /** Whether Gerda or the cauldron stands on this tile: they block a step (the stones and sweets are scenery). */
@@ -53,13 +53,13 @@ export interface Haunt {
 
 export const HAUNTS: readonly Haunt[] = [
   // The graveyard.
-  { x: 17, y: 11.3, rx: 2.4, ry: 1, period: 22, phase: 0, size: 1, hue: "white" },
+  { x: 15, y: 16.6, rx: 3.4, ry: 0.7, period: 22, phase: 0, size: 1, hue: "white" },
   // Over the pond.
-  { x: 4.5, y: 13.4, rx: 1.4, ry: 1.3, period: 17, phase: 2, size: 0.7, hue: "blue" },
+  { x: 4.5, y: 2.4, rx: 1.4, ry: 1.3, period: 17, phase: 2, size: 0.7, hue: "blue" },
   // Outside the Tavern.
-  { x: 9, y: 17.6, rx: 1.6, ry: 0.8, period: 19, phase: 4, size: 0.85, hue: "white" },
+  { x: 9, y: 6.6, rx: 1.6, ry: 0.8, period: 19, phase: 4, size: 0.85, hue: "white" },
   // By Gerda's stones.
-  { x: 5, y: 16.6, rx: 1.3, ry: 0.6, period: 21, phase: 1, size: 0.75, hue: "white" },
+  { x: 5, y: 5.6, rx: 1.3, ry: 0.6, period: 21, phase: 1, size: 0.75, hue: "white" },
 ];
 
 /** Where a haunt's ghost is at `t` seconds (tiles), and how high it floats (tiles). */
@@ -74,10 +74,10 @@ export function ghostAt(h: Haunt, t: number): { x: number; y: number; lift: numb
 
 /** The bats' roosts (tile centres they circle: the Tavern's roof, the windmill, the graveyard and Gerda's lawn). */
 const ROOSTS: readonly (readonly [number, number])[] = [
-  [13.5, 13.5],
-  [18.9, 16],
-  [17, 11],
-  [6, 16.5],
+  [13.5, 2.5],
+  [18.9, 5],
+  [15, 16.5],
+  [6, 5.5],
 ];
 
 /** How many bats flap about at this build-up: 4 on the first evening, 8 at the peak. */

@@ -88,7 +88,7 @@ describe("the watchman and the things he stands among", () => {
       seen.add(`${x},${y}`);
     }
     expect(seen.size).toBe(NYTAR_BLOCKS.length);
-    expect([NYTAR_NPC.x, NYTAR_NPC.y]).toEqual([11, 6]);
+    expect([NYTAR_NPC.x, NYTAR_NPC.y]).toEqual([11, 12]);
   });
 
   test("blocking them leaves the square in one piece and the NPC reachable", () => {
@@ -97,8 +97,8 @@ describe("the watchman and the things he stands among", () => {
     // The merchant's cart, when it is in town, parks under them.
     for (let x = CART_SPOT.x; x < CART_SPOT.x + CART_W; x++)
       for (let y = CART_SPOT.y; y < CART_SPOT.y + CART_H; y++) blocked.add(`${x},${y}`);
-    const seen = new Set<string>(["9,5"]);
-    const queue: [number, number][] = [[9, 5]];
+    const seen = new Set<string>(["9,11"]);
+    const queue: [number, number][] = [[9, 11]];
     const dirs = [
       [1, 0],
       [-1, 0],
@@ -113,17 +113,17 @@ describe("the watchman and the things he stands among", () => {
         queue.push([x + dx, y + dy]);
       }
     for (const [x, y] of [
-      [2, 1],
-      [18, 1],
-      [2, 8],
-      [18, 8],
-      [19, 5],
+      [2, 7],
+      [18, 7],
+      [2, 15],
+      [18, 15],
+      [19, 11],
       [20, 9],
     ] as const)
       expect(seen.has(`${x},${y}`)).toBe(true);
-    // A free tile below each of them to stand on and talk (or press E), and row 5 stays one open street.
+    // A free tile below each of them to stand on and talk (or press E), and row 11 stays one open street.
     for (const t of NYTAR_BLOCKS) expect(seen.has(`${t.x},${t.y + 1}`)).toBe(true);
-    for (let x = 6; x <= 19; x++) expect(seen.has(`${x},5`)).toBe(true);
+    for (let x = 6; x <= 19; x++) expect(seen.has(`${x},11`)).toBe(true);
   });
 });
 

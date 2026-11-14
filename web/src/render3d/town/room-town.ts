@@ -133,10 +133,10 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   // Agustusan: flags, the gapura gate and the lomba props, built when the theme is on.
   const agustusan = new Agustusan3d((tx, ty) => town.toWorld(tx, ty));
   group.add(agustusan.group);
-  // J-dag's truck, on the road under the square on the first Friday night of November.
+  // J-dag's truck, parked on the square on the first Friday night of November.
   const truck = new Truck3d((tx, ty) => town.toWorld(tx, ty));
   group.add(truck.group);
-  // Fastelavn's barrel, on the lawn under the square on Fastelavn Sunday.
+  // Fastelavn's barrel, on the picnic lawn at the square's south end on Fastelavn Sunday.
   const barrel = new Barrel3d((tx, ty) => town.toWorld(tx, ty));
   group.add(barrel.group);
   // The Sankt Hans bonfire, in front of the Tavern on 23 June.
