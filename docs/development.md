@@ -120,11 +120,50 @@ on the classic 2D canvas on Low. **Auto** picks from the machine (High at most; 
 down if it can't keep up; the **Graphics** panel (Esc menu) changes it.
 
 ```bash
-bun run qa:tour                        # headless tour of the real game's rooms (needs a local server and Playwright; see scripts/qa/lib.mjs)
 bun scripts/perf/counts.ts medium      # per-room draw and triangle counts, checked against the budgets
 ```
 
 Architecture, the `Renderer` interface, the perf budgets and how to profile are in [ARCHITECTURE.md](../ARCHITECTURE.md#3d-and-graphics-where-to-look).
+
+## QA scripts
+
+`scripts/qa/` drives the real game in headless Chromium: each script signs a throwaway player up on a local
+server and opens `/play` as them (`scripts/qa/lib.mjs`). Playwright is a devDependency; its browser is
+downloaded once per machine with `bunx playwright install chromium`.
+
+```bash
+bun run qa:serve                       # this checkout's server, in the background; prints its origin
+bun run qa:modals                      # every modal, on the 2D and the 3D skin, into .data/qa/modals/
+bun run qa:tour                        # walks through every room and checks each one draws
+bun scripts/qa/<name>.mjs              # the rest; each file's first lines say what it checks
+bun run qa:stop                        # stops this checkout's server
+```
+
+- **One server per checkout.** `qa:serve` takes a free port (the same one each time, while it stays free)
+  and keeps the server's pid, origin, admin token, log and data in `.data/qa/`, which git ignores. The
+  scripts read the origin from there, so the main checkout and every worktree can run at once.
+  `QA_ORIGIN=http://…` points them at another server instead.
+- **Run `qa:serve` again after every change to `web/` or `server/`.** The game is bundled when the server
+  starts. It stops the server it started before and starts the new code on the same port and data;
+  `--fresh` empties the data too.
+- **`qa:stop` stops this checkout's server and its engine, and no other.** A `pkill` by command line stops
+  every worktree's.
+- **Its settings** are quiet ones for looking at the UI: no outside feeds, clear weather, a raid that is
+  open, shops that sell from anywhere. Anything in the environment wins: `SKY_WEATHER=rain bun run qa:serve`.
+
+Headless Chromium has no GPU here and draws WebGL on the CPU. Measured in the Tavern at 1280x800 and 1600x900:
+
+| Tier (`openGame`'s `choice`) | Frames a second | A click takes |
+| ---------------------------- | --------------- | ------------- |
+| `low` (2D canvas)            | 60              | under 1 s     |
+| `medium` (3D)                | 15 to 22        | about 1 s     |
+| `high`, `ultra` (3D)         | 1 to 2          | 5 to 10 s     |
+| any, held still              | 60              | about 1 s     |
+
+So a check that needs the 3D world moving runs on `medium`, which has the same HUD skin as High. For the
+HUD and the modals on High or Ultra, `holdStill(page)` (`lib.mjs`) stops the world being drawn once it
+has a frame: the page gets its time back, and the HUD's own 3D (the Bag's preview, the item icons) still
+draws. `qa:modals` does this.
 
 ## Server config
 
@@ -195,6 +234,29 @@ app's public key.
 Installed apps find the update through `latest.json` on the latest release (hourly), install it by themselves
 when no window is open, and otherwise show an "Update" button in the game.
 Railway deploys the server from `main`, and the game window picks that up on its own.
+
+## Production
+
+Railway builds the `Dockerfile` and deploys on every push to `main`: a merged PR, and a merged Release PR
+too. The site and the game are at <https://tokenmaxxing.dk>; `/health` answers `{"ok":true,"version":"…"}`.
+
+**One deploy at a time.** A new deploy replaces the one before it, also while that one is still starting.
+On 13 November 2026 a Release PR was merged 2 minutes after the PR that moved the town to RivetKit 3: its
+deploy stopped the first one in the middle of the move, which then started over. Before merging anything
+into `main`, wait until the last deploy is done:
+
+```sh
+gh api "repos/{owner}/{repo}/deployments?per_page=1" -q '.[0].statuses_url' |
+  xargs gh api -q '.[0] | "\(.state) \(.created_at) \(.log_url)"'
+```
+
+`success` means the new server passed its health check; `in_progress` means wait. A release that does work
+on its first start (a data move) passes the health check before that work is over: wait for its last log
+line too.
+
+**Logs** are in Railway's dashboard: the `log_url` that command prints (project `tokenmaxxing`,
+environment `production`), under the deploy's Deploy Logs. They need a Railway login; a machine without
+one can read the deploy's state with the command above, and `/health`.
 
 Required repo settings: the variable `TOKENMAXXING_SERVER_URL`, and the secrets `MACOS_CERT_P12`,
 `MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY`, `NOTARY_APPLE_ID`, `NOTARY_TEAM_ID`, `NOTARY_PASSWORD`,
