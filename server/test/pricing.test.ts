@@ -58,7 +58,7 @@ describe("computeRowCostUsd", () => {
       output: 0,
       cacheCreation: 0,
       cacheRead: 0,
-      reasoning: 1_000_000, // 1M reasoning tokens — would be $100 if billed
+      reasoning: 1_000_000, // 1M reasoning tokens. Billed, they would be $100.
     };
     expect(computeRowCostUsd(row, price)).toBe(0);
   });
@@ -101,7 +101,7 @@ describe("computeRowCostUsd", () => {
     //   input_cost_per_token              = 5e-6   ($5 / 1M)
     //   cache_read_input_token_cost       = 5e-7   ($0.50 / 1M)
     //   output_cost_per_token             = 3e-5   ($30 / 1M)
-    //   (no cache_creation for OpenAI — Codex parser sets it to 0)
+    //   (no cache_creation for OpenAI: the Codex parser sets it to 0)
     //
     // The Codex parser emits a raw token_count of
     //   input=10000, cached=8000, output=2000, reasoning=500
@@ -112,7 +112,7 @@ describe("computeRowCostUsd", () => {
     //   2000 * 5e-6  = 0.01
     //   8000 * 5e-7  = 0.004
     //   2000 * 3e-5  = 0.06
-    //   reasoning is informational only — NOT added.
+    //   reasoning is informational only and is not added.
     const cache = new PricingCache();
     const price = cache.lookup("gpt-5.5")!;
     expect(price).not.toBeNull();

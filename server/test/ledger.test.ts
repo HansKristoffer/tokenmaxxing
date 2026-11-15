@@ -432,10 +432,10 @@ describe("trades", () => {
   test("a piece on the floor can't be traded until it's picked up", async () => {
     await buy(sql, 1, itemById("furn.c")!, NOW);
     const id = await takeOut(sql, 1, "furn.c", NOW);
-    const sofa = await offer({ give: { coins: 0, items: ["furn.c"] } });
-    await expect(settleTrade(sql, sofa, NOW)).rejects.toMatchObject({ code: "not_owned" });
+    const chairTrade = await offer({ give: { coins: 0, items: ["furn.c"] } });
+    await expect(settleTrade(sql, chairTrade, NOW)).rejects.toMatchObject({ code: "not_owned" });
     await pickUp(sql, id, 1, "inn");
-    await settleTrade(sql, sofa, NOW);
+    await settleTrade(sql, chairTrade, NOW);
     expect((await wallet(sql, 2, NOW)).owned).toEqual(["furn.c"]);
   });
 

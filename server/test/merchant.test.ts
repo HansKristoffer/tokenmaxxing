@@ -13,6 +13,19 @@ const SAT = Date.UTC(2026, 9, 24, 10);
 const WED = Date.UTC(2026, 9, 21, 10);
 const first = lineup(weekOf(SAT))[0]!;
 
+/** Puts `t` in the trades table, as an offer waiting to be settled. */
+async function offer(t: Trade) {
+  await sql.execute(
+    "INSERT INTO trades (from_id, to_id, give, want, at) VALUES (?, ?, ?, ?, ?)",
+    t.fromId,
+    t.toId,
+    JSON.stringify(t.give),
+    JSON.stringify(t.want),
+    t.at,
+  );
+  return t;
+}
+
 beforeEach(async () => {
   sql = memorySql().sql;
   await migrate(sql);
@@ -69,7 +82,7 @@ describe("the traveling merchant", () => {
 
   test("a copy's number goes with it in a trade", async () => {
     await buyEdition(sql, 1, first.id, SAT);
-    const t: Trade = {
+    const t = await offer({
       fromId: 1,
       from: "u1",
       toId: 2,
@@ -77,13 +90,7 @@ describe("the traveling merchant", () => {
       give: { coins: 0, items: [first.id] },
       want: { coins: 10, items: [] },
       at: SAT,
-    };
-    await sql.execute(
-      "INSERT INTO trades (from_id, to_id, give, want, at) VALUES (1, 2, ?, ?, ?)",
-      JSON.stringify(t.give),
-      JSON.stringify(t.want),
-      SAT,
-    );
+    });
     await settleTrade(sql, t, SAT);
     expect(await copiesOf(sql, 1)).toEqual([]);
     expect(await copiesOf(sql, 2)).toEqual([
@@ -93,7 +100,7 @@ describe("the traveling merchant", () => {
 
   test("a trade, or a drop, moves the newest copy of a kind and the first one stays", async () => {
     for (let i = 0; i < 3; i++) await buyEdition(sql, 1, first.id, SAT);
-    const t: Trade = {
+    const t = await offer({
       fromId: 1,
       from: "u1",
       toId: 2,
@@ -101,13 +108,7 @@ describe("the traveling merchant", () => {
       give: { coins: 0, items: [first.id] },
       want: { coins: 0, items: [] },
       at: SAT,
-    };
-    await sql.execute(
-      "INSERT INTO trades (from_id, to_id, give, want, at) VALUES (1, 2, ?, ?, ?)",
-      JSON.stringify(t.give),
-      JSON.stringify(t.want),
-      SAT,
-    );
+    });
     await settleTrade(sql, t, SAT);
     expect((await copiesOf(sql, 2)).map((c) => c.n)).toEqual([3]);
     expect((await copiesOf(sql, 1)).map((c) => c.n)).toEqual([1, 2]);

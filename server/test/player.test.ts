@@ -392,6 +392,7 @@ describe("linked computers", () => {
     const u = await signUp("linkmax");
     const app = as(u.token).player(u.userId);
     const anon = client.player.get([String(u.userId)]);
+    // The app is the first of the ten devices, so nine computers fit beside it.
     for (let i = 0; i < 9; i++) await anon.redeemLinkCode(await app.mintLinkCode(), `c${i}`, "linux");
     await expect(anon.redeemLinkCode(await app.mintLinkCode(), "c9", "linux")).rejects.toThrow();
   });

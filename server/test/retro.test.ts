@@ -6,7 +6,6 @@ import { memorySql } from "./memory-sql.ts";
 test("cabinet boards keep each player's best, sorted with stable ties and separated by game", async () => {
   const { sql } = memorySql();
   await migrate(sql);
-  await migrate(sql);
   for (const [id, name] of [
     [1, "Ada"],
     [2, "Bo"],

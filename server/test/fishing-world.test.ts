@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { CAST_COOLDOWN_MS } from "@tokenmaxxing/core/fishing.ts";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { outsideDoor, route } from "@tokenmaxxing/core/world.ts";
 import { eventually, signUp } from "./rivet.ts";
@@ -23,7 +24,8 @@ test("pond casts require the bank; early reels, movement and duplicate claims do
       message: "Too soon! Wait for the bobber to dip.",
     });
     expect(await a.town.fishingJournal()).toEqual([]);
-    await Bun.sleep(1550);
+    // Past the pond's cast cooldown, so the next cast is not refused.
+    await Bun.sleep(CAST_COOLDOWN_MS + 50);
     const cast = await v.conn.fishingCast("right");
     if (!cast.ok) throw Error(cast.message);
     // Repeated casts keep their original bite rather than rerolling the wait.
@@ -51,11 +53,11 @@ test("everyone in town sees an angler's line, their catch held up, and the rod p
   const w = await connect(b.token);
   try {
     // Both out to the bank: the angler at the water, the watcher a step behind.
-    for (const [p, x] of [
-      [v, 2],
-      [w, 1],
+    for (const [p, id, x] of [
+      [v, a.userId, 2],
+      [w, b.userId, 1],
     ] as const) {
-      const me = p.snap.players.find((q) => q.id === (p === v ? a.userId : b.userId))!;
+      const me = p.snap.players.find((q) => q.id === id)!;
       await walk(p.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
       const door = outsideDoor("inn");
       await walk(p.conn, route(MAPS.town, [door.x, door.y], [x, 1])!);

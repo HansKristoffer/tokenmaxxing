@@ -167,7 +167,7 @@ describe("the net cafe's poker table", () => {
     const stackOf = (u: Rich) => done.seats.find((s) => s?.userId === u.userId)!.stack;
     const keeperUser = keeper === ca ? a : b;
     const folderUser = keeper === ca ? b : a;
-    // The folder is out the blind they had posted (their stack at the deal, less nothing more); the other has it.
+    // The folder keeps the stack they had after posting the small blind; the keeper takes the pot.
     expect(stackOf(folderUser)).toBe(mover.stack);
     expect(stackOf(keeperUser)).toBe(2 * BUY_IN - mover.stack);
     expect(mover.stack).toBeLessThan(BUY_IN);
@@ -197,7 +197,7 @@ describe("the net cafe's poker table", () => {
   }, 20_000);
 
   test("moves are checked: not your turn, a raise below the minimum, not at the table", async () => {
-    const { a, b, ca, cb, heardA } = await pair(4, 5);
+    const { a, ca, cb, heardA } = await pair(4, 5);
     const start = heardA.table.at(-1)!;
     const [mover, other] = start.seats[start.toAct]!.userId === a.userId ? [ca, cb] : [cb, ca];
     expect(await other.conn.pokerAct("check", 0)).toMatch(/not your turn/);
@@ -213,7 +213,6 @@ describe("the net cafe's poker table", () => {
     const cs = await joinCafe(stranger.token);
     expect(await cs.conn.pokerAct("fold", 0)).toMatch(/not at the poker table/);
     for (const c of [ca, cb, cs]) await c.conn.dispose();
-    void b;
   }, 20_000);
 
   test("closing the tab folds the hand and stands you up: the stack goes back to the wallet", async () => {
@@ -230,7 +229,7 @@ describe("the net cafe's poker table", () => {
     });
     const after = heardB.table.at(-1)!.seats.find((s) => s?.userId === b.userId)!;
     expect(after.stack).toBe(2 * BUY_IN - leftBehind);
-    // A got what they had not put in the pot; no new hand is dealt to one player.
+    // A takes back the stack they left with. With one player left at the table, no new hand is dealt.
     await eventually(async () => expect(await balance(a)).toBe(COINS - BUY_IN + leftBehind));
     await cb.conn.pokerLeave();
     await eventually(async () => expect(await balance(b)).toBe(COINS - BUY_IN + after.stack));
