@@ -67,6 +67,10 @@ async function names(sql: Sql, ids: number[]): Promise<Record<number, string>> {
 
 const gameName = (g: GameId): string => GAMES[g]?.name ?? g;
 
+/** A player's name for a line; a seat nobody holds (a bye or a deleted account) reads as "?". */
+const nameIn = (who: Record<number, string>, id: number | null): string =>
+  id === null ? "?" : (who[id] ?? "?");
+
 /** Starts a due open board, or calls off an idle one. Returns the row as it is now. */
 async function tick(sql: Sql, now: number, lines: string[]): Promise<Row | undefined> {
   const row = await live(sql);
@@ -81,8 +85,11 @@ async function tick(sql: Sql, now: number, lines: string[]): Promise<Row | undef
     return undefined;
   }
   const players = idsOf(row);
-  if (row.status !== "open" || !startDue({ size: row.size, players, createdAt: row.created_at }, now))
-    return row;
+  const isDue =
+    row.status === "open" && startDue({ size: row.size, players, createdAt: row.created_at }, now);
+  if (!isDue) return row;
+
+  // The seed mixes the row id and the time, so each board is paired differently.
   const bracket = makeBracket(players, row.id * 2654435761 + now);
   await sql.execute(
     "UPDATE tournaments SET status = 'running', bracket = ?, updated_at = ? WHERE id = ?",
@@ -91,9 +98,8 @@ async function tick(sql: Sql, now: number, lines: string[]): Promise<Row | undef
     row.id,
   );
   const who = await names(sql, players);
-  const name = (id: number | null) => (id === null ? "?" : (who[id] ?? "?"));
   const first = waiting(bracket)
-    .map((m) => `${name(m.a)} vs ${name(m.b)}`)
+    .map((m) => `${nameIn(who, m.a)} vs ${nameIn(who, m.b)}`)
     .join(", ");
   lines.push(
     `The ${gameName(row.game)} tournament is on in the basement! ${first}. Play it at a table in the square.`,
@@ -200,14 +206,20 @@ export async function matchResult(
 ): Promise<Result> {
   const lines: string[] = [];
   const row = await tick(sql, now, lines);
-  if (!row || row.status !== "running" || row.game !== game || players.length !== 2 || winners.length !== 1)
-    return { lines };
+  // Only a two-player match with one winner, in the running bracket for this game, is ours to count.
+  const isOurMatch =
+    row !== undefined &&
+    row.status === "running" &&
+    row.game === game &&
+    players.length === 2 &&
+    winners.length === 1;
+  if (!isOurMatch) return { lines };
+
   const [a, b] = players as [number, number];
   const next = report(JSON.parse(row.bracket!) as Bracket, a, b, winners[0]!);
   if (!next) return { lines };
   const champ = champion(next);
   const who = await names(sql, idsOf(row));
-  const name = (id: number | null) => (id === null ? "?" : (who[id] ?? "?"));
   const loser = winners[0] === a ? b : a;
   if (champ !== null) {
     await sql.execute(
@@ -217,9 +229,8 @@ export async function matchResult(
       now,
       row.id,
     );
-    lines.push(
-      `${name(champ)} won the ${gameName(row.game)} tournament, beating ${name(loser)} in the final! Their name is on the basement board.`,
-    );
+    const message = `${nameIn(who, champ)} won the ${gameName(row.game)} tournament, beating ${nameIn(who, loser)} in the final! Their name is on the basement board.`;
+    lines.push(message);
   } else {
     await sql.execute(
       "UPDATE tournaments SET bracket = ?, updated_at = ? WHERE id = ?",
@@ -227,7 +238,7 @@ export async function matchResult(
       now,
       row.id,
     );
-    lines.push(`${name(winners[0]!)} beat ${name(loser)} and goes through.`);
+    lines.push(`${nameIn(who, winners[0]!)} beat ${nameIn(who, loser)} and goes through.`);
   }
   return { lines };
 }

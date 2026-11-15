@@ -12,10 +12,10 @@ import { all, one, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { giveItem, ledgerAdd } from "./coins.ts";
 
 /**
- * Fastelavn's barrel (`core/src/fastelavn.ts`): every player's whacks a year (`fastelavn_hits`), and who broke
- * it (`fastelavn_king`, one row a year). The whack that breaks it writes the king and pays everyone's loot in
- * the same transaction as the whack, and the king's row is the year's key: no restart or race pays twice.
- * Coins go in the `ledger` (kind `fastelavn`, ref the year), items into the bag.
+ * Fastelavn's barrel (`core/src/fastelavn.ts`): every player's whacks a year (`fastelavn_hits`), and who
+ * broke it (`fastelavn_king`, one row a year). The whack that breaks it writes the king and pays everyone's
+ * loot in the same transaction as the whack, and the king's row is the year's key: no restart or race pays
+ * twice. Coins go in the `ledger` (kind `fastelavn`, ref the year), items into the bag.
  */
 export async function migrateFastelavn(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS fastelavn_hits (
@@ -50,7 +50,10 @@ export interface Whack {
 export async function whack(sql: TxSql, userId: number, now: number): Promise<Whack> {
   if (!barrelUp(now)) throw new UserError("The barrel hangs on Fastelavn Sunday.", { code: "closed" });
   const year = fastelavnYear(now);
-  if ((await barrel(sql, now)).king) return { barrel: await barrel(sql, now) };
+  // Once it is broken, a whack changes nothing and pays nothing.
+  const before = await barrel(sql, now);
+  if (before.king) return { barrel: before };
+
   const loot = await sql.transaction(
     async (tx) => {
       await tx.execute(
@@ -68,7 +71,9 @@ export async function whack(sql: TxSql, userId: number, now: number): Promise<Wh
         userId,
         now,
       );
+      // No row came back: an earlier whack in another transaction already broke the barrel.
       if (!fresh) return undefined;
+
       const whackers = await all<{ userId: number }>(
         tx,
         "SELECT user_id AS userId FROM fastelavn_hits WHERE year = ? ORDER BY user_id",
@@ -79,7 +84,9 @@ export async function whack(sql: TxSql, userId: number, now: number): Promise<Wh
         const found = lootFor(year, w.userId);
         const king = w.userId === userId;
         const coins = found.coins + (king ? KING_COINS : 0);
-        const items = [...(found.item ? [found.item] : []), ...(king ? [CROWN] : [])];
+        const foundItems = found.item ? [found.item] : [];
+        const crown = king ? [CROWN] : [];
+        const items = [...foundItems, ...crown];
         await ledgerAdd(tx, w.userId, coins, "fastelavn", String(year), now);
         for (const item of items) await giveItem(tx, w.userId, item, now);
         out.push({ userId: w.userId, coins, items });

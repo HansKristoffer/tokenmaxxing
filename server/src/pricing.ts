@@ -51,23 +51,17 @@ function normalizeEntry(raw: RawEntry): ModelPrice | null {
 }
 
 /**
- * Models that show up in real traffic but that LiteLLM does not publish a
- * price for. Without an entry the model prices at $0 with `unknownPrice`,
- * and a silent $0 understates a total far more misleadingly than a close
- * approximation does — `codex-auto-review` alone carries ~4B cache-read
- * tokens across the fleet.
+ * Models that show up in real traffic but that LiteLLM does not publish a price for. Without an entry
+ * the model prices at $0 with `unknownPrice`. A silent $0 understates a total far more misleadingly
+ * than a close approximation does: `codex-auto-review` alone carries ~4B cache-read tokens across the fleet.
  *
- * Each alias maps to the nearest PUBLISHED model, and each is a deliberate
- * approximation, not a discovered rate:
- *   codex-auto-review — the review sub-agent Codex spawns to check its own
- *     diffs. Real inference on a real model, but OpenAI publishes no
- *     separate rate for it. Mapped to gpt-5-codex (the cheaper of the two
- *     plausible codex tiers) so the estimate errs low rather than
- *     inventing spend.
+ * Each alias maps to the nearest published model. Each one is an approximation, not a discovered rate:
+ *   codex-auto-review: the review sub-agent Codex spawns to check its own diffs. It runs real inference
+ *     on a real model, but OpenAI publishes no separate rate for it. Mapped to gpt-5-codex, the cheaper
+ *     of the two plausible codex tiers, so the estimate errs low rather than inventing spend.
  *
- * Applied inside buildMap so an upstream refresh cannot drop them, and only
- * when upstream has no real entry — the moment LiteLLM publishes one, the
- * real price wins.
+ * Applied in buildMap, so an upstream refresh cannot drop them. An alias only applies when upstream has
+ * no entry of its own: once LiteLLM publishes one, the real price wins.
  */
 const PRICE_ALIASES: Record<string, string> = {
   "codex-auto-review": "gpt-5-codex",
@@ -114,12 +108,13 @@ export class PricingCache {
         ([name, entry]) => name !== "sample_spec" && entry && normalizeEntry(entry),
       );
       if (!hasPrices) return { updated: this.map.size, failed: true };
+      // Built in full before the swap, so a lookup never sees a half-built map.
       const next = buildMap(json);
-      // Atomic swap.
       this.map = next;
       this.found = new Map();
       return { updated: next.size, failed: false };
     } catch {
+      // Any failure keeps the cached prices.
       return { updated: this.map.size, failed: true };
     }
   }

@@ -7,9 +7,9 @@ import { signupDays } from "./users.ts";
 /**
  * The launches the town has seen, one row each: the world reads OpenRouter's list, the town keeps what it
  * saw. Anyone with tokens on a launched model on its launch day (a Copenhagen day, as usage is) is paid
- * `LAUNCH_COINS` for it, once. Like the rest of the wallet that's worked out, not stored: the rows only say
- * which launches there were, so the bonus can't pay twice, and a launch seen before this shipped has no row
- * and pays nothing.
+ * `LAUNCH_COINS` for it, once. Like the rest of the wallet, the bonus is worked out, not stored: the rows
+ * only say which launches there were, so the bonus can't pay twice. A launch seen before this shipped has
+ * no row and pays nothing.
  */
 export async function migrateLaunchBonus(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS launch_bonus (
@@ -17,9 +17,10 @@ export async function migrateLaunchBonus(sql: Sql): Promise<void> {
 }
 
 /** The models a launch covers: its lead and the ones that came out with it, as `modelKey`s. */
-const keysOf = (l: Launch): string[] => [
-  ...new Set([l.id, ...(l.also ?? []).map((a) => a.id)].filter(Boolean).map(modelKey)),
-];
+const keysOf = (l: Launch): string[] => {
+  const ids = [l.id, ...(l.also ?? []).map((a) => a.id)].filter(Boolean);
+  return [...new Set(ids.map(modelKey))];
+};
 
 /** Writes the launches that aren't recorded yet (a forced one, with no id, isn't a launch). */
 export async function recordLaunches(sql: Sql, launches: readonly Launch[]): Promise<void> {
@@ -55,21 +56,25 @@ async function paid(sql: Sql, userId?: number): Promise<Map<number, LaunchPaid[]
   );
   for (const l of launches) {
     const keys = JSON.parse(l.models) as string[];
+    const userFilter = userId === undefined ? "" : "AND user_id = ?";
+    const userParams = userId === undefined ? [] : [userId];
     const used = await all<{ userId: number; model: string }>(
       sql,
       `SELECT DISTINCT user_id AS userId, model FROM usage_daily
        WHERE day = ? AND input + output + cache_creation + cache_read > 0
-       ${userId === undefined ? "" : "AND user_id = ?"}`,
-      ...[l.day, ...(userId === undefined ? [] : [userId])],
+       ${userFilter}`,
+      l.day,
+      ...userParams,
     );
+
+    // A player with no sign-up day is never paid: the sentinel sorts after every day.
     const users = used.filter(
       (r) => l.day >= (signups[r.userId] ?? "9999") && keys.some((k) => isModel(r.model, k)),
     );
-    for (const id of new Set(users.map((r) => r.userId)))
-      out.set(id, [
-        ...(out.get(id) ?? []),
-        { id: l.id, model: keys[0] ?? l.id, day: l.day, coins: LAUNCH_COINS },
-      ]);
+    for (const id of new Set(users.map((r) => r.userId))) {
+      const paidLaunch = { id: l.id, model: keys[0] ?? l.id, day: l.day, coins: LAUNCH_COINS };
+      out.set(id, [...(out.get(id) ?? []), paidLaunch]);
+    }
   }
   return out;
 }

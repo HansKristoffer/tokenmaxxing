@@ -75,7 +75,9 @@ export async function removeKeynote(sql: Sql, rawId: unknown): Promise<Keynote> 
   return k;
 }
 
-/** The watch party badge: one `rewards` row per keynote someone was in the Tavern for. True the first time. */
+/**
+ * The watch party badge: one `rewards` row per keynote someone was in the Tavern for. True the first time.
+ */
 export async function markKeynote(sql: Sql, userId: number, keynoteId: number): Promise<boolean> {
   const fresh = await all(
     sql,

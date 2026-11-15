@@ -121,7 +121,7 @@ export interface Profile {
   office: boolean;
   /** The 429 Cop's tickets, newest first. */
   tickets: Ticket[];
-  // Added with card v2: optional, so an older client ignores them.
+  // Optional, so a client that predates these fields ignores them.
   /** One line, public. */
   bio?: string | null;
   /** The first world day in the Tavern; null before they came. */
@@ -387,6 +387,9 @@ export async function profile(
   const badges = badgesFor(facts);
   const prestige = (await badgesOf(sql, [userId], new Map([[userId, lifetime]]))).get(userId);
   const { habits, agentType } = await habitsOf(sql, userId, now, daily.filter((d) => d.tokens > 0).length);
+
+  // A player with no activity rows sums to NULLs in SQL: that is no activity at all.
+  const activeActivity = activity?.activeBuckets == null ? null : activity;
   return {
     userId,
     name: u.name,
@@ -397,7 +400,7 @@ export async function profile(
     lifetimeTokens: lifetime,
     company,
     range,
-    totals: totals(pricing, usage, activity?.activeBuckets == null ? null : activity),
+    totals: totals(pricing, usage, activeActivity),
     models: sortBy(
       usage.map((r) => ({
         model: r.model,
@@ -410,7 +413,7 @@ export async function profile(
     daily,
     games,
     badges,
-    office: level >= OFFICE_LEVEL && !!company,
+    office: level >= OFFICE_LEVEL && company !== null,
     tickets: await ticketsOf(sql, userId),
     bio: await bioOf(sql, userId),
     since: await tavernSince(sql, userId),

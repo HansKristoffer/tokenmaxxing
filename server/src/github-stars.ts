@@ -27,6 +27,7 @@ export async function fetchStars(
     const res = await fetcher(STARS_API, { headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
     return res.ok ? starsFrom(await res.json()) : null;
   } catch {
+    // GitHub down or slow: the last count stays, so a failed read never blanks it.
     return null;
   }
 }

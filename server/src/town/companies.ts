@@ -78,7 +78,10 @@ export async function ownedCompany(sql: Sql, userId: number): Promise<CompanyRow
   return company;
 }
 
-/** `companies.merch`: the merch design its people drew (JSON; NULL is the brand's colours and initials). Additive. */
+/**
+ * `companies.merch`: the merch design its people drew, as JSON. NULL is the brand's colours and initials.
+ * Additive: old rows read as NULL.
+ */
 export async function migrateMerch(sql: Sql): Promise<void> {
   const columns = (await sql.execute("PRAGMA table_info(companies)")) as { name: string }[];
   if (!columns.some((c) => c.name === "merch"))
@@ -194,7 +197,10 @@ export async function matchCoins(sql: Sql, userId: number, days: string[], now: 
     userId,
   );
   if (!u || u.companyId === null || u.joinedAt === null) return;
-  const from = [dayKey(u.joinedAt), dayKey(u.createdAt)].sort()[1]!;
+  // Counted from the later of the two days, joining or signing up: nothing before either one matches.
+  const joinedDay = dayKey(u.joinedAt);
+  const signedUpDay = dayKey(u.createdAt);
+  const from = joinedDay > signedUpDay ? joinedDay : signedUpDay;
   const counted = [...new Set(days.filter((day) => day >= from))];
   const perDay = async (query: string) =>
     new Map(

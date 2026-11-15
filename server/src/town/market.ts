@@ -21,12 +21,13 @@ import { type Kept, ledgerAdd, unwear, type Wallet, wallet } from "./coins.ts";
 import { levelOf } from "./users.ts";
 
 /**
- * Torvehallen's two tables. A listing is one thing on one display slot; the item itself is an ordinary
- * `items` row (`item_row`) that is out of every bag while it's listed: `owner_id` NULL and nothing else set,
- * so no query by owner, floor, drop count or company sees it (`pickUp` checks for it all the same). It goes
- * to the buyer, or back to the seller when the listing is taken down, and a numbered edition's number goes
- * with the row. `id` never repeats, so a buyer who saw one listing can't buy the next one in its slot.
- * A sale is kept as the seller's log (`seen`: they've been told) and as the buyer's spending, for the caps.
+ * Torvehallen's two tables. A listing is one thing on one display slot. The item itself is an ordinary
+ * `items` row (`item_row`) that is out of every bag while it's listed: `owner_id` NULL and nothing else
+ * set, so no query by owner, floor, drop count or company sees it (`pickUp` checks for it all the same).
+ * It goes to the buyer, or back to the seller when the listing is taken down, and a numbered edition's
+ * number goes with the row. `id` never repeats, so a buyer who saw one listing can't buy the next one in
+ * its slot. A sale is kept as the seller's log (`seen`: they've been told) and as the buyer's spending,
+ * for the caps.
  */
 export async function migrateMarket(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS market_listings (
@@ -83,12 +84,14 @@ async function takeDown(sql: Sql, l: Pick<Row, "id" | "sellerId" | "itemRow">): 
     l.itemRow,
     l.sellerId,
   );
-  if (back.length === 0)
+  // The seller is gone, so nobody has a bag for the item: it goes with the row.
+  if (back.length === 0) {
     await sql.execute(
       `DELETE FROM items WHERE id = ? AND owner_id IS NULL AND dropped_by IS NULL AND room IS NULL
          AND company_id IS NULL`,
       l.itemRow,
     );
+  }
 }
 
 /** Takes down every listing past its time. Returns the sellers who got an item back. */
@@ -246,16 +249,20 @@ export async function buy(
       if (!me) throw new UserError("Unknown player.", { code: "not_found" });
       if (now - me.createdAt < minAge)
         throw new UserError("New accounts can buy in the hall from their third day.", { code: "too_new" });
-      if ((await spent(tx, buyerId, now - 24 * 3_600_000)) + l.price > MARKET_DAY_BUY)
+      const dayAgo = now - 24 * 3_600_000;
+      const weekAgo = now - 7 * 24 * 3_600_000;
+      if ((await spent(tx, buyerId, dayAgo)) + l.price > MARKET_DAY_BUY)
         throw new UserError("That's a lot for one day in the hall. Come back tomorrow.", { code: "buy_cap" });
-      if ((await spent(tx, buyerId, now - 7 * 24 * 3_600_000, l.sellerId)) + l.price > MARKET_PAIR_BUY)
+      if ((await spent(tx, buyerId, weekAgo, l.sellerId)) + l.price > MARKET_PAIR_BUY)
         throw new UserError("You've bought a lot from them this week. Give it a few days.", {
           code: "pair_cap",
         });
       if ((await wallet(tx, buyerId, now, kept)).balance < l.price)
         throw new UserError("Not enough coins yet.", { code: "too_poor" });
+
       // The claim: whoever deletes the row is the buyer, so a second buy, or a take-down, finds it gone.
-      if ((await all(tx, "DELETE FROM market_listings WHERE id = ? RETURNING id", l.id)).length === 0)
+      const claimed = await all(tx, "DELETE FROM market_listings WHERE id = ? RETURNING id", l.id);
+      if (claimed.length === 0)
         throw new UserError("Someone bought that, or it came down.", { code: "gone" });
       const ref = `market:${l.id}`;
       await ledgerAdd(tx, buyerId, -l.price, "market", ref, now);
@@ -316,6 +323,6 @@ export async function sawSales(sql: Sql, userId: number, upTo: unknown): Promise
 
 /** Takes down everything `userId` has on display, for an account that's going. */
 export async function forget(sql: Sql, userId: number): Promise<void> {
-  for (const l of await all<Row>(sql, `SELECT ${ROW} FROM market_listings WHERE seller_id = ?`, userId))
-    await takeDown(sql, l);
+  const listings = await all<Row>(sql, `SELECT ${ROW} FROM market_listings WHERE seller_id = ?`, userId);
+  for (const l of listings) await takeDown(sql, l);
 }

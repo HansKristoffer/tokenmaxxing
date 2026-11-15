@@ -28,23 +28,35 @@ interface Engine {
 
 /** Every engine process on this machine. From `/proc` on Linux: the server image has neither `ps` nor `lsof`. */
 function engines(): Engine[] {
-  if (process.platform !== "linux")
-    return output(["ps", "-A", "-o", "pid=,ppid=,command="])
-      .split("\n")
-      .map((l) => l.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/))
-      .filter((m): m is RegExpMatchArray => !!m && m[3]!.includes("rivet-engine"))
-      .map((m) => ({ pid: Number(m[1]), parent: Number(m[2]), port: null }));
+  // macOS has no /proc, so `ps` is the only listing. It doesn't report the gateway port.
+  if (process.platform !== "linux") {
+    const lines = output(["ps", "-A", "-o", "pid=,ppid=,command="]).split("\n");
+    return lines.flatMap((line) => {
+      const m = /^(\d+)\s+(\d+)\s+(.*)$/.exec(line.trim());
+      if (!m?.[3]?.includes("rivet-engine")) return [];
+      return [{ pid: Number(m[1]), parent: Number(m[2]), port: null }];
+    });
+  }
+
   const found: Engine[] = [];
   for (const entry of readdirSync("/proc")) {
     if (!/^\d+$/.test(entry)) continue;
     try {
       if (!readFileSync(`/proc/${entry}/cmdline`, "utf8").includes("rivet-engine")) continue;
-      // After the command (which may hold spaces): state, then the parent's pid.
+
+      // The command may hold spaces and parentheses, so the fields start after its last ")":
+      // state, then the parent's pid.
       const stat = readFileSync(`/proc/${entry}/stat`, "utf8");
-      const parent = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
-      const port = /(?:^|\0)RIVET__GUARD__PORT=(\d+)\0/.exec(readFileSync(`/proc/${entry}/environ`, "utf8"));
+      const afterCommand = stat.slice(stat.lastIndexOf(")") + 2);
+      const parent = Number(afterCommand.split(" ")[1]);
+
+      // RivetKit passes the gateway port to the engine as one environment variable.
+      const environ = readFileSync(`/proc/${entry}/environ`, "utf8");
+      const port = /(?:^|\0)RIVET__GUARD__PORT=(\d+)\0/.exec(environ);
       found.push({ pid: Number(entry), parent, port: port ? Number(port[1]) : null });
-    } catch {} // gone, or someone else's
+    } catch {
+      // The process exited while it was read, or belongs to another user and can't be read.
+    }
   }
   return found;
 }
@@ -76,7 +88,9 @@ export function engineChildren(port?: number): number[] {
 export async function stopEngine(port?: number, graceMs = 3_000) {
   const pids = engineChildren(port);
   for (const pid of pids) send(pid, "SIGTERM");
-  for (const end = Date.now() + graceMs; Date.now() < end && pids.some((p) => send(p, 0));)
-    await Bun.sleep(50);
+
+  const deadline = Date.now() + graceMs;
+  while (Date.now() < deadline && pids.some((pid) => send(pid, 0))) await Bun.sleep(50);
+
   for (const pid of pids) if (send(pid, 0)) send(pid, "SIGKILL");
 }

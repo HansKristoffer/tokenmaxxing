@@ -76,16 +76,11 @@ export async function buyEdition(
   if ((await wallet(sql, userId, now, kept)).balance < e.price)
     throw new UserError("Not enough coins yet.", { code: "too_poor" });
   // As `buy`: the copy first, then its number, then the price.
+  const n = sold + 1;
   const copy = await giveItem(sql, userId, e.id, now);
-  await sql.execute(
-    "INSERT INTO editions (copy, week, item, n) VALUES (?, ?, ?, ?)",
-    copy,
-    week,
-    e.id,
-    sold + 1,
-  );
+  await sql.execute("INSERT INTO editions (copy, week, item, n) VALUES (?, ?, ?, ?)", copy, week, e.id, n);
   await addPurchase(sql, userId, e.id, e.price, now);
-  return { wallet: await wallet(sql, userId, now, kept), n: sold + 1 };
+  return { wallet: await wallet(sql, userId, now, kept), n };
 }
 
 /** A numbered copy someone holds. */

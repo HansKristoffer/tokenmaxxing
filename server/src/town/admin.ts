@@ -244,9 +244,9 @@ export async function companies(sql: Sql): Promise<AdminCompany[]> {
 }
 
 /**
- * Deletes an account: its usage, activity, purchases, items (those it dropped too, but for company
- * furniture, which stays the company's), rewards, office,
- * application, trade offers and company seat (the company hands over or closes, as when leaving).
+ * Deletes an account: its usage, activity, purchases, items, rewards, office, application, trade offers
+ * and company seat (the company hands over or closes, as when leaving). Items it dropped go too, except
+ * company furniture, which stays the company's.
  * Refused while they have coins on a game that isn't settled, so no pot comes up short. Their `ledger`
  * and `match_players` rows stay: other players' games add up with them, and ids are never reused
  * (`deleted_users`).
@@ -259,10 +259,11 @@ export async function deleteUser(sql: Sql, userId: number, now: number): Promise
      GROUP BY ref HAVING SUM(amount) < 0 LIMIT 1`,
     userId,
   );
-  if (playing)
+  if (playing) {
     throw new UserError(`${u.name} has coins in a game that isn't over. Try again when it is.`, {
       code: "playing",
     });
+  }
   const changed = await leave(sql, userId);
   await withdraw(sql, userId);
   await sql.execute("DELETE FROM trades WHERE from_id = ? OR to_id = ?", userId, userId);
@@ -315,7 +316,10 @@ export async function closeCompany(
   return { company, changed: { users: members.map((m) => m.id), companies: [company.id] } };
 }
 
-/** Sets a company wallet: the difference goes in its ledger as kind `admin`. Run it serialized. */
+/**
+ * Sets a company wallet: the difference goes in its ledger as kind `admin`. It reads the balance and then
+ * writes the difference, so two runs at once would both see the same balance: run it one at a time.
+ */
 export async function setCompanyWallet(
   sql: Sql,
   companyId: number,
@@ -334,7 +338,10 @@ export async function wipeUsage(sql: Sql, userId: number): Promise<void> {
     await sql.execute(`DELETE FROM ${table} WHERE user_id = ?`, userId);
 }
 
-/** Text from the admin page, one line and trimmed, or `invalid_statue` when it's longer than `max` (or empty and required). */
+/**
+ * Text from the admin page as one trimmed line. Throws `invalid_statue` when it is longer than `max`,
+ * or empty and required.
+ */
 function line(raw: unknown, what: string, max: number, required: boolean): string {
   const s = typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
   if ((required && !s) || s.length > max)

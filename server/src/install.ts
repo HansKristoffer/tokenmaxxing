@@ -1,8 +1,8 @@
 import { join } from "node:path";
 
 /**
- * `/install.sh`: installs the CLI on a linked computer (ARCHITECTURE.md, "Linked computers"), pointing it at this server. The
- * app hands out `curl -fsSL <server>/install.sh | sh -s -- link <code>`.
+ * `/install.sh`: installs the CLI on a linked computer (ARCHITECTURE.md, "Linked computers"), pointing
+ * it at this server. The app hands out `curl -fsSL <server>/install.sh | sh -s -- link <code>`.
  */
 const TEMPLATE = await Bun.file(join(import.meta.dir, "install.sh")).text();
 

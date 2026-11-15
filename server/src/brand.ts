@@ -42,6 +42,8 @@ export async function brandFor(
     pickPalette(name, host, branding),
     src ? fetchLogo(src).catch(() => null) : null,
   ]);
+
+  // A logo is optional: a house without one still gets its palette and the name on the sign.
   return { palette, logo: logo && (await saveLogo(companyId, logo)) };
 }
 
@@ -131,6 +133,7 @@ async function pickPalette(name: string, host: string, b: Branding): Promise<Pal
       ],
     });
     const text = res.content.find((c) => c.type === "text")?.text;
+    // A cut-off or refused answer is not a palette: keep the site's own colours.
     if (res.stop_reason !== "end_turn" || !text) return plain;
     const out = JSON.parse(text) as Record<string, unknown>;
     return {
@@ -199,17 +202,21 @@ export async function isPublicHost(host: string): Promise<boolean> {
 export async function fetchLogo(src: string): Promise<{ bytes: Uint8Array; ext: string } | null> {
   let url = new URL(src);
   for (let hop = 0; hop < 4; hop++) {
-    if (url.protocol !== "data:" && (!/^https?:$/.test(url.protocol) || !(await isPublicHost(url.hostname))))
-      return null;
+    const isHttp = /^https?:$/.test(url.protocol);
+    if (url.protocol !== "data:" && (!isHttp || !(await isPublicHost(url.hostname)))) return null;
+
+    // Redirects are followed by hand, so each hop passes the public-host check above.
     const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(10_000) });
     const location = res.headers.get("location");
     if (res.status >= 300 && res.status < 400 && location) {
       url = new URL(location, url);
       continue;
     }
-    const ext = LOGO_TYPES[res.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? ""];
-    if (!res.ok || !ext || !res.body || Number(res.headers.get("content-length")) > MAX_LOGO_BYTES)
-      return null;
+
+    const mimeType = res.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
+    const ext = LOGO_TYPES[mimeType];
+    const declaredSize = Number(res.headers.get("content-length"));
+    if (!res.ok || !ext || !res.body || declaredSize > MAX_LOGO_BYTES) return null;
     const reader = res.body.getReader();
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -228,6 +235,7 @@ export async function fetchLogo(src: string): Promise<{ bytes: Uint8Array; ext: 
 
 /** Deletes a company's logo, whatever its type. */
 export async function forgetLogo(companyId: number): Promise<void> {
+  // A missing logo folder means the company has no logo yet.
   const files = await readdir(LOGO_DIR).catch(() => []);
   await Promise.all(
     files.filter((f) => f.startsWith(`${companyId}.`)).map((f) => rm(join(LOGO_DIR, f), { force: true })),
