@@ -35,8 +35,12 @@ import { blockify } from "./kit/blocky.ts";
 import { beginTickScope, dropTickScope, endTickScope, setSmoothBands } from "./kit/kit.ts";
 import { avatarFor, type Look2D } from "./people/gear3d.ts";
 import { view } from "./perf/freeze.ts";
+import { MAX_PIXEL_RATIO } from "./perf/tiers.ts";
 import { petFrom2D } from "./pets/pets3d.ts";
 import { assetOfChar, flat } from "./rooms/room-furnished.ts";
+
+type Avatar = ReturnType<typeof avatarFor>;
+type Pet = ReturnType<typeof petFrom2D>;
 
 /**
  * What of a dressed character the camera frames: the whole of them (`body`), or the part an item is worn on, so
@@ -67,17 +71,45 @@ interface Built {
   dispose: () => void;
 }
 
+/** The art a piece of furniture, a poster or a company's furniture is drawn from, by its character. */
+const artOfChar = (ch: string): string | undefined => {
+  const posterArt = posterOf(ch)?.art;
+  const pieceArt = (homePieceOf(ch) ?? casePieceOf(ch))?.art;
+  const companyArt = COMPANY_FURNITURE.find((p) => p.ch === ch)?.art;
+  return posterArt ?? pieceArt ?? companyArt;
+};
+
 const pieceAsset = (ch: string): Asset | undefined => {
   if (ch === "=" || ch === "e") return flat(ch);
-  const art =
-    posterOf(ch)?.art ??
-    (homePieceOf(ch) ?? casePieceOf(ch))?.art ??
-    COMPANY_FURNITURE.find((p) => p.ch === ch)?.art;
+  const art = artOfChar(ch);
   return assetOfChar(ch) ?? (art ? (assetById.get(art) ?? extraAssetById.get(art)) : undefined);
 };
 
 /** Faces the model towards the camera (which looks along the azimuth π/4): +z turns to (+x, +z). */
 const TO_CAMERA = Math.PI / 4;
+
+/** Runs `fn` with the culling test passing everything: an icon has no camera of its own to cull against. */
+function withoutCulling(fn: () => void): void {
+  const sees = view.sees;
+  view.sees = () => true;
+  try {
+    fn();
+  } finally {
+    view.sees = sees;
+  }
+}
+
+/** A lamp's own light would change the shader for every material: the icons are lit by the sun alone. */
+function removeLights(root: THREE.Object3D): void {
+  const lights: THREE.Object3D[] = [];
+  root.traverse((o) => {
+    if ((o as THREE.Light).isLight) lights.push(o);
+  });
+  for (const l of lights) l.removeFromParent();
+}
+
+/** The style the tier draws icons in: High and Ultra get the voxel look with a shadow, Medium the classic bands. */
+const iconsVoxel = (): boolean => graphics.tier() !== "medium";
 
 function build(s: IconSpec): Built {
   const root = new THREE.Group();
@@ -98,10 +130,7 @@ function build(s: IconSpec): Built {
       const p = petFrom2D(s.pet, s.variant ?? 0, s.name ?? "");
       p.wear = s.wear ?? 0;
       // One pose pass dresses it and settles the eyes and the z's; the culling test must see it.
-      const sees = view.sees;
-      view.sees = () => true;
-      p.update(1);
-      view.sees = sees;
+      withoutCulling(() => p.update(1));
       p.root.rotation.y = TO_CAMERA * 0.5;
       root.add(p.root);
       // The gear hangs on the head: the head with it.
@@ -149,12 +178,7 @@ function build(s: IconSpec): Built {
       break;
     }
   }
-  // A lamp's own light would change the shader for every material: the icon is lit by the sun alone.
-  const lights: THREE.Object3D[] = [];
-  root.traverse((o) => {
-    if ((o as THREE.Light).isLight) lights.push(o);
-  });
-  for (const l of lights) l.removeFromParent();
+  removeLights(root);
   return { root, focus, skip, dispose };
 }
 
@@ -166,13 +190,12 @@ const part = new THREE.Box3();
  */
 function shownBox(o: THREE.Object3D, skip: THREE.Object3D | undefined, into: THREE.Box3): THREE.Box3 {
   if (o === skip || !o.visible) return into;
+  // An instanced mesh keeps its own box; any other object uses its geometry's, and a group has neither.
   const m = o as THREE.InstancedMesh;
-  if (m.isInstancedMesh) {
-    if (!m.boundingBox) m.computeBoundingBox();
-    if (m.boundingBox) into.union(part.copy(m.boundingBox).applyMatrix4(o.matrixWorld));
-  } else if (m.geometry) {
-    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
-    if (m.geometry.boundingBox) into.union(part.copy(m.geometry.boundingBox).applyMatrix4(o.matrixWorld));
+  const source = m.isInstancedMesh ? m : m.geometry;
+  if (source) {
+    if (!source.boundingBox) source.computeBoundingBox();
+    if (source.boundingBox) into.union(part.copy(source.boundingBox).applyMatrix4(o.matrixWorld));
   }
   for (const c of o.children) shownBox(c, skip, into);
   return into;
@@ -431,7 +454,7 @@ const queue = new IconQueue<HTMLCanvasElement>(
 
 /** Device pixels for a CSS size, capped like the pipeline (`MAX_PIXEL_RATIO`). */
 export const devicePixels = (size: IconSize, dpr = window.devicePixelRatio || 1): number =>
-  Math.round(size * Math.min(2, Math.max(1, dpr)));
+  Math.round(size * Math.min(MAX_PIXEL_RATIO, Math.max(1, dpr)));
 
 /**
  * The icon for `spec` at `size` CSS pixels (drawn at the device's ratio), from the cache or after its turn in
@@ -440,7 +463,7 @@ export const devicePixels = (size: IconSize, dpr = window.devicePixelRatio || 1)
  */
 export function requestIcon(spec: IconSpec, size: IconSize) {
   if (!iconsAvailable() || !renderer) throw new Error("icons unavailable");
-  const voxel = graphics.tier() !== "medium";
+  const voxel = iconsVoxel();
   const px = devicePixels(size);
   const key = `${iconKey(spec)}@${px}${voxel ? "v" : "c"}`;
   if (!specs.has(key)) specs.set(key, { spec, px, voxel, shadow: voxel });
@@ -482,10 +505,12 @@ export function warmIcons(): void {
     const s = steps.shift();
     if (!s || !renderer || renderer.lost) return;
     // The style the tier draws icons in (as `requestIcon` picks it): its shaders are the ones to have ready.
-    const voxel = graphics.tier() !== "medium";
+    const voxel = iconsVoxel();
     try {
       renderer.draw(s, 16, voxel, voxel);
-    } catch {}
+    } catch {
+      // Warm-up is best effort: a shader that fails here fails again when that icon is really drawn.
+    }
     idle(next);
   };
   idle(next);
@@ -515,8 +540,8 @@ export class IconStage {
   private root: THREE.Group | null = null;
   /** What the camera frames, measured once facing front: framing each frame would breathe with the turn. */
   private readonly box = new THREE.Box3();
-  private avatar: ReturnType<typeof avatarFor> | null = null;
-  private pet: ReturnType<typeof petFrom2D> | null = null;
+  private avatar: Avatar | null = null;
+  private pet: Pet | null = null;
   private turn = 0;
   private draggedAt = -Infinity;
   private sway = 0;
@@ -536,7 +561,7 @@ export class IconStage {
     const scope = beginTickScope();
     const avatar = avatarFor(look);
     root.add(avatar.root);
-    let p: ReturnType<typeof petFrom2D> | null = null;
+    let p: Pet | null = null;
     if (pet && pet.pet > 0) {
       p = petFrom2D(pet.pet, pet.variant, pet.name);
       p.wear = pet.wear;
@@ -546,13 +571,8 @@ export class IconStage {
     }
     endTickScope(scope, root);
     dropTickScope(scope);
-    // A lamp's own light would change the shader for every material: lit by the sun alone, like the icons.
-    const lights: THREE.Object3D[] = [];
-    root.traverse((o) => {
-      if ((o as THREE.Light).isLight) lights.push(o);
-    });
-    for (const l of lights) l.removeFromParent();
-    if (graphics.tier() !== "medium") blockify(root);
+    removeLights(root);
+    if (iconsVoxel()) blockify(root);
     this.pose(avatar, p, 0, 1 / 60);
     renderer.measure(root, root, this.box);
     this.root = root;
@@ -576,26 +596,17 @@ export class IconStage {
     this.sway += ((idle ? 1 : 0) - this.sway) * Math.min(1, dt * 1.5);
     avatar.root.rotation.y = this.turn + Math.sin(now / 1600) * SWAY * this.sway;
     this.pose(avatar, this.pet, now / 1000, dt);
-    const voxel = graphics.tier() !== "medium";
+    const voxel = iconsVoxel();
     renderer.drawLive(root, this.box, px, voxel, voxel, this.out);
   }
 
   /** Breathing and blinking: the culling test has no camera here, so it must see them. */
-  private pose(
-    avatar: ReturnType<typeof avatarFor>,
-    pet: ReturnType<typeof petFrom2D> | null,
-    t: number,
-    dt: number,
-  ) {
-    const sees = view.sees;
-    view.sees = () => true;
-    try {
+  private pose(avatar: Avatar, pet: Pet | null, t: number, dt: number): void {
+    withoutCulling(() => {
       avatar.root.updateMatrixWorld(true);
       avatar.update(dt, t);
       pet?.update(t);
-    } finally {
-      view.sees = sees;
-    }
+    });
   }
 
   private clear(): void {
@@ -618,5 +629,6 @@ export const iconStats = () => ({
   pending: queue.pending,
 });
 
-if (storage.getItem("tokenmaxxing.qa") === "1")
+if (storage.getItem("tokenmaxxing.qa") === "1") {
   (globalThis as unknown as { __tmIcons: unknown }).__tmIcons = { stats: iconStats, request: requestIcon };
+}
