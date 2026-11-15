@@ -1,12 +1,13 @@
-// Browser harness: every pet of the first six species wearing each prestige rank's accessory, through the real
+// Browser harness: the first eleven pet species, each wearing every prestige rank's accessory, through the real
 // 2D draw path (petFrame + drawPetCrown) and the real Pet3D. Built and shot by shots.mjs.
 import * as THREE from "three";
-import { PET_H, PET_W, petFrame } from "../../../web/src/art/pets.ts";
+import { PET_H, petFrame } from "../../../web/src/art/pets.ts";
 import { drawPetCrown } from "../../../web/src/game/legendary.ts";
 import type { Avatar } from "../../../web/src/game/world.ts";
 import { view } from "../../../web/src/render3d/perf/freeze.ts";
 import { petFrom2D } from "../../../web/src/render3d/pets/pets3d.ts";
 
+// Show every model in the sheet, whatever the freeze view would cull.
 view.sees = () => true;
 const SPECIES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 const Z = 8;
@@ -36,6 +37,7 @@ for (const [name, left, hop, wear, level] of [
   SPECIES.forEach((pet, row) => {
     for (let rank = 0; rank <= 5; rank++) {
       const a = {
+        // Run level 30 is where a prestige pet accessory unlocks (docs/prestige.md).
         info: { level, look: { pet, petwear: wear }, prestige: { rank, runLevel: rank ? 30 : 0 } },
       } as unknown as Avatar;
       const ox = rank * CW + 2 * Z;
@@ -85,5 +87,4 @@ for (const [name, wear] of [
     }
   });
 }
-void PET_W;
 document.title = "ready";
