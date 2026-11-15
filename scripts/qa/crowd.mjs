@@ -14,14 +14,10 @@ for (const t of tiers) {
   await ready(p);
   pages.push(p);
 }
-// all walk to the same spot
-const _spot = await pages[0].evaluate(() => {
-  const _m = window.__tm.world.map;
-  return [13, 12];
-});
+// Each client walks to its own tile of a block three wide, around (13, 12).
 await Promise.all(
   pages.map((p, i) =>
-    p.evaluate(([x, y]) => window.__tm.walkTo(x + 0, y), [13 + (i % 3) - 1, 12 + Math.floor(i / 3)]),
+    p.evaluate(([x, y]) => window.__tm.walkTo(x, y), [13 + (i % 3) - 1, 12 + Math.floor(i / 3)]),
   ),
 );
 await pages[0].waitForTimeout(6000);
@@ -33,8 +29,9 @@ for (const [i, p] of pages.entries()) {
 }
 await pages[0].waitForTimeout(1500);
 await pages[1].keyboard.press("Enter");
-for (const [i, p] of pages.entries())
+for (const [i, p] of pages.entries()) {
   await p.screenshot({ path: `/tmp/v2-qa-shots/multi-${i}-${tiers[i]}.png` });
+}
 console.log(
   await pages[0].evaluate(() => ({
     room: window.__tm.world.room,

@@ -12,8 +12,10 @@ import { openGame, playwright, portals, ready, room, signUp, through, walkTile }
 
 const args = process.argv.slice(2);
 const TIERS = ["low", "high"];
-const tiers = args[0] === "both" || !TIERS.includes(args[0]) ? TIERS : [args[0]];
-if (args[0] === "both" || TIERS.includes(args[0])) args.shift();
+// A tier name picks one tier; `both` or nothing runs low and high. Whatever is left names the stages.
+let tiers = TIERS;
+if (TIERS.includes(args[0])) tiers = [args.shift()];
+else if (args[0] === "both") args.shift();
 const only = new Set(args);
 const want = (s) => only.size === 0 || only.has(s);
 const out = process.env.OUT ?? "/tmp/seasonal-shots/paaske";
@@ -160,15 +162,19 @@ for (const tier of tiers) {
     await shot("bunnies", 1500);
     await reset();
   }
-  const eggs = eggSpots(townMap([]), DAY);
-  /** The egg the close-up is of: the one with the most open ground round it (no tree or house to hide it). */
   const town = townMap([]);
+  const eggs = eggSpots(town, DAY);
+  // Grass tiles in the 5x5 block round an egg.
   const open = (e) => {
     let n = 0;
-    for (let dy = -2; dy <= 2; dy++)
-      for (let dx = -2; dx <= 2; dx++) if (town.at(e.x + dx, e.y + dy) === ".") n++;
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        if (town.at(e.x + dx, e.y + dy) === ".") n++;
+      }
+    }
     return n;
   };
+  // The egg the close-up is of: the one with the most open ground round it (no tree or house to hide it).
   const FIRST = eggs.reduce((best, e, i) => (open(e) > open(eggs[best]) ? i : best), 0);
   if (want("egg") || want("eggs") || want("chick")) {
     // Walk to a tile behind the egg (the camera looks from the bottom right), shoot it in the grass, then step on it.

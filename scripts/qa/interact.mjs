@@ -23,7 +23,8 @@ const tiles = await page.evaluate(() => {
   const m = window.__tm.world.map;
   const seen = {};
   const out = [];
-  for (let y = m.y0; y < m.y0 + m.height; y++)
+  // The first tile of each map character in the room (one per kind of furniture, counter or fixture).
+  for (let y = m.y0; y < m.y0 + m.height; y++) {
     for (let x = m.x0; x < m.x0 + m.width; x++) {
       const k = m.kind(x, y);
       const ch = m.at(x, y);
@@ -42,6 +43,7 @@ const tiles = await page.evaluate(() => {
         });
       }
     }
+  }
   return out;
 });
 console.log("room", here, tiles.length, "kinds");

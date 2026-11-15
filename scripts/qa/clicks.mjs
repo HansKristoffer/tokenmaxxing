@@ -21,10 +21,6 @@ const toTown = async (p) => {
 await toTown(a);
 await toTown(b);
 await a.waitForTimeout(2000);
-// b stands next to a
-await b.evaluate(() => {
-  const _m = window.__tm.self();
-});
 const me = await a.evaluate(() => {
   const m = window.__tm.self();
   return [m.x, m.y];

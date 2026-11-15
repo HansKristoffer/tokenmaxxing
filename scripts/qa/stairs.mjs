@@ -16,18 +16,21 @@ const page = await openGame(browser, await signUp("t", 8_000_000, true), process
 await ready(page);
 await page.goto(`${page.url().split("#")[0].split("?")[0]}?sky=2026-10-26T13:30&weather=clear`);
 await ready(page);
+// Leave the upstairs and the Tavern for the town, where the company houses are.
 for (const [from, ch] of [
   ["upstairs", "d"],
   ["inn", "x"],
-])
-  if ((await room(page)) === from) {
-    const p = (await portals(page)).find((q) => q.ch === ch);
-    await through(page, p.x, p.y);
-  }
+]) {
+  if ((await room(page)) !== from) continue;
+
+  const p = (await portals(page)).find((q) => q.ch === ch);
+  await through(page, p.x, p.y);
+}
 if (!(await room(page)).startsWith("hq:")) {
+  // Doors the player can reach, nearest first, until one leads into the house.
   const doors = await page.evaluate(() => {
-    const m = window.__tm.world.map,
-      me = window.__tm.self();
+    const m = window.__tm.world.map;
+    const me = window.__tm.self();
     return m
       .find("D")
       .filter(([x, y]) => window.__tm.route(m, [me.x, me.y], [x, y]))
@@ -43,8 +46,8 @@ await page.addStyleTag({ content: "#hud,.label,.r3-emoji{visibility:hidden !impo
 for (let i = 0; i < 4; i++) await page.evaluate(() => window.__tm.viewHooks.zoom(1));
 await page.waitForTimeout(3000);
 const box = await page.evaluate(() => {
-  const r = window.__r3d,
-    m = window.__tm.world.map;
+  const r = window.__r3d;
+  const m = window.__tm.world.map;
   const [ux, uy] = m.find("u")[0];
   const [fx, fz] = r.stage.view.toWorld(ux, uy);
   const t = performance.now();
@@ -52,6 +55,7 @@ const box = await page.evaluate(() => {
   r.frame = () => real(t);
   r.rig.update = () => {};
   const c = r.rig.camera;
+  // The point 60 units ahead of the camera: where it looks now.
   const look = c.position.clone().add(c.getWorldDirection(c.position.clone()).multiplyScalar(60));
   c.position.add(c.position.clone().set(fx - look.x, 0, fz - 0.5 - look.z));
   c.updateMatrixWorld();
@@ -67,8 +71,8 @@ const clip = { x: Math.max(0, box.x - 130), y: Math.max(0, box.y - 150), width: 
 const shots = [];
 for (let i = 0; i < 6; i++) {
   await page.evaluate((i) => {
-    const r = window.__r3d,
-      c = r.rig.camera;
+    const r = window.__r3d;
+    const c = r.rig.camera;
     const px = (c.top - c.bottom) / (innerHeight * devicePixelRatio);
     const right = c.position.clone().setFromMatrixColumn(c.matrixWorld, 0);
     c.position.copy(r.__base).addScaledVector(right, (px * i) / 6);

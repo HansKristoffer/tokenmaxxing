@@ -33,7 +33,6 @@ for (const choice of ["auto", "high"]) {
   await page.context().close();
 }
 // reduced motion + persistence
-const _ctx = await browser.newContext({ reducedMotion: "reduce" });
 await browser.close();
 const b2 = await pw.chromium.launch({
   headless: true,

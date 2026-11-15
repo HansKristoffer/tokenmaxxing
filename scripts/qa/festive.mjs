@@ -19,8 +19,10 @@ import { openGame, playwright, portals, ready, room, signUp, through, walkTile }
 
 const args = process.argv.slice(2);
 const TIERS = ["low", "medium", "high", "ultra"];
-const tiers = args[0] === "both" || !TIERS.includes(args[0]) ? ["low", "high"] : [args[0]];
-if (args[0] === "both" || TIERS.includes(args[0])) args.shift();
+// A tier name picks one tier; `both` or nothing runs low and high. Whatever is left names the cases.
+let tiers = ["low", "high"];
+if (TIERS.includes(args[0])) tiers = [args.shift()];
+else if (args[0] === "both") args.shift();
 const cases = args.length
   ? args
   : [
@@ -56,8 +58,10 @@ function parse(text) {
 }
 
 const parsed = cases.map(parse);
-for (const c of parsed)
+// A kind that appears twice gets its date in the file name, so the two screenshots do not overwrite each other.
+for (const c of parsed) {
   if (parsed.filter((d) => d.kind === c.kind).length > 1) c.name = `${c.kind}-${c.iso.replace(/:/g, "")}`;
+}
 
 const pw = await playwright();
 const browser = await pw.chromium.launch({ headless: true, args: ["--ignore-gpu-blocklist"] });
@@ -109,12 +113,16 @@ for (const tier of tiers) {
     const spot = await page.evaluate(() => {
       const m = window.__tm.world.map;
       let best = null;
-      for (let y = m.y0; y < m.y0 + m.height; y++)
-        for (let x = m.x0; x < m.x0 + m.width; x++)
-          if (m.kind(x, y).walk !== false && m.at(x, y) !== "T") {
-            const k = Math.hypot(x - 14, y - 6);
-            if (!best || k < best.k) best = { x, y, k };
-          }
+      for (let y = m.y0; y < m.y0 + m.height; y++) {
+        for (let x = m.x0; x < m.x0 + m.width; x++) {
+          const isClear = m.kind(x, y).walk !== false && m.at(x, y) !== "T";
+          if (!isClear) continue;
+
+          // (14, 6) is the middle of the square, as in seasons.mjs.
+          const k = Math.hypot(x - 14, y - 6);
+          if (!best || k < best.k) best = { x, y, k };
+        }
+      }
       return best;
     });
     if (spot) await walkTile(page, spot.x, spot.y);

@@ -17,14 +17,16 @@ const page = await openGame(browser, await signUp("u"), process.argv[2] ?? "high
 await ready(page);
 await page.goto(`${page.url().split("#")[0].split("?")[0]}?sky=2026-10-26T13:30&weather=clear`);
 await ready(page);
+// Leave the upstairs and the Tavern for the town, where the fountain is.
 for (const [from, ch] of [
   ["upstairs", "d"],
   ["inn", "x"],
-])
-  if ((await room(page)) === from) {
-    const p = (await portals(page)).find((q) => q.ch === ch);
-    await through(page, p.x, p.y);
-  }
+]) {
+  if ((await room(page)) !== from) continue;
+
+  const p = (await portals(page)).find((q) => q.ch === ch);
+  await through(page, p.x, p.y);
+}
 await page.addStyleTag({ content: "#hud,.label,.r3-emoji{visibility:hidden !important}" });
 await page.evaluate(() => {
   for (let i = 0; i < 4; i++) window.__tm.viewHooks.zoom(1);
@@ -32,11 +34,14 @@ await page.evaluate(() => {
 await page.waitForTimeout(2500);
 // Freeze, then aim at the fountain: the middle of its tiles, the camera moved by the same offset as its look point.
 const box = await page.evaluate(() => {
-  const r = window.__r3d,
-    m = window.__tm.world.map;
+  const r = window.__r3d;
+  const m = window.__tm.world.map;
   const tiles = [];
-  for (let y = m.y0; y < m.y0 + m.height; y++)
-    for (let x = m.x0; x < m.x0 + m.width; x++) if (m.kind(x, y).name === "fountain") tiles.push([x, y]);
+  for (let y = m.y0; y < m.y0 + m.height; y++) {
+    for (let x = m.x0; x < m.x0 + m.width; x++) {
+      if (m.kind(x, y).name === "fountain") tiles.push([x, y]);
+    }
+  }
   const cx = tiles.reduce((a, t) => a + t[0], 0) / tiles.length;
   const cy = tiles.reduce((a, t) => a + t[1], 0) / tiles.length;
   const [fx, fz] = r.stage.view.toWorld(cx, cy);
@@ -45,6 +50,7 @@ const box = await page.evaluate(() => {
   r.frame = () => real(t);
   r.rig.update = () => {};
   const c = r.rig.camera;
+  // The point 60 units ahead of the camera: where it looks now.
   const look = c.position.clone().add(c.getWorldDirection(c.position.clone()).multiplyScalar(60));
   c.position.add(c.position.clone().set(fx - look.x, 0, fz - look.z));
   c.updateMatrixWorld();
@@ -57,8 +63,8 @@ await page.waitForTimeout(600);
 const shots = [];
 for (let i = 0; i <= 8; i++) {
   await page.evaluate((i) => {
-    const r = window.__r3d,
-      c = r.rig.camera;
+    const r = window.__r3d;
+    const c = r.rig.camera;
     const px = (c.top - c.bottom) / (innerHeight * devicePixelRatio);
     const right = c.position.clone().setFromMatrixColumn(c.matrixWorld, 0);
     c.position.copy(r.__base).addScaledVector(right, px * 0.25 * i);

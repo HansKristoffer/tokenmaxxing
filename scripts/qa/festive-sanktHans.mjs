@@ -6,9 +6,9 @@
 import { mkdirSync } from "node:fs";
 import { openGame, playwright, portals, ready, room, signUp, through, walkTile } from "./lib.mjs";
 
-const args = process.argv.slice(2);
 const TIERS = ["low", "medium", "high", "ultra"];
-const tiers = args[0] === "both" || !TIERS.includes(args[0]) ? ["low", "high"] : [args[0]];
+// One tier name runs that tier; `both` or nothing runs low and high.
+const tiers = TIERS.includes(process.argv[2]) ? [process.argv[2]] : ["low", "high"];
 const out = process.env.OUT ?? "/tmp/seasonal-shots/sanktHans";
 mkdirSync(out, { recursive: true });
 

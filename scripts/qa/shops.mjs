@@ -33,15 +33,18 @@ for (const door of ["ƒ", "Ç", "Ð", "ð", "Ñ"]) {
       : null;
   });
   console.log("displays", disp?.length);
-  let bad = 0,
-    covered = 0,
-    tried = 0;
+  let bad = 0;
+  let covered = 0;
+  let tried = 0;
   for (const d of disp ?? []) {
     await page.evaluate(() => {
       window.__tm.hud.set({ panel: null, dialog: null });
       document.querySelector("#shopcard .x")?.click();
     });
-    if (!d.screen || d.screen[0] < 0 || d.screen[0] > 1280 || d.screen[1] < 0 || d.screen[1] > 800) {
+    // 1280 x 800 is the viewport openGame uses by default.
+    const onScreen =
+      d.screen && d.screen[0] >= 0 && d.screen[0] <= 1280 && d.screen[1] >= 0 && d.screen[1] <= 800;
+    if (!onScreen) {
       continue;
     }
     const top = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName, d.screen);

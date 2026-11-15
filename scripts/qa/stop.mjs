@@ -19,15 +19,20 @@ function enginesOn(storage) {
           readFileSync(`/proc/${pid}/cmdline`, "utf8").includes("rivet-engine")
         )
           pids.push(Number(pid));
-      } catch {} // gone, or someone else's
+      } catch {
+        // Gone, or someone else's: nothing to stop.
+      }
     }
     return pids;
   }
+
   // Elsewhere (macOS): `ps e` prints the environment after the command.
   const ps = Bun.spawnSync(["ps", "eww", "-A", "-o", "pid=,command="]).stdout.toString();
-  for (const line of ps.split("\n"))
-    if (line.includes("rivet-engine") && line.includes(`RIVETKIT_STORAGE_PATH=${storage} `))
-      pids.push(Number(line.trim().split(/\s+/)[0]));
+  for (const line of ps.split("\n")) {
+    const isEngineOnStorage =
+      line.includes("rivet-engine") && line.includes(`RIVETKIT_STORAGE_PATH=${storage} `);
+    if (isEngineOnStorage) pids.push(Number(line.trim().split(/\s+/)[0]));
+  }
   return pids;
 }
 
@@ -48,14 +53,21 @@ export async function stopServer() {
   if (wasRunning) {
     // SIGTERM is the server's clean way out: it drains the actors and stops its engine (8 s at most).
     process.kill(state.pid, "SIGTERM");
-    for (const end = Date.now() + 12_000; Date.now() < end && isOurs(state.pid);) await Bun.sleep(100);
+    const serverDeadline = Date.now() + 12_000;
+    while (Date.now() < serverDeadline && isOurs(state.pid)) await Bun.sleep(100);
     if (isOurs(state.pid)) process.kill(state.pid, "SIGKILL");
   }
+
   // The engine is its own process: one left behind (a killed server) keeps its port and the data dir.
   const engines = enginesOn(state.storage);
-  for (const pid of engines) if (alive(pid)) process.kill(pid, "SIGTERM");
-  for (const end = Date.now() + 3_000; Date.now() < end && engines.some(alive);) await Bun.sleep(50);
-  for (const pid of engines) if (alive(pid)) process.kill(pid, "SIGKILL");
+  for (const pid of engines) {
+    if (alive(pid)) process.kill(pid, "SIGTERM");
+  }
+  const enginesDeadline = Date.now() + 3_000;
+  while (Date.now() < enginesDeadline && engines.some(alive)) await Bun.sleep(50);
+  for (const pid of engines) {
+    if (alive(pid)) process.kill(pid, "SIGKILL");
+  }
   rmSync(STATE_FILE, { force: true });
   return wasRunning ? state : null;
 }
