@@ -12,11 +12,11 @@ const page = await openGame(browser, await signUp("p"), tier);
 await ready(page);
 async function sample(label) {
   const r = await page.evaluate(() => {
-    const m = window.__tm.world.map,
-      R = window.__r3d;
-    const bad = [],
-      total = { n: 0, off: 0, none: 0, offscreen: 0 };
-    for (let y = m.y0; y < m.y0 + m.height; y++)
+    const m = window.__tm.world.map;
+    const R = window.__r3d;
+    const bad = [];
+    const total = { n: 0, off: 0, none: 0, offscreen: 0 };
+    for (let y = m.y0; y < m.y0 + m.height; y++) {
       for (let x = m.x0; x < m.x0 + m.width; x++) {
         if (!m.walkable(x, y) || m.kind(x, y).portal) continue;
         const s = R.screenOf(x, y, 0.0);
@@ -24,34 +24,34 @@ async function sample(label) {
           total.none++;
           continue;
         }
+        // Tiles within 5 px of the window's edge are counted apart, not picked.
         if (s[0] < 5 || s[1] < 5 || s[0] > innerWidth - 5 || s[1] > innerHeight - 5) {
           total.offscreen++;
           continue;
         }
         total.n++;
         const t = R.pick(s[0], s[1]);
-        if ((!t || t.x !== x || t.y !== y) && !(t && !m.walkable(t.x, t.y))) {
+        // A pick onto a tile that is not walkable is not counted as a mismatch.
+        const hitsWall = t && !m.walkable(t.x, t.y);
+        const wrongTile = !t || t.x !== x || t.y !== y;
+        if (wrongTile && !hitsWall) {
           total.off++;
           if (bad.length < 12) bad.push([x, y, t && [t.x, t.y], m.at(t?.x ?? 0, t?.y ?? 0)]);
         }
       }
+    }
     return { total, bad, room: window.__tm.world.room };
   });
   console.log(label, tier, JSON.stringify(r));
 }
 await sample("start");
-for (const [_x, _y] of [
-  [1, 17],
-  [26, 16],
-]) {
-}
-// visit rooms
+
+// Walk through portals, one room at a time, sampling each new room once.
 const seen = new Set([await room(page)]);
 for (let i = 0; i < 14; i++) {
   const ps = await portals(page);
   let moved = false;
   for (const p of ps) {
-    const _here = await room(page);
     const dest = await through(page, p.x, p.y);
     if (dest) {
       if (!seen.has(dest)) {

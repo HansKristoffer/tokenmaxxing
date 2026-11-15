@@ -40,13 +40,17 @@ const open = await page.evaluate(() => {
   const me = window.__tm.self();
   const [cx, cy] = [m.x0 + m.width / 2, m.y0 + m.height / 2];
   let best = null;
-  for (let y = m.y0 + 1; y < m.y0 + m.height - 1; y++)
+  for (let y = m.y0 + 1; y < m.y0 + m.height - 1; y++) {
     for (let x = m.x0 + 1; x < m.x0 + m.width - 1; x++) {
+      // A 3x3 block of walkable tiles, so the player has room to stand.
       let free = true;
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) free &&= m.walkable(x + dx, y + dy);
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) free &&= m.walkable(x + dx, y + dy);
+      }
       const d = Math.hypot(x - cx, y - cy);
       if (free && (!best || d < best.d) && window.__tm.route(m, [me.x, me.y], [x, y])) best = { x, y, d };
     }
+  }
   return best;
 });
 if (open) await walkTile(page, open.x, open.y);

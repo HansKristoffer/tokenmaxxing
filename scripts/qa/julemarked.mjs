@@ -7,9 +7,9 @@
 import { mkdirSync } from "node:fs";
 import { openGame, playwright, ready, room, signUp, through, walkTile } from "./lib.mjs";
 
-const args = process.argv.slice(2);
 const TIERS = ["low", "medium", "high", "ultra"];
-const tiers = args[0] === "both" || !TIERS.includes(args[0]) ? ["low", "high"] : [args[0]];
+// One tier name runs that tier; `both` or nothing runs low and high.
+const tiers = TIERS.includes(process.argv[2]) ? [process.argv[2]] : ["low", "high"];
 const out = process.env.OUT ?? "/tmp/case-shots/julemarked/town";
 mkdirSync(out, { recursive: true });
 
@@ -55,18 +55,22 @@ for (const tier of tiers) {
     await shoot(name);
     if (d === "3d") for (let i = 0; i < turns; i++) await key("q");
   };
-  if ((await room(page)) === "upstairs") await through(page, ...(await gatePortal(page, "d")));
+  // The tile of the portal with character `ch` in the room `p` is in, or [0, 0] when there is none.
   async function gatePortal(p, ch) {
     const list = await p.evaluate(() => {
       const m = window.__tm.world.map;
       const o = [];
-      for (let y = m.y0; y < m.y0 + m.height; y++)
-        for (let x = m.x0; x < m.x0 + m.width; x++) if (m.kind(x, y).portal) o.push({ ch: m.at(x, y), x, y });
+      for (let y = m.y0; y < m.y0 + m.height; y++) {
+        for (let x = m.x0; x < m.x0 + m.width; x++) {
+          if (m.kind(x, y).portal) o.push({ ch: m.at(x, y), x, y });
+        }
+      }
       return o;
     });
     const q = list.find((c) => c.ch === ch);
     return q ? [q.x, q.y] : [0, 0];
   }
+  if ((await room(page)) === "upstairs") await through(page, ...(await gatePortal(page, "d")));
   if ((await room(page)) === "inn") await through(page, ...(await gatePortal(page, "x")));
   if ((await room(page)) !== "town") fail(`${tier}: not in town (${await room(page)})`);
   const [gx, gy] = await gatePortal(page, "Ȣ");

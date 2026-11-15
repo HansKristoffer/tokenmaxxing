@@ -36,19 +36,25 @@ if ((await room(page)) !== want) throw new Error(`in ${await room(page)}, wanted
 // NEAR=fountain: stand next to the first tile of that name first (the town square's fountain).
 if (process.env.NEAR) {
   const spot = await page.evaluate((name) => {
-    const m = window.__tm.world.map,
-      me = window.__tm.self();
-    for (let y = m.y0; y < m.y0 + m.height; y++)
-      for (let x = m.x0; x < m.x0 + m.width; x++)
-        if (m.kind(x, y).name === name)
-          for (const [dx, dy] of [
-            [0, 2],
-            [1, 2],
-            [-1, 2],
-            [0, 3],
-          ])
-            if (m.walkable(x + dx, y + dy) && window.__tm.route(m, [me.x, me.y], [x + dx, y + dy]))
-              return [x + dx, y + dy];
+    const m = window.__tm.world.map;
+    const me = window.__tm.self();
+    // Candidate stands: tiles 2 or 3 rows below the named tile, the first one the player can route to.
+    const beside = [
+      [0, 2],
+      [1, 2],
+      [-1, 2],
+      [0, 3],
+    ];
+    for (let y = m.y0; y < m.y0 + m.height; y++) {
+      for (let x = m.x0; x < m.x0 + m.width; x++) {
+        if (m.kind(x, y).name !== name) continue;
+
+        for (const [dx, dy] of beside) {
+          const target = [x + dx, y + dy];
+          if (m.walkable(...target) && window.__tm.route(m, [me.x, me.y], target)) return target;
+        }
+      }
+    }
     return null;
   }, process.env.NEAR);
   if (!spot) throw new Error(`nothing called ${process.env.NEAR}`);
@@ -65,7 +71,7 @@ await page.evaluate(
 );
 await page.waitForTimeout(3000);
 
-/** Freezes everything that moves by itself: the clock the scene animates by, the rig, and the people. */
+// Freezes everything that moves by itself: the clock the scene animates by, the rig, and the people.
 await page.evaluate(() => {
   const r = window.__r3d;
   r.rig.update = () => {};
@@ -101,7 +107,8 @@ async function run(label, setup, step = 0.25) {
       mkdirSync(process.env.OUT, { recursive: true });
       writeFileSync(`${process.env.OUT}/${label}-${i}.png`, png);
     }
-    if (prev)
+    if (prev) {
+      // Pixels that differ by more than 20 in any channel between this frame and the last one.
       diffs.push(
         await page.evaluate(
           async ([a, b]) => {
@@ -129,6 +136,7 @@ async function run(label, setup, step = 0.25) {
           [prev, png.toString("base64")],
         ),
       );
+    }
     prev = png.toString("base64");
   }
   await page.evaluate(() => {

@@ -63,15 +63,18 @@ console.log(
   await page.evaluate(() => window.__r3d?.placer.active),
 );
 await page.screenshot({ path: `/tmp/v2-qa-shots/office-place-${tier}.png` });
+// The first free floor tile whose screen point is the canvas itself, not a HUD element over it.
 const spot = await page.evaluate(() => {
-  const R = window.__r3d,
-    m = window.__tm.world.map;
-  for (let y = m.y0 + 2; y < m.y0 + m.height; y++)
-    for (let x = m.x0 + 2; x < m.x0 + m.width; x++)
-      if (R.floorFree(x, y)) {
-        const s = R.screenOf(x, y, 0);
-        if (s && document.elementFromPoint(s[0], s[1])?.tagName === "CANVAS") return { x, y, s };
-      }
+  const R = window.__r3d;
+  const m = window.__tm.world.map;
+  for (let y = m.y0 + 2; y < m.y0 + m.height; y++) {
+    for (let x = m.x0 + 2; x < m.x0 + m.width; x++) {
+      if (!R.floorFree(x, y)) continue;
+
+      const s = R.screenOf(x, y, 0);
+      if (s && document.elementFromPoint(s[0], s[1])?.tagName === "CANVAS") return { x, y, s };
+    }
+  }
 });
 console.log("spot", JSON.stringify(spot));
 await page.mouse.move(spot.s[0], spot.s[1]);

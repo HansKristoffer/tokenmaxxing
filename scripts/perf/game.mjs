@@ -73,10 +73,14 @@ const DIRS = ["up", "down", "left", "right"];
 /** A door of `room` that leads to the town. */
 const doorToTown = (room) => {
   const m = mapOf(room);
-  for (let y = m.y0; y < m.y0 + m.height; y++)
-    for (let x = m.x0; x < m.x0 + m.width; x++)
-      if (m.kind(x, y).portal && portal(room, { ch: m.at(x, y), x, y }, null, new Map()).room === "town")
-        return [x, y];
+  for (let y = m.y0; y < m.y0 + m.height; y++) {
+    for (let x = m.x0; x < m.x0 + m.width; x++) {
+      if (!m.kind(x, y).portal) continue;
+
+      const destination = portal(room, { ch: m.at(x, y), x, y }, null, new Map()).room;
+      if (destination === "town") return [x, y];
+    }
+  }
   return null;
 };
 const crowd = [];
@@ -106,6 +110,7 @@ const step = async ({ conn, me }, dir) => {
 };
 const pause = (a, b) => new Promise((r) => setTimeout(r, a + Math.random() * (b - a)));
 const walk = async (w) => {
+  // Leave the room the player woke in along the route to its door into town, five tries at most.
   for (let tries = 0; w.me.room !== "town" && tries < 5 && walking; tries++) {
     const door = doorToTown(w.me.room);
     const path = door && route(mapOf(w.me.room), [w.me.x, w.me.y], door);
@@ -115,6 +120,7 @@ const walk = async (w) => {
     }
     await pause(800, 1200);
   }
+  // Then wander: keep a direction, change it one step in five, and turn at once at a portal or a wall.
   let dir = DIRS[Math.floor(Math.random() * 4)];
   while (walking) {
     if (Math.random() < 0.2) dir = DIRS[Math.floor(Math.random() * 4)];
@@ -127,6 +133,7 @@ const walk = async (w) => {
 const walks = crowd.map(walk);
 
 const pw = await playwright();
+// No frame cap, so the frame time measured is the renderer's own. The gc hook settles the heap before a sample.
 const browser = await pw.chromium.launch({
   headless: true,
   args: [
@@ -145,6 +152,7 @@ for (const tier of tiers) {
     extra: (ctx) =>
       ctx.addInitScript(() => {
         const g = JSON.parse(localStorage.getItem("tokenmaxxing.graphics"));
+        // fpsCap 0 turns the game's own frame cap off.
         g.overrides = { fpsCap: 0 };
         localStorage.setItem("tokenmaxxing.graphics", JSON.stringify(g));
         // Input now and then, or the game drops to its idle 30 fps.
@@ -176,17 +184,22 @@ for (const tier of tiers) {
     const ext = gpuTimers ? gl.getExtension("EXT_disjoint_timer_query_webgl2") : null;
     const queries = [];
     rec.gpuMs = ext ? [] : null;
+    // GPU time comes from timer queries, one per frame. While the GPU's disjoint flag is set the
+    // timings are unreliable, so the queries of that frame are dropped rather than recorded.
     r.frame = (now) => {
       const disjoint = ext && gl.getParameter(ext.GPU_DISJOINT_EXT);
       if (disjoint) {
         for (const query of queries.splice(0)) gl.deleteQuery(query);
       }
+
       while (queries.length && gl.getQueryParameter(queries[0], gl.QUERY_RESULT_AVAILABLE)) {
         const query = queries.shift();
         if (!disjoint && !rec.done) rec.gpuMs.push(gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6);
         gl.deleteQuery(query);
       }
-      const query = ext && !rec.done && !disjoint && queries.length < 8 ? gl.createQuery() : null;
+
+      const canTime = ext && !rec.done && !disjoint && queries.length < 8;
+      const query = canTime ? gl.createQuery() : null;
       if (query) gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
       const t0 = performance.now();
       frame(now);

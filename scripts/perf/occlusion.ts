@@ -35,28 +35,39 @@ for (const id of ["town", "shop-clothes", "shop-pets", "inn"] as const) {
   camera.updateMatrixWorld();
   const probe = new PlayerOcclusion(root);
   const at = new THREE.Vector3(center.x, 0.9, center.z);
+
+  // Stop i of the journey: 40 stops on a 5x5 grid of points 2 tiles apart, centred on the room.
+  const stopAt = (i: number) => {
+    at.set(center.x + ((i % 5) - 2) * 2, 0.9, center.z + ((Math.floor(i / 5) % 5) - 2) * 2);
+  };
+
   const cold = performance.now();
   probe.update(at, camera, 0.081, false);
   const coldMs = performance.now() - cold;
+
   const moving: number[] = [];
   const stationary: number[] = [];
+
   // Discard one full journey to separate construction/JIT from settled probe timings.
-  for (let round = 0; round < 2; round++)
+  for (let round = 0; round < 2; round++) {
     for (let i = 0; i < 40; i++) {
-      at.set(center.x + ((i % 5) - 2) * 2, 0.9, center.z + ((Math.floor(i / 5) % 5) - 2) * 2);
+      stopAt(i);
       const start = performance.now();
       probe.update(at, camera, 0.081, false);
       if (round) moving.push(performance.now() - start);
     }
+  }
+
   for (let i = 0; i < 40; i++) {
     const start = performance.now();
     probe.update(at, camera, 0.081, false);
     stationary.push(performance.now() - start);
   }
+
   // What the probe decided at each stop of the journey (1: cut away), to compare two builds' answers.
   let verdicts = "";
   for (let i = 0; i < 40; i++) {
-    at.set(center.x + ((i % 5) - 2) * 2, 0.9, center.z + ((Math.floor(i / 5) % 5) - 2) * 2);
+    stopAt(i);
     verdicts += new PlayerOcclusion(root).update(at, camera, 0.081, true);
   }
   console.log(

@@ -1,7 +1,7 @@
 // Browser harness for the prestige 3D showcase: the real avatars, wearing each track's set, on a WebGL canvas.
 // Optional pieces (pet wear, home trophies) come from ./optional.ts, which shots.mjs generates.
 import * as THREE from "three";
-import { PRESTIGE_ITEMS, PRESTIGE_TRACKS } from "../../../core/src/prestige.ts";
+import { PRESTIGE_TRACKS } from "../../../core/src/prestige.ts";
 import { setSmoothBands } from "../../../web/src/render3d/kit/kit.ts";
 import { avatarFor } from "../../../web/src/render3d/people/gear3d.ts";
 import "../../../web/src/render3d/people/gear3dPrestige.ts";
@@ -9,8 +9,8 @@ import { view } from "../../../web/src/render3d/perf/freeze.ts";
 import { petFrom2D } from "../../../web/src/render3d/pets/pets3d.ts";
 import { optionalPetwear, optionalTrophy } from "./optional.ts";
 
+// Show every model in the sheet, whatever the freeze view would cull.
 view.sees = () => true;
-void PRESTIGE_ITEMS;
 
 const CW = 300;
 const CH = 400;
@@ -62,7 +62,8 @@ const camFor = (h: number, dist = 1) => {
   return cam;
 };
 
-function sceneIdle(f: () => void) {
+// Runs one sheet cell. A failure is logged and the next cell still draws.
+function guarded(f: () => void) {
   try {
     f();
   } catch (e) {
@@ -75,7 +76,7 @@ for (const t of PRESTIGE_TRACKS) {
   const idx = 700 + t.rank - 1;
   const s = sheet(`track${t.rank}-${t.key}`, 6, 4);
   (["grown", "chibi", "bot", "voxel"] as const).forEach((style, row) => {
-    sceneIdle(() => {
+    guarded(() => {
       setSmoothBands(style === "voxel");
       const look = { style: 0, skin: 1, hair: 2, outfit: idx, hat: idx, back: idx, aura: idx };
       const av = avatarFor(look, undefined, style);
@@ -102,7 +103,7 @@ for (const t of PRESTIGE_TRACKS) {
 {
   const s = sheet("pets", 5, 2);
   PRESTIGE_TRACKS.forEach((t, col) => {
-    sceneIdle(() => {
+    guarded(() => {
       setSmoothBands(false);
       [2, 3].forEach((species, row) => {
         const pet = petFrom2D(species);
@@ -134,7 +135,7 @@ for (const t of PRESTIGE_TRACKS) {
 {
   const s = sheet("trophies", 5, 1);
   PRESTIGE_TRACKS.forEach((t, col) => {
-    sceneIdle(() => {
+    guarded(() => {
       setSmoothBands(false);
       const m = optionalTrophy(t.rank);
       if (!m) return;

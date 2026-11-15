@@ -18,11 +18,12 @@ async function toTown(p) {
   for (const [from, ch] of [
     ["upstairs", "d"],
     ["inn", "x"],
-  ])
-    if ((await room(p)) === from) {
-      const q = (await portals(p)).find((r) => r.ch === ch);
-      await through(p, q.x, q.y);
-    }
+  ]) {
+    if ((await room(p)) !== from) continue;
+
+    const q = (await portals(p)).find((r) => r.ch === ch);
+    await through(p, q.x, q.y);
+  }
 }
 const page = await openGame(browser, await signUp("angler"), tier, {
   viewport: { width: 1280, height: 860 },

@@ -15,6 +15,7 @@ const page = await openGame(browser, await signUp("g"), "auto", {
       window.requestAnimationFrame = (cb) =>
         raf((t) => {
           const e = performance.now() + window.__slow;
+          // A busy wait, so the slowdown is CPU time on the page, as on a slow machine.
           while (performance.now() < e);
           cb(t);
         });
@@ -26,7 +27,6 @@ const snap = () =>
   page.evaluate(() => {
     const g = window.__tm.graphics;
     const r = g.get().runtime;
-    const _s = g.effective();
     return {
       tier: g.tier(),
       gov: r.governed,

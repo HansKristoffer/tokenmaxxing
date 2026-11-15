@@ -34,6 +34,7 @@ const freeFrom = async (from, offsets = [0]) => {
 };
 
 // A checkout starts looking at a port of its own (from its path), so it tends to keep one origin for life.
+// The hash is a 32-bit string hash of the checkout's path, spread over 2000 ports from 4700.
 let hash = 0;
 for (const ch of ROOT) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
 const previous = readState();
@@ -48,6 +49,7 @@ mkdirSync(STATE_DIR, { recursive: true });
 // This week's Monday (UTC): a raid that is open now.
 const monday = new Date();
 monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+// ADMIN_TOKEN needs 32 characters or more (docs/development.md). A UUID repeated twice clears that.
 const adminToken = process.env.ADMIN_TOKEN ?? previous?.adminToken ?? crypto.randomUUID().repeat(2);
 
 let from = previous?.port ?? 4700 + (hash % 2000);
@@ -93,13 +95,15 @@ for (let attempt = 1; ; attempt++) {
     `${JSON.stringify({ ...state, startedAt: new Date().toISOString() }, null, 2)}\n`,
   );
 
+  // Two minutes to answer /health. Each probe waits 5 s at most, then retries after 200 ms.
+  const deadline = Date.now() + 120_000;
   let up = false;
-  for (const end = Date.now() + 120_000; Date.now() < end && server.exitCode === null; await Bun.sleep(200)) {
+  while (!up && Date.now() < deadline && server.exitCode === null) {
     up = await fetch(`${origin}/health`, { signal: AbortSignal.timeout(5_000) }).then(
       (r) => r.ok,
       () => false,
     );
-    if (up) break;
+    if (!up) await Bun.sleep(200);
   }
   // Answering is not enough: another server may have taken the port first. Ours must still be running.
   if (up && server.exitCode === null) {

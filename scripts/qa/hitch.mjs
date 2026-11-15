@@ -1,6 +1,6 @@
 // bun scripts/qa/hitch.mjs [tier]: the longest frame while walking into each shop and the Tavern (a build in one frame is a hitch).
 // Needs a local server and Playwright (see lib.mjs).
-import { openGame, playwright, portals, ready, room, signUp, through } from "./lib.mjs";
+import { openGame, playwright, portals, ready, signUp, through } from "./lib.mjs";
 
 const pw = await playwright();
 const browser = await pw.chromium.launch({
@@ -45,6 +45,7 @@ for (const [name, door] of [
   const r = await go(door);
   const w = await worst();
   console.log(name, "->", r, "worst frame ms:", w);
+  // Back out of the room to the town before the next door.
   (await go("x")) ?? (await go("X"));
   await page.waitForTimeout(1500);
   await worst();

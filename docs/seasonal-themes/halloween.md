@@ -58,7 +58,7 @@ All gated by `spookyNow`, none needs the server. In the 2D town add a `drawSpook
 
 - 2D: in `tint(l, w)` (`sky.ts:76`), when `spookDepth > 0` lerp the returned tint toward `#5a2a6b` by `0.35 * spookDepth * max(darkness, 0.25)`. Keep a minimum so even the 31st at noon gets a faint violet cast. Also `drawNightSky`: moon forced to "full" and enlarged ~1.4x, tinted `#ffd9a0` (harvest moon). Stars stay. This is the single best-value change: a full moon plus violet grade reads as Halloween instantly.
 - 3D: in the sun/hemi update, lerp `hemi.color` toward `#9a7ad0`, `hemi.groundColor` toward `#3a2050`, sun color toward `#ffb070` low-angle by `0.4 * spookDepth`. Do it where the sky drives the lights each frame (`stage3d.ts` / `pipeline.ts:974` area), never mutate the shared toon materials.
-- Moon: `moonPhase` is real-world. Do NOT override the physics for other features, just override only in the drawing (a `fullMoon` flag at the draw site).
+- Moon: `moonPhase` is real-world. Do not override the physics for other features. Override only in the drawing (a `fullMoon` flag at the draw site).
 
 ### 2.2 Fog
 
@@ -86,7 +86,7 @@ The graveyard already exists. Dress it, do not rebuild:
 
 ### 2.6 Lit windows
 
-`drawLights` / `LitWindow` (`sky.ts:157`) already glows windows at night. Spooky tweak: on spooky nights tint 1 in 5 windows `#7CFC5A` (green) and 1 in 7 `#ff4fa3`... too much, keep it to orange plus green. Pick by a stable hash of the window index so they do not flicker. Also: a few windows "flicker out" (candle gutter) via `flicker(now, i)` from `glow.ts`. Lowest effort in the whole list since it is a color swap in an existing loop.
+`drawLights` / `LitWindow` (`sky.ts:157`) already glows windows at night. Spooky tweak: on spooky nights tint 1 in 5 windows `#7CFC5A` (green) and 1 in 7 `#ff4fa3`. Pink is too much, so keep it to orange plus green. Pick by a stable hash of the window index so they do not flicker. Also: a few windows "flicker out" (candle gutter) via `flicker(now, i)` from `glow.ts`. Lowest effort in the whole list since it is a color swap in an existing loop.
 
 ### 2.7 Ghosts
 
@@ -250,7 +250,7 @@ Optional SFX for the interactions (7): a bat squeak (short square blip 1500 to 2
 
 ### 7.3 Once-per-day candy reward
 - Cosmetic version (ship): described above, client-only.
-- Coin version: needs minimal server state. One column on the player: `last_candy_day` (world day number, via `worldDayNumber` from `holidays.ts`) and one idempotent endpoint `POST /halloween/claim` that checks `spookyNow(Date.now())`, compares day, grants N coins, writes the day. Server derives everything from its own clock, client sends nothing but "claim". Also doubles as the unlock for the earned Trick-or-Treat crown (5.1) if you want it ("claimed on both days": store the two days, or a 2-bit mask). Because the window is 2 days, I would NOT build this unless coins are the point; the economy is deterministic and cheap to abuse via a second client if done client-side.
+- Coin version: needs minimal server state. One column on the player: `last_candy_day` (world day number, via `worldDayNumber` from `holidays.ts`) and one idempotent endpoint `POST /halloween/claim` that checks `spookyNow(Date.now())`, compares day, grants N coins, writes the day. Server derives everything from its own clock, client sends nothing but "claim". Also doubles as the unlock for the earned Trick-or-Treat crown (5.1) if you want it ("claimed on both days": store the two days, or a 2-bit mask). Because the window is 2 days, I would not build this unless coins are the point; the economy is deterministic and cheap to abuse via a second client if done client-side.
 - A bowl-of-candy item in the Tavern: click to eat one, character plays the existing emote/dance (`people/dances.ts`) for 2 s. Zero state.
 
 ### 7.4 Others, ranked by whimsy per effort

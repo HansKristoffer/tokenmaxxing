@@ -28,19 +28,17 @@ const [width, height] = opt("size", "1440x900").split("x").map(Number);
 const wholePage = args.includes("--page");
 
 const HERO_FILE = join(STATE_DIR, "hero.json");
-const from = (ip, params) =>
-  createClient({ endpoint: `${ORIGIN}/api/rivet`, headers: { "x-real-ip": ip } }).town.getOrCreate(
-    ["main"],
-    params ? { params } : undefined,
-  );
+// One client per address: sign-ups are limited per IP, so each player poses as a new one.
+const clientAt = (ip) => createClient({ endpoint: `${ORIGIN}/api/rivet`, headers: { "x-real-ip": ip } });
+const from = (ip, params) => clientAt(ip).town.getOrCreate(["main"], params ? { params } : undefined);
 
 /** `days` of usage for `name`: three sessions a day of 40 turns each. */
 function usage(name, days, perTurn) {
   const events = [];
   const now = Date.now();
-  for (let d = days; d >= 0; d--)
-    for (let s = 0; s < 3; s++)
-      for (let m = 0; m < 40; m++)
+  for (let d = days; d >= 0; d--) {
+    for (let s = 0; s < 3; s++) {
+      for (let m = 0; m < 40; m++) {
         events.push({
           source: s % 2 ? "codex" : "claude_code",
           sessionId: `${name}-${d}-${s}`,
@@ -56,14 +54,18 @@ function usage(name, days, perTurn) {
           cacheReadTokens: perTurn * 20,
           reasoningTokens: null,
         });
+      }
+    }
+  }
   return events;
 }
 
 /** The hero and the town around them. */
 async function seed() {
   const admin = qaAdminToken();
-  if (!admin)
+  if (!admin) {
     throw new Error("the seed needs the server's admin token: use `bun run qa:serve`, or set ADMIN_TOKEN");
+  }
   const tag = Date.now().toString(36).slice(-3);
   const people = [
     { name: `hero${tag}`, days: 20, perTurn: 3_000_000 },
@@ -79,10 +81,7 @@ async function seed() {
     const ip = `10.6.${Math.floor(Math.random() * 250)}.${10 + i}`;
     const u = await from(ip).signUp(p.name);
     const token = { params: { token: u.token } };
-    const player = createClient({ endpoint: `${ORIGIN}/api/rivet`, headers: { "x-real-ip": ip } }).player.get(
-      [String(u.userId)],
-      token,
-    );
+    const player = clientAt(ip).player.get([String(u.userId)], token);
     const events = usage(p.name, p.days, p.perTurn);
     for (let at = 0; at < events.length; at += 1000) await player.ingest(events.slice(at, at + 1000));
     made.push({ ...u, town: from(ip, token.params) });
@@ -102,8 +101,9 @@ async function seed() {
     ...["pet.1", "pet.2", "pet.4", "petwear.1", "petwear.3"],
     ...["furn.=", "furn.p", "furn.p", "furn.L", "furn.c", "furn.k", "dance.3"],
   ];
-  for (const id of buys)
+  for (const id of buys) {
     await hero.town.buy(id).catch((e) => console.log(`seed: could not buy ${id}: ${e.message}`));
+  }
   await hero.town.setBio("Runs too many agents. Reviews none of them.");
   const saved = {
     userId: hero.userId,
@@ -122,7 +122,9 @@ async function hero() {
     const saved = JSON.parse(readFileSync(HERO_FILE, "utf8"));
     await from("10.6.9.8", { token: saved.token }).me();
     return saved;
-  } catch {}
+  } catch {
+    // No saved hero, or the server no longer knows its token: seed a new one below.
+  }
   console.log("seeding a player and a town (once per server)…");
   return seed();
 }

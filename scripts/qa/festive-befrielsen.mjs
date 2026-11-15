@@ -8,8 +8,10 @@ import { openGame, playwright, portals, ready, room, signUp, through, walkTile }
 
 const args = process.argv.slice(2);
 const TIERS = ["low", "high"];
-const tiers = args[0] === "both" || !TIERS.includes(args[0]) ? TIERS : [args[0]];
-if (args[0] === "both" || TIERS.includes(args[0])) args.shift();
+// A tier name picks one tier; `both` or nothing runs both. Whatever is left names the cases.
+let tiers = TIERS;
+if (TIERS.includes(args[0])) tiers = [args.shift()];
+else if (args[0] === "both") args.shift();
 const CASES = {
   dusk: ["2026-05-04T21:30", "05-04T21:30"],
   night: ["2026-05-04T22:45", "05-04T22:45"],

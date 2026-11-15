@@ -27,15 +27,18 @@ const info = () =>
   }));
 log("init", JSON.stringify(await info()));
 
-// 1 real mouse click walks
-{
-  const me0 = await page.evaluate(() => {
+const position = () =>
+  page.evaluate(() => {
     const m = window.__tm.self();
     return [m.x, m.y];
   });
+
+// 1 real mouse click walks
+{
+  const me0 = await position();
   const r = await page.evaluate(() => {
-    const m = window.__tm.self(),
-      map = window.__tm.world.map;
+    const m = window.__tm.self();
+    const map = window.__tm.world.map;
     for (const [dx, dy] of [
       [3, 0],
       [-3, 0],
@@ -44,24 +47,18 @@ log("init", JSON.stringify(await info()));
       [2, 2],
       [-2, -2],
     ]) {
-      const x = m.x + dx,
-        y = m.y + dy;
-      if (map.walkable(x, y) && !map.kind(x, y).portal)
+      const x = m.x + dx;
+      const y = m.y + dy;
+      if (map.walkable(x, y) && !map.kind(x, y).portal) {
         return [x, y, ...(window.__r3d?.screenOf(x, y, 0) ?? [0, 0])];
+      }
     }
   });
   log("click target", r);
   if (tier !== "low") {
     await page.mouse.click(r[2], r[3]);
     await page.waitForTimeout(2500);
-    log(
-      "after click",
-      me0,
-      await page.evaluate(() => {
-        const m = window.__tm.self();
-        return [m.x, m.y];
-      }),
-    );
+    log("after click", me0, await position());
   }
 }
 // 2 resize
@@ -122,7 +119,7 @@ log("rapid ->low", JSON.stringify(await info()));
 await page.evaluate(() => window.__tm.graphics.setChoice("high"));
 await page.waitForTimeout(3000);
 log("->high", JSON.stringify(await info()), page.errors.splice(0));
-// 5 context loss
+// 5 context loss: the game must fall back to 2D and keep drawing.
 await page.evaluate(() => {
   const c = document.querySelector("#stage canvas");
   c.getContext("webgl2").getExtension("WEBGL_lose_context").loseContext();

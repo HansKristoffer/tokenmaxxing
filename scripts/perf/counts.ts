@@ -1,5 +1,5 @@
-// bun scripts/perf/counts.ts: hardware-independent counts of every room, built headlessly and batched (what the budget test checks),
-// for the geometry detail of one tier (`bun scripts/perf/counts.ts medium|high [--check]`): medium has plain boxes, high chamfers (ultra is the same).
+// bun scripts/perf/counts.ts [medium|high] [--check]: draw and triangle counts of every room, built headlessly and batched.
+// The budget test checks the same counts. Medium uses plain boxes; high chamfers them (ultra is the same).
 import { BUDGETS } from "../../web/src/render3d/perf/budgets.ts";
 import { installHeadlessGlobals } from "../../web/src/render3d/perf/stubs.ts";
 
@@ -17,7 +17,7 @@ const variant = process.argv.includes("--block") ? "block" : "smooth";
 if (check && (actors !== "frozen" || variant !== "smooth"))
   throw new Error("--check budgets use frozen actors and smooth geometry");
 let bad = 0;
-console.log(`— ${tier}, ${actors} actors, ${variant} geometry (whole room, one pass)`);
+console.log(`${tier}, ${actors} actors, ${variant} geometry (whole room, one pass)`);
 for (const [room, b] of Object.entries(BUDGETS[tier])) {
   const c = h.measureRoom(room, { actors, variant });
   const over =

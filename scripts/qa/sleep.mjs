@@ -1,7 +1,7 @@
 // bun scripts/qa/sleep.mjs [tier]: a company member goes offline (asleep in a bed of the company house) after dropping a hat in the town; another member checks both are drawn in 3D (screenshots in /tmp/v2-qa-shots).
 // Needs a local server and Playwright (see lib.mjs).
 import { mkdirSync } from "node:fs";
-import { openGame, playwright, ready, room, signUp } from "./lib.mjs";
+import { openGame, playwright, ready, signUp } from "./lib.mjs";
 
 const { ITEMS } = await import("../../core/src/shop.ts");
 const { doorOf } = await import("../../core/src/maps.ts");
@@ -34,8 +34,11 @@ await b.waitForTimeout(1500);
 const toTown = async (page) => {
   await page.evaluate(() => {
     const m = window.__tm.world.map;
-    for (let y = m.y0; y < m.y0 + m.height; y++)
-      for (let x = m.x0; x < m.x0 + m.width; x++) if (m.at(x, y) === "x") window.__tm.walkTo(x, y);
+    for (let y = m.y0; y < m.y0 + m.height; y++) {
+      for (let x = m.x0; x < m.x0 + m.width; x++) {
+        if (m.at(x, y) === "x") window.__tm.walkTo(x, y);
+      }
+    }
   });
   await page.waitForFunction(() => window.__tm.world.room === "town", null, { timeout: 20000 });
   await page.waitForTimeout(1200);
@@ -60,6 +63,7 @@ await a.screenshot({ path: "/tmp/v2-qa-shots/sleep-drops.png" });
 // Into the company house.
 const [dx, dy] = doorOf(company.plot);
 await a.evaluate(([x, y]) => window.__tm.walkTo(x, y), [dx, dy]);
+// A timeout here is not fatal: the house log below shows where the sleepers were.
 await a
   .waitForFunction(() => window.__tm.world.room.startsWith("hq"), null, { timeout: 30000 })
   .catch(() => {});
@@ -69,8 +73,11 @@ const house = await a.evaluate((id) => {
   const sleepers = [...w.avatars.values()].filter((v) => v.info.id === id);
   const beds = [];
   const m = w.map;
-  for (let y = m.y0; y < m.y0 + m.height; y++)
-    for (let x = m.x0; x < m.x0 + m.width; x++) if (m.at(x, y) === "b") beds.push([x, y]);
+  for (let y = m.y0; y < m.y0 + m.height; y++) {
+    for (let x = m.x0; x < m.x0 + m.width; x++) {
+      if (m.at(x, y) === "b") beds.push([x, y]);
+    }
+  }
   return {
     room: w.room,
     sleepers: sleepers.map((s) => ({
