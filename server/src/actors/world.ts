@@ -231,6 +231,7 @@ import {
   all,
   authenticate,
   background,
+  type Caller,
   type Callers,
   type ConnParams,
   callerOf,
@@ -429,7 +430,7 @@ export const world = actor({
       state: kept.value,
       kept,
       /** Who each connection is, from when it connects (`callerOf`). */
-      callers: new Map() as Callers,
+      callers: new Map<string, Caller>(),
       /** The tick (`onWake`). */
       loop: null as Promise<void> | null,
       /** Open game connections per player. */
@@ -582,7 +583,9 @@ export const world = actor({
       while (await waitForTick(signal, TICK_MS)) {
         const began = performance.now();
         const now = Date.now();
-        if (++n % REST_CHECK_EVERY === 0) for (const p of settle(c.vars, now)) sendInfo(c, p, info(p, true));
+        if (++n % REST_CHECK_EVERY === 0) {
+          for (const p of settle(c.vars, now)) sendInfo(c, p, info(p, true));
+        }
         // With nobody to see them, the bots stand still (and their walks aren't saved).
         if (n % BOT_STEP_EVERY === 0 && c.vars.online.size > 0) {
           for (const p of walkBots(c.vars.state, c.vars, now)) sendInfo(c, p, info(p, true));
@@ -653,7 +656,8 @@ export const world = actor({
     await c.vars.kept.save();
   },
   onConnect: async (c, conn) => {
-    c.vars.callers.set(conn.id, await authenticate(conn.params as ConnParams | undefined, c.client()));
+    const caller = await authenticate(conn.params as ConnParams | undefined, c.client());
+    c.vars.callers.set(conn.id, caller);
   },
   onDisconnect: (c, conn) => {
     c.vars.callers.delete(conn.id);
@@ -1538,8 +1542,6 @@ export const world = actor({
       return correction(p);
     },
 
-    // MARK: Games (from `arcade` and `match`)
-
     /**
      * A match starts: its players gather in the town square. At a table, they're moved
      * there and held until it ends. In an arena (long games), their desk becomes their
@@ -1669,13 +1671,15 @@ export const world = actor({
       if (JSON.stringify(next) !== shown) sendInfo(c, p, next, from);
       // A new name, level or look shows through the house's walls too.
       if (companyOfRoom(p.room) !== null) c.vars.housesStale = true;
-      // A door came, went or was renamed: in the old building and the new one.
       const lifted: number[] = [];
       // A level that grew their office: the room grows right and down, so everyone inside stays valid.
       if (buildOffice(c.vars.state, p.id)) lifted.push(...(await rebuildOffice(c, p.id)));
-      if (doorKey(p) !== hadDoor)
-        for (const id of new Set([before, p.companyId]))
+      // A door came, went or was renamed: in the old building and the new one.
+      if (doorKey(p) !== hadDoor) {
+        for (const id of new Set([before, p.companyId])) {
           if (id != null) lifted.push(...(await rebuildHq(c, id)));
+        }
+      }
       return lifted;
     },
 
@@ -1713,12 +1717,14 @@ export const world = actor({
       ])
         vars.delete(userId);
       for (const set of [c.vars.dirty, c.vars.hidden]) set.delete(userId);
-      for (const [id, who] of c.vars.callers)
-        if (who.kind === "user" && who.userId === userId)
+      for (const [id, who] of c.vars.callers) {
+        if (who.kind === "user" && who.userId === userId) {
           c.conns
             .get(id)
             ?.disconnect("deleted")
             .catch(() => {});
+        }
+      }
       if (p.companyId !== null) ids.push(...(await rebuildHq(c, p.companyId)));
       return ids;
     },
@@ -1850,11 +1856,16 @@ export const world = actor({
       const people = Object.values(c.vars.state.players).filter((o) => o.room === p.room);
       // One drop per tile; furniture lands on nobody, and not in anyone's way.
       const taken = new Set<string>();
-      for (const d of here) for (const [tx, ty] of dropTiles(d)) taken.add(`${tx},${ty}`);
+      for (const d of here) {
+        for (const [tx, ty] of dropTiles(d)) taken.add(`${tx},${ty}`);
+      }
       // Nor in front of a poster, where it would hide it and keep anyone from taking it down.
-      if (piece && !piece.wall)
-        for (const d of here)
-          if (pieceOfDrop(d)?.wall) for (const [tx, ty] of dropTiles(d)) taken.add(`${tx},${ty + 1}`);
+      if (piece && !piece.wall) {
+        for (const d of here) {
+          if (!pieceOfDrop(d)?.wall) continue;
+          for (const [tx, ty] of dropTiles(d)) taken.add(`${tx},${ty + 1}`);
+        }
+      }
       if (piece) {
         for (const o of people) taken.add(`${o.x},${o.y}`);
         for (const t of noFurniture(p.room, map)) taken.add(t);
@@ -1934,7 +1945,9 @@ export const world = actor({
     removeDrops: (c, ids: number[]): void => {
       requireInternal(callerOf(c));
       const gone = new Set(ids);
-      for (const d of [...DROPS.values()].flat()) if (gone.has(d.id)) lift(c, d);
+      for (const d of [...DROPS.values()].flat()) {
+        if (gone.has(d.id)) lift(c, d);
+      }
     },
 
     /** From `player` after an ingest: offline players work at their desk while agents run. */
@@ -1962,7 +1975,7 @@ export const world = actor({
   },
 });
 
-// MARK: Helpers (plain functions over what the world keeps, so the tick and the actions share them)
+// Plain functions over what the world keeps. The tick and the actions both use them.
 
 /** Whether someone has an office: in a company, from `OFFICE_LEVEL`. */
 const hasOffice = (p: PlayerCore) => p.companyId !== null && p.level >= OFFICE_LEVEL;
@@ -2283,8 +2296,9 @@ async function announce(
     text,
     at,
   );
-  await c.db.execute("DELETE FROM chat WHERE room = ? AND id <= ?", room, row!.id - CHAT_KEEP);
-  const line: ChatLine = { id: row!.id, room, userId, name, text, at };
+  const id = must(row, () => new Error("announce: the insert returned no row")).id;
+  await c.db.execute("DELETE FROM chat WHERE room = ? AND id <= ?", room, id - CHAT_KEEP);
+  const line: ChatLine = { id, room, userId, name, text, at };
   // A room whose chat is in memory gets the line there too (one that is not reads it from SQLite when asked).
   const kept = c.vars.chatLines.get(room);
   if (kept)
@@ -2296,8 +2310,6 @@ async function announce(
   sendToRoom(c, room, "chat", line);
   return line;
 }
-
-// MARK: Bots (core/src/bots.ts)
 
 /**
  * The Inn became the Tavern: whoever was saved where a bar or table stands now, or where the door can't
@@ -2439,8 +2451,6 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
   return drank;
 }
 
-// MARK: The keynote watch party (core/src/keynote.ts)
-
 /** The town's characters who go to a watch party: the ones that wander (not the barkeep, the cop or shopkeepers). */
 const GOERS = BOTS.filter((b) => !b.still && !b.home && b.id !== COP.id);
 
@@ -2488,9 +2498,10 @@ function partyStep(s: WorldState, v: Vars, p: WorldPlayer, run: BotRun, live: bo
 /** The crowd at a watch party hops for joy now and then, if anyone is in the Tavern to see it. */
 function cheerBots(c: Sender & { vars: Vars }, now: number): void {
   if (!liveKeynote(c.vars.keynotes, now) || !someoneIn(c, "inn")) return;
-  for (const b of GOERS)
+  for (const b of GOERS) {
     if (c.vars.state.players[b.id]?.room === "inn" && Math.random() * HOP_ONE_IN < 1)
       sendToRoom(c, "inn", "jump", b.id);
+  }
 }
 
 /** Asks `town` for the keynote schedule (a failed call keeps what we had: `town` pushes changes anyway). */
@@ -2508,8 +2519,6 @@ async function refreshKeynotes(c: {
     console.warn(`[keynotes] ${String(err)}`);
   }
 }
-
-// MARK: Fastelavn (core/src/fastelavn.ts)
 
 /** A knock on a Halloween door at most this often per player. */
 const KNOCK_MS = 400;
@@ -2563,7 +2572,10 @@ function keepKeynotes(
 /** While a keynote is on, whoever is awake in the Tavern gets its badge (once: `town` keeps the row). */
 function watchBeat(c: Sender & { vars: Vars; client: () => Parameters<typeof main>[0] }, now: number): void {
   const live = liveKeynote(c.vars.keynotes, now);
-  if (!live) return void c.vars.watched.clear();
+  if (!live) {
+    c.vars.watched.clear();
+    return;
+  }
   for (const id of c.vars.online.keys()) {
     const p = c.vars.state.players[id];
     const key = `${live.id}:${id}`;
@@ -2610,8 +2622,6 @@ function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> } }, no
   }
 }
 
-// MARK: The 429 Cop (core/src/cop.ts)
-
 /** How fast he runs after a speeder, how long before he gives up, and how long he stands writing. */
 const COP_STEP_MS = 180;
 const COP_CHASE_MS = 60_000;
@@ -2648,7 +2658,9 @@ function copBeat(
   const inTown = (id: number) => c.vars.online.has(id) && c.vars.state.players[id]?.room === "town";
   if (!v.chase) {
     if (run.following !== null || run.coffee || now < v.freeAt) return;
-    for (const [id, b] of v.burns) if (now - b.at > BURN_FRESH_MS) v.burns.delete(id);
+    for (const [id, b] of v.burns) {
+      if (now - b.at > BURN_FRESH_MS) v.burns.delete(id);
+    }
     const hit = speeder(
       v.burns.values(),
       now,
@@ -2700,7 +2712,9 @@ function copBeat(
     return;
   }
   // Caught up: face them and write it.
-  cop.facing = target.x < cop.x ? "left" : target.x > cop.x ? "right" : target.y < cop.y ? "up" : "down";
+  if (target.x < cop.x) cop.facing = "left";
+  else if (target.x > cop.x) cop.facing = "right";
+  else cop.facing = target.y < cop.y ? "up" : "down";
   c.vars.dirty.add(cop.id);
   done();
   v.ticketed.set(target.id, today);
@@ -2860,8 +2874,9 @@ async function refreshLaunches(
   c.vars.plots = withChanges(c.vars.plots, changed);
   const graves = stonesOf(c.vars.plots);
   if (sameStones(graves, c.vars.graves)) return;
-  for (const g of graves)
+  for (const g of graves) {
     if (!c.vars.graves.some((was) => was.id === g.id)) console.log(`[graveyard] ${g.id} is buried`);
+  }
   c.vars.graves = graves;
   c.broadcast("graveyard", graves);
 }
@@ -2936,11 +2951,12 @@ async function refreshOutage(
   c.vars.outage = next;
   c.broadcast("outage", next);
   if (next) return;
-  for (const p of Object.values(c.vars.state.players))
+  for (const p of Object.values(c.vars.state.players)) {
     if (p.room === "town" && p.state === "sit" && onBlanket(p.x, p.y)) {
       p.state = "idle";
       c.vars.dirty.add(p.id);
     }
+  }
 }
 
 /**
@@ -2948,7 +2964,7 @@ async function refreshOutage(
  * last sync gets old, so someone who stopped slows down before they leave their desk.
  */
 function raiders(s: WorldState, now: number): Raiders {
-  const all = sortBy(
+  const ranked = sortBy(
     Object.values(s.players)
       .filter((p) => now - p.lastAgentAt < WORKING_MS)
       .map((p) => ({
@@ -2962,7 +2978,7 @@ function raiders(s: WorldState, now: number): Raiders {
     { by: "burn", order: "desc" },
     "id",
   );
-  return { top: all.slice(0, RAIDERS_SHOWN), more: Math.max(0, all.length - RAIDERS_SHOWN) };
+  return { top: ranked.slice(0, RAIDERS_SHOWN), more: Math.max(0, ranked.length - RAIDERS_SHOWN) };
 }
 
 type WeatherHost = { vars: Vars; broadcast(name: string, ...args: unknown[]): void };
@@ -3009,7 +3025,9 @@ async function refreshGrid(
   try {
     await main(c.client()).town.greenHours(unsent);
     for (const h of unsent) c.vars.greenSent.add(h);
-    for (const h of c.vars.greenSent) if (!next.grid.green.includes(h)) c.vars.greenSent.delete(h);
+    for (const h of c.vars.greenSent) {
+      if (!next.grid.green.includes(h)) c.vars.greenSent.delete(h);
+    }
   } catch (err) {
     console.warn(`[grid] green hours: ${String(err)}`);
   }
@@ -3089,8 +3107,9 @@ function liftMisplaced(c: Sender & { vars: Vars }, room: RoomId): number[] {
   const out = dropsIn(room).filter((d) => {
     const piece = pieceOfDrop(d);
     if (piece?.wall) return !canHang(base, d.x, d.y, piece.w ?? 1, piece.home);
-    for (const [tx, ty] of dropTiles(d))
+    for (const [tx, ty] of dropTiles(d)) {
       if (!base.walkable(tx, ty) || (piece && reserved.has(`${tx},${ty}`))) return true;
+    }
     return false;
   });
   for (const d of out) lift(c, d);
@@ -3426,8 +3445,6 @@ function jukeboxBeat(c: Sender & { vars: Vars }, now: number): void {
   if (jukeKey(c.vars.jukebox, present) !== c.vars.jukeKey) sendJukebox(c, now);
 }
 
-// MARK: The net cafe's roulette table
-
 interface RouletteMem {
   seats: RouletteSeat[];
   last: RouletteSpin | null;
@@ -3579,8 +3596,6 @@ function rouletteCheckSeat(c: Sender & { vars: Vars }, p: WorldPlayer): void {
   if (p.room !== "basement") sendToUser(c, p.id, "roulette", emptyRoulette());
 }
 
-// MARK: The Tavern's poker table
-
 type PokerCtx = Sender & {
   vars: Vars;
   client: () => Parameters<typeof main>[0];
@@ -3609,10 +3624,6 @@ function pokerWhy(err: unknown): string {
     : "🃏 That didn't work. Try again.";
 }
 
-/**
- * `p` sits at chair `at`: the seat is held while the town takes the buy-in, then dealt in from the
- * next hand. If the town says no, or they left meanwhile, nothing moves.
- */
 /** Whether roulette spot `spot` has a seat on it, or someone (other than `p`) standing on it. */
 function rouletteTaken(c: Sender & { vars: Vars }, p: WorldPlayer, spot: number): boolean {
   const [x, y] = rouletteSpots()[spot]!;
@@ -3640,6 +3651,10 @@ function rouletteSeat(c: Sender & { vars: Vars }, p: WorldPlayer, spot: number):
   return correction(p);
 }
 
+/**
+ * `p` sits at chair `at`: the seat is held while the town takes the buy-in, then dealt in from the
+ * next hand. If the town says no, or they left meanwhile, nothing moves.
+ */
 async function pokerSitDown(c: PokerCtx, p: WorldPlayer, at: number): Promise<StepResult> {
   const t = c.vars.poker;
   const chair = pokerChairs()[at]!;
@@ -3701,16 +3716,18 @@ function sendHoles(c: Sender & { vars: Vars }): void {
   const t = c.vars.poker;
   const { pokerHole: sent } = c.vars;
   const now = new Map(t.seats.flatMap((s) => (s ? [[s.userId, JSON.stringify(s.hole)] as const] : [])));
-  for (const [id, json] of now)
+  for (const [id, json] of now) {
     if (sent.get(id) !== json) {
       sent.set(id, json);
       sendToUser(c, id, "pokerHole", JSON.parse(json));
     }
-  for (const id of [...sent.keys()])
+  }
+  for (const id of [...sent.keys()]) {
     if (!now.has(id)) {
       sent.delete(id);
       sendToUser(c, id, "pokerHole", []);
     }
+  }
 }
 
 /** After a change to the table: tell the room and the players, and the town about any coins that moved. */

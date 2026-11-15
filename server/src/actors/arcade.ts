@@ -27,6 +27,7 @@ import type { registry } from "./registry.ts";
 import {
   authenticate,
   background,
+  type Caller,
   type Callers,
   type ConnParams,
   callerOf,
@@ -93,8 +94,11 @@ interface ArcadeState {
   names: Record<string, string>;
 }
 
+/** How long an invite stands before it expires. */
 const INVITE_MS = 2 * 60_000;
+/** A table that has not started by then is closed and its stakes go back. */
 const TABLE_MS = 10 * 60_000;
+/** How long after a match ends its players can still ask for a rematch. */
 const REMATCH_MS = 20_000;
 /** Finished matches stay listed this long (the end screen, and the rematch offer). */
 const KEEP_MS = 60_000;
@@ -135,14 +139,15 @@ export const arcade = actor({
       /** Every table and match: saved after every action and every sweep. */
       state: kept.value,
       kept,
-      callers: new Map() as Callers,
+      callers: new Map<string, Caller>(),
       loop: null as Promise<void> | null,
       serial: serial(),
       invites: new RateLimiter(INVITES_PER_MIN, 60_000),
     };
   },
   onConnect: async (c, conn) => {
-    c.vars.callers.set(conn.id, await authenticate(conn.params as ConnParams | undefined, c.client()));
+    const caller = await authenticate(conn.params as ConnParams | undefined, c.client());
+    c.vars.callers.set(conn.id, caller);
   },
   onDisconnect: (c, conn) => {
     c.vars.callers.delete(conn.id);
@@ -229,8 +234,9 @@ export const arcade = actor({
         if (!invite) throw new UserError("That invite is gone.", { code: "not_found" });
         const counter = (reply as { counter?: unknown } | null)?.counter;
         const client = c.client();
-        // Saying no and countering both ping the host.
-        if ((reply === false || counter !== undefined) && !c.vars.invites.take(String(userId), Date.now()))
+        // Saying no and countering both ping the host, so both take from the invite rate limit.
+        const pingsHost = reply === false || counter !== undefined;
+        if (pingsHost && !c.vars.invites.take(String(userId), Date.now()))
           throw new UserError("Give it a minute.", { code: "rate_limited" });
         if (reply === false) {
           table.invited = table.invited.filter((i) => i !== invite);
@@ -268,6 +274,7 @@ export const arcade = actor({
         const ref = tableRef(table.id);
         const old = table.stake;
         await town.refund(ref, [userId]);
+        // The host's old stake goes back on if the new hold fails, so the table is as it was.
         try {
           await town.hold(ref, "stake", [
             { userId, amount: invite.counter },
@@ -307,9 +314,9 @@ export const arcade = actor({
         const userId = requireUser(callerOf(c));
         const table = tableOf(c.vars.state, tableId);
         if (!table.seated.includes(userId)) return;
-        if (userId === table.host)
+        if (userId === table.host) {
           await closeTable(c, table, `${nameOf(c.vars.state, userId)} closed the table.`);
-        else {
+        } else {
           await main(c.client()).town.refund(tableRef(table.id), [userId]);
           table.seated = table.seated.filter((id) => id !== userId);
         }
@@ -344,6 +351,7 @@ export const arcade = actor({
           throw new UserError(`A side bet is 1 to ${MAX_SIDE_BET} coins.`, { code: "invalid_bet" });
         await main(c.client()).town.hold(betsRef(live.id), "bet", [{ userId, amount: amount as number }]);
         live.bets.push({ userId, on: on as number, amount: amount as number });
+        // The match shows these pools in its frame. Each bet sends all of them, so a missed send is corrected by the next.
         await matchOf(c.client(), live.id)
           .bets(betPools(live))
           .catch(() => {});
@@ -407,8 +415,6 @@ export const arcade = actor({
       return live ? matchOf(c.client(), live.id).standing(userId) : Promise.resolve(null);
     },
 
-    // MARK: From `player` and `match`
-
     /** A player synced: the usage game they're in pulls their new score. */
     usage: (c, userId: number): Promise<Battle | null> => {
       requireInternal(callerOf(c));
@@ -429,7 +435,7 @@ export const arcade = actor({
         const live = c.vars.state.matches[String(matchId)];
         if (!live) return forgotten(c, matchId);
         if (live.outcome) return;
-        // A payout that keeps failing (the match retries) isn't a stopped game to refund.
+        // Stamped as moving, so the quiet-game sweep does not void it while a failing payout is retried.
         live.movedAt = Date.now();
         await settle(c, live, outcome);
         push(c);
@@ -439,7 +445,7 @@ export const arcade = actor({
 
 saveAfterActions(arcade);
 
-// MARK: Helpers (plain functions over what the arcade keeps, like `world`)
+// Plain functions over the state the actions above change, kept outside the actor so they read on their own.
 
 type ArcadeCtx = {
   vars: { state: ArcadeState; invites: RateLimiter; callers: Callers };
@@ -453,6 +459,10 @@ const usageMatch = (s: ArcadeState, userId: number) =>
 
 const nameOf = (s: ArcadeState, userId: number) => s.names[userId] ?? "Someone";
 const gameName = (t: { game: GameId }) => GAMES[t.game]!.name;
+
+/** The players who placed first. A void or unfinished match has none. */
+const winnersOf = (outcome: Outcome | null): number[] =>
+  outcome && "places" in outcome ? (outcome.places[0] ?? []) : [];
 
 function parseStake(raw: unknown): number {
   if (!Number.isInteger(raw) || (raw as number) < 0 || (raw as number) > MAX_STAKE)
@@ -508,6 +518,7 @@ async function addInvites(c: ArcadeCtx, table: Table, userIds: number[]): Promis
   const now = Date.now();
   const client = c.client();
   for (const userId of userIds) {
+    // Only someone `town` gave a name is a player who can be invited.
     if (!(userId in c.vars.state.names) || table.seated.includes(userId)) continue;
     if (table.invited.length + table.seated.length >= table.seats) break;
     if (!c.vars.invites.take(String(table.host), now)) {
@@ -563,6 +574,7 @@ async function startMatch(c: ArcadeCtx, table: Table): Promise<void> {
     endedAt: null,
     rematch: [],
   };
+  // Where the players stand in `world` does not decide the match, so a failed gather does not stop it.
   await main(client)
     .world.gather(table.id, table.game, table.seated, game.holdPlayers !== false)
     .catch(() => {});
@@ -577,7 +589,7 @@ async function settle(c: ArcadeCtx, live: Live, outcome: Outcome): Promise<void>
   const town = main(client).town;
   const pot = live.stake * live.players.length;
   const ref = tableRef(live.id);
-  const winners = "places" in outcome ? (outcome.places[0] ?? []) : [];
+  const winners = winnersOf(outcome);
   let line: string;
   if ("void" in outcome) {
     await town.refund(ref);
@@ -626,7 +638,7 @@ async function settle(c: ArcadeCtx, live: Live, outcome: Outcome): Promise<void>
 
 /** Lets the players go in `world`; `sweep` retries it if `world` is down. */
 async function release(c: ArcadeCtx, live: Live): Promise<void> {
-  const winners = live.outcome && "places" in live.outcome ? (live.outcome.places[0] ?? []) : [];
+  const winners = winnersOf(live.outcome);
   try {
     await main(c.client()).world.release(live.id, winners, live.line ?? "");
     live.released = true;
@@ -650,8 +662,9 @@ async function closeTable(c: ArcadeCtx, table: Table, why: string): Promise<void
   const client = c.client();
   await main(client).town.refund(tableRef(table.id));
   delete c.vars.state.tables[String(table.id)];
-  for (const userId of [...table.seated, ...table.invited.map((i) => i.userId)])
+  for (const userId of [...table.seated, ...table.invited.map((i) => i.userId)]) {
     if (userId !== table.host) await tell(client, userId, why);
+  }
 }
 
 /** Once a second: invites and tables that ran out, and finished matches that can go. */
@@ -662,35 +675,45 @@ async function sweep(c: ArcadeCtx, now: number): Promise<void> {
     table.invited = table.invited.filter((i) => i.expiresAt > now);
     if (table.invited.length !== before) changed = true;
     if (now - table.createdAt > TABLE_MS) {
-      await closeTable(c, table, `${gameName(table)} didn't start in time: your stake is back.`);
-      await tell(c.client(), table.host, `${gameName(table)} didn't start in time: your stake is back.`);
+      const timedOut = `${gameName(table)} didn't start in time: your stake is back.`;
+      await closeTable(c, table, timedOut);
+      await tell(c.client(), table.host, timedOut);
       changed = true;
     }
   }
+
   for (const live of Object.values(c.vars.state.matches)) {
-    if (!live.outcome && (now - live.startedAt > stuckAfter(live.game) || stopped(live, now))) {
+    const isStuck = now - live.startedAt > stuckAfter(live.game) || stopped(live, now);
+    if (!live.outcome && isStuck) {
+      // A settle that fails before it records an outcome is retried on the next sweep.
       await settle(c, live, { void: `${gameName(live)} got stuck and was called off.` }).catch((err) =>
         console.warn(`[arcade] voiding match ${live.id}: ${String(err)}`),
       );
       changed = true;
     }
+
+    // A release that failed earlier (`world` was down) is retried here.
     if (live.outcome && !live.released) await release(c, live);
+
     if (live.endedAt && now - live.endedAt > KEEP_MS && live.released) {
       delete c.vars.state.matches[String(live.id)];
+      // The match actor may be gone already, which is fine.
       await matchOf(c.client(), live.id)
         .close()
-        .catch(() => {}); // already gone
+        .catch(() => {});
       changed = true;
     }
   }
+
   if (changed) {
     // Only names still in use are kept.
     const inUse = new Set([
       ...Object.values(c.vars.state.tables).flatMap((t) => [...t.seated, ...t.invited.map((i) => i.userId)]),
       ...Object.values(c.vars.state.matches).flatMap((m) => [...m.players, ...m.bets.map((b) => b.userId)]),
     ]);
-    for (const id of Object.keys(c.vars.state.names))
+    for (const id of Object.keys(c.vars.state.names)) {
       if (!inUse.has(Number(id))) delete c.vars.state.names[id];
+    }
     push(c);
   }
 }
@@ -741,9 +764,9 @@ function lobbyFor(s: ArcadeState, userId: number, views = shared(s)): Lobby {
   );
   const mine = Object.values(s.tables).find((t) => t.seated.includes(userId));
   // Your running game; else the one you just finished (its end screen and rematch offer).
-  const mineAll = Object.values(s.matches).filter((m) => m.players.includes(userId));
+  const myMatches = Object.values(s.matches).filter((m) => m.players.includes(userId));
   const playing =
-    mineAll.find((m) => !m.outcome) ?? sortBy(mineAll, { by: (m) => m.endedAt ?? 0, order: "desc" })[0];
+    myMatches.find((m) => !m.outcome) ?? sortBy(myMatches, { by: (m) => m.endedAt ?? 0, order: "desc" })[0];
   const bets: Lobby["me"]["bets"] = {};
   for (const m of Object.values(s.matches)) {
     const b = m.bets.find((x) => x.userId === userId);

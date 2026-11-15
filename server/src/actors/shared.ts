@@ -143,7 +143,8 @@ function checkOnce(cache: TokenCache, token: string, ask: () => Promise<Via | nu
 }
 
 const forget = (cache: TokenCache, token: string, check: Promise<unknown>) => {
-  if (checking.get(cache)?.get(token) === check) checking.get(cache)!.delete(token);
+  const pending = checking.get(cache);
+  if (pending?.get(token) === check) pending.delete(token);
 };
 
 /**
@@ -178,8 +179,11 @@ export async function authenticate(
           }),
       )
     : Promise.resolve(null);
-  const stale = hit && now - hit.until < TOKEN_STALE_MS && hit.caller.kind === "user" ? hit.caller : null;
+  // An expired entry for a user, checked recently enough to still stand while the player is slow.
+  const isStaleUser = hit !== undefined && now - hit.until < TOKEN_STALE_MS && hit.caller.kind === "user";
+  const stale = isStaleUser ? hit.caller : null;
   if (stale) {
+    // A check that fails (the engine is down, say) counts as too slow to answer, like one that times out.
     const busy = Symbol();
     const answer = await withTimeout(verify, VERIFY_WAIT_MS).catch(() => busy);
     if (answer === busy) {
@@ -188,9 +192,12 @@ export async function authenticate(
       return stale;
     }
   }
+
   const via = await verify;
   if (!t || !via) throw unauthorized();
+
   const caller: Caller = { kind: "user", userId: t.userId, via };
+  // Over the cap, drop every entry rather than pick one to evict. Each token is verified again on its next call.
   if (cache.size > TOKEN_CACHE_MAX) cache.clear();
   cache.set(params.token, { caller, until: now + TOKEN_CACHE_MS });
   return caller;

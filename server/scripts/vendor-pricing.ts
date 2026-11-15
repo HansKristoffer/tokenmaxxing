@@ -4,8 +4,8 @@
  *
  * The snapshot is the price table the server boots on, before the first
  * upstream refresh lands (PricingCache.refreshFromUpstream, boot + daily). A
- * model missing from it prices at $0 until that refresh succeeds — and on an
- * air-gapped or egress-blocked self-host, "until" is "never".
+ * model missing from it prices at $0 until that refresh succeeds. On an
+ * air-gapped or egress-blocked self-host, "until" means "never".
  *
  * Written byte-verbatim so `git diff` on this file is a readable price diff
  * rather than a reformat.

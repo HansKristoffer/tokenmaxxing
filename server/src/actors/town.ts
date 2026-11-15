@@ -214,7 +214,6 @@ import {
   announceTown,
   authenticate,
   type Caller,
-  type Callers,
   type ConnParams,
   callerOf,
   clientIpOf,
@@ -342,7 +341,7 @@ function companyName(raw: unknown): string {
 
 export const town = actor({
   createVars: () => ({
-    callers: new Map() as Callers<TownConn>,
+    callers: new Map<string, TownConn>(),
     serial: serial(),
     /** The newest roulette round whose betting has closed: later bets for it are refused. */
     rouletteClosed: 0,
@@ -428,12 +427,14 @@ export const town = actor({
           name,
           Date.now(),
         );
+        const newId = must(row, () => new Error("signUp: the insert returned no row")).id;
+
         await c.db.execute(
           "UPDATE users SET look = ? WHERE id = ?",
-          JSON.stringify(defaultLook(row!.id)),
-          row!.id,
+          JSON.stringify(defaultLook(newId)),
+          newId,
         );
-        return row!.id;
+        return newId;
       });
       const { token, hash } = makeToken(userId);
       try {
@@ -506,13 +507,15 @@ export const town = actor({
           plot,
           now,
         );
+        const companyId = must(row, () => new Error("createCompany: the insert returned no row")).id;
+
         await c.db.execute(
           "UPDATE users SET company_id = ?, joined_at = ? WHERE id = ?",
-          row!.id,
+          companyId,
           now,
           userId,
         );
-        return { companies: [...left.companies, row!.id], users: [userId] };
+        return { companies: [...left.companies, companyId], users: [userId] };
       });
       await push(c.db, c.client<typeof registry>(), changed);
       return myCompany(c.db, changed.companies.at(-1)!, userId);
@@ -578,6 +581,7 @@ export const town = actor({
       const userId = requireUser(callerOf(c));
       const changed = await c.vars.serial(async () => {
         const company = await ownedCompany(c.db, userId);
+        // An id that is no player at all is refused the same way as one outside the company.
         const member = typeof memberId === "number" ? await userById(c.db, memberId).catch(() => null) : null;
         if (!member || member.companyId !== company.id || member.id === userId)
           throw new UserError("They're not in your company.", { code: "not_found" });
@@ -675,8 +679,6 @@ export const town = actor({
       return c.vars.serial(() => buy(c.db, userId, item, Date.now(), k));
     },
 
-    // MARK: Cases
-
     /** Natmarked's all-time case spending and opening counts. */
     caseLeaderboard: async (c) => {
       const userId = requireUser(callerOf(c));
@@ -743,8 +745,6 @@ export const town = actor({
       const k = await kept(c, Date.now());
       return c.vars.serial(() => sellDuplicates(c.db, userId, caseId, Date.now(), k));
     },
-
-    // MARK: Company furniture
 
     /**
      * The owner buys a piece of company furniture from the company wallet. It goes down in front of
@@ -839,8 +839,6 @@ export const town = actor({
       return paper;
     },
 
-    // MARK: The traveling merchant (`core/src/merchant.ts`)
-
     /** What's on the cart this week, and how many of each are gone. */
     cart: (c): Promise<Cart> => cart(c.db, Date.now()),
 
@@ -853,8 +851,6 @@ export const town = actor({
 
     /** The numbered copies in my bag. */
     copies: (c): Promise<Copy[]> => copiesOf(c.db, requireUser(callerOf(c))),
-
-    // MARK: Torvehallen, the market hall
 
     /** Everything on display, by slot. Anyone may look from anywhere; only the hall sells. */
     marketListings: async (c): Promise<MarketListing[]> => {
@@ -925,8 +921,6 @@ export const town = actor({
     /** I have been told of my sales up to this one. */
     marketSaw: async (c, upTo: unknown): Promise<void> => sawSales(c.db, requireUser(callerOf(c)), upTo),
 
-    // MARK: The julekalender
-
     /** Today's door and the doors I've opened this December. */
     julekalender: (c): Promise<Calendar> => calendar(c.db, requireUser(callerOf(c)), Date.now()),
 
@@ -936,8 +930,6 @@ export const town = actor({
       const k = await kept(c, Date.now());
       return c.vars.serial(() => openDoor(c.db, userId, Date.now(), k));
     },
-
-    // MARK: Drops
 
     /**
      * One of mine onto the floor where I am, for anyone to take. A full room says so (the notice is for
@@ -1003,8 +995,6 @@ export const town = actor({
       return c.vars.serial(() => questBoard(c.db, userId, Date.now()));
     },
 
-    // MARK: The basement's tournament board
-
     /** The live bracket and the latest champion. Starts a due bracket first. */
     tournament: (c): Promise<TournamentBoard> => {
       requireUser(callerOf(c));
@@ -1038,8 +1028,6 @@ export const town = actor({
         tellTown(c, (await tourney.matchResult(c.db, game, players, winners, Date.now())).lines),
       );
     },
-
-    // MARK: The Tavern's request pile
 
     /** The pile: what people would like in the game, with my 👍 marked. */
     requests: (c): Promise<RequestEntry[]> => {
@@ -1218,8 +1206,6 @@ export const town = actor({
       await giveBack(c.db, ids);
     },
 
-    // MARK: Trades
-
     /** Offers `toId` my `give` for their `want`. It replaces my open offer, if I had one. */
     offerTrade: async (c, rawTo: unknown, rawGive: unknown, rawWant: unknown): Promise<void> => {
       const userId = requireUser(callerOf(c));
@@ -1348,8 +1334,6 @@ export const town = actor({
       await pushOffice(c.db, client, userId);
     },
 
-    // MARK: Desk setups
-
     /** Which desk setups I may use, and which I use. */
     deskOwned: async (c): Promise<MyDesk> => myDesk(c.db, requireUser(callerOf(c))),
 
@@ -1391,8 +1375,8 @@ export const town = actor({
     openOffices: (c): Promise<OpenOfficeRow[]> => {
       requireUser(callerOf(c));
       const now = Date.now();
-      const kept = c.vars.openOffices;
-      if (kept && now - kept.at < OPEN_OFFICES_TTL) return kept.rows;
+      const cached = c.vars.openOffices;
+      if (cached && now - cached.at < OPEN_OFFICES_TTL) return cached.rows;
       const rows = (async () => {
         const [live, visitors] = await Promise.all([
           main(c.client<typeof registry>()).world.openOffices(),
@@ -1564,7 +1548,8 @@ export const town = actor({
           ([top, last]) => ({ top, last }),
         );
         const entry = { at: now, day, rows };
-        c.vars.regulars = hit = entry;
+        c.vars.regulars = entry;
+        hit = entry;
         // A failed one isn't kept.
         rows.catch(() => {
           if (c.vars.regulars === entry) c.vars.regulars = null;
@@ -1574,10 +1559,6 @@ export const town = actor({
       return { ...(await hit.rows), me: minutes === null ? null : { minutes } };
     },
 
-    /**
-     * From `world`, every few minutes: who spent how long in the Tavern since the last call (`[userId,
-     * minutes, visits]`). Credit is capped per player per day; plaques give no coins.
-     */
     /**
      * From `world` after each grid read: the hours (their starts) it found green. Each goes in once
      * (`recordGreen`), so the same hours sent again change nothing.
@@ -1589,6 +1570,10 @@ export const town = actor({
       return c.vars.serial(() => recordGreen(c.db, clean, Date.now()));
     },
 
+    /**
+     * From `world`, every few minutes: who spent how long in the Tavern since the last call (`[userId,
+     * minutes, visits]`). Credit is capped per player per day; plaques give no coins.
+     */
     tavernMinutes: async (c, day: unknown, rows: unknown): Promise<void> => {
       requireInternal(callerOf(c));
       if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !Array.isArray(rows)) return;
@@ -1657,8 +1642,6 @@ export const town = actor({
     /** The HUD's corner: my numbers today and today's top 5. */
     today: (c): Promise<Today> => today(c.db, requireSyncer(callerOf(c)), Date.now()),
 
-    // MARK: Coins for games (from `arcade` only)
-
     /** Takes a stake or a side bet from each entry, or from nobody. */
     hold: async (c, ref: string, kind: HoldKind, entries: Entry[]): Promise<void> => {
       requireInternal(callerOf(c));
@@ -1685,8 +1668,6 @@ export const town = actor({
       requireInternal(callerOf(c));
       await c.vars.serial(() => refund(c.db, ref, Date.now(), userIds));
     },
-
-    // MARK: The Tavern's poker table (from `world` only; `town/poker.ts`)
 
     /** Takes the buy-in from `userId`'s wallet for a seat: a `UserError` says why not (the day's limit, too poor). */
     pokerSit: async (c, userId: number): Promise<void> => {
@@ -1751,8 +1732,6 @@ export const town = actor({
       requireInternal(callerOf(c));
       return namesOf(c.db, userIds);
     },
-
-    // MARK: The admin page (`ADMIN_TOKEN`)
 
     adminOverview: (c): Promise<AdminOverview> => {
       requireAdmin(callerOf(c));
@@ -2101,9 +2080,9 @@ function collectionFor(
       .player.get([String(u.id)], internal)
       .trophies()
       .catch(() => null);
-    const state = await collectionOf(c.db, userId, now, await kept(c, now), trophies ?? []);
-    if (!trophies) withoutTrophies.add(state);
-    return state;
+    const collection = await collectionOf(c.db, userId, now, await kept(c, now), trophies ?? []);
+    if (!trophies) withoutTrophies.add(collection);
+    return collection;
   })();
   const entry = { at: now, state };
   c.vars.collections.set(userId, entry);
@@ -2111,7 +2090,9 @@ function collectionFor(
     if (c.vars.collections.get(userId) === entry) c.vars.collections.delete(userId);
   };
   // A failed one isn't kept, nor one without trophies: the next look asks again.
-  state.then((s) => withoutTrophies.has(s) && forget(), forget);
+  state.then((s) => {
+    if (withoutTrophies.has(s)) forget();
+  }, forget);
   return state;
 }
 
@@ -2169,8 +2150,8 @@ function raidsOf(
   },
   now: number,
 ): Promise<RaidWeek[]> {
-  const kept = c.vars.raids;
-  if (kept && now - kept.at < RAID_TTL && raidWeekAt(kept.at) === raidWeekAt(now)) return kept.rows;
+  const cached = c.vars.raids;
+  if (cached && now - cached.at < RAID_TTL && raidWeekAt(cached.at) === raidWeekAt(now)) return cached.rows;
   const rows = raidHistory(c.db, now).then(async (weeks) => {
     const fresh = await c.vars
       .serial(() => grantLoot(c.db, weeks, now))
@@ -2269,7 +2250,11 @@ async function furnish(
   const notice = await c.vars.serial(async () => {
     const now = Date.now();
     const id = await take(company, now);
-    const item = (await one<{ item: string }>(c.db, "SELECT item FROM items WHERE id = ?", id))!.item;
+    const row = must(
+      await one<{ item: string }>(c.db, "SELECT item FROM items WHERE id = ?", id),
+      () => new Error(`furnish: item ${id} is missing right after it was taken`),
+    );
+    const item = row.item;
     const put = await main(c.client())
       .world.placeDrop({ id, item, by: userId, co: company.id, ...(onto && { onto }) })
       .catch((err) => {
