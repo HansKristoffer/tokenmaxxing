@@ -36,13 +36,12 @@ import { wallEase } from "./walls.ts";
 import type { RoomSkin } from "./world.ts";
 
 /**
- * The Julemarked's courtyard (`core/src/julemarked.ts`), outdoors: cobbles under a dusting of snow, a low red-brick wall all round with
- * a way out in the south, four stalls under snow-white roofs with red stripes (Nissens bod, Julegodter, Julepynt, Den varme bod), a tall
- * Christmas tree in the middle, lamp posts, and strings of fairy lights and bunting over the lot. The skin sits at the map's own origin:
- * a tile (x, y) is the world point (x, z). The walls on the camera's side go down, like a room's; the rest stays up.
+ * The Julemarked's courtyard (`core/src/julemarked.ts`), outdoors: cobbles under a dusting of snow, a low red-brick
+ * wall all round with a way out in the south, four stalls under snow-white roofs with red stripes (Nissens bod,
+ * Julegodter, Julepynt, Den varme bod), a tall Christmas tree in the middle, lamp posts, and strings of fairy lights
+ * and bunting over the lot. The skin sits at the map's own origin: a tile (x, y) is the world point (x, z). The walls
+ * on the camera's side go down, like a room's; the rest stays up.
  */
-
-// MARK: The ground
 
 /** The courtyard's cobbles, with snow lying in the joints and along the walls, as one painted slab. */
 function ground(W: number, D: number): THREE.Mesh {
@@ -93,8 +92,6 @@ function ground(W: number, D: number): THREE.Mesh {
   return slab;
 }
 
-// MARK: The wall
-
 /** A run of snow-capped brick wall, `w` by `d`, from (x, z) at the model's floor, `h` high. */
 function wallRun(m: Model, x: number, z: number, w: number, d: number, h: number): void {
   m.box([w, h, d], BRICK, [x + w / 2, 0, z + d / 2], 0.02);
@@ -104,8 +101,6 @@ function wallRun(m: Model, x: number, z: number, w: number, d: number, h: number
   m.box([w + 0.12, 0.14, d + 0.12], SNOW, [x + w / 2, h, z + d / 2], 0.05);
   m.box([w + 0.14, 0.05, d + 0.14], SNOW_SHADE, [x + w / 2, h - 0.03, z + d / 2], 0.01);
 }
-
-// MARK: Stalls
 
 const sign = (text: string, w = 1.9): Model =>
   panel(
@@ -164,7 +159,7 @@ const WARES: Record<StallId, (m: Model, top: number, z: number) => void> = {
     n.box([0.22, 0.2, 0.2], RED, [0.02, 0.8, 0], 0.006);
     n.box([0.1, 0.16, 0.1], RED, [0.05, 1.0, 0], 0.006);
     n.box([0.1, 0.1, 0.1], CREAM, [0.05, 1.14, 0], 0.004);
-    // A scroll of price tags and a lantern.
+    // A roll of price tags on the counter.
     m.cyl(0.06, 0.2, "#d8b684", [-0.2, top, z + 0.1], 0.06, 8);
   },
   godter: (m, top, z) => {
@@ -195,7 +190,7 @@ const WARES: Record<StallId, (m: Model, top: number, z: number) => void> = {
         Math.PI / 2;
   },
   pynt: (m, top, z) => {
-    // Paper hearts and straw stars on strings from a beam, a wreath on the counter and a row of little nisser.
+    // Paper hearts and gold stars on strings from a beam, a wreath on the counter and a row of little nisser.
     for (let i = 0; i < 7; i++) {
       const x = -2.0 + i * 0.66;
       m.box([0.012, 0.5, 0.012], WIRE, [x, top + 1.0, z - 0.6], 0.001);
@@ -203,13 +198,12 @@ const WARES: Record<StallId, (m: Model, top: number, z: number) => void> = {
     }
     for (const x of [-1.7, 0.0, 1.7]) {
       m.box([0.012, 0.5, 0.012], WIRE, [x, top + 1.5, z - 0.4], 0.001);
+
+      // A star of two squares, one turned 45 degrees against the other.
       const star = m.box([0.22, 0.04, 0.22], GOLD, [x, top + 1.45, z - 0.4], 0.005);
       star.rotation.x = Math.PI / 2;
-      m.box([0.22, 0.04, 0.22], GOLD, [x, top + 1.45, z - 0.4], 0.005).rotation.set(
-        Math.PI / 2,
-        0,
-        Math.PI / 4,
-      );
+      const turned = m.box([0.22, 0.04, 0.22], GOLD, [x, top + 1.45, z - 0.4], 0.005);
+      turned.rotation.set(Math.PI / 2, 0, Math.PI / 4);
     }
     wreath3(m, [-1.55, top + 0.4, z - 0.05], 0.28);
     for (const x of [-0.6, 0.1, 0.8, 1.5]) {
@@ -231,8 +225,9 @@ const WARES: Record<StallId, (m: Model, top: number, z: number) => void> = {
     }
     for (let i = 0; i < 4; i++) {
       const x = -1.5 + i * 0.9;
-      for (let k = 0; k < 3; k++)
+      for (let k = 0; k < 3; k++) {
         m.box([0.5, 0.05, 0.3], (k + i) % 2 ? RED : GREEN, [x, top + k * 0.05, z], 0.01);
+      }
       m.box([0.5, 0.012, 0.31], CREAM, [x, top + 0.06, z], 0.002);
     }
     mug(m, [1.8, top, z + 0.05], "#7a4a2a");
@@ -261,6 +256,7 @@ function stallModel(id: StallId, name: string): Model {
       [-w / 2 + (i + 0.5) * (w / cloth), 0.3, cz + 0.41],
       0.003,
     );
+  // The counter's top: 0.95 high, with a 0.06 cap on it.
   WARES[id](m, 1.01, cz);
   // Posts at the four corners.
   for (const sx of [-1, 1])
@@ -291,8 +287,6 @@ function stallModel(id: StallId, name: string): Model {
   fairyString(m, [-w / 2 - 0.1, 2.0, ez + 0.06], [w / 2 + 0.1, 2.0, ez + 0.06], 0.14);
   return m;
 }
-
-// MARK: The tree
 
 /** The market's Christmas tree: tiers of snowy spruce, a spiral of fairy lights, baubles, a star and gifts. Origin at the foot. */
 function christmasTree(): Model {
@@ -331,22 +325,26 @@ function christmasTree(): Model {
     const a = u * Math.PI * 2 * 4;
     const y = 1.25 + u * 2.85;
     const r = 1.05 * (1 - u) + 0.15;
-    const b = m.ball(0.045, bulbs[i % bulbs.length]!, [Math.cos(a) * r, y, Math.sin(a) * r], [1, 1.2, 1], 6);
+    const color = bulbs[i % bulbs.length]!;
+    const b = m.ball(0.045, color, [Math.cos(a) * r, y, Math.sin(a) * r], [1, 1.2, 1], 6);
     b.castShadow = false;
-    nightGlow(b, bulbs[i % bulbs.length]!);
+    nightGlow(b, color);
   }
+
+  const baubles = [GOLD, RED, DANNEBROG];
   for (let i = 0; i < 12; i++) {
     const a = i * 2.4;
     const u = (i + 0.5) / 12;
     const r = 0.95 * (1 - u) + 0.1;
     m.ball(
       0.07,
-      i % 3 === 0 ? GOLD : i % 3 === 1 ? RED : DANNEBROG,
+      baubles[i % baubles.length]!,
       [Math.cos(a) * r, 1.15 + u * 2.6, Math.sin(a) * r],
       [1, 1, 1],
       7,
     );
   }
+
   // Gifts at its foot.
   for (const [x, z, c, s] of [
     [0.85, 0.7, RED, 0.28],
@@ -354,13 +352,11 @@ function christmasTree(): Model {
     [0.2, 1.0, "#bcd8e8", 0.22],
     [-0.5, 0.95, DANNEBROG, 0.2],
   ] as const) {
-    m.box([s, s, s], c, [x, 0.0, z], 0.02);
+    m.box([s, s, s], c, [x, 0, z], 0.02);
     m.box([s * 0.16, s + 0.01, s + 0.01], c === GOLD ? RED : GOLD, [x, 0, z], 0.003);
   }
   return m;
 }
-
-// MARK: The exit
 
 /** The way out: two brick posts with snow caps and a lantern each, a plate "UD" and a string of lights over the gap. */
 function exitGate(m: Model, x: number, z: number): void {
@@ -376,8 +372,6 @@ function exitGate(m: Model, x: number, z: number): void {
   m.box([1.76, 0.1, 0.46], SNOW, [x, 1.76, z], 0.03);
   buntingString(m, [x - 0.8, 1.5, z - 0.2], [x + 0.8, 1.5, z - 0.2], 0.18);
 }
-
-// MARK: The room
 
 const lampAt: readonly (readonly [number, number])[] = [
   [8, 5],
@@ -409,7 +403,7 @@ export function buildJulemarkedRoom(): RoomSkin {
   wallRun(sides.n.m, 0, 0, W, 2, 1.55);
   wallRun(sides.w.m, 0, 2, 1, D - 2, 0.95);
   wallRun(sides.e.m, W - 1, 2, 1, D - 2, 0.95);
-  wallRun(sides.s.m, 1, D - 1, JULE_EXIT_X - 1 - 0.0, 1, 0.95);
+  wallRun(sides.s.m, 1, D - 1, JULE_EXIT_X - 1, 1, 0.95);
   wallRun(sides.s.m, JULE_EXIT_X + 1, D - 1, W - 1 - (JULE_EXIT_X + 1), 1, 0.95);
   // Fairy lights along the back wall, a string between the stalls' roofs, and bunting across the middle.
   const lights = new Model();
@@ -423,10 +417,12 @@ export function buildJulemarkedRoom(): RoomSkin {
     st.position.set(s.x + STALL_W / 2, 0, s.y + STALL_H / 2);
     stalls.add(st);
   }
-  // The tree.
   const tree = christmasTree();
-  tree.position.set(JULE_TREE_AT[0] + 1, 0, JULE_TREE_AT[1] + 1);
+  const treeX = JULE_TREE_AT[0] + 1;
+  const treeZ = JULE_TREE_AT[1] + 1;
+  tree.position.set(treeX, 0, treeZ);
   g.add(tree);
+
   // Lamp posts, and festoons of lights and bunting strung between them and the stalls.
   for (const [x, y] of lampAt) {
     const lamp = lanternPillar();
@@ -434,12 +430,14 @@ export function buildJulemarkedRoom(): RoomSkin {
     g.add(lamp);
   }
   const head = (x: number, y: number): V3 => [x + 0.5, 1.55, y + 0.5];
+  const treeTop: V3 = [treeX, 4.1, treeZ];
   fairyString(lights, head(8, 5), head(15, 5), 0.5);
   fairyString(lights, head(8, 12), head(15, 12), 0.5);
   buntingString(lights, head(8, 5), head(8, 12), 0.4);
   buntingString(lights, head(15, 5), head(15, 12), 0.4);
-  buntingString(lights, [JULE_TREE_AT[0] + 1, 4.1, JULE_TREE_AT[1] + 1], head(8, 5), 0.6);
-  buntingString(lights, [JULE_TREE_AT[0] + 1, 4.1, JULE_TREE_AT[1] + 1], head(15, 5), 0.6);
+  buntingString(lights, treeTop, head(8, 5), 0.6);
+  buntingString(lights, treeTop, head(15, 5), 0.6);
+
   const way = new Model();
   exitGate(way, JULE_EXIT_X + 0.5, D - 0.5);
   g.add(way);

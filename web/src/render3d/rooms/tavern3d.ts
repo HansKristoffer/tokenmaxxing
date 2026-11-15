@@ -43,8 +43,6 @@ const CHALK_DIM = "#a9b0b4";
 const INK = C.ink;
 const FONT = "ui-monospace, Menlo, Consolas, monospace";
 
-// ——— Night ———
-
 /** Whether the room's lights are on. Read off the hearth's own light, or forced with `setTavernNight`. */
 let lit = false;
 let forced: boolean | null = null;
@@ -141,8 +139,6 @@ function candle(m: Model, at: V3, seed: number, withHalo = true): void {
   if (withHalo) halo(m, [x, y + 0.2, z], 0.7, "#ffce78", seed);
 }
 
-// ——— Wood and stone helpers ———
-
 const WOOD = C.wood;
 const WOOD_DARK = C.woodDark;
 const WOOD_LIGHT = C.woodLight;
@@ -155,8 +151,6 @@ const plank = (base: string, seed: number, repeat = 0.25): THREE.MeshToonMateria
   return painted(t);
 };
 const STAGE_BOARDS = plank(WOOD_DARK, 7);
-
-// ——— Panels on a wall ———
 
 /** Wraps `p` so its back sits on the north edge of a 1×1 tile, which is how wall pieces are placed. */
 function onWall(p: Panel, w: Model): Panel {
@@ -183,8 +177,6 @@ const text = (
   g.textBaseline = "top";
   g.fillText(s, x, y);
 };
-
-// ——— The bar ———
 
 /** One tile of the counter: a polished top over a planked front. With `tap`, a brass tap, a drip tray, a mug and a lamp. */
 function barCounter(tap: boolean): Model {
@@ -297,8 +289,6 @@ function shelfUnit(): Model {
   return m;
 }
 
-// ——— Seats and tables ———
-
 /** A wooden tavern chair facing +z. */
 function tavernChair(): Model {
   const m = new Model();
@@ -384,8 +374,6 @@ function seatUnit(kind: "sofa" | "booth" | "armchair", leftArm: boolean, rightAr
   };
 }
 
-// ——— The hearth ———
-
 const hearthInner = (): Model => {
   const m = new Model();
   const stone = C.stone;
@@ -394,7 +382,7 @@ const hearthInner = (): Model => {
   m.box([1.0, 0.45, 0.74], stone, [0, 0.75, 0], 0.015);
   m.box([1.0, 0.77, 0.06], "#1c1620", [0, 0.02, -0.3], 0.003);
   for (const s of [-1, 1]) m.box([0.03, 0.77, 0.6], "#2a2030", [s * 0.495, 0.02, 0], 0.003);
-  m.box([1.0, 0.03, 0.6], "#2a2030", [0, 0.02, 0.0], 0.003);
+  m.box([1.0, 0.03, 0.6], "#2a2030", [0, 0.02, 0], 0.003);
   m.box([1.3, 0.06, 0.18], C.stoneLight, [0, 0, 0.42], 0.01);
   // Stone courses on the face.
   for (const y of [0.3, 0.6, 0.9, 1.15])
@@ -480,8 +468,6 @@ const hearth = (): Model => {
   return m;
 };
 
-// ——— Sconce ———
-
 /** A brass sconce with a candle, its back on the wall at z = 0 and its foot at y = 0; place it with `at`. */
 function sconce(): Model {
   const m = new Model();
@@ -494,8 +480,6 @@ function sconce(): Model {
   halo(m, [0, 0.3, 0.13], 0.8, "#ffce78", 6);
   return m;
 }
-
-// ——— The stage ———
 
 const NOTE_TEX = ["♪", "♫"].map((glyph) =>
   canvasTexture(
@@ -579,8 +563,6 @@ function stage(w: number, d: number): () => Model {
   };
 }
 
-// ——— Barrel ———
-
 const barrel = (): Model => {
   const m = new Model();
   const staves = plank(WOOD, 2, 0.5);
@@ -597,8 +579,6 @@ const barrel = (): Model => {
   m.box([0.05, 0.02, 0.03], BRASS_DARK, [0, 0.27, 0.43]);
   return m;
 };
-
-// ——— The jukebox ———
 
 export interface JukeboxModel extends Model {
   /** A track is on: the record spins, the bulbs chase, notes rise and the window lights up. */
@@ -686,7 +666,7 @@ const jukebox = (): Model => {
   const playLight = new THREE.PointLight("#e8a0ff", 0, 4, 1.6);
   playLight.position.set(0, 0.9, 0.7);
   m.add(playLight);
-  halo(m, [0, 0.95, 0.4], 1.4, "#c9a0ff", 9).visible = true;
+  halo(m, [0, 0.95, 0.4], 1.4, "#c9a0ff", 9);
   ticks.push((t) => {
     const on = m.playing;
     const frame = Math.floor(t * 12);
@@ -704,20 +684,9 @@ const jukebox = (): Model => {
       b.b.scale.setScalar(chase ? 1.35 : 1);
     }
   });
-  driftingNotes(
-    (() => {
-      const n = m.part([0, 0.9, 0.3]);
-      return n;
-    })(),
-    0.9,
-    0.6,
-    3,
-    () => m.playing,
-  );
+  driftingNotes(m.part([0, 0.9, 0.3]), 0.9, 0.6, 3, () => m.playing);
   return m;
 };
-
-// ——— Boards ———
 
 /** Draws the bar tab: BAR TAB, five rows of `[name, hours]` best first, a chalk crown on `crown`. */
 export function barTabDraw(
@@ -973,6 +942,13 @@ const hallOfFame = (): Model => {
 /** What the open-offices board paints: the names of the offices left open (null until they are known). */
 export type OfficeBoardRows = readonly string[] | null;
 
+/** The big word on the open-offices sign: how many offices are open, or that the count is not known yet. */
+function officeHeadline(open: OfficeBoardRows): string {
+  if (open === null) return "OPEN OFFICES";
+  if (open.length === 0) return "NONE OPEN";
+  return `${open.length} OPEN`;
+}
+
 /** Draws the open-offices sign: a little house with a lit window, and under it how many are open and the first few names. */
 export function officeBoardDraw(
   open: OfficeBoardRows,
@@ -999,11 +975,7 @@ export function officeBoardDraw(
     g.textBaseline = "middle";
     g.fillStyle = INK;
     g.font = `800 ${Math.round(h * 0.085)}px system-ui, sans-serif`;
-    g.fillText(
-      open === null ? "OPEN OFFICES" : open.length === 0 ? "NONE OPEN" : `${open.length} OPEN`,
-      w / 2,
-      h * 0.55,
-    );
+    g.fillText(officeHeadline(open), w / 2, h * 0.55);
     g.font = `600 ${Math.round(h * 0.075)}px system-ui, sans-serif`;
     for (const [i, name] of (open ?? []).slice(0, 3).entries())
       g.fillText(name.length > 12 ? `${name.slice(0, 11)}…` : name, w / 2, h * (0.67 + i * 0.1));
@@ -1027,8 +999,6 @@ const officeBoard = (): Model => {
 export function setOfficeBoard(model: Model, open: OfficeBoardRows): void {
   (model as Panel).redraw(officeBoardDraw(open));
 }
-
-// ——— The easel ———
 
 function specialToday(): string {
   const day = aarhusDay(new Date());
@@ -1055,7 +1025,9 @@ export function specialDraw(special: string): (g: CanvasRenderingContext2D, w: n
       if (g.measureText(next).width > w * 0.84 && line) {
         lines.push(line);
         line = word;
-      } else line = next;
+      } else {
+        line = next;
+      }
     }
     lines.push(line);
     for (const [i, l] of lines.slice(0, 6).entries())
@@ -1100,8 +1072,6 @@ const easel = (): Model => {
 export function setSpecial(model: Model, special: string): void {
   (model as Panel).redraw(specialDraw(special));
 }
-
-// ——— The world clocks ———
 
 /** The hands on the world clocks (SF, New York, Copenhagen) and whether the launch window is open. */
 export interface ClocksShown {
@@ -1194,8 +1164,6 @@ const worldClocks = (): Model => {
   return m;
 };
 
-// ——— Stairs and the exit ———
-
 /** The way out: a doorframe in the wall with a door ajar on warm daylight, and a red doormat on the floor. */
 const exitDoor = (): Model => {
   const m = new Model();
@@ -1215,8 +1183,6 @@ const exitDoor = (): Model => {
   m.box([0.7, 0.03, 0.4], C.rug, [0, 0, 0.1], 0.006);
   return m;
 };
-
-// ——— The tip jar ———
 
 export interface FountainModel extends Model {
   /** Throws a coin from the stools; it arcs into the jar on the bar and clinks. */
@@ -1273,8 +1239,6 @@ const tipJar = (): Model => {
   });
   return m;
 };
-
-// ——— Door to the kitchen, coat stand, umbrella stand, pictures ———
 
 /** The kitchen door behind the bar: a swing door in the north wall, a round porthole and a brass plate. */
 const kitchenDoor = (): Model => {
@@ -1352,8 +1316,9 @@ const picture = (kind: number) => (): Model => {
         g.fillStyle = "#d8c9a0";
         g.fillRect(0, 0, w, h);
         g.fillStyle = "#58b36a";
-        for (let i = 0; i < 12; i++)
+        for (let i = 0; i < 12; i++) {
           g.fillRect(w * (0.1 + i * 0.07), h * 0.1 + ((i * 7) % 5) * h * 0.08, w * 0.05, h * 0.1);
+        }
         g.fillRect(w * 0.48, h * 0.05, w * 0.04, h * 0.9);
       } else {
         g.fillStyle = "#2f3d36";
@@ -1372,8 +1337,6 @@ const picture = (kind: number) => (): Model => {
   m.add(p);
   return m;
 };
-
-// ——— The dorm ———
 
 const BLANKETS = [
   "#6d7fc4",
@@ -1428,10 +1391,6 @@ const dormRug = (w: number) => (): Model => {
 };
 
 /** A long red runner under the barkeep's feet (the cell behind the bar is a rug, not a floor). */
-const cellRug = dormRug;
-
-// ——— Bent, the barkeep ———
-
 export interface Barkeep {
   avatar: Avatar;
   root: THREE.Object3D;
@@ -1463,8 +1422,8 @@ export function makeBarkeep(): Barkeep {
   // The mug, in the right hand.
   const arms = avatar.arms;
   const hand = arms[1];
-  hand.cyl(0.04, 0.09, glass("#f5d14a", 0.92), [0.0, -0.3, 0.08], 0.038, 10);
-  hand.cyl(0.04, 0.02, C.white, [0.0, -0.22, 0.08], 0.04, 10);
+  hand.cyl(0.04, 0.09, glass("#f5d14a", 0.92), [0, -0.3, 0.08], 0.038, 10);
+  hand.cyl(0.04, 0.02, C.white, [0, -0.22, 0.08], 0.04, 10);
   return {
     avatar,
     root: avatar.root,
@@ -1476,8 +1435,6 @@ export function makeBarkeep(): Barkeep {
     },
   };
 }
-
-// ——— The catalogue ———
 
 const wide = (
   id: string,
@@ -1560,10 +1517,9 @@ export const TAVERN_ASSETS: readonly Asset[] = [
   wide("tavern:picture-2", "Pint picture", 1, 1, picture(2)),
   wide("tile:b", "Dorm bed", 1, 2, dormBed, { bed: [0, 0.3, -0.27] }),
   wide("tavern:dorm-rug", "Dorm runner rug", 14, 1, dormRug(14)),
-  wide("tavern:cell-rug", "Barkeep's cell rug", 9, 1, cellRug(9)),
+  // A long red runner under the barkeep's feet (the cell behind the bar is a rug, not a floor).
+  wide("tavern:cell-rug", "Barkeep's cell rug", 9, 1, dormRug(9)),
 ];
-
-// ——— The rooms ———
 
 export interface TavernRoom {
   room: Room;
@@ -1635,7 +1591,9 @@ export function buildTavernRoom(): TavernRoom {
     if (face) p.model.rotation.y = Math.atan2(face[0] - p.model.position.x, face[1] - p.model.position.z);
     reg(id, p.model);
     const [w, d] = Room.footprint(a, turn);
-    for (let i = 0; i < w; i++) for (let j = 0; j < d; j++) mark(charOf(id), x + i, z + j, id === "rug");
+    for (let i = 0; i < w; i++) {
+      for (let j = 0; j < d; j++) mark(charOf(id), x + i, z + j, id === "rug");
+    }
     return p;
   };
   /** A piece hung on a wall (turn 0 north, 1 west, 2 south): it takes the wall's tiles, not the floor's. `ch` null: no tile. */
@@ -1647,10 +1605,13 @@ export function buildTavernRoom(): TavernRoom {
     model.rotation.y = (turn * Math.PI) / 2;
     room.group.add(model);
     reg(id, model);
-    if (ch)
-      for (let i = 0; i < w; i++)
-        for (let j = 0; j < d; j++)
+    if (ch) {
+      for (let i = 0; i < w; i++) {
+        for (let j = 0; j < d; j++) {
           mark(ch, turn === 1 ? -1 : x + i, turn === 0 ? -1 : turn === 2 ? D : z + j);
+        }
+      }
+    }
     return model;
   };
   const sconceAt = (x: number, z: number, turn: 0 | 1 = 0) => {
@@ -1660,7 +1621,7 @@ export function buildTavernRoom(): TavernRoom {
     room.group.add(s);
   };
 
-  // ——— The bar and the barkeep's cell (x 0-8, z 0-1), sealed by the counter and two barrels ———
+  // The bar and the barkeep's cell (x 0-8, z 0-1), sealed by the counter and two barrels.
   put("tavern:cell-rug", 0, 1);
   mark("=", 7, 0);
   put("tavern:back-bar", 0, 0);
@@ -1675,7 +1636,7 @@ export function buildTavernRoom(): TavernRoom {
   reg("tavern:tip-jar", jar);
   for (const x of [2, 4, 6, 8]) put("tile:v", x, 3, 2);
 
-  // ——— North wall: coffee, the quest board, the specials easel, the Hall of Fame, the request pile, the world clocks, the hearth nook, books ———
+  // North wall: coffee, the quest board, the specials easel, the Hall of Fame, the request pile, the world clocks, the hearth nook, books.
   put("coffee", 10, 0);
   hang("tile:m", 11, 0);
   put("tile:K", 13, 0);
@@ -1702,7 +1663,7 @@ export function buildTavernRoom(): TavernRoom {
   put("tavern:armchair", 19, 2, 0, [22, 0.5]);
   put("tavern:armchair", 24, 2, 0, [22, 0.5]);
 
-  // ——— West wall: the bar tab, the jukebox and the stage, the open-offices board, the stairs up ———
+  // West wall: the bar tab, the jukebox and the stage, the open-offices board, the stairs up.
   hang("tile:J", 0, 3, 1);
   put("tile:z", 0, 7, 1);
   put("tavern:stage", 0, 8, 1);
@@ -1711,7 +1672,7 @@ export function buildTavernRoom(): TavernRoom {
   put("tile:u", 0, 15, 1);
   put("plant", 0, 13);
 
-  // ——— Dining: long tables with a chair on every side facing the table ———
+  // Dining: long tables with a chair on every side facing the table.
   const dining = (x: number, z: number) => {
     put("tavern:table-long", x, z);
     for (const i of [0, 1]) {
@@ -1737,7 +1698,7 @@ export function buildTavernRoom(): TavernRoom {
   booth(7);
   booth(21);
 
-  // ——— The entrance: a coat stand and an umbrella stand beside the door ———
+  // The entrance: a coat stand and an umbrella stand beside the door.
   hang("tile:x", 12, 15, 2);
   put("tile:O", 10, 15);
   put("tavern:umbrella-stand", 11, 15);
@@ -1746,7 +1707,7 @@ export function buildTavernRoom(): TavernRoom {
   put("plant", 25, 1);
   put("tile:h", 25, 12);
 
-  // ——— Wall decor and lights ———
+  // Wall decor and lights.
   hang("tavern:picture-0", 8, 0, 0, null);
   hang("tavern:picture-2", 0, 2, 1, null);
   for (const x of [10, 19]) sconceAt(x, 0);

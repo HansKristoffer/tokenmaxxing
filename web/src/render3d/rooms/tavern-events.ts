@@ -68,11 +68,14 @@ export class TavernEvents {
       hemi.color.copy(this.day.hemi).lerp(this.night.hemi, k);
       sun.color.copy(this.day.sun).lerp(this.night.sun, k);
     }
-    // Lamps and windows on and off with a margin, as the town's do (`Fx`).
+    // Lamps and windows on above 0.4 and off below 0.3, so they do not flicker at the edge, as the town's do (`Fx`).
     const glow = lightsNow(now);
-    if (!this.lampsOn && glow > 0.4) this.lampsOn = true;
-    else if (this.lampsOn && glow < 0.3) this.lampsOn = false;
-    else return;
+    const turnsOn = !this.lampsOn && glow > 0.4;
+    const turnsOff = this.lampsOn && glow < 0.3;
+    if (!turnsOn && !turnsOff) return;
+
+    // Past the guard the lamps change one way: on when `turnsOn`, otherwise off.
+    this.lampsOn = turnsOn;
     setPropsNight(this.lampsOn);
     setTavernNight(this.lampsOn);
   }
@@ -85,6 +88,8 @@ export class TavernEvents {
   update(f: LiveFrame): void {
     this.sky(f.now);
     this.band.update(f);
+
+    // The band's sign, over the stage.
     if (!this.bandSign) {
       this.bandSign = f.overlay.make("r3-sign link");
       this.bandSign.addEventListener("click", () => hud.set({ dialog: bandText() }));
@@ -93,6 +98,8 @@ export class TavernEvents {
     if (this.bandSign.textContent !== bandLabel) this.bandSign.textContent = bandLabel;
     this.band.group.localToWorld(v.set(0.5, 2.3, 9.5));
     f.overlay.place(this.bandSign, v, f.camera, 0, 0, true);
+
+    // The jukebox sign: the track, who put it on and the skip votes.
     const { jukebox } = this.inn;
     if (!this.placed) {
       jukebox.updateWorldMatrix(true, false);
@@ -112,6 +119,7 @@ export class TavernEvents {
       this.el.textContent = text;
     }
     f.overlay.place(this.el, v.copy(this.at), f.camera, 0, 0, true);
+
     this.clocksSign(f);
     this.keynote.update(f);
     this.julefrokost.update();

@@ -45,13 +45,15 @@ function roomLight(m: Model, at: V3, color: string, intensity: number, distance 
   onLanParty((on) => l.color.set(on ? "#ff5fd2" : color));
 }
 
-/** A glowing material whose colour multiplies a map, so ticks can dim it to flicker. */
+/**
+ * A brightness factor around 0.82 that wobbles over time and dips now and then, so a lit part flickers without
+ * a pattern. `seed` shifts the wobble so neighbouring lights do not blink in step.
+ */
 const flick = (t: number, seed: number): number =>
   0.82 +
   0.18 * Math.sin(t * 9 + seed * 2.1) * Math.sin(t * 3.7 + seed) -
   (Math.sin(t * 1.3 + seed * 5) > 0.97 ? 0.3 : 0);
 
-// ——— Cabinets ———
 export const CABINET_GAMES = ["spr", "hype", "dice", "sprint", "tokenmaxxing"] as const;
 export type CabinetGame = (typeof CABINET_GAMES)[number];
 /** Each game's marquee name and glow (2D: `CABINET_NAME`, `CABINET_GLOW`). */
@@ -129,7 +131,7 @@ const cabinet = (i: number) => (): Model => {
   }
   // The screen: a lit canvas of attract mode.
   const canvas = canvasTexture(28, 22, (g) => attract(g, game, hex, 0));
-  const g2 = (canvas.image as HTMLCanvasElement).getContext("2d")!;
+  const screenCtx = (canvas.image as HTMLCanvasElement).getContext("2d")!;
   const screenMat = glow("#fff", canvas);
   m.box([0.6, 0.5, 0.05], INK, [0, 1.1, 0.09], 0.01).rotation.x = -0.18;
   m.plane(0.52, 0.41, screenMat, [0, 1.37, 0.123]).rotation.x = -0.18;
@@ -172,14 +174,13 @@ const cabinet = (i: number) => (): Model => {
     const f = Math.floor(t * 6);
     if (f === shown) return;
     shown = f;
-    g2.clearRect(0, 0, 28, 22);
-    attract(g2, game, hex, t);
+    screenCtx.clearRect(0, 0, 28, 22);
+    attract(screenCtx, game, hex, t);
     canvas.needsUpdate = true;
   });
   return m;
 };
 
-// ——— The big screen ———
 export interface BigScreen extends Model {
   /** Paints the livestream: live rows, "+N more", the empty state, or a bracket. */
   show: (feed: ScreenFeed) => void;
@@ -223,7 +224,6 @@ const bigScreen = (): BigScreen => {
   return m;
 };
 
-// ——— The tournament board ———
 export interface BoardPairing {
   a: string | null;
   b: string | null;
@@ -368,7 +368,6 @@ const tournamentBoard = (): TournamentBoard => {
   return m;
 };
 
-// ——— Wall terminals ———
 export interface Terminal extends Model {
   /** The leaderboard terminal takes rows (today's top by tokens); the raid one takes the boss's HP share. */
   show: (value: BoardRow[] | number | null) => void;
@@ -400,7 +399,6 @@ const terminal = (kind: "board" | "raid") => (): Terminal => {
   return m;
 };
 
-// ——— PC desks, chairs, racks ———
 const PC_HUES = ["#bfe9ff", "#c8ffd8", "#ffc8f0"] as const;
 const PC_LIGHT = ["#5ad2ff", "#5aff9f", "#ff64dc"] as const;
 let pcs = 0;
@@ -466,7 +464,6 @@ const rack = (): Model => {
   return m;
 };
 
-// ——— Neon sign ———
 const neon = (): Model => {
   const m = new Model();
   const tex = canvasTexture(72, 22, (g) => {
@@ -501,7 +498,6 @@ const neon = (): Model => {
   return m;
 };
 
-// ——— Stairs ———
 /** The stairs tile (the shared `buildStairs`, wall at -z; the room turns it to the south wall): up is the basement's `x`; down is the dark hatch. */
 const stairs = (down: boolean) => (): Model =>
   buildStairs({
@@ -512,7 +508,6 @@ const stairs = (down: boolean) => (): Model =>
     plate: down ? null : undefined,
   });
 
-// ——— Catalogue ———
 const tile = (
   ch: string,
   name: string,
@@ -545,7 +540,6 @@ export const BASEMENT_ASSETS: readonly Asset[] = [
   ...TABLE_ASSETS,
 ];
 
-// ——— The room ———
 /** Dim lights for the basement scene: a low constant, point lights always on (cabinets, screens, neon). */
 export function dimBasement(
   scene: THREE.Scene,
@@ -607,14 +601,17 @@ export function buildBasement(): BasementScene {
   at("tile:x", 9, 11, 2);
   at("stairs:down", 18, 11, 2);
   // The poker table and its six chairs, then the roulette table and a mat under each of its spots, where the map says.
+  // The room's (0, 0) is map tile (1, 2): every map position below is shifted by this origin.
   const map = MAPS.basement;
   const [ix, iz] = [1, 2];
+
   const felt = pokerTable(map);
   let poker: PokerModel | null = null;
   if (felt) {
     poker = at("tile:♠", felt.x - ix, felt.y - iz).model as PokerModel;
     for (const ch of pokerChairs(map)) at("tile:♣", ch.x - ix, ch.y - iz, CHAIR_TURN[ch.facing]);
   }
+
   const wheel = map.find("♦");
   const spots = rouletteSpots(map).map(([px, py]) => [px - ix, py - iz] as const);
   let roulette: RouletteModel | null = null;
@@ -622,10 +619,14 @@ export function buildBasement(): BasementScene {
     const x = Math.min(...wheel.map(([px]) => px));
     const z = Math.min(...wheel.map(([, py]) => py));
     roulette = at("tile:♦", x - ix, z - iz).model as RouletteModel;
+
     // The table's middle (3x2 tiles) is the origin of its own space.
-    roulette.setSpots(spots.map(([sx, sz]) => [sx + 0.5 - (x - ix + 1.5), sz + 0.5 - (z - iz + 1)] as const));
+    const middleX = x - ix + 1.5;
+    const middleZ = z - iz + 1;
+    roulette.setSpots(spots.map(([sx, sz]) => [sx + 0.5 - middleX, sz + 0.5 - middleZ] as const));
   }
   if (spots.length) room.group.add(rouletteMats(spots));
+
   const screen = screenP.model as BigScreen;
   const board = boardP.model as TournamentBoard;
   const terminals: [Terminal, Terminal] = [t1.model as Terminal, t2.model as Terminal];

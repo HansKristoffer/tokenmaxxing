@@ -219,10 +219,10 @@ function sideFlight(m: Model, o: { wood: string; tread: string; wall: string; pl
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
   const rail = m.box([len, 0.06, 0.06], tint(wood, 0.12), [0, 0, 0], 0.01);
   rail.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]);
-  rail.position.set((a[0] + b[0]) / 2 - 0.0, (a[1] + b[1]) / 2 - 0.03 + 0.03, zr);
-  // The landing: a lit doorway in the wall above the top step, framed, with the plate on its lintel both ways. It is
-  // its own part (`userData.doorway`): a room whose wall it is in hangs it on that wall (`Room.attachToWall`), so it is
-  // lowered with the wall instead of standing on its own over the steps when the camera looks over that wall.
+  rail.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, zr);
+  // The landing: a lit doorway in the wall above the top step, framed, with the plate on its lintel both ways.
+  // It is its own part (`userData.doorway`): a room whose wall it is in hangs it on that wall (`Room.attachToWall`),
+  // so it is lowered with the wall instead of standing on its own over the steps when the camera looks over it.
   const top = rise * n;
   const dx = 0.3;
   const door = m.part();
@@ -235,6 +235,7 @@ function sideFlight(m: Model, o: { wood: string; tread: string; wall: string; pl
   const back = door.part([dx, top + 1.42, -0.5], Math.PI);
   exitPlate(back, o.plate, "up", [0, 0, 0.105]);
   lintelLamp(door, [dx, top + 1.56, -0.42], 0.3);
+
   // A mat across the front of the flight.
   m.box([0.9, 0.025, 0.3], C.rugLight, [0, 0, 0.34], 0.006);
   m.box([0.8, 0.03, 0.22], C.rug, [0, 0, 0.34], 0.006);
@@ -314,6 +315,7 @@ export function buildStairs(opts: StairsOpts): Model {
   } else {
     // The hatch: a rim of low boards, the well and its treads fading into the dark, posts with the rails.
     m.box([0.92, 0.03, 0.96], "#14101a", [0, 0, 0], 0.003);
+
     // Seen from over the wall: the stairwell's rim, the treads on the well's floor fading into the dark, and a
     // solid rail down each side on four posts. (Nothing hangs past the wall: there is no floor to hold it.)
     const k = Math.max(4, Math.min(8, opts.steps ?? 6));

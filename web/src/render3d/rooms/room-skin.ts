@@ -1,4 +1,5 @@
-import type { GameMap, MapId } from "@tokenmaxxing/core/maps.ts";
+import type { GameMap, MapId, SeatKind } from "@tokenmaxxing/core/maps.ts";
+import { PASSAGE_W } from "@tokenmaxxing/core/office.ts";
 import { SHOP_IDS, SHOP_ROOM, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import { companyOfRoom, type RoomId } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
@@ -21,10 +22,18 @@ import { disposeObject } from "../engine/dispose.ts";
 import { placedIn } from "../furniture/placed.ts";
 import { DeskSetups } from "./desk-setups.ts";
 import { ExitMarkers } from "./exit-markers.ts";
-import { hallwayTiles, houseOffset, housePassage, PASSAGE_W } from "./hq-layout.ts";
+import { hallwayTiles, houseOffset, housePassage } from "./hq-layout.ts";
 import { liveBasement, liveTavern } from "./live.ts";
 import { PokerEvents } from "./poker-events.ts";
-import { type LiveFrame, type RoomCtx, type RoomView, registerRoom, withTicks } from "./rooms.ts";
+import {
+  kindOfRoom,
+  type LiveFrame,
+  type RoomCtx,
+  type RoomView,
+  registerRoom,
+  SEAT_Y,
+  withTicks,
+} from "./rooms.ts";
 import { RouletteEvents } from "./roulette-events.ts";
 import { TavernEvents } from "./tavern-events.ts";
 import { wallEase } from "./walls.ts";
@@ -34,7 +43,6 @@ import { wallEase } from "./walls.ts";
  * company house and the offices, each built from the core map of the room the server says we are in (so the
  * tiles, doors, seats and displays are the game's own). The slices register their tile art at load.
  */
-const SEAT_Y: Record<string, number> = { bench: 0.31, chair: 0.33, sofa: 0.36, bed: 0.3 };
 const WALL_H = 2.6;
 
 /** What a room builder hands back besides the picture. */
@@ -65,8 +73,6 @@ export interface SkinParts {
 
 /** Bent, the barkeep: the Tavern draws him behind the bar himself. */
 const BARKEEP_BOT = -4;
-
-const kindOf = (id: string): string => (id.includes(":") ? id.slice(0, id.indexOf(":")) : id);
 
 /**
  * Which way each seat of a room is turned (a yaw), by the middle of its tile in the view's units. The server only
@@ -119,7 +125,7 @@ export function viewOf(
     view,
     toWorld: (tx, ty) => [tx - map.x0 + 0.5, ty - map.y0 + 0.5],
     toTile: (x, z) => [Math.floor(x) + map.x0, Math.floor(z) + map.y0],
-    seatY: (_x, _y, kind) => SEAT_Y[kind] ?? 0.33,
+    seatY: (_x, _y, kind) => SEAT_Y[kind as SeatKind] ?? 0.33,
     seatYaw(tx, ty) {
       yaws ??= seatYaws(group, parts.extra);
       const x = tx - map.x0 + 0.5;
@@ -169,44 +175,38 @@ export function worldRoom(mapId: MapId, map: GameMap, skin: () => RoomSkin | nul
 
 /** A room with a skin of its own (`world-rooms.ts`), or drawn tile by tile when it has none. */
 function buildSkinned(id: RoomId, ctx: RoomCtx): RoomView {
-  const mapId = kindOf(id) as MapId;
+  const mapId = kindOfRoom(id) as MapId;
   const built = worldRoom(mapId, ctx.map, () => buildRoomSkin(mapId));
   const extra = built.value.skin?.extra ?? null;
-  const live =
-    mapId === "inn"
-      ? liveTavern(extra as TavernRoom)
-      : mapId === "basement"
-        ? liveBasement(extra as BasementScene)
-        : undefined;
-  const inn = mapId === "inn" ? new TavernEvents(extra as TavernRoom) : null;
-  const poker = mapId === "basement" ? new PokerEvents((extra as BasementScene).poker) : null;
-  const roulette = mapId === "basement" ? new RouletteEvents((extra as BasementScene).roulette) : null;
-  const basement = poker && roulette ? { poker, roulette } : null;
-  return viewOf(id, ctx.map, built.value, built.ticks, {
-    extra,
-    keepers: mapId === "inn" ? new Set([BARKEEP_BOT]) : new Set(),
-    live,
-    dim: mapId === "basement",
-    frame: inn
-      ? (f) => inn.update(f)
-      : basement
-        ? (f) => {
-            basement.poker.update(f);
-            basement.roulette.update(f);
-          }
-        : undefined,
-    lights: inn ? (_scene, hemi, sun) => inn.lights(hemi, sun) : undefined,
-    onToss: inn ? () => inn.toss() : undefined,
-    end: inn
-      ? () => inn.dispose()
-      : basement
-        ? () => {
-            basement.poker.dispose();
-            basement.roulette.dispose();
-          }
-        : undefined,
-    free: built.free,
-  });
+  const parts: SkinParts = { extra, keepers: new Set(), dim: mapId === "basement", free: built.free };
+
+  if (mapId === "inn") {
+    const tavern = extra as TavernRoom;
+    parts.keepers = new Set([BARKEEP_BOT]);
+    parts.live = liveTavern(tavern);
+    const events = new TavernEvents(tavern);
+    parts.frame = (f) => events.update(f);
+    parts.lights = (_scene, hemi, sun) => events.lights(hemi, sun);
+    parts.onToss = () => events.toss();
+    parts.end = () => events.dispose();
+  }
+
+  if (mapId === "basement") {
+    const basement = extra as BasementScene;
+    parts.live = liveBasement(basement);
+    const poker = new PokerEvents(basement.poker);
+    const roulette = new RouletteEvents(basement.roulette);
+    parts.frame = (f) => {
+      poker.update(f);
+      roulette.update(f);
+    };
+    parts.end = () => {
+      poker.dispose();
+      roulette.dispose();
+    };
+  }
+
+  return viewOf(id, ctx.map, built.value, built.ticks, parts);
 }
 
 /** The Julemarked's courtyard: a skinned room under the open sky (weather, snow, the sun's day). */
@@ -421,15 +421,17 @@ function buildHallways(map: GameMap, hq: Hq) {
   }
   // Wall lamps on the wall between two doors: the glow is the lamp, the pool on the floor in front of it.
   const lit = new Set<number>();
-  for (const t of tiles)
+  for (const t of tiles) {
     if (t.kind === "door" && map.at(t.x + 2, t.y) === "W" && map.at(t.x + 3, t.y) === "R") lit.add(t.rx);
-  for (const t of tiles)
+  }
+  for (const t of tiles) {
     if (t.kind === "door" && lit.has(t.rx)) {
       const lx = t.rx + 2;
       const lz = t.rz + 0.5;
       fixtures.box([0.1, 0.34, 0.12], C.metal, [lx, 1.9, lz + 0.56], 0.01);
       fixtures.box([0.06, 0.2, 0.06], glow("#ffe9b0"), [lx, 1.97, lz + 0.62], 0.004);
     }
+  }
   // The plank floor: a slab per run of corridor tiles in a row.
   const plank = painted(planks("#c9a574", 4));
   for (const [z, xs] of floors) {
@@ -477,8 +479,11 @@ function buildHallways(map: GameMap, hq: Hq) {
       const pz = me?.[1] ?? null;
       const south = view.z > 0.01;
       hq.room.cutaway([0, 1], south && pz !== null && pz < 0);
+
+      // A row is between the player and the camera when it lies on the player's side, along the view.
+      const viewIsSideways = pz !== null && Math.abs(view.z) > 0.01;
       for (const r of rows.values()) {
-        const between = pz !== null && Math.abs(view.z) > 0.01 && (r.z + 0.5 - pz) * view.z > 0;
+        const between = viewIsSideways && (r.z + 0.5 - pz) * view.z > 0;
         const target = between ? 0.06 : 1;
         r.model.scale.y += (target - r.model.scale.y) * wallEase.k;
         r.model.visible = r.model.scale.y > 0.02;

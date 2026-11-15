@@ -27,8 +27,6 @@ const RARITY: Record<string, string> = {
   legendary: "#f0b53c",
 };
 
-// MARK: Heads
-
 /**
  * Just the head of a 2D look, in cubes. `voxelStyle` overrides the hair the mapper picks, for the one 2D
  * style (the bun) that `lookFrom2D` draws as something else.
@@ -83,8 +81,6 @@ export const lookOf = (style: number, hair: number, skin: number, glasses = 0, o
 export const wig = (style: number, hair: number, skin = 1): Model =>
   headOnStand(lookOf(style, hair, skin, 0, (hair + 1) % 8), { voxelStyle: style === 2 ? 3 : undefined });
 
-// MARK: Cards
-
 const coin = (g: CanvasRenderingContext2D, x: number, y: number, r: number) => {
   g.fillStyle = "#8a5f14";
   g.beginPath();
@@ -104,7 +100,9 @@ function wrap(text: string, max: number): string[] {
     if (line && `${line} ${w}`.length > max) {
       out.push(line);
       line = w;
-    } else line = line ? `${line} ${w}` : w;
+    } else {
+      line = line ? `${line} ${w}` : w;
+    }
   }
   if (line) out.push(line);
   return out;
@@ -187,8 +185,6 @@ export function lipCard(
   m.add(c);
 }
 
-// MARK: Shelves
-
 /** A wall unit: back board, sides, `tiers` boards at the given heights and a cabinet underneath. */
 export function shelfUnit(
   w: number,
@@ -206,8 +202,8 @@ export function shelfUnit(
   for (const y of tierY) m.box([w - 0.08, 0.05, depth - 0.02], wood, [0, y - 0.05, 0], 0.01);
   m.box([w, 0.04, depth + 0.02], dark, [0, top, 0], 0.01);
   if (cab > 0) {
-    m.box([w - 0.02, cab, depth], tint(wood, -0.1), [0, 0, 0.0], 0.02);
-    const n = Math.max(1, Math.round(w / 1));
+    m.box([w - 0.02, cab, depth], tint(wood, -0.1), [0, 0, 0], 0.02);
+    const n = Math.max(1, Math.round(w));
     for (let i = 0; i < n; i++) {
       const x = -w / 2 + (i + 0.5) * (w / n);
       m.box([w / n - 0.1, cab - 0.12, 0.03], wood, [x, 0.06, depth / 2 + 0.01], 0.01);
@@ -217,17 +213,17 @@ export function shelfUnit(
   return m;
 }
 
-// MARK: The pole
-
 /** The stripe texture of a barber pole: red, white and blue on the diagonal, wrapping round. */
 function poleTexture(): THREE.CanvasTexture {
   const t = canvasTexture(32, 32, (g) => {
-    for (let y = 0; y < 32; y++)
+    for (let y = 0; y < 32; y++) {
       for (let x = 0; x < 32; x++) {
+        // Three bands of the diagonal, 11, 11 and 10 pixels wide: red, white, then blue.
         const b = (x + y) % 32;
-        g.fillStyle = b < 11 ? RED : b < 22 ? "#fbf7ef" : BLUE;
+        g.fillStyle = [RED, "#fbf7ef", BLUE][Math.floor(b / 11)]!;
         g.fillRect(x, y, 1, 1);
       }
+    }
   });
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   return t;
@@ -250,8 +246,6 @@ export function barberPole(h: number, r: number, lit = false): Model {
   return m;
 }
 
-// MARK: The chair
-
 /** The classic barber chair, facing +z: chrome base and pump, red leather seat, arms, headrest, footrest. */
 export function barberChair(): Model {
   const m = new Model();
@@ -259,7 +253,7 @@ export function barberChair(): Model {
   m.cyl(0.32, 0.03, CHROME, [0, 0.04, 0], 0.3, 18);
   m.cyl(0.09, 0.3, CHROME, [0, 0.07, 0], 0.075, 12);
   m.cyl(0.11, 0.04, CHROME_DARK, [0, 0.34, 0], 0.11, 12);
-  m.box([0.62, 0.14, 0.58], LEATHER, [0, 0.38, 0.0], 0.06);
+  m.box([0.62, 0.14, 0.58], LEATHER, [0, 0.38, 0], 0.06);
   m.box([0.6, 0.08, 0.1], tint(LEATHER, 0.1), [0, 0.5, 0.24], 0.04);
   const back = m.box([0.6, 0.66, 0.14], LEATHER, [0, 0.46, -0.3], 0.06);
   back.rotation.x = -0.14;
@@ -275,8 +269,6 @@ export function barberChair(): Model {
   m.box([0.44, 0.02, 0.18], "#2a2a32", [0, 0.12, 0.52], 0.008);
   return m;
 }
-
-// MARK: Mirrors and stations
 
 /** A mirror: a pale pane with a streak of shine, in a frame, ringed with bulbs. `w`×`h`, bottom centre. */
 export function mirror(w: number, h: number, bulbs = true): Model {
@@ -355,7 +347,7 @@ export function station(seed: number): Model {
   pole.position.set(-0.7, 0.85, -0.3);
   m.add(pole);
   combJar(m, [-0.38, 0.85, -0.32]);
-  scissors(m, [0.0, 0.862, -0.25], 0.4 + seed * 0.3);
+  scissors(m, [0, 0.862, -0.25], 0.4 + seed * 0.3);
   clippers(m, [0.3, 0.872, -0.25], -0.5);
   // Spray bottle and a folded towel stack.
   m.cyl(0.04, 0.16, glass("#9ed9f0", 0.7), [0.62, 0.85, -0.35], 0.04, 10);
@@ -365,7 +357,7 @@ export function station(seed: number): Model {
   const mi = mirror(1.35, 0.95, true);
   mi.position.set(0, 1.12, -0.46);
   m.add(mi);
-  light(m, [0, 1.8, 0.2], "#ffe3b0", 1.4 + seed * 0.0, 4);
+  light(m, [0, 1.8, 0.2], "#ffe3b0", 1.4, 4);
   return m;
 }
 
@@ -398,7 +390,7 @@ export function towelWarmer(): Model {
     for (const x of [-0.2, 0, 0.2])
       m.cyl(0.07, 0.14, CREAM, [x, y + 0.02, -0.2], 0.07, 10).rotation.x = Math.PI / 2;
   }
-  m.box([0.5, 0.12, 0.04], "#2b2433", [0, 1.18, 0.0], 0.01);
+  m.box([0.5, 0.12, 0.04], "#2b2433", [0, 1.18, 0], 0.01);
   m.box([0.8, 0.05, 0.56], "#5b3a24", [0, 1.15, -0.2], 0.02);
   const puffs = [0, 1, 2].map(() => m.ball(0.06, "#f1f1f1", [0, 1.25, -0.2], [1, 1, 1], 8));
   ticks.push((t) => {
@@ -412,8 +404,6 @@ export function towelWarmer(): Model {
   });
   return m;
 }
-
-// MARK: People
 
 /** In-scene text over a head: a name chip or a speech bubble that always faces the camera. */
 export function billboardText(
@@ -499,7 +489,9 @@ export function chatter(a: Avatar, lines: string[], lift = 0.62): void {
         if (cur && g.measureText(`${cur} ${wd}`).width > w - 24) {
           rows.push(cur);
           cur = wd;
-        } else cur = cur ? `${cur} ${wd}` : wd;
+        } else {
+          cur = cur ? `${cur} ${wd}` : wd;
+        }
       }
       rows.push(cur);
       for (const [k, r] of rows.entries())
@@ -529,9 +521,11 @@ export function chatter(a: Avatar, lines: string[], lift = 0.62): void {
 function barberApron(a: Avatar, stripe: boolean): void {
   const b = a.body;
   b.box([0.27, 0.34, 0.025], stripe ? "#fbf7ef" : "#2b2433", [0, 0.42, 0.1], 0.008);
-  if (stripe)
-    for (let i = -2; i <= 2; i++)
+  if (stripe) {
+    for (let i = -2; i <= 2; i++) {
       b.box([0.034, 0.332, 0.03], i % 2 ? RED : "#fbf7ef", [i * 0.052, 0.424, 0.1], 0.004);
+    }
+  }
   b.box([0.04, 0.03, 0.02], "#2b2433", [0, 0.72, 0.1], 0.004);
   b.box([0.05, 0.036, 0.02], RED, [-0.045, 0.72, 0.105], 0.006);
   b.box([0.05, 0.036, 0.02], RED, [0.045, 0.72, 0.105], 0.006);
@@ -556,16 +550,17 @@ export function makeBarber(): Avatar {
   for (const s of [-1, 1]) {
     h.box([0.05, 0.016, 0.03], "#2e2e3a", [s * 0.085, 0.092, 0.172], 0.006).rotation.z = s * 0.5;
   }
+
+  // The scissors: two blades on a pivot in the hand, each with a red pivot ball.
   const hand = a.arms[1];
-  const sc = hand.part([0.0, -0.3, 0.07]);
+  const sc = hand.part([0, -0.3, 0.07]);
   const blade = (side: number) => {
     const bl = sc.part([0, 0, 0]);
-    bl.box([0.012, 0.03, 0.17], CHROME, [0, 0, 0.0], 0.002);
+    bl.box([0.012, 0.03, 0.17], CHROME, [0, 0, 0], 0.002);
     bl.rotation.y = side * 0.1;
-    m(bl, side);
+    bl.ball(0.022, "#e25d5d", [side * 0.012, 0, -0.03], [0.4, 1, 1], 8);
     return bl;
   };
-  const m = (bl: Model, side: number) => bl.ball(0.022, "#e25d5d", [side * 0.012, 0, -0.03], [0.4, 1, 1], 8);
   const bladeA = blade(1);
   const bladeB = blade(-1);
   hand.userData.snip = [bladeA, bladeB];
@@ -689,8 +684,6 @@ export function animateApprentice(a: Avatar, dt: number, t: number, phase = 0): 
   a.head.rotation.y = Math.sin(tt * 0.5) * 0.12;
 }
 
-// MARK: Little things on the floor and the wall
-
 /** Cut hair on the floor in a few colours, scattered round a spot. */
 export function clippings(m: Model, colours: string[], at: [number, number], seed = 1): void {
   const rnd = seeded(seed);
@@ -713,7 +706,7 @@ export function broom(): Model {
   const m = new Model();
   m.cyl(0.015, 1.2, C.wood, [0, 0.1, 0], 0.015, 6).rotation.z = 0.12;
   m.box([0.34, 0.07, 0.07], "#d4a93a", [0.07, 0.05, 0], 0.02);
-  m.box([0.36, 0.1, 0.09], "#8c5c36", [0.07, 0.0, 0], 0.02);
+  m.box([0.36, 0.1, 0.09], "#8c5c36", [0.07, 0, 0], 0.02);
   return m;
 }
 

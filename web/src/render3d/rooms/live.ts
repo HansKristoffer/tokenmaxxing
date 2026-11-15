@@ -86,9 +86,13 @@ export function liveTavern(inn: TavernRoom): (t: number) => void {
       setPlaque(plaque, names);
     }
   });
-  const paintSpecial = watch<string>((s) => easel && setSpecial(easel, s));
+  const paintSpecial = watch<string>((s) => {
+    if (easel) setSpecial(easel, s);
+  });
   const officeBoard = inn.by.get("tile:w")?.[0];
-  const paintOffices = watch<string[] | null>((names) => officeBoard && setOfficeBoard(officeBoard, names));
+  const paintOffices = watch<string[] | null>((names) => {
+    if (officeBoard) setOfficeBoard(officeBoard, names);
+  });
   const clocks = inn.by.get("tile:◷")?.[0] as ClocksModel | undefined;
   const paintClocks = watch<ClocksShown>((s) => clocks?.show(s));
   return () => {
@@ -110,13 +114,13 @@ const FEED_ROWS = 3;
 const feedOf = (games: Iterable<WorldGame>): WorldGame[] =>
   [...games].sort((a, b) => a.id - b.id).slice(0, FEED_ROWS);
 
-const nameOf = (id: number): string =>
-  hud
+const nameOf = (id: number): string => {
+  const lobbyPlayer = hud
     .get()
     .lobby?.matches.flatMap((m) => m.players)
-    .find((p) => p.userId === id)?.name ??
-  world.avatars.get(id)?.info.name ??
-  "?";
+    .find((p) => p.userId === id);
+  return lobbyPlayer?.name ?? world.avatars.get(id)?.info.name ?? "?";
+};
 
 function matchRow(game: WorldGame): MatchRow {
   const def = GAMES[game.game]!;
@@ -140,10 +144,12 @@ export function liveBasement(b: BasementScene): (t: number) => void {
   return () => {
     setLanParty(isLanParty(skyNow()));
     void refreshTournament();
+
     const t = hud.get().tournament;
     const running = t?.current?.status === "running" && t.current.bracket ? t.current : null;
     if (running) {
       const rounds = running.bracket!;
+      // The first round with an open match; findIndex gives -1 when none is open, and the first round stays up.
       const r = Math.max(
         0,
         rounds.findIndex((round) => round.some((m) => m.winner === null)),
@@ -152,6 +158,7 @@ export function liveBasement(b: BasementScene): (t: number) => void {
         id === null ? null : (running.players.find((p) => p.id === id)?.name ?? "?");
       const side = (m: { a: number | null; b: number | null; winner: number | null }): "a" | "b" | null =>
         m.winner === null ? null : m.winner === m.a ? "a" : "b";
+
       showScreen({
         matches: [],
         bracket: {
@@ -180,6 +187,7 @@ export function liveBasement(b: BasementScene): (t: number) => void {
         .map((r) => ({ tokens: r.tokens })),
     );
     const raid = hud.get().raid;
-    showRaid(raid && !raid.prelaunch && !raid.closed && raid.hp > 0 ? left(raid) / raid.hp : null);
+    const raidIsUp = raid && !raid.prelaunch && !raid.closed && raid.hp > 0;
+    showRaid(raidIsUp ? left(raid) / raid.hp : null);
   };
 }
