@@ -36,9 +36,14 @@ export const pakBudiModel: NpcModel = () => {
     );
     piece.rotation.z = -0.85;
   }
-  const arm = m.part([-0.27, 0.8, 0]);
-  arm.box([0.1, 0.36, 0.11], SHIRT, [0, -0.36, 0], 0.02);
-  arm.ball(0.06, SKIN, [0, -0.38, 0], [1, 1, 1], 8);
+  // An arm hung from the shoulder at `x`: a sleeve and a hand.
+  const hangingArm = (x: number) => {
+    const part = m.part([x, 0.8, 0]);
+    part.box([0.1, 0.36, 0.11], SHIRT, [0, -0.36, 0], 0.02);
+    part.ball(0.06, SKIN, [0, -0.38, 0], [1, 1, 1], 8);
+    return part;
+  };
+  const arm = hangingArm(-0.27);
   // The head: grey at the temples, a face, and the peci on top.
   const head = m.part([0, 1.1, 0]);
   head.ball(0.27, SKIN, [0, 0, 0], [1, 1, 1], 18);
@@ -56,9 +61,7 @@ export const pakBudiModel: NpcModel = () => {
   });
 
   // The waving arm, with the flag held up on its stick.
-  const wave = m.part([0.27, 0.8, 0]);
-  wave.box([0.1, 0.36, 0.11], SHIRT, [0, -0.36, 0], 0.02);
-  wave.ball(0.06, SKIN, [0, -0.38, 0], [1, 1, 1], 8);
+  const wave = hangingArm(0.27);
   const stick = wave.part([0, -0.4, 0]);
   stick.box([0.035, 0.95, 0.035], "#c9a95a", [0, -0.1, 0], 0.01);
   stick.box([0.5, 0.17, 0.014], RED, [0.26, 0.5, 0], 0.003);

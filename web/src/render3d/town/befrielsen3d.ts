@@ -176,7 +176,8 @@ export class Befrielsen3d {
       new THREE.MeshBasicMaterial({ map: plaqueTexture(MEMORIAL_PLAQUE.slice(5, 9)) }),
       [0.98, 0.3, -0.385],
     );
-    left.castShadow = right.castShadow = false;
+    left.castShadow = false;
+    right.castShadow = false;
     // The wreath on the stele's face: a ring of leaves, a ribbon in red and white.
     const greens = ["#4f9b3d", "#3a7b2f", "#72bf52"];
     for (let i = 0; i < 18; i++) {

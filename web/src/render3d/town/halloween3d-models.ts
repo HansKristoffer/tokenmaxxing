@@ -72,8 +72,6 @@ export function sprite(color: string, size: number, opacity: number): THREE.Spri
   return s;
 }
 
-// MARK: Bat
-
 export interface BatRig {
   root: Model;
   wings: [THREE.Object3D, THREE.Object3D];
@@ -101,11 +99,10 @@ export function batModel(): BatRig {
   return { root, wings: [l, r] };
 }
 
-// MARK: Ghost
-
 export interface GhostRig {
   root: Model;
-  mats: THREE.Material[];
+  /** The sheet, its inner glow and the dark eyes and mouth, in that order. */
+  mats: [THREE.MeshToonMaterial, THREE.MeshBasicMaterial, THREE.MeshBasicMaterial];
 }
 
 /** A ghost, blocky like the rest: a see-through sheet with a stepped hem, two dark eyes and an "oooh". `scale` makes a baby one. */
@@ -134,8 +131,6 @@ export function ghostModel(hue: "white" | "blue", scale: number): GhostRig {
   root.scale.setScalar(scale);
   return { root, mats: [sheet, inner, dark] };
 }
-
-// MARK: Cauldron
 
 export interface CauldronRig {
   root: Model;
@@ -189,8 +184,6 @@ export function cauldronModel(): CauldronRig {
   root.add(light);
   return { root, bubbles, flames };
 }
-
-// MARK: Tombstones, candy, cobwebs
 
 /** An unclaimed tombstone: a round, a cross or a leaning slab, a word on it, on a mound. Faces +z. */
 export function extraStoneModel(kind: StoneKind, text: string): Model {
@@ -289,8 +282,6 @@ export function cobwebMaterial(): THREE.MeshBasicMaterial {
   webMat.userData.shared = true;
   return webMat;
 }
-
-// MARK: Gerda
 
 /**
  * Gerda, the gravekeeper: a hooded purple cloak with an orange hem, a wrinkly face, grey hair, and a crook with

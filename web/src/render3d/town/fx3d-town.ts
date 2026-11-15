@@ -13,8 +13,6 @@ import { car } from "./props.ts";
 
 const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
-// MARK: Models
-
 const ink = "#2b2433";
 
 /** Officer 429's cap, badge, belt, notepad and siren, put on an `Avatar`. Returns the siren's parts. */
@@ -46,13 +44,16 @@ export function dressCop(a: Avatar) {
 
 /** A gingham picnic blanket `w`×`d`, red or blue. */
 export function blanketModel(w: number, d: number, i: number): Model {
-  const [main, mix] = i % 2 ? ["#6f7fc9", "#b3bde6"] : ["#e2443a", "#ec9c8f"];
+  const palette = i % 2 ? { main: "#6f7fc9", mix: "#b3bde6" } : { main: "#e2443a", mix: "#ec9c8f" };
   const tex = canvasTexture(8, 8, (g) => {
     for (let y = 0; y < 8; y++)
       for (let x = 0; x < 8; x++) {
+        // Both checks on: the main colour. One of them: the mix. Neither: cream.
         const a = Math.floor(x / 2) % 2 === 0;
         const b = Math.floor(y / 2) % 2 === 0;
-        g.fillStyle = a && b ? main! : a || b ? mix! : "#fbf7ef";
+        if (a && b) g.fillStyle = palette.main;
+        else if (a || b) g.fillStyle = palette.mix;
+        else g.fillStyle = "#fbf7ef";
         g.fillRect(x, y, 1, 1);
       }
   });
@@ -270,17 +271,13 @@ export function merchantCart(goods: readonly string[] = ["#c9b6ff", "#f5d14a", "
   ALL_FLAT(bunt);
   m.add(bunt);
   // Goods on the counter.
-  const shelf = [
-    () =>
-      m.box([0.2, 0.05, 0.14], goods[0]!, [-0.7, 0.75, 0.05], 0.01) &&
-      m.box([0.17, 0.05, 0.12], "#fbf7ef", [-0.7, 0.8, 0.05], 0.01),
-    () =>
-      m.cyl(0.1, 0.06, goods[1]!, [-0.25, 0.75, 0.05], 0.1, 12) &&
-      m.cyl(0.06, 0.1, goods[1]!, [-0.25, 0.81, 0.05], 0.03, 12),
-    () => m.cyl(0.05, 0.2, goods[2]!, [0.2, 0.75, 0.05], 0.05, 10),
-    () => m.ball(0.09, goods[3]!, [0.65, 0.84, 0.05]),
-  ];
-  for (const f of shelf) f();
+  m.box([0.2, 0.05, 0.14], goods[0]!, [-0.7, 0.75, 0.05], 0.01);
+  m.box([0.17, 0.05, 0.12], "#fbf7ef", [-0.7, 0.8, 0.05], 0.01);
+  m.cyl(0.1, 0.06, goods[1]!, [-0.25, 0.75, 0.05], 0.1, 12);
+  m.cyl(0.06, 0.1, goods[1]!, [-0.25, 0.81, 0.05], 0.03, 12);
+  m.cyl(0.05, 0.2, goods[2]!, [0.2, 0.75, 0.05], 0.05, 10);
+  m.ball(0.09, goods[3]!, [0.65, 0.84, 0.05]);
+
   // The lantern on the right post.
   const post = m.part([W / 2 - 0.05, 1.3, D / 2 - 0.05]);
   post.box([0.02, 0.1, 0.02], ink, [0, 0.0, 0]);
@@ -431,8 +428,6 @@ export function paperModel(): Model {
   return m;
 }
 
-// MARK: The launch stand
-
 /** The rainbow awning's stripes, when more than one provider has something out (2D: `art/launch.ts`). */
 const RAINBOW = ["#e8434b", "#f28c28", "#f5d14a", "#58b36a", "#3f89c9", "#8e63d8"];
 
@@ -446,6 +441,11 @@ export function launchStand(accent: string | null): Model {
   const W = 1.7;
   const D = 1.1;
   const colour = (i: number) => accent ?? RAINBOW[i % RAINBOW.length]!;
+  // The awning's stripes: the accent and white for a stand with one colour, the rainbow for several.
+  const stripeColour = (i: number) => {
+    if (!accent) return colour(i);
+    return i % 2 ? "#fbf7ef" : accent;
+  };
   // The counter, at the front, with a band in the stand's colours.
   m.box([W, 0.8, 0.6], "#a87648", [0, 0.4, D / 2 - 0.3], 0.03);
   m.box([W + 0.08, 0.06, 0.7], "#c9a36a", [0, 0.83, D / 2 - 0.3], 0.02);
@@ -493,7 +493,7 @@ export function launchStand(accent: string | null): Model {
     4,
     (g) => {
       for (let i = 0; i < 12; i++) {
-        g.fillStyle = accent ? (i % 2 ? "#fbf7ef" : accent) : colour(i);
+        g.fillStyle = stripeColour(i);
         g.fillRect(i * 4, 0, 4, 4);
       }
     },
@@ -506,7 +506,7 @@ export function launchStand(accent: string | null): Model {
     6,
     (g) => {
       for (let i = 0; i < 12; i++) {
-        g.fillStyle = accent ? (i % 2 ? "#fbf7ef" : accent) : colour(i);
+        g.fillStyle = stripeColour(i);
         g.fillRect(i * 4, 0, 4, 4);
         g.fillRect(i * 4 + 1, 4, 2, 2);
       }
@@ -538,8 +538,6 @@ export function pamphletModel(): Model {
   m.box([0.22, 0.021, 0.04], "#e8434b", [0, 0.001, -0.05], 0.004);
   return m;
 }
-
-// MARK: The model graveyard
 
 /**
  * A tombstone in the model graveyard (`game/graveyard.ts`; 2D: `art/graveyard.ts`): a stepped grey
@@ -584,8 +582,6 @@ export function tombstoneModel(accent: string): Model {
   return m;
 }
 
-// MARK: Catalogue
-
 const asset = (id: string, name: string, w: number, d: number, build: () => Model) => ({
   id,
   name,
@@ -594,8 +590,6 @@ const asset = (id: string, name: string, w: number, d: number, build: () => Mode
   d,
   build,
 });
-
-// MARK: The statue of the #1 model (`statue3d.ts`)
 
 const STONE = "#aeaaa5";
 const STONE_DARK = "#8a8682";

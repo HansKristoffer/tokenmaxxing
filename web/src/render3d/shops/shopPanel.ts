@@ -47,9 +47,9 @@ export interface ShopPanel {
 const ELEVATION = Math.atan(0.5);
 
 export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPanel {
-  const style = document.createElement("style");
-  style.textContent = CSS;
-  document.head.append(style);
+  const styleEl = document.createElement("style");
+  styleEl.textContent = CSS;
+  document.head.append(styleEl);
 
   const toastEl = document.createElement("div");
   toastEl.id = "shop-toast";
@@ -78,6 +78,7 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     <div class="shop-state"></div>
     <div class="row actions"></div>`;
   document.body.append(el);
+  // The markup above always renders these elements, so a lookup cannot miss.
   const $ = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const canvas = $<HTMLCanvasElement>(".shop-prev");
 
@@ -153,6 +154,7 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     if (!current) return;
     const { shop, item } = current;
     const info: ItemInfo = infoOf(shop, item, backend);
+
     $(".t").textContent = SHOP_SPECS[shop].name;
     $(".n").textContent = item.name;
     const rar = $<HTMLElement>(".r");
@@ -160,6 +162,7 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     rar.textContent = info.rarity ?? "";
     rar.style.background = RARITY_COLOUR[info.rarity ?? ""] ?? "#c9ced6";
     $(".shop-meta").textContent = [info.group, info.blurb].filter(Boolean).join(" · ");
+
     const state = $(".shop-state");
     const actions = $(".actions");
     actions.replaceChildren();
@@ -167,6 +170,7 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     const g = info.gate;
     const level = backend.level();
     const purse = info.pays === "company" ? backend.companyCoins() : backend.coins();
+
     if (g.kind === "level") {
       state.classList.add("bad");
       state.textContent = `🔒 Locked: reach level ${g.level} (you are ${level})`;
@@ -178,22 +182,21 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
       state.textContent = `🔒 Needs the ${g.what} first`;
     } else if (info.have && !info.again) {
       state.classList.add("good");
-      state.textContent =
-        g.kind === "earned"
-          ? `✓ Earned at level ${g.level}`
-          : g.kind === "free"
-            ? "✓ Free"
-            : info.inUse
-              ? "✓ Using it now"
-              : "✓ Owned";
+      let owned = "✓ Owned";
+      if (g.kind === "earned") owned = `✓ Earned at level ${g.level}`;
+      else if (g.kind === "free") owned = "✓ Free";
+      else if (info.inUse) owned = "✓ Using it now";
+      state.textContent = owned;
     } else if (g.kind === "price") {
       const whose = info.pays === "company" ? "company wallet" : "coins";
       const short = purse === null ? 0 : g.price - purse;
+      const shortNote = short > 0 ? ` · ${short} short` : "";
       const held = info.count > 0 ? `✓ ${info.count} to put down · ` : "";
       state.innerHTML =
         purse === null
           ? `${held}<b>🪙 ${g.price}</b> · join a company to buy this`
-          : `${held}<b>🪙 ${g.price}</b> from your ${whose}${short > 0 ? ` · ${short} short` : ""}`;
+          : `${held}<b>🪙 ${g.price}</b> from your ${whose}${shortNote}`;
+
       const buy = document.createElement("button");
       buy.type = "button";
       buy.className = "primary";
@@ -203,6 +206,7 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
         void run(() => backend.buy(shop, item, g.price), `Bought ${item.name} for 🪙 ${g.price}`);
       actions.append(buy);
     }
+
     if (info.have) {
       for (const a of actionsOf(shop, item, hooks, backend)) {
         const b = document.createElement("button");
@@ -257,7 +261,7 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
       unsub();
       cancelAnimationFrame(raf);
       hooks.previewLook(null);
-      for (const n of [style, toastEl, tipEl, el]) n.remove();
+      for (const n of [styleEl, toastEl, tipEl, el]) n.remove();
       pipe?.renderer.dispose();
     },
     toast,

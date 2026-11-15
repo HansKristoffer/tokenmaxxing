@@ -88,10 +88,10 @@ export class TownPigeon {
     const turn = Math.atan2(Math.sin(flightYaw - idleYaw), Math.cos(flightYaw - idleYaw));
     this.root.rotation.y = idleYaw + turn * Math.min(1, pose.lift * 5);
     this.head.rotation.x = flying || calm ? 0 : pose.peck * 0.55;
-    for (let i = 0; i < this.wings.length; i++) {
+    for (const [i, wing] of this.wings.entries()) {
       const side = i === 0 ? -1 : 1;
       // Fold against the body on the ground; both wings lift from their shoulders.
-      this.wings[i]!.rotation.z = side * ((calm ? pose.lift : pose.wing) * 2 - 1.25);
+      wing.rotation.z = side * ((calm ? pose.lift : pose.wing) * 2 - 1.25);
     }
   }
 }

@@ -46,7 +46,8 @@ function groundAt(map: TownMap, x: number, y: number): Ground {
     const g = GROUND[map.at(x + dx, y + dy)];
     if (g && g !== "water") counts.set(g, (counts.get(g) ?? 0) + 1);
   }
-  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "grass";
+  const [most] = [...counts].sort((a, b) => b[1] - a[1]);
+  return most?.[0] ?? "grass";
 }
 
 /**
@@ -315,10 +316,11 @@ function paveSquare(
   const south = bottom + 2;
   const fountain = map.find("F");
   if (!fountain.length) return;
-  const fx = cxOf((Math.min(...fountain.map(([x]) => x)) + Math.max(...fountain.map(([x]) => x)) + 1) / 2);
-  const fy = cyOf(
-    (Math.min(...fountain.map(([, y]) => y)) + Math.max(...fountain.map(([, y]) => y)) + 1) / 2,
-  );
+  // The fountain's middle, halfway across its tiles and counting the far edge of the last one.
+  const xs = fountain.map(([x]) => x);
+  const ys = fountain.map(([, y]) => y);
+  const fx = cxOf((Math.min(...xs) + Math.max(...xs) + 1) / 2);
+  const fy = cyOf((Math.min(...ys) + Math.max(...ys) + 1) / 2);
 
   g.save();
   // Only the square's paving: not its planters and beds, not the gate's block north of it.

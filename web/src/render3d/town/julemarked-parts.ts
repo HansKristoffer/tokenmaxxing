@@ -76,7 +76,6 @@ export function buntingString(m: Model, a: V3, b: V3, sag = 0.2): void {
     const p = along(a, b, (i + 0.5) / n, sag);
     const flag = m.box([0.16, 0.2, 0.012], i % 2 ? SNOW : DANNEBROG, [p[0], p[1] - 0.2, p[2]], 0.002);
     flag.rotation.y = dir + Math.PI / 2;
-    flag.rotation.z = 0.0;
     flag.castShadow = false;
   }
 }
@@ -162,10 +161,12 @@ function gateSign(): Model {
 
 /** What you glimpse through the gate: a dusk sky going to candle glow, stall roofs, a tree and a haze of lights. */
 function glimpse(): THREE.CanvasTexture {
+  const w = 256;
+  const h = 192;
   return canvasTexture(
-    256,
-    192,
-    (g, w = 256, h = 192) => {
+    w,
+    h,
+    (g) => {
       const sky = g.createLinearGradient(0, 0, 0, h);
       sky.addColorStop(0, "#2a2a4c");
       sky.addColorStop(0.5, "#4a3a5c");

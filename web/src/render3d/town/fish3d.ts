@@ -66,7 +66,9 @@ interface Shape {
   eye: { y: number; z: number; x: number };
 }
 
+// The section is a superellipse with this exponent: above 2 it is boxier than an ellipse.
 const SUPER = 2.2;
+// Widens every section by this much, so the cells at the edge of the rounded shape are kept.
 const FUDGE = 0.35;
 const defaultProf = (k: number) => (u: number) => Math.sin(Math.PI * (0.06 + 0.9 * u ** k)) ** 0.7;
 /** How far out the surface is at height `y` in a section of half sizes `hx`, `hy`. */
@@ -79,10 +81,18 @@ function shapeOf(s: FishSpec): Shape {
     const p = prof(Math.min(1, Math.max(0, u)));
     return { yc: Math.round(s.bend?.(u) ?? 0), hy: Math.max(0.6, s.hi * p), hx: Math.max(0.6, s.wide * p) };
   };
+  // The eye sits 84% of the way along the body, a quarter of the half height up.
   const ez = Math.round(0.84 * (s.len - 1));
   const { hy, hx } = at(ez / (s.len - 1));
   const ey = Math.round(0.25 * hy);
   return { len: s.len, at, eye: { y: ey, z: ez, x: surface(hx, hy, ey) } };
+}
+
+/** A plain cell's colour by its height in the section: the back above 0.64, the belly under 0.3, the sides between. */
+function plainColour(s: FishSpec, c: BodyCell): Col {
+  if (c.t > 0.64) return s.back;
+  if (c.t < 0.3) return s.belly;
+  return s.side;
 }
 
 /** The body: an elliptic section at every step along z, coloured back, side and belly unless `mark` says. */
@@ -93,8 +103,10 @@ function body(g: Grid, s: FishSpec, f: Shape): void {
     for (let y = Math.floor(-hy - FUDGE); y <= Math.ceil(hy + FUDGE); y++)
       for (let x = Math.floor(-hx - FUDGE); x <= Math.ceil(hx + FUDGE); x++) {
         if ((Math.abs(x) / (hx + FUDGE)) ** SUPER + (Math.abs(y) / (hy + FUDGE)) ** SUPER > 1) continue;
+
         const c: BodyCell = { u, t: (y + hy) / (2 * hy), s: x / hx, x, y, z };
-        g.set(x, yc + y, z, s.mark?.(c) ?? (c.t > 0.64 ? s.back : c.t < 0.3 ? s.belly : s.side));
+        const marked = s.mark?.(c);
+        g.set(x, yc + y, z, marked ?? plainColour(s, c));
       }
   }
 }
@@ -132,10 +144,11 @@ function fins(g: Grid, s: FishSpec, f: Shape): void {
   // The pelvic pair and the anal fin, under the belly.
   const zb = z(0.5);
   const b = f.at(0.5);
+  const underside = b.yc - Math.floor(b.hy + FUDGE);
   for (const side of [-1, 1]) {
-    g.set(side, b.yc - Math.floor(b.hy + FUDGE) - 1, zb, s.fin);
-    g.set(side, b.yc - Math.floor(b.hy + FUDGE) - 1, zb - 1, s.fin);
-    g.set(side, b.yc - Math.floor(b.hy + FUDGE) - 2, zb - 1, ray);
+    g.set(side, underside - 1, zb, s.fin);
+    g.set(side, underside - 1, zb - 1, s.fin);
+    g.set(side, underside - 2, zb - 1, ray);
   }
   for (let zz = z(0.16); zz <= z(0.3); zz++) {
     const a = f.at(zz / (s.len - 1));
@@ -182,10 +195,12 @@ function tailOf(s: FishSpec, f: Shape): Grid {
   const ray = darken(s.fin, 0.22);
   for (let d = 1; d <= T; d++) {
     const v = d / T;
+    // A round tail swells quickly, then pulls in a little at its very tip.
+    const swell = Math.sin((Math.PI / 2) * Math.min(1, v * 1.4));
+    const tip = v > 0.85 ? 0.75 : 1;
     const ht =
       s.tail === "round"
-        ? root.hy +
-          (top * 0.85 - root.hy) * Math.sin((Math.PI / 2) * Math.min(1, v * 1.4)) * (v > 0.85 ? 0.75 : 1)
+        ? root.hy + (top * 0.85 - root.hy) * swell * tip
         : root.hy + (top - root.hy) * v ** 0.8;
     const gap = s.tail === "fork" && v > 0.5 ? ((v - 0.5) / 0.5) * top * 0.75 : -1;
     for (let y = -Math.round(ht); y <= Math.round(ht); y++) {
@@ -211,6 +226,7 @@ function sweep(
   segs.forEach((len, i) => {
     const a = pts[i]!;
     const b = pts[i + 1]!;
+    // Samples 0.4 cells apart, under one cell, so the swept ball leaves no gaps.
     for (let k = 0; k <= len; k += 0.4) {
       const w = len ? k / len : 0;
       const p: V3 = [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w, a[2] + (b[2] - a[2]) * w];
@@ -254,8 +270,6 @@ const lone =
 
 /** Cells that hash under `p`, for spots and flecks that stay put. */
 const fleck = (c: BodyCell, p: number, seed: number) => hash(c.x, c.y, c.z, seed) < p;
-
-// MARK: The catches
 
 const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: number }> = {
   perch: fishy({
@@ -347,12 +361,12 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
     side: "#f6cc6c",
     belly: "#fbe6ae",
     fin: "#f0a830",
-    mark: (c) =>
-      fleck(c, 0.03, 9) && c.t > 0.5
-        ? "*#fff3b0"
-        : noise(c.x / 3, c.y / 3, c.z / 3, 7) > 0.62
-          ? "#fffdf6"
-          : undefined,
+    // A glint on a few cells in the upper half, and pale flecks where a noise field runs high.
+    mark: (c) => {
+      if (fleck(c, 0.03, 9) && c.t > 0.5) return "*#fff3b0";
+      if (noise(c.x / 3, c.y / 3, c.z / 3, 7) > 0.62) return "#fffdf6";
+      return undefined;
+    },
     tail: "fan",
     dorsal: "long",
     barbels: true,
@@ -361,9 +375,11 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
     const g = new Grid();
     const shell = "#4f6b3a";
     const dark = "#2f3d25";
-    g.ell(0, 0, 0, 5, 3, 7, (c) =>
-      c.x === 0 && c.y > 0 ? dark : hash(c.x, c.y, c.z, 2) < 0.08 && c.y > 1 ? "#9cc27a" : shell,
-    );
+    g.ell(0, 0, 0, 5, 3, 7, (c) => {
+      if (c.x === 0 && c.y > 0) return dark;
+      if (hash(c.x, c.y, c.z, 2) < 0.08 && c.y > 1) return "#9cc27a";
+      return shell;
+    });
     g.ell(0, 0, 8, 3, 2, 2, dark);
     for (const s of [-1, 1]) {
       g.set(s * 2, 1, 9, "#14121a");
@@ -397,15 +413,19 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
     g.box(-3, 3, 0, 4, -3, 8, leather);
     g.ell(0, 2, 8, 3, 2.5, 2.5, leather);
     g.box(-3, 3, -1, -1, -4, 10, "#3d2a1e");
-    // Laces up the front.
-    for (let y = 4; y <= 9; y++) for (const x of y % 2 ? [-2, 1] : [-1, 2]) g.set(x, y, 2, "#e8dcc4");
+    // Laces up the front, offset on every row.
+    for (let y = 4; y <= 9; y++) {
+      const xs = y % 2 ? [-2, 1] : [-1, 2];
+      for (const x of xs) g.set(x, y, 2, "#e8dcc4");
+    }
+
     // Still dripping.
-    for (const [x, y, z] of [
+    const drips: V3[] = [
       [1, -3, 9],
       [-1, -5, 6],
       [0, -7, 9],
-    ] as V3[])
-      g.set(x, y, z, "#7fc4ea");
+    ];
+    for (const [x, y, z] of drips) g.set(x, y, z, "#7fc4ea");
     return g;
   }),
   herring: fishy({
@@ -441,29 +461,28 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
         (u) => (hash(i, Math.round(u * 20), 0, 5) < 0.5 ? "#f0d27a" : "#e3bf5c"),
       );
     }
-    for (const [x, z] of [
+    const anchors: [number, number][] = [
       [-2, 1],
       [2, -1],
       [0, 3],
-    ])
+    ];
+    for (const [x, z] of anchors)
       sweep(
         g,
         [
-          [x!, -4, z!],
-          [x! + 1, -8, z! + 1],
-          [x!, -11, z! - 1],
+          [x, -4, z],
+          [x + 1, -8, z + 1],
+          [x, -11, z - 1],
         ],
         () => 0.6,
         () => "#f0d27a",
       );
     // The meatball, big enough to see through the noodles.
-    g.ell(0, 0, 0, 4.6, 4.6, 4.6, (c) =>
-      noise(c.x / 2, c.y / 2, c.z / 2, 3) > 0.6
-        ? "#6e3a20"
-        : hash(c.x, c.y, c.z, 1) < 0.15
-          ? "#a85a34"
-          : "#8a4a2a",
-    );
+    g.ell(0, 0, 0, 4.6, 4.6, 4.6, (c) => {
+      if (noise(c.x / 2, c.y / 2, c.z / 2, 3) > 0.6) return "#6e3a20";
+      if (hash(c.x, c.y, c.z, 1) < 0.15) return "#a85a34";
+      return "#8a4a2a";
+    });
     return g;
   }),
   offbyone: fishy({
@@ -524,9 +543,11 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
         const i = Math.min(39, Math.floor(u * 40));
         const p = pts[i]!;
         // The suckers face the curl's middle.
-        const inward = -(off[1] * (p[1] - 10) + off[2] * p[2]) / (Math.hypot(p[1] - 10, p[2]) || 1);
+        const radius = Math.hypot(p[1] - 10, p[2]) || 1;
+        const inward = -(off[1] * (p[1] - 10) + off[2] * p[2]) / radius;
         if (inward > 0.6 && Math.round(u * 40) % 3 === 0) return "#e0b8f0";
-        return off[0] * off[0] > 4 ? "#7a42aa" : inward < -1.2 ? "#6a3a99" : "#8a4fbf";
+        if (off[0] * off[0] > 4) return "#7a42aa";
+        return inward < -1.2 ? "#6a3a99" : "#8a4fbf";
       },
     );
     return g;
@@ -539,8 +560,11 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
     side: "#b9cad6",
     belly: "#eef3f6",
     fin: "#7f9fb8",
-    mark: (c) =>
-      c.t > 0.4 && c.t < 0.55 ? "#e88aa8" : c.t > 0.55 && fleck(c, 0.12, 8) ? "#3f4f60" : undefined,
+    mark: (c) => {
+      if (c.t > 0.4 && c.t < 0.55) return "#e88aa8";
+      if (c.t > 0.55 && fleck(c, 0.12, 8)) return "#3f4f60";
+      return undefined;
+    },
     tail: "fork",
     dorsal: "soft",
   }),
@@ -562,6 +586,7 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
     len: 16,
     hi: 6.5,
     wide: 5.5,
+    // A half-round profile: the widest in the middle, blunt at both ends.
     prof: (u) => Math.max(0.12, Math.sqrt(Math.max(0, 1 - (2 * u - 1) ** 2))) ** 0.8,
     back: "#d9a03a",
     side: "#e8b04a",

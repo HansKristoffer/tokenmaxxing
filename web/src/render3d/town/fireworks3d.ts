@@ -34,7 +34,8 @@ export class Fireworks3d {
     // They move every frame and fly well out of their box: never batched, culled, picked or shadowed.
     const s = this.sparks;
     s.frustumCulled = false;
-    s.castShadow = s.receiveShadow = false;
+    s.castShadow = false;
+    s.receiveShadow = false;
     s.userData.live = true;
     s.userData.nopick = true;
     s.setColorAt(0, this.tint);

@@ -65,7 +65,7 @@ export class HalloweenTown3d {
     this.group.userData.live = true;
     this.group.userData.nobatch = true;
     const [x, z] = toWorld(0, 0);
-    // Tile coordinates with a fraction (the left edge of tile 0 is its middle less a half).
+    // The corner of tile (0, 0): a fractional tile position passed to `at` lands inside its tile.
     this.origin = [x - 0.5, z - 0.5];
   }
 
@@ -110,9 +110,10 @@ export class HalloweenTown3d {
       const shy = Math.min(1, Math.max(0, (d - 1) / 1.5));
       rig.root.visible = shy > 0.02;
       const pulse = 0.85 + 0.15 * Math.sin(t * 2 + i);
-      (rig.mats[0] as THREE.MeshToonMaterial).opacity = 0.68 * pulse * shy;
-      (rig.mats[1] as THREE.MeshBasicMaterial).opacity = 0.28 * pulse * shy;
-      (rig.mats[2] as THREE.MeshBasicMaterial).opacity = 0.85 * shy;
+      const [sheet, inner, dark] = rig.mats;
+      sheet.opacity = 0.68 * pulse * shy;
+      inner.opacity = 0.28 * pulse * shy;
+      dark.opacity = 0.85 * shy;
     }
 
     b.cauldron.bubbles.forEach((m, i) => {

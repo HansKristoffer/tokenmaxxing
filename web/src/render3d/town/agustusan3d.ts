@@ -31,6 +31,12 @@ const STONE = "#8e8a82";
 
 type At = (tx: number, ty: number) => [number, number];
 
+/** Decoration on the square: a click passes through it, and it blocks no tile. */
+const markScenery = (o: THREE.Object3D): void => {
+  o.userData.nopick = true;
+  o.userData.noBlock = true;
+};
+
 /** A bendera on a bamboo pole at `at` (world x, z): the red-over-white cloth, flying toward `turn`. */
 function bendera(m: Model, at: [number, number], turn: number): void {
   const p = m.part([at[0], 0, at[1]], turn);
@@ -443,10 +449,7 @@ export class Agustusan3d {
     mergeStill(tm);
     root.add(tum);
 
-    root.traverse((o) => {
-      o.userData.nopick = true;
-      o.userData.noBlock = true;
-    });
+    root.traverse(markScenery);
     this.group.add(root);
     return { root, flags: null, flagsUp: -1, gate, lomba, tumpeng: tum, climber: c, swing };
   }
@@ -466,10 +469,7 @@ export class Agustusan3d {
     }
     g.add(m);
     mergeStill(m);
-    g.traverse((o) => {
-      o.userData.nopick = true;
-      o.userData.noBlock = true;
-    });
+    g.traverse(markScenery);
     b.root.add(g);
     b.flags = g;
     b.flagsUp = up;

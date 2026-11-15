@@ -26,11 +26,14 @@ class Tackle {
   private readonly points = new Float32Array(9);
   private readonly line: THREE.Line;
   private readonly dir = new THREE.Vector3();
+  private readonly positions: THREE.BufferAttribute;
+
   constructor() {
     this.bobber.cyl(0.035, 0.07, "#fff0d1");
     this.bobber.cyl(0.035, 0.04, "#db655f", [0, 0.07, 0]);
+    this.positions = new THREE.BufferAttribute(this.points, 3);
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(this.points, 3));
+    geometry.setAttribute("position", this.positions);
     this.line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: "#fff0c8" }));
     this.line.frustumCulled = false;
     this.group.add(this.rod, this.bobber, this.line);
@@ -50,7 +53,9 @@ class Tackle {
     this.rod.position.set((hx + tx) / 2, (HAND_Y + ty) / 2, (hz + tz) / 2);
     this.rod.quaternion.setFromUnitVectors(UP, this.dir.normalize());
     this.rod.scale.set(1, length, 1);
-    const y = bite ? -0.035 + Math.sin(now / 45) * 0.012 : 0.06 + (calm ? 0 : Math.sin(now / 220) * 0.015);
+    // The bobber dips and jiggles when a fish bites, and otherwise bobs on the water, still when calm.
+    const bob = calm ? 0 : Math.sin(now / 220) * 0.015;
+    const y = bite ? -0.035 + Math.sin(now / 45) * 0.012 : 0.06 + bob;
     this.bobber.position.set(wx, y, wz);
     // A little slack: the line sags between the tip and the water.
     this.points.set([
@@ -64,7 +69,7 @@ class Tackle {
       y + 0.1,
       wz,
     ]);
-    this.line.geometry.attributes.position!.needsUpdate = true;
+    this.positions.needsUpdate = true;
   }
 }
 
@@ -92,8 +97,7 @@ export class FishingLine {
   update(now: number, toWorld: (x: number, y: number) => [number, number], calm: boolean): void {
     const server = serverNow();
     const shown = lines();
-    for (let i = 0; i < shown.length; i++) {
-      const l = shown[i]!;
+    for (const [i, l] of shown.entries()) {
       let t = this.tackle[i];
       if (!t) {
         t = new Tackle();
@@ -105,7 +109,7 @@ export class FishingLine {
       const [wx, wz] = toWorld(l.waterX, l.waterY);
       t.place(px, pz, wx, wz, now, calm, biting(l, server));
     }
-    for (let i = shown.length; i < this.tackle.length; i++) this.tackle[i]!.group.visible = false;
+    for (const t of this.tackle.slice(shown.length)) t.group.visible = false;
     this.updateHeld(now, toWorld, calm);
   }
 

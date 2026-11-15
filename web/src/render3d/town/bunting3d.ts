@@ -14,9 +14,9 @@ const PENNANT = ["#e2443a", "#f5d14a", "#6f7fc9", "#a5d977", "#fbf7ef", "#f2a6c8
 );
 
 /**
- * Strings of bunting as two meshes in all (the cords, and every pennant with its colour in the vertices),
- * where `buntingModel` (`fx3d-town.ts`) is a mesh and a material per pennant. They hang still: the town is not windy enough
- * to be worth a draw call a pennant.
+ * Strings of bunting as two meshes in all: the cords, and every pennant with its colour in the vertices.
+ * `buntingModel` (`fx3d-town.ts`) makes a mesh and a material per pennant instead. The strings hang still,
+ * so one merged mesh per kind is enough.
  */
 export function buntingMeshes(strings: readonly Bunting[]): THREE.Group {
   const cords: THREE.BufferGeometry[] = [];
@@ -76,10 +76,10 @@ export function buntingMeshes(strings: readonly Bunting[]): THREE.Group {
   const cord = mergeGeometries(cords);
   const pennants = mergeGeometries(flags);
   for (const g of [...cords, ...flags]) g.dispose();
+
   if (cord) {
     const mesh = new THREE.Mesh(cord, toon("#5e3d28"));
-    mesh.userData.nopick = true;
-    mesh.userData.noBlock = true;
+    markScenery(mesh);
     group.add(mesh);
   }
   if (pennants) {
@@ -91,10 +91,15 @@ export function buntingMeshes(strings: readonly Bunting[]): THREE.Group {
         gradientMap: toon("#fff").gradientMap,
       }),
     );
-    mesh.userData.nopick = true;
-    mesh.userData.noBlock = true;
+    markScenery(mesh);
     mesh.castShadow = true;
     group.add(mesh);
   }
   return group;
+}
+
+/** Bunting is decoration: a click passes through it, and it blocks no tile. */
+function markScenery(mesh: THREE.Object3D): void {
+  mesh.userData.nopick = true;
+  mesh.userData.noBlock = true;
 }
