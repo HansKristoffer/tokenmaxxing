@@ -15,13 +15,13 @@ import { Freezer, TINY_PX, view } from "../perf/freeze.ts";
 import { JULEMARKED_PETS } from "./pets3d-julemarked.ts";
 import { JULEMARKED_STALL_PETS } from "./pets3d-julemarked-stall.ts";
 import { dragon, duck, ghost, goldfish, golem, orb, piggy } from "./pets3d-misc.ts";
-import { crane, kitsune, koi, maneki, tanuki, tengu } from "./pets3d-night.ts";
+import { type Built, crane, kitsune, koi, maneki, tanuki, tengu } from "./pets3d-night.ts";
 import { fenrir, hildisvini, huginn, ratatoskr, sleipnir, tanngrisnir } from "./pets3d-norse.ts";
 import { NUSANTARA_PETS } from "./pets3d-nusantara.ts";
 import { POND_PETS } from "./pets3d-pond.ts";
 import { quad } from "./pets3d-quad.ts";
 import type { Rig } from "./petvox.ts";
-import { PETWEAR_AT, type Petwear3D, petwear3d } from "./prestige-petwear3d.ts";
+import { neckScale, PETWEAR_AT, type Petwear3D, petwear3d } from "./prestige-petwear3d.ts";
 
 export type { Species } from "../data/pets.ts";
 
@@ -100,7 +100,7 @@ function gear(wear: number, rig: Rig): { group: Model; spin?: THREE.Object3D } |
 /** The Lv50 crown: gold with a red stone, and a few stars about it. */
 function makeCrown(rig: Rig, lift: number): { group: Model; stars: Mesh[] } {
   const g = new Model();
-  const s = Math.max(0.7, rig.neckR / 0.09);
+  const s = neckScale(rig.neckR);
   g.cyl(0.05 * s, 0.03 * s, "#c98e22", [0, lift, 0], 0.05 * s, 14);
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
@@ -130,6 +130,54 @@ function zGlyph(): Model {
 }
 
 // MARK: The pet
+
+/** The pets with a builder of their own (the case and pond pets), by species. A later spread wins a clash. */
+const OWN_BUILDERS: Partial<Record<Species, () => Built>> = {
+  ...JULEMARKED_STALL_PETS,
+  ...JULEMARKED_PETS,
+  ...NORSE,
+  ...POND_PETS,
+  ...NUSANTARA_PETS,
+};
+
+/** Builds a species' 3D pet: its own builder when it has one, else the builder for its kind. */
+function buildPet(species: Species, variant: string, outfit: string | null): Built {
+  const own = OWN_BUILDERS[species];
+  if (own) return own();
+  switch (species) {
+    case "duck":
+      return duck(variant);
+    case "dragon":
+      return dragon(variant);
+    case "golem":
+      return golem();
+    case "goldfish":
+      return goldfish();
+    case "ghost":
+      return ghost();
+    case "piggy":
+      return piggy();
+    case "koi":
+      return koi();
+    case "crane":
+      return crane();
+    case "tanuki":
+      return tanuki();
+    case "maneki":
+      return maneki();
+    case "kitsune":
+      return kitsune();
+    case "tengu":
+      return tengu();
+    case "cat":
+    case "dog":
+    case "panda":
+    case "forkedcat":
+      return quad(species, variant, outfit);
+    default:
+      return orb();
+  }
+}
 
 /** A pet from the 2D game. Same `root` / `moving` / `update(t)` as `avatar.ts`'s `Pet`, plus poses and gear. */
 export class Pet3D {
@@ -172,54 +220,14 @@ export class Pet3D {
     /** The costume id when named like a 2D Easter egg. */
     readonly outfit: string | null = null,
   ) {
-    const nusantara = (NUSANTARA_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
-    const pond = (POND_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
-    const julemarked =
-      (JULEMARKED_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species] ??
-      (JULEMARKED_STALL_PETS as Partial<Record<Species, () => ReturnType<typeof koi>>>)[species];
-    const built = nusantara
-      ? nusantara()
-      : pond
-        ? pond()
-        : julemarked
-          ? julemarked()
-          : species === "duck"
-            ? duck(variant)
-            : species === "dragon"
-              ? dragon(variant)
-              : species === "golem"
-                ? golem()
-                : species === "goldfish"
-                  ? goldfish()
-                  : species === "ghost"
-                    ? ghost()
-                    : species === "piggy"
-                      ? piggy()
-                      : species === "koi"
-                        ? koi()
-                        : species === "crane"
-                          ? crane()
-                          : species === "tanuki"
-                            ? tanuki()
-                            : species === "maneki"
-                              ? maneki()
-                              : species === "kitsune"
-                                ? kitsune()
-                                : species === "tengu"
-                                  ? tengu()
-                                  : species in NORSE
-                                    ? NORSE[species as keyof typeof NORSE]()
-                                    : species === "cat" ||
-                                        species === "dog" ||
-                                        species === "panda" ||
-                                        species === "forkedcat"
-                                      ? quad(species, variant, outfit)
-                                      : orb();
+    const built = buildPet(species, variant, outfit);
     this.root.userData.actor = true;
     const { body: b, fore: f } = built;
     this.rig = built.rig;
     // Stand centred on the root, nose towards +z.
-    b.position.z = f.position.z = -this.rig.span / 2;
+    const standOffset = -this.rig.span / 2;
+    b.position.z = standOffset;
+    f.position.z = standOffset;
     this.body = b;
     this.fore = f;
     this.lift.add(b, f);
@@ -336,10 +344,11 @@ export class Pet3D {
     const hat = PETWEAR[this.wear - 1]?.at === "top";
     if (this.worn !== this.wear) {
       this.wornGroup?.removeFromParent();
-      this.wornGroup = this.spin = undefined;
+      this.wornGroup = undefined;
+      this.spin = undefined;
       const g = gear(this.wear, r);
       if (g) {
-        g.group.position.set(...(PETWEAR[this.wear - 1]?.at === "top" ? r.top : r.neck));
+        g.group.position.set(...(hat ? r.top : r.neck));
         g.group.name = "petwear";
         r.head.add(g.group);
         this.wornGroup = g.group;
@@ -384,14 +393,14 @@ export class Pet3D {
  */
 export function petFrom2D(species: number | string, variant: number | string = 0, name = ""): Pet3D {
   const sp: Species = (typeof species === "number" ? speciesAt(species) : (species as Species)) ?? "duck";
-  const id =
-    typeof variant === "number" ? (variant > 0 ? (PET_VARIANTS[sp]?.[variant - 1] ?? "") : "") : variant;
+  // A number is the n-th variant of the species (0 is the original); a string is the variant's id.
+  let id = typeof variant === "string" ? variant : "";
+  if (typeof variant === "number" && variant > 0) id = PET_VARIANTS[sp]?.[variant - 1] ?? "";
   const clean = name.trim().toLowerCase();
-  const outfit = clean
-    ? (PET_NAMED.find((n) => n.name.toLowerCase() === clean && n.species === sp && n.variant === id)?.art ??
-      null)
-    : null;
-  return new Pet3D(sp === "none" ? "duck" : sp, id, outfit);
+  const named = clean
+    ? PET_NAMED.find((n) => n.name.toLowerCase() === clean && n.species === sp && n.variant === id)
+    : undefined;
+  return new Pet3D(sp === "none" ? "duck" : sp, id, named?.art ?? null);
 }
 
 // MARK: Pet bed (tile Q)

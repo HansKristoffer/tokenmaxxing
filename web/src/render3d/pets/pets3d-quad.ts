@@ -95,7 +95,6 @@ export interface Extras {
   skull: { cy: number; top: number };
   snoutFront: number;
   headGroup: Model;
-  bodyGroup: Model;
   /** Own light, if the pet glows. */
   lit?: typeof light;
 }
@@ -155,7 +154,7 @@ function tailGrid(t: TailSpec, coat: Coat): Grid {
     t.r0,
     t.r1,
     (c) => {
-      const base = coat("tail", { ...c, u: c.u });
+      const base = coat("tail", c);
       return t.col ? t.col(c.u, base) : base;
     },
     t.pow ?? 2.2,
@@ -267,7 +266,6 @@ export function buildQuad(
     skull: { cy: scy, top: skullTop },
     snoutFront,
     headGroup: new Model(),
-    bodyGroup: body,
     lit: special,
   };
   s.extra?.(ctx);
@@ -283,7 +281,9 @@ export function buildQuad(
   const eyes: THREE.Mesh[] = [];
   const rows = s.eyeRows;
   const eh = rows.length;
-  for (const sd of rows.flat().some(Boolean) ? SIDES : []) {
+  // A row set with no colour in it (the pumpkin's) has no eyes at all.
+  const eyeSides = rows.flat().some(Boolean) ? SIDES : [];
+  for (const sd of eyeSides) {
     const ex = sd * s.eyeGap;
     const ey = Math.round(scy + s.eyeY);
     let zf: number | undefined;
@@ -352,12 +352,13 @@ export function buildQuad(
               z,
               u: (z + half) / s.lw,
               t: y / (s.lh + 1),
-              s: (sd * (x - 0)) / half,
+              s: (sd * x) / half,
               c: "",
             };
             const corner = Math.abs(x) === half && Math.abs(z) === half && s.lw > 3 && y >= pawH;
             if (corner && (y + z) % 3 === 0) continue;
-            (y < pawH ? paw : shaft).set(x, y, z, s.coat(y < pawH ? "paw" : "leg", cell));
+            const isPaw = y < pawH;
+            (isPaw ? paw : shaft).set(x, y, z, s.coat(isPaw ? "paw" : "leg", cell));
           }
         }
       // A toe cell out the front.
@@ -393,7 +394,6 @@ export function buildQuad(
   }
 
   const noseZ = hz + snoutFront + 1;
-  const topY = skullTop;
   const rig: Rig = {
     head,
     eyes,
@@ -402,7 +402,7 @@ export function buildQuad(
     tails,
     neck: [0, U(-1.5), U(s.hl * 0.2)],
     neckR: U(Math.max(3, s.hw / 2 - 0.5)),
-    top: [0, U(topY - 1), U(s.hl * 0.35)],
+    top: [0, U(skullTop - 1), U(s.hl * 0.35)],
     tilt: true,
     sitStretch: (0.62 * s.zF) / (s.lh + 2),
     span: U(noseZ + ovB),
@@ -425,8 +425,7 @@ export function buildQuad(
 const flecks = (a: string, b: string, p: Cell, seed = 1, k = 0.3) =>
   hash(p.x, p.y, p.z, seed) < k * 0.8 ? mix(a, b, 0.55) : a;
 
-const stripesAcross = (p: Cell, period: number, width: number) =>
-  (p.z * 1 + p.y * 0.4 + 400) % period < width;
+const stripesAcross = (p: Cell, period: number, width: number) => (p.z + p.y * 0.4 + 400) % period < width;
 
 // MARK: Dogs
 
@@ -551,7 +550,7 @@ const dogs: Record<string, () => QSpec> = {
       if (part === "ear") return c.t < 0.3 ? "#7b8490" : "#5f6874";
       if (part === "earIn") return WHITE;
       if (part === "paw") return WHITE;
-      if (part === "snout") return c.t < 0.7 ? WHITE : Math.abs(c.s) < 0.25 ? WHITE : "#cfd5dc";
+      if (part === "snout") return c.t < 0.7 || Math.abs(c.s) < 0.25 ? WHITE : "#cfd5dc";
       if (part === "head") {
         // The mask: dark cap, white blaze and cheeks.
         if (c.t > 0.62) return Math.abs(c.s) < 0.17 && c.u > 0.4 ? WHITE : flecks(dk, "#6f7885", c, 5);
@@ -821,11 +820,11 @@ const dogs: Record<string, () => QSpec> = {
       const curl = flecks(cr, "#ecd0a0", c, 5, 0.35);
       if (part === "paw") return curl;
       if (part === "snout") return flecks("#f1d7a8", cr, c, 2, 0.2);
-      if (part === "leg") return c.t > 0.28 && c.t < 0.7 ? curl : "#e9ceA0".toLowerCase();
+      if (part === "leg") return c.t > 0.28 && c.t < 0.7 ? curl : "#e9cea0";
       if (part === "tail") return curl;
       return curl;
     },
-    extra: ({ body, head, skull, cy, ry, s, bodyGroup }) => {
+    extra: ({ body, head, skull, cy, ry, s }) => {
       const cr = "#f8e2bc";
       const pom = (g: Grid, x: number, y: number, z: number, r: number) =>
         g.ell(x, y, z, r, r, r, (c) => flecks(cr, "#ecd0a0", c, 12, 0.3), 2.1).fluff(0.1, 14, 0.04);
@@ -837,7 +836,6 @@ const dogs: Record<string, () => QSpec> = {
         pom(body, sd * (s.W / 2 - 1), 3, s.zF, 2.4);
       }
       pom(body, 0, cy + ry * 0.2, s.zF + 2, 4);
-      void bodyGroup;
     },
   }),
   frenchie: () => ({
@@ -1091,11 +1089,14 @@ const dogs: Record<string, () => QSpec> = {
           if (z !== undefined) head.set(x, y, z, c);
         };
         const ey = skull.cy + 2;
-        for (const sd of SIDES)
-          // Triangle eyes, point up.
-          for (let k = 0; k < 4; k++)
-            for (let i = 0; i < 4 - k; i++)
+        // Triangle eyes, point up.
+        for (const sd of SIDES) {
+          for (let k = 0; k < 4; k++) {
+            for (let i = 0; i < 4 - k; i++) {
               put(sd * (3 + i + Math.floor(k / 2)), ey + k, k > 1 ? lit1 : lit2);
+            }
+          }
+        }
         put(0, ey - 1, lit2);
         put(0, ey - 2, lit2);
         // Jagged grin.
@@ -1246,12 +1247,11 @@ const cats: Record<string, () => QSpec> = {
       if (part === "earIn") return "#d79aa8";
       if (part === "paw") return "#cfcac8";
       if (part === "snout") return "#d8d3d1";
-      if (part === "head")
-        return c.t > 0.72 && Math.round(c.s * 6) % 2 === 0
-          ? d
-          : c.u > 0.5 && c.t < 0.5
-            ? "#d8d3d1"
-            : flecks(g, "#b3aeac", c, 2, 0.3);
+      if (part === "head") {
+        if (c.t > 0.72 && Math.round(c.s * 6) % 2 === 0) return d;
+        if (c.u > 0.5 && c.t < 0.5) return "#d8d3d1";
+        return flecks(g, "#b3aeac", c, 2, 0.3);
+      }
       if (part === "leg") return stripesAcross(c, 4, 1) ? d : g;
       if (part === "tail") return (c.z + 40) % 3 < 1 ? d : "#7d7880";
       if (c.t < 0.25) return "#cfcac8";
@@ -1348,8 +1348,7 @@ const pandaBase = (): QSpec => ({
   coat: pandaCoat("#f4f1ea", "#3a3540", "#3a3540"),
 });
 
-function pandaCoat(white: string, black: string, patch: string, noseless = false): Coat {
-  void noseless;
+function pandaCoat(white: string, black: string, patch: string): Coat {
   return (part, c) => {
     if (part === "ear") return black;
     if (part === "earIn") return black;
@@ -1451,7 +1450,7 @@ const OUTFITS: Record<string, (e: Extras) => void> = {
   "nemo-wookiee": ({ body, head, s, skull }) => {
     const fur = (c: Cell) => flecks("#5a3822", "#3b2314", c, 21, 0.45);
     body.paint((c) => (c.t > 0.32 ? fur(c) : undefined));
-    body.fluff(0.5, 22, 0.0);
+    body.fluff(0.5, 22, 0);
     body.paint((c) => (c.c === "#b0b0b0" ? "#5a3822" : undefined));
     // A hood of fur round the head, and the bandolier.
     head.ell(0, skull.cy + 1, -0.5, s.hw / 2 + 0.8, s.hh / 2 + 0.5, 3, fur, 2.2);
@@ -1473,15 +1472,12 @@ export function quadSpec(species: Species, variant: string, outfit: string | nul
   else if (species === "forkedcat") {
     s = catBase();
     const grey = "#8a93a1";
-    const base = s.coat;
-    s.coat = (part, c) =>
-      part === "tail" && c.u > 0.5
-        ? "#f0a04b"
-        : part === "earIn"
-          ? "#f28bb2"
-          : part === "tail"
-            ? grey
-            : mix(grey, base("body", { ...c, t: 0.5, u: 0.5 }), 0.0);
+    s.coat = (part, c) => {
+      if (part === "tail") return c.u > 0.5 ? "#f0a04b" : grey;
+      if (part === "earIn") return "#f28bb2";
+      return grey;
+    };
+    // catBase has one tail spec, so this cast holds.
     const t0 = s.tail as TailSpec;
     s.tail = [
       { ...t0, pts: t0.pts.map(([x, y, z]) => [x - 0.5, y, z] as V3), r0: 1.3, r1: 0.9 },

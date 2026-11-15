@@ -3,37 +3,12 @@
  * `petvox` grid as the Night Market's: Huginn and Muninn (a pair of ravens that hop in turn), Ratatoskr (the
  * squirrel with a scroll), Tanngrisnir (Thor's goat, gnashing), Hildisvíni (Freyja's boar with golden bristles),
  * a Sleipnir foal with EIGHT legs and a Fenrir pup on a thread too thin to hold anything (Gleipnir).
- * Cells whose colour starts with "*" glow. Nothing on any of them is a mark: coats are plain colour and noise.
+ * Cells whose colour starts with "*" glow. Coats are plain colour and noise, with no marks on them.
  */
 import type * as THREE from "three";
 import { Model, type V3 } from "../kit/kit.ts";
-import { bake, type Cell, eye, Grid, hash, mix, type Rig, VOX } from "./petvox.ts";
-
-const SIDES = [-1, 1] as const;
-const U = (n: number) => n * VOX;
-const DARK = "#14101c";
-const GLINT = "#f4f6ff";
-type Built = { rig: Rig; body: Model; fore: Model };
-
-/** A mesh from a grid, placed at `at` (cells). Its origin is the grid's own (0, 0, 0). */
-function put(parent: THREE.Object3D, g: Grid, at: V3 = [0, 0, 0], seed = 0): THREE.Mesh {
-  const m = bake(g, { seed });
-  m.position.set(U(at[0]), U(at[1]), U(at[2]));
-  parent.add(m);
-  return m;
-}
-
-/** An empty group at `at` (cells), for a part that swings from its own joint. */
-function joint(parent: THREE.Object3D, at: V3, rotY = 0): Model {
-  const m = new Model();
-  m.position.set(U(at[0]), U(at[1]), U(at[2]));
-  m.rotation.y = rotY;
-  parent.add(m);
-  return m;
-}
-
-const speckle = (c: Cell, a: string, b: string, seed: number, k = 0.3) =>
-  hash(c.x, c.y, c.z, seed) < k * 0.8 ? mix(a, b, 0.55) : a;
+import { type Built, DARK, GLINT, joint, put, SIDES, speckle, U } from "./pets3d-night.ts";
+import { type Cell, eye, Grid, hash, mix } from "./petvox.ts";
 
 /** A leg that hangs from its hip joint (cells), `len` long, `w` wide, with a hoof or paw on the end. */
 function leg(
@@ -100,8 +75,9 @@ function raven(parent: Model, at: V3, k: number, seed: number) {
     const lg = new Grid();
     lg.box(0, 0, 0, 3, 0, 0, "#3a3446");
     lg.box(-1, 1, 0, 0, 1, 2, "#3a3446");
-    feet.push(joint(root, [s * 1.3, 3, 0]));
-    put(feet.at(-1)!, lg, [0, -3, 0], seed + 1);
+    const foot = joint(root, [s * 1.3, 3, 0]);
+    feet.push(foot);
+    put(foot, lg, [0, -3, 0], seed + 1);
   }
   // The head: round, a heavy beak, a pale eye on each side.
   const head = joint(root, [0, 10.4, 5]);
@@ -132,11 +108,16 @@ function raven(parent: Model, at: V3, k: number, seed: number) {
 export function huginn(): Built {
   const body = new Model();
   const fore = new Model();
-  const a = raven(body, [-6.2, 0, 1.5], 1.12, 1);
-  const b = raven(body, [6, 0, -2.5], 1, 6);
+  const perchA: V3 = [-6.2, 0, 1.5];
+  const perchB: V3 = [6, 0, -2.5];
+  const a = raven(body, perchA, 1.12, 1);
+  const b = raven(body, perchB, 1, 6);
   b.root.rotation.y = -0.35;
   a.root.rotation.y = 0.2;
-  const base = { a: [-6.2, 1.5], b: [6, -2.5] };
+  const hops = [
+    { r: a, off: 0, perch: perchA },
+    { r: b, off: Math.PI, perch: perchB },
+  ];
   return {
     rig: {
       head: a.head,
@@ -151,19 +132,16 @@ export function huginn(): Built {
       span: 0,
       fx: (t, moving) => {
         const rate = moving ? 9 : 2.6;
-        for (const [r, off, [bx, bz]] of [
-          [a, 0, base.a],
-          [b, Math.PI, base.b],
-        ] as const) {
+        for (const { r, off, perch } of hops) {
+          const [perchX, , perchZ] = perch;
           // A hop in turn: the other waits on the ground, pecking.
           const h = Math.max(0, Math.sin(t * rate + off));
           r.root.position.y = U(h * (moving ? 3.4 : 2.6));
-          r.root.position.x = U(bx!);
-          r.root.position.z = U(bz! + h * (moving ? 1.2 : 0.5));
+          r.root.position.x = U(perchX);
+          r.root.position.z = U(perchZ + h * (moving ? 1.2 : 0.5));
           r.root.rotation.x = -h * 0.22;
           const peck = h < 0.001 ? Math.max(0, Math.sin(t * 7 + off * 2)) ** 3 * 0.55 : -0.1;
-          if (r !== a) r.head.rotation.x = peck;
-          else r.head.rotation.x = 0;
+          r.head.rotation.x = r === a ? 0 : peck;
           r.feet.forEach((f, i) => {
             f.rotation.x = h > 0 ? -0.5 : Math.sin(t * 3 + i) * 0.02;
           });
@@ -224,7 +202,6 @@ export function ratatoskr(): Built {
   sg.box(0, 0, -1, 2, -1, 2, "#a8322e");
   sg.box(-3, 3, 1, 1, 0, 0, "#d9c89a");
   put(scroll, sg, [0, 0, 0], 8);
-  // The head.
   const head = joint(body, [0, 13.4, 3.6]);
   const hg = new Grid();
   hg.ell(0, 0, 0, 3.3, 3.1, 3.3, RUST, 2.2);
@@ -365,7 +342,6 @@ export function tanngrisnir(): Built {
   const jg = new Grid();
   jg.ell(0, -0.5, 2.5, 1.9, 0.9, 2.5, "#fbf4e2", 2.4);
   for (let x = -2; x <= 2; x++) jg.set(x, 0.6, 4.6, "#ffffff");
-  jg.set(0, 0.6, 4.6, "#ffffff");
   // The beard.
   jg.box(-1, 0, -2.4, -0.6, 3, 4, "#cbbd9c");
   jg.box(0, 0, -3.6, -2.4, 3, 3, "#cbbd9c");
@@ -419,13 +395,11 @@ export function hildisvini(): Built {
   const GOLD = "#f2c230";
   const bg = new Grid();
   bg.ell(0, 7.5, 0, 5.4, 5, 6.4, SKIN, 2.2);
-  bg.paint((c) =>
-    c.t > 0.72
-      ? speckle(c, "#b87a68", DEEP, 3, 0.2)
-      : c.t < 0.3
-        ? BELLY
-        : speckle(c, SKIN, "#bf8270", 4, 0.15),
-  );
+  bg.paint((c) => {
+    if (c.t > 0.72) return speckle(c, "#b87a68", DEEP, 3, 0.2);
+    if (c.t < 0.3) return BELLY;
+    return speckle(c, SKIN, "#bf8270", 4, 0.15);
+  });
   // The golden crest along the spine: a comb of bristles, taller towards the shoulders, tips that gleam.
   for (let z = 6; z >= -6; z--) {
     const top = bg.top(0, z);
