@@ -35,7 +35,7 @@ export const LOOT_HATS: { rows: Record<View, string[]>; pal: Palette }[] = [
     },
     pal: { y: "#f5c842", Y: "#c9971f", c: "#5ff0ff" },
   },
-  // <<<<<<< HEAD band: a conflict-red headband, its knot hanging off the back.
+  // Conflict headband: a red band, its knot hanging off the back.
   {
     rows: {
       down: ["................", "................", "................", "..obbbbbbbbbbo..", "..obwbbwbbwbbobb"],
@@ -44,7 +44,7 @@ export const LOOT_HATS: { rows: Record<View, string[]>; pal: Palette }[] = [
     },
     pal: { o: C.ink, b: "#e0584f", w: C.white },
   },
-  // Mirage Crown: the Hallucination’s purple swirls, watchful eyes and golden stars.
+  // Mirage Crown: the Hallucination's purple swirls, watchful eyes and golden stars.
   {
     rows: {
       down: ["..g.v..gg..v.g..", "....vv.pp.vv....", "...vwwvppvwwv...", "...vwkvppvwkv...", "...ddddggdddd..."],
@@ -274,8 +274,6 @@ export function trophyAt(
   return { canvas, dx: 0, dy: TILE - canvas.height };
 }
 
-// MARK: Legendary
-
 /** Whether a look wears a legendary, worked out once per look: they sparkle in the world. */
 const LEGENDARY = new Set(LOOT.filter((l) => l.rarity === "legendary").map((l) => l.id));
 export const wearsLegendary = perObject((look: Look): boolean =>
@@ -294,9 +292,12 @@ export function drawSparkle(
   seed: number,
 ): void {
   for (let i = 0; i < 4; i++) {
-    const t = (((now / 900 + i * 0.27 + seed * 0.13) % 1) + 1) % 1;
+    // Each star runs a 900 ms cycle, each one out of step with the others. It fades over the first 60%
+    // of the cycle and is hidden for the rest.
+    const phase = now / 900 + i * 0.27 + seed * 0.13;
+    const t = ((phase % 1) + 1) % 1;
     if (t > 0.6) continue;
-    const a = i * 1.7 + seed + Math.floor(now / 900 + i * 0.27 + seed * 0.13) * 2.3;
+    const a = i * 1.7 + seed + Math.floor(phase) * 2.3;
     const x = Math.round(px + 8 + Math.cos(a) * 9);
     const y = Math.round(py + 3 + Math.sin(a) * 6 - t * 4);
     g.globalAlpha = 1 - t / 0.6;

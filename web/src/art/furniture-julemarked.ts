@@ -70,8 +70,12 @@ const HEART_PX: readonly (readonly [number, number])[] = [
 
 /** Ink halos of all `list` first, then fills, so neighbours share an outline. */
 function hearts(p: Pen, list: readonly (readonly [number, number, boolean])[], outline = true): void {
-  if (outline)
-    for (const [x, y] of list) for (const [dx, dy] of HEART_PX) p.rect(x + dx - 1, y + dy - 1, 3, 3, C.ink);
+  if (outline) {
+    for (const [x, y] of list) {
+      for (const [dx, dy] of HEART_PX) p.rect(x + dx - 1, y + dy - 1, 3, 3, C.ink);
+    }
+  }
+
   for (const [x, y, white] of list) {
     for (const [dx, dy] of HEART_PX) p.px(x + dx, y + dy, white ? J.cream : J.red);
     // The weave: a cross-stripe of the other colour.
@@ -96,11 +100,14 @@ function halo(
   alpha: number,
   rgb = WARM,
 ): void {
-  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(H - 1, Math.ceil(cy + r)); y++)
+  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(H - 1, Math.ceil(cy + r)); y++) {
     for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W - 1, Math.ceil(cx + r)); x++) {
-      const a = alpha * (1 - Math.hypot(x - cx, y - cy) / r) ** 1.5;
-      if (a >= 0.04 && Math.hypot(x - cx, y - cy) <= r) p.px(x, y, rgba(rgb, a));
+      // The glow fades with distance; anything under 4% opacity is too faint to draw.
+      const dist = Math.hypot(x - cx, y - cy);
+      const a = alpha * (1 - dist / r) ** 1.5;
+      if (a >= 0.04 && dist <= r) p.px(x, y, rgba(rgb, a));
     }
+  }
 }
 
 // A candle flame, 3x5: tall, leaning right, leaning left, short and fat.
@@ -131,21 +138,22 @@ function plusStar(p: Pen, x: number, y: number, lit: boolean): void {
   }
 }
 
-// MARK: Julehjerte garland
-
 function heartGarland(p: Pen, f: number): void {
   const W = 32;
   const H = 16;
   const sag = (x: number) => 2 + Math.round(4 * Math.sin((Math.PI * (x - 2)) / 27));
   const wob = (x: number) => (x > 6 && x < 26 ? Math.round(0.7 * Math.sin((f * Math.PI) / 2 + x / 4)) : 0);
+
   // The twine (with a dark edge under it so it reads on a pale wall), pinned at both ends with gold knobs.
   for (let x = 2; x <= 29; x++) p.px(x, sag(x) + wob(x) + 1, C.ink);
   for (let x = 2; x <= 29; x++) p.px(x, sag(x) + wob(x), "#d6a85c");
   for (const x of [1, 29]) {
+    const inset = x === 1 ? 1 : 0;
     p.rect(x, 0, 2, 3, C.ink);
     p.px(x, 1, J.gold);
-    p.px(x + (x === 1 ? 1 : 0), 0, J.goldDark);
+    p.px(x + inset, 0, J.goldDark);
   }
+
   const cxs = [4, 10, 16, 22, 28];
   const list: [number, number, boolean][] = [];
   cxs.forEach((cx, i) => {
@@ -154,20 +162,20 @@ function heartGarland(p: Pen, f: number): void {
     list.push([cx - 2 + swing, sag(cx) + wob(cx) + 2, i % 2 === 1]);
   });
   hearts(p, list);
-  // A gold star dangling under each heart; they take turns to flash.
+
+  // A gold star dangling under each heart; they take turns to flash. The middle two hang lower.
   cxs.forEach((_, i) => {
     const [hx, hy] = list[i]!;
     const sx = hx + 2;
-    const sy = i === 1 || i === 3 ? 13 : hy + 6 <= 12 ? hy + 6 : 12;
+    const hangsLow = i === 1 || i === 3;
+    const sy = hangsLow ? 13 : Math.min(hy + 6, 12);
     p.px(sx, hy + 4, J.goldDark);
-    if (i === 1 || i === 3) p.px(sx, 11, J.goldDark);
+    if (hangsLow) p.px(sx, 11, J.goldDark);
     const lit = (f + i) % 4 === 0;
     if (lit) halo(p, W, H, sx, sy, 5, 0.55);
     plusStar(p, sx, sy, lit);
   });
 }
-
-// MARK: Kalenderlys
 
 function kalenderlys(p: Pen, f: number): void {
   const W = 16;
@@ -192,17 +200,19 @@ function kalenderlys(p: Pen, f: number): void {
     [13, false],
     [15, true],
     [17, false],
-  ] as const)
+  ] as const) {
     p.rect(6, y, long ? 3 : 2, 1, J.red);
+  }
   p.px(10, 11, J.red);
   p.px(10, 15, J.red);
   p.rect(6, 9, 4, 1, "#fff6d0");
   p.rect(6, 8, 4, 1, J.flame);
   // Melted wax drips: the right one creeps down and lets a bead fall, the left one is a short old one.
   const len = [2, 3, 5, 6][f % 4]!;
+  const bead = f % 4 === 3;
   for (let y = 9; y < 9 + len; y++) p.px(9, y, "#fffaf0");
-  p.px(9, 9 + len, f % 4 === 3 ? "#fff6d0" : "#fffaf0");
-  p.px(9, 10 + len, f % 4 === 3 ? "#fffaf0" : J.creamDark);
+  p.px(9, 9 + len, bead ? "#fff6d0" : "#fffaf0");
+  p.px(9, 10 + len, bead ? "#fffaf0" : J.creamDark);
   p.px(6, 9, "#fffaf0");
   p.px(6, 10, "#fffaf0");
   p.px(6, 11, J.creamDark);
@@ -220,10 +230,9 @@ function kalenderlys(p: Pen, f: number): void {
   ];
   const [sx, sy] = spark[f % 4]!;
   p.px(sx, sy, J.flame);
-  p.px(spark[(f + 2) % 4]![0], spark[(f + 2) % 4]![1], "rgba(255, 213, 90, 0.6)");
+  const [ox, oy] = spark[(f + 2) % 4]!;
+  p.px(ox, oy, "rgba(255, 213, 90, 0.6)");
 }
-
-// MARK: Pebernødskål
 
 function pebernodBowl(p: Pen, f: number): void {
   shadow(p, 2, 14, 12);
@@ -240,15 +249,20 @@ function pebernodBowl(p: Pen, f: number): void {
   });
   // The heap: little pepper nuts, each two pixels, packed over a dark core.
   blob(p, 8, 8, 6, 3, J.nutDark);
-  for (let y = 5; y <= 10; y += 2)
+  const NUT_COLOURS = [J.nut, J.nutLight, J.nutDark];
+  for (let y = 5; y <= 10; y += 2) {
     for (let x = 3; x <= 12; x += 2) {
       const xx = x + (y % 4 === 1 ? 1 : 0);
-      if (((xx - 8) / 6) ** 2 + ((y + 0.5 - 8) / 3) ** 2 > 1.05) continue;
+      // The heap is an ellipse 6 across and 3 down from (8, 8); the 1.05 leaves the edge nuts in.
+      const rim = ((xx - 8) / 6) ** 2 + ((y + 0.5 - 8) / 3) ** 2;
+      if (rim > 1.05) continue;
+
       const pick = (xx * 7 + y * 3) % 3;
-      p.rect(xx, y, 2, 2, pick === 0 ? J.nut : pick === 1 ? J.nutLight : J.nutDark);
+      p.rect(xx, y, 2, 2, NUT_COLOURS[pick]!);
       p.px(xx, y, pick === 1 ? "#a8744a" : J.nutLight);
       if (pick === 2) p.px(xx + 1, y + 1, J.creamDark);
     }
+  }
   // A woven paper heart tucked in at the right, and a glint that hops over the nuts.
   hearts(p, [[10, 3, false]]);
   const glints: [number, number][] = [
@@ -271,14 +285,14 @@ function pebernodBowl(p: Pen, f: number): void {
   p.px(2, 10, J.flame);
 }
 
-// MARK: Adventsstage
-
 function advent(p: Pen, f: number): void {
   const W = 16;
   const H = 24;
   // The candles are lit one at a time, then all four burn for a while before it begins again.
-  const lit = [1, 2, 3, 4, 4, 4, 4, 4][f % 8]!;
-  const fresh = [0, 1, 2, 3].includes(f % 8) ? f % 8 : -1;
+  const step = f % 8;
+  const lit = [1, 2, 3, 4, 4, 4, 4, 4][step]!;
+  // The candle lit on this step is the newest, and it is the one that throws sparks.
+  const fresh = step < 4 ? step : -1;
   shadow(p, 2, 22, 12);
   // The wooden foot.
   box(p, 4, 19, 8, 3, J.wood);
@@ -311,8 +325,10 @@ function advent(p: Pen, f: number): void {
     [10, 14, J.greenLight],
     [3, 14, J.greenDark],
     [8, 18, J.greenLight],
-  ] as const)
+  ] as const) {
     p.px(x, y, c);
+  }
+
   // Berries and two gold baubles that catch the light.
   p.px(11, 17, J.red);
   p.px(4, 15, J.red);
@@ -338,8 +354,8 @@ function advent(p: Pen, f: number): void {
   });
   xs.forEach((x, i) => {
     const y = tops[i]! - 5;
+    p.px(x, tops[i]! - 1, C.ink);
     if (i < lit) {
-      p.px(x, tops[i]! - 1, C.ink);
       flame(p, x, y, f + i * 2);
       if (i === fresh) {
         // The newest flame throws a few sparks.
@@ -349,13 +365,10 @@ function advent(p: Pen, f: number): void {
       }
     } else {
       // Not yet lit: a bare, dark wick.
-      p.px(x, tops[i]! - 1, C.ink);
       p.px(x + 1, tops[i]! - 1, J.creamDark);
     }
   });
 }
-
-// MARK: Kravlenisse
 
 // The nisse behind the ledge: hat, brim, face and beard. 16x12; the pom-pom and the face are painted separately.
 // prettier-ignore
@@ -432,13 +445,10 @@ function kravlenisse(p: Pen, f: number): void {
       put(x, ey + 1, C.ink);
       put(x + 1, ey + 1, C.ink);
     } else if (m.pose === "wave" || m.pose === "wave2" || m.pose === "smile") {
-      // Happy shut eyes, an upturned arc.
+      // Happy shut eyes: an ink arc with a skin-coloured middle.
       put(x, ey + 1, C.ink);
       put(x + 1, ey, C.ink);
-      put(x + 2 - 1, ey + 1, C.ink);
-      if (x === ex[0]) put(x + 1, ey + 1, J.skin);
-      else put(x + 1, ey + 1, J.skin);
-      put(x, ey + 1, C.ink);
+      put(x + 1, ey + 1, J.skin);
     } else {
       putRect(x, ey, 2, m.pose === "gasp" ? 3 : 2, C.ink);
       put(x, ey, "#ffffff");
@@ -487,8 +497,9 @@ function kravlenisse(p: Pen, f: number): void {
     p.rect(12, hy, 4, 4, C.ink);
     p.rect(13, hy + 1, 2, 2, J.skin);
     // Fingers spread, wiggling.
-    p.px(m.pose === "wave" ? 12 : 15, hy - 1, C.ink);
-    p.px(m.pose === "wave" ? 13 : 14, hy - 1, J.skin);
+    const [inkX, skinX] = m.pose === "wave" ? [12, 13] : [15, 14];
+    p.px(inkX, hy - 1, C.ink);
+    p.px(skinX, hy - 1, J.skin);
     // A little heart floats up for him.
     hearts(p, [[0, m.pose === "wave" ? 2 : 3, false]], false);
   } else if (m.dy < 7) {
@@ -499,8 +510,6 @@ function kravlenisse(p: Pen, f: number): void {
     p.rect(13, LEDGE - 1, 2, 1, J.skin);
   }
 }
-
-// MARK: Juletræ
 
 function tier(p: Pen, cx: number, top: number, bot: number, halfBot: number): void {
   for (let y = top; y <= bot; y++) {
@@ -540,19 +549,20 @@ function juletrae(p: Pen, f: number): void {
   tier(p, 24, 14, 32, 10);
   tier(p, 24, 24, 44, 15);
   tier(p, 24, 36, 56, 21);
-  // Pot drawn again over the lowest hem.
-  box(p, 17, 57, 14, 6, J.red);
-  p.rect(18, 58, 12, 1, J.redLight);
-  p.rect(18, 61, 12, 1, J.redDark);
   // The star, with a pulsing glow and four rays that grow and shrink.
   const star = ["....x....", "...xxx...", "xxxxxxxxx", ".xxxxxxx.", "..xxxxx..", "..xx.xx..", ".xx...xx."];
   const pulse = [0, 1, 2, 3, 2, 1][f % 6]!;
   halo(p, W, H, 24, 8, 8 + pulse, 0.42 + pulse * 0.08);
+  // Outlines first for the whole star, then the gold on top.
   star.forEach((row, dy) => {
-    for (let dx = 0; dx < row.length; dx++) if (row[dx] === "x") p.rect(20 + dx - 1, 5 + dy - 1, 3, 3, C.ink);
+    for (let dx = 0; dx < row.length; dx++) {
+      if (row[dx] === "x") p.rect(20 + dx - 1, 5 + dy - 1, 3, 3, C.ink);
+    }
   });
   star.forEach((row, dy) => {
-    for (let dx = 0; dx < row.length; dx++) if (row[dx] === "x") p.px(20 + dx, 5 + dy, J.gold);
+    for (let dx = 0; dx < row.length; dx++) {
+      if (row[dx] === "x") p.px(20 + dx, 5 + dy, J.gold);
+    }
   });
   p.px(24, 6, J.flame);
   p.px(24, 7, J.flame);
@@ -604,39 +614,43 @@ function juletrae(p: Pen, f: number): void {
     false,
   );
   // Gold baubles that glint in turn.
-  [
+  const BAUBLES: [number, number][] = [
     [24, 18],
     [18, 40],
     [30, 41],
     [12, 50],
     [38, 49],
-  ].forEach(([x, y], i) => {
-    p.rect(x! - 1, y! - 1, 3, 3, C.ink);
-    p.px(x!, y!, J.gold);
-    p.px(x! + 1, y!, J.goldDark);
-    p.px(x!, y! + 1, J.goldDark);
+  ];
+  BAUBLES.forEach(([x, y], i) => {
+    p.rect(x - 1, y - 1, 3, 3, C.ink);
+    p.px(x, y, J.gold);
+    p.px(x + 1, y, J.goldDark);
+    p.px(x, y + 1, J.goldDark);
     if ((f + i) % 6 === 0) {
-      p.px(x! - 1, y! - 1, "#ffffff");
-      p.px(x!, y! - 2, "#ffffff");
-      p.px(x! + 2, y!, "#ffffff");
+      p.px(x - 1, y - 1, "#ffffff");
+      p.px(x, y - 2, "#ffffff");
+      p.px(x + 2, y, "#ffffff");
     }
   });
+
   // Real candles on the branch tips: each flame flickers on its own beat and the lit one glows brightest.
-  [
+  // Each entry is the candle's x, its base y and its phase in the flicker.
+  const CANDLES: [number, number, number][] = [
     [14, 29, 0],
     [35, 29, 3],
     [8, 41, 2],
     [40, 41, 5],
     [4, 53, 4],
     [44, 53, 1],
-  ].forEach(([x, y, ph]) => {
-    const peak = (f + ph!) % 6 < 2;
-    p.rect(x! - 1, y! - 4, 4, 6, C.ink);
-    p.rect(x!, y! - 3, 2, 4, J.cream);
-    p.px(x! + 1, y! - 3, J.creamDark);
-    p.px(x!, y! - 3, "#fffaf0");
-    halo(p, W, H, x! + 0.5, y! - 6, peak ? 7 : 5, peak ? 0.5 : 0.32);
-    flame(p, x!, y! - 8, f + ph!);
+  ];
+  CANDLES.forEach(([x, y, phase]) => {
+    const peak = (f + phase) % 6 < 2;
+    p.rect(x - 1, y - 4, 4, 6, C.ink);
+    p.rect(x, y - 3, 2, 4, J.cream);
+    p.px(x + 1, y - 3, J.creamDark);
+    p.px(x, y - 3, "#fffaf0");
+    halo(p, W, H, x + 0.5, y - 6, peak ? 7 : 5, peak ? 0.5 : 0.32);
+    flame(p, x, y - 8, f + phase);
   });
   // Gifts at the foot.
   gift(p, 2, 56, 10, 7, J.red, J.cream);
@@ -646,8 +660,6 @@ function juletrae(p: Pen, f: number): void {
   if (f % 3 === 0) p.px(40, 55, "#ffffff");
   if (f % 3 === 1) p.px(5, 54, "#ffffff");
 }
-
-// MARK: Catalog
 
 const piece = (
   id: string,

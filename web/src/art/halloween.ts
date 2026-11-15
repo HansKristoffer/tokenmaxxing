@@ -38,6 +38,8 @@ export const pumpkinSprite = cached(
   (big: boolean, lit: boolean) => `${big}:${lit}`,
   (big: boolean, lit: boolean) => {
     const rows = big ? BIG : SMALL;
-    return bake(rows[0]!.length, rows.length, (p) => p.grid(rows, { ...PUMPKIN, Y: lit ? LIT : HOLLOW }));
+    const face = lit ? LIT : HOLLOW;
+
+    return bake(rows[0]!.length, rows.length, (p) => p.grid(rows, { ...PUMPKIN, Y: face }));
   },
 );

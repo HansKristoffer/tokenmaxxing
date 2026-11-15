@@ -51,6 +51,8 @@ export function petTop(pet: number, hop: boolean): { x: number; y: number } | nu
   if (!rows || y < 0) return null;
   const row = rows[y]!;
   const first = row.search(/[^.]/);
-  const last = row.length - 1 - [...row].reverse().findIndex((c) => c !== ".");
+  const trailingDots = [...row].reverse().findIndex((c) => c !== ".");
+  const last = row.length - 1 - trailingDots;
+
   return { x: (first + last) / 2, y };
 }

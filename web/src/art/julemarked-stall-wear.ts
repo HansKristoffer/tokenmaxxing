@@ -12,9 +12,6 @@ import type { Back, Held, Outfit } from "./wardrobe.ts";
 
 const at = (n: number) => STALL_BASE + n;
 const o = C.ink;
-const ink = "#2b2433";
-
-// MARK: Hat
 
 // Pixel art reads as a grid.
 // prettier-ignore
@@ -117,8 +114,6 @@ export const STALL_HATS: Record<string, Art> = {
   },
 };
 
-// MARK: Outfits
-
 // Marks sit over the body from row 9; a fourth row lands on the trousers' row (a hem).
 // Pixel art reads as a grid.
 // prettier-ignore
@@ -165,8 +160,6 @@ export const STALL_OUTFITS: Record<number, Outfit> = {
   },
 };
 
-// MARK: In the hand
-
 // `h` is the hand: the item is placed so that it lands on the character's hand (and, past it, within 16 columns).
 // Pixel art reads as a grid.
 // prettier-ignore
@@ -174,31 +167,39 @@ export const STALL_HELD: Record<number, Held> = {
   // Varm kakao: a green mug, dark cocoa under a swirl of cream, a pinch of cinnamon, two wisps of steam.
   [at(0)]: {
     rows: ["..s.s.", ".owWwo", ".ocCco", "hoGGGo", ".oGwGo", ".oGGGo", ".ooooo"],
-    pal: { o: ink, w: "#f4ecd8", W: "#ffffff", c: "#6b3f22", C: "#8a5a32", G: "#2f5d3a", s: "#e6e9ee" },
+    pal: { o, w: "#f4ecd8", W: "#ffffff", c: "#6b3f22", C: "#8a5a32", G: "#2f5d3a", s: "#e6e9ee" },
   },
   // Klejner: three twisted fried pastries with a slit and a knot, golden, sugar dusted, on a paper napkin.
   [at(1)]: {
     rows: ["..oo.oo..", ".ogGoGgo.", "ogxgGgxgo", ".ogGoGgo.", "hoooooooo", ".orwrwro."],
-    pal: { o: ink, g: "#d49a3a", G: "#a8702a", x: "#ffffff", w: "#f4ecd8", r: "#b8302c" },
+    pal: { o, g: "#d49a3a", G: "#a8702a", x: "#ffffff", w: "#f4ecd8", r: "#b8302c" },
   },
   // Risengrød med smør: a cream bowl with a red band, white porridge, a butter eye, cinnamon and steam.
   [at(2)]: {
     rows: ["..s.s....", ".ooooooo.", "owwyywwwo", "owcywcwwo", "howwwwwwo", ".orrrrro.", "..ooooo.."],
-    pal: { o: ink, w: "#f4ecd8", y: "#f2c14e", c: "#8a5a32", r: "#b8302c", s: "#e6e9ee" },
+    pal: { o, w: "#f4ecd8", y: "#f2c14e", c: "#8a5a32", r: "#b8302c", s: "#e6e9ee" },
   },
   // Marcipanbrød: a loaf, dark chocolate over marzipan, a thin slice cut off and leaning on it.
   [at(3)]: {
     rows: [".ooooooo.", "obbbbbbbo", "obBbbBbbo", "hoMMMMMMo", "oMMmMMmMo", ".ooooooo."],
-    pal: { o: ink, b: "#6b3f22", B: "#8a5a32", M: "#e0cf9a", m: "#c9b57a" },
+    pal: { o, b: "#6b3f22", B: "#8a5a32", M: "#e0cf9a", m: "#c9b57a" },
   },
   // Sukkerstang: a red and white striped stick with a crook at the top, a red bow.
   [at(4)]: {
     rows: [".oooooo..", "oRwRwRRo.", "owRoooowo", "oRwo...oo", "owRo.....", "hRwo.....", "oRwo.....", "owRo.....", ".ooo....."],
-    pal: { o: ink, R: "#c8102e", w: "#ffffff" },
+    pal: { o, R: "#c8102e", w: "#ffffff" },
+  },
+  // Termokande: a steel flask, a red cup on top, a dent and a dark band.
+  [at(5)]: {
+    rows: ["..ooo..", ".oRRRo.", ".oSwso.", "hoSwSso", ".oSSsso", ".okkkko", ".ooooo."],
+    pal: { o, R: "#c8352f", S: "#b8c2cc", s: "#8a96a3", w: "#ffffff", k: "#3a4452" },
+  },
+  // Fyrfadslys: a tea light in a little glass, a tiny flame.
+  [at(6)]: {
+    rows: ["...Y...", "..yYy..", "..yYy..", "..owo..", ".oWwWo.", "hoWwWo.", ".oWWWo.", "..ooo.."],
+    pal: { o, Y: "#fff2a0", y: "#f2a83a", w: "#f4ecd8", W: "#bcd9e6" },
   },
 };
-
-// MARK: Glasses
 
 // Over the eyes from row 5; the first row of a grid is row 5.
 // Pixel art reads as a grid.
@@ -217,8 +218,6 @@ export const STALL_GLASSES: Record<string, Art> = {
     pal: { t: "#6b3a1c", T: "#c98a3a", L: "#e4f1f4", W: "#ffffff", k: "#6b3a1c" },
   },
 };
-
-// MARK: On the back
 
 /** An empty 16x16 frame, then `rows` dropped in at row `y`. */
 const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
@@ -329,21 +328,3 @@ export const STALL_BACKS: Record<number, Back> = {
     pal: { o, R: "#c8352f", B: "#2f6fb0", s: "#6b3f22" },
   },
 };
-
-// MARK: In the hand (second batch)
-
-// Pixel art reads as a grid.
-// prettier-ignore
-export const STALL_HELD_MORE: Record<number, Held> = {
-  // Termokande: a steel flask, a red cup on top, a dent and a dark band.
-  [at(5)]: {
-    rows: ["..ooo..", ".oRRRo.", ".oSwso.", "hoSwSso", ".oSSsso", ".okkkko", ".ooooo."],
-    pal: { o: ink, R: "#c8352f", S: "#b8c2cc", s: "#8a96a3", w: "#ffffff", k: "#3a4452" },
-  },
-  // Fyrfadslys: a tea light in a little glass, a tiny flame.
-  [at(6)]: {
-    rows: ["...Y...", "..yYy..", "..yYy..", "..owo..", ".oWwWo.", "hoWwWo.", ".oWWWo.", "..ooo.."],
-    pal: { o: ink, Y: "#fff2a0", y: "#f2a83a", w: "#f4ecd8", W: "#bcd9e6" },
-  },
-};
-Object.assign(STALL_HELD, STALL_HELD_MORE);

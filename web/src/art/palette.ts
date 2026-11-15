@@ -104,6 +104,8 @@ export const hexOf = (r: number, g: number, b: number): string => `#${hex2(r)}${
 /** `#rrggbb` moved towards white (`f` > 0) or black (`f` < 0) by a fraction. */
 export function shade(h: string, f: number): string {
   const to = f > 0 ? 255 : 0;
-  const [r, g, b] = rgbOf(h).map((v) => Math.round(v + (to - v) * Math.abs(f)));
-  return hexOf(r!, g!, b!);
+  const mix = (v: number) => Math.round(v + (to - v) * Math.abs(f));
+  const [r, g, b] = rgbOf(h);
+
+  return hexOf(mix(r), mix(g), mix(b));
 }
