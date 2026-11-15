@@ -4,6 +4,7 @@ import { sumBy } from "hanzio";
 import { useState } from "react";
 import type { GameProps } from "./types.ts";
 
+// The faces a bid can name. Face 1 is the wild 🦄, which counts for every face, so a bid never names it.
 const CLAIMABLE = [2, 3, 4, 5, 6];
 
 export function Dice({ view, info, you, now, move, name }: GameProps<DiceView>) {

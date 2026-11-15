@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { hud } from "../store.ts";
 import type { GameProps } from "./types.ts";
 
-const x = (n: number) => `×${(n / 100).toFixed(2)}`;
+const times = (n: number) => `×${(n / 100).toFixed(2)}`;
 
 /** The server's clock every animation frame while `on`, so the line climbs smoothly; else `now`. */
 function useFrameNow(on: boolean, now: number): number {
@@ -22,7 +22,7 @@ function useFrameNow(on: boolean, now: number): number {
   return on ? frame : now;
 }
 
-/** Hashing is cheap, but not every frame. */
+/** A seed's verdict never changes, so each seed is hashed once, not on every render. */
 const checked = new Map<string, boolean>();
 const verified = (seed: string, hash: string) => {
   if (!checked.has(seed)) checked.set(seed, sha256(seed) === hash);
@@ -51,7 +51,9 @@ export function Hype({ view, you, now, move, name }: GameProps<HypeView>) {
         name={name}
         cashOut={() => move({ cashOut: true })}
       />
-      {mine !== undefined && round.endedAt === null && <p>🪂 You cashed out at {x(mine)}. Watch the rest…</p>}
+      {mine !== undefined && round.endedAt === null && (
+        <p>🪂 You cashed out at {times(mine)}. Watch the rest…</p>
+      )}
       <table className="hype-scores">
         <thead>
           <tr>
@@ -71,11 +73,11 @@ export function Hype({ view, you, now, move, name }: GameProps<HypeView>) {
               </td>
               {view.rounds.map((r) => (
                 <td key={r.hash}>
-                  {r.cashed[p] !== undefined ? `🪂 ${x(r.cashed[p]!)}` : r.endedAt !== null ? "💥" : "…"}
+                  {r.cashed[p] !== undefined ? `🪂 ${times(r.cashed[p]!)}` : r.endedAt !== null ? "💥" : "…"}
                 </td>
               ))}
               <td>
-                <strong>{x(view.totals[p] ?? 0)}</strong>
+                <strong>{times(view.totals[p] ?? 0)}</strong>
               </td>
             </tr>
           ))}
@@ -115,6 +117,7 @@ function Live({
   name: (id: number) => string;
   cashOut: () => void;
 }) {
+  // The frame loop starts a little before the round, so the curve is already moving when it begins.
   const on = round.endedAt === null && tickNow >= round.startsAt - 100;
   const now = useFrameNow(on, tickNow);
   const running = round.endedAt === null && now >= round.startsAt;
@@ -133,17 +136,17 @@ function Live({
           <span>📈 ×{m.toFixed(2)}</span>
         ) : round.crash !== null && round.endedAt !== null ? (
           multiplier(round.endedAt - round.startsAt) * 100 < round.crash - 1 ? (
-            <span className="muted">Everyone got out · it would have crashed at {x(round.crash)}</span>
+            <span className="muted">Everyone got out · it would have crashed at {times(round.crash)}</span>
           ) : (
-            <span className="crashed">💥 {x(round.crash)}</span>
+            <span className="crashed">💥 {times(round.crash)}</span>
           )
         ) : (
           <span className="muted">×1.00</span>
         )}
       </p>
-      {running && canCash && (
+      {m !== null && canCash && (
         <button type="button" className="primary hype-cash" onClick={cashOut}>
-          🪂 Cash out at ×{m!.toFixed(2)}
+          🪂 Cash out at ×{m.toFixed(2)}
         </button>
       )}
     </>
@@ -168,10 +171,12 @@ function Curve({
   name: (id: number) => string;
 }) {
   const t = Math.max(0, until - startsAt);
+  // The scale keeps 15% headroom above the multiplier and a time axis at least 10 s wide.
   const top = Math.max(2, multiplier(t) * 1.15);
   const span = Math.max(10_000, t * 1.1);
   const px = (ms: number) => (ms / span) * W;
   const py = (mult: number) => H - ((mult - 1) / (top - 1)) * (H - 6);
+  // 41 samples make 40 straight segments of the curve.
   const points = Array.from({ length: 41 }, (_, k) => {
     const ms = (t * k) / 40;
     return `${px(ms).toFixed(1)},${py(multiplier(ms)).toFixed(1)}`;
