@@ -12,8 +12,8 @@ logs, run the desktop helper, create a separate account or receive a usage-impor
 3. On Android, choose **Scan** and scan that QR, or **Paste** and enter the code.
 4. The phone receives its own game session, valid for up to 30 days, and opens your existing character.
 
-**The server/web changes in this PR must be deployed before the Connect phone button is available.**
-The APK loads `https://tokenmaxxing.dk` by default. Installing a PR build does not deploy its server.
+**The server and web code that adds Connect phone must be deployed before the APK can pair.**
+The APK loads `https://tokenmaxxing.dk` by default. Installing an APK does not deploy a server.
 QR scanning uses Google Play services and may need to download its scanner module on first use; no
 camera permission is requested by the app. Paste works without Play services.
 
@@ -45,8 +45,8 @@ To test another deployment with the companion changes:
 ```
 
 Only an HTTPS origin is accepted. The app refuses pairing URLs from any other origin, including
-lookalike hosts, credentials in URLs, HTTP, unexpected ports and executable schemes. Both paste input
-and QR output use the same validator. The pairing code is carried in the URL fragment, consumed by the
+lookalike hosts, credentials in URLs, HTTP, unexpected ports and executable schemes. Pasted text and
+scanned QR codes go through the same validator. The pairing code is carried in the URL fragment, consumed by the
 existing web sign-in flow and removed from history. QR images are generated locally in the web client.
 There is no JavaScript/native bridge; file/content access and mixed content are disabled, third-party
 cookies are disabled, and app backup is off. WebView retains the session in private origin storage.
