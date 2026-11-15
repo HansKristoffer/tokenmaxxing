@@ -23,6 +23,7 @@ function easer(inS: number, outS: number): (target: boolean, now: number) => num
     const to = target ? 1 : 0;
     const dt = Math.min(0.1, (now - lastAt) / 1000);
     lastAt = now;
+    // The first call snaps to its target: a page that opens mid-snow starts there, not from bare ground.
     amount = amount < 0 ? to : amount + clamp(to - amount, -dt / outS, dt / inS);
     return amount;
   };
@@ -69,8 +70,18 @@ const SNOW_TOP: [number, number, number][] = [
   [208, 220, 238],
   [196, 210, 232],
 ];
+/** Outline ink: a pixel this dark (by luma) is the outline of a cap or a tree. */
 const dark = (r: number, g: number, b: number) => r * 0.3 + g * 0.59 + b * 0.11 < 62;
+/** A green that clearly leads red and blue: the tree's canopy, not the ground. */
 const leafy = (r: number, g: number, b: number) => g > r + 12 && g > b + 12;
+
+/** Ice colour for a water pixel: a white rim, glare streaks, a few cracks, else pale ice. */
+function iceColor(rim: boolean, glare: boolean, crack: boolean): [number, number, number] {
+  if (rim) return [236, 246, 252];
+  if (glare) return [234, 245, 252];
+  if (crack) return [158, 194, 220];
+  return [192, 224, 240];
+}
 
 const twins = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 const iced = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
@@ -96,19 +107,21 @@ export function iceLayer(ground: HTMLCanvasElement): HTMLCanvasElement {
     const i = (y * w + x) * 4;
     return WATER.has(key(was[i]!, was[i + 1]!, was[i + 2]!));
   };
-  for (let y = 0; y < h; y++)
+  for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       if (!waterAt(x, y)) continue;
       const rim = !(waterAt(x - 1, y) && waterAt(x + 1, y) && waterAt(x, y - 1) && waterAt(x, y + 1));
+      // Glare: diagonal bands two pixels wide, 13 apart, thinned out by a hash. Cracks: about 2.5% of the pixels.
       const glare = (x + y) % 13 < 2 && hash(Math.floor((x - y) / 9), 0, 51) < 0.5;
       const crack = hash(x, y, 52) < 0.025;
-      const c = rim ? [236, 246, 252] : glare ? [234, 245, 252] : crack ? [158, 194, 220] : [192, 224, 240];
+      const c = iceColor(rim, glare, crack);
       const i = (y * w + x) * 4;
-      d[i] = c[0]!;
-      d[i + 1] = c[1]!;
-      d[i + 2] = c[2]!;
+      d[i] = c[0];
+      d[i + 1] = c[1];
+      d[i + 2] = c[2];
       d[i + 3] = 255;
     }
+  }
   g.putImageData(img, 0, 0);
   iced.set(ground, out);
   return out;
@@ -144,7 +157,7 @@ function bake(src: HTMLCanvasElement, ground: boolean, plain: HTMLCanvasElement)
     return WATER.has(key(palette[i]!, palette[i + 1]!, palette[i + 2]!));
   };
 
-  for (let y = 0; y < h; y++)
+  for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
       if (was[i + 3]! < 200) continue;
@@ -154,7 +167,10 @@ function bake(src: HTMLCanvasElement, ground: boolean, plain: HTMLCanvasElement)
         // The pond's rim is white; a few pixels of the ground are speckled.
         const rim =
           WATER.has(k) && !(waterAt(x - 1, y) && waterAt(x + 1, y) && waterAt(x, y - 1) && waterAt(x, y + 1));
-        put(x, y, rim ? [240, 247, 253] : hash(x, y, 41) < 0.05 && !WATER.has(k) ? [226, 234, 246] : to);
+        const speckled = hash(x, y, 41) < 0.05 && !WATER.has(k);
+        if (rim) put(x, y, [240, 247, 253]);
+        else if (speckled) put(x, y, [226, 234, 246]);
+        else put(x, y, to);
       } else if (
         !ground &&
         leafy(was[i]!, was[i + 1]!, was[i + 2]!) &&
@@ -163,12 +179,13 @@ function bake(src: HTMLCanvasElement, ground: boolean, plain: HTMLCanvasElement)
         put(x, y, [228, 238, 248]); // dusted canopy
       }
     }
+  }
 
   if (!ground) {
     // Caps: wherever a column's solid pixels start (below open air), the first rows turn to snow,
     // after the outline.
     const roof = h > 60 ? 1 : 0;
-    for (let x = 0; x < w; x++)
+    for (let x = 0; x < w; x++) {
       for (let y = 0; y < h; y++) {
         if (!solid(x, y) || solid(x, y - 1)) continue;
         let yy = y;
@@ -180,10 +197,13 @@ function bake(src: HTMLCanvasElement, ground: boolean, plain: HTMLCanvasElement)
           yy++;
           if (!solid(x, yy)) continue;
         }
+        // Two rows of snow, one more on a tall sprite, and a few columns one more or one fewer by hash.
         const depth = 2 + roof + (hash(x, y, 47) < 0.3 ? 1 : 0) - (hash(x, y, 48) > 0.85 ? 1 : 0);
-        for (let k = 0; k < depth && solid(x, yy + k) && !ink(yy + k); k++)
+        for (let k = 0; k < depth && solid(x, yy + k) && !ink(yy + k); k++) {
           put(x, yy + k, SNOW_TOP[Math.min(k, SNOW_TOP.length - 1)]!);
+        }
       }
+    }
   }
   g.putImageData(img, 0, 0);
   return out;
@@ -199,6 +219,7 @@ export function snowLayers(
   ground = false,
   plain = src,
 ): readonly (readonly [HTMLCanvasElement, number])[] {
+  // Under 1% is bare ground, and over 99% is all snow: then only one canvas is drawn.
   if (amount < 0.01) return [[src, 1]];
   let twin = twins.get(src);
   if (!twin) {

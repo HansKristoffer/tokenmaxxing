@@ -44,6 +44,7 @@ export function Sprint({ view, info, you, now, move, name, look }: GameProps<Spr
       const { typed, mine, move } = latest.current;
       const t = Date.now() - hud.get().clockSkew;
       if (t < view.startsAt || t > view.endsAt + GRACE_MS || typed === mine) return;
+      // The same text is sent again after 600 ms, not on every tick while the server is still answering.
       if (typed === sent.current.text && Date.now() - sent.current.at < 600) return;
       sent.current = { text: typed, at: Date.now() };
       move({ typed });
@@ -60,7 +61,10 @@ export function Sprint({ view, info, you, now, move, name, look }: GameProps<Spr
     // Tab and Escape leave; everything else is ours.
     if (e.key === "Tab" || e.key === "Escape") return;
     const t = Date.now() - hud.get().clockSkew;
-    if (!playing || t < view.startsAt || t >= view.endsAt) return void e.preventDefault();
+    if (!playing || t < view.startsAt || t >= view.endsAt) {
+      e.preventDefault();
+      return;
+    }
     const next = edit(view.words, typed, e);
     if (next === null) return;
     e.preventDefault();
@@ -125,6 +129,13 @@ export function Sprint({ view, info, you, now, move, name, look }: GameProps<Spr
   );
 }
 
+/** How letter `j` of a word looks: right or wrong against the word, `extra` past its end, else plain. */
+function letterClass(word: string, typed: string | undefined, j: number): string {
+  if (typed === undefined || j >= typed.length) return "";
+  if (j >= word.length) return "extra";
+  return typed[j] === word[j] ? "ok" : "bad";
+}
+
 /** The words, three lines at a time, scrolling as you go. */
 function Words({
   words,
@@ -162,17 +173,9 @@ function Words({
               className={`sprint-word${i === current ? " now" : ""}${done && typed !== w ? " wrong" : ""}`}
             >
               {Array.from({ length: Math.max(w.length, typed?.length ?? 0) }, (_, j) => {
-                const cls =
-                  typed === undefined || j >= typed.length
-                    ? ""
-                    : j >= w.length
-                      ? "extra"
-                      : typed[j] === w[j]
-                        ? "ok"
-                        : "bad";
                 return (
                   // biome-ignore lint/suspicious/noArrayIndexKey: letters have no identity
-                  <span key={j} className={cls}>
+                  <span key={j} className={letterClass(w, typed, j)}>
                     {i === current && j === typed!.length && <span className="sprint-caret" />}
                     {j < w.length ? w[j] : typed![j]}
                   </span>
@@ -202,6 +205,7 @@ function Lanes({
   name: (id: number) => string;
   look: (id: number) => Look;
 }) {
+  // A word is five characters, so a track is TRACK_WPM words a minute, in characters, for the whole game.
   const track = (TRACK_WPM * 5 * view.seconds) / 60;
   return (
     <ul className="sprint-lanes">
@@ -249,6 +253,7 @@ function Results({
 }) {
   const out = info.outcome && "places" in info.outcome ? info.outcome.places : null;
   const shares = out ? potShares(out, info.pot, info.split) : new Map<number, number>();
+  // Tied players share a place: one more than everyone in the groups above them.
   const rows = out
     ? out.flatMap((group, i) => group.map((p) => ({ p, place: out.slice(0, i).flat().length + 1 })))
     : Object.keys(view.scores).map((id) => ({ p: Number(id), place: null }));

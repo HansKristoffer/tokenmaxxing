@@ -9,7 +9,9 @@ const COLORS = ["#ffd35c", "#8fe3ff", "#ff8fb1", "#3ddc84", "#c39bff", "#ffa94d"
 /** Tokens in the last minute, from a player's history. */
 function lastMinute(points: [number, number][], now: number): number {
   const latest = points.at(-1)?.[1] ?? 0;
-  const before = [...points].reverse().find(([t]) => t <= now - 60_000)?.[1] ?? points[0]?.[1] ?? 0;
+  // The newest point at least a minute old; a history shorter than that starts from its first point.
+  const older = [...points].reverse().find(([t]) => t <= now - 60_000);
+  const before = older?.[1] ?? points[0]?.[1] ?? 0;
   return latest - before;
 }
 

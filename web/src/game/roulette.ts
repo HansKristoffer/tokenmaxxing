@@ -16,6 +16,12 @@ const FLOAT_MS = 2200;
 const PLAYER = ["#e9b73d", "#4aa3ff", "#c46bff", "#ff8a4a", "#4ade80", "#f472b6", "#22d3ee", "#a3e635"];
 const DISC = { red: "#c0392b", black: "#1d1b26", green: "#1f8f4e" } as const;
 
+function netColor(net: number): string {
+  if (net > 0) return "#7dffa0";
+  if (net < 0) return "#ff8a8a";
+  return "#fff3c4";
+}
+
 /** The spin last seen and when its ball lands on this client (it arrived `SPIN_MS` before). */
 let seenId = 0;
 let landsAt = 0;
@@ -83,7 +89,8 @@ export function drawRoulette(f: Frame): void {
       g.font = `700 ${Math.max(8, f.scale * 3.6)}px ${FONT}`;
       g.fillText(String(last.pocket), bx, by + 0.5);
     } else if (state.phase === "betting" || state.phase === "spinning") {
-      const secs = Math.ceil(Math.max(0, state.phaseEndsAt - (state.now + (now - state.at))) / 1000);
+      const serverNow = state.now + (now - state.at);
+      const secs = Math.ceil(Math.max(0, state.phaseEndsAt - serverNow) / 1000);
       const text = state.phase === "betting" ? `Bets ${secs}s` : "No more bets";
       g.font = `700 ${Math.max(8, f.scale * 3.1)}px ${FONT}`;
       const tw = g.measureText(text).width;
@@ -103,6 +110,7 @@ export function drawRoulette(f: Frame): void {
     // Each player's win or loss floating up from their head as the ball lands.
     if (last && since >= 0 && since < FLOAT_MS) {
       const t = since / FLOAT_MS;
+      // Solid for the first 70% of the float, then it fades out over the last 30%.
       g.globalAlpha = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
       for (const o of last.results) {
         const seat = state.seats.find((s) => s.userId === o.userId);
@@ -110,7 +118,7 @@ export function drawRoulette(f: Frame): void {
         if (!spot) continue;
         const net = o.payout - o.staked;
         const [sx, sy] = f.toScreen(spot.x * TILE + TILE / 2, spot.y * TILE - 4);
-        g.fillStyle = net > 0 ? "#7dffa0" : net < 0 ? "#ff8a8a" : "#fff3c4";
+        g.fillStyle = netColor(net);
         g.strokeStyle = "#0a081c";
         g.lineWidth = 3;
         g.font = `800 ${Math.max(9, f.scale * 4)}px ${FONT}`;

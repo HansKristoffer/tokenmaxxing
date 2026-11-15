@@ -99,8 +99,9 @@ function papersAt(map: GameMap, m: number): { x: number; y: number; lift: number
     const at = deliveredAt(rides, door);
     if (at === null || m < at) continue;
     const [x, y] = paperSpot(door);
+    // The road is the row under the door's block.
     const road = (Math.floor(door[1] / BLOCK_H) + 1) * BLOCK_H;
-    // A throw: a short arc from the road to the grass.
+    // A throw: a short arc from the road to the grass, taking 0.6 s from the paperboy's pass.
     const t = Math.min(1, ((m - at) * 60) / 0.6);
     out.push({ x, y: lerp(road, y, t), lift: Math.sin(t * Math.PI) * 10 });
   }
@@ -166,7 +167,8 @@ export function drawStreet({ g, items, labels, toScreen, now, dpr }: Frame): voi
   });
   labels.push(() => woodSign(g, nx, ny, text, dpr, snail.phase === "deployed"));
   // The build finishing while you watch: a toast, and confetti over the snail.
-  if (lastMinute !== null && lastMinute < SNAIL.arrives && m >= SNAIL.arrives) {
+  const finishedNow = lastMinute !== null && lastMinute < SNAIL.arrives && m >= SNAIL.arrives;
+  if (finishedNow) {
     finishedAt = now;
     hud.set({
       notice: { text: "🐌 Build succeeded. The snail has deployed to production.", at: Date.now() },
@@ -189,13 +191,14 @@ export function drawStreet({ g, items, labels, toScreen, now, dpr }: Frame): voi
     const [lx, ly] = toScreen(bx + 8, by - bike.height);
     labels.push(() => pill(g, lx, ly - 2 * dpr, "📰 Paper!", dpr, "rgba(251, 247, 239, 0.95)", "#2b2433"));
   }
-  if (m >= PAPER.at)
+  if (m >= PAPER.at) {
     for (const p of papersAt(map, m)) {
       const paper = paperSprite();
       const ox = p.x * TILE + 2;
       const oy = Math.round((p.y + 1) * TILE - paper.height - 2 - p.lift);
       items.push({ y: (p.y + 1) * TILE - 4, draw: () => g.drawImage(paper, ox, oy) });
     }
+  }
 }
 
 /** A small wooden sign with the snail's status on it. */

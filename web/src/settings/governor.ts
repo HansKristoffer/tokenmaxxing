@@ -1,5 +1,6 @@
 import { TIERS, type Tier, tierAbove, tierBelow } from "./graphics.ts";
 
+/** Frame gaps kept for judging: about two seconds at 60 fps. */
 export const WINDOW = 120;
 /** Slow for this long, without a break, before anything changes. */
 export const SUSTAIN_MS = 4000;
@@ -9,6 +10,7 @@ export const COOLDOWN_MS = 10_000;
 export const STABLE_MS = 3 * 60_000;
 /** A downgrade this soon after stepping up means the higher tier is not for this machine. */
 export const FLAP_MS = 2 * 60_000;
+/** The render scale moves in eighths, and never drops below five eighths. */
 export const SCALE_STEP = 0.125;
 export const MIN_SCALE = 0.625;
 /** A frame this long is a hidden tab or a pause, not slowness. */
@@ -23,7 +25,10 @@ export function percentile(sorted: readonly number[], p: number): number {
   return sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]!;
 }
 
-/** Fastest and slowest refresh intervals taken as a display's own (240 Hz, 60 Hz): a slow machine must not look like a slow screen. */
+/**
+ * Fastest and slowest refresh intervals taken as a display's own (240 Hz, 60 Hz): a slow machine must not look
+ * like a slow screen.
+ */
 const MIN_REFRESH_MS = 1000 / 240;
 const MAX_REFRESH_MS = 1000 / 60;
 
@@ -103,6 +108,7 @@ export class Governor {
       return null;
     }
     this.slowSince = null;
+    // Room to step up: the scale is below full, or the next tier up is still under the ceiling.
     const room =
       this.scaleMul < 1 ||
       (this.tier !== "ultra" && TIERS.indexOf(tierAbove(this.tier)) <= TIERS.indexOf(this.ceiling));
@@ -120,6 +126,7 @@ export class Governor {
   private stepDown(now: number, severe: boolean): Step | null {
     this.settle(now);
     if (!severe && this.scaleMul - SCALE_STEP >= MIN_SCALE - 1e-9) {
+      // Rounded to thousandths, so repeated steps do not drift.
       this.scaleMul = Math.round((this.scaleMul - SCALE_STEP) * 1000) / 1000;
       return { kind: "scale", scaleMul: this.scaleMul };
     }

@@ -14,14 +14,15 @@ createRoot(document.getElementById("hud")!).render(<Hud />);
 
 // In the desktop app, a link out of the game (a company's website) opens in the browser.
 const app = tauri;
-if (app)
+if (app) {
   document.addEventListener("click", (e) => {
     const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>("a[href]") : null;
     if (!a || a.origin === location.origin) return;
     e.preventDefault();
-    // An app from before `open_link`: the old way, for whatever it's worth.
+    // An app from before `open_link` has no such command: the link opens in a new window instead.
     app.core.invoke("open_link", { url: a.href }).catch(() => window.open(a.href, "_blank"));
   });
+}
 
 exposeForQa();
 watchHudInsets();
