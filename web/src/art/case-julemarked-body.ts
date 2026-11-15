@@ -1,4 +1,5 @@
 import { JULEMARKED_BASE } from "@tokenmaxxing/core/case-julemarked.ts";
+import { patch } from "./case-julemarked.ts";
 import type { Back, BackView, Held, Outfit } from "./wardrobe.ts";
 
 /**
@@ -14,12 +15,6 @@ const ink = "#2b2433";
 
 /** A row of `s` whose first pixel is at column `x` (a row of marks, 16 wide). */
 const r = (x: number, s: string): string => (".".repeat(x) + s).padEnd(16, ".");
-/** A frame of `h` rows with single pixels set, to lay over the marks for the second walking frame. */
-const patch = (h: number, ...px: [x: number, y: number, c: string][]): string[] => {
-  const g = Array.from({ length: h }, () => Array<string>(16).fill("."));
-  for (const [x, y, c] of px) g[y]![x] = c;
-  return g.map((row) => row.join(""));
-};
 const blank = r(0, "");
 
 // Marks sit over the body from row 9 (down to row 15 for a long gown or boots). The second walking frame (`walk`)
@@ -249,13 +244,18 @@ const wings = (y: number, left: string[], drift: [number, number][]): string[] =
     y,
   ).map((row) => [...row.padEnd(16, ".")]);
   while (g.length < 16) g.push(Array<string>(16).fill("."));
-  for (const [x, hy] of drift) for (const [px, py, c] of heart(x, hy)) if (g[py]) g[py]![px] = c;
+  for (const [x, hy] of drift) {
+    for (const [px, py, c] of heart(x, hy)) {
+      if (g[py]) g[py]![px] = c;
+    }
+  }
   return g.map((row) => row.join(""));
 };
 // Wings raised: the same wing a little shorter and tipped up.
 const WING_UP = WING_L.slice(1, 10);
+/** From the side only the wings' first four columns show; the rest of each row is left empty. */
 const wingsSide = (y: number, left: string[], drift: [number, number][]): string[] =>
-  wings(y, left, drift).map((row) => row.slice(0, 4) + "............");
+  wings(y, left, drift).map((row) => `${row.slice(0, 4)}............`);
 
 // Pixel art reads as a grid.
 // prettier-ignore

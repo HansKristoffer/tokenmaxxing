@@ -14,7 +14,7 @@ export const RED_DARK = "#8c1d24";
 export const CREAM = "#fbf7ef";
 export const GREEN = "#2f6b3a";
 export const GREEN_LIGHT = "#3f8a4c";
-export const GREEN_DARK = "#1f4a29";
+const GREEN_DARK = "#1f4a29";
 export const GOLD = "#e8c44a";
 export const SILVER = "#c9d3dc";
 export const SNOW = "#f4f8ff";
@@ -258,12 +258,13 @@ export const wreathSprite = cached(
     const c = (s - 1) / 2;
     return bake(s, s + 2, (p) => {
       // A ring: pine, with an ink edge on both sides.
-      for (let y = 0; y < s; y++)
+      for (let y = 0; y < s; y++) {
         for (let x = 0; x < s; x++) {
           const d = Math.hypot(x - c, y - c);
           if (d > c + 0.4 || d < c - 3.3) continue;
           p.px(x, y, d > c - 0.6 || d < c - 2.5 ? C.ink : GREEN);
         }
+      }
       p.px(c - 2, 1, GREEN_LIGHT);
       p.px(c + 2, s - 3, GREEN_LIGHT);
       p.px(1, c, RED);
@@ -316,7 +317,7 @@ export const julehjerteSprite = cached(
     }),
 );
 
-/** A candy-cane stripe for a lamp post (4 wide, 18 tall): red and white bands, the hook at the top. */
+/** A candy-cane stripe for a lamp post (6 wide with its ink outline, 20 tall): red and white bands, the hook at the top. */
 export const candyCaneSprite = cached(
   () => "cane",
   () =>
@@ -337,7 +338,7 @@ export const candyCaneSprite = cached(
 // MARK: Nisse Knud
 
 /** Knud's sprite size: 16×20, feet at the bottom. */
-export const KNUD_PX = { w: 16, h: 20 } as const;
+const KNUD_PX = { w: 16, h: 20 } as const;
 
 function knudFront(p: Pen, breath: 0 | 1, back: boolean): void {
   // Boots.
@@ -386,8 +387,8 @@ function knudFront(p: Pen, breath: 0 | 1, back: boolean): void {
   p.rect(6, 2, 4, 3, RED);
   p.rect(7, 0, 4, 2, C.ink);
   p.rect(8, 1, 2, 1, RED);
-  p.rect(10, 0 + breath, 3, 3, C.ink);
-  p.rect(11, 0 + breath, 2, 2, CREAM);
+  p.rect(10, breath, 3, 3, C.ink);
+  p.rect(11, breath, 2, 2, CREAM);
 }
 
 function knudSide(p: Pen, breath: 0 | 1): void {

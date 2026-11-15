@@ -21,15 +21,14 @@ const RAVEN = [
 function ravens(leftUp: boolean): string[] {
   const rows = Array.from({ length: 10 }, () => Array<string>(12).fill("."));
   const put = (x0: number, y0: number, art: string[]) => {
-    for (const [dy, r] of art.entries())
-      for (const [dx, c] of [...r].entries()) if (c !== ".") rows[y0 + dy]![x0 + dx] = c;
+    for (const [dy, r] of art.entries()) {
+      for (const [dx, c] of [...r].entries()) {
+        if (c !== ".") rows[y0 + dy]![x0 + dx] = c;
+      }
+    }
   };
   put(0, leftUp ? 2 : 4, RAVEN);
-  put(
-    6,
-    leftUp ? 4 : 2,
-    RAVEN.map((r, i) => (i === 1 ? "..kkwb" : r)),
-  );
+  put(6, leftUp ? 4 : 2, RAVEN);
   return rows.map((r) => r.join(""));
 }
 

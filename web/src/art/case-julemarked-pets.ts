@@ -13,9 +13,11 @@ const BLANK = "............";
 /** Paints `art` only where `base` is empty (`.`): glows and ground light that sit behind the animal. */
 function under(base: string[], x0: number, y0: number, art: string[]): string[] {
   const rows = base.map((r) => [...r]);
-  for (const [dy, r] of art.entries())
-    for (const [dx, c] of [...r].entries())
+  for (const [dy, r] of art.entries()) {
+    for (const [dx, c] of [...r].entries()) {
       if (c !== "." && rows[y0 + dy]?.[x0 + dx] === ".") rows[y0 + dy]![x0 + dx] = c;
+    }
+  }
   return rows.map((r) => r.join(""));
 }
 
@@ -25,8 +27,11 @@ function halo(base: string[], ch: string): string[] {
     [...r]
       .map((c, x) => {
         if (c !== ".") return c;
-        for (let dy = -1; dy <= 1; dy++)
-          for (let dx = -1; dx <= 1; dx++) if ((base[y + dy]?.[x + dx] ?? ".") !== ".") return ch;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if ((base[y + dy]?.[x + dx] ?? ".") !== ".") return ch;
+          }
+        }
         return c;
       })
       .join(""),
@@ -43,9 +48,11 @@ function hop(f0: string[], feet: string): string[] {
 /** Overlays `art` on `base` at (x0, y0); `.` leaves what is there. */
 function put(base: string[], x0: number, y0: number, art: string[]): string[] {
   const rows = base.map((r) => [...r]);
-  for (const [dy, r] of art.entries())
-    for (const [dx, c] of [...r].entries())
+  for (const [dy, r] of art.entries()) {
+    for (const [dx, c] of [...r].entries()) {
       if (c !== "." && rows[y0 + dy]?.[x0 + dx] !== undefined) rows[y0 + dy]![x0 + dx] = c;
+    }
+  }
   return rows.map((r) => r.join(""));
 }
 

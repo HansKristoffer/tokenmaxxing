@@ -12,8 +12,6 @@ import { bake, cached, gradient, once, type Pen } from "./pixels.ts";
 
 export const CART_PX = { w: 48, h: 48 } as const;
 
-const AWNING = [C.roofRed, C.white];
-
 function wheel(p: Pen, cx: number, cy: number): void {
   p.disc(cx, cy, 6, C.ink);
   p.disc(cx, cy, 5, C.woodDark);
@@ -40,7 +38,7 @@ function awning(p: Pen): void {
   p.rect(3, 2, 42, 1, C.ink);
   p.rect(1, 3, 46, 1, C.ink);
   for (let x = 0, i = 0; x < 48; x += 6, i++) {
-    const color = AWNING[i % 2]!;
+    const color = i % 2 ? C.white : C.roofRed;
     const shade = i % 2 ? C.wallDark : C.roofRedDark;
     const top = x === 0 || x === 42 ? 5 : 4;
     p.rect(x + (x === 0 ? 1 : 0), top, x === 42 ? 5 : 6, 11 - top, color);

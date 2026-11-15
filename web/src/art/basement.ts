@@ -17,7 +17,7 @@ export const SCREEN_GLASS = { x: 4, y: 4, w: SCREEN_W - 8, h: 32 } as const;
 export const bigScreen = once(() =>
   bake(SCREEN_W, SCREEN_H, (p) => {
     const { x, y, w, h } = SCREEN_GLASS;
-    // Bezel, glass, and a shelf of cables under it.
+    // The bezel and the glass, then the standby LED and the mounting bar under them.
     p.rect(0, 0, SCREEN_W, 40, C.ink);
     p.rect(1, 1, SCREEN_W - 2, 38, C.metal);
     p.rect(1, 1, SCREEN_W - 2, 1, C.metalLight);

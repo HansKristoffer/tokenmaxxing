@@ -2,8 +2,8 @@ import { RAGNAROK_BASE } from "@tokenmaxxing/core/case-ragnarok.ts";
 import type { Pen } from "./pixels.ts";
 
 /**
- * The Ragnarok Eve case's four legendary auras in 2D (`core/src/case-ragnarok.ts`, slot "aura"): the draws
- * `case-aura.ts` files under `RAGNAROK_BASE + n`, on the same 28×28 frame with the 16×16 character at (6, 6),
+ * The Ragnarok Eve case's four legendary auras in 2D (`core/src/case-ragnarok.ts`, slot "aura"): the draws that
+ * `case-aura.ts` registers under `RAGNAROK_BASE + n`, on the same 28×28 frame with the 16×16 character at (6, 6),
  * eight frames to a loop. Design: `docs/cases/ragnarok-eve.md`.
  */
 
@@ -83,10 +83,13 @@ const gale: Draw = (p, f) => {
     const gy = Math.round(CY - 2 + Math.sin(a) * 4 + (i * 3 - 6) * 0.7) - 2;
     // The glyph in amber with a white spine, dimmed while it is round the back.
     const behind = Math.sin(a) < -0.4;
-    for (const [dy, row] of g.entries())
-      for (const [dx, c] of [...row].entries())
-        if (c === "X")
-          p.px(gx + dx, gy + dy, behind ? "rgba(255, 184, 74, 0.55)" : dx === 0 ? "#fff3d0" : "#ffb84a");
+    for (const [dy, row] of g.entries()) {
+      for (const [dx, c] of [...row].entries()) {
+        if (c !== "X") continue;
+        const spine = dx === 0 ? "#fff3d0" : "#ffb84a";
+        p.px(gx + dx, gy + dy, behind ? "rgba(255, 184, 74, 0.55)" : spine);
+      }
+    }
   });
 };
 

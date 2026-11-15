@@ -79,7 +79,7 @@ const branded = (b: Brand): Style => ({
   trim: b.trim,
 });
 
-function window_(p: Pen, x: number, y: number, w = 12, h = 10): void {
+function drawWindow(p: Pen, x: number, y: number, w = 12, h = 10): void {
   p.rect(x - 1, y - 1, w + 2, h + 2, C.ink);
   p.rect(x, y, w, h, "#9fd3ef");
   p.rect(x, y, w, 2, C.white);
@@ -174,11 +174,12 @@ function gabledHouse(
   let n = 1;
   while ((n + 2) * 12 + (n + 1) * gap <= w - 12) n += 2;
   const start = x0 + (w - (n * 12 + (n - 1) * gap)) / 2;
-  for (let f = 0; f < floors; f++)
+  for (let f = 0; f < floors; f++) {
     for (let i = 0; i < n; i++) {
       if (f === 0 && i === (n - 1) / 2) continue;
       pane(start + i * (12 + gap), H - 26 - f * 18);
     }
+  }
   door(p, MID, H - 1, style.trim);
   return roofTop;
 }
@@ -214,7 +215,7 @@ function plan(above: number, draw: (d: Draw) => void): (s: Style, brand: Brand |
         s,
         logo: brand?.logo != null,
         pane: (x, y, w = 12, h = 10) => {
-          window_(p, x, y, w, h);
+          drawWindow(p, x, y, w, h);
           panes.push({ x, y, w, h });
         },
         plaque: (x, y, w, h) => {
@@ -230,6 +231,9 @@ function plan(above: number, draw: (d: Draw) => void): (s: Style, brand: Brand |
   };
 }
 
+/** The five courses of stone in the cellar's shaft, darkest at the bottom. */
+const CELLAR_COURSES = ["#5a5048", "#4a423c", "#3a3430", "#2c2724", "#1f1b19"];
+
 const PLANS = [
   // Basement: a cellar hatch in a fenced yard, and one barred window at ground level.
   plan(0, ({ p, H, s, pane, plaque, logo }) => {
@@ -239,8 +243,7 @@ const PLANS = [
     p.rect(MID - 20, H - 26, 40, 25, C.ink);
     p.rect(MID - 19, H - 25, 38, 23, C.stoneDark);
     p.rect(MID - 15, H - 21, 30, 20, C.ink);
-    for (let i = 0; i < 5; i++)
-      p.rect(MID - 14, H - 20 + i * 4, 28, 3, ["#5a5048", "#4a423c", "#3a3430", "#2c2724", "#1f1b19"][i]!);
+    for (const [i, color] of CELLAR_COURSES.entries()) p.rect(MID - 14, H - 20 + i * 4, 28, 3, color);
     // The hatch doors, swung open.
     p.rect(MID - 30, H - 34, 12, 20, C.ink);
     p.rect(MID - 29, H - 33, 10, 18, s.roof);
@@ -270,14 +273,10 @@ const PLANS = [
     const x0 = MID - 24;
     const top = H - 34;
     p.rect(x0 - 2, top - 12, 52, 14, C.ink);
-    for (let y = 0; y < 12; y++)
-      p.rect(
-        x0 - 1 + Math.floor(y / 3),
-        top - 11 + y,
-        50 - Math.floor(y / 3),
-        1,
-        y % 4 === 3 ? s.roofDark : s.roof,
-      );
+    for (let y = 0; y < 12; y++) {
+      const inset = Math.floor(y / 3);
+      p.rect(x0 - 1 + inset, top - 11 + y, 50 - inset, 1, y % 4 === 3 ? s.roofDark : s.roof);
+    }
     p.rect(x0, top, 48, 34, C.ink);
     p.rect(x0 + 1, top + 1, 46, 32, s.wall);
     for (let x = x0 + 5; x < x0 + 47; x += 6) p.rect(x, top + 1, 1, 32, s.wallDark);
@@ -301,7 +300,9 @@ const PLANS = [
     p.rect(79, roofTop + 5, 6, 13, C.stoneDark);
     for (const x of [28, 72]) {
       p.rect(x - 1, H - 15, 14, 3, C.woodDark);
-      for (let i = 0; i < 4; i++) p.px(x + 1 + i * 3, H - 16, [C.flowerRed, C.flowerYellow][i % 2]!);
+      for (let i = 0; i < 4; i++) {
+        p.px(x + 1 + i * 3, H - 16, i % 2 === 0 ? C.flowerRed : C.flowerYellow);
+      }
     }
   }),
   // House: two storeys.
@@ -369,10 +370,10 @@ export const inn = once(() => {
     p.rect(4, H - 36, W - 8, 36, C.ink);
     p.rect(5, H - 36, W - 10, 35, s.wall);
     for (let x = 5; x < W - 5; x += 6) p.rect(x, H - 36, 1, 35, s.wallDark);
-    window_(p, 12, H - 26);
-    window_(p, 30, H - 26);
-    window_(p, W - 44, H - 26);
-    window_(p, W - 24, H - 26);
+    drawWindow(p, 12, H - 26);
+    drawWindow(p, 30, H - 26);
+    drawWindow(p, W - 44, H - 26);
+    drawWindow(p, W - 24, H - 26);
     door(p, W / 2, H - 1);
     // Hanging sign.
     p.rect(W / 2 + 10, H - 34, 1, 4, C.ink);
