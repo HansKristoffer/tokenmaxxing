@@ -28,13 +28,9 @@ test("the way you already face walks at once", () => {
 });
 
 test("a tap only turns: the key is gone before the delay, and the next press starts over", () => {
-  let turning: Turning | null = null;
-  const first = turnStep(turning, "up", "right", 0);
-  expect(first.act).toBe("turn");
-  turning = first.turning;
-  // Released: the caller drops `turning` (no key), so the same key later turns afresh from "up".
-  turning = null;
-  expect(turnStep(turning, "up", "up", 1000).act).toBe("walk");
+  expect(turnStep(null, "up", "right", 0).act).toBe("turn");
+  // Released: the caller passes no turning state, so the same key later turns afresh from "up".
+  expect(turnStep(null, "up", "up", 1000).act).toBe("walk");
 });
 
 test("changing the held key again restarts the delay", () => {
