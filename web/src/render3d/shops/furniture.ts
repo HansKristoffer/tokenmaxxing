@@ -65,7 +65,12 @@ export interface ShopSpec {
   buildInterior: () => {
     room: Room;
     /** World-grid tiles where a click means 'browse this item'. */
-    displays: { item: ShopItem; at: [number, number] }[];
+    displays: {
+      item: ShopItem;
+      at: [number, number];
+      /** Where the item stands in the room's own frame, when the shop places it (otherwise its tile). */
+      world?: [number, number, number];
+    }[];
     shopkeeper: Avatar;
     counter: [number, number];
     door: [number, number];
@@ -158,7 +163,7 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     shown.push(model);
   };
 
-  // — Floor pieces, by asset id and top-left tile —
+  // Floor pieces, by asset id and top-left tile.
   const floorPlaced: { p: Placed; row: FurnRow }[] = [];
   const put = (id: string, x: number, z: number, turn: Turn = 0, row = rowByAsset(id)) => {
     const base = assetOf(id);
@@ -237,12 +242,11 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   // The kitchenette: a checker floor patch and a run of appliances.
   const checker = new Model();
   checker.box([9, 0.02, 3], "#e8e2d4", [0, 0, 0], 0.002);
-  for (let i = 0; i < 9; i++)
-    for (let j = 0; j < 3; j++)
-      if ((i + j) % 2)
-        checker
-          .box([0.99, 0.025, 0.99], "#3b3f50", [-4 + i + 0.0 - 0.0 + 0.0, 0, -1 + j + 0.0], 0.001)
-          .position.set(-4 + i, 0.002, -1 + j);
+  for (let i = 0; i < 9; i++) {
+    for (let j = 0; j < 3; j++) {
+      if ((i + j) % 2) checker.box([0.99, 0.025, 0.99], "#3b3f50", [-4 + i, 0.002, -1 + j], 0.001);
+    }
+  }
   checker.position.set(23.5, 0.005, 11.5);
   room.group.add(checker);
   put("coffee", 20, 10);
@@ -252,7 +256,7 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   put("home-fridge", 25, 10);
   put("vending-machine", 26, 10);
 
-  // — The small-things shelf bank —
+  // The small-things shelf bank.
   const BANK_X = 19;
   const BANK_Z = 7;
   const bankIds = [
@@ -284,7 +288,7 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     show(s.row, BANK_X + bank.cols[i]!, BANK_Z, s.model);
   });
 
-  // — The counter, the till and Freja —
+  // The counter, the till and Freja.
   const CTR_X = 22;
   const CTR_Z = 14;
   const ctrAsset: Asset = {
@@ -327,14 +331,14 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     keeper.avatar.update(dt, t);
   });
 
-  // — The way out —
+  // The way out.
   const DOOR_X = 10;
   const door = exitDoorway({ outside: true, wall: "#efe3cc", leaf: "#2c5f5a" });
   door.position.set(DOOR_X + 0.5, 0, D + 0.5);
   door.rotation.y = Math.PI;
   room.group.add(door);
 
-  // — Wall pieces on the north wall: posters, then the hangings —
+  // Wall pieces on the north wall: posters, then the hangings.
   const measure = (m: Model): THREE.Box3 => {
     m.updateMatrixWorld(true);
     return new THREE.Box3().setFromObject(m);
@@ -378,7 +382,7 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     hx += w + 0.22;
   }
 
-  // — Samples on the west wall: wallpaper in two rows of five, floors in two rows of five —
+  // Samples on the west wall: wallpaper in two rows of five, floors in two rows of five.
   const PANEL = { w: 1.35, h: 1.0 };
   const PITCH = 1.55;
   const west = (m: Model, zc: number, y: number) => {
@@ -418,30 +422,26 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     0.1,
   );
   const hdrW = headerBoard("WALLPAPER", "10 patterns · E to browse", 7.8, 0.28);
-  west(hdrW, 1.0 + 3.9, 2.38 - 0.0);
+  west(hdrW, 1.0 + 3.9, 2.38);
   const hdrF = headerBoard("FLOOR SAMPLES", "10 floors · E to browse", 7.8, 0.28);
-  west(hdrF, 9.7 + 3.9, 2.38 - 0.0);
-  const hdrP = headerBoard("POSTER WALL", "10 prints", 3.2, 0.26);
-  hdrP.position.set(4.2, 2.36, 0.012);
-  // (the poster wall is labelled by its own tags; no extra header)
+  west(hdrF, 9.7 + 3.9, 2.38);
+  // The poster wall is labelled by its own tags, so it gets no header board.
 
-  // — Placards for the floor pieces —
+  // Placards for the floor pieces.
   const tileOpen = (x: number, z: number) =>
     room.inside(x, z) && room.open(x, z) && !used.has(tile(x, z)) && z < D - 1;
   for (const { p, row } of floorPlaced) {
     const [fw, fd] = Room.footprint(p.asset, p.turn);
     const front = p.z + fd;
+
+    // Candidate spots for the tag, in order of preference: centred under the piece, under each of its
+    // tiles, then either side of it. The first one with open, unused tiles wins; else the centred one.
+    const middle = Math.floor(p.x + fw / 2);
     const spots: { cx: number; z: number; tiles: number[] }[] = [];
-    spots.push({
-      cx: p.x + fw / 2,
-      z: front,
-      tiles: Array.from({ length: fw === 1 ? 1 : 2 }, (_, i) =>
-        fw === 1 ? p.x : Math.floor(p.x + fw / 2) - 1 + i,
-      ),
-    });
+    spots.push({ cx: p.x + fw / 2, z: front, tiles: fw === 1 ? [p.x] : [middle - 1, middle] });
     for (let i = 0; i < fw; i++) spots.push({ cx: p.x + i + 0.5, z: front, tiles: [p.x + i] });
     spots.push(
-      { cx: p.x - 0.5, z: front - 0.0, tiles: [p.x - 1] },
+      { cx: p.x - 0.5, z: front, tiles: [p.x - 1] },
       { cx: p.x + fw + 0.5, z: front, tiles: [p.x + fw] },
     );
     let spot = spots.find((s) => s.tiles.every((x) => tileOpen(x, front)));
@@ -452,7 +452,7 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     room.group.add(tag);
   }
 
-  // — Section signs —
+  // Section signs.
   const signs: [string, string, number, number][] = [
     ["MONITORS", "desk setups · laptop to battlestation", 17.3, 2.4],
     ["COMPANY SUPPLIES", "furniture · posters · house desks", 15.5, 14.7],
@@ -468,7 +468,7 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     room.group.add(s);
   }
 
-  // — Warm light for the night, and the shop windows —
+  // Warm light for the night, and the shop windows.
   const lamps = new Model();
   for (const [x, z] of [
     [7, 7],
@@ -485,10 +485,11 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     light(lamps, [x, 2.2, z], "#ffd9a0", 4, 9);
   room.group.add(lamps);
 
-  // — Every catalogue item has a display, and none is missing —
+  // Every catalogue item has a display, and none is missing.
   const missing = ITEMS.filter((i) => !seen.has(i.id));
-  if (missing.length)
+  if (missing.length) {
     throw new Error(`furniture shop: not on display: ${missing.map((m) => m.id).join(", ")}`);
+  }
 
   room.group.updateMatrixWorld(true);
   const box = new THREE.Box3();

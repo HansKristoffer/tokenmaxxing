@@ -140,12 +140,11 @@ export function paintCard(
   // The glow, and the soft shadow the item stands in.
   if (GLOW[rarity] > 0) {
     const r = g.createRadialGradient(CARD_W / 2, ICON_H * 0.55, 4, CARD_W / 2, ICON_H * 0.55, ICON_H * 0.5);
-    r.addColorStop(
-      0,
-      `${color}${Math.round(GLOW[rarity] * 255)
-        .toString(16)
-        .padStart(2, "0")}`,
-    );
+    // The glow's alpha as the two hex digits a `#rrggbbaa` colour takes.
+    const alpha = Math.round(GLOW[rarity] * 255)
+      .toString(16)
+      .padStart(2, "0");
+    r.addColorStop(0, `${color}${alpha}`);
     r.addColorStop(1, `${color}00`);
     g.fillStyle = r;
     g.fillRect(0, 0, CARD_W, ICON_H);
@@ -160,8 +159,9 @@ export function paintCard(
   if (typeof picture === "string") {
     g.font = `${ICON_H * 0.55}px system-ui, sans-serif`;
     g.fillText(picture, CARD_W / 2, ICON_H * 0.5);
-  } else if (picture) g.drawImage(picture, 0, 0, CARD_W, ICON_H);
-  else {
+  } else if (picture) {
+    g.drawImage(picture, 0, 0, CARD_W, ICON_H);
+  } else {
     g.fillStyle = `${color}55`;
     pill(g, CARD_W * 0.3, ICON_H * 0.3, CARD_W * 0.4, ICON_H * 0.4, 8);
     g.fill();
@@ -204,7 +204,8 @@ export function paintCard(
 /** A dashed square with a plus in it, lying on the surface: drawn once for every free slot. */
 function markerTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
-  c.width = c.height = 64;
+  c.width = 64;
+  c.height = 64;
   const g = c.getContext("2d")!;
   g.strokeStyle = "#7a5a36";
   g.lineWidth = 3;

@@ -12,16 +12,18 @@ export const PLUM = "#6b3f6e";
 export const PINK = "#e8789a";
 export const CREAM = "#fbf4ea";
 
+/** Word-wraps `text` to `max` pixels. Two lines at most: `priceTag` has room for two under the rarity bar. */
 const fit = (g: CanvasRenderingContext2D, text: string, max: number): string[] => {
-  const words = text.split(" ");
   const lines: string[] = [];
   let line = "";
-  for (const w of words) {
+  for (const w of text.split(" ")) {
     const next = line ? `${line} ${w}` : w;
     if (g.measureText(next).width > max && line) {
       lines.push(line);
       line = w;
-    } else line = next;
+    } else {
+      line = next;
+    }
   }
   if (line) lines.push(line);
   return lines.slice(0, 2);

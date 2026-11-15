@@ -32,7 +32,7 @@ const PET_SNAPSHOT: readonly ShopPet[] = [
 export const CATALOG_PETS: readonly ShopPet[] = fromCore(PET_SNAPSHOT);
 
 /** `Look.petVariant` n is `PET_VARIANTS[species][n - 1]`; 0 is the pet as the shop sells it. */
-export const SHOP_VARIANTS: Record<"duck" | "cat" | "dog" | "dragon" | "panda", readonly string[]> = {
+export const SHOP_VARIANTS: Record<Exclude<ShopPet["species"], "orb">, readonly string[]> = {
   duck: ["mallard", "rubber", "pekin", "swedish", "duckling", "ghost"],
   cat: ["black", "tuxedo", "siamese", "calico", "greytabby", "sphynx", "witch"],
   dog: [

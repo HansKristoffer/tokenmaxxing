@@ -4,7 +4,7 @@
  */
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
-import { canvasTexture, glass, glow, Model, painted, ticks, tint } from "../kit/kit.ts";
+import { canvasTexture, glass, glow, Model, ticks, tint } from "../kit/kit.ts";
 import { panel } from "../kit/panel.ts";
 import type { Pet3D, PetPose } from "../pets/pets3d.ts";
 
@@ -43,11 +43,15 @@ export function animate(pet: Pet3D, seed: number, mood: Mood, transient = false)
   live(
     pet.root,
     (t) => {
-      if (mood === "stand" || mood === "sit" || mood === "sleep") pet.pose = mood;
-      else {
+      if (mood === "stand" || mood === "sit" || mood === "sleep") {
+        pet.pose = mood;
+      } else {
+        // A cycle of 40 s per pet, staggered by its seed: `a` and `b` split it into stand, sit and sleep.
         const k = (t / 40 + seed * 0.37) % 1;
         const [a, b] = mood === "lively" ? [0.5, 0.82] : [0.2, 0.45];
-        pet.pose = k < a ? "stand" : k < b ? "sit" : "sleep";
+        if (k < a) pet.pose = "stand";
+        else if (k < b) pet.pose = "sit";
+        else pet.pose = "sleep";
       }
       pet.moving = pet.pose === "stand" && (t * 0.5 + seed * 3) % 7 < 0.8;
       pet.update(t);
@@ -220,6 +224,7 @@ export function speckle(
   d: number,
   seed: number,
 ): THREE.CanvasTexture {
+  // A seeded linear congruential generator (the Numerical Recipes constants): one seed, one picture of straw.
   let s = seed;
   const rnd = () => {
     s = (s * 1664525 + 1013904223) >>> 0;
@@ -265,7 +270,9 @@ export function fence(
   if (gap) {
     run(x0, z1, gap.x - gap.w / 2, z1);
     run(gap.x + gap.w / 2, z1, x1, z1);
-  } else run(x0, z1, x1, z1);
+  } else {
+    run(x0, z1, x1, z1);
+  }
 }
 
 /** A sign on a post: a lit board with a title and a line under it. */
@@ -370,9 +377,8 @@ export function foodBag(m: Model, x: number, y: number, z: number, color: string
 }
 
 /** The pet crown (gold, red stone), stood on the floor of its own model. */
-export function crownProp(scale = 1): Model {
+export function crownProp(s = 1): Model {
   const m = new Model();
-  const s = scale;
   m.cyl(0.17 * s, 0.07 * s, "#c98e22", [0, 0, 0], 0.17 * s, 18);
   m.cyl(0.17 * s, 0.015 * s, "#fff1a8", [0, 0.07 * s, 0], 0.17 * s, 18);
   for (let i = 0; i < 5; i++) {
@@ -427,5 +433,3 @@ export function sparkles(m: Model, at: [number, number, number], r: number, n = 
     }),
   );
 }
-
-export { painted };

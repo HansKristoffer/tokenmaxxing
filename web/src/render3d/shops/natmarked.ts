@@ -204,7 +204,7 @@ function noren(width: number, drop: number, panels = 3): Model {
   return m;
 }
 
-/** A stool: a round wooden seat on three legs, `h` high. */
+/** A stool: a round wooden seat on three legs, about 0.4 high. */
 function stool(): Model {
   const m = new Model();
   m.cyl(0.19, 0.06, TIMBER_L, [0, 0.3, 0], 0.19, 12);
@@ -226,7 +226,7 @@ function teaTable(): Model {
   m.cyl(0.07, 0.08, "#f3efe2", [-0.1, 0.66, 0.05], 0.06, 10);
   m.cyl(0.03, 0.04, "#f3efe2", [0.12, 0.66, 0.1], 0.025, 8);
   m.cyl(0.03, 0.04, "#f3efe2", [0.14, 0.66, -0.08], 0.025, 8);
-  const lamp = m.ball(0.07, RED, [0.0, 0.76, -0.1], [1, 1.2, 1], 8);
+  const lamp = m.ball(0.07, RED, [0, 0.76, -0.1], [1, 1.2, 1], 8);
   nightGlow(lamp, "#ffae5c");
   light(m, [0, 1.0, 0], "#ff9d5c", 0.6, 2.4);
   return m;
@@ -236,11 +236,11 @@ function teaTable(): Model {
 function post(): Model {
   const m = new Model();
   m.box([0.22, 2.2, 0.22], TIMBER_D, [0, 0, 0], 0.02);
-  m.box([0.3, 0.1, 0.3], TIMBER_L, [0, 0.0, 0], 0.02);
+  m.box([0.3, 0.1, 0.3], TIMBER_L, [0, 0, 0], 0.02);
   m.box([0.3, 0.08, 0.3], TIMBER_L, [0, 2.1, 0], 0.02);
   m.box([0.04, 0.5, 0.04], TIMBER_L, [0.17, 1.75, 0], 0.008);
-  m.box([0.35, 0.04, 0.04], TIMBER_L, [0.0, 2.2, 0], 0.008);
-  lantern(m, [0.17, 1.72, 0.0], 0.11);
+  m.box([0.35, 0.04, 0.04], TIMBER_L, [0, 2.2, 0], 0.008);
+  lantern(m, [0.17, 1.72, 0], 0.11);
   return m;
 }
 
@@ -330,7 +330,7 @@ function exterior(): Model {
   ] as const) {
     const side = m.part([sx, 0, -d / 2], rot);
     for (let i = 0; i <= 9; i++)
-      side.box([0.05, h - 0.2, 0.03], TIMBER_D, [-d / 2 + 0.2 + i * ((d - 0.4) / 9), 0.18, 0.0], 0.005);
+      side.box([0.05, h - 0.2, 0.03], TIMBER_D, [-d / 2 + 0.2 + i * ((d - 0.4) / 9), 0.18, 0], 0.005);
     // A paper-screen window on each side, glowing.
     const pane = side.box([1.1, 0.7, 0.04], "#f6e6bf", [0, 0.8, 0.01], 0.01);
     nightGlow(pane, "#ffcf86");
@@ -356,7 +356,7 @@ function exterior(): Model {
   m.box([w + 0.75, 0.1, 0.16], ROOF, [0, h + rise, -d / 2], 0.02);
   for (const x of [-1, 1]) m.box([0.14, 0.2, 0.2], GOLD, [x * (w / 2 + 0.38), h + rise - 0.04, -d / 2], 0.03);
   // The door: a dark opening, a lintel, and the noren across it.
-  m.box([1.25, 1.65, 0.1], "#140d0b", [0, 0.16, 0.0], 0.01);
+  m.box([1.25, 1.65, 0.1], "#140d0b", [0, 0.16, 0], 0.01);
   m.box([1.5, 0.12, 0.14], TIMBER_L, [0, 1.8, 0.03], 0.015);
   for (const s of [-1, 1]) m.box([0.12, 1.8, 0.14], TIMBER_L, [s * 0.69, 0.16, 0.03], 0.015);
   const curtain = noren(1.14, 0.78);
@@ -428,7 +428,7 @@ const asset = (
   extra: Partial<Asset> = {},
 ): Asset => ({ id, name, price: 0, w, d, build, ...extra });
 
-/** A timber noticeboard at the entrance, matching the hall’s paper plaques. */
+/** A timber noticeboard at the entrance, matching the hall's paper plaques. */
 function caseBoard(): Model {
   const m = new Model();
   for (const x of [-0.7, 0.7]) {
@@ -455,19 +455,19 @@ function silhouette(m: Model, i: number, y: number): void {
   const dark = "#0e0a14";
   switch (i % 5) {
     case 1: // a crate with a lid
-      m.box([0.72, 0.42, 0.42], dark, [0, y, 0.0], 0.04);
-      m.box([0.78, 0.12, 0.46], dark, [0, y + 0.42, 0.0], 0.04);
+      m.box([0.72, 0.42, 0.42], dark, [0, y, 0], 0.04);
+      m.box([0.78, 0.12, 0.46], dark, [0, y + 0.42, 0], 0.04);
       break;
     case 2: {
       // a round-lidded trunk
-      m.box([0.78, 0.34, 0.44], dark, [0, y, 0.0], 0.04);
+      m.box([0.78, 0.34, 0.44], dark, [0, y, 0], 0.04);
       const lid = m.cyl(0.22, 0.78, dark, [0.39, y + 0.34, 0], 0.22, 14);
       lid.rotation.z = Math.PI / 2;
       lid.scale.set(1, 1, 0.9);
       break;
     }
     case 3: // a tall cabinet with a knob
-      m.box([0.48, 0.74, 0.4], dark, [0, y, 0.0], 0.04);
+      m.box([0.48, 0.74, 0.4], dark, [0, y, 0], 0.04);
       m.ball(0.04, dark, [0.13, y + 0.4, 0.22], [1, 1, 1], 6);
       break;
     case 4: // a drum
@@ -475,9 +475,9 @@ function silhouette(m: Model, i: number, y: number): void {
       m.cyl(0.32, 0.05, dark, [0, y + 0.5, 0], 0.32, 14);
       break;
     default: // a long scroll case
-      m.box([0.9, 0.28, 0.32], dark, [0, y, 0.0], 0.04);
-      m.box([0.1, 0.34, 0.36], dark, [-0.4, y - 0.03, 0.0], 0.03);
-      m.box([0.1, 0.34, 0.36], dark, [0.4, y - 0.03, 0.0], 0.03);
+      m.box([0.9, 0.28, 0.32], dark, [0, y, 0], 0.04);
+      m.box([0.1, 0.34, 0.36], dark, [-0.4, y - 0.03, 0], 0.03);
+      m.box([0.1, 0.34, 0.36], dark, [0.4, y - 0.03, 0], 0.03);
   }
 }
 
@@ -534,12 +534,12 @@ function counter(): Model {
   m.box([w - 0.2, 0.04, 0.04], GOLD, [0, 0.76, 0.375], 0.004);
   m.box([w + 0.12, 0.07, 0.82], "#120e16", [0, 0.9, 0], 0.02);
   // The stand for the current case: two lacquered steps with gold edges, and a pool of warm light.
-  const stand = m.part([1.55, 0.97, 0.0]);
+  const stand = m.part([1.55, 0.97, 0]);
   stand.box([1.15, 0.1, 0.62], RED_D, [0, 0, 0], 0.02);
   stand.box([1.2, 0.025, 0.66], GOLD, [0, 0.1, 0], 0.006);
   stand.box([1.0, 0.07, 0.5], LACQUER, [0, 0.125, 0], 0.015);
   const nm = buildCaseBox(false);
-  nm.position.set(0, 0.2, 0.0);
+  nm.position.set(0, 0.2, 0);
   stand.add(nm);
   const name = plaque(0.9, 0.17, "NIGHT MARKET CASE", undefined, true);
   name.position.set(0, 0.02, 0.34);
@@ -548,7 +548,7 @@ function counter(): Model {
   stand.add(name);
   light(stand, [0, 1.0, 0.4], "#ffc27a", 1.5, 3.5);
   // The till end: an abacus, a brass bell, a stack of tokens.
-  const ab = m.part([-1.9, 0.97, 0.0]);
+  const ab = m.part([-1.9, 0.97, 0]);
   ab.box([0.5, 0.05, 0.3], TIMBER_L, [0, 0, 0], 0.01);
   for (const z of [-0.12, 0.12]) ab.box([0.5, 0.05, 0.03], TIMBER_L, [0, 0.05, z], 0.005);
   for (let r = 0; r < 4; r++)
@@ -557,7 +557,7 @@ function counter(): Model {
         0.025,
         0.02,
         c % 2 ? RED : "#f3efe2",
-        [-0.2 + c * 0.08 + (r % 2) * 0.01, 0.06 + r * 0.045 * 0, -0.1 + r * 0.07],
+        [-0.2 + c * 0.08 + (r % 2) * 0.01, 0.06, -0.1 + r * 0.07],
         0.025,
         6,
       );
@@ -568,24 +568,22 @@ function counter(): Model {
   const cat = m.part([2.75, 0.97, 0.05]);
   cat.ball(0.14, "#f3efe2", [0, 0.14, 0], [1, 1.1, 0.9], 10);
   cat.ball(0.1, "#f3efe2", [0, 0.34, 0.02], [1.1, 1, 0.95], 10);
-  for (const s of [-1, 1]) cat.box([0.04, 0.07, 0.03], "#f3efe2", [s * 0.065, 0.4, 0.0], 0.008);
+  for (const s of [-1, 1]) cat.box([0.04, 0.07, 0.03], "#f3efe2", [s * 0.065, 0.4, 0], 0.008);
   cat.box([0.06, 0.04, 0.02], RED, [0, 0.27, 0.1], 0.006);
   const paw = cat.part([0.11, 0.2, 0.08]);
   paw.box([0.05, 0.14, 0.05], "#f3efe2", [0, 0, 0], 0.012);
   ticks.push((t) => (paw.rotation.z = Math.sin(t * 2.4) * 0.35));
-  light(m, [0, 1.9, 0.0], "#ffd9a8", 1.0, 5);
+  light(m, [0, 1.9, 0], "#ffd9a8", 1.0, 5);
   return m;
 }
 
-/** A noodle bar or a tea stall: a counter facing +z (its front, towards the stools), a back wall and a canopy. */
-function stall(kind: "noodles" | "tea"): Model {
-  const m = new Model();
-  const noodle = kind === "noodles";
+/** The frame every stall shares: a back wall, a counter facing +z (`front` is its colour), a canopy and a cooking bench. */
+function stallFrame(m: Model, front: string): void {
   // 2 wide (x), 3 deep (z): the customers' side is z = +1.5.
   m.box([1.9, 1.8, 0.1], TIMBER_D, [0, 0, -1.4], 0.01);
   m.box([1.9, 0.78, 0.55], TIMBER, [0, 0, 0.78], 0.02);
   m.box([2.0, 0.07, 0.7], LACQUER, [0, 0.78, 0.78], 0.015);
-  m.box([1.7, 0.45, 0.03], noodle ? RED_D : INDIGO, [0, 0.14, 1.07], 0.01);
+  m.box([1.7, 0.45, 0.03], front, [0, 0.14, 1.07], 0.01);
   for (const s of [-1, 1]) m.box([0.07, 1.75, 0.07], TIMBER_L, [s * 0.95, 0, 1.15], 0.01);
   canopy(m, 2.1, 1.78, -1.4, 1.4, 0.3);
   // The back shelf and a cooking bench.
@@ -594,42 +592,59 @@ function stall(kind: "noodles" | "tea"): Model {
   m.box([1.7, 0.05, 0.3], TIMBER_L, [0, 1.15, -1.25], 0.01);
   for (let i = 0; i < 5; i++)
     m.cyl(0.06, 0.12, i % 2 ? "#f3efe2" : "#8aa4c8", [-0.7 + i * 0.35, 1.2, -1.25], 0.05, 8);
-  if (noodle) {
-    m.cyl(0.26, 0.28, "#9aa3ad", [-0.4, 0.75, -1.0], 0.26, 14);
-    m.cyl(0.27, 0.03, "#6e7681", [-0.4, 1.02, -1.0], 0.27, 14);
-    steam(m, [-0.4, 1.1, -1.0], 5, 0.9, 0.12);
-    m.cyl(0.2, 0.2, "#6e7681", [0.35, 0.75, -1.0], 0.2, 12);
-    steam(m, [0.35, 0.98, -1.0], 3, 0.7, 0.09);
-    for (const x of [-0.5, -0.1, 0.4]) m.cyl(0.085, 0.07, "#f3efe2", [x, 0.85, 0.7], 0.06, 10);
-    const board = menu(0.9, 0.55, "NOODLES", [
-      ["Tonkotsu", "3"],
-      ["Spicy miso", "3"],
-      ["Cold soba", "2"],
-    ]);
-    board.position.set(0.1, 1.15, -1.3);
-    board.scale.setScalar(0.9);
-    m.add(board);
-  } else {
-    m.cyl(0.14, 0.2, "#3b2f2f", [-0.4, 0.85, 0.75], 0.1, 12);
-    m.cyl(0.015, 0.14, "#3b2f2f", [-0.4, 1.05, 0.75], 0.015, 6);
-    steam(m, [-0.4, 1.2, 0.75], 3, 0.6, 0.07);
-    for (const x of [-0.1, 0.0, 0.1, 0.2]) m.cyl(0.04, 0.05, "#f3efe2", [x, 0.85, 0.7], 0.03, 8);
-    m.cyl(0.17, 0.1, "#c9a05a", [0.5, 0.85, 0.7], 0.17, 12);
-    m.cyl(0.17, 0.1, "#d8b06a", [0.5, 0.95, 0.7], 0.17, 12);
-    steam(m, [0.5, 1.1, 0.7], 4, 0.7, 0.09);
-    const board = menu(0.9, 0.55, "TEA & BUNS", [
-      ["Jasmine", "1"],
-      ["Red-bean bun", "2"],
-      ["Sesame ball", "2"],
-    ]);
-    board.position.set(0.1, 1.15, -1.3);
-    board.scale.setScalar(0.9);
-    m.add(board);
-  }
+}
+
+/** The lanterns along the front eave and the warm light over the stools. */
+function stallLights(m: Model): void {
   for (const x of [-0.7, 0, 0.7]) lantern(m, [x, 1.46, 1.38], 0.075, x === 0 ? "#f08a3c" : RED);
   light(m, [0, 1.3, 0.6], "#ff9d5c", 1.0, 3.5);
+}
+
+/** The noodle bar: two pots with steam, a row of bowls and the noodle menu on the back wall. */
+function noodleBar(): Model {
+  const m = new Model();
+  stallFrame(m, RED_D);
+  m.cyl(0.26, 0.28, "#9aa3ad", [-0.4, 0.75, -1.0], 0.26, 14);
+  m.cyl(0.27, 0.03, "#6e7681", [-0.4, 1.02, -1.0], 0.27, 14);
+  steam(m, [-0.4, 1.1, -1.0], 5, 0.9, 0.12);
+  m.cyl(0.2, 0.2, "#6e7681", [0.35, 0.75, -1.0], 0.2, 12);
+  steam(m, [0.35, 0.98, -1.0], 3, 0.7, 0.09);
+  for (const x of [-0.5, -0.1, 0.4]) m.cyl(0.085, 0.07, "#f3efe2", [x, 0.85, 0.7], 0.06, 10);
+  const board = menu(0.9, 0.55, "NOODLES", [
+    ["Tonkotsu", "3"],
+    ["Spicy miso", "3"],
+    ["Cold soba", "2"],
+  ]);
+  board.position.set(0.1, 1.15, -1.3);
+  board.scale.setScalar(0.9);
+  m.add(board);
+  stallLights(m);
   return m;
 }
+
+/** The tea stall: a dark pot, a row of cups, a stacked steamer and the tea menu on the back wall. */
+function teaStall(): Model {
+  const m = new Model();
+  stallFrame(m, INDIGO);
+  m.cyl(0.14, 0.2, "#3b2f2f", [-0.4, 0.85, 0.75], 0.1, 12);
+  m.cyl(0.015, 0.14, "#3b2f2f", [-0.4, 1.05, 0.75], 0.015, 6);
+  steam(m, [-0.4, 1.2, 0.75], 3, 0.6, 0.07);
+  for (const x of [-0.1, 0, 0.1, 0.2]) m.cyl(0.04, 0.05, "#f3efe2", [x, 0.85, 0.7], 0.03, 8);
+  m.cyl(0.17, 0.1, "#c9a05a", [0.5, 0.85, 0.7], 0.17, 12);
+  m.cyl(0.17, 0.1, "#d8b06a", [0.5, 0.95, 0.7], 0.17, 12);
+  steam(m, [0.5, 1.1, 0.7], 4, 0.7, 0.09);
+  const board = menu(0.9, 0.55, "TEA & BUNS", [
+    ["Jasmine", "1"],
+    ["Red-bean bun", "2"],
+    ["Sesame ball", "2"],
+  ]);
+  board.position.set(0.1, 1.15, -1.3);
+  board.scale.setScalar(0.9);
+  m.add(board);
+  stallLights(m);
+  return m;
+}
+
 /** A runner from the door to the counter, flat. */
 function runner(): Model {
   const m = new Model();
@@ -655,7 +670,7 @@ function makeKeeper(): Avatar {
   const b = a.body;
   b.box([0.3, 0.3, 0.02], INDIGO, [0, 0.38, 0.1], 0.008);
   b.box([0.04, 0.3, 0.022], "#f3efe2", [0, 0.38, 0.105], 0.004);
-  for (const s of [-1, 1]) b.box([0.05, 0.24, 0.2], INDIGO, [s * 0.16, 0.4, 0.0], 0.01);
+  for (const s of [-1, 1]) b.box([0.05, 0.24, 0.2], INDIGO, [s * 0.16, 0.4, 0], 0.01);
   return a;
 }
 
@@ -700,13 +715,13 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
 
   // The noodle bar (west) and tea stall (east), each with a cook behind it and stools in front.
   put(
-    asset("natmarked:noodles", "Noodle bar", 2, 3, () => stall("noodles")),
+    asset("natmarked:noodles", "Noodle bar", 2, 3, () => noodleBar()),
     0,
     2,
     1,
   );
   put(
-    asset("natmarked:tea", "Tea stall", 2, 3, () => stall("tea")),
+    asset("natmarked:tea", "Tea stall", 2, 3, () => teaStall()),
     15,
     2,
     3,

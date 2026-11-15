@@ -1,8 +1,8 @@
 /**
  * A snapshot of everything the 2D furniture shop sells, so the 3D showroom stocks the same shelves.
- * Sources (tokenmaxxing; pr2 for the newer files): `core/src/office.ts` (FURNITURE, COMPANY_FURNITURE),
- * `core/src/posters.ts` (POSTERS, appended to COMPANY_FURNITURE), `core/src/home.ts` (HOME_PIECES, pr2),
- * `core/src/decor.ts` (WALLPAPERS, FLOORS, pr2's longer lists) and `core/src/desks.ts` (DESKS).
+ * Sources: `core/src/office.ts` (FURNITURE, COMPANY_FURNITURE), `core/src/posters.ts` (POSTERS, appended to
+ * COMPANY_FURNITURE), `core/src/home.ts` (HOME_PIECES), `core/src/decor.ts` (WALLPAPERS, FLOORS) and
+ * `core/src/desks.ts` (DESKS).
  * Ids are the 2D purchase names: `furn.<ch>`, `decor.<kind>.<id>`, `desk.<id>`. `asset` names the 3D model
  * (an `Asset` id in furniture.ts / furniture3d.ts / posters3d.ts, a look id in decor3d.ts, or a `DESK_TIERS`
  * index for desks). Keep in step by hand.
