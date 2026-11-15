@@ -31,7 +31,7 @@ RUN bun run site:build
 # and company logos go next to it in /data/logos.
 # The RIVET* vars are read by RivetKit's native side and the engine it starts, so they must be
 # real environment.
-# Warnings, because what comes before an engine hiccup is one ("slow sqlite transaction",
+# Log level warn: an engine hiccup shows up first as a warning ("slow sqlite transaction",
 # "sqlite response lost after websocket disconnect", "Actor tunnel aborted the request").
 # TCP_NODELAY on the engine's sockets: actors and the engine talk over loopback, and without it
 # the engine's replies wait on delayed ACKs, ~40 ms on every actor call. (The runner's side of

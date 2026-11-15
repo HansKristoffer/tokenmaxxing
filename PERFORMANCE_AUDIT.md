@@ -79,7 +79,7 @@ Started from `57bd40c`, on 2026-11-12. The first pass was the renderer; this one
 
 ### Evidence
 
-**The world under load**: `bun scripts/perf/load.ts --n 100 --secs 30` (100 players walking, 200 offline of whom 100 sync), `57bd40c` and this change in alternation, three pairs. Every pair went the same way for every row marked.
+**The world under load.** `bun scripts/perf/load.ts --n 100 --secs 30` (100 players walking, 200 offline of whom 100 sync), `57bd40c` and this change in alternation, three pairs. Every pair went the same way for every row marked.
 
 | 100 walking players       | Before (median, range) | After (median, range) | Change        |
 | ------------------------- | ---------------------: | --------------------: | ------------- |
@@ -97,7 +97,7 @@ One run each at 200 walking players, where the engine is past its message limit:
 
 The changes were measured one at a time on the way. Plain reads, one lookup and `lastInput` in memory: tick 4.3 → 2.7 ms, three of three pairs. Moves written once on top of that: 2.7 → 1.6 ms, three of three, with server CPU unchanged (44.5 → 44.5).
 
-**The cutaway probe**: `bun scripts/perf/occlusion.ts`, three runs of each build in alternation; the decision at each of 40 stops per room is the same in both.
+**The cutaway probe.** `bun scripts/perf/occlusion.ts`, three runs of each build in alternation; the decision at each of 40 stops per room is the same in both.
 
 | Room    | Moving median before, ms | Moving median after, ms |
 | ------- | -----------------------: | ----------------------: |
@@ -108,7 +108,7 @@ The changes were measured one at a time on the way. Plain reads, one lookup and 
 
 A probe that finds nothing changed costs what it did (0.06 to 0.43 ms): that is the walk over the room and the comparison.
 
-**The game with a crowd**: `bun scripts/perf/game.mjs --tiers medium,medium,high --walkers 40 --warmup 6000 --ms 10000 --alloc`, the production build of each, run before, after, after, before; two Medium observers per run, so four readings a side. No page errors in any run.
+**The game with a crowd.** `bun scripts/perf/game.mjs --tiers medium,medium,high --walkers 40 --warmup 6000 --ms 10000 --alloc`, the production build of each, run before, after, after, before; two Medium observers per run, so four readings a side. No page errors in any run.
 
 | Medium, town, 44 people            |                 Before |                  After |
 | ---------------------------------- | ---------------------: | ---------------------: |
@@ -182,11 +182,6 @@ and 996,000 rows (124 MB) in 97 s, into a new store of 295 MB. `server/test/migr
 written by release 1.19.0 itself and asks it the same questions before and after, moves every awkward value
 (integers past a double, reals, blobs, counters of deleted rows, tables without a rowid, a state of 300 KB),
 and breaks a move halfway.
-
-### Remaining recommendations
-
-| Work | Why it remains separate | What it would buy |
-| ---- | ----------------------- | ----------------- |
 
 ## Fourth pass: what RivetKit 3 deprecates, and what it adds
 
