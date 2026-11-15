@@ -26,6 +26,7 @@ export function panel(
   const tex: THREE.CanvasTexture = canvasTexture(cw, ch, (g) => draw(g, cw, ch), smooth);
   m.plane(w, h, lit ? glow("#fff", tex) : painted(tex), [0, lift + (h + 0.12) / 2, 0.045]);
   m.redraw = (d) => {
+    // The canvas behind the texture is one `canvasTexture` made, so it always has a 2D context.
     const g = (tex.image as HTMLCanvasElement).getContext("2d")!;
     g.clearRect(0, 0, cw, ch);
     d(g, cw, ch);
