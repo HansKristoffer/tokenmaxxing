@@ -14,6 +14,7 @@ export const tierOf = (i: Item): Rarity => i.rarity ?? "common";
 export function tierChances(def: CaseDef): Record<Rarity, number> {
   const has = (i: number) => def.items.some((it) => tierOf(it) === RARITIES[i]);
   const out = Object.fromEntries(RARITIES.map((r) => [r, 0])) as Record<Rarity, number>;
+  // With every odd at zero the total is 1 rather than 0, so the chances come out 0 and not NaN.
   const total = RARITIES.reduce((a, r) => a + def.odds[r], 0) || 1;
   RARITIES.forEach((r, at) => {
     let tier = at;
@@ -22,7 +23,8 @@ export function tierChances(def: CaseDef): Record<Rarity, number> {
       tier = at;
       while (tier < RARITIES.length && !has(tier)) tier++;
     }
-    if (tier < RARITIES.length) out[RARITIES[tier]!] += def.odds[r] / total;
+    const rarity = RARITIES[tier];
+    if (rarity !== undefined) out[rarity] += def.odds[r] / total;
   });
   return out;
 }
@@ -46,7 +48,9 @@ export function itemChances(def: CaseDef): ItemChance[] {
 /** A chance as a percentage: "47.5%", "1.25%", "0.5%". */
 export function percent(chance: number): string {
   const p = chance * 100;
+  // Big chances keep one decimal and small ones two, so both 47.5% and 1.25% read well.
   const s = p >= 10 ? p.toFixed(1) : p.toFixed(2);
+  // Drops the zeros toFixed pads on: "50.0" becomes "50", "0.50" becomes "0.5".
   return `${s.replace(/\.?0+$/, "")}%`;
 }
 
@@ -58,7 +62,8 @@ export function spareCopies(
   let copies = 0;
   let coins = 0;
   for (const it of def.items) {
-    const spare = Math.max(0, (bag.find((b) => b.item === it.id)?.count ?? 0) - 1);
+    const owned = bag.find((b) => b.item === it.id)?.count ?? 0;
+    const spare = Math.max(0, owned - 1);
     copies += spare;
     coins += spare * VENDOR_COINS[tierOf(it)];
   }

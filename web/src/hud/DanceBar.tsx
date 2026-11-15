@@ -27,6 +27,7 @@ export function DanceBar({ onError }: { onError: (message: string | null) => voi
     e.currentTarget.blur();
     onError(null);
     const was = hud.get().dancing;
+    // Pressing the dance that is on stops it: 0 is no dance.
     const next = was === d.index ? 0 : d.index;
     const me = world.avatars.get(world.selfId);
     if (next && me && me.state !== "idle") return onError("Get up first: you dance on your feet.");
@@ -76,9 +77,11 @@ export function DanceBar({ onError }: { onError: (message: string | null) => voi
           aria-label={`${more} more dances at ${SHOPS.clothes.name}`}
           onClick={(e) => {
             e.currentTarget.blur();
-            if (inShop) hud.set({ panel: { kind: "shop", tab: "dance" } });
-            else if (!goToShopDoor("clothes"))
+            if (inShop) {
+              hud.set({ panel: { kind: "shop", tab: "dance" } });
+            } else if (!goToShopDoor("clothes")) {
               onError(`${SHOPS.clothes.name} has no door in town right now.`);
+            }
           }}
         >
           +{more}

@@ -30,14 +30,17 @@ export function chatRuns<T extends { userId: number; name: string; text: string 
   const out: { line: T; n: number }[] = [];
   for (const line of lines) {
     const last = out[out.length - 1];
-    if (
-      last &&
+    const sameSpeakerAndText =
+      last !== undefined &&
       last.line.userId === line.userId &&
       last.line.name === line.name &&
-      last.line.text === line.text
-    )
+      last.line.text === line.text;
+
+    if (sameSpeakerAndText) {
       last.n++;
-    else out.push({ line, n: 1 });
+    } else {
+      out.push({ line, n: 1 });
+    }
   }
   return out;
 }

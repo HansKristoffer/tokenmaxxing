@@ -1,10 +1,17 @@
 /** The player card's small texts: pure, so they're tested without a browser. */
 
+const DAY_MS = 86_400_000;
+
 /** "today", "yesterday", "3 days ago": how long since the world day `day`, on the day `today`. */
 export function daysAgoText(day: string, today: string): string {
-  const n = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${day}T12:00:00Z`)) / 86_400_000);
+  // Noon UTC, as `dayText` reads a world day, so no time zone moves either day by one.
+  const todayMs = Date.parse(`${today}T12:00:00Z`);
+  const dayMs = Date.parse(`${day}T12:00:00Z`);
+  const n = Math.round((todayMs - dayMs) / DAY_MS);
+
   if (n <= 0) return "today";
   if (n === 1) return "yesterday";
+  // Days up to two months, then months of 30 days: close enough for a label.
   if (n < 60) return `${n} days ago`;
   return `${Math.round(n / 30)} months ago`;
 }

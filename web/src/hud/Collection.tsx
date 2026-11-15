@@ -29,9 +29,12 @@ function standing(state: CollectionState, e: CatalogEntry) {
   const key = e.id.slice(e.id.indexOf(":") + 1);
   if (e.kind === "trophy") {
     const t = state.trophies.find((x) => x.id === key);
-    return { tier: +!!t, line: t ? `Earned ${dayText(t.day, DATE)}` : null, bar: null };
+    return { tier: t ? 1 : 0, line: t ? `Earned ${dayText(t.day, DATE)}` : null, bar: null };
   }
-  if (e.kind === "title") return { tier: +state.titles.includes(Number(key)), line: null, bar: null };
+  if (e.kind === "title") {
+    const earned = state.titles.includes(Number(key));
+    return { tier: earned ? 1 : 0, line: null, bar: null };
+  }
   const b = state.badges.find((x) => x.id === key);
   const def = BADGES.find((x) => x.id === key);
   if (!b || !def) return { tier: 0, line: null, bar: null };

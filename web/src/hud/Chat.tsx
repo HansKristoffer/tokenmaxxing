@@ -22,11 +22,11 @@ const FEEDBACK = /^@feedback(?:\s+|$)/i;
 const onlineHere = () =>
   [...world.avatars.values()]
     .filter((a) => a.info.online && !isBot(a.info.id))
-    .sort(
-      (a, b) =>
-        Number(b.info.id === world.selfId) - Number(a.info.id === world.selfId) ||
-        a.info.name.localeCompare(b.info.name),
-    )
+    .sort((a, b) => {
+      const isMe = (id: number) => id === world.selfId;
+      const youFirst = Number(isMe(b.info.id)) - Number(isMe(a.info.id));
+      return youFirst || a.info.name.localeCompare(b.info.name);
+    })
     .map((a) => a.info);
 
 /**
@@ -171,7 +171,6 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
   const focus = useHud((s) => s.chatFocus);
   const myId = useHud((s) => s.me?.userId);
   const myName = useHud((s) => s.me?.name);
-  useHud((s) => s.companies);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -212,7 +211,7 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
     wantInput.current = false;
   }, [open]);
 
-  if (!open)
+  if (!open) {
     return (
       <div className="chat-dock folded">
         <button
@@ -225,6 +224,7 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
         </button>
       </div>
     );
+  }
 
   return (
     <div className="chat-dock">
@@ -267,12 +267,13 @@ export const Chat = memo(function Chat({ match = false }: { match?: boolean }) {
             setError(null);
             const feedback = FEEDBACK.exec(t);
             try {
-              if (!feedback) await say(t);
-              else {
+              if (feedback) {
                 await town.requestAdd(t.slice(feedback[0].length));
                 hud.set({
                   notice: { text: "📌 Pinned on the Tavern's request pile. Thanks!", at: Date.now() },
                 });
+              } else {
+                await say(t);
               }
             } catch (err) {
               setError(errorText(err));

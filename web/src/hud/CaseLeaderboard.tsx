@@ -31,12 +31,13 @@ export function CaseLeaderboard() {
     };
   }, [version, inShop]);
 
-  if (!inShop)
+  if (!inShop) {
     return (
       <Modal title="Case leaderboard">
         Visit Natmarked and click the board beside the entrance to see the leaderboard.
       </Modal>
     );
+  }
 
   return (
     <Modal title="Natmarked · Case leaderboard" wide="xl">
