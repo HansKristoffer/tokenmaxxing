@@ -8,7 +8,6 @@ type Icons = typeof import("../render3d/icons.ts");
 let icons: Promise<Icons> | null = null;
 /** The 3D icons module, loaded once and only on the 3D tiers (the Bag's stage uses it too). */
 export const loadIcons = () => (icons ??= import("../render3d/icons.ts"));
-const load = loadIcons;
 
 /**
  * An item as the world shows it. On the 3D tiers: its voxel model, drawn by `render3d/icons.ts` once its turn
@@ -46,7 +45,7 @@ export function ItemIcon({
     if (!three) return;
     let live = true;
     let cancel = () => {};
-    void load().then(
+    void loadIcons().then(
       (m) => {
         if (!live) return;
         if (!m.iconsAvailable()) {
@@ -71,7 +70,8 @@ export function ItemIcon({
   useEffect(() => {
     const c = ref.current;
     if (!c || !shown) return;
-    c.width = c.height = shown.width;
+    c.width = shown.width;
+    c.height = shown.width;
     c.getContext("2d")?.drawImage(shown, 0, 0);
   }, [shown]);
   if (!three || fallback) return <>{children}</>;

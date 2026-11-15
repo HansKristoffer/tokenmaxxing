@@ -1,4 +1,4 @@
-import { EDITIONS, editionById } from "@tokenmaxxing/core/editions.ts";
+import { EDITIONS, type Edition, editionById } from "@tokenmaxxing/core/editions.ts";
 import { editionLabel, PER_WEEK, ROTATION } from "@tokenmaxxing/core/merchant.ts";
 import type { Cart, Copy } from "@tokenmaxxing/server/registry";
 import { useEffect, useState } from "react";
@@ -37,11 +37,10 @@ export function Merchant() {
   }, []);
   if (!me || !wallet || !cart) return <Modal title="🛒 The traveling merchant">{failed ?? "Loading…"}</Modal>;
 
-  const buy = (id: string) =>
+  const buy = (e: Edition) =>
     run(async () => {
-      const e = editionById(id)!;
-      const first = !wallet.owned.includes(id);
-      const r = await town.buyEdition(id);
+      const first = !wallet.owned.includes(e.id);
+      const r = await town.buyEdition(e.id);
       hud.set({ wallet: r.wallet });
       setGot(`${e.name}, ${editionLabel(r.n, e)}. Yours.`);
       setCart(await town.cart());
@@ -69,6 +68,7 @@ export function Merchant() {
         </p>
       </div>
       {got && <p className="merchant-got">✨ {got}</p>}
+      {failed && <p className="error">{failed}</p>}
       <ul className="shop merchant">
         {cart.stock.map((s) => {
           const e = editionById(s.id);
@@ -98,7 +98,7 @@ export function Merchant() {
                   type="button"
                   className="primary"
                   disabled={wallet.balance < s.price}
-                  onClick={buy(s.id)}
+                  onClick={buy(e)}
                 >
                   🪙 {s.price}
                 </button>

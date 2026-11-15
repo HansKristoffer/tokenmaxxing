@@ -68,6 +68,7 @@ const members = (n: number) => plural(n, "member");
 
 const openCard = (userId: number) => hud.set({ panel: { kind: "card", userId } });
 const openCompany = (companyId: number) => hud.set({ panel: { kind: "companyCard", companyId } });
+const openRow = (r: Totals) => ("userId" in r ? openCard(r.userId) : openCompany(r.companyId));
 
 export function Leaderboard() {
   const me = useHud((s) => s.me?.userId);
@@ -140,11 +141,7 @@ export function Leaderboard() {
             <>
               <Podium>
                 {rows.slice(0, 3).map((r, i) => (
-                  <Step
-                    key={key(r)}
-                    place={i + 1}
-                    onClick={"userId" in r ? () => openCard(r.userId) : () => openCompany(r.companyId)}
-                  >
+                  <Step key={key(r)} place={i + 1} onClick={() => openRow(r)}>
                     {"userId" in r ? (
                       <AvatarImage look={r.look} scale={i === 0 ? 5 : 4} />
                     ) : (
@@ -189,7 +186,7 @@ export function Leaderboard() {
                       value={by.show(r)}
                       aside={by.aside(r)}
                       mine={"userId" in r && r.userId === me}
-                      onClick={"userId" in r ? () => openCard(r.userId) : () => openCompany(r.companyId)}
+                      onClick={() => openRow(r)}
                     />
                   ))}
                 </ol>
@@ -216,6 +213,27 @@ function ViewPills({
   );
 }
 
+/** One line per company or player, from the trend the server sent. */
+function trendSeries(trend: Trend, companies: boolean, me: number | undefined): TrendSeries[] {
+  if (companies) {
+    return trend.companies.map((c) => ({
+      key: `c${c.companyId}`,
+      rank: c.rank,
+      name: c.name,
+      picture: <House companyId={c.companyId} tier={c.tier} scale={0.22} />,
+      daily: c.daily,
+    }));
+  }
+  return trend.players.map((p) => ({
+    key: `p${p.userId}`,
+    rank: p.rank,
+    name: p.name,
+    picture: <AvatarImage look={p.look} scale={1.5} />,
+    daily: p.daily,
+    mine: p.userId === me,
+  }));
+}
+
 /** The leaderboard as lines: everyone by tokens, day by day over the last 30 days, the top 8 drawn. */
 function TrendView({
   companies,
@@ -240,24 +258,7 @@ function TrendView({
     };
   }, []);
 
-  const series: TrendSeries[] = !trend
-    ? []
-    : companies
-      ? trend.companies.map((c) => ({
-          key: `c${c.companyId}`,
-          rank: c.rank,
-          name: c.name,
-          picture: <House companyId={c.companyId} tier={c.tier} scale={0.22} />,
-          daily: c.daily,
-        }))
-      : trend.players.map((p) => ({
-          key: `p${p.userId}`,
-          rank: p.rank,
-          name: p.name,
-          picture: <AvatarImage look={p.look} scale={1.5} />,
-          daily: p.daily,
-          mine: p.userId === me,
-        }));
+  const series = trend ? trendSeries(trend, companies, me) : [];
   const empty = series.every((s) => s.daily.every((d) => d === 0));
 
   return (
@@ -305,8 +306,11 @@ const gameShown = (sort: GameSort, p: GamePlayer) =>
 function GamesBoard({ range, me }: { range: RangeKey; me: number | undefined }) {
   const [sort, setSort] = useState<GameSort>("net");
   const { data: all } = useLoad(() => town.gameBoard(range), [range]);
-  const rows = (all ?? [])
-    .filter((p) => (sort === "rate" ? p.played >= MIN_GAMES : gameValue(sort, p) > 0))
+  // A win rate counts only from MIN_GAMES games; the other sorts only list players who have something to show.
+  const eligible = (all ?? []).filter((p) =>
+    sort === "rate" ? p.played >= MIN_GAMES : gameValue(sort, p) > 0,
+  );
+  const rows = eligible
     .sort((a, b) => gameValue(sort, b) - gameValue(sort, a) || b.played - a.played)
     .slice(0, 100);
   const top = rows[0] ? gameValue(sort, rows[0]) : 0;

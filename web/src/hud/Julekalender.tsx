@@ -6,6 +6,14 @@ import { town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { Balance, Modal, useRun } from "./ui.tsx";
 
+/** A door's class: opened ones show their gift, today's waits to be opened, and a day gone by stays shut. */
+function doorClass(opened: boolean, today: boolean, missed: boolean): string {
+  if (opened) return "opened";
+  if (today) return "today";
+  if (missed) return "missed";
+  return "";
+}
+
 /**
  * The julekalender (`core/src/december.ts`): 24 doors, one a day from 1 to 24 December, each the same gift for
  * everyone, coins or something to wear. Today's opens once (`town.openDoor`); a missed day stays shut.
@@ -41,12 +49,10 @@ export function Julekalender() {
           const n = i + 1;
           const opened = cal.opened.includes(n);
           const today = n === cal.today;
+          const missed = cal.today !== null && n < cal.today;
           const shut = !opened && !today;
           return (
-            <li
-              key={n}
-              className={opened ? "opened" : today ? "today" : cal.today && n < cal.today ? "missed" : ""}
-            >
+            <li key={n} className={doorClass(opened, today, missed)}>
               <span className="door-n">{n}</span>
               {opened && <span className="small">{giftLabel(gift)}</span>}
               {today && !opened && (
@@ -54,7 +60,7 @@ export function Julekalender() {
                   Open
                 </button>
               )}
-              {shut && <span className="small muted">{cal.today && n < cal.today ? "missed" : "🔒"}</span>}
+              {shut && <span className="small muted">{missed ? "missed" : "🔒"}</span>}
             </li>
           );
         })}
