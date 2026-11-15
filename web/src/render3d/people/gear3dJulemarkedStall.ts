@@ -140,9 +140,9 @@ function sixpence(m: Model): void {
 }
 
 Object.assign(HAT_BUILDERS, {
-  Øreværmere: (m: Model) => oreVaermere(m),
-  Pelshue: (m: Model) => pelshue(m),
-  Sixpence: (m: Model) => sixpence(m),
+  Øreværmere: oreVaermere,
+  Pelshue: pelshue,
+  Sixpence: sixpence,
 });
 for (const n of ["Pelshue", "Sixpence"]) COVERS_HAIR.add(n);
 
@@ -227,8 +227,8 @@ function hyggebriller(m: Model): void {
 }
 
 Object.assign(FACE_BUILDERS, {
-  Skibriller: (m: Model) => skibriller(m),
-  Hyggebriller: (m: Model) => hyggebriller(m),
+  Skibriller: skibriller,
+  Hyggebriller: hyggebriller,
 });
 
 // MARK: Held
@@ -422,7 +422,7 @@ function skirt(c: BodyCtx, color: string, trim: string, len: number): void {
       const x = s > 0 ? 0.1 : -4.0;
       const z = side > 0 ? -0.1 : -0.4;
       v.b(x, -len, z, 3.9, len, 0.5, color);
-      v.b(x, -len, z - (side > 0 ? -0.0 : 0.05), 3.9, 0.5, 0.55, trim);
+      v.b(x, -len, z - (side > 0 ? 0 : 0.05), 3.9, 0.5, 0.55, trim);
     }
     return p;
   });
@@ -578,7 +578,10 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     armBand(c, INK, -6.45, 0.35, 0.12);
   },
 };
-for (const [n, build] of Object.entries(OUTFITS)) OUTFIT_BUILDERS[STALL_BASE + Number(n)] = build;
+// The looks start at STALL_BASE (core/src/julemarked-shop.ts), so each outfit registers under that offset index.
+for (const [n, build] of Object.entries(OUTFITS)) {
+  OUTFIT_BUILDERS[STALL_BASE + Number(n)] = build;
+}
 
 // MARK: Back
 
@@ -599,14 +602,14 @@ const BACKS: Record<string, BackBuilder> = {
       const cols = [BLANKET, BLANKET_DARK, BLANKET_GREEN, BLANKET_DARK, BLANKET];
       const cw = w / cols.length;
       for (const [k, col] of cols.entries()) {
-        const stripe = i % 3 === 1 ? CREAM : i % 3 === 2 ? BLANKET_DARK : col;
-        at.box([cw * U, 1.5 * U, 0.8 * U], stripe, [(-w / 2 + cw * (k + 0.5)) * U, -1.5 * U, -0.4 * U]);
-        if (i % 3 === 0)
-          at.box([cw * 0.3 * U, 1.5 * U, 0.85 * U], CREAM, [
-            (-w / 2 + cw * (k + 0.5)) * U,
-            -1.5 * U,
-            -0.4 * U,
-          ]);
+        // Every third slab swaps the plaid for a cream or a dark pinstripe.
+        let stripe = col;
+        if (i % 3 === 1) stripe = CREAM;
+        else if (i % 3 === 2) stripe = BLANKET_DARK;
+
+        const cx = (-w / 2 + cw * (k + 0.5)) * U;
+        at.box([cw * U, 1.5 * U, 0.8 * U], stripe, [cx, -1.5 * U, -0.4 * U]);
+        if (i % 3 === 0) at.box([cw * 0.3 * U, 1.5 * U, 0.85 * U], CREAM, [cx, -1.5 * U, -0.4 * U]);
       }
       if (i === 6)
         for (let k = 0; k < 16; k++)

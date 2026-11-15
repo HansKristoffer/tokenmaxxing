@@ -116,7 +116,8 @@ AURA_BUILDERS["Orbiting token sigil"] = (m, tick) => {
       inner.scale.set(0.05, 0.05, 0.026);
       mark.scale.set(0.034, 0.012, 0.03);
     } else {
-      rim.rotation.x = inner.rotation.x = Math.PI / 2;
+      rim.rotation.x = Math.PI / 2;
+      inner.rotation.x = Math.PI / 2;
       rim.scale.set(0.085, 0.022, 0.085);
       inner.scale.set(0.062, 0.026, 0.062);
       mark.scale.set(0.04, 0.012, 0.03);

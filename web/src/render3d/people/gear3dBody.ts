@@ -716,6 +716,9 @@ export interface MerchLook {
   design?: string[] | null;
 }
 
+/** The colours a drawn logo uses: `a` the company accent, `w` white, `k` ink. */
+const merchPalette = (m: MerchLook): Record<string, string> => ({ a: m.accent, w: "#fbf7ef", k: "#2b2433" });
+
 /** A tee or hoodie in the company's colours with its logo on the chest. */
 export function merchTop(c: BodyCtx, m: MerchLook, hoodie: boolean): void {
   marks(
@@ -724,7 +727,7 @@ export function merchTop(c: BodyCtx, m: MerchLook, hoodie: boolean): void {
       const logo = (cx: number, cy: number, scale: number) => {
         if (m.design?.length) {
           const rows = m.design;
-          const pal: Record<string, string> = { a: m.accent, w: "#fbf7ef", k: "#2b2433" };
+          const pal = merchPalette(m);
           rows.forEach((row, y) => {
             [...row].forEach((ch, x) => {
               if (pal[ch])
@@ -766,7 +769,7 @@ export function merchCap(h: Model, m: MerchLook): void {
     (g, w, hh) => {
       // The badge is the print's 8×6: what its people drew, a pixel to a cell, where there is a drawing.
       if (m.design?.length) {
-        const pal: Record<string, string> = { a: m.accent, w: "#fbf7ef", k: "#2b2433" };
+        const pal = merchPalette(m);
         const [cw, ch] = [w / m.design[0]!.length, hh / m.design.length];
         g.fillStyle = m.main;
         g.fillRect(0, 0, w, hh);
@@ -824,7 +827,7 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
     h.box([0.2, 0.014, 0.14], "#aab3bf", [0, 0.0, 0.07], 0.005);
     const lid = h.part([0, 0.014, 0.0]);
     lid.rotation.x = -1.7;
-    lid.box([0.2, 0.012, 0.14], "#aab3bf", [0, 0, 0.0], 0.005).position.z = -0.0;
+    lid.box([0.2, 0.012, 0.14], "#aab3bf", [0, 0, 0], 0.005);
     const stick = [
       ["#e0584f", -0.06, 0.04],
       ["#4f8fe0", 0.0, 0.07],
@@ -832,7 +835,6 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
       ["#3ddc84", -0.03, 0.1],
     ] as const;
     for (const [col, x, z] of stick) lid.box([0.035, 0.004, 0.035], col, [x, 0.0075, z - 0.07], 0.004);
-    h.position.z += 0;
   },
   "Bubble tea": (h) => {
     h.cyl(0.035, 0.11, see("#f6ece0", 0.55), [0, 0.0, 0.06], 0.045, 12);
@@ -1080,6 +1082,3 @@ export const BACK_BUILDERS: Record<string, BackBuilder> = {
     v.b(-0.7, 10.2, -0.7, 1.4, 0.6, 1.4, "#f5c842");
   },
 };
-
-// Helpers the entry point needs.
-export { glow, tint };

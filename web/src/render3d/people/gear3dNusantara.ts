@@ -126,7 +126,7 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
         for (let j = 0, y = 3; y < h - 4; j++, y += 6)
           for (let x = j % 2 ? 6 : 3; x < w - 2; x += 6) px(g, "#bfe9e4", x, y, 2, 2);
         // The V neckline and the cream hem.
-        for (let i = 0; i < 8; i++) px(g, CREAM, 23 + i * 0.5 - 0, i, 11 - i, 1);
+        for (let i = 0; i < 8; i++) px(g, CREAM, 23 + i * 0.5, i, 11 - i, 1);
         px(g, CREAM, 0, h - 4, w, 4);
         for (let x = 0; x < w; x += 4) px(g, "#ffffff", x, h - 4, 2, 2);
       },
@@ -275,7 +275,10 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     for (const arm of c.arms) new Vx(vpart(arm)).b(-1.25, -3.2, -1.25, 2.5, 0.9, 2.5, "#b8c84a");
   },
 };
-for (const [n, build] of Object.entries(OUTFITS)) OUTFIT_BUILDERS[NUSANTARA_BASE + Number(n)] = build;
+// The looks start at NUSANTARA_BASE (core/src/case-nusantara.ts), so each outfit registers under that offset index.
+for (const [n, build] of Object.entries(OUTFITS)) {
+  OUTFIT_BUILDERS[NUSANTARA_BASE + Number(n)] = build;
+}
 
 // MARK: Held
 
@@ -298,7 +301,7 @@ const HELD: Record<string, HeldBuilder> = {
     // The straw: stripes of red and white, standing out of the top beside the knot.
     for (let i = 0; i < 7; i++)
       bag.box([0.01, 0.034, 0.01], i % 2 ? HIBISCUS : "#ffffff", [0.022, -0.16 + i * 0.034, 0.006], 0.002);
-    // Don't swing it: it only sways a little, and sloshes.
+    // The bag sways slowly and sloshes a little, never swinging round.
     tick((t) => {
       bag.rotation.z = Math.sin(t * 1.8) * 0.06;
       bag.rotation.x = Math.sin(t * 1.3 + 1) * 0.04;
@@ -352,7 +355,10 @@ const HELD: Record<string, HeldBuilder> = {
       const quad = (pts: [number, number][], col: string) => {
         g.fillStyle = col;
         g.beginPath();
-        for (const [i, [x, y]] of pts.entries()) i ? g.lineTo(x, y) : g.moveTo(x, y);
+        for (const [i, [x, y]] of pts.entries()) {
+          if (i) g.lineTo(x, y);
+          else g.moveTo(x, y);
+        }
         g.closePath();
         g.fill();
       };

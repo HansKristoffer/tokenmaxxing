@@ -210,8 +210,11 @@ const BACKS: Record<string, BackBuilder> = {
     }
     tick((t, walking) => {
       steps.forEach((s, i) => {
+        // Walking, each row lags the one above it, so the cape ripples down its length.
+        const stride = Math.abs(Math.sin(t * 11)) * 0.09 * (i ? 0.7 : 1.3);
+        const ripple = Math.sin(t * 11 - i * 0.8) * 0.05 * i;
         s.rotation.x = walking
-          ? 0.1 + Math.abs(Math.sin(t * 11)) * 0.09 * (i ? 0.7 : 1.3) + Math.sin(t * 11 - i * 0.8) * 0.05 * i
+          ? 0.1 + stride + ripple
           : 0.03 + (Math.sin(t * 1.6 - i * 0.6) + 1) * 0.016 * (i + 1);
       });
       const k = walking ? 1 : 0.35 + 0.25 * Math.sin(t * 2);

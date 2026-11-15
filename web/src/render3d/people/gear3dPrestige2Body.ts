@@ -137,7 +137,10 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     });
   },
 };
-for (const [n, build] of Object.entries(OUTFITS)) OUTFIT_BUILDERS[COSMIC + Number(n)] = build;
+// Keys are offsets from COSMIC (PRESTIGE_BASE + 1), so key 0 is the Nebula suit.
+for (const [n, build] of Object.entries(OUTFITS)) {
+  OUTFIT_BUILDERS[COSMIC + Number(n)] = build;
+}
 
 // MARK: Back
 

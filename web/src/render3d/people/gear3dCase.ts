@@ -340,7 +340,10 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     c.tick(drift);
   },
 };
-for (const [n, build] of Object.entries(OUTFITS)) OUTFIT_BUILDERS[CASE_BASE + Number(n)] = build;
+// The case's looks start at CASE_BASE (core/src/case.ts), so each outfit registers under that offset index.
+for (const [n, build] of Object.entries(OUTFITS)) {
+  OUTFIT_BUILDERS[CASE_BASE + Number(n)] = build;
+}
 
 // MARK: Held
 
@@ -389,6 +392,7 @@ const HELD: Record<string, HeldBuilder> = {
     const cv = new Vx(canopy);
     const R = 5.6;
     for (let j = -6; j < 6; j++) {
+      // Blocks of one colour and height along a row are drawn as one box. `run` is -8 when no box is open.
       let run = -8;
       let cur = "";
       let top = 0;
@@ -396,26 +400,30 @@ const HELD: Record<string, HeldBuilder> = {
         const x = i + 0.5;
         const z = j + 0.5;
         const r = Math.hypot(x, z);
+
         let col = "";
         let y = 0;
         if (i < 6 && r <= R) {
-          const f = (((Math.atan2(z, x) + Math.PI) / (2 * Math.PI)) * 8) % 1;
+          // `turn` is the angle as a fraction of a full turn; eight sectors alternate cream and red.
+          const turn = (Math.atan2(z, x) + Math.PI) / (2 * Math.PI);
+          const f = (turn * 8) % 1;
           const edge = r * Math.sin(Math.min(f, 1 - f) * (Math.PI / 4));
-          col =
-            r < 1.2
-              ? GOLD
-              : r > 1.8 && edge < 0.4
-                ? "#b98a4a"
-                : Math.floor(((Math.atan2(z, x) + Math.PI) / (2 * Math.PI)) * 8) % 2
-                  ? CREAM
-                  : RED;
+          const sector = Math.floor(turn * 8);
+          if (r < 1.2) col = GOLD;
+          else if (r > 1.8 && edge < 0.4) col = "#b98a4a";
+          else col = sector % 2 ? CREAM : RED;
           y = Math.floor((R - r) * 0.42);
         }
+
         if (run > -8 && (col !== cur || y !== top)) {
           cv.b(run, top, j, i - run, 1.2, 1, cur);
           run = -8;
         }
-        if (col && run === -8) [run, cur, top] = [i, col, y];
+        if (col && run === -8) {
+          run = i;
+          cur = col;
+          top = y;
+        }
       }
     }
     cv.b(-0.35, 2.4, -0.35, 0.7, 1.6, 0.7, GOLD);
