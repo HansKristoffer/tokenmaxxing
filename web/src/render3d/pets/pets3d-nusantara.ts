@@ -7,24 +7,12 @@
 import type * as THREE from "three";
 import { Model } from "../kit/kit.ts";
 import { type Built, DARK, GLINT, joint, put, SIDES, speckle, U } from "./pets3d-night.ts";
-import { darken, eye, Grid, hash, lighten, noise } from "./petvox.ts";
+import { darken, eye, Grid, hash, lighten, noise, slab } from "./petvox.ts";
 
 /** Swings a limb joint about x as a trot: `i` picks its phase (diagonal pairs move together). */
 function trot(l: THREE.Object3D, t: number, moving: boolean, i: number, amp = 0.7, rate = 13): void {
   l.rotation.x = moving ? Math.sin(t * rate + (i % 2 ? Math.PI : 0) + (i > 1 ? 1.5 : 0)) * amp : 0;
 }
-
-/** `Grid.box` with its corners in either order (a mirrored limb has its x range reversed). */
-const slab = (g: Grid, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, p: string) =>
-  g.box(
-    Math.min(x0, x1),
-    Math.max(x0, x1),
-    Math.min(y0, y1),
-    Math.max(y0, y1),
-    Math.min(z0, z1),
-    Math.max(z0, z1),
-    p,
-  );
 
 // MARK: Komodo
 

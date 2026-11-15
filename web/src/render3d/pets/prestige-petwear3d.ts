@@ -36,13 +36,19 @@ function ring(m: Model, r: number, tube: number, color: string | THREE.Material,
 const pip = (m: Model, s: number, color: string): THREE.Mesh =>
   m.ball(0.009 * s, glow(color), [0, 0, 0], [1, 1, 1], 5);
 
+/** The neck radius the accessories are modelled at (the scale is 1 there). */
+const NECK_REF = 0.09;
+
+/** How much an accessory is scaled on a neck `neckR` thick (the crown too). Never below 0.7. */
+export const neckScale = (neckR: number) => Math.max(0.7, neckR / NECK_REF);
+
 /**
  * Prestige `rank`'s pet accessory for a pet whose neck is `neckR` thick (the crown's scale), at the origin of its
  * anchor. Rank 0 and past the last make an empty group that does nothing.
  */
-export function petwear3d(rank: number, neckR = 0.09): Petwear3D {
+export function petwear3d(rank: number, neckR = NECK_REF): Petwear3D {
   const g = new Model() as Petwear3D;
-  const s = Math.max(0.7, neckR / 0.09);
+  const s = neckScale(neckR);
   g.userData = { at: PETWEAR_AT[rank - 1] ?? "top", tick: () => {} };
   switch (rank) {
     case 1: {

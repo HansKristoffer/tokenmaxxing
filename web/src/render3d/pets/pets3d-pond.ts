@@ -7,19 +7,7 @@
 import type * as THREE from "three";
 import { Model } from "../kit/kit.ts";
 import { type Built, DARK, GLINT, joint, put, SIDES, speckle, U } from "./pets3d-night.ts";
-import { eye, Grid, hash } from "./petvox.ts";
-
-/** `Grid.box` with its corners in either order (a mirrored limb has its x range reversed). */
-const slab = (g: Grid, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, p: string) =>
-  g.box(
-    Math.min(x0, x1),
-    Math.max(x0, x1),
-    Math.min(y0, y1),
-    Math.max(y0, y1),
-    Math.min(z0, z1),
-    Math.max(z0, z1),
-    p,
-  );
+import { eye, Grid, hash, slab } from "./petvox.ts";
 
 // MARK: Axolotl
 
@@ -158,17 +146,15 @@ export function axolotl(): Built {
       tilt: false,
       span: U(2),
       fx: (t, moving) => {
-        for (let i = 0; i < gills.length; i++) {
-          const g = gills[i]!;
+        for (const g of gills) {
           const w = Math.sin(t * (moving ? 7 : 2.2) + g.phase);
           g.j.rotation.z = g.s * (g.angle + w * 0.14);
           g.j.rotation.y = g.s * (g.sweep + Math.sin(t * (moving ? 6 : 1.8) + g.phase + 1) * 0.1);
         }
         tip.rotation.y = Math.sin(t * (moving ? 12 : 3) - 1.3) * 0.45;
-        for (let i = 0; i < legs.length; i++)
-          legs[i]!.rotation.x = moving
-            ? Math.sin(t * 10 + (i % 2 ? Math.PI : 0) + (i > 1 ? 1.5 : 0)) * 0.6
-            : 0;
+        for (const [i, leg] of legs.entries()) {
+          leg.rotation.x = moving ? Math.sin(t * 10 + (i % 2 ? Math.PI : 0) + (i > 1 ? 1.5 : 0)) * 0.6 : 0;
+        }
         body.rotation.y = moving ? Math.sin(t * 10) * 0.07 : 0;
         head.rotation.y = Math.sin(t * (moving ? 5 : 0.9)) * (moving ? 0.1 : 0.12);
       },
@@ -284,11 +270,9 @@ export function kraken(): Built {
       fx: (t, moving) => {
         const rate = moving ? 7 : 1.8;
         const amp = moving ? 0.34 : 0.14;
-        for (let i = 0; i < tentacles.length; i++) {
-          const k = tentacles[i]!;
+        for (const [i, k] of tentacles.entries()) {
           k.root.rotation.y = k.phi + Math.sin(t * rate * 0.5 + i * 1.7) * (moving ? 0.14 : 0.07);
-          for (let j = 0; j < k.sections.length; j++) {
-            const sec = k.sections[j]!;
+          for (const [j, sec] of k.sections.entries()) {
             sec.s.rotation.x = sec.rest + Math.sin(t * rate - j * 0.9 + i * 1.1) * amp * (0.5 + j * 0.3);
           }
         }

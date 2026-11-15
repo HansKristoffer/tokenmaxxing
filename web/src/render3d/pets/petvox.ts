@@ -122,8 +122,10 @@ export class Grid {
   /** A tube of ellipsoids along a polyline, radius easing from `r0` to `r1`; `p` is given t along it in `u`. */
   tube(pts: V3[], r0: number, r1: number, p: Paint, pow = 2.2): this {
     let total = 0;
-    for (let i = 1; i < pts.length; i++)
-      total += Math.hypot(...(pts[i]!.map((v, j) => v - pts[i - 1]![j]!) as V3));
+    for (let i = 1; i < pts.length; i++) {
+      const step = pts[i]!.map((v, j) => v - pts[i - 1]![j]!);
+      total += Math.hypot(...step);
+    }
     const n = Math.max(2, Math.ceil(total * 2));
     for (let i = 0; i <= n; i++) {
       const f = (i / n) * (pts.length - 1);
@@ -254,6 +256,27 @@ export class Grid {
   }
 }
 
+/** `Grid.box` with its corners in either order, for a mirrored limb whose x range runs backwards. */
+export const slab = (
+  g: Grid,
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+  z0: number,
+  z1: number,
+  p: string,
+) =>
+  g.box(
+    Math.min(x0, x1),
+    Math.max(x0, x1),
+    Math.min(y0, y1),
+    Math.max(y0, y1),
+    Math.min(z0, z1),
+    Math.max(z0, z1),
+    p,
+  );
+
 // MARK: Baking
 
 const FACES = [
@@ -309,9 +332,9 @@ export function bake(g: Grid, o: BakeOpts = {}): THREE.Mesh {
   const [ox, oy, oz] = o.origin ?? [0, 0, 0];
   const seed = o.seed ?? 0;
   const jit = o.jitter ?? 0.045;
-  const key = JSON.stringify([[...g.cells], ox, oy, oz, seed, jit, o.flat ?? false]);
-  const cached = surfaces.get(key);
-  if (cached) return ownSurface(key, cached, o.opacity ?? 1);
+  const cacheKey = JSON.stringify([[...g.cells], ox, oy, oz, seed, jit, o.flat ?? false]);
+  const cached = surfaces.get(cacheKey);
+  if (cached) return ownSurface(cacheKey, cached, o.opacity ?? 1);
   const solid = { p: [] as number[], c: [] as number[], n: [] as number[], i: [] as number[] };
   const lit = { p: [] as number[], c: [] as number[], n: [] as number[], i: [] as number[] };
   const tmp = new THREE.Color();
@@ -324,6 +347,7 @@ export function bake(g: Grid, o: BakeOpts = {}): THREE.Mesh {
       const [nx, ny, nz] = f.n;
       if (g.has(x + nx, y + ny, z + nz)) continue;
       const fj = hash(x, y, z, seed + 11 + nx * 2 + ny * 3 + nz * 5) * 2 - 1;
+      // The face's shade, then the colour jitter: 65% from the voxel and 35% from the face.
       const k = (glow || o.flat ? 1 : f.shade) * (1 + jit * (0.65 * vj + 0.35 * fj));
       const ao: number[] = [];
       const corners: [number, number][] = [
@@ -337,22 +361,24 @@ export function bake(g: Grid, o: BakeOpts = {}): THREE.Mesh {
           ao.push(1);
           continue;
         }
-        const s1 = g.has(x + nx + su * f.u[0], y + ny + su * f.u[1], z + nz + su * f.u[2]) ? 1 : 0;
-        const s2 = g.has(x + nx + sw * f.w[0], y + ny + sw * f.w[1], z + nz + sw * f.w[2]) ? 1 : 0;
-        const cc = g.has(
+        const side1 = g.has(x + nx + su * f.u[0], y + ny + su * f.u[1], z + nz + su * f.u[2]) ? 1 : 0;
+        const side2 = g.has(x + nx + sw * f.w[0], y + ny + sw * f.w[1], z + nz + sw * f.w[2]) ? 1 : 0;
+        const diagonal = g.has(
           x + nx + su * f.u[0] + sw * f.w[0],
           y + ny + su * f.u[1] + sw * f.w[1],
           z + nz + su * f.u[2] + sw * f.w[2],
         )
           ? 1
           : 0;
-        ao.push(AO[s1 && s2 ? 0 : 3 - (s1 + s2 + cc)]!);
+        // Two solid sides close the corner fully (darkest). Otherwise each solid neighbour darkens it one step.
+        ao.push(AO[side1 && side2 ? 0 : 3 - (side1 + side2 + diagonal)]!);
       }
       const vs = corners.map(([su, sw]) => [
         (x - ox + 0.5 * (nx + su * f.u[0] + sw * f.w[0])) * VOX,
         (y - oy + 0.5 * (ny + su * f.u[1] + sw * f.w[1])) * VOX,
         (z - oz + 0.5 * (nz + su * f.u[2] + sw * f.w[2])) * VOX,
       ]);
+      // Split the quad along the diagonal that keeps the occlusion gradient smooth.
       const flip = ao[0]! + ao[2]! < ao[1]! + ao[3]!;
       const order = flip ? [1, 2, 3, 1, 3, 0] : [0, 1, 2, 0, 2, 3];
       const first = out.p.length / 3;
@@ -376,12 +402,12 @@ export function bake(g: Grid, o: BakeOpts = {}): THREE.Mesh {
   const surface = { solid: geo(solid), lit: lit.p.length ? geo(lit) : undefined, refs: 0 };
   surface.solid.userData.shared = true;
   if (surface.lit) surface.lit.userData.shared = true;
-  surfaces.set(key, surface);
-  return ownSurface(key, surface, o.opacity ?? 1);
+  surfaces.set(cacheKey, surface);
+  return ownSurface(cacheKey, surface, o.opacity ?? 1);
 }
 
 function ownSurface(
-  key: string,
+  cacheKey: string,
   surface: { solid: THREE.BufferGeometry; lit?: THREE.BufferGeometry; refs: number },
   opacity: number,
 ): THREE.Mesh {
@@ -397,7 +423,7 @@ function ownSurface(
   }
   mesh.userData.onDispose = () => {
     if (--surface.refs > 0) return;
-    surfaces.delete(key);
+    surfaces.delete(cacheKey);
     surface.solid.dispose();
     surface.lit?.dispose();
   };
