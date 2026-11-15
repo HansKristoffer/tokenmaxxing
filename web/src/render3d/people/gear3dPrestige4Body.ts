@@ -81,7 +81,7 @@ function floorPlan(g: CanvasRenderingContext2D): void {
   cell(g, GOLD_DARK, 12, 5, 2, 1);
 }
 
-/** A bar of gold, as a cuff or a pauldron, round each arm. */
+/** Runs `build` on each arm: -1 for the first arm, 1 for the second. */
 const arms = (c: BodyCtx, build: (v: Vx, side: 1 | -1) => void) =>
   c.arms.forEach((arm, i) => {
     build(new Vx(vpart(arm)), i ? 1 : -1);
@@ -154,6 +154,7 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     const glint = v.b(-3, 6.8, 2.1, 0.7, 0.7, 0.2, lit("#ffffff"));
     c.tick((t, walking) => {
       gear.rotation.z = -t * (walking ? 1.4 : 0.5);
+      // One pass across the coat every few seconds; the glint swells to the middle of its run and fades at each end.
       const k = (t * 0.3) % 1;
       glint.position.set((-3 + k * 6) * U, (6.8 - k * 4.5) * U, 2.3 * U);
       glint.scale.setScalar(Math.sin(k * Math.PI) ** 2 * 1.3);
@@ -201,7 +202,7 @@ interface Wing {
 }
 const wings = new Map<number, Wing>();
 
-/** One wing's geometries, mirrored for `side` -1, built once and shared by every wearer. */
+/** One wing's geometries for `side`, built once per side and shared by every wearer. */
 function wing(side: 1 | -1): Wing {
   const have = wings.get(side);
   if (have) return have;
@@ -215,7 +216,7 @@ function wing(side: 1 | -1): Wing {
     for (const r of RINGS) {
       if (r > l0 || r > next[1]) continue;
       trace(at(d0, r), at(next[0], r), struts);
-      for (const cell of [at(d0, r), at(next[0], r)]) joints.set(String(cell), cell);
+      for (const point of [at(d0, r), at(next[0], r)]) joints.set(String(point), point);
     }
   });
   // Ruler ticks standing off the two outer spars, every other cube.
@@ -224,11 +225,11 @@ function wing(side: 1 | -1): Wing {
     const out = deg < 0 ? -1 : 1;
     for (let r = 2; r <= len; r += 2) {
       const [x, y] = at(deg, r);
-      const cell: Cell = [
+      const tick: Cell = [
         x - Math.round(Math.sin((deg * Math.PI) / 180)) * out,
         y + Math.round(Math.cos((deg * Math.PI) / 180)) * out,
       ];
-      ticks.set(String(cell), cell);
+      ticks.set(String(tick), tick);
     }
   }
   const cubes = (cells: Map<string, Cell>, size: number, depth: number, z = 0) =>
@@ -236,6 +237,7 @@ function wing(side: 1 | -1): Wing {
       new THREE.BoxGeometry(size * U, size * U, depth * U).translate(x * side * U, y * U, z * U),
     );
   const merge = (parts: THREE.BufferGeometry[]) => {
+    // Every part is a non-indexed box, so their attributes match and the merge cannot come back null.
     const g = mergeGeometries(parts.map((p) => p.toNonIndexed()))!;
     g.userData.shared = true;
     for (const p of parts) p.dispose();
@@ -287,7 +289,7 @@ const BACKS: Record<string, BackBuilder> = {
       for (const { w, side, spark } of pivots) {
         const beat = walking ? Math.sin(t * 9) * 0.16 : Math.sin(t * 1.3) * 0.07;
         w.rotation.z = side * (0.1 + beat);
-        // The spark runs out along the third spar and fades at the tip.
+        // The spark runs out along the 32-degree spar (SPARS[3]) and fades at the tip.
         const k = (t * 0.4) % 1;
         const [x, y] = at(32, k * 10);
         spark.position.set(x * side * U, y * U, 0);

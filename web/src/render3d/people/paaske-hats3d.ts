@@ -15,6 +15,9 @@ const YELLOW = "#f7d23a";
 const ORANGE = "#e8902a";
 const GREEN = "#4f9b3d";
 
+/** A voxel head is a tenth taller than the round one these are drawn for, so its parts sit this much higher. */
+const VOXEL_HEAD_LIFT = 0.1;
+
 /** A thin ring, tilted a little: a headband or a vine. */
 function ring(m: Model, colour: string, r: number, thick: number, y: number, tiltX: number): void {
   const t = new THREE.Mesh(new THREE.TorusGeometry(r, thick, 6, 22), toon(colour));
@@ -28,7 +31,7 @@ export const PAASKE_HAT_BUILDERS: Record<string, Build> = {
   // Bunny ears: a pink band and two long white ears with pink insides; one stands, one flops.
   "Bunny ears": (m) => {
     const vox = isVox(m);
-    const up = vox ? 0.1 : 0;
+    const up = vox ? VOXEL_HEAD_LIFT : 0;
     if (vox) m.box([0.52, 0.045, 0.52], PINK, [0, 0.1 + up, 0], 0.01);
     else ring(m, PINK, 0.25, 0.016, 0.07, -0.42);
     for (const s of [-1, 1]) {
@@ -47,7 +50,7 @@ export const PAASKE_HAT_BUILDERS: Record<string, Build> = {
   },
   // Chick hat: a fluffy yellow chick sitting on the crown, beak and eyes to the front.
   "Chick hat": (m) => {
-    const up = isVox(m) ? 0.1 : 0;
+    const up = isVox(m) ? VOXEL_HEAD_LIFT : 0;
     const y = 0.3 + up;
     m.ball(0.21, "#ffe36a", [0, y, 0], [1.05, 0.85, 1.05], 12);
     m.ball(0.15, "#ffe36a", [0, y + 0.16, 0.08], [1, 1, 1], 10);
@@ -60,7 +63,7 @@ export const PAASKE_HAT_BUILDERS: Record<string, Build> = {
   },
   // Påskelilje crown: a green vine ring with yellow narcissi, orange trumpets, all the way round.
   "Påskelilje crown": (m) => {
-    const up = isVox(m) ? 0.1 : 0;
+    const up = isVox(m) ? VOXEL_HEAD_LIFT : 0;
     const y = 0.1 + up;
     if (isVox(m)) m.box([0.52, 0.04, 0.52], GREEN, [0, y, 0], 0.008);
     else ring(m, GREEN, 0.26, 0.018, y + 0.02, 0.1);

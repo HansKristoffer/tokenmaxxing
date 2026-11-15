@@ -38,7 +38,7 @@ function basic(
   return m;
 }
 
-/** A cube of `w`×`h`×`d` metres that moves and scales and stays out of the blocky swap. */
+/** A mesh of `size` metres, marked `noBlock` so the voxel render style leaves it as built. */
 function cube(
   parent: THREE.Object3D,
   size: [number, number, number],
@@ -53,6 +53,7 @@ function cube(
   return o;
 }
 
+/** Smoothstep: 0 up to `a`, 1 from `b`, eased in between. */
 const smooth = (a: number, b: number, x: number) => {
   const k = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return k * k * (3 - 2 * k);
@@ -75,6 +76,7 @@ function band(r: number, sweep: number, size: number): THREE.BufferGeometry {
     g.translate(Math.sin(a) * r, 0, Math.cos(a) * r);
     parts.push(g);
   }
+  // Every part is a non-indexed box, so their attributes match and the merge cannot come back null.
   const out = mergeGeometries(parts)!;
   for (const p of parts) p.dispose();
   return out;
@@ -95,7 +97,7 @@ AURA_BUILDERS["Bifröst"] = (m, tick) => {
   });
   // Glints that run along the ribbon.
   const glints = Array.from({ length: 5 }, () => cube(arc, [0.04, 0.04, 0.04], basic("#ffffff")));
-  // Embers lifting off it (the bridge burns).
+  // Embers that lift off the ribbon, the bridge burning at Ragnarok.
   const rnd = seeded(500);
   const embers = Array.from({ length: 8 }, () => ({
     o: cube(m, [0.026, 0.026, 0.026], basic(rnd() > 0.5 ? "#ff9a3c" : "#ffd36a")),
@@ -175,6 +177,7 @@ AURA_BUILDERS["Valkyrie Lights"] = (m, tick) => {
       const wave =
         Math.sin(t * 1.3 * speed + s.i * 0.7 + s.layer * 2) * 0.5 +
         Math.sin(t * 2.3 * speed + s.i * 1.9) * 0.2;
+      // Each curtain is tallest at its middle and shortest at its edges.
       const h = 0.55 + 0.32 * wave + (1 - Math.abs((s.i / 12) * 2 - 1)) * 0.18;
       s.o.position.set(Math.sin(a) * r, -0.42 + Math.max(0, wave) * 0.06, Math.cos(a) * r);
       s.o.rotation.y = a;
@@ -306,10 +309,12 @@ const GLYPHS: Record<string, [number, number][][]> = {
 const GLYPH_NAMES = Object.keys(GLYPHS);
 const glyphTextures = new Map<string, THREE.Texture>();
 function glyphTexture(name: string): THREE.Texture {
-  let t = glyphTextures.get(name);
-  if (t) return t;
+  const cached = glyphTextures.get(name);
+  if (cached) return cached;
   const c = document.createElement("canvas");
-  c.width = c.height = 32;
+  c.width = 32;
+  c.height = 32;
+  // A canvas made here always has a 2D context.
   const g = c.getContext("2d")!;
   g.strokeStyle = "#ffffff";
   g.lineWidth = 5;
@@ -323,9 +328,11 @@ function glyphTexture(name: string): THREE.Texture {
     });
     g.stroke();
   }
-  t = new THREE.CanvasTexture(c);
+  const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
-  t.magFilter = t.minFilter = THREE.NearestFilter;
+  // Nearest sampling keeps the strokes hard-edged rather than blurred.
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestFilter;
   t.generateMipmaps = false;
   t.userData.shared = true;
   glyphTextures.set(name, t);
@@ -418,7 +425,9 @@ AURA_BUILDERS["Ginnungagap"] = (m, tick) => {
       const a = k * 11 + s.q;
       const rr = 0.1 + (s.r - 0.1) * open;
       const x0 = Math.cos(a) * rr;
-      const x = x0 + (-Math.abs(x0) - 0.02 - x0) * smooth(0.15, 0.45, k);
+      // As it settles it moves to the left of the head, just outside the spiral's own side.
+      const settled = -Math.abs(x0) - 0.02;
+      const x = x0 + (settled - x0) * smooth(0.15, 0.45, k);
       s.o.position.set(x, TOP - k * 1.0 + Math.sin(a * 0.7) * 0.01, Math.sin(a) * rr);
       s.o.scale.setScalar(0.001 + Math.min(smooth(0, 0.06, k), 1 - smooth(0.9, 1, k)) * 0.046);
       s.o.rotation.set(t + s.q, t * 0.7, 0);
@@ -430,7 +439,9 @@ AURA_BUILDERS["Ginnungagap"] = (m, tick) => {
       const a = k * 11 + e.q;
       const rr = e.r + (0.1 - e.r) * close;
       const x0 = Math.cos(a) * rr;
-      const x = x0 + (Math.abs(x0) + 0.02 - x0) * (1 - smooth(0.6, 0.9, k));
+      // The mirror of the snow: as it rises it moves to the right, and then winds in.
+      const settled = Math.abs(x0) + 0.02;
+      const x = x0 + (settled - x0) * (1 - smooth(0.6, 0.9, k));
       e.o.position.set(x, -0.5 + k * (TOP + 0.5) + Math.sin(a * 0.7) * 0.01, Math.sin(a) * rr);
       e.o.scale.setScalar(0.001 + Math.min(smooth(0, 0.06, k), 1 - smooth(0.92, 1, k)) * 0.046);
       e.o.rotation.set(t * 1.3 + e.q, t, 0);

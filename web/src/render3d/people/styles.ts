@@ -118,7 +118,8 @@ function armsOf(b: Model, at: V3, build: (arm: Model, side: number) => void): [M
   }) as [Model, Model];
 }
 
-// ——— Hats: drawn for a chibi head of radius 0.25; other heads scale them ———
+// MARK: Hats, drawn for a chibi head of radius 0.25; other heads scale them
+/** The radius of a chibi head: the hats are drawn for it, and the chibi and the grown-up heads are sized from it. */
 const CHIBI_R = 0.25;
 
 function hat(head: Model, look: Look): void {
@@ -173,13 +174,12 @@ function hatOn(head: Model, look: Look, r: number, at: V3): void {
   hat(g, look);
 }
 
-// ——— Chibi ———
-const HEAD_R = 0.25;
+// MARK: Chibi
 
-/** Hair for a head of radius `HEAD_R`; a receding hairline (`recede`) loses the fringe and the spikes. */
+/** Hair for a head of radius `CHIBI_R`; a receding hairline (`recede`) loses the fringe and the spikes. */
 function chibiHair(head: Model, look: Look, c = look.hair, recede = false): void {
   const cap = new THREE.Mesh(
-    new THREE.SphereGeometry(HEAD_R * 1.07, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),
+    new THREE.SphereGeometry(CHIBI_R * 1.07, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),
     toon(c),
   );
   cap.rotation.x = recede ? -1.05 : -0.62;
@@ -237,19 +237,19 @@ export function chibi(b: Model, look: Look): Rig {
     arm.ball(0.05, look.skin, [s * 0.012, -0.19, 0]);
   });
   const head = b.part([0, NECK, 0]);
-  const skull = head.ball(HEAD_R, look.skin, [0, HEAD_R * 0.86, 0], [1.05, 0.95, 1], 24);
+  const skull = head.ball(CHIBI_R, look.skin, [0, CHIBI_R * 0.86, 0], [1.05, 0.95, 1], 24);
   const face = decal(SPHERE_FACE, "chibi", faces);
-  face.scale.setScalar(HEAD_R * 1.008);
+  face.scale.setScalar(CHIBI_R * 1.008);
   // Tipped down a little, so the eyes sit low and big under the fringe, as chibis' do.
   face.rotation.x = 0.26;
   skull.add(face);
-  const top = head.part([0, HEAD_R * 0.86, 0]);
+  const top = head.part([0, CHIBI_R * 0.86, 0]);
   chibiHair(top, look);
   hat(top, look);
-  return { legs, arms, head, hip: HIP, height: NECK + HEAD_R * 1.81, faces };
+  return { legs, arms, head, hip: HIP, height: NECK + CHIBI_R * 1.81, faces };
 }
 
-// ——— Busytown animals ———
+// MARK: Busytown animals
 export interface Kind {
   fur: string;
   muzzle: string;
@@ -399,7 +399,7 @@ export function animal(b: Model, look: Look): Rig {
   return { legs, arms, head, hip: HIP, height: NECK + R * 1.8, faces };
 }
 
-// ——— Grown-ups: people and animals on one adult body, at any age ———
+// MARK: Grown-ups, people and animals on one adult body, at any age
 export const AGING: Record<Age, { width: number; grey: number; hunch: number }> = {
   young: { width: 0.94, grey: 0, hunch: 0 },
   adult: { width: 1.04, grey: 0, hunch: 0 },
@@ -452,7 +452,7 @@ export function grown(b: Model, look: Look): Rig {
   chest.rotation.x = age.hunch;
   chest.box([0.25 * w, 0.09, 0.16], look.pants, [0, -0.06, 0], 0.04);
   chest.box([0.29 * w, 0.34, 0.17], main, [0, 0, 0], 0.07);
-  const short = look.top === "tee";
+  const shortSleeves = look.top === "tee";
   switch (look.top) {
     case "tee":
       chest.cyl(0.065, 0.02, dark, [0, 0.33, 0], 0.065, 16);
@@ -478,7 +478,7 @@ export function grown(b: Model, look: Look): Rig {
       break;
   }
   const arms = armsOf(chest, [0.175 * w, 0.3, 0], (arm, s) => {
-    if (short) {
+    if (shortSleeves) {
       arm.box([0.08, 0.12, 0.09], main, [0, -0.12, 0], 0.035).rotation.z = s * 0.06;
       arm.box([0.065, 0.2, 0.07], skin, [s * 0.008, -0.3, 0], 0.03).rotation.z = s * 0.06;
     } else arm.box([0.075, 0.29, 0.085], main, [0, -0.29, 0], 0.035).rotation.z = s * 0.06;
@@ -505,7 +505,7 @@ export function grown(b: Model, look: Look): Rig {
     head.ball(0.024, tint(skin, -0.08), [0, c[1] - 0.03, R * 0.97], [0.85, 1.15, 0.9]);
     for (const s of [-1, 1]) head.ball(0.035, skin, [s * R * 0.92, c[1] - 0.01, -0.005], [0.45, 1, 0.75]);
     const top = head.part(c);
-    top.scale.set((0.97 * R) / HEAD_R, (1.1 * R) / HEAD_R, R / HEAD_R);
+    top.scale.set((0.97 * R) / CHIBI_R, (1.1 * R) / CHIBI_R, R / CHIBI_R);
     if (look.hat === "none" || look.hat === "headphones") chibiHair(top, look, hair, senior);
     if (look.beard >= 1) head.box([0.075, 0.017, 0.03], hair, [0, c[1] - 0.062, R * 0.92], 0.008);
     if (look.beard >= 2) {
@@ -532,7 +532,7 @@ export function grown(b: Model, look: Look): Rig {
   };
 }
 
-// ——— Bots ———
+// MARK: Bots
 export function bot(b: Model, look: Look): Rig {
   const HIP = 0.2;
   const NECK = 0.48;
@@ -571,6 +571,7 @@ export function bot(b: Model, look: Look): Rig {
   const tip = glow("#ff7ab6");
   head.ball(0.035, tip, [0.08, 0.49, 0]);
   if (look.hat === "crown" || look.hat === "headphones") hatOn(head, look, 0.24, [0, 0.12, 0]);
+  // A random phase per bot, so a crowd of them does not blink in step.
   const seed = Math.random() * 10;
   return {
     legs,

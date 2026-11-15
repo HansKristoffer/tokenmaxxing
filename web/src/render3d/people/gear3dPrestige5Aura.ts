@@ -38,12 +38,13 @@ function basic(color: string, opacity = 1, side: THREE.Side = THREE.FrontSide): 
   return m;
 }
 
+/** Smoothstep: 0 up to `a`, 1 from `b`, eased in between. */
 const smooth = (a: number, b: number, x: number) => {
   const k = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return k * k * (3 - 2 * k);
 };
 
-/** A cube of `w`×`h`×`d` metres that moves and scales and stays out of the blocky swap. */
+/** A mesh of `size` metres, marked `noBlock` so the voxel render style leaves it as built. */
 function cube(
   parent: THREE.Object3D,
   size: [number, number, number],
@@ -70,7 +71,8 @@ AURA_BUILDERS["Prismatic ascension"] = (m, tick) => {
   cube(m, [0.7, 1.05, 0.7], basic("#f4f0ff", 0.05, THREE.BackSide), [0, 0.02, 0], vox ? CUBE : CYL);
   const pool = Array.from({ length: 12 }, (_, i) => {
     const a = (i / 12) * Math.PI * 2;
-    return cube(m, [0.035, 0.012, 0.035], basic(i % 2 ? "#f4f0ff" : "#9fe8ff", 0.8), [
+    const color = i % 2 ? "#f4f0ff" : "#9fe8ff";
+    return cube(m, [0.035, 0.012, 0.035], basic(color, 0.8), [
       Math.sin(a) * 0.36,
       FEET + 0.01,
       Math.cos(a) * 0.36,
@@ -83,6 +85,7 @@ AURA_BUILDERS["Prismatic ascension"] = (m, tick) => {
       o: cube(m, [1, 1, 1], basic(color, 0.95)),
       c,
       p: (j + c * 0.11) / SPECKS,
+      // Each colour's strand runs at its own pace, so the colours never climb in step.
       s: 0.9 + ((c * 7) % 5) * 0.05,
     })),
   );
@@ -103,6 +106,7 @@ AURA_BUILDERS["Prismatic ascension"] = (m, tick) => {
       const a = (sp.c / SPECTRUM.length) * Math.PI * 2 + k * 5.5 + t * 0.5;
       sp.o.position.set(Math.sin(a) * r, y + open * 0.06, Math.cos(a) * r);
       const size = 0.026 * smooth(0, 0.08, k) * (1 - smooth(0.92, 1, k)) * (vox ? 0.85 : 1);
+      // A scale of 0 can break the mesh's matrix, so each axis keeps a tiny floor above it.
       sp.o.scale.set(Math.max(size, 0.0001), Math.max(size * 2.2, 0.0001), Math.max(size, 0.0001));
     }
     for (const r of rays) {
