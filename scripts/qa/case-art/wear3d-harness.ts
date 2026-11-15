@@ -1,16 +1,16 @@
 // Browser harness for the Julemarked 3D wearables sheet (see wear3d.mjs): real avatars wearing each item, WebGL.
 import * as THREE from "three";
-import { blockify } from "../../../web/src/render3d/kit/blocky.ts";
-
-const VOXEL = location.hash.includes("voxel");
-const STALL = location.hash.includes("stall");
-
 import { JULEMARKED_ITEMS } from "../../../core/src/case-julemarked.ts";
 import { STALL_WEARABLES } from "../../../core/src/julemarked-shop.ts";
+import { blockify } from "../../../web/src/render3d/kit/blocky.ts";
 import { setSmoothBands } from "../../../web/src/render3d/kit/kit.ts";
 import { avatarFor } from "../../../web/src/render3d/people/gear3d.ts";
 import { view } from "../../../web/src/render3d/perf/freeze.ts";
 
+const VOXEL = location.hash.includes("voxel");
+const STALL = location.hash.includes("stall");
+
+// Show every model in the sheet, whatever the freeze view would cull.
 view.sees = () => true;
 const CW = 260;
 const CH = 340;
@@ -95,6 +95,7 @@ for (const slot of ["hat", "glasses", "outfit", "held", "back"] as const) {
         scene.remove(av.root);
         av.dispose();
       } catch (e) {
+        // One view that fails to build leaves its cell empty and is logged, so the rest of the sheet still draws.
         console.error(it.name, String((e as Error).stack ?? e));
       }
     });

@@ -1,6 +1,6 @@
-// Renders the prestige 3D showcase (tracks' full sets, pet wear, trophies) to PNGs in headless Chromium.
+// Renders the Julemarked 3D sheets (through julemarked3d-harness.ts) to PNGs in headless Chromium.
 //   bunx bun@1.4.4 scripts/qa/case-art/julemarked3d-shots.mjs [--out /tmp/case-shots/julemarked/3d-pets]
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -58,6 +58,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 await page.goto(`file://${join(tmp, "index.html")}${process.env.VOXEL ? "#voxel" : ""}`);
+// A missing "ready" title is not fatal: the sheets drawn so far are shot, and render errors fail below.
 await page.waitForFunction(() => document.title === "ready", null, { timeout: 90000 }).catch(() => {});
 for (const id of await page.$$eval("canvas[id^=sheet-]", (cs) => cs.map((c) => c.id))) {
   const file = join(out, `${id.replace("sheet-", "")}.png`);

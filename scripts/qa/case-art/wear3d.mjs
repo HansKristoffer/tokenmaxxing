@@ -53,9 +53,11 @@ const browser = await pw.chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1800, height: 900 } });
 page.on("pageerror", (e) => console.error("pageerror", e.message));
 page.on("console", (m) => m.type() === "error" && console.error(m.text()));
-await page.goto(
-  `file://${join(tmp, "index.html")}${[process.env.VOXEL && "voxel", process.env.STALL && "stall"].filter(Boolean).join(",") ? `#${[process.env.VOXEL && "voxel", process.env.STALL && "stall"].filter(Boolean).join(",")}` : ""}`,
-);
+// The harness reads its modes from the page hash: the VOXEL and STALL env vars set them, comma separated.
+const modes = [process.env.VOXEL && "voxel", process.env.STALL && "stall"].filter(Boolean);
+const hash = modes.length > 0 ? `#${modes.join(",")}` : "";
+await page.goto(`file://${join(tmp, "index.html")}${hash}`);
+// A missing "ready" title is not fatal: the sheets drawn so far are shot.
 await page.waitForFunction(() => document.title === "ready", null, { timeout: 120000 }).catch(() => {});
 for (const id of await page.$$eval("canvas[id^=sheet-]", (cs) => cs.map((c) => c.id))) {
   const file = join(out, `${id.replace("sheet-", "")}.png`);
