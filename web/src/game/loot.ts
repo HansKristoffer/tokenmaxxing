@@ -37,11 +37,11 @@ interface Flying {
   to: { x: number; y: number } | null;
 }
 
-const fx = {
-  flying: [] as Flying[],
+const fx: {
+  flying: Flying[];
   /** The rarest drop of the last batch, if it was epic or better: a flash and a banner. */
-  big: null as { news: LootNews; rarity: Rarity; at: number } | null,
-};
+  big: { news: LootNews; rarity: Rarity; at: number } | null;
+} = { flying: [], big: null };
 
 const rarityOf = (item: string): Rarity => lootById(item)?.rarity ?? "common";
 const RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
@@ -106,6 +106,7 @@ function drawOne({ g, items, labels, toScreen, now, dpr }: Frame, f: Flying): vo
   const color = RARITIES[f.rarity].color;
   const sprite = lootSprite(f.news.item);
   f.to ??= deskOf(f.news.userId) ?? { x: TARGET.x + f.dx * 3, y: TARGET.y + 140 };
+  const to = f.to;
   const top = { x: TARGET.x + f.dx, y: TARGET.y - 34 };
   let x: number;
   let y: number;
@@ -119,14 +120,14 @@ function drawOne({ g, items, labels, toScreen, now, dpr }: Frame, f: Flying): vo
   } else if (t < POP_MS + FLY_MS) {
     // An arc down to the desk.
     const u = ease((t - POP_MS) / FLY_MS);
-    const cx = (top.x + f.to.x) / 2;
-    const cy = Math.min(top.y, f.to.y) - 40;
-    x = (1 - u) ** 2 * top.x + 2 * (1 - u) * u * cx + u * u * f.to.x;
-    y = (1 - u) ** 2 * top.y + 2 * (1 - u) * u * cy + u * u * f.to.y;
+    const cx = (top.x + to.x) / 2;
+    const cy = Math.min(top.y, to.y) - 40;
+    x = (1 - u) ** 2 * top.x + 2 * (1 - u) * u * cx + u * u * to.x;
+    y = (1 - u) ** 2 * top.y + 2 * (1 - u) * u * cy + u * u * to.y;
     scale = 1.2 - 0.3 * u;
   } else {
-    x = f.to.x;
-    y = f.to.y - 6;
+    x = to.x;
+    y = to.y - 6;
     scale = 0.9;
   }
   const landed = t >= POP_MS + FLY_MS;
@@ -159,7 +160,7 @@ function drawOne({ g, items, labels, toScreen, now, dpr }: Frame, f: Flying): vo
         g.strokeStyle = color;
         g.lineWidth = 1.5;
         g.beginPath();
-        g.arc(f.to!.x, f.to!.y - 4, 4 + u * (14 + rank * 6), 0, Math.PI * 2);
+        g.arc(to.x, to.y - 4, 4 + u * (14 + rank * 6), 0, Math.PI * 2);
         g.stroke();
       }
       g.globalAlpha = fade;
@@ -172,7 +173,7 @@ function drawOne({ g, items, labels, toScreen, now, dpr }: Frame, f: Flying): vo
     },
   });
   if (!landed) return;
-  const [sx, sy] = toScreen(f.to.x, f.to.y - 14);
+  const [sx, sy] = toScreen(to.x, to.y - 14);
   const name = lootById(f.news.item)?.name ?? f.news.item;
   labels.push(() => {
     g.globalAlpha = Math.min(1, fade * 2);

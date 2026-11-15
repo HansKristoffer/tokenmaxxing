@@ -33,7 +33,7 @@ import { skyNow } from "./sky.ts";
 import { world } from "./world.ts";
 
 /** The Sankt Hans intensity in town now (0.4 to 1), or 0 when the theme is not on there. */
-export function midsommerNow(): number {
+function midsommerNow(): number {
   if (world.room !== "town") return 0;
   const f = festiveNow();
   return f?.id === "sanktHans" ? f.intensity : 0;
@@ -59,10 +59,7 @@ export function spotsNow(): Spots {
 }
 
 /** The fire's heart in world pixels, for sparks, glow and the heks's take-off. */
-export const FIRE_PX = (): [number, number] => [
-  (BONFIRE.x + BONFIRE.w / 2) * TILE,
-  (BONFIRE.y + 1) * TILE - 18,
-];
+const fireHeart = (): [number, number] => [(BONFIRE.x + BONFIRE.w / 2) * TILE, (BONFIRE.y + 1) * TILE - 18];
 
 // MARK: The heks
 
@@ -73,8 +70,8 @@ const FLIGHT = Number(new URLSearchParams(location.search).get("heksms")) || FLI
 const FROZEN = Number(new URLSearchParams(location.search).get("heksat")) || 0;
 
 /** Where the little heks is `t` (0..1) into her flight, in world pixels: up off the fire, then away south-west. */
-export function heksAt(t: number): [number, number] {
-  const [fx, fy] = FIRE_PX();
+function heksAt(t: number): [number, number] {
+  const [fx, fy] = fireHeart();
   const ease = t * t * (3 - 2 * t);
   return [fx - ease * 330, fy - Math.sin(Math.min(1, t * 1.3) * Math.PI) * 90 + ease * 110 - ease * 30];
 }
@@ -147,7 +144,7 @@ const SPARK = ["#ffd75e", "#ff9a3c", "#ffe9a0", "#ff6a2a"];
 export function lightMidsommer(g: CanvasRenderingContext2D, strength: number, now: number): void {
   const k = midsommerNow();
   if (k === 0) return;
-  const [fx, fy] = FIRE_PX();
+  const [fx, fy] = fireHeart();
   if (bonfireNow() === "lit")
     for (let i = 0; i < 14; i++) {
       const p = (now / 2200 + i / 14) % 1;

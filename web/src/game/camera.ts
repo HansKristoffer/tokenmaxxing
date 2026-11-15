@@ -75,14 +75,11 @@ export function zoom(step: 1 | -1 | 0): void {
     return;
   }
   if (step === 0) chosenScale = null;
-  else
-    chosenScale = Math.max(
-      zoomRange.min,
-      Math.min(
-        zoomRange.max,
-        Math.round(chosenScale ?? camera.scale) + step * Math.max(1, Math.round(camera.dpr)),
-      ),
-    );
+  else {
+    const stepPx = step * Math.max(1, Math.round(camera.dpr));
+    const from = Math.round(chosenScale ?? camera.scale);
+    chosenScale = Math.max(zoomRange.min, Math.min(zoomRange.max, from + stepPx));
+  }
   if (chosenScale === null) storage.removeItem(ZOOM_KEY);
   else storage.setItem(ZOOM_KEY, String(chosenScale));
 }

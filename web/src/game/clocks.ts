@@ -44,7 +44,7 @@ export const clocksSign = (f: ClockFaces): string | null =>
 /** What E on the clocks says. */
 export const clocksText = (): string => clocksLine(skyNow());
 
-let sprite: { of: ClockFaces | null; canvas: HTMLCanvasElement | null } = { of: null, canvas: null };
+let sprite: { of: ClockFaces; canvas: HTMLCanvasElement } | null = null;
 
 /** Queues the clocks on the wall (from the run's left tile), the lamp's glow and the sign. */
 export function drawClocks({ g, items, labels, toScreen, dpr }: Frame): void {
@@ -52,8 +52,8 @@ export function drawClocks({ g, items, labels, toScreen, dpr }: Frame): void {
   const at = world.map.find("◷").find(([x, y]) => world.map.at(x - 1, y) !== "◷");
   if (!at) return;
   const f = clockFaces();
-  if (sprite.of !== f) sprite = { of: f, canvas: worldClocks(f.hands, f.lit) };
-  const canvas = sprite.canvas!;
+  if (sprite?.of !== f) sprite = { of: f, canvas: worldClocks(f.hands, f.lit) };
+  const { canvas } = sprite;
   const left = at[0] * TILE;
   const top = at[1] * TILE + CLOCKS_DY;
   items.push({

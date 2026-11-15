@@ -27,6 +27,7 @@ import {
   standing,
   TUMPENG,
 } from "@tokenmaxxing/core/agustusan.ts";
+import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import {
   buntingSprite,
@@ -63,7 +64,7 @@ export interface AgustusanNow {
   up: number;
 }
 
-let spots: { map: unknown; flags: Spot[] } | null = null;
+let spots: { map: GameMap; flags: Spot[] } | null = null;
 
 /** Agustusan in town now, or null. Cheap: `festiveNow` is cached per minute, the flag list per map. */
 export function agustusanNow(): AgustusanNow | null {
@@ -105,11 +106,14 @@ function award(l: Lomba, what: string): string {
 
 const say = (text: string): void => hud.set({ dialog: text });
 
+/** How long the climber stays at the top, cheering, before the pole is reset for the next one. */
+const CHEER_MS = 1800;
+
 let pole = { h: 0, at: 0, won: 0 };
 /** The climber's height on the pole now: it slides back a step a second while nobody pushes. */
 export function climberHeight(now: number): number {
   // Won: the top while they cheer, then back at the foot for the next climber.
-  if (pole.won) return now - pole.won < 1800 ? PANJAT_TOP : 0;
+  if (pole.won) return now - pole.won < CHEER_MS ? PANJAT_TOP : 0;
   return Math.max(0, pole.h - Math.max(0, Math.floor((now - pole.at) / PANJAT_SLIDE_MS)));
 }
 
@@ -140,7 +144,7 @@ function biteKerupuk(now: number): string {
   const a = agustusanNow();
   if (!a?.stand.play)
     return "🍘 Makan kerupuk: a cracker on a string, hands behind your back. It starts on the 15th.";
-  const n = (now - bites.at > KERUPUK_GAP_MS ? 0 : bites.n) + 1;
+  const n = kerupukBites(now) + 1;
   bites = { n, at: now, won: 0 };
   if (n >= KERUPUK_BITES) {
     bites = { n: 0, at: 0, won: now };
@@ -151,14 +155,13 @@ function biteKerupuk(now: number): string {
 
 /** The finish: the tile before the flag, at the end of the lane. */
 const FINISH_TILE: Spot = { x: SACK.laneX1, y: SACK.y };
-const parMs = (): number => SACK_PAR_MS;
 
 /** What E at the start flag says (and the race is on). */
 function startRace(now: number): string {
   const a = agustusanNow();
   if (!a?.stand.play) return "🏁 Balap karung, the sack race, starts on the 15th.";
   race = { at: now };
-  return `🏁 Siap... mulai! Run along the lane to the finish flag, hold Shift to run. Under ${(parMs() / 1000).toFixed(1)} seconds wins a medal.`;
+  return `🏁 Siap... mulai! Run along the lane to the finish flag, hold Shift to run. Under ${(SACK_PAR_MS / 1000).toFixed(1)} seconds wins a medal.`;
 }
 
 /** Once a frame: the sack race ends when you reach the end of the lane. */
@@ -173,10 +176,10 @@ function watchRace(now: number): void {
   const took = now - race.at;
   race = null;
   const s = (took / 1000).toFixed(2);
-  if (took <= parMs()) say(award("karung", `🏁 ${s} seconds! You hop over the finish line first.`));
+  if (took <= SACK_PAR_MS) say(award("karung", `🏁 ${s} seconds! You hop over the finish line first.`));
   else
     say(
-      `🏁 ${s} seconds. Not fast enough for the medal (under ${(parMs() / 1000).toFixed(1)}); hold Shift to run and try again.`,
+      `🏁 ${s} seconds. Not fast enough for the medal (under ${(SACK_PAR_MS / 1000).toFixed(1)}); hold Shift to run and try again.`,
     );
 }
 
@@ -226,7 +229,7 @@ export function agustusanInteract(x: number, y: number): boolean {
     );
     return true;
   }
-  const i = a.flags.findIndex((s) => s.x === x && s.y === y);
+  const i = a.flags.findIndex((s) => at(s, x, y));
   if (i >= 0 && i < a.up) {
     say(
       isUmbul(i)
@@ -267,13 +270,10 @@ export function drawAgustusan(f: Frame): void {
     // Bunting along the square's edges, tied to the poles and the gapura's posts.
     const tie = (s: Spot): [number, number] => {
       const isGate = at(GAPURA.left, s.x, s.y) || at(GAPURA.right, s.x, s.y);
-      if (isGate)
-        return [
-          at(GAPURA.left, s.x, s.y)
-            ? GAPURA.left.x * TILE + GAPURA_TIE.left
-            : GAPURA.left.x * TILE + GAPURA_TIE.right,
-          floorOf(s.y) - GAPURA_PX.h + GAPURA_TIE.y,
-        ];
+      if (isGate) {
+        const tieX = at(GAPURA.left, s.x, s.y) ? GAPURA_TIE.left : GAPURA_TIE.right;
+        return [GAPURA.left.x * TILE + tieX, floorOf(s.y) - GAPURA_PX.h + GAPURA_TIE.y];
+      }
       return [s.x * TILE + 8, floorOf(s.y) - FLAG_PX.h + FLAG_TIE];
     };
     for (const [p, q] of BUNTING_ROWS) {

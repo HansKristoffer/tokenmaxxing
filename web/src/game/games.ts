@@ -31,13 +31,13 @@ export function drawGames(f: Frame): void {
   drawSigns(f);
 }
 
-export function banner(game: WorldGame, serverNow: number): string {
+export function banner(game: WorldGame, at: number): string {
   const def = GAMES[game.game]!;
   const info = hud.get().lobby?.matches.find((m) => m.id === game.id);
   return [
     `${def.emoji} ${def.name}`,
     game.headline,
-    game.endsAt ? `${clock(game.endsAt - serverNow)} left` : null,
+    game.endsAt ? `${clock(game.endsAt - at)} left` : null,
     info && info.pot > 0 ? `🪙 ${info.pot}` : null,
     game.watchers > 0 ? `👀 ${game.watchers}` : null,
   ]
@@ -45,7 +45,7 @@ export function banner(game: WorldGame, serverNow: number): string {
     .join(" · ");
 }
 
-function drawTable(f: Frame, game: WorldGame, serverNow: number): void {
+function drawTable(f: Frame, game: WorldGame, at: number): void {
   const { g, dpr, now } = f;
   const [[tx, ty]] = propTiles(game.spot) as [[number, number]];
   f.items.push({
@@ -58,7 +58,7 @@ function drawTable(f: Frame, game: WorldGame, serverNow: number): void {
   const [sx, sy] = f.toScreen((game.spot.x + game.spot.w / 2) * TILE, head);
   f.labels.push(() => {
     const y = sy - 42 * dpr;
-    const { w, h } = pill(g, sx, y, banner(game, serverNow), dpr, "rgba(233, 183, 61, 0.95)", C.ink);
+    const { w, h } = pill(g, sx, y, banner(game, at), dpr, "rgba(233, 183, 61, 0.95)", C.ink);
     gameHits.push({ x: sx - w / 2, y: y - h, w, h, open: () => openMatch(game.id) });
     const said = world.tableBubbles.get(game.id);
     if (said && now < said.until) bubble(g, sx, y - h - 2 * dpr, said.text, dpr, said.until - now);
@@ -66,7 +66,7 @@ function drawTable(f: Frame, game: WorldGame, serverNow: number): void {
 }
 
 /** Tokenmaxxing's arena: a desk per player and a live scoreboard above them. */
-function drawArena(f: Frame, game: WorldGame, serverNow: number): void {
+function drawArena(f: Frame, game: WorldGame, at: number): void {
   const { g, dpr, now } = f;
   const rows = game.board ?? [];
   const rank = new Map(rows.map((r, i) => [r.player, i]));
@@ -82,7 +82,7 @@ function drawArena(f: Frame, game: WorldGame, serverNow: number): void {
     });
   }
   const [sx, sy] = f.toScreen((game.spot.x + game.spot.w / 2) * TILE, game.spot.y * TILE);
-  f.labels.push(() => scoreboard(g, game, sx, sy - 10 * dpr, serverNow, dpr));
+  f.labels.push(() => scoreboard(g, game, sx, sy - 10 * dpr, at, dpr));
 }
 
 function scoreboard(
@@ -90,11 +90,11 @@ function scoreboard(
   game: WorldGame,
   cx: number,
   bottom: number,
-  serverNow: number,
+  at: number,
   dpr: number,
 ): void {
   const rows = game.board ?? [];
-  const title = banner(game, serverNow);
+  const title = banner(game, at);
   const lh = 15 * dpr;
   const w = 250 * dpr;
   const h = 26 * dpr + rows.length * lh + 6 * dpr;

@@ -1,10 +1,4 @@
-import {
-  type Festive,
-  type FestivePin,
-  festiveKey,
-  festiveWith,
-  parseFestivePin,
-} from "@tokenmaxxing/core/festive.ts";
+import { type Festive, type FestivePin, festiveWith, parseFestivePin } from "@tokenmaxxing/core/festive.ts";
 import { graphics } from "../settings/graphics.ts";
 import { hud } from "../store.ts";
 import { skyNow } from "./sky.ts";
@@ -63,13 +57,13 @@ export function festiveNow(): Festive | null {
   const minute = Math.floor(at / 60_000);
   const key = `${on}|${text ?? ""}`;
   if (shown?.minute === minute && shown.key === key) return shown.festive;
-  const pin = urlPin ? ticking(urlPin, loaded) : !on ? "off" : ticking(serverPin, serverSince);
+  let pin: FestivePin;
+  if (urlPin) pin = ticking(urlPin, loaded);
+  else if (!on) pin = "off";
+  else pin = ticking(serverPin, serverSince);
   shown = { minute, key, festive: festiveWith(pin, at) };
   return shown.festive;
 }
 
 /** The theme's intensity now, 0 when there is none. */
 export const intensityNow = (): number => festiveNow()?.intensity ?? 0;
-
-/** `festiveKey` of now, for a bake key (use sparingly: overlays first). */
-export const festiveKeyNow = (): string => festiveKey(festiveNow());
