@@ -32,13 +32,19 @@ export class TavernClock {
     for (const id of present) {
       this.minutes.set(id, (this.minutes.get(id) ?? 0) + 1);
       const before = this.last.get(id);
-      if (before === undefined || now - before >= VISIT_GAP_MS)
+      const isNewVisit = before === undefined || now - before >= VISIT_GAP_MS;
+      if (isNewVisit) {
         this.visits.set(id, (this.visits.get(id) ?? 0) + 1);
+      }
       this.last.set(id, now);
     }
-    // Only the recent matter for the gap.
-    if (this.last.size > 500)
-      for (const [id, at] of this.last) if (now - at >= VISIT_GAP_MS) this.last.delete(id);
+
+    // Only players seen within the gap matter, so the map is pruned once it grows past 500 entries.
+    if (this.last.size > 500) {
+      for (const [id, at] of this.last) {
+        if (now - at >= VISIT_GAP_MS) this.last.delete(id);
+      }
+    }
   }
 
   /** Everything counted so far, and starts again from nothing. */

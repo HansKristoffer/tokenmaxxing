@@ -1,11 +1,11 @@
+/** Past this many keys, expired ones are dropped, so a flood of distinct keys cannot grow the map forever. */
+const MAX_KEYS = 10_000;
+
 /**
  * Fixed-window counter per key (a user id, a company id, or one global key).
  * ponytail: in-memory, so it resets on deploy and only covers one instance.
  * Fine for a single Railway replica; move to SQLite if we ever scale out.
  */
-/** Past this many keys, expired ones are dropped. */
-const MAX_KEYS = 10_000;
-
 export class RateLimiter {
   private readonly hits = new Map<string, { count: number; resetAt: number }>();
 

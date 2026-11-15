@@ -5,7 +5,10 @@ import { RateLimiter } from "./rate-limit.ts";
 /** Browsers and the menu bar app reach actors under this path, on our own origin. */
 const RIVET_PATH = "/api/rivet";
 
-/** Set by the proxy on everything it forwards (any copy from the client is dropped); `actors/shared.ts` reads it. */
+/**
+ * Set by the proxy on everything it forwards (any copy from the client is dropped).
+ * `actors/shared.ts` reads it.
+ */
 export const CLIENT_IP_HEADER = "x-tokenmaxxing-ip";
 
 const ACTORS = new Set(["town", "world", "arcade", "player", "match"]);
@@ -34,7 +37,8 @@ export function gatewayAllowed(path: string, params: URLSearchParams): boolean {
   const m = /^\/gateway\/([^/?]+)/.exec(path);
   if (!m) return false;
   const methods = params.getAll("rvt-method");
-  if (methods.length === 0) return !params.has("rvt-key") && !params.has("rvt-input"); // an actor id
+  // No method names an actor by its id, which takes no key and no input.
+  if (methods.length === 0) return !params.has("rvt-key") && !params.has("rvt-input");
   if (methods.length > 1) return false;
   const name = decodeURIComponent(m[1]!);
   if (!ACTORS.has(name)) return false;
@@ -150,9 +154,10 @@ export function close(
   code: number,
   reason: string,
 ): void {
-  const sendable =
-    (code >= 1000 && code <= 1014 && code !== 1004 && code !== 1005 && code !== 1006) ||
-    (code >= 3000 && code <= 4999);
+  // RFC 6455: 1004 is reserved and 1005 and 1006 are only ever received. 3000 to 4999 are left to applications and libraries.
+  const isStandardCode = code >= 1000 && code <= 1014 && code !== 1004 && code !== 1005 && code !== 1006;
+  const isAppCode = code >= 3000 && code <= 4999;
+  const sendable = isStandardCode || isAppCode;
   try {
     socket.close(sendable ? code : 1000, reason);
   } catch {

@@ -22,9 +22,13 @@ export function logSlowActions(
       const start = performance.now();
       const done = (failed: boolean) => {
         const ms = Math.round(performance.now() - start);
-        if (ms >= slowMs)
-          log(`[slow] ${name}[${c?.key?.join("/") ?? ""}].${action} ${ms} ms${failed ? " (failed)" : ""}`);
+        if (ms < slowMs) return;
+
+        const key = c?.key?.join("/") ?? "";
+        const outcome = failed ? " (failed)" : "";
+        log(`[slow] ${name}[${key}].${action} ${ms} ms${outcome}`);
       };
+
       let out: unknown;
       try {
         out = handler(c, ...args);
@@ -32,12 +36,16 @@ export function logSlowActions(
         done(true);
         throw err;
       }
-      if (out instanceof Promise)
+
+      // The timing only observes the result: the caller still gets the promise itself.
+      if (out instanceof Promise) {
         out.then(
           () => done(false),
           () => done(true),
         );
-      else done(false);
+      } else {
+        done(false);
+      }
       return out;
     };
   }
