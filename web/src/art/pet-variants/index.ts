@@ -21,7 +21,8 @@ const ART: Record<number, PetVariant[]> = {
 /** The art of `pet`'s variation `variant` (1-based, as in `Look.petVariant`), or null for the original. */
 export function variantArt(pet: number, variant: number): PetVariant | null {
   const id = PET_VARIANTS[pet]?.[variant - 1];
-  return (id && ART[pet]?.find((v) => v.id === id)) || null;
+  if (!id) return null;
+  return ART[pet]?.find((v) => v.id === id) ?? null;
 }
 
 /** Ids in `PET_VARIANTS` that have no art yet, for tests and the sheet tool. */
@@ -31,5 +32,7 @@ export const missingArt = (): string[] =>
   );
 
 /** The costume `id` (from `petOutfit`), or null. */
-export const outfitArt = (id: string | null): PetVariant | null =>
-  (id && NAMED.find((v) => v.id === id)) || null;
+export function outfitArt(id: string | null): PetVariant | null {
+  if (!id) return null;
+  return NAMED.find((v) => v.id === id) ?? null;
+}

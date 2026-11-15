@@ -5,7 +5,11 @@ import { line, type Patch, type PetVariant, swap, up } from "./types.ts";
  * Costumes for named pets (`PET_NAMED` in core/src/pets.ts): a look of a pet with a few pixels dressed.
  * They're built on the plain look, so the picker's art and the costume never drift apart.
  */
-const dog = (id: string) => DOG_SHAPES.find((v) => v.id === id)!;
+function dog(id: string): PetVariant {
+  const shape = DOG_SHAPES.find((v) => v.id === id);
+  if (!shape) throw new Error(`no dog shape with id "${id}"`);
+  return shape;
+}
 
 /**
  * Penny, after the real dog: a dark chocolate knitted sweater from behind the neck to the hips, a chunky pink

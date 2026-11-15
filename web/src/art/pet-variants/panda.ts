@@ -2,6 +2,7 @@ import { C } from "../palette.ts";
 import { PETS } from "../pets.ts";
 import { type Patch, type PetVariant, swap } from "./types.ts";
 
+// Pet 5 is the panda. The index is fixed, so the lookup cannot miss.
 const BASE = PETS[5]!;
 
 /** The panda's eye patches: frame 0 has them on row 3, the hop lifts them to row 2. */
@@ -14,7 +15,7 @@ const EYES1: Patch[] = [
   [2, 9, "p"],
 ];
 
-/** Colour swaps of the panda. Shapes are in shapes.ts. */
+/** Colour swaps of the panda. Shapes are in other-shapes.ts. */
 export const PANDA_SWAPS: PetVariant[] = [
   // Qinling: the rare brown-and-cream panda.
   swap(BASE, "qinling", "Qinling panda", { w: "#f3e2c4", k: "#8a5a3a", n: C.ink }),
