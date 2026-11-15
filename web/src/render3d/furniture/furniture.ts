@@ -159,7 +159,9 @@ const chair = (): Model => {
 
 const shelf = (): Model => {
   const m = new Model();
-  const [w, h, d] = [0.86, 1.5, 0.32];
+  const w = 0.86;
+  const h = 1.5;
+  const d = 0.32;
   const wood = C.woodDark;
   m.box([w, h, 0.03], tint(wood, -0.15), [0, 0, -d / 2 + 0.015]);
   m.box([0.05, h, d], wood, [-w / 2 + 0.025, 0, 0]);
@@ -191,7 +193,8 @@ export const desk =
     const h = 0.62;
     if (tiles === 1) {
       // One tile, as the map and the 2D desk have it: a top on two side panels, the screen in the middle.
-      const [w, d] = [0.9, 0.7];
+      const w = 0.9;
+      const d = 0.7;
       m.box([w, 0.05, d], C.woodLight, [0, h, 0], 0.015);
       for (const x of [-1, 1]) m.box([0.05, h, d - 0.08], C.wood, [x * (w / 2 - 0.06), 0, 0]);
       monitor(m, [0, h + 0.05, -0.15], seed);
@@ -199,7 +202,8 @@ export const desk =
       m.cyl(0.045, 0.1, "#e25d5d", [0.3, h + 0.05, 0.05], 0.045, 10);
       return m;
     }
-    const [w, d] = [1.7, 0.7];
+    const w = 1.7;
+    const d = 0.7;
     m.box([w, 0.05, d], C.woodLight, [0, h, 0], 0.015);
     m.box([0.05, h, d - 0.08], C.wood, [-w / 2 + 0.06, 0, 0]);
     m.box([0.4, h - 0.02, d - 0.08], C.wood, [w / 2 - 0.24, 0, 0]);
@@ -563,15 +567,9 @@ const arcade = (): Model => {
   s.rotation.x = -0.18;
   m.cyl(0.015, 0.08, "#2b2433", [-0.15, 0.95, 0.2], 0.015, 6);
   m.ball(0.03, "#e25d5d", [-0.15, 1.04, 0.2]);
-  for (let i = 0; i < 3; i++)
-    m.cyl(
-      0.025,
-      0.02,
-      ["#f0b53c", "#4f8fe0", "#3ddc84"][i]!,
-      [0.05 + i * 0.08, 0.97, 0.18 - i * 0.01],
-      0.025,
-      8,
-    );
+  const buttons = ["#f0b53c", "#4f8fe0", "#3ddc84"];
+  for (const [i, colour] of buttons.entries())
+    m.cyl(0.025, 0.02, colour, [0.05 + i * 0.08, 0.97, 0.18 - i * 0.01], 0.025, 8);
   light(m, [0, 1.3, 0.6], "#e86bd8", 1.6, 3);
   return m;
 };
@@ -715,21 +713,15 @@ const espressoBar = (): Model => {
   }
   m.cyl(0.08, 0.3, "#5d6470", [0.35, 1.0, -0.05], 0.06, 12);
   m.cyl(0.07, 0.12, glass("#5e3d28", 0.75), [0.35, 1.3, -0.05], 0.08, 12);
-  for (let i = 0; i < 3; i++)
-    m.cyl(
-      0.045,
-      0.08,
-      ["#e25d5d", "#4f8fe0", "#fbf7ef"][i]!,
-      [0.6 + (i % 2) * 0.06, 1.0, 0.15 - i * 0.1],
-      0.05,
-      10,
-    );
+  const mugs = ["#e25d5d", "#4f8fe0", "#fbf7ef"];
+  for (const [i, colour] of mugs.entries())
+    m.cyl(0.045, 0.08, colour, [0.6 + (i % 2) * 0.06, 1.0, 0.15 - i * 0.1], 0.05, 10);
   return m;
 };
 
 const neonSign = (): Model => {
   const m = new Model();
-  // The town's bolt, big enough to read at any pixel size.
+  // A lightning bolt drawn at 40x16 texels and stretched over the sign.
   const bolt = canvasTexture(40, 16, (g) => {
     g.fillStyle = "#1b1f2a";
     g.fillRect(0, 0, 40, 16);

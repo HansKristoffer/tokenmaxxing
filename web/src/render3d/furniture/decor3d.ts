@@ -35,7 +35,7 @@ const penOf = (g: CanvasRenderingContext2D): Pen => ({
 });
 type Art = (p: Pen, ox: number, oy: number, x: number, y: number) => void;
 
-// ——— Floors ———
+// MARK: Floors
 
 function herringbone(p: Pen, ox: number, oy: number, x: number, y: number, base: string, line: string): void {
   p.rect(ox, oy, TILE, TILE, base);
@@ -48,7 +48,8 @@ function herringbone(p: Pen, ox: number, oy: number, x: number, y: number, base:
     }
 }
 
-const FLOOR_ART: Record<string, Art> = {
+// Keyed by look id; `floorLook` takes one of these keys, so a missing painter is a compile error.
+const FLOOR_ART = {
   linoleum: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#7fa88a");
     for (let j = 0; j < TILE; j++)
@@ -131,11 +132,12 @@ const FLOOR_ART: Record<string, Art> = {
         p.rect(ox + i * 8 + 1, oy + j * 8 + 1, 6, 1, "#a3a9b2");
       }
   },
-};
+} satisfies Record<string, Art>;
 
-// ——— Wallpapers ———
+// MARK: Wallpapers
 
-const WALL_ART: Record<string, Art> = {
+// Keyed by look id, like `FLOOR_ART`.
+const WALL_ART = {
   hygge: (p, ox, oy, x, y) => {
     for (let j = 0; j < TILE; j++)
       p.rect(ox, oy + j, TILE, 1, j < 5 ? "#f0d8aa" : j < 10 ? "#f5e3bd" : "#f9ecd0");
@@ -210,11 +212,11 @@ const WALL_ART: Record<string, Art> = {
         "#f2c94c",
       );
   },
-};
+} satisfies Record<string, Art>;
 
-// ——— Tables ———
+// MARK: Tables
 
-export interface Look<T> {
+interface Look {
   id: string;
   name: string;
   /** Coins; 0 for the plain one and for earned ones. */
@@ -224,19 +226,19 @@ export interface Look<T> {
   /** The colour of the thumbnail and (floors) of the slab's sides. */
   color: string;
   /** A fresh texture. */
-  texture(): T;
+  texture(): Texture;
   /** World tiles one repeat of the texture covers. */
   span: number;
 }
 
 const FLOOR_SPAN = 4;
 const floorLook = (
-  id: string,
+  id: keyof typeof FLOOR_ART,
   name: string,
   price: number,
   color: string,
   level?: number,
-): Look<Texture> => ({
+): Look => ({
   id,
   name,
   price,
@@ -244,7 +246,7 @@ const floorLook = (
   color,
   span: FLOOR_SPAN,
   texture: () => {
-    const art = FLOOR_ART[id]!;
+    const art = FLOOR_ART[id];
     const t = canvasTexture(TILE * FLOOR_SPAN, TILE * FLOOR_SPAN, (g) => {
       const p = penOf(g);
       for (let y = 0; y < FLOOR_SPAN; y++)
@@ -255,7 +257,7 @@ const floorLook = (
   },
 });
 
-export const FLOORS: readonly Look<Texture>[] = [
+export const FLOORS: readonly Look[] = [
   { id: "boards", name: "Boards", price: 0, color: C.floor, span: 4, texture: () => planks(C.floor, 4) },
   floorLook("linoleum", "Linoleum", 60, "#7fa88a"),
   floorLook("parquet", "Parquet", 150, "#8a5733"),
@@ -269,7 +271,13 @@ export const FLOORS: readonly Look<Texture>[] = [
 ];
 
 const WALL_COLS = 2;
-const wallLook = (id: string, name: string, price: number, color: string, level?: number): Look<Texture> => ({
+const wallLook = (
+  id: keyof typeof WALL_ART,
+  name: string,
+  price: number,
+  color: string,
+  level?: number,
+): Look => ({
   id,
   name,
   price,
@@ -280,9 +288,9 @@ const wallLook = (id: string, name: string, price: number, color: string, level?
     // The wall is ~3 tiles tall in 2D terms: paint three rows of tiles, two columns wide (some papers alternate).
     const t = canvasTexture(TILE * WALL_COLS, TILE * 3, (g) => {
       const p = penOf(g);
-      const art = WALL_ART[id]!;
+      const art = WALL_ART[id];
       for (let y = 0; y < 3; y++) for (let x = 0; x < WALL_COLS; x++) art(p, x * TILE, y * TILE, x, y);
-      // The lip at the top of a wall, and the skirting, as in 2D.
+      // A light lip along the top of the wall, as in 2D.
       p.rect(0, 0, TILE * WALL_COLS, 2, C.wallTopLight);
     });
     t.wrapS = RepeatWrapping;
@@ -290,7 +298,7 @@ const wallLook = (id: string, name: string, price: number, color: string, level?
   },
 });
 
-export const WALLPAPERS: readonly Look<Texture>[] = [
+export const WALLPAPERS: readonly Look[] = [
   {
     id: "plain",
     name: "Cream panels",
@@ -310,10 +318,10 @@ export const WALLPAPERS: readonly Look<Texture>[] = [
   wallLook("tivoli", "Tivoli", 0, "#1f2a54", 25),
 ];
 
-// ——— Applying ———
+// MARK: Applying
 
 const cache = new Map<string, Texture>();
-const cached = (kind: string, look: Look<Texture>) => {
+const cached = (kind: string, look: Look) => {
   const key = `${kind}.${look.id}`;
   let t = cache.get(key);
   if (!t) {
@@ -324,8 +332,8 @@ const cached = (kind: string, look: Look<Texture>) => {
 };
 
 /** An id nobody knows is the plain one, as in 2D. */
-export const wallpaperOf = (id?: string | null) => WALLPAPERS.find((w) => w.id === id) ?? WALLPAPERS[0]!;
-export const floorOf = (id?: string | null) => FLOORS.find((f) => f.id === id) ?? FLOORS[0]!;
+const wallpaperOf = (id?: string | null) => WALLPAPERS.find((w) => w.id === id) ?? WALLPAPERS[0]!;
+const floorOf = (id?: string | null) => FLOORS.find((f) => f.id === id) ?? FLOORS[0]!;
 
 /** Re-skins a room live. Furniture stays. */
 export function applyDecor(room: Room, d: { wall?: string; floor?: string }): void {

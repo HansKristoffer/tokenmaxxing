@@ -12,7 +12,7 @@ import type { Asset } from "./furniture.ts";
 const BAND = 15;
 
 interface PosterArt {
-  id: string;
+  id: keyof typeof INFO;
   /** Tiles wide. */
   w: number;
   /** The frame's colour, the picture's backdrop and the band's ink. */
@@ -177,9 +177,10 @@ function leagueLinters(p: Pen): void {
     [21, K.red],
     [26, K.red],
   ] as const) {
+    const fromLeft = c === K.blue;
     box(p, x, 10, 4, 4, c);
-    p.px(x + (c === K.blue ? 2 : 1), 11, C.white);
-    p.rect(x + (c === K.blue ? 4 : -1), 9, 1, 5, C.ink);
+    p.px(x + (fromLeft ? 2 : 1), 11, C.white);
+    p.rect(x + (fromLeft ? 4 : -1), 9, 1, 5, C.ink);
   }
   // A lint warning.
   p.rect(10, 3, 1, 1, K.yellow);
@@ -429,7 +430,7 @@ function lastDev(p: Pen): void {
 }
 
 const art = (
-  id: string,
+  id: keyof typeof INFO,
   w: number,
   frame: string,
   bg: string,
@@ -452,7 +453,7 @@ const POSTER_ART: readonly PosterArt[] = [
 ];
 
 /** Snapshot of `POSTERS` in core/src/posters.ts: name, price and the joke `E` shows. */
-const INFO: Record<string, { name: string; price: number; text: string }> = {
+const INFO = {
   "super-merge": {
     name: "Super Merge Bros",
     price: 60,
@@ -503,7 +504,7 @@ const INFO: Record<string, { name: string; price: number; text: string }> = {
     price: 250,
     text: "Kill the same boss 300 times for a helmet one power level higher. Season pass not included.",
   },
-};
+} satisfies Record<string, { name: string; price: number; text: string }>;
 
 /** What `E` says at a poster, by id. */
 export const POSTER_TEXT: ReadonlyMap<string, string> = new Map(
@@ -533,11 +534,7 @@ function poster(a: PosterArt): () => ReturnType<typeof panel> {
 }
 
 /** The ten posters, wall pieces: hang them with `room.hang`. A tile wide for the small ones, two for the big prints. */
-export const POSTER_ASSETS: readonly Asset[] = POSTER_ART.map((a) => ({
-  id: a.id,
-  name: INFO[a.id]!.name,
-  price: INFO[a.id]!.price,
-  w: a.w,
-  d: 1,
-  build: poster(a),
-}));
+export const POSTER_ASSETS: readonly Asset[] = POSTER_ART.map((a) => {
+  const info = INFO[a.id];
+  return { id: a.id, name: info.name, price: info.price, w: a.w, d: 1, build: poster(a) };
+});
