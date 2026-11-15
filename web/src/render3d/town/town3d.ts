@@ -21,18 +21,16 @@ import {
   blockOf,
   CORE_BLOCKS,
   type Company,
-  doorOf,
   HOUSE_TIER_NAMES,
   houseTier,
   PLAZA,
-  plotBlock,
   plotId,
   TOWN_SPAWN,
   TownMap,
   townMap,
 } from "../data/town.ts";
 import type { Asset } from "../furniture/furniture.ts";
-import { canvasTexture, glass, Model, painted, seeded, textureCap, ticks, tint, toon } from "../kit/kit.ts";
+import { canvasTexture, glass, Model, painted, seeded, textureCap, ticks, toon } from "../kit/kit.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_SPECS, type ShopId } from "../shops/catalog.ts";
 import { ICE } from "./cold3d.ts";
 import {
@@ -53,7 +51,6 @@ import {
   hedge,
   LEAF,
   lanternPillar,
-  nightGlow,
   parkBench,
   type Species,
   seasonalTree,
@@ -86,7 +83,7 @@ export { MARGIN };
 /** How thick the island's slab of soil is. */
 const SLAB_DEPTH = 1.5;
 
-export interface TownDoor {
+interface TownDoor {
   /** `inn`, `arcade`, `dungeon`, or `hq:<plot>`. */
   id: string;
   kind: "inn" | "hq" | "arcade" | "dungeon" | "shop" | "julemarked";
@@ -99,7 +96,7 @@ export interface TownDoor {
   at: [number, number];
 }
 
-export interface TownSpots {
+interface TownSpots {
   /** Paths walked back and forth or round (world x, z). */
   routes: { points: [number, number][]; loop: boolean }[];
   /** Benches' seats: where, how high, which way they face. */
@@ -159,7 +156,7 @@ function dim(m: THREE.Object3D): void {
 }
 
 /** Aarhus's wall clock, in minutes since midnight (`?clock=HH:MM` moves it). */
-export function aarhusMinutes(): number {
+function aarhusMinutes(): number {
   const forced = /^(\d{1,2}):(\d{2})$/.exec(new URLSearchParams(location.search).get("clock") ?? "");
   if (forced) return Number(forced[1]) * 60 + Number(forced[2]);
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -273,6 +270,7 @@ export function buildTown3d(
     set(bx * BLOCK_W + 5, by * BLOCK_H + 6, "A");
     for (const dy of [7, 8]) set(bx * BLOCK_W + 5, by * BLOCK_H + dy, ",");
   }
+
   // The shops stand where the game's town has them (`shopBlocks`): the map already has each 5x4 front (`Ħ`)
   // with its door tile (5, 6 in its block) and the path down to the road.
   const shopSlots: { id: ShopId; bx: number; by: number }[] = SHOP_IDS.flatMap((id) => {
@@ -345,7 +343,7 @@ export function buildTown3d(
   const papers: Model[] = [];
   const byPlot = new Map(companies.map((c) => [c.plot, c]));
 
-  // —— Tile props ——
+  // Each tile of the map, and what it is made of, is collected here and placed once below.
   const flowers: [number, number, string][] = [];
   const beds: [number, number, number][] = [];
   const stones: [number, number, number][] = [];
@@ -359,7 +357,6 @@ export function buildTown3d(
   const fountainZ = wz((Math.min(...fys) + Math.max(...fys) + 1) / 2);
   const boards = { leaderboard: leaderboard(), chalkboard: chalkboard(), stars: starCounter() };
   const jetties: [number, number, boolean][] = [];
-  let lampIndex = 0;
   for (let ty = map.y0; ty < map.y0 + map.height; ty++)
     for (let tx = map.x0; tx < map.x0 + map.width; tx++) {
       const ch = map.at(tx, ty);
@@ -396,7 +393,6 @@ export function buildTown3d(
           break;
         case "L":
           add(lanternPillar(), cx, cz);
-          lampIndex++;
           break;
         case "B": {
           // Benches face the fountain square-on, along whichever axis it lies further.
@@ -441,10 +437,8 @@ export function buildTown3d(
             if (map.at(tx + dx, ty + dy) !== "~" && surfaceAt(map, tx + dx, ty + dy) !== "jetty")
               stones.push([cx + dx * 0.5, cz + dy * 0.5, a]);
           break;
-        default:
       }
     }
-  void lampIndex;
 
   // The fountain, over its 2x2 tiles.
   if (fountains.length) add(grandFountain(), fountainX, fountainZ, 0, 0.66);
@@ -518,7 +512,8 @@ export function buildTown3d(
         c.fillRect(Math.floor(rnd() * 60), Math.floor(rnd() * 64), 3 + Math.floor(rnd() * 5), 1);
       }
     });
-    glint.wrapS = glint.wrapT = THREE.RepeatWrapping;
+    glint.wrapS = THREE.RepeatWrapping;
+    glint.wrapT = THREE.RepeatWrapping;
     const mat = new THREE.MeshBasicMaterial({
       map: glint,
       transparent: true,
@@ -528,10 +523,10 @@ export function buildTown3d(
     ticks.push((t) => glint.offset.set((t * 0.05) % 1, (t * 0.02) % 1));
     const sheet = glass("#58a9e2", 0.55);
     for (const [x, z] of water) {
-      const tint2 = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sheet);
-      tint2.rotation.x = -Math.PI / 2;
-      tint2.position.set(x, 0.03, z);
-      g.add(tint2);
+      const waterTile = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sheet);
+      waterTile.rotation.x = -Math.PI / 2;
+      waterTile.position.set(x, 0.03, z);
+      g.add(waterTile);
     }
     // The sparkle drifts, so the batching leaves it alone: one mesh for the whole pond rather than one per tile. It sits
     // in the middle of the pond (blended things sort by where they are), drawn after the water sheet as the tiles were.
@@ -568,7 +563,8 @@ export function buildTown3d(
         c.stroke();
       }
     });
-    cracks.wrapS = cracks.wrapT = THREE.RepeatWrapping;
+    cracks.wrapS = THREE.RepeatWrapping;
+    cracks.wrapT = THREE.RepeatWrapping;
     const iceMat = glass("#a9d4ee", 0);
     iceMat.map = cracks;
     const sheetOfIce = mergeGeometries(
@@ -621,7 +617,7 @@ export function buildTown3d(
     }
   }
 
-  // —— The forest beyond the tree ring ——
+  // The forest in the margin round the town. Trees are sparser the nearer a tile is to the town.
   const rnd = seeded(21);
   for (let cy = 0; cy < D; cy++)
     for (let cx = 0; cx < W; cx++) {
@@ -632,14 +628,11 @@ export function buildTown3d(
       const seed = Math.floor(rnd() * 1e6);
       const size = 1 + rnd() * 0.4;
       const tx = cx + 0.5 + (rnd() - 0.5) * 0.6;
-      const tz = cz0(cy) + (rnd() - 0.5) * 0.6;
+      const tz = cy + 0.5 + (rnd() - 0.5) * 0.6;
       if (!clearOf(tx, tz)) plant(species, seed, size, tx, tz);
     }
-  function cz0(cy: number): number {
-    return cy + 0.5;
-  }
 
-  // —— The Tavern (tile I) ——
+  // The Tavern, on tile I.
   const inn = map.find("I")[0];
   if (inn) {
     const [ix, iy] = inn;
@@ -648,7 +641,7 @@ export function buildTown3d(
     doors.push({ id: "inn", kind: "inn", label: "The Tavern", tile: [ix, iy], at: toWorld(ix, iy) });
   }
 
-  // —— Company houses (tile D) ——
+  // Company houses, on tile D.
   for (const [dx, dy] of map.find("D")) {
     const plot = plotId(...blockOf(dx, dy));
     const c = byPlot.get(plot);
@@ -674,7 +667,7 @@ export function buildTown3d(
     papers.push(paper);
   }
 
-  // —— The arcade (in a park) ——
+  // The arcade, in its park.
   const arcade = map.find("A")[0];
   if (arcade) {
     const [ax, ay] = arcade;
@@ -682,7 +675,7 @@ export function buildTown3d(
     doors.push({ id: "arcade", kind: "arcade", label: "Arcade", tile: [ax, ay], at: toWorld(ax, ay) });
   }
 
-  // —— The shops (tiles ƒ ç ß π) ——
+  // The shops, on tiles ƒ ç ß π.
   for (const slot of shopSlots) {
     const dx = slot.bx * BLOCK_W + 5;
     const dy = slot.by * BLOCK_H + 6;
@@ -698,7 +691,8 @@ export function buildTown3d(
     });
   }
 
-  // —— The Julemarked's gate (tiles Ǻ Ȣ): its middle opening tile is the door, the gate stands behind it ——
+  // The Julemarked's gate, on tiles Ǻ and Ȣ. Its middle opening tile is the door,
+  // and the gate stands behind it.
   const gateDoors = map.find(JULE_GATE_DOOR);
   const gateDoor = gateDoors[1] ?? gateDoors[0];
   if (gateDoor) {
@@ -714,7 +708,7 @@ export function buildTown3d(
     });
   }
 
-  // —— Street lamps at every lot and park corner ——
+  // Street lamps at every lot and park corner.
   for (let by = Math.floor(plain.y0 / BLOCK_H); by * BLOCK_H < plain.y0 + plain.height; by++)
     for (let bx = Math.floor(plain.x0 / BLOCK_W); bx * BLOCK_W < plain.x0 + plain.width; bx++) {
       if (CORE_BLOCKS.some(([cx, cy]) => cx === bx && cy === by)) continue;
@@ -724,7 +718,7 @@ export function buildTown3d(
       add(lamp, wx(bx * BLOCK_W) + 0.5, wz(by * BLOCK_H + 1) + 0.5, Math.PI);
     }
 
-  // —— Street life ——
+  // Street life: the cart, the snail, the goal flag and the paperboy, all on the clock.
   const cart = polseCart();
   add(cart, wx(CART[0]![0]) + 1, wz(CART[0]![1]) + 0.5);
   const snail = buildSnail();
@@ -767,17 +761,13 @@ export function buildTown3d(
     }
   });
 
-  // —— Where people go ——
-  const ringW = PLAZA.right - PLAZA.left;
-  const ringH = PLAZA.bottom - PLAZA.top;
+  // Where people walk: round the square.
   const ring: [number, number][] = [
     toWorld(PLAZA.left, PLAZA.top),
     toWorld(PLAZA.right, PLAZA.top),
     toWorld(PLAZA.right, PLAZA.bottom),
     toWorld(PLAZA.left, PLAZA.bottom),
   ];
-  void ringW;
-  void ringH;
   const spots: TownSpots = {
     routes: [{ points: ring, loop: true }],
     seats,
@@ -817,12 +807,11 @@ function rideList(doors: readonly [number, number][], left: number, right: numbe
 
 // MARK: Assets
 
-const footprint = (m: Model, w: number, d: number, dz: number): Model => {
+/** Wraps a building so it stands `dz` further along the tile than its model's own origin. */
+const footprint = (m: Model, dz: number): Model => {
   const out = new Model();
   m.position.set(0, 0, dz);
   out.add(m);
-  void w;
-  void d;
   return out;
 };
 
@@ -868,16 +857,10 @@ export const TOWN3D_ASSETS: readonly Asset[] = [
   tileAsset("tile:o", "Coffee stand", coffeeStand),
   tileAsset("tile:G", "Dungeon gate", dungeonGate),
   tileAsset(`tile:${WINDMILL}`, "Windmill", windmill, 2, 2),
-  tileAsset("building:inn", "The Tavern", () => footprint(tavernBuilding(), 7, 4, 1.6), 7, 4),
-  tileAsset("building:arcade", "Arcade", () => footprint(arcadeBuilding(), 7, 5, 0), 7, 5),
+  tileAsset("building:inn", "The Tavern", () => footprint(tavernBuilding(), 1.6), 7, 4),
+  tileAsset("building:arcade", "Arcade", () => footprint(arcadeBuilding(), 0), 7, 5),
   ...HOUSE_TIER_NAMES.map((n, i) =>
-    tileAsset(
-      `building:house-${i}`,
-      `${n} house`,
-      () => footprint(companyHouse(i, n, null), 7, 5, 1.75),
-      7,
-      5,
-    ),
+    tileAsset(`building:house-${i}`, `${n} house`, () => footprint(companyHouse(i, n, null), 1.75), 7, 5),
   ),
   tileAsset("street:polse-cart", "Pølsevogn", polseCart, 2, 1),
   tileAsset("street:snail", "Build snail", buildSnail),
@@ -885,8 +868,3 @@ export const TOWN3D_ASSETS: readonly Asset[] = [
   tileAsset("street:paperboy", "Paperboy's bike", paperBike, 2, 1),
   tileAsset("street:paper", "Morning paper", paperRoll),
 ];
-
-void plotBlock;
-void doorOf;
-void nightGlow;
-void tint;

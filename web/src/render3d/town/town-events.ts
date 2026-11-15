@@ -100,6 +100,14 @@ interface Pill {
   text: string;
 }
 
+/** A coin in the air from `from` to `to` (world x, z), started at `at` on the clock. */
+interface Coin {
+  mesh: THREE.Mesh;
+  from: [number, number];
+  to: [number, number];
+  at: number;
+}
+
 /**
  * The town's world events, drawn from the real game's state (the 2D game's `merchant.ts`, `picnic.ts`,
  * `street.ts`, `race.ts`, `launch.ts`): the traveling merchant's cart on the server's clock, the outage picnic
@@ -155,8 +163,7 @@ export class TownEvents {
   private lineKey = "";
 
   // The fountain's coins: a few in the air at a time, and the ripple where one lands.
-  private readonly coins: { mesh: THREE.Mesh; from: [number, number]; to: [number, number]; at: number }[] =
-    [];
+  private readonly coins: Coin[] = [];
   private readonly ripple: THREE.Mesh;
   private rippleAt = -10;
   private rippleWhere: [number, number] = [0, 0];
@@ -492,10 +499,9 @@ export class TownEvents {
       }
     }
     const [mx, mz] = this.stand;
-    const roll = ROLL_TILES;
     if (here && this.cartState === "away") {
       this.cartState = this.firstFrame ? "here" : "arriving";
-      this.cartAt = this.cartState === "here" ? roll : 0;
+      this.cartAt = this.cartState === "here" ? ROLL_TILES : 0;
       cartRoot.visible = true;
       merchant.root.visible = true;
     }
@@ -507,8 +513,8 @@ export class TownEvents {
       } else merchant.pose = "stand";
     }
     if (this.cartState === "arriving") {
-      this.cartAt = Math.min(roll, this.cartAt + f.dt * ROLL_SPEED * (calm ? 4 : 1));
-      if (this.cartAt >= roll) {
+      this.cartAt = Math.min(ROLL_TILES, this.cartAt + f.dt * ROLL_SPEED * (calm ? 4 : 1));
+      if (this.cartAt >= ROLL_TILES) {
         this.cartState = "here";
         this.burst(["🛒", "✨"], spot[0], 1.6, spot[1], f.now);
       }
@@ -525,7 +531,7 @@ export class TownEvents {
     this.post.visible = away;
     if (!away) {
       // Rolling in, the cart comes down from the square's side; it stands on its tiles once it is here.
-      const z = spot[1] - (roll - this.cartAt);
+      const z = spot[1] - (ROLL_TILES - this.cartAt);
       cartRoot.position.set(spot[0], 0, z);
       cartRoot.rotation.y = 0;
       const flick = Math.floor(f.now / 260) % 5 !== 0;
@@ -602,6 +608,7 @@ export class TownEvents {
     }
     if (this.grass.visible) {
       const k = Math.min(1, Math.max(0, (f.now - this.grassAt) / 600)) - 1;
+      // k runs from -1 to 0. The sprout swells a little past full size, then settles at 1.
       const e = f.calm ? 1 : 1 + 2.7 * k ** 3 + 1.7 * k ** 2;
       this.grass.scale.setScalar(Math.max(0.01, e));
       if (f.now - this.grassAt > GRASS_MS || !on) {
@@ -752,21 +759,17 @@ export class TownEvents {
   // MARK: The race
 
   private raceFrame(): void {
-    let game: { players: number[] } | null = null;
-    for (const g of world.games.values())
-      if (raceLive(g)) {
-        game = g;
-        break;
-      }
+    const game = [...world.games.values()].find(raceLive);
     if (!game) {
-      if (this.line.visible) this.line.visible = false;
+      this.line.visible = false;
       this.lineKey = "";
       return;
     }
+
     const key = game.players.join();
     if (key !== this.lineKey) {
       this.lineKey = key;
-      const lanes = game.players.map((p) => lane(game as never, p));
+      const lanes = game.players.map((p) => lane(game, p));
       const top = PLAZA.top + Math.min(...lanes);
       const bottom = PLAZA.top + Math.max(...lanes) + 0.8;
       const mid = (PLAZA.left + PLAZA.right) / 2 + 0.4;
@@ -774,7 +777,6 @@ export class TownEvents {
       const [, z1] = this.toWorld(mid, bottom);
       this.line.position.set(x0, 0.08, (z0 + z1) / 2);
       this.line.scale.set(0.4, z1 - z0, 1);
-      this.line.rotation.z = 0;
       (this.line.material as THREE.MeshBasicMaterial).map!.repeat.set(
         1,
         Math.max(2, Math.round((z1 - z0) / 0.2) / 12),

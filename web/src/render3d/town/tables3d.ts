@@ -8,7 +8,7 @@ import type { Asset } from "../furniture/furniture.ts";
 import { canvasTexture, glow, Model, type V3 } from "../kit/kit.ts";
 import { liveScreen } from "../kit/livescreen.ts";
 
-export type TableGame = "dice" | "hype" | "sprint" | "spr" | "tokenmaxxing";
+type TableGame = "dice" | "hype" | "sprint" | "spr" | "tokenmaxxing";
 
 export interface GameTable extends Model {
   /** Shows "👀 n" over the table; nothing when n is 0. */
@@ -16,7 +16,7 @@ export interface GameTable extends Model {
 }
 
 /** Where the two sitters go (from the footprint centre) and which way they face: the table is between them. */
-export const TABLE_SEATS: readonly { at: V3; turn: number }[] = [
+const TABLE_SEATS: readonly { at: V3; turn: number }[] = [
   { at: [0, 0.38, 0.78], turn: Math.PI },
   { at: [0, 0.38, -0.78], turn: 0 },
 ];
@@ -67,7 +67,7 @@ function topOf(m: Model, game: TableGame, h: number): void {
         m.box(
           [0.04, 0.02, 0.04],
           i % 3 === r ? C.lamp : C.metalLight,
-          [-0.2 + i * 0.05, h + 0.04, 0.0 + r * 0.07],
+          [-0.2 + i * 0.05, h + 0.04, r * 0.07],
           0.005,
         );
     m.box([0.3, 0.015, 0.03], C.white, [0, h + 0.04, 0.12]);
@@ -156,7 +156,11 @@ export const arenaDesk = (): ArenaDesk => {
   lid.rotation.x = -0.15;
   const mat = glow(GLOWS[0]);
   m.plane(0.37, 0.25, mat, [0, 0.7, -0.088]).rotation.x = -0.15;
-  m.setGlow = (level) => mat.color.set(GLOWS[Math.max(0, Math.min(3, Math.round(level)))]!);
+  m.setGlow = (level) => {
+    // The level is 0 to 3, rounded and kept in range, and each level is one step of GLOWS.
+    const step = Math.max(0, Math.min(GLOWS.length - 1, Math.round(level)));
+    mat.color.set(GLOWS[step]!);
+  };
   m.setGlow(2);
   return m;
 };

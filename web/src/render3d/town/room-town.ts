@@ -49,9 +49,10 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const events = new TownEvents((tx, ty) => town.toWorld(tx, ty));
   const statue = new StatueLayer(town.map.find(STATUE_TILE)[0], (tx, ty) => town.toWorld(tx, ty));
   events.group.add(statue.group);
+
   const group = new THREE.Group();
   group.add(town.group);
-  const officeWindows: { companyId: number; window: THREE.Mesh }[] = [];
+  const officeWindows: { companyId: number; light: THREE.Mesh }[] = [];
   for (const door of town.doors) {
     if (door.kind !== "hq" || door.companyId === undefined || door.plot === undefined) continue;
     const panes: THREE.Mesh[] = [];
@@ -61,16 +62,17 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     // Light a single actual pane, preserving the house's architecture and ordinary day/night lighting.
     const pane = panes[0];
     if (!pane) continue;
-    const window = new THREE.Mesh(
+    const light = new THREE.Mesh(
       new THREE.PlaneGeometry(0.36, 0.42),
       new THREE.MeshBasicMaterial({ color: "#ffd98a" }),
     );
-    window.position.set(0, 0.22, 0.031);
-    window.userData.live = true;
-    window.visible = false;
-    pane.add(window);
-    officeWindows.push({ companyId: door.companyId, window });
+    light.position.set(0, 0.22, 0.031);
+    light.userData.live = true;
+    light.visible = false;
+    pane.add(light);
+    officeWindows.push({ companyId: door.companyId, light });
   }
+
   // What changes with the game: the raid gate's boards, and the tables of the games on the square.
   const gate = town.doors.find((d) => d.kind === "dungeon");
   const gateLive = gate ? new GateLive([gate.at[0], gate.at[1] + 0.25]) : null;
@@ -81,11 +83,13 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const leaves = new FallingLeaves(town.canopies);
   group.add(leaves.group);
   const wind = new THREE.Vector2();
+
   // The leaderboard on the square shows today's top five, as the HUD's mini board has them.
   let board: ReturnType<typeof hud.get>["board"] | null = null;
   const showBoard = () => {
-    if (board === hud.get().board) return;
-    board = hud.get().board;
+    const current = hud.get().board;
+    if (board === current) return;
+    board = current;
     town.boards.leaderboard.show(
       board
         .filter((r) => r.rank <= 5 && r.tokens > 0)
@@ -103,6 +107,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       count === null ? "Press E to star it" : `Next: ${nextMilestone(count).toLocaleString("en-US")}`,
     );
   };
+
   const fireworks = new Fireworks3d((tx, ty) => town.toWorld(tx, ty));
   group.add(fireworks.group);
   const markers = new ExitMarkers(ctx.map, (tx, ty) => town.toWorld(tx, ty));
@@ -118,15 +123,14 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   group.add(befrielsen.group);
   // The festive theme's named NPC, there while its theme is (`FESTIVE_NPC`).
   const festiveNpc = new FestiveNpc3d((tx, ty) => town.toWorld(tx, ty));
-  group.add(festiveNpc.group);
+  // Added after the room is batched, like the statue: what is built later must not be swept into the room's batches.
+  events.group.add(festiveNpc.group);
   // Halloween's spooky night: bats, ghosts, cobwebs, the cauldron, the lawn stones, mist (`core/src/spooky.ts`).
   const halloween = new HalloweenTown3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   group.add(halloween.group);
   // New Year's Eve: the clock, the buffet and the party lights (`nytar3d.ts`).
   const nytar = new Nytar3d((tx, ty) => town.toWorld(tx, ty));
   group.add(nytar.group);
-  // Added after the room is batched, like the statue: what is built later must not be swept into the room's batches.
-  events.group.add(festiveNpc.group);
   // Påske's flowers, bunting, props, eggs and lambs: built the first frame it is on.
   const paaske = new Paaske3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
   events.group.add(paaske.group);
@@ -173,13 +177,16 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
     },
     extras: events.group,
     frame(f) {
+      // An office window is lit while the company has someone in, or while the town's lights are on.
       for (const entry of officeWindows) {
         const active = world.officeLights.has(entry.companyId);
-        entry.window.visible = active || lightsNow(f.now) > 0.5;
-        (entry.window.material as THREE.MeshBasicMaterial).color.set(active ? "#ffd98a" : "#354656");
+        entry.light.visible = active || lightsNow(f.now) > 0.5;
+        (entry.light.material as THREE.MeshBasicMaterial).color.set(active ? "#ffd98a" : "#354656");
       }
+
       showBoard();
       showStars();
+
       fireworks.update();
       markers.update(f.me, f.t);
       pumpkins.update(f.now);
@@ -197,6 +204,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       events.update(f);
       graveyard.update(f.now);
       statue.update(f);
+
       const [x, z] = f.me ?? [W / 2, D / 2];
       wind.set(windPush(weatherNow()) * 2.5, 0);
       leaves.update(f.dt, f.t, seasonLookNow().look.falling, f.density, wind, x, z);

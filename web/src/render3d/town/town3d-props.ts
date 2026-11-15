@@ -7,9 +7,8 @@
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
 import { assetById, light } from "../furniture/furniture.ts";
-import { canvasTexture, glass, glow, Model, painted, ticks, tint, toon } from "../kit/kit.ts";
+import { canvasTexture, glow, Model, painted, ticks, tint, toon } from "../kit/kit.ts";
 import { type Panel, panel } from "../kit/panel.ts";
-import { nightGlow } from "./props.ts";
 
 export interface BoardRow {
   name: string;
@@ -95,7 +94,7 @@ export function leaderboard(): Board {
     [0, 0.15],
     [-0.05, 0],
     [0.1, 0.25],
-    [0.0, 0.25],
+    [0, 0.25],
     [0.07, 0.4],
   ] as const)
     s.lineTo(x, y);
@@ -118,7 +117,7 @@ export interface StarCounter extends Model {
 }
 
 /** A five-pointed star's outline, `r` from its middle to a point. */
-export function starShape(r: number): THREE.Shape {
+function starShape(r: number): THREE.Shape {
   const s = new THREE.Shape();
   for (let i = 0; i < 10; i++) {
     const a = Math.PI / 2 + (i * Math.PI) / 5;
@@ -275,7 +274,7 @@ export function coffeeStand(): Model {
   const machine = assetById.get("coffee")?.build();
   if (machine) {
     machine.scale.setScalar(0.8);
-    machine.position.set(0.0, 0.78, -0.02);
+    machine.position.set(0, 0.78, -0.02);
     m.add(machine);
   }
   for (const x of [-0.45, 0.45]) m.cyl(0.025, 1.55, C.metal, [x, 0, -0.25], 0.025, 8);
@@ -283,7 +282,7 @@ export function coffeeStand(): Model {
     const stripe = m.box(
       [0.2, 0.04, 0.75],
       i % 2 ? "#fbf7ef" : "#8c5c36",
-      [-0.5 + 0.1 + i * 0.2, 1.6, 0.0],
+      [-0.5 + 0.1 + i * 0.2, 1.6, 0],
       0.01,
     );
     stripe.rotation.x = -0.2;
@@ -344,7 +343,6 @@ export function dungeonGate(): Model {
   const back = m.plane(1.0, 1.65, glow("#fff", swirl), [0, 0.12 + 0.82, -0.01]);
   back.rotation.y = Math.PI;
   ticks.push((t) => {
-    swirl.rotation = 0;
     swirl.center.set(0.5, 0.5);
     swirl.rotation = Math.sin(t * 0.8) * 0.25;
     portal.scale.x = 1 + Math.sin(t * 2) * 0.03;
@@ -376,10 +374,11 @@ export function dungeonGate(): Model {
 
 // MARK: Street life
 
-/** The pølsevogn: a red and white cart with its brolly up while it is open (11 to 14) and furled otherwise. */
 export interface Cart extends Model {
   setOpen: (open: boolean) => void;
 }
+
+/** The pølsevogn: a red and white cart with its brolly up while it is open (11 to 14) and furled otherwise. */
 export function polseCart(): Cart {
   const m = new Model() as Cart;
   m.box([1.4, 0.7, 0.7], "#fbf7ef", [0, 0.2, 0], 0.06);
@@ -428,11 +427,12 @@ export function polseCart(): Cart {
   return m;
 }
 
-/** The build snail on its run, a sign on a stick over its shell: `inch` stretches it. */
 export interface Snail extends Model {
   /** 0 to 1 along the run. */
   inch: (t: number) => void;
 }
+
+/** The build snail on its run, a sign on a stick over its shell: `inch` stretches it. */
 export function buildSnail(): Snail {
   const m = new Model() as Snail;
   const body = m.part([0, 0, 0], Math.PI / 2);
@@ -490,14 +490,11 @@ export function goalFlag(): Model {
 }
 
 /** The paperboy on his bike, facing +x, a sack of papers on the rack; `pedal` turns the cranks. */
-export interface Bike extends Model {
-  pedal: (t: number) => void;
-}
 export function paperBike(): Bike {
-  const m = new Bike0();
-  return m;
+  return new Bike();
 }
-class Bike0 extends Model implements Bike {
+
+class Bike extends Model {
   private readonly wheels: THREE.Mesh[] = [];
   private readonly crank: Model;
   constructor() {
@@ -538,6 +535,3 @@ export function paperRoll(): Model {
   m.cyl(0.075, 0.05, "#e8584f", [0, 0.06, 0], 0.075, 10).rotation.z = Math.PI / 2;
   return m;
 }
-
-void glass;
-void nightGlow;

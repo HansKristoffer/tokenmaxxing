@@ -3,6 +3,7 @@ import type { PinView } from "@tokenmaxxing/core/collection.ts";
 import { SIREN, TICKET_MARK } from "@tokenmaxxing/core/cop.ts";
 import type { Edition } from "@tokenmaxxing/core/editions.ts";
 import { onBlanket, PICNIC_SEATS } from "@tokenmaxxing/core/picnic.ts";
+import type { Rarity } from "@tokenmaxxing/core/rarity.ts";
 
 /**
  * The pure parts of the 3D world's events: what the server's state says about the cop, the merchant, the
@@ -42,20 +43,21 @@ export class CopWatch {
 
 // MARK: The merchant
 
-/** The colour of each good on the cart: an edition's rarity (four a week), padded so the cart is never bare. */
-const GOOD_COLOR: Record<string, string> = {
+/** The colour of each good on the cart: an edition's rarity (four a week). */
+const GOOD_COLOR: Record<Rarity, string> = {
   common: "#c9b6ff",
   uncommon: "#a5d977",
   rare: "#8fe3ff",
   epic: "#ff7ab6",
   legendary: "#f5d14a",
 };
+/** The colours that pad a short lineup, so the cart is never bare. */
+const GOOD_FILL = ["#c9b6ff", "#f5d14a", "#8fe3ff", "#ff7ab6"];
 
 export function goodsColors(lineup: readonly Edition[]): string[] {
-  const out = lineup.map((e) => GOOD_COLOR[String(e.rarity)] ?? "#c9b6ff");
-  const fill = ["#c9b6ff", "#f5d14a", "#8fe3ff", "#ff7ab6"];
-  for (let i = out.length; i < 4; i++) out.push(fill[i]!);
-  return out.slice(0, 4);
+  const colors = lineup.map((e) => GOOD_COLOR[e.rarity ?? "common"]);
+  const padding = GOOD_FILL.slice(colors.length, 4);
+  return [...colors, ...padding].slice(0, 4);
 }
 
 /** What the cart's sign says. */
@@ -66,8 +68,16 @@ export const CART_SIGN_AWAY = "🛒 Back Thursday";
 
 export const polseSign = (open: boolean): string => (open ? "🌭 Gratis pølser" : "🌭 Lukket · 11-14");
 
-export function snailSign(phase: "queued" | "deploying" | "deployed"): string {
-  return phase === "queued" ? "queued" : phase === "deploying" ? "deploying..." : "✓ deployed";
+export type SnailPhase = "queued" | "deploying" | "deployed";
+
+const SNAIL_SIGN = {
+  queued: "queued",
+  deploying: "deploying...",
+  deployed: "✓ deployed",
+} as const satisfies Record<SnailPhase, string>;
+
+export function snailSign(phase: SnailPhase): string {
+  return SNAIL_SIGN[phase];
 }
 
 /** The minute the build finishes, crossed while watching: the burst and the toast fire once. */
@@ -91,7 +101,7 @@ export const tossLanded = (notice: string | undefined): boolean => !!notice && n
 
 // MARK: Name-tag chips
 
-export interface TagChips {
+interface TagChips {
   badges: { emoji: string; title: string; frame?: Frame }[];
   trophies: { emoji?: string; title: string }[];
 }
@@ -107,7 +117,7 @@ export function chipsOf(pins: readonly PinView[]): TagChips {
   return out;
 }
 
-export interface ShowcaseOptions {
+interface ShowcaseOptions {
   /** Asks the server for one player's pins. */
   fetch: (id: number) => Promise<readonly PinView[]>;
   /** Minimum ms between two requests. */

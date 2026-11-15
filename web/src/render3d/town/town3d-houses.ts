@@ -19,7 +19,7 @@ interface Style {
 }
 
 /** The house styles of the 2D art, by tier (a company without a brand wears these). */
-export const HOUSE_STYLES: readonly Style[] = [
+const HOUSE_STYLES: readonly Style[] = [
   { wall: C.woodLight, roof: C.wood, trim: C.woodDark },
   { wall: C.woodLight, roof: "#7a5a44", trim: C.woodDark },
   { wall: "#f3e7cf", roof: C.roofRed, trim: C.woodDark },
@@ -178,6 +178,11 @@ function yard(m: Model): void {
   picket(m, -3.95, 0.4, 3.3, true, true);
 }
 
+/** A company's name as a sign shows it: names over 16 characters are cut to 15 and an ellipsis. */
+function signName(name: string): string {
+  return name.length > 16 ? `${name.slice(0, 15)}…` : name;
+}
+
 /** A signpost in the front garden: the company's name on a plank. */
 function nameSign(m: Model, name: string, at: [number, number], trim: string): void {
   m.box([0.07, 1.0, 0.07], C.woodDark, [at[0], 0, at[1]], 0.02);
@@ -196,7 +201,7 @@ function nameSign(m: Model, name: string, at: [number, number], trim: string): v
       g.font = "800 34px system-ui, sans-serif";
       g.textAlign = "center";
       g.textBaseline = "middle";
-      g.fillText(name.length > 16 ? `${name.slice(0, 15)}…` : name, 160, 38);
+      g.fillText(signName(name), 160, 38);
     },
     true,
   );
@@ -220,7 +225,7 @@ function nameBoard(m: Model, name: string, y: number, trim: string): void {
       g.font = "800 34px system-ui, sans-serif";
       g.textAlign = "center";
       g.textBaseline = "middle";
-      g.fillText(name.length > 16 ? `${name.slice(0, 15)}…` : name, 160, 34);
+      g.fillText(signName(name), 160, 34);
     },
     true,
   );
@@ -295,7 +300,7 @@ export function companyHouse(tier: number, name: string, brand: Brand | null): M
   for (let f = 0; f < floors; f++)
     for (let i = 0; i < n; i++) {
       if (f === 0 && i === (n - 1) / 2) continue;
-      const x = n === 1 ? 0 : -((n - 1) * step * 1.0) / 2 + i * step;
+      const x = n === 1 ? 0 : -((n - 1) * step) / 2 + i * step;
       windowOn(face, x, 0.52 + PLINTH + f * FLOOR - 0.05, s.trim, f === 0 && t === 2);
     }
   const side = (sign: number) => {
@@ -409,14 +414,12 @@ function basement(m: Model, name: string, s: Style, brand: Brand | null): Model 
   ["#5a5048", "#4a423c", "#3a3430", "#2c2724"].forEach((c, i) => {
     m.box([1.7, 0.012, 0.22], c, [0, 0.225 + i * 0.001, -0.02 - i * 0.26]);
   });
+  // Both leaves swung open, hinged at the frame.
   for (const sx of [-1, 1]) {
-    const door = m.part([sx * 1.45, 0.05, -0.35]);
-    const leaf = door.box([0.12, 1.15, 0.75], s.roof, [0, 0, 0], 0.02);
-    leaf.rotation.z = -sx * 0.0;
+    const door = m.part([sx * 1.55, 0.05, -0.35]);
+    door.box([0.12, 1.15, 0.75], s.roof, [0, 0, 0], 0.02);
     door.rotation.z = sx * 1.1;
-    door.position.y = 0.05;
     door.box([0.14, 0.04, 0.75], tint(s.roof, -0.25), [0, 0.6, 0]);
-    door.position.x = sx * 1.55;
   }
   // The barred window in its stone box.
   m.box([1.0, 0.45, 0.55], C.stoneDark, [-2.25, 0, -0.2], 0.03);
@@ -457,7 +460,8 @@ export function tavernBuilding(): Model {
   m.box([w + 0.05, 0.12, 0.06], C.woodDark, [0, h - 0.14, 0.0], 0.01);
   m.box([w + 0.05, 0.1, 0.06], C.woodDark, [0, 0.22, 0.0], 0.01);
   const roofGroup = m.part([0, 0, -d / 2]);
-  const rise = gableRoof(roofGroup, w, d, h, roofC, tint(wall, -0.04));
+  gableRoof(roofGroup, w, d, h, roofC, tint(wall, -0.04));
+
   // Windows: two a side of the door.
   const face = m.part([0, 0, 0.02]);
   for (const x of [-2.7, -1.5, 1.5, 2.7]) windowOn(face, x, 0.7, C.woodDark, true);
@@ -473,13 +477,13 @@ export function tavernBuilding(): Model {
     door.box([0.36, 0.4, 0.02], C.woodLight, [x, 0.55, 0.07], 0.01);
     door.ball(0.03, "#e9b73d", [x > 0 ? -0.07 : 0.07, 0.55, 0.1]);
   }
-  door.cyl(0.65, 0.08, C.woodDark, [0, 1.2, 0.0], 0.65, 3).rotation.z = 0;
+  door.cyl(0.65, 0.08, C.woodDark, [0, 1.2, 0.0], 0.65, 3);
   door.box([1.7, 0.12, 0.5], C.stoneLight, [0, 0, 0.18], 0.02);
   for (const x of [-1.05, 1.05]) {
     m.box([0.05, 0.18, 0.05], C.metal, [x, 1.02, 0.1]);
     nightGlow(m.box([0.16, 0.22, 0.16], "#f5d98a", [x, 0.82, 0.14], 0.04), "#ffe28a");
   }
-  // THE TAVERN above the door, and the hanging sign.
+  // The sign above the door, and the hanging sign.
   const sign = canvasTexture(
     384,
     80,
@@ -511,10 +515,7 @@ export function tavernBuilding(): Model {
   // The chimney, with smoke.
   m.box([0.45, 1.1, 0.45], "#a36a50", [-2.3, h, -d / 2 - 0.5], 0.03);
   m.box([0.55, 0.08, 0.55], "#7a4a38", [-2.3, h + 1.1, -d / 2 - 0.5], 0.02);
-  const puffs = [0, 1, 2].map(() => {
-    const p = m.ball(0.14, "#f1efe9", [-2.3, h + 1.3, -d / 2 - 0.5], [1, 0.8, 1], 8);
-    return p;
-  });
+  const puffs = [0, 1, 2].map(() => m.ball(0.14, "#f1efe9", [-2.3, h + 1.3, -d / 2 - 0.5], [1, 0.8, 1], 8));
   ticks.push((time) => {
     puffs.forEach((p, i) => {
       const f = (time * 0.3 + i / 3) % 1;
@@ -534,6 +535,5 @@ export function tavernBuilding(): Model {
   m.box([0.9, 0.06, 0.3], C.woodLight, [2.2, 0.32, 0.5], 0.02);
   for (const x of [1.8, 2.6]) m.box([0.06, 0.32, 0.26], C.woodDark, [x, 0, 0.5], 0.01);
   light(m, [0, 1.0, 0.8], "#ffcf7a", 3, 6);
-  void rise;
   return m;
 }
