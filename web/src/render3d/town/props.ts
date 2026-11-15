@@ -1,7 +1,7 @@
 /**
- * Things outside: hedges in white planters, flower beds, topiaries, cypresses, palms, trees in every
- * season, benches, lamps, the grand fountain, the arcade, a terrace lounge and the street's odds and
- * ends. Same kit as the furniture; flowers are instanced, since a bed holds hundreds.
+ * Things outside: hedges in white planters, flower beds, palms, trees in every season, benches, lamps,
+ * the grand fountain, the arcade, a terrace lounge and the street's odds and ends. Same kit as the
+ * furniture; flowers are instanced, since a bed holds hundreds.
  */
 import type { SeasonLook } from "@tokenmaxxing/core/seasons.ts";
 import * as THREE from "three";
@@ -47,7 +47,9 @@ export function dropPropsNight(root: THREE.Object3D): void {
     for (let o: THREE.Object3D | null = m; o; o = o.parent) if (o === root) return true;
     return false;
   };
-  for (let i = nightGlows.length - 1; i >= 0; i--) if (inside(nightGlows[i]!.mesh)) nightGlows.splice(i, 1);
+  for (let i = nightGlows.length - 1; i >= 0; i--) {
+    if (inside(nightGlows[i]!.mesh)) nightGlows.splice(i, 1);
+  }
 }
 export const isPropsNight = (): boolean => propsNight;
 /** Called with the new state whenever `setPropsNight` runs. */
@@ -61,8 +63,8 @@ export function setPropsNight(on: boolean): void {
   announceNight(on);
 }
 
-/** Tells the batches that it is night (or day) without swapping any prop: the rooms' own switch calls this. */
-export function announceNight(on: boolean): void {
+/** Tells the batches that it is night (or day) without swapping any prop. */
+function announceNight(on: boolean): void {
   propsNight = on;
   for (const fn of nightListeners) fn(on);
 }
@@ -142,39 +144,6 @@ export function flowerBed(seed: number, dormant = 0): Model {
   return m;
 }
 
-/** A white pot, round or square, `h` tall. */
-function whitePot(m: Model, r: number, h: number, square = false): void {
-  if (square) {
-    m.box([r * 2, h, r * 2], "#eeeae2", [0, 0, 0], 0.03);
-    m.box([r * 2 + 0.06, 0.05, r * 2 + 0.06], "#ffffff", [0, h - 0.05, 0], 0.02);
-  } else {
-    m.cyl(r * 0.8, h, "#eeeae2", [0, 0, 0], r, 16);
-    m.cyl(r + 0.02, 0.05, "#ffffff", [0, h - 0.05, 0], r + 0.02, 16);
-  }
-  m.cyl(r * 0.92, 0.01, "#5e3d28", [0, h - 0.02, 0], r * 0.92, 12);
-}
-
-/** A clipped topiary in a white pot: two or three balls on a stem. */
-export function topiary(tiers = 2): Model {
-  const m = new Model();
-  whitePot(m, 0.24, 0.42);
-  m.cyl(0.03, 0.4 + tiers * 0.3, C.trunk, [0, 0.4, 0], 0.025, 6);
-  for (let i = 0; i < tiers; i++)
-    m.ball(0.3 - i * 0.07, LEAF[(i + 1) % 4]!, [0, 0.72 + i * 0.42, 0], [1, 0.92, 1], 14);
-  return m;
-}
-
-/** A tall cypress in a square stone planter. */
-export function cypress(): Model {
-  const m = new Model();
-  m.box([0.6, 0.42, 0.6], "#e8e0cc", [0, 0, 0], 0.03);
-  m.box([0.68, 0.06, 0.68], "#f4efe4", [0, 0.42, 0], 0.02);
-  m.cyl(0.2, 1.4, "#3f7a3a", [0, 0.48, 0], 0.07, 12);
-  m.ball(0.21, "#3f7a3a", [0, 0.6, 0], [1, 0.8, 1], 12);
-  m.cyl(0.14, 0.5, "#4f9443", [0.03, 1.1, 0.05], 0.03, 10);
-  return m;
-}
-
 /** A palm in a terracotta pot, its fronds drooping all round. */
 export function palm(seed = 1): Model {
   const m = new Model();
@@ -204,7 +173,7 @@ export function palm(seed = 1): Model {
   return m;
 }
 
-export type TreeKind = "round" | "pine" | "pink" | "white" | "orange" | "yellow" | "red" | "oak";
+type TreeKind = "round" | "pine" | "pink" | "white" | "orange" | "yellow" | "red" | "oak";
 const CANOPY: Record<Exclude<TreeKind, "pine">, string[]> = {
   round: ["#4fa544", "#5fb84f", "#3f8f3a"],
   oak: ["#3f8f3a", "#57ad47", "#2f7a32"],
@@ -351,8 +320,10 @@ export function seasonalTree(species: Species, seed: number, size: number, look:
   const bloom = BLOOM[species];
   const n = lobeCount(oak);
   const picks = Array.from({ length: n + 2 }, (_, i) => {
+    // Every lobe draws all four, kept or not, so the lobes after it keep their values as the look changes.
     const [gone, late, fresh, blossom] = [rnd(), rnd(), rnd(), rnd()];
-    if (gone * 0.94 + 0.03 >= look.leaf) return null;
+    const goneBy = gone * 0.94 + 0.03;
+    if (goneBy >= look.leaf) return null;
     const shade = shadeOf(i, n);
     if (look.turn > late * 0.7 + early * 0.3) return autumn[shade]!;
     if (bloom && blossom < look.blossom) return bloom[shade]!;
@@ -639,29 +610,6 @@ export function arcadeBuilding(): Model {
   m.box([0.5, 0.03, 0.5], "#f2c23a", [0, 0.01, d / 2 + 1.1], 0.01).rotation.y = Math.PI / 4;
   for (const x of [-1.2, 1.2]) m.part([x, 0, d / 2 + 1.1]).add(palm(x > 0 ? 3 : 4));
   light(m, [0, 2.4, d / 2 + 1.2], "#b47cff", 6, 7);
-  return m;
-}
-
-/** A pergola: timber posts and beams with a cream shade cloth, `w`×`d`. */
-export function pergola(w: number, d: number): Model {
-  const m = new Model();
-  const wood = "#a87648";
-  for (const x of [-w / 2, w / 2])
-    for (const z of [-d / 2, d / 2]) m.box([0.14, 2.2, 0.14], wood, [x, 0, z], 0.02);
-  for (const z of [-d / 2, d / 2]) m.box([w + 0.4, 0.14, 0.12], wood, [0, 2.15, z], 0.02);
-  for (let i = 0; i <= Math.round(w / 0.5); i++)
-    m.box([0.07, 0.1, d + 0.3], tint(wood, 0.1), [-w / 2 + i * 0.5, 2.28, 0], 0.01);
-  const cloth = m.box([w - 0.3, 0.03, d - 0.2], "#efe4c8", [0, 2.18, 0], 0.01);
-  cloth.rotation.z = 0.04;
-  // Vines on the posts, string lights along the beams.
-  for (const x of [-w / 2, w / 2]) m.ball(0.15, LEAF[0]!, [x, 1.95, d / 2], [1, 1.4, 1], 8);
-  for (let i = 0; i < 10; i++) {
-    const x = -w / 2 + (i + 0.5) * (w / 10);
-    nightGlow(
-      m.ball(0.04, "#f4e6c0", [x, 2.05 - Math.sin(((i + 0.5) / 10) * Math.PI) * 0.15, d / 2]),
-      "#ffe28a",
-    );
-  }
   return m;
 }
 

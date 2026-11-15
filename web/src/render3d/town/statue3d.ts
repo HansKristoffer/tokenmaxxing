@@ -50,6 +50,7 @@ export class StatueLayer {
     if (!this.group.visible) return;
     const s = statueNow();
     const { sign, accent } = plaqueNow();
+
     // Built again only when its colour changes, or it gets its first leader.
     const look = `${accent}:${!s.leader}`;
     if (look !== this.look) {
@@ -62,6 +63,7 @@ export class StatueLayer {
       mergeStill(model);
       this.root.add(model);
     }
+
     const k = f.calm ? null : unveiling(s, serverNow());
     this.drape.visible = !s.leader || k !== null;
     if (k === null) {
@@ -77,6 +79,7 @@ export class StatueLayer {
         this.burst = new Burst(f.overlay, ["🎉", "✨", "🏆"], f.now);
       }
     }
+
     if (this.burst) {
       const [sx, sy] = f.overlay.project(v3.set(this.at[0], 2, this.at[1]), f.camera);
       if (!this.burst.step(f.now, sx, sy)) {
@@ -84,6 +87,7 @@ export class StatueLayer {
         this.burst = null;
       }
     }
+
     if (!this.sign) {
       this.sign = f.overlay.make("r3-sign link");
       this.sign.addEventListener("click", () => hud.set({ dialog: statueText() }));

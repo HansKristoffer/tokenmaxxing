@@ -47,6 +47,7 @@ export class Pumpkins {
   constructor(map: GameMap, toWorld: (tx: number, ty: number) => [number, number]) {
     this.group.name = "pumpkins";
     this.pumpkins = pumpkinSpots(map);
+
     const bodies = new Model();
     const carved: THREE.BufferGeometry[] = [];
     for (const { x, y, big } of this.pumpkins) {
@@ -57,6 +58,8 @@ export class Pumpkins {
     }
     this.group.add(bodies);
     mergeStill(bodies);
+
+    // The faces are one merged mesh, so they share one material and one draw call.
     const merged = carved.length ? mergeGeometries(carved) : null;
     for (const g of carved) g.dispose();
     if (merged) {
@@ -64,6 +67,7 @@ export class Pumpkins {
       mesh.userData.live = true;
       this.group.add(mesh);
     }
+
     this.group.traverse((o) => {
       o.userData.nopick = true;
       o.userData.noBlock = true;

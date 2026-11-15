@@ -1,6 +1,6 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
 import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
-import type { Peek } from "@tokenmaxxing/core/world.ts";
+import type { Peek, PlayerState } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
@@ -9,6 +9,15 @@ import type { RoomView, Sign } from "../rooms/rooms.ts";
 
 /** At most this many names show under a house's sign; the rest are a "+N" (as in the 2D game). */
 const CHIPS_MAX = 4;
+
+/** The icon in front of a name on a chip: asleep, or at a desk. */
+const STATE_ICON = {
+  idle: "",
+  sit: "",
+  away: "💤 ",
+  working: "💻 ",
+  playing: "",
+} as const satisfies Record<PlayerState, string>;
 
 interface Shown {
   el: HTMLDivElement;
@@ -36,8 +45,10 @@ export class Signs {
     // The room's own fixed signs, computed once; doors come from the snapshot and change with it.
     if (this.listed?.view !== view) this.listed = { view, list: view.signs() };
     const out = [...this.listed.list];
+
     const more = view.liveSigns?.();
     if (more) out.push(...more);
+
     for (const d of world.doors) {
       const [x, z] = view.toWorld(d.x, d.y);
       out.push({
@@ -75,11 +86,13 @@ export class Signs {
         if (s.own || s.kind === "company" || s.kind === "inn") el.classList.add("own");
         e = { el, text: "", chips: null, chipsKey: "", cls: "", click: undefined };
         this.shown.set(s.key, e);
+        // A label's click is read from `shown` each time, so the handler follows the sign's latest `onClick`.
         if (s.kind === "label")
           el.addEventListener("click", () => {
             this.shown.get(s.key)?.click?.();
           });
       }
+
       if (s.kind === "label") {
         const cls = [s.own ? "own" : "", s.cls ?? "", s.onClick ? "link" : ""].filter(Boolean).join(" ");
         if (e.cls !== cls) {
@@ -92,16 +105,18 @@ export class Signs {
         e.text = text;
         e.el.textContent = text;
       }
+
       this.at.set(...s.at);
       const on = this.overlay.place(e.el, this.at, camera, 0, s.dy ?? 0, true);
       this.chips(e, s, on, camera);
     }
-    for (const [key, e] of this.shown)
-      if (!live.has(key)) {
-        e.el.remove();
-        e.chips?.remove();
-        this.shown.delete(key);
-      }
+
+    for (const [key, e] of this.shown) {
+      if (live.has(key)) continue;
+      e.el.remove();
+      e.chips?.remove();
+      this.shown.delete(key);
+    }
     this.sleeping(view, camera);
   }
 
@@ -124,7 +139,7 @@ export class Signs {
       for (const p of people.slice(0, CHIPS_MAX)) {
         const chip = document.createElement("div");
         chip.className = "r3-chip";
-        chip.textContent = `${p.state === "away" ? "💤 " : p.state === "working" ? "💻 " : ""}${p.name} Lv${p.level}`;
+        chip.textContent = `${STATE_ICON[p.state]}${p.name} Lv${p.level}`;
         chip.addEventListener("click", () => hud.set({ panel: { kind: "card", userId: p.id } }));
         row.append(chip);
       }
