@@ -64,16 +64,18 @@ export function disposeObject(
         if (t instanceof THREE.Texture) free(t, "textures");
       }
       const uniforms = (m as THREE.ShaderMaterial).uniforms;
-      if (uniforms)
-        for (const u of Object.values(uniforms))
+      if (uniforms) {
+        for (const u of Object.values(uniforms)) {
           if (u.value instanceof THREE.Texture) free(u.value, "textures");
+        }
+      }
     }
     free(m, "materials");
   };
   root.traverse((o) => {
-    const any = o as THREE.Mesh;
-    if (any.geometry) {
-      free(any.geometry, "geometries");
+    const mesh = o as THREE.Mesh;
+    if (mesh.geometry) {
+      free(mesh.geometry, "geometries");
       const saved = o.userData.voxelSaved as { geometry?: THREE.BufferGeometry } | undefined;
       if (saved?.geometry) free(saved.geometry, "geometries");
     }
@@ -82,8 +84,9 @@ export function disposeObject(
       material(night.day);
       material(night.night);
     }
-    if (any.material)
-      for (const m of Array.isArray(any.material) ? any.material : [any.material]) material(m);
+    if (mesh.material) {
+      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) material(m);
+    }
     if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose();
     const lit = o as THREE.DirectionalLight;
     if (lit.isLight && lit.shadow) lit.shadow.dispose();

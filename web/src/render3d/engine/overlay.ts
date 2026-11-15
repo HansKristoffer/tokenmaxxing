@@ -52,6 +52,9 @@ export class Overlay {
   py = 0;
   private fadeTo = 0;
   private fadeNow = 0;
+  private fadeMs = 0;
+  private fadeFrom = 0;
+  private fadeAt = 0;
   /** Where the labels over things are judged from, in world units: the player (NaN: all show), the pointed tile and its reveal. */
   private readonly focus = { x: NaN, z: NaN, hx: NaN, hz: NaN, hover: 0 };
 
@@ -111,13 +114,18 @@ export class Overlay {
     this.v.copy(at).project(camera);
     const x = ((this.v.x + 1) / 2) * this.width + dx;
     const y = ((1 - this.v.y) / 2) * this.height + dy;
+    // A label may overhang the screen by these margins before it is hidden: its own width and height.
     let off = this.v.z > 1 || x < -240 || x > this.width + 240 || y < -80 || y > this.height + 200;
     let opacity = "";
     const f = this.focus;
     if (near && !off && !Number.isNaN(f.x)) {
       const a = labelAlpha(Math.hypot(at.x - f.x, at.z - f.z), Math.hypot(at.x - f.hx, at.z - f.hz), f.hover);
-      if (a <= 0) off = true;
-      else if (a < 0.995) opacity = (Math.round(a * 20) / 20).toFixed(2);
+      if (a <= 0) {
+        off = true;
+      } else if (a < 0.995) {
+        // Opacity moves in 5% steps, so the style is not rewritten every frame for a small fade.
+        opacity = (Math.round(a * 20) / 20).toFixed(2);
+      }
     }
     if (off) {
       if (el.style.display !== "none") el.style.display = "none";
@@ -153,20 +161,18 @@ export class Overlay {
     this.fadeAt = now;
   }
 
-  private fadeMs = 0;
-  private fadeFrom = 0;
-  private fadeAt = 0;
-
   stepFade(now: number): void {
     const t = this.fadeMs <= 0 ? 1 : Math.min(1, (now - this.fadeAt) / this.fadeMs);
     this.fadeNow = this.fadeFrom + (this.fadeTo - this.fadeFrom) * t;
-    const o = this.fadeNow < 0.003 ? "0" : this.fadeNow.toFixed(3);
-    if (this.fade.style.opacity !== o) this.fade.style.opacity = o;
+    const value = this.fadeNow < 0.003 ? "0" : this.fadeNow.toFixed(3);
+    if (this.fade.style.opacity !== value) this.fade.style.opacity = value;
   }
 
   /** Jumps to a fade level at once. */
   snapFade(to: number): void {
-    this.fadeTo = this.fadeNow = this.fadeFrom = to;
+    this.fadeTo = to;
+    this.fadeNow = to;
+    this.fadeFrom = to;
     this.fadeMs = 0;
     this.stepFade(0);
   }
