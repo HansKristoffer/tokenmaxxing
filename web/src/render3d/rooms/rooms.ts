@@ -1,4 +1,4 @@
-import type { GameMap } from "@tokenmaxxing/core/maps.ts";
+import type { GameMap, SeatKind } from "@tokenmaxxing/core/maps.ts";
 import type { CompanyInfo, RoomId } from "@tokenmaxxing/core/world.ts";
 import type * as THREE from "three";
 import type { Overlay } from "../engine/overlay.ts";
@@ -97,6 +97,9 @@ export interface RoomView {
 
 export type RoomBuilder = (id: RoomId, ctx: RoomCtx) => RoomView;
 
+/** How high a seat of each kind is, in world units: the cushion or bench top a sitter's hips rest on. */
+export const SEAT_Y: Record<SeatKind, number> = { bench: 0.31, chair: 0.33, sofa: 0.36, bed: 0.3 };
+
 const builders = new Map<string, RoomBuilder>();
 let generic: RoomBuilder | null = null;
 
@@ -110,13 +113,15 @@ export function registerFallbackRoom(build: RoomBuilder): void {
   generic = build;
 }
 
+/** The room kind of an id: `office` for `office:7`, the id itself for a room with no instance number. */
+export const kindOfRoom = (id: string): string => (id.includes(":") ? id.slice(0, id.indexOf(":")) : id);
+
 /**
  * The view of room `id`. Rooms with no builder of their own, an office's id included (`office:7`), use the
  * generic one, so every room is at least walkable and legible.
  */
 export function buildRoom(id: RoomId, ctx: RoomCtx): RoomView {
-  const kind = id.includes(":") ? id.slice(0, id.indexOf(":")) : id;
-  const build = builders.get(id) ?? builders.get(kind) ?? generic;
+  const build = builders.get(id) ?? builders.get(kindOfRoom(id)) ?? generic;
   if (!build) throw new Error(`no room builder for ${id}`);
   return build(id, ctx);
 }
@@ -131,14 +136,10 @@ export function withTicks<T>(make: () => T): { value: T; ticks: ((t: number) => 
   return { value, ticks: ticks.splice(before) };
 }
 
-// MARK: Lazy rooms
-
 type Prep = () => Promise<void>;
 const preps = new Map<string, Prep>();
 const prepared = new Set<string>();
 const preparing = new Map<string, Promise<void>>();
-
-const kindOfRoom = (id: string): string => (id.includes(":") ? id.slice(0, id.indexOf(":")) : id);
 
 /** Registers the code a room kind needs before `buildRoom` may be called for it (its hand-built module, its art). */
 export function registerRoomPrep(kind: string, prep: Prep): void {
@@ -169,6 +170,7 @@ export function prepareRoom(id: string): Promise<void> {
 /** Fetches a room's code when the browser is idle: the door you are most likely to take next. */
 export function preloadRoom(id: string): void {
   if (roomReady(id)) return;
+  // A failed prefetch is not an error: the room's code is fetched again when the player walks in.
   const run = () => void prepareRoom(id).catch(() => {});
   const idle = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void })
     .requestIdleCallback;

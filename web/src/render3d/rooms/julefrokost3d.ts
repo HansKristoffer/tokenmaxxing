@@ -24,13 +24,16 @@ export class JulefrokostSpread {
     const c = new THREE.Vector3();
     const size = new THREE.Vector3();
     room.group.updateMatrixWorld(true);
+
     for (const [k, t] of tables.entries()) {
       box.setFromObject(t);
       room.group.worldToLocal(box.getCenter(c));
       box.getSize(size);
+
       const along = size.x >= size.z;
       const len = Math.max(size.x, size.z) - 0.25;
       m.box(along ? [len, 0.012, 0.24] : [0.24, 0.012, len], RUNNER, [c.x, TOP, c.z], 0.002);
+
       // A place either side of each tile of the table.
       const tiles = Math.max(1, Math.round(len));
       for (let i = 0; i < tiles; i++) {
@@ -43,11 +46,13 @@ export class JulefrokostSpread {
         }
       }
     }
+
     this.group.add(m);
     mergeStill(m);
     this.group.traverse((o) => {
       o.userData.nopick = true;
     });
+
     // It comes and goes with the evening: the room's batching leaves it as it is.
     this.group.userData.nobatch = true;
     this.group.visible = false;

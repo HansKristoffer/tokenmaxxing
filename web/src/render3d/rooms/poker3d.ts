@@ -43,16 +43,13 @@ export interface PokerModel extends Model {
   centreWorld(into: THREE.Vector3): THREE.Vector3;
 }
 
-// MARK: Cards and chips
-
-const cardGeometry = (() => {
-  let g: THREE.PlaneGeometry | null = null;
-  return () => {
-    g ??= new THREE.PlaneGeometry(0.3, 0.42);
-    g.userData.shared = true;
-    return g;
-  };
-})();
+let cardGeom: THREE.PlaneGeometry | null = null;
+/** One card-sized plane for every card on every table. */
+function cardGeometry(): THREE.PlaneGeometry {
+  cardGeom ??= new THREE.PlaneGeometry(0.3, 0.42);
+  cardGeom.userData.shared = true;
+  return cardGeom;
+}
 
 const faces = new Map<Card | "back" | "button", THREE.MeshBasicMaterial>();
 
@@ -125,9 +122,12 @@ function lay(
 ): void {
   const q = new THREE.Mesh(cardGeometry(), faceMaterial(which));
   if (which === "button") {
+    // The button is a round picture on a 0.15 square, lifted 0.012 above the felt.
     q.scale.set(0.5, 0.36, 1);
     q.position.set(at[0], at[1] + 0.012, at[2]);
-  } else q.position.set(...at);
+  } else {
+    q.position.set(...at);
+  }
   q.rotation.order = "YXZ";
   q.rotation.x = -Math.PI / 2;
   q.rotation.y = Math.atan2(-towards[0], -towards[1]);
@@ -154,12 +154,11 @@ function chips(
     const x = at[0] + across[0] * k * 0.17;
     const z = at[2] + across[1] * k * 0.17;
     for (let i = 0; i < n; i++) {
-      m.cyl(0.07, 0.026, i % 2 === 0 ? colour : tint(colour, 0.25), [x, at[1] + i * 0.028, z], 0.07, 10);
+      const shade = i % 2 === 0 ? colour : tint(colour, 0.25);
+      m.cyl(0.07, 0.026, shade, [x, at[1] + i * 0.028, z], 0.07, 10);
     }
   }
 }
-
-// MARK: The table
 
 /** The poker table, built from the map's table and chairs; `show` puts the game on it. */
 export function pokerTable3d(): PokerModel {
@@ -220,10 +219,14 @@ export function pokerTable3d(): PokerModel {
       // Two cards side by side, tops towards the middle of the table; the dealer's button beside them.
       const cards = vertical ? 0.9 : 1.0;
       const across: [number, number] = [-s.f[1], s.f[0]];
-      if (seat.shown || seat.dealt)
-        for (const [k, side] of [-0.17, 0.17].entries())
+
+      if (seat.shown || seat.dealt) {
+        for (const [k, side] of [-0.17, 0.17].entries()) {
           lay(live, seat.shown?.[k] ?? "back", at(cards, side), s.f);
+        }
+      }
       if (seat.dealer) lay(live, "button", at(cards, -0.52), s.f);
+
       chips(live, seat.bet, at(vertical ? 1.18 : 1.3), "bet", across);
       chips(live, seat.stack, at(cards, 0.55), "stack", across);
     }

@@ -16,22 +16,24 @@ const FONT = "bold 9px ui-monospace, Menlo, Consolas, monospace";
 const TOP = 0.78;
 const WHEEL_AT: [number, number] = [-0.75, 0];
 
+/** The betting layout's painted size in pixels, and its grid: the cells start at (X0, Y0) and are CELL_W by CELL_H. */
+const LAYOUT_W = 262;
+const LAYOUT_H = 98;
+const X0 = 6;
+const Y0 = 6;
+const CELL_W = 20;
+const CELL_H = 20;
+
 /** The betting layout: 0, then three rows of numbers (3 on top) and the dozens under them. */
 function layoutTexture() {
-  const W = 262;
-  const H = 98;
-  return canvasTexture(W, H, (g) => {
+  return canvasTexture(LAYOUT_W, LAYOUT_H, (g) => {
     g.fillStyle = FELT;
-    g.fillRect(0, 0, W, H);
+    g.fillRect(0, 0, LAYOUT_W, LAYOUT_H);
     g.strokeStyle = "#f2efe0";
     g.lineWidth = 1.5;
     g.font = FONT;
     g.textAlign = "center";
     g.textBaseline = "middle";
-    const x0 = 6;
-    const cw = 20;
-    const ch = 20;
-    const y0 = 6;
     const cell = (x: number, y: number, w: number, h: number, fill: string | null, text: string) => {
       if (fill) {
         g.fillStyle = fill;
@@ -41,26 +43,28 @@ function layoutTexture() {
       g.fillStyle = "#f6f2e4";
       g.fillText(text, x + w / 2, y + h / 2 + 1);
     };
-    cell(x0, y0, cw, ch * 3, POCKET.green, "0");
+    cell(X0, Y0, CELL_W, CELL_H * 3, POCKET.green, "0");
     for (let n = 1; n <= 36; n++) {
       const col = Math.floor((n - 1) / 3);
       const row = 2 - ((n - 1) % 3);
-      cell(x0 + cw * (1 + col), y0 + ch * row, cw, ch, POCKET[colorOf(n)], String(n));
+      cell(X0 + CELL_W * (1 + col), Y0 + CELL_H * row, CELL_W, CELL_H, POCKET[colorOf(n)], String(n));
     }
-    const dy = y0 + ch * 3;
-    for (let i = 0; i < 3; i++)
-      cell(x0 + cw * (1 + i * 4), dy, cw * 4, ch, null, `${i * 12 + 1}-${i * 12 + 12}`);
-    const ey = dy + ch;
-    const tags = ["1-18", "EVEN", "RED", "BLACK", "ODD", "19-36"];
-    for (let i = 0; i < 6; i++)
-      cell(
-        x0 + cw * (1 + i * 2),
-        ey,
-        cw * 2,
-        ch - 6,
-        i === 2 ? POCKET.red : i === 3 ? POCKET.black : null,
-        tags[i]!,
-      );
+    const dozensY = Y0 + CELL_H * 3;
+    for (let i = 0; i < 3; i++) {
+      cell(X0 + CELL_W * (1 + i * 4), dozensY, CELL_W * 4, CELL_H, null, `${i * 12 + 1}-${i * 12 + 12}`);
+    }
+    const evenMoneyY = dozensY + CELL_H;
+    const tags: [string, string | null][] = [
+      ["1-18", null],
+      ["EVEN", null],
+      ["RED", POCKET.red],
+      ["BLACK", POCKET.black],
+      ["ODD", null],
+      ["19-36", null],
+    ];
+    for (const [i, [text, fill]] of tags.entries()) {
+      cell(X0 + CELL_W * (1 + i * 2), evenMoneyY, CELL_W * 2, CELL_H - 6, fill, text);
+    }
   });
 }
 
@@ -82,47 +86,46 @@ const SEAT_COLORS = [
   "#14b8a6",
   "#ef4444",
 ] as const;
+/** The layout sheet on the felt: its width in world units and the middle of it along x. */
 const SHEET_W = 1.3;
 const SHEET_AT = 0.75;
 
 /** Where a bet sits on the felt, in the table's space (x, z): the centre of its cell in the painted layout. */
 function betSpot(on: string): [number, number] | null {
-  const x0 = 6;
-  const y0 = 6;
-  const cw = 20;
-  const ch = 20;
-  const dy = y0 + ch * 3;
-  const ey = dy + ch;
+  const dozensY = Y0 + CELL_H * 3;
+  const evenMoneyY = dozensY + CELL_H;
   let px: number;
   let py: number;
   if (on.startsWith("n:")) {
     const n = Number(on.slice(2));
     if (n === 0) {
-      px = x0 + cw / 2;
-      py = y0 + (ch * 3) / 2;
+      px = X0 + CELL_W / 2;
+      py = Y0 + (CELL_H * 3) / 2;
     } else {
-      px = x0 + cw * (1 + Math.floor((n - 1) / 3)) + cw / 2;
-      py = y0 + ch * (2 - ((n - 1) % 3)) + ch / 2;
+      px = X0 + CELL_W * (1 + Math.floor((n - 1) / 3)) + CELL_W / 2;
+      py = Y0 + CELL_H * (2 - ((n - 1) % 3)) + CELL_H / 2;
     }
   } else if (on === "d1" || on === "d2" || on === "d3") {
-    px = x0 + cw * (1 + (Number(on[1]) - 1) * 4) + cw * 2;
-    py = dy + ch / 2;
+    px = X0 + CELL_W * (1 + (Number(on[1]) - 1) * 4) + CELL_W * 2;
+    py = dozensY + CELL_H / 2;
   } else if (on === "c1" || on === "c2" || on === "c3") {
     // The columns end the rows at the right; there is no cell drawn, so they sit on the last number of each row.
-    px = x0 + cw * 12 + cw / 2;
-    py = y0 + ch * (3 - Number(on[1])) + ch / 2;
+    px = X0 + CELL_W * 12 + CELL_W / 2;
+    py = Y0 + CELL_H * (3 - Number(on[1])) + CELL_H / 2;
   } else {
     const i = ["low", "even", "red", "black", "odd", "high"].indexOf(on);
     if (i < 0) return null;
-    px = x0 + cw * (1 + i * 2) + cw;
-    py = ey + (ch - 6) / 2;
+    px = X0 + CELL_W * (1 + i * 2) + CELL_W;
+    py = evenMoneyY + (CELL_H - 6) / 2;
   }
-  return [SHEET_AT + ((px - 131) / 262) * SHEET_W, ((py - 49) / 98) * SHEET_W * (98 / 262)];
+  // The sheet's middle is the origin along x and z of the felt's layout space.
+  const sheetX = SHEET_AT + ((px - LAYOUT_W / 2) / LAYOUT_W) * SHEET_W;
+  const sheetZ = ((py - LAYOUT_H / 2) / LAYOUT_H) * SHEET_W * (LAYOUT_H / LAYOUT_W);
+  return [sheetX, sheetZ];
 }
 
 const MAX_CHIPS = 4 * 12 * 5;
 const TAU = Math.PI * 2;
-const DISC = { red: "#c8352f", black: "#1d1a22", green: "#2f9a4f" } as const;
 
 function overlayMaterial(map: THREE.Texture): THREE.MeshBasicMaterial {
   return new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false });
@@ -143,7 +146,7 @@ export function rouletteTable3d(): RouletteModel {
 
   // The layout, flat on the right half.
   const tex = layoutTexture();
-  const sheet = m.plane(1.3, 1.3 * (98 / 262), painted(tex), [0.75, felt + 0.002, 0]);
+  const sheet = m.plane(SHEET_W, SHEET_W * (LAYOUT_H / LAYOUT_W), painted(tex), [SHEET_AT, felt + 0.002, 0]);
   sheet.rotation.x = -Math.PI / 2;
   sheet.castShadow = false;
 
@@ -196,7 +199,7 @@ export function rouletteTable3d(): RouletteModel {
     g.strokeRect(0.5, 0.5, 95, 19);
     for (let i = 0; i < HIST; i++) {
       const p = history[i];
-      g.fillStyle = p === undefined ? "#3a3030" : DISC[colorOf(p)];
+      g.fillStyle = p === undefined ? "#3a3030" : POCKET[colorOf(p)];
       g.beginPath();
       g.arc(9 + i * 15.5, 10, i === 0 ? 6.5 : 5, 0, TAU);
       g.fill();
@@ -254,7 +257,7 @@ export function rouletteTable3d(): RouletteModel {
     chipKey = key;
     let k = 0;
     for (const p of players) {
-      const seat = state!.seats.find((s) => s.userId === p.userId)?.spot ?? 0;
+      const seat = state?.seats.find((s) => s.userId === p.userId)?.spot ?? 0;
       col.set(SEAT_COLORS[seat % SEAT_COLORS.length]!);
       for (const b of p.bets as Bet[]) {
         const at = betSpot(b.on);
@@ -345,7 +348,7 @@ export function rouletteTable3d(): RouletteModel {
     else if (phase === "spinning") text = "...";
     else if (phase === "result" && last) {
       text = String(last.pocket);
-      fill = DISC[colorOf(last.pocket)];
+      fill = POCKET[colorOf(last.pocket)];
     }
     if (text && text + fill !== labelKey) {
       labelKey = text + fill;
@@ -358,7 +361,7 @@ export function rouletteTable3d(): RouletteModel {
     const ready = new Set(
       (state?.players ?? [])
         .filter((p) => p.ready)
-        .map((p) => state!.seats.find((s) => s.userId === p.userId)?.spot),
+        .map((p) => state?.seats.find((s) => s.userId === p.userId)?.spot),
     );
     const pulse = 0.8 + 0.2 * Math.sin(now / 400);
     glowMat.opacity = 0.45 * pulse;

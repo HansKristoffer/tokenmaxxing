@@ -12,12 +12,11 @@ import { Pen } from "../../art/pixels.ts";
 import { COMPANY_FURNITURE, DESKS, HQ_ROWS, POSTERS } from "../data/town.ts";
 import { type Asset, assetById, light } from "../furniture/furniture.ts";
 import { extraAssetById } from "../furniture/furniture3d.ts";
-import { canvasTexture, codeScreen, glow, Model, painted, seeded, ticks, tint } from "../kit/kit.ts";
+import { canvasTexture, codeScreen, glow, Model, painted, seeded, ticks } from "../kit/kit.ts";
 import { type Panel, panel } from "../kit/panel.ts";
 import { exitDoorway } from "./exits3d.ts";
+import { houseTile } from "./hq-layout.ts";
 import { type Placed, Room, type Turn } from "./room.ts";
-
-// MARK: Desks by fleet tier
 
 function screen(
   m: Model,
@@ -100,8 +99,6 @@ export function fleetDesk(tier: number, seed = 1, base = true): Model {
   return m;
 }
 
-// MARK: Pieces the base furniture doesn't have
-
 const persianRug = (w: number, d: number) => (): Model => {
   const m = new Model();
   const tex = canvasTexture(w * 16, d * 16, (g) => {
@@ -183,8 +180,6 @@ const plantWall = (): Model => {
   m.box([1.9, 0.32, 0.4], "#eeeae2", [0, 0, -0.1], 0.03);
   return m;
 };
-
-// MARK: Posters
 
 type Painter = (g: CanvasRenderingContext2D, w: number, h: number) => void;
 
@@ -324,15 +319,16 @@ const POSTER_ART: Record<string, Painter> = {
 };
 
 /** A game poster to hang on the wall row: `w` tiles wide. Face looks along +z. */
-export function posterModel(art: string, w: number, name: string): Panel {
+function posterModel(art: string, w: number, name: string): Panel {
   const paint = POSTER_ART[art];
   const pw = 0.9 * w - 0.1;
   return panel(
     pw,
     1.1,
     (g, cw, ch) => {
-      if (paint) paint(g, cw, ch);
-      else {
+      if (paint) {
+        paint(g, cw, ch);
+      } else {
         fill(g, "#2b2433", 0, 0, cw, ch);
         title(g, cw, ch, name);
       }
@@ -341,8 +337,6 @@ export function posterModel(art: string, w: number, name: string): Panel {
     { frame: "#3c2a1e", px: 100, smooth: true },
   );
 }
-
-// MARK: Assets
 
 const wallAsset = (p: (typeof POSTERS)[number]): Asset => ({
   id: `poster:${p.art}`,
@@ -410,8 +404,6 @@ export function directoryBoard(): Model {
   return m;
 }
 
-// MARK: The room
-
 export interface HqOptions {
   /** The wallet's desk tier (`CompanyInfo.deskFleet`), 0 the laptop. */
   fleet?: number;
@@ -454,7 +446,7 @@ export function buildHq(opts: HqOptions = {}): Hq {
     west: [3.5, 7.5],
     gap: opts.gap,
   });
-  const tile = (x: number, y: number): [number, number] => [x - 1, y - 2];
+  const tile = houseTile;
   const chairs: Placed[] = [];
   const beds: Placed[] = [];
   const posters: Placed[] = [];
@@ -523,15 +515,12 @@ export function buildHq(opts: HqOptions = {}): Hq {
           put("sofa", x, y, 2);
           seen.add(`${x + 1},${y}`);
           break;
-        default:
       }
     }
   });
   // The rug under the tv and sofas, drawn as one.
-  {
-    const [rx, rz] = tile(3, 9);
-    room.place(flatBig, rx, rz, 0);
-  }
+  const [rugX, rugZ] = tile(3, 9);
+  room.place(flatBig, rugX, rugZ, 0);
 
   // The company's own pieces and posters.
   for (const p of opts.placed ?? []) {
@@ -562,6 +551,5 @@ export function buildHq(opts: HqOptions = {}): Hq {
   front.position.set(ex + 0.5, 0, ez + 0.5);
   front.rotation.y = Math.PI;
   room.group.add(front);
-  void tint;
   return { room, exit: { x: ex, z: ez }, chairs, beds, posters, tile };
 }

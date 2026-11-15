@@ -34,7 +34,9 @@ function wrap(g: CanvasRenderingContext2D, s: string, max: number): string[] {
     if (g.measureText(next).width > max && line) {
       lines.push(line);
       line = word;
-    } else line = next;
+    } else {
+      line = next;
+    }
   }
   return [...lines, line];
 }
@@ -64,10 +66,10 @@ function slideDraw(k: Keynote): (g: CanvasRenderingContext2D, w: number, h: numb
     g.textAlign = "left";
     g.fillStyle = C.ink;
     g.font = `bold ${Math.round(h * 0.15)}px ${FONT}`;
-    for (const [i, line] of wrap(g, k.title, w * 0.9)
-      .slice(0, 3)
-      .entries())
+    const titleLines = wrap(g, k.title, w * 0.9).slice(0, 3);
+    for (const [i, line] of titleLines.entries()) {
       g.fillText(line, w * 0.05, h * (0.26 + i * 0.18));
+    }
     g.fillStyle = "#5b6170";
     g.font = `bold ${Math.round(h * 0.075)}px ${FONT}`;
     g.fillText(`▶ ${new URL(k.url).hostname.replace(/^www\./, "")}`, w * 0.05, h * 0.8);
@@ -89,10 +91,10 @@ function posterDraw(k: Keynote, now: number): (g: CanvasRenderingContext2D, w: n
     g.fillText("WATCH PARTY", w / 2, h * 0.06);
     g.fillStyle = C.ink;
     g.font = `bold ${Math.round(h * 0.1)}px ${FONT}`;
-    for (const [i, line] of wrap(g, k.title, w * 0.88)
-      .slice(0, 3)
-      .entries())
+    const titleLines = wrap(g, k.title, w * 0.88).slice(0, 3);
+    for (const [i, line] of titleLines.entries()) {
       g.fillText(line, w / 2, h * (0.3 + i * 0.12));
+    }
     g.fillStyle = accent;
     g.font = `bold ${Math.round(h * 0.075)}px ${FONT}`;
     g.fillText(whenText(k.startsAt, now), w / 2, h * 0.72);
@@ -194,8 +196,12 @@ export class KeynoteScreen {
     const now = serverNow();
     const s = keynoteScreen();
     this.show(s, now);
-    if (s?.live)
+
+    // The beam shimmers between 0.06 and 0.10 opacity while the keynote is live.
+    if (s?.live) {
       (this.beam.material as THREE.MeshBasicMaterial).opacity = 0.08 + 0.02 * Math.sin(f.now / 170);
+    }
+
     if (!s) {
       if (this.el) this.el.style.display = "none";
       return;
