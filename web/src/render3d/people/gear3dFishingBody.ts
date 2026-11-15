@@ -135,6 +135,7 @@ const BACKS: Record<string, BackBuilder> = {
     // The lid on its hinge: it sits on the tray's front edge and lifts a hair as you walk.
     const lid = vpart(b, [0, -4.6 * U, -0.2 * U]);
     const l = new Vx(lid);
+    // Takes coordinates in the pack's frame and moves them into the lid's, which sits 4.6 cubes down and 0.2 forward.
     const at = (x: number, y: number, z: number, w: number, hh: number, d: number, c: string) =>
       l.b(x, y + 4.6, z + 0.2, w, hh, d, c);
     at(-4, -4.6, -4.8, 8, 3.0, 4.6, TEAL);

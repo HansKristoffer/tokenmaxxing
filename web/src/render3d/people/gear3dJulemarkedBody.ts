@@ -62,7 +62,6 @@ function flame(
   const h = v.b(x - 1.2 * s, y - 0.6 * s, z - 1.2 * s, 2.4 * s, 3.2 * s, 2.4 * s, see("#ffcf70", 0.08, true));
   const f = v.b(x - 0.45 * s, y, z - 0.45 * s, 0.9 * s, 1.6 * s, 0.9 * s, lit("#ff9c2e"));
   const g = v.b(x - 0.25 * s, y, z - 0.25 * s, 0.5 * s, 1.0 * s, 0.5 * s, lit("#fff3b0"));
-  for (const o of [f, g, h]) o.geometry.translate(0, 0, 0);
   return { f, g, h };
 }
 
@@ -105,7 +104,7 @@ const cell = (g: CanvasRenderingContext2D, color: string, c: number, r: number, 
 const OUTFITS: Record<number, (c: BodyCtx) => void> = {
   // Islandsk sweater: a bold red yoke with three big white snowflakes, a thick roll neck, ribbed hem and cuffs, twinkling.
   0: (c) => {
-    const yoke = (flakes: boolean) => (g: CanvasRenderingContext2D) => {
+    const yoke = (g: CanvasRenderingContext2D) => {
       for (let col = 0; col < 19; col++) {
         cell(g, col % 2 ? CREAM : CREAM_DARK, col, 0);
         cell(g, GREEN, col, 1);
@@ -113,7 +112,6 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
         cell(g, col % 2 ? CREAM : CREAM_DARK, col, 13);
         for (let r = 2; r < 12; r++) cell(g, RED, col, r);
       }
-      if (!flakes) return;
       const flake = ["00100", "10101", "01110", "10101", "00100"];
       for (const x0 of [1, 7, 13])
         flake.forEach((row, r) => {
@@ -125,7 +123,7 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
         cell(g, GREEN, x, 8);
       }
     };
-    marks(c, yoke(true), yoke(true));
+    marks(c, yoke, yoke);
     roll(c, RED, 2.0, 0.55);
     roll(c, "#c9403a", 0.8, 0.7, 6.9);
     const v = grid(c);
@@ -277,7 +275,7 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     v.b(-1.3, 0.1, 2.35, 2.6, 2.3, 0.4, GOLD);
     v.b(-0.7, 0.7, 2.6, 1.4, 1.1, 0.3, "#5a3d24");
     v.b(-3.95, -2.8, -2.4, 7.9, 3.2, 4.8, "#767b84");
-    // Fluffy cream cuffs and a pair of toe-curl-like trim at the hem.
+    // Ribbed cream cuffs, with a red band above them.
     ribCuff(c, CREAM, "#e7dcc0", -6.6, 1.2);
     armBand(c, RED, -5.2, 0.8, 0.06);
     glints(c, [[-2.1, 2.4, 2.6]], 0.3);
@@ -420,7 +418,10 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     });
   },
 };
-for (const [n, build] of Object.entries(OUTFITS)) OUTFIT_BUILDERS[JULEMARKED_BASE + Number(n)] = build;
+// The looks start at JULEMARKED_BASE (core/src/case-julemarked.ts), so each outfit registers under that offset index.
+for (const [n, build] of Object.entries(OUTFITS)) {
+  OUTFIT_BUILDERS[JULEMARKED_BASE + Number(n)] = build;
+}
 
 // MARK: Back
 
@@ -445,13 +446,12 @@ function pixels(
     }
   });
   for (const [color, list] of by) {
-    const m = new THREE.Mesh(mergeAll(list), new THREE.MeshToonMaterial({ color }));
+    const m = new THREE.Mesh(mergeGeometries(list)!, new THREE.MeshToonMaterial({ color }));
     m.userData.noBlock = true;
     m.castShadow = true;
     parent.add(m);
   }
 }
-const mergeAll = (l: THREE.BufferGeometry[]) => mergeGeometries(l)!;
 
 const HEART = ["0110110", "1111111", "1111111", "0111110", "0011100", "0001000"];
 const MINI = ["101", "111", "010"];

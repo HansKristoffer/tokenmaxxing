@@ -63,7 +63,7 @@ function starfieldCrown(m: Model, c: Ctx): void {
     const p = orbit.part([0, 0, 0]);
     p.box([0.03, 0.03, 0.03], lit(col), [0, -0.015, 0], 0);
     p.box([0.012, 0.07, 0.012], lit(col), [0, -0.035, 0], 0);
-    p.box([0.07, 0.012, 0.012], lit(col), [-0.035, -0.0, 0], 0);
+    p.box([0.07, 0.012, 0.012], lit(col), [-0.035, 0, 0], 0);
     p.userData.noBlock = true;
     return { p, a: (i / 3) * Math.PI * 2 };
   });
@@ -78,6 +78,4 @@ function starfieldCrown(m: Model, c: Ctx): void {
   });
 }
 
-Object.assign(HAT_BUILDERS, {
-  "Starfield crown": (m: Model, c: Ctx) => starfieldCrown(m, c),
-});
+Object.assign(HAT_BUILDERS, { "Starfield crown": starfieldCrown });

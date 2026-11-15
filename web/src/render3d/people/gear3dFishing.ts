@@ -30,8 +30,7 @@ function roundAt(m: Model, a: number, r: number): [number, number] {
 }
 
 /** The lures on the band, from the front round to the back: [angle, kind (0 fly, 1 spoon, 2 jig), three colours]. */
-// A table reads best one lure a line.
-// prettier-ignore
+// biome-ignore format: a table reads best one lure a line
 const LURES: readonly [number, number, string, string, string][] = [
   [-1.45, 0, "#e63946", "#ffd23f", "#3a86ff"],
   [-0.95, 1, "#dfe6ee", "#e63946", "#ffffff"],
@@ -99,7 +98,5 @@ function lureHat(m: Model, c: Ctx): void {
   });
 }
 
-Object.assign(HAT_BUILDERS, {
-  "Lucky lure hat": (m: Model, c: Ctx) => lureHat(m, c),
-});
+Object.assign(HAT_BUILDERS, { "Lucky lure hat": lureHat });
 COVERS_HAIR.add("Lucky lure hat");

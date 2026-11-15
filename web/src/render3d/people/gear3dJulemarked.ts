@@ -22,7 +22,6 @@ const CREAM_DARK = "#d9cdb0";
 const GREEN = "#2f5d3a";
 const GREEN_LIGHT = "#44794e";
 const GOLD = "#f2c14e";
-const WOOD = "#a06a3c";
 const PEBER = "#6b3f22";
 const WHITE = "#ffffff";
 
@@ -249,10 +248,10 @@ function luciaKrone(m: Model, c: Ticker): void {
 }
 
 Object.assign(HAT_BUILDERS, {
-  Nissehue: (m: Model, c: Ticker) => nissehue(m, c),
-  Pomponhue: (m: Model, c: Ticker) => pomponhue(m, c),
-  Grankrans: (m: Model, c: Ticker) => grankrans(m, c),
-  "Lucia-krone": (m: Model, c: Ticker) => luciaKrone(m, c),
+  Nissehue: nissehue,
+  Pomponhue: pomponhue,
+  Grankrans: grankrans,
+  "Lucia-krone": luciaKrone,
 });
 for (const n of ["Nissehue", "Pomponhue"]) COVERS_HAIR.add(n);
 
@@ -297,12 +296,12 @@ Object.assign(FACE_BUILDERS, {
     const frost = [-0.15, 0.15].map((x) =>
       bx(m, x, EYE_Y - 0.1, z + 0.01, 0.022, 0.022, 0.01, lit("#e6fbff")),
     );
-    const puffs = [0, 1, 2].map((i) => {
+    const breath = [0, 1, 2].map((i) => {
       const mat = see("#dff6ff", 0.6, true);
       return { mat, mesh: bx(m, 0, EYE_Y - 0.19, z + 0.02, 0.06, 0.05, 0.06, mat), i };
     });
     c.tick((t) => {
-      for (const { mat, mesh, i } of puffs) {
+      for (const { mat, mesh, i } of breath) {
         const k = (t * 0.45 + i / 3) % 1;
         const q = Math.min(1, k * 1.6);
         mesh.position.set(Math.sin(k * 6 + i * 2) * 0.012, EYE_Y - 0.19 + k * 0.07, z + 0.02 + q * 0.16);
@@ -531,14 +530,7 @@ const HELD: Record<string, HeldBuilder> = {
     bx(g, 0, 0.055, 0, 0.13, 0.11, 0.13, RED);
     bx(g, 0, 0.01, 0, 0.136, 0.02, 0.136, CREAM_DARK);
     bx(g, 0, 0.09, 0, 0.136, 0.012, 0.136, GOLD);
-    cells(
-      g,
-      ["01010", "11111", "01110", "00100"],
-      0.017,
-      (r) => (r < 2 ? CREAM : CREAM),
-      [0, 0.05, 0.068],
-      0.008,
-    );
+    cells(g, ["01010", "11111", "01110", "00100"], 0.017, () => CREAM, [0, 0.05, 0.068], 0.008);
     // The lid, hinged at the back and swung open a little, bobbing.
     const lid = g.part([0, 0.114, -0.065]);
     bx(lid, 0, 0.012, 0.067, 0.14, 0.028, 0.14, CREAM);
@@ -606,5 +598,3 @@ const HELD: Record<string, HeldBuilder> = {
   },
 };
 Object.assign(HELD_BUILDERS, HELD);
-
-void WOOD;

@@ -106,7 +106,5 @@ function visor(m: Model, c: Ctx): void {
   });
 }
 
-Object.assign(HAT_BUILDERS, {
-  "Ascendant visor": (m: Model, c: Ctx) => visor(m, c),
-});
+Object.assign(HAT_BUILDERS, { "Ascendant visor": visor });
 COVERS_HAIR.add("Ascendant visor");
