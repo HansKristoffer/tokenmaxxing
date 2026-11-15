@@ -145,7 +145,9 @@ export function snehare(): Built {
     const x0 = s === -1 ? -2 : 1;
     hg.box(x0, x0 + 1, 3, 8, -2, -1, SNOW);
     hg.box(x0, x0 + 1, 9, 9, -2, -1, "#4a4e58");
-    hg.box(x0 + (s === -1 ? 1 : 0), x0 + (s === -1 ? 1 : 0), 4, 8, -1, -1, "#eab4b8");
+    // The pink inside sits on the inner face of each ear.
+    const innerX = x0 + (s === -1 ? 1 : 0);
+    hg.box(innerX, innerX, 4, 8, -1, -1, "#eab4b8");
   }
   put(head, hg, [0, 0, 0], 2);
   const eyeMeshes = eyePair(head, 2.1, 0.8, 1.4);

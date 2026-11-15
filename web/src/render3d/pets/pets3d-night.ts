@@ -95,9 +95,10 @@ export function koi(): Built {
   const tg = new Grid();
   for (let i = 0; i < 10; i++) {
     const h = 1 + Math.floor(i * 0.55);
-    tg.box(-1, 0, -h, h, -i, -i, (c) =>
-      i < 3 ? "#fff6ea" : hash(c.x, c.y, c.z, 1) < 0.5 ? "#ff9244" : "#ffd1a8",
-    );
+    tg.box(-1, 0, -h, h, -i, -i, (c) => {
+      if (i < 3) return "#fff6ea";
+      return hash(c.x, c.y, c.z, 1) < 0.5 ? "#ff9244" : "#ffd1a8";
+    });
     if (i > 6) tg.del(0, 0, -i).del(-1, 0, -i);
   }
   put(tail, tg, [0, 0, 0], 3);
@@ -137,7 +138,11 @@ export function crane(): Built {
   const RED = "#e0405a";
   const bg = new Grid();
   bg.ell(0, 0, 0, 3.4, 3.2, 6.4, (c) => (c.x > 0 ? W : SH), 1.35);
-  bg.paint((c) => (c.t > 0.85 ? "#c3c9d9" : c.x === 0 ? "#eef1f8" : c.x > 0 ? W : SH));
+  bg.paint((c) => {
+    if (c.t > 0.85) return "#c3c9d9";
+    if (c.x === 0) return "#eef1f8";
+    return c.x > 0 ? W : SH;
+  });
   bg.tube(
     [
       [0, 1, 5],
@@ -183,7 +188,11 @@ export function crane(): Built {
       if (zb > zf) break;
       const mid = Math.round((zb + zf) / 2);
       for (let z = zb; z <= zf; z++) {
-        g.set(s * x, 0, z, x >= 10 ? RED : z === mid ? "#c3c9d9" : z > mid ? W : "#eef1f8");
+        // The tip, ten cells out and beyond, is red; the middle row is a crease; the two sides are two whites.
+        let shade = z > mid ? W : "#eef1f8";
+        if (z === mid) shade = "#c3c9d9";
+        if (x >= 10) shade = RED;
+        g.set(s * x, 0, z, shade);
         if (x <= 8 && z > zb && z < zf) g.set(s * x, -1, z, SH);
       }
     }
@@ -281,7 +290,7 @@ export function tanuki(): Built {
   // Tail: ringed, round.
   const tail = joint(body, [0, 6, -8]);
   const tg = new Grid();
-  tg.ell(0, 2, -3, 3, 3.2, 5, (c) => (Math.floor((c.z + 100) / 2) % 2 ? "#5a4a40" : BROWN), 2.2);
+  tg.ell(0, 2, -3, 3, 3.2, 5, (c) => (Math.floor(c.z / 2) % 2 ? "#5a4a40" : BROWN), 2.2);
   put(tail, tg, [0, 0, 0], 4);
   const idle = legs.map((l) => l.position.z);
   return {
@@ -571,7 +580,11 @@ export function tengu(): Built {
   const RED = "#d8362f";
   const bg = new Grid();
   bg.ell(0, 0, 0, 4.2, 5, 3.8, ROBE, 2.2);
-  bg.paint((c) => (c.y === -1 ? "#f5c842" : c.t > 0.8 ? "#3a3a52" : speckle(c, ROBE, "#363650", 2, 0.2)));
+  bg.paint((c) => {
+    if (c.y === -1) return "#f5c842";
+    if (c.t > 0.8) return "#3a3a52";
+    return speckle(c, ROBE, "#363650", 2, 0.2);
+  });
   // The suzukake pom-poms down the chest.
   for (const y of [2.6, 0.2]) bg.ell(0, y, 3.4, 1.7, 1.5, 1.2, "#f2efe6");
   // Legs and geta clogs.
@@ -637,8 +650,12 @@ export function tengu(): Built {
     const g = new Grid();
     g.ell(s * 1.5, 0.5, 0, 2.6, 3, 1.8, "#232536");
     for (let k = 0; k < 5; k++) {
-      const th = (-0.2 + k * 0.34) * 1;
-      const len = 9 + (k === 2 ? 3 : k === 1 || k === 3 ? 1.5 : 0);
+      const th = -0.2 + k * 0.34;
+      // The middle feather is the longest, the two beside it a little shorter.
+      let extra = 0;
+      if (k === 2) extra = 3;
+      else if (k === 1 || k === 3) extra = 1.5;
+      const len = 9 + extra;
       const to: V3 = [s * Math.cos(th) * len, Math.sin(th) * len + 1, -Math.cos(th) * len * 0.3];
       g.tube(
         [[s * 1.5, 0.5, 0], to],

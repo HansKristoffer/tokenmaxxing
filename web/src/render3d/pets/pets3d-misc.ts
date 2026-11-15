@@ -11,7 +11,7 @@ const SIDES = [-1, 1] as const;
 const U = (n: number) => n * VOX;
 const DARK = "#14101c";
 const GLINT = "#f4f6ff";
-const mixed = (a: string, b: string, p: Cell, seed: number, k = 0.3) =>
+const mixed = (a: string, b: string, p: Pick<Cell, "x" | "y" | "z">, seed: number, k = 0.3) =>
   hash(p.x, p.y, p.z, seed) < k * 0.8 ? mix(a, b, 0.55) : a;
 
 /** A mesh from a grid, placed at `at` (cells), its origin on `origin` (cells). */
@@ -173,6 +173,8 @@ export function duck(variant: string): { rig: Rig; body: Model; fore: Model } {
   const s = (ducks[variant] ?? ducks[""]!)();
   const k = s.k;
   const hk = s.hk;
+  // A ghost is see-through, so its parts are drawn at 60% opacity.
+  const opacity = s.ghost ? 0.6 : 1;
   const body = new Model();
   const fore = new Model();
   const bg = new Grid();
@@ -196,7 +198,9 @@ export function duck(variant: string): { rig: Rig; body: Model; fore: Model } {
   }
   bg.paint((c) => {
     const wing = Math.abs(c.x) >= 6 * k - 0.5 && c.z < 4 * k;
-    const part: DuckPart = wing ? "wing" : c.y > neckTop - 2.5 * k && c.z > 4 * k ? "neck" : "body";
+    let part: DuckPart = "body";
+    if (wing) part = "wing";
+    else if (c.y > neckTop - 2.5 * k && c.z > 4 * k) part = "neck";
     // Within the wing, u runs along the bird; remap it so the feather tips fall to the rear.
     return s.coat(part, wing ? { ...c, u: 1 - c.u } : c);
   });
@@ -224,12 +228,12 @@ export function duck(variant: string): { rig: Rig; body: Model; fore: Model } {
   );
   hg.merge(bill, 0, by - 1, bz);
   s.extra?.({ body: new Grid(), head: hg, k });
-  put(head, hg, [0, 0, 0], [0, 0, 0], 2, s.ghost ? 0.6 : 1);
+  put(head, hg, [0, 0, 0], [0, 0, 0], 2, opacity);
   const hy = neckTop - 0.5 * k;
   const hz = 6.2 * k;
   head.position.set(U(0), U(hy), U(hz));
   body.add(head);
-  put(body, bg, [0, 0, 0], [0, 0, 0], 1, s.ghost ? 0.6 : 1);
+  put(body, bg, [0, 0, 0], [0, 0, 0], 1, opacity);
   // Eyes at the sides of the head.
   const eyes: THREE.Mesh[] = [];
   const eh = s.eyes.length;
@@ -260,7 +264,7 @@ export function duck(variant: string): { rig: Rig; body: Model; fore: Model } {
     "#fff",
   );
   tg.paint((c) => s.coat("tail", c));
-  put(tail, tg, [0, 0, 0], [0, 0, 0], 3, s.ghost ? 0.6 : 1);
+  put(tail, tg, [0, 0, 0], [0, 0, 0], 3, opacity);
   tail.position.set(0, U(cy + 0.3 * k), U(-7 * k));
   body.add(tail);
   const feet: THREE.Mesh[] = [];
@@ -389,7 +393,7 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
       if (c.t > 0.86) return mixed(d.g, d.g2, c, 2, 0.4);
       return c.z % 3 === 0 ? mixed(d.g, d.g2, c, 2, 0.3) : "#4a4258";
     }
-    if (belly && c.t < 0.4 && Math.abs(c.s) < 0.85) return (c.z + 100) % 2 === 0 ? mix(d.y, d.g, 0.12) : d.y;
+    if (belly && c.t < 0.4 && Math.abs(c.s) < 0.85) return c.z % 2 === 0 ? mix(d.y, d.g, 0.12) : d.y;
     return scale(c, d.g, d.g2);
   });
   // Spines down the back: little pyramids.
@@ -399,8 +403,7 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
     const top = bg.top(0, z);
     if (top === undefined) continue;
     const h = i === 2 || i === 3 ? 3 : 2;
-    for (let j = 0; j < h; j++)
-      spine.box(0, 0, top + 1 + j, top + 1 + j, z - (h - 1 - j > 0 ? 0 : 0), z, bone ? d.g : d.y);
+    for (let j = 0; j < h; j++) spine.box(0, 0, top + 1 + j, top + 1 + j, z, z, bone ? d.g : d.y);
   }
   bg.merge(spine);
   // The head.
@@ -476,9 +479,10 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
       [fore, fores, zF],
     ] as const) {
       const lg = new Grid();
-      lg.box(-1, 1, 1, lh + 2, -1, 1, (c) =>
-        c.y < 2 ? (bone ? "#e4dcc4" : d.g2) : bone ? d.g : scale(c, d.g, d.g2),
-      );
+      lg.box(-1, 1, 1, lh + 2, -1, 1, (c) => {
+        if (c.y < 2) return bone ? "#e4dcc4" : d.g2;
+        return bone ? d.g : scale(c, d.g, d.g2);
+      });
       lg.box(-1, 1, 0, 0, -1, 2, bone ? "#e4dcc4" : d.g2);
       // Claws.
       for (const x of [-1, 0, 1]) lg.set(x, 0, 3, bone ? "#fffaf0" : d.y);
@@ -509,7 +513,7 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
   for (let x = 0; x <= 16 * k; x++)
     for (let z = -14 * k; z <= 1; z++)
       if (inside(x, z) && (!bone || hash(x, 0, z, 9) < 0.5))
-        wg.set(x, 0, z, mixed(d.w, lighten(d.w, 0.18), { x, y: 0, z, u: 0, t: 0, s: 0, c: "" }, 3, 0.3));
+        wg.set(x, 0, z, mixed(d.w, lighten(d.w, 0.18), { x, y: 0, z }, 3, 0.3));
   wg.tube(
     [
       [0, 0.5, 0],
@@ -555,7 +559,10 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
     ],
     3 * k,
     0.8,
-    (c) => (bone ? ((c.z | 0) % 3 === 0 ? d.g : "#4a4258") : scale(c, d.g, d.g2)),
+    (c) => {
+      if (!bone) return scale(c, d.g, d.g2);
+      return (c.z | 0) % 3 === 0 ? d.g : "#4a4258";
+    },
   );
   for (let i = 1; i < 5; i++) {
     const z = -Math.round((tl * i) / 5.4);
@@ -637,7 +644,6 @@ export function golem(): { rig: Rig; body: Model; fore: Model } {
     arm.box(-3, 3, 0, 3, -3, 3, D);
     const m = put(body, arm, [sd * 9.2, 6, 2], [0, 11, 0], 3);
     m.rotation.z = sd * 0.1;
-    body.userData.arms = [...((body.userData.arms as THREE.Object3D[] | undefined) ?? []), m];
   }
   put(body, torso, [0, 0, 0], [0, 0, 0], 1);
   const head = new Model();
@@ -705,7 +711,7 @@ export function goldfish(): { rig: Rig; body: Model; fore: Model } {
   bg.paint((c) => {
     if (c.t < 0.28) return mixed("#ffb070", g, c, 2, 0.3);
     // Scales: a checker of two oranges.
-    return (c.x + c.y + c.z + 100) % 2 === 0 ? mix(g, "#ffa050", 0.5) : mixed(g, "#ee7a30", c, 3, 0.2);
+    return (c.x + c.y + c.z) % 2 === 0 ? mix(g, "#ffa050", 0.5) : mixed(g, "#ee7a30", c, 3, 0.2);
   });
   // The dorsal fin and side fins.
   for (let z = -4; z <= 3; z++) bg.box(0, 0, 6 + (z < -1 ? 0 : -1), 9 - Math.abs(z + 1) * 0.5, z, z, G);
@@ -752,9 +758,9 @@ export function goldfish(): { rig: Rig; body: Model; fore: Model } {
   tail.position.set(0, 0, U(-7.5));
   body.add(tail);
   const bubbles = Array.from({ length: 3 }, (_, i) => {
-    const bgg = new Grid();
-    bgg.box(0, i > 0 ? 1 : 0, 0, i > 0 ? 1 : 0, 0, i > 0 ? 1 : 0, "#bfe6ff");
-    const m = bake(bgg, { opacity: 0.7, flat: true });
+    const bubble = new Grid();
+    bubble.box(0, i > 0 ? 1 : 0, 0, i > 0 ? 1 : 0, 0, i > 0 ? 1 : 0, "#bfe6ff");
+    const m = bake(bubble, { opacity: 0.7, flat: true });
     body.add(m);
     return m;
   });
