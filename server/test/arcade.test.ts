@@ -189,6 +189,7 @@ describe("the arcade", () => {
       expect((await townGames(a)).some((x) => x.id === id)).toBe(false);
     });
   });
+
   test("a host can send 10 invites a minute, however they open and close tables", async () => {
     const host = await rich("spam");
     const guests = await Promise.all(Array.from({ length: 7 }, () => rich("guest")));

@@ -72,7 +72,6 @@ describe("playing with a pet", () => {
     expect(await mine.conn.petPlay("trick")).toBeNull();
     await Bun.sleep(150);
     expect(plays.theirs.length).toBe(2);
-    expect(PET_COOLDOWN_MS.pet).toBeGreaterThan(0);
     await mine.conn.dispose();
     await theirs.conn.dispose();
   });

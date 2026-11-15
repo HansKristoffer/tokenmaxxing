@@ -3,7 +3,7 @@ import { PricingCache } from "../src/pricing.ts";
 
 /**
  * Models that have actually appeared in fleet traffic, asserted to be priceable
- * from the VENDORED snapshot alone — no network.
+ * from the VENDORED snapshot alone, with no network.
  *
  * The gap this guards: an unpriced model is not a visible failure. lookup()
  * returns null and the row gets costUsd 0, so player cards show $0 and the
@@ -15,7 +15,7 @@ import { PricingCache } from "../src/pricing.ts";
  * was 193k messages and 50B cache-read tokens reading as $0.
  *
  * The daily refreshFromUpstream() masks this on any server with egress, which is
- * why it went unnoticed — and precisely why the snapshot needs its own guard.
+ * why it went unnoticed. That is precisely why the snapshot needs its own guard.
  * An air-gapped self-host never gets the correction.
  *
  * Add a model here when it first shows up in traffic. A failure means
@@ -84,7 +84,7 @@ describe("pricing coverage", () => {
   test("the <synthetic> sentinel stays unpriced", () => {
     // Claude Code stamps locally-generated messages with this in the model
     // field. It is not a model, always carries zero tokens, and must never be
-    // aliased to one — a price here would invent spend.
+    // aliased to one. A price here would invent spend.
     expect(new PricingCache().lookup("<synthetic>")).toBeNull();
   });
 });

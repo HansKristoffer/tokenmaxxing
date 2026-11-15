@@ -3,7 +3,7 @@ import { caseById, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
 import { rarityOf } from "@tokenmaxxing/core/rarity.ts";
 import { UserError } from "rivetkit";
 import { caseLeaderboard, openCase, sellDuplicates, sellItem } from "../src/town/cases.ts";
-import { bag } from "../src/town/coins.ts";
+import { bag, wallet } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
 
@@ -12,6 +12,8 @@ const nus = caseById("nusantara")!;
 const eve = caseById("ragnarok-eve")!;
 const jul = caseById("julemarked")!;
 const now = Date.now();
+/** The look a new account starts with: nothing worn beyond the defaults. */
+const DEFAULT_LOOK = { style: 0, skin: 0, hair: 0, outfit: 0, glasses: 0, hat: 0, pet: 0, petVariant: 0 };
 
 /** A small seeded generator, so a run of openings is repeatable. */
 const seededRand = (seed: number) => () => {
@@ -24,26 +26,23 @@ const seededRand = (seed: number) => () => {
 async function setup(coins: number) {
   const { sql } = memorySql();
   await migrate(sql);
-  const look = JSON.stringify({
-    style: 0,
-    skin: 0,
-    hair: 0,
-    outfit: 0,
-    glasses: 0,
-    hat: 0,
-    pet: 0,
-    petVariant: 0,
-  });
-  await sql.execute("INSERT INTO users (id, name, look, created_at) VALUES (7, 'u7', ?, ?)", look, now);
+  await sql.execute(
+    "INSERT INTO users (id, name, look, created_at) VALUES (7, 'u7', ?, ?)",
+    JSON.stringify(DEFAULT_LOOK),
+    now,
+  );
   await sql.execute(
     "INSERT INTO ledger (user_id, amount, kind, ref, at) VALUES (7, ?, 'admin', 'admin', 0)",
     coins,
   );
   return sql;
 }
-const balance = async (sql: Awaited<ReturnType<typeof setup>>) =>
-  (await (await import("../src/town/coins.ts")).wallet(sql, 7, now)).balance;
-const give = (sql: Awaited<ReturnType<typeof setup>>, item: string, n = 1) =>
+type Db = Awaited<ReturnType<typeof setup>>;
+const balance = async (sql: Db) => (await wallet(sql, 7, now)).balance;
+/** Sets account 7's look to the defaults with `patch` worn on top. */
+const wear = (sql: Db, patch: Record<string, number>) =>
+  sql.execute("UPDATE users SET look = ? WHERE id = 7", JSON.stringify({ ...DEFAULT_LOOK, ...patch }));
+const give = (sql: Db, item: string, n = 1) =>
   Promise.all(
     Array.from({ length: n }, () =>
       sql.execute("INSERT INTO items (owner_id, item, at) VALUES (7, ?, 0)", item),
@@ -97,8 +96,8 @@ describe("selling", () => {
       const item = night.items.find((i) => rarityOf(i) === rarity)!;
       await give(sql, item.id, 2);
       const before = await balance(sql);
-      const { wallet } = await sellItem(sql, 7, item.id, now);
-      expect(wallet.balance - before).toBe(VENDOR_COINS[rarity]);
+      const { wallet: after } = await sellItem(sql, 7, item.id, now);
+      expect(after.balance - before).toBe(VENDOR_COINS[rarity]);
       expect((await bag(sql, 7)).find((r) => r.item === item.id)?.count).toBe(1);
     }
   });
@@ -117,19 +116,7 @@ describe("selling", () => {
     const sql = await setup(0);
     const hat = night.items.find((i) => i.slot === "hat")!;
     await give(sql, hat.id);
-    await sql.execute(
-      "UPDATE users SET look = ? WHERE id = 7",
-      JSON.stringify({
-        style: 0,
-        skin: 0,
-        hair: 0,
-        outfit: 0,
-        glasses: 0,
-        hat: hat.index,
-        pet: 0,
-        petVariant: 0,
-      }),
-    );
+    await wear(sql, { hat: hat.index });
     expect((await sellItem(sql, 7, hat.id, now)).unworn).toBe(true);
     const [row] = await sql.execute("SELECT look FROM users WHERE id = 7");
     expect(JSON.parse((row as { look: string }).look).hat).toBe(0);
@@ -209,21 +196,8 @@ describe("a second case", () => {
     expect((await sellItem(sql, 7, piece.id, now)).wallet.balance).toBeGreaterThan(0);
     const aura = nus.items.find((i) => i.slot === "aura")!;
     await give(sql, aura.id);
-    await sql.execute(
-      "UPDATE users SET look = ? WHERE id = 7",
-      JSON.stringify({
-        style: 0,
-        skin: 0,
-        hair: 0,
-        outfit: 0,
-        glasses: 0,
-        hat: 0,
-        pet: 0,
-        petVariant: 0,
-        aura: aura.index,
-      }),
-    );
-    // One copy was left over from the loop above only for the aura's tier; sell the lone one just given.
+    await wear(sql, { aura: aura.index });
+    // Sell the copies down to one, then the last: the look drops the aura when its last copy goes.
     const row = (await bag(sql, 7)).find((r) => r.item === aura.id)!;
     for (let n = row.count; n > 1; n--) await sellItem(sql, 7, aura.id, now);
     expect((await sellItem(sql, 7, aura.id, now)).unworn).toBe(true);
@@ -294,8 +268,8 @@ describe("a second case", () => {
     ]) {
       await give(sql, item.id, 2);
       const before = await balance(sql);
-      const { wallet } = await sellItem(sql, 7, item.id, now);
-      expect(wallet.balance - before).toBe(VENDOR_COINS[rarityOf(item)]);
+      const { wallet: after } = await sellItem(sql, 7, item.id, now);
+      expect(after.balance - before).toBe(VENDOR_COINS[rarityOf(item)]);
     }
   });
 
@@ -316,19 +290,7 @@ describe("a second case", () => {
     const sql = await setup(0);
     const pet = eve.items.find((i) => i.slot === "pet")!;
     await give(sql, pet.id);
-    await sql.execute(
-      "UPDATE users SET look = ? WHERE id = 7",
-      JSON.stringify({
-        style: 0,
-        skin: 0,
-        hair: 0,
-        outfit: 0,
-        glasses: 0,
-        hat: 0,
-        pet: pet.index,
-        petVariant: 0,
-      }),
-    );
+    await wear(sql, { pet: pet.index });
     expect((await sellItem(sql, 7, pet.id, now)).unworn).toBe(true);
     const [row] = await sql.execute("SELECT look FROM users WHERE id = 7");
     expect(JSON.parse((row as { look: string }).look).pet).toBe(0);
@@ -449,8 +411,8 @@ describe("a fourth case", () => {
     ]) {
       await give(sql, item.id, 2);
       const before = await balance(sql);
-      const { wallet } = await sellItem(sql, 7, item.id, now);
-      expect(wallet.balance - before).toBe(VENDOR_COINS[rarityOf(item)]);
+      const { wallet: after } = await sellItem(sql, 7, item.id, now);
+      expect(after.balance - before).toBe(VENDOR_COINS[rarityOf(item)]);
     }
   });
 
@@ -471,19 +433,7 @@ describe("a fourth case", () => {
     const sql = await setup(0);
     const pet = jul.items.find((i) => i.slot === "pet")!;
     await give(sql, pet.id);
-    await sql.execute(
-      "UPDATE users SET look = ? WHERE id = 7",
-      JSON.stringify({
-        style: 0,
-        skin: 0,
-        hair: 0,
-        outfit: 0,
-        glasses: 0,
-        hat: 0,
-        pet: pet.index,
-        petVariant: 0,
-      }),
-    );
+    await wear(sql, { pet: pet.index });
     expect((await sellItem(sql, 7, pet.id, now)).unworn).toBe(true);
     const [row] = await sql.execute("SELECT look FROM users WHERE id = 7");
     expect(JSON.parse((row as { look: string }).look).pet).toBe(0);

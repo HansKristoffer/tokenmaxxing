@@ -1,11 +1,11 @@
-import { Database } from "bun:sqlite";
+import { Database, type SQLQueryBindings } from "bun:sqlite";
 import type { TxSql } from "../src/actors/shared.ts";
 
 /** An in-memory SQLite behind the same `Sql` the actors use, for testing SQL without a server. */
 export function memorySql(): { db: Database; sql: TxSql } {
   const db = new Database(":memory:");
   const sql: TxSql = {
-    execute: async (q: string, ...args: unknown[]) => db.query(q).all(...(args as never[])),
+    execute: async (q: string, ...args: unknown[]) => db.query(q).all(...(args as SQLQueryBindings[])),
     transaction: async (fn) => {
       db.run("BEGIN");
       try {
