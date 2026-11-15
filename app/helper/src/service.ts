@@ -88,7 +88,10 @@ ${vars}
 
 const systemdUnitPath = () => join(configHome(), "systemd", "user", UNIT);
 
-/** systemd's own quoting: each word in double quotes, with `\`, `"`, `%` and `$` escaped. */
+/**
+ * systemd's own quoting: each word in double quotes, with `\`, `"`, `%` and `$` escaped. In a replacement
+ * string `$$` writes one `$`, so `$$$$` writes the `$$` that systemd reads as a literal `$`.
+ */
 const quote = (s: string) => `"${s.replace(/[\\"]/g, "\\$&").replace(/%/g, "%%").replace(/\$/g, "$$$$")}"`;
 
 export function systemdUnit(program: string[], env: Record<string, string>): string {

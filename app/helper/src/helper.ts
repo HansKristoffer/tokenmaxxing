@@ -207,9 +207,11 @@ export class Helper {
   /** Parse new local events and send them; one run at a time. */
   syncOnce(): Promise<void> {
     if (!this.token || !this.syncState) return Promise.resolve();
+    // Narrowed here: TypeScript drops the check inside the async closure.
+    const syncState = this.syncState;
     this.syncing ??= (async () => {
       try {
-        const r = await sync(this.syncState!, {
+        const r = await sync(syncState, {
           statePath: this.opts.statePath,
           send: (events) => this.send(events),
           onError: (err, where) => this.log(`${where}: ${String(err)}`),
