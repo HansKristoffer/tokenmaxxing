@@ -28,11 +28,13 @@ export interface RoomCost {
 
 const world = () => ((globalThis as { __perfWorld?: World }).__perfWorld ??= new World());
 
+interface MeasureOptions {
+  actors?: "frozen" | "live";
+  variant?: BakeMode;
+}
+
 /** Counts a fresh room at noon so street animation cannot change which parts the samples consider static. */
-export function measureRoom(
-  id: string,
-  options: { actors?: "frozen" | "live"; variant?: BakeMode } = {},
-): RoomCost {
+export function measureRoom(id: string, options: MeasureOptions = {}): RoomCost {
   const page = globalThis.location as { search: string };
   const search = page.search;
   page.search = "?clock=12:00";
@@ -43,7 +45,7 @@ export function measureRoom(
   }
 }
 
-function measure(id: string, options: NonNullable<Parameters<typeof measureRoom>[1]>): RoomCost {
+function measure(id: string, options: MeasureOptions): RoomCost {
   const content = world();
   content.evict(id as MapId);
   const shop = shopOfRoom(id);

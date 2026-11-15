@@ -43,21 +43,19 @@ function actorUp(o: THREE.Object3D): boolean {
 
 /** Watches the scene's casters for one frame; returns true when the static set changed (the baked map is stale). */
 export function classifyCasters(scene: THREE.Scene): boolean {
-  let s = states.get(scene);
-  if (!s) {
-    s = { epoch: -1, list: [], known: new WeakMap() };
-    states.set(scene, s);
-  }
-  let changed0 = false;
+  const s: State = states.get(scene) ?? { epoch: -1, list: [], known: new WeakMap() };
+  states.set(scene, s);
+  let staticGone = false;
   if (s.epoch !== sceneEpoch()) {
     s.epoch = sceneEpoch();
     const list: Caster[] = [];
     scene.traverseVisible((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh || !m.castShadow || m.userData.bakedSource) return;
-      let c = s!.known.get(m);
+      let c = s.known.get(m);
       if (!c) {
-        // Merged batches are already on the baked layer; actors never leave the live one.
+        // Merged batches are already on the baked layer; actors never leave the live one. Only meshes on the
+        // default layer alone are watched.
         const deforming =
           (m as THREE.InstancedMesh).isInstancedMesh ||
           (m as THREE.SkinnedMesh).isSkinnedMesh ||
@@ -71,16 +69,16 @@ export function classifyCasters(scene: THREE.Scene): boolean {
           flips: 0,
           fixed: false,
         };
-        s!.known.set(m, c);
+        s.known.set(m, c);
       }
       list.push(c);
     });
     // A baked caster that left the scene (a floating emoji after a few seconds) is still in the baked map.
     const now = new Set(list);
-    if (s.list.some((c) => c.fixed && !now.has(c))) changed0 = true;
+    if (s.list.some((c) => c.fixed && !now.has(c))) staticGone = true;
     s.list = list;
   }
-  let changed = changed0;
+  let changed = staticGone;
   for (const c of s.list) {
     const m = c.mesh;
     const e = m.matrixWorld.elements;

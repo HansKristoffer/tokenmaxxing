@@ -63,6 +63,7 @@ export class Freezer {
 
   /** Once per frame: a model nobody has posed for a while is as good as still, and gets frozen too. */
   watch(): void {
+    // 30 frames is half a second at 60 fps: nobody has posed the model for that long.
     if (this.touched) this.unattended = 0;
     else if (++this.unattended > 30) this.settle("unattended");
     this.touched = false;
@@ -82,7 +83,7 @@ export class Freezer {
     else {
       l = freezeLayer(this.root, this.mode) ?? undefined;
       if (!l) {
-        // Still being batched, or nothing to merge: look again in a while.
+        // Still being batched, or nothing to merge: look again in about two seconds (120 frames at 60 fps).
         this.rest = -120;
         return;
       }
@@ -137,5 +138,6 @@ export function sweep(): void {
     else if (f.seen) f.dispose();
   }
 }
-(globalThis as unknown as Record<string, unknown>).__freezers = freezers;
-(globalThis as unknown as Record<string, unknown>).__view = view;
+const debug = globalThis as unknown as Record<string, unknown>;
+debug.__freezers = freezers;
+debug.__view = view;

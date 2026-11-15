@@ -3,16 +3,17 @@ export function installHeadlessGlobals(): void {
   const ctx = new Proxy(
     {},
     {
-      get: (_t, k) =>
-        k === "canvas"
-          ? {}
-          : k === "getImageData"
-            ? (_x: number, _y: number, w: number, h: number) => ({
-                data: new Uint8ClampedArray(w * h * 4),
-                width: w,
-                height: h,
-              })
-            : () => ({ addColorStop() {} }),
+      get: (_t, k) => {
+        if (k === "canvas") return {};
+        if (k === "getImageData") {
+          return (_x: number, _y: number, w: number, h: number) => ({
+            data: new Uint8ClampedArray(w * h * 4),
+            width: w,
+            height: h,
+          });
+        }
+        return () => ({ addColorStop() {} });
+      },
       set: () => true,
     },
   );

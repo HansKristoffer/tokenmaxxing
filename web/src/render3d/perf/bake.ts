@@ -1,15 +1,16 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { markMiddle } from "../engine/seethrough.ts";
 import { blockMoves, blockStandIn } from "../kit/blocky.ts";
 import { ticks } from "../kit/kit.ts";
 import { isPropsNight, type NightGlow, onPropsNight } from "../town/props.ts";
-import { type Atlas, atlasable, packAtlas, remapUv, syncAtlas, uvInside } from "./atlas.ts";
+import { type Atlas, atlasable, packAtlas, type Rect, remapUv, syncAtlas, uvInside } from "./atlas.ts";
 import type { DetailRange } from "./details.ts";
 
 /**
  * Static batching. A room is hundreds to thousands of tiny meshes (a tree is a trunk and five balls), each its
  * own draw call, twice over once the shadow pass counts. `bakeStatic` folds everything that never moves into a
- * handful of merged meshes (per material and ~12 tile cell, so frustum culling still works), hides the
+ * handful of merged meshes (per material and per cell of tiles, so frustum culling still works), hides the
  * originals and keeps them as the source of truth. Anything that animates is found by running the kit's tick
  * functions at a few times and comparing world matrices, and stays live; so does whatever the builders flag
  * with `userData.live = true` (night swaps, walls that lower, anything a caller keeps a handle to).
@@ -30,6 +31,7 @@ export const RIGID = "rigid";
 /** Set on a room's root: `bakeScene` batches it. */
 export const BAKE = "bake";
 
+/** The side of a batch cell in tiles. `__bakeCell` overrides it, for measuring. */
 const cellSize = (): number => Number((globalThis as { __bakeCell?: number }).__bakeCell ?? 8);
 /** The times (s) `sampleTicks` runs the tick functions and a root's `userData.sample` at. */
 export const SAMPLE_TIMES = [0.37, 3.91, 11.3, 29.77];
@@ -164,6 +166,20 @@ function folded(m: THREE.Material): THREE.Material {
   return c;
 }
 
+/** The material a batch draws `mat` with: plain colour materials share one folded stand-in, the rest keep their own. */
+function sharedMaterial(
+  reps: Map<string, THREE.Material>,
+  mat: THREE.Material,
+): { key: string; material: THREE.Material; color?: THREE.Color } {
+  const key = matKey(mat);
+  let material = reps.get(key);
+  if (!material) {
+    material = foldable(mat) ? folded(mat) : mat;
+    reps.set(key, material);
+  }
+  return { key, material, color: foldable(mat) ? (mat as Lit).color : undefined };
+}
+
 function matState(m: THREE.Material): string {
   return `${matKey(m)}|${m.visible}`;
 }
@@ -199,11 +215,12 @@ function noteMoved(a: Snap, b: Snap, moved: Set<number>): void {
       moved.add(i);
       continue;
     }
-    for (let k = i * 16; k < i * 16 + 16; k++)
+    for (let k = i * 16; k < i * 16 + 16; k++) {
       if (a.m[k] !== b.m[k]) {
         moved.add(i);
         break;
       }
+    }
   }
 }
 
@@ -214,7 +231,7 @@ function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<numb
   let sample: ((t: number) => void) | undefined;
   for (let p: THREE.Object3D | null = root; p && !sample; p = p.parent)
     sample = p.userData.sample as typeof sample;
-  if (sample)
+  if (sample) {
     for (const t of SAMPLE_TIMES) {
       try {
         sample(t);
@@ -223,6 +240,7 @@ function sampleTicks(root: THREE.Object3D, meshes: THREE.Mesh[], moved: Set<numb
       }
       noteMoved(base, snapshot(root, meshes), moved);
     }
+  }
   for (const t of SAMPLE_TIMES) {
     for (const tick of ticks) {
       try {
@@ -241,8 +259,11 @@ function prepared(
   color?: THREE.Color,
 ): THREE.BufferGeometry {
   const g = src.clone();
-  for (const k of Object.keys(g.attributes))
-    if (k !== "position" && k !== "normal" && k !== "uv" && !(k === "color" && !color)) g.deleteAttribute(k);
+  // A source's own colours go when the batch brings its colours in, and stay when it does not.
+  for (const k of Object.keys(g.attributes)) {
+    const isKept = k === "position" || k === "normal" || k === "uv" || (k === "color" && !color);
+    if (!isKept) g.deleteAttribute(k);
+  }
   if (!g.getAttribute("uv")) {
     g.setAttribute(
       "uv",
@@ -263,12 +284,7 @@ function prepared(
   }
   g.applyMatrix4(matrix);
   // The source piece's middle, for the see-through cut (`engine/seethrough.ts`): it decides per piece, not per pixel.
-  g.computeBoundingBox();
-  const at = g.boundingBox!.getCenter(new THREE.Vector3());
-  const n = g.getAttribute("position").count;
-  const seeAt = new Float32Array(n * 4);
-  for (let i = 0; i < n; i++) seeAt.set([at.x, at.y, at.z, 2], i * 4);
-  g.setAttribute("seeAt", new THREE.BufferAttribute(seeAt, 4));
+  markMiddle(g);
   if (matrix.determinant() < 0) {
     // A mirrored copy turns inside out: flip the winding.
     if (g.index) {
@@ -282,12 +298,13 @@ function prepared(
       for (const a of Object.values(g.attributes) as THREE.BufferAttribute[]) {
         const n = a.itemSize;
         const arr = a.array as Float32Array;
-        for (let i = 0; i < a.count; i += 3)
+        for (let i = 0; i < a.count; i += 3) {
           for (let k = 0; k < n; k++) {
             const t = arr[(i + 1) * n + k]!;
             arr[(i + 1) * n + k] = arr[(i + 2) * n + k]!;
             arr[(i + 2) * n + k] = t;
           }
+        }
       }
     }
   }
@@ -307,11 +324,12 @@ interface Source {
   glow?: "day" | "night";
 }
 
-/** Frozen models: one variant, built from the geometry the meshes have right now (the Voxel swap already happened). */
 interface LayerOptions {
+  /** Merge the geometry as built, never its Voxel block stand-in. */
   literal?: boolean;
 }
 
+/** A batch of static meshes, in one variant per style, built from the geometry the meshes have right now. */
 export class BakedLayer {
   readonly group = new THREE.Group();
   mode: BakeMode | null = null;
@@ -349,11 +367,12 @@ export class BakedLayer {
 
   /** Lamps and windows: the day copies or the night copies. */
   setNight(on: boolean): void {
-    for (const v of Object.values(this.variants))
-      for (const c of v!.children) {
+    for (const v of Object.values(this.variants)) {
+      for (const c of v?.children ?? []) {
         const g = c.userData.glow as string | undefined;
         if (g) c.visible = g === (on ? "night" : "day");
       }
+    }
   }
 
   /** Shows the variant for `mode`, building it the first time. */
@@ -371,7 +390,10 @@ export class BakedLayer {
       // Batches of something that moves (an avatar's limb, a wall) ride along with it.
       if (!dynamicRoot(this.root)) for (const c of v.children) c.matrixWorldAutoUpdate = false;
     }
-    for (const [m, g] of Object.entries(this.variants)) g!.visible = m === mode;
+    for (const m of ["smooth", "block"] as const) {
+      const variant = this.variants[m];
+      if (variant) variant.visible = m === mode;
+    }
     this.bump();
     // Sources a variant left out keep drawing themselves, the rest are hidden behind the merged copy.
     if (!this.sealed) this.seal();
@@ -461,24 +483,26 @@ export class BakedLayer {
     const items = this.sources.map((s) => {
       const m = s.mesh;
       const geo = (mode === "block" && !this.options.literal ? blockStandIn(m) : null) ?? m.geometry;
-      return { s, geo, atlased: false };
+      return { s, geo, rect: undefined as Rect | undefined };
     });
     // Small painted textures share one atlas (and so one batch per material setup).
     const pictures = items.filter(({ s, geo }) => atlasable((s.material as Lit).map) && uvInside(geo));
     const atlas = packAtlas(pictures.map(({ s }) => (s.material as Lit).map as THREE.Texture));
     if (atlas) {
       this.atlases.push(atlas);
-      for (const it of pictures) it.atlased = atlas.rects.has((it.s.material as Lit).map as THREE.Texture);
+      for (const it of pictures) it.rect = atlas.rects.get((it.s.material as Lit).map as THREE.Texture);
     }
     const atlasMats = new Map<string, THREE.Material>();
-    for (const { s, geo, atlased } of items) {
+    for (const { s, geo, rect } of items) {
       const m = s.mesh;
       tmp.copy(s.local);
-      let key = `${s.key}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}${s.glow ? `|${s.glow}` : ""}`;
+      const shadows = `${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}`;
+      const place = `${shadows}|${s.cell}${s.glow ? `|${s.glow}` : ""}`;
+      let key = `${s.key}|${place}`;
       let material = s.material;
-      if (atlased && atlas) {
+      if (rect && atlas) {
         const shade = matKey(s.material, true);
-        key = `${shade}|${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}|${s.cell}${s.glow ? `|${s.glow}` : ""}|atlas`;
+        key = `${shade}|${place}|atlas`;
         let am = atlasMats.get(shade);
         if (!am) {
           am = s.material.clone();
@@ -496,7 +520,7 @@ export class BakedLayer {
         groups.set(key, grp);
       }
       const part = prepared(geo, tmp, s.color);
-      if (atlased && atlas) remapUv(part, atlas.rects.get((s.material as Lit).map as THREE.Texture)!, atlas);
+      if (rect && atlas) remapUv(part, rect, atlas);
       const scale = new THREE.Vector3().setFromMatrixScale(tmp);
       const detail = (m.userData.detailSize as number | undefined) ?? 0;
       grp.parts.push({ geometry: part, detail: detail * Math.min(scale.x, scale.y, scale.z) });
@@ -573,7 +597,9 @@ export class BakedLayer {
   /** Puts the originals back in the picture and hides the merged copy (it keeps its geometry for `resume`). */
   suspend(): void {
     this.bump();
-    for (const v of Object.values(this.variants)) v!.visible = false;
+    for (const v of Object.values(this.variants)) {
+      if (v) v.visible = false;
+    }
     this.unseal();
     this.mode = null;
   }
@@ -606,14 +632,16 @@ export class BakedLayer {
     this.bump();
     const materials = new Set<THREE.Material>();
     for (const v of Object.values(this.variants)) {
-      for (const c of v!.children) {
+      for (const c of v?.children ?? []) {
         const mesh = c as THREE.Mesh;
         mesh.geometry.dispose();
         const mat = mesh.material as THREE.Material;
         if (mat.userData.baked) materials.add(mat);
       }
     }
-    for (const s of this.sources) if (s.material.userData.baked) materials.add(s.material);
+    for (const s of this.sources) {
+      if (s.material.userData.baked) materials.add(s.material);
+    }
     for (const mat of materials) mat.dispose();
     this.group.removeFromParent();
     this.offNight?.();
@@ -659,17 +687,12 @@ function layerOf(
   const inverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
   const p = new THREE.Vector3();
   const add = (m: THREE.Mesh, mat: THREE.Material, glow?: "day" | "night") => {
-    const key = matKey(mat);
-    const fold = foldable(mat);
-    if (!reps.has(key)) reps.set(key, fold ? folded(mat) : mat);
     p.setFromMatrixPosition(m.matrixWorld).applyMatrix4(inverse);
     sources.push({
       mesh: m,
-      key,
+      ...sharedMaterial(reps, mat),
       cell: `${Math.floor(p.x / cellSize())},${Math.floor(p.z / cellSize())}`,
-      material: reps.get(key)!,
       local: new THREE.Matrix4().multiplyMatrices(inverse, m.matrixWorld),
-      color: fold ? (mat as Lit).color : undefined,
       glow,
     });
   };
@@ -757,7 +780,13 @@ export function dropBaked(root: THREE.Object3D): void {
   if ((root as THREE.Scene).isScene) seen.delete(root as THREE.Scene);
 }
 
-const seen = new WeakMap<THREE.Scene, { epoch: number; mode: BakeMode | null; layers: BakedLayer[] }>();
+/** What `syncBaked` knows about one scene: the epoch it last looked at, the mode shown and the layers built. */
+interface SceneBake {
+  epoch: number;
+  mode: BakeMode | null;
+  layers: BakedLayer[];
+}
+const seen = new WeakMap<THREE.Scene, SceneBake>();
 
 /**
  * Called every frame by the pipeline: finds roots flagged `userData.bake`, watches each for a few frames of
@@ -765,13 +794,9 @@ const seen = new WeakMap<THREE.Scene, { epoch: number; mode: BakeMode | null; la
  */
 export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
   if (disabled) return [];
-  let s = seen.get(scene);
-  if (!s) {
-    s = { epoch: -1, mode: null, layers: [] };
-    seen.set(scene, s);
-  }
+  const s: SceneBake = seen.get(scene) ?? { epoch: -1, mode: null, layers: [] };
+  seen.set(scene, s);
   if (s.epoch !== epoch) {
-    s.epoch = epoch;
     s.layers = s.layers.filter((l) => !l.disposed);
     // Flagged roots sit near the top of the scene: no need to walk every mesh each time something is added.
     const watch = (o: THREE.Object3D) => {
@@ -841,17 +866,11 @@ export function freezeLayer(root: THREE.Object3D, mode: BakeMode = "smooth"): Ba
   root.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh || m.userData.bakedSource || hiddenAbove(m, root) || !bakeable(m, true)) return;
-    const mat = m.material as THREE.Material;
-    const key = matKey(mat);
-    const fold = foldable(mat);
-    if (!reps.has(key)) reps.set(key, fold ? folded(mat) : mat);
     sources.push({
       mesh: m,
-      key,
+      ...sharedMaterial(reps, m.material as THREE.Material),
       cell: "0",
-      material: reps.get(key)!,
       local: new THREE.Matrix4().multiplyMatrices(inverse, m.matrixWorld),
-      color: fold ? (mat as Lit).color : undefined,
     });
   });
   if (sources.length < 3) return null;

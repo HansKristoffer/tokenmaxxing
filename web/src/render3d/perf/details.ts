@@ -9,15 +9,21 @@ export interface DetailRange {
 
 const scenes = new WeakMap<THREE.Scene, { epoch: number; meshes: THREE.Mesh[] }>();
 
+/** The meshes of `scene` that carry detail ranges, found again only after something was added. */
+function collectDetailMeshes(scene: THREE.Scene): { epoch: number; meshes: THREE.Mesh[] } {
+  const meshes: THREE.Mesh[] = [];
+  scene.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (mesh.isMesh && mesh.userData.detailRanges) meshes.push(mesh);
+  });
+  return { epoch: sceneEpoch(), meshes };
+}
+
 /** Omit subpixel trim at the end of each batch without splitting it into extra draw calls. */
 export function updateDetails(scene: THREE.Scene, pixelsPerUnit: number): void {
   let state = scenes.get(scene);
   if (!state || state.epoch !== sceneEpoch()) {
-    state = { epoch: sceneEpoch(), meshes: [] };
-    scene.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (mesh.isMesh && mesh.userData.detailRanges) state!.meshes.push(mesh);
-    });
+    state = collectDetailMeshes(scene);
     scenes.set(scene, state);
   }
   let shadowsChanged = false;
