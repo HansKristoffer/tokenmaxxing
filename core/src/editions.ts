@@ -4,6 +4,7 @@
  * through `Look`, but their indices start at `EDITION_BASE`, so the shop can grow without the two
  * ever meeting. The art is in `web/src/art/editions.ts`, keyed by the same ids.
  */
+import type { Rarity } from "./rarity.ts";
 import type { Item } from "./shop.ts";
 
 /** Look indices from here up, in the hat and glasses slots, are merchant editions. */
@@ -16,6 +17,13 @@ export interface Edition extends Item {
   /** Copies in one week's print run. */
   supply: number;
 }
+
+// A short print run is what makes an edition rare, whatever it costs.
+const rarityOfSupply = (supply: number): Rarity => {
+  if (supply <= 10) return "legendary";
+  if (supply <= 15) return "epic";
+  return "rare";
+};
 
 const edition = (
   slot: Edition["slot"],
@@ -31,8 +39,7 @@ const edition = (
   name,
   price,
   tradeable: true,
-  // A short print run is what makes an edition rare, whatever it costs.
-  rarity: supply <= 10 ? "legendary" : supply <= 15 ? "epic" : "rare",
+  rarity: rarityOfSupply(supply),
   blurb,
   supply,
 });

@@ -95,9 +95,15 @@ export function score(words: string[], typed: string, fixed: number, ms: number)
   for (const [i, input] of parts.entries()) {
     const target = words[i] ?? "";
     const last = i === parts.length - 1;
-    for (let j = 0; j < input.length; j++) input[j] === target[j] ? right++ : wrong++;
+    for (let j = 0; j < input.length; j++) {
+      if (input[j] === target[j]) right++;
+      else wrong++;
+    }
     if (!last) right++; // the space
-    if (last ? target.startsWith(input) : input === target) correct += input.length + (last ? 0 : 1);
+
+    // The word being typed counts while it is still a prefix of its target.
+    const isCorrect = last ? target.startsWith(input) : input === target;
+    if (isCorrect) correct += input.length + (last ? 0 : 1);
   }
   const minutes = ms / 60_000;
   return {
@@ -169,7 +175,10 @@ export const sprint: GameDef<SprintState, SprintView> = {
     const r = s.racers[player]!;
     if (typed === r.typed || now - r.at < MIN_GAP_MS) return s;
     const parts = typed.split(" ");
-    if (!/^[a-z ]*$/.test(typed) || parts.slice(0, -1).some((w) => w === "") || parts.length > s.words.length)
+    const hasOtherCharacters = !/^[a-z ]*$/.test(typed);
+    const hasDoubleSpace = parts.slice(0, -1).some((w) => w === "");
+    const hasTooManyWords = parts.length > s.words.length;
+    if (hasOtherCharacters || hasDoubleSpace || hasTooManyWords)
       return refused("Only lowercase letters, one space between words.");
     if (parts.some((w, i) => w.length > s.words[i]!.length + MAX_EXTRA))
       return refused("That word's too long.");
@@ -179,8 +188,8 @@ export const sprint: GameDef<SprintState, SprintView> = {
     const fixed = r.fixed + (r.typed === "" ? 0 : fixedBetween(s.words, r.typed, typed));
     const next = score(s.words, typed, fixed, 0);
     // Checked at the server's clock: 250 WPM is the most anyone has had time to type.
-    if (next.correct > (MAX_WPM * 5 * (now - s.startsAt + SLACK_MS)) / 60_000)
-      return refused(`That's faster than ${MAX_WPM} WPM.`);
+    const maxCorrect = (MAX_WPM * 5 * (now - s.startsAt + SLACK_MS)) / 60_000;
+    if (next.correct > maxCorrect) return refused(`That's faster than ${MAX_WPM} WPM.`);
     const scoredAt = next.correct > score(s.words, r.typed, 0, 0).correct ? now : r.scoredAt;
     return { ...s, racers: { ...s.racers, [player]: { typed, at: now, scoredAt, fixed } } };
   },
@@ -214,14 +223,15 @@ export const sprint: GameDef<SprintState, SprintView> = {
       sc[p]!.correct === 0
         ? [0, 0, 0]
         : [sc[p]!.correct, Math.round(sc[p]!.acc * 100), -s.racers[p]!.scoredAt];
-    const better = (a: number, b: number) => {
+    // Negative when `a` places ahead of `b`, as a sort comparator expects.
+    const compareRacers = (a: number, b: number) => {
       const [x, y] = [key(a), key(b)];
       return y[0]! - x[0]! || y[1]! - x[1]! || y[2]! - x[2]!;
     };
     const places: number[][] = [];
-    for (const p of [...left].sort(better)) {
+    for (const p of [...left].sort(compareRacers)) {
       const group = places.at(-1);
-      if (group && better(group[0]!, p) === 0) group.push(p);
+      if (group && compareRacers(group[0]!, p) === 0) group.push(p);
       else places.push([p]);
     }
     return { places: [...places, ...leavers(s.forfeited)] };

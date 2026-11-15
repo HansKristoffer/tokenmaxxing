@@ -97,7 +97,9 @@ export function speeder(
 
 /** The speed on a ticket: rounded down to two figures, so `247.6M` is written up as `240M`. */
 export function rateOf(tokens: number): number {
-  const step = 10 ** Math.max(0, Math.floor(Math.log10(Math.max(1, tokens))) - 1);
+  // Keep the two leading figures: the step is the place value of the second one.
+  const magnitude = Math.floor(Math.log10(Math.max(1, tokens)));
+  const step = 10 ** Math.max(0, magnitude - 1);
   return Math.floor(tokens / step) * step;
 }
 

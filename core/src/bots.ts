@@ -335,12 +335,9 @@ export function lineFor(bot: BotDef, at: number, ctx: Context = {}, rand = Math.
   const now = (bot.moments ?? []).filter(
     (m) => (!m.days || m.days.includes(day)) && hour >= (m.from ?? 0) && hour < (m.to ?? 24),
   );
-  if (now.length && rand() < 0.5)
-    return say(
-      pick(
-        now.flatMap((m) => m.lines),
-        rand,
-      ),
-    );
+  if (now.length && rand() < 0.5) {
+    const momentLines = now.flatMap((m) => m.lines);
+    return say(pick(momentLines, rand));
+  }
   return say(pick(bot.lines, rand));
 }

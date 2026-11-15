@@ -44,22 +44,23 @@ export interface Doorstep {
  */
 export function doorSteps(map: GameMap): Doorstep[] {
   const out: Doorstep[] = [];
-  for (const ch of DOORS)
+  for (const ch of DOORS) {
     for (const [x, y] of map.find(ch)) {
-      const spot = (
-        [
-          [x - 1, y + 1],
-          [x + 1, y + 1],
-        ] as const
-      ).find(([sx, sy]) => map.at(sx, sy) === ".");
+      const left: [number, number] = [x - 1, y + 1];
+      const right: [number, number] = [x + 1, y + 1];
+      const spot = [left, right].find(([sx, sy]) => map.at(sx, sy) === ".");
       if (spot) out.push({ door: [x, y], x: spot[0], y: spot[1] });
     }
+  }
   return out;
 }
 
 /** Where the pumpkins sit in `map` (the town): each doorstep, then the patch. */
 export function pumpkinSpots(map: GameMap): Pumpkin[] {
   const spots: [number, number][] = doorSteps(map).map((d) => [d.x, d.y]);
-  for (const [x, y] of PATCH) if (map.at(x, y) === ".") spots.push([x, y]);
+  for (const [x, y] of PATCH) {
+    if (map.at(x, y) === ".") spots.push([x, y]);
+  }
+  // A fixed mix of big and small, so a row of pumpkins is not all one size.
   return spots.map(([x, y]) => ({ x, y, big: (x * 7 + y * 3) % 3 !== 0 }));
 }

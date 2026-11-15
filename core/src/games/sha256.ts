@@ -3,16 +3,24 @@
  * Hype Cycle shows each round's hash up front and its seed after, so anyone can check.
  */
 const PRIMES: number[] = [];
-for (let n = 2; PRIMES.length < 64; n++) if (PRIMES.every((p) => n % p)) PRIMES.push(n);
+for (let n = 2; PRIMES.length < 64; n++) {
+  // A number is prime when no smaller prime divides it.
+  if (PRIMES.every((p) => n % p)) PRIMES.push(n);
+}
+
 /** The first 32 bits of the fractional parts of the cube roots of the first 64 primes. */
 const K = Uint32Array.from(PRIMES, (p) => ((Math.cbrt(p) % 1) * 2 ** 32) >>> 0);
 
 export function sha256(text: string): string {
   const bytes = [...new TextEncoder().encode(text)];
   const bits = bytes.length * 8;
+
+  // Padding: a 1 bit, zeros up to 56 bytes into the block, then the length in bits as 64 bits, big-endian.
   bytes.push(0x80);
   while (bytes.length % 64 !== 56) bytes.push(0);
   for (let i = 7; i >= 0; i--) bytes.push(i >= 4 ? 0 : (bits >>> (i * 8)) & 0xff);
+
+  // The first 32 bits of the fractional parts of the square roots of the first 8 primes.
   const h = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
   const w = new Uint32Array(64);
   const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n));

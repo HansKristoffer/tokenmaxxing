@@ -53,8 +53,10 @@ export function rollTreasure(
   owned: ReadonlySet<string> = new Set(),
 ): CaseItem | null {
   if (!lucky || rand() >= TREASURE_ODDS) return null;
+
   const tiers = Object.entries(TREASURE_TIERS) as [Rarity, number][];
   let x = rand();
+  // Whatever the weights leave over falls to the last tier.
   let tier = tiers.at(-1)![0];
   for (const [r, p] of tiers) {
     if (x < p) {

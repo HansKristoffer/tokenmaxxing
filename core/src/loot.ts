@@ -210,12 +210,16 @@ export function killDrops(
   const boss = bossAt(kill.rung, kill.level);
   const table = lootOf(boss.id);
   const out: LootDrop[] = [];
-  for (const userId of kill.raiders)
+  for (const userId of kill.raiders) {
     for (const l of table) {
       const odds = lootOdds(l.rarity, boss.level, boost, week);
-      if (lootRoll(week, kill.rung, userId, l.id) < odds)
+      if (lootRoll(week, kill.rung, userId, l.id) < odds) {
         out.push({ week, rung: kill.rung, level: kill.level, day: kill.day, userId, item: l.id, odds });
+      }
     }
+  }
+
+  // A full cache starts again. Rolling a kill once more is cheap, so no eviction order is needed.
   if (rolled.size >= ROLLED_MAX) rolled.clear();
   rolled.set(key, out);
   return out;

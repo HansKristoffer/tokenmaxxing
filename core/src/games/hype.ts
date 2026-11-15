@@ -23,6 +23,7 @@ export const msToReach = (m: number) => 12_000 * Math.log(m);
 
 /** The crash point for a round's seed, in hundredths: max(1, 0.99 / (1 − u)), capped at ×50. */
 export function crashPoint(seed: string): number {
+  // 13 hex digits are 52 bits: a uniform value in [0, 1) that a double holds exactly.
   const u = Number.parseInt(sha256(`crash:${seed}`).slice(0, 13), 16) / 16 ** 13;
   return Math.floor(clamp(0.99 / (1 - u), 1, MAX_CRASH) * 100);
 }
@@ -61,9 +62,11 @@ const totals = (s: HypeState) =>
 
 /** Ends round `i` at `now` and schedules the next one. */
 function end(s: HypeState, i: number, now: number): HypeState {
-  const rounds = s.rounds.map((r, j) =>
-    j === i ? { ...r, endedAt: now } : j === i + 1 ? { ...r, startsAt: now + AFTER_MS + COUNTDOWN_MS } : r,
-  );
+  const rounds = s.rounds.map((r, j) => {
+    if (j === i) return { ...r, endedAt: now };
+    if (j === i + 1) return { ...r, startsAt: now + AFTER_MS + COUNTDOWN_MS };
+    return r;
+  });
   return { ...s, rounds };
 }
 
@@ -110,7 +113,8 @@ export const hype: GameDef<HypeState, HypeView> = {
       rounds: s.rounds.map((x, j) => (j === i ? { ...x, cashed: { ...x.cashed, [player]: at } } : x)),
     };
     // Everyone's out: no point watching the line climb alone.
-    return active(next).every((p) => next.rounds[i]!.cashed[p] !== undefined) ? end(next, i, now) : next;
+    const everyoneOut = active(next).every((p) => next.rounds[i]!.cashed[p] !== undefined);
+    return everyoneOut ? end(next, i, now) : next;
   },
 
   tick(s, now) {
@@ -150,10 +154,15 @@ export const hype: GameDef<HypeState, HypeView> = {
     const out: { player: number | null; text: string }[] = [];
     for (const [i, r] of after.rounds.entries()) {
       const was = before.rounds[i]!;
-      for (const [p, at] of Object.entries(r.cashed))
+      for (const [p, at] of Object.entries(r.cashed)) {
         if (was.cashed[Number(p)] === undefined)
           out.push({ player: Number(p), text: `🪂 ×${(at / 100).toFixed(2)}` });
-      if (was.endedAt === null && r.endedAt !== null && Object.keys(r.cashed).length < active(after).length)
+      }
+
+      // The crash is news only when it ends a round that not everyone had already cashed out of.
+      const justEnded = was.endedAt === null && r.endedAt !== null;
+      const notAllCashedOut = Object.keys(r.cashed).length < active(after).length;
+      if (justEnded && notAllCashedOut)
         out.push({ player: null, text: `💥 Crashed at ×${(r.crash / 100).toFixed(2)}` });
     }
     return out;

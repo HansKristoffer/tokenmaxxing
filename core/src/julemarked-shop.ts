@@ -1,7 +1,7 @@
 /**
  * What the Julemarked's three small stalls sell, for coins: Julegodter (things to hold), Julepynt (furniture
- * for your own office) and Den varme bod (warm clothes, things to carry and small animals). They are shop items like any other
- * (`ITEMS`, the bag, trades, the Shop page) with three differences: each is bought only inside the market
+ * for your own office) and Den varme bod (warm clothes, things to carry and small animals). They are shop items
+ * like any other (`ITEMS`, the bag, trades, the Shop page) with three differences: each is bought only inside the market
  * room (`stallOfItem`; the market is only open from J-dag to 26 December, so the season gate is the gate's),
  * the Shop page opens on a stall's own goods and only those (`STALL_TABS`), and Møbelhuset, Thread & Token
  * and the pet shop never list them. No case gives one, and no case item is sold here.
@@ -146,8 +146,10 @@ const BY_ID = new Map<string, Item>(STALL_WEARABLES.map((i) => [i.id, i]));
 const BY_PIECE = new Map(JULEPYNT_PIECES.map((p) => [`furn.${p.ch}`, p]));
 
 /** The stall that sells an item id, if it is one of theirs: the one place it can be bought. */
-export const stallOfItem = (id: unknown): ShopStallId | undefined =>
-  BY_ID.get(id as string)?.stall ?? (BY_PIECE.has(id as string) ? "pynt" : undefined);
+export const stallOfItem = (id: unknown): ShopStallId | undefined => {
+  if (typeof id !== "string") return undefined;
+  return BY_ID.get(id)?.stall ?? (BY_PIECE.has(id) ? "pynt" : undefined);
+};
 
 /** The stall wearable a look index stands for in a slot, if it is one (`parseLook`, the art lookup). */
 export const stallAt = (slot: string, index: number): Item | undefined =>
