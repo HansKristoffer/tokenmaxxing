@@ -102,8 +102,8 @@ fn install_now(app: &AppHandle) -> bool {
 
 async fn check(app: &AppHandle) {
     set(app, Status::Checking);
-    let status = match app.updater().map(|u| async move { u.check().await }) {
-        Ok(checking) => match checking.await {
+    let status = match app.updater() {
+        Ok(updater) => match updater.check().await {
             Ok(Some(update)) => Status::Available(Box::new(update)),
             Ok(None) => Status::Current,
             Err(e) => {
