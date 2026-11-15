@@ -1,10 +1,9 @@
 /**
  * The Night Market case's furniture: six pieces only a case opening gives, never sold in a shop and never
  * dropped by a raid. Like a personal office's own pieces (`home.ts`) they go down only in your own office,
- * but they are tradeable. Each is one map
- * character from the Cyrillic block, which nothing else uses (checked in `case-furniture.test.ts`), the
- * item id is `furn.<ch>`, and `art` is its sprite in `web/src/art/furniture-home.ts` and its model in
- * `web/src/render3d/furniture/furniture3d.ts`.
+ * but they are tradeable. Each is one map character from the Cyrillic block, which nothing else uses (checked
+ * in `case-furniture.test.ts`). The item id is `furn.<ch>`, and `art` is its sprite in
+ * `web/src/art/furniture-home.ts` and its model in `web/src/render3d/furniture/furniture3d.ts`.
  */
 import { JULEMARKED_PIECES } from "./case-julemarked-furniture.ts";
 import { NUSANTARA_PIECES } from "./case-nusantara-furniture.ts";
@@ -50,5 +49,7 @@ export const ALL_CASE_PIECES: readonly CasePiece[] = [
 
 const BY_CH = new Map(ALL_CASE_PIECES.map((p) => [p.ch, p]));
 
-export const isCasePiece = (ch: unknown): boolean => BY_CH.has(ch as string);
-export const casePieceOf = (ch: unknown): CasePiece | undefined => BY_CH.get(ch as string);
+// The keys are strings, so anything else is not a piece.
+export const isCasePiece = (ch: unknown): boolean => typeof ch === "string" && BY_CH.has(ch);
+export const casePieceOf = (ch: unknown): CasePiece | undefined =>
+  typeof ch === "string" ? BY_CH.get(ch) : undefined;

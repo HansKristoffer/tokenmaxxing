@@ -20,7 +20,7 @@ export interface BadgeFacts {
   wins: number;
   biggestPot: number;
   founder: boolean;
-  // Optional, so older callers and tests still pass (the `picnics?` pattern).
+  // Optional, so callers and tests written before these facts existed still type-check.
   /** Outage picnics sat in. */
   picnics?: number;
   /** Keynote watch parties dropped in on. */
@@ -130,7 +130,7 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Big day",
     group: "Usage",
     how: "Tokens in a single day",
-    // The first tier is 3B (it was 1B): whoever has the old first tier keeps it, and its coins.
+    // Tiers are not moved once shipped. Whoever earned the old 1B tier keeps its coins, so this list starts at 3B.
     tiers: [
       ...[3, 5, 10, 20].map((b) => ({ at: b * 1e9, label: `${b}B-token day` })),
       { at: 50e9, label: "50B-token day: no brakes" },
@@ -431,7 +431,7 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Specimen hunter",
     group: "Fishing",
     how: "Land a species at its longest",
-    tiers: ladder([1, 5, 10], (at) => `${plural(at, "perfect specimen")}`),
+    tiers: ladder([1, 5, 10], (at) => plural(at, "perfect specimen")),
     of: (f) => f.fishSpecimens ?? 0,
   },
   {
@@ -440,7 +440,7 @@ export const BADGES: readonly BadgeDef[] = [
     name: "Gold medallist",
     group: "Fishing",
     how: "Catch one species 50 times",
-    tiers: ladder([1, 5, 10], (at) => `${plural(at, "gold medal")}`),
+    tiers: ladder([1, 5, 10], (at) => plural(at, "gold medal")),
     of: (f) => f.fishGolds ?? 0,
   },
   {
@@ -551,7 +551,12 @@ export function longestRun(days: Set<string>): number {
 
 /** Current streak from the set of `YYYY-MM-DD` days with tokens: counts back from `today`, or from yesterday if today has none yet. */
 export function streakOf(days: Set<string>, today: string): number {
+  // A day with no tokens yet today does not break the streak: count from yesterday instead.
+  const start = days.has(today) ? today : addDays(today, -1);
+
   let n = 0;
-  for (let day = days.has(today) ? today : addDays(today, -1); days.has(day); day = addDays(day, -1)) n++;
+  for (let day = start; days.has(day); day = addDays(day, -1)) {
+    n++;
+  }
   return n;
 }

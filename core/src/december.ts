@@ -68,7 +68,9 @@ export const JULEFROKOST_MENU = [
 /** Whether the Tavern holds julefrokost at `ms`. */
 export function julefrokostOn(ms: number): boolean {
   const { m, d, weekday, hour } = worldWall(ms);
-  return m === 12 && d < 24 && (weekday === 5 || weekday === 6) && hour >= JULEFROKOST.from;
+  const beforeChristmas = m === 12 && d < 24;
+  const fridayOrSaturday = weekday === 5 || weekday === 6;
+  return beforeChristmas && fridayOrSaturday && hour >= JULEFROKOST.from;
 }
 
 /** Tonight's dish: the menu walked by the day of the month. */

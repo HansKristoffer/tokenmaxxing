@@ -25,16 +25,20 @@ type When = "leet" | "notfound" | "midnight" | "friday" | "rain";
 const RAINY: readonly WeatherKind[] = ["drizzle", "rain", "storm"];
 
 /** Whether a fish that bites only `when` is biting at `t`. */
-export const biting = (when: When, t: PondTime): boolean =>
-  when === "leet"
-    ? t.minute === 13 * 60 + 37
-    : when === "notfound"
-      ? t.minute === 4 * 60 + 4
-      : when === "midnight"
-        ? t.minute < 60
-        : when === "friday"
-          ? t.weekday === 5 && t.minute >= 16 * 60
-          : RAINY.includes(t.weather);
+export function biting(when: When, t: PondTime): boolean {
+  switch (when) {
+    case "leet":
+      return t.minute === 13 * 60 + 37;
+    case "notfound":
+      return t.minute === 4 * 60 + 4;
+    case "midnight":
+      return t.minute < 60;
+    case "friday":
+      return t.weekday === 5 && t.minute >= 16 * 60;
+    case "rain":
+      return RAINY.includes(t.weather);
+  }
+}
 
 export interface Fish {
   id: string;
@@ -55,32 +59,30 @@ export interface Fish {
   hint?: string;
 }
 
-const fish = (f: Fish): Fish => f;
-
 /** Never reorder ids or reuse them: they are in journals. The first six are the pond's originals. */
 // A catalog reads best one fish a line.
 // prettier-ignore
 export const FISH: readonly Fish[] = [
-  fish({ id: "perch", name: "Pond perch", emoji: "🐟", rarity: "common", weight: 25, min: 12, max: 32, color: "#8db56b", blurb: "Stripes, spines and a bad attitude." }),
-  fish({ id: "carp", name: "Copper carp", emoji: "🐠", rarity: "common", weight: 19, min: 20, max: 65, color: "#db9c54", blurb: "Has been in this pond longer than the town." }),
-  fish({ id: "tench", name: "Sleepy tench", emoji: "🐟", rarity: "common", weight: 13, min: 18, max: 50, color: "#8fa098", blurb: "Bit the hook mid-yawn." }),
-  fish({ id: "pike", name: "Mossy pike", emoji: "🐟", rarity: "uncommon", weight: 7, min: 35, max: 90, color: "#6e9275", blurb: "All teeth, no manners." }),
-  fish({ id: "duck", name: "Rubber duck", emoji: "🦆", rarity: "uncommon", weight: 4, min: 6, max: 12, color: "#f3ce59", blurb: "Explain your bug to it. It always listens." }),
-  fish({ id: "golden", name: "Golden koi", emoji: "✨", rarity: "epic", weight: 0.5, min: 25, max: 55, color: "#f6cc6c", blurb: "Bring it luck and it brings you more." }),
-  fish({ id: "bug", name: "Water bug", emoji: "🪲", rarity: "common", weight: 9, min: 2, max: 5, color: "#4f6b3a", blurb: "Not a bug. A feature. With six legs." }),
-  fish({ id: "boot", name: "Legacy boot", emoji: "🥾", rarity: "common", weight: 8, min: 25, max: 31, color: "#7a5236", blurb: "Nobody knows who wrote it. Everybody's scared to throw it out." }),
-  fish({ id: "herring", name: "Red herring", emoji: "🐟", rarity: "uncommon", weight: 5, min: 15, max: 30, color: "#d9534a", blurb: "It looked like the cause. It wasn't." }),
-  fish({ id: "spaghetti", name: "Spaghetti code", emoji: "🍝", rarity: "uncommon", weight: 4, min: 10, max: 40, color: "#f0d27a", blurb: "Pull one end and the whole pond moves." }),
-  fish({ id: "offbyone", name: "Off-by-one bass", emoji: "🐟", rarity: "rare", weight: 2.5, min: 11, max: 41, color: "#5f8fb0", blurb: "Always one centimetre off from what you wrote down." }),
-  fish({ id: "eel", name: "Memory leak eel", emoji: "🐍", rarity: "rare", weight: 1.5, min: 40, max: 180, color: "#5a5f7a", blurb: "Gets longer the longer you leave it running." }),
-  fish({ id: "float", name: "Floating-point fish", emoji: "🐡", rarity: "rare", weight: 1.3, min: 30, max: 30, color: "#9ad1d4", blurb: "Exactly 0.1 m plus 0.2 m long. Give or take." }),
-  fish({ id: "kraken", name: "Tech-debt kraken", emoji: "🦑", rarity: "legendary", weight: 0.2, min: 300, max: 999, color: "#8a4fbf", blurb: "You only landed one tentacle. The rest is still down there, growing." }),
+  { id: "perch", name: "Pond perch", emoji: "🐟", rarity: "common", weight: 25, min: 12, max: 32, color: "#8db56b", blurb: "Stripes, spines and a bad attitude." },
+  { id: "carp", name: "Copper carp", emoji: "🐠", rarity: "common", weight: 19, min: 20, max: 65, color: "#db9c54", blurb: "Has been in this pond longer than the town." },
+  { id: "tench", name: "Sleepy tench", emoji: "🐟", rarity: "common", weight: 13, min: 18, max: 50, color: "#8fa098", blurb: "Bit the hook mid-yawn." },
+  { id: "pike", name: "Mossy pike", emoji: "🐟", rarity: "uncommon", weight: 7, min: 35, max: 90, color: "#6e9275", blurb: "All teeth, no manners." },
+  { id: "duck", name: "Rubber duck", emoji: "🦆", rarity: "uncommon", weight: 4, min: 6, max: 12, color: "#f3ce59", blurb: "Explain your bug to it. It always listens." },
+  { id: "golden", name: "Golden koi", emoji: "✨", rarity: "epic", weight: 0.5, min: 25, max: 55, color: "#f6cc6c", blurb: "Bring it luck and it brings you more." },
+  { id: "bug", name: "Water bug", emoji: "🪲", rarity: "common", weight: 9, min: 2, max: 5, color: "#4f6b3a", blurb: "Not a bug. A feature. With six legs." },
+  { id: "boot", name: "Legacy boot", emoji: "🥾", rarity: "common", weight: 8, min: 25, max: 31, color: "#7a5236", blurb: "Nobody knows who wrote it. Everybody's scared to throw it out." },
+  { id: "herring", name: "Red herring", emoji: "🐟", rarity: "uncommon", weight: 5, min: 15, max: 30, color: "#d9534a", blurb: "It looked like the cause. It wasn't." },
+  { id: "spaghetti", name: "Spaghetti code", emoji: "🍝", rarity: "uncommon", weight: 4, min: 10, max: 40, color: "#f0d27a", blurb: "Pull one end and the whole pond moves." },
+  { id: "offbyone", name: "Off-by-one bass", emoji: "🐟", rarity: "rare", weight: 2.5, min: 11, max: 41, color: "#5f8fb0", blurb: "Always one centimetre off from what you wrote down." },
+  { id: "eel", name: "Memory leak eel", emoji: "🐍", rarity: "rare", weight: 1.5, min: 40, max: 180, color: "#5a5f7a", blurb: "Gets longer the longer you leave it running." },
+  { id: "float", name: "Floating-point fish", emoji: "🐡", rarity: "rare", weight: 1.3, min: 30, max: 30, color: "#9ad1d4", blurb: "Exactly 0.1 m plus 0.2 m long. Give or take." },
+  { id: "kraken", name: "Tech-debt kraken", emoji: "🦑", rarity: "legendary", weight: 0.2, min: 300, max: 999, color: "#8a4fbf", blurb: "You only landed one tentacle. The rest is still down there, growing." },
   // Only some of the time.
-  fish({ id: "trout", name: "Rain trout", emoji: "🌧️", rarity: "uncommon", weight: 12, min: 20, max: 60, color: "#7fa7c9", blurb: "Bites in the rain, when nobody can see it.", when: "rain", hint: "Bites when it rains" }),
-  fish({ id: "ghost", name: "Ghost carp", emoji: "👻", rarity: "rare", weight: 8, min: 20, max: 65, color: "#dfe7ef", blurb: "See-through, and swims straight through the other fish.", when: "midnight", hint: "Bites after midnight" }),
-  fish({ id: "puffer", name: "Friday-deploy puffer", emoji: "🐡", rarity: "rare", weight: 10, min: 10, max: 35, color: "#e8b04a", blurb: "Puffs up the moment someone pushes to prod.", when: "friday", hint: "Bites on Friday after 16:00" }),
-  fish({ id: "leet", name: "1337 bass", emoji: "😎", rarity: "epic", weight: 50, min: 13, max: 37, color: "#3ddc84", blurb: "Only bites at 13:37. Wears its shades indoors.", when: "leet", hint: "Bites at one exact minute" }),
-  fish({ id: "notfound", name: "404 fish", emoji: "❓", rarity: "epic", weight: 50, min: 0, max: 0, color: "#c9ced6", blurb: "The hook came up empty. The journal counts it anyway.", when: "notfound", hint: "Bites at one exact minute, before dawn" }),
+  { id: "trout", name: "Rain trout", emoji: "🌧️", rarity: "uncommon", weight: 12, min: 20, max: 60, color: "#7fa7c9", blurb: "Bites in the rain, when nobody can see it.", when: "rain", hint: "Bites when it rains" },
+  { id: "ghost", name: "Ghost carp", emoji: "👻", rarity: "rare", weight: 8, min: 20, max: 65, color: "#dfe7ef", blurb: "See-through, and swims straight through the other fish.", when: "midnight", hint: "Bites after midnight" },
+  { id: "puffer", name: "Friday-deploy puffer", emoji: "🐡", rarity: "rare", weight: 10, min: 10, max: 35, color: "#e8b04a", blurb: "Puffs up the moment someone pushes to prod.", when: "friday", hint: "Bites on Friday after 16:00" },
+  { id: "leet", name: "1337 bass", emoji: "😎", rarity: "epic", weight: 50, min: 13, max: 37, color: "#3ddc84", blurb: "Only bites at 13:37. Wears its shades indoors.", when: "leet", hint: "Bites at one exact minute" },
+  { id: "notfound", name: "404 fish", emoji: "❓", rarity: "epic", weight: 50, min: 0, max: 0, color: "#c9ced6", blurb: "The hook came up empty. The journal counts it anyway.", when: "notfound", hint: "Bites at one exact minute, before dawn" },
 ];
 export type FishId = string;
 
@@ -170,7 +172,13 @@ export const fishById = (id: string): Fish | undefined => FISH.find((f) => f.id 
 /** Only the town pond's water can be cast into, from an adjacent walkable bank. */
 export function fishingWater(map: GameMap, x: number, y: number, facing: Facing): [number, number] | null {
   const [dx, dy] = DIRS[facing];
-  return map.id === "town" && map.walkable(x, y) && map.at(x + dx, y + dy) === "~" ? [x + dx, y + dy] : null;
+  const waterX = x + dx;
+  const waterY = y + dy;
+
+  const isTownPond = map.id === "town";
+  const isBankWalkable = map.walkable(x, y);
+  const isWater = map.at(waterX, waterY) === "~";
+  return isTownPond && isBankWalkable && isWater ? [waterX, waterY] : null;
 }
 
 export function newCast(
@@ -180,11 +188,15 @@ export function newCast(
   now: number,
   random = Math.random,
 ): FishingCast {
+  // A bite comes 2.5 to 6 seconds after the cast, so the line is not an instant catch.
   const biteAt = now + 2500 + Math.floor(random() * 3500);
   return { x, y, waterX: water[0], waterY: water[1], biteAt, endsAt: biteAt + BITE_WINDOW_MS };
 }
-export const fishingPhase = (cast: FishingCast, now: number): "waiting" | "bite" | "missed" =>
-  now < cast.biteAt ? "waiting" : now < cast.endsAt ? "bite" : "missed";
+
+export function fishingPhase(cast: FishingCast, now: number): "waiting" | "bite" | "missed" {
+  if (now < cast.biteAt) return "waiting";
+  return now < cast.endsAt ? "bite" : "missed";
+}
 
 /** The pond at `ms` on the world clock, in `weather`. */
 export const pondTime = (ms: number, weather: WeatherKind): PondTime => ({
@@ -199,13 +211,17 @@ export const pondAt = (t: PondTime): Fish[] => FISH.filter((f) => !f.when || bit
 /** One catch from what's biting at `t`, by weight, with a length in its range. */
 export function rollCatch(t: PondTime, random = Math.random): FishCatch {
   const pool = pondAt(t);
+
+  // Walk the pool by weight until the roll is used up. Rounding can leave a sliver past the last fish.
   let roll = random() * pool.reduce((n, f) => n + f.weight, 0);
   const caught =
     pool.find((f) => {
       roll -= f.weight;
       return roll < 0;
     }) ?? pool[pool.length - 1]!;
-  return { fish: caught.id, cm: caught.min + Math.floor(random() * (caught.max - caught.min + 1)) };
+
+  const cm = caught.min + Math.floor(random() * (caught.max - caught.min + 1));
+  return { fish: caught.id, cm };
 }
 
 /** A catch's length as the journal writes it, with the quirks: the float's rounding, the bass's slip, the 404's nothing. */

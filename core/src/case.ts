@@ -1,8 +1,8 @@
 /**
- * The Night Market case (the Nusantara's are in `case-nusantara.ts`, Ragnarok Eve's in `case-ragnarok.ts`): cosmetics only a case opening gives, never sold in a shop and never dropped
- * by a raid. They are worn through `Look` like the shop's, but their indices start at `CASE_BASE`, so
- * the shop and the loot can grow without the two ever meeting. The art is keyed by the same names.
- * Tradeable the moment they're opened: there is no trade lock.
+ * The Night Market case (the Nusantara's are in `case-nusantara.ts`, Ragnarok Eve's in `case-ragnarok.ts`):
+ * cosmetics only a case opening gives, never sold in a shop and never dropped by a raid. They are worn through
+ * `Look` like the shop's, but their indices start at `CASE_BASE`, so the shop and the loot can grow without the
+ * two ever meeting. The art is keyed by the same names. Tradeable the moment they're opened: there is no trade lock.
  */
 
 import { JULEMARKED_ITEMS } from "./case-julemarked.ts";

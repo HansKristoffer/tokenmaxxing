@@ -107,14 +107,11 @@ export function dateAt(at: number): string {
 export function whenText(at: number, now: number): string {
   const days = copenhagenDay(new Date(at)) - copenhagenDay(new Date(now));
   const w = worldWall(at);
-  const day =
-    days <= 0
-      ? "today"
-      : days === 1
-        ? "tomorrow"
-        : days < 7
-          ? `on ${WEEKDAYS[w.weekday]}`
-          : `on ${w.d} ${MONTHS[w.m - 1]}`;
+  let day: string;
+  if (days <= 0) day = "today";
+  else if (days === 1) day = "tomorrow";
+  else if (days < 7) day = `on ${WEEKDAYS[w.weekday]}`;
+  else day = `on ${w.d} ${MONTHS[w.m - 1]}`;
   return `${day} at ${clockAt(at)}`;
 }
 
@@ -187,10 +184,11 @@ const SAMPLE_STREAM = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 export function forcedKeynotes(raw: string | null | undefined, now: number): Keynote[] | undefined {
   const v = raw?.trim();
   if (!v) return undefined;
-  const [mode = "", ...rest] = v.split(":");
+  const [rawMode = "", ...rest] = v.split(":");
+  const mode = rawMode.toLowerCase();
   const title = rest.join(":").trim();
-  if (mode.toLowerCase() === "off") return [];
-  if (mode.toLowerCase() === "live")
+  if (mode === "off") return [];
+  if (mode === "live")
     return [
       {
         id: -1,
@@ -201,7 +199,7 @@ export function forcedKeynotes(raw: string | null | undefined, now: number): Key
         url: SAMPLE_STREAM,
       },
     ];
-  if (mode.toLowerCase() === "soon")
+  if (mode === "soon")
     return [
       {
         id: -1,

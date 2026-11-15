@@ -11,9 +11,9 @@ import type { Item } from "./shop.ts";
 export interface Wearable {
   name: string;
   rarity: Rarity;
-  /** Sold for this; or */
+  /** Sold for this many coins. Set this or `level`, not both. */
   price?: number;
-  /** granted at this level, never sold. */
+  /** Granted at this level, never sold. Set this or `price`, not both. */
   level?: number;
   blurb: string;
 }

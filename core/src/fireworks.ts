@@ -114,6 +114,7 @@ export function sparkAt(r: Rocket, i: number): [number, number, number] {
   // A Fibonacci sphere, turned per rocket so no two bursts look alike.
   const up = 1 - (2 * (i + 0.5)) / r.sparks;
   const ring = Math.sqrt(1 - up * up);
+  // 2.399963 is the golden angle in radians, so successive sparks never line up.
   const angle = i * 2.399963 + r.id;
   return [Math.cos(angle) * ring * reach, up * reach - DROOP * t * t, Math.sin(angle) * ring * reach];
 }

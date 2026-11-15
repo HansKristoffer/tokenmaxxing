@@ -60,7 +60,7 @@ export const ownsDesk = (d: DeskSetup, level: number, bought: ReadonlySet<string
 
 /** A tier off the wire (`PlayerInfo.desk`, `CompanyInfo.deskFleet`): absent, odd or out of range is the laptop. */
 export const cleanDesk = (v: unknown): number =>
-  Number.isInteger(v) && (v as number) >= 0 && (v as number) < DESKS.length ? (v as number) : LAPTOP;
+  typeof v === "number" && Number.isInteger(v) && v >= 0 && v < DESKS.length ? v : LAPTOP;
 
 /** The setup drawn at a desk: the better of the sitter's own and the house's fleet (none: just theirs). */
 export const effectiveDesk = (personal: unknown, fleet?: unknown): number =>

@@ -14,7 +14,10 @@ import { RAGNAROK_PIECES } from "./case-ragnarok-furniture.ts";
 import { RARITIES, type Rarity } from "./rarity.ts";
 import { type Item, itemById } from "./shop.ts";
 
-/** The building where cases are sold (registered in `shoprooms.ts`). Every case is sold here for now; the Nusantara's own harbour shop, Pelabuhan, comes later (docs/cases/nusantara.md). */
+/**
+ * The building where cases are sold (registered in `shoprooms.ts`). Every case is sold here for now. The
+ * Nusantara's own harbour shop, Pelabuhan, comes later (docs/cases/nusantara.md).
+ */
 export const CASE_SHOP_ID = "natmarked";
 
 /** Where a case is sold: Natmarked's shelves, or the seasonal Julemarked's Nissens bod. */
@@ -154,12 +157,16 @@ export function rollCase(
 ): { item: Item; tier: Rarity } {
   const guaranteed = dry >= def.rareWithin - 1;
   const weights = RARITIES.map((r) => (guaranteed && !isHit(r) ? 0 : def.odds[r]));
+
+  // The roll is scaled to the total weight, so the weights need not sum to 1.
   let x = rand() * weights.reduce((a, b) => a + b, 0);
   let at = weights.findIndex((w) => {
     x -= w;
     return x < 0;
   });
+  // Rounding can leave the roll past every tier; the last tier with any weight takes it.
   if (at < 0) at = weights.findLastIndex((w) => w > 0);
+
   const has = (i: number) => def.items.some((it) => tierOf(it) === RARITIES[i]);
   // Down first, then up.
   let tierAt = at;
@@ -169,8 +176,10 @@ export function rollCase(
     while (tierAt < RARITIES.length && !has(tierAt)) tierAt++;
   }
   const tier = RARITIES[tierAt]!;
+
   const pool = def.items.filter((it) => tierOf(it) === tier);
   const draw = () => pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))]!;
+
   let item = draw();
   for (let n = 0; n < def.dupeRerolls && owned.has(item.id); n++) item = draw();
   return { item, tier };

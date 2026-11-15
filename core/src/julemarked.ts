@@ -4,8 +4,8 @@
  * (`julemarkedOn`, december.ts). Through the gate is a separate walled outdoor courtyard, the room
  * "julemarked", with four stalls under snow-white roofs and a Christmas tree. Nissens bod sells the
  * `julemarked` case (E opens the case shop on its shelf); the other three sell for coins (julemarked-shop.ts:
- * E opens the Shop page on that stall's goods). This file holds the tiles and the plan; the art is in web/src/art/julemarked.ts and
- * web/src/render3d/rooms/julemarked3d.ts.
+ * E opens the Shop page on that stall's goods). This file holds the tiles and the plan. The art is in
+ * `web/src/art/julemarked.ts` and `web/src/render3d/rooms/julemarked3d.ts`.
  */
 
 /** The gate's body in the town: 7 wide, 3 deep, with a three-tile opening in the middle of its bottom row. */
@@ -29,7 +29,7 @@ export interface Stall {
   /** Its top-left tile in the market room. */
   x: number;
   y: number;
-  /** What E says in a plain reading (tests, hints); in play E opens Nissens bod's case panel or the other stalls' Shop page. */
+  /** What E says in a plain reading (tests, hints). In play, E opens the case panel or the Shop page instead. */
   text: string;
 }
 export const STALL_W = 5;
@@ -84,11 +84,14 @@ export function julemarkedRows(): string[] {
       y <= 1 || y === JULEMARKED_H - 1 || x === 0 || x === JULEMARKED_W - 1 ? "W" : ":",
     ),
   );
-  for (const s of STALLS)
-    for (let dy = 0; dy < STALL_H; dy++)
+  for (const s of STALLS) {
+    for (let dy = 0; dy < STALL_H; dy++) {
       for (let dx = 0; dx < STALL_W; dx++) grid[s.y + dy]![s.x + dx] = s.ch;
-  for (let dy = 0; dy < 2; dy++)
+    }
+  }
+  for (let dy = 0; dy < 2; dy++) {
     for (let dx = 0; dx < 2; dx++) grid[JULE_TREE_AT[1] + dy]![JULE_TREE_AT[0] + dx] = JULE_TREE;
+  }
   // Lamps down the sides of the square in front of the stalls.
   for (const [x, y] of [
     [8, 5],
