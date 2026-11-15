@@ -19,6 +19,7 @@ export interface Framing {
 }
 
 const BASE_AZIMUTH = Math.PI / 4;
+// The camera's tilt is the 2:1 slope (tan = 1/2) that pixel-art isometrics use.
 const ELEVATION = Math.atan(0.5);
 const SIN_EL = Math.sin(ELEVATION);
 const COS_EL = Math.cos(ELEVATION);
@@ -31,12 +32,10 @@ const ZOOM_KEY = "tokenmaxxing.zoom3d";
 
 const rightOf = (az: number): [number, number] => [Math.cos(az), -Math.sin(az)];
 const awayOf = (az: number): [number, number] => [-Math.sin(az), -Math.cos(az)];
+const azimuthOf = (quarter: number) => BASE_AZIMUTH + (quarter * Math.PI) / 2;
 
-/**
- * The picture height (world units) at which a room's whole floor fits at `azimuth` for `aspect` (width over
- * height), walls included. Zooming out stops here: past it there is only void.
- */
-export function fitView(b: Bounds, aspect: number, azimuth = BASE_AZIMUTH): number {
+/** The floor corners of a room, measured along the screen's right and away directions at `azimuth`. */
+function screenExtent(b: Bounds, azimuth: number) {
   const [rx, rz] = rightOf(azimuth);
   const [ax, az] = awayOf(azimuth);
   let r0 = Infinity;
@@ -56,6 +55,16 @@ export function fitView(b: Bounds, aspect: number, azimuth = BASE_AZIMUTH): numb
     a0 = Math.min(a0, a);
     a1 = Math.max(a1, a);
   }
+  return { r0, r1, a0, a1 };
+}
+
+/**
+ * The picture height (world units) at which a room's whole floor fits at `azimuth` for `aspect` (width over
+ * height), walls included. Zooming out stops here: past it there is only void.
+ */
+export function fitView(b: Bounds, aspect: number, azimuth = BASE_AZIMUTH): number {
+  const { r0, r1, a0, a1 } = screenExtent(b, azimuth);
+  // The 1.06 leaves a sliver of margin round the room.
   return Math.max(((a1 - a0) * SIN_EL + b.height * COS_EL) * 1.06, ((r1 - r0) / aspect) * 1.06);
 }
 
@@ -130,19 +139,14 @@ export class CameraRig {
   /** One step in (+1) or out (-1); 0 puts the zoom back. */
   zoom(step: 1 | -1 | 0): void {
     const { min, max } = this.range();
-    this.level =
-      step === 0 ? 0 : Math.max(min, Math.min(max, Math.max(min, Math.min(max, this.level)) + step));
-    try {
-      storage.setItem(ZOOM_KEY, String(this.level));
-    } catch {}
+    const kept = Math.max(min, Math.min(max, this.level));
+    this.level = step === 0 ? 0 : Math.max(min, Math.min(max, kept + step));
+    // `storage` never throws: where localStorage is blocked the level is kept in memory for the visit.
+    storage.setItem(ZOOM_KEY, String(this.level));
   }
 
   private fitNow(): number {
-    return fitView(
-      this.framing.bounds,
-      (this.aspect * this.free.fx) / this.free.fy,
-      BASE_AZIMUTH + (this.quarter * Math.PI) / 2,
-    );
+    return fitView(this.framing.bounds, (this.aspect * this.free.fx) / this.free.fy, azimuthOf(this.quarter));
   }
 
   rotate(step: 1 | -1): void {
@@ -181,64 +185,55 @@ export class CameraRig {
    */
   update(dtMs: number, x: number, z: number, snap = false): void {
     const jump = snap || !this.placed;
+    // Each ease covers 63% of a change per this many ms (`approach`'s time constant), so a larger number is slower.
     const tau = jump ? 0 : dtMs;
+
     // The turn: the shown azimuth takes the short way to the nearest equivalent of the target.
-    const target = BASE_AZIMUTH + (this.quarter * Math.PI) / 2;
+    const target = azimuthOf(this.quarter);
     let delta = (target - this.azimuth) % (Math.PI * 2);
     if (delta > Math.PI) delta -= Math.PI * 2;
     else if (delta < -Math.PI) delta += Math.PI * 2;
     this.azimuth = jump ? target : this.azimuth + delta * (1 - Math.exp(-tau / 85));
     if (Math.abs(delta) < 0.0005) this.azimuth = target;
+
     const f = this.free;
     const to = this.freeTo;
-    if (jump) this.free = { ...to };
-    else
+    if (jump) {
+      this.free = { ...to };
+    } else {
       this.free = {
         fx: approach(f.fx, to.fx, tau, 140),
         fy: approach(f.fy, to.fy, tau, 140),
         cx: approach(f.cx, to.cx, tau, 140),
         cy: approach(f.cy, to.cy, tau, 140),
       };
+    }
     this.viewShown = jump ? this.targetView() : approach(this.viewShown, this.targetView(), tau, 110);
 
     this.followed = [x, z];
     const [fx, fz] = this.clamp(x + this.pan[0], z + this.pan[1]);
-    if (jump) this.focus.set(fx, fz);
-    else this.focus.set(approach(this.focus.x, fx, tau, 120), approach(this.focus.y, fz, tau, 120));
+    if (jump) {
+      this.focus.set(fx, fz);
+    } else {
+      this.focus.set(approach(this.focus.x, fx, tau, 120), approach(this.focus.y, fz, tau, 120));
+    }
     this.placed = true;
     this.aim();
   }
 
   /** Keeps the picture inside the room (centred, on an axis where the room is smaller than the picture). */
   private clamp(x: number, z: number): [number, number] {
-    const { bounds: b } = this.framing;
     const [rx, rz] = rightOf(this.azimuth);
     const [ax, az] = awayOf(this.azimuth);
     const hw = (this.viewShown / 2) * this.aspect * this.free.fx;
     const hf = (this.viewShown / 2 / SIN_EL) * this.free.fy;
-    let r0 = Infinity;
-    let r1 = -Infinity;
-    let a0 = Infinity;
-    let a1 = -Infinity;
-    for (const [cx, cz] of [
-      [b.minX, b.minZ],
-      [b.maxX, b.minZ],
-      [b.minX, b.maxZ],
-      [b.maxX, b.maxZ],
-    ] as const) {
-      const r = cx * rx + cz * rz;
-      const a = cx * ax + cz * az;
-      r0 = Math.min(r0, r);
-      r1 = Math.max(r1, r);
-      a0 = Math.min(a0, a);
-      a1 = Math.max(a1, a);
-    }
+    const { r0, r1, a0, a1 } = screenExtent(this.framing.bounds, this.azimuth);
     // Walls at the far side rise into the picture: their tops are further "away" on screen.
-    a1 += b.height * (COS_EL / SIN_EL);
+    const wallTop = a1 + this.framing.bounds.height * (COS_EL / SIN_EL);
     const fit = (v: number, lo: number, hi: number, half: number) =>
       hi - lo <= half * 2 ? (lo + hi) / 2 : Math.max(lo + half, Math.min(hi - half, v));
     const r = fit(x * rx + z * rz, r0, r1, hw);
-    const a = fit(x * ax + z * az, a0, a1, hf);
+    const a = fit(x * ax + z * az, a0, wallTop, hf);
     return [r * rx + a * ax, r * rz + a * az];
   }
 

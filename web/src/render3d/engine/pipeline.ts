@@ -409,7 +409,8 @@ interface BlobSet {
 function blobMesh(): THREE.InstancedMesh {
   const c = document.createElement("canvas");
   c.width = c.height = 32;
-  const g = c.getContext("2d")!;
+  const g = c.getContext("2d");
+  if (!g) throw new Error("the browser gave no 2D context for the blob shadow");
   const grad = g.createRadialGradient(16, 16, 2, 16, 16, 16);
   grad.addColorStop(0, "rgba(0,0,0,0.55)");
   grad.addColorStop(0.6, "rgba(0,0,0,0.28)");
@@ -427,6 +428,33 @@ function blobMesh(): THREE.InstancedMesh {
   mesh.renderOrder = 1;
   mesh.count = 0;
   return mesh;
+}
+
+/** The live half of a split shadow. Three never draws its map: `shadowsFor` asks for it, once a frame or two. */
+function newSplitLight(): THREE.DirectionalLight {
+  const dyn = new THREE.DirectionalLight(0xffffff, 0);
+  dyn.userData.shadowDyn = true;
+  dyn.castShadow = true;
+  dyn.shadow.autoUpdate = false;
+  return dyn;
+}
+
+/** The actors of one scene, kept between frames. */
+interface ActorCache {
+  epoch: number;
+  at: number;
+  actors: THREE.Object3D[];
+}
+
+/** Walking the scene is not free, so the actors are collected again only after something was added, and at most every 20 frames. */
+function refreshActors(cache: ActorCache, scene: THREE.Scene, frameNo: number): void {
+  if (cache.epoch === sceneEpoch() || frameNo - cache.at <= 20) return;
+  cache.epoch = sceneEpoch();
+  cache.at = frameNo;
+  cache.actors.length = 0;
+  scene.traverseVisible((o) => {
+    if (o.userData.actor) cache.actors.push(o);
+  });
 }
 
 interface SplitShadow {
@@ -458,7 +486,6 @@ export class Pipeline {
   private readonly quadCamera = new THREE.Camera();
   private size = "";
 
-  // ——— Voxel (Plethora) style ———
   style: RenderStyle = "classic";
   /** 0 = cheap, 1 = balanced, 2 = full (AO, tilt-shift, MSAA, 4k shadows). Drops by itself when frames run slow. */
   quality = 2;
@@ -654,9 +681,14 @@ export class Pipeline {
     };
   }
 
+  /** Classic styles at pixel size 1 render at the screen's density, capped; coarser pixels render at 1. */
+  private classicDpr(): number {
+    return this.pixelSize === 1 ? Math.min(window.devicePixelRatio || 1, this.opts.dprCap ?? 2) : 1;
+  }
+
   /** Low-resolution targets for a canvas of `w`×`h` CSS pixels. */
   private targets(w: number, h: number, depth: boolean, creased: boolean): void {
-    const dpr = this.pixelSize === 1 ? Math.min(window.devicePixelRatio || 1, this.opts.dprCap ?? 2) : 1;
+    const dpr = this.classicDpr();
     const scale = this.pixelSize === 1 ? (this.opts.renderScale ?? 1) : 1;
     const lw = Math.max(1, Math.floor((w * dpr * scale) / this.pixelSize));
     const lh = Math.max(1, Math.floor((h * dpr * scale) / this.pixelSize));
@@ -699,13 +731,14 @@ export class Pipeline {
 
   /** The lights of a scene, found once and again only after something was added. */
   private lightsOf(scene: THREE.Scene): SceneLights {
-    let s = this.lights.get(scene);
-    if (s && s.epoch === sceneEpoch()) return s;
-    s = { epoch: sceneEpoch(), refs: [] };
+    const known = this.lights.get(scene);
+    if (known && known.epoch === sceneEpoch()) return known;
+
+    const found: SceneLights = { epoch: sceneEpoch(), refs: [] };
     scene.traverse((o) => {
       const l = o as THREE.Light;
       if (!l.isLight || this.ours(o)) return;
-      s!.refs.push({
+      found.refs.push({
         l,
         hemi: !!(l as THREE.HemisphereLight).isHemisphereLight,
         color: new THREE.Color(),
@@ -715,11 +748,11 @@ export class Pipeline {
       const d = l as THREE.DirectionalLight;
       if (d.isDirectionalLight && (d.castShadow || d.userData.sunShadow)) {
         d.userData.sunShadow = true;
-        s!.sun = d;
+        found.sun = d;
       }
     });
-    this.lights.set(scene, s);
-    return s;
+    this.lights.set(scene, found);
+    return found;
   }
 
   private readonly splits = new WeakMap<THREE.Scene, SplitShadow>();
@@ -738,14 +771,8 @@ export class Pipeline {
       this.blobSets.set(scene, b);
     }
     b.mesh.visible = true;
-    if (b.epoch !== sceneEpoch() && this.frameNo - b.at > 20) {
-      b.epoch = sceneEpoch();
-      b.at = this.frameNo;
-      b.actors.length = 0;
-      scene.traverseVisible((o) => {
-        if (o.userData.actor) b!.actors.push(o);
-      });
-    }
+    refreshActors(b, scene, this.frameNo);
+
     let n = 0;
     const m = b.mesh;
     for (const a of b.actors) {
@@ -810,10 +837,7 @@ export class Pipeline {
     // The split's light goes in as soon as the room is batched (`prepare`), dark and never drawn into until the
     // split starts: shaders count lights, so the ones compiled ahead of the room's first frame stay the ones it uses.
     if (!st && on && sun && scene.userData.splitReady && !scene.userData.splitLight) {
-      const dyn = new THREE.DirectionalLight(0xffffff, 0);
-      dyn.userData.shadowDyn = true;
-      dyn.castShadow = true;
-      dyn.shadow.autoUpdate = false;
+      const dyn = newSplitLight();
       scene.add(dyn, dyn.target);
       scene.userData.splitLight = dyn;
     }
@@ -822,10 +846,7 @@ export class Pipeline {
     const unmapped = !st && !!split?.castShadow && !split.shadow.map;
     if (unmapped) split.shadow.needsUpdate = true;
     if (!st && on && sun && !bakePending(scene) && (this.frameNo > 30 || scene.userData.splitReady)) {
-      const dyn = split ?? new THREE.DirectionalLight(0xffffff, 0);
-      dyn.userData.shadowDyn = true;
-      dyn.castShadow = true;
-      dyn.shadow.autoUpdate = false;
+      const dyn = split ?? newSplitLight();
       if (dyn.parent !== scene) scene.add(dyn, dyn.target);
       st = { dyn, epoch: -1, key: "", size: 0, nextLive: 0, at: 0 };
       this.splits.set(scene, st);
@@ -1090,6 +1111,7 @@ export class Pipeline {
     if (!this.autoQuality || dt > 250) return; // hidden tab or a hitch
     this.frames++;
     if (dt > 30) this.slow++;
+    // Judged over 90 frames, and only a clear majority of slow ones (over 30 ms, under about 33 fps) steps down.
     if (this.frames >= 90) {
       if (this.slow > 55 && this.quality > 0) this.quality--;
       this.frames = this.slow = 0;
@@ -1135,10 +1157,7 @@ export class Pipeline {
     }
   }
 
-  private readonly crowds = new WeakMap<
-    THREE.Scene,
-    { epoch: number; at: number; actors: THREE.Object3D[] }
-  >();
+  private readonly crowds = new WeakMap<THREE.Scene, ActorCache>();
   private readonly rank: { o: THREE.Object3D; d: number }[] = [];
   private readonly ndc = new THREE.Vector3();
 
@@ -1152,14 +1171,8 @@ export class Pipeline {
       c = { epoch: -1, at: -99, actors: [] };
       this.crowds.set(scene, c);
     }
-    if (c.epoch !== sceneEpoch() && this.frameNo - c.at > 20) {
-      c.epoch = sceneEpoch();
-      c.at = this.frameNo;
-      c.actors.length = 0;
-      scene.traverseVisible((o) => {
-        if (o.userData.actor) c.actors.push(o);
-      });
-    }
+    refreshActors(c, scene, this.frameNo);
+
     const budget = this.voxelOptions().crowd;
     if (c.actors.length <= budget) {
       for (const a of c.actors) a.userData.lod = 0;
@@ -1250,8 +1263,7 @@ export class Pipeline {
       scene.userData.blockyDone = false;
     }
     if (this.fillScene) this.leaveVoxel();
-    const dpr = this.pixelSize === 1 ? Math.min(window.devicePixelRatio || 1, this.opts.dprCap ?? 2) : 1;
-    this.setSize(w, h, dpr);
+    this.setSize(w, h, this.classicDpr());
     const lines = this.outline > 0 || this.crease > 0;
     const creased = this.crease > 0;
     this.targets(w, h, lines, creased);
