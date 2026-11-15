@@ -14,7 +14,8 @@ import { errorText } from "../errors.ts";
 import { refreshMe, refreshWallet, town } from "../net.ts";
 import { hud, useHud } from "../store.ts";
 import { ItemIcon } from "./ItemIcon.tsx";
-import { ItemImage, isWorn, WearButton, withItem } from "./Shop.tsx";
+import { isWorn, withItem } from "./lookOps.ts";
+import { ItemImage, WearButton } from "./Shop.tsx";
 import { TakeMeThere } from "./ShopDirectory.tsx";
 import { Balance, Modal, Pixels, useRun } from "./ui.tsx";
 

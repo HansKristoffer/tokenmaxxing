@@ -32,7 +32,7 @@ import { coins } from "./format.ts";
 import { ItemIcon } from "./ItemIcon.tsx";
 import { ItemTag } from "./ItemTag.tsx";
 import { lootLine, rarityClass } from "./Loot.tsx";
-import { isWorn, withItem, withoutMerchTop } from "./lookOps.ts";
+import { isWorn, withItem } from "./lookOps.ts";
 import { DecorGoods, DeskGoods } from "./RoomGoods.tsx";
 import { ShopDirectory } from "./ShopDirectory.tsx";
 import { AvatarImage, Balance, Modal, Pills, Pixels, useRun } from "./ui.tsx";
@@ -196,8 +196,6 @@ export const wear = async (look: Look) => {
   await town.setLook(look);
   await refreshMe();
 };
-
-export { isWorn, withItem, withoutMerchTop };
 
 const wearIt = (item: Item, look: Look, on: boolean) =>
   item.slot === "furniture" || item.slot === "dance" ? Promise.resolve() : wear(withItem(item, look, on));

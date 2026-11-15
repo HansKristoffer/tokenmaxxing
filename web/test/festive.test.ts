@@ -91,7 +91,6 @@ test("festiveNow follows the pin, the setting and the minute", () => {
     gfx.graphics.override("seasonal", undefined);
     at("2026-11-01T00:01");
     expect(wrapper.festiveNow()).toBeNull();
-    expect(wrapper.intensityNow()).toBe(0);
   } finally {
     Date.now = real;
   }

@@ -64,6 +64,3 @@ export function festiveNow(): Festive | null {
   shown = { minute, key, festive: festiveWith(pin, at) };
   return shown.festive;
 }
-
-/** The theme's intensity now, 0 when there is none. */
-export const intensityNow = (): number => festiveNow()?.intensity ?? 0;
