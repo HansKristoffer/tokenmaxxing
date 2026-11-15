@@ -1,6 +1,6 @@
 /**
  * A plain snapshot of the 2D town's data, so the 3D town draws from the same tile map.
- * Sources (tokenmaxxing, branch feat/tavern): `core/src/maps.ts` (CORE, LOT, PARKS, townMap, doorOf, the hq
+ * Sources: `core/src/maps.ts` (CORE, LOT, PARKS, townMap, doorOf, the hq
  * floor), `core/src/world.ts` (house tiers, Brand), `core/src/office.ts` (COMPANY_FURNITURE),
  * `core/src/posters.ts` (POSTERS) and `core/src/desks.ts` (DESKS). Keep in step by hand.
  */
@@ -25,6 +25,8 @@ export const CORE_BLOCKS: [number, number][] = [
 
 const DOOR: [number, number] = [5, 6];
 
+// A plot id packs a block's coordinates as two base-1000 digits, each offset by 500, so a block
+// left of or above the origin still gets a positive id. Block coordinates must stay in -500..499.
 export const plotId = (bx: number, by: number): number => (by + 500) * 1000 + (bx + 500);
 export const plotBlock = (plot: number): [number, number] => [
   (plot % 1000) - 500,
@@ -102,16 +104,21 @@ export function townMap(plots: readonly number[]): TownMap {
   const shops = new Set(Object.values(shopBlocks(plots)).map(([x, y]) => plotId(x, y)));
   shops.add(plotId(...julemarkedBlock(plots)));
   const parks: [number, number][] = [];
-  for (let by = Math.floor(m.y0 / BLOCK_H); by * BLOCK_H < m.y0 + m.height; by++)
+  for (let by = Math.floor(m.y0 / BLOCK_H); by * BLOCK_H < m.y0 + m.height; by++) {
     for (let bx = Math.floor(m.x0 / BLOCK_W); bx * BLOCK_W < m.x0 + m.width; bx++) {
       const id = plotId(bx, by);
-      if (!m.contains(bx * BLOCK_W + 1, by * BLOCK_H + 1) || isCore(bx, by) || taken.has(id) || shops.has(id))
-        continue;
+      const isOnMap = m.contains(bx * BLOCK_W + 1, by * BLOCK_H + 1);
+      const isCompanyOrShop = taken.has(id) || shops.has(id);
+      if (!isOnMap || isCore(bx, by) || isCompanyOrShop) continue;
+
       // The ring of trees and the closing road are not blocks.
-      if (bx * BLOCK_W + BLOCK_W > m.x0 + m.width - 2 || by * BLOCK_H + BLOCK_H > m.y0 + m.height - 2)
-        continue;
+      const isOuterRing =
+        bx * BLOCK_W + BLOCK_W > m.x0 + m.width - 2 || by * BLOCK_H + BLOCK_H > m.y0 + m.height - 2;
+      if (isOuterRing) continue;
+
       parks.push([bx, by]);
     }
+  }
   return new TownMap(m.rows, m.x0, m.y0, parks);
 }
 
