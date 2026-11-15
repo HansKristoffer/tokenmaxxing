@@ -39,6 +39,7 @@ export const fireSprite = cached(
     bake(PILE_PX.w, PILE_PX.h, (p) => {
       const tongues = frame ? [4, 9, 15, 21, 26] : [6, 11, 17, 23];
       for (const [i, x] of tongues.entries()) {
+        // Each tongue has its own height, and the frame shifts them, so the fire flickers between two frames.
         const h = 10 + ((i * 7 + frame * 5) % 9);
         p.rect(x, 33 - h, 4, h, "#e8582a");
         p.rect(x + 1, 33 - h + 3, 2, h - 3, "#ffb43a");

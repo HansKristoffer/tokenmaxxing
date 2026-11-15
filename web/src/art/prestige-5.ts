@@ -1,7 +1,8 @@
+import type { Art } from "./editions.ts";
 import { C } from "./palette.ts";
 import type { Pen } from "./pixels.ts";
-import type { TrackArt } from "./prestige-types.ts";
-import type { BackView } from "./wardrobe.ts";
+import { frameAt, frontView, type TrackArt } from "./prestige-types.ts";
+import type { Back, Outfit } from "./wardrobe.ts";
 
 /**
  * Prestige track 5, Prismatic, in 2D (`core/src/prestige.ts`): pearl over every colour of the spectrum. The hat is a
@@ -24,13 +25,10 @@ const SPECTRUM = {
   p: "#ff7ad9",
 };
 
-// MARK: Hat
-
 // Prismatic crown: a pearl crown of five points, a gem of another colour on each, a band of pearl with the whole
 // spectrum set along it and a pink stone at the front. Seen from behind the spectrum runs the other way.
-// Pixel art reads as a grid.
 // prettier-ignore
-const HAT = {
+const HAT: Art = {
   down: [
     ".......pp.......",
     ".....G.ww.v.....",
@@ -61,14 +59,11 @@ const HAT = {
   pal: { o, w: "#f4f0ff", W: "#cfc6ea", h: "#ffffff", ...SPECTRUM },
 };
 
-// MARK: Outfit
-
 // Prismatic regalia: pearl robes, a rainbow yoke across the shoulders and the same spectrum round the hem, a pale prism
 // brooch with a pink heart at the breast; from behind a pearl panel and a ribbon of the spectrum.
 // Marks sit over the body from row 9; a fourth row lands on the trousers' row (a hem).
-// Pixel art reads as a grid.
 // prettier-ignore
-const OUTFIT = {
+const OUTFIT: Outfit = {
   c: "#f1ecff", C: "#c9c0ea", p: "#8a7fc0",
   marks: {
     down: ["....rOyGcbvp....", ".....wWppWw.....", "......WppW......", "....rOyGcbvp...."],
@@ -78,15 +73,10 @@ const OUTFIT = {
   pal: { ...SPECTRUM, w: "#fbf9ff", W: "#c9c0ea", h: "#ffffff" },
 };
 
-// MARK: Back
-
-/** An empty 16×16 frame, then `rows` dropped in at row `y`. */
-const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
 /** The same rows one row higher, the wings lifted for the second step. */
 const lifted = (rows: string[]): string[] => [...rows.slice(1), ""];
 /** A left half mirrored into the whole: the wings are the same either side. */
-const both = (half: string[]): string[] =>
-  half.map((r) => r + [...r].reverse().join("").replaceAll("(", ")"));
+const both = (half: string[]): string[] => half.map((r) => r + [...r].reverse().join(""));
 
 // Aurora wings: wings of folded light, a feather to a colour, green at the top then cyan, blue, violet and pink at the
 // tips, edged in ink and pearl where they join the spine. Seen from the front only the tips show beside the body.
@@ -117,11 +107,10 @@ const WINGS_SIDE = [
   "...........oppo.",
   "............oo..",
 ];
-const wings = (rows: string[], y: number): BackView => ({ front: frameAt(rows, y) });
+const wings = (rows: string[], y: number) => frontView(frameAt(rows, y));
 
-// Pixel art reads as a grid.
 // prettier-ignore
-const BACK = {
+const BACK: Back = {
   views: {
     down: { behind: frameAt(WINGS, 3) },
     side: { behind: frameAt(WINGS_SIDE, 3) },
@@ -130,8 +119,6 @@ const BACK = {
   walk: { up: wings(lifted(WINGS), 3), down: { behind: frameAt(lifted(WINGS), 3) } },
   pal: { o, ...SPECTRUM, w: "#f4f0ff" },
 };
-
-// MARK: Aura
 
 const CX = 14;
 const TAU = Math.PI * 2;

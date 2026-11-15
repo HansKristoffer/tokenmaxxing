@@ -45,7 +45,7 @@ function column(p: Pen, cx: number, y0: number, y1: number, w0: number, w1: numb
 
 const shadow = (p: Pen, x: number, y: number, w: number) => p.rect(x, y, w, 2, C.shadow);
 
-/** Eight 90-degree steps round a circle of radius `r`: the sparkles' four points. */
+/** A four-point sparkle centred on (`x`, `y`); `big` adds a second pixel on each arm. */
 const sparkle = (p: Pen, x: number, y: number, color: string, big = false) => {
   p.px(x, y, color);
   p.px(x - 1, y, color);
@@ -59,8 +59,6 @@ const sparkle = (p: Pen, x: number, y: number, color: string, big = false) => {
     p.px(x, y + 2, color);
   }
 };
-
-// MARK: Ascendant obelisk
 
 const V = {
   stone: "#2b2347",
@@ -107,7 +105,7 @@ function obelisk(p: Pen, frame: number): void {
   column(p, 8, 4, 11, 2, 6, V.silver);
   p.rect(7, 6, 1, 5, V.silverLight);
   p.rect(9, 8, 1, 3, V.silverDark);
-  // The veins glow, and light runs up them: three bright beads a frame apart.
+  // The veins glow, and a bead of light climbs them, five pixels a frame.
   const beat = [V.deep, V.violet, V.glow, V.violet][frame % 4]!;
   for (const [x, y] of VEIN) p.px(x, y, V.deep);
   for (const [x, y] of VEIN_BRANCH) p.px(x, y, V.deep);
@@ -132,8 +130,6 @@ function obelisk(p: Pen, frame: number): void {
   p.px(13 - (frame % 3), 14 + frame, V.violet);
   p.px(2 + (frame % 3), 26 - frame * 2, V.glow);
 }
-
-// MARK: Cosmic orrery
 
 const O = {
   brass: "#e9b73d",
@@ -182,11 +178,12 @@ function orrery(p: Pen, frame: number): void {
   ] as const)
     p.px(x, y, (x + y + frame) % 3 === 0 ? O.white : O.glow);
   // The orbits, as dotted ellipses.
-  for (const w of WORLDS)
+  for (const w of WORLDS) {
     for (let i = 0; i < 40; i += 2) {
       const a = (i / 40) * Math.PI * 2;
       p.px(Math.round(cx + Math.cos(a) * w.r), Math.round(cy + Math.sin(a) * w.r * 0.4), O.nightMid);
     }
+  }
   const at = (w: (typeof WORLDS)[number]) => {
     const a = ((w.start + frame * w.step) / 8) * Math.PI * 2;
     return {
@@ -227,8 +224,6 @@ function orrery(p: Pen, frame: number): void {
   p.px(gold.x - 4, gold.y, C.ink);
   p.px(gold.x + 4, gold.y, C.ink);
 }
-
-// MARK: Contained black hole
 
 const B = {
   void: "#0a0610",
@@ -287,21 +282,27 @@ function blackHole(p: Pen, frame: number): void {
   // The back half of the ring, then the hole, then the front half: the ring turns one place a frame.
   const shade = (i: number) => {
     const k = (i + frame * 3) % 24;
-    return k < 3 ? B.hot : k < 8 ? B.glow : k < 16 ? B.magenta : B.magentaDark;
+    if (k < 3) return B.hot;
+    if (k < 8) return B.glow;
+    if (k < 16) return B.magenta;
+    return B.magentaDark;
   };
   for (let i = 0; i < 24; i++) {
     const r = ringAt(i, 5, 2);
     if (!r.front) p.px(r.x, r.y, shade(i));
   }
+
   p.disc(8, 14, 3, B.magentaDark);
   p.disc(8, 14, 2, C.ink);
   p.px(8, 14, B.void);
+
   for (let i = 0; i < 24; i++) {
     const r = ringAt(i, 5, 2);
-    if (r.front) {
-      p.px(r.x, r.y, shade(i));
-      p.px(r.x, r.y + 1, shade(i + 8) === B.magentaDark ? B.magentaDark : B.magenta);
-    }
+    if (!r.front) continue;
+    p.px(r.x, r.y, shade(i));
+    // The pixel under a front arc is dark when the arc a third of a turn ahead is dark.
+    const lower = shade(i + 8) === B.magentaDark ? B.magentaDark : B.magenta;
+    p.px(r.x, r.y + 1, lower);
   }
   // Three motes falling in along spirals, each a third of the cycle behind the last.
   for (let k = 0; k < 3; k++) {
@@ -316,8 +317,6 @@ function blackHole(p: Pen, frame: number): void {
   p.rect(3, 5, 1, 6, B.glassLight);
   p.rect(4, 6 + (frame % 4) * 3, 1, 3, B.glassLight);
 }
-
-// MARK: Holographic town
 
 const H = {
   slab: "#2a2210",
@@ -344,9 +343,11 @@ function holoBlock(
   p.rect(x + 1, top + 1, w - 2, h - 1, H.deep);
   p.rect(x, top - 1, w, 1, H.cream);
   p.rect(x + w - 1, top, 1, h, H.dim);
-  for (let wy = top + 2; wy < base - 1; wy += 2)
-    for (let wx = x + 1; wx < x + w - 1; wx += 2)
+  for (let wy = top + 2; wy < base - 1; wy += 2) {
+    for (let wx = x + 1; wx < x + w - 1; wx += 2) {
       if ((wx + wy + frame + phase) % 3 !== 0) p.px(wx, wy, H.glow);
+    }
+  }
 }
 
 /** The town in blueprint gold over a projector: citizens blink along the streets, a scan line sweeps up it. */
@@ -410,8 +411,6 @@ function holoTown(p: Pen, frame: number): void {
   p.rect(7, sy + 1, 18, 1, H.glow);
 }
 
-// MARK: Prismatic token monument
-
 const R = {
   pearl: "#f4f0ff",
   pearlLight: "#ffffff",
@@ -469,8 +468,12 @@ function monument(p: Pen, frame: number): void {
   // The prism: a white triangle, with the white beam in and a fan of colour out.
   const rows = ["..#..", ".###.", ".###.", "#####"];
   rows.forEach((row, dy) => {
-    for (let dx = 0; dx < row.length; dx++)
-      if (row[dx] === "#") p.px(cx - 2 + dx, cy - 4 + dy, dy === 3 || dx === 0 ? R.pearlDark : R.pearlLight);
+    for (let dx = 0; dx < row.length; dx++) {
+      if (row[dx] !== "#") continue;
+      // The base row and the left edge are in shade, the rest of the glass is lit.
+      const isShaded = dy === 3 || dx === 0;
+      p.px(cx - 2 + dx, cy - 4 + dy, isShaded ? R.pearlDark : R.pearlLight);
+    }
   });
   p.px(cx, cy - 4, R.pearlLight);
   for (let x = cx - 8; x < cx - 2; x++) p.px(x, cy + 2 - Math.floor((x - cx + 8) / 3), R.pearlLight);
@@ -498,8 +501,6 @@ function monument(p: Pen, frame: number): void {
   p.px(2, 30 - frame, R.pink);
   p.px(29, 8 + frame, R.pink);
 }
-
-// MARK: Catalog
 
 const piece = (
   rank: number,

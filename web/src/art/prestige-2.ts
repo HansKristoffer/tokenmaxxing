@@ -1,8 +1,8 @@
 import type { Art } from "./editions.ts";
 import { C } from "./palette.ts";
 import type { Pen } from "./pixels.ts";
-import type { TrackArt } from "./prestige-types.ts";
-import type { Back, BackView, Outfit } from "./wardrobe.ts";
+import { frameAt, frontView, type TrackArt } from "./prestige-types.ts";
+import type { Back, Outfit } from "./wardrobe.ts";
 
 /**
  * Prestige track 2's wearables in 2D (`core/src/prestige.ts`): Cosmic, cyan over midnight blue, starfields, orbits and
@@ -11,8 +11,6 @@ import type { Back, BackView, Outfit } from "./wardrobe.ts";
  */
 
 const o = C.ink;
-
-// MARK: Hat
 
 // Starfield crown: a lit midnight band with three points, each tipped by a cyan star, tiny white stars sewn across
 // the band and a cyan gem in the middle of it.
@@ -48,8 +46,6 @@ const HAT: Art = {
   pal: { o, n: "#1b2a6b", N: "#3550c0", c: "#22d3ee", g: "#8cf0ff", w: "#ffffff" },
 };
 
-// MARK: Outfit
-
 // Nebula suit: a midnight suit, a nebula swirling across the chest (cyan through violet to pink) pricked with stars,
 // and a belt of starlight. The back carries the same cloud.
 // prettier-ignore
@@ -62,12 +58,6 @@ const OUTFIT: Outfit = {
   },
   pal: { k: "#22d3ee", N: "#2a3f8f", v: "#7a5cff", V: "#5a3fd0", m: "#e060ff", w: "#ffffff", B: "#0d1740" },
 };
-
-// MARK: Back
-
-/** An empty 16×16 frame, then `rows` dropped in at row `y`. */
-const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
-const view = (front: string[]): BackView => ({ front });
 
 // Orbital backpack: a midnight pack with a ringed planet on it and a thin cyan orbit round the shoulders, a pale
 // moon and a sand moon riding it. The moons swap sides on the walking frame.
@@ -137,22 +127,19 @@ const PACK_DOWN = frameAt(
   8,
 );
 
-// Pixel art reads as a grid.
 // prettier-ignore
 const BACK: Back = {
   views: {
     down: { behind: PACK_DOWN },
     side: { behind: PACK_SIDE },
-    up: view(PACK_UP),
+    up: frontView(PACK_UP),
   },
-  walk: { side: { behind: PACK_SIDE_B }, up: view(PACK_UP_B) },
+  walk: { side: { behind: PACK_SIDE_B }, up: frontView(PACK_UP_B) },
   pal: {
     o, n: "#14214d", N: "#2a3f8f", r: "#1fb6d4", R: "#22d3ee", p: "#6f7cf5", P: "#aab4ff",
     m: "#e8f2ff", M: "#ffffff", s: "#e8c58a", S: "#fff0c8",
   },
 };
-
-// MARK: Aura
 
 const CX = 14;
 const CY = 14;
@@ -179,6 +166,9 @@ function coin(p: Pen, x: number, y: number, near: boolean): void {
   p.px(x + 2, y - 2, FAINT);
   p.px(x - 3, y + 1, FAINT);
 }
+
+/** Twinkle size on each frame of the loop: it swells to 2 on frame 2, is gone by frame 4 and stays dark for the rest. */
+const TWINKLE_BY_FRAME = [0, 1, 2, 1, 0, 0, 0, 0];
 
 /** A four-point twinkle at (`x`, `y`) of `s` 0..2. */
 function twinkle(p: Pen, x: number, y: number, s: number): void {
@@ -242,7 +232,8 @@ const sigil = (p: Pen, f: number): void => {
     [14, 26],
   ];
   spots.forEach(([x, y], i) => {
-    twinkle(p, x, y, [0, 1, 2, 1, 0, 0, 0, 0][(f + i * 3) % FRAMES]!);
+    const phase = (f + i * 3) % FRAMES;
+    twinkle(p, x, y, TWINKLE_BY_FRAME[phase]!);
   });
 };
 
