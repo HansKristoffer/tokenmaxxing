@@ -4,7 +4,6 @@
  */
 // biome-ignore-all format: pixel art reads as a grid
 
-import { TIER_COLOR } from "@tokenmaxxing/core/rarity.ts";
 import { TROPHIES } from "@tokenmaxxing/core/trophies.ts";
 import { C } from "../../art/palette.ts";
 import { TROPHY_ART } from "../../art/trophy-art.ts";
@@ -1345,4 +1344,3 @@ export const BADGE_DEFS = [
     ],
   },
 ] as const;
-export const TIER_COLORS = TIER_COLOR;

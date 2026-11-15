@@ -26,20 +26,23 @@ export const resting = (r: Pick<Raid, "prelaunch" | "closed"> & { cleared?: bool
 export const RAID_SEAT_Y = 0.33;
 
 /** Your pet fires a quarter as fast as you, at least one every five seconds, and sputters when you do. */
-export const petRate = (burn: number, rate: number): number =>
-  rate && (fireRate(burn) ? Math.max(0.2, rate / 4) : rate / 2);
+export function petRate(burn: number, rate: number): number {
+  if (rate === 0) return 0;
+  return fireRate(burn) ? Math.max(0.2, rate / 4) : rate / 2;
+}
 
 /** A minion fires a third as fast as its raider, and sputters when its raider does. */
-export const minionRate = (burn: number, rate: number): number =>
-  rate && (fireRate(burn) ? Math.max(0.25, rate / 3) : rate / 2);
+export function minionRate(burn: number, rate: number): number {
+  if (rate === 0) return 0;
+  return fireRate(burn) ? Math.max(0.25, rate / 3) : rate / 2;
+}
 
 /** Shots due after `dtMs` at `rate` a second, given the fraction already `owed`: whole shots fired, the rest carried. */
 export function owedShots(owed: number, rate: number, dtMs: number): { owed: number; shots: number } {
   if (rate <= 0) return { owed, shots: 0 };
-  let o = owed + (rate * dtMs) / 1000;
-  const shots = Math.floor(o);
-  o -= shots;
-  return { owed: o, shots };
+  const due = owed + (rate * dtMs) / 1000;
+  const shots = Math.floor(due);
+  return { owed: due - shots, shots };
 }
 
 /** What a hit on the raid boss between two polls looks like. */
@@ -58,7 +61,8 @@ export function raidEvents(before: Raid | null, after: Raid): RaidEvents {
   const none: RaidEvents = { launch: false, kill: null, hit: 0, mine: 0 };
   if (before?.prelaunch && !after.prelaunch) return { ...none, launch: true };
   if (!before || before.week !== after.week) return none;
-  const kill = after.kills.slice(before.kills.length).at(-1)?.boss ?? null;
+  const newKills = after.kills.slice(before.kills.length);
+  const kill = newKills.at(-1)?.boss ?? null;
   const hit = Math.max(0, after.totalDamage - before.totalDamage);
   const mine = hit > 0 ? Math.max(0, (after.me?.damage ?? 0) - (before.me?.damage ?? 0)) : 0;
   return { launch: false, kill, hit, mine };
@@ -80,6 +84,7 @@ export interface Caps {
   sparks: number;
 }
 
+/** `lean` is drawn when `geometryDetail()` is 0, `full` otherwise (`room-dungeon.ts`). */
 export const CAPS: Record<"lean" | "full", Caps> = {
   lean: { people: 14, minions: 2, minionsTotal: 24, missiles: 28, sparks: 40 },
   full: { people: 40, minions: 4, minionsTotal: 100, missiles: 80, sparks: 120 },
@@ -123,7 +128,7 @@ export function weekOverText(
     : null;
 }
 
-/** Where an item flies from and to, as a share of the fall: the loot's beam is `POP` of the way, the flight after. */
+/** Loot animation phases, in seconds: the beam's pop, the flight, then the landing (`dungeon-live.ts`). */
 export const LOOT_POP_S = 0.7;
 export const LOOT_FLY_S = 1.1;
 export const LOOT_LAND_S = 1.4;
