@@ -44,6 +44,7 @@ export function MerchShop({ companyId }: { companyId: number }) {
   const employee = me.company?.id === companyId;
   if (editing && employee) return <MerchEditor company={company} onClose={() => setEditing(false)} />;
   const off = Math.round(EMPLOYEE_MERCH_DISCOUNT * 100);
+  const discount = off === 100 ? "free" : `${off}% off`;
 
   const buy = (item: Item) =>
     run(async () => {
@@ -58,8 +59,8 @@ export function MerchShop({ companyId }: { companyId: number }) {
         {employee
           ? off === 100
             ? "You work here: yours are free, one of each."
-            : `You work here: ${off}% off, and what you pay goes into the company wallet.`
-          : `Everything you pay goes into ${company.name}'s company wallet. Its people get theirs ${off === 100 ? "free" : `${off}% off`}.`}
+            : `You work here: ${discount}, and what you pay goes into the company wallet.`
+          : `Everything you pay goes into ${company.name}'s company wallet. Its people get theirs ${discount}.`}
       </p>
       {!atShop && (
         <p className="muted small">
@@ -112,7 +113,8 @@ const BRUSHES = [
   ["k", "Dark"],
 ] as const;
 
-const FILL = (ch: string) => (ch === "w" ? "#ffffff" : ch === "k" ? "#1b1b26" : null);
+/** The two fixed colours of the print's brushes; `a` is the company's accent, and anything else is see-through. */
+const FILLS: Record<string, string | undefined> = { w: "#ffffff", k: "#1b1b26" };
 
 /** Any member draws what the company's merch carries: two colours and a small pixel print. */
 function MerchEditor({ company, onClose }: { company: MerchCompany; onClose: () => void }) {
@@ -149,7 +151,7 @@ function MerchEditor({ company, onClose }: { company: MerchCompany; onClose: () 
                 key={`${x},${y}`}
                 type="button"
                 aria-label={`Pixel ${x + 1},${y + 1}`}
-                style={{ background: ch === "a" ? design.accent : (FILL(ch) ?? "transparent") }}
+                style={{ background: ch === "a" ? design.accent : (FILLS[ch] ?? "transparent") }}
                 onClick={() => paint(x, y)}
               />
             )),

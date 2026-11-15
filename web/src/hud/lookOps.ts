@@ -42,10 +42,15 @@ export function withItem(item: Item, look: Look, on: boolean): Look {
       outfit: () => (on ? withoutMerchTop({ ...look, outfit: item.index }) : { ...look, outfit: 0 }),
       merch: () => {
         const mine = look.merch === item.companyId ? look.merchWorn : 0;
-        const bits = on
-          ? (item.index & MERCH_TOPS ? mine & ~MERCH_TOPS : mine) | item.index
-          : mine & ~item.index;
-        return { ...look, merch: bits ? item.companyId! : 0, merchWorn: bits };
+        if (!on) {
+          const bits = mine & ~item.index;
+          return { ...look, merch: bits ? item.companyId! : 0, merchWorn: bits };
+        }
+        // A tee or hoodie replaces the other top; a cap or mug goes on beside whatever is worn.
+        const isTop = (item.index & MERCH_TOPS) !== 0;
+        const kept = isTop ? mine & ~MERCH_TOPS : mine;
+        const bits = kept | item.index;
+        return { ...look, merch: item.companyId!, merchWorn: bits };
       },
     },
     (slot) => ({ ...look, [slot]: on ? item.index : 0 }),

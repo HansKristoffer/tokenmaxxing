@@ -12,6 +12,7 @@ function useSuggestions(query: string | null, myName: string | undefined): strin
   useEffect(() => {
     setRemote([]);
     if (!query) return;
+    // The search waits for a 150 ms pause in typing, so it runs once per pause rather than per keystroke.
     const id = setTimeout(() => void town.searchNames(query).then(setRemote, () => {}), 150);
     return () => clearTimeout(id);
   }, [query]);
@@ -67,7 +68,8 @@ export function MentionInput({
       }
       if (e.key === "Tab" || e.key === "Enter") {
         e.preventDefault();
-        pick(suggestions[shown]!);
+        const chosen = suggestions[shown];
+        if (chosen) pick(chosen);
         return;
       }
     }
