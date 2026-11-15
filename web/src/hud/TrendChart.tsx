@@ -35,6 +35,8 @@ const PAD = { top: 14, right: 46, bottom: 24, left: 46 };
 const NEAR = 14;
 /** The character at a line's end: its size, how far right of the end, and how close two may stack. */
 const END = { size: 24, offset: 16, gap: 20 };
+/** Arrow keys walk the days: how far each one moves the picked day. */
+const ARROW_STEPS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
 
 /**
  * Where each of `ys` can go with at least `gap` between neighbours, in order, kept in `[min, max]`
@@ -43,9 +45,19 @@ const END = { size: 24, offset: 16, gap: 20 };
 function dodge(ys: number[], gap: number, min: number, max: number): number[] {
   const order = ys.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y);
   const placed = order.map((o) => o.y);
-  for (let k = 0; k < placed.length; k++) placed[k] = Math.max(placed[k]!, k ? placed[k - 1]! + gap : min);
-  for (let k = placed.length - 1; k >= 0; k--)
-    placed[k] = Math.min(placed[k]!, k < placed.length - 1 ? placed[k + 1]! - gap : max);
+
+  // Push each one down until it clears the one above it, starting from `min`.
+  for (let k = 0; k < placed.length; k++) {
+    const floor = k === 0 ? min : placed[k - 1]! + gap;
+    placed[k] = Math.max(placed[k]!, floor);
+  }
+
+  // Then pull them back up from the bottom, so the lowest one stays inside `max`.
+  for (let k = placed.length - 1; k >= 0; k--) {
+    const ceiling = k === placed.length - 1 ? max : placed[k + 1]! - gap;
+    placed[k] = Math.min(placed[k]!, ceiling);
+  }
+
   const out = Array<number>(ys.length);
   order.forEach((o, k) => {
     out[o.i] = placed[k]!;
@@ -144,10 +156,15 @@ export function TrendChart({
   };
 
   const step = (e: KeyboardEvent) => {
-    const move = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+    const move = ARROW_STEPS[e.key] ?? 0;
     if (!move) return;
     e.preventDefault();
-    setAt((a) => Math.min(last, Math.max(0, (a ?? last + (move > 0 ? -1 : 1)) + move)));
+
+    // With no day picked yet, the first arrow lands on the last day whichever way it points.
+    setAt((a) => {
+      const from = a ?? last + (move > 0 ? -1 : 1);
+      return Math.min(last, Math.max(0, from + move));
+    });
   };
 
   // The one picked out is drawn last, on top.

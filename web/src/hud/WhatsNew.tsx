@@ -8,8 +8,11 @@ import { Modal } from "./ui.tsx";
 const SEEN_KEY = "tokenmaxxing.seenVersion";
 const SECTION_ICONS: Record<string, string> = { Features: "✨", "Bug Fixes": "🐛" };
 
-const changes = (rs: Release[], section: string) =>
-  rs.flatMap((r) => r.sections.filter((s) => s.title === section)).reduce((n, s) => n + s.changes.length, 0);
+/** How many changes the releases list under one section title. */
+const changes = (rs: Release[], section: string) => {
+  const sections = rs.flatMap((r) => r.sections.filter((s) => s.title === section));
+  return sections.reduce((n, s) => n + s.changes.length, 0);
+};
 
 /** Top left after an update: what changed since last time. Gone after 10 s (paused on hover) unless opened. */
 export function WhatsNewToast() {

@@ -116,21 +116,22 @@ function Live({ t }: { t: TournamentView }) {
           </button>
         </>
       ) : (
-        t.bracket && <Bracket t={t} />
+        t.bracket && <Bracket t={t} rounds={t.bracket} />
       )}
       {error && <p className="error">{error}</p>}
     </>
   );
 }
 
-function Bracket({ t }: { t: TournamentView }) {
-  const rounds = t.bracket!;
+function Bracket({ t, rounds }: { t: TournamentView; rounds: NonNullable<TournamentView["bracket"]> }) {
   const name = (id: number | null) => (id === null ? "" : (t.players.find((p) => p.id === id)?.name ?? "?"));
-  const slot = (id: number | null, winner: number | null, blank: string) => (
-    <span className={winner !== null && winner === id ? "won" : id === null ? "empty" : ""}>
-      {id === null ? blank : name(id)}
-    </span>
-  );
+  const slot = (id: number | null, winner: number | null, blank: string) => {
+    const won = winner !== null && winner === id;
+    let className = "";
+    if (won) className = "won";
+    else if (id === null) className = "empty";
+    return <span className={className}>{id === null ? blank : name(id)}</span>;
+  };
   return (
     <>
       <div className="tourney-bracket">

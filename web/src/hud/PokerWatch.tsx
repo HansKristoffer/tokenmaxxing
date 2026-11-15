@@ -3,7 +3,7 @@ import { send } from "../game/input.ts";
 import { world } from "../game/world.ts";
 import { conn } from "../net.ts";
 import { hud, useHud } from "../store.ts";
-import { PokerCard, resultLine, STREETS } from "./Poker.tsx";
+import { BoardCards, resultLine, STREETS } from "./Poker.tsx";
 import { Modal } from "./ui.tsx";
 
 /**
@@ -40,15 +40,7 @@ export function PokerWatch() {
           Close
         </button>
       </div>
-      <div className="pk-cards">
-        {[0, 1, 2, 3, 4].map((i) =>
-          poker.board[i] === undefined ? (
-            <span key={i} className="pk-card empty" />
-          ) : (
-            <PokerCard key={i} card={poker.board[i]} />
-          ),
-        )}
-      </div>
+      <BoardCards board={poker.board} />
       <p>
         {result ?? (
           <>
