@@ -1,6 +1,6 @@
 // bun scripts/qa/zscan.mjs [tier] [room ...]: finds what flickers in the real renderer, room by room.
 //
-// For each room (town inn upstairs basement dungeon hq office common shop-furniture shop-clothes shop-barber shop-pets) and
+// For each room (all of `ALL` below, or the ones named on the command line) and
 // each of the camera's four quarter turns: the world is frozen (the frame clock, the people, the camera's own easing), the
 // camera is slid sideways by a sixth of a device pixel at a time for six frames, and every pixel's range over the six is
 // taken. A flat area that changes between frames, away from any edge, is z-fighting (two surfaces on one plane), shadow
@@ -59,7 +59,8 @@ const EDGES = {
   office: { hq: "*" },
   common: { hq: "*" },
 };
-function path(from, to) {
+// The rooms to pass through on the way from `from` (not included) to `to`, by fewest exits.
+function roomPath(from, to) {
   const seen = new Map([[from, null]]);
   const queue = [from];
   while (queue.length) {
@@ -108,7 +109,7 @@ async function hop(to) {
   return false;
 }
 async function reach(target) {
-  for (const next of path(kind(await roomOf(page)), target)) if (!(await hop(next))) return false;
+  for (const next of roomPath(kind(await roomOf(page)), target)) if (!(await hop(next))) return false;
   return kind(await roomOf(page)) === target;
 }
 
@@ -209,34 +210,44 @@ for (const target of wanted) {
         flick[p] = 1;
         count++;
       }
-      // Clusters: 32-pixel cells holding enough of them, the heaviest first.
+      // Clusters: 32-pixel cells holding enough of them, the heaviest first. A cell's key is its row * 1000 + its
+      // column, which holds for any screen under 32,000 px wide.
       const CELL = 32;
+      const COLUMNS = 1000;
       const cells = new Map();
-      for (let p = 0; p < W * H; p++)
-        if (flick[p]) {
-          const k = Math.floor(((p / W) | 0) / CELL) * 1000 + Math.floor((p % W) / CELL);
-          cells.set(k, (cells.get(k) ?? 0) + 1);
-        }
+      for (let p = 0; p < W * H; p++) {
+        if (!flick[p]) continue;
+        const row = Math.floor(((p / W) | 0) / CELL);
+        const column = Math.floor((p % W) / CELL);
+        const k = row * COLUMNS + column;
+        cells.set(k, (cells.get(k) ?? 0) + 1);
+      }
       const top = [...cells]
         .filter(([, n]) => n >= 40)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 8);
       const r = window.__r3d;
       r.caster.layers.enableAll();
+
+      // The object's names up to four levels up, then its material: what the flicker is made of.
       const describe = (o) => {
-        const path = [];
-        for (let a = o; a && path.length < 4; a = a.parent) {
+        const names = [];
+        for (let a = o; a && names.length < 4; a = a.parent) {
           const tags = Object.keys(a.userData).filter((k) => a.userData[k] === true);
-          path.push(
-            `${a.name || a.geometry?.type?.replace("Geometry", "") || a.type}${tags.length ? `{${tags.join(",")}}` : ""}`,
-          );
+          const name = a.name || a.geometry?.type?.replace("Geometry", "") || a.type;
+          const tagText = tags.length ? `{${tags.join(",")}}` : "";
+          names.push(`${name}${tagText}`);
         }
         const m = Array.isArray(o.material) ? o.material[0] : o.material;
-        return `${path.join("<")} ${m?.type?.replace("Material", "") ?? ""}${m?.color ? ` #${m.color.getHexString()}` : ""}${m?.transparent ? " glass" : ""}${m?.map ? " tex" : ""}`;
+        const materialType = m?.type?.replace("Material", "") ?? "";
+        const color = m?.color ? ` #${m.color.getHexString()}` : "";
+        const glass = m?.transparent ? " glass" : "";
+        const texture = m?.map ? " tex" : "";
+        return `${names.join("<")} ${materialType}${color}${glass}${texture}`;
       };
       const clusters = top.map(([k, n]) => {
-        const cy = Math.floor(k / 1000) * CELL + CELL / 2;
-        const cx = (k % 1000) * CELL + CELL / 2;
+        const cy = Math.floor(k / COLUMNS) * CELL + CELL / 2;
+        const cx = (k % COLUMNS) * CELL + CELL / 2;
         const ndc = { x: (cx / W) * 2 - 1, y: -(cy / H) * 2 + 1 };
         r.caster.setFromCamera(ndc, r.rig.camera);
         const hit = r.caster
